@@ -1,0 +1,368 @@
+undefined4 BG_InitializeWeaponDef(int param_1)
+
+{
+  float fVar1;
+  float fVar2;
+  int iVar3;
+  int iVar4;
+  int iVar5;
+  int unaff_EBX;
+  int iVar6;
+  undefined4 uVar7;
+  
+  __i686_get_pc_thunk_bx();
+  iVar4 = param_1 + 0x4c;
+  iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x36672);
+  if (iVar3 == 0) {
+    *(undefined4 *)(param_1 + 0xcc) = 1;
+LAB_000d8238:
+    fVar1 = *(float *)("PM_ClipVelocity" + unaff_EBX + 2);
+    *(undefined4 *)(param_1 + 0x1a4) = 0;
+    *(undefined4 *)(param_1 + 0x16c) = 0;
+    *(undefined4 *)(param_1 + 0x164) = 0;
+    *(undefined4 *)(param_1 + 0x160) = 0;
+    *(undefined4 *)(param_1 + 0x168) = 0;
+    *(float *)(param_1 + 0x174) = fVar1;
+    *(undefined4 *)(param_1 + 0x194) = 1;
+    fVar2 = fVar1;
+  }
+  else {
+    iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x39dd1);
+    if (iVar3 == 0) {
+      uVar7 = 0x1d;
+LAB_000d8533:
+      *(undefined4 *)(param_1 + 0xcc) = uVar7;
+      goto LAB_000d8238;
+    }
+    iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x3698c);
+    if (iVar3 == 0) {
+      iVar4 = func_0x000374b8(param_1 + 0x8c,unaff_EBX + 0x31a71);
+      if (iVar4 != 0) {
+        iVar4 = func_0x000374b8(param_1 + 0x8c,unaff_EBX + 0x31a7a);
+        *(uint *)(param_1 + 0xcc) = (iVar4 == 0) + 0x1a;
+        goto LAB_000d8238;
+      }
+      uVar7 = 0x1c;
+      goto LAB_000d8533;
+    }
+    iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x2b9e6);
+    if (iVar3 == 0) {
+      iVar4 = param_1 + 0x8c;
+      iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x39dd4);
+      if (iVar3 == 0) {
+        uVar7 = 2;
+LAB_000d85da:
+        *(undefined4 *)(param_1 + 0xcc) = uVar7;
+      }
+      else {
+        iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x39dd9);
+        if (iVar3 == 0) {
+          *(undefined4 *)(param_1 + 0xcc) = 3;
+        }
+        else {
+          iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x39dde);
+          if (iVar3 != 0) {
+            iVar4 = func_0x000374b8(iVar4,unaff_EBX + 0x39de4);
+            iVar4 = (uint)(iVar4 == 0) * 3 + 2;
+            goto LAB_000d8699;
+          }
+          *(undefined4 *)(param_1 + 0xcc) = 4;
+        }
+      }
+LAB_000d85e0:
+      fVar1 = *(float *)("PM_ClipVelocity" + unaff_EBX + 2);
+      *(undefined4 *)(param_1 + 0x1a4) = 1;
+      *(undefined4 *)(param_1 + 0x16c) = 0;
+      *(undefined4 *)(param_1 + 0x164) = 0;
+      *(undefined4 *)(param_1 + 0x160) = 0;
+      *(undefined4 *)(param_1 + 0x168) = 0;
+      *(float *)(param_1 + 0x174) = fVar1;
+      *(undefined4 *)(param_1 + 0x1b0) = 1;
+      *(undefined4 *)(param_1 + 0x1ac) = 0x55;
+      fVar2 = fVar1;
+    }
+    else {
+      iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x2b9e5);
+      if (iVar3 == 0) {
+        iVar4 = param_1 + 0x8c;
+        iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x39dd4);
+        if (iVar3 == 0) {
+          uVar7 = 6;
+          goto LAB_000d85da;
+        }
+        iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x39dd9);
+        if (iVar3 == 0) {
+          *(undefined4 *)(param_1 + 0xcc) = 7;
+        }
+        else {
+          iVar4 = func_0x000374b8(iVar4,unaff_EBX + 0x39dde);
+          iVar4 = (uint)(iVar4 == 0) * 2 + 6;
+LAB_000d8699:
+          *(int *)(param_1 + 0xcc) = iVar4;
+        }
+        goto LAB_000d85e0;
+      }
+      iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x3813a);
+      if (iVar3 == 0) {
+        iVar4 = func_0x000374b8(param_1 + 0x8c,unaff_EBX + 0x39dd4);
+        if (iVar4 == 0) {
+          *(undefined4 *)(param_1 + 0xcc) = 9;
+        }
+        else {
+          iVar4 = func_0x000374b8(param_1 + 0x8c,unaff_EBX + 0x39dde);
+          *(uint *)(param_1 + 0xcc) = (iVar4 == 0) + 9;
+        }
+        fVar1 = *(float *)("PM_ClipVelocity" + unaff_EBX + 2);
+        *(undefined4 *)(param_1 + 0x1a4) = 2;
+        *(undefined4 *)(param_1 + 0x16c) = 0;
+        *(undefined4 *)(param_1 + 0x164) = 0;
+        *(undefined4 *)(param_1 + 0x168) = 0;
+        *(float *)(param_1 + 0x174) = fVar1;
+        *(undefined4 *)(param_1 + 0x1b0) = 1;
+LAB_000d87a5:
+        *(undefined4 *)(param_1 + 0x1ac) = 0x4b;
+        fVar2 = fVar1;
+      }
+      else {
+        iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x39de9);
+        if (iVar3 == 0) {
+          iVar4 = param_1 + 0x8c;
+          iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x39dd4);
+          if (iVar3 == 0) {
+            *(undefined4 *)(param_1 + 0xcc) = 0xb;
+          }
+          else {
+            iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x39dd9);
+            if (iVar3 == 0) {
+              *(undefined4 *)(param_1 + 0xcc) = 0xc;
+            }
+            else {
+              iVar4 = func_0x000374b8(iVar4,unaff_EBX + 0x39dde);
+              *(uint *)(param_1 + 0xcc) = (uint)(iVar4 == 0) * 2 + 0xb;
+            }
+          }
+          fVar2 = *(float *)(param_1 + 0x174);
+          fVar1 = *(float *)("PM_TraceLegs" + unaff_EBX + 6);
+          *(undefined4 *)(param_1 + 0x1a4) = 2;
+          *(undefined4 *)(param_1 + 0x16c) = 0;
+          *(undefined4 *)(param_1 + 0x168) = 0;
+          *(undefined4 *)(param_1 + 0x1b0) = 1;
+LAB_000d884d:
+          if (fVar1 < fVar2) {
+            *(float *)(param_1 + 0x174) = fVar1;
+            fVar2 = fVar1;
+          }
+          uVar7 = 0x4b;
+        }
+        else {
+          iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x39ded);
+          if (iVar3 == 0) {
+            iVar4 = func_0x000374b8(param_1 + 0x8c,unaff_EBX + 0x39df1);
+            if (iVar4 == 0) {
+              *(undefined4 *)(param_1 + 0xcc) = 0xe;
+            }
+            else {
+              iVar4 = func_0x000374b8(param_1 + 0x8c,unaff_EBX + 0x39df8);
+              *(uint *)(param_1 + 0xcc) = (iVar4 == 0) + 0xe;
+            }
+            fVar2 = *(float *)(param_1 + 0x174);
+            fVar1 = *(float *)("ItemParse_cinematic" + unaff_EBX + 0xe);
+            *(undefined4 *)(param_1 + 0x1a4) = 3;
+            *(undefined4 *)(param_1 + 0x168) = 0;
+            *(undefined4 *)(param_1 + 0x16c) = 0;
+            *(undefined4 *)(param_1 + 0x1b0) = 1;
+            goto LAB_000d884d;
+          }
+          iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x39dff);
+          if (iVar3 == 0) {
+            iVar4 = param_1 + 0x8c;
+            iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x39df1);
+            if (iVar3 == 0) {
+              *(undefined4 *)(param_1 + 0xcc) = 0x10;
+            }
+            else {
+              iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x39e03);
+              if (iVar3 == 0) {
+                *(undefined4 *)(param_1 + 0xcc) = 0x11;
+              }
+              else {
+                iVar4 = func_0x000374b8(iVar4,unaff_EBX + 0x39e0a);
+                *(uint *)(param_1 + 0xcc) = (uint)(iVar4 == 0) * 2 + 0x10;
+              }
+            }
+            fVar2 = *(float *)(param_1 + 0x174);
+            fVar1 = *(float *)("ItemParse_cinematic" + unaff_EBX + 0xe);
+            *(undefined4 *)(param_1 + 0x1a4) = 3;
+            *(undefined4 *)(param_1 + 0x168) = 0;
+            *(undefined4 *)(param_1 + 0x1b0) = 1;
+            if (fVar1 < fVar2) {
+              *(float *)(param_1 + 0x174) = fVar1;
+              fVar2 = fVar1;
+            }
+          }
+          else {
+            iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x39e11);
+            if (iVar3 == 0) {
+              iVar4 = func_0x000374b8(param_1 + 0x8c,unaff_EBX + 0x39e14);
+              if (iVar4 == 0) {
+                *(undefined4 *)(param_1 + 0xcc) = 0x13;
+              }
+              else {
+                iVar4 = func_0x000374b8(param_1 + 0x8c,unaff_EBX + 0x31b95);
+                *(uint *)(param_1 + 0xcc) = (iVar4 == 0) + 0x13;
+              }
+              fVar1 = *(float *)("PM_ClipVelocity" + unaff_EBX + 2);
+              *(undefined4 *)(param_1 + 0x148) = 9;
+              *(undefined4 *)(param_1 + 0x1a4) = 4;
+              *(undefined4 *)(param_1 + 0x16c) = 0;
+              *(undefined4 *)(param_1 + 0x164) = 0;
+              *(float *)(param_1 + 0x174) = fVar1;
+              *(undefined4 *)(param_1 + 0x1b0) = 2;
+              goto LAB_000d87a5;
+            }
+            iVar4 = func_0x000374b8(iVar4,unaff_EBX + 0x39e17);
+            if (iVar4 != 0) {
+              fVar1 = *(float *)("PM_ClipVelocity" + unaff_EBX + 2);
+              fVar2 = *(float *)(param_1 + 0x174);
+              goto LAB_000d8279;
+            }
+            iVar4 = param_1 + 0x8c;
+            *(undefined4 *)(param_1 + 0x1b0) = 1;
+            iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x39df1);
+            if (iVar3 == 0) {
+              *(undefined4 *)(param_1 + 0xcc) = 0x15;
+              *(undefined4 *)(param_1 + 0x1a4) = 3;
+LAB_000d8b41:
+              *(undefined4 *)(param_1 + 0x160) = 0;
+              *(undefined4 *)(param_1 + 0x168) = 0;
+            }
+            else {
+              iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x39e0a);
+              if (iVar3 == 0) {
+LAB_000d8b96:
+                *(undefined4 *)(param_1 + 0xcc) = 0x16;
+LAB_000d8ba1:
+                *(undefined4 *)(param_1 + 0x1a4) = 3;
+                *(undefined4 *)(param_1 + 0x164) = 0;
+                goto LAB_000d8b41;
+              }
+              iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x39e1a);
+              if (iVar3 == 0) {
+                *(undefined4 *)(param_1 + 0xcc) = 0x17;
+                goto LAB_000d8ba1;
+              }
+              iVar3 = func_0x000374b8(iVar4,unaff_EBX + 0x3580c);
+              if (iVar3 == 0) {
+                *(undefined4 *)(param_1 + 0xcc) = 0x18;
+              }
+              else {
+                iVar4 = func_0x000374b8(iVar4,unaff_EBX + 0x35815);
+                if (iVar4 != 0) goto LAB_000d8b96;
+                *(undefined4 *)(param_1 + 0xcc) = 0x19;
+              }
+              *(undefined4 *)(param_1 + 0x1a4) = 5;
+              *(undefined4 *)(param_1 + 0x164) = 0;
+              *(undefined4 *)(param_1 + 0x160) = 0;
+              *(undefined4 *)(param_1 + 0x168) = 0;
+              *(undefined4 *)(param_1 + 0x18c) = 0;
+              *(undefined4 *)(param_1 + 0x188) = 0;
+              *(undefined4 *)(param_1 + 0x1a8) = 1;
+              *(undefined4 *)(param_1 + 0x1b0) = 2;
+            }
+            fVar2 = *(float *)(param_1 + 0x174);
+            fVar1 = *(float *)("Item_UpdatePosition" + unaff_EBX + 9);
+            if (fVar1 < fVar2) {
+              *(float *)(param_1 + 0x174) = fVar1;
+              fVar2 = fVar1;
+            }
+            *(undefined4 *)(param_1 + 0x1c0) = 1;
+          }
+          uVar7 = 0x3c;
+        }
+        *(undefined4 *)(param_1 + 0x1ac) = uVar7;
+        fVar1 = *(float *)("PM_ClipVelocity" + unaff_EBX + 2);
+      }
+    }
+  }
+LAB_000d8279:
+  iVar3 = *(int *)(unaff_EBX + 0x52f2a);
+  iVar6 = *(int *)(param_1 + 0xcc) * 0x70;
+  *(undefined4 *)(param_1 + 0xd0) = *(undefined4 *)(iVar3 + iVar6);
+  *(undefined4 *)(param_1 + 0xd4) = *(undefined4 *)(iVar3 + 4 + iVar6);
+  *(undefined4 *)(param_1 + 0xdc) = *(undefined4 *)(iVar3 + 0xc + iVar6);
+  iVar4 = iVar3 + iVar6;
+  *(undefined4 *)(param_1 + 0xe0) = *(undefined4 *)(iVar4 + 0x10);
+  *(undefined4 *)(param_1 + 0xe4) = *(undefined4 *)(iVar4 + 0x14);
+  *(undefined4 *)(param_1 + 0xf0) = *(undefined4 *)(iVar4 + 0x20);
+  *(undefined4 *)(param_1 + 0xf4) = *(undefined4 *)(iVar4 + 0x24);
+  *(undefined4 *)(param_1 + 0x1a0) = 800;
+  *(undefined4 *)(param_1 + 0x19c) = 300;
+  *(undefined4 *)(param_1 + 0xe8) = *(undefined4 *)(iVar4 + 0x18);
+  *(undefined4 *)(param_1 + 0xec) = *(undefined4 *)(iVar4 + 0x1c);
+  *(undefined4 *)(param_1 + 0x128) = *(undefined4 *)(iVar4 + 0x28);
+  *(undefined4 *)(param_1 + 0xf8) = *(undefined4 *)(iVar4 + 0x2c);
+  *(undefined4 *)(param_1 + 0xfc) = *(undefined4 *)(iVar4 + 0x30);
+  *(undefined4 *)(param_1 + 0x100) = *(undefined4 *)(iVar4 + 0x34);
+  *(undefined4 *)(param_1 + 0x104) = *(undefined4 *)(iVar4 + 0x38);
+  *(undefined4 *)(param_1 + 0x108) = *(undefined4 *)(iVar4 + 0x3c);
+  *(undefined4 *)(param_1 + 0x10c) = *(undefined4 *)(iVar4 + 0x40);
+  *(undefined4 *)(param_1 + 0x110) = *(undefined4 *)(iVar4 + 0x44);
+  *(undefined4 *)(param_1 + 0x114) = *(undefined4 *)(iVar4 + 0x48);
+  *(undefined4 *)(param_1 + 0x118) = *(undefined4 *)(iVar4 + 0x4c);
+  *(undefined4 *)(param_1 + 300) = *(undefined4 *)(iVar4 + 0x50);
+  *(undefined4 *)(param_1 + 0x130) = *(undefined4 *)(iVar4 + 0x54);
+  *(undefined4 *)(param_1 + 0x134) = *(undefined4 *)(iVar4 + 0x58);
+  *(undefined4 *)(param_1 + 0x11c) = *(undefined4 *)(iVar4 + 0x6c);
+  *(undefined4 *)(param_1 + 0x154) = *(undefined4 *)(iVar4 + 0x5c);
+  *(undefined4 *)(param_1 + 0x138) = *(undefined4 *)(iVar4 + 0x60);
+  *(undefined4 *)(param_1 + 0x158) = *(undefined4 *)(iVar4 + 100);
+  iVar5 = *(int *)(param_1 + 0xd8);
+  *(undefined4 *)(param_1 + 0x120) = *(undefined4 *)(iVar4 + 0x68);
+  if (iVar5 == 0) {
+    iVar4 = *(int *)(iVar3 + 8 + iVar6);
+  }
+  else {
+    iVar4 = *(int *)(iVar3 + 8 + iVar6) + 3;
+    if (iVar5 <= iVar4) {
+      if (iVar5 < 1) {
+        iVar5 = 1;
+        *(undefined4 *)(param_1 + 0xd8) = 1;
+      }
+      goto LAB_000d83d3;
+    }
+  }
+  *(int *)(param_1 + 0xd8) = iVar4;
+  iVar5 = iVar4;
+LAB_000d83d3:
+  *(int *)(param_1 + 0xe0) = iVar5;
+  iVar4 = *(int *)(param_1 + 0x40);
+  if (-1 < iVar4) {
+    if (*(int *)(param_1 + 0x170) == 0) {
+      iVar4 = iVar4 * iVar5;
+    }
+    *(int *)(param_1 + 0xdc) = iVar4;
+    if (*(int *)(param_1 + 0xd0) < *(int *)(param_1 + 0xdc)) {
+      *(int *)(param_1 + 0xdc) = *(int *)(param_1 + 0xd0);
+    }
+  }
+  if (((*(int *)(param_1 + 0x148) != 0) && (*(int *)(param_1 + 0x170) != 0)) && (iVar5 < 7)) {
+    *(undefined4 *)(param_1 + 0x11c) = 3;
+  }
+  if ((*(int *)(param_1 + 0x188) != 0) || (*(int *)(param_1 + 0x18c) != 0)) {
+    *(int *)(param_1 + 0x134) =
+         (int)ROUND((float)*(int *)(param_1 + 0x134) *
+                    *(float *)("ItemParse_onEnter" + unaff_EBX + 8));
+    *(int *)(param_1 + 0x130) =
+         (int)ROUND((float)*(int *)(param_1 + 0x130) *
+                    *(float *)("ItemParse_cvarListUndefined" + unaff_EBX + 0x14));
+    *(int *)(param_1 + 300) =
+         (int)ROUND((float)*(int *)(param_1 + 300) *
+                    *(float *)("ItemParse_contextMenu" + unaff_EBX + 6));
+    *(undefined4 *)(param_1 + 0x138) = 0x122;
+    *(undefined4 *)(param_1 + 0x158) = 600;
+  }
+  if ((fVar1 < fVar2) && (fVar2 < *(float *)("PM_TraceLegs" + unaff_EBX + 6))) {
+    *(float *)(param_1 + 0x174) = *(float *)("PM_TraceLegs" + unaff_EBX + 6);
+  }
+  return 1;
+}

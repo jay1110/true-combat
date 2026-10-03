@@ -1,0 +1,17 @@
+{
+  "qagame": {
+    "functions": 2375,
+    "objects": 520,
+    "function_names_absent_from_sdk": 159
+  },
+  "cgame": {
+    "functions": 1828,
+    "objects": 1001,
+    "function_names_absent_from_sdk": 96
+  },
+  "ui": {
+    "functions": 836,
+    "objects": 328,
+    "function_names_absent_from_sdk": 31
+  }
+}

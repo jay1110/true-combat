@@ -1,0 +1,8 @@
+char FUN_30008220(int param_1)
+
+{
+  if (*(int *)(&DAT_34c1e03c + param_1 * 0x1cc) < 4) {
+    return '\x15';
+  }
+  return (*(int *)(&DAT_34c1e03c + param_1 * 0x1cc) < 5) + '\x13';
+}

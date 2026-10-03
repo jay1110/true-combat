@@ -1,0 +1,191 @@
+undefined4 FUN_30007b90(undefined4 param_1,undefined4 param_2,int param_3)
+
+{
+  int iVar1;
+  int iVar2;
+  undefined4 uVar3;
+  int iVar4;
+  undefined1 local_464 [12];
+  undefined1 local_458 [64];
+  undefined1 local_418 [16];
+  char local_408 [1032];
+  
+  iVar4 = 0;
+  iVar1 = FUN_30065780(param_1);
+  if (((iVar1 == 0) && (iVar1 = FUN_30065780(param_2), iVar1 == 0)) &&
+     (iVar1 = FUN_30065780(s_maps_default_gear_3009e868), iVar1 == 0)) {
+    return 0;
+  }
+  iVar2 = FUN_300657c0(iVar1,local_418);
+  if ((iVar2 == 0) || (iVar2 = FUN_3007f160(local_408,s_gear_manager_3009e858), iVar2 != 0)) {
+    uVar3 = FUN_30007b10(iVar1,s_expected__gear_manager__3009e5dc);
+    return uVar3;
+  }
+  iVar2 = FUN_300657c0(iVar1,local_418);
+  if ((iVar2 != 0) && (iVar2 = FUN_3007f160(local_408,&DAT_30094da8), iVar2 == 0)) {
+    while( true ) {
+      while( true ) {
+        while( true ) {
+          while( true ) {
+            while( true ) {
+              while( true ) {
+                iVar2 = FUN_300657c0(iVar1,local_418);
+                if ((iVar2 == 0) || (local_408[0] == '}')) {
+                  *(undefined4 *)(param_3 + 0x1804) = 1;
+                  FUN_300657a0(iVar1);
+                  return 1;
+                }
+                iVar2 = FUN_3007f160(local_408,s_gm_playerSkinGroup_3009e844);
+                if (iVar2 != 0) break;
+                iVar2 = FUN_300061d0(iVar1,param_3 + 0x1700,0x40);
+                if (iVar2 == 0) {
+                  uVar3 = FUN_30007b10(iVar1,s_expected_playerSkinGroup_foldern_3009e744);
+                  return uVar3;
+                }
+              }
+              iVar2 = FUN_3007f160(local_408,s_gm_playerVoiceGroup_3009e830);
+              if (iVar2 != 0) break;
+              iVar2 = FUN_300061d0(iVar1,param_3 + 0x1740,0x40);
+              if (iVar2 == 0) {
+                uVar3 = FUN_30007b10(iVar1,s_expected_playerVoiceGroup_folder_3009e71c);
+                return uVar3;
+              }
+            }
+            iVar2 = FUN_3007f160(local_408,s_gm_playerIconGroup_3009e81c);
+            if (iVar2 != 0) break;
+            iVar2 = FUN_300061d0(iVar1,param_3 + 0x1780,0x40);
+            if (iVar2 == 0) {
+              uVar3 = FUN_30007b10(iVar1,s_expected_playerIconGroup_foldern_3009e6f8);
+              return uVar3;
+            }
+          }
+          iVar2 = FUN_3007f160(local_408,s_gm_custom_weaponGroup_3009e804);
+          if (iVar2 != 0) break;
+          iVar2 = FUN_300061d0(iVar1,param_3 + 0x17c0,0x40);
+          if (iVar2 == 0) {
+            uVar3 = FUN_30007b10(iVar1,s_expected_gm_custom_weaponGroup_f_3009e6cc);
+            return uVar3;
+          }
+        }
+        iVar2 = FUN_3007f160(local_408,s_gm_mapoverbrightbits_3009e7ec);
+        if (iVar2 != 0) break;
+        iVar2 = FUN_300060e0(iVar1,param_3 + 0x1800);
+        if (iVar2 == 0) {
+          uVar3 = FUN_30007b10(iVar1,s_expected_gm_mapoverbrightbits_va_3009e6a8);
+          return uVar3;
+        }
+      }
+      iVar2 = FUN_3007f160(local_408,s_gm_weapon_3009e7e0);
+      if (iVar2 != 0) {
+        uVar3 = FUN_30007b10(iVar1,s_unknown_token___s__30095108,local_408);
+        return uVar3;
+      }
+      iVar2 = FUN_300657c0(iVar1,local_418);
+      if ((iVar2 == 0) || (iVar2 = FUN_3007f160(local_408,&DAT_30094da8), iVar2 != 0)) break;
+      while ((iVar2 = FUN_300657c0(iVar1,local_418), iVar2 != 0 && (local_408[0] != '}'))) {
+        iVar2 = FUN_3007f160(local_408,s_weaponID_3009e7d4);
+        if (iVar2 == 0) {
+          iVar4 = FUN_300061d0(iVar1,local_458,0x40);
+          if (iVar4 == 0) {
+            uVar3 = FUN_30007b10(iVar1,s_expected_weaponID_3009e694);
+            return uVar3;
+          }
+          iVar4 = BG_WeapIDToWeaponNum(local_458);
+        }
+        else {
+          iVar2 = FUN_3007f160(local_408,s_weaponFile_3009e7c8);
+          if (iVar2 == 0) {
+            iVar2 = FUN_300061d0(iVar1,iVar4 * 0x40 + param_3,0x40);
+            if (iVar2 == 0) {
+              uVar3 = FUN_30007b10(iVar1,s_expected_weaponFile_filename_3009e674);
+              return uVar3;
+            }
+          }
+          else {
+            iVar2 = FUN_3007f160(local_408,&DAT_3009e7c0);
+            if (iVar2 == 0) {
+              iVar2 = FUN_300061d0(iVar1,local_458,0x40);
+              if (iVar2 == 0) {
+                uVar3 = FUN_30007b10(iVar1,s_expected_team_name_3009e660);
+                return uVar3;
+              }
+              uVar3 = FUN_3007f400(&DAT_30094acc,local_458);
+              iVar2 = FUN_3007f160(uVar3,s_terrorists_3009e7b4);
+              if (iVar2 == 0) {
+                *(undefined4 *)(param_3 + 0x1100 + iVar4 * 4) = 0;
+              }
+              else {
+                iVar2 = FUN_3007f160(uVar3,s_specops_3009e7ac);
+                if (iVar2 == 0) {
+                  *(undefined4 *)(param_3 + 0x1100 + iVar4 * 4) = 1;
+                }
+                else {
+                  *(undefined4 *)(param_3 + 0x1100 + iVar4 * 4) = 2;
+                }
+              }
+            }
+            else {
+              iVar2 = FUN_3007f160(local_408,&DAT_3009e7a4);
+              if (iVar2 == 0) {
+                iVar2 = FUN_300061d0(iVar1,local_458,0x40);
+                if (iVar2 == 0) {
+                  uVar3 = FUN_30007b10(iVar1,s_expected_slot_name_3009e64c);
+                  return uVar3;
+                }
+                uVar3 = FUN_3007f400(&DAT_30094acc,local_458);
+                iVar2 = FUN_3007f160(uVar3,s_secondary_3009e798);
+                if (iVar2 == 0) {
+                  *(undefined4 *)(param_3 + 0x1200 + iVar4 * 4) = 2;
+                }
+                else {
+                  *(undefined4 *)(param_3 + 0x1200 + iVar4 * 4) = 1;
+                }
+              }
+              else {
+                iVar2 = FUN_3007f160(local_408,s_requiredSkill_3009e788);
+                if (iVar2 == 0) {
+                  iVar2 = FUN_300060a0(iVar1,local_464);
+                  if (iVar2 == 0) {
+                    uVar3 = FUN_30007b10(iVar1,s_expected_3_requiredSkill_values_3009e62c);
+                    return uVar3;
+                  }
+                  iVar2 = param_3 + iVar4 * 0xc;
+                  uVar3 = __ftol();
+                  *(undefined4 *)(iVar2 + 0x1300) = uVar3;
+                  uVar3 = __ftol();
+                  *(undefined4 *)(iVar2 + 0x1304) = uVar3;
+                  uVar3 = __ftol();
+                  *(undefined4 *)(param_3 + (iVar4 * 3 + 0x4c2) * 4) = uVar3;
+                }
+                else {
+                  iVar2 = FUN_3007f160(local_408,s_startClips_3009e77c);
+                  if (iVar2 == 0) {
+                    iVar2 = FUN_300060e0(iVar1,param_3 + 0x1000 + iVar4 * 4);
+                    if (iVar2 == 0) {
+                      uVar3 = FUN_30007b10(iVar1,s_expected_startClips_value_3009e610);
+                      return uVar3;
+                    }
+                  }
+                  else {
+                    iVar2 = FUN_3007f160(local_408,s_equivalentWeaponID_3009e768);
+                    if (iVar2 == 0) {
+                      iVar2 = FUN_300061d0(iVar1,local_458,0x40);
+                      if (iVar2 == 0) {
+                        uVar3 = FUN_30007b10(iVar1,s_expected_equivalentWeaponID_3009e5f4);
+                        return uVar3;
+                      }
+                      uVar3 = BG_WeapIDToWeaponNum(local_458);
+                      *(undefined4 *)(param_3 + 0x1600 + iVar4 * 4) = uVar3;
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  uVar3 = FUN_30007b10(iVar1,s_expected_____300950f8);
+  return uVar3;
+}

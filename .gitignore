@@ -1,6 +1,26 @@
-.vagrant
-nbproject/
-node_modules
-/install
-/install.exe
-/TCE.lnk
+# Only source and this repository policy belong in future commits.
+/*
+!/.gitignore
+!/src/
+
+# Generated files stay local even when building inside src.
+**/__pycache__/
+**/*.py[cod]
+**/build/
+**/Debug/
+**/Release/
+**/CMakeFiles/
+**/CMakeCache.txt
+**/Testing/
+**/.vs/
+**/*.obj
+**/*.o
+**/*.dll
+**/*.so
+**/*.exe
+**/*.pdb
+**/*.ilk
+**/*.exp
+**/*.lib
+**/*.suo
+**/*.user
