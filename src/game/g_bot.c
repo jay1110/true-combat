@@ -521,13 +521,13 @@ int Bot_GetWeaponForClassAndTeam( int classNum, int teamNum, const char *weaponN
 	else if( !Q_stricmp( weaponName, "STEN" ) )
 		weapon = WP_STEN;
 	else if( !Q_stricmp( weaponName, "PANZERFAUST" ) )
-		weapon = WP_PANZERFAUST;
+		weapon = (weapon_t)65; /* TC legacy identifier, not SDK slot5. */
 	else if( !Q_stricmp( weaponName, "MORTAR" ) )
 		weapon = WP_MORTAR;
 	else if( !Q_stricmp( weaponName, "MORTAR_DEPLOYED" ) )
-		weapon = WP_MORTAR_SET;
+		weapon = (weapon_t)60;
 	else if( !Q_stricmp( weaponName, "FLAMETHROWER" ) )
-		weapon = WP_FLAMETHROWER;
+		weapon = (weapon_t)66; /* No extra weaponDef record is implied. */
 	else if( !Q_stricmp( weaponName, "FG42" ) )
 		weapon = WP_FG42;
 	else if( !Q_stricmp( weaponName, "MOBILE_MG42" ) )
@@ -610,6 +610,8 @@ static void G_AssignBotSlot(gentity_t *bot)
 }
 #endif
 
+/* TC20048e00 / Linux000a0a34: TC names and post-connect class selection;
+ * the shared twelve-argument entry retains intentionally unused SDK inputs. */
 static void G_AddBot( const char *name, int skill, const char *team, const char *spawnPoint, int playerClass, int playerWeapon, int characerIndex, const char *respawn, const char *scriptName, int rank, int skills[], qboolean pow ) {
 #define	MAX_BOTNAMES 1024
 	int				clientNum;
@@ -722,7 +724,7 @@ static void G_AddBot( const char *name, int skill, const char *team, const char 
 					}
 					if (ClientFromName( listbotnames[k] ) == -1) {
 						// found an unused name
-						Info_SetValueForKey( userinfo, "name", listbotnames[k]  );
+						Info_SetValueForKey( userinfo, "name", va("[bot]%s", listbotnames[k]) );
 						setname = qtrue;
 						break;
 					}
@@ -733,10 +735,10 @@ static void G_AddBot( const char *name, int skill, const char *team, const char 
 		}
 
 		if (!setname) {
-			Info_SetValueForKey( userinfo, "name", va("wolfbot_%i", clientNum+1)  );
+			Info_SetValueForKey( userinfo, "name", va("[bot]wolfbot_%i", clientNum+1) );
 		}
 	} else {
-		Info_SetValueForKey( userinfo, "name", name );
+		Info_SetValueForKey( userinfo, "name", va("[bot]%s", name) );
 	}
 
 	// if a character was specified, put the index of that character filename in the CS_CHARACTERS table in the userinfo
@@ -768,7 +770,11 @@ static void G_AddBot( const char *name, int skill, const char *team, const char 
 		return;
 	}
 
-	SetTeam( bot, (char *)team, qtrue, -1, -1, qfalse );
+	SetTeam( bot, (char *)team, qtrue, -1, -1, -1, qfalse );
+	/* Windows20049243: FILD rand15, FMUL float reciprocal, FMUL float3.99,
+	 * then truncation, with no intermediate float store. */
+	bot->client->sess.playerType = bot->client->sess.latchPlayerType =
+		(int)((double)(rand() & 0x7fff) * (double)(1.0f / 32767.0f) * (double)3.99f);
 
 /*	if( skills ) {
 		int i;
@@ -1349,12 +1355,16 @@ void BotDropToFloor( gentity_t *ent )
 	vec3_t   dest;
 	trace_t	 tr;
 	vec3_t	checkMins, checkMaxs;
+	/* TC PE200bd794/200bd7a0; native shared player hull still differs. */
+	static const vec3_t markerPlayerMins = {-14, -14, -24};
+	static const vec3_t markerPlayerMaxs = {14, 14, 46};
+	double raisedZ;
 
 	//----(SA)	move the bounding box for the check in 1 unit on each side so they can butt up against a wall and not startsolid
-	VectorCopy(playerMins, checkMins);
+	VectorCopy(markerPlayerMins, checkMins);
 	checkMins[0] += 1;
 	checkMins[1] += 1;
-	VectorCopy(playerMaxs, checkMaxs);
+	VectorCopy(markerPlayerMaxs, checkMaxs);
 	checkMaxs[0] -= 1;
 	checkMaxs[1] -= 1;
 
@@ -1362,13 +1372,14 @@ void BotDropToFloor( gentity_t *ent )
 	checkMaxs[2] = 0;
 
 	// drop to floor
-	ent->r.currentOrigin[2] += 1.0;	// fixes QErad -> engine bug?
-	VectorSet( dest, ent->r.currentOrigin[0], ent->r.currentOrigin[1], ent->r.currentOrigin[2] - 4096 );
+	raisedZ = (double)ent->r.currentOrigin[2] + 1.0;
+	ent->r.currentOrigin[2] = (float)raisedZ;
+	VectorSet( dest, ent->r.currentOrigin[0], ent->r.currentOrigin[1], (float)(raisedZ - 4096.0) );
 	trap_Trace( &tr, ent->r.currentOrigin, checkMins, checkMaxs, dest, ent->s.number, MASK_PLAYERSOLID );
 
 	if ( tr.startsolid ) {
 		// try raising us up some
-		if (fabs(ent->r.currentOrigin[2] - ent->s.origin[2]) < 48) {
+		if (!(fabs((double)ent->r.currentOrigin[2] - (double)ent->s.origin[2]) >= 48.0)) {
 			ent->r.currentOrigin[2] += 4;
 			BotDropToFloor( ent );
 			return;

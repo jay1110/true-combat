@@ -6,7 +6,8 @@
 #include "tce_bg.h"
 
 int TCE_PWF_ParseError(int handle, const char *format, ...) {
-    char message[4096], filename[128];
+    static char message[4096];
+    char filename[128];
     int line = 0;
     va_list args;
     va_start(args, format);

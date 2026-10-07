@@ -204,6 +204,13 @@ qboolean CG_FindArenaInfo( char* filename, char* mapname, arenaInfo_t* info ) {
 					p++;
 				}*/
 			} 
+        } else if( !Q_stricmp( token.string, "authors" ) ) {
+            if( !PC_String_Parse( handle, &dummy ) ) {
+                trap_Print( va( S_COLOR_RED "unexpected end of file inside: %s\n", filename ) );
+                trap_PC_FreeSource( handle );
+                return qfalse;
+            }
+            Q_strncpyz( info->authors, dummy, sizeof(info->authors) );
 		} else if( !Q_stricmp( token.string, "map" ) ) {
 			if( !PC_String_Parse( handle, &dummy ) ) {
 				trap_Print( va( S_COLOR_RED "unexpected end of file inside: %s\n", filename ) );
@@ -345,7 +352,7 @@ void CG_LocateCampaign( void ) {
 	}
 
 	for( i = 0; i < cgs.campaignData.mapCount; i++ ) {
-		Com_sprintf( filename, sizeof(filename), "scripts/%s.arena", cgs.campaignData.mapnames[i] );
+		Com_sprintf( filename, sizeof(filename), "scripts/%s.mapinfo", cgs.campaignData.mapnames[i] );
 		// Gordon: horrible hack, but i dont plan to parse EVERY .arena to get a map briefing...
 		if(	/*!CG_FindArenaInfo( "scripts/wolfmp.arena", cgs.campaignData.mapnames[i], &cgs.campaignData.arenas[i] ) &&
 			!CG_FindArenaInfo( "scripts/wolfxp.arena", cgs.campaignData.mapnames[i], &cgs.campaignData.arenas[i] ) &&*/
@@ -360,7 +367,7 @@ void CG_LocateCampaign( void ) {
 void CG_LocateArena( void ) {
 	char filename[MAX_QPATH];
 
-	Com_sprintf( filename, sizeof(filename), "scripts/%s.arena", cgs.rawmapname );
+	Com_sprintf( filename, sizeof(filename), "scripts/%s.mapinfo", cgs.rawmapname );
 
 	if(	/*!CG_FindArenaInfo( "scripts/wolfmp.arena", cgs.rawmapname, &cgs.arenaData ) &&
 		!CG_FindArenaInfo( "scripts/wolfxp.arena", cgs.rawmapname, &cgs.arenaData ) &&*/

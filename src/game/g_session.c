@@ -24,10 +24,13 @@ void G_WriteClientSessionData( gclient_t *client, qboolean restart )
 	int mvc = G_smvGenerateClientList(g_entities + (client - level.clients));
 	const char	*s;
 
+	G_Printf("write session data client %i, type %i, latched %i\n",
+		client->ps.clientNum, client->sess.playerType, client->sess.latchPlayerType);
+
 	// OSP -- stats reset check
 	if(level.fResetStats) G_deleteStats(client - level.clients);
 
-	s = va("%i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i",
+	s = va("%i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i",
 		client->sess.sessionTeam,
 		client->sess.spectatorTime,
 		client->sess.spectatorState,
@@ -35,9 +38,16 @@ void G_WriteClientSessionData( gclient_t *client, qboolean restart )
 		client->sess.playerType,			// DHM - Nerve
 		client->sess.playerWeapon,			// DHM - Nerve
 		client->sess.playerWeapon2,
+		client->sess.playerWeapon3,
 		client->sess.latchPlayerType,		// DHM - Nerve
 		client->sess.latchPlayerWeapon,		// DHM - Nerve
 		client->sess.latchPlayerWeapon2,
+		client->sess.latchPlayerWeapon3,
+		client->sess.tceSetupFlags,
+		client->sess.tceSessionValues[0],
+		client->sess.tceSessionValues[1],
+		client->sess.tceSessionValues[2],
+		client->sess.tceSessionValues[3],
 
 		// OSP
 		client->sess.coach_team,
@@ -163,13 +173,13 @@ Called on a reconnect
 */
 void G_ReadSessionData( gclient_t *client )
 {
-	int mvc_l, mvc_h;
+	int mvc_l = 0, mvc_h = 0; /* Deterministic fallback for truncated input. */
 	char s[MAX_STRING_CHARS];
 	qboolean test;
 
 	trap_Cvar_VariableStringBuffer( va( "session%i", client - level.clients ), s, sizeof(s) );
 
-	sscanf( s, "%i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i",
+	sscanf( s, "%i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i %i",
 		(int *)&client->sess.sessionTeam,
 		&client->sess.spectatorTime,
 		(int *)&client->sess.spectatorState,
@@ -177,9 +187,16 @@ void G_ReadSessionData( gclient_t *client )
 		&client->sess.playerType,			// DHM - Nerve
 		&client->sess.playerWeapon,			// DHM - Nerve
 		&client->sess.playerWeapon2,
+		&client->sess.playerWeapon3,
 		&client->sess.latchPlayerType,		// DHM - Nerve
 		&client->sess.latchPlayerWeapon,	// DHM - Nerve
 		&client->sess.latchPlayerWeapon2,
+		&client->sess.latchPlayerWeapon3,
+		&client->sess.tceSetupFlags,
+		&client->sess.tceSessionValues[0],
+		&client->sess.tceSessionValues[1],
+		&client->sess.tceSessionValues[2],
+		&client->sess.tceSessionValues[3],
 
 		// OSP
 		&client->sess.coach_team,
@@ -206,7 +223,7 @@ void G_ReadSessionData( gclient_t *client )
 		);
 
 	// OSP -- reinstate MV clients
-	client->pers.mvReferenceList = (mvc_h << 16) | mvc_l;
+	client->pers.mvReferenceList = ((unsigned int)mvc_h << 16) | (unsigned int)mvc_l;
 	// OSP
 
 	// OSP -- pull and parse weapon stats
@@ -296,6 +313,7 @@ void G_InitSessionData( gclient_t *client, char *userinfo ) {
 	sess->latchPlayerType = sess->playerType = 0;
 	sess->latchPlayerWeapon = sess->playerWeapon = 0;
 	sess->latchPlayerWeapon2 = sess->playerWeapon2 = 0;
+	sess->latchPlayerWeapon3 = sess->playerWeapon3 = 0;
 
 	sess->spawnObjectiveIndex = 0;
 	// dhm - end

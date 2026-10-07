@@ -46,6 +46,7 @@ typedef struct {
 } vote_reference_t;
 
 // VC optimizes for dup strings :)
+/* TC Windows200ad370: nineteen commands plus the null terminator. */
 static const vote_reference_t aVoteInfo[] = {
 	{ 0x1ff, "comp",		 G_Comp_v,			"Load Competition Settings", "^7\n  Loads standard competition settings for the current mode" },
 	{ 0x1ff, "gametype",	 G_Gametype_v,		"Set Gametype to",	" <value>^7\n  Changes the current gametype" },
@@ -53,17 +54,14 @@ static const vote_reference_t aVoteInfo[] = {
 	{ 0x1ff, "mute",		 G_Mute_v,			"MUTE",				" <player_id>^7\n  Removes the chat capabilities of a player" },
 	{ 0x1ff, "unmute",		 G_UnMute_v,		"UN-MUTE",			" <player_id>^7\n  Restores the chat capabilities of a player" },
 	{ 0x1ff, "map",			 G_Map_v,			"Change map to",	" <mapname>^7\n  Votes for a new map to be loaded" },
-	{ 0x1ff, "campaign",	 G_Campaign_v,		"Change campaign to",	" <campaign>^7\n  Votes for a new map to be loaded" },
 	{ 0x1ff, "maprestart",	 G_MapRestart_v,	"Map Restart",		"^7\n  Restarts the current map in progress" },
 	{ 0x1ff, "matchreset",   G_MatchReset_v,	"Match Reset",		"^7\n  Resets the entire match" },
 	{ 0x1ff, "mutespecs",	 G_Mutespecs_v,		"Mute Spectators",	" <0|1>^7\n  Mutes in-game spectator chat" },
 	{ 0x1ff, "nextmap",		 G_Nextmap_v,		"Load Next Map",	"^7\n  Loads the next map or campaign in the map queue" },
 	{ 0x1ff, "pub",			 G_Pub_v,			"Load Public Settings", "^7\n  Loads standard public settings for the current mode" },
 	{ 0x1ff, "referee",		 G_Referee_v,		"Referee",			" <player_id>^7\n  Elects a player to have admin abilities" },
-	{ 0x1ff, "shuffleteamsxp", G_ShuffleTeams_v,	"Shuffle Teams by XP",	" ^7\n  Randomly place players on each team, based on XP" },
 	{ 0x1ff, "startmatch",	 G_StartMatch_v,	"Start Match",		" ^7\n  Sets all players to \"ready\" status to start the match" },
 	{ 0x1ff, "swapteams",	 G_SwapTeams_v,		"Swap Teams",		" ^7\n  Switch the players on each team" },
-	{ 0x1ff, "friendlyfire", G_FriendlyFire_v,	"Friendly Fire",	" <0|1>^7\n  Toggles ability to hurt teammates" },
 	{ 0x1ff, "timelimit",	 G_Timelimit_v,		"Timelimit",		" <value>^7\n  Changes the current timelimit" },
 	{ 0x1ff, "unreferee",	 G_Unreferee_v,		"UNReferee",		" <player_id>^7\n  Elects a player to have admin abilities removed" },
 	{ 0x1ff, "warmupdamage", G_Warmupfire_v,	"Warmup Damage",	" <0|1|2>^7\n  Specifies if players can inflict damage during warmup" },
@@ -258,24 +256,8 @@ void G_voteSetVoteString(const char *desc)
 // *** Load competition settings for current mode ***
 int G_Comp_v(gentity_t *ent, unsigned int dwVoteIndex, char *arg, char *arg2, qboolean fRefereeCmd)
 {
-	// Vote request (vote is being initiated)
-	if(arg) {
-		if(trap_Argc() > 2) {
-			G_refPrintf(ent, "Usage: ^3%s %s%s\n", ((fRefereeCmd) ? "\\ref" : "\\callvote"), arg, aVoteInfo[dwVoteIndex].pszVoteHelp);
-			return(G_INVALID);
-		} else if(vote_allow_comp.integer<=0 && ent && !ent->client->sess.referee) {
-			G_voteDisableMessage(ent, arg);
-			return(G_INVALID);
-		}
-
-	// Vote action (vote has passed)
-	} else {
-		// Load in comp settings for current gametype
-		G_configSet(g_gametype.integer, qtrue);
-		AP("cp \"Competition Settings Loaded!\n\"");
-	}
-
-	return(G_OK);
+	/* TC Windows20096990: this vote is disabled even for referees. */
+	return G_INVALID;
 }
 
 
@@ -297,43 +279,8 @@ void G_GametypeList(gentity_t *ent)
 // *** GameType ***
 int G_Gametype_v(gentity_t *ent, unsigned int dwVoteIndex, char *arg, char *arg2, qboolean fRefereeCmd)
 {
-	// Vote request (vote is being initiated)
-	if(arg) {
-		int i = atoi(arg2);
-
-		if(!vote_allow_gametype.integer && ent && !ent->client->sess.referee) {
-			G_voteDisableMessage(ent, arg);
-			G_GametypeList(ent);
-			G_voteCurrentSetting(ent, arg, va("%d (%s)", g_gametype.integer, gameNames[g_gametype.integer]));
-			return(G_INVALID);
-		} else if(G_voteDescription(ent, fRefereeCmd, dwVoteIndex)) {
-			G_GametypeList(ent);
-			G_voteCurrentSetting(ent, arg, va("%d (%s)", g_gametype.integer, gameNames[g_gametype.integer]));
-			return(G_INVALID);
-		}
-
-		if(i < GT_WOLF || i >= GT_MAX_GAME_TYPE || i == GT_WOLF_CAMPAIGN) {
-			G_refPrintf(ent, "\n^3Invalid gametype: ^7%d", i);
-			G_GametypeList(ent);
-			return(G_INVALID);
-		}
-
-		if(i == g_gametype.integer) {
-			G_refPrintf(ent, "\n^3Gametype^5 is already set to %s!", gameNames[i]);
-			return(G_INVALID);
-		}
-
-		Com_sprintf(level.voteInfo.vote_value, VOTE_MAXSTRING, "%s", arg2);
-		Com_sprintf(arg2, VOTE_MAXSTRING, "%s", gameNames[i]);
-
-	// Vote action (vote has passed)
-	} else {
-		// Set gametype
-		G_voteSetValue("Gametype", "g_gametype");
-		Svcmd_ResetMatch_f(qtrue, qtrue);
-	}
-
-	return(G_OK);
+	/* TC Windows20096990: this vote is disabled even for referees. */
+	return G_INVALID;
 }
 
 
@@ -662,24 +609,8 @@ int G_Nextmap_v(gentity_t *ent, unsigned int dwVoteIndex, char *arg, char *arg2,
 // *** Load public settings for current mode ***
 int G_Pub_v(gentity_t *ent, unsigned int dwVoteIndex, char *arg, char *arg2, qboolean fRefereeCmd)
 {
-	// Vote request (vote is being initiated)
-	if(arg) {
-		if(trap_Argc() > 2) {
-			G_refPrintf(ent, "Usage: ^3%s %s%s\n", ((fRefereeCmd) ? "\\ref" : "\\callvote"), arg, aVoteInfo[dwVoteIndex].pszVoteHelp);
-			return(G_INVALID);
-		} else if(vote_allow_pub.integer<=0 && ent && !ent->client->sess.referee) {
-			G_voteDisableMessage(ent, arg);
-			return(G_INVALID);
-		}
-
-	// Vote action (vote has passed)
-	} else {
-		// Load in pub settings for current gametype
-		G_configSet(g_gametype.integer, qfalse);
-		AP("cp \"Public Settings Loaded!\n\"");
-	}
-
-	return(G_OK);
+	/* TC Windows20096990: this vote is disabled even for referees. */
+	return G_INVALID;
 }
 
 

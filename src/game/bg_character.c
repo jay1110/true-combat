@@ -73,7 +73,15 @@ qboolean BG_ParseCharacterFile( const char *filename, bg_characterDef_t* charact
 			if( !PC_String_ParseNoAlloc( handle, characterDef->skin, sizeof(characterDef->skin) ) ) {
 				return BG_PCF_ParseError( handle, "expected skin filename" );
 			}
-		} else if( !Q_stricmp( token.string, "undressedCorpseModel" ) ) {
+		} else if( !Q_stricmp( token.string, "skinGroup" ) ) {
+            if( !PC_String_ParseNoAlloc( handle, characterDef->skinGroup, sizeof(characterDef->skinGroup) ) ) {
+                return BG_PCF_ParseError( handle, "expected skinGroup name" );
+            }
+        } else if( !Q_stricmp( token.string, "skinRoot" ) ) {
+            if( !PC_String_ParseNoAlloc( handle, characterDef->skinRoot, sizeof(characterDef->skinRoot) ) ) {
+                return BG_PCF_ParseError( handle, "expected skinRoot name" );
+            }
+        } else if( !Q_stricmp( token.string, "undressedCorpseModel" ) ) {
 			if( !PC_String_ParseNoAlloc( handle, characterDef->undressedCorpseModel, sizeof(characterDef->undressedCorpseModel) ) ) {
 				return BG_PCF_ParseError( handle, "expected undressedCorpseModel filename" );
 			}

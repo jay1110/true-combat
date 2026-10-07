@@ -191,7 +191,7 @@ int AINode_MP_Stand(bot_state_t *bs) {
 	}
 	// if we have been standing for too long
 	if (bs->respawn_time < trap_AAS_Time()) {
-		Cmd_Kill_f( &g_entities[bs->client] );
+		Cmd_Kill_f( &g_entities[bs->client], MOD_SUICIDE );
 	}
 	//
 	return qtrue;

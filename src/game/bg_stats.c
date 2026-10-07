@@ -11,6 +11,25 @@
 // JK: er, several reasons: its less than half the size of a brute-force approach,
 //							gives us a simple map to what we actually care about, and the
 //							fact that we dont want to go above (if at all possible) 32 bits
+#if defined(CGAMEDLL) || defined(GAMEDLL)
+/* TC cgame300925e0 / qagame200ac880: identical numeric protocol IDs, not SDK WP_*.
+ * Keep all 64 entries and first-match order, including the zero-filled tail. */
+static const weap_ws_convert_t aWeapID[64] = {
+	{ 0, 22 }, { 1, 0 }, { 2, 1 }, { 3, 3 }, { 4, 9 },
+	{ 65, 7 }, { 66, 8 }, { 7, 2 }, { 8, 4 }, { 9, 9 },
+	{ 10, 5 }, { 11, 14 }, { 12, 22 }, { 63, 13 }, { 14, 1 },
+	{ 15, 11 }, { 16, 13 }, { 17, 10 }, { 18, 22 }, { 19, 22 },
+	{ 20, 22 }, { 21, 22 }, { 22, 12 }, { 23, 21 }, { 24, 20 },
+	{ 25, 20 }, { 26, 18 }, { 27, 22 }, { 28, 16 }, { 29, 18 },
+	{ 30, 15 }, { 31, 19 }, { 62, 19 }, { 32, 21 }, { 33, 6 },
+	{ 34, 19 }, { 36, 22 }, { 55, 17 }, { 56, 17 }, { 52, 2 },
+	{ 57, 20 }, { 58, 21 }, { 59, 6 }, { 60, 10 }, { 35, 10 },
+	{ 61, 22 }, { 53, 2 }, { 54, 1 }, { 37, 2 }, { 38, 1 },
+	{ 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 },
+	{ 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 },
+	{ 0, 0 }, { 0, 0 }, { 0, 0 }, { 0, 0 }
+};
+#else
 static const weap_ws_convert_t aWeapID[WP_NUM_WEAPONS] = {
 
 	{ WP_NONE,				WS_MAX },			// 0
@@ -77,15 +96,25 @@ static const weap_ws_convert_t aWeapID[WP_NUM_WEAPONS] = {
 };
 
 
+#endif
+
 // Get right stats index based on weapon id
 extWeaponStats_t BG_WeapStatForWeapon( weapon_t iWeaponID ) {
 	weapon_t i;
 
+#if defined(CGAMEDLL) || defined(GAMEDLL)
+	for( i = 0; i < 64; i++) {
+#else
 	for( i = WP_NONE; i < WP_NUM_WEAPONS; i++) {
+#endif
 		if( iWeaponID == aWeapID[i].iWeapon ) {
 			return aWeapID[i].iWS;
 		}
 	}
 
+#if defined(CGAMEDLL) || defined(GAMEDLL)
+	return (extWeaponStats_t)22;
+#else
 	return WS_MAX;
+#endif
 }

@@ -5,6 +5,7 @@
 */
 
 #include "cg_local.h"
+#include "tce_lightgrid.h"
 
 qboolean CG_SpawnString( const char *key, const char *defaultString, char **out ) {
 	int		i;
@@ -27,10 +28,19 @@ qboolean CG_SpawnString( const char *key, const char *defaultString, char **out 
 
 qboolean CG_SpawnFloat( const char *key, const char *defaultString, float *out ) {
 	char		*s;
+	const char *number;
 	qboolean	present;
 
 	present = CG_SpawnString( key, defaultString, &s );
-	*out = atof( s );
+	/* The original Windows CRT accepts decimal input only. Modern atof
+	   also accepts C99 hexadecimal floats, changing e.g. "0x10" to 16. */
+	number = s;
+	while( *number == ' ' || (*number >= '\t' && *number <= '\r') ) ++number;
+	if( *number == '+' || *number == '-' ) ++number;
+	if( number[0] == '0' && (number[1] == 'x' || number[1] == 'X') )
+		*out = number > s && number[-1] == '-' ? -0.0f : 0.0f;
+	else
+		*out = atof( s );
 	return present;
 }
 
@@ -43,12 +53,46 @@ qboolean CG_SpawnInt( const char *key, const char *defaultString, int *out ) {
 	return present;
 }
 
+/* Keep the original decimal scanf grammar when hosted by a C99 CRT. */
+static void CG_ScanSpawnVector( const char *text, float *out, int components ) {
+	int i, digits;
+	const char *number, *end;
+	for( i = 0; i < components; ++i ) {
+		while( *text == ' ' || (*text >= '\t' && *text <= '\r') ) ++text;
+		number = text;
+		if( *number == '+' || *number == '-' ) ++number;
+		if( number[0] == '0' && (number[1] == 'x' || number[1] == 'X') ) {
+			out[i] = *text == '-' ? -0.0f : 0.0f;
+			/* Decimal conversion consumes the zero, then the x stops the
+			   next conversion; later components remain untouched. */
+			return;
+		}
+		end = number;
+		digits = 0;
+		while( *end >= '0' && *end <= '9' ) { ++end; ++digits; }
+		if( *end == '.' ) {
+			++end;
+			while( *end >= '0' && *end <= '9' ) { ++end; ++digits; }
+		}
+		if( !digits ) return;
+		/* The old scanf accepts the mantissa even when an exponent is
+		   incomplete; current UCRT scanf rejects the entire conversion. */
+		if( *end == 'e' || *end == 'E' ) {
+			++end;
+			if( *end == '+' || *end == '-' ) ++end;
+			while( *end >= '0' && *end <= '9' ) ++end;
+		}
+		out[i] = (float)atof(text);
+		text = end;
+	}
+}
+
 qboolean CG_SpawnVector( const char *key, const char *defaultString, float *out ) {
 	char		*s;
 	qboolean	present;
 
 	present = CG_SpawnString( key, defaultString, &s );
-	sscanf( s, "%f %f %f", &out[0], &out[1], &out[2] );
+	CG_ScanSpawnVector( s, out, 3 );
 	return present;
 }
 
@@ -57,7 +101,7 @@ qboolean CG_SpawnVector2D( const char *key, const char *defaultString, float *ou
 	qboolean	present;
 
 	present = CG_SpawnString( key, defaultString, &s );
-	sscanf( s, "%f %f", &out[0], &out[1] );
+	CG_ScanSpawnVector( s, out, 2 );
 	return present;
 }
 
@@ -69,6 +113,65 @@ This is just a convenience function
 for printing vectors
 =============
 */
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* Original __ftol contract used by the map-entity diagnostic formatter. */
+static __declspec(naked) void CG_SpawnTruncateST0( void ) {
+	__asm {
+		push ebp
+		mov ebp,esp
+		sub esp,12
+		fwait
+		fnstcw word ptr [ebp-2]
+		fwait
+		mov ax,word ptr [ebp-2]
+		or ah,0ch
+		mov word ptr [ebp-4],ax
+		fldcw word ptr [ebp-4]
+		fistp qword ptr [ebp-12]
+		fldcw word ptr [ebp-2]
+		mov eax,dword ptr [ebp-12]
+		mov edx,dword ptr [ebp-8]
+		leave
+		ret
+	}
+}
+
+__declspec(naked) char *vtos( const vec3_t v ) {
+	static int spawnVectorIndex;
+	static char spawnVectorStrings[8][32];
+	static const char spawnVectorFormat[] = "(%i %i %i)";
+	__asm {
+		mov eax,spawnVectorIndex
+		push esi
+		mov esi,eax
+		push edi
+		mov edi,dword ptr [esp+12]
+		shl esi,5
+		add esi,offset spawnVectorStrings
+		inc eax
+		and eax,7
+		mov spawnVectorIndex,eax
+		fld dword ptr [edi+8]
+		call CG_SpawnTruncateST0
+		fld dword ptr [edi+4]
+		push eax
+		call CG_SpawnTruncateST0
+		fld dword ptr [edi]
+		push eax
+		call CG_SpawnTruncateST0
+		push eax
+		push offset spawnVectorFormat
+		push 32
+		push esi
+		call Com_sprintf
+		add esp,24
+		mov eax,esi
+		pop edi
+		pop esi
+		ret
+	}
+}
+#else
 char	*vtos( const vec3_t v ) {
 	static	int		index;
 	static	char	str[8][32];
@@ -82,6 +185,8 @@ char	*vtos( const vec3_t v ) {
 
 	return s;
 }
+
+#endif
 
 void SP_path_corner_2( void ) {
 	char* targetname;
@@ -152,6 +257,37 @@ void SP_misc_gamemodel( void ) {
 	cg_gamemodel_t* gamemodel;
 
 	int i;
+
+    /* TC30063f50: flag4 selects the static camera-facing sprite path before
+       the SDK's dynamic-model rejection. randomscale is parsed but the
+       original discards Q_random's result; it does not scale these bounds. */
+    CG_SpawnString("spawnflags", "", &model);
+    if(atoi(model)==4) {
+        cg_clientsprite_t *sprite;
+        vec3_t mins,maxs;
+        vec2_t randomScale;
+        int seed;
+        if(cg.numMiscClientSprites>=MAX_STATIC_CLIENTSPRITES)
+            CG_Error("^1MAX_STATIC_CLIENTSPRITES(%i) hit",MAX_STATIC_CLIENTSPRITES);
+        CG_SpawnString("model","",&model);
+        CG_SpawnVector("origin","0 0 0",org);
+        if(!CG_SpawnVector("modelscale_vec","1 1 1",vScale)) {
+            if(CG_SpawnFloat("modelscale","1",&scale))VectorSet(vScale,scale,scale,scale);
+        }
+        sprite=&cgs.miscClientSprites[cg.numMiscClientSprites++];
+        sprite->shader=trap_R_RegisterShader(model);
+        VectorCopy(org,sprite->org);
+        trap_R_ModelBounds(trap_R_RegisterModel(model),mins,maxs);
+        for(i=0;i<3;i++){mins[i]*=vScale[i];maxs[i]*=vScale[i];}
+        CG_SpawnInt("drawdistance","8192",&sprite->drawDistance);
+        CG_SpawnInt("fadedistance","8192",&sprite->fadeDistance);
+        CG_SpawnString("randomscale","1.0 1.0",&model);
+        sscanf(model,"%f %f",&randomScale[0],&randomScale[1]);
+        seed=cg.numMiscClientSprites+7;
+        Q_random(&seed);
+        sprite->halfWidth=maxs[1];sprite->top=maxs[2];sprite->bottom=mins[2];
+        return;
+    }
 
 	if(CG_SpawnString( "targetname", "", &model ) || CG_SpawnString( "scriptname", "", &model ) || CG_SpawnString( "spawnflags", "", &model )) {
 		// Gordon: this model may not be static, so let the server handle it
@@ -357,6 +493,23 @@ void SP_worldspawn( void ) {
 	}
 
 	CG_ParseSpawns();
+	CG_SpawnVector("gridsize", "64 64 128", tce_lightGridSpacing);
+	CG_SpawnString("eyeadaptation_sky", "0.0", &s);
+	cg.tceEyeSky=atof(s);
+	CG_SpawnString("eyeadaptation_scale", "1.0", &s);
+	cg.tceEyeScale=atof(s);
+	/* TC worldspawn 300646a9: exposure controls impact-spark brightness. */
+	CG_SpawnString("exposure", "80.0", &s);
+	{
+		double intensity = sqrt(20.0 / atof(s));
+		cg.tceSparkIntensity = (float)intensity;
+		if (intensity > 1.0) cg.tceSparkIntensity = 1.0f;
+		else if (!(cg.tceSparkIntensity >= .33f)) cg.tceSparkIntensity = .33f;
+	}
+	/* TC parses the map value but deliberately forces the renderer baseline. */
+	CG_SpawnString("ambientscale", "0.0", &s);
+	trap_Cvar_Set("r_ambientscale", "1.3");
+	cg.tceTraceMapLoaded = BG_LoadTraceMap(cgs.rawmapname, cg.mapcoordsMins, cg.mapcoordsMaxs) != 0;
 
 	CG_SpawnString( "cclayers", "0", &s );
 	cgs.ccLayers = atoi(s);
@@ -457,6 +610,7 @@ void CG_ParseEntitiesFromString( void ) {
 	cg.spawning = qtrue;
 	cg.numSpawnVars = 0;
 	cg.numMiscGameModels = 0;
+	cg.numMiscClientSprites = 0;
 
 	// the worldspawn is not an actual entity, but it still
 	// has a "spawn" function to perform any global setup
@@ -473,3 +627,4 @@ void CG_ParseEntitiesFromString( void ) {
 
 	cg.spawning = qfalse;			// any future calls to CG_Spawn*() will be errors
 }
+

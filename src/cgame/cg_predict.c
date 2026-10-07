@@ -584,7 +584,7 @@ static void CG_TouchTriggerPrediction( void ) {
 			VectorAdd( cg.predictedPlayerState.origin, cg_pmove.maxs, pmaxs );
 
 #ifdef VISIBLE_TRIGGERS
-			CG_RailTrail( NULL, mins, maxs, 1 );
+			CG_RailTrail( NULL, mins, maxs, 1, 0 );
 #endif // VISIBLE_TRIGGERS
 
 			if(!BG_BBoxCollision( pmins, pmaxs, mins, maxs )) {
@@ -800,11 +800,7 @@ void CG_PredictPlayerState( void ) {
 	}
 
 	// non-predicting local movement will grab the latest angles
-	if ( cg_nopredict.integer 
-#ifdef ALLOW_GSYNC
-		|| cg_synchronousClients.integer 
-#endif // ALLOW_GSYNC
-		) {
+	if ( cg_nopredict.integer ) {
 		cg_pmove.ps = &cg.predictedPlayerState;
 		cg_pmove.pmext = &cg.pmext;
 
@@ -977,7 +973,8 @@ void CG_PredictPlayerState( void ) {
 				CG_AdjustPositionForMover( cg.predictedPlayerState.origin, cg.predictedPlayerState.groundEntityNum, cg.physicsTime, cg.oldTime, adjusted, deltaAngles );
 				// RF, add the deltaAngles (fixes jittery view while riding trains)
 				// ydnar: only do this if player is prone or using set mortar
-				if( (cg.predictedPlayerState.eFlags & EF_PRONE) || cg.weaponSelect == WP_MORTAR_SET )
+				/* TC prediction compares protocol weapon60, not the SDK enum. */
+				if( (cg.predictedPlayerState.eFlags & EF_PRONE) || cg.weaponSelect == 60 )
 					cg.predictedPlayerState.delta_angles[YAW] += ANGLE2SHORT(deltaAngles[YAW]);
 
 				if ( cg_showmiss.integer ) {
@@ -1036,11 +1033,6 @@ void CG_PredictPlayerState( void ) {
 			cg_pmove.covertopsChargeTime =	cg.covertopsChargeTime[cg.snap->ps.persistant[PERS_TEAM]-1];
 		}
 
-#ifdef SAVEGAME_SUPPORT
-		if( CG_IsSinglePlayer() && cg_reloading.integer )
-			cg_pmove.reloading = qtrue;
-#endif // SAVEGAME_SUPPORT
-
 //		memcpy( &pmext, &cg.pmext, sizeof(pmoveExt_t) );	// grab data, we only want the final result
 		// rain - copy the pmext as it was just before we
 		// previously ran this cmd (or, this will be the
@@ -1085,20 +1077,20 @@ void CG_PredictPlayerState( void ) {
 		cg.cameraShakeScale = 0;
 	else
 	{
-		float x;
+		double x;
 		
 		
 		// starts at 1, approaches 0 over time
-		x = (cg.cameraShakeTime - cg.time) / cg.cameraShakeLength;
+		x = (double)(cg.cameraShakeTime - cg.time) / cg.cameraShakeLength;
 		
 		// move
-		cg.predictedPlayerState.origin[ 2 ] +=
-		sin( M_PI * 8 * 13 + cg.cameraShakePhase ) * x * 6.0f * cg.cameraShakeScale;
+		cg.predictedPlayerState.origin[ 2 ] = (float)(cg.predictedPlayerState.origin[ 2 ] +
+			x * sin(326.72564697265625 + cg.cameraShakePhase) * cg.cameraShakeScale * 6.0);
 		
-		cg.predictedPlayerState.origin[ 1 ] +=
-			sin( M_PI * 17 * x + cg.cameraShakePhase ) * x * 6.0f * cg.cameraShakeScale;
+		cg.predictedPlayerState.origin[ 1 ] = (float)(cg.predictedPlayerState.origin[ 1 ] +
+			x * sin(x * 53.40707778930664 + cg.cameraShakePhase) * cg.cameraShakeScale * 6.0);
 		
-		cg.predictedPlayerState.origin[ 0 ] +=
-			cos( M_PI * 7 * x + cg.cameraShakePhase ) * x * 6.0f * cg.cameraShakeScale;
+		cg.predictedPlayerState.origin[ 0 ] = (float)(cg.predictedPlayerState.origin[ 0 ] +
+			x * cos(x * 21.99114990234375 + cg.cameraShakePhase) * cg.cameraShakeScale * 6.0);
 	}
 }

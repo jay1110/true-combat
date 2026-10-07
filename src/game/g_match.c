@@ -2,6 +2,7 @@
 // -------------------------
 //
 #include "g_local.h"
+#include "tce_bg.h"
 #include "../ui/menudef.h"
 
 
@@ -19,6 +20,7 @@ void G_initMatch(void)
 void G_loadMatchGame(void)
 {
 	unsigned int i, dwBlueOffset, dwRedOffset;
+	unsigned int redDelta, blueDelta;
 	unsigned int aRandomValues[MAX_REINFSEEDS];
 	char strReinfSeeds[MAX_STRING_CHARS];
 
@@ -45,8 +47,11 @@ void G_loadMatchGame(void)
 	// Set up the random reinforcement seeds for both teams and send to clients
 	dwBlueOffset = rand() % MAX_REINFSEEDS;
 	dwRedOffset = rand() % MAX_REINFSEEDS;
-	strcpy(strReinfSeeds, va("%d %d", (dwBlueOffset << REINF_BLUEDELT) + (rand() % (1 << REINF_BLUEDELT)),
-									  (dwRedOffset << REINF_REDDELT)  + (rand() % (1 << REINF_REDDELT))));
+	/* Both TC binaries consume the red draw before the blue draw. */
+	redDelta = rand() % (1 << REINF_REDDELT);
+	blueDelta = rand() % (1 << REINF_BLUEDELT);
+	strcpy(strReinfSeeds, va("%d %d", (dwBlueOffset << REINF_BLUEDELT) + blueDelta,
+									  (dwRedOffset << REINF_REDDELT) + redDelta));
 
 	for(i=0; i<MAX_REINFSEEDS; i++) {
 		aRandomValues[i] = (rand() % REINF_RANGE) * aReinfSeeds[i];
@@ -213,6 +218,12 @@ void G_addStats(gentity_t *targ, gentity_t *attacker, int dmg_ref, int mod)
 	}
 
 //	G_Printf("mod: %d, Index: %d, dmg: %d\n", mod, G_weapStatIndex_MOD(mod), dmg_ref);
+	/* TC qagame20065470 records forced elimination separately.  This must
+	 * precede suicide/team damage processing, including a null attacker. */
+	if(mod == 65) {
+		targ->client->sess.tceSessionValues[3]++;
+		return;
+	}
 
 	// Suicides only affect the player specifically
 	if(targ == attacker || !attacker || !attacker->client || mod == MOD_SUICIDE) {
@@ -486,7 +497,7 @@ void G_printMatchInfo(gentity_t *ent)
 		tot_td = 0;
 		tot_gp = 0;
 
-		CP("sc \"\n^7TEAM   Player          Kll Dth Sui TK Eff  ^3GP^7    ^2DG    ^1DR   ^6TD  ^3Score\n"
+		CP("sc \"\n^7TEAM   Player          Kll Dth Sui TK Eff  ^3AA^7 ^2DG    ^1DR   ^6TD  ^3Score\n"
 				  "^7---------------------------------------------------------------------\n\"");
 
 		for(j=0; j<level.numPlayingClients; j++) {
@@ -528,7 +539,7 @@ void G_printMatchInfo(gentity_t *ent)
 											cl->sess.team_kills,
 											ref,
 											eff,
-											cl->sess.game_points - (cl->sess.kills * WOLF_FRAG_BONUS),
+											(int)cl->sess.skillpoints[BG_WolfClassToTCE(cl->ps.stats[STAT_PLAYER_CLASS])] + 1,
 											cl->sess.damage_given,
 											cl->sess.damage_received,
 											cl->sess.team_damage,
@@ -557,6 +568,65 @@ void G_printMatchInfo(gentity_t *ent)
 	CP(va("sc \"%s\n\n\" 0", ((!cnt) ? "^3\nNo scores to report." : "")));
 }
 
+
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* Windows20065f91..200660c3 keeps stopwatch arithmetic in x87 registers.
+ * This adapter only supplies the original printf values to G_matchInfoDump. */
+static qboolean G_TCEStopwatchValues(int elapsed, float limitValue, int limitWhole,
+	qboolean calculateElapsed, int *minutes, int *seconds, int *limitSeconds) {
+	static const double minuteScale = 1.6666666666666667e-05;
+	static const double secondsScale = 60.0;
+	unsigned short originalControl, truncateControl;
+	__int64 converted;
+	int reached = 0, whole = 0, fraction = 0, limitFraction;
+	__asm {
+		fnstcw originalControl
+		mov ax, originalControl
+		or ax, 0c00h
+		mov truncateControl, ax
+		fild limitWhole
+		fsubr limitValue
+		fmul secondsScale
+		fldcw truncateControl
+		fistp converted
+		fldcw originalControl
+		mov eax, dword ptr converted
+		mov limitFraction, eax
+	}
+	*limitSeconds = limitFraction;
+	if (!calculateElapsed) return qfalse;
+	__asm {
+		fild elapsed
+		fmul minuteScale
+		fcom limitValue
+		fnstsw ax
+		test ah, 1
+		jz stopwatch_not_reached
+		mov reached, 1
+		fld st(0)
+		fldcw truncateControl
+		fistp converted
+		fldcw originalControl
+		mov eax, dword ptr converted
+		mov whole, eax
+		fild whole
+		fsubp st(1), st(0)
+		fmul secondsScale
+		fldcw truncateControl
+		fistp converted
+		fldcw originalControl
+		mov eax, dword ptr converted
+		mov fraction, eax
+		jmp stopwatch_values_ready
+	stopwatch_not_reached:
+		fstp st(0)
+	stopwatch_values_ready:
+	}
+	*minutes = whole;
+	*seconds = fraction;
+	return reached;
+}
+#endif
 
 // Dumps end-of-match info
 void G_matchInfoDump(unsigned int dwDumpType)
@@ -597,6 +667,24 @@ void G_matchInfoDump(unsigned int dwDumpType)
 		} else if(dwDumpType == EOM_MATCHINFO) {
 			if(!(cl->pers.clientFlags & CGF_STATSDUMP)) G_printMatchInfo(ent);
 			if(g_gametype.integer == GT_WOLF_STOPWATCH) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+				int minutes, seconds, limitSeconds;
+				qboolean firstRound = g_currentRound.integer == 1;
+				int limitWhole = firstRound ? g_nextTimeLimit.integer : g_timelimit.integer;
+				float limitValue = firstRound ? g_nextTimeLimit.value : g_timelimit.value;
+				int elapsed = (int)((unsigned int)level.timeCurrent - (unsigned int)level.startTime
+					- (unsigned int)level.time + (unsigned int)level.intermissiontime);
+				qboolean reached = G_TCEStopwatchValues(elapsed, limitValue, limitWhole,
+					!firstRound, &minutes, &seconds, &limitSeconds);
+				if (firstRound) {
+					CP(va("print \">>> ^3Clock set to: %d:%02d\n\n\n\"", limitWhole, limitSeconds));
+				} else if (reached) {
+					CP(va("print \">>> ^3Objective reached at %d:%02d (original: %d:%02d)\n\n\n\"",
+						minutes, seconds, limitWhole, limitSeconds));
+				} else {
+					CP(va("print \">>> ^3Objective NOT reached in time (%d:%02d)\n\n\n\"", limitWhole, limitSeconds));
+				}
+#else
 				if(g_currentRound.integer == 1) {	// We've already missed the switch
 					CP(va("print \">>> ^3Clock set to: %d:%02d\n\n\n\"",
 												g_nextTimeLimit.integer,
@@ -615,6 +703,7 @@ void G_matchInfoDump(unsigned int dwDumpType)
 												(int)(60.0 * (float)(g_timelimit.value - g_timelimit.integer))));
 					}
 				}
+#endif
 			}
 		}
 	}

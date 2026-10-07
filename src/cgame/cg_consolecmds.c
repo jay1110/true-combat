@@ -7,6 +7,24 @@
 
 
 #include "cg_local.h"
+#include "../game/tce_bg.h"
+
+/* Windows 3001bd70 / 3001be10; cmd.weapon55 is a request, not a gear slot. */
+void CG_FiremodeDown_f(void) {
+    if (!cg.snap || (cg.snap->ps.pm_flags & PMF_FOLLOW)) return;
+    if (BG_FiremodeWeapon(cg.snap->ps.weapon) &&
+        cg.time - cg.weaponSelectTime > 1599 && cg.time - cg.tceFiremodeTime > 749 &&
+        cg.snap->ps.weaponstate == WEAPON_READY && cg.predictedPlayerState.weaponstate == WEAPON_READY &&
+        cg.snap->ps.weapon == cg.weaponSelect && cg.snap->ps.weapon == cg.predictedPlayerState.weapon) {
+        cg.weaponSelect = 55;
+        cg.tceFiremodeTime = cg.time;
+    }
+}
+
+void CG_FiremodeUp_f(void) {
+    if (cg.weaponSelect == 55) cg.weaponSelect = cg.predictedPlayerState.weapon;
+}
+
 
 void CG_TargetCommand_f( void ) {
 	int		targetNum;
@@ -35,7 +53,13 @@ static void CG_Viewpos_f (void) {
 }
 
 void CG_LimboMenu_f( void ) {
-	if( cg.showGameView ) {
+	if (cg.scoresRequestTime + 2000 < cg.time) {
+		cg.scoresRequestTime = cg.time;
+		if (!cg.demoPlayback && cg.mvTotalClients < 1) {
+			trap_SendClientCommand("score");
+		}
+	}
+	if( cg.showGameView || cg.tceShowLimboPanel ) {
 		CG_EventHandling( CGAME_EVENT_NONE, qfalse );
 	} else {
 		CG_EventHandling( CGAME_EVENT_GAMEVIEW, qfalse );
@@ -924,10 +948,21 @@ typedef struct {
 	void	(*function)(void);
 } consoleCommand_t;
 
-static consoleCommand_t	commands[] =
- {
-//	{ "obj", CG_Obj_f },
-//	{ "setspawnpt", CG_Obj_f },
+/* Windows300217b0 / Linux CG_ToggleObjectiveDesc_f. */
+static void CG_ToggleObjectiveDesc_f(void) {
+    cg.tceShowObjectiveDesc = !cg.tceShowObjectiveDesc;
+}
+
+/* TC Windows table 3009f648..3009f868; Linux has the same 68 names.
+ * Folded RET callbacks deliberately consume the command without SDK actions. */
+static void CG_TCEIgnoredConsoleCommand( void ) {
+}
+
+void CG_toggleSwing_f( void ) {
+	trap_Cvar_Set( "cg_specSwing", cg_specSwing.integer > 0 ? "0" : "1" );
+}
+
+static consoleCommand_t commands[] = {
 	{ "testgun", CG_TestGun_f },
 	{ "testmodel", CG_TestModel_f },
 	{ "nextframe", CG_TestModelNextFrame_f },
@@ -950,76 +985,52 @@ static consoleCommand_t	commands[] =
 	{ "tell_target", CG_TellTarget_f },
 	{ "tell_attacker", CG_TellAttacker_f },
 	{ "tcmd", CG_TargetCommand_f },
-	{ "fade", CG_Fade_f },	// duffy
-	{ "loadhud", CG_LoadHud_f },
+	{ "fade", CG_Fade_f },
+	{ "loadhud", CG_TCEIgnoredConsoleCommand },
 	{ "loadweapons", CG_LoadWeapons_f },
-
-	{ "mp_QuickMessage",	CG_QuickMessage_f },
-	{ "mp_fireteammsg",		CG_QuickFireteams_f },
-	{ "mp_fireteamadmin",	CG_QuickFireteamAdmin_f },
-	{ "wm_sayPlayerClass",	CG_SayPlayerClass_f },
-	{ "wm_ftsayPlayerClass",CG_FTSayPlayerClass_f },
-	
-
-	{ "VoiceChat",		CG_VoiceChat_f },
-	{ "VoiceTeamChat",	CG_TeamVoiceChat_f },
-	
-	// ydnar: say, teamsay, etc
+	{ "mp_QuickMessage", CG_QuickMessage_f },
+	{ "mp_fireteammsg", CG_QuickFireteams_f },
+	{ "mp_fireteamadmin", CG_QuickFireteamAdmin_f },
+	{ "wm_sayPlayerClass", CG_TCEIgnoredConsoleCommand },
+	{ "wm_ftsayPlayerClass", CG_TCEIgnoredConsoleCommand },
+	{ "VoiceChat", CG_VoiceChat_f },
+	{ "VoiceTeamChat", CG_TeamVoiceChat_f },
 	{ "messageMode", CG_MessageMode_f },
 	{ "messageMode2", CG_MessageMode_f },
 	{ "messageMode3", CG_MessageMode_f },
 	{ "messageSend", CG_MessageSend_f },
-	
 	{ "SetWeaponCrosshair", CG_SetWeaponCrosshair_f },
-	// -NERVE - SMF
-
-	{ "VoiceFireTeamChat", CG_BuddyVoiceChat_f },
-
-	{ "openlimbomenu",	CG_LimboMenu_f },
-
-	{ "+stats",			CG_StatsDown_f },
-	{ "-stats",			CG_StatsUp_f },
-	{ "+topshots",		CG_topshotsDown_f },
-	{ "-topshots",		CG_topshotsUp_f },
-
-	// OSP
-	{ "autoRecord",		CG_autoRecord_f },
-	{ "autoScreenshot",	CG_autoScreenShot_f },
-	{ "currentTime",	CG_currentTime_f },
-	{ "keyoff",			CG_keyOff_f },
-	{ "keyon",			CG_keyOn_f },
-#ifdef MV_SUPPORT
-	{ "mvactivate",		CG_mvToggleAll_f },
-	{ "mvdel",			CG_mvDelete_f },
-	{ "mvhide",			CG_mvHideView_f },
-	{ "mvnew",			CG_mvNew_f },
-	{ "mvshow",			CG_mvShowView_f },
-	{ "mvswap",			CG_mvSwapViews_f },
-	{ "mvtoggle",		CG_mvToggleView_f },
-	{ "spechelp",		CG_toggleSpecHelp_f },
-#endif
-	{ "statsdump",		CG_dumpStats_f },
-	{ "+vstr",			CG_vstrDown_f },
-	{ "-vstr",			CG_vstrUp_f },
-	// OSP
-
+	{ "VoiceFireTeamChat", CG_TCEIgnoredConsoleCommand },
+	{ "openlimbomenu", CG_LimboMenu_f },
+	{ "+stats", CG_TCEIgnoredConsoleCommand },
+	{ "-stats", CG_TCEIgnoredConsoleCommand },
+	{ "+topshots", CG_TCEIgnoredConsoleCommand },
+	{ "-topshots", CG_TCEIgnoredConsoleCommand },
+	{ "autoRecord", CG_autoRecord_f },
+	{ "autoScreenshot", CG_autoScreenShot_f },
+	{ "currentTime", CG_currentTime_f },
+	{ "keyoff", CG_keyOff_f },
+	{ "keyon", CG_keyOn_f },
+	{ "statsdump", CG_dumpStats_f },
+	{ "toggleswing", CG_toggleSwing_f },
+	{ "+vstr", CG_vstrDown_f },
+	{ "-vstr", CG_vstrUp_f },
 	{ "selectbuddy", CG_SelectBuddy_f },
-
 	{ "MapZoomIn", CG_AutomapZoomIn_f },
 	{ "MapZoomOut", CG_AutomapZoomOut_f },
 	{ "+mapexpand", CG_AutomapExpandDown_f },
 	{ "-mapexpand", CG_AutomapExpandUp_f },
-
 	{ "generateTracemap", CG_GenerateTracemap },
-	// xkan, 11/27/2002, toggle automap on/off
 	{ "ToggleAutoMap", CG_ToggleAutomap_f },
-
 	{ "editSpeakers", CG_EditSpeakers_f },
 	{ "dumpSpeaker", CG_DumpSpeaker_f },
 	{ "modifySpeaker", CG_ModifySpeaker_f },
 	{ "undoSpeaker", CG_UndoSpeaker_f },
 	{ "cpm", CG_CPM_f },
 	{ "forcetapout", CG_ForceTapOut_f },
+	{ "toggleobjectivedesc", CG_ToggleObjectiveDesc_f },
+	{ "+firemode", CG_FiremodeDown_f },
+	{ "-firemode", CG_FiremodeUp_f },
 };
 
 
@@ -1062,96 +1073,85 @@ so it can perform tab completion
 =================
 */
 void CG_InitConsoleCommands( void ) {
-	int		i;
+	int i;
 
-	for ( i = 0 ; i < sizeof( commands ) / sizeof( commands[0] ) ; i++ ) {
+	for ( i = 0; i < sizeof( commands ) / sizeof( commands[0] ); i++ ) {
 		trap_AddCommand( commands[i].cmd );
 	}
 
-	//
-	// the game server will interpret these commands, which will be automatically
-	// forwarded to the server after they are not recognized locally
-	//
-	trap_AddCommand ("kill");
-	trap_AddCommand ("say");
-	trap_AddCommand ("say_limbo");			// NERVE - SMF
-	trap_AddCommand ("tell");
-	trap_AddCommand ("listbotgoals");
-	trap_AddCommand ("give");
-	trap_AddCommand ("god");
-	trap_AddCommand ("notarget");
-	trap_AddCommand ("noclip");
-	trap_AddCommand ("team");
-	trap_AddCommand ("follow");
-	trap_AddCommand ("addbot");
-	trap_AddCommand ("setviewpos");
-	trap_AddCommand ("callvote");
-	trap_AddCommand ("vote");
-
-	// Rafael
-	trap_AddCommand ("nofatigue");
-
-	// NERVE - SMF
-	trap_AddCommand ("follownext");
-	trap_AddCommand ("followprev");
-
-	trap_AddCommand ("start_match");
-	trap_AddCommand ("reset_match");
-	trap_AddCommand ("swap_teams");
-	// -NERVE - SMF
-	// OSP
-	trap_AddCommand("?");
-	trap_AddCommand("bottomshots");
-	trap_AddCommand("commands");
-	trap_AddCommand("follow");
-	trap_AddCommand("lock");
-#ifdef MV_SUPPORT
-	trap_AddCommand("mvadd");
-	trap_AddCommand("mvaxis");
-	trap_AddCommand("mvallies");
-	trap_AddCommand("mvall");
-	trap_AddCommand("mvnone");
-#endif
-	trap_AddCommand("notready");
-	trap_AddCommand("pause");
-	trap_AddCommand("players");
-	trap_AddCommand("readyteam");
-	trap_AddCommand("ready");
-	trap_AddCommand("ref");
-	trap_AddCommand("say_teamnl");
-	trap_AddCommand("say_team");
-	trap_AddCommand("scores");
-	trap_AddCommand("specinvite");
-	trap_AddCommand("speclock");
-	trap_AddCommand("specunlock");
-	trap_AddCommand("statsall");
-	trap_AddCommand("statsdump");
-	trap_AddCommand("timein");
-	trap_AddCommand("timeout");
-	trap_AddCommand("topshots");
-	trap_AddCommand("unlock");
-	trap_AddCommand("unpause");
-	trap_AddCommand("unready");
-	trap_AddCommand("weaponstats");
-	// OSP
-
-	trap_AddCommand ("fireteam");
-	trap_AddCommand ("buddylist");
-	trap_AddCommand ("showstats");
-
-	trap_AddCommand ("ignore");
-	trap_AddCommand ("unignore");
-
-	trap_AddCommand ("addtt");
-	trap_AddCommand ("selectbuddy");
-	trap_AddCommand ("selectNextBuddy");	// xkan 9/26/2002
-
-	trap_AddCommand ("loadgame");
-	trap_AddCommand ("savegame");
-
-	trap_AddCommand ("campaign");
-	trap_AddCommand ("listcampaigns");
-
-	trap_AddCommand ("setweapons");
-	trap_AddCommand ("setclass");		
+	/* Original forwarded-command order, including repeated registrations. */
+	trap_AddCommand( "kill" );
+	trap_AddCommand( "say" );
+	trap_AddCommand( "say_limbo" );
+	trap_AddCommand( "tell" );
+	trap_AddCommand( "listbotgoals" );
+	trap_AddCommand( "give" );
+	trap_AddCommand( "god" );
+	trap_AddCommand( "notarget" );
+	trap_AddCommand( "noclip" );
+	trap_AddCommand( "team" );
+	trap_AddCommand( "follow" );
+	trap_AddCommand( "addbot" );
+	trap_AddCommand( "setviewpos" );
+	trap_AddCommand( "callvote" );
+	trap_AddCommand( "vote" );
+	trap_AddCommand( "nofatigue" );
+	trap_AddCommand( "follownext" );
+	trap_AddCommand( "followprev" );
+	trap_AddCommand( "start_match" );
+	trap_AddCommand( "reset_match" );
+	trap_AddCommand( "swap_teams" );
+	trap_AddCommand( "?" );
+	trap_AddCommand( "bottomshots" );
+	trap_AddCommand( "commands" );
+	trap_AddCommand( "follow" );
+	trap_AddCommand( "lock" );
+	trap_AddCommand( "notready" );
+	trap_AddCommand( "pause" );
+	trap_AddCommand( "players" );
+	trap_AddCommand( "readyteam" );
+	trap_AddCommand( "ready" );
+	trap_AddCommand( "ref" );
+	trap_AddCommand( "say_teamnl" );
+	trap_AddCommand( "say_team" );
+	trap_AddCommand( "scores" );
+	trap_AddCommand( "specinvite" );
+	trap_AddCommand( "speclock" );
+	trap_AddCommand( "specunlock" );
+	trap_AddCommand( "statsall" );
+	trap_AddCommand( "statsdump" );
+	trap_AddCommand( "timein" );
+	trap_AddCommand( "timeout" );
+	trap_AddCommand( "topshots" );
+	trap_AddCommand( "unlock" );
+	trap_AddCommand( "unpause" );
+	trap_AddCommand( "unready" );
+	trap_AddCommand( "weaponstats" );
+	trap_AddCommand( "fireteam" );
+	trap_AddCommand( "buddylist" );
+	trap_AddCommand( "showstats" );
+	trap_AddCommand( "ignore" );
+	trap_AddCommand( "unignore" );
+	trap_AddCommand( "addtt" );
+	trap_AddCommand( "selectbuddy" );
+	trap_AddCommand( "selectNextBuddy" );
+	trap_AddCommand( "loadgame" );
+	trap_AddCommand( "savegame" );
+	trap_AddCommand( "campaign" );
+	trap_AddCommand( "listcampaigns" );
+	trap_AddCommand( "setweapons" );
+	trap_AddCommand( "setclass" );
+	trap_AddCommand( "kickbot" );
+	trap_AddCommand( "wp_add" );
+	trap_AddCommand( "wp_connect" );
+	trap_AddCommand( "wp_clear" );
+	trap_AddCommand( "wp_save" );
+	trap_AddCommand( "wp_load" );
+	trap_AddCommand( "wp_relocate" );
+	trap_AddCommand( "wp_link" );
+	trap_AddCommand( "wp_addtopath" );
+	trap_AddCommand( "wp_setflags" );
+	trap_AddCommand( "wp_setlinkflags" );
+	trap_AddCommand( "wp_autoconnect" );
+	trap_AddCommand( "wp_terminatepath" );
 }

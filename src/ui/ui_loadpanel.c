@@ -33,16 +33,16 @@ panel_button_text_t campaignpheaderTxt = {
 };
 
 panel_button_text_t campaignpTxt = {
-	0.35f, 0.35f,
+	0.2f, 0.2f,
 	{ 1.0f, 1.0f, 1.0f, 0.6f },
 	0, 0,
 	&bg_loadscreenfont2,
 };
 
 panel_button_t loadScreenMap = {
-	"gfx/loading/camp_map",
+	"levelshots/unknownmap",
 	NULL,
-	{ 0, 0, 440, 480 },	// shouldn't this be square??
+	{ 0, 58, 854, 364 },	// shouldn't this be square??
 	{ 0, 0, 0, 0, 0, 0, 0, 0 },
 	NULL,	/* font		*/
 	NULL,	/* keyDown	*/
@@ -54,7 +54,7 @@ panel_button_t loadScreenMap = {
 panel_button_t loadScreenBack = {
 	"gfx/loading/camp_side",
 	NULL,
-	{ 440, 0, 200, 480 },
+	{ -5, -110, 862, 700 },
 	{ 0, 0, 0, 0, 0, 0, 0, 0 },
 	NULL,	/* font		*/
 	NULL,	/* keyDown	*/
@@ -78,9 +78,9 @@ panel_button_t loadScreenBack = {
 panel_button_t loadingPanelText = {
 	NULL,
 	NULL,
-	{ 460, 72, 160, 244 },
+	{ 20, 300, 160, 244 },
 	{ 0, 0, 0, 0, 0, 0, 0, 0 },
-	&missiondescriptionTxt,	/* font		*/
+	&campaignpTxt,	/* font		*/
 	NULL,					/* keyDown	*/
 	NULL,					/* keyUp	*/
 	UI_LoadPanel_RenderLoadingText,
@@ -101,8 +101,8 @@ panel_button_t loadingPanelText = {
 */
 panel_button_t campaignPanelText = {
 	NULL,
-	NULL, //"CONNECTING...",
-	{ 470, 33, 152, 232 },
+	NULL, //"Connecting...",
+	{ 20, 402, 140, 32 },
 	{ 0, 0, 0, 0, 0, 0, 0, 0 },
 	&campaignpTxt,			/* font		*/
 	NULL,					/* keyDown	*/
@@ -112,7 +112,7 @@ panel_button_t campaignPanelText = {
 };
 
 panel_button_t* loadpanelButtons[] = {
-	&loadScreenMap, &loadScreenBack,
+	&loadScreenBack, &loadScreenMap,
 
 
 	&loadingPanelText, /*&loadingPanelHeaderText,*/
@@ -143,7 +143,7 @@ void UI_DrawLoadPanel( qboolean forcerefresh, qboolean ownerdraw, qboolean uihac
 	inside = qtrue;
 
 	if( !bg_loadscreeninited ) {
-		trap_R_RegisterFont( "ariblk", 27, &bg_loadscreenfont1 );
+		trap_R_RegisterFont( "courbd", 30, &bg_loadscreenfont1 );
 		trap_R_RegisterFont( "courbd", 30, &bg_loadscreenfont2 );
 
 		BG_PanelButtonsSetup( loadpanelButtons );
@@ -257,9 +257,9 @@ void UI_LoadPanel_RenderHeaderText( panel_button_t* button ) {
 	trap_Cvar_VariableStringBuffer( "cl_downloadName", downloadName, sizeof(downloadName) );
 
 	if( ( cstate.connState == CA_DISCONNECTED || cstate.connState == CA_CONNECTED ) && *downloadName ) {
-		button->text = "DOWNLOADING...";
+		button->text = "Downloading...";
 	} else {
-		button->text = "CONNECTING...";
+		button->text = "Connecting...";
 	}
 
 	BG_PanelButtonsRender_Text( button );
@@ -367,7 +367,7 @@ void UI_LoadPanel_RenderLoadingText( panel_button_t* button )
 
 	trap_GetClientState( &cstate );
 
-	Com_sprintf( buff, sizeof(buff), "Connecting to:\n %s^*\n\n%s", cstate.servername, Info_ValueForKey( cstate.updateInfoString, "motd" ) );
+	Com_sprintf( buff, sizeof(buff), "Connecting to:\n %s^*\n%s", cstate.servername, Info_ValueForKey( cstate.updateInfoString, "motd" ) );
 
 	//Com_sprintf( buff, sizeof(buff), "%s^*", cstate.servername, Info_ValueForKey( cstate.updateInfoString, "motd" ) );
 
@@ -405,10 +405,10 @@ void UI_LoadPanel_RenderLoadingText( panel_button_t* button )
 			s = (char *)UI_DownloadInfo( downloadName );
 		}
 
-		Q_strcat( buff, sizeof(buff), va( "\n\n%s^*", s ) );
+		Q_strcat( buff, sizeof(buff), va( "\n%s^*", s ) );
 
 		if( cstate.connState < CA_CONNECTED && *cstate.messageString ) {
-			Q_strcat( buff, sizeof(buff), va( "\n\n%s^*", cstate.messageString ) );
+			Q_strcat( buff, sizeof(buff), va( "\n%s^*", cstate.messageString ) );
 		}
 	}
 

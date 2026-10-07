@@ -268,6 +268,83 @@ void BotAI_SetNumBots(int numbots) {
 AngleDifference
 ==============
 */
+#if defined(_MSC_VER) && defined(_M_IX86)
+static const double tceAngleDiffPositive = 180.0;
+static const double tceAngleDiffNegative = -180.0;
+static const double tceAngleDiffTurn = 360.0;
+/* TC2001ed10 returns retained x87 precision to its immediate callers. */
+__declspec(naked) float AngleDifference(float ang1, float ang2) {
+	__asm {
+		fld dword ptr [esp+4]
+		fsub dword ptr [esp+8]
+		fld dword ptr [esp+4]
+		fcomp dword ptr [esp+8]
+		fnstsw ax
+		test ah,041h
+		jnz angle_diff_negative
+		fcom tceAngleDiffPositive
+		fnstsw ax
+		test ah,041h
+		jnz angle_diff_return
+		fsub tceAngleDiffTurn
+		ret
+	angle_diff_negative:
+		fcom tceAngleDiffNegative
+		fnstsw ax
+		test ah,1
+		jz angle_diff_return
+		fadd tceAngleDiffTurn
+	angle_diff_return:
+		ret
+	}
+}
+#elif defined(__GNUC__) && defined(__i386__)
+/* Linux0006652a rounds only the wrapped (+/-360) result to float. */
+__attribute__((naked)) float AngleDifference(float ang1, float ang2) {
+	__asm__ volatile (
+		".intel_syntax noprefix\n\t"
+		"sub esp, 16\n\t"
+		"mov dword ptr [esp+4], 0x43340000\n\t"
+		"mov dword ptr [esp+8], 0xc3340000\n\t"
+		"mov dword ptr [esp+12], 0x43b40000\n\t"
+		"fld dword ptr [esp+20]\n\t"
+		"fld dword ptr [esp+24]\n\t"
+		"fld st(1)\n\t"
+		"fcomp st(1)\n\t"
+		"fnstsw ax\n\t"
+		"sahf\n\t"
+		"fsubp st(1), st(0)\n\t"
+		"jbe 2f\n\t"
+		"fld dword ptr [esp+4]\n\t"
+		"fld st(1)\n\t"
+		"fcom st(1)\n\t"
+		"fnstsw ax\n\t"
+		"fstp st(1)\n\t"
+		"sahf\n\t"
+		"jbe 3f\n\t"
+		"fstp st(1)\n\t"
+		"fsub dword ptr [esp+12]\n\t"
+		"jmp 4f\n\t"
+		"2: fld dword ptr [esp+8]\n\t"
+		"fld st(1)\n\t"
+		"fcom st(1)\n\t"
+		"fnstsw ax\n\t"
+		"fstp st(1)\n\t"
+		"sahf\n\t"
+		"jnc 3f\n\t"
+		"fstp st(1)\n\t"
+		"fadd dword ptr [esp+12]\n\t"
+		"4: fstp dword ptr [esp]\n\t"
+		"fld dword ptr [esp]\n\t"
+		"add esp, 16\n\t"
+		"ret\n\t"
+		"3: fstp st(0)\n\t"
+		"add esp, 16\n\t"
+		"ret\n\t"
+		".att_syntax prefix"
+	);
+}
+#else
 float AngleDifference(float ang1, float ang2) {
 	float diff;
 
@@ -280,12 +357,194 @@ float AngleDifference(float ang1, float ang2) {
 	}
 	return diff;
 }
+#endif
 
 /*
 ==============
 BotChangeViewAngle
 ==============
 */
+#if defined(_MSC_VER) && defined(_M_IX86)
+static const float tceBotViewZero = 0.f;
+/* TC2001ed50: preserve retained movement until the final AngleMod argument. */
+__declspec(naked) float BotChangeViewAngle(float angle, float ideal_angle, float speed) {
+	__asm {
+		MOV EAX,dword ptr [ESP + 04h]
+		PUSH EAX
+		call AngleMod
+		MOV ECX,dword ptr [ESP + 0ch]
+		FSTP dword ptr [ESP + 08h]
+		PUSH ECX
+		call AngleMod
+		FSTP dword ptr [ESP + 010h]
+		FLD dword ptr [ESP + 0ch]
+		FCOMP dword ptr [ESP + 010h]
+		ADD ESP,08h
+		FNSTSW AX
+		TEST AH,040h
+		JZ view_angle_2001ed83
+		FLD dword ptr [ESP + 04h]
+		RET
+		view_angle_2001ed83:
+		FLD dword ptr [ESP + 08h]
+		FSUB dword ptr [ESP + 04h]
+		FLD dword ptr [ESP + 08h]
+		FCOMP dword ptr [ESP + 04h]
+		FNSTSW AX
+		TEST AH,041h
+		JNZ view_angle_2001edaf
+		FCOM tceAngleDiffPositive
+		FNSTSW AX
+		TEST AH,041h
+		JNZ view_angle_2001edc2
+		FSUB tceAngleDiffTurn
+		JMP view_angle_2001edc2
+		view_angle_2001edaf:
+		FCOM tceAngleDiffNegative
+		FNSTSW AX
+		TEST AH,01h
+		JZ view_angle_2001edc2
+		FADD tceAngleDiffTurn
+		view_angle_2001edc2:
+		FCOM tceBotViewZero
+		FNSTSW AX
+		TEST AH,041h
+		JNZ view_angle_2001edef
+		FCOM dword ptr [ESP + 0ch]
+		FNSTSW AX
+		TEST AH,041h
+		JNZ view_angle_2001ee0a
+		FSTP ST(0)
+		FLD dword ptr [ESP + 0ch]
+		FADD dword ptr [ESP + 04h]
+		PUSH ECX
+		FSTP dword ptr [ESP]
+		call AngleMod
+		POP ECX
+		RET
+		view_angle_2001edef:
+		FLD dword ptr [ESP + 0ch]
+		FCHS
+		FSTP dword ptr [ESP + 08h]
+		FCOM dword ptr [ESP + 08h]
+		FNSTSW AX
+		TEST AH,01h
+		JZ view_angle_2001ee0a
+		FSTP ST(0)
+		FLD dword ptr [ESP + 08h]
+		view_angle_2001ee0a:
+		FADD dword ptr [ESP + 04h]
+		PUSH ECX
+		FSTP dword ptr [ESP]
+		call AngleMod
+		POP ECX
+		RET
+	}
+}
+#elif defined(__GNUC__) && defined(__i386__)
+/* Linux0006658c: original register schedule, wrap-only float spill. */
+__attribute__((naked)) float BotChangeViewAngle(float angle, float ideal_angle, float speed) {
+	__asm__ volatile (
+		".intel_syntax noprefix\n\t"
+		"SUB ESP,0x4c\n\t"
+		"FLD dword ptr [ESP + 0x50]\n\t"
+		"FLD dword ptr [ESP + 0x54]\n\t"
+		"fxch st(1)\n\t"
+		"MOV dword ptr [ESP + 0x48],EBX\n\t"
+		"mov dword ptr [esp+0x24], 0x43340000\n\t"
+		"mov dword ptr [esp+0x28], 0x43b40000\n\t"
+		"mov dword ptr [esp+0x2c], 0\n\t"
+		"mov dword ptr [esp+0x30], 0xc3340000\n\t"
+		"FSTP dword ptr [ESP]\n\t"
+		"FSTP dword ptr [ESP + 0x20]\n\t"
+		"call AngleMod\n\t"
+		"FLD dword ptr [ESP + 0x20]\n\t"
+		"fxch st(1)\n\t"
+		"FSTP dword ptr [ESP + 0x10]\n\t"
+		"FSTP dword ptr [ESP]\n\t"
+		"call AngleMod\n\t"
+		"FLD dword ptr [ESP + 0x10]\n\t"
+		"fcom st(1)\n\t"
+		"FNSTSW AX\n\t"
+		"SAHF\n\t"
+		"FLD st(0)\n\t"
+		"JZ .Ltce_view_0006666c\n\t"
+		"FSTP st(0)\n\t"
+		"fcom st(1)\n\t"
+		"FNSTSW AX\n\t"
+		"SAHF\n\t"
+		"FSUB st(1),st(0)\n\t"
+		"JNC .Ltce_view_0006664e\n\t"
+		"FLD dword ptr [esp + 0x24]\n\t"
+		"FLD st(2)\n\t"
+		"fcom st(1)\n\t"
+		"FNSTSW AX\n\t"
+		"FSTP st(1)\n\t"
+		"SAHF\n\t"
+		"JBE .Ltce_view_00066648\n\t"
+		"FSTP st(2)\n\t"
+		"fxch st(1)\n\t"
+		"FSUB dword ptr [esp + 0x28]\n\t"
+		".Ltce_view_000665fd:\n\t"
+		"FSTP dword ptr [ESP + 0x3c]\n\t"
+		"FLD dword ptr [ESP + 0x3c]\n\t"
+		".Ltce_view_00066605:\n\t"
+		"FCOM dword ptr [esp + 0x2c]\n\t"
+		"FNSTSW AX\n\t"
+		"SAHF\n\t"
+		"JBE .Ltce_view_00066632\n\t"
+		"FCOM dword ptr [ESP + 0x58]\n\t"
+		"FNSTSW AX\n\t"
+		"SAHF\n\t"
+		"JBE .Ltce_view_00066620\n\t"
+		"FSTP st(0)\n\t"
+		"FLD dword ptr [ESP + 0x58]\n\t"
+		"NOP\n\t"
+		".Ltce_view_00066620:\n\t"
+		"faddp st(1),st(0)\n\t"
+		"FSTP dword ptr [ESP]\n\t"
+		"call AngleMod\n\t"
+		".Ltce_view_0006662a:\n\t"
+		"MOV EBX,dword ptr [ESP + 0x48]\n\t"
+		"ADD ESP,0x4c\n\t"
+		"RET\n\t"
+		".Ltce_view_00066632:\n\t"
+		"FLD dword ptr [ESP + 0x58]\n\t"
+		"FCHS\n\t"
+		"fcom st(1)\n\t"
+		"FNSTSW AX\n\t"
+		"SAHF\n\t"
+		"JBE .Ltce_view_00066644\n\t"
+		"FSTP st(1)\n\t"
+		"JMP .Ltce_view_00066620\n\t"
+		".Ltce_view_00066644:\n\t"
+		"FSTP st(0)\n\t"
+		"JMP .Ltce_view_00066620\n\t"
+		".Ltce_view_00066648:\n\t"
+		"FSTP st(0)\n\t"
+		"fxch st(1)\n\t"
+		"JMP .Ltce_view_00066605\n\t"
+		".Ltce_view_0006664e:\n\t"
+		"FLD dword ptr [esp + 0x30]\n\t"
+		"FLD st(2)\n\t"
+		"fcom st(1)\n\t"
+		"FNSTSW AX\n\t"
+		"FSTP st(1)\n\t"
+		"SAHF\n\t"
+		"JNC .Ltce_view_00066648\n\t"
+		"FSTP st(2)\n\t"
+		"fxch st(1)\n\t"
+		"FADD dword ptr [esp + 0x28]\n\t"
+		"JMP .Ltce_view_000665fd\n\t"
+		".Ltce_view_0006666c:\n\t"
+		"FSTP st(1)\n\t"
+		"FSTP st(1)\n\t"
+		"JMP .Ltce_view_0006662a\n\t"
+		".att_syntax prefix\n\t"
+	);
+}
+
+#else
 float BotChangeViewAngle(float angle, float ideal_angle, float speed) {
 	float move;
 
@@ -307,6 +566,7 @@ float BotChangeViewAngle(float angle, float ideal_angle, float speed) {
 	}
 	return AngleMod(angle + move);
 }
+#endif
 
 /*
 ==============
@@ -327,11 +587,75 @@ void BotChangeViewAngles(bot_state_t *bs, float thinktime) {
 		factor = 0.15;
 		maxchange = 240;
 	}
+#if defined(_MSC_VER) && defined(_M_IX86)
+	__asm {
+		fld maxchange
+		fmul thinktime
+		fstp maxchange
+	}
+#elif defined(__GNUC__) && defined(__i386__)
+	__asm__ volatile (
+		"flds %0\n\t" "fmuls %1\n\t" "fstps %0"
+		: "+m" (maxchange) : "m" (thinktime) : "st"
+	);
+#else
 	maxchange *= thinktime;
+#endif
 	for (i = 0; i < 2; i++) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+		/* Original compares the retained product after FST, not a reloaded
+		 * float diff/product. AngleDifference returns its live ST0 value. */
+		float current = bs->viewangles[i], ideal = bs->ideal_viewangles[i];
+		__asm {
+			push ideal
+			push current
+			call AngleDifference
+			add esp,8
+			fabs
+			fmul factor
+			fst anglespeed
+			fcomp maxchange
+			fnstsw ax
+			test ah,041h
+			jnz view_speed_ready
+			mov eax,maxchange
+			mov anglespeed,eax
+		view_speed_ready:
+		}
+#elif defined(__GNUC__) && defined(__i386__)
+		struct {
+			float current, ideal, factor, maximum, result;
+		} viewStep;
+		viewStep.current = bs->viewangles[i];
+		viewStep.ideal = bs->ideal_viewangles[i];
+		viewStep.factor = factor;
+		viewStep.maximum = maxchange;
+		/* Linux66731..6674b retains the product through its clamp and
+		 * only then stores the outgoing BotChangeViewAngle argument. */
+		__asm__ volatile (
+			"pushl 4(%%esi)\n\t"
+			"pushl 0(%%esi)\n\t"
+			"call *%%edi\n\t"
+			"addl $8, %%esp\n\t"
+			"fabs\n\t"
+			"fmuls 8(%%esi)\n\t"
+			"fcoms 12(%%esi)\n\t"
+			"fnstsw %%ax\n\t"
+			"sahf\n\t"
+			"jbe 1f\n\t"
+			"fstp %%st(0)\n\t"
+			"flds 12(%%esi)\n\t"
+			"1: fstps 16(%%esi)"
+			: : "S" (&viewStep), "D" (AngleDifference)
+			: "eax", "ecx", "edx", "cc", "memory", "st", "st(1)"
+		);
+		anglespeed = viewStep.result;
+
+#else
 		diff = fabs(AngleDifference(bs->viewangles[i], bs->ideal_viewangles[i]));
 		anglespeed = diff * factor;
 		if (anglespeed > maxchange) anglespeed = maxchange;
+#endif
 		bs->viewangles[i] = BotChangeViewAngle(bs->viewangles[i],
 										bs->ideal_viewangles[i], anglespeed);
 		//BotAI_Print(PRT_MESSAGE, "ideal_angles %f %f\n", bs->ideal_viewangles[0], bs->ideal_viewangles[1], bs->ideal_viewangles[2]);`

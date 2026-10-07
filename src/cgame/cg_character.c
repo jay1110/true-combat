@@ -317,6 +317,11 @@ static acc_t cg_accessories[] = {
 	{ "md3_back",		ACC_BACK },
 	{ "md3_weapon",		ACC_WEAPON },
 	{ "md3_weapon2",	ACC_WEAPON2 },
+	{ "md3_legr",    ACC_MOUTH2 }, /* Original shares these two slots with hat2/3. */
+	{ "md3_legl",    ACC_MOUTH3 },
+	{ "md3_chest",   ACC_CHEST },
+	{ "md3_armr",    ACC_ARM_RIGHT },
+	{ "md3_arml",    ACC_ARM_LEFT },
 };
 
 static int cg_numAccessories = sizeof(cg_accessories) / sizeof(cg_accessories[0]);
@@ -339,6 +344,8 @@ qboolean CG_RegisterCharacter( const char *characterFile, bg_character_t *charac
 {
 	bg_characterDef_t	characterDef;
 	char *filename;
+	char skinBase[MAX_INFO_STRING + MAX_QPATH * 4];
+	const char *camo = Info_ValueForKey( CG_ConfigString( CS_MULTI_INFO ), "camo" );
 	char buf[MAX_QPATH];
 	char accessoryname[MAX_QPATH];
 	int					i;
@@ -355,7 +362,24 @@ qboolean CG_RegisterCharacter( const char *characterFile, bg_character_t *charac
 
 	// Register Skin
 	COM_StripExtension( characterDef.mesh, buf );
-	filename = va( "%s_%s.skin", buf, characterDef.skin );
+	/* Windows 30018460: map camouflage, group fallback, then base skin.
+	 * The final registration is intentionally repeated, as in the original. */
+	Com_sprintf( skinBase, sizeof(skinBase), "models/players/%s/%s_%s%s",
+		*cgs.tceCharacterSkinGroup ? cgs.tceCharacterSkinGroup : characterDef.skinGroup,
+		characterDef.skinRoot, characterDef.skin, camo ? camo : "" );
+	filename = va( "%s.skin", skinBase );
+	character->skin = trap_R_RegisterSkin( filename );
+	if( !character->skin ) {
+		Com_sprintf( skinBase, sizeof(skinBase), "models/players/%s/%s_%s%s",
+			characterDef.skinGroup, characterDef.skinRoot, characterDef.skin, camo ? camo : "" );
+		filename = va( "%s.skin", skinBase );
+		character->skin = trap_R_RegisterSkin( filename );
+		if( !character->skin ) {
+			Com_sprintf( skinBase, sizeof(skinBase), "models/players/%s/%s_%s",
+				characterDef.skinGroup, characterDef.skinRoot, characterDef.skin );
+			filename = va( "%s.skin", skinBase );
+		}
+	}
 	if( !(character->skin = trap_R_RegisterSkin( filename )) ) {
 		CG_Printf( S_COLOR_YELLOW "WARNING: failed to register skin '%s' referenced from '%s'\n", filename, characterFile );
 	} else {
@@ -375,6 +399,24 @@ qboolean CG_RegisterCharacter( const char *characterFile, bg_character_t *charac
 			}
 		}
 	}
+
+	/* Original per-region damage skins and their ordered fallback chain. */
+	character->bodyDamageSkins[3] = trap_R_RegisterSkin( va("%s_p11.skin", skinBase) );
+	if( !character->bodyDamageSkins[3] ) character->bodyDamageSkins[3] = character->skin;
+	character->bodyDamageSkins[7] = trap_R_RegisterSkin( va("%s_p22.skin", skinBase) );
+	if( !character->bodyDamageSkins[7] ) character->bodyDamageSkins[7] = character->bodyDamageSkins[3];
+	{
+		static const char *suffix[] = { "p01", "p02", "p10", "p12", "p20", "p21" };
+		static const int slot[] = { 0, 1, 2, 4, 5, 6 };
+		static const int fallback[] = { 3, 7, 3, 7, 7, 7 };
+		for( i = 0; i < 6; ++i ) {
+			character->bodyDamageSkins[slot[i]] = trap_R_RegisterSkin( va("%s_%s.skin", skinBase, suffix[i]) );
+			if( !character->bodyDamageSkins[slot[i]] ) character->bodyDamageSkins[slot[i]] = character->bodyDamageSkins[fallback[i]];
+		}
+	}
+	character->armsSkins[0] = trap_R_RegisterSkin( va("%s_arms.skin", skinBase) );
+	character->armsSkins[1] = trap_R_RegisterSkin( va("%s_arms2.skin", skinBase) );
+	character->armsSkins[2] = trap_R_RegisterSkin( va("%s_arms3.skin", skinBase) );
 
 	// Register Undressed Corpse Media
 	if( *characterDef.undressedCorpseModel ) {
@@ -396,9 +438,21 @@ qboolean CG_RegisterCharacter( const char *characterFile, bg_character_t *charac
 			CG_Printf( S_COLOR_YELLOW "WARNING: failed to register hud head model '%s' referenced from '%s'\n", characterDef.hudhead, characterFile );
 		}
 
-		if( *characterDef.hudheadskin && !(character->hudheadskin = trap_R_RegisterSkin( characterDef.hudheadskin )) ) {
-			CG_Printf( S_COLOR_YELLOW "WARNING: failed to register hud head skin '%s' referenced from '%s'\n", characterDef.hudheadskin, characterFile );
+		character->hudheadskin = trap_R_RegisterSkin( va("%s_head.skin", skinBase) );
+		if( !character->hudheadskin ) {
+			if( *characterDef.hudheadskin && !(character->hudheadskin = trap_R_RegisterSkin( characterDef.hudheadskin )) ) {
+				CG_Printf( S_COLOR_YELLOW "WARNING: failed to register hud head skin '%s' referenced from '%s'\n", characterDef.hudheadskin, characterFile );
+			}
+			COM_StripExtension( characterDef.hudheadskin, buf );
+			character->headDamageSkins[0] = trap_R_RegisterSkin( va("%s_p1.skin", buf) );
+			if( !character->headDamageSkins[0] ) character->headDamageSkins[0] = character->hudheadskin;
+			character->headDamageSkins[1] = trap_R_RegisterSkin( va("%s_p2.skin", buf) );
+		} else {
+			character->headDamageSkins[0] = trap_R_RegisterSkin( va("%s_head1.skin", skinBase) );
+			if( !character->headDamageSkins[0] ) character->headDamageSkins[0] = character->hudheadskin;
+			character->headDamageSkins[1] = trap_R_RegisterSkin( va("%s_head2.skin", skinBase) );
 		}
+		if( !character->headDamageSkins[1] ) character->headDamageSkins[1] = character->headDamageSkins[0];
 
 		if( *characterDef.hudheadanims ) {
 			if( !CG_ParseHudHeadConfig( characterDef.hudheadanims, character->hudheadanimations ) ) {
@@ -431,9 +485,9 @@ bg_character_t *CG_CharacterForClientinfo( clientInfo_t *ci, centity_t *cent )
 			return cgs.gameCharacters[ cent->currentState.onFireStart ];
 		else {
 			if( cent->currentState.modelindex < 4 )
-				return BG_GetCharacter( cent->currentState.modelindex, cent->currentState.modelindex2 );
+				return BG_GetCharacter( cent->currentState.modelindex, cent->currentState.onFireEnd );
 			else
-				return BG_GetCharacter( cent->currentState.modelindex - 4, cent->currentState.modelindex2 );
+				return BG_GetCharacter( cent->currentState.modelindex - 4, cent->currentState.onFireEnd );
 		}
 	}
 

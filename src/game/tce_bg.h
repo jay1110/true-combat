@@ -6,7 +6,8 @@
  * Do not substitute the ET weapon_t enum: TC:E reuses and extends its IDs.
  */
 #include <stddef.h>
-#define TCE_MAX_WEAPONS 64
+#include "tce_weapon_ids.h"
+#define TCE_MAX_WEAPONS TCE_WEAPON_CAPACITY
 
 typedef struct {
     unsigned char unknown_000[0x40];
@@ -64,12 +65,23 @@ typedef char tce_gear_size_check[sizeof(tce_gearDef_t) == 0x1808 ? 1 : -1];
 extern tce_weaponDef_t weaponDef[TCE_MAX_WEAPONS];
 extern tce_gearDef_t gearDef;
 
+/* Windows gametypeDef stride16: the third field is not named speculatively. */
+typedef struct { int maxClients, field04, unknown08, field0c; } tce_gametypeDef_t;
+extern tce_gametypeDef_t tce_gametypeDef[8];
+void BG_InitializeGametypeDef(void);
+int BG_MapIsOfficial(const char *mapname);
+
 int TCE_PWF_ParseError(int handle, const char *format, ...);
 int BG_ParseGearDef(const char *primary, const char *fallback, tce_gearDef_t *definition);
 int BG_ParseWeaponDef(const char *filename, tce_weaponDef_t *definition);
 int BG_InitializeWeaponDef(tce_weaponDef_t *definition);
 
 int BG_WolfClassToTCE(int playerClass);
+int TCE_BG_IsHeavyWeapon(int weapon);
+int BG_DefaultWeaponForClass(int team, int playerClass);
+int TCE_BG_SupportsFastReload(int weapon);
+int TCE_PM_NonemptyReloadAnimForWeapon(int weapon, int lightWeaponSkill);
+int TCE_PM_ReloadAnimForWeapon(int weapon, int lightWeaponSkill);
 int BG_WeapIDToWeaponNum(const char *id);
 int BG_CheckUTWeapon(int weapon);
 /* Separate from the ET SDK whitelist until all weapon IDs are integrated. */
@@ -83,6 +95,10 @@ int BG_WeapToWeaponOnBack(int weapon);
 int BG_WeaponOnBackToWeap(int weapon);
 int TCE_BG_BBoxCollision(const float *minsA, const float *maxsA,
                      const float *minsB, const float *maxsB);
+int BG_SurfaceFlag2Type(unsigned int flags);
+unsigned int BG_SurfaceType2Flag(unsigned int material);
+typedef struct { int resistance, thicknessScale; } tce_pierceMaterial_t;
+extern const tce_pierceMaterial_t tcePierceTable[37];
 int TCE_BG_FootstepForSurface(unsigned int flags);
 
 #endif

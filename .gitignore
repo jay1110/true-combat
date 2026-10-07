@@ -3,6 +3,43 @@
 !/.gitignore
 !/src/
 
+# Publish production sources and build inputs only. Local research is retained.
+/src/*
+!/src/botai/
+!/src/cgame/
+!/src/game/
+!/src/server/
+!/src/ui/
+!/src/cmake/
+!/src/CMakeLists.txt
+!/src/build.ps1
+!/src/BUILDING.md
+!/src/SConstruct
+!/src/SConscript.*
+!/src/scons_utils.py
+!/src/cross-scons.sh
+!/src/makebundle.sh
+!/src/wolf.sln
+/src/botai/**
+/src/cgame/**
+/src/game/**
+/src/server/**
+/src/ui/**
+!/src/**/
+!/src/**/*.c
+!/src/**/*.h
+!/src/**/*.inc
+!/src/**/*.def
+!/src/**/*.vcproj
+!/src/**/*.dsp
+/src/cmake/*
+!/src/cmake/*.cmake
+# Overrides the source-extension exceptions above for local-only work.
+/src/tests/
+/src/tools/
+/src/reconstruction/
+/src/AGENTS.md
+
 # Generated files stay local even when building inside src.
 **/__pycache__/
 **/*.py[cod]

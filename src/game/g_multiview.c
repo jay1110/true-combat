@@ -127,7 +127,7 @@ void G_smvAddView(gentity_t *ent, int pID)
 
 	if(ent->client->sess.sessionTeam == TEAM_SPECTATOR && /*ent->client->sess.sessionTeam != TEAM_SPECTATOR ||*/
 	  ent->client->sess.spectatorState == SPECTATOR_FOLLOW) {
-		SetTeam( ent, "s", qtrue, -1, -1, qfalse );
+		SetTeam( ent, "s", qtrue, -1, -1, -1, qfalse );
 	} else if(ent->client->sess.sessionTeam != TEAM_SPECTATOR && !(ent->client->ps.pm_flags & PMF_LIMBO)) {
 		limbo(ent, qtrue);
 	}
@@ -195,7 +195,8 @@ unsigned int G_smvGenerateClientList(gentity_t *ent)
 
 	for(i=0; i<MULTIVIEW_MAXVIEWS; i++) {
 		if(ent->client->pers.mv[i].fActive) {
-			mClients |= 1 << ent->client->pers.mv[i].entID;
+			/* TC SHL r32,CL masks the count, including bit31. */
+			mClients |= 1u << ((unsigned int)ent->client->pers.mv[i].entID & 31u);
 		}
 	}
 
@@ -209,7 +210,7 @@ void G_smvRegenerateClients(gentity_t *ent, int clientList)
 	int i;
 
 	for(i=0; i<MAX_MVCLIENTS; i++) {
-		if(clientList & (1 << i)) G_smvAddView(ent, i);
+		if((unsigned int)clientList & (1u << i)) G_smvAddView(ent, i);
 	}
 }
 
@@ -252,11 +253,78 @@ void G_smvAllRemoveSingleClient(int pID)
 }
 
 
+/* TC camera packing: FILD/FMUL[/FIDIV], double floor argument, then
+ * retained floor result plus optional one and __ftol64/low EAX. */
+static int G_TCECameraQuantize(int cameraValue, unsigned int cameraFactorBits,
+	int cameraDivisor, qboolean cameraAddOne, qboolean cameraDivide) {
+	float cameraFactor;
+	memcpy(&cameraFactor, &cameraFactorBits, sizeof(cameraFactor));
+#if defined(_MSC_VER) && defined(_M_IX86)
+	{
+		double (__cdecl *cameraFloor)(double) = floor;
+		double cameraOne = 1.0;
+		unsigned short cameraCW, cameraTruncCW;
+		__int64 cameraResult;
+		__asm {
+			fild cameraValue
+			fmul cameraFactor
+			cmp cameraDivide, 0
+			je camera_no_divide
+			fidiv cameraDivisor
+camera_no_divide:
+			sub esp, 8
+			fstp qword ptr [esp]
+			call cameraFloor
+			add esp, 8
+			cmp cameraAddOne, 0
+			je camera_no_increment
+			fadd qword ptr cameraOne
+camera_no_increment:
+			fwait
+			fnstcw cameraCW
+			fwait
+			mov ax, cameraCW
+			or ax, 0c00h
+			mov cameraTruncCW, ax
+			fldcw cameraTruncCW
+			fistp qword ptr cameraResult
+			fldcw cameraCW
+		}
+		return (int)cameraResult;
+	}
+#else
+	return (int)(floor((double)cameraValue * cameraFactor /
+		(cameraDivide ? cameraDivisor : 1)) + (cameraAddOne ? 1.0 : 0.0));
+#endif
+}
+
+static int G_TCECameraCharge(float cameraChargeValue) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+	unsigned short chargeCW, chargeTruncCW;
+	__int64 chargeResult;
+	__asm {
+		fld cameraChargeValue
+		fwait
+		fnstcw chargeCW
+		fwait
+		mov ax, chargeCW
+		or ax, 0c00h
+		mov chargeTruncCW, ax
+		fldcw chargeTruncCW
+		fistp qword ptr chargeResult
+		fldcw chargeCW
+	}
+	return (int)chargeResult;
+#else
+	return (int)cameraChargeValue;
+#endif
+}
+
 // Set up snapshot merge based on this portal
 qboolean G_smvRunCamera(gentity_t *ent)
 {
 	int id = ent->TargetFlag;
-	int chargeTime, sprintTime, hintTime, weapHeat;
+	int chargeTime, sprintTime, hintTime, weapHeat, chargeElapsed;
 	playerState_t *tps, *ps;
 
 	// Opt out if not a real MV portal
@@ -293,17 +361,20 @@ qboolean G_smvRunCamera(gentity_t *ent)
 
 	tps = &ent->target_ent->client->ps;
 
-	if(tps->stats[STAT_PLAYER_CLASS] == PC_ENGINEER) chargeTime = g_engineerChargeTime.value;
-	else if(tps->stats[STAT_PLAYER_CLASS] == PC_MEDIC) chargeTime = g_medicChargeTime.value;
-	else if(tps->stats[STAT_PLAYER_CLASS] == PC_FIELDOPS) chargeTime = g_LTChargeTime.value;
-	else if(tps->stats[STAT_PLAYER_CLASS] == PC_COVERTOPS) chargeTime = g_covertopsChargeTime.value;
-	else chargeTime = g_soldierChargeTime.value;
+	if(tps->stats[STAT_PLAYER_CLASS] == PC_ENGINEER) chargeTime = G_TCECameraCharge(g_engineerChargeTime.value);
+	else if(tps->stats[STAT_PLAYER_CLASS] == PC_MEDIC) chargeTime = G_TCECameraCharge(g_medicChargeTime.value);
+	else if(tps->stats[STAT_PLAYER_CLASS] == PC_FIELDOPS) chargeTime = G_TCECameraCharge(g_LTChargeTime.value);
+	else if(tps->stats[STAT_PLAYER_CLASS] == PC_COVERTOPS) chargeTime = G_TCECameraCharge(g_covertopsChargeTime.value);
+	else chargeTime = G_TCECameraCharge(g_soldierChargeTime.value);
 
-	chargeTime = (level.time - tps->classWeaponTime >= (int)chargeTime) ? 0 : (1 + floor(15.0f * (float)(level.time - tps->classWeaponTime) / chargeTime));
-	sprintTime = (ent->target_ent->client->pmext.sprintTime >= 20000) ? 0.0f : (1 + floor(7.0f * (float)ent->target_ent->client->pmext.sprintTime / 20000.0f));
-	weapHeat   = floor((float)tps->curWeapHeat * 15.0f / 255.0f);
+	chargeElapsed = (int)((unsigned int)level.time - (unsigned int)tps->classWeaponTime);
+	chargeTime = (chargeElapsed >= chargeTime) ? 0 :
+		G_TCECameraQuantize(chargeElapsed, 0x41700000u, chargeTime, qtrue, qtrue);
+	sprintTime = (ent->target_ent->client->pmext.sprintTime >= 20000) ? 0 :
+		G_TCECameraQuantize(ent->target_ent->client->pmext.sprintTime, 0x39b78034u, 0, qtrue, qfalse);
+	weapHeat = G_TCECameraQuantize(tps->curWeapHeat, 0x3d70f0f1u, 0, qfalse, qfalse);
 	hintTime   = (tps->serverCursorHint != HINT_BUILD && (tps->serverCursorHintVal >= 255 || tps->serverCursorHintVal == 0)) ?
-														0 : (1 + floor(15.0f * (float)tps->serverCursorHintVal / 255.0f));
+														0 : G_TCECameraQuantize(tps->serverCursorHintVal, 0x3d70f0f1u, 0, qtrue, qfalse);
 
 	// (Remaining bits)
 	// ammo      : 0

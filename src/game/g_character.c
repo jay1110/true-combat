@@ -15,7 +15,6 @@ G_ParseAnimationFiles
 */
 static qboolean G_ParseAnimationFiles( bg_character_t *character, const char *animationGroup, const char *animationScript )
 {
-	char			filename[MAX_QPATH];
 	fileHandle_t	f;
 	int				len;
 
@@ -31,7 +30,9 @@ static qboolean G_ParseAnimationFiles( bg_character_t *character, const char *an
 		return qfalse;
 	}
 	if ( len >= sizeof( text ) - 1 ) {
-		G_Printf( "File %s is too long\n", filename );
+		/* Original printed an uninitialized filename buffer here. Preserve the
+		 * diagnostic contract with the actual requested script, not stack data. */
+		G_Printf( "File %s is too long\n", animationScript );
 		return qfalse;
 	}
 	trap_FS_Read( text, len, f );
@@ -139,67 +140,46 @@ void G_RegisterPlayerClasses( void )
 G_UpdateCharacter
 =================
 */
+/* TC Windows2004a870 / Linux000a1466. Register failure is fatal; silently
+ * switching to a default character leaves server/client animation state split. */
 void G_UpdateCharacter( gclient_t *client )
 {
-	char			infostring[MAX_INFO_STRING];
-	char			*s;
-	int				characterIndex;
-	bg_character_t	*character;
+    char infostring[MAX_INFO_STRING];
+    char *s;
+    int characterIndex;
+    bg_character_t *character;
 
-	trap_GetUserinfo( client->ps.clientNum, infostring, sizeof( infostring ) );
-	s = Info_ValueForKey( infostring, "ch" );
-	if( *s ) {
-		characterIndex = atoi(s);
-		if( characterIndex < 0 || characterIndex >= MAX_CHARACTERS ) {
-			goto set_default_character;
-		}
-
-		if( client->pers.characterIndex != characterIndex ) {
-			client->pers.characterIndex = characterIndex;
-			trap_GetConfigstring( CS_CHARACTERS + characterIndex, infostring, MAX_INFO_STRING );
-			if( !(client->pers.character = BG_FindCharacter( infostring ) ) ) {
-				// not found - create it (this should never happen as we should have everything precached)
-				client->pers.character = BG_FindFreeCharacter( infostring );
-
-				if ( !client->pers.character ) {
-					goto set_default_character;
-				}
-
-				Q_strncpyz( client->pers.character->characterFile, infostring, sizeof(client->pers.character->characterFile) );
-
-				if( !G_RegisterCharacter( infostring, client->pers.character ) ) {
-					G_Printf( S_COLOR_YELLOW "WARNING: G_UpdateCharacter: failed to load character file '%s' for %s\n", infostring,
-						client->pers.netname);
-
-					goto set_default_character;
-				}
-			}
-
-			// RF, reset anims so client's dont freak out
-
-			// xkan: this can only be done if the model really changed - otherwise, the
-			// animation may get screwed up if we are in the middle of some animation
-			// and we come into this function; 
-			// plus, also reset the timer so we can properly start the next animation
-
-			client->ps.legsAnim = 0;
-			client->ps.torsoAnim = 0;
-			client->ps.legsTimer = 0;
-			client->ps.torsoTimer = 0;
-		}
-		return;
-	}
-
-  set_default_character:
-	// set default character
-	character = BG_GetCharacter( client->sess.sessionTeam, client->sess.playerType );
-	if( client->pers.character != character ) {
-		client->pers.characterIndex = -1;
-		client->pers.character = character;
-
-		client->ps.legsAnim = 0;
-		client->ps.torsoAnim = 0;
-		client->ps.legsTimer = 0;
-		client->ps.torsoTimer = 0;
-	}
+    trap_GetUserinfo(client->ps.clientNum, infostring, sizeof(infostring));
+    s = Info_ValueForKey(infostring, "ch");
+    if (*s) {
+        characterIndex = atoi(s);
+        if (client->pers.characterIndex == characterIndex) return;
+        client->pers.characterIndex = characterIndex;
+        trap_GetConfigstring(CS_CHARACTERS + characterIndex, infostring, sizeof(infostring));
+        client->pers.character = BG_FindCharacter(infostring);
+        if (!client->pers.character) {
+            client->pers.character = BG_FindFreeCharacter(infostring);
+            /* Original dereferences a full cache. Keep the same fatal outcome
+             * without an uncontrolled null dereference on malformed input. */
+            if (!client->pers.character) {
+                G_Error("ERROR: G_UpdateCharacter: no free character slot for '%s'\n", infostring);
+                return;
+            }
+            Q_strncpyz(client->pers.character->characterFile, infostring,
+                sizeof(client->pers.character->characterFile));
+            if (!G_RegisterCharacter(infostring, client->pers.character)) {
+                G_Error("ERROR: G_UpdateCharacter: failed to load character file '%s' for %s\n",
+                    infostring, client->pers.netname);
+            }
+        }
+    } else {
+        character = BG_GetCharacter(client->sess.sessionTeam, client->sess.playerType);
+        if (client->pers.character == character) return;
+        client->pers.characterIndex = -1;
+        client->pers.character = character;
+    }
+    client->ps.legsAnim = 0;
+    client->ps.torsoAnim = 0;
+    client->ps.legsTimer = 0;
+    client->ps.torsoTimer = 0;
 }

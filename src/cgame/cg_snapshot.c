@@ -4,6 +4,7 @@
 
 
 #include "cg_local.h"
+#include "../game/tce_trajectory.h"
 #if __MACOS__
 #ifdef GAMERANGER
 #include "GameRanger SDK/GameRanger.h"
@@ -74,8 +75,8 @@ static void CG_TransitionEntity( centity_t *cent ) {
 		vec3_t newDir, newPos, oldPos;
 		float adjust;
 		//
-		BG_EvaluateTrajectory( &cent->nextState.pos, cg.snap->serverTime, newPos, qfalse, cent->currentState.effect2Time );
-		BG_EvaluateTrajectory( &cent->currentState.pos, cg.snap->serverTime, oldPos, qfalse, cent->currentState.effect2Time );
+		TCE_BG_EvaluateTrajectory( &cent->nextState.pos, cg.snap->serverTime, newPos, qfalse, cent->currentState.effect2Time, 1.f );
+		TCE_BG_EvaluateTrajectory( &cent->currentState.pos, cg.snap->serverTime, oldPos, qfalse, cent->currentState.effect2Time, 1.f );
 		// update the fireRiseDir
 		VectorSubtract( oldPos, newPos, newDir );
 		// fire should go upwards if travelling slow
@@ -139,6 +140,10 @@ void CG_SetInitialSnapshot( snapshot_t *snap ) {
 	// set our local weapon selection pointer to
 	// what the server has indicated the current weapon is
 	CG_Respawn( qfalse );
+	/* Original 3005fd04: initial snapshot opens the objective description. */
+	cg.tceShowObjectiveDesc = qtrue;
+	/* Original CG_SetInitialSnapshot starts the levelshot fade after respawn. */
+	cg.levelshotFadeStart = cg.time;
 
 	for ( i = 0 ; i < cg.snap->numEntities ; i++ ) {
 		state = &cg.snap->entities[ i ];
@@ -247,13 +252,6 @@ static void CG_TransitionSnapshot( void ) {
 		oldValid[cg.snap->entities[i].number] = qtrue;
 	}
 
-	// OSP -- check for MV updates from new snapshot info
-#ifdef MV_SUPPORT
-	if(cg.snap->ps.powerups[PW_MVCLIENTLIST] != cg.mvClientList) {
-		CG_mvProcessClientList();
-	}
-#endif
-
 	// move nextSnap to snap and do the transitions
 	oldFrame = cg.snap;
 	cg.snap = cg.nextSnap;
@@ -305,9 +303,6 @@ static void CG_TransitionSnapshot( void ) {
 		// reason, then the client events and view changes will be issued now
 		if ( cg.demoPlayback || (cg.snap->ps.pm_flags & PMF_FOLLOW)
 			|| cg_nopredict.integer 
-#ifdef ALLOW_GSYNC
-			|| cg_synchronousClients.integer 
-#endif // ALLOW_GSYNC
 		) {
 			CG_TransitionPlayerState( ps, ops );
 		}
@@ -418,37 +413,7 @@ static snapshot_t *CG_ReadNextSnapshot( void ) {
 				cg.duckTime = -1;
 				cg.landTime = -1;
 				cg.stepTime = -1;
-#ifdef SAVEGAME_SUPPORT
-				// savegame: we should use this as our new base snapshot
-				if( CG_IsSinglePlayer() ) {
-					int i;
-					centity_t backupCent;
-					CG_SetInitialSnapshot( dest );
-					cg.nextFrameTeleport = qtrue;
-					// loadgame hasn't occured yet, so this is likely wrong
-					//cg.weaponSelect = cg.snap->ps.weapon;
-					cg.weaponSelectTime = cg.time;
-					memset( cg.viewDamage, 0, sizeof(cg.viewDamage) );
-				//	memset( cg.cameraShake, 0, sizeof(cg.cameraShake) );
-					// go through an reset the cent's
-					for (i=0; i<MAX_GENTITIES; i++) {
-						backupCent = cg_entities[i];
-						memset( &cg_entities[i], 0, sizeof(centity_t) );
-						cg_entities[i].currentState = backupCent.currentState;
-						cg_entities[i].nextState = backupCent.nextState;
-						cg_entities[i].currentValid = backupCent.currentValid;
-						cg_entities[i].interpolate = backupCent.interpolate;
-					}
-					// reset the predicted cent
-					memset( &cg.predictedPlayerEntity, 0, sizeof(centity_t) );
-					cg.predictedPlayerEntity.currentState = backupCent.currentState;
-					cg.predictedPlayerEntity.nextState = backupCent.nextState;
-					cg.predictedPlayerEntity.currentValid = backupCent.currentValid;
-					cg.predictedPlayerEntity.interpolate = backupCent.interpolate;
 
-					return NULL;
-				}
-#endif // SAVEGAME_SUPPORT
 			}
 //
 			return dest;

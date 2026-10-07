@@ -1,15 +1,15 @@
 # TC:E-Rekonstruktion bauen
 
-Stand: 3. Oktober 2026. Das Projekt baut das ET-2.60-SDK mit ersten
-rekonstruierten TC:E-Komponenten. **Es ist noch kein spielbarer Ersatz fuer TC:E.**
-Den genauen Umfang beschreibt [reconstruction/STATUS.md](reconstruction/STATUS.md).
+Das Projekt baut die rekonstruierten TC:E-Module. Die Rekonstruktion ist
+noch unvollstaendig. Git enthaelt Produktionsquellen und Build-Dateien;
+Referenzbinaries, Tests, Rekonstruktionslisten und Belege bleiben lokal.
 
 ## Voraussetzungen
 
 - Visual Studio 2022 mit C++-Buildtools fuer x86 und Windows SDK
 - CMake ab 3.20
-- Python 3 fuer die Vergleichstests
-- Die unveraenderten Referenzdateien unter `tcetest/`, einschliesslich `pak2.pk3` und `pak3.pk3`
+- Nur fuer optionale lokale Vergleichstests: Python 3, die lokalen Tests und
+  unveraenderte Referenzdateien unter `tcetest/`.
 
 Im Repository-Stamm in PowerShell:
 
@@ -17,15 +17,27 @@ Im Repository-Stamm in PowerShell:
 .\src\build.ps1
 ```
 
-Das Skript kopiert nach erfolgreichem Build und Tests alle drei DLLs nach
+Ohne lokale Tests/Referenzen baut das Skript nur die Produktionsmodule.
+Es kopiert nach erfolgreichem Build (und gegebenenfalls Tests) alle drei DLLs nach
 `tce2/`, prueft SHA-256 und schreibt `tce2/build-info.json`. Dies gilt auch
-bei spaeteren Builds. `-SkipTests` wird im Manifest als ungeprueft vermerkt.
+bei spaeteren Builds. Zusaetzlich wird `tce2/zz_tce2_vm.pk3` mit cgame/ui erzeugt,
+damit Pure-Clients nicht die Vanilla-DLLs aus `etmain/mp_bin.pk3` extrahieren.
+Laufende Spiel-/Serverprozesse vor dem Deploy schliessen; Dateisperren werden
+vor dem Kopieren geprueft. `-SkipTests` wird im Manifest als ungeprueft vermerkt.
 `tce2` ist das neue Test-`fs_game`; die vollstaendige TC:E-Einbindung fehlt noch.
 
 Die einzelnen Build-Schritte (anschliessend mit `build.ps1` nach `tce2` deployen):
 
 ```powershell
 cmake -S src -B build/sdk-win32 -A Win32
+cmake --build build/sdk-win32 --config Release --parallel
+```
+
+Vergleichstests sind standardmaessig deaktiviert. Nur in der lokalen
+Rekonstruktionsumgebung mit Tests und Referenzdateien einschalten:
+
+```powershell
+cmake -S src -B build/sdk-win32 -A Win32 -DBUILD_TESTING=ON
 cmake --build build/sdk-win32 --config Release --parallel
 ctest --test-dir build/sdk-win32 -C Release --output-on-failure
 ```
@@ -63,6 +75,10 @@ bei erneuter Inventur erhalten. Einstieg: `reconstruction/FUNCTIONS.md`.
   teilweise bekannte Datenstrukturen.
 - `game/tce_weapon_parse.c`, `game/tce_gear_parse.c`: Waffen- und Gear-Parser.
 - `game/tce_weapon_init.c`: Waffeninitialisierung mit Charakteristiktabelle.
+- `cgame/tce_cg_gear.c`, `game/tce_g_load.c`: Client-/Server-Gear-Lader und
+  Server-Waffenlader; Spielstart-Einbindung noch offen.
+- `cgame/tce_weapon_media.c`, `.h`: rekonstruierter Medienparser-Unterbaum
+  mit separater TC:E-Struktur und Originalvergleichen.
 - `reconstruction/evidence/`: Windows-Decompilerbelege und Waffen-ID-Zuordnung.
 - `reconstruction/inventory/`: Linux-Symbole, SDK-Namensreferenzen und SHA-256
   der unveraenderten DLL-/SO-Eingaben.

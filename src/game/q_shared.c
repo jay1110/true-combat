@@ -16,10 +16,16 @@ int qmin( int x, int y ) {
 #endif
 
 float Com_Clamp( float min, float max, float value ) {
-	if ( value < min ) {
+	// Original x87 lower-bound branch also selects min for unordered inputs.
+	if ( !( value >= min ) ) {
 		return min;
 	}
+#ifdef _WIN32
 	if ( value > max ) {
+#else
+	// The original Linux upper-bound branch selects max when unordered.
+	if ( !( value <= max ) ) {
+#endif
 		return max;
 	}
 	return value;
@@ -117,15 +123,10 @@ COM_BitCheck
 ==================
 */
 qboolean COM_BitCheck( const int array[], int bitNum ) {
-	int i;
-
-	i = 0;
-	while (bitNum > 31) {
-		i++;
-		bitNum -= 32;
-	}
-
-	return ((array[i] & (1 << bitNum) ) != 0);	// (SA) heh, whoops. :)
+	/* TC x86: negative indices stay in word zero; shift counts use low5 bits. */
+	unsigned int index = bitNum > 31 ? (unsigned int)bitNum >> 5 : 0;
+	unsigned int mask = 1u << ((unsigned int)bitNum & 31u);
+	return (((const unsigned int *)array)[index] & mask) != 0;
 }
 
 /*
@@ -136,15 +137,10 @@ COM_BitSet
 ==================
 */
 void COM_BitSet( int array[], int bitNum ) {
-	int i;
-
-	i = 0;
-	while (bitNum > 31) {
-		i++;
-		bitNum -= 32;
-	}
-
-	array[i] |= (1 << bitNum);
+	/* TC x86: negative indices stay in word zero; shift counts use low5 bits. */
+	unsigned int index = bitNum > 31 ? (unsigned int)bitNum >> 5 : 0;
+	unsigned int mask = 1u << ((unsigned int)bitNum & 31u);
+	((unsigned int *)array)[index] |= mask;
 }
 
 /*
@@ -155,15 +151,10 @@ COM_BitClear
 ==================
 */
 void COM_BitClear( int array[], int bitNum ) {
-	int i;
-
-	i = 0;
-	while (bitNum > 31) {
-		i++;
-		bitNum -= 32;
-	}
-
-	array[i] &= ~(1 << bitNum);
+	/* TC x86: negative indices stay in word zero; shift counts use low5 bits. */
+	unsigned int index = bitNum > 31 ? (unsigned int)bitNum >> 5 : 0;
+	unsigned int mask = 1u << ((unsigned int)bitNum & 31u);
+	((unsigned int *)array)[index] &= ~mask;
 }
 //============================================================================
 
@@ -394,12 +385,13 @@ a newline.
 static char *SkipWhitespace( char *data, qboolean *hasNewLines ) {
 	int c;
 
-	while( (c = *data) <= ' ') {
+	while( (c = (signed char)*data) <= ' ') {
 		if( !c ) {
 			return NULL;
 		}
 		if( c == '\n' ) {
-			com_lines++;
+			/* Original INC wraps the 32-bit line counter. */
+			++*(unsigned int *)&com_lines;
 			*hasNewLines = qtrue;
 		}
 		data++;
@@ -660,7 +652,7 @@ Internal brace depths are properly skipped.
 */
 void SkipBracedSection (char **program) {
 	char			*token;
-	int				depth;
+	unsigned int	depth;
 
 	depth = 0;
 	do {
@@ -688,7 +680,7 @@ void SkipRestOfLine ( char **data ) {
 	p = *data;
 	while ( (c = *p++) != 0 ) {
 		if ( c == '\n' ) {
-			com_lines++;
+			++*(unsigned int *)&com_lines;
 			break;
 		}
 	}
@@ -886,12 +878,13 @@ void Q_strncpyz( char *dest, const char *src, int destsize ) {
                  
 int Q_stricmpn (const char *s1, const char *s2, int n) {
 	int		c1, c2;
+	unsigned int remaining = (unsigned int)n;
 	
 	do {
-		c1 = *s1++;
-		c2 = *s2++;
+		c1 = (signed char)*s1++;
+		c2 = (signed char)*s2++;
 
-		if (!n--) {
+		if (!remaining--) {
 			return 0;		// strings are equal until end point
 		}
 		
@@ -913,12 +906,13 @@ int Q_stricmpn (const char *s1, const char *s2, int n) {
 
 int Q_strncmp (const char *s1, const char *s2, int n) {
 	int		c1, c2;
+	unsigned int remaining = (unsigned int)n;
 	
 	do {
-		c1 = *s1++;
-		c2 = *s2++;
+		c1 = (signed char)*s1++;
+		c2 = (signed char)*s2++;
 
-		if (!n--) {
+		if (!remaining--) {
 			return 0;		// strings are equal until end point
 		}
 		
@@ -1127,9 +1121,10 @@ float	*tv( float x, float y, float z ) {
 	v = vecs[index];
 	index = (index + 1)&7;
 
-	v[0] = x;
-	v[1] = y;
-	v[2] = z;
+	/* TC3007f490 copies argument bits with integer MOVs, including NaNs. */
+	memcpy(&v[0], &x, sizeof(x));
+	memcpy(&v[1], &y, sizeof(y));
+	memcpy(&v[2], &z, sizeof(z));
 
 	return v;
 }

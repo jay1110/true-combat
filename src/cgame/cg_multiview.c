@@ -302,10 +302,11 @@ void CG_mvUpdateClientInfo(int pID)
 		ci->chargeTime = (ps->ammoclip[id - 1] >> 9)  & 0x0F;
 		ci->sprintTime = (ps->ammoclip[id - 1] >> 13) & 0x07;
 
-		ci->weapHeat   = (int)(100.0f * (float)ci->weapHeat / 15.0f);
-		ci->chargeTime = (ci->chargeTime == 0) ? -1 : (int)(100.0f * (float)(ci->chargeTime-1) / 15.0f);
-		ci->hintTime   = (ci->hintTime == 0)   ? -1 : (int)(100.0f * (float)(ci->hintTime-1) / 15.0f);
-		ci->sprintTime = (ci->sprintTime == 0) ? -1 : (int)(100.0f * (float)(ci->sprintTime-1) / 7.0f);
+		// Original packed percentages multiply stored binary32 factors before truncation.
+		ci->weapHeat   = (int)((double)ci->weapHeat * (100.0f / 15.0f));
+		ci->chargeTime = (ci->chargeTime == 0) ? -1 : (int)((double)(ci->chargeTime-1) * (100.0f / 15.0f));
+		ci->hintTime   = (ci->hintTime == 0)   ? -1 : (int)((double)(ci->hintTime-1) * (100.0f / 15.0f));
+		ci->sprintTime = (ci->sprintTime == 0) ? -1 : (int)((double)(ci->sprintTime-1) * (100.0f / 7.0f));
 
 		if(ci->health == 0) ci->weaponState = WSTATE_IDLE;
 
@@ -349,8 +350,8 @@ void CG_mvTransitionPlayerState(playerState_t* ps)
 	else if(x == PC_COVERTOPS) mult = cg.covertopsChargeTime[ci->team - 1];
 	else mult = cg.soldierChargeTime[ci->team - 1];
 
-	ps->curWeapHeat = (int)((float)ci->weapHeat * 255.0f / 100.0f);
-	ps->classWeaponTime = (ci->chargeTime < 0) ? -1 : cg.time - (int)((float)(mult * ci->chargeTime) / 100.0f);
+	ps->curWeapHeat = (int)((double)ci->weapHeat * 2.55f);
+	ps->classWeaponTime = (ci->chargeTime < 0) ? -1 : cg.time - (int)((double)(mult * ci->chargeTime) * 0.01f);
 
 	// FIXME: moved to pmext
 //	ps->sprintTime = (ci->sprintTime < 0) ? 20000 : (int)((float)ci->sprintTime / 100.0f * 20000.0f);
@@ -409,8 +410,8 @@ void CG_mvDraw(cg_window_t *sw)
 		if(sw->state == WSTATE_START) {
 			if(tmp < sw->targetTime) {
 				s = (float)tmp / (float)sw->targetTime;
-				rd_x += rd_w * 0.5f * (1.0f - s);
-				rd_y += rd_h * 0.5f * (1.0f - s);
+				rd_x += (1.0f - s) * rd_w * 0.5f;
+				rd_y += (1.0f - s) * rd_h * 0.5f;
 				rd_w *= s;
 				rd_h *= s;
 			} else {
@@ -419,8 +420,8 @@ void CG_mvDraw(cg_window_t *sw)
 		} else if(sw->state == WSTATE_SHUTDOWN) {
 			if(tmp < sw->targetTime) {
 				s = (float)tmp / (float)sw->targetTime;
-				rd_x += rd_w * 0.5f * s;
-				rd_y += rd_h * 0.5f * s;
+				rd_x += rd_w * s * 0.5f;
+				rd_y += rd_h * s * 0.5f;
 				s = 1.0f - s;
 				rd_w *= s;
 				rd_h *= s;
@@ -483,8 +484,9 @@ void CG_mvDraw(cg_window_t *sw)
 							(cgs.clientinfo[pID].fCrewgun) ?
 													55 : cg_fov.integer;
 
-	x = refdef.width / tan(refdef.fov_x / 360 * M_PI);
-	refdef.fov_y = atan2(refdef.height, x) * 360 / M_PI;
+	// Original projection uses a binary32 radians factor and a binary64 degrees factor.
+	x = refdef.width / tan((double)refdef.fov_x * 0.008726646192371845f);
+	refdef.fov_y = atan2(refdef.height, x) * 114.59155583736408;
 
 	refdef.rdflags = cg.refdef.rdflags;
 	refdef.time = cg.time;
@@ -504,7 +506,8 @@ void CG_mvDraw(cg_window_t *sw)
 		AnglesToAxis(cg.refdefViewAngles, refdef.viewaxis);
 	} else {
 		cg.renderingThirdPerson = qfalse;
-		refdef.vieworg[2] += (cent->currentState.eFlags & EF_CROUCHING) ? CROUCH_VIEWHEIGHT : DEFAULT_VIEWHEIGHT;
+		// TC multiview has its own camera offsets, independent of shared player bounds.
+		refdef.vieworg[2] += (cent->currentState.eFlags & EF_CROUCHING) ? 21.0f : 42.0f;
 	}
 
 	CG_SetupFrustum();

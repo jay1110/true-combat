@@ -178,6 +178,50 @@ typedef struct {
 	void	(*spawn)(gentity_t *ent);
 } spawn_t;
 
+/* TC qagame20069da0 / Linux000cab0a. Packed radar contacts consumed by
+ * CG_RadarPositions (entity type61). The bomb carrier is a client number. */
+static void Think_UpdateScanner(gentity_t *self) {
+	int index = self->s.clientNum, scanned, found = 0;
+	int team = self->s.eFlags == 0 ? TEAM_AXIS : TEAM_ALLIES;
+	self->s.groundEntityNum = self->s.otherEntityNum = self->s.otherEntityNum2 = 255;
+	/* Only flags0/1 are produced. Define the original invalid-flag branch
+	 * (which uses an entity pointer as a team number) as an empty scan. */
+	if (self->s.eFlags != 0 && self->s.eFlags != 1) {
+		self->nextthink = level.time + 50;
+		return;
+	}
+	for (scanned = 0; scanned < 64; ++scanned) {
+		gentity_t *player;
+		gclient_t *client;
+		if (++index >= 64) index = 0;
+		player = &g_entities[index];
+		if (!player->inuse) continue;
+		client = player->client;
+		if (client->sess.sessionTeam != team || client->pers.connected != CON_CONNECTED ||
+			g_gametype.integer != 5 || !(client->ps.stats[STAT_TCE_WEAPON_FLAGS] & 0x100) ||
+			client->ps.clientNum != level.tceBombCarrier || client->ps.stats[STAT_HEALTH] <= 0) continue;
+		switch (++found) {
+		case 1: VectorCopy(client->ps.origin, self->s.origin2); self->s.groundEntityNum = index; break;
+		case 2: VectorCopy(client->ps.origin, self->s.origin); self->s.otherEntityNum = index; break;
+		case 3: VectorCopy(client->ps.origin, self->s.pos.trBase); self->s.otherEntityNum2 = index; break;
+		default: self->nextthink = level.time + 50; return;
+		}
+		self->s.clientNum = index;
+	}
+	self->nextthink = level.time + 50;
+}
+
+/* TC qagame20069ef0 / Linux000cacae. Preserve link-before-origin ordering. */
+static void SP_info_scanner(gentity_t *ent) {
+	ent->s.eType = 61;
+	ent->s.clientNum = 0;
+	trap_LinkEntity(ent);
+	G_SetOrigin(ent, ent->s.origin);
+	ent->think = Think_UpdateScanner;
+	ent->r.svFlags |= SVF_BROADCAST;
+	ent->nextthink = level.time + 1000;
+}
+
 void SP_info_player_start (gentity_t *ent);
 void SP_info_player_checkpoint (gentity_t *ent);
 void SP_info_player_deathmatch (gentity_t *ent);
@@ -208,6 +252,7 @@ void SP_func_door_rotating (gentity_t *ent);
 void SP_func_constructible( gentity_t *ent );
 void SP_func_brushmodel( gentity_t *ent );
 void SP_misc_constructiblemarker( gentity_t *ent );
+void SP_misc_dynamite( gentity_t *ent );
 void SP_target_explosion( gentity_t *ent );
 void SP_misc_landmine( gentity_t *ent );
 
@@ -242,6 +287,7 @@ void SP_target_relay (gentity_t *ent);
 void SP_target_kill (gentity_t *ent);
 void SP_target_position (gentity_t *ent);
 void SP_target_location (gentity_t *ent);
+void SP_target_environment(gentity_t *ent);
 void SP_target_push (gentity_t *ent);
 void SP_target_script_trigger (gentity_t *ent);
 void SP_misc_beam( gentity_t *self );
@@ -289,6 +335,7 @@ void SP_team_CTF_redplayer( gentity_t *ent );
 void SP_team_CTF_blueplayer( gentity_t *ent );
 
 void SP_team_CTF_redspawn( gentity_t *ent );
+void SP_team_hostage_spawn( gentity_t *ent );
 void SP_team_CTF_bluespawn( gentity_t *ent );
 
 // JPW NERVE for multiplayer spawnpoint selection
@@ -355,6 +402,10 @@ void SP_alarm_box(gentity_t *ent);
 void SP_trigger_flagonly( gentity_t *ent );		// DHM - Nerve
 void SP_trigger_flagonly_multiple( gentity_t *ent );		// DHM - Nerve
 void SP_trigger_objective_info( gentity_t *ent );	// DHM - Nerve
+void SP_func_obj_touch(gentity_t *ent);
+void SP_func_obj_use(gentity_t *ent);
+void SP_func_obj_destroy(gentity_t *ent);
+void SP_func_obj_item(gentity_t *ent);
 
 void SP_gas (gentity_t *ent);
 void SP_target_rumble (gentity_t *ent);
@@ -519,6 +570,7 @@ spawn_t	spawns[] = {
 	{"target_kill", SP_target_kill},
 	{"target_position", SP_target_position},
 	{"target_location", SP_target_location},
+	{"target_environment", SP_target_environment},
 	{"target_push", SP_target_push},
 	{"target_script_trigger", SP_target_script_trigger},
 
@@ -577,6 +629,7 @@ spawn_t	spawns[] = {
 	{"team_CTF_blueplayer", SP_team_CTF_blueplayer},
 
 	{"team_CTF_redspawn", SP_team_CTF_redspawn},
+	{"team_hostage_spawn", SP_team_hostage_spawn},
 	{"team_CTF_bluespawn", SP_team_CTF_bluespawn},
 
 	{"team_WOLF_objective", SP_team_WOLF_objective},
@@ -586,6 +639,7 @@ spawn_t	spawns[] = {
 	{"target_smoke", SP_target_smoke},
 
 	{"misc_spawner", SP_misc_spawner},
+	{"info_scanner", SP_info_scanner},
 
 	{"props_box_32", SP_props_box_32},
 	{"props_box_48", SP_props_box_48},
@@ -633,6 +687,10 @@ spawn_t	spawns[] = {
 
 	{"test_gas", SP_gas},
 	{"trigger_objective_info", SP_trigger_objective_info},
+	{"func_obj_touch", SP_func_obj_touch},
+	{"func_obj_use", SP_func_obj_use},
+	{"func_obj_destroy", SP_func_obj_destroy},
+	{"func_obj_item", SP_func_obj_item},
 
 	// RF, scripting
 	{"script_model_med", SP_script_model_med},
@@ -656,6 +714,7 @@ spawn_t	spawns[] = {
 	{"misc_constructiblemarker", SP_misc_constructiblemarker},
 	{"target_explosion",	SP_target_explosion },
 	{"misc_landmine",		SP_misc_landmine },
+	{"misc_dynamite", SP_misc_dynamite},
 
 	{0, 0}
 };
@@ -681,7 +740,7 @@ qboolean G_CallSpawn( gentity_t *ent ) {
 	for ( item=bg_itemlist+1 ; item->classname ; item++ ) {
 		if ( !strcmp(item->classname, ent->classname) ) {
 			// found it
-			if(g_gametype.integer != GT_WOLF_LMS) { // Gordon: lets not have items in last man standing for the moment
+			if(g_gametype.integer != GT_TCE_BODYCOUNT) { /* TC: only mode7 suppresses map items. */
 				G_SpawnItem( ent, item );
 
 				G_Script_ScriptParse( ent );
@@ -696,6 +755,11 @@ qboolean G_CallSpawn( gentity_t *ent ) {
 	// check normal spawn functions
 	for ( s=spawns ; s->name ; s++ ) {
 		if ( !strcmp(s->name, ent->classname) ) {
+			/* TC20085c08: Bodycount omits these objective-only entities. */
+			if (g_gametype.integer == GT_TCE_BODYCOUNT &&
+				(!strcmp(s->name, "trigger_objective_info") || !strcmp(s->name, "misc_dynamite"))) {
+				return qfalse;
+			}
 			// found it
 			s->spawn(ent);
 
@@ -983,13 +1047,41 @@ void SP_worldspawn( void ) {
 		G_SpawnVector2D( "mapcoordsmaxs", "128 -128", level.mapcoordsMaxs ) ) {	// bottom right
 		level.mapcoordsValid = qtrue;
 	}
+	/* TC SP_worldspawn20086170: legacy demolition maps have no mapcoords. */
+	if (!Q_stricmp(level.rawmapname, "dem_northport")) {
+		Vector2Set(level.mapcoordsMins, -3584, 2048);
+		Vector2Set(level.mapcoordsMaxs, 2560, -4096);
+		level.mapcoordsValid = qtrue;
+	} else if (!Q_stricmp(level.rawmapname, "dem_railhouse")) {
+		Vector2Set(level.mapcoordsMins, -2560, 5632);
+		Vector2Set(level.mapcoordsMaxs, 3072, 0);
+		level.mapcoordsValid = qtrue;
+	} else if (!Q_stricmp(level.rawmapname, "dem_village")) {
+		Vector2Set(level.mapcoordsMins, -2560, 1536);
+		Vector2Set(level.mapcoordsMaxs, 2560, -3584);
+		level.mapcoordsValid = qtrue;
+	}
 
 	BG_InitLocations( level.mapcoordsMins, level.mapcoordsMaxs );
 
 	trap_SetConfigstring( CS_MOTD, g_motd.string );		// message of the day
 
-	G_SpawnString( "gravity", "800", &s );
-	trap_Cvar_Set( "g_gravity", s );
+	trap_Cvar_Set( "g_gravity", "800" );
+	/* These two maps use the 70-unit hull, not the default 87-unit hull.
+	 * Set at every world spawn so map rotation restores the appropriate size. */
+	trap_Cvar_Set("g_newbbox", !Q_stricmp(level.rawmapname, "obj_delta") ||
+		!Q_stricmp(level.rawmapname, "obj_stadtrand") ? "0" : "1");
+	G_SpawnString("enableFog", "0", &s);
+	if (atoi(s)) {
+		float nearDist, farDist, r, g, b;
+		G_SpawnString("fogNear", "512", &s); nearDist = atof(s);
+		G_SpawnString("fogFar", "1024", &s); farDist = atof(s);
+		G_SpawnString("fogR", "0.7", &s); r = atof(s);
+		G_SpawnString("fogG", "0.7", &s); g = atof(s);
+		G_SpawnString("fogB", "0.7", &s); b = atof(s);
+		G_Printf("Set WORLDFOG\n");
+		trap_SetConfigstring(CS_FOGVARS, va("%f %f %f %f %f %f %i %i", nearDist, farDist, 1.0, r, g, b, 20, 1));
+	}
 
 	G_SpawnString( "spawnflags", "0", &s );
 	g_entities[ENTITYNUM_WORLD].spawnflags = atoi( s );
@@ -1019,6 +1111,8 @@ Parses textual entity definitions out of an entstring and spawns gentities.
 ==============
 */
 void G_SpawnEntitiesFromString( void ) {
+	gentity_t *start, *scanner;
+	int i;
 	// allow calls to G_Spawn*()
 	G_Printf( "Enable spawning!\n" );
 	level.spawning = qtrue;
@@ -1036,6 +1130,19 @@ void G_SpawnEntitiesFromString( void ) {
 	while( G_ParseSpawnVars() ) {
 		G_SpawnGEntityFromSpawnVars();
 	}	
+
+	/* TC2008666b: demolition creates two scanners at the first deathmatch
+	 * spawn. Both original instances use group0; do not invent group1 here. */
+	if (g_gametype.integer == 5 &&
+		(start = G_Find(NULL, FOFS(classname), "info_player_deathmatch")) != NULL) {
+		for (i = 0; i < 2; ++i) {
+			scanner = G_Spawn();
+			scanner->classname = "info_scanner";
+			scanner->s.eFlags = 0;
+			VectorCopy(start->r.currentOrigin, scanner->s.origin);
+			if (!G_CallSpawn(scanner)) G_FreeEntity(scanner);
+		}
+	}
 
 	G_Printf( "Disable spawning!\n" );
 	level.spawning = qfalse;			// any future calls to G_Spawn*() will be errors

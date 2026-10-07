@@ -215,15 +215,20 @@ void G_SetupFrustum_ForBinoculars( gentity_t* ent )
 	vec3_t	axis[3];
 	vec3_t	vieworg;
 	float baseAngle;
+	double horizontalAngle;
 
 	if (ent->r.svFlags & SVF_BOT)
 		baseAngle = BOT_BINOCULAR_ANGLE;
 	else
 		baseAngle = BINOCULAR_ANGLE;
 
-	ang = (baseAngle / 180.f)* M_PI * 0.5f;
-	xs = sin( ang );
-	xc = cos( ang );
+	// TC Windows 200904f0 multiplies two stored float constants and keeps
+	// the first trig argument unrounded; the vertical pair reloads float ang.
+	horizontalAngle = (double)baseAngle * (double)0.0055555556900799274f *
+		(double)1.5707963705062866f;
+	ang = (float)horizontalAngle;
+	xs = sin( horizontalAngle );
+	xc = cos( horizontalAngle );
 
 	AnglesToAxis( ent->client->ps.viewangles, axis );
 
@@ -233,7 +238,6 @@ void G_SetupFrustum_ForBinoculars( gentity_t* ent )
 	VectorScale( axis[0], xs, frustum[1].normal );
 	VectorMA( frustum[1].normal, -xc, axis[1], frustum[1].normal );
 
-	ang = (baseAngle / 180.f)* M_PI * 0.5f;
 	xs = sin( ang );
 	xc = cos( ang );
 
@@ -266,7 +270,8 @@ static qboolean G_CullPointAndRadius( vec3_t pt, float radius ) {
 		frust = &frustum[i];
 
 		dist = DotProduct( pt, frust->normal) - frust->dist;
-		if ( dist < -radius || dist <= radius )
+		// Original x87 branches reject unordered comparisons as well.
+		if ( !(dist >= -radius && dist > radius) )
 			return( qfalse );
 	}
 

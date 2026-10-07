@@ -122,8 +122,8 @@ qboolean G_commandHelp(gentity_t *ent, char *pszCommand, unsigned int dwCommand)
 qboolean G_cmdDebounce(gentity_t *ent, const char *pszCommandName)
 {
 	if(ent->client->pers.cmd_debounce > level.time) {
-		CP(va("print \"Wait another %.1fs to issue ^3%s\n\"", 1.0*(float)(ent->client->pers.cmd_debounce - level.time)/1000.0,
-															  pszCommandName));
+		CP(va("print \"Wait another %.1fs to issue ^3%s\n\"", (double)(ent->client->pers.cmd_debounce - level.time) * 0.001,
+			pszCommandName));
 		return(qfalse);
 	}
 
@@ -627,7 +627,7 @@ int QDECL SortStats( const void *a, const void *b )
 // Shows the most accurate players for each weapon to the requesting client
 void G_weaponStatsLeaders_cmd(gentity_t* ent, qboolean doTop, qboolean doWindow)
 {
-	int i, iWeap, shots, wBestAcc, cClients, cPlaces;
+	int i, iWeap, shots, wBestAcc, cClients, cPlaces, selected;
 	int aClients[MAX_CLIENTS];
 	float acc;
 	char z[MAX_STRING_CHARS];
@@ -647,12 +647,58 @@ void G_weaponStatsLeaders_cmd(gentity_t* ent, qboolean doTop, qboolean doWindow)
 
 			shots = cl->sess.aWeaponStats[iWeap].atts;
 			if(shots >= cQualifyingShots[iWeap]) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+				/* Original20056cb0 keeps the unsigned-hit quotient in ST0
+				 * until comparison and truncating conversion of a new best. */
+				static const double percentScale = 100.0;
+				__int64 hitsWide = (unsigned int)cl->sess.aWeaponStats[iWeap].hits;
+				__int64 converted;
+				unsigned short originalControl, truncateControl;
+				int replace;
+				__asm {
+					fild hitsWide
+					fmul percentScale
+					fidiv shots
+					ficom wBestAcc
+					fnstsw ax
+					cmp doTop, 0
+					je stats_bottom_compare
+					test ah, 041h
+					setz al
+					jmp stats_compare_ready
+				stats_bottom_compare:
+					and ah, 045h
+					cmp ah, 1
+					setz al
+				stats_compare_ready:
+					movzx eax, al
+					mov replace, eax
+					test eax, eax
+					jz stats_keep_best
+					fnstcw originalControl
+					mov ax, originalControl
+					or ax, 0c00h
+					mov truncateControl, ax
+					fldcw truncateControl
+					fistp converted
+					fldcw originalControl
+					mov eax, dword ptr converted
+					mov wBestAcc, eax
+					jmp stats_best_ready
+				stats_keep_best:
+					fstp st(0)
+				stats_best_ready:
+				}
+				aClients[cClients++] = level.sortedClients[i];
+				if (replace) cPlaces++;
+#else
 				acc = (float)((cl->sess.aWeaponStats[iWeap].hits) * 100.0) / (float)shots;
 				aClients[cClients++] = level.sortedClients[i];
 				if(((doTop) ? acc : (float)wBestAcc) > ((doTop) ? wBestAcc : acc)) {
 					wBestAcc = (int)acc;
 					cPlaces++;
 				}
+#endif
 			}
 		}
 
@@ -660,9 +706,41 @@ void G_weaponStatsLeaders_cmd(gentity_t* ent, qboolean doTop, qboolean doWindow)
 
 		for(i=0; i<cClients; i++) {
 			cl = &level.clients[ aClients[i] ];
+#if defined(_MSC_VER) && defined(_M_IX86)
+			{
+				static const double percentScale = 100.0, bottomSlack = 0.999;
+				__int64 hitsWide = (unsigned int)cl->sess.aWeaponStats[iWeap].hits;
+				int attempts = (int)cl->sess.aWeaponStats[iWeap].atts;
+				/* Original second pass rounds only the final quotient to float,
+				 * then compares against an unrounded integer-plus-double bound. */
+				__asm {
+					fild hitsWide
+					fmul percentScale
+					fidiv attempts
+					fstp acc
+					cmp doTop, 0
+					je stats_bottom_include
+					fild wBestAcc
+					fld acc
+					jmp stats_include_compare
+				stats_bottom_include:
+					fld acc
+					fild wBestAcc
+					fadd bottomSlack
+				stats_include_compare:
+					fcompp
+					fnstsw ax
+					test ah, 1
+					setz al
+					movzx eax, al
+					mov selected, eax
+				}
+			}
+#else
 			acc = (float)(cl->sess.aWeaponStats[iWeap].hits * 100.0) / (float)(cl->sess.aWeaponStats[iWeap].atts);
-
-			if(((doTop)?acc:(float)wBestAcc+0.999) >= ((doTop)?wBestAcc:acc)) {
+			selected = ((doTop)?acc:(float)wBestAcc+0.999) >= ((doTop)?wBestAcc:acc);
+#endif
+			if(selected) {
 				Q_strcat(z, sizeof(z), va(" %d %d %d %d %d %d", iWeap+1, aClients[i],
 																cl->sess.aWeaponStats[iWeap].hits,
 																cl->sess.aWeaponStats[iWeap].atts,

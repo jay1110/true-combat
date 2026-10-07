@@ -11,6 +11,8 @@
 */
 
 #include "g_local.h"
+#include "tce_bg.h"
+#include "tce_trajectory.h"
 
 
 
@@ -250,11 +252,12 @@ int AddToClip(
 	int inclip, maxclip;
 	int ammoweap = BG_FindAmmoForWeapon(weapon);
 
-	if(weapon < WP_LUGER || weapon >= WP_NUM_WEAPONS)
+	/* TC 2005c540: all definition slots 2..63, not the SDK enum range. */
+	if(weapon < 2 || weapon >= 64)
 		return qfalse;
 
 	inclip	= ps->ammoclip[BG_FindClipForWeapon(weapon)];
-	maxclip = GetAmmoTableData(weapon)->maxclip;
+	maxclip = weaponDef[weapon].maxclip;
 
 	if (!ammomove)	// amount to add to the clip not specified
 		ammomove = maxclip - inclip;	// max amount that can be moved into the clip
@@ -325,7 +328,9 @@ int Add_Ammo(gentity_t *ent, int weapon, int count, qboolean fillClip) {
 		Fill_Clip(&ent->client->ps, weapon);
 	}
 
-	if( ammoweap == WP_PANZERFAUST || ammoweap == WP_FLAMETHROWER ) {
+	/* TC 2005c610 retains the legacy clip-only sentinel IDs 65/66;
+	 * numeric SDK 5/6 are ordinary TC inventory pools. */
+	if( ammoweap == 65 || ammoweap == 66 ) {
 		ent->client->ps.ammoclip[ammoweap] += count;
 
 		if( ent->client->ps.ammoclip[ammoweap] > maxammo ) {
@@ -353,19 +358,108 @@ int Add_Ammo(gentity_t *ent, int weapon, int count, qboolean fillClip) {
 Pickup_Ammo
 ==============
 */
-int Pickup_Ammo (gentity_t *ent, gentity_t *other) {
-	// added some ammo pickups, so I'll use ent->item->quantity if no ent->count
-	if (ent->count)
-	{
-		Add_Ammo (other, ent->item->giTag, ent->count, qfalse);
-	}
-	else
-	{
-		Add_Ammo (other, ent->item->giTag, ent->item->quantity, qfalse);
-	}
-
-	return RESPAWN_AMMO;
+/* TC2005c770: ammunition pickups are objective bomb/VIP carriers. */
+int Pickup_Ammo(gentity_t *ent,gentity_t *other) {
+    gentity_t *popup;
+    gclient_t *cl=other->client;
+    if(!Q_stricmp(ent->classname,"ammo_dynamite")) {
+        if(level.tceBombCarrier==-1) {
+            cl->ps.stats[STAT_TCE_WEAPON_FLAGS]|=0x100;
+            level.tceBombCarrier=cl->ps.clientNum;
+            cl->tceBombPossessionOrder=++level.tceBombCarrierCount;
+            popup=G_PopupMessage(PM_MESSAGE);popup->s.effect2Time=cl->ps.persistant[PERS_TEAM];
+            popup->s.effect3Time=cl->ps.clientNum;popup->s.density=2;
+            if(cl->ps.persistant[PERS_TEAM]!=level.tceDemolitionTeam) {
+                level.tceExitRulesNotBefore=level.time+1000;
+                if(level.gameManager)G_Script_ScriptEvent(level.gameManager,"trigger","bomb_secured");
+            }
+        }
+    } else if(!Q_stricmp(ent->classname,"ammo_VIP") && level.tceVipCarrier==-1) {
+        cl->ps.stats[STAT_TCE_FLAGS]|=0x100;level.tceVipCarrier=cl->ps.clientNum;
+        SetWolfSpawnWeapons(cl);
+        popup=G_PopupMessage(PM_MESSAGE);popup->s.effect2Time=cl->ps.persistant[PERS_TEAM];
+        popup->s.effect3Time=cl->ps.clientNum;popup->s.density=3;
+    }
+    return -1;
 }
+
+/* Shared arithmetic of complete original2005cfe0/2005d220 drop bodies. */
+static gentity_t *G_TCELaunchObjective(gentity_t *ent,qboolean vip) {
+    vec3_t angles,velocity,origin,offset,mins={-10,-10,0},maxs={10,10,20};
+    trace_t tr;
+    gentity_t *drop;
+    gitem_t *item=BG_FindItemForClassName(vip?"ammo_VIP":"ammo_dynamite");
+    if(!item)return NULL; /* Invalid catalog guard; original assumes entry. */
+    VectorCopy(ent->client->ps.viewangles,angles);
+    if(angles[PITCH]<-30)angles[PITCH]=-30;else if(angles[PITCH]>30)angles[PITCH]=30;
+    angles[YAW]-=45;
+    AngleVectors(angles,velocity,NULL,NULL);
+    VectorScale(velocity,64,offset);offset[2]+=ent->client->ps.viewheight*.5f;
+    VectorScale(velocity,75,velocity);
+    velocity[2]+=(rand()&0x7fff)*(1.0f/32767.0f)*35+50;
+    VectorAdd(ent->client->ps.origin,offset,origin);
+    trap_Trace(&tr,ent->client->ps.origin,mins,maxs,origin,ent->s.number,CONTENTS_SOLID);
+    VectorCopy(tr.endpos,origin);
+    drop=LaunchItem(item,origin,velocity,ent->client->ps.clientNum);
+    drop->s.otherEntityNum2=ent->client->ps.persistant[PERS_TEAM];
+    drop->s.effect3Time=drop->s.otherEntityNum=vip?254:253;
+    drop->s.effect2Time=level.time;drop->r.svFlags=SVF_BROADCAST;
+    if(!vip)level.tceBombDropCount++;
+    return drop;
+}
+void G_TCEDropBomb(gentity_t *ent) { G_TCELaunchObjective(ent,qfalse); }
+void G_TCEDropVip(gentity_t *ent) { G_TCELaunchObjective(ent,qtrue); }
+
+/* Original2005cde0: Bodycount death drops health for the opposing team. */
+void G_TCEDropHealth(gentity_t *ent) {
+    vec3_t angles, velocity, offset, origin, mins={-10,-10,0}, maxs={10,10,20};
+    trace_t tr;
+    gentity_t *drop;
+    gitem_t *item=BG_FindItemForClassName("item_health");
+    if(!item)return;
+    VectorCopy(ent->client->ps.viewangles,angles);
+    if(angles[PITCH]<-30)angles[PITCH]=-30;else if(angles[PITCH]>30)angles[PITCH]=30;
+    angles[YAW]-=45;
+    AngleVectors(angles,velocity,NULL,NULL);
+    VectorScale(velocity,64,offset);offset[2]+=ent->client->ps.viewheight*.5f;
+    VectorScale(velocity,75,velocity);
+    velocity[2]+=(rand()&0x7fff)*(1.0f/32767.0f)*35+50;
+    VectorAdd(ent->client->ps.origin,offset,origin);
+    trap_Trace(&tr,ent->client->ps.origin,mins,maxs,origin,ent->s.number,CONTENTS_SOLID);
+    drop=LaunchItem(item,tr.endpos,velocity,ent->client->ps.clientNum);
+    drop->s.otherEntityNum2=ent->client->ps.persistant[PERS_TEAM];
+}
+
+/* Original carrier removal branches shared by death, timeout and disconnect.
+ * Disconnect uses the drop ordinal instead of the helper's server timestamp. */
+void G_TCEReleaseObjectives(gentity_t *ent,qboolean disconnect,qboolean vip) {
+    gclient_t *cl=ent->client;
+    gentity_t *drop,*popup;
+    if(g_gametype.integer!=5 || !cl)return;
+    if((cl->ps.stats[STAT_TCE_WEAPON_FLAGS]&0x100) && level.tceBombAssigned &&
+        !level.tceBombPlanted && level.tceBombCarrier==cl->ps.clientNum &&
+        (!disconnect || level.tceBombCarrier==(int)(ent-g_entities)) && level.tceBombDropCount<2) {
+        drop=G_TCELaunchObjective(ent,qfalse);
+        if(disconnect && drop)drop->s.effect2Time=level.tceBombDropCount;
+        cl->ps.stats[STAT_TCE_WEAPON_FLAGS]&=~0x100;level.tceBombCarrierCount--;
+        level.tceBombCarrier=-1;cl->tceBombPossessionOrder=0;
+        popup=G_PopupMessage(PM_MESSAGE);popup->s.effect2Time=cl->ps.persistant[PERS_TEAM];
+        popup->s.effect3Time=cl->ps.clientNum;popup->s.density=1;
+    }
+    /* Original ClientDisconnect2004d840 also checks the disconnecting entity
+     * index, not only a potentially stale predicted playerstate clientNum. */
+    if(vip && (cl->ps.stats[STAT_TCE_FLAGS]&0x100) && level.tceVipAssigned &&
+       level.tceVipCarrier==cl->ps.clientNum &&
+       (!disconnect || level.tceVipCarrier==(int)(ent-g_entities))) {
+        drop=G_TCELaunchObjective(ent,qtrue);
+        if(disconnect && drop)drop->s.effect2Time=level.tceBombDropCount+1;
+        cl->ps.stats[STAT_TCE_FLAGS]&=~0x100;level.tceVipCarrier=-1;
+        if(disconnect)cl->tceBombPossessionOrder=0;
+        popup=G_PopupMessage(PM_MESSAGE);popup->s.effect2Time=cl->ps.persistant[PERS_TEAM];
+        popup->s.effect3Time=cl->ps.clientNum;popup->s.density=4;
+    }
+}
+
 
 // xkan, 9/18/2002 - Extracted AddMagicAmmo from Pickup_Weapon()
 /*
@@ -421,6 +515,23 @@ weapon_t G_GetPrimaryWeaponForClient( gclient_t *client )
 	return WP_NONE;
 }
 
+/* TC2005ca20: scan both class tables' sidearm slots in original order. */
+weapon_t G_GetSecondaryWeaponForClient( gclient_t *client ) {
+	int i;
+	bg_playerclass_t *classInfo;
+	if (client->sess.sessionTeam != TEAM_ALLIES && client->sess.sessionTeam != TEAM_AXIS)
+		return WP_NONE;
+	classInfo = &bg_allies_playerclasses[client->sess.playerType];
+	for (i = 0; i < MAX_WEAPS_PER_CLASS; ++i)
+		if (COM_BitCheck(client->ps.weapons, classInfo->classWeapons2[i]))
+			return classInfo->classWeapons2[i];
+	classInfo = &bg_axis_playerclasses[client->sess.playerType];
+	for (i = 0; i < MAX_WEAPS_PER_CLASS; ++i)
+		if (COM_BitCheck(client->ps.weapons, classInfo->classWeapons2[i]))
+			return classInfo->classWeapons2[i];
+	return WP_NONE;
+}
+
 void G_DropWeapon( gentity_t *ent, weapon_t weapon )
 {
 	vec3_t		angles, velocity, org, offset, mins, maxs;
@@ -438,10 +549,11 @@ void G_DropWeapon( gentity_t *ent, weapon_t weapon )
 	else if ( angles[PITCH] > 30 )
 		angles[PITCH] = 30;
 
+	angles[YAW] += 45.0f;
 	AngleVectors( angles, velocity, NULL, NULL );
-	VectorScale( velocity, 64, offset );
+	VectorScale( velocity, 16, offset );
 	offset[2] += client->ps.viewheight / 2.f;
-	VectorScale( velocity, 75, velocity );
+	VectorScale( velocity, 64, velocity );
 	velocity[2] += 50 + random() * 35;
 
 	VectorAdd( client->ps.origin, offset, org );
@@ -455,48 +567,35 @@ void G_DropWeapon( gentity_t *ent, weapon_t weapon )
 	ent2 = LaunchItem( item, org, velocity, client->ps.clientNum );
 	COM_BitClear( client->ps.weapons, weapon );
 
-	if( weapon == WP_KAR98 ) {
-		COM_BitClear( client->ps.weapons, WP_GPG40 );
-	} else if ( weapon == WP_CARBINE ) {
-		COM_BitClear( client->ps.weapons, WP_M7 );
-	} else if ( weapon == WP_FG42 ) {
-		COM_BitClear( client->ps.weapons, WP_FG42SCOPE );
-	} else if( weapon == WP_K43 ) {
-		COM_BitClear( client->ps.weapons, WP_K43_SCOPE );
-	} else if( weapon == WP_GARAND ) {
-		COM_BitClear( client->ps.weapons, WP_GARAND_SCOPE );
-	} else if( weapon == WP_MORTAR ) {
-		COM_BitClear( client->ps.weapons, WP_MORTAR_SET );
-	} else if( weapon == WP_MOBILE_MG42 ) {
-		COM_BitClear( client->ps.weapons, WP_MOBILE_MG42_SET );
+	/* Original TC alternate IDs, not SDK enum aliases. */
+	switch ((int)weapon) {
+	case 23: COM_BitClear(client->ps.weapons,55); break;
+	case 24: COM_BitClear(client->ps.weapons,56); break;
+	case 33: COM_BitClear(client->ps.weapons,59); break;
+	case 32: COM_BitClear(client->ps.weapons,58); break;
+	case 25: COM_BitClear(client->ps.weapons,57); break;
+	case 35: COM_BitClear(client->ps.weapons,60); break;
+	case 31: COM_BitClear(client->ps.weapons,62); break;
 	}
-
-	// Clear out empty weapon, change to next best weapon
-	G_AddEvent( ent, EV_WEAPONSWITCHED, 0 );
 
 	if( weapon == client->ps.weapon )
 		client->ps.weapon = 0;
 
-	if( weapon == WP_MORTAR ) {
-		ent2->count = client->ps.ammo[BG_FindAmmoForWeapon(weapon)] + client->ps.ammoclip[BG_FindClipForWeapon(weapon)];
-	} else {
-		ent2->count = client->ps.ammoclip[BG_FindClipForWeapon(weapon)];
-	}
-
-	if( weapon == WP_KAR98 || weapon == WP_CARBINE ) {
-		ent2->delay = client->ps.ammo[BG_FindAmmoForWeapon(weapAlts[weapon])];
-	} else {
-		ent2->delay = 0;
-	}
-
-//	ent2->item->quantity = client->ps.ammoclip[BG_FindClipForWeapon(weapon)]; // Gordon: um, modifying an item is not a good idea
+	ent2->delay = 0;
+	ent2->count = client->ps.ammo[BG_FindAmmoForWeapon(weapon)];
+	ent2->count2 = client->ps.ammoclip[BG_FindClipForWeapon(weapon)];
 	client->ps.ammoclip[BG_FindClipForWeapon(weapon)] = 0;
+	client->ps.ammo[BG_FindClipForWeapon(weapon)] = 0;
+	ent2->s.effect1Time = client->ps.stats[15] & 0xff;
+	ent2->soundPos3 = client->ps.persistant[10];
 }
 
 // TAT 1/6/2003 - Bot picks up a new weapon
 void BotPickupWeapon(int client, int weaponnum, qboolean alreadyHave);
 
 qboolean G_CanPickupWeapon( weapon_t weapon, gentity_t* ent ) {
+	if (g_gametype.integer == 2 || g_gametype.integer == 5 || g_gametype.integer == 7)
+		return qtrue;
 	if( ent->client->sess.sessionTeam == TEAM_AXIS ) {
 		if( weapon == WP_THOMPSON ) {
 			weapon = WP_MP40;
@@ -528,7 +627,7 @@ int Pickup_Weapon( gentity_t *ent, gentity_t *other ) {
 	qboolean	alreadyHave = qfalse;
 
 	// JPW NERVE -- magic ammo for any two-handed weapon
-	if( ent->item->giTag == WP_AMMO ) {
+	if( ent->item->giTag == 12 ) {
 		AddMagicAmmo( other, ent->count );
 
 		// if LT isn't giving ammo to self or another LT or the enemy, give him some props
@@ -547,131 +646,86 @@ int Pickup_Weapon( gentity_t *ent, gentity_t *other ) {
 				// extracted code originally here into AddMagicAmmo -xkan, 9/18/2002
 				// add 1 clip of magic ammo for any two-handed weapon
 			}
-			return RESPAWN_SP;
+			return -1;
 		}
 	}
 
-	quantity = ent->count;
 
-	// check if player already had the weapon
-	alreadyHave = COM_BitCheck( other->client->ps.weapons, ent->item->giTag );
-
-	// JPW NERVE  prevents drop/pickup weapon "quick reload" exploit
-	if( alreadyHave ) {
-		Add_Ammo( other, ent->item->giTag, quantity, qfalse );
-
-		// Gordon: secondary weapon ammo
-		if( ent->delay ) {
-			Add_Ammo( other, weapAlts[ ent->item->giTag ], ent->delay, qfalse );
-		}
-	} else {
-		if( level.time - other->client->dropWeaponTime < 1000 ) {
-			return 0;
-		}
-
-		if( other->client->ps.weapon == WP_MORTAR_SET || other->client->ps.weapon == WP_MOBILE_MG42_SET ) {
-			return 0;
-		}
-
-		// See if we can pick it up
-		if( G_CanPickupWeapon( ent->item->giTag, other ) ) {
-			weapon_t primaryWeapon = G_GetPrimaryWeaponForClient( other->client );
-
-			// rain - added parens around ambiguous &&
-			if( primaryWeapon || 
-				(other->client->sess.playerType == PC_SOLDIER && other->client->sess.skill[SK_HEAVY_WEAPONS] >= 4) ) {
-
-				if( primaryWeapon ) {
-					// drop our primary weapon
-					G_DropWeapon( other, primaryWeapon );
-				}
-
-				// now pickup the other one
-				other->client->dropWeaponTime = level.time;
-
-				// add the weapon
-				COM_BitSet( other->client->ps.weapons, ent->item->giTag );
-
-				// DHM - Fixup mauser/sniper issues
-				if( ent->item->giTag == WP_FG42 ) {
-					COM_BitSet( other->client->ps.weapons, WP_FG42SCOPE);
-				} else if(ent->item->giTag == WP_GARAND) {
-					COM_BitSet( other->client->ps.weapons, WP_GARAND_SCOPE);
-				} else if( ent->item->giTag == WP_K43 ) {
-					COM_BitSet( other->client->ps.weapons, WP_K43_SCOPE );
-				} else if( ent->item->giTag == WP_MORTAR ) {
-					COM_BitSet( other->client->ps.weapons, WP_MORTAR_SET );
-				} else if( ent->item->giTag == WP_MOBILE_MG42 ) {
-					COM_BitSet( other->client->ps.weapons, WP_MOBILE_MG42_SET );
-				} else if( ent->item->giTag == WP_CARBINE ) {
-					COM_BitSet( other->client->ps.weapons, WP_M7 );
-				} else if( ent->item->giTag == WP_KAR98 ) {
-					COM_BitSet( other->client->ps.weapons, WP_GPG40 );
-				}
-
-				other->client->ps.ammoclip[BG_FindClipForWeapon(ent->item->giTag)] = 0;
-				other->client->ps.ammo[BG_FindAmmoForWeapon(ent->item->giTag)] = 0;
-
-				if( ent->item->giTag == WP_MORTAR ) {
-					other->client->ps.ammo[BG_FindClipForWeapon(ent->item->giTag)] = quantity;
-
-					// Gordon: secondary weapon ammo
-					if( ent->delay ) {
-						Add_Ammo( other, weapAlts[ ent->item->giTag ], ent->delay, qfalse );
-					}
-				} else {
-					other->client->ps.ammoclip[BG_FindClipForWeapon(ent->item->giTag)] = quantity;
-
-					// Gordon: secondary weapon ammo
-					if( ent->delay ) {
-						other->client->ps.ammo[ weapAlts[ ent->item->giTag ] ] = ent->delay;
-					}
-				}
-			}
-		} else {
-			return 0;
-		}
-	}
-
-	// TAT 1/6/2003 - If we are a bot, call the pickup function
-	if( other->r.svFlags & SVF_BOT )
-		BotPickupWeapon( other->s.number, ent->item->giTag, alreadyHave );
-
-	return -1;
+    quantity = ent->count;
+    alreadyHave = COM_BitCheck(other->client->ps.weapons, ent->item->giTag);
+    if (alreadyHave) {
+        if (ent->s.otherEntityNum != other->client->ps.clientNum) {
+            int sidearm = G_GetSecondaryWeaponForClient(other->client);
+            Add_Ammo(other, sidearm, weaponDef[sidearm].maxclip, qfalse);
+        }
+        Add_Ammo(other, ent->item->giTag, quantity, qfalse);
+        if (ent->delay)
+            Add_Ammo(other, weapAlts[ent->item->giTag], (int)ent->delay, qfalse);
+    } else {
+        int weapon = ent->item->giTag;
+        int primary;
+        if (level.time - other->client->dropWeaponTime < 1000 ||
+            other->client->ps.weapon == 60 || other->client->ps.weapon == 62)
+            return 0;
+        if (!G_CanPickupWeapon(weapon, other)) return 0;
+        primary = G_GetPrimaryWeaponForClient(other->client);
+        if (primary || g_gametype.integer == 2 || g_gametype.integer == 5 ||
+            g_gametype.integer == 7 ||
+            (other->client->sess.playerType == 0 &&
+             other->client->sess.skill[SK_HEAVY_WEAPONS] >= 4)) {
+            if (primary) G_DropWeapon(other, primary);
+            other->client->dropWeaponTime = level.time;
+            COM_BitSet(other->client->ps.weapons, weapon);
+            other->client->ps.holdable[10] = BG_WeapToWeaponOnBack(weapon);
+            other->client->ps.holdable[9] = weaponDef[weapon].loadoutWeight;
+            other->client->ps.stats[15] =
+                (other->client->ps.stats[15] & ~30) | (ent->s.effect1Time & 30);
+            other->client->ps.persistant[10] = ent->soundPos3;
+            other->client->ps.ammoclip[BG_FindClipForWeapon(weapon)] = 0;
+            other->client->ps.ammo[BG_FindAmmoForWeapon(weapon)] = 0;
+            if (weapon == 35) {
+                other->client->ps.ammo[BG_FindClipForWeapon(weapon)] = quantity;
+                if (ent->delay)
+                    Add_Ammo(other, weapAlts[weapon], (int)ent->delay, qfalse);
+            } else {
+                if (ent->s.otherEntityNum != other->client->ps.clientNum) {
+                    int sidearm = G_GetSecondaryWeaponForClient(other->client);
+                    Add_Ammo(other, sidearm, weaponDef[sidearm].maxclip, qfalse);
+                }
+                other->client->ps.ammo[BG_FindClipForWeapon(weapon)] = quantity;
+                if (ent->count2)
+                    other->client->ps.ammoclip[BG_FindClipForWeapon(weapon)] = ent->count2;
+                if (ent->delay)
+                    other->client->ps.ammo[weapAlts[weapon]] = (int)ent->delay;
+            }
+        }
+    }
+    if (other->r.svFlags & SVF_BOT)
+        BotPickupWeapon(other->s.number, ent->item->giTag, alreadyHave);
+    return -1;
 }
 
 
 //======================================================================
 
 int Pickup_Health (gentity_t *ent, gentity_t *other) {
-	int			max;
-//	int			quantity = 0;
-
-	// if medic isn't giving ammo to self or another medic or the enemy, give him some props
-	if( other->client->ps.stats[STAT_PLAYER_CLASS] != PC_MEDIC ) {
-		if( ent->parent && ent->parent->client && other->client->sess.sessionTeam == ent->parent->client->sess.sessionTeam ) {
-			if (!(ent->parent->client->PCSpecialPickedUpCount % MEDIC_SPECIAL_PICKUP_MOD)) {
-				AddScore(ent->parent, WOLF_HEALTH_UP);
-				G_LogPrintf("Health_Pack: %d %d\n", ent->parent - g_entities, other - g_entities);	// OSP
-			}
-			G_AddSkillPoints( ent->parent, SK_FIRST_AID, 1.f );
-			G_DebugAddSkillPoints( ent->parent, SK_FIRST_AID, 1.f, "health pack picked up" ); 
-			ent->parent->client->PCSpecialPickedUpCount++;
-		}
-	}	
-	
-	max = other->client->ps.stats[STAT_MAX_HEALTH];
-	if( other->client->sess.playerType == PC_MEDIC ) {
-		max *= 1.12f;
-	}
-
-	other->health += ent->item->quantity;
-	if (other->health > max ) {
-		other->health = max;
-	}
-	other->client->ps.stats[STAT_HEALTH] = other->health;
-
-	return -1;
+    playerState_t *ps = &other->client->ps;
+    int maximum = ps->stats[STAT_MAX_HEALTH];
+    int total = ps->holdable[2] + ps->holdable[3] + ps->holdable[4];
+    int i;
+    /* TC heals the three injury components, not an ET medic health bonus.
+     * Zero injury avoids the original undefined 0/0 conversion. */
+    if (total != 0) {
+        for (i = 2; i <= 4; ++i) {
+            ps->holdable[i] -= (int)((double)(ent->item->quantity * ps->holdable[i]) / total);
+            if (ps->holdable[i] < 0) ps->holdable[i] = 0;
+        }
+    }
+    other->health = (int)((double)(100 - ps->holdable[4]) *
+        (100 - ps->holdable[3]) * (100 - ps->holdable[2]) * 0.000100001f);
+    if (other->health > maximum) other->health = maximum;
+    ps->stats[STAT_HEALTH] = other->health;
+    return -1;
 }
 
 //======================================================================
@@ -729,7 +783,7 @@ void Touch_Item_Auto( gentity_t *ent, gentity_t *other, trace_t *trace )
 		return;
 
 	if( !ent->active && ent->item->giType == IT_WEAPON ) {
-		if( ent->item->giTag != WP_AMMO ) {
+		if( ent->item->giTag != 12 ) { /* Original TC ammo weapon ID. */
 			if( !COM_BitCheck( other->client->ps.weapons, ent->item->giTag ) ) {
 				return;	// force activate only
 			}
@@ -768,6 +822,13 @@ void Touch_Item( gentity_t *ent, gentity_t *other, trace_t *trace ) {
 		return;		// dead people can't pickup
 	}
 
+	/* TC requires held +activate for weapons, ammo and both flag tags. */
+	if (ent->item->giType == IT_WEAPON || ent->item->giType == IT_AMMO ||
+	    (ent->item->giType == IT_TEAM &&
+	     (ent->item->giTag == 6 || ent->item->giTag == 7))) {
+		if (!(other->client->pers.cmd.buttons & BUTTON_ACTIVATE)) return;
+	}
+
 	// the same pickup rules are used for client side and server side
 	if ( !BG_CanItemBeGrabbed( &ent->s, &other->client->ps, other->client->sess.skill, other->client->sess.sessionTeam ) ) {
 		return;
@@ -787,6 +848,9 @@ void Touch_Item( gentity_t *ent, gentity_t *other, trace_t *trace ) {
 
 	// call the item-specific pickup function
 	switch( ent->item->giType ) {
+    case IT_AMMO:
+        respawn=Pickup_Ammo(ent,other);
+        break;
 	case IT_WEAPON:
 		respawn = Pickup_Weapon( ent, other );
 		break;
@@ -794,7 +858,8 @@ void Touch_Item( gentity_t *ent, gentity_t *other, trace_t *trace ) {
 		respawn = Pickup_Health(ent, other);
 		break;
 	case IT_TEAM:
-		respawn = Pickup_Team(ent, other);
+		Pickup_Team(ent, other);
+		respawn = Pickup_Ammo(ent, other);
 		break;
 	default:
 		return;
@@ -876,6 +941,7 @@ gentity_t *LaunchItem( gitem_t *item, vec3_t origin, vec3_t velocity, int ownerN
 
 	dropped->s.eType = ET_ITEM;
 	dropped->s.modelindex = item - bg_itemlist;	// store item number in modelindex
+	dropped->s.otherEntityNum = ownerNum; /* TC2005df70 owner metadata */
 	dropped->s.otherEntityNum2 = 1;	// DHM - Nerve :: this is taking modelindex2's place for a dropped item
 
 	dropped->classname = item->classname;
@@ -931,10 +997,13 @@ gentity_t *LaunchItem( gitem_t *item, vec3_t origin, vec3_t velocity, int ownerN
 	} else { // auto-remove after 30 seconds
 		dropped->think = G_FreeEntity;
 
-		dropped->nextthink = level.time + 30000;
-	}
+		if((item->giType==IT_AMMO && (!strcmp(item->classname,"ammo_dynamite") || !strcmp(item->classname,"ammo_VIP"))) ||
+            (item->giType==IT_WEAPON && g_gametype.integer==5))
+            dropped->nextthink=(int)((unsigned int)level.time+0x7fffffffU);
+        else dropped->nextthink=level.time+30000;
+    }
 
-	dropped->flags = FL_DROPPED_ITEM;
+    dropped->flags = FL_DROPPED_ITEM;
 
 	trap_LinkEntity (dropped);
 
@@ -1154,8 +1223,12 @@ void G_BounceItem( gentity_t *ent, trace_t *trace ) {
 	int		hitTime;
 
 	// reflect the velocity on the trace plane
-	hitTime = level.previousTime + ( level.time - level.previousTime ) * trace->fraction;
-	BG_EvaluateTrajectoryDelta( &ent->s.pos, hitTime, velocity, qfalse, ent->s.effect2Time );
+	/* Windows 2005e7fa..2005e80f keeps the product and sum in x87
+	 * precision until __ftol. A float-rounded sum advances fractional
+	 * impacts by one millisecond (e.g. 100000 + 40 * 0.7f). */
+	hitTime = (int)( (double)level.previousTime +
+		(double)( level.time - level.previousTime ) * (double)trace->fraction );
+	TCE_BG_EvaluateTrajectoryDelta( &ent->s.pos, hitTime, velocity, qfalse, ent->s.effect2Time, 1.0f );
 	dot = DotProduct( velocity, trace->plane.normal );
 	VectorMA( velocity, -2*dot, trace->plane.normal, ent->s.pos.trDelta );
 
@@ -1199,7 +1272,7 @@ void G_RunItemProp (gentity_t *ent, vec3_t origin)
 	end[2] += 1;
 
 	trap_Trace( &trace, ent->r.currentOrigin, ent->r.mins, ent->r.maxs, end, 
-				ent->r.ownerNum, MASK_SHOT );
+				ent->r.ownerNum, MASK_MISSILESHOT ); /* TC 2005e960: 0x06000081 */
 			
 	traceEnt = &g_entities[ trace.entityNum ];
 
@@ -1258,7 +1331,7 @@ void G_RunItem( gentity_t *ent ) {
     }
 
 	// get current position
-	BG_EvaluateTrajectory( &ent->s.pos, level.time, origin, qfalse, ent->s.effect2Time );
+	TCE_BG_EvaluateTrajectory( &ent->s.pos, level.time, origin, qfalse, ent->s.effect2Time, 1.0f );
 
 	// trace a line from the previous position to the current position
 	if ( ent->clipmask ) {

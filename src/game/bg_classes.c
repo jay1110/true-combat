@@ -2,122 +2,68 @@
 #include "bg_public.h"
 #include "bg_classes.h"
 
+/* TC tables match in all three Windows modules (see class_equipment evidence).
+ * Preserve the original Axis VIP row classNum=5. Gear restrictions apply later. */
 bg_playerclass_t bg_allies_playerclasses[NUM_PLAYER_CLASSES] = {
-	{	
-		PC_SOLDIER,
-		"characters/temperate/allied/soldier.char",
-		"ui/assets/mp_gun_blue.tga",
-		"ui/assets/mp_arrow_blue.tga",
-		{ 
-			WP_THOMPSON,
-			WP_MOBILE_MG42,
-			WP_FLAMETHROWER,
-			WP_PANZERFAUST,
-			WP_MORTAR
-		},
-	},
-
-	{
-		PC_MEDIC,
-		"characters/temperate/allied/medic.char",
-		"ui/assets/mp_health_blue.tga",
-		"ui/assets/mp_arrow_blue.tga",
-		{ 
-			WP_THOMPSON,
-		},	
-	},
-
-	{
-		PC_ENGINEER,
-		"characters/temperate/allied/engineer.char",
-		"ui/assets/mp_wrench_blue.tga",
-		"ui/assets/mp_arrow_blue.tga",
-		{ 
-			WP_THOMPSON,
-			WP_CARBINE,
-		},	
-	},
-
-	{
-		PC_FIELDOPS,
-		"characters/temperate/allied/fieldops.char",
-		"ui/assets/mp_ammo_blue.tga",
-		"ui/assets/mp_arrow_blue.tga",
-		{ 
-			WP_THOMPSON,
-		},	
-	},
-
-	{
-		PC_COVERTOPS,
-		"characters/temperate/allied/cvops.char",
-		"ui/assets/mp_spy_blue.tga",
-		"ui/assets/mp_arrow_blue.tga",
-		{ 
-			WP_STEN,
-			WP_FG42,
-			WP_GARAND,
-		},	
-	},
+    { 0, "characters/temperate/allied/soldier.char",
+      "ui/assets/mp_gun_blue.tga", "ui/assets/mp_arrow_blue.tga",
+      { 10, 3, 8, 45, 41, 33, 42, 5, 44, 43, 50, 24, 48, 49, 47, 51, 46, 23, 32, 25, 6, 13, 0, 0 },
+      { 2, 39, 52, 14, 40, 7, 38, 37, 54, 53, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, 0, 0 },
+    { 1, "characters/temperate/allied/medic.char",
+      "ui/assets/mp_health_blue.tga", "ui/assets/mp_arrow_blue.tga",
+      { 10, 3, 8, 45, 41, 33, 42, 5, 44, 43, 50, 24, 48, 49, 47, 51, 46, 23, 32, 25, 6, 13, 0, 0 },
+      { 2, 39, 52, 14, 40, 7, 38, 37, 54, 53, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, 0, 0 },
+    { 2, "characters/temperate/allied/engineer.char",
+      "ui/assets/mp_wrench_blue.tga", "ui/assets/mp_arrow_blue.tga",
+      { 10, 3, 8, 45, 41, 33, 42, 5, 44, 43, 50, 24, 48, 49, 47, 51, 46, 23, 32, 25, 6, 13, 0, 0 },
+      { 2, 39, 52, 14, 40, 7, 38, 37, 54, 53, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, 0, 0 },
+    { 3, "characters/temperate/allied/fieldops.char",
+      "ui/assets/mp_ammo_blue.tga", "ui/assets/mp_arrow_blue.tga",
+      { 10, 3, 8, 45, 41, 33, 42, 5, 44, 43, 50, 24, 48, 49, 47, 51, 46, 23, 32, 25, 6, 13, 0, 0 },
+      { 2, 39, 52, 14, 40, 7, 38, 37, 54, 53, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, 0, 0 },
+    { 4, "characters/temperate/allied/cvops.char",
+      "ui/assets/mp_spy_blue.tga", "ui/assets/mp_arrow_blue.tga",
+      { 10, 3, 8, 45, 41, 33, 42, 5, 44, 43, 50, 24, 48, 49, 47, 51, 46, 23, 32, 25, 6, 13, 0, 0 },
+      { 2, 39, 52, 14, 40, 7, 38, 37, 54, 53, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, 0, 0 },
+    { 5, "characters/temperate/allied/elite.char",
+      "ui/assets/mp_spy_blue.tga", "ui/assets/mp_arrow_blue.tga",
+      { 10, 3, 8, 45, 41, 33, 42, 5, 44, 43, 50, 24, 48, 49, 47, 51, 46, 23, 32, 25, 6, 13, 0, 0 },
+      { 2, 39, 52, 14, 40, 7, 38, 37, 54, 53, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, 0, 0 },
+    { 6, "characters/temperate/allied/vip.char",
+      "ui/assets/mp_spy_blue.tga", "ui/assets/mp_arrow_blue.tga",
+      { 10, 3, 8, 45, 41, 33, 42, 5, 44, 43, 50, 24, 48, 49, 47, 51, 46, 23, 32, 25, 6, 13, 0, 0 },
+      { 2, 39, 52, 14, 40, 7, 38, 37, 54, 53, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, 0, 0 },
 };
 
 bg_playerclass_t bg_axis_playerclasses[NUM_PLAYER_CLASSES] = {
-	{
-		PC_SOLDIER,
-		"characters/temperate/axis/soldier.char",
-		"ui/assets/mp_gun_red.tga",
-		"ui/assets/mp_arrow_red.tga",
-		{ 
-			WP_MP40,
-			WP_MOBILE_MG42,
-			WP_FLAMETHROWER,
-			WP_PANZERFAUST,
-			WP_MORTAR
-		},	
-	},
-
-	{
-		PC_MEDIC,
-		"characters/temperate/axis/medic.char",
-		"ui/assets/mp_health_red.tga",
-		"ui/assets/mp_arrow_red.tga",
-		{ 
-			WP_MP40,
-		},	
-	},
-
-	{
-		PC_ENGINEER,
-		"characters/temperate/axis/engineer.char",
-		"ui/assets/mp_wrench_red.tga",
-		"ui/assets/mp_arrow_red.tga",
-		{ 
-			WP_MP40,
-			WP_KAR98,
-		},	
-	},
-
-	{
-		PC_FIELDOPS,
-		"characters/temperate/axis/fieldops.char",
-		"ui/assets/mp_ammo_red.tga",
-		"ui/assets/mp_arrow_red.tga",
-		{ 
-			WP_MP40,
-		},	
-	},
-
-	{
-		PC_COVERTOPS,
-		"characters/temperate/axis/cvops.char",
-		"ui/assets/mp_spy_red.tga",
-		"ui/assets/mp_arrow_red.tga",
-		{ 
-			WP_STEN,
-			WP_FG42,
-			WP_K43,
-		},	
-	},
+    { 0, "characters/temperate/axis/soldier.char",
+      "ui/assets/mp_gun_red.tga", "ui/assets/mp_arrow_red.tga",
+      { 10, 3, 8, 45, 41, 33, 42, 5, 44, 43, 50, 24, 48, 49, 47, 51, 46, 23, 32, 25, 6, 13, 0, 0 },
+      { 2, 39, 52, 14, 40, 7, 38, 37, 54, 53, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, 0, 0 },
+    { 1, "characters/temperate/axis/medic.char",
+      "ui/assets/mp_health_red.tga", "ui/assets/mp_arrow_red.tga",
+      { 10, 3, 8, 45, 41, 33, 42, 5, 44, 43, 50, 24, 48, 49, 47, 51, 46, 23, 32, 25, 6, 13, 0, 0 },
+      { 2, 39, 52, 14, 40, 7, 38, 37, 54, 53, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, 0, 0 },
+    { 2, "characters/temperate/axis/engineer.char",
+      "ui/assets/mp_wrench_red.tga", "ui/assets/mp_arrow_red.tga",
+      { 10, 3, 8, 45, 41, 33, 42, 5, 44, 43, 50, 24, 48, 49, 47, 51, 46, 23, 32, 25, 6, 13, 0, 0 },
+      { 2, 39, 52, 14, 40, 7, 38, 37, 54, 53, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, 0, 0 },
+    { 3, "characters/temperate/axis/fieldops.char",
+      "ui/assets/mp_ammo_red.tga", "ui/assets/mp_arrow_red.tga",
+      { 10, 3, 8, 45, 41, 33, 42, 5, 44, 43, 50, 24, 48, 49, 47, 51, 46, 23, 32, 25, 6, 13, 0, 0 },
+      { 2, 39, 52, 14, 40, 7, 38, 37, 54, 53, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, 0, 0 },
+    { 4, "characters/temperate/axis/cvops.char",
+      "ui/assets/mp_spy_red.tga", "ui/assets/mp_arrow_red.tga",
+      { 10, 3, 8, 45, 41, 33, 42, 5, 44, 43, 50, 24, 48, 49, 47, 51, 46, 23, 32, 25, 6, 13, 0, 0 },
+      { 2, 39, 52, 14, 40, 7, 38, 37, 54, 53, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, 0, 0 },
+    { 5, "characters/temperate/axis/elite.char",
+      "ui/assets/mp_spy_red.tga", "ui/assets/mp_arrow_red.tga",
+      { 10, 3, 8, 45, 41, 33, 42, 5, 44, 43, 50, 24, 48, 49, 47, 51, 46, 23, 32, 25, 6, 13, 0, 0 },
+      { 2, 39, 52, 14, 40, 7, 38, 37, 54, 53, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, 0, 0 },
+    { 5, "characters/temperate/axis/vip.char",
+      "ui/assets/mp_spy_red.tga", "ui/assets/mp_arrow_red.tga",
+      { 10, 3, 8, 45, 41, 33, 42, 5, 44, 43, 50, 24, 48, 49, 47, 51, 46, 23, 32, 25, 6, 13, 0, 0 },
+      { 2, 39, 52, 14, 40, 7, 38, 37, 54, 53, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }, 0, 0 },
 };
 
 bg_playerclass_t* BG_GetPlayerClassInfo( int team, int cls ) {
@@ -209,6 +155,8 @@ const char* BG_ClassnameForNumber( int classNum ) {
 			return "Field Ops";
 		case PC_COVERTOPS:
 			return "Covert Ops";
+		case PC_ELITE: return "Elite";
+		case PC_VIP: return "Vip";
 		default:
 			return "^1ERROR";
 	}

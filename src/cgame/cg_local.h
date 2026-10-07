@@ -1,3 +1,5 @@
+#ifndef TCE_CG_LOCAL_H
+#define TCE_CG_LOCAL_H
 /*
  * name:	cg_local.h
  *
@@ -51,10 +53,10 @@
 #define	CHAR_HEIGHT			48
 #define	TEXT_ICON_SPACE		4
 
-#define	TEAMCHAT_WIDTH		70
+#define	TEAMCHAT_WIDTH		35
 #define TEAMCHAT_HEIGHT		8
 
-#define	NOTIFY_WIDTH		80
+#define	NOTIFY_WIDTH		35	// TC: 35 visible characters, 106 bytes including colors/NUL
 #define NOTIFY_HEIGHT		5
 
 // very large characters
@@ -351,6 +353,14 @@ typedef struct centity_s {
 	// Gordon: tagconnect cleanup..
 	int				tagParent;
 	char			tagName[MAX_QPATH];
+	// TC:E smoke lighting cache; separate from unrelated SDK entity fields.
+	vec3_t tceSmokeColor;
+	vec3_t tceEntityMotion; /* Original cent+0xa84: lerp/trajectory motion, jet loops. */
+	int tceEjectPending; /* original centity +0xa7c; consumed after animated tags */
+	int tceFireEffectPending; /* original centity +0xa80. */
+	int tceVisible, tceVisibilityUntil; /* Original +0xa74/+0xa78. */
+	int tceCoronaLastVisible; /* original cent+a78; appended to SDK layout */
+	float tceCoronaVisibility; /* original cent+a90 */
 } centity_t;
 
 
@@ -476,6 +486,8 @@ typedef struct localEntity_s {
 
 	int				breakCount;			// break-up this many times before we can break no more
 	float			sizeScale;
+	qboolean tceFragment; /* adapter provenance; absent from original ABI */
+	float tceGravity; /* original localEntity +0x6c, kept after SDK layout */
 	// done.
 
 } localEntity_t;
@@ -483,16 +495,9 @@ typedef struct localEntity_s {
 //======================================================================
 
 
-typedef struct {
-	int				client;
-	int				score;
-	int				ping;
-	int				time;
-	int				powerUps;
-	int				team;
-	int				playerClass;		// NERVE - SMF
-	int				respawnsLeft;		// NERVE - SMF
-} score_t;
+#include "../game/tce_score.h"
+typedef tce_score_t score_t;
+extern qboolean tce_scoreExtended[MAX_CLIENTS];
 
 // each client has an associated clientInfo_t
 // that contains media references necessary to present the
@@ -562,6 +567,8 @@ typedef struct clientInfo_s {
 	int				weapHeat;
 	int				weaponState;
 	int				weaponState_last;
+	/* TC scoreboard state, separate from SDK class/configstring fields. */
+	int tceClassRating, tcePreviousClassRating, tceScorePlayerClass;
 } clientInfo_t;
 
 typedef enum {
@@ -767,6 +774,7 @@ typedef struct {
 	qboolean	nextFrameTeleport;
 
 	int			frametime;		// cg.time - cg.oldTime
+	int             levelshotFadeStart;
 
 	int			time;			// this is the time value that the client
 								// is rendering at.
@@ -802,6 +810,7 @@ typedef struct {
 
 	// input state sent to server
 	int			weaponSelect;
+	int tceCycleTime, tceCycleOffset, tceCycleSelected;
 
 	// auto rotating items
 	vec3_t		autoAnglesSlow;
@@ -822,6 +831,33 @@ typedef struct {
 	int			zoomTime;
 	float		zoomSensitivity;
 	float		zoomval;
+	/* TC aim controller, Windows 340a496c..340a497c and 340a49fc. */
+	int tceAimActive, tceAimComplete, tceAimRequested;
+	int tceAimSyncTime, tceAimRetryTime, tceAimWeaponLatch;
+	int tceActionTransitionTime; /* TC340a4954, stats[8] bit0x20 transition. */
+	int tceShotHoldUntil; /* TC340a495c. */
+	int tceHeartbeatNext, tceHeartbeatUntil; /* TC340a4960/340a4964. */
+	int tceAdsBreathTime; /* TC340a4968, shared inhale/exhale cooldown. */
+	int tceSoundSampleTime, tceSoundEnvironment;
+	vec3_t tceSoundLastOrigin, tceRoomExtent;
+	float tceRoomDistance, tceRoomSky, tceRoomHardness, tceRoomWeights[4];
+	int tceSoundZoneSounds[2][2], tceSoundZoneEffects[2][2];
+	int tceSoundZoneVolume[2], tceSoundZoneActive, tceSoundZoneTransitionTime;
+	float tceEnvironmentOutdoor, tceEnvironmentDefault, tceEnvironmentSun;
+	float tceEyeProbeReset[2]; /* Original room sampler clears 340a4bd4/4bd8. */
+	int tceScopeBlocked, tcePortalScopeRendering;
+	refEntity_t tcePortalScopeEntity;
+	int tceStanceTime, tceWeaponDuckTime, tceProneTime;
+	int tceSwayTime;
+	vec3_t tcePriorForward;
+	float tceSwayHorizontal, tceSwayVertical, tceTacticalScale;
+	float tceScopeLightBoost;
+	int tceEyeTime, tceEyeSampleTime, tceEyeFlareFrame;
+	float tceEyeSky, tceEyeScale, tceEyeFlare;
+	float tceEyeSkySamples, tceEyeSurfaceSamples, tceEyeSmooth, tceEyeLinear;
+	vec3_t tceSunDirection;
+	float tceCoronaBlendAlpha;
+	vec3_t tceCoronaBlendColor;
 
 
 	// information screen text during loading
@@ -879,6 +915,7 @@ typedef struct {
 	// crosshair client ID
 	int			crosshairClientNum;
 	int			crosshairClientTime;
+	int tceCrosshairTargetTime; // Original340a4bb4: target acquisition time
 
 	qboolean	crosshairNotLookingAtClient;
 	int			crosshairSPClientTime;
@@ -932,6 +969,8 @@ typedef struct {
 	int			itemPickupBlendTime;	// the pulse around the crosshair is timed seperately
 
 	int			weaponSelectTime;
+    int tceFiremodeTime;
+    int tceFiremodeAnimationTime; /* TC340a49f8, distinct from command timer49f4. */
 	int			weaponAnimation;
 	int			weaponAnimationTime;
 
@@ -1043,10 +1082,12 @@ typedef struct {
 
 
 	int			numMiscGameModels;
+	int numMiscClientSprites;
 
 
 	qboolean	showCampaignBriefing;
 	qboolean	showGameView;
+	qboolean tceShowLimboPanel; /* Original340a49dc, distinct from camera game view. */
 	qboolean	showFireteamMenu;
 
 	char		spawnPoints[MAX_SPAWNPOINTS][MAX_SPAWNDESC];
@@ -1133,7 +1174,10 @@ typedef struct {
 
 	qboolean		skyboxEnabled;
 	vec3_t			skyboxViewOrg;
-	vec_t			skyboxViewFov;
+	vec_t			skyboxViewFov; /* TC scale ratio, not field of view. */
+    float tceSkyboxAngle;
+    float tceSparkIntensity; /* TC worldspawn exposure, original cg +0x6f964 */
+    qboolean tceTraceMapLoaded; /* Worldspawn producer; atmospheric parser consumer. */
 
 	vec3_t			tankflashorg;
 
@@ -1155,6 +1199,9 @@ typedef struct {
 	int				bufferedSoundScriptEndTime;
 	int				numbufferedSoundScripts;
 
+	int tceShowObjectiveDesc;
+	vec3_t tceRadarPositions[2][64];
+	int tceRadarTimes[2][64];
 	char			objMapDescription_Axis[384];
 	char			objMapDescription_Allied[384];
 	char			objMapDescription_Neutral[384];
@@ -1181,6 +1228,7 @@ typedef struct {
 	qhandle_t	charsetPropGlow;
 	qhandle_t	charsetPropB;
 	qhandle_t	whiteShader;
+	qhandle_t   levelshotShader;
 
 	qhandle_t	armorModel;
 
@@ -1267,6 +1315,17 @@ typedef struct {
 	qhandle_t	hud5Shader;
 // jpw
 	qhandle_t	smokePuffShader;
+	qhandle_t tceImpactSmokePuff3, tceImpactSmokePuff4;
+	qhandle_t tceImpactFlare, tceImpactSnow, tceImpactSand, tceImpactGravel, tceImpactSoil;
+	qhandle_t tceLedgeHint, tceObjectiveLockedHint;
+	qhandle_t tceAmmoFrame, tceStaminaFrame;
+	qhandle_t tceMoveType[3], tceHealthMan[4];
+	/* Original registrations with no current original read xrefs. */
+	qhandle_t tceDoNotShootShader, tce40mmBrassModel, tceSpriteFaceModel, tceStarShader;
+	qhandle_t tceLensFlare[2], tceCoronaFlare[4], tceCoronaCone[4];
+	qhandle_t tceBulletStoneMark, tceBulletStoneExit, tceKnifeMark;
+	qhandle_t tceBulletMetalExit, tceBulletWoodExit;
+	qhandle_t tceBulletPlasticMark, tceBulletPlasticExit;
 	qhandle_t	smokePuffRageProShader;
 	qhandle_t	shotgunSmokePuffShader;
 	qhandle_t	waterBubbleShader;
@@ -1387,6 +1446,7 @@ typedef struct {
 	qhandle_t	shardGlass1;
 	qhandle_t	shardGlass2; 
 	qhandle_t	shardWood1;
+	qhandle_t	tceSplinterModel; /* Original32588048. */
 	qhandle_t	shardWood2;
 	qhandle_t	shardMetal1;
 	qhandle_t	shardMetal2;
@@ -1412,6 +1472,11 @@ typedef struct {
 	qhandle_t	bloodMarkShaders[5];
 	qhandle_t	bloodDotShaders[5];
 	qhandle_t	bulletMarkShader;
+	qhandle_t tceFlatSparkShader, tceGlowSparkShader;
+	qhandle_t tceM76ReticleShader, tcePortalScopeShader;
+	qhandle_t tceEyeAdaptationShader;
+	qhandle_t tceRadarMarkers[2][3][8], tceRadarCarrier;
+	qhandle_t tcePlayerCarrierIcons[4]; /* bomb, backpack, VIP, hostage */
 	qhandle_t	bulletMarkShaderMetal;
 	qhandle_t	bulletMarkShaderWood;
 	qhandle_t	bulletMarkShaderGlass;
@@ -1424,6 +1489,8 @@ typedef struct {
 	qhandle_t	waterSplashShader;
 
 	qhandle_t	thirdPersonBinocModel;	//----(SA)	added
+	qhandle_t tceBackWeaponTagModel, tceBackBombModel;
+	qhandle_t tceBackpackRedModel, tceBackpackBlueModel;
 
 	// weapon effect shaders
 	qhandle_t	railExplosionShader;
@@ -1478,7 +1545,7 @@ typedef struct {
 	sfxHandle_t	selectSound;
 	sfxHandle_t	landHurt;
 
-	sfxHandle_t	footsteps[FOOTSTEP_TOTAL][4];
+	sfxHandle_t	footsteps[18][4]; /* TC media banks; shared surface enum stays unchanged. */
 	sfxHandle_t	sfx_rockexp;
 	sfxHandle_t	sfx_rockexpDist;
 	sfxHandle_t	sfx_rockexpWater;
@@ -1491,6 +1558,12 @@ typedef struct {
 	sfxHandle_t	sfx_grenexp;
 	sfxHandle_t	sfx_grenexpDist;
 	sfxHandle_t sfx_brassSound[BRASSSOUND_MAX][3];
+	sfxHandle_t tceGlassFallSounds[3];
+	sfxHandle_t tceHeartbeat, tceDeafBeep, tceBreath[4];
+	sfxHandle_t tceGrenadeBoost[3], tceGrenadePrime, tceCountBeep;
+	sfxHandle_t tceJetEngine[2], tceRoundWarning[2][2];
+	sfxHandle_t tceBulletTin[5], tceBulletFence[5];
+	sfxHandle_t tceBulletFlyby[5], tceBulletFoliage[5];
 	sfxHandle_t	sfx_rubbleBounce[3];
 
 	sfxHandle_t	sfx_bullet_fleshhit[5];
@@ -1506,7 +1579,10 @@ typedef struct {
 	sfxHandle_t	sfx_knifehit[5];
 	sfxHandle_t	gibSound;
 	sfxHandle_t	noAmmoSound;
-	sfxHandle_t landSound[FOOTSTEP_TOTAL];
+	sfxHandle_t tceReloadSounds[4];
+    sfxHandle_t tceFiremodeSound;
+	sfxHandle_t tceCasingSounds[5][2][4];
+	sfxHandle_t landSound[14];
 
 	sfxHandle_t fiveMinuteSound_g, fiveMinuteSound_a;
 	sfxHandle_t twoMinuteSound_g, twoMinuteSound_a;
@@ -1537,7 +1613,7 @@ typedef struct {
 
 	//sfxHandle_t grenadebounce1;
 	//sfxHandle_t grenadebounce2;
-	sfxHandle_t grenadebounce[FOOTSTEP_TOTAL][2];
+	sfxHandle_t grenadebounce[23][2]; /* TC materials0..22;23 is silent. */
 
 	sfxHandle_t dynamitebounce1;	//----(SA)	added
 	sfxHandle_t landminebounce1;
@@ -1627,7 +1703,9 @@ typedef struct {
 	// Gordon: new limbo stuff
 	fontInfo_t		limboFont1;
 	fontInfo_t		limboFont1_lo;
-	fontInfo_t		limboFont2;	
+	fontInfo_t		limboFont2;
+	fontInfo_t		limboWeaponCountFont;
+	sfxHandle_t		tceRoundStart[2][2];
 	qhandle_t		limboNumber_roll;
 	qhandle_t		limboNumber_back;
 	qhandle_t		limboStar_roll;
@@ -1635,6 +1713,7 @@ typedef struct {
 	qhandle_t		limboWeaponNumber_off;
 	qhandle_t		limboWeaponNumber_on;
 	qhandle_t		limboWeaponCard;
+	qhandle_t		limboWeaponCardHighlight;
 	qhandle_t		limboWeaponCardSurroundH;
 	qhandle_t		limboWeaponCardSurroundV;
 	qhandle_t		limboWeaponCardSurroundC;
@@ -1716,6 +1795,7 @@ typedef struct {
 	char axiswintext[1024];
 	char alliedwintext[1024];
 	char longname[128];
+	char authors[128];
 	vec2_t mappos;
 } arenaInfo_t;
 
@@ -1733,12 +1813,23 @@ typedef struct {
 #define MAX_COMMAND_INFO MAX_CLIENTS
 
 #define MAX_STATIC_GAMEMODELS	1024
+#define MAX_STATIC_CLIENTSPRITES 4096
+
+typedef struct {
+    qhandle_t shader;
+    vec3_t org, color;
+    float halfWidth, top, bottom;
+    int fadeDistance, drawDistance;
+} cg_clientsprite_t;
 
 typedef struct cg_gamemodel_s {
 	qhandle_t		model;
 	vec3_t			org;
 	vec3_t			axes[3];
 	vec_t			radius;
+    vec3_t color;
+    float billboardScale;
+    int billboard, fadeDistance, drawDistance;
 } cg_gamemodel_t;
 
 typedef struct cg_weaponstats_s {
@@ -1807,6 +1898,7 @@ typedef struct {
 	int				maxclients;
 	char			mapname[MAX_QPATH];
 	char			rawmapname[MAX_QPATH];
+	char                tceCharacterSkinGroup[MAX_QPATH];
 	char			redTeam[MAX_QPATH];		// A team
 	char			blueTeam[MAX_QPATH];	// B team
 	float			weaponRestrictions;
@@ -1946,6 +2038,7 @@ typedef struct {
 	int					thirdpersonUpdate;
 
 	cg_gamemodel_t		miscGameModels[MAX_STATIC_GAMEMODELS];
+    cg_clientsprite_t miscClientSprites[MAX_STATIC_CLIENTSPRITES];
 
 	vec2_t				ccMenuPos;
 	qboolean			ccMenuShowing;
@@ -1958,6 +2051,7 @@ typedef struct {
 	int					ccSelectedClass;
 	int					ccSelectedWeapon;
 	int					ccSelectedWeapon2;
+    int ccSelectedWeapon3; /* TC cgs third equipment selection, original33fdf38c. */
 	int					ccWeaponShots;
 	int					ccWeaponHits;
 	vec3_t				ccPortalPos;
@@ -2006,6 +2100,9 @@ typedef struct {
 	oidInfo_t			oidInfo[MAX_OID_TRIGGERS];
 
 	qboolean			initing;
+	int tceLeanMode;
+	int tceKillMessage;
+	char tceVersion[64];
 } cgs_t;
 
 //==============================================================================
@@ -2350,6 +2447,10 @@ void CG_CenterPrint( const char *str, int y, int charWidth );
 void CG_PriorityCenterPrint( const char *str, int y, int charWidth, int priority );		// NERVE - SMF
 void CG_ObjectivePrint( const char *str, int charWidth );						// NERVE - SMF
 void CG_DrawActive( stereoFrame_t stereoView );
+void CG_DrawScreenFade(void);
+void CG_SetupEliteLighting(void);
+void TCE_CG_ResetFlash(void);
+void TCE_CG_GrenadeImpact(int weapon,int effect,vec3_t origin,vec3_t normal,int flags);
 void CG_CheckForCursorHints( void );
 void CG_DrawTeamBackground( int x, int y, int w, int h, float alpha, int team );
 void CG_OwnerDraw(float x, float y, float w, float h, float text_x, float text_y, int ownerDraw, int ownerDrawFlags, int align, float special, float scale, vec4_t color, qhandle_t shader, int textStyle);
@@ -2449,12 +2550,19 @@ void CG_FinishWeaponChange(int lastweap, int newweap);
 
 void CG_RegisterWeapon( int weaponNum, qboolean force );
 void CG_RegisterItemVisuals( int itemNum );
+void CG_RegisterItemSounds( int itemNum );
 
 void CG_FireWeapon( centity_t *cent);	//----(SA)	modified.
 //void CG_EndFireWeapon( centity_t *cent, int firemode );	//----(SA)	added
 void CG_MissileHitWall( int weapon, int clientNum, vec3_t origin, vec3_t dir, int surfaceFlags );	//	(SA) modified to send missilehitwall surface parameters
 
 void CG_MissileHitWallSmall( int weapon, int clientNum, vec3_t origin, vec3_t dir );
+void CG_TCEMissileHitWall(int, int, vec3_t, vec3_t, vec3_t, unsigned, int, int);
+void CG_TCEBullet(vec3_t, int, vec3_t, int, int, int, float, int, int, vec3_t, int);
+void CG_TCEShotgunFire(entityState_t *);
+void CG_PredictedFire(centity_t *);
+void CG_CalcEntityVisibility(centity_t *);
+void CG_EliteEffectSound(centity_t *, int);
 void CG_DrawTracer( vec3_t start, vec3_t finish );
 
 // Rafael
@@ -2475,8 +2583,18 @@ void CG_MissileHitPlayer( centity_t *cent, int weapon, vec3_t origin, vec3_t dir
 qboolean CG_CalcMuzzlePoint( int entityNum, vec3_t muzzle );
 void CG_Bullet( vec3_t end, int sourceEntityNum, vec3_t normal, qboolean flesh, int fleshEntityNum, int otherEntNum2, float waterfraction, int seed );
 
-void CG_RailTrail( clientInfo_t *ci, vec3_t start, vec3_t end, int type);	//----(SA)	added 'type'
-void CG_RailTrail2( clientInfo_t *ci, vec3_t start, vec3_t end );
+void CG_RailTrail( clientInfo_t *ci, vec3_t start, vec3_t end, int type, int highlighted);	//----(SA)	added 'type'
+void CG_RailTrail2( clientInfo_t *ci, vec3_t start, vec3_t end, int highlighted );
+void CG_DrawMineMarkerFlag( centity_t *cent, refEntity_t *ent, const int *models );
+extern vec3_t ejectBrassCasingOrigin;
+void CG_MachineGunEjectBrassNew( centity_t *cent );
+void CG_MachineGunEjectBrass( centity_t *cent );
+void CG_PanzerFaustEjectBrass( centity_t *cent );
+void CG_RocketTrail( centity_t *ent, const weaponInfo_t *wi );
+void CG_GetWindVector( vec3_t direction );
+void CG_PyroSmokeTrail( centity_t *ent, const weaponInfo_t *wi );
+void TCE_CG_DynamiteTrail( centity_t *ent, const weaponInfo_t *wi );
+void TCE_CG_GrenadeTrail( centity_t *ent, const weaponInfo_t *wi );
 void CG_GrappleTrail( centity_t *ent, const weaponInfo_t *wi );
 void CG_AddViewWeapon (playerState_t *ps);
 void CG_AddPlayerWeapon( refEntity_t *parent, playerState_t *ps, centity_t *cent );
@@ -2494,6 +2612,13 @@ void CG_AddDebris( vec3_t origin, vec3_t dir, int speed, int duration, int count
 //
 void	CG_InitMarkPolys( void );
 void	CG_AddMarks( void );
+void CG_FlatSparks(vec3_t origin, vec3_t dir, int count);
+void CG_EliteAddBulletParticles(vec3_t origin, vec3_t dir, int speed, int duration, int count, float randomScale);
+void CG_GlowSparks(vec3_t origin, vec3_t dir, int count);
+void CG_EliteImpactMark(qhandle_t shader, vec3_t origin, vec3_t dir,
+                       float orientation, float red, float green, float blue,
+                       float alpha, qboolean alphaFade, float radius,
+                       qboolean temporary, int duration);
 void	CG_ImpactMark( qhandle_t markShader, 
 				    vec3_t origin, vec4_t projection, float radius, float orientation,
 				    float r, float g, float b, float a, int lifeTime );
@@ -2509,8 +2634,11 @@ void	CG_ParticleSmoke (qhandle_t pshader, centity_t *cent);
 void	CG_AddParticleShrapnel (localEntity_t *le);
 void	CG_ParticleSnowFlurry (qhandle_t pshader, centity_t *cent);
 void	CG_ParticleBulletDebris (vec3_t	org, vec3_t vel, int duration);
+void CG_TCEParticleBulletDebris(vec3_t org, vec3_t vel, int duration);
 void	CG_ParticleDirtBulletDebris (vec3_t org, vec3_t vel, int duration);		// DHM - Nerve
-void	CG_ParticleDirtBulletDebris_Core (vec3_t org, vec3_t vel, int duration, float width, float height, float alpha, qhandle_t shader);
+void	CG_ParticleDirtBulletDebris_Core (vec3_t org, vec3_t vel, int duration, float width, float height, float alpha, const vec3_t color, qhandle_t shader);
+void TCE_CG_ParticleDirtBulletDebris(vec3_t org, vec3_t vel, int duration,
+    float width, float height, float alpha, const vec3_t color, qhandle_t shader);
 void	CG_ParticleSparks (vec3_t org, vec3_t vel, int duration, float x, float y, float speed);
 void	CG_ParticleDust (centity_t *cent, vec3_t origin, vec3_t dir);
 void	CG_ParticleMisc (qhandle_t pshader, vec3_t origin, int size, int duration, float alpha);
@@ -2584,6 +2712,10 @@ void CG_FlameDamage( int owner, vec3_t org, float radius );
 //
 void	CG_InitLocalEntities( void );
 localEntity_t	*CG_AllocLocalEntity( void );
+void CG_ReflectVelocity(localEntity_t *le, trace_t *trace);
+void CG_BloodTrail(localEntity_t *le);
+void CG_FragmentBounceMark(localEntity_t *le, trace_t *trace);
+void TCE_CG_FragmentBounceMark(localEntity_t *le, trace_t *trace, int *lastBloodMark);
 void	CG_AddLocalEntities( void );
 
 //
@@ -2605,7 +2737,7 @@ void CG_SpawnEffect	( vec3_t org );
 void CG_GibPlayer( centity_t *cent, vec3_t playerOrigin, vec3_t gdir );
 void CG_LoseHat		( centity_t *cent, vec3_t dir );	//----(SA)	added
 
-void CG_Bleed( vec3_t origin, int entityNum );
+void CG_Bleed( vec3_t origin, int entityNum, vec3_t color );
 
 localEntity_t *CG_MakeExplosion( vec3_t origin, vec3_t dir,
 								qhandle_t hModel, qhandle_t shader, int msec,
@@ -2630,9 +2762,9 @@ void CG_Spotlight( centity_t *cent, float *color, vec3_t start, vec3_t dir, int 
 //----(SA)	done
 
 void CG_RumbleEfx ( float pitch, float yaw );
+void CG_ApplyCameraShakeToVec( vec3_t origin );
 
 void InitSmokeSprites( void );
-void CG_RenderSmokeGrenadeSmoke( centity_t *cent, const weaponInfo_t *weapon );
 void CG_AddSmokeSprites( void );
 
 //
@@ -3085,6 +3217,8 @@ animation_t* CG_GetLimboAnimation( playerInfo_t *pi, const char *name );
 typedef struct {
 	weapon_t 	weapindex;
 	const char	*desc;
+	const char	*description;
+	const char	*category;
 } weaponType_t;
 
 extern weaponType_t weaponTypes[];
@@ -3441,6 +3575,7 @@ void CG_LoadPanel_RenderCampaignNameText( panel_button_t* button );
 void CG_LoadPanel_RenderPercentageMeter( panel_button_t* button );
 void CG_LoadPanel_RenderContinueButton( panel_button_t* button );
 void CG_LoadPanel_RenderLoadingBar( panel_button_t* button );
+const char *CG_LoadPanel_GameTypeName( gametype_t gt );
 void CG_LoadPanel_KeyHandling( int key, qboolean down );
 qboolean CG_LoadPanel_ContinueButtonKeyDown( panel_button_t* button, int key );
 void CG_DrawConnectScreen( qboolean interactive, qboolean forcerefresh );
@@ -3471,3 +3606,33 @@ void CG_Fireteams_Setup( void );
 
 void CG_Fireteams_MenuText_Draw( panel_button_t* button );
 void CG_Fireteams_MenuTitleText_Draw( panel_button_t* button );
+
+/* Reconstructed TC:E gear loader; integration into CG_Init remains pending. */
+void CG_LoadGearDef(void);
+
+/* Original TC:E cvar bindings. */
+extern vmCvar_t cg_specSwing;
+extern vmCvar_t cg_vip;
+extern vmCvar_t cg_tacX;
+extern vmCvar_t cg_tacY;
+extern vmCvar_t cg_tacZ;
+extern vmCvar_t cg_gunPitch;
+extern vmCvar_t cg_gunYaw;
+extern vmCvar_t cg_gunRoll;
+extern vmCvar_t cg_gun_foreshorten;
+extern vmCvar_t cg_predictBullets;
+extern vmCvar_t cg_toggleCrouch;
+extern vmCvar_t cg_drawFriend;
+extern vmCvar_t cg_gunPosition;
+extern vmCvar_t cg_portalScopes;
+extern vmCvar_t cg_toggleAiming;
+extern vmCvar_t cg_snd_reverb;
+extern vmCvar_t cg_thirdPersonOffset;
+extern vmCvar_t cg_hudAlpha;
+extern vmCvar_t cg_r_fastsky;
+extern vmCvar_t cg_dynamicEye;
+extern vmCvar_t cg_aspectFovMode;
+extern vmCvar_t cg_freeAim;
+extern vmCvar_t cg_recording_showstatusline;
+
+#endif /* TCE_CG_LOCAL_H */

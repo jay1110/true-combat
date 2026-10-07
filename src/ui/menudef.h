@@ -403,8 +403,9 @@
 // Arnout: UI fonts, supports up to 6 fonts
 #define UI_FONT_ARIBLK_16		0
 #define UI_FONT_ARIBLK_27		1
-#define UI_FONT_COURBD_21		2
-#define UI_FONT_COURBD_30		3
+// TC shares the two font slots; global.menu replaces the initial ariblk fonts.
+#define UI_FONT_COURBD_21		0
+#define UI_FONT_COURBD_30		1
 
 // OSP - callvote server setting toggles
 // CS_SERVERTOGGLES

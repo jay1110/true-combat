@@ -5183,7 +5183,7 @@ void BotDeathmatchAI(bot_state_t *bs, float thinktime)
 			bs->mpClass = PC_ENGINEER;
 			level.clients[bs->client].sess.latchPlayerType = bs->mpClass;
 			if(!BotIsDead(bs)) {
-				Cmd_Kill_f( &g_entities[bs->client] );
+				Cmd_Kill_f( &g_entities[bs->client], MOD_SUICIDE );
 			}
 		}
 	}

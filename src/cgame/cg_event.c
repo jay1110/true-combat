@@ -1,9 +1,57 @@
 // cg_event.c -- handle entity events at snapshot or playerstate transitions
 
 #include "cg_local.h"
+#include "tce_reload_event.h"
+#include "../game/tce_bg.h"
+#include "tce_weapon_media.h"
+#include "tce_flash.h"
+#include "tce_smoke_grenade.h"
 
 extern void CG_StartShakeCamera( float param );
+extern void CG_ToggleAiming(void);
 extern void CG_Tracer( vec3_t source, vec3_t dest, int sparks );
+extern void CG_AddBulletParticles( vec3_t origin, vec3_t dir, int speed, int duration, int count, float randScale );
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* TC 30088628: ST0 to signed64, with the caller consuming EAX. */
+static __declspec(naked) void CG_EventTruncateST0(void) {
+	__asm {
+		push ebp
+		mov ebp, esp
+		sub esp, 12
+		fwait
+		fnstcw word ptr [ebp-2]
+		fwait
+		mov ax, word ptr [ebp-2]
+		or ah, 0ch
+		mov word ptr [ebp-4], ax
+		fldcw word ptr [ebp-4]
+		fistp qword ptr [ebp-12]
+		fldcw word ptr [ebp-2]
+		mov eax, dword ptr [ebp-12]
+		mov edx, dword ptr [ebp-8]
+		leave
+		ret
+	}
+}
+#endif
+
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* Extracted Windows event expression; native helper, not an original body. */
+static int CG_EventGlobalSoundVolume(void) {
+	static const float globalSoundScale = 127.0f;
+	float *globalSoundDeafness = &tceFlash.deafness;
+	int globalSoundVolume;
+	__asm {
+		fld1
+		mov eax, globalSoundDeafness
+		fsub dword ptr [eax]
+		fmul globalSoundScale
+		call CG_EventTruncateST0
+		mov globalSoundVolume, eax
+	}
+	return globalSoundVolume;
+}
+#endif
 //==========================================================================
 
 /*
@@ -11,376 +59,81 @@ extern void CG_Tracer( vec3_t source, vec3_t dest, int sparks );
 CG_Obituary
 =============
 */
+/* Windows 3003aa50: event density carries the TC weapon media slot. */
 static void CG_Obituary( entityState_t *ent ) {
-	int			mod;
-	int			target, attacker;
-	char		*message;
-	char		*message2;
-	char		targetName[32];
-	char		attackerName[32];
-	clientInfo_t	*ci, *ca; // JPW NERVE ca = attacker
-	qhandle_t	deathShader = cgs.media.pmImages[PM_DEATH];
-
-	target = ent->otherEntityNum;
-	attacker = ent->otherEntityNum2;
-	mod = ent->eventParm;
-
-	if ( target < 0 || target >= MAX_CLIENTS ) {
-		CG_Error( "CG_Obituary: target out of range" );
-	}
-	ci = &cgs.clientinfo[target];
-
-	if ( attacker < 0 || attacker >= MAX_CLIENTS ) {
-		attacker = ENTITYNUM_WORLD;
-		ca = NULL;
-	} else {
-		ca = &cgs.clientinfo[attacker];
-	}
-
-	Q_strncpyz( targetName, ci->name, sizeof(targetName) - 2);
-	strcat( targetName, S_COLOR_WHITE );
-
-	message2 = "";
-
-	// check for single client messages
-	switch( mod ) {
-	case MOD_SUICIDE:
-		message = "committed suicide";
-		break;
-	case MOD_FALLING:
-		message = "fell to his death";
-		break;
-	case MOD_CRUSH:
-		message = "was crushed";
-		break;
-	case MOD_WATER:
-		message = "drowned";
-		break;
-	case MOD_SLIME:
-		message = "died by toxic materials";
-		break;
-	case MOD_TRIGGER_HURT:
-	case MOD_TELEFRAG: // rain - added TELEFRAG and TARGET_LASER, just in case
-	case MOD_TARGET_LASER:
-		message = "was killed";
-		break;
-	case MOD_CRUSH_CONSTRUCTIONDEATH_NOATTACKER:
-		message = "got buried under a pile of rubble";
-		break;
-	case MOD_LAVA: // rain
-		message = "was incinerated";
-		break;
-	default:
-		message = NULL;
-		break;
-	}
-
-	if( attacker == target ) {
-		switch (mod) {
-		case MOD_DYNAMITE:
-			message = "dynamited himself to pieces";
-			break;
-		case MOD_GRENADE_LAUNCHER:
-		case MOD_GRENADE_PINEAPPLE: // rain - added PINEAPPLE
-			message = "dove on his own grenade";
-			break;
-		case MOD_PANZERFAUST:
-			message = "vaporized himself";
-			break;
-		case MOD_FLAMETHROWER: // rain
-			message = "played with fire";
-			break;
-		case MOD_AIRSTRIKE:
-			message = "obliterated himself";
-			break;
-		case MOD_ARTY:
-			message = "fired-for-effect on himself";
-			break;
-		case MOD_EXPLOSIVE:
-			message = "died in his own explosion";
-			break;
-		// rain - everything from this point on is sorted by MOD, didn't
-		// resort existing messages to avoid differences between pre
-		// and post-patch code (for source patching)
-		case MOD_GPG40:
-		case MOD_M7: // rain
-			//bani - more amusing, less wordy
-			message = "ate his own rifle grenade";
-			break;
-		case MOD_LANDMINE: // rain
-			//bani - slightly more amusing
-			message = "failed to spot his own landmine";
-			break;
-		case MOD_SATCHEL: // rain
-			message = "embraced his own satchel explosion";
-			break;
-		case MOD_TRIPMINE: // rain - dormant code
-			message = "forgot where his tripmine was";
-			break;
-		case MOD_CRUSH_CONSTRUCTION: // rain
-			message = "engineered himself into oblivion";
-			break;
-		case MOD_CRUSH_CONSTRUCTIONDEATH: // rain
-			message = "buried himself alive";
-			break;
-		case MOD_MORTAR: // rain
-			message = "never saw his own mortar round coming";
-			break;
-		case MOD_SMOKEGRENADE: // rain
-			// bani - more amusing
-			message = "danced on his airstrike marker";
-			break;
-		// no obituary message if changing teams
-		case MOD_SWITCHTEAM:
-			return;
-		default:
-			message = "killed himself";
-			break;
-		}
-	}
-
-	if (message) {
-		message = CG_TranslateString( message );
-		CG_AddPMItem( PM_DEATH, va( "%s %s.", targetName, message ), deathShader );
-		return;
-	}
-
-	// check for kill messages from the current clientNum
-	if( attacker == cg.snap->ps.clientNum ) {
-		char	*s;
-
-		if ( ci->team == ca->team ) {
-			if (mod == MOD_SWAP_PLACES) {
-				s = va("%s %s", CG_TranslateString( "You swapped places with" ), targetName );
-			} else {
-				s = va("%s %s", CG_TranslateString( "You killed ^1TEAMMATE^7" ), targetName );
-			}
-		} else {
-			s = va("%s %s", CG_TranslateString( "You killed" ), targetName );
-		}
-		CG_PriorityCenterPrint( s, SCREEN_HEIGHT * 0.75, BIGCHAR_WIDTH * 0.6, 1 );
-		// print the text message as well
-	}
-
-	// check for double client messages
-	if ( !ca ) {
-		strcpy( attackerName, "noname" );
-	} else {
-		Q_strncpyz( attackerName, ca->name, sizeof(attackerName) - 2);
-		strcat( attackerName, S_COLOR_WHITE );
-
-		// check for kill messages about the current clientNum
-		if ( target == cg.snap->ps.clientNum ) {
-			Q_strncpyz( cg.killerName, attackerName, sizeof( cg.killerName ) );
-		}
-	}
-
-	if( ca ) {
-		switch( mod ) {
-		case MOD_KNIFE:
-			message = "was stabbed by";
-			message2 = "'s knife";
-			// OSP - goat luvin
-//			if( attacker == cg.snap->ps.clientNum || target == cg.snap->ps.clientNum ) {
-//				trap_S_StartSound( cg.snap->ps.origin, cg.snap->ps.clientNum, CHAN_AUTO, cgs.media.goatAxis );
-//			}
-			break;
-
-		case MOD_AKIMBO_COLT:
-		case MOD_AKIMBO_SILENCEDCOLT:
-			message = "was killed by";
-			message2 = "'s Akimbo .45ACP 1911s";
-			break;
-
-		case MOD_AKIMBO_LUGER:
-		case MOD_AKIMBO_SILENCEDLUGER:
-			message = "was killed by";
-			message2 = "'s Akimbo Luger 9mms";
-			break;
-
-		case MOD_SILENCER:
-		case MOD_LUGER:
-			message = "was killed by";
-			message2 = "'s Luger 9mm";
-			break;
-
-		case MOD_SILENCED_COLT:
-		case MOD_COLT:
-			message = "was killed by";
-			message2 = "'s .45ACP 1911";
-			break;
-
-		case MOD_MP40:
-			message = "was killed by";
-			message2 = "'s MP40";
-			break;
-
-		case MOD_THOMPSON:
-			message = "was killed by";
-			message2 = "'s Thompson";
-			break;
-
-		case MOD_STEN:
-			message = "was killed by";
-			message2 = "'s Sten";
-			break;
-
-		case MOD_DYNAMITE:
-			message = "was blasted by";
-			message2 = "'s dynamite";
-			break;
-
-		case MOD_PANZERFAUST:
-			message = "was blasted by";
-			message2 = "'s Panzerfaust";
-			break;
-
-		case MOD_GRENADE_LAUNCHER:
-		case MOD_GRENADE_PINEAPPLE:
-			message = "was exploded by";
-			message2 = "'s grenade";
-			break;
-
-		case MOD_FLAMETHROWER:
-			message = "was cooked by";
-			message2 = "'s flamethrower";
-			break;
-
-		case MOD_MORTAR:
-			message = "never saw";
-			message2 = "'s mortar round coming";
-			break;
-
-		case MOD_MACHINEGUN:
-			message = "was perforated by";
-			message2 = "'s crew-served MG";
-			break;
-
-		case MOD_BROWNING:
-			message = "was perforated by";
-			message2 = "'s tank-mounted browning 30cal";
-			break;
-
-		case MOD_MG42:
-			message = "was perforated by";
-			message2 = "'s tank-mounted MG42";
-			break;
-
-		case MOD_AIRSTRIKE:
-			message = "was blasted by";
-			message2 = "'s support fire";
-			break;
-
-		case MOD_ARTY:
-			message = "was shelled by";
-			message2 = "'s artillery support";
-			break;
-
-		case MOD_SWAP_PLACES:
-			message = "^2swapped places with^7";
-			message2="";
-			break;
-
-		case MOD_KAR98:	// same weapon really
-		case MOD_K43:
-			message = "was killed by";
-			message2 = "'s K43";
-			break;
-
-		case MOD_CARBINE: // same weapon really
-		case MOD_GARAND:
-			message = "was killed by";
-			message2 = "'s Garand";
-			break;
-
-		case MOD_GPG40:
-		case MOD_M7:
-			message = "was killed by";
-			message2 = "'s rifle grenade";
-			break;
-
-		case MOD_LANDMINE:
-			message = "failed to spot";
-			message2 = "'s Landmine";
-			break;
-
-		case MOD_CRUSH_CONSTRUCTION:
-			message = "got caught in";
-			message2 = "'s construction madness";
-			break;
-
-		case MOD_CRUSH_CONSTRUCTIONDEATH:
-			message = "got burried under";
-			message2 = "'s rubble";
-			break;
-
-		case MOD_MOBILE_MG42:
-			message = "was mown down by";
-			message2 = "'s Mobile MG42";
-			break;
-
-		case MOD_GARAND_SCOPE:
-			message = "was silenced by";
-			message2 = "'s Garand";
-			break;
-
-		case MOD_K43_SCOPE:
-			message = "was silenced by";
-			message2 = "'s K43";
-			break;
-
-		case MOD_FG42:
-			message = "was killed by";
-			message2 = "'s FG42";
-			break;
-
-		case MOD_FG42SCOPE:
-			message = "was sniped by";
-			message2 = "'s FG42";
-			break;
-
-		case MOD_SATCHEL:
-			message = "was blasted by";
-			message2 = "'s Satchel Charge";
-			break;
-		
-		case MOD_TRIPMINE: // rain - dormant code
-			message = "was detonated by";
-			message2 = "'s trip mine";
-			break;
-		
-		case MOD_SMOKEGRENADE: // rain
-			message = "stood on";
-			message2 = "'s airstrike marker";
-			break;
-
-		default:
-			message = "was killed by";
-			break;
-		}
-
-		if( ci->team == ca->team ) {
-			message = "^1WAS KILLED BY TEAMMATE^7";
-			message2="";
-		}
-
-		if (message) {
-			message = CG_TranslateString( message );
-			if ( message2 ) {
-				message2 = CG_TranslateString( message2 );
-				CG_AddPMItem( PM_DEATH, va( "%s %s %s%s", targetName, message, attackerName, message2 ), deathShader );
-//				CG_Printf( "[cgnotify]%s %s %s%s\n", targetName, message, attackerName, message2 );
-			}
-			return;
-		}
-	}
-
-	// we don't know what it was
-	switch( mod ) {
-		default:
-			CG_AddPMItem( PM_DEATH, va( "%s died.", targetName ), deathShader );
-			break;
-	}
+    int target=ent->otherEntityNum, attacker=ent->otherEntityNum2;
+    int mod=ent->eventParm, weapon=ent->density;
+    char targetName[32], attackerName[32];
+    const char *message=NULL, *weaponText="";
+    clientInfo_t *ci, *ca;
+    qhandle_t shader=cgs.media.pmImages[PM_DEATH];
+    qboolean publicMessage;
+    if(target<0 || target>=MAX_CLIENTS) CG_Error("CG_Obituary: target out of range");
+    ci=&cgs.clientinfo[target];
+    if(attacker<0 || attacker>=MAX_CLIENTS) { attacker=ENTITYNUM_WORLD; ca=NULL; }
+    else ca=&cgs.clientinfo[attacker];
+    if(!cgs.tceKillMessage && target!=cg.snap->ps.clientNum && cgs.gametype==5) return;
+    Q_strncpyz(targetName,ci->name,30);
+    Q_strncpyz(targetName,va("%c%c%s",'^',ci->team==2?'4':ci->team==1?'1':'7',targetName),32);
+    publicMessage=cgs.gametype==7 || cgs.gametype==2 || (cgs.gametype==5 && cgs.tceKillMessage>0);
+    if(publicMessage) {
+        switch(mod) {
+        case 31: message="drowned"; break;
+        case 32: message="died by toxic materials"; break;
+        case 33: message="was incinerated"; break;
+        case 34: message="was crushed"; break;
+        case 35: case 38: case 39: message="was killed"; break;
+        case 36: message="fell to his death"; break;
+        case 37: message="committed suicide"; break;
+        case 54: message="got buried under a pile of rubble"; break;
+        case 65: message="^2violated ROE"; break;
+        }
+        if(attacker==target) {
+            switch(mod) {
+            case 17: message="vaporized himself"; break;
+            case 18: message="dove on his own grenade"; break;
+            case 26: message="dynamited himself to pieces"; break;
+            case 27: message="obliterated himself"; break;
+            case 30: message="fired-for-effect on himself"; break;
+            case 40: message="died in his own explosion"; break;
+            case 64: return;
+            case 65: message="^2violated ROE"; break;
+            default: message="killed himself"; break;
+            }
+        }
+        if(message) {
+            if(target!=cg.snap->ps.clientNum) {
+                CG_AddPMItem(PM_DEATH,va("%s %s.",targetName,message),shader); return;
+            }
+            if(mod==65) CG_AddPMItem(PM_DEATH,va("%s %s.",targetName,message),shader);
+        }
+        if(attacker==cg.snap->ps.clientNum && target!=cg.snap->ps.clientNum) {
+            message=ci->team==ca->team ? (mod==63?"You swapped places with":"You killed TEAMMATE") : "You killed";
+            CG_AddPMItemBig((popupMessageBigType_t)PM_DEATH,va("%s %s",CG_TranslateString(message),targetName),shader);
+        }
+    }
+    if(!ca) strcpy(attackerName,"noname");
+    else {
+        Q_strncpyz(attackerName,ca->name,30);
+        if(target==cg.snap->ps.clientNum) Q_strncpyz(cg.killerName,attackerName,sizeof(cg.killerName));
+    }
+    Q_strncpyz(attackerName,va("%c%c%s",'^',ca?(ca->team==2?'4':ca->team==1?'1':'7'):'7',attackerName),32);
+    if(mod==18 || mod==20) weaponText=va("(%s)","GRENADE");
+    else if(mod==26) weaponText=va("(%s)","C4");
+    else if(weapon) weaponText=va("(%s)",tce_cg_weapons[weapon].deployMenuShortName);
+    if(publicMessage && ca && target!=cg.snap->ps.clientNum) {
+        message="<<<";
+        if(ci->team==ca->team) { message="was killed by TEAMMATE"; weaponText=""; }
+        CG_AddPMItem(PM_DEATH,va("%s %s %s %s",targetName,message,attackerName,weaponText),shader);
+        return;
+    }
+    message=ca && ci->team==ca->team?"You were killed by TEAMMATE":"You were killed by";
+    if(mod==65) message="^2You violated ROE";
+    else if(attacker!=target && attacker!=ENTITYNUM_WORLD) {
+        CG_AddPMItemBig((popupMessageBigType_t)PM_DEATH,va("%s %s %s",message,attackerName,weaponText),shader);
+        return;
+    } else message="You killed yourself";
+    CG_AddPMItemBig((popupMessageBigType_t)PM_DEATH,va("%s",message),shader);
 }
 
 //==========================================================================
@@ -396,79 +149,20 @@ CG_ItemPickup
 A new item was picked up this frame
 ================
 */
+/* Original3003b140: every weapon pickup selects its TC media slot. */
 static void CG_ItemPickup( int itemNum ) {
-	int itemid;
-	int wpbank_cur, wpbank_pickup;
-	
-	itemid = bg_itemlist[itemNum].giTag;
-
-	CG_AddPMItem( PM_MESSAGE, va( "Picked up %s", CG_PickupItemText( itemNum ) ), cgs.media.pmImages[PM_MESSAGE] );
-
-//	cg.itemPickup			= itemNum;
-//	cg.itemPickupTime		= cg.time;
-//	cg.itemPickupBlendTime	= cg.time;
-
-	// see if it should be the grabbed weapon
-	if ( bg_itemlist[itemNum].giType == IT_WEAPON ) {
-
- 		if ( cg_autoswitch.integer && cg.predictedPlayerState.weaponstate != WEAPON_RELOADING ) {
-
-		//	0 - "Off"
-		//	1 - "Always Switch"
-		//	2 - "If New"
-		//	3 - "If Better"
-		//	4 - "New or Better"
-
-			// don't ever autoswitch to secondary fire weapons
-			// Gordon: Leave autoswitch to secondary kar/carbine as they use alt ammo and arent zoomed: Note, not that it would do this anyway as it isnt in a bank....
-			if( itemid != WP_FG42SCOPE && itemid != WP_GARAND_SCOPE && itemid != WP_K43_SCOPE && itemid != WP_AMMO) {	//----(SA)	modified
-			// no weap currently selected, always just select the new one
-				if(!cg.weaponSelect) {
-					cg.weaponSelectTime	= cg.time;
-					cg.weaponSelect		= itemid;
-				}
-
-		// 1 - always switch to new weap (Q3A default)
-				else if(cg_autoswitch.integer == 1) {
-					cg.weaponSelectTime	= cg.time;
-					cg.weaponSelect		= itemid;
-				}
-
-				else {
-
-		// 2 - switch to weap if it's not already in the player's inventory (Wolf default)
-		// 4 - both 2 and 3
-
-					// FIXME:	this works fine for predicted pickups (when you walk over the weapon), but not for 
-					//			manual pickups (activate item)
-					if (cg_autoswitch.integer == 2 || cg_autoswitch.integer == 4) {
-						if(!COM_BitCheck( cg.snap->ps.weapons, itemid )) {
-							cg.weaponSelectTime	= cg.time;
-							cg.weaponSelect		= itemid;
-						}
-					}	// end 2
-
-		// 3 - switch to weap if it's in a bank greater than the current weap
-		// 4 - both 2 and 3
-					if (cg_autoswitch.integer == 3 || cg_autoswitch.integer == 4) {
-						// switch away only if a primary weapon is selected (read: don't switch away if current weap is a secondary mode)
-						if( CG_WeaponIndex(cg.weaponSelect, &wpbank_cur, NULL) ) {
-							if(CG_WeaponIndex(itemid, &wpbank_pickup, NULL)) {
-								if( wpbank_pickup > wpbank_cur ) {
-									cg.weaponSelectTime	= cg.time;
-									cg.weaponSelect		= itemid;
-								}
-							}
-						}
-					}	// end 3
-
-				}	// end cg_autoswitch.integer != 1
-
-			}
-
-		}	// end cg_autoswitch.integer
-
-	}	// end bg_itemlist[itemNum].giType == IT_WEAPON
+    int weapon = bg_itemlist[itemNum].giTag;
+    if (bg_itemlist[itemNum].giType == IT_WEAPON) {
+        CG_AddPMItemBig((popupMessageBigType_t)PM_MESSAGE,
+            va("Picked up a %s", tce_cg_weapons[weapon].deployMenuShortName),
+            cgs.media.pmImages[PM_MESSAGE]);
+        cg.weaponSelectTime = cg.time;
+        cg.weaponSelect = weapon;
+    } else {
+        CG_AddPMItemBig((popupMessageBigType_t)PM_MESSAGE,
+            va("Picked up %s", CG_PickupItemText(itemNum)),
+            cgs.media.pmImages[PM_MESSAGE]);
+    }
 }
 
 
@@ -586,7 +280,10 @@ void CG_Explode(centity_t *cent, vec3_t origin, vec3_t dir, qhandle_t shader) {
 	if( !cent->currentState.dl_intensity ) {
 		sfxHandle_t sound;
 
-		sound = random()*fxSounds[cent->currentState.frame].max;
+		/* Original FILD(rand&32767), FMUL binary32 reciprocal, FIMUL count.
+		 * Keep the product unrounded until conversion to the sound index. */
+		sound = (int)((double)(rand() & 0x7fff) *
+			(double)(1.0f / 32767.0f) * fxSounds[cent->currentState.frame].max);
 
 		if( fxSounds[cent->currentState.frame].sound[sound] == -1 ) {
 			fxSounds[cent->currentState.frame].sound[sound] = trap_S_RegisterSound( fxSounds[cent->currentState.frame].soundfile[sound], qfalse );
@@ -724,8 +421,15 @@ void CG_RubbleFx(vec3_t origin, vec3_t dir, int mass, int type, sfxHandle_t soun
 	totalsounds = 0;
 	total = pieces[5] + pieces[4] + pieces[3] + pieces[2] + pieces[1] + pieces[0];
 	
-	if(sound) {
-		trap_S_StartSound( origin, -1, CHAN_AUTO, sound);
+	if(sound && !cg.tcePortalScopeRendering) {
+		tce_fragmentSoundContext_t context;
+		int volume;
+		memset(&context, 0, sizeof(context));
+		VectorCopy(cg.refdef_current->vieworg, context.listener);
+		context.attenuation = tceFlash.deafness;
+		context.distanceVariant = tceSmokeNewBBox;
+		volume = TCE_CG_SoundVolume(origin, 127.0f, 1200.0f, 0, &context);
+		trap_S_StartSoundVControl(origin, -1, CHAN_AUTO, sound, volume);
 	}
 	
 	if(shader)	// shader passed in to use
@@ -757,7 +461,8 @@ void CG_RubbleFx(vec3_t origin, vec3_t dir, int mass, int type, sfxHandle_t soun
 				break;
 				
 			case 1:	// "glass"
-				snd = LEBS_NONE;
+				// TC bounce bank 6 is glass (the SDK enum calls it BONE).
+				snd = (leBounceSoundType_t)6;
 				if(i==5)			hmodel = cgs.media.shardGlass1;
 				else if(i==4)		hmodel = cgs.media.shardGlass2;
 				else if(i==2)		hmodel = cgs.media.shardGlass2;
@@ -948,253 +653,129 @@ CG_Explodef
 	made this more generic for spawning hits and breaks without needing a *cent
 ==============
 */
-void CG_Explodef(vec3_t origin, vec3_t dir, int mass, int type, qhandle_t sound, int forceLowGrav, qhandle_t shader) {
-	int i;
-	localEntity_t	*le;
-	refEntity_t		*re;
-	int				howmany, total, totalsounds;
-	int				pieces[6];	// how many of each piece
-	qhandle_t		modelshader = 0;
-	float			materialmul = 1;	// multiplier for different types
-	
-	memset(&pieces, 0, sizeof(pieces));
-	
-	pieces[5]	= (int)(mass / 250.0f);
-	pieces[4]	= (int)(mass / 76.0f);
-	pieces[3]	= (int)(mass / 37.0f);	// so 2 per 75
-	pieces[2]	= (int)(mass / 15.0f);
-	pieces[1]	= (int)(mass / 10.0f);
-	pieces[0]	= (int)(mass / 5.0f);
-	
-	if(pieces[0] > 20)	pieces[0] = 20;	// cap some of the smaller bits so they don't get out of control
-	if(pieces[1] > 15)	pieces[1] = 15;
-	if(pieces[2] > 10)	pieces[2] = 10;
-	
-	if(type == 0 ) {	// cap wood even more since it's often grouped, and the small splinters can add up
-		if(pieces[0] > 10)	pieces[0] = 10;
-		if(pieces[1] > 10)	pieces[1] = 10;
-		if(pieces[2] > 10)	pieces[2] = 10;
-	}
-	
-	total = pieces[5] + pieces[4] + pieces[3] + pieces[2] + pieces[1] + pieces[0];
-	totalsounds = 0;
-	
-	if(sound) {
-		trap_S_StartSound( origin, -1, CHAN_AUTO, sound);
-	}
-	
-	if(shader)	// shader passed in to use
-		modelshader = shader;
-	
-	for(i=0;i<POSSIBLE_PIECES;i++) {
-		leBounceSoundType_t snd = LEBS_NONE;
-		int		hmodel = 0;
-		float	scale;
-		int		endtime;
-		for(howmany = 0; howmany < pieces[i]; howmany++) {
-			
-			scale = 1.0f;
-			endtime = 0;	// set endtime offset for faster/slower fadeouts
-			
-			switch(type) {
-			case 0:	// "wood"
-				snd = LEBS_WOOD;
-				hmodel = cgs.media.debWood[i];
-				
-				if(i==0)		scale = 0.5f;
-				else if(i==1)	scale = 0.6f;
-				else if(i==2)	scale = 0.7f;
-				else if(i==3)	scale = 0.5f;
-				//					else goto pass;
-				
-				if(i<3)
-					endtime = -3000;	// small bits live 3 sec shorter than normal
-				break;
-				
-			case 1:	// "glass"
-				snd = LEBS_NONE;
-				if(i==5)			hmodel = cgs.media.shardGlass1;
-				else if(i==4)		hmodel = cgs.media.shardGlass2;
-				else if(i==2)		hmodel = cgs.media.shardGlass2;
-				else if(i==1) {
-					hmodel = cgs.media.shardGlass2;
-					scale = 0.5f;
-				}
-				else	goto pass;
-				break;
-				
-			case 2:	// "metal"
-				snd = LEBS_BRASS;
-				if(i==5)			hmodel = cgs.media.shardMetal1;
-				else if(i==4)		hmodel = cgs.media.shardMetal2;
-				else if(i==2)		hmodel = cgs.media.shardMetal2;
-				else if(i==1) {
-					hmodel = cgs.media.shardMetal2;
-					scale = 0.5f;
-				}
-				else	goto pass;
-				break;
-				
-			case 3:	// "gibs"
-				snd = LEBS_BLOOD;
-				if(i==5)			hmodel = cgs.media.gibIntestine;
-				else if(i==4)		hmodel = cgs.media.gibLeg;
-				else if(i==2)		hmodel = cgs.media.gibChest;
-				else	goto pass;
-				break;
-				
-			case 4:	// "brick"
-				snd = LEBS_ROCK;
-				hmodel = cgs.media.debBlock[i];
-				break;
-				
-			case 5:	// "rock"
-				snd = LEBS_ROCK;
-				if(i==5)			hmodel = cgs.media.debRock[2];	// temporarily use the next smallest rock piece
-				else if(i==4)		hmodel = cgs.media.debRock[2];
-				else if(i==3)		hmodel = cgs.media.debRock[1];
-				else if(i==2)		hmodel = cgs.media.debRock[0];
-				else if(i==1)		hmodel = cgs.media.debBlock[1];	// temporarily use the small block pieces
-				else				hmodel = cgs.media.debBlock[0];	// temporarily use the small block pieces
-				
-				if(i<=2)
-					endtime = -2000;	// small bits live 2 sec shorter than normal
-				break;
-				
-			case 6:	// "fabric"
-				if(i==5)			hmodel = cgs.media.debFabric[0];
-				else if(i==4)		hmodel = cgs.media.debFabric[1];
-				else if(i==2)		hmodel = cgs.media.debFabric[2];
-				
-				else if(i==1) {
-					hmodel = cgs.media.debFabric[2];
-					scale = 0.5;
-				}
-				
-				else	goto pass;	// (only do 5, 4, 2 and 1)
-				break;
-			}
-			
-			le = CG_AllocLocalEntity();
-			re = &le->refEntity;
-			
-			le->leType				= LE_FRAGMENT;
-			le->startTime			= cg.time;
-			
-			le->endTime				= (le->startTime + 5000 + random() * 5000) + endtime;
-			
-			// as it turns out, i'm not sure if setting the re->axis here will actually do anything
-			//			AxisClear(re->axis);
-			//			re->axis[0][0] = 
-			//			re->axis[1][1] = 
-			//			re->axis[2][2] = scale;
-			//
-			//			if(scale != 1.0)
-			//				re->nonNormalizedAxes = qtrue;
-			
-			le->sizeScale = scale;
-			
-			if(type == 1) {	// glass
-				// Rafael added this because glass looks funky when it fades out
-				// TBD: need to look into this so that they fade out correctly
-				re->fadeStartTime		= le->endTime;
-				re->fadeEndTime			= le->endTime;
-			}
-			else {
-				re->fadeStartTime		= le->endTime - 4000;
-				re->fadeEndTime			= le->endTime;
-			}
-			
-			if( total > 5 ) {
-				if( totalsounds > 5 || (howmany % 8) != 0 )
-					snd = LEBS_NONE;
-				else
-					totalsounds++;
-			}
-
-			le->lifeRate	= 1.0/(le->endTime - le->startTime);
-			le->leFlags		= LEF_TUMBLE;
-			le->leMarkType	= 0;
-			
-			VectorCopy( origin, re->origin );
-			AxisCopy( axisDefault, re->axis );
-			
-			le->leBounceSoundType = snd;
-			re->hModel = hmodel;
-			
-			// inherit shader
-			if(modelshader) {
-				re->customShader = modelshader;
-			}
-			
-			re->radius = 1000;
-			
-			// trying to make this a little more interesting
-			if(type == 6) {	// "fabric"
-				le->pos.trType = TR_GRAVITY_FLOAT;	// the fabric stuff will change to use something that looks better
-			}
-			else {
-				if(! forceLowGrav && rand()&1)		// if low gravity is not forced and die roll goes our way use regular grav
-					le->pos.trType = TR_GRAVITY;
-				else
-					le->pos.trType = TR_GRAVITY_LOW;
-			}
-			
-			switch(type) {
-			case 6:	// fabric
-				le->bounceFactor	= 0.0;
-				materialmul			= 0.3;	// rotation speed
-				break;
-			default:
-				le->bounceFactor	= 0.4;
-				break;
-			}
-			
-			
-			// rotation
-			le->angles.trType = TR_LINEAR;
-			le->angles.trTime = cg.time;
-			le->angles.trBase[0] = rand()&31;
-			le->angles.trBase[1] = rand()&31;
-			le->angles.trBase[2] = rand()&31;
-			le->angles.trDelta[0] = ((100 + (rand()&500)) - 300) * materialmul;
-			le->angles.trDelta[1] = ((100 + (rand()&500)) - 300) * materialmul;
-			le->angles.trDelta[2] = ((100 + (rand()&500)) - 300) * materialmul;
-			
-			
-			//			if(type == 6)	// fabric
-			//				materialmul = 1;		// translation speed
-			
-			
-			VectorCopy( origin, le->pos.trBase );
-			VectorNormalize(dir);
-			le->pos.trTime = cg.time;
-			
-			// (SA) hoping that was just intended to represent randomness
-			//			if (cent->currentState.angles2[0] || cent->currentState.angles2[1] || cent->currentState.angles2[2])
-			if (le->angles.trBase[0] == 1 || le->angles.trBase[1] == 1 || le->angles.trBase[2] == 1 ) {
-				le->pos.trType = TR_GRAVITY;
-				VectorScale(dir, 10 * 8, le->pos.trDelta);
-				le->pos.trDelta[0] += ((random() * 100) - 50);
-				le->pos.trDelta[1] += ((random() * 100) - 50);
-				le->pos.trDelta[2] = (random() * 200) + 200;
-
-			} else {
-				// location
-				VectorScale(dir, 200 + mass, le->pos.trDelta);
-				le->pos.trDelta[0] += ((random() * 100) - 50);
-				le->pos.trDelta[1] += ((random() * 100) - 50);
-
-				if(dir[2])
-					le->pos.trDelta[2] = random() * 200 * materialmul;	// randomize sort of a lot so they don't all land together
-				else
-					le->pos.trDelta[2] = random() * 20;
-			}
-		}
-pass:
-		continue;
-	}
-
+/* Whole TC emitter Windows300367c0 / Linux0006882e. */
+void CG_Explodef(vec3_t origin, vec3_t dir, int mass, int type, qhandle_t sound,
+                 int forceLowGrav, qhandle_t shader) {
+    int pieces[6], i, j, total, totalSounds=0;
+    float translation=1.0f, rotation=1.0f;
+    pieces[5]=(int)(mass*0.004000000189989805f);
+    pieces[4]=(int)(mass*0.01315789483487606f);
+    pieces[3]=(int)(mass*0.027027027681469917f);
+    pieces[2]=(int)(mass*0.06666667014360428f);
+    pieces[1]=(int)(mass*0.10000000149011612f);
+    pieces[0]=(int)(mass*0.20000000298023224f);
+    if(pieces[0]>20)pieces[0]=20;
+    if(pieces[1]>15)pieces[1]=15;
+    if(pieces[2]>10)pieces[2]=10;
+    if(type==0)for(i=0;i<3;i++)if(pieces[i]>10)pieces[i]=10;
+    total=pieces[0]+pieces[1]+pieces[2]+pieces[3]+pieces[4]+pieces[5];
+    if(sound && !cg.tcePortalScopeRendering) {
+        tce_fragmentSoundContext_t context;
+        int volume;
+        memset(&context,0,sizeof(context));
+        VectorCopy(cg.refdef_current->vieworg,context.listener);
+        context.attenuation=tceFlash.deafness;
+        context.distanceVariant=tceSmokeNewBBox;
+        context.disabled=cg.tcePortalScopeRendering;
+        volume=TCE_CG_SoundVolume(origin,127.0f,1200.0f,0,&context);
+        trap_S_StartSoundVControl(origin,-1,CHAN_AUTO,sound,volume);
+    }
+    for(i=0;i<6;i++) {
+        int bounceSound=0;
+        qhandle_t model=0;
+        for(j=0;j<pieces[i];j++) {
+            localEntity_t *le;
+            refEntity_t *re;
+            float scale=1.0f, speed;
+            int timeOffset=0,k;
+            switch(type) {
+            case 0:
+                bounceSound=3;model=cgs.media.debWood[i];
+                scale=.2f;translation=.3f;
+                if(i<3)timeOffset=-3000;
+                break;
+            case 1:
+                bounceSound=6;translation=.3f;
+                if(i==5)model=cgs.media.shardGlass1;
+                else if(i==4 || i==2)model=cgs.media.shardGlass2;
+                else if(i==1){model=cgs.media.shardGlass2;scale=.5f;}
+                else goto nextSize;
+                break;
+            case 2:
+                bounceSound=4;
+                if(i==5)model=cgs.media.shardMetal1;
+                else if(i==4 || i==2)model=cgs.media.shardMetal2;
+                else if(i==1){model=cgs.media.shardMetal2;scale=.5f;}
+                else goto nextSize;
+                break;
+            case 3:
+                bounceSound=1;
+                if(i==5)model=cgs.media.gibIntestine;
+                else if(i==4)model=cgs.media.gibLeg;
+                else if(i==2)model=cgs.media.gibChest;
+                else goto nextSize;
+                break;
+            case 4:bounceSound=2;model=cgs.media.debBlock[i];break;
+            case 5:
+                bounceSound=2;
+                if(i>=4)model=cgs.media.debRock[2];
+                else if(i==3)model=cgs.media.debRock[1];
+                else if(i==2)model=cgs.media.debRock[0];
+                else model=cgs.media.debBlock[i];
+                if(i<=2)timeOffset=-2000;
+                break;
+            case 6:
+                if(i==5)model=cgs.media.debFabric[0];
+                else if(i==4)model=cgs.media.debFabric[1];
+                else if(i==2)model=cgs.media.debFabric[2];
+                else if(i==1){model=cgs.media.debFabric[2];scale=.5f;}
+                else goto nextSize;
+                break;
+            case 7:case 8:
+                model=cgs.media.tceSplinterModel;
+                scale=i==5?2.0f:.5f+.25f*i;
+                if(i<3)timeOffset=-3000;
+                break;
+            }
+            le=CG_AllocLocalEntity();re=&le->refEntity;
+            le->leType=LE_FRAGMENT;le->startTime=cg.time;
+            le->endTime=(int)(cg.time+5000+(rand()&32767)*(1.0f/32767.0f)*5000.0+timeOffset);
+            le->sizeScale=scale;
+            re->fadeStartTime=le->endTime-(type==1?0:4000);
+            re->fadeEndTime=le->endTime;
+            if(total>5) {if(totalSounds>5)bounceSound=0;else totalSounds++;}
+            le->leFlags=LEF_TUMBLE;le->leMarkType=LEMT_NONE;
+            le->lifeRate=1.0f/(le->endTime-le->startTime);
+            VectorCopy(origin,re->origin);AxisCopy(axisDefault,re->axis);
+            le->leBounceSoundType=(leBounceSoundType_t)bounceSound;
+            re->hModel=model;if(shader)re->customShader=shader;
+            re->radius=1000;
+            le->angles.trType=TR_LINEAR;
+            if(type==6)le->pos.trType=TR_GRAVITY_FLOAT;
+            else if(type==7) {
+                le->pos.trType=(trType_t)15;
+                le->pos.trDuration=(int)(((rand()&32767)*(1.0f/32767.0f)+1)*200);
+                le->angles.trType=TR_DECCELERATE;le->angles.trDuration=5000;
+                le->tceGravity=(float)(i*.3333333432674408f+
+                    (le->pos.trDuration*.004999999888241291f-1)*.5f+1);
+            } else if(!forceLowGrav && (rand()&1))le->pos.trType=TR_GRAVITY;
+            else le->pos.trType=TR_GRAVITY_LOW;
+            if(type==6){le->bounceFactor=0;rotation=.3f;}
+            else if(type==7){le->bounceFactor=0;rotation=1;translation=.7f;}
+            else if(type==8){translation=.1f;le->pos.trType=TR_GRAVITY_FLOAT;}
+            else le->bounceFactor=.4f;
+            le->angles.trTime=cg.time;
+            for(k=0;k<3;k++)le->angles.trBase[k]=rand()&31;
+            for(k=0;k<3;k++)le->angles.trDelta[k]=((rand()&500)-200)*rotation;
+            VectorCopy(origin,le->pos.trBase);VectorNormalize(dir);
+            le->pos.trTime=cg.time;
+            for(k=0;k<3;k++)le->pos.trDelta[k]=
+                ((rand()&32767)*(1.0f/32767.0f)*2-1)+dir[k];
+            speed=(mass+200)*translation;
+            VectorScale(le->pos.trDelta,speed,le->pos.trDelta);
+        }
+nextSize:;
+    }
 }
 
 
@@ -1490,21 +1071,61 @@ void CG_ShardJunk (centity_t *cent, vec3_t origin, vec3_t dir)
 {
 	localEntity_t	*le;
 	refEntity_t		*re;
-	int				type;
-		
-	type = cent->currentState.density;
+#if defined(_MSC_VER) && defined(_M_IX86)
+	int sample, baseTime, duration, axis;
+	float *shardOutput;
+	unsigned short savedCW, truncCW;
+	__int64 converted;
+	static const float randomUnit = 0.000030518509447574615f;
+	static const float lifetime = 5000.0f, speed = 80.0f;
+	static const float spread = 100.0f, bias = 50.0f;
+	static const double one = 1.0;
+#endif
+	(void)cent; /* Original does not dereference this argument. */
 
 	le = CG_AllocLocalEntity();
 	re = &le->refEntity;
 
 	le->leType				= LE_FRAGMENT;
 	le->startTime			= cg.time;
-	le->endTime				= le->startTime + 5000 + random() * 5000;
+#if defined(_MSC_VER) && defined(_M_IX86)
+	sample = rand() & 32767;
+	baseTime = (int)((unsigned)le->startTime + 5000u);
+	/* Original retained x87 value is consumed by __ftol, not a float cast. */
+	__asm {
+		fild sample
+		fmul randomUnit
+		fmul lifetime
+		fiadd baseTime
+		fstcw savedCW
+		fwait
+		mov ax, savedCW
+		or ah, 0ch
+		mov truncCW, ax
+		fldcw truncCW
+		fistp converted
+		fldcw savedCW
+	}
+	le->endTime = (int)converted;
+#else
+	le->endTime = le->startTime + 5000 + random() * 5000;
+#endif
 
-	re->fadeStartTime		= le->endTime - 1000;
+	re->fadeStartTime = (int)((unsigned)le->endTime - 1000u);
 	re->fadeEndTime			= le->endTime;
 
-	le->lifeRate			= 1.0/(le->endTime - le->startTime);
+#if defined(_MSC_VER) && defined(_M_IX86)
+	duration = (int)((unsigned)le->endTime - (unsigned)le->startTime);
+	shardOutput = &le->lifeRate;
+	__asm {
+		mov eax, shardOutput
+		fild duration
+		fdivr one
+		fstp dword ptr [eax]
+	}
+#else
+	le->lifeRate = 1.0/(le->endTime - le->startTime);
+#endif
 	le->leFlags				= LEF_TUMBLE;
 	le->bounceFactor		= 0.4;
 	le->leMarkType			= 0;
@@ -1518,15 +1139,59 @@ void CG_ShardJunk (centity_t *cent, vec3_t origin, vec3_t dir)
 		
 	VectorCopy( origin, le->pos.trBase );
 	VectorNormalize(dir);
-	VectorScale(dir, 10 * 8, le->pos.trDelta);
+#if defined(_MSC_VER) && defined(_M_IX86)
+	shardOutput = le->pos.trDelta;
+	__asm {
+		mov eax, dir
+		mov edx, shardOutput
+		fld dword ptr [eax]
+		fmul speed
+		fstp dword ptr [edx]
+		fld dword ptr [eax+4]
+		fmul speed
+		fstp dword ptr [edx+4]
+		fld dword ptr [eax+8]
+		fmul speed
+		fstp dword ptr [edx+8]
+	}
+#else
+	VectorScale(dir, 80, le->pos.trDelta);
+#endif
 	le->pos.trTime = cg.time;
+#if defined(_MSC_VER) && defined(_M_IX86)
+	for (axis = 0; axis < 2; ++axis) {
+		sample = rand() & 32767;
+		shardOutput = &le->pos.trDelta[axis];
+		__asm {
+			mov eax, shardOutput
+			fild sample
+			fmul randomUnit
+			fmul spread
+			fsub bias
+			fadd dword ptr [eax]
+			fstp dword ptr [eax]
+		}
+	}
+	sample = rand() & 32767;
+	le->angles.trType = TR_LINEAR;
+	shardOutput = &le->pos.trDelta[2];
+	__asm {
+		mov eax, shardOutput
+		fild sample
+		fmul randomUnit
+		fmul spread
+		fadd bias
+		fstp dword ptr [eax]
+	}
+#else
 	le->pos.trDelta[0] += ((random() * 100) - 50);
 	le->pos.trDelta[1] += ((random() * 100) - 50);
-		
-	le->pos.trDelta[2] = (random() * 100) + 50;	// randomize sort of a lot so they don't all land together
-		
+	le->pos.trDelta[2] = (random() * 100) + 50;
+#endif
 	// rotation
+#if !defined(_MSC_VER) || !defined(_M_IX86)
 	le->angles.trType = TR_LINEAR;
+#endif
 	le->angles.trTime = cg.time;
 	//le->angles.trBase[0] = rand()&31;
 	//le->angles.trBase[1] = rand()&31;
@@ -1631,9 +1296,25 @@ void CG_MortarMiss( centity_t *cent, vec3_t origin )
 // a convenience function for all footstep sound playing
 static void CG_StartFootStepSound( bg_playerclass_t* classInfo, entityState_t *es, sfxHandle_t sfx )
 {
-	if( cg_footsteps.integer ) {
-		trap_S_StartSound( NULL, es->number, CHAN_BODY, sfx );
-	}
+    tce_fragmentSoundContext_t context;
+    int event, volume;
+    float range;
+    /* TC:E 3003b1e0 / Linux0006f338. classInfo is unused in both originals. */
+    (void)classInfo;
+    if (cg.tcePortalScopeRendering)
+        CG_Printf("ELITE PORTAL: CG_StartFootStepSound\n");
+    if (!cg_footsteps.integer || cg.tcePortalScopeRendering) return;
+    event = es->event & ~EV_EVENT_BITS;
+    if (event == EV_TCE_FOOTSTEP_SPRINT) { volume = 196; range = 2400.f; }
+    else if (event == EV_TCE_FOOTSTEP_WALK) { volume = 64; range = 1200.f; }
+    else { volume = 127; range = 1800.f; }
+    memset(&context, 0, sizeof(context));
+    VectorCopy(cg.refdef_current->vieworg, context.listener);
+    context.attenuation = tceFlash.deafness;
+    context.distanceVariant = tceSmokeNewBBox;
+    volume = TCE_CG_SoundVolume(es->pos.trBase, (float)volume, range, 0, &context);
+    if (volume)
+        trap_S_StartSoundVControl(NULL, es->number, CHAN_BODY, sfx, volume);
 }
 
 /*
@@ -1660,6 +1341,8 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 	char				tempStr[MAX_QPATH];
 	bg_playerclass_t	*classInfo;
 	bg_character_t		*character;
+	int tceEventVolume;
+	tce_fragmentSoundContext_t tceEventSound;
 
 // JPW NERVE copied here for mg42 SFX event
 	vec3_t				porg, gorg, norm;	// player/gun origin
@@ -1689,13 +1372,23 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 	classInfo = CG_PlayerClassForClientinfo( ci, cent );
 	character = CG_CharacterForClientinfo( ci, cent );
 
+    /* Original common event-volume producer (30037d40), before dispatch. */
+    memset(&tceEventSound,0,sizeof(tceEventSound));
+    VectorCopy(cg.refdef_current->vieworg,tceEventSound.listener);
+    tceEventSound.attenuation=tceFlash.deafness;
+    tceEventSound.distanceVariant=tceSmokeNewBBox;
+    tceEventVolume=TCE_CG_SoundVolume(es->pos.trBase,127.f,1200.f,0,&tceEventSound);
+    if(cg.tcePortalScopeRendering)tceEventVolume=0;
+
 	switch ( event ) {
 	//
 	// movement generated events
 	//
 	case EV_FOOTSTEP:
+	case EV_TCE_FOOTSTEP_SPRINT:
+	case EV_TCE_FOOTSTEP_WALK:
 		DEBUGNAME("EV_FOOTSTEP");
-		if( es->eventParm != FOOTSTEP_TOTAL ) {
+		if( es->eventParm != 23 ) { /* TC silent surface; SDK FOOTSTEP_TOTAL is 9. */
 			if( es->eventParm ) {
 				CG_StartFootStepSound( classInfo, es, cgs.media.footsteps[ es->eventParm ][footstepcnt] );
 			} else {
@@ -1718,101 +1411,131 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 
 	case EV_FALL_SHORT:
 		DEBUGNAME("EV_FALL_SHORT");
-		if( es->eventParm != FOOTSTEP_TOTAL ) {
-			if( es->eventParm ) {
-				trap_S_StartSound( NULL, es->number, CHAN_AUTO, cgs.media.landSound[ es->eventParm ] );
-			} else {
-				trap_S_StartSound( NULL, es->number, CHAN_AUTO, cgs.media.landSound[ character->animModelInfo->footsteps ] );
-			}
-		}
-		if ( clientNum == cg.predictedPlayerState.clientNum ) {
-			// smooth landing z changes
-			cg.landChange = -8;
-			cg.landTime = cg.time;
-		}
-		break;
+        if(tceEventVolume) {
+            if(es->eventParm!=23) {
+                int step=es->eventParm ? es->eventParm : character->animModelInfo->footsteps;
+                trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.landSound[step],tceEventVolume);
+            }
+        }
+        if(clientNum==cg.predictedPlayerState.clientNum) {
+            cg.landChange=-8;
+            cg.landTime=cg.time;
+        }
+        break;
 
 	case EV_FALL_DMG_10:
 		DEBUGNAME("EV_FALL_DMG_10");
-		if( es->eventParm != FOOTSTEP_TOTAL ) {
-			if( es->eventParm ) {
-				trap_S_StartSound( NULL, es->number, CHAN_AUTO, cgs.media.landSound[ es->eventParm ] );
-			} else {
-				trap_S_StartSound( NULL, es->number, CHAN_AUTO, cgs.media.landSound[ character->animModelInfo->footsteps ] );
-			}
-		}
-		trap_S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.landHurt );
-		cent->pe.painTime = cg.time;	// don't play a pain sound right after this
-		if ( clientNum == cg.predictedPlayerState.clientNum ) {
-			// smooth landing z changes
-			cg.landChange = -16;
-			cg.landTime = cg.time;
-		}
-		break;
+        if(tceEventVolume) {
+            if(es->eventParm!=23) {
+                int step=es->eventParm ? es->eventParm : character->animModelInfo->footsteps;
+                trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.landSound[step],tceEventVolume);
+            }
+            trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.landHurt,tceEventVolume);
+        }
+        cent->pe.painTime=cg.time;
+        if(clientNum==cg.predictedPlayerState.clientNum) {
+            cg.landChange=-16;
+            cg.landTime=cg.time;
+        }
+        break;
 	case EV_FALL_DMG_15:
 		DEBUGNAME("EV_FALL_DMG_15");
-		if( es->eventParm != FOOTSTEP_TOTAL ) {
-			if( es->eventParm ) {
-				trap_S_StartSound( NULL, es->number, CHAN_AUTO, cgs.media.landSound[ es->eventParm ] );
-			} else {
-				trap_S_StartSound( NULL, es->number, CHAN_AUTO, cgs.media.landSound[ character->animModelInfo->footsteps ] );
-			}
-		}
-		trap_S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.landHurt );
-		cent->pe.painTime = cg.time;	// don't play a pain sound right after this
-		if ( clientNum == cg.predictedPlayerState.clientNum ) {
-			// smooth landing z changes
-			cg.landChange = -16;
-			cg.landTime = cg.time;
-		}
-		break;
+        if(tceEventVolume) {
+            if(es->eventParm!=23) {
+                int step=es->eventParm ? es->eventParm : character->animModelInfo->footsteps;
+                trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.landSound[step],tceEventVolume);
+            }
+            trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.landHurt,tceEventVolume);
+        }
+        cent->pe.painTime=cg.time;
+        if(clientNum==cg.predictedPlayerState.clientNum) {
+            cg.landChange=-16;
+            cg.landTime=cg.time;
+        }
+        break;
 	case EV_FALL_DMG_25:
 		DEBUGNAME("EV_FALL_DMG_25");
-		if( es->eventParm != FOOTSTEP_TOTAL ) {
-			if( es->eventParm ) {
-				trap_S_StartSound( NULL, es->number, CHAN_AUTO, cgs.media.landSound[ es->eventParm ] );
-			} else {
-				trap_S_StartSound( NULL, es->number, CHAN_AUTO, cgs.media.landSound[ character->animModelInfo->footsteps ] );
-			}
-		}
-		trap_S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.landHurt );
-		cent->pe.painTime = cg.time;	// don't play a pain sound right after this
-		if ( clientNum == cg.predictedPlayerState.clientNum ) {
-			// smooth landing z changes
-			cg.landChange = -24;
-			cg.landTime = cg.time;
-		}
-		break;
+        if(tceEventVolume) {
+            if(es->eventParm!=23) {
+                int step=es->eventParm ? es->eventParm : character->animModelInfo->footsteps;
+                trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.landSound[step],tceEventVolume);
+            }
+            trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.landHurt,tceEventVolume);
+        }
+        cent->pe.painTime=cg.time;
+        if(clientNum==cg.predictedPlayerState.clientNum) {
+            cg.landChange=-24;
+            cg.landTime=cg.time;
+        }
+        break;
+    case EV_TCE_FENCE_TOUCH: {
+        tce_fragmentSoundContext_t context;
+        int volume, choice;
+        DEBUGNAME("EV_TOUCH_FENCE");
+        memset(&context,0,sizeof(context));
+        VectorCopy(cg.refdef_current->vieworg,context.listener);
+        context.attenuation=tceFlash.deafness;
+        context.distanceVariant=tceSmokeNewBBox;
+        volume=TCE_CG_SoundVolume(es->pos.trBase,127.f,1200.f,0,&context);
+        if(cg.tcePortalScopeRendering)volume=0;
+        if(volume) {
+            /* Original random()*5 uses the final slot for the endpoint too. */
+            choice=(int)((rand()&0x7fff)*(1.0f/32767.0f)*5.0f);
+            if(choice>4)choice=4;
+            trap_S_StartSoundVControl(es->pos.trBase,es->number,CHAN_AUTO,
+                cgs.media.tceBulletFence[choice],volume);
+        }
+        break;
+    }
+    case EV_TCE_FALL_DMG_75: {
+        tce_fragmentSoundContext_t context;
+        int volume,step=es->eventParm;
+        DEBUGNAME("EV_FALL_DMG_75");
+        memset(&context,0,sizeof(context));
+        VectorCopy(cg.refdef_current->vieworg,context.listener);
+        context.attenuation=tceFlash.deafness;
+        context.distanceVariant=tceSmokeNewBBox;
+        volume=TCE_CG_SoundVolume(es->pos.trBase,127.f,1200.f,0,&context);
+        if(cg.tcePortalScopeRendering)volume=0;
+        if(volume) {
+            if(step!=23) {
+                if(!step)step=character->animModelInfo->footsteps;
+                trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.landSound[step],volume);
+            }
+            trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.landHurt,volume);
+        }
+        cent->pe.painTime=cg.time;
+        if(clientNum==cg.predictedPlayerState.clientNum) {
+            cg.landChange=-24;cg.landTime=cg.time;
+        }
+        break;
+    }
 	case EV_FALL_DMG_50:
 		DEBUGNAME("EV_FALL_DMG_50");
-		if( es->eventParm != FOOTSTEP_TOTAL ) {
-			if( es->eventParm ) {
-				trap_S_StartSound( NULL, es->number, CHAN_AUTO, cgs.media.landSound[ es->eventParm ] );
-			} else {
-				trap_S_StartSound( NULL, es->number, CHAN_AUTO, cgs.media.landSound[ character->animModelInfo->footsteps ] );
-			}
-		}
-		trap_S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.landHurt );
-		cent->pe.painTime = cg.time;	// don't play a pain sound right after this
-		if ( clientNum == cg.predictedPlayerState.clientNum ) {
-			// smooth landing z changes
-			cg.landChange = -24;
-			cg.landTime = cg.time;
-		}
-		break;
+        if(tceEventVolume) {
+            if(es->eventParm!=23) {
+                int step=es->eventParm ? es->eventParm : character->animModelInfo->footsteps;
+                trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.landSound[step],tceEventVolume);
+            }
+            trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.landHurt,tceEventVolume);
+        }
+        cent->pe.painTime=cg.time;
+        if(clientNum==cg.predictedPlayerState.clientNum) {
+            cg.landChange=-24;
+            cg.landTime=cg.time;
+        }
+        break;
 	case EV_FALL_NDIE:
 		DEBUGNAME("EV_FALL_NDIE");
-		if( es->eventParm != FOOTSTEP_TOTAL ) {
-			if( es->eventParm ) {
-				trap_S_StartSound( NULL, es->number, CHAN_AUTO, cgs.media.landSound[ es->eventParm ] );
-			} else {
-				trap_S_StartSound( NULL, es->number, CHAN_AUTO, cgs.media.landSound[ character->animModelInfo->footsteps ] );
-			}
-		}
-		trap_S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.landHurt );
-		cent->pe.painTime = cg.time;	// don't play a pain sound right after this
-		// splat
-		break;
+        if(tceEventVolume) {
+            if(es->eventParm!=23) {
+                int step=es->eventParm ? es->eventParm : character->animModelInfo->footsteps;
+                trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.landSound[step],tceEventVolume);
+            }
+            trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.landHurt,tceEventVolume);
+        }
+        cent->pe.painTime=cg.time;
+        break;
 	
 	case EV_EXERT1:
 		DEBUGNAME("EV_EXERT1");
@@ -1833,24 +1556,55 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 	case EV_STEP_16:		// smooth out step up transitions
 		DEBUGNAME("EV_STEP");
 	{
-		float	oldStep;
 		int		delta;
 		int		step;
+#if defined(_MSC_VER) && defined(_M_IX86)
+		float *stepOutput = &cg.stepChange;
+		static const float stepDecay = 0.005f, stepZero = 0.0f, stepMaximum = 32.0f;
+		int stepRemaining;
+#else
+		float oldStep;
+#endif
 
 		if ( clientNum != cg.predictedPlayerState.clientNum ) {
 			break;
 		}
 		// if we are interpolating, we don't need to smooth steps
 		if ( cg.demoPlayback || (cg.snap->ps.pm_flags & PMF_FOLLOW) ||
-			cg_nopredict.integer 
-#ifdef ALLOW_GSYNC
-			|| cg_synchronousClients.integer 
-#endif // ALLOW_GSYNC
-			) {
+			cg_nopredict.integer ) {
 			break;
 		}
 		// check for stepping up before a previous step is completed
-		delta = cg.time - cg.stepTime;
+		delta = (int)((unsigned)cg.time - (unsigned)cg.stepTime);
+#if defined(_MSC_VER) && defined(_M_IX86)
+		/* TC 300384ce..30038542: retain decay in ST0 until the new step
+		 * is added; only then store binary32 and compare the stored value. */
+		stepRemaining = (int)(200u - (unsigned)delta);
+		step = 4 * (event - EV_STEP_4 + 1);
+		__asm {
+			mov ecx, stepOutput
+			cmp delta, 200
+			jge stepNoPrevious
+			fild stepRemaining
+			fmul dword ptr [ecx]
+			fmul stepDecay
+			jmp stepAddCurrent
+		stepNoPrevious:
+			fld stepZero
+		stepAddCurrent:
+			fild step
+			fadd st(0), st(1)
+			fstp dword ptr [ecx]
+			fstp st(0)
+			fld dword ptr [ecx]
+			fcomp stepMaximum
+			fnstsw ax
+			test ah, 41h
+			jnz stepStoreTime
+			mov dword ptr [ecx], 42000000h
+		stepStoreTime:
+		}
+#else
 		if (delta < STEP_TIME) {
 			oldStep = cg.stepChange * (STEP_TIME - delta) / STEP_TIME;
 		} else {
@@ -1863,108 +1617,52 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		if ( cg.stepChange > MAX_STEP_CHANGE ) {
 			cg.stepChange = MAX_STEP_CHANGE;
 		}
+#endif
 		cg.stepTime = cg.time;
 		break;
 	}
 
 	case EV_JUMP:
 		DEBUGNAME("EV_JUMP");
+		if(cg.tceAimRequested && es->number==cg.snap->ps.clientNum) CG_ToggleAiming();
 		trap_S_StartSound (NULL, es->number, CHAN_VOICE, CG_CustomSound( es->number, "*jump1.wav" ) );
 		break;
 	case EV_TAUNT:
 		DEBUGNAME("EV_TAUNT");
 		trap_S_StartSound (NULL, es->number, CHAN_VOICE, CG_CustomSound( es->number, "*taunt.wav" ) );
 		break;
-	case EV_WATER_TOUCH:
-		DEBUGNAME("EV_WATER_TOUCH");
-		trap_S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.watrInSound );
-		break;
-	case EV_WATER_LEAVE:
-		DEBUGNAME("EV_WATER_LEAVE");
-		trap_S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.watrOutSound );
-		break;
-	case EV_WATER_UNDER:
-		DEBUGNAME("EV_WATER_UNDER");
-		trap_S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.watrUnSound );
-		if( cg.clientNum == es->number ) {
-			cg.waterundertime = cg.time + HOLDBREATHTIME;
-		}
+    case EV_WATER_TOUCH:
+        DEBUGNAME("EV_WATER_TOUCH");
+        if(tceEventVolume) trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.watrInSound,tceEventVolume);
+        break;
+    case EV_WATER_LEAVE:
+        DEBUGNAME("EV_WATER_LEAVE");
+        if(tceEventVolume) trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.watrOutSound,tceEventVolume);
+        break;
+    case EV_WATER_UNDER:
+        DEBUGNAME("EV_WATER_UNDER");
+        if(tceEventVolume) trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.watrUnSound,tceEventVolume);
+        if(cg.clientNum==es->number) cg.waterundertime=cg.time+12000;
+        break;
+    case EV_WATER_CLEAR:
+        DEBUGNAME("EV_WATER_CLEAR");
+        if(tceEventVolume) {
+            trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.watrOutSound,tceEventVolume);
+            if(es->eventParm) trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.watrGaspSound,tceEventVolume);
+        }
+        break;
 
-//----(SA)	this fog stuff for underwater is really just a test for feasibility of creating the under-water effect that way.
-//----(SA)	the related issues of load/savegames, death underwater, etc. are not handled at all.
-//----(SA)	the actual problem, of course, is doing underwater stuff when the water is very turbulant and you can't simply
-//----(SA)	do things based on the players head being above/below the water brushes top surface. (since the waves can potentially be /way/ above/below that)
-
-		// DHM - Nerve :: causes problems in multiplayer...
-		break;
-	case EV_WATER_CLEAR:
-		DEBUGNAME("EV_WATER_CLEAR");
-		//trap_S_StartSound (NULL, es->number, CHAN_AUTO, CG_CustomSound( es->number, "*gasp.wav" ) );
-		trap_S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.watrOutSound );
-		if( es->eventParm )
-			trap_S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.watrGaspSound );
-		break;
-
-	case EV_ITEM_PICKUP:
-	case EV_ITEM_PICKUP_QUIET:
-		DEBUGNAME("EV_ITEM_PICKUP");
-		{
-			gitem_t	*item;
-			int		index;
-
-			index = es->eventParm;		// player predicted
-
-			if ( index < 1 || index >= bg_numItems ) {
-				break;
-			}
-			item = &bg_itemlist[ index ];
-
-			if(event == EV_ITEM_PICKUP)	// not quiet
-			{
-				// powerups and team items will have a separate global sound, this one
-				// will be played at prediction time
-				if( item->giType == IT_TEAM) {
-					trap_S_StartSound (NULL, es->number, CHAN_AUTO,	trap_S_RegisterSound( "sound/misc/w_pkup.wav", qfalse ) );
-				} else {
-					trap_S_StartSound (NULL, es->number, CHAN_AUTO,	trap_S_RegisterSound( item->pickup_sound, qfalse ) );
-				}
-			}
-
-			// show icon and name on status bar
-			if ( es->number == cg.snap->ps.clientNum ) {
-				CG_ItemPickup( index );
-			}
-
-//----(SA)	draw the HUD items for a sec since this is a special item
-/*			if ( item->giType == IT_KEY)
-				cg.itemFadeTime = cg.time + 1000;*/
-
-		}
-		break;
-
-	case EV_GLOBAL_ITEM_PICKUP:
-		DEBUGNAME("EV_GLOBAL_ITEM_PICKUP");
-		{
-			gitem_t	*item;
-			int		index;
-
-			index = es->eventParm;		// player predicted
-
-			if ( index < 1 || index >= bg_numItems ) {
-				break;
-			}
-			item = &bg_itemlist[ index ];
-			if( *item->pickup_sound ) {
-				// powerup pickups are global
-				trap_S_StartSound (NULL, cg.snap->ps.clientNum, CHAN_AUTO, trap_S_RegisterSound( item->pickup_sound, qfalse ) );	// FIXME: precache
-			}
-
-			// show icon and name on status bar
-			if ( es->number == cg.snap->ps.clientNum ) {
-				CG_ItemPickup( index );
-			}
-		}
-		break;
+    case EV_ITEM_PICKUP:
+    case EV_ITEM_PICKUP_QUIET:
+        DEBUGNAME("EV_ITEM_PICKUP");
+        if(es->eventParm>0 && es->eventParm<bg_numItems && es->number==cg.snap->ps.clientNum)
+            CG_ItemPickup(es->eventParm);
+        break;
+    case EV_GLOBAL_ITEM_PICKUP:
+        DEBUGNAME("EV_GLOBAL_ITEM_PICKUP");
+        if(es->eventParm>0 && es->eventParm<bg_numItems && es->number==cg.snap->ps.clientNum)
+            CG_ItemPickup(es->eventParm);
+        break;
 
 	//
 	// weapon events
@@ -1983,14 +1681,10 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 			cent->overheatTime = cg.time;	// used to make the barrels smoke when overheated
 		}
 
-		if( BG_PlayerMounted( es->eFlags ) ) {
+        if(!tceEventVolume)break;
+		/* Original mounted mask includes the tank bit; no second tank lookup. */
+		if( es->eFlags & 0x408020 ) {
 			trap_S_StartSoundVControl( NULL, es->number, CHAN_AUTO, cgs.media.hWeaponHeatSnd, 255 );
-		} else if( es->eFlags & EF_MOUNTEDTANK ) {
-			if( cg_entities[cg_entities[cg_entities[ es->number ].tagParent].tankparent].currentState.density & 8 ) {
-				trap_S_StartSoundVControl( NULL, es->number, CHAN_AUTO, cgs.media.hWeaponHeatSnd_2, 255 );
-			} else {
-				trap_S_StartSoundVControl( NULL, es->number, CHAN_AUTO, cgs.media.hWeaponHeatSnd, 255 );
-			}
 		} else if( cg_weapons[es->weapon].overheatSound ) {
 			trap_S_StartSound (NULL, es->number, CHAN_AUTO, cg_weapons[es->weapon].overheatSound );
 		}
@@ -2002,16 +1696,77 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 			trap_S_StartSound (NULL, es->number, CHAN_AUTO, cg_weapons[es->weapon].spinupSound );
 		break;
 // jpw
-	case EV_EMPTYCLIP:
-		DEBUGNAME("EV_EMPTYCLIP");
-		break;
+    case EV_EMPTYCLIP:
+        DEBUGNAME("EV_EMPTYCLIP");
+        if(es->weapon!=4 && es->weapon!=9 && es->weapon!=15 &&
+           es->weapon!=26 && es->weapon!=27 && es->weapon!=28 &&
+           es->weapon!=29 && es->weapon!=30 && es->weapon!=12 &&
+           es->weapon!=19 && tceEventVolume)
+            trap_S_StartSoundVControl(NULL,es->number,CHAN_WEAPON,cgs.media.noAmmoSound,tceEventVolume);
+        break;
+
+    /* Original156..160 deliberately have only debug output in CG_EntityEvent.
+     * Authoritative objective actions are handled by qagame, not fired again here. */
+    case EV_TCE_PLANT: DEBUGNAME("EV_FIRE_WEAPON_DYNAMITE"); break;
+    case EV_TCE_DEFUSE: DEBUGNAME("EV_FIRE_WEAPON_DISARM"); break;
+    case EV_TCE_OBJECTIVE_START: DEBUGNAME("EV_FIRE_WEAPON_ACTIVATE"); break;
+    case EV_TCE_OBJECTIVE_STOP: DEBUGNAME("EV_FIRE_WEAPON_ACTIVATE_STOPPED"); break;
+    case EV_TCE_OBJECTIVE_COMPLETE: DEBUGNAME("EV_FIRE_WEAPON_ACTIVATE_COMPLETE"); break;
+
+    case EV_TCE_GRENADE_PRIME: {
+        tce_fragmentSoundContext_t context;
+        int volume;
+        DEBUGNAME("EV_GRENADE_PRIME");
+        memset(&context,0,sizeof(context));
+        VectorCopy(cg.refdef_current->vieworg,context.listener);
+        context.attenuation=tceFlash.deafness;
+        context.distanceVariant=tceSmokeNewBBox;
+        volume=TCE_CG_SoundVolume(es->pos.trBase,127.f,1200.f,0,&context);
+        if(cg.tcePortalScopeRendering)volume=0;
+        if(cgs.media.tceGrenadePrime && volume)
+            trap_S_StartSoundVControl(NULL,es->number,CHAN_WEAPON,cgs.media.tceGrenadePrime,volume);
+        break;
+    }
+
+    case EV_TCE_TOGGLE_AIMING:
+        if(es->number==cg.snap->ps.clientNum) CG_ToggleAiming();
+        break;
+
+    case EV_TCE_FIREMODE: {
+        if(tceEventVolume) trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.tceFiremodeSound,tceEventVolume);
+        /* TC30037d40 event135: finish the synthetic firemode selection. */
+        if (es->number == cg.snap->ps.clientNum && cg.weaponSelect == 55) {
+            cg.weaponSelect = cg.predictedPlayerState.weapon;
+            cg.tceFiremodeAnimationTime = cg.time;
+        }
+        break;
+    }
+
+    case EV_TCE_RELOAD_CYCLE:
+    case EV_TCE_RELOAD_PUMP:
+    case EV_TCE_RELOAD_PUMP2:
+    case EV_TCE_RELOAD_BOLT:
+        if (es->weapon>0 && es->weapon<TCE_MAX_WEAPONS) {
+            tce_fragmentSoundContext_t context;
+            memset(&context,0,sizeof(context));
+            VectorCopy(cg.refdef_current->vieworg,context.listener);
+            context.attenuation=tceFlash.deafness;
+            context.distanceVariant=tceSmokeNewBBox;
+            context.disabled=cg.tcePortalScopeRendering;
+            TCE_CG_ReloadEvent(130+event-EV_TCE_RELOAD_CYCLE,es->number,
+                es->pos.trBase,weaponDef[es->weapon].singleReload,
+                weaponDef[es->weapon].bolt,cgs.media.tceReloadSounds,
+                &context,&cent->tceEjectPending);
+        }
+        break;
 
 	case EV_FILL_CLIP:
 		DEBUGNAME("EV_FILL_CLIP");
+        if(!tceEventVolume)break;
 		if( cgs.clientinfo[cg.clientNum].skill[SK_LIGHT_WEAPONS] >= 2 && BG_isLightWeaponSupportingFastReload( es->weapon ) && cg_weapons[es->weapon].reloadFastSound )
-			trap_S_StartSound (NULL, es->number, CHAN_WEAPON, cg_weapons[es->weapon].reloadFastSound );
+			trap_S_StartSoundVControl (NULL, es->number, CHAN_WEAPON, cg_weapons[es->weapon].reloadFastSound, tceEventVolume );
 		else if(cg_weapons[es->weapon].reloadSound)
-			trap_S_StartSound (NULL, es->number, CHAN_WEAPON, cg_weapons[es->weapon].reloadSound ); // JPW NERVE following sherman's SP fix, should allow killing reload sound when player dies
+			trap_S_StartSoundVControl (NULL, es->number, CHAN_WEAPON, cg_weapons[es->weapon].reloadSound, tceEventVolume ); // JPW NERVE following sherman's SP fix, should allow killing reload sound when player dies
 		break;
 
 // JPW NERVE play a sound when engineer fixes MG42
@@ -2021,75 +1776,40 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		break;
 // jpw
 
-	case EV_NOAMMO:
-	case EV_WEAPONSWITCHED:
-		DEBUGNAME("EV_NOAMMO");
-		if((es->weapon != WP_GRENADE_LAUNCHER) &&
-			(es->weapon != WP_GRENADE_PINEAPPLE) &&
-			(es->weapon != WP_DYNAMITE) &&
-			(es->weapon != WP_LANDMINE) &&
-			(es->weapon != WP_SATCHEL) &&
-			(es->weapon != WP_SATCHEL_DET) &&
-			(es->weapon != WP_TRIPMINE) &&
-			(es->weapon != WP_SMOKE_BOMB) &&
-			(es->weapon != WP_AMMO) &&
-			(es->weapon != WP_MEDKIT))
-			trap_S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.noAmmoSound );
+    case EV_NOAMMO:
+    case EV_WEAPONSWITCHED:
+        DEBUGNAME("EV_NOAMMO");
+        /* Original TC protocol IDs, not the SDK weapon enum aliases. */
+        if(es->weapon!=4 && es->weapon!=9 && es->weapon!=15 &&
+           es->weapon!=26 && es->weapon!=27 && es->weapon!=28 &&
+           es->weapon!=29 && es->weapon!=30 && es->weapon!=12 &&
+           es->weapon!=19 && tceEventVolume)
+            trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.noAmmoSound,tceEventVolume);
+        if(es->number==cg.snap->ps.clientNum &&
+           ((cg_noAmmoAutoSwitch.integer>0 && !CG_WeaponSelectable(cg.weaponSelect)) ||
+            es->weapon==60 || es->weapon==62 || es->weapon==4 ||
+            es->weapon==9 || es->weapon==15 || es->weapon==22 ||
+            es->weapon==65 || es->weapon==63 || es->weapon==26 ||
+            es->weapon==27 || es->weapon==28 || es->weapon==29 ||
+            es->weapon==30 || es->weapon==12 || es->weapon==19))
+            CG_OutOfAmmoChange(event!=EV_WEAPONSWITCHED);
+        break;
+    case EV_CHANGE_WEAPON:
+    case EV_CHANGE_WEAPON_2:
+        DEBUGNAME("EV_CHANGE_WEAPON");
+        if(tceEventVolume)
+            trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.selectSound,tceEventVolume);
+        cent->tceEjectPending=0;
+        if(event==EV_CHANGE_WEAPON_2 && es->number==cg.snap->ps.clientNum) {
+            switch(es->weapon) {
+            case 57: CG_FinishWeaponChange(57,25); break;
+            case 58: CG_FinishWeaponChange(58,32); break;
+            case 59: CG_FinishWeaponChange(59,33); break;
+            default: break;
+            }
+        }
+        break;
 
-		if( es->number == cg.snap->ps.clientNum && (
-		    ( cg_noAmmoAutoSwitch.integer > 0 && !CG_WeaponSelectable( cg.weaponSelect ) ) ||
-			es->weapon == WP_MORTAR_SET ||
-			es->weapon == WP_MOBILE_MG42_SET ||
-			es->weapon == WP_GRENADE_LAUNCHER ||
-			es->weapon == WP_GRENADE_PINEAPPLE ||
-			es->weapon == WP_DYNAMITE ||
-			es->weapon == WP_SMOKE_MARKER ||
-			es->weapon == WP_PANZERFAUST ||
-			es->weapon == WP_ARTY ||
-			es->weapon == WP_LANDMINE ||
-			es->weapon == WP_SATCHEL ||
-			es->weapon == WP_SATCHEL_DET ||
-			es->weapon == WP_TRIPMINE ||
-			es->weapon == WP_SMOKE_BOMB ||
-			es->weapon == WP_AMMO ||
-			es->weapon == WP_MEDKIT ) ) {
-			CG_OutOfAmmoChange( event == EV_WEAPONSWITCHED ? qfalse : qtrue);
-		}
-		break;
-	case EV_CHANGE_WEAPON:
-		DEBUGNAME("EV_CHANGE_WEAPON");
-		trap_S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.selectSound );
-		break;
-	case EV_CHANGE_WEAPON_2:
-		DEBUGNAME("EV_CHANGE_WEAPON");
-
-		trap_S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.selectSound );
-
-		if( es->number == cg.snap->ps.clientNum ) {
-			int newweap = 0;
-
-			// client will get this message if reloading while using an alternate weapon
-			// client should voluntarily switch back to primary at that point
-			switch(es->weapon) {
-				case WP_FG42SCOPE:
-					newweap = WP_FG42;
-					break;
-				case WP_GARAND_SCOPE:
-					newweap = WP_GARAND;
-					break;
-				case WP_K43_SCOPE:
-					newweap = WP_K43;
-					break;
-				default:
-					break;
-			}
-
-			if( newweap ) {
-				CG_FinishWeaponChange( es->weapon, newweap );
-			}
-		}
-		break;
-	
 	case EV_FIRE_WEAPON_MOUNTEDMG42:
 	case EV_FIRE_WEAPON_MG42:
 		VectorCopy(cent->currentState.pos.trBase, gorg);
@@ -2144,27 +1864,23 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 	case EV_ITEM_RESPAWN:
 		break;
 
-	case EV_GRENADE_BOUNCE:
-		DEBUGNAME("EV_GRENADE_BOUNCE");
-
-		// DYNAMITE // Gordon: or LANDMINE FIXME: change this? (mebe a metallic sound)
-		if( es->weapon == WP_SATCHEL ) {
-			trap_S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.satchelbounce1 );
-		} else if( es->weapon == WP_DYNAMITE ) {
-			trap_S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.dynamitebounce1 );
-		} else if( es->weapon == WP_LANDMINE ) {
-			trap_S_StartSound (NULL, es->number, CHAN_AUTO, cgs.media.landminebounce1 );
-		} else {
-		// GRENADES
-			if( es->eventParm != FOOTSTEP_TOTAL ) {
-				if ( rand() & 1 ) {
-					trap_S_StartSound( NULL, es->number, CHAN_AUTO, cgs.media.grenadebounce[ es->eventParm ][0] );
-				} else {
-					trap_S_StartSound( NULL, es->number, CHAN_AUTO,  cgs.media.grenadebounce[ es->eventParm ][1] );
-				}
-			}
-		}
-		break;
+    case EV_GRENADE_BOUNCE:
+        DEBUGNAME("EV_GRENADE_BOUNCE");
+        if(tceEventVolume) {
+            sfxHandle_t bounce;
+            if(es->weapon==27) bounce=cgs.media.satchelbounce1;
+            else if(es->weapon==15) bounce=cgs.media.dynamitebounce1;
+            else if(es->weapon==26) bounce=cgs.media.landminebounce1;
+            else if(es->eventParm==11) {
+                /* The original mask deliberately selects fence samples0/4. */
+                bounce=cgs.media.tceBulletFence[rand()&4];
+            } else {
+                if(es->eventParm==23)break;
+                bounce=cgs.media.grenadebounce[es->eventParm][(rand()&1)?0:1];
+            }
+            trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,bounce,tceEventVolume);
+        }
+        break;
 
 /*	case EV_FLAMEBARREL_BOUNCE:
 		DEBUGNAME("EV_FLAMEBARREL_BOUNCE");
@@ -2176,7 +1892,7 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		break;*/
 
 	case EV_RAILTRAIL:
-		CG_RailTrail( &cgs.clientinfo[ es->otherEntityNum2 ], es->origin2, es->pos.trBase, es->dmgFlags);	//----(SA)	added 'type' field
+		CG_RailTrail( &cgs.clientinfo[ es->otherEntityNum2 ], es->origin2, es->pos.trBase, es->dmgFlags, es->effect3Time);	//----(SA)	added 'type' field
 		break;
 
 	//
@@ -2186,7 +1902,7 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		DEBUGNAME("EV_MISSILE_HIT");
 		ByteToDir( es->eventParm, dir );
 		CG_MissileHitPlayer( cent, es->weapon, position, dir, es->otherEntityNum );
-		if( es->weapon == WP_MORTAR_SET ) {
+		if( es->weapon == 60 ) {
 			if( !es->legsAnim ) {
 				CG_MortarImpact( cent, position, 3, qtrue );
 			} else {
@@ -2204,8 +1920,9 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 	case EV_MISSILE_MISS:
 		DEBUGNAME("EV_MISSILE_MISS");
 		ByteToDir( es->eventParm, dir );
-		CG_MissileHitWall( es->weapon, 0, position, dir, 0 );	// (SA) modified to send missilehitwall surface parameters
-		if( es->weapon == WP_MORTAR_SET ) {
+		CG_TCEMissileHitWall(es->weapon,0,position,dir,dir,
+            es->weapon==1?es->otherEntityNum2:0,es->weapon==1 && es->modelindex2==1,0);
+		if( es->weapon == 60 ) {
 			if( !es->legsAnim ) {
 				CG_MortarImpact( cent, position, 3, qtrue );
 			} else {
@@ -2217,10 +1934,10 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 	case EV_MISSILE_MISS_LARGE:
 		DEBUGNAME("EV_MISSILE_MISS_LARGE");
 		ByteToDir( es->eventParm, dir );
-		if( es->weapon == WP_ARTY || es->weapon == WP_SMOKE_MARKER ) {
-			CG_MissileHitWall( es->weapon, 0, position, dir, 0);	// (SA) modified to send missilehitwall surface parameters
+		if( es->weapon == 63 || es->weapon == 22 ) {
+			CG_TCEMissileHitWall(es->weapon,0,position,dir,dir,0,0,0);
 		} else {
-			CG_MissileHitWall( VERYBIGEXPLOSION, 0, position, dir, 0);	// (SA) modified to send missilehitwall surface parameters
+			CG_TCEMissileHitWall(18,0,position,dir,dir,0,0,0);
 		}
 		break;
 
@@ -2236,25 +1953,58 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 	case EV_MG42BULLET_HIT_WALL:
 		DEBUGNAME("EV_MG42BULLET_HIT_WALL");
 		ByteToDir( es->eventParm, dir );
-		CG_Bullet( es->pos.trBase, es->otherEntityNum, dir, qfalse, ENTITYNUM_WORLD, es->otherEntityNum2, es->origin2[0], es->effect1Time );
 		break;
 
 	case EV_MG42BULLET_HIT_FLESH:
 		DEBUGNAME("EV_MG42BULLET_HIT_FLESH");
-		CG_Bullet( es->pos.trBase, es->otherEntityNum, dir, qtrue, es->eventParm, es->otherEntityNum2, 0, es->effect1Time);
 		break;
 
+
+    case EV_TCE_BULLET_NEAR_MISS: {
+        tce_fragmentSoundContext_t context;
+        int volume, choice;
+        float sample;
+        DEBUGNAME("EV_BULLET_FLYBY");
+        if (es->eventParm != cg.snap->ps.clientNum) break;
+        memset(&context,0,sizeof(context));
+        VectorCopy(cg.refdef_current->vieworg,context.listener);
+        context.attenuation=tceFlash.deafness;
+        context.distanceVariant=tceSmokeNewBBox;
+        context.disabled=cg.tcePortalScopeRendering;
+        volume=TCE_CG_SoundVolume(es->pos.trBase,127.f,300.f,0,&context);
+        if (!volume) break;
+        sample=(float)(rand()&0x7fff)*(1.f/32767.f)*5.f;
+        choice=sample<1.f?1:sample<2.f?2:sample<3.f?3:sample<4.f?4:5;
+        trap_S_StartSoundVControl(es->pos.trBase,es->number,CHAN_AUTO,
+            cgs.media.tceBulletFlyby[choice-1],volume);
+        break;
+    }
 
 	case EV_BULLET_HIT_WALL:
 		DEBUGNAME("EV_BULLET_HIT_WALL");
 		ByteToDir( es->eventParm, dir );
-		CG_Bullet( es->pos.trBase, es->otherEntityNum, dir, qfalse, ENTITYNUM_WORLD, es->otherEntityNum2, es->origin2[0], 0 );
+		CG_TCEBullet( es->pos.trBase, es->otherEntityNum, dir, qfalse,
+            ENTITYNUM_WORLD, es->otherEntityNum2, 0, 0, es->modelindex2, es->origin2, 0 );
 		break;
 
 	case EV_BULLET_HIT_FLESH:
 		DEBUGNAME("EV_BULLET_HIT_FLESH");
-		CG_Bullet( es->pos.trBase, es->otherEntityNum, dir, qtrue, es->eventParm, es->otherEntityNum2, 0, 0);
+		CG_TCEBullet( es->pos.trBase, es->otherEntityNum, dir, qtrue,
+            es->eventParm, es->otherEntityNum2, 0, 0, es->modelindex2, es->origin2, 1 );
 		break;
+
+    case EV_TCE_BULLET_PIERCED_WALL:
+        DEBUGNAME("EV_BULLET_PIERCED_WALL");
+        if (es->otherEntityNum != cg.snap->ps.clientNum || cg_predictBullets.integer < 1) {
+            ByteToDir(es->eventParm, dir);
+            CG_TCEMissileHitWall(3, 1, es->pos.trBase, dir, dir, es->otherEntityNum2, 0, 1);
+        }
+        break;
+
+    case EV_TCE_SHOTGUN:
+        DEBUGNAME("EV_SHOTGUN");
+        CG_TCEShotgunFire(es);
+        break;
 
 	case EV_POPUPBOOK:
 	case EV_POPUP:
@@ -2263,6 +2013,7 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 
 	case EV_GENERAL_SOUND:
 		DEBUGNAME("EV_GENERAL_SOUND");
+        if(cg.tcePortalScopeRendering)break;
 		// Ridah, check for a sound script
 		s = CG_ConfigString( CS_SOUNDS + es->eventParm );
 		if( !strstr( s, ".wav" ) ) {
@@ -2278,21 +2029,38 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		// done.
 		if ( cgs.gameSounds[ es->eventParm ] ) {
 			// xkan, 10/31/2002 - crank up the volume 
-			trap_S_StartSoundVControl( NULL, es->number, CHAN_VOICE, cgs.gameSounds[ es->eventParm ], 255 );
+			trap_S_StartSoundVControl( NULL, es->number, CHAN_VOICE, cgs.gameSounds[ es->eventParm ], tceEventVolume );
 		} else {
 			s = CG_ConfigString( CS_SOUNDS + es->eventParm );
 			// xkan, 10/31/2002 - crank up the volume 
-			trap_S_StartSoundVControl( NULL, es->number, CHAN_VOICE, CG_CustomSound( es->number, s ), 255 );
+			trap_S_StartSoundVControl( NULL, es->number, CHAN_VOICE, CG_CustomSound( es->number, s ), tceEventVolume );
 		}
 		break;
 
 	case EV_FX_SOUND:
+        if(cg.tcePortalScopeRendering)break;
 		{
 			sfxHandle_t sound;
 
 			DEBUGNAME("EV_FX_SOUND");
 
+			#if defined(_MSC_VER) && defined(_M_IX86)
+			{
+				static const float fxRandomScale = 1.0f / 32767.0f;
+				int fxRandomBits = rand() & 0x7fff;
+				int *fxMaximum = &fxSounds[ es->eventParm ].max;
+				__asm {
+					fild fxRandomBits
+					fmul fxRandomScale
+					mov eax, fxMaximum
+					fimul dword ptr [eax]
+					call CG_EventTruncateST0
+					mov sound, eax
+				}
+			}
+			#else
 			sound = random()*fxSounds[ es->eventParm ].max;
+			#endif
 
 			if( fxSounds[ es->eventParm ].sound[ sound ] == -1 ) {
 				fxSounds[ es->eventParm ].sound[ sound ] = trap_S_RegisterSound( fxSounds[ es->eventParm ].soundfile[ sound ], qfalse );
@@ -2300,13 +2068,35 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 
 			sound = fxSounds[ es->eventParm ].sound[ sound ];
 
-			trap_S_StartSoundVControl( NULL, es->number, CHAN_VOICE, sound, 255 );
+			#if defined(_MSC_VER) && defined(_M_IX86)
+			{
+				static const float fxVolumeScale = 255.0f;
+				float *fxDeafness = &tceFlash.deafness;
+				int fxVolume;
+				__asm {
+					fld1
+					mov eax, fxDeafness
+					fsub dword ptr [eax]
+					fmul fxVolumeScale
+					call CG_EventTruncateST0
+					mov fxVolume, eax
+				}
+				trap_S_StartSoundVControl( NULL, es->number, CHAN_VOICE, sound, fxVolume );
+			}
+			#else
+			trap_S_StartSoundVControl( NULL, es->number, CHAN_VOICE, sound, (int)((1.0-(double)tceFlash.deafness)*255.0) );
+			#endif
 		}
 		break;
 	case EV_GENERAL_SOUND_VOLUME:
+        if(cg.tcePortalScopeRendering)break;
 		{
 			int sound = es->eventParm;
-			int volume = es->onFireStart;
+			int eventVolume = es->onFireStart;
+			int volume;
+#if !defined(_MSC_VER) || !defined(_M_IX86)
+			volume = (int)((1.0-(double)tceFlash.deafness)*eventVolume);
+#endif
 
 			DEBUGNAME("EV_GENERAL_SOUND_VOLUME");
 			// Ridah, check for a sound script
@@ -2322,9 +2112,33 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 			}
 			// done.
 			if ( cgs.gameSounds[ sound ] ) {
+				#if defined(_MSC_VER) && defined(_M_IX86)
+				float *eventDeafness = &tceFlash.deafness;
+				__asm {
+					fld1
+					mov eax, eventDeafness
+					fsub dword ptr [eax]
+					fimul eventVolume
+					call CG_EventTruncateST0
+					mov volume, eax
+				}
+				#endif
 				trap_S_StartSoundVControl( NULL, es->number, CHAN_VOICE, cgs.gameSounds[ sound ], volume );
 			} else {
 				s = CG_ConfigString( CS_SOUNDS + sound );
+				#if defined(_MSC_VER) && defined(_M_IX86)
+				{
+					float *eventDeafness = &tceFlash.deafness;
+					__asm {
+						fld1
+						mov eax, eventDeafness
+						fsub dword ptr [eax]
+						fimul eventVolume
+						call CG_EventTruncateST0
+						mov volume, eax
+					}
+				}
+				#endif
 				trap_S_StartSoundVControl( NULL, es->number, CHAN_VOICE, CG_CustomSound( es->number, s ), volume );
 			}
 		}
@@ -2338,6 +2152,7 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		}
 	case EV_GLOBAL_SOUND:	// play from the player's head so it never diminishes
 		DEBUGNAME("EV_GLOBAL_SOUND");
+        if(cg.tcePortalScopeRendering)break;
 		// Ridah, check for a sound script
 		s = CG_ConfigString( CS_SOUNDS + es->eventParm );
 		if( !strstr( s, ".wav" ) ) {
@@ -2352,16 +2167,31 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		}
 
 		if ( cgs.gameSounds[ es->eventParm ] ) {
-			trap_S_StartSound( NULL, cg.snap->ps.clientNum, CHAN_AUTO, cgs.gameSounds[ es->eventParm ] );
+			#if defined(_MSC_VER) && defined(_M_IX86)
+			int globalSoundHandle = cgs.gameSounds[ es->eventParm ];
+			int globalSoundVolume = CG_EventGlobalSoundVolume();
+			trap_S_StartSoundVControl( NULL, cg.snap->ps.clientNum, CHAN_AUTO, globalSoundHandle, globalSoundVolume );
+			#else
+			trap_S_StartSoundVControl( NULL, cg.snap->ps.clientNum, CHAN_AUTO, cgs.gameSounds[ es->eventParm ], (int)((1.0-(double)tceFlash.deafness)*127.0) );
+			#endif
 		} else {
 			s = CG_ConfigString( CS_SOUNDS + es->eventParm );
-			trap_S_StartSound( NULL, cg.snap->ps.clientNum, CHAN_AUTO, CG_CustomSound( es->number, s ) );
+			#if defined(_MSC_VER) && defined(_M_IX86)
+			{
+				int globalSoundVolume = CG_EventGlobalSoundVolume();
+				int globalSoundHandle = CG_CustomSound( es->number, s );
+				trap_S_StartSoundVControl( NULL, cg.snap->ps.clientNum, CHAN_AUTO, globalSoundHandle, globalSoundVolume );
+			}
+			#else
+			trap_S_StartSoundVControl( NULL, cg.snap->ps.clientNum, CHAN_AUTO, CG_CustomSound( es->number, s ), (int)((1.0-(double)tceFlash.deafness)*127.0) );
+			#endif
 		}
 		break;
 
 	// DHM - Nerve
 	case EV_GLOBAL_CLIENT_SOUND:
 		DEBUGNAME("EV_GLOBAL_CLIENT_SOUND");
+        if(cg.tcePortalScopeRendering)break;
 
 		if ( cg.snap->ps.clientNum == es->teamNum ) {
 			s = CG_ConfigString( CS_SOUNDS + es->eventParm );
@@ -2376,10 +2206,24 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 			}
 			// done.
 			if ( cgs.gameSounds[ es->eventParm ] ) {
-				trap_S_StartSound (NULL, cg.snap->ps.clientNum, CHAN_AUTO, cgs.gameSounds[ es->eventParm ] );
+				#if defined(_MSC_VER) && defined(_M_IX86)
+				int globalSoundHandle = cgs.gameSounds[ es->eventParm ];
+				int globalSoundVolume = CG_EventGlobalSoundVolume();
+				trap_S_StartSoundVControl( NULL, cg.snap->ps.clientNum, CHAN_AUTO, globalSoundHandle, globalSoundVolume );
+				#else
+				trap_S_StartSoundVControl (NULL, cg.snap->ps.clientNum, CHAN_AUTO, cgs.gameSounds[ es->eventParm ], (int)((1.0-(double)tceFlash.deafness)*127.0) );
+				#endif
 			} else {
 				s = CG_ConfigString( CS_SOUNDS + es->eventParm );
-				trap_S_StartSound (NULL, cg.snap->ps.clientNum, CHAN_AUTO, CG_CustomSound( es->number, s ) );
+				#if defined(_MSC_VER) && defined(_M_IX86)
+				{
+					int globalSoundVolume = CG_EventGlobalSoundVolume();
+					int globalSoundHandle = CG_CustomSound( es->number, s );
+					trap_S_StartSoundVControl( NULL, cg.snap->ps.clientNum, CHAN_AUTO, globalSoundHandle, globalSoundVolume );
+				}
+				#else
+				trap_S_StartSoundVControl (NULL, cg.snap->ps.clientNum, CHAN_AUTO, CG_CustomSound( es->number, s ), (int)((1.0-(double)tceFlash.deafness)*127.0) );
+				#endif
 			}
 		}
 
@@ -2404,14 +2248,23 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		}
 		break;
 
-	case EV_DEATH1:
-	case EV_DEATH2:
-	case EV_DEATH3:
-		DEBUGNAME("EV_DEATHx");
-		trap_S_StartSound( NULL, es->number, CHAN_VOICE, 
-				CG_CustomSound( es->number, va("*death%i.wav", event - EV_DEATH1 + 1) ) );
-		break;
-
+    case EV_DEATH1:
+    case EV_DEATH2:
+    case EV_DEATH3:
+        DEBUGNAME("EV_DEATHx");
+        if(!cg.tcePortalScopeRendering) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+            int deathVolume = CG_EventGlobalSoundVolume();
+            const char *deathName = va("*death%i.wav",event-EV_DEATH1+1);
+            int deathSound = CG_CustomSound(es->number,deathName);
+            trap_S_StartSoundVControl(NULL,es->number,CHAN_VOICE,deathSound,deathVolume);
+#else
+            trap_S_StartSoundVControl(NULL,es->number,CHAN_VOICE,
+                CG_CustomSound(es->number,va("*death%i.wav",event-EV_DEATH1+1)),
+                (int)((1.0-(double)tceFlash.deafness)*127.0));
+#endif
+        }
+        break;
 
 	case EV_OBITUARY:
 		DEBUGNAME("EV_OBITUARY");
@@ -2419,24 +2272,36 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		break;
 
 	// JPW NERVE -- swiped from SP/Sherman
-	case EV_STOPSTREAMINGSOUND:
-		DEBUGNAME("EV_STOPLOOPINGSOUND");
-//		trap_S_StopStreamingSound( es->number );
-		trap_S_StartSoundEx( NULL, es->number, CHAN_WEAPON, 0, SND_CUTOFF_ALL );	// kill weapon sound (could be reloading)
-		break;
-
-	case EV_LOSE_HAT:
-		DEBUGNAME("EV_LOSE_HAT");
-		ByteToDir( es->eventParm, dir );
-		CG_LoseHat(cent, dir);
-		break;
-
-	case EV_GIB_PLAYER:
-		DEBUGNAME("EV_GIB_PLAYER");
-		trap_S_StartSound( es->pos.trBase, -1, CHAN_AUTO, cgs.media.gibSound );
-		ByteToDir( es->eventParm, dir );
-		CG_GibPlayer( cent, cent->lerpOrigin, dir );
-		break;
+    case EV_STOPSTREAMINGSOUND:
+        DEBUGNAME("EV_STOPLOOPINGSOUND");
+        if(!cg.tcePortalScopeRendering) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+            int stopVolume = CG_EventGlobalSoundVolume();
+            trap_S_StartSoundExVControl(NULL,es->number,CHAN_WEAPON,0,8,stopVolume);
+#else
+            trap_S_StartSoundExVControl(NULL,es->number,CHAN_WEAPON,0,8,
+                (int)((1.0-(double)tceFlash.deafness)*127.0));
+#endif
+        }
+        break;
+    case EV_LOSE_HAT:
+        DEBUGNAME("EV_LOSE_HAT");
+        /* TC deliberately does not spawn the SDK helmet effect. */
+        break;
+    case EV_GIB_PLAYER:
+        DEBUGNAME("EV_GIB_PLAYER");
+        if(!cg.tcePortalScopeRendering) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+            int gibVolume = CG_EventGlobalSoundVolume();
+            trap_S_StartSoundVControl(es->pos.trBase,-1,CHAN_AUTO,cgs.media.gibSound,gibVolume);
+#else
+            trap_S_StartSoundVControl(es->pos.trBase,-1,CHAN_AUTO,cgs.media.gibSound,
+                (int)((1.0-(double)tceFlash.deafness)*127.0));
+#endif
+            ByteToDir(es->eventParm,dir);
+            CG_GibPlayer(cent,cent->lerpOrigin,dir);
+        }
+        break;
 
 	case EV_STOPLOOPINGSOUND:
 		DEBUGNAME("EV_STOPLOOPINGSOUND");
@@ -2553,6 +2418,28 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 
 	case EV_GUNSPARKS:
 		{
+#if defined(_MSC_VER) && defined(_M_IX86)
+			float *gunSparkSpeed = &cent->currentState.angles2[2];
+			float *gunSparkOrigin = cent->currentState.origin;
+			float *gunSparkDirection = cent->currentState.angles;
+			int gunSparkCount = cent->currentState.density;
+			/* Original 3003a227..3003a251: six arguments, signed64
+			 * truncation followed by low32, not a direct signed32 cast. */
+			__asm {
+				mov edx, gunSparkCount
+				mov eax, gunSparkSpeed
+				push 3f800000h
+				fld dword ptr [eax]
+				push edx
+				push 800
+				call CG_EventTruncateST0
+				push eax
+				push gunSparkDirection
+				push gunSparkOrigin
+				call CG_AddBulletParticles
+				add esp, 24
+			}
+#else
 			int	numsparks;
 			int	speed;
 			//int	count;
@@ -2561,6 +2448,7 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 			speed = cent->currentState.angles2[2];
 			
 			CG_AddBulletParticles( cent->currentState.origin, cent->currentState.angles, speed, 800, numsparks, 1.0f ); 
+#endif
 				
 		}
 		break;
@@ -2623,9 +2511,11 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		break;
 
 	case EV_DISGUISE_SOUND:
+        if(cg.tcePortalScopeRendering)break;
 		trap_S_StartSound( NULL, cent->currentState.number, CHAN_WEAPON, cgs.media.uniformPickup );
 		break;
 	case EV_BUILDDECAYED_SOUND:
+        if(cg.tcePortalScopeRendering)break;
 		trap_S_StartSound( cent->lerpOrigin, cent->currentState.number, CHAN_AUTO, cgs.media.buildDecayedSound );
 		break;
 
@@ -2636,12 +2526,67 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 	// ===================
 
 	case EV_SHAKE:
+        if(cg.tcePortalScopeRendering)break;
 		{
 			vec3_t v;
+#if defined(_MSC_VER) && defined(_M_IX86)
+			float *shakePlayerOrigin = cg.snap->ps.origin;
+			float *shakeEventOrigin = cent->lerpOrigin;
+			int *shakeRadius = &cent->currentState.onFireStart;
+			float shakeStrength;
+			static const float shakeOne = 1.0f;
+#else
 			float len;
+#endif
 			
 			DEBUGNAME("EV_SHAKE");
-
+#if defined(_MSC_VER) && defined(_M_IX86)
+			/* Original 3003a478..3003a4f9 keeps VectorLength's ST0 return. */
+			__asm {
+				mov eax, shakePlayerOrigin
+				mov edx, shakeEventOrigin
+				lea ecx, v
+				fld dword ptr [eax]
+				fsub dword ptr [edx]
+				fstp dword ptr [ecx]
+				fld dword ptr [eax+4]
+				fsub dword ptr [edx+4]
+				fstp dword ptr [ecx+4]
+				fld dword ptr [eax+8]
+				fsub dword ptr [edx+8]
+				push ecx
+				fstp dword ptr [ecx+8]
+				call VectorLength
+				mov ecx, shakeRadius
+				fild dword ptr [ecx]
+				fld st(1)
+				add esp, 4
+				fcomp st(1)
+				fnstsw ax
+				test ah, 41h
+				jz shakeOutsideRadius
+				fxch st(1)
+				fdiv st(0), st(1)
+				fsubr shakeOne
+				fstp shakeStrength
+				fstp st(0)
+				fld shakeOne
+				fcomp shakeStrength
+				fnstsw ax
+				test ah, 1
+				jz shakeCallCamera
+				mov shakeStrength, 3f800000h
+			shakeCallCamera:
+				push shakeStrength
+				call CG_StartShakeCamera
+				add esp, 4
+				jmp shakeEventDone
+			shakeOutsideRadius:
+				fstp st(0)
+				fstp st(0)
+			shakeEventDone:
+			}
+#else
 			VectorSubtract( cg.snap->ps.origin, cent->lerpOrigin, v );
 			len = VectorLength (v);
 
@@ -2653,6 +2598,7 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 			len = min(1.f, len);
 
 			CG_StartShakeCamera( len );
+#endif
 		}
 
 		break;

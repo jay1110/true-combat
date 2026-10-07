@@ -8,6 +8,7 @@
 #define EMISIVEFADE	3
 #define GREY75		4
 #define	ZOMBIE		5
+#define TCE_SPARK_COLOR 6
 
 typedef struct particle_s
 {
@@ -46,6 +47,8 @@ typedef struct particle_s
 	int			roll;
 
 	int			accumroll;
+	vec3_t tceColor;
+    float tceFadeInEnd; /* Original particle+0x88, entity.effect3Time producer. */
 
 } cparticle_t;
 
@@ -391,12 +394,18 @@ void CG_AddParticleToScene (cparticle_t *p, vec3_t org, float alpha)
 			return;
 		}
 
-		if (p->color == MUSTARD)
+		if (p->color == 7)
+			VectorCopy(p->tceColor, color);
+		else if (p->color == 8)
+			VectorClear(color);
+		else if (p->color == MUSTARD)
 			VectorSet (color, 0.42, 0.33, 0.19);
 		else if (p->color == BLOODRED)
 			VectorSet (color, 0.22, 0, 0);
 		else if (p->color == ZOMBIE)
 			VectorSet (color, 0.4, 0.28, 0.23);
+		else if (p->color == TCE_SPARK_COLOR)
+			VectorSet(color, cg.tceSparkIntensity, cg.tceSparkIntensity, cg.tceSparkIntensity);
 		else if (p->color == GREY75)
 		{
 			float	len;
@@ -420,7 +429,16 @@ void CG_AddParticleToScene (cparticle_t *p, vec3_t org, float alpha)
 		time2 = p->endtime - p->time;
 		ratio = time / time2;
 		
-		if (cg.time > p->startfade)
+        if(cg.time<p->tceFadeInEnd) {
+            invratio=1.0f-(p->tceFadeInEnd-cg.time)/(p->tceFadeInEnd-p->time);
+            if(p->color==EMISIVEFADE) {
+                float fval=invratio*invratio;
+                if(fval<0)fval=0;
+                VectorSet(color,fval,fval,fval);
+            }
+            invratio*=p->alpha;
+        }
+		else if (cg.time > p->startfade)
 		{
 			invratio = 1 - ( (cg.time - p->startfade) / (p->endtime - p->startfade) );
 
@@ -431,6 +449,13 @@ void CG_AddParticleToScene (cparticle_t *p, vec3_t org, float alpha)
 				if (fval < 0)
 					fval = 0;
 				VectorSet (color, fval , fval , fval );
+			}
+			else if (p->color == TCE_SPARK_COLOR)
+			{
+				float fade = invratio < 0 ? 0 : invratio;
+				color[0] = sqrt(fade) * cg.tceSparkIntensity;
+				color[1] = fade * cg.tceSparkIntensity;
+				color[2] = fade * fade * cg.tceSparkIntensity;
 			}
 			invratio *= p->alpha;
 		}
@@ -985,6 +1010,7 @@ void CG_ParticleSnowFlurry (qhandle_t pshader, centity_t *cent)
 	if (!free_particles)
 		return;
 	p = free_particles;
+    p->tceFadeInEnd=0;
 	free_particles = p->next;
 	p->next = active_particles;
 	active_particles = p;
@@ -1052,6 +1078,7 @@ void CG_ParticleSnow (qhandle_t pshader, vec3_t origin, vec3_t origin2, int turb
 	if (!free_particles)
 		return;
 	p = free_particles;
+    p->tceFadeInEnd=0;
 	free_particles = p->next;
 	p->next = active_particles;
 	active_particles = p;
@@ -1110,6 +1137,7 @@ void CG_ParticleBubble (qhandle_t pshader, vec3_t origin, vec3_t origin2, int tu
 	if (!free_particles)
 		return;
 	p = free_particles;
+    p->tceFadeInEnd=0;
 	free_particles = p->next;
 	p->next = active_particles;
 	active_particles = p;
@@ -1174,6 +1202,7 @@ void CG_ParticleSmoke (qhandle_t pshader, centity_t *cent)
 	if (!free_particles)
 		return;
 	p = free_particles;
+    p->tceFadeInEnd=0;
 	free_particles = p->next;
 	p->next = active_particles;
 	active_particles = p;
@@ -1181,6 +1210,7 @@ void CG_ParticleSmoke (qhandle_t pshader, centity_t *cent)
 	
 	p->endtime = cg.time + cent->currentState.time;
 	p->startfade = cg.time + cent->currentState.time2;
+    p->tceFadeInEnd = cg.time + cent->currentState.effect3Time;
 	
 	p->color = 0;
 	p->alpha = 1.0;
@@ -1188,7 +1218,7 @@ void CG_ParticleSmoke (qhandle_t pshader, centity_t *cent)
 	p->start = cent->currentState.origin[2];
 	p->end = cent->currentState.origin2[2];
 	p->pshader = pshader;
-	if (cent->currentState.density == 1 || cent->currentState.modelindex2)
+	if (cent->currentState.density == 1)
 	{
 		p->rotate = qfalse;
 		p->height = 8;
@@ -1236,8 +1266,25 @@ void CG_ParticleSmoke (qhandle_t pshader, centity_t *cent)
 		p->color = MUSTARD;
 		p->alpha = 0.75;
 	}
+    else if(cent->currentState.density==6) {
+        unsigned rgb=(unsigned)cent->currentState.effect1Time;
+        int choice=rand()%6;
+        p->rotate=qtrue;
+        p->height=p->width=cent->currentState.angles2[0];
+        p->endheight=p->endwidth=cent->currentState.angles2[1];
+        p->color=7;
+        p->alpha=cent->currentState.otherEntityNum*(1.0f/255.0f);
+        VectorSet(p->tceColor,(rgb&255)*(1.0f/255.0f),((rgb>>8)&255)*(1.0f/255.0f),((rgb>>16)&255)*(1.0f/255.0f));
+        p->pshader=choice==1?cgs.media.smokePuffShaderb1:choice==2?cgs.media.smokePuffShaderb2:choice==3?cgs.media.smokePuffShaderb3:choice==4?cgs.media.smokePuffShaderb4:cgs.media.smokePuffShaderb5;
+    }
+    else if(cent->currentState.modelindex2) {
+        p->rotate=qtrue;
+        p->height=p->width=cent->currentState.angles2[0];
+        p->endheight=p->endwidth=cent->currentState.angles2[1];
+    }
 	else // black smoke 
 	{
+        p->color=8;
 		p->rotate = qtrue;
 		p->height = cent->currentState.angles2[0];
 		p->width = cent->currentState.angles2[0];
@@ -1290,8 +1337,8 @@ void CG_ParticleSmoke (qhandle_t pshader, centity_t *cent)
 	else // smoke
 	{
 		VectorCopy (cent->currentState.origin2, dir);
-		p->vel[0] = dir[0] + (crandom() * p->height);
-		p->vel[1] = dir[1] + (crandom() * p->height);
+		p->vel[0] = dir[0] + (crandom() * p->height * 0.5f);
+		p->vel[1] = dir[1] + (crandom() * p->height * 0.5f);
 		p->vel[2] = cent->currentState.angles2[2];
 	}
 
@@ -1302,6 +1349,32 @@ void CG_ParticleSmoke (qhandle_t pshader, centity_t *cent)
 }
 
 
+/* Windows30051d80 / Linux00092dfe: ordinary event bullet debris.
+ * Keep the distinct glow producer30051cb0 below for Elite impacts. */
+void CG_TCEParticleBulletDebris(vec3_t org, vec3_t vel, int duration) {
+	cparticle_t *p;
+	if(!free_particles) return;
+	p = free_particles;
+	free_particles = p->next;
+	p->next = active_particles;
+	active_particles = p;
+	p->tceFadeInEnd = 0; /* Native extension, absent from original reused slot. */
+	p->time = cg.time;
+	p->endtime = cg.time + duration;
+	p->startfade = cg.time + duration / 2;
+	p->color = EMISIVEFADE;
+	p->alpha = 1.0f;
+	p->alphavel = 0;
+	p->height = p->width = p->endheight = p->endwidth = 0.5f;
+	p->pshader = cgs.media.tracerShader;
+	p->type = P_SMOKE;
+	VectorCopy(org, p->org);
+	VectorCopy(vel, p->vel);
+	p->vel[2] -= 20.0f;
+	p->accel[0] = p->accel[1] = 0;
+	p->accel[2] = -60.0f;
+}
+
 void CG_ParticleBulletDebris (vec3_t org, vec3_t vel, int duration)
 {
 
@@ -1310,6 +1383,7 @@ void CG_ParticleBulletDebris (vec3_t org, vec3_t vel, int duration)
 	if (!free_particles)
 		return;
 	p = free_particles;
+    p->tceFadeInEnd=0;
 	free_particles = p->next;
 	p->next = active_particles;
 	active_particles = p;
@@ -1318,7 +1392,8 @@ void CG_ParticleBulletDebris (vec3_t org, vec3_t vel, int duration)
 	p->endtime = cg.time + duration;
 	p->startfade = cg.time + duration/2;
 	
-	p->color = EMISIVEFADE;
+	/* TC glow colours use worldspawn exposure and the renderer's channel fade. */
+	p->color = TCE_SPARK_COLOR;
 	p->alpha = 1.0;
 	p->alphavel = 0;
 
@@ -1327,7 +1402,7 @@ void CG_ParticleBulletDebris (vec3_t org, vec3_t vel, int duration)
 	p->endheight = 0.5;
 	p->endwidth = 0.5;
 
-	p->pshader = cgs.media.tracerShader;
+	p->pshader = cgs.media.tceGlowSparkShader;
 
 	p->type = P_SMOKE;
 	
@@ -1338,8 +1413,7 @@ void CG_ParticleBulletDebris (vec3_t org, vec3_t vel, int duration)
 	p->vel[2] = vel[2];
 	p->accel[0] = p->accel[1] = p->accel[2] = 0;
 
-	p->accel[2] = -60;
-	p->vel[2] += -20;
+	p->accel[2] = -133;
 	
 }
 
@@ -1353,6 +1427,7 @@ void CG_ParticleDirtBulletDebris (vec3_t org, vec3_t vel, int duration)
 	if (!free_particles)
 		return;
 	p = free_particles;
+    p->tceFadeInEnd=0;
 	free_particles = p->next;
 	p->next = active_particles;
 	active_particles = p;
@@ -1391,12 +1466,14 @@ void CG_ParticleDirtBulletDebris (vec3_t org, vec3_t vel, int duration)
 }
 
 // NERVE - SMF :: the core of the dirt explosion
-void CG_ParticleDirtBulletDebris_Core (vec3_t org, vec3_t vel, int duration, float width, float height, float alpha, qhandle_t shader) {
+/* TC30051e60 / Linux00093034: RGB is the seventh argument, before shader. */
+void CG_ParticleDirtBulletDebris_Core (vec3_t org, vec3_t vel, int duration, float width, float height, float alpha, const vec3_t color, qhandle_t shader) {
 	cparticle_t	*p;
 
 	if (!free_particles)
 		return;
 	p = free_particles;
+    p->tceFadeInEnd=0;
 	free_particles = p->next;
 	p->next = active_particles;
 	active_particles = p;
@@ -1405,7 +1482,8 @@ void CG_ParticleDirtBulletDebris_Core (vec3_t org, vec3_t vel, int duration, flo
 	p->endtime =	cg.time + duration;
 	p->startfade =	cg.time + duration / 2;
 	
-	p->color =		EMISIVEFADE;
+	p->color =		7;
+	VectorCopy(color, p->tceColor);
 	p->alpha =		alpha;
 	p->alphavel =	0;
 
@@ -1429,6 +1507,11 @@ void CG_ParticleDirtBulletDebris_Core (vec3_t org, vec3_t vel, int duration, flo
 	VectorCopy(org, p->org);
 	VectorCopy(vel, p->vel);
 	VectorSet(p->accel, 0, 0, -330);
+}
+
+void TCE_CG_ParticleDirtBulletDebris(vec3_t org, vec3_t vel, int duration,
+    float width, float height, float alpha, const vec3_t color, qhandle_t shader) {
+    CG_ParticleDirtBulletDebris_Core(org,vel,duration,width,height,alpha,color,shader);
 }
 
 // DHM - Nerve :: end
@@ -1463,6 +1546,7 @@ void CG_ParticleExplosion (char *animStr, vec3_t origin, vec3_t vel, int duratio
 	if (!free_particles)
 		return;
 	p = free_particles;
+    p->tceFadeInEnd=0;
 	free_particles = p->next;
 	p->next = active_particles;
 	active_particles = p;
@@ -1602,6 +1686,8 @@ void	CG_SnowLink (centity_t *cent, qboolean particleOn)
 	}
 }
 
+/* TC30052110: complete source mapping retained, including random-call order
+ * and reused particle state. Source port only; verification deferred. */
 void CG_ParticleImpactSmokePuffExtended (qhandle_t pshader, vec3_t origin, int lifetime, int vel, int acc, int maxroll, float alpha, float size) {
 	cparticle_t	*p;
 
@@ -1611,6 +1697,7 @@ void CG_ParticleImpactSmokePuffExtended (qhandle_t pshader, vec3_t origin, int l
 	if (!free_particles)
 		return;
 	p = free_particles;
+    p->tceFadeInEnd=0;
 	free_particles = p->next;
 	p->next = active_particles;
 	active_particles = p;
@@ -1644,6 +1731,7 @@ void CG_ParticleImpactSmokePuffExtended (qhandle_t pshader, vec3_t origin, int l
 	p->rotate = qtrue;
 }
 
+/* TC30052250: original constant-argument entry into the extended emitter. */
 void CG_ParticleImpactSmokePuff (qhandle_t pshader, vec3_t origin) {
 	CG_ParticleImpactSmokePuffExtended (pshader, origin, 500, 20, 20, 30, 0.25f, 8.f);
 }
@@ -1659,6 +1747,7 @@ void CG_Particle_Bleed (qhandle_t pshader, vec3_t start, vec3_t dir, int fleshEn
 	if (!free_particles)
 		return;
 	p = free_particles;
+    p->tceFadeInEnd=0;
 	free_particles = p->next;
 	p->next = active_particles;
 	active_particles = p;
@@ -1725,6 +1814,7 @@ void CG_Particle_OilParticle (qhandle_t pshader, vec3_t origin, vec3_t dir, int 
 	if (!free_particles)
 		return;
 	p = free_particles;
+    p->tceFadeInEnd=0;
 	free_particles = p->next;
 	p->next = active_particles;
 	active_particles = p;
@@ -1780,6 +1870,7 @@ void CG_Particle_OilSlick (qhandle_t pshader, centity_t *cent)
 	if (!free_particles)
 		return;
 	p = free_particles;
+    p->tceFadeInEnd=0;
 	free_particles = p->next;
 	p->next = active_particles;
 	active_particles = p;
@@ -1836,6 +1927,7 @@ void CG_Particle_OilSlick (qhandle_t pshader, centity_t *cent)
 
 }
 
+/* TC30052520: original density selector and 100ms fade on existing particles. */
 void CG_OilSlickRemove (centity_t *cent)
 {
 	cparticle_t		*p, *next;
@@ -1950,6 +2042,7 @@ void CG_ParticleBloodCloud (centity_t *cent, vec3_t origin, vec3_t dir)
 			return;
 
 		p = free_particles;
+    p->tceFadeInEnd=0;
 		free_particles = p->next;
 		p->next = active_particles;
 		active_particles = p;
@@ -2042,6 +2135,7 @@ void CG_ParticleBloodCloudZombie (centity_t *cent, vec3_t origin, vec3_t dir)
 			return;
 
 		p = free_particles;
+    p->tceFadeInEnd=0;
 		free_particles = p->next;
 		p->next = active_particles;
 		active_particles = p;
@@ -2122,6 +2216,7 @@ void CG_ParticleSparks (vec3_t org, vec3_t vel, int duration, float x, float y, 
 	if (!free_particles)
 		return;
 	p = free_particles;
+    p->tceFadeInEnd=0;
 	free_particles = p->next;
 	p->next = active_particles;
 	active_particles = p;
@@ -2201,6 +2296,7 @@ void CG_ParticleDust (centity_t *cent, vec3_t origin, vec3_t dir)
 			return;
 
 		p = free_particles;
+    p->tceFadeInEnd=0;
 		free_particles = p->next;
 		p->next = active_particles;
 		active_particles = p;
@@ -2290,6 +2386,7 @@ void CG_ParticleMisc (qhandle_t pshader, vec3_t origin, int size, int duration, 
 		return;
 
 	p = free_particles;
+    p->tceFadeInEnd=0;
 	free_particles = p->next;
 	p->next = active_particles;
 	active_particles = p;

@@ -1,3 +1,4 @@
+#include "tce_video_modes.h"
 // Copyright (C) 1999-2000 Id Software, Inc.
 //
 /**********************************************************************
@@ -145,6 +146,18 @@ qboolean UI_ConsoleCommand( int realTime ) {
 	uiInfo.uiDC.realTime = realTime;
 
 	cmd = UI_Argv( 0 );
+    if(!Q_stricmp(cmd,"tce_mode")) {
+        char arg[32],*end;long mode;
+        trap_Argv(1,arg,sizeof(arg));mode=strtol(arg,&end,10);
+        if(trap_Argc()!=2 || !arg[0] || *end || mode<3 || mode>22) {
+            trap_Print("Usage: tce_mode <3..22> (TC resolution, then vid_restart)\n");
+        } else {
+            TCE_UI_ApplyVideoMode((int)mode);
+            trap_Cmd_ExecuteText(EXEC_INSERT,"vid_restart\n");
+        }
+        return qtrue;
+    }
+
 
 	// ensure minimum menu data is available
 	//Menu_Cache();
@@ -240,20 +253,10 @@ UI_AdjustFrom640
 Adjusted for resolution and screen aspect ratio
 ================
 */
-void UI_AdjustFrom640( float *x, float *y, float *w, float *h ) {
-	// expect valid pointers
-#if 0
-	*x = *x * uiInfo.uiDC.scale + uiInfo.uiDC.bias;
-	*y *= uiInfo.uiDC.scale;
-	*w *= uiInfo.uiDC.scale;
-	*h *= uiInfo.uiDC.scale;
-#endif
-
-	*x *= uiInfo.uiDC.xscale;
-	*y *= uiInfo.uiDC.yscale;
-	*w *= uiInfo.uiDC.xscale;
-	*h *= uiInfo.uiDC.yscale;
-
+#include "tce_ui_coordinates.h"
+void UI_AdjustFrom640(float *x,float *y,float *w,float *h) {
+    TCE_UI_AdjustCoordinates(x,y,w,h,uiInfo.uiDC.glconfig.vidWidth,
+        uiInfo.uiDC.glconfig.vidHeight,uiInfo.uiDC.xscale,uiInfo.uiDC.yscale);
 }
 
 void UI_DrawNamedPic( float x, float y, float width, float height, const char *picname ) {

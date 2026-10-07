@@ -41,7 +41,7 @@ static int		defineBits[NUM_ANIM_CONDITIONS][MAX_ANIM_DEFINES][2];
 static scriptAnimMoveTypes_t	parseMovetype;
 static int	parseEvent;
 
-animStringItem_t weaponStrings[WP_NUM_WEAPONS];
+extern animStringItem_t weaponStrings[65];
 
 animStringItem_t animStateStr[] =
 {
@@ -53,33 +53,7 @@ animStringItem_t animStateStr[] =
 	{NULL, -1},
 };
 
-static animStringItem_t animMoveTypesStr[] =
-{
-	{"** UNUSED **", -1},
-	{"IDLE", -1},
-	{"IDLECR", -1},
-	{"WALK", -1},
-	{"WALKBK", -1},
-	{"WALKCR", -1},
-	{"WALKCRBK", -1},
-	{"RUN", -1},
-	{"RUNBK", -1},
-	{"SWIM", -1},
-	{"SWIMBK", -1},
-	{"STRAFERIGHT", -1},
-	{"STRAFELEFT", -1},
-	{"TURNRIGHT", -1},
-	{"TURNLEFT", -1},
-	{"CLIMBUP", -1},
-	{"CLIMBDOWN", -1},
-	{"FALLEN", -1},					// DHM - Nerve :: dead, before limbo
-	{"PRONE", -1},
-	{"PRONEBK", -1},
-	{"IDLEPRONE", -1},
-	{"FLAILING", -1},
-
-	{NULL, -1},
-};
+extern animStringItem_t animMoveTypesStr[];
 
 static animStringItem_t animEventTypesStr[] =
 {
@@ -301,30 +275,6 @@ static animConditionTable_t animConditionsTable[NUM_ANIM_CONDITIONS] =
 return a hash value for the given string
 ================
 */
-long BG_StringHashValue( const char *fname ) {
-	int		i;
-	long	hash;
-
-	if( !fname ) {
-		return -1;
-	}
-
-	hash = 0;
-	i = 0;
-	while (fname[i] != '\0') {
-		if( Q_isupper( fname[i] ) ) {
-			hash += (long)(fname[i] + ('a' - 'A'))*(i+119);
-		} else {
-			hash += (long)(fname[i])*(i+119);
-		}
-
-		i++;
-	}
-	if (hash == -1) {
-		hash = 0;	// never return -1
-	}
-	return hash;
-}
 
 /*
 ================
@@ -515,30 +465,6 @@ BG_InitWeaponStrings
   than hardcoded to ease the process of modifying the weapons.
 ============
 */
-void BG_InitWeaponStrings(void)
-{
-	int i;
-	gitem_t *item;
-
-	memset( weaponStrings, 0, sizeof(weaponStrings) );
-
-	for (i=0; i<WP_NUM_WEAPONS; i++) {
-		// find this weapon in the itemslist, and extract the name
-		for (item = bg_itemlist+1; item->classname; item++) {
-			if ( item->giType == IT_WEAPON && item->giTag == i ) {
-				// found a match
-				weaponStrings[i].string = item->pickup_name;
-				weaponStrings[i].hash = BG_StringHashValue(weaponStrings[i].string);
-				break;
-			}
-		}
-
-		if (!item->classname) {
-			weaponStrings[i].string = "(unknown)";
-			weaponStrings[i].hash = BG_StringHashValue(weaponStrings[i].string);
-		}
-	}
-}
 
 /*
 =================
@@ -1821,4 +1747,8 @@ void BG_AnimUpdatePlayerStateConditions( pmove_t *pmove )
 			}
 		}
 	}
+
+	// TC:E uses the legacy enemy-position condition for tactical weapon mode.
+	BG_UpdateConditionValue( ps->clientNum, ANIM_COND_ENEMY_POSITION,
+		(ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) ? 2 : 0, qtrue );
 }

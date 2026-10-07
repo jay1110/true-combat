@@ -78,7 +78,7 @@ void G_PrintAccuracyLog( gentity_t *ent ) {
 
 	Q_strncpyz(buffer, "WeaponStats", 2048);
 
-	for( i = 0; i < WP_NUM_WEAPONS; i++ ) {
+	for( i = 0; i < MAX_WEAPONS; i++ ) {
 		if(!BG_ValidStatWeapon(i)) {
 			continue;
 		}
@@ -171,7 +171,8 @@ static void G_UpgradeSkill( gentity_t *ent, skillType_t skill ) {
 			ent->client->ps.stats[STAT_KEYS] |= ( 1 << INV_BINOCS );
 		}
 	} else if( skill == SK_FIRST_AID && ent->client->sess.playerType == PC_MEDIC && ent->client->sess.skill[skill] == 4 ) {
-		AddWeaponToPlayer( ent->client, WP_MEDIC_ADRENALINE, ent->client->ps.ammo[BG_FindAmmoForWeapon(WP_MEDIC_ADRENALINE)], ent->client->ps.ammoclip[BG_FindClipForWeapon(WP_MEDIC_ADRENALINE)], qfalse );
+		/* TC 20086e60 / Linux G_UpgradeSkill: slot 61, not SDK adrenaline 46. */
+		AddWeaponToPlayer( ent->client, (weapon_t)61, ent->client->ps.ammo[BG_FindAmmoForWeapon((weapon_t)61)], ent->client->ps.ammoclip[BG_FindClipForWeapon((weapon_t)61)], qfalse );
 	}
 }
 
@@ -192,8 +193,10 @@ void G_LoseSkillPoints( gentity_t *ent, skillType_t skill, float points ) {
 		return;
 	}
 
-	if( g_gametype.integer == GT_WOLF_LMS ) {
-		return; // Gordon: no xp in LMS
+	/* TC armament ratings must not be changed by the ET XP system.
+	 * Original qagame 20086b70 excludes all four TC game types. */
+	if( g_gametype.integer == 2 || (g_gametype.integer >= 5 && g_gametype.integer <= 7) ) {
+		return;
 	}
 
 	oldskillpoints = ent->client->sess.skillpoints[skill];
@@ -233,8 +236,9 @@ void G_AddSkillPoints( gentity_t *ent, skillType_t skill, float points ) {
 		return;
 	}
 
-	if( g_gametype.integer == GT_WOLF_LMS ) {
-		return; // Gordon: no xp in LMS
+	/* Same original gate as G_LoseSkillPoints (20086d20). */
+	if( g_gametype.integer == 2 || (g_gametype.integer >= 5 && g_gametype.integer <= 7) ) {
+		return;
 	}
 
 	level.teamXP[ skill ][ ent->client->sess.sessionTeam - TEAM_AXIS ] += points;
@@ -575,6 +579,93 @@ void G_DebugAddSkillPoints( gentity_t *ent, skillType_t skill, float points, con
 	}
 }
 
+/* TC200879a0 keeps award comparisons in ST0 through the status-word gate. */
+static qboolean G_TCEAwardSkillQualifies( float awardPoints ) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+    const float awardThreshold = 20.0f;
+    unsigned short awardStatus;
+    __asm {
+        fld dword ptr awardPoints
+        fcomp dword ptr awardThreshold
+        fnstsw ax
+        mov awardStatus, ax
+    }
+    return (awardStatus & 0x100) == 0;
+#else
+    return awardPoints >= 20.0f;
+#endif
+}
+
+static qboolean G_TCEAwardAccuracyBetter( float candidateAccuracy, float bestAccuracy ) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+    unsigned short awardStatus;
+    __asm {
+        fld dword ptr candidateAccuracy
+        fcomp dword ptr bestAccuracy
+        fnstsw ax
+        mov awardStatus, ax
+    }
+    return (awardStatus & 0x4100) == 0;
+#else
+    return candidateAccuracy > bestAccuracy;
+#endif
+}
+
+static qboolean G_TCEAwardSkillBetter( float candidatePoints, float candidateStart,
+                                     float bestPoints, float bestStart ) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+    unsigned short awardStatus;
+    __asm {
+        fld dword ptr candidatePoints
+        fsub dword ptr candidateStart
+        fld dword ptr bestPoints
+        fsub dword ptr bestStart
+        fcompp
+        fnstsw ax
+        mov awardStatus, ax
+    }
+    return (awardStatus & 0x100) != 0;
+#else
+    return candidatePoints - candidateStart > bestPoints - bestStart;
+#endif
+}
+
+static qboolean G_TCEAwardRateBetter( int candidateScore, int candidateElapsed,
+                                    int bestScore, int bestElapsed ) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+    unsigned short awardStatus;
+    __asm {
+        fild dword ptr candidateScore
+        fidiv dword ptr candidateElapsed
+        fild dword ptr bestScore
+        fidiv dword ptr bestElapsed
+        fcompp
+        fnstsw ax
+        mov awardStatus, ax
+    }
+    return (awardStatus & 0x100) != 0;
+#else
+    return candidateScore / (float)candidateElapsed > bestScore / (float)bestElapsed;
+#endif
+}
+
+static qboolean G_TCEAwardLossAllows( float awardStartXP, int awardScore ) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+    const float awardLimit = 100.0f;
+    unsigned short awardStatus;
+    __asm {
+        fild dword ptr awardScore
+        fsubr dword ptr awardStartXP
+        fcomp dword ptr awardLimit
+        fnstsw ax
+        mov awardStatus, ax
+    }
+    return (awardStatus & 0x100) != 0;
+#else
+    return !(awardStartXP - awardScore >= 100);
+#endif
+}
+
 #define CHECKSTAT1( XX )														\
 	best = NULL;																\
 	for( i = 0; i < level.numConnectedClients; i++ ) {							\
@@ -610,12 +701,12 @@ void G_DebugAddSkillPoints( gentity_t *ent, skillType_t skill, float points, con
 		if( cl->sess.sessionTeam == TEAM_SPECTATOR ) {							\
 			continue;															\
 		}																		\
-		if( !best || (cl->sess.skillpoints[XX] - cl->sess.startskillpoints[XX]) > (best->sess.skillpoints[XX] - best->sess.startskillpoints[XX]) ) {									\
+		if( !best || G_TCEAwardSkillBetter( cl->sess.skillpoints[XX], cl->sess.startskillpoints[XX], best->sess.skillpoints[XX], best->sess.startskillpoints[XX] ) ) {									\
 			best = cl;															\
 		}																		\
 	}																			\
 	if( best ) { best->hasaward = qtrue; }										\
-	Q_strcat( buffer, 1024, va( ";%s; %i ", best && best->sess.skillpoints[XX] >= 20 ? best->pers.netname : "", best && best->sess.skillpoints[XX] >= 20 ? best->sess.sessionTeam : -1 ) )
+	Q_strcat( buffer, 1024, va( ";%s; %i ", best && G_TCEAwardSkillQualifies( best->sess.skillpoints[XX] ) ? best->pers.netname : "", best && G_TCEAwardSkillQualifies( best->sess.skillpoints[XX] ) ? best->sess.sessionTeam : -1 ) )
 
 #define CHECKSTAT3( XX, YY, ZZ )												\
 	best = NULL;																\
@@ -642,12 +733,12 @@ void G_DebugAddSkillPoints( gentity_t *ent, skillType_t skill, float points, con
 		if( cl->sess.sessionTeam == TEAM_SPECTATOR ) {							\
 			continue;															\
 		}																		\
-		if( !best || (cl->XX/(float)(level.time - cl->YY)) > (best->XX/(float)(level.time - best->YY)) ) {\
+		if( !best || G_TCEAwardRateBetter( cl->XX, (int)((unsigned int)level.time - (unsigned int)cl->YY), best->XX, (int)((unsigned int)level.time - (unsigned int)best->YY) ) ) {\
 			best = cl;															\
 		}																		\
 	}																			\
 	if( best ) {																\
-		if( (best->sess.startxptotal - best->ps.persistant[PERS_SCORE]) >= 100 || best->medals || best->hasaward) {	\
+		if( !G_TCEAwardLossAllows( best->sess.startxptotal, best->ps.persistant[PERS_SCORE] ) || best->medals || best->hasaward) {	\
 			best = NULL;														\
 		}																		\
 	}																			\
@@ -677,7 +768,15 @@ void G_BuildEndgameStats( void ) {
 	CHECKSTATSKILL( SK_LIGHT_WEAPONS );
 	CHECKSTATSKILL( SK_HEAVY_WEAPONS );
 	CHECKSTATSKILL( SK_MILITARY_INTELLIGENCE_AND_SCOPED_WEAPONS );
-	CHECKSTAT1( acc );
+	/* Accuracy uses the original ordered greater-than C0|C3 gate. */
+	best = NULL;
+	for( i = 0; i < level.numConnectedClients; i++ ) {
+		gclient_t *cl = &level.clients[level.sortedClients[i]];
+		if( cl->sess.sessionTeam == TEAM_SPECTATOR ) continue;
+		if( !best || G_TCEAwardAccuracyBetter( cl->acc, best->acc ) ) best = cl;
+	}
+	if( best ) best->hasaward = qtrue;
+	Q_strcat( buffer, 1024, va( ";%s; %i ", best ? best->pers.netname : "", best ? best->sess.sessionTeam : -1 ) );
 	CHECKSTATMIN( sess.team_kills, 5 );
 	CHECKSTATTIME( ps.persistant[PERS_SCORE], pers.enterTime );
 

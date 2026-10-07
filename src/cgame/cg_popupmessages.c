@@ -1,3 +1,5 @@
+#include "tce_popup_text.h"
+#include "tce_popup_draw.h"
 #include "cg_local.h"
 
 #define NUM_PM_STACK_ITEMS	32
@@ -5,28 +7,12 @@
 
 #define NUM_PM_STACK_ITEMS_BIG 8 // Gordon: we shouldn't need many of these
 
-typedef struct pmStackItem_s pmListItem_t;
-typedef struct pmStackItemBig_s pmListItemBig_t;
+typedef tce_popup_draw_item_t pmListItem_t;
+typedef tce_popup_draw_item_t pmListItemBig_t;
 
-struct pmStackItem_s {
-	popupMessageType_t		type;
-	qboolean				inuse;
-	int						time;
-	char					message[128];
-	qhandle_t				shader;
 
-	pmListItem_t*			next;
-};
 
-struct pmStackItemBig_s {
-	popupMessageBigType_t	type;
-	qboolean				inuse;
-	int						time;
-	char					message[128];
-	qhandle_t				shader;
 
-	pmListItemBig_t*		next;
-};
 
 pmListItem_t		cg_pmStack[NUM_PM_STACK_ITEMS];
 pmListItem_t*		cg_pmOldList;
@@ -340,146 +326,44 @@ void CG_AddPMItemBig( popupMessageBigType_t type, const char* message, qhandle_t
 
 #define PM_ICON_SIZE_NORMAL 20
 #define PM_ICON_SIZE_SMALL 12
-void CG_DrawPMItems( void ) {
-	vec4_t colour = { 0.f, 0.f, 0.f, 1.f };
-	vec4_t colourText = { 1.f, 1.f, 1.f, 1.f };
-	float t;
-	int i, size;
-	pmListItem_t* listItem = cg_pmOldList;
-	float y = 360;
-
-	if( cg_drawSmallPopupIcons.integer ) {
-		size = PM_ICON_SIZE_SMALL;
-
-		y += 4;
-	} else {
-		size = PM_ICON_SIZE_NORMAL;
-	}
-
-	if( cg.snap->ps.persistant[PERS_RESPAWNS_LEFT] >= 0 ) {
-		y -= 20;
-	}
-
-	if( !cg_pmWaitingList ) {
-		return;
-	}
-
-	t = cg_pmWaitingList->time + CG_TimeForPopup( cg_pmWaitingList->type ) + PM_WAITTIME;
-	if( cg.time > t ) {
-		colourText[3] = colour[3] = 1 - ((cg.time - t) / (float)PM_FADETIME);
-	}
-
-	trap_R_SetColor( colourText );
-	CG_DrawPic( 4, y, size, size, cg_pmWaitingList->shader );
-	trap_R_SetColor( NULL );
-	CG_Text_Paint_Ext( 4 + size + 2, y + 12, 0.2f, 0.2f, colourText, cg_pmWaitingList->message, 0, 0, 0, &cgs.media.limboFont2 );
-
-	for( i = 0; i < 4 && listItem; i++, listItem = listItem->next ) {
-		y -= size + 2;
-
-		t = listItem->time + CG_TimeForPopup( listItem->type ) + PM_WAITTIME;
-		if( cg.time > t ) {
-			colourText[3] = colour[3] = 1 - ((cg.time - t) / (float)PM_FADETIME);
-		} else {
-			colourText[3] = colour[3] = 1.f;
-		}
-
-		trap_R_SetColor( colourText );
-		CG_DrawPic( 4, y, size, size, listItem->shader );
-		trap_R_SetColor( NULL );
-		CG_Text_Paint_Ext( 4 + size + 2, y + 12, 0.2f, 0.2f, colourText, listItem->message, 0, 0, 0, &cgs.media.limboFont2 );
-	}
+static void CG_PopupPaint(float x,float y,float sx,float sy,float *color,const char *text,float adjust,int limit,int style,void *font) {
+ CG_Text_Paint_Ext(x,y,sx,sy,color,text,adjust,limit,style,(fontInfo_t *)font);
+}
+static int CG_PopupDuration(int type) { return CG_TimeForPopup((popupMessageType_t)type); }
+void CG_DrawPMItems(void) {
+ extern qboolean tce_uiCoordinates;
+ char aspectMode[16];
+ qboolean previous=tce_uiCoordinates;
+ tce_popup_draw_api_t api={trap_R_SetColor,CG_DrawPic,CG_PopupPaint,CG_PopupDuration,&cgs.media.limboFont1};
+ tce_uiCoordinates=qtrue;
+ trap_Cvar_VariableStringBuffer("cg_aspectMode",aspectMode,sizeof(aspectMode));
+ TCE_DrawPMItems(atoi(aspectMode),cg.snap->ps.persistant[PERS_RESPAWNS_LEFT],cg.time,cg_pmWaitingList,cg_pmOldList,&api);
+ tce_uiCoordinates=previous;
 }
 
-void CG_DrawPMItemsBig( void ) {
-	vec4_t colour = { 0.f, 0.f, 0.f, 1.f };
-	vec4_t colourText = { 1.f, 1.f, 1.f, 1.f };
-	float t;
-	float y = 270;
-	float w;
-
-	if( !cg_pmWaitingListBig ) {
-		return;
-	}
-
-	t = cg_pmWaitingListBig->time + CG_TimeForBigPopup( cg_pmWaitingListBig->type ) + PM_WAITTIME_BIG;
-	if( cg.time > t ) {
-		colourText[3] = colour[3] = 1 - ((cg.time - t) / (float)PM_FADETIME_BIG);
-	}
-
-	trap_R_SetColor( colourText );
-	CG_DrawPic( 640 - 56, y, 48, 48, cg_pmWaitingListBig->shader );
-	trap_R_SetColor( NULL );
-
-
-	w = CG_Text_Width_Ext( cg_pmWaitingListBig->message, 0.22f, 0, &cgs.media.limboFont2 );
-	CG_Text_Paint_Ext( 640 - 4 - w, y + 56, 0.22f, 0.24f, colourText, cg_pmWaitingListBig->message, 0, 0, 0, &cgs.media.limboFont2 );
+static int CG_PopupBigDuration(int type) { return CG_TimeForBigPopup((popupMessageBigType_t)type); }
+void CG_DrawPMItemsBig(void) {
+ extern qboolean tce_uiCoordinates;
+ char aspectMode[16];
+ qboolean previous=tce_uiCoordinates;
+ tce_popup_draw_api_t api={trap_R_SetColor,CG_DrawPic,CG_PopupPaint,CG_PopupBigDuration,&cgs.media.limboFont1};
+ trap_Cvar_VariableStringBuffer("cg_aspectMode",aspectMode,sizeof(aspectMode));
+ tce_uiCoordinates=qtrue;
+ TCE_DrawPMItemsBig(atoi(aspectMode),cg.time,cg_pmWaitingListBig,&api);
+ tce_uiCoordinates=previous;
 }
 
-const char* CG_GetPMItemText( centity_t* cent ) {
-	switch( cent->currentState.effect1Time ) {
-		case PM_DYNAMITE:
-			switch( cent->currentState.effect2Time ) {
-				case 0:
-					return va( "Planted at %s.", CG_ConfigString( CS_OID_TRIGGERS + cent->currentState.effect3Time ) );
-				case 1:
-					return va( "Defused at %s.", CG_ConfigString( CS_OID_TRIGGERS + cent->currentState.effect3Time ) );
-			}
-			break;
-		case PM_CONSTRUCTION:
-			switch( cent->currentState.effect2Time ) {
-				case -1:
-					return CG_ConfigString( CS_STRINGS + cent->currentState.effect3Time );
-				case 0:
-					return va( "%s has been constructed.", CG_ConfigString( CS_OID_TRIGGERS + cent->currentState.effect3Time ) );
-			}
-			break;
-		case PM_DESTRUCTION:
-			switch( cent->currentState.effect2Time ) {
-				case 0:
-					return va( "%s has been damaged.", CG_ConfigString( CS_OID_TRIGGERS + cent->currentState.effect3Time ) );
-				case 1:
-					return va( "%s has been destroyed.", CG_ConfigString( CS_OID_TRIGGERS + cent->currentState.effect3Time ) );
-			}
-			break;
-		case PM_MINES:
-			if( cgs.clientinfo[cg.clientNum].team == cent->currentState.effect2Time ) {
-				return NULL;
-			}
-			return va( "Spotted by %s^7 at %s", cgs.clientinfo[cent->currentState.effect3Time].name, BG_GetLocationString( cent->currentState.origin ) );
-		case PM_OBJECTIVE:
-			switch( cent->currentState.density ) {
-				case 0:
-					return va( "%s have stolen %s!", cent->currentState.effect2Time == TEAM_ALLIES ? "Allies" : "Axis", CG_ConfigString( CS_STRINGS + cent->currentState.effect3Time ));
-				case 1:
-					return va( "%s have returned %s!", cent->currentState.effect2Time == TEAM_ALLIES ? "Allies" : "Axis", CG_ConfigString( CS_STRINGS + cent->currentState.effect3Time ));
-			}
-			break;
-		case PM_TEAM:
-			switch( cent->currentState.density ) {
-				case 0: // joined
-					{
-						const char* teamstr = NULL;
-						switch( cent->currentState.effect2Time ) {
-							case TEAM_AXIS:
-								teamstr = "Axis team";
-								break;
-							case TEAM_ALLIES:
-								teamstr = "Allied team";
-								break;
-							default:
-								teamstr = "Spectators";
-								break;
-						}
-
-						return va( "%s^7 has joined the %s^7!", cgs.clientinfo[cent->currentState.effect3Time].name, teamstr );
-					}
-				case 1:
-					return va( "%s^7 disconnected", cgs.clientinfo[cent->currentState.effect3Time].name );
-			}
-	}
-
-	return NULL;
+static const char *CG_PopupName(int client) { return cgs.clientinfo[client].name; }
+static const char *CG_PopupLocation(const float *origin) { return BG_GetLocationString((float *)origin); }
+const char* CG_GetPMItemText(centity_t *cent) {
+ static char text[1024];
+ tce_popup_text_t state;
+ tce_popup_text_api_t api={CG_ConfigString,CG_PopupName,CG_PopupLocation};
+ state.kind=cent->currentState.effect1Time;state.action=cent->currentState.effect2Time;
+ state.client=cent->currentState.effect3Time;state.density=cent->currentState.density;
+ state.localTeam=cgs.clientinfo[cg.clientNum].team;
+ state.snapshotTeam=cg.snap->ps.persistant[PERS_TEAM];VectorCopy(cent->currentState.origin,state.origin);
+ return TCE_GetPMItemText(&state,&api,text,sizeof(text));
 }
 
 void CG_PlayPMItemSound( centity_t *cent )

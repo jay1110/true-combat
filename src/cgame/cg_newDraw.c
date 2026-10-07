@@ -354,18 +354,10 @@ CG_DrawCursorHints
 ==============
 */
 void CG_DrawCursorhint(rectDef_t *rect) {
-	float		*color;
-	qhandle_t	icon, icon2 = 0;
-	float		scale, halfscale;
-	//qboolean	redbar = qfalse;
-	qboolean	yellowbar = qfalse;
-
-	if(!cg_cursorHints.integer)
-		return;
-
-	CG_CheckForCursorHints();
-
-	switch(cg.cursorHintIcon) {
+    float *color;
+    qhandle_t icon;
+    if(!cg_cursorHints.integer && cg.cursorHintIcon!=39 && cg.cursorHintIcon!=10 && cg.cursorHintIcon!=3)return;
+    CG_CheckForCursorHints();switch(cg.cursorHintIcon) {
 
 		case HINT_NONE:
 		case HINT_FORCENONE:
@@ -514,7 +506,7 @@ void CG_DrawCursorhint(rectDef_t *rect) {
 		// Mad Doc - TDF
 		case HINT_LOCKPICK:
 			icon = cgs.media.doorLockHintShader;		// TAT 1/30/2003 - use the locked door hint cursor
-			yellowbar = qtrue;	// draw the status bar in yellow so it shows up better
+				// draw the status bar in yellow so it shows up better
 			break;
 
 		case HINT_ACTIVATE:
@@ -522,59 +514,23 @@ void CG_DrawCursorhint(rectDef_t *rect) {
 		default:
 			icon = cgs.media.usableHintShader;
 			break;
+		case 48:
+			icon = cgs.media.tceLedgeHint;
+			break;
+		case 49:
+			icon = cgs.media.tceObjectiveLockedHint;
+			break;
 	}
 
 
-	if(!icon)
-		return;
-
-
-	// color
-	color = CG_FadeColor( cg.cursorHintTime, cg.cursorHintFade );
-	if ( !color ) {
-		trap_R_SetColor( NULL );
-		return;
-	}
-
-	if(cg_cursorHints.integer == 3) {
-		color[3] *= 0.5+0.5*sin((float)cg.time/150.0);
-	}
-
-
-	// size
-	if(cg_cursorHints.integer >= 3) {	// no size pulsing
-		scale = halfscale = 0;
-	} else {
-		if(cg_cursorHints.integer == 2)
-			scale = (float)((cg.cursorHintTime)%1000) / 100.0f;	// one way size pulse
-		else
-			scale = CURSORHINT_SCALE * (0.5+0.5*sin((float)cg.time/150.0));	// sin pulse
-
-		halfscale = scale * 0.5f;
-	}
-
-	// set color and draw the hint
-	trap_R_SetColor( color );
-	CG_DrawPic( rect->x - halfscale, rect->y - halfscale, rect->w + scale, rect->h + scale, icon );
-
-	if( icon2 ) {
-		CG_DrawPic( rect->x - halfscale, rect->y - halfscale, rect->w + scale, rect->h + scale, icon2 );
-	}
-
-	trap_R_SetColor( NULL );
-
-	// draw status bar under the cursor hint
-	if(cg.cursorHintValue) {
-		if (yellowbar) {
-			Vector4Set(color, 1, 1, 0, 1.0f);
-		} else {
-			Vector4Set(color, 0, 0, 1, 0.5f);
-		}
-		CG_FilledBar(rect->x, rect->y + rect->h + 4, rect->w, 8, color, NULL, NULL, (float)cg.cursorHintValue/255.0f, 0);
-	}
-
+	    if(!icon)return;
+    color=CG_FadeColor(cg.cursorHintTime,cg.cursorHintFade);
+    if(color) {
+        trap_R_SetColor(color);
+        CG_DrawPic(rect->x,rect->y,rect->w,rect->h,icon);
+    }
+    trap_R_SetColor(NULL);
 }
-
 float CG_GetValue(int ownerDraw, int type) {
 	switch (ownerDraw) {
 		default:
@@ -630,7 +586,8 @@ void CG_DrawWeapStability( rectDef_t *rect ) {
 		return;
 	}
 
-	CG_FilledBar(rect->x, rect->y, rect->w, rect->h, goodColor, badColor, NULL, (float)cg.snap->ps.aimSpreadScale / 255.0f, 2|4|256); // flags (BAR_CENTER|BAR_VERT|BAR_LERP_COLOR)
+	// TC multiplies the integer spread by a stored binary32 reciprocal before the float argument spill.
+	CG_FilledBar(rect->x, rect->y, rect->w, rect->h, goodColor, badColor, NULL, (float)((double)cg.snap->ps.aimSpreadScale * (1.0f / 255.0f)), 2|4|256); // flags (BAR_CENTER|BAR_VERT|BAR_LERP_COLOR)
 }
 
 
@@ -691,8 +648,8 @@ void CG_MouseEvent(int x, int y) {
 			cgs.cursorX += x;
 			if( cgs.cursorX < 0 ) {
 				cgs.cursorX = 0;
-			} else if( cgs.cursorX > 640 ) {
-				cgs.cursorX = 640;
+			} else if( cgs.cursorX > 852 ) {
+				cgs.cursorX = 852;
 			}
 
 			cgs.cursorY += y;
@@ -711,8 +668,8 @@ void CG_MouseEvent(int x, int y) {
 			cgs.cursorX += x;
 			if( cgs.cursorX < 0 ) {
 				cgs.cursorX = 0;
-			} else if( cgs.cursorX > 640 ) {
-				cgs.cursorX = 640;
+			} else if( cgs.cursorX > 852 ) {
+				cgs.cursorX = 852;
 			}
 
 			cgs.cursorY += y;
@@ -779,6 +736,7 @@ void CG_EventHandling( int type, qboolean fForced )
 			// default handling (cleanup mostly)
 			if( cgs.eventHandling == CGAME_EVENT_GAMEVIEW ) {
 				cg.showGameView = qfalse;
+				cg.tceShowLimboPanel = qfalse;
 				trap_S_FadeBackgroundTrack( 0.0f, 500, 0 );
 
 				trap_S_StopStreamingSound( -1 );
@@ -821,7 +779,7 @@ void CG_EventHandling( int type, qboolean fForced )
 			CG_ShowHelp_Off(&cg.demohelpWindow);
 		}
 	} else if( type == CGAME_EVENT_GAMEVIEW ) {
-		cg.showGameView = qtrue;
+		cg.tceShowLimboPanel = qtrue;
 		CG_LimboPanel_Setup();
 		trap_Key_SetCatcher(KEYCATCH_CGAME);
 	} else if( type == CGAME_EVENT_FIRETEAMMSG ) {

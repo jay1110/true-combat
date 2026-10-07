@@ -1,5 +1,88 @@
 // cg_drawtools.c -- helper functions called by cg_draw, cg_scoreboard, cg_info, etc
 #include "cg_local.h"
+#include "../ui/tce_ui_coordinates.h"
+extern qboolean tce_uiCoordinates;
+
+/* Original cgame30029760; native-coordinate adapter chooses this body only
+ * for TC callers. Keep retained aspect/y operands and sequential aliasing. */
+static void CG_TCAdjustFrom640(float *x,float *y,float *w,float *h) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+    int screenWidth=cgs.glconfig.vidWidth, screenHeight=cgs.glconfig.vidHeight;
+    float *scaleX=&cgs.screenXScale, *scaleY=&cgs.screenYScale;
+    const float coordHeight=480.0f, coordAspect=0.00117187504656612873077392578125f;
+    const float coordHorizontal=0.750000059604644775390625f, coordOne=1.0f;
+    const float coordCenter=240.0f, coordShift=80.0f;
+    if((unsigned)screenWidth*480u != (unsigned)screenHeight*640u) {
+        __asm {
+            fild screenWidth
+            fmul coordHeight
+            fidiv screenHeight
+            fmul coordAspect
+            mov eax, x
+            mov ecx, scaleX
+            fld dword ptr [ecx]
+            fmul dword ptr [eax]
+            fmul coordHorizontal
+            fstp dword ptr [eax]
+            fld coordOne
+            fdiv st(0), st(1)
+            fsub coordOne
+            fmul coordCenter
+            mov eax, y
+            fadd dword ptr [eax]
+            fst dword ptr [eax]
+            mov ecx, scaleY
+            fmul dword ptr [ecx]
+            fmul st(0), st(1)
+            fstp dword ptr [eax]
+            mov eax, w
+            mov ecx, scaleX
+            fld dword ptr [ecx]
+            fmul dword ptr [eax]
+            fmul coordHorizontal
+            fstp dword ptr [eax]
+            mov eax, h
+            mov ecx, scaleY
+            fld dword ptr [ecx]
+            fmul dword ptr [eax]
+            fmul st(0), st(1)
+            fstp dword ptr [eax]
+            fstp st(0)
+        }
+    } else {
+        __asm {
+            mov eax, x
+            mov ecx, scaleX
+            fld dword ptr [ecx]
+            fmul dword ptr [eax]
+            fmul coordHorizontal
+            fstp dword ptr [eax]
+            mov eax, y
+            fld dword ptr [eax]
+            fadd coordShift
+            fst dword ptr [eax]
+            mov ecx, scaleY
+            fmul dword ptr [ecx]
+            fmul coordHorizontal
+            fstp dword ptr [eax]
+            mov eax, w
+            mov ecx, scaleX
+            fld dword ptr [ecx]
+            fmul dword ptr [eax]
+            fmul coordHorizontal
+            fstp dword ptr [eax]
+            mov eax, h
+            mov ecx, scaleY
+            fld dword ptr [ecx]
+            fmul dword ptr [eax]
+            fmul coordHorizontal
+            fstp dword ptr [eax]
+        }
+    }
+#else
+    TCE_UI_AdjustCoordinates(x,y,w,h,cgs.glconfig.vidWidth,cgs.glconfig.vidHeight,cgs.screenXScale,cgs.screenYScale);
+#endif
+}
 
 /*
 ================
@@ -9,6 +92,10 @@ Adjusted for resolution and screen aspect ratio
 ================
 */
 void CG_AdjustFrom640( float *x, float *y, float *w, float *h ) {
+    if(tce_uiCoordinates) {
+        CG_TCAdjustFrom640(x,y,w,h);
+        return;
+    }
 #if 0
 	// adjust for wide screens
 	if ( cgs.glconfig.vidWidth * 480 > cgs.glconfig.vidHeight * 640 ) {
@@ -98,6 +185,116 @@ flags:
 #define BAR_BORDERSIZE 2
 
 void CG_FilledBar(float x, float y, float w, float h, float *startColor, float *endColor, const float *bgColor, float frac, int flags) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+    vec4_t backgroundcolor={1,1,1,.25f}, colorAtPos;
+    const float barOne=1.0f, barZero=0.0f, barHalf=.5f;
+    const float barInset=2.0f, barDoubleInset=4.0f, barTallInset=6.0f, barTallDouble=12.0f;
+    float *barOrigin, *barExtent;
+    __asm {
+        fld frac
+        fcomp barOne
+        fnstsw ax
+        test ah, 41h
+        jnz bar_lower
+        mov frac, 3f800000h
+        jmp bar_clamped
+bar_lower:
+        fld frac
+        fcomp barZero
+        fnstsw ax
+        test ah, 1
+        jz bar_clamped
+        mov frac, 0
+bar_clamped:
+    }
+    if((flags & BAR_BG) && bgColor) Vector4Copy(bgColor,backgroundcolor);
+    if(flags & BAR_LERP_COLOR) {
+        __asm {
+            mov eax, endColor
+            mov ecx, startColor
+            lea edx, colorAtPos
+            fld barOne
+            fsub frac
+            fld frac
+            fmul dword ptr [eax]
+            fld st(1)
+            fmul dword ptr [ecx]
+            faddp st(1), st(0)
+            fstp dword ptr [edx]
+            fld st(0)
+            fmul dword ptr [ecx+4]
+            fld frac
+            fmul dword ptr [eax+4]
+            faddp st(1), st(0)
+            fstp dword ptr [edx+4]
+            fld st(0)
+            fmul dword ptr [ecx+8]
+            fld frac
+            fmul dword ptr [eax+8]
+            faddp st(1), st(0)
+            fstp dword ptr [edx+8]
+            fmul dword ptr [ecx+12]
+            fld frac
+            fmul dword ptr [eax+12]
+            faddp st(1), st(0)
+            fstp dword ptr [edx+12]
+        }
+    }
+    if(flags & BAR_BG) {
+        CG_FillRect(x,y,w,h,backgroundcolor);
+        if(!(flags & BAR_BGSPACING_X0Y0)) {
+            if(flags & BAR_BGSPACING_X0Y5) {
+                __asm {
+                    fld y
+                    fadd barTallInset
+                    fstp y
+                    fld h
+                    fsub barTallDouble
+                    fstp h
+                }
+            } else {
+                __asm {
+                    fld x
+                    fadd barInset
+                    fstp x
+                    fld y
+                    fadd barInset
+                    fstp y
+                    fld w
+                    fsub barDoubleInset
+                    fstp w
+                    fld h
+                    fsub barDoubleInset
+                    fstp h
+                }
+            }
+        }
+    }
+    barOrigin=(flags & BAR_VERT)?&y:&x;
+    barExtent=(flags & BAR_VERT)?&h:&w;
+    if(flags & (BAR_LEFT|BAR_CENTER)) {
+        __asm {
+            mov eax, barExtent
+            mov ecx, barOrigin
+            fld barOne
+            fsub frac
+            fmul dword ptr [eax]
+            test flags, 1
+            jnz bar_anchor
+            fmul barHalf
+bar_anchor:
+            fadd dword ptr [ecx]
+            fstp dword ptr [ecx]
+        }
+    }
+    __asm {
+        mov eax, barExtent
+        fld dword ptr [eax]
+        fmul frac
+        fstp dword ptr [eax]
+    }
+    CG_FillRect(x,y,w,h,(flags & BAR_LERP_COLOR)?colorAtPos:startColor);
+#else
 	vec4_t	backgroundcolor = {1, 1, 1, 0.25f}, colorAtPos;	// colorAtPos is the lerped color if necessary
 	int indent = BAR_BORDERSIZE;
 
@@ -172,6 +369,7 @@ void CG_FilledBar(float x, float y, float w, float h, float *startColor, float *
 		}
 	}
 
+#endif
 }
 
 
@@ -273,7 +471,8 @@ void CG_DrawPic( float x, float y, float width, float height, qhandle_t hShader 
 	float	t0;
 	float	t1;
 
-	if( width < 0 ) {	// flip about vertical
+	/* TC Windows tests x87 C0: unordered dimensions also take the flip. */
+	if( !(width >= 0.0f) ) {	// flip about vertical
 		width  = -width;
 		s0 = 1;
 		s1 = 0;
@@ -283,7 +482,7 @@ void CG_DrawPic( float x, float y, float width, float height, qhandle_t hShader 
 		s1 = 1;
 	}
 
-	if( height < 0 ) {	// flip about horizontal
+	if( !(height >= 0.0f) ) {	// flip about horizontal
 		height= -height;
 		t0 = 1;
 		t1 = 0;
@@ -815,7 +1014,7 @@ float *CG_FadeColor( int startMsec, int totalMsec ) {
 
 	// fade out
 	if ( totalMsec - t < FADE_TIME ) {
-		color[3] = ( totalMsec - t ) * 1.0/FADE_TIME;
+		color[3] = ( totalMsec - t ) * 0.005;
 	} else {
 		color[3] = 1.0;
 	}
@@ -908,7 +1107,7 @@ void CG_ColorForHealth( vec4_t hcolor ) {
 	} else if ( health < 66 ) {
 		hcolor[2] = 0;
 	} else {
-		hcolor[2] = ( health - 66 ) / 33.0;
+		hcolor[2] = ( health - 66 ) * 0.030303030303030304;
 	}
 
 	if ( health > 60 ) {
@@ -916,7 +1115,7 @@ void CG_ColorForHealth( vec4_t hcolor ) {
 	} else if ( health < 30 ) {
 		hcolor[1] = 0;
 	} else {
-		hcolor[1] = ( health - 30 ) / 30.0;
+		hcolor[1] = ( health - 30 ) * 0.03333333333333333;
 	}
 }
 

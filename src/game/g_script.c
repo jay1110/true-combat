@@ -51,6 +51,7 @@ qboolean G_ScriptAction_AddTeamVoiceAnnounce( gentity_t *ent, char *params );
 qboolean G_ScriptAction_RemoveTeamVoiceAnnounce( gentity_t *ent, char *params );
 qboolean G_ScriptAction_TeamVoiceAnnounce( gentity_t *ent, char *params );
 qboolean G_ScriptAction_EndRound( gentity_t *ent, char *params );
+qboolean G_ScriptAction_EndWait( gentity_t *ent, char *params );
 qboolean G_ScriptAction_SetRoundTimelimit( gentity_t *ent, char *params );
 qboolean G_ScriptAction_RemoveEntity( gentity_t *ent, char *params );
 qboolean G_ScriptAction_SetState( gentity_t *ent, char *params );
@@ -119,8 +120,24 @@ qboolean G_ScriptAction_ConstructibleDuration( gentity_t *ent, char *params ) ;
 qboolean etpro_ScriptAction_SetValues( gentity_t *ent, char *params );
 
 // these are the actions that each event can call
+qboolean G_ScriptAction_SetCamo(gentity_t *ent, char *params);
+qboolean G_ScriptAction_SetDemolitionTeam(gentity_t *ent, char *params);
+qboolean G_ScriptAction_SetVIPTeam(gentity_t *ent, char *params);
+qboolean G_ScriptAction_SetHostageTeam(gentity_t *ent, char *params);
+qboolean G_ScriptAction_SetRoundFraglimit(gentity_t *ent, char *params);
+qboolean G_ScriptAction_SetRoundAABaseTime(gentity_t *ent, char *params);
+qboolean G_ScriptAction_AddScore(gentity_t *ent, char *params);
+qboolean G_ScriptAction_Score(gentity_t *ent, char *params);
 g_script_stack_action_t gScriptActions[] =
 {
+	{"wm_camo", G_ScriptAction_SetCamo},
+	{"wm_set_demolition_team", G_ScriptAction_SetDemolitionTeam},
+	{"wm_set_vip_team", G_ScriptAction_SetVIPTeam},
+	{"wm_set_hostage_team", G_ScriptAction_SetHostageTeam},
+	{"wm_set_round_fraglimit", G_ScriptAction_SetRoundFraglimit},
+	{"wm_set_round_AAbasetime", G_ScriptAction_SetRoundAABaseTime},
+	{"wm_addscore", G_ScriptAction_AddScore},
+	{"score", G_ScriptAction_Score},
 	{"gotomarker",						G_ScriptAction_GotoMarker},
 	{"playsound",						G_ScriptAction_PlaySound},
 	{"playanim",						G_ScriptAction_PlayAnim},
@@ -152,6 +169,7 @@ g_script_stack_action_t gScriptActions[] =
 	{"wm_removeteamvoiceannounce",		G_ScriptAction_RemoveTeamVoiceAnnounce},
 	{"wm_announce_icon",				G_ScriptAction_Announce_Icon},
 	{"wm_endround",						G_ScriptAction_EndRound},
+	{"wm_endwait",						G_ScriptAction_EndWait},
 	{"wm_set_round_timelimit",			G_ScriptAction_SetRoundTimelimit},
 	{"wm_voiceannounce",				G_ScriptAction_VoiceAnnounce},
 	{"wm_objective_status",				G_ScriptAction_ObjectiveStatus},
@@ -252,6 +270,11 @@ g_script_event_define_t	gScriptEvents[] =
 	{"defused",			NULL},
 	{"mg42",			G_Script_EventMatch_StringEqual},
 	{"message",			G_Script_EventMatch_StringEqual},	// contains a sequence of VO in a message
+	// TC event table 200c6338: objective callbacks occupy indices 17..20.
+	{"touched",			G_Script_EventMatch_StringEqual},
+	{"completed",		G_Script_EventMatch_StringEqual},
+	{"activated",		NULL},
+	{"stopped",			NULL},
 
 	{NULL,				NULL}
 };
@@ -348,6 +371,8 @@ void G_Script_ScriptLoad( void ) {
 
 	trap_Cvar_Register( &g_scriptDebug, "g_scriptDebug", "0", 0 );
 
+	/* Events also need hashes when this map has no script file. */
+	G_Script_EventStringInit();
 	level.scriptEntity = NULL;
 
 	trap_Cvar_VariableStringBuffer( "g_scriptName", filename, sizeof(filename) );
@@ -359,13 +384,17 @@ void G_Script_ScriptLoad( void ) {
 	Q_strncpyz( filename, "maps/", sizeof(filename) );
 	Q_strcat( filename, sizeof(filename), mapname.string );
 
-	if ( g_gametype.integer == GT_WOLF_LMS ) {
-		Q_strcat( filename, sizeof(filename), "_lms" );
+	if ( g_gametype.integer == 2 || g_gametype.integer == 5 || g_gametype.integer == 7 ) {
+		Q_strcat( filename, sizeof(filename), va("_gt%i", g_gametype.integer) );
 	}
 
 	Q_strcat( filename, sizeof(filename), ".script" );
 
 	len = trap_FS_FOpenFile( filename, &f, FS_READ );
+	if (len < 0) {
+		Com_sprintf(filename, sizeof(filename), "maps/%s.script", mapname.string);
+		len = trap_FS_FOpenFile(filename, &f, FS_READ);
+	}
 
 	// make sure we clear out the temporary scriptname
 	trap_Cvar_Set( "g_scriptName", "" );
@@ -382,8 +411,7 @@ void G_Script_ScriptLoad( void ) {
 	trap_FS_Read( level.scriptEntity, len, f );
 	*(level.scriptEntity + len) = '\0';
 
-	// Gordon: and make sure ppl haven't put stuff with uppercase in the string table..
-	G_Script_EventStringInit();
+
 
 	// Gordon: discard all the comments NOW, so we dont deal with them inside scripts
 	// Gordon: disabling for a sec, wanna check if i can get proper line numbers from error output

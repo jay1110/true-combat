@@ -28,88 +28,9 @@ static float		jumpHeight;
 UI_PlayerInfo_SetWeapon
 ===============
 */
-static void UI_PlayerInfo_SetWeapon( playerInfo_t *pi, weapon_t weaponNum ) {
-	gitem_t *	item;
-	char		path[MAX_QPATH];
-
-	pi->currentWeapon = weaponNum;
-tryagain:
-	pi->realWeapon = weaponNum;
-	pi->weaponModel = 0;
-	pi->barrelModel = 0;
-	pi->flashModel = 0;
-
-	if ( weaponNum == WP_NONE ) {
-		return;
-	}
-
-	// NERVE - SMF - multiplayer only hack to show correct panzerfaust and venom barrel
-	if ( weaponNum == WP_PANZERFAUST ) {
-		pi->weaponModel = trap_R_RegisterModel( "models/multiplayer/panzerfaust/multi_pf.md3" );
-		return;
-	}
-	// -NERVE - SMF
-
-	for ( item = bg_itemlist + 1; item->classname ; item++ ) {
-		if ( item->giType != IT_WEAPON ) {
-			continue;
-		}
-		if ( item->giTag == weaponNum ) {
-			break;
-		}
-	}
-
-	if ( item->classname ) {
-		pi->weaponModel = trap_R_RegisterModel( item->world_model[0] );
-	}
-
-	if( pi->weaponModel == 0 ) {
-		if( weaponNum == WP_MP40 ) {
-			weaponNum = WP_NONE;
-			goto tryagain;
-		}
-		weaponNum = WP_MP40;
-		goto tryagain;
-	}
-
-	strcpy( path, item->world_model[0] );
-	COM_StripExtension( path, path );
-	strcat( path, "_flash.md3" );
-	pi->flashModel = trap_R_RegisterModel( path );
-
-	switch( weaponNum ) {
-//	case WP_MACHINEGUN:
-//		MAKERGB( pi->flashDlightColor, 1, 1, 0 );
-//		break;
-
-//	case WP_SHOTGUN:
-//		MAKERGB( pi->flashDlightColor, 1, 1, 0 );
-//		break;
-
-	case WP_GRENADE_LAUNCHER:
-		MAKERGB( pi->flashDlightColor, 1, 0.7, 0.5 );
-		break;
-
-	case WP_FLAMETHROWER:
-		MAKERGB( pi->flashDlightColor, 0.6, 0.6, 1 );
-		break;
-
-//	case WP_RAILGUN:
-//		MAKERGB( pi->flashDlightColor, 1, 0.5, 0 );
-//		break;
-
-//	case WP_BFG:
-//		MAKERGB( pi->flashDlightColor, 1, 0.7, 1 );
-//		break;
-
-//	case WP_GRAPPLING_HOOK:
-//		MAKERGB( pi->flashDlightColor, 0.6, 0.6, 1 );
-//		break;
-
-	default:
-		MAKERGB( pi->flashDlightColor, 1, 1, 1 );
-		break;
-	}
+void TCE_UI_PlayerInfo_SetWeapon(playerInfo_t *pi, int weapon);
+static void UI_PlayerInfo_SetWeapon(playerInfo_t *pi, weapon_t weaponNum) {
+    TCE_UI_PlayerInfo_SetWeapon(pi, weaponNum);
 }
 
 
@@ -290,9 +211,19 @@ static void UI_LegsSequencing( playerInfo_t *pi ) {
 UI_PositionEntityOnTag
 ======================
 */
+/* TC x87 keeps each three-product sum until the destination float store. */
+static void UI_TagMatrixMultiply(const vec3_t a[3], const vec3_t b[3], vec3_t out[3]) {
+    int row, col;
+    for(row=0; row<3; ++row) for(col=0; col<3; ++col) {
+        out[row][col] = (float)((double)a[row][0]*(double)b[0][col]
+            + (double)a[row][1]*(double)b[1][col]
+            + (double)a[row][2]*(double)b[2][col]);
+    }
+}
+
 static void UI_PositionEntityOnTag( refEntity_t *entity, const refEntity_t *parent, 
 							clipHandle_t parentModel, char *tagName ) {
-	int				i;
+	int				i, j;
 	orientation_t	lerped;
 	
 	// lerp the tag
@@ -301,11 +232,14 @@ static void UI_PositionEntityOnTag( refEntity_t *entity, const refEntity_t *pare
 	// FIXME: allow origin offsets along tag?
 	VectorCopy( parent->origin, entity->origin );
 	for ( i = 0 ; i < 3 ; i++ ) {
-		VectorMA( entity->origin, lerped.origin[i], parent->axis[i], entity->origin );
+		for(j=0; j<3; ++j) {
+            entity->origin[j] = (float)((double)lerped.origin[i] *
+                (double)parent->axis[i][j] + (double)entity->origin[j]);
+        }
 	}
 
 	// cast away const because of compiler problems
-	MatrixMultiply( lerped.axis, ((refEntity_t*)parent)->axis, entity->axis );
+	UI_TagMatrixMultiply( lerped.axis, ((refEntity_t*)parent)->axis, entity->axis );
 	entity->backlerp = parent->backlerp;
 }
 
@@ -317,7 +251,7 @@ UI_PositionRotatedEntityOnTag
 */
 static void UI_PositionRotatedEntityOnTag( refEntity_t *entity, const refEntity_t *parent, 
 							clipHandle_t parentModel, char *tagName ) {
-	int				i;
+	int				i, j;
 	orientation_t	lerped;
 	vec3_t			tempAxis[3];
 
@@ -327,12 +261,15 @@ static void UI_PositionRotatedEntityOnTag( refEntity_t *entity, const refEntity_
 	// FIXME: allow origin offsets along tag?
 	VectorCopy( parent->origin, entity->origin );
 	for ( i = 0 ; i < 3 ; i++ ) {
-		VectorMA( entity->origin, lerped.origin[i], parent->axis[i], entity->origin );
+		for(j=0; j<3; ++j) {
+            entity->origin[j] = (float)((double)lerped.origin[i] *
+                (double)parent->axis[i][j] + (double)entity->origin[j]);
+        }
 	}
 
 	// cast away const because of compiler problems
-	MatrixMultiply( entity->axis, ((refEntity_t *)parent)->axis, tempAxis );
-	MatrixMultiply( lerped.axis, tempAxis, entity->axis );
+	UI_TagMatrixMultiply( entity->axis, ((refEntity_t *)parent)->axis, tempAxis );
+	UI_TagMatrixMultiply( lerped.axis, tempAxis, entity->axis );
 }
 
 

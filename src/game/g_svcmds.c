@@ -4,6 +4,9 @@
 // this file holds commands that can be executed by the server console, but not remote clients
 
 #include "g_local.h"
+#include "tce_botinfo.h"
+#include "tce_nodes.h"
+#include "tce_node_editor.h"
 
 
 /*
@@ -598,6 +601,13 @@ void	Svcmd_EntityList_f (void) {
 		case ET_ALARMBOX:
 			G_Printf("ET_ALARMBOX          ");
 			break;
+		/* TC20088ce0 native entity protocol, also used by map producers. */
+		case 61: G_Printf("ET_SCANNER          "); break;
+		case 62: G_Printf("ET_ENVIRONMENT      "); break;
+		case 63: G_Printf("ET_OBJ_TOUCH      "); break;
+		case 64: G_Printf("ET_OBJ_ITEM      "); break;
+		case 65: G_Printf("ET_OBJ_USE      "); break;
+		case 66: G_Printf("ET_OBJ_DESTROY      "); break;
 		default:
 			G_Printf("%3i                 ", check->s.eType);
 			break;
@@ -726,12 +736,16 @@ gclient_t *G_GetPlayerByName( char *name ) {
 		cl = &level.clients[i];
 		
 		if (!Q_stricmp(cl->pers.netname, name)) {
+			/* TC 20089120 / Linux000f3af6: client+0xbc4. */
+			cl->sess.medals[0] = i;
 			return cl;
 		}
 
 		Q_strncpyz( cleanName, cl->pers.netname, sizeof(cleanName) );
 		Q_CleanStr( cleanName );
 		if ( !Q_stricmp( cleanName, name ) ) {
+			/* Same original slot write for the color-stripped match. */
+			cl->sess.medals[0] = i;
 			return cl;
 		}
 	}
@@ -764,7 +778,7 @@ void Svcmd_ForceTeam_f( void ) {
 
 	// set the team
 	trap_Argv( 2, str, sizeof( str ) );
-	SetTeam( &g_entities[cl - level.clients], str, qfalse, cl->sess.playerWeapon, cl->sess.playerWeapon2, qtrue );
+	SetTeam( &g_entities[cl - level.clients], str, qfalse, cl->sess.playerWeapon, cl->sess.playerWeapon2, cl->sess.playerWeapon3, qtrue );
 }
 
 /*
@@ -978,6 +992,7 @@ Kick a user off of the server
 static void Svcmd_Kick_f( void ) {
 	gclient_t	*cl;
 	int			i;
+	int			clientNum;
 	int			timeout = -1;
 	char		sTimeout[MAX_TOKEN_CHARS];
 	char		name[MAX_TOKEN_CHARS];
@@ -1057,31 +1072,35 @@ static void Svcmd_Kick_f( void ) {
 			return;
 		}
 
+		/* TC2008a8fb: a followed ps belongs to another player.
+		 * G_GetPlayerByName records the matched slot in medals[0]. */
+		clientNum = (cl->ps.pm_flags & PMF_FOLLOW) ? cl->sess.medals[0] : cl->ps.clientNum;
+
 		if ( timeout != -1 ) {
 			char *ip;
 			char userinfo[MAX_INFO_STRING];
 			
-			trap_GetUserinfo( cl->ps.clientNum, userinfo, sizeof( userinfo ) );
+			trap_GetUserinfo( clientNum, userinfo, sizeof( userinfo ) );
 			ip = Info_ValueForKey (userinfo, "ip");
 			
 			// use engine banning system, mods may choose to use their own banlist
 			if (USE_ENGINE_BANLIST) { 
 				
 				// kick but dont ban bots, they arent that lame
-				if ( (g_entities[cl->ps.clientNum].r.svFlags & SVF_BOT) ) {
+				if ( (g_entities[clientNum].r.svFlags & SVF_BOT) ) {
 					timeout = 0;
 				}
-				trap_DropClient(cl->ps.clientNum, "player kicked", timeout);
+				trap_DropClient(clientNum, "player kicked", timeout);
 			} else {
-				trap_DropClient(cl->ps.clientNum, "player kicked", 0);
+				trap_DropClient(clientNum, "player kicked", 0);
 				
 				// kick but dont ban bots, they arent that lame
-				if ( !(g_entities[cl->ps.clientNum].r.svFlags & SVF_BOT) )
+				if ( !(g_entities[clientNum].r.svFlags & SVF_BOT) )
 					AddIPBan( ip );
 			}
 
 		} else {
-			trap_DropClient(cl->ps.clientNum, "player kicked", 0);				
+			trap_DropClient(clientNum, "player kicked", 0);				
 		}
 	}
 }
@@ -1132,21 +1151,23 @@ static void Svcmd_KickNum_f( void ) {
 		return;
 	}
 		
-	trap_GetUserinfo( cl->ps.clientNum, userinfo, sizeof( userinfo ) );
+	/* TC2008aa68: retain the parsed slot while following. */
+	if (!(cl->ps.pm_flags & PMF_FOLLOW)) clientNum = cl->ps.clientNum;
+	trap_GetUserinfo( clientNum, userinfo, sizeof( userinfo ) );
 	ip = Info_ValueForKey (userinfo, "ip");
 	// use engine banning system, mods may choose to use their own banlist
 	if (USE_ENGINE_BANLIST) { 
 
 		// kick but dont ban bots, they arent that lame
-		if ( (g_entities[cl->ps.clientNum].r.svFlags & SVF_BOT) ) {
+		if ( (g_entities[clientNum].r.svFlags & SVF_BOT) ) {
 			timeout = 0;
 		}
-		trap_DropClient(cl->ps.clientNum, "player kicked", timeout);
+		trap_DropClient(clientNum, "player kicked", timeout);
 	} else {
-		trap_DropClient(cl->ps.clientNum, "player kicked", 0);
+		trap_DropClient(clientNum, "player kicked", 0);
 
 		// kick but dont ban bots, they arent that lame
-		if ( !(g_entities[cl->ps.clientNum].r.svFlags & SVF_BOT) )
+		if ( !(g_entities[clientNum].r.svFlags & SVF_BOT) )
 			AddIPBan( ip );
 	}
 }
@@ -1163,46 +1184,161 @@ ConsoleCommand
 
 =================
 */
+/* The editor addresses entity zero, not the command sender. A missing local
+ * client/no selected node is undefined in TC; reject it before array access. */
+static int TCE_EditorAimNode( void ) {
+	vec3_t start, end, forward;
+	trace_t trace;
+	int i;
+	if( !g_entities[0].client ) return -1;
+	AngleVectors( g_entities[0].client->ps.viewangles, forward, NULL, NULL );
+	VectorCopy( g_entities[0].client->ps.origin, start );
+	start[2] += g_entities[0].client->ps.viewheight;
+	for( i = 0; i < 3; ++i ) end[i] = (float)((double)forward[i] * 8192.0 + start[i]);
+	trap_Trace( &trace, start, NULL, NULL, end, g_entities[0].s.number, CONTENTS_SOLID );
+	return TCE_FindClosestNodeToPoint( &g_entities[0], trace.endpos );
+}
+
+/* TC200895e0 / Linux000f4226. */
+static void TCE_SvcmdRelocateNode( void ) {
+	int node = TCE_EditorAimNode();
+	if( node < 0 || node >= TCE_MAX_NODES ) return;
+	VectorCopy( g_entities[0].r.currentOrigin, tceNodes[node].origin );
+}
+
+/* TC200896d0 / Linux000f4350. Windows narrows before logging. */
+static void TCE_SvcmdSetNodeFlags( void ) {
+	char argument[1024];
+	short flags = 0;
+	int node;
+	if( trap_Argc() > 1 ) { trap_Argv(1, argument, sizeof(argument)); flags = (short)atoi(argument); }
+	node = TCE_EditorAimNode();
+	if( node < 0 || node >= TCE_MAX_NODES ) return;
+	tceNodes[node].flags = flags;
+	G_Printf( "Set node %d flags to %d\n", node, (int)flags );
+}
+
+/* TC200897e0 / Linux000f44f6. Change only the first matching edge each way. */
+static void TCE_SvcmdSetLinkFlags( void ) {
+	char argument[1024];
+	int flags = 0, from, to, i;
+	qboolean changed = qfalse;
+	if( trap_Argc() > 1 ) { trap_Argv(1, argument, sizeof(argument)); flags = atoi(argument); }
+	from = TCE_EditorAimNode();
+	if( !g_entities[0].client ) return;
+	to = TCE_FindClosestNodeToPoint( &g_entities[0], g_entities[0].r.currentOrigin );
+	if( from < 0 || from >= TCE_MAX_NODES || to < 0 || to >= TCE_MAX_NODES ) return;
+	for( i = 0; i < tceNodes[from].numLinks; ++i ) if( tceNodes[from].links[i].target == to ) {
+		tceNodes[from].links[i].flags = (unsigned short)flags; changed = qtrue; break;
+	}
+	for( i = 0; i < tceNodes[to].numLinks; ++i ) if( tceNodes[to].links[i].target == from ) {
+		tceNodes[to].links[i].flags = (unsigned short)flags; changed = qtrue; break;
+	}
+	if( changed ) G_Printf( "Set link (%d to %d) flags to %d\n", from, to, flags );
+	else G_Printf( "Set link (%d to %d) failed\n", from, to );
+}
+
+/* TC200899a0 / Linux000f4786: try both directed connections independently. */
+static void TCE_SvcmdLinkNodes( void ) {
+	int from = TCE_EditorAimNode(), to;
+	if( !g_entities[0].client ) return;
+	to = TCE_FindClosestNodeToPoint( &g_entities[0], g_entities[0].r.currentOrigin );
+	if( from < 0 || from >= TCE_MAX_NODES || to < 0 || to >= TCE_MAX_NODES ) return;
+	if( TCE_ConnectNodes(from, to, 0) ) G_Printf("Created link from node %d to node %d\n", from, to);
+	if( TCE_ConnectNodes(to, from, 0) ) G_Printf("Created link from node %d to node %d\n", to, from);
+}
+
+static int TCE_ReadEditorNodeArguments( short entities[3], int *packed ) {
+	char argument[1024];
+	int flags, i;
+	entities[0] = entities[1] = entities[2] = ENTITYNUM_NONE;
+	*packed = 0;
+	trap_Argv(1, argument, sizeof(argument)); flags = atoi(argument);
+	for( i = 0; i < 3; ++i ) if( trap_Argc() > i + 2 ) {
+		trap_Argv(i + 2, argument, sizeof(argument)); entities[i] = (short)atoi(argument);
+	}
+	if( trap_Argc() > 5 ) { trap_Argv(5, argument, sizeof(argument)); *packed = atoi(argument); }
+	return flags;
+}
+
+/* TC20089c80 / Linux000f4baa. */
+static void TCE_SvcmdAddNode( void ) {
+	short entities[3]; int packed, flags;
+	flags = TCE_ReadEditorNodeArguments(entities, &packed);
+	if( TCE_AddNode(g_entities[0].r.currentOrigin, (short)flags, entities, packed) )
+		G_Printf("Added node %d, flags %d\n", tceNumNodes - 1, flags);
+	else G_Printf("Error: too many nodes\n");
+}
+
+/* TC20089ab0 / Linux000f48f8. Last-node update follows both link attempts. */
+static void TCE_SvcmdAddNodeToPath( void ) {
+	short entities[3]; int packed, flags, node;
+	flags = TCE_ReadEditorNodeArguments(entities, &packed);
+	if( !TCE_AddNode(g_entities[0].r.currentOrigin, (short)flags, entities, packed) ) {
+		G_Printf("Error: too many nodes\n"); return;
+	}
+	node = tceNumNodes - 1;
+	G_Printf("Added node to path %d, flags %d\n", node, flags);
+	if( tceLastNode != -1 ) {
+		if( TCE_ConnectNodes(tceLastNode, node, 0) ) G_Printf("Created link from node %d to node %d\n", tceLastNode, node);
+		if( TCE_ConnectNodes(node, tceLastNode, 0) ) G_Printf("Created link from node %d to node %d\n", node, tceLastNode);
+	}
+	tceLastNode = node;
+}
+
+/* TC20089f20 / Linux000f4f74. Bounded path construction repairs the original
+ * 256-byte strcat overflow; defined-length filenames are unchanged. */
+static void TCE_SvcmdLoadNodes( void ) {
+	char name[256], path[256];
+	trap_Argv(1, name, sizeof(name));
+	Com_sprintf(path, sizeof(path), "botroutes/%s.wps", name);
+	TCE_LoadNodes(path);
+}
+
+/* TC20089e60 / Linux000f4ece: same defined-length path as wp_load. */
+static void TCE_SvcmdSaveNodes( void ) {
+	char name[256], path[256];
+	trap_Argv(1, name, sizeof(name));
+	Com_sprintf(path, sizeof(path), "botroutes/%s.wps", name);
+	TCE_SaveNodes(path);
+}
+
+/* TC20089580 / Linux000f4186. */
+static void TCE_SvcmdAutoConnectNodes( void ) {
+	char argument[1024];
+	int maxLinks = 3;
+	if( trap_Argc() > 1 ) { trap_Argv(1, argument, sizeof(argument)); maxLinks = atoi(argument); }
+	TCE_ConnectClosestNodes(maxLinks);
+}
+
+/* TC200895d0 / Linux000f420e: end only the current editor path. */
+static void TCE_SvcmdTerminatePath( void ) {
+	tceLastNode = -1;
+}
+
+/* TC20089dc0 / Linux000f4dca: explicit directed node connection. */
+static void TCE_SvcmdConnectNodes( void ) {
+	char argument[1024];
+	int from, to, flags;
+	trap_Argv( 1, argument, sizeof(argument) );
+	from = atoi(argument);
+	trap_Argv( 2, argument, sizeof(argument) );
+	to = atoi(argument);
+	trap_Argv( 3, argument, sizeof(argument) );
+	flags = atoi(argument);
+	if( TCE_ConnectNodes( from, to, (short)flags ) ) {
+		G_Printf( "Created path from node %d to node %d\n", from, to );
+	} else {
+		G_Printf( "Error: Invalid nodes, or too many current paths from this node\n" );
+	}
+}
+
 qboolean	ConsoleCommand( void ) {
 	char	cmd[MAX_TOKEN_CHARS];
 
 	trap_Argv( 0, cmd, sizeof( cmd ) );
 
-#ifdef SAVEGAME_SUPPORT
-	if (Q_stricmp (cmd, "savegame") == 0) {
-
-		if( g_gametype.integer != GT_SINGLE_PLAYER )
-			return qtrue;
-
-		// don't allow a manual savegame command while we are waiting for the game to start/exit
-		if (g_reloading.integer)
-			return qtrue;
-		if (saveGamePending)
-			return qtrue;
-
-		trap_Argv( 1, cmd, sizeof( cmd ) );
-		if (strlen(cmd) > 0) {
-			// strip the extension if provided
-			if (strrchr(cmd, '.')) {
-				cmd[strrchr(cmd,'.')-cmd] = '\0';
-			}
-			if ( !Q_stricmp( cmd, "current") ) {		// beginning of map
-				Com_Printf("sorry, '%s' is a reserved savegame name.  please use another name.\n", cmd);
-				return qtrue;
-			}
-
-			if (G_SaveGame( cmd ))
-				trap_SendServerCommand(-1, "cp \"Game Saved\n\"");	// deletedgame
-			else
-				G_Printf( "Unable to save game.\n" );
-
-		} else {	// need a name
-			G_Printf( "syntax: savegame <name>\n" );
-		}
-
-		return qtrue;
-	}
-#endif // SAVEGAME_SUPPORT
+/* TC ConsoleCommand has no single-player savegame command. */
 
 	if ( Q_stricmp (cmd, "entitylist") == 0 ) {
 		Svcmd_EntityList_f();
@@ -1219,6 +1355,36 @@ qboolean	ConsoleCommand( void ) {
 		return qtrue;
 	}
 
+    /* Original2008a12c..2008a18b: both TC commands are listen-server only. */
+    if(!g_dedicated.integer && bot_enable.integer && !Q_stricmp(cmd,"addbot")){
+        Svcmd_AddBot_f();return qtrue;
+    }
+    if(!g_dedicated.integer && bot_enable.integer && !Q_stricmp(cmd,"kickbot")){
+        TCE_SvcmdKickBot();return qtrue;
+    }
+	/* Original editor gate is independent of the listen-server bot gate. */
+	if( bot_editWaypoints.integer && bot_enable.integer && g_developer.integer ) {
+		if( !Q_stricmp(cmd, "wp_add") ) { TCE_SvcmdAddNode(); return qtrue; }
+		if( !Q_stricmp(cmd, "wp_link") ) { TCE_SvcmdLinkNodes(); return qtrue; }
+		if( !Q_stricmp(cmd, "wp_setflags") ) { TCE_SvcmdSetNodeFlags(); return qtrue; }
+		if( !Q_stricmp(cmd, "wp_setlinkflags") ) { TCE_SvcmdSetLinkFlags(); return qtrue; }
+		if( !Q_stricmp(cmd, "wp_relocate") ) { TCE_SvcmdRelocateNode(); return qtrue; }
+		if( !Q_stricmp(cmd, "wp_addtopath") ) { TCE_SvcmdAddNodeToPath(); return qtrue; }
+		if( !Q_stricmp(cmd, "wp_autoconnect") ) { TCE_SvcmdAutoConnectNodes(); return qtrue; }
+		if( !Q_stricmp(cmd, "wp_terminatepath") ) {
+			TCE_SvcmdTerminatePath(); return qtrue;
+		}
+		if( !Q_stricmp(cmd, "wp_connect") ) {
+			TCE_SvcmdConnectNodes(); return qtrue;
+		}
+		if( !Q_stricmp(cmd, "wp_clear") ) {
+			TCE_ClearNodes();
+			G_Printf( "All waypoints cleared\n" );
+			return qtrue;
+		}
+		if( !Q_stricmp(cmd, "wp_save") ) { TCE_SvcmdSaveNodes(); return qtrue; }
+		if( !Q_stricmp(cmd, "wp_load") ) { TCE_SvcmdLoadNodes(); return qtrue; }
+	}
 	/*if (Q_stricmp (cmd, "addbot") == 0) {
 		Svcmd_AddBot_f();
 		return qtrue;

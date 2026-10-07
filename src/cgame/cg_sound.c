@@ -1,6 +1,7 @@
 // Ridah, cg_sound.c - parsing and use of sound script files
 
 #include "cg_local.h"
+#include "tce_flash.h"
 
 // we have to define these static lists, since we can't alloc memory within the cgame
 
@@ -116,10 +117,14 @@ int CG_SoundPickOldestRandomSound( soundScript_t *sound, vec3_t org, int entnum 
 			if( !oldestSound->sounds[pos].sfxHandle ) {
 				oldestSound->sounds[pos].sfxHandle = trap_S_RegisterSound( oldestSound->sounds[pos].filename, qfalse );	// FIXME: make compressed settable through the soundscript
 			}
-			trap_S_StartSound( org, entnum, sound->channel, oldestSound->sounds[pos].sfxHandle );
+			/* TC30060790: script sounds share the flashbang hearing attenuation. */
+			trap_S_StartSoundVControl( org, entnum, sound->channel,
+				oldestSound->sounds[pos].sfxHandle,
+				(int)((1.0 - (double)tceFlash.deafness) * 127.0) );
 			return trap_S_GetSoundLength( oldestSound->sounds[pos].sfxHandle );
 		} else {
-			return trap_S_StartStreamingSound( oldestSound->sounds[pos].filename, sound->looping ? oldestSound->sounds[pos].filename : NULL, entnum, sound->channel, sound->attenuation );
+			return trap_S_StartStreamingSound( oldestSound->sounds[pos].filename, sound->looping ? oldestSound->sounds[pos].filename : NULL, entnum, sound->channel,
+				(int)((1.0 - (double)tceFlash.deafness) * sound->attenuation) );
 		}
 		oldestSound->lastPlayed = cg.time;
 	} else {
@@ -2009,6 +2014,8 @@ void CG_SetActiveOnScriptSpeaker( int index )
 
 static void CG_PlayScriptSpeaker( bg_speaker_t *speaker, qboolean global )
 {
+	CG_Printf( "ELITE DEBUG: entered script speaker\n" );
+
 	switch( speaker->loop ) {
 	case S_LT_NOT_LOOPED:	if( global ) {
 								trap_S_StartLocalSound( speaker->noise, CHAN_ITEM );

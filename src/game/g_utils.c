@@ -936,6 +936,13 @@ void G_SetEntState( gentity_t *ent, entState_t state ) {
 	}
 
 	switch( state ) {
+	/* TC 20095440: objective states preserve linking and collision. */
+	case STATE_DYNAMITED:
+	case STATE_INACTIVE:
+	case STATE_LOCKED:
+		ent->entstate = state;
+		ent->s.powerups = state;
+		break;
 	case STATE_DEFAULT:				if( ent->entstate == STATE_UNDERCONSTRUCTION ) {
 										ent->clipmask = ent->realClipmask;
 										ent->r.contents = ent->realContents;

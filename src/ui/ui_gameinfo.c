@@ -5,6 +5,7 @@
 //
 
 #include "ui_local.h"
+#include "../game/tce_bg.h"
 
 
 //
@@ -157,6 +158,7 @@ static void UI_LoadArenasFromFile( char *filename ) {
 				trap_PC_FreeSource( handle );
 				return;
 			}
+            uiInfo.mapList[uiInfo.mapCount].tceOfficial = BG_MapIsOfficial(uiInfo.mapList[uiInfo.mapCount].mapLoadName);
 		} else if( !Q_stricmp( token.string, "longname" ) ) {
 			if( !PC_String_Parse( handle, &uiInfo.mapList[uiInfo.mapCount].mapName ) ) {
 				trap_Print( va( S_COLOR_RED "unexpected end of file inside: %s\n", filename ) );
@@ -205,18 +207,9 @@ static void UI_LoadArenasFromFile( char *filename ) {
 				trap_PC_FreeSource( handle );
 				return;
 			} else {
-				if( strstr( token.string, "wolfsp" ) ) {
-					uiInfo.mapList[uiInfo.mapCount].typeBits |= (1 << GT_SINGLE_PLAYER);
-				}
-				if( strstr( token.string, "wolflms" ) ) {
-					uiInfo.mapList[uiInfo.mapCount].typeBits |= (1 << GT_WOLF_LMS);
-				}
-				if( strstr( token.string, "wolfmp" ) ) {
-					uiInfo.mapList[uiInfo.mapCount].typeBits |= (1 << GT_WOLF);
-				}
-				if( strstr( token.string, "wolfsw" ) ) {
-					uiInfo.mapList[uiInfo.mapCount].typeBits |= (1 << GT_WOLF_STOPWATCH);
-				}
+                if( strstr(token.string, "obj") ) uiInfo.mapList[uiInfo.mapCount].typeBits |= (1 << 5);
+                if( strstr(token.string, "bc") ) uiInfo.mapList[uiInfo.mapCount].typeBits |= (1 << 7);
+                if( strstr(token.string, "robj") ) uiInfo.mapList[uiInfo.mapCount].typeBits |= (1 << 2);
 			}
 		} else if( !Q_stricmp( token.string, "mapposition_x" ) ) {
 			if( !PC_Float_Parse( handle, &uiInfo.mapList[uiInfo.mapCount].mappos[0] ) ) {
@@ -264,8 +257,8 @@ void UI_LoadArenas( void ) {
 		UI_LoadArenasFromFile("scripts/arenas.txt");
 	}
 */
-	// get all arenas from .arena files
-	numdirs = trap_FS_GetFileList("scripts", ".arena", dirlist, 1024 );
+	// TC:E map metadata is stored in .mapinfo files
+	numdirs = trap_FS_GetFileList("scripts", ".mapinfo", dirlist, 1024 );
 	dirptr  = dirlist;
 	for (i = 0; i < numdirs; i++, dirptr += dirlen+1) {
 		dirlen = strlen(dirptr);

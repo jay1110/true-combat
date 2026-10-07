@@ -100,6 +100,14 @@ G_TestEntityPosition
 gentity_t *G_TestEntityPosition( gentity_t *ent ) {
 	trace_t	tr;
 	int		mask;
+	vec3_t legMins, legMaxs;
+	float legScale = g_newbbox.integer ? 1.25f : 1.0f;
+
+	/* TC2006dc00: capture the size-dependent leg bounds before callbacks.
+	 * Body bounds already come from the entity; the extra prone probe must
+	 * use the same g_newbbox scale rather than the unscaled SDK globals. */
+	VectorScale( playerlegsProneMins, legScale, legMins );
+	VectorScale( playerlegsProneMaxs, legScale, legMaxs );
 
 	if ( ent->clipmask ) {
 //		if ( ent->r.contents == CONTENTS_CORPSE && ent->health <= 0 ) {	// Arnout: players waiting to be revived are important
@@ -130,22 +138,22 @@ gentity_t *G_TestEntityPosition( gentity_t *ent ) {
 			flatforward[2] = 0;
 			VectorNormalizeFast( flatforward );
 
-			org[0] = ent->client->ps.origin[0] + flatforward[0] * -32;
-			org[1] = ent->client->ps.origin[1] + flatforward[1] * -32;
+			org[0] = (float)((double)ent->client->ps.origin[0] - (double)flatforward[0] * legScale * 32.0);
+			org[1] = (float)((double)ent->client->ps.origin[1] - (double)flatforward[1] * legScale * 32.0);
 			//org[2] = ent->client->ps.origin[2] + 12;	// 12 units to play with
 			org[2] = ent->client->ps.origin[2] + 24.f;	// 12 units to play with
 
 			//VectorSet( point, org[0], org[1], org[2] - 9.6f - 24.f );	// diff between playerlegsMins and playerlegsMaxs z + 24 units to play with
-			VectorSet( point, org[0], org[1], org[2] - ( 24.f - 2.4f ) - 24.f );	// diff between playerlegsMins and playerlegsMaxs z + 24 units to play with
+			VectorSet( point, org[0], org[1], (float)((double)org[2] - (double)21.6f - 24.0) );	// TC200ac71c is the stored float21.6
 
-			trap_TraceCapsule( &tr, org, playerlegsProneMins, playerlegsProneMaxs, point, ent->s.number, mask );
+			trap_TraceCapsule( &tr, org, legMins, legMaxs, point, ent->s.number, mask );
 
 			if( !tr.startsolid || tr.entityNum < MAX_CLIENTS ) {
 				VectorCopy( tr.endpos, org );
 				//VectorSet( point, org[0], org[1], org[2] + 9.6f );
-				VectorSet( point, org[0], org[1], org[2] + ( 24.f - 2.4f ) );
+				VectorSet( point, org[0], org[1], org[2] + 21.6f );
 
-				trap_TraceCapsule( &tr, org, playerlegsProneMins, playerlegsProneMaxs, point, ent->s.number, mask );
+				trap_TraceCapsule( &tr, org, legMins, legMaxs, point, ent->s.number, mask );
 
 				if( tr.startsolid && tr.entityNum < MAX_CLIENTS ) {
 					tr.startsolid = qfalse;
@@ -275,8 +283,12 @@ qboolean G_TryPushingEntity( gentity_t *check, gentity_t *pusher, vec3_t move, v
 		// make sure the client's view rotates when on a rotating mover
 		// RF, this is done client-side now
 		// ydnar: only do this if player is prone or using set mortar
-		if( (check->client->ps.eFlags & EF_PRONE) || check->s.weapon == WP_MORTAR_SET )
-			check->client->ps.delta_angles[YAW] += ANGLE2SHORT(amove[YAW]);
+		/* TC2006dfff..2006e030: deployed mortar is slot60, not SDK45.
+		 * The original multiplies by the stored float angle-to-short factor
+		 * before truncation; ANGLE2SHORT's two operations differ at edges. */
+		if( (check->client->ps.eFlags & EF_PRONE) || check->s.weapon == 60 )
+			check->client->ps.delta_angles[YAW] +=
+				(int)((double)amove[YAW] * (double)182.0444488525390625f) & 65535;
 	}
 
 	// figure movement due to the pusher's amove
@@ -792,6 +804,9 @@ void SetMoverState( gentity_t *ent, moverState_t moverState, int time ) {
 			}
 			VectorScale( ent->rotate, f * ent->angle, ent->s.apos.trDelta );
 			ent->s.apos.trType = TR_LINEAR_STOP;
+			if (ent->flags & FL_TOGGLE) {
+				ent->active = qfalse;
+			}
 			break;
 		case MOVER_2TO1ROTATE:	// closing
 			VectorScale(ent->rotate, ent->angle, ent->s.apos.trBase);	// set base to end position
@@ -976,7 +991,33 @@ void ReturnToPos1Rotate( gentity_t *ent ) {
 Reached_BinaryMover
 ================
 */
+/* TC 2006f5e1/2006fa6c: integer time remains exact until FADD,
+ * then __ftol truncates to signed 64 bits and the caller uses low EAX. */
+static int G_TCEReachedDelay( int moverTime, float moverWait ) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+	unsigned short moverCW, moverTruncCW;
+	__int64 moverTicks;
+	__asm {
+		fild dword ptr moverTime
+		fadd dword ptr moverWait
+		fwait
+		fnstcw moverCW
+		fwait
+		mov ax, moverCW
+		or ax, 0c00h
+		mov moverTruncCW, ax
+		fldcw moverTruncCW
+		fistp qword ptr moverTicks
+		fldcw moverCW
+	}
+	return (int)moverTicks;
+#else
+	return (int)(moverTime + moverWait);
+#endif
+}
+
 void Reached_BinaryMover( gentity_t *ent ) {
+	unsigned int moverWaitBits;
 
 	// stop the looping sound
 	ent->s.loopSound = 0;
@@ -1007,9 +1048,10 @@ void Reached_BinaryMover( gentity_t *ent ) {
 
 		// JOSEPH 1-27-00
 		// return to pos1 after a delay
-		if (ent->wait != -1000) {
+		memcpy( &moverWaitBits, &ent->wait, sizeof(moverWaitBits) );
+		if (moverWaitBits != 0xc47a0000u) {
 			ent->think = ReturnToPos1;
-			ent->nextthink = level.time + ent->wait;
+			ent->nextthink = G_TCEReachedDelay( level.time, ent->wait );
 		}
 		// END JOSEPH
 	} else if ( ent->moverState == MOVER_2TO1 ) {
@@ -1052,7 +1094,7 @@ void Reached_BinaryMover( gentity_t *ent ) {
 
 		// return to pos1 after a delay
 		ent->think = ReturnToPos1Rotate;
-		ent->nextthink = level.time + ent->wait;
+		ent->nextthink = G_TCEReachedDelay( level.time, ent->wait );
 
 	}
 	else if ( ent->moverState == MOVER_2TO1ROTATE ) {
@@ -1093,7 +1135,7 @@ qboolean IsBinaryMoverBlocked (gentity_t *ent, gentity_t *other, gentity_t *acti
 	vec3_t		dir, angles;
 	vec3_t		pos;
 	vec3_t		vec;
-	float		dot;
+	double		dot;
 	vec3_t		forward;
 	qboolean	is_relay = qfalse;
 	
@@ -1117,6 +1159,8 @@ qboolean IsBinaryMoverBlocked (gentity_t *ent, gentity_t *other, gentity_t *acti
 		
 		VectorAdd (ent->r.absmin, ent->r.absmax, pos);
 		VectorScale (pos, 0.5, pos);
+		/* TC 2006f821 keeps the X sum in x87; Y/Z are spilled first. */
+		pos[0] = (float)(((double)ent->r.absmax[0] + ent->r.absmin[0]) * 0.5);
 		
 		VectorSubtract (pos, ent->s.origin, dir);
 		vectoangles (dir, angles);
@@ -1137,7 +1181,9 @@ qboolean IsBinaryMoverBlocked (gentity_t *ent, gentity_t *other, gentity_t *acti
 			VectorSubtract (activator->r.currentOrigin, pos, vec);
 
 		VectorNormalize (vec);
-		dot = DotProduct (vec, forward);
+		/* TC 2006f94b adds Z, Y, X and compares before a float spill. */
+		dot = ((double)forward[2] * vec[2] +
+			(double)forward[1] * vec[1]) + (double)forward[0] * vec[0];
 
 		if (dot >= 0)
 			return qtrue;
@@ -1157,6 +1203,7 @@ Reached_TrinaryMover
 ================
 */
 void Reached_TrinaryMover( gentity_t *ent ) {
+	unsigned int moverWaitBits;
 
 	// stop the looping sound
 	ent->s.loopSound = ent->soundLoop;
@@ -1191,9 +1238,10 @@ void Reached_TrinaryMover( gentity_t *ent ) {
 		G_AddEvent( ent, EV_GENERAL_SOUND, ent->soundPos3 );
 
 		// return to pos2 after a delay
-		if (ent->wait != -1000) {
+		memcpy( &moverWaitBits, &ent->wait, sizeof(moverWaitBits) );
+		if (moverWaitBits != 0xc47a0000u) {
 			ent->think = ReturnToPos2;
-			ent->nextthink = level.time + ent->wait;
+			ent->nextthink = G_TCEReachedDelay( level.time, ent->wait );
 		}
 
 		// fire targets
@@ -1229,11 +1277,12 @@ void Use_TrinaryMover( gentity_t *ent, gentity_t *other, gentity_t *activator ) 
 	int		total;
 	int		partial;
 	qboolean isblocked = qfalse;
+	unsigned int trinaryWaitBits;
 
 	isblocked = IsBinaryMoverBlocked ( ent, other, activator);
 
 	if ( isblocked ) {
-		MatchTeamReverseAngleOnSlaves( ent, MOVER_1TO2ROTATE, level.time + 50 );
+		MatchTeamReverseAngleOnSlaves( ent, MOVER_1TO2ROTATE, (int)((unsigned int)level.time + 50u) );
 	
 		// starting sound
 		G_AddEvent( ent, EV_GENERAL_SOUND, ent->sound1to2 );
@@ -1260,7 +1309,7 @@ void Use_TrinaryMover( gentity_t *ent, gentity_t *other, gentity_t *activator ) 
 
 		// start moving 50 msec later, becase if this was player
 		// triggered, level.time hasn't been advanced yet
-		MatchTeam( ent, MOVER_1TO2, level.time + 50 );
+		MatchTeam( ent, MOVER_1TO2, (int)((unsigned int)level.time + 50u) );
 		
 		// starting sound
 		G_AddEvent( ent, EV_GENERAL_SOUND, ent->sound1to2 );
@@ -1279,7 +1328,7 @@ void Use_TrinaryMover( gentity_t *ent, gentity_t *other, gentity_t *activator ) 
 
 		// start moving 50 msec later, becase if this was player
 		// triggered, level.time hasn't been advanced yet
-		MatchTeam( ent, MOVER_2TO3, level.time + 50 );
+		MatchTeam( ent, MOVER_2TO3, (int)((unsigned int)level.time + 50u) );
 		
 		// starting sound
 		G_AddEvent( ent, EV_GENERAL_SOUND, ent->sound2to3 );
@@ -1292,20 +1341,21 @@ void Use_TrinaryMover( gentity_t *ent, gentity_t *other, gentity_t *activator ) 
 
 	// if all the way up, just delay before coming down
 	if ( ent->moverState == MOVER_POS3 ) {
-		if (ent->wait != -1000)
-			ent->nextthink = level.time + ent->wait;
+		memcpy(&trinaryWaitBits, &ent->wait, sizeof(trinaryWaitBits));
+		if (trinaryWaitBits != 0xc47a0000u)
+			ent->nextthink = G_TCEReachedDelay(level.time, ent->wait);
 		return;
 	}
 
 	// only partway down before reversing
 	if ( ent->moverState == MOVER_2TO1 ) {
 		total = ent->s.pos.trDuration;
-		partial = level.time - ent->s.time;
+		partial = (int)((unsigned int)level.time - (unsigned int)ent->s.time);
 		if ( partial > total ) {
 			partial = total;
 		}
 
-		MatchTeam( ent, MOVER_1TO2, level.time - ( total - partial ) );
+		MatchTeam( ent, MOVER_1TO2, (int)((unsigned int)level.time - (unsigned int)total + (unsigned int)partial) );
 
 		G_AddEvent( ent, EV_GENERAL_SOUND, ent->sound1to2 );
 		return;
@@ -1313,12 +1363,12 @@ void Use_TrinaryMover( gentity_t *ent, gentity_t *other, gentity_t *activator ) 
 
 	if ( ent->moverState == MOVER_3TO2 ) {
 		total = ent->s.pos.trDuration;
-		partial = level.time - ent->s.time;
+		partial = (int)((unsigned int)level.time - (unsigned int)ent->s.time);
 		if ( partial > total ) {
 			partial = total;
 		}
 
-		MatchTeam( ent, MOVER_2TO3, level.time - ( total - partial ) );
+		MatchTeam( ent, MOVER_2TO3, (int)((unsigned int)level.time - (unsigned int)total + (unsigned int)partial) );
 
 		G_AddEvent( ent, EV_GENERAL_SOUND, ent->sound2to3 );
 		return;
@@ -1327,12 +1377,12 @@ void Use_TrinaryMover( gentity_t *ent, gentity_t *other, gentity_t *activator ) 
 	// only partway up before reversing
 	if ( ent->moverState == MOVER_1TO2 ) {
 		total = ent->s.pos.trDuration;
-		partial = level.time - ent->s.time;
+		partial = (int)((unsigned int)level.time - (unsigned int)ent->s.time);
 		if ( partial > total ) {
 			partial = total;
 		}
 
-		MatchTeam( ent, MOVER_2TO1, level.time - ( total - partial ) );
+		MatchTeam( ent, MOVER_2TO1, (int)((unsigned int)level.time - (unsigned int)total + (unsigned int)partial) );
 
 		if(ent->flags & FL_SOFTACTIVATE)
 			G_AddEvent( ent, EV_GENERAL_SOUND, ent->soundSoftclose );
@@ -1343,12 +1393,12 @@ void Use_TrinaryMover( gentity_t *ent, gentity_t *other, gentity_t *activator ) 
 
 	if ( ent->moverState == MOVER_2TO3 ) {
 		total = ent->s.pos.trDuration;
-		partial = level.time - ent->s.time;
+		partial = (int)((unsigned int)level.time - (unsigned int)ent->s.time);
 		if ( partial > total ) {
 			partial = total;
 		}
 
-		MatchTeam( ent, MOVER_3TO2, level.time - ( total - partial ) );
+		MatchTeam( ent, MOVER_3TO2, (int)((unsigned int)level.time - (unsigned int)total + (unsigned int)partial) );
 
 		G_AddEvent( ent, EV_GENERAL_SOUND, ent->sound3to2 );
 		return;
@@ -1380,6 +1430,11 @@ void Use_BinaryMover( gentity_t *ent, gentity_t *other, gentity_t *activator ) {
 		Use_BinaryMover( ent->teammaster, other, activator );
 		return;
 	}
+
+	/* TC suppresses start/loop/reversal sounds for soft activation too.
+	 * Capture this before the mover callbacks can change activation flags. */
+	if (ent->flags & FL_SOFTACTIVATE)
+		nosound = qtrue;
 
 	// only check for blocking when opening, otherwise the door has no choice
 	if(ent->moverState == MOVER_POS1 || ent->moverState == MOVER_POS1ROTATE)
@@ -1562,7 +1617,7 @@ so the movement delta can be calculated
 */
 void InitMover( gentity_t *ent ) {
 	vec3_t		move;
-	float		distance;
+	double		distance;
 
 	// if the "model2" key is set, use a seperate model
 	// for drawing, but clip against the brushes
@@ -1600,7 +1655,10 @@ void InitMover( gentity_t *ent ) {
 
 	// calculate time to reach second position from speed
 	VectorSubtract( ent->pos2, ent->pos1, move );
-	distance = VectorLength( move );
+	/* TC 200701d1 retains VectorLength's x87 result through duration
+	 * conversion, rather than rounding the distance to a float first. */
+	distance = sqrt( ((double)move[0] * move[0] +
+		(double)move[1] * move[1]) + (double)move[2] * move[2] );
 	if ( ! ent->speed ) {
 		ent->speed = 100;
 	}
@@ -1777,6 +1835,49 @@ static void Touch_DoorTriggerSpectator( gentity_t *ent, gentity_t *other, trace_
 
 	axis = ent->count;
 	VectorClear(dir);
+#if defined(_MSC_VER) && defined(_M_IX86)
+	{
+		float *doorPoint = &other->s.origin[axis];
+		float *doorMin = &ent->r.absmin[axis];
+		float *doorMax = &ent->r.absmax[axis];
+		float *doorDestination = &origin[axis];
+		float doorMargin = 10.0f;
+		unsigned short doorSideStatus;
+		__asm {
+			mov ecx, doorPoint
+			mov edx, doorMax
+			fld dword ptr [ecx]
+			fsub dword ptr [edx]
+			fabs
+			mov edx, doorMin
+			fld dword ptr [ecx]
+			fsub dword ptr [edx]
+			fabs
+			fcompp
+			fnstsw ax
+			mov doorSideStatus, ax
+		}
+		if (!(doorSideStatus & 0x4100)) {
+			dir[axis] = -1.0f;
+			__asm {
+				mov ecx, doorMin
+				mov edx, doorDestination
+				fld dword ptr [ecx]
+				fsub doorMargin
+				fstp dword ptr [edx]
+			}
+		} else {
+			dir[axis] = 1.0f;
+			__asm {
+				mov ecx, doorMax
+				mov edx, doorDestination
+				fld dword ptr [ecx]
+				fadd doorMargin
+				fstp dword ptr [edx]
+			}
+		}
+	}
+#else
 	if (fabs(other->s.origin[axis] - ent->r.absmax[axis]) <
 		fabs(other->s.origin[axis] - ent->r.absmin[axis])) {
 		origin[axis] = ent->r.absmin[axis] - 10;
@@ -1786,9 +1887,28 @@ static void Touch_DoorTriggerSpectator( gentity_t *ent, gentity_t *other, trace_
 		origin[axis] = ent->r.absmax[axis] + 10;
 		dir[axis] = 1;
 	}
+#endif
 	for (i = 0; i < 3; i++) {
 		if (i == axis) continue;
+#if defined(_MSC_VER) && defined(_M_IX86)
+		{
+			float *doorMin = &ent->r.absmin[i];
+			float *doorMax = &ent->r.absmax[i];
+			float *doorDestination = &origin[i];
+			double doorHalf = 0.5;
+			__asm {
+				mov ecx, doorMax
+				fld dword ptr [ecx]
+				mov ecx, doorMin
+				fadd dword ptr [ecx]
+				fmul qword ptr doorHalf
+				mov ecx, doorDestination
+				fstp dword ptr [ecx]
+			}
+		}
+#else
 		origin[i] = (ent->r.absmin[i] + ent->r.absmax[i]) * 0.5;
+#endif
 	}
 	vectoangles(dir, angles);
 	TeleportPlayer(other, origin, angles );
@@ -1938,7 +2058,8 @@ qboolean findNonAIBrushTargeter(gentity_t *ent)
 	while ((targeter = G_Find (targeter, FOFS(target), ent->targetname)) != NULL)
 	{
 		if (strcmp(targeter->classname,"trigger_aidoor") && 
-			Q_stricmp (targeter->classname, "func_invisible_user") )
+			Q_stricmp (targeter->classname, "func_invisible_user") &&
+			Q_stricmp (targeter->classname, "func_obj_use") )
 			return qtrue;
 	}
 
@@ -2075,6 +2196,7 @@ G_TryDoor
 */
 void G_TryDoor(gentity_t *ent, gentity_t *other, gentity_t *activator){
 	qboolean	walking = qfalse;
+	qboolean kicked = (qboolean)(ent->flags & FL_KICKACTIVATE);
 
 	walking = (qboolean)(ent->flags & FL_SOFTACTIVATE);
 
@@ -2116,6 +2238,9 @@ void G_TryDoor(gentity_t *ent, gentity_t *other, gentity_t *activator){
 				if(walking) {
 					ent->teammaster->flags |= FL_SOFTACTIVATE;		// no noise generated
 				}
+				else if (kicked) {
+					ent->teammaster->flags |= FL_KICKACTIVATE;
+				}
 				else {
 //					if(activator)
 //						AICast_AudibleEvent( activator->s.clientNum, ent->s.origin, HEAR_RANGE_DOOR_OPEN );	// "someone opened door near me!"
@@ -2129,6 +2254,9 @@ void G_TryDoor(gentity_t *ent, gentity_t *other, gentity_t *activator){
 				ent->active = qtrue;
 				if(walking) {
 					ent->flags |= FL_SOFTACTIVATE;		// no noise
+				}
+				else if (kicked) {
+					ent->flags |= FL_KICKACTIVATE;
 				}
 				else {
 //					if(activator)
@@ -2493,6 +2621,68 @@ void SpawnPlatTrigger( gentity_t *ent ) {
 	trigger->r.contents = CONTENTS_TRIGGER;
 	trigger->parent = ent;
 	
+#if defined(_MSC_VER) && defined(_M_IX86)
+	{
+		float *platMins = ent->r.mins, *platMaxs = ent->r.maxs, *platPos = ent->pos1;
+		const float platInset = 33.0f, platHeight = 8.0f, platOne = 1.0f;
+		const double platHalf = 0.5;
+		/* TC200715e8..6c6: Y endpoints stay on the x87 stack. */
+		__asm {
+			mov esi, platMins
+			mov edi, platMaxs
+			mov ecx, platPos
+			fld dword ptr [esi]
+			fadd dword ptr [ecx]
+			fadd platInset
+			fstp dword ptr tmin[0]
+			fld dword ptr [esi+4]
+			fadd dword ptr [ecx+4]
+			fadd platInset
+			fld dword ptr [esi+8]
+			fadd dword ptr [ecx+8]
+			fstp dword ptr tmin[8]
+			fld dword ptr [ecx]
+			fadd dword ptr [edi]
+			fsub platInset
+			fstp dword ptr tmax[0]
+			fld dword ptr [ecx+4]
+			fadd dword ptr [edi+4]
+			fsub platInset
+			fst dword ptr tmax[4]
+			fld dword ptr [edi+8]
+			fadd dword ptr [ecx+8]
+			fadd platHeight
+			fstp dword ptr tmax[8]
+			fld dword ptr tmax[0]
+			fcomp dword ptr tmin[0]
+			fnstsw ax
+			test ah, 41h
+			jz plat_x_ready
+			fld dword ptr [esi]
+			fadd dword ptr [edi]
+			fmul platHalf
+			fadd dword ptr [ecx]
+			fst dword ptr tmin[0]
+			fadd platOne
+			fstp dword ptr tmax[0]
+		plat_x_ready:
+			fcomp st(1)
+			fnstsw ax
+			test ah, 41h
+			jz plat_y_ready
+			fstp st(0)
+			fld dword ptr [esi+4]
+			fadd dword ptr [edi+4]
+			fmul platHalf
+			fadd dword ptr [ecx+4]
+			fld st(0)
+			fadd platOne
+			fstp dword ptr tmax[4]
+		plat_y_ready:
+			fstp dword ptr tmin[4]
+		}
+	}
+#else
 	tmin[0] = ent->pos1[0] + ent->r.mins[0] + 33;
 	tmin[1] = ent->pos1[1] + ent->r.mins[1] + 33;
 	tmin[2] = ent->pos1[2] + ent->r.mins[2];
@@ -2509,6 +2699,7 @@ void SpawnPlatTrigger( gentity_t *ent ) {
 		tmin[1] = ent->pos1[1] + (ent->r.mins[1] + ent->r.maxs[1]) *0.5;
 		tmax[1] = tmin[1] + 1;
 	}
+#endif
 	
 	VectorCopy (tmin, trigger->r.mins);
 	VectorCopy (tmax, trigger->r.maxs);
@@ -2547,7 +2738,19 @@ void SP_func_plat (gentity_t *ent) {
 	trap_SetBrushModel( ent, ent->model );
 
 	if ( !G_SpawnFloat( "height", "0", &height ) ) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+		float *platTop = &ent->r.maxs[2], *platBottom = &ent->r.mins[2];
+		__asm {
+			mov ecx, platTop
+			fld dword ptr [ecx]
+			mov ecx, platBottom
+			fsub dword ptr [ecx]
+			fsub dword ptr lip
+			fstp dword ptr height
+		}
+#else
 		height = (ent->r.maxs[2] - ent->r.mins[2]) - lip;
+#endif
 	}
 
 	// pos1 is the rest (bottom) position, pos2 is the top
@@ -2690,7 +2893,9 @@ void Reached_Train( gentity_t *ent ) {
 	gentity_t		*next;
 	float			speed;
 	vec3_t			move;
-	float			length;
+	float			trainLength;
+	int trainHasWait;
+	unsigned int trainWaitBits;
 
 	// copy the apropriate values
 	next = ent->nextTrain;
@@ -2699,7 +2904,8 @@ void Reached_Train( gentity_t *ent ) {
 	}
 	
 	// Rafael
-	if (next->wait == -1 && next->count)
+	memcpy(&trainWaitBits, &next->wait, sizeof(trainWaitBits));
+	if (trainWaitBits == 0xbf800000u && next->count)
 		return;
 
 	// fire all other targets
@@ -2708,13 +2914,38 @@ void Reached_Train( gentity_t *ent ) {
 	// set the new trajectory
 	ent->nextTrain = next->nextTrain;
 
-	if (next->wait == -1)
+	memcpy(&trainWaitBits, &next->wait, sizeof(trainWaitBits));
+	if (trainWaitBits == 0xbf800000u)
 		next->count = 1;
 
 	VectorCopy( next->s.origin, ent->pos1 );
 	VectorCopy( next->nextTrain->s.origin, ent->pos2 );
 
 	// if the path_corner has a speed, use that
+#if defined(_MSC_VER) && defined(_M_IX86)
+	{
+		float *trainCornerSpeed = &next->speed, *trainBaseSpeed = &ent->speed;
+		const float trainZero = 0.0f, trainOne = 1.0f;
+		__asm {
+			mov ecx, trainCornerSpeed
+			fld dword ptr [ecx]
+			fcomp trainZero
+			fnstsw ax
+			test ah, 40h
+			jz train_use_corner
+			mov ecx, trainBaseSpeed
+		train_use_corner:
+			fld dword ptr [ecx]
+			fst speed
+			fcomp trainOne
+			fnstsw ax
+			test ah, 1
+			jz train_speed_ready
+			mov dword ptr speed, 03f800000h
+		train_speed_ready:
+		}
+	}
+#else
 	if ( next->speed ) {
 		speed = next->speed;
 	} else {
@@ -2724,12 +2955,41 @@ void Reached_Train( gentity_t *ent ) {
 	if ( speed < 1 ) {
 		speed = 1;
 	}
+#endif
 
 	// calculate duration
 	VectorSubtract( ent->pos2, ent->pos1, move );
-	length = VectorLength( move );
-
-	ent->s.pos.trDuration = length * 1000 / speed;
+#if defined(_MSC_VER) && defined(_M_IX86)
+	{
+		float *trainMove = move;
+		const float trainMilliseconds = 1000.0f;
+		unsigned short trainCW, trainTruncCW;
+		__int64 trainInteger;
+		int trainDuration;
+		__asm {
+			push trainMove
+			call VectorLength
+			add esp, 4
+			fmul trainMilliseconds
+			fdiv speed
+			fwait
+			fnstcw trainCW
+			fwait
+			mov ax, trainCW
+			or ax, 0c00h
+			mov trainTruncCW, ax
+			fldcw trainTruncCW
+			fistp qword ptr trainInteger
+			fldcw trainCW
+			mov eax, dword ptr trainInteger
+			mov trainDuration, eax
+		}
+		ent->s.pos.trDuration = trainDuration;
+	}
+#else
+	trainLength = VectorLength( move );
+	ent->s.pos.trDuration = trainLength * 1000 / speed;
+#endif
 	ent->gDuration = ent->s.pos.trDuration;
 
 	// looping sound
@@ -2739,9 +2999,52 @@ void Reached_Train( gentity_t *ent ) {
 	SetMoverState( ent, MOVER_1TO2, level.time );
 
 	// if there is a "wait" value on the target, don't start moving yet
-	if ( next->wait )
+	/* Original C3-only zero gate excludes unordered waits as well. */
+#if defined(_MSC_VER) && defined(_M_IX86)
 	{
+		float *trainWait = &next->wait;
+		const float trainZero = 0.0f;
+		unsigned short trainStatus;
+		__asm {
+			mov ecx, trainWait
+			fld dword ptr [ecx]
+			fcomp trainZero
+			fnstsw trainStatus
+		}
+		trainHasWait = !(trainStatus & 0x4000);
+	}
+#else
+	trainHasWait = next->wait < 0.0f || next->wait > 0.0f;
+#endif
+	if ( trainHasWait )
+	{
+#if defined(_MSC_VER) && defined(_M_IX86)
+		float *trainWait = &next->wait;
+		const float trainMilliseconds = 1000.0f;
+		int trainNow = level.time, trainNextThink;
+		unsigned short trainCW, trainTruncCW;
+		__int64 trainInteger;
+		__asm {
+			mov ecx, trainWait
+			fld dword ptr [ecx]
+			fmul trainMilliseconds
+			fiadd trainNow
+			fwait
+			fnstcw trainCW
+			fwait
+			mov ax, trainCW
+			or ax, 0c00h
+			mov trainTruncCW, ax
+			fldcw trainTruncCW
+			fistp qword ptr trainInteger
+			fldcw trainCW
+			mov eax, dword ptr trainInteger
+			mov trainNextThink, eax
+		}
+		ent->nextthink = trainNextThink;
+#else
 		ent->nextthink = level.time + next->wait * 1000;
+#endif
 		ent->think = Think_BeginMoving;
 		ent->s.pos.trType = TR_STATIONARY;
 	}
@@ -2984,6 +3287,7 @@ The train spawns at the first target it is pointing at.
 "light"		constantLight radius
 */
 void SP_func_train (gentity_t *self) {
+	int trainDefaultSpeed;
 	VectorClear (self->s.angles);
 
 	if (self->spawnflags & TRAIN_BLOCK_STOPS) {
@@ -2995,7 +3299,23 @@ void SP_func_train (gentity_t *self) {
 		}
 	}
 
-	if ( !self->speed ) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+	{
+		float *trainSpeed = &self->speed;
+		const float trainZero = 0.0f;
+		unsigned short trainStatus;
+		__asm {
+			mov ecx, trainSpeed
+			fld dword ptr [ecx]
+			fcomp trainZero
+			fnstsw trainStatus
+		}
+		trainDefaultSpeed = (trainStatus & 0x4000) != 0;
+	}
+#else
+	trainDefaultSpeed = !(self->speed < 0.0f || self->speed > 0.0f);
+#endif
+	if ( trainDefaultSpeed ) {
 		self->speed = 100;
 	}
 
@@ -3041,8 +3361,13 @@ void Reached_Train_rotating( gentity_t *ent ) {
 	gentity_t		*next;
 	float			speed;
 	vec3_t			move;
-	float			length;
+	int trainHasWait;
+#if defined(_MSC_VER) && defined(_M_IX86)
+	unsigned char rotateFrames80[10];
+#else
+	float			trainLength;
 	float			frames;
+#endif
 
 	// copy the apropriate values
 	next = ent->nextTrain;
@@ -3058,7 +3383,30 @@ void Reached_Train_rotating( gentity_t *ent ) {
 	VectorCopy( next->s.origin, ent->pos1 );
 	VectorCopy( next->nextTrain->s.origin, ent->pos2 );
 
-	// if the path_corner has a speed, use that
+#if defined(_MSC_VER) && defined(_M_IX86)
+	{
+		float *trainCornerSpeed = &next->speed, *trainBaseSpeed = &ent->speed;
+		const float trainZero = 0.0f, trainOne = 1.0f;
+		__asm {
+			mov ecx, trainCornerSpeed
+			fld dword ptr [ecx]
+			fcomp trainZero
+			fnstsw ax
+			test ah, 40h
+			jz rotate_use_corner
+			mov ecx, trainBaseSpeed
+		rotate_use_corner:
+			fld dword ptr [ecx]
+			fst speed
+			fcomp trainOne
+			fnstsw ax
+			test ah, 1
+			jz rotate_speed_ready
+			mov dword ptr speed, 03f800000h
+		rotate_speed_ready:
+		}
+	}
+#else
 	if ( next->speed ) {
 		speed = next->speed;
 	} else {
@@ -3068,6 +3416,7 @@ void Reached_Train_rotating( gentity_t *ent ) {
 	if ( speed < 1 ) {
 		speed = 1;
 	}
+#endif
 	
 	ent->rotate[0] = next->rotate[2];
 	ent->rotate[1] = next->rotate[0];
@@ -3075,18 +3424,77 @@ void Reached_Train_rotating( gentity_t *ent ) {
 
 	// calculate duration
 	VectorSubtract( ent->pos2, ent->pos1, move );
-	length = VectorLength( move );
+#if defined(_MSC_VER) && defined(_M_IX86)
+	{
+		float *trainMove = move;
+		float *rotateDuration = &next->duration;
+		const float rotateZero = 0.0f;
+		const float trainMilliseconds = 1000.0f;
+		unsigned short trainCW, trainTruncCW;
+		__int64 trainInteger;
+		int trainDuration;
+		__asm {
+			push trainMove
+			call VectorLength
+			add esp, 4
+			mov ecx, rotateDuration
+			fld dword ptr [ecx]
+			fcomp rotateZero
+			fnstsw ax
+			test ah, 40h
+			jnz rotate_use_distance
+			fstp st(0)
+			fld dword ptr [ecx]
+			fmul trainMilliseconds
+			jmp rotate_duration_ready
+		rotate_use_distance:
+			fmul trainMilliseconds
+			fdiv speed
+		rotate_duration_ready:
+			fwait
+			fnstcw trainCW
+			fwait
+			mov ax, trainCW
+			or ax, 0c00h
+			mov trainTruncCW, ax
+			fldcw trainTruncCW
+			fistp qword ptr trainInteger
+			fldcw trainCW
+			mov eax, dword ptr trainInteger
+			mov trainDuration, eax
+		}
+		ent->s.pos.trDuration = trainDuration;
+	}
+#else
+	trainLength = VectorLength( move );
+	ent->s.pos.trDuration = next->duration ? next->duration * 1000 : trainLength * 1000 / speed;
+#endif
 
-	if (next->duration)
-		ent->s.pos.trDuration = (next->duration * 1000);	
-	else	
-		ent->s.pos.trDuration = length * 1000 / speed;
-
-	// Rotate the train
+#if defined(_MSC_VER) && defined(_M_IX86)
+	{
+		int rotateFrameInteger = ent->s.pos.trDuration / 100;
+		const float rotateZero = 0.0f, rotateMinimum = 0.001f;
+		double (__cdecl *rotateFloorCall)(double) = floor;
+		__asm {
+			sub esp, 8
+			fild rotateFrameInteger
+			fstp qword ptr [esp]
+			call dword ptr rotateFloorCall
+			add esp, 8
+			fcom rotateZero
+			fnstsw ax
+			test ah, 40h
+			jz rotate_frames_ready
+			fstp st(0)
+			fld rotateMinimum
+		rotate_frames_ready:
+			fstp tbyte ptr rotateFrames80
+		}
+	}
+#else
 	frames = floor(ent->s.pos.trDuration / 100);
-
-	if (!frames)
-		frames = 0.001;
+	if (!frames) frames = 0.001f;
+#endif
 	
 	ent->s.apos.trType = TR_LINEAR;
 
@@ -3103,6 +3511,36 @@ void Reached_Train_rotating( gentity_t *ent ) {
 	//G_Printf( "Add  X  Y  X %s\n",
 	//			vtos(ent->rotate) );
 	
+#if defined(_MSC_VER) && defined(_M_IX86)
+	{
+		int rotateIndex;
+		const float rotateZero = 0.0f, rotateTen = 10.0f;
+		for (rotateIndex = 0; rotateIndex < 3; ++rotateIndex) {
+			int rotateAxis = (rotateIndex + 2) % 3;
+			float *rotateValue = &ent->rotate[rotateAxis];
+			float *rotateDelta = &ent->s.apos.trDelta[rotateAxis];
+			__asm {
+				fld tbyte ptr rotateFrames80
+				mov ecx, rotateValue
+				mov edx, rotateDelta
+				fld dword ptr [ecx]
+				fcomp rotateZero
+				fnstsw ax
+				test ah, 40h
+				jnz rotate_axis_zero
+				fld dword ptr [ecx]
+				fdiv st(0), st(1)
+				fmul rotateTen
+				fstp dword ptr [edx]
+				jmp rotate_axis_done
+			rotate_axis_zero:
+				mov dword ptr [edx], 0
+			rotate_axis_done:
+				fstp st(0)
+			}
+		}
+	}
+#else
 	// X
 	if (ent->rotate[2])
 		ent->s.apos.trDelta[2] = (ent->rotate[2] / frames)*10;
@@ -3119,6 +3557,7 @@ void Reached_Train_rotating( gentity_t *ent ) {
 	else
 		ent->s.apos.trDelta[1] = 0;	
 
+#endif
 	// looping sound
 	ent->s.loopSound = next->soundLoop;
 
@@ -3134,12 +3573,57 @@ void Reached_Train_rotating( gentity_t *ent ) {
 	SetMoverState( ent, MOVER_1TO2, level.time );
 	
 	// if there is a "wait" value on the target, don't start moving yet
-	if ( next->wait ) {
+	/* Original C3-only zero gate excludes unordered waits as well. */
+#if defined(_MSC_VER) && defined(_M_IX86)
+	{
+		float *trainWait = &next->wait;
+		const float trainZero = 0.0f;
+		unsigned short trainStatus;
+		__asm {
+			mov ecx, trainWait
+			fld dword ptr [ecx]
+			fcomp trainZero
+			fnstsw trainStatus
+		}
+		trainHasWait = !(trainStatus & 0x4000);
+	}
+#else
+	trainHasWait = next->wait < 0.0f || next->wait > 0.0f;
+#endif
+	if ( trainHasWait )
+	{
+#if defined(_MSC_VER) && defined(_M_IX86)
+		float *trainWait = &next->wait;
+		const float trainMilliseconds = 1000.0f;
+		int trainNow = level.time, trainNextThink;
+		unsigned short trainCW, trainTruncCW;
+		__int64 trainInteger;
+		__asm {
+			mov ecx, trainWait
+			fld dword ptr [ecx]
+			fmul trainMilliseconds
+			fiadd trainNow
+			fwait
+			fnstcw trainCW
+			fwait
+			mov ax, trainCW
+			or ax, 0c00h
+			mov trainTruncCW, ax
+			fldcw trainTruncCW
+			fistp qword ptr trainInteger
+			fldcw trainCW
+			mov eax, dword ptr trainInteger
+			mov trainNextThink, eax
+		}
+		ent->nextthink = trainNextThink;
+#else
 		ent->nextthink = level.time + next->wait * 1000;
-		ent->think = Think_BeginMoving_rotating;
+#endif
+		ent->think = Think_BeginMoving;
 		ent->s.pos.trType = TR_STATIONARY;
 	}
 }
+
 
 /*
 ===============
@@ -3216,6 +3700,7 @@ duration duration for angle change (overrides speed)
 */
 
 void SP_func_train_rotating (gentity_t *self) {
+	int trainDefaultSpeed;
 	VectorClear (self->s.angles);
 
 	if (self->spawnflags & TRAIN_BLOCK_STOPS) {
@@ -3226,9 +3711,26 @@ void SP_func_train_rotating (gentity_t *self) {
 		}
 	}
 
-	if ( !self->speed ) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+	{
+		float *trainSpeed = &self->speed;
+		const float trainZero = 0.0f;
+		unsigned short trainStatus;
+		__asm {
+			mov ecx, trainSpeed
+			fld dword ptr [ecx]
+			fcomp trainZero
+			fnstsw trainStatus
+		}
+		trainDefaultSpeed = (trainStatus & 0x4000) != 0;
+	}
+#else
+	trainDefaultSpeed = !(self->speed < 0.0f || self->speed > 0.0f);
+#endif
+	if ( trainDefaultSpeed ) {
 		self->speed = 100;
 	}
+
 
 	if ( !self->target ) {
 		G_Printf ("func_train without a target at %s\n", vtos(self->r.absmin));
@@ -3876,16 +4378,79 @@ void func_explosive_explode(gentity_t *self, gentity_t *inflictor, gentity_t *at
 	self->think = BecomeExplosion;
 	self->nextthink = level.time + FRAMETIME;
 
+#if defined(_MSC_VER) && defined(_M_IX86)
+	{
+		float *explosiveMin = self->r.absmin;
+		float *explosiveMax = self->r.absmax;
+		float *explosiveBase = self->s.pos.trBase;
+		float explosiveY, explosiveZ, explosiveCenterY, explosiveCenterZ;
+		double explosiveHalf = 0.5;
+		__asm {
+			mov ecx, explosiveMax
+			mov edx, explosiveMin
+			fld dword ptr [ecx]
+			fsub dword ptr [edx]
+			fld dword ptr [ecx+4]
+			fsub dword ptr [edx+4]
+			fstp explosiveY
+			fld dword ptr [ecx+8]
+			fsub dword ptr [edx+8]
+			fstp explosiveZ
+			fmul qword ptr explosiveHalf
+			fld explosiveY
+			fmul qword ptr explosiveHalf
+			fstp explosiveY
+			fld explosiveZ
+			fmul qword ptr explosiveHalf
+			fstp explosiveZ
+			fadd dword ptr [edx]
+			fld explosiveY
+			fadd dword ptr [edx+4]
+			fstp explosiveCenterY
+			fld explosiveZ
+			fadd dword ptr [edx+8]
+			mov ecx, explosiveBase
+			mov eax, explosiveCenterY
+			mov dword ptr [ecx+4], eax
+			fstp explosiveCenterZ
+			fstp dword ptr [ecx]
+			mov eax, explosiveCenterZ
+			mov dword ptr [ecx+8], eax
+		}
+	}
+#else
 	VectorSubtract(self->r.absmax, self->r.absmin, size);
 	VectorScale (size, 0.5, size);
 	VectorAdd (self->r.absmin, size, origin);
 
 	VectorCopy(origin, self->s.pos.trBase);
+#endif
 
 	G_UseTargets (self, attacker);
 
 	self->s.density = self->count;		// pass the "mass" to the client
+#if defined(_MSC_VER) && defined(_M_IX86)
+	{
+		float explosiveDuration = self->duration;
+		unsigned short explosiveCW, explosiveTruncCW;
+		__int64 explosiveTicks;
+		__asm {
+			fld explosiveDuration
+			fwait
+			fnstcw explosiveCW
+			fwait
+			mov ax, explosiveCW
+			or ax, 0c00h
+			mov explosiveTruncCW, ax
+			fldcw explosiveTruncCW
+			fistp qword ptr explosiveTicks
+			fldcw explosiveCW
+		}
+		self->s.weapon = (int)explosiveTicks;
+	}
+#else
 	self->s.weapon = self->duration;	// pass the "force lowgrav" to client
+#endif
 	self->s.frame = self->key;			// pass the type to the client ("glass", "wood", "metal", "gibs", "brick", "stone", "fabric", 0, 1, 2, 3, 4, 5, 6)
 
 	if(self->damage)
@@ -3916,7 +4481,20 @@ void func_explosive_explode(gentity_t *self, gentity_t *inflictor, gentity_t *at
 
 	// if a valid target entity was not found, check for a specified 'angle' for the explosion direction
 	if(!tent) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+		float explosiveYaw = self->s.angles[1];
+		float explosiveZero = 0.0f;
+		unsigned short explosiveYawStatus;
+		__asm {
+			fld explosiveYaw
+			fcomp explosiveZero
+			fnstsw ax
+			mov explosiveYawStatus, ax
+		}
+		if (!(explosiveYawStatus & 0x4000)) {
+#else
 		if(self->s.angles[1]) {
+#endif
 			// up
 			if(self->s.angles[1] == -1)
 			{
@@ -4520,7 +5098,24 @@ void func_constructible_use( gentity_t *self, gentity_t *other, gentity_t *activ
 	// relink the objective info to get our indicator back
 	if( self->parent ) {
 		trap_LinkEntity( self->parent );
-		if( self->s.angles2[1] ) {
+		/* TC2007443b tests x87 C3 only: unordered follows the zero branch. */
+		{
+			int constructibleStageNonzero;
+#if defined(_MSC_VER) && defined(_M_IX86)
+			float *constructibleStage = &self->s.angles2[1];
+			const float constructibleZero = 0.0f;
+			unsigned short constructibleStatus;
+			__asm {
+				mov ecx, constructibleStage
+				fld dword ptr [ecx]
+				fcomp constructibleZero
+				fnstsw constructibleStatus
+			}
+			constructibleStageNonzero = !(constructibleStatus & 0x4000);
+#else
+			constructibleStageNonzero = self->s.angles2[1] < 0.0f || self->s.angles2[1] > 0.0f;
+#endif
+		if( constructibleStageNonzero ) {
 			self->s.angles2[1] = 0;	// Think_SetupObjectiveInfo needs it
 			Think_SetupObjectiveInfo( self->parent );
 		} else {
@@ -4531,6 +5126,7 @@ void func_constructible_use( gentity_t *self, gentity_t *other, gentity_t *activ
 
 				indicator->s.teamNum = 3;
 			}
+		}
 		}
 
 	} else {
@@ -4570,6 +5166,38 @@ void func_constructible_spawn( gentity_t *self, gentity_t *other, gentity_t *act
 func_constructible_explode
 ==============
 */
+/* TC200744ff/20074528: C3, not C truthiness (unordered follows zero). */
+static qboolean G_TCEConstructibleDeathGate( gentity_t *self, qboolean resetProgress ) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+	float *completionValue = &self->s.angles2[1];
+	float *progressValue = &self->s.angles2[0];
+	const float completionZero = 0.0f;
+	unsigned short completionStatus;
+	if (resetProgress) {
+		__asm {
+			mov eax, completionValue
+			fld dword ptr [eax]
+			fcomp completionZero
+			mov eax, progressValue
+			mov dword ptr [eax], 0
+			fnstsw completionStatus
+		}
+	} else {
+		__asm {
+			mov eax, completionValue
+			fld dword ptr [eax]
+			fcomp completionZero
+			fnstsw completionStatus
+		}
+	}
+	return (completionStatus & 0x4000u) == 0;
+#else
+	qboolean completed = self->s.angles2[1] != 0.0f;
+	if (resetProgress) self->s.angles2[0] = 0.0f;
+	return completed;
+#endif
+}
+
 void func_constructible_explode( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int mod )
 {
 	if( self->desstages ) {
@@ -4579,15 +5207,13 @@ void func_constructible_explode( gentity_t *self, gentity_t *inflictor, gentity_
 			int entityList[MAX_GENTITIES];
 			gentity_t *check, *block;
 
-			self->s.angles2[0] = 0;
-
-			if( self->s.angles2[1] ) {
+			if( G_TCEConstructibleDeathGate(self, qtrue) ) {
 
 				// relink the objective info to get our indicator back
 				if( self->parent ) {
 					trap_LinkEntity( self->parent );
 					//if( self->s.angles2[1] ) {
-					if( self->s.angles2[1] ) {
+					if( G_TCEConstructibleDeathGate(self, qfalse) ) {
 						self->s.angles2[1] = 0;	// Think_SetupObjectiveInfo needs it
 						Think_SetupObjectiveInfo( self->parent );
 					}
@@ -4608,7 +5234,7 @@ void func_constructible_explode( gentity_t *self, gentity_t *inflictor, gentity_
 				}
 			}
 
-			self->grenadeFired--;
+			self->grenadeFired = (int)((unsigned int)self->grenadeFired - 1u);
 
 			// backup...
 			{
@@ -4776,11 +5402,12 @@ func_constructible_underconstructionthink
 //#define CONSTRUCT_PREDECAY_TIME	3000	// if not under construction for this duration, start decaying
 #define CONSTRUCT_PREDECAY_TIME	30000	// if not under construction for this duration, start decaying
 void func_constructible_underconstructionthink( gentity_t *ent ) {
-	if( level.time - ent->lastHintCheckTime >= CONSTRUCT_PREDECAY_TIME ) {
+	if( (int)((unsigned int)level.time - (unsigned int)ent->lastHintCheckTime) >= CONSTRUCT_PREDECAY_TIME ) {
 		//ent->s.angles2[0] -= 0.5f*(255.f/(ent->wait/(float)FRAMETIME));
 		ent->s.angles2[0] = 0;	// insta-decay
 
-		if( ent->s.angles2[0] < 5 ) {
+		/* TC Windows20074a27 proceeds directly after the zero store. */
+		{
 			gentity_t *te;
 
 			// it decayed into oblivion
@@ -4805,8 +5432,8 @@ void func_constructible_underconstructionthink( gentity_t *ent ) {
 					}
 				}
 
-				ent->grenadeFired--;
 				ent->s.modelindex2 = 0;
+				ent->grenadeFired = (int)((unsigned int)ent->grenadeFired - 1u);
 				//trap_SetBrushModel( ent, va( "*%i", ent->conbmodels[ent->grenadeFired-1] ) );
 			} else {
 				// call script
@@ -4847,10 +5474,43 @@ void func_constructible_underconstructionthink( gentity_t *ent ) {
 		}
 	}
 
-	ent->nextthink = level.time + FRAMETIME;
+	ent->nextthink = (int)((unsigned int)level.time + (unsigned int)FRAMETIME);
 }
 
 extern void explosive_indicator_think( gentity_t *ent );
+
+/* TC200750b4..200750ea: __ftol64 low EAX, then signed FILD32. */
+static void G_TCEConstructibleMarkerSnap( vec3_t markerPosition ) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+	int markerAxis;
+	for (markerAxis = 0; markerAxis < 3; ++markerAxis) {
+		float *markerCoordinate = &markerPosition[markerAxis];
+		__int64 markerInteger;
+		int markerLow;
+		unsigned short markerControl, markerTruncate;
+		__asm {
+			mov eax, markerCoordinate
+			fld dword ptr [eax]
+			fwait
+			fnstcw markerControl
+			fwait
+			mov ax, markerControl
+			or ax, 0c00h
+			mov markerTruncate, ax
+			fldcw markerTruncate
+			fistp qword ptr markerInteger
+			fldcw markerControl
+			mov eax, dword ptr markerInteger
+			mov markerLow, eax
+			fild dword ptr markerLow
+			mov eax, markerCoordinate
+			fstp dword ptr [eax]
+		}
+	}
+#else
+	SnapVector(markerPosition);
+#endif
+}
 
 void func_constructiblespawn( gentity_t *ent ) {
 	// count2: the number of construction stages
@@ -5037,7 +5697,7 @@ void func_constructiblespawn( gentity_t *ent ) {
 				e->s.modelindex2 = ent->parent->s.teamNum;
 				e->r.ownerNum = ent->s.number;
 				e->think = explosive_indicator_think;
-				e->nextthink = level.time + FRAMETIME;
+				e->nextthink = (int)((unsigned int)level.time + (unsigned int)FRAMETIME);
 
 				e->s.effect1Time = ent->constructibleStats.weaponclass;
 
@@ -5050,7 +5710,7 @@ void func_constructiblespawn( gentity_t *ent ) {
 					VectorScale( e->s.pos.trBase, 0.5, e->s.pos.trBase );
 				}
 
-				SnapVector( e->s.pos.trBase );
+				G_TCEConstructibleMarkerSnap( e->s.pos.trBase );
 
 				// Gordon: are we scripted only?
 				if( !(ent->spawnflags & CONSTRUCTIBLE_AAS_SCRIPTED) ) {
@@ -5120,7 +5780,7 @@ void SP_func_constructible( gentity_t *ent ) {
 
 	memset( &ent->constructibleStats, 0, sizeof(ent->constructibleStats) );
 	G_SpawnInt( "constructible_class", "0", &i );
-	i--;	// non-coder friendlyness. Aren't we nice?
+	i = (int)((unsigned int)i - 1u);	// Original register decrement.
 	if( i > 0 && i <= NUM_CONSTRUCTIBLE_CLASSES ) {
 		ent->constructibleStats = g_constructible_classes[i];
 
@@ -5138,13 +5798,14 @@ void SP_func_constructible( gentity_t *ent ) {
 		G_SpawnInt( "constructible_weaponclass", "0", &ent->constructibleStats.weaponclass );
 		G_SpawnInt( "constructible_duration", "5000", &ent->constructibleStats.duration );
 	}
-	ent->constructibleStats.weaponclass--;
+	/* Windows20075130 stores health before decrementing weaponclass. */
 	ent->health = ent->constructibleStats.health;
+	ent->constructibleStats.weaponclass = (int)((unsigned int)ent->constructibleStats.weaponclass - 1u);
 
 	ent->s.dmgFlags = 0;
 
 	ent->think = func_constructiblespawn;
-	ent->nextthink = level.time + (2*FRAMETIME);
+	ent->nextthink = (int)((unsigned int)level.time + (2u*FRAMETIME));
 }
 
 /*QUAKED func_brushmodel (.9 .50 .50) ?

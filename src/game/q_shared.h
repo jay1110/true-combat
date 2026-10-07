@@ -1514,7 +1514,10 @@ typedef enum {
 
 	ET_WOLF_OBJECTIVE,
 
-	ET_EVENTS				// any of the EV_* events can be added freestanding
+	/* TC:E reserves additional entity types before event-only entities.
+	 * Environment rendering and types 61, 63..66 remain to be recovered. */
+	ET_ENVIRONMENT = 62,
+	ET_EVENTS = 67				// any of the EV_* events can be added freestanding
 							// by setting eType to ET_EVENTS + eventNum
 							// this avoids having to set eFlags and eventNum
 } entityType_t;

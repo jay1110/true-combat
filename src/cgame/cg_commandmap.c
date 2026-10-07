@@ -10,10 +10,32 @@ extern playerInfo_t pi;
 qboolean ccInitial = qtrue;
 
 void CG_TransformToCommandMapCoord( float *coord_x, float *coord_y ) {
-	*coord_x = CC_2D_X + ((*coord_x - cg.mapcoordsMins[0]) * cg.mapcoordsScale[0]) * CC_2D_W;
-	*coord_y = CC_2D_Y + ((*coord_y - cg.mapcoordsMins[1]) * cg.mapcoordsScale[1]) * CC_2D_H;
+#if defined(_MSC_VER) && defined(_M_IX86)
+	static const float width = CC_2D_W, x = CC_2D_X, y = CC_2D_Y;
+	float *mins = cg.mapcoordsMins, *scale = cg.mapcoordsScale;
+	__asm {
+		mov eax, coord_x
+		mov ecx, mins
+		mov edx, scale
+		fld dword ptr [eax]
+		fsub dword ptr [ecx]
+		fmul dword ptr [edx]
+		fmul dword ptr [width]
+		fadd dword ptr [x]
+		fstp dword ptr [eax]
+		mov eax, coord_y
+		fld dword ptr [eax]
+		fsub dword ptr [ecx+4]
+		fmul dword ptr [edx+4]
+		fmul dword ptr [width]
+		fadd dword ptr [y]
+		fstp dword ptr [eax]
+	}
+#else
+	*coord_x = CC_2D_X + ((*coord_x-cg.mapcoordsMins[0])*cg.mapcoordsScale[0])*CC_2D_W;
+	*coord_y = CC_2D_Y + ((*coord_y-cg.mapcoordsMins[1])*cg.mapcoordsScale[1])*CC_2D_H;
+#endif
 }
-
 // START	xkan, 9/19/2002
 //static float automapZoom = 3.583;	// apporoximately 1.2^7
 static float automapZoom = 5.159;
@@ -82,33 +104,81 @@ CG_TransformAutomapEntity: calculate the scaled (zoomed) yet unshifted coordinat
 each map entity within the automap
 =====================================================================================
 */
-void CG_TransformAutomapEntity( void )
-{
+void CG_TransformAutomapEntity( void ) {
 	int i;
-
-	for (i=0; i<mapEntityCount; i++) {
-		mapEntityData_t* mEnt = &mapEntities[i];
-
-		// calculate the screen coordinate of this entity for the automap, consider the zoom value
-		mEnt->automapTransformed[0] = (mEnt->x - cg.mapcoordsMins[0]) * cg.mapcoordsScale[0] * 100 * automapZoom;
-		mEnt->automapTransformed[1] = (mEnt->y - cg.mapcoordsMins[1]) * cg.mapcoordsScale[1] * 100 * automapZoom;
+	for (i = 0; i < mapEntityCount; ++i) {
+		mapEntityData_t *mEnt = &mapEntities[i];
+#if defined(_MSC_VER) && defined(_M_IX86)
+		static const float hundred = 100.f;
+		int *position = &mEnt->x;
+		float *out = mEnt->automapTransformed;
+		float *mins = cg.mapcoordsMins, *scale = cg.mapcoordsScale;
+		/* Original FILD and asymmetric multiplication order; one final store. */
+		__asm {
+			mov eax, position
+			mov ecx, mins
+			mov edx, scale
+			fild dword ptr [eax]
+			fsub dword ptr [ecx]
+			fmul dword ptr [automapZoom]
+			fmul dword ptr [edx]
+			fmul dword ptr [hundred]
+			mov eax, out
+			fstp dword ptr [eax]
+			mov eax, position
+			fild dword ptr [eax+4]
+			fsub dword ptr [ecx+4]
+			fmul dword ptr [edx+4]
+			fmul dword ptr [automapZoom]
+			fmul dword ptr [hundred]
+			mov eax, out
+			fstp dword ptr [eax+4]
+		}
+#else
+		mEnt->automapTransformed[0] = (mEnt->x-cg.mapcoordsMins[0])*cg.mapcoordsScale[0]*100*automapZoom;
+		mEnt->automapTransformed[1] = (mEnt->y-cg.mapcoordsMins[1])*cg.mapcoordsScale[1]*100*automapZoom;
+#endif
 	}
 }
 
-void CG_AdjustAutomapZoom(int zoomIn)
-{
+void CG_AdjustAutomapZoom(int zoomIn) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+	static const double zoomOutFactor = 0.8333333333333334;
+	static const double zoomInFactor = 1.2, maximum = 7.43;
+	static const float minimum = 1.f;
+	int status;
+	if (zoomIn) {
+		__asm {
+			fld dword ptr [automapZoom]
+			fmul qword ptr [zoomInFactor]
+			fst dword ptr [automapZoom]
+			fcomp qword ptr [maximum]
+			fnstsw ax
+			and eax, 4100h
+			mov status, eax
+		}
+		if (!status) automapZoom = 7.43f;
+	} else {
+		__asm {
+			fld dword ptr [automapZoom]
+			fmul qword ptr [zoomOutFactor]
+			fst dword ptr [automapZoom]
+			fcomp dword ptr [minimum]
+			fnstsw ax
+			and eax, 100h
+			mov status, eax
+		}
+		if (status) automapZoom = 1.f;
+	}
+#else
 	if (zoomIn) {
 		automapZoom *= 1.2;
-		if (automapZoom > 7.43)  // approximately 1.2^11
-			automapZoom = 7.43;
+		if (automapZoom > 7.43) automapZoom = 7.43;
 	} else {
 		automapZoom /= 1.2;
-		// zoom value of 1 corresponds to the most zoomed out view. The whole map is displayed 
-		// in the automap
-		if ( automapZoom < 1)
-			automapZoom = 1;
+		if (automapZoom < 1) automapZoom = 1;
 	}
-	// recalculate the screen coordinates since the zoom changed
+#endif
 	CG_TransformAutomapEntity();
 }
 // END		xkan, 9/19/2002
@@ -130,27 +200,27 @@ void CG_ParseMapEntity( int* mapEntityCount, int* offset, team_t team ) {
 		case ME_TANK:
 		case ME_TANK_DEAD:
 			trap_Argv((*offset)++, buffer, 16);
-			mEnt->x = atoi(buffer) * 128;
+			mEnt->x = (int)((unsigned int)atoi(buffer) << 7);
 
 			trap_Argv((*offset)++, buffer, 16);
-			mEnt->y = atoi(buffer) * 128;
+			mEnt->y = (int)((unsigned int)atoi(buffer) << 7);
 
 			if( cgs.ccLayers ) {
 				trap_Argv((*offset)++, buffer, 16);
-				mEnt->z = atoi(buffer) * 128;
+				mEnt->z = (int)((unsigned int)atoi(buffer) << 7);
 			}
 			break;
 
 		default:
 			trap_Argv((*offset)++, buffer, 16);
-			mEnt->x = atoi(buffer) * 128;
+			mEnt->x = (int)((unsigned int)atoi(buffer) << 7);
 
 			trap_Argv((*offset)++, buffer, 16);
-			mEnt->y = atoi(buffer) * 128;
+			mEnt->y = (int)((unsigned int)atoi(buffer) << 7);
 
 			if( cgs.ccLayers ) {
 				trap_Argv((*offset)++, buffer, 16);
-				mEnt->z = atoi(buffer) * 128;
+				mEnt->z = (int)((unsigned int)atoi(buffer) << 7);
 			}
 
 			trap_Argv((*offset)++, buffer, 16);
@@ -161,9 +231,36 @@ void CG_ParseMapEntity( int* mapEntityCount, int* offset, team_t team ) {
 	trap_Argv((*offset)++, buffer, 16);
 	mEnt->data = atoi(buffer);
 
-	mEnt->transformed[0] = (mEnt->x - cg.mapcoordsMins[0]) * cg.mapcoordsScale[0] * CC_2D_W;
-	mEnt->transformed[1] = (mEnt->y - cg.mapcoordsMins[1]) * cg.mapcoordsScale[1] * CC_2D_H;
-
+#if defined(_MSC_VER) && defined(_M_IX86)
+	{
+		static const float width = CC_2D_W;
+		int *position = &mEnt->x;
+		float *out = mEnt->transformed;
+		float *mins = cg.mapcoordsMins, *scale = cg.mapcoordsScale;
+		/* Preserve original FILD inputs and final-only binary32 stores. */
+		__asm {
+			mov eax, position
+			mov ecx, mins
+			mov edx, scale
+			fild dword ptr [eax]
+			fsub dword ptr [ecx]
+			fmul dword ptr [edx]
+			fmul dword ptr [width]
+			mov eax, out
+			fstp dword ptr [eax]
+			mov eax, position
+			fild dword ptr [eax+4]
+			fsub dword ptr [ecx+4]
+			fmul dword ptr [edx+4]
+			fmul dword ptr [width]
+			mov eax, out
+			fstp dword ptr [eax+4]
+		}
+	}
+#else
+	mEnt->transformed[0] = (mEnt->x-cg.mapcoordsMins[0])*cg.mapcoordsScale[0]*CC_2D_W;
+	mEnt->transformed[1] = (mEnt->y-cg.mapcoordsMins[1])*cg.mapcoordsScale[1]*CC_2D_H;
+#endif
 	mEnt->team = team;
 
 	(*mapEntityCount)++;

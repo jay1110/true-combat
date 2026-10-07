@@ -3,6 +3,10 @@
 // be a valid snapshot this frame
 
 #include "cg_local.h"
+#include "tce_smoke_grenade.h"
+#include "tce_flash.h"
+#include "tce_fragment_sound.h"
+#include "../game/tce_bg.h"
 
 #define SCOREPARSE_COUNT	9
 
@@ -16,7 +20,7 @@ CG_ParseScores
 =================
 */
 // Gordon: NOTE: team doesnt actually signify team, think i was on drugs that day.....
-static void CG_ParseScore( team_t team ) {
+static void CG_ParseScoreLegacy( team_t team ) {
 	int		i, j, powerups;
 	int		numScores;
 	int		offset;
@@ -57,6 +61,52 @@ static void CG_ParseScore( team_t team ) {
 
 		cg.numScores++;
 	}
+}
+
+qboolean tce_scoreExtended[MAX_CLIENTS];
+static void CG_ParseScore(team_t team) {
+    tce_scoreClient_t clients[MAX_CLIENTS];
+    tce_scoreParseContext_t ctx;
+    int offset=team==TEAM_AXIS?4:2;
+    int count=atoi(CG_Argv(offset-1));
+    int start=team==TEAM_AXIS?0:cg.numScores;
+    int words=trap_Argc()-offset, i;
+    /* The original core trusts its packet. Validate at the engine boundary. */
+    if(count<0||start<0||start>MAX_CLIENTS||count>MAX_CLIENTS-start||
+       (words!=count*14&&words!=count*7)) {
+        CG_Printf("Rejected malformed scoreboard packet\n");return;
+    }
+    if(team==TEAM_AXIS)memset(tce_scoreExtended,0,sizeof(tce_scoreExtended));
+    if(count>0&&words==count*7) {
+        CG_ParseScoreLegacy(team);
+        for(i=start;i<cg.numScores;++i){
+            tce_scoreExtended[i]=qfalse;
+            memset(&cg.scores[i].classRating,0,7*sizeof(int));
+        }
+        return;
+    }
+    memset(clients,0,sizeof(clients));
+    for(i=0;i<MAX_CLIENTS;++i) {
+        clientInfo_t *ci=&cgs.clientinfo[i];
+        clients[i].team=ci->team;
+        clients[i].score=ci->score;
+        clients[i].powerups=ci->powerups;
+        clients[i].classRating=ci->tceClassRating;
+        clients[i].previousClassRating=ci->tcePreviousClassRating;
+        clients[i].playerClass=ci->tceScorePlayerClass;
+    }
+    ctx.numScores=&cg.numScores;ctx.teamScores=cg.teamScores;ctx.scores=cg.scores;
+    ctx.clients=clients;ctx.argv=CG_Argv;
+    TCE_CG_ParseScore(team,&ctx);
+    for(i=0;i<MAX_CLIENTS;++i) {
+        clientInfo_t *ci=&cgs.clientinfo[i];
+        ci->score=clients[i].score;
+        ci->powerups=clients[i].powerups;
+        ci->tceClassRating=clients[i].classRating;
+        ci->tcePreviousClassRating=clients[i].previousClassRating;
+        ci->tceScorePlayerClass=clients[i].playerClass;
+    }
+    for(i=start;i<cg.numScores;++i)tce_scoreExtended[i]=qtrue;
 }
 
 /*
@@ -119,6 +169,10 @@ void CG_ParseServerinfo( void ) {
 
 
 	cgs.minclients = atoi( Info_ValueForKey( info, "g_minGameClients" ) );		// NERVE - SMF -- OSP: overloaded for ready counts
+	tceSmokeNewBBox = atoi(Info_ValueForKey(info, "g_newbbox"));
+	cgs.tceLeanMode = atoi(Info_ValueForKey(info, "g_leanmode"));
+	cgs.tceKillMessage = atoi(Info_ValueForKey(info, "g_killmessage"));
+	Q_strncpyz(cgs.tceVersion, Info_ValueForKey(info, "tce_version"), sizeof(cgs.tceVersion));
 
 	// TTimo - make this available for ingame_callvote	
 	trap_Cvar_Set( "cg_ui_voteFlags", ((authLevel.integer == RL_NONE) ? Info_ValueForKey(info, "voteFlags") : "0"));
@@ -262,11 +316,11 @@ void CG_ParseWolfinfo( void ) {
 	cgs.currentCampaign = Info_ValueForKey( info, "g_currentCampaign" );
 	cgs.currentCampaignMap = atoi( Info_ValueForKey( info, "g_currentCampaignMap" ) );
 
-	// OSP - Announce game in progress if we are really playing
-	if(old_gs != GS_PLAYING && cgs.gamestate == GS_PLAYING) {
-//		if(cg_announcer.integer > 0) trap_S_StartLocalSound(cgs.media.countFight, CHAN_ANNOUNCER);
-		Pri("^1FIGHT!\n");
-		CPri("^1FIGHT!\n");
+	if(old_gs != GS_PLAYING && cgs.gamestate == GS_PLAYING && cg.snap) {
+		int team = cg.snap->ps.persistant[PERS_TEAM];
+		if(team == TEAM_AXIS || team == TEAM_ALLIES) {
+			trap_S_StartLocalSound(cgs.media.tceRoundStart[team-TEAM_AXIS][rand()%2], CHAN_ANNOUNCER);
+		}
 	}
 
 	if(!cgs.localServer) {
@@ -376,6 +430,7 @@ CG_ParseFog
 	float density
 	float[3] r,g,b
 	int		time
+	int		mapFog (TC: update map fog rather than server fog)
 ==============
 */
 static void CG_ParseFog( void ) {
@@ -383,6 +438,7 @@ static void CG_ParseFog( void ) {
 	char *token;
 	float	ne, fa, r, g, b, density;
 	int		time;
+	int		mapFog;
 
 	info = CG_ConfigString( CS_FOGVARS );
 
@@ -393,8 +449,13 @@ static void CG_ParseFog( void ) {
 	token = COM_Parse( (char **)&info );	g = atof(token);
 	token = COM_Parse( (char **)&info );	b = atof(token);
 	token = COM_Parse( (char **)&info );	time = atoi(token);
+	token = COM_Parse( (char **)&info );	mapFog = atoi(token);
 
-	if(fa) {	// far of '0' from a target_fog means "return to map fog"
+	if(mapFog) {
+		trap_R_SetFog(FOG_MAP, (int)ne, (int)fa, r, g, b, density+.1);
+		trap_R_SetFog(FOG_CMD_SWITCHFOG, FOG_MAP, time, 0, 0, 0, 0);
+	}
+	else if(fa) {	// far of '0' from a target_fog means "return to map fog"
 		trap_R_SetFog(FOG_SERVER, (int)ne, (int)fa, r, g, b, density+.1);
 		trap_R_SetFog(FOG_CMD_SWITCHFOG, FOG_SERVER, time, 0, 0, 0, 0);
 	}
@@ -493,6 +554,7 @@ void CG_SetConfigValues( void ) {
 	CG_ParseServerVersionInfo(CG_ConfigString(CS_VERSIONINFO));
 	CG_ParseReinforcementTimes(CG_ConfigString(CS_REINFSEEDS));
 	// OSP
+	CG_ParseFog();
 }
 
 /*
@@ -868,6 +930,19 @@ static void CG_MapRestart( void ) {
 	cg.zoomTime = 0;
 	cg.zoomval = 0;
 
+	/* TC 3005fa20: clear the actual ADS/optics state at the same point as
+	 * the zoom state, before fog and map-entity reconstruction. */
+	cg.tceScopeBlocked = 0;
+	cg.tceAimRequested = cg.tceAimComplete = cg.tceAimActive = 0;
+	cg.tceTacticalScale = 0;
+	cg.tceAimWeaponLatch = 0;
+	cg.tceCoronaBlendAlpha = 0;
+	cg.tceEyeSmooth = cg.tceEyeLinear = 0;
+	cg.tceScopeLightBoost = 1;
+	cg.tceEyeFlare = 0;
+	cg.tceEyeSampleTime = 0;
+	cg.tceEyeFlareFrame = 0;
+
 	cgs.complaintEndTime = 0;
 	cgs.invitationEndTime = 0;
 	cgs.applicationEndTime = 0;
@@ -959,6 +1034,7 @@ static void CG_MapRestart( void ) {
 	CG_ParseTagConnects();
 
 	trap_Cvar_Set("cg_thirdPerson", "0");
+	CG_SetupEliteLighting();
 }
 // NERVE - SMF
 
@@ -1135,8 +1211,8 @@ void CG_LoadVoiceChats( void ) {
 	voiceChatLists[0].numVoiceChats = 0;
 	voiceChatLists[1].numVoiceChats = 0;
 
-	CG_ParseVoiceChats( "scripts/wm_axis_chat.voice", &voiceChatLists[0], MAX_VOICECHATS );
-	CG_ParseVoiceChats( "scripts/wm_allies_chat.voice", &voiceChatLists[1], MAX_VOICECHATS );
+	CG_ParseVoiceChats( va("custom/%s/voice/wm_terror_chat.voice", gearDef.playerVoiceGroup), &voiceChatLists[0], MAX_VOICECHATS );
+	CG_ParseVoiceChats( va("custom/%s/voice/wm_specops_chat.voice", gearDef.playerVoiceGroup), &voiceChatLists[1], MAX_VOICECHATS );
 
 	CG_Printf("voice chat memory size = %d\n", size - trap_MemoryRemaining());
 }
@@ -1198,7 +1274,9 @@ int CG_GetVoiceChat( voiceChatList_t *voiceChatList, const char *id, sfxHandle_t
 
 	for ( i = 0; i < voiceChatList->numVoiceChats; i++ ) {
 		if ( !Q_stricmp( id, voiceChatList->voiceChats[i].id ) ) {
-			rnd = random() * voiceChatList->voiceChats[i].numSounds;
+			/* Original x87 FMUL/FIMUL keeps both products until integer conversion. */
+			rnd = (int)((double)(rand() & 32767) * (double)(1.0f / 32767.0f) *
+			            voiceChatList->voiceChats[i].numSounds);
 			*snd = voiceChatList->voiceChats[i].sounds[rnd];
 			*sprite = voiceChatList->voiceChats[i].sprite[rnd];
 			*chat = voiceChatList->voiceChats[i].chats[rnd];
@@ -1241,43 +1319,39 @@ bufferedVoiceChat_t voiceChatBuffer[MAX_VOICECHATBUFFER];
 CG_PlayVoiceChat
 =================
 */
+/* TC Windows3005c6f0/Linux000a3a70: radio and positional voice differ. */
 void CG_PlayVoiceChat( bufferedVoiceChat_t *vchat ) {
-	// if we are going into the intermission, don't start any voices
-/*	// NERVE - SMF - don't do this in wolfMP
-	if ( cg.intermissionStarted ) {
-		return;
-	}
-*/
-
-	if ( !cg_noVoiceChats.integer ) {
-		trap_S_StartLocalSound( vchat->snd, CHAN_VOICE);
-
-		// Arnout: don't show icons for the HQ (clientnum -1)
-		if( vchat->clientNum != -1 ) {
-			// DHM - Nerve :: Show icon above head
-			if ( vchat->clientNum == cg.snap->ps.clientNum ) {
-				cg.predictedPlayerEntity.voiceChatSprite = vchat->sprite;
-				if ( vchat->sprite == cgs.media.voiceChatShader )
-					cg.predictedPlayerEntity.voiceChatSpriteTime = cg.time + cg_voiceSpriteTime.integer;
-				else
-					cg.predictedPlayerEntity.voiceChatSpriteTime = cg.time + cg_voiceSpriteTime.integer*2;
-			} else {
-				cg_entities[ vchat->clientNum ].voiceChatSprite = vchat->sprite;
-				VectorCopy( vchat->origin, cg_entities[ vchat->clientNum ].lerpOrigin );			// NERVE - SMF
-				if ( vchat->sprite == cgs.media.voiceChatShader )
-					cg_entities[ vchat->clientNum ].voiceChatSpriteTime = cg.time + cg_voiceSpriteTime.integer;
-				else
-					cg_entities[ vchat->clientNum ].voiceChatSpriteTime = cg.time + cg_voiceSpriteTime.integer*2;
-			}
-			// dhm - end
-		}
-
-	}
-	if (!vchat->voiceOnly && !cg_noVoiceText.integer) {
-		CG_AddToTeamChat( vchat->message, vchat->clientNum );
-		CG_Printf( va( "[skipnotify]: %s\n", vchat->message ) ); // JPW NERVE
-	}
-	voiceChatBuffer[cg.voiceChatBufferOut].snd = 0;
+    if (!cg_noVoiceChats.integer) {
+        if (!vchat->voiceOnly) {
+            trap_S_StartLocalSound(vchat->snd, CHAN_VOICE);
+            if (vchat->clientNum != -1) {
+                if (vchat->clientNum == cg.snap->ps.clientNum) {
+                    cg.predictedPlayerEntity.voiceChatSprite = vchat->sprite;
+                    cg.predictedPlayerEntity.voiceChatSpriteTime = cg.time + cg_voiceSpriteTime.integer / 2;
+                } else {
+                    cg_entities[vchat->clientNum].voiceChatSprite = vchat->sprite;
+                    VectorCopy(vchat->origin, cg_entities[vchat->clientNum].lerpOrigin);
+                    cg_entities[vchat->clientNum].voiceChatSpriteTime = cg.time + cg_voiceSpriteTime.integer / 2;
+                }
+            }
+        } else if (vchat->clientNum != -1 &&
+                   (vchat->clientNum == cg.snap->ps.clientNum || cg_entities[vchat->clientNum].currentValid)) {
+            tce_fragmentSoundContext_t context;
+            int volume;
+            centity_t *speaker = &cg_entities[vchat->clientNum];
+            memset(&context, 0, sizeof(context));
+            VectorCopy(cg.refdef_current->vieworg, context.listener);
+            context.attenuation = tceFlash.deafness;
+            context.distanceVariant = tceSmokeNewBBox;
+            volume = TCE_CG_SoundVolume(speaker->lerpOrigin, 127.f, 1200.f, 0, &context);
+            trap_S_StartSoundVControl(NULL, speaker->currentState.number, CHAN_VOICE, vchat->snd, volume);
+        }
+    }
+    if (!vchat->voiceOnly && !cg_noVoiceText.integer) {
+        CG_AddToTeamChat(vchat->message, vchat->clientNum);
+        CG_Printf(va("[skipnotify]: %s\n", vchat->message));
+    }
+    voiceChatBuffer[cg.voiceChatBufferOut].snd = 0;
 }
 
 /*
@@ -1377,17 +1451,58 @@ void CG_VoiceChatLocal( int mode, qboolean voiceOnly, int clientNum, int color, 
 CG_VoiceChat
 =================
 */
+/* TC Windows3005cb30/Linux000a405a: server-provided map location. */
+static void CG_VoiceChatLocation(int mode, qboolean voiceOnly, int clientNum,
+    int color, const char *cmd, vec3_t origin, const char *location) {
+    voiceChatList_t *list;
+    clientInfo_t *ci;
+    bufferedVoiceChat_t vchat;
+    sfxHandle_t snd;
+    qhandle_t sprite;
+    char *chat;
+    if(tceFlash.deafness > 0.f)return;
+    if(clientNum < 0 || clientNum >= MAX_CLIENTS)clientNum=0;
+    ci=&cgs.clientinfo[clientNum];
+    cgs.currentVoiceClient=clientNum;
+    list=CG_VoiceChatListForClient(clientNum);
+    if(!CG_GetVoiceChat(list,cmd,&snd,&sprite,&chat))return;
+    if(mode != SAY_TEAM && cg_teamChatsOnly.integer)return;
+    vchat.clientNum=clientNum;vchat.snd=snd;vchat.sprite=sprite;vchat.voiceOnly=voiceOnly;
+    VectorCopy(origin,vchat.origin);
+    Q_strncpyz(vchat.cmd,cmd,sizeof(vchat.cmd));
+    if(mode == SAY_ALL) {
+        Com_sprintf(vchat.message,sizeof(vchat.message),"%s: %c%c%s",ci->name,
+            Q_COLOR_ESCAPE,COLOR_WHITE,CG_TranslateString(chat));
+    } else if(mode == SAY_TEAM || mode == SAY_BUDDY) {
+        if(location && *location) {
+            Com_sprintf(vchat.message,sizeof(vchat.message),"%c%c%s%c%c [%s]:%c%c %s",
+                Q_COLOR_ESCAPE,color,ci->name,Q_COLOR_ESCAPE,COLOR_GREEN,location,
+                Q_COLOR_ESCAPE,COLOR_WHITE,CG_TranslateString(chat));
+        } else {
+            Com_sprintf(vchat.message,sizeof(vchat.message),"%c%c%s:%c%c %s",
+                Q_COLOR_ESCAPE,color,ci->name,Q_COLOR_ESCAPE,COLOR_WHITE,CG_TranslateString(chat));
+        }
+    } else {
+        Com_sprintf(vchat.message,sizeof(vchat.message),"%s%c%c: %s",ci->name,
+            Q_COLOR_ESCAPE,COLOR_WHITE,CG_TranslateString(chat));
+    }
+    CG_AddBufferedVoiceChat(&vchat);
+}
+
 void CG_VoiceChat( int mode ) {
 	const char *cmd;
 	int clientNum, color;
 	qboolean voiceOnly;
-	vec3_t origin;			// NERVE - SMF
+	vec3_t origin = {0,0,0};
+	char location[MAX_TOKEN_CHARS] = "";
 
 	voiceOnly = atoi(CG_Argv(1));
 	clientNum = atoi(CG_Argv(2));
 	color = atoi(CG_Argv(3));
 
 	if( mode != SAY_ALL ) {
+		/* CG_Argv uses a shared buffer; preserve argument8 before reading5..7. */
+		Q_strncpyz(location,CG_Argv(8),sizeof(location));
 		// NERVE - SMF - added origin
 		origin[0] = atoi(CG_Argv(5));
 		origin[1] = atoi(CG_Argv(6));
@@ -1404,7 +1519,7 @@ void CG_VoiceChat( int mode ) {
 		}
 	}
 
-	CG_VoiceChatLocal( mode, voiceOnly, clientNum, color, cmd, origin );
+	CG_VoiceChatLocation( mode, voiceOnly, clientNum, color, cmd, origin, location );
 }
 // -NERVE - SMF
 
@@ -1606,7 +1721,7 @@ void CG_parseWeaponStatsGS_cmd(void)
 				Q_strncpyz(strName, va("%-12s  ", aWeaponInfo[i].pszName), sizeof(strName));
 				if(nShots > 0 || nHits > 0) {
 					Q_strcat(strName, sizeof(strName), va("%5.1f %4d/%-4d ",
-														((nShots == 0) ? 0.0 : (float)(nHits*100.0/(float)nShots)),
+														((nShots == 0) ? 0.0 : (double)nHits * 100.0 / (double)nShots),
 														nHits, nShots));
 				} else {
 					Q_strcat(strName, sizeof(strName), va("                "));
@@ -1713,7 +1828,7 @@ void CG_parseWeaponStats_cmd(void (txt_dump)(char *))
 				if(atts > 0 || hits > 0) {
 					fHasStats = qtrue;
 					Q_strcat(strName, sizeof(strName), va("^7%5.1f ^5%4d/%-4d ",
-														((atts == 0) ? 0.0 : (float)(hits*100.0/(float)atts)),
+														((atts == 0) ? 0.0 : (double)hits * 100.0 / (double)atts),
 														hits, atts));
 				} else {
 					Q_strcat(strName, sizeof(strName), va("                "));
@@ -1986,7 +2101,7 @@ static void CG_ServerCommand( void ) {
 	if ( !strcmp( cmd, "WeaponStats" ) ) {
 		int i, start = 1;
 
-		for( i = 0; i < WP_NUM_WEAPONS; i++ ) {
+		for( i = 0; i < MAX_WEAPONS; i++ ) {
 
 			if(!BG_ValidStatWeapon( i )) {
 				continue;
@@ -2278,36 +2393,7 @@ static void CG_ServerCommand( void ) {
 		return;
 	}
 
-	if( !Q_stricmp( cmd, "aft" ) ) {
-		cgs.autoFireteamEndTime = cg.time + 20000;
-		cgs.autoFireteamNum = atoi( CG_Argv(1) );
-
-		if( cgs.autoFireteamNum < -1 ) {
-			cgs.autoFireteamEndTime = cg.time + 10000;
-		}
-		return;
-	}
-	
-	if( !Q_stricmp( cmd, "aftc" ) ) {
-		cgs.autoFireteamCreateEndTime = cg.time + 20000;
-		cgs.autoFireteamCreateNum = atoi( CG_Argv(1) );
-
-		if( cgs.autoFireteamCreateNum < -1 ) {
-			cgs.autoFireteamCreateEndTime = cg.time + 10000;
-		}
-		return;
-	}
-
-	if( !Q_stricmp( cmd, "aftj" ) ) {
-		cgs.autoFireteamJoinEndTime = cg.time + 20000;
-		cgs.autoFireteamJoinNum = atoi( CG_Argv(1) );
-
-		if( cgs.autoFireteamJoinNum < -1 ) {
-			cgs.autoFireteamJoinEndTime = cg.time + 10000;
-		}
-		return;
-	}
-
+	/* TC:E does not dispatch the SDK automatic-fireteam prompts. */
 	if ( Q_stricmp (cmd, "remapShader") == 0 ) {
 		if (trap_Argc() == 4) {
 			trap_R_RemapShader(CG_Argv(1), CG_Argv(2), CG_Argv(3));

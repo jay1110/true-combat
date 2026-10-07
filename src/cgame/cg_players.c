@@ -7,6 +7,9 @@
 
 #include "cg_local.h"
 #include "../game/bg_classes.h"
+#include "../game/tce_trajectory.h"
+#include "tce_smoke_grenade.h"
+#include "tce_weapon_media.h"
 
 #define	SWING_RIGHT	1
 #define SWING_LEFT	2
@@ -27,19 +30,6 @@ extern const char* cg_skillRewards[SK_NUM_SKILLS][NUM_SKILL_LEVELS-1];
 CG_EntOnFire
 ================
 */
-qboolean CG_EntOnFire( centity_t *cent ) {
-	if ( cent->currentState.number == cg.snap->ps.clientNum ) {
-		// TAT 11/15/2002 - the player is always starting out on fire, which is easily seen in cinematics
-		//		so make sure onFireStart is not 0
-		return	( cg.snap->ps.onFireStart
-			&& (cg.snap->ps.onFireStart < cg.time)
-			&& ((cg.snap->ps.onFireStart+2000) > cg.time) );
-	}
-	else {
-		return	(	(cent->currentState.onFireStart < cg.time) &&
-					(cent->currentState.onFireEnd > cg.time));
-	}
-}
 
 /*
 ================
@@ -125,6 +115,26 @@ void CG_ParseTeamXPs( int n ) {
 
 void CG_LimboPanel_SendSetupMsg( qboolean forceteam );
 
+/* TC name pre-pass (Windows3007f290 / Linux Q_EliteCleanStr).
+ * Keep this module-local until the shared string API is migrated. */
+static char *CG_EliteCleanStr( char *text ) {
+	char *read = text;
+	char *write = text;
+
+	while( *read ) {
+		if( read[0] == '^' && read[1] == '^' ) {
+			read += 2;
+			continue;
+		}
+		if( (unsigned char)*read >= 32 && (unsigned char)*read < 127 ) {
+			*write++ = *read;
+		}
+		read++;
+	}
+	*write = '\0';
+	return text;
+}
+
 /*
 ======================
 CG_NewClientInfo
@@ -162,7 +172,10 @@ void CG_NewClientInfo( int clientNum ) {
 	// isolate the player's name
 	v = Info_ValueForKey(configstring, "n");
 	Q_strncpyz( newInfo.name, v, sizeof( newInfo.name ) );
+	CG_EliteCleanStr( newInfo.name );
+	Q_CleanStr( newInfo.name );
 	Q_strncpyz( newInfo.cleanname, v, sizeof( newInfo.cleanname ) );
+	CG_EliteCleanStr( newInfo.cleanname );
 	Q_CleanStr( newInfo.cleanname );
 	
 
@@ -845,9 +858,17 @@ static void CG_PlayerAnimation( centity_t *cent, refEntity_t *body ) {
 	animIndex = cent->currentState.legsAnim;
 
 	// do the shuffle turn frames locally
-	if( !(cent->currentState.eFlags & EF_DEAD) && cent->pe.legs.yawing ) {
+	if( !(cent->currentState.eFlags & EF_DEAD) && cent->pe.legs.yawing &&
+		!(cent->currentState.eFlags & 0x00890000) ) {
+		int turn;
+		/* Original TC disallows shuffle during prone/other locked poses, and
+		 * chooses dedicated crouch-turn scripts instead of standing turns. */
+		if(cent->currentState.eFlags & EF_CROUCHING)
+			turn = cent->pe.legs.yawing == SWING_RIGHT ? ANIM_MT_IDLECRTURNRIGHT : ANIM_MT_IDLECRTURNLEFT;
+		else
+			turn = cent->pe.legs.yawing == SWING_RIGHT ? ANIM_MT_TURNRIGHT : ANIM_MT_TURNLEFT;
 		//CG_Printf("turn: %i\n", cg.time );
-		tempIndex = BG_GetAnimScriptAnimation( clientNum, character->animModelInfo, cent->currentState.aiState, (cent->pe.legs.yawing == SWING_RIGHT ? ANIM_MT_TURNRIGHT : ANIM_MT_TURNLEFT) );
+		tempIndex = BG_GetAnimScriptAnimation( clientNum, character->animModelInfo, cent->currentState.aiState, turn );
 		if (tempIndex > -1) {
 			animIndex = tempIndex;
 		}
@@ -1055,15 +1076,11 @@ static void CG_PlayerAngles( centity_t *cent, vec3_t legs[3], vec3_t torso[3], v
 	} else {
 		legsAngles[YAW] = headAngles[YAW] + cent->currentState.angles2[YAW];
 
-		if( !(cent->currentState.eFlags & EF_FIRING) ) {
-			torsoAngles[YAW] = headAngles[YAW] + 0.35 * cent->currentState.angles2[YAW];
-			clampTolerance = 90;
-		} else {	// must be firing
-			torsoAngles[YAW] = headAngles[YAW];	// always face firing direction
-			//if (fabs(cent->currentState.angles2[YAW]) > 30)
-			//	legsAngles[YAW] = headAngles[YAW];
-			clampTolerance = 60;
-		}
+		/* TC keeps the torso facing the aim direction even while not firing. */
+		cent->pe.torso.pitching = qtrue;
+		cent->pe.torso.yawing = qtrue;
+		torsoAngles[YAW] = headAngles[YAW];
+		clampTolerance = 60;
 
 		// torso
 		CG_SwingAngles( torsoAngles[YAW], 25, clampTolerance, cg_swingSpeed.value, &cent->pe.torso.yawAngle, &cent->pe.torso.yawing );
@@ -1129,6 +1146,15 @@ static void CG_PlayerAngles( centity_t *cent, vec3_t legs[3], vec3_t torso[3], v
 
 		side = speed * DotProduct( velocity, axis[0] );
 		legsAngles[PITCH] += side;
+	}
+
+	/* Original g_leanmode serverinfo consumer: left lean has extra roll.
+	 * This is entity angles2[ROLL], not local predicted view lean. */
+	if(cgs.tceLeanMode > 0 && !(cent->currentState.eFlags & EF_DEAD)) {
+		float lean = cent->currentState.angles2[ROLL];
+		if(lean < 0.f) lean *= 1.65f;
+		torsoAngles[ROLL] += lean;
+		headAngles[ROLL] += lean;
 	}
 
 	// pain twitch
@@ -1286,59 +1312,56 @@ CG_PlayerSprites
 Float sprites over the player's head
 ===============
 */
-static void CG_PlayerSprites( centity_t *cent ) {
-	int		team;
+/* Whole TC depth-hacked teammate/carrier sprite, Windows30055ba0. */
+static void CG_PlayerFloatSpriteDepthHack(centity_t *cent, qhandle_t shader, int height) {
+    refEntity_t ent;
+    if(cg_drawFriend.integer < 2 || VectorDistance(cent->lerpOrigin,cg.refdef_current->vieworg)>256.f) {
+        CG_PlayerFloatSprite(cent,shader,height);
+        return;
+    }
+    memset(&ent,0,sizeof(ent));
+    VectorCopy(cent->lerpOrigin,ent.origin);
+    ent.origin[2]+=height;
+    if(cent->currentState.clientNum==cg.snap->ps.clientNum) {
+        if(cg.snap->ps.pm_flags & PMF_DUCKED)ent.origin[2]-=18.f;
+    } else if(cent->currentState.animMovetype)ent.origin[2]-=18.f;
+    ent.reType=RT_SPRITE;
+    ent.customShader=shader;
+    ent.radius=6.66f;
+    ent.renderfx=(cent->currentState.number==cg.snap->ps.clientNum && !cg.renderingThirdPerson)
+        ? RF_THIRD_PERSON : RF_DEPTHHACK;
+    memset(ent.shaderRGBA,255,sizeof(ent.shaderRGBA));
+    trap_R_AddRefEntityToScene(&ent);
+}
 
-	if( cent->currentState.powerups & ( 1 << PW_REDFLAG ) ||
-		cent->currentState.powerups & ( 1 << PW_BLUEFLAG ) ) {
-		CG_PlayerFloatSprite( cent, cgs.media.objectiveShader, 56 );
-		return;
-	}
-
-	if ( cent->currentState.eFlags & EF_CONNECTION ) {
-		CG_PlayerFloatSprite( cent, cgs.media.disconnectIcon, 48 );
-		return;
-	}
-
-	if ( cent->currentState.powerups & (1<<PW_INVULNERABLE) ) {
-		CG_PlayerFloatSprite( cent, cgs.media.spawnInvincibleShader, 56 );
-		return;
-	}
-
-	team = cgs.clientinfo[ cent->currentState.clientNum ].team;
-
-	// DHM - Nerve :: If this client is a medic, draw a 'revive' icon over
-	//					dead players that are not in limbo yet.
-	if( (cent->currentState.eFlags & EF_DEAD)
-		&& cent->currentState.number == cent->currentState.clientNum
-		&& cg.snap->ps.stats[ STAT_PLAYER_CLASS ] == PC_MEDIC
-		&& cg.snap->ps.stats[ STAT_HEALTH ] > 0
-		&& cg.snap->ps.persistant[PERS_TEAM] == team ) {
-
-		CG_PlayerFloatSprite( cent, cgs.media.medicReviveShader, 8 );
-		return;
-	}
-
-	// DHM - Nerve :: show voice chat signal so players know who's talking
-	if( cent->voiceChatSpriteTime > cg.time && cg.snap->ps.persistant[PERS_TEAM] == team ) {
-		CG_PlayerFloatSprite( cent, cent->voiceChatSprite, 56 );
-		return;
-	}
-
-	// DHM - Nerve :: only show talk icon to team-mates
-	if( cent->currentState.eFlags & EF_TALK && cg.snap->ps.persistant[PERS_TEAM] == team ) {
-		CG_PlayerFloatSprite( cent, cgs.media.balloonShader, 48 );
-		return;
-	}
-
-	{
-		fireteamData_t* ft;
-		if ((ft = CG_IsOnFireteam( cent->currentState.number ))) {
-			if( ft == CG_IsOnFireteam( cg.clientNum ) && cgs.clientinfo[ cent->currentState.number ].selected ) {
-				CG_PlayerFloatSprite( cent, cgs.media.fireteamicons[ft->ident], 56 );				
-			}
-		}		
-	}
+static void CG_PlayerSprites(centity_t *cent) {
+    entityState_t *es=&cent->currentState;
+    fireteamData_t *ft;
+    int extra=tceSmokeNewBBox ? 12 : 0;
+    int height=extra+((es->effect1Time & 4) ? 12 : 48);
+    int team;
+    if(es->eFlags & 0x400) {
+        CG_PlayerFloatSprite(cent,cgs.media.disconnectIcon,height+4);
+        return;
+    }
+    if((es->eFlags & 0x200) && !(es->eFlags & EF_DEAD)) {
+        CG_PlayerFloatSprite(cent,cgs.media.balloonShader,height+4);
+        return;
+    }
+    team=cgs.clientinfo[es->clientNum].team;
+    if(cg_drawFriend.integer<1)return;
+    ft=CG_IsOnFireteam(es->number);
+    if(ft && ft==CG_IsOnFireteam(cg.clientNum) && cgs.clientinfo[es->number].selected)
+        CG_PlayerFloatSpriteDepthHack(cent,cgs.media.fireteamicons[ft->ident],extra+56);
+    if(cg.snap->ps.persistant[PERS_TEAM]!=team || (es->eFlags & EF_DEAD) || es->number!=es->clientNum)return;
+    if(es->effect1Time & 0x10)
+        CG_PlayerFloatSpriteDepthHack(cent,cgs.media.tcePlayerCarrierIcons[0],height+4);
+    else if(es->effect1Time & 0x20)
+        CG_PlayerFloatSpriteDepthHack(cent,cgs.media.tcePlayerCarrierIcons[2],height+4);
+    else if(es->effect1Time & 0x40)
+        CG_PlayerFloatSpriteDepthHack(cent,cgs.media.tcePlayerCarrierIcons[3],height+4);
+    else if(es->powerups & 0xc0)
+        CG_PlayerFloatSpriteDepthHack(cent,cgs.media.tcePlayerCarrierIcons[1],height+4);
 }
 
 /*
@@ -1363,132 +1386,45 @@ typedef struct {
 	qhandle_t shader;
 } shadowPart_t;
 
-static qboolean CG_PlayerShadow( centity_t *cent, float *shadowPlane )
-{
-	vec3_t			end;
-	trace_t			trace;
-	float			dist, distFade;
-	int				tagIndex, subIndex;
-	vec3_t			origin, angles, axis[ 3 ];
-	vec4_t			projection = { 0, 0, -1, 64 };
-	shadowPart_t	shadowParts[] = {
-		{"tag_footleft",	10,	4,	1.0,	0},
-		{"tag_footright",	10,	4,	1.0,	0},
-		{"tag_torso",		18,	96,	0.8,	0},
-		{NULL, 0}
-	};
-
-	shadowParts[0].shader = cgs.media.shadowFootShader;		//DAJ pulled out of initliization
-	shadowParts[1].shader = cgs.media.shadowFootShader;
-	shadowParts[2].shader = cgs.media.shadowTorsoShader;
-
-	*shadowPlane = 0;
-
-	if ( cg_shadows.integer == 0 ) {
-		return qfalse;
-	}
-
-	// send a trace down from the player to the ground
-	VectorCopy( cent->lerpOrigin, end );
-	end[2] -= SHADOW_DISTANCE;
-
-	trap_CM_BoxTrace( &trace, cent->lerpOrigin, end, NULL, NULL, 0, MASK_PLAYERSOLID );
-
-	// no shadow if too high
-	//%	if ( trace.fraction == 1.0 || trace.fraction == 0.0f ) {
-	//%		return qfalse;
-	//%	}
-
-	*shadowPlane = trace.endpos[2] + 1;
-
-	if ( cg_shadows.integer != 1 ) {	// no mark for stencil or projection shadows
-		return qtrue;
-	}
-
-	// no shadows when dead
-	if( cent->currentState.eFlags & EF_DEAD ) {
-		return qfalse;
-	}
-	
-	// fade the shadow out with height
-	//%	alpha = 1.0 - trace.fraction;
-
-	// add the mark as a temporary, so it goes directly to the renderer
-	// without taking a spot in the cg_marks array
-	dist = VectorDistance( cent->lerpOrigin, cg.refdef_current->vieworg );	//%	cg.snap->ps.origin );
-	distFade = 1.0f;
-	if (!(cent->currentState.eFlags & EF_ZOOMING) && (dist > SHADOW_MIN_DIST)) {
-		if( dist > SHADOW_MAX_DIST )
-		{
-			if (dist > SHADOW_MAX_DIST*2)
-				return qfalse;
-			else	// fade out
-				distFade = 1.0f - ((dist - SHADOW_MAX_DIST) / SHADOW_MAX_DIST);
-			
-			if( distFade > 1.0f )
-				distFade = 1.0f;
-			else if( distFade < 0.0f )
-				distFade = 0.0f;
-		}
-		
-		// set origin
-		VectorCopy( cent->lerpOrigin, origin );
-		
-		// project it onto the shadow plane
-		if( origin[2] < *shadowPlane )
-			origin[2] = *shadowPlane;
-		
-		// ydnar: add a bit of height so foot shadows don't clip into sloped geometry as much
-		origin[ 2 ] += 18.0f;
-		
-		//%	alpha *= distFade;
-		
-		// ydnar: decal remix
-		//%	CG_ImpactMark( cgs.media.shadowTorsoShader, trace.endpos, trace.plane.normal, 
-		//%		0, alpha,alpha,alpha,1, qfalse, 16, qtrue, -1 );
-		CG_ImpactMark( cgs.media.shadowTorsoShader, origin, projection, 18.0f,
-				cent->lerpAngles[ YAW ], distFade, distFade, distFade, distFade, -1 );
-		return qtrue;
-	}
-	
-	if (dist < SHADOW_MAX_DIST) {	// show more detail
-		// now add shadows for the various body parts
-		for (tagIndex=0; shadowParts[tagIndex].tagname; tagIndex++ ) {
-			// grab each tag with this name
-			for (subIndex=0; (subIndex = CG_GetOriginForTag( cent, &cent->pe.bodyRefEnt, shadowParts[tagIndex].tagname, subIndex, origin, axis )) >= 0; subIndex++)
-			{
-				// project it onto the shadow plane
-				if (origin[2] < *shadowPlane)
-					origin[2] = *shadowPlane;
-				
-				// ydnar: add a bit of height so foot shadows don't clip into sloped geometry as much
-				origin[ 2 ] += 5.0f;
-				
-				#if 0
-					alpha = 1.0 - ((origin[2] - (*shadowPlane+ZOFS)) / shadowParts[tagIndex].maxdist);
-					if (alpha < 0)
-						continue;
-					if (alpha > shadowParts[tagIndex].maxalpha)
-						alpha = shadowParts[tagIndex].maxalpha;
-					alpha *= (1.0 - distFade);
-					origin[2] = *shadowPlane;
-				#endif
-				
-				AxisToAngles( axis, angles );
-
-				// ydnar: decal remix
-				//%	CG_ImpactMark( shadowParts[tagIndex].shader, origin, trace.plane.normal, 
-				//%		angles[YAW]/*cent->pe.legs.yawAngle*/, alpha,alpha,alpha,1, qfalse, shadowParts[tagIndex].size, qtrue, -1 );
-				
-				//%	CG_ImpactMark( shadowParts[ tagIndex ].shader, origin, up, 
-				//%			cent->lerpAngles[ YAW ], 1.0f, 1.0f, 1.0f, 1.0f, qfalse, shadowParts[ tagIndex ].size, qtrue, -1 );
-				CG_ImpactMark( shadowParts[ tagIndex ].shader, origin, projection, shadowParts[ tagIndex ].size,
-						angles[ YAW ], distFade, distFade, distFade, distFade, -1 );
-			}
-		}
-	}
-
-	return qtrue;
+/* Whole TC tag-shadow renderer, Windows30055d10. */
+static qboolean CG_PlayerShadow(centity_t *cent, float *shadowPlane) {
+    vec3_t end,origin,angles,axis[3];
+    trace_t trace;
+    int part,tag;
+    shadowPart_t parts[]={
+        {"tag_footleft",10,4,1.f,0},
+        {"tag_footright",10,4,1.f,0},
+        {"tag_torso",18,96,.8f,0},
+        {NULL,0,0,0,0}
+    };
+    parts[0].shader=parts[1].shader=cgs.media.shadowFootShader;
+    parts[2].shader=cgs.media.shadowTorsoShader;
+    *shadowPlane=0.f;
+    if(!cg_shadows.integer && developer.integer)return qfalse;
+    VectorCopy(cent->lerpOrigin,end);
+    end[2]-=64.f;
+    trap_CM_BoxTrace(&trace,cent->lerpOrigin,end,NULL,NULL,0,MASK_PLAYERSOLID);
+    if(trace.fraction==1.f || trace.fraction==0.f)return qfalse;
+    *shadowPlane=trace.endpos[2]+1.f;
+    if(cg_shadows.integer!=1)return qtrue;
+    if(cent->currentState.eFlags & EF_DEAD)return qfalse;
+    if(VectorDistance(cent->lerpOrigin,cg.refdef_current->vieworg)<1024.f) {
+        for(part=0;parts[part].tagname;part++) {
+            for(tag=0;(tag=CG_GetOriginForTag(cent,&cent->pe.bodyRefEnt,
+                parts[part].tagname,tag,origin,axis))>=0;tag++) {
+                float alpha;
+                if(origin[2]<*shadowPlane)origin[2]=*shadowPlane;
+                alpha=1.f-(origin[2]-(*shadowPlane+6.f))/parts[part].maxdist;
+                if(alpha<0.f)continue;
+                if(alpha>parts[part].maxalpha)alpha=parts[part].maxalpha;
+                origin[2]=*shadowPlane;
+                AxisToAngles(axis,angles);
+                CG_EliteImpactMark(parts[part].shader,origin,trace.plane.normal,
+                    angles[YAW],alpha,alpha,alpha,alpha,qfalse,parts[part].size,qtrue,-1);
+            }
+        }
+    }
+    return qtrue;
 }
 
 /*
@@ -1588,69 +1524,6 @@ Adds a piece with modifications or duplications for powerups
 Also called by CG_Missile for quad rockets, but nobody can tell...
 ===============
 */
-void CG_AddRefEntityWithPowerups( refEntity_t *ent, int powerups, int team, entityState_t *es, const vec3_t fireRiseDir ) {
-	centity_t *cent;
-	refEntity_t backupRefEnt;//, parentEnt;
-	qboolean	onFire=qfalse;
-	float		alpha=0.0;
-	float		fireStart, fireEnd;
-
-	cent = &cg_entities[es->number];
-
-	ent->entityNum = es->number;
-
-/*	if (cent->pe.forceLOD) {
-		ent->reFlags |= REFLAG_FORCE_LOD;
-	}*/
-
-	backupRefEnt = *ent;
-
-	if (CG_EntOnFire(&cg_entities[es->number])) {
-		ent->reFlags |= REFLAG_FORCE_LOD;
-	}
-
-	trap_R_AddRefEntityToScene( ent );
-
-	if (!onFire && CG_EntOnFire(&cg_entities[es->number])) {
-		onFire = qtrue;
-		// set the alpha
-		if ( ent->entityNum == cg.snap->ps.clientNum ) {
-			fireStart = cg.snap->ps.onFireStart;
-			fireEnd = cg.snap->ps.onFireStart + 1500;
-		}
-		else {
-			fireStart = es->onFireStart;
-			fireEnd = es->onFireEnd;
-		}
-
-		alpha = (cg.time - fireStart) / 1500.0;
-		if (alpha > 1.0) {
-			alpha = (fireEnd - cg.time) / 1500.0;
-			if (alpha > 1.0) {
-				alpha = 1.0;
-			}
-		}
-	}
-
-	if (onFire) {
-		if (alpha < 0.0) alpha = 0.0;
-		ent->shaderRGBA[3] = (unsigned char)(255.0*alpha);
-		VectorCopy( fireRiseDir, ent->fireRiseDir );
-		if (VectorCompare(ent->fireRiseDir, vec3_origin)) {
-			VectorSet( ent->fireRiseDir, 0, 0, 1 );
-		}
-		ent->customShader = cgs.media.onFireShader;
-		trap_R_AddRefEntityToScene( ent );
-
-		ent->customShader = cgs.media.onFireShader2;
-		trap_R_AddRefEntityToScene( ent );
-
-		if (ent->hModel == cent->pe.bodyRefEnt.hModel)
-			trap_S_AddLoopingSound( ent->origin, vec3_origin, cgs.media.flameCrackSound, (int)(255.0*alpha), 0 );
-	} 
-
-	*ent = backupRefEnt;
-}
 
 char	*vtosf( const vec3_t v ) {
 	static	int		index;
@@ -1732,6 +1605,65 @@ void CG_AnimPlayerConditions( bg_character_t *character, centity_t *cent ) {
 CG_Player
 ===============
 */
+/* Windows30034780 / Linux00065e2c. Cache only a positive result: an
+ * occluded player is reconsidered every frame, a visible one after 1000ms. */
+void CG_CalcEntityVisibility(centity_t *cent) {
+    vec3_t direction, point;
+    trace_t trace;
+    float radius, top, bottom, sample;
+    int pose = cent->currentState.otherEntityNum2;
+    int corner;
+    if (cent->tceVisible &&
+        (int)((unsigned)cent->tceVisibilityUntil - (unsigned)cg.time) > 0) return;
+    cent->tceVisible = qtrue;
+    cent->tceVisibilityUntil = (int)((unsigned)cg.time + 1000u);
+    if (cent->currentState.eType != ET_PLAYER ||
+        cent->currentState.clientNum == cg.snap->ps.clientNum ||
+        (cent->currentState.eFlags & EF_DEAD)) return;
+
+    radius = tceSmokeNewBBox ? 16.0f : 15.0f;
+    bottom = tceSmokeNewBBox ? 30.0f : 24.0f;
+    if (pose & 4) {
+        radius = tceSmokeNewBBox ? 36.0f : 30.0f;
+        top = tceSmokeNewBBox ? 6.0f : 4.0f;
+    } else if (!(pose & 2)) {
+        top = tceSmokeNewBBox ? 60.0f : 48.0f;
+    } else if (!(pose & 8)) {
+        top = bottom;
+    } else {
+        top = tceSmokeNewBBox ? 40.0f : 32.0f;
+    }
+    VectorSubtract(cent->lerpOrigin, cg.refdef.vieworg, direction);
+    VectorNormalize2(direction, direction);
+    if (DotProduct(cg.refdef.viewaxis[0], direction) > 0.0f) {
+        CG_Trace(&trace, cg.refdef.vieworg, vec3_origin, vec3_origin,
+            cent->lerpOrigin, cg.snap->ps.clientNum, CONTENTS_SOLID);
+        if (trace.fraction >= 1.0f ||
+            (trace.surfaceFlags & 0xff000000) == 0x0c000000) return;
+        /* Original order: top ++,-+,+-,--; then bottom in the same order. */
+        for (corner = 0; corner < 8; ++corner) {
+            point[0] = cent->lerpOrigin[0] + ((corner & 1) ? -radius : radius);
+            point[1] = cent->lerpOrigin[1] + ((corner & 2) ? -radius : radius);
+            point[2] = cent->lerpOrigin[2] + ((corner & 4) ? -bottom : top);
+            CG_Trace(&trace, cg.refdef.vieworg, vec3_origin, vec3_origin,
+                point, cg.snap->ps.clientNum, CONTENTS_SOLID);
+            if (trace.fraction >= 1.0f ||
+                (trace.surfaceFlags & 0xff000000) == 0x0c000000) return;
+        }
+        sample = (rand() & 32767) * (1.0f / 32767.0f) - 0.5f;
+        point[0] = (sample + sample) * radius + cent->lerpOrigin[0];
+        sample = (rand() & 32767) * (1.0f / 32767.0f) - 0.5f;
+        point[1] = (sample + sample) * radius + cent->lerpOrigin[1];
+        point[2] = ((bottom + top) * (rand() & 32767) *
+            (1.0f / 32767.0f) - bottom) + cent->lerpOrigin[2];
+        CG_Trace(&trace, cg.refdef.vieworg, vec3_origin, vec3_origin,
+            point, cg.snap->ps.clientNum, CONTENTS_SOLID);
+        if (trace.fraction >= 1.0f ||
+            (trace.surfaceFlags & 0xff000000) == 0x0c000000) return;
+    }
+    cent->tceVisible = qfalse;
+}
+
 void CG_Player( centity_t *cent )
 {
 	clientInfo_t	*ci;
@@ -1775,7 +1707,9 @@ void CG_Player( centity_t *cent )
 		return;
 	}
 
-	character = CG_CharacterForClientinfo( ci, cent );
+	/* TC carriers select the special character independently of player class. */
+	character = (cent->currentState.effect1Time & 0x60)
+		? BG_GetCharacter(ci->team, 6) : CG_CharacterForClientinfo(ci, cent);
 
 	if( cent->currentState.eFlags & EF_MOUNTEDTANK ) {
 		VectorCopy( cg_entities[ cg_entities[ cent->currentState.clientNum ].tagParent ].mountedMG42Player.origin, playerOrigin );
@@ -1812,6 +1746,43 @@ void CG_Player( centity_t *cent )
 
 	// get the rotation information
 	CG_PlayerAngles( cent, body.axis, body.torsoAxis, head.axis );
+	if (cent->currentState.eFlags & 0x01000000) {
+		vec3_t angles, motion;
+		vec3_t axis[3];
+		float clock, dx, dy, speed, tilt;
+		double phase, wave, dz;
+		VectorCopy(cent->lerpAngles, angles);
+		angles[YAW] = AngleMod(angles[YAW]);
+		VectorCopy(cent->tceEntityMotion, motion);
+		/* Win30054513 FILDs the original clientInfo pointer. Preserve that
+		 * 32-bit numeric phase, not the new module's host/layout address. */
+		phase = (double)(0x32580a10 + clientNum * 0x1c0);
+		clock = (float)((double)cg.time * (double)0.0062831854447722435f);
+		wave = (double)clock * 0.1875;
+		dx = (float)(sin(phase * (double)1.492537260055542f + wave + 4.277999925613403) * 1.8600000000000003);
+		dy = (float)(sin((double)clock * 0.3625 + 1.3739999532699585 - phase * (double)1.1235954761505127f + 0.4) * 0.82);
+		dz = sin(phase * (double)0.9009009003639221f + wave + 7.456999778747559 - 0.8) * 1.3800000000000001;
+		playerOrigin[0] += dx;
+		playerOrigin[1] += dy;
+		playerOrigin[2] = (float)((double)playerOrigin[2] + dz);
+		angles[ROLL] += dx;
+		angles[PITCH] += dy;
+		angles[YAW] = (float)((double)angles[YAW] + dz);
+		speed = VectorNormalize(motion);
+		if (speed != 0.0f) {
+			speed += speed;
+			AnglesToAxis(angles, axis);
+			tilt = DotProduct(axis[1], motion) * speed;
+			if (tilt > 10.0f) tilt = 10.0f;
+			else if (tilt < -10.0f) tilt = -10.0f;
+			angles[ROLL] -= tilt;
+			tilt = DotProduct(axis[0], motion) * speed;
+			if (tilt > 10.0f) tilt = 10.0f;
+			else if (tilt < -10.0f) tilt = -10.0f;
+			angles[PITCH] = tilt + angles[PITCH] + tilt;
+		}
+		AnglesToAxis(angles, body.axis);
+	}
 
 	// FIXME: move this into CG_PlayerAngles
 	if(	cgsnap == cent && (cg.snap->ps.pm_flags & PMF_LADDER) )
@@ -1819,6 +1790,10 @@ void CG_Player( centity_t *cent )
 
 	// copy the torso rotation to the accessories
 	AxisCopy( body.torsoAxis, acc.axis );
+	if (tceSmokeNewBBox) {
+		for (i = 0; i < 3; ++i) VectorScale(body.axis[i], 1.25f, body.axis[i]);
+		body.nonNormalizedAxes = head.nonNormalizedAxes = acc.nonNormalizedAxes = qtrue;
+	}
 
 	// calculate client-side conditions
 	CG_AnimPlayerConditions( character, cent );
@@ -1862,30 +1837,17 @@ void CG_Player( centity_t *cent )
 	VectorCopy( playerOrigin, lightorigin );
 	lightorigin[2] += 31;
 
-	{
-		vec3_t	dist;
-		vec_t	distSquared;
-
-		VectorSubtract( lightorigin, cg.refdef_current->vieworg, dist );
-		distSquared = VectorLengthSquared( dist );
-		if( distSquared > Square(384.f) ) {
-			renderfx |= RF_MINLIGHT;
-
-			distSquared -= Square(384.f);
-
-			if( distSquared > Square(768.f) ) {
-                hilightIntensity = 1.f;
-			} else {
-				hilightIntensity = 1.f * (distSquared / Square(768.f));
-			}
-
-			//CG_Printf( "%f\n", hilightIntensity );
-		}
-	}
-
 	body.hilightIntensity = hilightIntensity;
 	head.hilightIntensity = hilightIntensity;
 	acc.hilightIntensity = hilightIntensity;
+
+    /* Original CG_Player30054250 consumes deferred effects even when the
+     * visibility controller prevents drawing the model on this frame. */
+    if (!cent->tceVisible) {
+        cent->tceEjectPending = 0;
+        cent->tceFireEffectPending = 0;
+        return;
+    }
 
 	//
 	// add the body
@@ -1893,9 +1855,21 @@ void CG_Player( centity_t *cent )
 	if( cent->currentState.eType == ET_CORPSE && cent->currentState.time2 == 1 ) {
 		body.hModel		= character->undressedCorpseModel;
 		body.customSkin	= character->undressedCorpseSkin;
+	} else if (cent->currentState.eFlags & 0x01000000) {
+		body.hModel = trap_R_RegisterModel("models/players/vc100/vc100.md3");
 	} else {
 		body.customSkin	= character->skin;
 		body.hModel		= character->mesh;
+	}
+
+	/* TC damage bits select the eight registered torso skins. */
+	{
+		int bits = cent->currentState.modelindex2, skin = -1;
+		if (bits & 0x40) skin = (bits & 0x10) ? 7 : ((bits & 8) ? 6 : 5);
+		else if (bits & 0x20) skin = (bits & 0x10) ? 4 : ((bits & 8) ? 3 : 2);
+		else if (bits & 0x10) skin = 1;
+		else if (bits & 8) skin = 0;
+		if (skin >= 0) body.customSkin = character->bodyDamageSkins[skin];
 	}
 
 	VectorCopy( playerOrigin, body.origin );
@@ -1916,6 +1890,10 @@ void CG_Player( centity_t *cent )
 	VectorCopy( lightorigin, acc.lightingOrigin );
 
 	CG_AddRefEntityWithPowerups( &body,	cent->currentState.powerups, ci->team, &cent->currentState, cent->fireRiseDir );
+	if (cent->currentState.eFlags & 0x01000000) {
+		if (!(cent->currentState.eFlags & EF_DEAD)) CG_AddPlayerWeapon(&body, NULL, cent);
+		return;
+	}
 
 	// ydnar debug
 	#if 0
@@ -1956,7 +1934,7 @@ void CG_Player( centity_t *cent )
 		VectorAdd( bmins, cent->lerpOrigin, bmins );
 		VectorAdd( bmaxs, cent->lerpOrigin, bmaxs );
 
-		CG_RailTrail( NULL, bmins, bmaxs, 1 );
+		CG_RailTrail( NULL, bmins, bmaxs, 1, 0 );
 	}*/
 
 	/*{
@@ -1977,7 +1955,7 @@ void CG_Player( centity_t *cent )
 
 		for( idx = 0; idx < 3; idx++ ) {
 			VectorMA( start, 32, axis[idx], ends[idx] );
-			CG_RailTrail2( NULL, start, ends[idx] );
+			CG_RailTrail2( NULL, start, ends[idx], 0 );
 		}
 	}
 	{
@@ -1993,7 +1971,7 @@ void CG_Player( centity_t *cent )
 
 		VectorAdd( cent->lerpOrigin, mins, mins );
 		VectorAdd( cent->lerpOrigin, maxs, maxs );
-		CG_RailTrail( NULL, mins, maxs, 1 );
+		CG_RailTrail( NULL, mins, maxs, 1, 0 );
 
 		if( cg.predictedPlayerState.eFlags & EF_PRONE ) {
 			vec3_t org, forward;
@@ -2012,7 +1990,7 @@ void CG_Player( centity_t *cent )
 
 			VectorAdd( org, mins, mins );
 			VectorAdd( org, maxs, maxs );
-			CG_RailTrail( NULL, mins, maxs, 1 );
+			CG_RailTrail( NULL, mins, maxs, 1, 0 );
 
 			// And the head
 			VectorSet( mins, -6, -6, -22 );
@@ -2024,7 +2002,7 @@ void CG_Player( centity_t *cent )
 
 			VectorAdd( org, mins, mins );
 			VectorAdd( org, maxs, maxs );
-			CG_RailTrail( NULL, mins, maxs, 1 );
+			CG_RailTrail( NULL, mins, maxs, 1, 0 );
 		}
 	}*/
 // DEBUG
@@ -2037,6 +2015,8 @@ void CG_Player( centity_t *cent )
 		return;
 	}
 	head.customSkin = character->hudheadskin;
+	if (cent->currentState.modelindex2 & 4) head.customSkin = character->headDamageSkins[1];
+	else if (cent->currentState.modelindex2 & 2) head.customSkin = character->headDamageSkins[0];
 
 	VectorCopy( lightorigin, head.lightingOrigin );
 
@@ -2086,7 +2066,7 @@ void CG_Player( centity_t *cent )
 	// set the shadowplane for accessories
 	acc.shadowPlane = shadowPlane;
 
-	CG_BreathPuffs( cent, &head );
+	/* The TC player controller has no SDK breath-puff call here. */
 
 	//
 	// add the gun / barrel / flash
@@ -2104,67 +2084,58 @@ void CG_Player( centity_t *cent )
 		CG_AddRefEntityWithPowerups( &acc, cent->currentState.powerups, ci->team, &cent->currentState, cent->fireRiseDir );
 	}
 
-	//
-	// add accessories
-	//
-	for( i = ACC_BELT_LEFT; i < ACC_MAX; i++ ) {
-		if( !(character->accModels[i]) )
-			continue;
+	/* TC equipment: effect2Time is the identity-mapped back weapon ID.
+	 * Original weapon model address3484a640 is media+0x5c0: view0. */
+	if (!(cent->currentState.eFlags & EF_DEAD) &&
+		(cent->currentState.effect2Time || (cent->currentState.effect1Time & 0x10) ||
+		 (cent->currentState.powerups & 0xc0))) {
+		refEntity_t gear;
+		int weapon = cent->currentState.effect2Time;
+		acc.hModel = cgs.media.tceBackWeaponTagModel;
+		CG_PositionEntityOnTag(&acc, &body, "tag_back", 0, NULL);
+		CG_AddRefEntityWithPowerups(&acc, cent->currentState.powerups, ci->team, &cent->currentState, cent->fireRiseDir);
+		memset(&gear, 0, sizeof(gear));
+		VectorCopy(lightorigin, gear.lightingOrigin);
+		gear.shadowPlane = shadowPlane;
+		gear.renderfx = renderfx;
+		if (weapon > 0 && weapon < 64) {
+			float scale = (weapon == 43 || weapon == 51 || weapon == 47 || weapon == 8 || weapon == 41 || weapon == 44) ? 1.1f : 1.0f;
+			gear.hModel = tce_cg_weapons[weapon].weaponModel[0].model;
+			gear.customSkin = tce_cg_weapons[weapon].weaponModel[0].skin[0];
+			for (i = 0; i < 3; ++i) VectorScale(gear.axis[i], scale, gear.axis[i]);
+			gear.nonNormalizedAxes = qtrue;
+			CG_PositionEntityOnTag(&gear, &acc, "tag_backweap", 0, NULL);
+			CG_AddRefEntityWithPowerups(&gear, cent->currentState.powerups, ci->team, &cent->currentState, cent->fireRiseDir);
+		}
+		if (cent->currentState.effect1Time & 0x10) {
+			gear.hModel = cgs.media.tceBackBombModel;
+			CG_PositionEntityOnTag(&gear, &acc, "tag_backweap", 0, NULL);
+			CG_AddRefEntityWithPowerups(&gear, cent->currentState.powerups, ci->team, &cent->currentState, cent->fireRiseDir);
+		}
+		if (cent->currentState.powerups & 0x40) {
+			gear.hModel = cgs.media.tceBackpackRedModel;
+			CG_PositionEntityOnTag(&gear, &body, "tag_back", 0, NULL);
+			CG_AddRefEntityWithPowerups(&gear, cent->currentState.powerups, ci->team, &cent->currentState, cent->fireRiseDir);
+		}
+		if (cent->currentState.powerups & 0x80) {
+			gear.hModel = cgs.media.tceBackpackBlueModel;
+			CG_PositionEntityOnTag(&gear, &body, "tag_back", 0, NULL);
+			CG_AddRefEntityWithPowerups(&gear, cent->currentState.powerups, ci->team, &cent->currentState, cent->fireRiseDir);
+		}
+	}
+
+	/* TC slots7/8 are leg tags; SDK mouth/rank interpretation is incorrect. */
+	for (i = 0; i < ACC_MAX; ++i) {
+		static const char *tags[13] = { "tag_bright", "tag_bleft", "tag_ubelt", "tag_back",
+			"tag_weapon", "tag_weapon2", "tag_mouth", "tag_legright", "tag_legleft", NULL,
+			"tag_chest", "tag_armleft", "tag_armright" };
+		if (!character->accModels[i] || !tags[i] ||
+			(cent->currentState.eType == ET_CORPSE && cent->currentState.time2 == 1) ||
+			(i == 6 && (cent->currentState.eFlags & EF_HEADSHOT))) continue;
 		acc.hModel = character->accModels[i];
 		acc.customSkin = character->accSkins[i];
-
-		// Gordon: looted corpses dont have any accsserories, evil looters :E
-		if( !(cent->currentState.eType == ET_CORPSE && cent->currentState.time2 == 1 )) {
-			switch(i)
-			{
-				case ACC_BELT_LEFT:
-					CG_PositionEntityOnTag( &acc,	&body,	"tag_bright", 0, NULL);
-					break;
-				case ACC_BELT_RIGHT:
-					CG_PositionEntityOnTag( &acc,	&body,	"tag_bleft", 0, NULL);
-					break;
-
-				case ACC_BELT:
-					CG_PositionEntityOnTag( &acc,	&body,	"tag_ubelt", 0, NULL);
-					break;
-				case ACC_BACK:
-					CG_PositionEntityOnTag( &acc,	&body,	"tag_back", 0, NULL);
-					break;
-				
-				case ACC_HAT:			//hat
-				case ACC_RANK:
-					if( cent->currentState.eFlags & EF_HEADSHOT ) {
-						continue;
-					}
-				case ACC_MOUTH2:		// hat2
-				case ACC_MOUTH3:		// hat3					
-
-					if( i == ACC_RANK ) {
-						if( ci->rank == 0 ) {
-							continue;
-						}
-						acc.customShader = rankicons[ ci->rank ][ 1 ].shader;
-					}
-
-					CG_PositionEntityOnTag( &acc,	&head,	"tag_mouth", 0, NULL);
-					break;
-				
-				// weapon and weapon2
-				// these are used by characters who have permanent weapons attached to their character in the skin
-				case ACC_WEAPON:	// weap
-					CG_PositionEntityOnTag( &acc,	&body,	"tag_weapon", 0, NULL);
-					break;
-				case ACC_WEAPON2:	// weap2
-					CG_PositionEntityOnTag( &acc,	&body,	"tag_weapon2", 0, NULL);
-					break;
-
-
-				default:
-					continue;
-			}
-
-			CG_AddRefEntityWithPowerups( &acc, cent->currentState.powerups, ci->team, &cent->currentState, cent->fireRiseDir );
-		}
+		CG_PositionEntityOnTag(&acc, i == 6 ? &head : &body, tags[i], 0, NULL);
+		CG_AddRefEntityWithPowerups(&acc, cent->currentState.powerups, ci->team, &cent->currentState, cent->fireRiseDir);
 	}
 }
 
@@ -2201,8 +2172,8 @@ void CG_ResetPlayerEntity( centity_t *cent ) {
 		cent->pe.torso.pitching = qfalse;
 	}
 
-	BG_EvaluateTrajectory( &cent->currentState.pos, cg.time, cent->lerpOrigin, qfalse, cent->currentState.effect2Time );
-	BG_EvaluateTrajectory( &cent->currentState.apos, cg.time, cent->lerpAngles, qtrue, cent->currentState.effect2Time  );
+	TCE_BG_EvaluateTrajectory( &cent->currentState.pos, cg.time, cent->lerpOrigin, qfalse, cent->currentState.effect2Time, 1.0f );
+	TCE_BG_EvaluateTrajectory( &cent->currentState.apos, cg.time, cent->lerpAngles, qtrue, cent->currentState.effect2Time, 1.0f );
 
 	VectorCopy( cent->lerpOrigin, cent->rawOrigin );
 	VectorCopy( cent->lerpAngles, cent->rawAngles );
@@ -2737,29 +2708,47 @@ void CG_DrawPlayer_Limbo( float x, float y, float w, float h, playerInfo_t *pi, 
 	trap_R_RestoreViewParms();
 }
 
+/* Original TC table at cgame 300afd68; live weapon names come from gear media. */
 weaponType_t weaponTypes[] = {
-	{ WP_MP40,					"MP 40"			},
-	{ WP_THOMPSON,				"THOMPSON"		},
-	{ WP_STEN,					"STEN",			},
-	{ WP_PANZERFAUST,			"PANZERFAUST",	},
-	{ WP_FLAMETHROWER,			"FLAMETHROWER",	},
-	{ WP_KAR98,					"K43", 			},
-	{ WP_CARBINE,				"M1 GARAND", 	},
-	{ WP_FG42,					"FG42",			},
-	{ WP_GARAND,				"M1 GARAND",	},
-	{ WP_MOBILE_MG42,			"MOBILE MG42",	},
-	{ WP_K43,					"K43",			},
-	{ WP_MORTAR,				"MORTAR",		},
-	{ WP_COLT,					"COLT",			},
-	{ WP_LUGER,					"LUGER",		},
-	{ WP_AKIMBO_COLT,			"AKIMBO COLTS",	},
-	{ WP_AKIMBO_LUGER,			"AKIMBO LUGERS",},
-	{ WP_SILENCED_COLT,			"COLT",			},
-	{ WP_SILENCER,				"LUGER",		},
-	{ WP_AKIMBO_SILENCEDCOLT,	"AKIMBO COLTS",	},
-	{ WP_AKIMBO_SILENCEDLUGER,	"AKIMBO LUGERS",},
-	{ WP_NONE,					NULL,			},
-	{ -1,						NULL,			},
+    { 3, "MICRO UZI", "IMI Micro Uzi 9x19mm", "Machine Pistol" },
+    { 8, "MP5/10", "H&K Mp5/10 .40 S&W", "Submachine Gun" },
+    { 10, "MAC 10", "Ingrim Mac 10 .45", "Machine Pistol" },
+    { 9, "M26 FRAG", NULL, NULL },
+    { 4, "XM84 STUN", NULL, NULL },
+    { 30, "M83 SMOKE", NULL, NULL },
+    { 1, "KNIFE", NULL, NULL },
+    { 25, "M1 GARAND", NULL, NULL },
+    { 31, "MOBILE MG42", NULL, NULL },
+    { 32, "K43", NULL, NULL },
+    { 35, "MORTAR", NULL, NULL },
+    { 7, "HARDBALLER", "AMT 1911 Hardballer .45", "Automatic Pistol" },
+    { 2, "BERETTA", "Beretta 92 9x19mm", "Automatic Pistol" },
+    { 37, "AKIMBO", "2x Glock 19 9x19mm", "Dual Automatic Pistol" },
+    { 38, "AKIMBO", "2x Beretta 92 9x19mm", "Dual Automatic Pistol" },
+    { 52, "COLT", NULL, NULL },
+    { 14, "LUGER", NULL, NULL },
+    { 53, "AKIMBO COLTS", NULL, NULL },
+    { 54, "AKIMBO LUGERS", NULL, NULL },
+    { 39, "GLOCK", "Glock 19 9mmx19mm", "Automatic Pistol" },
+    { 40, "DESERT EAGLE", "IMI Desert Eagle .50 AE", "Automatic Pistol" },
+    { 48, "M3S90", "Benelli M3 Super 90", "Shotgun" },
+    { 51, "M76", "Zastava M76 7.92x57mm", "Sniper Rifle" },
+    { 44, "M4", "Colt M4 5.56x45mm", "Assault Rifle" },
+    { 45, "AKSU-74", "Izhmash AkSU-74 5.45x25mm", "Submachine Gun" },
+    { 33, "AKSU-74 SD", "Izhmash AkSU-74 BG 150", "Suppressed Submachine Gun" },
+    { 43, "AK-47", "Izhmash Ak-47 7.62x39mm", "Assault Rifle" },
+    { 49, "M590C", "Mossberg M590 Compact", "Assault Shotgun" },
+    { 50, "G3", "H&K G3A4 7.62x51mm", "Assault Rifle" },
+    { 41, "MP5SD", "H&K Mp5 SD 9x19mm", "Suppressed Submachine Gun" },
+    { 42, "UMP45", "H&K UMP-45 .45", "Submachine Gun" },
+    { 47, "PSG-1", "H&K PSG-1 7.62x51mm", "Sniper Rifle" },
+    { 46, "R93", "Blaser R93 .338 Lapua", "Bolt Action Sniper Rifle" },
+    { 36, "TECHKIT", "No grenades", "Faster objective ability" },
+    { 19, "GRENADES", "M83 Smoke", "Defensive grenade loadout" },
+    { 20, "GRENADES", "Mk3A2 Concussion", "Offensive grenade loadout" },
+    { 21, "GRENADES", "M83 Smoke, XM84 Stun", "Tactical grenade loadout" },
+    { 0, NULL, NULL, NULL },
+    { -1, NULL, NULL, NULL },
 };
 
 weaponType_t* WM_FindWeaponTypeForWeapon ( weapon_t weapon ) {

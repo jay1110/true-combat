@@ -191,107 +191,14 @@ int G_FindFreeFireteamIdent(team_t team) {
 }
 
 // Should be the only function that ever creates a fireteam
-void G_RegisterFireteam(/*const char* name,*/ int entityNum) {
-	fireteamData_t* ft;
-	gentity_t* leader;
-	int count, ident;
-
-	if(entityNum < 0 || entityNum >= MAX_CLIENTS) {
-		G_Error("G_RegisterFireteam: invalid client");
-	}
-
-	leader = &g_entities[entityNum];
-	if(!leader->client) {
-		G_Error("G_RegisterFireteam: attempting to register a Fireteam to an entity with no client\n");
-	}
-
-	if(G_IsOnFireteam(entityNum, NULL)) {
-		G_ClientPrintAndReturn(entityNum, "You are already on a fireteam, leave it first");
-	}
-
-/*	if(!name || !*name) {
-		G_ClientPrintAndReturn(entityNum, "You must choose a name for your fireteam");
-	}*/
-		
-	if((ft = G_FindFreeFireteam()) == NULL) {
-		G_ClientPrintAndReturn(entityNum, "No free fireteams available");
-	}
-
-	if(leader->client->sess.sessionTeam != TEAM_AXIS && leader->client->sess.sessionTeam != TEAM_ALLIES) {
-		G_ClientPrintAndReturn(entityNum, "Only players on a team can create a fireteam");
-	}
-
-	count = G_CountTeamFireteams(leader->client->sess.sessionTeam);
-	if(count >= MAX_FIRETEAMS / 2) {
-		G_ClientPrintAndReturn(entityNum, "Your team already has the maximum number of fireteams allowed");
-	}
-
-	ident = G_FindFreeFireteamIdent( leader->client->sess.sessionTeam ) + 1;
-	if(ident == 0) {
-		G_ClientPrintAndReturn(entityNum, "Um, something is broken, spoink Gordon");
-	}
-
-	// good to go now, i hope!
-	ft->inuse = qtrue;	
-	memset(ft->joinOrder, -1, sizeof(level.fireTeams[0].joinOrder));
-	ft->joinOrder[0] = leader - g_entities;
-	ft->ident = ident;
-
-	if( g_autoFireteams.integer ) {
-		ft->priv = qfalse;
-
-		trap_SendServerCommand( entityNum, "aft -1" );
-		leader->client->pers.autofireteamEndTime = level.time + 20500;
-	} else {
-		ft->priv = qfalse;
-	}
-
-//	Q_strncpyz(ft->name, name, 32);
-
-	G_UpdateFireteamConfigString(ft);
+/* TC Linux000b82f4: registration is deliberately disabled. */
+void G_RegisterFireteam(int entityNum) {
+	(void)entityNum;
 }
-
-// only way a client should ever join a fireteam, other than creating one
-void G_AddClientToFireteam( int entityNum, int leaderNum ) {
-	fireteamData_t* ft;
-	int i;
-
-	if((entityNum < 0 || entityNum >= MAX_CLIENTS) || !g_entities[entityNum].client) {
-		G_Error("G_AddClientToFireteam: invalid client");
-	}
-
-	if((leaderNum < 0 || leaderNum >= MAX_CLIENTS) || !g_entities[leaderNum].client) {
-		G_Error("G_AddClientToFireteam: invalid client");
-	}
-	
-	if(g_entities[leaderNum].client->sess.sessionTeam != g_entities[entityNum].client->sess.sessionTeam) {
-		G_ClientPrintAndReturn( entityNum, "You are not on the same team as that fireteam");
-	}
-	
-	if(!G_IsFireteamLeader( leaderNum, &ft )) {
-		G_ClientPrintAndReturn( entityNum, "The leader has now left the Fireteam you applied to");
-	}
-
-	if(G_IsOnFireteam(entityNum, NULL)) {
-		G_ClientPrintAndReturn( entityNum, "You are already on a fireteam");
-	}
-
-	for( i = 0; i < MAX_CLIENTS; i++ ) {
-
-		if( i >= 6 ) {
-			G_ClientPrintAndReturn( entityNum, "Too many players already on this Fireteam");
-			return;
-		}
-
-		if(ft->joinOrder[i] == -1) {
-			// found a free position
-			ft->joinOrder[i] = entityNum;
-
-			G_UpdateFireteamConfigString(ft);
-
-			return;
-		}
-	}
+/* TC Linux000b82f6 / folded Windows2001b750: no fireteam joins. */
+void G_AddClientToFireteam(int entityNum, int leaderNum) {
+	(void)entityNum;
+	(void)leaderNum;
 }
 
 // The only way a client should be removed from a fireteam

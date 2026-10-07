@@ -2,6 +2,7 @@
 #include "../ui/ui_shared.h"
 
 extern displayContextDef_t *DC;
+extern qboolean tce_uiCoordinates;
 
 qboolean	bg_loadscreeninited =	qfalse;
 qboolean	bg_loadscreeninteractive;
@@ -45,7 +46,7 @@ panel_button_text_t campaignpheaderTxt = {
 };
 
 panel_button_text_t campaignpTxt = {
-	0.30f, 0.30f,
+	0.2f, 0.2f,
 	{ 1.0f, 1.0f, 1.0f, 0.6f },
 	0, 0,
 	&bg_loadscreenfont2,
@@ -73,7 +74,7 @@ panel_button_t loadScreenMap = {
 panel_button_t loadScreenBack = {
 	"gfx/loading/camp_side",
 	NULL,
-	{ 440, 0, 200, 480 },
+	{ -5, -110, 862, 700 },
 	{ 0, 0, 0, 0, 0, 0, 0, 0 },
 	NULL,	/* font		*/
 	NULL,	/* keyDown	*/
@@ -121,7 +122,7 @@ panel_button_t missiondescriptionPanelText = {
 panel_button_t campaignheaderPanelText = {
 	NULL,
 	NULL,
-	{ 456, 24, 152, 232 },
+	{ 20, 412, 152, 32 },
 	{ 0, 0, 0, 0, 0, 0, 0, 0 },
 	&campaignpheaderTxt,	/* font		*/
 	NULL,					/* keyDown	*/
@@ -133,7 +134,7 @@ panel_button_t campaignheaderPanelText = {
 panel_button_t campaignPanelText = {
 	NULL,
 	NULL,
-	{ 464, 40, 152, 232 },
+	{ 20, 402, 152, 32 },
 	{ 0, 0, 0, 0, 0, 0, 0, 0 },
 	&campaignpTxt,			/* font		*/
 	NULL,					/* keyDown	*/
@@ -145,7 +146,7 @@ panel_button_t campaignPanelText = {
 panel_button_t loadScreenMeterBack = {
 	"gfx/loading/progressbar_back",
 	NULL,
-	{ 440+26, 480-30+1, 200-56, 20 },
+	{ 326, 460, 200, 6 },
 	{ 0, 0, 0, 0, 0, 0, 0, 0 },
 	NULL,	/* font		*/
 	NULL,	/* keyDown	*/
@@ -157,7 +158,7 @@ panel_button_t loadScreenMeterBack = {
 panel_button_t loadScreenMeterBack2 = {
 	"gfx/loading/progressbar",
 	NULL,
-	{ 440+26, 480-30+1, 200-56, 20 },
+	{ 327, 461, 198, 4 },
 	{ 1, 255, 0, 0, 255, 0, 0, 0 },
 	NULL,	/* font		*/
 	NULL,	/* keyDown	*/
@@ -178,19 +179,12 @@ panel_button_t loadScreenMeterBackText = {
 	NULL,
 };
 
+/* Original TC:E draws the background/meter first, map labels over the levelshot. */
 panel_button_t* loadpanelButtons[] = {
-	&loadScreenMap, &loadScreenBack,
-
-
-	&missiondescriptionPanelText, &missiondescriptionPanelHeaderText,
-
-	&campaignheaderPanelText, &campaignPanelText,
-
-	&loadScreenMeterBack, &loadScreenMeterBack2, &loadScreenMeterBackText,
-
-	&loadScreenPins,
-
-	NULL,
+    &loadScreenBack, &loadScreenMeterBack, &loadScreenMeterBack2, NULL,
+};
+panel_button_t* loadpanelMapname[] = {
+    &campaignheaderPanelText, &campaignPanelText, NULL,
 };
 
 /*
@@ -199,30 +193,11 @@ CG_DrawConnectScreen
 ================
 */
 
-const char* CG_LoadPanel_GameTypeName( gametype_t gt ) {
-	switch( gt ) {
-		case GT_SINGLE_PLAYER:
-			return "Single Player";
-		case GT_COOP:
-			return "Co-op";
-		case GT_WOLF:
-			return "Objective";
-		case GT_WOLF_STOPWATCH:
-			return "Stopwatch";
-		case GT_WOLF_CAMPAIGN:
-			return "Campaign";
-		case GT_WOLF_LMS:
-			return "Last Man Standing";
-		default:
-			break;
-	}
-
-	return "Invalid";
-}
-
 void CG_DrawConnectScreen( qboolean interactive, qboolean forcerefresh ) {
 	static qboolean inside = qfalse;
 	char buffer[1024];
+    qboolean previousCoordinates;
+    vec4_t headerColor = { 1.f, 1.f, 1.f, .6f };
 
 	bg_loadscreeninteractive = interactive;
 
@@ -235,11 +210,13 @@ void CG_DrawConnectScreen( qboolean interactive, qboolean forcerefresh ) {
 	}
 
 	inside = qtrue;
+    previousCoordinates = tce_uiCoordinates;
+    tce_uiCoordinates = qtrue;
 
 	if( !bg_loadscreeninited ) {
 		trap_Cvar_Set( "ui_connecting", "0" );
 
-		DC->registerFont( "ariblk", 27, &bg_loadscreenfont1 );
+		DC->registerFont( "courbd", 30, &bg_loadscreenfont1 );
 		DC->registerFont( "courbd", 30, &bg_loadscreenfont2 );
 
 		bg_axispin =	DC->registerShaderNoMip( "gfx/loading/pin_axis" );
@@ -259,6 +236,7 @@ void CG_DrawConnectScreen( qboolean interactive, qboolean forcerefresh ) {
 		bg_mappic =		0;
 
 		BG_PanelButtonsSetup( loadpanelButtons );
+        BG_PanelButtonsRender( loadpanelMapname );
 
 		bg_loadscreeninited = qtrue;
 	}
@@ -270,95 +248,6 @@ void CG_DrawConnectScreen( qboolean interactive, qboolean forcerefresh ) {
 	}
 
 	DC->getConfigString( CS_SERVERINFO, buffer, sizeof( buffer ) );
-	if( *buffer ) {
-		const char *str;
-		qboolean enabled = qfalse;
-		float x, y;
-		int i;
-//		vec4_t clr1 = { 41/255.f,	51/255.f,	43/255.f,	204/255.f };
-//		vec4_t clr2 = { 0.f,		0.f,		0.f,		225/255.f };
-		vec4_t clr3 = { 1.f,		1.f,		1.f,		.6f };
-
-/*		CG_FillRect( 8, 8, 230, 16, clr1 );
-		CG_DrawRect_FixedBorder( 8, 8, 230, 16, 1, colorMdGrey );
-
-		CG_FillRect( 8, 23, 230, 210, clr2 );
-		CG_DrawRect_FixedBorder( 8, 23, 230, 216, 1, colorMdGrey );*/
-
-		y = 322;
-		CG_Text_Paint_Centred_Ext( 540, y, 0.22f, 0.22f, clr3, "SERVER INFO", 0, 0, 0, &bg_loadscreenfont1 );
-		
-		y = 340;
-		str = Info_ValueForKey( buffer, "sv_hostname" );
-		CG_Text_Paint_Centred_Ext( 540, y, 0.2f, 0.2f, colorWhite, str && *str ? str : "ETHost", 0, 26, 0, &bg_loadscreenfont2 );
-		
-		
-		y += 14;
-		for( i = 0; i < MAX_MOTDLINES; i++) {
-			str = CG_ConfigString( CS_CUSTMOTD + i );
-			if( !str || !*str ) {
-				break;
-			}
-
-			CG_Text_Paint_Centred_Ext( 540, y, 0.2f, 0.2f, colorWhite, str, 0, 26, 0, &bg_loadscreenfont2 );
-
-			y += 10;
-		}
-
-		y = 417;
-
-		str = Info_ValueForKey( buffer, "g_friendlyfire" );
-		if( str && *str && atoi( str ) ) {
-			x = 461;
-			CG_DrawPic( x, y, 16, 16, bg_filter_ff );
-		}
-
-		if( atoi( Info_ValueForKey( buffer, "g_gametype" ) ) != GT_WOLF_LMS ) {
-			str = Info_ValueForKey( buffer, "g_alliedmaxlives" );
-			if( str && *str && atoi( str ) ) {
-				enabled = qtrue;
-			} else {
-				str = Info_ValueForKey( buffer, "g_axismaxlives" );
-				if( str && *str && atoi( str ) ) {
-					enabled = qtrue;
-				} else {
-					str = Info_ValueForKey( buffer, "g_maxlives" );
-					if( str && *str && atoi( str ) ) {
-						enabled = qtrue;
-					}
-				}
-			}
-		}
-
-		if( enabled ) {
-			x = 489;
-			CG_DrawPic( x, y, 16, 16, bg_filter_lv );
-		}
-		
-		str = Info_ValueForKey( buffer, "sv_punkbuster" );
-		if( str && *str && atoi( str ) ) {
-			x = 518;
-			CG_DrawPic( x, y, 16, 16, bg_filter_pb );
-		}
-
-		str = Info_ValueForKey( buffer, "g_heavyWeaponRestriction" );
-		if( str && *str && atoi( str ) != 100 ) {
-			x = 546;
-			CG_DrawPic( x, y, 16, 16, bg_filter_hw );
-		}
-
-		str = Info_ValueForKey( buffer, "g_antilag" );
-		if( str && *str && atoi( str ) ) {
-			x = 575;
-			CG_DrawPic( x, y, 16, 16, bg_filter_al );
-		}
-
-		str = Info_ValueForKey( buffer, "g_balancedteams" );
-		if( str && *str && atoi( str ) ) {
-			x = 604;
-			CG_DrawPic( x, y, 16, 16, bg_filter_bt );
-		}
-	}
 
 	if( *cgs.rawmapname ) {
 		if( !bg_mappic ) {
@@ -369,41 +258,21 @@ void CG_DrawConnectScreen( qboolean interactive, qboolean forcerefresh ) {
 			}
 		}
 
-		trap_R_SetColor( colorBlack );
-		CG_DrawPic( 16+1, 2+1, 192, 144, bg_mappic );
+        trap_R_SetColor( NULL );
+        CG_DrawPic( 0, 58, 852, 364, bg_mappic );
+    }
 
-		trap_R_SetColor( NULL );
-		CG_DrawPic( 16, 2, 192, 144, bg_mappic );
-
-		CG_DrawPic( 16+80, 2+6, 20, 20, bg_pin );
-	}
+    BG_PanelButtonsRender( loadpanelMapname );
+    CG_Text_Paint_Centred_Ext( 93, 87, .5f, .5f, headerColor, "TCE TEST", 0, 0, 0, &bg_loadscreenfont1 );
+    CG_Text_Paint_Centred_Ext( 627, 87, .3f, .3f, headerColor,
+        cgs.tceVersion, 0, 0, 0, &bg_loadscreenfont1 );
 
 	if( forcerefresh ) {
 		DC->updateScreen();
 	}
 
+	tce_uiCoordinates = previousCoordinates;
 	inside = qfalse;
-}
-
-void CG_LoadPanel_RenderLoadingBar( panel_button_t* button ) {
-	int hunkused, hunkexpected;
-	float frac;
-
-	trap_GetHunkData( &hunkused, &hunkexpected );
-
-	if( hunkexpected <= 0 ) {
-		return;
-	}
-
-	frac = hunkused/(float)hunkexpected;
-	if( frac < 0.f ) {
-		frac = 0.f;
-	}
-	if( frac > 1.f ) {
-		frac = 1.f;
-	}
-
-	CG_DrawPicST( button->rect.x, button->rect.y, button->rect.w * frac, button->rect.h, 0, 0, frac, 1, button->hShaderNormal );
 }
 
 void CG_LoadPanel_RenderCampaignTypeText( panel_button_t* button ) {
@@ -416,7 +285,7 @@ void CG_LoadPanel_RenderCampaignTypeText( panel_button_t* button ) {
 
 	str = Info_ValueForKey( buffer, "g_gametype" );
 */
-	CG_Text_Paint_Ext( button->rect.x, button->rect.y, button->font->scalex, button->font->scaley, button->font->colour, va( "%s:", CG_LoadPanel_GameTypeName( cgs.gametype ) ), 0, 0, button->font->style, button->font->font );
+	CG_Text_Paint_Ext( button->rect.x, button->rect.y, button->font->scalex, button->font->scaley, button->font->colour, va( "%s", CG_LoadPanel_GameTypeName( cgs.gametype ) ), 0, 0, button->font->style, button->font->font );
 }
 
 
@@ -448,8 +317,11 @@ void CG_LoadPanel_RenderCampaignNameText( panel_button_t* button ) {
 			return;
 		}
 
-		w = CG_Text_Width_Ext( cgs.arenaData.longname, button->font->scalex, 0, button->font->font );
-		CG_Text_Paint_Ext( button->rect.x + (button->rect.w - w)*0.5f, button->rect.y, button->font->scalex, button->font->scaley, button->font->colour, cgs.arenaData.longname, 0, 0, 0, button->font->font );		
+        /* Preserve the original measurement callback as well as draw order. */
+        CG_Text_Width_Ext( cgs.arenaData.longname, button->font->scalex, 0, button->font->font );
+        CG_Text_Paint_Ext( button->rect.x, button->rect.y, button->font->scalex, button->font->scaley, button->font->colour, cgs.arenaData.longname, 0, 0, 0, button->font->font );
+        w = CG_Text_Width_Ext( cgs.arenaData.authors, button->font->scalex, 0, button->font->font );
+        CG_Text_Paint_Ext( button->rect.x + 750.f - w, button->rect.y, button->font->scalex, button->font->scaley, button->font->colour, cgs.arenaData.authors, 0, 0, 0, button->font->font );
 	}
 }
 

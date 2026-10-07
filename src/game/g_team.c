@@ -311,16 +311,11 @@ void Team_CheckHurtCarrier(gentity_t *targ, gentity_t *attacker)
 
 void Team_ResetFlag( gentity_t *ent )
 {
-	if (ent->flags & FL_DROPPED_ITEM) {
-		Team_ResetFlag( &g_entities[ent->s.otherEntityNum] );
-		G_FreeEntity(ent);
-	} else {
-		ent->s.density++;
-
-		// do we need to respawn?
-		if( ent->s.density == 1 )
-			RespawnItem(ent);
-	}
+	while (ent->flags & FL_DROPPED_ITEM)
+		ent = &g_entities[ent->s.otherEntityNum];
+	ent->s.density++;
+	if (ent->s.density == 1)
+		RespawnItem(ent);
 }
 
 /*void Team_RemoveFlag(int team)
@@ -393,10 +388,7 @@ void Team_ReturnFlagSound(gentity_t *ent, int team)
 
 void Team_ReturnFlag(gentity_t *ent)
 {
-	int team = ent->item->giTag == PW_REDFLAG ? TEAM_AXIS : TEAM_ALLIES;
-	Team_ReturnFlagSound(ent, team);
 	Team_ResetFlag(ent);
-	PrintMsg(NULL, "The %s flag has returned!\n", TeamName(team));
 }
 
 /*
@@ -412,18 +404,15 @@ void Team_DroppedFlagThink(gentity_t *ent) {
 	if( ent->item->giTag == PW_REDFLAG ) {
 		G_Script_ScriptEvent( &g_entities[ent->s.otherEntityNum], "trigger", "returned" );
 
-		Team_ReturnFlagSound( ent, TEAM_AXIS );
 		Team_ResetFlag( ent );
 
 		if( level.gameManager ) {
 			G_Script_ScriptEvent( level.gameManager, "trigger", "axis_object_returned" );
 		}
 
-		trap_SendServerCommand(-1, "cp \"Axis have returned the objective!\" 2");
 	} else if( ent->item->giTag == PW_BLUEFLAG ) {
 		G_Script_ScriptEvent( &g_entities[ent->s.otherEntityNum], "trigger", "returned" );
 
-		Team_ReturnFlagSound( ent, TEAM_ALLIES );
 		Team_ResetFlag( ent );
 
 		if( level.gameManager ) {
@@ -432,61 +421,23 @@ void Team_DroppedFlagThink(gentity_t *ent) {
 
 //		trap_SendServerCommand(-1, "cp \"Allies have returned the objective!\" 2");
 	}
-	// Reset Flag will delete this entity
+	G_FreeEntity(ent);
 }
 
-int Team_TouchOurFlag( gentity_t *ent, gentity_t *other, int team ) {
-	gclient_t *cl = other->client;
-//	gentity_t* te;
-	int our_flag, enemy_flag;
-
-	if (cl->sess.sessionTeam == TEAM_AXIS) {
-		our_flag = PW_REDFLAG;
-		enemy_flag = PW_BLUEFLAG;
-	} else {
-		our_flag = PW_BLUEFLAG;
-		enemy_flag = PW_REDFLAG;
-	}
-
-	if ( ent->flags & FL_DROPPED_ITEM ) {
-		// hey, its not home.  return it by teleporting it back
-		AddScore(other, WOLF_SECURE_OBJ_BONUS);
-		//G_AddExperience( other, 0.8f );
-//		te = G_TempEntity( other->s.pos.trBase, EV_GLOBAL_SOUND );
-//		te->r.svFlags |= SVF_BROADCAST;
-//		te->s.teamNum = cl->sess.sessionTeam;
-
-		if ( cl->sess.sessionTeam == TEAM_AXIS ) {
-//			te->s.eventParm = G_SoundIndex( "sound/chat/axis/g-objective_secure.wav" );
-
-//			trap_SendServerCommand(-1, va("cp \"Axis have returned %s!\n\" 2", ent->message));
-
-			if( level.gameManager ) {
-				G_Script_ScriptEvent( level.gameManager, "trigger", "axis_object_returned" );
-			}
-			G_Script_ScriptEvent( &g_entities[ent->s.otherEntityNum], "trigger", "returned" );
-		} else {
-//			te->s.eventParm = G_SoundIndex( "sound/chat/allies/a-objective_secure.wav" );
-
-//			trap_SendServerCommand(-1, va("cp \"Allies have returned %s!\n\" 2", ent->message));
-
-			if( level.gameManager ) {
-				G_Script_ScriptEvent( level.gameManager, "trigger", "allied_object_returned" );
-			}
-			G_Script_ScriptEvent( &g_entities[ent->s.otherEntityNum], "trigger", "returned" );
-		}
-		// dhm
-// jpw 800 672 2420
-		other->client->pers.teamState.flagrecovery++;
-		other->client->pers.teamState.lastreturnedflag = level.time;
-		//ResetFlag will remove this entity!  We must return zero
-		Team_ReturnFlagSound(ent, team);
-		Team_ResetFlag(ent);
-		return 0;
-	}
-
-	// DHM - Nerve :: GT_WOLF doesn't support capturing the flag
-	return 0;
+/* TC2008dc00: touching the home flag does not capture; the map's
+ * trigger_flagonly_multiple performs capture. Only dropped flags return here. */
+int Team_TouchOurFlag(gentity_t *ent, gentity_t *other, int team) {
+    if (ent->flags & FL_DROPPED_ITEM) {
+        G_Printf("touched dropped flag\n");
+        AddScore(other, 10);
+        if (level.gameManager)
+            G_Script_ScriptEvent(level.gameManager, "trigger",
+                other->client->sess.sessionTeam == TEAM_AXIS ?
+                "axis_object_returned" : "allied_object_returned");
+        G_Script_ScriptEvent(&g_entities[ent->s.otherEntityNum], "trigger", "returned");
+        Team_ResetFlag(ent);
+    }
+    return 0;
 }
 
 int Team_TouchEnemyFlag( gentity_t *ent, gentity_t *other, int team ) {
@@ -508,10 +459,6 @@ int Team_TouchEnemyFlag( gentity_t *ent, gentity_t *other, int team ) {
 	ent->parent = other;
 
 	if ( cl->sess.sessionTeam == TEAM_AXIS ) {
-		gentity_t* pm = G_PopupMessage( PM_OBJECTIVE );
-		pm->s.effect3Time = G_StringIndex( ent->message );
-		pm->s.effect2Time = TEAM_AXIS;
-		pm->s.density = 0; // 0 = stolen
 
 //		te->s.eventParm = G_SoundIndex( "sound/chat/axis/g-objective_taken.wav" );
 
@@ -523,10 +470,6 @@ int Team_TouchEnemyFlag( gentity_t *ent, gentity_t *other, int team ) {
 		G_Script_ScriptEvent( ent, "trigger", "stolen" );
 		Bot_TeamScriptEvent( TEAM_ALLIES, "objective", "stolen" );
 	} else {
-		gentity_t* pm = G_PopupMessage( PM_OBJECTIVE );
-		pm->s.effect3Time = G_StringIndex( ent->message );
-		pm->s.effect2Time = TEAM_ALLIES;
-		pm->s.density = 0; // 0 = stolen
 
 //		te->s.eventParm = G_SoundIndex( "sound/chat/allies/a-objective_taken.wav" );
 
@@ -682,110 +625,69 @@ go to a random point that doesn't telefrag
 ================
 */
 #define	MAX_TEAM_SPAWN_POINTS	256
-gentity_t *SelectRandomTeamSpawnPoint( int teamstate, team_t team, int spawnObjective ) {
-	gentity_t	*spot;
-	gentity_t	*spots[MAX_TEAM_SPAWN_POINTS];
-
-	int			count, closest, defendingTeam;
-	int			i = 0;
-
-	char		*classname;
-	float		shortest, tmp;
-
-	vec3_t		target;
-	vec3_t		farthest;
-	
-	defendingTeam = -1;
-
-	if (team == TEAM_AXIS) {
-		classname = "team_CTF_redspawn";
-	} else if (team == TEAM_ALLIES) {
-		classname = "team_CTF_bluespawn";
-	} else {
-		return NULL;
-	}
-
-	count = 0;
-
-	spot = NULL;
-
-	while ((spot = G_Find (spot, FOFS(classname), classname)) != NULL) {
-		if ( SpotWouldTelefrag( spot ) ) {
-			continue;
-		}
-
-		// Arnout - modified to allow initial spawnpoints to be disabled at gamestart
-		if(!(spot->spawnflags & 2)) {
-			continue;
-		}
-
-		// Arnout: invisible entities can't be used for spawning
-		if( spot->entstate == STATE_INVISIBLE || spot->entstate == STATE_UNDERCONSTRUCTION ) {
-			continue;
-		}
-
-		spots[ count ] = spot;
-		if (++count == MAX_TEAM_SPAWN_POINTS) {
-			break;
-		}
-	}
-
-	if ( !count ) {	// no spots that won't telefrag
-		spot = NULL;
-		while( (spot = G_Find( spot, FOFS(classname), classname) ) != NULL ) {
-			// Arnout - modified to allow initial spawnpoints to be disabled at gamestart
-			if( !(spot->spawnflags & 2) ) {
-				continue;
-			}
-
-			// Arnout: invisible entities can't be used for spawning
-			if( spot->entstate == STATE_INVISIBLE || spot->entstate == STATE_UNDERCONSTRUCTION ) {
-				continue;
-			}
-
-			return spot;
-		}
-
-		return G_Find( NULL, FOFS(classname), classname);
-	}
-
-	if((!level.numspawntargets)) {
-		G_Error( "No spawnpoints found\n" );
-		return NULL;
-	} else {
-		// Gordon: adding ability to set autospawn
-		if (!spawnObjective) {
-			switch(team) {
-				case TEAM_AXIS:
-					spawnObjective = level.axisAutoSpawn + 1;
-					break;
-				case TEAM_ALLIES:
-					spawnObjective = level.alliesAutoSpawn + 1;
-					break;
-				default:
-					break;
-			}
-		}
-
-		i = spawnObjective - 1;
-
-		VectorCopy(level.spawntargets[i], farthest);
-
-		// now that we've got farthest vector, figure closest spawnpoint to it
-		VectorSubtract(farthest, spots[0]->s.origin, target);
-		shortest = VectorLength(target);
-		closest = 0;
-		for(i = 0; i < count; i++) {
-			VectorSubtract(farthest, spots[i]->s.origin, target);
-			tmp = VectorLength(target);
-			
-			if( tmp < shortest ) {
-				shortest = tmp;
-				closest = i;
-			}
-		}
-		return spots[closest];
-	}
+/* Windows200a0c00 returns its FSQRT value in x87 without a float spill.
+ * The selector loop compares that value with a stored float threshold. */
+static double TCE_SpawnDistance(const vec3_t delta) {
+    return sqrt((double)delta[0]*delta[0]+(double)delta[1]*delta[1]+(double)delta[2]*delta[2]);
+}
+/* TC Windows2008df60: preferred entity, hostage and reinforcement-group selection. */
+gentity_t *SelectRandomTeamSpawnPoint(int teamstate, team_t team, int spawnObjective, int preferredEntity, qboolean hostage) {
+    gentity_t *spot, *spots[MAX_TEAM_SPAWN_POINTS];
+    char *classname;
+    int count=0, pass, i, closest=0, delta;
+    float shortest;
+    double distance, group;
+    vec3_t target, offset;
+    if (hostage) classname="team_hostage_spawn";
+    else if (team==TEAM_AXIS) classname="team_CTF_redspawn";
+    else if (team==TEAM_ALLIES) classname="team_CTF_bluespawn";
+    else return NULL;
+    for (pass=0; pass<2 && !count; ++pass) {
+        spot=NULL;
+        while ((spot=G_Find(spot,FOFS(classname),classname))!=NULL) {
+            if (SpotWouldTelefrag(spot) || !(spot->spawnflags&2)) continue;
+            if (!pass && !hostage && preferredEntity>0 && spot->s.number!=preferredEntity) continue;
+            if (spot->entstate==STATE_INVISIBLE || spot->entstate==STATE_UNDERCONSTRUCTION) continue;
+            spots[count++]=spot;
+            if (count==MAX_TEAM_SPAWN_POINTS) break;
+        }
+    }
+    if (!count) {
+        spot=NULL;
+        while ((spot=G_Find(spot,FOFS(classname),classname))!=NULL) {
+            if ((spot->spawnflags&2) && spot->entstate!=STATE_INVISIBLE && spot->entstate!=STATE_UNDERCONSTRUCTION) return spot;
+        }
+        return G_Find(NULL,FOFS(classname),classname);
+    }
+    if (!level.numspawntargets) { G_Error("No spawnpoints found\n"); return NULL; }
+    if (!spawnObjective) {
+        if (team==TEAM_AXIS) spawnObjective=level.axisAutoSpawn+1;
+        else if (team==TEAM_ALLIES) spawnObjective=level.alliesAutoSpawn+1;
+    }
+    VectorCopy(level.spawntargets[spawnObjective-1],target);
+    VectorSubtract(target,spots[0]->s.origin,offset);
+    shortest=(float)TCE_SpawnDistance(offset);
+    if ((g_gametype.integer==2 || g_gametype.integer==7) && !spots[0]->tceObjectiveScore && level.tceSpawnPhase>0) shortest+=16000.f;
+    delta=spots[0]->tceObjectiveScore-level.tceSpawnPhase;
+    if (spots[0]->tceObjectiveScore && delta) {
+        group=delta;
+        if (group<0) group=.5-group;
+        shortest=(float)(shortest+group*2048.f);
+    }
+    for (i=0;i<count;++i) {
+        VectorSubtract(target,spots[i]->s.origin,offset);
+        distance=TCE_SpawnDistance(offset);
+        /* Original loop intentionally differs from initial score for gametype7. */
+        if (g_gametype.integer==2 && !spots[i]->tceObjectiveScore && level.tceSpawnPhase>0) distance+=16000.f;
+        delta=spots[i]->tceObjectiveScore-level.tceSpawnPhase;
+        if (spots[i]->tceObjectiveScore && delta) {
+            group=delta;
+            if (group<0) group=.5-group;
+            distance+=group*2048.f;
+        }
+        if (distance<shortest) { shortest=(float)distance; closest=i; }
+    }
+    return spots[closest];
 }
 
 
@@ -796,10 +698,10 @@ SelectCTFSpawnPoint
 
 ============
 */
-gentity_t *SelectCTFSpawnPoint ( team_t team, int teamstate, vec3_t origin, vec3_t angles, int spawnObjective ) {
+gentity_t *SelectCTFSpawnPoint ( team_t team, int teamstate, vec3_t origin, vec3_t angles, int spawnObjective, int preferredEntity, qboolean hostage ) {
 	gentity_t	*spot;
 
-	spot = SelectRandomTeamSpawnPoint( teamstate, team, spawnObjective );
+	spot = SelectRandomTeamSpawnPoint( teamstate, team, spawnObjective, preferredEntity, hostage );
 
 	if (!spot) {
 		return SelectSpawnPoint( vec3_origin, origin, angles );
@@ -888,18 +790,42 @@ void TeamplayInfoMessage( team_t team ) {
 	}
 }
 
+/* TC Windows2008e599/2008e5aa call __ftol (FISTP64, low EAX),
+ * rather than a signed-int32 conversion. Linux keeps its native int cast. */
+static int G_TCETeamLocationInteger(float locationValue) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+	unsigned short locationControl, locationTruncate;
+	__int64 locationInteger;
+	__asm {
+		fld locationValue
+		fwait
+		fnstcw locationControl
+		fwait
+		mov ax, locationControl
+		or ax, 0c00h
+		mov locationTruncate, ax
+		fldcw locationTruncate
+		fistp locationInteger
+		fldcw locationControl
+	}
+	return (int)(unsigned int)locationInteger;
+#else
+	return (int)locationValue;
+#endif
+}
+
 void CheckTeamStatus(void)
 {
 	int i;
 	gentity_t *ent;
 
-	if (level.time - level.lastTeamLocationTime > TEAM_LOCATION_UPDATE_TIME) {
+	if ((int)((unsigned int)level.time - (unsigned int)level.lastTeamLocationTime) > TEAM_LOCATION_UPDATE_TIME) {
 		level.lastTeamLocationTime = level.time;
 		for (i = 0; i < level.numConnectedClients; i++) {
 			ent = g_entities + level.sortedClients[i];
 			if (ent->inuse && (ent->client->sess.sessionTeam == TEAM_AXIS || ent->client->sess.sessionTeam == TEAM_ALLIES)) {
-				ent->client->pers.teamState.location[0] = (int)ent->r.currentOrigin[0];
-				ent->client->pers.teamState.location[1] = (int)ent->r.currentOrigin[1];
+				ent->client->pers.teamState.location[0] = G_TCETeamLocationInteger(ent->r.currentOrigin[0]);
+				ent->client->pers.teamState.location[1] = G_TCETeamLocationInteger(ent->r.currentOrigin[1]);
 			}
 		}
 
@@ -986,6 +912,26 @@ placed and/or activated.
 
 If target is set, point spawnpoint toward target activation
 */
+/* Whole original Windows2008e660. */
+static void Use_Hostage_Spawnpoint(gentity_t *ent, gentity_t *other, gentity_t *activator) {
+    if (!level.tceHostageActive && !level.tceHostageSecured) level.tceHostageActive = qtrue;
+}
+
+/* Whole original Windows2008e8a0 / Linux000fd624. */
+void SP_team_hostage_spawn(gentity_t *ent) {
+    vec3_t dir;
+    ent->enemy = G_PickTarget(ent->target);
+    if (ent->enemy) {
+        VectorSubtract(ent->enemy->s.origin, ent->s.origin, dir);
+        vectoangles(dir, ent->s.angles);
+    }
+    G_SpawnInt("spawngroup", "0", &ent->tceObjectiveScore);
+    ent->use = Use_Hostage_Spawnpoint;
+    VectorSet(ent->r.mins, -16, -16, -24);
+    VectorSet(ent->r.maxs, 16, 16, 32);
+    ent->think = DropToFloor;
+}
+
 void SP_team_CTF_redspawn(gentity_t *ent) {
 // JPW NERVE
 	vec3_t	dir;
@@ -997,6 +943,7 @@ void SP_team_CTF_redspawn(gentity_t *ent) {
 		vectoangles( dir, ent->s.angles );
 	}
 
+	G_SpawnInt("spawngroup", "0", &ent->tceObjectiveScore);
 	ent->use = Use_Team_Spawnpoint;
 // jpw
 
@@ -1032,6 +979,7 @@ void SP_team_CTF_bluespawn(gentity_t *ent) {
 		vectoangles( dir, ent->s.angles );
 	}
 
+	G_SpawnInt("spawngroup", "0", &ent->tceObjectiveScore);
 	ent->use = Use_Team_Spawnpoint;
 // jpw
 
@@ -1039,6 +987,12 @@ void SP_team_CTF_bluespawn(gentity_t *ent) {
 	VectorSet (ent->r.maxs, 16, 16, 32);
 
 	ent->think = DropToFloor;
+    /* TC Windows2008e770: remove the two original obj_snow spawn defects. */
+    if (!Q_stricmp(level.rawmapname,"obj_snow") &&
+        ent->r.currentOrigin[0]==2334.f &&
+        (ent->r.currentOrigin[1]==1002.f || ent->r.currentOrigin[1]==1266.f) &&
+        ent->r.currentOrigin[2]==-104.f) G_FreeEntity(ent);
+
 }
 
 
@@ -1540,7 +1494,8 @@ int Team_ClassForString( char *string ) {
 }
 
 // OSP
-char *aTeams[TEAM_NUM_TEAMS] = { "FFA", "^1Axis^7", "^4Allies^7", "Spectators" };
+/* TC Windows200cba7c: shared labels used by team lock/join messages. */
+char *aTeams[TEAM_NUM_TEAMS] = { "FFA", "^1Terrorists^7", "^4Specops^7", "Spectators" };
 team_info teamInfo[TEAM_NUM_TEAMS];
 
 
@@ -1818,7 +1773,7 @@ void G_updateSpecLock(int nTeam, qboolean fLock)
 
 		// ClientBegin sets blackout
 		if(ent->client->pers.mvCount < 1) {
-			SetTeam( ent, "s", qtrue, -1, -1, qfalse );
+			SetTeam( ent, "s", qtrue, -1, -1, -1, qfalse );
 		}
 	}
 }
@@ -1858,11 +1813,42 @@ int G_blockoutTeam(gentity_t *ent, int nTeam)
 	return(!G_allowFollow(ent, nTeam));
 }
 
+/* TC 2008ff00: nearest location in PVS, later equal-distance nodes win. */
+gentity_t *Team_GetLocation(gentity_t *ent) {
+	gentity_t *location, *best = NULL;
+	vec3_t origin;
+	float bestDistance = 201326592.0f;
+	VectorCopy(ent->r.currentOrigin, origin);
+	for (location = level.locationHead; location; location = location->nextTrain) {
+		/* TC 2008ff3b..2008ff79 compares the unspilled x/y/z sum
+		 * against the float best value; rounding before this comparison
+		 * creates false ties and extra PVS queries. */
+		double dx = (double)origin[0] - location->r.currentOrigin[0];
+		double dy = (double)origin[1] - location->r.currentOrigin[1];
+		double dz = (double)origin[2] - location->r.currentOrigin[2];
+		double distance = dx * dx + dy * dy + dz * dz;
+		if (distance <= bestDistance && trap_InPVS(origin, location->r.currentOrigin)) {
+			best = location;
+			bestDistance = (float)distance;
+		}
+	}
+	return best;
+}
+
+qboolean Team_GetLocationMsg(gentity_t *ent, char *loc, int loclen) {
+	gentity_t *location = Team_GetLocation(ent);
+	if (!location) return qfalse;
+	Com_sprintf(loc, loclen, "%s", location->message);
+	return qtrue;
+}
+
 
 // Figure out if we are allowed/want to follow a given player
 qboolean G_allowFollow(gentity_t *ent, int nTeam)
 {
-	if( g_gametype.integer == GT_WOLF_LMS && g_lms_followTeamOnly.integer ) {
+	/* TC 2008fda0 applies this policy to all three round-based modes. */
+	if( (g_gametype.integer == 5 || g_gametype.integer == 2 ||
+		g_gametype.integer == 7) && g_lms_followTeamOnly.integer ) {
 		if( (ent->client->sess.spec_invite & nTeam) == nTeam ) {
 			return qtrue;
 		}
@@ -1884,6 +1870,16 @@ qboolean G_allowFollow(gentity_t *ent, int nTeam)
 // Figure out if we are allowed/want to follow a given player
 qboolean G_desiredFollow(gentity_t *ent, int nTeam)
 {
+	/* TC 2008fe70 evaluates permission against the eliminated own team.
+	 * Do not change the candidate client selected by FollowCycle here. */
+	if( g_gametype.integer == 5 ) {
+		int ownTeam = ent->client->sess.sessionTeam;
+		if( (ownTeam == TEAM_AXIS || ownTeam == TEAM_ALLIES) &&
+			level.numTeamClients[ownTeam - TEAM_AXIS] > 0 &&
+			level.numFinalDead[ownTeam - TEAM_AXIS] >= level.numTeamClients[ownTeam - TEAM_AXIS] ) {
+			nTeam = ownTeam;
+		}
+	}
 	if(G_allowFollow(ent, nTeam) &&
 	  (ent->client->sess.spec_team == 0 || ent->client->sess.spec_team == nTeam)) {
 		return(qtrue);

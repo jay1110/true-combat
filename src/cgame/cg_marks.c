@@ -126,6 +126,7 @@ void CG_ImpactMark( qhandle_t markShader, vec3_t origin, vec4_t projection, floa
 	vec4_t		color;
 	int			fadeTime;
 	vec3_t		points[ 4 ];
+	float baseRotation = 90;
 	
 	
 	/* early out */
@@ -138,9 +139,22 @@ void CG_ImpactMark( qhandle_t markShader, vec3_t origin, vec4_t projection, floa
 	//%	projection[ 3 ] = radius * 8;
 	
 	/* make rotated polygon axis */
-	VectorCopy( projection, axis[ 0 ] );
+	VectorNormalize2( projection, axis[ 0 ] );
 	PerpendicularVector( axis[ 1 ], axis[ 0 ] );
-	RotatePointAroundVector( axis[ 2 ], axis[ 0 ], axis[ 1 ], -orientation );
+	/* TC:E aligns wall marks vertically before applying the shot rotation. */
+	if (fabs(axis[0][2]) < (double)0.707f) {
+		RotatePointAroundVector(axis[2], axis[0], axis[1], 90);
+		if (axis[2][2] > -0.7f) {
+			baseRotation = 270;
+			RotatePointAroundVector(axis[2], axis[0], axis[1], baseRotation);
+		}
+		if (axis[2][2] > -0.7f) {
+			baseRotation = 0;
+			RotatePointAroundVector(axis[2], axis[0], axis[1], baseRotation);
+		}
+		if (axis[2][2] > -0.7f) baseRotation = 180;
+	}
+	RotatePointAroundVector( axis[ 2 ], axis[ 0 ], axis[ 1 ], baseRotation + orientation );
 	CrossProduct( axis[ 0 ], axis[ 2 ], axis[ 1 ] );
 	
 	/* push the origin out a bit */
@@ -156,10 +170,14 @@ void CG_ImpactMark( qhandle_t markShader, vec3_t origin, vec4_t projection, floa
 		//%	points[ 3 ][ i ] = pushedOrigin[ i ] - radius * axis[ 1 ][ i ] + radius * axis[ 2 ][ i ];
 		
 		/* new */
-		points[ 0 ][ i ] = pushedOrigin[ i ] - radius * axis[ 1 ][ i ] - radius * axis[ 2 ][ i ];
-		points[ 1 ][ i ] = pushedOrigin[ i ] - radius * axis[ 1 ][ i ] + radius * axis[ 2 ][ i ];
-		points[ 2 ][ i ] = pushedOrigin[ i ] + radius * axis[ 1 ][ i ] + radius * axis[ 2 ][ i ];
-		points[ 3 ][ i ] = pushedOrigin[ i ] + radius * axis[ 1 ][ i ] - radius * axis[ 2 ][ i ];
+		{
+			double side = (double)radius * axis[1][i], other = (double)radius * axis[2][i];
+			double low = pushedOrigin[i] - side;
+			points[0][i] = (float)(low - other);
+			points[1][i] = (float)(low + other);
+			points[2][i] = (float)(((double)axis[1][i] + axis[2][i]) * radius + pushedOrigin[i]);
+			points[3][i] = (float)(side + pushedOrigin[i] - other);
+		}
 	}
 	
 	/* debug code */
@@ -310,6 +328,98 @@ void CG_ImpactMark( qhandle_t markShader, vec3_t origin, vec4_t projection, floa
 CG_AddMarks
 ===============
 */
+
+/* TC:E 3004bbd0: the legacy fragment API is still used for bullet marks.
+ * Its twelve arguments are deliberately separate from CG_ImpactMark's decal API. */
+void CG_EliteImpactMark(qhandle_t shader, vec3_t origin, vec3_t dir,
+                       float orientation, float red, float green, float blue,
+                       float alpha, qboolean alphaFade, float radius,
+                       qboolean temporary, int duration) {
+    vec3_t axis[3], points[4], projection;
+    vec5_t markPoints[MAX_MARK_POINTS];
+    markFragment_t fragments[MAX_MARK_FRAGMENTS];
+    polyVert_t verts[MAX_VERTS_ON_POLY];
+    byte colors[4];
+    float rotation = 90, scale;
+    int i, j, count, multiplier = 1;
+    qboolean fallback = qfalse;
+    if (!cg_markTime.integer) return;
+    if (radius <= 0) CG_Error("CG_ImpactMark called with <= 0 radius");
+    if (duration < 0) {
+        if (duration == -2) multiplier = -1;
+        duration = cg_markTime.integer;
+    }
+    VectorNormalize2(dir, axis[0]);
+    PerpendicularVector(axis[1], axis[0]);
+    if (fabs(axis[0][2]) < (double)0.707f) {
+        RotatePointAroundVector(axis[2], axis[0], axis[1], 90);
+        if (axis[2][2] > -0.7f) {
+            rotation = 270;
+            RotatePointAroundVector(axis[2], axis[0], axis[1], rotation);
+        }
+        if (axis[2][2] > -0.7f) {
+            rotation = 0;
+            RotatePointAroundVector(axis[2], axis[0], axis[1], rotation);
+        }
+        if (axis[2][2] > -0.7f) rotation = 180;
+    }
+    RotatePointAroundVector(axis[2], axis[0], axis[1], rotation + orientation);
+    CrossProduct(axis[0], axis[2], axis[1]);
+    scale = (float)(0.5 / radius);
+    for (i = 0; i < 3; ++i) {
+        float low = (float)((double)origin[i] - (double)radius * axis[1][i]);
+        float side = radius * axis[2][i];
+        points[0][i] = low - side;
+        points[1][i] = (float)((double)radius * axis[1][i] + origin[i] - side);
+        points[2][i] = (float)(((double)axis[1][i] + axis[2][i]) * radius + origin[i]);
+        points[3][i] = side + low;
+        projection[i] = (float)((double)dir[i] * (temporary ? 4.5 : (double)radius * .25 + 2.0));
+    }
+    count = trap_CM_MarkFragments((int)orientation, points, projection,
+              MAX_MARK_POINTS, (float *)markPoints, MAX_MARK_FRAGMENTS * multiplier, fragments);
+    if (!count && !temporary) {
+        VectorScale(dir, -20, projection);
+        count = trap_CM_MarkFragments((int)orientation, points, projection,
+                  MAX_MARK_POINTS, (float *)markPoints, MAX_MARK_FRAGMENTS * multiplier, fragments);
+        fallback = qtrue;
+    }
+    colors[0] = (byte)(int)((double)red * 255);
+    colors[1] = (byte)(int)((double)green * 255);
+    colors[2] = (byte)(int)((double)blue * 255);
+    colors[3] = (byte)(int)((double)alpha * 255);
+    for (i = 0; i < count; ++i) {
+        markFragment_t *mf = &fragments[i];
+        qboolean hasST;
+        markPoly_t *mark;
+        if (mf->numPoints > MAX_VERTS_ON_POLY) mf->numPoints = MAX_VERTS_ON_POLY;
+        if (fallback && mf->numPoints < 0) continue;
+        hasST = mf->numPoints < 0;
+        if (hasST) mf->numPoints = -mf->numPoints;
+        for (j = 0; j < mf->numPoints; ++j) {
+            float *p = markPoints[mf->firstPoint + j];
+            VectorCopy(p, verts[j].xyz);
+            if (!hasST || fallback) {
+                double x = (double)p[0] - origin[0], y = (double)p[1] - origin[1], z = (double)p[2] - origin[2];
+                verts[j].st[0] = (float)((axis[1][0]*x + axis[1][1]*y + axis[1][2]*z)*scale + .5);
+                verts[j].st[1] = (float)((axis[2][0]*x + axis[2][1]*y + axis[2][2]*z)*scale + .5);
+            } else {
+                float sign = dir[0] > 0 || dir[1] < 0 ? -1.f : 1.f;
+                verts[j].st[0] = sign * p[4];
+                verts[j].st[1] = sign * p[3];
+            }
+            memcpy(verts[j].modulate, colors, 4);
+        }
+        if (temporary) {
+            trap_R_AddPolyToScene(shader, mf->numPoints, verts);
+            continue;
+        }
+        mark = CG_AllocMark(cg.time + duration);
+        mark->time = cg.time; mark->alphaFade = alphaFade; mark->markShader = shader;
+        mark->poly.numVerts = mf->numPoints; mark->duration = duration;
+        mark->color[0] = red; mark->color[1] = green; mark->color[2] = blue; mark->color[3] = alpha;
+        memcpy(mark->verts, verts, mf->numPoints * sizeof(verts[0]));
+    }
+}
 
 void CG_AddMarks( void ) {
 	int			j;

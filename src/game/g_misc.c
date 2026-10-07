@@ -129,6 +129,9 @@ void TeleportPlayer( gentity_t *player, vec3_t origin, vec3_t angles ) {
 	if ( player->client->sess.sessionTeam != TEAM_SPECTATOR ) {
 		trap_LinkEntity (player);
 	}
+	/* TC20066550 resets the80-byte bullet trail at the new location.
+	 * This is2004e3a0, not the separate44-byte frame-history reset. */
+	G_ResetMarkers(player);
 }
 
 
@@ -747,7 +750,33 @@ void SP_misc_portal_camera(gentity_t *ent) {
 
 	G_SpawnFloat( "roll", "0", &roll );
 
+#if defined(_MSC_VER) && defined(_M_IX86)
+	{
+		/* TC 200672bf: one f64 multiply retained into __ftol64. */
+		static const double portalRollScale = 0.7111111111111111;
+		unsigned short savedControl, truncControl;
+		__int64 convertedRoll;
+		int rollInteger;
+		__asm {
+			fld roll
+			fmul portalRollScale
+			fwait
+			fnstcw savedControl
+			fwait
+			mov ax, savedControl
+			or ax, 0x0c00
+			mov truncControl, ax
+			fldcw truncControl
+			fistp convertedRoll
+			fldcw savedControl
+			mov eax, dword ptr convertedRoll
+			mov rollInteger, eax
+		}
+		ent->s.clientNum = rollInteger;
+	}
+#else
 	ent->s.clientNum = roll/360.0 * 256;
+#endif
 }
 
 /*
@@ -759,61 +788,118 @@ void SP_misc_portal_camera(gentity_t *ent) {
 */
 
 void Use_Shooter( gentity_t *ent, gentity_t *other, gentity_t *activator ) {
-	vec3_t		dir;
-	float		deg;
-	vec3_t		up, right;
-
-	// see if we have a target
-	if ( ent->enemy ) {
+	vec3_t dir, up, right;
+	int axis, pass;
+	if( ent->enemy ) {
 		VectorSubtract( ent->enemy->r.currentOrigin, ent->s.origin, dir );
 		VectorNormalize( dir );
 	} else {
 		VectorCopy( ent->movedir, dir );
 	}
-
-	if (ent->s.weapon == WP_MAPMORTAR) {
-		AimAtTarget(ent);	// store in ent->s.origin2 the direction/force needed to pass through the target
-		VectorCopy(ent->s.origin2, dir);
+	/* Original TC map-emitter protocol, not SDK weapon enum aliases. */
+	if( ent->s.weapon == 17 ) {
+		AimAtTarget( ent );
+		VectorCopy( ent->s.origin2, dir );
 	}
-
-	// randomize a bit
 	PerpendicularVector( up, dir );
 	CrossProduct( up, dir, right );
-
-	deg = crandom() * ent->random;
-	VectorMA( dir, deg, up, dir );
-
-	deg = crandom() * ent->random;
-	VectorMA( dir, deg, right, dir );
-
-	VectorNormalize( dir );
-	
-	switch ( ent->s.weapon ) {
-	case WP_GRENADE_LAUNCHER:
-		VectorScale(dir, 700, dir);					//----(SA)	had to add this as fire_grenade now expects a non-normalized direction vector
-		fire_grenade( ent, ent->s.origin, dir, WP_GRENADE_LAUNCHER );
-		break;
-	case WP_PANZERFAUST:
-		fire_rocket( ent, ent->s.origin, dir );
-		VectorScale( ent->s.pos.trDelta, 2, ent->s.pos.trDelta);
-		SnapVector( ent->s.pos.trDelta );			// save net bandwidth
-		break;
-
-/*	case WP_SPEARGUN:
-	case WP_SPEARGUN_CO2:
-		fire_speargun(ent, ent->s.origin, dir);
-		break;*/
-
-	case WP_MAPMORTAR:
-		AimAtTarget(ent);	// store in ent->s.origin2 the direction/force needed to pass through the target
-		VectorScale(dir, VectorLength(ent->s.origin2), dir);
-		fire_mortar(ent, ent->s.origin, dir);
-		break;
-
+	for( pass = 0; pass < 2; ++pass ) {
+		int shooterRandom = rand() & 0x7fff;
+		float *basis = pass ? right : up;
+		float *direction = dir;
+		float *spread = &ent->random;
+#if defined(_MSC_VER) && defined(_M_IX86)
+		static const float shooterReciprocal = 3.0518509447574615e-05f;
+		static const double shooterHalf = 0.5;
+		__asm {
+			mov ecx, basis
+			mov edx, direction
+			mov eax, spread
+			fild shooterRandom
+			fmul shooterReciprocal
+			fsub shooterHalf
+			fadd st(0), st(0)
+			fmul dword ptr [eax]
+			fld dword ptr [ecx]
+			fmul st(0), st(1)
+			fadd dword ptr [edx]
+			fstp dword ptr [edx]
+			fld dword ptr [ecx + 4]
+			fmul st(0), st(1)
+			fadd dword ptr [edx + 4]
+			fstp dword ptr [edx + 4]
+			fld dword ptr [ecx + 8]
+			fmul st(0), st(1)
+			fadd dword ptr [edx + 8]
+			fstp dword ptr [edx + 8]
+			fstp st(0)
+		}
+#else
+		float deg = (2.0f * (shooterRandom * (1.0f/32767.0f) - 0.5f)) * ent->random;
+		VectorMA( dir, deg, basis, dir );
+#endif
 	}
-
+	VectorNormalize( dir );
+	switch( ent->s.weapon ) {
+	case 4:
+		VectorScale( dir, 700.0f, dir );
+		fire_grenade( ent, ent->s.origin, dir, 4 );
+		break;
+	case 65:
+		fire_rocket( ent, ent->s.origin, dir );
+		for( axis = 0; axis < 3; ++axis ) {
+			float *velocityComponent = &ent->s.pos.trDelta[axis];
+#if defined(_MSC_VER) && defined(_M_IX86)
+			unsigned short savedControl, truncControl;
+			__int64 convertedVelocity;
+			int velocityInteger;
+			__asm {
+				mov ecx, velocityComponent
+				fld dword ptr [ecx]
+				fadd st(0), st(0)
+				fwait
+				fnstcw savedControl
+				fwait
+				mov ax, savedControl
+				or ax, 0x0c00
+				mov truncControl, ax
+				fldcw truncControl
+				fistp convertedVelocity
+				fldcw savedControl
+				mov eax, dword ptr convertedVelocity
+				mov velocityInteger, eax
+				fild velocityInteger
+				fstp dword ptr [ecx]
+			}
+#else
+			*velocityComponent = (float)(int)(*velocityComponent * 2.0f);
+#endif
+		}
+		break;
+	case 17:
+		AimAtTarget( ent );
+		for( axis = 0; axis < 3; ++axis ) {
+			float *launchVector = ent->s.origin2;
+			float *directionComponent = &dir[axis];
+#if defined(_MSC_VER) && defined(_M_IX86)
+			__asm {
+				push launchVector
+				call VectorLength
+				add esp, 4
+				mov ecx, directionComponent
+				fmul dword ptr [ecx]
+				fstp dword ptr [ecx]
+			}
+#else
+			*directionComponent *= VectorLength( launchVector );
+#endif
+		}
+		fire_mortar( ent, ent->s.origin, dir );
+		break;
+	}
 	G_AddEvent( ent, EV_FIRE_WEAPON, 0 );
 }
+
 
 static void InitShooter_Finish( gentity_t *ent ) {
 	ent->enemy = G_PickTarget( ent->target );
@@ -827,11 +913,34 @@ void InitShooter( gentity_t *ent, int weapon ) {
 
 	G_SetMovedir( ent->s.angles, ent->movedir );
 
+#if defined(_MSC_VER) && defined(_M_IX86)
+	{
+		/* TC 20067599..200675cf: C3 includes unordered, then FMUL32/FSIN. */
+		static const unsigned int shooterDegreeBits = 0x3c8efa35u;
+		static const float shooterZero = 0.0f;
+		float *shooterSpread = &ent->random;
+		__asm {
+			mov ecx, shooterSpread
+			fld dword ptr [ecx]
+			fcomp shooterZero
+			fnstsw ax
+			test ah, 0x40
+			je shooterHasSpread
+			mov dword ptr [ecx], 0x3f800000
+		shooterHasSpread:
+			fld dword ptr [ecx]
+			fmul dword ptr shooterDegreeBits
+			fsin
+			fstp dword ptr [ecx]
+		}
+	}
+#else
 	if ( !ent->random ) {
 		ent->random = 1.0;
 	}
 
 	ent->random = sin( M_PI * ent->random / 180 );
+#endif
 
 	// target might be a moving object, so we can't set movedir for it
 	if ( ent->target ) {
@@ -862,7 +971,8 @@ Fires at either the target or the current direction.
 "random" the number of degrees of deviance from the taget. (1.0 default)
 */
 void SP_shooter_rocket( gentity_t *ent ) {
-	InitShooter( ent, WP_PANZERFAUST );
+	/* Original TC20067640 emits protocol slot65, not SDK panzer slot5. */
+	InitShooter( ent, 65 );
 }
 
 /*QUAKED shooter_zombiespit (1 0 0) (-16 -16 -16) (16 16 16)
@@ -911,30 +1021,56 @@ void use_corona(gentity_t *ent, gentity_t *other, gentity_t *activator )
 SP_corona
 ==============
 */
-void SP_corona(gentity_t *ent)
-{
-	float scale;
-
-	ent->s.eType		= ET_CORONA;
-
-	if(	ent->dl_color[0] <= 0 &&				// if it's black or has no color assigned
-		ent->dl_color[1] <= 0 &&
-		ent->dl_color[2] <= 0)
-		ent->dl_color[0] = ent->dl_color[1] = ent->dl_color[2] = 1;	// set white
-	
-	ent->dl_color[0] = ent->dl_color[0] * 255;
-	ent->dl_color[1] = ent->dl_color[1] * 255;
-	ent->dl_color[2] = ent->dl_color[2] * 255;
-
-	ent->s.dl_intensity	= (int)ent->dl_color[0] | ((int)ent->dl_color[1]<<8) | ((int)ent->dl_color[2]<<16);
-
-	G_SpawnFloat( "scale", "1", &scale);
-	ent->s.density = (int)(scale * 255);
-
-	ent->use = use_corona;
-
-	if(!(ent->spawnflags & 1))
-		trap_LinkEntity(ent);
+/* TC Windows20067690 / Linux000c7734, complete corona payload producer. */
+void SP_corona(gentity_t *ent) {
+    float value;
+    char *shader;
+    ent->s.eType = ET_CORONA;
+    if (ent->dl_color[0] <= 0 && ent->dl_color[1] <= 0 && ent->dl_color[2] <= 0)
+        VectorSet(ent->dl_color, 1, 1, 1);
+    VectorScale(ent->dl_color, 255, ent->dl_color);
+    ent->s.dl_intensity = (unsigned int)(int)ent->dl_color[0] |
+        ((unsigned int)(int)ent->dl_color[1] << 8) |
+        ((unsigned int)(int)ent->dl_color[2] << 16);
+    G_SpawnFloat("scale", "1", &value);
+    ent->s.density = (int)((double)value * 255.0);
+    if (G_SpawnString("coneShader", "", &shader)) ent->s.modelindex = G_ShaderIndex(shader);
+    else ent->s.modelindex = 0;
+    G_SpawnInt("insects", "0", &ent->s.modelindex2);
+    if (ent->s.modelindex2 > 32) ent->s.modelindex2 = 32;
+    if (ent->s.modelindex2 < 0) ent->s.modelindex2 = 0;
+    G_SpawnInt("type", "0", &ent->s.otherEntityNum2);
+    if (ent->s.otherEntityNum2 > 255) ent->s.otherEntityNum2 = 255;
+    if (ent->s.otherEntityNum2 < 0) ent->s.otherEntityNum2 = 0;
+    G_SpawnFloat("blend", "0", &value);
+    ent->s.effect3Time = (int)((double)value * 255.0);
+    if ((ent->spawnflags & 10) == 8) {
+        G_SpawnFloat("cone_radius", "32", &value);
+        ent->s.effect2Time = (int)value;
+    }
+    G_SpawnInt("cone_type", "0", &ent->s.effect1Time);
+    if (ent->s.effect1Time > 255) ent->s.effect1Time = 255;
+    if (ent->s.effect1Time < 0) ent->s.effect1Time = 0;
+    if (!(ent->spawnflags & 2)) {
+        G_SpawnFloat("cone_height", "1", &value);
+        ent->s.frame = (int)((double)value * 64.0);
+        if (ent->s.frame > 255) ent->s.frame = 255;
+        if (ent->s.frame < 8) ent->s.frame = 8;
+    }
+    ent->s.dmgFlags = (ent->spawnflags & 16) != 0;
+    if (ent->spawnflags & 4) {
+        G_SpawnInt("altitude", "53", &ent->s.eventParm);
+        G_SpawnInt("degrees", "0", &ent->s.frame);
+        ent->s.clientNum = 2;
+        ent->r.svFlags |= SVF_BROADCAST;
+    } else if (ent->spawnflags & 2) {
+        G_SpawnInt("altitude", "90", &ent->s.eventParm);
+        G_SpawnInt("degrees", "0", &ent->s.frame);
+        ent->s.clientNum = 1;
+        ent->r.svFlags |= SVF_BROADCAST;
+    } else ent->s.clientNum = 0;
+    ent->use = use_corona;
+    if (!(ent->spawnflags & 1)) trap_LinkEntity(ent);
 }
 
 
@@ -1159,19 +1295,72 @@ void Fire_Lead_Ext( gentity_t *ent, gentity_t *activator, float spread, int dama
 	gentity_t	*traceEnt;
 	int			seed = rand() & 255;
 
-	r = Q_crandom(&seed)*spread;
-	u = Q_crandom(&seed)*spread;
+	r = (float)((double)Q_crandom(&seed) * (double)spread);
+	u = Q_crandom(&seed);
 
 	ent->s.eFlags |= EF_MG42_ACTIVE;
 	activator->s.eFlags |= EF_MG42_ACTIVE;
 
+#if defined(_MSC_VER) && defined(_M_IX86)
+	/* TC20067e39..20067ef7: retained second spread and X, stored Y/Z stages. */
+	{
+		float range = 8192.0f;
+		float *endpoint = end;
+		__asm {
+			mov eax, forward
+			mov ecx, muzzle
+			mov edx, endpoint
+			fld u
+			fmul spread
+			fld dword ptr [eax]
+			fmul range
+			fadd dword ptr [ecx]
+			fld dword ptr [eax+4]
+			fmul range
+			fadd dword ptr [ecx+4]
+			fstp dword ptr [edx+4]
+			fld dword ptr [eax+8]
+			fmul range
+			fadd dword ptr [ecx+8]
+			fstp dword ptr [edx+8]
+			mov eax, right
+			fld r
+			fmul dword ptr [eax]
+			faddp st(1), st(0)
+			fld r
+			fmul dword ptr [eax+4]
+			fadd dword ptr [edx+4]
+			fstp dword ptr [edx+4]
+			fld r
+			fmul dword ptr [eax+8]
+			fadd dword ptr [edx+8]
+			fstp dword ptr [edx+8]
+			mov eax, up
+			fld st(1)
+			fmul dword ptr [eax]
+			fadd st(0), st(1)
+			fstp dword ptr [edx]
+			fstp st(0)
+			fld st(0)
+			fmul dword ptr [eax+4]
+			fadd dword ptr [edx+4]
+			fstp dword ptr [edx+4]
+			fmul dword ptr [eax+8]
+			fadd dword ptr [edx+8]
+			fstp dword ptr [edx+8]
+		}
+	}
+#else
+	u *= spread;
 	VectorMA( muzzle, 8192, forward, end );
 	VectorMA( end, r, right, end );
 	VectorMA( end, u, up, end );
+#endif
 
 	// rain - use activator for historicaltrace, not ent which may be
 	// the weapon itself (e.g. for mg42s)
-	G_HistoricalTrace( activator, &tr, muzzle, NULL, NULL, end, ent->s.number, MASK_SHOT );
+	/* TC Fire_Lead_Ext uses 0x06000081, including missile-clip surfaces. */
+	G_HistoricalTrace( activator, &tr, muzzle, NULL, NULL, end, ent->s.number, MASK_MISSILESHOT );
 
 	// bullet debugging using Q3A's railtrail
 	if( g_debugBullets.integer & 1 ) {
@@ -1214,8 +1403,42 @@ void Fire_Lead_Ext( gentity_t *ent, gentity_t *activator, float spread, int dama
 			tent->r.svFlags |= SVF_BROADCAST;
 		}
 
+#if defined(_MSC_VER) && defined(_M_IX86)
+		/* TC2006800c: X+Z+Y dot product, retained scaled ST0 for all axes. */
+		{
+			float *normal = tr.plane.normal;
+			float *reflection = reflect;
+			float factor = -2.0f;
+			__asm {
+				mov eax, normal
+				mov ecx, forward
+				mov edx, reflection
+				fld dword ptr [eax]
+				fmul dword ptr [ecx]
+				fld dword ptr [eax+8]
+				fmul dword ptr [ecx+8]
+				faddp st(1), st(0)
+				fld dword ptr [eax+4]
+				fmul dword ptr [ecx+4]
+				faddp st(1), st(0)
+				fmul factor
+				fld st(0)
+				fmul dword ptr [eax]
+				fadd dword ptr [ecx]
+				fstp dword ptr [edx]
+				fld st(0)
+				fmul dword ptr [eax+4]
+				fadd dword ptr [ecx+4]
+				fstp dword ptr [edx+4]
+				fmul dword ptr [eax+8]
+				fadd dword ptr [ecx+8]
+				fstp dword ptr [edx+8]
+			}
+		}
+#else
 		dot = DotProduct( forward, tr.plane.normal );
 		VectorMA( forward, -2*dot, tr.plane.normal, reflect );
+#endif
 		VectorNormalize( reflect );
 
 		tent->s.eventParm = DirToByte( reflect );
@@ -1239,9 +1462,11 @@ void clamp_playerbehindgun (gentity_t *self, gentity_t *other, vec3_t dang) {
 
 	AngleVectors (self->s.apos.trBase, forward, right, up);
 	if(self->s.eType == ET_AAGUN) {
-		VectorMA (self->r.currentOrigin, -40, forward, point);
+		point[0] = (float)((double)self->r.currentOrigin[0] - 40.0 * (double)forward[0]);
+		point[1] = (float)((double)self->r.currentOrigin[1] - 40.0 * (double)forward[1]);
 	} else {
-		VectorMA (self->r.currentOrigin, -36, forward, point);
+		point[0] = (float)((double)self->r.currentOrigin[0] - 36.0 * (double)forward[0]);
+		point[1] = (float)((double)self->r.currentOrigin[1] - 36.0 * (double)forward[1]);
 	}
 
 	point[2] = other->r.currentOrigin[2];
@@ -1265,6 +1490,7 @@ void clamp_playerbehindgun (gentity_t *self, gentity_t *other, vec3_t dang) {
 void clamp_hweapontofirearc (gentity_t *self, vec3_t dang) 
 {
 	float diff, yawspeed;
+	int outsideArc, positiveDifference;
 	qboolean clamped;
 
 	clamped = qfalse;
@@ -1278,18 +1504,53 @@ void clamp_hweapontofirearc (gentity_t *self, vec3_t dang)
 		dang[0] = -(self->varc);
 	}
 
-	if (dang[0] > 0 && dang[0] > ( self->varc / 2 ) ) 
+	/* Windows x87 C0 includes unordered at this upper-limit comparison. */
+	if (dang[0] > 0 && !( (double)self->varc * 0.5 >= (double)dang[0] ) )
 	{
 		clamped = qtrue;
 		dang[0] = self->varc / 2;
 	}
 
 	// sanity check the angles again to make sure we don't go passed the harc
+#if defined(_MSC_VER) && defined(_M_IX86)
+	/* Keep AngleDifference's original ST0 result through both comparisons. */
+	{
+		float firstYaw = self->s.angles[YAW];
+		float secondYaw = dang[YAW];
+		float horizontalArc = self->harc;
+		__asm {
+			push secondYaw
+			push firstYaw
+			call AngleDifference
+			add esp, 8
+			fld st(0)
+			fabs
+			fld horizontalArc
+			fcompp
+			fnstsw ax
+			test ah, 1
+			setnz al
+			movzx eax, al
+			mov outsideArc, eax
+			fldz
+			fxch st(1)
+			fcompp
+			fnstsw ax
+			test ah, 041h
+			setz al
+			movzx eax, al
+			mov positiveDifference, eax
+		}
+	}
+#else
 	diff = AngleDifference( self->s.angles[YAW], dang[YAW] );
-	if (fabs(diff) > self->harc) {
+	outsideArc = !(self->harc >= fabs(diff));
+	positiveDifference = diff > 0;
+#endif
+	if (outsideArc) {
 		clamped = qtrue;
 		
-		if (diff > 0) {
+		if (positiveDifference) {
 			dang[YAW] = AngleMod( self->s.angles[YAW] - self->harc );
 		} else {
 			dang[YAW] = AngleMod( self->s.angles[YAW] + self->harc );
@@ -2468,6 +2729,82 @@ void SP_misc_constructiblemarker( gentity_t *ent ) {
 	ent->nextthink = level.time + FRAMETIME;
 }
 
+/* TC map-planted demolition pack: Windows20069f50 / Linux000cad22.
+ * This is distinct from a player's fire_grenade placement and its scoring. */
+static void dynamite_setup(gentity_t *ent) {
+	trace_t tr;
+	vec3_t end, mins, maxs;
+	int entities[MAX_GENTITIES], count, i, delay, limit;
+	VectorSet(ent->r.mins, -12, -12, 0);
+	VectorSet(ent->r.maxs, 12, 12, 20);
+	VectorCopy(ent->r.mins, ent->r.absmin);
+	VectorCopy(ent->r.maxs, ent->r.absmax);
+	ent->clipmask = MASK_MISSILESHOT;
+	VectorCopy(ent->s.origin, end);
+	end[2] -= 64;
+	trap_Trace(&tr, ent->s.origin, NULL, NULL, end, ent->s.number, ent->clipmask);
+	if (tr.startsolid || tr.fraction == 1.f || tr.entityNum != ENTITYNUM_WORLD) {
+		G_Printf("^3WARNING: 'misc_dynamite' entity at %.2f %.2f %.2f doesn't have a surface to settle on\n",
+			ent->s.origin[0], ent->s.origin[1], ent->s.origin[2]);
+		G_FreeEntity(ent);
+		return;
+	}
+	G_SetOrigin(ent, tr.endpos);
+	ent->parent = NULL;
+	ent->s.eType = ET_MISSILE;
+	ent->r.svFlags = SVF_BROADCAST;
+	ent->s.weapon = 15;
+	ent->r.ownerNum = ENTITYNUM_WORLD;
+	ent->classname = "dynamite";
+	ent->damage = 0;
+	ent->splashDamage = 400;
+	ent->splashRadius = 400;
+	ent->methodOfDeath = ent->splashMethodOfDeath = 26;
+	ent->s.eFlags = EF_BOUNCE | EF_BOUNCE_HALF;
+	ent->takedamage = qfalse;
+	ent->r.contents = CONTENTS_CORPSE;
+	ent->health = 0;
+	ent->s.modelindex2 = 0;
+	ent->accuracy = 0.f;
+	ent->timestamp = level.time + 1000;
+	ent->s.effect1Time = level.time;
+	limit = g_timelimit.integer * 60000 - 10000;
+	/* Original2006a135..141 retains wait*1000 in x87 until __ftol. */
+	delay = ent->wait == 0.f ? limit : (int)((double)ent->wait * 1000.0);
+	if (delay > limit) delay = limit;
+	ent->think = G_ExplodeMissile;
+	ent->nextthink = level.time + delay;
+	ent->s.effect3Time = ent->nextthink;
+	ent->awaitingHelpTime = level.time;
+	ent->damage = 0;
+	VectorAdd(ent->s.origin, ent->r.mins, mins);
+	VectorAdd(ent->s.origin, ent->r.maxs, maxs);
+	count = trap_EntitiesInBox(mins, maxs, entities, MAX_GENTITIES);
+	for (i = 0; i < count; ++i) {
+		gentity_t *hit = &g_entities[entities[i]], *popup;
+		if (!(hit->r.contents & CONTENTS_TRIGGER) ||
+			strcmp(hit->classname, "trigger_objective_info") || !(hit->spawnflags & 3)) continue;
+		popup = G_PopupMessage(PM_DYNAMITE);
+		popup->s.effect2Time = 0;
+		popup->s.effect3Time = hit->s.teamNum;
+		popup->s.teamNum = ent->s.teamNum;
+		G_Script_ScriptEvent(hit, "dynamited", "");
+		G_Script_ScriptEvent(hit->target_ent, "dynamited", "");
+	}
+	trap_LinkEntity(ent);
+}
+
+/* TC Windows2006a340 / Linux000cb16c; only initialize in playing state0. */
+void SP_misc_dynamite(gentity_t *ent) {
+	if (g_gamestate.integer != GS_PLAYING) return;
+	G_SpawnFloat("wait", "60", &ent->wait);
+	if (ent->spawnflags & 1) ent->s.teamNum = TEAM_AXIS;
+	else if (ent->spawnflags & 2) ent->s.teamNum = TEAM_ALLIES;
+	else G_Error("ERROR: misc_demolitionpack without a team\n");
+	ent->think = dynamite_setup;
+	ent->nextthink = level.time + 500;
+}
+
 /*QUAKED misc_landmine (.35 0.85 .35) (-16 -16 0) (16 16 16) AXIS ALLIED
 Landmine entity. Make sure it is placed less than 64 units above an appropiate, landmine placement
 compatible surface. It will drop down on spawn and then settle itself.
@@ -2497,56 +2834,8 @@ void landmine_setup( gentity_t *ent ) {
 	end[2] -= 64;
 	trap_Trace( &tr, ent->s.origin, NULL, NULL, end, ent->s.number, ent->clipmask );
 
-	if( tr.startsolid || tr.fraction == 1.f || !(tr.surfaceFlags & (SURF_GRASS | SURF_SNOW | SURF_GRAVEL | SURF_LANDMINE) ) ||
-		(tr.entityNum != ENTITYNUM_WORLD && (!g_entities[tr.entityNum].inuse || g_entities[tr.entityNum].s.eType != ET_CONSTRUCTIBLE) ) ) {
-		G_Printf( "^3WARNING: 'misc_landmine' entity at %.2f %.2f %.2f doesn't have a surface to settle on\n", ent->s.origin[0], ent->s.origin[1], ent->s.origin[2] );
-		G_FreeEntity( ent );
-		return;
-	}
-
-	G_SetOrigin( ent, tr.endpos );
-	ent->s.pos.trDelta[2] = 1.f;
-	ent->s.time			= ent->s.angles[1] + 90;
-
-	// all fine
-	ent->s.eType		= ET_MISSILE;
-	ent->r.svFlags		= SVF_BROADCAST;
-	ent->s.weapon		= WP_LANDMINE;
-	ent->r.ownerNum		= ENTITYNUM_WORLD;
-
-	ent->damage			= G_GetWeaponDamage(WP_LANDMINE); // overridden for dynamite
-	ent->splashDamage	= G_GetWeaponDamage(WP_LANDMINE);
-
-	ent->accuracy		= 0; 
-	ent->classname		= "landmine";
-	ent->damage			= 0;
-	ent->splashRadius	= 225;	// was: 400
-	ent->methodOfDeath	= MOD_LANDMINE;
-	ent->splashMethodOfDeath	= MOD_LANDMINE;
-	ent->s.eFlags		= (EF_BOUNCE | EF_BOUNCE_HALF);
-	ent->health			= 5;
-	ent->takedamage		= qtrue;
-	ent->r.contents		= CONTENTS_CORPSE;	// (player can walk through)
-
-	ent->splashRadius	= G_GetWeaponDamage(WP_LANDMINE);
-
-	ent->health			= 0;
-	ent->s.modelindex2	= 0;
-
-	ent->nextthink		= level.time + FRAMETIME;
-	ent->think			= G_LandmineThink;
-
-	// RF, record the time for AI
-	ent->awaitingHelpTime = level.time;
-
-	ent->damage			= 0;
-
-	if (ent->s.teamNum == TEAM_AXIS) // store team so we can generate red or blue smoke
-		ent->s.otherEntityNum2 = 1;
-	else
-		ent->s.otherEntityNum2 = 0;
-
-	trap_LinkEntity( ent );
+	/* TC Windows20069ba0 / Linux000ca864 stops after this trace. The SDK
+	 * activation/damage/link tail is absent from both original modules. */
 }
 
 void SP_misc_landmine( gentity_t *ent ) {

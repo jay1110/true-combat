@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "tce_bg.h"
 
 void BotDebug(int clientNum);
 void GetBotAutonomies(int clientNum, int *weapAutonomy, int *moveAutonomy);	
@@ -58,7 +59,7 @@ void G_SendScore( gentity_t *ent ) {
 
 			// NERVE - SMF - number of respawns left
 			respawnsLeft = cl->ps.persistant[PERS_RESPAWNS_LEFT];
-			if( g_gametype.integer == GT_WOLF_LMS ) {
+			if( g_gametype.integer == 5 ) {
 				if( g_entities[level.sortedClients[i]].health <= 0 ) {
 					respawnsLeft = -2;
 				}
@@ -74,9 +75,19 @@ void G_SendScore( gentity_t *ent ) {
 				ping = cl->ps.ping < 999 ? cl->ps.ping : 999;
 			}
 
-			if( g_gametype.integer == GT_WOLF_LMS ) {
-				Com_sprintf (entry, sizeof(entry), " %i %i %i %i %i %i %i", level.sortedClients[i], cl->ps.persistant[PERS_SCORE], ping, 
-					(level.time - cl->pers.enterTime) / 60000, g_entities[level.sortedClients[i]].s.powerups, playerClass, respawnsLeft );
+            if(g_gametype.integer==2||(g_gametype.integer>=5&&g_gametype.integer<=7)) {
+                int tcClass=BG_WolfClassToTCE(cl->ps.stats[STAT_PLAYER_CLASS]);
+                int previous=tcClass>0?tcClass-1:2;
+                int damageRating=(int)((unsigned)cl->sess.damage_given-
+                    (unsigned)cl->sess.team_damage-(unsigned)cl->sess.damage_received);
+                /* Windows 2004ef80: complete fourteen-field TC wire order.
+                 * Rating/counter producers have their own reconstruction status. */
+                Com_sprintf(entry,sizeof(entry)," %i %i %i %i %i %i %i %i %i %i %i %i %i %i",
+                    level.sortedClients[i],cl->ps.persistant[PERS_SCORE],ping,
+                    (level.time-cl->pers.enterTime)/60000,
+                    g_entities[level.sortedClients[i]].s.powerups,playerClass,respawnsLeft,
+                    (int)cl->sess.skillpoints[tcClass],(int)cl->sess.skillpoints[previous],
+                    damageRating,cl->sess.kills,cl->sess.deaths,cl->sess.suicides,cl->sess.team_kills);
 			} else {
 				int j, totalXP;
 
@@ -379,7 +390,8 @@ void Cmd_Give_f (gentity_t *ent)
 
 	if (give_all || Q_stricmp(name, "weapons") == 0)
 	{
-		for(i=0;i<WP_NUM_WEAPONS;i++) {
+		/* TC 2004f7f0 traverses the full 64-bit weapon inventory. */
+		for(i=0;i<64;i++) {
 			if ( BG_WeaponInWolfMP(i) )
 				COM_BitSet( ent->client->ps.weapons, i );
 		}
@@ -396,7 +408,7 @@ void Cmd_Give_f (gentity_t *ent)
 				)
 				Add_Ammo(ent, ent->client->ps.weapon, amount, qtrue);
 		} else {
-			for ( i = 1 ; i < WP_NUM_WEAPONS ; i++ ) {
+			for ( i = 1 ; i < 64 ; i++ ) {
 				if( COM_BitCheck( ent->client->ps.weapons, i ) && i != WP_SATCHEL && i != WP_SATCHEL_DET)
 					Add_Ammo(ent, i, 9999, qtrue);
 			}
@@ -410,7 +422,7 @@ void Cmd_Give_f (gentity_t *ent)
 	//	allowing "give ammo <n>" to only give to the selected weap.
 	if (Q_stricmpn(name, "allammo", 7) == 0 && amount)
 	{
-		for ( i = 1 ; i < WP_NUM_WEAPONS; i++ )
+		for ( i = 1 ; i < 64; i++ )
 			Add_Ammo(ent, i, amount, qtrue);
 
 		if (!give_all)
@@ -622,7 +634,7 @@ void Cmd_Noclip_f( gentity_t *ent ) {
 Cmd_Kill_f
 =================
 */
-void Cmd_Kill_f( gentity_t *ent )
+void Cmd_Kill_f( gentity_t *ent, int meansOfDeath )
 {
 	if(ent->client->sess.sessionTeam == TEAM_SPECTATOR ||
 	  (ent->client->ps.pm_flags & PMF_LIMBO) ||
@@ -630,15 +642,14 @@ void Cmd_Kill_f( gentity_t *ent )
 		return;
 	}
 
-#ifdef SAVEGAME_SUPPORT
-	if( g_gametype.integer == GT_SINGLE_PLAYER && g_reloading.integer )
-		return;
-#endif // SAVEGAME_SUPPORT
-
 	ent->flags &= ~FL_GODMODE;
 	ent->client->ps.stats[STAT_HEALTH] = ent->health = 0;
+	/* TC 2004fe20: reset all three injury accumulators before death. */
+	ent->client->ps.holdable[2] = 100;
+	ent->client->ps.holdable[3] = 100;
+	ent->client->ps.holdable[4] = 100;
 	ent->client->ps.persistant[PERS_HWEAPON_USE] = 0; // TTimo - if using /kill while at MG42
-	player_die(ent, ent, ent, (g_gamestate.integer == GS_PLAYING) ? 100000 : 135, MOD_SUICIDE);
+	player_die(ent, ent, ent, (g_gamestate.integer == GS_PLAYING) ? 100000 : 135, meansOfDeath);
 }
 
 void BotRecordTeamChange( int client );
@@ -677,7 +688,7 @@ void G_TeamDataForString( const char* teamstr, int clientNum, team_t* team, spec
 SetTeam
 =================
 */
-qboolean SetTeam( gentity_t *ent, char *s, qboolean force, weapon_t w1, weapon_t w2, qboolean setweapons ) {
+qboolean SetTeam( gentity_t *ent, char *s, qboolean force, weapon_t w1, weapon_t w2, int w3, qboolean setweapons ) {
 	team_t				team, oldTeam;
 	gclient_t			*client;
 	int					clientNum;
@@ -710,7 +721,7 @@ qboolean SetTeam( gentity_t *ent, char *s, qboolean force, weapon_t w1, weapon_t
 			return qfalse;	// ignore the request
 		}
 
-		if ( ( (g_gametype.integer == GT_WOLF_LMS && g_lms_teamForceBalance.integer) || g_teamForceBalance.integer ) && !force ) {
+		if ( ( ((g_gametype.integer == 5 || g_gametype.integer == 2) && g_lms_teamForceBalance.integer) || g_teamForceBalance.integer ) && !force ) {
 			int		counts[TEAM_NUM_TEAMS];
 
 			counts[TEAM_ALLIES] = TeamCount( ent-g_entities, TEAM_ALLIES );
@@ -718,11 +729,11 @@ qboolean SetTeam( gentity_t *ent, char *s, qboolean force, weapon_t w1, weapon_t
 
 			// We allow a spread of one
 			if ( team == TEAM_AXIS && counts[TEAM_AXIS] - counts[TEAM_ALLIES] >= 1 ) {
-				CP("cp \"The Axis has too many players.\n\"");
+				CP("cp \"The Terrorists have too many players.\n\"");
 				return qfalse; // ignore the request
 			}
 			if ( team == TEAM_ALLIES && counts[TEAM_ALLIES] - counts[TEAM_AXIS] >= 1 ) {
-				CP("cp \"The Allies have too many players.\n\"");
+				CP("cp \"The Specops have too many players.\n\"");
 				return qfalse; // ignore the request
 			}
 
@@ -743,7 +754,7 @@ qboolean SetTeam( gentity_t *ent, char *s, qboolean force, weapon_t w1, weapon_t
 	}
 
 	// NERVE - SMF - prevent players from switching to regain deployments
-	if( g_gametype.integer != GT_WOLF_LMS ) {
+	if( g_gametype.integer != 5 ) {
 		if( ( g_maxlives.integer > 0 || 
 			( g_alliedmaxlives.integer > 0 && ent->client->sess.sessionTeam == TEAM_ALLIES ) || 
 			( g_axismaxlives.integer > 0 && ent->client->sess.sessionTeam == TEAM_AXIS ) ) 
@@ -849,7 +860,7 @@ qboolean SetTeam( gentity_t *ent, char *s, qboolean force, weapon_t w1, weapon_t
 	}
 
 	if( setweapons ) {
-		G_SetClientWeapons( ent, w1, w2, qfalse );
+		G_SetClientWeapons( ent, w1, w2, w3, qfalse );
 	}
 
 	// get and distribute relevent paramters
@@ -895,21 +906,8 @@ qboolean SetTeam( gentity_t *ent, char *s, qboolean force, weapon_t w1, weapon_t
 	ent->client->pers.autofireteamCreateEndTime = 0;
 	ent->client->pers.autofireteamJoinEndTime = 0;
 
-	if( client->sess.sessionTeam == TEAM_AXIS || client->sess.sessionTeam == TEAM_ALLIES ) {
-		if( g_autoFireteams.integer ) {
-			fireteamData_t* ft = G_FindFreePublicFireteam( client->sess.sessionTeam );
-
-			if( ft ) {
-				trap_SendServerCommand( ent-g_entities, "aftj -1" );
-				ent->client->pers.autofireteamJoinEndTime = level.time + 20500;
-
-//				G_AddClientToFireteam( ent-g_entities, ft->joinOrder[0] );
-			} else {
-				trap_SendServerCommand( ent-g_entities, "aftc -1" );
-				ent->client->pers.autofireteamCreateEndTime = level.time + 20500;
-			}
-		}
-	}
+	/* TC SetTeam (20050070) stops after resetting these timers.
+	 * No automatic aftc/aftj invitation is sent on team entry. */
 
 	return qtrue;
 }
@@ -934,7 +932,7 @@ void StopFollowing( gentity_t *ent ) {
 //		pos[2] += 16; // Gordon: removing for now
 		VectorCopy(client->ps.viewangles, angle);
 		// Need this as it gets spec mode reset properly
-		SetTeam( ent, "s", qtrue, -1, -1, qfalse );
+		SetTeam( ent, "s", qtrue, -1, -1, -1, qfalse );
 		VectorCopy(pos, client->ps.origin);
 		SetClientViewAngle(ent, angle);		
 	} else {
@@ -987,6 +985,10 @@ int G_NumPlayersOnTeam( team_t team ) {
 
 qboolean G_IsHeavyWeapon( weapon_t weap ) {
 	int i;
+	/* Original TC qagame table200b8590. SDK IDs45/31/etc are not TC aliases. */
+	if (gearDef.parsed) {
+		return TCE_BG_IsHeavyWeapon((int)weap);
+	}
 
 	for( i = 0; i < NUM_HEAVY_WEAPONS; i++ ) {
 		if( bg_heavyWeapons[i] == weap ) {
@@ -1043,18 +1045,27 @@ qboolean G_IsWeaponDisabled( gentity_t* ent, weapon_t weapon ) {
 	count =		G_TeamCount( ent, -1 );
 	wcount =	G_TeamCount( ent, weapon );
 
-	if( wcount >= ceil( count * g_heavyWeaponRestriction.integer * 0.01f ) ) {
+	/* TC x87 multiplies the wrapped signed integer product by the exact
+	 * float constant in extended precision, then passes a double to ceil. */
+	if( wcount >= (gearDef.parsed ?
+		ceil((double)(int)((unsigned int)count * (unsigned int)g_heavyWeaponRestriction.integer) * (double)0.01f) :
+		ceil(count * g_heavyWeaponRestriction.integer * 0.01f)) ) {
 		return qtrue;
 	}
 
 	return qfalse;
 }
 
-void G_SetClientWeapons( gentity_t* ent, weapon_t w1, weapon_t w2, qboolean updateclient ) {
+void G_SetClientWeapons( gentity_t* ent, weapon_t w1, weapon_t w2, int w3, qboolean updateclient ) {
 	qboolean changed = qfalse;
 
 	if( ent->client->sess.latchPlayerWeapon2 != w2 ) {
 		ent->client->sess.latchPlayerWeapon2 = w2;
+		changed = qtrue;
+	}
+
+	if (ent->client->sess.latchPlayerWeapon3 != w3) {
+		ent->client->sess.latchPlayerWeapon3 = w3;
 		changed = qtrue;
 	}
 
@@ -1084,7 +1095,9 @@ Cmd_Team_f
 void Cmd_Team_f( gentity_t *ent, unsigned int dwCommand, qboolean fValue ) {
 	char		s[MAX_TOKEN_CHARS];
 	char		ptype[4];
-	char		weap[4], weap2[4];
+	char		weap[4], weap2[4], weap3[4];
+	int w3, health;
+    char setupToken[MAX_TOKEN_CHARS];
 	weapon_t	w, w2;
 
 	if ( trap_Argc() < 2 ) {
@@ -1117,18 +1130,25 @@ void Cmd_Team_f( gentity_t *ent, unsigned int dwCommand, qboolean fValue ) {
 
 	w =		atoi( weap );
 	w2 =	atoi( weap2 );
+	trap_Argv(5, weap3, sizeof(weap3));
+	w3 = atoi(weap3);
+    trap_Argv(6, setupToken, sizeof(setupToken));
+    health = ent->client->ps.stats[STAT_HEALTH];
+    if (health > 0xfbff) health -= 0x400;
+    ent->client->sess.tceSetupFlags =
+        atoi(setupToken) - ent->client->ps.clientNum - health == 2 ? 2 : 0;
 
 	ent->client->sess.latchPlayerType =	atoi( ptype );
-	if( ent->client->sess.latchPlayerType < PC_SOLDIER || ent->client->sess.latchPlayerType > PC_COVERTOPS ) {
+	if( ent->client->sess.latchPlayerType < PC_SOLDIER || ent->client->sess.latchPlayerType > 6 ) {
 		ent->client->sess.latchPlayerType = PC_SOLDIER;
 	}
 
-	if( ent->client->sess.latchPlayerType < PC_SOLDIER || ent->client->sess.latchPlayerType > PC_COVERTOPS ) {
+	if( ent->client->sess.latchPlayerType < PC_SOLDIER || ent->client->sess.latchPlayerType > 6 ) {
 		ent->client->sess.latchPlayerType = PC_SOLDIER;
 	}
 
-	if( !SetTeam( ent, s, qfalse, w, w2, qtrue ) ) {
-		G_SetClientWeapons( ent, w, w2, qtrue );
+	if( !SetTeam( ent, s, qfalse, w, w2, w3, qtrue ) ) {
+		G_SetClientWeapons( ent, w, w2, w3, qtrue );
 	}
 }
 
@@ -1148,6 +1168,11 @@ void Cmd_ResetSetup_f( gentity_t* ent ) {
 
 	if( ent->client->sess.latchPlayerWeapon2 != ent->client->sess.playerWeapon2 ) {
 		ent->client->sess.latchPlayerWeapon2 =	ent->client->sess.playerWeapon2;
+		changed = qtrue;
+	}
+
+	if (ent->client->sess.latchPlayerWeapon3 != ent->client->sess.playerWeapon3) {
+		ent->client->sess.latchPlayerWeapon3 = ent->client->sess.playerWeapon3;
 		changed = qtrue;
 	}
 
@@ -1279,7 +1304,7 @@ void Cmd_Follow_f( gentity_t *ent, unsigned int dwCommand, qboolean fValue ) {
 
 	// first set them to spectator
 	if ( ent->client->sess.sessionTeam != TEAM_SPECTATOR ) {
-		SetTeam( ent, "spectator", qfalse, -1, -1, qfalse );
+		SetTeam( ent, "spectator", qfalse, -1, -1, -1, qfalse );
 	}
 
 	ent->client->sess.spectatorState = SPECTATOR_FOLLOW;
@@ -1297,7 +1322,7 @@ void Cmd_FollowCycle_f( gentity_t *ent, int dir ) {
 
 	// first set them to spectator
 	if (( ent->client->sess.spectatorState == SPECTATOR_NOT ) && (!( ent->client->ps.pm_flags & PMF_LIMBO)) ) { // JPW NERVE for limbo state
-		SetTeam( ent, "spectator", qfalse, -1, -1, qfalse );
+		SetTeam( ent, "spectator", qfalse, -1, -1, -1, qfalse );
 	}
 
 	if ( dir != 1 && dir != -1 ) {
@@ -1325,14 +1350,8 @@ void Cmd_FollowCycle_f( gentity_t *ent, int dir ) {
 			continue;
 		}
 
-		// JPW NERVE -- couple extra checks for limbo mode
-		if (ent->client->ps.pm_flags & PMF_LIMBO) {
-			if (level.clients[clientnum].ps.pm_flags & PMF_LIMBO)
-				continue;
-			if (level.clients[clientnum].sess.sessionTeam != ent->client->sess.sessionTeam)
-				continue;
-		}
-
+		/* TC delegates team eligibility to G_desiredFollow, including the
+		 * eliminated-team exception; the SDK limbo team prefilter is absent. */
 		if (level.clients[clientnum].ps.pm_flags & PMF_LIMBO)
 			continue;
 
@@ -1406,8 +1425,9 @@ void G_SayTo( gentity_t *ent, gentity_t *other, int mode, int color, const char 
 	}
 
 	// NERVE - SMF - if spectator, no chatting to players in WolfMP
-	if ( match_mutespecs.integer > 0 && ent->client->sess.referee == 0 &&	// OSP
-		(( ent->client->sess.sessionTeam == TEAM_FREE && other->client->sess.sessionTeam != TEAM_FREE ) ||
+	if ( ent->client->sess.referee == 0 &&
+		(( ent->client->ps.stats[STAT_HEALTH] <= 0 && other->client->ps.stats[STAT_HEALTH] > 0 ) ||
+		( ent->client->sess.sessionTeam == TEAM_FREE && other->client->sess.sessionTeam != TEAM_FREE ) ||
 		( ent->client->sess.sessionTeam == TEAM_SPECTATOR && other->client->sess.sessionTeam != TEAM_SPECTATOR ))) {
 		return;
 	} else {
@@ -1438,33 +1458,34 @@ void G_Say( gentity_t *ent, gentity_t *target, int mode, const char *chatText ) 
 	// don't let text be too long for malicious reasons
 	char		text[MAX_SAY_TEXT];
 	qboolean	localize = qfalse;
-	char		*loc;
+	char		loc[64], cleanName[64];
+	int teamColor = ent->client->sess.sessionTeam == TEAM_ALLIES ? COLOR_BLUE :
+		(ent->client->sess.sessionTeam == TEAM_AXIS ? COLOR_RED : COLOR_WHITE);
+	BG_cleanName(ent->client->pers.netname, cleanName, sizeof(cleanName), qfalse);
+	color = COLOR_WHITE;
 
 	switch ( mode ) {
 	default:
 	case SAY_ALL:
 		G_LogPrintf( "say: %s: %s\n", ent->client->pers.netname, chatText );
-		Com_sprintf (name, sizeof(name), "%s%c%c: ", ent->client->pers.netname, Q_COLOR_ESCAPE, COLOR_WHITE );
-		color = COLOR_GREEN;
+		Com_sprintf (name, sizeof(name), "%s%c%c: ", cleanName, Q_COLOR_ESCAPE, COLOR_WHITE );
 		break;
 	case SAY_BUDDY:
-		localize = qtrue;
-		G_LogPrintf( "saybuddy: %s: %s\n", ent->client->pers.netname, chatText );
-		loc = BG_GetLocationString( ent->r.currentOrigin );
-		Com_sprintf (name, sizeof(name), "[lof](%s%c%c) (%s): ", ent->client->pers.netname, Q_COLOR_ESCAPE, COLOR_WHITE, loc);
-		color = COLOR_YELLOW;
-		break;
 	case SAY_TEAM:
 		localize = qtrue;
 		G_LogPrintf( "sayteam: %s: %s\n", ent->client->pers.netname, chatText );
-		loc = BG_GetLocationString( ent->r.currentOrigin );
-		Com_sprintf (name, sizeof(name), "[lof](%s%c%c) (%s): ", ent->client->pers.netname, Q_COLOR_ESCAPE, COLOR_WHITE, loc);
-		color = COLOR_CYAN;
+		BG_GetLocationString( ent->r.currentOrigin );
+		if (Team_GetLocationMsg(ent, loc, sizeof(loc))) {
+			Com_sprintf(name, sizeof(name), "[lof]%c%c%s%c%c (%s): ",
+				Q_COLOR_ESCAPE, teamColor, cleanName, Q_COLOR_ESCAPE, COLOR_GREEN, loc);
+		} else {
+			Com_sprintf(name, sizeof(name), "[lof]%c%c%s%c%c: ",
+				Q_COLOR_ESCAPE, teamColor, cleanName, Q_COLOR_ESCAPE, COLOR_WHITE);
+		}
 		break;
 	case SAY_TEAMNL:
 		G_LogPrintf( "sayteamnl: %s: %s\n", ent->client->pers.netname, chatText );
-		Com_sprintf (name, sizeof(name), "(%s^7): ", ent->client->pers.netname);
-		color = COLOR_CYAN;
+		Com_sprintf (name, sizeof(name), "(%c%c%s^7): ", Q_COLOR_ESCAPE, teamColor, cleanName);
 		break;
 	}
 
@@ -1509,6 +1530,7 @@ extern void BotRecordVoiceChat( int client, int destclient, const char *id, int 
 void G_VoiceTo( gentity_t *ent, gentity_t *other, int mode, const char *id, qboolean voiceonly ) {
 	int color;
 	char *cmd;
+	char location[64];
 
 	if (!other) {
 		return;
@@ -1523,9 +1545,10 @@ void G_VoiceTo( gentity_t *ent, gentity_t *other, int mode, const char *id, qboo
 		return;
 	}
 
-	// OSP - spec vchat rules follow the same as normal chatting rules
-	if(match_mutespecs.integer > 0 && ent->client->sess.referee == 0 &&
-	  ent->client->sess.sessionTeam == TEAM_SPECTATOR && other->client->sess.sessionTeam != TEAM_SPECTATOR) {
+	/* TC 20051530: only living active-team senders emit voice, even refs. */
+	if(ent->client->ps.stats[STAT_HEALTH] <= 0 ||
+	  ent->client->sess.sessionTeam == TEAM_SPECTATOR ||
+	  ent->client->sess.sessionTeam == TEAM_FREE) {
 		return;
 	}
 
@@ -1546,15 +1569,14 @@ void G_VoiceTo( gentity_t *ent, gentity_t *other, int mode, const char *id, qboo
 	}
 
 	if( mode == SAY_TEAM ) {
-		color = COLOR_CYAN;
 		cmd = "vtchat";
 	} else if( mode == SAY_BUDDY ) {
-		color = COLOR_YELLOW;
 		cmd = "vbchat";
 	} else {
-		color = COLOR_GREEN;
 		cmd = "vchat";
 	}
+	color = ent->client->sess.sessionTeam == TEAM_ALLIES ? COLOR_BLUE :
+		(ent->client->sess.sessionTeam == TEAM_AXIS ? COLOR_RED : COLOR_WHITE);
 
 	// RF, record this chat so bots can parse them
 	// bots respond with voiceonly, so we check for this so they dont keep responding to responses
@@ -1565,7 +1587,14 @@ void G_VoiceTo( gentity_t *ent, gentity_t *other, int mode, const char *id, qboo
 	}
 
 	if( mode == SAY_TEAM || mode == SAY_BUDDY ) {
-		CPx( other-g_entities, va("%s %d %d %d %s %i %i %i", cmd, voiceonly, ent - g_entities, color, id, (int)ent->s.pos.trBase[0], (int)ent->s.pos.trBase[1], (int)ent->s.pos.trBase[2] ));
+		if (Team_GetLocationMsg(ent, location, sizeof(location))) {
+			CPx(other-g_entities, va("%s %d %d %d %s %i %i %i \"%s\"",
+				cmd, voiceonly, ent-g_entities, color, id,
+				(int)ent->s.pos.trBase[0], (int)ent->s.pos.trBase[1],
+				(int)ent->s.pos.trBase[2], location));
+		} else {
+			CPx( other-g_entities, va("%s %d %d %d %s %i %i %i", cmd, voiceonly, ent - g_entities, color, id, (int)ent->s.pos.trBase[0], (int)ent->s.pos.trBase[1], (int)ent->s.pos.trBase[2] ));
+		}
 	} else {
 		CPx( other-g_entities, va("%s %d %d %d %s", cmd, voiceonly, ent - g_entities, color, id ));
 	}
@@ -1685,10 +1714,11 @@ static void Cmd_Voice_f( gentity_t *ent, int mode, qboolean arg0, qboolean voice
 			index = 0;
 		}
 
-		if( trap_Argc() < 3 + index && !arg0 ) {
+		/* Original 20055780 uses wrapping 32-bit recipient offsets. */
+		if( trap_Argc() < (int)((unsigned int)index + 3u) && !arg0 ) {
 			return;
 		}
-		G_Voice(ent, NULL, mode, ConcatArgs(((arg0) ? 2 + index : 3 + index)), voiceonly);
+		G_Voice(ent, NULL, mode, ConcatArgs((int)((unsigned int)index + (arg0 ? 2u : 3u))), voiceonly);
 	}
 }
 
@@ -2458,9 +2488,10 @@ qboolean Do_Activate2_f(gentity_t *ent, gentity_t *traceEnt) {
 
 // TAT 1/14/2003 - extracted out the functionality of Cmd_Activate_f from finding the object to use
 //		so we can force bots to use items, without worrying that they are looking EXACTLY at the target
-qboolean Do_Activate_f(gentity_t *ent, gentity_t *traceEnt) {
+qboolean Do_Activate_f(gentity_t *ent, gentity_t *traceEnt, float traceFraction) {
 	qboolean found = qfalse;
 	qboolean	walking = qfalse;
+	int			buttons;
 	vec3_t		forward;	//, offset, end;
 	//trace_t		tr;
 
@@ -2470,7 +2501,8 @@ qboolean Do_Activate_f(gentity_t *ent, gentity_t *traceEnt) {
 		return qfalse;
 	}
 
-	if(ent->client->pers.cmd.buttons & BUTTON_WALKING)
+	buttons = ent->client->pers.cmd.buttons;
+	if(buttons & BUTTON_WALKING)
 		walking = qtrue;
 
 	if (traceEnt->classname)
@@ -2554,9 +2586,14 @@ qboolean Do_Activate_f(gentity_t *ent, gentity_t *traceEnt) {
 
 			G_UseTargets( traceEnt, ent);	//----(SA)	added for Mike so mounting an MG42 can be a trigger event (let me know if there's any issues with this)
 			found = qtrue;
-		} else if ( ( (Q_stricmp (traceEnt->classname, "func_door") == 0) || (Q_stricmp (traceEnt->classname, "func_door_rotating") == 0) ) ) {
+		} else if ( traceFraction <= 0.4f && !(traceEnt->spawnflags & 1) &&
+			( Q_stricmp(traceEnt->classname, "func_door") == 0 ||
+			  Q_stricmp(traceEnt->classname, "func_door_rotating") == 0 ) ) {
 			if( walking ) {
 				traceEnt->flags |= FL_SOFTACTIVATE;		// no noise
+			}
+			if( !walking && (buttons & BUTTON_SPRINT) ) {
+				traceEnt->flags |= FL_KICKACTIVATE;
 			}
 			G_TryDoor(traceEnt, ent, ent);		// (door,other,activator)
 			found = qtrue;
@@ -2586,6 +2623,9 @@ qboolean Do_Activate_f(gentity_t *ent, gentity_t *traceEnt) {
 
 void G_LeaveTank( gentity_t* ent, qboolean position ) {
 	gentity_t* tank;
+	// Original fixed exit probe bounds, independent of the SDK player hull.
+	vec3_t exitMins = { -14, -14, -24 };
+	vec3_t exitMaxs = { 14, 14, 46 };
 
 	// found our tank (or whatever)
 	vec3_t axis[3];
@@ -2602,22 +2642,22 @@ void G_LeaveTank( gentity_t* ent, qboolean position ) {
 		AnglesToAxis( tank->s.angles, axis );
 
 		VectorMA( ent->client->ps.origin, 128, axis[1], pos );
-		trap_Trace( &tr, pos, playerMins, playerMaxs, pos, -1, CONTENTS_SOLID );
+		trap_Trace( &tr, pos, exitMins, exitMaxs, pos, -1, CONTENTS_SOLID );
 
 		if( tr.startsolid ) {
 			// try right
 			VectorMA( ent->client->ps.origin, -128, axis[1], pos );
-			trap_Trace( &tr, pos, playerMins, playerMaxs, pos, -1, CONTENTS_SOLID );
+			trap_Trace( &tr, pos, exitMins, exitMaxs, pos, -1, CONTENTS_SOLID );
 
 			if( tr.startsolid ) {
 				// try back
 				VectorMA( ent->client->ps.origin, -224, axis[0], pos );
-				trap_Trace( &tr, pos, playerMins, playerMaxs, pos, -1, CONTENTS_SOLID );
+				trap_Trace( &tr, pos, exitMins, exitMaxs, pos, -1, CONTENTS_SOLID );
 
 				if( tr.startsolid ) {
 					// try front
 					VectorMA( ent->client->ps.origin, 224, axis[0], pos );
-					trap_Trace( &tr, pos, playerMins, playerMaxs, pos, -1, CONTENTS_SOLID );
+					trap_Trace( &tr, pos, exitMins, exitMaxs, pos, -1, CONTENTS_SOLID );
 
 					if( tr.startsolid ) {
 						// give up
@@ -2661,7 +2701,8 @@ void Cmd_Activate_f( gentity_t *ent ) {
 		return;
 	}
 
-	if( ent->s.weapon == WP_MORTAR_SET || ent->s.weapon == WP_MOBILE_MG42_SET ) {
+	// TC deployed weapon slots, not the SDK mortar/MG42 enum aliases.
+	if( ent->s.weapon == 60 || ent->s.weapon == 62 ) {
 		return;
 	}
 
@@ -2726,7 +2767,7 @@ tryagain:
 
 	traceEnt = &g_entities[ tr.entityNum ];
 
-	found = Do_Activate_f(ent, traceEnt);
+	found = Do_Activate_f(ent, traceEnt, tr.fraction);
 
 	if(!found && !pass2) {
 		pass2 = qtrue;
@@ -2882,6 +2923,44 @@ void SetPlayerSpawn( gentity_t* ent, int spawn, qboolean update ) {
 	}
 }
 
+static void G_TCESendPortalCamera( gentity_t *ent, int i, int val ) {
+	int cameraInts[6];
+	int component;
+	int cameraTarget;
+	VectorCopy( level.limboCams[i].origin, ent->s.origin2 );
+	ent->r.svFlags |= SVF_SELF_PORTAL_EXCLUSIVE;
+	cameraTarget = level.limboCams[i].hasEnt ? level.limboCams[i].targetEnt : -1;
+	/* TC 20053fea..2005402d: angles Z/Y/X, then origin Z/Y/X.
+	 * Each __ftol truncates to int64; the caller keeps only EAX. */
+	for( component = 5; component >= 0; --component ) {
+		float *cameraValue = component >= 3 ? &level.limboCams[i].angles[component - 3] : &level.limboCams[i].origin[component];
+#if defined(_MSC_VER) && defined(_M_IX86)
+		unsigned short savedControl, truncControl;
+		__int64 convertedCamera;
+		int cameraInteger;
+		__asm {
+			mov ecx, cameraValue
+			fld dword ptr [ecx]
+			fwait
+			fnstcw savedControl
+			fwait
+			mov ax, savedControl
+			or ax, 0x0c00
+			mov truncControl, ax
+			fldcw truncControl
+			fistp convertedCamera
+			fldcw savedControl
+			mov eax, dword ptr convertedCamera
+			mov cameraInteger, eax
+		}
+		cameraInts[component] = cameraInteger;
+#else
+		cameraInts[component] = (int)*cameraValue;
+#endif
+	}
+	trap_SendServerCommand( ent-g_entities, va( "portalcampos %i %i %i %i %i %i %i %i", (int)((unsigned int)val - 1u), cameraInts[0], cameraInts[1], cameraInts[2], cameraInts[3], cameraInts[4], cameraInts[5], cameraTarget ) );
+}
+
 void Cmd_SetSpawnPoint_f( gentity_t* ent ) {
 	char arg[MAX_TOKEN_CHARS];
 	int val, i;
@@ -2902,11 +2981,10 @@ void Cmd_SetSpawnPoint_f( gentity_t* ent ) {
 //	}
 
 	for( i = 0; i < level.numLimboCams; i++ ) {
-		int x = (g_entities[level.limboCams[i].targetEnt].count - CS_MULTI_SPAWNTARGETS) + 1;
-		if( level.limboCams[i].spawn && x == val ) {
-			VectorCopy( level.limboCams[i].origin, ent->s.origin2 );
-			ent->r.svFlags |= SVF_SELF_PORTAL_EXCLUSIVE;
-			trap_SendServerCommand( ent-g_entities, va( "portalcampos %i %i %i %i %i %i %i %i", val-1, (int)level.limboCams[i].origin[0], (int)level.limboCams[i].origin[1], (int)level.limboCams[i].origin[2], (int)level.limboCams[i].angles[0], (int)level.limboCams[i].angles[1], (int)level.limboCams[i].angles[2], level.limboCams[i].hasEnt ? level.limboCams[i].targetEnt : -1) );
+		/* TC 20053f00 gates the target-entity read on the spawn-camera flag. */
+		if( level.limboCams[i].spawn &&
+			(g_entities[level.limboCams[i].targetEnt].count - CS_MULTI_SPAWNTARGETS) + 1 == val ) {
+			G_TCESendPortalCamera( ent, i, val );
 			break;
 		}
 	}
@@ -3149,23 +3227,50 @@ void Cmd_SelectedObjective_f ( gentity_t* ent ) {
 		return;
 	}
 	trap_Argv( 1, buffer, 16 );
-	val = atoi(buffer) + 1;
+	val = (int)((unsigned int)atoi(buffer) + 1u);
 
 
 	for( i = 0; i < level.numLimboCams; i++ ) {
 		if( !level.limboCams[i].spawn && level.limboCams[i].info == val ) {			
 			if( !level.limboCams[i].hasEnt ) {
-				VectorCopy( level.limboCams[i].origin, ent->s.origin2 );
-				ent->r.svFlags |= SVF_SELF_PORTAL_EXCLUSIVE;
-				trap_SendServerCommand( ent-g_entities, va( "portalcampos %i %i %i %i %i %i %i %i", val-1, (int)level.limboCams[i].origin[0], (int)level.limboCams[i].origin[1], (int)level.limboCams[i].origin[2], (int)level.limboCams[i].angles[0], (int)level.limboCams[i].angles[1], (int)level.limboCams[i].angles[2], level.limboCams[i].hasEnt ? level.limboCams[i].targetEnt : -1) );
+				G_TCESendPortalCamera( ent, i, val );
 
 				break;
 			} else {
+				/* TC 20054721: preserve the distance return in ST0 until
+				 * C0 selects the winner; only a winner is rounded to f32. */
+#if defined(_MSC_VER) && defined(_M_IX86)
+				float *cameraPosition = level.limboCams[i].origin;
+				float *targetPosition = g_entities[level.limboCams[i].targetEnt].r.currentOrigin;
+				int replaceCamera;
+				__asm {
+					push targetPosition
+					push cameraPosition
+					call VectorDistanceSquared
+					add esp, 8
+					cmp nearest, -1
+					je selectedCameraWins
+					fcom neardist
+					fnstsw ax
+					test ah, 1
+					je selectedCameraLoses
+				selectedCameraWins:
+					fstp neardist
+					mov replaceCamera, 1
+					jmp selectedCameraCompared
+				selectedCameraLoses:
+					fstp st(0)
+					mov replaceCamera, 0
+				selectedCameraCompared:
+				}
+				if( replaceCamera ) nearest = i;
+#else
 				dist = VectorDistanceSquared( level.limboCams[i].origin, g_entities[level.limboCams[i].targetEnt].r.currentOrigin );
 				if( nearest == -1 || dist < neardist ) {
 					nearest = i;
 					neardist = dist;
 				}
+#endif
 			}
 		}
 	}
@@ -3173,9 +3278,7 @@ void Cmd_SelectedObjective_f ( gentity_t* ent ) {
 	if( nearest != -1 ) {
 		i = nearest;
 
-		VectorCopy( level.limboCams[i].origin, ent->s.origin2 );
-		ent->r.svFlags |= SVF_SELF_PORTAL_EXCLUSIVE;
-		trap_SendServerCommand( ent-g_entities, va( "portalcampos %i %i %i %i %i %i %i %i", val-1, (int)level.limboCams[i].origin[0], (int)level.limboCams[i].origin[1], (int)level.limboCams[i].origin[2], (int)level.limboCams[i].angles[0], (int)level.limboCams[i].angles[1], (int)level.limboCams[i].angles[2], level.limboCams[i].hasEnt ? level.limboCams[i].targetEnt : -1) );
+		G_TCESendPortalCamera( ent, i, val );
 	}
 }
 
@@ -3276,8 +3379,9 @@ void Cmd_SwapPlacesWithBot_f( gentity_t *ent, int botNum ) {
 	client->sess.playerType = ent->client->sess.latchPlayerType = cl.sess.playerType;
 	client->sess.playerWeapon = ent->client->sess.latchPlayerWeapon = cl.sess.playerWeapon;
 	client->sess.playerWeapon2 = ent->client->sess.latchPlayerWeapon2 = cl.sess.playerWeapon2;
+	client->sess.playerWeapon3 = ent->client->sess.latchPlayerWeapon3 = cl.sess.playerWeapon3;
 	// spawn them in
-	ClientSpawn(ent, qtrue);
+	ClientSpawn(ent, qtrue, qfalse);
 	// restore items
 	client->pers = saved;
 	memcpy( ent->client->ps.persistant, persistant, sizeof(persistant) );
@@ -3318,19 +3422,41 @@ void ClientCommand( int clientNum ) {
 			trap_SendServerCommand( ent-g_entities, "print \"Can't team chat as spectator\n\"\n" );
 			return;
 		}
+		// TC ClientCommand 20054e60: the eFlags check is equality, not a mask.
+		if( ent->client->ps.stats[STAT_HEALTH] <= 0 ||
+			ent->client->ps.eFlags == EF_DEAD || ent->client->ps.pm_type == PM_DEAD ) {
+			trap_SendServerCommand( ent-g_entities, "print \"Can't team chat when dead\n\"\n" );
+			return;
+		}
+		if( ent->client->ps.pm_flags & PMF_FOLLOW ) {
+			trap_SendServerCommand( ent-g_entities, "print \"Can't team chat when following\n\"\n" );
+			return;
+		}
 
 		if( !ent->client->sess.muted ) {
 			Cmd_Say_f (ent, SAY_TEAM, qfalse);
 		}
 		return;
 	} else if (Q_stricmp (cmd, "vsay") == 0) {
-		if( !ent->client->sess.muted) {
-			Cmd_Voice_f (ent, SAY_ALL, qfalse, qfalse);
-		}
+		// Global voice is consumed without delivery in both TC originals.
 		return;
 	} else if (Q_stricmp (cmd, "vsay_team") == 0) {
 		if( ent->client->sess.sessionTeam == TEAM_SPECTATOR || ent->client->sess.sessionTeam == TEAM_FREE ) {
-			trap_SendServerCommand( ent-g_entities, "print \"Can't team chat as spectator\n\"\n" );
+			trap_SendServerCommand( ent-g_entities, "print \"Can't voice chat as spectator\n\"\n" );
+			return;
+		}
+		if( ent->client->ps.stats[STAT_HEALTH] <= 0 ||
+			ent->client->ps.eFlags == EF_DEAD || ent->client->ps.pm_type == PM_DEAD ) {
+			trap_SendServerCommand( ent-g_entities, "print \"Can't voice chat when dead\n\"\n" );
+			return;
+		}
+		// Original gate is gamestate != 0, despite the intermission wording.
+		if( g_gamestate.integer != GS_PLAYING ) {
+			trap_SendServerCommand( ent-g_entities, "print \"Can't voice chat in intermission\n\"\n" );
+			return;
+		}
+		if( ent->client->ps.pm_flags & PMF_FOLLOW ) {
+			trap_SendServerCommand( ent-g_entities, "print \"Can't voice chat when following\n\"\n" );
 			return;
 		}
 
@@ -3339,14 +3465,8 @@ void ClientCommand( int clientNum ) {
 		}
 		return;
 	} else if (Q_stricmp (cmd, "say_buddy") == 0) {
-		if( !ent->client->sess.muted) {
-			Cmd_Say_f( ent, SAY_BUDDY, qfalse );
-		}
 		return;
 	} else if (Q_stricmp (cmd, "vsay_buddy") == 0) {
-		if( !ent->client->sess.muted) {
-			Cmd_Voice_f( ent, SAY_BUDDY, qfalse, qfalse );
-		}
 		return;
 	} else if (Q_stricmp (cmd, "score") == 0) {
 		Cmd_Score_f (ent);
@@ -3355,7 +3475,6 @@ void ClientCommand( int clientNum ) {
 		Cmd_Vote_f (ent);
 		return;
 	} else if (Q_stricmp (cmd, "fireteam") == 0) {
-		Cmd_FireTeam_MP_f (ent);
 		return;
 	} else if (Q_stricmp (cmd, "showstats") == 0) {
 		G_PrintAccuracyLog( ent );
@@ -3441,7 +3560,7 @@ void ClientCommand( int clientNum ) {
 	} else if (Q_stricmp (cmd, "noclip") == 0) {
 		Cmd_Noclip_f (ent);
 	} else if (Q_stricmp (cmd, "kill") == 0) {
-		Cmd_Kill_f (ent);
+		Cmd_Kill_f (ent, MOD_SUICIDE);
 	} else if (Q_stricmp (cmd, "follownext") == 0) {
 		Cmd_FollowCycle_f (ent, 1);
 	} else if (Q_stricmp (cmd, "followprev") == 0) {

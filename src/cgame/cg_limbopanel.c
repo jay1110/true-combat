@@ -1,4 +1,12 @@
 #include "cg_local.h"
+#include "../game/tce_bg.h"
+#include "tce_limbo_widgets.h"
+#include "tce_limbo_loadout.h"
+#include "tce_weapon_media.h"
+#include "../ui/tce_ui_coordinates.h"
+
+qboolean tce_uiCoordinates;
+static void CG_LimboPanel_RenderTeamCounter(panel_button_t *button);
 
 #define SOUNDEVENT( sound ) trap_S_StartLocalSound( sound, CHAN_LOCAL_SOUND )
 
@@ -895,65 +903,100 @@ panel_button_t minusButtonText = {
 	NULL,
 };
 
+/* Original 35-panel deployment table. See limbo_layout.json for both binary addresses.
+ * Layout integration is partial: server identity/loadout callbacks remain SDK. */
+static panel_button_text_t titleLimboFontBigGold = { .35f,.45f,{.45f,.4f,.3f,1},3,0,&cgs.media.limboFont2 };
+static panel_button_text_t classLimboFont = { .16f,.2f,{.5f,.5f,.5f,1},0,0,&cgs.media.limboFont1 };
+static panel_button_text_t weaponButtonFontSmall = { .22f,.22f,{.6f,.6f,.6f,1},0,0,&cgs.media.limboFont2 };
+static panel_button_t rightLimboPannelGunMen;
+static panel_button_t classButton5;
+static panel_button_t nameSetupText;
+static panel_button_t teamSetupText;
+static panel_button_t gearSetupText;
+static panel_button_t classSetupText1;
+static panel_button_t classSetupText2;
+static panel_button_t classSetupText3;
+static panel_button_t weaponSetupText;
+static panel_button_t weaponLight3;
+static panel_button_t weaponLight3Text;
 panel_button_t* limboPanelButtons[] = {
-	&rightLimboPannel,
-
-	&classCounter0,			&classCounter1,			&classCounter2,			&classCounter3,			&classCounter4,
-//	&classCounterLight0,	&classCounterLight1,	&classCounterLight2,	&classCounterLight3,	&classCounterLight4, 
-	&classButton0,			&classButton1,			&classButton2,			&classButton3,			&classButton4,
-
-	&classBar, &classBarText,
-
-	&leftFrame01, &leftFrame02, &leftFrame03, &leftFrame04,
-	&leftFrame05, &leftFrame06, &leftFrame07, &leftFrame08,
-
-	&filterButton0, &filterButton1, &filterButton2, &filterButton3, &filterButton4,
-	&filterButton5, &filterButton6, &filterButton7,/* &filterButton8,*/
-	&filterTitleText,
-
-	&medalPic0, &medalPic1, &medalPic2, &medalPic3, &medalPic4, &medalPic5, &medalPic6,
-
-	&teamCounter0,		&teamCounter1,		&teamCounter2,
-	&teamCounterLight0,	&teamCounterLight1,	&teamCounterLight2,
-	&teamButton0,		&teamButton1,		&teamButton2,
-
-	&playerLimboHead,
-	&playerXPCounter, &playerXPCounterText, 
-
-	&respawnCounter, &respawnCounterText,
-	&mapTimeCounter, &mapTimeCounter2, &mapTimeCounterText,
-
-	&playerSkillCounter0, &playerSkillCounter1, &playerSkillCounter2,
-	&playerSkillIcon0, &playerSkillIcon1, &playerSkillIcon2,
-
-	&objectivePanel, &objectivePanelTitle, &objectivePanelText,
-	&objectivePanelButtonUp, &objectivePanelButtonDown,
-
-	&limboTitleText,
-	&playerSetupText,
-	&skillsText,
-
-	&commandmapPanel,
-
-	&okButton, &okButtonText,
-	&cancelButton, &cancelButtonText,
-
-	&nameEdit,
-
-	&weaponLight1,		&weaponLight2, 
-	&weaponLight1Text,	&weaponLight2Text,
-	&weaponPanel,
-	&weaponStatsShotsText, &weaponStatsHitsText, &weaponStatsAccText,
-	&weaponStatsShotsCounter, &weaponStatsHitsCounter, &weaponStatsAccCounter,
-	&weaponStatsAccPercentage,
-
-	&briefingButton,
-
-	&plusButton, &plusButtonText,
-	&minusButton, &minusButtonText,
-
-	NULL,
+    &rightLimboPannel,
+    &rightLimboPannelGunMen,
+    &classButton0,
+    &classButton1,
+    &classButton2,
+    &classButton3,
+    &classButton4,
+    &classButton5,
+    &teamButton0,
+    &teamButton1,
+    &teamButton2,
+    &teamCounter0,
+    &teamCounter1,
+    &teamCounter2,
+    &playerLimboHead,
+    &nameSetupText,
+    &playerSetupText,
+    &teamSetupText,
+    &gearSetupText,
+    &classSetupText1,
+    &classSetupText2,
+    &classSetupText3,
+    &weaponSetupText,
+    &okButton,
+    &okButtonText,
+    &cancelButton,
+    &cancelButtonText,
+    &nameEdit,
+    &weaponLight1,
+    &weaponLight2,
+    &weaponLight3,
+    &weaponLight1Text,
+    &weaponLight2Text,
+    &weaponLight3Text,
+    &weaponPanel,
+    NULL
 };
+static void TCE_LimboLayout(void) {
+    { panel_button_t value = { "gfx/limbo/limbo_back", NULL, {632.0,50.0,200.0,364.0}, {0,0,0,0,0,0,0,0}, NULL, NULL, NULL, BG_PanelButtonsRender_Img, NULL, 0 }; rightLimboPannel = value; }
+    { panel_button_t value = { "ui/assets/tce_gunmen256", NULL, {636.0,34.0,50.0,50.0}, {0,0,0,0,0,0,0,0}, NULL, NULL, NULL, BG_PanelButtonsRender_Img, NULL, 0 }; rightLimboPannelGunMen = value; }
+    { panel_button_t value = { NULL, NULL, {636.0,274.0,32.0,22.0}, {0,0,0,0,0,0,0,0}, NULL, CG_LimboPanel_ClassButton_KeyDown, NULL, CG_LimboPanel_RenderClassButton, NULL, 0 }; classButton0 = value; }
+    { panel_button_t value = { NULL, NULL, {668.0,274.0,32.0,22.0}, {0,1,0,0,0,0,0,0}, NULL, CG_LimboPanel_ClassButton_KeyDown, NULL, CG_LimboPanel_RenderClassButton, NULL, 0 }; classButton1 = value; }
+    { panel_button_t value = { NULL, NULL, {700.0,274.0,32.0,22.0}, {0,2,0,0,0,0,0,0}, NULL, CG_LimboPanel_ClassButton_KeyDown, NULL, CG_LimboPanel_RenderClassButton, NULL, 0 }; classButton2 = value; }
+    { panel_button_t value = { NULL, NULL, {732.0,274.0,32.0,22.0}, {0,3,0,0,0,0,0,0}, NULL, CG_LimboPanel_ClassButton_KeyDown, NULL, CG_LimboPanel_RenderClassButton, NULL, 0 }; classButton3 = value; }
+    { panel_button_t value = { NULL, NULL, {764.0,274.0,32.0,22.0}, {0,4,0,0,0,0,0,0}, NULL, CG_LimboPanel_ClassButton_KeyDown, NULL, CG_LimboPanel_RenderClassButton, NULL, 0 }; classButton4 = value; }
+    { panel_button_t value = { NULL, NULL, {796.0,274.0,32.0,22.0}, {0,5,0,0,0,0,0,0}, NULL, CG_LimboPanel_ClassButton_KeyDown, NULL, CG_LimboPanel_RenderClassButton, NULL, 0 }; classButton5 = value; }
+    { panel_button_t value = { NULL, NULL, {641.0,197.0,56.0,36.0}, {0,0,0,0,0,0,0,0}, NULL, CG_LimboPanel_TeamButton_KeyDown, NULL, CG_LimboPanel_RenderTeamButton, NULL, 0 }; teamButton0 = value; }
+    { panel_button_t value = { NULL, NULL, {703.0,197.0,56.0,36.0}, {1,0,0,0,0,0,0,0}, NULL, CG_LimboPanel_TeamButton_KeyDown, NULL, CG_LimboPanel_RenderTeamButton, NULL, 0 }; teamButton1 = value; }
+    { panel_button_t value = { NULL, NULL, {765.0,197.0,56.0,36.0}, {2,0,0,0,0,0,0,0}, NULL, CG_LimboPanel_TeamButton_KeyDown, NULL, CG_LimboPanel_RenderTeamButton, NULL, 0 }; teamButton2 = value; }
+    { panel_button_t value = { NULL, NULL, {680.0,182.0,20.0,14.0}, {1,0,0,0,0,0,0,0}, NULL, NULL, NULL, CG_LimboPanel_RenderTeamCounter, NULL, 0 }; teamCounter0 = value; }
+    { panel_button_t value = { NULL, NULL, {742.0,182.0,20.0,14.0}, {1,1,0,0,0,0,0,0}, NULL, NULL, NULL, CG_LimboPanel_RenderTeamCounter, NULL, 0 }; teamCounter1 = value; }
+    { panel_button_t value = { NULL, NULL, {804.0,182.0,20.0,14.0}, {1,2,0,0,0,0,0,0}, NULL, NULL, NULL, CG_LimboPanel_RenderTeamCounter, NULL, 0 }; teamCounter2 = value; }
+    { panel_button_t value = { NULL, NULL, {777.0,80.0,43.0,56.0}, {0,0,0,0,0,0,0,0}, NULL, NULL, NULL, CG_LimboPanel_RenderHead, NULL, 0 }; playerLimboHead = value; }
+    { panel_button_t value = { NULL, "Name", {640.0,154.0,0.0,0.0}, {0,0,0,0,0,0,0,0}, &titleLimboFont, NULL, NULL, BG_PanelButtonsRender_Text, NULL, 0 }; nameSetupText = value; }
+    { panel_button_t value = { NULL, "Deployment Menu", {680.0,71.0,0.0,0.0}, {0,0,0,0,0,0,0,0}, &titleLimboFontBigGold, NULL, NULL, BG_PanelButtonsRender_Text, NULL, 0 }; playerSetupText = value; }
+    { panel_button_t value = { NULL, "Team", {640.0,192.0,0.0,0.0}, {0,0,0,0,0,0,0,0}, &titleLimboFont, NULL, NULL, BG_PanelButtonsRender_Text, NULL, 0 }; teamSetupText = value; }
+    { panel_button_t value = { NULL, "Identity", {640.0,253.0,0.0,0.0}, {0,0,0,0,0,0,0,0}, &titleLimboFont, NULL, NULL, BG_PanelButtonsRender_Text, NULL, 0 }; gearSetupText = value; }
+    { panel_button_t value = { NULL, "[ Assault ]", {642.0,268.0,0.0,0.0}, {0,0,0,0,0,0,0,0}, &classLimboFont, NULL, NULL, BG_PanelButtonsRender_Text, NULL, 0 }; classSetupText1 = value; }
+    { panel_button_t value = { NULL, "[  Recon  ]", {707.0,268.0,0.0,0.0}, {0,0,0,0,0,0,0,0}, &classLimboFont, NULL, NULL, BG_PanelButtonsRender_Text, NULL, 0 }; classSetupText2 = value; }
+    { panel_button_t value = { NULL, "[  Sniper  ]", {770.0,268.0,0.0,0.0}, {0,0,0,0,0,0,0,0}, &classLimboFont, NULL, NULL, BG_PanelButtonsRender_Text, NULL, 0 }; classSetupText3 = value; }
+    { panel_button_t value = { NULL, "Gear", {640.0,316.0,0.0,0.0}, {0,0,0,0,0,0,0,0}, &titleLimboFont, NULL, NULL, BG_PanelButtonsRender_Text, NULL, 0 }; weaponSetupText = value; }
+    { panel_button_t value = { NULL, NULL, {642.0,388.0,86.0,18.0}, {0,0,0,0,0,0,0,0}, NULL, CG_LimboPanel_OkButton_KeyDown, NULL, CG_LimboPanel_Border_Draw, NULL, 0 }; okButton = value; }
+    { panel_button_t value = { NULL, "OK", {676.0,403.0,100.0,40.0}, {0,0,0,0,0,0,0,0}, &titleLimboFont, NULL, NULL, BG_PanelButtonsRender_Text, NULL, 0 }; okButtonText = value; }
+    { panel_button_t value = { NULL, NULL, {735.0,388.0,86.0,18.0}, {0,0,0,0,0,0,0,0}, NULL, CG_LimboPanel_CancelButton_KeyDown, NULL, CG_LimboPanel_Border_Draw, NULL, 0 }; cancelButton = value; }
+    { panel_button_t value = { NULL, "CANCEL", {748.0,403.0,100.0,40.0}, {0,0,0,0,0,0,0,0}, &titleLimboFont, NULL, NULL, BG_PanelButtonsRender_Text, NULL, 0 }; cancelButtonText = value; }
+    { panel_button_t value = { NULL, "limboname", {648.0,152.0,120.0,20.0}, {0,0,0,0,0,0,0,0}, &nameEditFont, BG_PanelButton_EditClick, NULL, BG_PanelButton_RenderEdit, CG_LimboPanel_NameEditFinish, 0 }; nameEdit = value; }
+    { panel_button_t value = { NULL, NULL, {642.0,320.0,55.0,18.0}, {1,0,0,0,0,0,0,0}, NULL, CG_LimboPanel_WeaponLights_KeyDown, NULL, CG_LimboPanel_WeaponLights, NULL, 0 }; weaponLight1 = value; }
+    { panel_button_t value = { NULL, NULL, {704.0,320.0,55.0,18.0}, {0,0,0,0,0,0,0,0}, NULL, CG_LimboPanel_WeaponLights_KeyDown, NULL, CG_LimboPanel_WeaponLights, NULL, 0 }; weaponLight2 = value; }
+    { panel_button_t value = { NULL, NULL, {766.0,320.0,55.0,18.0}, {2,0,0,0,0,0,0,0}, NULL, CG_LimboPanel_WeaponLights_KeyDown, NULL, CG_LimboPanel_WeaponLights, NULL, 0 }; weaponLight3 = value; }
+    { panel_button_t value = { NULL, "Primary", {644.0,333.0,55.0,18.0}, {0,0,0,0,0,0,0,0}, &weaponButtonFontSmall, NULL, NULL, BG_PanelButtonsRender_Text, NULL, 0 }; weaponLight1Text = value; }
+    { panel_button_t value = { NULL, "Sidearm", {706.0,333.0,55.0,18.0}, {0,0,0,0,0,0,0,0}, &weaponButtonFontSmall, NULL, NULL, BG_PanelButtonsRender_Text, NULL, 0 }; weaponLight2Text = value; }
+    { panel_button_t value = { NULL, "Special", {769.0,333.0,55.0,18.0}, {0,0,0,0,0,0,0,0}, &weaponButtonFontSmall, NULL, NULL, BG_PanelButtonsRender_Text, NULL, 0 }; weaponLight3Text = value; }
+    { panel_button_t value = { NULL, NULL, {642.0,346.0,180.0,30.0}, {0,0,0,0,0,0,0,0}, NULL, CG_LimboPanel_WeaponPanel_KeyDown, CG_LimboPanel_WeaponPanel_KeyUp, CG_LimboPanel_WeaponPanel, NULL, 0 }; weaponPanel = value; }
+    titleLimboFont.colour[0] = titleLimboFont.colour[1] = titleLimboFont.colour[2] = .6f;
+    titleLimboFont.colour[3] = 1; titleLimboFont.font = &cgs.media.limboFont2;
+}
+
 
 qboolean CG_LimboPanel_BriefingButton_KeyDown( panel_button_t* button, int key ) {
 	if( cg_gameType.integer == GT_WOLF_LMS ) {
@@ -1046,74 +1089,37 @@ qboolean CG_LimboPanel_MinusButton_KeyDown( panel_button_t* button, int key ) {
 	return qfalse;
 }
 
-void CG_LimboPanel_SendSetupMsg( qboolean forceteam ) {
-	weapon_t weap1, weap2;
-	const char* str;
-	team_t team;
-
-	if( forceteam ) {
-		team = CG_LimboPanel_GetTeam();
-	} else {
-		team = cgs.clientinfo[ cg.clientNum ].team;
-	}
-
-	if( team == TEAM_SPECTATOR ) {
-		if( forceteam ) {
-			if( cgs.clientinfo[ cg.clientNum ].team != TEAM_SPECTATOR ) {
-				trap_SendClientCommand( "team s 0 0 0\n" );
-			}
-			CG_EventHandling( CGAME_EVENT_NONE, qfalse );
-		}
-		return;
-	}
-
-	weap1 = CG_LimboPanel_GetSelectedWeaponForSlot( 1 );
-	weap2 = CG_LimboPanel_GetSelectedWeaponForSlot( 0 );
-
-	switch( team ) {
-		case TEAM_AXIS:
-			str = "r";
-			break;
-		case TEAM_ALLIES:
-			str = "b";
-			break;
-		default:
-			str = NULL; // rain - don't go spec
-			break;
-	}
-
-	// rain - if this happens, we're dazed and confused, abort
-	if( !str ) {
-		return;
-	}
-
-	trap_SendClientCommand( va( "team %s %i %i %i\n", str, CG_LimboPanel_GetClass(), weap1, weap2 ) );
-
-	if( forceteam ) {
-		CG_EventHandling( CGAME_EVENT_NONE, qfalse );
-	}
-
-	// print center message
-	switch( CG_LimboPanel_GetTeam() ) {
-		case TEAM_AXIS:
-			str = "Axis";
-			break;
-		case TEAM_ALLIES:
-			str = "Allied";
-			break;
-		default: // rain - added default
-			str = "unknown";
-			break;
-	}
-
-
-	{
-		weaponType_t* wt = WM_FindWeaponTypeForWeapon( weap1 );
-		CG_PriorityCenterPrint( va( "You will spawn as an %s %s with a %s.", str, BG_ClassnameForNumber( CG_LimboPanel_GetClass() ), wt ? wt->desc : "^1UNKNOWN WEAPON" ), SCREEN_HEIGHT - 88, SMALLCHAR_WIDTH, -1 );	
-	}
-
-	cgs.limboLoadoutSelected = qtrue;
-	cgs.limboLoadoutModified = qtrue;
+/* Windows300407f0: full deployment command and popup; the last argument
+ * is deliberately zero in the original Windows and Linux clients. */
+void CG_LimboPanel_SendSetupMsg(qboolean forceteam) {
+    int weapon1, weapon2, weapon3;
+    team_t team = forceteam ? CG_LimboPanel_GetTeam() : cgs.clientinfo[cg.clientNum].team;
+    const char *code, *label, *name;
+    if (team == TEAM_SPECTATOR) {
+        if (forceteam) {
+            if (cgs.clientinfo[cg.clientNum].team != TEAM_SPECTATOR)
+                trap_SendClientCommand("team s 0 0 0 0\n");
+            CG_EventHandling(CGAME_EVENT_NONE, qfalse);
+        }
+        return;
+    }
+    weapon1 = CG_LimboPanel_GetSelectedWeaponForSlot(1);
+    weapon2 = CG_LimboPanel_GetSelectedWeaponForSlot(0);
+    weapon3 = CG_LimboPanel_GetSelectedWeaponForSlot(2);
+    code = team == TEAM_AXIS ? "r" : team == TEAM_ALLIES ? "b" : "s";
+    trap_SendClientCommand(va("team %s %i %i %i %i %i\n", code,
+        CG_LimboPanel_GetClass(), weapon1, weapon2, weapon3, 0));
+    if (forceteam) CG_EventHandling(CGAME_EVENT_NONE, qfalse);
+    team = CG_LimboPanel_GetTeam();
+    label = team == TEAM_AXIS ? "Terrorist" : team == TEAM_ALLIES ? "Specops" : "unknown";
+    /* Invalid IDs cannot index the media array; ordinary selected IDs retain
+     * the original short-name text, including an intentionally empty name. */
+    name = weapon1 >= 0 && weapon1 < TCE_MAX_WEAPONS ?
+        tce_cg_weapons[weapon1].deployMenuShortName : "^1UNKNOWN WEAPON";
+    CG_AddPMItem((popupMessageType_t)4, va("You will deploy as a %s with a %s.", label, name),
+        cgs.media.pmImages[4]);
+    cgs.limboLoadoutSelected = qtrue;
+    cgs.limboLoadoutModified = qtrue;
 }
 
 qboolean CG_LimboPanel_OkButton_KeyDown( panel_button_t* button, int key ) {
@@ -1203,11 +1209,7 @@ qboolean CG_LimboPanel_ClassButton_KeyDown( panel_button_t* button, int key ) {
 		if( cgs.ccSelectedClass != button->data[1] ) {
 			cgs.ccSelectedClass = button->data[1];
 
-			CG_LimboPanel_SetSelectedWeaponNumForSlot( 0, 0 );
-
 			CG_LimboPanel_RequestWeaponStats();
-
-			CG_LimboPanel_SendSetupMsg( qfalse );
 		}
 
 		return qtrue;
@@ -1260,77 +1262,35 @@ void CG_LimboPanel_ClassBar_Draw( panel_button_t* button ) {
 	CG_Text_Paint_Ext( button->rect.x + (button->rect.w - w) * 0.5f, button->rect.y, button->font->scalex, button->font->scaley, button->font->colour, buffer, 0, 0, button->font->style, button->font->font );	
 }
 
+static void TCE_LimboText(float x,float y,float sx,float sy,const float *color,const char *text) {
+    CG_Text_Paint_Ext(x,y,sx,sy,(float *)color,text,0,0,0,&cgs.media.limboFont1);
+}
+static int TCE_LimboTeam(void) { return CG_LimboPanel_GetTeam(); }
+static int TCE_LimboClassIndex(void) { return CG_LimboPanel_GetClass(); }
+int CG_LimboPanel_RenderCounter_ValueForButton(panel_button_t *button);
+static const panel_button_t *tce_counterButton;
+static int TCE_LimboCounterValue(const tce_limboButton_t *button) {
+    return CG_LimboPanel_RenderCounter_ValueForButton((panel_button_t *)tce_counterButton);
+}
+static void TCE_LimboBorderCall(float x,float y,float w,float h,int fill,int hover) {
+    CG_DrawBorder(x,y,w,h,fill,hover);
+}
+static void TCE_LimboWidget(panel_button_t *button,void (*draw)(const tce_limboButton_t *,const tce_limboWidgets_t *)) {
+    tce_limboButton_t b;
+    tce_limboWidgets_t ctx;
+    b.x=button->rect.x;b.y=button->rect.y;b.w=button->rect.w;b.h=button->rect.h;
+    memcpy(b.data,button->data,sizeof(b.data));
+    ctx.classOff=cgs.media.limboClassButton2Back_off;ctx.classOn=cgs.media.limboClassButton2Back_on;
+    ctx.weaponOff=cgs.media.limboWeaponNumber_off;ctx.weaponOn=cgs.media.limboWeaponNumber_on;
+    ctx.selectedSlot=cgs.ccSelectedWeaponNumber;ctx.team=TCE_LimboTeam;ctx.playerClass=TCE_LimboClassIndex;
+    ctx.counter=TCE_LimboCounterValue;ctx.teamOrder=(const int *)teamOrder;
+    ctx.pic=CG_DrawPic;ctx.border=TCE_LimboBorderCall;ctx.text=TCE_LimboText;
+    tce_counterButton=button;draw(&b,&ctx);tce_counterButton=NULL;
+}
+static void CG_LimboPanel_RenderTeamCounter(panel_button_t *button) { TCE_LimboWidget(button,TCE_LimboCounter); }
+
 void CG_LimboPanel_RenderClassButton( panel_button_t* button ) {
-	vec4_t clr = { 1.f, 1.f, 1.f, 0.4f };
-	vec4_t clr2 = { 1.f, 1.f, 1.f, 0.75f };
-	vec4_t clr3 = { 1.f, 1.f, 1.f, 0.6f };
-
-	int i;
-	float s0, t0, s1, t1;
-	float x, y, w, h;
-
-	CG_DrawPic( button->rect.x, button->rect.y, button->rect.w, button->rect.h, cgs.media.limboClassButton2Back_off );
-
-	if( CG_LimboPanel_GetTeam() != TEAM_SPECTATOR  ) {
-		if( button->data[1] == CG_LimboPanel_GetClass() ) {
-			CG_DrawPic( button->rect.x, button->rect.y, button->rect.w, button->rect.h, cgs.media.limboClassButton2Back_on );
-		} else if( BG_CursorInRect( &button->rect ) ) {
-			trap_R_SetColor( clr );
-			CG_DrawPic( button->rect.x, button->rect.y, button->rect.w, button->rect.h, cgs.media.limboClassButton2Back_on );
-			trap_R_SetColor( NULL );
-		}
-	}
-
-	for( i = 0; i < 4; i++ ) {
-		if( cgs.clientinfo[cg.clientNum].skill[BG_ClassSkillForClass(button->data[1])] <= i ) {
-			break;
-		}
-
-		if( i == 0 || i == 1 ) {
-			s0 = 0.5f;
-			s1 = 1.0f;
-		} else {
-			s0 = 0.0f;
-			s1 = 0.5f;
-		}
-		if( i == 1 || i == 2 ) {
-			t0 = 0.5f;
-			t1 = 1.0f;
-		} else {
-			t0 = 0.0f;
-			t1 = 0.5f;
-		}
-
-		x = button->rect.x + button->rect.w * s0;
-		y = button->rect.y + button->rect.h * t0;
-		w = button->rect.w * 0.5f;
-		h = button->rect.h * 0.5f;
-
-		CG_AdjustFrom640( &x, &y, &w, &h );
-
-		if( CG_LimboPanel_GetTeam() == TEAM_SPECTATOR ) {
-			trap_R_DrawStretchPic( x, y, w, h, s0, t0, s1, t1, cgs.media.limboClassButton2Wedge_off );
-		} else {
-			if( button->data[1] == CG_LimboPanel_GetClass() ) {
-				trap_R_DrawStretchPic( x, y, w, h, s0, t0, s1, t1, cgs.media.limboClassButton2Wedge_on );
-			} else if( BG_CursorInRect( &button->rect ) ) {
-				trap_R_SetColor( clr3 );
-				trap_R_DrawStretchPic( x, y, w, h, s0, t0, s1, t1, cgs.media.limboClassButton2Wedge_on );
-				trap_R_SetColor( NULL );
-			} else {
-				trap_R_DrawStretchPic( x, y, w, h, s0, t0, s1, t1, cgs.media.limboClassButton2Wedge_off );
-			}
-		}
-	}
-
-	
-	if( CG_LimboPanel_GetTeam() != TEAM_SPECTATOR && button->data[1] == CG_LimboPanel_GetClass() ) {
-		CG_DrawPic( button->rect.x, button->rect.y, button->rect.w, button->rect.h, cgs.media.limboClassButtons2[button->data[1]] );
-	} else {
-		trap_R_SetColor( clr2 );
-		CG_DrawPic( button->rect.x, button->rect.y, button->rect.w, button->rect.h, cgs.media.limboClassButtons2[button->data[1]] );
-		trap_R_SetColor( NULL );
-	}
+    TCE_LimboWidget(button,TCE_LimboClass);
 }
 
 int CG_LimboPanel_GetMaxObjectives( void ) {
@@ -1546,7 +1506,8 @@ void CG_DrawPlayerHead( rectDef_t *rect, bg_character_t* character, bg_character
 	trap_R_ModelBounds( character->hudhead, mins, maxs );
 
 	origin[2] = -0.7 * ( mins[2] + maxs[2] );
-	origin[1] = 0.5 * ( mins[1] + maxs[1] );
+	/* Original 30041270: lateral framing includes eight percent of width. */
+	origin[1] = 0.5 * ( mins[1] + maxs[1] ) - 0.08 * ( maxs[1] - mins[1] );
 
 	// calculate distance so the head nearly fills the box
 	// assume heads are taller than wide
@@ -1570,6 +1531,9 @@ void CG_DrawPlayerHead( rectDef_t *rect, bg_character_t* character, bg_character
 		head.renderfx |= /*RF_LIGHTING_ORIGIN |*/ RF_MINLIGHT;
 
 	CG_HudHeadAnimation( headcharacter, &cg.predictedPlayerEntity.pe.hudhead, &head.oldframe, &head.frame, &head.backlerp, animation );
+	/* TC heads use the static first frame, after advancing the HUD controller. */
+	head.oldframe = head.frame = 0;
+	head.backlerp = 0;
 
 	if( drawHat ) {
 		memset( &hat, 0, sizeof( hat ) );
@@ -1656,7 +1620,7 @@ void CG_LimboPanel_RenderHead( panel_button_t* button ) {
 
 	if( CG_LimboPanel_GetTeam() != TEAM_SPECTATOR ) {
 		CG_FillRect( button->rect.x, button->rect.y, button->rect.w, button->rect.h, clrBack );
-		CG_DrawPlayerHead( &button->rect, CG_LimboPanel_GetCharacter(), CG_LimboPanel_GetCharacter(), 180, 0, qtrue, HD_IDLE4, 0, cgs.clientinfo[ cg.clientNum ].rank, qfalse );
+		CG_DrawPlayerHead( &button->rect, CG_LimboPanel_GetCharacter(), CG_LimboPanel_GetCharacter(), 150, 0, qtrue, HD_IDLE4, 0, 0, qfalse );
 	} else {
 		//CG_FillRect( button->rect.x, button->rect.y, button->rect.w, button->rect.h, colorBlack );
 		//CG_DrawPlayerHead( &button->rect, BG_GetCharacter( TEAM_ALLIES, PC_SOLDIER ), BG_GetCharacter( TEAM_ALLIES, PC_SOLDIER ), 180, 0, qtrue, HD_IDLE4, 0, 0, qtrue );
@@ -1746,11 +1710,7 @@ qboolean CG_LimboPanel_WeaponLights_KeyDown( panel_button_t* button, int key ) {
 }
 
 void CG_LimboPanel_WeaponLights( panel_button_t* button ) {
-	if( CG_LimboPanel_GetTeam() == TEAM_SPECTATOR ) {
-		CG_DrawPic( button->rect.x, button->rect.y, button->rect.w, button->rect.h, cgs.media.limboWeaponNumber_off );	
-	} else {
-		CG_DrawPic( button->rect.x, button->rect.y, button->rect.w, button->rect.h, button->data[0] == cgs.ccSelectedWeaponNumber ? cgs.media.limboWeaponNumber_on : cgs.media.limboWeaponNumber_off );	
-	}
+    TCE_LimboWidget(button,TCE_LimboWeaponLight);
 }
 
 qboolean CG_LimboPanel_WeaponPanel_KeyDown( panel_button_t* button, int key ) {
@@ -1771,152 +1731,110 @@ qboolean CG_LimboPanel_WeaponPanel_KeyDown( panel_button_t* button, int key ) {
 }
 
 qboolean CG_LimboPanel_WeaponPanel_KeyUp( panel_button_t* button, int key ) {
-	int cnt, i;
-	rectDef_t rect;
-
-	if( CG_LimboPanel_GetTeam() == TEAM_SPECTATOR ) {
-		return qfalse;
-	}
-
-	if( key == K_MOUSE1 ) {
-		if( BG_PanelButtons_GetFocusButton() == button ) {
-
-			memcpy( &rect, &button->rect, sizeof( rect ) );
-			rect.y -= rect.h;
-
-			cnt = CG_LimboPanel_WeaponCount();
-			for( i = 1; i < cnt; i++, rect.y -= rect.h ) {
-
-				if( !BG_CursorInRect( &rect ) ) {
-					continue;
-				}
-
-				if( !CG_LimboPanel_GetSelectedWeaponNum() ) {
-					CG_LimboPanel_SetSelectedWeaponNum( i );
-					CG_LimboPanel_SendSetupMsg( qfalse );
-				} else {
-					if( i <= CG_LimboPanel_GetSelectedWeaponNum() ) {
-						CG_LimboPanel_SetSelectedWeaponNum( i -1 );
-						CG_LimboPanel_SendSetupMsg( qfalse );
-					} else {
-						CG_LimboPanel_SetSelectedWeaponNum( i );
-						CG_LimboPanel_SendSetupMsg( qfalse );
-					}
-				}
-			}
-
-			BG_PanelButtons_SetFocusButton( NULL );
-
-			return qtrue;
-		}
-	}
-
-	return qfalse;
+    int cnt, i, number;
+    rectDef_t rect;
+    if( CG_LimboPanel_GetTeam() == TEAM_SPECTATOR || key != K_MOUSE1 ||
+        BG_PanelButtons_GetFocusButton() != button ) return qfalse;
+    CG_LimboPanel_GetPlayerClass();
+    rect = button->rect;
+    rect.y -= rect.h;
+    cnt = CG_LimboPanel_WeaponCount();
+    for( i = 1; i < cnt; ++i, rect.y -= rect.h ) {
+        if( !BG_CursorInRect(&rect) ) continue;
+        number = i <= CG_LimboPanel_GetSelectedWeaponNum() ? i - 1 : i;
+        if( CG_LimboPanel_RealWeaponIsDisabled(CG_LimboPanel_GetWeaponForNumber(
+                number, cgs.ccSelectedWeaponNumber, qtrue)) ) continue;
+        number = i;
+        if (CG_LimboPanel_GetSelectedWeaponNum() &&
+            i <= CG_LimboPanel_GetSelectedWeaponNum()) number = i - 1;
+        CG_LimboPanel_SetSelectedWeaponNum(number);
+    }
+    BG_PanelButtons_SetFocusButton(NULL);
+    return qtrue;
 }
 
+/* Full TC card renderer, cgame 30041c50. Gear metadata is registered by
+ * the weapon loader, not as a side effect of drawing the selection menu. */
 void CG_LimboPanel_WeaponPanel_DrawWeapon( rectDef_t* rect, weapon_t weap, qboolean highlight, const char* ofTxt, qboolean disabled ) {
-	weaponType_t* wt = WM_FindWeaponTypeForWeapon( weap );
-	qhandle_t shader = cgs.media.limboWeaponCard;
-	int width = CG_Text_Width_Ext( ofTxt, 0.2f, 0, &cgs.media.limboFont2 );
-	float x = rect->x + rect->w - width - 4;
-	vec4_t clr;
-
-	if(!wt) {
-		return;
-	}
-	
-	CG_DrawPic( rect->x, rect->y, rect->w, rect->h, shader );
-//	CG_DrawRect( rect->x, rect->y, rect->w, rect->h, 1, colorWhite );
-	if( wt->desc ) {
-		if( highlight && BG_CursorInRect( rect ) ) {
-			Vector4Copy( weaponPanelNameFont.colour, clr );
-			clr[3] *= 1.5;
-			CG_Text_Paint_Ext( rect->x + 4, rect->y + 12, weaponPanelNameFont.scalex, weaponPanelNameFont.scaley, clr, wt->desc, 0, 0, weaponPanelNameFont.style, weaponPanelNameFont.font );
-		} else {
-			CG_Text_Paint_Ext( rect->x + 4, rect->y + 12, weaponPanelNameFont.scalex, weaponPanelNameFont.scaley, weaponPanelNameFont.colour, wt->desc, 0, 0, weaponPanelNameFont.style, weaponPanelNameFont.font );
-		}
-	}
-
-	{
-		float x2, y2, w, h, s0, s1, t0, t1;
-
-		trap_R_SetColor( NULL );
-
-		x2 = rect->x;
-		y2 = rect->y + (rect->h * 0.25f);
-
-		CG_LimboPanel_GetWeaponCardIconData( weap, &shader, &w, &h, &s0, &t0, &s1, &t1 );
-
-		w *= rect->w;
-		h *= rect->h * 0.75f;
-
-		CG_DrawPicST( x2, y2, w, h, s0, t0, s1, t1, shader );
-
-		if( disabled ) {
-			vec4_t clr = { 1.f, 1.f, 1.f, 0.6f };
-
-			trap_R_SetColor( clr );
-			CG_DrawPic( x2, y2 + 4 + (h - 16)*0.5f, w, 16, cgs.media.limboWeaponCardOOS );
-			trap_R_SetColor( NULL );
-		}
-	}
-	CG_Text_Paint_Ext( x, rect->y +rect->h - 2, 0.2f, 0.2f, colorBlack, ofTxt, 0, 0, 0, &cgs.media.limboFont2 );
+    weaponType_t *wt = WM_FindWeaponTypeForWeapon(weap);
+    const char *name, *description, *category;
+    vec4_t shade = {0,0,0,.6f};
+    const float *color = weaponPanelNameFont.colour;
+    CG_Text_Width_Ext(ofTxt,.2f,0,&cgs.media.limboWeaponCountFont);
+    if(weap==36 || weap==19 || weap==20 || weap==21) {
+        if(!wt)return;
+        name=wt->desc;description=wt->description;category=wt->category;
+    } else {
+        /* Out-of-range IDs are not valid card inputs. */
+        if(weap<0 || weap>=TCE_MAX_WEAPONS)return;
+        name=tce_cg_weapons[weap].deployMenuShortName;
+        description=tce_cg_weapons[weap].deployMenuDescription;
+        category=tce_cg_weapons[weap].deployMenuType;
+    }
+    CG_DrawPic(rect->x,rect->y,rect->w,rect->h,cgs.media.limboWeaponCard);
+    if(name) {
+        if(highlight && !disabled && BG_CursorInRect(rect)) {
+            CG_DrawPic(rect->x,rect->y,rect->w,rect->h,cgs.media.limboWeaponCardHighlight);
+            color=colorWhite;
+        }
+        CG_Text_Paint_Ext(rect->x+4,rect->y+12,weaponPanelNameFont.scalex,weaponPanelNameFont.scaley,
+            color,name,0,0,weaponPanelNameFont.style,weaponPanelNameFont.font);
+    }
+    if(description)CG_Text_Paint_Ext(rect->x+4,rect->y+rect->h-11,.16f,.16f,colorBlack,
+        description,0,0,weaponPanelNameFont.style,weaponPanelNameFont.font);
+    if(category)CG_Text_Paint_Ext(rect->x+4,rect->y+rect->h-2,.16f,.16f,colorBlack,
+        category,0,0,weaponPanelNameFont.style,weaponPanelNameFont.font);
+    if(disabled)CG_FillRect(rect->x,rect->y,rect->w,rect->h,shade);
 }
 
 #define BRDRSIZE 4
-void CG_DrawBorder( float x, float y, float w, float h, qboolean fill, qboolean drawMouseOver ) {
-	vec4_t clrBack = { 0.1f, 0.1f, 0.1f, 1.f };
-	vec4_t clrBack2 = { 0.2f, 0.2f, 0.2f, 1.f };
-
-	// top / bottom
-	CG_DrawPic( x, y - BRDRSIZE, w, BRDRSIZE, cgs.media.limboWeaponCardSurroundH );
-	CG_DrawPicST( x, y + h, w, BRDRSIZE, 0.f, 1.f, 1.f, 0.f, cgs.media.limboWeaponCardSurroundH );
-
-	CG_DrawPic( x - BRDRSIZE, y, BRDRSIZE, h, cgs.media.limboWeaponCardSurroundV );
-	CG_DrawPicST( x + w, y, BRDRSIZE, h, 1.f, 0.f, 0.f, 1.f, cgs.media.limboWeaponCardSurroundV );
-
-	CG_DrawPicST( x - BRDRSIZE, y - BRDRSIZE,	BRDRSIZE, BRDRSIZE, 0.f, 0.f, 1.f, 1.f, cgs.media.limboWeaponCardSurroundC );
-	CG_DrawPicST( x + w,		y - BRDRSIZE,	BRDRSIZE, BRDRSIZE, 1.f, 0.f, 0.f, 1.f, cgs.media.limboWeaponCardSurroundC );
-	CG_DrawPicST( x + w,		y + h,			BRDRSIZE, BRDRSIZE, 1.f, 1.f, 0.f, 0.f, cgs.media.limboWeaponCardSurroundC );
-	CG_DrawPicST( x - BRDRSIZE,	y + h,			BRDRSIZE, BRDRSIZE, 0.f, 1.f, 1.f, 0.f, cgs.media.limboWeaponCardSurroundC );
-
-	if( fill ) {
-		if( drawMouseOver ) {
-			rectDef_t rect;
-
-			rect.x = x;
-			rect.y = y;
-			rect.w = w;
-			rect.h = h;			
-
-			if( BG_CursorInRect( &rect ) ) {
-				CG_FillRect( x, y, w, h, clrBack2 );
-			} else {
-				CG_FillRect( x, y, w, h, clrBack );
-			}
-		} else {
-			CG_FillRect( x, y, w, h, clrBack );
-		}
-	}
+static int TCE_LimboInside(const tce_limboRect_t *bounds) {
+    rectDef_t rect={bounds->x,bounds->y,bounds->w,bounds->h};
+    return BG_CursorInRect(&rect);
+}
+void CG_DrawBorder(float x,float y,float w,float h,qboolean fill,qboolean hover) {
+    TCE_LimboDrawBorder(x,y,w,h,fill,hover,TCE_LimboInside,CG_FillRect);
 }
 
+
 void CG_LimboPanel_Border_Draw( panel_button_t* button ) {
-	CG_DrawBorder( button->rect.x, button->rect.y, button->rect.w, button->rect.h, qtrue, qtrue );
+    TCE_LimboWidget(button,TCE_LimboBorder);
 }
 
 
 void CG_LimboPanel_WeaponPanel( panel_button_t* button ) {
-	weapon_t weap = CG_LimboPanel_GetSelectedWeapon();
-	int cnt = CG_LimboPanel_WeaponCount();
+    weapon_t weap;
+    int cnt;
+    weap=CG_LimboPanel_GetSelectedWeapon();cnt=CG_LimboPanel_WeaponCount();
+    if(CG_LimboPanel_GetTeam()!=TEAM_SPECTATOR) {
+        clientInfo_t *ci=&cgs.clientinfo[cg.clientNum];
+        int role,selected;
+        vec4_t grey={.7f,.7f,.7f,1};
+        CG_Text_Paint_Ext(button->rect.x+2,button->rect.y-252,.2f,.2f,grey,
+                         "Armament Availability",0,0,0,&cgs.media.limboFont2);
+        selected=BG_WolfClassToTCE(CG_LimboPanel_GetClass());
+        for(role=0;role<3;++role) {
+            int rating=role==BG_WolfClassToTCE(ci->tceScorePlayerClass)?ci->tceClassRating:ci->tcePreviousClassRating;
+            CG_Text_Paint_Ext(button->rect.x+2,button->rect.y-240+role*11,.2f,.2f,
+                selected==role?colorWhite:grey,va("[%s]: %i",role==0?"Assault":role==1?"Recon":"Sniper",rating+1),
+                0,0,0,&cgs.media.limboFont2);
+        }
+    }
 
+    if(cgs.ccSelectedWeapon>=CG_LimboPanel_WeaponCount_ForSlot(1))
+        cgs.ccSelectedWeapon=CG_LimboPanel_WeaponCount_ForSlot(1)-1;
+    if(cgs.ccSelectedWeapon<0)cgs.ccSelectedWeapon=0;
 	if( cgs.ccSelectedWeapon2 >= CG_LimboPanel_WeaponCount_ForSlot( 0 ) ) {
 		cgs.ccSelectedWeapon2 = CG_LimboPanel_WeaponCount_ForSlot( 0 ) - 1;
 	}
+    if(cgs.ccSelectedWeapon2<0)cgs.ccSelectedWeapon2=0;
+    if(cgs.ccSelectedWeapon3>=CG_LimboPanel_WeaponCount_ForSlot(2))
+        cgs.ccSelectedWeapon3=CG_LimboPanel_WeaponCount_ForSlot(2)-1;
 
 	if( CG_LimboPanel_GetTeam() == TEAM_SPECTATOR ) {
 		vec4_t clr = { 0.f, 0.f, 0.f, 0.4f };
 
-
+        CG_DrawBorder(button->rect.x+2,button->rect.y+2,button->rect.w-4,button->rect.h-4,qfalse,qfalse);
 		CG_DrawPic( button->rect.x, button->rect.y, button->rect.w, button->rect.h, cgs.media.limboWeaponCard );		
 
 		trap_R_SetColor( clr );
@@ -1931,8 +1849,10 @@ void CG_LimboPanel_WeaponPanel( panel_button_t* button ) {
 	if( BG_PanelButtons_GetFocusButton() == button && cnt > 1 ) {
 		int i, x;
 		rectDef_t rect;
+		CG_LimboPanel_GetPlayerClass();
 		memcpy( &rect, &button->rect, sizeof( rect ) );
 
+        CG_DrawBorder(rect.x+2,rect.y+2-(cnt-1)*rect.h,rect.w-4,cnt*rect.h-4,qfalse,qfalse);
 		CG_LimboPanel_WeaponPanel_DrawWeapon( &rect, weap, qtrue, va( "%iof%i", CG_LimboPanel_GetSelectedWeaponNum()+1, cnt ), CG_LimboPanel_RealWeaponIsDisabled( weap ) );
 		if( BG_CursorInRect( &rect ) ) {
 			if( button->data[7] != 0 ) {
@@ -1962,18 +1882,18 @@ void CG_LimboPanel_WeaponPanel( panel_button_t* button ) {
 			}
 		}
 
-		CG_DrawBorder( button->rect.x, button->rect.y - ((cnt-1) * button->rect.h), button->rect.w, button->rect.h * cnt, qfalse, qfalse );
 	} else {
 		vec4_t clr = { 0.f, 0.f, 0.f, 0.4f };
 		vec4_t clr2 = { 1.f, 1.f, 1.f, 0.4f };
 
+        CG_DrawBorder(button->rect.x+2,button->rect.y+2,button->rect.w-4,button->rect.h-4,qfalse,qfalse);
 		// render in normal mode
 		CG_LimboPanel_WeaponPanel_DrawWeapon( &button->rect, weap, cnt > 1 ? qtrue : qfalse, va( "%iof%i", CG_LimboPanel_GetSelectedWeaponNum()+1, cnt ), CG_LimboPanel_RealWeaponIsDisabled( weap ) );
 
 		if( cnt <= 1 || !BG_CursorInRect( &button->rect ) ) {
 			trap_R_SetColor( clr2 );
 		}
-		CG_DrawPic( button->rect.x + button->rect.w - 20, button->rect.y + 4, 16, 12, cgs.media.limboWeaponCardArrow );
+		if(cnt>1)CG_DrawPic( button->rect.x + button->rect.w - 20, button->rect.y, 16, 12, cgs.media.limboWeaponCardArrow );
 		
 
 		trap_R_SetColor( clr );
@@ -1983,8 +1903,9 @@ void CG_LimboPanel_WeaponPanel( panel_button_t* button ) {
 }
 
 void CG_LimboPanel_RenderCounterNumber( float x, float y, float w, float h, float number, qhandle_t shaderBack, qhandle_t shaderRoll, int numbuttons ) {
-	float numberS = (((numbuttons-1)-number) + 0) * (1.f / numbuttons);
-	float numberE = (((numbuttons-1)-number) + 1) * (1.f / numbuttons);
+	double digitOffset = (double)(numbuttons - 1) - number;
+	float numberS = (float)(digitOffset * (1.0 / numbuttons));
+	float numberE = (float)((digitOffset + 1.0) * (1.0 / numbuttons));
 
 	CG_AdjustFrom640( &x, &y, &w, &h );
 	trap_R_DrawStretchPic( x, y, w, h, 0, 0,		1, 1,		shaderBack );
@@ -2045,7 +1966,8 @@ int CG_LimboPanel_RenderCounter_ValueForButton( panel_button_t* button ) {
 			if( !cgs.timelimit ) {
 				return 0;
 			}
-			count = (( cgs.timelimit * 60 * 1000 ) - ( cg.time - cgs.levelStartTime )) / 1000;
+			/* Original x87 keeps the minute product and elapsed subtraction extended. */
+			count = (int)(((double)cgs.timelimit * 60000.0 - (cg.time - cgs.levelStartTime)) * (double)0.001f);
 			switch( button->data[1] ) {
 				case 0: // secs
 					return count % 60;
@@ -2360,21 +2282,27 @@ void CG_LimboPanel_Setup( void ) {
 	if( !cgs.limboLoadoutSelected ) {
 		bg_playerclass_t* classInfo = CG_LimboPanel_GetPlayerClass();
 
-		for( i = 0; i < MAX_WEAPS_PER_CLASS; i++ ) {
-			if( !classInfo->classWeapons[i] ) {
-				cgs.ccSelectedWeapon = 0;
-				break;
-			}
-
-			if( classInfo->classWeapons[i] == cgs.clientinfo[cg.clientNum].latchedweapon ) {
-				cgs.ccSelectedWeapon = i;
-				break;
-			}
-		}
-
-		if( cgs.ccSelectedWeapon2 >= CG_LimboPanel_WeaponCount_ForSlot( 0 ) ) {
-			cgs.ccSelectedWeapon2 = CG_LimboPanel_WeaponCount_ForSlot( 0 ) - 1;
-		}
+        int choice = 0;
+        int role = BG_WolfClassToTCE(CG_LimboPanel_GetClass());
+        int rating = role == BG_WolfClassToTCE(ci->tceScorePlayerClass)
+            ? ci->tceClassRating : ci->tcePreviousClassRating;
+        for( i = 0; i < MAX_WEAPS_PER_CLASS; ++i ) {
+            int weapon = classInfo->classWeapons[i];
+            if( !weapon ) { cgs.ccSelectedWeapon = 0; break; }
+            if( BG_WeaponIsAvailable(weapon, gearDef.requiredSkill[weapon][role],
+                    gearDef.team[weapon], rating + 20, CG_LimboPanel_GetTeam()) ) {
+                if( !CG_LimboPanel_RealWeaponIsDisabled(weapon) && weapon == ci->latchedweapon ) {
+                    cgs.ccSelectedWeapon = choice;
+                    break;
+                }
+                ++choice;
+            }
+        }
+        if( cgs.ccSelectedWeapon2 >= CG_LimboPanel_WeaponCount_ForSlot(0) )
+            cgs.ccSelectedWeapon2 = CG_LimboPanel_WeaponCount_ForSlot(0) - 1;
+        if( cgs.ccSelectedWeapon2 < 0 ) cgs.ccSelectedWeapon2 = 0;
+        if( cgs.ccSelectedWeapon3 >= CG_LimboPanel_WeaponCount_ForSlot(2) )
+            cgs.ccSelectedWeapon3 = CG_LimboPanel_WeaponCount_ForSlot(2) - 1;
 
 		for( i = 0; i < 3; i++ ) {
 			if( teamOrder[i] == ci->team ) {
@@ -2404,10 +2332,11 @@ void CG_LimboPanel_Setup( void ) {
 
 
 void CG_LimboPanel_Init( void ) {
+    TCE_LimboLayout();
 	BG_PanelButtonsSetup( limboPanelButtons );
 }
 
-qboolean CG_LimboPanel_Draw( void ) {
+static qboolean TCE_LimboDrawContents( void ) {
 	static panel_button_t* lastHighlight;
 	panel_button_t* hilight;
 //	panel_button_t** buttons = limboPanelButtons;
@@ -2420,13 +2349,15 @@ qboolean CG_LimboPanel_Draw( void ) {
 
 	if( cg.limboEndCinematicTime > cg.time ) {
 		//%	CG_DrawPic( LIMBO_3D_X, LIMBO_3D_Y, LIMBO_3D_W, LIMBO_3D_H, cgs.media.limboRadioBroadcast );
-		CG_DrawPic( LIMBO_3D_X + 4, LIMBO_3D_Y - 8, LIMBO_3D_W - 8, LIMBO_3D_W - 8, cgs.media.limboRadioBroadcast );
+		/* Original TC panel cinematic covers its full 640-unit square. */
+		CG_DrawPic( 4, -8, 632, 632, cgs.media.limboRadioBroadcast );
 	}
 
 	BG_PanelButtonsRender( limboPanelButtons );
 
 	trap_R_SetColor( NULL );
-	CG_DrawPic( cgDC.cursorx, cgDC.cursory, 32, 32, cgs.media.cursorIcon );
+	/* Original display-context cursor fields are integer-valued. */
+	CG_DrawPic( (float)(int)cgDC.cursorx, (float)(int)cgDC.cursory, 32, 32, cgs.media.cursorIcon );
 
 	if( cgs.ccRequestedObjective != -1 ) {
 		if( cg.time - cgs.ccLastObjectiveRequestTime > 1000 ) {
@@ -2447,7 +2378,11 @@ qboolean CG_LimboPanel_Draw( void ) {
 	return qtrue;
 }
 
-void CG_LimboPanel_KeyHandling( int key, qboolean down ) {
+static void TCE_LimboKeyContents( int key, qboolean down ) {
+#ifdef _WIN32
+	/* TC Windows 30044500 dispatches only; Linux retains the fallbacks below. */
+	BG_PanelButtonsKeyEvent( key, down, limboPanelButtons );
+#else
 	int b1, b2;
 	if( BG_PanelButtonsKeyEvent( key, down, limboPanelButtons ) ) {
 		return;
@@ -2466,6 +2401,7 @@ void CG_LimboPanel_KeyHandling( int key, qboolean down ) {
 			return;
 		}
 	}
+#endif
 }
 
 void CG_LimboPanel_GetWeaponCardIconData( weapon_t weap, qhandle_t* shader, float* w, float* h, float* s0, float* t0, float* s1, float* t1 ) {
@@ -2607,7 +2543,20 @@ int CG_LimboPanel_WeaponCount( void ) {
 	return CG_LimboPanel_WeaponCount_ForSlot( cgs.ccSelectedWeaponNumber );
 }
 
+static tce_limboLoadout_t TCE_LimboLoadout(void) {
+    tce_limboLoadout_t s;
+    clientInfo_t *ci=&cgs.clientinfo[cg.clientNum];
+    memset(&s,0,sizeof(s));
+    s.team=CG_LimboPanel_GetTeam();s.playerClass=CG_LimboPanel_GetClass();
+    s.rating=ci->tceClassRating;s.previousRating=ci->tcePreviousClassRating;
+    s.scoreClass=ci->tceScorePlayerClass;s.lightSkill=ci->skill[SK_LIGHT_WEAPONS];
+    s.heavySkill=ci->skill[SK_HEAVY_WEAPONS];s.gametype=cgs.gametype;
+    s.primary=TCE_LimboWeaponForNumber(&s,cgs.ccSelectedWeapon,1);
+    return s;
+}
+
 int CG_LimboPanel_WeaponCount_ForSlot( int number ) {
+    if(gearDef.parsed) { tce_limboLoadout_t s=TCE_LimboLoadout();return TCE_LimboWeaponCount(&s,number); }
 	if( number == 1 ) {
 		bg_playerclass_t* classInfo = CG_LimboPanel_GetPlayerClass();
 		int cnt = 0, i;
@@ -2657,65 +2606,59 @@ int CG_LimboPanel_GetWeaponNumberForPos( int pos ) {
 	return pos + cnt;
 }
 
-weapon_t CG_LimboPanel_GetWeaponForNumber( int number, int slot, qboolean ignoreDisabled ) {
-	bg_playerclass_t* classInfo;
-	if( CG_LimboPanel_GetTeam() == TEAM_SPECTATOR ) {
-		return WP_NONE;
-	}
-
-	classInfo = CG_LimboPanel_GetPlayerClass();
-	if( !classInfo ) {
-		return WP_NONE;
-	}
-
-	if( slot == 1 ) {
-		if( !ignoreDisabled && CG_LimboPanel_WeaponIsDisabled( number ) ) {
-			if( !number ) {
-				CG_Error( "ERROR: Class weapon 0 disabled\n" );
-				return WP_NONE;
-			} else {
-				return classInfo->classWeapons[ 0 ];
-			}
-		}
-		
-		return classInfo->classWeapons[ number ];
-	} else {
-		if( cgs.clientinfo[cg.clientNum].skill[SK_HEAVY_WEAPONS] >= 4 && CG_LimboPanel_GetClass() == PC_SOLDIER ) {
-			if( cgs.clientinfo[cg.clientNum].skill[SK_LIGHT_WEAPONS] >= 4 ) {
-				if( number == 2 ) {
-					return CG_LimboPanel_GetTeam() == TEAM_AXIS ? WP_MP40 : WP_THOMPSON;
-				}
-			} else {
-				if( number == 1 ) {
-					return CG_LimboPanel_GetTeam() == TEAM_AXIS ? WP_MP40 : WP_THOMPSON;
-				}
-			}
-		}
-
-		if( cgs.clientinfo[cg.clientNum].skill[SK_LIGHT_WEAPONS] >= 4 ) {
-			if( number >= 1 ) {
-				if( CG_LimboPanel_GetClass() == PC_COVERTOPS ) {
-					return CG_LimboPanel_GetTeam() == TEAM_AXIS ? WP_AKIMBO_SILENCEDLUGER : WP_AKIMBO_SILENCEDCOLT;
-				} else {
-					return CG_LimboPanel_GetTeam() == TEAM_AXIS ? WP_AKIMBO_LUGER : WP_AKIMBO_COLT;
-				}
-			}
-		}
-
-		if( number == 0 ) {
-			if( CG_LimboPanel_GetClass() == PC_COVERTOPS ) {
-				return CG_LimboPanel_GetTeam() == TEAM_AXIS ? WP_SILENCER : WP_SILENCED_COLT;
-			} else {
-				return CG_LimboPanel_GetTeam() == TEAM_AXIS ? WP_LUGER : WP_COLT;
-			}
-		}
-
-		return 0;
-	}
+/* TC Windows30043790 / Linux0007bf86: enumerate the native class tables. */
+weapon_t CG_LimboPanel_GetWeaponForNumber(int number, int slot, qboolean ignoreDisabled) {
+    bg_playerclass_t *classInfo;
+    clientInfo_t *ci = &cgs.clientinfo[cg.clientNum];
+    int role = BG_WolfClassToTCE(CG_LimboPanel_GetClass());
+    int rating = role == BG_WolfClassToTCE(ci->tceScorePlayerClass) ?
+        ci->tceClassRating : ci->tcePreviousClassRating;
+    int i, count = 0, weapon;
+    weapon_t *weapons;
+    if (CG_LimboPanel_GetTeam() == TEAM_SPECTATOR) return WP_NONE;
+    classInfo = CG_LimboPanel_GetPlayerClass();
+    if (!classInfo) return WP_NONE;
+    if (slot == 1) {
+        if (!ignoreDisabled && CG_LimboPanel_WeaponIsDisabled(number)) {
+            if (!number) {
+                CG_Error("ERROR: Class weapon 0 disabled\n");
+                return WP_NONE;
+            }
+            return classInfo->classWeapons[0];
+        }
+        weapons = classInfo->classWeapons;
+    } else if (slot == 2) {
+        if (number) return (weapon_t)36;
+        return (weapon_t)BG_GrenadeSelectionForPrimary(CG_LimboPanel_GetSelectedWeaponForSlot(1));
+    } else {
+        if (ci->skill[SK_HEAVY_WEAPONS] >= 4 && CG_LimboPanel_GetClass() == PC_SOLDIER &&
+            number == (ci->skill[SK_LIGHT_WEAPONS] >= 4 ? 2 : 1))
+            return (weapon_t)(CG_LimboPanel_GetTeam() == TEAM_AXIS ? 3 : 8);
+        if (ci->skill[SK_LIGHT_WEAPONS] >= 4 && number > 0) {
+            if (CG_LimboPanel_GetClass() == PC_COVERTOPS)
+                return (weapon_t)(CG_LimboPanel_GetTeam() == TEAM_AXIS ? 54 : 53);
+            return (weapon_t)(CG_LimboPanel_GetTeam() == TEAM_AXIS ? 38 : 37);
+        }
+        weapons = classInfo->classWeapons2;
+    }
+    for (i = 0; i < MAX_WEAPS_PER_CLASS; i++) {
+        weapon = weapons[i];
+        if (BG_WeaponIsAvailable(weapon, gearDef.requiredSkill[weapon][role],
+                                gearDef.team[weapon], rating + 20, CG_LimboPanel_GetTeam())) {
+            if (count == number) return (weapon_t)weapon;
+            count++;
+        }
+    }
+    if (slot != 1 && number == 0) {
+        if (CG_LimboPanel_GetClass() == PC_COVERTOPS)
+            return (weapon_t)(CG_LimboPanel_GetTeam() == TEAM_AXIS ? 14 : 52);
+        return (weapon_t)(CG_LimboPanel_GetTeam() == TEAM_AXIS ? 2 : 7);
+    }
+    return WP_NONE;
 }
 
 weapon_t CG_LimboPanel_GetSelectedWeaponForSlot( int index ) {
-	return CG_LimboPanel_GetWeaponForNumber( index == 1 ? cgs.ccSelectedWeapon : cgs.ccSelectedWeapon2, index, qfalse );
+	return CG_LimboPanel_GetWeaponForNumber( index == 2 ? cgs.ccSelectedWeapon3 : index == 1 ? cgs.ccSelectedWeapon : cgs.ccSelectedWeapon2, index, qfalse );
 }
 
 void CG_LimboPanel_SetSelectedWeaponNumForSlot( int index, int number ) {
@@ -2733,6 +2676,9 @@ weapon_t CG_LimboPanel_GetSelectedWeapon( void ) {
 int CG_LimboPanel_GetSelectedWeaponNum( void ) {
 	if( !cgs.ccSelectedWeaponNumber ) {
 		return cgs.ccSelectedWeapon2;
+	}
+	if( cgs.ccSelectedWeaponNumber == 2 ) {
+		return cgs.ccSelectedWeapon3;
 	}
 
 	if( CG_LimboPanel_WeaponIsDisabled( cgs.ccSelectedWeapon ) ) {
@@ -2765,16 +2711,16 @@ void CG_LimboPanel_RequestObjective( void ) {
 }
 
 
+/* TC 30043bc0: the third slot has independent state; requests always run. */
 void CG_LimboPanel_SetSelectedWeaponNum( int number ) {
-	if( cgs.ccSelectedWeaponNumber == 1 ) {
-		if( !CG_LimboPanel_WeaponIsDisabled( number ) ) {
-			cgs.ccSelectedWeapon = number;
-		}
-	} else {
-		cgs.ccSelectedWeapon2 = number;
-	}
-
-	CG_LimboPanel_RequestWeaponStats();
+    if( cgs.ccSelectedWeaponNumber == 1 ) {
+        if( !CG_LimboPanel_WeaponIsDisabled( number ) ) cgs.ccSelectedWeapon = number;
+    } else if( cgs.ccSelectedWeaponNumber == 2 ) {
+        cgs.ccSelectedWeapon3 = number;
+    } else {
+        cgs.ccSelectedWeapon2 = number;
+    }
+    CG_LimboPanel_RequestWeaponStats();
 }
 
 extWeaponStats_t CG_LimboPanel_GetSelectedWeaponStat( void ) {
@@ -2817,6 +2763,7 @@ int CG_LimboPanel_TeamCount( weapon_t weap ) {
 
 qboolean CG_IsHeavyWeapon( weapon_t weap ) {
 	int i;
+	if (gearDef.parsed) return TCE_BG_IsHeavyWeapon((int)weap);
 
 	for( i = 0; i < NUM_HEAVY_WEAPONS; i++ ) {
 		if( bg_heavyWeapons[i] == weap ) {
@@ -2827,47 +2774,56 @@ qboolean CG_IsHeavyWeapon( weapon_t weap ) {
 	return qfalse;
 }
 
-qboolean CG_LimboPanel_WeaponIsDisabled( int index ) {
-	bg_playerclass_t *classinfo;
-	int count, wcount;
-
-	if( CG_LimboPanel_GetTeam() == TEAM_SPECTATOR ) {
-		return qtrue;
-	}
-
-	classinfo = CG_LimboPanel_GetPlayerClass();	
-
-	if( !CG_IsHeavyWeapon( classinfo->classWeapons[index] ) ) {
-		return qfalse;
-	}
-
-	count =		CG_LimboPanel_TeamCount( -1 );
-	wcount =	CG_LimboPanel_TeamCount( classinfo->classWeapons[index] );
-
-	if( wcount >= ceil( count * cgs.weaponRestrictions ) ) {
-		return qtrue;
-	}
-
-	return qfalse;
+/* TC30043ca0 tests the unfiltered class slot, not the gear-filtered selection. */
+qboolean CG_LimboPanel_WeaponIsDisabled(int index) {
+    bg_playerclass_t *classinfo;
+    int count, wcount;
+    CG_LimboPanel_GetTeam();
+    classinfo = CG_LimboPanel_GetPlayerClass();
+    if (!CG_IsHeavyWeapon(classinfo->classWeapons[index])) return qfalse;
+    count = CG_LimboPanel_TeamCount(-1);
+    wcount = CG_LimboPanel_TeamCount(classinfo->classWeapons[index]);
+    /* Original x87 passes the product directly as double to ceil. */
+    return wcount >= ceil((double)count * cgs.weaponRestrictions);
 }
 
-qboolean CG_LimboPanel_RealWeaponIsDisabled( weapon_t weap ) {
-	int count, wcount;
+/* TC30043d20 uses a rating+1 threshold; enumeration deliberately uses rating+20. */
+qboolean CG_LimboPanel_RealWeaponIsDisabled(weapon_t weap) {
+    clientInfo_t *ci = &cgs.clientinfo[cg.clientNum];
+    int role = BG_WolfClassToTCE(CG_LimboPanel_GetClass());
+    int rating = role == BG_WolfClassToTCE(ci->tceScorePlayerClass) ?
+        ci->tceClassRating : ci->tcePreviousClassRating;
+    int count, wcount;
+    if (CG_LimboPanel_GetTeam() == TEAM_SPECTATOR) return qtrue;
+    role = BG_WolfClassToTCE(CG_LimboPanel_GetClass());
+    if (rating + 1 < gearDef.requiredSkill[weap][role]) return qtrue;
+    if (!CG_IsHeavyWeapon(weap)) return qfalse;
+    count = CG_LimboPanel_TeamCount(-1);
+    wcount = CG_LimboPanel_TeamCount(weap);
+    /* Preserve the quota boundary before ceil; do not round to float. */
+    return wcount >= ceil((double)count * cgs.weaponRestrictions);
+}
 
-	if( CG_LimboPanel_GetTeam() == TEAM_SPECTATOR ) {
-		return qtrue;
-	}
-
-	if( !CG_IsHeavyWeapon( weap ) ) {
-		return qfalse;
-	}
-
-	count =		CG_LimboPanel_TeamCount( -1 );
-	wcount =	CG_LimboPanel_TeamCount( weap );
-
-	if( wcount >= ceil( count * cgs.weaponRestrictions ) ) {
-		return qtrue;
-	}
-
-	return qfalse;
+/* Scoped adapter: the rest of the still-SDK HUD keeps its 640-coordinate contract.
+ * Input is inverted into the same TC canvas for rendering, hover and click dispatch. */
+static void TCE_LimboBegin(float *x,float *y,qboolean *previous) {
+    double scale,shift;
+    *x=cgDC.cursorx;*y=cgDC.cursory;*previous=tce_uiCoordinates;
+    scale=cgs.glconfig.vidWidth*480==cgs.glconfig.vidHeight*640 ? .7500000596046448 :
+        ((double)cgs.glconfig.vidWidth*480/cgs.glconfig.vidHeight)*.0011718750465661287;
+    shift=cgs.glconfig.vidWidth*480==cgs.glconfig.vidHeight*640 ? 80 : (1/scale-1)*240;
+    cgDC.cursorx=(float)(*x/.7500000596046448);
+    cgDC.cursory=(float)(*y/scale-shift);
+    tce_uiCoordinates=qtrue;
+}
+static void TCE_LimboEnd(float x,float y,qboolean previous) {
+    cgDC.cursorx=x;cgDC.cursory=y;tce_uiCoordinates=previous;
+}
+qboolean CG_LimboPanel_Draw(void) {
+    float x,y;qboolean previous,result;
+    TCE_LimboBegin(&x,&y,&previous);result=TCE_LimboDrawContents();TCE_LimboEnd(x,y,previous);return result;
+}
+void CG_LimboPanel_KeyHandling(int key,qboolean down) {
+    float x,y;qboolean previous;
+    TCE_LimboBegin(&x,&y,&previous);TCE_LimboKeyContents(key,down);TCE_LimboEnd(x,y,previous);
 }

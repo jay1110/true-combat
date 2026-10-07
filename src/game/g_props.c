@@ -52,18 +52,18 @@ void DropToFloor( gentity_t *ent ) {
 
 void moveit (gentity_t *ent, float yaw, float dist)
 {
-	vec3_t	 move;
+	double radians;
+	float xMove;
 	vec3_t	 origin;
 	trace_t	 tr;
 	vec3_t	 mins, maxs;
 
-	yaw = yaw*M_PI*2 / 360;
-	
-	move[0] = cos(yaw)*dist;
-	move[1] = sin(yaw)*dist;
-	move[2] = 0;
-
-	VectorAdd( ent->r.currentOrigin, move, origin );
+	/* TC 20076400: binary32 degree factor, with an X-only displacement spill. */
+	radians = (double)yaw * (double)0.01745329238474369f;
+	xMove = (float)(cos(radians) * (double)dist);
+	origin[0] = (float)((double)xMove + ent->r.currentOrigin[0]);
+	origin[1] = (float)(sin(radians) * (double)dist + ent->r.currentOrigin[1]);
+	origin[2] = ent->r.currentOrigin[2];
 
 	mins[0] = ent->r.mins[0];
 	mins[1] = ent->r.mins[1];
@@ -73,16 +73,18 @@ void moveit (gentity_t *ent, float yaw, float dist)
 	maxs[1] = ent->r.maxs[1];
 	maxs[2] = ent->r.maxs[2] - .01;
 
-  	trap_Trace( &tr, ent->r.currentOrigin, mins, maxs, origin, ent->s.number, MASK_SHOT );
+  	trap_Trace( &tr, ent->r.currentOrigin, mins, maxs, origin, ent->s.number, MASK_MISSILESHOT );
 
-	if ((tr.endpos[0] != origin[0]) || (tr.endpos[1] != origin[1]))
+	/* Original x87 C3 gates retry only for ordered unequal coordinates. */
+	if (tr.endpos[0] < origin[0] || tr.endpos[0] > origin[0] ||
+		tr.endpos[1] < origin[1] || tr.endpos[1] > origin[1])
 	{
 		mins[0] = ent->r.mins[0] - 2.0;
 		mins[1] = ent->r.mins[1] - 2.0;
 		maxs[0] = ent->r.maxs[0] + 2.0;
 		maxs[1] = ent->r.maxs[1] + 2.0;
 	
- 		trap_Trace( &tr, ent->r.currentOrigin, mins, maxs, origin, ent->s.number, MASK_SHOT );
+ 		trap_Trace( &tr, ent->r.currentOrigin, mins, maxs, origin, ent->s.number, MASK_MISSILESHOT );
 	}
 
 	VectorCopy( tr.endpos, ent->r.currentOrigin );	
@@ -364,7 +366,8 @@ void SP_props_gunsparks (gentity_t *ent)
 	ent->think = sparks_angles_think;
 	ent->nextthink = level.time + FRAMETIME;
 
-	if (!ent->speed)
+	/* TC 20076a29: x87 C3 includes zero and unordered speed. */
+	if (ent->speed == 0.0f || ent->speed != ent->speed)
 		ent->speed = 20;
 
 	if (!ent->health)
@@ -536,7 +539,7 @@ void propExplosion (gentity_t *ent) {
 	bolt->splashRadius = ent->health * 1.5;
 	bolt->methodOfDeath = MOD_GRENADE;
 	bolt->splashMethodOfDeath = MOD_GRENADE;
-	bolt->clipmask = MASK_SHOT;
+	bolt->clipmask = MASK_MISSILESHOT; // TC20076d93: 0x06000081 includes missileclip
 
 	VectorCopy (ent->r.currentOrigin, bolt->s.pos.trBase );
 	VectorCopy (ent->r.currentOrigin, bolt->r.currentOrigin);
@@ -576,15 +579,16 @@ void InitProp ( gentity_t *ent ) {
 	if ( lightSet || colorSet ) {
 		int		r, g, b, i;
 
-		r = color[0] * 255;
+		/* TC20076f7b..20076fc3 converts the unspilled product to int. */
+		r = (int)((double)color[0] * 255.0);
 		if ( r > 255 ) {
 			r = 255;
 		}
-		g = color[1] * 255;
+		g = (int)((double)color[1] * 255.0);
 		if ( g > 255 ) {
 			g = 255;
 		}
-		b = color[2] * 255;
+		b = (int)((double)color[2] * 255.0);
 		if ( b > 255 ) {
 			b = 255;
 		}
@@ -990,7 +994,11 @@ void Props_Activated (gentity_t *self)
 
 		AngleVectors( owner->client->ps.viewangles, velocity, NULL, NULL );
 		VectorScale( velocity, 250, velocity );
-		velocity[2] += 100 + crandom() * 25;
+		/* TC 20077651..20077673 keeps the masked RNG reciprocal product
+		 * through the ordered additions before storing the vertical speed. */
+		velocity[2] = (float)((((double)(rand() & 0x7fff) *
+			(double)0.000030518509447574615f - 0.5) * 2.0 * 25.0 +
+			(double)velocity[2]) + 100.0);
 		VectorCopy ( velocity, self->s.pos.trDelta );
 
 		self->think = NULL;
@@ -1124,9 +1132,10 @@ void Props_Chair_Think (gentity_t *self)
 		
 		mins[2] += 1;
 		
-		trap_Trace( &tr, self->r.currentOrigin, mins, maxs, self->s.pos.trBase, self->s.number, MASK_SHOT );
+		trap_Trace( &tr, self->r.currentOrigin, mins, maxs, self->s.pos.trBase, self->s.number, MASK_MISSILESHOT );
 		
-		if ( tr.fraction == 1 ) 
+		/* Original x87 C3 accepts equal or unordered. */
+		if ( tr.fraction == 1.0f || tr.fraction != tr.fraction )
 			VectorCopy( self->s.pos.trBase, self->r.currentOrigin );
 		else
 		{
@@ -1190,12 +1199,13 @@ qboolean Prop_Touch (gentity_t *self, gentity_t *other, vec3_t v)
 	vectoangles (v, angle);
 	angle[0] = 0;
 	AngleVectors (angle, forward, NULL, NULL);
-	VectorClear (dest);
-	VectorMA (dest, 128, forward, dest);
-	VectorMA (self->r.currentOrigin, 32, forward, end);
+	VectorScale (forward, 128, dest);
+	/* TC stores each endpoint once; Z includes the lift before its store. */
+	end[0] = (float)((double)forward[0] * 32.0 + self->r.currentOrigin[0]);
+	end[1] = (float)((double)forward[1] * 32.0 + self->r.currentOrigin[1]);
+	end[2] = (float)((double)forward[2] * 32.0 + self->r.currentOrigin[2] + 8.0);
 
 	VectorCopy (self->r.currentOrigin, start);
-	end[2] += 8;
 	start[2] += 8;
 
 	VectorCopy (self->r.mins, mins);
@@ -1203,9 +1213,9 @@ qboolean Prop_Touch (gentity_t *self, gentity_t *other, vec3_t v)
 
 	mins[2] += 1;
 
-	trap_Trace( &tr, start, mins, maxs, end, self->s.number, MASK_SHOT );
+	trap_Trace( &tr, start, mins, maxs, end, self->s.number, MASK_MISSILESHOT );
 
-	if (tr.fraction != 1)
+	if (tr.fraction != 1.0f && tr.fraction == tr.fraction)
 	{
 		return qfalse;
 	}
@@ -1236,9 +1246,9 @@ void Prop_Check_Ground (gentity_t *self)
 	VectorCopy (self->r.mins, mins);
 	VectorCopy (self->r.maxs, maxs);
 
-	trap_Trace( &tr, start, mins, maxs, end, self->s.number, MASK_SHOT );
-
-	if (tr.fraction == 1)
+	trap_Trace( &tr, start, mins, maxs, end, self->s.number, MASK_MISSILESHOT );
+	
+	if (tr.fraction == 1.0f || tr.fraction != tr.fraction)
 		self->s.groundEntityNum = -1;
 
 }
@@ -1393,8 +1403,13 @@ void Spawn_Shard (gentity_t *ent, gentity_t *inflictor, int quantity, int type)
 
 	if (!Q_stricmp (ent->classname, "props_radioSEVEN"))
 	{
-		start[0] += crandom () * 32;
-		start[1] += crandom () * 32;
+		double randomOffset;
+		/* TC20078151..200781a4 retains the reciprocal-multiply expression
+		 * until each final float position store, with exactly two RNG draws. */
+		randomOffset = (double)(rand() & 0x7fff) * (double)(1.0f / 32767.0f) - 0.5;
+		start[0] = (float)((randomOffset + randomOffset) * 32.0 + (double)start[0]);
+		randomOffset = (double)(rand() & 0x7fff) * (double)(1.0f / 32767.0f) - 0.5;
+		start[1] = (float)((randomOffset + randomOffset) * 32.0 + (double)start[1]);
 		VectorSubtract (inflictor->r.currentOrigin, ent->r.currentOrigin, dir);
 		VectorNormalize (dir);
 	}
@@ -3233,7 +3248,8 @@ void SP_props_decoration (gentity_t *ent)
 	char		*frames;
 	float		height;
 	float		width;
-	float		num_frames;
+	double		num_frames;
+	double		parsedDimension;
 
 	char		*loop;
 	
@@ -3262,15 +3278,15 @@ void SP_props_decoration (gentity_t *ent)
 	if ( lightSet || colorSet ) {
 		int		r, g, b, i;
 
-		r = color[0] * 255;
+		r = (int)((double)color[0] * 255.0);
 		if ( r > 255 ) {
 			r = 255;
 		}
-		g = color[1] * 255;
+		g = (int)((double)color[1] * 255.0);
 		if ( g > 255 ) {
 			g = 255;
 		}
-		b = color[2] * 255;
+		b = (int)((double)color[2] * 255.0);
 		if ( b > 255 ) {
 			b = 255;
 		}
@@ -3294,18 +3310,20 @@ void SP_props_decoration (gentity_t *ent)
 		else if (!Q_stricmp(type, "rubble"))	ent->key = 3;
 
 		G_SpawnString ("high", "0", &high);
-		height = atof (high);
+		parsedDimension = atof (high);
+		height = (float)parsedDimension;
 
-		if (!height)
+		/* TC tests the atof result before its binary32 height store. */
+		if (parsedDimension == 0.0 || parsedDimension != parsedDimension)
 			height = 4;
 
 		G_SpawnString ("wide", "0", &wide);
-		width = atof (wide);
+		parsedDimension = atof (wide);
 
-		if (!width)
-			width = 4;
+		if (parsedDimension == 0.0 || parsedDimension != parsedDimension)
+			parsedDimension = 4.0;
 
-		width /= 2;
+		width = (float)(parsedDimension * 0.5);
 
 		if ( Q_stricmp (ent->classname, "props_decorBRUSH") ) 
 		{
@@ -3443,26 +3461,20 @@ To have the portal sky fogged, enter any of the following values:
 "fogfar" distance from entity that fog is opaque
 
 */
-void SP_skyportal (gentity_t *ent)
-{
-	char	*fov;
-	vec3_t	fogv;	//----(SA)	
-	int		fogn;	//----(SA)	
-	int		fogf;	//----(SA)	
-	int		isfog = 0;	// (SA)
-
-	float	fov_x;
-
-	G_SpawnString ("fov", "90", &fov);
-	fov_x = atof (fov);
-
-//----(SA)	modified
-	isfog += G_SpawnVector ("fogcolor", "0 0 0", fogv);
-	isfog += G_SpawnInt ("fognear", "0", &fogn);
-	isfog += G_SpawnInt ("fogfar", "300", &fogf);
-
-	trap_SetConfigstring( CS_SKYBOXORG, va("%.2f %.2f %.2f %.1f %i %.2f %.2f %.2f %i %i", ent->s.origin[0], ent->s.origin[1], ent->s.origin[2], fov_x, (int)isfog, fogv[0], fogv[1], fogv[2], fogn, fogf ) );
-//----(SA)	end
+/* TC Windows2007a530: scalable portal camera, angle, then fog payload. */
+void SP_skyportal(gentity_t *ent) {
+    char *value;
+    float scale,angle;
+    vec3_t fog;
+    int nearDistance,farDistance,hasFog;
+    G_SpawnString("scaleratio","25",&value);scale=atof(value);
+    G_SpawnString("angle","0",&value);angle=atof(value);
+    hasFog=G_SpawnVector("fogcolor","0 0 0",fog);
+    hasFog+=G_SpawnInt("fognear","0",&nearDistance);
+    hasFog+=G_SpawnInt("fogfar","300",&farDistance);
+    trap_SetConfigstring(CS_SKYBOXORG,va("%.2f %.2f %.2f %.1f %.1f %i %.2f %.2f %.2f %i %i",
+        ent->s.origin[0],ent->s.origin[1],ent->s.origin[2],scale,angle,hasFog,
+        fog[0],fog[1],fog[2],nearDistance,farDistance));
 }
 
 /*QUAKED props_statue (.6 .3 .2) (-8 -8 0) (8 8 128) HURT DEBRIS ANIMATE KEEPBLOCK
@@ -3488,7 +3500,7 @@ void props_statue_blocked (gentity_t *ent)
 	trace_t	trace;
 	vec3_t	start, end, mins, maxs;
 	vec3_t	forward;
-	float	dist;
+	double	dist;
 	gentity_t	*traceEnt;
 	float		grav = 128;
 	vec3_t		kvel;
@@ -3506,11 +3518,14 @@ void props_statue_blocked (gentity_t *ent)
 
 	VectorCopy (start, end);
 
-	dist = ( (ent->r.maxs[2] + 16) / ent->count2) * ent->s.frame;
+	/* TC keeps the distance through all three endpoint stores. */
+	dist = (((double)ent->r.maxs[2] + 16.0) / (double)ent->count2) * (double)ent->s.frame;
 
-	VectorMA (end, dist, forward, end);
+	end[0] = (float)((double)forward[0] * dist + start[0]);
+	end[1] = (float)((double)forward[1] * dist + start[1]);
+	end[2] = (float)((double)forward[2] * dist + start[2]);
 
-	trap_Trace (&trace, start, mins, maxs, end, ent->s.number, MASK_SHOT);
+	trap_Trace (&trace, start, mins, maxs, end, ent->s.number, MASK_MISSILESHOT);
 
 	if ( trace.surfaceFlags & SURF_NOIMPACT ) // bogus test but just in case
 	{
@@ -3564,7 +3579,8 @@ void props_statue_animate (gentity_t *ent)
 		ent->takedamage = qfalse;
 	}
 
-	if (((ent->delay * 1000) + ent->timestamp) > level.time)
+	/* Original C0 branch treats unordered delay as not yet due. */
+	if (!((double)ent->delay * 1000.0 + (double)ent->timestamp <= (double)level.time))
 	{
 		ent->count = 0;
 	}
@@ -3636,7 +3652,8 @@ void SP_props_statue (gentity_t *ent)
 	char		*frames;
 	float		height;
 	float		width;
-	float		num_frames;
+	double		num_frames;
+	double		parsedDimension;
 	
 	if ( ent->model2 ) {
 		ent->s.modelindex = G_ModelIndex( ent->model2 );
@@ -3652,15 +3669,15 @@ void SP_props_statue (gentity_t *ent)
 	if ( lightSet || colorSet ) {
 		int		r, g, b, i;
 
-		r = color[0] * 255;
+		r = (int)((double)color[0] * 255.0);
 		if ( r > 255 ) {
 			r = 255;
 		}
-		g = color[1] * 255;
+		g = (int)((double)color[1] * 255.0);
 		if ( g > 255 ) {
 			g = 255;
 		}
-		b = color[2] * 255;
+		b = (int)((double)color[2] * 255.0);
 		if ( b > 255 ) {
 			b = 255;
 		}
@@ -3682,17 +3699,19 @@ void SP_props_statue (gentity_t *ent)
 	else if (!Q_stricmp(type, "rubble"))	ent->key = 3;
 
 	G_SpawnString ("high", "0", &high);
-	height = atof (high);
-	if (!height)
+	parsedDimension = atof (high);
+	height = (float)parsedDimension;
+	/* TC compares the retained atof value, including unordered, before defaulting. */
+	if (parsedDimension == 0.0 || parsedDimension != parsedDimension)
 		height = 4;
 
 	G_SpawnString ("wide", "0", &wide);
-	width = atof (wide);
+	parsedDimension = atof (wide);
 
-	if (!width)
-		width = 4;
+	if (parsedDimension == 0.0 || parsedDimension != parsedDimension)
+		parsedDimension = 4.0;
 
-	width /= 2;
+	width = (float)(parsedDimension * 0.5);
 
 	if ( Q_stricmp (ent->classname, "props_statueBRUSH") ) 
 	{
@@ -3816,7 +3835,8 @@ void props_locker_endrattle(gentity_t *ent) {
 
 
 void props_locker_use(gentity_t *ent, gentity_t *other, gentity_t *activator) {
-	if(!ent->delay)
+	/* TC 2007add2 tests x87 C3: zero or unordered starts the rattle. */
+	if(ent->delay == 0.0f || ent->delay != ent->delay)
 		ent->s.frame = 1;	// rattle when pain starts
 	ent->delay = 1;
 	ent->think = props_locker_endrattle;
@@ -4120,9 +4140,10 @@ void props_flamethrower_use (gentity_t *ent, gentity_t *other, gentity_t *activa
 		ent->spawnflags |= 2;
 	}
 
- 	if (ent->random)
+ 	if (ent->random != 0.0f && ent->random == ent->random)
 	{
-		rval = ent->random * 1000;
+		/* Original x87 product reaches __ftol without a binary32 store. */
+		rval = (int)((double)ent->random * 1000.0);
 		rnd = rand()%rval;
 	}
 	else 
@@ -4166,7 +4187,7 @@ void props_flamethrower_init (gentity_t *ent)
 void SP_props_flamethrower (gentity_t *ent)
 {
 	char *size;
-	float dsize;
+	double dsize;
 
 	ent->think = props_flamethrower_init;
 	ent->nextthink = level.time + 50;
@@ -4174,7 +4195,7 @@ void SP_props_flamethrower (gentity_t *ent)
 
 	G_SetOrigin (ent, ent->s.origin); 
 
-	if (!(ent->duration))
+	if (ent->duration == 0.0f || ent->duration != ent->duration)
 		ent->duration = 1000;
 	else
 		ent->duration *= 1000;
@@ -4182,7 +4203,7 @@ void SP_props_flamethrower (gentity_t *ent)
 
 	G_SpawnString ("size", "0", &size);
 	dsize = atof (size);
-	if (!dsize)
+	if (dsize == 0.0 || dsize != dsize)
 		dsize = 1;
 	ent->accuracy = dsize;
 

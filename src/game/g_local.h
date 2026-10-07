@@ -12,13 +12,13 @@
 
 // the "gameversion" client command will print this plus compile date
 #ifndef PRE_RELEASE_DEMO
-#define GAMEVERSION			"etmain"
+#define GAMEVERSION			"tce2"
 #else
 //#define GAMEVERSION			"You look like you need a monkey!"
 #define GAMEVERSION			"ettest"
 #endif // PRE_RELEASE_DEMO
 
-#define BODY_QUEUE_SIZE		8
+#define BODY_QUEUE_SIZE		32 /* TC CopyToBodyQue: original ring modulo0x20. */
 
 #define	EVENT_VALID_MSEC	300
 #define	CARNAGE_REWARD_TIME	3000
@@ -318,6 +318,7 @@ struct gentity_s {
 	int			splashMethodOfDeath;
 
 	int			count;
+	int             tceObjectiveScore; /* TC entity+0x2e4, script action score. */
 
 	gentity_t	*chain;
 	gentity_t	*enemy;
@@ -562,6 +563,7 @@ typedef struct {
 	int			playerWeapon;		// DHM - Nerve :: for GT_WOLF
 	int			playerWeapon2;		// Gordon: secondary weapon
 	int			spawnObjectiveIndex; // JPW NERVE index of objective to spawn nearest to (returned from UI)
+	int             tcePreferredSpawnEntity; /* Original session client+0xdf0. */
 	int			latchPlayerType;	// DHM - Nerve :: for GT_WOLF not archived
 	int			latchPlayerWeapon;	// DHM - Nerve :: for GT_WOLF not archived
 	int			latchPlayerWeapon2;	// Gordon: secondary weapon
@@ -592,6 +594,9 @@ typedef struct {
 	weapon_stat_t aWeaponStats[WS_MAX+1];	// Weapon stats.  +1 to avoid invalid weapon check
 	// OSP
 
+	int tceSetupFlags; /* Original session+0x2b0, set by team command token6. */
+	int playerWeapon3, latchPlayerWeapon3; /* TC session +0x2b4/+0x2b8: third equipment choice. */
+	int tceSessionValues[4]; /* Original client 0xdec..0xdf8; persisted verbatim, producers still under reconstruction. */
 	qboolean	versionOK;
 } clientSession_t;
 
@@ -707,8 +712,13 @@ typedef struct {
 	vec3_t maxs;
 
 	vec3_t origin;
-
+	vec3_t angles;
+	vec3_t viewangles;
 	int time;
+	int serverTime;
+	int pm_flags;
+	int weaponFlags;
+	int eFlags;
 } clientMarker_t;
 
 
@@ -772,6 +782,18 @@ struct gclient_s {
 	int			lastkilled_client;	// last client that this client killed
 	int			lasthurt_client;	// last client that damaged this client
 	int			lasthurt_mod;		// type of damage the client did
+	int             tceObjectiveActivityUntil; /* TC client+0x1314; bomb/VIP inactivity. */
+	qboolean        tceDefuseActive; /* TC client+0x130c; bypass engineer trace. */
+	int             tceDefuseEntity; /* TC client+0x1310; locked bomb entity. */
+	int             tceRespawnNotBefore; /* TC client+0x1324; extra death/wave delay. */
+	int             tceBombPossessionOrder; /* TC client+0x1328; bomb ownership serial. */
+    int             tceObjectiveContact; /* TC client+0x132c; objective trigger contact */
+    int             tceObjectiveEntity; /* TC client+0x1330; action target entity number */
+	int             tceLastKillingWeapon; /* TC client+0x1320, obituary gear slot. */
+	int             tceDamageVoiceTime; /* TC client+0x1318, Contact/TakingFire cooldown. */
+	int             tceLastAppliedDamage; /* TC client+0x131c, accepted damage for a living target. */
+	int             tceDamageSpawnTime; /* TC client+0x1334, ClientSpawn server-time protection. */
+	gentity_t       *tceLastSpawnPoint; /* TC client+0x1338; retained across spawn reset. */
 
 	// timers
 	int			respawnTime;		// can respawn when time > this, force after g_forcerespwan
@@ -827,6 +849,14 @@ struct gclient_s {
 	int				topMarker;
 	clientMarker_t	clientMarkers[MAX_CLIENT_MARKERS];
 	clientMarker_t	backupMarker;
+	/* TC20047e30: separate end-frame position ring, not the antialag trail.
+	 * Original client+1034 index; ten44-byte records at+1038. */
+	int tcePositionHistoryIndex;
+	struct {
+		vec3_t mins, maxs, origin;
+		int time, reserved;
+	} tcePositionHistory[10];
+	struct { vec3_t mins, maxs, origin; int time, reserved; } tcePositionBackup;
 
 	gentity_t		*tempHead;	// Gordon: storing a temporary head for bullet head shot detection
 	gentity_t		*tempLeg;	// Arnout: storing a temporary leg for bullet head shot detection
@@ -921,6 +951,28 @@ typedef struct {
 	int			startTime;				// level.time the map was started
 
 	int			teamScores[TEAM_NUM_TEAMS];
+	int             tceDemolitionTeam; /* TC script0/1 becomes TEAM_AXIS/ALLIES. */
+	qboolean        tceBombAssigned; /* TC22223918 */
+    int             tceBombCarrier; /* TC2222391c; -1 when dropped/unassigned */
+    int             tceBombDropCount; /* TC22223934 */
+    int             tceVipTeam; /* TC22223940 */
+    qboolean        tceVipAssigned; /* TC22223944 */
+    int             tceVipCarrier; /* TC22223948; -1 when dropped/unassigned */
+    int tceSpawnPhase; /* TC level22223930, reinforcement group. */
+    int tceSpawnPhaseTime; /* TC level2222392c, elapsed schedule. */
+    int             tceBombCarrierCount; /* TC22223938; active bomb ownership count. */
+	qboolean        tceBombPlanted; /* Windows 22223914; successful objective plant. */
+	int             tceTimelimitHitTime; /* 22223920: allow script to finish first. */
+	int             tceEndRoundTime; /* 22223924: wm_endround delay. */
+	int             tceExitRulesNotBefore; /* 22223928: pending objective effects. */
+	int             tceHostageTeam; /* TC2222394c */
+	qboolean        tceHostageActive; /* TC22223950 */
+	qboolean        tceHostageSecured; /* TC22223954 */
+	int             tceHostageRespawnCount; /* TC22223958 */
+	qboolean        tceOfficialChecked; /* TC2222395c, once pak list is available. */
+	int             tceFrameStartTime; /* TC22223968, even before restart early-out. */
+	qboolean locationLinked;
+	gentity_t *locationHead;
 	int			lastTeamLocationTime;		// last time of client team location update
 
 	qboolean	newSession;				// don't use any old session data, because
@@ -1131,10 +1183,10 @@ void Cmd_Score_f (gentity_t *ent);
 void StopFollowing( gentity_t *ent );
 //void BroadcastTeamChange( gclient_t *client, int oldTeam );
 void G_TeamDataForString( const char* teamstr, int clientNum, team_t* team, spectatorState_t* sState, int* specClient );
-qboolean SetTeam( gentity_t *ent, char *s, qboolean force, weapon_t w1, weapon_t w2, qboolean setweapons );
-void G_SetClientWeapons( gentity_t* ent, weapon_t w1, weapon_t w2, qboolean updateclient );
+qboolean SetTeam( gentity_t *ent, char *s, qboolean force, weapon_t w1, weapon_t w2, int w3, qboolean setweapons );
+void G_SetClientWeapons( gentity_t* ent, weapon_t w1, weapon_t w2, int w3, qboolean updateclient );
 void Cmd_FollowCycle_f( gentity_t *ent, int dir );
-void Cmd_Kill_f( gentity_t *ent );
+void Cmd_Kill_f( gentity_t *ent, int meansOfDeath );
 void Cmd_SwapPlacesWithBot_f( gentity_t *ent, int botNum );
 void G_EntitySound( gentity_t *ent, const char *soundId, int volume );
 void G_EntitySoundNoCut( gentity_t *ent, const char *soundId, int volume );
@@ -1150,6 +1202,11 @@ void RespawnItem( gentity_t *ent );
 void UseHoldableItem( gentity_t *ent, int item );
 void PrecacheItem (gitem_t *it);
 gentity_t *Drop_Item( gentity_t *ent, gitem_t *item, float angle, qboolean novelocity );
+void G_TCEDropBomb(gentity_t *ent);
+void G_TCEDropHealth(gentity_t *ent);
+void G_TCEDropVip(gentity_t *ent);
+void G_TCEReleaseObjectives(gentity_t *ent,qboolean disconnect,qboolean vip);
+void G_TCEObjectiveActivity(gclient_t *client);
 gentity_t *LaunchItem( gitem_t *item, vec3_t origin, vec3_t velocity, int ownerNum );
 void SetRespawn (gentity_t *ent, float delay);
 void G_SpawnItem (gentity_t *ent, gitem_t *item);
@@ -1161,6 +1218,7 @@ int Add_Ammo (gentity_t *ent, int weapon, int count, qboolean fillClip);
 void Touch_Item (gentity_t *ent, gentity_t *other, trace_t *trace);
 qboolean AddMagicAmmo(gentity_t *receiver, int numOfClips);
 weapon_t G_GetPrimaryWeaponForClient( gclient_t *client );
+weapon_t G_GetSecondaryWeaponForClient( gclient_t *client );
 void G_DropWeapon( gentity_t *ent, weapon_t weapon );
 
 // Touch_Item_Auto is bound by the rules of autoactivation (if cg_autoactivate is 0, only touch on "activate")
@@ -1230,7 +1288,7 @@ team_t G_GetTeamFromEntity( gentity_t *ent );
 //
 void G_AdjustedDamageVec( gentity_t *ent, vec3_t origin, vec3_t vec );
 qboolean CanDamage (gentity_t *targ, vec3_t origin);
-void G_Damage (gentity_t *targ, gentity_t *inflictor, gentity_t *attacker, vec3_t dir, vec3_t point, int damage, int dflags, int mod);
+float G_Damage (gentity_t *targ, gentity_t *inflictor, gentity_t *attacker, vec3_t dir, vec3_t point, int damage, int dflags, int mod);
 qboolean G_RadiusDamage (vec3_t origin, gentity_t *inflictor, gentity_t *attacker, float damage, float radius, gentity_t *ignore, int mod);
 qboolean etpro_RadiusDamage( vec3_t origin, gentity_t *inflictor, gentity_t *attacker, float damage, float radius, gentity_t *ignore, int mod, qboolean clientsonly );
 void body_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int meansOfDeath );
@@ -1339,12 +1397,12 @@ team_t TeamCount( int ignoreClientNum, int team );			// NERVE - SMF - merge from
 team_t PickTeam( int ignoreClientNum );
 void SetClientViewAngle( gentity_t *ent, vec3_t angle );
 gentity_t *SelectSpawnPoint ( vec3_t avoidPoint, vec3_t origin, vec3_t angles );
-void respawn (gentity_t *ent);
+void respawn (gentity_t *ent, qboolean hostage);
 void BeginIntermission (void);
 void InitClientPersistant (gclient_t *client);
 void InitClientResp (gclient_t *client);
 void InitBodyQue (void);
-void ClientSpawn( gentity_t *ent, qboolean revived );
+void ClientSpawn( gentity_t *ent, qboolean revived, qboolean hostage );
 void player_die (gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int mod);
 void AddScore( gentity_t *ent, int score );
 void AddKillScore( gentity_t *ent, int score );
@@ -1354,7 +1412,7 @@ qboolean G_CheckForExistingModelInfo( bg_playerclass_t* classInfo, const char *m
 void G_StartPlayerAppropriateSound(gentity_t *ent, char* soundType);
 void SetWolfSpawnWeapons( gclient_t *client );
 void limbo( gentity_t *ent, qboolean makeCorpse ); // JPW NERVE
-void reinforce(gentity_t *ent); // JPW NERVE
+void reinforce(gentity_t *ent, qboolean hostage); // JPW NERVE
 
 //
 // g_character.c
@@ -1555,7 +1613,7 @@ void BotSetIdealViewAngles(int clientNum, vec3_t angle);
 // g_cmd.c
 void Cmd_Activate_f (gentity_t *ent);
 void Cmd_Activate2_f (gentity_t *ent);
-qboolean Do_Activate_f(gentity_t *ent, gentity_t *traceEnt);
+qboolean Do_Activate_f(gentity_t *ent, gentity_t *traceEnt, float traceFraction);
 void G_LeaveTank( gentity_t* ent, qboolean position );
 
 
@@ -1619,6 +1677,7 @@ extern	vmCvar_t	g_password;
 extern	vmCvar_t	sv_privatepassword;
 extern	vmCvar_t	g_gravity;
 extern	vmCvar_t	g_speed;
+extern vmCvar_t g_realism, g_newbbox;
 extern	vmCvar_t	g_knockback;
 extern	vmCvar_t	g_quadfactor;
 extern	vmCvar_t	g_forcerespawn;
@@ -2054,14 +2113,19 @@ void trap_PbStat ( int clientNum , char *category , char *values ) ;
 void G_StoreClientPosition( gentity_t* ent );
 void G_AdjustClientPositions( gentity_t* ent, int time, qboolean forward);
 void G_ResetMarkers( gentity_t* ent );
+void G_TCEResetFrameMarkers( gentity_t *ent ); /* Windows20048370,44-byte history */
 void G_HistoricalTrace( gentity_t* ent, trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask );
 void G_HistoricalTraceBegin( gentity_t *ent );
+void G_TimeShiftClient(gentity_t *ent, int time);
+void G_UnTimeShiftClient(gentity_t *ent);
+void G_TimeShiftAllClients(gentity_t *ent, qboolean scaleBounds);
+void G_UnTimeShiftAllClients(gentity_t *ent);
 void G_HistoricalTraceEnd( gentity_t *ent );
 void G_Trace( gentity_t* ent, trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentmask );
 
 #define BODY_VALUE(ENT) ENT->watertype
 #define BODY_TEAM(ENT) ENT->s.modelindex
-#define BODY_CLASS(ENT) ENT->s.modelindex2
+#define BODY_CLASS(ENT) ENT->s.onFireEnd /* TC corpse class; modelindex2 retains damage bits. */
 #define BODY_CHARACTER(ENT) ENT->s.onFireStart
 
 //g_buddy_list.c
@@ -2502,3 +2566,17 @@ void G_TempTraceIgnorePlayersAndBodies( void );
 qboolean G_CanPickupWeapon( weapon_t weapon, gentity_t* ent );
 
 qboolean G_LandmineSnapshotCallback( int entityNum, int clientNum );
+
+/* Reconstructed TC:E loaders; game startup integration remains pending. */
+void G_LoadGearDef(void);
+void G_LoadWeaponDef(void);
+
+/* Original TC:E cvar bindings. */
+extern vmCvar_t sv_gametype;
+extern vmCvar_t sv_official;
+extern vmCvar_t g_leanmode;
+extern vmCvar_t g_killmessage;
+extern vmCvar_t g_starthonor;
+extern vmCvar_t g_aabasetime;
+extern vmCvar_t g_botvar;
+extern vmCvar_t bot_editWaypoints;

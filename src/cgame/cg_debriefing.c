@@ -1238,12 +1238,8 @@ void CG_Debriefing_Startup( void ) {
 
 	trap_Cvar_Set( "chattext", "" );
 
-	if ( atoi( buf ) == -1 ) {
-	} else if ( atoi( buf ) ) {
-		trap_S_StartLocalSound( trap_S_RegisterSound( "sound/music/allies_win.wav", qtrue ), CHAN_LOCAL_SOUND );
-	} else {
-		trap_S_StartLocalSound( trap_S_RegisterSound( "sound/music/axis_win.wav", qtrue ), CHAN_LOCAL_SOUND );
-	}
+	/* TC Windows still reads the winner key, but plays no ET victory music. */
+	(void)buf;
 
 	cgs.dbMode = 0;
 }
@@ -1291,28 +1287,15 @@ qboolean CG_Debriefing_Draw( void ) {
 
 //	CG_FillRect( 0, 0, 640, 480, colorBlack );
 
-	if( trap_Key_GetCatcher() & KEYCATCH_UI ) {
-		return qtrue;
-	}
-
-	if( !trap_Key_GetCatcher() ) {
-		trap_Key_SetCatcher( KEYCATCH_CGAME );
-	}
-
 	switch( cgs.dbMode ) {
 		case 1:
 			BG_PanelButtonsRender( teamDebriefPanelButtons );
 			BG_PanelButtonsRender( chatPanelButtons );
 
-			CG_DrawPic( cgDC.cursorx, cgDC.cursory, 32, 32, cgs.media.cursorIcon );
-
 			break;
 		case 0:
 			CG_DrawScoreboard();
 
-			BG_PanelButtonsRender( chatPanelButtons );
-
-			CG_DrawPic( cgDC.cursorx, cgDC.cursory, 32, 32, cgs.media.cursorIcon );
 			break;
 		case 2:
 			for( i = 0 ; i < MAX_CLIENTS; i++ ) {
@@ -1325,9 +1308,11 @@ qboolean CG_Debriefing_Draw( void ) {
 
 			BG_PanelButtonsRender( chatPanelButtons );
 
-			CG_DrawPic( cgDC.cursorx, cgDC.cursory, 32, 32, cgs.media.cursorIcon );
 			break;
+		default:
+			return qtrue;
 	}
+	CG_DrawPic( cgDC.cursorx, cgDC.cursory, 32, 32, cgs.media.cursorIcon );
 
 	return qtrue;
 }
@@ -1710,9 +1695,41 @@ void CG_Debriefing_ScrollGetBarRect( panel_button_t* button, rectDef_t* r ) {
 	int offset =	CG_Debriefing_ScrollGetOffset	( button );
 
 	if(cnt > max) {
+		#if defined(_MSC_VER) && defined(_M_IX86)
+		/* TC 3001e1c3: store bar height, but retain its unrounded ST0
+		 * value for the remaining-height subtraction. */
+		float *height = &button->rect.h;
+		float *top = &button->rect.y;
+		float *barHeight = &r->h;
+		float *barTop = &r->y;
+		int range = cnt - max;
+		int scrollOffset = offset;
+		__asm {
+			mov eax, height
+			fld dword ptr [eax]
+			fild max
+			fidiv cnt
+			fmul st(0), st(1)
+			fld st(0)
+			mov eax, barHeight
+			fstp dword ptr [eax]
+			fild scrollOffset
+			fidiv range
+			fxch st(2)
+			fsub st(0), st(1)
+			fmulp st(2), st(0)
+			fxch st(1)
+			mov eax, top
+			fadd dword ptr [eax]
+			mov eax, barTop
+			fstp dword ptr [eax]
+			fstp st(0)
+		}
+		#else
 		float h = button->rect.h;
 		r->h = h * (max / (float)cnt);
 		r->y = button->rect.y + (offset / (float)(cnt - max)) * (h-r->h);
+		#endif
 	} else {
 		r->h = button->rect.h;
 		r->y = button->rect.y;
@@ -1736,6 +1753,27 @@ void CG_Debriefing_ScrollCheckOffset( panel_button_t* button ) {
 	}
 }
 
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* Original __ftol contract: consume ST0, truncate to int64, return low32. */
+static __declspec(naked) int CG_Debriefing_TruncateST0( void ) {
+	__asm {
+		sub esp, 12
+		fstcw word ptr [esp + 8]
+		fwait
+		mov ax, word ptr [esp + 8]
+		or ax, 0c00h
+		mov word ptr [esp + 10], ax
+		fldcw word ptr [esp + 10]
+		fistp qword ptr [esp]
+		fldcw word ptr [esp + 8]
+		mov eax, dword ptr [esp]
+		mov edx, dword ptr [esp + 4]
+		add esp, 12
+		ret
+	}
+}
+#endif
+
 void CG_Debriefing_MouseEvent( int x, int y ) {
 	panel_button_t* button;
 
@@ -1749,22 +1787,72 @@ void CG_Debriefing_MouseEvent( int x, int y ) {
 				cnt = CG_Debriefing_ScrollGetCount( button );
 				CG_Debriefing_ScrollGetBarRect( button, &r );
 				
-				button->data[1] += y;
+				button->data[1] = (int)((unsigned)button->data[1] + (unsigned)y);
 
+				#if defined(_MSC_VER) && defined(_M_IX86)
+				{
+					int product = (int)((unsigned)cnt * (unsigned)button->data[1]);
+					float *height = &r.h;
+					static const float half = 0.5f;
+					__asm {
+						fild product
+						fmul half
+						mov eax, height
+						fdiv dword ptr [eax]
+						call CG_Debriefing_TruncateST0
+						mov count, eax
+					}
+				}
+				#else
 				count = (cnt * button->data[1] * 0.5f) / (float)(r.h);	
+				#endif
 				if( count ) {
 					int ofs = CG_Debriefing_ScrollGetOffset( button );
-					CG_Debriefing_ScrollSetOffset( button, ofs + count );
+					CG_Debriefing_ScrollSetOffset( button, (int)((unsigned)ofs + (unsigned)count) );
 					CG_Debriefing_ScrollCheckOffset( button );
-					ofs = CG_Debriefing_ScrollGetOffset( button ) - ofs;
+					ofs = (int)((unsigned)CG_Debriefing_ScrollGetOffset( button ) - (unsigned)ofs);
 
 					if(ofs == count) {
+						#if defined(_MSC_VER) && defined(_M_IX86)
+						int *accum = &button->data[1];
+						float *height = &r.h;
+						__asm {
+							mov eax, accum
+							fild dword ptr [eax]
+							fild cnt
+							mov eax, height
+							fdivr dword ptr [eax]
+							fimul ofs
+							fsubp st(1), st(0)
+							call CG_Debriefing_TruncateST0
+							mov ecx, accum
+							mov dword ptr [ecx], eax
+						}
+						#else
 						button->data[1] -= ofs * (r.h / (float)cnt);
+						#endif
 					}
 				}
 
 				CG_Debriefing_ScrollGetBarRect( button, &r );
+				#if defined(_MSC_VER) && defined(_M_IX86)
+				{
+					int *anchor = &button->data[2];
+					float *top = &r.y;
+					int cursor;
+					__asm {
+						mov eax, anchor
+						fild dword ptr [eax]
+						mov eax, top
+						fadd dword ptr [eax]
+						call CG_Debriefing_TruncateST0
+						mov cursor, eax
+					}
+					cgs.cursorY = cursor;
+				}
+				#else
 				cgs.cursorY = r.y + button->data[2];
+				#endif
 
 				return;
 			}
@@ -1774,14 +1862,14 @@ void CG_Debriefing_MouseEvent( int x, int y ) {
 	}
 	
 
-	cgs.cursorX += x;
+	cgs.cursorX = (int)((unsigned)cgs.cursorX + (unsigned)x);
 	if( cgs.cursorX < 0 ) {
 		cgs.cursorX = 0;
-	} else if( cgs.cursorX > 640 ) {
-		cgs.cursorX = 640;
+	} else if( cgs.cursorX > 852 ) {
+		cgs.cursorX = 852;
 	}
 
-	cgs.cursorY += y;
+	cgs.cursorY = (int)((unsigned)cgs.cursorY + (unsigned)y);
 	if( cgs.cursorY < 0 ) {
 		cgs.cursorY = 0;
 	} else if( cgs.cursorY > 480 ) {

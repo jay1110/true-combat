@@ -7,6 +7,10 @@
 
 
 #include "cg_local.h"
+#include "tce_smoke_grenade.h"
+#include "tce_lightgrid.h"
+#include "../game/tce_bg.h"
+#include "tce_weapon_media.h"
 
 displayContextDef_t cgDC;
 
@@ -183,6 +187,7 @@ vmCvar_t	cg_gameType;
 vmCvar_t	cg_bloodTime;
 vmCvar_t	cg_norender;
 vmCvar_t	cg_skybox;
+vmCvar_t cg_aspectMode;
 
 // ydnar: say, team say, etc.
 vmCvar_t	cg_message;
@@ -298,10 +303,35 @@ typedef struct {
 	int			modificationCount;
 } cvarTable_t;
 
+/* Original TC:E cvars; behavior coverage is tracked in reconstruction/CVARS.md. */
+vmCvar_t cg_specSwing;
+vmCvar_t cg_vip;
+vmCvar_t cg_tacX;
+vmCvar_t cg_tacY;
+vmCvar_t cg_tacZ;
+vmCvar_t cg_gunPitch;
+vmCvar_t cg_gunYaw;
+vmCvar_t cg_gunRoll;
+vmCvar_t cg_gun_foreshorten;
+vmCvar_t cg_predictBullets;
+vmCvar_t cg_toggleCrouch;
+vmCvar_t cg_drawFriend;
+vmCvar_t cg_gunPosition;
+vmCvar_t cg_portalScopes;
+vmCvar_t cg_toggleAiming;
+vmCvar_t cg_snd_reverb;
+vmCvar_t cg_thirdPersonOffset;
+vmCvar_t cg_hudAlpha;
+vmCvar_t cg_r_fastsky;
+vmCvar_t cg_dynamicEye;
+vmCvar_t cg_aspectFovMode;
+vmCvar_t cg_freeAim;
+vmCvar_t cg_recording_showstatusline;
+
 cvarTable_t		cvarTable[] = {
 	{ &cg_ignore, "cg_ignore", "0", 0 },	// used for debugging
 	{ &cg_autoswitch, "cg_autoswitch", "2", CVAR_ARCHIVE },
-	{ &cg_drawGun, "cg_drawGun", "1", CVAR_ARCHIVE },
+	{ &cg_drawGun, "cg_drawGun", "1", 512},
 	{ &cg_gun_frame, "cg_gun_frame", "0", CVAR_TEMP },
 	{ &cg_cursorHints, "cg_cursorHints", "1", CVAR_ARCHIVE },
 	{ &cg_zoomFov, "cg_zoomfov", "22.5", CVAR_ARCHIVE },
@@ -313,19 +343,19 @@ cvarTable_t		cvarTable[] = {
 	{ &cg_zoomStepSniper, "cg_zoomStepSniper", "2", CVAR_ARCHIVE },
 	{ &cg_zoomStepSnooper, "cg_zoomStepSnooper", "5", CVAR_ARCHIVE },
 	{ &cg_zoomStepFG, "cg_zoomStepFG", "10", CVAR_ARCHIVE },			//----(SA)	added
-	{ &cg_fov, "cg_fov", "90", CVAR_ARCHIVE },
+	{ &cg_fov, "cg_fov", "90", 512},
 	{ &cg_letterbox, "cg_letterbox", "0", CVAR_TEMP },	//----(SA)	added
 	{ &cg_stereoSeparation, "cg_stereoSeparation", "0.4", CVAR_ARCHIVE  },
-	{ &cg_shadows, "cg_shadows", "1", CVAR_ARCHIVE  },
+	{ &cg_shadows, "cg_shadows", "1", 512},
 	{ &cg_gibs, "cg_gibs", "1", CVAR_ARCHIVE  },
 //bani - #127 - we now draw reticles always in non demoplayback
 //	{ &cg_draw2D, "cg_draw2D", "1", CVAR_CHEAT }, // JPW NERVE changed per atvi req to prevent sniper rifle zoom cheats
-	{ &cg_draw2D, "cg_draw2D", "1", CVAR_ARCHIVE },
+	{ &cg_draw2D, "cg_draw2D", "1", 512},
 	{ &cg_drawSpreadScale, "cg_drawSpreadScale", "1", CVAR_ARCHIVE },
 	{ &cg_drawStatus, "cg_drawStatus", "1", CVAR_ARCHIVE  },
 	{ &cg_drawFPS, "cg_drawFPS", "0", CVAR_ARCHIVE  },
 	{ &cg_drawSnapshot, "cg_drawSnapshot", "0", CVAR_ARCHIVE  },
-	{ &cg_drawCrosshair, "cg_drawCrosshair", "1", CVAR_ARCHIVE },
+	{ &cg_drawCrosshair, "cg_drawCrosshair", "0", CVAR_CHEAT },
 	{ &cg_drawCrosshairNames, "cg_drawCrosshairNames", "1", CVAR_ARCHIVE },
 	{ &cg_drawCrosshairPickups, "cg_drawCrosshairPickups", "1", CVAR_ARCHIVE },
 	{ &cg_useWeapsForZoom,	"cg_useWeapsForZoom", "1", CVAR_ARCHIVE },
@@ -359,6 +389,7 @@ cvarTable_t		cvarTable[] = {
 	{ &cg_bloodTime, "cg_bloodTime", "120", CVAR_ARCHIVE },
 
 	{ &cg_skybox, "cg_skybox", "1", CVAR_CHEAT },
+    { &cg_aspectMode, "cg_aspectMode", "0", CVAR_ARCHIVE },
 	// done.
 	
 	// ydnar: say, team say, etc.
@@ -512,6 +543,52 @@ cvarTable_t		cvarTable[] = {
 	{ &cl_wavefilename, "cl_wavefilename", "", CVAR_ROM },
 	{ &cl_waveoffset, "cl_waveoffset", "0", CVAR_ROM },
 	{ &cg_recording_statusline, "cg_recording_statusline", "9", CVAR_ARCHIVE },
+    { &cg_specSwing, "cg_specSwing", "1", 1 },
+
+    { &cg_vip, "cg_vip", "0", 1 },
+
+    { &cg_tacX, "cg_tacX", "0", 512 },
+
+    { &cg_tacY, "cg_tacY", "0", 512 },
+
+    { &cg_tacZ, "cg_tacZ", "0", 512 },
+
+    { &cg_gunPitch, "cg_gunPitch", "0", 512 },
+
+    { &cg_gunYaw, "cg_gunYaw", "0", 512 },
+
+    { &cg_gunRoll, "cg_gunRoll", "0", 512 },
+
+    { &cg_gun_foreshorten, "cg_gun_foreshorten", "0", 512 },
+
+    { &cg_predictBullets, "cg_predictBullets", "1", 1 },
+
+    { &cg_toggleCrouch, "cg_toggleCrouch", "1", 3 },
+
+    { &cg_drawFriend, "cg_drawFriend", "2", 1 },
+
+    { &cg_gunPosition, "cg_gunPosition", "1", 1 },
+
+    { &cg_portalScopes, "cg_portalScopes", "1", 1 },
+
+    { &cg_toggleAiming, "cg_toggleAiming", "1", 3 },
+
+    { &cg_snd_reverb, "cg_snd_reverb", "255", 512 },
+
+    { &cg_thirdPersonOffset, "cg_thirdPersonOffset", "0", 512 },
+
+    { &cg_hudAlpha, "cg_hudAlpha", "0.25", 1 },
+
+    { &cg_r_fastsky, "r_fastsky", "0", 512 },
+
+    { &cg_dynamicEye, "cg_dynamicEye", "0.0", 1 },
+
+    { &cg_aspectFovMode, "cg_aspectFovMode", "1", 1 },
+
+    { &cg_freeAim, "cg_freeAim", "0", 3 },
+
+    { &cg_recording_showstatusline, "cg_recording_showstatusline", "0", 0 },
+
 };
 
 int		cvarTableSize = sizeof( cvarTable ) / sizeof( cvarTable[0] );
@@ -529,7 +606,12 @@ void CG_RegisterCvars( void ) {
 	cvarTable_t	*cv;
 	char		var[MAX_TOKEN_CHARS];
 
-	trap_Cvar_Set( "cg_letterbox", "0" );	// force this for people who might have it in their
+	/* Original CG_RegisterCvars 300476d0: set before world/lightmap loading. */
+	trap_Cvar_Set( "cg_letterbox", "0" );
+	trap_Cvar_Set( "r_mapoverbrightbits", "0" );
+	trap_Cvar_Set( "s_kHz", "44" );
+	trap_Cvar_Set( "cg_shadows", "1" );
+	trap_Cvar_Set( "r_fastsky", "0" );
 
 	for ( i = 0, cv = cvarTable ; i < cvarTableSize ; i++, cv++ ) {
 		trap_Cvar_Register( cv->vmCvar, cv->cvarName, cv->defaultString, cv->cvarFlags );
@@ -646,7 +728,8 @@ void CG_setClientFlags(void)
 }
 
 int CG_CrosshairPlayer( void ) {
-	if ( cg.time > ( cg.crosshairClientTime + 1000 ) ) {
+	/* TC uses a wrapping32bit ADD followed by a signed time comparison. */
+	if ( cg.time > (int)((unsigned)cg.crosshairClientTime + 1000u) ) {
 		return -1;
 	}
 	return cg.crosshairClientNum;
@@ -837,11 +920,11 @@ void CG_LoadObjectiveData( void )
 	pc_token_t token, token2;
 	int handle;
 
-	if( cg_gameType.integer == GT_WOLF_LMS ) {
-		handle = trap_PC_LoadSource( va( "maps/%s_lms.objdata", Q_strlwr(cgs.rawmapname) ) );
-	} else {
-		handle = trap_PC_LoadSource( va( "maps/%s.objdata", Q_strlwr(cgs.rawmapname) ) );
-	}
+	/* TC30047d70: per-gametype objective data, then generic fallback. */
+	handle = 0;
+	if(cg_gameType.integer==2 || cg_gameType.integer==5 || cg_gameType.integer==7)
+		handle=trap_PC_LoadSource(va("maps/%s_gt%d.objdata",Q_strlwr(cgs.rawmapname),cg_gameType.integer));
+	if(!handle) handle=trap_PC_LoadSource(va("maps/%s.objdata",Q_strlwr(cgs.rawmapname)));
 
 	if( !handle ) {
 		return;
@@ -973,55 +1056,6 @@ void CG_SetupDlightstyles(void)
 
 /*
 =================
-CG_RegisterItemSounds
-
-The server says this item is used on this level
-=================
-*/
-static void CG_RegisterItemSounds( int itemNum ) {
-	gitem_t			*item;
-	char			data[MAX_QPATH];
-	char			*s, *start;
-	int				len;
-
-	item = &bg_itemlist[ itemNum ];
-
-	if( item->pickup_sound && *item->pickup_sound ) {
- 		trap_S_RegisterSound( item->pickup_sound, qfalse );
-	}
-
-	// parse the space seperated precache string for other media
-	s = item->sounds;
-	if (!s || !s[0])
-		return;
-
-	while (*s) {
-		start = s;
-		while (*s && *s != ' ') {
-			s++;
-		}
-
-		len = s-start;
-		if (len >= MAX_QPATH || len < 5) {
-			CG_Error( "PrecacheItem: %s has bad precache string", 
-				item->classname);
-			return;
-		}
-		memcpy (data, start, len);
-		data[len] = 0;
-		if ( *s ) {
-			s++;
-		}
-
-		if ( !strcmp(data+len-3, "wav" )) {
-			trap_S_RegisterSound( data, qfalse );
-		}
-	}
-}
-
-
-/*
-=================
 CG_RegisterSounds
 
 called during a precache command
@@ -1050,6 +1084,20 @@ static void CG_RegisterSounds( void ) {
 		speaker->noise = trap_S_RegisterSound( speaker->filename, qfalse );
 	}
 
+    {
+        static const char *names[5]={"shell","9mm","556mm","127mm","40mm"};
+        int bank,variant,number;
+        for(bank=0;bank<5;++bank) for(variant=0;variant<2;++variant) for(number=0;number<4;++number) {
+            char path[MAX_QPATH];
+            Com_sprintf(path,sizeof(path),"sound/weapons/casings/%s%s%i.wav",variant?"hall/":"",names[bank],number+1);
+            cgs.media.tceCasingSounds[bank][variant][number]=trap_S_RegisterSound(path,qfalse);
+        }
+    }
+    cgs.media.tceFiremodeSound = trap_S_RegisterSound("sound/weapons/misc/firemode.wav",qfalse);
+    cgs.media.tceReloadSounds[0] = trap_S_RegisterSound("sound/weapons/m3s90/shellin.wav",qfalse);
+    cgs.media.tceReloadSounds[1] = trap_S_RegisterSound("sound/weapons/m3s90/pump.wav",qfalse);
+    cgs.media.tceReloadSounds[2] = trap_S_RegisterSound("sound/weapons/m3s90/pump2fast.wav",qfalse);
+    cgs.media.tceReloadSounds[3] = trap_S_RegisterSound("sound/weapons/r93/r93bolt.wav",qfalse);
 	cgs.media.noAmmoSound =			trap_S_RegisterSound( "sound/weapons/misc/fire_dry.wav", qfalse );
 	cgs.media.noFireUnderwater =	trap_S_RegisterSound( "sound/weapons/misc/fire_water.wav", qfalse );
 	cgs.media.selectSound =			trap_S_RegisterSound( "sound/weapons/misc/change.wav", qfalse );
@@ -1081,44 +1129,19 @@ static void CG_RegisterSounds( void ) {
 
 	}
 
-	cgs.media.landSound[FOOTSTEP_NORMAL] =	trap_S_RegisterSound( "sound/player/footsteps/stone_jump.wav", qfalse );
-	cgs.media.landSound[FOOTSTEP_SPLASH] =	trap_S_RegisterSound( "sound/player/footsteps/water_jump.wav", qfalse );
-	cgs.media.landSound[FOOTSTEP_METAL] =	trap_S_RegisterSound( "sound/player/footsteps/metal_jump.wav", qfalse );
-	cgs.media.landSound[FOOTSTEP_WOOD] =	trap_S_RegisterSound( "sound/player/footsteps/wood_jump.wav", qfalse );
-	cgs.media.landSound[FOOTSTEP_GRASS] =	trap_S_RegisterSound( "sound/player/footsteps/grass_jump.wav", qfalse );
-	cgs.media.landSound[FOOTSTEP_GRAVEL] =	trap_S_RegisterSound( "sound/player/footsteps/gravel_jump.wav", qfalse );
-	cgs.media.landSound[FOOTSTEP_ROOF] =	trap_S_RegisterSound( "sound/player/footsteps/roof_jump.wav", qfalse );
-	cgs.media.landSound[FOOTSTEP_SNOW] =	trap_S_RegisterSound( "sound/player/footsteps/snow_jump.wav", qfalse );
-	cgs.media.landSound[FOOTSTEP_CARPET] =	trap_S_RegisterSound( "sound/player/footsteps/carpet_jump.wav", qfalse );
-
-	for (i = 0; i < 4; i++) {
-		Com_sprintf (name, sizeof(name), "sound/player/footsteps/stone%i.wav", i+1);
-		cgs.media.footsteps[FOOTSTEP_NORMAL][i] = trap_S_RegisterSound( name, qfalse);
-
-		Com_sprintf (name, sizeof(name), "sound/player/footsteps/water%i.wav", i+1);
-		cgs.media.footsteps[FOOTSTEP_SPLASH][i] = trap_S_RegisterSound( name, qfalse );
-
-		Com_sprintf (name, sizeof(name), "sound/player/footsteps/metal%i.wav", i+1);
-		cgs.media.footsteps[FOOTSTEP_METAL][i] = trap_S_RegisterSound( name, qfalse );
-
-		Com_sprintf (name, sizeof(name), "sound/player/footsteps/wood%i.wav", i+1);
-		cgs.media.footsteps[FOOTSTEP_WOOD][i] = trap_S_RegisterSound( name, qfalse );
-
-		Com_sprintf (name, sizeof(name), "sound/player/footsteps/grass%i.wav", i+1);
-		cgs.media.footsteps[FOOTSTEP_GRASS][i] = trap_S_RegisterSound( name, qfalse );
-
-		Com_sprintf (name, sizeof(name), "sound/player/footsteps/gravel%i.wav", i+1);
-		cgs.media.footsteps[FOOTSTEP_GRAVEL][i] = trap_S_RegisterSound( name, qfalse );
-
-		Com_sprintf (name, sizeof(name), "sound/player/footsteps/roof%i.wav", i+1);
-		cgs.media.footsteps[FOOTSTEP_ROOF][i] = trap_S_RegisterSound(  name, qfalse );
-
-		Com_sprintf (name, sizeof(name), "sound/player/footsteps/snow%i.wav", i+1);
-		cgs.media.footsteps[FOOTSTEP_SNOW][i] = trap_S_RegisterSound( name, qfalse );
-
-		Com_sprintf (name, sizeof(name), "sound/player/footsteps/carpet%i.wav", i+1);
-		cgs.media.footsteps[FOOTSTEP_CARPET][i] = trap_S_RegisterSound( name, qfalse );
-	}
+    {
+        static const char *steps[18]={"stone","metal","wood","grass","gravel","water","roof","snow","carpet",NULL,"sand","fence","foliage","branch","freeclimb","prone","climb_mount","climb_dismount"};
+        static const char *landing[14]={"stone","metal","wood","grass","gravel","water","roof","snow","carpet",NULL,"sand",NULL,"foliage","branch"};
+        int kind;
+        memset(cgs.media.footsteps,0,sizeof(cgs.media.footsteps));
+        memset(cgs.media.landSound,0,sizeof(cgs.media.landSound));
+        for(kind=0;kind<14;kind++) if(landing[kind])
+            cgs.media.landSound[kind]=trap_S_RegisterSound(va("sound/player/footsteps/%s_jump.wav",landing[kind]),qfalse);
+        for(i=0;i<4;i++) for(kind=0;kind<18;kind++) if(steps[kind]) {
+            Com_sprintf(name,sizeof(name),"sound/player/footsteps/%s%i.wav",steps[kind],i+1);
+            cgs.media.footsteps[kind][i]=trap_S_RegisterSound(name,qfalse);
+        }
+    }
 
 	for ( i = 1 ; i < bg_numItems ; i++ ) {
 		CG_RegisterItemSounds( i );
@@ -1151,56 +1174,62 @@ static void CG_RegisterSounds( void ) {
 	// OSP
 */
 
-	cgs.media.flameSound =			trap_S_RegisterSound( "sound/weapons/flamethrower/flame_burn.wav", qfalse );
-	cgs.media.flameBlowSound =		trap_S_RegisterSound( "sound/weapons/flamethrower/flame_pilot.wav", qfalse );
-	cgs.media.flameStartSound =		trap_S_RegisterSound( "sound/weapons/flamethrower/flame_up.wav", qfalse );
-	cgs.media.flameStreamSound =	trap_S_RegisterSound( "sound/weapons/flamethrower/flame_fire.wav", qfalse );
+	/* Original team 1 uses allies voices; team 2 uses specops voices. */
+	cgs.media.tceRoundStart[0][0] = trap_S_RegisterSound("sound/chat/allies/32a.wav", qfalse);
+	cgs.media.tceRoundStart[0][1] = trap_S_RegisterSound("sound/chat/allies/32b.wav", qfalse);
+	cgs.media.tceRoundStart[1][0] = trap_S_RegisterSound("sound/chat/specops/32a.wav", qfalse);
+	cgs.media.tceRoundStart[1][1] = trap_S_RegisterSound("sound/chat/specops/32b.wav", qfalse);
+	cgs.media.flameSound = 0;
+	cgs.media.flameBlowSound = 0;
+	cgs.media.flameStartSound = 0;
+	cgs.media.flameStreamSound = 0;
 	cgs.media.flameCrackSound =		0; // -trap_S_RegisterSound( "sound/world/firecrack1.wav", qfalse );
-	cgs.media.grenadePulseSound4 =	trap_S_RegisterSound( "sound/weapons/grenade/gren_timer4.wav", qfalse );
-	cgs.media.grenadePulseSound3 =	trap_S_RegisterSound( "sound/weapons/grenade/gren_timer3.wav", qfalse );
-	cgs.media.grenadePulseSound2 =	trap_S_RegisterSound( "sound/weapons/grenade/gren_timer2.wav", qfalse );
-	cgs.media.grenadePulseSound1 =	trap_S_RegisterSound( "sound/weapons/grenade/gren_timer1.wav", qfalse );
+	cgs.media.grenadePulseSound4 = 0;
+	cgs.media.grenadePulseSound3 = 0;
+	cgs.media.grenadePulseSound2 = 0;
+	cgs.media.grenadePulseSound1 = 0;
 
 
-	cgs.media.boneBounceSound =		trap_S_RegisterSound( "sound/world/boardbreak.wav", qfalse );	// TODO: need a real sound for this
+	cgs.media.boneBounceSound = 0;	// TODO: need a real sound for this
 
 	cgs.media.sfx_rockexp =			trap_S_RegisterSound( "sound/weapons/rocket/rocket_expl.wav", qfalse );
 	cgs.media.sfx_rockexpDist =		trap_S_RegisterSound( "sound/weapons/rocket/rocket_expl_far.wav", qfalse );
 
-	cgs.media.sfx_artilleryExp[0] =	trap_S_RegisterSound( "sound/weapons/artillery/artillery_expl_1.wav", qfalse );
-	cgs.media.sfx_artilleryExp[1] =	trap_S_RegisterSound( "sound/weapons/artillery/artillery_expl_2.wav", qfalse );
-	cgs.media.sfx_artilleryExp[2] =	trap_S_RegisterSound( "sound/weapons/artillery/artillery_expl_3.wav", qfalse );
-	cgs.media.sfx_artilleryDist =	trap_S_RegisterSound( "sound/weapons/artillery/artillery_expl_far.wav", qfalse );
+	cgs.media.sfx_artilleryExp[0] = 0;
+	cgs.media.sfx_artilleryExp[1] = 0;
+	cgs.media.sfx_artilleryExp[2] = 0;
+	cgs.media.sfx_artilleryDist = 0;
 
-	cgs.media.sfx_airstrikeExp[0] =	trap_S_RegisterSound( "sound/weapons/airstrike/airstrike_expl_1.wav", qfalse );
-	cgs.media.sfx_airstrikeExp[1] =	trap_S_RegisterSound( "sound/weapons/airstrike/airstrike_expl_2.wav", qfalse );
-	cgs.media.sfx_airstrikeExp[2] =	trap_S_RegisterSound( "sound/weapons/airstrike/airstrike_expl_3.wav", qfalse );
-	cgs.media.sfx_airstrikeDist =	trap_S_RegisterSound( "sound/weapons/airstrike/airstrike_expl_far.wav", qfalse );
+	cgs.media.sfx_airstrikeExp[0] = 0;
+	cgs.media.sfx_airstrikeExp[1] = 0;
+	cgs.media.sfx_airstrikeExp[2] = 0;
+	cgs.media.sfx_airstrikeDist = 0;
 
 	cgs.media.sfx_dynamiteexp =		trap_S_RegisterSound( "sound/weapons/dynamite/dynamite_expl.wav", qfalse );
 	cgs.media.sfx_dynamiteexpDist = trap_S_RegisterSound( "sound/weapons/dynamite/dynamite_expl_far.wav", qfalse );
 
-	cgs.media.sfx_satchelexp =		trap_S_RegisterSound( "sound/weapons/satchel/satchel_expl.wav", qfalse );
-	cgs.media.sfx_satchelexpDist =	trap_S_RegisterSound( "sound/weapons/satchel/satchel_expl_far.wav", qfalse );
-	cgs.media.sfx_landmineexp =		trap_S_RegisterSound( "sound/weapons/landmine/mine_expl.wav", qfalse );
-	cgs.media.sfx_landmineexpDist =	trap_S_RegisterSound( "sound/weapons/landmine/mine_expl_far.wav", qfalse );
-	cgs.media.sfx_mortarexp[0] =	trap_S_RegisterSound( "sound/weapons/mortar/mortar_expl1.wav", qfalse );
-	cgs.media.sfx_mortarexp[1] =	trap_S_RegisterSound( "sound/weapons/mortar/mortar_expl2.wav", qfalse );
-	cgs.media.sfx_mortarexp[2] =	trap_S_RegisterSound( "sound/weapons/mortar/mortar_expl3.wav", qfalse );
-	cgs.media.sfx_mortarexp[3] =	trap_S_RegisterSound( "sound/weapons/mortar/mortar_expl.wav", qfalse );
-	cgs.media.sfx_mortarexpDist =	trap_S_RegisterSound( "sound/weapons/mortar/mortar_expl_far.wav", qfalse );
+	cgs.media.sfx_satchelexp = 0;
+	cgs.media.sfx_satchelexpDist = 0;
+	cgs.media.sfx_landmineexp = 0;
+	cgs.media.sfx_landmineexpDist = 0;
+	cgs.media.sfx_mortarexp[0] = 0;
+	cgs.media.sfx_mortarexp[1] = 0;
+	cgs.media.sfx_mortarexp[2] = 0;
+	cgs.media.sfx_mortarexp[3] = 0;
+	cgs.media.sfx_mortarexpDist = 0;
 	cgs.media.sfx_grenexp =			trap_S_RegisterSound( "sound/weapons/grenade/gren_expl.wav", qfalse );
 	cgs.media.sfx_grenexpDist =		trap_S_RegisterSound( "sound/weapons/grenade/gren_expl_far.wav", qfalse );
 	cgs.media.sfx_rockexpWater =	trap_S_RegisterSound( "sound/weapons/grenade/gren_expl_water.wav", qfalse );
 	
 
 	for(i = 0; i < 3; i++) {
-		// Gordon: bouncy shell sounds \o/
-		cgs.media.sfx_brassSound[BRASSSOUND_METAL][i] =	trap_S_RegisterSound (va("sound/weapons/misc/shell_metal%i.wav",	i + 1), qfalse );
-		cgs.media.sfx_brassSound[BRASSSOUND_SOFT][i] =	trap_S_RegisterSound (va("sound/weapons/misc/shell_soft%i.wav",		i + 1), qfalse );
-		cgs.media.sfx_brassSound[BRASSSOUND_STONE][i] =	trap_S_RegisterSound (va("sound/weapons/misc/shell_stone%i.wav",	i + 1), qfalse );
-		cgs.media.sfx_brassSound[BRASSSOUND_WOOD][i] =	trap_S_RegisterSound (va("sound/weapons/misc/shell_wood%i.wav",		i + 1), qfalse );
-		cgs.media.sfx_rubbleBounce[i] =					trap_S_RegisterSound (va("sound/world/debris%i.wav",				i + 1), qfalse );
+        /* Original30048e80 clears legacy brass; TC casing banks are separate. */
+        cgs.media.sfx_brassSound[BRASSSOUND_METAL][i]=0;
+        cgs.media.sfx_brassSound[BRASSSOUND_SOFT][i]=0;
+        cgs.media.sfx_brassSound[BRASSSOUND_STONE][i]=0;
+        cgs.media.sfx_brassSound[BRASSSOUND_WOOD][i]=0;
+        cgs.media.sfx_rubbleBounce[i]=trap_S_RegisterSound(va("sound/world/debris%i.wav",i+1),qfalse);
+        cgs.media.tceGlassFallSounds[i]=trap_S_RegisterSound(va("sound/world/glassfall%i.wav",i+1),qfalse);
 	}
 	cgs.media.sfx_knifehit[0] =				trap_S_RegisterSound ("sound/weapons/knife/knife_hit1.wav", qfalse );
 	cgs.media.sfx_knifehit[1] =				trap_S_RegisterSound ("sound/weapons/knife/knife_hit2.wav", qfalse );
@@ -1209,7 +1238,7 @@ static void CG_RegisterSounds( void ) {
 	cgs.media.sfx_knifehit[4] =				trap_S_RegisterSound ("sound/weapons/knife/knife_hitwall1.wav", qfalse );
 
 	for(i = 0; i < 5; i++) {
-		cgs.media.sfx_bullet_fleshhit[i] =		trap_S_RegisterSound (va("sound/weapons/impact/flesh%i.wav",	i+1),	qfalse );
+		cgs.media.sfx_bullet_fleshhit[i] =		trap_S_RegisterSound (va("sound/weapons/impact/bullethit_flesh%i.wav",	i+1),	qfalse );
 		cgs.media.sfx_bullet_metalhit[i] =		trap_S_RegisterSound (va("sound/weapons/impact/metal%i.wav",	i+1),	qfalse );
 		cgs.media.sfx_bullet_woodhit[i] =		trap_S_RegisterSound (va("sound/weapons/impact/wood%i.wav",		i+1),	qfalse );
 		cgs.media.sfx_bullet_glasshit[i] =		trap_S_RegisterSound (va("sound/weapons/impact/glass%i.wav",	i+1),	qfalse );
@@ -1217,8 +1246,29 @@ static void CG_RegisterSounds( void ) {
 		cgs.media.sfx_bullet_waterhit[i] =		trap_S_RegisterSound (va("sound/weapons/impact/water%i.wav",	i+1),	qfalse );
 	}
 
-	cgs.media.uniformPickup =		trap_S_RegisterSound( "sound/misc/body_pickup.wav", qfalse );
-	cgs.media.buildDecayedSound =	trap_S_RegisterSound( "sound/world/build_abort.wav", qfalse );
+	cgs.media.uniformPickup = 0;
+	cgs.media.buildDecayedSound = 0;
+
+    cgs.media.tceHeartbeat=trap_S_RegisterSound("sound/misc/heartbeat.wav",qfalse);
+    cgs.media.tceDeafBeep=trap_S_RegisterSound("sound/misc/deafbeep.wav",qfalse);
+    for(i=0;i<4;i++) cgs.media.tceBreath[i]=trap_S_RegisterSound(va("sound/misc/breath%s%i.wav",i<2?"in":"out",i%2+1),qfalse);
+    cgs.media.tceGrenadeBoost[0]=trap_S_RegisterSound("sound/weapons/grenade/mk3a2_boost.wav",qfalse);
+    cgs.media.tceGrenadeBoost[1]=trap_S_RegisterSound("sound/weapons/grenade/m84_boost.wav",qfalse);
+    cgs.media.tceGrenadeBoost[2]=trap_S_RegisterSound("sound/weapons/grenade/m83smoke_boost.wav",qfalse);
+    cgs.media.tceGrenadePrime=trap_S_RegisterSound("sound/weapons/misc/grenade_prime.wav",qfalse);
+    cgs.media.tceCountBeep=trap_S_RegisterSound("sound/feedback/count_beep.wav",qfalse);
+    cgs.media.tceJetEngine[0]=trap_S_RegisterSound("sound/ambience/vehicles/jet_engine.wav",qfalse);
+    cgs.media.tceJetEngine[1]=trap_S_RegisterSound("sound/ambience/vehicles/jet_engineslow.wav",qfalse);
+    for(i=0;i<2;i++) {
+        cgs.media.tceRoundWarning[0][i]=trap_S_RegisterSound(va("sound/chat/allies/15%c.wav",'a'+i),qfalse);
+        cgs.media.tceRoundWarning[1][i]=trap_S_RegisterSound(va("sound/chat/specops/15%c.wav",'a'+i),qfalse);
+    }
+    for(i=0;i<5;i++) {
+        cgs.media.tceBulletTin[i]=trap_S_RegisterSound(va("sound/weapons/impact/bullethit_tin%i.wav",i+1),qfalse);
+        cgs.media.tceBulletFence[i]=trap_S_RegisterSound(va("sound/weapons/impact/bullethit_fence%i.wav",i+1),qfalse);
+        cgs.media.tceBulletFlyby[i]=trap_S_RegisterSound(va("sound/weapons/impact/bullethit_flyby%i.wav",i+1),qfalse);
+        cgs.media.tceBulletFoliage[i]=trap_S_RegisterSound(va("sound/weapons/impact/bullethit_foliage%i.wav",i+1),qfalse);
+    }
 
 	cgs.media.sndLimboSelect =		trap_S_RegisterSound( "sound/menu/select.wav", qfalse );
 	cgs.media.sndLimboFocus =		trap_S_RegisterSound( "sound/menu/focus.wav", qfalse );
@@ -1231,12 +1281,6 @@ static void CG_RegisterSounds( void ) {
 	cgs.media.sndMedicCall[0] =		trap_S_RegisterSound ("sound/chat/axis/medic.wav", qfalse );
 	cgs.media.sndMedicCall[1] =		trap_S_RegisterSound ("sound/chat/allies/medic.wav", qfalse );
 	
-
-	// FIXME: send as a special event
-	trap_S_RegisterSound( "sound/weapons/artillery/artillery_fly_1.wav", qfalse );
-	trap_S_RegisterSound( "sound/weapons/artillery/artillery_fly_2.wav", qfalse );
-	trap_S_RegisterSound( "sound/weapons/artillery/artillery_fly_3.wav", qfalse );
-	trap_S_RegisterSound( "sound/weapons/airstrike/airstrike_plane.wav", qfalse );
 
 
 	if( cg_buildScript.integer ) {
@@ -1260,6 +1304,7 @@ qboolean CG_RegisterClientModelname( bg_playerclass_t* classInfo );
 void WM_RegisterWeaponTypeShaders ();
 
 static void CG_RegisterGraphics( void ) {
+
 	char		name[1024];
 	int			i;
 	static char		*sb_nums[11] = {
@@ -1296,6 +1341,8 @@ static void CG_RegisterGraphics( void ) {
 	CG_ParseEntitiesFromString();
 
 	CG_LoadObjectiveData();
+	TCE_CG_LoadLightGrid(cgs.mapname);
+	CG_SetupEliteLighting();
 
 	// precache status bar pics
 	CG_LoadingString( "game media" );
@@ -1381,6 +1428,18 @@ static void CG_RegisterGraphics( void ) {
 	cgs.media.notUsableHintShader	= trap_R_RegisterShader( "gfx/2d/notUsableHint" );
 	cgs.media.doorHintShader		= trap_R_RegisterShader( "gfx/2d/doorHint" );
 	cgs.media.doorRotateHintShader	= trap_R_RegisterShader( "gfx/2d/doorRotateHint" );
+	cgs.media.tceM76ReticleShader = trap_R_RegisterShader("gfx/misc/m76_reticle");
+	cgs.media.tcePortalScopeShader = trap_R_RegisterShader("gfx/misc/portalscope");
+	cgs.media.tceDoNotShootShader = trap_R_RegisterShader("sprites/donotshoot.tga");
+	cgs.media.tceRadarCarrier=trap_R_RegisterShader("sprites/bombcarrier.tga");
+	cgs.media.tcePlayerCarrierIcons[0]=cgs.media.tceRadarCarrier;
+	cgs.media.tcePlayerCarrierIcons[1]=trap_R_RegisterShader("sprites/backpackcarrier.tga");
+	cgs.media.tcePlayerCarrierIcons[2]=trap_R_RegisterShader("sprites/VIP.tga");
+	cgs.media.tcePlayerCarrierIcons[3]=trap_R_RegisterShader("sprites/hostage.tga");
+	cgs.media.tceFlatSparkShader = trap_R_RegisterShader("sprites/flatspark.tga");
+	cgs.media.tceGlowSparkShader = trap_R_RegisterShader("sprites/glowspark.tga");
+	cgs.media.tceLedgeHint = trap_R_RegisterShader("gfx/2d/ledgeHint");
+	cgs.media.tceObjectiveLockedHint = trap_R_RegisterShader("gfx/2d/objLockedHint");
 
 	// Arnout: these were never used in default wolf
 	cgs.media.doorLockHintShader	= trap_R_RegisterShader( "gfx/2d/lockedhint" );
@@ -1435,17 +1494,8 @@ static void CG_RegisterGraphics( void ) {
 //	cgs.media.waypointCompassDefendShader	= trap_R_RegisterShaderNoMip( "sprites/waypoint_defend_compass" );
 //	cgs.media.waypointCompassRegroupShader	= trap_R_RegisterShaderNoMip( "sprites/waypoint_regroup_compass" );	
 //	cgs.media.commandCentreWoodShader		= trap_R_RegisterShaderNoMip( "ui/assets2/commandMap" );
-	if( cgs.ccLayers ) {
-		for( i = 0; i < cgs.ccLayers; i++ ) {
-			cgs.media.commandCentreMapShader[i]		= trap_R_RegisterShaderNoMip( va( "levelshots/%s_%i_cc.tga", cgs.rawmapname, i ) );
-			cgs.media.commandCentreMapShaderTrans[i]= trap_R_RegisterShaderNoMip( va( "levelshots/%s_%i_cc_trans", cgs.rawmapname, i ) );
-			cgs.media.commandCentreAutomapShader[i]	= trap_R_RegisterShaderNoMip( va( "levelshots/%s_%i_cc_automap", cgs.rawmapname, i ) );
-		}
-	} else {
-		cgs.media.commandCentreMapShader[0]			= trap_R_RegisterShaderNoMip( va( "levelshots/%s_cc.tga", cgs.rawmapname ) );
-		cgs.media.commandCentreMapShaderTrans[0]	= trap_R_RegisterShaderNoMip( va( "levelshots/%s_cc_trans", cgs.rawmapname ) );
-		cgs.media.commandCentreAutomapShader[0]		= trap_R_RegisterShaderNoMip( va( "levelshots/%s_cc_automap", cgs.rawmapname ) );
-	}
+    /* TC CG_RegisterGraphics (30049b40) does not register ET per-map
+     * command-map layers. TC maps supply their deployment previews instead. */
 	cgs.media.commandCentreAutomapMaskShader = trap_R_RegisterShaderNoMip( "levelshots/automap_mask" );
 	cgs.media.commandCentreAutomapBorderShader = trap_R_RegisterShaderNoMip( "ui/assets2/maptrim_long" );
 	cgs.media.commandCentreAutomapBorder2Shader = trap_R_RegisterShaderNoMip( "ui/assets2/maptrim_long2" );
@@ -1455,6 +1505,10 @@ static void CG_RegisterGraphics( void ) {
 	cgs.media.commandCentreSpawnShader[0] = trap_R_RegisterShaderNoMip( "gfx/limbo/cm_flagaxis" );
 	cgs.media.commandCentreSpawnShader[1] = trap_R_RegisterShaderNoMip( "gfx/limbo/cm_flagallied" );
 	cgs.media.compassConstructShader =		trap_R_RegisterShaderNoMip( "sprites/construct.tga" );
+	cgs.media.levelshotShader = trap_R_RegisterShaderNoMip( va("levelshots/%s", cgs.rawmapname) );
+	if( !cgs.media.levelshotShader ) {
+		cgs.media.levelshotShader = trap_R_RegisterShaderNoMip( "levelshots/unknownmap" );
+	}
 
 	// Mad Doc - TDF 
 	//cgs.media.ingameAutomapBackground = trap_R_RegisterShaderNoMip("ui/assets2/ingame/mapbackground");
@@ -1488,6 +1542,43 @@ static void CG_RegisterGraphics( void ) {
 
 	cgs.media.hudAlliedHelmet = trap_R_RegisterShader("AlliedHelmet");
 	cgs.media.hudAxisHelmet =	trap_R_RegisterShader("AxisHelmet");
+	cgs.media.tceAmmoFrame = trap_R_RegisterShader("gfx/2d/ammoframe.tga");
+	cgs.media.tceStaminaFrame = trap_R_RegisterShader("gfx/2d/staminaframe.tga");
+	cgs.media.tceLensFlare[0] = trap_R_RegisterShader("lensflare1");
+	cgs.media.tceLensFlare[1] = trap_R_RegisterShader("lensflare2");
+	cgs.media.tceStarShader = trap_R_RegisterShader("star");
+	cgs.media.tceImpactFlare = trap_R_RegisterShader("flareShader");
+	cgs.media.tceCoronaFlare[0] = cgs.media.tceImpactFlare;
+	cgs.media.tceCoronaFlare[1] = trap_R_RegisterShader("flareShader2");
+	cgs.media.tceCoronaFlare[2] = trap_R_RegisterShader("flareShader3");
+	cgs.media.tceCoronaFlare[3] = trap_R_RegisterShader("flareShader4");
+	cgs.media.tceCoronaCone[0] = trap_R_RegisterShader("coneShader");
+	cgs.media.tceCoronaCone[1] = trap_R_RegisterShader("coneShader2");
+	cgs.media.tceCoronaCone[2] = trap_R_RegisterShader("coneShader3");
+	cgs.media.tceCoronaCone[3] = trap_R_RegisterShader("coneShader4");
+	cgs.media.tceImpactSmokePuff3 = trap_R_RegisterShader("impactSmokePuff3");
+	cgs.media.tceImpactSmokePuff4 = trap_R_RegisterShader("impactSmokePuff4");
+	TCE_CG_RegisterSmokeMedia();
+	cgs.media.tceMoveType[0] = trap_R_RegisterShaderNoMip("gfx/2d/hudMovetypeProne");
+	cgs.media.tceMoveType[1] = trap_R_RegisterShaderNoMip("gfx/2d/hudMovetypeCrouch");
+	cgs.media.tceMoveType[2] = trap_R_RegisterShaderNoMip("gfx/2d/hudMovetypeStand");
+	/* Original TC objective radar shader triplets, 3004a5e8 onward. */
+	{
+		int kind, layer, enemy;
+		const char *suffix[3]={"","Above","Below"};
+		char path[MAX_QPATH];
+		for(enemy=0;enemy<2;enemy++) for(layer=0;layer<3;layer++) for(kind=0;kind<8;kind++) {
+			if(enemy && (kind==0 || kind>5)) continue;
+			if(kind==0) Com_sprintf(path,sizeof(path),"gfx/misc/radarobjective%s",suffix[layer]);
+			else if(kind<6) Com_sprintf(path,sizeof(path),"gfx/misc/radarobjective%d%s%s",kind,suffix[layer],enemy?"_2":"");
+			else Com_sprintf(path,sizeof(path),"gfx/misc/dropped%s%s",kind==6?"Bomb":"VIP",suffix[layer]);
+			cgs.media.tceRadarMarkers[enemy][layer][kind]=trap_R_RegisterShaderNoMip(path);
+		}
+	}
+	cgs.media.tceHealthMan[0] = trap_R_RegisterShaderNoMip("gfx/2d/hudManHead");
+	cgs.media.tceHealthMan[1] = trap_R_RegisterShaderNoMip("gfx/2d/hudManBody");
+	cgs.media.tceHealthMan[2] = trap_R_RegisterShaderNoMip("gfx/2d/hudManLegs");
+	cgs.media.tceHealthMan[3] = trap_R_RegisterShaderNoMip("gfx/2d/hudMan");
 
 	CG_LoadingString( " - models" );
 
@@ -1496,6 +1587,13 @@ static void CG_RegisterGraphics( void ) {
 
 	// Rafael
 	cgs.media.smallgunBrassModel = trap_R_RegisterModel ( "models/weapons2/shells/sm_shell.md3" );
+    cgs.media.shotgunBrassModel = trap_R_RegisterModel("models/weapons2/shells/shot_shell.md3");
+	cgs.media.tce40mmBrassModel = trap_R_RegisterModel("models/weapons2/shells/40mm_shell.md3");
+	cgs.media.tceBackWeaponTagModel = trap_R_RegisterModel("models/players/temperate/common/backweaptagmodel.md3");
+	cgs.media.tceBackBombModel = trap_R_RegisterModel("models/multiplayer/dynamite/dynamite_backmodel.md3");
+	cgs.media.tceBackpackRedModel = trap_R_RegisterModel("models/multiplayer/ctf/backpack_red.md3");
+	cgs.media.tceBackpackBlueModel = trap_R_RegisterModel("models/multiplayer/ctf/backpack_blue.md3");
+	cgs.media.tceSpriteFaceModel = trap_R_RegisterModel("models/misc/spriteface.md3");
 
 	//----(SA) wolf debris
 	cgs.media.debBlock[0] = trap_R_RegisterModel( "models/mapobjects/debris/brick1.md3" );
@@ -1561,7 +1659,11 @@ static void CG_RegisterGraphics( void ) {
 
 	// DHM - Nerve :: bullet hitting dirt
 	cgs.media.dirtParticle1Shader = trap_R_RegisterShader( "dirt_splash" );
-	cgs.media.dirtParticle2Shader = trap_R_RegisterShader( "water_splash" );
+	cgs.media.tceImpactSnow = trap_R_RegisterShader("snow_splash");
+	cgs.media.tceImpactSand = trap_R_RegisterShader("sand_splash");
+	cgs.media.tceImpactGravel = trap_R_RegisterShader("gravel_splash");
+	cgs.media.tceImpactSoil = trap_R_RegisterShader("soil_splash");
+	cgs.media.tceEyeAdaptationShader = trap_R_RegisterShader("eyeadaptation");
 	//cgs.media.dirtParticle3Shader = trap_R_RegisterShader( "dirtParticle3" );
 
 	cgs.media.genericConstructionShader =		trap_R_RegisterShader( "textures/sfx/construction" );
@@ -1685,6 +1787,7 @@ static void CG_RegisterGraphics( void ) {
 	cgs.media.shardGlass1 = trap_R_RegisterModel( "models/shards/glass1.md3" );
 	cgs.media.shardGlass2 = trap_R_RegisterModel( "models/shards/glass2.md3" );
 	cgs.media.shardWood1 = trap_R_RegisterModel( "models/shards/wood1.md3" );
+	cgs.media.tceSplinterModel = trap_R_RegisterModel("models/debris/splinter1.md3");
 	cgs.media.shardWood2 = trap_R_RegisterModel( "models/shards/wood2.md3" );
 	cgs.media.shardMetal1 = trap_R_RegisterModel( "models/shards/metal1.md3" );
 	cgs.media.shardMetal2 = trap_R_RegisterModel( "models/shards/metal2.md3" );
@@ -1704,6 +1807,8 @@ static void CG_RegisterGraphics( void ) {
 
 	memset( cg_items, 0, sizeof( cg_items ) );
 	memset( cg_weapons, 0, sizeof( cg_weapons ) );
+	/* The native TC cache and its SDK projection represent one original array. */
+	memset( tce_cg_weapons, 0, sizeof( tce_cg_weapons ) );
 
 // TODO: FIXME:  REMOVE REGISTRATION OF EACH MODEL FOR EVERY LEVEL LOAD
 
@@ -1712,8 +1817,7 @@ static void CG_RegisterGraphics( void ) {
 	//			sometimes and want it to work for sure for this demo)
 
 	CG_LoadingString( " - weapons" );
-	for( i = WP_KNIFE; i < WP_NUM_WEAPONS; i++ ) {
-		// DHM - Nerve :: Only register weapons we use in WolfMP
+	for( i = 1; i < TCE_MAX_WEAPONS; i++ ) {
 		if ( BG_WeaponInWolfMP(i) )
 			CG_RegisterWeapon( i, qfalse );
 	}	
@@ -1726,30 +1830,25 @@ static void CG_RegisterGraphics( void ) {
 	cgs.media.grenadeExplosionShader =	trap_R_RegisterShader( "grenadeExplosion" );
 	cgs.media.rocketExplosionShader	= trap_R_RegisterShader( "rocketExplosion" );
 
-	cgs.media.hWeaponSnd =			trap_S_RegisterSound( "sound/weapons/mg42/mg42_fire.wav", qfalse  );
-	cgs.media.hWeaponEchoSnd =		trap_S_RegisterSound( "sound/weapons/mg42/mg42_far.wav", qfalse );
-	cgs.media.hWeaponHeatSnd =		trap_S_RegisterSound( "sound/weapons/mg42/mg42_heat.wav", qfalse  );
-
-	cgs.media.hWeaponSnd_2 =		trap_S_RegisterSound( "sound/weapons/browning/browning_fire.wav", qfalse  );
-	cgs.media.hWeaponEchoSnd_2 =	trap_S_RegisterSound( "sound/weapons/browning/browning_far.wav", qfalse );
-	cgs.media.hWeaponHeatSnd_2 =	trap_S_RegisterSound( "sound/weapons/browning/browning_heat.wav", qfalse  );
-
-//	cgs.media.hflakWeaponSnd =		trap_S_RegisterSound( "sound/vehicles/misc/20mm_fire.wav", qfalse );
-
-	cgs.media.minePrimedSound =		trap_S_RegisterSound( "sound/weapons/landmine/mine_on.wav", qfalse );
-
 	// wall marks
 	cgs.media.bulletMarkShader =	trap_R_RegisterShaderNoMip( "gfx/damage/bullet_mrk" );
-	cgs.media.burnMarkShader =		trap_R_RegisterShaderNoMip( "gfx/damage/burn_med_mrk" );
+	cgs.media.burnMarkShader =		trap_R_RegisterShaderNoMip( "gfx/damage/grenade_mrk" );
 	cgs.media.shadowFootShader =	trap_R_RegisterShaderNoMip( "markShadowFoot" );
 	cgs.media.shadowTorsoShader =	trap_R_RegisterShaderNoMip( "markShadowTorso" );
 	cgs.media.wakeMarkShader =		trap_R_RegisterShaderNoMip( "wake" );
 	cgs.media.wakeMarkShaderAnim =	trap_R_RegisterShaderNoMip( "wakeAnim" ); // (SA)
 
 	//----(SA)	added
-	cgs.media.bulletMarkShaderMetal =	trap_R_RegisterShaderNoMip( "gfx/damage/metal_mrk" );
-	cgs.media.bulletMarkShaderWood =	trap_R_RegisterShaderNoMip( "gfx/damage/wood_mrk" );
-	cgs.media.bulletMarkShaderGlass =	trap_R_RegisterShaderNoMip( "gfx/damage/glass_mrk" );
+	cgs.media.tceBulletStoneMark = trap_R_RegisterShaderNoMip("gfx/damage/bullet_wall_mrk_alpha");
+	cgs.media.tceBulletStoneExit = trap_R_RegisterShaderNoMip("gfx/damage/bullet_wall_pierce_mrk_alpha");
+	cgs.media.tceKnifeMark = trap_R_RegisterShader("gfx/damage/knife_mrk_alpha");
+	cgs.media.bulletMarkShaderMetal = trap_R_RegisterShader("gfx/damage/bullet_metal_mrk_alpha");
+	cgs.media.tceBulletMetalExit = trap_R_RegisterShader("gfx/damage/bullet_metal_pierce_mrk_alpha");
+	cgs.media.tceBulletPlasticMark = trap_R_RegisterShader("gfx/damage/bullet_plastic_mrk_alpha");
+	cgs.media.tceBulletPlasticExit = trap_R_RegisterShader("gfx/damage/bullet_plastic_pierce_mrk_alpha");
+	cgs.media.bulletMarkShaderWood = trap_R_RegisterShader("gfx/damage/bullet_wood_mrk_alpha");
+	cgs.media.tceBulletWoodExit = trap_R_RegisterShader("gfx/damage/bullet_wood_pierce_mrk_alpha");
+	cgs.media.bulletMarkShaderGlass = trap_R_RegisterShader("gfx/damage/bullet_glass_mrk_alpha");
 
 	for ( i = 0 ; i < 5 ; i++ ) {
 		char	name[32];
@@ -1775,12 +1874,31 @@ static void CG_RegisterGraphics( void ) {
 		char	name[10];
 		vec3_t			mins, maxs;
 		int				j;
+#if defined(_MSC_VER) && defined(_M_IX86)
+		static const double midpointHalf = 0.5;
+		float *midpointOutput = cgs.inlineModelMidpoints[i];
+#endif
 
 		Com_sprintf( name, sizeof(name), "*%i", i );
 		cgs.inlineDrawModel[i] = trap_R_RegisterModel( name );
 		trap_R_ModelBounds( cgs.inlineDrawModel[i], mins, maxs );
 		for ( j = 0 ; j < 3 ; j++ ) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+			/* TC 3004b195..3004b1b0: no float spill after max-min. */
+			__asm {
+				mov eax, j
+				lea ecx, maxs
+				lea edx, mins
+				fld dword ptr [ecx+eax*4]
+				fsub dword ptr [edx+eax*4]
+				fmul midpointHalf
+				fadd dword ptr [edx+eax*4]
+				mov ecx, midpointOutput
+				fstp dword ptr [ecx+eax*4]
+			}
+#else
 			cgs.inlineModelMidpoints[i][j] = mins[j] + 0.5 * ( maxs[j] - mins[j] );
+#endif
 		}
 	}
 
@@ -1864,6 +1982,7 @@ static void CG_RegisterGraphics( void ) {
 	trap_R_RegisterFont( "ariblk", 27, &cgs.media.limboFont1 );
 	trap_R_RegisterFont( "ariblk", 16, &cgs.media.limboFont1_lo );	
 	trap_R_RegisterFont( "courbd", 30, &cgs.media.limboFont2 );
+	trap_R_RegisterFont( "ariblk", 27, &cgs.media.limboWeaponCountFont );
 
 	cgs.media.medal_back =				trap_R_RegisterShaderNoMip( "gfx/limbo/medal_back" );
 
@@ -1878,6 +1997,7 @@ static void CG_RegisterGraphics( void ) {
 	cgs.media.limboWeaponNumber_off =	trap_R_RegisterShaderNoMip( "gfx/limbo/but_weap_off" );
 	cgs.media.limboWeaponNumber_on =	trap_R_RegisterShaderNoMip( "gfx/limbo/but_weap_on" );
 	cgs.media.limboWeaponCard =			trap_R_RegisterShaderNoMip( "gfx/limbo/weap_card" );
+	cgs.media.limboWeaponCardHighlight = trap_R_RegisterShaderNoMip( "gfx/limbo/weap_card_highlight" );
 
 	cgs.media.limboWeaponCardSurroundH = trap_R_RegisterShaderNoMip( "gfx/limbo/butsur_hor" );
 	cgs.media.limboWeaponCardSurroundV = trap_R_RegisterShaderNoMip( "gfx/limbo/butsur_vert" );
@@ -1907,8 +2027,6 @@ static void CG_RegisterGraphics( void ) {
 
 	cgs.media.limboTeamButtonBack_on =			trap_R_RegisterShaderNoMip( "gfx/limbo/but_team_on"		);
 	cgs.media.limboTeamButtonBack_off =			trap_R_RegisterShaderNoMip( "gfx/limbo/but_team_off"	);
-	cgs.media.limboTeamButtonAllies =			trap_R_RegisterShaderNoMip( "gfx/limbo/but_team_allied"	);
-	cgs.media.limboTeamButtonAxis =				trap_R_RegisterShaderNoMip( "gfx/limbo/but_team_axis"	);
 	cgs.media.limboTeamButtonSpec =				trap_R_RegisterShaderNoMip( "gfx/limbo/but_team_spec"	);
 
 
@@ -1952,14 +2070,21 @@ static void CG_RegisterGraphics( void ) {
 
 	cgs.media.browningIcon =					trap_R_RegisterShaderNoMip( "icons/iconw_browning_1_select" );
 
-	cgs.media.axisFlag =						trap_R_RegisterShaderNoMip( "gfx/limbo/flag_axis" );
-	cgs.media.alliedFlag =						trap_R_RegisterShaderNoMip( "gfx/limbo/flag_allied" );
 	cgs.media.disconnectIcon =					trap_R_RegisterShaderNoMip( "gfx/2d/net" );
 
 	for( i = 0; i < 6; i++ ) {
 		cgs.media.fireteamicons[i] =			trap_R_RegisterShaderNoMip( va( "gfx/hud/fireteam/fireteam%i", i+1 ) );
 	}
 
+	/* TC final media block uses the loaded gear group's team artwork. */
+	cgs.media.limboTeamButtonAllies = trap_R_RegisterShaderNoMip(
+		va("custom/%s/gfx/icons/team_specops", gearDef.playerIconGroup));
+	cgs.media.limboTeamButtonAxis = trap_R_RegisterShaderNoMip(
+		va("custom/%s/gfx/icons/team_terror", gearDef.playerIconGroup));
+	cgs.media.axisFlag = trap_R_RegisterShaderNoMip(
+		va("custom/%s/gfx/icons/flag_terror", gearDef.playerIconGroup));
+	cgs.media.alliedFlag = trap_R_RegisterShaderNoMip(
+		va("custom/%s/gfx/icons/flag_specops", gearDef.playerIconGroup));
 	CG_LoadingString( " - game media done" );
 }
 
@@ -2458,12 +2583,39 @@ static void CG_FeederSelection(float feederID, int index) {
 		}
 }
 
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* TC Windows forwards atof's live ST0; a C float return would round it. */
+__declspec(naked) float CG_Cvar_Get(const char *cvar) {
+    __asm {
+        sub esp,0x80
+        mov ecx,0x20
+        xor eax,eax
+        push edi
+        lea edi,[esp + 4]
+        rep stosd
+        mov ecx,dword ptr [esp + 0x88]
+        lea eax,[esp + 4]
+        push 0x80
+        push eax
+        push ecx
+        call trap_Cvar_VariableStringBuffer
+        lea edx,[esp + 0x10]
+        push edx
+        call atof
+        add esp,0x10
+        pop edi
+        add esp,0x80
+        ret
+    }
+}
+#else
 float CG_Cvar_Get(const char *cvar) {
 	char buff[128];
 	memset(buff, 0, sizeof(buff));
 	trap_Cvar_VariableStringBuffer(cvar, buff, sizeof(buff));
 	return atof(buff);
 }
+#endif
 
 void CG_Text_PaintWithCursor(float x, float y, float scale, vec4_t color, const char *text, int cursorPos, char cursor, int limit, int style) {
 	CG_Text_Paint(x, y, scale, color, text, 0, limit, style);
@@ -2663,9 +2815,10 @@ void CG_Init( int serverMessageNum, int serverCommandSequence, int clientNum, qb
 	cgs.ccCurrentCamObjective = -2;
 
 	// load a few needed things before we do any screen updates
-	cgs.media.charsetShader		= trap_R_RegisterShader( "gfx/2d/hudchars" ); //trap_R_RegisterShader( "gfx/2d/bigchars" );
+	cgs.media.charsetShader		= trap_R_RegisterShader( "gfx/2d/bigchars2" );
 	// JOSEPH 4-17-00
-	cgs.media.menucharsetShader = trap_R_RegisterShader( "gfx/2d/hudchars" );
+	/* Original CG_Init30048b71..85; DrawChar2 consumes32588008. */
+	cgs.media.menucharsetShader = trap_R_RegisterShader( "gfx/2d/bigchars2" );
 	// END JOSEPH
 	cgs.media.whiteShader		= trap_R_RegisterShader( "white" );
 	cgs.media.charsetProp		= trap_R_RegisterShaderNoMip( "menu/art/font1_prop.tga" );
@@ -2691,7 +2844,7 @@ void CG_Init( int serverMessageNum, int serverCommandSequence, int clientNum, qb
 	cgs.campaignInfoLoaded = qfalse;
 	if( cgs.gametype == GT_WOLF_CAMPAIGN ) {
 		CG_LocateCampaign();
-	} else if( cgs.gametype == GT_WOLF_STOPWATCH || cgs.gametype == GT_WOLF_LMS || cgs.gametype == GT_WOLF ) {
+	} else if( cgs.gametype == GT_WOLF_STOPWATCH || cgs.gametype == GT_WOLF_LMS || cgs.gametype == 7 || cgs.gametype == GT_WOLF ) {
 		CG_LocateArena();
 	}
 
@@ -2739,6 +2892,13 @@ void CG_Init( int serverMessageNum, int serverCommandSequence, int clientNum, qb
 	String_Init();
 
 	cg.loading = qtrue;		// force players to load instead of defer
+	/* TC CG_Init: load gear after collision map/string pool initialization,
+	 * while loading callbacks are active, before sound and graphics media. */
+	memset(&gearDef, 0, sizeof(gearDef));
+	memset(weaponDef, 0, sizeof(weaponDef));
+	memset(tce_cg_weapons, 0, sizeof(tce_cg_weapons));
+	CG_LoadGearDef();
+	TCE_CG_InitLightSine();
 
 	CG_LoadingString( "sounds" );
 
@@ -2771,6 +2931,7 @@ void CG_Init( int serverMessageNum, int serverCommandSequence, int clientNum, qb
 	cg.loading = qfalse;	// future players will be deferred
 
 	CG_InitLocalEntities();
+	TCE_CG_ResetFlash();
 
 	BG_BuildSplinePaths();
 

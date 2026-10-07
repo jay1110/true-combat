@@ -1,4 +1,7 @@
 #include "g_local.h"
+#include "tce_bg.h"
+#include "tce_nodes.h"
+#include "tce_botinfo.h"
 
 // Include the "External"/"Public" components of AI_Team
 #include "../botai/ai_teamX.h"
@@ -35,6 +38,8 @@ vmCvar_t	g_maxGameClients;
 vmCvar_t	g_minGameClients;		// NERVE - SMF
 vmCvar_t	g_dedicated;
 vmCvar_t	g_speed;
+vmCvar_t g_realism;
+vmCvar_t g_newbbox;
 vmCvar_t	g_gravity;
 vmCvar_t	g_cheats;
 vmCvar_t	g_knockback;
@@ -204,6 +209,17 @@ vmCvar_t		g_nextcampaign;
 vmCvar_t		g_disableComplaints;
 
 
+/* Original TC:E cvars; behavior coverage is tracked in reconstruction/CVARS.md. */
+vmCvar_t sv_gametype;
+vmCvar_t sv_official;
+static vmCvar_t tce_version;
+vmCvar_t g_leanmode;
+vmCvar_t g_killmessage;
+vmCvar_t g_starthonor;
+vmCvar_t g_aabasetime;
+vmCvar_t g_botvar;
+vmCvar_t bot_editWaypoints;
+
 cvarTable_t		gameCvarTable[] = {
 	// don't override the cheat state set by the system
 	{ &g_cheats, "sv_cheats", "", 0, qfalse },
@@ -215,7 +231,9 @@ cvarTable_t		gameCvarTable[] = {
 	{ NULL, "sv_mapname", "", CVAR_SERVERINFO | CVAR_ROM, 0, qfalse  },
 
 	// latched vars
-	{ &g_gametype, "g_gametype", "4", CVAR_SERVERINFO | CVAR_LATCH, 0, qfalse  },		// Arnout: default to GT_WOLF_CAMPAIGN
+	{ &g_gametype, "g_gametype", "5", CVAR_SERVERINFO | CVAR_LATCH, 0, qfalse  },		// TC:E defaults to objective mode (5)
+    { &sv_gametype, "sv_gametype", "0", 64, 0, 0, 1, 0 },
+    { &sv_official, "sv_official", "1", 4, 0, 0, 0, 0 },
 
 // JPW NERVE multiplayer stuffs
 	{ &g_redlimbotime, "g_redlimbotime", "30000", CVAR_SERVERINFO | CVAR_LATCH, 0, qfalse },
@@ -224,6 +242,7 @@ cvarTable_t		gameCvarTable[] = {
 	{ &g_engineerChargeTime, "g_engineerChargeTime", "30000", CVAR_SERVERINFO | CVAR_LATCH, 0, qfalse, qtrue },
 	{ &g_LTChargeTime, "g_LTChargeTime", "40000", CVAR_SERVERINFO | CVAR_LATCH, 0, qfalse, qtrue },
 	{ &g_soldierChargeTime, "g_soldierChargeTime", "20000", CVAR_SERVERINFO | CVAR_LATCH, 0, qfalse, qtrue },
+	{ &tce_version, "tce_version", "TC:E reconstruction (tce2)", CVAR_SERVERINFO | CVAR_ROM, 0, 1, 0, 0 },
 // jpw
 
 	{ &g_covertopsChargeTime, "g_covertopsChargeTime", "30000", CVAR_SERVERINFO | CVAR_LATCH, 0, qfalse, qtrue },
@@ -234,18 +253,18 @@ cvarTable_t		gameCvarTable[] = {
 	{ &g_minGameClients, "g_minGameClients", "8", CVAR_SERVERINFO, 0, qfalse  },								// NERVE - SMF
 
 	// change anytime vars
-	{ &g_fraglimit, "fraglimit", "0", /*CVAR_SERVERINFO |*/ CVAR_ARCHIVE | CVAR_NORESTART, 0, qtrue },
+	{ &g_fraglimit, "fraglimit", "0", 1025, 0, qtrue },
 	{ &g_timelimit, "timelimit", "0", CVAR_SERVERINFO | CVAR_ARCHIVE | CVAR_NORESTART, 0, qtrue },
 
 #ifdef ALLOW_GSYNC
 	{ &g_synchronousClients, "g_synchronousClients", "0", CVAR_SYSTEMINFO | CVAR_CHEAT, 0, qfalse  },
 #endif // ALLOW_GSYNC
 
-	{ &g_friendlyFire, "g_friendlyFire", "1", CVAR_SERVERINFO | CVAR_ARCHIVE, 0, qtrue, qtrue },
+	{ &g_friendlyFire, "g_friendlyFire", "1", 516, 0, 0, 0, 0 },
 
 	{ &g_teamForceBalance, "g_teamForceBalance", "0", CVAR_ARCHIVE  },							// NERVE - SMF - merge from team arena
 
-	{ &g_warmup, "g_warmup", "60", CVAR_ARCHIVE, 0, qtrue  },
+	{ &g_warmup, "g_warmup", "25", 1, 0, qtrue  },
 	{ &g_doWarmup, "g_doWarmup", "0", CVAR_ARCHIVE, 0, qtrue  },
 
 	// NERVE - SMF
@@ -265,6 +284,14 @@ cvarTable_t		gameCvarTable[] = {
 	{ &g_userAxisRespawnTime, "g_userAxisRespawnTime", "0", 0, 0, qfalse, qtrue },
 	
 	{ &g_swapteams, "g_swapteams", "0", CVAR_ROM, 0, qfalse, qtrue },
+    { &g_newbbox, "g_newbbox", "1", CVAR_SERVERINFO | CVAR_NORESTART, 0, qtrue, qfalse },
+    { &g_leanmode, "g_leanmode", "1", 36, 0, 1, 0, 0 },
+    { &g_killmessage, "g_killmessage", "0", 36, 0, 1, 0, 0 },
+    { &g_starthonor, "g_starthonor", "0", 36, 0, 1, 0, 0 },
+    { &g_realism, "g_realism", "1", CVAR_SERVERINFO | CVAR_LATCH, 0, qtrue, qtrue },
+    { &g_aabasetime, "g_aabasetime", "5", 64, 0, 0, 1, 0 },
+    { &g_botvar, "g_botvar", "1.0", 0, 0, 0, 1, 0 },
+    { &bot_editWaypoints, "bot_editWaypoints", "0", 256, 0, 0, 0, 0 },
 	// -NERVE - SMF
 
 	{ &g_log, "g_log", "", CVAR_ARCHIVE, 0, qfalse },
@@ -278,8 +305,8 @@ cvarTable_t		gameCvarTable[] = {
 
 	{ &g_dedicated, "dedicated", "0", 0, 0, qfalse },
 
-	{ &g_speed, "g_speed", "320", 0, 0, qtrue, qtrue },
-	{ &g_gravity, "g_gravity", "800", 0, 0, qtrue, qtrue },
+	{ &g_speed, "g_speed", "320", 512, 0, qtrue, qtrue },
+	{ &g_gravity, "g_gravity", "800", 512, 0, qtrue, qtrue },
 	{ &g_knockback, "g_knockback", "1000", 0, 0, qtrue, qtrue },
 	{ &g_quadfactor, "g_quadfactor", "3", 0, 0, qtrue },
 	
@@ -332,7 +359,7 @@ cvarTable_t		gameCvarTable[] = {
 	{ &refereePassword, "refereePassword", "none", 0, 0, qfalse},
 	{ &g_spectatorInactivity, "g_spectatorInactivity", "0", 0, 0, qfalse, qfalse },
 	{ &match_latejoin,		"match_latejoin", "1", 0, 0, qfalse, qfalse },
-	{ &match_minplayers,	"match_minplayers", MATCH_MINPLAYERS, 0, 0, qfalse, qfalse },
+	{ &match_minplayers,	"match_minplayers", "4", 0, 0, qfalse, qfalse },
 	{ &match_mutespecs,		"match_mutespecs", "0", 0, 0, qfalse, qtrue },
 	{ &match_readypercent,	"match_readypercent", "100", 0, 0, qfalse, qtrue },
 	{ &match_timeoutcount,	"match_timeoutcount", "3", 0, 0, qfalse, qtrue },
@@ -384,8 +411,8 @@ cvarTable_t		gameCvarTable[] = {
 
 	// Arnout: LMS	
 	{ &g_lms_teamForceBalance,	"g_lms_teamForceBalance",	"1",	CVAR_ARCHIVE },
-	{ &g_lms_roundlimit,		"g_lms_roundlimit",			"3",	CVAR_ARCHIVE },
-	{ &g_lms_matchlimit,		"g_lms_matchlimit",			"2",	CVAR_ARCHIVE },
+	{ &g_lms_roundlimit,		"g_lms_roundlimit",			"5", 1},
+	{ &g_lms_matchlimit,		"g_lms_matchlimit",			"5", 1},
 	{ &g_lms_currentMatch,		"g_lms_currentMatch",		"0",	CVAR_ROM, 0, qfalse, qtrue },
 	{ &g_lms_lockTeams,			"g_lms_lockTeams",			"0",	CVAR_ARCHIVE },
 	{ &g_lms_followTeamOnly,	"g_lms_followTeamOnly",		"1",	CVAR_ARCHIVE },
@@ -414,12 +441,13 @@ cvarTable_t		gameCvarTable[] = {
 	{ &g_debugSkills,	"g_debugSkills", "0", 0		},
 
 	{ &g_heavyWeaponRestriction, "g_heavyWeaponRestriction", "100", CVAR_ARCHIVE|CVAR_SERVERINFO },
-	{ &g_autoFireteams, "g_autoFireteams", "1", CVAR_ARCHIVE },
+	{ &g_autoFireteams, "g_autoFireteams", "0", 1},
 
 	{ &g_nextmap, "nextmap", "", CVAR_TEMP },
 	{ &g_nextcampaign, "nextcampaign", "", CVAR_TEMP },
 
 	{ &g_disableComplaints, "g_disableComplaints", "0", CVAR_ARCHIVE },
+
 };
 
 // bk001129 - made static to avoid aliasing
@@ -581,7 +609,9 @@ but nevertheless should not display any cursor hint)
 ==============
 */
 static qboolean G_CursorHintIgnoreEnt(gentity_t *traceEnt, gentity_t *clientEnt) {
-	return (traceEnt->s.eType == ET_OID_TRIGGER || traceEnt->s.eType == ET_TRIGGER_MULTIPLE) ? qtrue : qfalse;
+	/* TC2005fdb0: players and corpses also pass through the hint retrace. */
+	return (traceEnt->s.eType == ET_PLAYER || traceEnt->s.eType == ET_CORPSE ||
+		traceEnt->s.eType == ET_OID_TRIGGER || traceEnt->s.eType == ET_TRIGGER_MULTIPLE) ? qtrue : qfalse;
 }
 
 /*
@@ -597,6 +627,38 @@ G_CheckForCursorHints
 	
 ==============
 */
+
+/* Windows2005eed4: keep the subtraction in ST0 across both C0 tests.
+ * Unordered reaches the second test and is rejected there. */
+static qboolean G_TCEEmplacedHeightAllowsMount(float gunHeight, float playerHeight) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+	const float mountUpper = 40.0f, mountLower = 0.0f;
+	int mountAllowed;
+	__asm {
+		fld gunHeight
+		fsub playerHeight
+		fcom mountUpper
+		fnstsw ax
+		test ah, 1
+		jnz mountCheckLower
+		fstp st(0)
+		mov mountAllowed, 0
+		jmp mountCheckDone
+	mountCheckLower:
+		fcomp mountLower
+		fnstsw ax
+		test ah, 1
+		setz al
+		movzx eax, al
+		mov mountAllowed, eax
+	mountCheckDone:
+	}
+	return mountAllowed;
+#else
+	long double mountDifference = (long double)gunHeight - (long double)playerHeight;
+	return mountDifference < 40.0L && mountDifference >= 0.0L;
+#endif
+}
 
 qboolean G_EmplacedGunIsMountable( gentity_t* ent, gentity_t* other ) {
 	if( Q_stricmp( ent->classname, "misc_mg42" ) && Q_stricmp( ent->classname, "misc_aagun" ) ) {
@@ -619,11 +681,7 @@ qboolean G_EmplacedGunIsMountable( gentity_t* ent, gentity_t* other ) {
 		return qfalse;
 	}
 
-	if( ent->r.currentOrigin[2] - other->r.currentOrigin[2] >= 40 ) {
-		return qfalse;
-	}
-	
-	if( ent->r.currentOrigin[2] - other->r.currentOrigin[2] < 0 ) {
+	if( !G_TCEEmplacedHeightAllowsMount(ent->r.currentOrigin[2], other->r.currentOrigin[2]) ) {
 		return qfalse;
 	}
 
@@ -682,20 +740,13 @@ void G_CheckForCursorHints( gentity_t *ent ) {
 	int			trace_contents;			// DHM - Nerve
 	int			numOfIgnoredEnts = 0;
 
-	if( !ent->client ) {
+	if( !ent->client || ent->client->tceDefuseActive ) {
 		return;
 	}
 
 	ps = &ent->client->ps;
 
-#ifdef SAVEGAME_SUPPORT
-	// don't change anything if reloading.  just set the exit hint
-	if( (g_gametype.integer == GT_SINGLE_PLAYER || g_gametype.integer == GT_COOP) && g_reloading.integer == RELOAD_NEXTMAP_WAITING ) {
-		ps->serverCursorHint = HINT_EXIT;
-		ps->serverCursorHintVal = 0;
-		return;
-	}
-#endif // SAVEGAME_SUPPORT
+
 
 	indirectHit = qfalse;
 
@@ -783,7 +834,10 @@ void G_CheckForCursorHints( gentity_t *ent ) {
 		} else if( (tr->surfaceFlags & SURF_LADDER) && !(ps->pm_flags & PMF_LADDER) ) { // ladder
 			hintDist = CH_LADDER_DIST;
 			hintType = HINT_LADDER;
-		}
+        } else if ((ps->stats[STAT_TCE_FLAGS] & 0x20) && !(ps->pm_flags & PMF_LADDER)) {
+            hintDist = 100;
+            hintType = 48;
+        }
 	} else if( tr->entityNum < MAX_CLIENTS ) {
 		// Show medics a syringe if they can revive someone
 
@@ -828,7 +882,7 @@ void G_CheckForCursorHints( gentity_t *ent ) {
 				} else { // use target for hint icon
 					checkEnt = G_FindByTargetname( NULL, traceEnt->target);
 					if(!checkEnt) {		// no target found
-						hintType = HINT_BAD_USER;
+						hintType = 50; /* TC inserts hints48/49 before BAD_USER. */
 						hintDist = CH_MAX_DIST_ZOOM;	// show this one from super far for debugging
 					}
 				}
@@ -904,11 +958,15 @@ void G_CheckForCursorHints( gentity_t *ent ) {
 							hintType = ps->serverCursorHint = HINT_FORCENONE;
 							hintVal = ps->serverCursorHintVal = 0;
 
-							if( checkEnt->parent && checkEnt->parent->s.eType == ET_OID_TRIGGER ) {
+							/* TC 2005f7a3: contact and possession gate precede plant hint. */
+                            if( checkEnt->parent && checkEnt->parent->s.eType == ET_OID_TRIGGER &&
+                                ent->client->tceObjectiveContact &&
+                                ((!level.tceBombPlanted && (ps->stats[STAT_TCE_WEAPON_FLAGS] & 0x100)) || g_gametype.integer == 2) &&
+                                checkEnt->entstate != 3 && checkEnt->entstate != 4 ) {
 								if( ( (ent->client->sess.sessionTeam == TEAM_AXIS) && (checkEnt->parent->spawnflags & ALLIED_OBJECTIVE) ) ||
 									( (ent->client->sess.sessionTeam == TEAM_ALLIES) && (checkEnt->parent->spawnflags & AXIS_OBJECTIVE) ) ) {
-									hintDist = CH_BREAKABLE_DIST * 2;
-									hintType = HINT_BREAKABLE_DYNAMITE;
+									hintDist = 40;
+									hintType = checkEnt->entstate == 5 ? 49 : HINT_BREAKABLE_DYNAMITE;
 									hintVal	 = ps->serverCursorHintVal	= 0;	// no health for dynamite
 								}
 							}
@@ -978,7 +1036,7 @@ void G_CheckForCursorHints( gentity_t *ent ) {
 
 					switch(it->giType) {
 						case IT_HEALTH:
-							hintType = HINT_HEALTH;
+                            if (ent->client->ps.stats[STAT_HEALTH] < 1) hintType = HINT_HEALTH;
 							break;
 						case IT_TREASURE:
 							hintType = HINT_TREASURE;
@@ -1018,8 +1076,12 @@ void G_CheckForCursorHints( gentity_t *ent ) {
 								hintType = HINT_POWERUP;
 							else if ( !Q_stricmp( traceEnt->classname, "team_CTF_blueflag" ) && ent->client->sess.sessionTeam == TEAM_AXIS )
 								hintType = HINT_POWERUP;
-							break;
-						case IT_BAD:
+                            else if (it->giTag == 6 && (ent->client->sess.sessionTeam == TEAM_ALLIES || (checkEnt->spawnflags & 4096)))
+                                hintType = HINT_POWERUP;
+                            else if (it->giTag == 7 && (ent->client->sess.sessionTeam == TEAM_AXIS || (checkEnt->spawnflags & 4096)))
+                                hintType = HINT_POWERUP;
+                            break;
+                        case IT_BAD:
 						default:
 							break;
 					}
@@ -1033,7 +1095,7 @@ void G_CheckForCursorHints( gentity_t *ent ) {
 							hintType = HINT_ACTIVATE;
 						}
 					} else if( !Q_stricmp( checkEnt->classname, "func_door_rotating" ) ) {
-						if( checkEnt->moverState == MOVER_POS1ROTATE ) { // stationary/closed
+						if( checkEnt->moverState == MOVER_POS1ROTATE && !(traceEnt->spawnflags & 128) ) { // stationary/closed
 							hintDist = CH_DOOR_DIST;
 							hintType = HINT_DOOR_ROTATING;
 							if( checkEnt->key == -1 || !G_AllowTeamsAllowed( checkEnt, ent ) ) { // locked
@@ -1061,17 +1123,29 @@ void G_CheckForCursorHints( gentity_t *ent ) {
 					}
 					
 					break;
-				case ET_MISSILE:
-				case ET_BOMB:
-					if ( ps->stats[ STAT_PLAYER_CLASS ] == PC_ENGINEER ) 
-					{
-						hintDist	= CH_BREAKABLE_DIST;
-						hintType	= HINT_DISARM;
-						hintVal		= checkEnt->health;		// also send health to client for visualization
-						if ( hintVal > 255 )
-							hintVal = 255;
-					}
-					
+                case 65: /* TC objective-use entity, original 2005efe0. */
+                    hintDist = 0;
+                    hintType = ps->serverCursorHint = HINT_FORCENONE;
+                    hintVal = ps->serverCursorHintVal = 0;
+                    if (checkEnt->parent && checkEnt->parent->s.eType == ET_OID_TRIGGER &&
+                        ent->client->tceObjectiveContact && checkEnt->entstate != 4 &&
+                        ((ent->client->sess.sessionTeam == TEAM_AXIS && (checkEnt->parent->spawnflags & AXIS_OBJECTIVE)) ||
+                         (ent->client->sess.sessionTeam == TEAM_ALLIES && (checkEnt->parent->spawnflags & ALLIED_OBJECTIVE)))) {
+                        if ((checkEnt->spawnflags & 8) && !(ps->stats[STAT_TCE_WEAPON_FLAGS] & 0x100)) return;
+                        if ((checkEnt->spawnflags & 4) && !(ps->stats[STAT_TCE_FLAGS] & 0x100)) return;
+                        if (checkEnt->entstate == 1) return;
+                        hintDist = 40;
+                        ent->client->tceObjectiveEntity = checkEnt->s.number;
+                        hintType = checkEnt->entstate == 5 ? 49 : HINT_ACTIVATE;
+                    }
+                    break;
+                case ET_MISSILE:
+                case ET_BOMB:
+                    /* TC 2005efe0: opposing-team bomb, no SDK class gate. */
+                    if (checkEnt->s.teamNum != ent->client->sess.sessionTeam) {
+                        hintDist = 48;
+                        hintType = HINT_DISARM;
+                    }
 
 					// hint icon specified in entity (and proper contact was made, so hintType was set)
 					// first try the checkent...
@@ -1100,11 +1174,8 @@ void G_CheckForCursorHints( gentity_t *ent ) {
 					case HINT_TREASURE:
 					case HINT_LADDER:
 					case HINT_EXIT:
-					case HINT_NOEXIT:
 					case HINT_PLYR_FRIEND:
-					case HINT_PLYR_NEUTRAL:
 					case HINT_PLYR_ENEMY:
-					case HINT_PLYR_UNKNOWN:
 						break;
 
 					default:
@@ -1253,11 +1324,34 @@ void G_RegisterCvars( void )
 
 	// check some things
 	// DHM - Gametype is currently restricted to supported types only
-	if((g_gametype.integer < GT_WOLF || g_gametype.integer >= GT_MAX_GAME_TYPE)) {
-		G_Printf( "g_gametype %i is out of range, defaulting to GT_WOLF(%i)\n", g_gametype.integer, GT_WOLF );
-		trap_Cvar_Set( "g_gametype", va("%i",GT_WOLF) );
+	if(g_gametype.integer != 2 && g_gametype.integer != 5 && g_gametype.integer != 7) {
+		G_Printf( "g_gametype %i is out of range, defaulting to GT_WOLF_LMS(%i)\n", g_gametype.integer, GT_WOLF_LMS );
+		trap_Cvar_Set( "g_gametype", va("%i",GT_WOLF_LMS) );
 		trap_Cvar_Update( &g_gametype );
 	}
+
+    /* Original20060000: the selected TC mod is stable until a mod reload. */
+    if(!sv_gametype.integer) {
+        trap_Cvar_Set("sv_gametype",va("%i",g_gametype.integer));
+    } else if(g_gametype.integer!=sv_gametype.integer && !g_developer.integer) {
+        G_Printf("g_gametype can not be changed at runtime\n");
+        trap_Cvar_Set("g_gametype",va("%i",sv_gametype.integer));
+        trap_Cvar_Update(&g_gametype);
+    }
+
+    /* Original20060000 consumes the definition initialized before registration. */
+    if(g_gametype.integer >= 0 && g_gametype.integer < 8 &&
+        g_maxclients.integer > tce_gametypeDef[g_gametype.integer].maxClients) {
+        trap_Cvar_Set("sv_maxclients",va("%i",tce_gametypeDef[g_gametype.integer].maxClients));
+        trap_Cvar_Update(&g_maxclients);
+    }
+
+    /* Original 20060000: Bodycount 5s, Capture the Flag 30s. */
+    if(g_gametype.integer == 7 || g_gametype.integer == 2) {
+        const char *interval = g_gametype.integer == 7 ? "5000" : "30000";
+        trap_Cvar_Set("g_redlimbotime", interval);trap_Cvar_Update(&g_redlimbotime);
+        trap_Cvar_Set("g_bluelimbotime", interval);trap_Cvar_Update(&g_bluelimbotime);
+    }
 
 	// OSP
 	if(!G_IsSinglePlayerGame()) {
@@ -1278,6 +1372,8 @@ void G_RegisterCvars( void )
 G_UpdateCvars
 =================
 */
+static qboolean G_TCEMapIsOfficial( const char *mapname );
+
 void G_UpdateCvars( void )
 {
 	int i;
@@ -1306,26 +1402,27 @@ void G_UpdateCvars( void )
 					trap_SetConfigstring( CS_FILTERCAMS, va( "%i", g_filtercams.integer ) );
 				}
 
+				/* TC20060270: FILD/FMUL retains the product until integer conversion. */
 				if( cv->vmCvar == &g_soldierChargeTime ) {
-					level.soldierChargeTime[0] = g_soldierChargeTime.integer * level.soldierChargeTimeModifier[0];
-					level.soldierChargeTime[1] = g_soldierChargeTime.integer * level.soldierChargeTimeModifier[1];
+					level.soldierChargeTime[0] = (double)g_soldierChargeTime.integer * level.soldierChargeTimeModifier[0];
+					level.soldierChargeTime[1] = (double)g_soldierChargeTime.integer * level.soldierChargeTimeModifier[1];
 					chargetimechanged = qtrue;
 				} else if( cv->vmCvar == &g_medicChargeTime ) {
-					level.medicChargeTime[0] = g_medicChargeTime.integer * level.medicChargeTimeModifier[0];
-					level.medicChargeTime[1] = g_medicChargeTime.integer * level.medicChargeTimeModifier[1];
+					level.medicChargeTime[0] = (double)g_medicChargeTime.integer * level.medicChargeTimeModifier[0];
+					level.medicChargeTime[1] = (double)g_medicChargeTime.integer * level.medicChargeTimeModifier[1];
 					chargetimechanged = qtrue;
 				} else if( cv->vmCvar == &g_engineerChargeTime ) {
-					level.engineerChargeTime[0] = g_engineerChargeTime.integer * level.engineerChargeTimeModifier[0];
-					level.engineerChargeTime[1] = g_engineerChargeTime.integer * level.engineerChargeTimeModifier[1];
+					level.engineerChargeTime[0] = (double)g_engineerChargeTime.integer * level.engineerChargeTimeModifier[0];
+					level.engineerChargeTime[1] = (double)g_engineerChargeTime.integer * level.engineerChargeTimeModifier[1];
 					chargetimechanged = qtrue;
 				} else if( cv->vmCvar == &g_LTChargeTime ) {
-					level.lieutenantChargeTime[0] = g_LTChargeTime.integer * level.lieutenantChargeTimeModifier[0];
-					level.lieutenantChargeTime[1] = g_LTChargeTime.integer * level.lieutenantChargeTimeModifier[1];
+					level.lieutenantChargeTime[0] = (double)g_LTChargeTime.integer * level.lieutenantChargeTimeModifier[0];
+					level.lieutenantChargeTime[1] = (double)g_LTChargeTime.integer * level.lieutenantChargeTimeModifier[1];
 					chargetimechanged = qtrue;
 				}
 				else if( cv->vmCvar == &g_covertopsChargeTime ) {
-					level.covertopsChargeTime[0] = g_covertopsChargeTime.integer * level.covertopsChargeTimeModifier[0];
-					level.covertopsChargeTime[1] = g_covertopsChargeTime.integer * level.covertopsChargeTimeModifier[1];
+					level.covertopsChargeTime[0] = (double)g_covertopsChargeTime.integer * level.covertopsChargeTimeModifier[0];
+					level.covertopsChargeTime[1] = (double)g_covertopsChargeTime.integer * level.covertopsChargeTimeModifier[1];
 					chargetimechanged = qtrue;
 				}
 				else if(cv->vmCvar == &match_readypercent) {
@@ -1336,6 +1433,14 @@ void G_UpdateCvars( void )
 					if(g_gamestate.integer != GS_PLAYING && !G_IsSinglePlayerGame()) {
 						level.warmupTime = level.time + (((g_warmup.integer < 10) ? 11 : g_warmup.integer + 1) * 1000);
 						trap_SetConfigstring(CS_WARMUP, va("%i", level.warmupTime));
+					}
+				}
+				else if(cv->vmCvar == &sv_official) {
+					/* TC20060270: changing official mode on an unofficial map
+					 * disables it; initialization's map redirect is a separate path. */
+					if(sv_official.integer && !G_TCEMapIsOfficial(level.rawmapname)) {
+						G_Printf("Map '%s' isn't an official map, resetting sv_official to 0\n", level.rawmapname);
+						trap_Cvar_Set("sv_official", va("%i", 0));
 					}
 				}
 				// Moved this check out of the main world think loop
@@ -1368,13 +1473,17 @@ void G_UpdateCvars( void )
 					if(!level.latchGametype && g_gamestate.integer == GS_PLAYING && 
 					  ( ( ( g_gametype.integer == GT_WOLF || g_gametype.integer == GT_WOLF_CAMPAIGN ) && (worldspawnflags & NO_GT_WOLF)) ||	
 					  (g_gametype.integer == GT_WOLF_STOPWATCH && (worldspawnflags & NO_STOPWATCH)) ||
+					  (g_gametype.integer == GT_TCE_BODYCOUNT && (worldspawnflags & 16)) ||
 					  (g_gametype.integer == GT_WOLF_LMS && (worldspawnflags & NO_LMS)) )
 					  ) {
 
-						if( !(worldspawnflags & NO_GT_WOLF) ) {
-							gt = GT_WOLF;	// Default wolf
+						/* TC prefers objective5, then capture2, then bodycount7. */
+						if( !(worldspawnflags & NO_LMS) ) {
+							gt = GT_WOLF_LMS;
+						} else if( !(worldspawnflags & NO_GT_WOLF) ) {
+							gt = GT_WOLF;
 						} else {
-							gt = GT_WOLF_LMS;	// Last man standing
+							gt = GT_TCE_BODYCOUNT;
 						}
 
 						level.latchGametype = qtrue;
@@ -1488,6 +1597,29 @@ void bani_clearmapxp( void ) {
 	trap_Cvar_Set( va( "%s_alliedmapxp0", GAMEVERSION ), "" );
 }
 
+/* TC20060a78/20060b92 consumes low EAX from __ftol64. */
+static int G_TCEMapXPInteger(float mapXPValue) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+	unsigned short mapXPCW, mapXPTruncCW;
+	__int64 mapXPResult;
+	__asm {
+		fld mapXPValue
+		fwait
+		fnstcw mapXPCW
+		fwait
+		mov ax, mapXPCW
+		or ax, 0c00h
+		mov mapXPTruncCW, ax
+		fldcw mapXPTruncCW
+		fistp qword ptr mapXPResult
+		fldcw mapXPCW
+	}
+	return (int)mapXPResult;
+#else
+	return (int)mapXPValue;
+#endif
+}
+
 void bani_storemapxp( void ) {
 	char cs[MAX_STRING_CHARS];
 	char u[MAX_STRING_CHARS];
@@ -1497,7 +1629,7 @@ void bani_storemapxp( void ) {
 	//axis
 	trap_GetConfigstring( CS_AXIS_MAPS_XP, cs, sizeof(cs) );
 	for( i = 0; i < SK_NUM_SKILLS; i++ ) {
-		Q_strcat( cs, sizeof( cs ), va( " %i", (int)level.teamXP[ i ][ 0 ] ) );
+		Q_strcat( cs, sizeof( cs ), va( " %i", G_TCEMapXPInteger(level.teamXP[ i ][ 0 ]) ) );
 	}
 	trap_SetConfigstring( CS_AXIS_MAPS_XP, cs );
 
@@ -1516,7 +1648,7 @@ void bani_storemapxp( void ) {
 	//allies
 	trap_GetConfigstring( CS_ALLIED_MAPS_XP, cs, sizeof(cs) );
 	for( i = 0; i < SK_NUM_SKILLS; i++ ) {
-		Q_strcat( cs, sizeof( cs ), va( " %i", (int)level.teamXP[ i ][ 1 ] ) );
+		Q_strcat( cs, sizeof( cs ), va( " %i", G_TCEMapXPInteger(level.teamXP[ i ][ 1 ]) ) );
 	}
 	trap_SetConfigstring( CS_ALLIED_MAPS_XP, cs );
 
@@ -1567,6 +1699,18 @@ G_InitGame
 
 ============
 */
+/* BG_MapIsOfficial, TC Windows 20030900 / Linux 000886c2.
+ * Kept server-local until the other modules' callers are reconstructed. */
+static qboolean G_TCEMapIsOfficial( const char *mapname ) {
+	return !Q_stricmp( mapname, "obj_stadtrand" ) ||
+		!Q_stricmp( mapname, "obj_delta" ) ||
+		!Q_stricmp( mapname, "obj_railhouse" ) ||
+		!Q_stricmp( mapname, "obj_northport" ) ||
+		!Q_stricmp( mapname, "obj_village" ) ||
+		!Q_stricmp( mapname, "obj_snow" ) ||
+		!Q_stricmp( mapname, "obj_hideout" );
+}
+
 void G_InitGame( int levelTime, int randomSeed, int restart ) {
 	int					i;
 	char				cs[MAX_INFO_STRING];
@@ -1581,6 +1725,7 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
 	trap_FS_FOpenFile( "pak2.dat", &i, FS_READ );
 	trap_FS_FCloseFile( i );
 
+	BG_InitializeGametypeDef();
 	G_RegisterCvars();
 
 	// Xian enforcemaxlives stuff	
@@ -1609,22 +1754,36 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
 	}
 
 	// set some level globals
+#ifndef _WIN32
+	/* Linux retains this field; TC Windows20060e40 clears it with level. */
 	i = level.server_settings;
+#endif
 	{
-		qboolean oldspawning = level.spawning;
 		voteInfo_t votedata;
+#ifndef _WIN32
+		qboolean spawning = level.spawning;
+#endif
 
 		memcpy( &votedata, &level.voteInfo, sizeof( voteInfo_t ) );
 
 		memset( &level, 0, sizeof( level ) );
 
 		memcpy( &level.voteInfo, &votedata, sizeof( voteInfo_t ) );
+#ifndef _WIN32
+		/* TC Linux000bf0f6 retains spawning; Windows20060e40 does not. */
+		level.spawning = spawning;
+#endif
 
-		level.spawning = oldspawning;
+		/* TC20060e40 preserves voteInfo only. The entity-spawn phase is
+		 * entered explicitly later by G_SpawnEntitiesFromString. */
 	}
 	level.time = levelTime;
 	level.startTime = levelTime;
+	/* The zeroed carrier indices are not ownership flags. Original assignment
+	 * and drop producers set -1; do not enable objective pickups prematurely. */
+#ifndef _WIN32
 	level.server_settings = i;
+#endif
 
 	for( i =0; i < level.numConnectedClients; i++ ) {
 		level.clients[ level.sortedClients[ i ] ].sess.spawnObjectiveIndex = 0;
@@ -1685,6 +1844,11 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
 
 		trap_SetConfigstring( CS_ROUNDSCORES1, va("%i", g_axiswins.integer ) );
 		trap_SetConfigstring( CS_ROUNDSCORES2, va("%i", g_alliedwins.integer ) );
+	} else {
+		/* TC also clears the previous winner outside gametype 5. */
+		trap_GetConfigstring( CS_MULTI_MAPWINNER, cs, sizeof(cs) );
+		Info_SetValueForKey( cs, "winner", "-1" );
+		trap_SetConfigstring( CS_MULTI_MAPWINNER, cs );
 	}
 
 	if( g_gametype.integer == GT_WOLF ) {
@@ -1700,6 +1864,15 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
 
 	trap_GetServerinfo( cs, sizeof( cs ) );
 	Q_strncpyz( level.rawmapname, Info_ValueForKey( cs, "mapname" ), sizeof(level.rawmapname) );
+	if( sv_official.integer && !G_TCEMapIsOfficial( level.rawmapname ) ) {
+		char nextmap[1024];
+		const char *suffix;
+		trap_SendServerCommand( -1, "print \"Unofficial map was specified on official server, loading default map\n\"" );
+		trap_Cvar_VariableStringBuffer( "nextmap", nextmap, sizeof(nextmap) );
+		G_Printf( "nextmap is: %s\n", nextmap );
+		suffix = nextmap[0] ? va( "; set nextmap \"%s\"", nextmap ) : "";
+		trap_SendConsoleCommand( EXEC_APPEND, va( "wait 2 ; map %s%s\n", "obj_northport", suffix ) );
+	}
 
 	G_ParseCampaigns();
 	if( g_gametype.integer == GT_WOLF_CAMPAIGN ) {
@@ -1796,13 +1969,6 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
 	numSplinePaths = 0 ;
 	numPathCorners = 0;
 
-#ifdef USEXPSTORAGE
-	G_ClearXPBackup();
-	if( g_gametype.integer == GT_WOLF_CAMPAIGN && !level.newCampaign ) {
-		G_ReadXPBackup();
-	}
-#endif // USEXPSTORAGE
-
 	// START	Mad Doctor I changes, 8/21/2002
 	// This needs to be called before G_SpawnEntitiesFromString, or the 
 	// bot entities get trashed.
@@ -1869,6 +2035,10 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
 	BG_ClearAnimationPool();
 
 	BG_ClearCharacterPool();
+    /* TC keeps these outside level: their parsed flags own the cache lifetime.
+     * A fresh module starts zeroed; repeated init must not force a reparse. */
+    G_LoadGearDef();
+    G_LoadWeaponDef();
 
 	BG_InitWeaponStrings();
 
@@ -1880,6 +2050,11 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
 	// Reinstate any MV views for clients -- need to do this after all init is complete
 	// --- maybe not the best place to do this... seems to be some race conditions on map_restart
 	G_spawnPrintf(DP_MVSPAWN, level.time + 2000, NULL);
+    /* Original20061748..20061779: listen-server TC state initialization. */
+    if(bot_enable.integer && !g_dedicated.integer){
+        tceNumBots=0;tceNumBots=trap_Cvar_VariableIntegerValue("numBots");
+        TCE_InitNodes();TCE_InitBotInfo();
+    }
 }
 
 
@@ -2016,8 +2191,8 @@ int QDECL SortRanks( const void *a, const void *b ) {
 		return -1;
 	}
 
-	if( g_gametype.integer == GT_WOLF_LMS ) {
-		// then sort by score
+	if( g_gametype.integer == 5 || g_gametype.integer == 2 || g_gametype.integer == 7 ) {
+		// TC uses score, then net damage; mode 6 retains the XP comparator.
 		if ( ca->ps.persistant[PERS_SCORE]
 			> cb->ps.persistant[PERS_SCORE] ) {
 			return -1;
@@ -2025,6 +2200,14 @@ int QDECL SortRanks( const void *a, const void *b ) {
 		if ( ca->ps.persistant[PERS_SCORE]
 			< cb->ps.persistant[PERS_SCORE] ) {
 			return 1;
+		}
+		{
+			int damageA = (int)((unsigned)ca->sess.damage_given -
+				(unsigned)ca->sess.team_damage - (unsigned)ca->sess.damage_received);
+			int damageB = (int)((unsigned)cb->sess.damage_given -
+				(unsigned)cb->sess.team_damage - (unsigned)cb->sess.damage_received);
+			if(damageA > damageB)return -1;
+			if(damageA < damageB)return 1;
 		}
 	} else {
 		int i, totalXP[2];
@@ -2094,6 +2277,32 @@ This will be called on every client connect, begin, disconnect, death,
 and team change.
 ============
 */
+/* The original Windows CRT partition order matters for tied players:
+ * their position decides the armament rating. Modern qsort changes it. */
+static void TCE_SortClientRanks(int *clients, int count) {
+ int lo, hi, i, largest, tmp;
+ if(count < 2)return;
+ if(count <= 8) {
+  for(hi=count-1;hi>0;--hi) {
+   largest=0;
+   for(i=1;i<=hi;++i)if(SortRanks(clients+i,clients+largest)>0)largest=i;
+   tmp=clients[largest];clients[largest]=clients[hi];clients[hi]=tmp;
+  }
+  return;
+ }
+ tmp=clients[count/2];clients[count/2]=clients[0];clients[0]=tmp;
+ lo=0;hi=count;
+ for(;;) {
+  do{++lo;}while(lo<count && SortRanks(clients+lo,clients)<=0);
+  do{--hi;}while(hi>0 && SortRanks(clients+hi,clients)>=0);
+  if(lo>hi)break;
+  tmp=clients[lo];clients[lo]=clients[hi];clients[hi]=tmp;
+ }
+ tmp=clients[0];clients[0]=clients[hi];clients[hi]=tmp;
+ TCE_SortClientRanks(clients,hi);
+ TCE_SortClientRanks(clients+lo,count-lo);
+}
+
 void CalculateRanks( void ) {
 	int		i;
 //	int		rank;
@@ -2176,8 +2385,7 @@ void CalculateRanks( void ) {
 		if(0 == teaminfo[i][0]) Q_strncpyz(teaminfo[i], "(None)", sizeof(teaminfo[i]));
 	}
 
-	qsort( level.sortedClients, level.numConnectedClients, 
-		sizeof(level.sortedClients[0]), SortRanks );
+	TCE_SortClientRanks(level.sortedClients, level.numConnectedClients);
 
 	// set the rank value for all clients that are connected and not spectators
 		// in team games, rank is just the order of the teams, 0=red, 1=blue, 2=tied
@@ -2191,6 +2399,44 @@ void CalculateRanks( void ) {
 				cl->ps.persistant[PERS_RANK] = 1;
 			}
 		}
+
+	/* TC armament availability, original CalculateRanks 20061b60.
+	 * Only the first three skillpoint slots represent Assault/Recon/Sniper. */
+	{
+		int base = g_currentRound.integer;
+		if(base < 1 || ((g_gamestate.integer != GS_WARMUP &&
+			g_gamestate.integer != GS_WARMUP_COUNTDOWN) && level.time-level.startTime > 1000)) {
+			int teamRank[2] = {0,0};
+			int group = (int)(max(level.numTeamClients[0],level.numTeamClients[1]) * (double)(1.f/3.f) + .5);
+			if(group < 1)group=1;
+			if(g_gametype.integer != 5 && g_aabasetime.integer > 0) {
+				base=(level.timeCurrent-level.startTime)/(g_aabasetime.integer*60000);
+				if(base<0)base=0;
+			}
+			for(i=0;i<level.numConnectedClients;++i) {
+				int role,bonus=0,j,minimum=max(0,base-1);
+				cl=&level.clients[level.sortedClients[i]];
+				role=BG_WolfClassToTCE(cl->ps.stats[STAT_PLAYER_CLASS]);
+				if(cl->sess.sessionTeam==TEAM_AXIS || cl->sess.sessionTeam==TEAM_ALLIES) {
+					int position=++teamRank[cl->sess.sessionTeam-TEAM_AXIS];
+					bonus=position<=group?1:position<=group*2?0:-1;
+				}
+				if(g_currentRound.integer<1 && (g_gamestate.integer==GS_WARMUP ||
+					g_gamestate.integer==GS_WARMUP_COUNTDOWN || level.time-level.startTime<=1000))bonus=0;
+				if(cl->sess.sessionTeam==TEAM_SPECTATOR)bonus=-1;
+				cl->sess.skillpoints[role]=(float)(base+bonus);
+				for(j=0;j<3;++j)if(j!=role || cl->sess.skillpoints[j]<minimum)
+					cl->sess.skillpoints[j]=(float)minimum;
+			}
+		} else {
+			int minimum=max(0,base-2),j;
+			for(i=0;i<level.numConnectedClients;++i) {
+				cl=&level.clients[level.sortedClients[i]];
+				for(j=0;j<3;++j)if(cl->sess.skillpoints[j]<minimum)
+					cl->sess.skillpoints[j]=(float)minimum;
+			}
+		}
+	}
 
 	// set the CS_SCORES1/2 configstrings, which will be visible to everyone
 //	trap_SetConfigstring( CS_SCORES1, va("%i", level.teamScores[TEAM_AXIS] ) );
@@ -2576,7 +2822,8 @@ void LogExit( const char *string ) {
 			}
 			else {
 				// use remaining time as next timer
-				trap_Cvar_Set( "g_nextTimeLimit", va( "%f", (level.timeCurrent - level.startTime) / 60000.f ) );
+				float nextTime = (level.timeCurrent - level.startTime) * (1.0f / 60000.0f);
+				trap_Cvar_Set( "g_nextTimeLimit", va( "%f", nextTime ) );
 			}
 		}
 		else {
@@ -2651,12 +2898,11 @@ void LogExit( const char *string ) {
 				}
 			}
 		}
-	} else if( g_gametype.integer == GT_WOLF_LMS ) {
+	} else if( g_gametype.integer == GT_WOLF_LMS ||
+		g_gametype.integer == GT_WOLF || g_gametype.integer == 7 ) {
 		int		winner;
 		int		roundLimit = g_lms_roundlimit.integer < 3 ? 3 : g_lms_roundlimit.integer;
-		int		numWinningRounds = (roundLimit / 2) + 1;
-
-		roundLimit -= 1;	// -1 as it starts at 0
+		if( g_gametype.integer != GT_WOLF_LMS ) roundLimit = 1;
 
 		trap_GetConfigstring( CS_MULTI_MAPWINNER, cs, sizeof(cs) );
 		winner = atoi( Info_ValueForKey( cs, "winner" ) );
@@ -2669,15 +2915,19 @@ void LogExit( const char *string ) {
 				winner = 1;
 		}
 
-		if( winner == 0 ) {
-			trap_Cvar_Set( "g_axiswins", va( "%i", g_axiswins.integer + 1 ) );
-			trap_Cvar_Update( &g_axiswins );
-		} else {
-			trap_Cvar_Set( "g_alliedwins", va( "%i", g_alliedwins.integer + 1 ) );
-			trap_Cvar_Update( &g_alliedwins );
+		/* Scripts award TC round points; then publish cumulative team totals. */
+		if( level.gameManager ) {
+			if( winner == 0 ) G_Script_ScriptEvent( level.gameManager, "trigger", "terrorists_win" );
+			else if( winner == 1 ) G_Script_ScriptEvent( level.gameManager, "trigger", "specops_win" );
 		}
+		trap_Cvar_Set( "g_axiswins", va( "%i", g_axiswins.integer + level.teamScores[TEAM_AXIS] ) );
+		trap_Cvar_Update( &g_axiswins );
+		trap_Cvar_Set( "g_alliedwins", va( "%i", g_alliedwins.integer + level.teamScores[TEAM_ALLIES] ) );
+		trap_Cvar_Update( &g_alliedwins );
+		trap_SetConfigstring( CS_ROUNDSCORES1, va( "%i", g_axiswins.integer ) );
+		trap_SetConfigstring( CS_ROUNDSCORES2, va( "%i", g_alliedwins.integer ) );
 
-		if( g_currentRound.integer >= roundLimit || g_axiswins.integer == numWinningRounds || g_alliedwins.integer == numWinningRounds ) {
+		if( g_currentRound.integer >= roundLimit - 1 ) {
 			trap_Cvar_Set( "g_currentRound", "0" );
 			if( g_lms_currentMatch.integer + 1 >= g_lms_matchlimit.integer ) {
 				trap_Cvar_Set( "g_lms_currentMatch", "0" );
@@ -2686,14 +2936,16 @@ void LogExit( const char *string ) {
 				trap_Cvar_Set( "g_lms_currentMatch", va( "%i", g_lms_currentMatch.integer + 1 ) );
 				level.lmsDoNextMap = qfalse;
 			}
+			if( level.gameManager ) {
+				if( g_axiswins.integer > g_alliedwins.integer )
+					G_Script_ScriptEvent( level.gameManager, "trigger", "terrorists_matchwin" );
+				else if( g_alliedwins.integer > g_axiswins.integer )
+					G_Script_ScriptEvent( level.gameManager, "trigger", "specops_matchwin" );
+			}
 		} else {
 			trap_Cvar_Set( "g_currentRound", va( "%i", g_currentRound.integer + 1 ) );
 			trap_Cvar_Update( &g_currentRound );
 		}
-	} else if( g_gametype.integer == GT_WOLF ) {
-
-		//bani - #113
-		bani_storemapxp();
 	}
 
 	G_BuildEndgameStats();
@@ -2712,6 +2964,7 @@ wait 10 seconds before going on.
 */
 void CheckIntermissionExit( void ) {
 	static int fActions = 0;
+	int roundLimit = g_lms_roundlimit.integer < 3 ? 3 : g_lms_roundlimit.integer;
 	qboolean exit = qtrue;
 	int i;
 	// rain - for #105
@@ -2756,8 +3009,10 @@ void CheckIntermissionExit( void ) {
 		exit = qfalse;
 	}
 
-	// Gordon: changing this to a minute for now
-	if( !exit && (level.time < level.intermissiontime + 60000) ) {
+	/* TC Windows: normal deployment after 5 seconds; final round after 8.
+	 * Ready percentage/referee override can finish either delay early. */
+	if( !exit && (level.time < level.intermissiontime +
+		(g_currentRound.integer < roundLimit - 1 ? 5000 : 8000)) ) {
 		return;
 	}
 
@@ -2795,139 +3050,102 @@ can see the last frag.
 =================
 */
 void CheckExitRules( void ) {
-	char	cs[MAX_STRING_CHARS];
-
-	// if at the intermission, wait for all non-bots to
-	// signal ready, then go to next level
-	if( g_gamestate.integer == GS_INTERMISSION ) {
-		CheckIntermissionExit ();
+	char cs[MAX_STRING_CHARS];
+	int terrorists, specops, winner;
+	if (g_gamestate.integer == GS_INTERMISSION) { CheckIntermissionExit(); return; }
+	if (level.intermissionQueued) { level.intermissionQueued = 0; BeginIntermission(); return; }
+	if (level.time < level.tceExitRulesNotBefore) return;
+	if (level.tceEndRoundTime) {
+		if (level.time > level.tceEndRoundTime + 3000 && g_gamestate.integer == GS_PLAYING)
+			LogExit("Wolf EndRound.");
 		return;
 	}
-
-	if ( level.intermissionQueued ) {
-		level.intermissionQueued = 0;
-		BeginIntermission();
-		return;
+	if (g_gametype.integer == 7 && g_fraglimit.integer) {
+		if (level.teamScores[TEAM_AXIS] >= g_fraglimit.integer) {
+			trap_GetConfigstring(CS_MULTI_MAPWINNER, cs, sizeof(cs));
+			Info_SetValueForKey(cs, "winner", "0"); trap_SetConfigstring(CS_MULTI_MAPWINNER, cs);
+			LogExit("Terrorists hit the fraglimit."); return;
+		}
+		if (level.teamScores[TEAM_ALLIES] >= g_fraglimit.integer) {
+			trap_GetConfigstring(CS_MULTI_MAPWINNER, cs, sizeof(cs));
+			Info_SetValueForKey(cs, "winner", "1"); trap_SetConfigstring(CS_MULTI_MAPWINNER, cs);
+			LogExit("Specops hit the fraglimit."); return;
+		}
 	}
-
-	if ( g_timelimit.value && !level.warmupTime ) {
-		// OSP
-		if((level.timeCurrent - level.startTime) >= (g_timelimit.value * 60000)) {
-		// OSP
-
-			// Check who has the most players alive
-			if( g_gametype.integer == GT_WOLF_LMS ) {
-				int axisSurvivors, alliedSurvivors;
-
-				axisSurvivors = level.numTeamClients[0] - level.numFinalDead[0];
-				alliedSurvivors = level.numTeamClients[1] - level.numFinalDead[1];
-
-				//bani - if team was eliminated < 3 sec before round end, we _properly_ end it here
-				if( level.teamEliminateTime ) {
-					LogExit( va( "%s team eliminated.", level.lmsWinningTeam == TEAM_ALLIES ? "Axis" : "Allied" ) );
-				}
-
-				if( axisSurvivors == alliedSurvivors ) {
-					// First blood wins
-					if( level.firstbloodTeam == TEAM_AXIS ) {
-						trap_GetConfigstring( CS_MULTI_MAPWINNER, cs, sizeof(cs) );
-						Info_SetValueForKey( cs, "winner", "0" );
-						trap_SetConfigstring( CS_MULTI_MAPWINNER, cs );
-						LogExit( "Axis team wins by drawing First Blood." );
-						trap_SendServerCommand( -1, "print \"Axis team wins by drawing First Blood.\n\"");
-					} else if( level.firstbloodTeam == TEAM_ALLIES ) {
-						trap_GetConfigstring( CS_MULTI_MAPWINNER, cs, sizeof(cs) );
-						Info_SetValueForKey( cs, "winner", "1" );
-						trap_SetConfigstring( CS_MULTI_MAPWINNER, cs );
-						LogExit( "Allied team wins by drawing First Blood." );
-						trap_SendServerCommand( -1, "print \"Allied team wins by drawing First Blood.\n\"");
-					} else {
-						// no winner yet - sudden death!
-						return;
-					}
-				} else if( axisSurvivors > alliedSurvivors ) {
-					trap_GetConfigstring( CS_MULTI_MAPWINNER, cs, sizeof(cs) );
-					Info_SetValueForKey( cs, "winner", "0" );
-					trap_SetConfigstring( CS_MULTI_MAPWINNER, cs );
-					LogExit( "Axis team has the most survivors." );
-					trap_SendServerCommand( -1, "print \"Axis team has the most survivors.\n\"");
-					return;
-				} else {
-					trap_GetConfigstring( CS_MULTI_MAPWINNER, cs, sizeof(cs) );
-					Info_SetValueForKey( cs, "winner", "1" );
-					trap_SetConfigstring( CS_MULTI_MAPWINNER, cs );
-					LogExit( "Allied team has the most survivors." );
-					trap_SendServerCommand( -1, "print \"Allied team has the most survivors.\n\"");
-					return;
-				}
-			} else {
-				// check for sudden death 
-				if ( ScoreIsTied() ) {
-					// score is tied, so don't end the game
-					return;
-				}
+	if (g_timelimit.value && !level.warmupTime) {
+		if (level.tceTimelimitHitTime) {
+			if (level.time > level.tceTimelimitHitTime + 1000 && g_gamestate.integer == GS_PLAYING) {
+				trap_SendServerCommand(-1, "print \"Timelimit hit.\n\""); LogExit("Timelimit hit.");
 			}
-
-			if ( level.gameManager ) {
-				G_Script_ScriptEvent( level.gameManager, "trigger", "timelimit_hit" );
-			}
-
-			// NERVE - SMF - do not allow LogExit to be called in non-playing gamestate
-			// - This already happens in LogExit, but we need it for the print command
-			if ( g_gamestate.integer != GS_PLAYING )
-				return;
-
-			trap_SendServerCommand( -1, "print \"Timelimit hit.\n\"");
-			LogExit( "Timelimit hit." );
-
 			return;
 		}
-	}
-
-	//bani - #444
-	//i dont really get the point of the delay anyway, why not end it immediately like maxlives games?
-	if( g_gametype.integer == GT_WOLF_LMS ) {
-		if( !level.teamEliminateTime ) {
-			if( level.numFinalDead[0] >= level.numTeamClients[0] && level.numTeamClients[0] > 0 ) {
-				level.teamEliminateTime = level.time;
-				level.lmsWinningTeam = TEAM_ALLIES;
-				trap_GetConfigstring( CS_MULTI_MAPWINNER, cs, sizeof( cs ) );
-				Info_SetValueForKey( cs, "winner", "1" );
-				trap_SetConfigstring( CS_MULTI_MAPWINNER, cs );
-			} else if( level.numFinalDead[1] >= level.numTeamClients[1] && level.numTeamClients[1] > 0 ) {
-				level.teamEliminateTime = level.time;
-				level.lmsWinningTeam = TEAM_AXIS;
-				trap_GetConfigstring( CS_MULTI_MAPWINNER, cs, sizeof( cs ) );
-				Info_SetValueForKey( cs, "winner", "0" );
-				trap_SetConfigstring( CS_MULTI_MAPWINNER, cs );
+		/* Windows200630cb FILD compares the exact integer delta against an
+         * unspilled x87 product; a float cast rounds timer boundaries early. */
+        if (!((double)(level.timeCurrent - level.startTime) < (double)g_timelimit.value * 60000.0)) {
+			if (g_gametype.integer != 5) {
+				if (ScoreIsTied()) {
+					if ((g_gametype.integer != 7 || !g_fraglimit.integer) && g_gametype.integer != 2) return;
+					if (level.teamScores[TEAM_AXIS] == level.teamScores[TEAM_ALLIES]) return;
+					trap_GetConfigstring(CS_MULTI_MAPWINNER, cs, sizeof(cs));
+					Info_SetValueForKey(cs,"winner",level.teamScores[TEAM_AXIS] > level.teamScores[TEAM_ALLIES] ? "0" : "1");
+					trap_SetConfigstring(CS_MULTI_MAPWINNER, cs);
+				}
+				goto timelimit;
 			}
-		} else if( level.teamEliminateTime + 3000 < level.time ) {
-			LogExit( va( "%s team eliminated.", level.lmsWinningTeam == TEAM_ALLIES ? "Axis" : "Allied" ) );
-		}
-		return;
-	}
-
-	if ( level.numPlayingClients < 2 ) {
-		return;
-	}
-
-	if( g_gametype.integer != GT_WOLF_LMS ) {
-		if( g_maxlives.integer > 0 || g_axismaxlives.integer > 0 || g_alliedmaxlives.integer > 0 ) {
-			if ( level.numFinalDead[0] >= level.numTeamClients[0] && level.numTeamClients[0] > 0 ) {
-				trap_GetConfigstring( CS_MULTI_MAPWINNER, cs, sizeof(cs) );
-				Info_SetValueForKey( cs, "winner", "1" );
-				trap_SetConfigstring( CS_MULTI_MAPWINNER, cs );
-				LogExit( "Axis team eliminated." );
-			}
-			else if ( level.numFinalDead[1] >= level.numTeamClients[1] && level.numTeamClients[1] > 0 ) {
-				trap_GetConfigstring( CS_MULTI_MAPWINNER, cs, sizeof(cs) );
-				Info_SetValueForKey( cs, "winner", "0" );
-				trap_SetConfigstring( CS_MULTI_MAPWINNER, cs );
-				LogExit( "Allied team eliminated." );
+			if (!level.tceBombPlanted) {
+				terrorists = level.numTeamClients[0] - level.numFinalDead[0];
+				specops = level.numTeamClients[1] - level.numFinalDead[1];
+				if (ScoreIsTied()) {
+					if (terrorists != specops) {
+						trap_GetConfigstring(CS_MULTI_MAPWINNER, cs, sizeof(cs));
+						Info_SetValueForKey(cs,"winner",terrorists > specops ? "0" : "1"); trap_SetConfigstring(CS_MULTI_MAPWINNER,cs);
+						LogExit(terrorists > specops ? "Terrorists have the most survivors." : "Specops have the most survivors.");
+						trap_SendServerCommand(-1,terrorists > specops ? "print \"Terrorists have the most survivors.\n\"" : "print \"Specops have the most survivors.\n\""); return;
+					}
+					if (level.firstbloodTeam != TEAM_AXIS && level.firstbloodTeam != TEAM_ALLIES) return;
+					trap_GetConfigstring(CS_MULTI_MAPWINNER,cs,sizeof(cs));
+					Info_SetValueForKey(cs,"winner",level.firstbloodTeam == TEAM_AXIS ? "0" : "1"); trap_SetConfigstring(CS_MULTI_MAPWINNER,cs);
+					LogExit(level.firstbloodTeam == TEAM_AXIS ? "Terrorists win by drawing First Blood." : "Specops team win by drawing First Blood.");
+					trap_SendServerCommand(-1,level.firstbloodTeam == TEAM_AXIS ? "print \"Terrorists win by drawing First Blood.\n\"" : "print \"Specops win by drawing First Blood.\n\"");
+				}
+				goto timelimit;
 			}
 		}
 	}
+	if (g_gametype.integer != 5) {
+		if (level.numPlayingClients < 2 || (g_maxlives.integer < 1 && g_axismaxlives.integer < 1 && g_alliedmaxlives.integer < 1)) return;
+		if (level.numFinalDead[0] >= level.numTeamClients[0] && level.numTeamClients[0] > 0) goto terrorists_eliminated;
+		if (level.numFinalDead[1] >= level.numTeamClients[1] && level.numTeamClients[1] > 0) goto specops_eliminated;
+		return;
+	}
+	if (!level.teamEliminateTime && !level.warmupTime) {
+		if (g_gamestate.integer != GS_PLAYING) return;
+		trap_GetConfigstring(CS_MULTI_MAPWINNER,cs,sizeof(cs)); winner = atoi(Info_ValueForKey(cs,"winner"));
+		if (level.numFinalDead[0] >= level.numTeamClients[0] && level.numTeamClients[0] > 0) {
+			if (level.tceBombPlanted && winner == 1) return;
+			level.teamEliminateTime = level.time; level.lmsWinningTeam = TEAM_ALLIES;
+			if (level.gameManager) G_Script_ScriptEvent(level.gameManager,"trigger","terrorists_eliminated");
+			return;
+		}
+		if (level.numFinalDead[1] < level.numTeamClients[1] || level.numTeamClients[1] < 1) return;
+		if (level.tceBombPlanted && winner == 0) return;
+		level.teamEliminateTime = level.time; level.lmsWinningTeam = TEAM_AXIS;
+		if (level.gameManager) G_Script_ScriptEvent(level.gameManager,"trigger","specops_eliminated");
+		return;
+	}
+	if (level.time <= level.teamEliminateTime + 3000) return;
+	if (level.lmsWinningTeam == TEAM_ALLIES) goto terrorists_eliminated;
+specops_eliminated:
+	trap_GetConfigstring(CS_MULTI_MAPWINNER,cs,sizeof(cs)); Info_SetValueForKey(cs,"winner","0"); trap_SetConfigstring(CS_MULTI_MAPWINNER,cs);
+	LogExit("Specops eliminated."); return;
+terrorists_eliminated:
+	trap_GetConfigstring(CS_MULTI_MAPWINNER,cs,sizeof(cs)); Info_SetValueForKey(cs,"winner","1"); trap_SetConfigstring(CS_MULTI_MAPWINNER,cs);
+	LogExit("Terrorists eliminated."); return;
+timelimit:
+	level.tceTimelimitHitTime = level.time;
+	if (level.gameManager) G_Script_ScriptEvent(level.gameManager,"trigger","timelimit_hit");
 }
+
 
 
 
@@ -3054,7 +3272,15 @@ void CheckWolfMP() {
 			  (level.numPlayingClients >= match_minplayers.integer &&
 			   level.lastRestartTime + 1000 < level.time && G_readyMatchState()))
 			{
-				int delay = (g_warmup.integer < 10) ? 11 : g_warmup.integer + 1;
+				int delay;
+				/* TC caps later Objective/Bodycount rounds; first rounds retain
+				 * the eleven-second minimum (CheckWolfMP 200635a0). */
+				if((g_gametype.integer == 5 || g_gametype.integer == 7) &&
+					g_currentRound.integer > 0) {
+					delay = g_warmup.integer < 11 ? g_warmup.integer + 1 : 11;
+				} else {
+					delay = g_warmup.integer < 10 ? 11 : g_warmup.integer + 1;
+				}
 
 				// Why scale these at all?  Minimum would mean 22s on Campaign and 44 on LMS....
 				// Once people are ready, they want to get the show rolling :)
@@ -3317,6 +3543,13 @@ void CheckCvars( void ) {
 			}
 		}
 	}
+
+    /* TC2006399f: official mode also owns the friendly-fire setting. */
+    if (sv_official.integer == 1 && g_friendlyFire.integer != 1) {
+        trap_Cvar_Set("g_friendlyfire", "1");
+    } else if (sv_official.integer == 0 && g_friendlyFire.integer != 0) {
+        trap_Cvar_Set("g_friendlyfire", "0");
+    }
 }
 
 /*
@@ -3327,7 +3560,9 @@ Runs thinking code for this frame if necessary
 =============
 */
 void G_RunThink (gentity_t *ent) {
-	float	thinktime;
+	/* TC 20063c02/20063c15 loads both integer timers directly into x87
+	 * for comparison, without a binary32 spill. Keep all timer bits. */
+	int		thinktime;
 
 	// OSP - If paused, push nextthink
 	if(level.match_pause != PAUSE_NONE && (ent - g_entities) >= g_maxclients.integer &&
@@ -3366,6 +3601,7 @@ qboolean G_PositionEntityOnTag( gentity_t *entity, gentity_t* parent, char *tagN
 	int				i;
 	orientation_t	tag;
 	vec3_t			axis[3];
+	double tagOrigin[3];
 	AnglesToAxis( parent->r.currentAngles, axis );
 
 	VectorCopy( parent->r.currentOrigin, entity->r.currentOrigin );
@@ -3374,8 +3610,17 @@ qboolean G_PositionEntityOnTag( gentity_t *entity, gentity_t* parent, char *tagN
 		return qfalse;
 	}
 
-	for ( i = 0 ; i < 3 ; i++ ) {
-		VectorMA( entity->r.currentOrigin, tag.origin[i], axis[i], entity->r.currentOrigin );
+	/* TC 20063ce6 retains the three sums until all tag axes are applied. */
+	for ( i = 0; i < 3; ++i ) {
+		tagOrigin[i] = entity->r.currentOrigin[i];
+	}
+	for ( i = 0; i < 3; ++i ) {
+		tagOrigin[0] += (double)tag.origin[i] * axis[i][0];
+		tagOrigin[1] += (double)tag.origin[i] * axis[i][1];
+		tagOrigin[2] += (double)tag.origin[i] * axis[i][2];
+	}
+	for ( i = 0; i < 3; ++i ) {
+		entity->r.currentOrigin[i] = (float)tagOrigin[i];
 	}
 
 	if( entity->client && entity->s.eFlags & EF_MOUNTEDTANK ) {
@@ -3417,8 +3662,14 @@ void G_TagLinkEntity( gentity_t* ent, int msec ) {
 
 	G_RunEntity( parent, msec );
 
+	/* Original TC20063db0 and Linux000c2e22 leave angles uninitialized
+	 * when the follower offset is zero (they clear origin instead).
+	 * Define only that unsafe result: preserve current orientation.
+	 * This is an explicit safety repair, not original zero-offset parity. */
+	VectorCopy( ent->r.currentAngles, angles );
+
 	if (!(parent->s.eFlags & EF_PATH_LINK)) {
-		if( parent->s.pos.trType == TR_LINEAR_PATH ) {
+		if( (int)parent->s.pos.trType == 16 ) {
 			int pos;
 			float frac;
 
@@ -3528,6 +3779,8 @@ void G_TagLinkEntity( gentity_t* ent, int msec ) {
 }
 
 void G_RunEntity( gentity_t* ent, int msec ) {
+	int axis;
+	double velocityScale;
 	if( ent->runthisframe ) {
 		return;
 	}
@@ -3637,20 +3890,14 @@ void G_RunEntity( gentity_t* ent, int msec ) {
 		G_RunFlamechunk( ent );
 		
 		// ydnar: hack for instantaneous velocity
-		VectorSubtract( ent->r.currentOrigin, ent->oldOrigin, ent->instantVelocity );
-		VectorScale( ent->instantVelocity, 1000.0f / msec, ent->instantVelocity );
-		
-		return;
+		goto updateVelocity;
 	}
 
 	if( ent->s.eType == ET_ITEM || ent->physicsObject ) {
 		G_RunItem( ent );
 		
 		// ydnar: hack for instantaneous velocity
-		VectorSubtract( ent->r.currentOrigin, ent->oldOrigin, ent->instantVelocity );
-		VectorScale( ent->instantVelocity, 1000.0f / msec, ent->instantVelocity );
-		
-		return;
+		goto updateVelocity;
 	}
 
 	if ( ent->s.eType == ET_MOVER || ent->s.eType == ET_PROP)
@@ -3658,20 +3905,17 @@ void G_RunEntity( gentity_t* ent, int msec ) {
 		G_RunMover( ent );
 		
 		// ydnar: hack for instantaneous velocity
-		VectorSubtract( ent->r.currentOrigin, ent->oldOrigin, ent->instantVelocity );
-		VectorScale( ent->instantVelocity, 1000.0f / msec, ent->instantVelocity );
-		
-		return;
+		goto updateVelocity;
 	}
 	
 	if( ent-g_entities < MAX_CLIENTS ) {
-		G_RunClient( ent );
+		/* TC20064575..20064590: ClientConnect does not register SDK BotAI.
+		 * The original gate is SVF_BOT, not botInfo.active or bot_enable. */
+		if (ent->r.svFlags & SVF_BOT) TCE_Botthink(ent);
+		else G_RunClient( ent );
 		
 		// ydnar: hack for instantaneous velocity
-		VectorSubtract( ent->r.currentOrigin, ent->oldOrigin, ent->instantVelocity );
-		VectorScale( ent->instantVelocity, 1000.0f / msec, ent->instantVelocity );
-		
-		return;
+		goto updateVelocity;
 	}
 
 	// OSP - multiview
@@ -3687,8 +3931,15 @@ void G_RunEntity( gentity_t* ent, int msec ) {
 	G_RunThink( ent );
 		
 	// ydnar: hack for instantaneous velocity
-	VectorSubtract( ent->r.currentOrigin, ent->oldOrigin, ent->instantVelocity );
-	VectorScale( ent->instantVelocity, 1000.0f / msec, ent->instantVelocity );
+	updateVelocity:
+	/* TC20064597..200645db keeps division and subtraction on the x87
+	 * stack until each final component store; do not spill either to float. */
+	velocityScale = 1000.0 / (double)msec;
+	for (axis = 0; axis < 3; ++axis) {
+		ent->instantVelocity[axis] = (float)(
+			((double)ent->r.currentOrigin[axis] - (double)ent->oldOrigin[axis])
+			* velocityScale);
+	}
 }
 
 /*
@@ -3698,9 +3949,121 @@ G_RunFrame
 Advances the non-player objects in the world
 ================
 */
+/* TC200646b0 objective-assignment branches. The containing frame controller
+ * retains its separate reconstruction status. Script action supplies teams. */
+/* TC200639e0 / Linux G_LoadOfficialDat: decode the 32 fixed-width numbers.
+ * Keep the original 15-byte read and initialized sixteenth character. */
+static qboolean G_LoadOfficialDat(const char *filename, char *checksums) {
+    fileHandle_t file;
+    double values[32];
+    char field[17], separator;
+    int i, seed;
+    trap_FS_FOpenFile(filename, &file, FS_READ);
+    if (!file) {
+        G_Printf("^1WARNING: Server failed to load %s\n", filename);
+        return qfalse;
+    }
+    for (i = 0; i < 32; i++) {
+        Com_sprintf(field, sizeof(field), "%16.2lf", 100000000.0);
+        trap_FS_Read(field, 15, file);
+        values[i] = atof(field);
+        trap_FS_Read(&separator, 1, file);
+    }
+    seed = (int)(values[21] * 0.001 - 5.0);
+    for (i = 0; i < 16; i++) {
+        values[i] -= Q_crandom(&seed) * 100000000.0 + values[i + 16];
+    }
+    for (i = 0; i < 16; i++) {
+        if (abs((int)values[i]) > 0.1) {
+            Q_strcat(checksums, MAX_INFO_STRING, va("%.0lf ", floor(values[i] + 0.1)));
+        }
+    }
+    trap_FS_FCloseFile(file);
+    return qtrue;
+}
+
+/* TC20064d50 / Linux G_CheckOfficial. The cached cvar is deliberately not
+ * refreshed after setting it: the original observes it on the next frame. */
+static void G_CheckOfficial(void) {
+    char pakNames[MAX_INFO_STRING], paks[MAX_INFO_STRING], checksums[MAX_INFO_STRING];
+    if (sv_official.integer != 1 || level.tceOfficialChecked) return;
+    if (!trap_Cvar_VariableIntegerValue("sv_pure")) {
+        G_Printf("Unpure server detected, setting sv_offical to zero\n");
+        trap_Cvar_Set("sv_official", "0");
+    }
+    trap_Cvar_VariableStringBuffer("sv_pakNames", pakNames, sizeof(pakNames));
+    if (!Q_stricmp(pakNames, "")) return;
+    trap_Cvar_VariableStringBuffer("sv_paks", paks, sizeof(paks));
+    level.tceOfficialChecked = qtrue;
+    memset(checksums, 0, sizeof(checksums));
+    if (!G_LoadOfficialDat("official.dat", checksums)) {
+        G_Error("Official file not found or corrupted, can not run official server");
+    } else if (Q_stricmp(paks, checksums)) {
+        G_Printf("Referenced paks: %s\n", pakNames);
+        G_Error("Invalid or modified paks referenced, can not run official server");
+    }
+}
+
+static void G_TCEAssignObjective(qboolean vip) {
+    int team=vip?level.tceVipTeam:level.tceDemolitionTeam;
+    int selected=-1,start,i,index;
+    gentity_t *ent,*popup;
+    char serverinfo[MAX_INFO_STRING];
+    if(!team || level.warmupTime || g_gamestate.integer!=GS_PLAYING || g_gametype.integer!=5 ||
+        level.time-level.startTime<=500 || level.time-level.startTime>=3000 ||
+        (vip?level.tceVipAssigned:level.tceBombAssigned))return;
+    /* Original20064b2a..20064b3a retains both products in x87 before
+     * integer truncation; binary32 intermediate rounding changes the carrier. */
+    start=(int)((double)(rand()&0x7fff)*(double)(1.0f/32767.0f)*
+                (double)level.numConnectedClients);
+    if(!vip)trap_GetConfigstring(CS_MULTI_MAPWINNER,serverinfo,sizeof(serverinfo));
+    if(team>2)team=-1;
+    for(i=0;i<level.maxclients;i++) {
+        index=start+i;if(index>=level.maxclients)index-=level.maxclients;
+        ent=&g_entities[index];
+        if(!ent->client || ent->client->pers.connected!=CON_CONNECTED || (ent->s.eFlags&EF_CONNECTION) ||
+            ent->client->sess.sessionTeam==TEAM_SPECTATOR || (ent->client->ps.pm_flags&(PMF_LIMBO|PMF_FOLLOW)) ||
+            ent->client->ps.stats[STAT_HEALTH]<50 || ent->client->sess.sessionTeam!=team)continue;
+        selected=ent->client->ps.clientNum;
+        if(!vip && (ent->client->ps.stats[STAT_TCE_FLAGS]&2))break;
+    }
+    if(selected<0) {
+        if(vip)level.tceVipCarrier=-1;else level.tceBombCarrier=-1;
+        return;
+    }
+    ent=&g_entities[selected];
+    if(vip) {
+        level.tceVipAssigned=qtrue;ent->client->ps.stats[STAT_TCE_FLAGS]|=0x100;
+        level.tceVipCarrier=ent->client->ps.clientNum;
+        SetWolfSpawnWeapons(ent->client);
+    } else {
+        level.tceBombAssigned=qtrue;ent->client->ps.stats[STAT_TCE_WEAPON_FLAGS]|=0x100;
+        level.tceBombCarrier=ent->client->ps.clientNum;
+        ent->client->tceBombPossessionOrder=++level.tceBombCarrierCount;
+    }
+    popup=G_PopupMessage(PM_MESSAGE);popup->s.effect2Time=team;
+    popup->s.effect3Time=selected;popup->s.density=vip?3:0;
+}
+static void G_TCEObjectiveFrame(void) {
+    int i,best=0,selected=-1;
+    G_TCEAssignObjective(qfalse);
+    if(level.tceDemolitionTeam && level.tceBombCarrierCount>1) {
+        for(i=0;i<level.maxclients;i++)if(g_entities[i].client && g_entities[i].client->tceBombPossessionOrder>best) {
+            best=g_entities[i].client->tceBombPossessionOrder;selected=i;
+        }
+        if(selected>=0) {
+            g_entities[selected].client->ps.stats[STAT_TCE_WEAPON_FLAGS]&=~0x100;
+            g_entities[selected].client->tceBombPossessionOrder=0;level.tceBombCarrierCount--;
+            G_Printf("ELITE DEBUG: removed additional bombcarrier\n");
+        }
+    }
+    G_TCEAssignObjective(qtrue);
+}
+
 void G_RunFrame( int levelTime ) {
 	int			i, msec;
 //	int			pass = 0;
+	level.tceFrameStartTime = trap_Milliseconds();
 
 	// if we are waiting for the level to restart, do nothing
 	if ( level.restarted ) {
@@ -3760,6 +4123,9 @@ uebrgpiebrpgibqeripgubeqrpigubqifejbgipegbrtibgurepqgbn%i", level.time )
 
 	// get any cvar changes
 	G_UpdateCvars();
+	G_CheckOfficial();
+	/* Original2006478x: after frame4, update dynamic waypoint restrictions. */
+	if(bot_enable.integer && level.framenum>4){TCE_UpdateBotInfo();TCE_UpdateNodes();}
 
 	for( i = 0; i < level.num_entities; i++ ) {
 		g_entities[i].runthisframe = qfalse;
@@ -3775,7 +4141,16 @@ uebrgpiebrpgibqeripgubeqrpigubqifejbgipegbrtibgurepqgbn%i", level.time )
 		ClientEndFrame(&g_entities[level.sortedClients[i]]);
 	}
 
+    G_TCEObjectiveFrame();
+
 	// NERVE - SMF
+    /* TC20064c78: reinforcement spawn-group producer, original -2.98f factor. */
+    if (g_redlimbotime.integer && (g_gametype.integer==2 || g_gametype.integer==7) &&
+        level.timeCurrent-level.startTime > level.tceSpawnPhaseTime+5000) {
+        level.tceSpawnPhaseTime += g_redlimbotime.integer;
+        level.tceSpawnPhase = 1-(int)((double)(rand()&0x7fff)*(1.f/32767.f)*-2.98f);
+    }
+
 	CheckWolfMP();
 
 	// see if it is time to end the level

@@ -1,5 +1,93 @@
 #include "g_local.h"
 
+void InitTrigger(gentity_t *self);
+
+/* TC objective entities: original entity types 63 (touch) and 65 (use).
+ * Their numeric values are part of the original map/client protocol. */
+qboolean G_AllInTrigger(gentity_t *self) {
+	int i, j, count, list[MAX_GENTITIES];
+	gclient_t *client;
+	gentity_t *hit;
+	vec3_t mins, maxs;
+	const vec3_t range = {40.f, 40.f, 52.f};
+	qboolean found;
+	for (i = 0; i < level.numConnectedClients; i++) {
+		client = &level.clients[level.sortedClients[i]];
+		if (client->sess.sessionTeam == TEAM_SPECTATOR || client->pers.connected == CON_CONNECTING) continue;
+		VectorSubtract(client->ps.origin, range, mins);
+		VectorAdd(client->ps.origin, range, maxs);
+		count = trap_EntitiesInBox(mins, maxs, list, MAX_GENTITIES);
+		found = qfalse;
+		for (j = 0; j < count; j++) {
+			hit = &g_entities[list[j]];
+			if (hit->s.eType == 63 && hit->s.teamNum == self->s.teamNum) found = qtrue;
+		}
+		if (found) continue;
+		if (((self->spawnflags & 8) && (client->ps.stats[STAT_TCE_FLAGS] & 0x400)) ||
+			((self->spawnflags & 1) && client->sess.sessionTeam == TEAM_AXIS) ||
+			((self->spawnflags & 2) && client->sess.sessionTeam == TEAM_ALLIES)) return qfalse;
+	}
+	return qtrue;
+}
+
+static void func_obj_touch_touch(gentity_t *self, gentity_t *other, trace_t *trace) {
+	int flags = self->spawnflags;
+	if ((flags & 16) && !(other->client->ps.stats[STAT_TCE_WEAPON_FLAGS] & 0x100)) return;
+	if ((flags & 8) && !(other->client->ps.stats[STAT_TCE_FLAGS] & 0x400)) return;
+	if ((flags & 4) && !(other->client->ps.stats[STAT_TCE_FLAGS] & 0x100)) return;
+	if ((flags & 1) && other->client->sess.sessionTeam != TEAM_AXIS) return;
+	if ((flags & 2) && other->client->sess.sessionTeam != TEAM_ALLIES) return;
+	if ((flags & 64) && !G_AllInTrigger(self)) return;
+	/* Original 20075860 uses entity+0x1c0 (eventTime), not free time. */
+	if (self->eventTime > level.time || self->entstate == STATE_INACTIVE || self->entstate == STATE_INVISIBLE || self->entstate == STATE_LOCKED ||
+		!self->parent || self->parent->s.eType != ET_OID_TRIGGER) return;
+	G_Script_ScriptEvent(self, "touched", "");
+	if (other->client->sess.sessionTeam == TEAM_AXIS) G_Script_ScriptEvent(self, "touched", "terrorists");
+	if (other->client->sess.sessionTeam == TEAM_ALLIES) G_Script_ScriptEvent(self, "touched", "specops");
+	G_UseTargets(self, other);
+	self->eventTime = level.time + 1000;
+}
+
+void SP_func_obj_touch(gentity_t *ent) {
+	if (ent->spawnflags & 128) {
+		if (ent->model2) ent->s.modelindex2 = G_ModelIndex(ent->model2);
+		trap_SetBrushModel(ent, ent->model);
+		InitMover(ent);
+	} else {
+		InitTrigger(ent);
+	}
+	ent->s.eType = 63;
+	ent->touch = func_obj_touch_touch;
+	ent->use = NULL;
+	ent->reached = NULL;
+	VectorCopy(ent->s.origin, ent->s.pos.trBase);
+	VectorCopy(ent->s.origin, ent->r.currentOrigin);
+}
+
+void SP_func_obj_use(gentity_t *ent) {
+	if (ent->spawnflags & 32) {
+		InitTrigger(ent);
+	} else {
+		if (ent->model2) ent->s.modelindex2 = G_ModelIndex(ent->model2);
+		trap_SetBrushModel(ent, ent->model);
+		InitMover(ent);
+		ent->s.eType = 65;
+		VectorCopy(ent->s.origin, ent->s.pos.trBase);
+		VectorCopy(ent->s.origin, ent->r.currentOrigin);
+		trap_LinkEntity(ent);
+	}
+	if (ent->spawnflags & 16) ent->touch = func_obj_touch_touch;
+	ent->s.eType = 65;
+	ent->use = NULL;
+	ent->reached = NULL;
+	VectorCopy(ent->s.origin, ent->s.pos.trBase);
+	VectorCopy(ent->s.origin, ent->r.currentOrigin);
+}
+
+/* These map classes share an empty spawn function in the Windows original. */
+void SP_func_obj_destroy(gentity_t *ent) { }
+void SP_func_obj_item(gentity_t *ent) { }
+
 
 void InitTrigger( gentity_t *self) {
 	if (!VectorCompare (self->s.angles, vec3_origin))
@@ -33,8 +121,13 @@ void multi_trigger( gentity_t *ent, gentity_t *activator ) {
 	G_UseTargets (ent, ent->activator);
 
 	if ( ent->wait > 0 ) {
+		double randomOffset;
 		ent->think = multi_wait;
-		ent->nextthink = level.time + ( ent->wait + ent->random * crandom() ) * 1000;
+		/* TC20091f5f..20091f92: multiply by the stored float reciprocal,
+		 * then retain the time expression until the final integer conversion. */
+		randomOffset = (double)(rand() & 0x7fff) * (double)(1.0f / 32767.0f) - 0.5;
+		ent->nextthink = (int)(level.time +
+			(ent->wait + ent->random * (randomOffset + randomOffset)) * 1000.0);
 	} else {
 		// we can't just remove (self) here, because this is a touch function
 		// called while looping through area links...
@@ -123,7 +216,7 @@ void SP_trigger_multiple( gentity_t *ent ) {
 	G_SpawnFloat( "random", "0", &ent->random );
 
 	if ( ent->random >= ent->wait && ent->wait >= 0 ) {
-		ent->random = ent->wait - (FRAMETIME * 0.001f);
+		ent->random = ent->wait - 0.1f; /* Original float at200ac3e8. */
 		G_Printf( "trigger_multiple has random >= wait\n" );
 	}
 
@@ -132,10 +225,6 @@ void SP_trigger_multiple( gentity_t *ent ) {
 	ent->s.eType = ET_TRIGGER_MULTIPLE;
 
 	InitTrigger( ent);
-
-#ifdef VISIBLE_TRIGGERS
-	ent->r.svFlags &= ~SVF_NOCLIENT;
-#endif // VISIBLE_TRIGGERS
 
 	trap_LinkEntity (ent);
 }
@@ -704,7 +793,9 @@ void ammo_touch( gentity_t *self, gentity_t *other, trace_t *trace ) {
 	if(self->health == -9999) {
 		count = clientcount;
 	} else {
-		count = min(clientcount, self->health / (float)self->damage );
+		/* TC 20092b82: divide integer operands before the single float store. */
+		float available = (float)((double)self->health / (double)self->damage);
+		count = min(clientcount, available);
 	}
 
 	for( i = 0; i < count; i++) {
@@ -837,9 +928,13 @@ so, the basic time between firing is a random time between
 
 */
 void func_timer_think( gentity_t *self ) {
+	double randomOffset;
 	G_UseTargets (self, self->activator);
-	// set time before next firing
-	self->nextthink = level.time + 1000 * ( self->wait + crandom() * self->random );
+	/* TC20092e63..20092e8d: stored float reciprocal, no intermediate
+	 * float division/spill; convert only after adding the current time. */
+	randomOffset = (double)(rand() & 0x7fff) * (double)(1.0f / 32767.0f) - 0.5;
+	self->nextthink = (int)(((randomOffset + randomOffset) * (double)self->random +
+		(double)self->wait) * 1000.0 + (double)level.time);
 }
 
 void func_timer_use( gentity_t *self, gentity_t *other, gentity_t *activator ) {
@@ -935,7 +1030,32 @@ void trigger_aidoor_stayopen (gentity_t * ent, gentity_t * other , trace_t * tra
 
 		if ( (door->moverState == MOVER_POS2ROTATE) || ( door->moverState == MOVER_POS2 ) )
 		{	// door is in open state waiting to close keep it open
-			door->nextthink = level.time + door->wait + 3000;  
+#if defined(_MSC_VER) && defined(_M_IX86)
+			/* TC 20093035: retain FILD(time)+wait+3000 until __ftol. */
+			{
+				int now = level.time;
+				float wait = door->wait, delay = 3000.0f;
+				unsigned short savedControl, truncateControl;
+				__int64 deadline;
+				__asm {
+					fild now
+					fadd wait
+					fadd delay
+					fwait
+					fnstcw savedControl
+					fwait
+					mov ax, savedControl
+					or ax, 0c00h
+					mov truncateControl, ax
+					fldcw truncateControl
+					fistp deadline
+					fldcw savedControl
+				}
+				door->nextthink = (int)deadline;
+			}
+#else
+			door->nextthink = level.time + door->wait + 3000;
+#endif
 		}
 
 
@@ -987,8 +1107,8 @@ void Touch_flagonly (gentity_t *ent, gentity_t *other, trace_t *trace) {
 			other->client->speedScale = 0;
 		}
 
-		AddScore(other, ent->accuracy); // JPW NERVE set from map, defaults to 20
-		//G_AddExperience( other, 2.f );
+		AddScore(other, (int)ent->accuracy);
+		AddKillScore(other, (int)ent->accuracy); // TC 2009311d: objective kill-score award
 
 		tmp = ent->parent;
 		ent->parent = other;
@@ -1010,9 +1130,8 @@ void Touch_flagonly (gentity_t *ent, gentity_t *other, trace_t *trace) {
 			other->client->speedScale = 0;
 		}
 
-		AddScore(other, ent->accuracy); // JPW NERVE set from map, defaults to 20
-
-		//G_AddExperience( other, 2.f );
+		AddScore(other, (int)ent->accuracy);
+		AddKillScore(other, (int)ent->accuracy); // TC 200931e4: blue-flag counterpart
 
 		tmp = ent->parent;
 		ent->parent = other;
@@ -1033,46 +1152,30 @@ void Touch_flagonly (gentity_t *ent, gentity_t *other, trace_t *trace) {
 
 
 
+/* TC Windows20093260 / Linux0010324c: capture and recycle the carried flag. */
 void Touch_flagonly_multiple (gentity_t *ent, gentity_t *other, trace_t *trace) {
-	gentity_t* tmp;
-
-	if (!other->client)
-		return;
-
-	if ( ent->spawnflags & RED_FLAG && other->client->ps.powerups[ PW_REDFLAG ] ) {
-
-		other->client->ps.powerups[ PW_REDFLAG ] = 0;
-		other->client->speedScale = 0;
-
-		AddScore(other, ent->accuracy); // JPW NERVE set from map, defaults to 20
-		//G_AddExperience( other, 2.f );
-
-		tmp = ent->parent;
-		ent->parent = other;
-
-		G_Script_ScriptEvent( ent, "death", "" );
-
-		G_Script_ScriptEvent( &g_entities[other->client->flagParent], "trigger", "captured" );
-
-		ent->parent = tmp;
-	} else if ( ent->spawnflags & BLUE_FLAG && other->client->ps.powerups[ PW_BLUEFLAG ] ) {
-
-		other->client->ps.powerups[ PW_BLUEFLAG ] = 0;
-		other->client->speedScale = 0;
-
-		AddScore(other, ent->accuracy); // JPW NERVE set from map, defaults to 20
-
-		//G_AddExperience( other, 2.f );
-
-		tmp = ent->parent;
-		ent->parent = other;
-
-		G_Script_ScriptEvent( ent, "death", "" );
-
-		G_Script_ScriptEvent( &g_entities[other->client->flagParent], "trigger", "captured" );
-
-		ent->parent = tmp;
-	}
+    gentity_t *savedParent;
+    if (!other->client || ent->entstate == STATE_INACTIVE || ent->entstate == STATE_LOCKED)
+        return;
+    if ((ent->spawnflags & RED_FLAG) && other->client->ps.powerups[PW_REDFLAG])
+        other->client->ps.powerups[PW_REDFLAG] = 0;
+    else if ((ent->spawnflags & BLUE_FLAG) && other->client->ps.powerups[PW_BLUEFLAG])
+        other->client->ps.powerups[PW_BLUEFLAG] = 0;
+    else
+        return;
+    other->client->speedScale = 0;
+    AddScore(other, (int)ent->accuracy);
+    AddKillScore(other, (int)ent->accuracy);
+    savedParent = ent->parent;
+    ent->parent = other;
+    G_Script_ScriptEvent(ent, "death", "");
+    G_Script_ScriptEvent(&g_entities[other->client->flagParent], "trigger", "captured");
+    ent->parent = savedParent;
+    if (ent->spawnflags & 4) {
+        g_entities[other->client->flagParent].s.density++;
+        if (g_entities[other->client->flagParent].s.density == 1)
+            RespawnItem(&g_entities[other->client->flagParent]);
+    }
 }
 
 /*QUAKED trigger_flagonly (.5 .5 .5) ? RED_FLAG BLUE_FLAG KILL_FLAG
@@ -1096,9 +1199,6 @@ void SP_trigger_flagonly( gentity_t *ent ) {
 	G_SpawnString ("score", "20", &scorestring);
 	ent->accuracy = atof (scorestring);
 	ent->s.eType = ET_TRIGGER_FLAGONLY;
-#ifdef VISIBLE_TRIGGERS
-	ent->r.svFlags &= ~SVF_NOCLIENT;
-#endif // VISIBLE_TRIGGERS
 
 	trap_LinkEntity (ent);
 }
@@ -1124,9 +1224,6 @@ void SP_trigger_flagonly_multiple( gentity_t *ent ) {
 	G_SpawnString ("score", "20", &scorestring);
 	ent->accuracy = atof (scorestring);
 	ent->s.eType = ET_TRIGGER_FLAGONLY_MULTIPLE;
-#ifdef VISIBLE_TRIGGERS
-	ent->r.svFlags &= ~SVF_NOCLIENT;
-#endif // VISIBLE_TRIGGERS
 
 	trap_LinkEntity (ent);
 }
@@ -1157,6 +1254,19 @@ void explosive_indicator_think( gentity_t *ent ) {
 		return;
 	}
 
+	/* TC marker state follows the objective target, not just its existence. */
+	if (ent->s.eType == ET_EXPLOSIVE_INDICATOR) {
+		if (parent->target_ent->entstate == 4) {
+			G_FreeEntity(ent);
+		} else if (parent->target_ent->entstate == 3) {
+			ent->s.onFireStart = 0;
+		} else if (parent->target_ent->entstate == 0 && ent->s.onFireStart == 0 && ent->tceObjectiveScore) {
+			ent->s.onFireStart = ent->tceObjectiveScore;
+		}
+		if ((parent->spawnflags & 3) == 3) ent->s.teamNum = 3;
+		else if (parent->spawnflags & AXIS_OBJECTIVE) ent->s.teamNum = 1;
+		else if (parent->spawnflags & ALLIED_OBJECTIVE) ent->s.teamNum = 2;
+	}
 	if(ent->s.eType == ET_TANK_INDICATOR || ent->s.eType == ET_TANK_INDICATOR_DEAD) {
 		VectorCopy( ent->parent->r.currentOrigin, ent->s.pos.trBase );
 	}
@@ -1250,7 +1360,12 @@ void Think_SetupObjectiveInfo( gentity_t *ent ) {
 		G_Error ("'trigger_objective_info' has a missing target '%s'\n", ent->target );
 	}
 
-	if( ent->target_ent->s.eType == ET_EXPLOSIVE ) {
+	/* TC also links the objective's use/touch/item targets through this path.
+	 * Without the parent link cursor hints and touch activation cannot work. */
+	if( ent->target_ent->s.eType == ET_EXPLOSIVE ||
+		ent->target_ent->s.eType == 63 || ent->target_ent->s.eType == 64 ||
+		ent->target_ent->s.eType == 65 || ent->target_ent->s.eType == 66 ||
+		ent->target_ent->s.eType == 48 ) {
 		// Arnout: this is for compass usage
 		if ( ( ent->spawnflags & AXIS_OBJECTIVE ) || ( ent->spawnflags & ALLIED_OBJECTIVE ) ) {
 			gentity_t *e;
@@ -1266,11 +1381,15 @@ void Think_SetupObjectiveInfo( gentity_t *ent ) {
 			e->parent = ent;
 			e->s.pos.trType = TR_STATIONARY;
 
-			if ( ent->spawnflags & AXIS_OBJECTIVE )
+			if ( (ent->spawnflags & (AXIS_OBJECTIVE|ALLIED_OBJECTIVE)) == (AXIS_OBJECTIVE|ALLIED_OBJECTIVE) )
+				e->s.teamNum = 3;
+			else if ( ent->spawnflags & AXIS_OBJECTIVE )
 				e->s.teamNum = 1;
 			else if ( ent->spawnflags & ALLIED_OBJECTIVE )
 				e->s.teamNum = 2;
 
+			e->s.onFireStart = ent->count2 >= 1 && ent->count2 <= 5 ? ent->count2 : -1;
+			e->tceObjectiveScore = e->s.onFireStart;
 			G_SetOrigin(e, ent->r.currentOrigin);
 
 			e->s.modelindex2 = ent->s.teamNum;
@@ -1287,6 +1406,8 @@ void Think_SetupObjectiveInfo( gentity_t *ent ) {
 				VectorCopy( ent->r.absmin, e->s.pos.trBase );
 				VectorAdd( ent->r.absmax, e->s.pos.trBase, e->s.pos.trBase );
 				VectorScale( e->s.pos.trBase, 0.5, e->s.pos.trBase );
+				/* TC supports an explicit map-script offset for objective markers. */
+				VectorAdd( e->s.pos.trBase, ent->s.pos.trBase, e->s.pos.trBase );
 			}
 
 			SnapVector( e->s.pos.trBase );
@@ -1407,6 +1528,16 @@ void SP_trigger_objective_info( gentity_t *ent ) {
 	char* customimage;
 	int cix, cia, objflags;
 
+    /* Original 20093f30: mode-specific map objective fields. */
+    if(g_gametype.integer == 7)return;
+    G_SpawnInt("objnumber", "0", &ent->count2);
+    if(!Q_stricmp(level.rawmapname,"dem_northport") || !Q_stricmp(level.rawmapname,"dem_railhouse")) {
+        if(ent->spawnflags == 0x82) {ent->count2=2;ent->spawnflags=2;}
+        else if(ent->spawnflags == 0x42) {ent->count2=1;ent->spawnflags=2;}
+    }
+    if((g_gametype.integer == 2 && (ent->spawnflags & 0x80)) ||
+       (g_gametype.integer == 5 && (ent->spawnflags & 0x40)))return;
+
 	if ( !ent->track )
 		G_Error ("'trigger_objective_info' does not have a 'track' \n");
 
@@ -1458,7 +1589,18 @@ void SP_trigger_objective_info( gentity_t *ent ) {
 
 	trap_SetConfigstring( CS_OID_TRIGGERS + level.numOidTriggers, ent->track );
 
-	InitTrigger( ent );
+    /* Legacy CTF objective B was relocated in both original binaries. */
+    if(g_gametype.integer == 2 && ent->count2 == 2 &&
+       (!Q_stricmp(level.rawmapname,"dem_northport") || !Q_stricmp(level.rawmapname,"dem_railhouse"))) {
+        vec3_t shift;
+        if(!Q_stricmp(level.rawmapname,"dem_northport"))VectorSet(shift,-2272,-868,0);
+        else VectorSet(shift,-1240,-1288,-56);
+        VectorAdd(ent->s.pos.trBase,shift,ent->s.pos.trBase);
+        InitTrigger(ent);
+        VectorCopy(ent->s.pos.trBase,ent->r.currentOrigin);
+        VectorCopy(ent->s.pos.trBase,ent->s.origin);
+    } else InitTrigger(ent);
+
 
 	if( ent->s.origin[0] || ent->s.origin[1] || ent->s.origin[2] ) {
 		G_SetConfigStringValue( CS_OID_DATA + level.numOidTriggers, "x",	va( "%i", (int)ent->s.origin[0] )	);

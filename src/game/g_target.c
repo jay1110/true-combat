@@ -323,7 +323,9 @@ void misc_beam_think (gentity_t *self) {
 
 	self->nextthink = level.time + FRAMETIME;
 
-	if( self->s.pos.trType != TR_STATIONARY || self->s.apos.trType != TR_STATIONARY || !self->accuracy ) {
+	/* TC2008c553 tests x87 C3: zero and unordered both refresh the bounds. */
+	if( self->s.pos.trType != TR_STATIONARY || self->s.apos.trType != TR_STATIONARY ||
+		self->accuracy == 0.0f || self->accuracy != self->accuracy ) {
 		int i;
 
 		self->accuracy = 1;
@@ -333,23 +335,20 @@ void misc_beam_think (gentity_t *self) {
 		VectorCopy( self->s.apos.trBase, self->r.maxs );
 
 		for( i = 0; i < 3; i++ ) {
-			if( self->r.maxs[i] < self->r.mins[i] ) {
+			/* TC2008c5bf tests C0, including unordered comparisons. */
+			if( !(self->r.maxs[i] >= self->r.mins[i]) ) {
 				float bleh = self->r.mins[i];
 				self->r.mins[i] = self->r.maxs[i];
 				self->r.maxs[i] = bleh;
 			}
 		}
 
-		self->r.mins[0] -= 4;
-		self->r.mins[1] -= 4;
-		self->r.mins[2] -= 4;
-		self->r.maxs[0] += 4;
-		self->r.maxs[1] += 4;
-		self->r.maxs[2] += 4;
-
 		VectorCopy( self->s.origin, self->r.currentOrigin );
-		VectorSubtract( self->r.mins, self->r.currentOrigin, self->r.mins ); 
-		VectorSubtract( self->r.maxs, self->r.currentOrigin, self->r.maxs ); 
+		/* TC2008c5e8..2008c677: pad and subtract origin before the float store. */
+		for( i = 0; i < 3; i++ ) {
+			self->r.mins[i] = (float)(((double)self->r.mins[i] - 4.0) - (double)self->r.currentOrigin[i]);
+			self->r.maxs[i] = (float)(((double)self->r.maxs[i] + 4.0) - (double)self->r.currentOrigin[i]);
+		}
 
 		trap_LinkEntity( self );
 	}
@@ -424,9 +423,18 @@ void target_laser_think (gentity_t *self) {
 
 	// if pointed at another entity, set movedir to point at it
 	if ( self->enemy ) {
-		VectorMA (self->enemy->s.origin, 0.5, self->enemy->r.mins, point);
-		VectorMA (point, 0.5, self->enemy->r.maxs, point);
-		VectorSubtract (point, self->s.origin, self->movedir);
+		double pointX;
+		/* TC2008c897..2008c924 keeps X in x87 until movedir, but stores
+		 * Y/Z after each center calculation. Preserve those float boundaries. */
+		pointX = (double)self->enemy->r.mins[0] * 0.5 + (double)self->enemy->s.origin[0];
+		point[1] = (float)((double)self->enemy->r.mins[1] * 0.5 + (double)self->enemy->s.origin[1]);
+		point[2] = (float)((double)self->enemy->r.mins[2] * 0.5 + (double)self->enemy->s.origin[2]);
+		pointX += (double)self->enemy->r.maxs[0] * 0.5;
+		point[1] = (float)((double)self->enemy->r.maxs[1] * 0.5 + (double)point[1]);
+		point[2] = (float)((double)self->enemy->r.maxs[2] * 0.5 + (double)point[2]);
+		self->movedir[0] = (float)(pointX - (double)self->s.origin[0]);
+		self->movedir[1] = point[1] - self->s.origin[1];
+		self->movedir[2] = point[2] - self->s.origin[2];
 		VectorNormalize (self->movedir);
 	}
 
@@ -717,11 +725,7 @@ Set "count" to 0-7 for color.
 Closest target_location in sight used for the location, if none
 in site, closest in distance
 */
-void SP_target_location( gentity_t *self ) {
-	G_Printf( S_COLOR_YELLOW "WARNING: target_location entities are now obsolete. Please remove ASAP\n" );
 
-	G_FreeEntity( self );
-}
 
 //---- (SA) Wolf targets
 

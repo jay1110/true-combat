@@ -84,9 +84,10 @@ void CG_ShowHelp_On(int *status)
 	int milli = trap_Milliseconds();
 
 	if(*status == SHOW_SHUTDOWN && milli < cg.fadeTime) {
-		cg.fadeTime = 2 * milli + STATS_FADE_TIME - cg.fadeTime;
+		/* Original integer ADD wraps before FILD; exact +200/-old then ftol low32. */
+		cg.fadeTime = (int)(2u * (unsigned int)milli + 200u - (unsigned int)cg.fadeTime);
 	} else if(*status != SHOW_ON) {
-		cg.fadeTime = milli + STATS_FADE_TIME;
+		cg.fadeTime = (int)((unsigned int)milli + 200u);
 	}
 
 	*status = SHOW_ON;
@@ -98,9 +99,10 @@ void CG_ShowHelp_Off(int *status)
 		int milli = trap_Milliseconds();
 
 		if(milli < cg.fadeTime) {
-			cg.fadeTime = 2 * milli + STATS_FADE_TIME - cg.fadeTime;
+			/* Original integer ADD wraps before FILD; exact +200/-old then ftol low32. */
+		cg.fadeTime = (int)(2u * (unsigned int)milli + 200u - (unsigned int)cg.fadeTime);
 		} else {
-			cg.fadeTime = milli + STATS_FADE_TIME;
+			cg.fadeTime = (int)((unsigned int)milli + 200u);
 		}
 
 		*status = SHOW_SHUTDOWN;
@@ -235,7 +237,8 @@ void CG_DemoClick(int key, qboolean down)
 					if(tscale > 0.1f) tscale -= 0.1f;
 				} else tscale -= 1.0;
 				trap_Cvar_Set("timescale", va("%f", tscale));
-				cgs.timescaleUpdate = cg.time + (int)(1000.0f * tscale);
+				/* Preserve the original x87 expression until integer conversion. */
+				cgs.timescaleUpdate = cg.time - (int)(-1000.0 * (double)tscale);
 			}
 			return;
 		case K_MWHEELDOWN:
@@ -245,14 +248,14 @@ void CG_DemoClick(int key, qboolean down)
 			}	// Roll over into timescale changes
 		case K_KP_LEFTARROW:
 			if(!down && cg_timescale.value > 0.1f) {
-				trap_Cvar_Set("timescale", va("%f", cg_timescale.value - 0.1f));
-				cgs.timescaleUpdate = cg.time + (int)(1000.0f * cg_timescale.value - 0.1f);
+				trap_Cvar_Set("timescale", va("%f", (double)cg_timescale.value - (double)0.1f));
+				cgs.timescaleUpdate = cg.time - (int)((double)0.1f - 1000.0 * (double)cg_timescale.value);
 			}
 			return;
 		case K_KP_UPARROW:
 			if(!down) {
-				trap_Cvar_Set("timescale", va("%f", cg_timescale.value + 1.0f));
-				cgs.timescaleUpdate = cg.time + (int)(1000.0f * cg_timescale.value + 1.0f);
+				trap_Cvar_Set("timescale", va("%f", (double)cg_timescale.value + 1.0));
+				cgs.timescaleUpdate = cg.time + (int)(1000.0 * (double)cg_timescale.value + 1.0);
 			}
 			return;
 		case K_MWHEELUP:
@@ -262,8 +265,8 @@ void CG_DemoClick(int key, qboolean down)
 			}	// Roll over into timescale changes
 		case K_KP_RIGHTARROW:
 			if(!down) {
-				trap_Cvar_Set("timescale", va("%f", cg_timescale.value + 0.1f));
-				cgs.timescaleUpdate = cg.time + (int)(1000.0f * cg_timescale.value + 0.1f);
+				trap_Cvar_Set("timescale", va("%f", (double)cg_timescale.value + (double)0.1f));
+				cgs.timescaleUpdate = cg.time + (int)(1000.0 * (double)cg_timescale.value + (double)0.1f);
 			}
 			return;
 
@@ -427,7 +430,8 @@ void CG_GameStatsDraw()
 
 		// Fade-in effects
 		if(diff > 0.0f) {
-			float scale = (diff / STATS_FADE_TIME);
+			/* Original x87 keeps the reciprocal product through alpha/slide. */
+			double scale = (double)diff * (double)0.005f;
 
 			if(cgs.gamestats.show == SHOW_ON) {
 				scale = 1.0f - scale;
@@ -506,8 +510,9 @@ void CG_GameStatsDraw()
 		}
 
 
-		// No rank/xp/skill info for LMS
-		if(cgs.gametype == GT_WOLF_LMS) {
+		// TC suppresses rank/XP/skills in modes 2 and 5.  The original
+		// height calculation above only excludes mode 5; retain that asymmetry.
+		if(cgs.gametype == 2 || cgs.gametype == 5) {
 			return;
 		}
 
@@ -617,7 +622,7 @@ void CG_TopShotsDraw()
 
 		// Fade-in effects
 		if(diff > 0.0f) {
-			float scale = (diff / STATS_FADE_TIME);
+			float scale = (float)((double)diff * (double)0.005f); /* Original reciprocal200. */
 
 			if(cgs.topshots.show == SHOW_ON) {
 				scale = 1.0f - scale;
@@ -761,7 +766,7 @@ void CG_DemoHelpDraw()
 
 		// Fade-in effects
 		if(diff > 0.0f) {
-			float scale = (diff / STATS_FADE_TIME);
+			float scale = (float)((double)diff * (double)0.005f); /* Original reciprocal200. */
 
 			if(cg.demohelpWindow == SHOW_ON) {
 				scale = 1.0f - scale;
@@ -986,9 +991,6 @@ void CG_DrawOverlays(void)
 {
 	CG_GameStatsDraw();
 	CG_TopShotsDraw();
-#ifdef MV_SUPPORT
-	CG_SpecHelpDraw();
-#endif
 	if(cg.demoPlayback) {
 		CG_DemoHelpDraw();
 	}

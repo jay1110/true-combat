@@ -35,6 +35,9 @@ typedef struct {
 
 	// Ridah, ladders
 	qboolean	ladder;
+	int tceContentRestriction; /* Windows pml+0x90; contents0x1000/800/400. */
+	qboolean tceGroundExtension; /* Windows pml+0x94, retained within this move. */
+	int tceLadderSurfaceFlags; /* Original pml+0x98, ladder trace material. */
 } pml_t;
 
 extern	pmove_t		*pm;

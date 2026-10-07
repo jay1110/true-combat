@@ -1,4 +1,14 @@
 #include "g_local.h"
+#include "tce_trajectory.h"
+
+/* All original missile controllers call the six-argument TC evaluator.
+ * In particular trajectory13 is ballistic, not the SDK spline enum alias. */
+static void TCE_MissilePosition(gentity_t *ent,int time,vec3_t out) {
+    TCE_BG_EvaluateTrajectory(&ent->s.pos,time,out,qfalse,ent->s.effect2Time,1);
+}
+static void TCE_MissileVelocity(gentity_t *ent,int time,vec3_t out) {
+    TCE_BG_EvaluateTrajectoryDelta(&ent->s.pos,time,out,qfalse,ent->s.effect2Time,1);
+}
 
 #define	MISSILE_PRESTEP_TIME	50
 
@@ -16,102 +26,51 @@ G_BounceMissile
 
 ================
 */
-void G_BounceMissile( gentity_t *ent, trace_t *trace ) {
-	vec3_t		velocity, relativeDelta;
-	float		dot;
-	int			hitTime;
-	gentity_t	*ground;
-
-//	if(ent->s.weapon == WP_GPG40 || ent->s.weapon == WP_M7) {
-//		G_ExplodeMissile( ent );
-//		return;
-//	}
-	// boom after 750 msecs
-	if( ent->s.weapon == WP_M7 || ent->s.weapon == WP_GPG40 ) {
-		ent->s.effect1Time = qtrue;	// has bounced
-
-		if( (ent->nextthink - level.time) < 3250 ) {
-			G_ExplodeMissile( ent );
-			return;
-		}
-	}
-
-// Arnout: removed this for MP as well (was already gone from SP)
-/*
-		// Ridah, if we are a grenade, and we have hit an AI that is waiting to catch us, give them a grenade, and delete ourselves
-	if ((ent->splashMethodOfDeath == MOD_GRENADE_SPLASH) && (g_entities[trace->entityNum].flags & FL_AI_GRENADE_KICK) &&
-		(trace->endpos[2] > g_entities[trace->entityNum].r.currentOrigin[2])) {
-		g_entities[trace->entityNum].grenadeExplodeTime = ent->nextthink;
-		g_entities[trace->entityNum].flags &= ~FL_AI_GRENADE_KICK;
-		Add_Ammo( &g_entities[trace->entityNum], WP_GRENADE_LAUNCHER, 1, qfalse );	//----(SA)	modified
-		G_FreeEntity( ent );
-		return;
-	}
-*/
-	// reflect the velocity on the trace plane
-	hitTime = level.previousTime + ( level.time - level.previousTime ) * trace->fraction;
-	BG_EvaluateTrajectoryDelta( &ent->s.pos, hitTime, velocity, qfalse, ent->s.effect2Time );
-	dot = DotProduct( velocity, trace->plane.normal );
-	VectorMA( velocity, -2*dot, trace->plane.normal, ent->s.pos.trDelta );
-
-	// RF, record this for mover pushing
-	if ( trace->plane.normal[2] > 0.2 /*&& VectorLengthSquared( ent->s.pos.trDelta ) < SQR(40)*/ ) {
-		ent->s.groundEntityNum = trace->entityNum;
-	}
-	
-	// ydnar: set ground entity
-	if( ent->s.groundEntityNum != -1 ) {
-		ground = &g_entities[ ent->s.groundEntityNum ];
-	} else {
-		ground = NULL;
-	}
-	
-	// ydnar: allow ground entity to push missle
-	if( ent->s.groundEntityNum != ENTITYNUM_WORLD && ground )
-		VectorMA( ent->s.pos.trDelta, 0.85f, ground->instantVelocity, ent->s.pos.trDelta );
-	
-	if ( ent->s.eFlags & EF_BOUNCE_HALF ) {
-		if(ent->s.eFlags & EF_BOUNCE) {		// both flags marked, do a third type of bounce
-			VectorScale( ent->s.pos.trDelta, 0.35, ent->s.pos.trDelta );
-		} else {
-			VectorScale( ent->s.pos.trDelta, 0.65, ent->s.pos.trDelta );
-		}
-		
-		// ydnar: grenades on movers get scaled back much earlier
-		if( ent->s.groundEntityNum != ENTITYNUM_WORLD )
-			VectorScale( ent->s.pos.trDelta, 0.5, ent->s.pos.trDelta );
-		
-		// ydnar: calculate relative delta for stop calcs
-		if( ent->s.groundEntityNum == ENTITYNUM_WORLD || 1 )
-			VectorCopy( ent->s.pos.trDelta, relativeDelta );
-		else
-			VectorSubtract( ent->s.pos.trDelta, ground->instantVelocity, relativeDelta );
-
-		// check for stop
-		//%	if ( trace->plane.normal[2] > 0.2 && VectorLengthSquared( ent->s.pos.trDelta ) < SQR(40) )
-		if( trace->plane.normal[2] > 0.2 && VectorLengthSquared( relativeDelta ) < SQR(40) )
-		{
-//----(SA)	make the world the owner of the dynamite, so the player can shoot it after it stops moving
-			if(ent->s.weapon == WP_DYNAMITE || ent->s.weapon == WP_LANDMINE || ent->s.weapon == WP_SATCHEL || ent->s.weapon == WP_TRIPMINE || ent->s.weapon == WP_SMOKE_BOMB)
-				ent->r.ownerNum = ENTITYNUM_WORLD;
-//----(SA)	end
-			G_SetOrigin( ent, trace->endpos );
-			ent->s.time = level.time; // final rotation value
-			if( ent->s.weapon == WP_M7 || ent->s.weapon == WP_GPG40 ) {
-				// explode one 750msecs after launchtime
-				ent->nextthink = level.time + (750 - (level.time + 4000 - ent->nextthink));
-			}
-			return;
-		}
-	}
-
-	SnapVector( ent->s.pos.trDelta );
-
-	VectorAdd( ent->r.currentOrigin, trace->plane.normal, ent->r.currentOrigin);
-	VectorCopy( ent->r.currentOrigin, ent->s.pos.trBase );
-
-	SnapVector( ent->s.pos.trBase );
-	ent->s.pos.trTime = level.time;
+/* TC Windows2006a3d0 / Linux000cb27c. */
+void G_BounceMissile(gentity_t *ent,trace_t *trace) {
+    vec3_t velocity;
+    double reflectedScale;
+    int hitTime,i;
+    gentity_t *ground;
+    if(ent->s.weapon==55 || ent->s.weapon==56) {
+        ent->s.effect1Time=qtrue;
+        if(ent->nextthink-level.time<3250) { G_ExplodeMissile(ent);return; }
+    }
+    /* Windows2006a443/446 retain fractional time until __ftol. */
+    hitTime=(int)((double)level.previousTime+(double)(level.time-level.previousTime)*trace->fraction);
+    TCE_MissileVelocity(ent,hitTime,velocity);
+    /* Original x87 order is X+Z+Y, with no float spill of the reflection scale. */
+    reflectedScale=-2.0*((double)velocity[0]*trace->plane.normal[0]+
+        (double)velocity[2]*trace->plane.normal[2]+(double)velocity[1]*trace->plane.normal[1]);
+    for(i=0;i<3;i++)ent->s.pos.trDelta[i]=(float)(velocity[i]+reflectedScale*trace->plane.normal[i]);
+    if(trace->plane.normal[2]>.2)ent->s.groundEntityNum=trace->entityNum;
+    ground=ent->s.groundEntityNum==-1?NULL:&g_entities[ent->s.groundEntityNum];
+    if(ent->s.groundEntityNum!=ENTITYNUM_WORLD && ground)
+        for(i=0;i<3;i++)ent->s.pos.trDelta[i]=(float)((double)ent->s.pos.trDelta[i]+(double).85f*ground->instantVelocity[i]);
+    if(ent->s.eFlags&EF_BOUNCE_HALF) {
+        /* TC coefficients differ from SDK .35/.65. */
+        VectorScale(ent->s.pos.trDelta,(ent->s.eFlags&EF_BOUNCE)?.25f:.5f,ent->s.pos.trDelta);
+        if(ent->s.groundEntityNum!=ENTITYNUM_WORLD)
+            VectorScale(ent->s.pos.trDelta,.5f,ent->s.pos.trDelta);
+        if(trace->plane.normal[2]>.2 &&
+            (double)ent->s.pos.trDelta[0]*ent->s.pos.trDelta[0]+
+            (double)ent->s.pos.trDelta[1]*ent->s.pos.trDelta[1]+
+            (double)ent->s.pos.trDelta[2]*ent->s.pos.trDelta[2]<1600) {
+            if(ent->s.weapon==15 || ent->s.weapon==26 || ent->s.weapon==27 || ent->s.weapon==29 || ent->s.weapon==30)
+                ent->r.ownerNum=ENTITYNUM_WORLD;
+            G_SetOrigin(ent,trace->endpos);ent->s.time=level.time;
+            if(ent->s.weapon==55 || ent->s.weapon==56)ent->nextthink-=3250;
+            else if(ent->s.weapon==15) {
+                VectorSet(ent->r.mins,-16,-16,0);VectorCopy(ent->r.mins,ent->r.absmin);
+                VectorSet(ent->r.maxs,16,16,20);VectorCopy(ent->r.maxs,ent->r.absmax);
+            }
+            return;
+        }
+    }
+    SnapVector(ent->s.pos.trDelta);
+    VectorAdd(ent->r.currentOrigin,trace->plane.normal,ent->r.currentOrigin);
+    VectorCopy(ent->r.currentOrigin,ent->s.pos.trBase);
+    SnapVector(ent->s.pos.trBase);ent->s.pos.trTime=level.time;
 }
 
 /*
@@ -120,131 +79,46 @@ G_MissileImpact
 	impactDamage is how much damage the impact will do to func_explosives
 ================
 */
-void G_MissileImpact( gentity_t *ent, trace_t *trace, int impactDamage ) {
-	gentity_t		*other;
-	gentity_t*		temp;
-	qboolean		hitClient = qfalse;
-	vec3_t			velocity;
-	int				event = 0, param = 0, otherentnum = 0;
-
-	other = &g_entities[trace->entityNum];
-
-	// handle func_explosives
-	if(other->classname && Q_stricmp(other->classname, "func_explosive") == 0) {
-		// the damage is sufficient to "break" the ent (health == 0 is non-breakable)
-		if(other->health && impactDamage >= other->health) {
-			// check for other->takedamage needs to be inside the health check since it is
-			// likely that, if successfully destroyed by the missile, in the next runmissile()
-			// update takedamage would be set to '0' and the func_explosive would not be
-			// removed yet, causing a bounce.
-			if(other->takedamage) {
-				BG_EvaluateTrajectoryDelta( &ent->s.pos, level.time, velocity, qfalse, ent->s.effect2Time );
-				G_Damage (other, ent, &g_entities[ent->r.ownerNum], velocity, ent->s.origin, impactDamage, 0, ent->methodOfDeath);
-			}
-			
-			// its possible of the func_explosive not to die from this and it 
-			// should reflect the missile or explode it not vanish into oblivion
-			if (other->health <= 0)
-				return;
-		}
-	}
-
-	// check for bounce
-	if ( ( !other->takedamage || !ent->damage ) && ( ent->s.eFlags & ( EF_BOUNCE | EF_BOUNCE_HALF ) ) ) {
-		G_BounceMissile( ent, trace );
-		// JPW NERVE -- spotter White Phosphorous rounds shouldn't bounce noise
-		if (!Q_stricmp(ent->classname,"WP"))
-			return;
-		// jpw
-/*		if (!Q_stricmp (ent->classname, "flamebarrel")) {
-			G_AddEvent( ent, EV_FLAMEBARREL_BOUNCE, 0 );
-		} else {*/
-			G_AddEvent( ent, EV_GRENADE_BOUNCE, BG_FootstepForSurface( trace->surfaceFlags ) );
-//		}
-		return;
-	}
-
-		// Gordon: unused?
-/*	if (other->takedamage && ent->s.density == 1)
-	{
-		G_ExplodeMissilePoisonGas (ent);
-		return;
-	}*/
-
-	// impact damage
-	if (other->takedamage || other->dmgparent) {
-		if ( ent->damage ) {
-			if( AccuracyHit( other, &g_entities[ent->r.ownerNum] ) ) {
-				hitClient = qtrue;
-			}
-			BG_EvaluateTrajectoryDelta( &ent->s.pos, level.time, velocity, qfalse, ent->s.effect2Time );
-			if ( !VectorLengthSquared( velocity ) ) {
-				velocity[2] = 1;	// stepped on a grenade
-			}
-			G_Damage( other->dmgparent ? other->dmgparent : other, ent, &g_entities[ent->r.ownerNum], velocity, ent->s.origin, ent->damage, 0, ent->methodOfDeath );
-		} else { // if no damage value, then this is a splash damage grenade only
-			G_BounceMissile( ent, trace );
-			return;
-		}
-	}
-
-	// is it cheaper in bandwidth to just remove this ent and create a new
-	// one, rather than changing the missile into the explosion?
-
-	if ( other->takedamage && other->client ) {
-		event = EV_MISSILE_HIT;
-		param = DirToByte( trace->plane.normal );
-		otherentnum = other->s.number;
-//		G_AddEvent( ent, EV_MISSILE_HIT, DirToByte( trace->plane.normal ) );
-//		ent->s.otherEntityNum = other->s.number;
-	} else {
-		// Ridah, try projecting it in the direction it came from, for better decals
-		vec3_t dir;
-		BG_EvaluateTrajectoryDelta( &ent->s.pos, level.time, dir, qfalse, ent->s.effect2Time );
-		BG_GetMarkDir( dir, trace->plane.normal, dir );
-
-		event = EV_MISSILE_MISS;
-		param = DirToByte( dir );
-//		G_AddEvent( ent, EV_MISSILE_MISS, DirToByte( dir ) );
-	}
-
-//	ent->freeAfterEvent = qtrue;
-
-	// change over to a normal entity right at the point of impact
-//	etype = ent->s.eType;
-//	ent->s.eType = ET_GENERAL;
-
-//	SnapVectorTowards( trace->endpos, ent->s.pos.trBase );	// save net bandwidth
-/*	{
-		gentity_t* tent;
-
-		tent = G_TempEntity( trace->endpos, EV_RAILTRAIL );
-		VectorMA(trace->endpos, 16, trace->plane.normal, tent->s.origin2);
-		tent->s.dmgFlags = 0;
-	}*/
-	
-//	G_SetOrigin( ent, trace->endpos );
-
-	temp = G_TempEntity( trace->endpos, event );
-	temp->s.otherEntityNum = otherentnum;
-//	temp->r.svFlags |= SVF_BROADCAST;
-	temp->s.eventParm = param;
-	temp->s.weapon = ent->s.weapon;
-	temp->s.clientNum = ent->r.ownerNum;
-
-	if( ent->s.weapon == WP_MORTAR_SET ) {
-		temp->s.legsAnim = ent->s.legsAnim; // need this one as well
-		temp->r.svFlags |= SVF_BROADCAST;
-	}
-
-	// splash damage (doesn't apply to person directly hit)
-	if ( ent->splashDamage ) {
-		G_RadiusDamage( trace->endpos, ent, ent->parent, ent->splashDamage, ent->splashRadius, other, ent->splashMethodOfDeath );
-	}
-
-//	trap_LinkEntity( ent );
-
-	G_FreeEntity( ent );
+/* TC Windows2006a770: whole impact controller, same damage callback ABI
+ * as the reconstructed float-returning G_Damage (return intentionally unused). */
+void G_MissileImpact(gentity_t *ent,trace_t *trace,int impactDamage) {
+    gentity_t *other=&g_entities[trace->entityNum],*temp;
+    vec3_t velocity;
+    int event,parm,othernum=0;
+    if(other->classname && !Q_stricmp(other->classname,"func_explosive") &&
+        other->health && other->health<=impactDamage) {
+        if(other->takedamage) {
+            TCE_MissileVelocity(ent,level.time,velocity);
+            G_Damage(other,ent,&g_entities[ent->r.ownerNum],velocity,ent->s.origin,impactDamage,0,ent->methodOfDeath);
+        }
+        if(other->health<1)return;
+    }
+    if((!other->takedamage || !ent->damage) && (ent->s.eFlags&(EF_BOUNCE|EF_BOUNCE_HALF))) {
+        G_BounceMissile(ent,trace);
+        if(!Q_stricmp(ent->classname,"WP"))return;
+        G_AddEvent(ent,EV_GRENADE_BOUNCE,BG_FootstepForSurface(trace->surfaceFlags));return;
+    }
+    if(other->takedamage || other->dmgparent) {
+        if(!ent->damage) { G_BounceMissile(ent,trace);return; }
+        AccuracyHit(other,&g_entities[ent->r.ownerNum]);
+        TCE_MissileVelocity(ent,level.time,velocity);
+        if(!VectorLengthSquared(velocity))velocity[2]=1;
+        G_Damage(other->dmgparent?other->dmgparent:other,ent,&g_entities[ent->r.ownerNum],
+            velocity,ent->s.origin,ent->damage,0,ent->methodOfDeath);
+    }
+    if(other->takedamage && other->client) {
+        event=EV_MISSILE_HIT;parm=DirToByte(trace->plane.normal);othernum=other->s.number;
+    } else {
+        TCE_MissileVelocity(ent,level.time,velocity);
+        BG_GetMarkDir(velocity,trace->plane.normal,velocity);
+        event=EV_MISSILE_MISS;parm=DirToByte(velocity);
+    }
+    temp=G_TempEntity(trace->endpos,event);temp->s.eventParm=parm;
+    temp->s.otherEntityNum=othernum;temp->s.weapon=ent->s.weapon;temp->s.clientNum=ent->r.ownerNum;
+    if(ent->s.weapon==60) { temp->s.legsAnim=ent->s.legsAnim;temp->r.svFlags|=SVF_BROADCAST; }
+    if(ent->splashDamage)G_RadiusDamage(trace->endpos,ent,ent->parent,ent->splashDamage,
+        ent->splashRadius,other,ent->splashMethodOfDeath);
+    G_FreeEntity(ent);
 }
 
 /*
@@ -298,149 +172,84 @@ G_ExplodeMissile
 Explode a missile without an impact
 ================
 */
+/* TC Windows2006aab0 / Linux G_ExplodeMissile: complete controller.
+ * Events are translated to this source's event enum; weapon numbers are TC. */
 void G_ExplodeMissile( gentity_t *ent ) {
-	vec3_t		dir;
-	vec3_t		origin;
-	qboolean	small =	qfalse;
-	int			etype;
-
-
-	if( ent->s.weapon == WP_SMOKE_MARKER && ent->active ) {
-		if( ent->s.teamNum == TEAM_AXIS ) {
-			level.numActiveAirstrikes[0]--;
-		} else {
-			level.numActiveAirstrikes[1]--;
-		}
-	}
-
-	etype = ent->s.eType;
-	ent->s.eType = ET_GENERAL;
-
-	// splash damage
-	if( ent->splashDamage ) {
-		vec3_t origin;
-		trace_t tr;
-
-		VectorCopy( ent->r.currentOrigin, origin );
-
-		//bani - #560
-		if( ent->s.weapon == WP_DYNAMITE ) {
-			origin[2] += 4;
-		}
-
-		trap_Trace( &tr, origin, vec3_origin, vec3_origin, origin, ENTITYNUM_NONE, MASK_SHOT );
-
-		//bani - #512
-		if( ( ent->s.weapon == WP_DYNAMITE && ( ent->etpro_misc_1 & 1 ) ) || ent->s.weapon == WP_SATCHEL ) {
-			etpro_RadiusDamage( origin, ent, ent->parent, ent->splashDamage, ent->splashRadius, ent, ent->splashMethodOfDeath, qtrue );
-			G_TempTraceIgnorePlayersAndBodies();
-			etpro_RadiusDamage( origin, ent, ent->parent, ent->splashDamage, ent->splashRadius, ent, ent->splashMethodOfDeath, qfalse );
-			G_ResetTempTraceIgnoreEnts();
-		} else {
-			G_RadiusDamage( origin, ent, ent->parent, ent->splashDamage, ent->splashRadius, ent, ent->splashMethodOfDeath );	//----(SA)	
-		}
-	}
-
-	BG_EvaluateTrajectory( &ent->s.pos, level.time, origin, qfalse, ent->s.effect2Time );
-	SnapVector( origin );
-	G_SetOrigin( ent, origin );
-
-	// we don't have a valid direction, so just point straight up
-	dir[0] = dir[1] = 0;
-	dir[2] = 1;
-
-	if( ent->accuracy == 1 ) {
-		G_AddEvent( ent, EV_MISSILE_MISS_SMALL, DirToByte( dir ) );
-		small = qfalse;
-	} else if( ent->accuracy == 2 ) {
-		G_AddEvent( ent, EV_MISSILE_MISS_LARGE, DirToByte( dir ) );
-		small = qfalse;
-	} else if( ent->accuracy == 3 ) {
-		ent->freeAfterEvent = qtrue;
-		trap_LinkEntity( ent );
-		return;
-	} else {
-		G_AddEvent( ent, EV_MISSILE_MISS, DirToByte( dir ) );
-		ent->s.clientNum = ent->r.ownerNum;
-	}
-
-	ent->freeAfterEvent = qtrue;
-
-	trap_LinkEntity( ent );
-
-	if (etype == ET_MISSILE || etype == ET_BOMB) {
-
-		if( ent->s.weapon == WP_LANDMINE ) {
-			mapEntityData_t	*mEnt;
-
-			if((mEnt = G_FindMapEntityData(&mapEntityData[0], ent-g_entities)) != NULL) {
-				G_FreeMapEntityData( &mapEntityData[0], mEnt );
-			}
-
-			if((mEnt = G_FindMapEntityData(&mapEntityData[1], ent-g_entities)) != NULL) {
-				G_FreeMapEntityData( &mapEntityData[1], mEnt );
-			}
-//bani - #238
-		} else if (ent->s.weapon == WP_DYNAMITE && ( ent->etpro_misc_1 & 1 ) ) { // do some scoring
-			// check if dynamite is in trigger_objective_info field
-			vec3_t		mins, maxs; 
-			int			i,num,touch[MAX_GENTITIES];
-			gentity_t	*hit;
-
-			ent->free = NULL; // Gordon: no defused tidy up if we exploded
-
-			// NERVE - SMF - made this the actual bounding box of dynamite instead of range
-			VectorAdd( ent->r.currentOrigin, ent->r.mins, mins );
-			VectorAdd( ent->r.currentOrigin, ent->r.maxs, maxs );
-			num = trap_EntitiesInBox( mins, maxs, touch, MAX_GENTITIES );
-
-			for( i = 0; i < num; i++ ) {
-				hit = &g_entities[touch[i]];
-				if (!hit->target)
-					continue;
-
-				if ((hit->s.eType != ET_OID_TRIGGER)) {
-					continue;
-				}
-
-				if ( !(hit->spawnflags & (AXIS_OBJECTIVE | ALLIED_OBJECTIVE)) )
-					continue;
-
-				if( hit->target_ent ) {
-					// Arnout - only if it targets a func_explosive
-					if( hit->target_ent->s.eType != ET_EXPLOSIVE ) {
-						continue;
-					}
-
-					if( hit->target_ent->constructibleStats.weaponclass < 1 ) {
-						continue;
-					}
-				}
-
-				if ( ((hit->spawnflags & AXIS_OBJECTIVE) && (ent->s.teamNum == TEAM_ALLIES)) || ((hit->spawnflags & ALLIED_OBJECTIVE) && (ent->s.teamNum == TEAM_AXIS)) ) {
-					if( ent->parent->client && G_GetWeaponClassForMOD( MOD_DYNAMITE ) >= hit->target_ent->constructibleStats.weaponclass ) {
-						G_AddKillSkillPointsForDestruction( ent->parent, MOD_DYNAMITE, &hit->target_ent->constructibleStats );
-					}
-
-					G_UseTargets( hit, ent );
-					hit->think = G_FreeEntity;
-					hit->nextthink = level.time + FRAMETIME;
-				}
-			}
-		}
-
-
-		// give big weapons the shakey shakey
-		if (ent->s.weapon == WP_DYNAMITE || ent->s.weapon == WP_PANZERFAUST || ent->s.weapon == WP_GRENADE_LAUNCHER ||
-			ent->s.weapon == WP_GRENADE_PINEAPPLE || ent->s.weapon == WP_MAPMORTAR || ent->s.weapon == WP_ARTY || ent->s.weapon == WP_SMOKE_MARKER
-			|| ent->s.weapon == WP_LANDMINE || ent->s.weapon == WP_SATCHEL || ent->s.weapon == WP_TRIPMINE /*|| ent->s.weapon == WP_SMOKE_BOMB*/
-			) {		
-
-			gentity_t* tent = G_TempEntity(ent->r.currentOrigin, EV_SHAKE);
-			tent->s.onFireStart = ent->splashDamage * 4;
-			tent->r.svFlags |= SVF_BROADCAST;
-		}
-	}
+    vec3_t origin,dir;
+    int etype,i;
+    qboolean smoke;
+    if(ent->s.weapon==22 && ent->active)
+        level.numActiveAirstrikes[ent->s.teamNum==TEAM_AXIS?0:1]--;
+    etype=ent->s.eType;
+    ent->s.eType=ET_GENERAL;
+    TCE_MissilePosition(ent,level.time,origin);
+    SnapVector(origin);
+    smoke=!Q_stricmp(ent->classname,"smoke_grenade");
+    if(!smoke)G_SetOrigin(ent,origin);
+    VectorSet(dir,0,0,1);
+    if(ent->accuracy==3) {
+        ent->freeAfterEvent=qtrue;trap_LinkEntity(ent);return;
+    }
+    G_AddEvent(ent,ent->accuracy==1?EV_MISSILE_MISS_SMALL:
+        ent->accuracy==2?EV_MISSILE_MISS_LARGE:EV_MISSILE_MISS,DirToByte(dir));
+    if(ent->accuracy!=1 && ent->accuracy!=2)ent->s.clientNum=ent->r.ownerNum;
+    if(smoke) {
+        ent->think=G_FreeEntity;ent->s.eType=ET_MISSILE;
+        ent->nextthink=level.time+40000;ent->s.otherEntityNum=17;
+        ent->freeAfterEvent=qfalse;ent->s.time=level.time;
+    } else ent->freeAfterEvent=qtrue;
+    trap_LinkEntity(ent);
+    if(etype!=ET_MISSILE && etype!=ET_BOMB)return;
+    if(ent->s.weapon==26) {
+        mapEntityData_t *m;
+        for(i=0;i<2;i++) {
+            m=G_FindMapEntityData(&mapEntityData[i],ent-g_entities);
+            if(m)G_FreeMapEntityData(&mapEntityData[i],m);
+        }
+    } else if(ent->s.weapon==15) {
+        vec3_t mins,maxs;
+        int touch[MAX_GENTITIES],num;
+        ent->free=NULL;
+        for(i=0;i<3;i++) { mins[i]=ent->r.currentOrigin[i]-64;maxs[i]=ent->r.currentOrigin[i]+64; }
+        num=trap_EntitiesInBox(mins,maxs,touch,MAX_GENTITIES);
+        for(i=0;i<num;i++) {
+            gentity_t *hit=&g_entities[touch[i]];
+            if(!hit->target || hit->s.eType!=ET_OID_TRIGGER ||
+                !(hit->spawnflags&(AXIS_OBJECTIVE|ALLIED_OBJECTIVE)))continue;
+            if(hit->target_ent && (hit->target_ent->s.eType!=ET_EXPLOSIVE ||
+                hit->target_ent->constructibleStats.weaponclass<1))continue;
+            if(!(((hit->spawnflags&AXIS_OBJECTIVE)&&ent->s.teamNum==TEAM_ALLIES)||
+                ((hit->spawnflags&ALLIED_OBJECTIVE)&&ent->s.teamNum==TEAM_AXIS)))continue;
+            /* Original dereferences target_ent in this scoring path; preserve
+             * valid-map behavior and avoid a crash on an absent target. */
+            if(ent->parent && ent->parent->client && hit->target_ent &&
+                G_GetWeaponClassForMOD(26)>=hit->target_ent->constructibleStats.weaponclass)
+                G_AddKillSkillPointsForDestruction(ent->parent,26,&hit->target_ent->constructibleStats);
+            level.tceExitRulesNotBefore=level.time+1000;
+            G_UseTargets(hit,ent);
+            hit->think=G_FreeEntity;hit->nextthink=level.time+100;
+        }
+    }
+    /* TC applies splash after linking/event generation/objective activation. */
+    if(ent->splashDamage) {
+        trace_t tr;
+        VectorCopy(ent->r.currentOrigin,origin);
+        if(ent->s.weapon==15)origin[2]+=4;
+        trap_Trace(&tr,origin,vec3_origin,vec3_origin,origin,ENTITYNUM_NONE,MASK_MISSILESHOT);
+        if((ent->s.weapon==15 && (ent->etpro_misc_1&1)) || ent->s.weapon==27) {
+            etpro_RadiusDamage(origin,ent,ent->parent,ent->splashDamage,ent->splashRadius,ent,ent->splashMethodOfDeath,qtrue);
+            G_TempTraceIgnorePlayersAndBodies();
+            etpro_RadiusDamage(origin,ent,ent->parent,ent->splashDamage,ent->splashRadius,ent,ent->splashMethodOfDeath,qfalse);
+            G_ResetTempTraceIgnoreEnts();
+        } else G_RadiusDamage(origin,ent,ent->parent,ent->splashDamage,ent->splashRadius,ent,ent->splashMethodOfDeath);
+    }
+    switch(ent->s.weapon) {
+    case 15:case 65:case 9:case 17:case 63:case 22:case 26:case 27:case 29: {
+        gentity_t *shake=G_TempEntity(ent->r.currentOrigin,EV_SHAKE);
+        shake->s.onFireStart=ent->splashDamage*4;shake->r.svFlags|=SVF_BROADCAST;break;
+    }
+    default:break;
+    }
 }
 
 /*
@@ -572,12 +381,13 @@ void Landmine_Check_Ground (gentity_t *self)
 G_RunMissile
 ================
 */
+/* TC Windows2006b060 / Linux000cc406: full controller with TC slot IDs. */
 void G_RunMissile( gentity_t *ent ) {
 	vec3_t		origin;
 	trace_t		tr;
 	int			impactDamage;
 
-	if( ent->s.weapon == WP_LANDMINE || ent->s.weapon == WP_DYNAMITE || ent->s.weapon == WP_SATCHEL ) {
+	if( ent->s.weapon == 26 || ent->s.weapon == 15 || ent->s.weapon == 27 ) {
 		Landmine_Check_Ground( ent );
 
 		if ( ent->s.groundEntityNum == -1 ) {
@@ -589,11 +399,11 @@ void G_RunMissile( gentity_t *ent ) {
 	}
 
 	// get current position
-	BG_EvaluateTrajectory( &ent->s.pos, level.time, origin, qfalse, ent->s.effect2Time );
+	TCE_MissilePosition(ent,level.time,origin);
 
-	if( (ent->clipmask & CONTENTS_BODY) && (ent->s.weapon == WP_DYNAMITE || ent->s.weapon == WP_ARTY || ent->s.weapon == WP_SMOKE_MARKER
-		|| ent->s.weapon == WP_GRENADE_LAUNCHER || ent->s.weapon == WP_GRENADE_PINEAPPLE
-		|| ent->s.weapon == WP_LANDMINE || ent->s.weapon == WP_SATCHEL || ent->s.weapon == WP_SMOKE_BOMB
+	if( (ent->clipmask & CONTENTS_BODY) && (ent->s.weapon == 15 || ent->s.weapon == 63 || ent->s.weapon == 22
+		|| ent->s.weapon == 4 || ent->s.weapon == 9
+		|| ent->s.weapon == 26 || ent->s.weapon == 27 || ent->s.weapon == 30
 		) ) {
 
 		if( !ent->s.pos.trDelta[0] && !ent->s.pos.trDelta[1] && !ent->s.pos.trDelta[2] ) {
@@ -602,11 +412,11 @@ void G_RunMissile( gentity_t *ent ) {
 	}
 
 	if( level.tracemapLoaded &&
-		( ent->s.weapon == WP_MORTAR_SET ||
-		  ent->s.weapon == WP_GPG40 ||
-		  ent->s.weapon == WP_M7 ||
-		  ent->s.weapon == WP_GRENADE_LAUNCHER ||
-		  ent->s.weapon == WP_GRENADE_PINEAPPLE ) ) {
+		( ent->s.weapon == 60 ||
+		  ent->s.weapon == 55 ||
+		  ent->s.weapon == 56 ||
+		  ent->s.weapon == 4 ||
+		  ent->s.weapon == 9 ) ) {
 		if( ent->count ) {
 			if( ent->r.currentOrigin[0] < level.mapcoordsMins[0] ||
 				ent->r.currentOrigin[1] > level.mapcoordsMins[1] ||
@@ -670,9 +480,13 @@ void G_RunMissile( gentity_t *ent ) {
 
 	// trace a line from the previous position to the current position,
 	// ignoring interactions with the missile owner
-	trap_Trace( &tr, ent->r.currentOrigin, ent->r.mins, ent->r.maxs, origin, ent->r.ownerNum, ent->clipmask );
+	/* TC glass surfaces are traced through their playerclip material first. */
+    trap_Trace(&tr,ent->r.currentOrigin,ent->r.mins,ent->r.maxs,origin,ent->r.ownerNum,0x10000);
+    if(tr.fraction==1 || (tr.surfaceFlags&0xff000000)!=0x14000000)
+        trap_Trace(&tr,ent->r.currentOrigin,ent->r.mins,ent->r.maxs,origin,ent->r.ownerNum,ent->clipmask);
+    else tr.surfaceFlags&=~SURF_NOIMPACT;
 
-	if( ent->s.weapon == WP_MORTAR_SET && ent->count2 == 1 ) {
+	if( ent->s.weapon == 60 && ent->count2 == 1 ) {
 		if( ent->r.currentOrigin[2] > origin[2] && origin[2] - BG_GetGroundHeightAtPoint(origin) < 512 ) {
 			vec3_t impactpos;
 			trace_t mortar_tr;
@@ -721,11 +535,12 @@ void G_RunMissile( gentity_t *ent ) {
 
 	if ( tr.fraction != 1 ) {
 		if( level.tracemapLoaded &&
-			( ent->s.weapon == WP_MORTAR_SET ||
-			  ent->s.weapon == WP_GPG40 ||
-			  ent->s.weapon == WP_M7 || 
-			  ent->s.weapon == WP_GRENADE_LAUNCHER ||
-			  ent->s.weapon == WP_GRENADE_PINEAPPLE )
+			( ent->s.weapon == 60 ||
+			  ent->s.weapon == 55 ||
+			  ent->s.weapon == 56 || 
+			  ent->s.weapon == 4 ||
+              ent->s.weapon == 30 ||
+			  ent->s.weapon == 9 )
 			&& tr.surfaceFlags & SURF_SKY ) {
 			// goes through sky
 			ent->count = 1;
@@ -744,12 +559,12 @@ void G_RunMissile( gentity_t *ent ) {
 
 //		G_SetOrigin( ent, tr.endpos );
 
-		if( ent->s.weapon == WP_PANZERFAUST || ent->s.weapon == WP_MORTAR_SET )
+		if( ent->s.weapon == 65 || ent->s.weapon == 60 )
 			impactDamage = 999;	// goes through pretty much any func_explosives
 		else
 			impactDamage = 20;	// "grenade"/"dynamite"		// probably adjust this based on velocity
 
-		if( ent->s.weapon == WP_DYNAMITE || ent->s.weapon == WP_LANDMINE || ent->s.weapon == WP_SATCHEL ) {
+		if( ent->s.weapon == 15 || ent->s.weapon == 26 || ent->s.weapon == 27 ) {
 			if( ent->s.pos.trType != TR_STATIONARY )
 				G_MissileImpact( ent, &tr, impactDamage );
 		} else {
@@ -781,23 +596,23 @@ void G_PredictBounceMissile( gentity_t *ent, trajectory_t *pos, trace_t *trace, 
 	float	dot;
 	int		hitTime;
 
-	BG_EvaluateTrajectory( pos, time, origin, qfalse, ent->s.effect2Time );
+	TCE_BG_EvaluateTrajectory( pos, time, origin, qfalse, ent->s.effect2Time, 1.0f );
 
 	// reflect the velocity on the trace plane
 	hitTime = time;
-	BG_EvaluateTrajectoryDelta( pos, hitTime, velocity, qfalse, ent->s.effect2Time  );
+	TCE_BG_EvaluateTrajectoryDelta( pos, hitTime, velocity, qfalse, ent->s.effect2Time, 1.0f );
 	dot = DotProduct( velocity, trace->plane.normal );
 	VectorMA( velocity, -2*dot, trace->plane.normal, pos->trDelta );
 
 	if ( ent->s.eFlags & EF_BOUNCE_HALF ) {
 		if(ent->s.eFlags & EF_BOUNCE) {		// both flags marked, do a third type of bounce
-			VectorScale( pos->trDelta, 0.35, pos->trDelta );
+			VectorScale( pos->trDelta, 0.25f, pos->trDelta );
 		} else {
-			VectorScale( pos->trDelta, 0.65, pos->trDelta );
+			VectorScale( pos->trDelta, 0.5f, pos->trDelta );
 		}
 
 		// check for stop
-		if ( trace->plane.normal[2] > 0.2 && VectorLengthSquared( pos->trDelta ) < SQR(40) ) {
+		if ( trace->plane.normal[2] > 0.2f && VectorLengthSquared( pos->trDelta ) < SQR(40) ) {
 			VectorCopy( trace->endpos, pos->trBase );
 			return;
 		}
@@ -825,14 +640,14 @@ int G_PredictMissile( gentity_t *ent, int duration, vec3_t endPos, qboolean allo
 	gentity_t	backupEnt;
 
 	pos = ent->s.pos;
-	BG_EvaluateTrajectory( &pos, level.time, org, qfalse, ent->s.effect2Time  );
+	TCE_BG_EvaluateTrajectory( &pos, level.time, org, qfalse, ent->s.effect2Time, 1.0f );
 
 	backupEnt = *ent;
 
 	for (time = level.time + FRAMETIME; time < level.time + duration; time+=FRAMETIME) {
 
 		// get current position
-		BG_EvaluateTrajectory( &pos, time, origin, qfalse, ent->s.effect2Time  );
+		TCE_BG_EvaluateTrajectory( &pos, time, origin, qfalse, ent->s.effect2Time, 1.0f );
 
 		// trace a line from the previous position to the current position,
 		// ignoring interactions with the missile owner
@@ -914,7 +729,8 @@ void G_BurnTarget( gentity_t *self, gentity_t *body, qboolean directhit )
 	if ( !body->takedamage )
 		return;
 
-// JPW NERVE don't catch fire if invulnerable or same team in no FF
+	/* TC 2006b9f0 keeps invulnerability here; team damage is decided by
+	 * G_Damage, not by an SDK-only early rejection of the burn effect. */
 	if (body->client) {
 		if (body->client->ps.powerups[PW_INVULNERABLE] >= level.time) {
 			body->flameQuota = 0;
@@ -925,8 +741,6 @@ void G_BurnTarget( gentity_t *self, gentity_t *body, qboolean directhit )
 //		if( !self->count2 && body == self->parent )
 //			return;
 
-		if( !(g_friendlyFire.integer) && OnSameTeam( body, self->parent ) )
-			return;
 	}
 // jpw
 
@@ -982,7 +796,7 @@ void G_BurnTarget( gentity_t *self, gentity_t *body, qboolean directhit )
 	// now check the damageQuota to see if we should play a pain animation
 	// first reduce the current damageQuota with time
 	if (body->flameQuotaTime && body->flameQuota > 0) {
-		body->flameQuota -= (int)(((float)(level.time - body->flameQuotaTime)/1000) * 2.5f);
+		body->flameQuota -= (int)((double)(level.time - body->flameQuotaTime) * (double)0.001f * 2.5);
 		if (body->flameQuota < 0)
 			body->flameQuota = 0;
 	}
@@ -994,7 +808,8 @@ void G_FlameDamage( gentity_t *self, gentity_t *ignoreent ) {
 	gentity_t	*body;
 	int			entityList[MAX_GENTITIES];
 	int			i, e, numListedEntities;
-	float		radius, boxradius;
+	float		radius;
+	double		boxradius; /* Windows2006bc74..: no float spill before bounds. */
 	vec3_t		mins, maxs;
 
 	radius = self->speed;
@@ -1033,7 +848,8 @@ void G_RunFlamechunk( gentity_t *ent ) {
 	// Adust the current speed of the chunk
 	if ( level.time - ent->timestamp > 50 ) {
 		speed = VectorNormalize( vel );
-		speed -= (50.f/1000.f) * FLAME_FRICTION_PER_SEC;
+		/* Original folds the fixed 50ms friction step to exactly 120. */
+		speed -= 120.0;
 	
 		if ( speed < FLAME_MIN_SPEED )
 			speed = FLAME_MIN_SPEED;
@@ -1058,7 +874,7 @@ void G_RunFlamechunk( gentity_t *ent ) {
 		dot = DotProduct( vel, tr.plane.normal );
 		VectorMA( vel, -2*dot, tr.plane.normal, vel );
 		VectorNormalize( vel );
-		speed *= 0.5 * (0.25 + 0.75*((dot+1.0)*0.5));
+		speed = ((dot + 1.0) * 0.5 * 0.75 + 0.25) * speed * 0.5;
 		VectorScale( vel, speed, ent->s.pos.trDelta );
 
 		if( tr.entityNum != ENTITYNUM_WORLD && tr.entityNum != ENTITYNUM_NONE ) {
@@ -1255,6 +1071,7 @@ void G_FadeItems(gentity_t* ent, int modType) {
 	}
 }
 
+/* TC Windows2006c3f0 / Linux000cdcac: count only armed team-coded mines. */
 int G_CountTeamLandmines ( team_t team ) {
 	gentity_t* e;
 	int i;
@@ -1282,6 +1099,8 @@ int G_CountTeamLandmines ( team_t team ) {
 	return cnt;
 }
 
+/* TC Windows2006c450: radius squared is stored as float, but the
+ * VectorLengthSquared return stays in x87 until FCOMP2006c4e8. */
 qboolean G_SweepForLandmines( vec3_t origin, float radius, int team ) {
 	gentity_t* e;
 	int i;
@@ -1305,7 +1124,8 @@ qboolean G_SweepForLandmines( vec3_t origin, float radius, int team ) {
 
 		if( e->s.teamNum % 4 != team && e->s.teamNum < 4) {
 			VectorSubtract( origin, e->r.currentOrigin, dist );
-			if( VectorLengthSquared( dist ) > radius ) {
+			if( (double)dist[0]*dist[0] + (double)dist[1]*dist[1] +
+				(double)dist[2]*dist[2] > (double)radius ) {
 				continue;
 			}
 
@@ -1316,6 +1136,7 @@ qboolean G_SweepForLandmines( vec3_t origin, float radius, int team ) {
 	return( qfalse );
 }
 
+/* TC Windows2006c530: first live missile with satchel MOD and exact parent. */
 gentity_t *G_FindSatchel(gentity_t* ent) {
 	gentity_t* e;
 	int i;
@@ -1414,7 +1235,10 @@ qboolean G_ExplodeSatchels(gentity_t* ent) {
 		}
 
 		VectorSubtract(e->r.currentOrigin, ent->r.currentOrigin, dist);
-		if( VectorLengthSquared(dist) > SQR(2000)) {
+		/* TC2006c601 compares the x87 VectorLengthSquared return directly,
+		 * without rounding it through a float result first. */
+		if( (double)dist[0]*dist[0] + (double)dist[1]*dist[1] +
+			(double)dist[2]*dist[2] > SQR(2000)) {
 			continue;
 		}
 
@@ -1493,11 +1317,12 @@ void G_TripMineThink(gentity_t* ent) {
 	VectorMA(ent->r.currentOrigin, 2, ent->s.origin2, start);
 	VectorMA(start, 2048, ent->s.origin2, end);
 
-	trap_Trace(&trace, start, NULL, NULL, end, ent->s.number, MASK_SHOT);
+	/* TC 2006c768: keep the placement/beam collision masks identical. */
+	trap_Trace(&trace, start, NULL, NULL, end, ent->s.number, MASK_MISSILESHOT);
 
 	ent->nextthink = level.time + FRAMETIME;
 
-	if(trace.fraction == 1.f) { // Gordon: shouldnt really happen once we do a proper range check on placing
+	if(!(trace.fraction < 1.f || trace.fraction > 1.f)) { /* TC x87 C3: equal or unordered. */
 /*		ent->nextthink = level.time;
 		ent->think = DynaSink;
 		ent->timestamp = level.time + 1500;*/
@@ -1547,7 +1372,9 @@ qboolean sEntWillTriggerMine(gentity_t *ent, gentity_t *mine)
 		VectorSubtract(mine->r.currentOrigin, ent->r.currentOrigin, dist);
 		// have to be within the trigger distance AND on the ground -- if we jump over a mine, we don't set it off
 		//		(or if we fly by after setting one off)
-		if ( (VectorLengthSquared(dist) <= SQR(LANDMINE_TRIGGER_DIST)) && (fabs(dist[2]) < 45.f) )
+		/* TC2006c890 retains the squared-length result in x87 until comparison. */
+		if ( ((double)dist[0]*dist[0] + (double)dist[1]*dist[1] +
+			(double)dist[2]*dist[2] <= SQR(LANDMINE_TRIGGER_DIST)) && (fabs(dist[2]) < 45.f) )
 		{
 			return qtrue;
 		}
@@ -1686,215 +1513,124 @@ fire_grenade
 
 =================
 */
-gentity_t *fire_grenade (gentity_t *self, vec3_t start, vec3_t dir, int grenadeWPID) {
-	gentity_t	*bolt;
-	qboolean	noExplode = qfalse;
-
-	bolt = G_Spawn();
-
-	// no self->client for shooter_grenade's
-	if(	self->client && self->client->ps.grenadeTimeLeft) {
-		bolt->nextthink = level.time + self->client->ps.grenadeTimeLeft;
-	} else {
-		bolt->nextthink = level.time + 2500;
-	}
-
-	if(grenadeWPID == WP_DYNAMITE) {
-		noExplode = qtrue;
-		bolt->nextthink = level.time + 15000;
-		bolt->think = DynaSink;
-		bolt->timestamp = level.time + 16500;
-		bolt->free = DynaFree;
-	}
-
-	if( grenadeWPID == WP_LANDMINE ) {
-		noExplode = qtrue;
-		bolt->nextthink = level.time + 15000;
-		bolt->think = DynaSink;
-		bolt->timestamp = level.time + 16500;
-	}
-
-	if( grenadeWPID == WP_SATCHEL ) {
-		noExplode = qtrue;
-		bolt->nextthink = 0;
-		bolt->s.clientNum = self->s.clientNum;
-		bolt->free = G_FreeSatchel;
-	}
-
-	if( grenadeWPID == WP_MORTAR_SET ) {	// only on impact
-		noExplode = qtrue;
-		bolt->nextthink = 0;
-	}
-
-	// no self->client for shooter_grenade's
-	if(self->client)
-		self->client->ps.grenadeTimeLeft = 0;		// reset grenade timer
-
-	if(!noExplode)
-		bolt->think			= G_ExplodeMissile;
-
-	bolt->s.eType		= ET_MISSILE;
-	bolt->r.svFlags		= SVF_BROADCAST;
-	bolt->s.weapon		= grenadeWPID;
-	bolt->r.ownerNum	= self->s.number;
-	bolt->parent		= self;
-	bolt->s.teamNum		= self->client->sess.sessionTeam;
-
-// JPW NERVE -- commented out bolt->damage and bolt->splashdamage, override with G_GetWeaponDamage()
-// so it works with different netgame balance.  didn't uncomment bolt->damage on dynamite 'cause its so *special*
-	bolt->damage = G_GetWeaponDamage(grenadeWPID); // overridden for dynamite
-	bolt->splashDamage = G_GetWeaponDamage(grenadeWPID);
-// jpw
-
-	switch(grenadeWPID) {
-		case WP_GPG40:
-			bolt->classname				= "gpg40_grenade";
-			bolt->splashRadius			= 300;
-			bolt->methodOfDeath			= MOD_GPG40;
-			bolt->splashMethodOfDeath	= MOD_GPG40;
-			bolt->s.eFlags				= /*0;*/EF_BOUNCE_HALF | EF_BOUNCE;
-			bolt->nextthink				= level.time + 4000;
-			break;
-		case WP_M7:
-			bolt->classname				= "m7_grenade";
-			bolt->splashRadius			= 300;
-			bolt->methodOfDeath			= MOD_M7;
-			bolt->splashMethodOfDeath	= MOD_M7;
-			bolt->s.eFlags				= /*0;*/EF_BOUNCE_HALF | EF_BOUNCE;
-			bolt->nextthink				= level.time + 4000;
-			break;
-		case WP_SMOKE_BOMB:
-			// xkan 11/25/2002, fixed typo, classname used to be "somke_bomb"
-			bolt->classname				= "smoke_bomb";
-			bolt->s.eFlags				= EF_BOUNCE_HALF | EF_BOUNCE;
-			// rain - this is supposed to be MOD_SMOKEBOMB, not SMOKEGRENADE
-			bolt->methodOfDeath			= MOD_SMOKEBOMB;
-			break;
-		case WP_GRENADE_LAUNCHER:
-			bolt->classname				= "grenade";
-			bolt->splashRadius			= 300;
-			bolt->methodOfDeath			= MOD_GRENADE_LAUNCHER;
-			bolt->splashMethodOfDeath	= MOD_GRENADE_LAUNCHER;
-			bolt->s.eFlags				= EF_BOUNCE_HALF | EF_BOUNCE;
-			break;
-		case WP_GRENADE_PINEAPPLE:
-			bolt->classname				= "grenade";
-			bolt->splashRadius			= 300;
-			bolt->methodOfDeath			= MOD_GRENADE_LAUNCHER;
-			bolt->splashMethodOfDeath	= MOD_GRENADE_LAUNCHER;
-			bolt->s.eFlags				= EF_BOUNCE_HALF | EF_BOUNCE;
-			break;
-// JPW NERVE
-		case WP_SMOKE_MARKER:
-			bolt->classname				= "grenade";
-			bolt->s.eFlags				= EF_BOUNCE_HALF | EF_BOUNCE;
-			// rain - properly set MOD
-			bolt->methodOfDeath			= MOD_SMOKEGRENADE;
-			bolt->splashMethodOfDeath	= MOD_SMOKEGRENADE;
-			break;
-// jpw
-    case WP_MORTAR_SET:
-			bolt->classname				= "mortar_grenade";
-			bolt->splashRadius			= 800;
-			bolt->methodOfDeath			= MOD_MORTAR;
-			bolt->splashMethodOfDeath	= MOD_MORTAR;
-			bolt->s.eFlags				= 0;
-      break;
-		case WP_LANDMINE:
-			bolt->accuracy				= 0;
-			bolt->s.teamNum				= self->client->sess.sessionTeam + 4;
-			bolt->classname				= "landmine";
-			bolt->damage				= 0;
-			bolt->splashRadius			= 225;	// was: 400
-			bolt->methodOfDeath			= MOD_LANDMINE;
-			bolt->splashMethodOfDeath	= MOD_LANDMINE;
-			bolt->s.eFlags				= (EF_BOUNCE | EF_BOUNCE_HALF);
-			bolt->health				= 5;
-			bolt->takedamage			= qtrue;
-			bolt->r.contents			= CONTENTS_CORPSE;	// (player can walk through)
-
-			bolt->r.snapshotCallback	= qtrue;
-
-			VectorSet(bolt->r.mins, -16, -16, 0);
-			VectorCopy(bolt->r.mins, bolt->r.absmin);
-			VectorSet(bolt->r.maxs, 16, 16, 16);
-			VectorCopy(bolt->r.maxs, bolt->r.absmax);
-			break;
-		case WP_SATCHEL:
-			bolt->accuracy				= 0;
-			bolt->classname				= "satchel_charge";
-			bolt->damage				= 0;
-			bolt->splashRadius			= 300;
-			bolt->methodOfDeath			= MOD_SATCHEL;
-			bolt->splashMethodOfDeath	= MOD_SATCHEL;
-			bolt->s.eFlags				= (EF_BOUNCE | EF_BOUNCE_HALF);
-			bolt->health				= 5;
-			bolt->takedamage			= qfalse;
-			bolt->r.contents			= CONTENTS_CORPSE;	// (player can walk through)
-
-			VectorSet(bolt->r.mins, -12, -12, 0);
-			VectorCopy(bolt->r.mins, bolt->r.absmin);
-			VectorSet(bolt->r.maxs, 12, 12, 20);
-			VectorCopy(bolt->r.maxs, bolt->r.absmax);
-			break;
-		case WP_DYNAMITE:
-
-			bolt->accuracy = 0; // JPW NERVE sets to score below if dynamite is in trigger_objective_info & it's an objective
-			trap_SendServerCommand( self-g_entities, "cp \"Dynamite is set, but NOT armed!\"");
-			// differentiate non-armed dynamite with non-pulsing dlight
-			bolt->s.teamNum = self->client->sess.sessionTeam + 4;
-			bolt->classname				= "dynamite";
-			bolt->damage				= 0;
-//			bolt->splashDamage			= 300;
-			bolt->splashRadius			= 400;
-			bolt->methodOfDeath			= MOD_DYNAMITE;
-			bolt->splashMethodOfDeath	= MOD_DYNAMITE;
-			bolt->s.eFlags				= (EF_BOUNCE | EF_BOUNCE_HALF);
-
-			// dynamite is shootable
-			bolt->health				= 5;
-			bolt->takedamage			= qfalse;
-			
-			bolt->r.contents			= CONTENTS_CORPSE;	// (player can walk through)
-
-			// nope - this causes the dynamite to impact on the players bb when he throws it.  
-			// will try setting it when it settles
-//			bolt->r.ownerNum			= ENTITYNUM_WORLD;	// (SA) make the world the owner of the dynamite, so the player can shoot it without modifying the bullet code to ignore players id for hits
-
-			// small target cube
-			VectorSet(bolt->r.mins, -12, -12, 0);
-			VectorCopy(bolt->r.mins, bolt->r.absmin);
-			VectorSet(bolt->r.maxs, 12, 12, 20);
-			VectorCopy(bolt->r.maxs, bolt->r.absmax);
-			break;
-	}
-
-// JPW NERVE -- blast radius proportional to damage
-	bolt->splashRadius = G_GetWeaponDamage(grenadeWPID);
-// jpw
-
-	bolt->clipmask = MASK_MISSILESHOT;
-
-	bolt->s.pos.trType = TR_GRAVITY;
-	bolt->s.pos.trTime = level.time - MISSILE_PRESTEP_TIME;		// move a bit on the very first frame
-	VectorCopy( start, bolt->s.pos.trBase );
-	VectorCopy( dir, bolt->s.pos.trDelta );
-	
-	// ydnar: add velocity of player (:sigh: guess people don't like it)
-	//%	VectorAdd( bolt->s.pos.trDelta, self->s.pos.trDelta, bolt->s.pos.trDelta );
-	
-	// ydnar: add velocity of ground entity
-	if( self->s.groundEntityNum != ENTITYNUM_NONE && self->s.groundEntityNum != ENTITYNUM_WORLD )
-		VectorAdd( bolt->s.pos.trDelta, g_entities[ self->s.groundEntityNum ].instantVelocity, bolt->s.pos.trDelta );
-	
-	SnapVector( bolt->s.pos.trDelta );			// save net bandwidth
-
-	VectorCopy (start, bolt->r.currentOrigin);
-
-	// RF, record the time for AI
-	bolt->awaitingHelpTime = level.time;
-
-	return bolt;
+/* TC Windows2006cc30. Numeric slots are intentional: SDK weapon IDs collide. */
+gentity_t *fire_grenade(gentity_t *self,vec3_t start,vec3_t dir,int grenadeWPID) {
+    gentity_t *bolt=G_Spawn();
+    qboolean noExplode=qfalse;
+    int team=self->client?self->client->sess.sessionTeam:TEAM_FREE;
+    bolt->nextthink=level.time+(self->client && self->client->ps.grenadeTimeLeft?self->client->ps.grenadeTimeLeft:2500);
+    if(grenadeWPID==15 || grenadeWPID==26) {
+        noExplode=qtrue;bolt->nextthink=level.time+15000;
+        bolt->think=DynaSink;bolt->timestamp=level.time+16500;
+        if(grenadeWPID==15)bolt->free=DynaFree;
+    } else if(grenadeWPID==27) {
+        noExplode=qtrue;bolt->nextthink=0;
+        bolt->s.clientNum=self->s.clientNum;bolt->free=G_FreeSatchel;
+    } else if(grenadeWPID==60) { noExplode=qtrue;bolt->nextthink=0; }
+    if(self->client)self->client->ps.grenadeTimeLeft=0;
+    if(!noExplode)bolt->think=G_ExplodeMissile;
+    bolt->s.eType=ET_MISSILE;bolt->r.svFlags=SVF_BROADCAST;
+    bolt->s.weapon=grenadeWPID;bolt->r.ownerNum=self->s.number;
+    bolt->parent=self;bolt->s.teamNum=team;
+    bolt->damage=G_GetWeaponDamage(grenadeWPID);
+    bolt->splashDamage=G_GetWeaponDamage(grenadeWPID);
+    bolt->s.pos.trType=(trType_t)(g_newbbox.integer?13:7);
+    bolt->s.eFlags=self->client && (self->client->ps.stats[STAT_TCE_WEAPON_FLAGS]&4)?EF_BOUNCE_HALF:EF_BOUNCE_HALF|EF_BOUNCE;
+    switch(grenadeWPID) {
+    case 4:case 9:
+        bolt->classname=grenadeWPID==4?"flashbang":"grenade";
+        bolt->splashRadius=300;bolt->methodOfDeath=bolt->splashMethodOfDeath=18;break;
+    case 22:
+        bolt->classname="grenade";bolt->s.eFlags=EF_BOUNCE_HALF|EF_BOUNCE;
+        bolt->methodOfDeath=bolt->splashMethodOfDeath=62;break;
+    case 30:
+        bolt->classname="smoke_grenade";bolt->splashRadius=300;
+        bolt->methodOfDeath=bolt->splashMethodOfDeath=62;break;
+    case 55:case 56:
+        bolt->classname=grenadeWPID==55?"gpg40_grenade":"m7_grenade";
+        bolt->splashRadius=300;bolt->methodOfDeath=bolt->splashMethodOfDeath=grenadeWPID==55?43:44;
+        bolt->s.eFlags=EF_BOUNCE_HALF|EF_BOUNCE;bolt->nextthink=level.time+4000;break;
+    case 60:
+        bolt->classname="mortar_grenade";bolt->splashRadius=800;
+        bolt->methodOfDeath=bolt->splashMethodOfDeath=57;bolt->s.eFlags=0;break;
+    case 15:case 26:case 27:
+        bolt->accuracy=0;bolt->health=5;bolt->damage=0;
+        bolt->s.eFlags=EF_BOUNCE_HALF|EF_BOUNCE;
+        bolt->r.contents=CONTENTS_CORPSE;bolt->takedamage=grenadeWPID==26;
+        if(grenadeWPID==26) {
+            bolt->s.teamNum=team+4;bolt->classname="landmine";bolt->splashRadius=225;
+            bolt->methodOfDeath=bolt->splashMethodOfDeath=45;bolt->r.snapshotCallback=qtrue;
+            VectorSet(bolt->r.mins,-16,-16,0);VectorSet(bolt->r.maxs,16,16,16);
+        } else {
+            bolt->classname=grenadeWPID==15?"dynamite":"satchel_charge";
+            bolt->splashRadius=grenadeWPID==15?400:300;
+            bolt->methodOfDeath=bolt->splashMethodOfDeath=grenadeWPID==15?26:46;
+            VectorSet(bolt->r.mins,-12,-12,0);VectorSet(bolt->r.maxs,12,12,20);
+        }
+        VectorCopy(bolt->r.mins,bolt->r.absmin);VectorCopy(bolt->r.maxs,bolt->r.absmax);
+        if(grenadeWPID==15) {
+            vec3_t origin,mins,maxs;
+            int touch[MAX_GENTITIES],num,i;
+            bolt->timestamp=level.time+1000;bolt->s.teamNum=team;
+            bolt->s.effect1Time=level.time;bolt->nextthink=level.time+45000;
+            bolt->think=G_ExplodeMissile;
+            VectorCopy(self->r.currentOrigin,origin);SnapVector(origin);
+            VectorSet(mins,origin[0]-12,origin[1]-12,origin[2]);
+            VectorSet(maxs,origin[0]+12,origin[1]+12,origin[2]+20);
+            num=trap_EntitiesInBox(mins,maxs,touch,MAX_GENTITIES);
+            for(i=0;i<num;i++) {
+                gentity_t *hit=&g_entities[touch[i]],*sound,*popup;
+                qboolean enemy;
+                if(!(hit->r.contents&CONTENTS_TRIGGER) || strcmp(hit->classname,"trigger_objective_info") ||
+                    !(hit->spawnflags&(AXIS_OBJECTIVE|ALLIED_OBJECTIVE)))continue;
+                sound=G_TempEntity(self->r.currentOrigin,EV_GLOBAL_TEAM_SOUND);
+                enemy=((hit->spawnflags&AXIS_OBJECTIVE)&&team==TEAM_ALLIES)||
+                      ((hit->spawnflags&ALLIED_OBJECTIVE)&&team==TEAM_AXIS);
+                if(enemy)sound->s.eventParm=G_SoundIndex(team==TEAM_ALLIES?
+                    "sound/multiplayer/allies/a-dynamite_planted.wav":"sound/multiplayer/axis/g-dynamite_planted.wav");
+                if(hit->spawnflags&AXIS_OBJECTIVE) {
+                    sound->s.teamNum=TEAM_AXIS;
+                    if(team==TEAM_ALLIES)bolt->accuracy=hit->accuracy;
+                } else {
+                    sound->s.teamNum=TEAM_ALLIES;
+                    if(team==TEAM_AXIS)bolt->accuracy=hit->accuracy;
+                }
+                sound->r.svFlags|=SVF_BROADCAST;
+                if(enemy) {
+                    level.tceBombPlanted=qtrue;
+                    self->client->ps.stats[STAT_TCE_WEAPON_FLAGS]&=~0x100;
+                    self->client->tceBombPossessionOrder=0;
+                    level.tceBombCarrierCount--;
+                    popup=G_PopupMessage(PM_DYNAMITE);popup->s.effect2Time=0;
+                    popup->s.effect3Time=hit->s.teamNum;popup->s.teamNum=team;
+                    G_Script_ScriptEvent(hit,"dynamited","");
+                    if(hit->target_ent)G_Script_ScriptEvent(hit->target_ent,"dynamited","");
+                    if(sound->s.teamNum && sound->s.teamNum!=team) {
+                        /* Original target entity+0x2e4 is the script score,
+                         * not the SDK count field (e.g. crate health/count150). */
+                        if(hit->target_ent && hit->target_ent->tceObjectiveScore) {
+                            if(g_gametype.integer==5)AddKillScore(bolt->parent,hit->target_ent->tceObjectiveScore);
+                            else AddScore(bolt->parent,hit->target_ent->tceObjectiveScore);
+                        }
+                        if(bolt->parent && bolt->parent->client)
+                            G_LogPrintf("Dynamite_Plant: %d\n",bolt->parent-g_entities);
+                        bolt->parent=self;
+                    }
+                }
+                break;
+            }
+        }
+        break;
+    default:break;
+    }
+    bolt->splashRadius=G_GetWeaponDamage(grenadeWPID);
+    bolt->clipmask=MASK_MISSILESHOT;
+    bolt->s.pos.trTime=grenadeWPID==15?level.time:level.time-MISSILE_PRESTEP_TIME;
+    VectorCopy(start,bolt->s.pos.trBase);VectorCopy(dir,bolt->s.pos.trDelta);
+    if(self->s.groundEntityNum!=ENTITYNUM_NONE && self->s.groundEntityNum!=ENTITYNUM_WORLD)
+        VectorAdd(bolt->s.pos.trDelta,g_entities[self->s.groundEntityNum].instantVelocity,bolt->s.pos.trDelta);
+    SnapVector(bolt->s.pos.trDelta);VectorCopy(start,bolt->r.currentOrigin);
+    bolt->awaitingHelpTime=level.time;return bolt;
 }
 
 //=============================================================================
@@ -1922,8 +1658,9 @@ gentity_t *fire_rocket (gentity_t *self, vec3_t start, vec3_t dir) {
 
 	bolt->r.ownerNum = self->s.number;
 	bolt->parent = self;
-	bolt->damage = G_GetWeaponDamage(WP_PANZERFAUST); // JPW NERVE
-	bolt->splashDamage = G_GetWeaponDamage(WP_PANZERFAUST); // JPW NERVE
+	/* TC2006d797/7a4 use map-rocket protocol65, not SDK weapon5. */
+	bolt->damage = G_GetWeaponDamage(65);
+	bolt->splashDamage = G_GetWeaponDamage(65);
 	bolt->splashRadius = 300; //G_GetWeaponDamage(WP_PANZERFAUST);	// Arnout : hardcoded bleh hack
 	bolt->methodOfDeath = MOD_PANZERFAUST;
 	bolt->splashMethodOfDeath = MOD_PANZERFAUST;
@@ -1936,7 +1673,37 @@ gentity_t *fire_rocket (gentity_t *self, vec3_t start, vec3_t dir) {
 // JPW NERVE
 	VectorScale(dir,2500,bolt->s.pos.trDelta);
 // jpw
+	/* Windows2006d821: reload stored32, __ftol64, consume lowEAX. */
+#if defined(_MSC_VER) && defined(_M_IX86)
+	{
+		int rocketAxis;
+		for (rocketAxis = 0; rocketAxis < 3; ++rocketAxis) {
+			float *rocketComponent = &bolt->s.pos.trDelta[rocketAxis];
+			unsigned short rocketCW, rocketTruncCW;
+			__int64 rocketInteger;
+			int rocketLow;
+			__asm {
+				mov ecx, rocketComponent
+				fld dword ptr [ecx]
+				fwait
+				fnstcw rocketCW
+				fwait
+				mov ax, rocketCW
+				or ax, 0c00h
+				mov rocketTruncCW, ax
+				fldcw rocketTruncCW
+				fistp qword ptr rocketInteger
+				fldcw rocketCW
+				mov eax, dword ptr rocketInteger
+				mov rocketLow, eax
+				fild rocketLow
+				fstp dword ptr [ecx]
+			}
+		}
+	}
+#else
 	SnapVector( bolt->s.pos.trDelta );			// save net bandwidth
+#endif
 	VectorCopy (start, bolt->r.currentOrigin);
 
 	if(self->client) {
@@ -1969,7 +1736,7 @@ gentity_t *fire_flamebarrel (gentity_t *self, vec3_t start, vec3_t dir) {
 	bolt->s.eType = ET_FLAMEBARREL;
 	bolt->s.eFlags = EF_BOUNCE_HALF;
 	bolt->r.svFlags = SVF_BLANK;
-	bolt->s.weapon = WP_PANZERFAUST;
+	bolt->s.weapon = 65; /* TC2006d907 map-projectile protocol, not SDK5. */
 	bolt->r.ownerNum = self->s.number;
 	bolt->parent = self;
 	bolt->damage = 100;
@@ -1984,8 +1751,57 @@ gentity_t *fire_flamebarrel (gentity_t *self, vec3_t start, vec3_t dir) {
 	bolt->s.pos.trType = TR_GRAVITY;
 	bolt->s.pos.trTime = level.time - MISSILE_PRESTEP_TIME;		// move a bit on the very first frame
 	VectorCopy( start, bolt->s.pos.trBase );
+#if defined(_MSC_VER) && defined(_M_IX86)
+	{
+		int flameAxis;
+		const float flameReciprocal = 3.0518509447574615e-05f;
+		const double flameHalf = 0.5, flameRange = 100.0, flameSpeed = 900.0;
+		/* Three independent draws and stores, then three conversions. */
+		for (flameAxis = 0; flameAxis < 3; ++flameAxis) {
+			int flameRandom = rand() & 0x7fff;
+			float *flameDirection = &dir[flameAxis];
+			float *flameVelocity = &bolt->s.pos.trDelta[flameAxis];
+			__asm {
+				fild flameRandom
+				fmul flameReciprocal
+				fsub flameHalf
+				fadd st(0), st(0)
+				fmul flameRange
+				fadd flameSpeed
+				mov ecx, flameDirection
+				fmul dword ptr [ecx]
+				mov ecx, flameVelocity
+				fstp dword ptr [ecx]
+			}
+		}
+		for (flameAxis = 0; flameAxis < 3; ++flameAxis) {
+			float *flameVelocity = &bolt->s.pos.trDelta[flameAxis];
+			unsigned short flameCW, flameTruncCW;
+			__int64 flameInteger;
+			int flameLow;
+			__asm {
+				mov ecx, flameVelocity
+				fld dword ptr [ecx]
+				fwait
+				fnstcw flameCW
+				fwait
+				mov ax, flameCW
+				or ax, 0c00h
+				mov flameTruncCW, ax
+				fldcw flameTruncCW
+				fistp qword ptr flameInteger
+				fldcw flameCW
+				mov eax, dword ptr flameInteger
+				mov flameLow, eax
+				fild flameLow
+				fstp dword ptr [ecx]
+			}
+		}
+	}
+#else
 	VectorScale( dir, 900 + (crandom() * 100), bolt->s.pos.trDelta );
-	SnapVector( bolt->s.pos.trDelta );			// save net bandwidth
+	SnapVector( bolt->s.pos.trDelta );
+#endif
 	VectorCopy (start, bolt->r.currentOrigin);
 
 	return bolt;

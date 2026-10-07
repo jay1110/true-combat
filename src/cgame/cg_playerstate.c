@@ -6,84 +6,27 @@
 // when the snapshot transitions like all the other entities
 
 #include "cg_local.h"
+#include "../game/tce_bg.h"
+#include "tce_flash.h"
 
 /*
 ==============
 CG_CheckAmmo
 
-If the ammo has gone low enough to generate the warning, play a sound
+Update the original TC low-ammo state without the SDK warning sound.
 ==============
 */
+/* TC300568b0: no SDK low-ammo click. Preserve original x86 mask wrap. */
 void CG_CheckAmmo( void ) {
-	int		i;
-	int		total;
-	int		weapons[MAX_WEAPONS/(sizeof(int)*8)];
-
-	// see about how many seconds of ammo we have remaining
-	memcpy( weapons, cg.snap->ps.weapons, sizeof(weapons) );
-
-	if(!weapons[0] && !weapons[1])	// (SA) we start out with no weapons, so don't make a click on startup
-		return;
-
-	total = 0;
-
-	for ( i = 0 ; i < WP_NUM_WEAPONS ; i++ )
-	{
-		if ( ! ( weapons[0] & ( 1 << i ) ) )
-		{
-			continue;
-		}
-		switch ( i )
-		{
-			case WP_PANZERFAUST:
-			case WP_GRENADE_LAUNCHER:
-			case WP_GRENADE_PINEAPPLE:
-			case WP_LUGER:
-			case WP_COLT:
-			case WP_AKIMBO_COLT:
-			case WP_AKIMBO_SILENCEDCOLT:
-			case WP_AKIMBO_LUGER:
-			case WP_AKIMBO_SILENCEDLUGER:
-			case WP_SILENCER:
-			case WP_MP40:
-			case WP_THOMPSON:
-			case WP_STEN:
-			case WP_GARAND:
-			case WP_FG42:
-			case WP_FG42SCOPE:
-			case WP_KAR98:
-			case WP_GPG40:
-			case WP_CARBINE:
-			case WP_M7:
-			case WP_MOBILE_MG42:
-			case WP_MOBILE_MG42_SET:
-			case WP_K43:
-			case WP_MORTAR_SET:
-			default:
-				total += cg.snap->ps.ammo[BG_FindAmmoForWeapon(i)] * 1000;
-				break;
-//			default:
-//				total += cg.snap->ps.ammo[BG_FindAmmoForWeapon(i)] * 200;
-//				break;
-		}
-
-		if ( total >= 5000 )
-		{
-			cg.lowAmmoWarning = 0;
-			return;
-		}
-	}
-
-	if ( !cg.lowAmmoWarning ) {
-		// play a sound on this transition
-		trap_S_StartLocalSound( cgs.media.noAmmoSound, CHAN_LOCAL_SOUND );
-	}
-
-	if ( total == 0 ) {
-		cg.lowAmmoWarning = 2;
-	} else {
-		cg.lowAmmoWarning = 1;
-	}
+    unsigned int weapons = (unsigned int)cg.snap->ps.weapons[0];
+    int weapon, total = 0;
+    if (!weapons && !cg.snap->ps.weapons[1]) return;
+    for (weapon = 0; weapon < 64; ++weapon) {
+        if (!(weapons & (1u << (weapon & 31)))) continue;
+        total += cg.snap->ps.ammo[BG_FindAmmoForWeapon(weapon)] * 1000;
+        if (total >= 5000) { cg.lowAmmoWarning = 0; return; }
+    }
+    cg.lowAmmoWarning = total ? 1 : 2;
 }
 
 /*
@@ -95,7 +38,7 @@ void CG_DamageFeedback( int yawByte, int pitchByte, int damage ) {
 	float		left, front, up;
 	float		kick;
 	int			health;
-	float		scale;
+	double		scale;
 	vec3_t		dir;
 	vec3_t		angles;
 	float		dist;
@@ -139,8 +82,8 @@ void CG_DamageFeedback( int yawByte, int pitchByte, int damage ) {
 		cg.v_dmg_pitch = -kick;
 	} else {
 		// positional
-		pitch = pitchByte / 255.0 * 360;
-		yaw = yawByte / 255.0 * 360;
+		pitch = (float)(pitchByte * (360.0 / 255.0));
+		yaw = (float)(yawByte * (360.0 / 255.0));
 
 		angles[PITCH] = pitch;
 		angles[YAW] = yaw;
@@ -149,9 +92,10 @@ void CG_DamageFeedback( int yawByte, int pitchByte, int damage ) {
 		AngleVectors( angles, dir, NULL, NULL );
 		VectorSubtract( vec3_origin, dir, dir );
 
-		front = DotProduct (dir, cg.refdef.viewaxis[0] );
-		left = DotProduct (dir, cg.refdef.viewaxis[1] );
-		up = DotProduct (dir, cg.refdef.viewaxis[2] );
+		/* Original30056a68..ae1 sums Z,Y,X in x87 before storing each float. */
+		front = (float)(((double)dir[2]*cg.refdef.viewaxis[0][2] + (double)dir[1]*cg.refdef.viewaxis[0][1]) + (double)dir[0]*cg.refdef.viewaxis[0][0]);
+		left = (float)(((double)dir[2]*cg.refdef.viewaxis[1][2] + (double)dir[1]*cg.refdef.viewaxis[1][1]) + (double)dir[0]*cg.refdef.viewaxis[1][0]);
+		up = (float)(((double)dir[2]*cg.refdef.viewaxis[2][2] + (double)dir[1]*cg.refdef.viewaxis[2][1]) + (double)dir[0]*cg.refdef.viewaxis[2][0]);
 
 		dir[0] = front;
 		dir[1] = left;
@@ -168,8 +112,8 @@ void CG_DamageFeedback( int yawByte, int pitchByte, int damage ) {
 		if ( front <= 0.1 ) {
 			front = 0.1;
 		}
-		vd->damageX = crandom()*0.3 + -left / front;
-		vd->damageY = crandom()*0.3 + up / dist;
+		vd->damageX = (float)((((double)(rand()&32767)*(double)(1.0f/32767.0f)-.5)*2.0)*.3 - (double)left/front);
+		vd->damageY = (float)((((double)(rand()&32767)*(double)(1.0f/32767.0f)-.5)*2.0)*.3 + (double)up/dist);
 	}
 
 	// clamp the position
@@ -250,11 +194,38 @@ void CG_Respawn( qboolean revived ) {
 		cgs.limboLoadoutSelected = qfalse;
 	}
 
-	if( cg.predictedPlayerState.stats[STAT_PLAYER_CLASS] == PC_COVERTOPS ) {
-		cg.pmext.silencedSideArm = 1;
-	}
 
+    /* TC respawn state that already has productive native consumers. */
+    cg.tceAimActive = cg.tceAimComplete = cg.tceAimRequested = 0;
+    cg.tceAimWeaponLatch = 0;
+    cg.tceTacticalScale = 0; /* Original34846e6c; offset producer and weapon-position consumer share this state. */
+    cg.tceActionTransitionTime = 0;
+    cg.tceShotHoldUntil=cg.time;
+    cg.tceHeartbeatNext=cg.tceHeartbeatUntil=0;
+    cg.tceAdsBreathTime=0;
+    cg.tceCoronaBlendAlpha=0;
+    cg.tceSoundSampleTime=cg.tceSoundEnvironment=0;
+    VectorClear(cg.tceSoundLastOrigin);
+    VectorClear(cg.tceRoomExtent);
+    cg.tceRoomDistance=0;
+    memset(cg.tceRoomWeights,0,sizeof(cg.tceRoomWeights));
+    cg.tceSoundZoneEffects[0][0]=cg.tceSoundZoneEffects[0][1]=
+        cg.tceSoundZoneEffects[1][0]=cg.tceSoundZoneEffects[1][1];
+    memset(cg.tceSoundZoneSounds,0,sizeof(cg.tceSoundZoneSounds));
+    memset(cg.tceSoundZoneVolume,0,sizeof(cg.tceSoundZoneVolume));
+    cg.tceSoundZoneActive=cg.tceSoundZoneTransitionTime=0;
+    cg.tceFiremodeTime = cg.time;
+    cg.tceFiremodeAnimationTime = -1000;
+    tceFlash.blindUntil = tceFlash.blindActive = tceFlash.deafUntil = 0;
+    tceFlash.deafness = 0;
+    trap_Cvar_Set("r_ambientscale", "1.3");
 	cg.proneMovingTime = 0;
+	/* TC30056cb0 resets stance4950 and scopeBlocked4b0c, but preserves
+	 * duck4948/prone4958, sway4a04.. and the captured scope entity. */
+	cg.tceStanceTime=cg.tceScopeBlocked=0;
+	cg.tceEyeSampleTime=0; /* original340a4bd0 */
+	cg.tceEyeSmooth=cg.tceEyeLinear=cg.tceEyeFlare=0;
+	cg.tceEyeFlareFrame=0;cg.tceScopeLightBoost=1;
 
 	// reset fog to world fog (if present)
 	trap_R_SetFog(FOG_CMD_SWITCHFOG, FOG_MAP,20,0,0,0,0);
@@ -368,74 +339,19 @@ void CG_CheckChangedPredictableEvents( playerState_t *ps ) {
 CG_CheckLocalSounds
 ==================
 */
-void CG_CheckLocalSounds( playerState_t *ps, playerState_t *ops ) {
-	// health changes of more than -1 should make pain sounds
-	if ( ps->stats[STAT_HEALTH] < ops->stats[STAT_HEALTH] - 1 ) {
-		if ( ps->stats[STAT_HEALTH] > 0 ) {
-			CG_PainEvent( &cg.predictedPlayerEntity, ps->stats[STAT_HEALTH], qfalse );
-
-			cg.painTime = cg.time;
-		}
-	}
-
-	// timelimit warnings
-	if ( cgs.timelimit > 0 && cgs.gamestate == GS_PLAYING) {
-		int		msec;
-
-		msec = cg.time - cgs.levelStartTime;
-
-		if ( cgs.timelimit > 5 && !( cg.timelimitWarnings & 1 ) && (msec > (cgs.timelimit - 5) * 60 * 1000) &&
-			( msec < (cgs.timelimit-5)*60*1000+1000 ) ) {
-			cg.timelimitWarnings |= 1;
-			if( ps->persistant[PERS_TEAM] == TEAM_AXIS ) {
-				if( cgs.media.fiveMinuteSound_g == -1 ) {
-					CG_SoundPlaySoundScript( cg.fiveMinuteSound_g, NULL, -1, qtrue );
-				} else if( cgs.media.fiveMinuteSound_g ) {
-					trap_S_StartLocalSound( cgs.media.fiveMinuteSound_g, CHAN_ANNOUNCER );
-				}
-			} else if( ps->persistant[PERS_TEAM] == TEAM_ALLIES ) {
-				if( cgs.media.fiveMinuteSound_a == -1 ) {
-					CG_SoundPlaySoundScript( cg.fiveMinuteSound_a, NULL, -1, qtrue );
-				} else if( cgs.media.fiveMinuteSound_a ) {
-					trap_S_StartLocalSound( cgs.media.fiveMinuteSound_a, CHAN_ANNOUNCER );
-				}
-			}
-		}
-		if ( cgs.timelimit > 2 && !( cg.timelimitWarnings & 2 ) && (msec > (cgs.timelimit - 2) * 60 * 1000) &&
-			( msec < (cgs.timelimit-2)*60*1000+1000 ) ) {
-			cg.timelimitWarnings |= 2;
-			if( ps->persistant[PERS_TEAM] == TEAM_AXIS ) {
-				if( cgs.media.twoMinuteSound_g == -1 ) {
-					CG_SoundPlaySoundScript( cg.twoMinuteSound_g, NULL, -1, qtrue );
-				} else if( cgs.media.twoMinuteSound_g ) {
-					trap_S_StartLocalSound( cgs.media.twoMinuteSound_g, CHAN_ANNOUNCER );
-				}
-			} else if( ps->persistant[PERS_TEAM] == TEAM_ALLIES ) {
-				if( cgs.media.twoMinuteSound_a == -1 ) {
-					CG_SoundPlaySoundScript( cg.twoMinuteSound_a, NULL, -1, qtrue );
-				} else if( cgs.media.twoMinuteSound_a ) {
-					trap_S_StartLocalSound( cgs.media.twoMinuteSound_a, CHAN_ANNOUNCER );
-				}
-			}
-		}
-		if ( !( cg.timelimitWarnings & 4 ) && (msec > (cgs.timelimit) * 60 * 1000 - 30000) && 
-			(msec < (cgs.timelimit) * 60 * 1000 - 29000 ) ) {
-			cg.timelimitWarnings |= 4;
-			if( ps->persistant[PERS_TEAM] == TEAM_AXIS ) {
-				if( cgs.media.thirtySecondSound_g == -1 ) {
-					CG_SoundPlaySoundScript( cg.thirtySecondSound_g, NULL, -1, qtrue );
-				} else if( cgs.media.thirtySecondSound_g ) {
-					trap_S_StartLocalSound( cgs.media.thirtySecondSound_g, CHAN_ANNOUNCER );
-				}
-			} else if( ps->persistant[PERS_TEAM] == TEAM_ALLIES ) {
-				if( cgs.media.thirtySecondSound_a == -1 ) {
-					CG_SoundPlaySoundScript( cg.thirtySecondSound_a, NULL, -1, qtrue );
-				} else if( cgs.media.thirtySecondSound_a ) {
-					trap_S_StartLocalSound( cgs.media.thirtySecondSound_a, CHAN_ANNOUNCER );
-				}
-			}
-		}
-	}
+/* TC30056fc0: injury pulse replaces the SDK timelimit announcements. */
+void CG_CheckLocalSounds(playerState_t *ps, playerState_t *ops) {
+    if (ps->stats[STAT_HEALTH] < ops->stats[STAT_HEALTH] - 1 &&
+        ps->stats[STAT_HEALTH] > 0) {
+        CG_PainEvent(&cg.predictedPlayerEntity, ps->stats[STAT_HEALTH], qfalse);
+        cg.painTime = cg.time;
+    }
+    if ((ps->holdable[2] > ops->holdable[2] + 60 ||
+         ps->holdable[3] > ops->holdable[3] + 30 ||
+         ps->holdable[4] > ops->holdable[4] + 30) && ps->stats[STAT_HEALTH] > 0) {
+        cg.tceHeartbeatNext = cg.time;
+        cg.tceHeartbeatUntil = cg.time + 7500;
+    }
 }
 
 /*
@@ -512,7 +428,7 @@ void CG_TransitionPlayerState( playerState_t *ps, playerState_t *ops )
 	CG_CheckAmmo();
 
 	if( ps->eFlags & EF_PRONE_MOVING ) {
-		if( ps->weapon == WP_BINOCULARS ) {
+		if( ps->weapon == 20 ) {
 			if( ps->eFlags & EF_ZOOMING ) {
 				trap_SendConsoleCommand( "-zoom\n" );
 			}
@@ -529,7 +445,7 @@ void CG_TransitionPlayerState( playerState_t *ps, playerState_t *ops )
 	}
 
 	if( !(ps->eFlags & EF_PRONE) && ops->eFlags & EF_PRONE ) {
-		if( cg.weaponSelect == WP_MOBILE_MG42_SET )
+		if( cg.weaponSelect == 62 )
 			CG_FinishWeaponChange( cg.weaponSelect, ps->nextWeapon );
 	}
 
@@ -537,9 +453,38 @@ void CG_TransitionPlayerState( playerState_t *ps, playerState_t *ops )
 	CG_CheckPlayerstateEvents( ps, ops );
 
 	// smooth the ducking viewheight change
-	if ( ps->viewheight != ops->viewheight ) {
+	if ( ps->viewheight != ops->viewheight && ps->persistant[PERS_TEAM] != TEAM_SPECTATOR ) {
 		cg.duckChange = ps->viewheight - ops->viewheight;
 		cg.duckTime = cg.time;
 	}
+	/* Original CG_TransitionPlayerState30057060: signed posture timers
+	 * feed the complete weapon-position controller, independently of viewheight. */
+	{
+		if ((ps->pm_flags ^ ops->pm_flags) & PMF_LADDER) {
+			if (ps->pm_flags & PMF_LADDER) cg.tceWeaponDuckTime=cg.time+50;
+			else if (cg.tceWeaponDuckTime < cg.time) {
+				int remaining=cg.tceWeaponDuckTime-cg.time+200;
+				if (remaining<0) remaining=-50;
+				cg.tceWeaponDuckTime=remaining-cg.time;
+			}
+		}
+		if ((ps->eFlags ^ ops->eFlags)&EF_PRONE)
+			cg.tceProneTime=(ps->eFlags&EF_PRONE)?cg.time:-cg.time;
+		if ((ps->stats[STAT_TCE_WEAPON_FLAGS]^ops->stats[STAT_TCE_WEAPON_FLAGS])&0x4000)
+			cg.tceStanceTime=(ps->stats[STAT_TCE_WEAPON_FLAGS]&0x4000)?cg.time:-cg.time;
+	}
+
+    if (!cg.tceAimActive) {
+        if ((ps->stats[STAT_TCE_WEAPON_FLAGS] ^ ops->stats[STAT_TCE_WEAPON_FLAGS]) & 0x20) {
+            if (ps->stats[STAT_TCE_WEAPON_FLAGS] & 0x20)
+                cg.tceActionTransitionTime = cg.time + 200;
+            else if (cg.tceActionTransitionTime < cg.time) {
+                int remaining = cg.tceActionTransitionTime - cg.time + 200;
+                if (remaining < 0) remaining = 0;
+                cg.tceActionTransitionTime = remaining - cg.time;
+            }
+        }
+    }
+
 }
 

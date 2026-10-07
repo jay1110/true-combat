@@ -11,7 +11,7 @@
 #ifndef __BG_PUBLIC_H__
 #define __BG_PUBLIC_H__
 
-#define	GAME_VERSION	"Enemy Territory"
+#define	GAME_VERSION	"TCE2 development"
 
 #if defined(_DEBUG)
 	#define	GAME_VERSION_DATED			GAME_VERSION
@@ -125,7 +125,10 @@ extern vec3_t	playerlegsProneMaxs;
 typedef enum {
 	STATE_DEFAULT,			// ent is linked, can be used and is solid
 	STATE_INVISIBLE,		// ent is unlinked, can't be used, doesn't think and is not solid
-	STATE_UNDERCONSTRUCTION	// ent is being constructed
+	STATE_UNDERCONSTRUCTION,	// ent is being constructed
+	STATE_DYNAMITED,		// TC objective destroyed
+	STATE_INACTIVE,			// TC objective inactive
+	STATE_LOCKED			// TC objective locked
 } entState_t;
 
 typedef enum {
@@ -228,6 +231,7 @@ typedef struct {
 	const char *briefing;
 	const char *lmsbriefing;
 	const char *objectives;
+    qboolean tceOfficial;
 } mapInfo;
 
 // Campaign saves
@@ -378,7 +382,9 @@ extern const unsigned int aReinfSeeds[MAX_REINFSEEDS];
 #define CS_FIRETEAMS					( CS_TAGCONNECTS +			MAX_TAGCONNECTS				)
 #define CS_CUSTMOTD						( CS_FIRETEAMS +			MAX_FIRETEAMS				)
 #define CS_STRINGS						( CS_CUSTMOTD +				MAX_MOTDLINES				)
-#define CS_MAX							( CS_STRINGS +				MAX_CSSTRINGS				)
+#define CS_LOCATIONS (CS_STRINGS + MAX_CSSTRINGS)
+#define TCE_MAX_LOCATIONS (MAX_CONFIGSTRINGS - CS_LOCATIONS)
+#define CS_MAX (CS_LOCATIONS + TCE_MAX_LOCATIONS)
 
 #if (CS_MAX) > MAX_CONFIGSTRINGS
 #error overflow: (CS_MAX) > MAX_CONFIGSTRINGS
@@ -393,6 +399,8 @@ typedef enum {
 	GT_WOLF_STOPWATCH,
 	GT_WOLF_CAMPAIGN,	// Exactly the same as GT_WOLF, but uses campaign roulation (multiple maps form one virtual map)
 	GT_WOLF_LMS,
+	GT_TCE_RESERVED,
+	GT_TCE_BODYCOUNT,
 	GT_MAX_GAME_TYPE
 } gametype_t;
 //#define GAMETYPES
@@ -442,6 +450,9 @@ typedef enum {
 	WEAPON_FIRING,
 	WEAPON_FIRINGALT,
 	WEAPON_RELOADING,	//----(SA)	added
+	WEAPON_TCE_RELOAD_START,
+	WEAPON_TCE_RELOAD_END,
+	WEAPON_TCE_CYCLE,
 } weaponstate_t;
 
 typedef enum {
@@ -459,6 +470,7 @@ typedef enum {
 #define	PMF_BACKWARDS_RUN	16		// coast down to backwards run
 #define	PMF_TIME_LAND		32		// pm_time is time before rejump
 #define	PMF_TIME_KNOCKBACK	64		// pm_time is an air-accelerate only time
+#define PMF_TCE_OBJECTIVE_ACTION 128 /* Original timed +activate action. */
 #define	PMF_TIME_WATERJUMP	256		// pm_time is waterjump
 #define	PMF_RESPAWNED		512		// clear after attack and jump buttons come up
 //#define PMF_PRONE_BIPOD		1024	// prone with a bipod set
@@ -502,6 +514,7 @@ typedef struct {
 	int			lastRecoilDeltaTime;
 	
 	qboolean	releasedFire;
+	vec3_t tceShotAngles; /* Original pmext+0x64, captured before shot recoil. */
 } pmoveExt_t;	// data used both in client and server - store it here
 				// instead of playerstate to prevent different engine versions of playerstate between XP and MP
 
@@ -572,10 +585,12 @@ int Pmove (pmove_t *pmove);
 #define PC_FIELDOPS				3	//	bomb stuff
 #define PC_COVERTOPS			4	//	sneak about ;o
 
-#define NUM_PLAYER_CLASSES		5
+#define PC_ELITE                5
+#define PC_VIP                  6
+#define NUM_PLAYER_CLASSES      7
 
 // JPW NERVE
-#define MAX_WEAPS_IN_BANK_MP	12
+#define MAX_WEAPS_IN_BANK_MP	22
 #define MAX_WEAP_BANKS_MP		10
 // jpw
 
@@ -590,7 +605,17 @@ typedef enum {
 	STAT_CAPTUREHOLD_RED,			// JPW NERVE - red team score
 	STAT_CAPTUREHOLD_BLUE,			// JPW NERVE - blue team score
 	STAT_XP,						// Gordon: "realtime" version of xp that doesnt need to go thru the scoreboard
+	STAT_TCE_FLAGS,                 // TC:E ps+0xf4; shared server/prediction flags
 } statIndex_t;
+
+#define STAT_TCE_WEAPON_FLAGS STAT_XP /* TC:E repurposes stats[8], ps+0xf0. */
+#define TCE_STAT_WARMUP_LOCK 0x10
+/* Original TC playerState offsets ec/f8/100. Descriptive recovered names. */
+#define STAT_TCE_SHOT_SEED STAT_CAPTUREHOLD_BLUE
+#define STAT_TCE_RECOIL_REMAINDER 10
+#define STAT_TCE_MOVEMENT_INSTABILITY 11
+#define STAT_TCE_SHOT_INSTABILITY 12
+#define STAT_TCE_AIM_PHASE 13
 
 // player_state->persistant[] indexes
 // these fields are the only part of player_state that isn't
@@ -864,7 +889,7 @@ extern const char* medalNames[SK_NUM_SKILLS];
 extern const int skillLevels[NUM_SKILL_LEVELS];
 
 typedef struct {
-	weaponStats_t	weaponStats[WP_NUM_WEAPONS];
+	weaponStats_t	weaponStats[MAX_WEAPONS]; /* TC:E: 64 wire slots */
 	int				suicides;
 	int				hitRegions[HR_NUM_HITREGIONS];
 	int				objectiveStats[MAX_OBJECTIVES];
@@ -1057,6 +1082,25 @@ typedef enum {
 	EV_ARTYMESSAGE,
 	EV_AIRSTRIKEMESSAGE,
 	EV_MEDIC_CALL,
+	EV_TCE_RELOAD_CYCLE,
+	EV_TCE_RELOAD_PUMP,
+	EV_TCE_RELOAD_PUMP2,
+	EV_TCE_RELOAD_BOLT,
+    EV_TCE_FIREMODE,
+    EV_TCE_TOGGLE_AIMING, /* TC Windows event134, private reconstructed event range. */
+    EV_TCE_SHOTGUN, /* TC Windows event161: seeded nine-pellet client pattern. */
+    EV_TCE_PLANT, /* Original 156; reconstructed private event IDs. */
+    EV_TCE_DEFUSE,
+    EV_TCE_OBJECTIVE_START,
+    EV_TCE_OBJECTIVE_STOP,
+    EV_TCE_OBJECTIVE_COMPLETE,
+    EV_TCE_FALL_DMG_75, /* Original 162; SDK has no 75-damage event. */
+    EV_TCE_BULLET_PIERCED_WALL, /* Original154, private shared protocol ID. */
+    EV_TCE_BULLET_NEAR_MISS, /* Original155. */
+    EV_TCE_FOOTSTEP_SPRINT, /* Original138; private shared protocol ID. */
+    EV_TCE_FOOTSTEP_WALK, /* Original139. */
+    EV_TCE_FENCE_TOUCH, /* Original153; private shared protocol ID. */
+    EV_TCE_GRENADE_PRIME, /* Original137; append to preserve reconstructed event IDs. */
 	EV_MAX_EVENTS	// just added as an 'endcap'
 } entity_event_t;
 
@@ -1709,6 +1753,11 @@ typedef enum
 	ANIM_MT_SNEAK,
 	ANIM_MT_AFTERBATTLE,			// xkan, 1/8/2003, just finished battle
 
+	ANIM_MT_IDLETURNRIGHT,
+	ANIM_MT_IDLETURNLEFT,
+	ANIM_MT_IDLECRTURNRIGHT,
+	ANIM_MT_IDLECRTURNLEFT,
+
 	NUM_ANIM_MOVETYPES
 } scriptAnimMoveTypes_t;
 
@@ -1946,6 +1995,9 @@ typedef enum{
 	ACC_MOUTH2,		//
 	ACC_MOUTH3,		//
 	ACC_RANK,		//
+	ACC_CHEST,      /* TC:E: 10 */
+	ACC_ARM_LEFT,   /* TC:E: 11 */
+	ACC_ARM_RIGHT,  /* TC:E: 12 */
 	ACC_MAX			// this is bound by network limits, must change network stream to increase this
 } accType_t;
 
@@ -1953,7 +2005,7 @@ typedef enum{
 
 #define MAX_GIB_MODELS		16
 
-#define MAX_WEAPS_PER_CLASS	10
+#define MAX_WEAPS_PER_CLASS     24
 
 typedef struct {
 	int			classNum;
@@ -1962,6 +2014,7 @@ typedef struct {
 	const char* iconArrow;
 
 	weapon_t	classWeapons[MAX_WEAPS_PER_CLASS];
+	weapon_t	classWeapons2[MAX_WEAPS_PER_CLASS]; /* TC sidearm slots. */
 
 	qhandle_t	icon;
 	qhandle_t	arrow;
@@ -1989,6 +2042,10 @@ typedef struct bg_character_s {
 	qhandle_t			hudhead;
 	qhandle_t			hudheadskin;
 	animation_t			hudheadanimations[MAX_HD_ANIMATIONS];
+	/* TC:E character media, Windows cgame offsets 0x808..0x838. */
+	qhandle_t           bodyDamageSkins[8]; /* p01,p02,p10,p11,p12,p20,p21,p22 */
+	qhandle_t           armsSkins[3];
+	qhandle_t           headDamageSkins[2];
 #endif // CGAMEDLL
 
 	animModelInfo_t*	animModelInfo;
@@ -2289,6 +2346,8 @@ typedef struct bg_characterDef_s {
 	char		hudhead[MAX_QPATH];
 	char		hudheadanims[MAX_QPATH];
 	char		hudheadskin[MAX_QPATH];
+	char		skinGroup[MAX_QPATH]; /* TC:E: 0x240 */
+	char		skinRoot[MAX_QPATH];  /* TC:E: 0x280 */
 } bg_characterDef_t;
 
 qboolean BG_ParseCharacterFile( const char *filename, bg_characterDef_t* characterDef );

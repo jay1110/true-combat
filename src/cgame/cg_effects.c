@@ -2,6 +2,7 @@
 // of event processing
 
 #include "cg_local.h"
+#include "tce_smoke_grenade.h"
 
 
 /*
@@ -11,58 +12,31 @@ CG_BubbleTrail
 Bullets shot underwater
 ==================
 */
-void CG_BubbleTrail( vec3_t start, vec3_t end, float size, float spacing ) {
-	vec3_t		move;
-	vec3_t		vec;
-	float		len;
-	int			i;
+static double CG_BloodNormalize(vec3_t v);
 
-	VectorCopy (start, move);
-	VectorSubtract (end, start, vec);
-	len = VectorNormalize (vec);
-
-	// advance a random amount first
-	i = rand() % (int)spacing;
-	VectorMA( move, i, vec, move );
-
-	VectorScale (vec, spacing, vec);
-
-	for ( ; i < len; i += spacing ) {
-		localEntity_t	*le;
-		refEntity_t		*re;
-
-		le = CG_AllocLocalEntity();
-		le->leFlags = LEF_PUFF_DONT_SCALE;
-		le->leType = LE_MOVE_SCALE_FADE;
-		le->startTime = cg.time;
-		le->endTime = cg.time + 1000 + random() * 250;
-		le->lifeRate = 1.0 / ( le->endTime - le->startTime );
-
-		re = &le->refEntity;
-		re->shaderTime = cg.time / 1000.0f;
-
-		re->reType = RT_SPRITE;
-		re->rotation = 0;
-//		re->radius = 3;	
-		re->radius = size; // (SA)
-		re->customShader = cgs.media.waterBubbleShader;
-		re->shaderRGBA[0] = 0xff;
-		re->shaderRGBA[1] = 0xff;
-		re->shaderRGBA[2] = 0xff;
-		re->shaderRGBA[3] = 0xff;
-
-		le->color[3] = 1.0;
-
-		le->pos.trType = TR_LINEAR;
-		le->pos.trTime = cg.time;
-		VectorCopy( move, le->pos.trBase );
-		le->pos.trDelta[0] = crandom()*3;
-		le->pos.trDelta[1] = crandom()*3;
-//		le->pos.trDelta[2] = crandom()*5 + 6;
-		le->pos.trDelta[2] = crandom()*5 + 20;	// (SA)
-
-		VectorAdd (move, vec, move);
-	}
+void CG_BubbleTrail(vec3_t start,vec3_t end,float size,float spacing) {
+    vec3_t move,direction;float length;int i,j;
+    VectorCopy(start,move);VectorSubtract(end,start,direction);
+    length=(float)CG_BloodNormalize(direction);
+    i=rand()%(int)spacing;
+    for(j=0;j<3;++j) move[j]=(float)((double)i*direction[j]+move[j]);
+    VectorScale(direction,spacing,direction);
+    for(;i<length;i=(int)((double)i+spacing)) {
+        localEntity_t *le=CG_AllocLocalEntity();refEntity_t *re=&le->refEntity;
+        le->leFlags=LEF_PUFF_DONT_SCALE;le->leType=LE_MOVE_SCALE_FADE;
+        le->startTime=cg.time;
+        le->endTime=(int)((double)cg.time+1000+(rand()&32767)*(double)(1.0f/32767.0f)*250);
+        le->lifeRate=1.0f/(le->endTime-le->startTime);
+        re->shaderTime=cg.time*.001f;re->reType=RT_SPRITE;re->rotation=0;
+        re->radius=size;re->customShader=cgs.media.waterBubbleShader;
+        memset(re->shaderRGBA,255,4);le->color[3]=1;
+        le->pos.trType=TR_LINEAR;le->pos.trTime=cg.time;VectorCopy(move,le->pos.trBase);
+        for(j=0;j<3;++j) {
+            double random=((rand()&32767)*(double)(1.0f/32767.0f)-.5)*2;
+            le->pos.trDelta[j]=(float)(random*(j==2?5:3)+(j==2?20:0));
+        }
+        VectorAdd(move,direction,move);
+    }
 }
 
 /*
@@ -79,73 +53,30 @@ Adds a smoke puff or blood trail localEntity.
 */
 
 //----(SA)	modified
-localEntity_t *CG_SmokePuff( const vec3_t p, const vec3_t vel, 
-				   float radius,
-				   float r, float g, float b, float a,
-				   float duration,
-				   int startTime,
-				   int fadeInTime,
-				   int leFlags,
-				   qhandle_t hShader ) {
-	static int	seed = 0x92;
-	localEntity_t	*le;
-	refEntity_t		*re;
-
-	le = CG_AllocLocalEntity();
-	le->leFlags = leFlags;
-	le->radius = radius;
-
-	re = &le->refEntity;
-	re->rotation = Q_random( &seed ) * 360;
-	re->radius = radius;
-	re->shaderTime = startTime / 1000.0f;
-
-	le->leType = LE_MOVE_SCALE_FADE;
-	le->startTime = startTime;
-	le->endTime = startTime + duration;
-	le->fadeInTime = fadeInTime;
-	if ( fadeInTime > startTime )
-		le->lifeRate = 1.0 / ( le->endTime - le->fadeInTime );
-	else
-		le->lifeRate = 1.0 / ( le->endTime - le->startTime );
-	le->color[0] = r;
-	le->color[1] = g; 
-	le->color[2] = b;
-	le->color[3] = a;
-
-
-	le->pos.trType = TR_LINEAR;
-	le->pos.trTime = startTime;
-	VectorCopy( vel, le->pos.trDelta );
-	VectorCopy( p, le->pos.trBase );
-
-	VectorCopy( p, re->origin );
-	re->customShader = hShader;
-
-	// rage pro can't alpha fade, so use a different shader
-	if ( cgs.glconfig.hardwareType == GLHW_RAGEPRO ) {
-		re->customShader = cgs.media.smokePuffRageProShader;
-		re->shaderRGBA[0] = 0xff;
-		re->shaderRGBA[1] = 0xff;
-		re->shaderRGBA[2] = 0xff;
-		re->shaderRGBA[3] = 0xff;
-	} else {
-		re->shaderRGBA[0] = le->color[0] * 0xff;
-		re->shaderRGBA[1] = le->color[1] * 0xff;
-		re->shaderRGBA[2] = le->color[2] * 0xff;
-		re->shaderRGBA[3] = 0xff;
-	}
-// JPW NERVE
-	if (cg_fxflags & 1) {
-		re->customShader = getTestShader();
-		re->rotation = 180;
-	}
-// jpw
-
-	re->reType = RT_SPRITE;
-	re->radius = le->radius;
-
-	return le;
+localEntity_t *CG_SmokePuff(const vec3_t origin,const vec3_t velocity,
+    float radius,float red,float green,float blue,float alpha,float duration,
+    int startTime,int fadeInTime,int flags,qhandle_t shader) {
+    static int seed=0x92;
+    localEntity_t *le=CG_AllocLocalEntity();refEntity_t *re=&le->refEntity;
+    le->leFlags=flags;le->radius=radius;
+    re->rotation=Q_random(&seed)*360;re->radius=radius;re->shaderTime=startTime*.001f;
+    le->leType=LE_MOVE_SCALE_FADE;le->startTime=startTime;
+    le->endTime=(int)((double)startTime+duration);le->fadeInTime=fadeInTime;
+    le->lifeRate=1.0f/(le->endTime-(fadeInTime>startTime?fadeInTime:startTime));
+    VectorSet(le->color,red,green,blue);le->color[3]=alpha;
+    le->pos.trType=TR_LINEAR;le->pos.trTime=startTime;
+    VectorCopy(velocity,le->pos.trDelta);VectorCopy(origin,le->pos.trBase);
+    VectorCopy(origin,re->origin);re->customShader=shader;
+    if(cgs.glconfig.hardwareType==GLHW_RAGEPRO) {
+        re->customShader=cgs.media.smokePuffRageProShader;memset(re->shaderRGBA,255,4);
+    } else {
+        re->shaderRGBA[0]=(byte)(int)((double)red*255);
+        re->shaderRGBA[1]=(byte)(int)((double)green*255);
+        re->shaderRGBA[2]=(byte)(int)((double)blue*255);re->shaderRGBA[3]=255;
+    }
+    if(cg_fxflags&1){re->customShader=getTestShader();re->rotation=180;}
+    re->reType=RT_SPRITE;re->radius=le->radius;
+    return le;
 }
 
 /*
@@ -267,113 +198,70 @@ localEntity_t *CG_MakeExplosion( vec3_t origin, vec3_t dir,
 CG_AddBloodTrails
 =================
 */
-void CG_AddBloodTrails( vec3_t origin, vec3_t dir, int speed, int duration, int count, float randScale ) {
-	localEntity_t	*le;
-	refEntity_t		*re;
-	vec3_t	velocity;
-	int	i;
-
-	for (i=0; i<count; i++) {
-		le = CG_AllocLocalEntity();
-		re = &le->refEntity;
-
-		VectorSet( velocity, dir[0] + crandom()*randScale, dir[1] + crandom()*randScale, dir[2] + crandom() * randScale);
-		VectorScale( velocity, (float)speed, velocity );
-
-		le->leType = LE_BLOOD;
-		le->startTime = cg.time;
-		le->endTime = le->startTime + duration; // DHM - Nerve :: (removed) - (int)(0.5 * random() * duration);
-		le->lastTrailTime = cg.time;
-
-		VectorCopy( origin, re->origin );
-		AxisCopy( axisDefault, re->axis );
-
-		le->pos.trType = TR_GRAVITY_LOW;
-		VectorCopy( origin, le->pos.trBase );
-		VectorMA( le->pos.trBase, 2 + random()*4, dir, le->pos.trBase );
-		VectorCopy( velocity, le->pos.trDelta );
-		le->pos.trTime = cg.time;
-
-		le->bounceFactor = 0.9;
-	}
+/* Windows3002bc60: RGB-lit blood particles, independent offsets per axis. */
+void CG_AddBloodTrails(vec3_t origin, vec3_t dir, int speed, int duration,
+                       int count, float randScale, vec3_t color) {
+    int i,j;
+    for(i=0;i<count;++i) {
+        localEntity_t *le=CG_AllocLocalEntity();
+        vec3_t velocity;
+        for(j=0;j<3;++j)
+            velocity[j]=(float)(((double)(rand()&32767)*(float)(1.0/32767.0)-0.5)*2.0*randScale+dir[j]);
+        le->leType=LE_BLOOD;
+        le->startTime=cg.time;
+        le->endTime=cg.time+duration;
+        le->lastTrailTime=cg.time;
+        VectorCopy(origin,le->refEntity.origin);
+        AxisCopy(axisDefault,le->refEntity.axis);
+        le->pos.trType=TR_GRAVITY_LOW;
+        VectorCopy(origin,le->pos.trBase);
+        for(j=0;j<3;++j)
+            le->pos.trBase[j]=(float)(((double)(rand()&32767)*(float)(1.0/32767.0)*4.0+2.0)*dir[j]+le->pos.trBase[j]);
+        VectorScale(velocity,(float)speed,le->pos.trDelta);
+        le->bounceFactor=0.9f;
+        le->pos.trTime=cg.time;
+        VectorCopy(color,le->color);
+    }
 }
 
-/*
-=================
-CG_Bleed
-
-This is the spurt of blood when a character gets hit
-=================
-*/
-void CG_Bleed( vec3_t origin, int entityNum ) {
-#define	BLOOD_SPURT_COUNT	4
-	int i,j;
-	centity_t *cent;
-
-	if( !cg_blood.integer ) {
-		return;
-	}
-
-#ifdef SAVEGAME_SUPPORT
-	if( cg_reloading.integer ) {
-		// to dangerous, since we call playerangles() in here, which calls the animation system, which might not be setup yet
-		return;
-	}
-#endif // SAVEGAME_SUPPORT
-
-	cent = &cg_entities[entityNum];
-
-	// Ridah, blood spurts
-	if ( entityNum != cg.snap->ps.clientNum )
-	{
-		vec3_t vhead, vbody, bOrigin, dir, vec, pvec, ndir;
-
-		CG_GetBleedOrigin( vhead, vbody, entityNum );
-		
-		// project the impact point onto the vector defined by torso -> head
-		ProjectPointOntoVector( origin, vbody, vhead, bOrigin );
-
-		// if it's below the waste, or above the head, clamp
-		VectorSubtract( vhead, vbody, vec );
-		VectorSubtract( bOrigin, vbody, pvec );
-		if( DotProduct( pvec, vec ) < 0 ) {
-			VectorCopy( vbody, bOrigin );
-		} else {
-			VectorSubtract( bOrigin, vhead, pvec );
-			if( DotProduct( pvec, vec ) > 0 ) {
-				VectorCopy( vhead, bOrigin );
-			}
-		}
-
-		// spawn some blood trails, heading out towards the impact point
-		VectorSubtract( origin, bOrigin, dir );
-		VectorNormalize( dir );
-
-		{
-			float	len;
-			vec3_t	vec;
-
-			VectorSubtract( bOrigin, vhead, vec );
-			len = VectorLength (vec);
-
-			if( len > 8 ) {
-				VectorMA( bOrigin, 8, dir, bOrigin );
-			}
-		}
-		
-		// DHM - Nerve :: Made minor adjustments
-		for( i = 0; i < BLOOD_SPURT_COUNT; i++ ) {
-			VectorCopy(dir, ndir);
-			for( j = 0; j < 3; j++ )
-				ndir[j] += crandom()*0.3;
-			VectorNormalize( ndir );
-			CG_AddBloodTrails( bOrigin, ndir,
-							   100,	// speed
-							   450 + (int)(crandom () * 50),	// duration
-							   2 + rand()%2,	// count
-							   0.1 );	// rand scale
-		}			
-	}
+/* Windows3002be80: one two/three-particle spurt, not four SDK spurts. */
+/* The reference keeps lengths and projection products in x87 registers.
+ * Float intermediates change the direction of hits exactly on the body axis. */
+static double CG_BloodNormalize(vec3_t v) {
+    double length=sqrt((double)v[0]*v[0]+(double)v[1]*v[1]+(double)v[2]*v[2]);
+    if(length) { double inverse=1.0/length; int i; for(i=0;i<3;++i) v[i]=(float)(v[i]*inverse); }
+    return length;
+}
+static void CG_BloodProject(vec3_t point,vec3_t start,vec3_t end,vec3_t result) {
+    vec3_t offset,axis; double dot; int i;
+    VectorSubtract(point,start,offset); VectorSubtract(end,start,axis);
+    CG_BloodNormalize(axis);
+    dot=(double)axis[2]*offset[2]+(double)axis[1]*offset[1]+(double)axis[0]*offset[0];
+    for(i=0;i<3;++i) result[i]=(float)(dot*axis[i]+start[i]);
+}
+void CG_Bleed(vec3_t origin, int entityNum, vec3_t color) {
+    vec3_t head,body,bloodOrigin,direction,axis,offset,noisy;
+    int j,count,duration;
+    if(!cg_blood.integer || entityNum==cg.snap->ps.clientNum) return;
+    CG_GetBleedOrigin(head,body,entityNum);
+    CG_BloodProject(origin,body,head,bloodOrigin);
+    VectorSubtract(head,body,axis);
+    VectorSubtract(bloodOrigin,body,offset);
+    if(DotProduct(offset,axis)<0) VectorCopy(body,bloodOrigin);
+    else {
+        VectorSubtract(bloodOrigin,head,offset);
+        if(DotProduct(offset,axis)>0) VectorCopy(head,bloodOrigin);
+    }
+    VectorSubtract(origin,bloodOrigin,direction);
+    CG_BloodNormalize(direction);
+    VectorSubtract(bloodOrigin,head,offset);
+    if(VectorLength(offset)>8) VectorMA(bloodOrigin,8,direction,bloodOrigin);
+    for(j=0;j<3;++j)
+        noisy[j]=(float)(((double)(rand()&32767)*(float)(1.0/32767.0)-0.5)*2.0*0.3+direction[j]);
+    CG_BloodNormalize(noisy);
+    count=2+rand()%2;
+    duration=450-(int)(((double)(rand()&32767)*(float)(1.0/32767.0)-0.5)*2.0*-50.0);
+    CG_AddBloodTrails(bloodOrigin,noisy,100,duration,count,0.1f,color);
 }
 
 /*
@@ -394,6 +282,9 @@ void CG_LaunchGib( centity_t *cent, vec3_t origin, vec3_t angles, vec3_t velocit
 	re = &le->refEntity;
 
 	le->leType = LE_FRAGMENT;
+	/* TC3002c100 emits the native fragment consumed by300450f0, not the
+	   SDK compatibility renderer. Remaining fields map the original layout. */
+	le->tceFragment = qtrue;
 	le->startTime = cg.time;
 	// le->endTime = le->startTime + 60000 + random() * 60000;
 	le->endTime = le->startTime + 20000 + (crandom() * 5000);
@@ -488,6 +379,8 @@ void CG_LoseHat( centity_t *cent, vec3_t dir )
 		re = &le->refEntity;
 
 		le->leType = LE_FRAGMENT;
+		/* Original CG_LoseHat3002c310 uses the same TC fragment controller. */
+		le->tceFragment = qtrue;
 		le->startTime = cg.time;
 		le->endTime = le->startTime + 20000 + (crandom() * 5000);
 
@@ -1220,7 +1113,9 @@ CG_RumbleEfx
 void CG_RumbleEfx ( float pitch, float yaw ) {
 	float	pitchRecoilAdd, pitchAdd;
 	float	yawRandom;
+#if !defined(_MSC_VER) || !defined(_M_IX86)
 	vec3_t	recoil;
+#endif
 
 	//
 	pitchRecoilAdd = 0;
@@ -1228,6 +1123,77 @@ void CG_RumbleEfx ( float pitch, float yaw ) {
 	yawRandom = 0;
 	//
 
+#if defined(_MSC_VER) && defined(_M_IX86)
+	{
+		double power, powerBase;
+		float *velocity;
+		int randomPitch, divisor, remainder, powerSample;
+		unsigned short savedCW, truncCW;
+		__int64 converted;
+		static const float minimumPitch = 1.0f, speedFactor = 0.20000000298023224f;
+		static const float baseRecoil = 10.0f;
+		static const double halfRecoil = 0.5;
+		static const float powerUnit = 0.000030518509447574615f;
+		__asm {
+			fld pitch
+			fcomp minimumPitch
+			fnstsw ax
+			test ah, 1
+			jz rumble_pitch_ready
+			mov pitch, 3f800000h
+rumble_pitch_ready:
+		}
+		/* __CIpow30088e90 spills the retained random product directly to double.
+		 * Its internal CRT implementation, not this input rounding, remains open. */
+		powerSample = rand() & 32767;
+		__asm {
+			fild powerSample
+			fmul powerUnit
+			fstp powerBase
+		}
+		power = pow(powerBase, 8);
+		velocity = cg.snap->ps.velocity;
+		__asm {
+			mov eax, velocity
+			push eax
+			call VectorLength
+			fmul speedFactor
+			add esp, 4
+			fadd baseRecoil
+			fmul power
+			fmul halfRecoil
+			fstp pitchRecoilAdd
+		}
+		randomPitch = rand();
+		__asm {
+			fld pitch
+			fstcw savedCW
+			fwait
+			mov ax, savedCW
+			or ah, 0ch
+			mov truncCW, ax
+			fldcw truncCW
+			fistp converted
+			fldcw savedCW
+		}
+		divisor = (int)converted;
+		__asm {
+			mov eax, randomPitch
+			cdq
+			idiv divisor
+			mov remainder, edx
+			fild remainder
+			fld pitch
+			fmul halfRecoil
+			fsubp st(1), st(0)
+			fmul halfRecoil
+			fstp pitchAdd
+			fld yaw
+			fmul halfRecoil
+			fstp yawRandom
+		}
+	}
+#else
 	if (pitch < 1)
 		pitch = 1;
 
@@ -1239,6 +1205,103 @@ void CG_RumbleEfx ( float pitch, float yaw ) {
 	pitchAdd *= 0.5;
 	yawRandom *= 0.5;
 
+#endif
+
+#if defined(_MSC_VER) && defined(_M_IX86)
+	/* TC3002da33..3002dbc6: preserve branch flags, retained yaw and roll spill.
+	 * Only the separate original CRT pow implementation remains open. */
+	{
+		int sample;
+		float rollStore, pitchStore;
+		float *kick = cg.kickAVel, *recoilPitch = &cg.recoilPitch;
+		static const float zero = 0.0f, unit = 0.000030518509447574615f;
+		static const float gain = 30.0f;
+		static const double switchChance = 0.05, half = 0.5;
+		__asm {
+			mov ecx, kick
+			fld dword ptr [ecx+4]
+			fcomp zero
+			fnstsw ax
+			test ah, 41h
+			jnz rumble_nonpositive
+			call rand
+			and eax, 7fffh
+			mov sample, eax
+			fild sample
+			fmul unit
+			fcomp switchChance
+			fnstsw ax
+			test ah, 1
+			jnz rumble_negative
+			jmp rumble_positive
+rumble_nonpositive:
+			mov ecx, kick
+			fld dword ptr [ecx+4]
+			fcomp zero
+			fnstsw ax
+			test ah, 1
+			jz rumble_zero
+			call rand
+			and eax, 7fffh
+			mov sample, eax
+			fild sample
+			fmul unit
+			fcomp switchChance
+			fnstsw ax
+			test ah, 1
+			jnz rumble_positive
+			jmp rumble_negative
+rumble_zero:
+			call rand
+			and eax, 7fffh
+			mov sample, eax
+			fild sample
+			fmul unit
+			fcomp half
+			fnstsw ax
+			test ah, 1
+			jnz rumble_positive
+rumble_negative:
+			call rand
+			and eax, 7fffh
+			mov sample, eax
+			fild sample
+			fmul unit
+			fmul yawRandom
+			fchs
+			jmp rumble_output
+rumble_positive:
+			call rand
+			and eax, 7fffh
+			mov sample, eax
+			fild sample
+			fmul unit
+			fmul yawRandom
+rumble_output:
+			fld st(0)
+			fchs
+			fstp rollStore
+			fld pitchAdd
+			fchs
+			fmul gain
+			fstp pitchStore
+			fmul gain
+			fld rollStore
+			fmul gain
+			mov ecx, kick
+			mov edx, pitchStore
+			mov dword ptr [ecx], edx
+			fstp rollStore
+			mov eax, rollStore
+			fstp dword ptr [ecx+4]
+			mov edx, recoilPitch
+			fld dword ptr [edx]
+			fsub pitchRecoilAdd
+			mov dword ptr [ecx+8], eax
+			fstp dword ptr [edx]
+		}
+	}
+#else
 	// calc the recoil
 
 	// xkan, 11/04/2002 - the following used to be "recoil[YAW] = crandom()*yawRandom()"
@@ -1276,12 +1339,10 @@ void CG_RumbleEfx ( float pitch, float yaw ) {
 	VectorCopy( recoil, cg.kickAVel );
 	// set the recoil
 	cg.recoilPitch -= pitchRecoilAdd;
+#endif
 }
 
 #define MAX_SMOKESPRITES 512
-#define SMOKEBOMB_DISTANCEBETWEENSPRITES 16.f
-#define SMOKEBOMB_SPAWNRATE 10
-#define SMOKEBOMB_SMOKEVELOCITY ((640.f - 16.f)/8)/1000.f	// units per msec
 
 typedef struct smokesprite_s {
 	struct smokesprite_s *next;
@@ -1293,6 +1354,8 @@ typedef struct smokesprite_s {
 	vec3_t dir;
 	float dist;
 	float size;
+	int directionClass; /* Original +0x38. */
+	int birthTime;      /* Original +0x3c; owner +0x40, stride 0x44. */
 
 	centity_t *smokebomb;
 } smokesprite_t;
@@ -1313,27 +1376,6 @@ void InitSmokeSprites( void ) {
 	firstfreesmokesprite = &SmokeSprites[0];
 	lastusedsmokesprite = NULL;
 	SmokeSpriteCount = 0;
-}
-
-static smokesprite_t *AllocSmokeSprite( void ) {
-	smokesprite_t *alloc;
-
-	if( SmokeSpriteCount >= MAX_SMOKESPRITES )
-		return( NULL );
-
-	alloc = firstfreesmokesprite;
-
-	firstfreesmokesprite = alloc->next;
-	
-	if( lastusedsmokesprite )
-		lastusedsmokesprite->next = alloc;
-
-	alloc->next = NULL;
-	alloc->prev = lastusedsmokesprite;
-	lastusedsmokesprite = alloc;
-
-	SmokeSpriteCount++;
-	return( alloc );
 }
 
 // Returns previous alloced smokesprite in list (or NULL when there are no more alloced smokesprites left)
@@ -1361,265 +1403,144 @@ static smokesprite_t *DeAllocSmokeSprite( smokesprite_t *dealloc ) {
 	return( ret_smokesprite );
 }
 
+/* TC3002dc70: free expansion, no SDK solid trace. */
 static qboolean CG_SmokeSpritePhysics( smokesprite_t *smokesprite, const float dist ) {
-	trace_t tr;
-	vec3_t oldpos;
-	//vec3_t mins, maxs;
-
-	VectorCopy( smokesprite->pos, oldpos );
-	VectorMA( oldpos, dist, smokesprite->dir, smokesprite->pos );
-
-	smokesprite->dist += dist;
-
-	smokesprite->size += 1.25f * dist;
-
-	// see if we hit a solid
-	// FIXME: use mins and max with smoke sprite  minimum radius and then expand to max possible distance or real current sprite size?
-	// would definately look nice I think
-	//VectorSet( maxs, .3f * smokesprite->size, .3f * smokesprite->size, .3f * smokesprite->size );
-	//VectorNegate( maxs, mins );
-	//CG_Trace( &tr, oldpos, mins, maxs, smokesprite->pos, -1, CONTENTS_SOLID );
-	CG_Trace( &tr, oldpos, NULL, NULL, smokesprite->pos, -1, CONTENTS_SOLID );
-
-	if( tr.fraction != 1.f ) {
-		//float dot;
-
-		if( smokesprite->dist < 24.f ) {
-			return( qfalse );
-		}
-		VectorCopy( tr.endpos, smokesprite->pos );
-
-		// bounce off
-		//dot = DotProduct( smokesprite->dir, tr.plane.normal );
-		//VectorMA( smokesprite->dir, -2*dot, tr.plane.normal, smokesprite->dir );
-		//VectorScale( smokesprite->dir, .25f, smokesprite->dir );
-	}// else {
-	//	smokesprite->size += 1.25f * dist;
-	//}
-
-	return( qtrue );
+    float scale = tceSmokeNewBBox == 1 ? 1.25f : 1.0f;
+    double scaledDist = (double)scale * dist;
+    double size;
+    int i;
+    /* TC x87 retains each product through the addition, and retains the
+       unrounded size for its cap comparison (3002dc70..3002dd0f). */
+    for( i = 0; i < 3; ++i )
+        smokesprite->pos[i] = (float)((double)dist * smokesprite->dir[i] + smokesprite->pos[i]);
+    smokesprite->dist = (float)(scaledDist + smokesprite->dist);
+    size = scaledDist * 1.25 + smokesprite->size;
+    smokesprite->size = (float)size;
+    if( size > scale * 100.0f )
+        smokesprite->size = scale * 100.0f;
+    return qtrue;
 }
 
-qboolean CG_SpawnSmokeSprite( centity_t *cent, float dist ) {
-	smokesprite_t *smokesprite = AllocSmokeSprite();
-
-	if( smokesprite ) {
-		smokesprite->smokebomb = cent;
-		//VectorCopy( cent->lerpOrigin, smokesprite->pos );
-		//smokesprite->pos[2] += 32;
-		VectorCopy( cent->origin2, smokesprite->pos );		
-		VectorCopy( bytedirs[rand()%NUMVERTEXNORMALS], smokesprite->dir );
-		smokesprite->dir[2] *= .5f;
-		smokesprite->size = 16.f;
-		smokesprite->colour[0] = .35f; // + crandom() * .1f;
-		smokesprite->colour[1] = smokesprite->colour[0];
-		smokesprite->colour[2] = smokesprite->colour[0];
-		smokesprite->colour[3] = .8f;
-
-		// Advance sprite
-		if( !CG_SmokeSpritePhysics( smokesprite, dist ) ) {
-			DeAllocSmokeSprite( smokesprite );
-			return( qfalse );
-		} else {
-			cent->miscTime++;
-		}
-	}
-
-	return( qtrue );
-}
-
-void CG_RenderSmokeGrenadeSmoke( centity_t *cent, const weaponInfo_t *weapon ) {
-	//int numSpritesForRadius, numNewSpritesNeeded = 0;
-	int spritesNeeded = 0;
-	smokesprite_t *smokesprite;
-	float spawnrate = ( 1.f / SMOKEBOMB_SPAWNRATE ) * 1000.f;
-
-	if( cent->currentState.effect1Time == 16 ) {
-		cent->miscTime = 0;
-		cent->lastFuseSparkTime = 0;	// last spawn time
-		cent->muzzleFlashTime = 0;		// delta time
-		cent->dl_atten = 0;
-		return;
-	}
-
-	if( cent->currentState.effect1Time > 16 ) {
-		int volume = 16 + ((cent->currentState.effect1Time/640.f)*(100-16));
-
-		if( !cent->dl_atten ||
-			cent->currentState.pos.trType != TR_STATIONARY ||
-			( cent->currentState.groundEntityNum != ENTITYNUM_WORLD && !VectorCompare( cent->lastLerpOrigin, cent->lerpOrigin ) ) ) {
-			trace_t tr;
-
-			VectorCopy( cent->lerpOrigin, cent->origin2 );
-			cent->origin2[2] += 32;
-			CG_Trace( &tr, cent->currentState.pos.trBase, NULL, NULL, cent->origin2, -1, CONTENTS_SOLID );
-
-			if( tr.startsolid ) {
-				cent->dl_atten = 2;	
-			} else {
-				VectorCopy( tr.endpos, cent->origin2 );
-				cent->dl_atten = 1;
-			}
-		}
-
-		trap_S_AddLoopingSound( cent->lerpOrigin, vec3_origin, weapon->overheatSound, volume, 0 );
-
-		// emitter is stuck in solid
-		if( cent->dl_atten == 2 ) {
-			return;
-		}
-
-		// Number of sprites for radius calculation:
-		// lifetime of a sprite : (.5f * radius) / velocity
-		// number of sprites in a row: radius / SMOKEBOMB_DISTANCEBETWEENSPRITES
-//		numSpritesForRadius = cent->currentState.effect1Time / SMOKEBOMB_DISTANCEBETWEENSPRITES;
-
-//		numSpritesForRadius = cent->currentState.effect1Time / ((((640.f - 16.f)/16)/1000.f) * cg.frametime);
-//		numNewSpritesNeeded = numSpritesForRadius - cent->miscTime;
-
-//		CG_Printf( "numSpritesForRadius: %i / numNewSpritesNeeded: %i / cent->miscTime: %i\n", numSpritesForRadius, numNewSpritesNeeded, cent->miscTime );
-
-		if( cg.oldTime && cent->lastFuseSparkTime != cg.time ) {
-			cent->muzzleFlashTime += cg.frametime;
-			spritesNeeded = cent->muzzleFlashTime / spawnrate;
-			cent->muzzleFlashTime -= ( spawnrate * spritesNeeded  );
-			cent->lastFuseSparkTime = cg.time;
-		}
-
-//		if( spritesNeeded + cent->miscTime < 40 )
-//			spritesNeeded = 40 - cent->miscTime; 
-
-		if( !spritesNeeded )
-			return;
-		else if( spritesNeeded == 1 ) {
-			// this is theoretically fine, till the smokegrenade ends up in a solid
-			//while( !CG_SpawnSmokeSprite( cent, 0.f ) );
-
-			// this is better
-			if( !CG_SpawnSmokeSprite( cent, 0.f ) )
-				// try again, just in case, so we don't get lots of gaps and remain quite constant
-				CG_SpawnSmokeSprite( cent, 0.f );
-		} else {
-//			float lerpfrac = 1.0f / (float)spritesNeeded;
-			float lerp = 1.0f;
-			float dtime;
-
-			for( dtime = spritesNeeded * spawnrate; dtime > 0; dtime-=spawnrate ) {
-				// this is theoretically fine, till the smokegrenade ends up in a solid
-				//while( !CG_SpawnSmokeSprite( cent, lerp * cg.frametime * SMOKEBOMB_SMOKEVELOCITY ) );
-
-				// this is better
-				if( !CG_SpawnSmokeSprite( cent, lerp * cg.frametime * SMOKEBOMB_SMOKEVELOCITY ) )
-					// try again, just in case, so we don't get lots of gaps and remain quite constant
-					CG_SpawnSmokeSprite( cent, lerp * cg.frametime * SMOKEBOMB_SMOKEVELOCITY );
-			}
-		}
-	} else if ( cent->currentState.effect1Time == -1 ) {
-		// unlink smokesprites from smokebomb
-		if( cent->miscTime > 0 ) {
-			smokesprite = lastusedsmokesprite;
-			while( smokesprite ) {
-				if( smokesprite->smokebomb == cent ) {
-					smokesprite->smokebomb = NULL;
-					cent->miscTime--;
-				}
-
-				smokesprite = smokesprite->prev;
-			}
-		}
-	}
-}
-
+/* TC3002dd10: lifecycle only. M83 rendering lives in tce_smoke_runtime.c. */
 void CG_AddSmokeSprites( void ) {
-	smokesprite_t *smokesprite;
-	qhandle_t shader;
-	byte color[4];
-	polyVert_t verts[4];
-	vec3_t top, bottom;
-	vec3_t right, up, tmp;
-	float radius;
-	float halfSmokeSpriteWidth, halfSmokeSpriteHeight;
-	float dist = SMOKEBOMB_SMOKEVELOCITY * cg.frametime;
+    smokesprite_t *sprite = lastusedsmokesprite;
+    while( sprite ) {
+        int age;
+        float dist, smokeAge;
+        vec3_t direction;
+        if( sprite->smokebomb && !sprite->smokebomb->currentValid ) {
+            sprite = sprite->prev;
+            continue;
+        }
+        age = (int)((unsigned)cg.time - (unsigned)sprite->birthTime);
+#if defined(_MSC_VER) && defined(_M_IX86)
+        {
+            int smokeFrame=cg.frametime;
+            const float smokeDecay=6.666666740784422e-05f;
+            const float smokeStep=.032f, smokeOne=1.0f, smokeZero=0.0f;
+            /* 3002dd45..dd78: compare retained result, not its float store. */
+            __asm {
+                fild age
+                fst smokeAge
+                fmul smokeDecay
+                fsubr smokeOne
+                fild smokeFrame
+                fmul smokeStep
+                fmulp st(1), st(0)
+                fst dist
+                fcomp smokeZero
+                fnstsw ax
+                test ah, 1
+                jz smoke_distance_done
+                mov dist, 0
+smoke_distance_done:
+            }
+        }
+#else
+        smokeAge=(float)age;
+        dist = (float)cg.frametime * 0.032f * (1.0f - (float)age * 6.666666740784422e-05f);
+        if( dist < 0.0f ) dist = 0.0f;
+#endif
+        if( CG_SmokeSpritePhysics( sprite, dist ) && smokeAge <= 15000.0f ) {
+            /* Retained repair for ownerless state: the original diagnostic
+             * dereferences NULL. The producer invariant is not yet proven. */
+            if( sprite->smokebomb )
+                CG_Printf( "Num smoke sprite: %i\n", sprite->smokebomb->miscTime );
+            VectorSubtract( sprite->pos, cg.refdef_current->vieworg, direction );
+            VectorNormalize( direction );
+            sprite = sprite->prev;
+            continue;
+        }
+        if( sprite->smokebomb ) sprite->smokebomb->miscTime=(int)((unsigned)sprite->smokebomb->miscTime-1u);
+        sprite = DeAllocSmokeSprite( sprite );
+    }
+}
 
-	smokesprite = lastusedsmokesprite;
-	while( smokesprite ) {
-		if( smokesprite->smokebomb && !smokesprite->smokebomb->currentValid ) {
-			smokesprite = smokesprite->prev;
-			continue;
-		}
-
-		// Do physics
-		if( !CG_SmokeSpritePhysics( smokesprite, dist ) ) {
-			if( smokesprite->smokebomb )
-				smokesprite->smokebomb->miscTime--;
-			smokesprite = DeAllocSmokeSprite( smokesprite );
-			continue;
-		}
-
-		if( smokesprite->smokebomb )
-			radius = smokesprite->smokebomb->currentState.effect1Time;
-		else
-			radius = -1.f;
-
-		if( radius < 0 )
-			radius = 640.f;	// max radius
-
-		// Expire sprites
-		if( smokesprite->dist > radius * .5f ) {
-			if( smokesprite->smokebomb )
-				smokesprite->smokebomb->miscTime--;
-
-			smokesprite = DeAllocSmokeSprite( smokesprite );
-			continue;
-		}
-
-		// Now render it
-		halfSmokeSpriteWidth = 0.5f * smokesprite->size;
-		halfSmokeSpriteHeight = 0.5f * smokesprite->size;
-
-		VectorCopy( cg.refdef_current->viewaxis[1], tmp );
-		RotatePointAroundVector( right, cg.refdef_current->viewaxis[0], tmp, 0 );
-		CrossProduct( cg.refdef_current->viewaxis[0], right, up );
-
-		VectorMA( smokesprite->pos, halfSmokeSpriteHeight, up, top );
-		VectorMA( smokesprite->pos, -halfSmokeSpriteHeight, up, bottom );
-
-		color[0] = smokesprite->colour[0] * 0xff;
-		color[1] = smokesprite->colour[1] * 0xff;
-		color[2] = smokesprite->colour[2] * 0xff;
-		color[3] = smokesprite->colour[3] * 0xff;
-
-		// fadeout
-		if( smokesprite->dist > (radius * .5f * .8f) ) {
-			color[3] = (smokesprite->colour[3] -  smokesprite->colour[3] * ((smokesprite->dist - (radius * .5f * .8f))/((radius * .5f)-(radius * .5f * .8f)))) * 0xff;
-		} else {
-			color[3] = smokesprite->colour[3] * 0xff;
-		}
-
-		VectorMA( top, halfSmokeSpriteWidth, right, verts[0].xyz );
-		verts[0].st[0] = 1;
-		verts[0].st[1] = 0;
-		memcpy( verts[0].modulate, color, 4 );
-
-		VectorMA( top, -halfSmokeSpriteWidth, right, verts[1].xyz );
-		verts[1].st[0] = 0;
-		verts[1].st[1] = 0;
-		memcpy( verts[1].modulate, color, 4 );
-
-		VectorMA( bottom, -halfSmokeSpriteWidth, right, verts[2].xyz );
-		verts[2].st[0] = 0;
-		verts[2].st[1] = 1;
-		memcpy( verts[2].modulate, color, 4 );
-
-		VectorMA( bottom, halfSmokeSpriteWidth, right, verts[3].xyz );
-		verts[3].st[0] = 1;
-		verts[3].st[1] = 1;
-		memcpy( verts[3].modulate, color, 4 );
-
-		shader = cgs.media.smokePuffShader;
-
-		trap_R_AddPolyToScene( shader, 4, verts );
-
-		smokesprite = smokesprite->prev;
+/* TC3002e3d0: shake an arbitrary render position, without expiring shake state. */
+void CG_ApplyCameraShakeToVec( vec3_t origin ) {
+	int remaining;
+#if defined(_MSC_VER) && defined(_M_IX86)
+	float *shakeLengthPtr = &cg.cameraShakeLength;
+	float *shakePhasePtr = &cg.cameraShakePhase;
+	float *shakeScalePtr = &cg.cameraShakeScale;
+	static const float zFrequency = 21.99114990234375f;
+	static const float yFrequency = 40.84070587158203f;
+	static const float xFrequency = 53.40707778930664f;
+	static const double amplitude = 4.0;
+#endif
+	if ( cg.time > cg.cameraShakeTime ) return;
+	remaining = (int)((unsigned)cg.cameraShakeTime - (unsigned)cg.time);
+#if defined(_MSC_VER) && defined(_M_IX86)
+	/* Keep fraction on ST0 across all three original trigonometric operations. */
+	__asm {
+		mov eax, origin
+		mov ecx, shakeLengthPtr
+		fild remaining
+		fdiv dword ptr [ecx]
+		fld st(0)
+		fmul zFrequency
+		mov ecx, shakePhasePtr
+		fadd dword ptr [ecx]
+		fsin
+		mov ecx, shakeScalePtr
+		fmul dword ptr [ecx]
+		fld st(1)
+		fmulp st(1), st(0)
+		fmul amplitude
+		fadd dword ptr [eax+8]
+		fstp dword ptr [eax+8]
+		fld st(0)
+		fmul yFrequency
+		mov ecx, shakePhasePtr
+		fadd dword ptr [ecx]
+		fsin
+		mov ecx, shakeScalePtr
+		fmul dword ptr [ecx]
+		fld st(1)
+		fmulp st(1), st(0)
+		fmul amplitude
+		fadd dword ptr [eax+4]
+		fstp dword ptr [eax+4]
+		fld st(0)
+		fmul xFrequency
+		mov ecx, shakePhasePtr
+		fadd dword ptr [ecx]
+		fcos
+		mov ecx, shakeScalePtr
+		fmul dword ptr [ecx]
+		fxch st(1)
+		fmulp st(1), st(0)
+		fmul amplitude
+		fadd dword ptr [eax]
+		fstp dword ptr [eax]
 	}
+#else
+	/* Portable formula; this is not a claim of Windows x87 bit parity. */
+	{
+		double f = (double)remaining / cg.cameraShakeLength;
+		origin[2] = (float)(origin[2] + f*sin(f*21.99114990234375+cg.cameraShakePhase)*cg.cameraShakeScale*4);
+		origin[1] = (float)(origin[1] + f*sin(f*40.84070587158203+cg.cameraShakePhase)*cg.cameraShakeScale*4);
+		origin[0] = (float)(origin[0] + f*cos(f*53.40707778930664+cg.cameraShakePhase)*cg.cameraShakeScale*4);
+	}
+#endif
 }

@@ -276,7 +276,7 @@ qboolean G_ScriptAction_FollowPath( gentity_t* ent, char *params ) {
 		}
 
 		// calculate the trajectory
-		ent->s.apos.trType = ent->s.pos.trType = TR_LINEAR_PATH;
+		ent->s.apos.trType = ent->s.pos.trType = (trType_t)16; /* TC FollowPath */
 		ent->s.apos.trTime = ent->s.pos.trTime = level.time;
 
 		ent->s.apos.trBase[0] = length;
@@ -1729,7 +1729,10 @@ qboolean G_ScriptAction_PlayAnim( gentity_t *ent, char *params )
 		}
 	}
 
-	idealframe = startframe + (int)floor((float)(level.time - ent->scriptStatus.scriptStackChangeTime) / (1000.0/(float)rate));
+	/* TC20081005..20081020 loads both integer operands directly on x87,
+	 * then stores a double for floor. A float cast loses elapsed milliseconds
+	 * above 2^24 before the frame calculation. */
+	idealframe = startframe + (int)floor((double)(level.time - ent->scriptStatus.scriptStackChangeTime) / (1000.0/(double)rate));
 	if (looping) {
 		ent->s.frame = startframe + (idealframe - startframe)%(endframe - startframe);
 	} else {
@@ -3088,13 +3091,22 @@ G_ScriptAction_EndRound
 
 extern void LogExit( const char *string );
 
+/* TC 20084bf0 / Linux G_ScriptAction_EndWait: resume the timelimit
+ * completion delay consumed by CheckExitRules (separate from wm_endround). */
+qboolean G_ScriptAction_EndWait( gentity_t *ent, char *params )
+{
+	level.tceTimelimitHitTime = level.time;
+	return qtrue;
+}
+
 qboolean G_ScriptAction_EndRound( gentity_t *ent, char *params )
 {
 	if( g_gamestate.integer == GS_INTERMISSION ) {
 		return qtrue;
 	}
 
-	LogExit( "Wolf EndRound." );
+	/* TC defers the result for three seconds in CheckExitRules. */
+	level.tceEndRoundTime = level.time;
 
 	return qtrue;
 }
@@ -3223,6 +3235,12 @@ qboolean G_ScriptAction_SetState( gentity_t *ent, char *params ) {
 		entState = STATE_INVISIBLE;
 	} else if( !Q_stricmp( state, "underconstruction" ) ) {
 		entState = STATE_UNDERCONSTRUCTION;
+	} else if( !Q_stricmp( state, "dynamited" ) ) {
+		entState = STATE_DYNAMITED;
+	} else if( !Q_stricmp( state, "inactive" ) ) {
+		entState = STATE_INACTIVE;
+	} else if( !Q_stricmp( state, "locked" ) ) {
+		entState = STATE_LOCKED;
 	} else {
 		G_Error( "G_Scripting: setstate with invalid state '%s'\n", state );
 	}
@@ -4280,4 +4298,73 @@ qboolean etpro_ScriptAction_SetValues( gentity_t *ent, char *params ) {
 		trap_LinkEntity( ent );
 
 	return qtrue;
+}
+/* TC script actions recovered from the Windows action table at 200c62c0. */
+qboolean G_ScriptAction_Score(gentity_t *ent, char *params) {
+    char *token=COM_ParseExt(&params,qfalse);
+    if (!token) G_Error("G_Scripting: score must have a parameter\n");
+    ent->tceObjectiveScore=atoi(token);
+    return qtrue;
+}
+qboolean G_ScriptAction_SetCamo(gentity_t *ent, char *params) {
+    char *token=COM_Parse(&params), info[MAX_INFO_STRING];
+    if(!*token) G_Error("G_ScriptAction_SetCamo: invalid camo type\n");
+    trap_GetConfigstring(CS_MULTI_INFO,info,sizeof(info));
+    if(Q_stricmp(Info_ValueForKey(info,"camo"),token)) {
+        Info_SetValueForKey(info,"camo",token);
+        trap_SetConfigstring(CS_MULTI_INFO,info);
+    }
+    return qtrue;
+}
+qboolean G_ScriptAction_SetDemolitionTeam(gentity_t *ent, char *params) {
+    char *token=COM_Parse(&params); int team;
+    if(!*token) G_Error("G_ScriptAction_SetDemolitionTeam: number parameter required\n");
+    team=atoi(token);
+    if(team<0 || team>1) G_Error("G_ScriptAction_SetDemolitionTeam: Invalid team number %d\n",team);
+    level.tceDemolitionTeam=team+1;
+    return qtrue;
+}
+/* Windows200849b0 / Linux000ee12c: original VIP team producer. */
+qboolean G_ScriptAction_SetVIPTeam(gentity_t *ent, char *params) {
+    char *token = COM_Parse(&params);
+    int team;
+    if (!*token) G_Error("G_ScriptAction_SetVIPTeam: no team specified\n");
+    team = atoi(token);
+    if (team < 0 || team > 1) G_Error("G_ScriptAction_SetVIPTeam: has a bad value %i\n", team);
+    level.tceVipTeam = team + 1;
+    return qtrue;
+}
+/* Windows20084a10 / Linux000ee1da. */
+qboolean G_ScriptAction_SetHostageTeam(gentity_t *ent, char *params) {
+    char *token = COM_Parse(&params);
+    int team;
+    if (!*token) G_Error("G_ScriptAction_SetHostageTeam: no team specified\n");
+    team = atoi(token);
+    if (team < 0 || team > 1) G_Error("G_ScriptAction_SetHostageTeam: has a bad value %i\n", team);
+    level.tceHostageActive = 0;
+    level.tceHostageTeam = team + 1;
+    return qtrue;
+}
+qboolean G_ScriptAction_SetRoundFraglimit(gentity_t *ent, char *params) {
+    char *token=COM_Parse(&params);
+    if(!*token) G_Error("G_ScriptAction_SetRoundFraglimit: number parameter required\n");
+    trap_Cvar_Set("fraglimit",token);
+    return qtrue;
+}
+qboolean G_ScriptAction_SetRoundAABaseTime(gentity_t *ent, char *params) {
+    char *token=COM_Parse(&params);
+    if(!*token) G_Error("G_ScriptAction_SetRoundAABaseTime: number parameter required\n");
+    trap_Cvar_Set("g_aabasetime",token);
+    return qtrue;
+}
+qboolean G_ScriptAction_AddScore(gentity_t *ent, char *params) {
+    char *token=COM_Parse(&params); int team;
+    if(!*token) G_Error("G_ScriptAction_AddScore: number parameter required\n");
+    team=atoi(token);
+    if(team<0 || team>1) G_Error("G_ScriptAction_AddScore: team parameter out of range\n");
+    token=COM_Parse(&params);
+    if(!*token) G_Error("G_ScriptAction_AddScore: score parameter required\n");
+    level.teamScores[team+1]+=atoi(token);
+    CalculateRanks();
+    return qtrue;
 }

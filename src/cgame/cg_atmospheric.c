@@ -11,6 +11,7 @@
 #define ATM_NEW
 
 #include "cg_local.h"
+#include <stddef.h>
 
 #define	MAX_ATMOSPHERIC_HEIGHT			MAX_MAP_SIZE	// maximum world height
 #define	MIN_ATMOSPHERIC_HEIGHT			-MAX_MAP_SIZE	// minimum world height
@@ -198,6 +199,27 @@ typedef struct cg_atmosphericEffect_s {
 
 static cg_atmosphericEffect_t cg_atmFx;
 
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* TC30017500/30017b70: native layouts, original double time scale. */
+enum {
+    WeatherTime = offsetof(cg_t, time),
+    WeatherRefdef = offsetof(cg_t, refdef_current),
+    WeatherLastTime = offsetof(cg_atmosphericEffect_t, lastRainTime),
+    WeatherActive = offsetof(cg_atmosphericParticle_t, active),
+    WeatherHeight = offsetof(cg_atmosphericParticle_t, height),
+    WeatherPosX = offsetof(cg_atmosphericParticle_t, pos),
+    WeatherPosY = offsetof(cg_atmosphericParticle_t, pos) + sizeof(float),
+    WeatherPosZ = offsetof(cg_atmosphericParticle_t, pos) + 2*sizeof(float),
+    WeatherDeltaX = offsetof(cg_atmosphericParticle_t, delta),
+    WeatherDeltaY = offsetof(cg_atmosphericParticle_t, delta) + sizeof(float),
+    WeatherDeltaZ = offsetof(cg_atmosphericParticle_t, delta) + 2*sizeof(float),
+    WeatherViewX = offsetof(refdef_t, vieworg),
+    WeatherViewY = offsetof(refdef_t, vieworg) + sizeof(float)
+};
+static const double weatherSeconds = 0.001;
+static const float weatherDistanceSquared = 1000000.0f;
+#endif
+
 
 static qboolean CG_SetParticleActive( cg_atmosphericParticle_t *particle, active_t active )
 {
@@ -210,6 +232,244 @@ static qboolean CG_SetParticleActive( cg_atmosphericParticle_t *particle, active
 **	Raindrop management functions
 */
 
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* TC weather generators: complete Windows instructions, native object offsets. */
+enum {
+	GenHeightOffset = offsetof(cg_atmosphericEffect_t, baseHeightOffset),
+	GenOldDrops = offsetof(cg_atmosphericEffect_t, oldDropsActive),
+	GenNumDrops = offsetof(cg_atmosphericEffect_t, numDrops),
+	GenShaders = offsetof(cg_atmosphericEffect_t, effectshaders),
+	GenViewX = offsetof(refdef_t, vieworg),
+	GenViewY = offsetof(refdef_t, vieworg)+sizeof(float),
+	GenViewZ = offsetof(refdef_t, vieworg)+2*sizeof(float),
+	GenPosX = offsetof(cg_atmosphericParticle_t, pos)+0*sizeof(float),
+	GenPosY = offsetof(cg_atmosphericParticle_t, pos)+1*sizeof(float),
+	GenPosZ = offsetof(cg_atmosphericParticle_t, pos)+2*sizeof(float),
+	GenDeltaX = offsetof(cg_atmosphericParticle_t, delta)+0*sizeof(float),
+	GenDeltaY = offsetof(cg_atmosphericParticle_t, delta)+1*sizeof(float),
+	GenDeltaZ = offsetof(cg_atmosphericParticle_t, delta)+2*sizeof(float),
+	GenNormalizedX = offsetof(cg_atmosphericParticle_t, deltaNormalized)+0*sizeof(float),
+	GenNormalizedY = offsetof(cg_atmosphericParticle_t, deltaNormalized)+1*sizeof(float),
+	GenNormalizedZ = offsetof(cg_atmosphericParticle_t, deltaNormalized)+2*sizeof(float),
+	GenColourX = offsetof(cg_atmosphericParticle_t, colour)+0*sizeof(float),
+	GenColourY = offsetof(cg_atmosphericParticle_t, colour)+1*sizeof(float),
+	GenColourZ = offsetof(cg_atmosphericParticle_t, colour)+2*sizeof(float),
+	GenHeight = offsetof(cg_atmosphericParticle_t, height),
+	GenWeight = offsetof(cg_atmosphericParticle_t, weight),
+	GenShader = offsetof(cg_atmosphericParticle_t, effectshader)
+};
+typedef char WeatherGeneratorLayoutGuard[(sizeof(float)==4 && offsetof(cg_atmosphericParticle_t,pos)==0 && sizeof(vec3_t)==12)?1:-1];
+static const float genConstant3009254c = 0.000030518509447574615f;
+static const float genConstant30092310 = 6.2831854820251465f;
+static const double genConstant30092828 = 1000.0;
+static const double genConstant30092820 = 20.0;
+static const float genConstant300927f4 = 65536.0f;
+static const double genConstant30092318 = 0.001;
+static const double genConstant300922e0 = 0.5;
+static const double genConstant30092818 = 51.0;
+static const double genConstant30092810 = 0.6;
+static const double genConstant300922f8 = 100.0;
+static const double genConstant30092808 = 150.0;
+static const float genConstant30092804 = 0.75f;
+static const double genConstant30092840 = 25.0;
+static const float genConstant300922b4 = 1.0f;
+static const float genConstant300922b8 = 0.5f;
+static __declspec(naked) qboolean CG_RainParticleGenerate(cg_atmosphericParticle_t *particle, vec3_t currvec, float currweight)
+{
+	__asm {
+		SUB ESP,0x8
+		PUSH ESI
+		CALL rand
+		AND EAX,0x7fff
+		MOV dword ptr [ESP + 0x4],EAX
+		FILD dword ptr [ESP + 0x4]
+		FMUL dword ptr [genConstant3009254c]
+		FMUL dword ptr [genConstant30092310]
+		FSTP dword ptr [ESP + 0x4]
+		CALL rand
+		AND EAX,0x7fff
+		MOV ESI,dword ptr [ESP + 0x10]
+		MOV dword ptr [ESP + 0x8],EAX
+		MOV EAX,[cg + WeatherRefdef]
+		FILD dword ptr [ESP + 0x8]
+		PUSH ESI
+		FMUL dword ptr [genConstant3009254c]
+		FSQRT
+		FMUL qword ptr [genConstant30092828]
+		FADD qword ptr [genConstant30092820]
+		FLD dword ptr [ESP + 0x8]
+		FSIN
+		FLD ST(1)
+		FMULP ST(1), ST(0)
+		FADD dword ptr [EAX + GenViewX]
+		FSTP dword ptr [ESI + GenPosX]
+		FLD dword ptr [ESP + 0x8]
+		FCOS
+		MOV ECX,dword ptr [cg + WeatherRefdef]
+		FXCH ST(1)
+		FMULP ST(1), ST(0)
+		FADD dword ptr [ECX + GenViewY]
+		FSTP dword ptr [ESI + GenPosY]
+		CALL BG_GetSkyHeightAtPoint
+		FST dword ptr [ESP + 0x8]
+		FCOMP dword ptr [genConstant300927f4]
+		ADD ESP,0x4
+		FNSTSW AX
+		TEST AH,0x40
+		JZ gen_300172eb
+		XOR EAX,EAX
+		POP ESI
+		ADD ESP,0x8
+		RET
+gen_300172eb:
+		PUSH ESI
+		CALL BG_GetSkyGroundHeightAtPoint
+		FST dword ptr [ESP + 0x14]
+		FCOMP dword ptr [ESP + 0x8]
+		ADD ESP,0x4
+		FNSTSW AX
+		TEST AH,0x1
+		JNZ gen_3001730a
+		XOR EAX,EAX
+		POP ESI
+		ADD ESP,0x8
+		RET
+gen_3001730a:
+		CALL rand
+		AND EAX,0x7fff
+		MOV dword ptr [ESP + 0x8],EAX
+		FILD dword ptr [ESP + 0x8]
+		FMUL dword ptr [genConstant3009254c]
+		FLD dword ptr [ESP + 0x4]
+		FSUB dword ptr [ESP + 0x10]
+		FMULP ST(1), ST(0)
+		FADD dword ptr [ESP + 0x10]
+		FST dword ptr [ESP + 0x8]
+		FSTP dword ptr [ESI + GenPosZ]
+		MOV EAX,[cg_atmFx + GenHeightOffset]
+		TEST EAX,EAX
+		JLE gen_30017376
+		FILD dword ptr [cg_atmFx + GenHeightOffset]
+		MOV ECX,dword ptr [cg + WeatherRefdef]
+		FLD dword ptr [ESP + 0x8]
+		FSUB dword ptr [ECX + GenViewZ]
+		FCOMP ST(1)
+		FNSTSW AX
+		TEST AH,0x41
+		JNZ gen_30017374
+		FADD dword ptr [ECX + GenViewZ]
+		FST dword ptr [ESI + GenPosZ]
+		FCOMP dword ptr [ESP + 0x10]
+		FNSTSW AX
+		TEST AH,0x1
+		JZ gen_30017376
+		XOR EAX,EAX
+		POP ESI
+		ADD ESP,0x8
+		RET
+gen_30017374:
+		FSTP ST(0)
+gen_30017376:
+		MOV EAX,[cg + WeatherTime]
+		MOV ECX,0x2710
+		CDQ
+		FILD dword ptr [cg_atmFx + GenOldDrops]
+		IDIV ECX
+		MOV EAX,ECX
+		SUB EAX,EDX
+		MOV dword ptr [ESP + 0x10],EAX
+		FILD dword ptr [ESP + 0x10]
+		FMUL qword ptr [genConstant30092318]
+		FADD qword ptr [genConstant300922e0]
+		FIMUL dword ptr [cg_atmFx + GenNumDrops]
+		FXCH ST(1)
+		FXCH ST(1)
+		FCOMPP
+		FNSTSW AX
+		TEST AH,0x1
+		JZ gen_300173bb
+		XOR EAX,EAX
+		POP ESI
+		ADD ESP,0x8
+		RET
+gen_300173bb:
+		PUSH 0x1
+		PUSH ESI
+		CALL CG_SetParticleActive
+		CALL rand
+		AND EAX,0x7fff
+		MOV dword ptr [ESP + 0x18],EAX
+		FILD dword ptr [ESP + 0x18]
+		FMUL dword ptr [genConstant3009254c]
+		FMUL qword ptr [genConstant30092818]
+		FADD qword ptr [genConstant30092810]
+		FSTP dword ptr [ESI + GenColourX]
+		CALL rand
+		AND EAX,0x7fff
+		MOV dword ptr [ESP + 0x18],EAX
+		FILD dword ptr [ESP + 0x18]
+		FMUL dword ptr [genConstant3009254c]
+		FMUL qword ptr [genConstant30092818]
+		FADD qword ptr [genConstant30092810]
+		FSTP dword ptr [ESI + GenColourY]
+		CALL rand
+		AND EAX,0x7fff
+		MOV dword ptr [ESP + 0x18],EAX
+		MOV EAX,dword ptr [ESP + 0x1c]
+		FILD dword ptr [ESP + 0x18]
+		FMUL dword ptr [genConstant3009254c]
+		FMUL qword ptr [genConstant30092818]
+		FADD qword ptr [genConstant30092810]
+		FSTP dword ptr [ESI + GenColourZ]
+		MOV ECX,dword ptr [EAX]
+		MOV dword ptr [ESI + GenDeltaX],ECX
+		MOV EDX,dword ptr [EAX + 0x4]
+		MOV dword ptr [ESI + GenDeltaY],EDX
+		MOV EAX,dword ptr [EAX + 0x8]
+		MOV dword ptr [ESI + GenDeltaZ],EAX
+		CALL rand
+		AND EAX,0x7fff
+		MOV ECX,dword ptr [ESI + GenDeltaX]
+		MOV dword ptr [ESP + 0x18],EAX
+		MOV EDX,dword ptr [ESI + GenDeltaY]
+		FILD dword ptr [ESP + 0x18]
+		LEA EAX,[ESI + GenNormalizedX]
+		MOV dword ptr [ESI + GenNormalizedY],EDX
+		PUSH EAX
+		FMUL dword ptr [genConstant3009254c]
+		MOV dword ptr [EAX],ECX
+		FSUB qword ptr [genConstant300922e0]
+		FADD ST(0),ST(0)
+		FMUL qword ptr [genConstant300922f8]
+		FADD dword ptr [ESI + GenDeltaZ]
+		FST dword ptr [ESI + GenDeltaZ]
+		FSTP dword ptr [ESI + GenNormalizedZ]
+		CALL VectorNormalizeFast
+		ADD ESP,0xc
+		CALL rand
+		AND EAX,0x7fff
+		PUSH EAX
+		LEA EAX,[cg_atmFx + GenShaders]
+		MOV dword ptr [ESI + GenShader],EAX
+		POP EAX
+		MOV dword ptr [ESP + 0x10],EAX
+		MOV EAX,0x1
+		FILD dword ptr [ESP + 0x10]
+		FMUL dword ptr [genConstant3009254c]
+		FSUB qword ptr [genConstant300922e0]
+		FADD ST(0),ST(0)
+		FMUL qword ptr [genConstant300922f8]
+		FADD qword ptr [genConstant30092808]
+		FSTP dword ptr [ESI + GenHeight]
+		FLD dword ptr [ESP + 0x18]
+		FMUL dword ptr [genConstant30092804]
+		FSTP dword ptr [ESI + GenWeight]
+		POP ESI
+		ADD ESP,0x8
+		RET
+	}
+}
+#else
 static qboolean CG_RainParticleGenerate( cg_atmosphericParticle_t *particle, vec3_t currvec, float currweight )
 {
 	// Attempt to 'spot' a raindrop somewhere below a sky texture.
@@ -221,7 +481,7 @@ static qboolean CG_RainParticleGenerate( cg_atmosphericParticle_t *particle, vec
 //	n_generatetime++;
 	
 	angle = random() * 2*M_PI;
-	distance = 20 + MAX_ATMOSPHERIC_DISTANCE * random();
+	distance = 20 + MAX_ATMOSPHERIC_DISTANCE * sqrt(random());
 
 	particle->pos[0] = cg.refdef_current->vieworg[0] + sin(angle) * distance;
 	particle->pos[1] = cg.refdef_current->vieworg[1] + cos(angle) * distance;
@@ -265,13 +525,156 @@ static qboolean CG_RainParticleGenerate( cg_atmosphericParticle_t *particle, vec
 	VectorCopy( particle->delta, particle->deltaNormalized );
 	VectorNormalizeFast( particle->deltaNormalized );
 	particle->height = ATMOSPHERIC_RAIN_HEIGHT + crandom() * 100;
-	particle->weight = currweight;
+	particle->weight = currweight * 0.75f;
 	particle->effectshader = &cg_atmFx.effectshaders[0];
 //	particle->effectshader = &cg_atmFx.effectshaders[ (int) (random() * ( cg_atmFx.numEffectShaders - 1 )) ];
 
 //	generatetime += trap_Milliseconds() - msec;
 	return( qtrue );
 }
+
+#endif
+
+#if defined(_MSC_VER) && defined(_M_IX86)
+static __declspec(naked) qboolean CG_RainParticleCheckVisible(cg_atmosphericParticle_t *particle) {
+    __asm {
+weather_30017500:
+        PUSH ESI
+weather_30017501:
+        MOV ESI,dword ptr [ESP + 0x8]
+weather_30017505:
+        TEST ESI,ESI
+weather_30017507:
+        JZ weather_300175b7
+weather_3001750d:
+        MOV EAX,dword ptr [ESI + WeatherActive]
+weather_30017510:
+        TEST EAX,EAX
+weather_30017512:
+        JZ weather_300175b7
+weather_30017518:
+        MOV EAX,dword ptr [cg + WeatherTime]
+weather_3001751d:
+        MOV EDX,dword ptr [cg_atmFx + WeatherLastTime]
+weather_30017523:
+        SUB EAX,EDX
+weather_30017525:
+        PUSH ESI
+weather_30017526:
+        MOV dword ptr [ESP + 0xc],EAX
+weather_3001752a:
+        FILD dword ptr [ESP + 0xc]
+weather_3001752e:
+        FMUL qword ptr [weatherSeconds]
+weather_30017534:
+        FLD ST(0)
+weather_30017536:
+        FMUL dword ptr [ESI + WeatherDeltaX]
+weather_30017539:
+        FADD dword ptr [ESI + WeatherPosX]
+weather_3001753b:
+        FSTP dword ptr [ESI + WeatherPosX]
+weather_3001753d:
+        FLD ST(0)
+weather_3001753f:
+        FMUL dword ptr [ESI + WeatherDeltaY]
+weather_30017542:
+        FADD dword ptr [ESI + WeatherPosY]
+weather_30017545:
+        FSTP dword ptr [ESI + WeatherPosY]
+weather_30017548:
+        FMUL dword ptr [ESI + WeatherDeltaZ]
+weather_3001754b:
+        FADD dword ptr [ESI + WeatherPosZ]
+weather_3001754e:
+        FST dword ptr [ESI + WeatherPosZ]
+weather_30017551:
+        FADD dword ptr [ESI + WeatherHeight]
+weather_30017554:
+        FSTP dword ptr [ESP + 0xc]
+weather_30017558:
+        CALL BG_GetSkyGroundHeightAtPoint
+weather_3001755d:
+        FCOMP dword ptr [ESP + 0xc]
+weather_30017561:
+        ADD ESP,0x4
+weather_30017564:
+        FNSTSW AX
+weather_30017566:
+        TEST AH,0x41
+weather_30017569:
+        JNZ weather_30017578
+weather_3001756b:
+        PUSH 0x0
+weather_3001756d:
+        PUSH ESI
+weather_3001756e:
+        CALL CG_SetParticleActive
+weather_30017573:
+        ADD ESP,0x8
+weather_30017576:
+        POP ESI
+weather_30017577:
+        RET
+weather_30017578:
+        MOV EAX,dword ptr [cg + WeatherRefdef]
+weather_3001757d:
+        FLD dword ptr [ESI + WeatherPosX]
+weather_3001757f:
+        FSUB dword ptr [EAX + WeatherViewX]
+weather_30017582:
+        FLD dword ptr [ESI + WeatherPosY]
+weather_30017585:
+        FSUB dword ptr [EAX + WeatherViewY]
+weather_30017588:
+        FLD ST(0)
+weather_3001758a:
+        FMUL ST(0), ST(1)
+weather_3001758c:
+        FLD ST(2)
+weather_3001758e:
+        FMUL ST(0), ST(3)
+weather_30017590:
+        FADDP ST(1), ST(0)
+weather_30017592:
+        FCOMP dword ptr [weatherDistanceSquared]
+weather_30017598:
+        FNSTSW AX
+weather_3001759a:
+        FSTP ST(0)
+weather_3001759c:
+        TEST AH,0x41
+weather_3001759f:
+        FSTP ST(0)
+weather_300175a1:
+        JNZ weather_300175b0
+weather_300175a3:
+        PUSH 0x0
+weather_300175a5:
+        PUSH ESI
+weather_300175a6:
+        CALL CG_SetParticleActive
+weather_300175ab:
+        ADD ESP,0x8
+weather_300175ae:
+        POP ESI
+weather_300175af:
+        RET
+weather_300175b0:
+        MOV EAX,0x1
+weather_300175b5:
+        POP ESI
+weather_300175b6:
+        RET
+weather_300175b7:
+        XOR EAX,EAX
+weather_300175b9:
+        POP ESI
+weather_300175ba:
+        RET
+    }
+}
+#else
 
 static qboolean CG_RainParticleCheckVisible( cg_atmosphericParticle_t *particle )
 {
@@ -323,6 +726,9 @@ static qboolean CG_RainParticleCheckVisible( cg_atmosphericParticle_t *particle 
 //	checkvisibletime += trap_Milliseconds() - msec;
 	return( qtrue );
 }
+
+
+#endif
 
 static void CG_RainParticleRender( cg_atmosphericParticle_t *particle )
 {
@@ -417,6 +823,153 @@ static void CG_RainParticleRender( cg_atmosphericParticle_t *particle )
 **	Snow management functions
 */
 
+#if defined(_MSC_VER) && defined(_M_IX86)
+static __declspec(naked) qboolean CG_SnowParticleGenerate(cg_atmosphericParticle_t *particle, vec3_t currvec, float currweight)
+{
+	__asm {
+		SUB ESP,0x8
+		PUSH ESI
+		CALL rand
+		AND EAX,0x7fff
+		MOV dword ptr [ESP + 0x4],EAX
+		FILD dword ptr [ESP + 0x4]
+		FMUL dword ptr [genConstant3009254c]
+		FMUL dword ptr [genConstant30092310]
+		FSTP dword ptr [ESP + 0x4]
+		CALL rand
+		AND EAX,0x7fff
+		MOV ESI,dword ptr [ESP + 0x10]
+		MOV dword ptr [ESP + 0x8],EAX
+		MOV EAX,[cg + WeatherRefdef]
+		FILD dword ptr [ESP + 0x8]
+		PUSH ESI
+		FMUL dword ptr [genConstant3009254c]
+		FSQRT
+		FMUL qword ptr [genConstant30092828]
+		FADD qword ptr [genConstant30092820]
+		FLD dword ptr [ESP + 0x8]
+		FSIN
+		FLD ST(1)
+		FMULP ST(1), ST(0)
+		FADD dword ptr [EAX + GenViewX]
+		FSTP dword ptr [ESI + GenPosX]
+		FLD dword ptr [ESP + 0x8]
+		FCOS
+		MOV ECX,dword ptr [cg + WeatherRefdef]
+		FXCH ST(1)
+		FMULP ST(1), ST(0)
+		FADD dword ptr [ECX + GenViewY]
+		FSTP dword ptr [ESI + GenPosY]
+		CALL BG_GetSkyHeightAtPoint
+		FST dword ptr [ESP + 0x8]
+		FCOMP dword ptr [genConstant300927f4]
+		ADD ESP,0x4
+		FNSTSW AX
+		TEST AH,0x40
+		JZ gen_30017a3b
+		XOR EAX,EAX
+		POP ESI
+		ADD ESP,0x8
+		RET
+gen_30017a3b:
+		PUSH ESI
+		CALL BG_GetSkyGroundHeightAtPoint
+		FST dword ptr [ESP + 0x14]
+		FCOMP dword ptr [ESP + 0x8]
+		ADD ESP,0x4
+		FNSTSW AX
+		TEST AH,0x1
+		JNZ gen_30017a5a
+		XOR EAX,EAX
+		POP ESI
+		ADD ESP,0x8
+		RET
+gen_30017a5a:
+		CALL rand
+		AND EAX,0x7fff
+		MOV dword ptr [ESP + 0x8],EAX
+		FILD dword ptr [ESP + 0x8]
+		FMUL dword ptr [genConstant3009254c]
+		FLD dword ptr [ESP + 0x4]
+		FSUB dword ptr [ESP + 0x10]
+		FMULP ST(1), ST(0)
+		FADD dword ptr [ESP + 0x10]
+		FST dword ptr [ESP + 0x8]
+		FSTP dword ptr [ESI + GenPosZ]
+		MOV EAX,[cg_atmFx + GenHeightOffset]
+		TEST EAX,EAX
+		JLE gen_30017ac6
+		FILD dword ptr [cg_atmFx + GenHeightOffset]
+		MOV ECX,dword ptr [cg + WeatherRefdef]
+		FLD dword ptr [ESP + 0x8]
+		FSUB dword ptr [ECX + GenViewZ]
+		FCOMP ST(1)
+		FNSTSW AX
+		TEST AH,0x41
+		JNZ gen_30017ac4
+		FADD dword ptr [ECX + GenViewZ]
+		FST dword ptr [ESI + GenPosZ]
+		FCOMP dword ptr [ESP + 0x10]
+		FNSTSW AX
+		TEST AH,0x1
+		JZ gen_30017ac6
+		XOR EAX,EAX
+		POP ESI
+		ADD ESP,0x8
+		RET
+gen_30017ac4:
+		FSTP ST(0)
+gen_30017ac6:
+		PUSH 0x1
+		PUSH ESI
+		CALL CG_SetParticleActive
+		MOV EAX,dword ptr [ESP + 0x1c]
+		MOV EDX,dword ptr [EAX]
+		MOV dword ptr [ESI + GenDeltaX],EDX
+		MOV ECX,dword ptr [EAX + 0x4]
+		MOV dword ptr [ESI + GenDeltaY],ECX
+		MOV EDX,dword ptr [EAX + 0x8]
+		MOV dword ptr [ESI + GenDeltaZ],EDX
+		CALL rand
+		AND EAX,0x7fff
+		MOV ECX,dword ptr [ESI + GenDeltaX]
+		MOV dword ptr [ESP + 0x18],EAX
+		MOV EDX,dword ptr [ESI + GenDeltaY]
+		FILD dword ptr [ESP + 0x18]
+		LEA EAX,[ESI + GenNormalizedX]
+		MOV dword ptr [ESI + GenNormalizedY],EDX
+		PUSH EAX
+		FMUL dword ptr [genConstant3009254c]
+		MOV dword ptr [EAX],ECX
+		FSUB qword ptr [genConstant300922e0]
+		FADD ST(0),ST(0)
+		FMUL qword ptr [genConstant30092840]
+		FADD dword ptr [ESI + GenDeltaZ]
+		FST dword ptr [ESI + GenDeltaZ]
+		FSTP dword ptr [ESI + GenNormalizedZ]
+		CALL VectorNormalizeFast
+		ADD ESP,0xc
+		CALL rand
+		AND EAX,0x7fff
+		PUSH EAX
+		LEA EAX,[cg_atmFx + GenShaders]
+		MOV dword ptr [ESI + GenShader],EAX
+		POP EAX
+		MOV dword ptr [ESP + 0x10],EAX
+		MOV EAX,0x1
+		FILD dword ptr [ESP + 0x10]
+		FMUL dword ptr [genConstant3009254c]
+		FADD ST(0),ST(0)
+		FADD dword ptr [genConstant300922b4]
+		FST dword ptr [ESI + GenHeight]
+		FMUL dword ptr [genConstant300922b8]
+		FSTP dword ptr [ESI + GenWeight]
+		POP ESI
+		ADD ESP,0x8
+		RET
+	}
+}
+#else
 static qboolean CG_SnowParticleGenerate( cg_atmosphericParticle_t *particle, vec3_t currvec, float currweight )
 {
 	// Attempt to 'spot' a snowflake somewhere below a sky texture.
@@ -428,7 +981,7 @@ static qboolean CG_SnowParticleGenerate( cg_atmosphericParticle_t *particle, vec
 //	n_generatetime++;
 
 	angle = random() * 2*M_PI;
-	distance = 20 + MAX_ATMOSPHERIC_DISTANCE * random();
+	distance = 20 + MAX_ATMOSPHERIC_DISTANCE * sqrt(random());
 
 	particle->pos[0] = cg.refdef_current->vieworg[0] + sin(angle) * distance;
 	particle->pos[1] = cg.refdef_current->vieworg[1] + cos(angle) * distance;
@@ -458,7 +1011,7 @@ static qboolean CG_SnowParticleGenerate( cg_atmosphericParticle_t *particle, vec
 	particle->delta[2] += crandom() * 25;
 	VectorCopy( particle->delta, particle->deltaNormalized );
 	VectorNormalizeFast( particle->deltaNormalized );
-	particle->height = ATMOSPHERIC_SNOW_HEIGHT + random() * 2;
+	particle->height = 1.0f + random() * 2;
 	particle->weight = particle->height * 0.5f;
 	particle->effectshader = &cg_atmFx.effectshaders[0];
 //	particle->effectshader = &cg_atmFx.effectshaders[ (int) (random() * ( cg_atmFx.numEffectShaders - 1 )) ];
@@ -466,6 +1019,145 @@ static qboolean CG_SnowParticleGenerate( cg_atmosphericParticle_t *particle, vec
 //	generatetime += trap_Milliseconds() - msec;
 	return( qtrue );
 }
+
+#endif
+
+#if defined(_MSC_VER) && defined(_M_IX86)
+static __declspec(naked) qboolean CG_SnowParticleCheckVisible(cg_atmosphericParticle_t *particle) {
+    __asm {
+weather_30017b70:
+        PUSH ESI
+weather_30017b71:
+        MOV ESI,dword ptr [ESP + 0x8]
+weather_30017b75:
+        TEST ESI,ESI
+weather_30017b77:
+        JZ weather_30017c1f
+weather_30017b7d:
+        MOV EAX,dword ptr [ESI + WeatherActive]
+weather_30017b80:
+        TEST EAX,EAX
+weather_30017b82:
+        JZ weather_30017c1f
+weather_30017b88:
+        MOV EAX,dword ptr [cg + WeatherTime]
+weather_30017b8d:
+        MOV EDX,dword ptr [cg_atmFx + WeatherLastTime]
+weather_30017b93:
+        SUB EAX,EDX
+weather_30017b95:
+        PUSH ESI
+weather_30017b96:
+        MOV dword ptr [ESP + 0xc],EAX
+weather_30017b9a:
+        FILD dword ptr [ESP + 0xc]
+weather_30017b9e:
+        FMUL qword ptr [weatherSeconds]
+weather_30017ba4:
+        FLD ST(0)
+weather_30017ba6:
+        FMUL dword ptr [ESI + WeatherDeltaX]
+weather_30017ba9:
+        FADD dword ptr [ESI + WeatherPosX]
+weather_30017bab:
+        FSTP dword ptr [ESI + WeatherPosX]
+weather_30017bad:
+        FLD ST(0)
+weather_30017baf:
+        FMUL dword ptr [ESI + WeatherDeltaY]
+weather_30017bb2:
+        FADD dword ptr [ESI + WeatherPosY]
+weather_30017bb5:
+        FSTP dword ptr [ESI + WeatherPosY]
+weather_30017bb8:
+        FMUL dword ptr [ESI + WeatherDeltaZ]
+weather_30017bbb:
+        FADD dword ptr [ESI + WeatherPosZ]
+weather_30017bbe:
+        FSTP dword ptr [ESI + WeatherPosZ]
+weather_30017bc1:
+        CALL BG_GetSkyGroundHeightAtPoint
+weather_30017bc6:
+        FCOMP dword ptr [ESI + WeatherPosZ]
+weather_30017bc9:
+        ADD ESP,0x4
+weather_30017bcc:
+        FNSTSW AX
+weather_30017bce:
+        TEST AH,0x41
+weather_30017bd1:
+        JNZ weather_30017be0
+weather_30017bd3:
+        PUSH 0x0
+weather_30017bd5:
+        PUSH ESI
+weather_30017bd6:
+        CALL CG_SetParticleActive
+weather_30017bdb:
+        ADD ESP,0x8
+weather_30017bde:
+        POP ESI
+weather_30017bdf:
+        RET
+weather_30017be0:
+        MOV EAX,dword ptr [cg + WeatherRefdef]
+weather_30017be5:
+        FLD dword ptr [ESI + WeatherPosX]
+weather_30017be7:
+        FSUB dword ptr [EAX + WeatherViewX]
+weather_30017bea:
+        FLD dword ptr [ESI + WeatherPosY]
+weather_30017bed:
+        FSUB dword ptr [EAX + WeatherViewY]
+weather_30017bf0:
+        FLD ST(0)
+weather_30017bf2:
+        FMUL ST(0), ST(1)
+weather_30017bf4:
+        FLD ST(2)
+weather_30017bf6:
+        FMUL ST(0), ST(3)
+weather_30017bf8:
+        FADDP ST(1), ST(0)
+weather_30017bfa:
+        FCOMP dword ptr [weatherDistanceSquared]
+weather_30017c00:
+        FNSTSW AX
+weather_30017c02:
+        FSTP ST(0)
+weather_30017c04:
+        TEST AH,0x41
+weather_30017c07:
+        FSTP ST(0)
+weather_30017c09:
+        JNZ weather_30017c18
+weather_30017c0b:
+        PUSH 0x0
+weather_30017c0d:
+        PUSH ESI
+weather_30017c0e:
+        CALL CG_SetParticleActive
+weather_30017c13:
+        ADD ESP,0x8
+weather_30017c16:
+        POP ESI
+weather_30017c17:
+        RET
+weather_30017c18:
+        MOV EAX,0x1
+weather_30017c1d:
+        POP ESI
+weather_30017c1e:
+        RET
+weather_30017c1f:
+        XOR EAX,EAX
+weather_30017c21:
+        POP ESI
+weather_30017c22:
+        RET
+    }
+}
+#else
 
 static qboolean CG_SnowParticleCheckVisible( cg_atmosphericParticle_t *particle )
 {
@@ -518,6 +1210,241 @@ static qboolean CG_SnowParticleCheckVisible( cg_atmosphericParticle_t *particle 
 	return( qtrue );
 }
 
+
+#endif
+
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* TC30017c30: complete Windows snow renderer; stack vertices are native polyVert_t. */
+enum {
+ SnowAxis10 = offsetof(refdef_t, viewaxis) + 3*sizeof(float),
+ SnowAxis11 = offsetof(refdef_t, viewaxis) + 4*sizeof(float),
+ SnowAxis12 = offsetof(refdef_t, viewaxis) + 5*sizeof(float),
+ SnowAxis20 = offsetof(refdef_t, viewaxis) + 6*sizeof(float),
+ SnowAxis21 = offsetof(refdef_t, viewaxis) + 7*sizeof(float),
+ SnowAxis22 = offsetof(refdef_t, viewaxis) + 8*sizeof(float)
+};
+typedef char SnowRenderVertexLayoutGuard[(sizeof(polyVert_t)==24 &&
+ offsetof(polyVert_t,xyz)==0 && offsetof(polyVert_t,st)==12 &&
+ offsetof(polyVert_t,modulate)==20)?1:-1];
+static const float snowRenderHalf = 0.5f, snowRenderOne = 1.0f;
+static const float snowRenderPhase = 0.03125f, snowRenderAmplitude = 24.0f;
+static const float snowRenderZero = 0.0f;
+static __declspec(naked) void CG_SnowParticleRender(cg_atmosphericParticle_t *particle)
+{
+ __asm {
+		SUB ESP,0x80
+		PUSH ESI
+		MOV ESI,dword ptr [ESP + 0x88]
+		MOV EAX,dword ptr [ESI + WeatherActive]
+		TEST EAX,EAX
+		JZ snow_render_30017f24
+		PUSH ESI
+		CALL CG_CullPoint
+		ADD ESP,0x4
+		TEST EAX,EAX
+		JNZ snow_render_30017f24
+		FLD dword ptr [ESI + GenPosX]
+		FLD dword ptr [ESI + GenWeight]
+		FMUL dword ptr [snowRenderHalf]
+		MOV EAX,dword ptr [ESI + GenPosY]
+		MOV ECX,dword ptr [ESI + GenPosZ]
+		MOV dword ptr [ESP + 0x10],EAX
+		LEA EDX,[ESP + 0xc]
+		PUSH EDX
+		MOV dword ptr [ESP + 0x18],ECX
+		FSTP dword ptr [ESP + 0x8]
+		FLD dword ptr [snowRenderOne]
+		FSUB dword ptr [ESI + GenNormalizedZ]
+		FSTP dword ptr [ESP + 0xc]
+		FLD dword ptr [ESP + 0x8]
+		FMUL dword ptr [ESI + GenPosZ]
+		FMUL dword ptr [snowRenderPhase]
+		FSIN
+		FMUL dword ptr [ESP + 0xc]
+		FMUL dword ptr [snowRenderAmplitude]
+		FADD ST(0),ST(1)
+		FSTP dword ptr [ESP + 0x10]
+		FSTP ST(0)
+		FLD dword ptr [ESI + GenPosY]
+		FADD dword ptr [ESI + GenPosZ]
+		FMUL dword ptr [ESP + 0x8]
+		FMUL dword ptr [snowRenderPhase]
+		FCOS
+		FMUL dword ptr [ESP + 0xc]
+		FMUL dword ptr [snowRenderAmplitude]
+		FADD dword ptr [ESP + 0x14]
+		FSTP dword ptr [ESP + 0x14]
+		CALL BG_GetSkyGroundHeightAtPoint
+		FLD dword ptr [ESP + 0x18]
+		MOV EAX,dword ptr [ESI + GenHeight]
+		ADD ESP,0x4
+		FCOMP ST(1)
+		MOV dword ptr [ESP + 0x4],EAX
+		FNSTSW AX
+		TEST AH,0x41
+		JZ snow_render_30017d27
+		FLD dword ptr [ESI + GenHeight]
+		FSUB ST(0),ST(1)
+		FADD dword ptr [ESP + 0x14]
+		FSTP dword ptr [ESP + 0x4]
+		FSTP ST(0)
+		FLD dword ptr [ESP + 0x4]
+		FSUB dword ptr [ESI + GenHeight]
+		FLD ST(0)
+		FMUL dword ptr [ESI + GenNormalizedX]
+		FADD dword ptr [ESP + 0xc]
+		FSTP dword ptr [ESP + 0xc]
+		FLD ST(0)
+		FMUL dword ptr [ESI + GenNormalizedY]
+		FADD dword ptr [ESP + 0x10]
+		FSTP dword ptr [ESP + 0x10]
+		FMUL dword ptr [ESI + GenNormalizedZ]
+		FADD dword ptr [ESP + 0x14]
+		FSTP dword ptr [ESP + 0x14]
+		JMP snow_render_30017d29
+snow_render_30017d27:
+		FSTP ST(0)
+snow_render_30017d29:
+		FLD dword ptr [ESP + 0x4]
+		FCOMP dword ptr [snowRenderZero]
+		FNSTSW AX
+		TEST AH,0x41
+		JNZ snow_render_30017f24
+		MOV ECX,dword ptr [cg + WeatherRefdef]
+		ADD ECX,GenViewX
+		PUSH ECX
+		PUSH ESI
+		CALL DistanceSquared
+		MOV EDX,dword ptr [ESI + GenNormalizedX]
+		MOV EAX,dword ptr [ESI + GenNormalizedY]
+		FSTP ST(0)
+		FLD dword ptr [ESP + 0xc]
+		FCHS
+		FLD ST(0)
+		MOV dword ptr [ESP + 0x2c],EDX
+		MOV dword ptr [ESP + 0x30],EAX
+		FMUL dword ptr [ESP + 0x2c]
+		MOV ECX,dword ptr [ESI + GenNormalizedZ]
+		MOV EAX,[cg + WeatherRefdef]
+		MOV dword ptr [ESP + 0x34],ECX
+		LEA EDX,[ESP + 0x20]
+		FADD dword ptr [ESP + 0x14]
+		PUSH EDX
+		FSTP dword ptr [ESP + 0x3c]
+		FLD ST(0)
+		FMUL dword ptr [ESP + 0x34]
+		FADD dword ptr [ESP + 0x1c]
+		FSTP dword ptr [ESP + 0x40]
+		FMUL dword ptr [ESP + 0x38]
+		FADD dword ptr [ESP + 0x20]
+		FSTP dword ptr [ESP + 0x44]
+		FLD dword ptr [ESP + 0x30]
+		FMUL dword ptr [EAX + SnowAxis10]
+		FLD dword ptr [ESP + 0x38]
+		FMUL dword ptr [EAX + SnowAxis12]
+		FADDP ST(1), ST(0)
+		FLD dword ptr [ESP + 0x34]
+		FMUL dword ptr [EAX + SnowAxis11]
+		FADDP ST(1), ST(0)
+		FLD dword ptr [ESP + 0x30]
+		FMUL dword ptr [EAX + SnowAxis20]
+		FLD dword ptr [ESP + 0x38]
+		FMUL dword ptr [EAX + SnowAxis22]
+		FADDP ST(1), ST(0)
+		FLD dword ptr [ESP + 0x34]
+		FMUL dword ptr [EAX + SnowAxis21]
+		FADDP ST(1), ST(0)
+		FLD ST(0)
+		FMUL dword ptr [EAX + SnowAxis10]
+		FSTP dword ptr [ESP + 0x24]
+		FLD ST(0)
+		FMUL dword ptr [EAX + SnowAxis11]
+		FSTP dword ptr [ESP + 0x28]
+		FMUL dword ptr [EAX + SnowAxis12]
+		FSTP dword ptr [ESP + 0x2c]
+		FCHS
+		FLD ST(0)
+		FMUL dword ptr [EAX + SnowAxis20]
+		FADD dword ptr [ESP + 0x24]
+		FSTP dword ptr [ESP + 0x24]
+		FLD ST(0)
+		FMUL dword ptr [EAX + SnowAxis21]
+		FADD dword ptr [ESP + 0x28]
+		FSTP dword ptr [ESP + 0x28]
+		FMUL dword ptr [EAX + SnowAxis22]
+		FADD dword ptr [ESP + 0x2c]
+		FSTP dword ptr [ESP + 0x2c]
+		CALL VectorNormalize
+		FSTP ST(0)
+		FLD dword ptr [ESI + GenWeight]
+		FLD ST(0)
+		FCHS
+		FLD ST(0)
+		FMUL dword ptr [ESP + 0x24]
+		FST dword ptr [ESP + 0x14]
+		FADD dword ptr [ESP + 0x3c]
+		FSTP dword ptr [ESP + 0x48]
+		FLD ST(0)
+		FMUL dword ptr [ESP + 0x28]
+		FST dword ptr [ESP + 0x10]
+		FADD dword ptr [ESP + 0x40]
+		FSTP dword ptr [ESP + 0x4c]
+		MOV ECX,dword ptr [ESI + GenShader]
+		MOV AL,0xff
+		FMUL dword ptr [ESP + 0x2c]
+		MOV byte ptr [ESP + 0x5c],AL
+		MOV byte ptr [ESP + 0x5d],AL
+		MOV byte ptr [ESP + 0x5e],AL
+		MOV byte ptr [ESP + 0x5f],AL
+		FLD ST(0)
+		FADD dword ptr [ESP + 0x44]
+		MOV byte ptr [ESP + 0x74],AL
+		MOV byte ptr [ESP + 0x75],AL
+		MOV byte ptr [ESP + 0x76],AL
+		MOV byte ptr [ESP + 0x77],AL
+		MOV byte ptr [ESP + 0x8c],AL
+		MOV byte ptr [ESP + 0x8d],AL
+		FSTP dword ptr [ESP + 0x50]
+		FLD dword ptr [ESP + 0x14]
+		FADD dword ptr [ESP + 0x18]
+		MOV byte ptr [ESP + 0x8e],AL
+		MOV byte ptr [ESP + 0x8f],AL
+		MOV dword ptr [ESP + 0x54],0x0
+		MOV dword ptr [ESP + 0x58],0x0
+		MOV dword ptr [ESP + 0x6c],0x0
+		MOV dword ptr [ESP + 0x70],0x3f800000
+		FSTP dword ptr [ESP + 0x60]
+		FLD dword ptr [ESP + 0x10]
+		FADD dword ptr [ESP + 0x1c]
+		MOV dword ptr [ESP + 0x84],0x3f800000
+		MOV dword ptr [ESP + 0x88],0x3f800000
+		LEA EAX,[ESP + 0x48]
+		PUSH EAX
+		FSTP dword ptr [ESP + 0x68]
+		FADD dword ptr [ESP + 0x24]
+		FSTP dword ptr [ESP + 0x6c]
+		FLD ST(0)
+		FMUL dword ptr [ESP + 0x28]
+		FADD dword ptr [ESP + 0x1c]
+		FSTP dword ptr [ESP + 0x7c]
+		FLD ST(0)
+		FMUL dword ptr [ESP + 0x2c]
+		FADD dword ptr [ESP + 0x20]
+		FSTP dword ptr [ESP + 0x80]
+		FMUL dword ptr [ESP + 0x30]
+		FADD dword ptr [ESP + 0x24]
+		FSTP dword ptr [ESP + 0x84]
+		MOV EDX,dword ptr [ECX]
+		PUSH EDX
+		CALL CG_AddPolyToPool
+		ADD ESP,0x14
+snow_render_30017f24:
+		POP ESI
+		ADD ESP,0x80
+		RET
+ }
+}
+#else
 static void CG_SnowParticleRender( cg_atmosphericParticle_t *particle )
 {
 	// Draw a snowflake
@@ -566,13 +1493,9 @@ static void CG_SnowParticleRender( cg_atmosphericParticle_t *particle )
 	line[0] = particle->pos[0] - cg.refdef_current->vieworg[0];
 	line[1] = particle->pos[1] - cg.refdef_current->vieworg[1];
 
-	dist = DistanceSquared( particle->pos, cg.refdef_current->vieworg );
-	// dist becomes scale
-	if( dist > Square( 500.f ) ) {
-        dist = 1.f + ( ( dist - Square( 500.f ) ) * ( 10.f / Square( 2000.f ) ) );
-	} else {
-		dist = 1.f;
-	}
+	/* Both TC originals discard the distance result; there is no size inflation. */
+	(void)DistanceSquared( particle->pos, cg.refdef_current->vieworg );
+	dist = 1.f;
 
 	len *= dist;
 
@@ -621,6 +1544,301 @@ static void CG_SnowParticleRender( cg_atmosphericParticle_t *particle )
 **	Set up gust parameters.
 */
 
+#endif
+
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* TC weather lifecycle: original x87 stores and native field addresses. */
+enum {
+	GustField0 = offsetof(cg_atmosphericEffect_t, lastRainTime),
+	GustField1 = offsetof(cg_atmosphericEffect_t, numDrops),
+	GustField2 = offsetof(cg_atmosphericEffect_t, gustStartTime),
+	GustField3 = offsetof(cg_atmosphericEffect_t, gustEndTime),
+	GustField4 = offsetof(cg_atmosphericEffect_t, baseStartTime),
+	GustField5 = offsetof(cg_atmosphericEffect_t, baseEndTime),
+	GustField6 = offsetof(cg_atmosphericEffect_t, gustMinTime),
+	GustField7 = offsetof(cg_atmosphericEffect_t, gustMaxTime),
+	GustField8 = offsetof(cg_atmosphericEffect_t, changeMinTime),
+	GustField9 = offsetof(cg_atmosphericEffect_t, changeMaxTime),
+	GustField10 = offsetof(cg_atmosphericEffect_t, baseMinTime),
+	GustField11 = offsetof(cg_atmosphericEffect_t, baseMaxTime),
+	GustField12 = offsetof(cg_atmosphericEffect_t, baseWeight),
+	GustField13 = offsetof(cg_atmosphericEffect_t, gustWeight),
+	GustField14 = offsetof(cg_atmosphericEffect_t, baseDrops),
+	GustField15 = offsetof(cg_atmosphericEffect_t, gustDrops),
+	GustField16 = offsetof(cg_atmosphericEffect_t, baseHeightOffset),
+	GustField17 = offsetof(cg_atmosphericEffect_t, numEffectShaders),
+	GustField18 = offsetof(cg_atmosphericEffect_t, baseVec),
+	GustField19 = offsetof(cg_atmosphericEffect_t, baseVec) + 4,
+	GustField20 = offsetof(cg_atmosphericEffect_t, baseVec) + 8,
+	GustField21 = offsetof(cg_atmosphericEffect_t, gustVec),
+	GustField22 = offsetof(cg_atmosphericEffect_t, gustVec) + 4,
+	GustField23 = offsetof(cg_atmosphericEffect_t, gustVec) + 8,
+	GustField24 = offsetof(cg_atmosphericEffect_t, viewDir),
+	GustField25 = offsetof(cg_atmosphericEffect_t, viewDir) + 4,
+	GustField26 = offsetof(cg_atmosphericEffect_t, viewDir) + 8,
+	GustField27 = offsetof(cg_atmosphericEffect_t, ParticleCheckVisible),
+	GustField28 = offsetof(cg_atmosphericEffect_t, ParticleGenerate),
+	GustField29 = offsetof(cg_atmosphericEffect_t, ParticleRender),
+	GustField30 = offsetof(cg_atmosphericEffect_t, dropsActive),
+	GustField31 = offsetof(cg_atmosphericEffect_t, oldDropsActive),
+	GustField32 = offsetof(cg_atmosphericEffect_t, dropsRendered),
+	GustField33 = offsetof(cg_atmosphericEffect_t, dropsCreated),
+	GustField34 = offsetof(cg_atmosphericEffect_t, dropsSkipped),
+	GustCvarValue = offsetof(vmCvar_t, value),
+	GustCvarInteger = offsetof(vmCvar_t, integer),
+	GustViewX = offsetof(refdef_t, viewaxis),
+	GustViewY = offsetof(refdef_t, viewaxis) + sizeof(float),
+	GustNextDrop = offsetof(cg_atmosphericParticle_t, nextDropTime),
+	GustParticleSize = sizeof(cg_atmosphericParticle_t)
+};
+static const float gustZero = 0.0f;
+static const double gustOne = 1.0;
+static __declspec(naked) void CG_WeatherTruncateST0(void)
+{
+ __asm {
+ push ebp
+ mov ebp, esp
+ sub esp, 12
+ fwait
+ fnstcw word ptr [ebp-2]
+ fwait
+ mov ax, word ptr [ebp-2]
+ or ah, 0ch
+ mov word ptr [ebp-4], ax
+ fldcw word ptr [ebp-4]
+ fistp qword ptr [ebp-12]
+ fldcw word ptr [ebp-2]
+ mov eax, dword ptr [ebp-12]
+ mov edx, dword ptr [ebp-8]
+ leave
+ ret
+ }
+}
+static __declspec(naked) void CG_EffectGust(void)
+{
+	__asm {
+		PUSH ESI
+		PUSH EDI
+		CALL rand
+		MOV ESI,dword ptr [cg_atmFx + GustField11]
+		MOV ECX,dword ptr [cg_atmFx + GustField10]
+		CDQ
+		SUB ESI,ECX
+		MOV EDI,dword ptr [cg_atmFx + GustField9]
+		IDIV ESI
+		MOV ESI,EDI
+		MOV EAX,EDX
+		MOV EDX,dword ptr [cg + WeatherTime]
+		ADD EAX,ECX
+		MOV ECX,dword ptr [cg_atmFx + GustField8]
+		ADD EAX,EDX
+		SUB ESI,ECX
+		MOV [cg_atmFx + GustField5],EAX
+		JZ gust_30017f80
+		CALL rand
+		MOV EDI,dword ptr [cg_atmFx + GustField9]
+		CDQ
+		IDIV ESI
+		MOV EAX,[cg_atmFx + GustField5]
+		JMP gust_30017f82
+gust_30017f80:
+		XOR EDX,EDX
+gust_30017f82:
+		MOV ECX,dword ptr [cg_atmFx + GustField8]
+		MOV ESI,dword ptr [cg_atmFx + GustField7]
+		ADD ECX,EDX
+		ADD ECX,EAX
+		MOV EAX,[cg_atmFx + GustField6]
+		SUB ESI,EAX
+		MOV dword ptr [cg_atmFx + GustField2],ECX
+		JZ gust_30017fb7
+		CALL rand
+		MOV ECX,dword ptr [cg_atmFx + GustField2]
+		MOV EDI,dword ptr [cg_atmFx + GustField9]
+		CDQ
+		IDIV ESI
+		JMP gust_30017fb9
+gust_30017fb7:
+		XOR EDX,EDX
+gust_30017fb9:
+		MOV EAX,[cg_atmFx + GustField6]
+		ADD EAX,EDX
+		ADD EAX,ECX
+		MOV ECX,dword ptr [cg_atmFx + GustField8]
+		SUB EDI,ECX
+		MOV [cg_atmFx + GustField3],EAX
+		JZ gust_30017ff0
+		CALL rand
+		CDQ
+		IDIV EDI
+		MOV EAX,[cg_atmFx + GustField3]
+		POP EDI
+		POP ESI
+		ADD EDX,EAX
+		MOV EAX,[cg_atmFx + GustField8]
+		ADD EDX,EAX
+		MOV dword ptr [cg_atmFx + GustField4],EDX
+		RET
+gust_30017ff0:
+		XOR EDX,EDX
+		POP EDI
+		MOV EDX,EAX
+		MOV EAX,[cg_atmFx + GustField8]
+		ADD EDX,EAX
+		POP ESI
+		MOV dword ptr [cg_atmFx + GustField4],EDX
+		RET
+	}
+}
+
+static __declspec(naked) qboolean CG_EffectGustCurrent(vec3_t curr, float *weight, int *num)
+{
+	__asm {
+		MOV EAX,[cg + WeatherTime]
+		MOV EDX,dword ptr [cg_atmFx + GustField5]
+		SUB ESP,0x10
+		CMP EAX,EDX
+		JGE gust_3001828e
+		FLD dword ptr [cg_atmFx + GustField18]
+		MOV EAX,dword ptr [ESP + 0x14]
+		FSTP dword ptr [EAX]
+		MOV ECX,dword ptr [cg_atmFx + GustField19]
+		MOV dword ptr [EAX + 0x4],ECX
+		MOV EDX,dword ptr [cg_atmFx + GustField20]
+		MOV ECX,dword ptr [ESP + 0x1c]
+		MOV dword ptr [EAX + 0x8],EDX
+		FLD dword ptr [cg_atmFx + GustField12]
+		MOV EAX,dword ptr [ESP + 0x18]
+		FSTP dword ptr [EAX]
+		MOV EDX,dword ptr [cg_atmFx + GustField14]
+		MOV dword ptr [ECX],EDX
+gust_30018288:
+		XOR EAX,EAX
+		ADD ESP,0x10
+		RET
+gust_3001828e:
+		FLD dword ptr [cg_atmFx + GustField21]
+		FSUB dword ptr [cg_atmFx + GustField18]
+		MOV ECX,dword ptr [cg_atmFx + GustField2]
+		CMP EAX,ECX
+		FSTP dword ptr [ESP + 0x4]
+		FLD dword ptr [cg_atmFx + GustField22]
+		FSUB dword ptr [cg_atmFx + GustField19]
+		FSTP dword ptr [ESP + 0x8]
+		FLD dword ptr [cg_atmFx + GustField23]
+		FSUB dword ptr [cg_atmFx + GustField20]
+		FSTP dword ptr [ESP + 0xc]
+		JGE gust_3001835c
+		SUB EAX,EDX
+		SUB ECX,EDX
+		MOV dword ptr [ESP],EAX
+		MOV EAX,dword ptr [ESP + 0x14]
+		FILD dword ptr [ESP]
+		MOV dword ptr [ESP],ECX
+		FILD dword ptr [ESP]
+		FDIVP ST(1),ST(0)
+		FLD ST(0)
+		FMUL dword ptr [ESP + 0x4]
+		FADD dword ptr [cg_atmFx + GustField18]
+		FSTP dword ptr [EAX]
+		FLD ST(0)
+		FMUL dword ptr [ESP + 0x8]
+		FADD dword ptr [cg_atmFx + GustField19]
+		FSTP dword ptr [EAX + 0x4]
+		FLD ST(0)
+		FMUL dword ptr [ESP + 0xc]
+		FADD dword ptr [cg_atmFx + GustField20]
+		FSTP dword ptr [EAX + 0x8]
+		FLD dword ptr [cg_atmFx + GustField13]
+		FSUB dword ptr [cg_atmFx + GustField12]
+		MOV EAX,dword ptr [ESP + 0x18]
+		FMUL ST(0), ST(1)
+		FADD dword ptr [cg_atmFx + GustField12]
+		FSTP dword ptr [EAX]
+		MOV ECX,dword ptr [cg_atmFx + GustField15]
+		MOV EAX,[cg_atmFx + GustField14]
+		SUB ECX,EAX
+		MOV dword ptr [ESP + 0x14],ECX
+		FILD dword ptr [ESP + 0x14]
+		FMUL ST(0), ST(1)
+		FIADD dword ptr [cg_atmFx + GustField14]
+		CALL CG_WeatherTruncateST0
+		MOV EDX,dword ptr [ESP + 0x1c]
+		FSTP ST(0)
+		MOV dword ptr [EDX],EAX
+		XOR EAX,EAX
+		ADD ESP,0x10
+		RET
+gust_3001835c:
+		MOV ECX,dword ptr [cg_atmFx + GustField3]
+		CMP EAX,ECX
+		JGE gust_300183a2
+		FLD dword ptr [cg_atmFx + GustField21]
+		MOV EAX,dword ptr [ESP + 0x14]
+		FSTP dword ptr [EAX]
+		MOV ECX,dword ptr [cg_atmFx + GustField22]
+		MOV dword ptr [EAX + 0x4],ECX
+		MOV EDX,dword ptr [cg_atmFx + GustField23]
+		MOV ECX,dword ptr [ESP + 0x1c]
+		MOV dword ptr [EAX + 0x8],EDX
+		FLD dword ptr [cg_atmFx + GustField13]
+		MOV EAX,dword ptr [ESP + 0x18]
+		FSTP dword ptr [EAX]
+		MOV EDX,dword ptr [cg_atmFx + GustField15]
+		XOR EAX,EAX
+		MOV dword ptr [ECX],EDX
+		ADD ESP,0x10
+		RET
+gust_300183a2:
+		SUB EAX,ECX
+		MOV dword ptr [ESP],EAX
+		MOV EAX,[cg_atmFx + GustField4]
+		FILD dword ptr [ESP]
+		SUB EAX,ECX
+		MOV ECX,dword ptr [ESP + 0x18]
+		MOV dword ptr [ESP],EAX
+		MOV EAX,dword ptr [ESP + 0x14]
+		FILD dword ptr [ESP]
+		FDIVP ST(1),ST(0)
+		FSUBR qword ptr [gustOne]
+		FLD ST(0)
+		FMUL dword ptr [ESP + 0x4]
+		FADD dword ptr [cg_atmFx + GustField18]
+		FSTP dword ptr [EAX]
+		FLD ST(0)
+		FMUL dword ptr [ESP + 0x8]
+		FADD dword ptr [cg_atmFx + GustField19]
+		FSTP dword ptr [EAX + 0x4]
+		FLD ST(0)
+		FMUL dword ptr [ESP + 0xc]
+		FADD dword ptr [cg_atmFx + GustField20]
+		FSTP dword ptr [EAX + 0x8]
+		FLD dword ptr [cg_atmFx + GustField13]
+		FSUB dword ptr [cg_atmFx + GustField12]
+		FMUL ST(0), ST(1)
+		FADD dword ptr [cg_atmFx + GustField12]
+		FSTP dword ptr [ECX]
+		MOV EDX,dword ptr [cg_atmFx + GustField15]
+		MOV ECX,dword ptr [cg_atmFx + GustField14]
+		SUB EDX,ECX
+		MOV dword ptr [ESP + 0x14],EDX
+		FILD dword ptr [ESP + 0x14]
+		FMUL ST(0), ST(1)
+		FIADD dword ptr [cg_atmFx + GustField14]
+		CALL CG_WeatherTruncateST0
+		MOV ECX,dword ptr [ESP + 0x1c]
+		FSTP ST(0)
+		MOV dword ptr [ECX],EAX
+		MOV EDX,dword ptr [cg + WeatherTime]
+		CMP EDX,dword ptr [cg_atmFx + GustField4]
+		JL gust_30018288
+		MOV EAX,0x1
+		ADD ESP,0x10
+		RET
+	}
+}
+
+#else
 static void CG_EffectGust()
 {
 	// Generate random values for the next gust
@@ -677,6 +1895,130 @@ static qboolean CG_EffectGustCurrent( vec3_t curr, float *weight, int *num )
 	return( qfalse );
 }
 
+#endif
+
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* Whole Windows range parsers 30018010/30018090. Native atof preserves the
+ * call ABI, but its CRT implementation remains an explicit dependency. */
+static double (__cdecl * const weatherRangeAtof)(const char *) = atof;
+static __declspec(naked) void CG_EP_ParseFloats( char *floatstr, float *f1, float *f2 )
+{
+	__asm {
+		SUB ESP,040h
+		LEA EAX,[ESP]
+		PUSH ESI
+		PUSH EDI
+		MOV EDI,dword ptr [ESP + 04ch]
+		PUSH 040h
+		PUSH EDI
+		PUSH EAX
+		CALL Q_strncpyz
+		MOV AL,byte ptr [ESP + 014h]
+		ADD ESP,0ch
+		TEST AL,AL
+		LEA ESI,[ESP + 08h]
+		JZ weatherRange30018041
+weatherRange30018035:
+		CMP AL,020h
+		JZ weatherRange30018041
+		MOV AL,byte ptr [ESI + 01h]
+		INC ESI
+		TEST AL,AL
+		JNZ weatherRange30018035
+weatherRange30018041:
+		CMP byte ptr [ESI],00h
+		JZ weatherRange3001806b
+		PUSH EDI
+		MOV byte ptr [ESI],00h
+		CALL dword ptr [weatherRangeAtof]
+		MOV ECX,dword ptr [ESP + 054h]
+		INC ESI
+		PUSH ESI
+		FSTP dword ptr [ECX]
+		CALL dword ptr [weatherRangeAtof]
+		MOV EDX,dword ptr [ESP + 05ch]
+		ADD ESP,08h
+		FSTP dword ptr [EDX]
+		POP EDI
+		POP ESI
+		ADD ESP,040h
+		RET
+weatherRange3001806b:
+		PUSH EDI
+		CALL dword ptr [weatherRangeAtof]
+		MOV EAX,dword ptr [ESP + 058h]
+		MOV ECX,dword ptr [ESP + 054h]
+		FLD st(0)
+		ADD ESP,04h
+		FSTP dword ptr [EAX]
+		POP EDI
+		POP ESI
+		FSTP dword ptr [ECX]
+		ADD ESP,040h
+		RET
+	}
+}
+
+static __declspec(naked) void CG_EP_ParseInts( char *intstr, int *i1, int *i2 )
+{
+	__asm {
+		SUB ESP,040h
+		LEA EAX,[ESP]
+		PUSH ESI
+		PUSH EDI
+		MOV EDI,dword ptr [ESP + 04ch]
+		PUSH 040h
+		PUSH EDI
+		PUSH EAX
+		CALL Q_strncpyz
+		MOV AL,byte ptr [ESP + 014h]
+		ADD ESP,0ch
+		TEST AL,AL
+		LEA ESI,[ESP + 08h]
+		JZ weatherRange300180c1
+weatherRange300180b5:
+		CMP AL,020h
+		JZ weatherRange300180c1
+		MOV AL,byte ptr [ESI + 01h]
+		INC ESI
+		TEST AL,AL
+		JNZ weatherRange300180b5
+weatherRange300180c1:
+		CMP byte ptr [ESI],00h
+		JZ weatherRange300180f5
+		PUSH EDI
+		MOV byte ptr [ESI],00h
+		CALL dword ptr [weatherRangeAtof]
+		CALL CG_WeatherTruncateST0
+		MOV ECX,dword ptr [ESP + 054h]
+		INC ESI
+		PUSH ESI
+		MOV dword ptr [ECX],EAX
+		CALL dword ptr [weatherRangeAtof]
+		ADD ESP,08h
+		CALL CG_WeatherTruncateST0
+		MOV EDX,dword ptr [ESP + 054h]
+		POP EDI
+		POP ESI
+		MOV dword ptr [EDX],EAX
+		ADD ESP,040h
+		RET
+weatherRange300180f5:
+		PUSH EDI
+		CALL dword ptr [weatherRangeAtof]
+		ADD ESP,04h
+		CALL CG_WeatherTruncateST0
+		MOV ECX,dword ptr [ESP + 054h]
+		MOV EDX,dword ptr [ESP + 050h]
+		POP EDI
+		POP ESI
+		MOV dword ptr [ECX],EAX
+		MOV dword ptr [EDX],EAX
+		ADD ESP,040h
+		RET
+	}
+}
+#else
 static void CG_EP_ParseFloats( char *floatstr, float *f1, float *f2 )
 {
 	// Parse the float or floats
@@ -716,6 +2058,8 @@ static void CG_EP_ParseInts( char *intstr, int *i1, int *i2 )
 		*i1 = *i2 = atof( intstr );
 	}
 }
+
+#endif
 
 void CG_EffectParse( const char *effectstr )
 {
@@ -775,7 +2119,8 @@ void CG_EffectParse( const char *effectstr )
 				cg_atmFx.ParticleGenerate = &CG_RainParticleGenerate;
 				cg_atmFx.ParticleRender = &CG_RainParticleRender;
 
-				cg_atmFx.baseVec[2] = cg_atmFx.gustVec[2] = - ATMOSPHERIC_RAIN_SPEED;
+				/* TC sets literal -800, not the SDK 1.1*gravity speed. */
+				cg_atmFx.baseVec[2] = cg_atmFx.gustVec[2] = -800.0f;
 			} else if( !Q_stricmp( eqptr, "SNOW" ) ) {
 				atmFXType = ATM_SNOW;
 				cg_atmFx.ParticleCheckVisible = &CG_SnowParticleCheckVisible;
@@ -811,7 +2156,7 @@ void CG_EffectParse( const char *effectstr )
 		startptr = endptr;
 	}
 
-	if( atmFXType == ATM_NONE || !BG_LoadTraceMap( cgs.rawmapname, cg.mapcoordsMins, cg.mapcoordsMaxs ) ) {
+	if( atmFXType == ATM_NONE || !cg.tceTraceMapLoaded ) {
 		// No effects
 
 		cg_atmFx.numDrops = -1;
@@ -866,6 +2211,97 @@ void CG_EffectParse( const char *effectstr )
 ** Main render loop
 */
 
+#if defined(_MSC_VER) && defined(_M_IX86)
+__declspec(naked) void CG_AddAtmosphericEffects(void)
+{
+	__asm {
+		SUB ESP,0x14
+		PUSH ESI
+		PUSH EDI
+		MOV EDI,dword ptr [cg_atmFx + GustField1]
+		XOR ESI,ESI
+		CMP EDI,ESI
+		JLE gust_3001822e
+		CMP dword ptr [cg_atmFx + GustField17],ESI
+		JZ gust_3001822e
+		FLD dword ptr [cg_atmosphericEffects + GustCvarValue]
+		FCOMP dword ptr [gustZero]
+		FNSTSW AX
+		TEST AH,0x41
+		JZ gust_30018160
+		CMP dword ptr [developer + GustCvarInteger],ESI
+		JNZ gust_3001822e
+gust_30018160:
+		LEA EAX,[ESP + 0xc]
+		LEA ECX,[ESP + 0x8]
+		PUSH EAX
+		LEA EDX,[ESP + 0x14]
+		PUSH ECX
+		PUSH EDX
+		CALL CG_EffectGustCurrent
+		ADD ESP,0xc
+		TEST EAX,EAX
+		JZ gust_30018180
+		CALL CG_EffectGust
+gust_30018180:
+		MOV EAX,[cg_atmFx + GustField30]
+		MOV dword ptr [cg_atmFx + GustField30],ESI
+		MOV [cg_atmFx + GustField31],EAX
+		MOV EAX,[cg + WeatherRefdef]
+		MOV dword ptr [cg_atmFx + GustField34],ESI
+		MOV dword ptr [cg_atmFx + GustField33],ESI
+		MOV dword ptr [cg_atmFx + GustField32],ESI
+		CMP EDI,ESI
+		FLD dword ptr [EAX + GustViewX]
+		FSTP dword ptr [cg_atmFx + GustField24]
+		FLD dword ptr [EAX + GustViewY]
+		FSTP dword ptr [cg_atmFx + GustField25]
+		MOV dword ptr [cg_atmFx + GustField26],0x0
+		JLE gust_30018222
+		LEA ESI,cg_atmFx.particles
+gust_300181cc:
+		PUSH ESI
+		CALL dword ptr [cg_atmFx + GustField27]
+		ADD ESP,0x4
+		TEST EAX,EAX
+		JNZ gust_30018207
+		MOV ECX,dword ptr [ESP + 0x8]
+		LEA EDX,[ESP + 0x10]
+		PUSH ECX
+		PUSH EDX
+		PUSH ESI
+		CALL dword ptr [cg_atmFx + GustField28]
+		ADD ESP,0xc
+		TEST EAX,EAX
+		JNZ gust_30018201
+		MOV EAX,[cg + WeatherTime]
+		ADD EAX,0x3e8
+		MOV dword ptr [ESI + GustNextDrop],EAX
+		JMP gust_3001821c
+gust_30018201:
+		INC dword ptr [cg_atmFx + GustField33]
+gust_30018207:
+		PUSH ESI
+		CALL dword ptr [cg_atmFx + GustField29]
+		MOV EAX,[cg_atmFx + GustField30]
+		ADD ESP,0x4
+		INC EAX
+		MOV [cg_atmFx + GustField30],EAX
+gust_3001821c:
+		ADD ESI,GustParticleSize
+		DEC EDI
+		JNZ gust_300181cc
+gust_30018222:
+		MOV ECX,dword ptr [cg + WeatherTime]
+		MOV dword ptr [cg_atmFx + GustField0],ECX
+gust_3001822e:
+		POP EDI
+		POP ESI
+		ADD ESP,0x14
+		RET
+	}
+}
+#else
 void CG_AddAtmosphericEffects()
 {
 	// Add atmospheric effects (e.g. rain, snow etc.) to view
@@ -875,14 +2311,14 @@ void CG_AddAtmosphericEffects()
 	vec3_t currvec;
 	float currweight;
 
-	if( cg_atmFx.numDrops <= 0 || cg_atmFx.numEffectShaders == 0 || cg_atmosphericEffects.value <= 0 )
+	max = cg_atmFx.numDrops;
+	if( max <= 0 || cg_atmFx.numEffectShaders == 0 || (!(cg_atmosphericEffects.value > 0) && developer.integer != 0) )
 		return;
 
 #ifndef ATM_NEW
 	CG_ClearPolyPool();
 #endif // ATM_NEW
 
-	max = cg_atmosphericEffects.value < 1 ? cg_atmosphericEffects.value * cg_atmFx.numDrops : cg_atmFx.numDrops;
 	if( CG_EffectGustCurrent( currvec, &currweight, &currnum ) )
 		CG_EffectGust();			// Recalculate gust parameters
 
@@ -942,3 +2378,4 @@ void CG_AddAtmosphericEffects()
 //	CG_Printf( "gg: %i gs: %i rt: %i cv: %i ge: %i\n", getgroundtime, getskytime, rendertime, checkvisibletime, generatetime );
 //	CG_Printf( "\\-> %i \\-> %i \\-> %i \\-> %i \\-> %i\n", n_getgroundtime, n_getskytime, n_rendertime, n_checkvisibletime, n_generatetime );
 }
+#endif

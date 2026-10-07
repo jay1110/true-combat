@@ -145,8 +145,41 @@ CG_FlameLerpVec
 */
 void CG_FlameLerpVec( const vec3_t oldV, const vec3_t newV, float backLerp, vec3_t outV )
 {
+#if defined(_MSC_VER) && defined(_M_IX86)
+	static const double one = 1.0;
+	__asm {
+		fld backLerp
+		mov ecx, newV
+		mov eax, outV
+		fsubr one
+		fld dword ptr [ecx]
+		fmul st(0), st(1)
+		fstp dword ptr [eax]
+		fld dword ptr [ecx + 4]
+		fmul st(0), st(1)
+		fstp dword ptr [eax + 4]
+		fld dword ptr [ecx + 8]
+		fmul st(0), st(1)
+		mov ecx, oldV
+		fstp dword ptr [eax + 8]
+		fstp st(0)
+		fld backLerp
+		fmul dword ptr [ecx]
+		fadd dword ptr [eax]
+		fstp dword ptr [eax]
+		fld backLerp
+		fmul dword ptr [ecx + 4]
+		fadd dword ptr [eax + 4]
+		fstp dword ptr [eax + 4]
+		fld backLerp
+		fmul dword ptr [ecx + 8]
+		fadd dword ptr [eax + 8]
+		fstp dword ptr [eax + 8]
+	}
+#else
 	VectorScale( newV, (1.0 - backLerp), outV );
 	VectorMA( outV, backLerp, oldV, outV );
+#endif
 }
 
 /*
@@ -156,6 +189,34 @@ CG_FlameAdjustSpeed
 */
 void CG_FlameAdjustSpeed( flameChunk_t *f, float change )
 {
+#if defined(_MSC_VER) && defined(_M_IX86)
+	float *speed = &f->velSpeed;
+	static const float zero = 0.f;
+	static const double minimum = 60.0;
+	__asm {
+		mov ecx, speed
+		fld dword ptr [ecx]
+		fcomp zero
+		fnstsw ax
+		test ah, 40h
+		jz flame_speed_add
+		fld change
+		fcomp zero
+		fnstsw ax
+		test ah, 40h
+		jnz flame_speed_done
+	flame_speed_add:
+		fld change
+		fadd dword ptr [ecx]
+		fst dword ptr [ecx]
+		fcomp minimum
+		fnstsw ax
+		test ah, 1
+		jz flame_speed_done
+		mov dword ptr [ecx], 42700000h
+	flame_speed_done:
+	}
+#else
 	if (!f->velSpeed && !change) {
 		return;
 	}
@@ -163,6 +224,7 @@ void CG_FlameAdjustSpeed( flameChunk_t *f, float change )
 	f->velSpeed += change;
 	if (f->velSpeed < FLAME_MIN_SPEED)
 		f->velSpeed = FLAME_MIN_SPEED;
+#endif
 }
 
 /*
@@ -539,8 +601,30 @@ CG_FlameCalcOrg
 */
 void CG_FlameCalcOrg( flameChunk_t *f, int time, vec3_t outOrg )
 {
+#if defined(_MSC_VER) && defined(_M_IX86)
+	static const float seconds = 0.001f;
+	int i;
+	for (i = 0; i < 3; ++i) {
+		int elapsed = (int)((unsigned)time - (unsigned)f->baseOrgTime);
+		float *speed = &f->velSpeed, *direction = &f->velDir[i];
+		float *base = &f->baseOrg[i], *out = &outOrg[i];
+		/* Original re-reads the time/speed after each output store. */
+		__asm {
+			fild elapsed
+			fmul seconds
+			mov eax, speed
+			fmul dword ptr [eax]
+			mov eax, direction
+			fmul dword ptr [eax]
+			mov eax, base
+			fadd dword ptr [eax]
+			mov eax, out
+			fstp dword ptr [eax]
+		}
+	}
+#else
 	VectorMA( f->baseOrg, f->velSpeed * ((float)(time - f->baseOrgTime) / 1000), f->velDir, outOrg );
-	//outOrg[2] -= f->gravity * ((float)(time - f->timeStart)/1000.0) * ((float)(time - f->timeStart)/1000.0);
+#endif
 }
 
 /*
@@ -550,6 +634,233 @@ CG_MoveFlameChunk
 */
 void CG_MoveFlameChunk( flameChunk_t *f )
 {
+#if defined(_MSC_VER) && defined(_M_IX86)
+	/* TC 3003d860: retain x87 intermediates through the original comparisons. */
+	vec3_t newOrigin, sOrg;
+	trace_t trace;
+	float flameDelta, flameDot;
+	float *flameSpeed = &f->velSpeed, *flameSize = &f->size;
+	float *flameMaximum = &f->sizeMax, *flameRate = &f->sizeRate;
+	float *flameDirection = f->velDir, *flameNormal = trace.plane.normal;
+	float *flameFraction = &trace.fraction;
+	float *flameParent = f->parentFwd, *flameBase = f->baseOrg;
+	const float flameOne = 1.0f, flameNegTwo = -2.0f, flameNear = 32.0f;
+	const float flameGrowth = 0.00047058824566192925f;
+	const double flameMillis = 0.001, flameFriction = -2400.0;
+	const double flameGrowthScale = 3.3333333333333335;
+	const double flameOneD = 1.0, flameHalf = 0.5, flameQuarter = 0.25, flameThreeQuarter = 0.75;
+	int flameElapsed, flameGate, flameStep;
+	unsigned short flameCW, flameTruncCW;
+	__int64 flameInteger;
+	const float *flameEye;
+	__asm {
+		mov ecx, flameSpeed
+		fld dword ptr [ecx]
+		fcomp flameOne
+		fnstsw ax
+		test ah, 41h
+		setz al
+		movzx eax, al
+		mov flameGate, eax
+	}
+	if (flameGate && f->lastFrictionTake < (int)((unsigned int)cg.time - 50u)) {
+		flameElapsed = (int)((unsigned int)cg.time - (unsigned int)f->lastFrictionTake);
+		__asm {
+			fild flameElapsed
+			fmul flameMillis
+			fmul flameFriction
+			fstp flameDelta
+		}
+		CG_FlameAdjustSpeed(f, flameDelta);
+		f->lastFrictionTake = cg.time;
+	}
+	__asm {
+		mov ecx, flameSize
+		mov edx, flameMaximum
+		fld dword ptr [ecx]
+		fcomp dword ptr [edx]
+		fnstsw ax
+		and ah, 1
+		movzx eax, ah
+		mov flameGate, eax
+	}
+	if (flameGate) {
+		if ((int)((unsigned int)cg.time - (unsigned int)f->timeStart) < f->blueLife) {
+			__asm { mov ecx, flameRate
+				mov dword ptr [ecx], 03d86ed54h }
+		} else {
+			__asm {
+				mov ecx, flameMaximum
+				mov edx, flameRate
+				fld dword ptr [ecx]
+				fmul flameGrowth
+				fmul flameGrowthScale
+				fstp dword ptr [edx]
+			}
+		}
+		flameElapsed = (int)((unsigned int)cg.time - (unsigned int)f->baseOrgTime);
+		__asm {
+			mov ecx, flameSize
+			mov edx, flameRate
+			fild flameElapsed
+			fmul dword ptr [edx]
+			fadd dword ptr [ecx]
+			fst dword ptr [ecx]
+			mov edx, flameMaximum
+			fcomp dword ptr [edx]
+			fnstsw ax
+			test ah, 41h
+			jnz flameSizeDone
+			mov eax, dword ptr [edx]
+			mov dword ptr [ecx], eax
+		flameSizeDone:
+		}
+	}
+	VectorCopy(f->baseOrg, sOrg);
+	__asm {
+		mov ecx, flameSpeed
+		fld dword ptr [ecx]
+		fcomp flameOne
+		fnstsw ax
+		test ah, 41h
+		setz al
+		movzx eax, al
+		mov flameGate, eax
+	}
+	while (flameGate && f->baseOrgTime != cg.time) {
+		CG_FlameCalcOrg(f, cg.time, newOrigin);
+		CG_Trace(&trace, sOrg, flameChunkMins, flameChunkMaxs, newOrigin, f->ownerCent, 0x60000b9);
+		if (trace.startsolid) {
+			f->velSpeed = 0.0f;
+			f->dead = 1;
+			break;
+		}
+		if (trace.surfaceFlags & 0x10) break;
+		VectorCopy(trace.endpos, f->baseOrg);
+		flameElapsed = (int)((unsigned int)cg.time - (unsigned int)f->baseOrgTime);
+		__asm {
+			fild flameElapsed
+			mov ecx, flameFraction
+			fmul dword ptr [ecx]
+			/* Original __ftol: truncate to signed64, then consume low32. */
+			fwait
+			fnstcw flameCW
+			fwait
+			mov ax, flameCW
+			or ah, 0ch
+			mov flameTruncCW, ax
+			fldcw flameTruncCW
+			fistp flameInteger
+			fldcw flameCW
+			mov eax, dword ptr flameInteger
+			mov flameStep, eax
+			fld dword ptr [ecx]
+			fcomp flameOneD
+			fnstsw ax
+			and ah, 40h
+			movzx eax, ah
+			mov flameGate, eax
+		}
+		f->baseOrgTime = (int)((unsigned int)f->baseOrgTime + (unsigned int)flameStep);
+		if (flameGate) {
+			if (f->ownerCent == cg.snap->ps.clientNum || (cg.snap->ps.eFlags & 1)) break;
+			flameEye = cg.snap->ps.origin;
+			__asm {
+				push flameEye
+				lea eax, newOrigin
+				push eax
+				call Distance
+				fcomp flameNear
+				add esp, 8
+				fnstsw ax
+				and ah, 1
+				movzx eax, ah
+				mov flameGate, eax
+			}
+			if (!flameGate) break;
+			__asm {
+				mov ecx, flameDirection
+				mov edx, flameNormal
+				fld dword ptr [ecx]
+				fchs
+				fstp dword ptr [edx]
+				fld dword ptr [ecx+4]
+				fchs
+				fstp dword ptr [edx+4]
+				fld dword ptr [ecx+8]
+				fchs
+				fstp dword ptr [edx+8]
+			}
+		}
+		__asm {
+			mov ecx, flameDirection
+			mov edx, flameNormal
+			fld dword ptr [edx+8]
+			fmul dword ptr [ecx+8]
+			fld dword ptr [edx+4]
+			fmul dword ptr [ecx+4]
+			faddp st(1), st(0)
+			fld dword ptr [edx]
+			fmul dword ptr [ecx]
+			faddp st(1), st(0)
+			fst flameDot
+			fmul flameNegTwo
+			fld st(0)
+			fmul dword ptr [edx]
+			fadd dword ptr [ecx]
+			fstp dword ptr [ecx]
+			fld st(0)
+			fmul dword ptr [edx+4]
+			fadd dword ptr [ecx+4]
+			fstp dword ptr [ecx+4]
+			fmul dword ptr [edx+8]
+			fadd dword ptr [ecx+8]
+			fstp dword ptr [ecx+8]
+			push ecx
+			call VectorNormalize
+			fstp st(0)
+			add esp, 4
+		}
+		__asm {
+			fld flameDot
+			fadd flameOneD
+			mov ecx, flameDirection
+			mov edx, flameParent
+			mov eax, dword ptr [ecx]
+			mov dword ptr [edx], eax
+			fmul flameHalf
+			mov eax, dword ptr [ecx+4]
+			mov dword ptr [edx+4], eax
+			mov ecx, flameBase
+			mov eax, dword ptr [ecx]
+			mov dword ptr sOrg, eax
+			fmul flameThreeQuarter
+			mov ecx, flameDirection
+			mov eax, dword ptr [ecx+8]
+			mov dword ptr [edx+8], eax
+			mov ecx, flameBase
+			mov eax, dword ptr [ecx+4]
+			mov dword ptr sOrg[4], eax
+			fadd flameQuarter
+			mov edx, flameSpeed
+			fmul dword ptr [edx]
+			mov eax, dword ptr [ecx+8]
+			mov dword ptr sOrg[8], eax
+			mov ecx, edx
+			fmul flameHalf
+			fst dword ptr [ecx]
+			fcomp flameOne
+			fnstsw ax
+			test ah, 41h
+			setz al
+			movzx eax, al
+			mov flameGate, eax
+		}
+	}
+	CG_FlameCalcOrg(f, cg.time, f->org);
+	f->baseOrgTime = cg.time;
+#else
+
 	vec3_t	newOrigin, sOrg;
 	trace_t	trace;
 	int		jiggleCount;
@@ -621,6 +932,7 @@ void CG_MoveFlameChunk( flameChunk_t *f )
 
 	CG_FlameCalcOrg( f, cg.time, f->org );
 	f->baseOrgTime = cg.time;	// incase we skipped the movement
+#endif
 }
 
 /*
@@ -659,8 +971,279 @@ void CG_FlameDamage( int owner, vec3_t org, float radius )
 		return;
 }
 
+
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* Original30088628 ABI, consumed only by the sprite producer below. */
+__declspec(naked) static int CG_FlameSpriteTruncateST0(void) {
+	__asm {
+		push ebp
+		mov ebp, esp
+		sub esp, 12
+		fwait
+		fnstcw word ptr [ebp-2]
+		fwait
+		mov ax, word ptr [ebp-2]
+		or ah, 0ch
+		mov word ptr [ebp-4], ax
+		fldcw word ptr [ebp-4]
+		fistp qword ptr [ebp-12]
+		fldcw word ptr [ebp-2]
+		mov eax, dword ptr [ebp-12]
+		mov edx, dword ptr [ebp-8]
+		leave
+		ret
+	}
+}
+#endif
+
 void CG_AddFlameSpriteToScene( flameChunk_t *f, float lifeFrac, float alpha )
 {
+#if defined(_MSC_VER) && defined(_M_IX86)
+	/* Original 3003db40. Keep the z corner accumulator live across all four vertices. */
+	vec3_t flameP2, flameProjection, flameVector, flameAngles;
+	static vec3_t lastPos;
+	float flameRadius, flameVertical, flamePointX, flamePointY, flamePointZ, flameLastScale;
+	float *flameOrg = f->org, *flameSize = &f->size, *flameRoll = &f->rollAngle;
+	const float *flameView, *flameAxis;
+	float *flameXYZ, *flameST;
+	const float flameZero = 0.0f, flameSix = 6.0f, flameFrames = 45.0f;
+	const float flameProjectionScale = 1024.0f, flameMinusTwo = -2.0f;
+	const double flameHalf = 0.5, flameAspect = 0.6752194463200539, flameColorScale = 255.0;
+	double (__cdecl *flameFloorCall)(double) = floor;
+	int flameGate, flameFrame, flameColor;
+	unsigned char flameAlpha;
+	polyBuffer_t *pPolyBuffer;
+	__asm {
+		fld alpha
+		fcomp flameZero
+		fnstsw ax
+		and ah, 1
+		movzx eax, ah
+		mov flameGate, eax
+	}
+	if (flameGate) return;
+	__asm {
+		mov ecx, flameSize
+		fld dword ptr [ecx]
+		fmul flameHalf
+		fst flameRadius
+		fcomp flameSix
+		fnstsw ax
+		test ah, 1
+		jz flameRadiusReady
+		mov flameRadius, 040c00000h
+	flameRadiusReady:
+	}
+	if (CG_CullPointAndRadius(f->org, flameRadius)) return;
+	__asm {
+		fld flameRadius
+		fmul flameAspect
+		fstp flameVertical
+		fld alpha
+		fmul flameColorScale
+		call CG_FlameSpriteTruncateST0
+		mov flameColor, eax
+		fld lifeFrac
+		fmul flameFrames
+		sub esp, 8
+		fstp qword ptr [esp]
+		call dword ptr flameFloorCall
+		add esp, 8
+		call CG_FlameSpriteTruncateST0
+		mov flameFrame, eax
+	}
+	flameAlpha = (unsigned char)flameColor;
+	if (flameFrame < 0) flameFrame = 0;
+	else if (flameFrame > 44) flameFrame = 44;
+	pPolyBuffer = CG_PB_FindFreePolyBuffer(cg_fxflags & 1 ? getTestShader() : flameShaders[flameFrame], 4, 6);
+	pPolyBuffer->color[pPolyBuffer->numVerts][0] = flameAlpha;
+	pPolyBuffer->color[pPolyBuffer->numVerts][1] = flameAlpha;
+	pPolyBuffer->color[pPolyBuffer->numVerts][2] = flameAlpha;
+	pPolyBuffer->color[pPolyBuffer->numVerts][3] = flameAlpha;
+	memcpy(pPolyBuffer->color[pPolyBuffer->numVerts+1], pPolyBuffer->color[pPolyBuffer->numVerts], 4);
+	memcpy(pPolyBuffer->color[pPolyBuffer->numVerts+2], pPolyBuffer->color[pPolyBuffer->numVerts], 4);
+	memcpy(pPolyBuffer->color[pPolyBuffer->numVerts+3], pPolyBuffer->color[pPolyBuffer->numVerts], 4);
+	flameView = cg.refdef_current->vieworg;
+	flameAxis = cg.refdef_current->viewaxis[0];
+	__asm {
+		mov ecx, flameAxis
+		mov edx, flameView
+		fld dword ptr [ecx]
+		fmul flameProjectionScale
+		fadd dword ptr [edx]
+		fstp dword ptr flameP2
+		fld dword ptr [ecx+4]
+		fmul flameProjectionScale
+		fadd dword ptr [edx+4]
+		fstp dword ptr flameP2[4]
+		fld dword ptr [ecx+8]
+		fmul flameProjectionScale
+		fadd dword ptr [edx+8]
+		fstp dword ptr flameP2[8]
+	}
+	ProjectPointOntoVector(f->org, cg.refdef_current->vieworg, flameP2, flameProjection);
+	flameView = cg.refdef_current->vieworg;
+	__asm {
+		mov edx, flameView
+		fld dword ptr flameProjection
+		fsub dword ptr [edx]
+		fstp dword ptr flameVector
+		fld dword ptr flameProjection[4]
+		fsub dword ptr [edx+4]
+		fstp dword ptr flameVector[4]
+		fld dword ptr flameProjection[8]
+		fsub dword ptr [edx+8]
+		fstp dword ptr flameVector[8]
+		lea eax, flameVector
+		push eax
+		call VectorNormalize
+		fcomp flameZero
+		add esp, 4
+		fnstsw ax
+		and ah, 40h
+		movzx eax, ah
+		mov flameGate, eax
+	}
+	if (flameGate) return;
+	flameAxis = cg.refdef_current->viewaxis[0];
+	__asm {
+		mov ecx, flameAxis
+		fld dword ptr flameVector[8]
+		fmul dword ptr [ecx+8]
+		fld dword ptr flameVector[4]
+		fmul dword ptr [ecx+4]
+		faddp st(1), st(0)
+		fld dword ptr flameVector
+		fmul dword ptr [ecx]
+		faddp st(1), st(0)
+		fcomp flameZero
+		fnstsw ax
+		and ah, 1
+		movzx eax, ah
+		mov flameGate, eax
+	}
+	if (flameGate) return;
+	if (rotatingFlames && !(cg_fxflags & 1)) {
+		vectoangles(cg.refdef_current->viewaxis[0], flameAngles);
+		__asm {
+			mov ecx, flameRoll
+			fld dword ptr flameAngles[8]
+			fadd dword ptr [ecx]
+			fstp dword ptr flameAngles[8]
+		}
+		AngleVectors(flameAngles, NULL, rright, rup);
+	} else {
+		VectorCopy(vright, rright);
+		VectorCopy(vup, rup);
+	}
+	flameXYZ = &pPolyBuffer->xyz[pPolyBuffer->numVerts][0];
+	flameST = &pPolyBuffer->st[pPolyBuffer->numVerts][0];
+	__asm {
+		mov ecx, flameOrg
+		mov edx, flameXYZ
+		mov eax, flameST
+		fld flameVertical
+		fchs
+		fld st(0)
+		fmul dword ptr rup
+		fadd dword ptr [ecx]
+		fstp flamePointX
+		fld st(0)
+		fmul dword ptr rup[4]
+		fadd dword ptr [ecx+4]
+		fstp flamePointY
+		fmul dword ptr rup[8]
+		fadd dword ptr [ecx+8]
+		fld flameRadius
+		fchs
+		fld st(0)
+		fmul dword ptr rright
+		fadd flamePointX
+		fstp flamePointX
+		fld st(0)
+		fmul dword ptr rright[4]
+		fadd flamePointY
+		fstp flamePointY
+		fmul dword ptr rright[8]
+		faddp st(1), st(0)
+		fld flamePointX
+		fstp dword ptr [edx]
+		fld flamePointY
+		fstp dword ptr [edx+4]
+		fst dword ptr [edx+8]
+		fld flameVertical
+		fadd st(0), st(0)
+		mov dword ptr [eax], 0
+		fld st(0)
+		mov dword ptr [eax+4], 0
+		fmul dword ptr rup
+		fadd flamePointX
+		fstp flamePointX
+		fld st(0)
+		fmul dword ptr rup[4]
+		fadd flamePointY
+		fstp flamePointY
+		fmul dword ptr rup[8]
+		faddp st(1), st(0)
+		fld flamePointX
+		fstp dword ptr [edx+16]
+		fld flamePointY
+		fstp dword ptr [edx+20]
+		fst dword ptr [edx+24]
+		fld flameRadius
+		fadd st(0), st(0)
+		mov dword ptr [eax+8], 0
+		fld st(0)
+		mov dword ptr [eax+12], 03f800000h
+		fmul dword ptr rright
+		fadd flamePointX
+		fstp flamePointX
+		fld st(0)
+		fmul dword ptr rright[4]
+		fadd flamePointY
+		fstp flamePointY
+		fmul dword ptr rright[8]
+		faddp st(1), st(0)
+		fld flamePointX
+		fstp dword ptr [edx+32]
+		fld flamePointY
+		fstp dword ptr [edx+36]
+		fst dword ptr [edx+40]
+		fld flameVertical
+		fmul flameMinusTwo
+		mov dword ptr [eax+16], 03f800000h
+		mov dword ptr [eax+20], 03f800000h
+		fst flameLastScale
+		fmul dword ptr rup
+		fadd flamePointX
+		fld flameLastScale
+		fmul dword ptr rup[4]
+		fadd flamePointY
+		fstp flamePointY
+		fld flameLastScale
+		fmul dword ptr rup[8]
+		fadd st(0), st(2)
+		fstp flamePointZ
+		fstp dword ptr [edx+48]
+		fstp st(0)
+		fld flamePointY
+		fstp dword ptr [edx+52]
+		fld flamePointZ
+		fstp dword ptr [edx+56]
+		mov dword ptr [eax+24], 03f800000h
+		mov dword ptr [eax+28], 0
+	}
+	pPolyBuffer->indicies[pPolyBuffer->numIndicies] = pPolyBuffer->numVerts;
+	pPolyBuffer->indicies[pPolyBuffer->numIndicies+1] = pPolyBuffer->numVerts+1;
+	pPolyBuffer->indicies[pPolyBuffer->numIndicies+2] = pPolyBuffer->numVerts+2;
+	pPolyBuffer->indicies[pPolyBuffer->numIndicies+3] = pPolyBuffer->numVerts+2;
+	pPolyBuffer->indicies[pPolyBuffer->numIndicies+4] = pPolyBuffer->numVerts+3;
+	pPolyBuffer->indicies[pPolyBuffer->numIndicies+5] = pPolyBuffer->numVerts;
+	pPolyBuffer->numIndicies += 6;
+	pPolyBuffer->numVerts += 4;
+	VectorCopy(f->org, lastPos);
+#else
+
 	vec3_t		point, p2, sProj;
 	float		radius, sdist;
 	int			frameNum;
@@ -759,6 +1342,7 @@ void CG_AddFlameSpriteToScene( flameChunk_t *f, float lifeFrac, float alpha )
 	pPolyBuffer->numVerts += 4;
 
 	VectorCopy( f->org, lastPos );
+#endif
 }
 
 static int	nextFlameLight = 0;
@@ -772,6 +1356,687 @@ static int	lastFlameOwner = -1;
 CG_AddFlameToScene
 ===============
 */
+
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* Whole TC3003e0a0. Original stack/x87 contract; all external objects are native. */
+enum {
+	FlameSceneF_nextFlameChunk = offsetof(flameChunk_t, nextFlameChunk),
+	FlameSceneF_dead = offsetof(flameChunk_t, dead),
+	FlameSceneF_ownerCent = offsetof(flameChunk_t, ownerCent),
+	FlameSceneF_timeStart = offsetof(flameChunk_t, timeStart),
+	FlameSceneF_sizeMax = offsetof(flameChunk_t, sizeMax),
+	FlameSceneF_sizeRate = offsetof(flameChunk_t, sizeRate),
+	FlameSceneF_velDir = offsetof(flameChunk_t, velDir),
+	FlameSceneF_velSpeed = offsetof(flameChunk_t, velSpeed),
+	FlameSceneF_ignitionOnly = offsetof(flameChunk_t, ignitionOnly),
+	FlameSceneF_blueLife = offsetof(flameChunk_t, blueLife),
+	FlameSceneF_startVelDir = offsetof(flameChunk_t, startVelDir),
+	FlameSceneF_org = offsetof(flameChunk_t, org),
+	FlameSceneF_size = offsetof(flameChunk_t, size),
+	FlameSceneF_lifeFrac = offsetof(flameChunk_t, lifeFrac),
+	FlameSceneInfoSize = sizeof(centFlameInfo_t),
+	FlameSceneStatusSize = sizeof(flameSoundStatus_t),
+	FlameSceneStreamVolume = offsetof(flameSoundStatus_t, streamVolume),
+	FlameSceneTime = offsetof(cg_t, time),
+	FlameSceneClientFrame = offsetof(cg_t, clientFrame),
+	FlameSceneRefdef = offsetof(cg_t, refdef_current),
+	FlameSceneSnapshot = offsetof(cg_t, snap),
+	FlameSceneSnapshotClient = offsetof(snapshot_t, ps) + offsetof(playerState_t, clientNum),
+	FlameSceneEntitySize = sizeof(centity_t),
+	FlameSceneEntityFlags = offsetof(centity_t, currentState) + offsetof(entityState_t, eFlags),
+	FlameSceneViewOrigin = offsetof(refdef_t, vieworg),
+	FlameSceneInfoLast = offsetof(centFlameInfo_t, lastFlameChunk),
+	FlameSceneStreamShader = offsetof(cgs_t, media) + offsetof(cgMedia_t, flamethrowerFireStream)
+};
+static const vec3_t flameSceneWhite = {1.0f,1.0f,1.0f};
+static const unsigned int flameSceneC300922c8[] = { 0x00000000u, 0x3ff00000u };
+static const unsigned int flameSceneC30092d38[] = { 0x00000000u, 0x40900000u };
+static const unsigned int flameSceneC30092d30[] = { 0x00000000u, 0x3f500000u };
+static const unsigned int flameSceneC30092320[] = { 0x00000000u, 0x407f4000u };
+static const unsigned int flameSceneC30092b88[] = { 0x9999999au, 0x3fa99999u };
+static const unsigned int flameSceneC300922b4[] = { 0x3f800000u };
+static const unsigned int flameSceneC300922e0[] = { 0x00000000u, 0x3fe00000u };
+static const unsigned int flameSceneC300922b8[] = { 0x3f000000u };
+static const unsigned int flameSceneC300920e0[] = { 0x00000000u };
+static const unsigned int flameSceneC30092538[] = { 0x00000000u, 0x40080000u };
+static const unsigned int flameSceneC30092bd0[] = { 0x00000000u, 0x40000000u };
+static const unsigned int flameSceneC30092d28[] = { 0xd89d89d8u, 0x3fe89d89u };
+static const unsigned int flameSceneC30092a30[] = { 0x9999999au, 0x3fc99999u };
+static const unsigned int flameSceneC300927e0[] = { 0x00000000u, 0x00000000u };
+static const unsigned int flameSceneC30092490[] = { 0x3e800000u };
+static const unsigned int flameSceneC30092408[] = { 0xcccccccdu, 0x3fecccccu };
+static const unsigned int flameSceneC300925c0[] = { 0x9999999au, 0x3fb99999u };
+static const unsigned int flameSceneC30092d20[] = { 0x66666666u, 0x3fd66666u };
+static const unsigned int flameSceneC30092a70[] = { 0x00000000u, 0x40440000u };
+static const unsigned int flameSceneC300922f8[] = { 0x00000000u, 0x40590000u };
+static const unsigned int flameSceneC300925c8[] = { 0x7ae147aeu, 0x3fefae14u };
+static const unsigned int flameSceneC30092ce0[] = { 0x00000000u, 0x40a09a00u };
+static const unsigned int flameSceneC30092d18[] = { 0x66666666u, 0x3ff66666u };
+static const unsigned int flameSceneC30092cb8[] = { 0x39f6b949u };
+static const unsigned int flameSceneC30092cf0[] = { 0xaaaaaaabu, 0x400aaaaau };
+static const unsigned int flameSceneC300924e0[] = { 0x42a00000u };
+static const unsigned int flameSceneC30092a24[] = { 0x43fa0000u };
+static const unsigned int flameSceneC30092d10[] = { 0x417d05f4u, 0x3f97d05fu };
+static const unsigned int flameSceneC30092d08[] = { 0x47ae147bu, 0x3f947ae1u };
+static const unsigned int flameSceneC30092ad0[] = { 0x47ae147bu, 0x3f747ae1u };
+__declspec(naked) void CG_AddFlameToScene(flameChunk_t *fHead) {
+	__asm {
+		SUB ESP,060h
+		MOV EAX,dword ptr [ESP + 064h]
+		PUSH EBX
+		PUSH ESI
+		PUSH EDI
+		MOV EAX,dword ptr [EAX + FlameSceneF_ownerCent]
+		MOV EDI,dword ptr [ESP + 070h]
+		XOR EBX,EBX
+		MOV ESI,EDI
+		IMUL EDX,EAX,FlameSceneInfoSize
+		MOV dword ptr [ESP + 030h],EBX
+		MOV dword ptr [ESP + 03ch],EBX
+		MOV dword ptr [ESP + 02ch],EBX
+		XOR ECX,ECX
+		MOV EDX,dword ptr [EDX + centFlameInfo + FlameSceneInfoLast]
+		CMP EDI,EDX
+		SETZ CL
+		MOV dword ptr [ESP + 040h],ECX
+		IMUL EAX,EAX,FlameSceneEntitySize
+		TEST byte ptr [EAX + cg_entities + FlameSceneEntityFlags],080h
+		JZ flameScene_3003e102
+		CMP EDX,ESI
+		JNZ flameScene_3003e102
+		MOV ECX,dword ptr [ESI + FlameSceneF_timeStart]
+		MOV dword ptr [ESP + 01ch],ECX
+		JMP flameScene_3003e10c
+flameScene_3003e102:
+		MOV EDX,dword ptr [cg + FlameSceneTime]
+		MOV dword ptr [ESP + 01ch],EDX
+flameScene_3003e10c:
+		TEST ESI,ESI
+		MOV dword ptr [ESP + 050h],00h
+		MOV dword ptr [ESP + 04ch],00h
+		MOV dword ptr [ESP + 048h],00h
+		MOV dword ptr [ESP + 010h],00h
+		MOV dword ptr [ESP + 018h],00h
+		MOV dword ptr [ESP + 034h],03f800000h
+		JZ flameScene_3003e777
+		PUSH EBP
+		JMP flameScene_3003e14b
+flameScene_3003e147:
+		MOV EBX,dword ptr [ESP + 048h]
+flameScene_3003e14b:
+		MOV EAX,dword ptr [ESI + FlameSceneF_nextFlameChunk]
+		TEST EAX,EAX
+		JZ flameScene_3003e169
+		MOV ECX,dword ptr [EAX + FlameSceneF_dead]
+		TEST ECX,ECX
+		JZ flameScene_3003e169
+		PUSH EAX
+		CALL CG_FreeFlameChunk
+		ADD ESP,04h
+		MOV dword ptr [ESI + FlameSceneF_nextFlameChunk],00h
+flameScene_3003e169:
+		MOV EAX,dword ptr [ESP + 020h]
+		MOV ECX,dword ptr [ESI + FlameSceneF_timeStart]
+		SUB EAX,ECX
+		MOV ECX,dword ptr [cg + FlameSceneRefdef]
+		MOV EDI,dword ptr [ESI + FlameSceneF_nextFlameChunk]
+		MOV dword ptr [ESP + 028h],EAX
+		FILD dword ptr [ESP + 028h]
+		LEA EBP,[ESI + FlameSceneF_org]
+		ADD ECX, FlameSceneViewOrigin
+		PUSH EBP
+		PUSH ECX
+		FSTP dword ptr [ESP + 020h]
+		CALL Distance
+		FSTP dword ptr [ESP + 02ch]
+		ADD ESP,08h
+		TEST EBX,EBX
+		JZ flameScene_3003e248
+		MOV ECX,dword ptr [ESI + FlameSceneF_ownerCent]
+		FLD dword ptr [ECX*FlameSceneStatusSize + centFlameStatus]
+		FCOMP qword ptr [flameSceneC300922c8]
+		FNSTSW AX
+		TEST AH,01h
+		JZ flameScene_3003e248
+		FLD dword ptr [ESI + FlameSceneF_startVelDir + 8]
+		FMUL dword ptr [EBX + FlameSceneF_startVelDir + 8]
+		FLD dword ptr [ESI + FlameSceneF_startVelDir + 4]
+		FMUL dword ptr [EBX + FlameSceneF_startVelDir + 4]
+		FADDP st(1), st(0)
+		FLD dword ptr [ESI + FlameSceneF_startVelDir]
+		FMUL dword ptr [EBX + FlameSceneF_startVelDir]
+		FADDP st(1), st(0)
+		FST dword ptr [ESP + 028h]
+		FCOMP qword ptr [flameSceneC300922c8]
+		FNSTSW AX
+		TEST AH,01h
+		JZ flameScene_3003e248
+		FLD dword ptr [ESP + 024h]
+		FCOMP qword ptr [flameSceneC30092d38]
+		FNSTSW AX
+		TEST AH,01h
+		JZ flameScene_3003e248
+		FLD dword ptr [ESP + 024h]
+		FMUL qword ptr [flameSceneC30092d30]
+		FSUBR qword ptr [flameSceneC300922c8]
+		FLD dword ptr [ESP + 028h]
+		FSUBR qword ptr [flameSceneC300922c8]
+		FMULP st(1), st(0)
+		FMUL qword ptr [flameSceneC30092320]
+		FADD dword ptr [ECX*FlameSceneStatusSize + centFlameStatus]
+		FSTP dword ptr [ECX*FlameSceneStatusSize + centFlameStatus]
+		MOV ECX,dword ptr [ESI + FlameSceneF_ownerCent]
+		FLD dword ptr [ECX*FlameSceneStatusSize + centFlameStatus]
+		FCOMP qword ptr [flameSceneC300922c8]
+		FNSTSW AX
+		TEST AH,041h
+		JNZ flameScene_3003e248
+		MOV dword ptr [ECX*FlameSceneStatusSize + centFlameStatus],03f800000h
+flameScene_3003e248:
+		FLD dword ptr [ESI + FlameSceneF_size]
+		FMUL qword ptr [flameSceneC30092b88]
+		MOV dword ptr [ESP + 048h],ESI
+		MOV dword ptr [ESP + 024h],00h
+		FMUL dword ptr [EBP]
+		FADD dword ptr [ESP + 04ch]
+		FSTP dword ptr [ESP + 04ch]
+		FLD dword ptr [ESI + FlameSceneF_size]
+		FMUL qword ptr [flameSceneC30092b88]
+		FMUL dword ptr [ESI + FlameSceneF_org + 4]
+		FADD dword ptr [ESP + 050h]
+		FSTP dword ptr [ESP + 050h]
+		FLD dword ptr [ESI + FlameSceneF_size]
+		FMUL qword ptr [flameSceneC30092b88]
+		FMUL dword ptr [ESI + FlameSceneF_org + 8]
+		FADD dword ptr [ESP + 054h]
+		FSTP dword ptr [ESP + 054h]
+		FLD dword ptr [ESP + 014h]
+		FADD dword ptr [ESI + FlameSceneF_size]
+		MOV EAX,dword ptr [ESI + FlameSceneF_ignitionOnly]
+		TEST EAX,EAX
+		FSTP dword ptr [ESP + 014h]
+		FLD dword ptr [ESI + FlameSceneF_size]
+		FMUL qword ptr [flameSceneC30092b88]
+		FADD dword ptr [ESP + 01ch]
+		FSTP dword ptr [ESP + 01ch]
+		JNZ flameScene_3003e2ec
+		FLD dword ptr [ESI + FlameSceneF_velSpeed]
+		FCOMP dword ptr [flameSceneC300922b4]
+		FNSTSW AX
+		TEST AH,01h
+		JZ flameScene_3003e2ec
+		MOV EDX,dword ptr [ESI + FlameSceneF_lifeFrac]
+		PUSH 03f800000h
+		PUSH EDX
+		PUSH ESI
+		CALL CG_AddFlameSpriteToScene
+		ADD ESP,0ch
+		JMP flameScene_3003e61e
+flameScene_3003e2ec:
+		MOV EAX,dword ptr [ESP + 044h]
+		TEST EAX,EAX
+		JZ flameScene_3003e61e
+		FILD dword ptr [ESI + FlameSceneF_blueLife]
+		FLD dword ptr [ESP + 018h]
+		FMUL qword ptr [flameSceneC300922e0]
+		FCOMPP
+		FNSTSW AX
+		TEST AH,01h
+		JZ flameScene_3003e61e
+		XOR EBX,EBX
+		TEST EDI,EDI
+		JZ flameScene_3003e391
+		CMP ESI,dword ptr [ESP + 074h]
+		JZ flameScene_3003e391
+		MOV EAX,dword ptr [ESP + 030h]
+		TEST EAX,EAX
+		JZ flameScene_3003e391
+		FLD dword ptr [EBP]
+		FSUB dword ptr [EAX + FlameSceneF_org]
+		FSTP dword ptr [ESP + 064h]
+		FLD dword ptr [ESI + FlameSceneF_org + 4]
+		FSUB dword ptr [EAX + FlameSceneF_org + 4]
+		FSTP dword ptr [ESP + 068h]
+		FLD dword ptr [ESI + FlameSceneF_org + 8]
+		FSUB dword ptr [EAX + FlameSceneF_org + 8]
+		LEA EAX,[ESP + 064h]
+		PUSH EAX
+		FSTP dword ptr [ESP + 070h]
+		CALL VectorNormalize
+		FLD dword ptr [ESI + FlameSceneF_size]
+		FMUL dword ptr [flameSceneC300922b8]
+		ADD ESP,04h
+		FCOMPP
+		FNSTSW AX
+		TEST AH,041h
+		JZ flameScene_3003e38c
+		FLD dword ptr [ESP + 06ch]
+		FMUL dword ptr [ESI + FlameSceneF_velDir + 8]
+		FLD dword ptr [ESP + 068h]
+		FMUL dword ptr [ESI + FlameSceneF_velDir + 4]
+		FADDP st(1), st(0)
+		FLD dword ptr [ESP + 064h]
+		FMUL dword ptr [ESI + FlameSceneF_velDir]
+		FADDP st(1), st(0)
+		FCOMP dword ptr [flameSceneC300920e0]
+		FNSTSW AX
+		TEST AH,01h
+		JZ flameScene_3003e391
+flameScene_3003e38c:
+		MOV EBX,01h
+flameScene_3003e391:
+		MOV EAX,dword ptr [ESI + FlameSceneF_ignitionOnly]
+		TEST EAX,EAX
+		JNZ flameScene_3003e3d1
+		MOV EAX,dword ptr [ESI + FlameSceneF_ownerCent]
+		FLD dword ptr [EAX*FlameSceneStatusSize + centFlameStatus + FlameSceneStreamVolume]
+		FADD qword ptr [flameSceneC30092b88]
+		FSTP dword ptr [EAX*FlameSceneStatusSize + centFlameStatus + FlameSceneStreamVolume]
+		MOV ECX,dword ptr [ESI + FlameSceneF_ownerCent]
+		FLD dword ptr [ECX*FlameSceneStatusSize + centFlameStatus + FlameSceneStreamVolume]
+		FCOMP qword ptr [flameSceneC300922c8]
+		FNSTSW AX
+		TEST AH,041h
+		JNZ flameScene_3003e3d1
+		MOV dword ptr [ECX*FlameSceneStatusSize + centFlameStatus + FlameSceneStreamVolume],03f800000h
+flameScene_3003e3d1:
+		TEST EBX,EBX
+		JNZ flameScene_3003e61e
+		MOV ECX,dword ptr [flameSceneWhite]
+		MOV EDX,dword ptr [flameSceneWhite + 4]
+		MOV EAX,[flameSceneWhite + 8]
+		MOV dword ptr [ESP + 058h],ECX
+		MOV dword ptr [ESP + 05ch],EDX
+		MOV dword ptr [ESP + 060h],EAX
+		FILD dword ptr [ESI + FlameSceneF_blueLife]
+		FLD dword ptr [ESP + 018h]
+		FMUL qword ptr [flameSceneC30092538]
+		MOV EBX,dword ptr [ESI + FlameSceneF_ignitionOnly]
+		MOV dword ptr [ESP + 030h],ESI
+		FCOMPP
+		FNSTSW AX
+		TEST AH,01h
+		JZ flameScene_3003e4a2
+		MOV ECX,dword ptr [cg + FlameSceneTime]
+		MOV EAX,051eb851fh
+		IMUL ECX
+		SAR EDX,04h
+		MOV EAX,EDX
+		SHR EAX,01fh
+		ADD EDX,EAX
+		MOV EAX,EDX
+		SAR EAX,01h
+		ADD EAX,EDX
+		AND EAX,080000007h
+		JNS flameScene_3003e440
+		DEC EAX
+		OR EAX,0fffffff8h
+		INC EAX
+flameScene_3003e440:
+		MOV EAX,dword ptr [EAX*04h + nozzleShaders]
+		TEST EBX,EBX
+		JZ flameScene_3003e453
+		FLD qword ptr [flameSceneC30092bd0]
+		JMP flameScene_3003e459
+flameScene_3003e453:
+		FLD qword ptr [flameSceneC300922c8]
+flameScene_3003e459:
+		FMUL dword ptr [ESI + FlameSceneF_size]
+		PUSH 040a00000h
+		LEA EDX,[ESP + 05ch]
+		PUSH 03f800000h
+		PUSH EDX
+		LEA EDX,[ESP + 064h]
+		PUSH EDX
+		PUSH 0ch
+		PUSH 043480000h
+		PUSH ECX
+		FSTP dword ptr [ESP]
+		PUSH 03f800000h
+		PUSH 03f800000h
+		PUSH 01h
+		PUSH EBP
+		PUSH 00h
+		PUSH ECX
+		PUSH EAX
+		MOV EAX,dword ptr [ESP + 06ch]
+		PUSH 00h
+		PUSH EAX
+		CALL CG_AddTrailJunc
+		ADD ESP,040h
+		MOV dword ptr [ESP + 034h],EAX
+flameScene_3003e4a2:
+		MOV EAX,dword ptr [ESI + FlameSceneF_ignitionOnly]
+		TEST EAX,EAX
+		JNZ flameScene_3003e768
+		MOV EAX,dword ptr [ESI + FlameSceneF_nextFlameChunk]
+		TEST EAX,EAX
+		JNZ flameScene_3003e4be
+		MOV dword ptr [ESP + 010h],00h
+		JMP flameScene_3003e52d
+flameScene_3003e4be:
+		FLD dword ptr [ESP + 018h]
+		FMUL qword ptr [flameSceneC30092d28]
+		FILD dword ptr [ESI + FlameSceneF_blueLife]
+		FLD st(0)
+		FMUL qword ptr [flameSceneC30092a30]
+		FSTP qword ptr [ESP + 028h]
+		FLD st(1)
+		FCOMP qword ptr [ESP + 028h]
+		FNSTSW AX
+		TEST AH,01h
+		JZ flameScene_3003e4f0
+		FSTP st(0)
+		FDIV qword ptr [ESP + 028h]
+		FSTP dword ptr [ESP + 010h]
+		JMP flameScene_3003e52d
+flameScene_3003e4f0:
+		FLD st(0)
+		FMUL qword ptr [flameSceneC30092b88]
+		FSTP qword ptr [ESP + 028h]
+		FSUB qword ptr [ESP + 028h]
+		FLD st(1)
+		FCOMP st(1)
+		FNSTSW AX
+		TEST AH,01h
+		JZ flameScene_3003e519
+		FSTP st(0)
+		FSTP st(0)
+		MOV dword ptr [ESP + 010h],03f800000h
+		JMP flameScene_3003e52d
+flameScene_3003e519:
+		FXCH st(1)
+		FSUB st(0),st(1)
+		FDIV qword ptr [ESP + 028h]
+		FSUBR qword ptr [flameSceneC300922c8]
+		FSTP dword ptr [ESP + 010h]
+		FSTP st(0)
+flameScene_3003e52d:
+		FLD dword ptr [ESP + 010h]
+		FCOMP qword ptr [flameSceneC300927e0]
+		FNSTSW AX
+		TEST AH,041h
+		JZ flameScene_3003e55b
+		FLD dword ptr [ESP + 038h]
+		FCOMP qword ptr [flameSceneC300927e0]
+		MOV dword ptr [ESP + 010h],00h
+		FNSTSW AX
+		TEST AH,041h
+		JNZ flameScene_3003e61e
+flameScene_3003e55b:
+		FLD dword ptr [flameSceneWhite]
+		FMUL dword ptr [ESP + 010h]
+		MOV ECX,dword ptr [ESP + 010h]
+		MOV dword ptr [ESP + 024h],01h
+		MOV dword ptr [ESP + 038h],ECX
+		FSTP dword ptr [ESP + 058h]
+		FLD dword ptr [flameSceneWhite + 4]
+		FMUL dword ptr [ESP + 010h]
+		FSTP dword ptr [ESP + 05ch]
+		FLD dword ptr [flameSceneWhite + 8]
+		FMUL dword ptr [ESP + 010h]
+		FSTP dword ptr [ESP + 060h]
+		FLD dword ptr [ESI + FlameSceneF_size]
+		FMUL dword ptr [flameSceneC300922b8]
+		FLD dword ptr [ESI + FlameSceneF_sizeMax]
+		FMUL dword ptr [flameSceneC30092490]
+		FSTP dword ptr [ESP + 028h]
+		FCOM dword ptr [ESP + 028h]
+		FNSTSW AX
+		TEST AH,01h
+		JZ flameScene_3003e5bf
+		FSTP dword ptr [ESP + 03ch]
+		JMP flameScene_3003e5c9
+flameScene_3003e5bf:
+		MOV EDX,dword ptr [ESP + 028h]
+		FSTP st(0)
+		MOV dword ptr [ESP + 03ch],EDX
+flameScene_3003e5c9:
+		MOV EDX,dword ptr [ESP + 03ch]
+		PUSH 03fc00000h
+		LEA EAX,[ESP + 05ch]
+		PUSH 03f000000h
+		LEA ECX,[ESP + 060h]
+		PUSH EAX
+		MOV EAX,dword ptr [ESP + 01ch]
+		PUSH ECX
+		MOV ECX,dword ptr [ESI + FlameSceneF_ignitionOnly]
+		PUSH 0eh
+		PUSH 043480000h
+		PUSH EDX
+		MOV EDX,dword ptr [cgs + FlameSceneStreamShader]
+		PUSH EAX
+		PUSH EAX
+		XOR EAX,EAX
+		TEST ECX,ECX
+		MOV ECX,dword ptr [cg + FlameSceneTime]
+		PUSH 01h
+		SETZ AL
+		PUSH EBP
+		PUSH EAX
+		MOV EAX,dword ptr [ESP + 070h]
+		PUSH ECX
+		PUSH EDX
+		PUSH 00h
+		PUSH EAX
+		CALL CG_AddTrailJunc
+		ADD ESP,040h
+		MOV dword ptr [ESP + 040h],EAX
+flameScene_3003e61e:
+		MOV EAX,dword ptr [ESI + FlameSceneF_ignitionOnly]
+		TEST EAX,EAX
+		JNZ flameScene_3003e768
+		FILD dword ptr [ESI + FlameSceneF_blueLife]
+		FMUL qword ptr [flameSceneC30092a30]
+		FCOMP dword ptr [ESP + 018h]
+		FNSTSW AX
+		TEST AH,01h
+		JZ flameScene_3003e768
+		TEST EDI,EDI
+		JZ flameScene_3003e6fb
+		MOV EBX,dword ptr [ESP + 024h]
+flameScene_3003e64d:
+		TEST EBX,EBX
+		JNZ flameScene_3003e6fb
+		LEA ECX,[EDI + FlameSceneF_org]
+		PUSH ECX
+		PUSH EBP
+		CALL Distance
+		FLD dword ptr [ESI + FlameSceneF_lifeFrac]
+		FMUL qword ptr [flameSceneC30092408]
+		ADD ESP,08h
+		FADD qword ptr [flameSceneC300925c0]
+		FMUL dword ptr [ESI + FlameSceneF_size]
+		FMUL qword ptr [flameSceneC30092d20]
+		FCOMPP
+		FNSTSW AX
+		TEST AH,041h
+		JNZ flameScene_3003e6fb
+		FLD dword ptr [ESI + FlameSceneF_size]
+		FSUB dword ptr [EDI + FlameSceneF_size]
+		FABS
+		FCOMP qword ptr [flameSceneC30092a70]
+		FNSTSW AX
+		TEST AH,01h
+		JZ flameScene_3003e6fb
+		MOV EDX,dword ptr [ESI + FlameSceneF_timeStart]
+		MOV EAX,dword ptr [EDI + FlameSceneF_timeStart]
+		SUB EDX,EAX
+		MOV dword ptr [ESP + 028h],EDX
+		FILD dword ptr [ESP + 028h]
+		FABS
+		FCOMP qword ptr [flameSceneC300922f8]
+		FNSTSW AX
+		TEST AH,01h
+		JZ flameScene_3003e6fb
+		FLD dword ptr [EDI + FlameSceneF_velDir + 8]
+		FMUL dword ptr [ESI + FlameSceneF_velDir + 8]
+		FLD dword ptr [EDI + FlameSceneF_velDir + 4]
+		FMUL dword ptr [ESI + FlameSceneF_velDir + 4]
+		FADDP st(1), st(0)
+		FLD dword ptr [EDI + FlameSceneF_velDir]
+		FMUL dword ptr [ESI + FlameSceneF_velDir]
+		FADDP st(1), st(0)
+		FCOMP qword ptr [flameSceneC300925c8]
+		FNSTSW AX
+		TEST AH,041h
+		JNZ flameScene_3003e6fb
+		PUSH EDI
+		PUSH ESI
+		CALL CG_MergeFlameChunks
+		MOV EDI,dword ptr [ESI + FlameSceneF_nextFlameChunk]
+		ADD ESP,08h
+		TEST EDI,EDI
+		JNZ flameScene_3003e64d
+flameScene_3003e6fb:
+		FILD dword ptr [ESI + FlameSceneF_blueLife]
+		FMUL qword ptr [flameSceneC30092a30]
+		FLD dword ptr [ESP + 018h]
+		FSUB st(0),st(1)
+		FLD qword ptr [flameSceneC30092ce0]
+		FSUB st(0),st(2)
+		FDIVP st(1), st(0)
+		FSTP dword ptr [ESP + 024h]
+		FSTP st(0)
+		FLD dword ptr [ESP + 024h]
+		FSUBR qword ptr [flameSceneC300922c8]
+		FMUL qword ptr [flameSceneC30092d18]
+		FST dword ptr [ESP + 028h]
+		FCOMP qword ptr [flameSceneC300922c8]
+		FNSTSW AX
+		TEST AH,041h
+		JNZ flameScene_3003e743
+		MOV dword ptr [ESP + 028h],03f800000h
+flameScene_3003e743:
+		MOV EAX,dword ptr [ESP + 028h]
+		MOV ECX,dword ptr [ESP + 024h]
+		PUSH EAX
+		PUSH ECX
+		PUSH ESI
+		CALL CG_AddFlameSpriteToScene
+		FLD dword ptr [ESI + FlameSceneF_sizeMax]
+		FMUL dword ptr [flameSceneC30092cb8]
+		ADD ESP,0ch
+		FMUL qword ptr [flameSceneC30092cf0]
+		FSTP dword ptr [ESI + FlameSceneF_sizeRate]
+flameScene_3003e768:
+		TEST EDI,EDI
+		MOV ESI,EDI
+		JNZ flameScene_3003e147
+		MOV ESI,dword ptr [ESP + 074h]
+		POP EBP
+flameScene_3003e777:
+		MOV EDX,dword ptr [lastFlameOwner]
+		MOV EAX,dword ptr [ESI + FlameSceneF_ownerCent]
+		CMP EDX,EAX
+		MOV EAX,[cg + FlameSceneClientFrame]
+		JNZ flameScene_3003e795
+		CMP dword ptr [nextFlameLight],EAX
+		JZ flameScene_3003e8cd
+flameScene_3003e795:
+		MOV ECX,dword ptr [ESI + FlameSceneF_ignitionOnly]
+		TEST ECX,ECX
+		JNZ flameScene_3003e7a9
+		MOV [nextFlameLight],EAX
+		MOV EAX,dword ptr [ESI + FlameSceneF_ownerCent]
+		MOV [lastFlameOwner],EAX
+flameScene_3003e7a9:
+		FLD dword ptr [ESP + 010h]
+		FCOMP dword ptr [flameSceneC300924e0]
+		FNSTSW AX
+		TEST AH,01h
+		JZ flameScene_3003e7c4
+		MOV dword ptr [ESP + 010h],042a00000h
+		JMP flameScene_3003e7dd
+flameScene_3003e7c4:
+		FLD dword ptr [ESP + 010h]
+		FCOMP dword ptr [flameSceneC30092a24]
+		FNSTSW AX
+		TEST AH,041h
+		JNZ flameScene_3003e7dd
+		MOV dword ptr [ESP + 010h],043fa0000h
+flameScene_3003e7dd:
+		FILD dword ptr [cg + FlameSceneTime]
+		FLD st(0)
+		FMUL qword ptr [flameSceneC30092d10]
+		FCOS
+		FXCH st(1)
+		FMUL qword ptr [flameSceneC30092d08]
+		FSIN
+		FMULP st(1), st(0)
+		FMUL qword ptr [flameSceneC30092a30]
+		FADD qword ptr [flameSceneC300922c8]
+		FMUL dword ptr [ESP + 010h]
+		FMUL qword ptr [flameSceneC30092ad0]
+		FST dword ptr [ESP + 0ch]
+		FCOMP qword ptr [flameSceneC30092bd0]
+		FNSTSW AX
+		TEST AH,041h
+		JNZ flameScene_3003e828
+		MOV dword ptr [ESP + 0ch],040000000h
+flameScene_3003e828:
+		FLD dword ptr [ESP + 018h]
+		FDIVR qword ptr [flameSceneC300922c8]
+		MOV EAX,dword ptr [ESI + FlameSceneF_ignitionOnly]
+		TEST EAX,EAX
+		FLD dword ptr [ESP + 048h]
+		FMUL st(0), st(1)
+		FSTP dword ptr [ESP + 048h]
+		FLD dword ptr [ESP + 04ch]
+		FMUL st(0), st(1)
+		FSTP dword ptr [ESP + 04ch]
+		FLD dword ptr [ESP + 050h]
+		FMUL st(0), st(1)
+		FSTP dword ptr [ESP + 050h]
+		FSTP st(0)
+		JZ flameScene_3003e88a
+		MOV ECX,dword ptr [ESP + 0ch]
+		PUSH 00h
+		PUSH 00h
+		PUSH 03f000000h
+		PUSH 03e570a3dh
+		PUSH 03e4ccccdh
+		PUSH ECX
+		LEA EDX,[ESP + 060h]
+		PUSH 042a00000h
+		PUSH EDX
+		CALL trap_R_AddLightToScene
+		ADD ESP,020h
+		POP EDI
+		POP ESI
+		POP EBX
+		ADD ESP,060h
+		RET
+flameScene_3003e88a:
+		MOV EAX,dword ptr [ESP + 040h]
+		TEST EAX,EAX
+		JNZ flameScene_3003e8a3
+		MOV ECX,dword ptr [cg + FlameSceneSnapshot]
+		MOV EAX,dword ptr [ESI + FlameSceneF_ownerCent]
+		CMP EAX, dword ptr [ECX + FlameSceneSnapshotClient]
+		JNZ flameScene_3003e8cd
+flameScene_3003e8a3:
+		MOV EDX,dword ptr [ESP + 0ch]
+		PUSH 00h
+		PUSH 00h
+		PUSH 03e54d4cch
+		PUSH 03f1a9aa2h
+		PUSH 03f800000h
+		PUSH EDX
+		LEA EAX,[ESP + 060h]
+		PUSH 043a00000h
+		PUSH EAX
+		CALL trap_R_AddLightToScene
+		ADD ESP,020h
+flameScene_3003e8cd:
+		POP EDI
+		POP ESI
+		POP EBX
+		ADD ESP,060h
+		RET
+	}
+}
+#else
 void CG_AddFlameToScene( flameChunk_t *fHead ) {
 	flameChunk_t *f, *fNext;
 	int		blueTrailHead=0, fuelTrailHead=0;
@@ -1016,6 +2281,8 @@ void CG_AddFlameToScene( flameChunk_t *fHead ) {
 		trap_R_AddLightToScene( lightOrg, 320, alpha, 1.000000, 0.603922, 0.207843, 0, 0 );
 	}
 }
+#endif
+
 
 /*
 =============
