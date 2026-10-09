@@ -4,6 +4,9 @@
 // this file holds commands that can be executed by the server console, but not remote clients
 
 #include "g_local.h"
+#ifdef FEATURE_OMNIBOT
+#include "g_etbot_interface.h"
+#endif
 #include "tce_botinfo.h"
 #include "tce_nodes.h"
 #include "tce_node_editor.h"
@@ -1337,6 +1340,18 @@ qboolean	ConsoleCommand( void ) {
 	char	cmd[MAX_TOKEN_CHARS];
 
 	trap_Argv( 0, cmd, sizeof( cmd ) );
+#ifdef FEATURE_OMNIBOT
+    if (!Q_stricmp(cmd, "bot")) {
+        if (g_OmniBotEnable.integer) Bot_Interface_ConsoleCommand();
+        else G_Printf("Omni-bot is disabled; set omnibot_enable 1 and restart the map.\n");
+        return qtrue;
+    }
+    if (g_OmniBotEnable.integer && (!Q_stricmp(cmd, "addbot") || !Q_stricmp(cmd, "kickbot"))) {
+        G_Printf("Omni-bot mode: use bot addbot or bot kickbot; the internal bot commands are disabled.\n");
+        return qtrue;
+    }
+#endif
+
 
 /* TC ConsoleCommand has no single-player savegame command. */
 

@@ -1,3 +1,7 @@
+#if !defined(_MSC_VER)
+#include <math.h>
+#define _finite isfinite
+#endif
 #include "cg_local.h"
 #include "tce_lightgrid.h"
 #include <float.h>

@@ -883,11 +883,13 @@ static void CG_CalculateWeaponPosition( vec3_t origin, vec3_t angles ) {
 	float	scale;
 	int		delta;
 	float	fracsin;
-	qboolean tc = gearDef.parsed;
+	/* Snapshot weapon IDs are TC IDs even before gear parsing completes.
+	 * Original CG_CalculateWeaponPosition has no gearDef.parsed gate. */
+	qboolean tc = qtrue;
 	int weapon = cg.predictedPlayerState.weapon;
 	qboolean mountedWeapon = tc ? (weapon == 60 || weapon == 62) :
 		(weapon == WP_MORTAR_SET || weapon == WP_MOBILE_MG42_SET);
-	if (tc && weapon > 0 && weapon < TCE_MAX_WEAPONS) {
+	if (weapon >= 0 && weapon < TCE_MAX_WEAPONS) {
 		tce_weaponPosition_t s;
 		playerState_t *ps=&cg.predictedPlayerState;
 		memset(&s,0,sizeof(s));

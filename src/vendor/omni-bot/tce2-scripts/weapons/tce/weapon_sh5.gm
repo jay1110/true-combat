@@ -1,0 +1,7 @@
+// TC gear slot; actual asset and ammunition are supplied by the server.
+this.Name = "TC SH5";
+this.WeaponId = WEAPON.SH5;
+this.PrimaryFire.HasZoom = true;
+this.PrimaryFire.ZoomButton = BTN.AIM;
+this.PrimaryFire.DefaultDesirability = 0.35;
+this.PrimaryFire.SetBurstRange(0, 10000, 1, 0.12, 0.22);

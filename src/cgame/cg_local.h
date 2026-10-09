@@ -3636,3 +3636,9 @@ extern vmCvar_t cg_freeAim;
 extern vmCvar_t cg_recording_showstatusline;
 
 #endif /* TCE_CG_LOCAL_H */
+
+#ifdef FEATURE_OMNIBOT
+void OmnibotRenderDebugLines(void);
+void OmnibotRenderDebugText(void);
+void OmnibotResetClient(void);
+#endif

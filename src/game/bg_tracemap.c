@@ -28,7 +28,7 @@ static tracemap_t tracemap;
 
 static vec2_t one_over_mapgrid_factor;
 
-#if defined(CGAMEDLL) && defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(CGAMEDLL) || defined(GAMEDLL)) && defined(_MSC_VER) && defined(_M_IX86)
 typedef char TraceLoadLayoutGuard[
     (TRACEMAP_SIZE == 256 && sizeof(float) == 4 &&
      sizeof(((tracemap_t*)0)->sky[0]) == 1024 &&
@@ -52,6 +52,7 @@ enum {
     TraceLoadCeil = offsetof(tracemap_t, groundceil)
 };
 static const float traceQueryMaxHeight = 65536.0f;
+static const float traceQueryMinHeight = -65536.0f;
 static const float traceLoadZero = 0.0f, traceLoadOne = 1.0f;
 static const float traceLoadScale = 254.0f, traceLoadInverseSize = 0.00390625f;
 static const char traceLoadPath[] = "maps/%s_tracemap.tga";
@@ -885,8 +886,9 @@ void CG_GenerateTracemap( void ) {
 #undef CG_TRACEMAP_PROGRESS
 #endif // CGAMEDLL
 
-#if defined(CGAMEDLL) && defined(_MSC_VER) && defined(_M_IX86)
-/* Complete Windows30016690; all data addresses use the native tracemap. */
+#if (defined(CGAMEDLL) || defined(GAMEDLL)) && defined(_MSC_VER) && defined(_M_IX86)
+/* Complete Windows30016690 / qagame2003dbc0: identical instruction schedule
+ * after module relocations; all data addresses use the native tracemap. */
 __declspec(naked) qboolean BG_LoadTraceMap(char *rawmapname, vec2_t world_mins, vec2_t world_maxs) {
     __asm {
 tl_30016690:
@@ -1707,7 +1709,7 @@ qboolean BG_LoadTraceMap( char *rawmapname, vec2_t world_mins, vec2_t world_maxs
 
 #endif
 
-#if defined(CGAMEDLL) && defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(CGAMEDLL) || defined(GAMEDLL)) && defined(_MSC_VER) && defined(_M_IX86)
 static __declspec(naked) void BG_ClampPointToTracemapExtends(vec3_t point, vec2_t clampedPoint) {
     __asm {
 tq_30016be0:
@@ -1816,7 +1818,7 @@ static void BG_ClampPointToTracemapExtends( vec3_t point, vec2_t out ) {
 
 #endif
 
-#if defined(CGAMEDLL) && defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(CGAMEDLL) || defined(GAMEDLL)) && defined(_MSC_VER) && defined(_M_IX86)
 __declspec(naked) float BG_GetSkyHeightAtPoint(vec3_t pos) {
     __asm {
 tq_30016b50:
@@ -2038,6 +2040,52 @@ float BG_GetSkyGroundHeightAtPoint( vec3_t pos ) {
 
 #endif
 
+#if defined(GAMEDLL) && defined(_MSC_VER) && defined(_M_IX86)
+/* TC qagame 2003e190: retain x87 intermediate precision and original stores. */
+__declspec(naked) float BG_GetGroundHeightAtPoint(vec3_t pos) {
+    __asm {
+        MOV EAX, dword ptr [tracemap + TraceQueryLoaded]
+        SUB ESP, 0Ch
+        TEST EAX, EAX
+        JNZ tq837_ground_loaded
+        FLD dword ptr [traceQueryMinHeight]
+        ADD ESP, 0Ch
+        RET
+    tq837_ground_loaded:
+        MOV ECX, dword ptr [ESP + 10h]
+        LEA EAX, [ESP + 4]
+        PUSH EAX
+        PUSH ECX
+        CALL BG_ClampPointToTracemapExtends
+        FLD dword ptr [ESP + 0Ch]
+        FSUB dword ptr [tracemap + TraceQueryMinX]
+        ADD ESP, 4
+        FMUL dword ptr [one_over_mapgrid_factor]
+        FSTP dword ptr [ESP]
+        CALL myftol
+        FLD dword ptr [ESP + 0Ch]
+        FSUB dword ptr [tracemap + TraceQueryMinY]
+        MOV dword ptr [ESP + 4], EAX
+        FMUL dword ptr [one_over_mapgrid_factor + 4]
+        FSTP dword ptr [ESP]
+        CALL myftol
+        MOV dword ptr [ESP + 14h], EAX
+        LEA EDX, [ESP + 14h]
+        LEA EAX, [ESP + 4]
+        PUSH EDX
+        PUSH EAX
+        CALL etpro_FinalizeTracemapClamp
+        MOV ECX, dword ptr [ESP + 1Ch]
+        MOV EAX, dword ptr [ESP + 0Ch]
+        SHL ECX, 8
+        ADD ESP, 0Ch
+        ADD ECX, EAX
+        FLD dword ptr [tracemap + TraceLoadGround + ECX*4]
+        ADD ESP, 0Ch
+        RET
+    }
+}
+#else
 float BG_GetGroundHeightAtPoint( vec3_t pos ) {
 	int i, j;
 	vec2_t point;
@@ -2062,6 +2110,8 @@ float BG_GetGroundHeightAtPoint( vec3_t pos ) {
 //	getgroundtime += trap_Milliseconds() - msec;
 	return( tracemap.ground[j][i] );
 }
+
+#endif
 
 int BG_GetTracemapGroundFloor( void ) {
 	if( !tracemap.loaded ) {

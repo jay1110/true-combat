@@ -328,7 +328,14 @@ vmCvar_t cg_aspectFovMode;
 vmCvar_t cg_freeAim;
 vmCvar_t cg_recording_showstatusline;
 
+#ifdef FEATURE_OMNIBOT
+vmCvar_t cg_omnibotdrawing, cg_omnibot_render_distance;
+#endif
 cvarTable_t		cvarTable[] = {
+#ifdef FEATURE_OMNIBOT
+ { &cg_omnibotdrawing, "cg_omnibotdrawing", "1", CVAR_ARCHIVE },
+ { &cg_omnibot_render_distance, "cg_omnibot_render_distance", "2000", CVAR_ARCHIVE },
+#endif
 	{ &cg_ignore, "cg_ignore", "0", 0 },	// used for debugging
 	{ &cg_autoswitch, "cg_autoswitch", "2", CVAR_ARCHIVE },
 	{ &cg_drawGun, "cg_drawGun", "1", 512},
@@ -2769,6 +2776,9 @@ Will perform callbacks to make the loading info screen update.
 #define DEBUG_INITPROFILE_EXEC(f) if( developer.integer ) { CG_Printf("^5%s passed in %i msec\n", f, elapsed = trap_Milliseconds()-dbgTime );  dbgTime += elapsed; }
 #endif // _DEBUG
 void CG_Init( int serverMessageNum, int serverCommandSequence, int clientNum, qboolean demoPlayback ) {
+#ifdef FEATURE_OMNIBOT
+ OmnibotResetClient();
+#endif
 	const char	*s;
 	int			i;
 #ifdef _DEBUG
@@ -2997,6 +3007,9 @@ Called before every level change or subsystem restart
 =================
 */
 void CG_Shutdown( void ) {
+#ifdef FEATURE_OMNIBOT
+ OmnibotResetClient();
+#endif
 	// some mods may need to do cleanup work here,
 	// like closing files or archiving session data
 

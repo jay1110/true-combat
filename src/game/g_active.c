@@ -1,5 +1,8 @@
 
 #include "g_local.h"
+#ifdef FEATURE_OMNIBOT
+#include "g_etbot_interface.h"
+#endif
 #include "tce_node_editor.h"
 
 /*
@@ -451,7 +454,11 @@ void ClientImpacts( gentity_t *ent, pmove_t *pm ) {
 		}
 
 		// RF, bot should get pushed out the way
-		if ( (ent->client) /*&& !(ent->r.svFlags & SVF_BOT)*/ && (other->r.svFlags & SVF_BOT) ) {
+		if ( (ent->client) /*&& !(ent->r.svFlags & SVF_BOT)*/ && (other->r.svFlags & SVF_BOT)
+#ifdef FEATURE_OMNIBOT
+            && !Bot_Interface_IsOmnibot((int)(other-g_entities))
+#endif
+        ) {
 /*			vec3_t dir;
 			// if we are not heading for them, ignore
 			VectorSubtract( other->r.currentOrigin, ent->r.currentOrigin, dir );
@@ -464,11 +471,19 @@ void ClientImpacts( gentity_t *ent, pmove_t *pm ) {
 		}
 
 		// if we are standing on their head, then we should be pushed also
-		if ( (ent->r.svFlags & SVF_BOT) && ent->s.groundEntityNum == other->s.number && other->client) {
+		if ( (ent->r.svFlags & SVF_BOT) && ent->s.groundEntityNum == other->s.number && other->client
+#ifdef FEATURE_OMNIBOT
+            && !Bot_Interface_IsOmnibot((int)(ent-g_entities))
+#endif
+        ) {
 			PushBot( other, ent );
 		}
 
-		if ( ent->r.svFlags & SVF_BOT ) {
+		if ( (ent->r.svFlags & SVF_BOT)
+#ifdef FEATURE_OMNIBOT
+            && !Bot_Interface_IsOmnibot((int)(ent-g_entities))
+#endif
+        ) {
 			CheckBotImpacts( ent, other );
 		}
 
@@ -1551,7 +1566,11 @@ void ClientThink( int clientNum ) {
 
 	// if this is the locally playing client, do bot thinks
 #ifndef NO_BOT_SUPPORT
-	if( bot_enable.integer && !g_dedicated.integer && clientNum == 0 ) {
+	if( bot_enable.integer && !g_dedicated.integer && clientNum == 0
+#ifdef FEATURE_OMNIBOT
+        && !g_OmniBotEnable.integer
+#endif
+    ) {
 		BotAIThinkFrame(ent->client->pers.cmd.serverTime);
 		level.lastClientBotThink = level.time;
 	}

@@ -1,0 +1,36 @@
+// Native TC loadout requests; the server still enforces map/team/class restrictions.
+Commands["tceweapon"] = {
+ Func = function(params) {
+  if (tableCount(params) < 2) { print("Usage: /bot tceweapon <botname> <slot e.g. TH7> [secondary]"); return; }
+  weapon = WEAPON[params[1]];
+  if (!weapon) { print("Unknown TC weapon slot: ", params[1]); return; }
+  foreach (bot in BotTable) {
+   if (bot.Name == params[0]) {
+    if (params[2] == "secondary") { accepted = bot.ChangeSecondaryWeapon(weapon); }
+    else { accepted = bot.ChangePrimaryWeapon(weapon); }
+    if (accepted) { print("TC weapon accepted for next spawn: ", params[1]); }
+    else { print("TC weapon rejected by current team/class/map restrictions: ", params[1]); }
+    return;
+   }
+  }
+  print("Bot name not found: ", params[0]);
+ },
+ Help = {"Select TC gear for next spawn: tceweapon <botname> <TH/SH slot> [secondary]"},
+};
+Commands["tceclass"] = {
+ Func = function(params) {
+  if (tableCount(params) < 2) { print("Usage: /bot tceclass <botname> <ASSAULT|RECON|SNIPER|AUTO>"); return; }
+  classes = { ASSAULT = CLASS.ASSAULT, RECON = CLASS.RECON, SNIPER = CLASS.SNIPER };
+  if (params[1] != "AUTO" && !classes[params[1]]) { print("Unknown TC class"); return; }
+  foreach (bot in BotTable) {
+   if (bot.Name == params[0]) {
+    if (params[1] == "AUTO") { bot.crucialClass = false; }
+    else { bot.crucialClass = true; bot.ChangeClass(classes[params[1]]); }
+    print("TC class preference updated; changes take effect on next spawn.");
+    return;
+   }
+  }
+  print("Bot name not found: ", params[0]);
+ },
+ Help = {"Select TC class for next spawn; AUTO restores class balancing"},
+};

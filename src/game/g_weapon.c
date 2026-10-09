@@ -7,6 +7,9 @@
 
 
 #include "g_local.h"
+#ifdef FEATURE_OMNIBOT
+#include "g_etbot_interface.h"
+#endif
 #include "tce_bullet.h"
 
 
@@ -3844,6 +3847,10 @@ void FireWeapon(gentity_t *ent) {
     }
     if (g_gamestate.integer == GS_PLAYING)
         ent->client->sess.aWeaponStats[BG_WeapStatForWeapon(ent->s.weapon)].atts++;
+#ifdef FEATURE_OMNIBOT
+    /* TC weapon IDs must pass through the bridge, never the ET SDK enum. */
+    Bot_Event_FireWeapon(ent->s.number, Bot_WeaponGameToBot(weapon), NULL);
+#endif
 }
 
 

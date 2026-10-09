@@ -1,4 +1,7 @@
 #include "g_local.h"
+#ifdef FEATURE_OMNIBOT
+#include "g_etbot_interface.h"
+#endif
 #include "tce_bg.h"
 #include "../ui/menudef.h"
 
@@ -723,6 +726,9 @@ static void TCE_SetSpawnWeapons(gclient_t *client) {
     client->ps.weapons[0] = client->ps.weapons[1] = 0;
     client->ps.stats[15] = 0; /* Original +0x10c; meaning not yet recovered. */
     if (flags & SVF_BOT) {
+#ifdef FEATURE_OMNIBOT
+        if (!Bot_Interface_IsOmnibot(client->ps.clientNum))
+#endif
         BotSetPOW(client->ps.clientNum, (flags & SVF_POW) ? qtrue : qfalse);
         if (flags & SVF_POW) return;
     }
@@ -741,7 +747,11 @@ static void TCE_SetSpawnWeapons(gclient_t *client) {
     }
     AddWeaponToPlayer(client, 1, 1, 0, qtrue);
     skill = (int)client->sess.skillpoints[tcClass] + 1;
-    if (flags & SVF_BOT) {
+    if ((flags & SVF_BOT)
+#ifdef FEATURE_OMNIBOT
+        && !Bot_Interface_IsOmnibot(client->ps.clientNum)
+#endif
+    ) {
         int choices[24], count = 0, i;
         for (i = 0; i < 24; ++i)
             if (TCE_SpawnWeaponAvailable(botWeapons[i], tcClass, skill, team))
@@ -1145,6 +1155,9 @@ char *ClientConnect( int clientNum, qboolean firstTime, qboolean isBot ) {
 	char		userinfo[MAX_INFO_STRING];
 	gentity_t	*ent;
 
+#ifdef FEATURE_OMNIBOT
+    Bot_Interface_RestoreClient(clientNum, isBot);
+#endif
 	ent = &g_entities[ clientNum ];
 
 	trap_GetUserinfo( clientNum, userinfo, sizeof( userinfo ) );
@@ -1303,6 +1316,9 @@ char *ClientConnect( int clientNum, qboolean firstTime, qboolean isBot ) {
 	// count current clients and rank for scoreboard
 	CalculateRanks();
 
+#ifdef FEATURE_OMNIBOT
+    Bot_Event_ClientConnected(clientNum, isBot);
+#endif
 	return NULL;
 }
 
@@ -1905,7 +1921,11 @@ void ClientSpawn( gentity_t *ent, qboolean revived, qboolean hostage )
 		SetClientViewAnglePitch(ent, 0);
 	}
 
-	if( ent->r.svFlags & SVF_BOT ) {
+	if( (ent->r.svFlags & SVF_BOT)
+#ifdef FEATURE_OMNIBOT
+        && !Bot_Interface_IsOmnibot(index)
+#endif
+    ) {
 		// xkan, 10/11/2002 - the ideal view angle is defaulted to 0,0,0, but the 
 		// spawn_angles is the desired angle for the bots to face.
 		BotSetIdealViewAngles( index, spawn_angles );
@@ -1965,6 +1985,9 @@ void ClientSpawn( gentity_t *ent, qboolean revived, qboolean hostage )
 	// https://zerowing.idsoftware.com/bugzilla/show_bug.cgi?id=569
 	G_TCEResetFrameMarkers( ent ); /* TC2004d78c calls20048370, not80-byte reset. */
 
+#ifdef FEATURE_OMNIBOT
+    if (!Bot_Interface_IsOmnibot((int)(ent-g_entities))) {
+#endif
 	// Set up bot speed bonusses
 	BotSpeedBonus( ent->s.number );
 
@@ -1982,8 +2005,17 @@ void ClientSpawn( gentity_t *ent, qboolean revived, qboolean hostage )
 	} else if( revived && ent->r.svFlags & SVF_BOT) {
 		Bot_ScriptEvent( ent->s.number, "revived", "" );
 	}
+#ifdef FEATURE_OMNIBOT
+    } else if (!revived && client->sess.sessionTeam != TEAM_SPECTATOR) {
+        /* Map scripts remain active even when SDK bot scripts do not own us. */
+        G_Script_ScriptEvent(ent, "playerstart", "");
+    }
+#endif
 	/* Encoded tactical offsets start centered, including after respawn. */
 	client->ps.holdable[5]=client->ps.holdable[6]=2000;
+#ifdef FEATURE_OMNIBOT
+    Bot_Event_Respawn((int)(ent-g_entities));
+#endif
 }
 
 
@@ -2146,9 +2178,16 @@ void ClientDisconnect( int clientNum ) {
 
 	CalculateRanks();
 
-	if ( ent->r.svFlags & SVF_BOT ) {
+	if ( (ent->r.svFlags & SVF_BOT)
+#ifdef FEATURE_OMNIBOT
+        && !Bot_Interface_IsOmnibot(clientNum)
+#endif
+    ) {
 		BotAIShutdownClient( clientNum );
 	}
+#ifdef FEATURE_OMNIBOT
+    Bot_Event_ClientDisConnected(clientNum);
+#endif
 
 	// OSP
 	G_verifyMatchState(i);

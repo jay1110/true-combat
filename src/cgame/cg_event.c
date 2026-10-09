@@ -1,11 +1,11 @@
 // cg_event.c -- handle entity events at snapshot or playerstate transitions
 
 #include "cg_local.h"
-#include "tce_reload_event.h"
 #include "../game/tce_bg.h"
 #include "tce_weapon_media.h"
 #include "tce_flash.h"
 #include "tce_smoke_grenade.h"
+#include "tce_fragment_sound.h"
 
 extern void CG_StartShakeCamera( float param );
 extern void CG_ToggleAiming(void);
@@ -50,6 +50,56 @@ static int CG_EventGlobalSoundVolume(void) {
 		mov globalSoundVolume, eax
 	}
 	return globalSoundVolume;
+}
+
+/* Shared expression from TC30038bb5 and30038ce9; not a separate original body. */
+static int CG_EventFiveSoundChoice(void) {
+	int soundRandom = rand() & 0x7fff;
+	int soundChoice;
+	float soundSample;
+	static const float soundRandomScale = 3.0518509447574615e-05f;
+	static const float soundFive = 5.0f, soundOne = 1.0f;
+	static const float soundTwo = 2.0f, soundThree = 3.0f, soundFour = 4.0f;
+	__asm {
+		fild soundRandom
+		fmul soundRandomScale
+		fmul soundFive
+		fst soundSample
+		fcomp soundOne
+		fnstsw ax
+		test ah, 1
+		jnz soundChoiceZero
+		fld soundSample
+		fcomp soundTwo
+		fnstsw ax
+		test ah, 1
+		jnz soundChoiceOne
+		fld soundSample
+		fcomp soundThree
+		fnstsw ax
+		test ah, 1
+		jnz soundChoiceTwo
+		fld soundSample
+		fcomp soundFour
+		fnstsw ax
+		test ah, 1
+		jnz soundChoiceThree
+		mov soundChoice, 4
+		jmp soundChoiceDone
+	soundChoiceZero:
+		mov soundChoice, 0
+		jmp soundChoiceDone
+	soundChoiceOne:
+		mov soundChoice, 1
+		jmp soundChoiceDone
+	soundChoiceTwo:
+		mov soundChoice, 2
+		jmp soundChoiceDone
+	soundChoiceThree:
+		mov soundChoice, 3
+	soundChoiceDone:
+	}
+	return soundChoice;
 }
 #endif
 //==========================================================================
@@ -1345,8 +1395,11 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 	tce_fragmentSoundContext_t tceEventSound;
 
 // JPW NERVE copied here for mg42 SFX event
-	vec3_t				porg, gorg, norm;	// player/gun origin
+	vec3_t				gorg, norm;	// player/gun origin
+#if !defined(_MSC_VER) || !defined(_M_IX86)
+	vec3_t				porg;
 	float				gdist;
+#endif
 // jpw
 
 	static int		footstepcnt = 0;
@@ -1469,40 +1522,30 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
         }
         break;
     case EV_TCE_FENCE_TOUCH: {
-        tce_fragmentSoundContext_t context;
-        int volume, choice;
+        int choice;
         DEBUGNAME("EV_TOUCH_FENCE");
-        memset(&context,0,sizeof(context));
-        VectorCopy(cg.refdef_current->vieworg,context.listener);
-        context.attenuation=tceFlash.deafness;
-        context.distanceVariant=tceSmokeNewBBox;
-        volume=TCE_CG_SoundVolume(es->pos.trBase,127.f,1200.f,0,&context);
-        if(cg.tcePortalScopeRendering)volume=0;
-        if(volume) {
+        if(tceEventVolume) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+            choice=CG_EventFiveSoundChoice();
+#else
             /* Original random()*5 uses the final slot for the endpoint too. */
             choice=(int)((rand()&0x7fff)*(1.0f/32767.0f)*5.0f);
             if(choice>4)choice=4;
+#endif
             trap_S_StartSoundVControl(es->pos.trBase,es->number,CHAN_AUTO,
-                cgs.media.tceBulletFence[choice],volume);
+                cgs.media.tceBulletFence[choice],tceEventVolume);
         }
         break;
     }
     case EV_TCE_FALL_DMG_75: {
-        tce_fragmentSoundContext_t context;
-        int volume,step=es->eventParm;
+        int step=es->eventParm;
         DEBUGNAME("EV_FALL_DMG_75");
-        memset(&context,0,sizeof(context));
-        VectorCopy(cg.refdef_current->vieworg,context.listener);
-        context.attenuation=tceFlash.deafness;
-        context.distanceVariant=tceSmokeNewBBox;
-        volume=TCE_CG_SoundVolume(es->pos.trBase,127.f,1200.f,0,&context);
-        if(cg.tcePortalScopeRendering)volume=0;
-        if(volume) {
+        if(tceEventVolume) {
             if(step!=23) {
                 if(!step)step=character->animModelInfo->footsteps;
-                trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.landSound[step],volume);
+                trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.landSound[step],tceEventVolume);
             }
-            trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.landHurt,volume);
+            trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.landHurt,tceEventVolume);
         }
         cent->pe.painTime=cg.time;
         if(clientNum==cg.predictedPlayerState.clientNum) {
@@ -1714,25 +1757,19 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
     case EV_TCE_OBJECTIVE_COMPLETE: DEBUGNAME("EV_FIRE_WEAPON_ACTIVATE_COMPLETE"); break;
 
     case EV_TCE_GRENADE_PRIME: {
-        tce_fragmentSoundContext_t context;
-        int volume;
         DEBUGNAME("EV_GRENADE_PRIME");
-        memset(&context,0,sizeof(context));
-        VectorCopy(cg.refdef_current->vieworg,context.listener);
-        context.attenuation=tceFlash.deafness;
-        context.distanceVariant=tceSmokeNewBBox;
-        volume=TCE_CG_SoundVolume(es->pos.trBase,127.f,1200.f,0,&context);
-        if(cg.tcePortalScopeRendering)volume=0;
-        if(cgs.media.tceGrenadePrime && volume)
-            trap_S_StartSoundVControl(NULL,es->number,CHAN_WEAPON,cgs.media.tceGrenadePrime,volume);
+        if(cgs.media.tceGrenadePrime && tceEventVolume)
+            trap_S_StartSoundVControl(NULL,es->number,CHAN_WEAPON,cgs.media.tceGrenadePrime,tceEventVolume);
         break;
     }
 
     case EV_TCE_TOGGLE_AIMING:
+        DEBUGNAME("EV_TOGGLE_AIMING");
         if(es->number==cg.snap->ps.clientNum) CG_ToggleAiming();
         break;
 
     case EV_TCE_FIREMODE: {
+        DEBUGNAME("EV_TOGGLE_FIREMODE");
         if(tceEventVolume) trap_S_StartSoundVControl(NULL,es->number,CHAN_AUTO,cgs.media.tceFiremodeSound,tceEventVolume);
         /* TC30037d40 event135: finish the synthetic firemode selection. */
         if (es->number == cg.snap->ps.clientNum && cg.weaponSelect == 55) {
@@ -1743,21 +1780,30 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
     }
 
     case EV_TCE_RELOAD_CYCLE:
+        DEBUGNAME("EV_RELOAD_CYCLE");
+        if(cgs.media.tceReloadSounds[0] && tceEventVolume)
+            trap_S_StartSoundVControl(NULL,es->number,CHAN_WEAPON,cgs.media.tceReloadSounds[0],tceEventVolume);
+        break;
     case EV_TCE_RELOAD_PUMP:
+        DEBUGNAME("EV_RELOAD_PUMP");
+        if(cgs.media.tceReloadSounds[1] && tceEventVolume)
+            trap_S_StartSoundVControl(NULL,es->number,CHAN_WEAPON,cgs.media.tceReloadSounds[1],tceEventVolume);
+        break;
     case EV_TCE_RELOAD_PUMP2:
+        DEBUGNAME("EV_RELOAD_PUMP2");
+        if(cgs.media.tceReloadSounds[2] && tceEventVolume)
+            trap_S_StartSoundVControl(NULL,es->number,CHAN_WEAPON,cgs.media.tceReloadSounds[2],tceEventVolume);
+        /* TC reads the mechanical flag after sound submission even when
+         * muted. Keep the native table bound; do not invent slots64..66. */
+        if(es->weapon>=0 && es->weapon<TCE_MAX_WEAPONS && weaponDef[es->weapon].singleReload)
+            cent->tceEjectPending=1;
+        break;
     case EV_TCE_RELOAD_BOLT:
-        if (es->weapon>0 && es->weapon<TCE_MAX_WEAPONS) {
-            tce_fragmentSoundContext_t context;
-            memset(&context,0,sizeof(context));
-            VectorCopy(cg.refdef_current->vieworg,context.listener);
-            context.attenuation=tceFlash.deafness;
-            context.distanceVariant=tceSmokeNewBBox;
-            context.disabled=cg.tcePortalScopeRendering;
-            TCE_CG_ReloadEvent(130+event-EV_TCE_RELOAD_CYCLE,es->number,
-                es->pos.trBase,weaponDef[es->weapon].singleReload,
-                weaponDef[es->weapon].bolt,cgs.media.tceReloadSounds,
-                &context,&cent->tceEjectPending);
-        }
+        DEBUGNAME("EV_RELOAD_BOLT");
+        if(cgs.media.tceReloadSounds[3] && tceEventVolume)
+            trap_S_StartSoundVControl(NULL,es->number,CHAN_WEAPON,cgs.media.tceReloadSounds[3],tceEventVolume);
+        if(es->weapon>=0 && es->weapon<TCE_MAX_WEAPONS && weaponDef[es->weapon].bolt)
+            cent->tceEjectPending=1;
         break;
 
 	case EV_FILL_CLIP:
@@ -1812,12 +1858,82 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 
 	case EV_FIRE_WEAPON_MOUNTEDMG42:
 	case EV_FIRE_WEAPON_MG42:
+	{
+		int echoAudible;
+#if defined(_MSC_VER) && defined(_M_IX86)
+		float *echoSource = cent->currentState.pos.trBase;
+		float *echoListener = cg.refdef_current->vieworg;
+		float *echoDirection = norm, *echoOrigin = gorg;
+		static const float echoNear = 512.0f, echoFar = 4096.0f, echoOffset = 64.0f;
+		/* TC30039043..300390f8: the normalization return remains on ST0
+		 * through both distance gates. Each echo coordinate has one store. */
+		__asm {
+			mov ecx, echoSource
+			mov edx, echoListener
+			mov eax, echoDirection
+			fld dword ptr [edx]
+			fld dword ptr [ecx]
+			fsub st(0), st(1)
+			fstp dword ptr [eax]
+			fstp st(0)
+			fld dword ptr [ecx+4]
+			fsub dword ptr [edx+4]
+			fstp dword ptr [eax+4]
+			fld dword ptr [ecx+8]
+			fsub dword ptr [edx+8]
+			fstp dword ptr [eax+8]
+			push eax
+			call VectorNormalize
+			fcom echoNear
+			add esp, 4
+			fnstsw ax
+			test ah, 41h
+			jnz echoRejectPop
+			fcomp echoFar
+			fnstsw ax
+			test ah, 1
+			jz echoReject
+			mov echoAudible, 1
+			jmp echoGateDone
+		echoRejectPop:
+			fstp st(0)
+		echoReject:
+			mov echoAudible, 0
+		echoGateDone:
+		}
+		if (echoAudible) {
+			/* The original reloads refdef_current after VectorNormalize. */
+			echoListener = cg.refdef_current->vieworg;
+			__asm {
+				mov ecx, echoDirection
+				mov edx, echoListener
+				mov eax, echoOrigin
+				fld dword ptr [ecx]
+				fmul echoOffset
+				fadd dword ptr [edx]
+				fstp dword ptr [eax]
+				fld dword ptr [ecx+4]
+				fmul echoOffset
+				fadd dword ptr [edx+4]
+				fstp dword ptr [eax+4]
+				fld dword ptr [ecx+8]
+				fmul echoOffset
+				fadd dword ptr [edx+8]
+				fstp dword ptr [eax+8]
+			}
+		}
+#else
+		/* Preserve the portable path; no Linux x87 parity claim. */
 		VectorCopy(cent->currentState.pos.trBase, gorg);
 		VectorCopy(cg.refdef_current->vieworg, porg);
 		VectorSubtract(gorg, porg, norm);
 		gdist = VectorNormalize(norm);
-		if(gdist > 512 && gdist < 4096) {
+		echoAudible = gdist > 512 && gdist < 4096;
+		if(echoAudible) {
 			VectorMA(cg.refdef_current->vieworg, 64, norm, gorg);
+		}
+#endif
+		if(echoAudible) {
 			if( cg_entities[cg_entities[cg_entities[ cent->currentState.number ].tagParent].tankparent].currentState.density & 8 ) { // should we use a browning?
 				trap_S_StartSoundEx( gorg, cent->currentState.number, CHAN_WEAPON, cgs.media.hWeaponEchoSnd_2, SND_NOCUT);
 			} else {
@@ -1827,6 +1943,7 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		DEBUGNAME("EV_FIRE_WEAPON_MG42");
 		CG_FireWeapon( cent );
 		break;
+	}
 	case EV_FIRE_WEAPON_AAGUN:
 		DEBUGNAME("EV_FIRE_WEAPON_AAGUN");
 		CG_FireWeapon( cent);
@@ -1963,7 +2080,9 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
     case EV_TCE_BULLET_NEAR_MISS: {
         tce_fragmentSoundContext_t context;
         int volume, choice;
+#if !defined(_MSC_VER) || !defined(_M_IX86)
         float sample;
+#endif
         DEBUGNAME("EV_BULLET_FLYBY");
         if (es->eventParm != cg.snap->ps.clientNum) break;
         memset(&context,0,sizeof(context));
@@ -1973,10 +2092,14 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
         context.disabled=cg.tcePortalScopeRendering;
         volume=TCE_CG_SoundVolume(es->pos.trBase,127.f,300.f,0,&context);
         if (!volume) break;
+#if defined(_MSC_VER) && defined(_M_IX86)
+        choice=CG_EventFiveSoundChoice();
+#else
         sample=(float)(rand()&0x7fff)*(1.f/32767.f)*5.f;
-        choice=sample<1.f?1:sample<2.f?2:sample<3.f?3:sample<4.f?4:5;
+        choice=sample<1.f?0:sample<2.f?1:sample<3.f?2:sample<4.f?3:4;
+#endif
         trap_S_StartSoundVControl(es->pos.trBase,es->number,CHAN_AUTO,
-            cgs.media.tceBulletFlyby[choice-1],volume);
+            cgs.media.tceBulletFlyby[choice],volume);
         break;
     }
 

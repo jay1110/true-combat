@@ -1,0 +1,5 @@
+this.Name = "Mounted MG";
+this.WeaponId = WEAPON.MOUNTABLE_MG42;
+this.PrimaryFire.RequiresAmmo = false;
+this.PrimaryFire.HasClip = false;
+this.PrimaryFire.DefaultDesirability = 1.0;

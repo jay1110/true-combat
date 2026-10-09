@@ -2048,6 +2048,12 @@ void CG_Player( centity_t *cent )
 		}
 
 		CG_HudHeadAnimation( character, &cent->pe.head, &head.oldframe, &head.frame, &head.backlerp, anim );
+		/* TC's head.md3 has 401 animated frames, but its head_1.md3 LOD
+		 * contains only frame zero. Keep animated heads on the base mesh;
+		 * static corpse heads below may still use the inexpensive LOD. */
+		if (head.frame != 0 || head.oldframe != 0) {
+			head.renderfx |= RF_FORCENOLOD;
+		}
 	} else {
 		head.frame = 0;
 		head.oldframe = 0;

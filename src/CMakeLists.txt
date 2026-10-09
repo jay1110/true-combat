@@ -1,8 +1,16 @@
 cmake_minimum_required(VERSION 3.20)
 project(tce_reconstruction C)
 
-if(NOT MSVC OR NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
-  message(FATAL_ERROR "Use Visual Studio with -A Win32; the ET module ABI is 32-bit.")
+option(FEATURE_OMNIBOT "Build the optional server-side Omni-bot bridge" ON)
+if(FEATURE_OMNIBOT)
+  enable_language(CXX)
+endif()
+
+if(NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
+  message(FATAL_ERROR "The ET module ABI requires a 32-bit compiler/toolchain.")
+endif()
+if(NOT MSVC AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  message(FATAL_ERROR "Supported targets: MSVC Win32 or Linux i386.")
 endif()
 
 # This is initially the ET SDK baseline, not a completed TC:E reconstruction.
@@ -12,23 +20,64 @@ include(cmake/sdk_sources.cmake)
 
 function(et_module target folder define)
   add_library(${target} SHARED ${${target}_SOURCES} game/tce_bg.c
-    game/tce_movement.c game/tce_aim.c game/tce_attack.c game/tce_reload.c game/tce_weapon_ammo.c game/tce_anim_names.c game/tce_weapon_parse.c game/tce_weapon_init.c game/tce_gear_parse.c ${folder}/${folder}.def)
+    game/tce_movement.c game/tce_aim.c game/tce_attack.c game/tce_reload.c game/tce_weapon_ammo.c game/tce_anim_names.c game/tce_weapon_parse.c game/tce_weapon_init.c game/tce_gear_parse.c)
+  if(MSVC)
+  target_sources(${target} PRIVATE ${folder}/${folder}.def)
   target_compile_definitions(${target} PRIVATE WIN32 _WINDOWS ${define}
     _CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_DEPRECATE)
   target_compile_options(${target} PRIVATE /W3 /Zc:preprocessor-)
   target_link_libraries(${target} PRIVATE winmm)
   set_target_properties(${target} PROPERTIES PREFIX "" OUTPUT_NAME "${target}_mp_x86"
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+  else()
+    target_compile_definitions(${target} PRIVATE ${define})
+    target_compile_options(${target} PRIVATE -fcommon -fno-strict-aliasing)
+    target_link_libraries(${target} PRIVATE m)
+    target_link_options(${target} PRIVATE -Wl,--no-undefined -Wl,-Bsymbolic)
+    set_target_properties(${target} PROPERTIES PREFIX "" OUTPUT_NAME "${target}.mp.i386"
+      LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+  endif()
 endfunction()
 
 et_module(qagame game GAMEDLL)
+if(FEATURE_OMNIBOT)
+  target_sources(qagame PRIVATE game/etbot/g_etbot_interface.cpp game/tce_omnibot_loadout.c
+    vendor/omnibot/Common/BotLoadLibrary.cpp)
+  target_compile_definitions(qagame PRIVATE FEATURE_OMNIBOT)
+  target_include_directories(qagame PRIVATE game vendor/omnibot/Common vendor/omnibot/ET)
+  set_target_properties(qagame PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES)
+  if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    target_link_libraries(qagame PRIVATE ${CMAKE_DL_LIBS})
+  endif()
+endif()
 # The original VC runtime rounds printf halfway values away from zero.
 # Session skillpoint strings must retain that wire/persistence representation.
-target_link_options(qagame PRIVATE legacy_stdio_float_rounding.obj)
+if(MSVC)
+ target_link_options(qagame PRIVATE legacy_stdio_float_rounding.obj)
+endif()
 et_module(cgame cgame CGAMEDLL)
+if(FEATURE_OMNIBOT)
+ target_sources(cgame PRIVATE cgame/Omnibot_Interprocess.cpp cgame/cg_omnibot.c)
+ target_compile_definitions(cgame PRIVATE FEATURE_OMNIBOT)
+ target_include_directories(cgame PRIVATE vendor/omnibot/Common)
+ set_target_properties(cgame PROPERTIES CXX_STANDARD 11 CXX_STANDARD_REQUIRED YES)
+endif()
 # Read-only live validation resolves globals from this build's symbol map.
-target_link_options(cgame PRIVATE "/MAP:${CMAKE_BINARY_DIR}/cgame-symbols-$<CONFIG>.map")
+if(MSVC)
+ target_link_options(cgame PRIVATE "/MAP:${CMAKE_BINARY_DIR}/cgame-symbols-$<CONFIG>.map")
+endif()
 et_module(ui ui UIDLL)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+  # ET: Legacy extracts client modules from PK3s before loading loose files.
+  # Without Linux entries it can restore the ET SDK modules from mp_bin.pk3.
+  add_custom_target(linux_client_package ALL
+    COMMAND "${CMAKE_COMMAND}" -E tar cf
+      "${CMAKE_BINARY_DIR}/bin/zz_tce2_linux_vm.pk3" --format=zip --
+      cgame.mp.i386.so ui.mp.i386.so
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    DEPENDS cgame ui
+    VERBATIM)
+endif()
 target_sources(ui PRIVATE ui/tce_ui_coordinates.c)
 target_sources(ui PRIVATE ui/tce_player_weapon.c)
 target_sources(ui PRIVATE game/tce_trajectory.c)

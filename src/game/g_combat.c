@@ -6,6 +6,12 @@
 */
 
 #include "g_local.h"
+#ifdef FEATURE_OMNIBOT
+#include "g_etbot_interface.h"
+#define TCE_INTERNAL_BOT(ent) (!Bot_Interface_IsOmnibot((ent)->s.number))
+#else
+#define TCE_INTERNAL_BOT(ent) (qtrue)
+#endif
 #include "tce_bg.h"
 extern void G_Voice(gentity_t *, gentity_t *, int, const char *, qboolean);
 #include "../game/q_shared.h"
@@ -474,6 +480,16 @@ void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int
 
 	self->client->ps.pm_type = PM_DEAD;
 
+#ifdef FEATURE_OMNIBOT
+    {
+        const char *deathName = meansOfDeath >= 0 && meansOfDeath < sizeof(modNames)/sizeof(modNames[0])
+            ? modNames[meansOfDeath] : "<unknown>";
+        Bot_Event_Death(self->s.number, attacker, deathName);
+        if(attacker && attacker->client)
+            Bot_Event_KilledSomeone(attacker->s.number, self, deathName);
+    }
+#endif
+
 	G_AddEvent( self, EV_STOPSTREAMINGSOUND, 0);
 
 	if(attacker) {
@@ -507,7 +523,7 @@ void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int
 	}
 
 	// RF, record bot kills
-	if (attacker && (attacker->r.svFlags & SVF_BOT)) {
+	if (attacker && (attacker->r.svFlags & SVF_BOT) && TCE_INTERNAL_BOT(attacker)) {
 		BotRecordKill( attacker->s.number, self->s.number );
 	}
 

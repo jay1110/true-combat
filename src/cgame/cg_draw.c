@@ -5358,6 +5358,9 @@ void CG_DrawActive( stereoFrame_t stereoView ) {
 	if( !cg.showGameView ) {
 		// draw status bar and other floating elements
 		CG_Draw2D();
+#ifdef FEATURE_OMNIBOT
+        OmnibotRenderDebugText();
+#endif
 	} else {
 		CG_LimboPanel_Draw();
 	}

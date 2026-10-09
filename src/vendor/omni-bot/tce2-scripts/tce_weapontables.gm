@@ -1,0 +1,25 @@
+global WeaponTable = {};
+global PrimaryWeaponChoices = {};
+Util.SniperWeapons = { WEAPON.TH13, WEAPON.TH14, WEAPON.TH15, WEAPON.TH18, WEAPON.TH19, WEAPON.TH20 };
+Util.TeamSniperWeapons = { AXIS = Util.SniperWeapons, ALLIES = Util.SniperWeapons };
+Util.TeamSideArms = { AXIS = {WEAPON.SH1, WEAPON.SH2, WEAPON.SHA1, WEAPON.SHA2, WEAPON.SH5, WEAPON.SH7, WEAPON.SH8, WEAPON.SH3, WEAPON.SH4, WEAPON.SHA3, WEAPON.SHA4, WEAPON.SH6}, ALLIES = {WEAPON.SH1, WEAPON.SH2, WEAPON.SHA1, WEAPON.SHA2, WEAPON.SH5, WEAPON.SH7, WEAPON.SH8, WEAPON.SH3, WEAPON.SH4, WEAPON.SHA3, WEAPON.SHA4, WEAPON.SH6} };
+foreach (team in {TEAM.AXIS, TEAM.ALLIES}) {
+ PrimaryWeaponChoices[team] = {};
+ foreach (class in Util.PlayerClassTable) {
+  PrimaryWeaponChoices[team][class] = {};
+  foreach (weapon in {WEAPON.TH1, WEAPON.TH2, WEAPON.TH3, WEAPON.TH4, WEAPON.TH5, WEAPON.TH11, WEAPON.TH12, WEAPON.TH7, WEAPON.TH8, WEAPON.TH9, WEAPON.TH13, WEAPON.TH14, WEAPON.TH15, WEAPON.TH6, WEAPON.TH10, WEAPON.TH16, WEAPON.TH17, WEAPON.TH18, WEAPON.TH19, WEAPON.TH20}) {
+   PrimaryWeaponChoices[team][class][weapon] = true;
+  }
+ }
+}
+// This is a candidate catalogue; the server is the authority for restrictions.
+WeaponTable.GetPrimaryWeapons = function(team, class) { return PrimaryWeaponChoices[team][class]; };
+WeaponTable.SetWeaponTeamAvailability = function(team,class,weapon,enable) {
+ if (IsNull(class)) { foreach (id in Util.PlayerClassTable) { this.SetWeaponTeamAvailability(team,id,weapon,enable); } return; }
+ if (typeName(weapon)=="table") { foreach (id in weapon) { this.SetWeaponTeamAvailability(team,class,id,enable); } return; }
+ if (PrimaryWeaponChoices[team][class]) { PrimaryWeaponChoices[team][class][weapon] = enable; }
+};
+WeaponTable.SetWeaponAvailability = function(class,weapon,enable) {
+ this.SetWeaponTeamAvailability(TEAM.AXIS,class,weapon,enable);
+ this.SetWeaponTeamAvailability(TEAM.ALLIES,class,weapon,enable);
+};

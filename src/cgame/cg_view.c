@@ -1671,6 +1671,9 @@ void CG_DrawActiveFrame( int serverTime, stereoFrame_t stereoView, qboolean demo
 			DEBUGTIME
 
 			CG_AddAtmosphericEffects();
+#ifdef FEATURE_OMNIBOT
+            OmnibotRenderDebugLines();
+#endif
 		}
 		
 		// Rafael mg42

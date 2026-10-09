@@ -1,0 +1,42 @@
+Omni-bot 0.93 compatibility source import
+
+Origin (read-only): C:/Users/micha/Documents/GitHub/etlegacy/vendor/omni-bot/source/Omnibot
+Imported 2026-10-08 for the ETmain-compatible game bridge. No upstream rewrite
+sources were imported. Files retain original notices; imported code is unchanged.
+
+Included: Common, ET, active GameMonkey Ex/WildMagic3/iprof/PhysicsFS dependencies,
+the source CMake files, and MSVC Common.rc/resource.h. RTCW, Recast, unused GUI
+frontends, dependency extras/tests/docs and old project files were not imported.
+Root build must disable OMNIBOT_RTCW. Common/BotLoadLibrary.cpp and the bridge ABI
+headers also live in ../omnibot (relative to this vendor directory) as copies
+from the SAME compatible source tree, not the newer ETLegacy loader interface.
+
+Build this as a separate CMake source directory:
+  cmake -S src/vendor/omni-bot/source/Omnibot -B build/omnibot -DOMNIBOT_ET=ON -DOMNIBOT_RTCW=OFF -DOMNIBOT_STD_FILESYSTEM=ON
+No build was run during import. Its CMake uses CMAKE_SOURCE_DIR/dependencies;
+ExternalProject or a separate configure is required, not add_subdirectory.
+Boost headers remain an external development dependency. Set
+OMNIBOT_BOOST_INCLUDEDIR to the directory containing boost/version.hpp or let
+find_package(Boost) locate them. STD_FILESYSTEM=ON avoids compiled Boost libraries
+and requires C++17. Platform compiler/SDK dependencies remain external.
+For 32-bit builds select the matching compiler architecture/toolchain; the bot
+must match the loading qagame process. Names: omnibot_et.dll (Win32), omnibot_et.so
+(Linux i386), omnibot_et_x64.dll (Win64), omnibot_et.x86_64.so (Linux64).
+The exported ABI entry is ExportBotFunctionsFromDLL; library base is omnibot_et.
+
+LICENSING PROVENANCE / OPEN MATERIAL
+- PhysicsFS LICENSE.txt is included unchanged (zlib-style notice).
+- GameMonkey permission/license is included in gmMachine.h; preserve that header.
+- zlib/LZMA and other dependency notices remain in their source headers/README.
+- WildMagic3 headers point to an external WildMagic3License.pdf; no standalone
+  copy was present in the supplied compatible source tree or source archive.
+- No top-level Omni-bot license text was found in the supplied compatible source
+  tree or omni-bot-0.93.zip. iprof also has no separate license file in this tree.
+No substitute license from the incompatible upstream rewrite was applied. These
+missing texts are explicitly unresolved provenance, not a grant inferred from
+ETLegacy's repository license. Review before redistribution.
+
+Runtime scripts/navigation are local staging only in tce2/omni-bot. They are not
+part of this source import. No runtime DLL/SO, archives or generated artifacts
+were copied. Existing ET scripts/nav do not establish TC map navigation, weapon
+mapping, GT2/5/7 objective behavior or successful bot operation.

@@ -1,0 +1,6 @@
+ETmain-compatible Omni-bot bridge ABI, copied from
+etlegacy/vendor/omni-bot/source/Omnibot/Common and /ET on 2026-10-08.
+These files are byte-identical to the matching vendored runtime sources in
+../omni-bot/source/Omnibot. Do not mix headers from the incompatible upstream tree.
+See ../omni-bot/IMPORT-NOTICE.txt for build prerequisites and unresolved license
+provenance. No generated binaries are included.

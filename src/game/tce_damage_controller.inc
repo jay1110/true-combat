@@ -128,6 +128,9 @@ float G_Damage(gentity_t *targ,gentity_t *inflictor,gentity_t *attacker,
         client->lasthurt_client=attacker->s.number;client->lasthurt_mod=mod;
     }
     if(take){
+#ifdef FEATURE_OMNIBOT
+        if(client && wasAlive && take > 0) Bot_Event_TakeDamage(targ->s.number,attacker);
+#endif
         if(!client)targ->health-=take;
         else {
             if(client->ps.holdable[2]<100&&client->ps.holdable[3]<100&&client->ps.holdable[4]<100)
@@ -154,18 +157,18 @@ float G_Damage(gentity_t *targ,gentity_t *inflictor,gentity_t *attacker,
                     targ->die(targ,inflictor,attacker,take,mod);}
                 if((targ->s.eType==ET_MOVER&&!Q_stricmp(targ->classname,"script_mover")&&(targ->spawnflags&8))||!targ->inuse)return 0;
                 if(targ->health<1){
-                    if(targ->r.svFlags&SVF_BOT){if(wasAlive)Bot_ScriptEvent(targ->s.number,"death","");}
+                    if(targ->r.svFlags&SVF_BOT){if(wasAlive&&TCE_INTERNAL_BOT(targ))Bot_ScriptEvent(targ->s.number,"death","");}
                     else if((targ->s.eType!=ET_CONSTRUCTIBLE&&targ->s.eType!=ET_EXPLOSIVE)||(targ->s.eType==ET_CONSTRUCTIBLE&&!targ->desstages))G_Script_ScriptEvent(targ,"death","");
                 }
-                if(targ->s.number<level.maxclients&&(targ->r.svFlags&SVF_BOT))BotRecordDeath(targ->s.number,attacker->s.number);
+                if(targ->s.number<level.maxclients&&(targ->r.svFlags&SVF_BOT)&&TCE_INTERNAL_BOT(targ))BotRecordDeath(targ->s.number,attacker->s.number);
             }
         }else if(targ->pain){
             if(dir){VectorCopy(dir,targ->rotate);VectorCopy(point,targ->pos3);}else {VectorClear(targ->rotate);VectorClear(targ->pos3);}
             targ->pain(targ,attacker,take,point);
         }else G_addStats(targ,attacker,take,mod);
         G_Script_ScriptEvent(targ,"pain",va("%d %d",targ->health,targ->health+take));
-        if(targ->s.number<MAX_CLIENTS&&(targ->r.svFlags&SVF_BOT))Bot_ScriptEvent(targ->s.number,"pain",va("%d %d",targ->health,targ->health+take));
-        if(targ->s.number<level.maxclients&&(targ->r.svFlags&SVF_BOT))BotRecordPain(targ->s.number,attacker->s.number,mod);
+        if(targ->s.number<MAX_CLIENTS&&(targ->r.svFlags&SVF_BOT)&&TCE_INTERNAL_BOT(targ))Bot_ScriptEvent(targ->s.number,"pain",va("%d %d",targ->health,targ->health+take));
+        if(targ->s.number<level.maxclients&&(targ->r.svFlags&SVF_BOT)&&TCE_INTERNAL_BOT(targ))BotRecordPain(targ->s.number,attacker->s.number,mod);
     }
     if(targ->client){float remaining=(float)(1.0-(double)take/damage);return remaining<0.1f?0.1f:remaining;}
     return 0;

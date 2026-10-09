@@ -4160,6 +4160,170 @@ void MatrixMultiply(float in1[3][3], float in2[3][3], float result[3][3]) {
 /* TC Windows qagame200a0de0/cgame3007e850/ui40001a00 all use the
  * same float32 radians constant, but do not round its product before sin/cos.
  * The SDK float angle temporary can reverse prone leg geometry at +/-90. */
+#if defined(CGAMEDLL) && defined(_MSC_VER) && defined(_M_IX86)
+/* Original cgame3007e850: module-local trig scratch and retained x87 chain. */
+static const float angle839Radians = 0.01745329238474369049072265625f;
+static const float angle839NegativeOne = -1.0f;
+static float angle839Sr, angle839Cr, angle839Sp, angle839Cy, angle839Cp, angle839Sy;
+__declspec(naked) void AngleVectors(const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up) {
+    __asm {
+angle839_3007e850:
+        MOV eax, dword ptr [esp + 4]
+angle839_3007e854:
+        FLD dword ptr [eax + 4]
+angle839_3007e857:
+        FMUL dword ptr [angle839Radians]
+angle839_3007e85d:
+        FLD st(0)
+angle839_3007e85f:
+        FSIN 
+angle839_3007e861:
+        FSTP dword ptr [angle839Sy]
+angle839_3007e867:
+        FCOS 
+angle839_3007e869:
+        FSTP dword ptr [angle839Cy]
+angle839_3007e86f:
+        FLD dword ptr [eax]
+angle839_3007e871:
+        FMUL dword ptr [angle839Radians]
+angle839_3007e877:
+        FLD st(0)
+angle839_3007e879:
+        FSIN 
+angle839_3007e87b:
+        FSTP dword ptr [angle839Sp]
+angle839_3007e881:
+        FCOS 
+angle839_3007e883:
+        FSTP dword ptr [angle839Cp]
+angle839_3007e889:
+        FLD dword ptr [eax + 8]
+angle839_3007e88c:
+        FMUL dword ptr [angle839Radians]
+angle839_3007e892:
+        MOV eax, dword ptr [esp + 8]
+angle839_3007e896:
+        TEST eax, eax
+angle839_3007e898:
+        FLD st(0)
+angle839_3007e89a:
+        FSIN 
+angle839_3007e89c:
+        FSTP dword ptr [angle839Sr]
+angle839_3007e8a2:
+        FCOS 
+angle839_3007e8a4:
+        FSTP dword ptr [angle839Cr]
+angle839_3007e8aa:
+        JE angle839_3007e8d4
+angle839_3007e8ac:
+        FLD dword ptr [angle839Cp]
+angle839_3007e8b2:
+        FMUL dword ptr [angle839Cy]
+angle839_3007e8b8:
+        FSTP dword ptr [eax]
+angle839_3007e8ba:
+        FLD dword ptr [angle839Cp]
+angle839_3007e8c0:
+        FMUL dword ptr [angle839Sy]
+angle839_3007e8c6:
+        FSTP dword ptr [eax + 4]
+angle839_3007e8c9:
+        FLD dword ptr [angle839Sp]
+angle839_3007e8cf:
+        FCHS 
+angle839_3007e8d1:
+        FSTP dword ptr [eax + 8]
+angle839_3007e8d4:
+        MOV eax, dword ptr [esp + 0xc]
+angle839_3007e8d8:
+        TEST eax, eax
+angle839_3007e8da:
+        JE angle839_3007e93c
+angle839_3007e8dc:
+        FLD dword ptr [angle839Cr]
+angle839_3007e8e2:
+        FMUL dword ptr [angle839Sy]
+angle839_3007e8e8:
+        FLD dword ptr [angle839Sr]
+angle839_3007e8ee:
+        FMUL dword ptr [angle839Sp]
+angle839_3007e8f4:
+        FMUL dword ptr [angle839Cy]
+angle839_3007e8fa:
+        FSUBP st(1), st(0)
+angle839_3007e8fc:
+        FSTP dword ptr [eax]
+angle839_3007e8fe:
+        FLD dword ptr [angle839Sr]
+angle839_3007e904:
+        FMUL dword ptr [angle839Sp]
+angle839_3007e90a:
+        FMUL dword ptr [angle839Sy]
+angle839_3007e910:
+        FLD dword ptr [angle839Cr]
+angle839_3007e916:
+        FMUL dword ptr [angle839Cy]
+angle839_3007e91c:
+        FADDP st(1), st(0)
+angle839_3007e91e:
+        FMUL dword ptr [angle839NegativeOne]
+angle839_3007e924:
+        FSTP dword ptr [eax + 4]
+angle839_3007e927:
+        FLD dword ptr [angle839Sr]
+angle839_3007e92d:
+        FMUL dword ptr [angle839Cp]
+angle839_3007e933:
+        FMUL dword ptr [angle839NegativeOne]
+angle839_3007e939:
+        FSTP dword ptr [eax + 8]
+angle839_3007e93c:
+        MOV eax, dword ptr [esp + 0x10]
+angle839_3007e940:
+        TEST eax, eax
+angle839_3007e942:
+        JE angle839_3007e998
+angle839_3007e944:
+        FLD dword ptr [angle839Cr]
+angle839_3007e94a:
+        FMUL dword ptr [angle839Sp]
+angle839_3007e950:
+        FMUL dword ptr [angle839Cy]
+angle839_3007e956:
+        FLD dword ptr [angle839Sr]
+angle839_3007e95c:
+        FMUL dword ptr [angle839Sy]
+angle839_3007e962:
+        FADDP st(1), st(0)
+angle839_3007e964:
+        FSTP dword ptr [eax]
+angle839_3007e966:
+        FLD dword ptr [angle839Cr]
+angle839_3007e96c:
+        FMUL dword ptr [angle839Sp]
+angle839_3007e972:
+        FMUL dword ptr [angle839Sy]
+angle839_3007e978:
+        FLD dword ptr [angle839Sr]
+angle839_3007e97e:
+        FMUL dword ptr [angle839Cy]
+angle839_3007e984:
+        FSUBP st(1), st(0)
+angle839_3007e986:
+        FSTP dword ptr [eax + 4]
+angle839_3007e989:
+        FLD dword ptr [angle839Cr]
+angle839_3007e98f:
+        FMUL dword ptr [angle839Cp]
+angle839_3007e995:
+        FSTP dword ptr [eax + 8]
+angle839_3007e998:
+        RET 
+    }
+}
+#else
 void AngleVectors(const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up) {
     const float radians = 0.01745329238474369049072265625f;
     double angle;
@@ -4186,6 +4350,7 @@ void AngleVectors(const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up) 
         up[2] = cr * cp;
     }
 }
+#endif
 
 /*
 ** assumes "src" is normalized

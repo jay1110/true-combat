@@ -6,6 +6,9 @@
 */
 
 #include "g_local.h"
+#ifdef FEATURE_OMNIBOT
+#include "g_etbot_interface.h"
+#endif
 
 typedef struct {
   char oldShader[MAX_QPATH];
@@ -480,6 +483,9 @@ void G_InitGentity( gentity_t *e ) {
 	e->spawnCount++;
 	// mark the time
 	e->spawnTime = level.time;
+#ifdef FEATURE_OMNIBOT
+    Bot_Queue_EntityCreated(e);
+#endif
 }
 
 /*
@@ -584,6 +590,10 @@ void G_FreeEntity( gentity_t *ed ) {
 		return;
 	}
 
+#ifdef FEATURE_OMNIBOT
+    /* Retained neverFree entities keep their existing handle. */
+    Bot_Event_EntityDeleted(ed);
+#endif
 	spawnCount = ed->spawnCount;
 
 	memset (ed, 0, sizeof(*ed));

@@ -13,11 +13,12 @@ Sends current scoreboard information
 ==================
 */
 void G_SendScore( gentity_t *ent ) {
-	char		entry[128];
+	char		entry[256]; /* fourteen signed integer fields plus separators */
 	int			i;
 	gclient_t	*cl;
 	int			numSorted;
 	int			team, size, count;
+	int			rowFields, packetRows;
 	char		buffer[1024];
 	char		startbuffer[32];
 
@@ -28,8 +29,14 @@ void G_SendScore( gentity_t *ent ) {
 	}
 
 	i = 0;
+	rowFields = (g_gametype.integer == 2 ||
+		(g_gametype.integer >= 5 && g_gametype.integer <= 7)) ? 14 : 7;
+	/* Tokenization has a separate limit from command bytes. TC's fourteen
+	 * fields exhaust it before the old SDK limit of 32 player rows. */
+	packetRows = (MAX_STRING_TOKENS - 4) / rowFields;
+	if (packetRows > 32) packetRows = 32;
 	// Gordon: team doesnt actually mean team, ignore...
-	for(team = 0; team < 2; team++) {
+	for(team = 0; team == 0 || i < numSorted; team++) {
 		*buffer = '\0';
 		*startbuffer = '\0';
 		if( team == 0 ) {
@@ -100,14 +107,14 @@ void G_SendScore( gentity_t *ent ) {
 			}
 
 			if(size + strlen(entry) > 1000) {
-				i--; // we need to redo this client in the next buffer (if we can)
+				/* i still identifies the unsent row. */
 				break;
 			}
 			size += strlen(entry);
 
 			Q_strcat(buffer, 1024, entry);
-			if( ++count >= 32 ) {
-				i--; // we need to redo this client in the next buffer (if we can)
+			if( ++count >= packetRows ) {
+				++i; /* This row was sent; resume with the next one. */
 				break;
 			}
 		}
