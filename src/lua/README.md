@@ -88,7 +88,7 @@ Configstrings and userinfo remain engine-owned data: use valid native layouts.
 
 Constants: TEAM_AXIS, TEAM_ALLIES, TEAM_SPECTATOR, EXEC_APPEND,
 CON_CONNECTED, CON_CONNECTING, CON_DISCONNECTED, STAT_HEALTH, MAX_WEAPONS,
-MAX_CLIENTS, MAX_GENTITIES; `API_VERSION="tce2-lua-2"`.
+MAX_CLIENTS, MAX_GENTITIES; `API_VERSION="tce2-lua-3"`.
 Native team enum names remain for compatibility with script conventions.
 
 ## Errors and scope
@@ -96,11 +96,43 @@ Native team enum names remain for compatibility with script conventions.
 Script errors disable only that module and print file/event/error details.
 A callback instruction hook limits ordinary accidental infinite loops to about
 1million Lua instructions. Base/table/string/math/utf8 libraries are available;
-package/io/os/debug, dofile and loadfile are unavailable. These are trusted
+package/io/debug, dofile and loadfile are unavailable. Only os.time/date/difftime/clock are exposed; no shell operations. These are trusted
 server-admin plugins, NOT a hardened sandbox for hostile code: memory, expensive
 C-library calls and caught hook errors are not a complete resource boundary.
 
-No database libraries, cross-module IPC,
+No MySQL driver or cross-module IPC,
 client-side Lua or full gentity setter API yet. Omni-bot still uses GameMonkey;
 Lua is an independent game-server extension. Runtime assets remain separate from
 Git. Linux source integration exists but this addition was built/tested on Windows.
+
+## WolfAdmin / API version 3
+
+The adapted original WolfAdmin 1.2.1 is in `wolfadmin/`; see its README for
+installation, private `/wolfauth` session login and supported administration.
+
+`require(name)` caches text-only modules in each Lua state. Names can use dots
+or slashes, resolve through engine VFS and cannot traverse directories. Scripts
+are limited to 1 MiB. Only the bundled `luasql.sqlite3` native module is available.
+SQLite files resolve beneath fs_homepath/fs_game; `:memory:` is supported.
+ATTACH/VACUUM INTO and dynamic extensions are disabled. This is a trusted-admin
+API, not a symlink-resistant filesystem sandbox. No external database DLL needed.
+
+File API: `trap_FS_FOpenFile(path, mode)` returns handle,length (-1 length on
+failure), `trap_FS_Read(handle, length)`, `trap_FS_Write(data, length, handle)`,
+`trap_FS_FCloseFile(handle)`, `FS_GetFileList(path, extension)` (alias
+`trap_FS_GetFileList`) returns a table. FS_READ/WRITE/APPEND constants exist.
+Handles belong to the calling VM, are closed at shutdown, and are limited to 32;
+individual operations are limited to 1 MiB, directory listings to 64 KiB.
+
+Admin API: `ClientNumberFromString(text)` resolves a connected slot or unique
+exact name without color codes, returning -1 when not found/ambiguous;
+`trap_DropClient(slot, reason[, banSeconds])`, `G_LogPrint(text)`,
+`ClientUserinfoChanged(slot)` and `G_Damage(target, inflictor, attacker, amount,
+flags, mod)`. Damage sources -1/1024 mean world; targets must be connected players.
+Bullet damage MODs requiring geometry are rejected. Native protections still apply.
+
+Additional readable fields: ps.ping, ps.powerups[index], ps.persistant[index],
+sess.muted/referee/spec_invite/kills/team_kills/damage_given/damage_received/deaths/
+team_damage/suicides. sess.muted is writable 0/1 through native userinfo update.
+Unused client slots return CON_DISCONNECTED for pers.connected and nil for
+pers.netname. et.PLATFORM is windows/unix; TEAM_SPECTATORS aliases TEAM_SPECTATOR.

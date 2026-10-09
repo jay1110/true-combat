@@ -36,7 +36,17 @@ static void Vector(lua_State *L, int arg, vec3_t v) {
     }
 }
 static int Get(lua_State *L) {
-    gentity_t *e = Entity(L); gclient_t *c; const char *f = Text(L, 2, 128);
+    gentity_t *e; gclient_t *c; const char *f = Text(L, 2, 128);
+    /* Player enumeration must work before spawn and for unused slots. */
+    if(!strcmp(f, "pers.connected") || !strcmp(f, "pers.netname")) {
+        int n = Integer(L, 1, 0, MAX_CLIENTS - 1);
+        c = n < level.maxclients ? &level.clients[n] : NULL;
+        if(!strcmp(f, "pers.connected")) lua_pushinteger(L, c ? c->pers.connected : CON_DISCONNECTED);
+        else if(!c || c->pers.connected == CON_DISCONNECTED) lua_pushnil(L);
+        else lua_pushstring(L, c->pers.netname);
+        return 1;
+    }
+    e = Entity(L);
     if(!strcmp(f, "health")) lua_pushinteger(L, e->health);
     else if(!strcmp(f, "classname")) lua_pushstring(L, e->classname ? e->classname : "");
     else if(!strcmp(f, "targetname")) lua_pushstring(L, e->targetname ? e->targetname : "");
@@ -49,12 +59,25 @@ static int Get(lua_State *L) {
         else if(!strcmp(f, "pers.connected")) lua_pushinteger(L, c->pers.connected);
         else if(!strcmp(f, "sess.sessionTeam")) lua_pushinteger(L, c->sess.sessionTeam);
         else if(!strcmp(f, "sess.playerType")) lua_pushinteger(L, c->sess.playerType);
+        else if(!strcmp(f, "sess.muted")) lua_pushinteger(L, c->sess.muted);
+        else if(!strcmp(f, "sess.referee")) lua_pushinteger(L, c->sess.referee);
+        else if(!strcmp(f, "sess.spec_invite")) lua_pushinteger(L, c->sess.spec_invite);
+        else if(!strcmp(f, "sess.kills")) lua_pushinteger(L, c->sess.kills);
+        else if(!strcmp(f, "sess.team_kills")) lua_pushinteger(L, c->sess.team_kills);
+        else if(!strcmp(f, "sess.damage_given")) lua_pushinteger(L, c->sess.damage_given);
+        else if(!strcmp(f, "sess.damage_received")) lua_pushinteger(L, c->sess.damage_received);
+        else if(!strcmp(f, "sess.deaths")) lua_pushinteger(L, c->sess.deaths);
+        else if(!strcmp(f, "sess.team_damage")) lua_pushinteger(L, c->sess.team_damage);
+        else if(!strcmp(f, "sess.suicides")) lua_pushinteger(L, c->sess.suicides);
+        else if(!strcmp(f, "ps.ping")) lua_pushinteger(L, c->ps.ping);
         else if(!strcmp(f, "ps.weapon")) lua_pushinteger(L, c->ps.weapon);
         else if(!strcmp(f, "ps.origin")) PushVector(L, c->ps.origin);
         else if(!strcmp(f, "ps.viewangles")) PushVector(L, c->ps.viewangles);
         else if(!strcmp(f, "ps.ammo")) lua_pushinteger(L, c->ps.ammo[Integer(L, 3, 0, MAX_WEAPONS - 1)]);
         else if(!strcmp(f, "ps.ammoclip")) lua_pushinteger(L, c->ps.ammoclip[Integer(L, 3, 0, MAX_WEAPONS - 1)]);
         else if(!strcmp(f, "ps.stats")) lua_pushinteger(L, c->ps.stats[Integer(L, 3, 0, MAX_STATS - 1)]);
+        else if(!strcmp(f, "ps.powerups")) lua_pushinteger(L, c->ps.powerups[Integer(L, 3, 0, MAX_POWERUPS - 1)]);
+        else if(!strcmp(f, "ps.persistant")) lua_pushinteger(L, c->ps.persistant[Integer(L, 3, 0, MAX_PERSISTANT - 1)]);
         else return luaL_error(L, "unsupported gentity field: %s", f);
     }
     return 1;
@@ -70,7 +93,10 @@ static int Set(lua_State *L) {
     } else {
         luaL_argcheck(L, argc == 3 || (argc == 4 && Integer(L, 3, 0, 0) == 0), 3, "scalar setter accepts value or zero index and value");
         if(argc == 4) valueArg = 4;
-        if(!strcmp(f, "health")) {
+        if(!strcmp(f, "sess.muted")) {
+            c = Client(L, e); c->sess.muted = (qboolean)Integer(L, valueArg, 0, 1);
+            ClientUserinfoChanged((int)(e - g_entities));
+        } else if(!strcmp(f, "health")) {
             int health = Integer(L, valueArg, 1, 9999);
             if(e->client) {
                 c = Client(L, e);

@@ -1517,18 +1517,16 @@ qboolean	ConsoleCommand( void ) {
 	}
 	// -fretn
 
+	/* Local server console and authenticated RCON share the referee dispatcher. */
+	if(!Q_stricmp(cmd, "ref")) {
+		trap_Argv(1, cmd, sizeof(cmd));
+		if(!G_refCommandCheck(NULL, cmd)) G_refHelp_cmd(NULL);
+		return qtrue;
+	}
 	if( g_dedicated.integer ) {
 		if( !Q_stricmp (cmd, "say")) {
 			trap_SendServerCommand( -1, va("cpm \"server: %s\n\"", ConcatArgs(1) ) );
 			return qtrue;
-		}
-
-		// OSP - console also gets ref commands
-		if(!level.fLocalHost && Q_stricmp(cmd, "ref") == 0) {
-			if(!G_refCommandCheck(NULL, cmd)) {
-				G_refHelp_cmd(NULL);
-			}
-			return(qtrue);
 		}
 
 		// everything else will also be printed as a say command

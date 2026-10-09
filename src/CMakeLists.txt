@@ -49,10 +49,16 @@ if(FEATURE_LUA)
   add_library(tce_lua_runtime STATIC ${TCE_LUA_SOURCES})
   set_target_properties(tce_lua_runtime PROPERTIES POSITION_INDEPENDENT_CODE ON)
   target_compile_definitions(tce_lua_runtime PRIVATE _CRT_SECURE_NO_WARNINGS)
-  target_sources(qagame PRIVATE game/tce_lua.c game/tce_lua_entities.c)
+  add_library(tce_sqlite STATIC vendor/sqlite/sqlite3.c)
+  set_target_properties(tce_sqlite PROPERTIES POSITION_INDEPENDENT_CODE ON)
+  target_compile_definitions(tce_sqlite PRIVATE SQLITE_OMIT_LOAD_EXTENSION=1
+    SQLITE_THREADSAFE=0 SQLITE_TEMP_STORE=3 _CRT_SECURE_NO_WARNINGS)
+  target_sources(qagame PRIVATE game/tce_lua.c game/tce_lua_entities.c
+    game/tce_lua_files.c game/tce_lua_modules.c game/tce_lua_admin.c
+    game/tce_lua_sql.c vendor/luasql/luasql.c vendor/luasql/ls_sqlite3.c)
   target_compile_definitions(qagame PRIVATE FEATURE_LUA)
-  target_include_directories(qagame PRIVATE vendor/lua)
-  target_link_libraries(qagame PRIVATE tce_lua_runtime)
+  target_include_directories(qagame PRIVATE vendor/lua vendor/sqlite vendor/luasql)
+  target_link_libraries(qagame PRIVATE tce_lua_runtime tce_sqlite)
 endif()
 if(FEATURE_OMNIBOT)
   target_sources(qagame PRIVATE game/etbot/g_etbot_interface.cpp game/tce_omnibot_loadout.c

@@ -11,6 +11,9 @@
 #define TCE_LUA_SOURCE_MAX (1024*1024)
 typedef struct { lua_State *L; char file[MAX_QPATH], name[128]; int active, budget, busy; } tceLuaVM;
 extern void TCE_LuaRegisterEntities(lua_State *L);
+extern void TCE_LuaRegisterFiles(lua_State *L);
+extern void TCE_LuaRegisterModules(lua_State *L);
+extern void TCE_LuaRegisterAdmin(lua_State *L);
 static tceLuaVM vms[TCE_LUA_VMS];
 static char rejectReason[1024];
 static tceLuaVM *VM(lua_State *L) { return *(tceLuaVM **)lua_getextraspace(L); }
@@ -59,7 +62,10 @@ static int SendServer(lua_State *L) {
 }
 static int SendConsole(lua_State *L) {
     /* Always defer commands: synchronous reload/map calls can destroy this VM. */
-    luaL_checkinteger(L,1);trap_SendConsoleCommand(EXEC_APPEND,luaL_checkstring(L,2));return 0;
+    size_t size; const char *text;
+    luaL_checkinteger(L,1); text=luaL_checklstring(L,2,&size);
+    luaL_argcheck(L,size<MAX_STRING_CHARS && !memchr(text,0,size),2,"invalid console command length");
+    trap_SendConsoleCommand(EXEC_APPEND,va("%s\n",text));return 0;
 }
 static int RegisterName(lua_State *L) { Q_strncpyz(VM(L)->name,luaL_checkstring(L,1),sizeof(VM(L)->name));return 0; }
 static int FindSelf(lua_State *L) { lua_pushinteger(L,VM(L)-vms);return 1; }
@@ -83,22 +89,32 @@ static const luaL_Reg api[]={
 };
 static void Setup(tceLuaVM *vm) {
     lua_State *L=vm->L;*(tceLuaVM **)lua_getextraspace(L)=vm;
-    /* Server-admin scripts. No package, io, os or debug library exposed. */
+    /* Server-admin scripts. No package, io, shell or debug access. */
     luaL_requiref(L,"_G",luaopen_base,1);lua_pop(L,1);
     luaL_requiref(L,LUA_TABLIBNAME,luaopen_table,1);lua_pop(L,1);
     luaL_requiref(L,LUA_STRLIBNAME,luaopen_string,1);lua_pop(L,1);
     luaL_requiref(L,LUA_MATHLIBNAME,luaopen_math,1);lua_pop(L,1);
     luaL_requiref(L,LUA_UTF8LIBNAME,luaopen_utf8,1);lua_pop(L,1);
     lua_pushnil(L);lua_setglobal(L,"dofile");lua_pushnil(L);lua_setglobal(L,"loadfile");
+    TCE_LuaRegisterModules(L);
     lua_pushcfunction(L,Print);lua_setglobal(L,"print");
     luaL_newlib(L,api);
     TCE_LuaRegisterEntities(L);
+    TCE_LuaRegisterFiles(L);
+    TCE_LuaRegisterAdmin(L);
 #define CONST(n) lua_pushinteger(L,n);lua_setfield(L,-2,#n)
     CONST(TEAM_AXIS);CONST(TEAM_ALLIES);CONST(TEAM_SPECTATOR);CONST(EXEC_APPEND);
     CONST(CON_CONNECTED);CONST(CON_CONNECTING);CONST(CON_DISCONNECTED);
     CONST(STAT_HEALTH);CONST(MAX_WEAPONS);CONST(MAX_CLIENTS);CONST(MAX_GENTITIES);
 #undef CONST
-    lua_pushstring(L,"tce2-lua-2");lua_setfield(L,-2,"API_VERSION");lua_setglobal(L,"et");
+    lua_pushinteger(L,TEAM_SPECTATOR);lua_setfield(L,-2,"TEAM_SPECTATORS");
+#ifdef _WIN32
+    lua_pushliteral(L,"windows");
+#else
+    lua_pushliteral(L,"unix");
+#endif
+    lua_setfield(L,-2,"PLATFORM");
+    lua_pushstring(L,"tce2-lua-3");lua_setfield(L,-2,"API_VERSION");lua_setglobal(L,"et");
 }
 void TCE_LuaShutdown(int restart) {
     int i;for(i=0;i<TCE_LUA_VMS;i++) {
@@ -108,7 +124,9 @@ void TCE_LuaShutdown(int restart) {
     }
 }
 void TCE_LuaInit(int time,int seed,int restart) {
-    vmCvar_t modules;char list[MAX_CVAR_VALUE_STRING],*p,*name;int i=0;
+    vmCvar_t modules, password, trustGuid;char list[MAX_CVAR_VALUE_STRING],*p,*name;int i=0;
+    trap_Cvar_Register(&password,"wolfadmin_password","",0);
+    trap_Cvar_Register(&trustGuid,"g_wolfadminTrustGuid","0",0);
     trap_Cvar_Register(&modules,"lua_modules","",CVAR_ARCHIVE);
     Q_strncpyz(list,modules.string,sizeof(list));p=list;
     while(*p && i<TCE_LUA_VMS) {

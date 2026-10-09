@@ -1,0 +1,34 @@
+{
+  "name": "LuaSQL SQLite3 driver (ETLegacy copy)",
+  "source_repository": "https://github.com/etlegacy/etlegacy",
+  "source_commit": "41d68f45e2410bef664efffaa977851cecbfa299",
+  "source_directory": "vendor/luasql",
+  "copied_from": "C:/Users/micha/Documents/GitHub/etlegacy/vendor/luasql",
+  "retrieved": "2026-10-09",
+  "license": "MIT",
+  "license_url": "https://raw.githubusercontent.com/lunarmodules/luasql/master/doc/us/license.html",
+  "original_sha256": {
+    "ls_sqlite3.c": "c93db05eacae2305ba3b893f651112d9288f2f57014dc5da6a77189723519d08",
+    "luasql.c": "b78d3988b68357cacf08b45801fa8b1b5a4bbfe40818a7be7a8635c50c4b6e40",
+    "luasql.h": "14ca93d1cbcaeb54be1b8828a7bd98be2781a765cd9ff58a5005a6c679213781"
+  },
+  "modifications": [
+    "ls_sqlite3.c declares TCE_LuaSqlOpen and replaces modern sqlite3_open_v2 call with that host policy hook; all other code retained."
+  ],
+  "integration": {
+    "sources": [
+      "luasql.c",
+      "ls_sqlite3.c",
+      "../sqlite/sqlite3.c",
+      "../../game/tce_lua_sql.c"
+    ],
+    "sqlite_definitions": [
+      "SQLITE_OMIT_LOAD_EXTENSION=1",
+      "SQLITE_THREADSAFE=0",
+      "SQLITE_TEMP_STORE=3"
+    ],
+    "entry_point": "luaopen_luasql_sqlite3",
+    "module_name": "luasql.sqlite3",
+    "scope": "Trusted server administration scripts; lexical fs_homepath/fs_game policy, not a symlink/junction sandbox. ATTACH and VACUUM INTO denied."
+  }
+}

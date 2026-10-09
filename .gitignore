@@ -49,6 +49,7 @@
 !/src/vendor/**/*.in
 !/src/vendor/**/IMPORT-NOTICE.txt
 !/src/vendor/**/LICENSE*
+!/src/vendor/luasql/license.html
 !/src/vendor/**/COPYING*
 !/src/vendor/**/COPYRIGHT*
 !/src/vendor/**/LGPL.txt
@@ -92,3 +93,14 @@
 /src/lua/*
 !/src/lua/*.lua
 !/src/lua/README.md
+
+# WolfAdmin production Lua/configuration/schema and upstream attribution.
+!/src/lua/wolfadmin/
+!/src/lua/wolfadmin/**/
+!/src/lua/wolfadmin/**/*.lua
+!/src/lua/wolfadmin/**/*.toml
+!/src/lua/wolfadmin/**/*.sql
+!/src/lua/wolfadmin/**/*.md
+!/src/lua/wolfadmin/**/COPYING.txt
+
+!/src/lua/wolfadmin/**/*.cfg
