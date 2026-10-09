@@ -86,3 +86,9 @@
 
 # Production Omni-bot TCE behavior scripts. Runtime assets stay local.
 !/src/vendor/omni-bot/tce2-scripts/**/*.gm
+
+# Production Lua example and public API documentation.
+!/src/lua/
+/src/lua/*
+!/src/lua/*.lua
+!/src/lua/README.md

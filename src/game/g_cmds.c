@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "tce_lua.h"
 #include "tce_bg.h"
 
 void BotDebug(int clientNum);
@@ -3413,6 +3414,9 @@ void ClientCommand( int clientNum ) {
 	ent = g_entities + clientNum;
 	if ( !ent->client ) {
 		return;		// not fully in game yet
+	}
+	if ( TCE_LuaCommand( clientNum, qfalse ) ) {
+		return;
 	}
 
 	trap_Argv( 0, cmd, sizeof( cmd ) );

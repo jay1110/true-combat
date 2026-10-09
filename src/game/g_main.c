@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "tce_lua.h"
 #ifdef FEATURE_OMNIBOT
 #include "g_etbot_interface.h"
 #endif
@@ -509,12 +510,14 @@ int vmMain( int command, int arg0, int arg1, int arg2, int arg3, int arg4, int a
         Bot_Interface_InitHandles();
 #endif
 		G_InitGame( arg0, arg1, arg2 );
+		TCE_LuaInit( arg0, arg1, arg2 );
 #ifdef FEATURE_OMNIBOT
         if (g_OmniBotEnable.integer && !Bot_Interface_Init())
             G_Printf("Omni-bot initialization failed; check omnibot_path.\n");
 #endif
 		return 0;
 	case GAME_SHUTDOWN:
+		TCE_LuaShutdown( arg0 );
 		G_ShutdownGame( arg0 );
 		return 0;
 	case GAME_CLIENT_CONNECT:
@@ -539,6 +542,7 @@ int vmMain( int command, int arg0, int arg1, int arg2, int arg3, int arg4, int a
         if (g_OmniBotEnable.integer) Bot_Interface_Update();
 #endif
 		G_RunFrame( arg0 );
+		TCE_LuaRunFrame( arg0 );
 		return 0;
 	case GAME_CONSOLE_COMMAND:
  		return ConsoleCommand();

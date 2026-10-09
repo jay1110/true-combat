@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 project(tce_reconstruction C)
 
 option(FEATURE_OMNIBOT "Build the optional server-side Omni-bot bridge" ON)
+option(FEATURE_LUA "Build the optional server-side Lua scripting API" ON)
 if(FEATURE_OMNIBOT)
   enable_language(CXX)
 endif()
@@ -40,6 +41,19 @@ function(et_module target folder define)
 endfunction()
 
 et_module(qagame game GAMEDLL)
+if(FEATURE_LUA)
+  file(GLOB TCE_LUA_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/vendor/lua/*.c")
+  list(REMOVE_ITEM TCE_LUA_SOURCES
+    "${CMAKE_CURRENT_SOURCE_DIR}/vendor/lua/lua.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/vendor/lua/luac.c")
+  add_library(tce_lua_runtime STATIC ${TCE_LUA_SOURCES})
+  set_target_properties(tce_lua_runtime PROPERTIES POSITION_INDEPENDENT_CODE ON)
+  target_compile_definitions(tce_lua_runtime PRIVATE _CRT_SECURE_NO_WARNINGS)
+  target_sources(qagame PRIVATE game/tce_lua.c)
+  target_compile_definitions(qagame PRIVATE FEATURE_LUA)
+  target_include_directories(qagame PRIVATE vendor/lua)
+  target_link_libraries(qagame PRIVATE tce_lua_runtime)
+endif()
 if(FEATURE_OMNIBOT)
   target_sources(qagame PRIVATE game/etbot/g_etbot_interface.cpp game/tce_omnibot_loadout.c
     vendor/omnibot/Common/BotLoadLibrary.cpp)

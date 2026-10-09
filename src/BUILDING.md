@@ -200,3 +200,12 @@ Omni class IDs: 1 Assault, 3 Recon, 5 Sniper; team IDs remain 1/2.
 `bot tceweapon BotName TH7` selects a primary slot; `SH1 secondary` a sidearm.
 The active gear file, team, class rating, heavy quota and sidearm compatibility
 remain authoritative. Rejected choices do not grant gear or override restrictions.
+
+## Lua-Scripting (Branch lua)
+
+`FEATURE_LUA=ON` baut Lua5.4.9 statisch in qagame ein. Ohne `lua_modules`
+werden keine Scripts geladen. Serverbeispiel und API-Umfang: [lua/README.md](lua/README.md).
+`src/lua/example.lua` nach `tce2/lua/example.lua` kopieren und vor Mapstart
+`set lua_modules "lua/example.lua"` setzen. `lua_status` zeigt die Module.
+Clientmodule brauchen kein Lua. Omni-bot/GameMonkey bleiben unabhaengig.
+Mit `-DFEATURE_LUA=OFF` ist der optionale Hookpfad deaktiviert.

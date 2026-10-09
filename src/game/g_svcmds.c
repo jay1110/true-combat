@@ -4,6 +4,7 @@
 // this file holds commands that can be executed by the server console, but not remote clients
 
 #include "g_local.h"
+#include "tce_lua.h"
 #ifdef FEATURE_OMNIBOT
 #include "g_etbot_interface.h"
 #endif
@@ -1338,6 +1339,9 @@ static void TCE_SvcmdConnectNodes( void ) {
 
 qboolean	ConsoleCommand( void ) {
 	char	cmd[MAX_TOKEN_CHARS];
+	if ( TCE_LuaCommand( -1, qtrue ) ) {
+		return qtrue;
+	}
 
 	trap_Argv( 0, cmd, sizeof( cmd ) );
 #ifdef FEATURE_OMNIBOT

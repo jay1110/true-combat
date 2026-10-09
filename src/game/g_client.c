@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "tce_lua.h"
 #ifdef FEATURE_OMNIBOT
 #include "g_etbot_interface.h"
 #endif
@@ -1119,11 +1120,13 @@ void ClientUserinfoChanged( int clientNum ) {
 	trap_SetConfigstring( CS_PLAYERS + clientNum, s );
 
 	if( !Q_stricmp( oldname, s ) ) {
+		TCE_LuaClientEvent( "et_ClientUserinfoChanged", clientNum );
 		return;
 	}
 
 	G_LogPrintf( "ClientUserinfoChanged: %i %s\n", clientNum, s );
 	G_DPrintf( "ClientUserinfoChanged: %i :: %s\n", clientNum, s );
+	TCE_LuaClientEvent( "et_ClientUserinfoChanged", clientNum );
 }
 
 
@@ -1150,6 +1153,7 @@ restarts.
 /* Whole TC2004c520 / Linux000a3b0c. Keep original reconnect/session gates;
  * TC bot connections intentionally bypass the unrelated SDK AI setup. */
 char *ClientConnect( int clientNum, qboolean firstTime, qboolean isBot ) {
+	const char *luaRejection;
 	char		*value;
 	gclient_t	*client;
 	char		userinfo[MAX_INFO_STRING];
@@ -1200,6 +1204,11 @@ char *ClientConnect( int clientNum, qboolean firstTime, qboolean isBot ) {
 				return "Invalid password";
 			}
 		}
+	}
+
+	luaRejection = TCE_LuaClientConnect( clientNum, firstTime, isBot );
+	if ( luaRejection ) {
+		return (char *)luaRejection;
 	}
 
 	// Gordon: porting q3f flag bug fix
@@ -1526,6 +1535,7 @@ void ClientBegin( int clientNum )
 	// OSP
 	G_smvUpdateClientCSList(ent);
 	// OSP
+	TCE_LuaClientEvent( "et_ClientBegin", clientNum );
 }
 
 gentity_t *SelectSpawnPointFromList( char *list, vec3_t spawn_origin, vec3_t spawn_angles )
@@ -2042,6 +2052,7 @@ void ClientDisconnect( int clientNum ) {
 	if ( !ent->client ) {
 		return;
 	}
+	TCE_LuaClientEvent( "et_ClientDisconnect", clientNum );
 
 
 
