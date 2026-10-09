@@ -9,7 +9,8 @@
 
 #define TCE_LUA_VMS 16
 #define TCE_LUA_SOURCE_MAX (1024*1024)
-typedef struct { lua_State *L; char file[MAX_QPATH], name[128]; int active, budget; } tceLuaVM;
+typedef struct { lua_State *L; char file[MAX_QPATH], name[128]; int active, budget, busy; } tceLuaVM;
+extern void TCE_LuaRegisterEntities(lua_State *L);
 static tceLuaVM vms[TCE_LUA_VMS];
 static char rejectReason[1024];
 static tceLuaVM *VM(lua_State *L) { return *(tceLuaVM **)lua_getextraspace(L); }
@@ -23,12 +24,18 @@ static void Error(tceLuaVM *vm,const char *event) {
     vm->active=0; lua_settop(vm->L,0);
 }
 static int Call(tceLuaVM *vm,const char *event,int args,int results) {
+    int status;
     vm->budget=100; lua_sethook(vm->L,Budget,LUA_MASKCOUNT,10000);
-    if(lua_pcall(vm->L,args,results,0)!=LUA_OK) { Error(vm,event); return 0; }
+    vm->busy++;
+    status=lua_pcall(vm->L,args,results,0);
+    vm->busy--;
+    if(status!=LUA_OK) { Error(vm,event); return 0; }
     return 1;
 }
 static int Begin(tceLuaVM *vm,const char *event) {
-    if(!vm->L || !vm->active) return 0;
+    /* Native setters may trigger client callbacks synchronously. Never clear
+     * the stack of a VM whose callback is still running. Other VMs may listen. */
+    if(!vm->L || !vm->active || vm->busy) return 0;
     lua_settop(vm->L,0);lua_getglobal(vm->L,event);
     if(!lua_isfunction(vm->L,-1)) { lua_settop(vm->L,0);return 0; }
     return 1;
@@ -85,11 +92,13 @@ static void Setup(tceLuaVM *vm) {
     lua_pushnil(L);lua_setglobal(L,"dofile");lua_pushnil(L);lua_setglobal(L,"loadfile");
     lua_pushcfunction(L,Print);lua_setglobal(L,"print");
     luaL_newlib(L,api);
+    TCE_LuaRegisterEntities(L);
 #define CONST(n) lua_pushinteger(L,n);lua_setfield(L,-2,#n)
     CONST(TEAM_AXIS);CONST(TEAM_ALLIES);CONST(TEAM_SPECTATOR);CONST(EXEC_APPEND);
     CONST(CON_CONNECTED);CONST(CON_CONNECTING);CONST(CON_DISCONNECTED);
+    CONST(STAT_HEALTH);CONST(MAX_WEAPONS);CONST(MAX_CLIENTS);CONST(MAX_GENTITIES);
 #undef CONST
-    lua_pushstring(L,"tce2-lua-1");lua_setfield(L,-2,"API_VERSION");lua_setglobal(L,"et");
+    lua_pushstring(L,"tce2-lua-2");lua_setfield(L,-2,"API_VERSION");lua_setglobal(L,"et");
 }
 void TCE_LuaShutdown(int restart) {
     int i;for(i=0;i<TCE_LUA_VMS;i++) {
@@ -148,4 +157,58 @@ qboolean TCE_LuaCommand(int clientNum,qboolean console) {
         if(Call(vm,event,console?1:2,1))handled=lua_isnumber(vm->L,-1)&&lua_tointeger(vm->L,-1)==1;
         lua_settop(vm->L,0);if(handled)return qtrue;
     }return qfalse;
+}
+
+/* Integer event payloads are bounded native game values. A numeric 1 cancels
+ * only the explicitly cancellable events; notification returns are ignored. */
+static qboolean IntegerEvent(const char *event,const int *values,int count,qboolean cancellable) {
+    int i,j;
+    for(i=0;i<TCE_LUA_VMS;i++)if(Begin(&vms[i],event)) {
+        tceLuaVM *vm=&vms[i];int handled=0;
+        for(j=0;j<count;j++)lua_pushinteger(vm->L,values[j]);
+        if(Call(vm,event,count,cancellable?1:0)&&cancellable)
+            handled=lua_isnumber(vm->L,-1)&&lua_tointeger(vm->L,-1)==1;
+        lua_settop(vm->L,0);
+        if(handled)return qtrue;
+    }
+    return qfalse;
+}
+void TCE_LuaSpawn(int clientNum,int revived,int hostage) {
+    int args[3]={clientNum,revived,hostage};
+    IntegerEvent("et_ClientSpawn",args,3,qfalse);
+}
+qboolean TCE_LuaDamage(int target,int attacker,int damage,int dflags,int mod) {
+    int args[5]={target,attacker,damage,dflags,mod};
+    return IntegerEvent("et_Damage",args,5,qtrue);
+}
+void TCE_LuaDeath(int victim,int killer,int mod) {
+    int args[3]={victim,killer,mod};
+    IntegerEvent("et_Obituary",args,3,qfalse);
+}
+qboolean TCE_LuaWeaponFire(int clientNum,int weapon) {
+    int args[2]={clientNum,weapon};
+    return IntegerEvent("et_WeaponFire",args,2,qtrue);
+}
+const char *TCE_LuaChat(int sender,int receiver,const char *text,char *buffer,int size) {
+    int i;const char *current=text;
+    if(size<1)return text;
+    for(i=0;i<TCE_LUA_VMS;i++)if(Begin(&vms[i],"et_Chat")) {
+        tceLuaVM *vm=&vms[i];lua_State *L=vm->L;
+        lua_pushinteger(L,sender);lua_pushinteger(L,receiver);lua_pushstring(L,current);
+        if(Call(vm,"et_Chat",3,1)) {
+            if(lua_isboolean(L,-1)&&!lua_toboolean(L,-1)) {lua_settop(L,0);return NULL;}
+            if(lua_type(L,-1)==LUA_TSTRING) {
+                size_t len,k;const char *s=lua_tolstring(L,-1,&len);
+                if(len>=(size_t)size)len=(size_t)size-1;
+                /* G_SayTo embeds text inside a quoted engine command. */
+                for(k=0;k<len;k++) {
+                    unsigned char c=(unsigned char)s[k];
+                    buffer[k]=(c<32||c==127)?' ':c=='"'?'\'':c=='\\'?'/':(char)c;
+                }
+                buffer[len]=0;current=buffer;
+            }
+        }
+        lua_settop(L,0);
+    }
+    return current;
 }

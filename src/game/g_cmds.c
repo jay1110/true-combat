@@ -1425,6 +1425,7 @@ G_Say
 
 void G_SayTo( gentity_t *ent, gentity_t *other, int mode, int color, const char *name, const char *message, qboolean localize )
 {
+	char luaMessage[MAX_SAY_TEXT];
 	if( !other || !other->inuse || !other->client ) {
 		return;
 	}
@@ -1454,6 +1455,10 @@ void G_SayTo( gentity_t *ent, gentity_t *other, int mode, int color, const char 
 			}
 		}
 
+		/* Filter only recipients already permitted by native chat rules. */
+		message = TCE_LuaChat((int)(ent-g_entities), (int)(other-g_entities),
+			message, luaMessage, sizeof(luaMessage));
+		if (!message) return;
 		trap_SendServerCommand( other-g_entities, va("%s \"%s%c%c%s\" %i %i", mode == SAY_TEAM || mode == SAY_BUDDY ? "tchat" : "chat", name, Q_COLOR_ESCAPE, color, message, ent-g_entities, localize ));
 	}
 }

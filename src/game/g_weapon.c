@@ -7,6 +7,7 @@
 
 
 #include "g_local.h"
+#include "tce_lua.h"
 #ifdef FEATURE_OMNIBOT
 #include "g_etbot_interface.h"
 #endif
@@ -3731,6 +3732,9 @@ void FireWeapon(gentity_t *ent) {
     gclient_t *client = ent->client;
     if (client->ps.pm_type == PM_DEAD) return;
     if (client->ps.persistant[PERS_HWEAPON_USE] && ent->active) return;
+    /* Pmove has already consumed ammunition/played its predicted fire event.
+     * Cancellation here suppresses only authoritative weapon effects. */
+    if (TCE_LuaWeaponFire(ent->s.number, weapon)) return;
     CalcMuzzlePoints(ent, weapon);
     aimSpreadScale = g_userAim.integer ? client->currentAimSpreadScale + 0.15f : 1.0f;
     if (aimSpreadScale > 1) aimSpreadScale = 1;

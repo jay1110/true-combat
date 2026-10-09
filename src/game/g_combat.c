@@ -6,6 +6,7 @@
 */
 
 #include "g_local.h"
+#include "tce_lua.h"
 #ifdef FEATURE_OMNIBOT
 #include "g_etbot_interface.h"
 #define TCE_INTERNAL_BOT(ent) (!Bot_Interface_IsOmnibot((ent)->s.number))
@@ -479,6 +480,8 @@ void player_die( gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int
 	// OSP
 
 	self->client->ps.pm_type = PM_DEAD;
+	/* Notification after the duplicate-death guard and state transition. */
+	TCE_LuaDeath(self->s.number, attacker ? attacker->s.number : ENTITYNUM_WORLD, meansOfDeath);
 
 #ifdef FEATURE_OMNIBOT
     {

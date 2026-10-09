@@ -101,6 +101,9 @@ float G_Damage(gentity_t *targ,gentity_t *inflictor,gentity_t *attacker,
         }
     }
     if(targ->flags&FL_GODMODE)return 0;
+    /* Raw incoming damage, before TC body weighting or health effects. Native
+     * immunity/mover-use/special missile dispatch above retains its ordering. */
+    if(TCE_LuaDamage(targ->s.number,attacker->s.number,damage,dflags,mod))return 0;
     if(damage<1)damage=1;take=damage;
     if(IsHeadShotWeapon(mod)&&client&&wasAlive){
         take=TCE_ApplyBodyDamage(targ,dir,point,damage);if(take==-2)return 1;if(take<0)return 0;

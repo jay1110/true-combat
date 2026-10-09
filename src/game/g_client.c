@@ -2026,6 +2026,7 @@ void ClientSpawn( gentity_t *ent, qboolean revived, qboolean hostage )
 #ifdef FEATURE_OMNIBOT
     Bot_Event_Respawn((int)(ent-g_entities));
 #endif
+	TCE_LuaSpawn((int)(ent-g_entities), revived, hostage);
 }
 
 
