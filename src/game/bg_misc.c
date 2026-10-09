@@ -1068,6 +1068,124 @@ qboolean	BG_CanItemBeGrabbed( const entityState_t *ent, const playerState_t *ps,
 #ifdef CGAMEDLL
 void BG_CalculateSpline_r(splinePath_t *, vec3_t, vec3_t, float);
 #else
+#if defined(GAMEDLL) && defined(_MSC_VER) && defined(_M_IX86)
+/* TC qagame 2002bbc0: complete original frame and retained x87 schedule. */
+enum {
+    calc838OriginX = offsetof(splinePath_t,point) + offsetof(pathCorner_t,origin),
+    calc838OriginY = calc838OriginX + sizeof(float),
+    calc838OriginZ = calc838OriginX + 2*sizeof(float),
+    calc838Count = offsetof(splinePath_t,numControls),
+    calc838Next = offsetof(splinePath_t,next),
+    calc838ControlY = offsetof(splinePath_t,controls) + offsetof(pathCorner_t,origin) + sizeof(float),
+    calc838Stride = sizeof(pathCorner_t)
+};
+typedef char tceSplineCalculateLayout838[(sizeof(float)==4 && sizeof(vec3_t)==12 && sizeof(void*)==4 && offsetof(pathCorner_t,origin)+sizeof(vec3_t)==sizeof(pathCorner_t)) ? 1 : -1];
+__declspec(naked) void BG_CalculateSpline_r(splinePath_t* spline, vec3_t out1, vec3_t out2, float tension) {
+    __asm {
+        SUB ESP,0xe4
+        MOV EDX,dword ptr [ESP + 0xe8]
+        PUSH EBX
+        PUSH ESI
+        PUSH EDI
+        MOV EAX,dword ptr [EDX + calc838OriginX]
+        MOV ESI,dword ptr [EDX + calc838Count]
+        MOV ECX,dword ptr [EDX + calc838OriginY]
+        MOV dword ptr [ESP + 0x18],EAX
+        MOV EAX,dword ptr [EDX + calc838OriginZ]
+        XOR EDI,EDI
+        TEST ESI,ESI
+        LEA EBX,[ESI + 0x2]
+        MOV dword ptr [ESP + 0x1c],ECX
+        MOV dword ptr [ESP + 0x20],EAX
+        JLE calc838_2002bc1c
+        PUSH EBP
+        LEA ECX,[ESP + 0x2c]
+        LEA EAX,[EDX + calc838ControlY]
+        MOV EDI,ESI
+calc838_2002bc01:
+        MOV EBP,dword ptr [EAX + -0x4]
+        ADD EAX,calc838Stride
+        MOV dword ptr [ECX + -0x4],EBP
+        MOV EBP,dword ptr [EAX - calc838Stride]
+        MOV dword ptr [ECX],EBP
+        MOV EBP,dword ptr [EAX - calc838Stride + 4]
+        MOV dword ptr [ECX + 0x4],EBP
+        ADD ECX,0xc
+        DEC ESI
+        JNZ calc838_2002bc01
+        POP EBP
+calc838_2002bc1c:
+        MOV EDX,dword ptr [EDX + calc838Next]
+        TEST EDX,EDX
+        JZ calc838_2002bce2
+        MOV ECX,dword ptr [EDX + calc838OriginX]
+        LEA EAX,[EDI + EDI*0x2]
+        SHL EAX,0x2
+        CMP EBX,0x2
+        MOV dword ptr [ESP + EAX*0x1 + 0x24],ECX
+        MOV ECX,dword ptr [EDX + calc838OriginY]
+        MOV EDX,dword ptr [EDX + calc838OriginZ]
+        MOV dword ptr [ESP + EAX*0x1 + 0x28],ECX
+        MOV dword ptr [ESP + EAX*0x1 + 0x2c],EDX
+        JLE calc838_2002bcac
+        LEA EDX,[EBX + -0x1]
+        ADD EBX,-0x2
+calc838_2002bc50:
+        TEST EDX,EDX
+        JLE calc838_2002bca8
+        LEA EAX,[ESP + 0x18]
+        MOV ECX,EDX
+calc838_2002bc5a:
+        FLD dword ptr [EAX + 0xc]
+        FSUB dword ptr [EAX]
+        FLD dword ptr [EAX + 0x10]
+        FSUB dword ptr [EAX + 0x4]
+        ADD EAX,0xc
+        DEC ECX
+        FSTP dword ptr [ESP + 0x10]
+        FLD dword ptr [EAX + 0x8]
+        FSUB dword ptr [EAX + -0x4]
+        FSTP dword ptr [ESP + 0x14]
+        FMUL dword ptr [ESP + 0x100]
+        FADD dword ptr [EAX + -0xc]
+        FSTP dword ptr [EAX + -0xc]
+        FLD dword ptr [ESP + 0x10]
+        FMUL dword ptr [ESP + 0x100]
+        FADD dword ptr [EAX + -0x8]
+        FSTP dword ptr [EAX + -0x8]
+        FLD dword ptr [ESP + 0x14]
+        FMUL dword ptr [ESP + 0x100]
+        FADD dword ptr [EAX + -0x4]
+        FSTP dword ptr [EAX + -0x4]
+        JNZ calc838_2002bc5a
+calc838_2002bca8:
+        DEC EDX
+        DEC EBX
+        JNZ calc838_2002bc50
+calc838_2002bcac:
+        FLD dword ptr [ESP + 0x18]
+        MOV EAX,dword ptr [ESP + 0xf8]
+        MOV ECX,dword ptr [ESP + 0x1c]
+        MOV EDX,dword ptr [ESP + 0x20]
+        FSTP dword ptr [EAX]
+        FLD dword ptr [ESP + 0x24]
+        MOV dword ptr [EAX + 0x4],ECX
+        MOV ECX,dword ptr [ESP + 0x28]
+        MOV dword ptr [EAX + 0x8],EDX
+        MOV EAX,dword ptr [ESP + 0xfc]
+        MOV EDX,dword ptr [ESP + 0x2c]
+        FSTP dword ptr [EAX]
+        MOV dword ptr [EAX + 0x4],ECX
+        MOV dword ptr [EAX + 0x8],EDX
+calc838_2002bce2:
+        POP EDI
+        POP ESI
+        POP EBX
+        ADD ESP,0xe4
+        RET
+    }
+}
+#else
 void BG_CalculateSpline_r(splinePath_t* spline, vec3_t out1, vec3_t out2, float tension) {
 	vec3_t points[18];
 	int i;
@@ -1107,11 +1225,90 @@ void BG_CalculateSpline_r(splinePath_t* spline, vec3_t out1, vec3_t out2, float 
 	VectorCopy( points[0], out1 );
 	VectorCopy( points[1], out2 );
 }
+#endif
 
 #endif
 
 #ifdef CGAMEDLL
 qboolean BG_TraverseSpline(float *, splinePath_t **);
+#else
+#if defined(GAMEDLL) && defined(_MSC_VER) && defined(_M_IX86)
+/* TC qagame2002bcf0: retain values across FST and the following comparisons. */
+static const float tceTraverseOne839 = 1.0f, tceTraverseZero839 = 0.0f;
+enum {
+    traverse839Length = offsetof(splinePath_t,length),
+    traverse839Next = offsetof(splinePath_t,next),
+    traverse839Prev = offsetof(splinePath_t,prev)
+};
+__declspec(naked) qboolean BG_TraverseSpline(float* deltaTime, splinePath_t** pSpline) {
+    __asm {
+        MOV ECX,dword ptr [ESP + 0x4]
+        PUSH ESI
+        MOV ESI,dword ptr [ESP + 0xc]
+        FLD dword ptr [ECX]
+        FCOMP dword ptr [tceTraverseOne839]
+        FNSTSW AX
+        TEST AH,0x41
+        JNZ traverse839_2002bd52
+traverse839_2002bd08:
+        FLD dword ptr [ECX]
+        FSUB dword ptr [tceTraverseOne839]
+        FST dword ptr [ECX]
+        MOV EAX,dword ptr [ESI]
+        MOV EDX,dword ptr [EAX + traverse839Next]
+        FMUL dword ptr [EAX + traverse839Length]
+        TEST EDX,EDX
+        JZ traverse839_2002bdae
+        FLD dword ptr [EDX + traverse839Length]
+        FCOMP dword ptr [tceTraverseZero839]
+        FNSTSW AX
+        TEST AH,0x40
+        JNZ traverse839_2002bdae
+        MOV dword ptr [ESI],EDX
+        FDIV dword ptr [EDX + traverse839Length]
+        FST dword ptr [ECX]
+        FCOMP dword ptr [tceTraverseOne839]
+        FNSTSW AX
+        TEST AH,0x41
+        JZ traverse839_2002bd08
+traverse839_2002bd52:
+        FLD dword ptr [ECX]
+        FCOMP dword ptr [tceTraverseZero839]
+        FNSTSW AX
+        TEST AH,0x1
+        JZ traverse839_2002bda7
+traverse839_2002bd61:
+        MOV EAX,dword ptr [ESI]
+        FLD dword ptr [EAX + traverse839Length]
+        FMUL dword ptr [ECX]
+        MOV EDX,dword ptr [EAX + traverse839Prev]
+        TEST EDX,EDX
+        FCHS
+        JZ traverse839_2002bdae
+        FLD dword ptr [EDX + traverse839Length]
+        FCOMP dword ptr [tceTraverseZero839]
+        FNSTSW AX
+        TEST AH,0x40
+        JNZ traverse839_2002bdae
+        MOV dword ptr [ESI],EDX
+        FDIV dword ptr [EDX + traverse839Length]
+        FSUBR dword ptr [tceTraverseOne839]
+        FST dword ptr [ECX]
+        FCOMP dword ptr [tceTraverseZero839]
+        FNSTSW AX
+        TEST AH,0x1
+        JNZ traverse839_2002bd61
+traverse839_2002bda7:
+        MOV EAX,0x1
+        POP ESI
+        RET
+traverse839_2002bdae:
+        FSTP ST(0)
+        XOR EAX,EAX
+        POP ESI
+        RET
+    }
+}
 #else
 qboolean BG_TraverseSpline( float* deltaTime, splinePath_t** pSpline) {
 	float dist;
@@ -1143,6 +1340,7 @@ qboolean BG_TraverseSpline( float* deltaTime, splinePath_t** pSpline) {
 
 	return qtrue;
 }
+#endif
 
 #endif
 
@@ -1153,12 +1351,11 @@ BG_RaySphereIntersection
 ================
 */
 
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(CGAMEDLL)
-/* TC cgame 30003ed0: original x87 operand/store order. */
+#if defined(_MSC_VER) && defined(_M_IX86) && (defined(CGAMEDLL) || defined(GAMEDLL))
+/* TC cgame 30003ed0 / qagame 2002bdc0: original x87 operand/store order. */
 static const float tceSplineZero828 = 0.0f;
 static const float tceSplineHalf828 = 0.5f;
 static const float tceSplineFour828 = 4.0f;
-static const float tceSplineGranularity828 = 0.0625f;
 typedef char tceSplineSegmentLayout828[(offsetof(splineSegment_t,start)==0 && offsetof(splineSegment_t,v_norm)==12 && offsetof(splineSegment_t,length)==24 && sizeof(splineSegment_t)==28 && MAX_SPLINE_SEGMENTS==16) ? 1 : -1];
 __declspec(naked) qboolean BG_RaySphereIntersection( float radius, vec3_t origin, splineSegment_t* path, float *t0, float *t1 ) {
     __asm {
@@ -1245,8 +1442,8 @@ qboolean BG_RaySphereIntersection( float radius, vec3_t origin, splineSegment_t*
 }
 #endif
 
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(CGAMEDLL)
-/* TC30003f70: original ST0/argument-slot contract; fifth native argument unused. */
+#if defined(_MSC_VER) && defined(_M_IX86) && (defined(CGAMEDLL) || defined(GAMEDLL))
+/* TC cgame30003f70 / qagame2002be60: ST0/argument slots; fifth native argument unused. */
 static const float tcePathSegments829 = 16.0f, tcePathGranularity829 = 0.0625f;
 static const float tcePathZero829 = 0.0f, tcePathOne829 = 1.0f;
 static double (__cdecl *const tcePathFloor829)(double) = floor;
@@ -1631,8 +1828,10 @@ void BG_LinearPathOrigin2(float radius, splinePath_t** pSpline, float *deltaTime
 }
 #endif
 
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(CGAMEDLL)
-/* TC cgame 300042a0: original x87 operand/store order. */
+#if defined(_MSC_VER) && defined(_M_IX86) && (defined(CGAMEDLL) || defined(GAMEDLL))
+/* TC cgame 300042a0 / qagame 2002c190: original x87 operand/store order. */
+static const float tceSplineGranularity828 = 0.0625f;
+typedef char tceComputeSegmentLayout838[(offsetof(splineSegment_t,start)==0 && offsetof(splineSegment_t,v_norm)==12 && offsetof(splineSegment_t,length)==24 && sizeof(splineSegment_t)==28 && MAX_SPLINE_SEGMENTS==16) ? 1 : -1];
 enum { spline828SegmentY = offsetof(splinePath_t,segments) + sizeof(float) };
 __declspec(naked) void BG_ComputeSegments(splinePath_t* pSpline) {
     __asm {
@@ -3398,8 +3597,8 @@ void BG_AddSplineControl(splinePath_t* spline, const char* name) {
 	spline->numControls++;
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(CGAMEDLL)
-/* TC cgame 30005a10: preserve retained x87 intermediates and loop comparison. */
+#if defined(_MSC_VER) && defined(_M_IX86) && (defined(CGAMEDLL) || defined(GAMEDLL))
+/* TC cgame 30005a10 / qagame 2002df50: retain x87 intermediates and loop comparison. */
 static const float tceSplineZero826 = 0.0f;
 static const float tceSplineOne826 = 1.0f;
 static const float tceSplineStep826 = 0.01f;

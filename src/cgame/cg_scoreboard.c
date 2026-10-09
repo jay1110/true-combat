@@ -567,6 +567,10 @@ static void TCE_ScoreClientRow(int x,int y,int index,const float *color,float fa
     ctx.locateMergedClient=TCE_ScoreLocateMerged;
     TCE_WM_DrawClientScore(x,y,score,color,fade,&ctx);
 }
+static int TCE_ObjectivesReinforce(int menu) {
+    return CG_CalculateReinfTime((qboolean)menu);
+}
+
 static int TCE_ObjectivesWidth(const char *text,float scale) {
     return CG_Text_Width_Ext(text,scale,0,&cgs.media.limboFont1);
 }
@@ -580,7 +584,7 @@ int WM_DrawObjectives(int x,int y,int width,float fade) {
     c.campaignMap=cgs.currentCampaignMap;c.campaignMaps=cgs.campaignData.mapCount;c.timelimit=cgs.timelimit;
     c.backColor=clrUiBack;c.barColor=clrUiBar;c.black=colorBlack;
     c.config=CG_ConfigString;c.infoValue=Info_ValueForKey;c.translate=TCE_ScoreTranslate;
-    c.reinforce=CG_CalculateReinfTime;c.width=TCE_ObjectivesWidth;
+    c.reinforce=TCE_ObjectivesReinforce;c.width=TCE_ObjectivesWidth;
     c.fill=TCE_ScoreFill;c.border=TCE_ScoreBorder;c.text=TCE_ScoreText;
     return TCE_WM_DrawObjectives(x,y,width,fade,&c);
 }

@@ -27,11 +27,33 @@
 /src/ui/**
 !/src/**/
 !/src/**/*.c
+!/src/**/*.cpp
 !/src/**/*.h
 !/src/**/*.inc
 !/src/**/*.def
 !/src/**/*.vcproj
 !/src/**/*.dsp
+
+# Vendored Omni-bot production sources, build inputs and attribution only.
+!/src/vendor/
+/src/vendor/**
+!/src/vendor/**/
+!/src/vendor/**/*.c
+!/src/vendor/**/*.cpp
+!/src/vendor/**/*.h
+!/src/vendor/**/*.inl
+!/src/vendor/**/*.mcr
+!/src/vendor/**/*.rc
+!/src/vendor/**/CMakeLists.txt
+!/src/vendor/**/*.cmake
+!/src/vendor/**/*.in
+!/src/vendor/**/IMPORT-NOTICE.txt
+!/src/vendor/**/LICENSE*
+!/src/vendor/**/COPYING*
+!/src/vendor/**/COPYRIGHT*
+!/src/vendor/**/LGPL.txt
+!/src/vendor/**/CREDITS.txt
+!/src/vendor/**/README*
 /src/cmake/*
 !/src/cmake/*.cmake
 # Overrides the source-extension exceptions above for local-only work.
@@ -61,3 +83,6 @@
 **/*.lib
 **/*.suo
 **/*.user
+
+# Production Omni-bot TCE behavior scripts. Runtime assets stay local.
+!/src/vendor/omni-bot/tce2-scripts/**/*.gm

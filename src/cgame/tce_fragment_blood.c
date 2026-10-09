@@ -11,7 +11,7 @@ void CG_BloodTrail(localEntity_t *le) {
         + (double)le->pos.trDelta[2]*le->pos.trDelta[2]);
     if (speed < FLT_EPSILON) return;
     /* __ftol returns the low 32 bits of its signed 64-bit conversion. */
-    step = (int)(unsigned)(__int64)(3000.0 / speed);
+    step = (int)(unsigned)(long long)(3000.0 / speed);
     if (step <= 0) return;
     t = (int)((unsigned)cg.time - (unsigned)cg.frametime + (unsigned)step);
     t = (int)((unsigned)(t / step) * (unsigned)step);

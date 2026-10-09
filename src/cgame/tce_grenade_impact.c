@@ -43,6 +43,14 @@ static void explosion(const char *name,vec3_t p,vec3_t v,int duration,int first,
 static void farSound(const vec3_t p,int entity,int channel,int sound,int flags,int amount) {
     trap_S_StartSoundExVControl((float *)p,entity,channel,sound,flags,amount);
 }
+static void impactSound(const vec3_t p,int entity,int channel,int sound,int amount) {
+    trap_S_StartSoundVControl((float *)p,entity,channel,sound,amount);
+}
+static void projectImpactDecal(int shader,int count,const vec3_t points,
+    const vec4_t projection,const vec4_t color,int life,int fade) {
+    trap_R_ProjectDecal(shader,count,(vec3_t *)points,(float *)projection,
+        (float *)color,life,fade);
+}
 static int surfaceType(int material) { return (int)BG_SurfaceType2Flag((unsigned)material); }
 void CG_TCEMissileHitWall(int weapon,int effect,vec3_t origin,vec3_t normal,vec3_t direction,unsigned flags,int forceEffect,int materialIsType) {
     tce_wallRendererContext_t s;
@@ -62,7 +70,7 @@ void CG_TCEMissileHitWall(int weapon,int effect,vec3_t origin,vec3_t normal,vec3
     s.cmPointContents=trap_CM_PointContents;s.boxTrace=trap_CM_BoxTrace;
     s.dirtParticles=CG_AddDirtBulletParticles;s.ripple=CG_WaterRipple;
     s.eliteMark=mark;s.impactMark=CG_ImpactMark;
-    s.sound=trap_S_StartSound;s.soundEx=farSound;s.projectDecal=trap_R_ProjectDecal;
+    s.sound=impactSound;s.soundEx=farSound;s.projectDecal=projectImpactDecal;
     s.pointContents=CG_PointContents;s.particleExplosion=explosion;s.debris=CG_AddDebris;
     s.media.burn=cgs.media.burnMarkShader;
     s.media.explosionFlash=cgs.media.tceImpactFlare;

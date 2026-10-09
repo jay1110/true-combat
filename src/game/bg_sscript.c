@@ -43,6 +43,34 @@ qboolean BG_SS_DeleteSpeaker( int index )
 	return qtrue;
 }
 
+/* TC Windows2003d3d0: increment before the exact 38-dword forward copy. */
+#if defined(_MSC_VER) && defined(_M_IX86)
+typedef char speaker835Layout[(sizeof(bg_speaker_t)==152 && MAX_SCRIPTSPEAKERS==256) ? 1 : -1];
+__declspec(naked) qboolean BG_SS_StoreSpeaker(bg_speaker_t *speaker) {
+    __asm {
+        MOV EAX,[numScriptSpeakers]
+        CMP EAX,0x100
+        JL speaker835Store
+        XOR EAX,EAX
+        RET
+speaker835Store:
+        LEA ECX,[EAX + EAX*8]
+        PUSH ESI
+        MOV ESI,dword ptr [ESP + 8]
+        PUSH EDI
+        LEA EDX,[EAX + ECX*2]
+        INC EAX
+        MOV ECX,0x26
+        MOV [numScriptSpeakers],EAX
+        LEA EDI,[EDX*8 + scriptSpeakers]
+        MOV EAX,1
+        REP MOVSD
+        POP EDI
+        POP ESI
+        RET
+    }
+}
+#else
 qboolean BG_SS_StoreSpeaker( bg_speaker_t *speaker )
 {
 	if( numScriptSpeakers >= MAX_SCRIPTSPEAKERS ) {
@@ -53,6 +81,7 @@ qboolean BG_SS_StoreSpeaker( bg_speaker_t *speaker )
 
 	return qtrue;
 }
+#endif
 
 static qboolean BG_SS_ParseError( int handle, char *format, ... )
 {

@@ -1,5 +1,6 @@
 #ifndef TCE_WEAPON_MEDIA_H
 #define TCE_WEAPON_MEDIA_H
+#include <stddef.h>
 /* Windows TC:E media ABI. Unknown regions remain explicit until recovered. */
 typedef struct {
     char tagName[64];

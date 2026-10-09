@@ -47,7 +47,7 @@ float	pm_waterWadeScale	= 0.70;
 float	pm_slagSwimScale	= 0.30;
 float	pm_slagWadeScale	= 0.70;
 
-float	pm_proneSpeedScale	= 0.21;	// was: 0.18 (too slow) then: 0.24 (too fast)
+float	pm_proneSpeedScale	= 0.12f; // TC original movement scale (mutable).
 
 float	pm_accelerate		= 10;
 float	pm_airaccelerate	= 1;
@@ -1498,7 +1498,640 @@ static void PM_SetMovementDir( void ) {
 PM_CheckJump
 =============
 */
-/* TC:E Windows3000de50 / Linux000e65c2: momentum/stamina-scaled jump. */
+/* TC:E qagame200361a0 / Linux00094d6a; MSVC32 instruction schedule below. */
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* TC qagame200361a0/20036610: retained x87 values, native field bindings. */
+static void PM_WeaponTruncateST0(void);
+enum {
+    movementPs833 = offsetof(pmove_t,ps),
+    movementExt833 = offsetof(pmove_t,pmext),
+    movementCharacter833 = offsetof(pmove_t,character),
+    movementCmd833 = offsetof(pmove_t,cmd),
+    movementForwardCmd833 = offsetof(pmove_t,cmd)+offsetof(usercmd_t,forwardmove),
+    movementRightCmd833 = offsetof(pmove_t,cmd)+offsetof(usercmd_t,rightmove),
+    movementUpCmd833 = offsetof(pmove_t,cmd)+offsetof(usercmd_t,upmove),
+    movementSprint833 = offsetof(pmoveExt_t,sprintTime),
+    movementAnim833 = offsetof(bg_character_t,animModelInfo),
+    movementFlags833 = offsetof(playerState_t,pm_flags),
+    movementTime833 = offsetof(playerState_t,pm_time),
+    movementGround833 = offsetof(playerState_t,groundEntityNum),
+    movementEFlags833 = offsetof(playerState_t,eFlags),
+    movementWeaponState833 = offsetof(playerState_t,weaponstate),
+    movementViewHeight833 = offsetof(playerState_t,viewheight),
+    movementOrigin833 = offsetof(playerState_t,origin)+0*sizeof(float),
+    movementOriginY833 = offsetof(playerState_t,origin)+1*sizeof(float),
+    movementOriginZ833 = offsetof(playerState_t,origin)+2*sizeof(float),
+    movementVelocity833 = offsetof(playerState_t,velocity)+0*sizeof(float),
+    movementVelocityY833 = offsetof(playerState_t,velocity)+1*sizeof(float),
+    movementVelocityZ833 = offsetof(playerState_t,velocity)+2*sizeof(float),
+    movementSeed833 = offsetof(playerState_t,stats)+STAT_TCE_SHOT_SEED*sizeof(int),
+    movementWeaponFlags833 = offsetof(playerState_t,stats)+STAT_TCE_WEAPON_FLAGS*sizeof(int),
+    movementTceFlags833 = offsetof(playerState_t,stats)+STAT_TCE_FLAGS*sizeof(int),
+    movementInstability833 = offsetof(playerState_t,stats)+STAT_TCE_MOVEMENT_INSTABILITY*sizeof(int),
+    movementPhase833 = offsetof(playerState_t,stats)+STAT_TCE_AIM_PHASE*sizeof(int),
+    movementPersistent833 = offsetof(playerState_t,persistant)+14*sizeof(int),
+    movementFrameTime833 = offsetof(pml_t,frametime),
+    movementGroundPlane833 = offsetof(pml_t,groundPlane),
+    movementWalking833 = offsetof(pml_t,walking),
+    movementForward833 = offsetof(pml_t,forward),
+    movementRight833 = offsetof(pml_t,right)
+};
+static const unsigned int movementK200ac100 = 0x00000000u;
+static const unsigned int movementK200ac110 = 0x3f800000u;
+static const unsigned int movementK200ac180 = 0x3f000000u;
+static const unsigned int movementK200ac2b8 = 0x41200000u;
+static const unsigned int movementK200ac330 = 0x42480000u;
+static const unsigned int movementK200ac3ac = 0x447a0000u;
+static const unsigned int movementK200ac484 = 0x3a83126fu;
+static const unsigned int movementK200ac6e8 = 0x3fa00000u;
+static const unsigned int movementK200ac708[2] = { 0x00000000u, 0x3ff80000u };
+static const unsigned int movementK200ac744 = 0x3c010204u;
+static const unsigned int movementK200ac7cc = 0x43870000u;
+static const unsigned int movementK200ac7d0 = 0x3f34fdf4u;
+typedef char movementScalarLayout833[(sizeof(float)==4 && sizeof(int)==4 && sizeof(vec3_t)==12 && EV_JUMP==24 && ANIM_ET_JUMP==4 && ANIM_ET_JUMPBK==5) ? 1 : -1];
+static __declspec(naked) qboolean PM_CheckJump(void) {
+    __asm {
+    movementAt200361a0:
+        SUB ESP,0x14
+    movementAt200361a3:
+        PUSH ESI
+    movementAt200361a4:
+        MOV ESI,dword ptr [pm]
+    movementAt200361aa:
+        MOV dword ptr [ESP + 0x4],0x3f800000
+    movementAt200361b2:
+        MOV ECX,dword ptr [ESI + movementPs833]
+    movementAt200361b4:
+        MOV EAX,dword ptr [ECX + movementEFlags833]
+    movementAt200361b7:
+        TEST EAX,0x80000
+    movementAt200361bc:
+        JZ movementAt200361c5
+    movementAt200361be:
+        XOR EAX,EAX
+    movementAt200361c0:
+        POP ESI
+    movementAt200361c1:
+        ADD ESP,0x14
+    movementAt200361c4:
+        RET
+    movementAt200361c5:
+        MOV EDX,dword ptr [ECX + movementFlags833]
+    movementAt200361c8:
+        TEST DL,0x1
+    movementAt200361cb:
+        JZ movementAt200361d4
+    movementAt200361cd:
+        XOR EAX,EAX
+    movementAt200361cf:
+        POP ESI
+    movementAt200361d0:
+        ADD ESP,0x14
+    movementAt200361d3:
+        RET
+    movementAt200361d4:
+        TEST EAX,0x100000
+    movementAt200361d9:
+        JZ movementAt200361e2
+    movementAt200361db:
+        XOR EAX,EAX
+    movementAt200361dd:
+        POP ESI
+    movementAt200361de:
+        ADD ESP,0x14
+    movementAt200361e1:
+        RET
+    movementAt200361e2:
+        MOV EAX,dword ptr [ECX + movementWeaponFlags833]
+    movementAt200361e8:
+        TEST AH,0x10
+    movementAt200361eb:
+        JZ movementAt200361f4
+    movementAt200361ed:
+        XOR EAX,EAX
+    movementAt200361ef:
+        POP ESI
+    movementAt200361f0:
+        ADD ESP,0x14
+    movementAt200361f3:
+        RET
+    movementAt200361f4:
+        MOV EAX,dword ptr [ECX + movementGround833]
+    movementAt200361f7:
+        CMP EAX,0x40
+    movementAt200361fa:
+        JGE movementAt20036203
+    movementAt200361fc:
+        XOR EAX,EAX
+    movementAt200361fe:
+        POP ESI
+    movementAt200361ff:
+        ADD ESP,0x14
+    movementAt20036202:
+        RET
+    movementAt20036203:
+        TEST DL,0x4
+    movementAt20036206:
+        JZ movementAt2003620f
+    movementAt20036208:
+        XOR EAX,EAX
+    movementAt2003620a:
+        POP ESI
+    movementAt2003620b:
+        ADD ESP,0x14
+    movementAt2003620e:
+        RET
+    movementAt2003620f:
+        CMP EAX,0x3ff
+    movementAt20036214:
+        JNZ movementAt2003621d
+    movementAt20036216:
+        XOR EAX,EAX
+    movementAt20036218:
+        POP ESI
+    movementAt20036219:
+        ADD ESP,0x14
+    movementAt2003621c:
+        RET
+    movementAt2003621d:
+        TEST DH,0x2
+    movementAt20036220:
+        JZ movementAt20036229
+    movementAt20036222:
+        XOR EAX,EAX
+    movementAt20036224:
+        POP ESI
+    movementAt20036225:
+        ADD ESP,0x14
+    movementAt20036228:
+        RET
+    movementAt20036229:
+        CMP byte ptr [ESI + movementUpCmd833],0xa
+    movementAt2003622d:
+        JGE movementAt20036236
+    movementAt2003622f:
+        XOR EAX,EAX
+    movementAt20036231:
+        POP ESI
+    movementAt20036232:
+        ADD ESP,0x14
+    movementAt20036235:
+        RET
+    movementAt20036236:
+        TEST DL,0x2
+    movementAt20036239:
+        JZ movementAt20036246
+    movementAt2003623b:
+        MOV byte ptr [ESI + movementUpCmd833],0x0
+    movementAt2003623f:
+        XOR EAX,EAX
+    movementAt20036241:
+        POP ESI
+    movementAt20036242:
+        ADD ESP,0x14
+    movementAt20036245:
+        RET
+    movementAt20036246:
+        TEST byte ptr [ECX + movementTceFlags833],0x40
+    movementAt2003624d:
+        JNZ movementAt200362ac
+    movementAt2003624f:
+        MOV EAX,dword ptr [ECX + movementTime833]
+    movementAt20036252:
+        CMP EAX,0x1f4
+    movementAt20036257:
+        MOV dword ptr [ESP + 0x8],EAX
+    movementAt2003625b:
+        JLE movementAt20036268
+    movementAt2003625d:
+        MOV byte ptr [ESI + movementUpCmd833],0x0
+    movementAt20036261:
+        XOR EAX,EAX
+    movementAt20036263:
+        POP ESI
+    movementAt20036264:
+        ADD ESP,0x14
+    movementAt20036267:
+        RET
+    movementAt20036268:
+        TEST DL,0x20
+    movementAt2003626b:
+        JZ movementAt200362ac
+    movementAt2003626d:
+        TEST EAX,EAX
+    movementAt2003626f:
+        JZ movementAt200362ac
+    movementAt20036271:
+        CMP EAX,0x258
+    movementAt20036276:
+        JLE movementAt20036283
+    movementAt20036278:
+        MOV byte ptr [ESI + movementUpCmd833],0x0
+    movementAt2003627c:
+        XOR EAX,EAX
+    movementAt2003627e:
+        POP ESI
+    movementAt2003627f:
+        ADD ESP,0x14
+    movementAt20036282:
+        RET
+    movementAt20036283:
+        FILD dword ptr [ESP + 0x8]
+    movementAt20036287:
+        FMUL dword ptr [movementK200ac484]
+    movementAt2003628d:
+        FSUBR dword ptr [movementK200ac110]
+    movementAt20036293:
+        FST dword ptr [ESP + 0x4]
+    movementAt20036297:
+        FCOMP dword ptr [movementK200ac100]
+    movementAt2003629d:
+        FNSTSW AX
+    movementAt2003629f:
+        TEST AH,0x1
+    movementAt200362a2:
+        JZ movementAt200362ac
+    movementAt200362a4:
+        MOV dword ptr [ESP + 0x4],0x0
+    movementAt200362ac:
+        FLD dword ptr [ECX + movementVelocityY833]
+    movementAt200362af:
+        FLD dword ptr [ECX + movementVelocity833]
+    movementAt200362b2:
+        LEA EAX,[ECX + movementVelocity833]
+    movementAt200362b5:
+        FLD ST(0)
+    movementAt200362b7:
+        FMUL ST(0),ST(1)
+    movementAt200362b9:
+        FLD ST(2)
+    movementAt200362bb:
+        FMUL ST(0),ST(3)
+    movementAt200362bd:
+        PUSH EAX
+    movementAt200362be:
+        FADDP ST(1),ST(0)
+    movementAt200362c0:
+        FSQRT
+    movementAt200362c2:
+        FSTP dword ptr [ESP + 0xc]
+    movementAt200362c6:
+        FSTP ST(0)
+    movementAt200362c8:
+        FSTP ST(0)
+    movementAt200362ca:
+        CALL VectorLength
+    movementAt200362cf:
+        FCOMP dword ptr [movementK200ac330]
+    movementAt200362d5:
+        MOV ECX,dword ptr [pm]
+    movementAt200362db:
+        ADD ESP,0x4
+    movementAt200362de:
+        FNSTSW AX
+    movementAt200362e0:
+        TEST AH,0x1
+    movementAt200362e3:
+        JZ movementAt200362ec
+    movementAt200362e5:
+        MOV AL,byte ptr [ECX + movementForwardCmd833]
+    movementAt200362e8:
+        TEST AL,AL
+    movementAt200362ea:
+        JNZ movementAt2003631c
+    movementAt200362ec:
+        MOV EAX,dword ptr [ECX + movementPs833]
+    movementAt200362ee:
+        TEST byte ptr [EAX + movementTceFlags833],0x40
+    movementAt200362f5:
+        JNZ movementAt2003631c
+    movementAt200362f7:
+        FLD dword ptr [ESP + 0x4]
+    movementAt200362fb:
+        MOV EDX,dword ptr [ECX + movementExt833]
+    movementAt200362fe:
+        FMUL dword ptr [movementK200ac7d0]
+    movementAt20036304:
+        CMP dword ptr [EDX + movementSprint833],0x2ee
+    movementAt2003630b:
+        FSTP dword ptr [ESP + 0x4]
+    movementAt2003630f:
+        JGE movementAt2003631c
+    movementAt20036311:
+        MOV byte ptr [ECX + movementUpCmd833],0x0
+    movementAt20036315:
+        XOR EAX,EAX
+    movementAt20036317:
+        POP ESI
+    movementAt20036318:
+        ADD ESP,0x14
+    movementAt2003631b:
+        RET
+    movementAt2003631c:
+        FLD dword ptr [ESP + 0x8]
+    movementAt20036320:
+        FCOMP dword ptr [movementK200ac2b8]
+    movementAt20036326:
+        FNSTSW AX
+    movementAt20036328:
+        TEST AH,0x41
+    movementAt2003632b:
+        JNZ movementAt200363b5
+    movementAt20036331:
+        MOV AL,byte ptr [ECX + movementForwardCmd833]
+    movementAt20036334:
+        TEST AL,AL
+    movementAt20036336:
+        JNZ movementAt2003633f
+    movementAt20036338:
+        MOV AL,byte ptr [ECX + movementRightCmd833]
+    movementAt2003633b:
+        TEST AL,AL
+    movementAt2003633d:
+        JZ movementAt200363b5
+    movementAt2003633f:
+        MOVSX EAX,byte ptr [ECX + movementForwardCmd833]
+    movementAt20036343:
+        MOV dword ptr [ESP + 0x8],EAX
+    movementAt20036347:
+        LEA EDX,[ESP + 0xc]
+    movementAt2003634b:
+        FILD dword ptr [ESP + 0x8]
+    movementAt2003634f:
+        PUSH EDX
+    movementAt20036350:
+        FMUL dword ptr [movementK200ac744]
+    movementAt20036356:
+        FSTP dword ptr [ESP + 0x10]
+    movementAt2003635a:
+        MOVSX ECX,byte ptr [ECX + movementRightCmd833]
+    movementAt2003635e:
+        MOV dword ptr [ESP + 0xc],ECX
+    movementAt20036362:
+        MOV dword ptr [ESP + 0x18],0x0
+    movementAt2003636a:
+        FILD dword ptr [ESP + 0xc]
+    movementAt2003636e:
+        FMUL dword ptr [movementK200ac744]
+    movementAt20036374:
+        FSTP dword ptr [ESP + 0x14]
+    movementAt20036378:
+        CALL VectorNormalize
+    movementAt2003637d:
+        FSTP ST(0)
+    movementAt2003637f:
+        FLD dword ptr [ESP + 0x10]
+    movementAt20036383:
+        FADD dword ptr [movementK200ac110]
+    movementAt20036389:
+        ADD ESP,0x4
+    movementAt2003638c:
+        FMUL dword ptr [movementK200ac180]
+    movementAt20036392:
+        FCOM dword ptr [movementK200ac180]
+    movementAt20036398:
+        FNSTSW AX
+    movementAt2003639a:
+        TEST AH,0x1
+    movementAt2003639d:
+        JZ movementAt200363a7
+    movementAt2003639f:
+        FSTP ST(0)
+    movementAt200363a1:
+        FLD dword ptr [movementK200ac180]
+    movementAt200363a7:
+        FMUL dword ptr [ESP + 0x4]
+    movementAt200363ab:
+        MOV ECX,dword ptr [pm]
+    movementAt200363b1:
+        FSTP dword ptr [ESP + 0x4]
+    movementAt200363b5:
+        MOV ECX,dword ptr [ECX + movementPs833]
+    movementAt200363b7:
+        MOV EDX,dword ptr [ECX + movementWeaponFlags833]
+    movementAt200363bd:
+        OR DH,0x10
+    movementAt200363c0:
+        MOV dword ptr [ECX + movementWeaponFlags833],EDX
+    movementAt200363c6:
+        MOV EAX,[pm]
+    movementAt200363cb:
+        MOV ECX,dword ptr [EAX + movementPs833]
+    movementAt200363cd:
+        MOV dword ptr [ECX + movementInstability833],0x3e8
+    movementAt200363d7:
+        MOV EAX,[pm]
+    movementAt200363dc:
+        MOV EDX,dword ptr [EAX + movementPs833]
+    movementAt200363de:
+        CMP dword ptr [EDX + movementWeaponState833],0x7
+    movementAt200363e5:
+        JZ movementAt2003643f
+    movementAt200363e7:
+        MOV EAX,EDX
+    movementAt200363e9:
+        LEA EDX,[ESP + 0x8]
+    movementAt200363ed:
+        PUSH EDX
+    movementAt200363ee:
+        MOV ECX,dword ptr [EAX + movementSeed833]
+    movementAt200363f4:
+        MOV dword ptr [ESP + 0xc],ECX
+    movementAt200363f8:
+        CALL Q_random
+    movementAt200363fd:
+        FMUL dword ptr [movementK200ac3ac]
+    movementAt20036403:
+        ADD ESP,0x4
+    movementAt20036406:
+        CALL PM_WeaponTruncateST0
+    movementAt2003640b:
+        MOV ECX,dword ptr [pm]
+    movementAt20036411:
+        MOV EDX,dword ptr [ECX + movementPs833]
+    movementAt20036413:
+        MOV dword ptr [EDX + movementPhase833],EAX
+    movementAt20036419:
+        MOV EAX,[pm]
+    movementAt2003641e:
+        MOV ECX,dword ptr [EAX + movementPs833]
+    movementAt20036420:
+        MOV EDX,dword ptr [ECX + movementPhase833]
+    movementAt20036426:
+        CMP EDX,0x3e8
+    movementAt2003642c:
+        JLE movementAt2003643f
+    movementAt2003642e:
+        ADD EDX,0xfffffc18
+    movementAt20036434:
+        MOV dword ptr [ECX + movementPhase833],EDX
+    movementAt2003643a:
+        MOV EAX,[pm]
+    movementAt2003643f:
+        MOV ECX,dword ptr [EAX + movementPs833]
+    movementAt20036441:
+        MOV EDX,dword ptr [ECX + movementTceFlags833]
+    movementAt20036447:
+        TEST DH,0x2
+    movementAt2003644a:
+        JZ movementAt2003645a
+    movementAt2003644c:
+        FLD dword ptr [ESP + 0x4]
+    movementAt20036450:
+        FMUL dword ptr [movementK200ac6e8]
+    movementAt20036456:
+        FSTP dword ptr [ESP + 0x4]
+    movementAt2003645a:
+        XOR ESI,ESI
+    movementAt2003645c:
+        PUSH 0x18
+    movementAt2003645e:
+        MOV dword ptr [pml + movementGroundPlane833],ESI
+    movementAt20036464:
+        MOV dword ptr [pml + movementWalking833],ESI
+    movementAt2003646a:
+        MOV EAX,dword ptr [EAX + movementPs833]
+    movementAt2003646c:
+        FLD dword ptr [ESP + 0x8]
+    movementAt20036470:
+        MOV EDX,dword ptr [EAX + movementFlags833]
+    movementAt20036473:
+        OR EDX,0x2
+    movementAt20036476:
+        MOV dword ptr [EAX + movementFlags833],EDX
+    movementAt20036479:
+        MOV EDX,dword ptr [pm]
+    movementAt2003647f:
+        FMUL dword ptr [movementK200ac7cc]
+    movementAt20036485:
+        MOV EAX,dword ptr [EDX + movementPs833]
+    movementAt20036487:
+        MOV dword ptr [EAX + movementGround833],0x3ff
+    movementAt2003648e:
+        MOV ECX,dword ptr [pm]
+    movementAt20036494:
+        MOV EDX,dword ptr [ECX + movementPs833]
+    movementAt20036496:
+        FSTP dword ptr [EDX + movementVelocityZ833]
+    movementAt20036499:
+        CALL PM_AddEvent
+    movementAt2003649e:
+        MOV EAX,[pm]
+    movementAt200364a3:
+        ADD ESP,0x4
+    movementAt200364a6:
+        MOV EDX,dword ptr [EAX + movementPs833]
+    movementAt200364a8:
+        MOV ECX,dword ptr [EDX + movementWeaponFlags833]
+    movementAt200364ae:
+        TEST CL,0x4
+    movementAt200364b1:
+        JZ movementAt200364c1
+    movementAt200364b3:
+        AND ECX,0xfffffffb
+    movementAt200364b6:
+        MOV dword ptr [EDX + movementWeaponFlags833],ECX
+    movementAt200364bc:
+        MOV EAX,[pm]
+    movementAt200364c1:
+        MOV EDX,dword ptr [EAX + movementPs833]
+    movementAt200364c3:
+        MOV ECX,dword ptr [EDX + movementWeaponFlags833]
+    movementAt200364c9:
+        TEST CL,0x8
+    movementAt200364cc:
+        JZ movementAt200364e5
+    movementAt200364ce:
+        TEST byte ptr [EDX + movementPersistent833],0x8
+    movementAt200364d5:
+        JNZ movementAt200364e5
+    movementAt200364d7:
+        AND ECX,0xfffffff7
+    movementAt200364da:
+        MOV dword ptr [EDX + movementWeaponFlags833],ECX
+    movementAt200364e0:
+        MOV EAX,[pm]
+    movementAt200364e5:
+        MOV CL,byte ptr [EAX + movementForwardCmd833]
+    movementAt200364e8:
+        PUSH 0x1
+    movementAt200364ea:
+        TEST CL,CL
+    movementAt200364ec:
+        PUSH ESI
+    movementAt200364ed:
+        JL movementAt2003651e
+    movementAt200364ef:
+        MOV ECX,dword ptr [EAX + movementCharacter833]
+    movementAt200364f2:
+        MOV EAX,dword ptr [EAX + movementPs833]
+    movementAt200364f4:
+        PUSH 0x4
+    movementAt200364f6:
+        MOV EDX,dword ptr [ECX + movementAnim833]
+    movementAt200364f9:
+        PUSH EDX
+    movementAt200364fa:
+        PUSH EAX
+    movementAt200364fb:
+        CALL BG_AnimScriptEvent
+    movementAt20036500:
+        MOV ECX,dword ptr [pm]
+    movementAt20036506:
+        ADD ESP,0x14
+    movementAt20036509:
+        MOV EAX,dword ptr [ECX + movementPs833]
+    movementAt2003650b:
+        POP ESI
+    movementAt2003650c:
+        MOV ECX,dword ptr [EAX + movementFlags833]
+    movementAt2003650f:
+        AND ECX,0xfffffff7
+    movementAt20036512:
+        MOV dword ptr [EAX + movementFlags833],ECX
+    movementAt20036515:
+        MOV EAX,0x1
+    movementAt2003651a:
+        ADD ESP,0x14
+    movementAt2003651d:
+        RET
+    movementAt2003651e:
+        MOV EDX,dword ptr [EAX + movementCharacter833]
+    movementAt20036521:
+        PUSH 0x5
+    movementAt20036523:
+        MOV ECX,dword ptr [EDX + movementAnim833]
+    movementAt20036526:
+        MOV EDX,dword ptr [EAX + movementPs833]
+    movementAt20036528:
+        PUSH ECX
+    movementAt20036529:
+        PUSH EDX
+    movementAt2003652a:
+        CALL BG_AnimScriptEvent
+    movementAt2003652f:
+        MOV EAX,[pm]
+    movementAt20036534:
+        ADD ESP,0x14
+    movementAt20036537:
+        MOV EAX,dword ptr [EAX + movementPs833]
+    movementAt20036539:
+        POP ESI
+    movementAt2003653a:
+        MOV ECX,dword ptr [EAX + movementFlags833]
+    movementAt2003653d:
+        OR ECX,0x8
+    movementAt20036540:
+        MOV dword ptr [EAX + movementFlags833],ECX
+    movementAt20036543:
+        MOV EAX,0x1
+    movementAt20036548:
+        ADD ESP,0x14
+    movementAt2003654b:
+        RET
+    }
+}
+#else
 static qboolean PM_CheckJump( void ) {
     playerState_t *ps = pm->ps;
     float scale = 1.0f, horizontal, directionScale;
@@ -1556,6 +2189,7 @@ static qboolean PM_CheckJump( void ) {
     }
     return qtrue;
 }
+#endif
 
 /*
 =============
@@ -1816,156 +2450,613 @@ static qboolean PM_TCECheckProne(void) {
     return qtrue;
 }
 
-static qboolean PM_CheckProne (void)
-{
-    if(gearDef.parsed)return PM_TCECheckProne();
-	//Com_Printf( "%i: PM_CheckProne (%i)\n", pm->cmd.serverTime, pm->pmext->proneGroundTime );
-
-	if( !(pm->ps->eFlags & EF_PRONE) ) {
-		// needs to be on the ground
-//		if( !pml.walking ) {
-//			return qfalse;
-//		}
-
-		// can't go prone on ladders
-		if( pm->ps->pm_flags & PMF_LADDER ) {
-			return qfalse;
-		}
-
-		// no prone when using mg42's
-		if( pm->ps->persistant[PERS_HWEAPON_USE] || pm->ps->eFlags & EF_MOUNTEDTANK ) {
-			return qfalse;
-		}
-
-		if( pm->ps->weaponDelay && pm->ps->weapon == (gearDef.parsed ? 65 : WP_PANZERFAUST) ) {
-			return qfalse;
-		}
-
-		if( pm->ps->weapon == (gearDef.parsed ? 60 : WP_MORTAR_SET) ) {
-			return qfalse;
-		}
-
-		// can't go prone while swimming
-		if( pm->waterlevel > 1 ) {
-			return qfalse;
-		}
-
-		// can't go prone when fiddling with mg42
-		//if( pm->ps->weaponstate == WEAPON_FROMPRONE ) {
-		//	return qfalse;
-		//}
-
-		if( ((pm->ps->pm_flags & PMF_DUCKED && pm->cmd.doubleTap == DT_FORWARD) ||
-			(pm->cmd.wbuttons & WBUTTON_PRONE)) && pm->cmd.serverTime - -pm->pmext->proneTime > 750  ) {
-			trace_t trace;
-
-			pm->mins[0] = pm->ps->mins[0];
-			pm->mins[1] = pm->ps->mins[1];
-
-			pm->maxs[0] = pm->ps->maxs[0];
-			pm->maxs[1] = pm->ps->maxs[1];
-
-			pm->mins[2] = pm->ps->mins[2];
-			pm->maxs[2] = pm->ps->crouchMaxZ;
-
-			pm->ps->eFlags |= EF_PRONE;
-			PM_TraceAll( &trace, pm->ps->origin, pm->ps->origin );
-			pm->ps->eFlags &= ~EF_PRONE;
-
-			if ( !trace.startsolid && !trace.allsolid ) {
-				// go prone
-				pm->ps->pm_flags |= PMF_DUCKED;	// crouched as well
-				pm->ps->eFlags |= EF_PRONE;
-				pm->pmext->proneTime = pm->cmd.serverTime;	// timestamp 'go prone'
-				pm->pmext->proneGroundTime = pm->cmd.serverTime;
-			}
-		}
-	}
-
-	if( pm->ps->eFlags & EF_PRONE ) {
-		if( pm->waterlevel > 1 ||
-			pm->ps->pm_type == PM_DEAD ||
-			pm->ps->eFlags & EF_MOUNTEDTANK ||
-// zinx - what was the reason for this, anyway? removing fixes bug 424
-//			pm->cmd.serverTime - pm->pmext->proneGroundTime > 450 ||
-			((pm->cmd.doubleTap == DT_BACK || pm->cmd.upmove > 10 || pm->cmd.wbuttons & WBUTTON_PRONE) && pm->cmd.serverTime - pm->pmext->proneTime > 750) ) {
-			trace_t trace;
-
-			// see if we have the space to stop prone
-			pm->mins[0] = pm->ps->mins[0];
-			pm->mins[1] = pm->ps->mins[1];
-
-			pm->maxs[0] = pm->ps->maxs[0];
-			pm->maxs[1] = pm->ps->maxs[1];
-
-			pm->mins[2] = pm->ps->mins[2];
-			pm->maxs[2] = pm->ps->crouchMaxZ;
-
-			pm->ps->eFlags &= ~EF_PRONE;
-			PM_TraceAll( &trace, pm->ps->origin, pm->ps->origin );
-			pm->ps->eFlags |= EF_PRONE;
-			
-			if( !trace.allsolid ) {
-				// crouch for a bit
-				pm->ps->pm_flags |= PMF_DUCKED;
-
-				// stop prone
-				pm->ps->eFlags &= ~EF_PRONE;
-				pm->ps->eFlags &= ~EF_PRONE_MOVING;
-				pm->pmext->proneTime = -pm->cmd.serverTime;	// timestamp 'stop prone'
-
-				if( pm->ps->weapon == WP_MOBILE_MG42_SET ) {
-					PM_BeginWeaponChange( WP_MOBILE_MG42_SET, WP_MOBILE_MG42, qfalse );
-				}
-
-				// don't jump for a bit
-				pm->pmext->jumpTime = pm->cmd.serverTime - 650;
-				pm->ps->jumpTime = pm->cmd.serverTime - 650;
-			}
-		}
-	}
-
-	if( pm->ps->eFlags & EF_PRONE ) {
-		//float frac;
-		
-		// See if we are moving
-		float spd = VectorLength( pm->ps->velocity );
-		qboolean userinput = abs(pm->cmd.forwardmove) + abs(pm->cmd.rightmove) > 10 ? qtrue : qfalse;
-
-		if( userinput && spd > 40.f && !(pm->ps->eFlags & EF_PRONE_MOVING) ) {
-			pm->ps->eFlags |= EF_PRONE_MOVING;
-
-			switch( pm->ps->weapon ) {
-				case WP_FG42SCOPE: PM_BeginWeaponChange( WP_FG42SCOPE, WP_FG42, qfalse ); break;
-				case WP_GARAND_SCOPE: PM_BeginWeaponChange( WP_GARAND_SCOPE, WP_GARAND, qfalse ); break;
-				case WP_K43_SCOPE: PM_BeginWeaponChange( WP_K43_SCOPE, WP_K43, qfalse ); break;
-			}
-		} else if( !userinput && spd < 20.0f && (pm->ps->eFlags & EF_PRONE_MOVING) ) {
-			pm->ps->eFlags &= ~EF_PRONE_MOVING;
-		}
-
-		pm->mins[0] = pm->ps->mins[0];
-		pm->mins[1] = pm->ps->mins[1];
-
-		pm->maxs[0] = pm->ps->maxs[0];
-		pm->maxs[1] = pm->ps->maxs[1];
-
-		pm->mins[2] = pm->ps->mins[2];
-
-		//frac = (pm->cmd.serverTime - pm->pmext->proneTime) / 500.f;
-		//if( frac > 1.f )
-		//	frac = 1.f;
-
-		//pm->maxs[2] = pm->ps->maxs[2] - (frac * (pm->ps->standViewHeight - PRONE_VIEWHEIGHT));
-		//pm->ps->viewheight = DEFAULT_VIEWHEIGHT - (frac * (DEFAULT_VIEWHEIGHT - PRONE_VIEWHEIGHT));	// default - prone to get a positive which is subtracted from default
-		pm->maxs[2] = pm->ps->maxs[2] - pm->ps->standViewHeight - PRONE_VIEWHEIGHT;
-		pm->ps->viewheight = PRONE_VIEWHEIGHT;
-
-		return( qtrue );
-	}
-
-	return( qfalse );
+/* TC qagame posture/footstep controllers 20034cf0 and 20037720.
+ * Operand-level Windows x87 / integer schedule, mapped to native structures. */
+#if defined(_MSC_VER) && defined(_M_IX86)
+typedef char posture832TraceLayout[(sizeof(trace_t)==56 && offsetof(trace_t,allsolid)==0 && offsetof(trace_t,startsolid)==4 && offsetof(trace_t,fraction)==8 && offsetof(trace_t,endpos)==12 && offsetof(trace_t,entityNum)==52) ? 1 : -1];
+static const unsigned int posture832Const200ac100 = 0x00000000u;
+static const unsigned int posture832Const200ac110 = 0x3f800000u;
+static const unsigned int posture832Const200ac180 = 0x3f000000u;
+static const unsigned int posture832Const200ac19c = 0x41a00000u;
+static const unsigned int posture832Const200ac290 = 0x41c00000u;
+static const unsigned int posture832Const200ac2d4 = 0x42000000u;
+static const unsigned int posture832Const200ac340 = 0x40a00000u;
+static const unsigned int posture832Const200ac3e8 = 0x3dcccccdu;
+static const unsigned int posture832Const200ac6e8 = 0x3fa00000u;
+static const unsigned int posture832Const200ac700 = 0x42f00000u;
+static const unsigned int posture832Const200ac71c = 0x41accccdu;
+static const unsigned int posture832Const200ac78c = 0xc1000000u;
+static const unsigned int posture832Const200ac790 = 0xc1200000u;
+static const unsigned int posture832Const200ac7ec = 0x3fa66666u;
+static const unsigned int posture832Const200ac7f0 = 0x435c0000u;
+static const unsigned int posture832Const200ac7f8[2] = { 0xb4e81b4fu, 0x3f6b4e81u };
+enum {
+    posture832pm0 = offsetof(pmove_t, ps),
+    posture832ps68 = offsetof(playerState_t, eFlags),
+    posture832pm4 = offsetof(pmove_t, pmext),
+    posture832pmc = offsetof(pmove_t, cmd)+offsetof(usercmd_t,serverTime),
+    posture832ext34 = offsetof(pmoveExt_t, proneTime),
+    posture832psc = offsetof(playerState_t, pm_flags),
+    posture832ps140 = offsetof(playerState_t, persistant)+PERS_HWEAPON_USE*sizeof(int),
+    posture832ps30 = offsetof(playerState_t, weaponDelay),
+    posture832psa4 = offsetof(playerState_t, weapon),
+    posture832psf0 = offsetof(playerState_t, stats)+STAT_TCE_WEAPON_FLAGS*sizeof(int),
+    posture832ps50 = offsetof(playerState_t, groundEntityNum),
+    posture832pm110 = offsetof(pmove_t, waterlevel),
+    posture832pm23 = offsetof(pmove_t, cmd)+offsetof(usercmd_t,doubleTap),
+    posture832pm11 = offsetof(pmove_t, cmd)+offsetof(usercmd_t,wbuttons),
+    posture832psf4 = offsetof(playerState_t, stats)+STAT_TCE_FLAGS*sizeof(int),
+    posture832ps14 = offsetof(playerState_t, origin),
+    posture832ps18 = offsetof(playerState_t, origin)+4,
+    posture832ps1c = offsetof(playerState_t, origin)+8,
+    posture832pm44 = offsetof(pmove_t, tracemask),
+    posture832psa0 = offsetof(playerState_t, clientNum),
+    posture832pm128 = offsetof(pmove_t, trace),
+    posture832ext38 = offsetof(pmoveExt_t, proneGroundTime),
+    posture832ps4 = offsetof(playerState_t, pm_type),
+    posture832pm22 = offsetof(pmove_t, cmd)+offsetof(usercmd_t,upmove),
+    posture832ps3dc = offsetof(playerState_t, mins),
+    posture832pmf4 = offsetof(pmove_t, mins),
+    posture832ps3e0 = offsetof(playerState_t, mins)+4,
+    posture832pmf8 = offsetof(pmove_t, mins)+4,
+    posture832ps3e8 = offsetof(playerState_t, maxs),
+    posture832pm100 = offsetof(pmove_t, maxs),
+    posture832ps3ec = offsetof(playerState_t, maxs)+4,
+    posture832pm104 = offsetof(pmove_t, maxs)+4,
+    posture832ps3e4 = offsetof(playerState_t, mins)+8,
+    posture832pmfc = offsetof(pmove_t, mins)+8,
+    posture832ps3f4 = offsetof(playerState_t, crouchMaxZ),
+    posture832pm108 = offsetof(pmove_t, maxs)+8,
+    posture832ps148 = offsetof(playerState_t, persistant)+14*sizeof(int),
+    posture832ext4 = offsetof(pmoveExt_t, jumpTime),
+    posture832ps47c = offsetof(playerState_t, jumpTime),
+    posture832ps20 = offsetof(playerState_t, velocity),
+    posture832pm21 = offsetof(pmove_t, cmd)+offsetof(usercmd_t,rightmove),
+    posture832pm20 = offsetof(pmove_t, cmd)+offsetof(usercmd_t,forwardmove),
+    posture832ps3f0 = offsetof(playerState_t, maxs)+8,
+    posture832ps3fc = offsetof(playerState_t, standViewHeight),
+    posture832psbc = offsetof(playerState_t, viewheight),
+    posture832pm8 = offsetof(pmove_t, character),
+    posture832character40 = offsetof(bg_character_t, animModelInfo),
+    posture832ps10 = offsetof(playerState_t, pm_time),
+    posture832ps24 = offsetof(playerState_t, velocity)+4,
+    posture832pm114 = offsetof(pmove_t, xyspeed),
+    posture832ps28 = offsetof(playerState_t, velocity)+8,
+    posture832ps8 = offsetof(playerState_t, bobCycle),
+    posture832pm4c = offsetof(pmove_t, noFootsteps),
+    posture832ps3c = offsetof(playerState_t, leanf),
+    posture832pm10 = offsetof(pmove_t, cmd)+offsetof(usercmd_t,buttons)
+};
+static __declspec(naked) qboolean PM_CheckProne(void) {
+    __asm {
+        MOV EAX,[pm]
+        SUB ESP,0x68
+        MOV EDX,dword ptr [EAX + posture832pm0]
+        PUSH EBX
+        PUSH ESI
+        PUSH EDI
+        MOV ECX,dword ptr [EDX + posture832ps68]
+        MOV ESI,0x40
+        TEST ECX,0x80000
+        JNZ posture832_20035028
+        TEST ECX,0x100000
+        JZ posture832_20034d4d
+        MOV EDI,dword ptr [EAX + posture832pm4]
+        MOV EBX,dword ptr [EAX + posture832pmc]
+        MOV EDI,dword ptr [EDI + posture832ext34]
+        ADD EDI,EBX
+        CMP EDI,0x2ee
+        JLE posture832_20034d4d
+        AND ECX,0xffefffff
+        MOV dword ptr [EDX + posture832ps68],ECX
+        MOV EAX,[pm]
+        MOV EAX,dword ptr [EAX + posture832pm0]
+        MOV ECX,dword ptr [EAX + posture832ps68]
+        AND ECX,0xff7fffff
+        MOV dword ptr [EAX + posture832ps68],ECX
+        MOV EAX,[pm]
+posture832_20034d4d:
+        MOV ECX,dword ptr [EAX + posture832pm0]
+        MOV EBX,dword ptr [ECX + posture832psc]
+        TEST BL,0x4
+        JNZ posture832_2003541d
+        MOV EDX,dword ptr [ECX + posture832ps140]
+        TEST EDX,EDX
+        JNZ posture832_2003541d
+        MOV EDX,dword ptr [ECX + posture832ps68]
+        TEST DH,0x80
+        JNZ posture832_2003541d
+        MOV EDI,dword ptr [ECX + posture832ps30]
+        TEST EDI,EDI
+        JZ posture832_20034d89
+        CMP dword ptr [ECX + posture832psa4],0x41
+        JZ posture832_2003541d
+posture832_20034d89:
+        CMP dword ptr [ECX + posture832psa4],0x3c
+        JZ posture832_2003541d
+        TEST EDX,0x1000000
+        JNZ posture832_2003541d
+        MOV EDX,dword ptr [ECX + posture832psf0]
+        TEST DH,0x10
+        JNZ posture832_2003541d
+        MOV ECX,dword ptr [ECX + posture832ps50]
+        CMP ECX,0x3ff
+        JZ posture832_2003541d
+        MOV EDX,dword ptr [pml.tceContentRestriction]
+        TEST EDX,EDX
+        JNZ posture832_2003541d
+        CMP ECX,ESI
+        JL posture832_2003541d
+        CMP dword ptr [EAX + posture832pm110],0x1
+        JG posture832_2003541d
+        TEST BL,0x1
+        JZ posture832_20034dee
+        CMP byte ptr [EAX + posture832pm23],0x3
+        JZ posture832_20034df8
+posture832_20034dee:
+        TEST byte ptr [EAX + posture832pm11],0x80
+        JZ posture832_20035028
+posture832_20034df8:
+        MOV ECX,dword ptr [EAX + posture832pm4]
+        MOV EDI,dword ptr [EAX + posture832pmc]
+        MOV EDX,dword ptr [ECX + posture832ext34]
+        ADD EDX,EDI
+        CMP EDX,0x2ee
+        JLE posture832_20035028
+        MOV ECX,dword ptr [playerlegsProneMins]
+        MOV EDX,dword ptr [playerlegsProneMins+4]
+        MOV dword ptr [ESP + 0x18],ECX
+        MOV ECX,dword ptr [playerlegsProneMins+8]
+        MOV dword ptr [ESP + 0x1c],EDX
+        MOV EDX,dword ptr [playerlegsProneMaxs]
+        MOV dword ptr [ESP + 0x20],ECX
+        MOV ECX,dword ptr [playerlegsProneMaxs+4]
+        MOV dword ptr [ESP + 0xc],EDX
+        MOV EDX,dword ptr [playerlegsProneMaxs+8]
+        FLD dword ptr [posture832Const200ac110]
+        MOV dword ptr [ESP + 0x10],ECX
+        MOV dword ptr [ESP + 0x14],EDX
+        MOV ECX,dword ptr [EAX + posture832pm0]
+        MOV EDX,dword ptr [ECX + posture832psf4]
+        TEST DH,0x2
+        JZ posture832_20034eba
+        FSTP ST(0)
+        FLD dword ptr [posture832Const200ac6e8]
+        FLD dword ptr [ESP + 0x18]
+        FMUL dword ptr [posture832Const200ac6e8]
+        FSTP dword ptr [ESP + 0x18]
+        FLD dword ptr [ESP + 0x1c]
+        FMUL dword ptr [posture832Const200ac6e8]
+        FSTP dword ptr [ESP + 0x1c]
+        FLD dword ptr [ESP + 0x20]
+        FMUL dword ptr [posture832Const200ac6e8]
+        FSTP dword ptr [ESP + 0x20]
+        FLD dword ptr [ESP + 0xc]
+        FMUL dword ptr [posture832Const200ac6e8]
+        FSTP dword ptr [ESP + 0xc]
+        FLD dword ptr [ESP + 0x10]
+        FMUL dword ptr [posture832Const200ac6e8]
+        FSTP dword ptr [ESP + 0x10]
+        FLD dword ptr [ESP + 0x14]
+        FMUL dword ptr [posture832Const200ac6e8]
+        FSTP dword ptr [ESP + 0x14]
+posture832_20034eba:
+        FLD dword ptr [pml.forward]
+        MOV EDX,dword ptr [pml.forward+4]
+        FMUL ST(0),ST(1)
+        MOV dword ptr [ESP + 0x34],EDX
+        MOV ECX,dword ptr [EAX + posture832pm0]
+        FMUL dword ptr [posture832Const200ac2d4]
+        FSUBR dword ptr [ECX + posture832ps14]
+        FSTP dword ptr [ESP + 0x24]
+        MOV EDX,dword ptr [EAX + posture832pm0]
+        FMUL dword ptr [ESP + 0x34]
+        FMUL dword ptr [posture832Const200ac2d4]
+        FSUBR dword ptr [EDX + posture832ps18]
+        MOV EDX,dword ptr [ESP + 0x24]
+        FST dword ptr [ESP + 0x28]
+        MOV ECX,dword ptr [EAX + posture832pm0]
+        FLD dword ptr [ECX + posture832ps1c]
+        FADD dword ptr [posture832Const200ac290]
+        MOV dword ptr [ESP + 0x30],EDX
+        FSTP dword ptr [ESP + 0x2c]
+        FSTP dword ptr [ESP + 0x34]
+        FLD dword ptr [ESP + 0x2c]
+        FSUB dword ptr [posture832Const200ac71c]
+        FSUB dword ptr [posture832Const200ac290]
+        FSTP dword ptr [ESP + 0x38]
+        MOV ECX,dword ptr [EAX + posture832pm44]
+        MOV EDX,dword ptr [EAX + posture832pm0]
+        PUSH ECX
+        MOV ECX,dword ptr [EDX + posture832psa0]
+        LEA EDX,[ESP + 0x34]
+        PUSH ECX
+        PUSH EDX
+        LEA ECX,[ESP + 0x18]
+        LEA EDX,[ESP + 0x24]
+        PUSH ECX
+        PUSH EDX
+        LEA ECX,[ESP + 0x38]
+        LEA EDX,[ESP + 0x50]
+        PUSH ECX
+        PUSH EDX
+        CALL dword ptr [EAX + posture832pm128]
+        MOV EAX,dword ptr [ESP + 0x5c]
+        ADD ESP,0x1c
+        TEST EAX,EAX
+        JZ posture832_20034f5e
+        CMP dword ptr [ESP + 0x70],ESI
+        JGE posture832_2003541d
+posture832_20034f5e:
+        FLD dword ptr [ESP + 0x44]
+        FCOMP dword ptr [posture832Const200ac110]
+        FNSTSW AX
+        TEST AH,0x40
+        JNZ posture832_2003541d
+        FLD dword ptr [ESP + 0x50]
+        MOV EAX,dword ptr [ESP + 0x48]
+        MOV ECX,dword ptr [ESP + 0x4c]
+        FADD dword ptr [posture832Const200ac71c]
+        MOV EDX,dword ptr [ESP + 0x50]
+        MOV dword ptr [ESP + 0x24],EAX
+        MOV dword ptr [ESP + 0x30],EAX
+        MOV EAX,[pm]
+        FSTP dword ptr [ESP + 0x38]
+        MOV dword ptr [ESP + 0x28],ECX
+        MOV dword ptr [ESP + 0x2c],EDX
+        MOV dword ptr [ESP + 0x34],ECX
+        MOV EDX,dword ptr [EAX + posture832pm44]
+        MOV ECX,dword ptr [EAX + posture832pm0]
+        PUSH EDX
+        MOV EDX,dword ptr [ECX + posture832psa0]
+        LEA ECX,[ESP + 0x34]
+        PUSH EDX
+        PUSH ECX
+        LEA EDX,[ESP + 0x18]
+        LEA ECX,[ESP + 0x24]
+        PUSH EDX
+        PUSH ECX
+        LEA EDX,[ESP + 0x38]
+        LEA ECX,[ESP + 0x50]
+        PUSH EDX
+        PUSH ECX
+        CALL dword ptr [EAX + posture832pm128]
+        MOV EAX,dword ptr [ESP + 0x58]
+        ADD ESP,0x1c
+        TEST EAX,EAX
+        JZ posture832_20034fe3
+        CMP dword ptr [ESP + 0x70],ESI
+        JGE posture832_20035023
+posture832_20034fe3:
+        MOV EDX,dword ptr [pm]
+        MOV EAX,dword ptr [EDX + posture832pm0]
+        MOV EDX,dword ptr [EAX + posture832psc]
+        OR EDX,0x1
+        MOV dword ptr [EAX + posture832psc],EDX
+        MOV EAX,[pm]
+        MOV EAX,dword ptr [EAX + posture832pm0]
+        MOV ECX,dword ptr [EAX + posture832ps68]
+        OR ECX,0x80000
+        MOV dword ptr [EAX + posture832ps68],ECX
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [EAX + posture832pm4]
+        MOV EDX,dword ptr [EAX + posture832pmc]
+        MOV dword ptr [ECX + posture832ext34],EDX
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [EAX + posture832pm4]
+        MOV EDX,dword ptr [EAX + posture832pmc]
+        MOV dword ptr [ECX + posture832ext38],EDX
+posture832_20035023:
+        MOV EAX,[pm]
+posture832_20035028:
+        MOV ECX,dword ptr [EAX + posture832pm0]
+        MOV EDI,0x800000
+        MOV EDX,dword ptr [ECX + posture832ps68]
+        TEST EDX,0x80000
+        JZ posture832_2003524d
+        CMP dword ptr [EAX + posture832pm110],0x1
+        JG posture832_200350a3
+        CMP dword ptr [ECX + posture832ps4],0x3
+        JZ posture832_200350a3
+        TEST DH,0x80
+        JNZ posture832_200350a3
+        MOV EDX,dword ptr [ECX + posture832ps50]
+        CMP EDX,0x3ff
+        JZ posture832_200350a3
+        CMP EDX,ESI
+        JL posture832_200350a3
+        TEST byte ptr [ECX + posture832psc],0x4
+        JNZ posture832_200350a3
+        MOV ECX,dword ptr [pml.tceContentRestriction]
+        TEST ECX,ECX
+        JNZ posture832_200350a3
+        CMP byte ptr [EAX + posture832pm23],0x4
+        JZ posture832_2003508e
+        MOV CL,byte ptr [EAX + posture832pm22]
+        CMP CL,0xa
+        JG posture832_2003508e
+        CMP CL,0xf6
+        JL posture832_2003508e
+        TEST byte ptr [EAX + posture832pm11],0x80
+        JZ posture832_2003524d
+posture832_2003508e:
+        MOV ECX,dword ptr [EAX + posture832pm4]
+        MOV EDX,dword ptr [EAX + posture832pmc]
+        SUB EDX,dword ptr [ECX + posture832ext34]
+        CMP EDX,0x2ee
+        JLE posture832_2003524d
+posture832_200350a3:
+        MOV ECX,dword ptr [EAX + posture832pm0]
+        MOV EDX,dword ptr [ECX + posture832ps3dc]
+        MOV dword ptr [EAX + posture832pmf4],EDX
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [EAX + posture832pm0]
+        MOV EDX,dword ptr [ECX + posture832ps3e0]
+        MOV dword ptr [EAX + posture832pmf8],EDX
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [EAX + posture832pm0]
+        MOV EDX,dword ptr [ECX + posture832ps3e8]
+        MOV dword ptr [EAX + posture832pm100],EDX
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [EAX + posture832pm0]
+        MOV EDX,dword ptr [ECX + posture832ps3ec]
+        MOV dword ptr [EAX + posture832pm104],EDX
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [EAX + posture832pm0]
+        MOV EDX,dword ptr [ECX + posture832ps3e4]
+        MOV dword ptr [EAX + posture832pmfc],EDX
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [EAX + posture832pm0]
+        MOV EDX,dword ptr [ECX + posture832ps3f4]
+        MOV dword ptr [EAX + posture832pm108],EDX
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [EAX + posture832pm0]
+        MOV ESI,dword ptr [EAX + posture832pm44]
+        PUSH ESI
+        LEA EDX,[ECX + posture832ps14]
+        MOV ECX,dword ptr [ECX + posture832psa0]
+        PUSH ECX
+        LEA ECX,[EAX + posture832pm100]
+        PUSH EDX
+        PUSH ECX
+        LEA ECX,[EAX + posture832pmf4]
+        PUSH ECX
+        PUSH EDX
+        LEA EDX,[ESP + 0x54]
+        PUSH EDX
+        CALL dword ptr [EAX + posture832pm128]
+        MOV EAX,dword ptr [ESP + 0x58]
+        ADD ESP,0x1c
+        TEST EAX,EAX
+        MOV EAX,[pm]
+        JNZ posture832_2003524d
+        MOV EAX,dword ptr [EAX + posture832pm0]
+        MOV ESI,dword ptr [EAX + posture832psc]
+        OR ESI,0x1
+        MOV dword ptr [EAX + posture832psc],ESI
+        MOV ECX,dword ptr [pm]
+        MOV EAX,dword ptr [ECX + posture832pm0]
+        MOV EDX,dword ptr [EAX + posture832ps68]
+        AND EDX,0xfff7ffff
+        MOV dword ptr [EAX + posture832ps68],EDX
+        MOV EDX,dword ptr [pm]
+        MOV EAX,dword ptr [EDX + posture832pm0]
+        MOV ECX,dword ptr [EAX + posture832ps68]
+        OR ECX,0x100000
+        MOV dword ptr [EAX + posture832ps68],ECX
+        MOV EAX,[pm]
+        MOV EAX,dword ptr [EAX + posture832pm0]
+        MOV EBX,dword ptr [EAX + posture832ps68]
+        OR EBX,EDI
+        MOV dword ptr [EAX + posture832ps68],EBX
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [EAX + posture832pmc]
+        MOV EDX,dword ptr [EAX + posture832pm4]
+        NEG ECX
+        MOV dword ptr [EDX + posture832ext34],ECX
+        MOV EAX,[pm]
+        MOV CL,byte ptr [EAX + posture832pm22]
+        CMP CL,0xa
+        JLE posture832_200351cb
+        MOV ESI,dword ptr [EAX + posture832pm0]
+        MOV EDX,dword ptr [ESI + posture832psf0]
+        TEST DH,0x2
+        JZ posture832_200351cb
+        AND DH,0xfd
+        MOV dword ptr [ESI + posture832psf0],EDX
+        JMP posture832_20035200
+posture832_200351cb:
+        CMP CL,0xf6
+        JGE posture832_20035205
+        MOV ECX,dword ptr [EAX + posture832pm0]
+        TEST byte ptr [ECX + posture832ps148],0x4
+        JZ posture832_20035205
+        MOV EDX,dword ptr [ECX + posture832psf0]
+        OR DH,0x2
+        MOV dword ptr [ECX + posture832psf0],EDX
+        MOV EAX,[pm]
+        MOV EAX,dword ptr [EAX + posture832pm0]
+        MOV ECX,dword ptr [EAX + posture832psf0]
+        OR CH,0x4
+        MOV dword ptr [EAX + posture832psf0],ECX
+posture832_20035200:
+        MOV EAX,[pm]
+posture832_20035205:
+        MOV ECX,dword ptr [EAX + posture832pm0]
+        CMP dword ptr [ECX + posture832psa4],0x3e
+        JNZ posture832_20035223
+        PUSH 0x0
+        PUSH 0x1f
+        PUSH 0x3e
+        CALL PM_BeginWeaponChange
+        MOV EAX,[pm]
+        ADD ESP,0xc
+posture832_20035223:
+        MOV EDX,dword ptr [EAX + posture832pmc]
+        MOV EAX,dword ptr [EAX + posture832pm4]
+        SUB EDX,0x28a
+        MOV dword ptr [EAX + posture832ext4],EDX
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [EAX + posture832pmc]
+        MOV EDX,dword ptr [EAX + posture832pm0]
+        SUB ECX,0x28a
+        MOV dword ptr [EDX + posture832ps47c],ECX
+        MOV EAX,[pm]
+posture832_2003524d:
+        MOV EAX,dword ptr [EAX + posture832pm0]
+        TEST dword ptr [EAX + posture832ps68],0x80000
+        JZ posture832_2003541d
+        ADD EAX,posture832ps20
+        PUSH EAX
+        CALL VectorLength
+        MOV ECX,dword ptr [pm]
+        ADD ESP,0x4
+        FCOMP dword ptr [posture832Const200ac19c]
+        MOVSX EAX,byte ptr [ECX + posture832pm21]
+        CDQ
+        MOV ESI,EAX
+        MOVSX EAX,byte ptr [ECX + posture832pm20]
+        XOR ESI,EDX
+        SUB ESI,EDX
+        CDQ
+        XOR EAX,EDX
+        SUB EAX,EDX
+        ADD ESI,EAX
+        XOR EAX,EAX
+        CMP ESI,0xa
+        SETG AL
+        TEST EAX,EAX
+        FNSTSW AX
+        JZ posture832_200352fa
+        TEST AH,0x41
+        JNZ posture832_20035319
+        MOV EDX,dword ptr [ECX + posture832pm0]
+        MOV EAX,dword ptr [EDX + posture832ps68]
+        TEST EAX,0x100000
+        JNZ posture832_20035319
+        OR EAX,0x100000
+        MOV dword ptr [EDX + posture832ps68],EAX
+        MOV ECX,dword ptr [pm]
+        MOV EAX,dword ptr [ECX + posture832pm0]
+        MOV EAX,dword ptr [EAX + posture832psa4]
+        SUB EAX,0x39
+        JZ posture832_200352ea
+        DEC EAX
+        JZ posture832_200352da
+        DEC EAX
+        JNZ posture832_20035319
+        PUSH 0x0
+        PUSH 0x21
+        PUSH 0x3b
+        CALL PM_BeginWeaponChange
+        ADD ESP,0xc
+        JMP posture832_20035313
+posture832_200352da:
+        PUSH 0x0
+        PUSH 0x20
+        PUSH 0x3a
+        CALL PM_BeginWeaponChange
+        ADD ESP,0xc
+        JMP posture832_20035313
+posture832_200352ea:
+        PUSH 0x0
+        PUSH 0x19
+        PUSH 0x39
+        CALL PM_BeginWeaponChange
+        ADD ESP,0xc
+        JMP posture832_20035313
+posture832_200352fa:
+        TEST AH,0x1
+        JZ posture832_20035319
+        MOV EDX,dword ptr [ECX + posture832pm0]
+        MOV EAX,dword ptr [EDX + posture832ps68]
+        TEST EAX,0x100000
+        JZ posture832_20035319
+        AND EAX,0xffefffff
+        MOV dword ptr [EDX + posture832ps68],EAX
+posture832_20035313:
+        MOV ECX,dword ptr [pm]
+posture832_20035319:
+        MOV EDX,dword ptr [ECX + posture832pm4]
+        MOV EAX,dword ptr [ECX + posture832pmc]
+        MOV ECX,dword ptr [ECX + posture832pm0]
+        SUB EAX,dword ptr [EDX + posture832ext34]
+        CMP EAX,0x2ee
+        JGE posture832_20035344
+        MOV EDX,dword ptr [ECX + posture832ps68]
+        OR EDX,0x100000
+        MOV dword ptr [ECX + posture832ps68],EDX
+        MOV ECX,dword ptr [pm]
+        MOV EAX,dword ptr [ECX + posture832pm0]
+        OR dword ptr [EAX + posture832ps68],EDI
+        JMP posture832_2003534b
+posture832_20035344:
+        AND dword ptr [ECX + posture832ps68],0xff7fffff
+posture832_2003534b:
+        MOV EAX,[pm]
+        MOV EDX,dword ptr [EAX + posture832pm0]
+        MOV ECX,dword ptr [EDX + posture832ps3dc]
+        MOV dword ptr [EAX + posture832pmf4],ECX
+        MOV EAX,[pm]
+        MOV EDX,dword ptr [EAX + posture832pm0]
+        MOV ECX,dword ptr [EDX + posture832ps3e0]
+        MOV dword ptr [EAX + posture832pmf8],ECX
+        MOV EAX,[pm]
+        MOV EDX,dword ptr [EAX + posture832pm0]
+        MOV ECX,dword ptr [EDX + posture832ps3e8]
+        MOV dword ptr [EAX + posture832pm100],ECX
+        MOV EAX,[pm]
+        MOV EDX,dword ptr [EAX + posture832pm0]
+        MOV ECX,dword ptr [EDX + posture832ps3ec]
+        MOV dword ptr [EAX + posture832pm104],ECX
+        MOV EAX,[pm]
+        MOV EDX,dword ptr [EAX + posture832pm0]
+        MOV ECX,dword ptr [EDX + posture832ps3e4]
+        MOV dword ptr [EAX + posture832pmfc],ECX
+        MOV ECX,dword ptr [pm]
+        MOV EAX,dword ptr [ECX + posture832pm0]
+        MOV EDX,dword ptr [EAX + posture832psf4]
+        FLD dword ptr [EAX + posture832ps3f0]
+        FSUB dword ptr [EAX + posture832ps3fc]
+        TEST DH,0x2
+        JZ posture832_200353f3
+        FSUB dword ptr [posture832Const200ac790]
+        POP EDI
+        POP ESI
+        POP EBX
+        FSTP dword ptr [ECX + posture832pm108]
+        MOV EDX,dword ptr [pm]
+        MOV EAX,dword ptr [EDX + posture832pm0]
+        MOV dword ptr [EAX + posture832psbc],0xfffffff6
+        MOV EAX,0x1
+        ADD ESP,0x68
+        RET
+posture832_200353f3:
+        FSUB dword ptr [posture832Const200ac78c]
+        POP EDI
+        POP ESI
+        MOV EAX,0x1
+        POP EBX
+        FSTP dword ptr [ECX + posture832pm108]
+        MOV ECX,dword ptr [pm]
+        MOV EDX,dword ptr [ECX + posture832pm0]
+        MOV dword ptr [EDX + posture832psbc],0xfffffff8
+        ADD ESP,0x68
+        RET
+posture832_2003541d:
+        POP EDI
+        POP ESI
+        XOR EAX,EAX
+        POP EBX
+        ADD ESP,0x68
+        RET
+    }
 }
+#else
+static qboolean PM_CheckProne(void) {
+    return PM_TCECheckProne();
+}
+#endif
 
 /*
 =============
@@ -2684,6 +3775,517 @@ PM_WalkMove
 
 ===================
 */
+/* TC WalkMove 20035bf0: retained x87 schedule and native field bindings. */
+#if defined(_MSC_VER) && defined(_M_IX86)
+typedef char walk833CommandLayout[(sizeof(usercmd_t)==28 && offsetof(usercmd_t,serverTime)==0) ? 1 : -1];
+static const unsigned int walk833Const200ac100 = 0x00000000u;
+static const unsigned int walk833Const200ac130[2] = {0x00000000u, 0x3ff00000u};
+static const unsigned int walk833Const200ac180 = 0x3f000000u;
+static const unsigned int walk833Const200ac198 = 0x3e800000u;
+static const unsigned int walk833Const200ac798[2] = {0x55555555u, 0x3fd55555u};
+static const unsigned int walk833Const200ac7a0 = 0x3e785ce3u;
+static const unsigned int walk833Const200ac7a8[2] = {0x00000000u, 0xc0100000u};
+static const unsigned int walk833Const200ac7b0 = 0x3ee4faf6u;
+static const unsigned int walk833Const200ac7b8[2] = {0x00000000u, 0xc0000000u};
+static const unsigned int walk833Const200ac7c0 = 0x3f350bf3u;
+static const unsigned int walk833Const200ac7c4 = 0x3f0e38e4u;
+static const unsigned int walk833Const200ac7c8 = 0x3f200000u;
+enum {
+    walk833pml223cf460 = offsetof(pml_t, forward),
+    walk833pml223cf464 = offsetof(pml_t, forward)+4,
+    walk833pml223cf468 = offsetof(pml_t, forward)+8,
+    walk833pml223cf46c = offsetof(pml_t, right),
+    walk833pml223cf470 = offsetof(pml_t, right)+4,
+    walk833pml223cf474 = offsetof(pml_t, right)+8,
+    walk833pml223cf484 = offsetof(pml_t, frametime),
+    walk833pml223cf4ac = offsetof(pml_t, groundTrace)+offsetof(trace_t,plane)+offsetof(cplane_t,normal),
+    walk833pml223cf4b0 = offsetof(pml_t, groundTrace)+offsetof(trace_t,plane)+offsetof(cplane_t,normal)+4,
+    walk833pml223cf4b4 = offsetof(pml_t, groundTrace)+offsetof(trace_t,plane)+offsetof(cplane_t,normal)+8,
+    walk833pml223cf4c0 = offsetof(pml_t, groundTrace)+offsetof(trace_t,surfaceFlags),
+    walk833pml223cf4f0 = offsetof(pml_t, tceContentRestriction),
+    walk833pml223cf4f4 = offsetof(pml_t, tceGroundExtension),
+    walk833pm110 = offsetof(pmove_t, waterlevel),
+    walk833pm4 = offsetof(pmove_t, pmext),
+    walk833pmc = offsetof(pmove_t, cmd),
+    walk833ext4 = offsetof(pmoveExt_t, jumpTime),
+    walk833ext10 = offsetof(pmoveExt_t, sprintTime),
+    walk833pm0 = offsetof(pmove_t, ps),
+    walk833ps3b4 = offsetof(playerState_t, holdable)+9*sizeof(int),
+    walk833ps47c = offsetof(playerState_t, jumpTime),
+    walk833pm20 = offsetof(pmove_t, cmd)+offsetof(usercmd_t,forwardmove),
+    walk833pm21 = offsetof(pmove_t, cmd)+offsetof(usercmd_t,rightmove),
+    walk833ps68 = offsetof(playerState_t, eFlags),
+    walk833psc = offsetof(playerState_t, pm_flags),
+    walk833ps40 = offsetof(playerState_t, speed),
+    walk833ps40c = offsetof(playerState_t, crouchSpeedScale),
+    walk833pm10c = offsetof(pmove_t, watertype),
+    walk833pm10 = offsetof(pmove_t, cmd)+offsetof(usercmd_t,buttons),
+    walk833ps3c = offsetof(playerState_t, leanf),
+    walk833psf0 = offsetof(playerState_t, stats)+STAT_TCE_WEAPON_FLAGS*sizeof(int),
+    walk833ps38 = offsetof(playerState_t, gravity),
+    walk833ps28 = offsetof(playerState_t, velocity)+8,
+    walk833psd0 = offsetof(playerState_t, stats)+STAT_HEALTH*sizeof(int),
+    walk833ps20 = offsetof(playerState_t, velocity),
+    walk833ps24 = offsetof(playerState_t, velocity)+4,
+    walk833ext38 = offsetof(pmoveExt_t, proneGroundTime)
+};
+static __declspec(naked) void PM_WalkMove(void) {
+    __asm {
+        MOV EAX,[pm]
+        SUB ESP,0x40
+        MOV ECX,dword ptr [EAX + walk833pm110]
+        PUSH EBX
+        PUSH ESI
+        CMP ECX,0x2
+        PUSH EDI
+        JLE walk833_20035c47
+        FLD dword ptr [pml + walk833pml223cf4b4]
+        FMUL dword ptr [pml + walk833pml223cf468]
+        FLD dword ptr [pml + walk833pml223cf4b0]
+        FMUL dword ptr [pml + walk833pml223cf464]
+        FADDP ST(1),ST(0)
+        FLD dword ptr [pml + walk833pml223cf4ac]
+        FMUL dword ptr [pml + walk833pml223cf460]
+        FADDP ST(1),ST(0)
+        FCOMP dword ptr [walk833Const200ac100]
+        FNSTSW AX
+        TEST AH,0x41
+        JNZ walk833_20035c47
+        CALL PM_WaterMove
+        POP EDI
+        POP ESI
+        POP EBX
+        ADD ESP,0x40
+        RET
+walk833_20035c47:
+        CALL PM_CheckJump
+        TEST EAX,EAX
+        JZ walk833_20035d10
+        MOV ECX,dword ptr [pm]
+        CMP dword ptr [ECX + walk833pm110],0x1
+        JLE walk833_20035c6a
+        CALL PM_WaterMove
+        JMP walk833_20035c6f
+walk833_20035c6a:
+        CALL PM_AirMove
+walk833_20035c6f:
+        MOV EAX,[pm]
+        MOV ESI,dword ptr [EAX + walk833pm4]
+        MOV EDX,dword ptr [EAX + walk833pmc]
+        SUB EDX,dword ptr [ESI + walk833ext4]
+        CMP EDX,0x352
+        JL walk833_20035cfe
+        MOV ECX,dword ptr [ESI + walk833ext10]
+        CMP ECX,0x5dc
+        MOV dword ptr [ESP + 0xc],ECX
+        JGE walk833_20035c9d
+        MOV dword ptr [ESI + walk833ext10],0x0
+        JMP walk833_20035cd3
+walk833_20035c9d:
+        MOV EAX,dword ptr [EAX + walk833pm0]
+        MOV EAX,dword ptr [EAX + walk833ps3b4]
+        SUB EAX,0x4
+        JZ walk833_20035cc1
+        FILD dword ptr [ESP + 0xc]
+        DEC EAX
+        JZ walk833_20035cb9
+        FMUL dword ptr [walk833Const200ac7c8]
+        JMP walk833_20035ccb
+walk833_20035cb9:
+        FMUL dword ptr [walk833Const200ac180]
+        JMP walk833_20035ccb
+walk833_20035cc1:
+        FILD dword ptr [ESP + 0xc]
+        FMUL dword ptr [walk833Const200ac7c4]
+walk833_20035ccb:
+        CALL PM_MovementTruncate827
+        MOV dword ptr [ESI + walk833ext10],EAX
+walk833_20035cd3:
+        MOV ECX,dword ptr [pm]
+        MOV EAX,dword ptr [ECX + walk833pm4]
+        MOV EDX,dword ptr [EAX + walk833ext10]
+        TEST EDX,EDX
+        JGE walk833_20035cf0
+        MOV dword ptr [EAX + walk833ext10],0x0
+        MOV ECX,dword ptr [pm]
+walk833_20035cf0:
+        MOV EDX,dword ptr [ECX + walk833pm4]
+        MOV EAX,dword ptr [ECX + walk833pmc]
+        MOV dword ptr [EDX + walk833ext4],EAX
+        MOV EAX,[pm]
+walk833_20035cfe:
+        MOV ECX,dword ptr [EAX + walk833pm0]
+        MOV EDX,dword ptr [EAX + walk833pmc]
+        POP EDI
+        POP ESI
+        MOV dword ptr [ECX + walk833ps47c],EDX
+        POP EBX
+        ADD ESP,0x40
+        RET
+walk833_20035d10:
+        MOV EAX,[pm]
+        MOV EBX,0x1
+        CMP dword ptr [EAX + walk833pm110],EBX
+        JG walk833_20035d37
+        CALL PM_CheckDodge
+        TEST EAX,EAX
+        JZ walk833_20035d37
+        CALL PM_AirMove
+        POP EDI
+        POP ESI
+        POP EBX
+        ADD ESP,0x40
+        RET
+walk833_20035d37:
+        CALL PM_Friction
+        MOV EAX,[pm]
+        LEA EDI,[ESP + 0x30]
+        MOVSX ECX,byte ptr [EAX + walk833pm20]
+        MOVSX EDX,byte ptr [EAX + walk833pm21]
+        MOV dword ptr [ESP + 0x10],ECX
+        LEA ESI,[EAX + walk833pmc]
+        FILD dword ptr [ESP + 0x10]
+        MOV dword ptr [ESP + 0x10],EDX
+        MOV ECX,0x7
+        LEA EAX,[ESP + 0x30]
+        FSTP dword ptr [ESP + 0xc]
+        FILD dword ptr [ESP + 0x10]
+        REP MOVSD
+        FSTP dword ptr [ESP + 0x10]
+        PUSH EAX
+        CALL PM_CmdScale
+        MOV EAX,[pml + walk833pml223cf4f0]
+        ADD ESP,0x4
+        FSTP dword ptr [ESP + 0x14]
+        TEST EAX,EAX
+        MOV dword ptr [pml + walk833pml223cf468],0x0
+        MOV dword ptr [pml + walk833pml223cf474],0x0
+        JZ walk833_20035da6
+        MOV EAX,[pml + walk833pml223cf4f4]
+        TEST EAX,EAX
+        JNZ walk833_20035ddb
+walk833_20035da6:
+        PUSH 0x3f8020c5
+        PUSH OFFSET pml + walk833pml223cf460
+        PUSH OFFSET pml + walk833pml223cf4ac
+        PUSH OFFSET pml + walk833pml223cf460
+        CALL PM_ClipVelocity
+        PUSH 0x3f8020c5
+        PUSH OFFSET pml + walk833pml223cf46c
+        PUSH OFFSET pml + walk833pml223cf4ac
+        PUSH OFFSET pml + walk833pml223cf46c
+        CALL PM_ClipVelocity
+        ADD ESP,0x20
+walk833_20035ddb:
+        PUSH OFFSET pml + walk833pml223cf460
+        CALL VectorNormalize
+        FSTP ST(0)
+        PUSH OFFSET pml + walk833pml223cf46c
+        CALL VectorNormalize
+        ADD ESP,0x8
+        XOR EAX,EAX
+        FSTP ST(0)
+walk833_20035df8:
+        FLD dword ptr [ESP + 0x10]
+        FMUL dword ptr [EAX + pml + walk833pml223cf46c]
+        FLD dword ptr [ESP + 0xc]
+        FMUL dword ptr [EAX + pml + walk833pml223cf460]
+        ADD EAX,0x4
+        CMP EAX,0xc
+        FADDP ST(1),ST(0)
+        FSTP dword ptr [ESP + EAX*0x1 + 0x14]
+        JL walk833_20035df8
+        MOV EAX,[pml + walk833pml223cf4f4]
+        TEST EAX,EAX
+        JZ walk833_20035edb
+        MOV EAX,[pml + walk833pml223cf4f0]
+        CMP EAX,EBX
+        JNZ walk833_20035e65
+        FLD dword ptr [ESP + 0x1c]
+        FMUL dword ptr [ESP + 0x1c]
+        FLD dword ptr [ESP + 0x18]
+        FMUL dword ptr [ESP + 0x18]
+        FADDP ST(1),ST(0)
+        FSQRT
+        FCHS
+        FMUL dword ptr [walk833Const200ac7c0]
+        FLD dword ptr [ESP + 0x1c]
+        FMUL dword ptr [walk833Const200ac7c0]
+        FLD dword ptr [ESP + 0x18]
+        FMUL dword ptr [walk833Const200ac7c0]
+        JMP walk833_20035ee7
+walk833_20035e65:
+        CMP EAX,0x2
+        JNZ walk833_20035ea0
+        FLD dword ptr [ESP + 0x1c]
+        FMUL dword ptr [ESP + 0x1c]
+        FLD dword ptr [ESP + 0x18]
+        FMUL dword ptr [ESP + 0x18]
+        FADDP ST(1),ST(0)
+        FSQRT
+        FMUL qword ptr [walk833Const200ac7b8]
+        FMUL dword ptr [walk833Const200ac7b0]
+        FLD dword ptr [ESP + 0x1c]
+        FMUL dword ptr [walk833Const200ac7b0]
+        FLD dword ptr [ESP + 0x18]
+        FMUL dword ptr [walk833Const200ac7b0]
+        JMP walk833_20035ee7
+walk833_20035ea0:
+        CMP EAX,0x3
+        JNZ walk833_20035edb
+        FLD dword ptr [ESP + 0x1c]
+        FMUL dword ptr [ESP + 0x1c]
+        FLD dword ptr [ESP + 0x18]
+        FMUL dword ptr [ESP + 0x18]
+        FADDP ST(1),ST(0)
+        FSQRT
+        FMUL qword ptr [walk833Const200ac7a8]
+        FMUL dword ptr [walk833Const200ac7a0]
+        FLD dword ptr [ESP + 0x1c]
+        FMUL dword ptr [walk833Const200ac7a0]
+        FLD dword ptr [ESP + 0x18]
+        FMUL dword ptr [walk833Const200ac7a0]
+        JMP walk833_20035ee7
+walk833_20035edb:
+        FLD dword ptr [ESP + 0x20]
+        FLD dword ptr [ESP + 0x1c]
+        FLD dword ptr [ESP + 0x18]
+walk833_20035ee7:
+        FSTP dword ptr [ESP + 0x24]
+        LEA ECX,[ESP + 0x24]
+        FSTP dword ptr [ESP + 0x28]
+        PUSH ECX
+        FSTP dword ptr [ESP + 0x30]
+        CALL VectorNormalize
+        MOV EDX,dword ptr [pm]
+        ADD ESP,0x4
+        MOV ECX,dword ptr [EDX + walk833pm0]
+        FMUL dword ptr [ESP + 0x14]
+        TEST dword ptr [ECX + walk833ps68],0x180000
+        FSTP dword ptr [ESP + 0xc]
+        JNZ walk833_20035f29
+        TEST byte ptr [ECX + walk833psc],BL
+        JZ walk833_20035f47
+        FILD dword ptr [ECX + walk833ps40]
+        FMUL dword ptr [ECX + walk833ps40c]
+        JMP walk833_20035f32
+walk833_20035f29:
+        FILD dword ptr [ECX + walk833ps40]
+        FMUL dword ptr [pm_proneSpeedScale]
+walk833_20035f32:
+        FLD dword ptr [ESP + 0xc]
+        FCOMP ST(1)
+        FNSTSW AX
+        TEST AH,0x41
+        JNZ walk833_20035f45
+        FSTP dword ptr [ESP + 0xc]
+        JMP walk833_20035f47
+walk833_20035f45:
+        FSTP ST(0)
+walk833_20035f47:
+        MOV EAX,dword ptr [EDX + walk833pm110]
+        MOV EBX,0x10
+        TEST EAX,EAX
+        MOV dword ptr [ESP + 0x14],EAX
+        JZ walk833_20035fa2
+        FILD dword ptr [ESP + 0x14]
+        CMP dword ptr [EDX + walk833pm10c],EBX
+        FMUL qword ptr [walk833Const200ac798]
+        JNZ walk833_20035f74
+        FLD dword ptr [pm_slagSwimScale]
+        JMP walk833_20035f7a
+walk833_20035f74:
+        FLD dword ptr [pm_waterSwimScale]
+walk833_20035f7a:
+        FSUBR qword ptr [walk833Const200ac130]
+        FXCH ST(1)
+        FMULP ST(1),ST(0)
+        FSUBR qword ptr [walk833Const200ac130]
+        FIMUL dword ptr [ECX + walk833ps40]
+        FLD dword ptr [ESP + 0xc]
+        FCOMP ST(1)
+        FNSTSW AX
+        TEST AH,0x41
+        JNZ walk833_20035fa0
+        FSTP dword ptr [ESP + 0xc]
+        JMP walk833_20035fa2
+walk833_20035fa0:
+        FSTP ST(0)
+walk833_20035fa2:
+        MOV EAX,[pml + walk833pml223cf4f0]
+        TEST EAX,EAX
+        JZ walk833_20035ff2
+        TEST byte ptr [EDX + walk833pm10],BL
+        JNZ walk833_20035fd4
+        FLD dword ptr [ECX + walk833ps3c]
+        FCOMP dword ptr [walk833Const200ac100]
+        FNSTSW AX
+        TEST AH,0x40
+        JZ walk833_20035fd4
+        TEST byte ptr [ECX + walk833psf0],0x4
+        JNZ walk833_20035fd4
+        FILD dword ptr [ECX + walk833ps40]
+        FMUL dword ptr [walk833Const200ac180]
+        JMP walk833_20035fdd
+walk833_20035fd4:
+        FILD dword ptr [ECX + walk833ps40]
+        FMUL dword ptr [walk833Const200ac198]
+walk833_20035fdd:
+        FLD dword ptr [ESP + 0xc]
+        FCOMP ST(1)
+        FNSTSW AX
+        TEST AH,0x41
+        JNZ walk833_20035ff0
+        FSTP dword ptr [ESP + 0xc]
+        JMP walk833_20035ff2
+walk833_20035ff0:
+        FSTP ST(0)
+walk833_20035ff2:
+        MOV AL,[pml + walk833pml223cf4c0]
+        MOV BL,0x40
+        TEST AL,0x2
+        JNZ walk833_2003600e
+        TEST byte ptr [ECX + walk833psc],BL
+        JNZ walk833_2003600e
+        MOV EDX,dword ptr [pm_accelerate]
+        MOV dword ptr [ESP + 0x10],EDX
+        JMP walk833_20036017
+walk833_2003600e:
+        MOV EAX,[pm_airaccelerate]
+        MOV dword ptr [ESP + 0x10],EAX
+walk833_20036017:
+        MOV ECX,dword ptr [ESP + 0x10]
+        MOV EDX,dword ptr [ESP + 0xc]
+        PUSH ECX
+        LEA EAX,[ESP + 0x28]
+        PUSH EDX
+        PUSH EAX
+        CALL PM_Accelerate
+        MOV ECX,dword ptr [pml + walk833pml223cf4c0]
+        MOV EAX,[pm]
+        ADD ESP,0xc
+        TEST CL,0x2
+        JNZ walk833_20036045
+        MOV EDX,dword ptr [EAX + walk833pm0]
+        TEST byte ptr [EDX + walk833psc],BL
+        JZ walk833_20036061
+walk833_20036045:
+        MOV EAX,dword ptr [EAX + walk833pm0]
+        FILD dword ptr [EAX + walk833ps38]
+        FMUL dword ptr [pml + walk833pml223cf484]
+        FSUBR dword ptr [EAX + walk833ps28]
+        FSTP dword ptr [EAX + walk833ps28]
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [pml + walk833pml223cf4c0]
+walk833_20036061:
+        AND ECX,0xff000000
+        CMP ECX,0xd000000
+        JNZ walk833_20036086
+        MOV ECX,dword ptr [EAX + walk833pm0]
+        MOV EDX,dword ptr [ECX + walk833psd0]
+        TEST EDX,EDX
+        JLE walk833_20036086
+        MOV EAX,dword ptr [ECX + walk833ps68]
+        OR AH,0x1
+        MOV dword ptr [ECX + walk833ps68],EAX
+        JMP walk833_20036091
+walk833_20036086:
+        MOV EAX,dword ptr [EAX + walk833pm0]
+        MOV ECX,dword ptr [EAX + walk833ps68]
+        AND CH,0xfe
+        MOV dword ptr [EAX + walk833ps68],ECX
+walk833_20036091:
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [EAX + walk833pm0]
+        ADD ECX,walk833ps20
+        PUSH ECX
+        CALL VectorLength
+        MOV EAX,[pml + walk833pml223cf4f4]
+        ADD ESP,0x4
+        FSTP dword ptr [ESP + 0xc]
+        TEST EAX,EAX
+        JNZ walk833_200360d0
+        MOV EDX,dword ptr [pm]
+        PUSH 0x3f8020c5
+        MOV EAX,dword ptr [EDX + walk833pm0]
+        ADD EAX,walk833ps20
+        PUSH EAX
+        PUSH OFFSET pml + walk833pml223cf4ac
+        PUSH EAX
+        CALL PM_ClipVelocity
+        ADD ESP,0x10
+walk833_200360d0:
+        MOV ECX,dword ptr [pm]
+        MOV ESI,0x80000
+        MOV EDX,dword ptr [ECX + walk833pm0]
+        FLD dword ptr [EDX + walk833ps20]
+        FCOMP dword ptr [walk833Const200ac100]
+        FNSTSW AX
+        TEST AH,0x40
+        JZ walk833_2003611a
+        FLD dword ptr [EDX + walk833ps24]
+        FCOMP dword ptr [walk833Const200ac100]
+        FNSTSW AX
+        TEST AH,0x40
+        JZ walk833_2003611a
+        TEST dword ptr [EDX + walk833ps68],ESI
+        JZ walk833_20036111
+        MOV EAX,dword ptr [ECX + walk833pm4]
+        MOV ECX,dword ptr [ECX + walk833pmc]
+        MOV dword ptr [EAX + walk833ext38],ECX
+        MOV ECX,dword ptr [pm]
+walk833_20036111:
+        MOV EAX,[pml + walk833pml223cf4f4]
+        TEST EAX,EAX
+        JZ walk833_2003618e
+walk833_2003611a:
+        MOV EDX,dword ptr [ECX + walk833pm0]
+        ADD EDX,walk833ps20
+        PUSH EDX
+        CALL VectorNormalize
+        MOV EAX,[pm]
+        ADD ESP,0x4
+        FSTP ST(0)
+        MOV EAX,dword ptr [EAX + walk833pm0]
+        PUSH 0x0
+        FLD dword ptr [ESP + 0x10]
+        FMUL dword ptr [EAX + walk833ps20]
+        FSTP dword ptr [EAX + walk833ps20]
+        MOV ECX,dword ptr [pm]
+        FLD dword ptr [ESP + 0x10]
+        MOV EAX,dword ptr [ECX + walk833pm0]
+        FMUL dword ptr [EAX + walk833ps24]
+        FSTP dword ptr [EAX + walk833ps24]
+        MOV EDX,dword ptr [pm]
+        FLD dword ptr [ESP + 0x10]
+        MOV EAX,dword ptr [EDX + walk833pm0]
+        FMUL dword ptr [EAX + walk833ps28]
+        FSTP dword ptr [EAX + walk833ps28]
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [EAX + walk833pm0]
+        TEST dword ptr [ECX + walk833ps68],ESI
+        JZ walk833_20036181
+        CALL PM_StepSlideMoveProne
+        ADD ESP,0x4
+        CALL PM_SetMovementDir
+        POP EDI
+        POP ESI
+        POP EBX
+        ADD ESP,0x40
+        RET
+walk833_20036181:
+        CALL PM_StepSlideMove
+        ADD ESP,0x4
+        CALL PM_SetMovementDir
+walk833_2003618e:
+        POP EDI
+        POP ESI
+        POP EBX
+        ADD ESP,0x40
+        RET
+    }
+}
+#else
 static void PM_WalkMove( void ) {
 	int			i;
 	vec3_t		wishvel;
@@ -2876,6 +4478,7 @@ static void PM_WalkMove( void ) {
 	// set the movementDir so clients can rotate the legs for strafing
 	PM_SetMovementDir();
 }
+#endif
 
 
 /*
@@ -2930,6 +4533,276 @@ static void PM_DeadMove( void ) {
 PM_NoclipMove
 ===============
 */
+#if defined(_MSC_VER) && defined(_M_IX86)
+static __declspec(naked) void PM_NoclipMove(void) {
+    __asm {
+    movementAt20036610:
+        MOV EAX,[pm]
+    movementAt20036615:
+        SUB ESP,0x20
+    movementAt20036618:
+        MOV ECX,dword ptr [EAX + movementPs833]
+    movementAt2003661a:
+        MOV dword ptr [ECX + movementViewHeight833],0x2a
+    movementAt20036624:
+        MOV EDX,dword ptr [pm]
+    movementAt2003662a:
+        MOV EAX,dword ptr [EDX + movementPs833]
+    movementAt2003662c:
+        ADD EAX,movementVelocity833
+    movementAt2003662f:
+        PUSH EAX
+    movementAt20036630:
+        CALL VectorLength
+    movementAt20036635:
+        FCOM dword ptr [movementK200ac110]
+    movementAt2003663b:
+        ADD ESP,0x4
+    movementAt2003663e:
+        FNSTSW AX
+    movementAt20036640:
+        TEST AH,0x1
+    movementAt20036643:
+        JZ movementAt20036679
+    movementAt20036645:
+        MOV ECX,dword ptr [pm]
+    movementAt2003664b:
+        MOV EAX,[vec3_origin]
+    movementAt20036650:
+        FSTP ST(0)
+    movementAt20036652:
+        MOV EDX,dword ptr [ECX + movementPs833]
+    movementAt20036654:
+        MOV dword ptr [EDX + movementVelocity833],EAX
+    movementAt20036657:
+        MOV ECX,dword ptr [pm]
+    movementAt2003665d:
+        MOV EAX,[vec3_origin + 4]
+    movementAt20036662:
+        MOV EDX,dword ptr [ECX + movementPs833]
+    movementAt20036664:
+        MOV dword ptr [EDX + movementVelocityY833],EAX
+    movementAt20036667:
+        MOV ECX,dword ptr [pm]
+    movementAt2003666d:
+        MOV EAX,[vec3_origin + 8]
+    movementAt20036672:
+        MOV EDX,dword ptr [ECX + movementPs833]
+    movementAt20036674:
+        MOV dword ptr [EDX + movementVelocityZ833],EAX
+    movementAt20036677:
+        JMP movementAt200366f4
+    movementAt20036679:
+        FLD dword ptr [pm_friction]
+    movementAt2003667f:
+        FMUL qword ptr [movementK200ac708]
+    movementAt20036685:
+        FLD ST(1)
+    movementAt20036687:
+        FCOMP dword ptr [pm_stopspeed]
+    movementAt2003668d:
+        FNSTSW AX
+    movementAt2003668f:
+        TEST AH,0x1
+    movementAt20036692:
+        JZ movementAt2003669c
+    movementAt20036694:
+        FLD dword ptr [pm_stopspeed]
+    movementAt2003669a:
+        JMP movementAt2003669e
+    movementAt2003669c:
+        FLD ST(1)
+    movementAt2003669e:
+        FLD dword ptr [pml + movementFrameTime833]
+    movementAt200366a4:
+        FMUL ST(0),ST(1)
+    movementAt200366a6:
+        FMULP ST(2),ST(0)
+    movementAt200366a8:
+        FXCH ST(1)
+    movementAt200366aa:
+        FSUBR ST(0),ST(2)
+    movementAt200366ac:
+        FXCH ST(1)
+    movementAt200366ae:
+        FSTP ST(0)
+    movementAt200366b0:
+        FCOM dword ptr [movementK200ac100]
+    movementAt200366b6:
+        FNSTSW AX
+    movementAt200366b8:
+        TEST AH,0x1
+    movementAt200366bb:
+        JZ movementAt200366c5
+    movementAt200366bd:
+        FSTP ST(0)
+    movementAt200366bf:
+        FLD dword ptr [movementK200ac100]
+    movementAt200366c5:
+        FDIVRP ST(1),ST(0)
+    movementAt200366c7:
+        MOV ECX,dword ptr [pm]
+    movementAt200366cd:
+        MOV EAX,dword ptr [ECX + movementPs833]
+    movementAt200366cf:
+        FLD ST(0)
+    movementAt200366d1:
+        FMUL dword ptr [EAX + movementVelocity833]
+    movementAt200366d4:
+        FSTP dword ptr [EAX + movementVelocity833]
+    movementAt200366d7:
+        MOV EDX,dword ptr [pm]
+    movementAt200366dd:
+        FLD ST(0)
+    movementAt200366df:
+        MOV EAX,dword ptr [EDX + movementPs833]
+    movementAt200366e1:
+        FMUL dword ptr [EAX + movementVelocityY833]
+    movementAt200366e4:
+        FSTP dword ptr [EAX + movementVelocityY833]
+    movementAt200366e7:
+        MOV EAX,[pm]
+    movementAt200366ec:
+        MOV EAX,dword ptr [EAX + movementPs833]
+    movementAt200366ee:
+        FMUL dword ptr [EAX + movementVelocityZ833]
+    movementAt200366f1:
+        FSTP dword ptr [EAX + movementVelocityZ833]
+    movementAt200366f4:
+        MOV ECX,dword ptr [pm]
+    movementAt200366fa:
+        ADD ECX,movementCmd833
+    movementAt200366fd:
+        PUSH ECX
+    movementAt200366fe:
+        CALL PM_CmdScale
+    movementAt20036703:
+        MOV ECX,dword ptr [pm]
+    movementAt20036709:
+        ADD ESP,0x4
+    movementAt2003670c:
+        FSTP dword ptr [ESP + 0x4]
+    movementAt20036710:
+        MOVSX EDX,byte ptr [ECX + movementForwardCmd833]
+    movementAt20036714:
+        MOVSX EAX,byte ptr [ECX + movementRightCmd833]
+    movementAt20036718:
+        MOV dword ptr [ESP],EDX
+    movementAt2003671c:
+        FILD dword ptr [ESP]
+    movementAt20036720:
+        MOV dword ptr [ESP],EAX
+    movementAt20036724:
+        XOR EAX,EAX
+    movementAt20036726:
+        FILD dword ptr [ESP]
+    movementAt2003672a:
+        FLD ST(0)
+    movementAt2003672c:
+        FMUL dword ptr [EAX + pml + movementRight833]
+    movementAt20036732:
+        FLD ST(2)
+    movementAt20036734:
+        FMUL dword ptr [EAX + pml + movementForward833]
+    movementAt2003673a:
+        ADD EAX,0x4
+    movementAt2003673d:
+        CMP EAX,0xc
+    movementAt20036740:
+        FADDP ST(1),ST(0)
+    movementAt20036742:
+        FSTP dword ptr [ESP + EAX*0x1 + 0x10]
+    movementAt20036746:
+        JL movementAt2003672a
+    movementAt20036748:
+        MOVSX ECX,byte ptr [ECX + movementUpCmd833]
+    movementAt2003674c:
+        FSTP ST(0)
+    movementAt2003674e:
+        FSTP ST(0)
+    movementAt20036750:
+        MOV dword ptr [ESP],ECX
+    movementAt20036754:
+        MOV EDX,dword ptr [ESP + 0x14]
+    movementAt20036758:
+        FILD dword ptr [ESP]
+    movementAt2003675c:
+        MOV EAX,dword ptr [ESP + 0x18]
+    movementAt20036760:
+        LEA ECX,[ESP + 0x8]
+    movementAt20036764:
+        PUSH ECX
+    movementAt20036765:
+        MOV dword ptr [ESP + 0xc],EDX
+    movementAt20036769:
+        FADD dword ptr [ESP + 0x20]
+    movementAt2003676d:
+        MOV dword ptr [ESP + 0x10],EAX
+    movementAt20036771:
+        FSTP dword ptr [ESP + 0x14]
+    movementAt20036775:
+        CALL VectorNormalize
+    movementAt2003677a:
+        MOV EDX,dword ptr [pm_accelerate]
+    movementAt20036780:
+        LEA ECX,[ESP + 0xc]
+    movementAt20036784:
+        FMUL dword ptr [ESP + 0x8]
+    movementAt20036788:
+        PUSH EDX
+    movementAt20036789:
+        FSTP dword ptr [ESP + 0xc]
+    movementAt2003678d:
+        MOV EAX,dword ptr [ESP + 0xc]
+    movementAt20036791:
+        PUSH EAX
+    movementAt20036792:
+        PUSH ECX
+    movementAt20036793:
+        CALL PM_Accelerate
+    movementAt20036798:
+        MOV EDX,dword ptr [pm]
+    movementAt2003679e:
+        FLD dword ptr [pml + movementFrameTime833]
+    movementAt200367a4:
+        MOV EAX,dword ptr [EDX + movementPs833]
+    movementAt200367a6:
+        FMUL dword ptr [EAX + movementVelocity833]
+    movementAt200367a9:
+        FADD dword ptr [EAX + movementOrigin833]
+    movementAt200367ac:
+        FSTP dword ptr [EAX + movementOrigin833]
+    movementAt200367af:
+        MOV EAX,[pm]
+    movementAt200367b4:
+        FLD dword ptr [pml + movementFrameTime833]
+    movementAt200367ba:
+        MOV EAX,dword ptr [EAX + movementPs833]
+    movementAt200367bc:
+        FMUL dword ptr [EAX + movementVelocityY833]
+    movementAt200367bf:
+        FADD dword ptr [EAX + movementOriginY833]
+    movementAt200367c2:
+        FSTP dword ptr [EAX + movementOriginY833]
+    movementAt200367c5:
+        MOV ECX,dword ptr [pm]
+    movementAt200367cb:
+        FLD dword ptr [pml + movementFrameTime833]
+    movementAt200367d1:
+        MOV EAX,dword ptr [ECX + movementPs833]
+    movementAt200367d3:
+        FMUL dword ptr [EAX + movementVelocityZ833]
+    movementAt200367d6:
+        FADD dword ptr [EAX + movementOriginZ833]
+    movementAt200367d9:
+        FSTP dword ptr [EAX + movementOriginZ833]
+    movementAt200367dc:
+        ADD ESP,0x30
+    movementAt200367df:
+        RET
+    }
+}
+#else
 static void PM_NoclipMove( void ) {
 	float	speed, drop, friction, control, newspeed;
 	int			i;
@@ -2984,6 +4857,7 @@ static void PM_NoclipMove( void ) {
 	// move
 	VectorMA (pm->ps->origin, pml.frametime, pm->ps->velocity, pm->ps->origin);
 }
+#endif
 
 //============================================================================
 
@@ -3015,7 +4889,317 @@ PM_CrashLand
 Check for hard landings that generate sound events
 =================
 */
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* TC ground/landing controllers: original Windows flow, native layouts. */
+static const float groundK200ac180 = 0.5;
+static const float groundK200ac2bc = 4.0;
+static const float groundK200ac100 = 0.0;
+static const float groundK200ac704 = 0.800000011920929;
+static const double groundK200ac368 = 0.0001;
+static const double groundK200ac170 = 0.25;
+static const double groundK200ac128 = 0.5;
+static const float groundK200ac110 = 1.0;
+static const float groundK200ac38c = 75.0;
+static const float groundK200ac7e8 = 56.0;
+static const float groundK200ac208 = 48.0;
+static const float groundK200ac7e4 = 44.0;
+static const float groundK200ac2b0 = 40.0;
+static const float groundK200ac7e0 = 38.0;
+static const float groundK200ac7dc = 13.0;
+static const float groundK200ac7d8 = -220.0;
+static const float groundK200ac1cc = 64.0;
+static const double groundK200ac130 = 1.0;
+static const float groundK200ac198 = 0.25;
+static const float groundK200ac2b8 = 10.0;
+static const float groundK200ac148 = 12.0;
+static const double groundK200ac268 = 0.7;
+static const float groundK200ac2dc = 80.0;
+static const float groundK200ac7d4 = -200.0;
+static const char groundS200bc610[] = "delta: %5.2f\n";
+static const char groundS200bc620[] = "%i:allsolid\n";
+static const char groundS200bc630[] = "%i:lift\n";
+static const char groundS200bc604[] = "%i:kickoff\n";
+static const char groundS200bc5f8[] = "%i:steep\n";
+static const char groundS200bc5ec[] = "%i:Land\n";
+enum {
+    groundPs831=offsetof(pmove_t,ps),
+    groundExt831=offsetof(pmove_t,pmext),
+    groundCharacter831=offsetof(pmove_t,character),
+    groundCommandTime831=offsetof(pmove_t,cmd)+offsetof(usercmd_t,serverTime),
+    groundForwardCmd831=offsetof(pmove_t,cmd)+offsetof(usercmd_t,forwardmove),
+    groundTraceMask831=offsetof(pmove_t,tracemask),
+    groundDebug831=offsetof(pmove_t,debugLevel),
+    groundMins831=offsetof(pmove_t,mins),
+    groundMaxs831=offsetof(pmove_t,maxs),
+    groundTrace831=offsetof(pmove_t,trace),
+    groundWater831=offsetof(pmove_t,waterlevel),
+    groundOrigin831=offsetof(playerState_t,origin),
+    groundVelocity831=offsetof(playerState_t,velocity),
+    groundFlags831=offsetof(playerState_t,pm_flags),
+    groundTime831=offsetof(playerState_t,pm_time),
+    groundEflags831=offsetof(playerState_t,eFlags),
+    groundClient831=offsetof(playerState_t,clientNum),
+    groundGround831=offsetof(playerState_t,groundEntityNum),
+    groundGravity831=offsetof(playerState_t,gravity),
+    groundLegsTimer831=offsetof(playerState_t,legsTimer),
+    groundHealth831=offsetof(playerState_t,stats)+STAT_HEALTH*sizeof(int),
+    groundWeaponFlags831=offsetof(playerState_t,stats)+STAT_TCE_WEAPON_FLAGS*sizeof(int),
+    groundTcFlags831=offsetof(playerState_t,stats)+STAT_TCE_FLAGS*sizeof(int),
+    groundJumpTime831=offsetof(playerState_t,jumpTime),
+    groundBob831=offsetof(playerState_t,bobCycle),
+    groundExtProne831=offsetof(pmoveExt_t,proneTime),
+    groundExtJump831=offsetof(pmoveExt_t,jumpTime),
+    groundAnimModel831=offsetof(bg_character_t,animModelInfo),
+    groundWalking831=offsetof(pml_t,walking),
+    groundGroundPlane831=offsetof(pml_t,groundPlane),
+    groundGroundTrace831=offsetof(pml_t,groundTrace),
+    groundSurface831=offsetof(pml_t,groundTrace)+offsetof(trace_t,surfaceFlags),
+    groundOldZ831=offsetof(pml_t,previous_origin)+2*sizeof(float),
+    groundOldVelZ831=offsetof(pml_t,previous_velocity)+2*sizeof(float),
+    groundContent831=offsetof(pml_t,tceContentRestriction),
+    groundExtension831=offsetof(pml_t,tceGroundExtension)
+};
+typedef char groundTraceLayout831[(sizeof(trace_t)==56 && offsetof(trace_t,allsolid)==0 && offsetof(trace_t,fraction)==8 && offsetof(trace_t,plane)==24 && offsetof(trace_t,surfaceFlags)==44 && offsetof(trace_t,entityNum)==52) ? 1 : -1];
+typedef char groundProtocol831[(EF_MG42_ACTIVE==0x20 && EF_AAGUN_ACTIVE==0x400000 && EF_MOUNTEDTANK==0x8000 && EF_PRONE==0x80000 && PMF_BACKWARDS_JUMP==8 && PMF_TIME_WATERJUMP==0x100 && PMF_TIME_LAND==0x20 && ENTITYNUM_NONE==1023 && ANIM_ET_JUMP==4 && ANIM_ET_JUMPBK==5 && ANIM_ET_LAND==6) ? 1 : -1];
+#endif
 /* Whole TC3000e9c0: steep landings suppress the small landing sounds. */
+#if defined(_MSC_VER) && defined(_M_IX86)
+static __declspec(naked) void PM_CrashLand(qboolean steep) {
+    __asm {
+        push ecx
+        mov edx, dword ptr [pm]
+        push esi
+        fld dword ptr [pml+groundOldVelZ831]
+        mov ecx, dword ptr [edx+groundPs831]
+        mov eax, dword ptr [ecx+groundGravity831]
+        neg eax
+        mov dword ptr [esp + 4], eax
+        fild dword ptr [esp + 4]
+        fld st(0)
+        fmul dword ptr [groundK200ac180]
+        fld st(2)
+        fmul st(0), st(3)
+        fld dword ptr [ecx+groundOrigin831+8]
+        fsub dword ptr [pml+groundOldZ831]
+        fchs 
+        fmul st(0), st(2)
+        fmul dword ptr [groundK200ac2bc]
+        fsubp st(1), st(0)
+        fcom dword ptr [groundK200ac100]
+        fnstsw ax
+        test ah, 1
+        jne ground831_20036fad
+        fld st(3)
+        fchs 
+        fxch st(1)
+        fsqrt 
+        mov eax, dword ptr [ecx+groundTcFlags831]
+        test ah, 2
+        fsubp st(1), st(0)
+        fxch st(1)
+        fadd st(0), st(0)
+        fdivp st(1), st(0)
+        fmul st(0), st(1)
+        faddp st(2), st(0)
+        fstp st(0)
+        je ground831_20036d86
+        fmul dword ptr [groundK200ac704]
+ground831_20036d86:
+        mov eax, dword ptr [edx+groundWater831]
+        fld st(0)
+        fmulp st(1), st(0)
+        cmp eax, 3
+        fmul qword ptr [groundK200ac368]
+        je ground831_20036fb3
+        cmp eax, 2
+        jne ground831_20036daa
+        fmul qword ptr [groundK200ac170]
+ground831_20036daa:
+        cmp eax, 1
+        jne ground831_20036db5
+        fmul qword ptr [groundK200ac128]
+ground831_20036db5:
+        fcom dword ptr [groundK200ac110]
+        fnstsw ax
+        test ah, 1
+        jne ground831_20036fb3
+        mov al, byte ptr [pml+groundSurface831]
+        xor esi, esi
+        fadd st(0), st(0)
+        push edi
+        mov edi, dword ptr [esp + 0x10]
+        test al, 1
+        fstp dword ptr [esp + 8]
+        jne ground831_20036f24
+        cmp dword ptr [edx+groundDebug831], esi
+        je ground831_20036dfc
+        fld dword ptr [esp + 8]
+        sub esp, 8
+        fstp qword ptr [esp]
+        push offset groundS200bc610
+        call Com_Printf
+        add esp, 0xc
+ground831_20036dfc:
+        fld dword ptr [esp + 8]
+        fcomp dword ptr [groundK200ac38c]
+        fnstsw ax
+        test ah, 0x41
+        jne ground831_20036e1a
+        call PM_FootstepForSurface
+        push eax
+        push EV_FALL_NDIE
+        jmp ground831_20036f1c
+ground831_20036e1a:
+        fld dword ptr [esp + 8]
+        fcomp dword ptr [groundK200ac7e8]
+        fnstsw ax
+        test ah, 0x41
+        jne ground831_20036e3b
+        call PM_FootstepForSurface
+        push eax
+        push EV_TCE_FALL_DMG_75
+        jmp ground831_20036f1c
+ground831_20036e3b:
+        fld dword ptr [esp + 8]
+        fcomp dword ptr [groundK200ac208]
+        fnstsw ax
+        test ah, 0x41
+        jne ground831_20036e59
+        call PM_FootstepForSurface
+        push eax
+        push EV_FALL_DMG_50
+        jmp ground831_20036f1c
+ground831_20036e59:
+        fld dword ptr [esp + 8]
+        fcomp dword ptr [groundK200ac7e4]
+        fnstsw ax
+        test ah, 0x41
+        jne ground831_20036e8b
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx+groundPs831]
+        cmp dword ptr [edx+groundHealth831], esi
+        jle ground831_20036f24
+        call PM_FootstepForSurface
+        push eax
+        push EV_FALL_DMG_25
+        jmp ground831_20036f1c
+ground831_20036e8b:
+        fld dword ptr [esp + 8]
+        fcomp dword ptr [groundK200ac2b0]
+        fnstsw ax
+        test ah, 0x41
+        jne ground831_20036eb5
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax+groundPs831]
+        cmp dword ptr [ecx+groundHealth831], esi
+        jle ground831_20036f24
+        call PM_FootstepForSurface
+        push eax
+        push EV_FALL_DMG_15
+        jmp ground831_20036f1c
+ground831_20036eb5:
+        fld dword ptr [esp + 8]
+        fcomp dword ptr [groundK200ac7e0]
+        fnstsw ax
+        test ah, 0x41
+        jne ground831_20036ee0
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx+groundPs831]
+        cmp dword ptr [eax+groundHealth831], esi
+        jle ground831_20036f24
+        call PM_FootstepForSurface
+        push eax
+        push EV_FALL_DMG_10
+        jmp ground831_20036f1c
+ground831_20036ee0:
+        fld dword ptr [esp + 8]
+        fcomp dword ptr [groundK200ac7dc]
+        fnstsw ax
+        test ah, 0x41
+        jne ground831_20036eff
+        cmp edi, esi
+        jne ground831_20036eff
+        call PM_FootstepForSurface
+        push eax
+        push EV_FALL_SHORT
+        jmp ground831_20036f1c
+ground831_20036eff:
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx+groundPs831]
+        test byte ptr [edx+groundWeaponFlags831], 2
+        jne ground831_20036f24
+        cmp edi, esi
+        jne ground831_20036f24
+        call PM_FootstepForSurface
+        push eax
+        push EV_FOOTSTEP
+ground831_20036f1c:
+        call PM_AddEventExt
+        add esp, 8
+ground831_20036f24:
+        fld dword ptr [esp + 8]
+        fcomp dword ptr [groundK200ac7e0]
+        fnstsw ax
+        test ah, 0x41
+        jne ground831_20036f55
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax+groundPs831]
+        mov dword ptr [ecx+groundVelocity831+8], esi
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx+groundPs831]
+        mov dword ptr [eax+groundVelocity831+4], esi
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx+groundPs831]
+        mov dword ptr [edx+groundVelocity831], esi
+ground831_20036f55:
+        cmp edi, esi
+        pop edi
+        je ground831_20036f6b
+        fld dword ptr [esp + 4]
+        fcomp dword ptr [groundK200ac7e0]
+        fnstsw ax
+        test ah, 0x41
+        jne ground831_20036fb5
+ground831_20036f6b:
+        mov edx, dword ptr [pm]
+        mov ecx, dword ptr [edx+groundPs831]
+        cmp dword ptr [ecx+groundLegsTimer831], esi
+        jne ground831_20036fa0
+        fld dword ptr [pml+groundOldVelZ831]
+        fcomp dword ptr [groundK200ac7d8]
+        fnstsw ax
+        test ah, 1
+        je ground831_20036fa0
+        mov eax, dword ptr [edx+groundCharacter831]
+        push 1
+        push esi
+        push 6
+        mov edx, dword ptr [eax+groundAnimModel831]
+        push edx
+        push ecx
+        call BG_AnimScriptEvent
+        add esp, 0x14
+ground831_20036fa0:
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax+groundPs831]
+        mov dword ptr [ecx+groundBob831], esi
+        pop esi
+        pop ecx
+        ret 
+ground831_20036fad:
+        fstp st(0)
+        fstp st(0)
+        fstp st(0)
+ground831_20036fb3:
+        fstp st(0)
+ground831_20036fb5:
+        pop esi
+        pop ecx
+        ret 
+    }
+}
+#else
+/* Portable fallback; no Linux instruction-level parity claim. */
 static void PM_CrashLand(qboolean steep) {
     float dist=pm->ps->origin[2]-pml.previous_origin[2];
     float vel=pml.previous_velocity[2], acc=-pm->ps->gravity;
@@ -3049,12 +5233,151 @@ static void PM_CrashLand(qboolean steep) {
         BG_AnimScriptEvent(pm->ps,pm->character->animModelInfo,ANIM_ET_LAND,qfalse,qtrue);
     pm->ps->bobCycle=0;
 }
+#endif
 
 /*
 =============
 PM_CorrectAllSolid
 =============
 */
+#if defined(_MSC_VER) && defined(_M_IX86)
+static __declspec(naked) int PM_CorrectAllSolid(trace_t *trace) {
+    __asm {
+        mov eax, dword ptr [pm]
+        sub esp, 0x14
+        mov ecx, dword ptr [eax+groundDebug831]
+        test ecx, ecx
+        je ground831_20037037
+        mov eax, dword ptr [c_pmove]
+        push eax
+        push offset groundS200bc620
+        call Com_Printf
+        mov eax, dword ptr [pm]
+        add esp, 8
+ground831_20037037:
+        push ebx
+        push ebp
+        or ebp, 0xffffffff
+        or ebx, 0xffffffff
+        mov dword ptr [esp + 0xc], ebp
+        mov dword ptr [esp + 8], ebx
+        fild dword ptr [esp + 0xc]
+        push esi
+        mov esi, dword ptr [esp + 0x24]
+        push edi
+        or edi, 0xffffffff
+        fstp dword ptr [esp + 0x14]
+        fild dword ptr [esp + 0x10]
+        mov dword ptr [esp + 0x28], edi
+        fstp dword ptr [esp + 0x10]
+        jmp ground831_200370a6
+ground831_20037066:
+        fild dword ptr [esp + 0x14]
+        mov eax, dword ptr [pm]
+        or ebx, 0xffffffff
+        mov dword ptr [esp + 0x10], ebx
+        or edi, 0xffffffff
+        fstp dword ptr [esp + 0x14]
+        fild dword ptr [esp + 0x10]
+        mov dword ptr [esp + 0x28], edi
+        fstp dword ptr [esp + 0x10]
+        jmp ground831_200370a6
+ground831_2003708b:
+        fild dword ptr [esp + 0x10]
+        mov eax, dword ptr [pm]
+        or edi, 0xffffffff
+        mov dword ptr [esp + 0x28], edi
+        fstp dword ptr [esp + 0x10]
+        jmp ground831_200370a6
+ground831_200370a1:
+        mov eax, dword ptr [pm]
+ground831_200370a6:
+        mov ecx, dword ptr [eax+groundPs831]
+        mov edx, dword ptr [ecx+groundOrigin831]
+        mov dword ptr [esp + 0x18], edx
+        mov ecx, dword ptr [eax+groundPs831]
+        mov edx, dword ptr [ecx+groundOrigin831+4]
+        lea ecx, [esp + 0x18]
+        mov dword ptr [esp + 0x1c], edx
+        mov eax, dword ptr [eax+groundPs831]
+        lea edx, [esp + 0x18]
+        push ecx
+        fld dword ptr [eax+groundOrigin831+8]
+        fld dword ptr [esp + 0x18]
+        fadd dword ptr [esp + 0x1c]
+        push edx
+        push esi
+        fstp dword ptr [esp + 0x24]
+        fld dword ptr [esp + 0x1c]
+        fadd dword ptr [esp + 0x28]
+        fstp dword ptr [esp + 0x28]
+        fild dword ptr [esp + 0x34]
+        fadd st(0), st(1)
+        fstp dword ptr [esp + 0x2c]
+        fstp st(0)
+        call PM_TraceAll
+        mov eax, dword ptr [esi]
+        add esp, 0xc
+        test eax, eax
+        je ground831_20037143
+        inc edi
+        cmp edi, 1
+        mov dword ptr [esp + 0x28], edi
+        jle ground831_200370a1
+        inc ebx
+        cmp ebx, 1
+        mov dword ptr [esp + 0x10], ebx
+        jle ground831_2003708b
+        inc ebp
+        cmp ebp, 1
+        mov dword ptr [esp + 0x14], ebp
+        jle ground831_20037066
+        mov ecx, dword ptr [pm]
+        pop edi
+        xor eax, eax
+        pop esi
+        mov edx, dword ptr [ecx+groundPs831]
+        pop ebp
+        pop ebx
+        mov dword ptr [edx+groundGround831], 0x3ff
+        mov dword ptr [pml+groundGroundPlane831], eax
+        mov dword ptr [pml+groundWalking831], eax
+        add esp, 0x14
+        ret 
+ground831_20037143:
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax+groundPs831]
+        mov edx, dword ptr [ecx+groundOrigin831]
+        mov dword ptr [esp + 0x18], edx
+        mov ecx, dword ptr [eax+groundPs831]
+        mov edx, dword ptr [ecx+groundOrigin831+4]
+        mov dword ptr [esp + 0x1c], edx
+        mov ecx, dword ptr [eax+groundPs831]
+        lea edx, [esp + 0x18]
+        fld dword ptr [ecx+groundOrigin831+8]
+        fsub qword ptr [groundK200ac170]
+        push edx
+        fstp dword ptr [esp + 0x24]
+        mov eax, dword ptr [eax+groundPs831]
+        add eax, groundOrigin831
+        push eax
+        push esi
+        call PM_TraceAll
+        mov ecx, 0xe
+        mov edi, offset pml+groundGroundTrace831
+        add esp, 0xc
+        mov eax, 1
+        rep movsd 
+        pop edi
+        pop esi
+        pop ebp
+        pop ebx
+        add esp, 0x14
+        ret 
+    }
+}
+#else
+/* Portable fallback; no Linux instruction-level parity claim. */
 static int PM_CorrectAllSolid( trace_t *trace ) {
 	int			i, j, k;
 	vec3_t		point;
@@ -3091,6 +5414,7 @@ static int PM_CorrectAllSolid( trace_t *trace ) {
 
 	return qfalse;
 }
+#endif
 
 
 /*
@@ -3100,6 +5424,107 @@ PM_GroundTraceMissed
 The ground trace didn't hit a surface, so we are in freefall
 =============
 */
+#if defined(_MSC_VER) && defined(_M_IX86)
+static __declspec(naked) void PM_GroundTraceMissed(void) {
+    __asm {
+        mov eax, dword ptr [pm]
+        sub esp, 0x44
+        mov ecx, dword ptr [eax+groundPs831]
+        push ebx
+        xor ebx, ebx
+        cmp dword ptr [ecx+groundGround831], 0x3ff
+        je ground831_20037298
+        cmp dword ptr [eax+groundDebug831], ebx
+        je ground831_200371d8
+        mov edx, dword ptr [c_pmove]
+        push edx
+        push offset groundS200bc630
+        call Com_Printf
+        mov eax, dword ptr [pm]
+        add esp, 8
+ground831_200371d8:
+        mov ecx, dword ptr [eax+groundPs831]
+        mov edx, dword ptr [ecx+groundOrigin831]
+        mov dword ptr [esp + 4], edx
+        mov ecx, dword ptr [eax+groundPs831]
+        mov edx, dword ptr [ecx+groundOrigin831+4]
+        mov dword ptr [esp + 8], edx
+        mov ecx, dword ptr [eax+groundPs831]
+        fld dword ptr [ecx+groundOrigin831+8]
+        fsub dword ptr [groundK200ac1cc]
+        fstp dword ptr [esp + 0xc]
+        mov ecx, dword ptr [eax+groundPs831]
+        mov edx, dword ptr [eax+groundTraceMask831]
+        push edx
+        mov edx, dword ptr [ecx+groundClient831]
+        add ecx, groundOrigin831
+        push edx
+        lea edx, [esp + 0xc]
+        push edx
+        lea edx, [eax+groundMaxs831]
+        push edx
+        lea edx, [eax+groundMins831]
+        push edx
+        push ecx
+        lea ecx, [esp + 0x28]
+        push ecx
+        call dword ptr [eax+groundTrace831]
+        fld dword ptr [esp + 0x34]
+        fcomp qword ptr [groundK200ac130]
+        add esp, 0x1c
+        fnstsw ax
+        test ah, 0x40
+        mov eax, dword ptr [pm]
+        je ground831_20037298
+        mov cl, byte ptr [eax+groundForwardCmd831]
+        push 1
+        cmp cl, bl
+        push ebx
+        jl ground831_2003726e
+        mov edx, dword ptr [eax+groundCharacter831]
+        push 4
+        mov ecx, dword ptr [edx+groundAnimModel831]
+        mov edx, dword ptr [eax+groundPs831]
+        push ecx
+        push edx
+        call BG_AnimScriptEvent
+        mov eax, dword ptr [pm]
+        add esp, 0x14
+        mov eax, dword ptr [eax+groundPs831]
+        mov ecx, dword ptr [eax+groundFlags831]
+        and ecx, 0xfffffff7
+        jmp ground831_20037290
+ground831_2003726e:
+        mov ecx, dword ptr [eax+groundCharacter831]
+        mov eax, dword ptr [eax+groundPs831]
+        push 5
+        mov edx, dword ptr [ecx+groundAnimModel831]
+        push edx
+        push eax
+        call BG_AnimScriptEvent
+        mov ecx, dword ptr [pm]
+        add esp, 0x14
+        mov eax, dword ptr [ecx+groundPs831]
+        mov ecx, dword ptr [eax+groundFlags831]
+        or ecx, 8
+ground831_20037290:
+        mov dword ptr [eax+groundFlags831], ecx
+        mov eax, dword ptr [pm]
+ground831_20037298:
+        mov eax, dword ptr [eax+groundPs831]
+        cmp dword ptr [eax+groundGround831], -1
+        je ground831_200372a7
+        mov dword ptr [eax+groundGround831], 0x3ff
+ground831_200372a7:
+        mov dword ptr [pml+groundGroundPlane831], ebx
+        mov dword ptr [pml+groundWalking831], ebx
+        pop ebx
+        add esp, 0x44
+        ret 
+    }
+}
+#else
+/* Portable fallback; no Linux instruction-level parity claim. */
 static void PM_GroundTraceMissed( void ) {
 	trace_t		trace;
 	vec3_t		point;
@@ -3138,6 +5563,7 @@ static void PM_GroundTraceMissed( void ) {
 	pml.groundPlane = qfalse;
 	pml.walking = qfalse;
 }
+#endif
 
 
 /*
@@ -3147,6 +5573,418 @@ PM_GroundTrace
 */
 /* Whole TC3000e490. Direct original capsule trace, including content and
  * prone ground-extension paths absent from the SDK ground controller. */
+#if defined(_MSC_VER) && defined(_M_IX86)
+static __declspec(naked) void PM_GroundTrace(void) {
+    __asm {
+        sub esp, 0x44
+        mov eax, dword ptr [pm]
+        push ebp
+        xor ebp, ebp
+        push esi
+        mov ecx, dword ptr [eax+groundPs831]
+        push edi
+        mov edx, dword ptr [ecx+groundOrigin831]
+        mov dword ptr [esp + 0xc], edx
+        mov ecx, dword ptr [eax+groundPs831]
+        mov edx, dword ptr [ecx+groundOrigin831+4]
+        mov dword ptr [esp + 0x10], edx
+        mov ecx, dword ptr [eax+groundPs831]
+        mov edx, dword ptr [ecx+groundEflags831]
+        test dl, 0x20
+        jne ground831_2003681c
+        test edx, 0x400000
+        jne ground831_2003681c
+        fld dword ptr [ecx+groundOrigin831+8]
+        fsub dword ptr [groundK200ac198]
+        jmp ground831_20036825
+ground831_2003681c:
+        fld dword ptr [ecx+groundOrigin831+8]
+        fsub dword ptr [groundK200ac110]
+ground831_20036825:
+        fstp dword ptr [esp + 0x14]
+        mov ecx, dword ptr [eax+groundPs831]
+        mov edx, dword ptr [eax+groundTraceMask831]
+        push edx
+        mov edx, dword ptr [ecx+groundClient831]
+        add ecx, groundOrigin831
+        push edx
+        lea edx, [esp + 0x14]
+        push edx
+        lea edx, [eax+groundMaxs831]
+        push edx
+        lea edx, [eax+groundMins831]
+        push edx
+        push ecx
+        lea ecx, [esp + 0x30]
+        push ecx
+        call dword ptr [eax+groundTrace831]
+        mov eax, dword ptr [esp + 0x34]
+        add esp, 0x1c
+        mov ecx, 0xe
+        lea esi, [esp + 0x18]
+        mov edi, offset pml+groundGroundTrace831
+        test eax, eax
+        rep movsd 
+        je ground831_20036898
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx+groundPs831]
+        mov eax, dword ptr [edx+groundEflags831]
+        test ah, 0x80
+        jne ground831_2003689e
+        lea eax, [esp + 0x18]
+        push eax
+        call PM_CorrectAllSolid
+        add esp, 4
+        test eax, eax
+        je ground831_20036cfd
+ground831_20036898:
+        mov ecx, dword ptr [pm]
+ground831_2003689e:
+        fld dword ptr [esp + 0x20]
+        fcomp qword ptr [groundK200ac130]
+        fnstsw ax
+        test ah, 0x40
+        je ground831_20036a1f
+        mov eax, dword ptr [pml+groundContent831]
+        xor edi, edi
+        cmp eax, edi
+        je ground831_20036974
+        mov edx, dword ptr [ecx+groundPs831]
+        fld dword ptr [edx+groundVelocity831+8]
+        fcomp dword ptr [groundK200ac2b8]
+        fnstsw ax
+        test ah, 1
+        je ground831_20036974
+        fld dword ptr [esp + 0x14]
+        fsub dword ptr [groundK200ac148]
+        fstp dword ptr [esp + 0x14]
+        mov eax, dword ptr [ecx+groundPs831]
+        mov edx, dword ptr [ecx+groundTraceMask831]
+        push edx
+        mov edx, dword ptr [eax+groundClient831]
+        add eax, groundOrigin831
+        push edx
+        lea edx, [esp + 0x14]
+        push edx
+        lea edx, [ecx+groundMaxs831]
+        push edx
+        lea edx, [ecx+groundMins831]
+        push edx
+        push eax
+        lea eax, [esp + 0x30]
+        push eax
+        call dword ptr [ecx+groundTrace831]
+        fld dword ptr [esp + 0x3c]
+        fcomp qword ptr [groundK200ac130]
+        add esp, 0x1c
+        fnstsw ax
+        test ah, 1
+        je ground831_200369f5
+        cmp dword ptr [esp + 0x18], edi
+        jne ground831_200369f5
+        fld dword ptr [esp + 0x38]
+        fcomp qword ptr [groundK200ac268]
+        fnstsw ax
+        test ah, 0x41
+        jne ground831_200369f5
+        mov ebp, 1
+        mov ecx, 0xe
+        lea esi, [esp + 0x18]
+        mov edi, offset pml+groundGroundTrace831
+        mov dword ptr [pml+groundExtension831], ebp
+        rep movsd 
+        mov ecx, dword ptr [pm]
+        xor edi, edi
+        jmp ground831_20036a26
+ground831_20036974:
+        mov edx, dword ptr [ecx+groundPs831]
+        test dword ptr [edx+groundEflags831], 0x80000
+        je ground831_200369fb
+        fld dword ptr [esp + 0x14]
+        fsub dword ptr [groundK200ac148]
+        fstp dword ptr [esp + 0x14]
+        mov eax, dword ptr [ecx+groundPs831]
+        mov edx, dword ptr [ecx+groundTraceMask831]
+        push edx
+        mov edx, dword ptr [eax+groundClient831]
+        add eax, groundOrigin831
+        push edx
+        lea edx, [esp + 0x14]
+        push edx
+        lea edx, [ecx+groundMaxs831]
+        push edx
+        lea edx, [ecx+groundMins831]
+        push edx
+        push eax
+        lea eax, [esp + 0x30]
+        push eax
+        call dword ptr [ecx+groundTrace831]
+        fld dword ptr [esp + 0x3c]
+        fcomp qword ptr [groundK200ac130]
+        add esp, 0x1c
+        fnstsw ax
+        test ah, 1
+        je ground831_200369f5
+        cmp dword ptr [esp + 0x18], edi
+        jne ground831_200369f5
+        mov ecx, 0xe
+        lea esi, [esp + 0x18]
+        mov edi, offset pml+groundGroundTrace831
+        mov ebp, 1
+        rep movsd 
+        mov ecx, dword ptr [pm]
+        xor edi, edi
+        jmp ground831_200369fb
+ground831_200369f5:
+        mov ecx, dword ptr [pm]
+ground831_200369fb:
+        cmp dword ptr [pml+groundExtension831], edi
+        jne ground831_20036a21
+        cmp ebp, edi
+        jne ground831_20036a21
+        call PM_GroundTraceMissed
+        mov dword ptr [pml+groundGroundPlane831], edi
+        mov dword ptr [pml+groundWalking831], edi
+        pop edi
+        pop esi
+        pop ebp
+        add esp, 0x44
+        ret 
+ground831_20036a1f:
+        xor edi, edi
+ground831_20036a21:
+        mov ebp, 1
+ground831_20036a26:
+        mov edx, dword ptr [ecx+groundPs831]
+        fld dword ptr [edx+groundVelocity831+8]
+        fcomp dword ptr [groundK200ac100]
+        fnstsw ax
+        test ah, 0x41
+        jne ground831_20036b06
+        fld dword ptr [esp + 0x34]
+        fmul dword ptr [edx+groundVelocity831+4]
+        fld dword ptr [esp + 0x30]
+        fmul dword ptr [edx+groundVelocity831]
+        faddp st(1), st(0)
+        fld dword ptr [esp + 0x38]
+        fmul dword ptr [edx+groundVelocity831+8]
+        faddp st(1), st(0)
+        fcomp dword ptr [groundK200ac2dc]
+        fnstsw ax
+        test ah, 0x41
+        jne ground831_20036b06
+        test dword ptr [edx+groundEflags831], 0x80000
+        jne ground831_20036b06
+        cmp dword ptr [ecx+groundDebug831], edi
+        je ground831_20036a92
+        mov ecx, dword ptr [c_pmove]
+        push ecx
+        push offset groundS200bc604
+        call Com_Printf
+        mov ecx, dword ptr [pm]
+        add esp, 8
+ground831_20036a92:
+        mov al, byte ptr [ecx+groundForwardCmd831]
+        push edi
+        test al, al
+        push edi
+        jl ground831_20036abf
+        mov edx, dword ptr [ecx+groundCharacter831]
+        mov ecx, dword ptr [ecx+groundPs831]
+        push 4
+        mov eax, dword ptr [edx+groundAnimModel831]
+        push eax
+        push ecx
+        call BG_AnimScriptEvent
+        mov edx, dword ptr [pm]
+        add esp, 0x14
+        mov eax, dword ptr [edx+groundPs831]
+        mov ecx, dword ptr [eax+groundFlags831]
+        and ecx, 0xfffffff7
+        jmp ground831_20036ae1
+ground831_20036abf:
+        mov eax, dword ptr [ecx+groundCharacter831]
+        push 5
+        mov edx, dword ptr [eax+groundAnimModel831]
+        mov eax, dword ptr [ecx+groundPs831]
+        push edx
+        push eax
+        call BG_AnimScriptEvent
+        mov ecx, dword ptr [pm]
+        add esp, 0x14
+        mov eax, dword ptr [ecx+groundPs831]
+        mov ecx, dword ptr [eax+groundFlags831]
+        or ecx, 8
+ground831_20036ae1:
+        mov dword ptr [eax+groundFlags831], ecx
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx+groundPs831]
+        mov dword ptr [eax+groundGround831], 0x3ff
+        mov dword ptr [pml+groundGroundPlane831], edi
+        mov dword ptr [pml+groundWalking831], edi
+        pop edi
+        pop esi
+        pop ebp
+        add esp, 0x44
+        ret 
+ground831_20036b06:
+        fld dword ptr [esp + 0x38]
+        fcomp qword ptr [groundK200ac268]
+        mov esi, 0x3ff
+        fnstsw ax
+        test ah, 1
+        je ground831_20036b61
+        cmp dword ptr [ecx+groundDebug831], edi
+        je ground831_20036b3b
+        mov ecx, dword ptr [c_pmove]
+        push ecx
+        push offset groundS200bc5f8
+        call Com_Printf
+        mov ecx, dword ptr [pm]
+        add esp, 8
+ground831_20036b3b:
+        mov eax, dword ptr [ecx+groundPs831]
+        test byte ptr [eax+groundTcFlags831], 4
+        je ground831_20036b4b
+        cmp dword ptr [eax+groundGround831], esi
+        je ground831_20036b61
+ground831_20036b4b:
+        mov dword ptr [eax+groundGround831], esi
+        mov dword ptr [pml+groundWalking831], edi
+        pop edi
+        mov dword ptr [pml+groundGroundPlane831], ebp
+        pop esi
+        pop ebp
+        add esp, 0x44
+        ret 
+ground831_20036b61:
+        mov dword ptr [pml+groundGroundPlane831], ebp
+        mov dword ptr [pml+groundWalking831], ebp
+        mov edx, dword ptr [ecx+groundPs831]
+        mov eax, dword ptr [edx+groundFlags831]
+        test ah, 1
+        je ground831_20036b90
+        and eax, 0xfffffedf
+        mov dword ptr [edx+groundFlags831], eax
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx+groundPs831]
+        mov dword ptr [eax+groundTime831], edi
+        mov ecx, dword ptr [pm]
+ground831_20036b90:
+        mov edx, dword ptr [ecx+groundPs831]
+        cmp dword ptr [edx+groundGround831], esi
+        jne ground831_20036ccd
+        cmp dword ptr [ecx+groundDebug831], edi
+        je ground831_20036bb3
+        mov eax, dword ptr [c_pmove]
+        push eax
+        push offset groundS200bc5ec
+        call Com_Printf
+        add esp, 8
+ground831_20036bb3:
+        fld dword ptr [esp + 0x38]
+        fcomp qword ptr [groundK200ac268]
+        fnstsw ax
+        test ah, 1
+        je ground831_20036bc8
+        mov eax, ebp
+        jmp ground831_20036bca
+ground831_20036bc8:
+        xor eax, eax
+ground831_20036bca:
+        push eax
+        call PM_CrashLand
+        fld dword ptr [pml+groundOldVelZ831]
+        fcomp dword ptr [groundK200ac7d4]
+        add esp, 4
+        fnstsw ax
+        test ah, 1
+        je ground831_20036c40
+        mov ecx, dword ptr [pm]
+        mov eax, dword ptr [ecx+groundPs831]
+        mov ebp, dword ptr [eax+groundFlags831]
+        or ebp, 0x20
+        mov dword ptr [eax+groundFlags831], ebp
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx+groundPs831]
+        mov dword ptr [eax+groundTime831], 0xfa
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax+groundCommandTime831]
+        mov edx, dword ptr [eax+groundExt831]
+        neg ecx
+        mov dword ptr [edx+groundExtProne831], ecx
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax+groundCommandTime831]
+        mov edx, dword ptr [eax+groundExt831]
+        sub ecx, 0x258
+        mov dword ptr [edx+groundExtJump831], ecx
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax+groundCommandTime831]
+        mov edx, dword ptr [eax+groundPs831]
+        sub ecx, 0x258
+        mov dword ptr [edx+groundJumpTime831], ecx
+ground831_20036c40:
+        mov ecx, dword ptr [pm]
+        mov eax, dword ptr [ecx+groundPs831]
+        mov edx, dword ptr [eax+groundWeaponFlags831]
+        test dh, 0x10
+        je ground831_20036cb3
+        mov dword ptr [eax+groundTime831], 0x3e8
+        mov eax, dword ptr [pm]
+        mov eax, dword ptr [eax+groundPs831]
+        mov ebp, dword ptr [eax+groundWeaponFlags831]
+        and ebp, 0xffffefff
+        mov dword ptr [eax+groundWeaponFlags831], ebp
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax+groundCommandTime831]
+        mov edx, dword ptr [eax+groundExt831]
+        neg ecx
+        mov dword ptr [edx+groundExtProne831], ecx
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax+groundCommandTime831]
+        mov edx, dword ptr [eax+groundExt831]
+        sub ecx, 0x258
+        mov dword ptr [edx+groundExtJump831], ecx
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax+groundCommandTime831]
+        mov edx, dword ptr [eax+groundPs831]
+        sub ecx, 0x258
+        mov dword ptr [edx+groundJumpTime831], ecx
+        mov ecx, dword ptr [pm]
+ground831_20036cb3:
+        mov edx, dword ptr [ecx+groundPs831]
+        mov eax, dword ptr [edx+groundTcFlags831]
+        test al, 4
+        je ground831_20036ccd
+        and al, 0xfb
+        mov dword ptr [edx+groundTcFlags831], eax
+        mov ecx, dword ptr [pm]
+ground831_20036ccd:
+        mov eax, dword ptr [ecx+groundPs831]
+        mov ecx, dword ptr [esp + 0x4c]
+        mov dword ptr [eax+groundGround831], ecx
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx+groundPs831]
+        cmp dword ptr [eax+groundGround831], 0x40
+        jge ground831_20036cf0
+        mov eax, dword ptr [pml+groundSurface831]
+        or al, 2
+        mov dword ptr [pml+groundSurface831], eax
+ground831_20036cf0:
+        mov ecx, dword ptr [esp + 0x4c]
+        push ecx
+        call PM_AddTouchEnt
+        add esp, 4
+ground831_20036cfd:
+        pop edi
+        pop esi
+        pop ebp
+        add esp, 0x44
+        ret 
+    }
+}
+#else
+/* Portable fallback; no Linux instruction-level parity claim. */
 static void PM_GroundTrace(void) {
     vec3_t point;
     trace_t trace;
@@ -3213,12 +6051,174 @@ static void PM_GroundTrace(void) {
     if(trace.entityNum<64) pml.groundTrace.surfaceFlags|=2;
     PM_AddTouchEnt(trace.entityNum);
 }
+#endif
 
 /*
 =============
 PM_SetWaterLevel	FIXME: avoid this twice?  certainly if not moving
 =============
 */
+/* TC qagame 200372c0/20037460: integer field copies and retained x87
+ * sampling / __ftol return schedule. Native offsets replace original ABI slots. */
+#if defined(_MSC_VER) && defined(_M_IX86)
+static const float posture831One = 1.0f;
+typedef char posture831PsAtZero[(offsetof(pmove_t, ps) == 0) ? 1 : -1];
+typedef char posture831TraceLayout[(sizeof(trace_t) == 56 && offsetof(trace_t, allsolid) == 0) ? 1 : -1];
+enum {
+    posture831pm110 = offsetof(pmove_t, waterlevel),
+    posture831pm10c = offsetof(pmove_t, watertype),
+    posture831ps14 = offsetof(playerState_t, origin),
+    posture831ps18 = offsetof(playerState_t, origin)+4,
+    posture831ps3e4 = offsetof(playerState_t, mins)+8,
+    posture831ps1c = offsetof(playerState_t, origin)+8,
+    posture831psa0 = offsetof(playerState_t, clientNum),
+    posture831pm12c = offsetof(pmove_t, pointcontents),
+    posture831psbc = offsetof(playerState_t, viewheight),
+    posture831ps3dc = offsetof(playerState_t, mins),
+    posture831pmf4 = offsetof(pmove_t, mins),
+    posture831ps3e0 = offsetof(playerState_t, mins)+4,
+    posture831pmf8 = offsetof(pmove_t, mins)+4,
+    posture831ps3e8 = offsetof(playerState_t, maxs),
+    posture831pm100 = offsetof(pmove_t, maxs),
+    posture831ps3ec = offsetof(playerState_t, maxs)+4,
+    posture831pm104 = offsetof(pmove_t, maxs)+4,
+    posture831pmfc = offsetof(pmove_t, mins)+8,
+    posture831ps4 = offsetof(playerState_t, pm_type),
+    posture831ps3f0 = offsetof(playerState_t, maxs)+8,
+    posture831pm108 = offsetof(pmove_t, maxs)+8,
+    posture831ps400 = offsetof(playerState_t, deadViewHeight),
+    posture831ps3f4 = offsetof(playerState_t, crouchMaxZ),
+    posture831ps3f8 = offsetof(playerState_t, crouchViewHeight),
+    posture831ps148 = offsetof(playerState_t, persistant)+14*sizeof(int),
+    posture831ps68 = offsetof(playerState_t, eFlags),
+    posture831psc = offsetof(playerState_t, pm_flags),
+    posture831pm22 = offsetof(pmove_t, cmd)+offsetof(usercmd_t,upmove),
+    posture831psf0 = offsetof(playerState_t, stats)+STAT_TCE_WEAPON_FLAGS*sizeof(int),
+    posture831psa4 = offsetof(playerState_t, weapon),
+    posture831pm44 = offsetof(pmove_t, tracemask),
+    posture831pm128 = offsetof(pmove_t, trace),
+    posture831pmc = offsetof(pmove_t, cmd)+offsetof(usercmd_t,serverTime),
+    posture831pm4 = offsetof(pmove_t, pmext),
+    posture831ExtJump = offsetof(pmoveExt_t, jumpTime),
+    posture831ps47c = offsetof(playerState_t, jumpTime),
+    posture831ps3fc = offsetof(playerState_t, standViewHeight)
+};
+static __declspec(naked) void PM_SetWaterLevel(void) {
+    __asm {
+        SUB ESP,0x14
+        MOV ECX,dword ptr [pm]
+        XOR EAX,EAX
+        PUSH EBX
+        MOV dword ptr [ECX + posture831pm110],EAX
+        MOV EDX,dword ptr [pm]
+        MOV dword ptr [EDX + posture831pm10c],EAX
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [EAX]
+        MOV EDX,dword ptr [ECX + posture831ps14]
+        MOV dword ptr [ESP + 0xc],EDX
+        MOV ECX,dword ptr [EAX]
+        MOV EDX,dword ptr [ECX + posture831ps18]
+        MOV dword ptr [ESP + 0x10],EDX
+        MOV ECX,dword ptr [EAX]
+        FLD dword ptr [ECX + posture831ps3e4]
+        FADD dword ptr [ECX + posture831ps1c]
+        FADD dword ptr [posture831One]
+        FSTP dword ptr [ESP + 0x14]
+        MOV ECX,dword ptr [EAX]
+        MOV EDX,dword ptr [ECX + posture831psa0]
+        LEA ECX,[ESP + 0xc]
+        PUSH EDX
+        PUSH ECX
+        CALL dword ptr [EAX + posture831pm12c]
+        MOV EBX,EAX
+        ADD ESP,0x8
+        TEST BL,0x38
+        JZ posture831_200373f6
+        PUSH ESI
+        MOV ESI,dword ptr [pm]
+        MOV EAX,dword ptr [ESI]
+        FILD dword ptr [EAX + posture831psbc]
+        FSUB dword ptr [EAX + posture831ps3e4]
+        CALL PM_MovementTruncate827
+        MOV dword ptr [ESI + posture831pm10c],EBX
+        MOV EDX,dword ptr [pm]
+        MOV dword ptr [ESP + 0xc],EAX
+        MOV dword ptr [EDX + posture831pm110],0x1
+        MOV ECX,dword ptr [pm]
+        CDQ
+        MOV ESI,dword ptr [ECX]
+        SUB EAX,EDX
+        SAR EAX,0x1
+        MOV dword ptr [ESP + 0x8],EAX
+        FILD dword ptr [ESP + 0x8]
+        FADD dword ptr [ESI + posture831ps3e4]
+        FADD dword ptr [ESI + posture831ps1c]
+        FSTP dword ptr [ESP + 0x18]
+        MOV EAX,dword ptr [ECX]
+        MOV EDX,dword ptr [EAX + posture831psa0]
+        LEA EAX,[ESP + 0x10]
+        PUSH EDX
+        PUSH EAX
+        CALL dword ptr [ECX + posture831pm12c]
+        ADD ESP,0x8
+        MOV EBX,EAX
+        TEST BL,0x38
+        POP ESI
+        JZ posture831_200373f6
+        MOV ECX,dword ptr [pm]
+        MOV dword ptr [ECX + posture831pm110],0x2
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [EAX]
+        FLD dword ptr [ECX + posture831ps3e4]
+        FADD dword ptr [ECX + posture831ps1c]
+        FIADD dword ptr [ESP + 0x8]
+        FSTP dword ptr [ESP + 0x14]
+        MOV EDX,dword ptr [EAX]
+        MOV ECX,dword ptr [EDX + posture831psa0]
+        LEA EDX,[ESP + 0xc]
+        PUSH ECX
+        PUSH EDX
+        CALL dword ptr [EAX + posture831pm12c]
+        MOV EBX,EAX
+        ADD ESP,0x8
+        TEST BL,0x38
+        JZ posture831_200373f6
+        MOV EAX,[pm]
+        MOV dword ptr [EAX + posture831pm110],0x3
+posture831_200373f6:
+        TEST BH,0x10
+        JZ posture831_20037407
+        MOV dword ptr [pml.tceContentRestriction],0x1
+        JMP posture831_20037427
+posture831_20037407:
+        TEST BH,0x8
+        JZ posture831_20037418
+        MOV dword ptr [pml.tceContentRestriction],0x2
+        JMP posture831_20037427
+posture831_20037418:
+        TEST BH,0x4
+        JZ posture831_20037427
+        MOV dword ptr [pml.tceContentRestriction],0x3
+posture831_20037427:
+        MOV EAX,[pm]
+        XOR ECX,ECX
+        PUSH 0x1
+        MOV EBX,dword ptr [EAX + posture831pm110]
+        MOV EDX,dword ptr [EAX]
+        CMP EBX,0x2
+        MOV EAX,dword ptr [EDX + posture831psa0]
+        SETG CL
+        PUSH ECX
+        PUSH 0x3
+        PUSH EAX
+        CALL BG_UpdateConditionValue
+        ADD ESP,0x10
+        POP EBX
+        ADD ESP,0x14
+        RET
+    }
+}
+#else
 static void PM_SetWaterLevel( void ) {
 	vec3_t		point;
 	int			cont;
@@ -3267,6 +6267,7 @@ static void PM_SetWaterLevel( void ) {
 	BG_UpdateConditionValue( pm->ps->clientNum, ANIM_COND_UNDERWATER, (pm->waterlevel > 2), qtrue );
 
 }
+#endif
 
 /*
 ==============
@@ -3322,57 +6323,218 @@ static void PM_TCECheckDuck(void) {
     ps->viewheight = (int)((ps->pm_flags & PMF_DUCKED) ? ps->crouchViewHeight : ps->standViewHeight);
 }
 
-static void PM_CheckDuck (void)
-{
-	trace_t	trace;
-    if (gearDef.parsed) {
-        PM_TCECheckDuck();
-        return;
+#if defined(_MSC_VER) && defined(_M_IX86)
+static __declspec(naked) void PM_CheckDuck(void) {
+    __asm {
+        MOV EAX,[pm]
+        SUB ESP,0x38
+        MOV ECX,dword ptr [EAX]
+        PUSH ESI
+        MOV EDX,dword ptr [ECX + posture831ps3dc]
+        MOV dword ptr [EAX + posture831pmf4],EDX
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [EAX]
+        MOV EDX,dword ptr [ECX + posture831ps3e0]
+        MOV dword ptr [EAX + posture831pmf8],EDX
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [EAX]
+        MOV EDX,dword ptr [ECX + posture831ps3e8]
+        MOV dword ptr [EAX + posture831pm100],EDX
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [EAX]
+        MOV EDX,dword ptr [ECX + posture831ps3ec]
+        MOV dword ptr [EAX + posture831pm104],EDX
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [EAX]
+        MOV EDX,dword ptr [ECX + posture831ps3e4]
+        MOV dword ptr [EAX + posture831pmfc],EDX
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [EAX]
+        MOV EDX,dword ptr [ECX + posture831ps4]
+        CMP EDX,0x3
+        JNZ posture831_200374fc
+        MOV ECX,dword ptr [ECX + posture831ps3f0]
+        MOV dword ptr [EAX + posture831pm108],ECX
+        MOV EDX,dword ptr [pm]
+        MOV ESI,dword ptr [EDX]
+        FLD dword ptr [ESI + posture831ps400]
+        CALL PM_MovementTruncate827
+        MOV dword ptr [ESI + posture831psbc],EAX
+        POP ESI
+        ADD ESP,0x38
+        RET
+posture831_200374fc:
+        CMP EDX,0x2
+        JNZ posture831_2003752b
+        MOV ECX,dword ptr [ECX + posture831ps3f4]
+        MOV dword ptr [EAX + posture831pm108],ECX
+        MOV EDX,dword ptr [pm]
+        MOV ESI,dword ptr [EDX]
+        FLD dword ptr [ESI + posture831ps3f8]
+        CALL PM_MovementTruncate827
+        MOV dword ptr [ESI + posture831psbc],EAX
+        POP ESI
+        ADD ESP,0x38
+        RET
+posture831_2003752b:
+        MOV DL,byte ptr [ECX + posture831ps148]
+        PUSH EBX
+        TEST DL,0x4
+        JZ posture831_20037595
+        TEST dword ptr [ECX + posture831ps68],0x1008000
+        JNZ posture831_20037595
+        TEST byte ptr [ECX + posture831psc],0x4
+        JNZ posture831_20037595
+        MOV BL,byte ptr [EAX + posture831pm22]
+        TEST BL,BL
+        JGE posture831_20037581
+        MOV EDX,dword ptr [ECX + posture831psf0]
+        TEST DH,0x4
+        JNZ posture831_2003757d
+        OR DH,0x4
+        MOV dword ptr [ECX + posture831psf0],EDX
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [EAX]
+        MOV EAX,dword ptr [ECX + posture831psf0]
+        TEST AH,0x2
+        JZ posture831_20037578
+        AND AH,0xfd
+        JMP posture831_2003758a
+posture831_20037578:
+        OR AH,0x2
+        JMP posture831_2003758a
+posture831_2003757d:
+        TEST BL,BL
+        JL posture831_20037595
+posture831_20037581:
+        MOV EAX,dword ptr [ECX + posture831psf0]
+        AND AH,0xfb
+posture831_2003758a:
+        MOV dword ptr [ECX + posture831psf0],EAX
+        MOV EAX,[pm]
+posture831_20037595:
+        MOV DL,byte ptr [EAX + posture831pm22]
+        CMP DL,0xa
+        JG posture831_200375c6
+        MOV ECX,dword ptr [EAX]
+        TEST dword ptr [ECX + posture831psf0],0x200
+        JZ posture831_200375c6
+        TEST byte ptr [ECX + posture831ps148],0x4
+        JZ posture831_200375c6
+        MOV EAX,dword ptr [ECX + posture831psc]
+        MOV EBX,0x1
+        OR EAX,EBX
+        MOV dword ptr [ECX + posture831psc],EAX
+        JMP posture831_200376b9
+posture831_200375c6:
+        TEST DL,DL
+        JGE posture831_200375e4
+        MOV ECX,dword ptr [EAX]
+        TEST byte ptr [ECX + posture831ps148],0x4
+        JNZ posture831_200375e4
+        TEST dword ptr [ECX + posture831ps68],0x1008000
+        JNZ posture831_200375e4
+        TEST byte ptr [ECX + posture831psc],0x4
+        JZ posture831_200375ef
+posture831_200375e4:
+        MOV ECX,dword ptr [EAX]
+        CMP dword ptr [ECX + posture831psa4],0x3c
+        JNZ posture831_20037601
+posture831_200375ef:
+        MOV EAX,dword ptr [ECX + posture831psc]
+        MOV EBX,0x1
+        OR EAX,EBX
+        MOV dword ptr [ECX + posture831psc],EAX
+        JMP posture831_200376b9
+posture831_20037601:
+        MOV DL,byte ptr [ECX + posture831psc]
+        MOV EBX,0x1
+        TEST BL,DL
+        JZ posture831_200376be
+        MOV ECX,dword ptr [ECX + posture831ps3f0]
+        MOV dword ptr [EAX + posture831pm108],ECX
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [EAX]
+        MOV ESI,dword ptr [EAX + posture831pm44]
+        PUSH ESI
+        LEA EDX,[ECX + posture831ps14]
+        MOV ECX,dword ptr [ECX + posture831psa0]
+        PUSH ECX
+        LEA ECX,[EAX + posture831pm100]
+        PUSH EDX
+        PUSH ECX
+        LEA ECX,[EAX + posture831pmf4]
+        PUSH ECX
+        PUSH EDX
+        LEA EDX,[ESP + 0x20]
+        PUSH EDX
+        CALL dword ptr [EAX + posture831pm128]
+        MOV EAX,dword ptr [ESP + 0x24]
+        ADD ESP,0x1c
+        TEST EAX,EAX
+        JNZ posture831_20037663
+        MOV EAX,[pm]
+        MOV EAX,dword ptr [EAX]
+        AND dword ptr [EAX + posture831psc],0xfffffffe
+posture831_20037663:
+        MOV EAX,[pm]
+        CMP byte ptr [EAX + posture831pm22],0xa
+        JLE posture831_200376be
+        MOV EDX,dword ptr [EAX]
+        MOV ECX,dword ptr [EDX + posture831psf0]
+        TEST CH,0x2
+        JZ posture831_20037689
+        AND CH,0xfd
+        MOV dword ptr [EDX + posture831psf0],ECX
+        MOV EAX,[pm]
+posture831_20037689:
+        MOV ECX,dword ptr [EAX + posture831pmc]
+        MOV EDX,dword ptr [EAX + posture831pm4]
+        SUB ECX,0x28a
+        MOV dword ptr [EDX + posture831ExtJump],ECX
+        MOV EAX,[pm]
+        MOV ECX,dword ptr [EAX + posture831pmc]
+        MOV EDX,dword ptr [EAX]
+        SUB ECX,0x28a
+        MOV dword ptr [EDX + posture831ps47c],ECX
+        MOV EAX,[pm]
+        MOV EAX,dword ptr [EAX]
+        OR dword ptr [EAX + posture831psc],0x2
+posture831_200376b9:
+        MOV EAX,[pm]
+posture831_200376be:
+        MOV ECX,dword ptr [EAX]
+        TEST byte ptr [ECX + posture831psc],BL
+        POP EBX
+        JZ posture831_200376f0
+        MOV ECX,dword ptr [ECX + posture831ps3f4]
+        MOV dword ptr [EAX + posture831pm108],ECX
+        MOV EDX,dword ptr [pm]
+        MOV ESI,dword ptr [EDX]
+        FLD dword ptr [ESI + posture831ps3f8]
+        CALL PM_MovementTruncate827
+        MOV dword ptr [ESI + posture831psbc],EAX
+        POP ESI
+        ADD ESP,0x38
+        RET
+posture831_200376f0:
+        MOV ECX,dword ptr [ECX + posture831ps3f0]
+        MOV dword ptr [EAX + posture831pm108],ECX
+        MOV EDX,dword ptr [pm]
+        MOV ESI,dword ptr [EDX]
+        FLD dword ptr [ESI + posture831ps3fc]
+        CALL PM_MovementTruncate827
+        MOV dword ptr [ESI + posture831psbc],EAX
+        POP ESI
+        ADD ESP,0x38
+        RET
     }
-
-	// Ridah, modified this for configurable bounding boxes
-	pm->mins[0] = pm->ps->mins[0];
-	pm->mins[1] = pm->ps->mins[1];
-
-	pm->maxs[0] = pm->ps->maxs[0];
-	pm->maxs[1] = pm->ps->maxs[1];
-
-	pm->mins[2] = pm->ps->mins[2];
-
-	if( pm->ps->pm_type == PM_DEAD ) {
-		pm->maxs[2] = pm->ps->maxs[2];			// NOTE: must set death bounding box in game code
-		pm->ps->viewheight = pm->ps->deadViewHeight;
-		return;
-	}
-
-	if( (pm->cmd.upmove < 0 && !(pm->ps->eFlags & EF_MOUNTEDTANK) && !(pm->ps->pm_flags & PMF_LADDER) ) || pm->ps->weapon == WP_MORTAR_SET )
-	{	// duck
-		pm->ps->pm_flags |= PMF_DUCKED;
-	}
-	else
-	{	// stand up if possible
-		if (pm->ps->pm_flags & PMF_DUCKED)
-		{
-			// try to stand up
-			pm->maxs[2] = pm->ps->maxs[2];
-			PM_TraceAll( &trace, pm->ps->origin, pm->ps->origin );
-			if (!trace.allsolid)
-				pm->ps->pm_flags &= ~PMF_DUCKED;
-		}
-	}
-
-	if (pm->ps->pm_flags & PMF_DUCKED)
-	{
-		pm->maxs[2] = pm->ps->crouchMaxZ;
-		pm->ps->viewheight = pm->ps->crouchViewHeight;
-	}
-	else
-	{
-		pm->maxs[2] = pm->ps->maxs[2];
-		pm->ps->viewheight = pm->ps->standViewHeight;
-	}
-	// done.
 }
+#else
+static void PM_CheckDuck(void) {
+    PM_TCECheckDuck();
+}
+#endif
 
 
 
@@ -3394,6 +6556,705 @@ static int PM_TCELadderFootstepForSurface(void) {
 }
 
 /* Whole TC:E cgame3000f3c0 / Linux000e1998, shared prediction/server. */
+#if defined(_MSC_VER) && defined(_M_IX86)
+static __declspec(naked) void PM_Footsteps(void) {
+    __asm {
+        PUSH ECX
+        MOV EDX,dword ptr [pm]
+        PUSH EBX
+        PUSH EBP
+        PUSH ESI
+        MOV EAX,dword ptr [EDX + posture832pm0]
+        PUSH EDI
+        TEST byte ptr [EAX + posture832ps68],0x1
+        JZ posture832_200377bc
+        MOV ECX,dword ptr [EAX + posture832psc]
+        TEST CH,0x8
+        JZ posture832_20037774
+        MOV ECX,dword ptr [EDX + posture832pm8]
+        PUSH 0x1
+        PUSH 0x15
+        MOV EDX,dword ptr [ECX + posture832character40]
+        PUSH EDX
+        PUSH EAX
+        CALL BG_AnimScriptAnimation
+        MOV EAX,[pm]
+        ADD ESP,0x10
+        MOV EAX,dword ptr [EAX + posture832pm0]
+        MOV ECX,dword ptr [EAX + posture832ps10]
+        TEST ECX,ECX
+        JNZ posture832_20037eb6
+        MOV ECX,dword ptr [EAX + posture832psc]
+        POP EDI
+        AND CH,0xf7
+        POP ESI
+        POP EBP
+        MOV dword ptr [EAX + posture832psc],ECX
+        POP EBX
+        POP ECX
+        RET
+posture832_20037774:
+        MOV EDX,dword ptr [EAX + posture832ps10]
+        TEST EDX,EDX
+        JNZ posture832_20037eb6
+        TEST CH,0x40
+        JNZ posture832_20037eb6
+        CMP dword ptr [EAX + posture832ps50],0x3ff
+        JNZ posture832_20037eb6
+        OR CH,0x8
+        PUSH 0x1
+        MOV dword ptr [EAX + posture832psc],ECX
+        MOV EAX,[pm]
+        PUSH 0x15
+        MOV ECX,dword ptr [EAX + posture832pm8]
+        MOV EAX,dword ptr [EAX + posture832pm0]
+        MOV EDX,dword ptr [ECX + posture832character40]
+        PUSH EDX
+        PUSH EAX
+        CALL BG_AnimScriptAnimation
+        ADD ESP,0x10
+        POP EDI
+        POP ESI
+        POP EBP
+        POP EBX
+        POP ECX
+        RET
+posture832_200377bc:
+        MOV EDX,dword ptr [EAX + posture832psf0]
+        OR EDX,0x20
+        MOV dword ptr [EAX + posture832psf0],EDX
+        MOV ECX,dword ptr [pm]
+        MOV EAX,dword ptr [ECX + posture832pm0]
+        MOV ECX,dword ptr [EAX + posture832ps68]
+        OR ECX,0x10000
+        MOV dword ptr [EAX + posture832ps68],ECX
+        MOV ECX,dword ptr [pm]
+        MOV EAX,dword ptr [ECX + posture832pm0]
+        FLD dword ptr [EAX + posture832ps24]
+        FLD dword ptr [EAX + posture832ps20]
+        FLD ST(0)
+        FMUL ST(0),ST(1)
+        FLD ST(2)
+        FMUL ST(0),ST(3)
+        FADDP ST(1),ST(0)
+        FSQRT
+        FSTP dword ptr [ECX + posture832pm114]
+        MOV ECX,dword ptr [pm]
+        FSTP ST(0)
+        MOV EDX,dword ptr [ECX + posture832pm0]
+        FSTP ST(0)
+        MOV EAX,dword ptr [EDX + posture832ps140]
+        TEST EAX,EAX
+        JZ posture832_20037854
+        MOV EAX,dword ptr [ECX + posture832pm8]
+        PUSH 0x1
+        PUSH 0x1
+        MOV ECX,dword ptr [EAX + posture832character40]
+        PUSH ECX
+        PUSH EDX
+        CALL BG_AnimScriptAnimation
+        MOV EDX,dword ptr [pm]
+        ADD ESP,0x10
+        MOV EAX,dword ptr [EDX + posture832pm0]
+        POP EDI
+        POP ESI
+        POP EBP
+        MOV EDX,dword ptr [EAX + posture832psf0]
+        POP EBX
+        AND EDX,0xffffffdf
+        MOV dword ptr [EAX + posture832psf0],EDX
+        MOV EAX,[pm]
+        MOV EAX,dword ptr [EAX + posture832pm0]
+        AND dword ptr [EAX + posture832ps68],0xfffeffff
+        POP ECX
+        RET
+posture832_20037854:
+        MOV EAX,dword ptr [ECX + posture832pm110]
+        MOV EBX,0x2
+        CMP EAX,EBX
+        JLE posture832_20037888
+        MOV AL,byte ptr [EDX + posture832psc]
+        PUSH 0x1
+        TEST AL,0x10
+        JZ posture832_20037884
+        PUSH 0xa
+posture832_2003786e:
+        MOV ECX,dword ptr [ECX + posture832pm8]
+        MOV EAX,dword ptr [ECX + posture832character40]
+        PUSH EAX
+        PUSH EDX
+        CALL BG_AnimScriptAnimation
+        ADD ESP,0x10
+        POP EDI
+        POP ESI
+        POP EBP
+        POP EBX
+        POP ECX
+        RET
+posture832_20037884:
+        PUSH 0x9
+        JMP posture832_2003786e
+posture832_20037888:
+        CMP dword ptr [EDX + posture832ps50],0x3ff
+        JNZ posture832_20037987
+        TEST byte ptr [EDX + posture832psc],0x4
+        JZ posture832_20037eb6
+        FLD dword ptr [EDX + posture832ps28]
+        FCOMP dword ptr [posture832Const200ac100]
+        PUSH 0x1
+        FNSTSW AX
+        TEST AH,0x1
+        JNZ posture832_200378b5
+        PUSH 0xf
+        JMP posture832_200378b7
+posture832_200378b5:
+        PUSH 0x10
+posture832_200378b7:
+        MOV ECX,dword ptr [ECX + posture832pm8]
+        MOV EAX,dword ptr [ECX + posture832character40]
+        PUSH EAX
+        PUSH EDX
+        CALL BG_AnimScriptAnimation
+        MOV EAX,[pm]
+        ADD ESP,0x10
+        MOV CL,byte ptr [EAX + posture832pm20]
+        TEST CL,CL
+        JNZ posture832_200378e5
+        MOV CL,byte ptr [EAX + posture832pm21]
+        TEST CL,CL
+        JNZ posture832_200378e5
+        MOV CL,byte ptr [EAX + posture832pm22]
+        TEST CL,CL
+        JZ posture832_20037eb6
+posture832_200378e5:
+        MOV ECX,dword ptr [EAX + posture832pm0]
+        ADD ECX,posture832ps20
+        PUSH ECX
+        CALL VectorLength
+        FMUL qword ptr [posture832Const200ac7f8]
+        ADD ESP,0x4
+        FCOM dword ptr [posture832Const200ac180]
+        FNSTSW AX
+        TEST AH,0x41
+        JNZ posture832_20037910
+        FSTP ST(0)
+        FLD dword ptr [posture832Const200ac180]
+        JMP posture832_20037921
+posture832_20037910:
+        FCOM dword ptr [posture832Const200ac3e8]
+        FNSTSW AX
+        TEST AH,0x1
+        JNZ posture832_20037eb4
+posture832_20037921:
+        MOV EDX,dword ptr [pm]
+        FILD dword ptr [pml.msec]
+        MOV ESI,dword ptr [EDX + posture832pm0]
+        MOV EDI,dword ptr [ESI + posture832ps8]
+        FMUL ST(0),ST(1)
+        MOV dword ptr [ESP + 0x10],EDI
+        FIADD dword ptr [ESP + 0x10]
+        CALL PM_MovementTruncate827
+        AND EAX,0xff
+        ADD EDI,0x40
+        MOV dword ptr [ESI + posture832ps8],EAX
+        MOV EAX,[pm]
+        FSTP ST(0)
+        MOV ECX,dword ptr [EAX + posture832pm0]
+        MOV EDX,dword ptr [ECX + posture832ps8]
+        ADD EDX,0x40
+        XOR EDX,EDI
+        TEST DL,0x80
+        JZ posture832_20037eb6
+        MOV ECX,dword ptr [EAX + posture832pm4c]
+        TEST ECX,ECX
+        JNZ posture832_20037eb6
+        CALL PM_TCELadderFootstepForSurface
+        PUSH EAX
+        PUSH 0x1
+        CALL PM_AddEventExt
+        ADD ESP,0x8
+        POP EDI
+        POP ESI
+        POP EBP
+        POP EBX
+        POP ECX
+        RET
+posture832_20037987:
+        MOV AL,byte ptr [ECX + posture832pm20]
+        TEST AL,AL
+        JNZ posture832_20037a7e
+        MOV AL,byte ptr [ECX + posture832pm21]
+        TEST AL,AL
+        JNZ posture832_20037a7e
+        FLD dword ptr [ECX + posture832pm114]
+        FCOMP dword ptr [posture832Const200ac340]
+        FNSTSW AX
+        TEST AH,0x1
+        JZ posture832_200379bd
+        MOV dword ptr [EDX + posture832ps8],0x0
+        MOV ECX,dword ptr [pm]
+posture832_200379bd:
+        FLD dword ptr [ECX + posture832pm114]
+        FCOMP dword ptr [posture832Const200ac700]
+        FNSTSW AX
+        TEST AH,0x41
+        JZ posture832_20037eb6
+        MOV EAX,dword ptr [ECX + posture832pm0]
+        MOV EDI,0xffffffdf
+        MOV ESI,0xfffeffff
+        TEST dword ptr [EAX + posture832ps68],0x80000
+        JZ posture832_200379ef
+        PUSH 0x1
+        PUSH 0x14
+        JMP posture832_200379f8
+posture832_200379ef:
+        TEST byte ptr [EAX + posture832psc],0x1
+        JZ posture832_20037a3c
+        PUSH 0x1
+        PUSH EBX
+posture832_200379f8:
+        MOV ECX,dword ptr [ECX + posture832pm8]
+        MOV EDX,dword ptr [ECX + posture832character40]
+        PUSH EDX
+        PUSH EAX
+        CALL BG_AnimScriptAnimation
+        MOV ECX,dword ptr [pm]
+        ADD ESP,0x10
+        MOV ECX,dword ptr [ECX + posture832pm0]
+        MOV EBX,dword ptr [ECX + posture832psf0]
+        AND EBX,EDI
+        MOV dword ptr [ECX + posture832psf0],EBX
+        MOV EDX,dword ptr [pm]
+        MOV ECX,dword ptr [EDX + posture832pm0]
+        MOV EDX,dword ptr [ECX + posture832ps68]
+        AND EDX,ESI
+        TEST EAX,EAX
+        MOV dword ptr [ECX + posture832ps68],EDX
+        JGE posture832_20037eb6
+        MOV ECX,dword ptr [pm]
+posture832_20037a3c:
+        MOV EAX,dword ptr [ECX + posture832pm8]
+        PUSH 0x1
+        PUSH 0x1
+        MOV EDX,dword ptr [EAX + posture832character40]
+        MOV EAX,dword ptr [ECX + posture832pm0]
+        PUSH EDX
+        PUSH EAX
+        CALL BG_AnimScriptAnimation
+        MOV ECX,dword ptr [pm]
+        ADD ESP,0x10
+        MOV EAX,dword ptr [ECX + posture832pm0]
+        MOV EDX,dword ptr [EAX + posture832psf0]
+        AND EDX,EDI
+        POP EDI
+        MOV dword ptr [EAX + posture832psf0],EDX
+        MOV EDX,dword ptr [pm]
+        MOV EAX,dword ptr [EDX + posture832pm0]
+        MOV ECX,dword ptr [EAX + posture832ps68]
+        AND ECX,ESI
+        POP ESI
+        POP EBP
+        MOV dword ptr [EAX + posture832ps68],ECX
+        POP EBX
+        POP ECX
+        RET
+posture832_20037a7e:
+        MOV ECX,dword ptr [EDX + posture832psf0]
+        XOR EBP,EBP
+        OR ECX,EBX
+        MOV dword ptr [EDX + posture832psf0],ECX
+        MOV ECX,dword ptr [pm]
+        MOV EDX,dword ptr [ECX + posture832pm0]
+        MOV ESI,dword ptr [EDX + posture832ps68]
+        TEST ESI,0x80000
+        JZ posture832_20037ad1
+        MOV AL,byte ptr [EDX + posture832psc]
+        MOV dword ptr [ESP + 0x10],0x3e4ccccd
+        TEST AL,0x10
+        PUSH 0x1
+        JZ posture832_20037ab6
+        PUSH 0x13
+        JMP posture832_20037ab8
+posture832_20037ab6:
+        PUSH 0x12
+posture832_20037ab8:
+        MOV EAX,dword ptr [ECX + posture832pm8]
+        MOV ECX,dword ptr [EAX + posture832character40]
+        PUSH ECX
+        PUSH EDX
+        CALL BG_AnimScriptAnimation
+        ADD ESP,0x10
+        MOV ECX,EAX
+        MOV EBP,EBX
+        JMP posture832_20037d8f
+posture832_20037ad1:
+        MOV EAX,dword ptr [EDX + posture832psc]
+        TEST AL,0x1
+        JZ posture832_20037b3b
+        TEST AL,0x10
+        MOV dword ptr [ESP + 0x10],0x3e4ccccd
+        PUSH 0x1
+        JZ posture832_20037aea
+        PUSH 0x6
+        JMP posture832_20037aec
+posture832_20037aea:
+        PUSH 0x5
+posture832_20037aec:
+        MOV EAX,dword ptr [ECX + posture832pm8]
+        MOV ECX,dword ptr [EAX + posture832character40]
+        PUSH ECX
+        PUSH EDX
+        CALL BG_AnimScriptAnimation
+        MOV EDX,dword ptr [pm]
+        MOV ECX,EAX
+        ADD ESP,0x10
+        MOV EAX,dword ptr [EDX + posture832pm0]
+        TEST byte ptr [EAX + posture832psf0],0x4
+        JNZ posture832_20037d8f
+        FLD dword ptr [EAX + posture832ps3c]
+        FCOMP dword ptr [posture832Const200ac100]
+        FNSTSW AX
+        TEST AH,0x40
+        JZ posture832_20037d8f
+        TEST byte ptr [EDX + posture832pm10],0x10
+        JNZ posture832_20037d8f
+        MOV EBP,0x1
+        JMP posture832_20037d8f
+posture832_20037b3b:
+        TEST AL,0x10
+        MOV AL,byte ptr [ECX + posture832pm10]
+        JZ posture832_20037c60
+        TEST AL,0x10
+        JZ posture832_20037ba1
+        TEST AL,0x20
+        JNZ posture832_20037ba1
+        MOV AL,byte ptr [ECX + posture832pm21]
+        MOV dword ptr [ESP + 0x10],0x3e8f5c29
+        TEST AL,AL
+        JZ posture832_20037b8e
+        MOV BL,byte ptr [ECX + posture832pm20]
+        TEST BL,BL
+        JNZ posture832_20037b8e
+        TEST AL,AL
+        PUSH 0x1
+        JLE posture832_20037b6e
+        PUSH 0xb
+        JMP posture832_20037b70
+posture832_20037b6e:
+        PUSH 0xc
+posture832_20037b70:
+        MOV EAX,dword ptr [ECX + posture832pm8]
+        MOV ECX,dword ptr [EAX + posture832character40]
+        PUSH ECX
+        PUSH EDX
+        CALL BG_AnimScriptAnimation
+        ADD ESP,0x10
+        TEST EAX,EAX
+        JGE posture832_20037dd3
+        MOV ECX,dword ptr [pm]
+posture832_20037b8e:
+        MOV EDX,dword ptr [ECX + posture832pm8]
+        MOV ECX,dword ptr [ECX + posture832pm0]
+        PUSH 0x1
+        PUSH 0x4
+        MOV EAX,dword ptr [EDX + posture832character40]
+        PUSH EAX
+        PUSH ECX
+        JMP posture832_20037d85
+posture832_20037ba1:
+        MOV AL,byte ptr [EDX + posture832psf0]
+        MOV EBX,0x4
+        TEST BL,AL
+        JNZ posture832_20037bf1
+        FLD dword ptr [EDX + posture832ps3c]
+        FCOMP dword ptr [posture832Const200ac100]
+        FNSTSW AX
+        TEST AH,0x40
+        JZ posture832_20037bf1
+        FLD dword ptr [ECX + posture832pm114]
+        FCOMP dword ptr [posture832Const200ac7f0]
+        FNSTSW AX
+        TEST AH,0x41
+        JNZ posture832_20037be2
+        MOV dword ptr [ESP + 0x10],0x3ee66666
+        MOV EBP,0x3
+        JMP posture832_20037bfe
+posture832_20037be2:
+        MOV dword ptr [ESP + 0x10],0x3eb851ec
+        MOV EBP,0x2
+        JMP posture832_20037bfe
+posture832_20037bf1:
+        MOV dword ptr [ESP + 0x10],0x3e8f5c29
+        MOV EBP,0x1
+posture832_20037bfe:
+        MOV AL,byte ptr [ECX + posture832pm21]
+        TEST AL,AL
+        JZ posture832_20037c35
+        CMP byte ptr [ECX + posture832pm20],0x0
+        JNZ posture832_20037c35
+        TEST AL,AL
+        PUSH 0x1
+        JLE posture832_20037c15
+        PUSH 0xb
+        JMP posture832_20037c17
+posture832_20037c15:
+        PUSH 0xc
+posture832_20037c17:
+        MOV EAX,dword ptr [ECX + posture832pm8]
+        MOV ECX,dword ptr [EAX + posture832character40]
+        PUSH ECX
+        PUSH EDX
+        CALL BG_AnimScriptAnimation
+        ADD ESP,0x10
+        TEST EAX,EAX
+        JGE posture832_20037dd3
+        MOV ECX,dword ptr [pm]
+posture832_20037c35:
+        MOV EDX,dword ptr [ECX + posture832pm0]
+        TEST byte ptr [EDX + posture832psf0],BL
+        JNZ posture832_20037c58
+        FLD dword ptr [EDX + posture832ps3c]
+        FCOMP dword ptr [posture832Const200ac100]
+        FNSTSW AX
+        TEST AH,0x40
+        JZ posture832_20037c58
+        PUSH 0x1
+        PUSH 0x8
+        JMP posture832_20037d7d
+posture832_20037c58:
+        PUSH 0x1
+        PUSH EBX
+        JMP posture832_20037d7d
+posture832_20037c60:
+        TEST AL,0x10
+        JZ posture832_20037cbb
+        TEST AL,0x20
+        JNZ posture832_20037cbb
+        MOV AL,byte ptr [ECX + posture832pm21]
+        MOV dword ptr [ESP + 0x10],0x3e8f5c29
+        TEST AL,AL
+        JZ posture832_20037ca8
+        MOV BL,byte ptr [ECX + posture832pm20]
+        TEST BL,BL
+        JNZ posture832_20037ca8
+        TEST AL,AL
+        PUSH 0x1
+        JLE posture832_20037c88
+        PUSH 0xb
+        JMP posture832_20037c8a
+posture832_20037c88:
+        PUSH 0xc
+posture832_20037c8a:
+        MOV EAX,dword ptr [ECX + posture832pm8]
+        MOV ECX,dword ptr [EAX + posture832character40]
+        PUSH ECX
+        PUSH EDX
+        CALL BG_AnimScriptAnimation
+        ADD ESP,0x10
+        TEST EAX,EAX
+        JGE posture832_20037dd3
+        MOV ECX,dword ptr [pm]
+posture832_20037ca8:
+        MOV EDX,dword ptr [ECX + posture832pm8]
+        MOV ECX,dword ptr [ECX + posture832pm0]
+        PUSH 0x1
+        PUSH 0x3
+        MOV EAX,dword ptr [EDX + posture832character40]
+        PUSH EAX
+        PUSH ECX
+        JMP posture832_20037d85
+posture832_20037cbb:
+        MOV AL,byte ptr [EDX + posture832psf0]
+        MOV EBX,0x4
+        TEST BL,AL
+        JNZ posture832_20037d0b
+        FLD dword ptr [EDX + posture832ps3c]
+        FCOMP dword ptr [posture832Const200ac100]
+        FNSTSW AX
+        TEST AH,0x40
+        JZ posture832_20037d0b
+        FLD dword ptr [ECX + posture832pm114]
+        FCOMP dword ptr [posture832Const200ac7f0]
+        FNSTSW AX
+        TEST AH,0x41
+        JNZ posture832_20037cfc
+        MOV dword ptr [ESP + 0x10],0x3ee66666
+        MOV EBP,0x3
+        JMP posture832_20037d18
+posture832_20037cfc:
+        MOV dword ptr [ESP + 0x10],0x3eb851ec
+        MOV EBP,0x2
+        JMP posture832_20037d18
+posture832_20037d0b:
+        MOV dword ptr [ESP + 0x10],0x3e8f5c29
+        MOV EBP,0x1
+posture832_20037d18:
+        TEST ESI,0x100000
+        JZ posture832_20037d22
+        XOR EBP,EBP
+posture832_20037d22:
+        MOV AL,byte ptr [ECX + posture832pm21]
+        TEST AL,AL
+        JZ posture832_20037d59
+        CMP byte ptr [ECX + posture832pm20],0x0
+        JNZ posture832_20037d59
+        TEST AL,AL
+        PUSH 0x1
+        JLE posture832_20037d39
+        PUSH 0xb
+        JMP posture832_20037d3b
+posture832_20037d39:
+        PUSH 0xc
+posture832_20037d3b:
+        MOV EAX,dword ptr [ECX + posture832pm8]
+        MOV ECX,dword ptr [EAX + posture832character40]
+        PUSH ECX
+        PUSH EDX
+        CALL BG_AnimScriptAnimation
+        ADD ESP,0x10
+        TEST EAX,EAX
+        JGE posture832_20037dd3
+        MOV ECX,dword ptr [pm]
+posture832_20037d59:
+        MOV EDX,dword ptr [ECX + posture832pm0]
+        TEST byte ptr [EDX + posture832psf0],BL
+        JNZ posture832_20037d79
+        FLD dword ptr [EDX + posture832ps3c]
+        FCOMP dword ptr [posture832Const200ac100]
+        FNSTSW AX
+        TEST AH,0x40
+        JZ posture832_20037d79
+        PUSH 0x1
+        PUSH 0x7
+        JMP posture832_20037d7d
+posture832_20037d79:
+        PUSH 0x1
+        PUSH 0x3
+posture832_20037d7d:
+        MOV EAX,dword ptr [ECX + posture832pm8]
+        MOV ECX,dword ptr [EAX + posture832character40]
+        PUSH ECX
+        PUSH EDX
+posture832_20037d85:
+        CALL BG_AnimScriptAnimation
+        ADD ESP,0x10
+        MOV ECX,EAX
+posture832_20037d8f:
+        TEST ECX,ECX
+        JGE posture832_20037dd3
+        MOV EAX,[pm]
+        PUSH 0x1
+        PUSH 0x1
+        MOV EDX,dword ptr [EAX + posture832pm8]
+        MOV ECX,dword ptr [EDX + posture832character40]
+        MOV EDX,dword ptr [EAX + posture832pm0]
+        PUSH ECX
+        PUSH EDX
+        CALL BG_AnimScriptAnimation
+        MOV EAX,[pm]
+        ADD ESP,0x10
+        MOV EAX,dword ptr [EAX + posture832pm0]
+        MOV EDX,dword ptr [EAX + posture832psf0]
+        AND EDX,0xffffffdf
+        MOV dword ptr [EAX + posture832psf0],EDX
+        MOV ECX,dword ptr [pm]
+        MOV EAX,dword ptr [ECX + posture832pm0]
+        AND dword ptr [EAX + posture832ps68],0xfffeffff
+posture832_20037dd3:
+        MOV EAX,[pml.tceContentRestriction]
+        FLD dword ptr [ESP + 0x10]
+        TEST EAX,EAX
+        JZ posture832_20037de6
+        FMUL dword ptr [posture832Const200ac7ec]
+posture832_20037de6:
+        MOV EDX,dword ptr [pm]
+        FILD dword ptr [pml.msec]
+        MOV ESI,dword ptr [EDX + posture832pm0]
+        MOV EDI,dword ptr [ESI + posture832ps8]
+        FMUL ST(0),ST(1)
+        MOV dword ptr [ESP + 0x10],EDI
+        FIADD dword ptr [ESP + 0x10]
+        CALL PM_MovementTruncate827
+        AND EAX,0xff
+        ADD EDI,0x40
+        MOV dword ptr [ESI + posture832ps8],EAX
+        MOV ECX,dword ptr [pm]
+        FSTP ST(0)
+        MOV EAX,dword ptr [ECX + posture832pm0]
+        MOV EDX,dword ptr [EAX + posture832ps8]
+        ADD EDX,0x40
+        XOR EDX,EDI
+        TEST DL,0x80
+        JZ posture832_20037e9c
+        MOV EAX,dword ptr [ECX + posture832pm110]
+        TEST EAX,EAX
+        JNZ posture832_20037e84
+        MOV EAX,dword ptr [ECX + posture832pm4c]
+        TEST EAX,EAX
+        JNZ posture832_20037e9c
+        CMP EBP,0x1
+        JNZ posture832_20037e53
+        CALL PM_FootstepForSurface
+        PUSH EAX
+        PUSH 0x8b
+        CALL PM_AddEventExt
+        ADD ESP,0x8
+        JMP posture832_20037ea0
+posture832_20037e53:
+        CMP EBP,0x2
+        JNZ posture832_20037e6a
+        CALL PM_FootstepForSurface
+        PUSH EAX
+        PUSH 0x1
+        CALL PM_AddEventExt
+        ADD ESP,0x8
+        JMP posture832_20037ea0
+posture832_20037e6a:
+        CMP EBP,0x3
+        JNZ posture832_20037e9c
+        CALL PM_FootstepForSurface
+        PUSH EAX
+        PUSH 0x8a
+        CALL PM_AddEventExt
+        ADD ESP,0x8
+        JMP posture832_20037ea0
+posture832_20037e84:
+        CMP EAX,0x1
+        JNZ posture832_20037e8d
+        PUSH 0x9
+        JMP posture832_20037e94
+posture832_20037e8d:
+        CMP EAX,0x2
+        JNZ posture832_20037e9c
+        PUSH 0xb
+posture832_20037e94:
+        CALL PM_AddEvent
+        ADD ESP,0x4
+posture832_20037e9c:
+        TEST EBP,EBP
+        JZ posture832_20037eb6
+posture832_20037ea0:
+        MOV EAX,[pm]
+        POP EDI
+        POP ESI
+        POP EBP
+        MOV EAX,dword ptr [EAX + posture832pm0]
+        POP EBX
+        AND dword ptr [EAX + posture832psf0],0xfffffffd
+        POP ECX
+        RET
+posture832_20037eb4:
+        FSTP ST(0)
+posture832_20037eb6:
+        POP EDI
+        POP ESI
+        POP EBP
+        POP EBX
+        POP ECX
+        RET
+    }
+}
+#else
 static void PM_Footsteps(void) {
     float bobmove;
     int old, soundClass = 0, animResult = -1, moveType;
@@ -3498,6 +7359,7 @@ idle:
     pm->ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~0x20;
     pm->ps->eFlags &= ~0x10000;
 }
+#endif
 
 /*
 ==============
@@ -3697,17 +7559,14 @@ PM_FinishWeaponReload
 ==============
 */
 
-/* Whole TC30012e70, including single-round and state12 exclusions. */
+/* TC qagame2003b1b0: refill, publish READY, then select the idle animation. */
 static void PM_FinishWeaponReload(void) {
-    tce_reloadState_t state;
-    tce_reloadEffects_t effects;
     int weapon=pm->ps->weapon;
     if (weapon < 0 || weapon >= TCE_MAX_WEAPONS) return;
-    memset(&state,0,sizeof(state));
-    state.state=pm->ps->weaponstate; state.idleAnimation=PM_IdleAnimForWeapon(weapon);
-    TCE_PM_FinishWeaponReload(weapon,&state,weaponDef,pm->ps->ammo,pm->ps->ammoclip,&effects);
-    pm->ps->weaponstate=state.state;
-    PM_StartWeaponAnim(effects.weaponAnimation);
+    if (!weaponDef[weapon].singleReload && pm->ps->weaponstate != 12)
+        PM_ReloadClip(weapon);
+    pm->ps->weaponstate = WEAPON_READY;
+    PM_StartWeaponAnim(PM_IdleAnimForWeapon(pm->ps->weapon));
 }
 
 /*
@@ -3859,19 +7718,78 @@ static int PM_TCECoolRate(int weapon) {
     return weapon == 31 || weapon == 34 ? 300 : 0;
 }
 
-/* TC:E Windows30009af0 / Linux000db70e. No SDK-ID-indexed ammo table. */
+#if defined(_MSC_VER) && defined(_M_IX86)
+static void PM_WeaponTruncateST0(void);
+#endif
+
+/* TC:E qagame20031e50. The Windows arithmetic retains ST0 until __ftol. */
 void PM_CoolWeapons(void) {
     int weapon, maxHeat;
     for (weapon = 0; weapon < 64; ++weapon) {
         if (COM_BitCheck(pm->ps->weapons, weapon) && pm->ps->weapHeat[weapon]) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+            int heatValue = pm->ps->weapHeat[weapon];
+            int coolingRate = PM_TCECoolRate(weapon);
+            float coolingFrame = pml.frametime;
+            int coolingDouble = pm->skill[SK_HEAVY_WEAPONS] >= 2 &&
+                pm->ps->stats[STAT_PLAYER_CLASS] == PC_SOLDIER;
+            __asm {
+                fild heatValue
+                fild coolingRate
+                fmul coolingFrame
+                cmp coolingDouble, 0
+                je coolingSubtract
+                fadd st(0), st(0)
+            coolingSubtract:
+                fsubp st(1), st(0)
+                call PM_WeaponTruncateST0
+                mov heatValue, eax
+            }
+            pm->ps->weapHeat[weapon] = heatValue;
+#else
             float cooling = PM_TCECoolRate(weapon) * pml.frametime;
             if (pm->skill[SK_HEAVY_WEAPONS] >= 2 &&
                 pm->ps->stats[STAT_PLAYER_CLASS] == PC_SOLDIER) cooling += cooling;
             pm->ps->weapHeat[weapon] = (int)(pm->ps->weapHeat[weapon] - cooling);
+#endif
             if (pm->ps->weapHeat[weapon] < 0) pm->ps->weapHeat[weapon] = 0;
         }
     }
     if (!pm->ps->weapon) return;
+#if defined(_MSC_VER) && defined(_M_IX86)
+    {
+        static const float coolingMountedScale = 0.0006666666595265269f;
+        static const float coolingDisplayScale = 255.0f;
+        static double (__cdecl *const coolingFloor)(double) = floor;
+        int heatValue;
+        int mountedHeat = pm->ps->persistant[PERS_HWEAPON_USE] ||
+            (pm->ps->eFlags & EF_MOUNTEDTANK);
+        if (mountedHeat) heatValue = pm->ps->weapHeat[34];
+        else {
+            maxHeat = PM_TCEMaxHeat(pm->ps->weapon);
+            if (!maxHeat) { pm->ps->curWeapHeat = 0; return; }
+            heatValue = pm->ps->weapHeat[pm->ps->weapon];
+        }
+        __asm {
+            fild heatValue
+            cmp mountedHeat, 0
+            je coolingDivide
+            fmul coolingMountedScale
+            jmp coolingDisplay
+        coolingDivide:
+            fidiv maxHeat
+        coolingDisplay:
+            fmul coolingDisplayScale
+            sub esp, 8
+            fstp qword ptr [esp]
+            call dword ptr [coolingFloor]
+            add esp, 8
+            call PM_WeaponTruncateST0
+            mov heatValue, eax
+        }
+        pm->ps->curWeapHeat = heatValue;
+    }
+#else
     if (pm->ps->persistant[PERS_HWEAPON_USE] || (pm->ps->eFlags & EF_MOUNTEDTANK)) {
         pm->ps->curWeapHeat = (int)floor((pm->ps->weapHeat[34] * (1.0f / 1500.0f)) * 255.0f);
     } else {
@@ -3879,6 +7797,7 @@ void PM_CoolWeapons(void) {
         if (!maxHeat) { pm->ps->curWeapHeat = 0; return; }
         pm->ps->curWeapHeat = (int)floor(((float)pm->ps->weapHeat[pm->ps->weapon] / maxHeat) * 255.0f);
     }
+#endif
 }
 
 /*
@@ -4058,14 +7977,529 @@ static qboolean PM_TCECancelAim(void) {
     return qtrue;
 }
 
-void PM_AdjustAimSpreadScale( void ) {
-//	int		increase, decrease, i;
-	int		i;
-	float	increase, decrease;		// (SA) was losing lots of precision on slower weapons (scoped)
-	float	viewchange, cmdTime, wpnScale;
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* Whole qagame20031f90; original stack locals, native structure offsets. */
+enum {
+    aimPs68 = offsetof(playerState_t, eFlags),
+    aimPs48c = offsetof(playerState_t, aimSpreadScale),
+    aimPs488 = offsetof(playerState_t, aimSpreadScaleFloat),
+    aimPsa4 = offsetof(playerState_t, weapon),
+    aimPsa8 = offsetof(playerState_t, weaponstate),
+    aimPsc = offsetof(playerState_t, pm_flags),
+    aimPs20 = offsetof(playerState_t, velocity),
+    aimPsf4 = offsetof(playerState_t, stats) + STAT_TCE_FLAGS * sizeof(int),
+    aimPsf0 = offsetof(playerState_t, stats) + STAT_TCE_WEAPON_FLAGS * sizeof(int),
+    aimPsfc = offsetof(playerState_t, stats) + STAT_TCE_MOVEMENT_INSTABILITY * sizeof(int),
+    aimPs104 = offsetof(playerState_t, stats) + STAT_TCE_AIM_PHASE * sizeof(int),
+    aimPsec = offsetof(playerState_t, stats) + STAT_TCE_SHOT_SEED * sizeof(int),
+    aimPs100 = offsetof(playerState_t, stats) + STAT_TCE_SHOT_INSTABILITY * sizeof(int),
+    aimCmdTime = offsetof(pmove_t, cmd.serverTime),
+    aimOldTime = offsetof(pmove_t, oldcmd.serverTime),
+    aimOldAngles = offsetof(pmove_t, oldcmd.angles),
+    aimAngleDelta = offsetof(pmove_t, cmd.angles) - offsetof(pmove_t, oldcmd.angles),
+    aimDefStride = sizeof(tce_weaponDef_t),
+    aimMoveRecovery = offsetof(tce_weaponDef_t, unknown_0f8) + 4 * sizeof(int),
+    aimShotRecovery = offsetof(tce_weaponDef_t, unknown_0f8) + 5 * sizeof(int),
+    aimScoped = offsetof(tce_weaponDef_t, scoped)
+};
+static const unsigned int aimConstant200ac378[2] = { 0xd2f1a9fcu, 0x3f50624du };
+static const unsigned int aimConstant200ac488[2] = { 0x00000000u, 0x3f768000u };
+static const unsigned int aimConstant200ac708[2] = { 0x00000000u, 0x3ff80000u };
+static const unsigned int aimConstant200ac100 = 0x00000000u;
+static const unsigned int aimConstant200ac704 = 0x3f4ccccdu;
+static const unsigned int aimConstant200ac190 = 0x41f00000u;
+static const unsigned int aimConstant200ac700 = 0x42f00000u;
+static const unsigned int aimConstant200ac6fc = 0x3c088889u;
+static const unsigned int aimConstant200ac6f8 = 0x45480000u;
+static const unsigned int aimConstant200ac3ac = 0x447a0000u;
+static const unsigned int aimConstant200ac6f4 = 0x3f2b851fu;
+__declspec(naked) void PM_AdjustAimSpreadScale(void) {
+    __asm {
+    aimAt20031f90:
+        SUB ESP,010h
+    aimAt20031f93:
+        PUSH EBX
+    aimAt20031f94:
+        PUSH ESI
+    aimAt20031f95:
+        PUSH EDI
+    aimAt20031f96:
+        MOV EDI,dword ptr [pm]
+    aimAt20031f9c:
+        XOR EBX,EBX
+    aimAt20031f9e:
+        MOV ESI,dword ptr [EDI]
+    aimAt20031fa0:
+        TEST dword ptr [ESI + aimPs68],040000h
+    aimAt20031fa7:
+        JZ aimAt20031fcb
+    aimAt20031fa9:
+        MOV dword ptr [ESI + aimPs48c],0ffh
+    aimAt20031fb3:
+        MOV EAX,[pm]
+    aimAt20031fb8:
+        POP EDI
+    aimAt20031fb9:
+        POP ESI
+    aimAt20031fba:
+        MOV ECX,dword ptr [EAX]
+    aimAt20031fbc:
+        POP EBX
+    aimAt20031fbd:
+        MOV dword ptr [ECX + aimPs488],0437f0000h
+    aimAt20031fc7:
+        ADD ESP,010h
+    aimAt20031fca:
+        RET
+    aimAt20031fcb:
+        MOV EDX,dword ptr [EDI + aimCmdTime]
+    aimAt20031fce:
+        MOV EAX,dword ptr [EDI + aimOldTime]
+    aimAt20031fd1:
+        MOV ECX,dword ptr [ESI + aimPsa4]
+    aimAt20031fd7:
+        SUB EDX,EAX
+    aimAt20031fd9:
+        MOV dword ptr [ESP + 014h],EDX
+    aimAt20031fdd:
+        FILD dword ptr [ESP + 014h]
+    aimAt20031fe1:
+        IMUL EAX,ECX,aimDefStride
+    aimAt20031fe4:
+        NOP
+    aimAt20031fe7:
+        FMUL qword ptr [aimConstant200ac378]
+    aimAt20031fed:
+        NOP
+    aimAt20031fef:
+        NOP
+    aimAt20031ff2:
+        FSTP dword ptr [ESP + 010h]
+    aimAt20031ff6:
+        MOV EAX,dword ptr [weaponDef + EAX + aimMoveRecovery]
+    aimAt20031ffd:
+        TEST EAX,EAX
+    aimAt20031fff:
+        MOV dword ptr [ESP + 014h],EAX
+    aimAt20032003:
+        JZ aimAt20032120
+    aimAt20032009:
+        FILD dword ptr [ESP + 014h]
+    aimAt2003200d:
+        LEA EAX,[EDI + aimOldAngles]
+    aimAt20032010:
+        MOV ECX,02h
+    aimAt20032015:
+        FMUL dword ptr [ESP + 010h]
+    aimAt20032019:
+        FSTP dword ptr [ESP + 014h]
+    aimAt2003201d:
+        FLD dword ptr [aimConstant200ac100]
+    aimAt20032023:
+        FILD dword ptr [EAX + aimAngleDelta]
+    aimAt20032026:
+        ADD EAX,04h
+    aimAt20032029:
+        DEC ECX
+    aimAt2003202a:
+        FMUL qword ptr [aimConstant200ac488]
+    aimAt20032030:
+        FILD dword ptr [EAX + -04h]
+    aimAt20032033:
+        FMUL qword ptr [aimConstant200ac488]
+    aimAt20032039:
+        FSUBP ST(1),ST(0)
+    aimAt2003203b:
+        FABS
+    aimAt2003203d:
+        FMUL qword ptr [aimConstant200ac708]
+    aimAt20032043:
+        FXCH ST(1)
+    aimAt20032045:
+        FADDP ST(1),ST(0)
+    aimAt20032047:
+        JNZ aimAt20032023
+    aimAt20032049:
+        LEA EAX,[ESI + aimPs20]
+    aimAt2003204c:
+        MOV ECX,02h
+    aimAt20032051:
+        FLD dword ptr [EAX]
+    aimAt20032053:
+        FABS
+    aimAt20032055:
+        FXCH ST(1)
+    aimAt20032057:
+        FADDP ST(1),ST(0)
+    aimAt20032059:
+        ADD EAX,04h
+    aimAt2003205c:
+        DEC ECX
+    aimAt2003205d:
+        JNZ aimAt20032051
+    aimAt2003205f:
+        MOV EAX,dword ptr [ESI + aimPsf4]
+    aimAt20032065:
+        TEST AH,02h
+    aimAt20032068:
+        JZ aimAt20032070
+    aimAt2003206a:
+        FMUL dword ptr [aimConstant200ac704]
+    aimAt20032070:
+        FDIV dword ptr [ESP + 010h]
+    aimAt20032074:
+        FLD ST(0)
+    aimAt20032076:
+        FSUB dword ptr [aimConstant200ac190]
+    aimAt2003207c:
+        FST dword ptr [ESP + 0ch]
+    aimAt20032080:
+        FCOMP dword ptr [aimConstant200ac100]
+    aimAt20032086:
+        FNSTSW AX
+    aimAt20032088:
+        TEST AH,041h
+    aimAt2003208b:
+        JZ aimAt20032097
+    aimAt2003208d:
+        MOV dword ptr [ESP + 0ch],00h
+    aimAt20032095:
+        JMP aimAt200320b0
+    aimAt20032097:
+        FLD dword ptr [ESP + 0ch]
+    aimAt2003209b:
+        FCOMP dword ptr [aimConstant200ac700]
+    aimAt200320a1:
+        FNSTSW AX
+    aimAt200320a3:
+        TEST AH,041h
+    aimAt200320a6:
+        JNZ aimAt200320b0
+    aimAt200320a8:
+        MOV dword ptr [ESP + 0ch],042f00000h
+    aimAt200320b0:
+        FCOM dword ptr [aimConstant200ac100]
+    aimAt200320b6:
+        FNSTSW AX
+    aimAt200320b8:
+        TEST AH,041h
+    aimAt200320bb:
+        JZ aimAt200320c7
+    aimAt200320bd:
+        FSTP ST(0)
+    aimAt200320bf:
+        FLD dword ptr [aimConstant200ac100]
+    aimAt200320c5:
+        JMP aimAt200320dc
+    aimAt200320c7:
+        FCOM dword ptr [aimConstant200ac700]
+    aimAt200320cd:
+        FNSTSW AX
+    aimAt200320cf:
+        TEST AH,041h
+    aimAt200320d2:
+        JNZ aimAt200320dc
+    aimAt200320d4:
+        FSTP ST(0)
+    aimAt200320d6:
+        FLD dword ptr [aimConstant200ac700]
+    aimAt200320dc:
+        FLD dword ptr [ESP + 0ch]
+    aimAt200320e0:
+        FMUL dword ptr [aimConstant200ac6fc]
+    aimAt200320e6:
+        FMUL dword ptr [ESP + 010h]
+    aimAt200320ea:
+        FMUL dword ptr [aimConstant200ac6f8]
+    aimAt200320f0:
+        CALL PM_WeaponTruncateST0
+    aimAt200320f5:
+        MOV dword ptr [ESP + 0ch],EAX
+    aimAt200320f9:
+        FILD dword ptr [ESP + 0ch]
+    aimAt200320fd:
+        FSTP dword ptr [ESP + 0ch]
+    aimAt20032101:
+        FMUL dword ptr [aimConstant200ac6fc]
+    aimAt20032107:
+        FMUL dword ptr [ESP + 010h]
+    aimAt2003210b:
+        FMUL dword ptr [aimConstant200ac6f8]
+    aimAt20032111:
+        CALL PM_WeaponTruncateST0
+    aimAt20032116:
+        MOV dword ptr [ESP + 018h],EAX
+    aimAt2003211a:
+        FILD dword ptr [ESP + 018h]
+    aimAt2003211e:
+        JMP aimAt20032136
+    aimAt20032120:
+        FLD dword ptr [aimConstant200ac100]
+    aimAt20032126:
+        MOV dword ptr [ESP + 0ch],00h
+    aimAt2003212e:
+        MOV dword ptr [ESP + 014h],0447a0000h
+    aimAt20032136:
+        MOV ECX,dword ptr [ESI + aimPsc]
+    aimAt20032139:
+        AND ECX,01h
+    aimAt2003213c:
+        JZ aimAt20032169
+    aimAt2003213e:
+        MOV EAX,dword ptr [ESI + aimPsf0]
+    aimAt20032144:
+        TEST AL,010h
+    aimAt20032146:
+        JNZ aimAt20032169
+    aimAt20032148:
+        OR AL,010h
+    aimAt2003214a:
+        MOV EBX,01h
+    aimAt2003214f:
+        MOV dword ptr [ESI + aimPsf0],EAX
+    aimAt20032155:
+        MOV ECX,dword ptr [pm]
+    aimAt2003215b:
+        MOV EDX,dword ptr [ECX]
+    aimAt2003215d:
+        MOV dword ptr [EDX + aimPsfc],02710h
+    aimAt20032167:
+        JMP aimAt20032195
+    aimAt20032169:
+        TEST ECX,ECX
+    aimAt2003216b:
+        JNZ aimAt2003219b
+    aimAt2003216d:
+        MOV EAX,dword ptr [ESI + aimPsf0]
+    aimAt20032173:
+        TEST AL,010h
+    aimAt20032175:
+        JZ aimAt2003219b
+    aimAt20032177:
+        AND AL,0efh
+    aimAt20032179:
+        MOV EBX,01h
+    aimAt2003217e:
+        MOV dword ptr [ESI + aimPsf0],EAX
+    aimAt20032184:
+        MOV EAX,[pm]
+    aimAt20032189:
+        MOV ECX,dword ptr [EAX]
+    aimAt2003218b:
+        MOV dword ptr [ECX + aimPsfc],02710h
+    aimAt20032195:
+        MOV EDI,dword ptr [pm]
+    aimAt2003219b:
+        MOV ESI,dword ptr [EDI]
+    aimAt2003219d:
+        CMP dword ptr [ESI + aimPsa8],07h
+    aimAt200321a4:
+        JZ aimAt2003222f
+    aimAt200321aa:
+        FADD ST(0),ST(0)
+    aimAt200321ac:
+        FIADD dword ptr [ESI + aimPs104]
+    aimAt200321b2:
+        CALL PM_WeaponTruncateST0
+    aimAt200321b7:
+        MOV dword ptr [ESI + aimPs104],EAX
+    aimAt200321bd:
+        MOV EDI,dword ptr [pm]
+    aimAt200321c3:
+        MOV EDX,dword ptr [EDI]
+    aimAt200321c5:
+        MOV EAX,dword ptr [EDX + aimPsa8]
+    aimAt200321cb:
+        TEST EAX,EAX
+    aimAt200321cd:
+        JNZ aimAt200321d3
+    aimAt200321cf:
+        TEST EBX,EBX
+    aimAt200321d1:
+        JZ aimAt2003220b
+    aimAt200321d3:
+        MOV EAX,dword ptr [EDI]
+    aimAt200321d5:
+        LEA EDX,[ESP + 018h]
+    aimAt200321d9:
+        PUSH EDX
+    aimAt200321da:
+        MOV ECX,dword ptr [EAX + aimPsec]
+    aimAt200321e0:
+        MOV dword ptr [ESP + 01ch],ECX
+    aimAt200321e4:
+        CALL Q_random
+    aimAt200321e9:
+        FMUL dword ptr [aimConstant200ac3ac]
+    aimAt200321ef:
+        ADD ESP,04h
+    aimAt200321f2:
+        CALL PM_WeaponTruncateST0
+    aimAt200321f7:
+        MOV ECX,dword ptr [pm]
+    aimAt200321fd:
+        MOV EDX,dword ptr [ECX]
+    aimAt200321ff:
+        MOV dword ptr [EDX + aimPs104],EAX
+    aimAt20032205:
+        MOV EDI,dword ptr [pm]
+    aimAt2003220b:
+        MOV EAX,dword ptr [EDI]
+    aimAt2003220d:
+        MOV ECX,dword ptr [EAX + aimPs104]
+    aimAt20032213:
+        CMP ECX,03e8h
+    aimAt20032219:
+        JLE aimAt20032231
+    aimAt2003221b:
+        ADD ECX,0fffffc18h
+    aimAt20032221:
+        MOV dword ptr [EAX + aimPs104],ECX
+    aimAt20032227:
+        MOV EDI,dword ptr [pm]
+    aimAt2003222d:
+        JMP aimAt20032231
+    aimAt2003222f:
+        FSTP ST(0)
+    aimAt20032231:
+        MOV EDI,dword ptr [EDI]
+    aimAt20032233:
+        TEST byte ptr [EDI + aimPsf0],04h
+    aimAt2003223a:
+        JZ aimAt20032283
+    aimAt2003223c:
+        MOV ECX,dword ptr [EDI + aimPsa4]
+    aimAt20032242:
+        IMUL EAX,ECX,aimDefStride
+    aimAt20032245:
+        NOP
+    aimAt20032248:
+        NOP
+    aimAt2003224a:
+        NOP
+    aimAt2003224d:
+        FLD dword ptr [weaponDef + EAX + aimScoped]
+    aimAt20032254:
+        FCOMP dword ptr [aimConstant200ac100]
+    aimAt2003225a:
+        FNSTSW AX
+    aimAt2003225c:
+        TEST AH,040h
+    aimAt2003225f:
+        JZ aimAt20032283
+    aimAt20032261:
+        FLD dword ptr [ESP + 0ch]
+    aimAt20032265:
+        FMUL dword ptr [aimConstant200ac6f4]
+    aimAt2003226b:
+        CMP dword ptr [EDI + aimPsfc],0c8h
+    aimAt20032275:
+        FSTP dword ptr [ESP + 0ch]
+    aimAt20032279:
+        JLE aimAt20032283
+    aimAt2003227b:
+        MOV dword ptr [ESP + 0ch],00h
+    aimAt20032283:
+        FLD dword ptr [ESP + 0ch]
+    aimAt20032287:
+        FSUB dword ptr [ESP + 014h]
+    aimAt2003228b:
+        FIADD dword ptr [EDI + aimPsfc]
+    aimAt20032291:
+        CALL PM_WeaponTruncateST0
+    aimAt20032296:
+        MOV dword ptr [EDI + aimPsfc],EAX
+    aimAt2003229c:
+        MOV ECX,dword ptr [pm]
+    aimAt200322a2:
+        MOV EAX,dword ptr [ECX]
+    aimAt200322a4:
+        MOV ECX,dword ptr [EAX + aimPsfc]
+    aimAt200322aa:
+        CMP ECX,03e8h
+    aimAt200322b0:
+        JLE aimAt200322be
+    aimAt200322b2:
+        MOV dword ptr [EAX + aimPsfc],03e8h
+    aimAt200322bc:
+        JMP aimAt200322cc
+    aimAt200322be:
+        TEST ECX,ECX
+    aimAt200322c0:
+        JGE aimAt200322cc
+    aimAt200322c2:
+        MOV dword ptr [EAX + aimPsfc],00h
+    aimAt200322cc:
+        MOV EDX,dword ptr [pm]
+    aimAt200322d2:
+        MOV ESI,dword ptr [EDX]
+    aimAt200322d4:
+        MOV ECX,dword ptr [ESI + aimPsa4]
+    aimAt200322da:
+        FILD dword ptr [ESI + aimPs100]
+    aimAt200322e0:
+        IMUL EAX,ECX,aimDefStride
+    aimAt200322e3:
+        NOP
+    aimAt200322e6:
+        NOP
+    aimAt200322e8:
+        NOP
+    aimAt200322eb:
+        FILD dword ptr [weaponDef + EAX + aimShotRecovery]
+    aimAt200322f2:
+        FMUL dword ptr [ESP + 010h]
+    aimAt200322f6:
+        FSUBP ST(1),ST(0)
+    aimAt200322f8:
+        CALL PM_WeaponTruncateST0
+    aimAt200322fd:
+        MOV dword ptr [ESI + aimPs100],EAX
+    aimAt20032303:
+        MOV ECX,dword ptr [pm]
+    aimAt20032309:
+        MOV EAX,dword ptr [ECX]
+    aimAt2003230b:
+        MOV ECX,dword ptr [EAX + aimPs100]
+    aimAt20032311:
+        CMP ECX,03e8h
+    aimAt20032317:
+        JLE aimAt2003232a
+    aimAt20032319:
+        POP EDI
+    aimAt2003231a:
+        POP ESI
+    aimAt2003231b:
+        MOV dword ptr [EAX + aimPs100],03e8h
+    aimAt20032325:
+        POP EBX
+    aimAt20032326:
+        ADD ESP,010h
+    aimAt20032329:
+        RET
+    aimAt2003232a:
+        TEST ECX,ECX
+    aimAt2003232c:
+        JGE aimAt20032338
+    aimAt2003232e:
+        MOV dword ptr [EAX + aimPs100],00h
+    aimAt20032338:
+        POP EDI
+    aimAt20032339:
+        POP ESI
+    aimAt2003233a:
+        POP EBX
+    aimAt2003233b:
+        ADD ESP,010h
+    aimAt2003233e:
+        RET
+    }
+}
+#else
 
-    if (gearDef.parsed && pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS &&
-        weaponDef[pm->ps->weapon].parsed) {
+void PM_AdjustAimSpreadScale(void) {
+    int i;
+    /* Portable TC calculation; Linux x87 instruction parity is not claimed. */
         tce_aimState_t state;
         const tce_weaponDef_t *w = &weaponDef[pm->ps->weapon];
         state.zooming = (pm->ps->eFlags & EF_ZOOMING) != 0;
@@ -4096,117 +8530,8 @@ void PM_AdjustAimSpreadScale( void ) {
         pm->ps->stats[STAT_TCE_AIM_PHASE] = state.phase;
         pm->ps->aimSpreadScaleFloat = state.aimSpreadFloat;
         pm->ps->aimSpreadScale = state.aimSpread;
-        return;
-    }
-
-	// all weapons are very inaccurate in zoomed mode
-	if(pm->ps->eFlags & EF_ZOOMING) {
-		pm->ps->aimSpreadScale = 255;
-		pm->ps->aimSpreadScaleFloat = 255;
-		return;
-	}
-
-	cmdTime = (float)(pm->cmd.serverTime - pm->oldcmd.serverTime) / 1000.0;
-
-	wpnScale = 0.0f;
-	switch(pm->ps->weapon) {
-	case WP_LUGER:
-	case WP_SILENCER:
-	case WP_AKIMBO_LUGER:
-	case WP_AKIMBO_SILENCEDLUGER:
-// rain - luger and akimbo are supposed to be balanced
-//		wpnScale = 0.5f;
-//		break;
-	case WP_COLT:
-	case WP_SILENCED_COLT:
-	case WP_AKIMBO_COLT:
-	case WP_AKIMBO_SILENCEDCOLT:
-		wpnScale = 0.4f;		// doesn't fire as fast, but easier to handle than luger
-		break;
-	case WP_MP40:
-		wpnScale = 0.6f;		// 2 handed, but not as long as mauser, so harder to keep aim
-		break;
-	case WP_GARAND:
-		wpnScale = 0.5f;
-		break;
-	case WP_K43_SCOPE:
-	case WP_GARAND_SCOPE:
-	case WP_FG42SCOPE:
-		if( pm->skill[SK_MILITARY_INTELLIGENCE_AND_SCOPED_WEAPONS] >= 3 ) {
-			wpnScale = 5.f;
-		} else {
-			wpnScale = 10.f;
-		}
-		break;
-	case WP_K43:
-		wpnScale = 0.5f;
-		break;
-	case WP_MOBILE_MG42:
-	case WP_MOBILE_MG42_SET:
-		wpnScale = 0.9f;
-		break;
-	case WP_FG42:
-		wpnScale = 0.6f;
-		break;
-	case WP_THOMPSON:
-		wpnScale = 0.6f;
-		break;
-	case WP_STEN:
-		wpnScale = 0.6f;
-		break;
-	case WP_KAR98:
-	case WP_CARBINE:
-		wpnScale = 0.5f;
-		break;
-	}
-
-	if (wpnScale) {
-
-		// JPW NERVE crouched players recover faster (mostly useful for snipers)
-		if( pm->ps->eFlags & EF_CROUCHING || pm->ps->eFlags & EF_PRONE ) {
-			wpnScale *= 0.5;
-		}
-
-		decrease = (cmdTime * AIMSPREAD_DECREASE_RATE) / wpnScale;
-
-		viewchange = 0;
-		// take player movement into account (even if only for the scoped weapons)
-		// TODO: also check for jump/crouch and adjust accordingly
-		if(BG_IsScopedWeapon(pm->ps->weapon)) {
-			for(i = 0; i < 2; i++) {
-				viewchange += fabs(pm->ps->velocity[i]);
-			}
-		} else {
-			// take player view rotation into account
-			for( i = 0; i < 2; i++ ) {
-				viewchange += fabs( SHORT2ANGLE(pm->cmd.angles[i]) - SHORT2ANGLE(pm->oldcmd.angles[i]) );
-			}
-		}
-
-		viewchange = (float)viewchange / cmdTime;	// convert into this movement for a second
-		viewchange -= AIMSPREAD_VIEWRATE_MIN / wpnScale;
-		if (viewchange <= 0) {
-			viewchange = 0;
-		} else if( viewchange > (AIMSPREAD_VIEWRATE_RANGE / wpnScale) ) {
-			viewchange = AIMSPREAD_VIEWRATE_RANGE / wpnScale;
-		}
-
-		// now give us a scale from 0.0 to 1.0 to apply the spread increase
-		viewchange = viewchange / (float)(AIMSPREAD_VIEWRATE_RANGE / wpnScale);
-
-		increase = (int)(cmdTime * viewchange * AIMSPREAD_INCREASE_RATE);
-	} else {
-		increase = 0;
-		decrease = AIMSPREAD_DECREASE_RATE;
-	}
-
-	// update the aimSpreadScale
-	pm->ps->aimSpreadScaleFloat += (increase - decrease);
-	if (pm->ps->aimSpreadScaleFloat < 0) pm->ps->aimSpreadScaleFloat = 0;
-	if (pm->ps->aimSpreadScaleFloat > 255) pm->ps->aimSpreadScaleFloat = 255;
-
-	pm->ps->aimSpreadScale = (int)pm->ps->aimSpreadScaleFloat;	// update the int for the client
 }
+#endif
 
 #define weaponstateFiring (pm->ps->weaponstate == WEAPON_FIRING || pm->ps->weaponstate == WEAPON_FIRINGALT)
 
@@ -4273,7 +8598,183 @@ static void PM_TCERecoverHipRecoil(void) {
     }
 }
 
-static void PM_TCEShotRecoil(int interval, unsigned int seed) {
+#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
+/* Private PM_Weapon2003a73d..2003a91c common shot prelude. */
+static const double pre842K200ac1e0 = 3.0;
+static const float pre842K200ac6ec = 255.0f;
+static const float pre842K200ac484 = 0.0010000000474974513f;
+static const float pre842K200ac3ac = 1000.0f;
+static const float pre842K200ac190 = 30.0f;
+enum {
+    pre842SpreadF = offsetof(playerState_t,aimSpreadScaleFloat),
+    pre842SpreadI = offsetof(playerState_t,aimSpreadScale),
+    pre842Move = offsetof(playerState_t,stats)+STAT_TCE_MOVEMENT_INSTABILITY*4,
+    pre842Shot = offsetof(playerState_t,stats)+STAT_TCE_SHOT_INSTABILITY*4,
+    pre842Hold0 = offsetof(playerState_t,holdable),
+    pre842Hold1 = offsetof(playerState_t,holdable)+4,
+    pre842Weapon = offsetof(playerState_t,weapon),
+    pre842Flags = offsetof(playerState_t,stats)+STAT_TCE_WEAPON_FLAGS*4,
+    pre842Eflags = offsetof(playerState_t,eFlags),
+    pre842Velocity = offsetof(playerState_t,velocity),
+    pre842View0 = offsetof(playerState_t,viewangles),
+    pre842View1 = offsetof(playerState_t,viewangles)+4,
+    pre842View2 = offsetof(playerState_t,viewangles)+8,
+    pre842Ext = offsetof(pmove_t,pmext),
+    pre842Angles0 = offsetof(pmoveExt_t,tceShotAngles),
+    pre842Angles1 = offsetof(pmoveExt_t,tceShotAngles)+4,
+    pre842Angles2 = offsetof(pmoveExt_t,tceShotAngles)+8,
+    pre842Minimum = offsetof(tce_weaponDef_t,unknown_0f8)+6*4,
+    pre842Tac = offsetof(tce_weaponDef_t,unknown_0f8)+8*4,
+    pre842Hip = offsetof(tce_weaponDef_t,unknown_0f8)+7*4
+};
+static __declspec(naked) void PM_TCEShotPrelude842(int spreadAddition, int *recoilResult, float *postureResult) {
+    __asm {
+        sub esp, 0x38
+        push ebx
+        push ebp
+        push esi
+        push edi
+        mov eax, dword ptr [esp+0x4c]
+        mov dword ptr [esp+0x18], eax
+        mov ebp, 1000
+        fild dword ptr [esp + 0x18]
+        mov edx, dword ptr [pm]
+        fmul qword ptr [pre842K200ac1e0]
+        mov eax, dword ptr [edx]
+        fadd dword ptr [eax+pre842SpreadF]
+        fstp dword ptr [eax+pre842SpreadF]
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax]
+        fld dword ptr [ecx+pre842SpreadF]
+        fcomp dword ptr [pre842K200ac6ec]
+        fnstsw ax
+        test ah, 0x41
+        jne pre842_2003a77f
+        mov dword ptr [ecx+pre842SpreadF], 0x437f0000
+pre842_2003a77f:
+        mov ecx, dword ptr [pm]
+        mov esi, dword ptr [ecx]
+        fld dword ptr [esi+pre842SpreadF]
+        call PM_WeaponTruncateST0
+        mov dword ptr [esi+pre842SpreadI], eax
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx]
+        mov ecx, dword ptr [eax+pre842Move]
+        mov dword ptr [eax+pre842Hold0], ecx
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx]
+        mov ecx, dword ptr [eax+pre842Shot]
+        mov dword ptr [eax+pre842Hold1], ecx
+        mov edx, dword ptr [pm]
+        mov esi, dword ptr [edx]
+        fild dword ptr [esi+pre842Shot]
+        mov ecx, dword ptr [esi+pre842Weapon]
+        fld st(0)
+        fmul dword ptr [pre842K200ac484]
+        lea eax, [ecx + ecx*2]
+        shl eax, 3
+        fsqrt 
+        sub eax, ecx
+        lea eax, [eax + eax*4]
+        fild dword ptr [eax*4 + weaponDef+pre842Minimum]
+        fmul dword ptr [pre842K200ac484]
+        fstp dword ptr [esp + 0x28]
+        fcom dword ptr [esp + 0x28]
+        fnstsw ax
+        test ah, 1
+        je pre842_2003a80b
+        fstp st(0)
+        fld dword ptr [esp + 0x28]
+pre842_2003a80b:
+        fmul dword ptr [pre842K200ac3ac]
+        fadd st(0), st(1)
+        call PM_WeaponTruncateST0
+        mov dword ptr [esi+pre842Shot], eax
+        mov ecx, dword ptr [pm]
+        fstp st(0)
+        mov eax, dword ptr [ecx]
+        cmp dword ptr [eax+pre842Shot], ebp
+        jle pre842_2003a836
+        mov dword ptr [eax+pre842Shot], ebp
+pre842_2003a836:
+        mov edx, dword ptr [pm]
+        mov dword ptr [esp + 0x1c], 0x3f800000
+        mov ecx, dword ptr [edx]
+        test byte ptr [ecx+pre842Flags], 4
+        je pre842_2003a8c3
+        mov edx, dword ptr [ecx+pre842Weapon]
+        lea eax, [edx + edx*2]
+        shl eax, 3
+        sub eax, edx
+        lea eax, [eax + eax*4]
+        mov edi, dword ptr [eax*4 + weaponDef+pre842Tac]
+        mov al, byte ptr [ecx +pre842Eflags]
+        test al, 0x10
+        je pre842_2003a88f
+        add ecx, pre842Velocity
+        push ecx
+        call VectorLength
+        fcomp dword ptr [pre842K200ac190]
+        add esp, 4
+        fnstsw ax
+        test ah, 1
+        je pre842_2003a88f
+        mov dword ptr [esp + 0x1c], 0x3f333333
+pre842_2003a88f:
+        mov ecx, dword ptr [pm]
+        mov eax, dword ptr [ecx]
+        test dword ptr [eax +pre842Eflags], 0x80000
+        je pre842_2003a8e3
+        add eax, pre842Velocity
+        push eax
+        call VectorLength
+        fcomp dword ptr [pre842K200ac190]
+        add esp, 4
+        fnstsw ax
+        test ah, 1
+        je pre842_2003a8e3
+        mov dword ptr [esp + 0x1c], 0x3f19999a
+        jmp pre842_2003a8e3
+pre842_2003a8c3:
+        mov ecx, dword ptr [ecx+pre842Weapon]
+        mov dword ptr [esp + 0x1c], 0x3f800000
+        lea eax, [ecx + ecx*2]
+        shl eax, 3
+        sub eax, ecx
+        lea edx, [eax + eax*4]
+        mov edi, dword ptr [edx*4 + weaponDef+pre842Hip]
+pre842_2003a8e3:
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax]
+        mov edx, dword ptr [eax +pre842Ext]
+        mov eax, dword ptr [ecx+pre842View0]
+        mov dword ptr [edx +pre842Angles0], eax
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax]
+        mov edx, dword ptr [eax +pre842Ext]
+        mov eax, dword ptr [ecx+pre842View1]
+        mov dword ptr [edx +pre842Angles1], eax
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax]
+        mov edx, dword ptr [eax +pre842Ext]
+        mov eax, dword ptr [ecx+pre842View2]
+        mov dword ptr [edx +pre842Angles2], eax
+        mov eax, dword ptr [esp+0x50]
+        mov dword ptr [eax], edi
+        mov eax, dword ptr [esp+0x54]
+        mov ecx, dword ptr [esp+0x1c]
+        mov dword ptr [eax], ecx
+        pop edi
+        pop esi
+        pop ebp
+        pop ebx
+        add esp, 0x38
+        ret
+    }
+}
+#endif
+
+static void PM_TCEShotRecoil(int interval, unsigned int seed, int spreadAddition) {
     const tce_weaponDef_t *w = &weaponDef[pm->ps->weapon];
     int oldInstability = pm->ps->holdable[1];
     int recoil;
@@ -4287,6 +8788,11 @@ static void PM_TCEShotRecoil(int interval, unsigned int seed) {
     double growth;
 #endif
     float postureScale = 1.0f;
+#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
+    PM_TCEShotPrelude842(spreadAddition, &recoil, &postureScale);
+    w = &weaponDef[pm->ps->weapon];
+#else
+    (void)spreadAddition;
     /* Seed and snapshots were captured by the common firing-tail producer. */
 #if defined(_MSC_VER) && defined(_M_IX86)
     /* Original 30012480..300124dc: keep the integer addend and square
@@ -4366,6 +8872,7 @@ static void PM_TCEShotRecoil(int interval, unsigned int seed) {
     }
     /* Original3001259b: the angle snapshot follows instability and posture. */
     VectorCopy(pm->ps->viewangles, pm->pmext->tceShotAngles);
+#endif
     if ((pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) && !w->noTacMode) {
 #if defined(_MSC_VER) && defined(_M_IX86)
         const float shotAngleBias = 2000.0f, shotAngleScale = 0.01f;
@@ -4482,6 +8989,10 @@ static void PM_TCEShotRecoil(int interval, unsigned int seed) {
         const float recoilPitchBias = 2.0f;
         float recoilOldAngle;
         ++seed;
+#if defined(GAMEDLL)
+        /* Original2003aa58 reads the snapshot after the842 prelude wrote it. */
+        oldInstability = pm->ps->holdable[1];
+#endif
         __asm {
             fild oldInstability
             mov ecx, recoilResetTime
@@ -4699,6 +9210,2658 @@ static void PM_WeaponAddTime(int interval) {
     pm->ps->weaponTime = (int)((unsigned int)pm->ps->weaponTime + (unsigned int)interval);
 #endif
 }
+
+#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
+/* PM_Weapon20037fb0 private extraction: 20038a65..20039074.
+ * Existing64-definition domain only; not an independent original function. */
+static const float actions834K200ac788 = -360.0;
+static const float actions834K200ac3ac = 1000.0;
+static const float actions834K200ac6b8 = 6.2831854820251465;
+static const double actions834K200ac6a8 = 200.0;
+static const double actions834K200ac780 = 2000.0;
+static const double actions834K200ac6b0 = 400.0;
+enum {
+    actions834Ps = offsetof(pmove_t,ps),
+    actions834Ext = offsetof(pmove_t,pmext),
+    actions834Wbuttons = offsetof(pmove_t,cmd)+offsetof(usercmd_t,wbuttons),
+    actions834Buttons = offsetof(pmove_t,cmd)+offsetof(usercmd_t,buttons),
+    actions834ForwardCmd = offsetof(pmove_t,cmd)+offsetof(usercmd_t,forwardmove),
+    actions834RightCmd = offsetof(pmove_t,cmd)+offsetof(usercmd_t,rightmove),
+    actions834CmdTime = offsetof(pmove_t,cmd)+offsetof(usercmd_t,serverTime),
+    actions834Water = offsetof(pmove_t,waterlevel),
+    actions834Flags = offsetof(playerState_t,pm_flags),
+    actions834Eflags = offsetof(playerState_t,eFlags),
+    actions834Time = offsetof(playerState_t,weaponTime),
+    actions834Delay = offsetof(playerState_t,weaponDelay),
+    actions834VelocityZ = offsetof(playerState_t,velocity)+2*sizeof(float),
+    actions834Ground = offsetof(playerState_t,groundEntityNum),
+    actions834Weapon = offsetof(playerState_t,weapon),
+    actions834State = offsetof(playerState_t,weaponstate),
+    actions834WeaponFlags = offsetof(playerState_t,stats)+STAT_TCE_WEAPON_FLAGS*sizeof(int),
+    actions834TcFlags = offsetof(playerState_t,stats)+STAT_TCE_FLAGS*sizeof(int),
+    actions834Instability = offsetof(playerState_t,stats)+STAT_TCE_MOVEMENT_INSTABILITY*sizeof(int),
+    actions834Phase = offsetof(playerState_t,stats)+STAT_TCE_AIM_PHASE*sizeof(int),
+    actions834Seed = offsetof(playerState_t,stats)+STAT_TCE_SHOT_SEED*sizeof(int),
+    actions834RecoilX = offsetof(playerState_t,holdable)+5*sizeof(int),
+    actions834RecoilY = offsetof(playerState_t,holdable)+6*sizeof(int),
+    actions834Hint = offsetof(playerState_t,serverCursorHint),
+    actions834ProneTime = offsetof(pmoveExt_t,proneTime),
+    actions834Ladder = offsetof(pml_t,ladder),
+    actions834NoTac = offsetof(tce_weaponDef_t,noTacMode)
+};
+typedef char actions834Protocol[(offsetof(pmove_t,ps)==0 && sizeof(tce_weaponDef_t)==460 && offsetof(tce_weaponDef_t,noTacMode)==0x194 && HINT_DISARM==39 && HINT_BREAKABLE_DYNAMITE==10 && HINT_ACTIVATE==3 && PMF_TCE_OBJECTIVE_ACTION==128 && WBUTTON_ZOOM==2 && BUTTON_ACTIVATE==64 && WEAPON_FIRING==7) ? 1 : -1];
+static __declspec(naked) qboolean PM_TCEWeaponActions834(qboolean delayedFire) {
+    __asm {
+        sub esp, 0x38
+        push ebx
+        push ebp
+        push esi
+        push edi
+        mov ebp, dword ptr [esp+0x4c]
+        mov dword ptr [esp+0x18], ebp
+        mov esi, dword ptr [pm]
+        xor ebx, ebx
+        mov edi, 7
+        mov dl, byte ptr [esi+actions834Wbuttons]
+        and dl, 2
+        mov byte ptr [esp + 0x13], dl
+        jne actions834_20038a98
+        mov ecx, dword ptr [esi]
+        mov eax, dword ptr [ecx+actions834WeaponFlags]
+        test ah, 0x80
+        je actions834_20038a98
+        and ah, 0x7f
+        mov dword ptr [ecx+actions834WeaponFlags], eax
+        mov esi, dword ptr [pm]
+actions834_20038a8d:
+        mov ebx, dword ptr [esp + 0x18]
+        xor ebp, ebp
+        jmp actions834_20038d73
+actions834_20038a98:
+        test dl, dl
+        je actions834_20038ac7
+        mov ecx, dword ptr [esi]
+        mov ebx, dword ptr [ecx+actions834WeaponFlags]
+        test bh, 0x80
+        jne actions834_20038ac7
+        mov eax, dword ptr [ecx+actions834Time]
+        test eax, eax
+        jg actions834_20038ac7
+        test ebp, ebp
+        jne actions834_20038ac7
+        mov eax, dword ptr [ecx+actions834State]
+        cmp eax, edi
+        je actions834_20038ac7
+        cmp eax, 8
+        je actions834_20038ac7
+        test eax, eax
+        je actions834_20038ae0
+actions834_20038ac7:
+        mov ecx, dword ptr [esi]
+        mov eax, dword ptr [ecx+actions834Time]
+        test eax, eax
+        jg actions834_20038a8d
+        mov ebx, dword ptr [ecx+actions834WeaponFlags]
+        test bl, 8
+        je actions834_20038a8d
+        test bl, 4
+        jne actions834_20038a8d
+actions834_20038ae0:
+        mov eax, dword ptr [ecx+actions834State]
+        cmp eax, 3
+        je actions834_20038a8d
+        cmp eax, 9
+        je actions834_20038a8d
+        cmp eax, 0xa
+        je actions834_20038a8d
+        cmp eax, 0xb
+        je actions834_20038a8d
+        mov edi, dword ptr [ecx+actions834Weapon]
+        cmp edi, 1
+        je actions834_20038a8d
+        cmp edi, 0x15
+        je actions834_20038a8d
+        cmp edi, 0x13
+        je actions834_20038a8d
+        cmp edi, 0xc
+        je actions834_20038a8d
+        cmp edi, 0xf
+        je actions834_20038a8d
+        test byte ptr [esi+actions834Buttons], 0x20
+        je actions834_20038b4c
+        mov al, byte ptr [esi+actions834ForwardCmd]
+        test al, al
+        jne actions834_20038b39
+        mov al, byte ptr [esi+actions834RightCmd]
+        test al, al
+        je actions834_20038b4c
+actions834_20038b39:
+        test byte ptr [ecx+actions834Flags], 1
+        jne actions834_20038b4c
+        test dword ptr [ecx+actions834Eflags], 0x80000
+        je actions834_20038a8d
+actions834_20038b4c:
+        mov eax, dword ptr [esi+actions834Water]
+        cmp eax, 2
+        jg actions834_20038a8d
+        test eax, eax
+        jle actions834_20038b6c
+        cmp dword ptr [ecx+actions834Ground], 0x3ff
+        je actions834_20038a8d
+actions834_20038b6c:
+        mov eax, dword ptr [pml+actions834Ladder]
+        test eax, eax
+        jne actions834_20038a8d
+        fld dword ptr [ecx+actions834VelocityZ]
+        fcomp dword ptr [actions834K200ac788]
+        fnstsw ax
+        test ah, 1
+        jne actions834_20038a8d
+        test bh, 0x10
+        jne actions834_20038a8d
+        mov edx, dword ptr [esi+actions834Ext]
+        mov eax, dword ptr [esi+actions834CmdTime]
+        mov ebp, eax
+        mov edx, dword ptr [edx+actions834ProneTime]
+        sub ebp, edx
+        cmp ebp, 0xc8
+        jl actions834_20038a8d
+        add edx, eax
+        cmp edx, 0xc8
+        jl actions834_20038a8d
+        test dword ptr [ecx+actions834Eflags], 0x100000
+        jne actions834_20038a8d
+        xor ebp, ebp
+        cmp edi, ebp
+        je actions834_20038a8d
+        mov al, byte ptr [esp + 0x13]
+        test al, al
+        je actions834_20038c08
+        or bh, 0x80
+        mov dword ptr [ecx+actions834WeaponFlags], ebx
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax]
+        mov eax, dword ptr [ecx+actions834WeaponFlags]
+        test al, 8
+        je actions834_20038bfa
+        and al, 0xf7
+        jmp actions834_20038bfc
+actions834_20038bfa:
+        or al, 8
+actions834_20038bfc:
+        mov dword ptr [ecx+actions834WeaponFlags], eax
+        mov esi, dword ptr [pm]
+actions834_20038c08:
+        mov ecx, dword ptr [esi]
+        mov eax, dword ptr [ecx+actions834WeaponFlags]
+        mov edx, eax
+        and edx, 4
+        je actions834_20038c1f
+        test al, 8
+        jne actions834_20038c1f
+        and al, 0xfb
+        jmp actions834_20038c31
+actions834_20038c1f:
+        cmp edx, ebp
+        jne actions834_20038d6f
+        test al, 8
+        je actions834_20038d6f
+        or al, 4
+actions834_20038c31:
+        mov dword ptr [ecx+actions834WeaponFlags], eax
+        mov ecx, dword ptr [pm]
+        mov ebp, 0x3e8
+        mov edx, dword ptr [ecx]
+        mov dword ptr [edx+actions834Instability], ebp
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax]
+        cmp dword ptr [ecx+actions834State], 7
+        je actions834_20038d51
+        mov edx, ecx
+        lea ecx, [esp + 0x1c]
+        push ecx
+        mov eax, dword ptr [edx+actions834Seed]
+        mov dword ptr [esp + 0x20], eax
+        call Q_random
+        fmul dword ptr [actions834K200ac3ac]
+        add esp, 4
+        call PM_WeaponTruncateST0
+        mov edx, dword ptr [pm]
+        mov ecx, dword ptr [edx]
+        mov dword ptr [ecx+actions834Phase], eax
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx]
+        mov ecx, dword ptr [eax+actions834Phase]
+        cmp ecx, ebp
+        jle actions834_20038cae
+        add ecx, 0xfffffc18
+        mov dword ptr [eax+actions834Phase], ecx
+actions834_20038cae:
+        mov eax, dword ptr [pm]
+        mov edx, dword ptr [eax]
+        mov ecx, dword ptr [edx+actions834Weapon]
+        lea eax, [ecx + ecx*2]
+        shl eax, 3
+        sub eax, ecx
+        lea ecx, [eax + eax*4]
+        mov eax, dword ptr [ecx*4 + weaponDef+actions834NoTac]
+        test eax, eax
+        jne actions834_20038d31
+        test byte ptr [edx+actions834WeaponFlags], 4
+        je actions834_20038d31
+        lea edx, [esp + 0x1c]
+        push edx
+        call Q_random
+        fmul dword ptr [actions834K200ac6b8]
+        add esp, 4
+        fld st(0)
+        fcos 
+        fmul qword ptr [actions834K200ac6a8]
+        fadd qword ptr [actions834K200ac780]
+        call PM_WeaponTruncateST0
+        fsin 
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx]
+        mov dword ptr [edx+actions834RecoilX], eax
+        fmul qword ptr [actions834K200ac6b0]
+        fadd qword ptr [actions834K200ac780]
+        call PM_WeaponTruncateST0
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx]
+        mov dword ptr [edx+actions834RecoilY], eax
+actions834_20038d31:
+        mov eax, dword ptr [esp + 0x1c]
+        mov ecx, dword ptr [pm]
+        and eax, 0xffff
+        mov dword ptr [esp + 0x1c], eax
+        mov edx, dword ptr [ecx]
+        mov dword ptr [edx+actions834Seed], eax
+        mov eax, dword ptr [pm]
+actions834_20038d51:
+        mov eax, dword ptr [eax]
+        push EV_TCE_TOGGLE_AIMING
+        add dword ptr [eax+actions834Time], 0x12c
+        call PM_AddEvent
+        add esp, 4
+        pop edi
+        pop esi
+        pop ebp
+        pop ebx
+        add esp, 0x38
+        mov eax, 1
+        ret 
+actions834_20038d6f:
+        mov ebx, dword ptr [esp + 0x18]
+actions834_20038d73:
+        test byte ptr [esi+actions834Wbuttons], 2
+        je actions834_20038db3
+        mov ecx, dword ptr [esi]
+        mov eax, dword ptr [ecx+actions834WeaponFlags]
+        test ah, 0x80
+        jne actions834_20038db3
+        test al, 8
+        je actions834_20038db3
+        test al, 4
+        jne actions834_20038db3
+        or ah, 0x80
+        mov dword ptr [ecx+actions834WeaponFlags], eax
+        mov eax, dword ptr [pm]
+        mov eax, dword ptr [eax]
+        mov ecx, dword ptr [eax+actions834WeaponFlags]
+        and ecx, 0xfffffff7
+        mov dword ptr [eax+actions834WeaponFlags], ecx
+        mov esi, dword ptr [pm]
+actions834_20038db3:
+        cmp dword ptr [pml+actions834Ladder], ebp
+        je actions834_20038de8
+        mov eax, dword ptr [esi]
+        mov ecx, 0x1f4
+        cmp dword ptr [eax+actions834Time], ecx
+        jg actions834_20038dd0
+        mov dword ptr [eax+actions834Time], ecx
+        mov esi, dword ptr [pm]
+actions834_20038dd0:
+        mov esi, dword ptr [esi]
+        pop edi
+        mov eax, dword ptr [esi+actions834TcFlags]
+        or al, 8
+        mov dword ptr [esi+actions834TcFlags], eax
+        pop esi
+        pop ebp
+        pop ebx
+        add esp, 0x38
+        mov eax, 1
+        ret 
+actions834_20038de8:
+        test byte ptr [esi+actions834Buttons], 0x20
+        je actions834_20038e68
+        mov al, byte ptr [esi+actions834ForwardCmd]
+        test al, al
+        jne actions834_20038dfc
+        mov al, byte ptr [esi+actions834RightCmd]
+        test al, al
+        je actions834_20038e68
+actions834_20038dfc:
+        mov eax, dword ptr [esi]
+        test byte ptr [eax+actions834Flags], 1
+        jne actions834_20038e68
+        test dword ptr [eax+actions834Eflags], 0x80000
+        jne actions834_20038e68
+        mov esi, dword ptr [eax+actions834WeaponFlags]
+        or esi, 0x4000
+        mov dword ptr [eax+actions834WeaponFlags], esi
+        mov esi, dword ptr [pm]
+        mov eax, dword ptr [esi]
+        mov ecx, dword ptr [eax+actions834Weapon]
+        cmp ecx, 0x1e
+        je actions834_20038e3c
+        cmp ecx, 4
+        je actions834_20038e3c
+        cmp ecx, 9
+        jne actions834_20038e45
+actions834_20038e3c:
+        cmp ebx, ebp
+        je actions834_20038e45
+        mov dword ptr [eax+actions834Time], ebp
+        jmp actions834_20038e92
+actions834_20038e45:
+        cmp dword ptr [eax+actions834State], ebp
+        jne actions834_20038e98
+        mov edx, dword ptr [eax+actions834Time]
+        mov ecx, 0xfa
+        cmp edx, ecx
+        jg actions834_exit
+        pop edi
+        pop esi
+        pop ebp
+        mov dword ptr [eax+actions834Time], ecx
+        pop ebx
+        add esp, 0x38
+        mov eax, 1
+        ret 
+actions834_20038e68:
+        mov ecx, dword ptr [esi]
+        cmp dword ptr [ecx+actions834Time], ebp
+        jg actions834_20038e98
+        mov eax, dword ptr [ecx+actions834WeaponFlags]
+        test ah, 0x40
+        je actions834_20038e98
+        and ah, 0xbf
+        mov dword ptr [ecx+actions834WeaponFlags], eax
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx]
+        mov dword ptr [edx+actions834Time], 0xfa
+actions834_20038e92:
+        mov esi, dword ptr [pm]
+actions834_20038e98:
+        test byte ptr [esi+actions834Buttons], 0x40
+        je actions834_20039010
+        mov eax, dword ptr [esi]
+        mov edi, dword ptr [eax+actions834Hint]
+        cmp edi, 0x27
+        je actions834_20038ebd
+        cmp edi, 0xa
+        je actions834_20038ebd
+        cmp edi, 3
+        jne actions834_20038f79
+actions834_20038ebd:
+        cmp dword ptr [eax+actions834Time], ebp
+        jg actions834_20038f79
+        cmp dword ptr [eax+actions834Delay], ebp
+        jg actions834_20038f79
+        mov edx, dword ptr [eax+actions834State]
+        cmp edx, 3
+        je actions834_20038f79
+        cmp edx, 1
+        je actions834_20038f79
+        cmp edx, 9
+        je actions834_20038f79
+        cmp edx, 0xa
+        je actions834_20038f79
+        cmp edx, 0xb
+        je actions834_20038f79
+        mov ecx, dword ptr [eax+actions834Flags]
+        test cl, 0x80
+        jne actions834_20038f79
+        cmp edx, ebp
+        jne actions834_20038f79
+        or cl, 0x80
+        mov dword ptr [eax+actions834Flags], ecx
+        mov eax, dword ptr [pm]
+        mov eax, dword ptr [eax]
+        test byte ptr [eax+actions834TcFlags], 2
+        je actions834_20038f29
+        mov dword ptr [eax+actions834Time], 0x7d0
+        jmp actions834_20038f30
+actions834_20038f29:
+        mov dword ptr [eax+actions834Time], 0xfa0
+actions834_20038f30:
+        mov esi, dword ptr [pm]
+        mov eax, dword ptr [esi]
+        cmp dword ptr [eax+actions834Hint], 0x27
+        jne actions834_20038f60
+        test byte ptr [eax+actions834TcFlags], 2
+        je actions834_20038f53
+        mov dword ptr [eax+actions834Time], 0x1388
+        jmp actions834_20038f5a
+actions834_20038f53:
+        mov dword ptr [eax+actions834Time], 0x2710
+actions834_20038f5a:
+        mov esi, dword ptr [pm]
+actions834_20038f60:
+        mov ecx, dword ptr [esi]
+        cmp dword ptr [ecx+actions834Hint], 3
+        jne actions834_20039040
+        push EV_TCE_OBJECTIVE_START
+        jmp actions834_20039032
+actions834_20038f79:
+        mov ecx, dword ptr [eax+actions834Flags]
+        mov edx, ecx
+        and edx, 0x80
+        je actions834_20038fdc
+        cmp dword ptr [eax+actions834Time], ebp
+        jg actions834_20038fdc
+        cmp edi, 0x27
+        jne actions834_20038f97
+        push EV_TCE_DEFUSE
+        jmp actions834_20038fad
+actions834_20038f97:
+        cmp edi, 0xa
+        jne actions834_20038fa3
+        push EV_TCE_PLANT
+        jmp actions834_20038fad
+actions834_20038fa3:
+        cmp edi, 3
+        jne actions834_20038fbb
+        push EV_TCE_OBJECTIVE_COMPLETE
+actions834_20038fad:
+        call PM_AddEvent
+        mov esi, dword ptr [pm]
+        add esp, 4
+actions834_20038fbb:
+        mov esi, dword ptr [esi]
+        mov edx, dword ptr [esi+actions834Time]
+        add edx, 0x1f4
+        mov dword ptr [esi+actions834Time], edx
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx]
+        mov ecx, dword ptr [eax+actions834Flags]
+        and cl, 0x7f
+        mov dword ptr [eax+actions834Flags], ecx
+        jmp actions834_2003903a
+actions834_20038fdc:
+        cmp edx, ebp
+        je actions834_20039040
+        cmp edi, 0x27
+        je actions834_20039040
+        cmp edi, 0xa
+        je actions834_20039040
+        cmp edi, 3
+        je actions834_20039040
+        and cl, 0x7f
+        mov dword ptr [eax+actions834Flags], ecx
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax]
+        mov dword ptr [ecx+actions834Delay], ebp
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx]
+        mov dword ptr [eax+actions834Time], 0x64
+        jmp actions834_2003902d
+actions834_20039010:
+        mov ecx, dword ptr [esi]
+        mov eax, dword ptr [ecx+actions834Flags]
+        test al, 0x80
+        je actions834_20039040
+        and al, 0x7f
+        mov dword ptr [ecx+actions834Flags], eax
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx]
+        mov dword ptr [edx+actions834Time], 0x64
+actions834_2003902d:
+        push EV_TCE_OBJECTIVE_STOP
+actions834_20039032:
+        call PM_AddEvent
+        add esp, 4
+actions834_2003903a:
+        mov esi, dword ptr [pm]
+actions834_20039040:
+        mov esi, dword ptr [esi]
+        cmp dword ptr [esi+actions834Delay], ebp
+        jg actions834_exit
+        mov eax, dword ptr [esi+actions834Weapon]
+        push eax
+        call PM_CheckForReload
+        mov ecx, dword ptr [pm]
+        add esp, 4
+        mov eax, dword ptr [ecx]
+        cmp dword ptr [eax+actions834Time], ebp
+        jg actions834_exit
+        cmp dword ptr [eax+actions834Delay], ebp
+        jg actions834_exit
+        xor eax, eax
+        jmp actions834_done
+actions834_exit:
+        mov eax, 1
+actions834_done:
+        pop edi
+        pop esi
+        pop ebp
+        pop ebx
+        add esp, 0x38
+        ret
+    }
+}
+#endif
+
+#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
+/* Private PM_Weapon range2003908c..2003934d: trigger/burst/reload continuation.
+ * Native fields, original callback order. No independent original function. */
+enum {
+    trigger835Buttons = offsetof(pmove_t,cmd)+offsetof(usercmd_t,buttons),
+    trigger835Flags = offsetof(playerState_t,pm_flags),
+    trigger835Weapon = offsetof(playerState_t,weapon),
+    trigger835State = offsetof(playerState_t,weaponstate),
+    trigger835Mode = offsetof(playerState_t,persistant)+10*sizeof(int),
+    trigger835BurstCount = offsetof(playerState_t,holdable)+11*sizeof(int),
+    trigger835TcFlags = offsetof(playerState_t,stats)+STAT_TCE_FLAGS*sizeof(int),
+    trigger835Clip = offsetof(playerState_t,ammoclip),
+    trigger835Time = offsetof(playerState_t,weaponTime),
+    trigger835Delay = offsetof(playerState_t,weaponDelay),
+    trigger835Semi = offsetof(tce_weaponDef_t,semiauto),
+    trigger835Burst = offsetof(tce_weaponDef_t,burst),
+    trigger835Pump = offsetof(tce_weaponDef_t,pump),
+    trigger835Bolt = offsetof(tce_weaponDef_t,bolt),
+    trigger835Single = offsetof(tce_weaponDef_t,singleReload)
+};
+typedef char trigger835Protocol[(offsetof(pmove_t,ps)==0 && sizeof(tce_weaponDef_t)==460 && offsetof(tce_weaponDef_t,semiauto)==0x15c && offsetof(tce_weaponDef_t,burst)==0x164 && offsetof(tce_weaponDef_t,pump)==0x168 && offsetof(tce_weaponDef_t,bolt)==0x16c && offsetof(tce_weaponDef_t,singleReload)==0x170 && BUTTON_ATTACK==1 && WEAPON_FIRING==7 && WEAPON_FIRINGALT==8) ? 1 : -1];
+static __declspec(naked) qboolean PM_TCEWeaponTrigger835(qboolean delayedFire) {
+    __asm {
+        sub esp, 0x38
+        push ebx
+        push ebp
+        push esi
+        push edi
+        mov ebx, dword ptr [esp+0x4c]
+        xor ebp, ebp
+        mov edi, 7
+        mov ecx, dword ptr [pm]
+        mov eax, dword ptr [ecx]
+        test byte ptr [ecx +trigger835Buttons], 1
+        jne trigger835_20039144
+        mov edx, dword ptr [eax+trigger835Flags]
+        test dh, 4
+        je trigger835_20039144
+        cmp ebx, ebp
+        jne trigger835_20039144
+        mov ecx, dword ptr [eax+trigger835Weapon]
+        push ecx
+        call BG_FiremodeWeapon
+        add esp, 4
+        test eax, eax
+        je trigger835_20039137
+        mov ecx, dword ptr [pm]
+        mov edi, 1
+        mov esi, dword ptr [ecx]
+        cmp dword ptr [esi+trigger835Mode], edi
+        jne trigger835_20039149
+        mov edx, dword ptr [esi+trigger835Weapon]
+        mov esi, dword ptr [esi+trigger835BurstCount]
+        lea eax, [edx + edx*2]
+        shl eax, 3
+        sub eax, edx
+        lea eax, [eax + eax*4]
+        cmp esi, dword ptr [eax*4 + weaponDef+trigger835Burst]
+        jge trigger835_20039149
+        mov esi, dword ptr [ecx]
+        push edx
+        call BG_FindClipForWeapon
+        mov ecx, dword ptr [esi + eax*4 +trigger835Clip]
+        add esp, 4
+        cmp ecx, ebp
+        je trigger835_2003913c
+        test byte ptr [esi+trigger835TcFlags], 8
+        jne trigger835_2003913c
+        mov esi, dword ptr [esi+trigger835State]
+        cmp esi, 7
+        je trigger835_20039121
+        cmp esi, 8
+        jne trigger835_2003913c
+trigger835_20039121:
+        mov eax, dword ptr [pm]
+        mov cl, byte ptr [eax +trigger835Buttons]
+        or cl, 1
+        mov byte ptr [eax +trigger835Buttons], cl
+        mov ecx, dword ptr [pm]
+        jmp trigger835_20039149
+trigger835_20039137:
+        mov edi, 1
+trigger835_2003913c:
+        mov ecx, dword ptr [pm]
+        jmp trigger835_20039149
+trigger835_20039144:
+        mov edi, 1
+trigger835_20039149:
+        test byte ptr [ecx +trigger835Buttons], 1
+        jne trigger835_20039163
+        cmp ebx, ebp
+        jne trigger835_20039163
+        mov ecx, dword ptr [ecx]
+        mov eax, dword ptr [ecx+trigger835Flags]
+        and ah, 0xfb
+        mov dword ptr [ecx+trigger835Flags], eax
+        jmp trigger835_20039325
+trigger835_20039163:
+        mov edx, dword ptr [ecx]
+        mov eax, dword ptr [edx+trigger835Flags]
+        test ah, 4
+        je trigger835_2003931f
+        cmp ebx, ebp
+        jne trigger835_2003931f
+        mov eax, dword ptr [edx+trigger835Weapon]
+        cmp eax, edi
+        je trigger835_2003930c
+        test dword ptr [edx+trigger835TcFlags], 0x800
+        jne trigger835_2003930c
+        push eax
+        call BG_FiremodeWeapon
+        mov edx, dword ptr [pm]
+        add esp, 4
+        test eax, eax
+        jne trigger835_200391e4
+        mov esi, dword ptr [edx]
+        mov ecx, dword ptr [esi+trigger835Weapon]
+        lea eax, [ecx + ecx*2]
+        shl eax, 3
+        sub eax, ecx
+        lea eax, [eax + eax*4]
+        shl eax, 2
+        cmp dword ptr [eax + weaponDef+trigger835Semi], ebp
+        jne trigger835_2003928a
+        cmp dword ptr [eax + weaponDef+trigger835Pump], ebp
+        jne trigger835_2003928a
+        cmp dword ptr [eax + weaponDef+trigger835Bolt], ebp
+        jne trigger835_2003928a
+trigger835_200391e4:
+        mov esi, dword ptr [edx]
+        mov ecx, esi
+        mov edx, dword ptr [ecx+trigger835Weapon]
+        push edx
+        call BG_FindClipForWeapon
+        mov ecx, dword ptr [esi + eax*4 +trigger835Clip]
+        add esp, 4
+        cmp ecx, ebp
+        jne trigger835_2003921b
+        mov eax, dword ptr [esi+trigger835Weapon]
+        cmp eax, edi
+        je trigger835_2003921b
+        cmp eax, 4
+        je trigger835_2003921b
+        cmp eax, 0x1e
+        je trigger835_2003921b
+        cmp eax, 9
+        jne trigger835_2003928a
+trigger835_2003921b:
+        mov eax, dword ptr [esi+trigger835Weapon]
+        push eax
+        call BG_FiremodeWeapon
+        mov ecx, dword ptr [pm]
+        add esp, 4
+        test eax, eax
+        je trigger835_2003930c
+        mov esi, dword ptr [ecx]
+        mov eax, dword ptr [esi+trigger835Mode]
+        cmp eax, 2
+        je trigger835_2003928a
+        cmp eax, edi
+        jne trigger835_2003926c
+        mov edx, dword ptr [esi+trigger835Weapon]
+        lea eax, [edx + edx*2]
+        shl eax, 3
+        sub eax, edx
+        lea edx, [eax + eax*4]
+        mov eax, dword ptr [edx*4 + weaponDef+trigger835Burst]
+        mov edx, dword ptr [esi+trigger835BurstCount]
+        dec eax
+        cmp edx, eax
+        jg trigger835_2003928a
+trigger835_2003926c:
+        mov edx, dword ptr [esi+trigger835Weapon]
+        lea eax, [edx + edx*2]
+        shl eax, 3
+        sub eax, edx
+        lea edx, [eax + eax*4]
+        cmp dword ptr [edx*4 + weaponDef+trigger835Single], ebp
+        je trigger835_2003930c
+trigger835_2003928a:
+        mov dword ptr [esi+trigger835Time], ebp
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax]
+        mov dword ptr [ecx+trigger835Delay], ebp
+        mov edx, dword ptr [pm]
+        mov ecx, dword ptr [edx]
+        mov eax, dword ptr [ecx+trigger835State]
+        cmp eax, 7
+        je trigger835_200392af
+        cmp eax, 8
+        jne trigger835_200392f6
+trigger835_200392af:
+        mov eax, dword ptr [ecx+trigger835Weapon]
+        push eax
+        call BG_FindClipForWeapon
+        mov ecx, dword ptr [pm]
+        add esp, 4
+        mov edx, dword ptr [ecx]
+        cmp dword ptr [edx + eax*4 +trigger835Clip], ebp
+        jne trigger835_200392ed
+        push edi
+        call PM_StartWeaponAnim
+        mov eax, dword ptr [pm]
+        add esp, 4
+        mov ecx, dword ptr [eax]
+        pop edi
+        pop esi
+        mov dword ptr [ecx+trigger835State], ebp
+        pop ebp
+        pop ebx
+        add esp, 0x38
+        mov eax, 1
+        ret 
+trigger835_200392ed:
+        push ebp
+        call PM_ContinueWeaponAnim
+        add esp, 4
+trigger835_200392f6:
+        mov edx, dword ptr [pm]
+        pop edi
+        pop esi
+        mov eax, dword ptr [edx]
+        mov dword ptr [eax+trigger835State], ebp
+        pop ebp
+        pop ebx
+        add esp, 0x38
+        mov eax, 1
+        ret 
+trigger835_2003930c:
+        test byte ptr [ecx +trigger835Buttons], 1
+        jne trigger835_2003932b
+        mov ecx, dword ptr [ecx]
+        mov eax, dword ptr [ecx+trigger835Flags]
+        and ah, 0xfb
+        mov dword ptr [ecx+trigger835Flags], eax
+        jmp trigger835_20039325
+trigger835_2003931f:
+        or ah, 4
+        mov dword ptr [edx+trigger835Flags], eax
+trigger835_20039325:
+        mov ecx, dword ptr [pm]
+trigger835_2003932b:
+        mov edx, dword ptr [ecx]
+        mov eax, dword ptr [edx+trigger835State]
+        cmp eax, 9
+        je trigger835_20039342
+        cmp eax, 0xb
+        je trigger835_20039342
+        cmp eax, 0xc
+        jne trigger835_2003934d
+trigger835_20039342:
+        call PM_FinishWeaponReload
+        mov ecx, dword ptr [pm]
+trigger835_2003934d:
+        xor eax, eax
+        pop edi
+        pop esi
+        pop ebp
+        pop ebx
+        add esp, 0x38
+        ret
+    }
+}
+#endif
+
+#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
+/* PM_Weapon200393ac..2003986e: charge/release/lean/zoom/water eligibility.
+ * Server-only: original cgame omits the zoomed FieldOps fire event. */
+static const float attack837K200ac2f0 = 0.6600000262260437f;
+static const float attack837K200ac180 = 0.5f;
+static const float attack837K200ac814 = 0.3499999940395355f;
+static const float attack837K200ac2ec = 0.33000001311302185f;
+static const float attack837K200ac2e8 = 0.15000000596046448f;
+static const float attack837K200ac198 = 0.25f;
+static const float attack837K200ac100 = 0.0f;
+enum {
+    attack837CmdTime = offsetof(pmove_t,cmd)+offsetof(usercmd_t,serverTime),
+    attack837Buttons = offsetof(pmove_t,cmd)+offsetof(usercmd_t,buttons),
+    attack837Skill = offsetof(pmove_t,skill),
+    attack837Character = offsetof(pmove_t,character),
+    attack837AnimModel = offsetof(bg_character_t,animModelInfo),
+    attack837Soldier = offsetof(pmove_t,soldierChargeTime),
+    attack837Engineer = offsetof(pmove_t,engineerChargeTime),
+    attack837Medic = offsetof(pmove_t,medicChargeTime),
+    attack837Lt = offsetof(pmove_t,ltChargeTime),
+    attack837Covert = offsetof(pmove_t,covertopsChargeTime),
+    attack837Water = offsetof(pmove_t,waterlevel),
+    attack837Weapon = offsetof(playerState_t,weapon),
+    attack837State = offsetof(playerState_t,weaponstate),
+    attack837ClassTime = offsetof(playerState_t,classWeaponTime),
+    attack837Eflags = offsetof(playerState_t,eFlags),
+    attack837Lean = offsetof(playerState_t,leanf),
+    attack837Time = offsetof(playerState_t,weaponTime),
+    attack837Delay = offsetof(playerState_t,weaponDelay),
+    attack837WeaponFlags = offsetof(playerState_t,stats)+STAT_TCE_WEAPON_FLAGS*sizeof(int),
+    attack837TcFlags = offsetof(playerState_t,stats)+STAT_TCE_FLAGS*sizeof(int),
+    attack837Class = offsetof(playerState_t,stats)+STAT_PLAYER_CLASS*sizeof(int),
+    attack837BurstCount = offsetof(playerState_t,holdable)+11*sizeof(int),
+    attack837Mode = offsetof(playerState_t,persistant)+10*sizeof(int)
+};
+typedef char attack837Protocol[(offsetof(pmove_t,ps)==0 && SK_HEAVY_WEAPONS==5 && SK_MILITARY_INTELLIGENCE_AND_SCOPED_WEAPONS==6 && SK_EXPLOSIVES_AND_CONSTRUCTION==1 && SK_SIGNALS==3 && SK_FIRST_AID==2 && PC_FIELDOPS==3 && WEAPON_READY==0 && BUTTON_ATTACK==1) ? 1 : -1];
+static __declspec(naked) qboolean PM_TCEWeaponEligibility837(qboolean delayedFire) {
+    __asm {
+        sub esp, 0x38
+        push ebx
+        push ebp
+        push esi
+        push edi
+        mov ebx, dword ptr [esp+0x4c]
+        xor ebp, ebp
+        mov edi, 1
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx]
+        mov esi, dword ptr [edx+attack837Weapon]
+        cmp esi, ebp
+        je attack837_exit
+        cmp esi, 0x41
+        jne attack837_2003940f
+        test dword ptr [edx+attack837Eflags], 0x80000
+        jne attack837_exit
+        mov eax, dword ptr [ecx+attack837Skill]
+        cmp dword ptr [eax+5*4], edi
+        mov eax, dword ptr [ecx+attack837CmdTime]
+        jl attack837_20039400
+        sub eax, dword ptr [edx+attack837ClassTime]
+        mov dword ptr [esp + 0x38], eax
+        fild dword ptr [esp + 0x38]
+        fild dword ptr [ecx+attack837Soldier]
+        fmul dword ptr [attack837K200ac2f0]
+        fcompp 
+        fnstsw ax
+        test ah, 0x41
+        je attack837_exit
+        jmp attack837_2003940f
+attack837_20039400:
+        sub eax, dword ptr [edx+attack837ClassTime]
+        cmp eax, dword ptr [ecx+attack837Soldier]
+        jl attack837_exit
+attack837_2003940f:
+        cmp esi, 0x37
+        je attack837_20039419
+        cmp esi, 0x38
+        jne attack837_20039440
+attack837_20039419:
+        mov eax, dword ptr [ecx+attack837CmdTime]
+        sub eax, dword ptr [edx+attack837ClassTime]
+        mov dword ptr [esp + 0x38], eax
+        fild dword ptr [esp + 0x38]
+        fild dword ptr [ecx+attack837Engineer]
+        fmul dword ptr [attack837K200ac180]
+        fcompp 
+        fnstsw ax
+        test ah, 0x41
+        je attack837_exit
+attack837_20039440:
+        cmp esi, 0x3c
+        jne attack837_200394ad
+        mov eax, dword ptr [ecx+attack837Skill]
+        mov esi, dword ptr [eax+5*4]
+        mov eax, dword ptr [ecx+attack837CmdTime]
+        cmp esi, edi
+        mov esi, dword ptr [edx+attack837ClassTime]
+        jl attack837_2003947d
+        sub eax, esi
+        mov dword ptr [esp + 0x38], eax
+        fild dword ptr [esp + 0x38]
+        fild dword ptr [ecx+attack837Soldier]
+        fmul dword ptr [attack837K200ac814]
+        fcompp 
+        fnstsw ax
+        test ah, 0x41
+        je attack837_exit
+        jmp attack837_2003949d
+attack837_2003947d:
+        sub eax, esi
+        mov dword ptr [esp + 0x38], eax
+        fild dword ptr [esp + 0x38]
+        fild dword ptr [ecx+attack837Soldier]
+        fmul dword ptr [attack837K200ac180]
+        fcompp 
+        fnstsw ax
+        test ah, 0x41
+        je attack837_exit
+attack837_2003949d:
+        cmp ebx, ebp
+        jne attack837_200394ad
+        mov dword ptr [edx+attack837State], ebp
+        mov ecx, dword ptr [pm]
+attack837_200394ad:
+        mov edx, dword ptr [ecx]
+        mov esi, dword ptr [edx+attack837Weapon]
+        cmp esi, 0x1b
+        jne attack837_200394fe
+        mov eax, dword ptr [ecx+attack837Skill]
+        cmp dword ptr [eax+6*4], 2
+        mov eax, dword ptr [ecx+attack837CmdTime]
+        jl attack837_200394ef
+        sub eax, dword ptr [edx+attack837ClassTime]
+        mov dword ptr [esp + 0x38], eax
+        fild dword ptr [esp + 0x38]
+        fild dword ptr [ecx+attack837Covert]
+        fmul dword ptr [attack837K200ac2f0]
+        fcompp 
+        fnstsw ax
+        test ah, 0x41
+        je attack837_exit
+        jmp attack837_200394fe
+attack837_200394ef:
+        sub eax, dword ptr [edx+attack837ClassTime]
+        cmp eax, dword ptr [ecx+attack837Covert]
+        jl attack837_exit
+attack837_200394fe:
+        cmp esi, 0x1a
+        jne attack837_2003955c
+        mov eax, dword ptr [ecx+attack837Skill]
+        cmp dword ptr [eax+1*4], 2
+        mov eax, dword ptr [ecx+attack837CmdTime]
+        jl attack837_20039538
+        sub eax, dword ptr [edx+attack837ClassTime]
+        mov dword ptr [esp + 0x38], eax
+        fild dword ptr [esp + 0x38]
+        fild dword ptr [ecx+attack837Engineer]
+        fmul dword ptr [attack837K200ac2ec]
+        fcompp 
+        fnstsw ax
+        test ah, 0x41
+        je attack837_exit
+        jmp attack837_2003955c
+attack837_20039538:
+        sub eax, dword ptr [edx+attack837ClassTime]
+        mov dword ptr [esp + 0x38], eax
+        fild dword ptr [esp + 0x38]
+        fild dword ptr [ecx+attack837Engineer]
+        fmul dword ptr [attack837K200ac180]
+        fcompp 
+        fnstsw ax
+        test ah, 0x41
+        je attack837_exit
+attack837_2003955c:
+        cmp esi, 0xf
+        jne attack837_200395a5
+        mov eax, dword ptr [ecx+attack837Skill]
+        cmp dword ptr [eax+1*4], 3
+        mov eax, dword ptr [ecx+attack837CmdTime]
+        jl attack837_20039596
+        sub eax, dword ptr [edx+attack837ClassTime]
+        mov dword ptr [esp + 0x38], eax
+        fild dword ptr [esp + 0x38]
+        fild dword ptr [ecx+attack837Engineer]
+        fmul dword ptr [attack837K200ac2f0]
+        fcompp 
+        fnstsw ax
+        test ah, 0x41
+        je attack837_exit
+        jmp attack837_200395a5
+attack837_20039596:
+        sub eax, dword ptr [edx+attack837ClassTime]
+        cmp eax, dword ptr [ecx+attack837Engineer]
+        jl attack837_exit
+attack837_200395a5:
+        cmp esi, 0xc
+        jne attack837_200395fa
+        mov eax, dword ptr [ecx+attack837Skill]
+        cmp dword ptr [eax+3*4], edi
+        mov eax, dword ptr [ecx+attack837CmdTime]
+        jl attack837_200395da
+        sub eax, dword ptr [edx+attack837ClassTime]
+        mov dword ptr [esp + 0x38], eax
+        fild dword ptr [esp + 0x38]
+        fild dword ptr [ecx+attack837Lt]
+        fmul dword ptr [attack837K200ac2e8]
+        fcompp 
+        fnstsw ax
+        test ah, 0x41
+        jne attack837_200395fa
+        jmp attack837_20039647
+attack837_200395da:
+        sub eax, dword ptr [edx+attack837ClassTime]
+        mov dword ptr [esp + 0x38], eax
+        fild dword ptr [esp + 0x38]
+        fild dword ptr [ecx+attack837Lt]
+        fmul dword ptr [attack837K200ac198]
+        fcompp 
+        fnstsw ax
+        test ah, 0x41
+        je attack837_20039647
+attack837_200395fa:
+        cmp esi, 0x13
+        jne attack837_2003966d
+        mov eax, dword ptr [ecx+attack837Skill]
+        cmp dword ptr [eax+2*4], 2
+        mov eax, dword ptr [ecx+attack837CmdTime]
+        jl attack837_20039627
+        sub eax, dword ptr [edx+attack837ClassTime]
+        mov dword ptr [esp + 0x38], eax
+        fild dword ptr [esp + 0x38]
+        fild dword ptr [ecx+attack837Medic]
+        fmul dword ptr [attack837K200ac2e8]
+        jmp attack837_2003963e
+attack837_20039627:
+        sub eax, dword ptr [edx+attack837ClassTime]
+        mov dword ptr [esp + 0x38], eax
+        fild dword ptr [esp + 0x38]
+        fild dword ptr [ecx+attack837Medic]
+        fmul dword ptr [attack837K200ac198]
+attack837_2003963e:
+        fcompp 
+        fnstsw ax
+        test ah, 0x41
+        jne attack837_2003966d
+attack837_20039647:
+        test byte ptr [ecx+attack837Buttons], 1
+        je attack837_exit
+        mov ecx, dword ptr [ecx+attack837Character]
+        push ebp
+        push edi
+        push ANIM_ET_NOPOWER
+        mov eax, dword ptr [ecx+attack837AnimModel]
+        push eax
+        push edx
+        call BG_AnimScriptEvent
+        add esp, 0x14
+        pop edi
+        pop esi
+        pop ebp
+        pop ebx
+        add esp, 0x38
+        mov eax, 1
+        ret 
+attack837_2003966d:
+        cmp esi, 0x16
+        jne attack837_200396b6
+        mov eax, dword ptr [ecx+attack837Skill]
+        cmp dword ptr [eax+3*4], 2
+        mov eax, dword ptr [ecx+attack837CmdTime]
+        jl attack837_200396a7
+        sub eax, dword ptr [edx+attack837ClassTime]
+        mov dword ptr [esp + 0x38], eax
+        fild dword ptr [esp + 0x38]
+        fild dword ptr [ecx+attack837Lt]
+        fmul dword ptr [attack837K200ac2f0]
+        fcompp 
+        fnstsw ax
+        test ah, 0x41
+        je attack837_exit
+        jmp attack837_200396b6
+attack837_200396a7:
+        sub eax, dword ptr [edx+attack837ClassTime]
+        cmp eax, dword ptr [ecx+attack837Lt]
+        jl attack837_exit
+attack837_200396b6:
+        cmp esi, 0x3d
+        jne attack837_200396cd
+        mov eax, dword ptr [ecx+attack837CmdTime]
+        sub eax, dword ptr [edx+attack837ClassTime]
+        cmp eax, dword ptr [ecx+attack837Medic]
+        jl attack837_exit
+attack837_200396cd:
+        test byte ptr [ecx+attack837Buttons], 1
+        jne attack837_200396d7
+        cmp ebx, ebp
+        je attack837_2003972d
+attack837_200396d7:
+        fld dword ptr [edx+attack837Lean]
+        fcomp dword ptr [attack837K200ac100]
+        fnstsw ax
+        test ah, 0x40
+        jne attack837_200396ff
+        cmp esi, 4
+        je attack837_200396ff
+        cmp esi, 9
+        je attack837_200396ff
+        cmp esi, 0x1e
+        je attack837_200396ff
+        test byte ptr [edx+attack837WeaponFlags], 4
+        je attack837_2003972d
+attack837_200396ff:
+        mov eax, dword ptr [edx+attack837WeaponFlags]
+        test ah, 0x40
+        je attack837_200397d4
+        cmp ebx, ebp
+        je attack837_2003972d
+        cmp esi, 4
+        je attack837_200397d4
+        cmp esi, 9
+        je attack837_200397d4
+        cmp esi, 0x1e
+        je attack837_200397d4
+attack837_2003972d:
+        mov dword ptr [edx+attack837Time], ebp
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx]
+        mov dword ptr [edx+attack837Delay], ebp
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax]
+        mov eax, dword ptr [ecx+attack837State]
+        cmp eax, 7
+        je attack837_20039752
+        cmp eax, 8
+        jne attack837_20039767
+attack837_20039752:
+        mov ecx, dword ptr [ecx+attack837Weapon]
+        push ecx
+        call TCE_PM_IdleAnimForWeapon
+        push eax
+        call PM_ContinueWeaponAnim
+        add esp, 8
+attack837_20039767:
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx]
+        cmp dword ptr [eax+attack837BurstCount], ebp
+        jle attack837_200397be
+        mov eax, dword ptr [eax+attack837Weapon]
+        push eax
+        call BG_FiremodeWeapon
+        add esp, 4
+        test eax, eax
+        je attack837_200397a1
+        mov ecx, dword ptr [pm]
+        mov eax, dword ptr [ecx]
+        cmp dword ptr [eax+attack837Mode], edi
+        jne attack837_200397a1
+        mov dword ptr [eax+attack837Time], 0x32
+attack837_200397a1:
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx]
+        mov dword ptr [eax+attack837BurstCount], ebp
+        mov ecx, dword ptr [pm]
+        mov eax, dword ptr [ecx]
+        and dword ptr [eax+attack837TcFlags], 0xfffffff7
+attack837_200397be:
+        mov edx, dword ptr [pm]
+        pop edi
+        pop esi
+        mov eax, dword ptr [edx]
+        mov dword ptr [eax+attack837State], ebp
+        pop ebp
+        pop ebx
+        add esp, 0x38
+        mov eax, 1
+        ret 
+attack837_200397d4:
+        cmp esi, 0x23
+        je attack837_exit
+        mov ebp, dword ptr [edx+attack837Eflags]
+        test ebp, 0x40000
+        je attack837_20039813
+        cmp dword ptr [edx+attack837Class], 3
+        jne attack837_exit
+        mov esi, dword ptr [edx+attack837Time]
+        push EV_FIRE_WEAPON
+        add esi, 0x1f4
+        mov dword ptr [edx+attack837Time], esi
+        call PM_AddEvent
+        add esp, 4
+        pop edi
+        pop esi
+        pop ebp
+        pop ebx
+        add esp, 0x38
+        mov eax, 1
+        ret 
+attack837_20039813:
+        cmp dword ptr [ecx+attack837Water], 3
+        jne attack837_2003986e
+        cmp esi, 1
+        je attack837_2003986e
+        cmp esi, 4
+        je attack837_2003986e
+        cmp esi, 9
+        je attack837_2003986e
+        cmp esi, 0xf
+        je attack837_2003986e
+        cmp esi, 0x1a
+        je attack837_2003986e
+        cmp esi, 0x1d
+        je attack837_2003986e
+        cmp esi, 0x1e
+        je attack837_2003986e
+        push EV_NOFIRE_UNDERWATER
+        call PM_AddEvent
+        mov ecx, dword ptr [pm]
+        add esp, 4
+        mov edx, dword ptr [ecx]
+        pop edi
+        pop esi
+        pop ebp
+        mov dword ptr [edx+attack837Time], 0x1f4
+        mov eax, dword ptr [pm]
+        pop ebx
+        mov ecx, dword ptr [eax]
+        mov dword ptr [ecx+attack837Delay], 0
+        add esp, 0x38
+        mov eax, 1
+        ret 
+attack837_2003986e:
+        xor eax, eax
+        jmp attack837_done
+attack837_exit:
+        mov eax, 1
+attack837_done:
+        pop edi
+        pop esi
+        pop ebp
+        pop ebx
+        add esp, 0x38
+        ret
+    }
+}
+#endif
+
+#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
+/* Private PM_Weapon attack-start range2003986e..20039bc2.
+ * Dispatch bytes are TC protocol; delay values are the separate static ammo
+ * field, not new weaponDef records. Caller restricts definitions to0..63. */
+static const unsigned char start838Dispatch[65] = {0, 1, 2, 3, 1, 1, 1, 2, 3, 2, 8, 8, 1, 1, 3, 8, 8, 8, 2, 8, 2, 2, 1, 1, 1, 4, 5, 6, 5, 3, 2, 1, 2, 8, 8, 2, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 8, 8, 8, 1, 1, 1, 1, 1, 1, 1, 1, 2, 7, 8, 2, 8, 8, 1};
+static const int start838StaticDelay[64] = {50, 50, 50, 50, 100, 750, 50, 50, 50, 100, 50, 50, 50, 50, 50, 100, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 722, 100, 100, 50, 50, 50, 0, 750, 750, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+enum {
+    start838Weapon = offsetof(playerState_t,weapon),
+    start838State = offsetof(playerState_t,weaponstate),
+    start838Delay = offsetof(playerState_t,weaponDelay),
+    start838Grenade = offsetof(playerState_t,grenadeTimeLeft),
+    start838Eflags = offsetof(playerState_t,eFlags),
+    start838Character = offsetof(pmove_t,character),
+    start838AnimModel = offsetof(bg_character_t,animModelInfo),
+    start838DefDelay = offsetof(tce_weaponDef_t,fireDelayTime),
+    start838DefTimer = offsetof(tce_weaponDef_t,grenadeTimer)
+};
+typedef char start838Protocol[(offsetof(pmove_t,ps)==0 && sizeof(tce_weaponDef_t)==460 && offsetof(tce_weaponDef_t,fireDelayTime)==0xe8 && offsetof(tce_weaponDef_t,grenadeTimer)==0x198 && ANIM_ET_FIREWEAPON==2 && ANIM_ET_FIREWEAPON2==3 && ANIM_ET_FIREWEAPONPRONE==30 && ANIM_ET_FIREWEAPON2PRONE==31 && WEAPON_FIRING==7) ? 1 : -1];
+static __declspec(naked) void PM_TCEAttackStart838(qboolean delayedFire, qboolean akimboFire) {
+    __asm {
+        sub esp, 0x38
+        push ebx
+        push ebp
+        push esi
+        push edi
+        mov eax, dword ptr [esp+0x4c]
+        mov dword ptr [esp+0x18], eax
+        mov eax, dword ptr [esp+0x50]
+        mov dword ptr [esp+0x1c], eax
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx]
+        mov esi, dword ptr [edx+start838Weapon]
+        mov ebp, dword ptr [edx+start838Eflags]
+        lea edi, [esi-1]
+        cmp edi, 0x40
+        ja start838_20039b63
+        xor eax, eax
+        mov al, byte ptr [edi+start838Dispatch]
+        cmp eax, 0
+        je start838_200399ad
+        cmp eax, 1
+        je start838_200398c6
+        cmp eax, 2
+        je start838_20039889
+        cmp eax, 3
+        je start838_200399c6
+        cmp eax, 4
+        je start838_20039a68
+        cmp eax, 5
+        je start838_20039ad5
+        cmp eax, 6
+        je start838_20039b16
+        cmp eax, 7
+        je start838_20039955
+        cmp eax, 8
+        je start838_20039b63
+        jmp start838_20039b63
+start838_20039889:
+        mov eax, dword ptr [edx+start838State]
+        cmp eax, 7
+        je start838_200398b7
+        cmp eax, 8
+        je start838_200398b7
+        lea eax, [esi + esi*2]
+        shl eax, 3
+        sub eax, esi
+        lea eax, [eax + eax*4]
+        mov eax, dword ptr [eax*4 + weaponDef+start838DefDelay]
+        test eax, eax
+        je start838_200398b7
+        mov dword ptr [edx+start838Delay], eax
+        jmp start838_20039bb0
+start838_200398b7:
+        push 1
+        push 1
+        test ebp, 0x80000
+        jmp start838_20039b98
+start838_200398c6:
+        mov eax, dword ptr [edx+start838State]
+        cmp eax, 7
+        je start838_20039923
+        cmp eax, 8
+        je start838_20039923
+        lea eax, [esi + esi*2]
+        shl eax, 3
+        sub eax, esi
+        lea eax, [eax + eax*4]
+        mov edi, dword ptr [eax*4 + weaponDef+start838DefDelay]
+        test edi, edi
+        je start838_20039923
+        cmp esi, 0x41
+        jne start838_20039901
+        push EV_SPINUP
+        call PM_AddEvent
+        mov ecx, dword ptr [pm]
+        add esp, 4
+start838_20039901:
+        mov ecx, dword ptr [ecx]
+        mov edx, dword ptr [ecx+start838Weapon]
+        lea eax, [edx + edx*2]
+        shl eax, 3
+        sub eax, edx
+        lea edx, [eax + eax*4]
+        mov eax, dword ptr [edx*4 + weaponDef+start838DefDelay]
+        mov dword ptr [ecx+start838Delay], eax
+        jmp start838_20039bb0
+start838_20039923:
+        mov eax, dword ptr [esp + 0x1c]
+        test ebp, 0x80000
+        je start838_20039942
+        test eax, eax
+        push 1
+        push 0
+        je start838_20039b9a
+        push 0x1f
+        jmp start838_20039ba0
+start838_20039942:
+        test eax, eax
+        push 1
+        push 0
+        je start838_20039b9e
+        push 3
+        jmp start838_20039ba0
+start838_20039955:
+        mov eax, dword ptr [edx+start838State]
+        cmp eax, 7
+        je start838_20039b8e
+        cmp eax, 8
+        je start838_20039b8e
+        push EV_SPINUP
+        call PM_AddEvent
+        push 0x3c
+        call TCE_PM_AttackAnimForWeapon
+        push eax
+        call PM_StartWeaponAnim
+        mov ecx, dword ptr [pm]
+        add esp, 0xc
+        mov ecx, dword ptr [ecx]
+start838_2003998c:
+        mov edx, dword ptr [ecx+start838Weapon]
+        lea eax, edx
+        nop 
+        nop 
+        mov eax, dword ptr [eax*4+start838StaticDelay]
+        mov dword ptr [ecx+start838Delay], eax
+        jmp start838_20039bb0
+start838_200399ad:
+        mov eax, dword ptr [esp + 0x18]
+        test eax, eax
+        jne start838_20039bb6
+        test ebp, 0x80000
+        push 0
+        jmp start838_20039b96
+start838_200399c6:
+        mov eax, dword ptr [esp + 0x18]
+        test eax, eax
+        jne start838_20039bb6
+        push esi
+        call PM_WeaponAmmoAvailable
+        add esp, 4
+        test eax, eax
+        je start838_20039a40
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx]
+        mov ecx, dword ptr [edx+start838Weapon]
+        cmp ecx, 0xf
+        jne start838_200399fb
+        mov dword ptr [edx+start838Grenade], 0x32
+        jmp start838_20039a23
+start838_200399fb:
+        lea eax, [ecx + ecx*2]
+        push EV_TCE_GRENADE_PRIME
+        shl eax, 3
+        sub eax, ecx
+        lea eax, [eax + eax*4]
+        mov ecx, dword ptr [eax*4 + weaponDef+start838DefTimer]
+        add ecx, 0x1f4
+        mov dword ptr [edx+start838Grenade], ecx
+        call PM_AddEvent
+        add esp, 4
+start838_20039a23:
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx]
+        mov ecx, dword ptr [eax+start838Weapon]
+        push ecx
+        call TCE_PM_AttackAnimForWeapon
+        push eax
+        call PM_StartWeaponAnim
+        add esp, 8
+start838_20039a40:
+        mov edx, dword ptr [pm]
+        mov edx, dword ptr [edx]
+        mov ecx, dword ptr [edx+start838Weapon]
+        lea eax, [ecx + ecx*2]
+        shl eax, 3
+        sub eax, ecx
+        lea eax, [eax + eax*4]
+        mov ecx, dword ptr [eax*4 + weaponDef+start838DefDelay]
+        mov dword ptr [edx+start838Delay], ecx
+        jmp start838_20039bb0
+start838_20039a68:
+        mov eax, dword ptr [esp + 0x18]
+        test eax, eax
+        jne start838_20039bb6
+        push esi
+        call PM_WeaponAmmoAvailable
+        add esp, 4
+        test eax, eax
+        je start838_20039aac
+        mov ecx, dword ptr [pm]
+        push 1
+        push 0
+        mov eax, dword ptr [ecx]
+        test dword ptr [eax+start838Eflags], 0x80000
+        je start838_20039a9a
+        push 0x1f
+        jmp start838_20039a9c
+start838_20039a9a:
+        push 2
+start838_20039a9c:
+        mov edx, dword ptr [ecx +start838Character]
+        mov ecx, dword ptr [edx +start838AnimModel]
+        push ecx
+        push eax
+        call BG_AnimScriptEvent
+        add esp, 0x14
+start838_20039aac:
+        mov edx, dword ptr [pm]
+        mov ecx, dword ptr [edx]
+        mov edx, dword ptr [ecx+start838Weapon]
+        lea eax, edx
+        nop 
+        nop 
+        mov edx, dword ptr [eax*4+start838StaticDelay]
+        mov dword ptr [ecx+start838Delay], edx
+        jmp start838_20039bb0
+start838_20039ad5:
+        mov eax, dword ptr [esp + 0x18]
+        test eax, eax
+        jne start838_20039bb6
+        push esi
+        call PM_WeaponAmmoAvailable
+        add esp, 4
+        test eax, eax
+        je start838_20039b0a
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax]
+        mov edx, dword ptr [ecx+start838Weapon]
+        push edx
+        call TCE_PM_AttackAnimForWeapon
+        push eax
+        call PM_StartWeaponAnim
+        add esp, 8
+start838_20039b0a:
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax]
+        jmp start838_2003998c
+start838_20039b16:
+        mov eax, dword ptr [edx+start838State]
+        cmp eax, 7
+        je start838_20039b8e
+        cmp eax, 8
+        je start838_20039b8e
+        push EV_SPINUP
+        call PM_AddEvent
+        mov ecx, dword ptr [pm]
+        push 0x1c
+        mov ecx, dword ptr [ecx]
+        mov edx, dword ptr [ecx+start838Weapon]
+        lea eax, edx
+        nop 
+        nop 
+        mov eax, dword ptr [eax*4+start838StaticDelay]
+        mov dword ptr [ecx+start838Delay], eax
+        call TCE_PM_AttackAnimForWeapon
+        push eax
+        call PM_ContinueWeaponAnim
+        add esp, 0xc
+        jmp start838_20039bb0
+start838_20039b63:
+        mov eax, dword ptr [edx+start838State]
+        cmp eax, 7
+        je start838_20039b8e
+        cmp eax, 8
+        je start838_20039b8e
+        lea eax, [esi + esi*2]
+        shl eax, 3
+        sub eax, esi
+        lea eax, [eax + eax*4]
+        mov eax, dword ptr [eax*4 + weaponDef+start838DefDelay]
+        test eax, eax
+        je start838_20039b8e
+        mov dword ptr [edx+start838Delay], eax
+        jmp start838_20039bb0
+start838_20039b8e:
+        test ebp, 0x80000
+        push 1
+start838_20039b96:
+        push 0
+start838_20039b98:
+        je start838_20039b9e
+start838_20039b9a:
+        push 0x1e
+        jmp start838_20039ba0
+start838_20039b9e:
+        push 2
+start838_20039ba0:
+        mov ecx, dword ptr [ecx +start838Character]
+        mov eax, dword ptr [ecx +start838AnimModel]
+        push eax
+        push edx
+        call BG_AnimScriptEvent
+        add esp, 0x14
+start838_20039bb0:
+        mov ecx, dword ptr [pm]
+start838_20039bb6:
+        mov ecx, dword ptr [ecx]
+        mov dword ptr [ecx+start838State], 7
+        pop edi
+        pop esi
+        pop ebp
+        pop ebx
+        add esp, 0x38
+        ret
+    }
+}
+#endif
+
+#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
+/* Private PM_Weapon20039bc2..20039f0d: ammo feedback, delay, slick kick,
+ * and ammo consumption. TC IDs; no new definition65/66. */
+static const float ammo839K200ac160 = 2000.0f;
+static const float ammo839K200ac810 = 32000.0f;
+static const float ammo839K200ac45c = 400.0f;
+static const float ammo839K200ac100 = 0.0f;
+static const float ammo839K200ac698 = 0.004999999888241291f;
+static const float ammo839K200ac2e4 = -1.0f;
+static const unsigned char ammo839Dispatch[56] = {0, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1};
+enum {
+    ammo839Weapon = offsetof(playerState_t,weapon),
+    ammo839Ammo = offsetof(playerState_t,ammo),
+    ammo839Time = offsetof(playerState_t,weaponTime),
+    ammo839Delay = offsetof(playerState_t,weaponDelay),
+    ammo839WeaponFlags = offsetof(playerState_t,stats)+STAT_TCE_WEAPON_FLAGS*sizeof(int),
+    ammo839Eflags = offsetof(playerState_t,eFlags),
+    ammo839VelocityX = offsetof(playerState_t,velocity),
+    ammo839VelocityY = offsetof(playerState_t,velocity)+4,
+    ammo839VelocityZ = offsetof(playerState_t,velocity)+8,
+    ammo839PmTime = offsetof(playerState_t,pm_time),
+    ammo839Flags = offsetof(playerState_t,pm_flags),
+    ammo839Mounted = offsetof(playerState_t,persistant)+PERS_HWEAPON_USE*sizeof(int),
+    ammo839Ext = offsetof(pmove_t,pmext),
+    ammo839AutoReload = offsetof(pmoveExt_t,bAutoReload),
+    ammo839Wbuttons = offsetof(pmove_t,cmd)+offsetof(usercmd_t,wbuttons),
+    ammo839Uses = offsetof(tce_weaponDef_t,uses),
+    ammo839Single = offsetof(tce_weaponDef_t,singleReload),
+    ammo839GroundFlags = offsetof(pml_t,groundTrace)+offsetof(trace_t,surfaceFlags),
+    ammo839ForwardX = offsetof(pml_t,forward),
+    ammo839ForwardY = offsetof(pml_t,forward)+4,
+    ammo839ForwardZ = offsetof(pml_t,forward)+8
+};
+typedef char ammo839Protocol[(offsetof(pmove_t,ps)==0 && sizeof(tce_weaponDef_t)==460 && offsetof(tce_weaponDef_t,uses)==0xd4 && offsetof(tce_weaponDef_t,singleReload)==0x170 && WBUTTON_RELOAD==8 && SURF_SLICK==2 && EF_PRONE==0x80000 && EF_MOUNTEDTANK==0x8000 && PMF_TIME_KNOCKBACK==0x40) ? 1 : -1];
+static __declspec(naked) qboolean PM_TCEAmmoConsume839(void) {
+    __asm {
+        sub esp, 0x38
+        push ebx
+        push ebp
+        push esi
+        push edi
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx]
+        mov ecx, dword ptr [eax+ammo839Weapon]
+        lea eax, [ecx + ecx*2]
+        shl eax, 3
+        sub eax, ecx
+        test ecx, ecx
+        lea edx, [eax + eax*4]
+        mov esi, dword ptr [edx*4 + weaponDef+ammo839Uses]
+        je ammo839_20039dc0
+        push ecx
+        call PM_WeaponAmmoAvailable
+        add esp, 4
+        cmp esi, eax
+        jle ammo839_20039dc0
+        mov eax, dword ptr [pm]
+        mov edi, dword ptr [eax]
+        mov eax, edi
+        mov ecx, dword ptr [eax+ammo839Weapon]
+        push ecx
+        call BG_FindAmmoForWeapon
+        mov ebx, dword ptr [edi + eax*4 +ammo839Ammo]
+        mov ecx, dword ptr [pm]
+        add esp, 4
+        xor edx, edx
+        mov eax, dword ptr [ecx+ammo839Ext]
+        cmp esi, ebx
+        setle dl
+        mov esi, edx
+        mov edx, dword ptr [eax+ammo839AutoReload]
+        test edx, edx
+        jne ammo839_20039d05
+        mov eax, dword ptr [edi+ammo839Weapon]
+        cmp eax, 0x30
+        je ammo839_20039cfd
+        cmp eax, 0x33
+        je ammo839_20039cfd
+        cmp eax, 0x2c
+        je ammo839_20039cfd
+        cmp eax, 0x2d
+        je ammo839_20039cfd
+        cmp eax, 0x2b
+        je ammo839_20039cfd
+        cmp eax, 0x29
+        je ammo839_20039cfd
+        cmp eax, 0x2a
+        je ammo839_20039cfd
+        cmp eax, 0x2f
+        je ammo839_20039cfd
+        cmp eax, 0x2e
+        je ammo839_20039cfd
+        cmp eax, 0x27
+        je ammo839_20039cfd
+        cmp eax, 0x28
+        je ammo839_20039cfd
+        cmp eax, 0x25
+        je ammo839_20039cfd
+        cmp eax, 2
+        je ammo839_20039cfd
+        cmp eax, 7
+        je ammo839_20039cfd
+        cmp eax, 3
+        je ammo839_20039cfd
+        cmp eax, 8
+        je ammo839_20039cfd
+        cmp eax, 0xa
+        je ammo839_20039cfd
+        cmp eax, 0x31
+        je ammo839_20039cfd
+        cmp eax, 0x32
+        je ammo839_20039cfd
+        cmp eax, 0x17
+        je ammo839_20039cfd
+        cmp eax, 0x18
+        je ammo839_20039cfd
+        cmp eax, 0x39
+        je ammo839_20039cfd
+        cmp eax, 0x21
+        je ammo839_20039cfd
+        cmp eax, 0x20
+        je ammo839_20039cfd
+        cmp eax, 0x1f
+        je ammo839_20039cfd
+        cmp eax, 0x34
+        je ammo839_20039cfd
+        cmp eax, 0xe
+        je ammo839_20039cfd
+        cmp eax, 5
+        je ammo839_20039cfd
+        cmp eax, 6
+        je ammo839_20039cfd
+        cmp eax, 0xd
+        je ammo839_20039cfd
+        cmp eax, 0x19
+        je ammo839_20039cfd
+        cmp eax, 0x3a
+        je ammo839_20039cfd
+        cmp eax, 0x3b
+        jne ammo839_20039d05
+ammo839_20039cfd:
+        test byte ptr [ecx+ammo839Wbuttons], WBUTTON_RELOAD
+        jne ammo839_20039d05
+        xor esi, esi
+ammo839_20039d05:
+        mov eax, dword ptr [edi+ammo839Weapon]
+        add eax, -4
+        cmp eax, 0x37
+        ja ammo839_20039d22
+        xor ecx, ecx
+        mov cl, byte ptr [eax + ammo839Dispatch]
+        cmp ecx, 0
+        je ammo839_20039d30
+        cmp ecx, 1
+        je ammo839_20039d48
+        cmp ecx, 2
+        je ammo839_20039d22
+        jmp ammo839_20039d22
+ammo839_20039d22:
+        test esi, esi
+        je ammo839_20039d48
+        push EV_EMPTYCLIP
+        call PM_AddEvent
+        add esp, 4
+ammo839_20039d30:
+        test esi, esi
+        je ammo839_20039d52
+        push 1
+        call PM_ContinueWeaponAnim
+        mov edx, dword ptr [pm]
+        add esp, 4
+        mov eax, dword ptr [edx]
+        jmp ammo839_20039d75
+ammo839_20039d48:
+        push EV_NOAMMO
+        call PM_AddEvent
+        add esp, 4
+ammo839_20039d52:
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax]
+        mov edx, dword ptr [ecx+ammo839Weapon]
+        push edx
+        call TCE_PM_IdleAnimForWeapon
+        push eax
+        call PM_ContinueWeaponAnim
+        mov eax, dword ptr [pm]
+        add esp, 8
+        mov eax, dword ptr [eax]
+ammo839_20039d75:
+        mov ecx, dword ptr [eax+ammo839Time]
+        add ecx, 0x1f4
+        mov dword ptr [eax+ammo839Time], ecx
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx]
+        mov ecx, dword ptr [edx+ammo839Weapon]
+        lea eax, [ecx + ecx*2]
+        shl eax, 3
+        sub eax, ecx
+        lea eax, [eax + eax*4]
+        mov ecx, dword ptr [eax*4 + weaponDef+ammo839Single]
+        test ecx, ecx
+        je ammo839_exit
+        mov eax, dword ptr [edx+ammo839WeaponFlags]
+        pop edi
+        or ah, 8
+        pop esi
+        pop ebp
+        mov dword ptr [edx+ammo839WeaponFlags], eax
+        pop ebx
+        add esp, 0x38
+        mov eax, 1
+        ret 
+ammo839_20039dc0:
+        mov ecx, dword ptr [pm]
+        mov ecx, dword ptr [ecx]
+        mov eax, dword ptr [ecx+ammo839Delay]
+        test eax, eax
+        jg ammo839_exit
+        test dword ptr [ecx+ammo839Eflags], 0x80000
+        jne ammo839_20039ec4
+        test byte ptr [pml+ammo839GroundFlags], 2
+        je ammo839_20039ec4
+        mov eax, dword ptr [ecx+ammo839Weapon]
+        sub eax, 0x1f
+        je ammo839_20039e14
+        sub eax, 0x22
+        je ammo839_20039e0c
+        dec eax
+        jne ammo839_20039ec4
+        fld dword ptr [ammo839K200ac160]
+        jmp ammo839_20039e1a
+ammo839_20039e0c:
+        fld dword ptr [ammo839K200ac810]
+        jmp ammo839_20039e1a
+ammo839_20039e14:
+        fld dword ptr [ammo839K200ac45c]
+ammo839_20039e1a:
+        fld dword ptr [pml+ammo839ForwardZ]
+        fmul dword ptr [ecx+ammo839VelocityZ]
+        fld dword ptr [pml+ammo839ForwardY]
+        fmul dword ptr [ecx+ammo839VelocityY]
+        faddp st(1), st(0)
+        fld dword ptr [pml+ammo839ForwardX]
+        fmul dword ptr [ecx+ammo839VelocityX]
+        faddp st(1), st(0)
+        fcomp dword ptr [ammo839K200ac100]
+        fmul dword ptr [ammo839K200ac698]
+        fnstsw ax
+        fmul dword ptr [ammo839K200ac2e4]
+        test ah, 0x41
+        fst dword ptr [esp + 0x18]
+        fmul dword ptr [pml+ammo839ForwardX]
+        fld dword ptr [esp + 0x18]
+        fmul dword ptr [pml+ammo839ForwardY]
+        fstp dword ptr [esp + 0x40]
+        fld dword ptr [esp + 0x18]
+        fmul dword ptr [pml+ammo839ForwardZ]
+        fstp dword ptr [esp + 0x44]
+        fadd dword ptr [ecx+ammo839VelocityX]
+        fstp dword ptr [ecx+ammo839VelocityX]
+        mov edx, dword ptr [pm]
+        fld dword ptr [esp + 0x40]
+        mov eax, dword ptr [edx]
+        fadd dword ptr [eax+ammo839VelocityY]
+        fstp dword ptr [eax+ammo839VelocityY]
+        mov eax, dword ptr [pm]
+        fld dword ptr [esp + 0x44]
+        mov eax, dword ptr [eax]
+        fadd dword ptr [eax+ammo839VelocityZ]
+        fstp dword ptr [eax+ammo839VelocityZ]
+        mov ecx, dword ptr [pm]
+        mov eax, dword ptr [ecx]
+        mov ecx, dword ptr [eax+ammo839PmTime]
+        test ecx, ecx
+        jne ammo839_20039ec4
+        mov ebx, 0x64
+        mov dword ptr [eax+ammo839PmTime], ebx
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx]
+        or dword ptr [eax+ammo839Flags], 0x40
+        jmp ammo839_20039ec9
+ammo839_20039ec4:
+        mov ebx, 0x64
+ammo839_20039ec9:
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax]
+        mov edx, dword ptr [ecx+ammo839Weapon]
+        push edx
+        call PM_WeaponAmmoAvailable
+        add esp, 4
+        cmp eax, -1
+        je ammo839_20039f0d
+        mov eax, dword ptr [pm]
+        mov eax, dword ptr [eax]
+        mov ecx, dword ptr [eax+ammo839Mounted]
+        test ecx, ecx
+        jne ammo839_20039f0d
+        mov ecx, dword ptr [eax+ammo839Eflags]
+        test ch, 0x80
+        jne ammo839_20039f0d
+        mov ecx, dword ptr [eax+ammo839Weapon]
+        push esi
+        push ecx
+        call PM_WeaponUseAmmo
+        add esp, 8
+        xor eax, eax
+        jmp ammo839_done
+ammo839_exit:
+        mov eax, 1
+ammo839_done:
+        pop edi
+        pop esi
+        pop ebp
+        pop ebx
+        add esp, 0x38
+        ret
+    }
+}
+#endif
+
+#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
+/* Private contiguous PM_Weapon20039f0d..2003a163. Return the original EDI
+ * attack animation live-out used by the subsequent cadence switch. */
+static const unsigned char fire840Dispatch[60] = {0, 1, 4, 4, 4, 0, 1, 0, 4, 4, 4, 4, 2, 4, 4, 4, 0, 4, 0, 0, 2, 2, 4, 2, 4, 0, 2, 1, 0, 2, 4, 4, 4, 0, 4, 4, 4, 4, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 4, 4, 4, 3, 4, 0};
+enum {
+    fire840Weapon = offsetof(playerState_t,weapon),
+    fire840Clip28 = offsetof(playerState_t,ammoclip)+28*sizeof(int),
+    fire840Ammo27 = offsetof(playerState_t,ammo)+27*sizeof(int),
+    fire840Clip27 = offsetof(playerState_t,ammoclip)+27*sizeof(int),
+    fire840Ammo35 = offsetof(playerState_t,ammo)+35*sizeof(int),
+    fire840Ammo = offsetof(playerState_t,ammo),
+    fire840Mode = offsetof(playerState_t,persistant)+10*sizeof(int),
+    fire840LastFire = offsetof(playerState_t,lastFireTime),
+    fire840Ext = offsetof(pmove_t,pmext),
+    fire840Released = offsetof(pmoveExt_t,releasedFire),
+    fire840ServerTime = offsetof(pmove_t,cmd)+offsetof(usercmd_t,serverTime),
+    fire840Pump = offsetof(tce_weaponDef_t,pump)
+};
+typedef char fire840Protocol[(offsetof(pmove_t,ps)==0 && sizeof(tce_weaponDef_t)==460 && offsetof(tce_weaponDef_t,pump)==0x168 && WEAP_ATTACK1==2 && WEAP_ATTACK2==3 && EV_NOAMMO==32 && EV_FIRE_WEAPON==40 && EV_FIRE_WEAPONB==41 && EV_FIRE_WEAPON_LASTSHOT==42) ? 1 : -1];
+static __declspec(naked) int PM_TCEFireEvents840(qboolean akimboFire) {
+    __asm {
+        sub esp, 0x38
+        push ebx
+        push ebp
+        push esi
+        push edi
+        mov eax, dword ptr [esp+0x4c]
+        mov dword ptr [esp+0x1c], eax
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx]
+        mov ecx, dword ptr [eax+fire840Weapon]
+        push ecx
+        call BG_IsAkimboWeapon
+        add esp, 4
+        test eax, eax
+        je fire840_20039f35
+        mov edi, dword ptr [esp + 0x1c]
+        neg edi
+        sbb edi, edi
+        add edi, 3
+        jmp fire840_20039f70
+fire840_20039f35:
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx]
+        mov ecx, dword ptr [eax+fire840Weapon]
+        push ecx
+        call PM_WeaponClipEmpty
+        mov edx, dword ptr [pm]
+        add esp, 4
+        test eax, eax
+        mov eax, dword ptr [edx]
+        mov ecx, dword ptr [eax+fire840Weapon]
+        push ecx
+        je fire840_20039f66
+        call TCE_PM_LastAttackAnimForWeapon
+        jmp fire840_20039f6b
+fire840_20039f66:
+        call TCE_PM_AttackAnimForWeapon
+fire840_20039f6b:
+        add esp, 4
+        mov edi, eax
+fire840_20039f70:
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx]
+        mov eax, dword ptr [eax+fire840Weapon]
+        add eax, -3
+        cmp eax, 0x3b
+        ja fire840_20039fa1
+        xor ecx, ecx
+        mov cl, byte ptr [eax + fire840Dispatch]
+        cmp ecx, 0
+        je fire840_20039f99
+        cmp ecx, 1
+        je fire840_20039f95
+        cmp ecx, 2
+        je fire840_20039fa1
+        cmp ecx, 3
+        je fire840_20039faa
+        cmp ecx, 4
+        je fire840_20039fa1
+        jmp fire840_20039fa1
+fire840_20039f95:
+        push 3
+        jmp fire840_20039fa2
+fire840_20039f99:
+        push edi
+        call PM_ContinueWeaponAnim
+        jmp fire840_20039fa7
+fire840_20039fa1:
+        push edi
+fire840_20039fa2:
+        call PM_StartWeaponAnim
+fire840_20039fa7:
+        add esp, 4
+fire840_20039faa:
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx]
+        mov eax, dword ptr [eax+fire840Weapon]
+        cmp eax, 0x41
+        je fire840_20039fcc
+        cmp eax, 0x16
+        je fire840_20039fcc
+        cmp eax, 0x1a
+        je fire840_20039fcc
+        cmp eax, 0x1b
+        jne fire840_20039fd6
+fire840_20039fcc:
+        push 0x20
+        call PM_AddEvent
+        add esp, 4
+fire840_20039fd6:
+        mov ecx, dword ptr [pm]
+        mov eax, dword ptr [ecx]
+        cmp dword ptr [eax+fire840Weapon], 0x1b
+        jne fire840_2003a01c
+        mov dword ptr [eax+fire840Clip28], 1
+        mov edx, dword ptr [pm]
+        xor eax, eax
+        mov ecx, dword ptr [edx]
+        push eax
+        push 0x1c
+        push 0x1b
+        mov dword ptr [ecx+fire840Ammo27], eax
+        mov edx, dword ptr [pm]
+        mov ecx, dword ptr [edx]
+        mov dword ptr [ecx+fire840Clip27], eax
+        call PM_BeginWeaponChange
+        add esp, 0xc
+fire840_2003a01c:
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx]
+        mov eax, dword ptr [eax+fire840Weapon]
+        cmp eax, 0x38
+        je fire840_2003a034
+        cmp eax, 0x37
+        jne fire840_2003a05a
+fire840_2003a034:
+        push eax
+        call BG_FindAmmoForWeapon
+        mov ecx, dword ptr [pm]
+        add esp, 4
+        mov edx, dword ptr [ecx]
+        mov ecx, dword ptr [edx + eax*4 +fire840Ammo]
+        test ecx, ecx
+        jne fire840_2003a05a
+        push 0x20
+        call PM_AddEvent
+        add esp, 4
+fire840_2003a05a:
+        mov eax, dword ptr [pm]
+        mov eax, dword ptr [eax]
+        cmp dword ptr [eax+fire840Weapon], 0x3c
+        jne fire840_2003a07e
+        mov ecx, dword ptr [eax+fire840Ammo35]
+        test ecx, ecx
+        jne fire840_2003a07e
+        push 0x20
+        call PM_AddEvent
+        add esp, 4
+fire840_2003a07e:
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx]
+        mov eax, dword ptr [edx+fire840Weapon]
+        push eax
+        call BG_IsAkimboWeapon
+        add esp, 4
+        test eax, eax
+        je fire840_2003a0ac
+        mov eax, dword ptr [esp + 0x1c]
+        test eax, eax
+        jne fire840_2003a13b
+        push 0x29
+        jmp fire840_2003a13d
+fire840_2003a0ac:
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx]
+        mov ecx, dword ptr [edx+fire840Weapon]
+        lea eax, [ecx + ecx*2]
+        shl eax, 3
+        sub eax, ecx
+        lea eax, [eax + eax*4]
+        mov esi, dword ptr [eax*4 + weaponDef+fire840Pump]
+        test esi, esi
+        je fire840_2003a11c
+        mov eax, dword ptr [edx+fire840Mode]
+        test eax, eax
+        jle fire840_2003a11c
+        push ecx
+        call BG_FiremodeWeapon
+        add esp, 4
+        test eax, eax
+        je fire840_2003a11c
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx]
+        mov eax, dword ptr [edx+fire840Weapon]
+        push eax
+        call PM_WeaponClipEmpty
+        add esp, 4
+        test eax, eax
+        push 1
+        je fire840_2003a110
+        push 0x2a
+        call PM_AddEventExt
+        add esp, 8
+        jmp fire840_2003a145
+fire840_2003a110:
+        push 0x28
+        call PM_AddEventExt
+        add esp, 8
+        jmp fire840_2003a145
+fire840_2003a11c:
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx]
+        mov eax, dword ptr [edx+fire840Weapon]
+        push eax
+        call PM_WeaponClipEmpty
+        add esp, 4
+        test eax, eax
+        je fire840_2003a13b
+        push 0x2a
+        jmp fire840_2003a13d
+fire840_2003a13b:
+        push 0x28
+fire840_2003a13d:
+        call PM_AddEvent
+        add esp, 4
+fire840_2003a145:
+        mov ecx, dword ptr [pm]
+        xor esi, esi
+        mov edx, dword ptr [ecx+fire840Ext]
+        mov dword ptr [edx+fire840Released], esi
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax]
+        mov edx, dword ptr [eax+fire840ServerTime]
+        mov dword ptr [ecx+fire840LastFire], edx
+        mov eax, edi
+        pop edi
+        pop esi
+        pop ebp
+        pop ebx
+        add esp, 0x38
+        ret
+    }
+}
+#endif
+
+#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
+/* Private PM_Weapon2003a163..2003a73d: seed, cadence and legacy recoil.
+ * CRT rand remains a dependency boundary; no new slots65/66 are defined. */
+static int (__cdecl *const cad841Rand)(void) = rand;
+static const float cad841K200ac114 = 3.0518509447574615e-05f;
+static const double cad841K200ac128 = 0.5;
+static const double cad841K200ac170 = 0.25;
+static const float cad841K200ac180 = 0.5f;
+static const float cad841K200ac804 = 0.03750000149011612f;
+static const float cad841K200ac808 = 0.06750000268220901f;
+static const float cad841K200ac80c = 0.15000000596046448f;
+static const unsigned char cad841Dispatch[66] = {0, 1, 2, 0, 1, 1, 3, 4, 0, 2, 5, 5, 1, 1, 0, 13, 13, 13, 6, 13, 7, 6, 1, 1, 1, 0, 13, 13, 0, 0, 8, 1, 1, 13, 13, 5, 9, 10, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 9, 10, 0, 0, 11, 11, 12, 0, 5, 8, 13, 13, 0, 0};
+static const unsigned char cad841RecoilDispatch[58] = {0, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 4, 4, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 4, 4, 2, 2, 3};
+static const int cad841Legacy[64] = {0, 500, 150, 50, 1600, 2000, 50, 400, 75, 1600, 50, 1000, 1000, 1000, 400, 1600, 0, 0, 0, 0, 0, 0, 0, 400, 400, 400, 100, 2000, 2000, 2000, 1600, 50, 400, 75, 0, 1600, 1600, 100, 100, 150, 350, 75, 100, 100, 80, 75, 500, 700, 200, 350, 120, 700, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+enum {
+    cad841Weapon = offsetof(playerState_t,weapon),
+    cad841Seed = offsetof(playerState_t,stats)+STAT_TCE_SHOT_SEED*4,
+    cad841WeaponFlags = offsetof(playerState_t,stats)+STAT_TCE_WEAPON_FLAGS*4,
+    cad841Clips = offsetof(playerState_t,ammoclip),
+    cad841Ext = offsetof(pmove_t,pmext),
+    cad841ServerTime = offsetof(pmove_t,cmd)+offsetof(usercmd_t,serverTime),
+    cad841Skill = offsetof(pmove_t,skill),
+    cad841Pmflags = offsetof(playerState_t,pm_flags),
+    cad841Eflags = offsetof(playerState_t,eFlags),
+    cad841Delta = offsetof(pmoveExt_t,lastRecoilDeltaTime),
+    cad841Time = offsetof(pmoveExt_t,weapRecoilTime),
+    cad841Duration = offsetof(pmoveExt_t,weapRecoilDuration),
+    cad841Yaw = offsetof(pmoveExt_t,weapRecoilYaw),
+    cad841Pitch = offsetof(pmoveExt_t,weapRecoilPitch),
+    cad841NextShot = offsetof(tce_weaponDef_t,nextShotTime),
+    cad841Pump = offsetof(tce_weaponDef_t,pump)
+};
+typedef char cad841Protocol[(offsetof(pmove_t,ps)==0 && sizeof(tce_weaponDef_t)==460 && offsetof(tce_weaponDef_t,nextShotTime)==0xec && offsetof(tce_weaponDef_t,pump)==0x168 && SK_LIGHT_WEAPONS==4 && SK_MILITARY_INTELLIGENCE_AND_SCOPED_WEAPONS==6) ? 1 : -1];
+/* result[0]=masked seed; result[1]=cadence; result[2]=spread addition. */
+static __declspec(naked) void PM_TCECadenceRecoil841(qboolean akimboFire, int attackAnimation, int *result) {
+    __asm {
+        sub esp, 0x38
+        push ebx
+        push ebp
+        push esi
+        push edi
+        mov eax, dword ptr [esp+0x4c]
+        mov dword ptr [esp+0x1c], eax
+        mov edi, dword ptr [esp+0x50]
+        xor esi, esi
+        mov dword ptr [esp+0x14], esi
+        mov ebx, 100
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax]
+        lea eax, [esp + 0x20]
+        push eax
+        mov edx, dword ptr [ecx+cad841Seed]
+        mov dword ptr [esp + 0x24], edx
+        call Q_rand
+        mov eax, dword ptr [esp + 0x24]
+        mov ecx, dword ptr [pm]
+        and eax, 0xffff
+        mov dword ptr [esp + 0x1c], esi
+        mov dword ptr [esp + 0x24], eax
+        mov edx, dword ptr [ecx]
+        add esp, 4
+        mov ebp, 0x3e8
+        mov dword ptr [edx+cad841Seed], eax
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax]
+        mov eax, dword ptr [ecx+cad841Weapon]
+        lea esi, [eax - 1]
+        cmp esi, 0x41
+        ja cad841_2003a471
+        xor edx, edx
+        mov dl, byte ptr [esi + cad841Dispatch]
+        cmp edx, 0
+        je cad841_2003a1cd
+        cmp edx, 1
+        je cad841_2003a1e8
+        cmp edx, 2
+        je cad841_2003a3e6
+        cmp edx, 3
+        je cad841_2003a23d
+        cmp edx, 4
+        je cad841_2003a3ce
+        cmp edx, 5
+        je cad841_2003a44a
+        cmp edx, 6
+        je cad841_2003a46d
+        cmp edx, 7
+        je cad841_2003a463
+        cmp edx, 8
+        je cad841_2003a412
+        cmp edx, 9
+        je cad841_2003a260
+        cmp edx, 10
+        je cad841_2003a2f6
+        cmp edx, 11
+        je cad841_2003a38c
+        cmp edx, 12
+        je cad841_2003a3af
+        cmp edx, 13
+        je cad841_2003a471
+        jmp cad841_2003a471
+cad841_2003a1cd:
+        lea ecx, [eax + eax*2]
+        shl ecx, 3
+        sub ecx, eax
+        lea eax, [ecx + ecx*4]
+        mov ecx, dword ptr [eax*4 + weaponDef+cad841NextShot]
+        mov dword ptr [esp + 0x14], ecx
+        jmp cad841_2003a471
+cad841_2003a1e8:
+        lea edx, [eax + eax*2]
+        shl edx, 3
+        sub edx, eax
+        lea edx, [edx + edx*4]
+        mov eax, dword ptr [edx*4 + weaponDef+cad841Pump]
+        test eax, eax
+        je cad841_2003a20d
+        mov eax, dword ptr [ecx+cad841WeaponFlags]
+        and ah, 0xf7
+        mov dword ptr [ecx+cad841WeaponFlags], eax
+cad841_2003a20d:
+        mov eax, dword ptr [pm]
+        mov dword ptr [esp + 0x18], 0x23
+        mov ecx, dword ptr [eax]
+        mov ecx, dword ptr [ecx+cad841Weapon]
+        lea eax, [ecx + ecx*2]
+        shl eax, 3
+        sub eax, ecx
+        lea edx, [eax + eax*4]
+        mov eax, dword ptr [edx*4 + weaponDef+cad841NextShot]
+        mov dword ptr [esp + 0x14], eax
+        jmp cad841_2003a471
+cad841_2003a23d:
+        lea ecx, [eax + eax*2]
+        mov dword ptr [esp + 0x18], 0x14
+        shl ecx, 3
+        sub ecx, eax
+        lea ecx, [ecx + ecx*4]
+        mov edx, dword ptr [ecx*4 + weaponDef+cad841NextShot]
+        mov dword ptr [esp + 0x14], edx
+        jmp cad841_2003a471
+cad841_2003a260:
+        lea ecx, [eax + eax*2]
+        push eax
+        shl ecx, 3
+        sub ecx, eax
+        lea ecx, [ecx + ecx*4]
+        mov edx, dword ptr [ecx*4 + weaponDef+cad841NextShot]
+        mov ecx, dword ptr [pm]
+        mov dword ptr [esp + 0x18], edx
+        mov esi, dword ptr [ecx]
+        call BG_FindClipForWeapon
+        mov ecx, dword ptr [esi + eax*4 +cad841Clips]
+        add esp, 4
+        test ecx, ecx
+        jne cad841_2003a29c
+        mov eax, dword ptr [esp + 0x1c]
+        test eax, eax
+        jne cad841_2003a2e9
+        jmp cad841_2003a2cb
+cad841_2003a29c:
+        mov eax, dword ptr [pm]
+        mov esi, dword ptr [eax]
+        mov ecx, dword ptr [esi+cad841Weapon]
+        push ecx
+        call BG_AkimboSidearm
+        push eax
+        call BG_FindClipForWeapon
+        mov ecx, dword ptr [esi + eax*4 +cad841Clips]
+        add esp, 8
+        test ecx, ecx
+        jne cad841_2003a2e9
+        mov eax, dword ptr [esp + 0x1c]
+        test eax, eax
+        je cad841_2003a2e9
+cad841_2003a2cb:
+        mov ecx, dword ptr [esi+cad841Weapon]
+        lea eax, [ecx + ecx*2]
+        shl eax, 3
+        sub eax, ecx
+        lea edx, [eax + eax*4]
+        mov eax, dword ptr [edx*4 + weaponDef+cad841NextShot]
+        shl eax, 1
+        mov dword ptr [esp + 0x14], eax
+cad841_2003a2e9:
+        mov dword ptr [esp + 0x18], 0x14
+        jmp cad841_2003a471
+cad841_2003a2f6:
+        lea ecx, [eax + eax*2]
+        push eax
+        shl ecx, 3
+        sub ecx, eax
+        lea ecx, [ecx + ecx*4]
+        mov edx, dword ptr [ecx*4 + weaponDef+cad841NextShot]
+        mov ecx, dword ptr [pm]
+        mov dword ptr [esp + 0x18], edx
+        mov esi, dword ptr [ecx]
+        call BG_FindClipForWeapon
+        mov ecx, dword ptr [esi + eax*4 +cad841Clips]
+        add esp, 4
+        test ecx, ecx
+        jne cad841_2003a332
+        mov eax, dword ptr [esp + 0x1c]
+        test eax, eax
+        jne cad841_2003a37f
+        jmp cad841_2003a361
+cad841_2003a332:
+        mov eax, dword ptr [pm]
+        mov esi, dword ptr [eax]
+        mov ecx, dword ptr [esi+cad841Weapon]
+        push ecx
+        call BG_AkimboSidearm
+        push eax
+        call BG_FindClipForWeapon
+        mov ecx, dword ptr [esi + eax*4 +cad841Clips]
+        add esp, 8
+        test ecx, ecx
+        jne cad841_2003a37f
+        mov eax, dword ptr [esp + 0x1c]
+        test eax, eax
+        je cad841_2003a37f
+cad841_2003a361:
+        mov ecx, dword ptr [esi+cad841Weapon]
+        lea eax, [ecx + ecx*2]
+        shl eax, 3
+        sub eax, ecx
+        lea edx, [eax + eax*4]
+        mov eax, dword ptr [edx*4 + weaponDef+cad841NextShot]
+        shl eax, 1
+        mov dword ptr [esp + 0x14], eax
+cad841_2003a37f:
+        mov dword ptr [esp + 0x18], 0x23
+        jmp cad841_2003a471
+cad841_2003a38c:
+        lea ecx, [eax + eax*2]
+        mov dword ptr [esp + 0x18], 0xc8
+        shl ecx, 3
+        sub ecx, eax
+        lea eax, [ecx + ecx*4]
+        mov ecx, dword ptr [eax*4 + weaponDef+cad841NextShot]
+        mov dword ptr [esp + 0x14], ecx
+        jmp cad841_2003a471
+cad841_2003a3af:
+        lea ecx, [eax + eax*2]
+        mov dword ptr [esp + 0x18], ebx
+        shl ecx, 3
+        sub ecx, eax
+        lea edx, [ecx + ecx*4]
+        mov eax, dword ptr [edx*4 + weaponDef+cad841NextShot]
+        mov dword ptr [esp + 0x14], eax
+        jmp cad841_2003a471
+cad841_2003a3ce:
+        lea ecx, [eax + eax*2]
+        shl ecx, 3
+        sub ecx, eax
+        lea ecx, [ecx + ecx*4]
+        mov edx, dword ptr [ecx*4 + weaponDef+cad841NextShot]
+        mov dword ptr [esp + 0x14], edx
+        jmp cad841_2003a3fc
+cad841_2003a3e6:
+        lea ecx, [eax + eax*2]
+        shl ecx, 3
+        sub ecx, eax
+        lea edx, [ecx + ecx*4]
+        mov eax, dword ptr [edx*4 + weaponDef+cad841NextShot]
+        mov dword ptr [esp + 0x14], eax
+cad841_2003a3fc:
+        call dword ptr [cad841Rand]
+        cdq 
+        mov ecx, 0xa
+        idiv ecx
+        add edx, 0xf
+        mov dword ptr [esp + 0x18], edx
+        jmp cad841_2003a471
+cad841_2003a412:
+        cmp edi, 4
+        jne cad841_2003a429
+        mov dword ptr [esp + 0x14], 0x7d0
+        mov dword ptr [esp + 0x18], 0x14
+        jmp cad841_2003a471
+cad841_2003a429:
+        lea ecx, [eax*8]
+        mov dword ptr [esp + 0x18], 0x14
+        sub ecx, eax
+        lea edx, [ecx + ecx*2]
+        mov eax, dword ptr [eax*4+cad841Legacy]
+        mov dword ptr [esp + 0x14], eax
+        jmp cad841_2003a471
+cad841_2003a44a:
+        lea ecx, [eax*8]
+        sub ecx, eax
+        lea ecx, [ecx + ecx*2]
+        mov edx, dword ptr [eax*4+cad841Legacy]
+        mov dword ptr [esp + 0x14], edx
+        jmp cad841_2003a471
+cad841_2003a463:
+        mov dword ptr [esp + 0x14], 0x32
+        jmp cad841_2003a471
+cad841_2003a46d:
+        mov dword ptr [esp + 0x14], ebp
+cad841_2003a471:
+        mov eax, dword ptr [pm]
+        xor edx, edx
+        mov ecx, dword ptr [eax+cad841Ext]
+        mov dword ptr [ecx+cad841Delta], edx
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax]
+        mov ecx, dword ptr [ecx+cad841Weapon]
+        add ecx, -2
+        cmp ecx, 0x39
+        ja cad841_2003a72c
+        xor edx, edx
+        mov dl, byte ptr [ecx + cad841RecoilDispatch]
+        cmp edx, 0
+        je cad841_2003a685
+        cmp edx, 1
+        je cad841_2003a51f
+        cmp edx, 2
+        je cad841_2003a4a6
+        cmp edx, 3
+        je cad841_2003a60e
+        cmp edx, 4
+        je cad841_2003a72a
+        jmp cad841_2003a72a
+cad841_2003a4a6:
+        mov ecx, dword ptr [eax+cad841Ext]
+        mov edx, dword ptr [eax+cad841ServerTime]
+        mov dword ptr [ecx+cad841Time], edx
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax+cad841Ext]
+        mov dword ptr [ecx+cad841Duration], 0x12c
+        call dword ptr [cad841Rand]
+        and eax, 0x7fff
+        mov edx, dword ptr [pm]
+        mov dword ptr [esp + 0x38], eax
+        fild dword ptr [esp + 0x38]
+        mov eax, dword ptr [edx+cad841Ext]
+        fmul dword ptr [cad841K200ac114]
+        fsub qword ptr [cad841K200ac128]
+        fadd st(0), st(0)
+        fmul qword ptr [cad841K200ac128]
+        fstp dword ptr [eax+cad841Yaw]
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax+cad841Skill]
+        cmp dword ptr [ecx + 0x18], 3
+        jl cad841_2003a510
+        mov edx, dword ptr [eax+cad841Ext]
+        mov dword ptr [edx+cad841Pitch], 0x3e800000
+        jmp cad841_2003a73d
+cad841_2003a510:
+        mov eax, dword ptr [eax+cad841Ext]
+        mov dword ptr [eax+cad841Pitch], 0x3f000000
+        jmp cad841_2003a73d
+cad841_2003a51f:
+        mov ecx, dword ptr [eax+cad841Ext]
+        mov edx, dword ptr [eax+cad841ServerTime]
+        mov dword ptr [ecx+cad841Time], edx
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax+cad841Ext]
+        mov dword ptr [ecx+cad841Duration], 0xc8
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx]
+        test byte ptr [eax+cad841Pmflags], 1
+        jne cad841_2003a5ae
+        test dword ptr [eax+cad841Eflags], 0x80000
+        jne cad841_2003a5ae
+        call dword ptr [cad841Rand]
+        and eax, 0x7fff
+        mov dword ptr [esp + 0x38], eax
+        mov eax, dword ptr [pm]
+        fild dword ptr [esp + 0x38]
+        mov ecx, dword ptr [eax+cad841Ext]
+        fmul dword ptr [cad841K200ac114]
+        fsub qword ptr [cad841K200ac128]
+        fadd st(0), st(0)
+        fmul qword ptr [cad841K200ac170]
+        fstp dword ptr [ecx+cad841Yaw]
+        call dword ptr [cad841Rand]
+        and eax, 0x7fff
+        mov edx, dword ptr [pm]
+        mov dword ptr [esp + 0x38], eax
+        fild dword ptr [esp + 0x38]
+        mov eax, dword ptr [edx+cad841Ext]
+        fmul dword ptr [cad841K200ac114]
+        fmul dword ptr [cad841K200ac80c]
+        fstp dword ptr [eax+cad841Pitch]
+        jmp cad841_2003a73d
+cad841_2003a5ae:
+        call dword ptr [cad841Rand]
+        and eax, 0x7fff
+        mov ecx, dword ptr [pm]
+        mov dword ptr [esp + 0x38], eax
+        fild dword ptr [esp + 0x38]
+        mov edx, dword ptr [ecx+cad841Ext]
+        fmul dword ptr [cad841K200ac114]
+        fsub qword ptr [cad841K200ac128]
+        fadd st(0), st(0)
+        fmul qword ptr [cad841K200ac128]
+        fstp dword ptr [edx+cad841Yaw]
+        call dword ptr [cad841Rand]
+        and eax, 0x7fff
+        mov dword ptr [esp + 0x38], eax
+        mov eax, dword ptr [pm]
+        fild dword ptr [esp + 0x38]
+        mov ecx, dword ptr [eax+cad841Ext]
+        fmul dword ptr [cad841K200ac114]
+        fmul dword ptr [cad841K200ac808]
+        fstp dword ptr [ecx+cad841Pitch]
+        jmp cad841_2003a73d
+cad841_2003a60e:
+        mov edx, dword ptr [eax+cad841Ext]
+        mov eax, dword ptr [eax+cad841ServerTime]
+        mov dword ptr [edx+cad841Time], eax
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx+cad841Ext]
+        mov dword ptr [edx+cad841Duration], ebx
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax+cad841Ext]
+        mov dword ptr [ecx+cad841Yaw], 0
+        call dword ptr [cad841Rand]
+        and eax, 0x7fff
+        mov edx, dword ptr [pm]
+        mov dword ptr [esp + 0x38], eax
+        fild dword ptr [esp + 0x38]
+        mov eax, dword ptr [edx+cad841Ext]
+        fmul dword ptr [cad841K200ac114]
+        fmul dword ptr [cad841K200ac808]
+        fstp dword ptr [eax+cad841Pitch]
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax+cad841Skill]
+        cmp dword ptr [ecx + 0x18], 3
+        jl cad841_2003a73d
+        mov eax, dword ptr [eax+cad841Ext]
+        fld dword ptr [eax+cad841Pitch]
+        fmul dword ptr [cad841K200ac180]
+        fstp dword ptr [eax+cad841Pitch]
+        jmp cad841_2003a73d
+cad841_2003a685:
+        mov edx, dword ptr [eax+cad841Ext]
+        mov eax, dword ptr [eax+cad841ServerTime]
+        mov esi, 3
+        mov dword ptr [edx+cad841Time], eax
+        mov eax, dword ptr [pm]
+        xor edx, edx
+        mov ecx, dword ptr [eax+cad841Skill]
+        mov eax, dword ptr [eax+cad841Ext]
+        cmp dword ptr [ecx + 0x10], esi
+        setl dl
+        dec edx
+        and edx, 0xffffffe2
+        add edx, ebx
+        mov dword ptr [eax+cad841Duration], edx
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx+cad841Ext]
+        mov dword ptr [edx+cad841Yaw], 0
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax+cad841Skill]
+        cmp dword ptr [ecx + 0x10], esi
+        jl cad841_2003a6fe
+        call dword ptr [cad841Rand]
+        and eax, 0x7fff
+        mov edx, dword ptr [pm]
+        mov dword ptr [esp + 0x38], eax
+        fild dword ptr [esp + 0x38]
+        mov eax, dword ptr [edx+cad841Ext]
+        fmul dword ptr [cad841K200ac114]
+        fmul dword ptr [cad841K200ac804]
+        fstp dword ptr [eax+cad841Pitch]
+        jmp cad841_2003a73d
+cad841_2003a6fe:
+        call dword ptr [cad841Rand]
+        and eax, 0x7fff
+        mov edx, dword ptr [pm]
+        mov dword ptr [esp + 0x38], eax
+        fild dword ptr [esp + 0x38]
+        mov eax, dword ptr [edx+cad841Ext]
+        fmul dword ptr [cad841K200ac114]
+        fmul dword ptr [cad841K200ac808]
+        fstp dword ptr [eax+cad841Pitch]
+        jmp cad841_2003a73d
+cad841_2003a72a:
+        xor edx, edx
+cad841_2003a72c:
+        mov ecx, dword ptr [eax+cad841Ext]
+        mov dword ptr [ecx+cad841Time], edx
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax+cad841Ext]
+        mov dword ptr [ecx+cad841Yaw], edx
+cad841_2003a73d:
+        mov ecx, dword ptr [esp+0x54]
+        mov eax, dword ptr [esp+0x20]
+        mov dword ptr [ecx], eax
+        mov eax, dword ptr [esp+0x14]
+        mov dword ptr [ecx+4], eax
+        mov eax, dword ptr [esp+0x18]
+        mov dword ptr [ecx+8], eax
+        pop edi
+        pop esi
+        pop ebp
+        pop ebx
+        add esp, 0x38
+        ret
+    }
+}
+#endif
 
 static void PM_Weapon( void ) {
 	int			shotSeed;
@@ -5231,6 +12394,12 @@ static void PM_Weapon( void ) {
         return;
     }
 
+#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
+    if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS) {
+        if (PM_TCEWeaponActions834(delayedFire)) return;
+    } else
+#endif
+    {
     if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS && PM_TCEAimInput(delayedFire)) return;
 
     /* Original30010a..30010b: ladder blocks all shots; sprint action latch
@@ -5269,12 +12438,20 @@ static void PM_Weapon( void ) {
 		return;
 	}
 
+    }
+
     /* Original change -> trigger latch -> reload completion ordering. */
     if (pm->ps->weaponstate == WEAPON_DROPPING || pm->ps->weaponstate == WEAPON_DROPPING_TORELOAD) {
         PM_FinishWeaponChange();
         pm->ps->pm_flags &= ~0x400;
         return;
     }
+#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
+    if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS) {
+        if (PM_TCEWeaponTrigger835(delayedFire)) return;
+    } else
+#endif
+    {
     if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS) {
         /* Original short-circuit lookups: do not eagerly cache mode/clip. */
         if (!(pm->cmd.buttons & BUTTON_ATTACK) && (pm->ps->pm_flags & 0x400) && !delayedFire &&
@@ -5333,6 +12510,7 @@ static void PM_Weapon( void ) {
     if (pm->ps->weaponstate == WEAPON_RELOADING ||
         pm->ps->weaponstate == WEAPON_TCE_RELOAD_END || pm->ps->weaponstate == WEAPON_TCE_CYCLE)
         PM_FinishWeaponReload();
+    }
 
 	if( pm->ps->weaponstate == WEAPON_RAISING ) {
 		pm->ps->weaponstate = WEAPON_READY;
@@ -5351,6 +12529,9 @@ static void PM_Weapon( void ) {
 	}
 
 
+#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
+    if (PM_TCEWeaponEligibility837(delayedFire)) return;
+#else
 	if(pm->ps->weapon == WP_NONE)	// this is possible since the player starts with nothing
 		return;
 
@@ -5431,9 +12612,18 @@ static void PM_Weapon( void ) {
         return;
     }
 
-    /* Original eligibility: unmounted TC mortar and binocular zoom do not
-     * fire. The SDK FieldOps artillery side effect is absent here. */
-    if (pm->ps->weapon == 35 || (pm->ps->eFlags & EF_ZOOMING)) return;
+    /* TC server adds the zoomed class3 event; the original client returns.
+     * This portable fallback preserves that module distinction as well. */
+    if (pm->ps->weapon == 35) return;
+    if (pm->ps->eFlags & EF_ZOOMING) {
+#ifdef GAMEDLL
+        if (pm->ps->stats[STAT_PLAYER_CLASS] == PC_FIELDOPS) {
+            pm->ps->weaponTime = (int)((unsigned int)pm->ps->weaponTime + 500u);
+            PM_AddEvent(EV_FIRE_WEAPON);
+        }
+#endif
+        return;
+    }
 
 	// player is underwater - no fire
 	if(pm->waterlevel == 3) {
@@ -5451,6 +12641,14 @@ static void PM_Weapon( void ) {
 		}
 	}
 
+#endif
+
+#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
+    if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS) {
+        PM_TCEAttackStart838(delayedFire, akimboFire);
+    } else
+#endif
+    {
     /* Original300114..30011868 attack-start dispatch. TC ID groups and
      * zero-delay immediate animation are independent of parser flags. */
     {
@@ -5544,12 +12742,19 @@ static void PM_Weapon( void ) {
     }
 
 	pm->ps->weaponstate = WEAPON_FIRING;
+    }
 
 	// Gordon: reset player disguise on firing
 //	if( pm->ps->weapon != WP_SMOKE_BOMB && pm->ps->weapon != WP_SATCHEL && pm->ps->weapon != WP_SATCHEL_DET ) {	// Arnout: not for these weapons
 //		pm->ps->powerups[PW_OPS_DISGUISED] = 0;
 //	}
 
+#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
+    if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS) {
+        if (PM_TCEAmmoConsume839()) return;
+    } else
+#endif
+    {
     /* Original30011868..30011a4d: TC uses/clip eligibility. The old SDK
      * autoreload macro aliases several TC pistols and scoped weapons. */
     ammoNeeded = pm->ps->weapon >= 0 && pm->ps->weapon < TCE_WEAPON_CAPACITY
@@ -5659,8 +12864,16 @@ static void PM_Weapon( void ) {
 			PM_WeaponUseAmmo(pm->ps->weapon, ammoNeeded);
 		}
 	}
+    }
 
 
+
+#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
+    if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS) {
+        weapattackanim = PM_TCEFireEvents840(akimboFire);
+    } else
+#endif
+    {
     /* PM_Weapon3000fc80, original30011b..30011e: attack animation and
      * shot events use TC IDs, independently of the selected gear parser. */
     if (BG_IsAkimboWeapon(pm->ps->weapon)) {
@@ -5706,15 +12919,17 @@ static void PM_Weapon( void ) {
     if (BG_IsAkimboWeapon(pm->ps->weapon)) {
         PM_AddEvent(akimboFire ? EV_FIRE_WEAPON : EV_FIRE_WEAPONB);
     } else {
-        int fireEvent = PM_WeaponClipEmpty(pm->ps->weapon)
-            ? EV_FIRE_WEAPON_LASTSHOT : EV_FIRE_WEAPON;
         /* Original pump/firemode eventParm=1 is consumed by the TC client.
          * Keep the existing 64-slot data boundary explicit for residual65/66. */
         if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_WEAPON_CAPACITY &&
             weaponDef[pm->ps->weapon].pump && pm->ps->persistant[10] > 0 &&
             BG_FiremodeWeapon(pm->ps->weapon)) {
+            int fireEvent = PM_WeaponClipEmpty(pm->ps->weapon)
+                ? EV_FIRE_WEAPON_LASTSHOT : EV_FIRE_WEAPON;
             PM_AddEventExt(fireEvent, 1);
         } else {
+            int fireEvent = PM_WeaponClipEmpty(pm->ps->weapon)
+                ? EV_FIRE_WEAPON_LASTSHOT : EV_FIRE_WEAPON;
             PM_AddEvent(fireEvent);
         }
     }
@@ -5723,6 +12938,17 @@ static void PM_Weapon( void ) {
 // rain - moved releasedFire into pmext instead of ps
 	pm->pmext->releasedFire = qfalse;
 	pm->ps->lastFireTime = pm->cmd.serverTime;
+    }
+#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
+    if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS) {
+        int cadenceResult841[3];
+        PM_TCECadenceRecoil841(akimboFire, weapattackanim, cadenceResult841);
+        shotSeed = cadenceResult841[0];
+        addTime = cadenceResult841[1];
+        aimSpreadScaleAdd = cadenceResult841[2];
+    } else
+#endif
+    {
     /* Original30011e1b: the masked local seed is retained across cadence
      * and passed to recoil, independently of later player-state reads. */
     shotSeed = pm->ps->stats[STAT_TCE_SHOT_SEED];
@@ -5852,6 +13078,11 @@ static void PM_Weapon( void ) {
 		break;
 	}
 
+    }
+#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
+    if (pm->ps->weapon < 0 || pm->ps->weapon >= TCE_MAX_WEAPONS)
+#endif
+    {
     /* Original300124xx: multiplier30092538 is the double constant3.0.
      * No SDK overheat tail or covert-ops spread-halving exists here. */
 #if defined(_MSC_VER) && defined(_M_IX86)
@@ -5896,12 +13127,15 @@ shot_spread_unclamped:
     pm->ps->aimSpreadScale = (int)pm->ps->aimSpreadScaleFloat;
 #endif
 
+    }
     /* Original complete common tail applies to every supported weapon,
      * with tactical definition118 versus hip114 recoil and shared snapshots. */
     if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS) {
+#if !(defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL))
         pm->ps->holdable[0] = pm->ps->stats[STAT_TCE_MOVEMENT_INSTABILITY];
         pm->ps->holdable[1] = pm->ps->stats[STAT_TCE_SHOT_INSTABILITY];
-        PM_TCEShotRecoil(addTime, (unsigned int)shotSeed);
+#endif
+        PM_TCEShotRecoil(addTime, (unsigned int)shotSeed, aimSpreadScaleAdd);
     }
 #if defined(_MSC_VER) && defined(_M_IX86)
     {
@@ -5982,6 +13216,100 @@ PM_CalcLean
 */
 /* Windows30009fe0. TC lean traces the full target before approaching it.
  * This is shared by server movement and client prediction. */
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* TC qagame20032340/20032710. Each foreign data offset is mapped to its native base. */
+enum {
+    posturePs4 = offsetof(playerState_t, pm_type),
+    posturePsc = offsetof(playerState_t, pm_flags),
+    posturePs14 = offsetof(playerState_t, origin),
+    posturePs18 = offsetof(playerState_t, origin) + sizeof(float),
+    posturePs1c = offsetof(playerState_t, origin) + 2 * sizeof(float),
+    posturePs3c = offsetof(playerState_t, leanf),
+    posturePs44 = offsetof(playerState_t, delta_angles),
+    posturePs48 = offsetof(playerState_t, delta_angles) + sizeof(int),
+    posturePs68 = offsetof(playerState_t, eFlags),
+    posturePsa0 = offsetof(playerState_t, clientNum),
+    posturePsa4 = offsetof(playerState_t, weapon),
+    posturePsa8 = offsetof(playerState_t, weaponstate),
+    posturePsb0 = offsetof(playerState_t, viewangles),
+    posturePsb4 = offsetof(playerState_t, viewangles) + sizeof(float),
+    posturePsb8 = offsetof(playerState_t, viewangles) + 2 * sizeof(float),
+    posturePsbc = offsetof(playerState_t, viewheight),
+    posturePsd0 = offsetof(playerState_t, stats) + STAT_HEALTH * sizeof(int),
+    posturePsd8 = offsetof(playerState_t, stats) + STAT_DEAD_YAW * sizeof(int),
+    posturePsf0 = offsetof(playerState_t, stats) + STAT_TCE_WEAPON_FLAGS * sizeof(int),
+    posturePsf4 = offsetof(playerState_t, stats) + STAT_TCE_FLAGS * sizeof(int),
+    posturePs148 = offsetof(playerState_t, persistant) + 14 * sizeof(int),
+    posturePs3a4 = offsetof(playerState_t, holdable) + 5 * sizeof(int),
+    posturePs3a8 = offsetof(playerState_t, holdable) + 6 * sizeof(int),
+    postureExt18 = offsetof(pmoveExt_t, varc),
+    postureExt1c = offsetof(pmoveExt_t, harc),
+    postureExt20 = offsetof(pmoveExt_t, centerangles),
+    postureExt24 = offsetof(pmoveExt_t, centerangles) + sizeof(float),
+    postureExt3c = offsetof(pmoveExt_t, proneLegsOffset),
+    postureExt40 = offsetof(pmoveExt_t, mountedWeaponAngles),
+    postureExt44 = offsetof(pmoveExt_t, mountedWeaponAngles) + sizeof(float),
+    postureCmdButtons = offsetof(usercmd_t, wbuttons),
+    postureCmdUp = offsetof(usercmd_t, upmove),
+    postureCmdAngles = offsetof(usercmd_t, angles),
+    posturePmTrace = offsetof(pmove_t, trace),
+    posturePmMask = offsetof(pmove_t, tracemask),
+    posturePmlFrame = offsetof(pml_t, frametime),
+    posturePmlMsec = offsetof(pml_t, msec),
+    posturePmlLadder = offsetof(pml_t, ladder),
+    postureDefStride = sizeof(tce_weaponDef_t),
+    postureNoTac = offsetof(tce_weaponDef_t, noTacMode),
+    postureTpmSpace = (sizeof(pmove_t) + 3) & ~3,
+    postureTraceFraction = offsetof(trace_t, fraction),
+    postureTraceStartsolid = offsetof(trace_t, startsolid),
+    postureTraceAllsolid = offsetof(trace_t, allsolid),
+    postureTraceEntity = offsetof(trace_t, entityNum),
+    postureTraceEnd = offsetof(trace_t, endpos),
+    postureTraceEndY = offsetof(trace_t, endpos) + sizeof(float),
+    postureTraceEndZ = offsetof(trace_t, endpos) + 2 * sizeof(float),
+    postureViewStack = 0x1bc + postureTpmSpace
+};
+typedef char postureTraceBuffer832[sizeof(trace_t) <= 0x38 ? 1 : -1];
+typedef char postureElementSize832[sizeof(int) == 4 && sizeof(float) == 4 ? 1 : -1];
+static const unsigned int postureConstant200ac100 = 0x00000000u;
+static const unsigned int postureConstant200ac11c = 0x42700000u;
+static const unsigned int postureConstant200ac138 = 0x43340000u;
+static const unsigned int postureConstant200ac160 = 0x44fa0000u;
+static const unsigned int postureConstant200ac170[2] = { 0x00000000u, 0x3fd00000u };
+static const unsigned int postureConstant200ac180 = 0x3f000000u;
+static const unsigned int postureConstant200ac190 = 0x41f00000u;
+static const unsigned int postureConstant200ac19c = 0x41a00000u;
+static const unsigned int postureConstant200ac1a0 = 0x42c80000u;
+static const unsigned int postureConstant200ac290 = 0x41c00000u;
+static const unsigned int postureConstant200ac2bc = 0x40800000u;
+static const unsigned int postureConstant200ac2d4 = 0x42000000u;
+static const unsigned int postureConstant200ac2e0 = 0x41000000u;
+static const unsigned int postureConstant200ac2f8 = 0x3c23d70au;
+static const unsigned int postureConstant200ac30c = 0x40400000u;
+static const unsigned int postureConstant200ac380 = 0x43b40000u;
+static const unsigned int postureConstant200ac388 = 0x40490fdbu;
+static const unsigned int postureConstant200ac464 = 0x43960000u;
+static const unsigned int postureConstant200ac46c = 0xc1a00000u;
+static const unsigned int postureConstant200ac474 = 0xc1f00000u;
+static const unsigned int postureConstant200ac478 = 0xc3340000u;
+static const unsigned int postureConstant200ac480 = 0x43360b61u;
+static const unsigned int postureConstant200ac488[2] = { 0x00000000u, 0x3f768000u };
+static const unsigned int postureConstant200ac698 = 0x3ba3d70au;
+static const unsigned int postureConstant200ac6e4 = 0x3bb60b61u;
+static const unsigned int postureConstant200ac6e8 = 0x3fa00000u;
+static const unsigned int postureConstant200ac700 = 0x42f00000u;
+static const unsigned int postureConstant200ac710 = 0x41600000u;
+static const unsigned int postureConstant200ac714 = 0x41e00000u;
+static const unsigned int postureConstant200ac718 = 0x3b5a740eu;
+static const unsigned int postureConstant200ac71c = 0x41accccdu;
+static const unsigned int postureConstant200b4080 = 0xc1580000u;
+static const unsigned int postureConstant200b4084 = 0xc1580000u;
+static const unsigned int postureConstant200b4088 = 0xc1c00000u;
+static const unsigned int postureConstant200b408c = 0x41580000u;
+static const unsigned int postureConstant200b4090 = 0x41580000u;
+static const unsigned int postureConstant200b4094 = 0xc1666666u;
+#endif
+
 static void PM_TCEUpdateLean(playerState_t *ps, usercmd_t *cmd, pmove_t *tpm) {
     int direction=0,i;
     float lean=ps->leanf,target;
@@ -6020,100 +13348,552 @@ static void PM_TCEUpdateLean(playerState_t *ps, usercmd_t *cmd, pmove_t *tpm) {
     ps->leanf=lean;
 }
 
-void PM_UpdateLean(playerState_t *ps, usercmd_t *cmd, pmove_t *tpm) {
-    if(gearDef.parsed) { PM_TCEUpdateLean(ps,cmd,tpm); return; }
-	vec3_t		start, end, tmins, tmaxs, right;
-	int			leaning = 0;	// -1 left, 1 right
-	float		leanofs = 0;
-	vec3_t		viewangles;
-	trace_t		trace;
-
-	if( (cmd->wbuttons & (WBUTTON_LEANLEFT|WBUTTON_LEANRIGHT))  && !cmd->forwardmove && cmd->upmove <= 0 ) {
-		// if both are pressed, result is no lean
-		if(cmd->wbuttons & WBUTTON_LEANLEFT)
-			leaning -= 1;
-		if(cmd->wbuttons & WBUTTON_LEANRIGHT)
-			leaning += 1;
-	}
-
-	if(	BG_PlayerMounted(ps->eFlags) ) {
-		leaning = 0;	// leaning not allowed on mg42
-	}
-
-	if(ps->eFlags & EF_FIRING)
-		leaning = 0;	// not allowed to lean while firing
-
-  // ATVI Wolfenstein Misc #479 - initial fix to #270 would crash in g_synchronousClients 1 situation
-	if( ps->weaponstate == WEAPON_FIRING && ps->weapon == WP_DYNAMITE )
-		leaning = 0; // not allowed while tossing dynamite
-	
-	if( ps->eFlags & EF_PRONE || ps->weapon == WP_MORTAR_SET )
-		leaning = 0;	// not allowed to lean while prone
-
-	leanofs = ps->leanf;
-
-
-	if(!leaning) {	// go back to center position
-		if ( leanofs > 0 ) {		// right
-			//FIXME: play lean anim backwards?
-			leanofs -= (((float)pml.msec/(float)LEAN_TIME_FR)*LEAN_MAX);
-			if ( leanofs < 0 )
-				leanofs = 0;
-		}
-		else if ( leanofs < 0 ) {	// left
-			//FIXME: play lean anim backwards?
-			leanofs += (((float)pml.msec/(float)LEAN_TIME_FR)*LEAN_MAX);
-			if ( leanofs > 0 )
-				leanofs = 0;
-		}
-	}
-
-	if(leaning) {
-		if(leaning > 0) {	// right
-			if(leanofs < LEAN_MAX)
-				leanofs += (((float)pml.msec/(float)LEAN_TIME_TO)*LEAN_MAX);
-
-			if(leanofs > LEAN_MAX)
-				leanofs = LEAN_MAX;
-
-		}
-		else {				// left
-			if(leanofs > -LEAN_MAX)
-				leanofs -= (((float)pml.msec/(float)LEAN_TIME_TO)*LEAN_MAX);
-
-			if(leanofs < -LEAN_MAX)
-				leanofs = -LEAN_MAX;
-
-		}
-	}
-
-	ps->leanf = leanofs;
-
-	if(leaning){
-		VectorCopy( ps->origin, start );
-		start[2] += ps->viewheight;
-
-		VectorCopy( ps->viewangles, viewangles );
-		viewangles[ROLL] += leanofs/2.0f;
-		AngleVectors( viewangles, NULL, right, NULL );
-		VectorMA( start, leanofs, right, end );		
-		
-		VectorSet( tmins, -8, -8, -7 ); // ATVI Wolfenstein Misc #472, bumped from -4 to cover gun clipping issue
-		VectorSet( tmaxs, 8, 8, 4 );
-
-		if( pm )
-			pm->trace (&trace, start, tmins, tmaxs, end, ps->clientNum, MASK_PLAYERSOLID);
-		else
-			tpm->trace (&trace, start, tmins, tmaxs, end, ps->clientNum, MASK_PLAYERSOLID);
-
-		ps->leanf *= trace.fraction;
-	}
-
-
-	if(ps->leanf)
-		cmd->rightmove = 0;		// also disallowed in cl_input ~391
-
+#if defined(_MSC_VER) && defined(_M_IX86)
+__declspec(naked) void PM_UpdateLean(playerState_t *ps, usercmd_t *cmd, pmove_t *tpm) {
+    __asm {
+    postureAt20032340:
+        MOV ECX,dword ptr [ESP + 08h]
+    postureAt20032344:
+        SUB ESP,0a0h
+    postureAt2003234a:
+        MOV AL,byte ptr [ECX + postureCmdButtons]
+    postureAt2003234d:
+        PUSH ESI
+    postureAt2003234e:
+        PUSH EDI
+    postureAt2003234f:
+        XOR EDI,EDI
+    postureAt20032351:
+        TEST AL,030h
+    postureAt20032353:
+        JZ postureAt20032368
+    postureAt20032355:
+        MOV DL,byte ptr [ECX + postureCmdUp]
+    postureAt20032358:
+        TEST DL,DL
+    postureAt2003235a:
+        JG postureAt20032368
+    postureAt2003235c:
+        TEST AL,010h
+    postureAt2003235e:
+        JZ postureAt20032363
+    postureAt20032360:
+        OR EDI,0ffffffffh
+    postureAt20032363:
+        TEST AL,020h
+    postureAt20032365:
+        JZ postureAt20032368
+    postureAt20032367:
+        INC EDI
+    postureAt20032368:
+        MOV ESI,dword ptr [ESP + 0ach]
+    postureAt2003236f:
+        MOV EAX,dword ptr [ESI + posturePs68]
+    postureAt20032372:
+        TEST AL,020h
+    postureAt20032374:
+        JNZ postureAt2003237d
+    postureAt20032376:
+        TEST EAX,0408000h
+    postureAt2003237b:
+        JZ postureAt2003237f
+    postureAt2003237d:
+        XOR EDI,EDI
+    postureAt2003237f:
+        MOV ECX,dword ptr [ESI + posturePsf0]
+    postureAt20032385:
+        TEST CH,040h
+    postureAt20032388:
+        JZ postureAt2003238c
+    postureAt2003238a:
+        XOR EDI,EDI
+    postureAt2003238c:
+        MOV ECX,dword ptr [pml + posturePmlLadder]
+    postureAt20032392:
+        TEST ECX,ECX
+    postureAt20032394:
+        JZ postureAt20032398
+    postureAt20032396:
+        XOR EDI,EDI
+    postureAt20032398:
+        CMP dword ptr [ESI + posturePsd0],01h
+    postureAt2003239f:
+        JGE postureAt200323a3
+    postureAt200323a1:
+        XOR EDI,EDI
+    postureAt200323a3:
+        CMP dword ptr [ESI + posturePsa8],07h
+    postureAt200323aa:
+        JNZ postureAt200323b7
+    postureAt200323ac:
+        CMP dword ptr [ESI + posturePsa4],0fh
+    postureAt200323b3:
+        JNZ postureAt200323b7
+    postureAt200323b5:
+        XOR EDI,EDI
+    postureAt200323b7:
+        TEST EAX,080000h
+    postureAt200323bc:
+        JNZ postureAt200323c7
+    postureAt200323be:
+        CMP dword ptr [ESI + posturePsa4],03ch
+    postureAt200323c5:
+        JNZ postureAt200323c9
+    postureAt200323c7:
+        XOR EDI,EDI
+    postureAt200323c9:
+        FLD dword ptr [ESI + posturePs3c]
+    postureAt200323cc:
+        TEST EDI,EDI
+    postureAt200323ce:
+        FST dword ptr [ESP + 024h]
+    postureAt200323d2:
+        JNZ postureAt20032468
+    postureAt200323d8:
+        FCOM dword ptr [postureConstant200ac100]
+    postureAt200323de:
+        FNSTSW AX
+    postureAt200323e0:
+        TEST AH,041h
+    postureAt200323e3:
+        JNZ postureAt2003241e
+    postureAt200323e5:
+        FILD dword ptr [pml + posturePmlMsec]
+    postureAt200323eb:
+        FMUL dword ptr [postureConstant200ac718]
+    postureAt200323f1:
+        FMUL dword ptr [postureConstant200ac714]
+    postureAt200323f7:
+        FSUBP ST(1),ST(0)
+    postureAt200323f9:
+        FCOM dword ptr [postureConstant200ac100]
+    postureAt200323ff:
+        FNSTSW AX
+    postureAt20032401:
+        TEST AH,01h
+    postureAt20032404:
+        JZ postureAt20032704
+    postureAt2003240a:
+        FSTP ST(0)
+    postureAt2003240c:
+        FLD dword ptr [postureConstant200ac100]
+    postureAt20032412:
+        POP EDI
+    postureAt20032413:
+        FSTP dword ptr [ESI + posturePs3c]
+    postureAt20032416:
+        POP ESI
+    postureAt20032417:
+        ADD ESP,0a0h
+    postureAt2003241d:
+        RET
+    postureAt2003241e:
+        FCOM dword ptr [postureConstant200ac100]
+    postureAt20032424:
+        FNSTSW AX
+    postureAt20032426:
+        TEST AH,01h
+    postureAt20032429:
+        JZ postureAt20032704
+    postureAt2003242f:
+        FILD dword ptr [pml + posturePmlMsec]
+    postureAt20032435:
+        FMUL dword ptr [postureConstant200ac718]
+    postureAt2003243b:
+        FMUL dword ptr [postureConstant200ac714]
+    postureAt20032441:
+        FADDP ST(1),ST(0)
+    postureAt20032443:
+        FCOM dword ptr [postureConstant200ac100]
+    postureAt20032449:
+        FNSTSW AX
+    postureAt2003244b:
+        TEST AH,041h
+    postureAt2003244e:
+        JNZ postureAt20032704
+    postureAt20032454:
+        FSTP ST(0)
+    postureAt20032456:
+        FLD dword ptr [postureConstant200ac100]
+    postureAt2003245c:
+        POP EDI
+    postureAt2003245d:
+        FSTP dword ptr [ESI + posturePs3c]
+    postureAt20032460:
+        POP ESI
+    postureAt20032461:
+        ADD ESP,0a0h
+    postureAt20032467:
+        RET
+    postureAt20032468:
+        MOV EAX,dword ptr [ESI + posturePs14]
+    postureAt2003246b:
+        MOV ECX,dword ptr [ESI + posturePs18]
+    postureAt2003246e:
+        FSTP ST(0)
+    postureAt20032470:
+        FILD dword ptr [ESI + posturePsbc]
+    postureAt20032476:
+        MOV EDX,dword ptr [ESI + posturePsb0]
+    postureAt2003247c:
+        MOV dword ptr [ESP + 018h],EAX
+    postureAt20032480:
+        MOV EAX,dword ptr [ESI + posturePsb4]
+    postureAt20032486:
+        MOV dword ptr [ESP + 01ch],ECX
+    postureAt2003248a:
+        FADD dword ptr [ESI + posturePs1c]
+    postureAt2003248d:
+        MOV ECX,dword ptr [ESI + posturePsb8]
+    postureAt20032493:
+        MOV dword ptr [ESP + 028h],EDX
+    postureAt20032497:
+        TEST EDI,EDI
+    postureAt20032499:
+        MOV dword ptr [ESP + 02ch],EAX
+    postureAt2003249d:
+        MOV dword ptr [ESP + 030h],ECX
+    postureAt200324a1:
+        FSTP dword ptr [ESP + 020h]
+    postureAt200324a5:
+        JLE postureAt20032505
+    postureAt200324a7:
+        FLD dword ptr [ESP + 030h]
+    postureAt200324ab:
+        FADD dword ptr [postureConstant200ac710]
+    postureAt200324b1:
+        LEA EDX,[ESP + 064h]
+    postureAt200324b5:
+        LEA EAX,[ESP + 034h]
+    postureAt200324b9:
+        PUSH EDX
+    postureAt200324ba:
+        LEA ECX,[ESP + 050h]
+    postureAt200324be:
+        PUSH EAX
+    postureAt200324bf:
+        LEA EDX,[ESP + 030h]
+    postureAt200324c3:
+        FSTP dword ptr [ESP + 038h]
+    postureAt200324c7:
+        PUSH ECX
+    postureAt200324c8:
+        PUSH EDX
+    postureAt200324c9:
+        CALL AngleVectors
+    postureAt200324ce:
+        FLD dword ptr [ESP + 044h]
+    postureAt200324d2:
+        FMUL dword ptr [postureConstant200ac714]
+    postureAt200324d8:
+        ADD ESP,010h
+    postureAt200324db:
+        FADD dword ptr [ESP + 018h]
+    postureAt200324df:
+        FSTP dword ptr [ESP + 0ch]
+    postureAt200324e3:
+        FLD dword ptr [ESP + 038h]
+    postureAt200324e7:
+        FMUL dword ptr [postureConstant200ac714]
+    postureAt200324ed:
+        FADD dword ptr [ESP + 01ch]
+    postureAt200324f1:
+        FSTP dword ptr [ESP + 010h]
+    postureAt200324f5:
+        FLD dword ptr [ESP + 03ch]
+    postureAt200324f9:
+        FMUL dword ptr [postureConstant200ac714]
+    postureAt200324ff:
+        FADD dword ptr [ESP + 020h]
+    postureAt20032503:
+        JMP postureAt20032569
+    postureAt20032505:
+        JGE postureAt20032565
+    postureAt20032507:
+        FLD dword ptr [ESP + 030h]
+    postureAt2003250b:
+        FSUB dword ptr [postureConstant200ac710]
+    postureAt20032511:
+        LEA EAX,[ESP + 064h]
+    postureAt20032515:
+        LEA ECX,[ESP + 034h]
+    postureAt20032519:
+        PUSH EAX
+    postureAt2003251a:
+        LEA EDX,[ESP + 050h]
+    postureAt2003251e:
+        PUSH ECX
+    postureAt2003251f:
+        LEA EAX,[ESP + 030h]
+    postureAt20032523:
+        FSTP dword ptr [ESP + 038h]
+    postureAt20032527:
+        PUSH EDX
+    postureAt20032528:
+        PUSH EAX
+    postureAt20032529:
+        CALL AngleVectors
+    postureAt2003252e:
+        FLD dword ptr [ESP + 044h]
+    postureAt20032532:
+        FMUL dword ptr [postureConstant200ac714]
+    postureAt20032538:
+        ADD ESP,010h
+    postureAt2003253b:
+        FSUBR dword ptr [ESP + 018h]
+    postureAt2003253f:
+        FSTP dword ptr [ESP + 0ch]
+    postureAt20032543:
+        FLD dword ptr [ESP + 038h]
+    postureAt20032547:
+        FMUL dword ptr [postureConstant200ac714]
+    postureAt2003254d:
+        FSUBR dword ptr [ESP + 01ch]
+    postureAt20032551:
+        FSTP dword ptr [ESP + 010h]
+    postureAt20032555:
+        FLD dword ptr [ESP + 03ch]
+    postureAt20032559:
+        FMUL dword ptr [postureConstant200ac714]
+    postureAt2003255f:
+        FSUBR dword ptr [ESP + 020h]
+    postureAt20032563:
+        JMP postureAt20032569
+    postureAt20032565:
+        FLD dword ptr [ESP + 014h]
+    postureAt20032569:
+        FSUB dword ptr [postureConstant200ac2e0]
+    postureAt2003256f:
+        FLD dword ptr [ESP + 04ch]
+    postureAt20032573:
+        FMUL dword ptr [postureConstant200ac2bc]
+    postureAt20032579:
+        MOV EAX,[pm]
+    postureAt2003257e:
+        MOV dword ptr [ESP + 058h],0c1000000h
+    postureAt20032586:
+        TEST EAX,EAX
+    postureAt20032588:
+        FADD dword ptr [ESP + 0ch]
+    postureAt2003258c:
+        MOV dword ptr [ESP + 05ch],0c1000000h
+    postureAt20032594:
+        MOV dword ptr [ESP + 060h],0c1000000h
+    postureAt2003259c:
+        MOV dword ptr [ESP + 040h],041000000h
+    postureAt200325a4:
+        MOV dword ptr [ESP + 044h],041000000h
+    postureAt200325ac:
+        MOV dword ptr [ESP + 048h],041000000h
+    postureAt200325b4:
+        PUSH 02010001h
+    postureAt200325b9:
+        FSTP dword ptr [ESP + 010h]
+    postureAt200325bd:
+        FLD dword ptr [ESP + 054h]
+    postureAt200325c1:
+        FMUL dword ptr [postureConstant200ac2bc]
+    postureAt200325c7:
+        FADD dword ptr [ESP + 014h]
+    postureAt200325cb:
+        FSTP dword ptr [ESP + 014h]
+    postureAt200325cf:
+        FLD dword ptr [ESP + 058h]
+    postureAt200325d3:
+        FMUL dword ptr [postureConstant200ac2bc]
+    postureAt200325d9:
+        FADDP ST(1),ST(0)
+    postureAt200325db:
+        FLD dword ptr [ESP + 068h]
+    postureAt200325df:
+        FMUL dword ptr [postureConstant200ac2e0]
+    postureAt200325e5:
+        FADD dword ptr [ESP + 010h]
+    postureAt200325e9:
+        FSTP dword ptr [ESP + 010h]
+    postureAt200325ed:
+        FLD dword ptr [ESP + 06ch]
+    postureAt200325f1:
+        FMUL dword ptr [postureConstant200ac2e0]
+    postureAt200325f7:
+        FADD dword ptr [ESP + 014h]
+    postureAt200325fb:
+        FSTP dword ptr [ESP + 014h]
+    postureAt200325ff:
+        FLD dword ptr [ESP + 070h]
+    postureAt20032603:
+        FMUL dword ptr [postureConstant200ac2e0]
+    postureAt20032609:
+        FADD ST(0),ST(1)
+    postureAt2003260b:
+        FSTP dword ptr [ESP + 018h]
+    postureAt2003260f:
+        FSTP ST(0)
+    postureAt20032611:
+        JZ postureAt2003263e
+    postureAt20032613:
+        MOV ECX,dword ptr [ESI + posturePsa0]
+    postureAt20032619:
+        LEA EDX,[ESP + 010h]
+    postureAt2003261d:
+        PUSH ECX
+    postureAt2003261e:
+        PUSH EDX
+    postureAt2003261f:
+        LEA ECX,[ESP + 04ch]
+    postureAt20032623:
+        LEA EDX,[ESP + 064h]
+    postureAt20032627:
+        PUSH ECX
+    postureAt20032628:
+        PUSH EDX
+    postureAt20032629:
+        LEA ECX,[ESP + 02ch]
+    postureAt2003262d:
+        LEA EDX,[ESP + 084h]
+    postureAt20032634:
+        PUSH ECX
+    postureAt20032635:
+        PUSH EDX
+    postureAt20032636:
+        CALL dword ptr [EAX + posturePmTrace]
+    postureAt2003263c:
+        JMP postureAt2003266e
+    postureAt2003263e:
+        MOV EAX,dword ptr [ESI + posturePsa0]
+    postureAt20032644:
+        LEA ECX,[ESP + 010h]
+    postureAt20032648:
+        PUSH EAX
+    postureAt20032649:
+        LEA EDX,[ESP + 048h]
+    postureAt2003264d:
+        PUSH ECX
+    postureAt2003264e:
+        LEA EAX,[ESP + 064h]
+    postureAt20032652:
+        PUSH EDX
+    postureAt20032653:
+        LEA ECX,[ESP + 028h]
+    postureAt20032657:
+        PUSH EAX
+    postureAt20032658:
+        MOV EAX,dword ptr [ESP + 0c8h]
+    postureAt2003265f:
+        LEA EDX,[ESP + 084h]
+    postureAt20032666:
+        PUSH ECX
+    postureAt20032667:
+        PUSH EDX
+    postureAt20032668:
+        CALL dword ptr [EAX + posturePmTrace]
+    postureAt2003266e:
+        FLD dword ptr [ESP + 08ch + postureTraceFraction]
+    postureAt20032675:
+        FMUL dword ptr [postureConstant200ac714]
+    postureAt2003267b:
+        ADD ESP,01ch
+    postureAt2003267e:
+        TEST EDI,EDI
+    postureAt20032680:
+        FSTP dword ptr [ESP + 08h]
+    postureAt20032684:
+        JLE postureAt200326c6
+    postureAt20032686:
+        FLD dword ptr [ESP + 024h]
+    postureAt2003268a:
+        FCOM dword ptr [ESP + 08h]
+    postureAt2003268e:
+        FNSTSW AX
+    postureAt20032690:
+        TEST AH,01h
+    postureAt20032693:
+        JZ postureAt200326a9
+    postureAt20032695:
+        FILD dword ptr [pml + posturePmlMsec]
+    postureAt2003269b:
+        FMUL dword ptr [postureConstant200ac698]
+    postureAt200326a1:
+        FMUL dword ptr [postureConstant200ac714]
+    postureAt200326a7:
+        FADDP ST(1),ST(0)
+    postureAt200326a9:
+        FCOM dword ptr [ESP + 08h]
+    postureAt200326ad:
+        FNSTSW AX
+    postureAt200326af:
+        TEST AH,041h
+    postureAt200326b2:
+        JNZ postureAt20032704
+    postureAt200326b4:
+        FSTP ST(0)
+    postureAt200326b6:
+        FLD dword ptr [ESP + 08h]
+    postureAt200326ba:
+        POP EDI
+    postureAt200326bb:
+        FSTP dword ptr [ESI + posturePs3c]
+    postureAt200326be:
+        POP ESI
+    postureAt200326bf:
+        ADD ESP,0a0h
+    postureAt200326c5:
+        RET
+    postureAt200326c6:
+        FLD dword ptr [ESP + 08h]
+    postureAt200326ca:
+        FCHS
+    postureAt200326cc:
+        FSTP dword ptr [ESP + 08h]
+    postureAt200326d0:
+        FLD dword ptr [ESP + 024h]
+    postureAt200326d4:
+        FCOM dword ptr [ESP + 08h]
+    postureAt200326d8:
+        FNSTSW AX
+    postureAt200326da:
+        TEST AH,041h
+    postureAt200326dd:
+        JNZ postureAt200326f3
+    postureAt200326df:
+        FILD dword ptr [pml + posturePmlMsec]
+    postureAt200326e5:
+        FMUL dword ptr [postureConstant200ac698]
+    postureAt200326eb:
+        FMUL dword ptr [postureConstant200ac714]
+    postureAt200326f1:
+        FSUBP ST(1),ST(0)
+    postureAt200326f3:
+        FCOM dword ptr [ESP + 08h]
+    postureAt200326f7:
+        FNSTSW AX
+    postureAt200326f9:
+        TEST AH,01h
+    postureAt200326fc:
+        JZ postureAt20032704
+    postureAt200326fe:
+        FSTP ST(0)
+    postureAt20032700:
+        FLD dword ptr [ESP + 08h]
+    postureAt20032704:
+        FSTP dword ptr [ESI + posturePs3c]
+    postureAt20032707:
+        POP EDI
+    postureAt20032708:
+        POP ESI
+    postureAt20032709:
+        ADD ESP,0a0h
+    postureAt2003270f:
+        RET
+    }
 }
+#else
+
+/* Portable TC behavior; not an exact Linux instruction port. */
+void PM_UpdateLean(playerState_t *ps, usercmd_t *cmd, pmove_t *tpm) {
+    PM_TCEUpdateLean(ps, cmd, tpm);
+}
+#endif
 
 
 
@@ -6204,6 +13984,1841 @@ static void PM_TCETacticalView(playerState_t *ps,const vec3_t oldAngles) {
         ps->holdable[6]=(int)((double)hy*100+2000);
     }
 }
+
+#if defined(_MSC_VER) && defined(_M_IX86)
+__declspec(naked) void PM_UpdateViewAngles(playerState_t *ps, pmoveExt_t *pmext, usercmd_t *cmd, void (trace)(trace_t *, const vec3_t, const vec3_t, const vec3_t, const vec3_t, int, int), int tracemask) {
+    __asm {
+    postureAt20032710:
+        SUB ESP,postureViewStack
+    postureAt20032716:
+        PUSH ESI
+    postureAt20032717:
+        MOV ESI,dword ptr [ESP + 01c4h + postureTpmSpace]
+    postureAt2003271e:
+        MOV EAX,dword ptr [ESI + posturePs4]
+    postureAt20032721:
+        CMP EAX,05h
+    postureAt20032724:
+        JZ postureAt20033471
+    postureAt2003272a:
+        MOV ECX,dword ptr [ESI + posturePsc]
+    postureAt2003272d:
+        TEST CH,080h
+    postureAt20032730:
+        JNZ postureAt20033471
+    postureAt20032736:
+        CMP EAX,02h
+    postureAt20032739:
+        JZ postureAt20032765
+    postureAt2003273b:
+        MOV EAX,dword ptr [ESI + posturePsd0]
+    postureAt20032741:
+        TEST EAX,EAX
+    postureAt20032743:
+        JG postureAt20032765
+    postureAt20032745:
+        MOV ECX,dword ptr [ESP + 01cch + postureTpmSpace]
+    postureAt2003274c:
+        MOV AX,word ptr [ESI + posturePs48]
+    postureAt20032750:
+        ADD AX,word ptr [ECX + postureCmdAngles + 4]
+    postureAt20032754:
+        MOVSX EDX,AX
+    postureAt20032757:
+        MOV dword ptr [ESI + posturePsd8],EDX
+    postureAt2003275d:
+        POP ESI
+    postureAt2003275e:
+        ADD ESP,postureViewStack
+    postureAt20032764:
+        RET
+    postureAt20032765:
+        MOV ECX,dword ptr [ESI + posturePsb4]
+    postureAt2003276b:
+        MOV EAX,dword ptr [ESI + posturePsb0]
+    postureAt20032771:
+        PUSH EBX
+    postureAt20032772:
+        PUSH EBP
+    postureAt20032773:
+        PUSH EDI
+    postureAt20032774:
+        MOV EDI,dword ptr [ESP + 01d8h + postureTpmSpace]
+    postureAt2003277b:
+        MOV dword ptr [ESP + 01ch],ECX
+    postureAt2003277f:
+        MOV dword ptr [ESP + 018h],EAX
+    postureAt20032783:
+        XOR ECX,ECX
+    postureAt20032785:
+        MOV AX,word ptr [ESI + ECX*4 + posturePs44]
+    postureAt2003278a:
+        ADD AX,word ptr [EDI + ECX*4 + postureCmdAngles]
+    postureAt2003278f:
+        TEST ECX,ECX
+    postureAt20032791:
+        JNZ postureAt200327c5
+    postureAt20032793:
+        CMP AX,03e80h
+    postureAt20032797:
+        JLE postureAt200327ad
+    postureAt20032799:
+        MOV EAX,dword ptr [EDI + postureCmdAngles]
+    postureAt2003279c:
+        MOV EDX,03e80h
+    postureAt200327a1:
+        SUB EDX,EAX
+    postureAt200327a3:
+        MOV EAX,03e80h
+    postureAt200327a8:
+        MOV dword ptr [ESI + posturePs44],EDX
+    postureAt200327ab:
+        JMP postureAt200327c5
+    postureAt200327ad:
+        CMP AX,0c180h
+    postureAt200327b1:
+        JGE postureAt200327c5
+    postureAt200327b3:
+        MOV EDX,dword ptr [EDI + postureCmdAngles]
+    postureAt200327b6:
+        MOV EAX,0ffffc180h
+    postureAt200327bb:
+        SUB EAX,EDX
+    postureAt200327bd:
+        MOV dword ptr [ESI + posturePs44],EAX
+    postureAt200327c0:
+        MOV EAX,0ffffc180h
+    postureAt200327c5:
+        MOVSX EDX,AX
+    postureAt200327c8:
+        MOV dword ptr [ESP + 014h],EDX
+    postureAt200327cc:
+        INC ECX
+    postureAt200327cd:
+        FILD dword ptr [ESP + 014h]
+    postureAt200327d1:
+        CMP ECX,03h
+    postureAt200327d4:
+        FMUL qword ptr [postureConstant200ac488]
+    postureAt200327da:
+        FSTP dword ptr [ESI + ECX*4 + posturePsb0 - 4]
+    postureAt200327e1:
+        JL postureAt20032785
+    postureAt200327e3:
+        TEST byte ptr [ESI + posturePs148],010h
+    postureAt200327ea:
+        JZ postureAt2003299b
+    postureAt200327f0:
+        MOV EAX,[pm]
+    postureAt200327f5:
+        MOV ECX,dword ptr [EAX]
+    postureAt200327f7:
+        MOV ECX,dword ptr [ECX + posturePsa4]
+    postureAt200327fd:
+        IMUL EDX,ECX,postureDefStride
+    postureAt20032800:
+        NOP
+    postureAt20032803:
+        NOP
+    postureAt20032805:
+        NOP
+    postureAt20032808:
+        MOV EAX,dword ptr [weaponDef + EDX + postureNoTac]
+    postureAt2003280f:
+        TEST EAX,EAX
+    postureAt20032811:
+        JNZ postureAt2003299b
+    postureAt20032817:
+        TEST byte ptr [ESI + posturePsf0],04h
+    postureAt2003281e:
+        JZ postureAt2003299b
+    postureAt20032824:
+        FLD dword ptr [ESI + posturePsb0]
+    postureAt2003282a:
+        FSUB dword ptr [ESP + 018h]
+    postureAt2003282e:
+        PUSH ECX
+    postureAt2003282f:
+        FSTP dword ptr [ESP]
+    postureAt20032832:
+        CALL AngleNormalize180
+    postureAt20032837:
+        FSTP dword ptr [ESP + 058h]
+    postureAt2003283b:
+        FLD dword ptr [ESI + posturePsb4]
+    postureAt20032841:
+        FSUB dword ptr [ESP + 020h]
+    postureAt20032845:
+        FSTP dword ptr [ESP]
+    postureAt20032848:
+        CALL AngleNormalize180
+    postureAt2003284d:
+        FILD dword ptr [ESI + posturePs3a4]
+    postureAt20032853:
+        ADD ESP,04h
+    postureAt20032856:
+        FSUB dword ptr [postureConstant200ac160]
+    postureAt2003285c:
+        FMUL dword ptr [postureConstant200ac2f8]
+    postureAt20032862:
+        FILD dword ptr [ESI + posturePs3a8]
+    postureAt20032868:
+        FSUB dword ptr [postureConstant200ac160]
+    postureAt2003286e:
+        FMUL dword ptr [postureConstant200ac2f8]
+    postureAt20032874:
+        FSTP dword ptr [ESP + 040h]
+    postureAt20032878:
+        FLD dword ptr [ESP + 054h]
+    postureAt2003287c:
+        FMUL dword ptr [postureConstant200ac180]
+    postureAt20032882:
+        FST dword ptr [ESP + 014h]
+    postureAt20032886:
+        FADD ST(0),ST(1)
+    postureAt20032888:
+        FSTP dword ptr [ESP + 024h]
+    postureAt2003288c:
+        FLD ST(1)
+    postureAt2003288e:
+        FMUL dword ptr [postureConstant200ac180]
+    postureAt20032894:
+        FST dword ptr [ESP + 010h]
+    postureAt20032898:
+        FADD dword ptr [ESP + 040h]
+    postureAt2003289c:
+        FSTP dword ptr [ESP + 028h]
+    postureAt200328a0:
+        FADD dword ptr [ESP + 054h]
+    postureAt200328a4:
+        FSTP dword ptr [ESP + 054h]
+    postureAt200328a8:
+        FADD dword ptr [ESP + 040h]
+    postureAt200328ac:
+        FLD dword ptr [ESP + 028h]
+    postureAt200328b0:
+        FLD dword ptr [ESP + 024h]
+    postureAt200328b4:
+        FMUL dword ptr [ESP + 024h]
+    postureAt200328b8:
+        FLD ST(1)
+    postureAt200328ba:
+        FMUL ST(0),ST(2)
+    postureAt200328bc:
+        FMUL qword ptr [postureConstant200ac170]
+    postureAt200328c2:
+        FADDP ST(1),ST(0)
+    postureAt200328c4:
+        FSQRT
+    postureAt200328c6:
+        FSTP ST(1)
+    postureAt200328c8:
+        FCOM dword ptr [postureConstant200ac30c]
+    postureAt200328ce:
+        FNSTSW AX
+    postureAt200328d0:
+        TEST AH,041h
+    postureAt200328d3:
+        JNZ postureAt20032945
+    postureAt200328d5:
+        FLD dword ptr [ESP + 024h]
+    postureAt200328d9:
+        FDIV ST(0),ST(1)
+    postureAt200328db:
+        FMUL dword ptr [postureConstant200ac30c]
+    postureAt200328e1:
+        FLD ST(0)
+    postureAt200328e3:
+        FMUL dword ptr [postureConstant200ac1a0]
+    postureAt200328e9:
+        FADD dword ptr [postureConstant200ac160]
+    postureAt200328ef:
+        CALL PM_WeaponTruncateST0
+    postureAt200328f4:
+        FLD dword ptr [ESP + 028h]
+    postureAt200328f8:
+        FDIV ST(0),ST(2)
+    postureAt200328fa:
+        MOV dword ptr [ESI + posturePs3a4],EAX
+    postureAt20032900:
+        FMUL dword ptr [postureConstant200ac30c]
+    postureAt20032906:
+        FST dword ptr [ESP + 014h]
+    postureAt2003290a:
+        FMUL dword ptr [postureConstant200ac1a0]
+    postureAt20032910:
+        FADD dword ptr [postureConstant200ac160]
+    postureAt20032916:
+        CALL PM_WeaponTruncateST0
+    postureAt2003291b:
+        FLD dword ptr [ESP + 054h]
+    postureAt2003291f:
+        FSUB ST(0),ST(1)
+    postureAt20032921:
+        MOV dword ptr [ESI + posturePs3a8],EAX
+    postureAt20032927:
+        FADD dword ptr [ESP + 018h]
+    postureAt2003292b:
+        FSTP dword ptr [ESI + posturePsb0]
+    postureAt20032931:
+        FSTP ST(0)
+    postureAt20032933:
+        FSTP ST(0)
+    postureAt20032935:
+        FSUB dword ptr [ESP + 014h]
+    postureAt20032939:
+        FADD dword ptr [ESP + 01ch]
+    postureAt2003293d:
+        FSTP dword ptr [ESI + posturePsb4]
+    postureAt20032943:
+        JMP postureAt2003299b
+    postureAt20032945:
+        FSTP ST(0)
+    postureAt20032947:
+        FSTP ST(0)
+    postureAt20032949:
+        FLD dword ptr [ESP + 014h]
+    postureAt2003294d:
+        FADD dword ptr [ESP + 018h]
+    postureAt20032951:
+        FSTP dword ptr [ESI + posturePsb0]
+    postureAt20032957:
+        FLD dword ptr [ESP + 010h]
+    postureAt2003295b:
+        FADD dword ptr [ESP + 01ch]
+    postureAt2003295f:
+        FSTP dword ptr [ESI + posturePsb4]
+    postureAt20032965:
+        FLD dword ptr [ESP + 024h]
+    postureAt20032969:
+        FMUL dword ptr [postureConstant200ac1a0]
+    postureAt2003296f:
+        FADD dword ptr [postureConstant200ac160]
+    postureAt20032975:
+        CALL PM_WeaponTruncateST0
+    postureAt2003297a:
+        FLD dword ptr [ESP + 028h]
+    postureAt2003297e:
+        FMUL dword ptr [postureConstant200ac1a0]
+    postureAt20032984:
+        MOV dword ptr [ESI + posturePs3a4],EAX
+    postureAt2003298a:
+        FADD dword ptr [postureConstant200ac160]
+    postureAt20032990:
+        CALL PM_WeaponTruncateST0
+    postureAt20032995:
+        MOV dword ptr [ESI + posturePs3a8],EAX
+    postureAt2003299b:
+        MOV EBX,dword ptr [ESI + posturePs68]
+    postureAt2003299e:
+        TEST EBX,01000000h
+    postureAt200329a4:
+        JZ postureAt20032b04
+    postureAt200329aa:
+        FLD dword ptr [ESI + posturePsb4]
+    postureAt200329b0:
+        FLD ST(0)
+    postureAt200329b2:
+        FSUB dword ptr [ESP + 01ch]
+    postureAt200329b6:
+        FCOMP dword ptr [postureConstant200ac138]
+    postureAt200329bc:
+        FNSTSW AX
+    postureAt200329be:
+        TEST AH,041h
+    postureAt200329c1:
+        JNZ postureAt200329c9
+    postureAt200329c3:
+        FSUB dword ptr [postureConstant200ac380]
+    postureAt200329c9:
+        FLD ST(0)
+    postureAt200329cb:
+        FSUB dword ptr [ESP + 01ch]
+    postureAt200329cf:
+        FCOMP dword ptr [postureConstant200ac478]
+    postureAt200329d5:
+        FNSTSW AX
+    postureAt200329d7:
+        TEST AH,01h
+    postureAt200329da:
+        JZ postureAt200329e2
+    postureAt200329dc:
+        FADD dword ptr [postureConstant200ac380]
+    postureAt200329e2:
+        FCOM dword ptr [ESP + 01ch]
+    postureAt200329e6:
+        FNSTSW AX
+    postureAt200329e8:
+        TEST AH,041h
+    postureAt200329eb:
+        JNZ postureAt20032a16
+    postureAt200329ed:
+        FLD dword ptr [pml + posturePmlFrame]
+    postureAt200329f3:
+        FMUL dword ptr [postureConstant200ac700]
+    postureAt200329f9:
+        FSTP dword ptr [ESP + 010h]
+    postureAt200329fd:
+        FSUB dword ptr [ESP + 01ch]
+    postureAt20032a01:
+        FCOMP dword ptr [ESP + 010h]
+    postureAt20032a05:
+        FNSTSW AX
+    postureAt20032a07:
+        TEST AH,041h
+    postureAt20032a0a:
+        JNZ postureAt20032a70
+    postureAt20032a0c:
+        FLD dword ptr [ESP + 010h]
+    postureAt20032a10:
+        FADD dword ptr [ESP + 01ch]
+    postureAt20032a14:
+        JMP postureAt20032a4e
+    postureAt20032a16:
+        FLD dword ptr [ESP + 01ch]
+    postureAt20032a1a:
+        FCOMP
+    postureAt20032a1c:
+        FNSTSW AX
+    postureAt20032a1e:
+        TEST AH,041h
+    postureAt20032a21:
+        JNZ postureAt20032a6e
+    postureAt20032a23:
+        FLD dword ptr [pml + posturePmlFrame]
+    postureAt20032a29:
+        FMUL dword ptr [postureConstant200ac700]
+    postureAt20032a2f:
+        FSTP dword ptr [ESP + 010h]
+    postureAt20032a33:
+        FLD dword ptr [ESP + 01ch]
+    postureAt20032a37:
+        FSUB ST(0),ST(1)
+    postureAt20032a39:
+        FCOMP dword ptr [ESP + 010h]
+    postureAt20032a3d:
+        FNSTSW AX
+    postureAt20032a3f:
+        TEST AH,041h
+    postureAt20032a42:
+        FSTP ST(0)
+    postureAt20032a44:
+        JNZ postureAt20032a70
+    postureAt20032a46:
+        FLD dword ptr [ESP + 01ch]
+    postureAt20032a4a:
+        FSUB dword ptr [ESP + 010h]
+    postureAt20032a4e:
+        FST dword ptr [ESI + posturePsb4]
+    postureAt20032a54:
+        FMUL dword ptr [postureConstant200ac480]
+    postureAt20032a5a:
+        CALL PM_WeaponTruncateST0
+    postureAt20032a5f:
+        MOV ECX,dword ptr [EDI + postureCmdAngles + 4]
+    postureAt20032a62:
+        AND EAX,0ffffh
+    postureAt20032a67:
+        SUB EAX,ECX
+    postureAt20032a69:
+        MOV dword ptr [ESI + posturePs48],EAX
+    postureAt20032a6c:
+        JMP postureAt20032a70
+    postureAt20032a6e:
+        FSTP ST(0)
+    postureAt20032a70:
+        MOV EBP,dword ptr [ESP + 01d4h + postureTpmSpace]
+    postureAt20032a77:
+        PUSH ECX
+    postureAt20032a78:
+        FLD dword ptr [EBP + postureExt24]
+    postureAt20032a7b:
+        FSUB dword ptr [ESI + posturePsb4]
+    postureAt20032a81:
+        FSTP dword ptr [ESP]
+    postureAt20032a84:
+        CALL AngleNormalize180
+    postureAt20032a89:
+        FMUL dword ptr [postureConstant200ac388]
+    postureAt20032a8f:
+        FMUL dword ptr [postureConstant200ac6e4]
+    postureAt20032a95:
+        FCOS
+    postureAt20032a97:
+        FSTP dword ptr [ESP + 018h]
+    postureAt20032a9b:
+        FLD dword ptr [EBP + postureExt20]
+    postureAt20032a9e:
+        FCHS
+    postureAt20032aa0:
+        FSTP dword ptr [ESP]
+    postureAt20032aa3:
+        CALL AngleNormalize180
+    postureAt20032aa8:
+        FMUL dword ptr [ESP + 018h]
+    postureAt20032aac:
+        FSTP dword ptr [ESP]
+    postureAt20032aaf:
+        CALL AngleNormalize360
+    postureAt20032ab4:
+        FCHS
+    postureAt20032ab6:
+        FST dword ptr [EBP + postureExt20]
+    postureAt20032ab9:
+        FLD dword ptr [ESI + posturePsb0]
+    postureAt20032abf:
+        FSUB ST(0),ST(1)
+    postureAt20032ac1:
+        FSTP dword ptr [ESP]
+    postureAt20032ac4:
+        FSTP ST(0)
+    postureAt20032ac6:
+        CALL AngleNormalize180
+    postureAt20032acb:
+        FCOM dword ptr [postureConstant200ac19c]
+    postureAt20032ad1:
+        ADD ESP,04h
+    postureAt20032ad4:
+        FNSTSW AX
+    postureAt20032ad6:
+        TEST AH,041h
+    postureAt20032ad9:
+        JNZ postureAt20032ae5
+    postureAt20032adb:
+        FSTP ST(0)
+    postureAt20032add:
+        FLD dword ptr [EBP + postureExt20]
+    postureAt20032ae0:
+        JMP postureAt20032d89
+    postureAt20032ae5:
+        FCOMP dword ptr [postureConstant200ac46c]
+    postureAt20032aeb:
+        FNSTSW AX
+    postureAt20032aed:
+        TEST AH,01h
+    postureAt20032af0:
+        JZ postureAt2003344e
+    postureAt20032af6:
+        FLD dword ptr [EBP + postureExt20]
+    postureAt20032af9:
+        FSUB dword ptr [postureConstant200ac19c]
+    postureAt20032aff:
+        JMP postureAt20032d8f
+    postureAt20032b04:
+        TEST BL,020h
+    postureAt20032b07:
+        JNZ postureAt20033216
+    postureAt20032b0d:
+        TEST EBX,0408000h
+    postureAt20032b13:
+        JNZ postureAt20033216
+    postureAt20032b19:
+        MOV EBP,dword ptr [ESI + posturePsa4]
+    postureAt20032b1f:
+        CMP EBP,03ch
+    postureAt20032b22:
+        JNZ postureAt20032dda
+    postureAt20032b28:
+        FLD dword ptr [ESI + posturePsb4]
+    postureAt20032b2e:
+        FLD ST(0)
+    postureAt20032b30:
+        FSUB dword ptr [ESP + 01ch]
+    postureAt20032b34:
+        FCOMP dword ptr [postureConstant200ac138]
+    postureAt20032b3a:
+        FNSTSW AX
+    postureAt20032b3c:
+        TEST AH,041h
+    postureAt20032b3f:
+        JNZ postureAt20032b47
+    postureAt20032b41:
+        FSUB dword ptr [postureConstant200ac380]
+    postureAt20032b47:
+        FLD ST(0)
+    postureAt20032b49:
+        FSUB dword ptr [ESP + 01ch]
+    postureAt20032b4d:
+        FCOMP dword ptr [postureConstant200ac478]
+    postureAt20032b53:
+        FNSTSW AX
+    postureAt20032b55:
+        TEST AH,01h
+    postureAt20032b58:
+        JZ postureAt20032b60
+    postureAt20032b5a:
+        FADD dword ptr [postureConstant200ac380]
+    postureAt20032b60:
+        FCOM dword ptr [ESP + 01ch]
+    postureAt20032b64:
+        FNSTSW AX
+    postureAt20032b66:
+        TEST AH,041h
+    postureAt20032b69:
+        JNZ postureAt20032b94
+    postureAt20032b6b:
+        FLD dword ptr [pml + posturePmlFrame]
+    postureAt20032b71:
+        FMUL dword ptr [postureConstant200ac11c]
+    postureAt20032b77:
+        FSTP dword ptr [ESP + 010h]
+    postureAt20032b7b:
+        FSUB dword ptr [ESP + 01ch]
+    postureAt20032b7f:
+        FCOMP dword ptr [ESP + 010h]
+    postureAt20032b83:
+        FNSTSW AX
+    postureAt20032b85:
+        TEST AH,041h
+    postureAt20032b88:
+        JNZ postureAt20032bee
+    postureAt20032b8a:
+        FLD dword ptr [ESP + 010h]
+    postureAt20032b8e:
+        FADD dword ptr [ESP + 01ch]
+    postureAt20032b92:
+        JMP postureAt20032bcc
+    postureAt20032b94:
+        FLD dword ptr [ESP + 01ch]
+    postureAt20032b98:
+        FCOMP
+    postureAt20032b9a:
+        FNSTSW AX
+    postureAt20032b9c:
+        TEST AH,041h
+    postureAt20032b9f:
+        JNZ postureAt20032bec
+    postureAt20032ba1:
+        FLD dword ptr [pml + posturePmlFrame]
+    postureAt20032ba7:
+        FMUL dword ptr [postureConstant200ac11c]
+    postureAt20032bad:
+        FSTP dword ptr [ESP + 010h]
+    postureAt20032bb1:
+        FLD dword ptr [ESP + 01ch]
+    postureAt20032bb5:
+        FSUB ST(0),ST(1)
+    postureAt20032bb7:
+        FCOMP dword ptr [ESP + 010h]
+    postureAt20032bbb:
+        FNSTSW AX
+    postureAt20032bbd:
+        TEST AH,041h
+    postureAt20032bc0:
+        FSTP ST(0)
+    postureAt20032bc2:
+        JNZ postureAt20032bee
+    postureAt20032bc4:
+        FLD dword ptr [ESP + 01ch]
+    postureAt20032bc8:
+        FSUB dword ptr [ESP + 010h]
+    postureAt20032bcc:
+        FST dword ptr [ESI + posturePsb4]
+    postureAt20032bd2:
+        FMUL dword ptr [postureConstant200ac480]
+    postureAt20032bd8:
+        CALL PM_WeaponTruncateST0
+    postureAt20032bdd:
+        MOV ECX,dword ptr [EDI + postureCmdAngles + 4]
+    postureAt20032be0:
+        AND EAX,0ffffh
+    postureAt20032be5:
+        SUB EAX,ECX
+    postureAt20032be7:
+        MOV dword ptr [ESI + posturePs48],EAX
+    postureAt20032bea:
+        JMP postureAt20032bee
+    postureAt20032bec:
+        FSTP ST(0)
+    postureAt20032bee:
+        FLD dword ptr [ESI + posturePsb0]
+    postureAt20032bf4:
+        FLD ST(0)
+    postureAt20032bf6:
+        FSUB dword ptr [ESP + 018h]
+    postureAt20032bfa:
+        FCOMP dword ptr [postureConstant200ac138]
+    postureAt20032c00:
+        FNSTSW AX
+    postureAt20032c02:
+        TEST AH,041h
+    postureAt20032c05:
+        JNZ postureAt20032c0d
+    postureAt20032c07:
+        FSUB dword ptr [postureConstant200ac380]
+    postureAt20032c0d:
+        FLD ST(0)
+    postureAt20032c0f:
+        FSUB dword ptr [ESP + 018h]
+    postureAt20032c13:
+        FCOMP dword ptr [postureConstant200ac478]
+    postureAt20032c19:
+        FNSTSW AX
+    postureAt20032c1b:
+        TEST AH,01h
+    postureAt20032c1e:
+        JZ postureAt20032c26
+    postureAt20032c20:
+        FADD dword ptr [postureConstant200ac380]
+    postureAt20032c26:
+        FCOM dword ptr [ESP + 018h]
+    postureAt20032c2a:
+        FNSTSW AX
+    postureAt20032c2c:
+        TEST AH,041h
+    postureAt20032c2f:
+        JNZ postureAt20032c5a
+    postureAt20032c31:
+        FLD dword ptr [pml + posturePmlFrame]
+    postureAt20032c37:
+        FMUL dword ptr [postureConstant200ac11c]
+    postureAt20032c3d:
+        FSTP dword ptr [ESP + 010h]
+    postureAt20032c41:
+        FSUB dword ptr [ESP + 018h]
+    postureAt20032c45:
+        FCOMP dword ptr [ESP + 010h]
+    postureAt20032c49:
+        FNSTSW AX
+    postureAt20032c4b:
+        TEST AH,041h
+    postureAt20032c4e:
+        JNZ postureAt20032cb4
+    postureAt20032c50:
+        FLD dword ptr [ESP + 010h]
+    postureAt20032c54:
+        FADD dword ptr [ESP + 018h]
+    postureAt20032c58:
+        JMP postureAt20032c92
+    postureAt20032c5a:
+        FLD dword ptr [ESP + 018h]
+    postureAt20032c5e:
+        FCOMP
+    postureAt20032c60:
+        FNSTSW AX
+    postureAt20032c62:
+        TEST AH,041h
+    postureAt20032c65:
+        JNZ postureAt20032cb2
+    postureAt20032c67:
+        FLD dword ptr [pml + posturePmlFrame]
+    postureAt20032c6d:
+        FMUL dword ptr [postureConstant200ac11c]
+    postureAt20032c73:
+        FSTP dword ptr [ESP + 010h]
+    postureAt20032c77:
+        FLD dword ptr [ESP + 018h]
+    postureAt20032c7b:
+        FSUB ST(0),ST(1)
+    postureAt20032c7d:
+        FCOMP dword ptr [ESP + 010h]
+    postureAt20032c81:
+        FNSTSW AX
+    postureAt20032c83:
+        TEST AH,041h
+    postureAt20032c86:
+        FSTP ST(0)
+    postureAt20032c88:
+        JNZ postureAt20032cb4
+    postureAt20032c8a:
+        FLD dword ptr [ESP + 018h]
+    postureAt20032c8e:
+        FSUB dword ptr [ESP + 010h]
+    postureAt20032c92:
+        FST dword ptr [ESI + posturePsb0]
+    postureAt20032c98:
+        FMUL dword ptr [postureConstant200ac480]
+    postureAt20032c9e:
+        CALL PM_WeaponTruncateST0
+    postureAt20032ca3:
+        MOV ECX,dword ptr [EDI + postureCmdAngles]
+    postureAt20032ca6:
+        AND EAX,0ffffh
+    postureAt20032cab:
+        SUB EAX,ECX
+    postureAt20032cad:
+        MOV dword ptr [ESI + posturePs44],EAX
+    postureAt20032cb0:
+        JMP postureAt20032cb4
+    postureAt20032cb2:
+        FSTP ST(0)
+    postureAt20032cb4:
+        MOV EBP,dword ptr [ESP + 01d4h + postureTpmSpace]
+    postureAt20032cbb:
+        FLD dword ptr [ESI + posturePsb4]
+    postureAt20032cc1:
+        FSUB dword ptr [EBP + postureExt44]
+    postureAt20032cc4:
+        FCOM dword ptr [postureConstant200ac138]
+    postureAt20032cca:
+        FNSTSW AX
+    postureAt20032ccc:
+        TEST AH,041h
+    postureAt20032ccf:
+        JNZ postureAt20032cd9
+    postureAt20032cd1:
+        FSUB dword ptr [postureConstant200ac380]
+    postureAt20032cd7:
+        JMP postureAt20032cec
+    postureAt20032cd9:
+        FCOM dword ptr [postureConstant200ac478]
+    postureAt20032cdf:
+        FNSTSW AX
+    postureAt20032ce1:
+        TEST AH,01h
+    postureAt20032ce4:
+        JZ postureAt20032cec
+    postureAt20032ce6:
+        FADD dword ptr [postureConstant200ac380]
+    postureAt20032cec:
+        FCOM dword ptr [postureConstant200ac190]
+    postureAt20032cf2:
+        FNSTSW AX
+    postureAt20032cf4:
+        TEST AH,041h
+    postureAt20032cf7:
+        JNZ postureAt20032d06
+    postureAt20032cf9:
+        FSTP ST(0)
+    postureAt20032cfb:
+        FLD dword ptr [EBP + postureExt44]
+    postureAt20032cfe:
+        FADD dword ptr [postureConstant200ac190]
+    postureAt20032d04:
+        JMP postureAt20032d1c
+    postureAt20032d06:
+        FCOMP dword ptr [postureConstant200ac474]
+    postureAt20032d0c:
+        FNSTSW AX
+    postureAt20032d0e:
+        TEST AH,01h
+    postureAt20032d11:
+        JZ postureAt20032d46
+    postureAt20032d13:
+        FLD dword ptr [EBP + postureExt44]
+    postureAt20032d16:
+        FSUB dword ptr [postureConstant200ac190]
+    postureAt20032d1c:
+        PUSH ECX
+    postureAt20032d1d:
+        FSTP dword ptr [ESP]
+    postureAt20032d20:
+        CALL AngleNormalize180
+    postureAt20032d25:
+        FST dword ptr [ESI + posturePsb4]
+    postureAt20032d2b:
+        FMUL dword ptr [postureConstant200ac480]
+    postureAt20032d31:
+        ADD ESP,04h
+    postureAt20032d34:
+        CALL PM_WeaponTruncateST0
+    postureAt20032d39:
+        MOV ECX,dword ptr [EDI + postureCmdAngles + 4]
+    postureAt20032d3c:
+        AND EAX,0ffffh
+    postureAt20032d41:
+        SUB EAX,ECX
+    postureAt20032d43:
+        MOV dword ptr [ESI + posturePs48],EAX
+    postureAt20032d46:
+        FLD dword ptr [ESI + posturePsb0]
+    postureAt20032d4c:
+        FSUB dword ptr [EBP + postureExt40]
+    postureAt20032d4f:
+        FCOM dword ptr [postureConstant200ac138]
+    postureAt20032d55:
+        FNSTSW AX
+    postureAt20032d57:
+        TEST AH,041h
+    postureAt20032d5a:
+        JNZ postureAt20032d64
+    postureAt20032d5c:
+        FSUB dword ptr [postureConstant200ac380]
+    postureAt20032d62:
+        JMP postureAt20032d77
+    postureAt20032d64:
+        FCOM dword ptr [postureConstant200ac478]
+    postureAt20032d6a:
+        FNSTSW AX
+    postureAt20032d6c:
+        TEST AH,01h
+    postureAt20032d6f:
+        JZ postureAt20032d77
+    postureAt20032d71:
+        FADD dword ptr [postureConstant200ac380]
+    postureAt20032d77:
+        FCOM dword ptr [postureConstant200ac19c]
+    postureAt20032d7d:
+        FNSTSW AX
+    postureAt20032d7f:
+        TEST AH,041h
+    postureAt20032d82:
+        JNZ postureAt20032dbe
+    postureAt20032d84:
+        FSTP ST(0)
+    postureAt20032d86:
+        FLD dword ptr [EBP + postureExt40]
+    postureAt20032d89:
+        FADD dword ptr [postureConstant200ac19c]
+    postureAt20032d8f:
+        PUSH ECX
+    postureAt20032d90:
+        FSTP dword ptr [ESP]
+    postureAt20032d93:
+        CALL AngleNormalize180
+    postureAt20032d98:
+        FST dword ptr [ESI + posturePsb0]
+    postureAt20032d9e:
+        FMUL dword ptr [postureConstant200ac480]
+    postureAt20032da4:
+        ADD ESP,04h
+    postureAt20032da7:
+        CALL PM_WeaponTruncateST0
+    postureAt20032dac:
+        MOV ECX,dword ptr [EDI + postureCmdAngles]
+    postureAt20032daf:
+        AND EAX,0ffffh
+    postureAt20032db4:
+        SUB EAX,ECX
+    postureAt20032db6:
+        MOV dword ptr [ESI + posturePs44],EAX
+    postureAt20032db9:
+        JMP postureAt2003344e
+    postureAt20032dbe:
+        FCOMP dword ptr [postureConstant200ac474]
+    postureAt20032dc4:
+        FNSTSW AX
+    postureAt20032dc6:
+        TEST AH,01h
+    postureAt20032dc9:
+        JZ postureAt2003344e
+    postureAt20032dcf:
+        FLD dword ptr [EBP + postureExt40]
+    postureAt20032dd2:
+        FSUB dword ptr [postureConstant200ac190]
+    postureAt20032dd8:
+        JMP postureAt20032d8f
+    postureAt20032dda:
+        TEST EBX,080000h
+    postureAt20032de0:
+        JZ postureAt2003344e
+    postureAt20032de6:
+        FLD dword ptr [ESI + posturePsb4]
+    postureAt20032dec:
+        FLD ST(0)
+    postureAt20032dee:
+        FSUB dword ptr [ESP + 01ch]
+    postureAt20032df2:
+        MOV EBX,dword ptr [ESI + posturePs48]
+    postureAt20032df5:
+        MOV dword ptr [ESP + 014h],042200000h
+    postureAt20032dfd:
+        FCOMP dword ptr [postureConstant200ac138]
+    postureAt20032e03:
+        FNSTSW AX
+    postureAt20032e05:
+        TEST AH,041h
+    postureAt20032e08:
+        JNZ postureAt20032e10
+    postureAt20032e0a:
+        FSUB dword ptr [postureConstant200ac380]
+    postureAt20032e10:
+        FLD ST(0)
+    postureAt20032e12:
+        FSUB dword ptr [ESP + 01ch]
+    postureAt20032e16:
+        FCOMP dword ptr [postureConstant200ac478]
+    postureAt20032e1c:
+        FNSTSW AX
+    postureAt20032e1e:
+        TEST AH,01h
+    postureAt20032e21:
+        JZ postureAt20032e29
+    postureAt20032e23:
+        FADD dword ptr [postureConstant200ac380]
+    postureAt20032e29:
+        FCOM dword ptr [ESP + 01ch]
+    postureAt20032e2d:
+        FNSTSW AX
+    postureAt20032e2f:
+        TEST AH,041h
+    postureAt20032e32:
+        JNZ postureAt20032e5d
+    postureAt20032e34:
+        FLD dword ptr [pml + posturePmlFrame]
+    postureAt20032e3a:
+        FMUL dword ptr [postureConstant200ac700]
+    postureAt20032e40:
+        FSTP dword ptr [ESP + 010h]
+    postureAt20032e44:
+        FSUB dword ptr [ESP + 01ch]
+    postureAt20032e48:
+        FCOMP dword ptr [ESP + 010h]
+    postureAt20032e4c:
+        FNSTSW AX
+    postureAt20032e4e:
+        TEST AH,041h
+    postureAt20032e51:
+        JNZ postureAt20032eb7
+    postureAt20032e53:
+        FLD dword ptr [ESP + 010h]
+    postureAt20032e57:
+        FADD dword ptr [ESP + 01ch]
+    postureAt20032e5b:
+        JMP postureAt20032e95
+    postureAt20032e5d:
+        FLD dword ptr [ESP + 01ch]
+    postureAt20032e61:
+        FCOMP
+    postureAt20032e63:
+        FNSTSW AX
+    postureAt20032e65:
+        TEST AH,041h
+    postureAt20032e68:
+        JNZ postureAt20032eb5
+    postureAt20032e6a:
+        FLD dword ptr [pml + posturePmlFrame]
+    postureAt20032e70:
+        FMUL dword ptr [postureConstant200ac700]
+    postureAt20032e76:
+        FSTP dword ptr [ESP + 010h]
+    postureAt20032e7a:
+        FLD dword ptr [ESP + 01ch]
+    postureAt20032e7e:
+        FSUB ST(0),ST(1)
+    postureAt20032e80:
+        FCOMP dword ptr [ESP + 010h]
+    postureAt20032e84:
+        FNSTSW AX
+    postureAt20032e86:
+        TEST AH,041h
+    postureAt20032e89:
+        FSTP ST(0)
+    postureAt20032e8b:
+        JNZ postureAt20032eb7
+    postureAt20032e8d:
+        FLD dword ptr [ESP + 01ch]
+    postureAt20032e91:
+        FSUB dword ptr [ESP + 010h]
+    postureAt20032e95:
+        FST dword ptr [ESI + posturePsb4]
+    postureAt20032e9b:
+        FMUL dword ptr [postureConstant200ac480]
+    postureAt20032ea1:
+        CALL PM_WeaponTruncateST0
+    postureAt20032ea6:
+        MOV EBX,EAX
+    postureAt20032ea8:
+        MOV EAX,dword ptr [EDI + postureCmdAngles + 4]
+    postureAt20032eab:
+        AND EBX,0ffffh
+    postureAt20032eb1:
+        SUB EBX,EAX
+    postureAt20032eb3:
+        JMP postureAt20032eb7
+    postureAt20032eb5:
+        FSTP ST(0)
+    postureAt20032eb7:
+        CMP EBP,03eh
+    postureAt20032eba:
+        MOV EBP,dword ptr [ESP + 01d4h + postureTpmSpace]
+    postureAt20032ec1:
+        JNZ postureAt20032f5a
+    postureAt20032ec7:
+        FLD dword ptr [ESI + posturePsb4]
+    postureAt20032ecd:
+        FSUB dword ptr [EBP + postureExt44]
+    postureAt20032ed0:
+        MOV dword ptr [ESP + 014h],041a00000h
+    postureAt20032ed8:
+        FCOM dword ptr [postureConstant200ac138]
+    postureAt20032ede:
+        FNSTSW AX
+    postureAt20032ee0:
+        TEST AH,041h
+    postureAt20032ee3:
+        JNZ postureAt20032eed
+    postureAt20032ee5:
+        FSUB dword ptr [postureConstant200ac380]
+    postureAt20032eeb:
+        JMP postureAt20032f00
+    postureAt20032eed:
+        FCOM dword ptr [postureConstant200ac478]
+    postureAt20032ef3:
+        FNSTSW AX
+    postureAt20032ef5:
+        TEST AH,01h
+    postureAt20032ef8:
+        JZ postureAt20032f00
+    postureAt20032efa:
+        FADD dword ptr [postureConstant200ac380]
+    postureAt20032f00:
+        FCOM dword ptr [postureConstant200ac19c]
+    postureAt20032f06:
+        FNSTSW AX
+    postureAt20032f08:
+        TEST AH,041h
+    postureAt20032f0b:
+        JNZ postureAt20032f1a
+    postureAt20032f0d:
+        FSTP ST(0)
+    postureAt20032f0f:
+        FLD dword ptr [EBP + postureExt44]
+    postureAt20032f12:
+        FADD dword ptr [postureConstant200ac19c]
+    postureAt20032f18:
+        JMP postureAt20032f30
+    postureAt20032f1a:
+        FCOMP dword ptr [postureConstant200ac46c]
+    postureAt20032f20:
+        FNSTSW AX
+    postureAt20032f22:
+        TEST AH,01h
+    postureAt20032f25:
+        JZ postureAt20032f5a
+    postureAt20032f27:
+        FLD dword ptr [EBP + postureExt44]
+    postureAt20032f2a:
+        FSUB dword ptr [postureConstant200ac19c]
+    postureAt20032f30:
+        PUSH ECX
+    postureAt20032f31:
+        FSTP dword ptr [ESP]
+    postureAt20032f34:
+        CALL AngleNormalize180
+    postureAt20032f39:
+        FST dword ptr [ESI + posturePsb4]
+    postureAt20032f3f:
+        FMUL dword ptr [postureConstant200ac480]
+    postureAt20032f45:
+        ADD ESP,04h
+    postureAt20032f48:
+        CALL PM_WeaponTruncateST0
+    postureAt20032f4d:
+        MOV ECX,dword ptr [EDI + postureCmdAngles + 4]
+    postureAt20032f50:
+        AND EAX,0ffffh
+    postureAt20032f55:
+        SUB EAX,ECX
+    postureAt20032f57:
+        MOV dword ptr [ESI + posturePs48],EAX
+    postureAt20032f5a:
+        FLD dword ptr [ESI + posturePsb0]
+    postureAt20032f60:
+        FSUB dword ptr [EBP + postureExt40]
+    postureAt20032f63:
+        FCOM dword ptr [postureConstant200ac138]
+    postureAt20032f69:
+        FNSTSW AX
+    postureAt20032f6b:
+        TEST AH,041h
+    postureAt20032f6e:
+        JNZ postureAt20032f78
+    postureAt20032f70:
+        FSUB dword ptr [postureConstant200ac380]
+    postureAt20032f76:
+        JMP postureAt20032f8b
+    postureAt20032f78:
+        FCOM dword ptr [postureConstant200ac478]
+    postureAt20032f7e:
+        FNSTSW AX
+    postureAt20032f80:
+        TEST AH,01h
+    postureAt20032f83:
+        JZ postureAt20032f8b
+    postureAt20032f85:
+        FADD dword ptr [postureConstant200ac380]
+    postureAt20032f8b:
+        FCOM dword ptr [ESP + 014h]
+    postureAt20032f8f:
+        FNSTSW AX
+    postureAt20032f91:
+        TEST AH,041h
+    postureAt20032f94:
+        JNZ postureAt20032fa1
+    postureAt20032f96:
+        FSTP ST(0)
+    postureAt20032f98:
+        FLD dword ptr [ESP + 014h]
+    postureAt20032f9c:
+        FADD dword ptr [EBP + postureExt40]
+    postureAt20032f9f:
+        JMP postureAt20032fb9
+    postureAt20032fa1:
+        FLD dword ptr [ESP + 014h]
+    postureAt20032fa5:
+        FCHS
+    postureAt20032fa7:
+        FXCH ST(1)
+    postureAt20032fa9:
+        FCOMPP
+    postureAt20032fab:
+        FNSTSW AX
+    postureAt20032fad:
+        TEST AH,01h
+    postureAt20032fb0:
+        JZ postureAt20032fe3
+    postureAt20032fb2:
+        FLD dword ptr [EBP + postureExt40]
+    postureAt20032fb5:
+        FSUB dword ptr [ESP + 014h]
+    postureAt20032fb9:
+        PUSH ECX
+    postureAt20032fba:
+        FSTP dword ptr [ESP]
+    postureAt20032fbd:
+        CALL AngleNormalize180
+    postureAt20032fc2:
+        FST dword ptr [ESI + posturePsb0]
+    postureAt20032fc8:
+        FMUL dword ptr [postureConstant200ac480]
+    postureAt20032fce:
+        ADD ESP,04h
+    postureAt20032fd1:
+        CALL PM_WeaponTruncateST0
+    postureAt20032fd6:
+        MOV ECX,dword ptr [EDI + postureCmdAngles]
+    postureAt20032fd9:
+        AND EAX,0ffffh
+    postureAt20032fde:
+        SUB EAX,ECX
+    postureAt20032fe0:
+        MOV dword ptr [ESI + posturePs44],EAX
+    postureAt20032fe3:
+        FLD dword ptr [ESI + posturePsb4]
+    postureAt20032fe9:
+        FCOMP dword ptr [ESP + 01ch]
+    postureAt20032fed:
+        FNSTSW AX
+    postureAt20032fef:
+        TEST AH,040h
+    postureAt20032ff2:
+        JNZ postureAt2003344e
+    postureAt20032ff8:
+        MOV EAX,[postureConstant200b4080]
+    postureAt20032ffd:
+        MOV ECX,dword ptr [postureConstant200b4084]
+    postureAt20033003:
+        MOV EDX,dword ptr [postureConstant200b4088]
+    postureAt20033009:
+        MOV dword ptr [ESP + 030h],EAX
+    postureAt2003300d:
+        MOV EAX,[postureConstant200b408c]
+    postureAt20033012:
+        MOV dword ptr [ESP + 034h],ECX
+    postureAt20033016:
+        MOV ECX,dword ptr [postureConstant200b4090]
+    postureAt2003301c:
+        MOV dword ptr [ESP + 048h],EAX
+    postureAt20033020:
+        MOV EAX,dword ptr [ESI + posturePsf4]
+    postureAt20033026:
+        MOV dword ptr [ESP + 038h],EDX
+    postureAt2003302a:
+        MOV EDX,dword ptr [postureConstant200b4094]
+    postureAt20033030:
+        MOV dword ptr [ESP + 014h],03f800000h
+    postureAt20033038:
+        TEST AH,02h
+    postureAt2003303b:
+        MOV dword ptr [ESP + 04ch],ECX
+    postureAt2003303f:
+        MOV dword ptr [ESP + 050h],EDX
+    postureAt20033043:
+        JZ postureAt200330a1
+    postureAt20033045:
+        FLD dword ptr [ESP + 030h]
+    postureAt20033049:
+        FMUL dword ptr [postureConstant200ac6e8]
+    postureAt2003304f:
+        MOV dword ptr [ESP + 014h],03fa00000h
+    postureAt20033057:
+        FSTP dword ptr [ESP + 030h]
+    postureAt2003305b:
+        FLD dword ptr [ESP + 034h]
+    postureAt2003305f:
+        FMUL dword ptr [postureConstant200ac6e8]
+    postureAt20033065:
+        FSTP dword ptr [ESP + 034h]
+    postureAt20033069:
+        FLD dword ptr [ESP + 038h]
+    postureAt2003306d:
+        FMUL dword ptr [postureConstant200ac6e8]
+    postureAt20033073:
+        FSTP dword ptr [ESP + 038h]
+    postureAt20033077:
+        FLD dword ptr [ESP + 048h]
+    postureAt2003307b:
+        FMUL dword ptr [postureConstant200ac6e8]
+    postureAt20033081:
+        FSTP dword ptr [ESP + 048h]
+    postureAt20033085:
+        FLD dword ptr [ESP + 04ch]
+    postureAt20033089:
+        FMUL dword ptr [postureConstant200ac6e8]
+    postureAt2003308f:
+        FSTP dword ptr [ESP + 04ch]
+    postureAt20033093:
+        FLD dword ptr [ESP + 050h]
+    postureAt20033097:
+        FMUL dword ptr [postureConstant200ac6e8]
+    postureAt2003309d:
+        FSTP dword ptr [ESP + 050h]
+    postureAt200330a1:
+        PUSH 00h
+    postureAt200330a3:
+        LEA EAX,[ESP + 058h]
+    postureAt200330a7:
+        PUSH 00h
+    postureAt200330a9:
+        PUSH EAX
+    postureAt200330aa:
+        LEA EAX,[ESI + posturePsb0]
+    postureAt200330b0:
+        PUSH EAX
+    postureAt200330b1:
+        CALL AngleVectors
+    postureAt200330b6:
+        LEA ECX,[ESP + 064h]
+    postureAt200330ba:
+        MOV dword ptr [ESP + 06ch],00h
+    postureAt200330c2:
+        PUSH ECX
+    postureAt200330c3:
+        CALL VectorNormalizeFast
+    postureAt200330c8:
+        FLD dword ptr [ESP + 068h]
+    postureAt200330cc:
+        FMUL dword ptr [ESP + 028h]
+    postureAt200330d0:
+        MOV EAX,[pm]
+    postureAt200330d5:
+        FMUL dword ptr [postureConstant200ac2d4]
+    postureAt200330db:
+        FSUBR dword ptr [ESI + posturePs14]
+    postureAt200330de:
+        FST dword ptr [ESP + 038h]
+    postureAt200330e2:
+        FLD dword ptr [ESP + 06ch]
+    postureAt200330e6:
+        FMUL dword ptr [ESP + 028h]
+    postureAt200330ea:
+        FMUL dword ptr [postureConstant200ac2d4]
+    postureAt200330f0:
+        FSUBR dword ptr [ESI + posturePs18]
+    postureAt200330f3:
+        FSTP dword ptr [ESP + 03ch]
+    postureAt200330f7:
+        FLD dword ptr [ESI + posturePs1c]
+    postureAt200330fa:
+        FADD dword ptr [postureConstant200ac290]
+    postureAt20033100:
+        MOV EDX,dword ptr [ESP + 03ch]
+    postureAt20033104:
+        MOV dword ptr [ESP + 054h],EDX
+    postureAt20033108:
+        MOV EDX,dword ptr [ESI + posturePsa0]
+    postureAt2003310e:
+        FSTP dword ptr [ESP + 040h]
+    postureAt20033112:
+        FSTP dword ptr [ESP + 050h]
+    postureAt20033116:
+        FLD dword ptr [ESP + 040h]
+    postureAt2003311a:
+        FSUB dword ptr [postureConstant200ac71c]
+    postureAt20033120:
+        FSUB dword ptr [postureConstant200ac290]
+    postureAt20033126:
+        FSTP dword ptr [ESP + 058h]
+    postureAt2003312a:
+        MOV ECX,dword ptr [EAX + posturePmMask]
+    postureAt2003312d:
+        PUSH ECX
+    postureAt2003312e:
+        LEA ECX,[ESP + 054h]
+    postureAt20033132:
+        PUSH EDX
+    postureAt20033133:
+        PUSH ECX
+    postureAt20033134:
+        LEA EDX,[ESP + 068h]
+    postureAt20033138:
+        LEA ECX,[ESP + 050h]
+    postureAt2003313c:
+        PUSH EDX
+    postureAt2003313d:
+        PUSH ECX
+    postureAt2003313e:
+        LEA EDX,[ESP + 04ch]
+    postureAt20033142:
+        LEA ECX,[ESP + 08ch]
+    postureAt20033149:
+        PUSH EDX
+    postureAt2003314a:
+        PUSH ECX
+    postureAt2003314b:
+        CALL dword ptr [EAX + posturePmTrace]
+    postureAt20033151:
+        MOV EAX,dword ptr [ESP + 094h + postureTraceStartsolid]
+    postureAt20033158:
+        ADD ESP,030h
+    postureAt2003315b:
+        TEST EAX,EAX
+    postureAt2003315d:
+        JZ postureAt2003317c
+    postureAt2003315f:
+        CMP dword ptr [ESP + 064h + postureTraceEntity],040h
+    postureAt20033167:
+        JL postureAt2003317c
+    postureAt20033169:
+        MOV EDX,dword ptr [ESP + 01ch]
+    postureAt2003316d:
+        FLD dword ptr [ESP + 01ch]
+    postureAt20033171:
+        MOV dword ptr [ESI + posturePsb4],EDX
+    postureAt20033177:
+        JMP postureAt20033436
+    postureAt2003317c:
+        FLD dword ptr [ESP + 064h + postureTraceEndZ]
+    postureAt20033180:
+        MOV EAX,dword ptr [ESP + 064h + postureTraceEnd]
+    postureAt20033184:
+        MOV ECX,dword ptr [ESP + 064h + postureTraceEndY]
+    postureAt20033188:
+        FADD dword ptr [postureConstant200ac71c]
+    postureAt2003318e:
+        MOV EDX,dword ptr [ESP + 064h + postureTraceEndZ]
+    postureAt20033192:
+        MOV dword ptr [ESP + 024h],EAX
+    postureAt20033196:
+        MOV dword ptr [ESP + 03ch],EAX
+    postureAt2003319a:
+        MOV EAX,[pm]
+    postureAt2003319f:
+        FSTP dword ptr [ESP + 044h]
+    postureAt200331a3:
+        MOV dword ptr [ESP + 028h],ECX
+    postureAt200331a7:
+        MOV dword ptr [ESP + 02ch],EDX
+    postureAt200331ab:
+        MOV dword ptr [ESP + 040h],ECX
+    postureAt200331af:
+        MOV EDX,dword ptr [EAX + posturePmMask]
+    postureAt200331b2:
+        MOV ECX,dword ptr [ESI + posturePsa0]
+    postureAt200331b8:
+        PUSH EDX
+    postureAt200331b9:
+        LEA EDX,[ESP + 040h]
+    postureAt200331bd:
+        PUSH ECX
+    postureAt200331be:
+        PUSH EDX
+    postureAt200331bf:
+        LEA ECX,[ESP + 054h]
+    postureAt200331c3:
+        LEA EDX,[ESP + 03ch]
+    postureAt200331c7:
+        PUSH ECX
+    postureAt200331c8:
+        PUSH EDX
+    postureAt200331c9:
+        LEA ECX,[ESP + 038h]
+    postureAt200331cd:
+        LEA EDX,[ESP + 078h]
+    postureAt200331d1:
+        PUSH ECX
+    postureAt200331d2:
+        PUSH EDX
+    postureAt200331d3:
+        CALL dword ptr [EAX + posturePmTrace]
+    postureAt200331d9:
+        MOV EAX,dword ptr [ESP + 080h + postureTraceAllsolid]
+    postureAt200331e0:
+        ADD ESP,01ch
+    postureAt200331e3:
+        TEST EAX,EAX
+    postureAt200331e5:
+        JZ postureAt20033204
+    postureAt200331e7:
+        CMP dword ptr [ESP + 064h + postureTraceEntity],040h
+    postureAt200331ef:
+        JL postureAt20033204
+    postureAt200331f1:
+        MOV EAX,dword ptr [ESP + 01ch]
+    postureAt200331f5:
+        FLD dword ptr [ESP + 01ch]
+    postureAt200331f9:
+        MOV dword ptr [ESI + posturePsb4],EAX
+    postureAt200331ff:
+        JMP postureAt20033436
+    postureAt20033204:
+        FLD dword ptr [ESP + 02ch]
+    postureAt20033208:
+        FSUB dword ptr [ESI + posturePs1c]
+    postureAt2003320b:
+        MOV dword ptr [ESI + posturePs48],EBX
+    postureAt2003320e:
+        FSTP dword ptr [EBP + postureExt3c]
+    postureAt20033211:
+        JMP postureAt2003344e
+    postureAt20033216:
+        FLD dword ptr [ESI + posturePsb4]
+    postureAt2003321c:
+        FLD ST(0)
+    postureAt2003321e:
+        FSUB dword ptr [ESP + 01ch]
+    postureAt20033222:
+        FCOMP dword ptr [postureConstant200ac138]
+    postureAt20033228:
+        FNSTSW AX
+    postureAt2003322a:
+        TEST AH,041h
+    postureAt2003322d:
+        JNZ postureAt20033235
+    postureAt2003322f:
+        FSUB dword ptr [postureConstant200ac380]
+    postureAt20033235:
+        FLD ST(0)
+    postureAt20033237:
+        FSUB dword ptr [ESP + 01ch]
+    postureAt2003323b:
+        FCOMP dword ptr [postureConstant200ac478]
+    postureAt20033241:
+        FNSTSW AX
+    postureAt20033243:
+        TEST AH,01h
+    postureAt20033246:
+        JZ postureAt2003324e
+    postureAt20033248:
+        FADD dword ptr [postureConstant200ac380]
+    postureAt2003324e:
+        FCOM dword ptr [ESP + 01ch]
+    postureAt20033252:
+        FNSTSW AX
+    postureAt20033254:
+        TEST AH,041h
+    postureAt20033257:
+        JNZ postureAt20033282
+    postureAt20033259:
+        FLD dword ptr [pml + posturePmlFrame]
+    postureAt2003325f:
+        FMUL dword ptr [postureConstant200ac464]
+    postureAt20033265:
+        FSTP dword ptr [ESP + 014h]
+    postureAt20033269:
+        FSUB dword ptr [ESP + 01ch]
+    postureAt2003326d:
+        FCOMP dword ptr [ESP + 014h]
+    postureAt20033271:
+        FNSTSW AX
+    postureAt20033273:
+        TEST AH,041h
+    postureAt20033276:
+        JNZ postureAt200332dc
+    postureAt20033278:
+        FLD dword ptr [ESP + 014h]
+    postureAt2003327c:
+        FADD dword ptr [ESP + 01ch]
+    postureAt20033280:
+        JMP postureAt200332ba
+    postureAt20033282:
+        FLD dword ptr [ESP + 01ch]
+    postureAt20033286:
+        FCOMP
+    postureAt20033288:
+        FNSTSW AX
+    postureAt2003328a:
+        TEST AH,041h
+    postureAt2003328d:
+        JNZ postureAt200332da
+    postureAt2003328f:
+        FLD dword ptr [pml + posturePmlFrame]
+    postureAt20033295:
+        FMUL dword ptr [postureConstant200ac464]
+    postureAt2003329b:
+        FSTP dword ptr [ESP + 014h]
+    postureAt2003329f:
+        FLD dword ptr [ESP + 01ch]
+    postureAt200332a3:
+        FSUB ST(0),ST(1)
+    postureAt200332a5:
+        FCOMP dword ptr [ESP + 014h]
+    postureAt200332a9:
+        FNSTSW AX
+    postureAt200332ab:
+        TEST AH,041h
+    postureAt200332ae:
+        FSTP ST(0)
+    postureAt200332b0:
+        JNZ postureAt200332dc
+    postureAt200332b2:
+        FLD dword ptr [ESP + 01ch]
+    postureAt200332b6:
+        FSUB dword ptr [ESP + 014h]
+    postureAt200332ba:
+        FST dword ptr [ESI + posturePsb4]
+    postureAt200332c0:
+        FMUL dword ptr [postureConstant200ac480]
+    postureAt200332c6:
+        CALL PM_WeaponTruncateST0
+    postureAt200332cb:
+        MOV ECX,dword ptr [EDI + postureCmdAngles + 4]
+    postureAt200332ce:
+        AND EAX,0ffffh
+    postureAt200332d3:
+        SUB EAX,ECX
+    postureAt200332d5:
+        MOV dword ptr [ESI + posturePs48],EAX
+    postureAt200332d8:
+        JMP postureAt200332dc
+    postureAt200332da:
+        FSTP ST(0)
+    postureAt200332dc:
+        MOV EBP,dword ptr [ESP + 01d4h + postureTpmSpace]
+    postureAt200332e3:
+        TEST EBX,0400000h
+    postureAt200332e9:
+        MOV ECX,dword ptr [EBP + postureExt18]
+    postureAt200332ec:
+        MOV dword ptr [ESP + 010h],ECX
+    postureAt200332f0:
+        JZ postureAt200332fc
+    postureAt200332f2:
+        MOV dword ptr [ESP + 014h],00h
+    postureAt200332fa:
+        JMP postureAt20033365
+    postureAt200332fc:
+        TEST BH,080h
+    postureAt200332ff:
+        JZ postureAt20033358
+    postureAt20033301:
+        FLD dword ptr [EBP + postureExt24]
+    postureAt20033304:
+        FSUB dword ptr [ESI + posturePsb4]
+    postureAt2003330a:
+        PUSH ECX
+    postureAt2003330b:
+        MOV dword ptr [ESP + 018h],041600000h
+    postureAt20033313:
+        MOV dword ptr [ESP + 014h],042480000h
+    postureAt2003331b:
+        FSTP dword ptr [ESP]
+    postureAt2003331e:
+        CALL AngleNormalize180
+    postureAt20033323:
+        FMUL dword ptr [postureConstant200ac388]
+    postureAt20033329:
+        FMUL dword ptr [postureConstant200ac6e4]
+    postureAt2003332f:
+        FCOS
+    postureAt20033331:
+        FSTP dword ptr [ESP + 064h]
+    postureAt20033335:
+        FLD dword ptr [EBP + postureExt20]
+    postureAt20033338:
+        FCHS
+    postureAt2003333a:
+        FSTP dword ptr [ESP]
+    postureAt2003333d:
+        CALL AngleNormalize180
+    postureAt20033342:
+        FMUL dword ptr [ESP + 064h]
+    postureAt20033346:
+        FSTP dword ptr [ESP]
+    postureAt20033349:
+        CALL AngleNormalize360
+    postureAt2003334e:
+        FCHS
+    postureAt20033350:
+        FSTP dword ptr [EBP + postureExt20]
+    postureAt20033353:
+        ADD ESP,04h
+    postureAt20033356:
+        JMP postureAt20033365
+    postureAt20033358:
+        FLD dword ptr [EBP + postureExt18]
+    postureAt2003335b:
+        FMUL dword ptr [postureConstant200ac180]
+    postureAt20033361:
+        FSTP dword ptr [ESP + 014h]
+    postureAt20033365:
+        FLD dword ptr [ESI + posturePsb0]
+    postureAt2003336b:
+        FSUB dword ptr [EBP + postureExt20]
+    postureAt2003336e:
+        PUSH ECX
+    postureAt2003336f:
+        FSTP dword ptr [ESP]
+    postureAt20033372:
+        CALL AngleNormalize180
+    postureAt20033377:
+        FCOM dword ptr [ESP + 018h]
+    postureAt2003337b:
+        ADD ESP,04h
+    postureAt2003337e:
+        FNSTSW AX
+    postureAt20033380:
+        TEST AH,041h
+    postureAt20033383:
+        JNZ postureAt20033390
+    postureAt20033385:
+        FSTP ST(0)
+    postureAt20033387:
+        FLD dword ptr [ESP + 014h]
+    postureAt2003338b:
+        FADD dword ptr [EBP + postureExt20]
+    postureAt2003338e:
+        JMP postureAt200333a8
+    postureAt20033390:
+        FLD dword ptr [ESP + 010h]
+    postureAt20033394:
+        FCHS
+    postureAt20033396:
+        FXCH ST(1)
+    postureAt20033398:
+        FCOMPP
+    postureAt2003339a:
+        FNSTSW AX
+    postureAt2003339c:
+        TEST AH,01h
+    postureAt2003339f:
+        JZ postureAt200333d2
+    postureAt200333a1:
+        FLD dword ptr [EBP + postureExt20]
+    postureAt200333a4:
+        FSUB dword ptr [ESP + 010h]
+    postureAt200333a8:
+        PUSH ECX
+    postureAt200333a9:
+        FSTP dword ptr [ESP]
+    postureAt200333ac:
+        CALL AngleNormalize180
+    postureAt200333b1:
+        FST dword ptr [ESI + posturePsb0]
+    postureAt200333b7:
+        FMUL dword ptr [postureConstant200ac480]
+    postureAt200333bd:
+        ADD ESP,04h
+    postureAt200333c0:
+        CALL PM_WeaponTruncateST0
+    postureAt200333c5:
+        MOV ECX,dword ptr [EDI + postureCmdAngles]
+    postureAt200333c8:
+        AND EAX,0ffffh
+    postureAt200333cd:
+        SUB EAX,ECX
+    postureAt200333cf:
+        MOV dword ptr [ESI + posturePs44],EAX
+    postureAt200333d2:
+        MOV EAX,dword ptr [ESI + posturePs68]
+    postureAt200333d5:
+        TEST AH,080h
+    postureAt200333d8:
+        JNZ postureAt2003344e
+    postureAt200333da:
+        FLD dword ptr [ESI + posturePsb4]
+    postureAt200333e0:
+        FSUB dword ptr [EBP + postureExt24]
+    postureAt200333e3:
+        MOV EDX,dword ptr [EBP + postureExt1c]
+    postureAt200333e6:
+        PUSH ECX
+    postureAt200333e7:
+        MOV dword ptr [ESP + 014h],EDX
+    postureAt200333eb:
+        FSTP dword ptr [ESP]
+    postureAt200333ee:
+        CALL AngleNormalize180
+    postureAt200333f3:
+        FCOM dword ptr [ESP + 014h]
+    postureAt200333f7:
+        ADD ESP,04h
+    postureAt200333fa:
+        FNSTSW AX
+    postureAt200333fc:
+        TEST AH,041h
+    postureAt200333ff:
+        JNZ postureAt2003340c
+    postureAt20033401:
+        FSTP ST(0)
+    postureAt20033403:
+        FLD dword ptr [ESP + 010h]
+    postureAt20033407:
+        FADD dword ptr [EBP + postureExt24]
+    postureAt2003340a:
+        JMP postureAt20033424
+    postureAt2003340c:
+        FLD dword ptr [ESP + 010h]
+    postureAt20033410:
+        FCHS
+    postureAt20033412:
+        FXCH ST(1)
+    postureAt20033414:
+        FCOMPP
+    postureAt20033416:
+        FNSTSW AX
+    postureAt20033418:
+        TEST AH,01h
+    postureAt2003341b:
+        JZ postureAt2003344e
+    postureAt2003341d:
+        FLD dword ptr [EBP + postureExt24]
+    postureAt20033420:
+        FSUB dword ptr [ESP + 010h]
+    postureAt20033424:
+        PUSH ECX
+    postureAt20033425:
+        FSTP dword ptr [ESP]
+    postureAt20033428:
+        CALL AngleNormalize180
+    postureAt2003342d:
+        FST dword ptr [ESI + posturePsb4]
+    postureAt20033433:
+        ADD ESP,04h
+    postureAt20033436:
+        FMUL dword ptr [postureConstant200ac480]
+    postureAt2003343c:
+        CALL PM_WeaponTruncateST0
+    postureAt20033441:
+        MOV ECX,dword ptr [EDI + postureCmdAngles + 4]
+    postureAt20033444:
+        AND EAX,0ffffh
+    postureAt20033449:
+        SUB EAX,ECX
+    postureAt2003344b:
+        MOV dword ptr [ESI + posturePs48],EAX
+    postureAt2003344e:
+        MOV EAX,dword ptr [ESP + 01dch + postureTpmSpace]
+    postureAt20033455:
+        LEA ECX,[ESP + 01cch]
+    postureAt2003345c:
+        PUSH ECX
+    postureAt2003345d:
+        PUSH EDI
+    postureAt2003345e:
+        PUSH ESI
+    postureAt2003345f:
+        MOV dword ptr [ESP + 01d8h + posturePmTrace],EAX
+    postureAt20033466:
+        CALL PM_UpdateLean
+    postureAt2003346b:
+        ADD ESP,0ch
+    postureAt2003346e:
+        POP EDI
+    postureAt2003346f:
+        POP EBP
+    postureAt20033470:
+        POP EBX
+    postureAt20033471:
+        POP ESI
+    postureAt20033472:
+        ADD ESP,postureViewStack
+    postureAt20033478:
+        RET
+    }
+}
+#else
 
 void PM_UpdateViewAngles( playerState_t *ps, pmoveExt_t *pmext, usercmd_t *cmd, void (trace)( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentMask ), int tracemask ) {	//----(SA)	modified
 	short	temp;
@@ -6461,6 +16076,8 @@ void PM_UpdateViewAngles( playerState_t *ps, pmoveExt_t *pmext, usercmd_t *cmd, 
 	PM_UpdateLean( ps, cmd, &tpm );
 }
 
+#endif
+
 /*
 ================
 PM_CheckLadderMove
@@ -6472,6 +16089,401 @@ qboolean	ladderforward;
 vec3_t		laddervec;
 
 /* TC:E30013140 / Linux000e7658: free-climb clearance and stamina gate. */
+/* TC:E qagame2003b480: original trace/x87 schedule, native field offsets. */
+#if defined(_MSC_VER) && defined(_M_IX86)
+typedef char climb832TraceLayout[(sizeof(trace_t)==56 && offsetof(trace_t, allsolid)==0 && offsetof(trace_t, fraction)==8)?1:-1];
+enum {
+    climb832PmExt = offsetof(pmove_t, pmext),
+    climb832Field0 = offsetof(pmove_t, ps),
+    climb832Field1 = offsetof(playerState_t, stats) + STAT_TCE_FLAGS * sizeof(int),
+    climb832Field2 = offsetof(playerState_t, origin) + 0,
+    climb832Field3 = offsetof(playerState_t, origin) + 4,
+    climb832Field4 = offsetof(playerState_t, origin) + 8,
+    climb832Field5 = offsetof(pmove_t, maxs) + 0,
+    climb832Field6 = offsetof(pmove_t, maxs) + 4,
+    climb832Field7 = offsetof(pmove_t, maxs) + 8,
+    climb832Field8 = offsetof(playerState_t, velocity) + 8,
+    climb832Field9 = offsetof(pmove_t, tracemask),
+    climb832Field10 = offsetof(playerState_t, clientNum),
+    climb832Field11 = offsetof(pmove_t, mins),
+    climb832Field12 = offsetof(pmove_t, trace),
+    climb832Field13 = offsetof(pmoveExt_t, sprintTime)
+};
+static const unsigned int climb832Const200ac110 = 0x3f800000u;
+static const unsigned int climb832Const200ac180 = 0x3f000000u;
+static const unsigned int climb832Const200ac1c4 = 0x43800000u;
+static const unsigned int climb832Const200ac2bc = 0x40800000u;
+static const unsigned int climb832Const200ac2d8 = 0x41900000u;
+static const unsigned int climb832Const200ac32c = 0x42c00000u;
+static const unsigned int climb832Const200ac7d4 = 0xc3480000u;
+static const unsigned int climb832Const200ac85c = 0x42ca0000u;
+static const unsigned int climb832Const200ac860 = 0x427c0000u;
+static const unsigned int climb832Const200ac864 = 0xc1880000u;
+static const unsigned int climb832Const200ac868 = 0xc3800000u;
+static __declspec(naked) qboolean PM_ClimbSlideMove(int unused, const vec3_t normal, qboolean wasClimbing) {
+    __asm {
+        sub esp, 0x74
+        mov eax, dword ptr [pm]
+        mov dword ptr [esp + 4], 0x3f800000
+        mov ecx, dword ptr [eax + climb832Field0]
+        mov edx, dword ptr [ecx + climb832Field1]
+        test dh, 2
+        je climb832_2003b4a5
+        mov dword ptr [esp + 4], 0x3fa00000
+climb832_2003b4a5:
+        mov ecx, dword ptr [ecx + climb832Field2]
+        push esi
+        mov dword ptr [esp + 0x28], ecx
+        mov edx, dword ptr [eax + climb832Field0]
+        push edi
+        mov ecx, dword ptr [edx + climb832Field3]
+        mov dword ptr [esp + 0x30], ecx
+        mov edx, dword ptr [eax + climb832Field0]
+        mov ecx, dword ptr [edx + climb832Field4]
+        mov dword ptr [esp + 0x34], ecx
+        mov edx, dword ptr [eax + climb832Field5]
+        mov dword ptr [esp + 0x38], edx
+        mov ecx, dword ptr [eax + climb832Field6]
+        mov dword ptr [esp + 0x3c], ecx
+        mov edx, dword ptr [eax + climb832Field7]
+        mov dword ptr [esp + 0x40], edx
+        mov eax, dword ptr [eax + climb832Field0]
+        mov ecx, dword ptr [eax + climb832Field1]
+        and ecx, 0xffffffdf
+        mov dword ptr [eax + climb832Field1], ecx
+        mov ecx, dword ptr [pm]
+        mov eax, dword ptr [ecx + climb832Field0]
+        fld dword ptr [eax + climb832Field8]
+        fcomp dword ptr [climb832Const200ac7d4]
+        fnstsw ax
+        test ah, 1
+        je climb832_2003b50f
+        pop edi
+        xor eax, eax
+        pop esi
+        add esp, 0x74
+        ret 
+climb832_2003b50f:
+        fld dword ptr [esp + 0x34]
+        mov edx, dword ptr [esp + 0x2c]
+        mov eax, dword ptr [esp + 0x30]
+        fsub dword ptr [climb832Const200ac1c4]
+        mov dword ptr [esp + 0x14], edx
+        mov dword ptr [esp + 0x18], eax
+        fstp dword ptr [esp + 0x1c]
+        mov edx, dword ptr [ecx + climb832Field9]
+        mov eax, dword ptr [ecx + climb832Field0]
+        push edx
+        mov edx, dword ptr [eax + climb832Field10]
+        lea eax, [esp + 0x18]
+        push edx
+        push eax
+        lea edx, [esp + 0x44]
+        lea eax, [ecx + climb832Field11]
+        push edx
+        push eax
+        lea edx, [esp + 0x40]
+        lea eax, [esp + 0x58]
+        push edx
+        push eax
+        call dword ptr [ecx + climb832Field12]
+        fld dword ptr [esp + 0x68]
+        fmul dword ptr [climb832Const200ac868]
+        add esp, 0x1c
+        xor edi, edi
+        fst dword ptr [esp + 0x10]
+        fcomp dword ptr [climb832Const200ac864]
+        fnstsw ax
+        test ah, 0x41
+        jne climb832_2003b580
+        mov edi, 1
+climb832_2003b580:
+        fld dword ptr [esp + 0xc]
+        fmul dword ptr [climb832Const200ac32c]
+        mov ecx, dword ptr [esp + 0x2c]
+        mov edx, dword ptr [esp + 0x30]
+        mov eax, dword ptr [pm]
+        mov dword ptr [esp + 0x14], ecx
+        mov dword ptr [esp + 0x18], edx
+        fstp dword ptr [esp + 8]
+        fld dword ptr [esp + 0x34]
+        fadd dword ptr [esp + 8]
+        fstp dword ptr [esp + 0x1c]
+        mov ecx, dword ptr [eax + climb832Field9]
+        mov edx, dword ptr [eax]
+        push ecx
+        mov ecx, dword ptr [edx + climb832Field10]
+        lea edx, [esp + 0x18]
+        push ecx
+        push edx
+        lea ecx, [esp + 0x44]
+        lea edx, [eax + climb832Field11]
+        push ecx
+        push edx
+        lea ecx, [esp + 0x40]
+        lea edx, [esp + 0x58]
+        push ecx
+        push edx
+        call dword ptr [eax + climb832Field12]
+        fld dword ptr [esp + 0x68]
+        fcomp dword ptr [climb832Const200ac110]
+        add esp, 0x1c
+        fnstsw ax
+        test ah, 1
+        je climb832_2003b5fd
+        fld dword ptr [esp + 0x4c]
+        fmul dword ptr [esp + 8]
+        fstp dword ptr [esp + 8]
+climb832_2003b5fd:
+        fld dword ptr [esp + 8]
+        fcomp dword ptr [climb832Const200ac2d8]
+        fnstsw ax
+        test ah, 1
+        je climb832_2003b616
+        pop edi
+        xor eax, eax
+        pop esi
+        add esp, 0x74
+        ret 
+climb832_2003b616:
+        fld dword ptr [esp + 0x34]
+        mov esi, dword ptr [esp + 0x84]
+        mov eax, dword ptr [esp + 0x2c]
+        fadd dword ptr [esp + 8]
+        mov ecx, dword ptr [esp + 0x30]
+        lea edx, [esp + 0x20]
+        push edx
+        mov dword ptr [esp + 0x18], eax
+        mov dword ptr [esp + 0x1c], ecx
+        mov dword ptr [esp + 0x2c], 0
+        fstp dword ptr [esp + 0x20]
+        fld dword ptr [esi]
+        fchs 
+        fstp dword ptr [esp + 0x24]
+        fld dword ptr [esi + 4]
+        fchs 
+        fstp dword ptr [esp + 0x28]
+        call VectorNormalize
+        fstp st(0)
+        fld dword ptr [esp + 0x24]
+        fmul dword ptr [climb832Const200ac2bc]
+        mov eax, dword ptr [pm]
+        fadd dword ptr [esp + 0x18]
+        fstp dword ptr [esp + 0x18]
+        fld dword ptr [esp + 0x28]
+        fmul dword ptr [climb832Const200ac2bc]
+        fadd dword ptr [esp + 0x1c]
+        fstp dword ptr [esp + 0x1c]
+        fld dword ptr [esp + 0x2c]
+        fmul dword ptr [climb832Const200ac2bc]
+        fadd dword ptr [esp + 0x20]
+        fstp dword ptr [esp + 0x20]
+        mov ecx, dword ptr [eax + climb832Field9]
+        mov edx, dword ptr [eax + climb832Field0]
+        push ecx
+        mov ecx, dword ptr [edx + climb832Field10]
+        lea edx, [esp + 0x1c]
+        push ecx
+        push edx
+        lea ecx, [esp + 0x48]
+        lea edx, [eax + climb832Field11]
+        push ecx
+        push edx
+        lea ecx, [esp + 0x2c]
+        lea edx, [esp + 0x5c]
+        push ecx
+        push edx
+        call dword ptr [eax + climb832Field12]
+        mov eax, dword ptr [esp + 0x64]
+        add esp, 0x20
+        test eax, eax
+        je climb832_2003b7ad
+        fld dword ptr [esp + 8]
+        fsub dword ptr [climb832Const200ac2d8]
+        mov eax, dword ptr [esp + 0x2c]
+        mov ecx, dword ptr [esp + 0x30]
+        lea edx, [esp + 0x20]
+        mov dword ptr [esp + 0x14], eax
+        fmul dword ptr [climb832Const200ac180]
+        push edx
+        mov dword ptr [esp + 0x1c], ecx
+        mov dword ptr [esp + 0x2c], 0
+        fadd dword ptr [climb832Const200ac2d8]
+        fstp dword ptr [esp + 0xc]
+        fld dword ptr [esp + 0x38]
+        fadd dword ptr [esp + 0xc]
+        fstp dword ptr [esp + 0x20]
+        fld dword ptr [esi]
+        fchs 
+        fstp dword ptr [esp + 0x24]
+        fld dword ptr [esi + 4]
+        fchs 
+        fstp dword ptr [esp + 0x28]
+        call VectorNormalize
+        fstp st(0)
+        fld dword ptr [esp + 0x24]
+        fmul dword ptr [climb832Const200ac2bc]
+        mov eax, dword ptr [pm]
+        fadd dword ptr [esp + 0x18]
+        fstp dword ptr [esp + 0x18]
+        fld dword ptr [esp + 0x28]
+        fmul dword ptr [climb832Const200ac2bc]
+        fadd dword ptr [esp + 0x1c]
+        fstp dword ptr [esp + 0x1c]
+        fld dword ptr [esp + 0x2c]
+        fmul dword ptr [climb832Const200ac2bc]
+        fadd dword ptr [esp + 0x20]
+        fstp dword ptr [esp + 0x20]
+        mov ecx, dword ptr [eax + climb832Field9]
+        mov edx, dword ptr [eax + climb832Field0]
+        push ecx
+        mov ecx, dword ptr [edx + climb832Field10]
+        lea edx, [esp + 0x1c]
+        push ecx
+        push edx
+        lea ecx, [esp + 0x48]
+        lea edx, [eax + climb832Field11]
+        push ecx
+        push edx
+        lea ecx, [esp + 0x2c]
+        lea edx, [esp + 0x5c]
+        push ecx
+        push edx
+        call dword ptr [eax + climb832Field12]
+        mov eax, dword ptr [esp + 0x64]
+        add esp, 0x20
+        test eax, eax
+        je climb832_2003b7ad
+        pop edi
+        xor eax, eax
+        pop esi
+        add esp, 0x74
+        ret 
+climb832_2003b7ad:
+        fld dword ptr [esp + 0x34]
+        fadd dword ptr [esp + 8]
+        mov eax, dword ptr [esp + 0x2c]
+        mov ecx, dword ptr [esp + 0x30]
+        lea edx, [esp + 0x20]
+        mov dword ptr [esp + 0x14], eax
+        push edx
+        mov dword ptr [esp + 0x1c], ecx
+        fstp dword ptr [esp + 0x20]
+        fld dword ptr [esi]
+        fchs 
+        fstp dword ptr [esp + 0x24]
+        fld dword ptr [esi + 4]
+        fchs 
+        fstp dword ptr [esp + 0x28]
+        mov dword ptr [esp + 0x2c], 0
+        call VectorNormalize
+        fstp st(0)
+        fld dword ptr [esp + 0x24]
+        fmul dword ptr [climb832Const200ac2bc]
+        fadd dword ptr [esp + 0x18]
+        fst dword ptr [esp + 0x18]
+        fld dword ptr [esp + 0x28]
+        fmul dword ptr [climb832Const200ac2bc]
+        fadd dword ptr [esp + 0x1c]
+        fstp dword ptr [esp + 0x1c]
+        fld dword ptr [esp + 0x2c]
+        fmul dword ptr [climb832Const200ac2bc]
+        mov eax, dword ptr [esp + 0x1c]
+        mov dword ptr [esp + 0x28], eax
+        mov eax, dword ptr [pm]
+        fadd dword ptr [esp + 0x20]
+        fstp dword ptr [esp + 0x20]
+        fstp dword ptr [esp + 0x24]
+        fld dword ptr [esp + 0x20]
+        fsub dword ptr [climb832Const200ac1c4]
+        fstp dword ptr [esp + 0x2c]
+        mov ecx, dword ptr [eax + climb832Field9]
+        mov edx, dword ptr [eax + climb832Field0]
+        push ecx
+        mov ecx, dword ptr [edx + climb832Field10]
+        lea edx, [esp + 0x28]
+        push ecx
+        push edx
+        lea ecx, [esp + 0x48]
+        lea edx, [eax + climb832Field11]
+        push ecx
+        push edx
+        lea ecx, [esp + 0x2c]
+        lea edx, [esp + 0x5c]
+        push ecx
+        push edx
+        call dword ptr [eax + climb832Field12]
+        fld dword ptr [esp + 0x28]
+        fsub dword ptr [esp + 0x30]
+        fld dword ptr [esp + 0x6c]
+        fmul dword ptr [climb832Const200ac1c4]
+        add esp, 0x20
+        fsubp st(1), st(0)
+        fcom dword ptr [climb832Const200ac860]
+        fnstsw ax
+        test ah, 1
+        je climb832_2003b8b5
+        mov eax, dword ptr [pm]
+        pop edi
+        fstp st(0)
+        mov eax, dword ptr [eax + climb832Field0]
+        pop esi
+        mov ecx, dword ptr [eax + climb832Field1]
+        or ecx, 0x40
+        mov dword ptr [eax + climb832Field1], ecx
+        xor eax, eax
+        add esp, 0x74
+        ret 
+climb832_2003b8b5:
+        fld dword ptr [esp + 0xc]
+        fmul dword ptr [climb832Const200ac85c]
+        fxch st(1)
+        fcompp 
+        fnstsw ax
+        test ah, 0x41
+        jne climb832_2003b8d2
+        pop edi
+        xor eax, eax
+        pop esi
+        add esp, 0x74
+        ret 
+climb832_2003b8d2:
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax + climb832PmExt]
+        mov ecx, dword ptr [ecx + climb832Field13]
+        cmp ecx, 0x384
+        jge climb832_2003b8f8
+        mov edx, dword ptr [esp + 0x88]
+        test edx, edx
+        jne climb832_2003b8f8
+        pop edi
+        xor eax, eax
+        pop esi
+        add esp, 0x74
+        ret 
+climb832_2003b8f8:
+        cmp ecx, 0xa
+        jge climb832_2003b905
+        pop edi
+        xor eax, eax
+        pop esi
+        add esp, 0x74
+        ret 
+climb832_2003b905:
+        mov eax, dword ptr [eax + climb832Field0]
+        mov edx, dword ptr [eax + climb832Field1]
+        or edx, 0x20
+        mov dword ptr [eax + climb832Field1], edx
+        xor eax, eax
+        test edi, edi
+        pop edi
+        pop esi
+        sete al
+        add esp, 0x74
+        ret 
+    }
+}
+#else
 static qboolean PM_ClimbSlideMove(int unused, const vec3_t normal, qboolean wasClimbing) {
     vec3_t origin, end, direction, maxs;
     trace_t trace;
@@ -6511,8 +16523,452 @@ static qboolean PM_ClimbSlideMove(int unused, const vec3_t normal, qboolean wasC
     pm->ps->stats[STAT_TCE_FLAGS] |= 0x20;
     return below <= -17.f;
 }
+#endif
 
-/* Whole TC:E3000b120 / Linux000dd4fa. */
+/* TC qagame20033480: original control flow; undefined freeClimb remains a documented boundary. */
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* TC qagame832: native offsets and original Windows x87 instruction order. */
+static const float move832K200ac110 = 1.0;
+static const float move832K200ac720 = -400.0;
+static const double move832K200ac378 = 0.001;
+static const double move832K200ac130 = 1.0;
+static const float move832K200ac100 = 0.0;
+static const float move832K200ac778 = 20000.0;
+static const float move832K200ac774 = 3500.0;
+static const float move832K200ac250 = 3000.0;
+static const float move832K200ac6dc = 2500.0;
+static const float move832K200ac2ec = 0.33000001311302185;
+static const float move832K200ac180 = 0.5;
+static const float move832K200ac770 = 1250.0;
+static const float move832K200ac700 = 120.0;
+enum {
+    move832Ps = offsetof(pmove_t,ps),
+    move832Ext = offsetof(pmove_t,pmext),
+    move832Character = offsetof(pmove_t,character),
+    move832Buttons = offsetof(pmove_t,cmd)+offsetof(usercmd_t,buttons),
+    move832ForwardCmd = offsetof(pmove_t,cmd)+offsetof(usercmd_t,forwardmove),
+    move832RightCmd = offsetof(pmove_t,cmd)+offsetof(usercmd_t,rightmove),
+    move832Mask = offsetof(pmove_t,tracemask),
+    move832Mins = offsetof(pmove_t,mins),
+    move832Maxs = offsetof(pmove_t,maxs),
+    move832Trace = offsetof(pmove_t,trace),
+    move832Skill = offsetof(pmove_t,skill),
+    move832Origin = offsetof(playerState_t,origin),
+    move832Velocity = offsetof(playerState_t,velocity),
+    move832Flags = offsetof(playerState_t,pm_flags),
+    move832Eflags = offsetof(playerState_t,eFlags),
+    move832Health = offsetof(playerState_t,stats)+STAT_HEALTH*sizeof(int),
+    move832TcFlags = offsetof(playerState_t,stats)+STAT_TCE_FLAGS*sizeof(int),
+    move832WeaponFlags = offsetof(playerState_t,stats)+STAT_TCE_WEAPON_FLAGS*sizeof(int),
+    move832Ground = offsetof(playerState_t,groundEntityNum),
+    move832Client = offsetof(playerState_t,clientNum),
+    move832Weapon = offsetof(playerState_t,weapon),
+    move832WeaponState = offsetof(playerState_t,weaponstate),
+    move832Adrenaline = offsetof(playerState_t,powerups)+PW_ADRENALINE*sizeof(int),
+    move832Fatigue = offsetof(playerState_t,powerups)+PW_NOFATIGUE*sizeof(int),
+    move832Carried = offsetof(playerState_t,holdable)+9*sizeof(int),
+    move832Exert = offsetof(playerState_t,sprintExertTime),
+    move832Sprint = offsetof(pmoveExt_t,sprintTime),
+    move832Model = offsetof(bg_character_t,animModelInfo),
+    move832DefWeight = offsetof(tce_weaponDef_t,loadoutWeight),
+    move832Frame = offsetof(pml_t,frametime),
+    move832Walking = offsetof(pml_t,walking),
+    move832GroundPlane = offsetof(pml_t,groundPlane),
+    move832Forward = offsetof(pml_t,forward),
+    move832Ladder = offsetof(pml_t,ladder),
+    move832Material = offsetof(pml_t,tceLadderSurfaceFlags)
+};
+#ifdef GAMEDLL
+enum { move832Leadership = offsetof(pmove_t,leadership) };
+#endif
+typedef char move832TraceLayout[(sizeof(trace_t)==56 && offsetof(trace_t,fraction)==8 && offsetof(trace_t,plane)==24 && offsetof(trace_t,surfaceFlags)==44 && offsetof(trace_t,contents)==48 && offsetof(trace_t,entityNum)==52) ? 1 : -1];
+typedef char move832Protocol[(offsetof(pmove_t,ps)==0 && SK_BATTLE_SENSE==0 && offsetof(cplane_t,normal)==0 && PMF_LADDER==4 && PMF_DUCKED==1 && EF_PRONE==0x80000 && EF_PRONE_MOVING==0x100000 && EV_FOOTSTEP==1 && ANIM_ET_CLIMB_MOUNT==9 && ANIM_ET_CLIMB_DISMOUNT==10 && sizeof(tce_weaponDef_t)==460) ? 1 : -1];
+#endif
+#if defined(_MSC_VER) && defined(_M_IX86)
+__declspec(naked) void PM_CheckLadderMove(void) {
+    __asm {
+        sub esp, 0x64
+        mov eax, dword ptr [pm]
+        push ebx
+        xor ebx, ebx
+        push esi
+        mov eax, dword ptr [eax]
+        push edi
+        mov dword ptr [esp+0x10], 0 /* Defined native fallback for original uninitialized freeClimb. */
+        mov dword ptr [esp + 0xc], 0x3f800000
+        mov edx, dword ptr [eax+move832TcFlags]
+        and edx, 0xffffffbf
+        mov dword ptr [eax+move832TcFlags], edx
+        mov ecx, dword ptr [pm]
+        mov eax, dword ptr [ecx]
+        mov ecx, dword ptr [eax+move832TcFlags]
+        and ecx, 0xffffffdf
+        mov dword ptr [eax+move832TcFlags], ecx
+        mov eax, dword ptr [pml+move832Walking]
+        cmp eax, ebx
+        jne move832_200334ce
+        mov dword ptr [esp + 0xc], 0x42400000
+move832_200334ce:
+        mov edx, dword ptr [pml+move832Forward]
+        mov eax, dword ptr [pml+move832Forward+4]
+        lea ecx, [esp + 0x20]
+        mov dword ptr [esp + 0x20], edx
+        push ecx
+        mov dword ptr [esp + 0x28], eax
+        mov dword ptr [esp + 0x2c], 0
+        call VectorNormalize
+        mov eax, dword ptr [pm]
+        fstp st(0)
+        fld dword ptr [esp + 0x24]
+        fmul dword ptr [esp + 0x10]
+        mov edx, dword ptr [eax]
+        fadd dword ptr [edx+move832Origin]
+        fstp dword ptr [esp + 0x18]
+        fld dword ptr [esp + 0x28]
+        fmul dword ptr [esp + 0x10]
+        mov ecx, dword ptr [eax]
+        fadd dword ptr [ecx+move832Origin+4]
+        fstp dword ptr [esp + 0x1c]
+        fld dword ptr [esp + 0x2c]
+        fmul dword ptr [esp + 0x10]
+        mov edx, dword ptr [eax]
+        fadd dword ptr [edx+move832Origin+8]
+        fstp dword ptr [esp + 0x20]
+        mov ecx, dword ptr [eax]
+        mov edx, dword ptr [eax+move832Mask]
+        push edx
+        mov edx, dword ptr [ecx+move832Client]
+        add ecx, move832Origin
+        push edx
+        lea edx, [esp + 0x20]
+        push edx
+        lea edx, [eax+move832Maxs]
+        push edx
+        lea edx, [eax+move832Mins]
+        push edx
+        push ecx
+        lea ecx, [esp + 0x54]
+        push ecx
+        call dword ptr [eax+move832Trace]
+        fld dword ptr [esp + 0x60]
+        fcomp dword ptr [move832K200ac110]
+        add esp, 0x20
+        fnstsw ax
+        test ah, 1
+        je move832_200335b2
+        mov edx, dword ptr [esp + 0x64]
+        and edx, 0xff000000
+        cmp edx, 0x14000000
+        jne move832_200335c8
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax]
+        test byte ptr [ecx+move832WeaponFlags], 0x80
+        jne move832_200335c8
+        push EV_TCE_FENCE_TOUCH
+        call PM_AddEvent
+        mov edx, dword ptr [pm]
+        add esp, 4
+        mov eax, dword ptr [edx]
+        mov ecx, dword ptr [eax+move832WeaponFlags]
+        or cl, 0x80
+        jmp move832_200335c2
+move832_200335b2:
+        mov eax, dword ptr [pm]
+        mov eax, dword ptr [eax]
+        mov ecx, dword ptr [eax+move832WeaponFlags]
+        and cl, 0x7f
+move832_200335c2:
+        mov dword ptr [eax+move832WeaponFlags], ecx
+move832_200335c8:
+        mov ecx, dword ptr [esp + 0x64]
+        mov dword ptr [pml+move832Material], ecx
+        mov ecx, dword ptr [pm]
+        mov eax, dword ptr [ecx]
+        mov edi, dword ptr [eax+move832Flags]
+        mov esi, dword ptr [eax+move832TcFlags]
+        mov dword ptr [pml+move832Ladder], ebx
+        mov eax, dword ptr [ecx]
+        shr edi, 2
+        mov edx, dword ptr [eax+move832Flags]
+        and edi, 1
+        and edx, 0xfffffffb
+        mov dword ptr [eax+move832Flags], edx
+        mov edx, dword ptr [pm]
+        shr esi, 7
+        mov eax, dword ptr [edx]
+        and esi, 1
+        mov ecx, dword ptr [eax+move832TcFlags]
+        and cl, 0x7f
+        mov dword ptr [eax+move832TcFlags], ecx
+        mov ecx, dword ptr [pm]
+        mov dword ptr [ladderforward], ebx
+        mov edx, dword ptr [ecx]
+        cmp dword ptr [edx+move832Health], ebx
+        jg move832_20033647
+        mov dword ptr [edx+move832Ground], 0x3ff
+        pop edi
+        mov dword ptr [pml+move832GroundPlane], ebx
+        mov dword ptr [pml+move832Walking], ebx
+        pop esi
+        pop ebx
+        add esp, 0x64
+        ret 
+move832_20033647:
+        test dword ptr [edx+move832Eflags], 0x180000
+        jne move832_20033981
+        mov eax, dword ptr [edx+move832WeaponState]
+        cmp eax, 9
+        je move832_20033981
+        cmp eax, 0xa
+        je move832_20033981
+        cmp eax, 0xb
+        je move832_20033981
+        fld dword ptr [esp + 0x40]
+        fcomp dword ptr [move832K200ac110]
+        mov ebx, dword ptr [esp + 0x64]
+        fnstsw ax
+        test ah, 1
+        je move832_200336bd
+        test bl, 8
+        je move832_200336bd
+        mov eax, dword ptr [pml+move832Walking]
+        test eax, eax
+        jne move832_200336ac
+        fld dword ptr [edx+move832Velocity+8]
+        fcomp dword ptr [move832K200ac720]
+        fnstsw ax
+        test ah, 1
+        jne move832_2003374b
+move832_200336ac:
+        mov ebx, 1
+        mov eax, ebx
+        mov dword ptr [pml+move832Ladder], eax
+        jmp move832_2003375d
+move832_200336bd:
+        fld dword ptr [esp + 0x40]
+        fmul dword ptr [esp + 0xc]
+        fcomp dword ptr [move832K200ac110]
+        fnstsw ax
+        test ah, 1
+        je move832_2003374b
+        mov eax, dword ptr [edx+move832TcFlags]
+        test ah, 8
+        jne move832_2003374b
+        test ebx, 0x40000
+        jne move832_2003374b
+        test dword ptr [esp + 0x68], 0x6000000
+        jne move832_2003374b
+        cmp dword ptr [esp + 0x6c], 0x3fe
+        jne move832_2003374b
+        fld dword ptr [esp + 0x58]
+        fabs 
+        fcomp qword ptr [move832K200ac378]
+        fnstsw ax
+        test ah, 1
+        je move832_2003374b
+        lea eax, [esp + 0x50]
+        push esi
+        mov ebx, 1
+        push eax
+        push ebx
+        call PM_ClimbSlideMove
+        add esp, 0xc
+        test eax, eax
+        je move832_20033745
+        mov ecx, dword ptr [pm]
+        mov dword ptr [pml+move832Ladder], ebx
+        mov dword ptr [esp + 0x10], ebx
+        mov eax, dword ptr [ecx]
+        mov ecx, dword ptr [eax+move832TcFlags]
+        or cl, 0x80
+        mov dword ptr [eax+move832TcFlags], ecx
+move832_20033745:
+        mov ecx, dword ptr [pm]
+move832_2003374b:
+        mov eax, dword ptr [pml+move832Ladder]
+        mov ebx, 1
+        test eax, eax
+        je move832_200338af
+move832_2003375d:
+        mov edx, dword ptr [esp + 0x50]
+        mov dword ptr [laddervec], edx
+        mov edx, dword ptr [esp + 0x54]
+        mov dword ptr [laddervec+4], edx
+        mov edx, dword ptr [esp + 0x58]
+        test eax, eax
+        mov dword ptr [laddervec+8], edx
+        je move832_200338af
+        mov eax, dword ptr [pml+move832Walking]
+        test eax, eax
+        jne move832_200338c2
+        fld dword ptr [esp + 0x40]
+        fmul dword ptr [esp + 0xc]
+        fcomp qword ptr [move832K200ac130]
+        fnstsw ax
+        test ah, 0x41
+        jne move832_200338c2
+        fld dword ptr [esp + 0xc]
+        mov dword ptr [pml+move832Ladder], 0
+        mov eax, dword ptr [ecx+move832Mins]
+        fchs 
+        mov dword ptr [esp + 0x2c], eax
+        mov edx, dword ptr [ecx+move832Mins+4]
+        fld st(0)
+        fmul dword ptr [esp + 0x50]
+        mov dword ptr [esp + 0x30], edx
+        mov dword ptr [esp + 0x34], 0xbf800000
+        mov eax, dword ptr [ecx]
+        fadd dword ptr [eax+move832Origin]
+        fstp dword ptr [esp + 0x14]
+        mov edx, dword ptr [ecx]
+        fld st(0)
+        fmul dword ptr [esp + 0x54]
+        fadd dword ptr [edx+move832Origin+4]
+        fstp dword ptr [esp + 0x18]
+        mov eax, dword ptr [ecx]
+        fmul dword ptr [esp + 0x58]
+        fadd dword ptr [eax+move832Origin+8]
+        fstp dword ptr [esp + 0x1c]
+        mov eax, dword ptr [ecx]
+        mov edx, dword ptr [ecx+move832Mask]
+        push edx
+        mov edx, dword ptr [eax+move832Client]
+        add eax, move832Origin
+        push edx
+        lea edx, [esp + 0x1c]
+        push edx
+        lea edx, [ecx+move832Maxs]
+        push edx
+        lea edx, [esp + 0x3c]
+        push edx
+        push eax
+        lea eax, [esp + 0x50]
+        push eax
+        call dword ptr [ecx+move832Trace]
+        fld dword ptr [esp + 0x5c]
+        fcomp dword ptr [move832K200ac110]
+        add esp, 0x1c
+        fnstsw ax
+        test ah, 1
+        je move832_2003389f
+        test byte ptr [esp + 0x64], 8
+        je move832_20033862
+        mov ecx, dword ptr [pm]
+        mov dword ptr [ladderforward], ebx
+        mov dword ptr [pml+move832Ladder], ebx
+        mov eax, dword ptr [ecx]
+        or dword ptr [eax+move832Flags], 4
+        jmp move832_200338cc
+move832_20033862:
+        mov eax, dword ptr [esp + 0x10]
+        test eax, eax
+        je move832_2003389f
+        mov edx, dword ptr [pm]
+        mov dword ptr [ladderforward], ebx
+        mov dword ptr [pml+move832Ladder], ebx
+        mov eax, dword ptr [edx]
+        mov edx, dword ptr [eax+move832Flags]
+        or edx, 4
+        mov dword ptr [eax+move832Flags], edx
+        mov eax, dword ptr [pm]
+        mov eax, dword ptr [eax]
+        mov ecx, dword ptr [eax+move832TcFlags]
+        or cl, 0x80
+        mov dword ptr [eax+move832TcFlags], ecx
+        jmp move832_200338cc
+move832_2003389f:
+        mov dword ptr [pml+move832Ladder], 0
+move832_200338a9:
+        mov ecx, dword ptr [pm]
+move832_200338af:
+        test esi, esi
+        je move832_200338f7
+        mov edx, dword ptr [ecx]
+        test byte ptr [edx+move832TcFlags], 0x80
+        jne move832_20033913
+        push 0x11
+        jmp move832_20033904
+move832_200338c2:
+        mov ecx, dword ptr [ecx]
+        mov eax, dword ptr [ecx+move832Flags]
+        or al, 4
+        mov dword ptr [ecx+move832Flags], eax
+move832_200338cc:
+        mov eax, dword ptr [pml+move832Ladder]
+        test eax, eax
+        je move832_200338a9
+        mov eax, dword ptr [pml+move832Walking]
+        test eax, eax
+        je move832_200338a9
+        mov ecx, dword ptr [pm]
+        mov al, byte ptr [ecx+move832ForwardCmd]
+        test al, al
+        jg move832_200338af
+        mov dword ptr [pml+move832Ladder], 0
+        jmp move832_200338af
+move832_200338f7:
+        mov eax, dword ptr [ecx]
+        test byte ptr [eax+move832TcFlags], 0x80
+        je move832_20033913
+        push 0x10
+move832_20033904:
+        push ebx
+        call PM_AddEventExt
+        mov ecx, dword ptr [pm]
+        add esp, 8
+move832_20033913:
+        mov eax, dword ptr [pml+move832Ladder]
+        test eax, eax
+        jne move832_20033957
+        test edi, edi
+        je move832_20033981
+        mov edx, dword ptr [ecx]
+        fld dword ptr [edx+move832Velocity+8]
+        fcomp dword ptr [move832K200ac100]
+        fnstsw ax
+        test ah, 0x41
+        jne move832_20033981
+        mov ecx, dword ptr [ecx+move832Character]
+        push 0
+        push 0
+        push 0xa
+        mov eax, dword ptr [ecx+move832Model]
+        push eax
+        push edx
+        call BG_AnimScriptEvent
+        mov eax, dword ptr [pml+move832Ladder]
+        add esp, 0x14
+        test eax, eax
+        je move832_20033981
+        mov ecx, dword ptr [pm]
+move832_20033957:
+        test edi, edi
+        jne move832_20033981
+        mov edx, dword ptr [ecx]
+        fld dword ptr [edx+move832Velocity+8]
+        fcomp dword ptr [move832K200ac100]
+        fnstsw ax
+        test ah, 1
+        je move832_20033981
+        mov ecx, dword ptr [ecx+move832Character]
+        push edi
+        push edi
+        push 9
+        mov eax, dword ptr [ecx+move832Model]
+        push eax
+        push edx
+        call BG_AnimScriptEvent
+        add esp, 0x14
+move832_20033981:
+        pop edi
+        pop esi
+        pop ebx
+        add esp, 0x64
+        ret 
+    }
+}
+#else
+/* Portable fallback; no instruction-level Linux parity claim. */
 void PM_CheckLadderMove(void) {
     vec3_t spot, flatforward, mins;
     trace_t trace;
@@ -6549,7 +17005,7 @@ void PM_CheckLadderMove(void) {
     } else if (trace.fraction * tracedist < 1.f &&
                !(pm->ps->stats[STAT_TCE_FLAGS] & 0x800) &&
                !(trace.surfaceFlags & 0x40000) && !(trace.contents & 0x6000000) &&
-               trace.entityNum == ENTITYNUM_WORLD && fabs(trace.plane.normal[2]) < 0.001f &&
+               trace.entityNum == ENTITYNUM_WORLD && fabs(trace.plane.normal[2]) < 0.001 &&
                PM_ClimbSlideMove(1, trace.plane.normal, wasClimbing)) {
         pml.ladder = qtrue;
         freeClimb = qtrue;
@@ -6577,6 +17033,7 @@ void PM_CheckLadderMove(void) {
     if (pml.ladder && !wasOnLadder && pm->ps->velocity[2] < 0)
         BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo, ANIM_ET_CLIMB_MOUNT, qfalse, qfalse);
 }
+#endif
 
 /*
 ============
@@ -6923,7 +17380,248 @@ void PM_LadderMove (void) {
 PM_Sprint
 ==============
 */
-/* Whole TC:E3000beb0 / Linux000de040. */
+/* TC qagame20034210 / Linux0008c7bc: complete Windows server sprint controller. */
+#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
+__declspec(naked) void PM_Sprint(void) {
+    __asm {
+        mov ecx, dword ptr [pm]
+        sub esp, 8
+        mov al, byte ptr [ecx+move832Buttons]
+        push ebx
+        xor ebx, ebx
+        push esi
+        test al, 0x20
+        mov esi, 0x80000
+        je move832_20034396
+        cmp byte ptr [ecx+move832ForwardCmd], bl
+        jne move832_2003423b
+        cmp byte ptr [ecx+move832RightCmd], bl
+        je move832_20034396
+move832_2003423b:
+        mov edx, dword ptr [ecx]
+        test byte ptr [edx+move832Flags], 1
+        jne move832_20034396
+        test dword ptr [edx+move832Eflags], esi
+        jne move832_20034396
+        cmp dword ptr [edx+move832Adrenaline], ebx
+        je move832_20034267
+        mov eax, dword ptr [ecx+move832Ext]
+        mov dword ptr [eax+move832Sprint], 0x4e20
+        jmp move832_20034361
+move832_20034267:
+        mov eax, dword ptr [edx+move832Fatigue]
+        cmp eax, ebx
+        je move832_200342ca
+        add eax, -0x32
+        mov dword ptr [edx+move832Fatigue], eax
+        mov ecx, dword ptr [pm]
+        mov eax, dword ptr [ecx+move832Ext]
+        mov ecx, dword ptr [eax+move832Sprint]
+        add ecx, 0xa
+        mov dword ptr [eax+move832Sprint], ecx
+        mov edx, dword ptr [pm]
+        mov ecx, dword ptr [edx+move832Ext]
+        fild dword ptr [ecx+move832Sprint]
+        fcomp dword ptr [move832K200ac778]
+        fnstsw ax
+        test ah, 0x41
+        jne move832_200342ac
+        mov dword ptr [ecx+move832Sprint], 0x4e20
+move832_200342ac:
+        mov eax, dword ptr [pm]
+        mov eax, dword ptr [eax]
+        cmp dword ptr [eax+move832Fatigue], ebx
+        jge move832_20034361
+        mov dword ptr [eax+move832Fatigue], ebx
+        jmp move832_20034361
+move832_200342ca:
+        mov esi, dword ptr [edx+move832Weapon]
+        lea eax, [esi + esi*2]
+        shl eax, 3
+        sub eax, esi
+        lea eax, [eax + eax*4]
+        mov eax, dword ptr [eax*4 + weaponDef+move832DefWeight]
+        sub eax, 3
+        je move832_200342fd
+        dec eax
+        je move832_200342f5
+        dec eax
+        jne move832_200342fd
+        fld dword ptr [move832K200ac774]
+        jmp move832_20034303
+move832_200342f5:
+        fld dword ptr [move832K200ac250]
+        jmp move832_20034303
+move832_200342fd:
+        fld dword ptr [move832K200ac6dc]
+move832_20034303:
+        mov edx, dword ptr [edx+move832Carried]
+        sub edx, 3
+        je move832_20034324
+        dec edx
+        je move832_2003431c
+        dec edx
+        jne move832_20034324
+        fld dword ptr [move832K200ac774]
+        jmp move832_2003432a
+move832_2003431c:
+        fld dword ptr [move832K200ac250]
+        jmp move832_2003432a
+move832_20034324:
+        fld dword ptr [move832K200ac6dc]
+move832_2003432a:
+        fcom st(1)
+        fnstsw ax
+        test ah, 0x41
+        jne move832_2003433f
+        fsub st(0), st(1)
+        fmul dword ptr [move832K200ac2ec]
+        faddp st(1), st(0)
+        jmp move832_20034341
+move832_2003433f:
+        fstp st(0)
+move832_20034341:
+        mov esi, dword ptr [ecx+move832Ext]
+        fild dword ptr [esi+move832Sprint]
+        fld dword ptr [pml+move832Frame]
+        fmul st(0), st(2)
+        fmul dword ptr [move832K200ac180]
+        fsubp st(1), st(0)
+        call PM_MovementTruncate827
+        fstp st(0)
+        mov dword ptr [esi+move832Sprint], eax
+move832_20034361:
+        mov ecx, dword ptr [pm]
+        mov eax, dword ptr [ecx+move832Ext]
+        cmp dword ptr [eax+move832Sprint], ebx
+        jge move832_20034372
+        mov dword ptr [eax+move832Sprint], ebx
+move832_20034372:
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx]
+move832_2003437a:
+        cmp dword ptr [eax+move832Exert], ebx
+        jne move832_200344e9
+        pop esi
+        mov dword ptr [eax+move832Exert], 1
+        pop ebx
+        add esp, 8
+        ret 
+move832_20034396:
+        mov edx, dword ptr [ecx]
+        test byte ptr [edx+move832TcFlags], 0x80
+        je move832_200343d7
+        mov esi, dword ptr [ecx+move832Ext]
+        fild dword ptr [esi+move832Sprint]
+        fld dword ptr [pml+move832Frame]
+        fmul dword ptr [move832K200ac770]
+        fsubp st(1), st(0)
+        call PM_MovementTruncate827
+        mov dword ptr [esi+move832Sprint], eax
+        mov eax, dword ptr [pm]
+        mov eax, dword ptr [eax+move832Ext]
+        cmp dword ptr [eax+move832Sprint], ebx
+        jge move832_200343cd
+        mov dword ptr [eax+move832Sprint], ebx
+move832_200343cd:
+        mov ecx, dword ptr [pm]
+        mov eax, dword ptr [ecx]
+        jmp move832_2003437a
+move832_200343d7:
+        cmp dword ptr [edx+move832Adrenaline], ebx
+        je move832_200343ee
+        mov edx, dword ptr [ecx+move832Ext]
+        mov dword ptr [edx+move832Sprint], 0x4e20
+        jmp move832_200344bb
+move832_200343ee:
+        cmp dword ptr [edx+move832Fatigue], ebx
+        je move832_20034402
+        mov ecx, dword ptr [ecx+move832Ext]
+        add dword ptr [ecx+move832Sprint], 0xa
+        jmp move832_200344bb
+move832_20034402:
+        mov eax, dword ptr [ecx+move832Leadership]
+        mov dword ptr [esp + 8], 0x2ee
+        cmp eax, ebx
+        je move832_2003441e
+        mov dword ptr [esp + 8], 0x3e8
+        jmp move832_20034435
+move832_2003441e:
+        mov eax, dword ptr [ecx+move832Skill]
+        push ebp
+        mov ebp, dword ptr [eax]
+        cmp ebp, 2
+        pop ebp
+        jl move832_20034435
+        mov dword ptr [esp + 8], 0x4b0
+move832_20034435:
+        fld dword ptr [edx+move832Velocity+4]
+        fld dword ptr [edx+move832Velocity]
+        fld st(0)
+        fmul st(0), st(1)
+        fld st(2)
+        fmul st(0), st(3)
+        faddp st(1), st(0)
+        fsqrt 
+        fstp st(2)
+        fstp st(0)
+        fcomp dword ptr [move832K200ac700]
+        fnstsw ax
+        test ah, 0x41
+        jne move832_20034476
+        cmp byte ptr [ecx+move832ForwardCmd], bl
+        jne move832_20034462
+        cmp byte ptr [ecx+move832RightCmd], bl
+        je move832_20034476
+move832_20034462:
+        test byte ptr [edx+move832Flags], 1
+        jne move832_20034476
+        test dword ptr [edx+move832Eflags], esi
+        jne move832_20034476
+        test byte ptr [edx+move832WeaponFlags], 4
+        je move832_20034494
+move832_20034476:
+        fild dword ptr [esp + 8]
+        mov esi, dword ptr [ecx+move832Ext]
+        fmul dword ptr [pml+move832Frame]
+        fiadd dword ptr [esi+move832Sprint]
+        call PM_MovementTruncate827
+        mov dword ptr [esi+move832Sprint], eax
+        mov ecx, dword ptr [pm]
+move832_20034494:
+        mov esi, dword ptr [ecx+move832Ext]
+        mov eax, dword ptr [esi+move832Sprint]
+        cmp eax, 0x1388
+        mov dword ptr [esp + 0xc], eax
+        jle move832_200344c1
+        fild dword ptr [esp + 8]
+        fmul dword ptr [pml+move832Frame]
+        fiadd dword ptr [esp + 0xc]
+        call PM_MovementTruncate827
+        mov dword ptr [esi+move832Sprint], eax
+move832_200344bb:
+        mov ecx, dword ptr [pm]
+move832_200344c1:
+        mov edx, dword ptr [ecx+move832Ext]
+        fild dword ptr [edx+move832Sprint]
+        fcomp dword ptr [move832K200ac778]
+        fnstsw ax
+        test ah, 0x41
+        jne move832_200344e1
+        mov dword ptr [edx+move832Sprint], 0x4e20
+        mov ecx, dword ptr [pm]
+move832_200344e1:
+        mov ecx, dword ptr [ecx]
+        mov dword ptr [ecx+move832Exert], ebx
+move832_200344e9:
+        pop esi
+        pop ebx
+        add esp, 8
+        ret 
+    }
+}
+#else
+/* Portable fallback; no instruction-level Linux parity claim. */
 void PM_Sprint(void) {
     float cost, carriedCost, speed;
     int recharge;
@@ -6952,6 +17650,9 @@ void PM_Sprint(void) {
         else if (pm->ps->powerups[PW_NOFATIGUE]) pm->pmext->sprintTime += 10;
         else {
             recharge = pm->skill[SK_BATTLE_SENSE] >= 2 ? 1200 : 750;
+#ifdef GAMEDLL
+            if (pm->leadership) recharge = 1000;
+#endif
             speed = sqrt(pm->ps->velocity[0]*pm->ps->velocity[0] + pm->ps->velocity[1]*pm->ps->velocity[1]);
             if (speed <= 120.f || (!pm->cmd.forwardmove && !pm->cmd.rightmove) ||
                 (pm->ps->pm_flags & PMF_DUCKED) || (pm->ps->eFlags & EF_PRONE) ||
@@ -6967,6 +17668,7 @@ void PM_Sprint(void) {
     if (pm->pmext->sprintTime < 0) pm->pmext->sprintTime = 0;
     if (!pm->ps->sprintExertTime) pm->ps->sprintExertTime = 1;
 }
+#endif
 
 /*
 ================
@@ -6976,6 +17678,706 @@ PmoveSingle
 */
 void trap_SnapVector( float *v );
 
+#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
+/* TC qagame200344f0: complete Windows controller, native layout, original x87 order.
+ * Direct movement/weapon dependencies retain their separate integration boundaries. */
+static const float single833K200ac100 = 0.0;
+static const double single833K200ac378 = 0.001;
+static const float single833K200ac788 = -360.0;
+static const float single833K200ac6ec = 255.0;
+static const float single833K200ac3ac = 1000.0;
+static const float single833K200ac6b8 = 6.2831854820251465;
+static const double single833K200ac6a8 = 200.0;
+static const double single833K200ac780 = 2000.0;
+static const double single833K200ac6b0 = 400.0;
+enum {
+    single833Ps = offsetof(pmove_t,ps),
+    single833Ext = offsetof(pmove_t,pmext),
+    single833Character = offsetof(pmove_t,character),
+    single833Numtouch = offsetof(pmove_t,numtouch),
+    single833WaterType = offsetof(pmove_t,watertype),
+    single833WaterLevel = offsetof(pmove_t,waterlevel),
+    single833Mask = offsetof(pmove_t,tracemask),
+    single833Trace = offsetof(pmove_t,trace),
+    single833Cmd = offsetof(pmove_t,cmd),
+    single833CmdTime = offsetof(pmove_t,cmd)+offsetof(usercmd_t,serverTime),
+    single833Buttons = offsetof(pmove_t,cmd)+offsetof(usercmd_t,buttons),
+    single833Wbuttons = offsetof(pmove_t,cmd)+offsetof(usercmd_t,wbuttons),
+    single833CmdWeapon = offsetof(pmove_t,cmd)+offsetof(usercmd_t,weapon),
+    single833ForwardCmd = offsetof(pmove_t,cmd)+offsetof(usercmd_t,forwardmove),
+    single833RightCmd = offsetof(pmove_t,cmd)+offsetof(usercmd_t,rightmove),
+    single833UpCmd = offsetof(pmove_t,cmd)+offsetof(usercmd_t,upmove),
+    single833Tap = offsetof(pmove_t,cmd)+offsetof(usercmd_t,doubleTap),
+    single833CommandTime = offsetof(playerState_t,commandTime),
+    single833Type = offsetof(playerState_t,pm_type),
+    single833Flags = offsetof(playerState_t,pm_flags),
+    single833Origin = offsetof(playerState_t,origin),
+    single833Velocity = offsetof(playerState_t,velocity),
+    single833Lean = offsetof(playerState_t,leanf),
+    single833Ground = offsetof(playerState_t,groundEntityNum),
+    single833Eflags = offsetof(playerState_t,eFlags),
+    single833Weapon = offsetof(playerState_t,weapon),
+    single833WeaponState = offsetof(playerState_t,weaponstate),
+    single833ViewAngles = offsetof(playerState_t,viewangles),
+    single833ViewHeight = offsetof(playerState_t,viewheight),
+    single833Health = offsetof(playerState_t,stats)+STAT_HEALTH*sizeof(int),
+    single833Class = offsetof(playerState_t,stats)+STAT_PLAYER_CLASS*sizeof(int),
+    single833Seed = offsetof(playerState_t,stats)+STAT_TCE_SHOT_SEED*sizeof(int),
+    single833WeaponFlags = offsetof(playerState_t,stats)+STAT_TCE_WEAPON_FLAGS*sizeof(int),
+    single833TcFlags = offsetof(playerState_t,stats)+STAT_TCE_FLAGS*sizeof(int),
+    single833Instability = offsetof(playerState_t,stats)+STAT_TCE_MOVEMENT_INSTABILITY*sizeof(int),
+    single833Phase = offsetof(playerState_t,stats)+STAT_TCE_AIM_PHASE*sizeof(int),
+    single833HeavyUse = offsetof(playerState_t,persistant)+PERS_HWEAPON_USE*sizeof(int),
+    single833Persist14 = offsetof(playerState_t,persistant)+14*sizeof(int),
+    single833Clip28 = offsetof(playerState_t,ammoclip)+28*sizeof(int),
+    single833RecoilX = offsetof(playerState_t,holdable)+5*sizeof(int),
+    single833RecoilY = offsetof(playerState_t,holdable)+6*sizeof(int),
+    single833Spread = offsetof(playerState_t,aimSpreadScaleFloat),
+    single833Silenced = offsetof(pmoveExt_t,silencedSideArm),
+    single833ProneTime = offsetof(pmoveExt_t,proneTime),
+    single833Model = offsetof(bg_character_t,animModelInfo),
+    single833DefNoTac = offsetof(tce_weaponDef_t,noTacMode),
+    single833PmlDwords = sizeof(pml_t)/sizeof(int),
+    single833forward = offsetof(pml_t,forward),
+    single833right = offsetof(pml_t,right),
+    single833up = offsetof(pml_t,up),
+    single833frametime = offsetof(pml_t,frametime),
+    single833msec = offsetof(pml_t,msec),
+    single833walking = offsetof(pml_t,walking),
+    single833previous_origin = offsetof(pml_t,previous_origin),
+    single833previous_velocity = offsetof(pml_t,previous_velocity),
+    single833previous_waterlevel = offsetof(pml_t,previous_waterlevel),
+    single833ladder = offsetof(pml_t,ladder)
+};
+typedef char single833Layouts[(sizeof(pml_t)==156 && offsetof(pmove_t,ps)==0 && sizeof(tce_weaponDef_t)==460 && offsetof(tce_weaponDef_t,noTacMode)==0x194) ? 1 : -1];
+typedef char single833Protocol[(WEAPON_READY==0 && WEAPON_FIRING==7 && BUTTON_ATTACK==1 && BUTTON_TALK==2 && BUTTON_WALKING==16 && BUTTON_SPRINT==32 && PMF_LIMBO==0x4000 && PMF_TIME_LOCKPLAYER==0x8000 && PM_NORMAL==0 && PM_NOCLIP==1 && PM_SPECTATOR==2 && PM_DEAD==3 && PM_FREEZE==4 && PM_INTERMISSION==5 && PMF_RESPAWNED==0x200 && EF_TALK==0x200 && EF_FIRING==0x80 && EF_ZOOMING==0x40000 && EF_PRONE==0x80000 && EF_PRONE_MOVING==0x100000 && EF_MOUNTEDTANK==0x8000 && ANIM_MT_IDLE==1) ? 1 : -1];
+__declspec(naked) void PmoveSingle(pmove_t *pmove) {
+    __asm {
+        push ebx
+        push ebp
+        mov ebp, dword ptr [esp + 0xc]
+        push esi
+        push edi
+        push ebp
+        call BG_AnimUpdatePlayerStateConditions
+        mov edi, dword ptr [c_pmove]
+        add esp, 4
+        inc edi
+        xor eax, eax
+        mov dword ptr [pm], ebp
+        mov dword ptr [c_pmove], edi
+        mov dword ptr [ebp+single833Numtouch], eax
+        mov ecx, dword ptr [pm]
+        mov dword ptr [ecx+single833WaterType], eax
+        mov edx, dword ptr [pm]
+        mov dword ptr [edx+single833WaterLevel], eax
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx]
+        cmp dword ptr [edx+single833Health], eax
+        jg single833_20034566
+        mov edx, dword ptr [ecx+single833Mask]
+        and edx, 0xfdffffff
+        mov dword ptr [ecx+single833Mask], edx
+        mov eax, dword ptr [pm]
+        mov eax, dword ptr [eax]
+        mov ecx, dword ptr [eax+single833Eflags]
+        and ecx, 0xfffbffff
+        mov dword ptr [eax+single833Eflags], ecx
+        mov ecx, dword ptr [pm]
+single833_20034566:
+        movsx eax, byte ptr [ecx+single833ForwardCmd]
+        cdq 
+        xor eax, edx
+        sub eax, edx
+        cmp eax, 0x40
+        jg single833_20034582
+        movsx eax, byte ptr [ecx+single833RightCmd]
+        cdq 
+        xor eax, edx
+        sub eax, edx
+        cmp eax, 0x40
+        jle single833_20034590
+single833_20034582:
+        mov al, byte ptr [ecx+single833Buttons]
+        and al, 0xef
+        mov byte ptr [ecx+single833Buttons], al
+        mov ecx, dword ptr [pm]
+single833_20034590:
+        mov al, byte ptr [ecx+single833Buttons]
+        mov ecx, dword ptr [ecx]
+        test al, 2
+        mov eax, dword ptr [ecx+single833Eflags]
+        mov edi, 0x200
+        je single833_200345a5
+        or eax, edi
+        jmp single833_200345a8
+single833_200345a5:
+        and ah, 0xfd
+single833_200345a8:
+        mov dword ptr [ecx+single833Eflags], eax
+        mov ecx, dword ptr [pm]
+        mov ebx, 1
+        mov eax, dword ptr [ecx]
+        mov edx, dword ptr [eax+single833Eflags]
+        and edx, 0xfffbff7f
+        mov dword ptr [eax+single833Eflags], edx
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx]
+        test dword ptr [eax+single833Flags], edi
+        jne single833_2003463f
+        cmp dword ptr [eax+single833Type], 5
+        je single833_2003463f
+        mov edx, dword ptr [eax+single833Weapon]
+        push edx
+        call PM_WeaponAmmoAvailable
+        mov edx, dword ptr [pm]
+        add esp, 4
+        test eax, eax
+        je single833_2003463f
+        mov ecx, dword ptr [edx]
+        mov esi, dword ptr [ecx+single833Eflags]
+        test esi, 0x40000
+        jne single833_2003463f
+        fld dword ptr [ecx+single833Lean]
+        fcomp dword ptr [single833K200ac100]
+        fnstsw ax
+        test ah, 0x40
+        jne single833_20034616
+        test byte ptr [ecx+single833WeaponFlags], 4
+        je single833_2003463f
+single833_20034616:
+        mov eax, dword ptr [ecx+single833WeaponState]
+        test eax, eax
+        je single833_20034625
+        cmp eax, 7
+        jne single833_2003463f
+single833_20034625:
+        mov al, byte ptr [edx+single833Buttons]
+        test al, 1
+        je single833_2003463f
+        test al, 2
+        jne single833_2003463f
+        or esi, 0x80
+        mov dword ptr [ecx+single833Eflags], esi
+        mov edx, dword ptr [pm]
+single833_2003463f:
+        mov eax, dword ptr [edx]
+        test dword ptr [eax+single833Flags], edi
+        je single833_20034660
+        cmp dword ptr [eax+single833Class], 4
+        jne single833_20034660
+        mov edx, dword ptr [edx+single833Ext]
+        mov eax, dword ptr [edx+single833Silenced]
+        or eax, ebx
+        mov dword ptr [edx+single833Silenced], eax
+        mov edx, dword ptr [pm]
+single833_20034660:
+        mov eax, dword ptr [edx]
+        mov ecx, dword ptr [eax+single833Health]
+        test ecx, ecx
+        jle single833_20034681
+        test byte ptr [edx+single833Buttons], 1
+        jne single833_20034681
+        mov ecx, dword ptr [eax+single833Flags]
+        and ch, 0xfd
+        mov dword ptr [eax+single833Flags], ecx
+        mov edx, dword ptr [pm]
+single833_20034681:
+        test byte ptr [ebp+single833Buttons], 2
+        je single833_200346a5
+        mov byte ptr [ebp+single833Buttons], 2
+        mov byte ptr [ebp+single833Wbuttons], 0
+        mov byte ptr [ebp+single833ForwardCmd], 0
+        mov byte ptr [ebp+single833RightCmd], 0
+        mov byte ptr [ebp+single833UpCmd], 0
+        mov byte ptr [ebp+single833Tap], 0
+        mov edx, dword ptr [pm]
+single833_200346a5:
+        mov eax, dword ptr [edx]
+        mov ecx, dword ptr [eax+single833HeavyUse]
+        test ecx, ecx
+        je single833_200346c3
+        mov byte ptr [ebp+single833ForwardCmd], 0
+        mov byte ptr [ebp+single833RightCmd], 0
+        mov byte ptr [ebp+single833UpCmd], 0
+        mov edx, dword ptr [pm]
+single833_200346c3:
+        mov ecx, single833PmlDwords
+        xor eax, eax
+        mov edi, offset pml
+        rep stosd 
+        mov ecx, dword ptr [edx]
+        mov eax, dword ptr [ebp+single833CmdTime]
+        sub eax, dword ptr [ecx+single833CommandTime]
+        cmp eax, ebx
+        mov dword ptr [pml+single833msec], eax
+        jge single833_200346e9
+        mov dword ptr [pml+single833msec], ebx
+        jmp single833_200346fa
+single833_200346e9:
+        cmp eax, 0xc8
+        jle single833_200346fa
+        mov dword ptr [pml+single833msec], 0xc8
+single833_200346fa:
+        mov edx, dword ptr [edx]
+        mov eax, dword ptr [ebp+single833CmdTime]
+        mov dword ptr [edx+single833CommandTime], eax
+        mov eax, dword ptr [pm]
+        fild dword ptr [pml+single833msec]
+        mov ecx, dword ptr [eax]
+        mov edx, dword ptr [ecx+single833Origin]
+        mov dword ptr [pml+single833previous_origin], edx
+        mov ecx, dword ptr [eax]
+        fmul qword ptr [single833K200ac378]
+        mov edx, dword ptr [ecx+single833Origin+4]
+        mov dword ptr [pml+single833previous_origin+4], edx
+        mov ecx, dword ptr [eax]
+        mov edx, dword ptr [ecx+single833Origin+8]
+        mov dword ptr [pml+single833previous_origin+8], edx
+        mov ecx, dword ptr [eax]
+        mov edx, dword ptr [ecx+single833Velocity]
+        mov dword ptr [pml+single833previous_velocity], edx
+        mov ecx, dword ptr [eax]
+        mov edx, dword ptr [ecx+single833Velocity+4]
+        mov dword ptr [pml+single833previous_velocity+4], edx
+        mov ecx, dword ptr [eax]
+        mov edx, dword ptr [ecx+single833Velocity+8]
+        fstp dword ptr [pml+single833frametime]
+        mov dword ptr [pml+single833previous_velocity+8], edx
+        mov ecx, dword ptr [eax]
+        cmp dword ptr [ecx+single833Type], 4
+        je single833_2003478b
+        mov edx, dword ptr [ecx+single833Flags]
+        test dh, 0x40
+        jne single833_2003478b
+        mov edx, dword ptr [eax+single833Mask]
+        push edx
+        mov edx, dword ptr [eax+single833Trace]
+        push edx
+        lea edx, [eax+single833Cmd]
+        mov eax, dword ptr [eax+single833Ext]
+        push edx
+        push eax
+        push ecx
+        call PM_UpdateViewAngles
+        mov eax, dword ptr [pm]
+        add esp, 0x14
+single833_2003478b:
+        mov ecx, dword ptr [eax]
+        push offset pml+single833up
+        push offset pml+single833right
+        add ecx, single833ViewAngles
+        push offset pml+single833forward
+        push ecx
+        call AngleVectors
+        mov eax, dword ptr [pm]
+        add esp, 0x10
+        cmp byte ptr [eax+single833UpCmd], 0xa
+        jge single833_200347c6
+        mov eax, dword ptr [eax]
+        mov ecx, dword ptr [eax+single833Flags]
+        and ecx, 0xfffffffd
+        mov dword ptr [eax+single833Flags], ecx
+        mov eax, dword ptr [pm]
+single833_200347c6:
+        mov cl, byte ptr [eax+single833ForwardCmd]
+        mov ebx, 0x10
+        test cl, cl
+        jge single833_200347db
+        mov eax, dword ptr [eax]
+        mov ecx, dword ptr [eax+single833Flags]
+        or ecx, ebx
+        jmp single833_200347f0
+single833_200347db:
+        jg single833_200347e8
+        test cl, cl
+        jne single833_200347f8
+        mov cl, byte ptr [eax+single833RightCmd]
+        test cl, cl
+        je single833_200347f8
+single833_200347e8:
+        mov eax, dword ptr [eax]
+        mov ecx, dword ptr [eax+single833Flags]
+        and ecx, 0xffffffef
+single833_200347f0:
+        mov dword ptr [eax+single833Flags], ecx
+        mov eax, dword ptr [pm]
+single833_200347f8:
+        mov ecx, dword ptr [eax]
+        cmp dword ptr [ecx+single833Type], 3
+        jge single833_20034808
+        mov edx, dword ptr [ecx+single833Flags]
+        test dh, 0xc0
+        je single833_20034824
+single833_20034808:
+        mov byte ptr [eax+single833ForwardCmd], 0
+        mov edx, dword ptr [pm]
+        mov byte ptr [edx+single833RightCmd], 0
+        mov eax, dword ptr [pm]
+        mov byte ptr [eax+single833UpCmd], 0
+        mov eax, dword ptr [pm]
+single833_20034824:
+        mov edx, dword ptr [eax]
+        mov ecx, dword ptr [edx+single833Type]
+        cmp ecx, 2
+        jne single833_20034842
+        call PM_CheckDuck
+        call PM_FlyMove
+        call PM_DropTimers
+        pop edi
+        pop esi
+        pop ebp
+        pop ebx
+        ret 
+single833_20034842:
+        cmp ecx, 1
+        jne single833_20034856
+        call PM_NoclipMove
+        call PM_DropTimers
+        pop edi
+        pop esi
+        pop ebp
+        pop ebx
+        ret 
+single833_20034856:
+        cmp ecx, 4
+        je single833_20034ce8
+        test byte ptr [edx+single833TcFlags], bl
+        je single833_200348c0
+        mov byte ptr [eax+single833ForwardCmd], 0
+        mov ecx, dword ptr [pm]
+        xor edi, edi
+        mov byte ptr [ecx+single833RightCmd], 0
+        mov edx, dword ptr [pm]
+        mov byte ptr [edx+single833UpCmd], 0
+        mov eax, dword ptr [pm]
+        mov byte ptr [eax+single833Buttons], 0
+        mov ecx, dword ptr [pm]
+        mov byte ptr [ecx+single833Wbuttons], 0
+        mov eax, dword ptr [pm]
+        mov edx, dword ptr [eax]
+        mov cl, byte ptr [edx+single833Weapon]
+        mov byte ptr [eax+single833CmdWeapon], cl
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx]
+        mov dword ptr [eax+single833Lean], edi
+        mov ecx, dword ptr [pm]
+        mov byte ptr [ecx+single833Tap], 0
+        mov eax, dword ptr [pm]
+        jmp single833_200348c2
+single833_200348c0:
+        xor edi, edi
+single833_200348c2:
+        mov ecx, dword ptr [eax]
+        mov edx, dword ptr [ecx+single833Type]
+        cmp edx, 5
+        je single833_20034ce8
+        mov ebx, dword ptr [ecx+single833Weapon]
+        mov esi, 0x3c
+        cmp ebx, esi
+        jne single833_200348fa
+        cmp edx, edi
+        jne single833_200348fa
+        mov byte ptr [eax+single833ForwardCmd], 0
+        mov edx, dword ptr [pm]
+        mov byte ptr [edx+single833RightCmd], 0
+        mov eax, dword ptr [pm]
+        mov byte ptr [eax+single833UpCmd], 0
+single833_200348fa:
+        call PM_SetWaterLevel
+        mov ecx, dword ptr [ebp+single833WaterLevel]
+        mov dword ptr [pml+single833previous_waterlevel], ecx
+        call PM_CheckProne
+        test eax, eax
+        jne single833_20034919
+        call PM_CheckDuck
+single833_20034919:
+        call PM_GroundTrace
+        mov edx, dword ptr [pm]
+        mov ebp, 3
+        mov ebx, 0x80000
+        mov eax, dword ptr [edx]
+        cmp dword ptr [eax+single833Type], ebp
+        jne single833_20034955
+        call PM_DeadMove
+        mov eax, dword ptr [pm]
+        mov eax, dword ptr [eax]
+        cmp dword ptr [eax+single833Weapon], esi
+        jne single833_20034997
+        mov dword ptr [eax+single833Weapon], 0x23
+        jmp single833_20034997
+single833_20034955:
+        cmp dword ptr [eax+single833Weapon], 0x3e
+        jne single833_20034970
+        test dword ptr [eax+single833Eflags], ebx
+        jne single833_20034970
+        push edi
+        push 0x1f
+        push 0x3e
+        call PM_BeginWeaponChange
+        add esp, 0xc
+single833_20034970:
+        mov ecx, dword ptr [pm]
+        mov eax, dword ptr [ecx]
+        cmp dword ptr [eax+single833Weapon], 0x1c
+        jne single833_20034997
+        cmp dword ptr [eax+single833Clip28], edi
+        jne single833_20034997
+        push 1
+        push 0x1b
+        push 0x1c
+        call PM_BeginWeaponChange
+        add esp, 0xc
+single833_20034997:
+        call PM_CheckLadderMove
+        call PM_DropTimers
+        mov eax, dword ptr [pml+single833ladder]
+        mov esi, 0x8000
+        cmp eax, edi
+        je single833_200349b6
+        call PM_LadderMove
+        jmp single833_200349fe
+single833_200349b6:
+        mov ecx, dword ptr [pm]
+        mov eax, dword ptr [ecx]
+        mov edx, dword ptr [eax+single833Flags]
+        test dh, 1
+        je single833_200349cd
+        call PM_WaterJumpMove
+        jmp single833_200349fe
+single833_200349cd:
+        cmp dword ptr [ecx+single833WaterLevel], 1
+        jle single833_200349dd
+        call PM_WaterMove
+        jmp single833_200349fe
+single833_200349dd:
+        mov ecx, dword ptr [pml+single833walking]
+        cmp ecx, edi
+        mov ecx, dword ptr [eax+single833Eflags]
+        je single833_200349f5
+        test esi, ecx
+        jne single833_200349fe
+        call PM_WalkMove
+        jmp single833_200349fe
+single833_200349f5:
+        test esi, ecx
+        jne single833_200349fe
+        call PM_AirMove
+single833_200349fe:
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx]
+        test dword ptr [eax+single833Eflags], esi
+        je single833_20034a50
+        mov dword ptr [eax+single833Velocity+8], edi
+        mov eax, dword ptr [pm]
+        push 1
+        push 1
+        mov ecx, dword ptr [eax]
+        mov dword ptr [ecx+single833Velocity+4], edi
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx]
+        mov dword ptr [eax+single833Velocity], edi
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx]
+        mov dword ptr [edx+single833ViewHeight], 0x2a
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax+single833Character]
+        mov eax, dword ptr [eax]
+        mov edx, dword ptr [ecx+single833Model]
+        push edx
+        push eax
+        call BG_AnimScriptAnimation
+        add esp, 0x10
+single833_20034a50:
+        call PM_Sprint
+        call PM_GroundTrace
+        call PM_SetWaterLevel
+        call PM_Weapon
+        mov esi, dword ptr [pm]
+        mov ecx, dword ptr [esi]
+        mov edx, dword ptr [ecx+single833WeaponFlags]
+        test dl, 4
+        je single833_20034ccb
+        mov eax, dword ptr [ecx+single833WeaponState]
+        cmp eax, ebp
+        je single833_20034b3a
+        cmp eax, 1
+        jne single833_20034a97
+        test dl, 8
+        je single833_20034b3a
+single833_20034a97:
+        cmp eax, 9
+        je single833_20034b3a
+        cmp eax, 0xa
+        je single833_20034b3a
+        cmp eax, 0xb
+        je single833_20034b3a
+        mov eax, dword ptr [esi+single833WaterLevel]
+        cmp eax, 2
+        jg single833_20034b3a
+        cmp eax, edi
+        jle single833_20034aca
+        cmp dword ptr [ecx+single833Ground], 0x3ff
+        je single833_20034b3a
+single833_20034aca:
+        fld dword ptr [ecx+single833Velocity+8]
+        fcomp dword ptr [single833K200ac788]
+        fnstsw ax
+        test ah, 1
+        jne single833_20034b3a
+        test byte ptr [esi+single833Buttons], 0x20
+        je single833_20034af9
+        mov al, byte ptr [esi+single833ForwardCmd]
+        test al, al
+        jne single833_20034aee
+        mov al, byte ptr [esi+single833RightCmd]
+        test al, al
+        je single833_20034af9
+single833_20034aee:
+        test byte ptr [ecx+single833Flags], 1
+        jne single833_20034af9
+        test dword ptr [ecx+single833Eflags], ebx
+        je single833_20034b3a
+single833_20034af9:
+        cmp dword ptr [pml+single833ladder], edi
+        jne single833_20034b3a
+        cmp dword ptr [ecx+single833Health], edi
+        jle single833_20034b3a
+        test dh, 0x10
+        jne single833_20034b3a
+        mov eax, dword ptr [esi+single833CmdTime]
+        mov esi, dword ptr [esi+single833Ext]
+        mov ebx, eax
+        mov esi, dword ptr [esi+single833ProneTime]
+        sub ebx, esi
+        cmp ebx, 0xc8
+        jl single833_20034b3a
+        add esi, eax
+        cmp esi, 0xc8
+        jl single833_20034b3a
+        test dword ptr [ecx+single833Eflags], 0x100000
+        je single833_20034ccb
+single833_20034b3a:
+        and edx, 0xfffffffb
+        mov dword ptr [ecx+single833WeaponFlags], edx
+        mov ecx, dword ptr [pm]
+        mov eax, dword ptr [ecx]
+        cmp dword ptr [eax+single833WeaponState], ebp
+        jne single833_20034b67
+        mov ecx, dword ptr [eax+single833WeaponFlags]
+        test cl, 8
+        je single833_20034b67
+        and ecx, 0xfffffff7
+        mov dword ptr [eax+single833WeaponFlags], ecx
+single833_20034b67:
+        mov edx, dword ptr [pm]
+        mov ecx, dword ptr [edx]
+        mov eax, dword ptr [ecx+single833WeaponFlags]
+        test al, 8
+        je single833_20034b8a
+        test byte ptr [ecx+single833Persist14], 8
+        jne single833_20034b8a
+        and al, 0xf7
+        mov dword ptr [ecx+single833WeaponFlags], eax
+single833_20034b8a:
+        mov eax, dword ptr [pm]
+        mov eax, dword ptr [eax]
+        fld dword ptr [eax+single833Spread]
+        fadd dword ptr [single833K200ac6ec]
+        fstp dword ptr [eax+single833Spread]
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx]
+        mov dword ptr [edx+single833Instability], 0x3e8
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax]
+        cmp dword ptr [ecx+single833WeaponState], 7
+        je single833_20034cb9
+        mov edx, ecx
+        lea ecx, [esp + 0x14]
+        push ecx
+        mov eax, dword ptr [edx+single833Seed]
+        mov dword ptr [esp + 0x18], eax
+        call Q_random
+        fmul dword ptr [single833K200ac3ac]
+        add esp, 4
+        call PM_MovementTruncate827
+        mov edx, dword ptr [pm]
+        mov ecx, dword ptr [edx]
+        mov dword ptr [ecx+single833Phase], eax
+        mov edx, dword ptr [pm]
+        mov eax, dword ptr [edx]
+        mov ecx, dword ptr [eax+single833Phase]
+        cmp ecx, 0x3e8
+        jle single833_20034c1d
+        add ecx, 0xfffffc18
+        mov dword ptr [eax+single833Phase], ecx
+single833_20034c1d:
+        mov eax, dword ptr [pm]
+        mov edx, dword ptr [eax]
+        mov ecx, dword ptr [edx+single833Weapon]
+        lea eax, [ecx + ecx*2]
+        shl eax, 3
+        sub eax, ecx
+        lea ecx, [eax + eax*4]
+        cmp dword ptr [ecx*4 + weaponDef+single833DefNoTac], edi
+        jne single833_20034c9e
+        test byte ptr [edx+single833WeaponFlags], 4
+        je single833_20034c9e
+        lea edx, [esp + 0x14]
+        push edx
+        call Q_random
+        fmul dword ptr [single833K200ac6b8]
+        add esp, 4
+        fld st(0)
+        fcos 
+        fmul qword ptr [single833K200ac6a8]
+        fadd qword ptr [single833K200ac780]
+        call PM_MovementTruncate827
+        fsin 
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx]
+        mov dword ptr [edx+single833RecoilX], eax
+        fmul qword ptr [single833K200ac6b0]
+        fadd qword ptr [single833K200ac780]
+        call PM_MovementTruncate827
+        mov ecx, dword ptr [pm]
+        mov edx, dword ptr [ecx]
+        mov dword ptr [edx+single833RecoilY], eax
+single833_20034c9e:
+        mov eax, dword ptr [esp + 0x14]
+        mov ecx, dword ptr [pm]
+        and eax, 0xffff
+        mov dword ptr [esp + 0x14], eax
+        mov edx, dword ptr [ecx]
+        mov dword ptr [edx+single833Seed], eax
+single833_20034cb9:
+        push EV_TCE_TOGGLE_AIMING
+        call PM_AddEvent
+        add esp, 4
+        pop edi
+        pop esi
+        pop ebp
+        pop ebx
+        ret 
+single833_20034ccb:
+        call PM_Footsteps
+        call PM_WaterEvents
+        mov eax, dword ptr [pm]
+        mov ecx, dword ptr [eax]
+        add ecx, single833Velocity
+        push ecx
+        call trap_SnapVector
+        add esp, 4
+single833_20034ce8:
+        pop edi
+        pop esi
+        pop ebp
+        pop ebx
+        ret 
+    }
+}
+#else
+/* Portable/client fallback; no Windows instruction parity claim for this branch. */
 void PmoveSingle (pmove_t *pmove) {
 	// RF, update conditional values for anim system
 	BG_AnimUpdatePlayerStateConditions( pmove );
@@ -7297,6 +18699,7 @@ void PmoveSingle (pmove_t *pmove) {
 	trap_SnapVector( pm->ps->velocity );
 //	SnapVector( pm->ps->velocity );
 }
+#endif
 
 
 /*
@@ -7306,6 +18709,176 @@ Pmove
 Can be called by either the server or the client
 ================
 */
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* TC qagame2003b3a0: exact outer timing, wrap arithmetic and call order. */
+enum {
+    outerPs834 = offsetof(pmove_t,ps),
+    outerCommand834 = offsetof(pmove_t,cmd)+offsetof(usercmd_t,serverTime),
+    outerUp834 = offsetof(pmove_t,cmd)+offsetof(usercmd_t,upmove),
+    outerFixed834 = offsetof(pmove_t,pmove_fixed),
+    outerMsec834 = offsetof(pmove_t,pmove_msec),
+    outerTime834 = offsetof(playerState_t,commandTime),
+    outerFlags834 = offsetof(playerState_t,pm_flags),
+    outerFrame834 = offsetof(playerState_t,pmove_framecount),
+    outerHeat834 = offsetof(playerState_t,curWeapHeat)
+};
+__declspec(naked) int Pmove(pmove_t *pmove) {
+    __asm {
+    outerAt2003b3a0:
+        PUSH ESI
+    outerAt2003b3a1:
+        MOV ESI,dword ptr [ESP + 0x8]
+    outerAt2003b3a5:
+        PUSH EDI
+    outerAt2003b3a6:
+        MOV ECX,dword ptr [ESI + outerPs834]
+    outerAt2003b3a8:
+        MOV EDI,dword ptr [ESI + outerCommand834]
+    outerAt2003b3ab:
+        MOV EAX,dword ptr [ECX + outerTime834]
+    outerAt2003b3ad:
+        CMP EDI,EAX
+    outerAt2003b3af:
+        JL outerAt2003b477
+    outerAt2003b3b5:
+        ADD EAX,0x3e8
+    outerAt2003b3ba:
+        CMP EDI,EAX
+    outerAt2003b3bc:
+        JLE outerAt2003b3c6
+    outerAt2003b3be:
+        LEA EAX,[EDI - 1000]
+    outerAt2003b3c4:
+        MOV dword ptr [ECX + outerTime834],EAX
+    outerAt2003b3c6:
+        MOV EAX,dword ptr [ESI + outerPs834]
+    outerAt2003b3c8:
+        MOV ECX,dword ptr [EAX + outerFlags834]
+    outerAt2003b3cb:
+        TEST CH,0x20
+    outerAt2003b3ce:
+        JZ outerAt2003b3e0
+    outerAt2003b3d0:
+        MOV EDX,dword ptr [EAX + outerTime834]
+    outerAt2003b3d2:
+        MOV ECX,EDI
+    outerAt2003b3d4:
+        SUB ECX,EDX
+    outerAt2003b3d6:
+        CMP ECX,0x32
+    outerAt2003b3d9:
+        JLE outerAt2003b3e0
+    outerAt2003b3db:
+        LEA EDX,[EDI + -0x32]
+    outerAt2003b3de:
+        MOV dword ptr [EAX + outerTime834],EDX
+    outerAt2003b3e0:
+        MOV EAX,dword ptr [ESI + outerPs834]
+    outerAt2003b3e2:
+        MOV ECX,dword ptr [EAX + outerFrame834]
+    outerAt2003b3e8:
+        INC ECX
+    outerAt2003b3e9:
+        AND ECX,0x3f
+    outerAt2003b3ec:
+        MOV dword ptr [EAX + outerFrame834],ECX
+    outerAt2003b3f2:
+        MOV dword ptr [pm],ESI
+    outerAt2003b3f8:
+        CALL PM_AdjustAimSpreadScale
+    outerAt2003b3fd:
+        MOV EDX,dword ptr [ESI + outerPs834]
+    outerAt2003b3ff:
+        MOV ECX,dword ptr [EDX + outerTime834]
+    outerAt2003b401:
+        CMP ECX,EDI
+    outerAt2003b403:
+        JZ outerAt2003b44b
+    outerAt2003b405:
+        MOV EDX,dword ptr [ESI + outerFixed834]
+    outerAt2003b40b:
+        MOV EAX,EDI
+    outerAt2003b40d:
+        SUB EAX,ECX
+    outerAt2003b40f:
+        TEST EDX,EDX
+    outerAt2003b411:
+        JZ outerAt2003b421
+    outerAt2003b413:
+        MOV EDX,dword ptr [ESI + outerMsec834]
+    outerAt2003b419:
+        CMP EAX,EDX
+    outerAt2003b41b:
+        JLE outerAt2003b42b
+    outerAt2003b41d:
+        MOV EAX,EDX
+    outerAt2003b41f:
+        JMP outerAt2003b42b
+    outerAt2003b421:
+        CMP EAX,0x32
+    outerAt2003b424:
+        JLE outerAt2003b42b
+    outerAt2003b426:
+        MOV EAX,0x32
+    outerAt2003b42b:
+        ADD ECX,EAX
+    outerAt2003b42d:
+        PUSH ESI
+    outerAt2003b42e:
+        MOV dword ptr [ESI + outerCommand834],ECX
+    outerAt2003b431:
+        CALL PmoveSingle
+    outerAt2003b436:
+        MOV EAX,dword ptr [ESI + outerPs834]
+    outerAt2003b438:
+        ADD ESP,0x4
+    outerAt2003b43b:
+        TEST byte ptr [EAX + outerFlags834],0x2
+    outerAt2003b43f:
+        JZ outerAt2003b445
+    outerAt2003b441:
+        MOV byte ptr [ESI + outerUp834],0x14
+    outerAt2003b445:
+        MOV ECX,dword ptr [EAX + outerTime834]
+    outerAt2003b447:
+        CMP ECX,EDI
+    outerAt2003b449:
+        JNZ outerAt2003b405
+    outerAt2003b44b:
+        MOV ESI,dword ptr [ESI + outerPs834]
+    outerAt2003b44d:
+        MOV EAX,dword ptr [ESI + outerHeat834]
+    outerAt2003b453:
+        CMP EAX,0xff
+    outerAt2003b458:
+        JLE outerAt2003b469
+    outerAt2003b45a:
+        MOV dword ptr [ESI + outerHeat834],0xff
+    outerAt2003b464:
+        POP EDI
+    outerAt2003b465:
+        XOR EAX,EAX
+    outerAt2003b467:
+        POP ESI
+    outerAt2003b468:
+        RET
+    outerAt2003b469:
+        TEST EAX,EAX
+    outerAt2003b46b:
+        JGE outerAt2003b477
+    outerAt2003b46d:
+        MOV dword ptr [ESI + outerHeat834],0x0
+    outerAt2003b477:
+        POP EDI
+    outerAt2003b478:
+        XOR EAX,EAX
+    outerAt2003b47a:
+        POP ESI
+    outerAt2003b47b:
+        RET
+    }
+}
+#else
 int Pmove (pmove_t *pmove) {
 	int			finalTime;
 
@@ -7381,3 +18954,4 @@ int Pmove (pmove_t *pmove) {
     /* Original30013060 always returns zero, including corpse movement. */
     return 0;
 }
+#endif

@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include <stddef.h>
 #include "tce_bg.h"
 #include "tce_nodes.h"
 #include "tce_botinfo.h"
@@ -3649,6 +3650,146 @@ qboolean G_PositionEntityOnTag( gentity_t *entity, gentity_t* parent, char *tagN
 	return qtrue;
 }
 
+#if defined(GAMEDLL) && defined(_MSC_VER) && defined(_M_IX86)
+/* TC20063e2f..20063ea1: store backdelta but compare retained x87 value. */
+enum {
+    tag840Duration = offsetof(gentity_t,s) + offsetof(entityState_t,pos) + offsetof(trajectory_t,trDuration),
+    tag840Start = offsetof(gentity_t,s) + offsetof(entityState_t,pos) + offsetof(trajectory_t,trTime),
+    tag840Delta = offsetof(gentity_t,backdelta),
+    tag840Back = offsetof(gentity_t,back),
+    tag840LevelTime = offsetof(level_locals_t,time)
+};
+static const float tag840Zero = 0.0f, tag840One = 1.0f;
+static __declspec(naked) void G_TagPathFraction840(gentity_t *ent, gentity_t *parent) {
+    __asm {
+        SUB ESP,8
+        MOV EDX,dword ptr [ESP + 12]
+        MOV ECX,dword ptr [ESP + 16]
+        MOV EAX,dword ptr [ECX + tag840Duration]
+        TEST EAX,EAX
+        MOV dword ptr [ESP + 4],EAX
+        JZ tag840_zero
+        MOV EAX,dword ptr [level + tag840LevelTime]
+        SUB EAX,dword ptr [ECX + tag840Start]
+        MOV dword ptr [ESP],EAX
+        FILD dword ptr [ESP]
+        FILD dword ptr [ESP + 4]
+        FDIVP ST(1),ST(0)
+        JMP tag840_clamp
+    tag840_zero:
+        FLD dword ptr [tag840Zero]
+    tag840_clamp:
+        FCOM dword ptr [tag840Zero]
+        FST dword ptr [EDX + tag840Delta]
+        FNSTSW AX
+        TEST AH,1
+        JZ tag840_upper
+        FSTP ST(0)
+        MOV dword ptr [EDX + tag840Delta],0
+        JMP tag840_reverse
+    tag840_upper:
+        FCOMP dword ptr [tag840One]
+        FNSTSW AX
+        TEST AH,0x41
+        JNZ tag840_reverse
+        MOV dword ptr [EDX + tag840Delta],0x3f800000
+    tag840_reverse:
+        CMP dword ptr [EDX + tag840Back],0
+        JZ tag840_done
+        FLD dword ptr [tag840One]
+        FSUB dword ptr [EDX + tag840Delta]
+        FSTP dword ptr [EDX + tag840Delta]
+    tag840_done:
+        ADD ESP,8
+        RET
+    }
+}
+
+/* Native extraction of TC20063ea2..20063f44, not a separate original body. */
+enum {
+    tag841Spline = offsetof(gentity_t, backspline),
+    tag841Segments = offsetof(splinePath_t, segments),
+    tag841Stride = sizeof(splineSegment_t),
+    tag841Start = offsetof(splineSegment_t, start),
+    tag841Normal = offsetof(splineSegment_t, v_norm),
+    tag841Length = offsetof(splineSegment_t, length)
+};
+typedef char tag841ScalarLayout[(MAX_SPLINE_SEGMENTS == 16 && sizeof(float) == 4 && sizeof(int) == 4) ? 1 : -1];
+static const float tag841SegmentCount = 16.0f;
+static double (__cdecl *const tag841Floor)(double) = floor;
+static __declspec(naked) void G_TagTruncateST0841(void) {
+    __asm {
+        PUSH EBP
+        MOV EBP,ESP
+        SUB ESP,12
+        FWAIT
+        FNSTCW word ptr [EBP-2]
+        FWAIT
+        MOV AX,word ptr [EBP-2]
+        OR AH,0ch
+        MOV word ptr [EBP-4],AX
+        FLDCW word ptr [EBP-4]
+        FISTP qword ptr [EBP-12]
+        FLDCW word ptr [EBP-2]
+        MOV EAX,dword ptr [EBP-12]
+        MOV EDX,dword ptr [EBP-8]
+        LEAVE
+        RET
+    }
+}
+static __declspec(naked) void G_TagPathPoint841(gentity_t *ent, vec3_t point) {
+    __asm {
+        PUSH EBP
+        MOV EBP,ESP
+        SUB ESP,4
+        PUSH ESI
+        PUSH EDI
+        MOV ESI,dword ptr [EBP+8]
+        MOV EDI,dword ptr [EBP+12]
+        FLD dword ptr [ESI+tag840Delta]
+        FMUL dword ptr [tag841SegmentCount]
+        SUB ESP,8
+        FSTP qword ptr [ESP]
+        CALL dword ptr [tag841Floor]
+        ADD ESP,8
+        CALL G_TagTruncateST0841
+        MOV dword ptr [EBP-4],EAX
+        CMP EAX,16
+        JL tag841_fraction
+        MOV EAX,15
+        IMUL ECX,EAX,tag841Stride
+        MOV EDX,dword ptr [ESI+tag841Spline]
+        LEA ECX,[EDX+ECX+tag841Segments]
+        FLD dword ptr [ECX+tag841Length]
+        JMP tag841_point
+    tag841_fraction:
+        FLD dword ptr [ESI+tag840Delta]
+        FMUL dword ptr [tag841SegmentCount]
+        FISUB dword ptr [EBP-4]
+        IMUL ECX,EAX,tag841Stride
+        MOV EDX,dword ptr [ESI+tag841Spline]
+        LEA ECX,[EDX+ECX+tag841Segments]
+        FMUL dword ptr [ECX+tag841Length]
+    tag841_point:
+        FLD ST(0)
+        FMUL dword ptr [ECX+tag841Normal]
+        FADD dword ptr [ECX+tag841Start]
+        FSTP dword ptr [EDI]
+        FLD ST(0)
+        FMUL dword ptr [ECX+tag841Normal+4]
+        FADD dword ptr [ECX+tag841Start+4]
+        FSTP dword ptr [EDI+4]
+        FMUL dword ptr [ECX+tag841Normal+8]
+        FADD dword ptr [ECX+tag841Start+8]
+        FSTP dword ptr [EDI+8]
+        POP EDI
+        POP ESI
+        LEAVE
+        RET
+    }
+}
+#endif
+
 void G_TagLinkEntity( gentity_t* ent, int msec ) {
 	gentity_t* parent = &g_entities[ent->s.torsoAnim];
 	vec3_t move, amove;
@@ -3670,13 +3811,18 @@ void G_TagLinkEntity( gentity_t* ent, int msec ) {
 
 	if (!(parent->s.eFlags & EF_PATH_LINK)) {
 		if( (int)parent->s.pos.trType == 16 ) {
+#if !defined(GAMEDLL) || !defined(_MSC_VER) || !defined(_M_IX86)
 			int pos;
 			float frac;
+#endif
 
 			if((ent->backspline = BG_GetSplineData( parent->s.effect2Time, &ent->back )) == NULL) {
 				return;
 			}
 
+#if defined(GAMEDLL) && defined(_MSC_VER) && defined(_M_IX86)
+			G_TagPathFraction840(ent, parent);
+#else
 			ent->backdelta = parent->s.pos.trDuration ? (level.time - parent->s.pos.trTime) / ((float)parent->s.pos.trDuration) : 0;
 
 			if(ent->backdelta < 0.f) {
@@ -3688,7 +3834,11 @@ void G_TagLinkEntity( gentity_t* ent, int msec ) {
 			if(ent->back) {
 				ent->backdelta = 1 - ent->backdelta;
 			}
+#endif
 
+#if defined(GAMEDLL) && defined(_MSC_VER) && defined(_M_IX86)
+			G_TagPathPoint841(ent, v);
+#else
 			pos = floor(ent->backdelta * (MAX_SPLINE_SEGMENTS));
 			if(pos >= MAX_SPLINE_SEGMENTS) {
 				pos = MAX_SPLINE_SEGMENTS - 1;
@@ -3699,6 +3849,7 @@ void G_TagLinkEntity( gentity_t* ent, int msec ) {
 			
 
 			VectorMA( ent->backspline->segments[pos].start, frac, ent->backspline->segments[pos].v_norm, v );
+#endif
 			if(parent->s.apos.trBase[0]) {
 				BG_LinearPathOrigin2( parent->s.apos.trBase[0], &ent->backspline, &ent->backdelta, v, ent->back );
 			}
