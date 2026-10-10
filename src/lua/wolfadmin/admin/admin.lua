@@ -30,7 +30,11 @@ local playerRenames = {}
 function admin.putPlayer(clientId, teamId)
     local teamNames = {[1] = "axis", [2] = "allies", [3] = "spectator"}
     if not teamNames[teamId] or et.gentity_get(clientId, "pers.connected") ~= et.CON_CONNECTED then return false end
-    if not et.G_SetTeam(clientId, teamNames[teamId]) then return false end
+    -- SetTeam returns false both for already-on-team and for a successful
+    -- assignment deferred until next round. The resulting session team is
+    -- authoritative; do not misreport those cases as refused.
+    if tonumber(et.gentity_get(clientId, "sess.sessionTeam")) == teamId then return true end
+    et.G_SetTeam(clientId, teamNames[teamId])
     if tonumber(et.gentity_get(clientId, "sess.sessionTeam")) ~= teamId then return false end
     -- Native operations skip callbacks into the executing Lua state.
     players.onClientInfoChange(clientId)

@@ -37,12 +37,24 @@ end
 
 function bots.enable(enable)
     if enable then
-        et.trap_SendConsoleCommand(et.EXEC_APPEND, "bot minbots -1;")
-        et.trap_SendConsoleCommand(et.EXEC_APPEND, "bot maxbots "..settings.get("omnibot_maxbots")..";")
+        if tonumber(et.trap_Cvar_Get("omnibot_enable")) ~= 1 then return false, 0 end
+        local maximum = tonumber(settings.get("omnibot_maxbots")) or 10
+        local capacity = math.max(0, (tonumber(et.trap_Cvar_Get("sv_maxclients")) or 1) - 1)
+        maximum = math.min(capacity, math.max(1, math.floor(maximum)))
+        if maximum < 1 then return false, 0 end
+        local minimum = tonumber(settings.get("omnibot_minbots")) or -1
+        -- An explicit !needbots must actually request population even when
+        -- automatic map-script population was disabled with minbots=-1.
+        if minimum < 1 then minimum = maximum end
+        minimum = math.min(maximum, math.floor(minimum))
+        et.trap_SendConsoleCommand(et.EXEC_APPEND, "bot maxbots "..maximum..";")
+        et.trap_SendConsoleCommand(et.EXEC_APPEND, "bot minbots "..minimum..";")
+        return true, minimum
     else
         et.trap_SendConsoleCommand(et.EXEC_APPEND, "bot minbots -1;")
         et.trap_SendConsoleCommand(et.EXEC_APPEND, "bot maxbots -1;")
         et.trap_SendConsoleCommand(et.EXEC_APPEND, "bot kickall;")
+        return true, 0
     end
 end
 

@@ -154,6 +154,18 @@ public:
 template <class Real>
 Quaternion<Real> operator* (Real fScalar, const Quaternion<Real>& rkQ);
 
+#ifndef _MSC_VER
+// Explicit specializations are defined in the matching .cpp file.
+template<> const Quaternion<float> Quaternion<float>::IDENTITY;
+template<> const Quaternion<float> Quaternion<float>::ZERO;
+template<> const Quaternion<double> Quaternion<double>::IDENTITY;
+template<> const Quaternion<double> Quaternion<double>::ZERO;
+template<> int Quaternion<float>::ms_iNext[3];
+template<> int Quaternion<double>::ms_iNext[3];
+
+
+#endif
+
 #include "Wm3Quaternion.inl"
 
 typedef Quaternion<float> Quaternionf;

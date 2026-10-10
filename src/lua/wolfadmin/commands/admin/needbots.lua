@@ -20,9 +20,13 @@ local commands = wolfa_requireModule("commands.commands")
 local bots = wolfa_requireModule("game.bots")
 
 function commandBotsOn(clientId, command)
-    bots.enable(true)
+    local ok, minimum = bots.enable(true)
+    if not ok then
+        et.trap_SendConsoleCommand(et.EXEC_APPEND, "csay "..clientId.." \"needbots: enable Omni-bot and provide a free player slot first.\";")
+        return true
+    end
 
-    et.trap_SendConsoleCommand(et.EXEC_APPEND, "cchat -1 \"^dneedbots: ^9bots were toggled on.\";")
+    et.trap_SendConsoleCommand(et.EXEC_APPEND, "cchat -1 \"^dneedbots: ^9bot population requested (minimum "..minimum..").\";")
 
     return true
 end

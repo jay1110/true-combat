@@ -11,7 +11,11 @@ Copy this directory to `tce2/lua/wolfadmin`, then set:
 set lua_modules "lua/wolfadmin/main.lua"
 ```
 
-Restart the map. The first start creates `wolfadmin.db` in the writable game
+Run `lua_restart` in the server console/RCON, or restart the map. `lua_status`
+reports `active ... (WolfAdmin 1.2.1)` when loading succeeded. Loose server files
+also work with `sv_pure 1`; no Lua PK3 is required. Lua restart preserves native
+players and bots but clears private login sessions: authenticate again.
+The first start creates `wolfadmin.db` in the writable game
 directory using the bundled original schema. Existing databases are preserved.
 The server reads `wolfadmin.toml` from the game directory when present; otherwise
 it uses `lua/wolfadmin/config/wolfadmin.toml`. Copy that file to the game directory
@@ -31,11 +35,20 @@ acl listlevels
 
 Commands use the original WolfAdmin syntax and permission names. The console is
 the original level-5 pseudo-player. No player is automatically made admin.
-`!setlevel` requires a connected human with a unique, nonzero, 32-digit hexadecimal
-GUID. Missing/unknown GUIDs and bots remain guests. Their database keys exist only
-for session bookkeeping and never grant permission. Duplicate GUIDs and changes
-of GUID during a connection cannot authorize commands. Names, slots and IP
-addresses are never persistent authentication credentials.
+`!setlevel` requires a unique valid GUID for a connected human. Missing/unknown
+GUIDs and bots cannot receive levels. Assignments are stored by GUID in SQLite;
+display names and client slots are not persistent identities.
+
+The native TC:E UI initializes missing/invalid `cl_guid` from the existing
+`etmain/etkey`, using ETLegacy's two seeded MD5 passes over bytes 10..27.
+Existing valid engine GUIDs are preserved. No etkey is generated, modified,
+packaged or sent to the server. Restart the client after installing the new UI.
+
+For ETLegacy-style GUID-based level restoration, set `g_wolfadminTrustGuid 1`
+in the server config. This selects userinfo GUID identity; it is not a
+cryptographic proof of etkey ownership. Syntax, duplicates and changes against
+the connection's cached GUID are checked. There is no GUID-less session-level
+fallback. The local server.cfg now explicitly selects this GUID policy.
 
 For in-game administration without trusting GUIDs, configure a private server
 password with `set wolfadmin_password "your-secret"` (never `sets`/`setu`). Leave
@@ -62,11 +75,11 @@ Persistent bans reject guests, bots and duplicate GUIDs explicitly; use `!kick`
 for them. Duration zero (or omitted with the original permissions) is a permanent
 ban, displayed as permanent and retained until `!unban` removes its ban ID. Ban enforcement for real GUIDs has the same identity trust limitation.
 
-ET-specific news audio, spree messages/sounds/records, ET weapon statistics,
-campaign/map-voting lists and next-map vote override are disabled and omitted
-from command help. ET fireteam metadata is omitted from player lists. Bundled
-ET client menus and sound assets are intentionally not deployed. Native TC:E
-team restrictions and gameplay lifecycle remain authoritative.
+News, spree records, TC session statistics, map lists and next-map vote override
+are supported as described below. ET fireteam metadata and ET-specific weapon
+statistics are omitted. Bundled ET client menus and sound assets are not deployed;
+audio commands require installed assets. Native TC:E team restrictions and
+gameplay lifecycle remain authoritative.
 
 The adaptation uses VFS module loading/listing and file I/O, bounded native
 SQLite access, and time/date functions. It never launches shell commands.
@@ -96,3 +109,23 @@ player list; it does not remove their session permissions.
 The local installation adds `exec wolfadmin.cfg` before map startup and an
 editable `wolfadmin-private.cfg` template with password login disabled. Set your
 own password there. No test credentials, test database or test modules are installed.
+
+### Administrative effects
+
+`!slap <name|slot> [damage] [reason]` accepts integer damage from 1 to 9999
+(default 20), remains nonlethal, and generates native damage feedback and an
+upward impulse. `!gib` uses the native death lifecycle, including warmup.
+Both preserve permission/immunity checks and refuse dead/spectator targets.
+The new effects require the updated server module (`G_AdminSlap`, `G_AdminGib`).
+Greetings use validated `G_AdminSound` paths for optional installed audio.
+
+### Additional command compatibility
+
+`!stats` reports TC:E session statistics. `!listmaps` reports the configured
+rotation, falling back to installed `obj_*.bsp` maps. `!enablevote` enables the
+native next-map vote for this map. `!news [map]` plays an installed
+`sound/vo/<map>/news_<map>.wav`; maps without that optional asset report its
+absence. Kill/death `!sprees` records persist in SQLite; `!resetsprees [all]`
+clears the current map or all maps. Set `[sprees] records = 1` in wolfadmin.toml
+to collect records; existing operator settings and bot-record policy remain
+effective. TC:E does not generate revive sprees.

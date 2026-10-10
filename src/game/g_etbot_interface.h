@@ -15,7 +15,8 @@
 #define OMNIBOT_NAME "Omni-Bot:tce2"
 
 #define OMNIBOT_MODNAME "tce2"
-#define OMNIBOT_MODVERSION "0.49b-reconstruction"
+#include "tce_version.h"
+#define OMNIBOT_MODVERSION TCE_VERSION
 
 //////////////////////////////////////////////////////////////////////////
 // g_OmniBotFlags bits

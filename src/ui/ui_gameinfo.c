@@ -69,7 +69,7 @@ int UI_ParseInfos( char *buf, int max, char *infos[], int totalmax ) {
 			Info_SetValueForKey( info, key, token );
 		}
 		//NOTE: extra space for arena number
-		infos[count] = UI_Alloc(strlen(info) + strlen("\\num\\") + strlen(va("%d", totalmax)) + 1);
+		infos[count] = UI_Alloc(Q_strlenInt(info) + Q_strlenInt("\\num\\") + Q_strlenInt(va("%d", totalmax)) + 1);
 		if (infos[count]) {
 			strcpy(infos[count], info);
 			count++;
@@ -261,7 +261,7 @@ void UI_LoadArenas( void ) {
 	numdirs = trap_FS_GetFileList("scripts", ".mapinfo", dirlist, 1024 );
 	dirptr  = dirlist;
 	for (i = 0; i < numdirs; i++, dirptr += dirlen+1) {
-		dirlen = strlen(dirptr);
+		dirlen = Q_strlenInt(dirptr);
 		strcpy(filename, "scripts/");
 		strcat(filename, dirptr);
 		UI_LoadArenasFromFile(filename);
@@ -764,7 +764,7 @@ void UI_LoadCampaigns( void ) {
 	numdirs = trap_FS_GetFileList( "scripts", ".campaign", dirlist, 1024 );
 	dirptr  = dirlist;
 	for (i = 0; i < numdirs && uiInfo.campaignCount < MAX_CAMPAIGNS; i++, dirptr += dirlen+1) {
-		dirlen = strlen(dirptr);
+		dirlen = Q_strlenInt(dirptr);
 		strcpy(filename, "scripts/");
 		strcat(filename, dirptr);
 		UI_LoadCampaignsFromFile(filename);
@@ -887,7 +887,7 @@ void UI_LoadBots( void ) {
 	numdirs = trap_FS_GetFileList("scripts", ".bot", dirlist, 1024 );
 	dirptr  = dirlist;
 	for (i = 0; i < numdirs; i++, dirptr += dirlen+1) {
-		dirlen = strlen(dirptr);
+		dirlen = Q_strlenInt(dirptr);
 		strcpy(filename, "scripts/");
 		strcat(filename, dirptr);
 		UI_LoadBotsFromFile(filename);

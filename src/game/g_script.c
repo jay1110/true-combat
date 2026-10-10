@@ -363,8 +363,30 @@ G_Script_ScriptLoad
   Loads the script for the current level into the buffer
 =============
 */
+/* ETLegacy-style directory override, retaining TC:E's gametype suffixes.
+ * Reject truncated names instead of accidentally opening a different script. */
+static int G_Script_OpenMapScript(const char *directory, const char *map,
+                                const char *suffix, char *filename, int capacity,
+                                fileHandle_t *file) {
+	int len;
+	*file = 0;
+	if (strlen(directory) + strlen(map) + strlen(suffix) + 9 > (size_t)capacity) {
+		G_Printf("Map script path too long: %s/%s%s.script\n", directory, map, suffix);
+		return -1;
+	}
+	Com_sprintf(filename, capacity, "%s/%s%s.script", directory, map, suffix);
+	len = trap_FS_FOpenFile(filename, file, FS_READ);
+	if (len < 0 || !*file) {
+		if (*file) trap_FS_FCloseFile(*file);
+		*file = 0;
+		return -1;
+	}
+	return len;
+}
+
 void G_Script_ScriptLoad( void ) {
 	char			filename[MAX_QPATH];
+	char directory[MAX_CVAR_VALUE_STRING], suffix[16];
 	vmCvar_t		mapname;
 	fileHandle_t	f;
 	int				len;
@@ -381,20 +403,31 @@ void G_Script_ScriptLoad( void ) {
 	} else {
 		trap_Cvar_Register( &mapname, "mapname", "", CVAR_SERVERINFO | CVAR_ROM );
 	}
-	Q_strncpyz( filename, "maps/", sizeof(filename) );
-	Q_strcat( filename, sizeof(filename), mapname.string );
-
+	suffix[0] = '\0';
 	if ( g_gametype.integer == 2 || g_gametype.integer == 5 || g_gametype.integer == 7 ) {
-		Q_strcat( filename, sizeof(filename), va("_gt%i", g_gametype.integer) );
+		Com_sprintf(suffix, sizeof(suffix), "_gt%i", g_gametype.integer);
 	}
-
-	Q_strcat( filename, sizeof(filename), ".script" );
-
-	len = trap_FS_FOpenFile( filename, &f, FS_READ );
-	if (len < 0) {
-		Com_sprintf(filename, sizeof(filename), "maps/%s.script", mapname.string);
-		len = trap_FS_FOpenFile(filename, &f, FS_READ);
+	trap_Cvar_VariableStringBuffer("g_mapScriptDirectory", directory, sizeof(directory));
+	len = -1;
+	f = 0;
+	if (directory[0]) {
+		int n = (int)strlen(directory);
+		while (n > 0 && directory[n - 1] == '/') directory[--n] = '\0';
+		if (!n || directory[0] == '/' || strstr(directory, "..") ||
+			strchr(directory, ':') || strchr(directory, '\\')) {
+			G_Printf("Invalid g_mapScriptDirectory; using maps/. Use a relative game-directory path.\n");
+		} else {
+			len = G_Script_OpenMapScript(directory, mapname.string, suffix, filename, sizeof(filename), &f);
+			/* Empty custom files do not suppress the original map script. */
+			if (len == 0) { trap_FS_FCloseFile(f); f = 0; len = -1; }
+			if (len < 0 && suffix[0]) {
+				len = G_Script_OpenMapScript(directory, mapname.string, "", filename, sizeof(filename), &f);
+				if (len == 0) { trap_FS_FCloseFile(f); f = 0; len = -1; }
+			}
+		}
 	}
+	if (len < 0) len = G_Script_OpenMapScript("maps", mapname.string, suffix, filename, sizeof(filename), &f);
+	if (len < 0 && suffix[0]) len = G_Script_OpenMapScript("maps", mapname.string, "", filename, sizeof(filename), &f);
 
 	// make sure we clear out the temporary scriptname
 	trap_Cvar_Set( "g_scriptName", "" );
@@ -402,6 +435,7 @@ void G_Script_ScriptLoad( void ) {
 	if( len < 0 ) {
 		return;
 	}
+	G_Printf("Loading map script: %s\n", filename);
 
 	// END Mad Doc - TDF
 	// Arnout: make sure we terminate the script with a '\0' to prevent parser from choking
@@ -599,8 +633,8 @@ void G_Script_ScriptParse( gentity_t *ent )
 			}
 
 			if( strlen( params ) ) {	// copy the params into the event
-				curEvent->params = G_Alloc( strlen( params ) + 1 );
-				Q_strncpyz( curEvent->params, params, strlen(params)+1 );
+				curEvent->params = G_Alloc( Q_strlenInt( params ) + 1 );
+				Q_strncpyz( curEvent->params, params, Q_strlenInt(params)+1 );
 			}
 
 			// parse the actions for this event
@@ -686,8 +720,8 @@ void G_Script_ScriptParse( gentity_t *ent )
 
 				if (strlen( params ))
 				{	// copy the params into the event
-					curEvent->stack.items[curEvent->stack.numItems].params = G_Alloc( strlen( params ) + 1 );
-					Q_strncpyz( curEvent->stack.items[curEvent->stack.numItems].params, params, strlen(params)+1 );
+					curEvent->stack.items[curEvent->stack.numItems].params = G_Alloc( Q_strlenInt( params ) + 1 );
+					Q_strncpyz( curEvent->stack.items[curEvent->stack.numItems].params, params, Q_strlenInt(params)+1 );
 				}
 
 				curEvent->stack.numItems++;
@@ -995,7 +1029,7 @@ void script_mover_aas_blocking( gentity_t *ent ) {
 
 void script_mover_spawn(gentity_t *ent) {
 	if (ent->spawnflags & 128) {		
-		if(!ent->tagBuffer) {
+		if(!ent->tagBuffer[0]) {
 			ent->nextTrain = ent;
 		} else {
 			gentity_t* tent = G_FindByTargetname( NULL, ent->tagBuffer);
@@ -1006,7 +1040,7 @@ void script_mover_spawn(gentity_t *ent) {
 			}
 		}
 
-		ent->s.effect3Time = ent->nextTrain-g_entities;
+		ent->s.effect3Time = (int)(ent->nextTrain - g_entities);
 	}
 
 	if (ent->spawnflags & 2) {
@@ -1146,7 +1180,7 @@ void SP_script_mover(gentity_t *ent) {
 
 		if( G_SpawnString( "description", "", &s ) ) {
 			trap_GetConfigstring( CS_SCRIPT_MOVER_NAMES, cs, sizeof(cs) );
-			Info_SetValueForKey( cs, va("%i",ent-g_entities), s );
+			Info_SetValueForKey( cs, va("%i",(int)(ent - g_entities)), s );
 			trap_SetConfigstring( CS_SCRIPT_MOVER_NAMES, cs );
 		}
 	} else {

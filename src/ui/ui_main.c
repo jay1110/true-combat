@@ -12,6 +12,7 @@ USER INTERFACE MAIN
 */
 
 #include "ui_local.h"
+#include "../game/tce_guid.h"
 
 // NERVE - SMF
 #define AXIS_TEAM		0
@@ -244,7 +245,7 @@ qboolean _UI_IsFullscreen( void );
 #pragma export on
 #endif
 #endif
-int vmMain( int command, int arg0, int arg1, int arg2, int arg3, int arg4, int arg5, int arg6, int arg7, int arg8, int arg9, int arg10, int arg11  ) {
+intptr_t vmMain( intptr_t command, intptr_t arg0, intptr_t arg1, intptr_t arg2, intptr_t arg3, intptr_t arg4, intptr_t arg5, intptr_t arg6, intptr_t arg7, intptr_t arg8, intptr_t arg9, intptr_t arg10, intptr_t arg11  ) {
 #if defined(__MACOS__)
 #ifndef __GNUC__
 #pragma export off
@@ -391,7 +392,7 @@ int Text_Width_Ext( const char *text, float scale, int limit, fontInfo_t* font )
 	const char* s = text;
 
 	if( text ) {
-		len = strlen(text);
+		len = Q_strlenInt(text);
 		if( limit > 0 && len > limit ) {
 			len = limit;
 		}
@@ -425,7 +426,7 @@ int Multiline_Text_Width( const char *text, float scale, int limit ) {
 	fontInfo_t *font = &uiInfo.uiDC.Assets.fonts[uiInfo.activeFont];
 
 	if( text ) {
-		len = strlen(text);
+		len = Q_strlenInt(text);
 		if( limit > 0 && len > limit ) {
 			len = limit;
 		}
@@ -469,7 +470,7 @@ int Text_Height_Ext( const char *text, float scale, int limit, fontInfo_t* font 
 
 	max = 0;
 	if( text ) {
-		len = strlen(text);
+		len = Q_strlenInt(text);
 		if (limit > 0 && len > limit) {
 			len = limit;
 		}
@@ -509,7 +510,7 @@ int Multiline_Text_Height( const char *text, float scale, int limit ) {
 
 	max = 0;
 	if( text ) {
-		len = strlen(text);
+		len = Q_strlenInt(text);
 		if (limit > 0 && len > limit) {
 			len = limit;
 		}
@@ -575,7 +576,7 @@ void Text_Paint_Ext( float x, float y, float scalex, float scaley, vec4_t color,
 		const char *s = text;
 		trap_R_SetColor( color );
 		memcpy(&newColor[0], &color[0], sizeof(vec4_t));
-		len = strlen(text);
+		len = Q_strlenInt(text);
 		if (limit > 0 && len > limit) {
 			len = limit;
 		}
@@ -654,7 +655,7 @@ char* Text_AutoWrap_Paint_Chunk(float x, float y, int width, float scale, vec4_t
 		char *s = text;
 		trap_R_SetColor( color );
 		memcpy(&newColor[0], &color[0], sizeof(vec4_t));
-    len = strlen(text);
+    len = Q_strlenInt(text);
 		if (limit > 0 && len > limit) {
 			len = limit;
 		}
@@ -794,7 +795,7 @@ void Text_PaintWithCursor(float x, float y, float scale, vec4_t color, const cha
 		const char *s = text;
 		trap_R_SetColor( color );
 		memcpy(&newColor[0], &color[0], sizeof(vec4_t));
-		len = strlen(text);
+		len = Q_strlenInt(text);
 		if (limit > 0 && len > limit) {
 			len = limit;
 		}
@@ -891,7 +892,7 @@ static void Text_Paint_Limit(float *maxX, float x, float y, float scale, vec4_t 
 		useScale = scale * font->glyphScale;
 
 		trap_R_SetColor( color );
-    len = strlen(text);					 
+    len = Q_strlenInt(text);
 		if (limit > 0 && len > limit) {
 			len = limit;
 		}
@@ -3860,7 +3861,7 @@ static void UI_LoadMods() {
 	numdirs = trap_FS_GetFileList( "$modlist", "", dirlist, sizeof(dirlist) );
 	dirptr  = dirlist;
 	for( i = 0; i < numdirs; i++ ) {
-		dirlen = strlen( dirptr ) + 1;
+		dirlen = Q_strlenInt( dirptr ) + 1;
 		descptr = dirptr + dirlen;
 		uiInfo.modList[uiInfo.modCount].modName = String_Alloc(dirptr);
 		uiInfo.modList[uiInfo.modCount].modDescr = String_Alloc(descptr);
@@ -3891,7 +3892,7 @@ static void UI_LoadProfiles() {
 	dirptr  = dirlist;
 
 	for( i = 0; i < numdirs; i++ ) {
-		dirlen = strlen( dirptr ) + 1;
+		dirlen = Q_strlenInt( dirptr ) + 1;
 		
 		if( dirptr[0] && Q_stricmp( dirptr, "." ) && Q_stricmp( dirptr,".." ) ) {
 			int handle;
@@ -4024,7 +4025,7 @@ static void UI_LoadSavegames() {
 		sgname = sglist;
 		for ( i = 0; i < uiInfo.savegameCount; i++ ) {
 
-			len = strlen( sgname );
+			len = Q_strlenInt( sgname );
 
 			if(!Q_strncmp(sgname, "current", 7)) {	// ignore current.svg since it has special uses and shouldn't be loaded directly
 				i--;
@@ -4063,7 +4064,7 @@ static void UI_LoadMovies() {
 		}
 		moviename = movielist;
 		for ( i = 0; i < uiInfo.movieCount; i++ ) {
-			len = strlen( moviename );
+			len = Q_strlenInt( moviename );
 			if (!Q_stricmp(moviename +  len - 4,".roq")) {
 				moviename[len-4] = '\0';
 			}
@@ -4100,7 +4101,7 @@ static void UI_LoadDemos() {
 		}
 		demoname = demolist;
 		for ( i = 0; i < uiInfo.demoCount; i++ ) {
-			len = strlen( demoname );
+			len = Q_strlenInt( demoname );
 			if (!Q_stricmp(demoname +  len - strlen(demoExt), demoExt)) {
 				demoname[len-strlen(demoExt)] = '\0';
 			}
@@ -4720,11 +4721,11 @@ void UI_RunMenuScript(char **args) {
 					res = trap_LAN_AddServer(AS_FAVORITES, name, addr);
 					if (res == 0) {
 						// server already in the list
-						Com_Printf( trap_TranslateString( "Favorite already in list\n" ) );
+						Com_Printf( "%s", trap_TranslateString( "Favorite already in list\n" ) );
 					}
 					else if (res == -1) {
 						// list full
-						Com_Printf( trap_TranslateString( "Favorite list full\n" ) );
+						Com_Printf( "%s", trap_TranslateString( "Favorite list full\n" ) );
 					}
 					else {
 						// successfully added
@@ -4755,11 +4756,11 @@ void UI_RunMenuScript(char **args) {
 					res = trap_LAN_AddServer(AS_FAVORITES, name, addr);
 					if (res == 0) {
 						// server already in the list
-						Com_Printf( trap_TranslateString( "Favorite already in list\n" ) );
+						Com_Printf( "%s", trap_TranslateString( "Favorite already in list\n" ) );
 					}
 					else if (res == -1) {
 						// list full
-						Com_Printf( trap_TranslateString( "Favorite list full\n" ) );
+						Com_Printf( "%s", trap_TranslateString( "Favorite list full\n" ) );
 					}
 					else {
 						// successfully added
@@ -4783,11 +4784,11 @@ void UI_RunMenuScript(char **args) {
 				res = trap_LAN_AddServer(AS_FAVORITES, name, addr);
 				if (res == 0) {
 					// server already in the list
-					Com_Printf( trap_TranslateString( "Favorite already in list\n" ) );
+					Com_Printf( "%s", trap_TranslateString( "Favorite already in list\n" ) );
 				}
 				else if (res == -1) {
 					// list full
-					Com_Printf( trap_TranslateString( "Favorite list full\n" ) );
+					Com_Printf( "%s", trap_TranslateString( "Favorite list full\n" ) );
 				}
 				else {
 					// successfully added
@@ -4988,7 +4989,7 @@ void UI_RunMenuScript(char **args) {
 			Q_CleanDirName( buff );
 
 			if( trap_FS_FOpenFile( va( "profiles/%s/profile.dat", buff ), &f, FS_WRITE ) >= 0 ) {
-				trap_FS_Write( va( "\"%s\"", ui_profile.string ), strlen(ui_profile.string) + 2, f );
+				trap_FS_Write( va( "\"%s\"", ui_profile.string ), Q_strlenInt(ui_profile.string) + 2, f );
 				trap_FS_FCloseFile( f );
 			}
 			trap_Cvar_Set( "name", ui_profile.string );
@@ -5014,7 +5015,7 @@ void UI_RunMenuScript(char **args) {
 			trap_Cvar_Set( "cl_defaultProfile", cl_defaultProfile.string );
 
 			if( trap_FS_FOpenFile( "profiles/defaultprofile.dat", &f, FS_WRITE ) >= 0 ) {
-				trap_FS_Write( va( "\"%s\"", cl_defaultProfile.string ), strlen(cl_defaultProfile.string) + 2, f );
+				trap_FS_Write( va( "\"%s\"", cl_defaultProfile.string ), Q_strlenInt(cl_defaultProfile.string) + 2, f );
 				trap_FS_FCloseFile( f );
 			}
 		} else if( Q_stricmp( name, "deleteProfile" ) == 0 ) {
@@ -5032,7 +5033,7 @@ void UI_RunMenuScript(char **args) {
 
 					trap_Cvar_Set( "cl_defaultProfile", cl_profile.string );
 					if( trap_FS_FOpenFile( "profiles/defaultprofile.dat", &f, FS_WRITE ) >= 0 ) {
-						trap_FS_Write( va( "\"%s\"", cl_profile.string ), strlen(cl_profile.string) + 2, f );
+						trap_FS_Write( va( "\"%s\"", cl_profile.string ), Q_strlenInt(cl_profile.string) + 2, f );
 						trap_FS_FCloseFile( f );
 					}
 				}
@@ -5058,7 +5059,7 @@ void UI_RunMenuScript(char **args) {
 			Q_CleanDirName( uiprofile );
 
 			if( trap_FS_FOpenFile( va( "profiles/%s/profile.dat", buff ), &f, FS_WRITE ) >= 0 ) {
-				trap_FS_Write( va( "\"%s\"", ui_renameprofileto ), strlen(ui_renameprofileto) + 2, f );
+				trap_FS_Write( va( "\"%s\"", ui_renameprofileto ), Q_strlenInt(ui_renameprofileto) + 2, f );
 				trap_FS_FCloseFile( f );
 			}
 
@@ -5098,7 +5099,7 @@ void UI_RunMenuScript(char **args) {
 					// if renaming the default profile, set the default to the new profile
 					trap_Cvar_Set( "cl_defaultProfile", buff );
 					if( trap_FS_FOpenFile( "profiles/defaultprofile.dat", &f, FS_WRITE ) >= 0 ) {
-						trap_FS_Write( va( "\"%s\"", buff ), strlen(buff) + 2, f );
+						trap_FS_Write( va( "\"%s\"", buff ), Q_strlenInt(buff) + 2, f );
 						trap_FS_FCloseFile( f );
 					}
 				}
@@ -5573,10 +5574,10 @@ static void UI_BuildServerDisplayList(qboolean force) {
 
 	// do motd updates here too
 	trap_Cvar_VariableStringBuffer( "cl_motdString", uiInfo.serverStatus.motd, sizeof(uiInfo.serverStatus.motd) );
-	len = strlen(uiInfo.serverStatus.motd);
+	len = Q_strlenInt(uiInfo.serverStatus.motd);
 	if (len == 0) {
 		strcpy(uiInfo.serverStatus.motd, va( "Enemy Territory - Version: %s", Q3_VERSION ) );
-		len = strlen(uiInfo.serverStatus.motd);
+		len = Q_strlenInt(uiInfo.serverStatus.motd);
 	} 
 	if (len != uiInfo.serverStatus.motdLen) {
 		uiInfo.serverStatus.motdLen = len;
@@ -5946,7 +5947,7 @@ static int UI_GetServerStatusInfo( const char *serverAddress, serverStatusInfo_t
 				name = p;
 				Com_sprintf(&info->pings[len], sizeof(info->pings)-len, "%d", i);
 				info->lines[info->numLines][0] = &info->pings[len];
-				len += strlen(&info->pings[len]) + 1;
+				len += Q_strlenInt(&info->pings[len]) + 1;
 				info->lines[info->numLines][1] = score;
 				info->lines[info->numLines][2] = ping;
 				info->lines[info->numLines][3] = name;
@@ -7319,6 +7320,7 @@ void _UI_Init( qboolean inGameLoad ) {
 	/* TC 4000db90 / Linux 00031d88: preserve the archived host selection.
 	 * The running gametype selects the menu file independently below. */
 	UI_RegisterCvars();
+	TCE_InitClientGUID();
 	UI_InitMemory();
 	trap_PC_RemoveAllGlobalDefines();
 
@@ -7784,11 +7786,11 @@ void UI_ReadableSize ( char *buf, int bufsize, int value )
 {
 	if (value > 1024*1024*1024 ) { // gigs
 		Com_sprintf( buf, bufsize, "%d", value / (1024*1024*1024) );
-		Com_sprintf( buf+strlen(buf), bufsize-strlen(buf), ".%02d GB", 
+		Com_sprintf( buf+Q_strlenInt(buf), bufsize-Q_strlenInt(buf), ".%02d GB",
 			(value % (1024*1024*1024))*100 / (1024*1024*1024) );
 	} else if (value > 1024*1024 ) { // megs
 		Com_sprintf( buf, bufsize, "%d", value / (1024*1024) );
-		Com_sprintf( buf+strlen(buf), bufsize-strlen(buf), ".%02d MB", 
+		Com_sprintf( buf+Q_strlenInt(buf), bufsize-Q_strlenInt(buf), ".%02d MB",
 			(value % (1024*1024))*100 / (1024*1024) );
 	} else if (value > 1024 ) { // kilos
 		Com_sprintf( buf, bufsize, "%d KB", value / 1024 );
@@ -8097,7 +8099,7 @@ vmCvar_t	ui_master;
 
 vmCvar_t	ui_brassTime;
 vmCvar_t	ui_drawCrosshair;
-vmCvar_t	ui_drawCrosshairNames;
+vmCvar_t	ui_drawTeamNames;
 vmCvar_t	ui_drawCrosshairPickups;	//----(SA) added
 vmCvar_t	ui_marks;
 // JOSEPH 12-3-99
@@ -8255,7 +8257,7 @@ cvarTable_t		cvarTable[] = {
 
 	{ &ui_brassTime, "cg_brassTime", "2500", CVAR_ARCHIVE }, // JPW NERVE
 	{ &ui_drawCrosshair, "cg_drawCrosshair", "4", CVAR_ARCHIVE },
-	{ &ui_drawCrosshairNames, "cg_drawCrosshairNames", "1", CVAR_ARCHIVE },
+	{ &ui_drawTeamNames, "cg_drawTeamNames", "1", CVAR_ARCHIVE },
 	{ &ui_drawCrosshairPickups, "cg_drawCrosshairPickups", "1", CVAR_ARCHIVE },	//----(SA) added
 	{ &ui_marks, "cg_marktime", "20000", CVAR_ARCHIVE },
 	// JOSEPH 12-2-99
@@ -8356,7 +8358,7 @@ cvarTable_t		cvarTable[] = {
 	{ NULL, "cg_drawReinforcementTime", "1", CVAR_ARCHIVE },
 	{ NULL, "cg_cursorHints", "1", CVAR_ARCHIVE },
 	{ NULL, "cg_crosshairPulse", "1", CVAR_ARCHIVE },
-	{ NULL, "cg_drawCrosshairNames", "1", CVAR_ARCHIVE },
+	{ NULL, "cg_drawTeamNames", "1", CVAR_ARCHIVE },
 	{ NULL, "cg_crosshairColor", "White", CVAR_ARCHIVE },
 	{ NULL, "cg_crosshairAlpha", "1.0", CVAR_ARCHIVE },
 	{ NULL, "cg_crosshairColorAlt", "White", CVAR_ARCHIVE },

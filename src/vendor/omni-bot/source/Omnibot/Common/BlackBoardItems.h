@@ -27,7 +27,7 @@ public:
 	virtual ~bbItem() {}
 private:
 	int		m_Type;
-	bool	m_InBB;
+	[[maybe_unused]] bool	m_InBB; // Reserved bookkeeping field; preserve object layout.
 };
 
 //////////////////////////////////////////////////////////////////////////

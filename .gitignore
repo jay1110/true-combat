@@ -104,3 +104,11 @@
 !/src/lua/wolfadmin/**/COPYING.txt
 
 !/src/lua/wolfadmin/**/*.cfg
+
+# Required compass resources included by the production client packager.
+!/src/assets/
+/src/assets/**
+!/src/assets/gfx/
+!/src/assets/gfx/misc/
+!/src/assets/gfx/misc/radar_arrow.tga
+!/src/assets/gfx/misc/radar_dot.tga

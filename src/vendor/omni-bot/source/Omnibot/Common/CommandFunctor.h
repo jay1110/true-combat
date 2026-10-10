@@ -7,6 +7,7 @@
 class ICommandFunctor
 {
 public:
+	virtual ~ICommandFunctor() = default;
 	virtual void operator()(const StringVector &_args) = 0;
 };
 

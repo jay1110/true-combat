@@ -79,9 +79,12 @@
 #ifdef Q3_VM
 
 #include "bg_lib.h"
+typedef int intptr_t;
 
 #else
 
+#include <stdint.h>
+#include <stddef.h>
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
@@ -133,13 +136,17 @@
 
 // buildstring will be incorporated into the version string
 #ifdef NDEBUG
-#ifdef _M_IX86
+#if defined(_M_X64)
+#define CPUSTRING "win-x86_64"
+#elif defined(_M_IX86)
 #define	CPUSTRING	"win-x86"
 #elif defined _M_ALPHA
 #define	CPUSTRING	"win-AXP"
 #endif
 #else
-#ifdef _M_IX86
+#if defined(_M_X64)
+#define CPUSTRING "win-x86_64"
+#elif defined(_M_IX86)
 #define	CPUSTRING	"win-x86-debug"
 #elif defined _M_ALPHA
 #define	CPUSTRING	"win-AXP-debug"
@@ -224,6 +231,8 @@ void Sys_PumpEvents( void );
 
 #ifdef __i386__
 #define	CPUSTRING	"linux-i386"
+#elif defined __x86_64__
+#define CPUSTRING "linux-x86_64"
 #elif defined __axp__
 #define	CPUSTRING	"linux-alpha"
 #else
@@ -815,6 +824,8 @@ char	*Q_strupr( char *s1 );
 char	*Q_strrchr( const char* string, int c );
 
 // buffer size safe library replacements
+/* Checked bridge from C string sizes to the engine's signed length API. */
+int Q_strlenInt( const char *string );
 void	Q_strncpyz( char *dest, const char *src, int destsize );
 void	Q_strcat( char *dest, int size, const char *src );
 
@@ -858,7 +869,7 @@ qint64  BigLong64 (qint64 l);
 float	BigFloat (float l);
 
 void	Swap_Init (void);
-char	* QDECL va(char *format, ...)_attribute((format(printf,1,2)));
+char	* QDECL va(const char *format, ...)_attribute((format(printf,1,2)));
 float	*tv( float x, float y, float z );
 
 //=============================================
@@ -1328,7 +1339,7 @@ typedef struct playerState_s {
 //
 #define	BUTTON_ATTACK		1
 #define	BUTTON_TALK			2			// displays talk balloon and disables actions
-//#define	BUTTON_USE_HOLDABLE	4
+#define BUTTON_FREELOOK 4 /* Engine +button2; CQB free head look. */
 #define	BUTTON_GESTURE		8
 #define	BUTTON_WALKING		16			// walking can't just be infered from MOVE_RUN
 										// because a key pressed late in the frame will

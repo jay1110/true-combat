@@ -29,6 +29,23 @@ local clientcmds = {}
 local servercmds = {}
 local admincmds = {}
 
+-- A bad optional command must not disable the complete administration VM.
+-- Report the bounded Lua error to the server and fail closed for this command.
+local function invoke(clientId, name, callback, ...)
+    local ok, result = xpcall(callback, function(err)
+        if debug and debug.traceback then return debug.traceback(tostring(err), 2) end
+        return tostring(err)
+    end, ...)
+    if ok then return result end
+    local detail = tostring(result):gsub("[%c]", " "):sub(1, 700)
+    et.G_Print("WolfAdmin command "..name.." failed: "..detail.."\n")
+    if clientId ~= -1337 then
+        et.trap_SendServerCommand(clientId, 'print "WolfAdmin: '..name..' failed; see server console. No further command processing was performed."')
+    end
+    return 1
+end
+
+
 function commands.getclient(command)
     if command then
         return clientcmds[command]
@@ -71,8 +88,23 @@ function commands.addserver(command, func, disabled)
         return
     end
 
+    local outputCommands = {csay=true, cchat=true, ccp=true, ccpm=true,
+        cbp=true, cannounce=true, cmusic=true}
+    local callback = func
+    if outputCommands[command] then
+        callback = function(name, recipient, text, ...)
+            local id = tonumber(recipient)
+            local max = tonumber(et.trap_Cvar_Get("sv_maxclients")) or 0
+            if not id or id ~= math.floor(id) or
+                (id ~= -1337 and (id < -1 or id >= max)) or type(text) ~= "string" then
+                et.G_Print("usage: "..name.." <slot|-1> <quoted text>\n")
+                return true
+            end
+            return func(name, id, text, ...)
+        end
+    end
     servercmds[command] = {
-        ["function"] = func,
+        ["function"] = callback,
     }
 end
 
@@ -153,13 +185,19 @@ function commands.onServerCommand(command)
             table.insert(args, et.trap_Argv(i))
         end
 
-        return wolfa_tce_consumed(servercmds[wolfCmd]["function"](wolfCmd, tables.unpack(args)))
+        invoke(-1337, wolfCmd, servercmds[wolfCmd]["function"], wolfCmd, tables.unpack(args))
+        return 1
     end
 
     local shrubCmd = command
 
     if string.find(command, "!") == 1 then
         shrubCmd = string.lower(string.sub(command, 2, string.len(command)))
+    end
+
+    if wolfa_tce_disabled[shrubCmd] then
+        et.G_Print("WolfAdmin: "..shrubCmd.." is unavailable in TC:E (requires unsupported upstream game data).\n")
+        return 1
     end
 
     if admincmds[shrubCmd] and admincmds[shrubCmd]["function"] and admincmds[shrubCmd]["flag"] then
@@ -171,7 +209,10 @@ function commands.onServerCommand(command)
             commands.log(-1337, shrubCmd, tables.unpack(args))
         end
 
-        return wolfa_tce_consumed(admincmds[shrubCmd]["function"](-1337, shrubCmd, tables.unpack(args)))
+        invoke(-1337, shrubCmd, admincmds[shrubCmd]["function"], -1337, shrubCmd, tables.unpack(args))
+        -- These handlers often return false after printing help/config results.
+        -- The command is still ours; never fall through to native unknown.
+        return 1
     end
 end
 events.handle("onServerCommand", commands.onServerCommand)
@@ -188,7 +229,7 @@ function commands.onClientCommand(clientId, command)
                 table.insert(args, et.trap_Argv(i))
             end
 
-            local isFinished = clientcmds[wolfCmd]["function"](clientId, wolfCmd, tables.unpack(args))
+            local isFinished = invoke(clientId, wolfCmd, clientcmds[wolfCmd]["function"], clientId, wolfCmd, tables.unpack(args))
 
             if isFinished ~= nil then
                 return wolfa_tce_consumed(isFinished)
@@ -224,7 +265,7 @@ function commands.onClientCommand(clientId, command)
 
         if clientcmds[clientCmd] and clientcmds[clientCmd]["function"] and clientcmds[clientCmd]["chat"] then
             if clientcmds[clientCmd]["flag"] == "" or auth.isPlayerAllowed(clientId, clientcmds[clientCmd]["flag"]) then
-                return wolfa_tce_consumed(clientcmds[clientCmd]["function"](clientId, clientCmd, tables.unpack(args)))
+                return wolfa_tce_consumed(invoke(clientId, clientCmd, clientcmds[clientCmd]["function"], clientId, clientCmd, tables.unpack(args)))
             end
         end
     end
@@ -263,13 +304,18 @@ function commands.onClientCommand(clientId, command)
     if shrubCmd then
         shrubCmd = string.lower(shrubCmd)
 
+        if wolfa_tce_disabled[shrubCmd] then
+            et.trap_SendServerCommand(clientId, 'print "WolfAdmin: '..shrubCmd..' is unavailable in TC:E (requires unsupported upstream game data)."')
+            return 1
+        end
+
         if admincmds[shrubCmd] and admincmds[shrubCmd]["function"] and admincmds[shrubCmd]["flag"] then
             if wolfCmd == "say" or (((wolfCmd == "say_team" and et.gentity_get(clientId, "sess.sessionTeam") ~= et.TEAM_SPECTATOR) or wolfCmd == "say_buddy") and auth.isPlayerAllowed(clientId, auth.PERM_TEAMCMDS)) or (wolfCmd == "!"..shrubCmd and auth.isPlayerAllowed(clientId, auth.PERM_SILENTCMDS)) then
                 if admincmds[shrubCmd]["flag"] ~= "" and auth.isPlayerAllowed(clientId, admincmds[shrubCmd]["flag"]) then
                     if not admincmds[shrubCmd]["hidden"] then
                         commands.log(clientId, shrubCmd, tables.unpack(args))
                     end
-                    local isFinished = admincmds[shrubCmd]["function"](clientId, shrubCmd, tables.unpack(args))
+                    local isFinished = invoke(clientId, shrubCmd, admincmds[shrubCmd]["function"], clientId, shrubCmd, tables.unpack(args))
 
                     if wolfa_tce_consumed(isFinished) == 1 and "!"..shrubCmd == wolfCmd then -- silent command via console, removes "unknown command" message
                         return 1
@@ -277,7 +323,12 @@ function commands.onClientCommand(clientId, command)
                 else
                     et.trap_SendConsoleCommand(et.EXEC_APPEND, "csay "..clientId.." \""..shrubCmd..": permission denied\";")
                 end
+            elseif wolfCmd == "!"..shrubCmd then
+                et.trap_SendConsoleCommand(et.EXEC_APPEND, "csay "..clientId.." \""..shrubCmd..": permission denied\";")
             end
+            -- A known silent command remains handled when permission is denied
+            -- or its handler only prints usage. Do not leak into native unknown.
+            if wolfCmd == "!"..shrubCmd then return 1 end
         end
     end
 

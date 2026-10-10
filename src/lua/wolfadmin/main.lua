@@ -174,6 +174,13 @@ function et_ClientBegin(clientId)
     events.trigger("onClientBegin", clientId)
 end
 
+-- Hot reload restores script bookkeeping without reconnecting native players,
+-- respawning them, or admitting them through the first-time ban/login path.
+function et_LuaClientRestore(clientId, isBot, connected)
+    et_ClientConnect(clientId, 0, isBot)
+    if connected == et.CON_CONNECTED then et_ClientBegin(clientId) end
+end
+
 function et_ClientDisconnect(clientId)
     wolfa_tce_clearSession(clientId)
     events.trigger("onClientDisconnect", clientId)

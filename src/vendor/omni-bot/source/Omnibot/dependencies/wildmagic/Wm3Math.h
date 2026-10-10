@@ -132,6 +132,27 @@ public:
     static const Real INV_TWO_PI;
 };
 
+#ifndef _MSC_VER
+// Explicit specializations are defined in the matching .cpp file.
+template<> const float Math<float>::EPSILON;
+template<> const float Math<float>::ZERO_TOLERANCE;
+template<> const float Math<float>::MAX_REAL;
+template<> const float Math<float>::PI;
+template<> const float Math<float>::TWO_PI;
+template<> const float Math<float>::HALF_PI;
+template<> const float Math<float>::INV_PI;
+template<> const float Math<float>::INV_TWO_PI;
+template<> const double Math<double>::EPSILON;
+template<> const double Math<double>::ZERO_TOLERANCE;
+template<> const double Math<double>::MAX_REAL;
+template<> const double Math<double>::PI;
+template<> const double Math<double>::TWO_PI;
+template<> const double Math<double>::HALF_PI;
+template<> const double Math<double>::INV_PI;
+template<> const double Math<double>::INV_TWO_PI;
+
+#endif
+
 #include "Wm3Math.inl"
 #include "Wm3Math.mcr"
 

@@ -56,9 +56,9 @@ end
 
 function util.getTeamName(teamId)
     if teamId == constants.TEAM_AXIS then
-        return "Axis"
+        return "Terrorists"
     elseif teamId == constants.TEAM_ALLIES then
-        return "Allies"
+        return "Specops"
     elseif teamId == constants.TEAM_SPECTATORS then
         return "Spectators"
     else
@@ -103,19 +103,10 @@ function util.getTeamCode(teamId)
 end
 
 function util.getClassName(classId)
-    if classId == constants.CLASS_SOLDIER then
-        return "Soldier"
-    elseif classId == constants.CLASS_MEDIC then
-        return "Medic"
-    elseif classId == constants.CLASS_ENGINEER then
-        return "Engineer"
-    elseif classId == constants.CLASS_FIELDOPS then
-        return "Field Ops"
-    elseif classId == constants.CLASS_COVERTOPS then
-        return "Covert Ops"
-    else
-        return "unknown"
-    end
+    -- Matches BG_WolfClassToTCE in game/tce_bg.c (paired SDK class IDs).
+    if classId == 2 or classId == 3 then return "Recon" end
+    if classId == 4 or classId == 5 then return "Sniper" end
+    return "Assault"
 end
 
 function util.getAreaName(areaId)

@@ -713,6 +713,7 @@ static int CG_CalcFov( void ) {
         if(cg_aspectMode.integer==1)fov_x*=1.0954f;
         else if(cg_aspectMode.integer==0)fov_x*=1.1547f;
     }
+    cg.tceNameTanHalfFov = (float)tan(fov_x/360*M_PI);
     x=cg.refdef_current->width/tan(fov_x/360*M_PI);
     fov_y=atan2(cg.refdef_current->height,x)*360/M_PI;
     contents=CG_PointContents(cg.refdef.vieworg,-1);
@@ -1011,6 +1012,7 @@ Sets cg.refdef view values
 */
 int CG_CalcViewValues( void ) {
 	playerState_t	*ps;
+	cg.tceWeaponViewValid = qfalse;
 
 	memset( cg.refdef_current, 0, sizeof( cg.refdef ) );
 
@@ -1184,6 +1186,20 @@ int CG_CalcViewValues( void ) {
 			cg.refdef_current->vieworg[2] = oldZ;
 		}
 		// done.
+	}
+
+	/* CQB keeps the first-person weapon frame before applying free head look.
+	 * Shooting and movement continue to use the shared ps.viewangles. */
+	if (!cg.renderingThirdPerson && !cg.showGameView && !ps->viewlocked &&
+	    ps->pm_type == PM_NORMAL && ps->stats[STAT_HEALTH] > 0) {
+		VectorCopy(cg.refdef_current->vieworg, cg.tceWeaponViewOrigin);
+		VectorCopy(cg.refdefViewAngles, cg.tceWeaponViewAngles);
+		AnglesToAxis(cg.tceWeaponViewAngles, cg.tceWeaponViewAxis);
+		cg.tceWeaponViewValid = qtrue;
+		if (ps->holdable[TCE_FREELOOK_PITCH] && ps->holdable[TCE_FREELOOK_YAW]) {
+			cg.refdefViewAngles[PITCH] += (ps->holdable[TCE_FREELOOK_PITCH] - TCE_FREELOOK_CENTER) * .01f;
+			cg.refdefViewAngles[YAW] += (ps->holdable[TCE_FREELOOK_YAW] - TCE_FREELOOK_CENTER) * .01f;
+		}
 	}
 
 	// position eye reletive to origin

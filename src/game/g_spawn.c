@@ -6,6 +6,7 @@
 */
 
 #include "g_local.h"
+#include "tce_bg.h"
 qboolean G_SpawnStringExt( const char *key, const char *defaultString, char **out, const char* file, int line ) {
 	int		i;
 
@@ -178,34 +179,58 @@ typedef struct {
 	void	(*spawn)(gentity_t *ent);
 } spawn_t;
 
-/* TC qagame20069da0 / Linux000cab0a. Packed radar contacts consumed by
- * CG_RadarPositions (entity type61). The bomb carrier is a client number. */
+/* CQB Think_UpdateScanner000e6c20. Keep the three-contact packet but filter
+ * it for its recipient on the server. CQB broadcasts both complete lists and
+ * hides quiet opponents only in cgame; TCE2 never transmits those coordinates. */
+static qboolean TCE_ScannerContactActive(const gclient_t *client) {
+	int weapon = client->ps.weapon;
+	if (client->tceRadarHitTime > 0 &&
+		level.time - client->tceRadarHitTime < 250) return qtrue;
+	if (client->ps.lastFireTime <= 0 || level.time - client->ps.lastFireTime >= 250 ||
+		weapon <= 0 || weapon >= TCE_MAX_WEAPONS) return qfalse;
+	if (weaponDef[weapon].suppressed || weapon == TCE_WP_K1 ||
+		weapon == TCE_WP_G1 || weapon == TCE_WP_G2 || weapon == TCE_WP_G3)
+		return qfalse;
+	return weaponDef[weapon].pelletCount != 0 || gearDef.slot[weapon] != 1 ||
+		!(client->ps.stats[STAT_TCE_AIM_PHASE] & 2);
+}
+
 static void Think_UpdateScanner(gentity_t *self) {
 	int index = self->s.clientNum, scanned, found = 0;
 	int team = self->s.eFlags == 0 ? TEAM_AXIS : TEAM_ALLIES;
+	gclient_t *viewer = &level.clients[self->r.singleClient];
+	int viewerTeam = viewer->sess.sessionTeam;
 	self->s.groundEntityNum = self->s.otherEntityNum = self->s.otherEntityNum2 = 255;
-	/* Only flags0/1 are produced. Define the original invalid-flag branch
-	 * (which uses an entity pointer as a team number) as an empty scan. */
-	if (self->s.eFlags != 0 && self->s.eFlags != 1) {
+	self->s.modelindex = 0;
+	self->s.time = level.time; /* packet timestamp; do not refresh held snapshots */
+	if (viewer->pers.connected != CON_CONNECTED ||
+		(viewerTeam != TEAM_AXIS && viewerTeam != TEAM_ALLIES)) {
+		self->r.svFlags |= SVF_NOCLIENT;
 		self->nextthink = level.time + 50;
 		return;
 	}
+	self->r.svFlags &= ~SVF_NOCLIENT;
 	for (scanned = 0; scanned < 64; ++scanned) {
 		gentity_t *player;
 		gclient_t *client;
+		qboolean active;
 		if (++index >= 64) index = 0;
 		player = &g_entities[index];
-		if (!player->inuse) continue;
+		if (!player->inuse || !player->client) continue;
 		client = player->client;
 		if (client->sess.sessionTeam != team || client->pers.connected != CON_CONNECTED ||
-			g_gametype.integer != 5 || !(client->ps.stats[STAT_TCE_WEAPON_FLAGS] & 0x100) ||
-			client->ps.clientNum != level.tceBombCarrier || client->ps.stats[STAT_HEALTH] <= 0) continue;
+			client->ps.pm_type != PM_NORMAL || (client->ps.pm_flags & PMF_LIMBO) ||
+			client->ps.stats[STAT_HEALTH] <= 0) continue;
+		active = TCE_ScannerContactActive(client);
+		if (viewerTeam != team && !active) continue;
 		switch (++found) {
 		case 1: VectorCopy(client->ps.origin, self->s.origin2); self->s.groundEntityNum = index; break;
 		case 2: VectorCopy(client->ps.origin, self->s.origin); self->s.otherEntityNum = index; break;
 		case 3: VectorCopy(client->ps.origin, self->s.pos.trBase); self->s.otherEntityNum2 = index; break;
 		default: self->nextthink = level.time + 50; return;
 		}
+		self->s.angles[found - 1] = client->ps.viewangles[YAW];
+		if (active) self->s.modelindex |= 1 << (found - 1);
 		self->s.clientNum = index;
 	}
 	self->nextthink = level.time + 50;
@@ -213,6 +238,11 @@ static void Think_UpdateScanner(gentity_t *self) {
 
 /* TC qagame20069ef0 / Linux000cacae. Preserve link-before-origin ordering. */
 static void SP_info_scanner(gentity_t *ent) {
+	/* Old map-created broadcast scanners are replaced by recipient packets. */
+	if (!(ent->r.svFlags & SVF_SINGLECLIENT)) {
+		G_FreeEntity(ent);
+		return;
+	}
 	ent->s.eType = 61;
 	ent->s.clientNum = 0;
 	trap_LinkEntity(ent);
@@ -788,7 +818,7 @@ char *G_NewString( const char *string ) {
 	char	*newb, *new_p;
 	int		i,l;
 	
-	l = strlen(string) + 1;
+	l = Q_strlenInt(string) + 1;
 
 	newb = G_Alloc( l );
 
@@ -939,7 +969,7 @@ char *G_AddSpawnVarToken( const char *string ) {
 	int		l;
 	char	*dest;
 
-	l = strlen( string );
+	l = Q_strlenInt( string );
 	if ( level.numSpawnVarChars + l + 1 > MAX_SPAWN_VARS_CHARS ) {
 		G_Error( "G_AddSpawnVarToken: MAX_SPAWN_VARS" );
 	}
@@ -1131,15 +1161,17 @@ void G_SpawnEntitiesFromString( void ) {
 		G_SpawnGEntityFromSpawnVars();
 	}	
 
-	/* TC2008666b: demolition creates two scanners at the first deathmatch
-	 * spawn. Both original instances use group0; do not invent group1 here. */
-	if (g_gametype.integer == 5 &&
-		(start = G_Find(NULL, FOFS(classname), "info_player_deathmatch")) != NULL) {
-		for (i = 0; i < 2; ++i) {
+	/* CQB compass feeds for both teams in every team gametype. SINGLECLIENT
+	 * works with both ET2.60 and Legacy; no engine-specific team mask needed. */
+	start = G_Find(NULL, FOFS(classname), "info_player_deathmatch");
+	{
+		for (i = 0; i < level.maxclients * 2; ++i) {
 			scanner = G_Spawn();
 			scanner->classname = "info_scanner";
-			scanner->s.eFlags = 0;
-			VectorCopy(start->r.currentOrigin, scanner->s.origin);
+			scanner->s.eFlags = i & 1;
+			scanner->r.svFlags = SVF_SINGLECLIENT;
+			scanner->r.singleClient = i / 2;
+			if (start) VectorCopy(start->r.currentOrigin, scanner->s.origin);
 			if (!G_CallSpawn(scanner)) G_FreeEntity(scanner);
 		}
 	}

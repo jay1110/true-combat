@@ -559,7 +559,7 @@ void	Svcmd_EntityList_f (void) {
 			continue;
 		}
 		G_Printf("%3i:", e);
-		switch ( check->s.eType ) {
+		switch ( (int)check->s.eType ) {
 		case ET_GENERAL:
 			G_Printf("ET_GENERAL          ");
 			break;

@@ -1,9 +1,6 @@
 -- TC:E adaptation of WolfAdmin 1.2.1, GPL-3.0-or-later.
 -- Only this module's et table is affected: Lua modules have separate states.
-wolfa_tce_disabled = {
-    news = true, sprees = true, resetsprees = true, stats = true,
-    listmaps = true, enablevote = true,
-}
+wolfa_tce_disabled = {}
 
 local sessions, loginAttempts = {}, {}
 function wolfa_tce_clearSession(clientId)
@@ -21,6 +18,15 @@ end
 
 function wolfa_tce_login(clientId, command)
     if command:lower() ~= "wolfauth" then return false end
+    if et.trap_Argc() ~= 2 then
+        et.trap_SendServerCommand(clientId, 'print "WolfAdmin: usage: /wolfauth <server admin password> (game console, not chat)."')
+        return true
+    end
+    local expected = et.trap_Cvar_Get("wolfadmin_password")
+    if expected == "" then
+        et.trap_SendServerCommand(clientId, 'print "WolfAdmin: password login is disabled. The server owner must set wolfadmin_password in wolfadmin-private.cfg."')
+        return true
+    end
     local now = et.trap_Milliseconds()
     if loginAttempts[clientId] and now - loginAttempts[clientId] < 5000 then
         et.trap_SendServerCommand(clientId, 'print "WolfAdmin: wait five seconds before another login attempt."')
@@ -29,11 +35,10 @@ function wolfa_tce_login(clientId, command)
     loginAttempts[clientId] = now
     sessions[clientId] = nil
     local players = wolfa_requireModule("players.players")
-    local expected = et.trap_Cvar_Get("wolfadmin_password")
     if expected ~= "" and players.isConnected(clientId) and not players.isBot(clientId) and
         et.trap_Argc() == 2 and et.trap_Argv(1) == expected then
         sessions[clientId] = expected
-        et.trap_SendServerCommand(clientId, 'print "WolfAdmin: session admin login successful. Rights expire on disconnect, map restart or password change."')
+        et.trap_SendServerCommand(clientId, 'print "WolfAdmin: session admin login successful. Rights expire on disconnect, map/Lua restart or password change."')
     else
         et.trap_SendServerCommand(clientId, 'print "WolfAdmin: login failed or password login is disabled."')
     end
@@ -111,6 +116,28 @@ et.trap_SendConsoleCommand = function(mode, text)
         end
         return
     end
+    -- Greeting broadcasts use cp/bp/cpm without a numeric recipient.
+    local broadcast, message = text:match('^%s*(%w+)%s+"(.*)"%s*;?%s*$')
+    local broadcastTypes = {cp = "cp", bp = "cp", cpm = "cpm", chat = "chat", say = "chat"}
+    if broadcast and broadcastTypes[broadcast] then
+        nativeServer(-1, broadcastTypes[broadcast]..' "'..clean(message)..'"')
+        return
+    end
+    local soundClient, soundPath = text:match('^%s*playsound%s+(-?%d+)%s+"([^"%c]+)"%s*;?%s*$')
+    if not soundPath then
+        soundPath = text:match('^%s*playsound%s+"([^"%c]+)"%s*;?%s*$')
+        soundClient = -1
+    end
+    if soundPath then
+        soundPath = soundPath:gsub("^/", "")
+        if soundPath:match("^sound/") and not soundPath:find("..", 1, true) and
+            not soundPath:find('[\\:;]') then
+            et.G_AdminSound(tonumber(soundClient), soundPath)
+        else
+            et.G_Print("WolfAdmin: invalid greeting sound path.\n")
+        end
+        return
+    end
     text = text:gsub("%s*;%s*$", ""):gsub("%s+$", "")
     -- All non-message commands used by enabled upstream modules have a fixed
     -- grammar. Never submit arbitrary player text to the engine console.
@@ -129,7 +156,8 @@ end
 
 et.trap_SendServerCommand = function(id, text)
     local command, body = text:match('^(%w+)%s+"(.*)"%s*;?%s*$')
-    if command then return nativeServer(id, command..' "'..clean(body)..'"') end
+    if command == "bp" or command == "announce" then command = "cp" end
+    if command then return nativeServer(id, command..' "'..clean(body)..(command == "print" and "\n" or "")..'"') end
     return nativeServer(id, tostring(text):sub(1, 1000))
 end
 

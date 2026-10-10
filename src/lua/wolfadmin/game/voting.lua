@@ -52,18 +52,20 @@ function voting.isRestricted(type)
 end
 
 function voting.disableNextMap()
+    if voting.isForced("nextmap") then return end
     et.trap_SendConsoleCommand(et.EXEC_APPEND, "cchat -1 \"^dvote: ^9next map voting has automatically been disabled.\";")
 
     voting.allow("nextmap", 0)
 end
 
 function voting.load()
+    restricted = {}
     for _, type in pairs(constants.VOTE_TYPES) do
         allowed[type] = tonumber(et.trap_Cvar_Get("vote_allow_"..type))
         forced[type] = 0
     end
 
-    local restrictedVotes = util.split(settings.get("g_restrictedVotes"), ",")
+    local restrictedVotes = util.split(settings.get("g_restrictedVotes"):gsub("%s+", ","), ",")
 
     for _, type in pairs(restrictedVotes) do
         restricted[type] = 1
@@ -91,7 +93,7 @@ function voting.onCallvote(clientId, type, args)
         return 0
     elseif voting.isRestricted(type) and not auth.isPlayerAllowed(clientId, auth.PERM_NOVOTELIMIT) then
         et.trap_SendConsoleCommand(et.EXEC_APPEND, "csay "..clientId.." \"callvote: you are not allowed to call this type of vote.\";")
-        et.trap_SendServerCommand(clientId, "cp \"You are not allowed to call this type of vote.")
+        et.trap_SendServerCommand(clientId, "cp \"You are not allowed to call this type of vote.\"")
 
         return 1
     end

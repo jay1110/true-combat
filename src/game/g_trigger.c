@@ -1034,12 +1034,12 @@ void trigger_aidoor_stayopen (gentity_t * ent, gentity_t * other , trace_t * tra
 			/* TC 20093035: retain FILD(time)+wait+3000 until __ftol. */
 			{
 				int now = level.time;
-				float wait = door->wait, delay = 3000.0f;
+				float doorWait = door->wait, delay = 3000.0f;
 				unsigned short savedControl, truncateControl;
 				__int64 deadline;
 				__asm {
 					fild now
-					fadd wait
+					fadd doorWait
 					fadd delay
 					fwait
 					fnstcw savedControl
@@ -1240,10 +1240,10 @@ void explosive_indicator_think( gentity_t *ent ) {
 		{
 			mapEntityData_t	*mEnt;
 
-			if((mEnt = G_FindMapEntityData( &mapEntityData[0], ent-g_entities)) != NULL) {
+			if((mEnt = G_FindMapEntityData( &mapEntityData[0], (int)(ent - g_entities))) != NULL) {
 				G_FreeMapEntityData( &mapEntityData[0], mEnt );
 			}
-			if((mEnt = G_FindMapEntityData( &mapEntityData[1], ent-g_entities)) != NULL) {
+			if((mEnt = G_FindMapEntityData( &mapEntityData[1], (int)(ent - g_entities))) != NULL) {
 				G_FreeMapEntityData( &mapEntityData[1], mEnt );
 			}
 		}
@@ -1302,16 +1302,16 @@ void constructible_indicator_think( gentity_t *ent ) {
 			mapEntityData_Team_t *teamList;
 
 			if(parent->spawnflags & 8) {
-				if((mEnt = G_FindMapEntityData(&mapEntityData[0], ent-g_entities)) != NULL) {
+				if((mEnt = G_FindMapEntityData(&mapEntityData[0], (int)(ent - g_entities))) != NULL) {
 					G_FreeMapEntityData( &mapEntityData[0], mEnt );
 				}
-				if((mEnt = G_FindMapEntityData(&mapEntityData[1], ent-g_entities)) != NULL ) {
+				if((mEnt = G_FindMapEntityData(&mapEntityData[1], (int)(ent - g_entities))) != NULL ) {
 					G_FreeMapEntityData( &mapEntityData[1], mEnt );
 				}
 			} else 
 			{
 				teamList = ent->s.teamNum == TEAM_AXIS ? &mapEntityData[0] : &mapEntityData[1];
-				if((mEnt = G_FindMapEntityData(teamList, ent-g_entities)) != NULL) {
+				if((mEnt = G_FindMapEntityData(teamList, (int)(ent - g_entities))) != NULL) {
 					G_FreeMapEntityData( teamList, mEnt );
 				}
 			}
@@ -1484,7 +1484,7 @@ void Think_SetupObjectiveInfo( gentity_t *ent ) {
 
 			e->s.modelindex2 = ent->s.teamNum;
 			e->r.ownerNum = ent->s.number;
-			ent->count2 = (e - g_entities);
+			ent->count2 = ((int)(e - g_entities));
 			e->think = constructible_indicator_think;
 			e->nextthink = level.time + FRAMETIME;
 
@@ -1570,7 +1570,7 @@ void SP_trigger_objective_info( gentity_t *ent ) {
 		}
 	}
 
-	G_SetConfigStringValue( CS_OID_DATA + level.numOidTriggers, "e",	va( "%i", ent-g_entities )			);
+	G_SetConfigStringValue( CS_OID_DATA + level.numOidTriggers, "e",	va( "%i", (int)(ent - g_entities) )			);
 	G_SetConfigStringValue( CS_OID_DATA + level.numOidTriggers, "o",	va( "%i", objflags )				);
 	G_SetConfigStringValue( CS_OID_DATA + level.numOidTriggers, "cix",	va( "%i", cix )						);
 	G_SetConfigStringValue( CS_OID_DATA + level.numOidTriggers, "cia",	va( "%i", cia )						);
@@ -1636,7 +1636,7 @@ void SP_trigger_objective_info( gentity_t *ent ) {
 // JPW NERVE -- field which is acted upon (cgame side) by screenshakes to drop dust particles
 void trigger_concussive_touch(gentity_t *ent, gentity_t *other, trace_t *trace) {
 return; // FIXME this should be NULLed out in SP_trigger_concussive_dust after everything works
-	G_Printf("hit concussive ent %d mins=%f,%f,%f maxs=%f,%f,%f\n",ent - g_entities,
+	G_Printf("hit concussive ent %d mins=%f,%f,%f maxs=%f,%f,%f\n",(int)(ent - g_entities),
 		ent->r.mins[0],
 		ent->r.mins[1],
 		ent->r.mins[2],

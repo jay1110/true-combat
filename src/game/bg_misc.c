@@ -2762,6 +2762,10 @@ static void BG_TCEPlayerStateFields(const playerState_t *ps, entityState_t *s) {
 	int alternate = ps->stats[STAT_TCE_FLAGS] & 0x400;
 	int i;
 	s->angles2[ROLL] = ps->leanf;
+	/* TCE2 freelook uses unused player angles components, preserving TC's
+	 * angles2 movementDir/lean protocol. Both converters share this tail. */
+	s->angles[PITCH] = ps->holdable[TCE_FREELOOK_PITCH] ? (ps->holdable[TCE_FREELOOK_PITCH] - TCE_FREELOOK_CENTER) * .01f : 0;
+	s->angles[YAW] = ps->holdable[TCE_FREELOOK_YAW] ? (ps->holdable[TCE_FREELOOK_YAW] - TCE_FREELOOK_CENTER) * .01f : 0;
 	s->effect1Time = 0;
 	if (ps->pm_flags & 1) s->effect1Time = 2;
 	if (ps->eFlags & 0x80000) s->effect1Time |= 4;
@@ -3381,7 +3385,7 @@ void BG_PlayerStateToEntityStateExtraPolate( playerState_t *ps, entityState_t *s
 
 // Gordon: some weapons are duplicated for code puposes.... just want to treat them as a single 
 weapon_t BG_DuplicateWeapon( weapon_t weap ) {
-	switch( weap ) {
+	switch( (int)weap ) {
 		/* TC:E wire IDs; the SDK enum labels collide with TC weapons. */
 		case 56:	return 55;
 		case 57:	return 25;
@@ -4258,7 +4262,8 @@ qboolean PC_String_ParseNoAlloc(int handle, char *out, size_t size) {
 	if( !trap_PC_ReadToken(handle, &token) )
 		return qfalse;
 	
-	Q_strncpyz( out, token.string, size );
+	if (size == 0 || size > INT_MAX) return qfalse;
+	Q_strncpyz( out, token.string, (int)size );
     return qtrue;
 }
 
@@ -4413,7 +4418,7 @@ int BG_colorstrncpyz(char *in, char *out, int str_max, int out_max)
 {
 	int str_len = 0;	// current printable string size
 	int out_len = 0;	// current true string size
-	const int in_len = strlen(in);
+	const int in_len = Q_strlenInt(in);
 
 	out_max--;
 	while(*in && out_len < out_max && str_len < str_max) {

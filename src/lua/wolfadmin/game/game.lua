@@ -58,7 +58,7 @@ function game.oninit()
     if gameType == 4 then
         currentMaps = util.split(campaignMaps, ",")
     else
-        currentMaps = util.split(objectiveMaps, ",")
+        currentMaps = objectiveMaps ~= "" and util.split(objectiveMaps, ",") or {}
     end
 
     currentMap = et.trap_Cvar_Get("mapname")

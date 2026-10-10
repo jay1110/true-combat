@@ -358,6 +358,7 @@ typedef struct centity_s {
 	vec3_t tceEntityMotion; /* Original cent+0xa84: lerp/trajectory motion, jet loops. */
 	int tceEjectPending; /* original centity +0xa7c; consumed after animated tags */
 	int tceFireEffectPending; /* original centity +0xa80. */
+	int tceTeamNameUntil; /* CQB-style last-visible name fade, local only. */
 	int tceVisible, tceVisibilityUntil; /* Original +0xa74/+0xa78. */
 	int tceCoronaLastVisible; /* original cent+a78; appended to SDK layout */
 	float tceCoronaVisibility; /* original cent+a90 */
@@ -417,7 +418,13 @@ typedef enum {
 //	LE_ZOMBIE_SPIRIT,
 //	LE_ZOMBIE_BAT,
 	LE_MOVING_TRACER,
-	LE_EMITTER
+	LE_EMITTER,
+	LE_TCE_FLAT_SPARK = 14,
+	LE_TCE_GLOW_SPARK = 15,
+	LE_TCE_GRAVITY_FADE = 16,
+	LE_TCE_GRAVITY_FADE_RGB = 17,
+	LE_TCE_SCALE_FADE_RGB = 18,
+	LE_TCE_SHRINK_WIDEN = 19
 } leType_t;
 
 typedef enum {
@@ -1199,9 +1206,15 @@ typedef struct {
 	int				bufferedSoundScriptEndTime;
 	int				numbufferedSoundScripts;
 
+	qboolean tceWeaponViewValid;
+	vec3_t tceWeaponViewOrigin, tceWeaponViewAngles, tceWeaponViewAxis[3];
+	float tceNameTanHalfFov; /* Horizontal FOV before underwater warp. */
 	int tceShowObjectiveDesc;
 	vec3_t tceRadarPositions[2][64];
 	int tceRadarTimes[2][64];
+	float tceRadarYaw[2][64]; /* CQB compass: heading accompanying each contact. */
+	int tceRadarViewerTeam; /* discard old privileged feed when changing teams. */
+	int tceRadarTeamTimeout; /* enough time for a three-contact scan of a full team. */
 	char			objMapDescription_Axis[384];
 	char			objMapDescription_Allied[384];
 	char			objMapDescription_Neutral[384];
@@ -1949,7 +1962,7 @@ typedef struct {
 
 	int cursorX;
 	int cursorY;
-	qboolean eventHandling;
+	int eventHandling; // CGAME_EVENT_* values, not a boolean.
 	qboolean mouseCaptured;
 	qboolean sizingHud;
 	void *capturedItem;
@@ -2128,7 +2141,7 @@ extern	vmCvar_t		cg_draw2D;
 extern	vmCvar_t		cg_drawFPS;
 extern	vmCvar_t		cg_drawSnapshot;
 extern	vmCvar_t		cg_drawCrosshair;
-extern	vmCvar_t		cg_drawCrosshairNames;
+extern	vmCvar_t		cg_drawTeamNames;
 extern	vmCvar_t		cg_drawCrosshairPickups;
 extern	vmCvar_t		cg_useWeapsForZoom;
 extern	vmCvar_t		cg_weaponCycleDelay;	//----(SA)	added

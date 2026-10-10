@@ -962,7 +962,21 @@ void CG_toggleSwing_f( void ) {
 	trap_Cvar_Set( "cg_specSwing", cg_specSwing.integer > 0 ? "0" : "1" );
 }
 
+/* CQB uses usercmd.buttons bit 4, supported by the stock engine +useitem.
+ * Forward key/time arguments so multiple bound keys retain engine key semantics. */
+static void CG_FreeLookCommand(qboolean down) {
+    char key[32], stamp[32];
+    trap_Argv(1, key, sizeof(key));
+    trap_Argv(2, stamp, sizeof(stamp));
+    if (key[0]) trap_SendConsoleCommand(va("%cuseitem %d %d\n", down ? '+' : '-', atoi(key), atoi(stamp)));
+    else trap_SendConsoleCommand(down ? "+useitem\n" : "-useitem\n");
+}
+static void CG_FreeLookDown_f(void) { CG_FreeLookCommand(qtrue); }
+static void CG_FreeLookUp_f(void) { CG_FreeLookCommand(qfalse); }
+
 static consoleCommand_t commands[] = {
+	{ "+freelook", CG_FreeLookDown_f },
+	{ "-freelook", CG_FreeLookUp_f },
 	{ "testgun", CG_TestGun_f },
 	{ "testmodel", CG_TestModel_f },
 	{ "nextframe", CG_TestModelNextFrame_f },

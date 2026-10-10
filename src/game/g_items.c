@@ -438,7 +438,7 @@ void G_TCEReleaseObjectives(gentity_t *ent,qboolean disconnect,qboolean vip) {
     if(g_gametype.integer!=5 || !cl)return;
     if((cl->ps.stats[STAT_TCE_WEAPON_FLAGS]&0x100) && level.tceBombAssigned &&
         !level.tceBombPlanted && level.tceBombCarrier==cl->ps.clientNum &&
-        (!disconnect || level.tceBombCarrier==(int)(ent-g_entities)) && level.tceBombDropCount<2) {
+        (!disconnect || level.tceBombCarrier==(int)((int)(ent - g_entities))) && level.tceBombDropCount<2) {
         drop=G_TCELaunchObjective(ent,qfalse);
         if(disconnect && drop)drop->s.effect2Time=level.tceBombDropCount;
         cl->ps.stats[STAT_TCE_WEAPON_FLAGS]&=~0x100;level.tceBombCarrierCount--;
@@ -450,7 +450,7 @@ void G_TCEReleaseObjectives(gentity_t *ent,qboolean disconnect,qboolean vip) {
      * index, not only a potentially stale predicted playerstate clientNum. */
     if(vip && (cl->ps.stats[STAT_TCE_FLAGS]&0x100) && level.tceVipAssigned &&
        level.tceVipCarrier==cl->ps.clientNum &&
-       (!disconnect || level.tceVipCarrier==(int)(ent-g_entities))) {
+       (!disconnect || level.tceVipCarrier==(int)((int)(ent - g_entities)))) {
         drop=G_TCELaunchObjective(ent,qtrue);
         if(disconnect && drop)drop->s.effect2Time=level.tceBombDropCount+1;
         cl->ps.stats[STAT_TCE_FLAGS]&=~0x100;level.tceVipCarrier=-1;
@@ -636,7 +636,7 @@ int Pickup_Weapon( gentity_t *ent, gentity_t *other ) {
 				if (!(ent->parent->client->PCSpecialPickedUpCount % LT_SPECIAL_PICKUP_MOD)) {
 					AddScore(ent->parent, WOLF_AMMO_UP);
 					if(ent->parent && ent->parent->client) {
-						G_LogPrintf("Ammo_Pack: %d %d\n", ent->parent - g_entities, other - g_entities);	// OSP
+						G_LogPrintf("Ammo_Pack: %d %d\n", (int)(ent->parent - g_entities), (int)(other - g_entities));	// OSP
 					}
 				}
 				ent->parent->client->PCSpecialPickedUpCount++;

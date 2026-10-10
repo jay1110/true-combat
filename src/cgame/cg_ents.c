@@ -65,11 +65,11 @@ void CG_AddLightstyle(centity_t *cent)
 	int		otime;
 	int		lastch, nextch;
 
-	if(!cent->dl_stylestring)
+	if(!cent->dl_stylestring[0])
 		return;
 
 	otime = cg.time - cent->dl_time;
-	stringlength = strlen(cent->dl_stylestring);
+	stringlength = Q_strlenInt(cent->dl_stylestring);
 
 	// it's been a long time since you were updated, lets assume a reset
 	if(otime > 2*LS_FRAMETIME) {
@@ -539,7 +539,10 @@ static void CG_Speaker( centity_t *cent ) {
 qboolean CG_PlayerSeesItem(playerState_t *ps, entityState_t *item, int atTime, int itemType)
 {
 	vec3_t	vorigin, eorigin, viewa, dir;
-	float	dot, dist, foo;
+	float dist;
+#if !defined(_MSC_VER) || !defined(_M_IX86)
+	float dot, foo;
+#endif
 #if defined(_MSC_VER) && defined(_M_IX86)
     static const float maxDistance = 255.f, coneBase = -0.94f;
     static const float coneScale = 1.f/255.f, coneSlope = 0.057f, one = 1.f;
@@ -1812,41 +1815,57 @@ void CG_CalcEntityLerpPositions( centity_t *cent ) {
 CG_ProcessEntity
 ===============
 */
-/* Whole TC packed radar position producer, Windows30031e40.
- * Malformed negative contact indices are rejected instead of writing before cg. */
+/* CQB CG_ProcessEntity case61, Linux0006e248 onward: own-team positions
+ * expire after750ms; a flagged opposing contact remains for3000ms. */
 static void CG_RadarPositions(centity_t *cent) {
     entityState_t *es=&cent->currentState;
-    int group=es->eFlags,i,j,index[3];
+    int group=es->eFlags,i,index[3],team=cg.snap->ps.persistant[PERS_TEAM];
+    int packetTime=es->time?es->time:cg.time;
     const float *positions[3];
     if(group!=0 && group!=1)return;
+    if(cg.tceRadarViewerTeam!=team) {
+        memset(cg.tceRadarPositions,0,sizeof(cg.tceRadarPositions));
+        memset(cg.tceRadarTimes,0,sizeof(cg.tceRadarTimes));
+        cg.tceRadarViewerTeam=team;
+    }
+    if(team!=TEAM_AXIS && team!=TEAM_ALLIES)return;
+    {
+        int teammates=0;
+        for(i=0;i<MAX_CLIENTS;i++)
+            if(cgs.clientinfo[i].infoValid && cgs.clientinfo[i].team==team)teammates++;
+        cg.tceRadarTeamTimeout=((teammates+2)/3)*50+250;
+        if(cg.tceRadarTeamTimeout<750)cg.tceRadarTeamTimeout=750;
+    }
     index[0]=es->groundEntityNum;positions[0]=es->origin2;
     index[1]=es->otherEntityNum;positions[1]=es->origin;
     index[2]=es->otherEntityNum2;positions[2]=es->pos.trBase;
     for(i=0;i<3;i++) if(index[i]>=0 && index[i]<64) {
+        if(group!=team-1 && !(es->modelindex&(1<<i)))continue;
+        if(packetTime<cg.tceRadarTimes[group][index[i]]-(group==team-1?0:2250))continue;
         VectorCopy(positions[i],cg.tceRadarPositions[group][index[i]]);
-        cg.tceRadarTimes[group][index[i]]=cg.time;
+        cg.tceRadarYaw[group][index[i]]=es->angles[i];
+        cg.tceRadarTimes[group][index[i]]=packetTime+(group==team-1?0:2250);
     }
     for(i=0;i<64;i++) {
-        if((cg.tceRadarTimes[group][i] && cg.time-cg.tceRadarTimes[group][i]>750) ||
-           i==cg.snap->ps.clientNum || (cg_entities[i].currentState.eFlags&EF_DEAD)) {
+        if((cg.tceRadarTimes[group][i] && cg.time-cg.tceRadarTimes[group][i]>
+            (group==team-1?cg.tceRadarTeamTimeout:750)) ||
+           i==cg.snap->ps.clientNum || !cgs.clientinfo[i].infoValid ||
+           cgs.clientinfo[i].team!=group+1 ||
+           (cg_entities[i].currentValid && (cg_entities[i].currentState.eFlags&EF_DEAD))) {
             VectorClear(cg.tceRadarPositions[group][i]);cg.tceRadarTimes[group][i]=0;
         }
-        if(group==1 && VectorLength(cg.tceRadarPositions[1][i])!=0) {
-            for(j=0;j<cg.snap->numEntities;j++) if(cg.snap->entities[j].number==i) {
-                /* Original indexes clientinfo by snapshot index, not contact index. */
-                if(cg.snap->entities[j].number==cg.snap->entities[j].clientNum &&
-                   j<MAX_CLIENTS && cgs.clientinfo[j].infoValid) {
-                    VectorCopy(cg_entities[i].lerpOrigin,cg.tceRadarPositions[1][i]);
-                    cg.tceRadarTimes[1][i]=cg.time;
-                }
-                break;
-            }
+        if(group==team-1 && cg.tceRadarTimes[group][i] &&
+           cg_entities[i].currentValid && cg_entities[i].currentState.eType==ET_PLAYER &&
+           !(cg_entities[i].currentState.eFlags&EF_DEAD)) {
+            VectorCopy(cg_entities[i].lerpOrigin,cg.tceRadarPositions[group][i]);
+            cg.tceRadarYaw[group][i]=cg_entities[i].lerpAngles[YAW];
+            cg.tceRadarTimes[group][i]=cg.time;
         }
     }
 }
 
 static void CG_ProcessEntity( centity_t *cent ) {
-	switch ( cent->currentState.eType ) {
+	switch ( (int)cent->currentState.eType ) {
 	case 61: CG_RadarPositions(cent); break;
 	default:
 		// ydnar: test for actual bad entity type

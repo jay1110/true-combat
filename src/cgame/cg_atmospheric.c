@@ -538,139 +538,75 @@ static qboolean CG_RainParticleGenerate( cg_atmosphericParticle_t *particle, vec
 #if defined(_MSC_VER) && defined(_M_IX86)
 static __declspec(naked) qboolean CG_RainParticleCheckVisible(cg_atmosphericParticle_t *particle) {
     __asm {
-weather_30017500:
         PUSH ESI
-weather_30017501:
         MOV ESI,dword ptr [ESP + 0x8]
-weather_30017505:
         TEST ESI,ESI
-weather_30017507:
         JZ weather_300175b7
-weather_3001750d:
         MOV EAX,dword ptr [ESI + WeatherActive]
-weather_30017510:
         TEST EAX,EAX
-weather_30017512:
         JZ weather_300175b7
-weather_30017518:
         MOV EAX,dword ptr [cg + WeatherTime]
-weather_3001751d:
         MOV EDX,dword ptr [cg_atmFx + WeatherLastTime]
-weather_30017523:
         SUB EAX,EDX
-weather_30017525:
         PUSH ESI
-weather_30017526:
         MOV dword ptr [ESP + 0xc],EAX
-weather_3001752a:
         FILD dword ptr [ESP + 0xc]
-weather_3001752e:
         FMUL qword ptr [weatherSeconds]
-weather_30017534:
         FLD ST(0)
-weather_30017536:
         FMUL dword ptr [ESI + WeatherDeltaX]
-weather_30017539:
         FADD dword ptr [ESI + WeatherPosX]
-weather_3001753b:
         FSTP dword ptr [ESI + WeatherPosX]
-weather_3001753d:
         FLD ST(0)
-weather_3001753f:
         FMUL dword ptr [ESI + WeatherDeltaY]
-weather_30017542:
         FADD dword ptr [ESI + WeatherPosY]
-weather_30017545:
         FSTP dword ptr [ESI + WeatherPosY]
-weather_30017548:
         FMUL dword ptr [ESI + WeatherDeltaZ]
-weather_3001754b:
         FADD dword ptr [ESI + WeatherPosZ]
-weather_3001754e:
         FST dword ptr [ESI + WeatherPosZ]
-weather_30017551:
         FADD dword ptr [ESI + WeatherHeight]
-weather_30017554:
         FSTP dword ptr [ESP + 0xc]
-weather_30017558:
         CALL BG_GetSkyGroundHeightAtPoint
-weather_3001755d:
         FCOMP dword ptr [ESP + 0xc]
-weather_30017561:
         ADD ESP,0x4
-weather_30017564:
         FNSTSW AX
-weather_30017566:
         TEST AH,0x41
-weather_30017569:
         JNZ weather_30017578
-weather_3001756b:
         PUSH 0x0
-weather_3001756d:
         PUSH ESI
-weather_3001756e:
         CALL CG_SetParticleActive
-weather_30017573:
         ADD ESP,0x8
-weather_30017576:
         POP ESI
-weather_30017577:
         RET
 weather_30017578:
         MOV EAX,dword ptr [cg + WeatherRefdef]
-weather_3001757d:
         FLD dword ptr [ESI + WeatherPosX]
-weather_3001757f:
         FSUB dword ptr [EAX + WeatherViewX]
-weather_30017582:
         FLD dword ptr [ESI + WeatherPosY]
-weather_30017585:
         FSUB dword ptr [EAX + WeatherViewY]
-weather_30017588:
         FLD ST(0)
-weather_3001758a:
         FMUL ST(0), ST(1)
-weather_3001758c:
         FLD ST(2)
-weather_3001758e:
         FMUL ST(0), ST(3)
-weather_30017590:
         FADDP ST(1), ST(0)
-weather_30017592:
         FCOMP dword ptr [weatherDistanceSquared]
-weather_30017598:
         FNSTSW AX
-weather_3001759a:
         FSTP ST(0)
-weather_3001759c:
         TEST AH,0x41
-weather_3001759f:
         FSTP ST(0)
-weather_300175a1:
         JNZ weather_300175b0
-weather_300175a3:
         PUSH 0x0
-weather_300175a5:
         PUSH ESI
-weather_300175a6:
         CALL CG_SetParticleActive
-weather_300175ab:
         ADD ESP,0x8
-weather_300175ae:
         POP ESI
-weather_300175af:
         RET
 weather_300175b0:
         MOV EAX,0x1
-weather_300175b5:
         POP ESI
-weather_300175b6:
         RET
 weather_300175b7:
         XOR EAX,EAX
-weather_300175b9:
         POP ESI
-weather_300175ba:
         RET
     }
 }
@@ -1025,135 +961,73 @@ static qboolean CG_SnowParticleGenerate( cg_atmosphericParticle_t *particle, vec
 #if defined(_MSC_VER) && defined(_M_IX86)
 static __declspec(naked) qboolean CG_SnowParticleCheckVisible(cg_atmosphericParticle_t *particle) {
     __asm {
-weather_30017b70:
         PUSH ESI
-weather_30017b71:
         MOV ESI,dword ptr [ESP + 0x8]
-weather_30017b75:
         TEST ESI,ESI
-weather_30017b77:
         JZ weather_30017c1f
-weather_30017b7d:
         MOV EAX,dword ptr [ESI + WeatherActive]
-weather_30017b80:
         TEST EAX,EAX
-weather_30017b82:
         JZ weather_30017c1f
-weather_30017b88:
         MOV EAX,dword ptr [cg + WeatherTime]
-weather_30017b8d:
         MOV EDX,dword ptr [cg_atmFx + WeatherLastTime]
-weather_30017b93:
         SUB EAX,EDX
-weather_30017b95:
         PUSH ESI
-weather_30017b96:
         MOV dword ptr [ESP + 0xc],EAX
-weather_30017b9a:
         FILD dword ptr [ESP + 0xc]
-weather_30017b9e:
         FMUL qword ptr [weatherSeconds]
-weather_30017ba4:
         FLD ST(0)
-weather_30017ba6:
         FMUL dword ptr [ESI + WeatherDeltaX]
-weather_30017ba9:
         FADD dword ptr [ESI + WeatherPosX]
-weather_30017bab:
         FSTP dword ptr [ESI + WeatherPosX]
-weather_30017bad:
         FLD ST(0)
-weather_30017baf:
         FMUL dword ptr [ESI + WeatherDeltaY]
-weather_30017bb2:
         FADD dword ptr [ESI + WeatherPosY]
-weather_30017bb5:
         FSTP dword ptr [ESI + WeatherPosY]
-weather_30017bb8:
         FMUL dword ptr [ESI + WeatherDeltaZ]
-weather_30017bbb:
         FADD dword ptr [ESI + WeatherPosZ]
-weather_30017bbe:
         FSTP dword ptr [ESI + WeatherPosZ]
-weather_30017bc1:
         CALL BG_GetSkyGroundHeightAtPoint
-weather_30017bc6:
         FCOMP dword ptr [ESI + WeatherPosZ]
-weather_30017bc9:
         ADD ESP,0x4
-weather_30017bcc:
         FNSTSW AX
-weather_30017bce:
         TEST AH,0x41
-weather_30017bd1:
         JNZ weather_30017be0
-weather_30017bd3:
         PUSH 0x0
-weather_30017bd5:
         PUSH ESI
-weather_30017bd6:
         CALL CG_SetParticleActive
-weather_30017bdb:
         ADD ESP,0x8
-weather_30017bde:
         POP ESI
-weather_30017bdf:
         RET
 weather_30017be0:
         MOV EAX,dword ptr [cg + WeatherRefdef]
-weather_30017be5:
         FLD dword ptr [ESI + WeatherPosX]
-weather_30017be7:
         FSUB dword ptr [EAX + WeatherViewX]
-weather_30017bea:
         FLD dword ptr [ESI + WeatherPosY]
-weather_30017bed:
         FSUB dword ptr [EAX + WeatherViewY]
-weather_30017bf0:
         FLD ST(0)
-weather_30017bf2:
         FMUL ST(0), ST(1)
-weather_30017bf4:
         FLD ST(2)
-weather_30017bf6:
         FMUL ST(0), ST(3)
-weather_30017bf8:
         FADDP ST(1), ST(0)
-weather_30017bfa:
         FCOMP dword ptr [weatherDistanceSquared]
-weather_30017c00:
         FNSTSW AX
-weather_30017c02:
         FSTP ST(0)
-weather_30017c04:
         TEST AH,0x41
-weather_30017c07:
         FSTP ST(0)
-weather_30017c09:
         JNZ weather_30017c18
-weather_30017c0b:
         PUSH 0x0
-weather_30017c0d:
         PUSH ESI
-weather_30017c0e:
         CALL CG_SetParticleActive
-weather_30017c13:
         ADD ESP,0x8
-weather_30017c16:
         POP ESI
-weather_30017c17:
         RET
 weather_30017c18:
         MOV EAX,0x1
-weather_30017c1d:
         POP ESI
-weather_30017c1e:
         RET
 weather_30017c1f:
         XOR EAX,EAX
-weather_30017c21:
         POP ESI
-weather_30017c22:
         RET
     }
 }

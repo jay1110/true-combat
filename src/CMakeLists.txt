@@ -7,11 +7,21 @@ if(FEATURE_OMNIBOT)
   enable_language(CXX)
 endif()
 
-if(NOT CMAKE_SIZEOF_VOID_P EQUAL 4)
-  message(FATAL_ERROR "The ET module ABI requires a 32-bit compiler/toolchain.")
+if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+  set(TCE_WINDOWS_ARCH x64)
+  set(TCE_LINUX_ARCH x86_64)
+elseif(CMAKE_SIZEOF_VOID_P EQUAL 4)
+  set(TCE_WINDOWS_ARCH x86)
+  set(TCE_LINUX_ARCH i386)
+else()
+  message(FATAL_ERROR "Unsupported native pointer size")
 endif()
 if(NOT MSVC AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  message(FATAL_ERROR "Supported targets: MSVC Win32 or Linux i386.")
+  message(FATAL_ERROR "Supported targets: MSVC Windows or Linux.")
+endif()
+if(DEFINED TCE_ZIG_EXECUTABLE)
+  set(CMAKE_C_ARCHIVE_CREATE "\"${TCE_ZIG_EXECUTABLE}\" ar qc <TARGET> <LINK_FLAGS> <OBJECTS>")
+  set(CMAKE_C_ARCHIVE_FINISH "\"${TCE_ZIG_EXECUTABLE}\" ranlib <TARGET>")
 endif()
 
 # This is initially the ET SDK baseline, not a completed TC:E reconstruction.
@@ -28,14 +38,14 @@ function(et_module target folder define)
     _CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_DEPRECATE)
   target_compile_options(${target} PRIVATE /W3 /Zc:preprocessor-)
   target_link_libraries(${target} PRIVATE winmm)
-  set_target_properties(${target} PROPERTIES PREFIX "" OUTPUT_NAME "${target}_mp_x86"
+  set_target_properties(${target} PROPERTIES PREFIX "" OUTPUT_NAME "${target}_mp_${TCE_WINDOWS_ARCH}"
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
   else()
     target_compile_definitions(${target} PRIVATE ${define})
     target_compile_options(${target} PRIVATE -fcommon -fno-strict-aliasing)
     target_link_libraries(${target} PRIVATE m)
     target_link_options(${target} PRIVATE -Wl,--no-undefined -Wl,-Bsymbolic)
-    set_target_properties(${target} PROPERTIES PREFIX "" OUTPUT_NAME "${target}.mp.i386"
+    set_target_properties(${target} PROPERTIES PREFIX "" OUTPUT_NAME "${target}.mp.${TCE_LINUX_ARCH}"
       LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
   endif()
 endfunction()
@@ -87,17 +97,10 @@ if(MSVC)
  target_link_options(cgame PRIVATE "/MAP:${CMAKE_BINARY_DIR}/cgame-symbols-$<CONFIG>.map")
 endif()
 et_module(ui ui UIDLL)
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-  # ET: Legacy extracts client modules from PK3s before loading loose files.
-  # Without Linux entries it can restore the ET SDK modules from mp_bin.pk3.
-  add_custom_target(linux_client_package ALL
-    COMMAND "${CMAKE_COMMAND}" -E tar cf
-      "${CMAKE_BINARY_DIR}/bin/zz_tce2_linux_vm.pk3" --format=zip --
-      cgame.mp.i386.so ui.mp.i386.so
-    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-    DEPENDS cgame ui
-    VERBATIM)
-endif()
+target_sources(ui PRIVATE ui/tce_client_guid.c game/tce_guid.c)
+# Package the collected outputs from every platform together, after deployment:
+# cmake -DMODULE_DIRECTORY=<tce2> -P cmake/package_modules.cmake
+# An individual cross-build must not overwrite the other platform's PK3 entries.
 target_sources(ui PRIVATE ui/tce_ui_coordinates.c)
 target_sources(ui PRIVATE ui/tce_player_weapon.c)
 target_sources(ui PRIVATE game/tce_trajectory.c)

@@ -1185,7 +1185,7 @@ void use_dlight(gentity_t *ent, gentity_t *other, gentity_t *activator )
 
 		if(ent->spawnflags & 4)	{	// ONETIME
 			ent->think = shutoff_dlight;
-			ent->nextthink = level.time + (  strlen(ent->dl_stylestring)  * 100) - 100;
+			ent->nextthink = level.time + (  Q_strlenInt(ent->dl_stylestring)  * 100) - 100;
 		}
 	}
 }
@@ -1225,7 +1225,7 @@ void SP_dlight(gentity_t *ent) {
 		ent->dl_stylestring = "mmmaaa";							// default to a strobe to call attention to this not being set
 	}
 
-	ent->count		= strlen(ent->dl_stylestring);
+	ent->count		= Q_strlenInt(ent->dl_stylestring);
 
 	ent->dl_atten = atten;
 
@@ -1394,7 +1394,9 @@ void Fire_Lead_Ext( gentity_t *ent, gentity_t *activator, float spread, int dama
 	} else {
 		// Ridah, bullet impact should reflect off surface
 		vec3_t	reflect;
+#if !defined(_MSC_VER) || !defined(_M_IX86)
 		float	dot;
+#endif
 
 		tent = G_TempEntity( tr.endpos, EV_MG42BULLET_HIT_WALL );
 
@@ -1489,7 +1491,10 @@ void clamp_playerbehindgun (gentity_t *self, gentity_t *other, vec3_t dang) {
 
 void clamp_hweapontofirearc (gentity_t *self, vec3_t dang) 
 {
-	float diff, yawspeed;
+	float yawspeed;
+#if !defined(_MSC_VER) || !defined(_M_IX86)
+	float diff;
+#endif
 	int outsideArc, positiveDifference;
 	qboolean clamped;
 
@@ -1771,7 +1776,7 @@ void aagun_spawn (gentity_t *gun) {
 
 	gun->nextthink =			level.time + FRAMETIME;
 	gun->timestamp =			level.time + 1000;
-	gun->s.number =				gun - g_entities;
+	gun->s.number =				(int)(gun - g_entities);
 	gun->s.origin2[0] =			gun->harc;
 	gun->s.origin2[1] =			gun->varc;
 	gun->takedamage =			qfalse;
@@ -2174,7 +2179,7 @@ void mg42_spawn (gentity_t *ent) {
 
 		gun->nextthink =		level.time + FRAMETIME;
 		gun->timestamp =		level.time + 1000;
-		gun->s.number =			gun - g_entities;
+		gun->s.number =			(int)(gun - g_entities);
 		gun->harc =				ent->harc;
 		gun->varc =				ent->varc;
 		gun->s.origin2[0] =		ent->harc;
@@ -2336,7 +2341,7 @@ void flak_spawn (gentity_t *ent)
 	VectorCopy (gun->s.angles, gun->s.apos.trDelta );
 	gun->think = mg42_think;
 	gun->nextthink = level.time + FRAMETIME;
-	gun->s.number = gun - g_entities;
+	gun->s.number = (int)(gun - g_entities);
 	gun->harc = ent->harc;
 	gun->varc = ent->varc;
 	gun->s.apos.trType = TR_LINEAR_STOP;	// interpolate the angles
@@ -2715,7 +2720,7 @@ void SP_misc_constructiblemarker( gentity_t *ent ) {
 		char cs[MAX_INFO_STRING];
 
 		trap_GetConfigstring( CS_CONSTRUCTION_NAMES, cs, sizeof(cs) );
-		Info_SetValueForKey( cs, va("%i",ent-g_entities), s );
+		Info_SetValueForKey( cs, va("%i",(int)(ent - g_entities)), s );
 		trap_SetConfigstring( CS_CONSTRUCTION_NAMES, cs );
 	}
 
@@ -2888,7 +2893,7 @@ void G_TempTraceIgnoreEntity( gentity_t* ent ) {
 		return;
 	}
 
-	level.tempTraceIgnoreEnts[ ent - g_entities ] = qtrue;
+	level.tempTraceIgnoreEnts[ (int)(ent - g_entities) ] = qtrue;
 	ent->r.linked = qfalse;
 }
 

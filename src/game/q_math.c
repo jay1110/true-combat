@@ -787,167 +787,92 @@ static const float tceVecAngles270 = 270.0f, tceVecAngles360 = 360.0f;
 static const double tceVecAnglesDegrees = 57.29577791868204;
 __declspec(naked) void vectoangles(const vec3_t value1, vec3_t angles) {
     __asm {
-        tce_va_200a05c0:
             mov ecx,dword ptr [esp + 0x4]
-        tce_va_200a05c4:
             fld dword ptr [ecx + 0x4]
-        tce_va_200a05c7:
             fcomp dword ptr tceVecAnglesZero
-        tce_va_200a05cd:
             fnstsw ax
-        tce_va_200a05cf:
             test ah,0x40
-        tce_va_200a05d2:
             jz tce_va_200a062b
-        tce_va_200a05d4:
             fld dword ptr [ecx]
-        tce_va_200a05d6:
             fcomp dword ptr tceVecAnglesZero
-        tce_va_200a05dc:
             fnstsw ax
-        tce_va_200a05de:
             test ah,0x40
-        tce_va_200a05e1:
             jz tce_va_200a062b
-        tce_va_200a05e3:
             fld dword ptr tceVecAnglesZero
-        tce_va_200a05e9:
             fld dword ptr [ecx + 0x8]
-        tce_va_200a05ec:
             fcomp dword ptr tceVecAnglesZero
-        tce_va_200a05f2:
             fnstsw ax
-        tce_va_200a05f4:
             test ah,0x41
-        tce_va_200a05f7:
             jnz tce_va_200a0612
-        tce_va_200a05f9:
             fld dword ptr tceVecAngles90
-        tce_va_200a05ff:
             mov eax,dword ptr [esp + 0x8]
-        tce_va_200a0603:
             fchs
-        tce_va_200a0605:
             fstp dword ptr [eax]
-        tce_va_200a0607:
             mov dword ptr [eax + 0x8],0x0
-        tce_va_200a060e:
             fstp dword ptr [eax + 0x4]
-        tce_va_200a0611:
             ret
         tce_va_200a0612:
             fld dword ptr tceVecAngles270
-        tce_va_200a0618:
             mov eax,dword ptr [esp + 0x8]
-        tce_va_200a061c:
             fchs
-        tce_va_200a061e:
             fstp dword ptr [eax]
-        tce_va_200a0620:
             mov dword ptr [eax + 0x8],0x0
-        tce_va_200a0627:
             fstp dword ptr [eax + 0x4]
-        tce_va_200a062a:
             ret
         tce_va_200a062b:
             fld dword ptr [ecx]
-        tce_va_200a062d:
             fcomp dword ptr tceVecAnglesZero
-        tce_va_200a0633:
             fnstsw ax
-        tce_va_200a0635:
             test ah,0x40
-        tce_va_200a0638:
             jnz tce_va_200a06a6
-        tce_va_200a063a:
             fld dword ptr [ecx + 0x4]
-        tce_va_200a063d:
             fld dword ptr [ecx]
-        tce_va_200a063f:
             fpatan
-        tce_va_200a0641:
             fmul qword ptr tceVecAnglesDegrees
-        tce_va_200a0647:
             fcom dword ptr tceVecAnglesZero
-        tce_va_200a064d:
             fnstsw ax
-        tce_va_200a064f:
             test ah,0x1
-        tce_va_200a0652:
             jz tce_va_200a065a
-        tce_va_200a0654:
             fadd dword ptr tceVecAngles360
         tce_va_200a065a:
             fld dword ptr [ecx + 0x4]
-        tce_va_200a065d:
             fld dword ptr [ecx]
-        tce_va_200a065f:
             fld dword ptr [ecx + 0x8]
-        tce_va_200a0662:
             fld st(1)
-        tce_va_200a0664:
             fmul st(0),st(2)
-        tce_va_200a0666:
             fld st(3)
-        tce_va_200a0668:
             fmul st(0),st(4)
-        tce_va_200a066a:
             faddp st(1),st(0)
-        tce_va_200a066c:
             fsqrt
-        tce_va_200a066e:
             fstp st(3)
-        tce_va_200a0670:
             fxch st(1)
-        tce_va_200a0672:
             fxch st(2)
-        tce_va_200a0674:
             fpatan
-        tce_va_200a0676:
             fmul qword ptr tceVecAnglesDegrees
-        tce_va_200a067c:
             fxch st(1)
-        tce_va_200a067e:
             fstp st(0)
-        tce_va_200a0680:
             fcom dword ptr tceVecAnglesZero
-        tce_va_200a0686:
             fnstsw ax
-        tce_va_200a0688:
             test ah,0x1
-        tce_va_200a068b:
             jz tce_va_200a0693
-        tce_va_200a068d:
             fadd dword ptr tceVecAngles360
         tce_va_200a0693:
             mov eax,dword ptr [esp + 0x8]
-        tce_va_200a0697:
             fchs
-        tce_va_200a0699:
             fstp dword ptr [eax]
-        tce_va_200a069b:
             mov dword ptr [eax + 0x8],0x0
-        tce_va_200a06a2:
             fstp dword ptr [eax + 0x4]
-        tce_va_200a06a5:
             ret
         tce_va_200a06a6:
             fld dword ptr [ecx + 0x4]
-        tce_va_200a06a9:
             fcomp dword ptr tceVecAnglesZero
-        tce_va_200a06af:
             fnstsw ax
-        tce_va_200a06b1:
             test ah,0x41
-        tce_va_200a06b4:
             jnz tce_va_200a06be
-        tce_va_200a06b6:
             fld dword ptr tceVecAngles90
-        tce_va_200a06bc:
             jmp tce_va_200a065a
         tce_va_200a06be:
             fld dword ptr tceVecAngles270
-        tce_va_200a06c4:
             jmp tce_va_200a065a
     }
 }
@@ -1542,15 +1467,16 @@ __attribute__((naked)) float Q_rsqrt( float number ) {
 #else
 float Q_rsqrt( float number )
 {
-	long i;
+	uint32_t i;
 	float x2, y;
 	const float threehalfs = 1.5F;
 
 	x2 = number * 0.5F;
 	y  = number;
-	i  = * ( long * ) &y;						// evil floating point bit level hacking
-	i  = 0x5f3759df - ( i >> 1 );               // what the fuck?
-	y  = * ( float * ) &i;
+	/* float is 32 bits on both ILP32 and LP64; long is not. */
+	memcpy(&i, &y, sizeof(i));
+	i  = 0x5f3759dfu - ( i >> 1 );
+	memcpy(&y, &i, sizeof(y));
 	y  = y * ( threehalfs - ( x2 * y * y ) );   // 1st iteration
 //	y  = y * ( threehalfs - ( x2 * y * y ) );   // 2nd iteration, this can be removed
 
@@ -1562,15 +1488,10 @@ float Q_rsqrt( float number )
 #if defined(_MSC_VER) && defined(_M_IX86)
 __declspec(naked) float Q_fabs(float f) {
     __asm {
-        tce_744_200a07f0:
         mov eax,dword ptr [esp + 0x4]
-        tce_744_200a07f4:
         and eax,0x7fffffff
-        tce_744_200a07f9:
         mov dword ptr [esp + 0x4],eax
-        tce_744_200a07fd:
         fld dword ptr [esp + 0x4]
-        tce_744_200a0801:
         ret
     }
 }
@@ -1597,8 +1518,11 @@ __attribute__((naked)) float Q_fabs(float f) {
 }
 #else
 float Q_fabs( float f ) {
-	int tmp = (*(int*)&f) & 0x7FFFFFFF;
-	return *(float*)&tmp;
+	uint32_t bits;
+	memcpy(&bits, &f, sizeof(bits));
+	bits &= 0x7fffffffu;
+	memcpy(&f, &bits, sizeof(f));
+	return f;
 }
 #endif
 
@@ -2491,85 +2415,47 @@ RadiusFromBounds
 #if defined(_MSC_VER) && defined(_M_IX86)
 __declspec(naked) float RadiusFromBounds(const vec3_t mins, const vec3_t maxs) {
  __asm {
-  tce749_200a0900:
   sub esp,0xc
-  tce749_200a0903:
   push ebx
-  tce749_200a0904:
   push ebp
-  tce749_200a0905:
   mov ebp,dword ptr [esp + 0x18]
-  tce749_200a0909:
   push esi
-  tce749_200a090a:
   mov esi,dword ptr [esp + 0x20]
-  tce749_200a090e:
   push edi
-  tce749_200a090f:
   lea edi,[esp + 0x10]
-  tce749_200a0913:
   sub ebp,esi
-  tce749_200a0915:
   sub edi,esi
-  tce749_200a0917:
   mov ebx,0x3
   tce749_200a091c:
   mov eax,dword ptr [esi + ebp*0x1]
-  tce749_200a091f:
   push eax
-  tce749_200a0920:
   call Q_fabs
-  tce749_200a0925:
   mov ecx,dword ptr [esi]
-  tce749_200a0927:
   fstp dword ptr [esp + 0x28]
-  tce749_200a092b:
   push ecx
-  tce749_200a092c:
   call Q_fabs
-  tce749_200a0931:
   fld dword ptr [esp + 0x2c]
-  tce749_200a0935:
   fcomp st(1)
-  tce749_200a0937:
   add esp,0x8
-  tce749_200a093a:
   fnstsw ax
-  tce749_200a093c:
   test ah,0x41
-  tce749_200a093f:
   jnz tce749_200a0947
-  tce749_200a0941:
   fstp st(0)
-  tce749_200a0943:
   fld dword ptr [esp + 0x24]
   tce749_200a0947:
   fstp dword ptr [edi + esi*0x1]
-  tce749_200a094a:
   add esi,0x4
-  tce749_200a094d:
   dec ebx
-  tce749_200a094e:
   jnz tce749_200a091c
-  tce749_200a0950:
   lea edx,[esp + 0x10]
-  tce749_200a0954:
   push edx
-  tce749_200a0955:
   call VectorLength
-  tce749_200a095a:
   add esp,0x4
-  tce749_200a095d:
   pop edi
-  tce749_200a095e:
   pop esi
-  tce749_200a095f:
   pop ebp
-  tce749_200a0960:
   pop ebx
-  tce749_200a0961:
   add esp,0xc
-  tce749_200a0964:
   ret
  }
 }
@@ -2674,99 +2560,57 @@ void ClearBounds( vec3_t mins, vec3_t maxs ) {
 #if defined(_MSC_VER) && defined(_M_IX86)
 __declspec(naked) void AddPointToBounds(const vec3_t v, vec3_t mins, vec3_t maxs) {
  __asm {
-  tce750_200a0970:
   mov ecx,dword ptr [esp + 0x4]
-  tce750_200a0974:
   push esi
-  tce750_200a0975:
   mov esi,dword ptr [esp + 0xc]
-  tce750_200a0979:
   fld dword ptr [ecx]
-  tce750_200a097b:
   fcomp dword ptr [esi]
-  tce750_200a097d:
   fnstsw ax
-  tce750_200a097f:
   test ah,0x1
-  tce750_200a0982:
   jz tce750_200a0988
-  tce750_200a0984:
   mov eax,dword ptr [ecx]
-  tce750_200a0986:
   mov dword ptr [esi],eax
   tce750_200a0988:
   mov edx,dword ptr [esp + 0x10]
-  tce750_200a098c:
   fld dword ptr [ecx]
-  tce750_200a098e:
   fcomp dword ptr [edx]
-  tce750_200a0990:
   fnstsw ax
-  tce750_200a0992:
   test ah,0x41
-  tce750_200a0995:
   jnz tce750_200a099b
-  tce750_200a0997:
   mov eax,dword ptr [ecx]
-  tce750_200a0999:
   mov dword ptr [edx],eax
   tce750_200a099b:
   fld dword ptr [ecx + 0x4]
-  tce750_200a099e:
   fcomp dword ptr [esi + 0x4]
-  tce750_200a09a1:
   fnstsw ax
-  tce750_200a09a3:
   test ah,0x1
-  tce750_200a09a6:
   jz tce750_200a09ae
-  tce750_200a09a8:
   mov eax,dword ptr [ecx + 0x4]
-  tce750_200a09ab:
   mov dword ptr [esi + 0x4],eax
   tce750_200a09ae:
   fld dword ptr [ecx + 0x4]
-  tce750_200a09b1:
   fcomp dword ptr [edx + 0x4]
-  tce750_200a09b4:
   fnstsw ax
-  tce750_200a09b6:
   test ah,0x41
-  tce750_200a09b9:
   jnz tce750_200a09c1
-  tce750_200a09bb:
   mov eax,dword ptr [ecx + 0x4]
-  tce750_200a09be:
   mov dword ptr [edx + 0x4],eax
   tce750_200a09c1:
   fld dword ptr [ecx + 0x8]
-  tce750_200a09c4:
   fcomp dword ptr [esi + 0x8]
-  tce750_200a09c7:
   fnstsw ax
-  tce750_200a09c9:
   test ah,0x1
-  tce750_200a09cc:
   jz tce750_200a09d4
-  tce750_200a09ce:
   mov eax,dword ptr [ecx + 0x8]
-  tce750_200a09d1:
   mov dword ptr [esi + 0x8],eax
   tce750_200a09d4:
   fld dword ptr [ecx + 0x8]
-  tce750_200a09d7:
   fcomp dword ptr [edx + 0x8]
-  tce750_200a09da:
   pop esi
-  tce750_200a09db:
   fnstsw ax
-  tce750_200a09dd:
   test ah,0x41
-  tce750_200a09e0:
   jnz tce750_200a09e8
-  tce750_200a09e2:
   mov ecx,dword ptr [ecx + 0x8]
-  tce750_200a09e5:
   mov dword ptr [edx + 0x8],ecx
   tce750_200a09e8:
   ret
@@ -2904,115 +2748,66 @@ void AddPointToBounds( const vec3_t v, vec3_t mins, vec3_t maxs ) {
 #if defined(_MSC_VER) && defined(_M_IX86)
 __declspec(naked) qboolean PointInBounds(const vec3_t v, const vec3_t mins, const vec3_t maxs) {
  __asm {
-  tce750_200a09f0:
   mov ecx,dword ptr [esp + 0x4]
-  tce750_200a09f4:
   push esi
-  tce750_200a09f5:
   mov esi,dword ptr [esp + 0xc]
-  tce750_200a09f9:
   fld dword ptr [ecx]
-  tce750_200a09fb:
   fcomp dword ptr [esi]
-  tce750_200a09fd:
   fnstsw ax
-  tce750_200a09ff:
   test ah,0x1
-  tce750_200a0a02:
   jz tce750_200a0a08
-  tce750_200a0a04:
   xor eax,eax
-  tce750_200a0a06:
   pop esi
-  tce750_200a0a07:
   ret
   tce750_200a0a08:
   mov edx,dword ptr [esp + 0x10]
-  tce750_200a0a0c:
   fld dword ptr [ecx]
-  tce750_200a0a0e:
   fcomp dword ptr [edx]
-  tce750_200a0a10:
   fnstsw ax
-  tce750_200a0a12:
   test ah,0x41
-  tce750_200a0a15:
   jnz tce750_200a0a1b
-  tce750_200a0a17:
   xor eax,eax
-  tce750_200a0a19:
   pop esi
-  tce750_200a0a1a:
   ret
   tce750_200a0a1b:
   fld dword ptr [ecx + 0x4]
-  tce750_200a0a1e:
   fcomp dword ptr [esi + 0x4]
-  tce750_200a0a21:
   fnstsw ax
-  tce750_200a0a23:
   test ah,0x1
-  tce750_200a0a26:
   jz tce750_200a0a2c
-  tce750_200a0a28:
   xor eax,eax
-  tce750_200a0a2a:
   pop esi
-  tce750_200a0a2b:
   ret
   tce750_200a0a2c:
   fld dword ptr [ecx + 0x4]
-  tce750_200a0a2f:
   fcomp dword ptr [edx + 0x4]
-  tce750_200a0a32:
   fnstsw ax
-  tce750_200a0a34:
   test ah,0x41
-  tce750_200a0a37:
   jnz tce750_200a0a3d
-  tce750_200a0a39:
   xor eax,eax
-  tce750_200a0a3b:
   pop esi
-  tce750_200a0a3c:
   ret
   tce750_200a0a3d:
   fld dword ptr [ecx + 0x8]
-  tce750_200a0a40:
   fcomp dword ptr [esi + 0x8]
-  tce750_200a0a43:
   fnstsw ax
-  tce750_200a0a45:
   test ah,0x1
-  tce750_200a0a48:
   jz tce750_200a0a4e
-  tce750_200a0a4a:
   xor eax,eax
-  tce750_200a0a4c:
   pop esi
-  tce750_200a0a4d:
   ret
   tce750_200a0a4e:
   fld dword ptr [ecx + 0x8]
-  tce750_200a0a51:
   fcomp dword ptr [edx + 0x8]
-  tce750_200a0a54:
   fnstsw ax
-  tce750_200a0a56:
   test ah,0x41
-  tce750_200a0a59:
   jnz tce750_200a0a5f
-  tce750_200a0a5b:
   xor eax,eax
-  tce750_200a0a5d:
   pop esi
-  tce750_200a0a5e:
   ret
   tce750_200a0a5f:
   mov eax,0x1
-  tce750_200a0a64:
   pop esi
-  tce750_200a0a65:
   ret
  }
 }
@@ -3139,47 +2934,27 @@ qboolean PointInBounds( const vec3_t v, const vec3_t mins, const vec3_t maxs ) {
 #if defined(_MSC_VER) && defined(_M_IX86)
 __declspec(naked) int VectorCompare(const vec3_t v1, const vec3_t v2) {
  __asm {
-  tce751_200a0a70:
   mov ecx,dword ptr [esp + 0x4]
-  tce751_200a0a74:
   mov edx,dword ptr [esp + 0x8]
-  tce751_200a0a78:
   fld dword ptr [ecx]
-  tce751_200a0a7a:
   fcomp dword ptr [edx]
-  tce751_200a0a7c:
   fnstsw ax
-  tce751_200a0a7e:
   test ah,0x40
-  tce751_200a0a81:
   jz tce751_200a0aa3
-  tce751_200a0a83:
   fld dword ptr [ecx + 0x4]
-  tce751_200a0a86:
   fcomp dword ptr [edx + 0x4]
-  tce751_200a0a89:
   fnstsw ax
-  tce751_200a0a8b:
   test ah,0x40
-  tce751_200a0a8e:
   jz tce751_200a0aa3
-  tce751_200a0a90:
   fld dword ptr [ecx + 0x8]
-  tce751_200a0a93:
   fcomp dword ptr [edx + 0x8]
-  tce751_200a0a96:
   fnstsw ax
-  tce751_200a0a98:
   test ah,0x40
-  tce751_200a0a9b:
   jz tce751_200a0aa3
-  tce751_200a0a9d:
   mov eax,0x1
-  tce751_200a0aa2:
   ret
   tce751_200a0aa3:
   xor eax,eax
-  tce751_200a0aa5:
   ret
  }
 }
@@ -4167,157 +3942,83 @@ static const float angle839NegativeOne = -1.0f;
 static float angle839Sr, angle839Cr, angle839Sp, angle839Cy, angle839Cp, angle839Sy;
 __declspec(naked) void AngleVectors(const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up) {
     __asm {
-angle839_3007e850:
         MOV eax, dword ptr [esp + 4]
-angle839_3007e854:
         FLD dword ptr [eax + 4]
-angle839_3007e857:
         FMUL dword ptr [angle839Radians]
-angle839_3007e85d:
         FLD st(0)
-angle839_3007e85f:
         FSIN 
-angle839_3007e861:
         FSTP dword ptr [angle839Sy]
-angle839_3007e867:
         FCOS 
-angle839_3007e869:
         FSTP dword ptr [angle839Cy]
-angle839_3007e86f:
         FLD dword ptr [eax]
-angle839_3007e871:
         FMUL dword ptr [angle839Radians]
-angle839_3007e877:
         FLD st(0)
-angle839_3007e879:
         FSIN 
-angle839_3007e87b:
         FSTP dword ptr [angle839Sp]
-angle839_3007e881:
         FCOS 
-angle839_3007e883:
         FSTP dword ptr [angle839Cp]
-angle839_3007e889:
         FLD dword ptr [eax + 8]
-angle839_3007e88c:
         FMUL dword ptr [angle839Radians]
-angle839_3007e892:
         MOV eax, dword ptr [esp + 8]
-angle839_3007e896:
         TEST eax, eax
-angle839_3007e898:
         FLD st(0)
-angle839_3007e89a:
         FSIN 
-angle839_3007e89c:
         FSTP dword ptr [angle839Sr]
-angle839_3007e8a2:
         FCOS 
-angle839_3007e8a4:
         FSTP dword ptr [angle839Cr]
-angle839_3007e8aa:
         JE angle839_3007e8d4
-angle839_3007e8ac:
         FLD dword ptr [angle839Cp]
-angle839_3007e8b2:
         FMUL dword ptr [angle839Cy]
-angle839_3007e8b8:
         FSTP dword ptr [eax]
-angle839_3007e8ba:
         FLD dword ptr [angle839Cp]
-angle839_3007e8c0:
         FMUL dword ptr [angle839Sy]
-angle839_3007e8c6:
         FSTP dword ptr [eax + 4]
-angle839_3007e8c9:
         FLD dword ptr [angle839Sp]
-angle839_3007e8cf:
         FCHS 
-angle839_3007e8d1:
         FSTP dword ptr [eax + 8]
 angle839_3007e8d4:
         MOV eax, dword ptr [esp + 0xc]
-angle839_3007e8d8:
         TEST eax, eax
-angle839_3007e8da:
         JE angle839_3007e93c
-angle839_3007e8dc:
         FLD dword ptr [angle839Cr]
-angle839_3007e8e2:
         FMUL dword ptr [angle839Sy]
-angle839_3007e8e8:
         FLD dword ptr [angle839Sr]
-angle839_3007e8ee:
         FMUL dword ptr [angle839Sp]
-angle839_3007e8f4:
         FMUL dword ptr [angle839Cy]
-angle839_3007e8fa:
         FSUBP st(1), st(0)
-angle839_3007e8fc:
         FSTP dword ptr [eax]
-angle839_3007e8fe:
         FLD dword ptr [angle839Sr]
-angle839_3007e904:
         FMUL dword ptr [angle839Sp]
-angle839_3007e90a:
         FMUL dword ptr [angle839Sy]
-angle839_3007e910:
         FLD dword ptr [angle839Cr]
-angle839_3007e916:
         FMUL dword ptr [angle839Cy]
-angle839_3007e91c:
         FADDP st(1), st(0)
-angle839_3007e91e:
         FMUL dword ptr [angle839NegativeOne]
-angle839_3007e924:
         FSTP dword ptr [eax + 4]
-angle839_3007e927:
         FLD dword ptr [angle839Sr]
-angle839_3007e92d:
         FMUL dword ptr [angle839Cp]
-angle839_3007e933:
         FMUL dword ptr [angle839NegativeOne]
-angle839_3007e939:
         FSTP dword ptr [eax + 8]
 angle839_3007e93c:
         MOV eax, dword ptr [esp + 0x10]
-angle839_3007e940:
         TEST eax, eax
-angle839_3007e942:
         JE angle839_3007e998
-angle839_3007e944:
         FLD dword ptr [angle839Cr]
-angle839_3007e94a:
         FMUL dword ptr [angle839Sp]
-angle839_3007e950:
         FMUL dword ptr [angle839Cy]
-angle839_3007e956:
         FLD dword ptr [angle839Sr]
-angle839_3007e95c:
         FMUL dword ptr [angle839Sy]
-angle839_3007e962:
         FADDP st(1), st(0)
-angle839_3007e964:
         FSTP dword ptr [eax]
-angle839_3007e966:
         FLD dword ptr [angle839Cr]
-angle839_3007e96c:
         FMUL dword ptr [angle839Sp]
-angle839_3007e972:
         FMUL dword ptr [angle839Sy]
-angle839_3007e978:
         FLD dword ptr [angle839Sr]
-angle839_3007e97e:
         FMUL dword ptr [angle839Cy]
-angle839_3007e984:
         FSUBP st(1), st(0)
-angle839_3007e986:
         FSTP dword ptr [eax + 4]
-angle839_3007e989:
         FLD dword ptr [angle839Cr]
-angle839_3007e98f:
         FMUL dword ptr [angle839Cp]
-angle839_3007e995:
         FSTP dword ptr [eax + 8]
 angle839_3007e998:
         RET 
@@ -4360,101 +4061,55 @@ void AngleVectors(const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up) 
 #if defined(_MSC_VER) && defined(_M_IX86)
 __declspec(naked) void PerpendicularVector(vec3_t dst, const vec3_t src) {
  __asm {
-  tce_747_200a0f30:
   sub esp,0x10
-  tce_747_200a0f33:
   push ebx
-  tce_747_200a0f34:
   push ebp
-  tce_747_200a0f35:
   mov ebp,dword ptr [esp + 0x20]
-  tce_747_200a0f39:
   push esi
-  tce_747_200a0f3a:
   push edi
-  tce_747_200a0f3b:
   xor ebx,ebx
-  tce_747_200a0f3d:
   mov dword ptr [esp + 0x10],0x3f800000
-  tce_747_200a0f45:
   xor esi,esi
-  tce_747_200a0f47:
   mov edi,ebp
   tce_747_200a0f49:
   mov eax,dword ptr [edi]
-  tce_747_200a0f4b:
   push eax
-  tce_747_200a0f4c:
   call Q_fabs
-  tce_747_200a0f51:
   fcomp dword ptr [esp + 0x14]
-  tce_747_200a0f55:
   add esp,0x4
-  tce_747_200a0f58:
   fnstsw ax
-  tce_747_200a0f5a:
   test ah,0x1
-  tce_747_200a0f5d:
   jz tce_747_200a0f70
-  tce_747_200a0f5f:
   mov ecx,dword ptr [edi]
-  tce_747_200a0f61:
   mov ebx,esi
-  tce_747_200a0f63:
   push ecx
-  tce_747_200a0f64:
   call Q_fabs
-  tce_747_200a0f69:
   fstp dword ptr [esp + 0x14]
-  tce_747_200a0f6d:
   add esp,0x4
   tce_747_200a0f70:
   inc esi
-  tce_747_200a0f71:
   add edi,0x4
-  tce_747_200a0f74:
   cmp esi,0x3
-  tce_747_200a0f77:
   jl tce_747_200a0f49
-  tce_747_200a0f79:
   mov esi,dword ptr [esp + 0x24]
-  tce_747_200a0f7d:
   lea edx,[esp + 0x14]
-  tce_747_200a0f81:
   push ebp
-  tce_747_200a0f82:
   push edx
-  tce_747_200a0f83:
   mov dword ptr [esp + 0x24],0x0
-  tce_747_200a0f8b:
   mov dword ptr [esp + 0x20],0x0
-  tce_747_200a0f93:
   mov dword ptr [esp + 0x1c],0x0
-  tce_747_200a0f9b:
   push esi
-  tce_747_200a0f9c:
   mov dword ptr [esp + ebx*0x4 + 0x20],0x3f800000
-  tce_747_200a0fa4:
   call ProjectPointOnPlane
-  tce_747_200a0fa9:
   push esi
-  tce_747_200a0faa:
   call VectorNormalize
-  tce_747_200a0faf:
   add esp,0x10
-  tce_747_200a0fb2:
   fstp st(0)
-  tce_747_200a0fb4:
   pop edi
-  tce_747_200a0fb5:
   pop esi
-  tce_747_200a0fb6:
   pop ebp
-  tce_747_200a0fb7:
   pop ebx
-  tce_747_200a0fb8:
   add esp,0x10
-  tce_747_200a0fbb:
   ret
  }
 }
@@ -4904,249 +4559,133 @@ DistanceFromLineSquared
 #if defined(_MSC_VER) && defined(_M_IX86)
 __declspec(naked) float DistanceFromLineSquared(vec3_t p, vec3_t lp1, vec3_t lp2) {
     __asm {
-        tce_744_200a1060:
         sub esp,0x18
-        tce_744_200a1063:
         mov ecx,dword ptr [esp + 0x1c]
-        tce_744_200a1067:
         lea eax,[esp + 0xc]
-        tce_744_200a106b:
         push ebx
-        tce_744_200a106c:
         mov ebx,dword ptr [esp + 0x28]
-        tce_744_200a1070:
         push ebp
-        tce_744_200a1071:
         mov ebp,dword ptr [esp + 0x28]
-        tce_744_200a1075:
         push esi
-        tce_744_200a1076:
         push edi
-        tce_744_200a1077:
         push eax
-        tce_744_200a1078:
         push ebx
-        tce_744_200a1079:
         push ebp
-        tce_744_200a107a:
         push ecx
-        tce_744_200a107b:
         call ProjectPointOntoVector
-        tce_744_200a1080:
         mov edx,ebp
-        tce_744_200a1082:
         lea eax,[esp + 0x2c]
-        tce_744_200a1086:
         sub edx,eax
-        tce_744_200a1088:
         mov edi,ebx
-        tce_744_200a108a:
         lea eax,[esp + 0x2c]
-        tce_744_200a108e:
         add esp,0x10
-        tce_744_200a1091:
         xor esi,esi
-        tce_744_200a1093:
         lea ecx,[esp + 0x1c]
-        tce_744_200a1097:
         sub edi,eax
         tce_744_200a1099:
         fld dword ptr [ecx]
-        tce_744_200a109b:
         fcomp dword ptr [edx + ecx*0x1]
-        tce_744_200a109e:
         fnstsw ax
-        tce_744_200a10a0:
         test ah,0x41
-        tce_744_200a10a3:
         jnz tce_744_200a10b1
-        tce_744_200a10a5:
         fld dword ptr [ecx]
-        tce_744_200a10a7:
         fcomp dword ptr [edi + ecx*0x1]
-        tce_744_200a10aa:
         fnstsw ax
-        tce_744_200a10ac:
         test ah,0x41
-        tce_744_200a10af:
         jz tce_744_200a110b
         tce_744_200a10b1:
         fld dword ptr [ecx]
-        tce_744_200a10b3:
         fcomp dword ptr [edx + ecx*0x1]
-        tce_744_200a10b6:
         fnstsw ax
-        tce_744_200a10b8:
         test ah,0x1
-        tce_744_200a10bb:
         jz tce_744_200a10c9
-        tce_744_200a10bd:
         fld dword ptr [ecx]
-        tce_744_200a10bf:
         fcomp dword ptr [edi + ecx*0x1]
-        tce_744_200a10c2:
         fnstsw ax
-        tce_744_200a10c4:
         test ah,0x1
-        tce_744_200a10c7:
         jnz tce_744_200a110b
         tce_744_200a10c9:
         inc esi
-        tce_744_200a10ca:
         add ecx,0x4
-        tce_744_200a10cd:
         cmp esi,0x3
-        tce_744_200a10d0:
         jl tce_744_200a1099
         tce_744_200a10d2:
         mov eax,dword ptr [esp + 0x2c]
-        tce_744_200a10d6:
         lea edx,[esp + 0x10]
-        tce_744_200a10da:
         push edx
-        tce_744_200a10db:
         fld dword ptr [eax]
-        tce_744_200a10dd:
         fsub dword ptr [esp + 0x20]
-        tce_744_200a10e1:
         fstp dword ptr [esp + 0x14]
-        tce_744_200a10e5:
         fld dword ptr [eax + 0x4]
-        tce_744_200a10e8:
         fsub dword ptr [esp + 0x24]
-        tce_744_200a10ec:
         fstp dword ptr [esp + 0x18]
-        tce_744_200a10f0:
         fld dword ptr [eax + 0x8]
-        tce_744_200a10f3:
         fsub dword ptr [esp + 0x28]
-        tce_744_200a10f7:
         fstp dword ptr [esp + 0x1c]
-        tce_744_200a10fb:
         call VectorLengthSquared
-        tce_744_200a1100:
         add esp,0x4
-        tce_744_200a1103:
         pop edi
-        tce_744_200a1104:
         pop esi
-        tce_744_200a1105:
         pop ebp
-        tce_744_200a1106:
         pop ebx
-        tce_744_200a1107:
         add esp,0x18
-        tce_744_200a110a:
         ret
         tce_744_200a110b:
         cmp esi,0x3
-        tce_744_200a110e:
         jge tce_744_200a10d2
-        tce_744_200a1110:
         fld dword ptr [esp + esi*0x4 + 0x1c]
-        tce_744_200a1114:
         fsub dword ptr [ebp + esi*0x4]
-        tce_744_200a1118:
         push ecx
-        tce_744_200a1119:
         fstp dword ptr [esp]
-        tce_744_200a111c:
         call Q_fabs
-        tce_744_200a1121:
         fstp dword ptr [esp + 0x38]
-        tce_744_200a1125:
         fld dword ptr [esp + esi*0x4 + 0x20]
-        tce_744_200a1129:
         fsub dword ptr [ebx + esi*0x4]
-        tce_744_200a112c:
         fstp dword ptr [esp]
-        tce_744_200a112f:
         call Q_fabs
-        tce_744_200a1134:
         fcomp dword ptr [esp + 0x38]
-        tce_744_200a1138:
         add esp,0x4
-        tce_744_200a113b:
         fnstsw ax
-        tce_744_200a113d:
         test ah,0x41
-        tce_744_200a1140:
         mov eax,dword ptr [esp + 0x2c]
-        tce_744_200a1144:
         fld dword ptr [eax]
-        tce_744_200a1146:
         jnz tce_744_200a1178
-        tce_744_200a1148:
         fsub dword ptr [ebp]
-        tce_744_200a114b:
         lea ecx,[esp + 0x10]
-        tce_744_200a114f:
         push ecx
-        tce_744_200a1150:
         fstp dword ptr [esp + 0x14]
-        tce_744_200a1154:
         fld dword ptr [eax + 0x4]
-        tce_744_200a1157:
         fsub dword ptr [ebp + 0x4]
-        tce_744_200a115a:
         fstp dword ptr [esp + 0x18]
-        tce_744_200a115e:
         fld dword ptr [eax + 0x8]
-        tce_744_200a1161:
         fsub dword ptr [ebp + 0x8]
-        tce_744_200a1164:
         fstp dword ptr [esp + 0x1c]
-        tce_744_200a1168:
         call VectorLengthSquared
-        tce_744_200a116d:
         add esp,0x4
-        tce_744_200a1170:
         pop edi
-        tce_744_200a1171:
         pop esi
-        tce_744_200a1172:
         pop ebp
-        tce_744_200a1173:
         pop ebx
-        tce_744_200a1174:
         add esp,0x18
-        tce_744_200a1177:
         ret
         tce_744_200a1178:
         fsub dword ptr [ebx]
-        tce_744_200a117a:
         lea ecx,[esp + 0x10]
-        tce_744_200a117e:
         push ecx
-        tce_744_200a117f:
         fstp dword ptr [esp + 0x14]
-        tce_744_200a1183:
         fld dword ptr [eax + 0x4]
-        tce_744_200a1186:
         fsub dword ptr [ebx + 0x4]
-        tce_744_200a1189:
         fstp dword ptr [esp + 0x18]
-        tce_744_200a118d:
         fld dword ptr [eax + 0x8]
-        tce_744_200a1190:
         fsub dword ptr [ebx + 0x8]
-        tce_744_200a1193:
         fstp dword ptr [esp + 0x1c]
-        tce_744_200a1197:
         call VectorLengthSquared
-        tce_744_200a119c:
         add esp,0x4
-        tce_744_200a119f:
         pop edi
-        tce_744_200a11a0:
         pop esi
-        tce_744_200a11a1:
         pop ebp
-        tce_744_200a11a2:
         pop ebx
-        tce_744_200a11a3:
         add esp,0x18
-        tce_744_200a11a6:
         ret
     }
 }
@@ -5388,79 +4927,46 @@ float DistanceFromVectorSquared(vec3_t p, vec3_t lp1, vec3_t lp2) {
 #if defined(_MSC_VER) && defined(_M_IX86)
 __declspec(naked) float vectoyaw(const vec3_t vec) {
     __asm {
-        tce_vy_200a11b0:
             mov ecx,dword ptr [esp + 0x4]
-        tce_vy_200a11b4:
             fld dword ptr [ecx + 0x4]
-        tce_vy_200a11b7:
             fcomp dword ptr tceVecAnglesZero
-        tce_vy_200a11bd:
             fnstsw ax
-        tce_vy_200a11bf:
             test ah,0x40
-        tce_vy_200a11c2:
             jz tce_vy_200a11da
-        tce_vy_200a11c4:
             fld dword ptr [ecx]
-        tce_vy_200a11c6:
             fcomp dword ptr tceVecAnglesZero
-        tce_vy_200a11cc:
             fnstsw ax
-        tce_vy_200a11ce:
             test ah,0x40
-        tce_vy_200a11d1:
             jz tce_vy_200a11da
-        tce_vy_200a11d3:
             fld dword ptr tceVecAnglesZero
-        tce_vy_200a11d9:
             ret
         tce_vy_200a11da:
             fld dword ptr [ecx]
-        tce_vy_200a11dc:
             fcomp dword ptr tceVecAnglesZero
-        tce_vy_200a11e2:
             fnstsw ax
-        tce_vy_200a11e4:
             test ah,0x40
-        tce_vy_200a11e7:
             jnz tce_vy_200a120a
-        tce_vy_200a11e9:
             fld dword ptr [ecx + 0x4]
-        tce_vy_200a11ec:
             fld dword ptr [ecx]
-        tce_vy_200a11ee:
             fpatan
-        tce_vy_200a11f0:
             fmul qword ptr tceVecAnglesDegrees
-        tce_vy_200a11f6:
             fcom dword ptr tceVecAnglesZero
-        tce_vy_200a11fc:
             fnstsw ax
-        tce_vy_200a11fe:
             test ah,0x1
-        tce_vy_200a1201:
             jz tce_vy_200a1209
-        tce_vy_200a1203:
             fadd dword ptr tceVecAngles360
         tce_vy_200a1209:
             ret
         tce_vy_200a120a:
             fld dword ptr [ecx + 0x4]
-        tce_vy_200a120d:
             fcomp dword ptr tceVecAnglesZero
-        tce_vy_200a1213:
             fnstsw ax
-        tce_vy_200a1215:
             test ah,0x41
-        tce_vy_200a1218:
             jnz tce_vy_200a1221
-        tce_vy_200a121a:
             fld dword ptr tceVecAngles90
-        tce_vy_200a1220:
             ret
         tce_vy_200a1221:
             fld dword ptr tceVecAngles270
-        tce_vy_200a1227:
             ret
     }
 }

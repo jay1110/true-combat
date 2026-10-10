@@ -103,6 +103,19 @@ public:
 	static const Vector3 UNIT_Z;
 };
 
+#ifndef _MSC_VER
+// Explicit specializations are defined in the matching .cpp file.
+template<> const Vector3<float> Vector3<float>::ZERO;
+template<> const Vector3<float> Vector3<float>::UNIT_X;
+template<> const Vector3<float> Vector3<float>::UNIT_Y;
+template<> const Vector3<float> Vector3<float>::UNIT_Z;
+template<> const Vector3<double> Vector3<double>::ZERO;
+template<> const Vector3<double> Vector3<double>::UNIT_X;
+template<> const Vector3<double> Vector3<double>::UNIT_Y;
+template<> const Vector3<double> Vector3<double>::UNIT_Z;
+
+#endif
+
 #include "Wm3Vector3.inl"
 
 typedef Vector3<float> Vector3f;

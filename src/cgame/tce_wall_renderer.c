@@ -155,7 +155,6 @@ void TCE_CG_MissileHitWall(int weapon,int effectType,vec3_t origin,vec3_t normal
             else {
               randomValue = rand();
             }
-LAB_30078e39:
             value0 = (int)((((double)(randomValue & 32767) * 0.000030518509447574615)+1)*4);
             ctx->sparks(origin,normal,value0);
 LAB_30078e49:

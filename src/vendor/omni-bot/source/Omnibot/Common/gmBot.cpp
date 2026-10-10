@@ -162,6 +162,14 @@ GMBIND_FUNCTION_MAP_END()
 //		Property of the aiming algorithm. This determines the allowable angle tolerance to the target facing
 //		to be considered 'close enough' for firing weapons and such. Expressed in degrees.
 
+/* Omni auto-properties use compiler-computed offsets into the actual native
+ * Client object, never serialized offsets or a foreign binary layout. Clang
+ * supports offsetof for this polymorphic type as an extension. Keep the
+ * established binding ABI; limit this diagnostic exception to its registration. */
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#endif
 GMBIND_PROPERTY_MAP_BEGIN(gmBot)
 	// var: Name
 	//		string - The bots current name. READ ONLY
@@ -210,6 +218,10 @@ GMBIND_PROPERTY_MAP_BEGIN(gmBot)
 	//		float - The bots current <MaxArmor> READ ONLY
 	GMBIND_AUTOPROPERTY( "MaxArmor", GM_INT, m_HealthArmor.m_MaxArmor, gmBot::AUTO_PROP_READONLY )
 GMBIND_PROPERTY_MAP_END();
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
+
 
 // ctr/dtr
 

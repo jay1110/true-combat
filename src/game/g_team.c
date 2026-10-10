@@ -761,7 +761,7 @@ void TeamplayInfoMessage( team_t team ) {
 			}
 			Com_sprintf( entry, sizeof(entry), " %i %i %i %i %i", level.sortedClients[i], player->client->pers.teamState.location[0], player->client->pers.teamState.location[1], h, player->s.powerups );
 
-			j = strlen(entry);
+			j = Q_strlenInt(entry);
 			if (stringlength + j > sizeof(string)) {
 				break;
 			}
@@ -1072,8 +1072,8 @@ void SP_team_WOLF_objective(gentity_t *ent) {
 	
 
 	// Gordon: wtf is this g_alloced? just use a static buffer fgs...
-	ent->message = G_Alloc( strlen(desc)+1 );
-	Q_strncpyz( ent->message, desc, strlen(desc)+1 );
+	ent->message = G_Alloc( Q_strlenInt(desc)+1 );
+	Q_strncpyz( ent->message, desc, Q_strlenInt(desc)+1 );
 
 	ent->nextthink =	level.time + FRAMETIME;
 	ent->think =		objective_Register;

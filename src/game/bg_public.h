@@ -11,7 +11,8 @@
 #ifndef __BG_PUBLIC_H__
 #define __BG_PUBLIC_H__
 
-#define	GAME_VERSION	"TCE2 development"
+#include "tce_version.h"
+#define GAME_VERSION TCE_GAME_VERSION
 
 #if defined(_DEBUG)
 	#define	GAME_VERSION_DATED			GAME_VERSION
@@ -515,8 +516,13 @@ typedef struct {
 	
 	qboolean	releasedFire;
 	vec3_t tceShotAngles; /* Original pmext+0x64, captured before shot recoil. */
+	float tceFreelookRecoil[2]; /* Pending pitch/yaw kick, distinct from mouse input. */
 } pmoveExt_t;	// data used both in client and server - store it here
 				// instead of playerstate to prevent different engine versions of playerstate between XP and MP
+
+#define TCE_FREELOOK_PITCH 14
+#define TCE_FREELOOK_YAW 15
+#define TCE_FREELOOK_CENTER 8000
 
 #define	MAXTOUCH	32
 typedef struct {
@@ -2088,7 +2094,7 @@ void BG_ClearAnimTimer( playerState_t *ps, animBodyPart_t bodyPart );
 qboolean BG_ValidAnimScript( int clientNum );
 char *BG_GetAnimString( animModelInfo_t* animModelInfo, int anim );
 void BG_UpdateConditionValue( int client, int condition, int value, qboolean checkConversion );
-int BG_GetConditionValue( int client, int condition, qboolean checkConversion );
+intptr_t BG_GetConditionValue( int client, int condition, qboolean checkConversion );
 qboolean BG_GetConditionBitFlag(int client, int condition, int bitNumber);
 void BG_SetConditionBitFlag(int client, int condition, int bitNumber);
 void BG_ClearConditionBitFlag(int client, int condition, int bitNumber);

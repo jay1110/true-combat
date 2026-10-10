@@ -3,8 +3,11 @@
 #include "tce_weapon_frames.h"
 #include "tce_weapon_media.h"
 
+/* Native C uses members; original pointer-bearing offsets apply to x86 only. */
+#if UINTPTR_MAX == UINT32_MAX
 typedef char tce_frame_animation_offset[offsetof(lerpFrame_t, animation)==0x34?1:-1];
 typedef char tce_frame_time_offset[offsetof(lerpFrame_t, animationTime)==0x38?1:-1];
+#endif
 typedef char tce_animation_initial_lerp[offsetof(animation_t, initialLerp)==0x54?1:-1];
 
 /* Windows 30072fe0 / 30072fb0. These fields have SDK equivalents; unlike

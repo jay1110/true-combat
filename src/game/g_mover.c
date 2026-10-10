@@ -2893,7 +2893,9 @@ void Reached_Train( gentity_t *ent ) {
 	gentity_t		*next;
 	float			speed;
 	vec3_t			move;
+#if !defined(_MSC_VER) || !defined(_M_IX86)
 	float			trainLength;
+#endif
 	int trainHasWait;
 	unsigned int trainWaitBits;
 
@@ -4364,8 +4366,10 @@ func_explosive_explode
 */
 void func_explosive_explode(gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int mod)
 {
+#if !defined(_MSC_VER) || !defined(_M_IX86)
 	vec3_t		origin;
 	vec3_t		size;
+#endif
 	vec3_t		dir = {0, 0, 1};
 	gentity_t	*tent = 0;
 
@@ -5664,7 +5668,7 @@ void func_constructiblespawn( gentity_t *ent ) {
 					e->s.eType = ET_EXPLOSIVE_INDICATOR;
 
 					while((tent = G_Find (tent, FOFS(target), ent->targetname)) != NULL) {
-						if((tent->s.eType == ET_OID_TRIGGER)) {
+						if(tent->s.eType == ET_OID_TRIGGER) {
 							if(tent->spawnflags & 8) {
 								e->s.eType = ET_TANK_INDICATOR;
 							}
@@ -5683,7 +5687,7 @@ void func_constructiblespawn( gentity_t *ent ) {
 				if( !ent->parent ) {
 					gentity_t* tent = NULL;
 					while((tent = G_Find (tent, FOFS(target), ent->targetname)) != NULL) {
-						if((tent->s.eType == ET_OID_TRIGGER)) {
+						if(tent->s.eType == ET_OID_TRIGGER) {
 							ent->parent = tent;
 							e->parent = tent;
 						}

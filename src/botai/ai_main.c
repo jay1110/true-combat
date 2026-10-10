@@ -574,7 +574,10 @@ BotChangeViewAngles
 ==============
 */
 void BotChangeViewAngles(bot_state_t *bs, float thinktime) {
-	float diff, factor, maxchange, anglespeed;
+	float factor, maxchange, anglespeed;
+#if !((defined(_MSC_VER) && defined(_M_IX86)) || (defined(__GNUC__) && defined(__i386__)))
+	float diff;
+#endif
 	int i;
 
 	if (bs->ideal_viewangles[PITCH] > 180) bs->ideal_viewangles[PITCH] -= 360;
@@ -798,7 +801,7 @@ void BotInputToUserCommand(bot_state_t *bs, bot_input_t *bi, usercmd_t *ucmd, in
 	//set the view independent movement
 	ucmd->forwardmove = DotProduct(forward, bi->dir) * bi->speed;
 	ucmd->rightmove = DotProduct(right, bi->dir) * bi->speed;
-	ucmd->upmove = abs(forward[2]) * bi->dir[2] * bi->speed;
+	ucmd->upmove = fabsf(forward[2]) * bi->dir[2] * bi->speed;
 	//normal keyboard movement
 	if (bi->actionflags & ACTION_MOVEFORWARD) ucmd->forwardmove += 127;
 	if (bi->actionflags & ACTION_MOVEBACK) ucmd->forwardmove -= 127;
@@ -954,7 +957,7 @@ int BotTravelFlagsForClient( int client )
 	int tfl;
 	gclient_t *cl = &level.clients[client];
 	//
-	if (!cl || !cl->pers.connected == CON_CONNECTED) {
+	if (!cl || cl->pers.connected != CON_CONNECTED) {
 		return 0;
 	}
 	//
@@ -2865,7 +2868,7 @@ void BotDebugViewClient( int client ) {
 	if (bot_debug.integer != 10) return;
 	if (!g_cheats.integer) return;
 	if (lastChange < level.time && lastChange > level.time - 5000) return;
-	if (!level.clients[0].pers.connected == CON_CONNECTED) return;
+	if (level.clients[0].pers.connected != CON_CONNECTED) return;
 	if (g_entities[0].r.svFlags & SVF_BOT) return;
 	if (level.clients[0].sess.sessionTeam != TEAM_SPECTATOR) return;
 	//

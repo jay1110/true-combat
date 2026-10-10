@@ -738,5 +738,17 @@ void gmBindETBotLibrary(gmMachine *_machine)
 
 	// var: TargetBreakableDistance
 	//		The distance the bot will target breakable entities. Targets beyond this range will be ignored.
+/* Omni auto-properties use compiler-computed offsets into the actual native
+ * Client object, never serialized offsets or a foreign binary layout. Clang
+ * supports offsetof for this polymorphic type as an extension. Keep the
+ * established binding ABI; limit this diagnostic exception to its registration. */
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Winvalid-offsetof"
+#endif
 	gmBot::RegisterAutoProperty("TargetBreakableDist", GM_FLOAT, offsetof(ET_Client, m_BreakableTargetDistance), 0);
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#endif
+
 }

@@ -471,7 +471,7 @@ qboolean BotFindNearbyGoal( bot_state_t *bs ) {
 					gitem_t* item = &bg_itemlist[ent->s.modelindex];
 					switch(item->giType) {
 						case IT_TEAM:
-							switch( item->giType ) {
+							switch( item->giTag ) {
 								case PW_REDFLAG:
 									if( bs->sess.sessionTeam == TEAM_AXIS ) {
 										continue;
@@ -490,7 +490,7 @@ qboolean BotFindNearbyGoal( bot_state_t *bs ) {
 							if(!needAmmo) {
 								continue;
 							}
-							switch( item->giType ) {
+							switch( item->giTag ) {
 								case WP_AMMO:								
 									break;
 								default:
@@ -5341,7 +5341,7 @@ void BotMoveToIntermission( int client ) {
 	int			winner;						// DHM - Nerve
 	bot_state_t	*bs;
 	
-	if (!g_entities[client].r.svFlags & SVF_BOT) {
+	if (!(g_entities[client].r.svFlags & SVF_BOT)) {
 		return;
 	}
 	

@@ -68,7 +68,7 @@ protected:
 	// NOTE: IMPORTANT size is NOT stored in m_size but (int *)Data()[-1
 	//	This allows SmallMemNode and BigMemNode to both check the same memory offset to determine size
 	//	We must allocate AT LEAST enough memory for the size to be stored
-		private: int m_size_reserved;				///< Allocation size
+		private: [[maybe_unused]] int m_size_reserved;				///< Allocation size
 		public: char* Data() {return (char*)(this + 1);}	///< Get ptr after this structure
 	};
 
@@ -78,7 +78,7 @@ protected:
 	// NOTE: IMPORTANT size is NOT stored in m_size but (int *)Data()[-1]
 	//	This allows SmallMemNode and BigMemNode to both check the same memory offset to determine size
 	//	We must allocate AT LEAST enough memory for the size to be determined
-		private: int m_size_reserved;				///< Allocation size
+		private: [[maybe_unused]] int m_size_reserved;				///< Allocation size
 		public: char* Data() {return (char*)(this + 1);}	///< Get ptr after this structure
 	};
 

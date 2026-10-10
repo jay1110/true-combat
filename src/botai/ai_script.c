@@ -337,7 +337,7 @@ void Bot_ScriptLoad( void )
 	level.botScriptBuffer = NULL;
 
 	trap_Cvar_VariableStringBuffer( "bot_scriptName", filename, sizeof(filename) );
-	if (strlen( filename ) > 0) {
+	if (Q_strlenInt( filename ) > 0) {
 		trap_Cvar_Register( &mapname, "bot_scriptName", "", CVAR_ROM );
 	} else {
 		trap_Cvar_Register( &mapname, "mapname", "", CVAR_SERVERINFO | CVAR_ROM );
@@ -423,20 +423,20 @@ void Bot_ScriptParseAllCharacters()
 			G_Error( "Bot_ScriptParse(), Error (line %d): name expected, '%s' found.\n", 1 + COM_GetCurrentParseLine(), token );
 		}
 		// allocate the name
-		bsd->name = G_Alloc( strlen(token)+1 );
-		Q_strncpyz( bsd->name, token, strlen(token)+1 );
+		bsd->name = G_Alloc( Q_strlenInt(token)+1 );
+		Q_strncpyz( bsd->name, token, Q_strlenInt(token)+1 );
 		// read the params
 		memset( params, 0, sizeof(params) );
 		while ((token = COM_ParseExt( &pScript, qfalse )) && token[0]) {
-			if (strlen(params) + strlen(token) >= sizeof(params)) {
+			if (Q_strlenInt(params) + Q_strlenInt(token) >= sizeof(params)) {
 				G_Error( "Bot_ScriptParse(), Error (line %d): parameters exceed maximum size\n", 1 + COM_GetCurrentParseLine() );
 			}
-			if (strlen(params) > 0) Q_strcat( params, sizeof(params), " " );
+			if (Q_strlenInt(params) > 0) Q_strcat( params, sizeof(params), " " );
 			Q_strcat( params, sizeof(params), token );
 		}
 		// allocate the params
-		bsd->params = G_Alloc( strlen(params)+1 );
-		Q_strncpyz( bsd->params, params, strlen(params)+1 );
+		bsd->params = G_Alloc( Q_strlenInt(params)+1 );
+		Q_strncpyz( bsd->params, params, Q_strlenInt(params)+1 );
 		// allocate memory for this character script
 		bsd->data = G_Alloc( sizeof(bot_script_data_t) );
 		memset( bsd->data, 0, sizeof(bot_script_data_t) );
@@ -526,7 +526,7 @@ void Bot_ScriptParse( bot_script_data_t *bsd, char **text )
 			memset( params, 0, sizeof(params) );
 
 			curEvent->lineNum = 1 + COM_GetCurrentParseLine();
-			curEvent->text = *text - strlen(token);
+			curEvent->text = *text - Q_strlenInt(token);
 
 			// parse any event params before the start of this event's actions
 			while ((token = COM_Parse( text )) && (token[0] != '{'))
@@ -536,16 +536,16 @@ void Bot_ScriptParse( bot_script_data_t *bsd, char **text )
 					G_Error( "Bot_ScriptParse(), Error (line %d): '}' expected, end of script found.\n", 1 + COM_GetCurrentParseLine() );
 				}
 
-				if (strlen( params ))	// add a space between each param
+				if (Q_strlenInt( params ))	// add a space between each param
 					Q_strcat( params, sizeof(params), " " );
 				Q_strcat( params, sizeof(params), token );
 			}
 
-			if (strlen( params ))
+			if (Q_strlenInt( params ))
 			{	// copy the params into the event
 				curEvent->params = &bsd->stringPool[strPoolCount];
 				Q_strncpyz( curEvent->params, params, BOT_SIZE_STRING_POOL - strPoolCount );
-				if ((strPoolCount += strlen( params ) + 1) >= BOT_SIZE_STRING_POOL) {
+				if ((strPoolCount += Q_strlenInt( params ) + 1) >= BOT_SIZE_STRING_POOL) {
 					G_Error( "Bot_ScriptParse(), Error (line %d): string pool size exceeded (MAX = %i)\n", 1 + COM_GetCurrentParseLine(), BOT_SIZE_STRING_POOL );
 				}
 			}
@@ -566,13 +566,13 @@ void Bot_ScriptParse( bot_script_data_t *bsd, char **text )
 
 				items[numItems].action = action;
 				items[numItems].lineNum = 1 + COM_GetCurrentParseLine();
-				items[numItems].text = *text - strlen(token);
+				items[numItems].text = *text - Q_strlenInt(token);
 
 				memset( params, 0, sizeof(params) );
 				token = COM_ParseExt( text, qfalse );
 				for (i=0; token[0]; i++)
 				{
-					if (strlen( params )) {	// add a space between each param
+					if (Q_strlenInt( params )) {	// add a space between each param
 						Q_strcat( params, sizeof(params), " " );
 					}
 
@@ -594,11 +594,11 @@ void Bot_ScriptParse( bot_script_data_t *bsd, char **text )
 					token = COM_ParseExt( text, qfalse );
 				}
 
-				if (strlen( params ))
+				if (Q_strlenInt( params ))
 				{	// copy the params into the event
 					items[numItems].params = &bsd->stringPool[strPoolCount];
 					Q_strncpyz( items[numItems].params, params, BOT_SIZE_STRING_POOL - strPoolCount );
-					if ((strPoolCount += strlen( params ) + 1) >= BOT_SIZE_STRING_POOL) {
+					if ((strPoolCount += Q_strlenInt( params ) + 1) >= BOT_SIZE_STRING_POOL) {
 						G_Error( "Bot_ScriptParse(), Error (line %d): string pool size exceeded (MAX = %i)\n", 1 + COM_GetCurrentParseLine(), BOT_SIZE_STRING_POOL );
 					}
 				}
@@ -981,7 +981,7 @@ qboolean Bot_ScriptRun( bot_state_t *bs, qboolean force )
 	if (bs->script.status.eventIndex < 0)
 		return qtrue;
 
-	if (!bs->script.data->events) {
+	if (bs->script.status.eventIndex >= bs->script.data->numEvents) {
 		bs->script.status.eventIndex = -1;
 		return qtrue;
 	}
@@ -1070,13 +1070,13 @@ void Bot_ScriptLog_Entry( bot_state_t *bs, qboolean showDetails, char *preText, 
 	// timestamp
 	// get the time/date
 	Q_strncpyz( text, va("(%i) ", level.time), sizeof(text) );
-	trap_FS_Write( text, strlen(text), f );
+	trap_FS_Write( text, Q_strlenInt(text), f );
 	//
 	i = 40;	// padding for indentation
 	// pretext
 	if (preText) {
-		trap_FS_Write( preText, strlen(preText), f );
-		i -= strlen(preText);
+		trap_FS_Write( preText, Q_strlenInt(preText), f );
+		i -= Q_strlenInt(preText);
 		if (i < 0) i = 0;
 	}
 	// indentation
@@ -1085,12 +1085,12 @@ void Bot_ScriptLog_Entry( bot_state_t *bs, qboolean showDetails, char *preText, 
 	if (showDetails && (Bot_Script_GetCurrentLine( bs ) > -1)) {
 		// show the current script line and text
 		Q_strncpyz( text, va("(line %i:", Bot_Script_GetCurrentLine( bs )), sizeof(text) );
-		trap_FS_Write( text, strlen(text), f );
+		trap_FS_Write( text, Q_strlenInt(text), f );
 		// text
 		pStr = bs->script.status.currentItem->text;
 		while ((token = COM_ParseExt( &pStr, qfalse )) && token[0]) {
 			trap_FS_Write( " ", 1, f );
-			trap_FS_Write( token, strlen(token), f );
+			trap_FS_Write( token, Q_strlenInt(token), f );
 		}
 		trap_FS_Write( ") ", 2, f );
 	}
@@ -1098,14 +1098,14 @@ void Bot_ScriptLog_Entry( bot_state_t *bs, qboolean showDetails, char *preText, 
 	if (fmt) {
 		va_start(ap, fmt);
 		Q_vsnprintf( text, sizeof(text), fmt, ap );
-		if (strlen(text) >= sizeof(text)) {
+		if (Q_strlenInt(text) >= sizeof(text)) {
 			//G_Error( "Bot_ScriptLog_Entry: text exceeded buffer size" );
 			// just cut it short
 			text[sizeof(text)-1] = '\0';
 		}
 		va_end(ap);
 		//
-		trap_FS_Write( text, strlen(text), f );
+		trap_FS_Write( text, Q_strlenInt(text), f );
 	}
 	trap_FS_Write( "\r\n", 2, f );
 }

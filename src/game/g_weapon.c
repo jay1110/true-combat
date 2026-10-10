@@ -498,7 +498,7 @@ qboolean ReviveEntity(gentity_t *ent, gentity_t *traceEnt)
 
 
 	// DHM - Nerve :: Let the person being revived know about it
-	trap_SendServerCommand( traceEnt-g_entities, va("cp \"You have been revived by [lof]%s[lon] [lof]%s!\n\"", ent->client->sess.sessionTeam == TEAM_ALLIES ? rankNames_Allies[ ent->client->sess.rank ] : rankNames_Axis[ ent->client->sess.rank ], ent->client->pers.netname) );
+	trap_SendServerCommand( (int)(traceEnt - g_entities), va("cp \"You have been revived by [lof]%s[lon] [lof]%s!\n\"", ent->client->sess.sessionTeam == TEAM_ALLIES ? rankNames_Allies[ ent->client->sess.rank ] : rankNames_Axis[ ent->client->sess.rank ], ent->client->pers.netname) );
 	traceEnt->props_frame_state = ent->s.number;
 
 	// DHM - Nerve :: Mark that the medicine was indeed dispensed
@@ -561,7 +561,7 @@ void Weapon_Syringe(gentity_t *ent) {
 
 				// OSP - syringe "hit"
 				if(g_gamestate.integer == GS_PLAYING) ent->client->sess.aWeaponStats[WS_SYRINGE].hits++;
-				if(ent && ent->client) G_LogPrintf("Medic_Revive: %d %d\n", ent - g_entities, traceEnt - g_entities);	// OSP
+				if(ent && ent->client) G_LogPrintf("Medic_Revive: %d %d\n", (int)(ent - g_entities), (int)(traceEnt - g_entities));	// OSP
 
 				if( !traceEnt->isProp ) { // Gordon: flag for if they were teamkilled or not
 					AddScore(ent, WOLF_MEDIC_BONUS); // JPW NERVE props to the medic for the swift and dexterous bit o healitude
@@ -955,7 +955,7 @@ static void HandleEntsThatBlockConstructible( gentity_t *constructor, gentity_t 
 			if( (level.time - check->client->lastConstructibleBlockingWarnTime) >= MIN_BLOCKINGWARNING_INTERVAL ) {
 				trap_SendServerCommand( check->s.number, "cp \"Warning, leave the construction area...\" 1" );
 				// Gordon: store the entity num to warn the bot
-				check->client->lastConstructibleBlockingWarnEnt = constructible - g_entities;
+				check->client->lastConstructibleBlockingWarnEnt = (int)(constructible - g_entities);
 				check->client->lastConstructibleBlockingWarnTime = level.time;
 			}
 
@@ -1000,11 +1000,11 @@ static void HandleEntsThatBlockConstructible( gentity_t *constructor, gentity_t 
 				if ( block->s.eType == ET_MISSILE && block->methodOfDeath == MOD_LANDMINE ) {
 					mapEntityData_t	*mEnt;
 
-					if((mEnt = G_FindMapEntityData(&mapEntityData[0], block-g_entities)) != NULL) {
+					if((mEnt = G_FindMapEntityData(&mapEntityData[0], (int)(block - g_entities))) != NULL) {
 						G_FreeMapEntityData( &mapEntityData[0], mEnt );
 					}
 
-					if((mEnt = G_FindMapEntityData(&mapEntityData[1], block-g_entities)) != NULL) {
+					if((mEnt = G_FindMapEntityData(&mapEntityData[1], (int)(block - g_entities))) != NULL) {
 						G_FreeMapEntityData( &mapEntityData[1], mEnt );
 					}
 				}
@@ -1332,7 +1332,7 @@ static qboolean TryConstructing( gentity_t *ent ) {
 
 				// update the map for the other team
 				teamList = indicator->s.teamNum == TEAM_AXIS ? &mapEntityData[1] : &mapEntityData[0]; // inversed
-				if((mEnt = G_FindMapEntityData( teamList, indicator-g_entities)) != NULL) {
+				if((mEnt = G_FindMapEntityData( teamList, (int)(indicator - g_entities))) != NULL) {
 					G_FreeMapEntityData( teamList, mEnt );
 				}
 			}
@@ -1346,7 +1346,7 @@ static qboolean TryConstructing( gentity_t *ent ) {
 			constructible->think = func_constructible_underconstructionthink;
 			constructible->nextthink = level.time + FRAMETIME;
 
-			G_PrintClientSpammyCenterPrint( ent-g_entities, "Constructing..." );
+			G_PrintClientSpammyCenterPrint( (int)(ent - g_entities), "Constructing..." );
 		}
 
 		// Give health until it is full, don't continue
@@ -1359,7 +1359,7 @@ static qboolean TryConstructing( gentity_t *ent ) {
             return( qtrue );	// properly constructed
 		}
 
-		//trap_SendServerCommand( ent-g_entities, "cp \"Job's done!\" 1");
+		//trap_SendServerCommand( (int)(ent - g_entities), "cp \"Job's done!\" 1");
 
 		// eeeh no point in doing this twice
 		//HandleEntsThatBlockConstructible( ent, constructible, qtrue, qfalse );
@@ -1485,7 +1485,7 @@ static qboolean TryConstructing( gentity_t *ent ) {
 				{
 					gentity_t* tent = NULL;
 					while((tent = G_Find (tent, FOFS(target), constructible->targetname)) != NULL) {
-						if((tent->s.eType == ET_OID_TRIGGER)) {
+						if(tent->s.eType == ET_OID_TRIGGER) {
 							e->parent = tent;
 						}
 					}
@@ -1660,7 +1660,7 @@ void AutoBuildConstruction( gentity_t* constructible ) {
 			e->s.eType = ET_EXPLOSIVE_INDICATOR;
 
 			while((tent = G_Find(tent, FOFS(target), constructible->targetname)) != NULL) {
-				if((tent->s.eType == ET_OID_TRIGGER)) {
+				if(tent->s.eType == ET_OID_TRIGGER) {
 					if(tent->spawnflags & 8) {
 						e->s.eType = ET_TANK_INDICATOR;
 					}
@@ -1671,7 +1671,7 @@ void AutoBuildConstruction( gentity_t* constructible ) {
 			{
 				gentity_t* tent = NULL;
 				while((tent = G_Find (tent, FOFS(target), constructible->targetname)) != NULL) {
-					if((tent->s.eType == ET_OID_TRIGGER)) {
+					if(tent->s.eType == ET_OID_TRIGGER) {
 						e->parent = tent;
 					}
 				}
@@ -1813,7 +1813,7 @@ void Weapon_Engineer( gentity_t *ent ) {
 		if (G_CountTeamLandmines(ent->client->sess.sessionTeam) >= MAX_TEAM_LANDMINES &&
 			G_LandmineTeam(traceEnt) == ent->client->sess.sessionTeam) {
 			if (G_LandmineUnarmed(traceEnt)) {
-				trap_SendServerCommand(ent-g_entities, "cp \"Your team has too many landmines placed...\" 1");
+				trap_SendServerCommand((int)(ent - g_entities), "cp \"Your team has too many landmines placed...\" 1");
 				G_FreeEntity(traceEnt);
 				Add_Ammo(ent, WP_LANDMINE, 1, qfalse);
 				ent->client->ps.classWeaponTime -=
@@ -1824,10 +1824,10 @@ void Weapon_Engineer( gentity_t *ent ) {
 			}
 		} else if (G_LandmineUnarmed(traceEnt)) {
 			if (G_LandmineTeam(traceEnt) != ent->client->sess.sessionTeam) return;
-			G_PrintClientSpammyCenterPrint(ent-g_entities, "Arming landmine...");
+			G_PrintClientSpammyCenterPrint((int)(ent - g_entities), "Arming landmine...");
 			traceEnt->health += ent->client->sess.skill[SK_EXPLOSIVES_AND_CONSTRUCTION] >= 2 ? 24 : 12;
 			if (traceEnt->health < 250) return;
-			trap_SendServerCommand(ent-g_entities, "cp \"Landmine armed...\" 1");
+			trap_SendServerCommand((int)(ent - g_entities), "cp \"Landmine armed...\" 1");
 			traceEnt->r.contents = 0;
 			trap_LinkEntity(traceEnt);
 			traceEnt->timestamp = level.time + 1000;
@@ -1840,17 +1840,17 @@ void Weapon_Engineer( gentity_t *ent ) {
 		}
 		if (traceEnt->timestamp > level.time || traceEnt->health >= 250) return;
 		traceEnt->health += ent->client->sess.skill[SK_EXPLOSIVES_AND_CONSTRUCTION] >= 2 ? 6 : 3;
-		G_PrintClientSpammyCenterPrint(ent-g_entities, "Defusing landmine");
+		G_PrintClientSpammyCenterPrint((int)(ent - g_entities), "Defusing landmine");
 		if (traceEnt->health < 250) return;
-		trap_SendServerCommand(ent-g_entities, "cp \"Landmine defused...\" 1");
+		trap_SendServerCommand((int)(ent - g_entities), "cp \"Landmine defused...\" 1");
 		Add_Ammo(ent, WP_LANDMINE, 1, qfalse);
 		if (G_LandmineTeam(traceEnt) != ent->client->sess.sessionTeam) {
 			G_AddSkillPoints(ent, SK_EXPLOSIVES_AND_CONSTRUCTION, 4.f);
 			G_DebugAddSkillPoints(ent, SK_EXPLOSIVES_AND_CONSTRUCTION, 4.f, "defusing an enemy landmine");
 		}
-		if ((mEnt = G_FindMapEntityData(&mapEntityData[0], traceEnt-g_entities)) != NULL)
+		if ((mEnt = G_FindMapEntityData(&mapEntityData[0], (int)(traceEnt - g_entities))) != NULL)
 			G_FreeMapEntityData(&mapEntityData[0], mEnt);
-		if ((mEnt = G_FindMapEntityData(&mapEntityData[1], traceEnt-g_entities)) != NULL)
+		if ((mEnt = G_FindMapEntityData(&mapEntityData[1], (int)(traceEnt - g_entities))) != NULL)
 			G_FreeMapEntityData(&mapEntityData[1], mEnt);
 		G_FreeEntity(traceEnt);
 		return;
@@ -1858,12 +1858,12 @@ void Weapon_Engineer( gentity_t *ent ) {
 	if (traceEnt->methodOfDeath == MOD_SATCHEL) {
 		if (traceEnt->health >= 250) return;
 		traceEnt->health += 3;
-		G_PrintClientSpammyCenterPrint(ent-g_entities, "Disarming satchel charge...");
+		G_PrintClientSpammyCenterPrint((int)(ent - g_entities), "Disarming satchel charge...");
 		if (traceEnt->health < 250) return;
 		traceEnt->health = 255;
 		traceEnt->think = G_FreeEntity;
 		traceEnt->nextthink = level.time + FRAMETIME;
-		G_PrintClientSpammyCenterPrint(ent-g_entities, "Satchel charge disarmed...");
+		G_PrintClientSpammyCenterPrint((int)(ent - g_entities), "Satchel charge disarmed...");
 		G_AddSkillPoints(ent, SK_EXPLOSIVES_AND_CONSTRUCTION, 6.f);
 		G_DebugAddSkillPoints(ent, SK_EXPLOSIVES_AND_CONSTRUCTION, 6.f, "disarming satchel charge");
 		return;
@@ -1872,7 +1872,7 @@ void Weapon_Engineer( gentity_t *ent ) {
 
 	if (traceEnt->s.teamNum >= 4) {
 		if (traceEnt->s.teamNum - 4 != ent->client->sess.sessionTeam) return;
-		G_PrintClientSpammyCenterPrint(ent-g_entities, "Arming dynamite...");
+		G_PrintClientSpammyCenterPrint((int)(ent - g_entities), "Arming dynamite...");
 		traceEnt->health += ent->client->sess.skill[SK_EXPLOSIVES_AND_CONSTRUCTION] >= 2 ? 14 : 7;
 		friendlyObj = enemyObj = qfalse;
 		VectorCopy(traceEnt->r.currentOrigin, org);
@@ -1903,7 +1903,7 @@ void Weapon_Engineer( gentity_t *ent ) {
 		}
 		if (friendlyObj && !enemyObj) {
 			G_FreeEntity(traceEnt);
-			trap_SendServerCommand(ent-g_entities, "cp \"You cannot arm dynamite near a friendly objective!\" 1");
+			trap_SendServerCommand((int)(ent - g_entities), "cp \"You cannot arm dynamite near a friendly objective!\" 1");
 			return;
 		}
 		if (traceEnt->health < 250) return;
@@ -1937,7 +1937,7 @@ void Weapon_Engineer( gentity_t *ent ) {
 				G_Script_ScriptEvent(hit, "dynamited", "");
 				AddScore(traceEnt->parent, 10);
 				if (traceEnt->parent && traceEnt->parent->client)
-					G_LogPrintf("Dynamite_Plant: %d\n", traceEnt->parent-g_entities);
+					G_LogPrintf("Dynamite_Plant: %d\n", (int)(traceEnt->parent - g_entities));
 				traceEnt->parent = ent;
 				return;
 			}
@@ -1956,7 +1956,7 @@ void Weapon_Engineer( gentity_t *ent ) {
 				!G_ConstructionIsPartlyBuilt(hit)) continue;
 			if (hit->s.teamNum == traceEnt->s.teamNum) {
 				G_FreeEntity(traceEnt);
-				trap_SendServerCommand(ent-g_entities, "cp \"You cannot arm dynamite near a friendly construction!\" 1");
+				trap_SendServerCommand((int)(ent - g_entities), "cp \"You cannot arm dynamite near a friendly construction!\" 1");
 				return;
 			}
 			if (hit->constructibleStats.weaponclass < 1) continue;
@@ -1969,12 +1969,12 @@ void Weapon_Engineer( gentity_t *ent ) {
 			if (hit->s.teamNum && hit->s.teamNum == ent->client->sess.sessionTeam) {
 				AddScore(traceEnt->parent, 10);
 				if (traceEnt->parent && traceEnt->parent->client)
-					G_LogPrintf("Dynamite_Plant: %d\n", traceEnt->parent-g_entities);
+					G_LogPrintf("Dynamite_Plant: %d\n", (int)(traceEnt->parent - g_entities));
 				traceEnt->parent = ent;
 			}
 			return;
 		}
-		trap_SendServerCommand(ent-g_entities, "cp \"Dynamite is now armed with a 30 second timer!\" 1");
+		trap_SendServerCommand((int)(ent - g_entities), "cp \"Dynamite is now armed with a 30 second timer!\" 1");
 		return;
 	}
 
@@ -2017,7 +2017,7 @@ void Weapon_Engineer( gentity_t *ent ) {
 			hit->constructibleStats.weaponclass < 1) continue;
 		if (hit->s.teamNum == (ent->client->sess.sessionTeam == TEAM_AXIS ? TEAM_AXIS : TEAM_ALLIES)) {
 			AddScore(ent, 10);
-			if (ent && ent->client) G_LogPrintf("Dynamite_Diffuse: %d\n", ent-g_entities);
+			if (ent && ent->client) G_LogPrintf("Dynamite_Diffuse: %d\n", (int)(ent - g_entities));
 			G_AddSkillPoints(ent, SK_EXPLOSIVES_AND_CONSTRUCTION, 6.f);
 			G_DebugAddSkillPoints(ent, SK_EXPLOSIVES_AND_CONSTRUCTION, 6.f, "defusing enemy dynamite");
 		}
@@ -2148,7 +2148,7 @@ qboolean weapon_checkAirStrike( gentity_t *ent ) {
 		if( level.numActiveAirstrikes[0] > 6 || !G_AvailableAirstrikes( ent->parent ) ) {
 			G_SayTo( ent->parent, ent->parent, 2, COLOR_YELLOW, "HQ: ", "All available planes are already en-route.", qtrue );
 
-			G_GlobalClientEvent( EV_AIRSTRIKEMESSAGE, 0, ent->parent-g_entities );
+			G_GlobalClientEvent( EV_AIRSTRIKEMESSAGE, 0, (int)(ent->parent - g_entities) );
 
 /*			te = G_TempEntity( ent->parent->s.pos.trBase, EV_GLOBAL_CLIENT_SOUND );
 			te->s.eventParm = G_SoundIndex( "axis_hq_airstrike_denied" );
@@ -2168,7 +2168,7 @@ qboolean weapon_checkAirStrike( gentity_t *ent ) {
 		if( level.numActiveAirstrikes[1] > 6 || !G_AvailableAirstrikes( ent->parent ) ) {
 			G_SayTo( ent->parent, ent->parent, 2, COLOR_YELLOW, "HQ: ", "All available planes are already en-route.", qtrue );
 
-			G_GlobalClientEvent( EV_AIRSTRIKEMESSAGE, 0, ent->parent-g_entities );
+			G_GlobalClientEvent( EV_AIRSTRIKEMESSAGE, 0, (int)(ent->parent - g_entities) );
 
 /*			te = G_TempEntity( ent->parent->s.pos.trBase, EV_GLOBAL_CLIENT_SOUND );
 			te->s.eventParm = G_SoundIndex( "allies_hq_airstrike_denied" );
@@ -2220,7 +2220,7 @@ void weapon_callAirStrike( gentity_t *ent ) {
 	if ((tr.fraction < 1.0) && (!(tr.surfaceFlags & SURF_NOIMPACT)) ) { //SURF_SKY)) ) { // JPW NERVE changed for trenchtoast foggie prollem
 		G_SayTo( ent->parent, ent->parent, 2, COLOR_YELLOW, "Pilot: ", "Aborting, can't see target.", qtrue );
 
-		G_GlobalClientEvent( EV_AIRSTRIKEMESSAGE, 1, ent->parent-g_entities );
+		G_GlobalClientEvent( EV_AIRSTRIKEMESSAGE, 1, (int)(ent->parent - g_entities) );
 
 /*		te = G_TempEntity( ent->parent->s.pos.trBase, EV_GLOBAL_CLIENT_SOUND );
 		if ( ent->s.teamNum == TEAM_ALLIES ) {
@@ -2241,7 +2241,7 @@ void weapon_callAirStrike( gentity_t *ent ) {
 		return;
 	}
 
-	G_GlobalClientEvent( EV_AIRSTRIKEMESSAGE, 2, ent->parent-g_entities );
+	G_GlobalClientEvent( EV_AIRSTRIKEMESSAGE, 2, (int)(ent->parent - g_entities) );
 
 /*	te = G_TempEntity( ent->parent->s.pos.trBase, EV_GLOBAL_CLIENT_SOUND );
 	if ( ent->parent->client->sess.sessionTeam == TEAM_ALLIES ) {
@@ -2309,7 +2309,7 @@ void weapon_callAirStrike( gentity_t *ent ) {
 			fallaxis[2]			= bottomtraceheight;
 
 
-			trap_Trace( &tr, bomboffset, NULL, NULL, fallaxis, ent-g_entities, bomb->clipmask );
+			trap_Trace( &tr, bomboffset, NULL, NULL, fallaxis, (int)(ent - g_entities), bomb->clipmask );
 			if( tr.fraction != 1.0 ) {
 				VectorCopy(tr.endpos,bomb->s.pos.trBase);
 
@@ -2554,11 +2554,11 @@ void Weapon_Artillery(gentity_t *ent) {
 			G_SayTo( ent, ent, 2, COLOR_YELLOW, "Fire Mission: ", "Insufficient fire support.", qtrue );
 			ent->active = qfalse;
 
-			G_GlobalClientEvent( EV_ARTYMESSAGE, 0, ent-g_entities );
+			G_GlobalClientEvent( EV_ARTYMESSAGE, 0, (int)(ent - g_entities) );
 
 /*			te = G_TempEntity( ent->s.pos.trBase, EV_GLOBAL_CLIENT_SOUND );
 			te->s.eventParm = G_SoundIndex( "axis_hq_airstrike_denied" );
-			te->s.teamNum = ent-g_entities;*/
+			te->s.teamNum = (int)(ent - g_entities);*/
 
 			return;
 		}
@@ -2567,11 +2567,11 @@ void Weapon_Artillery(gentity_t *ent) {
 			G_SayTo( ent, ent, 2, COLOR_YELLOW, "Fire Mission: ", "Insufficient fire support.", qtrue );
 			ent->active = qfalse;
 
-			G_GlobalClientEvent( EV_ARTYMESSAGE, 0, ent-g_entities );
+			G_GlobalClientEvent( EV_ARTYMESSAGE, 0, (int)(ent - g_entities) );
 
 /*			te = G_TempEntity( ent->s.pos.trBase, EV_GLOBAL_CLIENT_SOUND );
 			te->s.eventParm = G_SoundIndex( "allies_hq_airstrike_denied" );
-			te->s.teamNum = ent-g_entities;*/
+			te->s.teamNum = (int)(ent - g_entities);*/
 
 			return;
 		}
@@ -2594,7 +2594,7 @@ void Weapon_Artillery(gentity_t *ent) {
 	if ((G_TCEArtilleryTraceStatus(trace.fraction) & 0x100u) && (!(trace.surfaceFlags & SURF_NOIMPACT)) ) {
 		G_SayTo( ent, ent, 2, COLOR_YELLOW, "Fire Mission: ", "Aborting, can't see target.", qtrue );
 
-		G_GlobalClientEvent( EV_ARTYMESSAGE, 1, ent-g_entities );
+		G_GlobalClientEvent( EV_ARTYMESSAGE, 1, (int)(ent - g_entities) );
 
 /*		te = G_TempEntity( ent->s.pos.trBase, EV_GLOBAL_CLIENT_SOUND );
 		if ( ent->client->sess.sessionTeam == TEAM_ALLIES ) {
@@ -2612,7 +2612,7 @@ void Weapon_Artillery(gentity_t *ent) {
 
 	G_SayTo( ent, ent, 2, COLOR_YELLOW, "Fire Mission: ", "Firing for effect!", qtrue );
 
-	G_GlobalClientEvent( EV_ARTYMESSAGE, 2, ent-g_entities );
+	G_GlobalClientEvent( EV_ARTYMESSAGE, 2, (int)(ent - g_entities) );
 
 /*	te = G_TempEntity( ent->s.pos.trBase, EV_GLOBAL_CLIENT_SOUND );
 	if ( ent->client->sess.sessionTeam == TEAM_ALLIES ) {
@@ -3142,6 +3142,11 @@ qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker,
                 AccuracyHit(hit, attacker);
                 event->s.otherEntityNum = attacker->s.number;
                 event->s.density = hit->client->tceLastAppliedDamage;
+                /* CQB Bullet_Fire_Extended: a nonsuppressed enemy hit also
+                 * exposes the victim briefly, even if their gun is silent. */
+                if (attacker->client && !OnSameTeam(hit, attacker) &&
+                    !suppressWallEvents)
+                    hit->client->tceRadarHitTime = level.time;
             }
             if (result != 0.0f) {
                 material = &tcePierceTable[16];

@@ -105,6 +105,17 @@ template <class Real>
 Real PointToSegmentDistance(const Vector2<Real> &aPt, const Vector2<Real> &aSeg1, 
 							 const Vector2<Real> &aSeg2, Vector2<Real> &aOutClosest, Real &aOutTime);
 
+#ifndef _MSC_VER
+// Explicit specializations are defined in the matching .cpp file.
+template<> const Vector2<float> Vector2<float>::ZERO;
+template<> const Vector2<float> Vector2<float>::UNIT_X;
+template<> const Vector2<float> Vector2<float>::UNIT_Y;
+template<> const Vector2<double> Vector2<double>::ZERO;
+template<> const Vector2<double> Vector2<double>::UNIT_X;
+template<> const Vector2<double> Vector2<double>::UNIT_Y;
+
+#endif
+
 #include "Wm3Vector2.inl"
 
 typedef Vector2<float> Vector2f;

@@ -240,6 +240,15 @@ Matrix3<Real> operator* (Real fScalar, const Matrix3<Real>& rkM);
 template <class Real>
 Vector3<Real> operator* (const Vector3<Real>& rkV, const Matrix3<Real>& rkM);
 
+#ifndef _MSC_VER
+// Explicit specializations are defined in the matching .cpp file.
+template<> const Matrix3<float> Matrix3<float>::ZERO;
+template<> const Matrix3<float> Matrix3<float>::IDENTITY;
+template<> const Matrix3<double> Matrix3<double>::ZERO;
+template<> const Matrix3<double> Matrix3<double>::IDENTITY;
+
+#endif
+
 #include "Wm3Matrix3.inl"
 
 typedef Matrix3<float> Matrix3f;

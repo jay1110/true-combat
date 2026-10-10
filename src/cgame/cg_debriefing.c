@@ -1123,7 +1123,7 @@ void CG_Debriefing_ChatEdit_Draw( panel_button_t* button ) {
 
 	do {
 		offset++;
-		if( buffer + offset  == '\0' ) {
+		if( buffer[offset] == '\0' ) {
 			break;
 		}
 	} while( CG_Text_Width_Ext( buffer + offset, button->font->scalex, 0, button->font->font ) > button->rect.w );
@@ -2526,7 +2526,7 @@ void CG_Debreifing2_Awards_Parse( void ) {
 
 		cgs.dbAwardNames[ i ] = s;
 
-		len = strlen( token );
+		len = Q_strlenInt( token );
 		size -= len;
 		s += len + 1;
 

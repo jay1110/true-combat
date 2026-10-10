@@ -76,7 +76,11 @@ function commandSetLevel(clientId, command, victim, level)
         return true
     end
 
-    level = tonumber(level) or 0
+    level = tonumber(level)
+    if not level or level ~= level or level < 0 or level == math.huge or level ~= math.floor(level) then
+        et.trap_SendConsoleCommand(et.EXEC_APPEND, "csay "..clientId.." \"^dsetlevel: ^9specify a valid non-negative integer level.\";")
+        return true
+    end
 
     if auth.getPlayerLevel(cmdClient) > auth.getPlayerLevel(clientId) then
         et.trap_SendConsoleCommand(et.EXEC_APPEND, "csay "..clientId.." \"^dsetlevel: ^9sorry, but your intended victim has a higher admin level than you do.\";")

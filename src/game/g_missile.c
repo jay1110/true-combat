@@ -203,7 +203,7 @@ void G_ExplodeMissile( gentity_t *ent ) {
     if(ent->s.weapon==26) {
         mapEntityData_t *m;
         for(i=0;i<2;i++) {
-            m=G_FindMapEntityData(&mapEntityData[i],ent-g_entities);
+            m=G_FindMapEntityData(&mapEntityData[i],(int)(ent - g_entities));
             if(m)G_FreeMapEntityData(&mapEntityData[i],m);
         }
     } else if(ent->s.weapon==15) {
@@ -1613,7 +1613,7 @@ gentity_t *fire_grenade(gentity_t *self,vec3_t start,vec3_t dir,int grenadeWPID)
                             else AddScore(bolt->parent,hit->target_ent->tceObjectiveScore);
                         }
                         if(bolt->parent && bolt->parent->client)
-                            G_LogPrintf("Dynamite_Plant: %d\n",bolt->parent-g_entities);
+                            G_LogPrintf("Dynamite_Plant: %d\n",(int)(bolt->parent - g_entities));
                         bolt->parent=self;
                     }
                 }

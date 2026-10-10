@@ -899,6 +899,11 @@ static void CG_CalculateWeaponPosition( vec3_t origin, vec3_t angles ) {
 		VectorCopy(cg.refdef_current->vieworg,s.viewOrigin);
 		AxisCopy(cg.refdef_current->viewaxis,s.viewAxis);
 		VectorCopy(cg.refdefViewAngles,s.viewAngles);
+		if (cg.tceWeaponViewValid) {
+			VectorCopy(cg.tceWeaponViewOrigin,s.viewOrigin);
+			AxisCopy(cg.tceWeaponViewAxis,s.viewAxis);
+			VectorCopy(cg.tceWeaponViewAngles,s.viewAngles);
+		}
 		VectorCopy(tce_cg_weapons[weapon].gunViewAngles,s.gunViewAngles);
 		s.proneMovingTime=cg.proneMovingTime;
 		s.flags_3407dfb0=ps->stats[STAT_TCE_WEAPON_FLAGS];
@@ -985,7 +990,7 @@ static void CG_CalculateWeaponPosition( vec3_t origin, vec3_t angles ) {
 		VectorMA(origin, angles[ROLL], right, origin);
 
 		// pitch the gun down a bit to show that firing is not allowed when leaning
-		angles[PITCH] += (abs(cg.predictedPlayerState.leanf)/2.0f);
+		angles[PITCH] += (fabs(cg.predictedPlayerState.leanf)/2.0f);
 
 		// this gives you some impression that the weapon stays in relatively the same
 		// position while you lean, so you appear to 'peek' over the weapon
@@ -3998,7 +4003,7 @@ CG_MissileHitWallSmall
 */
 /* Entire original3007b010; unused weapon/client arguments remain ABI-compatible. */
 void CG_MissileHitWallSmall(int weapon,int clientNum,vec3_t origin,vec3_t dir) {
-    vec3_t position,velocity;
+    vec3_t position,velocity,decalPoints[1];
     vec4_t projection={0,0,-1,80},color={1,1,1,1};
     int sound=trap_S_RegisterSound("sound/weapons/rocket/rocket_expl.wav",qfalse);
     int mark=trap_R_RegisterShaderNoMip("gfx/damage/grenade_mrk");
@@ -4007,7 +4012,8 @@ void CG_MissileHitWallSmall(int weapon,int clientNum,vec3_t origin,vec3_t dir) {
     CG_ParticleExplosion("explode1",position,velocity,600,6,50,qtrue);
     CG_AddDebris(origin,dir,280,1400,7+rand()%2);
     if(sound)trap_S_StartSound(origin,-1,CHAN_AUTO,sound);
-    trap_R_ProjectDecal(mark,1,origin,projection,color,cg_markTime.integer,cg_markTime.integer>>4);
+    VectorCopy(origin, decalPoints[0]);
+    trap_R_ProjectDecal(mark,1,decalPoints,projection,color,cg_markTime.integer,cg_markTime.integer>>4);
 }
 
 /*

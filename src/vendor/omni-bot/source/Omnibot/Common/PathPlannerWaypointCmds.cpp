@@ -405,7 +405,7 @@ void PathPlannerWaypoint::cmdWaypointAutoRadius(const StringVector &_args)
 
 	for( ; it != itEnd; ++it)
 	{
-		if(pClosestWp && pClosestWp != (*it)
+		if((pClosestWp && pClosestWp != (*it))
 			|| (*it)->IsAnyFlagOn(F_NAV_JUMP|F_NAV_CLIMB|F_NAV_TELEPORT))
 			continue;
 
@@ -1650,7 +1650,7 @@ void PathPlannerWaypoint::cmdWaypointGetWpNames(const StringVector &_args)
 	for(obuint32 i = 0; i < m_WaypointList.size(); ++i)
 	{
 		Waypoint *pWp = m_WaypointList[i];
-		if(exp.empty() || !pWp->GetName().empty() && Utils::RegexMatch( exp.c_str(), pWp->GetName().c_str() ) )
+		if(exp.empty() || (!pWp->GetName().empty() && Utils::RegexMatch( exp.c_str(), pWp->GetName().c_str() )) )
 			wl.push_back(pWp);
 	}
 

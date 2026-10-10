@@ -66,7 +66,7 @@ static gmuint32 s_gmCrc32Table[] =
 
 gmuint32 gmCrc32String(const char *p_string)
 {
-	register gmuint32 crc32;
+	 gmuint32 crc32;
 
 	crc32 = 0xffffffff;
 

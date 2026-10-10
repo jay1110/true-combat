@@ -92,11 +92,61 @@ static int Damage(lua_State *L) {
     G_Damage(&g_entities[target], inflictor, attacker, NULL, NULL, amount, flags, mod);
     return 0;
 }
+/* Administrative effects are explicit: normal TC damage is intentionally disabled
+ * in warmup and cannot implement a moderation command there. */
+static int AdminSlap(lua_State *L) {
+    int target = Client(L, 1), amount = Integer(L, 2, 1, 9999), applied;
+    gentity_t *e = &g_entities[target];
+    gclient_t *c = e->client;
+    if (!e->inuse || !c || e->health <= 0 || c->ps.pm_type == PM_DEAD ||
+        c->sess.sessionTeam == TEAM_SPECTATOR || g_gamestate.integer == GS_INTERMISSION) {
+        lua_pushboolean(L, 0); return 1;
+    }
+    applied = amount < e->health ? amount : e->health - 1;
+    e->health -= applied;
+    c->ps.stats[STAT_HEALTH] = e->health;
+    c->damage_blood += applied > 0 ? applied : 1;
+    c->damage_fromWorld = qtrue;
+    /* Nonlethal impulse and native damage feedback, including at one HP. */
+    c->ps.velocity[2] = 200.0f;
+    lua_pushboolean(L, 1); return 1;
+}
+static int AdminGib(lua_State *L) {
+    int target = Client(L, 1);
+    gentity_t *e = &g_entities[target];
+    if (!e->inuse || !e->client || e->health <= 0 ||
+        e->client->ps.pm_type == PM_DEAD || e->client->sess.sessionTeam == TEAM_SPECTATOR ||
+        g_gamestate.integer == GS_INTERMISSION) {
+        lua_pushboolean(L, 0); return 1;
+    }
+    e->health = -999;
+    e->client->ps.stats[STAT_HEALTH] = e->health;
+    player_die(e, &g_entities[ENTITYNUM_WORLD], &g_entities[ENTITYNUM_WORLD], 10000, MOD_UNKNOWN);
+    lua_pushboolean(L, 1); return 1;
+}
+static int AdminSound(lua_State *L) {
+    int target = Integer(L, 1, -1, level.maxclients - 1), i, index;
+    const char *path = Text(L, 2, MAX_QPATH);
+    luaL_argcheck(L, !strncmp(path, "sound/", 6) && !strstr(path, "..") &&
+                  !strpbrk(path, "\\:;\""), 2, "relative sound/ path required");
+    index = G_SoundIndex(path);
+    for (i = 0; i < level.maxclients; ++i) {
+        if ((target == -1 || target == i) && level.clients[i].pers.connected == CON_CONNECTED) {
+            gentity_t *event = G_TempEntity(g_entities[i].r.currentOrigin, EV_GENERAL_SOUND);
+            event->s.eventParm = index;
+            event->s.clientNum = i;
+            event->r.svFlags |= SVF_SINGLECLIENT | SVF_BROADCAST;
+            event->r.singleClient = i;
+        }
+    }
+    return 0;
+}
 void TCE_LuaRegisterAdmin(lua_State *L) {
     static const luaL_Reg api[] = {
         { "ClientNumberFromString", ClientNumber }, { "trap_DropClient", Drop },
         { "G_LogPrint", Log }, { "ClientUserinfoChanged", UserinfoChanged },
-        { "G_Damage", Damage }, { NULL, NULL }
+        { "G_Damage", Damage }, { "G_AdminSlap", AdminSlap },
+        { "G_AdminGib", AdminGib }, { "G_AdminSound", AdminSound }, { NULL, NULL }
     };
     luaL_setfuncs(L, api, 0);
 }

@@ -53,7 +53,7 @@ static int GM_CDECL gmfEnableDebugWindow(gmThread *a_thread)
 #else
 	GM_EXCEPTION_MSG("DebugWindow Not Available.");
 	return GM_EXCEPTION;
-#endif	
+#endif
 }
 static int GM_CDECL gmfDumpDebugConsoleToFile(gmThread *a_thread)
 {
@@ -66,7 +66,7 @@ static int GM_CDECL gmfDumpDebugConsoleToFile(gmThread *a_thread)
 #else
 	GM_EXCEPTION_MSG("DebugWindow Not Available.");
 	return GM_EXCEPTION;
-#endif	
+#endif
 }
 
 // function: EchoToScreen
@@ -163,9 +163,9 @@ static int gmfRegisterTriggerCallback(gmThread *a_thread)
 	GM_CHECK_FUNCTION_PARAM(callbackfunction, 1);
 	if(triggername)
 	{
-		TriggerManager::GetInstance()->SetScriptCallback(triggername, 
+		TriggerManager::GetInstance()->SetScriptCallback(triggername,
 			gmGCRoot<gmFunctionObject>(callbackfunction, a_thread->GetMachine()));
-		LOG("Trigger Callback: " << callbackfunction->GetDebugName() << 
+		LOG("Trigger Callback: " << callbackfunction->GetDebugName() <<
 			" : For Function: " << triggername << " Set.");
 	}
 	return GM_OK;
@@ -186,7 +186,7 @@ static int GM_CDECL gmfRunScript(gmThread *a_thread)
 {
 	GM_CHECK_NUM_PARAMS(1);
 	GM_CHECK_STRING_PARAM(scriptname, 0);
-	
+
 	try
 	{
 		if(scriptname)
@@ -204,8 +204,8 @@ static int GM_CDECL gmfRunScript(gmThread *a_thread)
 	catch(const std::exception& e)
 	{
 		_UNUSED(e);
-		OBASSERT(0, e.what());		
-	}	
+		OBASSERT(0, e.what());
+	}
 	a_thread->PushInt(0);
 	return GM_OK;
 }
@@ -339,7 +339,7 @@ static int GM_CDECL gmfKickBotFromTeam(gmThread *a_thread)
 				lastBotOnTeam = cp;
 		}
 	}
-	
+
 	if(lastBotOnTeam)
 	{
 		String strGameId;
@@ -438,7 +438,7 @@ static int GM_CDECL gmfExecCommand(gmThread *a_thread)
 // Parameters:
 //
 //		<GameEntity> - The entity to kill
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to kill
 //
 // Returns:
@@ -447,7 +447,7 @@ static int GM_CDECL gmfEntityKill(gmThread *a_thread)
 {
 	GM_CHECK_NUM_PARAMS(1);
 	GameEntity gameEnt;
-	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);	
+	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);
 	OBASSERT(gameEnt.IsValid(), "Bad Entity");
 	a_thread->PushInt(InterfaceFuncs::EntityKill(gameEnt) ? 1 : 0);
 	return GM_OK;
@@ -498,7 +498,7 @@ static int GM_CDECL gmfGetMapGoal(gmThread *a_thread)
 	{
 		MapGoalPtr pGoal = GoalManager::GetInstance()->GetGoal(name);
 		if(pGoal)
-		{			
+		{
 			gmGCRoot<gmUserObject> pUser = pGoal->GetScriptObject(a_thread->GetMachine());
 			OBASSERT(pUser, "Invalid Object");
 			a_thread->PushUser(pUser);
@@ -507,7 +507,7 @@ static int GM_CDECL gmfGetMapGoal(gmThread *a_thread)
 		{
 			a_thread->PushNull();
 		}
-	}	
+	}
 	return GM_OK;
 }
 
@@ -594,7 +594,7 @@ int GM_CDECL GetMapGoals(gmThread *a_thread, Client *client)
 	if(params)
 	{
 		qry.FromTable(a_thread->GetMachine(),params);
-	}	
+	}
 
 	if ( qry.GetError() != GoalManager::Query::QueryOk ) {
 		GM_EXCEPTION_MSG(qry.QueryErrorString());
@@ -701,7 +701,7 @@ static int GM_CDECL gmfSetAvailableMapGoals(gmThread *a_thread)
 	return GM_OK;
 }
 
-		
+
 // function: SetGoalPriority
 //		This function sets the bias for a selection of goals
 //
@@ -716,13 +716,13 @@ static int GM_CDECL gmfSetAvailableMapGoals(gmThread *a_thread)
 // Returns:
 //		none
 static int GM_CDECL gmfSetGoalPriority(gmThread *a_thread)
-{	
+{
 	GM_CHECK_NUM_PARAMS(2);
 	GM_CHECK_FLOAT_OR_INT_PARAM(priority,1);
 	GM_INT_PARAM(teamId,2,0);
 	GM_INT_PARAM(classId,3,0);
 	GM_INT_PARAM(persis,4,0);
-	
+
 	if(GoalManager::GetInstance()->Iterate(a_thread, a_thread->Param(0), "SetGoalPriority", persis!=0,
 		[=](MapGoal *g) { g->SetPriorityForClass(teamId, classId, priority); }) < 0)
 		return GM_EXCEPTION;
@@ -831,10 +831,10 @@ static int GM_CDECL gmfClearGoalRole(gmThread *a_thread)
 // Returns:
 //		none
 static int GM_CDECL gmfSetGoalGroup(gmThread *a_thread)
-{	
-	GM_CHECK_NUM_PARAMS(2);	
+{
+	GM_CHECK_NUM_PARAMS(2);
 	GM_CHECK_STRING_PARAM(group,1);
-	
+
 	int n = GoalManager::GetInstance()->Iterate(a_thread, a_thread->Param(0), "SetGoalGroup", false,
 		[=](MapGoal *g){ g->SetGroupName(group); });
 	return n < 0 ? GM_EXCEPTION : GM_OK;
@@ -890,7 +890,7 @@ static int gmfGetGameIdFromEntity(gmThread *a_thread)
 	GM_CHECK_NUM_PARAMS(1);
 
 	GameEntity gameEnt;
-	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);	
+	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);
 	OBASSERT(gameEnt.IsValid(), "Bad Entity");
 
 	GameId Id = g_EngineFuncs->IDFromEntity(gameEnt);
@@ -927,15 +927,15 @@ static int gmfTraceLine(gmThread *a_thread)
 	GM_INT_PARAM(iMask, 3, TR_MASK_SHOT);
 
 	GameEntity gameEnt;
-	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 4);	
-	//GM_INT_PARAM(iUser, 4, -1); 
+	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 4);
+	//GM_INT_PARAM(iUser, 4, -1);
 
 	GM_INT_PARAM(iUsePVS, 5, false);
-	
-	const int iUser = gameEnt.IsValid() ? g_EngineFuncs->IDFromEntity(gameEnt) : -1;	
+
+	const int iUser = gameEnt.IsValid() ? g_EngineFuncs->IDFromEntity(gameEnt) : -1;
 
 	obTraceResult tr;
-	EngineFuncs::TraceLine(tr, Vector3f(sv.x,sv.y,sv.z), Vector3f(ev.x,ev.y,ev.z), bbox, 
+	EngineFuncs::TraceLine(tr, Vector3f(sv.x,sv.y,sv.z), Vector3f(ev.x,ev.y,ev.z), bbox,
 		iMask, iUser, iUsePVS == False ? False : True);
 
 	gmMachine *pMachine = a_thread->GetMachine();
@@ -1066,7 +1066,7 @@ static int gmfDrawDebugAABB(gmThread *a_thread)
 	{
 		GM_EXCEPTION_MSG("expecting param 0 as user type %d", gmAABB::GetType());
 		return GM_EXCEPTION;
-	}	
+	}
 	GM_CHECK_GMBIND_PARAM(AABB*, gmAABB, aabb, 0);
 	GM_CHECK_INT_PARAM(color, 1);
 	GM_CHECK_FLOAT_OR_INT_PARAM(duration, 2);
@@ -1144,7 +1144,7 @@ static int GM_CDECL gmfTransformAndDrawLineList(gmThread *a_thread)
 	GM_CHECK_FLOAT_OR_INT_PARAM(duration, 2);
 	GM_CHECK_VECTOR_PARAM(position,3);
 	GM_CHECK_VECTOR_PARAM(euler,4);
-	
+
 	/*Matrix3f m;
 	m.FromEulerAnglesZXY(euler.x,euler.y,euler.z);*/
 
@@ -1176,12 +1176,12 @@ static int GM_CDECL gmfTransformAndDrawLineList(gmThread *a_thread)
 		for(int i = 1; i < PointCount; i+=2)
 		{
 			Utils::DrawLine(
-				vecs[i-1], 
-				vecs[i], 
-				obColor(color), 
+				vecs[i-1],
+				vecs[i],
+				obColor(color),
 				duration);
 		}
-	}	
+	}
 	return GM_OK;
 }
 
@@ -1214,7 +1214,7 @@ static int gmfDrawTrajectory(gmThread *a_thread)
 	{
 		traj.Render(obColor(color),duration);
 		a_thread->PushVector(traj.m_StopPos);
-	}	
+	}
 	return Res;
 }
 
@@ -1230,7 +1230,7 @@ static int gmfDrawTrajectory(gmThread *a_thread)
 //
 // Returns:
 //		string - The currently running map name.
-//		- OR - 
+//		- OR -
 //		null - If no map is loaded, or there was an error.
 static int GM_CDECL gmfGetMapName(gmThread *a_thread)
 {
@@ -1277,10 +1277,10 @@ static int GM_CDECL gmfGetMapExtents(gmThread *a_thread)
 //
 // Parameters:
 //
-//		<Vector3> - 
+//		<Vector3> -
 //
 // Returns:
-//		int - The point content flags for this position. 
+//		int - The point content flags for this position.
 static int GM_CDECL gmfGetPointContents(gmThread *a_thread)
 {
 	GM_CHECK_NUM_PARAMS(1);
@@ -1311,13 +1311,13 @@ static int GM_CDECL gmfGetTime(gmThread *a_thread)
 //////////////////////////////////////////////////////////////////////////
 
 // function: GetEntName
-//		This function gets the name of the entity. Only useful for getting the 
+//		This function gets the name of the entity. Only useful for getting the
 //		player names of certain clients. Undefined if used on non clients->
 //
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //
 // Returns:
@@ -1330,7 +1330,7 @@ static int gmfGetEntityName(gmThread *a_thread)
 
 	// See if we can get a proper gameentity
 	GameEntity gameEnt;
-	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);	
+	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);
 	OBASSERT(gameEnt.IsValid(), "Bad Entity");
 
 	const char *pName = g_EngineFuncs->GetEntityName(gameEnt);
@@ -1347,7 +1347,7 @@ static int gmfGetEntityName(gmThread *a_thread)
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //
 // Returns:
@@ -1360,7 +1360,7 @@ static int gmfGetEntityFacing(gmThread *a_thread)
 
 	// See if we can get a proper gameentity
 	GameEntity gameEnt;
-	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);	
+	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);
 	OBASSERT(gameEnt.IsValid(), "Bad Entity");
 
 	Vector3f v = Vector3f::ZERO;
@@ -1379,7 +1379,7 @@ static int gmfGetEntityFacing(gmThread *a_thread)
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //
 // Returns:
@@ -1391,7 +1391,7 @@ static int gmfGetEntityPosition(gmThread *a_thread)
 	GM_CHECK_NUM_PARAMS(1);
 
 	GameEntity gameEnt;
-	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);	
+	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);
 	OBASSERT(gameEnt.IsValid(), "Bad Entity");
 
 	Vector3f v = Vector3f::ZERO;
@@ -1410,7 +1410,7 @@ static int gmfGetEntityPosition(gmThread *a_thread)
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //		<int> - Bone to look for, See <SkeletonBone> enum
 //
@@ -1440,7 +1440,7 @@ static int gmfGetEntityBonePosition(gmThread *a_thread)
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //
 // Returns:
@@ -1452,7 +1452,7 @@ static int gmfGetEntEyePosition(gmThread *a_thread)
 	GM_CHECK_NUM_PARAMS(1);
 
 	GameEntity gameEnt;
-	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);	
+	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);
 	OBASSERT(gameEnt.IsValid(), "Bad Entity");
 
 	Vector3f v = Vector3f::ZERO;
@@ -1471,7 +1471,7 @@ static int gmfGetEntEyePosition(gmThread *a_thread)
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //
 // Returns:
@@ -1483,7 +1483,7 @@ static int gmfGetEntityVelocity(gmThread *a_thread)
 	GM_CHECK_NUM_PARAMS(1);
 
 	GameEntity gameEnt;
-	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);	
+	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);
 	OBASSERT(gameEnt.IsValid(), "Bad Entity");
 
 	Vector3f v = Vector3f::ZERO;
@@ -1502,7 +1502,7 @@ static int gmfGetEntityVelocity(gmThread *a_thread)
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //
 // Returns:
@@ -1514,7 +1514,7 @@ static int gmfGetEntRotationMatrix(gmThread *a_thread)
 	GM_CHECK_NUM_PARAMS(1);
 
 	GameEntity gameEnt;
-	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);	
+	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);
 	OBASSERT(gameEnt.IsValid(), "Bad Entity");
 
 	GM_GMBIND_PARAM(gmMat3Type*, gmMatrix3, mat, 1, NULL);
@@ -1543,7 +1543,7 @@ static int gmfGetEntRotationMatrix(gmThread *a_thread)
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //		<int> - The flag to check for
 //		... - Any number of additional flags to check for
@@ -1582,7 +1582,7 @@ static int gmfGetEntityFlags(gmThread *a_thread)
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //
 // Returns:
@@ -1622,7 +1622,7 @@ static int gmfGetEntityPowerups(gmThread *a_thread)
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //
 // Returns:
@@ -1632,9 +1632,9 @@ static int gmfGetEntityPowerups(gmThread *a_thread)
 static int gmfGetEntityHealthAndArmor(gmThread *a_thread)
 {
 	GM_CHECK_NUM_PARAMS(2);
-	
+
 	GameEntity gameEnt;
-	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);	
+	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);
 	OBASSERT(gameEnt.IsValid(), "Bad Entity");
 
 	GM_CHECK_TABLE_PARAM(tbl,1);
@@ -1663,12 +1663,12 @@ static int gmfGetEntityHealthAndArmor(gmThread *a_thread)
 //////////////////////////////////////////////////////////////////////////
 
 // function: GetEntWorldAABB
-//		This function gets the world AABB for this entity. 
+//		This function gets the world AABB for this entity.
 //
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //		<AABB> - OPTIONAL - If provided, will recieve the entity aabb rather than the return value(saves memory allocations)
 //
@@ -1686,7 +1686,7 @@ static int gmfGetEntityAABB(gmThread *a_thread)
 	GM_CHECK_NUM_PARAMS(1);
 
 	GameEntity gameEnt;
-	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);	
+	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);
 	OBASSERT(gameEnt.IsValid(), "Bad Entity");
 
 	GM_GMBIND_PARAM(AABB*, gmAABB, aabb, 1, NULL);
@@ -1716,7 +1716,7 @@ static int gmfGetEntityAABB(gmThread *a_thread)
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //
 // Returns:
@@ -1728,14 +1728,14 @@ static int gmfGetEntityOwner(gmThread *a_thread)
 	GM_CHECK_NUM_PARAMS(1);
 
 	GameEntity gameEnt;
-	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);	
+	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);
 	OBASSERT(gameEnt.IsValid(), "Bad Entity");
 
 	GameEntity owner = g_EngineFuncs->GetEntityOwner(gameEnt);
 	if(owner.IsValid())
 		a_thread->PushEntity(owner.AsInt());
 	else
-		a_thread->PushNull();	
+		a_thread->PushNull();
 
 	return GM_OK;
 }
@@ -1743,12 +1743,12 @@ static int gmfGetEntityOwner(gmThread *a_thread)
 //////////////////////////////////////////////////////////////////////////
 
 // function: GetEntTeam
-//		This function gets the current team of this entity. 
+//		This function gets the current team of this entity.
 //
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //
 // Returns:
@@ -1760,26 +1760,26 @@ static int gmfGetEntityTeam(gmThread *a_thread)
 	GM_CHECK_NUM_PARAMS(1);
 
 	GameEntity gameEnt;
-	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);	
+	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);
 	OBASSERT(gameEnt.IsValid(), "Bad Entity");
 
 	int iTeam = gameEnt.IsValid() ? InterfaceFuncs::GetEntityTeam(gameEnt) : 0;
 	if(iTeam != 0)
 		a_thread->PushInt(iTeam);
 	else
-		a_thread->PushNull();	
+		a_thread->PushNull();
 	return GM_OK;
 }
 
 //////////////////////////////////////////////////////////////////////////
 
 // function: GetEntClass
-//		This function gets the current class of this entity. 
+//		This function gets the current class of this entity.
 //
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //
 // Returns:
@@ -1791,21 +1791,21 @@ static int gmfGetEntityClass(gmThread *a_thread)
 	GM_CHECK_NUM_PARAMS(1);
 
 	GameEntity gameEnt;
-	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);	
+	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);
 	OBASSERT(gameEnt.IsValid(), "Bad Entity");
 
 	int iClass = gameEnt.IsValid() ? InterfaceFuncs::GetEntityClass(gameEnt) : 0;
 	if(iClass != 0)
 		a_thread->PushInt(iClass);
 	else
-		a_thread->PushNull();	
+		a_thread->PushNull();
 	return GM_OK;
 }
 
 //////////////////////////////////////////////////////////////////////////
 
 // function: GetClassNameFromId
-//		This function gets the current class name from a class id. 
+//		This function gets the current class name from a class id.
 //
 // Parameters:
 //
@@ -1831,7 +1831,7 @@ static int gmfGetClassNameFromId(gmThread *a_thread)
 //////////////////////////////////////////////////////////////////////////
 
 // function: GetWeaponIdFromClassId
-//		This function gets the current weapon id from a class id. 
+//		This function gets the current weapon id from a class id.
 //
 // Parameters:
 //
@@ -1862,7 +1862,7 @@ static int gmfGetWeaponIdFromClassId(gmThread *a_thread)
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //		<int> - category to check for
 //		... - Any number of additional categories to check for
@@ -1897,12 +1897,12 @@ static int gmfGetEntCategory(gmThread *a_thread)
 //////////////////////////////////////////////////////////////////////////
 
 // function: GetEntEquippedWeapon
-//		This function gets the current weapon of this entity. 
+//		This function gets the current weapon of this entity.
 //
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //
 // Returns:
@@ -1928,12 +1928,12 @@ static int gmfGetEntEquippedWeapon(gmThread *a_thread)
 //////////////////////////////////////////////////////////////////////////
 
 // function: GetEntityLocalSpace
-//		This function gets the local space position of a vector. 
+//		This function gets the local space position of a vector.
 //
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //		<Vector3> - The 3d vector to convert to local space.
 //
@@ -1944,7 +1944,7 @@ static int gmfGetEntityToLocalSpace(gmThread *a_thread)
 	GM_CHECK_NUM_PARAMS(2);
 
 	GameEntity gameEnt;
-	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);	
+	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);
 	OBASSERT(gameEnt.IsValid(), "Bad Entity");
 
 	GM_CHECK_VECTOR_PARAM(v,1);
@@ -1960,12 +1960,12 @@ static int gmfGetEntityToLocalSpace(gmThread *a_thread)
 //////////////////////////////////////////////////////////////////////////
 
 // function: GetEntityWorldSpace
-//		This function gets the world space position of a vector. 
+//		This function gets the world space position of a vector.
 //
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //		<Vector3> - The 3d vector to convert to world space.
 //
@@ -1976,7 +1976,7 @@ static int gmfGetEntityToWorldSpace(gmThread *a_thread)
 	GM_CHECK_NUM_PARAMS(2);
 
 	GameEntity gameEnt;
-	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);	
+	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);
 	OBASSERT(gameEnt.IsValid(), "Bad Entity");
 
 	GM_CHECK_VECTOR_PARAM(v,1);
@@ -1992,7 +1992,7 @@ static int gmfGetEntityToWorldSpace(gmThread *a_thread)
 //////////////////////////////////////////////////////////////////////////
 
 // function: GetEntityInSphere
-//		This function searches for an entity of a certain type. 
+//		This function searches for an entity of a certain type.
 //
 // Parameters:
 //
@@ -2000,7 +2000,7 @@ static int gmfGetEntityToWorldSpace(gmThread *a_thread)
 //		<float> - The radius to search within
 //		<int> - Class Id to search for
 //		<GameEntity>
-//		- OR - 
+//		- OR -
 //		<int> - The gameId to start from
 //
 // Returns:
@@ -2013,7 +2013,7 @@ static int gmfGetEntityInSphere(gmThread *a_thread)
 	GM_CHECK_INT_PARAM(classId, 2);
 
 	GameEntity gameEnt;
-	GM_GAMEENTITY_FROM_PARAM(gameEnt, 3, GameEntity());	
+	GM_GAMEENTITY_FROM_PARAM(gameEnt, 3, GameEntity());
 
 	GameEntity ent = g_EngineFuncs->FindEntityInSphere(Vector3f(v.x,v.y,v.z), radius, gameEnt, classId);
 	if(ent.IsValid())
@@ -2051,12 +2051,12 @@ static int gmfGetEntityByName(gmThread *a_thread)
 //////////////////////////////////////////////////////////////////////////
 
 // function: GetEntityStat
-//		This function gets a named stat from an entity. 
+//		This function gets a named stat from an entity.
 //
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //		<string> - The name of the stat to retrieve
 //
@@ -2066,7 +2066,7 @@ static int gmfGetEntityStat(gmThread *a_thread)
 {
 	GM_CHECK_NUM_PARAMS(2);
 	GameEntity gameEnt;
-	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);	
+	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);
 	OBASSERT(gameEnt.IsValid(), "Bad Entity");
 	GM_CHECK_STRING_PARAM(statname, 1);
 
@@ -2083,7 +2083,7 @@ static int gmfGetEntityStat(gmThread *a_thread)
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //
 // Returns:
@@ -2093,11 +2093,13 @@ static int gmfEntityIsValid(gmThread *a_thread)
 	GM_CHECK_NUM_PARAMS(1);
 	GameEntity gameEnt;
 	if(a_thread->ParamType(0) != GM_NULL)
-		GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);	
+	{
+		GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);
+	}
 
 	bool valid = gameEnt.IsValid();
 
-	if(valid && a_thread->ParamType(0) == GM_ENTITY && 
+	if(valid && a_thread->ParamType(0) == GM_ENTITY &&
 		g_EngineFuncs->IDFromEntity(gameEnt) == -1)
 		valid = false;
 
@@ -2108,12 +2110,12 @@ static int gmfEntityIsValid(gmThread *a_thread)
 //////////////////////////////////////////////////////////////////////////
 
 // function: GetTeamStat
-//		This function gets a named stat from a team. 
+//		This function gets a named stat from a team.
 //
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //		<string> - The name of the stat to retrieve
 //
@@ -2133,22 +2135,22 @@ static int gmfGetTeamStat(gmThread *a_thread)
 //////////////////////////////////////////////////////////////////////////
 
 // function: DistanceBetween
-//		Gets the distance between 2 entities. 
+//		Gets the distance between 2 entities.
 //
 // Parameters:
 //		<Vector3> - The 3d vector to convert to calculate distance to.
-//		- OR - 
+//		- OR -
 //		<GameEntity> - The first entity to use
-//		- OR - 
+//		- OR -
 //		<MapGoal> - The first goal to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the first entity to use
 //		<Vector3> - The 3d vector to convert to calculate distance to.
-//		- OR - 
+//		- OR -
 //		<GameEntity> - The second entity to use
-//		- OR - 
+//		- OR -
 //		<MapGoal> - The second goal to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the second entity to use
 //
 // Returns:
@@ -2177,7 +2179,7 @@ static int gmfDistanceBetween(gmThread *a_thread)
 		if(!EngineFuncs::EntityPosition(gameEnt, vPosition1))
 		{
 			GM_EXCEPTION_MSG("Expected Vector3/GameEntity/GameId for param %d got %s!", 0,
-				a_thread->GetMachine()->GetTypeName(a_thread->ParamType(0))); 
+				a_thread->GetMachine()->GetTypeName(a_thread->ParamType(0)));
 			return GM_EXCEPTION;
 		}
 	}
@@ -2198,7 +2200,7 @@ static int gmfDistanceBetween(gmThread *a_thread)
 		if(!EngineFuncs::EntityPosition(gameEnt, vPosition2))
 		{
 			GM_EXCEPTION_MSG("Expected Vector3/GameEntity/GameId for param %d got %s!", 1,
-				a_thread->GetMachine()->GetTypeName(a_thread->ParamType(1))); 
+				a_thread->GetMachine()->GetTypeName(a_thread->ParamType(1)));
 			return GM_EXCEPTION;
 		}
 	}
@@ -2210,7 +2212,7 @@ static int gmfDistanceBetween(gmThread *a_thread)
 //////////////////////////////////////////////////////////////////////////
 
 // function: CalcTrajectory
-//		Calculate an aim vector for a trajectory. 
+//		Calculate an aim vector for a trajectory.
 //
 // Parameters:
 //		<Vector3> - Start Position
@@ -2232,15 +2234,15 @@ static int gmfCalculateTrajectory(gmThread *a_thread)
 
 	Trajectory::AimTrajectory traj[2];
 	int t = Trajectory::Calculate(
-		Vector3f(v1.x,v1.y,v1.z), 
-		Vector3f(v2.x,v2.y,v2.z), 
-		fProjectileSpeed, 
-		IGame::GetGravity() * fProjectileGravity, 
+		Vector3f(v1.x,v1.y,v1.z),
+		Vector3f(v2.x,v2.y,v2.z),
+		fProjectileSpeed,
+		IGame::GetGravity() * fProjectileGravity,
 		traj);
 
 	if(t > 0)
 	{
-		gmMachine *pMachine = a_thread->GetMachine();		
+		gmMachine *pMachine = a_thread->GetMachine();
 		DisableGCInScope gcEn(pMachine);
 
 		gmTableObject *pTbl = pMachine->AllocTableObject();
@@ -2265,7 +2267,7 @@ static int gmfCalculateTrajectory(gmThread *a_thread)
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //		<float/int> - OPTIONAL -  - Duration to draw the aabb, in seconds default 2 seconds.
 //		<int> - OPTIONAL - Color to draw the bounding box
@@ -2277,7 +2279,7 @@ static int gmfDrawEntityAABB(gmThread *a_thread)
 	GM_CHECK_NUM_PARAMS(2);
 
 	GameEntity gameEnt;
-	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);	
+	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);
 	OBASSERT(gameEnt.IsValid(), "Bad Entity");
 
 	GM_FLOAT_OR_INT_PARAM(duration, 1, 2.0f);
@@ -2302,7 +2304,7 @@ static int gmfDrawEntityAABB(gmThread *a_thread)
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //		<float/int> - OPTIONAL -  - Duration to draw the aabb, in seconds default 2 seconds.
 //		<int> - OPTIONAL - Color to draw the bounding box
@@ -2314,7 +2316,7 @@ static int gmfDrawEntityOBB(gmThread *a_thread)
 	GM_CHECK_NUM_PARAMS(2);
 
 	GameEntity gameEnt;
-	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);	
+	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);
 	OBASSERT(gameEnt.IsValid(), "Bad Entity");
 
 	GM_FLOAT_OR_INT_PARAM(duration, 1, 2.0f);
@@ -2336,11 +2338,11 @@ static int gmfCheckEntityBoundsIntersect(gmThread *a_thread)
 	GM_CHECK_NUM_PARAMS(2);
 
 	GameEntity gameEnt0;
-	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt0, 0);	
+	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt0, 0);
 	OBASSERT(gameEnt0.IsValid(), "Bad Entity");
 
 	GameEntity gameEnt1;
-	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt1, 1);	
+	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt1, 1);
 	OBASSERT(gameEnt1.IsValid(), "Bad Entity");
 
 	Box3f obb0, obb1;
@@ -2391,14 +2393,14 @@ static int GM_CDECL gmfGetGameTimeLeft(gmThread *a_thread)
 // Parameters:
 //
 //		<GameEntity> - The entity to use
-//		- OR - 
+//		- OR -
 //		<int> - The gameId for the entity to use
 //		<string> - command to execute for the client
 //
 // Returns:
 //		None
 static int GM_CDECL gmfExecCommandOnClient(gmThread *a_thread)
-{	
+{
 	GM_CHECK_NUM_PARAMS(2);
 
 	GameEntity gameEnt;
@@ -2422,7 +2424,7 @@ static int GM_CDECL gmfExecCommandOnClient(gmThread *a_thread)
 // Returns:
 //		<string> - Name of current game.
 static int GM_CDECL gmfGetGameName(gmThread *a_thread)
-{	
+{
 	a_thread->PushNewString(g_EngineFuncs->GetGameName());
 	return GM_OK;
 }
@@ -2436,7 +2438,7 @@ static int GM_CDECL gmfGetGameName(gmThread *a_thread)
 // Returns:
 //		<string> - Name of current mod.
 static int GM_CDECL gmfGetModName(gmThread *a_thread)
-{	
+{
 	a_thread->PushNewString(g_EngineFuncs->GetModName());
 	return GM_OK;
 }
@@ -2450,7 +2452,7 @@ static int GM_CDECL gmfGetModName(gmThread *a_thread)
 // Returns:
 //		<string> - Version of current mod.
 static int GM_CDECL gmfGetModVersion(gmThread *a_thread)
-{	
+{
 	a_thread->PushNewString(g_EngineFuncs->GetModVers());
 	return GM_OK;
 }
@@ -2483,7 +2485,7 @@ static int GM_CDECL gmfShowPaths(gmThread *a_thread)
 // Returns:
 //		<float> - Current Gravity.
 static int GM_CDECL gmfGetGravity(gmThread *a_thread)
-{	
+{
 	a_thread->PushFloat(IGame::GetGravity());
 	return GM_OK;
 }
@@ -2497,7 +2499,7 @@ static int GM_CDECL gmfGetGravity(gmThread *a_thread)
 // Returns:
 //		<int> - true if cheats enabled, false if not.
 static int GM_CDECL gmfGetCheats(gmThread *a_thread)
-{	
+{
 	a_thread->PushInt(IGame::GetCheatsEnabled());
 	return GM_OK;
 }
@@ -2511,7 +2513,7 @@ static int GM_CDECL gmfGetCheats(gmThread *a_thread)
 // Returns:
 //		none
 static int GM_CDECL gmfServerCommand(gmThread *a_thread)
-{	
+{
 	GM_CHECK_NUM_PARAMS(1);
 	GM_CHECK_STRING_PARAM(cmd, 0);
 	InterfaceFuncs::ServerCommand(cmd);
@@ -2522,7 +2524,7 @@ static int GM_CDECL gmfServerScriptFunction(gmThread *a_thread)
 {
 	GM_CHECK_STRING_PARAM(entname, 0);
 	GM_CHECK_STRING_PARAM(funcname, 1);
-	
+
 	GM_STRING_PARAM(p1, 2, "");
 	GM_STRING_PARAM(p2, 3, "");
 	GM_STRING_PARAM(p3, 4, "");
@@ -2531,7 +2533,7 @@ static int GM_CDECL gmfServerScriptFunction(gmThread *a_thread)
 }
 
 static int GM_CDECL gmfGetLocalEntity(gmThread *a_thread)
-{	
+{
 	if(Utils::GetLocalEntity().IsValid())
 		a_thread->PushEntity(Utils::GetLocalEntity().AsInt());
 	else
@@ -2540,7 +2542,7 @@ static int GM_CDECL gmfGetLocalEntity(gmThread *a_thread)
 }
 
 static int GM_CDECL gmfGetLocalPosition(gmThread *a_thread)
-{	
+{
 	Vector3f v;
 	if(Utils::GetLocalPosition(v))
 		a_thread->PushVector(v);
@@ -2550,7 +2552,7 @@ static int GM_CDECL gmfGetLocalPosition(gmThread *a_thread)
 }
 
 static int GM_CDECL gmfGetLocalGroundPosition(gmThread *a_thread)
-{	
+{
 	Vector3f v;
 	if(Utils::GetLocalGroundPosition(v, TR_MASK_FLOODFILL))
 		a_thread->PushVector(v);
@@ -2560,7 +2562,7 @@ static int GM_CDECL gmfGetLocalGroundPosition(gmThread *a_thread)
 }
 
 static int GM_CDECL gmfGetLocalEyePosition(gmThread *a_thread)
-{	
+{
 	Vector3f v;
 	if(Utils::GetLocalEyePosition(v))
 		a_thread->PushVector(v);
@@ -2570,7 +2572,7 @@ static int GM_CDECL gmfGetLocalEyePosition(gmThread *a_thread)
 }
 
 static int GM_CDECL gmfGetLocalFacing(gmThread *a_thread)
-{	
+{
 	Vector3f v;
 	if(Utils::GetLocalFacing(v))
 		a_thread->PushVector(v);
@@ -2580,7 +2582,7 @@ static int GM_CDECL gmfGetLocalFacing(gmThread *a_thread)
 }
 
 static int GM_CDECL gmfGetLocalAABB(gmThread *a_thread)
-{	
+{
 	AABB aabb;
 	if(Utils::GetLocalAABB(aabb))
 		gmAABB::PushObject(a_thread, aabb);
@@ -2590,7 +2592,7 @@ static int GM_CDECL gmfGetLocalAABB(gmThread *a_thread)
 }
 
 static int GM_CDECL gmfGetLocalAimPosition(gmThread *a_thread)
-{	
+{
 	GM_INT_PARAM(mask,0,TR_MASK_FLOODFILL);
 	Vector3f v, n;
 	if(Utils::GetLocalAimPoint(v,&n,mask))
@@ -2601,7 +2603,7 @@ static int GM_CDECL gmfGetLocalAimPosition(gmThread *a_thread)
 }
 
 static int GM_CDECL gmfGetLocalAimNormal(gmThread *a_thread)
-{	
+{
 	GM_INT_PARAM(mask,0,TR_MASK_FLOODFILL);
 	Vector3f v, n;
 	if(Utils::GetLocalAimPoint(v,&n,mask))
@@ -2612,7 +2614,7 @@ static int GM_CDECL gmfGetLocalAimNormal(gmThread *a_thread)
 }
 
 static int GM_CDECL gmfGetNearestNonSolid(gmThread *a_thread)
-{	
+{
 	GM_CHECK_NUM_PARAMS(2);
 	GM_CHECK_VECTOR_PARAM(sv,0);
 	GM_CHECK_VECTOR_PARAM(ev,0);
@@ -2627,7 +2629,7 @@ static int GM_CDECL gmfGetNearestNonSolid(gmThread *a_thread)
 
 static int GM_CDECL gmfGetLocalCommand(gmThread *a_thread)
 {
-	if(CommandReciever::m_ConsoleCommandThreadId == a_thread->GetId() 
+	if(CommandReciever::m_ConsoleCommandThreadId == a_thread->GetId()
 		|| CommandReciever::m_MapDebugPrintThreadId == a_thread->GetId())
 		a_thread->PushNewString(CommandReciever::m_ConsoleCommand.c_str());
 	else
@@ -2636,19 +2638,19 @@ static int GM_CDECL gmfGetLocalCommand(gmThread *a_thread)
 }
 
 static int GM_CDECL gmfReloadGoalScripts(gmThread *a_thread)
-{	
+{
 	IGameManager::GetInstance()->GetGame()->ReloadGoalScripts();
 	return GM_OK;
 }
 
 static int GM_CDECL gmfAllocGoalSerialNum(gmThread *a_thread)
-{	
+{
 	a_thread->PushInt(GetMapGoalSerial());
 	return GM_OK;
 }
 
 static int GM_CDECL gmfDynamicPathsUpdated(gmThread *a_thread)
-{	
+{
 	int iTeamMask = 0;
 	for(int i = 0; i < a_thread->GetNumParams(); ++i)
 	{
@@ -2669,7 +2671,7 @@ static int GM_CDECL gmfOnTriggerRegion(gmThread *a_thread)
 	{
 		GM_CHECK_GMBIND_PARAM(AABB*, gmAABB, aabb, 0);
 		GM_CHECK_TABLE_PARAM(tbl,1);
-		
+
 		int serial = TriggerManager::GetInstance()->AddTrigger(*aabb,a_thread->GetMachine(),tbl);
 		if(serial>0)
 			a_thread->PushInt(serial);
@@ -2677,7 +2679,7 @@ static int GM_CDECL gmfOnTriggerRegion(gmThread *a_thread)
 			a_thread->PushNull();
 		return GM_OK;
 	}
-	else if(a_thread->Param(0).IsVector() && 
+	else if(a_thread->Param(0).IsVector() &&
 		a_thread->Param(1).IsNumber() &&
 		a_thread->Param(2).GetTableObjectSafe())
 	{
@@ -2757,7 +2759,7 @@ static int GM_CDECL gmfConfigSet(gmThread *a_thread)
 	GM_CHECK_STRING_PARAM(key,1);
 	gmVariable vValue = a_thread->Param(2,gmVariable::s_null);
 	GM_INT_PARAM(overwrite,3,1);
-	
+
 	enum { BufferSize = 1024 };
 	char buffer[BufferSize];
 	Options::SetValue(section,key,vValue.AsString(a_thread->GetMachine(),buffer,BufferSize),overwrite!=0);
@@ -2774,7 +2776,7 @@ static int GM_CDECL gmfConfigGet(gmThread *a_thread)
 	enum { BufferSize = 1024 };
 	char buffer[BufferSize];
 	gmVariable vValue = a_thread->Param(2,gmVariable::s_null);
-	
+
 	//////////////////////////////////////////////////////////////////////////
 
 	String sValue;
@@ -2861,32 +2863,32 @@ static int GM_CDECL gmfGetWeapon(gmThread *a_thread)
 //////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 // package: Global Bot Library Functions
-static gmFunctionEntry s_botLib[] = 
+static gmFunctionEntry s_botLib[] =
 {
 	{"EnableDebugWindow",		gmfEnableDebugWindow},
-	{"DumpConsoleToFile",		gmfDumpDebugConsoleToFile},	
+	{"DumpConsoleToFile",		gmfDumpDebugConsoleToFile},
 
 	{"EchoToScreen",			gmfEchoMessageToScreen},
 	{"Error",					gmfEchoError},
 	{"Log",						gmfLog},
 	{"RunScript",				gmfRunScript},
 	{"ExecScript",				gmfRunScript},
-	{"AddBot",					gmfAddBot},	
+	{"AddBot",					gmfAddBot},
 	{"KickBot",					gmfKickBot},
 	{"KickBotFromTeam",			gmfKickBotFromTeam},
 	{"MoveBotToAnotherTeam",	gmfMoveBotToAnotherTeam},
-	
+
 	{"KickAll",					gmfKickAll},
-	{"RegisterDefaultProfile",	gmfRegisterDefaultProfile},	
+	{"RegisterDefaultProfile",	gmfRegisterDefaultProfile},
 	{"OnTrigger",				gmfRegisterTriggerCallback},
 	{"GetGoal",					gmfGetMapGoal},
 	{"GetGoals",				gmfGetMapGoals},
-	
+
 	{"SetMapGoalProperties",	gmfSetMapGoalProperties},
 
 	{"SetAvailableMapGoals",	gmfSetAvailableMapGoals},
 	{"SetGoalPriority",			gmfSetGoalPriority},
-	{"SetGoalGroup",			gmfSetGoalGroup},	
+	{"SetGoalGroup",			gmfSetGoalGroup},
 	{"SetGoalRole",				gmfSetGoalRole},
 	{"ClearGoalRole",			gmfClearGoalRole},
 
@@ -2895,29 +2897,29 @@ static gmFunctionEntry s_botLib[] =
 	{"GetGameEntityFromId",		gmfGetGameEntityFromId},
 	{"GetGameIdFromEntity",		gmfGetGameIdFromEntity},
 	{"TraceLine",				gmfTraceLine},
-	{"GroundPoint",				gmfGroundPoint},	
+	{"GroundPoint",				gmfGroundPoint},
 
 	{"DrawDebugLine",			gmfDrawDebugLine},
-	{"DrawDebugAABB",			gmfDrawDebugAABB},	
+	{"DrawDebugAABB",			gmfDrawDebugAABB},
 	{"DrawLine",				gmfDrawDebugLine},
-	{"DrawArrow",				gmfDrawDebugArrow},	
+	{"DrawArrow",				gmfDrawDebugArrow},
 	{"DrawAABB",				gmfDrawDebugAABB},
 	{"DrawRadius",				gmfDrawDebugRadius},
 	{"DrawText3d",				gmfDrawDebugText3d},
-	{"DrawTrajectory",			gmfDrawTrajectory},	
-	{"TransformAndDrawLineList",gmfTransformAndDrawLineList},	
+	{"DrawTrajectory",			gmfDrawTrajectory},
+	{"TransformAndDrawLineList",gmfTransformAndDrawLineList},
 
-	{"DrawEntityAABB",			gmfDrawEntityAABB},	
-	{"DrawEntityOBB",			gmfDrawEntityOBB},	
+	{"DrawEntityAABB",			gmfDrawEntityAABB},
+	{"DrawEntityOBB",			gmfDrawEntityOBB},
 	{"CheckEntityBoundsIntersect",gmfCheckEntityBoundsIntersect},
-	
+
 	{"GetMapName",				gmfGetMapName},
 	{"GetMapExtents",			gmfGetMapExtents},
 
 	{"GetPointContents",		gmfGetPointContents},
 
 	{"GetGameState",			gmfGetGameState},
-	{"GetGameTimeLeft",			gmfGetGameTimeLeft},	
+	{"GetGameTimeLeft",			gmfGetGameTimeLeft},
 
 	{"GetTime",					gmfGetTime},
 	{"ExecCommand",				gmfExecCommand},
@@ -2927,18 +2929,18 @@ static gmFunctionEntry s_botLib[] =
 	{"OnTriggerRegion",			gmfOnTriggerRegion},
 	{"DeleteTriggerRegion",		gmfDeleteTriggerRegion},
 
-	{"SendTrigger",				gmfSendTrigger},	
+	{"SendTrigger",				gmfSendTrigger},
 
 	{"ConfigSet",				gmfConfigSet},
 	{"ConfigGet",				gmfConfigGet},
 
 	{"GetWeapon",				gmfGetWeapon},
 
-	// Unified functions that should work on GameId and GameEntity.	
+	// Unified functions that should work on GameId and GameEntity.
 	{"GetEntityName",			gmfGetEntityName},
 	{"GetEntName",				gmfGetEntityName},
 	{"GetEntFacing",			gmfGetEntityFacing},
-	{"GetEntPosition",			gmfGetEntityPosition},	
+	{"GetEntPosition",			gmfGetEntityPosition},
 	{"GetEntBonePosition",		gmfGetEntityBonePosition},
 	{"GetEntEyePosition",		gmfGetEntEyePosition},
 	{"GetEntVelocity",			gmfGetEntityVelocity},
@@ -2955,27 +2957,27 @@ static gmFunctionEntry s_botLib[] =
 	{"EntityIsValid",			gmfEntityIsValid},
 	{"EntityIsOutside",			gmfEntityIsOutside},
 
-	{"GetClassNameFromId",		gmfGetClassNameFromId},	
-	{"GetWeaponIdFromClassId",	gmfGetWeaponIdFromClassId},	
+	{"GetClassNameFromId",		gmfGetClassNameFromId},
+	{"GetWeaponIdFromClassId",	gmfGetWeaponIdFromClassId},
 
 	{"DistanceBetween",			gmfDistanceBetween},
 	{"CalcTrajectory",			gmfCalculateTrajectory},
 
-	{"GetEntityLocalSpace",		gmfGetEntityToLocalSpace},	
+	{"GetEntityLocalSpace",		gmfGetEntityToLocalSpace},
 	{"GetEntityWorldSpace",		gmfGetEntityToWorldSpace},
 
 	{"GetEntityInSphere",		gmfGetEntityInSphere},
-	{"GetEntityByName",			gmfGetEntityByName},	
+	{"GetEntityByName",			gmfGetEntityByName},
 
 	{"ExecCommandOnClient",		gmfExecCommandOnClient},
-	
+
 	{"GetEntityStat",			gmfGetEntityStat},
 	{"GetTeamStat",				gmfGetTeamStat},
 
 	{"GetGravity",				gmfGetGravity},
 	{"CheatsEnabled",			gmfGetCheats},
-	{"ServerCommand",			gmfServerCommand},	
-	{"ServerScriptFunction",	gmfServerScriptFunction},		
+	{"ServerCommand",			gmfServerCommand},
+	{"ServerScriptFunction",	gmfServerScriptFunction},
 
 	{"GetGameName",				gmfGetGameName},
 	{"GetModName",				gmfGetModName},

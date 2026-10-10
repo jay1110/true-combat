@@ -607,7 +607,7 @@ void CG_FlameCalcOrg( flameChunk_t *f, int time, vec3_t outOrg )
 	for (i = 0; i < 3; ++i) {
 		int elapsed = (int)((unsigned)time - (unsigned)f->baseOrgTime);
 		float *speed = &f->velSpeed, *direction = &f->velDir[i];
-		float *base = &f->baseOrg[i], *out = &outOrg[i];
+		float *base = &f->baseOrg[i], *resultPosition = &outOrg[i];
 		/* Original re-reads the time/speed after each output store. */
 		__asm {
 			fild elapsed
@@ -618,7 +618,7 @@ void CG_FlameCalcOrg( flameChunk_t *f, int time, vec3_t outOrg )
 			fmul dword ptr [eax]
 			mov eax, base
 			fadd dword ptr [eax]
-			mov eax, out
+			mov eax, resultPosition
 			fstp dword ptr [eax]
 		}
 	}
@@ -2218,7 +2218,7 @@ void CG_AddFlameToScene( flameChunk_t *fHead ) {
 			while (fNext && !droppedTrail) {
 				if ( (Distance( f->org, fNext->org ) < ( (0.1 + 0.9*f->lifeFrac) * f->size*0.35 ) )
 					&&	(fabs(f->size - fNext->size) < (40.0))
-					&&	(fabs(f->timeStart - fNext->timeStart) < 100)
+					&&	(fabs((double)f->timeStart - fNext->timeStart) < 100)
 					&&	(DotProduct( f->velDir, fNext->velDir ) > 0.99)
 					) {
 					if (!droppedTrail) {
@@ -2312,7 +2312,7 @@ void CG_GenerateShaders( char *filename, char *shaderName, char *dir, int numFra
 		} else {
 			Com_sprintf( str, sizeof(str), "%s%i\n{\n\tnofog%s\n\tallowCompress\n\tcull none\n\t{\n\t\tmap sprites/%s/spr%i%i%i.tga\n\t\tblendFunc %s %s\n%s\t}\n}\n", shaderName, i+1, nomipmap ? "\n\tnomipmap" : "", dir, b, c, d, srcBlend, dstBlend, extras );
 		}
-		trap_FS_Write( str, strlen(str), f );
+		trap_FS_Write( str, Q_strlenInt(str), f );
 	}
 	trap_FS_FCloseFile( f );
 }	

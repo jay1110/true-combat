@@ -909,7 +909,7 @@ void CG_SpecHelpDraw()
 		// Compute required width
 		for(i=0; i<sizeof(help)/sizeof(helpType_t); i++) {
 			if(help[i].cmd != NULL) {
-				len = strlen(CG_getBindKeyName(help[i].cmd, buf, sizeof(buf)));
+				len = Q_strlenInt(CG_getBindKeyName(help[i].cmd, buf, sizeof(buf)));
 				if(len > maxlen) {
 					maxlen = len;
 				}

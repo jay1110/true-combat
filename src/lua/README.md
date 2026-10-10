@@ -107,6 +107,22 @@ Git. Linux source integration exists but this addition was built/tested on Windo
 
 ## WolfAdmin / API version 3
 
+`lua_status` reports loaded/active/disabled modules, including an explicit empty
+state, in the server console or a connected player's console. `lua_restart` is
+restricted to the server console/RCON (including the local listen-server console).
+It reloads `lua_modules` at the next server frame without restarting the map or
+disconnecting players. Script states and authentication sessions are recreated.
+After `et_InitGame(time, seed, 1)`, optional
+`et_LuaClientRestore(slot, isBot, connectionState)` restores existing client
+bookkeeping; it is not an admission/respawn callback. WolfAdmin implements it.
+
+Server script reads and directory listings include loose files under the active
+`fs_homepath/fs_game` and `fs_basepath/fs_game`, also on pure listen servers.
+Local files take priority when reading; VFS remains the packaged-file fallback.
+No client Lua or client-download PK3 is needed. Relative-path validation, file
+ownership and existing limits still apply; OS reads are confined lexically to
+the active game directory (trusted-admin API, not a symlink sandbox).
+
 The adapted original WolfAdmin 1.2.1 is in `wolfadmin/`; see its README for
 installation, private `/wolfauth` session login and supported administration.
 

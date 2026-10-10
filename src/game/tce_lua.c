@@ -14,7 +14,10 @@ extern void TCE_LuaRegisterEntities(lua_State *L);
 extern void TCE_LuaRegisterFiles(lua_State *L);
 extern void TCE_LuaRegisterModules(lua_State *L);
 extern void TCE_LuaRegisterAdmin(lua_State *L);
+extern char *TCE_LuaReadSource(const char *path, int *length);
 static tceLuaVM vms[TCE_LUA_VMS];
+static int luaSeed;
+static qboolean reloadPending;
 static char rejectReason[1024];
 static tceLuaVM *VM(lua_State *L) { return *(tceLuaVM **)lua_getextraspace(L); }
 static void Budget(lua_State *L, lua_Debug *ar) {
@@ -117,7 +120,9 @@ static void Setup(tceLuaVM *vm) {
     lua_pushstring(L,"tce2-lua-3");lua_setfield(L,-2,"API_VERSION");lua_setglobal(L,"et");
 }
 void TCE_LuaShutdown(int restart) {
-    int i;for(i=0;i<TCE_LUA_VMS;i++) {
+    int i;
+    reloadPending = qfalse;
+    for(i=0;i<TCE_LUA_VMS;i++) {
         tceLuaVM *vm=&vms[i];if(!vm->L)continue;
         if(Begin(vm,"et_ShutdownGame")) { lua_pushinteger(vm->L,restart);Call(vm,"et_ShutdownGame",1,0); }
         lua_close(vm->L);memset(vm,0,sizeof(*vm));
@@ -125,21 +130,20 @@ void TCE_LuaShutdown(int restart) {
 }
 void TCE_LuaInit(int time,int seed,int restart) {
     vmCvar_t modules, password, trustGuid;char list[MAX_CVAR_VALUE_STRING],*p,*name;int i=0;
+    luaSeed = seed;
     trap_Cvar_Register(&password,"wolfadmin_password","",0);
     trap_Cvar_Register(&trustGuid,"g_wolfadminTrustGuid","0",0);
     trap_Cvar_Register(&modules,"lua_modules","",CVAR_ARCHIVE);
     Q_strncpyz(list,modules.string,sizeof(list));p=list;
     while(*p && i<TCE_LUA_VMS) {
-        fileHandle_t f;int size;char *code;tceLuaVM *vm;
+        int size;char *code;tceLuaVM *vm;
         while(*p==' '||*p==';'||*p=='\t')p++;
         if(!*p)break;name=p;while(*p&&*p!=' '&&*p!=';'&&*p!='\t')p++;if(*p)*p++=0;
         if(strlen(name)>=MAX_QPATH || strstr(name,"..") || strchr(name,':') || *name=='/' || strchr(name,'\\')) {
             G_Printf("Lua: invalid module path %s\n",name);continue;
         }
-        size=trap_FS_FOpenFile(name,&f,FS_READ);
-        if(!f || size<1 || size>TCE_LUA_SOURCE_MAX) { if(f)trap_FS_FCloseFile(f);G_Printf("Lua: cannot load %s\n",name);continue; }
-        code=(char *)malloc(size);if(!code){trap_FS_FCloseFile(f);continue;}
-        trap_FS_Read(code,size,f);trap_FS_FCloseFile(f);
+        code=TCE_LuaReadSource(name,&size);
+        if(!code) { G_Printf("Lua: cannot load %s (missing, unreadable or over 1 MiB)\n",name);continue; }
         vm=&vms[i++];memset(vm,0,sizeof(*vm));Q_strncpyz(vm->file,name,sizeof(vm->file));vm->L=luaL_newstate();
         if(!vm->L){free(code);continue;}vm->active=1;Setup(vm);
         if(luaL_loadbufferx(vm->L,code,size,name,"t")!=LUA_OK) Error(vm,"load");
@@ -150,7 +154,25 @@ void TCE_LuaInit(int time,int seed,int restart) {
     }
 }
 void TCE_LuaRunFrame(int time) {
-    int i;for(i=0;i<TCE_LUA_VMS;i++)if(Begin(&vms[i],"et_RunFrame")) {lua_pushinteger(vms[i].L,time);Call(&vms[i],"et_RunFrame",1,0);}
+    int i, client;
+    if (reloadPending) {
+        /* Run only after command callbacks have returned; never close a live
+         * Lua stack. Keep the native map, clients and Omni-bot intact. */
+        TCE_LuaShutdown(1);
+        TCE_LuaInit(time,luaSeed,1);
+        for(client=0;client<level.maxclients;client++) {
+            gclient_t *c = g_entities[client].client;
+            if(!c || c->pers.connected == CON_DISCONNECTED) continue;
+            for(i=0;i<TCE_LUA_VMS;i++)if(Begin(&vms[i],"et_LuaClientRestore")) {
+                lua_pushinteger(vms[i].L,client);
+                lua_pushinteger(vms[i].L,(g_entities[client].r.svFlags & SVF_BOT) != 0);
+                lua_pushinteger(vms[i].L,c->pers.connected);
+                Call(&vms[i],"et_LuaClientRestore",3,0);
+            }
+        }
+        G_Printf("Lua: restart complete; use lua_status for module state.\n");
+    }
+    for(i=0;i<TCE_LUA_VMS;i++)if(Begin(&vms[i],"et_RunFrame")) {lua_pushinteger(vms[i].L,time);Call(&vms[i],"et_RunFrame",1,0);}
 }
 void TCE_LuaClientEvent(const char *event,int clientNum) {
     int i;for(i=0;i<TCE_LUA_VMS;i++)if(Begin(&vms[i],event)) {lua_pushinteger(vms[i].L,clientNum);Call(&vms[i],event,1,0);}
@@ -163,18 +185,42 @@ const char *TCE_LuaClientConnect(int clientNum,qboolean first,qboolean bot) {
         }lua_settop(vm->L,0);
     }return NULL;
 }
+static void LuaReply(int clientNum,qboolean console,const char *text) {
+    char safe[900]; int i;
+    if(console) { G_Printf("%s\n",text); return; }
+    Q_strncpyz(safe,text,sizeof(safe));
+    for(i=0;safe[i];i++)if((unsigned char)safe[i]<32 || safe[i]=='"' || safe[i]=='\\')safe[i]=' ';
+    trap_SendServerCommand(clientNum,va("print \"%s\n\"",safe));
+}
 qboolean TCE_LuaCommand(int clientNum,qboolean console) {
     char cmd[MAX_TOKEN_CHARS];const char *event=console?"et_ConsoleCommand":"et_ClientCommand";int i;
     trap_Argv(0,cmd,sizeof(cmd));
-    if(console&&!Q_stricmp(cmd,"lua_status")) {
-        for(i=0;i<TCE_LUA_VMS;i++)if(vms[i].L)G_Printf("Lua %d: %s %s (%s)\n",i,vms[i].active?"active":"disabled",vms[i].file,vms[i].name);
+    if(!Q_stricmp(cmd,"lua_status")) {
+        int count=0,active=0;
+        for(i=0;i<TCE_LUA_VMS;i++)if(vms[i].L) {
+            count++; if(vms[i].active)active++;
+            LuaReply(clientNum,console,va("Lua %d: %s %s (%s)",i,vms[i].active?"active":"disabled",vms[i].file,vms[i].name));
+        }
+        LuaReply(clientNum,console,va("Lua: %d loaded, %d active.%s",count,active,count?"":" Check lua_modules and server load errors; then use lua_restart in server console/RCON."));
+        return qtrue;
+    }
+    if(!Q_stricmp(cmd,"lua_restart")) {
+        if(console) {
+            reloadPending=qtrue;
+            LuaReply(clientNum,console,"Lua: restart queued for the next server frame.");
+        } else LuaReply(clientNum,console,"Lua: lua_restart requires the server console or RCON.");
         return qtrue;
     }
     for(i=0;i<TCE_LUA_VMS;i++)if(Begin(&vms[i],event)) {
         tceLuaVM *vm=&vms[i];int handled=0;if(!console)lua_pushinteger(vm->L,clientNum);lua_pushstring(vm->L,cmd);
         if(Call(vm,event,console?1:2,1))handled=lua_isnumber(vm->L,-1)&&lua_tointeger(vm->L,-1)==1;
         lua_settop(vm->L,0);if(handled)return qtrue;
-    }return qfalse;
+    }
+    if(!console&&!Q_stricmp(cmd,"wolfauth")) {
+        LuaReply(clientNum,console,"WolfAdmin is not active on this server. Use lua_status; ask the server owner to check Lua load errors.");
+        return qtrue;
+    }
+    return qfalse;
 }
 
 /* Integer event payloads are bounded native game values. A numeric 1 cancels

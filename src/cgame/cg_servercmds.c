@@ -1995,7 +1995,7 @@ void CG_scores_cmd(void)
 		char s[MAX_STRING_CHARS];
 
 		BG_cleanName(str, s, sizeof(s), qtrue);
-		trap_FS_Write(s, strlen(s), cgs.dumpStatsFile);
+		trap_FS_Write(s, Q_strlenInt(s), cgs.dumpStatsFile);
 	}
 
 	if(trap_Argc() > 2) {
@@ -2007,7 +2007,7 @@ void CG_scores_cmd(void)
 									ct.tm_hour, ct.tm_min, ct.tm_sec,
 									ct.tm_mday, aMonths[ct.tm_mon], 1900+ct.tm_year);
 
-			trap_FS_Write(str, strlen(str), cgs.dumpStatsFile);
+			trap_FS_Write(str, Q_strlenInt(str), cgs.dumpStatsFile);
 			
 			CG_Printf("[cgnotify]\n^3>>> Stats recorded to: ^7%s\n\n", cgs.dumpStatsFileName);
 			trap_FS_FCloseFile(cgs.dumpStatsFile);
@@ -2024,7 +2024,7 @@ void CG_printFile(char *str)
 		char s[MAX_STRING_CHARS];
 
 		BG_cleanName(str, s, sizeof(s), qtrue);
-		trap_FS_Write(s, strlen(s), cgs.dumpStatsFile);
+		trap_FS_Write(s, Q_strlenInt(s), cgs.dumpStatsFile);
 	}
 }
 
@@ -2410,7 +2410,7 @@ static void CG_ServerCommand( void ) {
 		int fadeTime = 0;	// default to instant start
 
 		Q_strncpyz( text, CG_Argv(2), MAX_SAY_TEXT );
-		if(text && strlen(text)){
+		if(text[0]){
 			fadeTime = atoi(text);
 		}
 
@@ -2422,7 +2422,7 @@ static void CG_ServerCommand( void ) {
 		int fadeTime = 0;	// default to instant start
 
 		Q_strncpyz( text, CG_Argv(2), MAX_SAY_TEXT );
-		if(text && strlen(text)){
+		if(text[0]){
 			fadeTime = atoi(text);
 		}
 
@@ -2434,7 +2434,7 @@ static void CG_ServerCommand( void ) {
 		int fadeTime = 0;	// default to instant stop
 
 		Q_strncpyz( text, CG_Argv(1), MAX_SAY_TEXT );
-		if(text && strlen(text)){
+		if(text[0]){
 			fadeTime = atoi(text);
 		}
 

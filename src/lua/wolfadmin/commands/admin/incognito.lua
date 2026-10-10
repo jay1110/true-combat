@@ -20,6 +20,10 @@ local auth = wolfa_requireModule("auth.auth")
 local commands = wolfa_requireModule("commands.commands")
 
 function commandIncognito(clientId, command)
+    if clientId == -1337 then
+        et.G_Print("incognito: use this personal command from a connected player.\n")
+        return true
+    end
     local isIncognito = auth.isPlayerAllowed(clientId, auth.PERM_NOAKA, true)
 
     if not isIncognito then

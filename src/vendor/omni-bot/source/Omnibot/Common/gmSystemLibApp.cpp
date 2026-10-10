@@ -709,6 +709,7 @@ static int GM_CDECL gmfCopyToClipboard(gmThread * a_thread)
 {
 	GM_CHECK_NUM_PARAMS(1);
 	GM_CHECK_STRING_PARAM(text, 0);
+	(void)text; // Parameter validated even when clipboard support is unavailable.
 #ifdef WIN32
 	a_thread->PushInt(copyToClipboardWindows(text));
 #else

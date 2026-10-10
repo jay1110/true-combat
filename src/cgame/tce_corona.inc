@@ -19,7 +19,7 @@ static void CG_TCECoronaQuad(qhandle_t shader,const vec3_t top,const vec3_t bott
 }
 static void CG_TCECoronaSprite(qhandle_t shader,const vec3_t origin,float radius,const vec3_t color,
                                float red,float green,float blue) {
-    refEntity_t re;int i;memset(&re,0,sizeof(re));re.reType=RT_SPRITE;
+    refEntity_t re;memset(&re,0,sizeof(re));re.reType=RT_SPRITE;
     re.customShader=shader;re.radius=radius;VectorCopy(origin,re.origin);
     re.shaderRGBA[0]=(byte)(int)(color[0]*red);
     re.shaderRGBA[1]=(byte)(int)(color[1]*green);

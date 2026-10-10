@@ -10,10 +10,15 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         # by a static C archive. Supply its matching PIC compiler runtime.
         get_filename_component(OMNI_ZIG_DIRECTORY "${TCE_ZIG_EXECUTABLE}" DIRECTORY)
         set(OMNI_COMPILER_RT_OBJECT "${CMAKE_CURRENT_BINARY_DIR}/libomnibot_compiler_rt.a")
+        if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+            set(OMNI_ZIG_TARGET x86_64-linux-gnu.2.17)
+        else()
+            set(OMNI_ZIG_TARGET x86-linux-gnu.2.17)
+        endif()
         add_custom_command(OUTPUT "${OMNI_COMPILER_RT_OBJECT}"
             COMMAND "${TCE_ZIG_EXECUTABLE}" build-lib
                 "${OMNI_ZIG_DIRECTORY}/lib/compiler_rt.zig"
-                -target x86-linux-gnu.2.17 -O ReleaseFast -fPIC -fno-compiler-rt
+                -target ${OMNI_ZIG_TARGET} -O ReleaseFast -fPIC -fno-compiler-rt
                 "-femit-bin=${OMNI_COMPILER_RT_OBJECT}"
             DEPENDS "${OMNI_ZIG_DIRECTORY}/lib/compiler_rt.zig"
             VERBATIM)

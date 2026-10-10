@@ -1160,6 +1160,17 @@ static void CG_PlayerAngles( centity_t *cent, vec3_t legs[3], vec3_t torso[3], v
 	// pain twitch
 	CG_AddPainTwitch( cent, torsoAngles );
 
+	/* Only the head follows free look; torso and weapon retain aim direction. */
+	if (!(cent->currentState.eFlags & EF_DEAD)) {
+		int axis;
+		for (axis = PITCH; axis <= YAW; ++axis) {
+			float look = cent->currentState.angles[axis];
+			if (cent->interpolate && cg.nextSnap)
+				look = LerpAngle(look, cent->nextState.angles[axis], cg.frameInterpolation);
+			headAngles[axis] += look * .7f;
+		}
+	}
+
 	// pull the angles back out of the hierarchial chain
 	AnglesSubtract( headAngles, torsoAngles, headAngles );
 	AnglesSubtract( torsoAngles, legsAngles, torsoAngles );

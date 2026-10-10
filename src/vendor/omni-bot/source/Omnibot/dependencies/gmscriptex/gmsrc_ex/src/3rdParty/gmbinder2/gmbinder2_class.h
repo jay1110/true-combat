@@ -182,7 +182,7 @@ namespace gmBind2
 		template <typename Fn>
 		Class &func(Fn a_fn, const char *a_funcname, const char *_comment = 0)
 		{
-			typedef typename FunctionTraits<Fn>::Class_Type cls_type;
+			typedef typename FunctionTraits<Fn>::Class_Type cls_type [[maybe_unused]];
 			GM_ASSERT(ClassBase<cls_type>::ClassType() != GM_NULL);
 
 			gmFunctionEntry fn = {0,0,0};

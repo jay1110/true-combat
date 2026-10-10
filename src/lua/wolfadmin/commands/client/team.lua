@@ -30,7 +30,7 @@ function commandTeam(clientId, command)
         local teamName = util.getTeamName(clientTeam)
         local teamColor = util.getTeamColor(clientTeam)
 
-        et.trap_SendServerCommand(clientId, "cp \"^7You are locked to the "..teamColor..teamName.." ^7team")
+        et.trap_SendServerCommand(clientId, "cp \"^7You are locked to the "..teamColor..teamName.." ^7team\"")
 
         return true
     end
@@ -40,7 +40,7 @@ function commandTeam(clientId, command)
         local teamName = util.getTeamName(team)
         local teamColor = util.getTeamColor(team)
 
-        et.trap_SendServerCommand(clientId, "cp \""..teamColor..teamName.." ^7team is locked")
+        et.trap_SendServerCommand(clientId, "cp \""..teamColor..teamName.." ^7team is locked\"")
 
         return true
     end

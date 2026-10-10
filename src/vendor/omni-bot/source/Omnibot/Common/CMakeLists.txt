@@ -45,6 +45,16 @@ list(FILTER COMMON_SRC EXCLUDE REGEX ".*gmSqliteLib\\.cpp$")
 list(FILTER COMMON_SRC EXCLUDE REGEX ".*/lzma/C/Compress/Lzma/(LzmaDecodeSize|LzmaTest|LzmaStateTest)\\.c$")
 
 add_library(omnibot-common STATIC ${COMMON_SRC})
+
+if(MSVC)
+    # zlib gzio uses the portable ISO C API. Its path/error strings allocate
+    # the full combined length; the 46-byte fd buffer exceeds any int format,
+    # and the active vsnprintf path checks size, termination and return value.
+    # Keep MSVC's nonportable *_s deprecation opt-out local to this vendor TU.
+    set_property(SOURCE "${DEPENDENCIES_PATH}/physfs/zlib123/gzio.c"
+        APPEND PROPERTY COMPILE_DEFINITIONS _CRT_SECURE_NO_WARNINGS)
+endif()
+
 if (NOT OMNIBOT_STD_FILESYSTEM)
     # std::filesystem/std::regex need C++17, see the top level CMakeLists.txt
     set_property(TARGET omnibot-common PROPERTY CXX_STANDARD 11)

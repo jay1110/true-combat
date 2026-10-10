@@ -1759,7 +1759,7 @@ void CG_LimboPanel_WeaponPanel_DrawWeapon( rectDef_t* rect, weapon_t weap, qbool
     weaponType_t *wt = WM_FindWeaponTypeForWeapon(weap);
     const char *name, *description, *category;
     vec4_t shade = {0,0,0,.6f};
-    const float *color = weaponPanelNameFont.colour;
+    float *color = weaponPanelNameFont.colour;
     CG_Text_Width_Ext(ofTxt,.2f,0,&cgs.media.limboWeaponCountFont);
     if(weap==36 || weap==19 || weap==20 || weap==21) {
         if(!wt)return;

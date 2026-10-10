@@ -111,7 +111,7 @@ void CG_TransformAutomapEntity( void ) {
 #if defined(_MSC_VER) && defined(_M_IX86)
 		static const float hundred = 100.f;
 		int *position = &mEnt->x;
-		float *out = mEnt->automapTransformed;
+		float *resultPosition = mEnt->automapTransformed;
 		float *mins = cg.mapcoordsMins, *scale = cg.mapcoordsScale;
 		/* Original FILD and asymmetric multiplication order; one final store. */
 		__asm {
@@ -123,7 +123,7 @@ void CG_TransformAutomapEntity( void ) {
 			fmul dword ptr [automapZoom]
 			fmul dword ptr [edx]
 			fmul dword ptr [hundred]
-			mov eax, out
+			mov eax, resultPosition
 			fstp dword ptr [eax]
 			mov eax, position
 			fild dword ptr [eax+4]
@@ -131,7 +131,7 @@ void CG_TransformAutomapEntity( void ) {
 			fmul dword ptr [edx+4]
 			fmul dword ptr [automapZoom]
 			fmul dword ptr [hundred]
-			mov eax, out
+			mov eax, resultPosition
 			fstp dword ptr [eax+4]
 		}
 #else
@@ -235,7 +235,7 @@ void CG_ParseMapEntity( int* mapEntityCount, int* offset, team_t team ) {
 	{
 		static const float width = CC_2D_W;
 		int *position = &mEnt->x;
-		float *out = mEnt->transformed;
+		float *resultPosition = mEnt->transformed;
 		float *mins = cg.mapcoordsMins, *scale = cg.mapcoordsScale;
 		/* Preserve original FILD inputs and final-only binary32 stores. */
 		__asm {
@@ -246,14 +246,14 @@ void CG_ParseMapEntity( int* mapEntityCount, int* offset, team_t team ) {
 			fsub dword ptr [ecx]
 			fmul dword ptr [edx]
 			fmul dword ptr [width]
-			mov eax, out
+			mov eax, resultPosition
 			fstp dword ptr [eax]
 			mov eax, position
 			fild dword ptr [eax+4]
 			fsub dword ptr [ecx+4]
 			fmul dword ptr [edx+4]
 			fmul dword ptr [width]
-			mov eax, out
+			mov eax, resultPosition
 			fstp dword ptr [eax+4]
 		}
 	}

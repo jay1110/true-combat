@@ -35,7 +35,7 @@ void TCE_UpdateBotInfo(void){int i;for(i=0;i<64;i++)if(tceBotInfo[i].active&&
 /* ClientNumberFromNameMatch20054d00 / Linux000ae9cc. Empty queries do not match. */
 int TCE_ClientNumberFromNameMatch(const char *name,int *matches){
     char query[32],candidate[32];int i,j,length,count=0;
-    Q_strncpyz(query,name,sizeof(query));Q_CleanStr(query);length=strlen(query);
+    Q_strncpyz(query,name,sizeof(query));Q_CleanStr(query);length=Q_strlenInt(query);
     for(i=0;i<level.maxclients;i++)if(g_entities[i].client&&g_entities[i].client->pers.connected==CON_CONNECTED){
         Q_strncpyz(candidate,g_entities[i].client->pers.netname,sizeof(candidate));Q_CleanStr(candidate);
         for(j=0;candidate[j];j++)if(tolower((unsigned char)candidate[j])==tolower((unsigned char)query[0])&&

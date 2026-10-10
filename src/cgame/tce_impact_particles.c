@@ -113,8 +113,8 @@ static void impactSmokeGeometry(int index,float spread,
                                 vec3_t position,float *factor) {
     int factorIndex=index+2;
     const float geomOne=1.0f, geomThird=1.0f/3.0f;
-    float indexFloat;
 #if defined(_MSC_VER) && defined(_M_IX86)
+    float indexFloat;
     __asm {
         fild index
         fadd geomOne

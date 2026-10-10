@@ -452,7 +452,7 @@ char *BG_CopyStringIntoBuffer( char *string, char *buffer, int bufSize, int *off
 	strcpy( pch, string );
 
 	// move the offset along
-	*offset += strlen(string) + 1;
+	*offset += Q_strlenInt(string) + 1;
 
 	return pch;
 }
@@ -484,7 +484,7 @@ void BG_ParseConditionBits( char **text_pp, animStringItem_t *stringTable, int c
 
 	//indexBits = 0;
 	currentString[0] = '\0';
-	memset( result, 0, sizeof(result) );
+	memset( result, 0, 2 * sizeof(*result) );
 	memset( tempBits, 0, sizeof(tempBits) );
 
 	while (!endFlag) {
@@ -677,7 +677,7 @@ static void BG_ParseCommands( char **input, animScriptItem_t *scriptItem, animMo
 				BG_AnimParseError( "BG_ParseCommands: exceeded maximum number of animations (%i)", MAX_ANIMSCRIPT_ANIMCOMMANDS );
 			}
 			command = &scriptItem->commands[scriptItem->numCommands++];
-			memset( command, 0, sizeof(command) );
+			memset( command, 0, sizeof(*command) );
 		}
 
 		command->bodyPart[partIndex] = BG_IndexForString( token, animBodyPartsStr, qtrue );
@@ -955,7 +955,7 @@ void BG_AnimParseAnimScript( animModelInfo_t *animModelInfo, animScriptData_t *s
 				// move the text_p backwards so we can read in the last token again
 				text_p -= strlen(token);
 				// sanity check that
-				if ( Q_strncmp( text_p, token, strlen(token) ) ) {
+				if ( Q_strncmp( text_p, token, Q_strlenInt(token) ) ) {
 					// this should never happen, just here to check that this operation is correct before code goes live
 					BG_AnimParseError( "BG_AnimParseAnimScript: internal error" );
 				}
@@ -983,7 +983,7 @@ void BG_AnimParseAnimScript( animModelInfo_t *animModelInfo, animScriptData_t *s
 				// move the text_p backwards so we can read in the last token again
 				text_p -= strlen(token);
 				// sanity check that
-				if ( Q_strncmp( text_p, token, strlen(token) ) ) {
+				if ( Q_strncmp( text_p, token, Q_strlenInt(token) ) ) {
 					// this should never happen, just here to check that this operation is correct before code goes live
 					BG_AnimParseError( "BG_AnimParseAnimScript: internal error" );
 				}
@@ -1077,7 +1077,7 @@ void BG_AnimParseAnimScript( animModelInfo_t *animModelInfo, animScriptData_t *s
 				// move the text_p backwards so we can read in the last token again
 				text_p -= strlen(token);
 				// sanity check that
-				if ( Q_strncmp( text_p, token, strlen(token) ) ) {
+				if ( Q_strncmp( text_p, token, Q_strlenInt(token) ) ) {
 					// this should never happen, just here to check that this operation is correct before code goes live
 					BG_AnimParseError( "BG_AnimParseAnimScript: internal error" );
 				}
@@ -1105,7 +1105,7 @@ void BG_AnimParseAnimScript( animModelInfo_t *animModelInfo, animScriptData_t *s
 				// move the text_p backwards so we can read in the last token again
 				text_p -= strlen(token);
 				// sanity check that
-				if ( Q_strncmp( text_p, token, strlen(token) ) ) {
+				if ( Q_strncmp( text_p, token, Q_strlenInt(token) ) ) {
 					// this should never happen, just here to check that this operation is correct before code goes live
 					BG_AnimParseError( "BG_AnimParseAnimScript: internal error" );
 				}
@@ -1552,7 +1552,7 @@ void BG_UpdateConditionValue( int client, int condition, int value, qboolean che
 BG_GetConditionValue
 ==============
 */
-int BG_GetConditionValue( int client, int condition, qboolean checkConversion )
+intptr_t BG_GetConditionValue( int client, int condition, qboolean checkConversion )
 {
 	int i;
 
@@ -1571,7 +1571,7 @@ int BG_GetConditionValue( int client, int condition, qboolean checkConversion )
 		}
 		else
 			// xkan, 1/14/2003 - must use COM_BitCheck on the result.
-			return (int)globalScriptData->clientConditions[client][condition];
+			return (intptr_t)globalScriptData->clientConditions[client][condition];
 			//BG_AnimParseError( "BG_GetConditionValue: internal error" );
 	}
 	else

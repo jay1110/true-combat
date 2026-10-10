@@ -206,12 +206,12 @@ gmThread::State gmThread::Sys_Execute(gmVariable * a_return)
 	gmScopedThreadRun scope(this);
 #endif
 
-	register union
+	union
 	{
 		const gmuint8 * instruction;
 		const gmuint32 * instruction32;
 	};
-	register gmVariable * top;
+	 gmVariable * top;
 	gmVariable * base;
 	gmVariable * operand;
 	const gmuint8 * code;
@@ -275,7 +275,7 @@ gmThread::State gmThread::Sys_Execute(gmVariable * a_return)
 				gmOperatorFunction op = OPERATOR(operand->m_type, (gmOperator) instruction32[-1]); 
 				if(op) 
 				{ 
-					register gmType t0 = operand[0].m_type;
+					 gmType t0 = operand[0].m_type;
 
 					const int res = op(this, operand); 
 					if(res==GM_EXCEPTION)
@@ -335,8 +335,8 @@ gmThread::State gmThread::Sys_Execute(gmVariable * a_return)
 				operand = top - 2; 
 				--top; 
 
-				register gmType t0 = operand[0].m_type;
-				register gmType t1 = operand[1].m_type;
+				 gmType t0 = operand[0].m_type;
+				 gmType t1 = operand[1].m_type;
 
 				if(t0 > t1) std::swap(t0, t1); 
 				gmOperatorFunction op = OPERATOR(t1, (gmOperator) instruction32[-1]); 
@@ -381,8 +381,8 @@ gmThread::State gmThread::Sys_Execute(gmVariable * a_return)
 				operand = top - 2; 
 				--top; 
 
-				register gmType t0 = operand[0].m_type;
-				register gmType t1 = operand[1].m_type;
+				 gmType t0 = operand[0].m_type;
+				 gmType t1 = operand[1].m_type;
 
 				gmOperatorFunction op = OPERATOR(operand->m_type, (gmOperator) instruction32[-1]); 
 				if(op) 
@@ -428,8 +428,8 @@ gmThread::State gmThread::Sys_Execute(gmVariable * a_return)
 				gmOperatorFunction op = OPERATOR(operand->m_type, O_SETIND); 
 				if(op) 
 				{ 
-					register gmType t0 = operand[0].m_type;
-					register gmType t1 = operand[1].m_type;
+					 gmType t0 = operand[0].m_type;
+					 gmType t1 = operand[1].m_type;
 
 					const int res = op(this, operand); 
 					if(res==GM_EXCEPTION)
@@ -778,7 +778,6 @@ gmThread::State gmThread::Sys_Execute(gmVariable * a_return)
 
 				int numParams = (int) OPCODE_INT(instruction);
 
-				gmVariable * callFunc = &m_stack[m_base - numParams];
 
 				State res = PushStackFrame(numParams, &instruction, &code);
 				top = GetTop(); 
@@ -789,7 +788,6 @@ gmThread::State gmThread::Sys_Execute(gmVariable * a_return)
 #if GMDEBUG_SUPPORT
 					if(m_debugFlags && m_machine->GetDebugMode() && m_machine->m_callEnd)
 					{
-						callFunc;
 						const gmVariable & retVal = *(top-1);
 						m_machine->m_callEnd(this, retVal);
 					}

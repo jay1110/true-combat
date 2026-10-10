@@ -24,7 +24,7 @@ local players = wolfa_requireModule("players.players")
 local constants = wolfa_requireModule("util.constants")
 local settings = wolfa_requireModule("util.settings")
 
-function commandSlap(clientId, command, victim)
+function commandSlap(clientId, command, victim, damage, ...)
     local cmdClient
 
     if victim == nil then
@@ -63,15 +63,17 @@ function commandSlap(clientId, command, victim)
         return true
     end
 
-    local newHealth = et.gentity_get(cmdClient, "health") - 20
-
-    if newHealth < 1 then
-        newHealth = 1
+    local amount = damage == nil and 20 or tonumber(damage)
+    if not amount or amount ~= math.floor(amount) or amount < 1 or amount > 9999 then
+        et.trap_SendConsoleCommand(et.EXEC_APPEND, "csay "..clientId.." \"slap: damage must be an integer from 1 to 9999.\";")
+        return true
     end
-
-    et.gentity_set(cmdClient, "health", newHealth)
-
-    et.trap_SendConsoleCommand(et.EXEC_APPEND, "cchat -1 \"^dslap: ^7"..players.getName(cmdClient).." ^9was slapped.\";")
+    if not et.G_AdminSlap(cmdClient, amount) then
+        et.trap_SendConsoleCommand(et.EXEC_APPEND, "csay "..clientId.." \"slap: target is not alive and playing.\";")
+        return true
+    end
+    local reason = table.concat({...}, " ")
+    et.trap_SendConsoleCommand(et.EXEC_APPEND, "cchat -1 \"^dslap: ^7"..players.getName(cmdClient).." ^9was slapped"..(reason ~= "" and " ("..reason..")" or "")..".\";")
     -- Optional upstream notification audio is unavailable in TC:E.
 
     return true

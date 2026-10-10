@@ -338,7 +338,7 @@ void CG_LocateCampaign( void ) {
 	numdirs = trap_FS_GetFileList( "scripts", ".campaign", dirlist, 1024 );
 	dirptr  = dirlist;
 	for (i = 0; i < numdirs; i++, dirptr += dirlen+1) {
-		dirlen = strlen(dirptr);
+		dirlen = Q_strlenInt(dirptr);
 		Q_strncpyz( filename, "scripts/", MAX_QPATH );
 		Q_strcat( filename, MAX_QPATH, dirptr );
 		if( CG_FindCampaignInFile( filename, cgs.currentCampaign, &cgs.campaignData ) ) {

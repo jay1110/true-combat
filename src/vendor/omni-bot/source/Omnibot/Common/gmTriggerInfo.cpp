@@ -46,25 +46,15 @@ void gmTriggerInfo::Destructor(TriggerInfo *_native)
 
 bool gmTriggerInfo::getName( TriggerInfo *a_native, gmThread *a_thread, gmVariable *a_operands )
 {
-	if(a_native->m_TagName)
-	{
 		gmStringObject *pString = a_thread->GetMachine()->AllocStringObject(a_native->m_TagName);
 		a_operands[0].SetString(pString);
-	}
-	else
-		a_operands[0].Nullify();
 	return true;
 }
 
 bool gmTriggerInfo::getAction( TriggerInfo *a_native, gmThread *a_thread, gmVariable *a_operands )
 {
-	if(a_native->m_Action)
-	{
 		gmStringObject *pString = a_thread->GetMachine()->AllocStringObject(a_native->m_Action);
 		a_operands[0].SetString(pString);
-	}
-	else
-		a_operands[0].Nullify();
 	return true;
 }
 

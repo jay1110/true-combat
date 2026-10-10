@@ -78,7 +78,7 @@
     { "ammo_syringe", "sound/misc/am_pkup.wav", { "models/ammo/syringe/syringe.md3", NULL, NULL }, "", NULL, "syringe", 1, 2, 11, 11, 11, "", "" }, /* 75 */
     { "ammo_smoke_grenade", "sound/misc/am_pkup.wav", { "models/ammo/smoke_grenade/smoke_grenade.md3", NULL, NULL }, "", NULL, "smoke grenade", 1, 2, 30, 30, 30, "", "" }, /* 76 */
     { "ammo_dynamite", "sound/misc/am_pkup.wav", { "models/multiplayer/dynamite/dynamite.md3", NULL, NULL }, "", NULL, "demolition charge", 1, 2, 0, 0, 0, "", "" }, /* 77 */
-    { "ammo_disguise", "sound/misc/am_pkup.wav", { "models/ammo/disguise/disguise.md3", NULL, NULL }, "", NULL, "disguise", 1, 2, 4294967295, 4294967295, 4294967295, "", "" }, /* 78 */
+    { "ammo_disguise", "sound/misc/am_pkup.wav", { "models/ammo/disguise/disguise.md3", NULL, NULL }, "", NULL, "disguise", 1, 2, -1, -1, -1, "", "" }, /* 78 */
     { "ammo_airstrike", "sound/misc/am_pkup.wav", { "models/ammo/disguise/disguise.md3", NULL, NULL }, "", NULL, "airstrike canister", 1, 2, 22, 22, 22, "", "" }, /* 79 */
     { "ammo_landmine", "sound/misc/am_pkup.wav", { "models/ammo/landmine/landmine.md3", NULL, NULL }, "", NULL, "landmine", 1, 2, 26, 26, 26, "", "" }, /* 80 */
     { "ammo_satchel_charge", "sound/misc/am_pkup.wav", { "models/ammo/satchel/satchel.md3", NULL, NULL }, "", NULL, "satchel charge", 1, 2, 27, 27, 27, "", "" }, /* 81 */

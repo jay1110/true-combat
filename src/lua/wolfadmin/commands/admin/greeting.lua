@@ -22,6 +22,10 @@ local commands = wolfa_requireModule("commands.commands")
 local greetings = wolfa_requireModule("players.greetings")
 
 function commandGreeting(clientId, command)
+    if clientId == -1337 then
+        et.G_Print("greeting: use this personal command from a connected player.\n")
+        return true
+    end
     local greeting = greetings.get(clientId)
 
     if greeting then

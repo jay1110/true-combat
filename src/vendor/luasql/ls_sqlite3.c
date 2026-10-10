@@ -503,7 +503,8 @@ static int conn_rollback(lua_State *L)
 static int conn_getlastautoid(lua_State *L)
 {
 	conn_data *conn = getconnection(L);
-	lua_pushnumber(L, sqlite3_last_insert_rowid(conn->sql_conn));
+	/* Lua 5.4 integers preserve the full SQLite rowid, unlike doubles. */
+	lua_pushinteger(L, (lua_Integer)sqlite3_last_insert_rowid(conn->sql_conn));
 	return 1;
 }
 
@@ -622,7 +623,13 @@ static int env_connect(lua_State *L)
 
 	if (lua_isnumber(L, 3))
 	{
-		sqlite3_busy_timeout(conn, lua_tonumber(L, 3)); /* TODO: remove this */
+		int valid;
+		lua_Integer timeout = lua_tointegerx(L, 3, &valid);
+		if (!valid || timeout < 0 || timeout > 2147483647) {
+			sqlite3_close(conn);
+			return luaL_argerror(L, 3, "timeout must be an integer from 0 to 2147483647");
+		}
+		sqlite3_busy_timeout(conn, (int)timeout);
 	}
 
 	return create_connection(L, 1, conn);

@@ -284,7 +284,10 @@ void CG_GenerateTracemap( void ) {
 	int topdownmin, topdownmax;
 	int skygroundmin, skygroundmax;
 	int min, max;
+
+#if !defined(_MSC_VER) || !defined(_M_IX86)
 	float scalefactor;
+#endif
 	fileHandle_t f;
 	byte data;
 	static int lastDraw = 0;
@@ -891,121 +894,66 @@ void CG_GenerateTracemap( void ) {
  * after module relocations; all data addresses use the native tracemap. */
 __declspec(naked) qboolean BG_LoadTraceMap(char *rawmapname, vec2_t world_mins, vec2_t world_maxs) {
     __asm {
-tl_30016690:
         SUB ESP,0x418
-tl_30016696:
         MOV ECX,dword ptr [ESP + 0x41c]
-tl_3001669d:
         PUSH EBX
-tl_3001669e:
         MOV EAX,0xffff0000
-tl_300166a3:
         PUSH EBP
-tl_300166a4:
         PUSH ESI
-tl_300166a5:
         MOV dword ptr [ESP + 0x14],EAX
-tl_300166a9:
         MOV dword ptr [ESP + 0x18],EAX
-tl_300166ad:
         PUSH EDI
-tl_300166ae:
         MOV ESI,0x10000
-tl_300166b3:
         LEA EAX,[ESP + 0x20]
-tl_300166b7:
         PUSH 0x0
-tl_300166b9:
         MOV EDI,ESI
-tl_300166bb:
         MOV EBP,ESI
-tl_300166bd:
         PUSH EAX
-tl_300166be:
         PUSH ECX
-tl_300166bf:
         MOV dword ptr [ESP + 0x1c],EDI
-tl_300166c3:
         MOV EBX,ESI
-tl_300166c5:
         MOV dword ptr [ESP + 0x20],EBP
-tl_300166c9:
         CALL Q_strlwr
-tl_300166ce:
         PUSH EAX
-tl_300166cf:
         PUSH OFFSET traceLoadPath
-tl_300166d4:
         CALL va
-tl_300166d9:
         ADD ESP,0xc
-tl_300166dc:
         PUSH EAX
-tl_300166dd:
         CALL trap_FS_FOpenFile
-tl_300166e2:
         ADD ESP,0xc
-tl_300166e5:
         TEST EAX,EAX
-tl_300166e7:
         JL tl_30016b1f
-tl_300166ed:
         MOV dword ptr [ESP + 0x10],0x12
 tl_300166f5:
         MOV EDX,dword ptr [ESP + 0x20]
-tl_300166f9:
         LEA EAX,[ESP + 0x27]
-tl_300166fd:
         PUSH EDX
-tl_300166fe:
         PUSH 0x1
-tl_30016700:
         PUSH EAX
-tl_30016701:
         CALL trap_FS_Read
-tl_30016706:
         MOV EAX,dword ptr [ESP + 0x1c]
-tl_3001670a:
         ADD ESP,0xc
-tl_3001670d:
         DEC EAX
-tl_3001670e:
         MOV dword ptr [ESP + 0x10],EAX
-tl_30016712:
         JNZ tl_300166f5
-tl_30016714:
         MOV dword ptr [ESP + 0x10],0x0
 tl_3001671c:
         MOV ECX,dword ptr [ESP + 0x20]
-tl_30016720:
         LEA EDX,[ESP + 0x28]
-tl_30016724:
         PUSH ECX
-tl_30016725:
         PUSH 0x400
-tl_3001672a:
         PUSH EDX
-tl_3001672b:
         CALL trap_FS_Read
-tl_30016730:
         ADD ESP,0xc
-tl_30016733:
         XOR EDX,EDX
 tl_30016735:
         MOV EAX,dword ptr [ESP + 0x10]
-tl_30016739:
         TEST EAX,EAX
-tl_3001673b:
         JNZ tl_300168da
-tl_30016741:
         CMP EDX,0x6
-tl_30016744:
         JGE tl_300168da
-tl_3001674a:
         CMP EDX,0x5
-tl_3001674d:
         JA tl_300168b7
-tl_30016753:
         CMP EDX,0
         JE tl_3001675a
         CMP EDX,1
@@ -1021,321 +969,175 @@ tl_30016753:
         JMP tl_300168b7
 tl_3001675a:
         MOV EAX,dword ptr [ESP + 0x2b]
-tl_3001675e:
         MOV ECX,dword ptr [ESP + 0x2a]
-tl_30016762:
         AND EAX,0xff
-tl_30016767:
         AND ECX,0xff
-tl_3001676d:
         SHL EAX,0x8
-tl_30016770:
         OR EAX,ECX
-tl_30016772:
         MOV ECX,dword ptr [ESP + 0x29]
-tl_30016776:
         SHL EAX,0x8
-tl_30016779:
         AND ECX,0xff
-tl_3001677f:
         OR EAX,ECX
-tl_30016781:
         MOV ECX,dword ptr [ESP + 0x28]
-tl_30016785:
         SHL EAX,0x8
-tl_30016788:
         AND ECX,0xff
-tl_3001678e:
         OR EAX,ECX
-tl_30016790:
         MOV dword ptr [ESP + 0x1c],EAX
-tl_30016794:
         JMP tl_300168b7
 tl_30016799:
         MOV EAX,dword ptr [ESP + 0x2f]
-tl_3001679d:
         MOV ECX,dword ptr [ESP + 0x2e]
-tl_300167a1:
         AND EAX,0xff
-tl_300167a6:
         AND ECX,0xff
-tl_300167ac:
         SHL EAX,0x8
-tl_300167af:
         OR EAX,ECX
-tl_300167b1:
         MOV ECX,dword ptr [ESP + 0x2d]
-tl_300167b5:
         SHL EAX,0x8
-tl_300167b8:
         AND ECX,0xff
-tl_300167be:
         OR EAX,ECX
-tl_300167c0:
         MOV ECX,dword ptr [ESP + 0x2c]
-tl_300167c4:
         SHL EAX,0x8
-tl_300167c7:
         AND ECX,0xff
-tl_300167cd:
         OR EAX,ECX
-tl_300167cf:
         MOV dword ptr [ESP + 0x18],EAX
-tl_300167d3:
         JMP tl_300168b7
 tl_300167d8:
         MOV EDI,dword ptr [ESP + 0x33]
-tl_300167dc:
         MOV EAX,dword ptr [ESP + 0x32]
-tl_300167e0:
         MOV ECX,dword ptr [ESP + 0x31]
-tl_300167e4:
         AND EDI,0xff
-tl_300167ea:
         SHL EDI,0x8
-tl_300167ed:
         AND EAX,0xff
-tl_300167f2:
         AND ECX,0xff
-tl_300167f8:
         OR EDI,EAX
-tl_300167fa:
         MOV EAX,dword ptr [ESP + 0x30]
-tl_300167fe:
         SHL EDI,0x8
-tl_30016801:
         OR EDI,ECX
-tl_30016803:
         AND EAX,0xff
-tl_30016808:
         SHL EDI,0x8
-tl_3001680b:
         OR EDI,EAX
-tl_3001680d:
         JMP tl_300168b7
 tl_30016812:
         MOV ESI,dword ptr [ESP + 0x37]
-tl_30016816:
         MOV ECX,dword ptr [ESP + 0x36]
-tl_3001681a:
         MOV EAX,dword ptr [ESP + 0x35]
-tl_3001681e:
         AND ESI,0xff
-tl_30016824:
         SHL ESI,0x8
-tl_30016827:
         AND ECX,0xff
-tl_3001682d:
         AND EAX,0xff
-tl_30016832:
         OR ESI,ECX
-tl_30016834:
         MOV ECX,dword ptr [ESP + 0x34]
-tl_30016838:
         SHL ESI,0x8
-tl_3001683b:
         OR ESI,EAX
-tl_3001683d:
         AND ECX,0xff
-tl_30016843:
         SHL ESI,0x8
-tl_30016846:
         OR ESI,ECX
-tl_30016848:
         JMP tl_300168b7
 tl_3001684a:
         MOV EBP,dword ptr [ESP + 0x3b]
-tl_3001684e:
         MOV EAX,dword ptr [ESP + 0x3a]
-tl_30016852:
         MOV ECX,dword ptr [ESP + 0x39]
-tl_30016856:
         AND EBP,0xff
-tl_3001685c:
         SHL EBP,0x8
-tl_3001685f:
         AND EAX,0xff
-tl_30016864:
         AND ECX,0xff
-tl_3001686a:
         OR EBP,EAX
-tl_3001686c:
         MOV EAX,dword ptr [ESP + 0x38]
-tl_30016870:
         SHL EBP,0x8
-tl_30016873:
         OR EBP,ECX
-tl_30016875:
         AND EAX,0xff
-tl_3001687a:
         SHL EBP,0x8
-tl_3001687d:
         OR EBP,EAX
-tl_3001687f:
         JMP tl_300168b7
 tl_30016881:
         MOV EBX,dword ptr [ESP + 0x3f]
-tl_30016885:
         MOV ECX,dword ptr [ESP + 0x3e]
-tl_30016889:
         MOV EAX,dword ptr [ESP + 0x3d]
-tl_3001688d:
         AND EBX,0xff
-tl_30016893:
         SHL EBX,0x8
-tl_30016896:
         AND ECX,0xff
-tl_3001689c:
         AND EAX,0xff
-tl_300168a1:
         OR EBX,ECX
-tl_300168a3:
         MOV ECX,dword ptr [ESP + 0x3c]
-tl_300168a7:
         SHL EBX,0x8
-tl_300168aa:
         OR EBX,EAX
-tl_300168ac:
         AND ECX,0xff
-tl_300168b2:
         SHL EBX,0x8
-tl_300168b5:
         OR EBX,ECX
 tl_300168b7:
         MOV EAX,0x47800000
-tl_300168bc:
         MOV dword ptr [EDX*0x4 + tracemap + TraceLoadSkyLast],EAX
-tl_300168c3:
         MOV dword ptr [EDX*0x4 + tracemap + TraceLoadSkyGroundLast],EAX
-tl_300168ca:
         MOV dword ptr [EDX*0x4 + tracemap + TraceLoadGroundLast],0xc7800000
-tl_300168d5:
         JMP tl_30016981
 tl_300168da:
         XOR ECX,ECX
-tl_300168dc:
         MOV CL,byte ptr [ESP + EDX*0x4 + 0x28]
-tl_300168e0:
         MOV dword ptr [ESP + 0x14],ECX
-tl_300168e4:
         MOV ECX,EDX
-tl_300168e6:
         FILD dword ptr [ESP + 0x14]
-tl_300168ea:
         SHL EAX,0x8
-tl_300168ed:
         SUB ECX,EAX
-tl_300168ef:
         SHL ECX,0x2
-tl_300168f2:
         FST dword ptr [ECX + tracemap + TraceLoadSkyLast]
-tl_300168f8:
         FCOMP dword ptr [traceLoadZero]
-tl_300168fe:
         FNSTSW AX
-tl_30016900:
         TEST AH,0x40
-tl_30016903:
         JZ tl_3001690f
-tl_30016905:
         MOV dword ptr [ECX + tracemap + TraceLoadSkyLast],0x47800000
 tl_3001690f:
         XOR EAX,EAX
-tl_30016911:
         MOV AL,byte ptr [ESP + EDX*0x4 + 0x29]
-tl_30016915:
         MOV dword ptr [ESP + 0x14],EAX
-tl_30016919:
         FILD dword ptr [ESP + 0x14]
-tl_3001691d:
         FST dword ptr [ECX + tracemap + TraceLoadSkyGroundLast]
-tl_30016923:
         FCOMP dword ptr [traceLoadZero]
-tl_30016929:
         FNSTSW AX
-tl_3001692b:
         TEST AH,0x40
-tl_3001692e:
         JZ tl_3001693a
-tl_30016930:
         MOV dword ptr [ECX + tracemap + TraceLoadSkyGroundLast],0x47800000
 tl_3001693a:
         XOR EAX,EAX
-tl_3001693c:
         MOV AL,byte ptr [ESP + EDX*0x4 + 0x2a]
-tl_30016940:
         MOV dword ptr [ESP + 0x14],EAX
-tl_30016944:
         FILD dword ptr [ESP + 0x14]
-tl_30016948:
         FST dword ptr [ECX + tracemap + TraceLoadGroundLast]
-tl_3001694e:
         FCOMP dword ptr [traceLoadZero]
-tl_30016954:
         FNSTSW AX
-tl_30016956:
         TEST AH,0x40
-tl_30016959:
         JZ tl_30016965
-tl_3001695b:
         MOV dword ptr [ECX + tracemap + TraceLoadGroundLast],0xc7800000
 tl_30016965:
         MOV AL,byte ptr [ESP + EDX*0x4 + 0x2b]
-tl_30016969:
         TEST AL,AL
-tl_3001696b:
         JNZ tl_30016981
-tl_3001696d:
         MOV dword ptr [ECX + tracemap + TraceLoadSkyGroundLast],0x47800000
-tl_30016977:
         MOV dword ptr [ECX + tracemap + TraceLoadGroundLast],0xc7800000
 tl_30016981:
         INC EDX
-tl_30016982:
         CMP EDX,0x100
-tl_30016988:
         JL tl_30016735
-tl_3001698e:
         MOV EAX,dword ptr [ESP + 0x10]
-tl_30016992:
         INC EAX
-tl_30016993:
         CMP EAX,0x100
-tl_30016998:
         MOV dword ptr [ESP + 0x10],EAX
-tl_3001699c:
         JL tl_3001671c
-tl_300169a2:
         MOV ECX,dword ptr [ESP + 0x20]
-tl_300169a6:
         MOV dword ptr [ESP + 0x14],EBP
-tl_300169aa:
         PUSH ECX
-tl_300169ab:
         MOV dword ptr [ESP + 0x14],EDI
-tl_300169af:
         CALL trap_FS_FCloseFile
-tl_300169b4:
         MOV EDX,dword ptr [ESP + 0x1c]
-tl_300169b8:
         MOV ECX,dword ptr [ESP + 0x20]
-tl_300169bc:
         MOV EAX,EDX
-tl_300169be:
         ADD ESP,0x4
-tl_300169c1:
         SUB EAX,ECX
-tl_300169c3:
         MOV dword ptr [ESP + 0x18],EAX
-tl_300169c7:
         JNZ tl_300169d1
-tl_300169c9:
         FLD dword ptr [traceLoadOne]
-tl_300169cf:
         JMP tl_300169db
 tl_300169d1:
         FILD dword ptr [ESP + 0x18]
-tl_300169d5:
         FDIVR dword ptr [traceLoadScale]
 tl_300169db:
         MOV EAX,OFFSET tracemap + TraceLoadGround
@@ -1343,41 +1145,25 @@ tl_300169e0:
         MOV ECX,0x100
 tl_300169e5:
         CMP dword ptr [EAX],0xc7800000
-tl_300169eb:
         JZ tl_300169f7
-tl_300169ed:
         FLD dword ptr [EAX]
-tl_300169ef:
         FDIV ST(0),ST(1)
-tl_300169f1:
         FIADD dword ptr [ESP + 0x1c]
-tl_300169f5:
         FSTP dword ptr [EAX]
 tl_300169f7:
         ADD EAX,0x4
-tl_300169fa:
         DEC ECX
-tl_300169fb:
         JNZ tl_300169e5
-tl_300169fd:
         CMP EAX,OFFSET tracemap + TraceQueryMinX
-tl_30016a02:
         JL tl_300169e0
-tl_30016a04:
         SUB ESI,EDI
-tl_30016a06:
         FSTP ST(0)
-tl_30016a08:
         MOV dword ptr [ESP + 0x18],ESI
-tl_30016a0c:
         JNZ tl_30016a16
-tl_30016a0e:
         FLD dword ptr [traceLoadOne]
-tl_30016a14:
         JMP tl_30016a20
 tl_30016a16:
         FILD dword ptr [ESP + 0x18]
-tl_30016a1a:
         FDIVR dword ptr [traceLoadScale]
 tl_30016a20:
         MOV EAX,OFFSET tracemap + TraceQuerySkyGround
@@ -1385,41 +1171,25 @@ tl_30016a25:
         MOV ECX,0x100
 tl_30016a2a:
         CMP dword ptr [EAX],0x47800000
-tl_30016a30:
         JZ tl_30016a3c
-tl_30016a32:
         FLD dword ptr [EAX]
-tl_30016a34:
         FDIV ST(0),ST(1)
-tl_30016a36:
         FIADD dword ptr [ESP + 0x10]
-tl_30016a3a:
         FSTP dword ptr [EAX]
 tl_30016a3c:
         ADD EAX,0x4
-tl_30016a3f:
         DEC ECX
-tl_30016a40:
         JNZ tl_30016a2a
-tl_30016a42:
         CMP EAX,OFFSET tracemap + TraceLoadGround
-tl_30016a47:
         JL tl_30016a25
-tl_30016a49:
         SUB EBX,EBP
-tl_30016a4b:
         FSTP ST(0)
-tl_30016a4d:
         MOV dword ptr [ESP + 0x18],EBX
-tl_30016a51:
         JNZ tl_30016a5b
-tl_30016a53:
         FLD dword ptr [traceLoadOne]
-tl_30016a59:
         JMP tl_30016a65
 tl_30016a5b:
         FILD dword ptr [ESP + 0x18]
-tl_30016a5f:
         FDIVR dword ptr [traceLoadScale]
 tl_30016a65:
         MOV EAX,OFFSET tracemap + TraceQuerySky
@@ -1427,105 +1197,57 @@ tl_30016a6a:
         MOV ECX,0x100
 tl_30016a6f:
         CMP dword ptr [EAX],0x47800000
-tl_30016a75:
         JZ tl_30016a81
-tl_30016a77:
         FLD dword ptr [EAX]
-tl_30016a79:
         FDIV ST(0),ST(1)
-tl_30016a7b:
         FIADD dword ptr [ESP + 0x14]
-tl_30016a7f:
         FSTP dword ptr [EAX]
 tl_30016a81:
         ADD EAX,0x4
-tl_30016a84:
         DEC ECX
-tl_30016a85:
         JNZ tl_30016a6f
-tl_30016a87:
         CMP EAX,OFFSET tracemap + TraceQuerySkyGround
-tl_30016a8c:
         JL tl_30016a6a
-tl_30016a8e:
         MOV EAX,dword ptr [ESP + 0x430]
-tl_30016a95:
         POP EDI
-tl_30016a96:
         FSTP ST(0)
-tl_30016a98:
         MOV ECX,dword ptr [EAX]
-tl_30016a9a:
         POP ESI
-tl_30016a9b:
         MOV dword ptr [tracemap + TraceQueryMinX],ECX
-tl_30016aa1:
         MOV EAX,dword ptr [EAX + 0x4]
-tl_30016aa4:
         MOV dword ptr [tracemap + TraceQueryMinY],EAX
-tl_30016aa9:
         MOV EAX,dword ptr [ESP + 0x42c]
-tl_30016ab0:
         POP EBP
-tl_30016ab1:
         POP EBX
-tl_30016ab2:
         MOV ECX,dword ptr [EAX]
-tl_30016ab4:
         MOV dword ptr [tracemap + TraceQueryMaxX],ECX
-tl_30016aba:
         MOV EAX,dword ptr [EAX + 0x4]
-tl_30016abd:
         FLD dword ptr [tracemap + TraceQueryMaxX]
-tl_30016ac3:
         FSUB dword ptr [tracemap + TraceQueryMinX]
-tl_30016ac9:
         MOV dword ptr [tracemap + TraceQueryMaxY],EAX
-tl_30016ace:
         MOV ECX,dword ptr [ESP + 0xc]
-tl_30016ad2:
         MOV EAX,0x1
-tl_30016ad7:
         MOV dword ptr [tracemap + TraceLoadFloor],ECX
-tl_30016add:
         FMUL dword ptr [traceLoadInverseSize]
-tl_30016ae3:
         MOV dword ptr [tracemap + TraceLoadCeil],EDX
-tl_30016ae9:
         MOV dword ptr [tracemap + TraceQueryLoaded],EAX
-tl_30016aee:
         FDIVR dword ptr [traceLoadOne]
-tl_30016af4:
         FSTP dword ptr [one_over_mapgrid_factor]
-tl_30016afa:
         FLD dword ptr [tracemap + TraceQueryMaxY]
-tl_30016b00:
         FSUB dword ptr [tracemap + TraceQueryMinY]
-tl_30016b06:
         FMUL dword ptr [traceLoadInverseSize]
-tl_30016b0c:
         FDIVR dword ptr [traceLoadOne]
-tl_30016b12:
         FSTP dword ptr [one_over_mapgrid_factor + 4]
-tl_30016b18:
         ADD ESP,0x418
-tl_30016b1e:
         RET
 tl_30016b1f:
         POP EDI
-tl_30016b20:
         POP ESI
-tl_30016b21:
         POP EBP
-tl_30016b22:
         MOV dword ptr [tracemap + TraceQueryLoaded],0x0
-tl_30016b2c:
         XOR EAX,EAX
-tl_30016b2e:
         POP EBX
-tl_30016b2f:
         ADD ESP,0x418
-tl_30016b35:
         RET
     }
 }
@@ -1712,87 +1434,51 @@ qboolean BG_LoadTraceMap( char *rawmapname, vec2_t world_mins, vec2_t world_maxs
 #if (defined(CGAMEDLL) || defined(GAMEDLL)) && defined(_MSC_VER) && defined(_M_IX86)
 static __declspec(naked) void BG_ClampPointToTracemapExtends(vec3_t point, vec2_t clampedPoint) {
     __asm {
-tq_30016be0:
         MOV EDX,dword ptr [ESP + 0x4]
-tq_30016be4:
         FLD dword ptr [EDX]
-tq_30016be6:
         FCOMP dword ptr [tracemap + TraceQueryMinX]
-tq_30016bec:
         FNSTSW AX
-tq_30016bee:
         TEST AH,0x1
-tq_30016bf1:
         JZ tq_30016c01
-tq_30016bf3:
         FLD dword ptr [tracemap + TraceQueryMinX]
-tq_30016bf9:
         MOV ECX,dword ptr [ESP + 0x8]
-tq_30016bfd:
         FSTP dword ptr [ECX]
-tq_30016bff:
         JMP tq_30016c26
 tq_30016c01:
         FLD dword ptr [EDX]
-tq_30016c03:
         FCOMP dword ptr [tracemap + TraceQueryMaxX]
-tq_30016c09:
         FNSTSW AX
-tq_30016c0b:
         TEST AH,0x41
-tq_30016c0e:
         JNZ tq_30016c1e
-tq_30016c10:
         FLD dword ptr [tracemap + TraceQueryMaxX]
-tq_30016c16:
         MOV ECX,dword ptr [ESP + 0x8]
-tq_30016c1a:
         FSTP dword ptr [ECX]
-tq_30016c1c:
         JMP tq_30016c26
 tq_30016c1e:
         MOV ECX,dword ptr [ESP + 0x8]
-tq_30016c22:
         MOV EAX,dword ptr [EDX]
-tq_30016c24:
         MOV dword ptr [ECX],EAX
 tq_30016c26:
         FLD dword ptr [EDX + 0x4]
-tq_30016c29:
         FCOMP dword ptr [tracemap + TraceQueryMaxY]
-tq_30016c2f:
         FNSTSW AX
-tq_30016c31:
         TEST AH,0x1
-tq_30016c34:
         JZ tq_30016c40
-tq_30016c36:
         MOV EDX,dword ptr [tracemap + TraceQueryMaxY]
-tq_30016c3c:
         MOV dword ptr [ECX + 0x4],EDX
-tq_30016c3f:
         RET
 tq_30016c40:
         FLD dword ptr [EDX + 0x4]
-tq_30016c43:
         FCOMP dword ptr [tracemap + TraceQueryMinY]
-tq_30016c49:
         FNSTSW AX
-tq_30016c4b:
         TEST AH,0x41
-tq_30016c4e:
         JNZ tq_30016c59
-tq_30016c50:
         MOV EAX,dword ptr [tracemap + TraceQueryMinY]
-tq_30016c55:
         MOV dword ptr [ECX + 0x4],EAX
-tq_30016c58:
         RET
 tq_30016c59:
         MOV EDX,dword ptr [EDX + 0x4]
-tq_30016c5c:
         MOV dword ptr [ECX + 0x4],EDX
-tq_30016c5f:
         RET
     }
 }
@@ -1821,81 +1507,44 @@ static void BG_ClampPointToTracemapExtends( vec3_t point, vec2_t out ) {
 #if (defined(CGAMEDLL) || defined(GAMEDLL)) && defined(_MSC_VER) && defined(_M_IX86)
 __declspec(naked) float BG_GetSkyHeightAtPoint(vec3_t pos) {
     __asm {
-tq_30016b50:
         MOV EAX,dword ptr [tracemap + TraceQueryLoaded]
-tq_30016b55:
         SUB ESP,0xc
-tq_30016b58:
         TEST EAX,EAX
-tq_30016b5a:
         JNZ tq_30016b66
-tq_30016b5c:
         FLD dword ptr [traceQueryMaxHeight]
-tq_30016b62:
         ADD ESP,0xc
-tq_30016b65:
         RET
 tq_30016b66:
         MOV ECX,dword ptr [ESP + 0x10]
-tq_30016b6a:
         LEA EAX,[ESP + 0x4]
-tq_30016b6e:
         PUSH EAX
-tq_30016b6f:
         PUSH ECX
-tq_30016b70:
         CALL BG_ClampPointToTracemapExtends
-tq_30016b75:
         FLD dword ptr [ESP + 0xc]
-tq_30016b79:
         FSUB dword ptr [tracemap + TraceQueryMinX]
-tq_30016b7f:
         ADD ESP,0x4
-tq_30016b82:
         FMUL dword ptr [one_over_mapgrid_factor]
-tq_30016b88:
         FSTP dword ptr [ESP]
-tq_30016b8b:
         CALL myftol
-tq_30016b90:
         FLD dword ptr [ESP + 0xc]
-tq_30016b94:
         FSUB dword ptr [tracemap + TraceQueryMinY]
-tq_30016b9a:
         MOV dword ptr [ESP + 0x4],EAX
-tq_30016b9e:
         FMUL dword ptr [one_over_mapgrid_factor + 4]
-tq_30016ba4:
         FSTP dword ptr [ESP]
-tq_30016ba7:
         CALL myftol
-tq_30016bac:
         MOV dword ptr [ESP + 0x14],EAX
-tq_30016bb0:
         LEA EDX,[ESP + 0x14]
-tq_30016bb4:
         LEA EAX,[ESP + 0x4]
-tq_30016bb8:
         PUSH EDX
-tq_30016bb9:
         PUSH EAX
-tq_30016bba:
         CALL etpro_FinalizeTracemapClamp
-tq_30016bbf:
         MOV ECX,dword ptr [ESP + 0x1c]
-tq_30016bc3:
         MOV EAX,dword ptr [ESP + 0xc]
-tq_30016bc7:
         IMUL ECX,TRACEMAP_SIZE
-tq_30016bca:
         ADD ESP,0xc
-tq_30016bcd:
         ADD ECX,EAX
-tq_30016bcf:
         FLD dword ptr [ECX*0x4 + tracemap + TraceQuerySky]
-tq_30016bd6:
         ADD ESP,0xc
-tq_30016bd9:
         RET
     }
 }
@@ -1932,81 +1581,44 @@ float BG_GetSkyHeightAtPoint( vec3_t pos ) {
 #if defined(CGAMEDLL) && defined(_MSC_VER) && defined(_M_IX86)
 __declspec(naked) float BG_GetSkyGroundHeightAtPoint(vec3_t pos) {
     __asm {
-tq_30016c60:
         MOV EAX,dword ptr [tracemap + TraceQueryLoaded]
-tq_30016c65:
         SUB ESP,0xc
-tq_30016c68:
         TEST EAX,EAX
-tq_30016c6a:
         JNZ tq_30016c76
-tq_30016c6c:
         FLD dword ptr [traceQueryMaxHeight]
-tq_30016c72:
         ADD ESP,0xc
-tq_30016c75:
         RET
 tq_30016c76:
         MOV ECX,dword ptr [ESP + 0x10]
-tq_30016c7a:
         LEA EAX,[ESP + 0x4]
-tq_30016c7e:
         PUSH EAX
-tq_30016c7f:
         PUSH ECX
-tq_30016c80:
         CALL BG_ClampPointToTracemapExtends
-tq_30016c85:
         FLD dword ptr [ESP + 0xc]
-tq_30016c89:
         FSUB dword ptr [tracemap + TraceQueryMinX]
-tq_30016c8f:
         ADD ESP,0x4
-tq_30016c92:
         FMUL dword ptr [one_over_mapgrid_factor]
-tq_30016c98:
         FSTP dword ptr [ESP]
-tq_30016c9b:
         CALL myftol
-tq_30016ca0:
         FLD dword ptr [ESP + 0xc]
-tq_30016ca4:
         FSUB dword ptr [tracemap + TraceQueryMinY]
-tq_30016caa:
         MOV dword ptr [ESP + 0x4],EAX
-tq_30016cae:
         FMUL dword ptr [one_over_mapgrid_factor + 4]
-tq_30016cb4:
         FSTP dword ptr [ESP]
-tq_30016cb7:
         CALL myftol
-tq_30016cbc:
         MOV dword ptr [ESP + 0x14],EAX
-tq_30016cc0:
         LEA EDX,[ESP + 0x14]
-tq_30016cc4:
         LEA EAX,[ESP + 0x4]
-tq_30016cc8:
         PUSH EDX
-tq_30016cc9:
         PUSH EAX
-tq_30016cca:
         CALL etpro_FinalizeTracemapClamp
-tq_30016ccf:
         MOV ECX,dword ptr [ESP + 0x1c]
-tq_30016cd3:
         MOV EAX,dword ptr [ESP + 0xc]
-tq_30016cd7:
         IMUL ECX,TRACEMAP_SIZE
-tq_30016cda:
         ADD ESP,0xc
-tq_30016cdd:
         ADD ECX,EAX
-tq_30016cdf:
         FLD dword ptr [ECX*0x4 + tracemap + TraceQuerySkyGround]
-tq_30016ce6:
         ADD ESP,0xc
-tq_30016ce9:
         RET
     }
 }

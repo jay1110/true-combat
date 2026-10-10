@@ -403,7 +403,7 @@ void CopyToBodyQue( gentity_t *ent ) {
 	body->classname = "corpse";
 	body->s.powerups = 0;	// clear powerups
 	body->s.loopSound = 0;	// clear lava burning
-	body->s.number = body - g_entities;
+	body->s.number = (int)(body - g_entities);
 	body->timestamp = level.time;
 	body->physicsObject = qtrue;
 	body->physicsBounce = 0;		// don't bounce
@@ -572,7 +572,7 @@ void limbo( gentity_t *ent, qboolean makeCorpse ) {
         cl = &level.clients[level.sortedClients[i]];
         if (((cl->ps.pm_flags & PMF_LIMBO) ||
              (cl->sess.sessionTeam == TEAM_SPECTATOR && cl->sess.spectatorState == SPECTATOR_FOLLOW)) &&
-            cl->sess.spectatorClient == ent - g_entities)
+            cl->sess.spectatorClient == (int)(ent - g_entities))
             Cmd_FollowCycle_f(&g_entities[level.sortedClients[i]], 1);
     }
 }
@@ -1214,9 +1214,9 @@ char *ClientConnect( int clientNum, qboolean firstTime, qboolean isBot ) {
 	// Gordon: porting q3f flag bug fix
 	//			If a player reconnects quickly after a disconnect, the client disconnect may never be called, thus flag can get lost in the ether
 	if( ent->inuse ) {
-		G_LogPrintf( "Forcing disconnect on active client: %i\n", ent-g_entities );
+		G_LogPrintf( "Forcing disconnect on active client: %i\n", (int)(ent - g_entities) );
 		// so lets just fix up anything that should happen on a disconnect
-		ClientDisconnect( ent-g_entities );
+		ClientDisconnect( (int)(ent - g_entities) );
 	}
 
 	// they can connect
@@ -1622,7 +1622,7 @@ void ClientSpawn( gentity_t *ent, qboolean revived, qboolean hostage )
 	int			savedTeam;
 	int			savedSlotNumber;
 	gentity_t *savedTCSpawn;
-	index = ent - g_entities;
+	index = (int)(ent - g_entities);
 	client = ent->client;
 	G_UpdateSpawnCounts();
 	savedTCSpawn = client->tceLastSpawnPoint;
@@ -1636,7 +1636,7 @@ void ClientSpawn( gentity_t *ent, qboolean revived, qboolean hostage )
 		char *clientMismatchedVersion = G_CheckVersion( ent );	// returns NULL if version is identical
 
 		if( clientMismatchedVersion ) {
-			trap_DropClient( ent - g_entities, va( "Client/Server game mismatch: '%s/%s'", clientMismatchedVersion, GAME_VERSION_DATED ) );
+			trap_DropClient( (int)(ent - g_entities), va( "Client/Server game mismatch: '%s/%s'", clientMismatchedVersion, GAME_VERSION_DATED ) );
 		} else {
 			client->sess.versionOK = qtrue;
 		}
@@ -1808,7 +1808,7 @@ void ClientSpawn( gentity_t *ent, qboolean revived, qboolean hostage )
 	
 	{
         char options[MAX_INFO_STRING];
-        trap_GetUserinfo(ent-g_entities,options,sizeof(options));
+        trap_GetUserinfo((int)(ent - g_entities),options,sizeof(options));
         G_TCEUserinfoOptions(&client->ps,options);
     }
 	client->ps.crouchMaxZ = client->ps.maxs[2] - (client->ps.standViewHeight - client->ps.crouchViewHeight);
@@ -1838,7 +1838,7 @@ void ClientSpawn( gentity_t *ent, qboolean revived, qboolean hostage )
 
 	client->ps.clientNum = index;
 
-	trap_GetUsercmd( client - level.clients, &ent->client->pers.cmd );	// NERVE - SMF - moved this up here
+	trap_GetUsercmd( (int)(client - level.clients), &ent->client->pers.cmd );	// NERVE - SMF - moved this up here
 
 	// DHM - Nerve :: Add appropriate weapons
 	if ( !revived ) {
@@ -1974,7 +1974,7 @@ void ClientSpawn( gentity_t *ent, qboolean revived, qboolean hostage )
 	// initialize animations and other things
 	client->ps.commandTime = level.time - 100;
 	ent->client->pers.cmd.serverTime = level.time;
-	ClientThink( ent-g_entities );
+	ClientThink( (int)(ent - g_entities) );
 
 	// positively link the client, even if the command times are weird
 	if ( ent->client->sess.sessionTeam != TEAM_SPECTATOR ) {
@@ -1996,7 +1996,7 @@ void ClientSpawn( gentity_t *ent, qboolean revived, qboolean hostage )
 	G_TCEResetFrameMarkers( ent ); /* TC2004d78c calls20048370, not80-byte reset. */
 
 #ifdef FEATURE_OMNIBOT
-    if (!Bot_Interface_IsOmnibot((int)(ent-g_entities))) {
+    if (!Bot_Interface_IsOmnibot((int)((int)(ent - g_entities)))) {
 #endif
 	// Set up bot speed bonusses
 	BotSpeedBonus( ent->s.number );
@@ -2023,10 +2023,12 @@ void ClientSpawn( gentity_t *ent, qboolean revived, qboolean hostage )
 #endif
 	/* Encoded tactical offsets start centered, including after respawn. */
 	client->ps.holdable[5]=client->ps.holdable[6]=2000;
+	client->ps.holdable[TCE_FREELOOK_PITCH]=client->ps.holdable[TCE_FREELOOK_YAW]=TCE_FREELOOK_CENTER;
+	client->pmext.tceFreelookRecoil[0]=client->pmext.tceFreelookRecoil[1]=0;
 #ifdef FEATURE_OMNIBOT
-    Bot_Event_Respawn((int)(ent-g_entities));
+    Bot_Event_Respawn((int)((int)(ent - g_entities)));
 #endif
-	TCE_LuaSpawn((int)(ent-g_entities), revived, hostage);
+	TCE_LuaSpawn((int)((int)(ent - g_entities)), revived, hostage);
 }
 
 
@@ -2099,7 +2101,7 @@ void ClientDisconnect( int clientNum ) {
 		for( i = 0; i < 2; i++ ) {
 			teamList = &mapEntityData[i];
 
-			if((mEnt = G_FindMapEntityData(&mapEntityData[0], ent-g_entities)) != NULL) {
+			if((mEnt = G_FindMapEntityData(&mapEntityData[0], (int)(ent - g_entities))) != NULL) {
 				G_FreeMapEntityData( teamList, mEnt );
 			}
 
@@ -2160,7 +2162,7 @@ void ClientDisconnect( int clientNum ) {
                     (double)(1.f/32767.f)*35.0+(double)launchvel[2]+50.0);
                 VectorAdd(ent->client->ps.origin,offset,origin);
                 trap_Trace(&tr,ent->client->ps.origin,mins,maxs,origin,ent->s.number,CONTENTS_SOLID);
-                flag=LaunchItem(item,tr.endpos,launchvel,ent-g_entities);
+                flag=LaunchItem(item,tr.endpos,launchvel,(int)(ent - g_entities));
 				/* TC2004e2a0: +0xa8 is modelindex2, not density (+0xf4). */
 				flag->s.modelindex2 = ent->s.otherEntityNum2;
 				flag->message = ent->message;	// DHM - Nerve :: also restore item name
@@ -2203,7 +2205,7 @@ void ClientDisconnect( int clientNum ) {
 
 	// OSP
 	G_verifyMatchState(i);
-	G_smvAllRemoveSingleClient(ent - g_entities);
+	G_smvAllRemoveSingleClient((int)(ent - g_entities));
 	// OSP
 }
 

@@ -596,19 +596,19 @@ namespace AiState
 				// and mapgoal too
 				if(m_MapGoal)
 				{
-					if(m_AutoFinishOnUnavailable
+					if((m_AutoFinishOnUnavailable
 						&& (!m_MapGoal->IsAvailable(GetClient()->GetTeam())
-						|| m_MapGoal->GetRoleMask().AnyFlagSet()
+						|| (m_MapGoal->GetRoleMask().AnyFlagSet()
 							&& !(m_MapGoal->GetRoleMask() & GetClient()->GetRoleMask()).AnyFlagSet()
 							//don't abort INFILTRATOR goal if covertops has lost disguise
-							&& !(m_MapGoal->GetRoleMask().CheckFlag(ROLE_INFILTRATOR) && GetClient()->GetClass() == 5)
-						)
-					|| m_AutoFinishOnNoProgressSlots
+							&& !(m_MapGoal->GetRoleMask().CheckFlag(ROLE_INFILTRATOR) && GetClient()->GetClass() == 5))
+						))
+					|| (m_AutoFinishOnNoProgressSlots
 						&& (!m_Tracker.InProgress || m_Tracker.InProgress != m_MapGoal)
-						&& m_MapGoal->GetSlotsOpen(MapGoal::TRACK_INPROGRESS, GetClient()->GetTeam()) == 0
-					|| m_AutoFinishOnNoUseSlots
+						&& m_MapGoal->GetSlotsOpen(MapGoal::TRACK_INPROGRESS, GetClient()->GetTeam()) == 0)
+					|| (m_AutoFinishOnNoUseSlots
 						&& (!m_Tracker.InUse || m_Tracker.InUse != m_MapGoal)
-						&& m_MapGoal->GetSlotsOpen(MapGoal::TRACK_INUSE, GetClient()->GetTeam()) == 0)
+						&& m_MapGoal->GetSlotsOpen(MapGoal::TRACK_INUSE, GetClient()->GetTeam()) == 0))
 						return State_Finished;
 				}
 

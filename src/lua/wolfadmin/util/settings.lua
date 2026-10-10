@@ -32,7 +32,7 @@ local data = {
     ["g_playerHistory"] = 1,
     ["g_spreeMessages"] = 0,
     ["g_spreeSounds"] = 0,
-    ["g_spreeRecords"] = 0,
+    ["g_spreeRecords"] = 1,
     ["g_botRecords"] = 1,
     ["g_announceRevives"] = 0,
     ["g_greetingArea"] = 3,
@@ -181,7 +181,7 @@ function settings.load()
     end
 
     data.g_standalone = 1
-    data.g_spreeMessages, data.g_spreeSounds, data.g_spreeRecords = 0, 0, 0
+    -- TC:E has no revive gameplay; kill/death records and installed sounds work.
     data.g_announceRevives = 0
     settings.determineOS()
     settings.determineMode()

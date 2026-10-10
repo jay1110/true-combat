@@ -24,6 +24,10 @@ local game = wolfa_requireModule("game.game")
 function commandNews(clientId, command, map)
     map = map and map or game.getMap()
 
+    if not map:match("^[%w_%-]+$") then
+        et.trap_SendConsoleCommand(et.EXEC_APPEND, "csay "..clientId.." \"news: invalid map name.\";")
+        return true
+    end
     local fileDescriptor, fileLength = et.trap_FS_FOpenFile("sound/vo/"..map.."/news_"..map..".wav", et.FS_READ)
 
     if fileLength == -1 then
@@ -34,7 +38,7 @@ function commandNews(clientId, command, map)
 
     et.trap_FS_FCloseFile(fileDescriptor)
 
-    -- Optional upstream notification audio is unavailable in TC:E.
+    et.G_AdminSound(-1, "sound/vo/"..map.."/news_"..map..".wav")
 
     return true
 end

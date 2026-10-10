@@ -66,7 +66,10 @@ function commandGib(clientId, command, victim)
     -- GENTITYNUM_BITS    10                      10
     -- MAX_GENTITIES      1 << GENTITYNUM_BITS    1024
     -- ENTITYNUM_WORLD    MAX_GENTITIES - 2       18
-    et.G_Damage(cmdClient, 1024, 1024, 500, 0, 0) -- MOD_UNKNOWN = 0
+    if not et.G_AdminGib(cmdClient) then
+        et.trap_SendConsoleCommand(et.EXEC_APPEND, "csay "..clientId.." \"gib: target is not alive and playing.\";")
+        return true
+    end
 
     et.trap_SendConsoleCommand(et.EXEC_APPEND, "cchat -1 \"^dgib: ^7"..players.getName(cmdClient).." ^9was gibbed.\";")
 

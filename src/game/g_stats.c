@@ -519,7 +519,7 @@ void G_DebugOpenSkillLog( void )
 
 	s = va( "%02d:%02d:%02d : Logfile opened.\n", ct.tm_hour, ct.tm_min, ct.tm_sec );
 
-	trap_FS_Write( s, strlen( s ), skillDebugLog );
+	trap_FS_Write( s, Q_strlenInt( s ), skillDebugLog );
 }
 
 void G_DebugCloseSkillLog( void )
@@ -534,7 +534,7 @@ void G_DebugCloseSkillLog( void )
 
 	s = va( "%02d:%02d:%02d : Logfile closed.\n", ct.tm_hour, ct.tm_min, ct.tm_sec );
 
-	trap_FS_Write( s, strlen( s ), skillDebugLog );
+	trap_FS_Write( s, Q_strlenInt( s ), skillDebugLog );
 
 	trap_FS_FCloseFile( skillDebugLog );
 }
@@ -555,7 +555,7 @@ void G_DebugAddSkillLevel( gentity_t *ent, skillType_t skill )
 		char *s = va( "%02d:%02d:%02d : ^%c(SK: %2i XP: %6.2f) %s: %s raised in skill level to %i.\n",
 			ct.tm_hour, ct.tm_min, ct.tm_sec,
 			COLOR_RED + skill, ent->client->sess.skill[skill], ent->client->sess.skillpoints[skill], skillNames[skill], ent->client->pers.netname, ent->client->sess.skill[skill] );
-		trap_FS_Write( s, strlen( s ), skillDebugLog );
+		trap_FS_Write( s, Q_strlenInt( s ), skillDebugLog );
 	}
 }
 
@@ -575,7 +575,7 @@ void G_DebugAddSkillPoints( gentity_t *ent, skillType_t skill, float points, con
 		char *s = va( "%02d:%02d:%02d : ^%c(SK: %2i XP: %6.2f) %s: %s gained %.2fXP, reason: %s.\n",
 			ct.tm_hour, ct.tm_min, ct.tm_sec,
 			COLOR_RED + skill, ent->client->sess.skill[skill], ent->client->sess.skillpoints[skill], skillNames[skill], ent->client->pers.netname, points, reason );
-		trap_FS_Write( s, strlen( s ), skillDebugLog );
+		trap_FS_Write( s, Q_strlenInt( s ), skillDebugLog );
 	}
 }
 

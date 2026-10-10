@@ -271,7 +271,7 @@ namespace AiState
 	private:
 		int		m_NextLookTime;
 
-		float	m_Awareness[8]; // 8 cardinal directions
+		[[maybe_unused]] float	m_Awareness[8]; // 8 cardinal directions
 	};
 
 	//////////////////////////////////////////////////////////////////////////

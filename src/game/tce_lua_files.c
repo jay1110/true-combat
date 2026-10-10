@@ -2,6 +2,115 @@
 #include "g_local.h"
 #include "lua.h"
 #include "lauxlib.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <limits.h>
+#ifdef _WIN32
+#include <io.h>
+#else
+#include <dirent.h>
+#include <sys/stat.h>
+#endif
+
+static qboolean LocalDirectory(const char *rootName,const char *path,char *full,int capacity) {
+    char game[MAX_QPATH],root[MAX_OSPATH];
+    trap_Cvar_VariableStringBuffer("fs_game",game,sizeof(game));
+    trap_Cvar_VariableStringBuffer(rootName,root,sizeof(root));
+    if(!root[0] || !game[0] || strstr(game,"..") || strchr(game,'/') || strchr(game,'\\') || strchr(game,':') ||
+       strlen(root)+strlen(game)+strlen(path)+3 >= (size_t)capacity) return qfalse;
+    Com_sprintf(full,capacity,"%s/%s/%s",root,game,path);
+    return qtrue;
+}
+
+static void AddListedFile(lua_State *L,const char *name,const char *extension,int directory,size_t *bytes) {
+    size_t n=strlen(name), e=strlen(extension), i, count;
+    if(!strcmp(name,".") || !strcmp(name,"..") || *bytes+n+1>65536) return;
+    if(!strcmp(extension,"/")) { if(!directory)return; }
+    else if(directory || (e && (n<e || Q_stricmp(name+n-e,extension))))return;
+    count=lua_rawlen(L,-1);
+    for(i=1;i<=count;i++) {
+        int same;
+        lua_rawgeti(L,-1,i); same=!Q_stricmp(lua_tostring(L,-1),name);lua_pop(L,1);
+        if(same)return;
+    }
+    lua_pushstring(L,name);lua_rawseti(L,-2,count+1);*bytes+=n+1;
+}
+
+static void ListLocal(lua_State *L,const char *path,const char *extension,size_t *bytes) {
+    const char *roots[]={"fs_homepath","fs_basepath"};
+    char full[MAX_OSPATH*2]; int i;
+    for(i=0;i<2;i++) {
+        if(!LocalDirectory(roots[i],path,full,sizeof(full)-3))continue;
+#ifdef _WIN32
+        {
+            struct _finddata_t entry; intptr_t search;
+            Q_strcat(full,sizeof(full),"/*");search=_findfirst(full,&entry);
+            if(search == -1)continue;
+            do { AddListedFile(L,entry.name,extension,(entry.attrib&_A_SUBDIR)!=0,bytes); } while(!_findnext(search,&entry));
+            _findclose(search);
+        }
+#else
+        {
+            DIR *dir=opendir(full);struct dirent *entry;char child[MAX_OSPATH*2];struct stat st;
+            if(!dir)continue;
+            while((entry=readdir(dir))!=NULL) {
+                if(strlen(full)+strlen(entry->d_name)+2>sizeof(child))continue;
+                Com_sprintf(child,sizeof(child),"%s/%s",full,entry->d_name);
+                if(!stat(child,&st))AddListedFile(L,entry->d_name,extension,S_ISDIR(st.st_mode),bytes);
+            }
+            closedir(dir);
+        }
+#endif
+    }
+}
+
+/* A listen server shares the engine's pure-client VFS. Server-owned loose
+ * scripts/data must remain readable without packaging them for clients. */
+static FILE *LocalRead(const char *path, int *length) {
+    const char *roots[] = { "fs_homepath", "fs_basepath" };
+    char game[MAX_QPATH], root[MAX_OSPATH], full[MAX_OSPATH * 2];
+    FILE *f; long size; int i;
+    if (!path[0] || strlen(path) >= MAX_QPATH || path[0] == '/' ||
+        strstr(path, "..") || strchr(path, '\\') || strchr(path, ':')) return NULL;
+    for (i = 0; path[i]; ++i) if ((unsigned char)path[i] < 32 || path[i] == 127) return NULL;
+    trap_Cvar_VariableStringBuffer("fs_game", game, sizeof(game));
+    if (!game[0] || strstr(game, "..") || strchr(game, '/') ||
+        strchr(game, '\\') || strchr(game, ':')) return NULL;
+    for (i = 0; i < 2; ++i) {
+        trap_Cvar_VariableStringBuffer(roots[i], root, sizeof(root));
+        if (!root[0] || strlen(root) + strlen(game) + strlen(path) + 3 > sizeof(full)) continue;
+        Com_sprintf(full, sizeof(full), "%s/%s/%s", root, game, path);
+        f = fopen(full, "rb");
+        if (!f) continue;
+        if (fseek(f, 0, SEEK_END) || (size = ftell(f)) < 0 || size > INT_MAX || fseek(f, 0, SEEK_SET)) {
+            fclose(f); return NULL;
+        }
+        *length = (int)size; return f;
+    }
+    return NULL;
+}
+
+/* Caller owns the returned buffer. No binary Lua chunks are accepted by loaders. */
+char *TCE_LuaReadSource(const char *path, int *length) {
+    FILE *local; fileHandle_t handle = 0; char *data; int size = -1;
+    local = LocalRead(path, &size);
+    if (!local) size = trap_FS_FOpenFile(path, &handle, FS_READ);
+    if ((!local && !handle) || size < 0 || size > 1024 * 1024) {
+        if (local) fclose(local);
+        if (handle) trap_FS_FCloseFile(handle);
+        return NULL;
+    }
+    data = (char *)malloc((size_t)size + 1);
+    if (data) {
+        if (local) {
+            if (fread(data, 1, size, local) != (size_t)size) { free(data); data = NULL; }
+        } else trap_FS_Read(data, size, handle);
+        if (data) { data[size] = 0; *length = size; }
+    }
+    if (local) fclose(local);
+    if (handle) trap_FS_FCloseFile(handle);
+    return data;
+}
 
 #define TCE_LUA_FILE_HANDLES 32
 #define TCE_LUA_FILE_IO_MAX (1024 * 1024)
@@ -10,6 +119,7 @@
 
 typedef struct {
     fileHandle_t handle;
+    FILE *local;
     int mode, remaining;
 } tceLuaFile;
 typedef struct { tceLuaFile files[TCE_LUA_FILE_HANDLES]; } tceLuaFiles;
@@ -43,7 +153,7 @@ static tceLuaFile *File(lua_State *L, int arg) {
     tceLuaFiles *files = Files(L);
     int i;
     for (i = 0; i < TCE_LUA_FILE_HANDLES; ++i)
-        if (files->files[i].handle && handle == files->files[i].handle)
+        if ((files->files[i].handle || files->files[i].local) && handle == i + 1)
             return &files->files[i];
     luaL_argerror(L, arg, "file handle is not open in this Lua VM");
     return NULL;
@@ -61,6 +171,7 @@ static int CloseAll(lua_State *L) {
     int i;
     for (i = 0; i < TCE_LUA_FILE_HANDLES; ++i) {
         if (files->files[i].handle) trap_FS_FCloseFile(files->files[i].handle);
+        if (files->files[i].local) fclose(files->files[i].local);
         memset(&files->files[i], 0, sizeof(files->files[i]));
     }
     return 0;
@@ -75,10 +186,12 @@ static int Open(lua_State *L) {
     luaL_argcheck(L, mode == FS_READ || mode == FS_WRITE || mode == FS_APPEND,
                   2, "unsupported filesystem mode");
     for (i = 0; i < TCE_LUA_FILE_HANDLES; ++i)
-        if (!files->files[i].handle) { file = &files->files[i]; break; }
+        if (!files->files[i].handle && !files->files[i].local) { file = &files->files[i]; break; }
     if (!file) return luaL_error(L, "Lua VM file handle limit reached (32)");
-    length = trap_FS_FOpenFile(path, &file->handle, (fsMode_t)mode);
-    if (length < 0 || !file->handle) {
+    length = -1;
+    if (mode == FS_READ) file->local = LocalRead(path, &length);
+    if (!file->local) length = trap_FS_FOpenFile(path, &file->handle, (fsMode_t)mode);
+    if (length < 0 || (!file->handle && !file->local)) {
         if (file->handle) trap_FS_FCloseFile(file->handle);
         memset(file, 0, sizeof(*file));
         lua_pushinteger(L, 0);
@@ -86,7 +199,7 @@ static int Open(lua_State *L) {
     } else {
         file->mode = (int)mode;
         file->remaining = length;
-        lua_pushinteger(L, file->handle);
+        lua_pushinteger(L, i + 1);
         lua_pushinteger(L, length);
     }
     return 2;
@@ -103,7 +216,8 @@ static int Read(lua_State *L) {
      * The engine read trap has no byte-count return; cap at open-time EOF. */
     buffer = (char *)lua_newuserdatauv(L, (size_t)length, 0);
     memset(buffer, 0, (size_t)length);
-    trap_FS_Read(buffer, length, file->handle);
+    if (file->local) length = (int)fread(buffer, 1, length, file->local);
+    else trap_FS_Read(buffer, length, file->handle);
     file->remaining -= length;
     lua_pushlstring(L, buffer, (size_t)length);
     return 1;
@@ -123,7 +237,8 @@ static int Write(lua_State *L) {
 
 static int Close(lua_State *L) {
     tceLuaFile *file = File(L, 1);
-    trap_FS_FCloseFile(file->handle);
+    if (file->local) fclose(file->local);
+    else trap_FS_FCloseFile(file->handle);
     memset(file, 0, sizeof(*file));
     return 0;
 }
@@ -153,6 +268,7 @@ static int FileList(lua_State *L) {
         lua_rawseti(L, -2, i + 1);
         offset += length + 1;
     }
+    ListLocal(L,path,extension,&offset);
     return 1;
 }
 

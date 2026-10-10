@@ -6,10 +6,11 @@
 #include <stdlib.h>
 
 extern int luaopen_luasql_sqlite3(lua_State *L);
+extern char *TCE_LuaReadSource(const char *path, int *length);
 static char loadingMarker;
 
 static int Require(lua_State *L) {
-    size_t n, i; char path[MAX_QPATH]; fileHandle_t f; int size, status;
+    size_t n, i; char path[MAX_QPATH]; int size, status;
     char *source; const char *name = luaL_checklstring(L, 1, &n);
     luaL_argcheck(L, n > 0 && n + 5 < sizeof(path) && !memchr(name, 0, n)
         && !strstr(name, "..") && name[0] != '/', 1, "invalid module name");
@@ -32,16 +33,11 @@ static int Require(lua_State *L) {
         lua_pushcfunction(L, luaopen_luasql_sqlite3);
     } else {
         char filename[MAX_QPATH]; Com_sprintf(filename, sizeof(filename), "%s.lua", path);
-        size = trap_FS_FOpenFile(filename, &f, FS_READ);
-        if(size < 0 || !f || size > 1024*1024) {
-            if(f) trap_FS_FCloseFile(f);
+        source = TCE_LuaReadSource(filename, &size);
+        if(!source) {
             lua_pushnil(L); lua_setfield(L, -2, path);
             return luaL_error(L, "module missing or exceeds 1 MiB: %s", filename);
         }
-        source = malloc((size_t)size + 1);
-        if(!source) { trap_FS_FCloseFile(f); return luaL_error(L, "module allocation failed"); }
-        memset(source, 0, (size_t)size + 1);
-        trap_FS_Read(source, size, f); trap_FS_FCloseFile(f);
         status = luaL_loadbufferx(L, source, size, filename, "t"); free(source);
         if(status != LUA_OK) {
             lua_pushnil(L); lua_setfield(L, -3, path); return lua_error(L);

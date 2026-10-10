@@ -35,7 +35,7 @@ extern vmCvar_t	ui_master;
 
 extern vmCvar_t	ui_brassTime;
 extern vmCvar_t	ui_drawCrosshair;
-extern vmCvar_t	ui_drawCrosshairNames;
+extern vmCvar_t	ui_drawTeamNames;
 extern vmCvar_t	ui_drawCrosshairPickups;	//----(SA) added
 extern vmCvar_t	ui_marks;
 // JOSEPH 12-3-99

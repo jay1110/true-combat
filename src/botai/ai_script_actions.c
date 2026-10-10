@@ -138,7 +138,7 @@ qboolean Bot_ScriptAction_SetAccumToPlayerCount( bot_state_t *bs, char *params )
 	for (i=0; i<level.maxclients; i++) {
 		if (!g_entities[i].inuse) continue;
 		if (!g_entities[i].client) continue;
-		if (!g_entities[i].client->pers.connected != CON_CONNECTED) continue;
+		if (g_entities[i].client->pers.connected != CON_CONNECTED) continue;
 		validPlayers[i] = 1;
 		count++;
 	}
@@ -2064,7 +2064,7 @@ qboolean Bot_ScriptAction_FireAtTarget( bot_state_t *bs, char *params )
 	else //if (bs->weaponnum != WP_MORTAR_SET)
 	{
 		for (i = 0; i < 2; i++) {
-			diff = abs(AngleDifference(bs->cur_ps.viewangles[i], bs->ideal_viewangles[i]));
+			diff = fabsf(AngleDifference(bs->cur_ps.viewangles[i], bs->ideal_viewangles[i]));
 			if (VectorCompare( vec3_origin, ent->s.pos.trDelta )) {
 				if (diff) {
 					return qfalse;	// not facing yet

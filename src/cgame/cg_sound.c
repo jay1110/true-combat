@@ -412,7 +412,7 @@ static void CG_SoundLoadSoundFiles( void ) {
 		if (!token[0]) {
 			break;
 		}
-		Com_sprintf( soundFiles[numSounds++], MAX_QPATH, token );
+		Q_strncpyz( soundFiles[numSounds++], token, MAX_QPATH );
 	}
 
 	// add the map specific soundfile
@@ -518,7 +518,7 @@ qboolean CG_SaveSpeakersToScript( void )
 	}
 
 	s = "speakerScript\n{";
-	trap_FS_Write( s, strlen(s), fh );
+	trap_FS_Write( s, Q_strlenInt(s), fh );
 
 	for( i = 0; i < BG_NumScriptSpeakers(); i++ ) {
 		char filenameStr[96] = "";
@@ -574,11 +574,11 @@ qboolean CG_SaveSpeakersToScript( void )
 				volumeStr,
 				rangeStr );
 
-		trap_FS_Write( s, strlen(s), fh );
+		trap_FS_Write( s, Q_strlenInt(s), fh );
 	}
 
 	s = "}\n";
-	trap_FS_Write( s, strlen(s), fh );
+	trap_FS_Write( s, Q_strlenInt(s), fh );
 
 	trap_FS_FCloseFile( fh );
 
@@ -1115,14 +1115,14 @@ qboolean CG_SpeakerEditor_NoiseEdit_KeyDown( panel_button_t* button, int key )
 
 			fileptr = bigTextBuffer;
 			
-			if( !*noiseMatchString || Q_stricmpn( noiseMatchString, filename, strlen(noiseMatchString) ) ) {
+			if( !*noiseMatchString || Q_stricmpn( noiseMatchString, filename, Q_strlenInt(noiseMatchString) ) ) {
 				Q_strncpyz( noiseMatchString, filename, sizeof(noiseMatchString) );
 				noiseMatchCount = 0;
 				noiseMatchIndex = 0;
 
 				for( i = 0; i < numfiles; i++, fileptr += filelen + 1 ) {
-					filelen = strlen(fileptr);
-					if ( Q_stricmpn( fileptr, filename, strlen( filename ) ) ) {
+					filelen = Q_strlenInt(fileptr);
+					if ( Q_stricmpn( fileptr, filename, Q_strlenInt( filename ) ) ) {
 						continue;
 					}
 
@@ -1149,8 +1149,8 @@ qboolean CG_SpeakerEditor_NoiseEdit_KeyDown( panel_button_t* button, int key )
 						noiseMatchIndex = 0;
 
 					for( i = 0; i < numfiles; i++, fileptr += filelen + 1 ) {
-						filelen = strlen(fileptr);
-						if ( Q_stricmpn( fileptr, noiseMatchString, strlen( noiseMatchString ) ) ) {
+						filelen = Q_strlenInt(fileptr);
+						if ( Q_stricmpn( fileptr, noiseMatchString, Q_strlenInt( noiseMatchString ) ) ) {
 							continue;
 						}
 

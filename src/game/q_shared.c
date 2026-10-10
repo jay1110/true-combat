@@ -3,6 +3,17 @@
 // q_shared.c -- stateless support routines that are included in each code dll
 #include "q_shared.h"
 
+int Q_strlenInt( const char *string ) {
+	size_t length = strlen(string);
+	/* Reserve the terminator used by allocation/copy callers. */
+	if (length >= INT_MAX) {
+		Com_Error(ERR_FATAL, "Q_strlenInt: string exceeds engine length limit");
+		return 0;
+	}
+	return (int)length;
+}
+
+
 // os x game bundles have no standard library links, and the defines are not always defined!
 
 #ifdef MACOS_X
@@ -82,7 +93,7 @@ void COM_StripExtension( const char *in, char *out ) {
 
 void COM_StripFilename(char *in, char *out) {
 	char *end;
-	Q_strncpyz( out, in, strlen(in) + 1 );
+	Q_strncpyz( out, in, Q_strlenInt(in) + 1 );
 	end = COM_SkipPath(out);
 	*end = 0;
 }
@@ -957,7 +968,7 @@ char *Q_strupr( char *s1 ) {
 void Q_strcat( char *dest, int size, const char *src ) {
 	int		l1;
 
-	l1 = strlen( dest );
+	l1 = Q_strlenInt( dest );
 	if ( l1 >= size ) {
 		Com_Error( ERR_FATAL, "Q_strcat: already overflowed" );
 	}
@@ -1071,7 +1082,7 @@ Ridah, modified this into a circular list, to further prevent stepping on
 previous strings
 ============
 */
-char	* QDECL va( char *format, ... ) {
+char	* QDECL va( const char *format, ... ) {
 	va_list		argptr;
 	#define	MAX_VA_STRING	32000
 	static char		temp_buffer[MAX_VA_STRING];
@@ -1085,7 +1096,7 @@ char	* QDECL va( char *format, ... ) {
 	vsprintf (temp_buffer, format,argptr);
 	va_end (argptr);
 
-	if ((len = strlen(temp_buffer)) >= MAX_VA_STRING) {
+	if ((len = Q_strlenInt(temp_buffer)) >= MAX_VA_STRING) {
 		Com_Error( ERR_DROP, "Attempted to overrun string in call to va()\n" );
 	}
 

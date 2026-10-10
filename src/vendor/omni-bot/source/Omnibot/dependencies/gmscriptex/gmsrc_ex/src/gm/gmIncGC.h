@@ -123,7 +123,7 @@ private:
 	gmGCObjBase* m_next;                            ///< Point to next object in color set
 	char m_color;                                   ///< Is gray or black flag, really only need by 1 bit
 	char m_persist;                                 ///< This object is persistant
-	char m_pad[2];                                  ///< Pad to dword
+	[[maybe_unused]] char m_pad[2];                                  ///< Pad to dword
 };
 
 //////////////////////////////////////////////////

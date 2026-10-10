@@ -119,7 +119,7 @@ int CG_Text_Width_Ext( const char *text, float scale, int limit, fontInfo_t* fon
 	
 	out = 0;
 	if( text ) {
-		len = strlen( text );
+		len = Q_strlenInt( text );
 		if (limit > 0 && len > limit) {
 			len = limit;
 		}
@@ -247,7 +247,7 @@ int CG_Text_Height_Ext( const char *text, float scale, int limit, fontInfo_t* fo
 	useScale = scale * font->glyphScale;
 	max = 0;
 	if (text) {
-		len = strlen(text);
+		len = Q_strlenInt(text);
 		if (limit > 0 && len > limit) {
 			len = limit;
 		}
@@ -322,7 +322,7 @@ void CG_Text_Paint_Ext( float x, float y, float scalex, float scaley, vec4_t col
 		const char *s = text;
 		trap_R_SetColor( color );
 		memcpy(&newColor[0], &color[0], sizeof(vec4_t));
-		len = strlen(text);
+		len = Q_strlenInt(text);
 		if (limit > 0 && len > limit) {
 			len = limit;
 		}
@@ -401,7 +401,7 @@ int CG_DrawFieldWidth (int x, int y, int width, int value, int charWidth, int ch
 	}
 
 	Com_sprintf (num, sizeof(num), "%i", value);
-	l = strlen(num);
+	l = Q_strlenInt(num);
 	if (l > width)
 		l = width;
 
@@ -456,7 +456,7 @@ int CG_DrawField (int x, int y, int width, int value, int charWidth, int charHei
 	}
 
 	Com_sprintf (num, sizeof(num), "%i", value);
-	l = strlen(num);
+	l = Q_strlenInt(num);
 	if (l > width)
 		l = width;
 
@@ -1338,7 +1338,7 @@ static void CG_TCEScopeCenter(float *x, float *y, vec3_t angles) {
     angles[0] += ((float)cg.predictedPlayerState.holdable[5] - 2000.0f) * 0.01f;
     angles[1] += ((float)cg.predictedPlayerState.holdable[6] - 2000.0f) * 0.01f;
     AngleVectors(angles, forward, NULL, NULL);
-    AngleVectors(cg.predictedPlayerState.viewangles, NULL, right, up);
+    AngleVectors(cg.refdefViewAngles, NULL, right, up);
     radians = cg.refdef.fov_x * 0.01745329238474369f;
     *x = (float)((asin(DotProduct(forward,right)) / radians) * 852.0 + 426.0);
     *y = (float)(240.0 - (asin(DotProduct(forward,up)) / radians) * 852.0);
@@ -2954,81 +2954,67 @@ void CG_CheckForCursorHints( void ) {
 CG_DrawCrosshairNames
 =====================
 */
-static void TCE_DrawCrosshairNamesContents(void) {
-    float *color, dist, zChange, w;
-    qboolean hitClient = qfalse, isTank = qfalse, disguised = qfalse;
-    const char *text, *letter, *rank;
-    int target, viewer;
-    if (cg_drawCrosshair.integer < 0) return;
-    dist = CG_ScanForCrosshairEntity(&zChange, &hitClient);
-    if (cg.renderingThirdPerson) return;
-    color = CG_FadeColor(cg.crosshairClientTime, 1000);
-    if (!color) { trap_R_SetColor(NULL); return; }
-    target = cg.crosshairClientNum;
-    viewer = cg.snap->ps.clientNum;
-    if (target > MAX_CLIENTS) {
-        if (!cg_drawCrosshairNames.integer || cgs.clientinfo[viewer].team == TEAM_SPECTATOR) return;
-        if (cg_entities[target].currentState.eType == ET_MOVER && cg_entities[target].currentState.effect1Time) {
-            isTank = qtrue;
-            text = Info_ValueForKey(CG_ConfigString(CS_SCRIPT_MOVER_NAMES), va("%i", target));
-            if (!*text) return;
-            w = CG_DrawStrlen(text) * SMALLCHAR_WIDTH;
-            CG_DrawSmallStringColor((int)(426 - w * .5f), 170, text, color);
-        } else {
-            if (cg_entities[target].currentState.eType != ET_CONSTRUCTIBLE_MARKER) return;
-            text = Info_ValueForKey(CG_ConfigString(CS_CONSTRUCTION_NAMES), va("%i", target));
-            if (!*text) return;
-            w = CG_DrawStrlen(text) * SMALLCHAR_WIDTH;
-            CG_DrawSmallStringColor((int)(426 - w * .5f), 170, text, color);
-            return;
-        }
-    } else if (cgs.clientinfo[target].team != cgs.clientinfo[viewer].team) {
-        if (!(cg_entities[target].currentState.powerups & (1 << PW_OPS_DISGUISED)) ||
-            cgs.clientinfo[viewer].team == TEAM_SPECTATOR) return;
-        if (cgs.clientinfo[viewer].skill[SK_SIGNALS] >= 4 && cgs.clientinfo[viewer].cls == PC_FIELDOPS) {
-            text = CG_TranslateString("Disguised Enemy!");
-            w = CG_DrawStrlen(text) * SMALLCHAR_WIDTH;
-            CG_DrawSmallStringColor((int)(426 - w * .5f), 170, text, color);
-            return;
-        }
-        if (dist <= 512 || !cg_drawCrosshairNames.integer) return;
-        disguised = qtrue;
-        letter = BG_ClassLetterForNumber((cg_entities[target].currentState.powerups >> PW_OPS_CLASS_1) & 6);
-        rank = cgs.clientinfo[target].team == TEAM_AXIS ?
-            rankNames_Allies[cgs.clientinfo[target].disguiseRank] : rankNames_Axis[cgs.clientinfo[target].disguiseRank];
-        text = va("[%s] %s %s", CG_TranslateString(letter), rank, cgs.clientinfo[target].disguiseName);
-        w = CG_DrawStrlen(text) * SMALLCHAR_WIDTH;
-        CG_DrawSmallStringColor((int)(426 - w * .5f), 170, text, color);
-    }
-    if (!cg_drawCrosshairNames.integer || isTank) return;
-    if (cgs.clientinfo[viewer].team == TEAM_SPECTATOR ||
-        cgs.clientinfo[target].team == cgs.clientinfo[viewer].team ||
-        cg.time - cg.tceCrosshairTargetTime > 1500) {
-        BG_ClassLetterForNumber(cg_entities[target].currentState.teamNum);
-        text = va(cgs.clientinfo[target].team == cgs.clientinfo[viewer].team ? "%s" : "Enemy: %s",
-                  cgs.clientinfo[target].name);
-        color[0] = cgs.clientinfo[target].team == TEAM_ALLIES ? 0 : .7f;
-        color[1] = 0;
-        color[2] = cgs.clientinfo[target].team == TEAM_ALLIES ? .7f : 0;
-        w = CG_Text_Width_Ext(text, .2f, 0, &cgs.media.limboFont1);
-        CG_Text_Paint_Ext(426 - (int)w * .5f, 378, .2f, .2f, color, text, 0, 0, 3, &cgs.media.limboFont1);
-        trap_R_SetColor(NULL);
-    } else if (disguised) {
-        trap_R_SetColor(NULL);
-    }
+/* Keep crosshair identification for server-supplied teammate information.
+ * CQB no longer paints the SDK center-screen crosshair name. */
+static void CG_UpdateCrosshairTarget(void) {
+    float zChange;
+    qboolean hitClient;
+    if (cg_drawCrosshair.integer >= 0) CG_ScanForCrosshairEntity(&zChange, &hitClient);
 }
 
-static void CG_DrawCrosshairNames(void) {
+/* CQB CG_Draw2D 0005a5c0 overhead labels, adapted to native TC structures.
+ * The optional cvar and independent per-name alpha are TCE2 extensions. */
+static void CG_DrawTeamNames(void) {
     extern qboolean tce_uiCoordinates;
-    qboolean previous = tce_uiCoordinates;
+    extern int tceSmokeNewBBox;
+    int i, team = cg.predictedPlayerState.persistant[PERS_TEAM];
+    qboolean previous;
+    if (!cg_drawTeamNames.integer || cg.showScores || cg.showGameView ||
+        team == TEAM_SPECTATOR || cg.renderingThirdPerson) return;
+    previous = tce_uiCoordinates;
     tce_uiCoordinates = qtrue;
-    TCE_DrawCrosshairNamesContents();
+    for (i = 0; i < MAX_CLIENTS; ++i) {
+        centity_t *cent = &cg_entities[i];
+        clientInfo_t *ci = &cgs.clientinfo[i];
+        vec3_t direction;
+        vec4_t color = {1, 1, 1, .5f};
+        float distance, forward, side, up, scale, x, y, height, projection;
+        if (i == cg.predictedPlayerState.clientNum || !ci->infoValid || ci->team != team ||
+            ci->health <= 0 || cent->currentState.eType != ET_PLAYER ||
+            (cent->currentState.eFlags & (EF_DEAD | EF_NODRAW | EF_CONNECTION))) {
+            cent->tceTeamNameUntil = 0;
+            continue;
+        }
+        /* CQB also gates on its team-position feed. TC's scanner publishes
+         * only the bomb carrier, so use the real snapshot/visibility state
+         * instead; importing that CQB wire gate would hide all normal names. */
+        if (cent->currentValid && cent->tceVisible) cent->tceTeamNameUntil = cg.time + 500;
+        if (!cent->tceTeamNameUntil || cg.time > cent->tceTeamNameUntil) continue;
+        if (!cent->currentValid || !cent->tceVisible)
+            color[3] *= (cent->tceTeamNameUntil - cg.time) * .002f;
+        height = (cent->currentState.effect1Time & 4) ? 12.f : 48.f;
+        if (tceSmokeNewBBox) height += 12.f;
+        if (cent->currentState.animMovetype) height -= 18.f;
+        VectorSubtract(cent->lerpOrigin, cg.refdef.vieworg, direction);
+        direction[2] += height;
+        distance = VectorNormalize(direction);
+        forward = DotProduct(direction, cg.refdef.viewaxis[0]);
+        if (forward < .5f || distance > 4096.f || cg.tceNameTanHalfFov <= 0) continue;
+        side = DotProduct(direction, cg.refdef.viewaxis[1]);
+        up = DotProduct(direction, cg.refdef.viewaxis[2]);
+        /* Algebraically the original radial/(cos(asin(radial))*tanFov)
+         * projection, without its 0/0 at the exact center of the screen. */
+        projection = 426.f / (forward * cg.tceNameTanHalfFov);
+        if (distance < 384.f) distance = 384.f;
+        scale = .2f * sqrt(384.f / distance);
+        if (distance > 3584.f) color[3] *= (4096.f - distance) / 512.f;
+        x = 426.f - side * projection - CG_Text_Width_Ext(ci->name, scale, 0, &cgs.media.limboFont1) * .5f;
+        y = 240.f - up * projection;
+        CG_Text_Paint_Ext(x, y, scale, scale, color, ci->name, 0, 0, 3, &cgs.media.limboFont1);
+    }
+    trap_R_SetColor(NULL);
     tce_uiCoordinates = previous;
 }
-
-
-
-
 
 //==============================================================================
 
@@ -3563,7 +3549,7 @@ void CG_ObjectivePrint( const char *str, int charWidth ) {
 	Q_strncpyz( cg.oidPrint, s, sizeof(cg.oidPrint) );
 
 	// NERVE - SMF - turn spaces into newlines, if we've run over the linewidth
-	len = strlen( cg.oidPrint );
+	len = Q_strlenInt( cg.oidPrint );
 	for ( i = 0; i < len; i++ ) {
 
 		// NOTE: subtract a few chars here so long words still get displayed properly
@@ -3848,6 +3834,29 @@ static void CG_DrawRadarIcon(int x,int y,int w,int h,const vec3_t origin,const v
     CG_DrawPic(px-size*.5f,py-size*.5f,size,size,shader);
 }
 
+/* CQB00053300: fixed-size, heading-aware contacts; sine range compression
+ * retains detail near the player and clamps distant contacts to the rim. */
+static void CG_DrawCompassContact(float y, const vec3_t target, float heading,
+                                  qboolean enemy) {
+    vec3_t delta,angles;
+    float distance,fraction,radians,px,py;
+    qhandle_t shader;
+    VectorSubtract(cg.predictedPlayerState.origin,target,delta);
+    distance=VectorLength(delta);
+    if(distance<=0)return;
+    vectoangles(delta,angles);
+    fraction=distance*.0005f;
+    if(fraction>1)fraction=1;
+    fraction=(float)sin(fraction*M_PI*.5);
+    radians=(AngleSubtract(cg.predictedPlayerState.viewangles[YAW],angles[YAW])+180.f)/360.f-.25f;
+    radians*=2.f*M_PI;
+    px=792.f+(float)cos(radians)*30.f*fraction;
+    py=y+(float)sin(radians)*30.f*fraction;
+    shader=trap_R_RegisterShaderNoMip(enemy?"gfx/misc/radar_dot.tga":"gfx/misc/radar_arrow.tga");
+    CG_DrawRotatedPic(px-4,py-4,8,8,shader,
+        AngleSubtract(cg.predictedPlayerState.viewangles[YAW],heading)/360.f+.125f);
+}
+
 static void CG_DrawRadar( void ) {
     extern qboolean tce_uiCoordinates;
     qboolean previous=tce_uiCoordinates;
@@ -3871,10 +3880,16 @@ static void CG_DrawRadar( void ) {
         qhandle_t shader=0,above=0,below=0;
         centity_t *cent;
         entityState_t *es;
-        for(i=0;i<64;i++) {
-            if(VectorLength(cg.tceRadarPositions[0][i])!=0 && snap->ps.persistant[PERS_TEAM]==TEAM_AXIS)
-                CG_DrawRadarIcon(762,(int)(y-30),60,60,cg.predictedPlayerState.origin,cg.tceRadarPositions[0][i],cgs.media.tceRadarCarrier,0,0);
-            /* The Windows and Linux originals do not draw the second array. */
+        if(cg.tceRadarViewerTeam==team) for(i=0;i<64;i++) {
+            int group;
+            if(i==snap->ps.clientNum)continue;
+            for(group=0;group<2;group++) {
+                if(!cg.tceRadarTimes[group][i] ||
+                   cg.time-cg.tceRadarTimes[group][i]>(group==team-1?cg.tceRadarTeamTimeout:750) ||
+                   !cgs.clientinfo[i].infoValid || cgs.clientinfo[i].team!=group+1)continue;
+                CG_DrawCompassContact(y,cg.tceRadarPositions[group][i],
+                    cg.tceRadarYaw[group][i],group!=team-1);
+            }
         }
         if(cg_gameType.integer==2 || cg_gameType.integer==5) for(i=0;i<snap->numEntities;i++) {
             cent=&cg_entities[snap->entities[i].number];es=&cent->currentState;
@@ -4629,10 +4644,11 @@ static void CG_Draw2D( void ) {
 	if( !cg.cameraMode ) {
 		CG_DrawCrosshair();
 		CG_DrawFlashBlendBehindHUD();
+		CG_DrawTeamNames();
 
 		if ( cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR ) {
 			CG_DrawSpectator();
-			CG_DrawCrosshairNames();
+			CG_UpdateCrosshairTarget();
 
 			// NERVE - SMF - we need to do this for spectators as well
 			CG_DrawTeamInfo();
@@ -4640,7 +4656,7 @@ static void CG_Draw2D( void ) {
 			// don't draw any status if dead
 			if ( cg.snap->ps.stats[STAT_HEALTH] > 0 || (cg.snap->ps.pm_flags & PMF_FOLLOW) ) {
 
-				CG_DrawCrosshairNames();
+				CG_UpdateCrosshairTarget();
 
 				CG_DrawNoShootIcon();
 
@@ -5030,7 +5046,7 @@ static void CG_DrawTCEScopeScene(void) {
     angles[1]+=((float)cg.predictedPlayerState.holdable[6]-2000.0f)*0.01f;
 #endif
     AngleVectors(angles,forward,NULL,NULL);
-    AngleVectors(cg.predictedPlayerState.viewangles,NULL,right,up);
+    AngleVectors(cg.refdefViewAngles,NULL,right,up);
 #if defined(_MSC_VER) && defined(_M_IX86)
     {
         const float scopeProjectionFov=cg.refdef.fov_x;

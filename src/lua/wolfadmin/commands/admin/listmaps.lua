@@ -23,6 +23,14 @@ local game = wolfa_requireModule("game.game")
 
 function commandListMaps(clientId, command)
     local maps = game.getMaps()
+    if #maps == 0 then
+        maps = {}
+        for _, file in ipairs(et.FS_GetFileList("maps", ".bsp")) do
+            local name = file:gsub("%.bsp$", "")
+            if name:match("^obj_[%w_%-]+$") then maps[#maps + 1] = name end
+        end
+        table.sort(maps)
+    end
 
     if #maps == 0 then
         et.trap_SendConsoleCommand(et.EXEC_APPEND, "csay "..clientId.." \"^dlistmaps: ^9no map information available.\";")
@@ -43,4 +51,4 @@ function commandListMaps(clientId, command)
 
     return true
 end
-commands.addadmin("listmaps", commandListMaps, auth.PERM_LISTMAPS, "display the maps in the rotation")
+commands.addadmin("listmaps", commandListMaps, auth.PERM_LISTMAPS, "display configured map rotation, or installed TC:E maps")

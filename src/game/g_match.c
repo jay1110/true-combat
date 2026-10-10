@@ -288,7 +288,7 @@ void G_addStatsHeadShot(gentity_t *attacker, int mod)
 //
 // FIXME: Remove everything that maps to WS_MAX to save space
 //
-static const weap_ws_convert_t aWeapMOD[MOD_NUM_MODS] = {
+static const struct { meansOfDeath_t iWeapon; extWeaponStats_t iWS; } aWeapMOD[MOD_NUM_MODS] = {
 	{ MOD_UNKNOWN,				WS_MAX },
 	{ MOD_MACHINEGUN,			WS_MG42 },
 	{ MOD_GRENADE,				WS_GRENADE },
@@ -411,7 +411,7 @@ char *G_createStats(gentity_t *refEnt)
 		}
 	}
 
-	return(va("%d %d %d%s %d%s", refEnt - g_entities,
+	return(va("%d %d %d%s %d%s", (int)(refEnt - g_entities),
 								 refEnt->client->sess.rounds,
 								 dwWeaponMask,
 								 strWeapInfo,

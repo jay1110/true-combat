@@ -32,12 +32,12 @@ function commandShowSprees(clientId, command)
 
     local records = sprees.get()
 
-    if #records == 0 then
+    if next(records) == nil then
         et.trap_SendConsoleCommand(et.EXEC_APPEND, "csay "..clientId.." \"^dsprees: ^9there are no records for this map yet.\"")
     else
         for i = 0, sprees.TYPE_NUM - 1 do
             if records[i] and records[i]["record"] > 0 then
-                et.trap_SendConsoleCommand(et.EXEC_APPEND, "cchat -1 \"^dsprees: ^9longest "..sprees.getRecordNameByType(i).." spree (^7"..records[i]["record"].."^9) by ^7"..db.getLastAlias(records[i]["player"])["alias"].."^9.\";")
+                et.trap_SendConsoleCommand(et.EXEC_APPEND, "cchat -1 \"^dsprees: ^9longest "..sprees.getRecordNameByType(i).." spree (^7"..records[i]["record"].."^9) by ^7"..(db.getLastAlias(records[i]["player"]) or {alias = "unknown player"})["alias"].."^9.\";")
             end
         end
     end

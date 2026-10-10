@@ -72,6 +72,7 @@ static int Get(lua_State *L) {
         else if(!strcmp(f, "ps.ping")) lua_pushinteger(L, c->ps.ping);
         else if(!strcmp(f, "ps.weapon")) lua_pushinteger(L, c->ps.weapon);
         else if(!strcmp(f, "ps.origin")) PushVector(L, c->ps.origin);
+        else if(!strcmp(f, "ps.velocity")) PushVector(L, c->ps.velocity);
         else if(!strcmp(f, "ps.viewangles")) PushVector(L, c->ps.viewangles);
         else if(!strcmp(f, "ps.ammo")) lua_pushinteger(L, c->ps.ammo[Integer(L, 3, 0, MAX_WEAPONS - 1)]);
         else if(!strcmp(f, "ps.ammoclip")) lua_pushinteger(L, c->ps.ammoclip[Integer(L, 3, 0, MAX_WEAPONS - 1)]);

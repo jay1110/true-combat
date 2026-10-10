@@ -107,6 +107,7 @@ vmCvar_t	pmove_msec;
 
 // Rafael
 vmCvar_t	g_scriptName;		// name of script file to run (instead of default for that map)
+vmCvar_t g_mapScriptDirectory;
 
 vmCvar_t	g_developer;
 
@@ -256,7 +257,7 @@ cvarTable_t		gameCvarTable[] = {
 	{ &g_engineerChargeTime, "g_engineerChargeTime", "30000", CVAR_SERVERINFO | CVAR_LATCH, 0, qfalse, qtrue },
 	{ &g_LTChargeTime, "g_LTChargeTime", "40000", CVAR_SERVERINFO | CVAR_LATCH, 0, qfalse, qtrue },
 	{ &g_soldierChargeTime, "g_soldierChargeTime", "20000", CVAR_SERVERINFO | CVAR_LATCH, 0, qfalse, qtrue },
-	{ &tce_version, "tce_version", "TC:E reconstruction (tce2)", CVAR_SERVERINFO | CVAR_ROM, 0, 1, 0, 0 },
+	{ &tce_version, "tce_version", TCE_VERSION, CVAR_SERVERINFO | CVAR_ROM, 0, 1, 0, 0 },
 // jpw
 
 	{ &g_covertopsChargeTime, "g_covertopsChargeTime", "30000", CVAR_SERVERINFO | CVAR_LATCH, 0, qfalse, qtrue },
@@ -364,6 +365,7 @@ cvarTable_t		gameCvarTable[] = {
 	{ &g_footstepAudibleRange, "g_footstepAudibleRange", "256", CVAR_CHEAT, 0, qfalse },
 
 	{ &g_scriptName, "g_scriptName", "", CVAR_CHEAT, 0, qfalse },
+	{ &g_mapScriptDirectory, "g_mapScriptDirectory", "", 0, 0, qfalse },
 
 	{ &g_antilag, "g_antilag", "1", CVAR_SERVERINFO | CVAR_ARCHIVE, 0, qfalse },
 
@@ -498,7 +500,7 @@ This must be the very first function compiled into the .q3vm file
 #pragma export on
 #endif
 #endif
-int vmMain( int command, int arg0, int arg1, int arg2, int arg3, int arg4, int arg5, int arg6 ) {
+intptr_t vmMain( intptr_t command, intptr_t arg0, intptr_t arg1, intptr_t arg2, intptr_t arg3, intptr_t arg4, intptr_t arg5, intptr_t arg6, intptr_t arg7, intptr_t arg8, intptr_t arg9, intptr_t arg10, intptr_t arg11 ) {
 #if defined(__MACOS__)
 #ifndef __GNUC__
 #pragma export off
@@ -521,7 +523,7 @@ int vmMain( int command, int arg0, int arg1, int arg2, int arg3, int arg4, int a
 		G_ShutdownGame( arg0 );
 		return 0;
 	case GAME_CLIENT_CONNECT:
-		return (int)ClientConnect( arg0, arg1, arg2 );
+		return (intptr_t)ClientConnect( arg0, arg1, arg2 );
 	case GAME_CLIENT_THINK:
 		ClientThink( arg0 );
 		return 0;
@@ -926,7 +928,7 @@ void G_CheckForCursorHints( gentity_t *ent ) {
 			// I'm making this into a switch in a vain attempt to make this readable so I can find which
 			// brackets don't match!!!
 
-			switch (checkEnt->s.eType) {
+			switch ((int)checkEnt->s.eType) {
 				case ET_CORPSE:
 					if( !ent->client->ps.powerups[PW_BLUEFLAG] && !ent->client->ps.powerups[PW_REDFLAG] && !ent->client->ps.powerups[PW_OPS_DISGUISED]) {
 						if( BODY_TEAM(traceEnt) < 4 && BODY_TEAM(traceEnt) != ent->client->sess.sessionTeam && traceEnt->nextthink == traceEnt->timestamp + BODY_TIME(BODY_TEAM(traceEnt))) {
@@ -1748,6 +1750,27 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
 	G_Printf ("------- Game Initialization -------\n");
 	G_Printf ("gamename: %s\n", GAMEVERSION);
 	G_Printf ("gamedate: %s\n", __DATE__);
+	{
+		fileHandle_t manifest = 0;
+		char version[32];
+		int length = trap_FS_FOpenFile(TCE_CLIENT_MANIFEST, &manifest, FS_READ);
+		/* Reading this unique member references the client PK3 for pure/download
+		 * checks on dedicated servers of every architecture, like Legacy's
+		 * platforms.manifest. qagame is deliberately not in that PK3. */
+		if (!manifest || length <= 0 || length >= (int)sizeof(version)) {
+			if (manifest) trap_FS_FCloseFile(manifest);
+			G_Error("Missing/invalid tce2-" TCE_VERSION ".pk3 client manifest");
+			return;
+		}
+		trap_FS_Read(version, length, manifest);
+		trap_FS_FCloseFile(manifest);
+		version[length] = '\0';
+		if (strcmp(version, TCE_VERSION)) {
+			G_Error("TCE2 client package version mismatch; expected " TCE_VERSION);
+			return;
+		}
+		G_Printf("TCE2 %s: client package manifest referenced\n", TCE_VERSION);
+	}
 
 	srand( randomSeed );
 
@@ -2779,7 +2802,7 @@ void QDECL G_LogPrintf( const char *fmt, ... ) {
 
 	Com_sprintf( string, sizeof(string), "%i:%i%i ", min, tens, sec );
 
-	l = strlen( string );
+	l = Q_strlenInt( string );
 
 	va_start( argptr, fmt );
 	Q_vsnprintf( string + l, sizeof( string ) - l, fmt, argptr );
@@ -2793,7 +2816,7 @@ void QDECL G_LogPrintf( const char *fmt, ... ) {
 		return;
 	}
 
-	trap_FS_Write( string, strlen( string ), level.logFile );
+	trap_FS_Write( string, Q_strlenInt( string ), level.logFile );
 }
 //bani
 void QDECL G_LogPrintf( const char *fmt, ... )_attribute((format(printf,1,2)));

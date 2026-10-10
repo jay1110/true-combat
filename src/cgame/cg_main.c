@@ -33,7 +33,7 @@ This must be the very first function compiled into the .q3vm file
 #pragma export on
 #endif
 #endif
-int vmMain( int command, int arg0, int arg1, int arg2, int arg3, int arg4, int arg5, int arg6, int arg7, int arg8, int arg9, int arg10, int arg11  ) {
+intptr_t vmMain( intptr_t command, intptr_t arg0, intptr_t arg1, intptr_t arg2, intptr_t arg3, intptr_t arg4, intptr_t arg5, intptr_t arg6, intptr_t arg7, intptr_t arg8, intptr_t arg9, intptr_t arg10, intptr_t arg11  ) {
 #if defined(__MACOS__)
 #ifndef __GNUC__
 #pragma export off
@@ -76,7 +76,7 @@ int vmMain( int command, int arg0, int arg1, int arg2, int arg3, int arg4, int a
 	case CG_MESSAGERECEIVED:
 		return -1;
 	default:
-		CG_Error( "vmMain: unknown command %i", command );
+		CG_Error( "vmMain: unknown command %i", (int)command );
 		break;
 	}
 	return -1;
@@ -103,7 +103,7 @@ vmCvar_t	cg_draw2D;
 vmCvar_t	cg_drawFPS;
 vmCvar_t	cg_drawSnapshot;
 vmCvar_t	cg_drawCrosshair;
-vmCvar_t	cg_drawCrosshairNames;
+vmCvar_t	cg_drawTeamNames;
 vmCvar_t	cg_drawCrosshairPickups;
 vmCvar_t	cg_weaponCycleDelay;	//----(SA)	added
 vmCvar_t	cg_cycleAllWeaps;
@@ -363,7 +363,7 @@ cvarTable_t		cvarTable[] = {
 	{ &cg_drawFPS, "cg_drawFPS", "0", CVAR_ARCHIVE  },
 	{ &cg_drawSnapshot, "cg_drawSnapshot", "0", CVAR_ARCHIVE  },
 	{ &cg_drawCrosshair, "cg_drawCrosshair", "0", CVAR_CHEAT },
-	{ &cg_drawCrosshairNames, "cg_drawCrosshairNames", "1", CVAR_ARCHIVE },
+	{ &cg_drawTeamNames, "cg_drawTeamNames", "1", CVAR_ARCHIVE },
 	{ &cg_drawCrosshairPickups, "cg_drawCrosshairPickups", "1", CVAR_ARCHIVE },
 	{ &cg_useWeapsForZoom,	"cg_useWeapsForZoom", "1", CVAR_ARCHIVE },
 	{ &cg_weaponCycleDelay,	"cg_weaponCycleDelay", "150", CVAR_ARCHIVE },	//----(SA)	added
@@ -1030,13 +1030,13 @@ void CG_SetupDlightstyles(void)
 		cent = &cg_entities[entnum];
 
 		token = COM_Parse (&str);	// stylestring
-		Q_strncpyz(cent->dl_stylestring, token, strlen(token));
+		Q_strncpyz(cent->dl_stylestring, token, Q_strlenInt(token));
 
 		token = COM_Parse (&str);	// offset
 		cent->dl_frame		= atoi(token);
 		cent->dl_oldframe	= cent->dl_frame - 1;
 		if(cent->dl_oldframe < 0)
-			cent->dl_oldframe = strlen(cent->dl_stylestring);
+			cent->dl_oldframe = Q_strlenInt(cent->dl_stylestring);
 
 		token = COM_Parse (&str);	// sound id
 		cent->dl_sound = atoi(token);
@@ -2133,7 +2133,7 @@ const char *CG_ConfigString( int index ) {
 
 int CG_ConfigStringCopy( int index, char* buff, int buffsize ) {
 	Q_strncpyz( buff, CG_ConfigString( index ), buffsize );
-	return strlen( buff );
+	return Q_strlenInt( buff );
 }
 
 

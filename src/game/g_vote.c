@@ -81,7 +81,7 @@ int G_voteCmdCheck(gentity_t *ent, char *arg, char *arg2, qboolean fRefereeCmd)
 			int hResult = aVoteInfo[i].pVoteCommand(ent, i, arg, arg2, fRefereeCmd);
 
 			if(hResult == G_OK) {
-				Com_sprintf(arg, VOTE_MAXSTRING, aVoteInfo[i].pszVoteMessage);
+				Q_strncpyz(arg, aVoteInfo[i].pszVoteMessage, VOTE_MAXSTRING);
 				level.voteInfo.vote_fn = aVoteInfo[i].pVoteCommand;
 			} else {
 				level.voteInfo.vote_fn = NULL;

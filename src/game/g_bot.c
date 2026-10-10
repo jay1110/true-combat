@@ -709,7 +709,7 @@ static void G_AddBot( const char *name, int skill, const char *team, const char 
 			while ((token = COM_Parse( &pbotnames ))) {
 				if (!token[0]) break;
 				listbotnames[i] = strstr( oldpbotnames, token );
-				lengthbotnames[i] = strlen(token);
+				lengthbotnames[i] = Q_strlenInt(token);
 				listbotnames[i][lengthbotnames[i]] = 0;
 				oldpbotnames = pbotnames;
 				if (++i == MAX_BOTNAMES) break;

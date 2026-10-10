@@ -202,7 +202,7 @@ int G_GetWeaponClassForMOD( meansOfDeath_t mod );
 
 #define MAX_NETNAME			36
 
-#define	CFOFS(x) ((int)&(((gclient_t *)0)->x))
+#define	CFOFS(x) ((int)offsetof(gclient_t, x))
 
 #define MAX_COMMANDER_TEAM_SOUNDS 16
 
@@ -791,6 +791,7 @@ struct gclient_s {
     int             tceObjectiveEntity; /* TC client+0x1330; action target entity number */
 	int             tceLastKillingWeapon; /* TC client+0x1320, obituary gear slot. */
 	int             tceDamageVoiceTime; /* TC client+0x1318, Contact/TakingFire cooldown. */
+	int             tceRadarHitTime; /* CQB client+0x133c: recent enemy bullet contact. */
 	int             tceLastAppliedDamage; /* TC client+0x131c, accepted damage for a living target. */
 	int             tceDamageSpawnTime; /* TC client+0x1334, ClientSpawn server-time protection. */
 	gentity_t       *tceLastSpawnPoint; /* TC client+0x1338; retained across spawn reset. */
@@ -1658,7 +1659,7 @@ extern	gentity_t		g_entities[];	//DAJ was explicit set to MAX_ENTITIES
 extern g_campaignInfo_t g_campaigns[];
 extern int				saveGamePending;
 
-#define	FOFS(x) ((int)&(((gentity_t *)0)->x))
+#define	FOFS(x) ((int)offsetof(gentity_t, x))
 
 extern	vmCvar_t	g_gametype;
 
@@ -1720,6 +1721,7 @@ extern	vmCvar_t	pmove_msec;
 
 //Rafael
 extern	vmCvar_t	g_scriptName;		// name of script file to run (instead of default for that map)
+extern vmCvar_t g_mapScriptDirectory;
 
 extern	vmCvar_t	g_scriptDebug;
 
@@ -2287,7 +2289,7 @@ void InitialServerEntitySetup();
 g_serverEntity_t *FindServerEntity( g_serverEntity_t *from, int fieldofs, char *match );
 
 
-#define	SE_FOFS(x) ((int)&(((g_serverEntity_t *)0)->x))
+#define	SE_FOFS(x) ((int)offsetof(g_serverEntity_t, x))
 
 
 // Match settings

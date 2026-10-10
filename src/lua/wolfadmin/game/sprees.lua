@@ -85,10 +85,12 @@ function sprees.reset(truncate)
     end
 
     currentRecords = {}
+    for id in pairs(playerSprees) do sprees.onClientConnect(id) end
 end
 
 function sprees.load()
-    if db.isConnected() and settings.get("g_spreeRecords") ~= 0 then
+    currentRecords = {}
+    if db.isConnected() then
         local map = db.getMap(game.getMap())
 
         if map then
@@ -102,7 +104,7 @@ function sprees.load()
         local records = db.getRecords(currentMapId)
 
         for _, record in ipairs(records) do
-            currentRecords[record["type"]] = {
+            currentRecords[tonumber(record["type"])] = {
                 ["player"] = tonumber(record["player_id"]),
                 ["record"] = tonumber(record["record"])
             }
@@ -193,7 +195,7 @@ function sprees.printRecords()
     if db.isConnected() and settings.get("g_spreeRecords") ~= 0 then
         for i = 0, sprees.TYPE_NUM - 1 do
             if currentRecords[i] and currentRecords[i]["record"] > 0 then
-                et.trap_SendConsoleCommand(et.EXEC_APPEND, "cchat -1 \"^dsprees: ^9longest "..sprees.getRecordNameByType(i).." spree (^7"..currentRecords[i]["record"].."^9) by ^7"..db.getLastAlias(currentRecords[i]["player"])["alias"].."^9.\";")
+                et.trap_SendConsoleCommand(et.EXEC_APPEND, "cchat -1 \"^dsprees: ^9longest "..sprees.getRecordNameByType(i).." spree (^7"..currentRecords[i]["record"].."^9) by ^7"..(db.getLastAlias(currentRecords[i]["player"]) or {alias = "unknown player"})["alias"].."^9.\";")
             end
         end
     end
@@ -225,33 +227,33 @@ function sprees.onClientTeamChange(clientId, old, new)
 end
 
 function sprees.onGameStateChange(gameState)
-    if gameState == constants.GAME_STATE_RUNNING then
-        events.handle("onClientTeamChange", sprees.onClientTeamChange)
-        events.handle("onPlayerDeath", sprees.onPlayerDeath)
-        events.handle("onPlayerRevive", sprees.onPlayerRevive)
-        events.handle("onPlayerSpree", sprees.onPlayerSpree)
-        events.handle("onPlayerSpreeEnd", sprees.onPlayerSpreeEnd)
-    elseif gameState == constants.GAME_STATE_INTERMISSION then
+    if gameState == constants.GAME_STATE_INTERMISSION then
         sprees.save()
         sprees.printRecords()
     end
 end
 
+-- Register once, rather than adding duplicate handlers on every round start.
+-- TC:E restarts rounds without unloading Lua.
+
 function sprees.onPlayerSpree(clientId, causeId, type)
+    if game.getState() ~= constants.GAME_STATE_RUNNING or not players.isConnected(clientId) then return end
+    if not playerSprees[clientId] then sprees.onClientConnect(clientId) end
     playerSprees[clientId][type] = playerSprees[clientId][type] + 1
 
     local currentSpree = playerSprees[clientId][type]
 
     if db.isConnected() and settings.get("g_spreeRecords") ~= 0 and
-            (bits.hasbit(settings.get("g_botRecords"), sprees.RECORD_BOTS_PLAYING) or tonumber(et.trap_Cvar_Get("omnibot_playing")) == 0) and
+            (bits.hasbit(settings.get("g_botRecords"), sprees.RECORD_BOTS_PLAYING) or (tonumber(et.trap_Cvar_Get("omnibot_playing")) or 0) == 0) and
             (bits.hasbit(settings.get("g_botRecords"), sprees.RECORD_BOTS) or not players.isBot(clientId)) and
-            (bits.hasbit(settings.get("g_botRecords"), sprees.RECORD_BOTS) or not players.isBot(causeId)) and
+            (bits.hasbit(settings.get("g_botRecords"), sprees.RECORD_BOTS) or causeId == nil or not players.isConnected(causeId) or not players.isBot(causeId)) and
             (not currentRecords[type] or currentSpree > currentRecords[type]["record"])
     then
         currentRecords[type] = {
-            ["player"] = db.getPlayerId(clientId),
+            ["player"] = db.getPlayer(players.getGUID(clientId))["id"],
             ["record"] = currentSpree
         }
+        sprees.save() -- survive map changes, lua_restart, and process exit
     end
 
     if sprees.isSpreeEnabled(type) and #spreeMessagesByType[type] > 0 then
@@ -297,6 +299,7 @@ function sprees.onPlayerSpree(clientId, causeId, type)
 end
 
 function sprees.onPlayerSpreeEnd(clientId, causeId, type)
+    if not playerSprees[clientId] then return end
     if type == sprees.TYPE_DEATH then
         if sprees.isSpreeEnabled(type) and sprees.isPlayerOnSpree(clientId, sprees.TYPE_DEATH) then
             local msg = string.format("^7%s^d was the first victim of ^7%s ^dafter ^3%d ^d%ss!",
@@ -350,7 +353,8 @@ function sprees.onPlayerSpreeEnd(clientId, causeId, type)
 end
 
 function sprees.onPlayerDeath(victimId, killerId, mod)
-    if killerId == 1022 then -- killed by map
+    if game.getState() ~= constants.GAME_STATE_RUNNING or not players.isConnected(victimId) then return end
+    if not players.isConnected(killerId) then -- killed by map or non-player entity
         events.trigger("onPlayerSpreeEnd", victimId)
         events.trigger("onPlayerSpree", victimId, nil, sprees.TYPE_DEATH)
     elseif victimId == killerId then -- suicides
@@ -391,4 +395,9 @@ function sprees.isPlayerOnSpree(clientId, type)
     return spreeMessagesByType[type][1] and playerSprees[clientId][type] >= spreeMessagesByType[type][1]["amount"]
 end
 
+events.handle("onClientTeamChange", sprees.onClientTeamChange)
+events.handle("onPlayerDeath", sprees.onPlayerDeath)
+events.handle("onPlayerRevive", sprees.onPlayerRevive)
+events.handle("onPlayerSpree", sprees.onPlayerSpree)
+events.handle("onPlayerSpreeEnd", sprees.onPlayerSpreeEnd)
 return sprees

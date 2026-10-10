@@ -122,7 +122,7 @@ bool gmGCColorSet::VerifyIntegrity()
 
 void gmGCColorSet::DestructPersistantObjects()
 {
-	int count=0;
+	[[maybe_unused]] int count=0; // GC diagnostics retained in release builds.
 
 	gmGCObjBase* curObj = m_persistList.GetNext();
 	while(curObj != &m_persistList)
@@ -384,7 +384,7 @@ void gmGCColorSet::ReclaimGarbage()
 
 #if GM_GC_DEBUG
 	{
-		int count = 0;
+		[[maybe_unused]] int count = 0; // GC diagnostics retained in release builds.
 		for(gmGCObjBase* temp = m_free; temp != m_white; temp = temp->GetNext())
 		{
 			++count;
@@ -489,7 +489,7 @@ void gmGCColorSet::Allocate(gmGCObjBase* a_obj)
 
 void gmGCColorSet::DestructAll()
 {
-	int count = 0;
+	[[maybe_unused]] int count = 0; // GC diagnostics retained in release builds.
 
 	DestructPersistantObjects();
 

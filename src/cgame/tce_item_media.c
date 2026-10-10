@@ -3,9 +3,13 @@
  */
 #include "cg_local.h"
 #include <stddef.h>
+/* These pointer-bearing original layout checks describe the 32-bit binary.
+ * Registration below uses native members on every architecture. */
+#if UINTPTR_MAX == UINT32_MAX
 typedef char tce_item_size_check[sizeof(gitem_t)==0x3c?1:-1];
 typedef char tce_item_type_check[offsetof(gitem_t,giType)==0x24?1:-1];
 typedef char tce_item_sound_check[offsetof(gitem_t,sounds)==0x38?1:-1];
+#endif
 typedef char tce_item_media_size_check[sizeof(itemInfo_t)==0x20?1:-1];
 
 void CG_RegisterItemVisuals( int itemNum ) {
