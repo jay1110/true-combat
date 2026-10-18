@@ -1073,35 +1073,10 @@ to the facing dir
 ================
 */
 #if defined(_MSC_VER) && defined(_M_IX86)
-/* TC20035aa0/200358e0: native layouts, exact Windows x87 stores and gates. */
-static const float moveZero827 = 0.0f;
-static const float moveFive827 = 5.0f;
+/* TC:E movement protocol and command-layout requirements. */
 typedef char moveCommandSize827[(sizeof(usercmd_t) == 28) ? 1 : -1];
 typedef char moveCommandTime827[(offsetof(usercmd_t, serverTime) == 0) ? 1 : -1];
 typedef char moveProtocol827[(DT_MOVELEFT == 1 && EF_PRONE == 0x80000 && ENTITYNUM_NONE == 0x3ff) ? 1 : -1];
-enum {
-    movePlayerState827 = offsetof(pmove_t, ps),
-    moveExtension827 = offsetof(pmove_t, pmext),
-    moveCommand827 = offsetof(pmove_t, cmd),
-    moveForwardCmd827 = offsetof(pmove_t, cmd) + offsetof(usercmd_t, forwardmove),
-    moveRightCmd827 = offsetof(pmove_t, cmd) + offsetof(usercmd_t, rightmove),
-    moveDodgeTime827 = offsetof(pmoveExt_t, dodgeTime),
-    moveDt827 = offsetof(pmoveExt_t, dtmove),
-    moveInstability827 = offsetof(playerState_t, stats) + STAT_TCE_MOVEMENT_INSTABILITY * sizeof(int),
-    moveFlags827 = offsetof(playerState_t, stats) + STAT_TCE_FLAGS * sizeof(int),
-    moveVelocity827 = offsetof(playerState_t, velocity),
-    moveEFlags827 = offsetof(playerState_t, eFlags),
-    moveOrigin827 = offsetof(playerState_t, origin),
-    moveGroundEntity827 = offsetof(playerState_t, groundEntityNum),
-    moveViewYaw827 = offsetof(playerState_t, viewangles) + 4,
-    moveDirection827 = offsetof(playerState_t, movementDir),
-    moveForward827 = offsetof(pml_t, forward),
-    moveRight827 = offsetof(pml_t, right),
-    moveFrame827 = offsetof(pml_t, frametime),
-    moveGround827 = offsetof(pml_t, groundPlane),
-    moveNormal827 = offsetof(pml_t, groundTrace) + offsetof(trace_t, plane) + offsetof(cplane_t, normal),
-    movePrevious827 = offsetof(pml_t, previous_origin)
-};
 /* Private original __ftol ABI extraction: consumes ST0, returns low EAX/high EDX. */
 static __declspec(naked) void PM_MovementTruncate827(void) {
     __asm {
@@ -1123,113 +1098,43 @@ static __declspec(naked) void PM_MovementTruncate827(void) {
         ret
     }
 }
-static __declspec(naked) void PM_SetMovementDir(void) {
-    __asm {
-        sub esp, 0x1c
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax + movePlayerState827]
-        fld dword ptr [ecx + moveOrigin827]
-        fsub dword ptr [pml+movePrevious827]
-        fstp dword ptr [esp + 4]
-        mov edx, dword ptr [eax + movePlayerState827]
-        fld dword ptr [edx + moveOrigin827+4]
-        fsub dword ptr [pml+movePrevious827+4]
-        fstp dword ptr [esp + 8]
-        mov ecx, dword ptr [eax + movePlayerState827]
-        fld dword ptr [ecx + moveOrigin827+8]
-        fsub dword ptr [pml+movePrevious827+8]
-        fstp dword ptr [esp + 0xc]
-        mov cl, byte ptr [eax + moveForwardCmd827]
-        test cl, cl
-        jne move827_20035ae7
-        mov cl, byte ptr [eax + moveRightCmd827]
-        test cl, cl
-        je move827_20035bd9
-move827_20035ae7:
-        mov edx, dword ptr [eax + movePlayerState827]
-        cmp dword ptr [edx + moveGroundEntity827], 0x3ff
-        je move827_20035bd9
-        lea eax, [esp + 4]
-        push eax
-        call VectorLength
-        fld st(0)
-        fcomp dword ptr [moveZero827]
-        add esp, 4
-        fnstsw ax
-        test ah, 0x40
-        jne move827_20035bd2
-        fld dword ptr [pml+moveFrame827]
-        fmul dword ptr [moveFive827]
-        fxch st(1)
-        fcompp 
-        fnstsw ax
-        test ah, 0x41
-        jne move827_20035bd4
-        lea ecx, [esp + 0x10]
-        lea edx, [esp + 4]
-        push ecx
-        push edx
-        call VectorNormalize2
-        lea eax, [esp + 0x18]
-        lea ecx, [esp + 0x18]
-        push eax
-        push ecx
-        fstp st(0)
-        call vectoangles
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx + movePlayerState827]
-        mov edx, dword ptr [esp + 0x24]
-        mov ecx, dword ptr [eax + moveViewYaw827]
-        push ecx
-        push edx
-        call AngleDelta
-        add esp, 0x18
-        call PM_MovementTruncate827
-        mov ecx, eax
-        mov eax, dword ptr [pm]
-        mov dl, byte ptr [eax + moveForwardCmd827]
-        test dl, dl
-        jge move827_20035ba1
-        add ecx, 0xb4
-        mov dword ptr [esp], ecx
-        push ecx
-        fild dword ptr [esp + 4]
-        fstp dword ptr [esp]
-        call AngleNormalize180
-        add esp, 4
-        call PM_MovementTruncate827
-        mov ecx, eax
-move827_20035ba1:
-        mov eax, ecx
-        cdq 
-        xor eax, edx
-        sub eax, edx
-        cmp eax, 0x4b
-        jle move827_20035bc0
-        xor edx, edx
-        test ecx, ecx
-        setle dl
-        dec edx
-        and edx, 0x96
-        add edx, -0x4b
-        mov ecx, edx
-move827_20035bc0:
-        movsx eax, cl
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx + movePlayerState827]
-        mov dword ptr [edx + moveDirection827], eax
-        add esp, 0x1c
-        ret 
-move827_20035bd2:
-        fstp st(0)
-move827_20035bd4:
-        mov eax, dword ptr [pm]
-move827_20035bd9:
-        mov eax, dword ptr [eax + movePlayerState827]
-        mov dword ptr [eax + moveDirection827], 0
-        add esp, 0x1c
-        ret 
+static void PM_SetMovementDir(void) {
+    vec3_t moved, direction;
+    long double speed;
+    volatile float backwardAngle;
+    unsigned bits, magnitude, low;
+    int moveYaw, signedMagnitude, turnedYaw, i;
+
+    for (i = 0; i < 3; ++i) {
+        moved[i] = (float)((long double)pm->ps->origin[i] - pml.previous_origin[i]);
     }
+    if (!(pm->cmd.forwardmove || pm->cmd.rightmove) ||
+        pm->ps->groundEntityNum == ENTITYNUM_NONE) {
+        pm->ps->movementDir = 0;
+        return;
+    }
+    speed = TCE_VectorLengthValue(moved);
+    if (speed == 0.0L || speed != speed ||
+        !(speed > (long double)pml.frametime * 5.0f)) {
+        pm->ps->movementDir = 0;
+        return;
+    }
+    VectorNormalize2(moved, direction);
+    vectoangles(direction, direction);
+    moveYaw = TCE_TruncateNativeInteger(
+        (long double)AngleDelta(direction[YAW], pm->ps->viewangles[YAW]));
+    if (pm->cmd.forwardmove < 0) {
+        bits = (unsigned)moveYaw + 180u;
+        memcpy(&turnedYaw, &bits, sizeof(turnedYaw));
+        backwardAngle = (float)turnedYaw;
+        moveYaw = TCE_TruncateNativeInteger((long double)AngleNormalize180(backwardAngle));
+    }
+    /* Native abs(INT_MIN) wraps and stays negative in the signed clamp test. */
+    magnitude = moveYaw < 0 ? 0u - (unsigned)moveYaw : (unsigned)moveYaw;
+    memcpy(&signedMagnitude, &magnitude, sizeof(signedMagnitude));
+    if (signedMagnitude > 75) moveYaw = moveYaw > 0 ? 75 : -75;
+    low = (unsigned)moveYaw & 255u;
+    pm->ps->movementDir = low < 128u ? (int)low : (int)low - 256;
 }
 #else
 /* Portable fallback; no Linux instruction-level parity claim. */
@@ -3137,128 +3042,50 @@ PM_AirMove
 ===================
 */
 #if defined(_MSC_VER) && defined(_M_IX86)
-static __declspec(naked) void PM_AirMove(void) {
-    __asm {
-        sub esp, 0x40
-        mov eax, dword ptr [pm]
-        push esi
-        push edi
-        mov ecx, dword ptr [eax + movePlayerState827]
-        mov dword ptr [ecx + moveInstability827], 0x3e8
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx + movePlayerState827]
-        or dword ptr [eax + moveFlags827], 4
-        call PM_Friction
-        mov eax, dword ptr [pm]
-        movsx ecx, byte ptr [eax + moveForwardCmd827]
-        movsx edx, byte ptr [eax + moveRightCmd827]
-        mov dword ptr [esp + 0x10], ecx
-        mov ecx, dword ptr [eax + moveExtension827]
-        fild dword ptr [esp + 0x10]
-        mov edi, dword ptr [ecx + moveDodgeTime827]
-        lea esi, [eax + moveCommand827]
-        mov dword ptr [esp + 0x10], edx
-        fstp dword ptr [esp + 0xc]
-        mov edx, dword ptr [esi]
-        fild dword ptr [esp + 0x10]
-        sub edx, edi
-        cmp edx, 0x15e
-        fstp dword ptr [esp + 8]
-        jge move827_20035983
-        mov dword ptr [pml+moveForward827+8], 0
-        mov eax, dword ptr [eax + moveExtension827]
-        mov dword ptr [esp + 0xc], 0
-        mov ecx, dword ptr [eax + moveDt827]
-        dec ecx
-        neg ecx
-        sbb ecx, ecx
-        and ecx, 0x102c
-        add ecx, 0xfffff7ea
-        mov dword ptr [esp + 0x10], ecx
-        fild dword ptr [esp + 0x10]
-        mov dword ptr [esp + 0x10], 0x3f800000
-        fstp dword ptr [esp + 8]
-        jmp move827_200359b3
-move827_20035983:
-        mov ecx, 7
-        lea edi, [esp + 0x2c]
-        lea edx, [esp + 0x2c]
-        rep movsd 
-        push edx
-        call PM_CmdScale
-        fstp dword ptr [esp + 0x14]
-        add esp, 4
-        mov dword ptr [pml+moveForward827+8], 0
-        mov dword ptr [pml+moveRight827+8], 0
-move827_200359b3:
-        push offset pml+moveForward827
-        call VectorNormalize
-        fstp st(0)
-        push offset pml+moveRight827
-        call VectorNormalize
-        add esp, 8
-        xor eax, eax
-        fstp st(0)
-        pop edi
-        pop esi
-move827_200359d2:
-        fld dword ptr [esp]
-        fmul dword ptr [eax + pml+moveRight827]
-        fld dword ptr [esp + 4]
-        fmul dword ptr [eax + pml+moveForward827]
-        add eax, 4
-        cmp eax, 8
-        faddp st(1), st(0)
-        fstp dword ptr [esp + eax + 0x14]
-        jl move827_200359d2
-        mov eax, dword ptr [esp + 0x18]
-        mov ecx, dword ptr [esp + 0x1c]
-        lea edx, [esp + 0xc]
-        mov dword ptr [esp + 0xc], eax
-        push edx
-        mov dword ptr [esp + 0x14], ecx
-        mov dword ptr [esp + 0x18], 0
-        call VectorNormalize
-        mov eax, dword ptr [pm_airaccelerate]
-        lea edx, [esp + 0x10]
-        fmul dword ptr [esp + 0xc]
-        push eax
-        fstp dword ptr [esp + 0x10]
-        mov ecx, dword ptr [esp + 0x10]
-        push ecx
-        push edx
-        call PM_Accelerate
-        mov eax, dword ptr [pml+moveGround827]
-        add esp, 0x10
-        test eax, eax
-        je move827_20035a5d
-        mov eax, dword ptr [pm]
-        push 0x3f8020c5
-        mov eax, dword ptr [eax + movePlayerState827]
-        add eax, moveVelocity827
-        push eax
-        push offset pml+moveNormal827
-        push eax
-        call PM_ClipVelocity
-        add esp, 0x10
-move827_20035a5d:
-        mov ecx, dword ptr [pm]
-        push 1
-        mov edx, dword ptr [ecx + movePlayerState827]
-        test dword ptr [edx + moveEFlags827], 0x80000
-        je move827_20035a81
-        call PM_StepSlideMoveProne
-        add esp, 4
-        call PM_SetMovementDir
-        add esp, 0x40
-        ret 
-move827_20035a81:
-        call PM_StepSlideMove
-        add esp, 4
-        call PM_SetMovementDir
-        add esp, 0x40
-        ret 
+static void PM_AirMove(void) {
+    vec3_t wishvel, wishdir;
+    usercmd_t cmd;
+    float forwardMove, rightMove;
+    volatile float scale, wishspeed;
+    unsigned elapsedBits;
+    int elapsed, i;
+
+    pm->ps->stats[STAT_TCE_MOVEMENT_INSTABILITY] = 1000;
+    pm->ps->stats[STAT_TCE_FLAGS] |= 4;
+    PM_Friction();
+    forwardMove = pm->cmd.forwardmove;
+    rightMove = pm->cmd.rightmove;
+    elapsedBits = (unsigned)pm->cmd.serverTime - (unsigned)pm->pmext->dodgeTime;
+    memcpy(&elapsed, &elapsedBits, sizeof(elapsed));
+    if (elapsed < 350) {
+        pml.forward[2] = forwardMove = 0.0f;
+        rightMove = pm->pmext->dtmove == DT_MOVELEFT ? -2070.0f : 2070.0f;
+        scale = 1.0f;
+    } else {
+        memcpy(&cmd, &pm->cmd, sizeof(cmd));
+        scale = PM_CmdScale(&cmd);
+        pml.forward[2] = 0.0f;
+        pml.right[2] = 0.0f;
     }
+    (void)TCE_VectorNormalizeValue(pml.forward);
+    (void)TCE_VectorNormalizeValue(pml.right);
+    for (i = 0; i < 2; ++i) {
+        long double right = (long double)rightMove * pml.right[i];
+        long double forward = (long double)forwardMove * pml.forward[i];
+        wishvel[i] = (float)(right + forward);
+    }
+    wishdir[0] = wishvel[0];
+    wishdir[1] = wishvel[1];
+    wishdir[2] = 0.0f;
+    wishspeed = (float)(TCE_VectorNormalizeValue(wishdir) * scale);
+    PM_Accelerate(wishdir, wishspeed, pm_airaccelerate);
+    if (pml.groundPlane) {
+        PM_ClipVelocity(pm->ps->velocity, pml.groundTrace.plane.normal,
+            pm->ps->velocity, OVERCLIP);
+    }
+    if (pm->ps->eFlags & EF_PRONE) PM_StepSlideMoveProne(qtrue);
+    else PM_StepSlideMove(qtrue);
+    PM_SetMovementDir();
 }
 #else
 /* Portable fallback; no Linux instruction-level parity claim. */
@@ -3270,6 +3097,8 @@ static void PM_AirMove( void ) {
 	float		wishspeed;
 	float		scale;
 	usercmd_t	cmd;
+    unsigned elapsedBits;
+    int elapsed;
 
 	pm->ps->stats[STAT_TCE_MOVEMENT_INSTABILITY] = 1000;
 	pm->ps->stats[STAT_TCE_FLAGS] |= 4;
@@ -3279,7 +3108,9 @@ static void PM_AirMove( void ) {
 	smove = pm->cmd.rightmove;
 
 	// project moves down to flat plane
-	if( pm->cmd.serverTime - pm->pmext->dodgeTime < 350 ) {
+    elapsedBits = (unsigned)pm->cmd.serverTime - (unsigned)pm->pmext->dodgeTime;
+    memcpy(&elapsed, &elapsedBits, sizeof(elapsed));
+    if (elapsed < 350) {
 		pml.forward[2] = fmove = 0;
 		smove = pm->pmext->dtmove == DT_MOVELEFT ? -2070 : 2070;
 		scale = 1.f;
