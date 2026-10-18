@@ -3862,6 +3862,57 @@ static void PM_WeaponTruncateST0(void);
 #endif
 
 /* PmoveSingle 3000c180: movement/reload can cancel active aim after PM_Weapon. */
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* Native TCE PmoveSingle aim-cancellation tail; controller integration remains separate. */
+static qboolean PM_TCECancelAim(void) {
+    playerState_t *ps = pm->ps;
+    int flags = ps->stats[STAT_TCE_WEAPON_FLAGS];
+    int state = ps->weaponstate;
+    int seed, phase;
+    long double random, angle, wave;
+
+    if (!(flags & 4)) return qfalse;
+    if (state != WEAPON_DROPPING && !(state == WEAPON_RAISING && !(flags & 8)) &&
+        state != WEAPON_RELOADING && state != 10 && state != 11 && pm->waterlevel <= 2 &&
+        (pm->waterlevel <= 0 || ps->groundEntityNum != ENTITYNUM_NONE) &&
+        ps->velocity[2] >= -360.0f && !TCE_FloatIsNaN(ps->velocity[2]) &&
+        (!(pm->cmd.buttons & BUTTON_SPRINT) || (!pm->cmd.forwardmove && !pm->cmd.rightmove) ||
+            (ps->pm_flags & PMF_DUCKED) || (ps->eFlags & EF_PRONE)) &&
+        !pml.ladder && ps->stats[STAT_HEALTH] > 0 && !(flags & 0x1000) &&
+        PM_ProneTimeValue((unsigned)pm->cmd.serverTime - (unsigned)pm->pmext->proneTime) >= 200 &&
+        PM_ProneTimeValue((unsigned)pm->cmd.serverTime + (unsigned)pm->pmext->proneTime) >= 200 &&
+        !(ps->eFlags & EF_PRONE_MOVING)) return qfalse;
+
+    ps->stats[STAT_TCE_WEAPON_FLAGS] = flags & ~4;
+    if (pm->ps->weaponstate == WEAPON_DROPPING &&
+        (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 8))
+        pm->ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~8;
+    if ((pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 8) && !(pm->ps->persistant[14] & 8))
+        pm->ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~8;
+    pm->ps->aimSpreadScaleFloat = (float)((long double)pm->ps->aimSpreadScaleFloat + 255.0f);
+    pm->ps->stats[STAT_TCE_MOVEMENT_INSTABILITY] = 1000;
+    if (pm->ps->weaponstate != WEAPON_FIRING) {
+        seed = pm->ps->stats[STAT_TCE_SHOT_SEED];
+        random = Q_random(&seed);
+        pm->ps->stats[STAT_TCE_AIM_PHASE] = TCE_TruncateNativeInteger(random * 1000.0f);
+        phase = pm->ps->stats[STAT_TCE_AIM_PHASE];
+        if (phase > 1000) pm->ps->stats[STAT_TCE_AIM_PHASE] = phase - 1000;
+        /* Original re-reads the definition and aim bit after the random call. */
+        if (!weaponDef[pm->ps->weapon].noTacMode &&
+            (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4)) {
+            int pitch;
+            angle = (long double)Q_random(&seed) * 6.2831854820251465f;
+            pitch = TCE_TruncateNativeInteger(cosl(angle) * 200.0 + 2000.0);
+            wave = sinl(angle);
+            pm->ps->holdable[5] = pitch;
+            pm->ps->holdable[6] = TCE_TruncateNativeInteger(wave * 400.0 + 2000.0);
+        }
+        pm->ps->stats[STAT_TCE_SHOT_SEED] = (unsigned)seed & 0xffffu;
+    }
+    PM_AddEvent(EV_TCE_TOGGLE_AIMING);
+    return qtrue;
+}
+#else
 static qboolean PM_TCECancelAim(void) {
     playerState_t *ps = pm->ps;
     int flags = ps->stats[STAT_TCE_WEAPON_FLAGS];
@@ -3888,6 +3939,8 @@ static qboolean PM_TCECancelAim(void) {
     PM_AddEvent(EV_TCE_TOGGLE_AIMING);
     return qtrue;
 }
+
+#endif
 
 #if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 /* TCE movement/shot instability controller. Explicit stores model the
@@ -10046,630 +10099,140 @@ enum {
 };
 typedef char single833Layouts[(sizeof(pml_t)==156 && offsetof(pmove_t,ps)==0 && sizeof(tce_weaponDef_t)==460 && offsetof(tce_weaponDef_t,noTacMode)==0x194) ? 1 : -1];
 typedef char single833Protocol[(WEAPON_READY==0 && WEAPON_FIRING==7 && BUTTON_ATTACK==1 && BUTTON_TALK==2 && BUTTON_WALKING==16 && BUTTON_SPRINT==32 && PMF_LIMBO==0x4000 && PMF_TIME_LOCKPLAYER==0x8000 && PM_NORMAL==0 && PM_NOCLIP==1 && PM_SPECTATOR==2 && PM_DEAD==3 && PM_FREEZE==4 && PM_INTERMISSION==5 && PMF_RESPAWNED==0x200 && EF_TALK==0x200 && EF_FIRING==0x80 && EF_ZOOMING==0x40000 && EF_PRONE==0x80000 && EF_PRONE_MOVING==0x100000 && EF_MOUNTEDTANK==0x8000 && ANIM_MT_IDLE==1) ? 1 : -1];
-__declspec(naked) void PmoveSingle(pmove_t *pmove) {
-    __asm {
-        push ebx
-        push ebp
-        mov ebp, dword ptr [esp + 0xc]
-        push esi
-        push edi
-        push ebp
-        call BG_AnimUpdatePlayerStateConditions
-        mov edi, dword ptr [c_pmove]
-        add esp, 4
-        inc edi
-        xor eax, eax
-        mov dword ptr [pm], ebp
-        mov dword ptr [c_pmove], edi
-        mov dword ptr [ebp+single833Numtouch], eax
-        mov ecx, dword ptr [pm]
-        mov dword ptr [ecx+single833WaterType], eax
-        mov edx, dword ptr [pm]
-        mov dword ptr [edx+single833WaterLevel], eax
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx]
-        cmp dword ptr [edx+single833Health], eax
-        jg single833_20034566
-        mov edx, dword ptr [ecx+single833Mask]
-        and edx, 0xfdffffff
-        mov dword ptr [ecx+single833Mask], edx
-        mov eax, dword ptr [pm]
-        mov eax, dword ptr [eax]
-        mov ecx, dword ptr [eax+single833Eflags]
-        and ecx, 0xfffbffff
-        mov dword ptr [eax+single833Eflags], ecx
-        mov ecx, dword ptr [pm]
-single833_20034566:
-        movsx eax, byte ptr [ecx+single833ForwardCmd]
-        cdq 
-        xor eax, edx
-        sub eax, edx
-        cmp eax, 0x40
-        jg single833_20034582
-        movsx eax, byte ptr [ecx+single833RightCmd]
-        cdq 
-        xor eax, edx
-        sub eax, edx
-        cmp eax, 0x40
-        jle single833_20034590
-single833_20034582:
-        mov al, byte ptr [ecx+single833Buttons]
-        and al, 0xef
-        mov byte ptr [ecx+single833Buttons], al
-        mov ecx, dword ptr [pm]
-single833_20034590:
-        mov al, byte ptr [ecx+single833Buttons]
-        mov ecx, dword ptr [ecx]
-        test al, 2
-        mov eax, dword ptr [ecx+single833Eflags]
-        mov edi, 0x200
-        je single833_200345a5
-        or eax, edi
-        jmp single833_200345a8
-single833_200345a5:
-        and ah, 0xfd
-single833_200345a8:
-        mov dword ptr [ecx+single833Eflags], eax
-        mov ecx, dword ptr [pm]
-        mov ebx, 1
-        mov eax, dword ptr [ecx]
-        mov edx, dword ptr [eax+single833Eflags]
-        and edx, 0xfffbff7f
-        mov dword ptr [eax+single833Eflags], edx
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx]
-        test dword ptr [eax+single833Flags], edi
-        jne single833_2003463f
-        cmp dword ptr [eax+single833Type], 5
-        je single833_2003463f
-        mov edx, dword ptr [eax+single833Weapon]
-        push edx
-        call PM_WeaponAmmoAvailable
-        mov edx, dword ptr [pm]
-        add esp, 4
-        test eax, eax
-        je single833_2003463f
-        mov ecx, dword ptr [edx]
-        mov esi, dword ptr [ecx+single833Eflags]
-        test esi, 0x40000
-        jne single833_2003463f
-        fld dword ptr [ecx+single833Lean]
-        fcomp dword ptr [single833K200ac100]
-        fnstsw ax
-        test ah, 0x40
-        jne single833_20034616
-        test byte ptr [ecx+single833WeaponFlags], 4
-        je single833_2003463f
-single833_20034616:
-        mov eax, dword ptr [ecx+single833WeaponState]
-        test eax, eax
-        je single833_20034625
-        cmp eax, 7
-        jne single833_2003463f
-single833_20034625:
-        mov al, byte ptr [edx+single833Buttons]
-        test al, 1
-        je single833_2003463f
-        test al, 2
-        jne single833_2003463f
-        or esi, 0x80
-        mov dword ptr [ecx+single833Eflags], esi
-        mov edx, dword ptr [pm]
-single833_2003463f:
-        mov eax, dword ptr [edx]
-        test dword ptr [eax+single833Flags], edi
-        je single833_20034660
-        cmp dword ptr [eax+single833Class], 4
-        jne single833_20034660
-        mov edx, dword ptr [edx+single833Ext]
-        mov eax, dword ptr [edx+single833Silenced]
-        or eax, ebx
-        mov dword ptr [edx+single833Silenced], eax
-        mov edx, dword ptr [pm]
-single833_20034660:
-        mov eax, dword ptr [edx]
-        mov ecx, dword ptr [eax+single833Health]
-        test ecx, ecx
-        jle single833_20034681
-        test byte ptr [edx+single833Buttons], 1
-        jne single833_20034681
-        mov ecx, dword ptr [eax+single833Flags]
-        and ch, 0xfd
-        mov dword ptr [eax+single833Flags], ecx
-        mov edx, dword ptr [pm]
-single833_20034681:
-        test byte ptr [ebp+single833Buttons], 2
-        je single833_200346a5
-        mov byte ptr [ebp+single833Buttons], 2
-        mov byte ptr [ebp+single833Wbuttons], 0
-        mov byte ptr [ebp+single833ForwardCmd], 0
-        mov byte ptr [ebp+single833RightCmd], 0
-        mov byte ptr [ebp+single833UpCmd], 0
-        mov byte ptr [ebp+single833Tap], 0
-        mov edx, dword ptr [pm]
-single833_200346a5:
-        mov eax, dword ptr [edx]
-        mov ecx, dword ptr [eax+single833HeavyUse]
-        test ecx, ecx
-        je single833_200346c3
-        mov byte ptr [ebp+single833ForwardCmd], 0
-        mov byte ptr [ebp+single833RightCmd], 0
-        mov byte ptr [ebp+single833UpCmd], 0
-        mov edx, dword ptr [pm]
-single833_200346c3:
-        mov ecx, single833PmlDwords
-        xor eax, eax
-        mov edi, offset pml
-        rep stosd 
-        mov ecx, dword ptr [edx]
-        mov eax, dword ptr [ebp+single833CmdTime]
-        sub eax, dword ptr [ecx+single833CommandTime]
-        cmp eax, ebx
-        mov dword ptr [pml+single833msec], eax
-        jge single833_200346e9
-        mov dword ptr [pml+single833msec], ebx
-        jmp single833_200346fa
-single833_200346e9:
-        cmp eax, 0xc8
-        jle single833_200346fa
-        mov dword ptr [pml+single833msec], 0xc8
-single833_200346fa:
-        mov edx, dword ptr [edx]
-        mov eax, dword ptr [ebp+single833CmdTime]
-        mov dword ptr [edx+single833CommandTime], eax
-        mov eax, dword ptr [pm]
-        fild dword ptr [pml+single833msec]
-        mov ecx, dword ptr [eax]
-        mov edx, dword ptr [ecx+single833Origin]
-        mov dword ptr [pml+single833previous_origin], edx
-        mov ecx, dword ptr [eax]
-        fmul qword ptr [single833K200ac378]
-        mov edx, dword ptr [ecx+single833Origin+4]
-        mov dword ptr [pml+single833previous_origin+4], edx
-        mov ecx, dword ptr [eax]
-        mov edx, dword ptr [ecx+single833Origin+8]
-        mov dword ptr [pml+single833previous_origin+8], edx
-        mov ecx, dword ptr [eax]
-        mov edx, dword ptr [ecx+single833Velocity]
-        mov dword ptr [pml+single833previous_velocity], edx
-        mov ecx, dword ptr [eax]
-        mov edx, dword ptr [ecx+single833Velocity+4]
-        mov dword ptr [pml+single833previous_velocity+4], edx
-        mov ecx, dword ptr [eax]
-        mov edx, dword ptr [ecx+single833Velocity+8]
-        fstp dword ptr [pml+single833frametime]
-        mov dword ptr [pml+single833previous_velocity+8], edx
-        mov ecx, dword ptr [eax]
-        cmp dword ptr [ecx+single833Type], 4
-        je single833_2003478b
-        mov edx, dword ptr [ecx+single833Flags]
-        test dh, 0x40
-        jne single833_2003478b
-        mov edx, dword ptr [eax+single833Mask]
-        push edx
-        mov edx, dword ptr [eax+single833Trace]
-        push edx
-        lea edx, [eax+single833Cmd]
-        mov eax, dword ptr [eax+single833Ext]
-        push edx
-        push eax
-        push ecx
-        call PM_UpdateViewAngles
-        mov eax, dword ptr [pm]
-        add esp, 0x14
-single833_2003478b:
-        mov ecx, dword ptr [eax]
-        push offset pml+single833up
-        push offset pml+single833right
-        add ecx, single833ViewAngles
-        push offset pml+single833forward
-        push ecx
-        call AngleVectors
-        mov eax, dword ptr [pm]
-        add esp, 0x10
-        cmp byte ptr [eax+single833UpCmd], 0xa
-        jge single833_200347c6
-        mov eax, dword ptr [eax]
-        mov ecx, dword ptr [eax+single833Flags]
-        and ecx, 0xfffffffd
-        mov dword ptr [eax+single833Flags], ecx
-        mov eax, dword ptr [pm]
-single833_200347c6:
-        mov cl, byte ptr [eax+single833ForwardCmd]
-        mov ebx, 0x10
-        test cl, cl
-        jge single833_200347db
-        mov eax, dword ptr [eax]
-        mov ecx, dword ptr [eax+single833Flags]
-        or ecx, ebx
-        jmp single833_200347f0
-single833_200347db:
-        jg single833_200347e8
-        test cl, cl
-        jne single833_200347f8
-        mov cl, byte ptr [eax+single833RightCmd]
-        test cl, cl
-        je single833_200347f8
-single833_200347e8:
-        mov eax, dword ptr [eax]
-        mov ecx, dword ptr [eax+single833Flags]
-        and ecx, 0xffffffef
-single833_200347f0:
-        mov dword ptr [eax+single833Flags], ecx
-        mov eax, dword ptr [pm]
-single833_200347f8:
-        mov ecx, dword ptr [eax]
-        cmp dword ptr [ecx+single833Type], 3
-        jge single833_20034808
-        mov edx, dword ptr [ecx+single833Flags]
-        test dh, 0xc0
-        je single833_20034824
-single833_20034808:
-        mov byte ptr [eax+single833ForwardCmd], 0
-        mov edx, dword ptr [pm]
-        mov byte ptr [edx+single833RightCmd], 0
-        mov eax, dword ptr [pm]
-        mov byte ptr [eax+single833UpCmd], 0
-        mov eax, dword ptr [pm]
-single833_20034824:
-        mov edx, dword ptr [eax]
-        mov ecx, dword ptr [edx+single833Type]
-        cmp ecx, 2
-        jne single833_20034842
-        call PM_CheckDuck
-        call PM_FlyMove
-        call PM_DropTimers
-        pop edi
-        pop esi
-        pop ebp
-        pop ebx
-        ret 
-single833_20034842:
-        cmp ecx, 1
-        jne single833_20034856
-        call PM_NoclipMove
-        call PM_DropTimers
-        pop edi
-        pop esi
-        pop ebp
-        pop ebx
-        ret 
-single833_20034856:
-        cmp ecx, 4
-        je single833_20034ce8
-        test byte ptr [edx+single833TcFlags], bl
-        je single833_200348c0
-        mov byte ptr [eax+single833ForwardCmd], 0
-        mov ecx, dword ptr [pm]
-        xor edi, edi
-        mov byte ptr [ecx+single833RightCmd], 0
-        mov edx, dword ptr [pm]
-        mov byte ptr [edx+single833UpCmd], 0
-        mov eax, dword ptr [pm]
-        mov byte ptr [eax+single833Buttons], 0
-        mov ecx, dword ptr [pm]
-        mov byte ptr [ecx+single833Wbuttons], 0
-        mov eax, dword ptr [pm]
-        mov edx, dword ptr [eax]
-        mov cl, byte ptr [edx+single833Weapon]
-        mov byte ptr [eax+single833CmdWeapon], cl
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx]
-        mov dword ptr [eax+single833Lean], edi
-        mov ecx, dword ptr [pm]
-        mov byte ptr [ecx+single833Tap], 0
-        mov eax, dword ptr [pm]
-        jmp single833_200348c2
-single833_200348c0:
-        xor edi, edi
-single833_200348c2:
-        mov ecx, dword ptr [eax]
-        mov edx, dword ptr [ecx+single833Type]
-        cmp edx, 5
-        je single833_20034ce8
-        mov ebx, dword ptr [ecx+single833Weapon]
-        mov esi, 0x3c
-        cmp ebx, esi
-        jne single833_200348fa
-        cmp edx, edi
-        jne single833_200348fa
-        mov byte ptr [eax+single833ForwardCmd], 0
-        mov edx, dword ptr [pm]
-        mov byte ptr [edx+single833RightCmd], 0
-        mov eax, dword ptr [pm]
-        mov byte ptr [eax+single833UpCmd], 0
-single833_200348fa:
-        call PM_SetWaterLevel
-        mov ecx, dword ptr [ebp+single833WaterLevel]
-        mov dword ptr [pml+single833previous_waterlevel], ecx
-        call PM_CheckProne
-        test eax, eax
-        jne single833_20034919
-        call PM_CheckDuck
-single833_20034919:
-        call PM_GroundTrace
-        mov edx, dword ptr [pm]
-        mov ebp, 3
-        mov ebx, 0x80000
-        mov eax, dword ptr [edx]
-        cmp dword ptr [eax+single833Type], ebp
-        jne single833_20034955
-        call PM_DeadMove
-        mov eax, dword ptr [pm]
-        mov eax, dword ptr [eax]
-        cmp dword ptr [eax+single833Weapon], esi
-        jne single833_20034997
-        mov dword ptr [eax+single833Weapon], 0x23
-        jmp single833_20034997
-single833_20034955:
-        cmp dword ptr [eax+single833Weapon], 0x3e
-        jne single833_20034970
-        test dword ptr [eax+single833Eflags], ebx
-        jne single833_20034970
-        push edi
-        push 0x1f
-        push 0x3e
-        call PM_BeginWeaponChange
-        add esp, 0xc
-single833_20034970:
-        mov ecx, dword ptr [pm]
-        mov eax, dword ptr [ecx]
-        cmp dword ptr [eax+single833Weapon], 0x1c
-        jne single833_20034997
-        cmp dword ptr [eax+single833Clip28], edi
-        jne single833_20034997
-        push 1
-        push 0x1b
-        push 0x1c
-        call PM_BeginWeaponChange
-        add esp, 0xc
-single833_20034997:
-        call PM_CheckLadderMove
-        call PM_DropTimers
-        mov eax, dword ptr [pml+single833ladder]
-        mov esi, 0x8000
-        cmp eax, edi
-        je single833_200349b6
-        call PM_LadderMove
-        jmp single833_200349fe
-single833_200349b6:
-        mov ecx, dword ptr [pm]
-        mov eax, dword ptr [ecx]
-        mov edx, dword ptr [eax+single833Flags]
-        test dh, 1
-        je single833_200349cd
-        call PM_WaterJumpMove
-        jmp single833_200349fe
-single833_200349cd:
-        cmp dword ptr [ecx+single833WaterLevel], 1
-        jle single833_200349dd
-        call PM_WaterMove
-        jmp single833_200349fe
-single833_200349dd:
-        mov ecx, dword ptr [pml+single833walking]
-        cmp ecx, edi
-        mov ecx, dword ptr [eax+single833Eflags]
-        je single833_200349f5
-        test esi, ecx
-        jne single833_200349fe
-        call PM_WalkMove
-        jmp single833_200349fe
-single833_200349f5:
-        test esi, ecx
-        jne single833_200349fe
-        call PM_AirMove
-single833_200349fe:
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx]
-        test dword ptr [eax+single833Eflags], esi
-        je single833_20034a50
-        mov dword ptr [eax+single833Velocity+8], edi
-        mov eax, dword ptr [pm]
-        push 1
-        push 1
-        mov ecx, dword ptr [eax]
-        mov dword ptr [ecx+single833Velocity+4], edi
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx]
-        mov dword ptr [eax+single833Velocity], edi
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx]
-        mov dword ptr [edx+single833ViewHeight], 0x2a
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax+single833Character]
-        mov eax, dword ptr [eax]
-        mov edx, dword ptr [ecx+single833Model]
-        push edx
-        push eax
-        call BG_AnimScriptAnimation
-        add esp, 0x10
-single833_20034a50:
-        call PM_Sprint
-        call PM_GroundTrace
-        call PM_SetWaterLevel
-        call PM_Weapon
-        mov esi, dword ptr [pm]
-        mov ecx, dword ptr [esi]
-        mov edx, dword ptr [ecx+single833WeaponFlags]
-        test dl, 4
-        je single833_20034ccb
-        mov eax, dword ptr [ecx+single833WeaponState]
-        cmp eax, ebp
-        je single833_20034b3a
-        cmp eax, 1
-        jne single833_20034a97
-        test dl, 8
-        je single833_20034b3a
-single833_20034a97:
-        cmp eax, 9
-        je single833_20034b3a
-        cmp eax, 0xa
-        je single833_20034b3a
-        cmp eax, 0xb
-        je single833_20034b3a
-        mov eax, dword ptr [esi+single833WaterLevel]
-        cmp eax, 2
-        jg single833_20034b3a
-        cmp eax, edi
-        jle single833_20034aca
-        cmp dword ptr [ecx+single833Ground], 0x3ff
-        je single833_20034b3a
-single833_20034aca:
-        fld dword ptr [ecx+single833Velocity+8]
-        fcomp dword ptr [single833K200ac788]
-        fnstsw ax
-        test ah, 1
-        jne single833_20034b3a
-        test byte ptr [esi+single833Buttons], 0x20
-        je single833_20034af9
-        mov al, byte ptr [esi+single833ForwardCmd]
-        test al, al
-        jne single833_20034aee
-        mov al, byte ptr [esi+single833RightCmd]
-        test al, al
-        je single833_20034af9
-single833_20034aee:
-        test byte ptr [ecx+single833Flags], 1
-        jne single833_20034af9
-        test dword ptr [ecx+single833Eflags], ebx
-        je single833_20034b3a
-single833_20034af9:
-        cmp dword ptr [pml+single833ladder], edi
-        jne single833_20034b3a
-        cmp dword ptr [ecx+single833Health], edi
-        jle single833_20034b3a
-        test dh, 0x10
-        jne single833_20034b3a
-        mov eax, dword ptr [esi+single833CmdTime]
-        mov esi, dword ptr [esi+single833Ext]
-        mov ebx, eax
-        mov esi, dword ptr [esi+single833ProneTime]
-        sub ebx, esi
-        cmp ebx, 0xc8
-        jl single833_20034b3a
-        add esi, eax
-        cmp esi, 0xc8
-        jl single833_20034b3a
-        test dword ptr [ecx+single833Eflags], 0x100000
-        je single833_20034ccb
-single833_20034b3a:
-        and edx, 0xfffffffb
-        mov dword ptr [ecx+single833WeaponFlags], edx
-        mov ecx, dword ptr [pm]
-        mov eax, dword ptr [ecx]
-        cmp dword ptr [eax+single833WeaponState], ebp
-        jne single833_20034b67
-        mov ecx, dword ptr [eax+single833WeaponFlags]
-        test cl, 8
-        je single833_20034b67
-        and ecx, 0xfffffff7
-        mov dword ptr [eax+single833WeaponFlags], ecx
-single833_20034b67:
-        mov edx, dword ptr [pm]
-        mov ecx, dword ptr [edx]
-        mov eax, dword ptr [ecx+single833WeaponFlags]
-        test al, 8
-        je single833_20034b8a
-        test byte ptr [ecx+single833Persist14], 8
-        jne single833_20034b8a
-        and al, 0xf7
-        mov dword ptr [ecx+single833WeaponFlags], eax
-single833_20034b8a:
-        mov eax, dword ptr [pm]
-        mov eax, dword ptr [eax]
-        fld dword ptr [eax+single833Spread]
-        fadd dword ptr [single833K200ac6ec]
-        fstp dword ptr [eax+single833Spread]
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx]
-        mov dword ptr [edx+single833Instability], 0x3e8
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax]
-        cmp dword ptr [ecx+single833WeaponState], 7
-        je single833_20034cb9
-        mov edx, ecx
-        lea ecx, [esp + 0x14]
-        push ecx
-        mov eax, dword ptr [edx+single833Seed]
-        mov dword ptr [esp + 0x18], eax
-        call Q_random
-        fmul dword ptr [single833K200ac3ac]
-        add esp, 4
-        call PM_MovementTruncate827
-        mov edx, dword ptr [pm]
-        mov ecx, dword ptr [edx]
-        mov dword ptr [ecx+single833Phase], eax
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx]
-        mov ecx, dword ptr [eax+single833Phase]
-        cmp ecx, 0x3e8
-        jle single833_20034c1d
-        add ecx, 0xfffffc18
-        mov dword ptr [eax+single833Phase], ecx
-single833_20034c1d:
-        mov eax, dword ptr [pm]
-        mov edx, dword ptr [eax]
-        mov ecx, dword ptr [edx+single833Weapon]
-        lea eax, [ecx + ecx*2]
-        shl eax, 3
-        sub eax, ecx
-        lea ecx, [eax + eax*4]
-        cmp dword ptr [ecx*4 + weaponDef+single833DefNoTac], edi
-        jne single833_20034c9e
-        test byte ptr [edx+single833WeaponFlags], 4
-        je single833_20034c9e
-        lea edx, [esp + 0x14]
-        push edx
-        call Q_random
-        fmul dword ptr [single833K200ac6b8]
-        add esp, 4
-        fld st(0)
-        fcos 
-        fmul qword ptr [single833K200ac6a8]
-        fadd qword ptr [single833K200ac780]
-        call PM_MovementTruncate827
-        fsin 
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx]
-        mov dword ptr [edx+single833RecoilX], eax
-        fmul qword ptr [single833K200ac6b0]
-        fadd qword ptr [single833K200ac780]
-        call PM_MovementTruncate827
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx]
-        mov dword ptr [edx+single833RecoilY], eax
-single833_20034c9e:
-        mov eax, dword ptr [esp + 0x14]
-        mov ecx, dword ptr [pm]
-        and eax, 0xffff
-        mov dword ptr [esp + 0x14], eax
-        mov edx, dword ptr [ecx]
-        mov dword ptr [edx+single833Seed], eax
-single833_20034cb9:
-        push EV_TCE_TOGGLE_AIMING
-        call PM_AddEvent
-        add esp, 4
-        pop edi
-        pop esi
-        pop ebp
-        pop ebx
-        ret 
-single833_20034ccb:
-        call PM_Footsteps
-        call PM_WaterEvents
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax]
-        add ecx, single833Velocity
-        push ecx
-        call trap_SnapVector
-        add esp, 4
-single833_20034ce8:
-        pop edi
-        pop esi
-        pop ebp
-        pop ebx
-        ret 
+/* TCE single movement step. Original helper order and fresh callback-state reads
+ * are retained; compiled callback ABI and FPU behavior remain separately open. */
+void PmoveSingle(pmove_t *pmove) {
+    BG_AnimUpdatePlayerStateConditions(pmove);
+    c_pmove = PM_ProneTimeValue((unsigned)c_pmove + 1u);
+    pm = pmove;
+    pm->numtouch = 0;
+    pm->watertype = 0;
+    pm->waterlevel = 0;
+    if (pm->ps->stats[STAT_HEALTH] <= 0) {
+        pm->tracemask &= ~CONTENTS_BODY;
+        pm->ps->eFlags &= ~EF_ZOOMING;
     }
+    if (abs(pm->cmd.forwardmove) > 64 || abs(pm->cmd.rightmove) > 64)
+        pm->cmd.buttons &= ~BUTTON_WALKING;
+    if (pm->cmd.buttons & BUTTON_TALK) pm->ps->eFlags |= EF_TALK;
+    else pm->ps->eFlags &= ~EF_TALK;
+    pm->ps->eFlags &= ~(EF_FIRING | EF_ZOOMING);
+    if (!(pm->ps->pm_flags & PMF_RESPAWNED) && pm->ps->pm_type != PM_INTERMISSION &&
+        PM_WeaponAmmoAvailable(pm->ps->weapon)) {
+        if (!(pm->ps->eFlags & EF_ZOOMING) &&
+            (TCE_FloatIsZeroOrNaN(pm->ps->leanf) || (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4)) &&
+            (pm->ps->weaponstate == WEAPON_READY || pm->ps->weaponstate == WEAPON_FIRING) &&
+            (pm->cmd.buttons & BUTTON_ATTACK) && !(pm->cmd.buttons & BUTTON_TALK))
+            pm->ps->eFlags |= EF_FIRING;
+    }
+    if ((pm->ps->pm_flags & PMF_RESPAWNED) && pm->ps->stats[STAT_PLAYER_CLASS] == PC_COVERTOPS)
+        pm->pmext->silencedSideArm |= 1;
+    if (pm->ps->stats[STAT_HEALTH] > 0 && !(pm->cmd.buttons & BUTTON_ATTACK))
+        pm->ps->pm_flags &= ~PMF_RESPAWNED;
+    if (pmove->cmd.buttons & BUTTON_TALK) {
+        pmove->cmd.buttons = BUTTON_TALK;
+        pmove->cmd.wbuttons = 0;
+        pmove->cmd.forwardmove = 0;
+        pmove->cmd.rightmove = 0;
+        pmove->cmd.upmove = 0;
+        pmove->cmd.doubleTap = 0;
+    }
+    if (pm->ps->persistant[PERS_HWEAPON_USE]) {
+        pmove->cmd.forwardmove = 0;
+        pmove->cmd.rightmove = 0;
+        pmove->cmd.upmove = 0;
+    }
+    memset(&pml, 0, sizeof(pml));
+    pml.msec = PM_ProneTimeValue((unsigned)pmove->cmd.serverTime - (unsigned)pm->ps->commandTime);
+    if (pml.msec < 1) pml.msec = 1;
+    else if (pml.msec > 200) pml.msec = 200;
+    pm->ps->commandTime = pmove->cmd.serverTime;
+    VectorCopy(pm->ps->origin, pml.previous_origin);
+    VectorCopy(pm->ps->velocity, pml.previous_velocity);
+    pml.frametime = (float)((long double)pml.msec * 0.001);
+    if (pm->ps->pm_type != PM_FREEZE && !(pm->ps->pm_flags & PMF_LIMBO))
+        PM_UpdateViewAngles(pm->ps, pm->pmext, &pm->cmd, pm->trace, pm->tracemask);
+    AngleVectors(pm->ps->viewangles, pml.forward, pml.right, pml.up);
+    if (pm->cmd.upmove < 10) pm->ps->pm_flags &= ~PMF_JUMP_HELD;
+    if (pm->cmd.forwardmove < 0) pm->ps->pm_flags |= PMF_BACKWARDS_RUN;
+    else if (pm->cmd.forwardmove > 0 || (!pm->cmd.forwardmove && pm->cmd.rightmove))
+        pm->ps->pm_flags &= ~PMF_BACKWARDS_RUN;
+    if (pm->ps->pm_type >= PM_DEAD || (pm->ps->pm_flags & (PMF_LIMBO | PMF_TIME_LOCKPLAYER))) {
+        pm->cmd.forwardmove = 0;
+        pm->cmd.rightmove = 0;
+        pm->cmd.upmove = 0;
+    }
+    if (pm->ps->pm_type == PM_SPECTATOR) {
+        PM_CheckDuck();
+        PM_FlyMove();
+        PM_DropTimers();
+        return;
+    }
+    if (pm->ps->pm_type == PM_NOCLIP) {
+        PM_NoclipMove();
+        PM_DropTimers();
+        return;
+    }
+    if (pm->ps->pm_type == PM_FREEZE) return;
+    if (pm->ps->stats[STAT_TCE_FLAGS] & TCE_STAT_WARMUP_LOCK) {
+        pm->cmd.forwardmove = 0;
+        pm->cmd.rightmove = 0;
+        pm->cmd.upmove = 0;
+        pm->cmd.buttons = 0;
+        pm->cmd.wbuttons = 0;
+        pm->cmd.weapon = pm->ps->weapon;
+        pm->ps->leanf = 0;
+        pm->cmd.doubleTap = 0;
+    }
+    if (pm->ps->pm_type == PM_INTERMISSION) return;
+    if (pm->ps->weapon == 60 && pm->ps->pm_type == PM_NORMAL) {
+        pm->cmd.forwardmove = 0;
+        pm->cmd.rightmove = 0;
+        pm->cmd.upmove = 0;
+    }
+    PM_SetWaterLevel();
+    pml.previous_waterlevel = pmove->waterlevel;
+    if (!PM_CheckProne()) PM_CheckDuck();
+    PM_GroundTrace();
+    if (pm->ps->pm_type == PM_DEAD) {
+        PM_DeadMove();
+        if (pm->ps->weapon == 60) pm->ps->weapon = WP_MORTAR;
+    } else {
+        if (pm->ps->weapon == 62 && !(pm->ps->eFlags & EF_PRONE)) {
+            PM_BeginWeaponChange(62, WP_MOBILE_MG42, qfalse);
+#ifdef CGAMEDLL
+            cg.weaponSelect = WP_MOBILE_MG42;
+#endif
+        }
+        if (pm->ps->weapon == WP_SATCHEL_DET && !pm->ps->ammoclip[WP_SATCHEL_DET]) {
+            PM_BeginWeaponChange(WP_SATCHEL_DET, WP_SATCHEL, qtrue);
+#ifdef CGAMEDLL
+            cg.weaponSelect = WP_SATCHEL;
+#endif
+        }
+    }
+    PM_CheckLadderMove();
+    PM_DropTimers();
+    if (pml.ladder) PM_LadderMove();
+    else if (pm->ps->pm_flags & PMF_TIME_WATERJUMP) PM_WaterJumpMove();
+    else if (pm->waterlevel > 1) PM_WaterMove();
+    else if (pml.walking && !(pm->ps->eFlags & EF_MOUNTEDTANK)) PM_WalkMove();
+    else if (!(pm->ps->eFlags & EF_MOUNTEDTANK)) PM_AirMove();
+    if (pm->ps->eFlags & EF_MOUNTEDTANK) {
+        pm->ps->velocity[2] = 0;
+        pm->ps->velocity[1] = 0;
+        pm->ps->velocity[0] = 0;
+        pm->ps->viewheight = 42;
+        BG_AnimScriptAnimation(pm->ps, pm->character->animModelInfo, ANIM_MT_IDLE, qtrue);
+    }
+    PM_Sprint();
+    PM_GroundTrace();
+    PM_SetWaterLevel();
+    PM_Weapon();
+    if (PM_TCECancelAim()) return;
+    PM_Footsteps();
+    PM_WaterEvents();
+    trap_SnapVector(pm->ps->velocity);
 }
 #else
 /* Portable/client fallback; no Windows instruction parity claim for this branch. */
