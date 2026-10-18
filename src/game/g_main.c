@@ -1407,7 +1407,6 @@ void G_RegisterCvars( void )
 G_UpdateCvars
 =================
 */
-static qboolean G_TCEMapIsOfficial( const char *mapname );
 
 void G_UpdateCvars( void )
 {
@@ -1473,7 +1472,7 @@ void G_UpdateCvars( void )
 				else if(cv->vmCvar == &sv_official) {
 					/* TC20060270: changing official mode on an unofficial map
 					 * disables it; initialization's map redirect is a separate path. */
-					if(sv_official.integer && !G_TCEMapIsOfficial(level.rawmapname)) {
+					if(sv_official.integer && !BG_MapIsOfficial(level.rawmapname)) {
 						G_Printf("Map '%s' isn't an official map, resetting sv_official to 0\n", level.rawmapname);
 						trap_Cvar_Set("sv_official", va("%i", 0));
 					}
@@ -1734,17 +1733,7 @@ G_InitGame
 
 ============
 */
-/* BG_MapIsOfficial, TC Windows 20030900 / Linux 000886c2.
- * Kept server-local until the other modules' callers are reconstructed. */
-static qboolean G_TCEMapIsOfficial( const char *mapname ) {
-	return !Q_stricmp( mapname, "obj_stadtrand" ) ||
-		!Q_stricmp( mapname, "obj_delta" ) ||
-		!Q_stricmp( mapname, "obj_railhouse" ) ||
-		!Q_stricmp( mapname, "obj_northport" ) ||
-		!Q_stricmp( mapname, "obj_village" ) ||
-		!Q_stricmp( mapname, "obj_snow" ) ||
-		!Q_stricmp( mapname, "obj_hideout" );
-}
+
 
 void G_InitGame( int levelTime, int randomSeed, int restart ) {
 	int					i;
@@ -1920,7 +1909,7 @@ void G_InitGame( int levelTime, int randomSeed, int restart ) {
 
 	trap_GetServerinfo( cs, sizeof( cs ) );
 	Q_strncpyz( level.rawmapname, Info_ValueForKey( cs, "mapname" ), sizeof(level.rawmapname) );
-	if( sv_official.integer && !G_TCEMapIsOfficial( level.rawmapname ) ) {
+	if( sv_official.integer && !BG_MapIsOfficial( level.rawmapname ) ) {
 		char nextmap[1024];
 		const char *suffix;
 		trap_SendServerCommand( -1, "print \"Unofficial map was specified on official server, loading default map\n\"" );

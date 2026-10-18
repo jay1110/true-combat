@@ -2057,18 +2057,16 @@ void UI_DrawGametypeDescription( rectDef_t *rect, float scale, vec4_t color, flo
 		}
 		if ( (newLine && textWidth > rect->w) || *p == '\n' || *p == '\0' || ( *p == '*' && *(p+1) == '*' )) {
 			if (len) {
-				double alignedX = textRect.x;
 				if (align == ITEM_ALIGN_LEFT) {
-					alignedX = text_x;
+					textRect.x = text_x;
 				} else if (align == ITEM_ALIGN_RIGHT) {
-					alignedX = (double)text_x - newLineWidth;
+					textRect.x = text_x - newLineWidth;
 				} else if (align == ITEM_ALIGN_CENTER) {
-					alignedX = (double)text_x - newLineWidth / 2;
+					textRect.x = text_x - newLineWidth / 2;
 				}
 				textRect.y = y;
 
-				// Original x87 retains subtraction precision until this final store.
-				textRect.x = (float)(alignedX + (double)rect->x);
+				textRect.x += rect->x;
 				textRect.y += rect->y;
 				//
 				buff[newLine] = '\0';
