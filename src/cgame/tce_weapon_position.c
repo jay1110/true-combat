@@ -1308,6 +1308,41 @@ static int nativeLeanMagnitude(float lean) {
     memcpy(&value, &bits, sizeof(value));
     return value;
 }
+static void nativeRecoilPosition(tce_weaponPosition_t *s, float origin[3],
+                                 float angles[3], int scoped) {
+    const tce_weaponDef_t *w = &weaponDef[s->weapon];
+    int delta = nativePositionTime((unsigned int)s->time - (unsigned int)s->shotTime);
+    int pitch = 0, i;
+    long double rate = 0.0L;
+    float recoil;
+
+    if (w->usesRecoilAnimMod && !w->pump && !scoped && s->time > s->shotTime) {
+        if (delta <= 299) {
+            rate = (long double)(1.0f / 300.0f);
+            pitch = 1;
+        }
+    } else if (w->usesRecoilAnimMod && w->pump && w->semiauto &&
+               s->count_3407dff8 > 0 && s->time > s->shotTime) {
+        if (delta <= 499) {
+            rate = (long double)0.002f;
+            pitch = 1;
+        }
+    } else if (w->usesPistolAnimMod && s->time > s->shotTime && delta <= 49) {
+        rate = (long double)0.02f;
+    }
+    if (rate == 0.0L) return;
+
+    recoil = (float)sinl(sqrtl(sqrtl((long double)delta * rate)) *
+                        (long double)3.141592653589793);
+    for (i = 0; i < 3; ++i) {
+        origin[i] = (float)((long double)s->viewAxis[0][i] *
+                            (long double)recoil * -4.0L + (long double)origin[i]);
+    }
+    if (pitch) {
+        angles[0] = (float)((long double)recoil * -4.0L + (long double)angles[0]);
+    }
+}
+
 static void nativeSwayTargets(tce_weaponPosition_t *s, float target[2],
                               long double *verticalTarget) {
     long double dt, inverse, difference[3], rightDelta, upDelta;
@@ -1465,6 +1500,9 @@ void TCE_CG_CalculateWeaponPosition(tce_weaponPosition_t *s,float *origin,float 
         AngleVectors(s->viewAngles,NULL,right,NULL);
         translate(origin,right,-s->lean*.25*f);
     }
+#if defined(__linux__) && !defined(Q3_VM)
+    nativeRecoilPosition(s, origin, angles, scoped);
+#else
     delta=s->time-s->shotTime;
     if(w->usesRecoilAnimMod && !w->pump && !scoped && delta>0) {
         if(delta<300){recoilRate=(double)(1.0f/300.0f);recoilPitch=1;}
@@ -1476,6 +1514,30 @@ void TCE_CG_CalculateWeaponPosition(tce_weaponPosition_t *s,float *origin,float 
         translate(origin,s->viewAxis[0],wave*-4.0);
         if(recoilPitch)angles[0]=(float)(angles[0]-wave*4.0);
     }
+#endif
+#if defined(__linux__) && !defined(Q3_VM)
+    if (BG_FiremodeWeapon(s->weapon)) {
+        delta = nativePositionTime((unsigned int)s->time - (unsigned int)s->firemodeTime);
+        if (delta <= 749 && !scoped) {
+            f = (float)((1.0L - cosl((long double)delta *
+                                    (long double)(1.0f / 750.0f) *
+                                    (long double)6.283185307179586)) * 0.5L);
+            for (i = 0; i < 3; ++i) {
+                origin[i] = (float)((long double)s->viewAxis[2][i] *
+                                    (long double)f * -2.0L + (long double)origin[i]);
+            }
+            vertical = (long double)f * -4.0L;
+            angles[0] = (float)((long double)angles[0] + vertical);
+            if (s->weapon == 43 || s->weapon == 33 || s->weapon == 45) {
+                angles[2] = (float)(vertical + (long double)angles[2]);
+                angles[1] = (float)((long double)f * 4.0L + (long double)angles[1]);
+            } else {
+                angles[1] = (float)(vertical + (long double)angles[1]);
+                angles[2] = (float)((long double)f * 4.0L + (long double)angles[2]);
+            }
+        }
+    }
+#else
     delta=s->time-s->firemodeTime;
     if(BG_FiremodeWeapon(s->weapon) && delta<750 && !scoped) {
         wave=(1.0-cos(delta*(double)(1.0f/750.0f)*(double)6.2831854820251465f))*.5;
@@ -1484,6 +1546,7 @@ void TCE_CG_CalculateWeaponPosition(tce_weaponPosition_t *s,float *origin,float 
         if(s->weapon==43||s->weapon==33||s->weapon==45)wave=-wave;
         angles[2]=(float)(angles[2]+wave*4);angles[1]=(float)(angles[1]-wave*4);
     }
+#endif
     signedSpeed=(s->bobCycle&1)?-s->speed:s->speed;
     if(s->aiming && s->weapon!=30 && s->weapon!=9 && s->weapon!=4) {
         bobScale=scoped?0.0f:.15f;idleScale=0;
@@ -1639,8 +1702,17 @@ void TCE_CG_CalculateWeaponPosition(tce_weaponPosition_t *s,float *origin,float 
 #endif
     }
     if(!(s->eFlags&0x8000) && s->weapon!=60 && s->weapon!=62) {
+#if defined(__linux__) && !defined(Q3_VM)
+        /* The SDK fracsin local is binary32; retain that boundary here. */
+        f = (float)sinl((long double)s->time * (long double)0.001);
+        vertical = (long double)f * 80.0L * (long double)idleScale * (long double)0.01;
+        angles[2] = (float)(vertical + (long double)angles[2]);
+        angles[1] = (float)(vertical + (long double)angles[1]);
+        angles[0] = (float)(vertical + (long double)angles[0]);
+#else
         wave=sin(s->time*.001)*80.0*idleScale*.01;
         for(i=0;i<3;++i)angles[i]=(float)(angles[i]+wave);
+#endif
     }
     for(i=0;i<3;++i)angles[i]-=s->kickAngles[i];
 #endif
