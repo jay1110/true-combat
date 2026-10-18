@@ -1438,79 +1438,6 @@ static qboolean PM_TCECheckProne(void) {
  * Operand-level Windows x87 / integer schedule, mapped to native structures. */
 #if defined(_MSC_VER) && defined(_M_IX86)
 typedef char posture832TraceLayout[(sizeof(trace_t)==56 && offsetof(trace_t,allsolid)==0 && offsetof(trace_t,startsolid)==4 && offsetof(trace_t,fraction)==8 && offsetof(trace_t,endpos)==12 && offsetof(trace_t,entityNum)==52) ? 1 : -1];
-static const unsigned int posture832Const200ac100 = 0x00000000u;
-static const unsigned int posture832Const200ac110 = 0x3f800000u;
-static const unsigned int posture832Const200ac180 = 0x3f000000u;
-static const unsigned int posture832Const200ac19c = 0x41a00000u;
-static const unsigned int posture832Const200ac290 = 0x41c00000u;
-static const unsigned int posture832Const200ac2d4 = 0x42000000u;
-static const unsigned int posture832Const200ac340 = 0x40a00000u;
-static const unsigned int posture832Const200ac3e8 = 0x3dcccccdu;
-static const unsigned int posture832Const200ac6e8 = 0x3fa00000u;
-static const unsigned int posture832Const200ac700 = 0x42f00000u;
-static const unsigned int posture832Const200ac71c = 0x41accccdu;
-static const unsigned int posture832Const200ac78c = 0xc1000000u;
-static const unsigned int posture832Const200ac790 = 0xc1200000u;
-static const unsigned int posture832Const200ac7ec = 0x3fa66666u;
-static const unsigned int posture832Const200ac7f0 = 0x435c0000u;
-static const unsigned int posture832Const200ac7f8[2] = { 0xb4e81b4fu, 0x3f6b4e81u };
-enum {
-    posture832pm0 = offsetof(pmove_t, ps),
-    posture832ps68 = offsetof(playerState_t, eFlags),
-    posture832pm4 = offsetof(pmove_t, pmext),
-    posture832pmc = offsetof(pmove_t, cmd)+offsetof(usercmd_t,serverTime),
-    posture832ext34 = offsetof(pmoveExt_t, proneTime),
-    posture832psc = offsetof(playerState_t, pm_flags),
-    posture832ps140 = offsetof(playerState_t, persistant)+PERS_HWEAPON_USE*sizeof(int),
-    posture832ps30 = offsetof(playerState_t, weaponDelay),
-    posture832psa4 = offsetof(playerState_t, weapon),
-    posture832psf0 = offsetof(playerState_t, stats)+STAT_TCE_WEAPON_FLAGS*sizeof(int),
-    posture832ps50 = offsetof(playerState_t, groundEntityNum),
-    posture832pm110 = offsetof(pmove_t, waterlevel),
-    posture832pm23 = offsetof(pmove_t, cmd)+offsetof(usercmd_t,doubleTap),
-    posture832pm11 = offsetof(pmove_t, cmd)+offsetof(usercmd_t,wbuttons),
-    posture832psf4 = offsetof(playerState_t, stats)+STAT_TCE_FLAGS*sizeof(int),
-    posture832ps14 = offsetof(playerState_t, origin),
-    posture832ps18 = offsetof(playerState_t, origin)+4,
-    posture832ps1c = offsetof(playerState_t, origin)+8,
-    posture832pm44 = offsetof(pmove_t, tracemask),
-    posture832psa0 = offsetof(playerState_t, clientNum),
-    posture832pm128 = offsetof(pmove_t, trace),
-    posture832ext38 = offsetof(pmoveExt_t, proneGroundTime),
-    posture832ps4 = offsetof(playerState_t, pm_type),
-    posture832pm22 = offsetof(pmove_t, cmd)+offsetof(usercmd_t,upmove),
-    posture832ps3dc = offsetof(playerState_t, mins),
-    posture832pmf4 = offsetof(pmove_t, mins),
-    posture832ps3e0 = offsetof(playerState_t, mins)+4,
-    posture832pmf8 = offsetof(pmove_t, mins)+4,
-    posture832ps3e8 = offsetof(playerState_t, maxs),
-    posture832pm100 = offsetof(pmove_t, maxs),
-    posture832ps3ec = offsetof(playerState_t, maxs)+4,
-    posture832pm104 = offsetof(pmove_t, maxs)+4,
-    posture832ps3e4 = offsetof(playerState_t, mins)+8,
-    posture832pmfc = offsetof(pmove_t, mins)+8,
-    posture832ps3f4 = offsetof(playerState_t, crouchMaxZ),
-    posture832pm108 = offsetof(pmove_t, maxs)+8,
-    posture832ps148 = offsetof(playerState_t, persistant)+14*sizeof(int),
-    posture832ext4 = offsetof(pmoveExt_t, jumpTime),
-    posture832ps47c = offsetof(playerState_t, jumpTime),
-    posture832ps20 = offsetof(playerState_t, velocity),
-    posture832pm21 = offsetof(pmove_t, cmd)+offsetof(usercmd_t,rightmove),
-    posture832pm20 = offsetof(pmove_t, cmd)+offsetof(usercmd_t,forwardmove),
-    posture832ps3f0 = offsetof(playerState_t, maxs)+8,
-    posture832ps3fc = offsetof(playerState_t, standViewHeight),
-    posture832psbc = offsetof(playerState_t, viewheight),
-    posture832pm8 = offsetof(pmove_t, character),
-    posture832character40 = offsetof(bg_character_t, animModelInfo),
-    posture832ps10 = offsetof(playerState_t, pm_time),
-    posture832ps24 = offsetof(playerState_t, velocity)+4,
-    posture832pm114 = offsetof(pmove_t, xyspeed),
-    posture832ps28 = offsetof(playerState_t, velocity)+8,
-    posture832ps8 = offsetof(playerState_t, bobCycle),
-    posture832pm4c = offsetof(pmove_t, noFootsteps),
-    posture832ps3c = offsetof(playerState_t, leanf),
-    posture832pm10 = offsetof(pmove_t, cmd)+offsetof(usercmd_t,buttons)
-};
 static qboolean PM_CheckProne(void) {
     trace_t trace;
     vec3_t mins = {-13.5f, -13.5f, -24.0f}, maxs = {13.5f, 13.5f, -14.4f};
@@ -3301,704 +3228,149 @@ static int PM_TCELadderFootstepForSurface(void) {
     return 1 + ((flags & 0xff000000) == 0x05000000);
 }
 
-/* Whole TC:E cgame3000f3c0 / Linux000e1998, shared prediction/server. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-static __declspec(naked) void PM_Footsteps(void) {
-    __asm {
-        PUSH ECX
-        MOV EDX,dword ptr [pm]
-        PUSH EBX
-        PUSH EBP
-        PUSH ESI
-        MOV EAX,dword ptr [EDX + posture832pm0]
-        PUSH EDI
-        TEST byte ptr [EAX + posture832ps68],0x1
-        JZ posture832_200377bc
-        MOV ECX,dword ptr [EAX + posture832psc]
-        TEST CH,0x8
-        JZ posture832_20037774
-        MOV ECX,dword ptr [EDX + posture832pm8]
-        PUSH 0x1
-        PUSH 0x15
-        MOV EDX,dword ptr [ECX + posture832character40]
-        PUSH EDX
-        PUSH EAX
-        CALL BG_AnimScriptAnimation
-        MOV EAX,[pm]
-        ADD ESP,0x10
-        MOV EAX,dword ptr [EAX + posture832pm0]
-        MOV ECX,dword ptr [EAX + posture832ps10]
-        TEST ECX,ECX
-        JNZ posture832_20037eb6
-        MOV ECX,dword ptr [EAX + posture832psc]
-        POP EDI
-        AND CH,0xf7
-        POP ESI
-        POP EBP
-        MOV dword ptr [EAX + posture832psc],ECX
-        POP EBX
-        POP ECX
-        RET
-posture832_20037774:
-        MOV EDX,dword ptr [EAX + posture832ps10]
-        TEST EDX,EDX
-        JNZ posture832_20037eb6
-        TEST CH,0x40
-        JNZ posture832_20037eb6
-        CMP dword ptr [EAX + posture832ps50],0x3ff
-        JNZ posture832_20037eb6
-        OR CH,0x8
-        PUSH 0x1
-        MOV dword ptr [EAX + posture832psc],ECX
-        MOV EAX,[pm]
-        PUSH 0x15
-        MOV ECX,dword ptr [EAX + posture832pm8]
-        MOV EAX,dword ptr [EAX + posture832pm0]
-        MOV EDX,dword ptr [ECX + posture832character40]
-        PUSH EDX
-        PUSH EAX
-        CALL BG_AnimScriptAnimation
-        ADD ESP,0x10
-        POP EDI
-        POP ESI
-        POP EBP
-        POP EBX
-        POP ECX
-        RET
-posture832_200377bc:
-        MOV EDX,dword ptr [EAX + posture832psf0]
-        OR EDX,0x20
-        MOV dword ptr [EAX + posture832psf0],EDX
-        MOV ECX,dword ptr [pm]
-        MOV EAX,dword ptr [ECX + posture832pm0]
-        MOV ECX,dword ptr [EAX + posture832ps68]
-        OR ECX,0x10000
-        MOV dword ptr [EAX + posture832ps68],ECX
-        MOV ECX,dword ptr [pm]
-        MOV EAX,dword ptr [ECX + posture832pm0]
-        FLD dword ptr [EAX + posture832ps24]
-        FLD dword ptr [EAX + posture832ps20]
-        FLD ST(0)
-        FMUL ST(0),ST(1)
-        FLD ST(2)
-        FMUL ST(0),ST(3)
-        FADDP ST(1),ST(0)
-        FSQRT
-        FSTP dword ptr [ECX + posture832pm114]
-        MOV ECX,dword ptr [pm]
-        FSTP ST(0)
-        MOV EDX,dword ptr [ECX + posture832pm0]
-        FSTP ST(0)
-        MOV EAX,dword ptr [EDX + posture832ps140]
-        TEST EAX,EAX
-        JZ posture832_20037854
-        MOV EAX,dword ptr [ECX + posture832pm8]
-        PUSH 0x1
-        PUSH 0x1
-        MOV ECX,dword ptr [EAX + posture832character40]
-        PUSH ECX
-        PUSH EDX
-        CALL BG_AnimScriptAnimation
-        MOV EDX,dword ptr [pm]
-        ADD ESP,0x10
-        MOV EAX,dword ptr [EDX + posture832pm0]
-        POP EDI
-        POP ESI
-        POP EBP
-        MOV EDX,dword ptr [EAX + posture832psf0]
-        POP EBX
-        AND EDX,0xffffffdf
-        MOV dword ptr [EAX + posture832psf0],EDX
-        MOV EAX,[pm]
-        MOV EAX,dword ptr [EAX + posture832pm0]
-        AND dword ptr [EAX + posture832ps68],0xfffeffff
-        POP ECX
-        RET
-posture832_20037854:
-        MOV EAX,dword ptr [ECX + posture832pm110]
-        MOV EBX,0x2
-        CMP EAX,EBX
-        JLE posture832_20037888
-        MOV AL,byte ptr [EDX + posture832psc]
-        PUSH 0x1
-        TEST AL,0x10
-        JZ posture832_20037884
-        PUSH 0xa
-posture832_2003786e:
-        MOV ECX,dword ptr [ECX + posture832pm8]
-        MOV EAX,dword ptr [ECX + posture832character40]
-        PUSH EAX
-        PUSH EDX
-        CALL BG_AnimScriptAnimation
-        ADD ESP,0x10
-        POP EDI
-        POP ESI
-        POP EBP
-        POP EBX
-        POP ECX
-        RET
-posture832_20037884:
-        PUSH 0x9
-        JMP posture832_2003786e
-posture832_20037888:
-        CMP dword ptr [EDX + posture832ps50],0x3ff
-        JNZ posture832_20037987
-        TEST byte ptr [EDX + posture832psc],0x4
-        JZ posture832_20037eb6
-        FLD dword ptr [EDX + posture832ps28]
-        FCOMP dword ptr [posture832Const200ac100]
-        PUSH 0x1
-        FNSTSW AX
-        TEST AH,0x1
-        JNZ posture832_200378b5
-        PUSH 0xf
-        JMP posture832_200378b7
-posture832_200378b5:
-        PUSH 0x10
-posture832_200378b7:
-        MOV ECX,dword ptr [ECX + posture832pm8]
-        MOV EAX,dword ptr [ECX + posture832character40]
-        PUSH EAX
-        PUSH EDX
-        CALL BG_AnimScriptAnimation
-        MOV EAX,[pm]
-        ADD ESP,0x10
-        MOV CL,byte ptr [EAX + posture832pm20]
-        TEST CL,CL
-        JNZ posture832_200378e5
-        MOV CL,byte ptr [EAX + posture832pm21]
-        TEST CL,CL
-        JNZ posture832_200378e5
-        MOV CL,byte ptr [EAX + posture832pm22]
-        TEST CL,CL
-        JZ posture832_20037eb6
-posture832_200378e5:
-        MOV ECX,dword ptr [EAX + posture832pm0]
-        ADD ECX,posture832ps20
-        PUSH ECX
-        CALL VectorLength
-        FMUL qword ptr [posture832Const200ac7f8]
-        ADD ESP,0x4
-        FCOM dword ptr [posture832Const200ac180]
-        FNSTSW AX
-        TEST AH,0x41
-        JNZ posture832_20037910
-        FSTP ST(0)
-        FLD dword ptr [posture832Const200ac180]
-        JMP posture832_20037921
-posture832_20037910:
-        FCOM dword ptr [posture832Const200ac3e8]
-        FNSTSW AX
-        TEST AH,0x1
-        JNZ posture832_20037eb4
-posture832_20037921:
-        MOV EDX,dword ptr [pm]
-        FILD dword ptr [pml.msec]
-        MOV ESI,dword ptr [EDX + posture832pm0]
-        MOV EDI,dword ptr [ESI + posture832ps8]
-        FMUL ST(0),ST(1)
-        MOV dword ptr [ESP + 0x10],EDI
-        FIADD dword ptr [ESP + 0x10]
-        CALL PM_MovementTruncate827
-        AND EAX,0xff
-        ADD EDI,0x40
-        MOV dword ptr [ESI + posture832ps8],EAX
-        MOV EAX,[pm]
-        FSTP ST(0)
-        MOV ECX,dword ptr [EAX + posture832pm0]
-        MOV EDX,dword ptr [ECX + posture832ps8]
-        ADD EDX,0x40
-        XOR EDX,EDI
-        TEST DL,0x80
-        JZ posture832_20037eb6
-        MOV ECX,dword ptr [EAX + posture832pm4c]
-        TEST ECX,ECX
-        JNZ posture832_20037eb6
-        CALL PM_TCELadderFootstepForSurface
-        PUSH EAX
-        PUSH 0x1
-        CALL PM_AddEventExt
-        ADD ESP,0x8
-        POP EDI
-        POP ESI
-        POP EBP
-        POP EBX
-        POP ECX
-        RET
-posture832_20037987:
-        MOV AL,byte ptr [ECX + posture832pm20]
-        TEST AL,AL
-        JNZ posture832_20037a7e
-        MOV AL,byte ptr [ECX + posture832pm21]
-        TEST AL,AL
-        JNZ posture832_20037a7e
-        FLD dword ptr [ECX + posture832pm114]
-        FCOMP dword ptr [posture832Const200ac340]
-        FNSTSW AX
-        TEST AH,0x1
-        JZ posture832_200379bd
-        MOV dword ptr [EDX + posture832ps8],0x0
-        MOV ECX,dword ptr [pm]
-posture832_200379bd:
-        FLD dword ptr [ECX + posture832pm114]
-        FCOMP dword ptr [posture832Const200ac700]
-        FNSTSW AX
-        TEST AH,0x41
-        JZ posture832_20037eb6
-        MOV EAX,dword ptr [ECX + posture832pm0]
-        MOV EDI,0xffffffdf
-        MOV ESI,0xfffeffff
-        TEST dword ptr [EAX + posture832ps68],0x80000
-        JZ posture832_200379ef
-        PUSH 0x1
-        PUSH 0x14
-        JMP posture832_200379f8
-posture832_200379ef:
-        TEST byte ptr [EAX + posture832psc],0x1
-        JZ posture832_20037a3c
-        PUSH 0x1
-        PUSH EBX
-posture832_200379f8:
-        MOV ECX,dword ptr [ECX + posture832pm8]
-        MOV EDX,dword ptr [ECX + posture832character40]
-        PUSH EDX
-        PUSH EAX
-        CALL BG_AnimScriptAnimation
-        MOV ECX,dword ptr [pm]
-        ADD ESP,0x10
-        MOV ECX,dword ptr [ECX + posture832pm0]
-        MOV EBX,dword ptr [ECX + posture832psf0]
-        AND EBX,EDI
-        MOV dword ptr [ECX + posture832psf0],EBX
-        MOV EDX,dword ptr [pm]
-        MOV ECX,dword ptr [EDX + posture832pm0]
-        MOV EDX,dword ptr [ECX + posture832ps68]
-        AND EDX,ESI
-        TEST EAX,EAX
-        MOV dword ptr [ECX + posture832ps68],EDX
-        JGE posture832_20037eb6
-        MOV ECX,dword ptr [pm]
-posture832_20037a3c:
-        MOV EAX,dword ptr [ECX + posture832pm8]
-        PUSH 0x1
-        PUSH 0x1
-        MOV EDX,dword ptr [EAX + posture832character40]
-        MOV EAX,dword ptr [ECX + posture832pm0]
-        PUSH EDX
-        PUSH EAX
-        CALL BG_AnimScriptAnimation
-        MOV ECX,dword ptr [pm]
-        ADD ESP,0x10
-        MOV EAX,dword ptr [ECX + posture832pm0]
-        MOV EDX,dword ptr [EAX + posture832psf0]
-        AND EDX,EDI
-        POP EDI
-        MOV dword ptr [EAX + posture832psf0],EDX
-        MOV EDX,dword ptr [pm]
-        MOV EAX,dword ptr [EDX + posture832pm0]
-        MOV ECX,dword ptr [EAX + posture832ps68]
-        AND ECX,ESI
-        POP ESI
-        POP EBP
-        MOV dword ptr [EAX + posture832ps68],ECX
-        POP EBX
-        POP ECX
-        RET
-posture832_20037a7e:
-        MOV ECX,dword ptr [EDX + posture832psf0]
-        XOR EBP,EBP
-        OR ECX,EBX
-        MOV dword ptr [EDX + posture832psf0],ECX
-        MOV ECX,dword ptr [pm]
-        MOV EDX,dword ptr [ECX + posture832pm0]
-        MOV ESI,dword ptr [EDX + posture832ps68]
-        TEST ESI,0x80000
-        JZ posture832_20037ad1
-        MOV AL,byte ptr [EDX + posture832psc]
-        MOV dword ptr [ESP + 0x10],0x3e4ccccd
-        TEST AL,0x10
-        PUSH 0x1
-        JZ posture832_20037ab6
-        PUSH 0x13
-        JMP posture832_20037ab8
-posture832_20037ab6:
-        PUSH 0x12
-posture832_20037ab8:
-        MOV EAX,dword ptr [ECX + posture832pm8]
-        MOV ECX,dword ptr [EAX + posture832character40]
-        PUSH ECX
-        PUSH EDX
-        CALL BG_AnimScriptAnimation
-        ADD ESP,0x10
-        MOV ECX,EAX
-        MOV EBP,EBX
-        JMP posture832_20037d8f
-posture832_20037ad1:
-        MOV EAX,dword ptr [EDX + posture832psc]
-        TEST AL,0x1
-        JZ posture832_20037b3b
-        TEST AL,0x10
-        MOV dword ptr [ESP + 0x10],0x3e4ccccd
-        PUSH 0x1
-        JZ posture832_20037aea
-        PUSH 0x6
-        JMP posture832_20037aec
-posture832_20037aea:
-        PUSH 0x5
-posture832_20037aec:
-        MOV EAX,dword ptr [ECX + posture832pm8]
-        MOV ECX,dword ptr [EAX + posture832character40]
-        PUSH ECX
-        PUSH EDX
-        CALL BG_AnimScriptAnimation
-        MOV EDX,dword ptr [pm]
-        MOV ECX,EAX
-        ADD ESP,0x10
-        MOV EAX,dword ptr [EDX + posture832pm0]
-        TEST byte ptr [EAX + posture832psf0],0x4
-        JNZ posture832_20037d8f
-        FLD dword ptr [EAX + posture832ps3c]
-        FCOMP dword ptr [posture832Const200ac100]
-        FNSTSW AX
-        TEST AH,0x40
-        JZ posture832_20037d8f
-        TEST byte ptr [EDX + posture832pm10],0x10
-        JNZ posture832_20037d8f
-        MOV EBP,0x1
-        JMP posture832_20037d8f
-posture832_20037b3b:
-        TEST AL,0x10
-        MOV AL,byte ptr [ECX + posture832pm10]
-        JZ posture832_20037c60
-        TEST AL,0x10
-        JZ posture832_20037ba1
-        TEST AL,0x20
-        JNZ posture832_20037ba1
-        MOV AL,byte ptr [ECX + posture832pm21]
-        MOV dword ptr [ESP + 0x10],0x3e8f5c29
-        TEST AL,AL
-        JZ posture832_20037b8e
-        MOV BL,byte ptr [ECX + posture832pm20]
-        TEST BL,BL
-        JNZ posture832_20037b8e
-        TEST AL,AL
-        PUSH 0x1
-        JLE posture832_20037b6e
-        PUSH 0xb
-        JMP posture832_20037b70
-posture832_20037b6e:
-        PUSH 0xc
-posture832_20037b70:
-        MOV EAX,dword ptr [ECX + posture832pm8]
-        MOV ECX,dword ptr [EAX + posture832character40]
-        PUSH ECX
-        PUSH EDX
-        CALL BG_AnimScriptAnimation
-        ADD ESP,0x10
-        TEST EAX,EAX
-        JGE posture832_20037dd3
-        MOV ECX,dword ptr [pm]
-posture832_20037b8e:
-        MOV EDX,dword ptr [ECX + posture832pm8]
-        MOV ECX,dword ptr [ECX + posture832pm0]
-        PUSH 0x1
-        PUSH 0x4
-        MOV EAX,dword ptr [EDX + posture832character40]
-        PUSH EAX
-        PUSH ECX
-        JMP posture832_20037d85
-posture832_20037ba1:
-        MOV AL,byte ptr [EDX + posture832psf0]
-        MOV EBX,0x4
-        TEST BL,AL
-        JNZ posture832_20037bf1
-        FLD dword ptr [EDX + posture832ps3c]
-        FCOMP dword ptr [posture832Const200ac100]
-        FNSTSW AX
-        TEST AH,0x40
-        JZ posture832_20037bf1
-        FLD dword ptr [ECX + posture832pm114]
-        FCOMP dword ptr [posture832Const200ac7f0]
-        FNSTSW AX
-        TEST AH,0x41
-        JNZ posture832_20037be2
-        MOV dword ptr [ESP + 0x10],0x3ee66666
-        MOV EBP,0x3
-        JMP posture832_20037bfe
-posture832_20037be2:
-        MOV dword ptr [ESP + 0x10],0x3eb851ec
-        MOV EBP,0x2
-        JMP posture832_20037bfe
-posture832_20037bf1:
-        MOV dword ptr [ESP + 0x10],0x3e8f5c29
-        MOV EBP,0x1
-posture832_20037bfe:
-        MOV AL,byte ptr [ECX + posture832pm21]
-        TEST AL,AL
-        JZ posture832_20037c35
-        CMP byte ptr [ECX + posture832pm20],0x0
-        JNZ posture832_20037c35
-        TEST AL,AL
-        PUSH 0x1
-        JLE posture832_20037c15
-        PUSH 0xb
-        JMP posture832_20037c17
-posture832_20037c15:
-        PUSH 0xc
-posture832_20037c17:
-        MOV EAX,dword ptr [ECX + posture832pm8]
-        MOV ECX,dword ptr [EAX + posture832character40]
-        PUSH ECX
-        PUSH EDX
-        CALL BG_AnimScriptAnimation
-        ADD ESP,0x10
-        TEST EAX,EAX
-        JGE posture832_20037dd3
-        MOV ECX,dword ptr [pm]
-posture832_20037c35:
-        MOV EDX,dword ptr [ECX + posture832pm0]
-        TEST byte ptr [EDX + posture832psf0],BL
-        JNZ posture832_20037c58
-        FLD dword ptr [EDX + posture832ps3c]
-        FCOMP dword ptr [posture832Const200ac100]
-        FNSTSW AX
-        TEST AH,0x40
-        JZ posture832_20037c58
-        PUSH 0x1
-        PUSH 0x8
-        JMP posture832_20037d7d
-posture832_20037c58:
-        PUSH 0x1
-        PUSH EBX
-        JMP posture832_20037d7d
-posture832_20037c60:
-        TEST AL,0x10
-        JZ posture832_20037cbb
-        TEST AL,0x20
-        JNZ posture832_20037cbb
-        MOV AL,byte ptr [ECX + posture832pm21]
-        MOV dword ptr [ESP + 0x10],0x3e8f5c29
-        TEST AL,AL
-        JZ posture832_20037ca8
-        MOV BL,byte ptr [ECX + posture832pm20]
-        TEST BL,BL
-        JNZ posture832_20037ca8
-        TEST AL,AL
-        PUSH 0x1
-        JLE posture832_20037c88
-        PUSH 0xb
-        JMP posture832_20037c8a
-posture832_20037c88:
-        PUSH 0xc
-posture832_20037c8a:
-        MOV EAX,dword ptr [ECX + posture832pm8]
-        MOV ECX,dword ptr [EAX + posture832character40]
-        PUSH ECX
-        PUSH EDX
-        CALL BG_AnimScriptAnimation
-        ADD ESP,0x10
-        TEST EAX,EAX
-        JGE posture832_20037dd3
-        MOV ECX,dword ptr [pm]
-posture832_20037ca8:
-        MOV EDX,dword ptr [ECX + posture832pm8]
-        MOV ECX,dword ptr [ECX + posture832pm0]
-        PUSH 0x1
-        PUSH 0x3
-        MOV EAX,dword ptr [EDX + posture832character40]
-        PUSH EAX
-        PUSH ECX
-        JMP posture832_20037d85
-posture832_20037cbb:
-        MOV AL,byte ptr [EDX + posture832psf0]
-        MOV EBX,0x4
-        TEST BL,AL
-        JNZ posture832_20037d0b
-        FLD dword ptr [EDX + posture832ps3c]
-        FCOMP dword ptr [posture832Const200ac100]
-        FNSTSW AX
-        TEST AH,0x40
-        JZ posture832_20037d0b
-        FLD dword ptr [ECX + posture832pm114]
-        FCOMP dword ptr [posture832Const200ac7f0]
-        FNSTSW AX
-        TEST AH,0x41
-        JNZ posture832_20037cfc
-        MOV dword ptr [ESP + 0x10],0x3ee66666
-        MOV EBP,0x3
-        JMP posture832_20037d18
-posture832_20037cfc:
-        MOV dword ptr [ESP + 0x10],0x3eb851ec
-        MOV EBP,0x2
-        JMP posture832_20037d18
-posture832_20037d0b:
-        MOV dword ptr [ESP + 0x10],0x3e8f5c29
-        MOV EBP,0x1
-posture832_20037d18:
-        TEST ESI,0x100000
-        JZ posture832_20037d22
-        XOR EBP,EBP
-posture832_20037d22:
-        MOV AL,byte ptr [ECX + posture832pm21]
-        TEST AL,AL
-        JZ posture832_20037d59
-        CMP byte ptr [ECX + posture832pm20],0x0
-        JNZ posture832_20037d59
-        TEST AL,AL
-        PUSH 0x1
-        JLE posture832_20037d39
-        PUSH 0xb
-        JMP posture832_20037d3b
-posture832_20037d39:
-        PUSH 0xc
-posture832_20037d3b:
-        MOV EAX,dword ptr [ECX + posture832pm8]
-        MOV ECX,dword ptr [EAX + posture832character40]
-        PUSH ECX
-        PUSH EDX
-        CALL BG_AnimScriptAnimation
-        ADD ESP,0x10
-        TEST EAX,EAX
-        JGE posture832_20037dd3
-        MOV ECX,dword ptr [pm]
-posture832_20037d59:
-        MOV EDX,dword ptr [ECX + posture832pm0]
-        TEST byte ptr [EDX + posture832psf0],BL
-        JNZ posture832_20037d79
-        FLD dword ptr [EDX + posture832ps3c]
-        FCOMP dword ptr [posture832Const200ac100]
-        FNSTSW AX
-        TEST AH,0x40
-        JZ posture832_20037d79
-        PUSH 0x1
-        PUSH 0x7
-        JMP posture832_20037d7d
-posture832_20037d79:
-        PUSH 0x1
-        PUSH 0x3
-posture832_20037d7d:
-        MOV EAX,dword ptr [ECX + posture832pm8]
-        MOV ECX,dword ptr [EAX + posture832character40]
-        PUSH ECX
-        PUSH EDX
-posture832_20037d85:
-        CALL BG_AnimScriptAnimation
-        ADD ESP,0x10
-        MOV ECX,EAX
-posture832_20037d8f:
-        TEST ECX,ECX
-        JGE posture832_20037dd3
-        MOV EAX,[pm]
-        PUSH 0x1
-        PUSH 0x1
-        MOV EDX,dword ptr [EAX + posture832pm8]
-        MOV ECX,dword ptr [EDX + posture832character40]
-        MOV EDX,dword ptr [EAX + posture832pm0]
-        PUSH ECX
-        PUSH EDX
-        CALL BG_AnimScriptAnimation
-        MOV EAX,[pm]
-        ADD ESP,0x10
-        MOV EAX,dword ptr [EAX + posture832pm0]
-        MOV EDX,dword ptr [EAX + posture832psf0]
-        AND EDX,0xffffffdf
-        MOV dword ptr [EAX + posture832psf0],EDX
-        MOV ECX,dword ptr [pm]
-        MOV EAX,dword ptr [ECX + posture832pm0]
-        AND dword ptr [EAX + posture832ps68],0xfffeffff
-posture832_20037dd3:
-        MOV EAX,[pml.tceContentRestriction]
-        FLD dword ptr [ESP + 0x10]
-        TEST EAX,EAX
-        JZ posture832_20037de6
-        FMUL dword ptr [posture832Const200ac7ec]
-posture832_20037de6:
-        MOV EDX,dword ptr [pm]
-        FILD dword ptr [pml.msec]
-        MOV ESI,dword ptr [EDX + posture832pm0]
-        MOV EDI,dword ptr [ESI + posture832ps8]
-        FMUL ST(0),ST(1)
-        MOV dword ptr [ESP + 0x10],EDI
-        FIADD dword ptr [ESP + 0x10]
-        CALL PM_MovementTruncate827
-        AND EAX,0xff
-        ADD EDI,0x40
-        MOV dword ptr [ESI + posture832ps8],EAX
-        MOV ECX,dword ptr [pm]
-        FSTP ST(0)
-        MOV EAX,dword ptr [ECX + posture832pm0]
-        MOV EDX,dword ptr [EAX + posture832ps8]
-        ADD EDX,0x40
-        XOR EDX,EDI
-        TEST DL,0x80
-        JZ posture832_20037e9c
-        MOV EAX,dword ptr [ECX + posture832pm110]
-        TEST EAX,EAX
-        JNZ posture832_20037e84
-        MOV EAX,dword ptr [ECX + posture832pm4c]
-        TEST EAX,EAX
-        JNZ posture832_20037e9c
-        CMP EBP,0x1
-        JNZ posture832_20037e53
-        CALL PM_FootstepForSurface
-        PUSH EAX
-        PUSH 0x8b
-        CALL PM_AddEventExt
-        ADD ESP,0x8
-        JMP posture832_20037ea0
-posture832_20037e53:
-        CMP EBP,0x2
-        JNZ posture832_20037e6a
-        CALL PM_FootstepForSurface
-        PUSH EAX
-        PUSH 0x1
-        CALL PM_AddEventExt
-        ADD ESP,0x8
-        JMP posture832_20037ea0
-posture832_20037e6a:
-        CMP EBP,0x3
-        JNZ posture832_20037e9c
-        CALL PM_FootstepForSurface
-        PUSH EAX
-        PUSH 0x8a
-        CALL PM_AddEventExt
-        ADD ESP,0x8
-        JMP posture832_20037ea0
-posture832_20037e84:
-        CMP EAX,0x1
-        JNZ posture832_20037e8d
-        PUSH 0x9
-        JMP posture832_20037e94
-posture832_20037e8d:
-        CMP EAX,0x2
-        JNZ posture832_20037e9c
-        PUSH 0xb
-posture832_20037e94:
-        CALL PM_AddEvent
-        ADD ESP,0x4
-posture832_20037e9c:
-        TEST EBP,EBP
-        JZ posture832_20037eb6
-posture832_20037ea0:
-        MOV EAX,[pm]
-        POP EDI
-        POP ESI
-        POP EBP
-        MOV EAX,dword ptr [EAX + posture832pm0]
-        POP EBX
-        AND dword ptr [EAX + posture832psf0],0xfffffffd
-        POP ECX
-        RET
-posture832_20037eb4:
-        FSTP ST(0)
-posture832_20037eb6:
-        POP EDI
-        POP ESI
-        POP EBP
-        POP EBX
-        POP ECX
-        RET
+/* TCE animation, bob cycle and step-sound controller.
+ * Native value paths/callback reads are explicit; compiled FPU and ABI remain open. */
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+static void PM_Footsteps(void) {
+    float bobmove;
+#if defined(__linux__)
+    volatile float storedRate;
+#endif
+    long double rate, speed;
+    int oldCycle, soundClass = 0, animResult, moveType;
+    qboolean backwards, quiet, walking;
+    playerState_t *cyclePlayer;
+
+    if (pm->ps->eFlags & EF_DEAD) {
+        if (pm->ps->pm_flags & PMF_FLAILING) {
+            BG_AnimScriptAnimation(pm->ps, pm->character->animModelInfo, ANIM_MT_FLAILING, qtrue);
+            if (!pm->ps->pm_time) pm->ps->pm_flags &= ~PMF_FLAILING;
+        } else if (!pm->ps->pm_time && !(pm->ps->pm_flags & PMF_LIMBO) &&
+            pm->ps->groundEntityNum == ENTITYNUM_NONE) {
+            pm->ps->pm_flags |= PMF_FLAILING;
+            BG_AnimScriptAnimation(pm->ps, pm->character->animModelInfo, ANIM_MT_FLAILING, qtrue);
+        }
+        return;
     }
+    pm->ps->stats[STAT_TCE_WEAPON_FLAGS] |= 0x20;
+    pm->ps->eFlags |= 0x10000;
+    speed = (long double)pm->ps->velocity[0] * pm->ps->velocity[0];
+    speed += (long double)pm->ps->velocity[1] * pm->ps->velocity[1];
+    pm->xyspeed = (float)sqrtl(speed);
+    if (pm->ps->persistant[PERS_HWEAPON_USE]) goto idle;
+    if (pm->waterlevel > 2) {
+        BG_AnimScriptAnimation(pm->ps, pm->character->animModelInfo,
+            (pm->ps->pm_flags & PMF_BACKWARDS_RUN) ? ANIM_MT_SWIMBK : ANIM_MT_SWIM, qtrue);
+        return;
+    }
+    if (pm->ps->groundEntityNum == ENTITYNUM_NONE) {
+        if (!(pm->ps->pm_flags & PMF_LADDER)) return;
+#if defined(__linux__)
+        /* Linux compares zero against velocity: unordered selects climb-up. */
+        moveType = !(pm->ps->velocity[2] < 0.0f) ? ANIM_MT_CLIMBUP : ANIM_MT_CLIMBDOWN;
+#else
+        moveType = (pm->ps->velocity[2] < 0.0f || TCE_FloatIsNaN(pm->ps->velocity[2])) ?
+            ANIM_MT_CLIMBDOWN : ANIM_MT_CLIMBUP;
+#endif
+        BG_AnimScriptAnimation(pm->ps, pm->character->animModelInfo, moveType, qtrue);
+        if (!pm->cmd.forwardmove && !pm->cmd.rightmove && !pm->cmd.upmove) return;
+        rate = TCE_VectorLengthValue(pm->ps->velocity) * 0.0033333333333333335;
+#if defined(__linux__)
+        /* Both Linux originals spill the scaled length before the thresholds. */
+        storedRate = (float)rate;
+        rate = storedRate;
+#endif
+        if (rate > 0.5f) rate = 0.5f;
+        else if (!(rate >= 0.1f)) return;
+        cyclePlayer = pm->ps;
+        oldCycle = cyclePlayer->bobCycle;
+        cyclePlayer->bobCycle = TCE_TruncateNativeInteger((long double)pml.msec * rate + oldCycle) & 255;
+        if ((((unsigned)oldCycle + 64u) ^ ((unsigned)pm->ps->bobCycle + 64u)) & 128u) {
+            if (!pm->noFootsteps) PM_AddEventExt(EV_FOOTSTEP, PM_TCELadderFootstepForSurface());
+        }
+        return;
+    }
+    if (!pm->cmd.forwardmove && !pm->cmd.rightmove) {
+        if (pm->xyspeed < 5.0f || TCE_FloatIsNaN(pm->xyspeed)) pm->ps->bobCycle = 0;
+        if (pm->xyspeed > 120.0f) return;
+        if (pm->ps->eFlags & EF_PRONE) moveType = ANIM_MT_IDLEPRONE;
+        else if (pm->ps->pm_flags & PMF_DUCKED) moveType = ANIM_MT_IDLECR;
+        else goto idle;
+        animResult = BG_AnimScriptAnimation(pm->ps, pm->character->animModelInfo, moveType, qtrue);
+        pm->ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~0x20;
+        pm->ps->eFlags &= ~0x10000;
+        if (animResult >= 0) return;
+        goto idle;
+    }
+    pm->ps->stats[STAT_TCE_WEAPON_FLAGS] |= 2;
+    backwards = (pm->ps->pm_flags & PMF_BACKWARDS_RUN) != 0;
+    if (pm->ps->eFlags & EF_PRONE) {
+        bobmove = 0.2f;
+        animResult = BG_AnimScriptAnimation(pm->ps, pm->character->animModelInfo,
+            backwards ? ANIM_MT_PRONEBK : ANIM_MT_PRONE, qtrue);
+        soundClass = 2;
+    } else if (pm->ps->pm_flags & PMF_DUCKED) {
+        bobmove = 0.2f;
+        animResult = BG_AnimScriptAnimation(pm->ps, pm->character->animModelInfo,
+            backwards ? ANIM_MT_WALKCRBK : ANIM_MT_WALKCR, qtrue);
+        if (!(pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) &&
+            TCE_FloatIsZeroOrNaN(pm->ps->leanf) && !(pm->cmd.buttons & BUTTON_WALKING)) soundClass = 1;
+    } else {
+        walking = (pm->cmd.buttons & (BUTTON_WALKING | BUTTON_SPRINT)) == BUTTON_WALKING;
+        if (walking) bobmove = 0.28f;
+        else {
+            quiet = (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) ||
+                !TCE_FloatIsZeroOrNaN(pm->ps->leanf);
+            if (quiet) { bobmove = 0.28f; soundClass = 1; }
+            else if (pm->xyspeed > 220.0f) { bobmove = 0.45f; soundClass = 3; }
+            else { bobmove = 0.36f; soundClass = 2; }
+            if (!backwards && (pm->ps->eFlags & EF_PRONE_MOVING)) soundClass = 0;
+        }
+        if (pm->cmd.rightmove && !pm->cmd.forwardmove) {
+            animResult = BG_AnimScriptAnimation(pm->ps, pm->character->animModelInfo,
+                pm->cmd.rightmove > 0 ? ANIM_MT_STRAFERIGHT : ANIM_MT_STRAFELEFT, qtrue);
+            if (animResult >= 0) goto bob;
+        }
+        if (walking) moveType = backwards ? ANIM_MT_WALKBK : ANIM_MT_WALK;
+        else {
+            /* Native branches re-read tactical/lean state after a failed strafe animation. */
+            quiet = (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) ||
+                !TCE_FloatIsZeroOrNaN(pm->ps->leanf);
+            moveType = quiet ? (backwards ? ANIM_MT_WALKBK : ANIM_MT_WALK) :
+                (backwards ? ANIM_MT_RUNBK : ANIM_MT_RUN);
+        }
+        animResult = BG_AnimScriptAnimation(pm->ps, pm->character->animModelInfo, moveType, qtrue);
+    }
+    if (animResult < 0) {
+        BG_AnimScriptAnimation(pm->ps, pm->character->animModelInfo, ANIM_MT_IDLE, qtrue);
+        pm->ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~0x20;
+        pm->ps->eFlags &= ~0x10000;
+    }
+bob:
+    rate = bobmove;
+    if (pml.tceContentRestriction) rate *= 1.3f;
+#if defined(__linux__)
+    storedRate = (float)rate;
+    rate = storedRate;
+#endif
+    cyclePlayer = pm->ps;
+    oldCycle = cyclePlayer->bobCycle;
+    cyclePlayer->bobCycle = TCE_TruncateNativeInteger((long double)pml.msec * rate + oldCycle) & 255;
+    if ((((unsigned)oldCycle + 64u) ^ ((unsigned)pm->ps->bobCycle + 64u)) & 128u) {
+        if (!pm->waterlevel) {
+            if (!pm->noFootsteps && soundClass) {
+                PM_AddEventExt(soundClass == 1 ? EV_TCE_FOOTSTEP_WALK :
+                    soundClass == 3 ? EV_TCE_FOOTSTEP_SPRINT : EV_FOOTSTEP, PM_FootstepForSurface());
+            }
+        } else if (pm->waterlevel == 1) PM_AddEvent(EV_FOOTSPLASH);
+        else if (pm->waterlevel == 2) PM_AddEvent(EV_SWIM);
+    }
+    if (soundClass) pm->ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~2;
+    return;
+idle:
+    BG_AnimScriptAnimation(pm->ps, pm->character->animModelInfo, ANIM_MT_IDLE, qtrue);
+    pm->ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~0x20;
+    pm->ps->eFlags &= ~0x10000;
 }
 #else
 static void PM_Footsteps(void) {
