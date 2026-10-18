@@ -337,6 +337,77 @@ PM_StepSlideMove
 
 ==================
 */
+/* Native Windows TCE entry always uses the two-height step controller.
+ * Keep the portable SDK/gear-dependent path separate below. */
+#if defined(_MSC_VER) && defined(_M_IX86)
+void PM_StepSlideMove(qboolean gravity) {
+    vec3_t startOrigin, startVelocity, up, down, forward;
+    trace_t trace;
+    float stepHeight = 9.0f;
+    volatile float delta;
+    long double height;
+    int axis;
+
+    VectorCopy(pm->ps->origin, startOrigin);
+    VectorCopy(pm->ps->velocity, startVelocity);
+    if (!PM_SlideMove(gravity)) return;
+    VectorCopy(startOrigin, down);
+    down[2] = (float)((long double)startOrigin[2] - 18.0f);
+    pm->trace(&trace, startOrigin, pm->mins, pm->maxs, down,
+        pm->ps->clientNum, pm->tracemask);
+    if (pm->ps->velocity[2] > 0.0f) {
+        if (trace.fraction == 1.0f || trace.fraction != trace.fraction ||
+            (long double)trace.plane.normal[2] < (long double)0.7 ||
+            trace.plane.normal[2] != trace.plane.normal[2]) return;
+    }
+    VectorCopy(startOrigin, up);
+    up[2] = (float)((long double)startOrigin[2] + 9.0f);
+    pm->trace(&trace, up, pm->mins, pm->maxs, up,
+        pm->ps->clientNum, pm->tracemask);
+    if (trace.allsolid) {
+        if (pm->debugLevel) Com_Printf("%i:bend can't step small\n", c_pmove);
+        return;
+    }
+    forward[0] = startVelocity[0];
+    forward[1] = startVelocity[1];
+    forward[2] = 0.0f;
+    (void)TCE_VectorNormalizeValue(forward);
+    for (axis = 0; axis < 3; ++axis) {
+        forward[axis] = (float)((long double)forward[axis] * 4.0f + up[axis]);
+    }
+    pm->trace(&trace, forward, pm->mins, pm->maxs, forward,
+        pm->ps->clientNum, pm->tracemask);
+    if (trace.allsolid) {
+        stepHeight = 18.0f;
+        VectorCopy(startOrigin, up);
+        up[2] = (float)((long double)startOrigin[2] + 18.0f);
+        pm->trace(&trace, up, pm->mins, pm->maxs, up,
+            pm->ps->clientNum, pm->tracemask);
+        if (trace.allsolid) {
+            if (pm->debugLevel) Com_Printf("%i:bend can't step\n", c_pmove);
+            return;
+        }
+    }
+    VectorCopy(up, pm->ps->origin);
+    VectorCopy(startVelocity, pm->ps->velocity);
+    PM_SlideMove(gravity);
+    VectorCopy(pm->ps->origin, down);
+    down[2] = (float)((long double)down[2] - stepHeight);
+    pm->trace(&trace, pm->ps->origin, pm->mins, pm->maxs, down,
+        pm->ps->clientNum, pm->tracemask);
+    if (!trace.allsolid) VectorCopy(trace.endpos, pm->ps->origin);
+    if (trace.fraction < 1.0f || trace.fraction != trace.fraction) {
+        PM_ClipVelocity(pm->ps->velocity, trace.plane.normal, pm->ps->velocity, OVERCLIP);
+    }
+    height = (long double)pm->ps->origin[2] - startOrigin[2];
+    delta = (float)height;
+    if (height > 2.0L) {
+        PM_AddEvent(delta < 7.0f ? EV_STEP_4 : delta < 11.0f ? EV_STEP_8 :
+            delta < 15.0f ? EV_STEP_12 : EV_STEP_16);
+    }
+    if (pm->debugLevel) Com_Printf("%i:stepped\n", c_pmove);
+}
+#else
 /* TC Windows 30013d00: small steps must fit below a low doorway before
  * trying the full 18-unit step. Shared by prediction and the server. */
 static void PM_TCEStepSlideMove( qboolean gravity ) {
@@ -522,6 +593,8 @@ void PM_StepSlideMove( qboolean gravity ) {
 }
 
 
+
+#endif
 
 #if !defined(_MSC_VER) || !defined(_M_IX86)
 /* TC:E300141c0: body trace plus independent rear-leg support probe.
