@@ -4974,172 +4974,6 @@ void Item_SetTextExtents(itemDef_t *item, int *width, int *height, const char *t
 
 #endif
 
-#if defined(_MSC_VER) && defined(_M_IX86) && !defined(UIDLL)
-/* TC 30082fc0: complete color controller, original pulse FSIN/store boundaries. */
-static const double tc787Dim=.8, tc787One=1., tc787Half=.5;
-enum {
- tc787Parent=offsetof(itemDef_t,parent), tc787Next=offsetof(itemDef_t,window)+offsetof(windowDef_t,nextTime),
- tc787Flags=offsetof(itemDef_t,window)+offsetof(windowDef_t,flags),
- tc787Fore=offsetof(itemDef_t,window)+offsetof(windowDef_t,foreColor),
- tc787Alpha=offsetof(itemDef_t,window)+offsetof(windowDef_t,foreColor)+3*sizeof(float),
- tc787Style=offsetof(itemDef_t,textStyle),tc787Enable=offsetof(itemDef_t,enableCvar),
- tc787Test=offsetof(itemDef_t,cvarTest),tc787CvarFlags=offsetof(itemDef_t,cvarFlags),
- tc787Amount=offsetof(menuDef_t,fadeAmount),tc787Cycle=offsetof(menuDef_t,fadeCycle),
- tc787Clamp=offsetof(menuDef_t,fadeClamp),tc787Focus=offsetof(menuDef_t,focusColor),
- tc787Disabled=offsetof(menuDef_t,disableColor),tc787Time=offsetof(displayContextDef_t,realTime)
-};
-__declspec(naked) void Item_TextColor(itemDef_t *item, vec4_t *newColor) {
- __asm {
- SUB ESP,0x10
- PUSH EBX
- PUSH EBP
- PUSH ESI
- MOV ESI,dword ptr [ESP + 0x20]
- PUSH EDI
- MOV EDI,dword ptr [ESI + tc787Parent]
- LEA EDX,[ESI + tc787Next]
- LEA EBP,[ESI + tc787Alpha]
- LEA EBX,[ESI + tc787Flags]
- MOV EAX,dword ptr [EDI + tc787Amount]
- MOV ECX,dword ptr [EDI + tc787Cycle]
- PUSH EAX
- MOV EAX,dword ptr [EDI + tc787Clamp]
- PUSH 0x1
- PUSH ECX
- PUSH EDX
- PUSH EAX
- PUSH EBP
- PUSH EBX
- CALL Fade
- MOV EBX,dword ptr [EBX]
- ADD ESP,0x1c
- TEST BL,0x2
- JZ tc787_300830ab
- TEST EBX,0x8000000
- JZ tc787_300830ab
- FLD dword ptr [EDI + tc787Focus]
- FMUL qword ptr tc787Dim
- LEA ECX,[EDI + tc787Focus]
- MOV EDX,dword ptr DC
- MOV EAX,0x1b4e81b5
- FSTP dword ptr [ESP + 0x10]
- FLD dword ptr [EDI + tc787Focus+4]
- FMUL qword ptr tc787Dim
- FSTP dword ptr [ESP + 0x14]
- FLD dword ptr [EDI + tc787Focus+8]
- FMUL qword ptr tc787Dim
- FSTP dword ptr [ESP + 0x18]
- FLD dword ptr [EDI + tc787Focus+12]
- FMUL qword ptr tc787Dim
- FSTP dword ptr [ESP + 0x1c]
- MOV EDX,dword ptr [EDX + tc787Time]
- IMUL EDX
- SAR EDX,0x3
- MOV EAX,EDX
- SHR EAX,0x1f
- ADD EDX,EAX
- MOV dword ptr [ESP + 0x24],EDX
- FILD dword ptr [ESP + 0x24]
-tc787_30083081:
- FSIN
- MOV EBX,dword ptr [ESP + 0x28]
- PUSH ECX
- LEA EDX,[ESP + 0x14]
- FADD qword ptr tc787One
- FMUL qword ptr tc787Half
- FSTP dword ptr [ESP]
- PUSH EBX
- PUSH EDX
- PUSH ECX
- CALL LerpColor
- ADD ESP,0x10
- JMP tc787_30083150
-tc787_300830ab:
- CMP dword ptr [ESI + tc787Style],0x1
- JNZ tc787_30083131
- MOV EBX,dword ptr DC
- MOV EAX,0x51eb851f
- MOV ECX,dword ptr [EBX + tc787Time]
- IMUL ECX
- SAR EDX,0x6
- MOV EAX,EDX
- SHR EAX,0x1f
- ADD EDX,EAX
- TEST DL,0x1
- JNZ tc787_30083131
- FLD dword ptr [ESI + tc787Fore]
- FMUL qword ptr tc787Dim
- LEA ECX,[ESI + tc787Fore]
- MOV EAX,0x1b4e81b5
- FSTP dword ptr [ESP + 0x10]
- FLD dword ptr [ESI + tc787Fore+4]
- FMUL qword ptr tc787Dim
- FSTP dword ptr [ESP + 0x14]
- FLD dword ptr [ESI + tc787Fore+8]
- FMUL qword ptr tc787Dim
- FSTP dword ptr [ESP + 0x18]
- FLD dword ptr [EBP]
- FMUL qword ptr tc787Dim
- FSTP dword ptr [ESP + 0x1c]
- MOV EDX,dword ptr [EBX + tc787Time]
- IMUL EDX
- SAR EDX,0x3
- MOV EAX,EDX
- SHR EAX,0x1f
- ADD EDX,EAX
- MOV dword ptr [ESP + 0x24],EDX
- FILD dword ptr [ESP + 0x24]
- JMP tc787_30083081
-tc787_30083131:
- MOV EBX,dword ptr [ESP + 0x28]
- LEA EAX,[ESI + tc787Fore]
- MOV ECX,EBX
- MOV EDX,dword ptr [EAX]
- MOV dword ptr [ECX],EDX
- MOV EDX,dword ptr [EAX + 0x4]
- MOV dword ptr [ECX + 0x4],EDX
- MOV EDX,dword ptr [EAX + 0x8]
- MOV dword ptr [ECX + 0x8],EDX
- MOV EAX,dword ptr [EAX + 0xc]
- MOV dword ptr [ECX + 0xc],EAX
-tc787_30083150:
- MOV EAX,dword ptr [ESI + tc787Enable]
- TEST EAX,EAX
- JZ tc787_300831a2
- CMP byte ptr [EAX],0x0
- JZ tc787_300831a2
- MOV EAX,dword ptr [ESI + tc787Test]
- TEST EAX,EAX
- JZ tc787_300831a2
- CMP byte ptr [EAX],0x0
- JZ tc787_300831a2
- TEST byte ptr [ESI + tc787CvarFlags],0x3
- JZ tc787_300831a2
- PUSH 0x1
- PUSH ESI
- CALL Item_EnableShowViaCvar
- ADD ESP,0x8
- TEST EAX,EAX
- JNZ tc787_300831a2
- ADD EDI,tc787Disabled
- MOV ECX,dword ptr [EDI]
- MOV dword ptr [EBX],ECX
- MOV EDX,dword ptr [EDI + 0x4]
- MOV dword ptr [EBX + 0x4],EDX
- MOV EAX,dword ptr [EDI + 0x8]
- MOV dword ptr [EBX + 0x8],EAX
- MOV ECX,dword ptr [EDI + 0xc]
- MOV dword ptr [EBX + 0xc],ECX
-tc787_300831a2:
- POP EDI
- POP ESI
- POP EBP
- POP EBX
- ADD ESP,0x10
- RET
- }
-}
-#else
 void Item_TextColor(itemDef_t *item, vec4_t *newColor) {
 	vec4_t lowLight;
 	menuDef_t *parent = (menuDef_t*)item->parent;
@@ -5170,7 +5004,6 @@ void Item_TextColor(itemDef_t *item, vec4_t *newColor) {
 	}
 }
 
-#endif
 
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(UIDLL)
 enum {
@@ -6392,173 +6225,6 @@ void Item_CheckBox_Paint( itemDef_t *item ) {
 
 #endif
 
-#if defined(_MSC_VER) && defined(_M_IX86) && !defined(UIDLL)
-/* TC cgame options: original x87 pulse, Cvar store and coordinate order. */
-static const double op792Dim=0.8,op792One=1.0,op792Half=0.5;
-static const float op792Zero=0.0f,op792Eight=8.0f;
-static const char op792Yes[]="Yes",op792No[]="No";
-enum { op792Cvar=offsetof(itemDef_t,cvar),
- op792Parent=offsetof(itemDef_t,parent),
- op792Flags=offsetof(itemDef_t,window)+offsetof(windowDef_t,flags),
- op792Color=offsetof(itemDef_t,window)+offsetof(windowDef_t,foreColor),
- op792Text=offsetof(itemDef_t,text),
- op792Style=offsetof(itemDef_t,textStyle),
- op792Scale=offsetof(itemDef_t,textscale),
- op792Focus=offsetof(menuDef_t,focusColor),
- op792X=offsetof(itemDef_t,textRect)+offsetof(rectDef_t,x),
- op792Y=offsetof(itemDef_t,textRect)+offsetof(rectDef_t,y),
- op792W=offsetof(itemDef_t,textRect)+offsetof(rectDef_t,w),
- op792Time=offsetof(displayContextDef_t,realTime),
- op792Value=offsetof(displayContextDef_t,getCVarValue),
- op792Translate=offsetof(displayContextDef_t,translateString),
- op792Draw=offsetof(displayContextDef_t,drawText) };
-__declspec(naked) void Item_YesNo_Paint(itemDef_t *item) {
- __asm {
- SUB ESP,0x24
- PUSH ESI
- MOV ESI,dword ptr [ESP + 0x2c]
- PUSH EDI
- MOV EAX,dword ptr [ESI + op792Cvar]
- MOV EDI,dword ptr [ESI + op792Parent]
- TEST EAX,EAX
- JZ op792_30083d0b
- PUSH EAX
- MOV EAX,DC
- CALL dword ptr [EAX + op792Value]
- FSTP dword ptr [ESP + 0x34]
- ADD ESP,0x4
- JMP op792_30083d13
-op792_30083d0b:
- MOV dword ptr [ESP + 0x30],0x0
-op792_30083d13:
- MOV EAX,dword ptr [ESI + op792Flags]
- TEST AL,0x2
- JZ op792_30083dbb
- TEST EAX,0x8000000
- JZ op792_30083dbb
- FLD dword ptr [EDI + op792Focus + 0]
- FMUL qword ptr op792Dim
- LEA ECX,[EDI + op792Focus + 0]
- MOV EDX,dword ptr DC
- MOV EAX,0x1b4e81b5
- PUSH ECX
- FSTP dword ptr [ESP + 0x20]
- FLD dword ptr [EDI + op792Focus + 4]
- FMUL qword ptr op792Dim
- FSTP dword ptr [ESP + 0x24]
- FLD dword ptr [EDI + op792Focus + 8]
- FMUL qword ptr op792Dim
- FSTP dword ptr [ESP + 0x28]
- FLD dword ptr [EDI + op792Focus + 12]
- FMUL qword ptr op792Dim
- FSTP dword ptr [ESP + 0x2c]
- MOV EDX,dword ptr [EDX + op792Time]
- IMUL EDX
- SAR EDX,0x3
- MOV EAX,EDX
- SHR EAX,0x1f
- ADD EDX,EAX
- LEA EAX,[ESP + 0x20]
- MOV dword ptr [ESP + 0xc],EDX
- LEA EDX,[ESP + 0x10]
- FILD dword ptr [ESP + 0xc]
- FSIN
- FADD qword ptr op792One
- FMUL qword ptr op792Half
- FSTP dword ptr [ESP]
- PUSH EDX
- PUSH EAX
- PUSH ECX
- CALL LerpColor
- ADD ESP,0x10
- JMP op792_30083dda
-op792_30083dbb:
- LEA ECX,[ESI + op792Color]
- MOV EDX,dword ptr [ESI + op792Color]
- MOV dword ptr [ESP + 0xc],EDX
- MOV EAX,dword ptr [ECX + 0x4]
- MOV dword ptr [ESP + 0x10],EAX
- MOV EDX,dword ptr [ECX + 0x8]
- MOV dword ptr [ESP + 0x14],EDX
- MOV EAX,dword ptr [ECX + 0xc]
- MOV dword ptr [ESP + 0x18],EAX
-op792_30083dda:
- MOV EAX,dword ptr [ESI + op792Text]
- TEST EAX,EAX
- JZ op792_30083e70
- PUSH ESI
- CALL Item_Text_Paint
- FLD dword ptr [ESP + 0x34]
- FCOMP dword ptr op792Zero
- ADD ESP,0x4
- FNSTSW AX
- TEST AH,0x40
- JNZ op792_30083e15
- MOV ECX,dword ptr DC
- PUSH offset op792Yes
- CALL dword ptr [ECX + op792Translate]
- JMP op792_30083e26
-op792_30083e15:
- MOV EDX,dword ptr DC
- PUSH offset op792No
- CALL dword ptr [EDX + op792Translate]
-op792_30083e26:
- MOV ECX,dword ptr [ESI + op792Style]
- ADD ESP,0x4
- FLD dword ptr [ESI + op792W]
- FADD dword ptr [ESI + op792X]
- PUSH ECX
- MOV ECX,dword ptr [ESI + op792Y]
- PUSH 0x0
- PUSH 0x0
- FADD dword ptr op792Eight
- PUSH EAX
- MOV EAX,dword ptr [ESI + op792Scale]
- LEA EDX,[ESP + 0x1c]
- PUSH EDX
- MOV EDX,dword ptr DC
- PUSH EAX
- PUSH ECX
- PUSH ECX
- FSTP dword ptr [ESP]
- CALL dword ptr [EDX + op792Draw]
- ADD ESP,0x20
- POP EDI
- POP ESI
- ADD ESP,0x24
- RET
-op792_30083e70:
- FLD dword ptr [ESP + 0x30]
- FCOMP dword ptr op792Zero
- FNSTSW AX
- TEST AH,0x40
- MOV EAX,offset op792Yes
- JZ op792_30083e8b
- MOV EAX,offset op792No
-op792_30083e8b:
- MOV ECX,dword ptr [ESI + op792Style]
- LEA EDX,[ESP + 0xc]
- PUSH ECX
- MOV ECX,dword ptr [ESI + op792Y]
- PUSH 0x0
- PUSH 0x0
- PUSH EAX
- MOV EAX,dword ptr [ESI + op792Scale]
- PUSH EDX
- MOV EDX,dword ptr [ESI + op792X]
- PUSH EAX
- MOV EAX,DC
- PUSH ECX
- PUSH EDX
- CALL dword ptr [EAX + op792Draw]
- ADD ESP,0x20
- POP EDI
- POP ESI
- ADD ESP,0x24
- RET
- }
-}
-#else
 void Item_YesNo_Paint(itemDef_t *item) {
 	vec4_t newColor, lowLight;
 	float value;
@@ -6585,124 +6251,6 @@ void Item_YesNo_Paint(itemDef_t *item) {
 	}
 }
 
-#endif
-#if defined(_MSC_VER) && defined(_M_IX86) && !defined(UIDLL)
-__declspec(naked) void Item_Multi_Paint(itemDef_t *item) {
- __asm {
- SUB ESP,0x20
- PUSH ESI
- MOV ESI,dword ptr [ESP + 0x28]
- PUSH EDI
- MOV ECX,dword ptr [ESI + op792Flags]
- MOV EAX,dword ptr [ESI + op792Parent]
- TEST CL,0x2
- JZ op792_30083f88
- TEST ECX,0x8000000
- JZ op792_30083f88
- FLD dword ptr [EAX + op792Focus + 0]
- FMUL qword ptr op792Dim
- LEA ECX,[EAX + op792Focus + 0]
- PUSH ECX
- FSTP dword ptr [ESP + 0x1c]
- FLD dword ptr [EAX + op792Focus + 4]
- FMUL qword ptr op792Dim
- FSTP dword ptr [ESP + 0x20]
- FLD dword ptr [EAX + op792Focus + 8]
- FMUL qword ptr op792Dim
- FSTP dword ptr [ESP + 0x24]
- FLD dword ptr [EAX + op792Focus + 12]
- FMUL qword ptr op792Dim
- MOV EAX,DC
- FSTP dword ptr [ESP + 0x28]
- MOV EDX,dword ptr [EAX + op792Time]
- MOV EAX,0x1b4e81b5
- IMUL EDX
- SAR EDX,0x3
- MOV EAX,EDX
- SHR EAX,0x1f
- ADD EDX,EAX
- LEA EAX,[ESP + 0x1c]
- MOV dword ptr [ESP + 0x30],EDX
- LEA EDX,[ESP + 0xc]
- FILD dword ptr [ESP + 0x30]
- FSIN
- FADD qword ptr op792One
- FMUL qword ptr op792Half
- FSTP dword ptr [ESP]
- PUSH EDX
- PUSH EAX
- PUSH ECX
- CALL LerpColor
- ADD ESP,0x10
- JMP op792_30083fa7
-op792_30083f88:
- LEA ECX,[ESI + op792Color]
- MOV EDX,dword ptr [ESI + op792Color]
- MOV dword ptr [ESP + 0x8],EDX
- MOV EAX,dword ptr [ECX + 0x4]
- MOV dword ptr [ESP + 0xc],EAX
- MOV EDX,dword ptr [ECX + 0x8]
- MOV dword ptr [ESP + 0x10],EDX
- MOV EAX,dword ptr [ECX + 0xc]
- MOV dword ptr [ESP + 0x14],EAX
-op792_30083fa7:
- PUSH ESI
- CALL Item_Multi_Setting
- MOV EDI,EAX
- MOV EAX,dword ptr [ESI + op792Text]
- ADD ESP,0x4
- TEST EAX,EAX
- JZ op792_3008400c
- PUSH ESI
- CALL Item_Text_Paint
- MOV ECX,dword ptr [ESI + op792Style]
- MOV EAX,dword ptr [ESI + op792Scale]
- FLD dword ptr [ESI + op792W]
- FADD dword ptr [ESI + op792X]
- ADD ESP,0x4
- LEA EDX,[ESP + 0x8]
- FADD dword ptr op792Eight
- PUSH ECX
- MOV ECX,dword ptr [ESI + op792Y]
- PUSH 0x0
- PUSH 0x0
- PUSH EDI
- PUSH EDX
- MOV EDX,dword ptr DC
- PUSH EAX
- PUSH ECX
- PUSH ECX
- FSTP dword ptr [ESP]
- CALL dword ptr [EDX + op792Draw]
- ADD ESP,0x20
- POP EDI
- POP ESI
- ADD ESP,0x20
- RET
-op792_3008400c:
- MOV EAX,dword ptr [ESI + op792Style]
- MOV EDX,dword ptr [ESI + op792Scale]
- PUSH EAX
- MOV EAX,dword ptr [ESI + op792Y]
- PUSH 0x0
- PUSH 0x0
- LEA ECX,[ESP + 0x14]
- PUSH EDI
- PUSH ECX
- MOV ECX,dword ptr [ESI + op792X]
- PUSH EDX
- MOV EDX,dword ptr DC
- PUSH EAX
- PUSH ECX
- CALL dword ptr [EDX + op792Draw]
- ADD ESP,0x20
- POP EDI
- POP ESI
- ADD ESP,0x20
- RET
- }
-}
-#else
 void Item_Multi_Paint(itemDef_t *item) {
 	vec4_t newColor, lowLight;
 	const char *text = "";
@@ -6729,7 +6277,6 @@ void Item_Multi_Paint(itemDef_t *item) {
 }
 
 
-#endif
 
 typedef struct {
 	char	*command;
@@ -7232,202 +6779,6 @@ void Item_Slider_Paint(itemDef_t *item) {
 
 #endif
 
-#if defined(_MSC_VER) && defined(_M_IX86) && !defined(UIDLL)
-static const float bp795Dim=.8f,bp795Eight=8.f;
-static const double bp795One=1.,bp795Half=.5;
-static const char bp795Fixme[]="FIXME";
-enum { bp795Data=offsetof(itemDef_t,typeData),
-bp795Parent=offsetof(itemDef_t,parent),
-bp795Cvar=offsetof(itemDef_t,cvar),
-bp795Text=offsetof(itemDef_t,text),
-bp795Style=offsetof(itemDef_t,textStyle),
-bp795Scale=offsetof(itemDef_t,textscale),
-bp795X=offsetof(itemDef_t,textRect)+offsetof(rectDef_t,x),
-bp795Y=offsetof(itemDef_t,textRect)+offsetof(rectDef_t,y),
-bp795W=offsetof(itemDef_t,textRect)+offsetof(rectDef_t,w),
-bp795Color=offsetof(itemDef_t,window)+offsetof(windowDef_t,foreColor),
-bp795Flags=offsetof(itemDef_t,window)+offsetof(windowDef_t,flags),
-bp795Focus=offsetof(menuDef_t,focusColor),
-bp795Max=offsetof(editFieldDef_t,maxPaintChars),
-bp795Value=offsetof(displayContextDef_t,getCVarValue),
-bp795Time=offsetof(displayContextDef_t,realTime),
-bp795Draw=offsetof(displayContextDef_t,drawText) };
-__declspec(naked) void Item_Bind_Paint(itemDef_t *item) {
- __asm {
- SUB ESP,0x20
- PUSH EBX
- PUSH ESI
- MOV ESI,dword ptr [ESP + 0x2c]
- XOR EBX,EBX
- PUSH EDI
- MOV EAX,dword ptr [ESI + bp795Data]
- MOV EDI,dword ptr [ESI + bp795Parent]
- TEST EAX,EAX
- JZ bp795_3008430f
- MOV EBX,dword ptr [EAX + bp795Max]
-bp795_3008430f:
- MOV EAX,dword ptr [ESI + bp795Cvar]
- TEST EAX,EAX
- JZ bp795_3008432b
- PUSH EAX
- MOV EAX,DC
- CALL dword ptr [EAX + bp795Value]
- FSTP dword ptr [ESP + 0x34]
- ADD ESP,0x4
- JMP bp795_30084333
-bp795_3008432b:
- MOV dword ptr [ESP + 0x30],0x0
-bp795_30084333:
- MOV EAX,dword ptr [ESI + bp795Flags]
- TEST AL,0x2
- JZ bp795_30084408
- TEST EAX,0x8000000
- JZ bp795_30084408
- CMP dword ptr g_bindItem,ESI
- JNZ bp795_30084373
- MOV dword ptr [ESP + 0xc],0x3f4ccccd
- MOV dword ptr [ESP + 0x10],0x0
- MOV dword ptr [ESP + 0x14],0x0
- MOV dword ptr [ESP + 0x18],0x3f4ccccd
- JMP bp795_300843b3
-bp795_30084373:
- FLD dword ptr [EDI + bp795Focus + 0]
- FMUL dword ptr bp795Dim
- FSTP dword ptr [ESP + 0xc]
- FLD dword ptr [EDI + bp795Focus + 4]
- FMUL dword ptr bp795Dim
- FSTP dword ptr [ESP + 0x10]
- FLD dword ptr [EDI + bp795Focus + 8]
- FMUL dword ptr bp795Dim
- FSTP dword ptr [ESP + 0x14]
- FLD dword ptr [EDI + bp795Focus + 12]
- FMUL dword ptr bp795Dim
- FSTP dword ptr [ESP + 0x18]
-bp795_300843b3:
- MOV ECX,dword ptr DC
- MOV EAX,0x1b4e81b5
- ADD EDI,bp795Focus
- MOV ECX,dword ptr [ECX + bp795Time]
- IMUL ECX
- SAR EDX,0x3
- MOV EAX,EDX
- PUSH ECX
- SHR EAX,0x1f
- ADD EDX,EAX
- LEA ECX,[ESP + 0x20]
- MOV dword ptr [ESP + 0x34],EDX
- LEA EDX,[ESP + 0x10]
- FILD dword ptr [ESP + 0x34]
- FSIN
- FADD qword ptr bp795One
- FMUL qword ptr bp795Half
- FSTP dword ptr [ESP]
- PUSH ECX
- PUSH EDX
- PUSH EDI
- CALL LerpColor
- ADD ESP,0x10
- JMP bp795_3008449d
-bp795_30084408:
- CMP dword ptr g_bindItem,ESI
- JNZ bp795_3008447e
- MOV EAX,DC
- MOV dword ptr [ESP + 0xc],0x3f4ccccd
- MOV dword ptr [ESP + 0x10],0x0
- MOV dword ptr [ESP + 0x14],0x0
- MOV dword ptr [ESP + 0x18],0x3f4ccccd
- MOV ECX,dword ptr [EAX + bp795Time]
- MOV EAX,0x1b4e81b5
- IMUL ECX
- SAR EDX,0x3
- MOV ECX,EDX
- LEA EAX,[ESP + 0xc]
- SHR ECX,0x1f
- ADD EDX,ECX
- PUSH ECX
- MOV dword ptr [ESP + 0x34],EDX
- LEA EDX,[ESP + 0x20]
- FILD dword ptr [ESP + 0x34]
- LEA ECX,[ESI + bp795Color]
- FSIN
- FADD qword ptr bp795One
- FMUL qword ptr bp795Half
- FSTP dword ptr [ESP]
- PUSH EDX
- PUSH EAX
- PUSH ECX
- CALL LerpColor
- ADD ESP,0x10
- JMP bp795_3008449d
-bp795_3008447e:
- LEA EDX,[ESI + bp795Color]
- MOV EAX,dword ptr [ESI + bp795Color]
- MOV dword ptr [ESP + 0x1c],EAX
- MOV ECX,dword ptr [EDX + 0x4]
- MOV dword ptr [ESP + 0x20],ECX
- MOV EAX,dword ptr [EDX + 0x8]
- MOV dword ptr [ESP + 0x24],EAX
- MOV ECX,dword ptr [EDX + 0xc]
- MOV dword ptr [ESP + 0x28],ECX
-bp795_3008449d:
- MOV EAX,dword ptr [ESI + bp795Text]
- TEST EAX,EAX
- JZ bp795_30084507
- PUSH ESI
- CALL Item_Text_Paint
- MOV EDX,dword ptr [ESI + bp795Cvar]
- PUSH EDX
- CALL BindingFromName
- MOV EAX,dword ptr [ESI + bp795Style]
- MOV EDX,dword ptr [ESI + bp795Scale]
- FLD dword ptr [ESI + bp795W]
- FADD dword ptr [ESI + bp795X]
- ADD ESP,0x8
- LEA ECX,[ESP + 0x1c]
- FADD dword ptr bp795Eight
- PUSH EAX
- MOV EAX,dword ptr [ESI + bp795Y]
- PUSH EBX
- PUSH 0x0
- PUSH offset g_nameBind1
- PUSH ECX
- PUSH EDX
- PUSH EAX
- PUSH ECX
- MOV ECX,dword ptr DC
- FSTP dword ptr [ESP]
- CALL dword ptr [ECX + bp795Draw]
- ADD ESP,0x20
- POP EDI
- POP ESI
- POP EBX
- ADD ESP,0x20
- RET
-bp795_30084507:
- MOV EDX,dword ptr [ESI + bp795Style]
- MOV ECX,dword ptr [ESI + bp795Scale]
- PUSH EDX
- MOV EDX,dword ptr [ESI + bp795Y]
- PUSH EBX
- PUSH 0x0
- LEA EAX,[ESP + 0x28]
- PUSH offset bp795Fixme
- PUSH EAX
- MOV EAX,dword ptr [ESI + bp795X]
- PUSH ECX
- MOV ECX,dword ptr DC
- PUSH EDX
- PUSH EAX
- CALL dword ptr [ECX + bp795Draw]
- ADD ESP,0x20
- POP EDI
- POP ESI
- POP EBX
- ADD ESP,0x20
- RET
- }
-}
-#else
 void Item_Bind_Paint(itemDef_t *item) {
 	vec4_t newColor, lowLight;
 	float value;
@@ -7474,7 +6825,6 @@ void Item_Bind_Paint(itemDef_t *item) {
 	}
 }
 
-#endif
 qboolean Display_KeyBindPending() {
 	return g_waitingForKey;
 }
@@ -7668,29 +7018,9 @@ void Item_Model_Paint(itemDef_t *item) {
 	DC->modelBounds( hModel, mins, maxs );
 
 #if !defined(UIDLL) && defined(_MSC_VER) && defined(_M_IX86)
-    {
-        static const double tceModel781NegativeHalf = -0.5;
-        static const double tceModel781Half = 0.5;
-        static const double tceModel781Reciprocal = 3.731343283582089;
-        __asm {
-            lea eax,mins
-            lea ecx,maxs
-            lea edx,origin
-            fld dword ptr [ecx + 8]
-            fadd dword ptr [eax + 8]
-            fmul qword ptr tceModel781NegativeHalf
-            fstp dword ptr [edx + 8]
-            fld dword ptr [ecx + 4]
-            fadd dword ptr [eax + 4]
-            fmul qword ptr tceModel781Half
-            fstp dword ptr [edx + 4]
-            fld dword ptr [ecx + 8]
-            fsub dword ptr [eax + 8]
-            fmul qword ptr tceModel781Half
-            fmul qword ptr tceModel781Reciprocal
-            fstp dword ptr [edx]
-        }
-    }
+    origin[2] = (float)(((long double)maxs[2] + mins[2]) * -0.5);
+    origin[1] = (float)(((long double)maxs[1] + mins[1]) * 0.5);
+    origin[0] = (float)(((long double)maxs[2] - mins[2]) * 0.5 * 3.731343283582089);
 #else
 	origin[2] = -0.5 * ( mins[2] + maxs[2] );
 	origin[1] = 0.5 * ( mins[1] + maxs[1] );
@@ -7708,41 +7038,8 @@ void Item_Model_Paint(itemDef_t *item) {
 #define NEWWAY
 #ifdef NEWWAY
 #if !defined(UIDLL) && defined(_MSC_VER) && defined(_M_IX86)
-    {
-        static const float tceModel782Zero = 0.0f;
-        float *tceModel782FovX = &modelPtr->fov_x;
-        float *tceModel782FovY = &modelPtr->fov_y;
-        float *tceModel782ResultX = &refdef.fov_x;
-        float *tceModel782ResultY = &refdef.fov_y;
-        __asm {
-            mov ecx,tceModel782FovX
-            fld dword ptr [ecx]
-            fcomp dword ptr tceModel782Zero
-            fnstsw ax
-            test ah,0x40
-            jnz tceModel782FallbackX
-            mov edx,dword ptr [ecx]
-            jmp tceModel782StoreX
-        tceModel782FallbackX:
-            mov edx,dword ptr w
-        tceModel782StoreX:
-            mov ecx,tceModel782ResultX
-            mov dword ptr [ecx],edx
-            mov ecx,tceModel782FovY
-            fld dword ptr [ecx]
-            fcomp dword ptr tceModel782Zero
-            fnstsw ax
-            test ah,0x40
-            jnz tceModel782FallbackY
-            mov edx,dword ptr [ecx]
-            jmp tceModel782StoreY
-        tceModel782FallbackY:
-            mov edx,dword ptr h
-        tceModel782StoreY:
-            mov ecx,tceModel782ResultY
-            mov dword ptr [ecx],edx
-        }
-    }
+    refdef.fov_x = TCE_FloatIsZeroOrNaN(modelPtr->fov_x) ? w : modelPtr->fov_x;
+    refdef.fov_y = TCE_FloatIsZeroOrNaN(modelPtr->fov_y) ? h : modelPtr->fov_y;
 #else
 	refdef.fov_x = (modelPtr->fov_x) ? modelPtr->fov_x : w;
 	refdef.fov_y = (modelPtr->fov_y) ? modelPtr->fov_y : h;
@@ -7769,20 +7066,12 @@ void Item_Model_Paint(itemDef_t *item) {
 	if (modelPtr->rotationSpeed) {
 		if (DC->realTime > item->window.nextTime) {
 #if !defined(UIDLL) && defined(_MSC_VER) && defined(_M_IX86)
-            unsigned int tceModel782Next = (unsigned int)DC->realTime + (unsigned int)modelPtr->rotationSpeed;
-            int *tceModel782Angle = &modelPtr->angle;
-            memcpy(&item->window.nextTime, &tceModel782Next, sizeof(tceModel782Next));
-            __asm {
-                mov ecx,tceModel782Angle
-                mov eax,dword ptr [ecx]
-                inc eax
-                cdq
-                push ecx
-                mov ecx,360
-                idiv ecx
-                pop ecx
-                mov dword ptr [ecx],edx
-            }
+            unsigned next = (unsigned)DC->realTime + (unsigned)modelPtr->rotationSpeed;
+            unsigned angleBits = (unsigned)modelPtr->angle + 1u;
+            int angle;
+            memcpy(&item->window.nextTime, &next, sizeof(next));
+            memcpy(&angle, &angleBits, sizeof(angle));
+            modelPtr->angle = angle % 360;
 #else
 			item->window.nextTime = DC->realTime + modelPtr->rotationSpeed;
 			modelPtr->angle = (int)(modelPtr->angle + 1) % 360;
@@ -7797,18 +7086,11 @@ void Item_Model_Paint(itemDef_t *item) {
 
 	if(modelPtr->frameTime) {
 #if !defined(UIDLL) && defined(_MSC_VER) && defined(_M_IX86)
-        static const float tceModel781Millis = 0.0010000000474974513f;
-        unsigned int tceModel781Delta = (unsigned int)DC->realTime - (unsigned int)modelPtr->frameTime;
-        int tceModel781Fps = modelPtr->fps;
-        float *tceModel781Backlerp = &modelPtr->backlerp;
-        __asm {
-            mov eax,tceModel781Backlerp
-            fild dword ptr tceModel781Delta
-            fmul dword ptr tceModel781Millis
-            fimul dword ptr tceModel781Fps
-            fadd dword ptr [eax]
-            fstp dword ptr [eax]
-        }
+        unsigned deltaBits = (unsigned)DC->realTime - (unsigned)modelPtr->frameTime;
+        int delta;
+        memcpy(&delta, &deltaBits, sizeof(delta));
+        modelPtr->backlerp = (float)((long double)delta * 0.0010000000474974513f *
+            modelPtr->fps + modelPtr->backlerp);
 #else
 		modelPtr->backlerp+=( ((DC->realTime - modelPtr->frameTime)/1000.0f) * (float)modelPtr->fps );
 #endif
@@ -7816,44 +7098,26 @@ void Item_Model_Paint(itemDef_t *item) {
 
 	if(modelPtr->backlerp > 1) {
 #if !defined(UIDLL) && defined(_MSC_VER) && defined(_M_IX86)
-        int *tceModel782Frame = &modelPtr->frame;
-        int *tceModel782OldFrame = &modelPtr->oldframe;
-        int tceModel782Start = modelPtr->startframe;
-        int tceModel782Count = modelPtr->numframes;
-        float *tceModel782Lerp = &modelPtr->backlerp;
+        int start = modelPtr->startframe, count = modelPtr->numframes, difference;
+        unsigned bits;
         backLerpWhole = TCE_ModelFloorInteger782(modelPtr->backlerp);
-        __asm {
-            mov ecx,tceModel782Frame
-            mov eax,dword ptr [ecx]
-            add eax,backLerpWhole
-            mov dword ptr [ecx],eax
-            mov edx,eax
-            sub edx,tceModel782Start
-            cmp edx,tceModel782Count
-            jle tceModel782Old
-            cdq
-            idiv tceModel782Count
-            add edx,tceModel782Start
-            mov dword ptr [ecx],edx
-        tceModel782Old:
-            mov ecx,tceModel782OldFrame
-            mov eax,dword ptr [ecx]
-            add eax,backLerpWhole
-            mov dword ptr [ecx],eax
-            mov edx,eax
-            sub edx,tceModel782Start
-            cmp edx,tceModel782Count
-            jle tceModel782Remainder
-            cdq
-            idiv tceModel782Count
-            add edx,tceModel782Start
-            mov dword ptr [ecx],edx
-        tceModel782Remainder:
-            mov ecx,tceModel782Lerp
-            fild dword ptr backLerpWhole
-            fsubr dword ptr [ecx]
-            fstp dword ptr [ecx]
+        bits = (unsigned)modelPtr->frame + (unsigned)backLerpWhole;
+        memcpy(&modelPtr->frame, &bits, sizeof(bits));
+        bits = (unsigned)modelPtr->frame - (unsigned)start;
+        memcpy(&difference, &bits, sizeof(difference));
+        if (difference > count) {
+            bits = (unsigned)(modelPtr->frame % count) + (unsigned)start;
+            memcpy(&modelPtr->frame, &bits, sizeof(bits));
         }
+        bits = (unsigned)modelPtr->oldframe + (unsigned)backLerpWhole;
+        memcpy(&modelPtr->oldframe, &bits, sizeof(bits));
+        bits = (unsigned)modelPtr->oldframe - (unsigned)start;
+        memcpy(&difference, &bits, sizeof(difference));
+        if (difference > count) {
+            bits = (unsigned)(modelPtr->oldframe % count) + (unsigned)start;
+            memcpy(&modelPtr->oldframe, &bits, sizeof(bits));
+        }
+        modelPtr->backlerp = (float)((long double)modelPtr->backlerp - backLerpWhole);
 #else
 		backLerpWhole = floor(modelPtr->backlerp);
 
@@ -7874,18 +7138,7 @@ void Item_Model_Paint(itemDef_t *item) {
 	ent.frame		= modelPtr->frame;
 	ent.oldframe	= modelPtr->oldframe;
 #if !defined(UIDLL) && defined(_MSC_VER) && defined(_M_IX86)
-    {
-        static const float tceModel782One = 1.0f;
-        float *tceModel782Lerp = &modelPtr->backlerp;
-        float *tceModel782EntityLerp = &ent.backlerp;
-        __asm {
-            mov ecx,tceModel782Lerp
-            mov edx,tceModel782EntityLerp
-            fld dword ptr tceModel782One
-            fsub dword ptr [ecx]
-            fstp dword ptr [edx]
-        }
-    }
+    ent.backlerp = (float)(1.0f - (long double)modelPtr->backlerp);
     memcpy(ent.origin, origin, sizeof(origin));
     memcpy(ent.lightingOrigin, origin, sizeof(origin));
     ent.renderfx = RF_LIGHTING_ORIGIN | RF_NOSHADOW;
