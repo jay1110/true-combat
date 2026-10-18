@@ -1308,6 +1308,41 @@ static int nativeLeanMagnitude(float lean) {
     memcpy(&value, &bits, sizeof(value));
     return value;
 }
+static void nativeSwayTargets(tce_weaponPosition_t *s, float target[2],
+                              long double *verticalTarget) {
+    long double dt, inverse, difference[3], rightDelta, upDelta;
+    long double rightVelocity, forwardVelocity;
+    int i;
+
+    dt = (long double)nativePositionTime((unsigned int)s->swayTime -
+                                        (unsigned int)s->time) *
+         (long double)0.0010000000474974513f;
+    if (!(dt >= (long double)0.004999999888241291f)) {
+        dt = (long double)0.004999999888241291f;
+    }
+    s->swayTime = s->time;
+    for (i = 0; i < 3; ++i) {
+        difference[i] = (long double)s->viewAxis[0][i] - (long double)s->priorForward[i];
+    }
+    VectorCopy(s->viewAxis[0], s->priorForward);
+    inverse = 1.0L / dt;
+    rightDelta = difference[0] * (long double)s->viewAxis[1][0] +
+                 difference[1] * (long double)s->viewAxis[1][1];
+    rightDelta += difference[2] * (long double)s->viewAxis[1][2];
+    upDelta = difference[0] * (long double)s->viewAxis[2][0] +
+              difference[1] * (long double)s->viewAxis[2][1];
+    upDelta += difference[2] * (long double)s->viewAxis[2][2];
+    rightVelocity = (long double)s->viewAxis[1][0] * (long double)s->velocity[0] +
+                    (long double)s->viewAxis[1][1] * (long double)s->velocity[1];
+    rightVelocity += (long double)s->viewAxis[1][2] * (long double)s->velocity[2];
+    forwardVelocity = (long double)s->viewAxis[0][0] * (long double)s->velocity[0] +
+                      (long double)s->viewAxis[0][1] * (long double)s->velocity[1];
+    forwardVelocity += (long double)s->viewAxis[0][2] * (long double)s->velocity[2];
+    target[0] = (float)(-rightDelta * inverse + rightVelocity * (long double)0.1f);
+    *verticalTarget = -upDelta * inverse + forwardVelocity * (long double)0.1f;
+    target[1] = (float)*verticalTarget;
+}
+
 #endif
 
 static void posture(tce_weaponPosition_t *s,float *origin,float *angles,int active,int timer,int kind) {
@@ -1393,6 +1428,9 @@ void TCE_CG_CalculateWeaponPosition(tce_weaponPosition_t *s,float *origin,float 
     float f,dt,limit,strength,secondary,bobScale=1,idleScale=1,signedSpeed;
     float right[3],up[3],difference[3],target[2];
     double wave,recoilRate=0; int recoilPitch=0;
+#if defined(__linux__) && !defined(Q3_VM)
+    long double nativeLimit, vertical, verticalTarget;
+#endif
     VectorCopy(s->viewOrigin,origin);VectorCopy(s->viewAngles,angles);
     if(s->eFlags&0x8000)angles[0]=(float)(angles[0]*(5.0/6.0));
     if(!s->thirdPerson && (s->weapon==60||s->weapon==62) && s->weaponState!=1)angles[0]=s->mountedPitch;
@@ -1452,42 +1490,75 @@ void TCE_CG_CalculateWeaponPosition(tce_weaponPosition_t *s,float *origin,float 
     if(!scoped) {
         /* The original subtracts current time from previous time. */
 #if defined(__linux__) && !defined(Q3_VM)
-        dt = (float)((long double)nativePositionTime((unsigned int)s->swayTime -
-                                                    (unsigned int)s->time) *
-                     (long double)0.0010000000474974513f);
-        if (dt < 0.004999999888241291f) dt = 0.004999999888241291f;
+        nativeSwayTargets(s, target, &verticalTarget);
 #else
         dt=(float)((s->swayTime-s->time)*(double).001f);if(dt<.005f)dt=.005f;
-#endif
         for(i=0;i<3;++i){difference[i]=s->viewAxis[0][i]-s->priorForward[i];s->priorForward[i]=s->viewAxis[0][i];}
         target[0]=(float)(dot(s->velocity,s->viewAxis[1])*(double).1f-dot(difference,s->viewAxis[1])/dt);
         target[1]=(float)(dot(s->velocity,s->viewAxis[0])*(double).1f-dot(difference,s->viewAxis[2])/dt);
+#endif
 #if defined(__linux__) && !defined(Q3_VM)
         f = (!(s->eFlags & 0x80000) &&
              nativePositionTime((unsigned int)s->proneTime + (unsigned int)s->time) > 749) ?
             250.0f : 750.0f;
         if ((float)nativePositionTime((unsigned int)s->time - (unsigned int)s->stepTime) < f) {
-            target[1] += s->stepChange;
+            verticalTarget += (long double)s->stepChange;
+            target[1] = (float)verticalTarget;
         }
 #else
         f=(!(s->eFlags&0x80000) && s->proneTime+s->time>749)?250.0f:750.0f;
         if((float)(s->time-s->stepTime)<f)target[1]+=s->stepChange;
 #endif
+#if defined(__linux__) && !defined(Q3_VM)
+        nativeLimit = s->aiming ? (long double)w->unknown_0f8[3] *
+                                 (long double)0.0016666667070239782f : 3.0L;
+#else
         limit=s->aiming?(float)(w->unknown_0f8[3]*(double)(1.0f/600.0f)):3.0f;
+#endif
         secondary=s->aiming?.5f:1.0f;
         strength=(float)(s->scale_3407dfc0*(double)secondary*(double).001f+s->scale_3407dfbc*(double).001f);
         if(strength>1)strength=1;if(!s->aiming && strength<.5f)strength=.5f;
 #if defined(__linux__) && !defined(Q3_VM)
         for (i = 0; i < 2; ++i) {
             /* Original JNC keeps only ordered magnitudes at least 0.2. */
-            target[i] = !(fabs((double)target[i]) >= 0.2) ? 0.0f : clampSway(target[i], limit);
+            if (!(fabs((double)target[i]) >= 0.2)) {
+                target[i] = 0.0f;
+            } else if ((long double)target[i] > nativeLimit) {
+                target[i] = (float)nativeLimit;
+            } else if (!((long double)target[i] >= -nativeLimit)) {
+                target[i] = (float)-nativeLimit;
+            }
         }
 #else
         for(i=0;i<2;++i)target[i]=fabs(target[i])<.2?0.0f:clampSway(target[i],limit);
 #endif
+#if defined(__linux__) && !defined(Q3_VM)
+        s->swayHorizontal = (float)(((long double)target[0] * (long double)0.1f +
+                                    (long double)s->swayHorizontal) *
+                                   (long double)0.9090908765792847f);
+        vertical = ((long double)target[1] * (long double)0.1f +
+                    (long double)s->swayVertical) * (long double)0.9090908765792847f;
+        s->swayVertical = (float)vertical;
+        /* Upper vertical comparison precedes the binary32 reload. */
+        if (vertical <= nativeLimit) {
+            if (!((long double)s->swayVertical >= -nativeLimit)) {
+                s->swayVertical = (float)-nativeLimit;
+            }
+        } else {
+            s->swayVertical = (float)nativeLimit;
+        }
+        if ((long double)s->swayHorizontal > nativeLimit) {
+            s->swayHorizontal = (float)nativeLimit;
+        } else if (!((long double)s->swayHorizontal >= -nativeLimit)) {
+            s->swayHorizontal = (float)-nativeLimit;
+        }
+#else
         s->swayHorizontal=clampSway((float)((target[0]*(double).1f+s->swayHorizontal)*(double).9090908765792847f),limit);
         s->swayVertical=clampSway((float)((target[1]*(double).1f+s->swayVertical)*(double).9090908765792847f),limit);
+#endif
+#if !defined(__linux__) || defined(Q3_VM)
         s->swayTime=s->time;
+#endif
         translate(origin,s->viewAxis[1],s->swayHorizontal*(double)strength*.25);
         translate(origin,s->viewAxis[2],s->swayVertical*(double)strength*.25);
         angles[1]=(float)(angles[1]-s->swayHorizontal*(double)strength);
