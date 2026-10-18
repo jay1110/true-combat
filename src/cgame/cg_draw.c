@@ -1186,51 +1186,20 @@ static void CG_TCELinuxReticleProject(const vec3_t forward, const vec3_t right,
     *y = (float)((long double)*y - dy);
 }
 
-/* Native Linux portal-reticle continuation. The private frame retains the
- * original binary32/binary64 scratch slots across real draw callbacks. */
-typedef union {
-    unsigned int bits[96];
-    float value[96];
-    double alignment;
-} tceReticlePortalFrame851_t;
+/* Native Linux portal-reticle drawing with explicit float/double boundaries. */
+static void CG_TCELinuxReticlePortal851(int type, const float *x, const float *y,
+                                       const vec4_t black, const vec4_t red) {
+    float centerX, centerY, viewport;
+    int configuredWidth = tce_cg_weapons[0].portalScopeWidth;
 
-/* The picture callback consumes four float arguments and a shader handle. */
-static void CG_TCELinuxReticleDrawPic851(const tceReticlePortalFrame851_t *data) {
-    qhandle_t shader;
-
-    memcpy(&shader, &data->bits[4], sizeof(shader));
-    CG_DrawPic(data->value[0], data->value[1], data->value[2],
-               data->value[3], shader);
-}
-
-#define TCE_RETICLE_ASM851(body) __asm__ volatile ( \
-    ".intel_syntax noprefix\n\t" body "\n\t.att_syntax prefix" \
-    : "+m" (data) : "S" (&data), "D" (constants) \
-    : "eax", "cc", "memory", "st", "st(1)", "st(2)", "st(3)" )
-#define TCE_RETICLE_FILL851(color) \
-    CG_FillRect(data.value[0], data.value[1], data.value[2], data.value[3], (color))
-
-static void CG_TCELinuxReticlePortal851(int type,const float *x,const float *y,
-                                       const vec4_t black,const vec4_t red) {
-    tceReticlePortalFrame851_t data;
-    /* zero,one,half,quarter,three-quarters,250,220,.88,M76-y,overlay-y,
-     * size multiplier,viewport width,three,two: own original ELF constants. */
-    static const float constants[]={0.f,1.f,.5f,.25f,.75f,250.f,220.f,.88f,
-        .03181818127632141f,.09375f,1.2f,480.f,3.f,2.f};
-    typedef char ReticlePortalLayout851[(sizeof(data)==384 && sizeof(int)==4 &&
-        sizeof(float)==4 && sizeof(void*)==4)?1:-1];
-    memset(&data,0,sizeof(data));
-    memcpy(&data.value[0xb8/4],x,sizeof(float));
-    memcpy(&data.value[0xb4/4],y,sizeof(float));
-    data.bits[0x174/4]=(unsigned int)tce_cg_weapons[0].portalScopeWidth;
-    data.value[0xbc/4] = (float)((long double)1.2f * 480.0f);
-    if(type==2) {
-        int configuredWidth;
+    memcpy(&centerX, x, sizeof(centerX));
+    memcpy(&centerY, y, sizeof(centerY));
+    viewport = (float)((long double)1.2f * 480.0f);
+    if (type == 2) {
         qhandle_t shader;
         long double width;
         float left, top, drawnWidth, drawnHeight;
 
-        memcpy(&configuredWidth, &data.bits[0x174/4], sizeof(configuredWidth));
         width = (long double)configuredWidth * 0.88f;
         if (!(width > 0.0L)) {
             width = 220.0L;
@@ -1240,126 +1209,89 @@ static void CG_TCELinuxReticlePortal851(int type,const float *x,const float *y,
         if (shader) {
             drawnWidth = (float)width;
             drawnHeight = (float)(width * 0.5L);
-            top = (float)((long double)data.value[0xb4/4]
+            top = (float)((long double)centerY
                         - width * (long double)0.03181818127632141f);
-            left = (float)((long double)data.value[0xb8/4] - width * 0.5L);
+            left = (float)((long double)centerX - width * 0.5L);
             CG_DrawPic(left, top, drawnWidth, drawnHeight, shader);
         }
-        top = (float)((long double)data.value[0xb4/4] - 1.0L);
-        left = (float)((long double)data.value[0xb8/4] - 1.0L);
+        top = (float)((long double)centerY - 1.0L);
+        left = (float)((long double)centerX - 1.0L);
         CG_FillRect(left, top, 2.0f, 2.0f, red);
-    } else if(type==1) {
-        /* 4333d..433ce. Width is first spilled as float, then multiplied
-         * by the retained1.2; the half/left cache has its original spills. */
-        TCE_RETICLE_ASM851(
-            "fld dword ptr [edi+40]\n\tfild dword ptr [esi+0x174]\n\t"
-            "fcom dword ptr [edi]\n\tfnstsw ax\n\tsahf\n\tfstp dword ptr [esi+0xa8]\n\t"
-            "ja 1f\n\tfld dword ptr [edi+20]\n\tfstp dword ptr [esi+0xa8]\n\t1:\n\t"
-            "fmul dword ptr [esi+0xa8]\n\tfld dword ptr [edi+4]\n\t"
-            "fst dword ptr [esi+0xa4]\n\tfxch st(1)\n\tfst dword ptr [esi+0xa8]\n\t"
-            "fxch st(1)\n\tfstp dword ptr [esi+12]\n\tfstp dword ptr [esi+8]\n\t"
-            "fld dword ptr [esi+0xa8]\n\tfld dword ptr [esi+0xb4]\n\tfxch st(1)\n\t"
-            "fmul dword ptr [edi+8]\n\tfxch st(1)\n\tfstp dword ptr [esi+4]\n\t"
-            "fld dword ptr [esi+0xb8]\n\tfsub st(0),st(1)\n\tfxch st(1)\n\t"
-            "fstp dword ptr [esi+0xa0]\n\tfst dword ptr [esi+0x9c]\n\tfstp dword ptr [esi]"
-        );
-        TCE_RETICLE_FILL851(black);
-        TCE_RETICLE_ASM851(
-            "fld dword ptr [esi+0xa8]\n\tfld dword ptr [esi+0xa4]\n\tfxch st(1)\n\t"
-            "fstp dword ptr [esi+12]\n\tfld dword ptr [esi+0xb4]\n\t"
-            "fsub dword ptr [esi+0xa0]\n\tfxch st(1)\n\tfstp dword ptr [esi+8]\n\t"
-            "fld dword ptr [esi+0xb8]\n\tfxch st(1)\n\tfst dword ptr [esi+0x98]\n\t"
-            "fstp dword ptr [esi+4]\n\tfstp dword ptr [esi]"
-        );
-        TCE_RETICLE_FILL851(black);
-        TCE_RETICLE_ASM851(
-            "fld dword ptr [esi+0xa8]\n\tfmul dword ptr [edi+12]\n\t"
-            "fld dword ptr [esi+0xb4]\n\tfsub dword ptr [esi+0xa4]\n\tfxch st(1)\n\t"
-            "fstp dword ptr [esi+0x2c]\n\tfld dword ptr [esi+0x9c]\n\tfxch st(1)\n\t"
-            "fstp dword ptr [esi+0x34]\n\tfstp dword ptr [esi]"
-        );
-        data.bits[2]=data.bits[0x2c/4];data.bits[1]=data.bits[0x34/4];data.bits[3]=0x40400000u;
-        TCE_RETICLE_FILL851(black);
-        TCE_RETICLE_ASM851(
-            "fld dword ptr [edi+16]\n\tfmul dword ptr [esi+0xa8]\n\t"
-            "fst qword ptr [esi+0x90]\n\tfadd dword ptr [esi+0x9c]\n\tfstp dword ptr [esi]"
-        );
-        TCE_RETICLE_FILL851(black);
-        TCE_RETICLE_ASM851(
-            "fld dword ptr [esi+0xb8]\n\tfsub dword ptr [esi+0xa4]\n\t"
-            "fld dword ptr [esi+0x98]\n\tfxch st(1)\n\tfstp dword ptr [esi+0x38]\n\t"
-            "fstp dword ptr [esi+4]"
-        );
-        data.bits[3]=data.bits[0x2c/4];data.bits[2]=0x40400000u;data.bits[0]=data.bits[0x38/4];
-        TCE_RETICLE_FILL851(black);
-        TCE_RETICLE_ASM851(
-            "fld qword ptr [esi+0x90]\n\tfadd dword ptr [esi+0x98]\n\tfstp dword ptr [esi+4]"
-        );
-        TCE_RETICLE_FILL851(black);
-        TCE_RETICLE_ASM851(
-            "fld dword ptr [esi+0xa4]\n\tfld dword ptr [esi+0xb4]\n\tfxch st(1)\n\t"
-            "fst dword ptr [esi+12]\n\tfstp dword ptr [esi+8]\n\t"
-            "fld dword ptr [esi+0xb8]\n\tfxch st(1)\n\tfstp dword ptr [esi+4]\n\tfstp dword ptr [esi]"
-        );
-        TCE_RETICLE_FILL851(red);
+    } else if (type == 1) {
+        float width, halfWidth, left, top, quarterWidth, tickX, tickY;
+        double cachedThreeQuarters;
+        long double threeQuarters;
+
+        width = configuredWidth > 0 ? (float)configuredWidth : 250.0f;
+        width = (float)((long double)1.2f * width);
+        halfWidth = (float)((long double)width * 0.5L);
+        left = (float)((long double)centerX - halfWidth);
+        CG_FillRect(left, centerY, width, 1.0f, black);
+
+        top = (float)((long double)centerY - halfWidth);
+        CG_FillRect(centerX, top, 1.0f, width, black);
+
+        quarterWidth = (float)((long double)width * 0.25L);
+        tickY = (float)((long double)centerY - 1.0L);
+        CG_FillRect(left, tickY, quarterWidth, 3.0f, black);
+        threeQuarters = 0.75L * width;
+        cachedThreeQuarters = (double)threeQuarters;
+        tickX = (float)(threeQuarters + left);
+        CG_FillRect(tickX, tickY, quarterWidth, 3.0f, black);
+
+        tickX = (float)((long double)centerX - 1.0L);
+        CG_FillRect(tickX, top, 3.0f, quarterWidth, black);
+        tickY = (float)((long double)cachedThreeQuarters + top);
+        CG_FillRect(tickX, tickY, 3.0f, quarterWidth, black);
+        CG_FillRect(centerX, centerY, 1.0f, 1.0f, red);
     } else {
-        int configuredWidth;
         long double width, halfWidth;
         float drawnWidth, cachedHalf, left, top;
 
-        memcpy(&configuredWidth, &data.bits[0x174/4], sizeof(configuredWidth));
         width = configuredWidth > 0 ? (long double)configuredWidth : 250.0L;
         halfWidth = width * 0.5L;
         drawnWidth = (float)width;
         cachedHalf = (float)halfWidth;
-        left = (float)((long double)data.value[0xb8/4] - halfWidth);
-        CG_FillRect(left, data.value[0xb4/4], drawnWidth, 1.0f, black);
+        left = (float)((long double)centerX - halfWidth);
+        CG_FillRect(left, centerY, drawnWidth, 1.0f, black);
 
-        top = (float)((long double)data.value[0xb4/4] - cachedHalf);
-        CG_FillRect(data.value[0xb8/4], top, 1.0f, drawnWidth, black);
-        CG_FillRect(data.value[0xb8/4], data.value[0xb4/4], 1.0f, 1.0f, red);
+        top = (float)((long double)centerY - cachedHalf);
+        CG_FillRect(centerX, top, 1.0f, drawnWidth, black);
+        CG_FillRect(centerX, centerY, 1.0f, 1.0f, red);
     }
-    if(cgs.media.tcePortalScopeShader) {
+    if (cgs.media.tcePortalScopeShader) {
         vec3_t lighting;
-        const float *color=&data.value[0xe0/4];
-        TCE_CG_LightForParticleSimple(TCE_CG_MapLightGrid(),cg.refdef.vieworg,lighting);
-        memcpy(&data.value[0xd0/4],lighting,sizeof(lighting));
-        memcpy(&data.value[0x178/4],&cg.tceScopeLightBoost,sizeof(float));
-        /* 43218..432a0 (+43330): red compares extended precision BEFORE
-         * its spill; green and blue compare their rounded float spills. */
-        TCE_RETICLE_ASM851(
-            "fld dword ptr [edi+4]\n\tfld dword ptr [esi+0xd0]\n\t"
-            "fld dword ptr [esi+0xd4]\n\tfld dword ptr [esi+0x178]\n\tfadd st(0),st(3)\n\t"
-            "fmul st(2),st(0)\n\tfmul st(1),st(0)\n\tfmul dword ptr [esi+0xd8]\n\t"
-            "fxch st(2)\n\tfcom st(3)\n\tfnstsw ax\n\tsahf\n\t"
-            "fstp dword ptr [esi+0xe0]\n\tfstp dword ptr [esi+0xe4]\n\tfstp dword ptr [esi+0xe8]\n\t"
-            "jb 1f\n\tfstp dword ptr [esi+0xe0]\n\tjmp 2f\n\t1:\n\tfstp st(0)\n\t2:\n\t"
-            "fld dword ptr [edi+4]\n\tfld dword ptr [esi+0xe4]\n\tfcomp st(1)\n\t"
-            "fnstsw ax\n\tsahf\n\tjb 3f\n\tfst dword ptr [esi+0xe4]\n\t3:\n\t"
-            "fld dword ptr [esi+0xe8]\n\tfcompp\n\tfnstsw ax\n\tsahf\n\t"
-            "jb 4f\n\tmov dword ptr [esi+0xe8],0x3f800000\n\t4:"
-        );
-        data.bits[0xec/4]=0x3f800000u;
+        vec4_t color;
+        long double boost, redLight;
+        float left, top, offset;
+        qhandle_t shader;
 
+        TCE_CG_LightForParticleSimple(TCE_CG_MapLightGrid(), cg.refdef.vieworg, lighting);
+        boost = (long double)cg.tceScopeLightBoost + 1.0L;
+        redLight = (long double)lighting[0] * boost;
+        color[0] = (float)redLight;
+        color[1] = (float)((long double)lighting[1] * boost);
+        color[2] = (float)(boost * lighting[2]);
+        color[3] = 1.0f;
+        if (redLight >= 1.0L) {
+            color[0] = 1.0f;
+        }
+        if (color[1] >= 1.0f) {
+            color[1] = 1.0f;
+        }
+        if (color[2] >= 1.0f) {
+            color[2] = 1.0f;
+        }
         trap_R_SetColor(color);
-        /* 432af..4331f, including the ORIGINAL .09375 scale: no rounded
-         * precomputed 54.0000038 offset is substituted. Re-read the shader. */
-        data.bits[4]=(unsigned int)cgs.media.tcePortalScopeShader;
-        TCE_RETICLE_ASM851(
-            "fld dword ptr [esi+0xbc]\n\tfld dword ptr [esi+0xb4]\n\tfxch st(1)\n\t"
-            "fst dword ptr [esi+12]\n\tfst dword ptr [esi+8]\n\tfmul dword ptr [edi+8]\n\t"
-            "fsub st(1),st(0)\n\tfsubr dword ptr [esi+0xb8]\n\tfxch st(1)\n\t"
-            "fstp dword ptr [esi+0xb4]\n\tfld dword ptr [esi+0xbc]\n\t"
-            "fmul dword ptr [edi+36]\n\tfxch st(1)\n\tfstp dword ptr [esi]\n\t"
-            "fstp dword ptr [esi+0xbc]\n\tfld dword ptr [esi+0xb4]\n\t"
-            "fadd dword ptr [esi+0xbc]\n\tfstp dword ptr [esi+4]"
-        );
-        CG_TCELinuxReticleDrawPic851(&data);
+        shader = cgs.media.tcePortalScopeShader;
+        top = (float)((long double)centerY - (long double)viewport * 0.5L);
+        left = (float)((long double)centerX - (long double)viewport * 0.5L);
+        offset = (float)((long double)viewport * 0.09375f);
+        top = (float)((long double)top + offset);
+        CG_DrawPic(left, top, viewport, viewport, shader);
         trap_R_SetColor(NULL);
     }
 }
-#undef TCE_RETICLE_FILL851
-#undef TCE_RETICLE_ASM851
 #endif
 
 /* Native TC scope projection used by CG_DrawWeapReticle. */
