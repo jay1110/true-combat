@@ -5049,50 +5049,10 @@ static void PM_GroundTrace(void) {
 PM_SetWaterLevel	FIXME: avoid this twice?  certainly if not moving
 =============
 */
-/* TC qagame 200372c0/20037460: integer field copies and retained x87
- * sampling / __ftol return schedule. Native offsets replace original ABI slots. */
+/* TC:E posture trace layout requirements. */
 #if defined(_MSC_VER) && defined(_M_IX86)
 typedef char posture831PsAtZero[(offsetof(pmove_t, ps) == 0) ? 1 : -1];
 typedef char posture831TraceLayout[(sizeof(trace_t) == 56 && offsetof(trace_t, allsolid) == 0) ? 1 : -1];
-enum {
-    posture831pm110 = offsetof(pmove_t, waterlevel),
-    posture831pm10c = offsetof(pmove_t, watertype),
-    posture831ps14 = offsetof(playerState_t, origin),
-    posture831ps18 = offsetof(playerState_t, origin)+4,
-    posture831ps3e4 = offsetof(playerState_t, mins)+8,
-    posture831ps1c = offsetof(playerState_t, origin)+8,
-    posture831psa0 = offsetof(playerState_t, clientNum),
-    posture831pm12c = offsetof(pmove_t, pointcontents),
-    posture831psbc = offsetof(playerState_t, viewheight),
-    posture831ps3dc = offsetof(playerState_t, mins),
-    posture831pmf4 = offsetof(pmove_t, mins),
-    posture831ps3e0 = offsetof(playerState_t, mins)+4,
-    posture831pmf8 = offsetof(pmove_t, mins)+4,
-    posture831ps3e8 = offsetof(playerState_t, maxs),
-    posture831pm100 = offsetof(pmove_t, maxs),
-    posture831ps3ec = offsetof(playerState_t, maxs)+4,
-    posture831pm104 = offsetof(pmove_t, maxs)+4,
-    posture831pmfc = offsetof(pmove_t, mins)+8,
-    posture831ps4 = offsetof(playerState_t, pm_type),
-    posture831ps3f0 = offsetof(playerState_t, maxs)+8,
-    posture831pm108 = offsetof(pmove_t, maxs)+8,
-    posture831ps400 = offsetof(playerState_t, deadViewHeight),
-    posture831ps3f4 = offsetof(playerState_t, crouchMaxZ),
-    posture831ps3f8 = offsetof(playerState_t, crouchViewHeight),
-    posture831ps148 = offsetof(playerState_t, persistant)+14*sizeof(int),
-    posture831ps68 = offsetof(playerState_t, eFlags),
-    posture831psc = offsetof(playerState_t, pm_flags),
-    posture831pm22 = offsetof(pmove_t, cmd)+offsetof(usercmd_t,upmove),
-    posture831psf0 = offsetof(playerState_t, stats)+STAT_TCE_WEAPON_FLAGS*sizeof(int),
-    posture831psa4 = offsetof(playerState_t, weapon),
-    posture831pm44 = offsetof(pmove_t, tracemask),
-    posture831pm128 = offsetof(pmove_t, trace),
-    posture831pmc = offsetof(pmove_t, cmd)+offsetof(usercmd_t,serverTime),
-    posture831pm4 = offsetof(pmove_t, pmext),
-    posture831ExtJump = offsetof(pmoveExt_t, jumpTime),
-    posture831ps47c = offsetof(playerState_t, jumpTime),
-    posture831ps3fc = offsetof(playerState_t, standViewHeight)
-};
 static void PM_SetWaterLevel(void) {
     vec3_t point;
     int contents, sampleHeight, middleHeight;
@@ -5184,23 +5144,34 @@ Sets mins, maxs, and pm->ps->viewheight
 */
 /* TC Windows 3000f100 / Linux 000e16d2. Persistent slot 14 bit 4
  * selects toggle crouch; weapon-flags 0x200/0x400 are its state/key latch. */
-static void PM_TCECheckDuck(void) {
+static int PM_ViewHeightInteger(float height) {
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+    return TCE_TruncateNativeInteger((long double)height);
+#else
+    return (int)height;
+#endif
+}
+
+static void PM_CheckDuck(void) {
     trace_t trace;
     playerState_t *ps = pm->ps;
-    qboolean toggle = (ps->persistant[14] & 4) != 0;
-    VectorCopy(ps->mins, pm->mins);
-    pm->maxs[0] = ps->maxs[0];
-    pm->maxs[1] = ps->maxs[1];
+    qboolean toggle;
+    unsigned jumpBits;
+
+    memcpy(pm->mins, ps->mins, 2 * sizeof(float));
+    memcpy(pm->maxs, ps->maxs, 2 * sizeof(float));
+    memcpy(&pm->mins[2], &ps->mins[2], sizeof(float));
     if (ps->pm_type == PM_DEAD) {
         pm->maxs[2] = ps->maxs[2];
-        ps->viewheight = (int)ps->deadViewHeight;
+        ps->viewheight = PM_ViewHeightInteger(ps->deadViewHeight);
         return;
     }
     if (ps->pm_type == PM_SPECTATOR) {
         pm->maxs[2] = ps->crouchMaxZ;
-        ps->viewheight = (int)ps->crouchViewHeight;
+        ps->viewheight = PM_ViewHeightInteger(ps->crouchViewHeight);
         return;
     }
+    toggle = (ps->persistant[14] & 4) != 0;
     if (toggle && !(ps->eFlags & 0x1008000) && !(ps->pm_flags & PMF_LADDER)) {
         if (pm->cmd.upmove < 0) {
             if (!(ps->stats[STAT_TCE_WEAPON_FLAGS] & 0x400)) {
@@ -5218,229 +5189,24 @@ static void PM_TCECheckDuck(void) {
     } else if (ps->pm_flags & PMF_DUCKED) {
         pm->maxs[2] = ps->maxs[2];
         pm->trace(&trace, ps->origin, pm->mins, pm->maxs, ps->origin, ps->clientNum, pm->tracemask);
+        ps = pm->ps;
         if (!trace.allsolid) ps->pm_flags &= ~PMF_DUCKED;
         if (pm->cmd.upmove > 10) {
-            ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~0x200;
-            pm->pmext->jumpTime = ps->jumpTime = pm->cmd.serverTime - 650;
-            ps->pm_flags |= PMF_JUMP_HELD;
+            if (ps->stats[STAT_TCE_WEAPON_FLAGS] & 0x200)
+                ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~0x200;
+            /* Native SUB wraps separately for each destination. */
+            jumpBits = (unsigned)pm->cmd.serverTime - 650u;
+            memcpy(&pm->pmext->jumpTime, &jumpBits, sizeof(jumpBits));
+            jumpBits = (unsigned)pm->cmd.serverTime - 650u;
+            memcpy(&pm->ps->jumpTime, &jumpBits, sizeof(jumpBits));
+            pm->ps->pm_flags |= PMF_JUMP_HELD;
         }
     }
+    ps = pm->ps;
     pm->maxs[2] = (ps->pm_flags & PMF_DUCKED) ? ps->crouchMaxZ : ps->maxs[2];
-    ps->viewheight = (int)((ps->pm_flags & PMF_DUCKED) ? ps->crouchViewHeight : ps->standViewHeight);
+    ps->viewheight = PM_ViewHeightInteger(
+        (ps->pm_flags & PMF_DUCKED) ? ps->crouchViewHeight : ps->standViewHeight);
 }
-
-#if defined(_MSC_VER) && defined(_M_IX86)
-static __declspec(naked) void PM_CheckDuck(void) {
-    __asm {
-        MOV EAX,[pm]
-        SUB ESP,0x38
-        MOV ECX,dword ptr [EAX]
-        PUSH ESI
-        MOV EDX,dword ptr [ECX + posture831ps3dc]
-        MOV dword ptr [EAX + posture831pmf4],EDX
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX]
-        MOV EDX,dword ptr [ECX + posture831ps3e0]
-        MOV dword ptr [EAX + posture831pmf8],EDX
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX]
-        MOV EDX,dword ptr [ECX + posture831ps3e8]
-        MOV dword ptr [EAX + posture831pm100],EDX
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX]
-        MOV EDX,dword ptr [ECX + posture831ps3ec]
-        MOV dword ptr [EAX + posture831pm104],EDX
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX]
-        MOV EDX,dword ptr [ECX + posture831ps3e4]
-        MOV dword ptr [EAX + posture831pmfc],EDX
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX]
-        MOV EDX,dword ptr [ECX + posture831ps4]
-        CMP EDX,0x3
-        JNZ posture831_200374fc
-        MOV ECX,dword ptr [ECX + posture831ps3f0]
-        MOV dword ptr [EAX + posture831pm108],ECX
-        MOV EDX,dword ptr [pm]
-        MOV ESI,dword ptr [EDX]
-        FLD dword ptr [ESI + posture831ps400]
-        CALL PM_MovementTruncate827
-        MOV dword ptr [ESI + posture831psbc],EAX
-        POP ESI
-        ADD ESP,0x38
-        RET
-posture831_200374fc:
-        CMP EDX,0x2
-        JNZ posture831_2003752b
-        MOV ECX,dword ptr [ECX + posture831ps3f4]
-        MOV dword ptr [EAX + posture831pm108],ECX
-        MOV EDX,dword ptr [pm]
-        MOV ESI,dword ptr [EDX]
-        FLD dword ptr [ESI + posture831ps3f8]
-        CALL PM_MovementTruncate827
-        MOV dword ptr [ESI + posture831psbc],EAX
-        POP ESI
-        ADD ESP,0x38
-        RET
-posture831_2003752b:
-        MOV DL,byte ptr [ECX + posture831ps148]
-        PUSH EBX
-        TEST DL,0x4
-        JZ posture831_20037595
-        TEST dword ptr [ECX + posture831ps68],0x1008000
-        JNZ posture831_20037595
-        TEST byte ptr [ECX + posture831psc],0x4
-        JNZ posture831_20037595
-        MOV BL,byte ptr [EAX + posture831pm22]
-        TEST BL,BL
-        JGE posture831_20037581
-        MOV EDX,dword ptr [ECX + posture831psf0]
-        TEST DH,0x4
-        JNZ posture831_2003757d
-        OR DH,0x4
-        MOV dword ptr [ECX + posture831psf0],EDX
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX]
-        MOV EAX,dword ptr [ECX + posture831psf0]
-        TEST AH,0x2
-        JZ posture831_20037578
-        AND AH,0xfd
-        JMP posture831_2003758a
-posture831_20037578:
-        OR AH,0x2
-        JMP posture831_2003758a
-posture831_2003757d:
-        TEST BL,BL
-        JL posture831_20037595
-posture831_20037581:
-        MOV EAX,dword ptr [ECX + posture831psf0]
-        AND AH,0xfb
-posture831_2003758a:
-        MOV dword ptr [ECX + posture831psf0],EAX
-        MOV EAX,[pm]
-posture831_20037595:
-        MOV DL,byte ptr [EAX + posture831pm22]
-        CMP DL,0xa
-        JG posture831_200375c6
-        MOV ECX,dword ptr [EAX]
-        TEST dword ptr [ECX + posture831psf0],0x200
-        JZ posture831_200375c6
-        TEST byte ptr [ECX + posture831ps148],0x4
-        JZ posture831_200375c6
-        MOV EAX,dword ptr [ECX + posture831psc]
-        MOV EBX,0x1
-        OR EAX,EBX
-        MOV dword ptr [ECX + posture831psc],EAX
-        JMP posture831_200376b9
-posture831_200375c6:
-        TEST DL,DL
-        JGE posture831_200375e4
-        MOV ECX,dword ptr [EAX]
-        TEST byte ptr [ECX + posture831ps148],0x4
-        JNZ posture831_200375e4
-        TEST dword ptr [ECX + posture831ps68],0x1008000
-        JNZ posture831_200375e4
-        TEST byte ptr [ECX + posture831psc],0x4
-        JZ posture831_200375ef
-posture831_200375e4:
-        MOV ECX,dword ptr [EAX]
-        CMP dword ptr [ECX + posture831psa4],0x3c
-        JNZ posture831_20037601
-posture831_200375ef:
-        MOV EAX,dword ptr [ECX + posture831psc]
-        MOV EBX,0x1
-        OR EAX,EBX
-        MOV dword ptr [ECX + posture831psc],EAX
-        JMP posture831_200376b9
-posture831_20037601:
-        MOV DL,byte ptr [ECX + posture831psc]
-        MOV EBX,0x1
-        TEST BL,DL
-        JZ posture831_200376be
-        MOV ECX,dword ptr [ECX + posture831ps3f0]
-        MOV dword ptr [EAX + posture831pm108],ECX
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX]
-        MOV ESI,dword ptr [EAX + posture831pm44]
-        PUSH ESI
-        LEA EDX,[ECX + posture831ps14]
-        MOV ECX,dword ptr [ECX + posture831psa0]
-        PUSH ECX
-        LEA ECX,[EAX + posture831pm100]
-        PUSH EDX
-        PUSH ECX
-        LEA ECX,[EAX + posture831pmf4]
-        PUSH ECX
-        PUSH EDX
-        LEA EDX,[ESP + 0x20]
-        PUSH EDX
-        CALL dword ptr [EAX + posture831pm128]
-        MOV EAX,dword ptr [ESP + 0x24]
-        ADD ESP,0x1c
-        TEST EAX,EAX
-        JNZ posture831_20037663
-        MOV EAX,[pm]
-        MOV EAX,dword ptr [EAX]
-        AND dword ptr [EAX + posture831psc],0xfffffffe
-posture831_20037663:
-        MOV EAX,[pm]
-        CMP byte ptr [EAX + posture831pm22],0xa
-        JLE posture831_200376be
-        MOV EDX,dword ptr [EAX]
-        MOV ECX,dword ptr [EDX + posture831psf0]
-        TEST CH,0x2
-        JZ posture831_20037689
-        AND CH,0xfd
-        MOV dword ptr [EDX + posture831psf0],ECX
-        MOV EAX,[pm]
-posture831_20037689:
-        MOV ECX,dword ptr [EAX + posture831pmc]
-        MOV EDX,dword ptr [EAX + posture831pm4]
-        SUB ECX,0x28a
-        MOV dword ptr [EDX + posture831ExtJump],ECX
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX + posture831pmc]
-        MOV EDX,dword ptr [EAX]
-        SUB ECX,0x28a
-        MOV dword ptr [EDX + posture831ps47c],ECX
-        MOV EAX,[pm]
-        MOV EAX,dword ptr [EAX]
-        OR dword ptr [EAX + posture831psc],0x2
-posture831_200376b9:
-        MOV EAX,[pm]
-posture831_200376be:
-        MOV ECX,dword ptr [EAX]
-        TEST byte ptr [ECX + posture831psc],BL
-        POP EBX
-        JZ posture831_200376f0
-        MOV ECX,dword ptr [ECX + posture831ps3f4]
-        MOV dword ptr [EAX + posture831pm108],ECX
-        MOV EDX,dword ptr [pm]
-        MOV ESI,dword ptr [EDX]
-        FLD dword ptr [ESI + posture831ps3f8]
-        CALL PM_MovementTruncate827
-        MOV dword ptr [ESI + posture831psbc],EAX
-        POP ESI
-        ADD ESP,0x38
-        RET
-posture831_200376f0:
-        MOV ECX,dword ptr [ECX + posture831ps3f0]
-        MOV dword ptr [EAX + posture831pm108],ECX
-        MOV EDX,dword ptr [pm]
-        MOV ESI,dword ptr [EDX]
-        FLD dword ptr [ESI + posture831ps3fc]
-        CALL PM_MovementTruncate827
-        MOV dword ptr [ESI + posture831psbc],EAX
-        POP ESI
-        ADD ESP,0x38
-        RET
-    }
-}
-#else
-static void PM_CheckDuck(void) {
-    PM_TCECheckDuck();
-}
-#endif
 
 
 
