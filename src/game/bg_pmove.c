@@ -206,46 +206,23 @@ Slide off of the impacting surface
 ==================
 */
 #if defined(_MSC_VER) && defined(_M_IX86)
-static const float tceClipZero818 = 0.0f;
-/* TC20030d90: retained Z+Y+X dot product and sequential alias-safe stores. */
-__declspec(naked) void PM_ClipVelocity( vec3_t in, vec3_t normal, vec3_t clipOutput, float overbounce ) {
-    __asm {
-        mov edx, dword ptr [esp + 4]
-        mov ecx, dword ptr [esp + 8]
-        fld dword ptr [edx + 8]
-        fmul dword ptr [ecx + 8]
-        fld dword ptr [edx + 4]
-        fmul dword ptr [ecx + 4]
-        faddp st(1), st(0)
-        fld dword ptr [edx]
-        fmul dword ptr [ecx]
-        faddp st(1), st(0)
-        fcom dword ptr tceClipZero818
-        fnstsw ax
-        test ah, 1
-        jz clip818_divide
-        fmul dword ptr [esp + 16]
-        jmp clip818_components
-    clip818_divide:
-        fdiv dword ptr [esp + 16]
-    clip818_components:
-        push esi
-        mov esi, dword ptr [esp + 16]
-        sub edx, ecx
-        mov eax, ecx
-        sub esi, ecx
-        mov ecx, 3
-    clip818_loop:
-        fld st(0)
-        fmul dword ptr [eax]
-        add eax, 4
-        dec ecx
-        fsubr dword ptr [edx + eax - 4]
-        fstp dword ptr [esi + eax - 4]
-        jnz clip818_loop
-        fstp st(0)
-        pop esi
-        ret
+/* Windows retains the dot product until the sequential output stores.
+ * Compiler precision and floating-point exceptions remain unverified. */
+void PM_ClipVelocity(vec3_t in, vec3_t normal, vec3_t out, float overbounce) {
+    long double backoff = (long double)in[2] * normal[2];
+    int i;
+
+    backoff += (long double)in[1] * normal[1];
+    backoff += (long double)in[0] * normal[0];
+    /* Native C0 selects multiplication for negative or unordered values. */
+    if (backoff < 0.0L || backoff != backoff) {
+        backoff *= overbounce;
+    } else {
+        backoff /= overbounce;
+    }
+    for (i = 0; i < 3; ++i) {
+        long double change = backoff * normal[i];
+        out[i] = (float)((long double)in[i] - change);
     }
 }
 #else
@@ -814,68 +791,26 @@ Handles user intended acceleration
 /* Whole TC:E3000bb80; also inlined by Linux Fly/Noclip/Ladder. */
 static void PM_Accelerate(vec3_t wishdir, float wishspeed, float accel) {
 #if defined(_MSC_VER) && defined(_M_IX86)
-    enum { accelPsOffset = offsetof(pmove_t, ps),
-           accelVelocityOffset = offsetof(playerState_t, velocity) };
-    vec3_t accelerationPush;
-    float accelerationY, accelerationZ, accelerationLength;
-    float *accelerationFrame = &pml.frametime;
-    /* TC20033ee0: retain X product and acceleration; stage Y/Z and length. */
-    __asm {
-        mov ecx, wishdir
-        fld wishspeed
-        fmul dword ptr [ecx]
-        fld wishspeed
-        fmul dword ptr [ecx + 4]
-        fstp accelerationY
-        fld wishspeed
-        fmul dword ptr [ecx + 8]
-        mov eax, pm
-        mov ecx, dword ptr [eax + accelPsOffset]
-        fstp accelerationZ
-        fsub dword ptr [ecx + accelVelocityOffset]
-        lea ecx, accelerationPush
-        push ecx
-        fstp dword ptr accelerationPush
-        mov edx, dword ptr [eax + accelPsOffset]
-        fld accelerationY
-        fsub dword ptr [edx + accelVelocityOffset + 4]
-        fstp dword ptr accelerationPush[4]
-        mov eax, dword ptr [eax + accelPsOffset]
-        fld accelerationZ
-        fsub dword ptr [eax + accelVelocityOffset + 8]
-        fstp dword ptr accelerationPush[8]
-        call VectorNormalize
-        fstp accelerationLength
-        mov edx, accelerationFrame
-        fld dword ptr [edx]
-        fmul wishspeed
-        add esp, 4
-        fmul accel
-        fcom accelerationLength
-        fnstsw ax
-        test ah, 41h
-        jnz accel820_selected
-        fstp st(0)
-        fld accelerationLength
-    accel820_selected:
-        mov edx, pm
-        fld st(0)
-        fmul dword ptr accelerationPush
-        mov eax, dword ptr [edx + accelPsOffset]
-        fadd dword ptr [eax + accelVelocityOffset]
-        fstp dword ptr [eax + accelVelocityOffset]
-        mov eax, pm
-        fld st(0)
-        fmul dword ptr accelerationPush[4]
-        mov eax, dword ptr [eax + accelPsOffset]
-        fadd dword ptr [eax + accelVelocityOffset + 4]
-        fstp dword ptr [eax + accelVelocityOffset + 4]
-        mov ecx, pm
-        fmul dword ptr accelerationPush[8]
-        mov eax, dword ptr [ecx + accelPsOffset]
-        fadd dword ptr [eax + accelVelocityOffset + 8]
-        fstp dword ptr [eax + accelVelocityOffset + 8]
+    vec3_t push;
+    long double desiredX = (long double)wishspeed * wishdir[0];
+    volatile float desiredY = (float)((long double)wishspeed * wishdir[1]);
+    volatile float desiredZ = (float)((long double)wishspeed * wishdir[2]);
+    volatile float length;
+    long double amount;
+
+    push[0] = (float)(desiredX - pm->ps->velocity[0]);
+    push[1] = (float)((long double)desiredY - pm->ps->velocity[1]);
+    push[2] = (float)((long double)desiredZ - pm->ps->velocity[2]);
+    length = VectorNormalize(push);
+    amount = (long double)pml.frametime * wishspeed;
+    amount *= accel;
+    /* Native C0/C3 retains amount on less, equal or unordered comparison. */
+    if (amount > (long double)length) {
+        amount = length;
     }
+    pm->ps->velocity[0] = (float)(amount * push[0] + pm->ps->velocity[0]);
+    pm->ps->velocity[1] = (float)(amount * push[1] + pm->ps->velocity[1]);
+    pm->ps->velocity[2] = (float)(amount * push[2] + pm->ps->velocity[2]);
 #else
     vec3_t push;
     float length, amount;
