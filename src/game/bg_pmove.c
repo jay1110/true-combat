@@ -2014,8 +2014,6 @@ PM_CheckWaterJump
 */
 #if defined(_MSC_VER) && defined(_M_IX86)
 /* Whole TC200356a0/20035490, exact Windows instruction schedule and native fields. */
-static const float waterK200ac100 = 0.0;
-static const float waterK200ac260 = -60.0;
 static const float waterK200ac190 = 30.0;
 static const float waterK200ac2bc = 4.0;
 static const float waterK200ac384 = 16.0;
@@ -2905,172 +2903,59 @@ PM_WaterMove
 ===================
 */
 #if defined(_MSC_VER) && defined(_M_IX86)
-static __declspec(naked) void PM_WaterMove(void) {
-    __asm {
-        sub esp, 0x1c
-        call PM_CheckWaterJump
-        test eax, eax
-        je water830_200354a5
-        call PM_WaterJumpMove
-        add esp, 0x1c
-        ret 
-water830_200354a5:
-        call PM_Friction
-        mov eax, dword ptr [pm]
-        add eax, waterCommand830
-        push eax
-        call PM_CmdScale
-        fcom dword ptr [waterK200ac100]
-        add esp, 4
-        fnstsw ax
-        test ah, 0x40
-        je water830_200354e2
-        fstp st(0)
-        fld dword ptr [waterK200ac260]
-        mov dword ptr [esp + 4], 0
-        mov dword ptr [esp + 8], 0
-        jmp water830_20035536
-water830_200354e2:
-        mov ecx, dword ptr [pm]
-        movsx edx, byte ptr [ecx+waterRightCmd830]
-        movsx eax, byte ptr [ecx+waterForwardCmd830]
-        mov dword ptr [esp], edx
-        fild dword ptr [esp]
-        mov dword ptr [esp], eax
-        xor eax, eax
-        fild dword ptr [esp]
-water830_20035502:
-        fld st(1)
-        fmul dword ptr [eax + pml+waterRight830]
-        fld st(1)
-        fmul dword ptr [eax + pml+waterForward830]
-        add eax, 4
-        cmp eax, 0xc
-        faddp st(1), st(0)
-        fmul st(0), st(3)
-        fstp dword ptr [esp + eax]
-        jl water830_20035502
-        movsx ecx, byte ptr [ecx+waterUpCmd830]
-        fstp st(0)
-        fstp st(0)
-        mov dword ptr [esp], ecx
-        fimul dword ptr [esp]
-        fadd dword ptr [esp + 0xc]
-water830_20035536:
-        mov edx, dword ptr [esp + 4]
-        mov eax, dword ptr [esp + 8]
-        fstp dword ptr [esp + 0x18]
-        lea ecx, [esp + 0x10]
-        mov dword ptr [esp + 0x10], edx
-        push ecx
-        mov dword ptr [esp + 0x18], eax
-        call VectorNormalize
-        mov eax, dword ptr [pm]
-        add esp, 4
-        fstp dword ptr [esp]
-        cmp dword ptr [eax+waterType830], 0x10
-        jne water830_2003559b
-        mov edx, dword ptr [eax+waterPlayerState830]
-        fild dword ptr [edx+waterSpeed830]
-        fmul dword ptr [pm_slagSwimScale]
-        fld dword ptr [esp]
-        fcomp st(1)
-        fnstsw ax
-        test ah, 0x41
-        jne water830_20035587
-        fstp dword ptr [esp]
-        jmp water830_20035589
-water830_20035587:
-        fstp st(0)
-water830_20035589:
-        mov eax, dword ptr [pm_slagaccelerate]
-        mov ecx, dword ptr [esp]
-        push eax
-        lea edx, [esp + 0x14]
-        push ecx
-        push edx
-        jmp water830_200355cc
-water830_2003559b:
-        mov eax, dword ptr [eax+waterPlayerState830]
-        fild dword ptr [eax+waterSpeed830]
-        fmul dword ptr [pm_waterSwimScale]
-        fld dword ptr [esp]
-        fcomp st(1)
-        fnstsw ax
-        test ah, 0x41
-        jne water830_200355b9
-        fstp dword ptr [esp]
-        jmp water830_200355bb
-water830_200355b9:
-        fstp st(0)
-water830_200355bb:
-        mov ecx, dword ptr [pm_wateraccelerate]
-        mov edx, dword ptr [esp]
-        push ecx
-        lea eax, [esp + 0x14]
-        push edx
-        push eax
-water830_200355cc:
-        call PM_Accelerate
-        mov eax, dword ptr [pml+waterGround830]
-        add esp, 0xc
-        test eax, eax
-        je water830_20035687
-        mov ecx, dword ptr [pm]
-        fld dword ptr [pml+waterNormal830+8]
-        mov eax, dword ptr [ecx+waterPlayerState830]
-        fmul dword ptr [eax+waterVelocity830+8]
-        fld dword ptr [pml+waterNormal830+4]
-        fmul dword ptr [eax+waterVelocity830+4]
-        lea ecx, [eax+waterVelocity830]
-        faddp st(1), st(0)
-        fld dword ptr [pml+waterNormal830]
-        fmul dword ptr [ecx]
-        faddp st(1), st(0)
-        fcomp dword ptr [waterK200ac100]
-        fnstsw ax
-        test ah, 1
-        je water830_20035687
-        push ecx
-        call VectorLength
-        mov edx, dword ptr [pm]
-        push 0x3f8020c5
-        fstp dword ptr [esp + 8]
-        mov eax, dword ptr [edx+waterPlayerState830]
-        add eax, waterVelocity830
-        push eax
-        push offset pml+waterNormal830
-        push eax
-        call PM_ClipVelocity
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax+waterPlayerState830]
-        add ecx, waterVelocity830
-        push ecx
-        call VectorNormalize
-        mov edx, dword ptr [pm]
-        add esp, 0x18
-        fstp st(0)
-        mov eax, dword ptr [edx+waterPlayerState830]
-        fld dword ptr [esp]
-        fmul dword ptr [eax+waterVelocity830]
-        fstp dword ptr [eax+waterVelocity830]
-        mov eax, dword ptr [pm]
-        fld dword ptr [esp]
-        mov eax, dword ptr [eax+waterPlayerState830]
-        fmul dword ptr [eax+waterVelocity830+4]
-        fstp dword ptr [eax+waterVelocity830+4]
-        mov ecx, dword ptr [pm]
-        fld dword ptr [esp]
-        mov eax, dword ptr [ecx+waterPlayerState830]
-        fmul dword ptr [eax+waterVelocity830+8]
-        fstp dword ptr [eax+waterVelocity830+8]
-water830_20035687:
-        push 0
-        call PM_SlideMove
-        add esp, 4
-        add esp, 0x1c
-        ret 
+static void PM_WaterMove(void) {
+    vec3_t wishvel, wishdir;
+    long double scale, limit, dot;
+    volatile float wishspeed, speed;
+    int forwardMove, rightMove, i;
+
+    if (PM_CheckWaterJump()) {
+        PM_WaterJumpMove();
+        return;
     }
+    PM_Friction();
+    scale = PM_CmdScale(&pm->cmd);
+    if (scale == 0.0L || scale != scale) {
+        wishvel[0] = 0.0f;
+        wishvel[1] = 0.0f;
+        wishvel[2] = -60.0f;
+    } else {
+        forwardMove = pm->cmd.forwardmove;
+        rightMove = pm->cmd.rightmove;
+        for (i = 0; i < 3; ++i) {
+            long double right = (long double)rightMove * pml.right[i];
+            long double forward = (long double)forwardMove * pml.forward[i];
+            wishvel[i] = (float)((right + forward) * scale);
+        }
+        wishvel[2] = (float)(scale * pm->cmd.upmove + wishvel[2]);
+    }
+    VectorCopy(wishvel, wishdir);
+    wishspeed = (float)TCE_VectorNormalizeValue(wishdir);
+    if (pm->watertype == CONTENTS_SLIME) {
+        limit = (long double)pm->ps->speed * pm_slagSwimScale;
+        if ((long double)wishspeed > limit) wishspeed = (float)limit;
+        PM_Accelerate(wishdir, wishspeed, pm_slagaccelerate);
+    } else {
+        limit = (long double)pm->ps->speed * pm_waterSwimScale;
+        if ((long double)wishspeed > limit) wishspeed = (float)limit;
+        PM_Accelerate(wishdir, wishspeed, pm_wateraccelerate);
+    }
+    if (pml.groundPlane) {
+        dot = (long double)pml.groundTrace.plane.normal[2] * pm->ps->velocity[2];
+        dot += (long double)pml.groundTrace.plane.normal[1] * pm->ps->velocity[1];
+        dot += (long double)pml.groundTrace.plane.normal[0] * pm->ps->velocity[0];
+        /* Native C0 enters the slope adjustment for negative or unordered dot. */
+        if (dot < 0.0L || dot != dot) {
+            speed = (float)TCE_VectorLengthValue(pm->ps->velocity);
+            PM_ClipVelocity(pm->ps->velocity, pml.groundTrace.plane.normal,
+                pm->ps->velocity, OVERCLIP);
+            (void)TCE_VectorNormalizeValue(pm->ps->velocity);
+            pm->ps->velocity[0] = (float)((long double)speed * pm->ps->velocity[0]);
+            pm->ps->velocity[1] = (float)((long double)speed * pm->ps->velocity[1]);
+            pm->ps->velocity[2] = (float)((long double)speed * pm->ps->velocity[2]);
+        }
+    }
+    PM_SlideMove(qfalse);
 }
 #else
 /* Portable fallback; no Linux instruction-level parity claim. */
@@ -4369,7 +4254,6 @@ static const double groundK200ac268 = 0.7;
 static const float groundK200ac2dc = 80.0;
 static const float groundK200ac7d4 = -200.0;
 static const char groundS200bc610[] = "delta: %5.2f\n";
-static const char groundS200bc620[] = "%i:allsolid\n";
 static const char groundS200bc604[] = "%i:kickoff\n";
 static const char groundS200bc5f8[] = "%i:steep\n";
 static const char groundS200bc5ec[] = "%i:Land\n";
@@ -4693,140 +4577,35 @@ PM_CorrectAllSolid
 =============
 */
 #if defined(_MSC_VER) && defined(_M_IX86)
-static __declspec(naked) int PM_CorrectAllSolid(trace_t *trace) {
-    __asm {
-        mov eax, dword ptr [pm]
-        sub esp, 0x14
-        mov ecx, dword ptr [eax+groundDebug831]
-        test ecx, ecx
-        je ground831_20037037
-        mov eax, dword ptr [c_pmove]
-        push eax
-        push offset groundS200bc620
-        call Com_Printf
-        mov eax, dword ptr [pm]
-        add esp, 8
-ground831_20037037:
-        push ebx
-        push ebp
-        or ebp, 0xffffffff
-        or ebx, 0xffffffff
-        mov dword ptr [esp + 0xc], ebp
-        mov dword ptr [esp + 8], ebx
-        fild dword ptr [esp + 0xc]
-        push esi
-        mov esi, dword ptr [esp + 0x24]
-        push edi
-        or edi, 0xffffffff
-        fstp dword ptr [esp + 0x14]
-        fild dword ptr [esp + 0x10]
-        mov dword ptr [esp + 0x28], edi
-        fstp dword ptr [esp + 0x10]
-        jmp ground831_200370a6
-ground831_20037066:
-        fild dword ptr [esp + 0x14]
-        mov eax, dword ptr [pm]
-        or ebx, 0xffffffff
-        mov dword ptr [esp + 0x10], ebx
-        or edi, 0xffffffff
-        fstp dword ptr [esp + 0x14]
-        fild dword ptr [esp + 0x10]
-        mov dword ptr [esp + 0x28], edi
-        fstp dword ptr [esp + 0x10]
-        jmp ground831_200370a6
-ground831_2003708b:
-        fild dword ptr [esp + 0x10]
-        mov eax, dword ptr [pm]
-        or edi, 0xffffffff
-        mov dword ptr [esp + 0x28], edi
-        fstp dword ptr [esp + 0x10]
-        jmp ground831_200370a6
-ground831_200370a1:
-        mov eax, dword ptr [pm]
-ground831_200370a6:
-        mov ecx, dword ptr [eax+groundPs831]
-        mov edx, dword ptr [ecx+groundOrigin831]
-        mov dword ptr [esp + 0x18], edx
-        mov ecx, dword ptr [eax+groundPs831]
-        mov edx, dword ptr [ecx+groundOrigin831+4]
-        lea ecx, [esp + 0x18]
-        mov dword ptr [esp + 0x1c], edx
-        mov eax, dword ptr [eax+groundPs831]
-        lea edx, [esp + 0x18]
-        push ecx
-        fld dword ptr [eax+groundOrigin831+8]
-        fld dword ptr [esp + 0x18]
-        fadd dword ptr [esp + 0x1c]
-        push edx
-        push esi
-        fstp dword ptr [esp + 0x24]
-        fld dword ptr [esp + 0x1c]
-        fadd dword ptr [esp + 0x28]
-        fstp dword ptr [esp + 0x28]
-        fild dword ptr [esp + 0x34]
-        fadd st(0), st(1)
-        fstp dword ptr [esp + 0x2c]
-        fstp st(0)
-        call PM_TraceAll
-        mov eax, dword ptr [esi]
-        add esp, 0xc
-        test eax, eax
-        je ground831_20037143
-        inc edi
-        cmp edi, 1
-        mov dword ptr [esp + 0x28], edi
-        jle ground831_200370a1
-        inc ebx
-        cmp ebx, 1
-        mov dword ptr [esp + 0x10], ebx
-        jle ground831_2003708b
-        inc ebp
-        cmp ebp, 1
-        mov dword ptr [esp + 0x14], ebp
-        jle ground831_20037066
-        mov ecx, dword ptr [pm]
-        pop edi
-        xor eax, eax
-        pop esi
-        mov edx, dword ptr [ecx+groundPs831]
-        pop ebp
-        pop ebx
-        mov dword ptr [edx+groundGround831], 0x3ff
-        mov dword ptr [pml+groundGroundPlane831], eax
-        mov dword ptr [pml+groundWalking831], eax
-        add esp, 0x14
-        ret 
-ground831_20037143:
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax+groundPs831]
-        mov edx, dword ptr [ecx+groundOrigin831]
-        mov dword ptr [esp + 0x18], edx
-        mov ecx, dword ptr [eax+groundPs831]
-        mov edx, dword ptr [ecx+groundOrigin831+4]
-        mov dword ptr [esp + 0x1c], edx
-        mov ecx, dword ptr [eax+groundPs831]
-        lea edx, [esp + 0x18]
-        fld dword ptr [ecx+groundOrigin831+8]
-        fsub qword ptr [groundK200ac170]
-        push edx
-        fstp dword ptr [esp + 0x24]
-        mov eax, dword ptr [eax+groundPs831]
-        add eax, groundOrigin831
-        push eax
-        push esi
-        call PM_TraceAll
-        mov ecx, 0xe
-        mov edi, offset pml+groundGroundTrace831
-        add esp, 0xc
-        mov eax, 1
-        rep movsd 
-        pop edi
-        pop esi
-        pop ebp
-        pop ebx
-        add esp, 0x14
-        ret 
+static int PM_CorrectAllSolid(trace_t *trace) {
+    vec3_t point;
+    int i, j, k;
+
+    if (pm->debugLevel) Com_Printf("%i:allsolid\n", c_pmove);
+    for (i = -1; i <= 1; ++i) {
+        for (j = -1; j <= 1; ++j) {
+            for (k = -1; k <= 1; ++k) {
+                long double originZ;
+                memcpy(point, pm->ps->origin, 2 * sizeof(float));
+                originZ = pm->ps->origin[2];
+                point[0] = (float)((long double)i + point[0]);
+                point[1] = (float)((long double)j + point[1]);
+                point[2] = (float)((long double)k + originZ);
+                PM_TraceAll(trace, point, point);
+                if (!trace->allsolid) {
+                    memcpy(point, pm->ps->origin, 2 * sizeof(float));
+                    point[2] = (float)((long double)pm->ps->origin[2] - 0.25L);
+                    PM_TraceAll(trace, pm->ps->origin, point);
+                    memcpy(&pml.groundTrace, trace, sizeof(*trace));
+                    return qtrue;
+                }
+            }
+        }
     }
+    pm->ps->groundEntityNum = ENTITYNUM_NONE;
+    pml.groundPlane = qfalse;
+    pml.walking = qfalse;
+    return qfalse;
 }
 #else
 /* Portable fallback; no Linux instruction-level parity claim. */
