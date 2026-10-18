@@ -700,44 +700,13 @@ without getting a sqrt(2) distortion in speed.
 ============
 */
 #if defined(_MSC_VER) && defined(_M_IX86)
-/* TC20033fa0: native offsets, original x87 stack lifetime and return ABI. */
-static const unsigned int cmdScaleK200ac100 = 0x0u;
-static const unsigned int cmdScaleK200ac270 = 0x40000000u;
-static const unsigned int cmdScaleK200ac30c = 0x40400000u;
-static const unsigned int cmdScaleK200ac6e8 = 0x3fa00000u;
-static const unsigned int cmdScaleK200ac740 = 0x3fc00000u;
-static const unsigned int cmdScaleK200ac744 = 0x3c010204u;
-static const unsigned int cmdScaleK200ac748 = 0x3f733333u;
-static const unsigned int cmdScaleK200ac74c = 0x3f833333u;
-static const unsigned int cmdScaleK200ac750 = 0x3f866666u;
-static const unsigned int cmdScaleK200ac754 = 0x3f553f7du;
-static const unsigned int cmdScaleK200ac758 = 0x3fe8b439u;
-static const unsigned int cmdScaleK200ac75c = 0x3f0ccccdu;
-static const unsigned int cmdScaleK200ac760 = 0x3f59999au;
-static const unsigned int cmdScaleK200ac764 = 0x3fb33333u;
-static const unsigned __int64 cmdScaleK200ac768 = 0x405fc00000000000ui64;
-enum {
-    csCmdForward = offsetof(usercmd_t,forwardmove),
-    csCmdRight = offsetof(usercmd_t,rightmove),
-    csCmdUp = offsetof(usercmd_t,upmove),
-    csCmdButtons = offsetof(usercmd_t,buttons),
-    csPmButtons = offsetof(pmove_t,cmd)+offsetof(usercmd_t,buttons),
-    csPmExt = offsetof(pmove_t,pmext),
-    csPsSpeed = offsetof(playerState_t,speed),
-    csPsFlags = offsetof(playerState_t,pm_flags),
-    csPsType = offsetof(playerState_t,pm_type),
-    csPsRun = offsetof(playerState_t,runSpeedScale),
-    csPsSprint = offsetof(playerState_t,sprintSpeedScale),
-    csPsCrouch = offsetof(playerState_t,crouchSpeedScale),
-    csPsStats = offsetof(playerState_t,stats)+8*sizeof(int),
-    csPsLean = offsetof(playerState_t,leanf),
-    csPsWeapon = offsetof(playerState_t,weapon),
-    csPsWeight = offsetof(playerState_t,holdable)+9*sizeof(int),
-    csExtSprint = offsetof(pmoveExt_t,sprintTime),
-    csLadder = offsetof(pml_t,ladder),
-    csCvarInt = offsetof(vmCvar_t,integer),
-    csDefWeight = offsetof(tce_weaponDef_t,loadoutWeight)
-};
+/* Windows TCE input scaling. Native held values and float stores are
+ * represented explicitly. The private return keeps the value for native
+ * callers to store or consume; compiled x87 precision/ABI remains open. */
+typedef char cmdScaleLayout[(sizeof(int) == 4 && sizeof(usercmd_t) == 28 &&
+    offsetof(usercmd_t, forwardmove) == 20 && offsetof(usercmd_t, rightmove) == 21 &&
+    offsetof(usercmd_t, upmove) == 22 && offsetof(usercmd_t, buttons) == 4 &&
+    BUTTON_SPRINT == 0x20 && BUTTON_WALKING == 0x10) ? 1 : -1];
 #ifdef CGAMEDLL
 #define CS_MOVE_CVAR cg_movespeed
 #define CS_GAME_CVAR cg_gameType
@@ -745,231 +714,74 @@ enum {
 #define CS_MOVE_CVAR g_movespeed
 #define CS_GAME_CVAR g_gametype
 #endif
-static __declspec(naked) float PM_CmdScale(usercmd_t *cmd) {
-    __asm {
-        sub esp, 014h
-        mov eax, dword ptr [CS_MOVE_CVAR + csCvarInt]
-        push ebx
-        push ebp
-        mov ebp, dword ptr [esp + 020h]
-        push esi
-        mov dword ptr [esp + 0ch], eax
-        movsx esi, byte ptr [ebp + csCmdForward]
-        mov eax, esi
-        push edi
-        movsx edi, byte ptr [ebp + csCmdRight]
-        cdq 
-        mov ecx, eax
-        mov eax, edi
-        xor ecx, edx
-        mov dword ptr [esp + 018h], esi
-        sub ecx, edx
-        mov dword ptr [esp + 01ch], edi
-        cdq 
-        xor eax, edx
-        mov dword ptr [esp + 028h], ecx
-        sub eax, edx
-        cmp eax, ecx
-        jle csL20033fe2
-        mov ecx, eax
-        mov dword ptr [esp + 028h], ecx
-    csL20033fe2:
-        movsx ebx, byte ptr [ebp + csCmdUp]
-        mov eax, ebx
-        cdq 
-        xor eax, edx
-        sub eax, edx
-        cmp eax, ecx
-        jle csL20033ff7
-        mov ecx, eax
-        mov dword ptr [esp + 028h], ecx
-    csL20033ff7:
-        test ecx, ecx
-        jne csL20034009
-        fld dword ptr [cmdScaleK200ac100]
-        pop edi
-        pop esi
-        pop ebp
-        pop ebx
-        add esp, 014h
-        ret 
-    csL20034009:
-        mov eax, ebx
-        mov ecx, edi
-        imul eax, ebx
-        imul ecx, edi
-        mov edx, esi
-        mov dword ptr [esp + 020h], eax
-        imul edx, esi
-        add eax, ecx
-        mov ebx, 4
-        add edx, eax
-        mov eax, dword ptr [pm]
-        mov dword ptr [esp + 014h], edx
-        fild dword ptr [esp + 014h]
-        mov ecx, dword ptr [eax]
-        mov dl, byte ptr [eax + csPmButtons]
-        test dl, 020h
-        fsqrt 
-        fstp dword ptr [esp + 014h]
-        fild dword ptr [ecx + csPsSpeed]
-        fimul dword ptr [esp + 028h]
-        fld dword ptr [esp + 014h]
-        fmul qword ptr [cmdScaleK200ac768]
-        fdivp st(1), st(0)
-        je csL2003408d
-        mov esi, dword ptr [pml + csLadder]
-        test esi, esi
-        jne csL2003408d
-        mov esi, dword ptr [ecx + csPsFlags]
-        and esi, 1
-        jne csL2003408d
-        mov eax, dword ptr [eax + csPmExt]
-        cmp dword ptr [eax + csExtSprint], 032h
-        jle csL20034078
-        fmul dword ptr [ecx + csPsSprint]
-        jmp csL20034084
-    csL20034078:
-        fmul dword ptr [ecx + csPsRun]
-        fmul dword ptr [cmdScaleK200ac764]
-    csL20034084:
-        test dl, 010h
-        je csL20034102
-        fadd st(0), st(0)
-        jmp csL20034102
-    csL2003408d:
-        mov esi, dword ptr [ecx + csPsFlags]
-        and esi, 1
-        je csL200340c6
-        fmul dword ptr [ecx + csPsCrouch]
-        and dl, 010h
-        je csL200340a2
-        fadd st(0), st(0)
-    csL200340a2:
-        test byte ptr [ecx + csPsStats], bl
-        jne csL200340be
-        fld dword ptr [ecx + csPsLean]
-        fcomp dword ptr [cmdScaleK200ac100]
-        fnstsw ax
-        test ah, 040h
-        je csL200340be
-        test dl, dl
-        je csL20034102
-    csL200340be:
-        fmul dword ptr [cmdScaleK200ac760]
-        jmp csL20034102
-    csL200340c6:
-        mov al, byte ptr [ecx + csPsStats]
-        fmul dword ptr [ecx + csPsRun]
-        test bl, al
-        jne csL200340e6
-        fld dword ptr [ecx + csPsLean]
-        fcomp dword ptr [cmdScaleK200ac100]
-        fnstsw ax
-        test ah, 040h
-        jne csL200340f7
-    csL200340e6:
-        fmul dword ptr [cmdScaleK200ac75c]
-        test dl, 010h
-        je csL20034102
-        fmul dword ptr [cmdScaleK200ac758]
-    csL200340f7:
-        test dl, 010h
-        je csL20034102
-        fmul dword ptr [cmdScaleK200ac754]
-    csL20034102:
-        cmp dword ptr [ecx + csPsType], 1
-        jne csL2003410e
-        fmul dword ptr [cmdScaleK200ac30c]
-    csL2003410e:
-        mov edx, dword ptr [ecx + csPsWeapon]
-        lea eax, [edx + edx*2]
-        shl eax, 3
-        sub eax, edx
-        lea edx, [eax + eax*4]
-        mov eax, dword ptr [edx*4 + weaponDef + csDefWeight]
-        sub eax, ebx
-        je csL20034152
-        dec eax
-        je csL2003414c
-        mov eax, dword ptr [ecx + csPsWeight]
-        cmp eax, ebx
-        jge csL2003413f
-        fmul dword ptr [cmdScaleK200ac750]
-        jmp csL20034152
-    csL2003413f:
-        cmp eax, 5
-        jge csL20034152
-        fmul dword ptr [cmdScaleK200ac74c]
-        jmp csL20034152
-    csL2003414c:
-        fmul dword ptr [cmdScaleK200ac748]
-    csL20034152:
-        mov eax, dword ptr [CS_GAME_CVAR + csCvarInt]
-        test eax, eax
-        je csL20034160
-        cmp eax, 1
-        jne csL2003416c
-    csL20034160:
-        fild dword ptr [esp + 010h]
-        fmul dword ptr [cmdScaleK200ac744]
-        fmulp st(1), st(0)
-    csL2003416c:
-        mov dl, byte ptr [ebp + csCmdButtons]
-        test dl, 010h
-        je csL20034179
-        test dl, 020h
-        je csL200341ba
-    csL20034179:
-        test byte ptr [ecx + csPsStats], bl
-        jne csL200341ba
-        fld dword ptr [ecx + csPsLean]
-        fcomp dword ptr [cmdScaleK200ac100]
-        fnstsw ax
-        test ah, 040h
-        je csL200341ba
-        test esi, esi
-        jne csL200341ba
-        test dl, 020h
-        je csL200341aa
-        fld dword ptr [cmdScaleK200ac270]
-        mov dword ptr [esp + 010h], 040200000h
-        jmp csL200341c8
-    csL200341aa:
-        fld dword ptr [cmdScaleK200ac740]
-        mov dword ptr [esp + 010h], 03ff00000h
-        jmp csL200341c8
-    csL200341ba:
-        fld dword ptr [cmdScaleK200ac6e8]
-        mov dword ptr [esp + 010h], 03fc80000h
-    csL200341c8:
-        fild dword ptr [esp + 018h]
-        fst dword ptr [esp + 028h]
-        fcomp dword ptr [cmdScaleK200ac100]
-        fnstsw ax
-        test ah, 1
-        je csL200341e9
-        fld dword ptr [esp + 028h]
-        fdiv dword ptr [esp + 010h]
-        fstp dword ptr [esp + 028h]
-    csL200341e9:
-        fidivr dword ptr [esp + 01ch]
-        pop edi
-        pop esi
-        pop ebp
-        pop ebx
-        fld st(0)
-        fmulp st(1), st(0)
-        fld dword ptr [esp + 018h]
-        fmul dword ptr [esp + 018h]
-        faddp st(1), st(0)
-        fiadd dword ptr [esp + 010h]
-        fsqrt 
-        fdiv dword ptr [esp + 4]
-        fmulp st(1), st(0)
-        add esp, 014h
-        ret 
+static long double PM_CmdScale(usercmd_t *cmd) {
+    int movespeed = CS_MOVE_CVAR.integer;
+    int forward = cmd->forwardmove, right = cmd->rightmove, up = cmd->upmove;
+    int maximum = abs(forward), buttons, ducked, weight, gametype;
+    volatile float total, adjustedForward;
+    float backwardsDivisor, sidewaysDivisor;
+    long double scale, sideways, squared;
+    qboolean leaning, tactical;
+
+    if (abs(right) > maximum) maximum = abs(right);
+    if (abs(up) > maximum) maximum = abs(up);
+    if (!maximum) return 0.0L;
+    total = (float)sqrtl((long double)(forward * forward + up * up + right * right));
+    scale = (long double)pm->ps->speed * maximum / ((long double)total * 127.0);
+    buttons = pm->cmd.buttons;
+    ducked = pm->ps->pm_flags & PMF_DUCKED;
+    tactical = (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) != 0;
+    /* Native C3 takes the zero-lean branch for zero or unordered lean. */
+    leaning = pm->ps->leanf != 0.0f && pm->ps->leanf == pm->ps->leanf;
+    if ((buttons & BUTTON_SPRINT) && !pml.ladder && !ducked) {
+        if (pm->pmext->sprintTime > 50) scale *= pm->ps->sprintSpeedScale;
+        else {
+            scale *= pm->ps->runSpeedScale;
+            scale *= 1.4f;
+        }
+        if (buttons & BUTTON_WALKING) scale += scale;
+    } else if (ducked) {
+        scale *= pm->ps->crouchSpeedScale;
+        if (buttons & BUTTON_WALKING) scale += scale;
+        if (tactical || leaning || (buttons & BUTTON_WALKING)) scale *= 0.85f;
+    } else {
+        scale *= pm->ps->runSpeedScale;
+        if (tactical || leaning) {
+            scale *= 0.55f;
+            if (buttons & BUTTON_WALKING) scale *= 1.818f;
+        }
+        if (buttons & BUTTON_WALKING) scale *= 0.833f;
     }
+    if (pm->ps->pm_type == PM_NOCLIP) scale *= 3.0f;
+    /* The original directly indexes the definition, without parser gating. */
+    weight = weaponDef[pm->ps->weapon].loadoutWeight;
+    if (weight != 4) {
+        if (weight == 5) scale *= 0.95f;
+        else if (pm->ps->holdable[9] < 4) scale *= 1.05f;
+        else if (pm->ps->holdable[9] < 5) scale *= 1.025f;
+    }
+    gametype = CS_GAME_CVAR.integer;
+    if (gametype == 0 || gametype == 1) {
+        scale *= (long double)movespeed * 0.007874015718698502f;
+    }
+    buttons = cmd->buttons;
+    if (((buttons & BUTTON_WALKING) && !(buttons & BUTTON_SPRINT)) || tactical || leaning || ducked) {
+        backwardsDivisor = 1.5625f;
+        sidewaysDivisor = 1.25f;
+    } else if (buttons & BUTTON_SPRINT) {
+        backwardsDivisor = 2.5f;
+        sidewaysDivisor = 2.0f;
+    } else {
+        backwardsDivisor = 1.875f;
+        sidewaysDivisor = 1.5f;
+    }
+    adjustedForward = (float)forward;
+    if (forward < 0) adjustedForward = (float)((long double)adjustedForward / backwardsDivisor);
+    sideways = (long double)right / sidewaysDivisor;
+    squared = sideways * sideways;
+    squared += (long double)adjustedForward * adjustedForward;
+    squared += up * up;
+    return (sqrtl(squared) / total) * scale;
 }
 #undef CS_MOVE_CVAR
 #undef CS_GAME_CVAR
