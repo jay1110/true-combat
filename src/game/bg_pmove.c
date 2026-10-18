@@ -7469,6 +7469,7 @@ static void PM_BeginWeaponReload(int weapon) {
 }
 
 static void PM_ReloadClip( int weapon );
+static void PM_WeaponAddTime(int interval);
 
 /*
 ===============
@@ -7498,7 +7499,10 @@ void PM_BeginWeaponChange(int oldweapon,int newweapon,qboolean reload) {
         PM_AddEvent(EV_CHANGE_WEAPON);break;
     default:PM_AddEvent(reload?EV_CHANGE_WEAPON_2:EV_CHANGE_WEAPON);break;
     }
+    /* Event emission and animation selection use separate native reads. */
+    alt=newweapon==weapAlts[oldweapon];
     PM_StartWeaponAnim(alt ? PM_AltSwitchFromForWeapon(oldweapon) : PM_DropAnimForWeapon(oldweapon));
+    alt=newweapon==weapAlts[oldweapon];
     if(alt) {
         switch(oldweapon) {
         case 14:case 52:
@@ -7518,7 +7522,7 @@ void PM_BeginWeaponChange(int oldweapon,int newweapon,qboolean reload) {
     }
     BG_AnimScriptEvent(pm->ps,pm->character->animModelInfo,bodyEvent,qfalse,qfalse);
     pm->ps->weaponstate=reload?WEAPON_DROPPING_TORELOAD:WEAPON_DROPPING;
-    pm->ps->weaponTime+=250;
+    PM_WeaponAddTime(250);
 }
 
 
@@ -7530,10 +7534,11 @@ PM_FinishWeaponChange
 ===============
 */
 static void PM_FinishWeaponChange(void) {
-    int oldweapon=pm->ps->weapon,newweapon=pm->ps->nextWeapon,bodyEvent;
+    int oldweapon,newweapon=pm->ps->nextWeapon,bodyEvent;
     qboolean altSwitch=qfalse,animate=qtrue,alt;
     if(newweapon<0 || newweapon>=TCE_MAX_WEAPONS) newweapon=0;
     if(!COM_BitCheck(pm->ps->weapons,newweapon)) newweapon=0;
+    oldweapon=pm->ps->weapon;
     pm->ps->weapon=newweapon;
     pm->ps->weaponstate=pm->ps->weaponstate==WEAPON_DROPPING_TORELOAD?WEAPON_RAISING_TORELOAD:WEAPON_RAISING;
     switch(newweapon) {
@@ -7555,13 +7560,15 @@ static void PM_FinishWeaponChange(void) {
         }
         break;
     }
-    pm->ps->weaponTime+=250;
+    PM_WeaponAddTime(250);
     BG_UpdateConditionValue(pm->ps->clientNum,ANIM_COND_WEAPON,newweapon,qtrue);
     if(!animate) return;
     if(altSwitch) bodyEvent=(pm->ps->eFlags & EF_PRONE)?ANIM_ET_DO_ALT_WEAPON_MODE_PRONE:ANIM_ET_DO_ALT_WEAPON_MODE;
     else bodyEvent=(pm->ps->eFlags & EF_PRONE)?ANIM_ET_RAISEWEAPONPRONE:ANIM_ET_RAISEWEAPON;
     BG_AnimScriptEvent(pm->ps,pm->character->animModelInfo,bodyEvent,qfalse,qfalse);
-    PM_StartWeaponAnim(alt ? PM_AltSwitchToForWeapon(newweapon) : PM_RaiseAnimForWeapon(newweapon));
+    /* The body-animation callback precedes this fresh alternate-pair lookup. */
+    PM_StartWeaponAnim(weapAlts[oldweapon] == newweapon ?
+        PM_AltSwitchToForWeapon(newweapon) : PM_RaiseAnimForWeapon(newweapon));
 }
 
 
