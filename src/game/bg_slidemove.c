@@ -21,585 +21,128 @@ Returns qtrue if the velocity was clipped in some way
 ==================
 */
 #define	MAX_CLIP_PLANES	5
-/* TC:E Windows300135f0 / Linux000e7cac: four-bump body solver. */
-/* TC qagame PM_SlideMove2003b930: exact Windows x87 and collision schedule. */
+/* TC:E normal collision solver: four bumps, ground-extension handling and
+ * direct body traces. Explicit held values/float stores follow the Windows
+ * original; engine ABI and compiler FPU state remain separately tracked. */
 #if defined(_MSC_VER) && defined(_M_IX86)
-typedef char slide834TraceLayout[(sizeof(trace_t)==56 && offsetof(trace_t,allsolid)==0 && offsetof(trace_t,startsolid)==4 && offsetof(trace_t,fraction)==8 && offsetof(trace_t,endpos)==12 && offsetof(trace_t,plane)+offsetof(cplane_t,normal)==24 && offsetof(trace_t,entityNum)==52 && sizeof(vec3_t)==12) ? 1 : -1];
-static const unsigned int slide834Const200ac128[2] = {0x00000000u, 0x3fe00000u};
-static const unsigned int slide834Const200ac100 = 0x00000000u;
-static const unsigned int slide834Const200ac110 = 0x3f800000u;
-static const unsigned int slide834Const200ac870[2] = {0x7ae147aeu, 0x3fefae14u};
-static const unsigned int slide834Const200ac258[2] = {0x9999999au, 0x3fb99999u};
-enum {
-    slide834pml223cf484 = offsetof(pml_t, frametime),
-    slide834pml223cf490 = offsetof(pml_t, groundPlane),
-    slide834pml223cf4ac = offsetof(pml_t, groundTrace)+offsetof(trace_t,plane)+offsetof(cplane_t,normal),
-    slide834pml223cf4b0 = offsetof(pml_t, groundTrace)+offsetof(trace_t,plane)+offsetof(cplane_t,normal)+4,
-    slide834pml223cf4b4 = offsetof(pml_t, groundTrace)+offsetof(trace_t,plane)+offsetof(cplane_t,normal)+8,
-    slide834pml223cf4cc = offsetof(pml_t, impactSpeed),
-    slide834pml223cf4f4 = offsetof(pml_t, tceGroundExtension),
-    slide834pm0 = offsetof(pmove_t, ps),
-    slide834ps20 = offsetof(playerState_t, velocity),
-    slide834ps24 = offsetof(playerState_t, velocity)+4,
-    slide834ps28 = offsetof(playerState_t, velocity)+8,
-    slide834ps38 = offsetof(playerState_t, gravity),
-    slide834ps14 = offsetof(playerState_t, origin),
-    slide834ps18 = offsetof(playerState_t, origin)+4,
-    slide834ps1c = offsetof(playerState_t, origin)+8,
-    slide834pm44 = offsetof(pmove_t, tracemask),
-    slide834psa0 = offsetof(playerState_t, clientNum),
-    slide834pm100 = offsetof(pmove_t, maxs),
-    slide834pmf4 = offsetof(pmove_t, mins),
-    slide834pm128 = offsetof(pmove_t, trace),
-    slide834ps10 = offsetof(playerState_t, pm_time)
-};
-__declspec(naked) qboolean PM_SlideMove(qboolean gravity) {
-    __asm {
-        SUB ESP,0xd0
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX + slide834pm0]
-        MOV EDX,dword ptr [ECX + slide834ps20]
-        MOV dword ptr [ESP + 0x40],EDX
-        MOV EDX,dword ptr [ECX + slide834ps24]
-        MOV dword ptr [ESP + 0x44],EDX
-        MOV EDX,dword ptr [ECX + slide834ps28]
-        MOV dword ptr [ESP + 0x48],EDX
-        MOV EDX,dword ptr [ESP + 0xd4]
-        TEST EDX,EDX
-        JZ slide834_2003ba2c
-        MOV ECX,dword ptr [ECX + slide834ps20]
-        MOV dword ptr [ESP],ECX
-        MOV EDX,dword ptr [EAX + slide834pm0]
-        MOV ECX,dword ptr [EDX + slide834ps24]
-        MOV dword ptr [ESP + 0x4],ECX
-        MOV EDX,dword ptr [EAX + slide834pm0]
-        MOV ECX,dword ptr [EDX + slide834ps28]
-        MOV dword ptr [ESP + 0x8],ECX
-        MOV EDX,dword ptr [EAX + slide834pm0]
-        FILD dword ptr [EDX + slide834ps38]
-        FMUL dword ptr [pml + slide834pml223cf484]
-        FSUBR dword ptr [ESP + 0x8]
-        FSTP dword ptr [ESP + 0x8]
-        MOV EAX,dword ptr [EAX + slide834pm0]
-        FLD dword ptr [ESP + 0x8]
-        FADD dword ptr [EAX + slide834ps28]
-        FMUL qword ptr [slide834Const200ac128]
-        FSTP dword ptr [EAX + slide834ps28]
-        MOV EAX,dword ptr [ESP + 0x8]
-        MOV dword ptr [ESP + 0x48],EAX
-        MOV EAX,[pml + slide834pml223cf490]
-        TEST EAX,EAX
-        JZ slide834_2003b9cf
-        MOV ECX,dword ptr [pm]
-        PUSH 0x3f8020c5
-        MOV EAX,dword ptr [ECX + slide834pm0]
-        ADD EAX,slide834ps20
-        PUSH EAX
-        PUSH OFFSET pml + slide834pml223cf4ac
-        PUSH EAX
-        CALL PM_ClipVelocity
-        ADD ESP,0x10
-slide834_2003b9cf:
-        MOV EAX,[pm]
-slide834_2003b9d4:
-        MOV ECX,dword ptr [pml + slide834pml223cf484]
-        PUSH EBX
-        MOV dword ptr [ESP + 0x10],ECX
-        MOV ECX,dword ptr [pml + slide834pml223cf490]
-        PUSH EBP
-        PUSH ESI
-        TEST ECX,ECX
-        PUSH EDI
-        JZ slide834_2003ba9e
-        MOV ECX,dword ptr [pml + slide834pml223cf4f4]
-        TEST ECX,ECX
-        JNZ slide834_2003ba9e
-        MOV EDX,dword ptr [pml + slide834pml223cf4ac]
-        MOV ECX,dword ptr [pml + slide834pml223cf4b0]
-        MOV dword ptr [ESP + 0xa4],EDX
-        MOV EDX,dword ptr [pml + slide834pml223cf4b4]
-        MOV EDI,0x1
-        MOV dword ptr [ESP + 0xa8],ECX
-        MOV dword ptr [ESP + 0xac],EDX
-        JMP slide834_2003baa0
-slide834_2003ba2c:
-        MOV EDX,dword ptr [pml + slide834pml223cf4f4]
-        TEST EDX,EDX
-        JZ slide834_2003ba81
-        MOV EDX,dword ptr [ECX + slide834ps20]
-        MOV dword ptr [ESP],EDX
-        MOV ECX,dword ptr [EAX + slide834pm0]
-        MOV EDX,dword ptr [ECX + slide834ps24]
-        MOV dword ptr [ESP + 0x4],EDX
-        MOV ECX,dword ptr [EAX + slide834pm0]
-        MOV EDX,dword ptr [ECX + slide834ps28]
-        MOV dword ptr [ESP + 0x8],EDX
-        MOV ECX,dword ptr [EAX + slide834pm0]
-        FILD dword ptr [ECX + slide834ps38]
-        FMUL dword ptr [pml + slide834pml223cf484]
-        FSUBR dword ptr [ESP + 0x8]
-        FSTP dword ptr [ESP + 0x8]
-        MOV EAX,dword ptr [EAX + slide834pm0]
-        FLD dword ptr [ESP + 0x8]
-        FADD dword ptr [EAX + slide834ps28]
-        FMUL qword ptr [slide834Const200ac128]
-        FSTP dword ptr [EAX + slide834ps28]
-        MOV EDX,dword ptr [ESP + 0x8]
-        MOV dword ptr [ESP + 0x48],EDX
-        JMP slide834_2003b9cf
-slide834_2003ba81:
-        MOV dword ptr [ESP + 0x8],0x0
-        MOV dword ptr [ESP + 0x4],0x0
-        MOV dword ptr [ESP],0x0
-        JMP slide834_2003b9d4
-slide834_2003ba9e:
-        XOR EDI,EDI
-slide834_2003baa0:
-        MOV EAX,dword ptr [EAX + slide834pm0]
-        LEA ECX,[EDI + EDI*0x2]
-        ADD EAX,slide834ps20
-        LEA EDX,[ESP + ECX*0x4 + 0xa4]
-        PUSH EDX
-        PUSH EAX
-        CALL VectorNormalize2
-        ADD ESP,0x8
-        INC EDI
-        XOR EBX,EBX
-        LEA ECX,[EDI + EDI*0x2]
-        MOV dword ptr [ESP + 0x4c],EBX
-        FSTP ST(0)
-        LEA ESI,[ESP + ECX*0x4 + 0xa8]
-        MOV ECX,dword ptr [pm]
-slide834_2003bad2:
-        MOV EAX,dword ptr [ECX + slide834pm0]
-        FLD dword ptr [ESP + 0x1c]
-        FMUL dword ptr [EAX + slide834ps20]
-        FADD dword ptr [EAX + slide834ps14]
-        FSTP dword ptr [ESP + 0x60]
-        MOV EAX,dword ptr [ECX + slide834pm0]
-        FLD dword ptr [ESP + 0x1c]
-        FMUL dword ptr [EAX + slide834ps24]
-        FADD dword ptr [EAX + slide834ps18]
-        FSTP dword ptr [ESP + 0x64]
-        MOV EAX,dword ptr [ECX + slide834pm0]
-        FLD dword ptr [ESP + 0x1c]
-        FMUL dword ptr [EAX + slide834ps28]
-        FADD dword ptr [EAX + slide834ps1c]
-        FSTP dword ptr [ESP + 0x68]
-        MOV EAX,dword ptr [ECX + slide834pm0]
-        MOV EDX,dword ptr [ECX + slide834pm44]
-        PUSH EDX
-        MOV EDX,dword ptr [EAX + slide834psa0]
-        ADD EAX,slide834ps14
-        PUSH EDX
-        LEA EDX,[ESP + 0x68]
-        PUSH EDX
-        LEA EDX,[ECX + slide834pm100]
-        PUSH EDX
-        LEA EDX,[ECX + slide834pmf4]
-        PUSH EDX
-        PUSH EAX
-        LEA EAX,[ESP + 0x84]
-        PUSH EAX
-        CALL dword ptr [ECX + slide834pm128]
-        MOV EAX,dword ptr [ESP + 0x88]
-        XOR EBP,EBP
-        ADD ESP,0x1c
-        CMP EAX,EBP
-        JNZ slide834_2003bf3a
-        FLD dword ptr [ESP + 0x74]
-        FCOMP dword ptr [slide834Const200ac100]
-        FNSTSW AX
-        TEST AH,0x41
-        JNZ slide834_2003bb89
-        MOV ECX,dword ptr [pm]
-        MOV EAX,dword ptr [ESP + 0x78]
-        MOV EDX,dword ptr [ECX + slide834pm0]
-        MOV dword ptr [EDX + slide834ps14],EAX
-        MOV ECX,dword ptr [pm]
-        MOV EAX,dword ptr [ESP + 0x7c]
-        MOV EDX,dword ptr [ECX + slide834pm0]
-        MOV dword ptr [EDX + slide834ps18],EAX
-        MOV ECX,dword ptr [pm]
-        MOV EAX,dword ptr [ESP + 0x80]
-        MOV EDX,dword ptr [ECX + slide834pm0]
-        MOV dword ptr [EDX + slide834ps1c],EAX
-slide834_2003bb89:
-        FLD dword ptr [ESP + 0x74]
-        FCOMP dword ptr [slide834Const200ac110]
-        FNSTSW AX
-        TEST AH,0x40
-        JNZ slide834_2003bfb7
-        MOV ECX,dword ptr [ESP + 0xa0]
-        PUSH ECX
-        CALL PM_AddTouchEnt
-        FLD dword ptr [ESP + 0x78]
-        FMUL dword ptr [ESP + 0x20]
-        ADD ESP,0x4
-        CMP EDI,0x5
-        FSUBR dword ptr [ESP + 0x1c]
-        FSTP dword ptr [ESP + 0x1c]
-        JGE slide834_2003bf55
-        XOR ECX,ECX
-        CMP EDI,EBP
-        JLE slide834_2003bc56
-        LEA EDX,[ESP + 0xa8]
-slide834_2003bbd8:
-        FLD dword ptr [ESP + 0x8c]
-        FMUL dword ptr [EDX + 0x4]
-        FLD dword ptr [ESP + 0x84]
-        FMUL dword ptr [EDX + -0x4]
-        FADDP ST(1),ST(0)
-        FLD dword ptr [ESP + 0x88]
-        FMUL dword ptr [EDX]
-        FADDP ST(1),ST(0)
-        FCOMP qword ptr [slide834Const200ac870]
-        FNSTSW AX
-        TEST AH,0x41
-        JZ slide834_2003bc10
-        INC ECX
-        ADD EDX,0xc
-        CMP ECX,EDI
-        JL slide834_2003bbd8
-        JMP slide834_2003bc56
-slide834_2003bc10:
-        MOV EDX,dword ptr [pm]
-        CMP ECX,EDI
-        FLD dword ptr [ESP + 0x84]
-        MOV EAX,dword ptr [EDX + slide834pm0]
-        FADD dword ptr [EAX + slide834ps20]
-        FSTP dword ptr [EAX + slide834ps20]
-        MOV EAX,[pm]
-        FLD dword ptr [ESP + 0x88]
-        MOV EAX,dword ptr [EAX + slide834pm0]
-        FADD dword ptr [EAX + slide834ps24]
-        FSTP dword ptr [EAX + slide834ps24]
-        MOV EDX,dword ptr [pm]
-        FLD dword ptr [ESP + 0x8c]
-        MOV EAX,dword ptr [EDX + slide834pm0]
-        FADD dword ptr [EAX + slide834ps28]
-        FSTP dword ptr [EAX + slide834ps28]
-        JL slide834_2003bf1d
-slide834_2003bc56:
-        MOV EAX,dword ptr [ESP + 0x84]
-        MOV ECX,dword ptr [ESP + 0x88]
-        MOV EDX,dword ptr [ESP + 0x8c]
-        MOV dword ptr [ESI + -0x4],EAX
-        MOV dword ptr [ESI],ECX
-        MOV dword ptr [ESI + 0x4],EDX
-        INC EDI
-        ADD ESI,0xc
-        CMP EDI,EBP
-        MOV dword ptr [ESP + 0x5c],ESI
-        MOV dword ptr [ESP + 0x38],EBP
-        JLE slide834_2003bf1d
-        MOV ECX,dword ptr [pm]
-        LEA EDX,[ESP + 0xa8]
-        MOV EBX,dword ptr [ECX + slide834pm0]
-slide834_2003bc96:
-        FLD dword ptr [EDX + -0x4]
-        FMUL dword ptr [EBX + slide834ps20]
-        FLD dword ptr [EDX + 0x4]
-        FMUL dword ptr [EBX + slide834ps28]
-        FADDP ST(1),ST(0)
-        FLD dword ptr [EDX]
-        FMUL dword ptr [EBX + slide834ps24]
-        FADDP ST(1),ST(0)
-        FCOM qword ptr [slide834Const200ac258]
-        FNSTSW AX
-        TEST AH,0x1
-        JNZ slide834_2003bccb
-        INC EBP
-        ADD EDX,0xc
-        CMP EBP,EDI
-        FSTP ST(0)
-        JL slide834_2003bc96
-        MOV dword ptr [ESP + 0x38],EBP
-        JMP slide834_2003bf23
-slide834_2003bccb:
-        FCHS
-        FCOM dword ptr [pml + slide834pml223cf4cc]
-        MOV dword ptr [ESP + 0x38],EBP
-        FNSTSW AX
-        TEST AH,0x41
-        JNZ slide834_2003bce6
-        FSTP dword ptr [pml + slide834pml223cf4cc]
-        JMP slide834_2003bce8
-slide834_2003bce6:
-        FSTP ST(0)
-slide834_2003bce8:
-        MOV ECX,dword ptr [ECX + slide834pm0]
-        LEA EBP,[EBP + EBP*0x2]
-        SHL EBP,0x2
-        LEA EAX,[ESP + 0x20]
-        PUSH 0x3f8020c5
-        LEA EBX,[ESP + EBP*0x1 + 0xa8]
-        PUSH EAX
-        ADD ECX,slide834ps20
-        PUSH EBX
-        PUSH ECX
-        CALL PM_ClipVelocity
-        LEA EDX,[ESP + 0x50]
-        PUSH 0x3f8020c5
-        PUSH EDX
-        LEA EAX,[ESP + 0x28]
-        PUSH EBX
-        PUSH EAX
-        CALL PM_ClipVelocity
-        ADD ESP,0x20
-        XOR EAX,EAX
-        MOV dword ptr [ESP + 0x3c],EAX
-        LEA ESI,[ESP + 0xa4]
-slide834_2003bd31:
-        CMP EAX,dword ptr [ESP + 0x38]
-        JZ slide834_2003beb8
-        FLD dword ptr [ESP + 0x28]
-        FMUL dword ptr [ESI + 0x8]
-        FLD dword ptr [ESP + 0x24]
-        FMUL dword ptr [ESI + 0x4]
-        FADDP ST(1),ST(0)
-        FLD dword ptr [ESP + 0x20]
-        FMUL dword ptr [ESI]
-        FADDP ST(1),ST(0)
-        FCOMP qword ptr [slide834Const200ac258]
-        FNSTSW AX
-        TEST AH,0x1
-        JZ slide834_2003beb8
-        LEA ECX,[ESP + 0x20]
-        PUSH 0x3f8020c5
-        PUSH ECX
-        LEA EDX,[ESP + 0x28]
-        PUSH ESI
-        PUSH EDX
-        CALL PM_ClipVelocity
-        LEA EAX,[ESP + 0x50]
-        PUSH 0x3f8020c5
-        PUSH EAX
-        LEA ECX,[ESP + 0x58]
-        PUSH ESI
-        PUSH ECX
-        CALL PM_ClipVelocity
-        FLD dword ptr [ESP + 0x48]
-        FMUL dword ptr [ESP + EBP*0x1 + 0xcc]
-        FLD dword ptr [ESP + 0x44]
-        FMUL dword ptr [ESP + EBP*0x1 + 0xc8]
-        ADD ESP,0x20
-        FADDP ST(1),ST(0)
-        FLD dword ptr [ESP + 0x20]
-        FMUL dword ptr [EBX]
-        FADDP ST(1),ST(0)
-        FCOMP dword ptr [slide834Const200ac100]
-        FNSTSW AX
-        TEST AH,0x1
-        JZ slide834_2003beb8
-        LEA EDX,[ESP + 0x2c]
-        PUSH EDX
-        PUSH ESI
-        PUSH EBX
-        CALL CrossProduct
-        LEA EAX,[ESP + 0x38]
-        PUSH EAX
-        CALL VectorNormalize
-        MOV ECX,dword ptr [pm]
-        LEA EDX,[ESP + 0x3c]
-        FSTP ST(0)
-        MOV EAX,dword ptr [ECX + slide834pm0]
-        PUSH EDX
-        FLD dword ptr [ESP + 0x48]
-        FMUL dword ptr [EAX + slide834ps28]
-        FLD dword ptr [ESP + 0x44]
-        FMUL dword ptr [EAX + slide834ps24]
-        PUSH ESI
-        PUSH EBX
-        FADDP ST(1),ST(0)
-        FLD dword ptr [ESP + 0x48]
-        FMUL dword ptr [EAX + slide834ps20]
-        FADDP ST(1),ST(0)
-        FLD dword ptr [ESP + 0x48]
-        FMUL ST(0),ST(1)
-        FSTP dword ptr [ESP + 0x3c]
-        FLD dword ptr [ESP + 0x4c]
-        FMUL ST(0),ST(1)
-        FSTP dword ptr [ESP + 0x40]
-        FLD dword ptr [ESP + 0x50]
-        FMUL ST(0),ST(1)
-        FSTP dword ptr [ESP + 0x44]
-        FSTP ST(0)
-        CALL CrossProduct
-        LEA EAX,[ESP + 0x48]
-        PUSH EAX
-        CALL VectorNormalize
-        FSTP ST(0)
-        FLD dword ptr [ESP + 0x54]
-        FMUL dword ptr [ESP + 0x38]
-        FLD dword ptr [ESP + 0x50]
-        FMUL dword ptr [ESP + 0x34]
-        ADD ESP,0x20
-        XOR ECX,ECX
-        LEA EDX,[ESP + 0xa8]
-        FADDP ST(1),ST(0)
-        FLD dword ptr [ESP + 0x2c]
-        FMUL dword ptr [ESP + 0x10]
-        FADDP ST(1),ST(0)
-        FLD dword ptr [ESP + 0x2c]
-        FMUL ST(0),ST(1)
-        FSTP dword ptr [ESP + 0x40]
-        FLD dword ptr [ESP + 0x30]
-        FMUL ST(0),ST(1)
-        FSTP dword ptr [ESP + 0x44]
-        FLD dword ptr [ESP + 0x34]
-        FMUL ST(0),ST(1)
-        FSTP dword ptr [ESP + 0x48]
-        FSTP ST(0)
-slide834_2003be7b:
-        CMP ECX,dword ptr [ESP + 0x38]
-        JZ slide834_2003beb0
-        CMP ECX,dword ptr [ESP + 0x3c]
-        JZ slide834_2003beb0
-        FLD dword ptr [ESP + 0x28]
-        FMUL dword ptr [EDX + 0x4]
-        FLD dword ptr [ESP + 0x20]
-        FMUL dword ptr [EDX + -0x4]
-        FADDP ST(1),ST(0)
-        FLD dword ptr [ESP + 0x24]
-        FMUL dword ptr [EDX]
-        FADDP ST(1),ST(0)
-        FCOMP qword ptr [slide834Const200ac258]
-        FNSTSW AX
-        TEST AH,0x1
-        JNZ slide834_2003bf85
-slide834_2003beb0:
-        INC ECX
-        ADD EDX,0xc
-        CMP ECX,EDI
-        JL slide834_2003be7b
-slide834_2003beb8:
-        MOV EAX,dword ptr [ESP + 0x3c]
-        ADD ESI,0xc
-        INC EAX
-        CMP EAX,EDI
-        MOV dword ptr [ESP + 0x3c],EAX
-        JL slide834_2003bd31
-        MOV ECX,dword ptr [pm]
-        MOV EAX,dword ptr [ESP + 0x20]
-        MOV ESI,dword ptr [ESP + 0x5c]
-        MOV EDX,dword ptr [ECX + slide834pm0]
-        MOV dword ptr [EDX + slide834ps20],EAX
-        MOV ECX,dword ptr [pm]
-        MOV EAX,dword ptr [ESP + 0x24]
-        MOV EDX,dword ptr [ECX + slide834pm0]
-        MOV dword ptr [EDX + slide834ps24],EAX
-        MOV ECX,dword ptr [pm]
-        MOV EAX,dword ptr [ESP + 0x28]
-        MOV EDX,dword ptr [ECX + slide834pm0]
-        MOV dword ptr [EDX + slide834ps28],EAX
-        MOV ECX,dword ptr [ESP + 0x40]
-        MOV EDX,dword ptr [ESP + 0x44]
-        MOV EAX,dword ptr [ESP + 0x48]
-        MOV dword ptr [ESP + 0x10],ECX
-        MOV ECX,dword ptr [pm]
-        MOV dword ptr [ESP + 0x14],EDX
-        MOV dword ptr [ESP + 0x18],EAX
-        JMP slide834_2003bf23
-slide834_2003bf1d:
-        MOV ECX,dword ptr [pm]
-slide834_2003bf23:
-        MOV EBX,dword ptr [ESP + 0x4c]
-        INC EBX
-        CMP EBX,0x4
-        MOV dword ptr [ESP + 0x4c],EBX
-        JL slide834_2003bad2
-        JMP slide834_2003bfbd
-slide834_2003bf3a:
-        MOV ECX,dword ptr [pm]
-        POP EDI
-        POP ESI
-        MOV EAX,0x1
-        MOV EDX,dword ptr [ECX + slide834pm0]
-        MOV dword ptr [EDX + slide834ps28],EBP
-        POP EBP
-        POP EBX
-        ADD ESP,0xd0
-        RET
-slide834_2003bf55:
-        MOV EAX,[pm]
-        POP EDI
-        POP ESI
-        MOV ECX,dword ptr [EAX + slide834pm0]
-        MOV dword ptr [ECX + slide834ps28],EBP
-        MOV EDX,dword ptr [pm]
-        MOV EAX,dword ptr [EDX + slide834pm0]
-        MOV dword ptr [EAX + slide834ps24],EBP
-        MOV ECX,dword ptr [pm]
-        MOV EAX,0x1
-        MOV EDX,dword ptr [ECX + slide834pm0]
-        MOV dword ptr [EDX + slide834ps20],EBP
-        POP EBP
-        POP EBX
-        ADD ESP,0xd0
-        RET
-slide834_2003bf85:
-        MOV EAX,[pm]
-        POP EDI
-        POP ESI
-        POP EBP
-        MOV ECX,dword ptr [EAX + slide834pm0]
-        XOR EAX,EAX
-        POP EBX
-        MOV dword ptr [ECX + slide834ps28],EAX
-        MOV EDX,dword ptr [pm]
-        MOV ECX,dword ptr [EDX + slide834pm0]
-        MOV dword ptr [ECX + slide834ps24],EAX
-        MOV EDX,dword ptr [pm]
-        MOV ECX,dword ptr [EDX + slide834pm0]
-        MOV dword ptr [ECX + slide834ps20],EAX
-        MOV EAX,0x1
-        ADD ESP,0xd0
-        RET
-slide834_2003bfb7:
-        MOV ECX,dword ptr [pm]
-slide834_2003bfbd:
-        MOV EAX,dword ptr [ESP + 0xe4]
-        TEST EAX,EAX
-        JZ slide834_2003bff5
-        MOV EDX,dword ptr [ECX + slide834pm0]
-        MOV EAX,dword ptr [ESP + 0x10]
-        MOV dword ptr [EDX + slide834ps20],EAX
-        MOV ECX,dword ptr [pm]
-        MOV EAX,dword ptr [ESP + 0x14]
-        MOV EDX,dword ptr [ECX + slide834pm0]
-        MOV dword ptr [EDX + slide834ps24],EAX
-        MOV ECX,dword ptr [pm]
-        MOV EAX,dword ptr [ESP + 0x18]
-        MOV EDX,dword ptr [ECX + slide834pm0]
-        MOV dword ptr [EDX + slide834ps28],EAX
-        MOV ECX,dword ptr [pm]
-slide834_2003bff5:
-        MOV ECX,dword ptr [ECX + slide834pm0]
-        MOV EAX,dword ptr [ECX + slide834ps10]
-        TEST EAX,EAX
-        JZ slide834_2003c021
-        MOV EDX,dword ptr [ESP + 0x50]
-        MOV dword ptr [ECX + slide834ps20],EDX
-        MOV EAX,[pm]
-        MOV EDX,dword ptr [ESP + 0x54]
-        MOV ECX,dword ptr [EAX + slide834pm0]
-        MOV dword ptr [ECX + slide834ps24],EDX
-        MOV EAX,[pm]
-        MOV EDX,dword ptr [ESP + 0x58]
-        MOV ECX,dword ptr [EAX + slide834pm0]
-        MOV dword ptr [ECX + slide834ps28],EDX
-slide834_2003c021:
-        XOR EAX,EAX
-        POP EDI
-        TEST EBX,EBX
-        POP ESI
-        POP EBP
-        SETNZ AL
-        POP EBX
-        ADD ESP,0xd0
-        RET
+typedef char slide834TraceLayout[(sizeof(trace_t) == 56 && offsetof(trace_t, allsolid) == 0 &&
+    offsetof(trace_t, startsolid) == 4 && offsetof(trace_t, fraction) == 8 &&
+    offsetof(trace_t, endpos) == 12 && offsetof(trace_t, plane) + offsetof(cplane_t, normal) == 24 &&
+    offsetof(trace_t, entityNum) == 52 && sizeof(vec3_t) == 12) ? 1 : -1];
+qboolean PM_SlideMove(qboolean gravity) {
+    vec3_t primalVelocity, endVelocity = {0.0f, 0.0f, 0.0f};
+    vec3_t planes[MAX_CLIP_PLANES], end, clipVelocity, endClipVelocity, direction;
+    trace_t trace;
+    volatile float timeLeft;
+    long double dot, into, distance;
+    int bumpcount, numplanes, i, j, k, axis;
+
+    VectorCopy(pm->ps->velocity, primalVelocity);
+    if (gravity || pml.tceGroundExtension) {
+        VectorCopy(pm->ps->velocity, endVelocity);
+        endVelocity[2] = (float)((long double)endVelocity[2] -
+            (long double)pm->ps->gravity * pml.frametime);
+        pm->ps->velocity[2] = (float)(((long double)endVelocity[2] + pm->ps->velocity[2]) * 0.5);
+        primalVelocity[2] = endVelocity[2];
+        if (gravity && pml.groundPlane) {
+            PM_ClipVelocity(pm->ps->velocity, pml.groundTrace.plane.normal, pm->ps->velocity, OVERCLIP);
+        }
     }
+    timeLeft = pml.frametime;
+    numplanes = 0;
+    if (pml.groundPlane && !pml.tceGroundExtension) {
+        VectorCopy(pml.groundTrace.plane.normal, planes[0]);
+        numplanes = 1;
+    }
+    VectorNormalize2(pm->ps->velocity, planes[numplanes]);
+    ++numplanes;
+    for (bumpcount = 0; bumpcount < 4; ++bumpcount) {
+        for (axis = 0; axis < 3; ++axis) {
+            end[axis] = (float)((long double)timeLeft * pm->ps->velocity[axis] + pm->ps->origin[axis]);
+        }
+        pm->trace(&trace, pm->ps->origin, pm->mins, pm->maxs, end,
+            pm->ps->clientNum, pm->tracemask);
+        if (trace.allsolid) {
+            pm->ps->velocity[2] = 0.0f;
+            return qtrue;
+        }
+        if (trace.fraction > 0.0f) VectorCopy(trace.endpos, pm->ps->origin);
+        /* Native C3 accepts a complete move or an unordered fraction. */
+        if (trace.fraction == 1.0f || trace.fraction != trace.fraction) break;
+        PM_AddTouchEnt(trace.entityNum);
+        timeLeft = (float)((long double)timeLeft - (long double)trace.fraction * timeLeft);
+        if (numplanes >= MAX_CLIP_PLANES) {
+            pm->ps->velocity[2] = 0.0f;
+            pm->ps->velocity[1] = 0.0f;
+            pm->ps->velocity[0] = 0.0f;
+            return qtrue;
+        }
+        for (i = 0; i < numplanes; ++i) {
+            dot = (long double)trace.plane.normal[2] * planes[i][2];
+            dot += (long double)trace.plane.normal[0] * planes[i][0];
+            dot += (long double)trace.plane.normal[1] * planes[i][1];
+            if (dot > (long double)0.99) {
+                for (axis = 0; axis < 3; ++axis) {
+                    pm->ps->velocity[axis] = (float)((long double)trace.plane.normal[axis] + pm->ps->velocity[axis]);
+                }
+                break;
+            }
+        }
+        if (i < numplanes) continue;
+        VectorCopy(trace.plane.normal, planes[numplanes]);
+        ++numplanes;
+        for (i = 0; i < numplanes; ++i) {
+            into = (long double)planes[i][0] * pm->ps->velocity[0];
+            into += (long double)planes[i][2] * pm->ps->velocity[2];
+            into += (long double)planes[i][1] * pm->ps->velocity[1];
+            if (into >= (long double)0.1) continue;
+            if (-into > pml.impactSpeed) pml.impactSpeed = (float)-into;
+            PM_ClipVelocity(pm->ps->velocity, planes[i], clipVelocity, OVERCLIP);
+            PM_ClipVelocity(endVelocity, planes[i], endClipVelocity, OVERCLIP);
+            for (j = 0; j < numplanes; ++j) {
+                if (j == i) continue;
+                dot = (long double)clipVelocity[2] * planes[j][2];
+                dot += (long double)clipVelocity[1] * planes[j][1];
+                dot += (long double)clipVelocity[0] * planes[j][0];
+                if (dot >= (long double)0.1) continue;
+                PM_ClipVelocity(clipVelocity, planes[j], clipVelocity, OVERCLIP);
+                PM_ClipVelocity(endClipVelocity, planes[j], endClipVelocity, OVERCLIP);
+                dot = (long double)clipVelocity[2] * planes[i][2];
+                dot += (long double)clipVelocity[1] * planes[i][1];
+                dot += (long double)clipVelocity[0] * planes[i][0];
+                if (dot >= 0.0L) continue;
+                CrossProduct(planes[i], planes[j], direction);
+                (void)TCE_VectorNormalizeValue(direction);
+                distance = (long double)direction[2] * pm->ps->velocity[2];
+                distance += (long double)direction[1] * pm->ps->velocity[1];
+                distance += (long double)direction[0] * pm->ps->velocity[0];
+                for (axis = 0; axis < 3; ++axis) clipVelocity[axis] = (float)((long double)direction[axis] * distance);
+                CrossProduct(planes[i], planes[j], direction);
+                (void)TCE_VectorNormalizeValue(direction);
+                distance = (long double)direction[2] * endVelocity[2];
+                distance += (long double)direction[1] * endVelocity[1];
+                distance += (long double)direction[0] * endVelocity[0];
+                for (axis = 0; axis < 3; ++axis) endClipVelocity[axis] = (float)((long double)direction[axis] * distance);
+                for (k = 0; k < numplanes; ++k) {
+                    if (k == i || k == j) continue;
+                    dot = (long double)clipVelocity[2] * planes[k][2];
+                    dot += (long double)clipVelocity[0] * planes[k][0];
+                    dot += (long double)clipVelocity[1] * planes[k][1];
+                    if (dot >= (long double)0.1) continue;
+                    pm->ps->velocity[2] = 0.0f;
+                    pm->ps->velocity[1] = 0.0f;
+                    pm->ps->velocity[0] = 0.0f;
+                    return qtrue;
+                }
+            }
+            VectorCopy(clipVelocity, pm->ps->velocity);
+            VectorCopy(endClipVelocity, endVelocity);
+            break;
+        }
+    }
+    if (gravity) VectorCopy(endVelocity, pm->ps->velocity);
+    if (pm->ps->pm_time) VectorCopy(primalVelocity, pm->ps->velocity);
+    return bumpcount != 0;
 }
 #else
 qboolean	PM_SlideMove( qboolean gravity ) {
