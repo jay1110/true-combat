@@ -1194,38 +1194,21 @@ typedef union {
     double alignment;
 } tceReticlePortalFrame851_t;
 
-/* All three renderer callbacks use 32-bit cdecl slots. Copy their argument bits
- * without additional FLD/FSTP conversions, and establish call-site alignment.
- * ESI/EDI are ordinary callee-saved inputs; ESP is restored inside the block. */
-static void CG_TCELinuxReticleCall851(const tceReticlePortalFrame851_t *data,
-                                     void (*callback)(void)) {
-    __asm__ volatile (
-        "movl %%esp, %%eax\n\tandl $-16, %%esp\n\tsubl $32, %%esp\n\t"
-        "movl %%eax, 28(%%esp)\n\t"
-        "movl 0(%%esi), %%eax\n\tmovl %%eax, 0(%%esp)\n\t"
-        "movl 4(%%esi), %%eax\n\tmovl %%eax, 4(%%esp)\n\t"
-        "movl 8(%%esi), %%eax\n\tmovl %%eax, 8(%%esp)\n\t"
-        "movl 12(%%esi), %%eax\n\tmovl %%eax, 12(%%esp)\n\t"
-        "movl 16(%%esi), %%eax\n\tmovl %%eax, 16(%%esp)\n\t"
-        "call *%%edi\n\tmovl 28(%%esp), %%esp"
-        : : "S" (data), "D" (callback)
-        : "eax", "ecx", "edx", "cc", "memory",
-          "st", "st(1)", "st(2)", "st(3)", "st(4)", "st(5)", "st(6)", "st(7)"
-#if defined(__SSE__)
-          , "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"
-#endif
-    );
+/* The picture callback consumes four float arguments and a shader handle. */
+static void CG_TCELinuxReticleDrawPic851(const tceReticlePortalFrame851_t *data) {
+    qhandle_t shader;
+
+    memcpy(&shader, &data->bits[4], sizeof(shader));
+    CG_DrawPic(data->value[0], data->value[1], data->value[2],
+               data->value[3], shader);
 }
 
 #define TCE_RETICLE_ASM851(body) __asm__ volatile ( \
     ".intel_syntax noprefix\n\t" body "\n\t.att_syntax prefix" \
     : "+m" (data) : "S" (&data), "D" (constants) \
     : "eax", "cc", "memory", "st", "st(1)", "st(2)", "st(3)" )
-#define TCE_RETICLE_FILL851(color) do { \
-    const float *tceColor851=(color); \
-    memcpy(&data.bits[4],&tceColor851,sizeof(tceColor851)); \
-    CG_TCELinuxReticleCall851(&data,(void (*)(void))CG_FillRect); \
-} while(0)
+#define TCE_RETICLE_FILL851(color) \
+    CG_FillRect(data.value[0], data.value[1], data.value[2], data.value[3], (color))
 
 static void CG_TCELinuxReticlePortal851(int type,const float *x,const float *y,
                                        const vec4_t black,const vec4_t red) {
@@ -1240,36 +1223,31 @@ static void CG_TCELinuxReticlePortal851(int type,const float *x,const float *y,
     memcpy(&data.value[0xb8/4],x,sizeof(float));
     memcpy(&data.value[0xb4/4],y,sizeof(float));
     data.bits[0x174/4]=(unsigned int)tce_cg_weapons[0].portalScopeWidth;
-    /* Projection's extracted live-out is exactly binary32 1.2. The viewport
-     * product is spilled before all type branches, as at raw430c9..430d9. */
-    TCE_RETICLE_ASM851(
-        "fld dword ptr [edi+40]\n\tfld dword ptr [edi+44]\n\t"
-        "fmul st(0),st(1)\n\tfstp dword ptr [esi+0xbc]\n\tfstp st(0)"
-    );
+    data.value[0xbc/4] = (float)((long double)1.2f * 480.0f);
     if(type==2) {
-        /* 43545..435b0/435b0..435ee: keep the selected extended width live
-         * through the shader gate and all four argument stores. */
-        data.bits[4]=(unsigned int)cgs.media.tceM76ReticleShader;
-        TCE_RETICLE_ASM851(
-            "fld dword ptr [edi+40]\n\tfild dword ptr [esi+0x174]\n\t"
-            "fmul dword ptr [edi+28]\n\tfcom dword ptr [edi]\n\tfnstsw ax\n\tsahf\n\t"
-            "ja 1f\n\tfstp st(0)\n\tfld dword ptr [edi+24]\n\t1:\n\t"
-            "fmulp st(1),st(0)\n\tcmp dword ptr [esi+16],0\n\tje 2f\n\t"
-            "fst dword ptr [esi+8]\n\tfld st(0)\n\tfmul dword ptr [edi+8]\n\t"
-            "fxch st(1)\n\tfmul dword ptr [edi+32]\n\tfxch st(1)\n\t"
-            "fst dword ptr [esi+12]\n\tfxch st(1)\n\tfsubr dword ptr [esi+0xb4]\n\t"
-            "fxch st(1)\n\tfsubr dword ptr [esi+0xb8]\n\tfxch st(1)\n\t"
-            "fstp dword ptr [esi+4]\n\tfstp dword ptr [esi]\n\tjmp 3f\n\t"
-            "2:\n\tfstp st(0)\n\t3:"
-        );
-        if(data.bits[4])CG_TCELinuxReticleCall851(&data,(void (*)(void))CG_DrawPic);
-        TCE_RETICLE_ASM851(
-            "fld dword ptr [edi+4]\n\tfld dword ptr [esi+0xb4]\n\tfsub st(0),st(1)\n\t"
-            "fxch st(1)\n\tfsubr dword ptr [esi+0xb8]\n\tfxch st(1)\n\t"
-            "fstp dword ptr [esi+4]\n\tfstp dword ptr [esi]"
-        );
-        data.bits[2]=data.bits[3]=0x40000000u;
-        TCE_RETICLE_FILL851(red);
+        int configuredWidth;
+        qhandle_t shader;
+        long double width;
+        float left, top, drawnWidth, drawnHeight;
+
+        memcpy(&configuredWidth, &data.bits[0x174/4], sizeof(configuredWidth));
+        width = (long double)configuredWidth * 0.88f;
+        if (!(width > 0.0L)) {
+            width = 220.0L;
+        }
+        width *= (long double)1.2f;
+        shader = cgs.media.tceM76ReticleShader;
+        if (shader) {
+            drawnWidth = (float)width;
+            drawnHeight = (float)(width * 0.5L);
+            top = (float)((long double)data.value[0xb4/4]
+                        - width * (long double)0.03181818127632141f);
+            left = (float)((long double)data.value[0xb8/4] - width * 0.5L);
+            CG_DrawPic(left, top, drawnWidth, drawnHeight, shader);
+        }
+        top = (float)((long double)data.value[0xb4/4] - 1.0L);
+        left = (float)((long double)data.value[0xb8/4] - 1.0L);
+        CG_FillRect(left, top, 2.0f, 2.0f, red);
     } else if(type==1) {
         /* 4333d..433ce. Width is first spilled as float, then multiplied
          * by the retained1.2; the half/left cache has its original spills. */
@@ -1325,28 +1303,21 @@ static void CG_TCELinuxReticlePortal851(int type,const float *x,const float *y,
         );
         TCE_RETICLE_FILL851(red);
     } else {
-        /* 430f7..431bf, default thin crosshair. */
-        TCE_RETICLE_ASM851(
-            "fild dword ptr [esi+0x174]\n\tfcom dword ptr [edi]\n\tfnstsw ax\n\tsahf\n\t"
-            "ja 1f\n\tfstp st(0)\n\tfld dword ptr [edi+20]\n\t1:\n\t"
-            "fld dword ptr [esi+0xb4]\n\tfld st(1)\n\tfmul dword ptr [edi+8]\n\t"
-            "fxch st(1)\n\tfstp dword ptr [esi+4]\n\tfld dword ptr [esi+0xb8]\n\t"
-            "fxch st(2)\n\tfst dword ptr [esi+8]\n\tfxch st(2)\n\tfsub st(0),st(1)\n\t"
-            "fxch st(1)\n\tfstp dword ptr [esi+0x50]\n\tfxch st(1)\n\t"
-            "fstp dword ptr [esi+0x40]\n\tfstp dword ptr [esi]"
-        );
-        data.bits[3]=0x3f800000u;TCE_RETICLE_FILL851(black);
-        TCE_RETICLE_ASM851(
-            "fld dword ptr [esi+0x50]\n\tfsubr dword ptr [esi+0xb4]\n\t"
-            "fld dword ptr [esi+0xb8]\n\tfld dword ptr [esi+0x40]\n\tfxch st(2)\n\t"
-            "fstp dword ptr [esi+4]\n\tfstp dword ptr [esi]\n\tfstp dword ptr [esi+12]"
-        );
-        data.bits[2]=0x3f800000u;TCE_RETICLE_FILL851(black);
-        TCE_RETICLE_ASM851(
-            "fld dword ptr [esi+0xb4]\n\tfld dword ptr [esi+0xb8]\n\tfxch st(1)\n\t"
-            "fstp dword ptr [esi+4]\n\tfstp dword ptr [esi]"
-        );
-        data.bits[2]=data.bits[3]=0x3f800000u;TCE_RETICLE_FILL851(red);
+        int configuredWidth;
+        long double width, halfWidth;
+        float drawnWidth, cachedHalf, left, top;
+
+        memcpy(&configuredWidth, &data.bits[0x174/4], sizeof(configuredWidth));
+        width = configuredWidth > 0 ? (long double)configuredWidth : 250.0L;
+        halfWidth = width * 0.5L;
+        drawnWidth = (float)width;
+        cachedHalf = (float)halfWidth;
+        left = (float)((long double)data.value[0xb8/4] - halfWidth);
+        CG_FillRect(left, data.value[0xb4/4], drawnWidth, 1.0f, black);
+
+        top = (float)((long double)data.value[0xb4/4] - cachedHalf);
+        CG_FillRect(data.value[0xb8/4], top, 1.0f, drawnWidth, black);
+        CG_FillRect(data.value[0xb8/4], data.value[0xb4/4], 1.0f, 1.0f, red);
     }
     if(cgs.media.tcePortalScopeShader) {
         vec3_t lighting;
@@ -1369,8 +1340,8 @@ static void CG_TCELinuxReticlePortal851(int type,const float *x,const float *y,
             "jb 4f\n\tmov dword ptr [esi+0xe8],0x3f800000\n\t4:"
         );
         data.bits[0xec/4]=0x3f800000u;
-        memcpy(&data.bits[0],&color,sizeof(color));
-        CG_TCELinuxReticleCall851(&data,(void (*)(void))trap_R_SetColor);
+
+        trap_R_SetColor(color);
         /* 432af..4331f, including the ORIGINAL .09375 scale: no rounded
          * precomputed 54.0000038 offset is substituted. Re-read the shader. */
         data.bits[4]=(unsigned int)cgs.media.tcePortalScopeShader;
@@ -1383,8 +1354,8 @@ static void CG_TCELinuxReticlePortal851(int type,const float *x,const float *y,
             "fstp dword ptr [esi+0xbc]\n\tfld dword ptr [esi+0xb4]\n\t"
             "fadd dword ptr [esi+0xbc]\n\tfstp dword ptr [esi+4]"
         );
-        CG_TCELinuxReticleCall851(&data,(void (*)(void))CG_DrawPic);
-        data.bits[0]=0;CG_TCELinuxReticleCall851(&data,(void (*)(void))trap_R_SetColor);
+        CG_TCELinuxReticleDrawPic851(&data);
+        trap_R_SetColor(NULL);
     }
 }
 #undef TCE_RETICLE_FILL851
