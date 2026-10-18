@@ -1219,638 +1219,103 @@ static void PM_SetMovementDir( void ) {
 PM_CheckJump
 =============
 */
-/* TC:E qagame200361a0 / Linux00094d6a; MSVC32 instruction schedule below. */
+/* TC:E CheckJump: native Windows gates, float stores and event ordering.
+ * Linux retains its existing fallback; FPU/ABI parity is tracked separately. */
 #if defined(_MSC_VER) && defined(_M_IX86)
-/* TC qagame200361a0/20036610: retained x87 values, native field bindings. */
 static void PM_WeaponTruncateST0(void);
-enum {
-    movementPs833 = offsetof(pmove_t,ps),
-    movementExt833 = offsetof(pmove_t,pmext),
-    movementCharacter833 = offsetof(pmove_t,character),
-    movementCmd833 = offsetof(pmove_t,cmd),
-    movementForwardCmd833 = offsetof(pmove_t,cmd)+offsetof(usercmd_t,forwardmove),
-    movementRightCmd833 = offsetof(pmove_t,cmd)+offsetof(usercmd_t,rightmove),
-    movementUpCmd833 = offsetof(pmove_t,cmd)+offsetof(usercmd_t,upmove),
-    movementSprint833 = offsetof(pmoveExt_t,sprintTime),
-    movementAnim833 = offsetof(bg_character_t,animModelInfo),
-    movementFlags833 = offsetof(playerState_t,pm_flags),
-    movementTime833 = offsetof(playerState_t,pm_time),
-    movementGround833 = offsetof(playerState_t,groundEntityNum),
-    movementEFlags833 = offsetof(playerState_t,eFlags),
-    movementWeaponState833 = offsetof(playerState_t,weaponstate),
-    movementViewHeight833 = offsetof(playerState_t,viewheight),
-    movementOrigin833 = offsetof(playerState_t,origin)+0*sizeof(float),
-    movementOriginY833 = offsetof(playerState_t,origin)+1*sizeof(float),
-    movementOriginZ833 = offsetof(playerState_t,origin)+2*sizeof(float),
-    movementVelocity833 = offsetof(playerState_t,velocity)+0*sizeof(float),
-    movementVelocityY833 = offsetof(playerState_t,velocity)+1*sizeof(float),
-    movementVelocityZ833 = offsetof(playerState_t,velocity)+2*sizeof(float),
-    movementSeed833 = offsetof(playerState_t,stats)+STAT_TCE_SHOT_SEED*sizeof(int),
-    movementWeaponFlags833 = offsetof(playerState_t,stats)+STAT_TCE_WEAPON_FLAGS*sizeof(int),
-    movementTceFlags833 = offsetof(playerState_t,stats)+STAT_TCE_FLAGS*sizeof(int),
-    movementInstability833 = offsetof(playerState_t,stats)+STAT_TCE_MOVEMENT_INSTABILITY*sizeof(int),
-    movementPhase833 = offsetof(playerState_t,stats)+STAT_TCE_AIM_PHASE*sizeof(int),
-    movementPersistent833 = offsetof(playerState_t,persistant)+14*sizeof(int),
-    movementFrameTime833 = offsetof(pml_t,frametime),
-    movementGroundPlane833 = offsetof(pml_t,groundPlane),
-    movementWalking833 = offsetof(pml_t,walking),
-    movementForward833 = offsetof(pml_t,forward),
-    movementRight833 = offsetof(pml_t,right)
-};
-static const unsigned int movementK200ac100 = 0x00000000u;
-static const unsigned int movementK200ac110 = 0x3f800000u;
-static const unsigned int movementK200ac180 = 0x3f000000u;
-static const unsigned int movementK200ac2b8 = 0x41200000u;
-static const unsigned int movementK200ac330 = 0x42480000u;
-static const unsigned int movementK200ac3ac = 0x447a0000u;
-static const unsigned int movementK200ac484 = 0x3a83126fu;
-static const unsigned int movementK200ac6e8 = 0x3fa00000u;
-static const unsigned int movementK200ac708[2] = { 0x00000000u, 0x3ff80000u };
-static const unsigned int movementK200ac744 = 0x3c010204u;
-static const unsigned int movementK200ac7cc = 0x43870000u;
-static const unsigned int movementK200ac7d0 = 0x3f34fdf4u;
-typedef char movementScalarLayout833[(sizeof(float)==4 && sizeof(int)==4 && sizeof(vec3_t)==12 && EV_JUMP==24 && ANIM_ET_JUMP==4 && ANIM_ET_JUMPBK==5) ? 1 : -1];
-static __declspec(naked) qboolean PM_CheckJump(void) {
-    __asm {
-
-        SUB ESP,0x14
-
-        PUSH ESI
-
-        MOV ESI,dword ptr [pm]
-
-        MOV dword ptr [ESP + 0x4],0x3f800000
-
-        MOV ECX,dword ptr [ESI + movementPs833]
-
-        MOV EAX,dword ptr [ECX + movementEFlags833]
-
-        TEST EAX,0x80000
-
-        JZ movementAt200361c5
-
-        XOR EAX,EAX
-
-        POP ESI
-
-        ADD ESP,0x14
-
-        RET
-    movementAt200361c5:
-        MOV EDX,dword ptr [ECX + movementFlags833]
-
-        TEST DL,0x1
-
-        JZ movementAt200361d4
-
-        XOR EAX,EAX
-
-        POP ESI
-
-        ADD ESP,0x14
-
-        RET
-    movementAt200361d4:
-        TEST EAX,0x100000
-
-        JZ movementAt200361e2
-
-        XOR EAX,EAX
-
-        POP ESI
-
-        ADD ESP,0x14
-
-        RET
-    movementAt200361e2:
-        MOV EAX,dword ptr [ECX + movementWeaponFlags833]
-
-        TEST AH,0x10
-
-        JZ movementAt200361f4
-
-        XOR EAX,EAX
-
-        POP ESI
-
-        ADD ESP,0x14
-
-        RET
-    movementAt200361f4:
-        MOV EAX,dword ptr [ECX + movementGround833]
-
-        CMP EAX,0x40
-
-        JGE movementAt20036203
-
-        XOR EAX,EAX
-
-        POP ESI
-
-        ADD ESP,0x14
-
-        RET
-    movementAt20036203:
-        TEST DL,0x4
-
-        JZ movementAt2003620f
-
-        XOR EAX,EAX
-
-        POP ESI
-
-        ADD ESP,0x14
-
-        RET
-    movementAt2003620f:
-        CMP EAX,0x3ff
-
-        JNZ movementAt2003621d
-
-        XOR EAX,EAX
-
-        POP ESI
-
-        ADD ESP,0x14
-
-        RET
-    movementAt2003621d:
-        TEST DH,0x2
-
-        JZ movementAt20036229
-
-        XOR EAX,EAX
-
-        POP ESI
-
-        ADD ESP,0x14
-
-        RET
-    movementAt20036229:
-        CMP byte ptr [ESI + movementUpCmd833],0xa
-
-        JGE movementAt20036236
-
-        XOR EAX,EAX
-
-        POP ESI
-
-        ADD ESP,0x14
-
-        RET
-    movementAt20036236:
-        TEST DL,0x2
-
-        JZ movementAt20036246
-
-        MOV byte ptr [ESI + movementUpCmd833],0x0
-
-        XOR EAX,EAX
-
-        POP ESI
-
-        ADD ESP,0x14
-
-        RET
-    movementAt20036246:
-        TEST byte ptr [ECX + movementTceFlags833],0x40
-
-        JNZ movementAt200362ac
-
-        MOV EAX,dword ptr [ECX + movementTime833]
-
-        CMP EAX,0x1f4
-
-        MOV dword ptr [ESP + 0x8],EAX
-
-        JLE movementAt20036268
-
-        MOV byte ptr [ESI + movementUpCmd833],0x0
-
-        XOR EAX,EAX
-
-        POP ESI
-
-        ADD ESP,0x14
-
-        RET
-    movementAt20036268:
-        TEST DL,0x20
-
-        JZ movementAt200362ac
-
-        TEST EAX,EAX
-
-        JZ movementAt200362ac
-
-        CMP EAX,0x258
-
-        JLE movementAt20036283
-
-        MOV byte ptr [ESI + movementUpCmd833],0x0
-
-        XOR EAX,EAX
-
-        POP ESI
-
-        ADD ESP,0x14
-
-        RET
-    movementAt20036283:
-        FILD dword ptr [ESP + 0x8]
-
-        FMUL dword ptr [movementK200ac484]
-
-        FSUBR dword ptr [movementK200ac110]
-
-        FST dword ptr [ESP + 0x4]
-
-        FCOMP dword ptr [movementK200ac100]
-
-        FNSTSW AX
-
-        TEST AH,0x1
-
-        JZ movementAt200362ac
-
-        MOV dword ptr [ESP + 0x4],0x0
-    movementAt200362ac:
-        FLD dword ptr [ECX + movementVelocityY833]
-
-        FLD dword ptr [ECX + movementVelocity833]
-
-        LEA EAX,[ECX + movementVelocity833]
-
-        FLD ST(0)
-
-        FMUL ST(0),ST(1)
-
-        FLD ST(2)
-
-        FMUL ST(0),ST(3)
-
-        PUSH EAX
-
-        FADDP ST(1),ST(0)
-
-        FSQRT
-
-        FSTP dword ptr [ESP + 0xc]
-
-        FSTP ST(0)
-
-        FSTP ST(0)
-
-        CALL VectorLength
-
-        FCOMP dword ptr [movementK200ac330]
-
-        MOV ECX,dword ptr [pm]
-
-        ADD ESP,0x4
-
-        FNSTSW AX
-
-        TEST AH,0x1
-
-        JZ movementAt200362ec
-
-        MOV AL,byte ptr [ECX + movementForwardCmd833]
-
-        TEST AL,AL
-
-        JNZ movementAt2003631c
-    movementAt200362ec:
-        MOV EAX,dword ptr [ECX + movementPs833]
-
-        TEST byte ptr [EAX + movementTceFlags833],0x40
-
-        JNZ movementAt2003631c
-
-        FLD dword ptr [ESP + 0x4]
-
-        MOV EDX,dword ptr [ECX + movementExt833]
-
-        FMUL dword ptr [movementK200ac7d0]
-
-        CMP dword ptr [EDX + movementSprint833],0x2ee
-
-        FSTP dword ptr [ESP + 0x4]
-
-        JGE movementAt2003631c
-
-        MOV byte ptr [ECX + movementUpCmd833],0x0
-
-        XOR EAX,EAX
-
-        POP ESI
-
-        ADD ESP,0x14
-
-        RET
-    movementAt2003631c:
-        FLD dword ptr [ESP + 0x8]
-
-        FCOMP dword ptr [movementK200ac2b8]
-
-        FNSTSW AX
-
-        TEST AH,0x41
-
-        JNZ movementAt200363b5
-
-        MOV AL,byte ptr [ECX + movementForwardCmd833]
-
-        TEST AL,AL
-
-        JNZ movementAt2003633f
-
-        MOV AL,byte ptr [ECX + movementRightCmd833]
-
-        TEST AL,AL
-
-        JZ movementAt200363b5
-    movementAt2003633f:
-        MOVSX EAX,byte ptr [ECX + movementForwardCmd833]
-
-        MOV dword ptr [ESP + 0x8],EAX
-
-        LEA EDX,[ESP + 0xc]
-
-        FILD dword ptr [ESP + 0x8]
-
-        PUSH EDX
-
-        FMUL dword ptr [movementK200ac744]
-
-        FSTP dword ptr [ESP + 0x10]
-
-        MOVSX ECX,byte ptr [ECX + movementRightCmd833]
-
-        MOV dword ptr [ESP + 0xc],ECX
-
-        MOV dword ptr [ESP + 0x18],0x0
-
-        FILD dword ptr [ESP + 0xc]
-
-        FMUL dword ptr [movementK200ac744]
-
-        FSTP dword ptr [ESP + 0x14]
-
-        CALL VectorNormalize
-
-        FSTP ST(0)
-
-        FLD dword ptr [ESP + 0x10]
-
-        FADD dword ptr [movementK200ac110]
-
-        ADD ESP,0x4
-
-        FMUL dword ptr [movementK200ac180]
-
-        FCOM dword ptr [movementK200ac180]
-
-        FNSTSW AX
-
-        TEST AH,0x1
-
-        JZ movementAt200363a7
-
-        FSTP ST(0)
-
-        FLD dword ptr [movementK200ac180]
-    movementAt200363a7:
-        FMUL dword ptr [ESP + 0x4]
-
-        MOV ECX,dword ptr [pm]
-
-        FSTP dword ptr [ESP + 0x4]
-    movementAt200363b5:
-        MOV ECX,dword ptr [ECX + movementPs833]
-
-        MOV EDX,dword ptr [ECX + movementWeaponFlags833]
-
-        OR DH,0x10
-
-        MOV dword ptr [ECX + movementWeaponFlags833],EDX
-
-        MOV EAX,[pm]
-
-        MOV ECX,dword ptr [EAX + movementPs833]
-
-        MOV dword ptr [ECX + movementInstability833],0x3e8
-
-        MOV EAX,[pm]
-
-        MOV EDX,dword ptr [EAX + movementPs833]
-
-        CMP dword ptr [EDX + movementWeaponState833],0x7
-
-        JZ movementAt2003643f
-
-        MOV EAX,EDX
-
-        LEA EDX,[ESP + 0x8]
-
-        PUSH EDX
-
-        MOV ECX,dword ptr [EAX + movementSeed833]
-
-        MOV dword ptr [ESP + 0xc],ECX
-
-        CALL Q_random
-
-        FMUL dword ptr [movementK200ac3ac]
-
-        ADD ESP,0x4
-
-        CALL PM_WeaponTruncateST0
-
-        MOV ECX,dword ptr [pm]
-
-        MOV EDX,dword ptr [ECX + movementPs833]
-
-        MOV dword ptr [EDX + movementPhase833],EAX
-
-        MOV EAX,[pm]
-
-        MOV ECX,dword ptr [EAX + movementPs833]
-
-        MOV EDX,dword ptr [ECX + movementPhase833]
-
-        CMP EDX,0x3e8
-
-        JLE movementAt2003643f
-
-        ADD EDX,0xfffffc18
-
-        MOV dword ptr [ECX + movementPhase833],EDX
-
-        MOV EAX,[pm]
-    movementAt2003643f:
-        MOV ECX,dword ptr [EAX + movementPs833]
-
-        MOV EDX,dword ptr [ECX + movementTceFlags833]
-
-        TEST DH,0x2
-
-        JZ movementAt2003645a
-
-        FLD dword ptr [ESP + 0x4]
-
-        FMUL dword ptr [movementK200ac6e8]
-
-        FSTP dword ptr [ESP + 0x4]
-    movementAt2003645a:
-        XOR ESI,ESI
-
-        PUSH 0x18
-
-        MOV dword ptr [pml + movementGroundPlane833],ESI
-
-        MOV dword ptr [pml + movementWalking833],ESI
-
-        MOV EAX,dword ptr [EAX + movementPs833]
-
-        FLD dword ptr [ESP + 0x8]
-
-        MOV EDX,dword ptr [EAX + movementFlags833]
-
-        OR EDX,0x2
-
-        MOV dword ptr [EAX + movementFlags833],EDX
-
-        MOV EDX,dword ptr [pm]
-
-        FMUL dword ptr [movementK200ac7cc]
-
-        MOV EAX,dword ptr [EDX + movementPs833]
-
-        MOV dword ptr [EAX + movementGround833],0x3ff
-
-        MOV ECX,dword ptr [pm]
-
-        MOV EDX,dword ptr [ECX + movementPs833]
-
-        FSTP dword ptr [EDX + movementVelocityZ833]
-
-        CALL PM_AddEvent
-
-        MOV EAX,[pm]
-
-        ADD ESP,0x4
-
-        MOV EDX,dword ptr [EAX + movementPs833]
-
-        MOV ECX,dword ptr [EDX + movementWeaponFlags833]
-
-        TEST CL,0x4
-
-        JZ movementAt200364c1
-
-        AND ECX,0xfffffffb
-
-        MOV dword ptr [EDX + movementWeaponFlags833],ECX
-
-        MOV EAX,[pm]
-    movementAt200364c1:
-        MOV EDX,dword ptr [EAX + movementPs833]
-
-        MOV ECX,dword ptr [EDX + movementWeaponFlags833]
-
-        TEST CL,0x8
-
-        JZ movementAt200364e5
-
-        TEST byte ptr [EDX + movementPersistent833],0x8
-
-        JNZ movementAt200364e5
-
-        AND ECX,0xfffffff7
-
-        MOV dword ptr [EDX + movementWeaponFlags833],ECX
-
-        MOV EAX,[pm]
-    movementAt200364e5:
-        MOV CL,byte ptr [EAX + movementForwardCmd833]
-
-        PUSH 0x1
-
-        TEST CL,CL
-
-        PUSH ESI
-
-        JL movementAt2003651e
-
-        MOV ECX,dword ptr [EAX + movementCharacter833]
-
-        MOV EAX,dword ptr [EAX + movementPs833]
-
-        PUSH 0x4
-
-        MOV EDX,dword ptr [ECX + movementAnim833]
-
-        PUSH EDX
-
-        PUSH EAX
-
-        CALL BG_AnimScriptEvent
-
-        MOV ECX,dword ptr [pm]
-
-        ADD ESP,0x14
-
-        MOV EAX,dword ptr [ECX + movementPs833]
-
-        POP ESI
-
-        MOV ECX,dword ptr [EAX + movementFlags833]
-
-        AND ECX,0xfffffff7
-
-        MOV dword ptr [EAX + movementFlags833],ECX
-
-        MOV EAX,0x1
-
-        ADD ESP,0x14
-
-        RET
-    movementAt2003651e:
-        MOV EDX,dword ptr [EAX + movementCharacter833]
-
-        PUSH 0x5
-
-        MOV ECX,dword ptr [EDX + movementAnim833]
-
-        MOV EDX,dword ptr [EAX + movementPs833]
-
-        PUSH ECX
-
-        PUSH EDX
-
-        CALL BG_AnimScriptEvent
-
-        MOV EAX,[pm]
-
-        ADD ESP,0x14
-
-        MOV EAX,dword ptr [EAX + movementPs833]
-
-        POP ESI
-
-        MOV ECX,dword ptr [EAX + movementFlags833]
-
-        OR ECX,0x8
-
-        MOV dword ptr [EAX + movementFlags833],ECX
-
-        MOV EAX,0x1
-
-        ADD ESP,0x14
-
-        RET
+typedef char movementScalarLayout833[(sizeof(float) == 4 && sizeof(int) == 4 &&
+    sizeof(vec3_t) == 12 && EV_JUMP == 24 && ANIM_ET_JUMP == 4 && ANIM_ET_JUMPBK == 5) ? 1 : -1];
+static qboolean PM_CheckJump(void) {
+    playerState_t *ps = pm->ps;
+    volatile float scale = 1.0f, horizontal;
+    long double value, length;
+    vec3_t direction;
+    int seed;
+
+    if (ps->eFlags & EF_PRONE) return qfalse;
+    if (ps->pm_flags & PMF_DUCKED) return qfalse;
+    if (ps->eFlags & EF_PRONE_MOVING) return qfalse;
+    if (ps->stats[STAT_TCE_WEAPON_FLAGS] & 0x1000) return qfalse;
+    if (ps->groundEntityNum < MAX_CLIENTS) return qfalse;
+    if (ps->pm_flags & PMF_LADDER) return qfalse;
+    if (ps->groundEntityNum == ENTITYNUM_NONE) return qfalse;
+    if (ps->pm_flags & PMF_RESPAWNED) return qfalse;
+    if (pm->cmd.upmove < 10) return qfalse;
+    if (ps->pm_flags & PMF_JUMP_HELD) {
+        pm->cmd.upmove = 0;
+        return qfalse;
     }
+    if (!(ps->stats[STAT_TCE_FLAGS] & 0x40)) {
+        if (ps->pm_time > 500) {
+            pm->cmd.upmove = 0;
+            return qfalse;
+        }
+        if ((ps->pm_flags & PMF_TIME_LAND) && ps->pm_time) {
+            if (ps->pm_time > 600) {
+                pm->cmd.upmove = 0;
+                return qfalse;
+            }
+            value = 1.0L - (long double)ps->pm_time * 0.001f;
+            scale = (float)value;
+            /* Compare the held value; C0 also selects zero for unordered. */
+            if (value < 0.0L || value != value) scale = 0.0f;
+        }
+    }
+    value = (long double)ps->velocity[0] * ps->velocity[0];
+    value += (long double)ps->velocity[1] * ps->velocity[1];
+    horizontal = (float)sqrtl(value);
+    length = TCE_VectorLengthValue(ps->velocity);
+    if ((length >= 50.0L || !pm->cmd.forwardmove) &&
+        !(pm->ps->stats[STAT_TCE_FLAGS] & 0x40)) {
+        scale = (float)((long double)scale * 0.707f);
+        if (pm->pmext->sprintTime < 750) {
+            pm->cmd.upmove = 0;
+            return qfalse;
+        }
+    }
+    if (horizontal > 10.0f && (pm->cmd.forwardmove || pm->cmd.rightmove)) {
+        direction[0] = (float)((long double)pm->cmd.forwardmove * 0.007874015718698502f);
+        direction[1] = (float)((long double)pm->cmd.rightmove * 0.007874015718698502f);
+        direction[2] = 0.0f;
+        (void)TCE_VectorNormalizeValue(direction);
+        value = ((long double)direction[0] + 1.0f) * 0.5f;
+        if (value < 0.5L || value != value) value = 0.5L;
+        scale = (float)(value * scale);
+    }
+    pm->ps->stats[STAT_TCE_WEAPON_FLAGS] |= 0x1000;
+    pm->ps->stats[STAT_TCE_MOVEMENT_INSTABILITY] = 1000;
+    if (pm->ps->weaponstate != WEAPON_FIRING) {
+        seed = pm->ps->stats[STAT_TCE_SHOT_SEED];
+        value = (long double)Q_random(&seed) * 1000.0f;
+        pm->ps->stats[STAT_TCE_AIM_PHASE] = TCE_TruncateNativeInteger(value);
+        if (pm->ps->stats[STAT_TCE_AIM_PHASE] > 1000) {
+            pm->ps->stats[STAT_TCE_AIM_PHASE] -= 1000;
+        }
+    }
+    if (pm->ps->stats[STAT_TCE_FLAGS] & 0x200) {
+        scale = (float)((long double)scale * 1.25f);
+    }
+    pml.groundPlane = qfalse;
+    pml.walking = qfalse;
+    pm->ps->pm_flags |= PMF_JUMP_HELD;
+    value = (long double)scale * 270.0f;
+    pm->ps->groundEntityNum = ENTITYNUM_NONE;
+    pm->ps->velocity[2] = (float)value;
+    PM_AddEvent(EV_JUMP);
+    if (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) {
+        pm->ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~4;
+    }
+    if ((pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 8) && !(pm->ps->persistant[14] & 8)) {
+        pm->ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~8;
+    }
+    if (pm->cmd.forwardmove >= 0) {
+        BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo, ANIM_ET_JUMP, qfalse, qtrue);
+        pm->ps->pm_flags &= ~PMF_BACKWARDS_JUMP;
+    } else {
+        BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo, ANIM_ET_JUMPBK, qfalse, qtrue);
+        pm->ps->pm_flags |= PMF_BACKWARDS_JUMP;
+    }
+    return qtrue;
 }
 #else
 static qboolean PM_CheckJump( void ) {
