@@ -5092,522 +5092,104 @@ static qboolean PM_TCECancelAim(void) {
 }
 
 #if defined(_MSC_VER) && defined(_M_IX86)
-/* Whole qagame20031f90; original stack locals, native structure offsets. */
-enum {
-    aimPs68 = offsetof(playerState_t, eFlags),
-    aimPs48c = offsetof(playerState_t, aimSpreadScale),
-    aimPs488 = offsetof(playerState_t, aimSpreadScaleFloat),
-    aimPsa4 = offsetof(playerState_t, weapon),
-    aimPsa8 = offsetof(playerState_t, weaponstate),
-    aimPsc = offsetof(playerState_t, pm_flags),
-    aimPs20 = offsetof(playerState_t, velocity),
-    aimPsf4 = offsetof(playerState_t, stats) + STAT_TCE_FLAGS * sizeof(int),
-    aimPsf0 = offsetof(playerState_t, stats) + STAT_TCE_WEAPON_FLAGS * sizeof(int),
-    aimPsfc = offsetof(playerState_t, stats) + STAT_TCE_MOVEMENT_INSTABILITY * sizeof(int),
-    aimPs104 = offsetof(playerState_t, stats) + STAT_TCE_AIM_PHASE * sizeof(int),
-    aimPsec = offsetof(playerState_t, stats) + STAT_TCE_SHOT_SEED * sizeof(int),
-    aimPs100 = offsetof(playerState_t, stats) + STAT_TCE_SHOT_INSTABILITY * sizeof(int),
-    aimCmdTime = offsetof(pmove_t, cmd.serverTime),
-    aimOldTime = offsetof(pmove_t, oldcmd.serverTime),
-    aimOldAngles = offsetof(pmove_t, oldcmd.angles),
-    aimAngleDelta = offsetof(pmove_t, cmd.angles) - offsetof(pmove_t, oldcmd.angles),
-    aimDefStride = sizeof(tce_weaponDef_t),
-    aimMoveRecovery = offsetof(tce_weaponDef_t, unknown_0f8) + 4 * sizeof(int),
-    aimShotRecovery = offsetof(tce_weaponDef_t, unknown_0f8) + 5 * sizeof(int),
-    aimScoped = offsetof(tce_weaponDef_t, scoped)
-};
-static const unsigned int aimConstant200ac378[2] = { 0xd2f1a9fcu, 0x3f50624du };
-static const unsigned int aimConstant200ac488[2] = { 0x00000000u, 0x3f768000u };
-static const unsigned int aimConstant200ac708[2] = { 0x00000000u, 0x3ff80000u };
-static const unsigned int aimConstant200ac100 = 0x00000000u;
-static const unsigned int aimConstant200ac704 = 0x3f4ccccdu;
-static const unsigned int aimConstant200ac190 = 0x41f00000u;
-static const unsigned int aimConstant200ac700 = 0x42f00000u;
-static const unsigned int aimConstant200ac6fc = 0x3c088889u;
-static const unsigned int aimConstant200ac6f8 = 0x45480000u;
-static const unsigned int aimConstant200ac3ac = 0x447a0000u;
-static const unsigned int aimConstant200ac6f4 = 0x3f2b851fu;
-__declspec(naked) void PM_AdjustAimSpreadScale(void) {
-    __asm {
-
-        SUB ESP,010h
-
-        PUSH EBX
-
-        PUSH ESI
-
-        PUSH EDI
-
-        MOV EDI,dword ptr [pm]
-
-        XOR EBX,EBX
-
-        MOV ESI,dword ptr [EDI]
-
-        TEST dword ptr [ESI + aimPs68],040000h
-
-        JZ aimAt20031fcb
-
-        MOV dword ptr [ESI + aimPs48c],0ffh
-
-        MOV EAX,[pm]
-
-        POP EDI
-
-        POP ESI
-
-        MOV ECX,dword ptr [EAX]
-
-        POP EBX
-
-        MOV dword ptr [ECX + aimPs488],0437f0000h
-
-        ADD ESP,010h
-
-        RET
-    aimAt20031fcb:
-        MOV EDX,dword ptr [EDI + aimCmdTime]
-
-        MOV EAX,dword ptr [EDI + aimOldTime]
-
-        MOV ECX,dword ptr [ESI + aimPsa4]
-
-        SUB EDX,EAX
-
-        MOV dword ptr [ESP + 014h],EDX
-
-        FILD dword ptr [ESP + 014h]
-
-        IMUL EAX,ECX,aimDefStride
-
-        NOP
-
-        FMUL qword ptr [aimConstant200ac378]
-
-        NOP
-
-        NOP
-
-        FSTP dword ptr [ESP + 010h]
-
-        MOV EAX,dword ptr [weaponDef + EAX + aimMoveRecovery]
-
-        TEST EAX,EAX
-
-        MOV dword ptr [ESP + 014h],EAX
-
-        JZ aimAt20032120
-
-        FILD dword ptr [ESP + 014h]
-
-        LEA EAX,[EDI + aimOldAngles]
-
-        MOV ECX,02h
-
-        FMUL dword ptr [ESP + 010h]
-
-        FSTP dword ptr [ESP + 014h]
-
-        FLD dword ptr [aimConstant200ac100]
-    aimAt20032023:
-        FILD dword ptr [EAX + aimAngleDelta]
-
-        ADD EAX,04h
-
-        DEC ECX
-
-        FMUL qword ptr [aimConstant200ac488]
-
-        FILD dword ptr [EAX + -04h]
-
-        FMUL qword ptr [aimConstant200ac488]
-
-        FSUBP ST(1),ST(0)
-
-        FABS
-
-        FMUL qword ptr [aimConstant200ac708]
-
-        FXCH ST(1)
-
-        FADDP ST(1),ST(0)
-
-        JNZ aimAt20032023
-
-        LEA EAX,[ESI + aimPs20]
-
-        MOV ECX,02h
-    aimAt20032051:
-        FLD dword ptr [EAX]
-
-        FABS
-
-        FXCH ST(1)
-
-        FADDP ST(1),ST(0)
-
-        ADD EAX,04h
-
-        DEC ECX
-
-        JNZ aimAt20032051
-
-        MOV EAX,dword ptr [ESI + aimPsf4]
-
-        TEST AH,02h
-
-        JZ aimAt20032070
-
-        FMUL dword ptr [aimConstant200ac704]
-    aimAt20032070:
-        FDIV dword ptr [ESP + 010h]
-
-        FLD ST(0)
-
-        FSUB dword ptr [aimConstant200ac190]
-
-        FST dword ptr [ESP + 0ch]
-
-        FCOMP dword ptr [aimConstant200ac100]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JZ aimAt20032097
-
-        MOV dword ptr [ESP + 0ch],00h
-
-        JMP aimAt200320b0
-    aimAt20032097:
-        FLD dword ptr [ESP + 0ch]
-
-        FCOMP dword ptr [aimConstant200ac700]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ aimAt200320b0
-
-        MOV dword ptr [ESP + 0ch],042f00000h
-    aimAt200320b0:
-        FCOM dword ptr [aimConstant200ac100]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JZ aimAt200320c7
-
-        FSTP ST(0)
-
-        FLD dword ptr [aimConstant200ac100]
-
-        JMP aimAt200320dc
-    aimAt200320c7:
-        FCOM dword ptr [aimConstant200ac700]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ aimAt200320dc
-
-        FSTP ST(0)
-
-        FLD dword ptr [aimConstant200ac700]
-    aimAt200320dc:
-        FLD dword ptr [ESP + 0ch]
-
-        FMUL dword ptr [aimConstant200ac6fc]
-
-        FMUL dword ptr [ESP + 010h]
-
-        FMUL dword ptr [aimConstant200ac6f8]
-
-        CALL PM_WeaponTruncateST0
-
-        MOV dword ptr [ESP + 0ch],EAX
-
-        FILD dword ptr [ESP + 0ch]
-
-        FSTP dword ptr [ESP + 0ch]
-
-        FMUL dword ptr [aimConstant200ac6fc]
-
-        FMUL dword ptr [ESP + 010h]
-
-        FMUL dword ptr [aimConstant200ac6f8]
-
-        CALL PM_WeaponTruncateST0
-
-        MOV dword ptr [ESP + 018h],EAX
-
-        FILD dword ptr [ESP + 018h]
-
-        JMP aimAt20032136
-    aimAt20032120:
-        FLD dword ptr [aimConstant200ac100]
-
-        MOV dword ptr [ESP + 0ch],00h
-
-        MOV dword ptr [ESP + 014h],0447a0000h
-    aimAt20032136:
-        MOV ECX,dword ptr [ESI + aimPsc]
-
-        AND ECX,01h
-
-        JZ aimAt20032169
-
-        MOV EAX,dword ptr [ESI + aimPsf0]
-
-        TEST AL,010h
-
-        JNZ aimAt20032169
-
-        OR AL,010h
-
-        MOV EBX,01h
-
-        MOV dword ptr [ESI + aimPsf0],EAX
-
-        MOV ECX,dword ptr [pm]
-
-        MOV EDX,dword ptr [ECX]
-
-        MOV dword ptr [EDX + aimPsfc],02710h
-
-        JMP aimAt20032195
-    aimAt20032169:
-        TEST ECX,ECX
-
-        JNZ aimAt2003219b
-
-        MOV EAX,dword ptr [ESI + aimPsf0]
-
-        TEST AL,010h
-
-        JZ aimAt2003219b
-
-        AND AL,0efh
-
-        MOV EBX,01h
-
-        MOV dword ptr [ESI + aimPsf0],EAX
-
-        MOV EAX,[pm]
-
-        MOV ECX,dword ptr [EAX]
-
-        MOV dword ptr [ECX + aimPsfc],02710h
-    aimAt20032195:
-        MOV EDI,dword ptr [pm]
-    aimAt2003219b:
-        MOV ESI,dword ptr [EDI]
-
-        CMP dword ptr [ESI + aimPsa8],07h
-
-        JZ aimAt2003222f
-
-        FADD ST(0),ST(0)
-
-        FIADD dword ptr [ESI + aimPs104]
-
-        CALL PM_WeaponTruncateST0
-
-        MOV dword ptr [ESI + aimPs104],EAX
-
-        MOV EDI,dword ptr [pm]
-
-        MOV EDX,dword ptr [EDI]
-
-        MOV EAX,dword ptr [EDX + aimPsa8]
-
-        TEST EAX,EAX
-
-        JNZ aimAt200321d3
-
-        TEST EBX,EBX
-
-        JZ aimAt2003220b
-    aimAt200321d3:
-        MOV EAX,dword ptr [EDI]
-
-        LEA EDX,[ESP + 018h]
-
-        PUSH EDX
-
-        MOV ECX,dword ptr [EAX + aimPsec]
-
-        MOV dword ptr [ESP + 01ch],ECX
-
-        CALL Q_random
-
-        FMUL dword ptr [aimConstant200ac3ac]
-
-        ADD ESP,04h
-
-        CALL PM_WeaponTruncateST0
-
-        MOV ECX,dword ptr [pm]
-
-        MOV EDX,dword ptr [ECX]
-
-        MOV dword ptr [EDX + aimPs104],EAX
-
-        MOV EDI,dword ptr [pm]
-    aimAt2003220b:
-        MOV EAX,dword ptr [EDI]
-
-        MOV ECX,dword ptr [EAX + aimPs104]
-
-        CMP ECX,03e8h
-
-        JLE aimAt20032231
-
-        ADD ECX,0fffffc18h
-
-        MOV dword ptr [EAX + aimPs104],ECX
-
-        MOV EDI,dword ptr [pm]
-
-        JMP aimAt20032231
-    aimAt2003222f:
-        FSTP ST(0)
-    aimAt20032231:
-        MOV EDI,dword ptr [EDI]
-
-        TEST byte ptr [EDI + aimPsf0],04h
-
-        JZ aimAt20032283
-
-        MOV ECX,dword ptr [EDI + aimPsa4]
-
-        IMUL EAX,ECX,aimDefStride
-
-        NOP
-
-        NOP
-
-        NOP
-
-        FLD dword ptr [weaponDef + EAX + aimScoped]
-
-        FCOMP dword ptr [aimConstant200ac100]
-
-        FNSTSW AX
-
-        TEST AH,040h
-
-        JZ aimAt20032283
-
-        FLD dword ptr [ESP + 0ch]
-
-        FMUL dword ptr [aimConstant200ac6f4]
-
-        CMP dword ptr [EDI + aimPsfc],0c8h
-
-        FSTP dword ptr [ESP + 0ch]
-
-        JLE aimAt20032283
-
-        MOV dword ptr [ESP + 0ch],00h
-    aimAt20032283:
-        FLD dword ptr [ESP + 0ch]
-
-        FSUB dword ptr [ESP + 014h]
-
-        FIADD dword ptr [EDI + aimPsfc]
-
-        CALL PM_WeaponTruncateST0
-
-        MOV dword ptr [EDI + aimPsfc],EAX
-
-        MOV ECX,dword ptr [pm]
-
-        MOV EAX,dword ptr [ECX]
-
-        MOV ECX,dword ptr [EAX + aimPsfc]
-
-        CMP ECX,03e8h
-
-        JLE aimAt200322be
-
-        MOV dword ptr [EAX + aimPsfc],03e8h
-
-        JMP aimAt200322cc
-    aimAt200322be:
-        TEST ECX,ECX
-
-        JGE aimAt200322cc
-
-        MOV dword ptr [EAX + aimPsfc],00h
-    aimAt200322cc:
-        MOV EDX,dword ptr [pm]
-
-        MOV ESI,dword ptr [EDX]
-
-        MOV ECX,dword ptr [ESI + aimPsa4]
-
-        FILD dword ptr [ESI + aimPs100]
-
-        IMUL EAX,ECX,aimDefStride
-
-        NOP
-
-        NOP
-
-        NOP
-
-        FILD dword ptr [weaponDef + EAX + aimShotRecovery]
-
-        FMUL dword ptr [ESP + 010h]
-
-        FSUBP ST(1),ST(0)
-
-        CALL PM_WeaponTruncateST0
-
-        MOV dword ptr [ESI + aimPs100],EAX
-
-        MOV ECX,dword ptr [pm]
-
-        MOV EAX,dword ptr [ECX]
-
-        MOV ECX,dword ptr [EAX + aimPs100]
-
-        CMP ECX,03e8h
-
-        JLE aimAt2003232a
-
-        POP EDI
-
-        POP ESI
-
-        MOV dword ptr [EAX + aimPs100],03e8h
-
-        POP EBX
-
-        ADD ESP,010h
-
-        RET
-    aimAt2003232a:
-        TEST ECX,ECX
-
-        JGE aimAt20032338
-
-        MOV dword ptr [EAX + aimPs100],00h
-    aimAt20032338:
-        POP EDI
-
-        POP ESI
-
-        POP EBX
-
-        ADD ESP,010h
-
-        RET
+/* TCE movement/shot instability controller. Explicit stores model the
+ * native value path; compiled x87 precision and conversion ABI remain open. */
+typedef char aimRecoveryLayout[(sizeof(tce_weaponDef_t) == 0x1cc &&
+    offsetof(tce_weaponDef_t, unknown_0f8) + 4 * sizeof(int) == 0x108 &&
+    offsetof(tce_weaponDef_t, unknown_0f8) + 5 * sizeof(int) == 0x10c &&
+    offsetof(tce_weaponDef_t, scoped) == 0x174) ? 1 : -1];
+void PM_AdjustAimSpreadScale(void) {
+    playerState_t *ps = pm->ps;
+    volatile float seconds, decrease, increase;
+    long double motion, rate, excess, value;
+    unsigned elapsedBits;
+    int elapsed, recovery, phaseAdvance, seed, i;
+    qboolean postureChanged = qfalse;
+
+    if (ps->eFlags & EF_ZOOMING) {
+        ps->aimSpreadScale = 255;
+        pm->ps->aimSpreadScaleFloat = 255.0f;
+        return;
     }
+    elapsedBits = (unsigned)pm->cmd.serverTime - (unsigned)pm->oldcmd.serverTime;
+    memcpy(&elapsed, &elapsedBits, sizeof(elapsed));
+    seconds = (float)((long double)elapsed * 0.001);
+    recovery = weaponDef[ps->weapon].unknown_0f8[4];
+    if (recovery) {
+        decrease = (float)((long double)recovery * seconds);
+        motion = 0.0L;
+        for (i = 0; i < 2; ++i) {
+            value = (long double)pm->cmd.angles[i] * 0.0054931640625;
+            value -= (long double)pm->oldcmd.angles[i] * 0.0054931640625;
+            motion += fabsl(value) * 1.5;
+        }
+        for (i = 0; i < 2; ++i) motion += fabsl((long double)ps->velocity[i]);
+        if (ps->stats[STAT_TCE_FLAGS] & 0x200) motion *= 0.8f;
+        rate = motion / seconds;
+        excess = rate - 30.0f;
+        increase = (float)excess;
+        /* Native C0/C3 clamps negative, zero and unordered values to zero. */
+        if (!(excess > 0.0L)) increase = 0.0f;
+        else if (increase > 120.0f) increase = 120.0f;
+        if (!(rate > 0.0L)) rate = 0.0L;
+        else if (rate > 120.0f) rate = 120.0f;
+        value = (long double)increase * 0.008333333767950535f;
+        value *= seconds;
+        value *= 3200.0f;
+        increase = (float)TCE_TruncateNativeInteger(value);
+        value = rate * 0.008333333767950535f;
+        value *= seconds;
+        value *= 3200.0f;
+        phaseAdvance = TCE_TruncateNativeInteger(value);
+    } else {
+        increase = 0.0f;
+        decrease = 1000.0f;
+        phaseAdvance = 0;
+    }
+    if ((ps->pm_flags & PMF_DUCKED) && !(ps->stats[STAT_TCE_WEAPON_FLAGS] & 0x10)) {
+        ps->stats[STAT_TCE_WEAPON_FLAGS] |= 0x10;
+        pm->ps->stats[STAT_TCE_MOVEMENT_INSTABILITY] = 10000;
+        postureChanged = qtrue;
+    } else if (!(ps->pm_flags & PMF_DUCKED) && (ps->stats[STAT_TCE_WEAPON_FLAGS] & 0x10)) {
+        ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~0x10;
+        pm->ps->stats[STAT_TCE_MOVEMENT_INSTABILITY] = 10000;
+        postureChanged = qtrue;
+    }
+    ps = pm->ps;
+    if (ps->weaponstate != 7) {
+        value = (long double)phaseAdvance + phaseAdvance;
+        value += ps->stats[STAT_TCE_AIM_PHASE];
+        ps->stats[STAT_TCE_AIM_PHASE] = TCE_TruncateNativeInteger(value);
+        if (pm->ps->weaponstate != 0 || postureChanged) {
+            /* Original randomization uses a local seed and does not write it back. */
+            seed = pm->ps->stats[STAT_TCE_SHOT_SEED];
+            value = (long double)Q_random(&seed) * 1000.0f;
+            pm->ps->stats[STAT_TCE_AIM_PHASE] = TCE_TruncateNativeInteger(value);
+        }
+        if (pm->ps->stats[STAT_TCE_AIM_PHASE] > 1000)
+            pm->ps->stats[STAT_TCE_AIM_PHASE] -= 1000;
+    }
+    ps = pm->ps;
+    if ((ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) &&
+        TCE_FloatIsZeroOrNaN(weaponDef[ps->weapon].scoped)) {
+        increase = (float)((long double)increase * 0.67f);
+        if (ps->stats[STAT_TCE_MOVEMENT_INSTABILITY] > 200) increase = 0.0f;
+    }
+    value = (long double)increase - decrease;
+    value += ps->stats[STAT_TCE_MOVEMENT_INSTABILITY];
+    ps->stats[STAT_TCE_MOVEMENT_INSTABILITY] = TCE_TruncateNativeInteger(value);
+    if (pm->ps->stats[STAT_TCE_MOVEMENT_INSTABILITY] > 1000)
+        pm->ps->stats[STAT_TCE_MOVEMENT_INSTABILITY] = 1000;
+    else if (pm->ps->stats[STAT_TCE_MOVEMENT_INSTABILITY] < 0)
+        pm->ps->stats[STAT_TCE_MOVEMENT_INSTABILITY] = 0;
+    ps = pm->ps;
+    value = (long double)weaponDef[ps->weapon].unknown_0f8[5] * seconds;
+    value = (long double)ps->stats[STAT_TCE_SHOT_INSTABILITY] - value;
+    ps->stats[STAT_TCE_SHOT_INSTABILITY] = TCE_TruncateNativeInteger(value);
+    if (pm->ps->stats[STAT_TCE_SHOT_INSTABILITY] > 1000)
+        pm->ps->stats[STAT_TCE_SHOT_INSTABILITY] = 1000;
+    else if (pm->ps->stats[STAT_TCE_SHOT_INSTABILITY] < 0)
+        pm->ps->stats[STAT_TCE_SHOT_INSTABILITY] = 0;
 }
 #else
 
@@ -11947,278 +11529,32 @@ void PM_CheckLadderMove(void) {
 PM_LadderMove
 ============
 */
-#if defined(_MSC_VER) && defined(_M_IX86)
-/* Whole TC Windows20033990; original stack/x87 schedule, native structure offsets.
- * PM_Friction remains a separately documented integration boundary. */
-static const double ladderK200ac738 = -200.0;
-static const double ladderK200ac128 = 0.5;
-static const double ladderK200ac730 = 2.5;
-static const double ladderK200ac130 = 1.0;
-static const double ladderK200ac728 = -1.0;
-static const double ladderK200ac450 = 0.9;
-static const float ladderK200ac100 = 0.0;
-static const float ladderK200ac110 = 1.0;
-static const float ladderK200ac2e4 = -1.0;
-enum {
-    ladderForward826 = offsetof(pml_t, forward),
-    ladderRight826 = offsetof(pml_t, right),
-    ladderFrame826 = offsetof(pml_t, frametime),
-    ladderPlayerState826 = offsetof(pmove_t, ps),
-    ladderCmd826 = offsetof(pmove_t, cmd),
-    ladderForwardCmd826 = offsetof(pmove_t, cmd) + offsetof(usercmd_t, forwardmove),
-    ladderRightCmd826 = offsetof(pmove_t, cmd) + offsetof(usercmd_t, rightmove),
-    ladderVelocity826 = offsetof(playerState_t, velocity),
-    ladderGravity826 = offsetof(playerState_t, gravity),
-    ladderMovementDir826 = offsetof(playerState_t, movementDir)
-};
-__declspec(naked) void PM_LadderMove(void) {
-    __asm {
-        mov eax, dword ptr [ladderforward]
-        sub esp, 0x3c
-        push ebx
-        xor ebx, ebx
-        cmp eax, ebx
-        je ladder826_200339e8
-        fld dword ptr [laddervec]
-        fmul qword ptr [ladderK200ac738]
-        mov eax, dword ptr [pm]
-        fst dword ptr [esp + 0x10]
-        fld dword ptr [laddervec+4]
-        fmul qword ptr [ladderK200ac738]
-        fstp dword ptr [esp + 0x14]
-        fld dword ptr [laddervec+8]
-        fmul qword ptr [ladderK200ac738]
-        fstp dword ptr [esp + 0x18]
-        mov ecx, dword ptr [eax + ladderPlayerState826]
-        fstp dword ptr [ecx + ladderVelocity826]
-        mov edx, dword ptr [pm]
-        mov ecx, dword ptr [esp + 0x14]
-        mov eax, dword ptr [edx + ladderPlayerState826]
-        mov dword ptr [eax + ladderVelocity826+4], ecx
-ladder826_200339e8:
-        fld dword ptr [pml+ladderForward826+8]
-        fadd qword ptr [ladderK200ac128]
-        fmul qword ptr [ladderK200ac730]
-        fst dword ptr [esp + 4]
-        fcomp qword ptr [ladderK200ac130]
-        fnstsw ax
-        test ah, 0x41
-        jne ladder826_20033a15
-        mov dword ptr [esp + 4], 0x3f800000
-        jmp ladder826_20033a2e
-ladder826_20033a15:
-        fld dword ptr [esp + 4]
-        fcomp qword ptr [ladderK200ac728]
-        fnstsw ax
-        test ah, 1
-        je ladder826_20033a2e
-        mov dword ptr [esp + 4], 0xbf800000
-ladder826_20033a2e:
-        push offset pml+ladderForward826
-        mov dword ptr [pml+ladderForward826+8], 0
-        mov dword ptr [pml+ladderRight826+8], 0
-        call VectorNormalize
-        fstp st(0)
-        push offset pml+ladderRight826
-        call VectorNormalize
-        mov edx, dword ptr [pm]
-        add edx, ladderCmd826
-        fstp st(0)
-        push edx
-        call PM_CmdScale
-        mov ecx, dword ptr [pm]
-        mov dword ptr [esp + 0x24], 0
-        fstp dword ptr [esp + 0x14]
-        mov dword ptr [esp + 0x20], 0
-        mov dword ptr [esp + 0x1c], 0
-        mov al, byte ptr [ecx + ladderForwardCmd826]
-        add esp, 0xc
-        cmp al, bl
-        je ladder826_20033ab2
-        movsx eax, al
-        mov dword ptr [esp + 0xc], eax
-        fild dword ptr [esp + 0xc]
-        fmul dword ptr [esp + 8]
-        fmul dword ptr [esp + 4]
-        fmul qword ptr [ladderK200ac450]
-        fstp dword ptr [esp + 0x18]
-ladder826_20033ab2:
-        cmp byte ptr [ecx + ladderRightCmd826], bl
-        je ladder826_20033b91
-        lea ecx, [esp + 0x28]
-        push ecx
-        push offset laddervec
-        call vectoangles
-        lea edx, [esp + 0x24]
-        push ebx
-        push edx
-        lea eax, [esp + 0x38]
-        push ebx
-        push eax
-        call AngleVectors
-        fld dword ptr [pml+ladderForward826+4]
-        fmul dword ptr [laddervec+4]
-        fld dword ptr [pml+ladderForward826+8]
-        fmul dword ptr [laddervec+8]
-        add esp, 0x18
-        faddp st(1), st(0)
-        fld dword ptr [pml+ladderForward826]
-        fmul dword ptr [laddervec]
-        faddp st(1), st(0)
-        fcomp dword ptr [ladderK200ac100]
-        fnstsw ax
-        test ah, 1
-        je ladder826_20033b20
-        lea ecx, [esp + 0x1c]
-        push ecx
-        call VectorInverse
-        add esp, 4
-ladder826_20033b20:
-        mov eax, dword ptr [pm]
-        fld dword ptr [esp + 8]
-        movsx edx, byte ptr [eax + ladderRightCmd826]
-        mov dword ptr [esp + 0xc], edx
-        fild dword ptr [esp + 0xc]
-        fmulp st(1), st(0)
-        fmul qword ptr [ladderK200ac128]
-        fmul dword ptr [esp + 0x1c]
-        fadd dword ptr [esp + 0x10]
-        fstp dword ptr [esp + 0x10]
-        movsx ecx, byte ptr [eax + ladderRightCmd826]
-        fld dword ptr [esp + 8]
-        mov dword ptr [esp + 0xc], ecx
-        fild dword ptr [esp + 0xc]
-        fmulp st(1), st(0)
-        fmul qword ptr [ladderK200ac128]
-        fmul dword ptr [esp + 0x20]
-        fadd dword ptr [esp + 0x14]
-        fstp dword ptr [esp + 0x14]
-        movsx edx, byte ptr [eax + ladderRightCmd826]
-        fld dword ptr [esp + 8]
-        mov dword ptr [esp + 0xc], edx
-        fild dword ptr [esp + 0xc]
-        fmulp st(1), st(0)
-        fmul qword ptr [ladderK200ac128]
-        fmul dword ptr [esp + 0x24]
-        fadd dword ptr [esp + 0x18]
-        fstp dword ptr [esp + 0x18]
-ladder826_20033b91:
-        call PM_Friction
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax + ladderPlayerState826]
-        fld dword ptr [ecx + ladderVelocity826]
-        fcomp dword ptr [ladderK200ac110]
-        fnstsw ax
-        test ah, 1
-        je ladder826_20033bc0
-        fld dword ptr [ecx + ladderVelocity826]
-        fcomp dword ptr [ladderK200ac2e4]
-        fnstsw ax
-        test ah, 0x41
-        jne ladder826_20033bc0
-        mov dword ptr [ecx + ladderVelocity826], ebx
-ladder826_20033bc0:
-        mov ecx, dword ptr [pm]
-        mov ecx, dword ptr [ecx + ladderPlayerState826]
-        fld dword ptr [ecx + ladderVelocity826+4]
-        fcomp dword ptr [ladderK200ac110]
-        fnstsw ax
-        test ah, 1
-        je ladder826_20033beb
-        fld dword ptr [ecx + ladderVelocity826+4]
-        fcomp dword ptr [ladderK200ac2e4]
-        fnstsw ax
-        test ah, 0x41
-        jne ladder826_20033beb
-        mov dword ptr [ecx + ladderVelocity826+4], ebx
-ladder826_20033beb:
-        lea edx, [esp + 0x34]
-        lea eax, [esp + 0x10]
-        push edx
-        push eax
-        call VectorNormalize2
-        fstp dword ptr [esp + 0x14]
-        mov ecx, dword ptr [pm_accelerate]
-        mov edx, dword ptr [esp + 0x14]
-        push ecx
-        lea eax, [esp + 0x40]
-        push edx
-        push eax
-        call PM_Accelerate
-        fld dword ptr [esp + 0x2c]
-        fcomp dword ptr [ladderK200ac100]
-        add esp, 0x14
-        fnstsw ax
-        test ah, 0x40
-        je ladder826_20033c89
-        mov ecx, dword ptr [pm]
-        mov ecx, dword ptr [ecx + ladderPlayerState826]
-        fld dword ptr [ecx + ladderVelocity826+8]
-        fcomp dword ptr [ladderK200ac100]
-        fild dword ptr [ecx + ladderGravity826]
-        fmul dword ptr [pml+ladderFrame826]
-        fnstsw ax
-        test ah, 0x41
-        jne ladder826_20033c69
-        fsubr dword ptr [ecx + ladderVelocity826+8]
-        fstp dword ptr [ecx + ladderVelocity826+8]
-        mov edx, dword ptr [pm]
-        mov ecx, dword ptr [edx + ladderPlayerState826]
-        fld dword ptr [ecx + ladderVelocity826+8]
-        fcomp dword ptr [ladderK200ac100]
-        fnstsw ax
-        test ah, 1
-        je ladder826_20033c89
-        jmp ladder826_20033c86
-ladder826_20033c69:
-        fadd dword ptr [ecx + ladderVelocity826+8]
-        fstp dword ptr [ecx + ladderVelocity826+8]
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax + ladderPlayerState826]
-        fld dword ptr [ecx + ladderVelocity826+8]
-        fcomp dword ptr [ladderK200ac100]
-        fnstsw ax
-        test ah, 0x41
-        jne ladder826_20033c89
-ladder826_20033c86:
-        mov dword ptr [ecx + ladderVelocity826+8], ebx
-ladder826_20033c89:
-        push ebx
-        call PM_StepSlideMove
-        mov ecx, dword ptr [pm]
-        add esp, 4
-        mov edx, dword ptr [ecx + ladderPlayerState826]
-        mov dword ptr [edx + ladderMovementDir826], ebx
-        pop ebx
-        add esp, 0x3c
-        ret 
-    }
-}
-#else
-/* Portable fallback; no Linux instruction-level parity claim. */
-void PM_LadderMove (void) {
-	float	wishspeed, scale;
-	vec3_t	wishdir, wishvel;
-	float	upscale;
+/* SDK ladder controller: native TCE flow matches this routine.
+ * Original FPU predicates/schedules and lower-level ABI remain separately open. */
+void PM_LadderMove( void ) {
+	float wishspeed, scale;
+	vec3_t wishdir, wishvel;
+	float upscale;
 
-	if (ladderforward) {
+	if ( ladderforward ) {
 		// move towards the ladder
 		VectorScale( laddervec, -200.0, wishvel );
 		pm->ps->velocity[0] = wishvel[0];
 		pm->ps->velocity[1] = wishvel[1];
 	}
 
-	upscale = (pml.forward[2] + 0.5)*2.5;
-	if (upscale > 1.0)
+	upscale = ( pml.forward[2] + 0.5 ) * 2.5;
+	if ( upscale > 1.0 ) {
 		upscale = 1.0;
-	else if (upscale < -1.0)
+	} else if ( upscale < -1.0 ) {
 		upscale = -1.0;
+	}
 
 	// forward/right should be horizontal only
 	pml.forward[2] = 0;
 	pml.right[2] = 0;
-	VectorNormalize (pml.forward);
-	VectorNormalize (pml.right);
+	VectorNormalize( pml.forward );
+	VectorNormalize( pml.right );
 
 	// move depending on the view, if view is straight forward, then go up
 	// if view is down more then X degrees, start going down
@@ -12226,20 +11562,21 @@ void PM_LadderMove (void) {
 	scale = PM_CmdScale( &pm->cmd );
 	VectorClear( wishvel );
 
-	if( pm->cmd.forwardmove ) {
-		wishvel[2] = (float)pm->cmd.forwardmove * scale * upscale * 0.9;
+	if ( pm->cmd.forwardmove ) {
+		wishvel[2] = 0.9 * upscale * scale * (float)pm->cmd.forwardmove;
 	}
 //Com_Printf("wishvel[2] = %i, fwdmove = %i\n", (int)wishvel[2], (int)pm->cmd.forwardmove );
 
-	if( pm->cmd.rightmove ) {
+	if ( pm->cmd.rightmove ) {
 		// strafe, so we can jump off ladder
-		vec3_t	ladder_right, ang;
+		vec3_t ladder_right, ang;
 		vectoangles( laddervec, ang );
 		AngleVectors( ang, NULL, ladder_right, NULL );
 
 		// if we are looking away from the ladder, reverse the right vector
-		if( DotProduct( laddervec, pml.forward ) < 0 )
+		if ( DotProduct( laddervec, pml.forward ) < 0 ) {
 			VectorInverse( ladder_right );
+		}
 
 		//VectorMA( wishvel, 0.5 * scale * (float)pm->cmd.rightmove, pml.right, wishvel );
 		VectorMA( wishvel, 0.5 * scale * (float)pm->cmd.rightmove, ladder_right, wishvel );
@@ -12248,50 +11585,52 @@ void PM_LadderMove (void) {
 	// do strafe friction
 	PM_Friction();
 
-	if( pm->ps->velocity[0] < 1 && pm->ps->velocity[0] > -1  )
+	if ( pm->ps->velocity[0] < 1 && pm->ps->velocity[0] > -1  ) {
 		pm->ps->velocity[0] = 0;
-	if( pm->ps->velocity[1] < 1&& pm->ps->velocity[1] > -1 )
+	}
+	if ( pm->ps->velocity[1] < 1 && pm->ps->velocity[1] > -1 ) {
 		pm->ps->velocity[1] = 0;
+	}
 
 	wishspeed = VectorNormalize2( wishvel, wishdir );
 
-	PM_Accelerate(wishdir, wishspeed, pm_accelerate);
-	if( !wishvel[2] )
-	{
-		if (pm->ps->velocity[2] > 0)
-		{
+	PM_Accelerate( wishdir, wishspeed, pm_accelerate );
+	if ( !wishvel[2] ) {
+		if ( pm->ps->velocity[2] > 0 ) {
 			pm->ps->velocity[2] -= pm->ps->gravity * pml.frametime;
-			if (pm->ps->velocity[2] < 0)
+			if ( pm->ps->velocity[2] < 0 ) {
 				pm->ps->velocity[2]  = 0;
-		}
-		else
+			}
+		} else
 		{
 			pm->ps->velocity[2] += pm->ps->gravity * pml.frametime;
-			if (pm->ps->velocity[2] > 0)
+			if ( pm->ps->velocity[2] > 0 ) {
 				pm->ps->velocity[2]  = 0;
+			}
 		}
 	}
 
 //Com_Printf("vel[2] = %i\n", (int)pm->ps->velocity[2] );
 
-	PM_StepSlideMove (qfalse);	// no gravity while going up ladder
+	PM_StepSlideMove( qfalse );  // no gravity while going up ladder
 
 	// always point legs forward
 	pm->ps->movementDir = 0;
 }
-#endif
-
 
 /*
 ==============
 PM_Sprint
 ==============
 */
-/* TCE Windows sprint controller. Held arithmetic models native values;
+/* Native TCE sprint controller. Held arithmetic models native values;
  * compiler x87 precision, exceptions and conversion ABI remain open. */
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 void PM_Sprint(void) {
     long double cost, carriedCost, speed, value;
+#if defined(__linux__)
+    volatile float storedSpeed;
+#endif
     unsigned counter;
     int recharge;
     pmoveExt_t *ext;
@@ -12345,6 +11684,11 @@ void PM_Sprint(void) {
             speed = (long double)pm->ps->velocity[0] * pm->ps->velocity[0];
             speed += (long double)pm->ps->velocity[1] * pm->ps->velocity[1];
             speed = sqrtl(speed);
+#if defined(__linux__)
+            /* Both ELF originals store horizontal speed before comparing. */
+            storedSpeed = (float)speed;
+            speed = storedSpeed;
+#endif
             /* Native C0/C3 also recharges for an unordered speed. */
             if (!(speed > 120.0f) || (!pm->cmd.forwardmove && !pm->cmd.rightmove) ||
                 (pm->ps->pm_flags & PMF_DUCKED) || (pm->ps->eFlags & EF_PRONE) ||
