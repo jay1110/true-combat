@@ -2844,84 +2844,6 @@ AxisToAngles
   using this during gameplay
 =================
 */
-#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
-void AxisToAngles(vec3_t axis[3], vec3_t angles) {
-    vec3_t right, rollAngles, rotated;
-    volatile float yaw, pitch;
-    long double roll, dot, product;
-#if defined(__linux__)
-    unsigned bits;
-    float axisX, axisY;
-    volatile float roundedRoll;
-#endif
-
-    vectoangles(axis[0], angles);
-    /* The original copies the right vector after writing pitch and yaw. */
-    memcpy(right, axis[1], sizeof(right));
-#if defined(__linux__)
-    memcpy(&bits, &angles[YAW], sizeof(bits));
-    bits ^= 0x80000000u;
-    memcpy((void *)&yaw, &bits, sizeof(bits));
-#else
-    yaw = (float)(-(long double)angles[YAW]);
-#endif
-    RotatePointAroundVector(rotated, axisDefault[2], right, yaw);
-#if defined(__linux__)
-    memcpy(&bits, &angles[PITCH], sizeof(bits));
-    bits ^= 0x80000000u;
-    memcpy((void *)&pitch, &bits, sizeof(bits));
-#else
-    pitch = (float)(-(long double)angles[PITCH]);
-#endif
-    RotatePointAroundVector(right, axisDefault[1], rotated, pitch);
-    vectoangles(right, rollAngles);
-    /* Normalize180's quantized dyadic result is exactly Float-representable;
-     * the public Float return therefore loses no retained numeric bits here. */
-    roll = (long double)AngleNormalize180(rollAngles[PITCH]);
-#if defined(__linux__)
-    roundedRoll = (float)roll;
-    axisX = axisDefault[1][0];
-    axisY = axisDefault[1][1];
-    product = (long double)axisY * (long double)right[1];
-    dot = (long double)axisX * (long double)right[0];
-    dot = product + dot;
-    product = (long double)axisDefault[1][2] * (long double)right[2];
-    dot = dot + product;
-    /* Linux skips adjustment for unordered dot; the inner gate differs. */
-    if (dot < 0.0L) {
-        roll = (long double)roundedRoll;
-        if (!(roll >= 0.0L)) {
-            roll = -90.0L - roll;
-            roll = roll + -90.0L;
-        } else {
-            roll = 90.0L - roll;
-            roll = 90.0L + roll;
-        }
-        roundedRoll = (float)roll;
-    }
-    memcpy(&bits, (const void *)&roundedRoll, sizeof(bits));
-    bits ^= 0x80000000u;
-    memcpy(&angles[ROLL], &bits, sizeof(bits));
-#else
-    dot = (long double)axisDefault[1][2] * (long double)right[2];
-    product = (long double)axisDefault[1][1] * (long double)right[1];
-    dot = dot + product;
-    product = (long double)axisDefault[1][0] * (long double)right[0];
-    dot = dot + product;
-    /* Windows tests C0 alone: negative and unordered both enter. */
-    if (!(dot >= 0.0L)) {
-        if (!(roll >= 0.0L)) {
-            roll = -90.0L - roll;
-            roll = roll - 90.0L;
-        } else {
-            roll = 90.0L - roll;
-            roll = roll + 90.0L;
-        }
-    }
-    angles[ROLL] = (float)-roll;
-#endif
-}
-#else
 void AxisToAngles( vec3_t axis[3], vec3_t angles ) {
 	vec3_t right, roll_angles, tvec;
 
@@ -2946,7 +2868,6 @@ void AxisToAngles( vec3_t axis[3], vec3_t angles ) {
 
 	angles[ROLL] = -roll_angles[PITCH];
 }
-#endif
 
 #if defined(_WIN32) || defined(__linux__)
 float VectorDistance(vec3_t v1, vec3_t v2) {
