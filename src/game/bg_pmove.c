@@ -4216,40 +4216,7 @@ static void PM_WeaponAddTime(int interval) {
 }
 
 #if defined(_MSC_VER) && defined(_M_IX86) && (defined(GAMEDLL) || defined(CGAMEDLL))
-/* PM_Weapon200393ac..2003986e: charge/release/lean/zoom/water eligibility.
- * Shared native schedule; original cgame omits the zoomed FieldOps fire event. */
-static const float attack837K200ac2f0 = 0.6600000262260437f;
-static const float attack837K200ac180 = 0.5f;
-static const float attack837K200ac814 = 0.3499999940395355f;
-static const float attack837K200ac2ec = 0.33000001311302185f;
-static const float attack837K200ac2e8 = 0.15000000596046448f;
-static const float attack837K200ac198 = 0.25f;
-static const float attack837K200ac100 = 0.0f;
-enum {
-    attack837CmdTime = offsetof(pmove_t,cmd)+offsetof(usercmd_t,serverTime),
-    attack837Buttons = offsetof(pmove_t,cmd)+offsetof(usercmd_t,buttons),
-    attack837Skill = offsetof(pmove_t,skill),
-    attack837Character = offsetof(pmove_t,character),
-    attack837AnimModel = offsetof(bg_character_t,animModelInfo),
-    attack837Soldier = offsetof(pmove_t,soldierChargeTime),
-    attack837Engineer = offsetof(pmove_t,engineerChargeTime),
-    attack837Medic = offsetof(pmove_t,medicChargeTime),
-    attack837Lt = offsetof(pmove_t,ltChargeTime),
-    attack837Covert = offsetof(pmove_t,covertopsChargeTime),
-    attack837Water = offsetof(pmove_t,waterlevel),
-    attack837Weapon = offsetof(playerState_t,weapon),
-    attack837State = offsetof(playerState_t,weaponstate),
-    attack837ClassTime = offsetof(playerState_t,classWeaponTime),
-    attack837Eflags = offsetof(playerState_t,eFlags),
-    attack837Lean = offsetof(playerState_t,leanf),
-    attack837Time = offsetof(playerState_t,weaponTime),
-    attack837Delay = offsetof(playerState_t,weaponDelay),
-    attack837WeaponFlags = offsetof(playerState_t,stats)+STAT_TCE_WEAPON_FLAGS*sizeof(int),
-    attack837TcFlags = offsetof(playerState_t,stats)+STAT_TCE_FLAGS*sizeof(int),
-    attack837Class = offsetof(playerState_t,stats)+STAT_PLAYER_CLASS*sizeof(int),
-    attack837BurstCount = offsetof(playerState_t,holdable)+11*sizeof(int),
-    attack837Mode = offsetof(playerState_t,persistant)+10*sizeof(int)
-};
+/* Native weapon decision protocol bounds retained after C reconstruction. */
 typedef char attack837Protocol[(offsetof(pmove_t,ps)==0 && SK_HEAVY_WEAPONS==5 && SK_MILITARY_INTELLIGENCE_AND_SCOPED_WEAPONS==6 && SK_EXPLOSIVES_AND_CONSTRUCTION==1 && SK_SIGNALS==3 && SK_FIRST_AID==2 && PC_FIELDOPS==3 && WEAPON_READY==0 && BUTTON_ATTACK==1) ? 1 : -1];
 #endif
 #if (defined(_MSC_VER) && defined(_M_IX86) && (defined(GAMEDLL) || defined(CGAMEDLL))) || (defined(__linux__) && !defined(Q3_VM))
@@ -5694,11 +5661,7 @@ static void PM_Weapon( void ) {
         int elapsed;
 #if defined(_MSC_VER) && defined(_M_IX86)
         int chargeNow = pm->cmd.serverTime, chargeStarted = pm->ps->classWeaponTime;
-        __asm {
-            mov eax, chargeNow
-            sub eax, chargeStarted
-            mov elapsed, eax
-        }
+        elapsed = PM_ProneTimeValue((unsigned)chargeNow - (unsigned)chargeStarted);
 #else
         elapsed = pm->cmd.serverTime - pm->ps->classWeaponTime;
 #endif
@@ -6065,6 +6028,46 @@ static void PM_TCEProneView(playerState_t *ps, pmoveExt_t *ext, usercmd_t *cmd, 
 
 /* Windows3000a483..3000a63b tactical view ellipse. Offsets are encoded
  * in hundredths of a degree around2000 in holdable5/6 (ps+3a4/3a8). */
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* Windows tactical-view dependency. The native controller still has its own
+ * inline implementation until the remaining view constraints are reconstructed. */
+static void PM_TCETacticalView(playerState_t *ps, const vec3_t oldAngles) {
+    float pitchDelta, yawOffset, halfPitch, halfYaw;
+    float pitchTarget, yawTarget, totalPitch, clampedYaw;
+    long double yawDelta, pitchOffset, totalYaw, radius, clampedPitch, yawClamp;
+
+    if (!(ps->persistant[14] & 0x10)) return;
+    if (weaponDef[pm->ps->weapon].noTacMode) return;
+    if (!(ps->stats[STAT_TCE_WEAPON_FLAGS] & 4)) return;
+
+    pitchDelta = AngleNormalize180((float)((long double)ps->viewangles[PITCH] - oldAngles[PITCH]));
+    yawDelta = AngleNormalize180((float)((long double)ps->viewangles[YAW] - oldAngles[YAW]));
+    pitchOffset = ((long double)ps->holdable[5] - 2000.0f) * .01f;
+    yawOffset = (float)(((long double)ps->holdable[6] - 2000.0f) * .01f);
+    halfPitch = (float)((long double)pitchDelta * .5f);
+    pitchTarget = (float)((long double)pitchDelta * .5f + pitchOffset);
+    halfYaw = (float)(yawDelta * .5f);
+    yawTarget = (float)(yawDelta * .5f + yawOffset);
+    totalPitch = (float)(pitchOffset + pitchDelta);
+    totalYaw = yawDelta + yawOffset;
+    radius = sqrtl((long double)pitchTarget * pitchTarget +
+        (long double)yawTarget * yawTarget * .25);
+    if (radius > 3.0f) {
+        clampedPitch = (long double)pitchTarget / radius * 3.0f;
+        ps->holdable[5] = TCE_TruncateNativeInteger(clampedPitch * 100.0f + 2000.0f);
+        yawClamp = (long double)yawTarget / radius * 3.0f;
+        clampedYaw = (float)yawClamp;
+        ps->holdable[6] = TCE_TruncateNativeInteger(yawClamp * 100.0f + 2000.0f);
+        ps->viewangles[PITCH] = (float)(((long double)totalPitch - clampedPitch) + oldAngles[PITCH]);
+        ps->viewangles[YAW] = (float)((totalYaw - clampedYaw) + oldAngles[YAW]);
+    } else {
+        ps->viewangles[PITCH] = (float)((long double)halfPitch + oldAngles[PITCH]);
+        ps->viewangles[YAW] = (float)((long double)halfYaw + oldAngles[YAW]);
+        ps->holdable[5] = TCE_TruncateNativeInteger((long double)pitchTarget * 100.0f + 2000.0f);
+        ps->holdable[6] = TCE_TruncateNativeInteger((long double)yawTarget * 100.0f + 2000.0f);
+    }
+}
+#else
 static void PM_TCETacticalView(playerState_t *ps,const vec3_t oldAngles) {
     float dp,dy,oy,hp,hy,totalPitch,halfPitch,halfYaw,clampedYaw;
     double op,radius,clampedPitch;
@@ -6094,6 +6097,8 @@ static void PM_TCETacticalView(playerState_t *ps,const vec3_t oldAngles) {
         ps->holdable[6]=(int)((double)hy*100+2000);
     }
 }
+
+#endif
 
 #if defined(_MSC_VER) && defined(_M_IX86)
 __declspec(naked) void PM_TCEUpdateViewAngles(playerState_t *ps, pmoveExt_t *pmext, usercmd_t *cmd, void (trace)(trace_t *, const vec3_t, const vec3_t, const vec3_t, const vec3_t, int, int), int tracemask) {
