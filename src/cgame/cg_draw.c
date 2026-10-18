@@ -1144,29 +1144,18 @@ CG_DrawWeapReticle
 #if defined(__GNUC__) && defined(__i386__) && defined(__linux__)
 /* Reticle ELF00042ebe..42f5f has its own held-angle load/stack order.
  * Its center constants are stored before the actual AngleVectors calls. */
-static void CG_TCELinuxReticleAngles(float *x,float *y,vec3_t angles) {
-    struct { vec3_t angles; int heldPitch,heldYaw; float x,y,width; } data;
-    static const float constants[5]={480.f,2000.f,.01f,240.f,426.f};
-    typedef char ReticleAngleLayout[(sizeof(data)==32 && sizeof(float)==4 &&
-        sizeof(int)==4 && offsetof(__typeof__(data),x)==20)?1:-1];
-    memcpy(data.angles,cg.predictedPlayerState.viewangles,sizeof(vec3_t));
-    data.heldPitch=cg.predictedPlayerState.holdable[5];
-    data.heldYaw=cg.predictedPlayerState.holdable[6];
-    __asm__ volatile (
-        ".intel_syntax noprefix\n\t"
-        "fld dword ptr [edi]\n\tfld dword ptr [edi+4]\n\tfld dword ptr [edi+8]\n\t"
-        "fxch st(2)\n\tfstp dword ptr [esi+28]\n\t"
-        "fld dword ptr [edi+12]\n\tfld dword ptr [edi+16]\n\tfld dword ptr [esi+4]\n\t"
-        "fxch st(2)\n\tfstp dword ptr [esi+24]\n\tfild dword ptr [esi+12]\n\t"
-        "fxch st(1)\n\tfstp dword ptr [esi+20]\n\tfld dword ptr [esi]\n\t"
-        "fxch st(1)\n\tfsub st(0),st(3)\n\tfmul st(0),st(4)\n\tfaddp st(1),st(0)\n\t"
-        "fild dword ptr [esi+16]\n\tfxch st(1)\n\tfstp dword ptr [esi]\n\t"
-        "fsubrp st(2),st(0)\n\tfxch st(1)\n\tfmulp st(2),st(0)\n\tfaddp st(1),st(0)\n\t"
-        "fstp dword ptr [esi+4]\n\t.att_syntax prefix"
-        : "+m" (data) : "S" (&data), "D" (constants)
-        : "memory", "st", "st(1)", "st(2)", "st(3)", "st(4)"
-    );
-    memcpy(angles,data.angles,sizeof(vec3_t));*x=data.x;*y=data.y;
+static void CG_TCELinuxReticleAngles(float *x, float *y, vec3_t angles) {
+    long double pitch, yaw;
+
+    memcpy(angles, cg.predictedPlayerState.viewangles, sizeof(vec3_t));
+    pitch = (long double)cg.predictedPlayerState.holdable[5] - 2000.0L;
+    pitch *= (long double)0.01f;
+    yaw = (long double)cg.predictedPlayerState.holdable[6] - 2000.0L;
+    yaw *= (long double)0.01f;
+    angles[0] = (float)((long double)angles[0] + pitch);
+    angles[1] = (float)((long double)angles[1] + yaw);
+    *x = 426.0f;
+    *y = 240.0f;
 }
 
 /* Reticle ELF00042f8c..430c9: inline asin is FSQRT/FPATAN. Unlike
@@ -2612,47 +2601,6 @@ static int CG_ReinforcementMilliseconds( qboolean menu ) {
 	return dwDeployTime - ((cgs.aReinfOffset[team] + cg.time - cgs.levelStartTime) % dwDeployTime);
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-static const float cg_reinfMillisecondsScale = 0.001f;
-static const float cg_reinfSecondsBias = 1.0f;
-
-/* Original30021390 returns the unspilled x87 value in ST0. */
-__declspec(naked) float CG_CalculateReinfTime_Float( qboolean menu ) {
-	__asm {
-		push dword ptr [esp + 4]
-		call CG_ReinforcementMilliseconds
-		add esp, 4
-		push eax
-		fild dword ptr [esp]
-		add esp, 4
-		fmul dword ptr [cg_reinfMillisecondsScale]
-		fadd dword ptr [cg_reinfSecondsBias]
-		ret
-	}
-}
-
-/* Consume ST0 directly, with the truncation mode used by original __ftol. */
-__declspec(naked) int CG_CalculateReinfTime( qboolean menu ) {
-	__asm {
-		push dword ptr [esp + 4]
-		call CG_CalculateReinfTime_Float
-		add esp, 4
-		sub esp, 12
-		fstcw word ptr [esp + 8]
-		fwait
-		mov ax, word ptr [esp + 8]
-		or ax, 0c00h
-		mov word ptr [esp + 10], ax
-		fldcw word ptr [esp + 10]
-		fistp qword ptr [esp]
-		fldcw word ptr [esp + 8]
-		mov eax, dword ptr [esp]
-		mov edx, dword ptr [esp + 4]
-		add esp, 12
-		ret
-	}
-}
-#else
 float CG_CalculateReinfTime_Float( qboolean menu ) {
 	return 1.0f + CG_ReinforcementMilliseconds( menu ) * 0.001f;
 }
@@ -2660,7 +2608,7 @@ float CG_CalculateReinfTime_Float( qboolean menu ) {
 int CG_CalculateReinfTime( qboolean menu ) {
 	return((int)CG_CalculateReinfTime_Float( menu ));
 }
-#endif
+
 
 
 /*
