@@ -2066,286 +2066,61 @@ qboolean PM_SlideMoveProne( qboolean gravity ) {
 
 #endif
 
-/* TC:E Windows30014d10 / Linux000e9800: dedicated prone step controller. */
+/* TC:E prone step controller: direct trace callbacks retain aliased endpoints.
+ * Windows float stores and comparison gates follow the original listings;
+ * FPU exception/control state and compiled engine ABI remain separately open. */
 #if defined(_MSC_VER) && defined(_M_IX86)
-/* Whole TC Windows2003d050: native fields and original x87/trace callback ABI. */
-static const float stepK200ac2d8 = 18.0;
-static const float stepK200ac100 = 0.0;
-static const double stepK200ac130 = 1.0;
-static const double stepK200ac268 = 0.7;
-static const float stepK200ac270 = 2.0;
-static const float stepK200ac6d0 = 7.0;
-static const float stepK200ac87c = 11.0;
-static const float stepK200ac878 = 15.0;
-static const char stepBlocked828[] = "%i:bend can't step\n";
-static const char stepDone828[] = "%i:stepped\n";
-/* Original stack trace buffer is56 bytes; reject silent engine ABI changes. */
-typedef char stepTraceLayout828[(sizeof(trace_t)==56 && offsetof(trace_t,allsolid)==0 &&
-    offsetof(trace_t,fraction)==8 && offsetof(trace_t,endpos)==12 &&
-    offsetof(trace_t,plane)+offsetof(cplane_t,normal)==24) ? 1 : -1];
-typedef char stepEventIds828[(EV_STEP_4==12 && EV_STEP_8==13 && EV_STEP_12==14 && EV_STEP_16==15) ? 1 : -1];
-enum {
-    stepPlayerState828=offsetof(pmove_t,ps),
-    stepMask828=offsetof(pmove_t,tracemask),
-    stepDebug828=offsetof(pmove_t,debugLevel),
-    stepMins828=offsetof(pmove_t,mins),
-    stepMaxs828=offsetof(pmove_t,maxs),
-    stepTrace828=offsetof(pmove_t,trace),
-    stepOrigin828=offsetof(playerState_t,origin),
-    stepVelocity828=offsetof(playerState_t,velocity),
-    stepClient828=offsetof(playerState_t,clientNum)
-};
-__declspec(naked) void PM_StepSlideMoveProne(qboolean gravity) {
-    __asm {
-        sub esp, 0x68
-        mov eax, dword ptr [pm]
-        push esi
-        mov esi, dword ptr [esp + 0x70]
-        mov ecx, dword ptr [eax + stepPlayerState828]
-        push esi
-        mov edx, dword ptr [ecx + stepOrigin828]
-        mov dword ptr [esp + 0x14], edx
-        mov ecx, dword ptr [eax + stepPlayerState828]
-        mov edx, dword ptr [ecx + stepOrigin828+4]
-        mov dword ptr [esp + 0x18], edx
-        mov ecx, dword ptr [eax + stepPlayerState828]
-        mov edx, dword ptr [ecx + stepOrigin828+8]
-        mov dword ptr [esp + 0x1c], edx
-        mov eax, dword ptr [eax + stepPlayerState828]
-        mov ecx, dword ptr [eax + stepVelocity828]
-        mov edx, dword ptr [eax + stepVelocity828+4]
-        mov eax, dword ptr [eax + stepVelocity828+8]
-        mov dword ptr [esp + 0x2c], ecx
-        mov dword ptr [esp + 0x30], edx
-        mov dword ptr [esp + 0x34], eax
-        call PM_SlideMoveProne
-        add esp, 4
-        test eax, eax
-        je step828_2003d374
-        fld dword ptr [esp + 0x18]
-        mov ecx, dword ptr [esp + 0x10]
-        mov edx, dword ptr [esp + 0x14]
-        mov eax, dword ptr [pm]
-        mov dword ptr [esp + 0x1c], ecx
-        fsub dword ptr [stepK200ac2d8]
-        mov dword ptr [esp + 0x20], edx
-        fstp dword ptr [esp + 0x24]
-        mov ecx, dword ptr [eax + stepMask828]
-        mov edx, dword ptr [eax + stepPlayerState828]
-        push ecx
-        mov ecx, dword ptr [edx + stepClient828]
-        lea edx, [esp + 0x20]
-        push ecx
-        push edx
-        lea ecx, [eax + stepMaxs828]
-        lea edx, [eax + stepMins828]
-        push ecx
-        push edx
-        lea ecx, [esp + 0x24]
-        lea edx, [esp + 0x48]
-        push ecx
-        push edx
-        call dword ptr [eax + stepTrace828]
-        mov ecx, dword ptr [pm]
-        mov dword ptr [esp + 0x20], 0
-        mov dword ptr [esp + 0x24], 0
-        mov dword ptr [esp + 0x28], 0x3f800000
-        mov eax, dword ptr [ecx + stepPlayerState828]
-        add esp, 0x1c
-        fld dword ptr [eax + stepVelocity828+8]
-        fcomp dword ptr [stepK200ac100]
-        fnstsw ax
-        test ah, 0x41
-        jne step828_2003d150
-        fld dword ptr [esp + 0x3c]
-        fcomp qword ptr [stepK200ac130]
-        fnstsw ax
-        test ah, 0x40
-        jne step828_2003d374
-        fld dword ptr [esp + 0x54]
-        fcomp qword ptr [stepK200ac268]
-        fnstsw ax
-        test ah, 1
-        jne step828_2003d374
-step828_2003d150:
-        fld dword ptr [esp + 0x18]
-        mov edx, dword ptr [esp + 0x10]
-        mov eax, dword ptr [esp + 0x14]
-        fadd dword ptr [stepK200ac2d8]
-        mov dword ptr [esp + 4], edx
-        mov dword ptr [esp + 8], eax
-        fstp dword ptr [esp + 0xc]
-        mov edx, dword ptr [ecx + stepMask828]
-        mov eax, dword ptr [ecx + stepPlayerState828]
-        push edx
-        mov edx, dword ptr [eax + stepClient828]
-        lea eax, [esp + 8]
-        push edx
-        push eax
-        lea edx, [ecx + stepMaxs828]
-        lea eax, [ecx + stepMins828]
-        push edx
-        push eax
-        lea edx, [esp + 0x18]
-        lea eax, [esp + 0x48]
-        push edx
-        push eax
-        call dword ptr [ecx + stepTrace828]
-        mov eax, dword ptr [esp + 0x50]
-        add esp, 0x1c
-        test eax, eax
-        je step828_2003d1d3
-        mov ecx, dword ptr [pm]
-        mov eax, dword ptr [ecx + stepDebug828]
-        test eax, eax
-        je step828_2003d374
-        mov edx, dword ptr [c_pmove]
-        push edx
-        push offset stepBlocked828
-        call Com_Printf
-        add esp, 8
-        pop esi
-        add esp, 0x68
-        ret 
-step828_2003d1d3:
-        mov eax, dword ptr [pm]
-        mov edx, dword ptr [esp + 4]
-        push esi
-        mov ecx, dword ptr [eax + stepPlayerState828]
-        mov dword ptr [ecx + stepOrigin828], edx
-        mov eax, dword ptr [pm]
-        mov edx, dword ptr [esp + 0xc]
-        mov ecx, dword ptr [eax + stepPlayerState828]
-        mov dword ptr [ecx + stepOrigin828+4], edx
-        mov eax, dword ptr [pm]
-        mov edx, dword ptr [esp + 0x10]
-        mov ecx, dword ptr [eax + stepPlayerState828]
-        mov dword ptr [ecx + stepOrigin828+8], edx
-        mov eax, dword ptr [pm]
-        mov edx, dword ptr [esp + 0x2c]
-        mov ecx, dword ptr [eax + stepPlayerState828]
-        mov dword ptr [ecx + stepVelocity828], edx
-        mov eax, dword ptr [pm]
-        mov edx, dword ptr [esp + 0x30]
-        mov ecx, dword ptr [eax + stepPlayerState828]
-        mov dword ptr [ecx + stepVelocity828+4], edx
-        mov eax, dword ptr [pm]
-        mov edx, dword ptr [esp + 0x34]
-        mov ecx, dword ptr [eax + stepPlayerState828]
-        mov dword ptr [ecx + stepVelocity828+8], edx
-        call PM_SlideMoveProne
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax + stepPlayerState828]
-        mov edx, dword ptr [ecx + stepOrigin828]
-        mov dword ptr [esp + 0x20], edx
-        mov ecx, dword ptr [eax + stepPlayerState828]
-        mov edx, dword ptr [ecx + stepOrigin828+4]
-        mov dword ptr [esp + 0x24], edx
-        mov ecx, dword ptr [eax + stepPlayerState828]
-        fld dword ptr [ecx + stepOrigin828+8]
-        fsub dword ptr [stepK200ac2d8]
-        fstp dword ptr [esp + 0x28]
-        mov ecx, dword ptr [eax + stepPlayerState828]
-        mov edx, dword ptr [eax + stepMask828]
-        push edx
-        mov edx, dword ptr [ecx + stepClient828]
-        add ecx, stepOrigin828
-        push edx
-        lea edx, [esp + 0x28]
-        push edx
-        lea edx, [eax + stepMaxs828]
-        push edx
-        lea edx, [eax + stepMins828]
-        push edx
-        push ecx
-        lea ecx, [esp + 0x50]
-        push ecx
-        call dword ptr [eax + stepTrace828]
-        mov eax, dword ptr [esp + 0x54]
-        add esp, 0x20
-        test eax, eax
-        jne step828_2003d2ba
-        mov edx, dword ptr [pm]
-        mov ecx, dword ptr [esp + 0x40]
-        mov eax, dword ptr [edx + stepPlayerState828]
-        mov dword ptr [eax + stepOrigin828], ecx
-        mov edx, dword ptr [pm]
-        mov ecx, dword ptr [esp + 0x44]
-        mov eax, dword ptr [edx + stepPlayerState828]
-        mov dword ptr [eax + stepOrigin828+4], ecx
-        mov edx, dword ptr [pm]
-        mov ecx, dword ptr [esp + 0x48]
-        mov eax, dword ptr [edx + stepPlayerState828]
-        mov dword ptr [eax + stepOrigin828+8], ecx
-step828_2003d2ba:
-        fld dword ptr [esp + 0x3c]
-        fcomp qword ptr [stepK200ac130]
-        fnstsw ax
-        test ah, 1
-        je step828_2003d2ea
-        mov edx, dword ptr [pm]
-        push 0x3f8020c5
-        lea ecx, [esp + 0x50]
-        mov eax, dword ptr [edx + stepPlayerState828]
-        add eax, stepVelocity828
-        push eax
-        push ecx
-        push eax
-        call PM_ClipVelocity
-        add esp, 0x10
-step828_2003d2ea:
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx + stepPlayerState828]
-        fld dword ptr [eax + stepOrigin828+8]
-        fsub dword ptr [esp + 0x18]
-        fst dword ptr [esp + 0x70]
-        fcomp dword ptr [stepK200ac270]
-        fnstsw ax
-        test ah, 0x41
-        jne step828_2003d353
-        fld dword ptr [esp + 0x70]
-        fcomp dword ptr [stepK200ac6d0]
-        fnstsw ax
-        test ah, 1
-        je step828_2003d31f
-        push 0xc
-        jmp step828_2003d34b
-step828_2003d31f:
-        fld dword ptr [esp + 0x70]
-        fcomp dword ptr [stepK200ac87c]
-        fnstsw ax
-        test ah, 1
-        je step828_2003d334
-        push 0xd
-        jmp step828_2003d34b
-step828_2003d334:
-        fld dword ptr [esp + 0x70]
-        fcomp dword ptr [stepK200ac878]
-        fnstsw ax
-        test ah, 1
-        je step828_2003d349
-        push 0xe
-        jmp step828_2003d34b
-step828_2003d349:
-        push 0xf
-step828_2003d34b:
-        call PM_AddEvent
-        add esp, 4
-step828_2003d353:
-        mov ecx, dword ptr [pm]
-        mov eax, dword ptr [ecx + stepDebug828]
-        test eax, eax
-        je step828_2003d374
-        mov edx, dword ptr [c_pmove]
-        push edx
-        push offset stepDone828
-        call Com_Printf
-        add esp, 8
-step828_2003d374:
-        pop esi
-        add esp, 0x68
-        ret 
+typedef char stepTraceLayout828[(sizeof(trace_t) == 56 && offsetof(trace_t, allsolid) == 0 &&
+    offsetof(trace_t, fraction) == 8 && offsetof(trace_t, endpos) == 12 &&
+    offsetof(trace_t, plane) + offsetof(cplane_t, normal) == 24) ? 1 : -1];
+typedef char stepEventIds828[(EV_STEP_4 == 12 && EV_STEP_8 == 13 && EV_STEP_12 == 14 && EV_STEP_16 == 15) ? 1 : -1];
+void PM_StepSlideMoveProne(qboolean gravity) {
+    vec3_t startOrigin, startVelocity, up, down;
+    trace_t trace;
+    long double height;
+    volatile float delta;
+
+    VectorCopy(pm->ps->origin, startOrigin);
+    VectorCopy(pm->ps->velocity, startVelocity);
+    if (!PM_SlideMoveProne(gravity)) return;
+    VectorCopy(startOrigin, down);
+    down[2] = (float)((long double)startOrigin[2] - 18.0f);
+    pm->trace(&trace, startOrigin, pm->mins, pm->maxs, down,
+        pm->ps->clientNum, pm->tracemask);
+    if (pm->ps->velocity[2] > 0.0f) {
+        /* C3 accepts equality or unordered fraction; C0 also rejects
+         * an unordered normal when checking the minimum landing slope. */
+        if (trace.fraction == 1.0f || trace.fraction != trace.fraction ||
+            (long double)trace.plane.normal[2] < (long double)0.7 ||
+            trace.plane.normal[2] != trace.plane.normal[2]) return;
     }
+    VectorCopy(startOrigin, up);
+    up[2] = (float)((long double)startOrigin[2] + 18.0f);
+    pm->trace(&trace, up, pm->mins, pm->maxs, up,
+        pm->ps->clientNum, pm->tracemask);
+    if (trace.allsolid) {
+        if (pm->debugLevel) Com_Printf("%i:bend can't step\n", c_pmove);
+        return;
+    }
+    VectorCopy(up, pm->ps->origin);
+    VectorCopy(startVelocity, pm->ps->velocity);
+    PM_SlideMoveProne(gravity);
+    VectorCopy(pm->ps->origin, down);
+    down[2] = (float)((long double)down[2] - 18.0f);
+    pm->trace(&trace, pm->ps->origin, pm->mins, pm->maxs, down,
+        pm->ps->clientNum, pm->tracemask);
+    if (!trace.allsolid) VectorCopy(trace.endpos, pm->ps->origin);
+    if (trace.fraction < 1.0f || trace.fraction != trace.fraction) {
+        PM_ClipVelocity(pm->ps->velocity, trace.plane.normal, pm->ps->velocity, OVERCLIP);
+    }
+    height = (long double)pm->ps->origin[2] - startOrigin[2];
+    delta = (float)height;
+    /* The initial gate uses the held subtraction; event bins use its float store. */
+    if (height > 2.0L) {
+        PM_AddEvent(delta < 7.0f ? EV_STEP_4 : delta < 11.0f ? EV_STEP_8 :
+            delta < 15.0f ? EV_STEP_12 : EV_STEP_16);
+    }
+    if (pm->debugLevel) Com_Printf("%i:stepped\n", c_pmove);
 }
 #else
 /* Portable fallback; no Linux instruction-level parity claim. */
