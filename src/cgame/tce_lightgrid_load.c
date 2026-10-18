@@ -14,70 +14,26 @@ static qboolean gridReady;
 vec3_t tce_lightGridSpacing = {64,64,128};
 
 #if defined(_MSC_VER) && defined(_M_IX86)
-/* RegisterGraphics30049c80..30049cdc. Preserve the CRT double argument
- * stores, but consume its ST0 return without an extra double spill. */
-static double (__cdecl *lightGridCeil)(double) = ceil;
-static double (__cdecl *lightGridFloor)(double) = floor;
-static const float lightGridOne = 1.0f;
-static __declspec(naked) void TCE_LightGridAxis(float gridMin, float gridMax,
+/* Original registration uses double CRT arguments and Float grid outputs. */
+static void TCE_LightGridAxis(float gridMin, float gridMax,
         float gridStep, float *gridOrigin, float *gridBound, double *guardDimension) {
-    __asm {
-        push ebp
-        mov ebp, esp
-        sub esp, 8
-        fld dword ptr [ebp+8]
-        fdiv dword ptr [ebp+16]
-        fstp qword ptr [esp]
-        call dword ptr [lightGridCeil]
-        fmul dword ptr [ebp+16]
-        mov eax, dword ptr [ebp+20]
-        fstp dword ptr [eax]
-        fld dword ptr [ebp+12]
-        fdiv dword ptr [ebp+16]
-        fstp qword ptr [esp]
-        call dword ptr [lightGridFloor]
-        fmul dword ptr [ebp+16]
-        fst dword ptr [esp]
-        mov eax, dword ptr [ebp+20]
-        fsub dword ptr [eax]
-        fdiv dword ptr [ebp+16]
-        fadd dword ptr [lightGridOne]
-        mov eax, dword ptr [ebp+28]
-        fst qword ptr [eax]
-        mov eax, dword ptr [ebp+24]
-        fstp dword ptr [eax]
-        leave
-        ret
-    }
+    double quotient;
+    long double high, dimension;
+
+    quotient = (double)((long double)gridMin / (long double)gridStep);
+    *gridOrigin = (float)((long double)ceil(quotient) * (long double)gridStep);
+    quotient = (double)((long double)gridMax / (long double)gridStep);
+    high = (long double)floor(quotient) * (long double)gridStep;
+    dimension = (high - (long double)*gridOrigin) / (long double)gridStep + 1.0L;
+    *guardDimension = (double)dimension;
+    *gridBound = (float)dimension;
 }
 
-/* Z*Y*X stays in ST0 through the original truncation sequence. The
- * non-popping double copy exists solely for the native capacity guard. */
-static __declspec(naked) int TCE_LightGridCount(const float *gridBounds, double *guardCount) {
-    __asm {
-        push ebp
-        mov ebp, esp
-        sub esp, 12
-        mov ecx, dword ptr [ebp+8]
-        fld dword ptr [ecx+8]
-        fmul dword ptr [ecx+4]
-        fmul dword ptr [ecx]
-        mov ecx, dword ptr [ebp+12]
-        fst qword ptr [ecx]
-        fwait
-        fnstcw word ptr [ebp-2]
-        fwait
-        mov ax, word ptr [ebp-2]
-        or ah, 0ch
-        mov word ptr [ebp-4], ax
-        fldcw word ptr [ebp-4]
-        fistp qword ptr [ebp-12]
-        fldcw word ptr [ebp-2]
-        mov eax, dword ptr [ebp-12]
-        mov edx, dword ptr [ebp-8]
-        leave
-        ret
-    }
+static void TCE_LightGridCount(const float *gridBounds, double *guardCount) {
+    long double count = (long double)gridBounds[2] * (long double)gridBounds[1];
+
+    count *= (long double)gridBounds[0];
+    *guardCount = (double)count;
 }
 #endif
 
@@ -153,14 +109,13 @@ qboolean TCE_CG_LoadLightGrid(const char *mapname) {
     }
     /* Original x87 product order is Z * Y * X before truncation. */
 #if defined(_MSC_VER) && defined(_M_IX86)
-    sampleCount=TCE_LightGridCount(grid.bounds,&count);
+    TCE_LightGridCount(grid.bounds,&count);
 #else
     count=(double)grid.bounds[2]*grid.bounds[1]*grid.bounds[0];
 #endif
     if (!_finite(count) || count<1 || count>TCE_GRID_BYTES/8) goto invalid;
-#if !defined(_MSC_VER) || !defined(_M_IX86)
+    /* The capacity guard makes this conversion defined on every target. */
     sampleCount=(int)count;
-#endif
     if (!SkipGridBytes(file,length,&position,
             lightOffset>models && lightOffset-models>1024?lightOffset-models-1024:0)) goto invalid;
     /* Original requests the fixed eight-million-byte sample array. Bound the
