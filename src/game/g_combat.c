@@ -7,6 +7,9 @@
 
 #include "g_local.h"
 #include "tce_lua.h"
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+#include "tce_numeric.h"
+#endif
 #ifdef FEATURE_OMNIBOT
 #include "g_etbot_interface.h"
 #define TCE_INTERNAL_BOT(ent) (!Bot_Interface_IsOmnibot((ent)->s.number))
@@ -107,47 +110,66 @@ void TossClientItems(gentity_t *self) {
 LookAtKiller
 ==================
 */
-/* TC200a11b0 returns an unspilled x87 angle directly to __ftol in
- * LookAtKiller. Its degree factor is double(180 / float(pi)), not M_PI. */
+/* Native scalar conversion consumes the broad yaw before any Float return. */
 static int G_TCEDeadYaw(const vec3_t dir) {
-	static const double degrees = 57.29577791868204; /* 200ad5a0:25cf030ddca54c40 */
-	if(dir[0] == 0.0f) return dir[1] == 0.0f ? 0 : dir[1] > 0.0f ? 90 : 270;
-#if defined(_MSC_VER) && defined(_M_IX86)
-	{
-		int result;
-		unsigned short control, truncated;
-		static const float fullTurn = 360.0f;
-		__asm {
-			mov ecx, dir
-			fld dword ptr [ecx+4]
-			fld dword ptr [ecx]
-			fpatan
-			fmul degrees
-			ftst
-			fnstsw ax
-			test ah, 1
-			jz positiveYaw
-			fadd fullTurn
-		positiveYaw:
-			fnstcw control
-			mov ax, control
-			or ax, 0c00h
-			mov truncated, ax
-			fldcw truncated
-			fistp result
-			fldcw control
-		}
-		return result;
-	}
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+    return TCE_TruncateNativeInteger(TCE_VectorYawValue(dir));
 #else
-	{
-		long double yaw = atan2l((long double)dir[1], (long double)dir[0]) * degrees;
-		if(yaw < 0) yaw += 360;
-		return (int)yaw;
-	}
+    static const double degrees = 57.29577791868204;
+    long double yaw;
+    if (dir[0] == 0.0f)
+        return dir[1] == 0.0f ? 0 : dir[1] > 0.0f ? 90 : 270;
+    yaw = atan2l((long double)dir[1], (long double)dir[0]) * degrees;
+    if (yaw < 0.0L) yaw += 360.0L;
+    return (int)yaw;
 #endif
 }
 
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+void LookAtKiller(gentity_t *self, gentity_t *inflictor, gentity_t *attacker) {
+    gentity_t *target;
+    gclient_t *client;
+    vec3_t dir;
+    volatile float difference;
+    int deadYaw;
+
+    if (attacker && attacker != self) {
+        target = attacker;
+    } else if (inflictor && inflictor != self) {
+        target = inflictor;
+    } else {
+        float yaw = self->s.angles[YAW];
+        client = self->client;
+        client->ps.stats[STAT_DEAD_YAW] = TCE_TruncateNativeInteger((long double)yaw);
+        return;
+    }
+    difference = (float)((long double)target->s.pos.trBase[0] -
+        (long double)self->s.pos.trBase[0]);
+    dir[0] = difference;
+    difference = (float)((long double)target->s.pos.trBase[1] -
+        (long double)self->s.pos.trBase[1]);
+    dir[1] = difference;
+    difference = (float)((long double)target->s.pos.trBase[2] -
+        (long double)self->s.pos.trBase[2]);
+    dir[2] = difference;
+#if defined(__linux__)
+    /* Linux captures the client before evaluating yaw. */
+    client = self->client;
+    deadYaw = G_TCEDeadYaw(dir);
+    client->ps.stats[STAT_DEAD_YAW] = deadYaw;
+    {
+        /* The original performs a second call and Float spill. */
+        volatile float discardedYaw = (float)TCE_VectorYawValue(dir);
+        (void)discardedYaw;
+    }
+#else
+    deadYaw = G_TCEDeadYaw(dir);
+    self->client->ps.stats[STAT_DEAD_YAW] = deadYaw;
+    /* Windows discards the second ST0 result without a Float spill. */
+    (void)TCE_VectorYawValue(dir);
+#endif
+}
+#else
 void LookAtKiller( gentity_t *self, gentity_t *inflictor, gentity_t *attacker ) {
 	vec3_t		dir;
 	vec3_t		angles;
@@ -168,84 +190,48 @@ void LookAtKiller( gentity_t *self, gentity_t *inflictor, gentity_t *attacker ) 
 	angles[ROLL] = 0;
 }
 
+#endif
+
 /*
 ==================
 GibEntity
 ==================
 */
-/* Private TC adapters: preserve original x87 intermediates without changing
- * the SDK/shared math ABI used by other reconstructed callers. */
+/* Original GibEntity discards both normalization return values. Reuse the
+ * platform-specific C stages, including Linux length/winner precision. */
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+static void G_TCEGibNormalize(const vec3_t input, vec3_t output) {
+    if (input == output) {
+        (void)VectorNormalize(output);
+    } else {
+        (void)VectorNormalize2(input, output);
+    }
+}
+
+static int G_TCEGibDirToByte(const vec3_t dir) {
+    /* DirToByte's SDK signature is mutable; its implementation only reads. */
+    return DirToByte((vec_t *)dir);
+}
+#else
 static void G_TCEGibNormalize(const vec3_t input, vec3_t output) {
 	if(input[0]==0 && input[1]==0 && input[2]==0) { VectorClear(output); return; }
-#if defined(_MSC_VER) && defined(_M_IX86)
-	__asm {
-		mov ecx, input
-		mov edx, output
-		fld dword ptr [ecx]
-		fmul st(0), st(0)
-		fld dword ptr [ecx+4]
-		fmul st(0), st(0)
-		faddp st(1), st(0)
-		fld dword ptr [ecx+8]
-		fmul st(0), st(0)
-		faddp st(1), st(0)
-		fsqrt
-		fld1
-		fdiv st(0), st(1)
-		fstp st(1)
-		fld st(0)
-		fmul dword ptr [ecx]
-		fstp dword ptr [edx]
-		fld st(0)
-		fmul dword ptr [ecx+4]
-		fstp dword ptr [edx+4]
-		fmul dword ptr [ecx+8]
-		fstp dword ptr [edx+8]
-	}
-#else
 	{
 		long double inv=1.0L/sqrtl((long double)input[0]*input[0]+(long double)input[1]*input[1]+(long double)input[2]*input[2]);
 		output[0]=(float)(inv*input[0]);output[1]=(float)(inv*input[1]);output[2]=(float)(inv*input[2]);
 	}
-#endif
 }
 static int G_TCEGibDirToByte(const vec3_t dir) {
 	int i, best=0;
 	float bestDot=0;
 	for(i=0;i<NUMVERTEXNORMALS;++i) {
 		const float *normal=bytedirs[i];
-#if defined(_MSC_VER) && defined(_M_IX86)
-		int better=0;
-		__asm {
-			mov ecx, normal
-			mov edx, dir
-			fld dword ptr [ecx]
-			fmul dword ptr [edx]
-			fld dword ptr [ecx+8]
-			fmul dword ptr [edx+8]
-			faddp st(1), st(0)
-			fld dword ptr [edx+4]
-			fmul dword ptr [ecx+4]
-			faddp st(1), st(0)
-			fcom bestDot
-			fnstsw ax
-			test ah, 41h
-			jnz notBetterGib
-			fstp bestDot
-			mov better, 1
-			jmp doneGibDot
-		notBetterGib:
-			fstp st(0)
-		doneGibDot:
-		}
-		if(better) best=i;
-#else
 		long double dot=(long double)dir[0]*normal[0]+(long double)dir[2]*normal[2]+(long double)dir[1]*normal[1];
 		if(dot>bestDot) {bestDot=(float)dot;best=i;}
-#endif
 	}
 	return best;
 }
+
+#endif
 
 void GibEntity( gentity_t *self, int killer ) 
 {
@@ -263,8 +249,13 @@ void GibEntity( gentity_t *self, int killer )
 	}
 
 	G_AddEvent( self, EV_GIB_PLAYER, G_TCEGibDirToByte(dir) );
+#if defined(__linux__) && !defined(Q3_VM)
+	self->s.eType = ET_INVISIBLE;
+	self->takedamage = qfalse;
+#else
 	self->takedamage = qfalse;
 	self->s.eType = ET_INVISIBLE;
+#endif
 	self->r.contents = 0;
 }
 

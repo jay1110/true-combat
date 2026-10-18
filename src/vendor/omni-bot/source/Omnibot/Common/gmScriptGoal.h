@@ -35,6 +35,7 @@ public:
 
 	static int gmfDidPathSucceed(gmThread *a_thread);
 	static int gmfDidPathFail(gmThread *a_thread);
+	static int gmfGetPathFailureDetails(gmThread *a_thread);
 	static int gmfIsActive(gmThread *a_thread);
 
 	static int gmfGoto(gmThread *a_thread);

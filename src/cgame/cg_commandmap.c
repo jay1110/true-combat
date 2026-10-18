@@ -299,6 +299,9 @@ static void CG_DrawGrid( float x, float y, float w, float h, mapScissor_t *sciss
 	vec4_t line;
 	float xscale, yscale;
 	float grid_x, grid_y;
+#if defined(__linux__)
+	float circleWidthSquared, circleHeightSquared;
+#endif
 	vec2_t dist;
 	vec4_t gridColour;
 
@@ -347,6 +350,10 @@ static void CG_DrawGrid( float x, float y, float w, float h, mapScissor_t *sciss
 		// draw
 		Vector4Set( gridColour, clrBrownLine[0], clrBrownLine[1], clrBrownLine[2], .4f );
 		trap_R_SetColor( gridColour );
+#if defined(__linux__)
+		if (grid_x < dim_x[1])
+			circleWidthSquared = (float)((long double)w * w * .25f);
+#endif
 		for( ; grid_x < dim_x[1]; grid_x += step[0] )
 		{
 			if( grid_x < dim_x[0] )
@@ -357,14 +364,29 @@ static void CG_DrawGrid( float x, float y, float w, float h, mapScissor_t *sciss
 
 			if( scissor->circular ) {
 				// clip line against circle
-				float xc, yc;
+				float xc;
+#if defined(__linux__)
+				long double yc;
+#else
+				float yc;
+#endif
 
 				line[0] = x + grid_x;
 				xc = line[0] >= x + .5f * w ? line[0] - (x + .5f * w) : (x + .5f * w) - line[0];
+#if defined(__linux__)
+				yc = 1.0L / TCE_ReciprocalSquareRootValue(
+					(float)((long double)circleWidthSquared - (long double)xc * xc) );
+				line[1] = (float)(((long double)h * .5f + y) - yc);
+#else
 				yc = SQRTFAST( Square(.5f * w) - Square(xc) );
 				line[1] = y + (.5f * h) - yc;
+#endif
 				line[2] = 1.f;
+#if defined(__linux__)
+				line[3] = (float)(yc + yc);
+#else
 				line[3] = 2 * yc;
+#endif
 			} else {
 				Vector4Set( line, x + grid_x, y + dim_y[0], 1.f, h );
 			}
@@ -374,6 +396,10 @@ static void CG_DrawGrid( float x, float y, float w, float h, mapScissor_t *sciss
 			trap_R_DrawStretchPic( line[0], line[1], line[2], line[3], 0, 0, 0, 1, cgs.media.whiteShader );
 		}
 
+#if defined(__linux__)
+		if (grid_y < dim_y[1])
+			circleHeightSquared = (float)((long double)h * h * .25f);
+#endif
 		for( ; grid_y < dim_y[1]; grid_y += step[1] )
 		{
 			if( grid_y < dim_y[0] )
@@ -384,13 +410,28 @@ static void CG_DrawGrid( float x, float y, float w, float h, mapScissor_t *sciss
 
 			if( scissor->circular ) {
 				// clip line against circle
-				float xc, yc;
+				float yc;
+#if defined(__linux__)
+				long double xc;
+#else
+				float xc;
+#endif
 
 				line[1] = y + grid_y;
 				yc = line[1] >= y + .5f * h ? line[1] - (y + .5f * h) : (y + .5f * h) - line[1];
+#if defined(__linux__)
+				xc = 1.0L / TCE_ReciprocalSquareRootValue(
+					(float)((long double)circleHeightSquared - (long double)yc * yc) );
+				line[0] = (float)(((long double)w * .5f + x) - xc);
+#else
 				xc = SQRTFAST( Square(.5f * h) - Square(yc) );
 				line[0] = x + (.5f * w) - xc;
+#endif
+#if defined(__linux__)
+				line[2] = (float)(xc + xc);
+#else
 				line[2] = 2 * xc;
+#endif
 				line[3] = 1.f;
 			} else {
 				Vector4Set( line, x + dim_x[0], y + grid_y, w, 1 );

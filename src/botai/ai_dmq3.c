@@ -2066,6 +2066,50 @@ returns whether smoke from smoke bombs blocks vision from start to end
 #define MAX_SMOKE_RADIUS_TIME 10000.0
 #define UNAFFECTED_BY_SMOKE_DIST SQR(100)
 
+#if defined(_WIN32) || defined(__linux__)
+qboolean BotEntInvisibleBySmokeBomb(vec3_t start, vec3_t end) {
+	gentity_t *ent = NULL;
+
+	/* The native ordered gate rejects unordered distances as well. */
+	if (!(TCE_DistanceSquaredValue( start, end ) >= UNAFFECTED_BY_SMOKE_DIST))
+		return qfalse;
+
+	while ((ent = G_FindSmokeBomb( ent ))) {
+		vec3_t smokeCenter;
+		uint32_t elapsedBits;
+		int32_t elapsed;
+		long double radius, distance, radiusSquared;
+		volatile float storedRadius;
+
+		if (ent->s.effect1Time == 16)
+			continue;
+		memcpy( smokeCenter, ent->s.pos.trBase, sizeof(smokeCenter) );
+		smokeCenter[2] = (float)((long double)smokeCenter[2] + 32.0f);
+		/* Engine millisecond subtraction wraps as a signed 32-bit word. */
+		elapsedBits = (uint32_t)level.time - (uint32_t)ent->grenadeExplodeTime;
+		memcpy( &elapsed, &elapsedBits, sizeof(elapsed) );
+#if defined(_WIN32)
+		/* Windows keeps two double-constant multiplications before storing. */
+		radius = (long double)elapsed * (long double)0.0001;
+		radius *= (long double)320.0;
+		storedRadius = (float)radius;
+		if (radius > (long double)320.0)
+			storedRadius = 320.0f;
+#else
+		/* Linux uses the folded double coefficient, then compares the float. */
+		radius = (long double)elapsed * (long double)0.032;
+		storedRadius = (float)radius;
+		if (storedRadius > 320.0f)
+			storedRadius = 320.0f;
+#endif
+		distance = TCE_DistanceFromLineSquaredValue( smokeCenter, start, end );
+		radiusSquared = (long double)storedRadius * (long double)storedRadius;
+		if (radiusSquared > distance)
+			return qtrue;
+	}
+	return qfalse;
+}
+#else
 qboolean BotEntInvisibleBySmokeBomb(vec3_t start, vec3_t end) {
 	gentity_t *ent = NULL;
 	vec3_t smokeCenter;
@@ -2099,6 +2143,8 @@ qboolean BotEntInvisibleBySmokeBomb(vec3_t start, vec3_t end) {
 
 	return qfalse;
 }
+
+#endif
 
 /*
 ==================

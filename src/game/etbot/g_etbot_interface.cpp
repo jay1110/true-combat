@@ -12,12 +12,21 @@ extern "C"
 #include "../g_etbot_interface.h"
 #include "../tce_bg.h"
 #include "../tce_omnibot_loadout.h"
+#include "../tce_nav_ladder.h"
+#include "../tce_navgen.h"
+#include "../tce_movement.h"
+#include "../tce_nav_jump.h"
+#include "../tce_nav_freeclimb.h"
 	qboolean G_IsOnFireteam(int entityNum, fireteamData_t** teamNum);
 };
 
 #include "BotExports.h"
 #include "ET_Config.h"
 #include "ET_Messages.h"
+#include "tce_nav_capsule_trace.h"
+#include "tce_nav_door_query.h"
+#include "tce_nav_freeclimb_query.h"
+#include "tce_flag_query.h"
 
 #define OMNIBOT_MIN_ENG 2
 #define OMNIBOT_MIN_MED 2
@@ -40,6 +49,51 @@ static qboolean tceOmniClients[MAX_CLIENTS];
 static int tceOmniWeaponBits[MAX_CLIENTS][2];
 static qboolean tceOmniSuicide[MAX_CLIENTS];
 static qboolean tceOmniTwoMinute, tceOmniThirtySecond;
+struct TCEObjectiveObservation {
+    int plantCount, plantTime, plantBomb, plantObjective;
+    int defuseCount, defuseTime, defuseBomb;
+    int flagCaptureCount, flagCaptureTime, flagCaptureTrigger, flagCaptureParent;
+};
+static TCEObjectiveObservation tceObjectiveObserved[MAX_CLIENTS];
+struct TCEBombBinding {
+    int objective, target, bombSerial, objectiveSerial, targetSerial, plantTime, team;
+};
+static TCEBombBinding tceBombBindings[MAX_GENTITIES];
+static void TceRecordObjectiveBomb(int bombNum, int objectiveNum);
+/* Native target capability, not a gametype-name or generated GM guess.
+ * GT2 maps may use capture activation, sabotage, or both. */
+static int TceObjectiveOperation(const gentity_t *trigger) {
+    if (!trigger || !trigger->inuse || trigger->s.eType != ET_OID_TRIGGER ||
+        !(trigger->spawnflags & (AXIS_OBJECTIVE | ALLIED_OBJECTIVE)) ||
+        !trigger->target_ent || !trigger->target_ent->inuse) return 0;
+    const gentity_t *target = trigger->target_ent;
+    if (g_gametype.integer == 2 && target->s.eType == 65) return 1;
+    if ((g_gametype.integer == 2 || g_gametype.integer == 5) &&
+        target->s.eType == ET_EXPLOSIVE && target->constructibleStats.weaponclass == 2) return 2;
+    return 0;
+}
+void Bot_Event_TCEFlagCapture(int clientNum,int triggerNum,int flagNum) {
+    if(clientNum<0||clientNum>=MAX_CLIENTS||!g_entities[clientNum].client||
+       triggerNum<MAX_CLIENTS||triggerNum>=level.num_entities||triggerNum>=MAX_GENTITIES||
+       flagNum<MAX_CLIENTS||flagNum>=level.num_entities||flagNum>=MAX_GENTITIES)return;
+    TCEObjectiveObservation &value=tceObjectiveObserved[clientNum];
+    value.flagCaptureCount=value.flagCaptureCount<0x7fffffff?value.flagCaptureCount+1:1;
+    value.flagCaptureTime=level.time;value.flagCaptureTrigger=triggerNum;value.flagCaptureParent=flagNum;
+}
+void Bot_Event_TCEObjectiveAction(int clientNum, int bombNum, int action, int objectiveNum) {
+    if(clientNum < 0 || clientNum >= MAX_CLIENTS || !g_entities[clientNum].client ||
+       bombNum < MAX_CLIENTS || bombNum >= MAX_GENTITIES) return;
+    TCEObjectiveObservation &value=tceObjectiveObserved[clientNum];
+    if(action==1) {
+        TceRecordObjectiveBomb(bombNum, objectiveNum);
+        value.plantCount=value.plantCount<0x7fffffff?value.plantCount+1:1;
+        value.plantTime=level.time;value.plantBomb=bombNum;value.plantObjective=objectiveNum;
+    } else if(action==2) {
+        memset(&tceBombBindings[bombNum],0,sizeof(tceBombBindings[bombNum]));
+        value.defuseCount=value.defuseCount<0x7fffffff?value.defuseCount+1:1;
+        value.defuseTime=level.time;value.defuseBomb=bombNum;
+    }
+}
 void Bot_Interface_RestoreClient(int clientNum, qboolean isBot) {
  if(clientNum<0 || clientNum>=MAX_CLIENTS) return;
  char info[MAX_INFO_STRING];
@@ -60,6 +114,50 @@ struct BotEntity
 };
 
 BotEntity		m_EntityHandles[MAX_GENTITIES];
+
+static bool TceLiveObjectiveBomb(const gentity_t *bomb) {
+    return bomb && bomb->inuse && bomb->s.weapon == 15 && bomb->methodOfDeath == MOD_DYNAMITE &&
+        bomb->health < 248 && (bomb->s.teamNum == TEAM_AXIS || bomb->s.teamNum == TEAM_ALLIES) &&
+        (bomb->s.eType == ET_MISSILE || bomb->s.eType == 35);
+}
+static void TceRecordObjectiveBomb(int bombNum, int objectiveNum) {
+    if (bombNum < MAX_CLIENTS || bombNum >= level.num_entities || bombNum >= MAX_GENTITIES ||
+        objectiveNum < MAX_CLIENTS || objectiveNum >= level.num_entities || objectiveNum >= MAX_GENTITIES) return;
+    gentity_t *bomb = &g_entities[bombNum], *objective = &g_entities[objectiveNum];
+    if (!TceLiveObjectiveBomb(bomb) || TceObjectiveOperation(objective) != 2 || bomb->s.effect1Time != level.time) return;
+    int targetNum = (int)(objective->target_ent - g_entities);
+    if (targetNum < MAX_CLIENTS || targetNum >= level.num_entities || targetNum >= MAX_GENTITIES) return;
+    TCEBombBinding &binding = tceBombBindings[bombNum];
+    binding.objective = objectiveNum; binding.target = targetNum;
+    binding.bombSerial = m_EntityHandles[bombNum].m_HandleSerial;
+    binding.objectiveSerial = m_EntityHandles[objectiveNum].m_HandleSerial;
+    binding.targetSerial = m_EntityHandles[targetNum].m_HandleSerial;
+    binding.plantTime = level.time; binding.team = bomb->s.teamNum;
+}
+/* GT2 sabotage can plant at several opposing sites. Only the native plant
+ * producer can assign a bomb to a site; proximity/global-planted guesses do
+ * not identify it. Unknown or multiply assigned live bombs fail closed. */
+static int TceExactObjectiveBomb(const gentity_t *objective) {
+    if (TceObjectiveOperation(objective) != 2) return -2;
+    int requested = (int)(objective - g_entities), found = -1;
+    for (int i = MAX_CLIENTS; i < level.num_entities && i < MAX_GENTITIES; ++i) {
+        const gentity_t *bomb = &g_entities[i];
+        if (!TceLiveObjectiveBomb(bomb)) continue;
+        const TCEBombBinding &binding = tceBombBindings[i];
+        if (binding.objective < MAX_CLIENTS || binding.objective >= level.num_entities || binding.objective >= MAX_GENTITIES ||
+            binding.target < MAX_CLIENTS || binding.target >= level.num_entities || binding.target >= MAX_GENTITIES ||
+            binding.bombSerial != m_EntityHandles[i].m_HandleSerial || binding.plantTime != bomb->s.effect1Time ||
+            binding.team != bomb->s.teamNum) return -2;
+        const gentity_t *owner = &g_entities[binding.objective];
+        if (binding.objectiveSerial != m_EntityHandles[binding.objective].m_HandleSerial ||
+            binding.targetSerial != m_EntityHandles[binding.target].m_HandleSerial ||
+            TceObjectiveOperation(owner) != 2 || owner->target_ent != &g_entities[binding.target]) return -2;
+        if (binding.objective != requested) continue;
+        if (found >= 0) return -2;
+        found = i;
+    }
+    return found;
+}
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -1130,7 +1228,11 @@ public:
         team_t team=_newteam==ET_TEAM_AXIS ? TEAM_AXIS : _newteam==ET_TEAM_ALLIES ? TEAM_ALLIES : PickTeam(_client);
         char teamName[8]; Q_strncpyz(teamName,team==TEAM_AXIS?"axis":"allies",sizeof(teamName));
         team_t oldTeam=bot->client->sess.sessionTeam;
-        if(oldTeam==team) return Success;
+        const qboolean initialJoin=bot->client->pers.connected==CON_CONNECTING ? qtrue : qfalse;
+        if(oldTeam==team) {
+            if(initialJoin) ClientBegin(_client);
+            return Success;
+        }
         int pc=bot->client->sess.latchPlayerType;
         int oldPrimary=bot->client->sess.latchPlayerWeapon;
         int oldSecondary=bot->client->sess.latchPlayerWeapon2;
@@ -1140,15 +1242,28 @@ public:
         bot->client->sess.sessionTeam=team;
         qboolean selected=TCE_OmniSelectLoadout(bot,TCE_OmniClassValid(pc)?pc:-1,-1,-1);
         bot->client->sess.sessionTeam=oldTeam;
-        if(!selected) return InvalidParameter;
-        if (!SetTeam(bot,teamName,qfalse,(weapon_t)-1,(weapon_t)-1,-1,qfalse) &&
-            bot->client->sess.sessionTeam != team) {
+        // Initial bot creation is a server-side team assignment, as in ETLegacy.
+        // Applying the human balance gate here leaves sequentially added bots
+        // in CONNECTING forever: there is no client network handshake to finish
+        // their join after SetTeam rejects it. Later switches still obey it.
+        if(selected) SetTeam(bot,teamName,initialJoin,(weapon_t)-1,(weapon_t)-1,-1,qfalse);
+        if (!selected || bot->client->sess.sessionTeam != team) {
             bot->client->sess.latchPlayerType=pc;
             bot->client->sess.latchPlayerWeapon=oldPrimary;
             bot->client->sess.latchPlayerWeapon2=oldSecondary;
             bot->client->sess.latchPlayerWeapon3=oldExtra;
+            if(initialJoin) {
+                // Team locks/capacity or unavailable gear can still reject the
+                // assignment. Finish the spectator connection, not a timeout.
+                if(bot->client->pers.connected==CON_CONNECTING) ClientBegin(_client);
+                PrintError(va("Bot %s (%d) could not join %s: %s; current team %d.",
+                    bot->client->pers.netname,_client,teamName,
+                    selected ? "team entry rejected" : "no available loadout",
+                    (int)bot->client->sess.sessionTeam));
+            }
             return InvalidParameter;
         }
+        if(bot->client->pers.connected==CON_CONNECTING) ClientBegin(_client);
         return Success;
     }
     obResult ChangeClass(int _client, int _newclass, const MessageHelper *_data)
@@ -1184,6 +1299,7 @@ public:
 		if (!Bot_Interface_IsOmnibot(_client) || !g_entities[_client].client) return;
 		usercmd_t cmd;
 		gentity_t *bot = &g_entities[_client];
+		bot->client->tceNavFreeClimbRequested = _input.m_ButtonFlags.CheckFlag(TCE_NAV_FREECLIMB_BUTTON)?qtrue:qfalse;
 
 		// only causes problems
 		bot->client->ps.pm_flags &= ~PMF_RESPAWNED;
@@ -1316,6 +1432,187 @@ public:
 				cmd.upmove = fMaxSpeed;
 			if(_input.m_ButtonFlags.CheckFlag(BOT_BUTTON_CROUCH))
 				cmd.upmove = -fMaxSpeed;
+
+            // Explicit low-speed launch recipe. The two reserved input bits
+            // only occur on a natively checked directed TC standing jump.
+            // Keep actual PM_CheckJump gates; never set velocity/stamina/flags.
+            const bool prime=_input.m_ButtonFlags.CheckFlag(TCE_NAV_STAND_PRIME_BUTTON);
+            const bool standLaunch=_input.m_ButtonFlags.CheckFlag(TCE_NAV_STAND_LAUNCH_BUTTON);
+            if((prime||standLaunch) && bot->client->ps.stats[STAT_HEALTH]>0) {
+                vec3_t travel={_input.m_MoveDir[0],_input.m_MoveDir[1],0};
+                if(VectorNormalize(travel)>0.f) {
+                    playerState_t *ps=&bot->client->ps;tce_moveScale_t scale;
+                    vectoangles(travel,angles);SetClientViewAngle(bot,angles);
+                    cmd.buttons&=~(BUTTON_WALKING|BUTTON_SPRINT);
+                    cmd.wbuttons&=~(WBUTTON_ZOOM|WBUTTON_LEANLEFT|WBUTTON_LEANRIGHT|WBUTTON_PRONE);
+                    cmd.rightmove=cmd.upmove=0;cmd.forwardmove=127;
+                    memset(&scale,0,sizeof(scale));scale.forward=127;scale.speed=ps->speed;
+                    scale.runScale=ps->runSpeedScale;scale.sprintScale=ps->sprintSpeedScale;scale.crouchScale=ps->crouchSpeedScale;
+                    scale.sprintTime=bot->client->pmext.sprintTime;scale.gametype=g_gametype.integer;scale.movespeed=g_movespeed.integer;
+                    scale.tactical=(ps->stats[STAT_TCE_WEAPON_FLAGS]&4)!=0;scale.lean=ps->leanf;
+                    scale.weaponWeight=(ps->weapon>=0&&ps->weapon<TCE_MAX_WEAPONS)?weaponDef[ps->weapon].loadoutWeight:0;
+                    scale.carriedWeight=ps->holdable[9];
+                    const float full=127.f*TCE_PM_CmdScale(&scale);
+                    if(prime)cmd.forwardmove=(signed char)(full>40.f?(int)(127.f*40.f/full+.5f):127);
+                    else if(ps->groundEntityNum==ENTITYNUM_NONE)
+                        cmd.forwardmove=(signed char)(full>160.f?(int)(127.f*160.f/full+.5f):127);
+                    // Forward-only command preserves the full jump factor
+                    // only below50 total speed, with a real grounded capsule.
+                    if(standLaunch && ps->groundEntityNum!=ENTITYNUM_NONE &&
+                        !(ps->pm_flags&(PMF_DUCKED|PMF_LADDER|PMF_RESPAWNED|PMF_JUMP_HELD)) &&
+                        !(ps->eFlags&(EF_PRONE|EF_PRONE_MOVING)) &&
+                        !(ps->stats[STAT_TCE_WEAPON_FLAGS]&0x1000) &&
+                        full>=114.f && TCE_NavStandingSpeed(ps->velocity[0],ps->velocity[1],ps->velocity[2])) {
+                        cmd.upmove=127;
+                        // upmove contributes to PM_CmdScale. Match the native
+                        // first-tick wishspeed <=160/sqrt2 even with light gear;
+                        // forward remains nonzero, retaining the full impulse.
+                        if(full>160.f) {
+                            const float desired=160.f*.70710678f;
+                            cmd.forwardmove=(signed char)(127.f*desired/sqrt(full*full-desired*desired));
+                        }
+                    }
+                    else if(standLaunch&&ps->groundEntityNum!=ENTITYNUM_NONE)
+                        cmd.forwardmove=0; // Cooldown/stance gates must not turn a denied launch into a run off the rim.
+                }
+            }
+
+            // A proved TC ledge uses real forward/jump, then the original
+            // PM_CheckLadderMove/PM_ClimbSlideMove contact. Keep the face yaw
+            // and slight upward pitch after the ordinary Space launch;
+            // do not let 3D steering weaken forwardmove to near zero.
+            if(_input.m_ButtonFlags.CheckFlag(TCE_NAV_FREECLIMB_BUTTON) &&
+                bot->client->ps.stats[STAT_HEALTH]>0 &&
+                !(bot->client->ps.pm_flags&PMF_DUCKED) &&
+                !(bot->client->ps.eFlags&(EF_PRONE|EF_PRONE_MOVING))) {
+                vec3_t travel={_input.m_MoveDir[0],_input.m_MoveDir[1],0};
+                if(VectorNormalize(travel)>0.f) {
+                    playerState_t *ps=&bot->client->ps;tce_moveScale_t scale;
+                    vectoangles(travel,angles);angles[PITCH]=-15.f;SetClientViewAngle(bot,angles);
+                    cmd.buttons&=~(BUTTON_WALKING|BUTTON_SPRINT);
+                    cmd.wbuttons&=~(WBUTTON_ZOOM|WBUTTON_LEANLEFT|WBUTTON_LEANRIGHT|WBUTTON_PRONE);
+                    cmd.forwardmove=127;cmd.rightmove=0;
+                    memset(&scale,0,sizeof(scale));scale.forward=127;scale.speed=ps->speed;
+                    scale.runScale=ps->runSpeedScale;scale.sprintScale=ps->sprintSpeedScale;scale.crouchScale=ps->crouchSpeedScale;
+                    scale.sprintTime=bot->client->pmext.sprintTime;scale.gametype=g_gametype.integer;scale.movespeed=g_movespeed.integer;
+                    scale.tactical=(ps->stats[STAT_TCE_WEAPON_FLAGS]&4)!=0;scale.lean=ps->leanf;
+                    scale.weaponWeight=(ps->weapon>=0&&ps->weapon<TCE_MAX_WEAPONS)?weaponDef[ps->weapon].loadoutWeight:0;
+                    scale.carriedWeight=ps->holdable[9];
+                    const float full=127.f*TCE_PM_CmdScale(&scale);
+                    if(full>204.f)cmd.forwardmove=(signed char)(127.f*204.f/full);
+                    if(full<114.f || (ps->groundEntityNum!=ENTITYNUM_NONE && bot->client->pmext.sprintTime<2500))
+                        cmd.forwardmove=cmd.upmove=0;
+                    // Launch once only; all subsequent attached/air frames
+                    // release Space, retaining the exact PM stamina gates.
+                    if(ps->groundEntityNum==ENTITYNUM_NONE || (ps->pm_flags&PMF_JUMP_HELD))cmd.upmove=0;
+                }
+            }
+			// CLIMB paths use a normalized 3-D steering vector. Before ladder
+			// contact, its tiny horizontal components can truncate to zero in
+			// the signed-char usercmd above; Omni only sends MOVEUP after the
+			// engine reports ONLADDER. Vertical look-ahead also has unstable
+			// yaw even after mounting (confirmed live), causing loss of contact.
+			// A tangential exit must also retain ladder-facing while in contact:
+			// TC interprets forwardmove as climbing, not horizontal movement.
+			// Turn the horizontal request into rightmove until contact is lost.
+			// An inward top exit keeps climbing until actual contact loss;
+			// PM_LadderMove cannot move horizontally through the ladder face.
+			// Outward exits and deliberate jumps keep ordinary control.
+			if (!_input.m_ButtonFlags.CheckFlag(TCE_NAV_FREECLIMB_BUTTON) && !cmd.upmove &&
+				(fabs(_input.m_MoveDir[2]) > .5f || (bot->client->ps.pm_flags & PMF_LADDER)) &&
+				!(bot->client->ps.pm_flags & PMF_DUCKED) &&
+				!(bot->client->ps.eFlags & (EF_PRONE | EF_PRONE_MOVING)) &&
+				((bot->client->ps.pm_flags & PMF_LADDER) ||
+				 (bot->client->ps.groundEntityNum != ENTITYNUM_NONE &&
+				  abs((int)cmd.forwardmove) <= 2 && abs((int)cmd.rightmove) <= 2)) &&
+				bot->client->ps.stats[STAT_HEALTH] > 0)
+			{
+				trace_t mount;
+				vec3_t end, look;
+				static const float mountDirections[8][2] = {
+					{1,0}, {.7071068f,.7071068f}, {0,1}, {-.7071068f,.7071068f},
+					{-1,0}, {-.7071068f,-.7071068f}, {0,-1}, {.7071068f,-.7071068f}
+				};
+				// A vertical path target has no reliable yaw (observed facing
+				// away from the ladder). Discover its actual nearby normal with
+				// short native hull traces, not an assumed waypoint direction.
+				memset(&mount, 0, sizeof(mount));
+				mount.fraction = 1.f;
+				for (int direction = 0; direction < 8; ++direction)
+				{
+					trace_t candidate;
+					VectorCopy(bot->client->ps.origin, end);
+					end[0] += mountDirections[direction][0] * 8.f;
+					end[1] += mountDirections[direction][1] * 8.f;
+					trap_TraceCapsule(&candidate, bot->client->ps.origin,
+						bot->client->ps.mins, bot->client->ps.maxs, end,
+						_client, MASK_PLAYERSOLID & ~CONTENTS_BODY);
+					if (!candidate.startsolid && !candidate.allsolid && candidate.fraction < mount.fraction &&
+						candidate.entityNum == ENTITYNUM_WORLD && (candidate.surfaceFlags & SURF_LADDER) &&
+						fabs(candidate.plane.normal[2]) < .1f)
+						mount = candidate;
+				}
+				if (mount.fraction < 1.f)
+				{
+					const bool vertical = fabs(_input.m_MoveDir[2]) > .5f;
+					vec3_t tangent = { mount.plane.normal[1], -mount.plane.normal[0], 0.f };
+					const bool sideExit = (bot->client->ps.pm_flags & PMF_LADDER) &&
+						fabs(DotProduct(tangent, _input.m_MoveDir)) > .5f;
+					const bool forwardExit = (bot->client->ps.pm_flags & PMF_LADDER) && !vertical &&
+						TCE_NavLadderForwardExit(_input.m_MoveDir[0], _input.m_MoveDir[1],
+							mount.plane.normal[0], mount.plane.normal[1]);
+					if (vertical || sideExit || forwardExit)
+					{
+					VectorScale(mount.plane.normal, -1.f, look);
+						look[2] = forwardExit ? 1.7320508f :
+							(vertical ? (_input.m_MoveDir[2] > 0 ? 1.7320508f : -1.7320508f) : 0.f);
+					vectoangles(look, angles);
+					SetClientViewAngle(bot, angles);
+						cmd.forwardmove = (vertical || forwardExit) ? fMaxSpeed : 0;
+					// Re-project lateral steering against the corrected ladder
+					// orientation, rather than retaining a command from stale yaw.
+					VectorCopy(angles, bodyangles);
+					bodyangles[PITCH] = 0;
+					AngleVectors(bodyangles, forward, right, NULL);
+						cmd.rightmove = forwardExit ? 0 : (signed char)(DotProduct(right, _input.m_MoveDir) * fMaxSpeed);
+					}
+				}
+			}
+
+			// Opt-in isolated navigation diagnosis; never changes bot input.
+			// Keep polling/logging bounded even with many bots in a live server.
+			{
+				static int debugReadTime, debugEnabled, debugNext[MAX_CLIENTS];
+				if (level.time >= debugReadTime || level.time < debugReadTime - 1000)
+				{
+					debugReadTime = level.time + 1000;
+					debugEnabled = trap_Cvar_VariableIntegerValue("tce_navgen_debug");
+				}
+				if (debugEnabled && (debugEnabled > 1 || fabs(_input.m_MoveDir[2]) > .5f) &&
+					(level.time >= debugNext[_client] || level.time < debugNext[_client] - 500))
+				{
+					trace_t trace;
+					vec3_t direction, facingAngles, end;
+					debugNext[_client] = level.time + 500;
+					VectorCopy(bot->client->ps.viewangles, facingAngles);
+					facingAngles[PITCH] = facingAngles[ROLL] = 0;
+					AngleVectors(facingAngles, direction, NULL, NULL);
+					VectorMA(bot->client->ps.origin, 8.f, direction, end);
+					trap_TraceCapsule(&trace, bot->client->ps.origin,
+						bot->client->ps.mins, bot->client->ps.maxs, end,
+						_client, MASK_PLAYERSOLID & ~CONTENTS_BODY);
+					G_Printf("NAVLADDER %d dir %.5f %.5f %.5f facing %.4f %.4f %.4f cmd %d %d %d flags %x ground %d angles %.2f %.2f %.2f moveup %d movedn %d trace %.5f solid %d/%d ent %d surf %x normal %.3f %.3f %.3f\n",
+						_client, _input.m_MoveDir[0], _input.m_MoveDir[1], _input.m_MoveDir[2],
+						_input.m_Facing[0], _input.m_Facing[1], _input.m_Facing[2],
+						(int)cmd.forwardmove, (int)cmd.rightmove, (int)cmd.upmove,
+						bot->client->ps.pm_flags, bot->client->ps.groundEntityNum,
+						bot->client->ps.viewangles[0], bot->client->ps.viewangles[1], bot->client->ps.viewangles[2],
+						_input.m_ButtonFlags.CheckFlag(BOT_BUTTON_MOVEUP) ? 1 : 0,
+						_input.m_ButtonFlags.CheckFlag(BOT_BUTTON_MOVEDN) ? 1 : 0,
+						trace.fraction, trace.startsolid, trace.allsolid, trace.entityNum,
+						trace.surfaceFlags, trace.plane.normal[0], trace.plane.normal[1], trace.plane.normal[2]);
+				}
+			}
 		}
 		trap_BotUserCommand(_client, &cmd);
 	}
@@ -1390,6 +1687,13 @@ public:
 					_pBBox ? _pBBox->m_Maxs : NULL,
 					_end, _user, iMask);
 			}
+			else if((_mask & TR_MASK_NAVCAPSULE) && _pBBox)
+			{
+				// Navigation uses the same capsule as player movement/native
+				// waypoint validation. Ordinary aiming and box traces stay boxes.
+				TCE_NavCapsuleTrace(&tr, _start, _pBBox->m_Mins, _pBBox->m_Maxs,
+					_end, _user, iMask);
+			}
 			else
 			{
 				trap_Trace(&tr, _start,
@@ -1398,6 +1702,17 @@ public:
 					_end, _user, iMask);
 			}
 
+			// Each navigation support sweep rechecks the lifetime/pose of an
+			// entity floor. A removed, destroyed, or moving support is a gap;
+			// generator acceptance never turns it into immutable world ground.
+			if((_mask & TR_MASK_NAVCAPSULE) && _pBBox && _end[2] < _start[2] &&
+				tr.fraction < 1.f && !tr.startsolid && tr.plane.normal[2] >= .7f &&
+				!TCE_NavGroundKind(tr.entityNum))
+			{
+				tr.fraction = 1.f;
+				tr.entityNum = ENTITYNUM_NONE;
+				VectorCopy(_end, tr.endpos);
+			}
 			if((tr.entityNum != ENTITYNUM_WORLD) && (tr.entityNum != ENTITYNUM_NONE))
 				_result.m_HitEntity = HandleFromEntity(&g_entities[tr.entityNum]);
 			else
@@ -2532,14 +2847,8 @@ public:
 					if(!Q_stricmp(pEnt->classname, "team_CTF_redflag") ||
 						!Q_stricmp(pEnt->classname, "team_CTF_blueflag"))
 					{
-						int iFlagEntNum = pEnt - g_entities;
-						for(int i = 0; i < g_maxclients.integer; ++i)
-						{
-							if(g_entities[i].inuse && g_entities[i].client && g_entities[i].client->flagParent == iFlagEntNum)
-							{
-								owner = HandleFromEntity(&g_entities[i]);
-							}
-						}
+                        const int carrier=TceFlagCarrier(pEnt);
+                        if(carrier>=0)owner=HandleFromEntity(&g_entities[carrier]);
 					}
 					break;
 				}
@@ -2626,6 +2935,20 @@ public:
 				continue;
 
 			const char *pGoalName = _GetEntityName(e);
+            char tceGoalFallback[64];
+
+            /* TC uses activate-held actions for capture, plant and defuse.
+             * Register the trigger as an entity-bound goal; generated GM data
+             * supplies a collision-checked use point instead of a brush center.
+             * Stock ET engineer/weapon goals cannot execute these TC actions. */
+            if (TceObjectiveOperation(e)) {
+                    if (!pGoalName || !*pGoalName) {
+                        Com_sprintf(tceGoalFallback, sizeof(tceGoalFallback), "objective_%d", i);
+                        pGoalName = tceGoalFallback;
+                    }
+                    Bot_Util_AddGoal("TCEOBJECTIVE", e,
+                        (1 << ET_TEAM_AXIS) | (1 << ET_TEAM_ALLIES), pGoalName);
+            }
 
 			switch(e->s.eType)
 			{
@@ -3262,17 +3585,9 @@ public:
 				OB_GETMSG(Msg_FlagState);
 				if(pMsg)
 				{
-					/* CS: flagreturn position is not updated while its carried.
-					if(pEnt)
-					{
-					if(!(pEnt->flags & FL_DROPPED_ITEM) && !(pEnt->flags & FL_NODRAW))
-					pMsg->m_FlagState = S_FLAG_AT_BASE;
-					else if(pEnt->flags & FL_NODRAW)
-					pMsg->m_FlagState = S_FLAG_CARRIED;
-					else if(pEnt->flags & FL_DROPPED_ITEM)
-					pMsg->m_FlagState = S_FLAG_DROPPED;
-					}
-					*/
+                    int carrier=-1;
+                    pMsg->m_FlagState=TceReadFlagState(pEnt,&carrier);
+                    pMsg->m_Owner=carrier>=0?HandleFromEntity(&g_entities[carrier]):GameEntity();
 				}
 				break;
 			}
@@ -3329,12 +3644,142 @@ public:
 				OB_GETMSG(Msg_EntityStat);
 				if(pMsg)
 				{
-					if(pEnt && pEnt->client && !strcmp(pMsg->m_StatName, "kills"))
+					if(!strncmp(pMsg->m_StatName, "tce_door_sweep:", 15)) {
+                        int number = -1, model = -1; vec3_t feet; float width, height; char trailing;
+                        const bool parsed = sscanf(pMsg->m_StatName + 15, "%d:%d:%f,%f,%f:%f:%f%c",
+                            &number, &model, &feet[0], &feet[1], &feet[2], &width, &height, &trailing) == 7;
+                        const bool identity = parsed && number >= MAX_CLIENTS && number < level.num_entities &&
+                            g_entities[number].inuse && g_entities[number].s.modelindex == model;
+                        pMsg->m_Result = obUserData(identity && TCE_NavDoorSweepSafe(number, feet, width, height, 2.f) ? 1 : 0);
+                    }
+                    else if(!strncmp(pMsg->m_StatName, "tce_door_speed:", 15)) {
+                        int crouched = -1, walking = -1; char trailing;
+                        const bool parsed = sscanf(pMsg->m_StatName + 15, "%d:%d%c", &crouched, &walking, &trailing) == 2;
+                        pMsg->m_Result = obUserData(parsed && (crouched == 0 || crouched == 1) &&
+                            (walking == 0 || walking == 1) ? TceNavDoorForwardSpeed(pEnt, crouched, walking) : -1);
+                    }
+                    else if(!strncmp(pMsg->m_StatName, "tce_use_door:", 13)) {
+                        int doorNumber = -1, model = -1; char trailing;
+                        const bool parsed = sscanf(pMsg->m_StatName + 13, "%d:%d%c", &doorNumber, &model, &trailing) == 2;
+                        pMsg->m_Result = obUserData(pEnt && parsed &&
+                            TCE_NavDoorUseMatches((int)(pEnt-g_entities), doorNumber, model) ? 1 : 0);
+                    }
+                    else if(!strcmp(pMsg->m_StatName, "tce_free_climb_ready"))
+                        pMsg->m_Result=obUserData(TceNavFreeClimbBlockers(pEnt,pEnt&&Bot_Interface_IsOmnibot(pEnt->s.number))==0?1:0);
+                    else if(!strcmp(pMsg->m_StatName, "tce_free_climb_blockers"))
+                        pMsg->m_Result=obUserData(TceNavFreeClimbBlockers(pEnt,pEnt&&Bot_Interface_IsOmnibot(pEnt->s.number)));
+                    else if(pEnt && pEnt->client && !strcmp(pMsg->m_StatName, "tce_free_climb_pmflags"))
+                        pMsg->m_Result=obUserData(pEnt->client->ps.pm_flags);
+                    else if(pEnt && pEnt->client && !strcmp(pMsg->m_StatName, "tce_free_climb_tcflags"))
+                        pMsg->m_Result=obUserData(pEnt->client->ps.stats[STAT_TCE_FLAGS]);
+                    else if(pEnt && pEnt->client && !strcmp(pMsg->m_StatName, "tce_free_climb_wflags"))
+                        pMsg->m_Result=obUserData(pEnt->client->ps.stats[STAT_TCE_WEAPON_FLAGS]);
+                    else if(pEnt && pEnt->client && !strcmp(pMsg->m_StatName, "tce_free_climb_wstate"))
+                        pMsg->m_Result=obUserData(pEnt->client->ps.weaponstate);
+                    else if(pEnt && pEnt->client && !strcmp(pMsg->m_StatName, "tce_free_climb_ground"))
+                        pMsg->m_Result=obUserData(pEnt->client->ps.groundEntityNum);
+                    else if(pEnt && pEnt->client && !strcmp(pMsg->m_StatName, "tce_free_climb_stamina"))
+                        pMsg->m_Result = obUserData(pEnt->client->pmext.sprintTime);
+                    else if(!strcmp(pMsg->m_StatName, "tce_use_identity"))
+                        pMsg->m_Result = obUserData(TceNavUseIdentity(pEnt));
+                    else if(!strcmp(pMsg->m_StatName, "tce_nav_model"))
+                        pMsg->m_Result = obUserData(TceNavUseKind(pEnt) ? pEnt->s.modelindex : -1);
+                    else if(!strcmp(pMsg->m_StatName, "tce_nav_use_kind"))
+                        pMsg->m_Result = obUserData(TceNavUseKind(pEnt));
+                    else if(!strcmp(pMsg->m_StatName, "tce_door_state"))
+                        pMsg->m_Result = obUserData(TceNavDoorGroupStat(pEnt, 0));
+                    else if(!strcmp(pMsg->m_StatName, "tce_door_locked"))
+                        pMsg->m_Result = obUserData(TceNavDoorGroupStat(pEnt, 1));
+                    else if(!strcmp(pMsg->m_StatName, "tce_door_team"))
+                        pMsg->m_Result = obUserData(TceNavDoorGroupStat(pEnt, 2));
+                    else if(!strcmp(pMsg->m_StatName, "tce_door_open_remaining"))
+                        pMsg->m_Result = obUserData(TceNavDoorGroupStat(pEnt, 3));
+                    else if(!strcmp(pMsg->m_StatName, "tce_door_force"))
+                        pMsg->m_Result = obUserData(TceNavDoorGroupStat(pEnt, 4));
+                    else if(pEnt && pEnt->client && !strcmp(pMsg->m_StatName, "kills"))
 						pMsg->m_Result = obUserData(pEnt->client->sess.kills);
 					else if(pEnt && pEnt->client && !strcmp(pMsg->m_StatName, "deaths"))
 						pMsg->m_Result = obUserData(pEnt->client->sess.deaths);
 					else if(pEnt && pEnt->client && !strcmp(pMsg->m_StatName, "xp"))
 						pMsg->m_Result = obUserData(pEnt->client->ps.stats[STAT_XP]);
+                    else if(pEnt && !strcmp(pMsg->m_StatName, "tce_gametype"))
+                        pMsg->m_Result = obUserData(g_gametype.integer);
+                    else if(pEnt && !strcmp(pMsg->m_StatName, "tce_bomb_planted"))
+                        pMsg->m_Result = obUserData(level.tceBombPlanted ? 1 : 0);
+                    else if(pEnt && pEnt->client && !strcmp(pMsg->m_StatName, "tce_bomb_carrier"))
+                        pMsg->m_Result = obUserData((pEnt->client->ps.stats[STAT_TCE_WEAPON_FLAGS] & 0x100) ? 1 : 0);
+                    else if(pEnt && pEnt->client && !strcmp(pMsg->m_StatName, "tce_cursor_hint"))
+                        pMsg->m_Result = obUserData(pEnt->client->ps.serverCursorHint);
+                    else if(pEnt && pEnt->client && !strcmp(pMsg->m_StatName, "tce_objective_contact"))
+                        pMsg->m_Result = obUserData(pEnt->client->tceObjectiveContact ? 1 : 0);
+                    else if(pEnt && pEnt->client && pEnt-g_entities>=0 && pEnt-g_entities<MAX_CLIENTS &&
+                            !strcmp(pMsg->m_StatName, "tce_bomb_plant_count"))
+                        pMsg->m_Result = obUserData(tceObjectiveObserved[pEnt-g_entities].plantCount);
+                    else if(pEnt && pEnt->client && pEnt-g_entities>=0 && pEnt-g_entities<MAX_CLIENTS &&
+                            !strcmp(pMsg->m_StatName, "tce_bomb_defuse_count"))
+                        pMsg->m_Result = obUserData(tceObjectiveObserved[pEnt-g_entities].defuseCount);
+                    else if(pEnt && pEnt->client && pEnt-g_entities>=0 && pEnt-g_entities<MAX_CLIENTS &&
+                            !strcmp(pMsg->m_StatName, "tce_last_plant_time"))
+                        pMsg->m_Result = obUserData(tceObjectiveObserved[pEnt-g_entities].plantTime);
+                    else if(pEnt && pEnt->client && pEnt-g_entities>=0 && pEnt-g_entities<MAX_CLIENTS &&
+                            !strcmp(pMsg->m_StatName, "tce_last_defuse_time"))
+                        pMsg->m_Result = obUserData(tceObjectiveObserved[pEnt-g_entities].defuseTime);
+                    else if(pEnt && pEnt->client && pEnt-g_entities>=0 && pEnt-g_entities<MAX_CLIENTS &&
+                            !strcmp(pMsg->m_StatName, "tce_last_plant_bomb"))
+                        pMsg->m_Result = obUserData(tceObjectiveObserved[pEnt-g_entities].plantBomb);
+                    else if(pEnt && pEnt->client && pEnt-g_entities>=0 && pEnt-g_entities<MAX_CLIENTS &&
+                            !strcmp(pMsg->m_StatName, "tce_last_plant_objective"))
+                        pMsg->m_Result = obUserData(tceObjectiveObserved[pEnt-g_entities].plantObjective);
+                    else if(pEnt && pEnt->client && pEnt-g_entities>=0 && pEnt-g_entities<MAX_CLIENTS &&
+                            !strcmp(pMsg->m_StatName, "tce_last_defuse_bomb"))
+                        pMsg->m_Result = obUserData(tceObjectiveObserved[pEnt-g_entities].defuseBomb);
+                    else if(!strcmp(pMsg->m_StatName, "tce_objective_operation"))
+                        pMsg->m_Result = obUserData(TceObjectiveOperation(pEnt));
+                    else if(pEnt && pEnt->s.eType == ET_OID_TRIGGER && !strcmp(pMsg->m_StatName, "tce_objective_owner"))
+                        pMsg->m_Result = obUserData(pEnt->spawnflags & (AXIS_OBJECTIVE | ALLIED_OBJECTIVE));
+                    else if(pEnt && pEnt->s.eType == ET_OID_TRIGGER && !strcmp(pMsg->m_StatName, "tce_objective_state"))
+                        pMsg->m_Result = obUserData(pEnt->target_ent && pEnt->target_ent->inuse ? pEnt->target_ent->entstate : 4);
+                    else if(pEnt && pEnt->s.eType == ET_OID_TRIGGER && !strcmp(pMsg->m_StatName, "tce_objective_bomb")) {
+                        if (g_gametype.integer == 2) {
+                            pMsg->m_Result = obUserData(TceExactObjectiveBomb(pEnt));
+                        } else {
+                        int bomb = -1;
+                        float best = 512.0f * 512.0f;
+                        if(level.tceBombPlanted) {
+                            for(int i = MAX_CLIENTS; i < level.num_entities; ++i) {
+                                gentity_t *candidate = &g_entities[i];
+                                if(!candidate->inuse || candidate->s.weapon != 15 || candidate->methodOfDeath != MOD_DYNAMITE ||
+                                    candidate->health >= 248 || candidate->s.teamNum < TEAM_AXIS || candidate->s.teamNum > TEAM_ALLIES ||
+                                    (candidate->s.eType != ET_MISSILE && candidate->s.eType != 35)) continue;
+                                vec3_t center, offset;
+                                for(int axis = 0; axis < 3; ++axis)
+                                    center[axis] = (pEnt->r.absmin[axis] + pEnt->r.absmax[axis]) * .5f;
+                                VectorSubtract(candidate->r.currentOrigin, center, offset);
+                                float distance = DotProduct(offset, offset);
+                                if(distance < best) { best = distance; bomb = i; }
+                            }
+                        }
+                        pMsg->m_Result = obUserData(bomb);
+                        }
+                    }
+                    else if(pEnt && !strcmp(pMsg->m_StatName, "tce_bomb_team"))
+                        pMsg->m_Result = obUserData(pEnt->s.weapon == 15 ? pEnt->s.teamNum : 0);
+                    else if(pEnt&&pEnt->client&&(pEnt-g_entities)<MAX_CLIENTS&&!strcmp(pMsg->m_StatName,"tce_flag_capture_count"))
+                        pMsg->m_Result=obUserData(tceObjectiveObserved[pEnt-g_entities].flagCaptureCount);
+                    else if(pEnt&&pEnt->client&&(pEnt-g_entities)<MAX_CLIENTS&&!strcmp(pMsg->m_StatName,"tce_last_flag_capture_time"))
+                        pMsg->m_Result=obUserData(tceObjectiveObserved[pEnt-g_entities].flagCaptureTime);
+                    else if(pEnt&&pEnt->client&&(pEnt-g_entities)<MAX_CLIENTS&&!strcmp(pMsg->m_StatName,"tce_last_flag_capture_trigger"))
+                        pMsg->m_Result=obUserData(tceObjectiveObserved[pEnt-g_entities].flagCaptureTrigger);
+                    else if(pEnt&&pEnt->client&&(pEnt-g_entities)<MAX_CLIENTS&&!strcmp(pMsg->m_StatName,"tce_last_flag_capture_parent"))
+                        pMsg->m_Result=obUserData(tceObjectiveObserved[pEnt-g_entities].flagCaptureParent);
+                    else if(pEnt&&pEnt->client&&(pEnt-g_entities)<MAX_CLIENTS&&!strcmp(pMsg->m_StatName,"tce_carried_flag"))
+                        pMsg->m_Result=obUserData(pEnt->client->ps.powerups[PW_REDFLAG]||pEnt->client->ps.powerups[PW_BLUEFLAG]?pEnt->client->flagParent:-1);
+                    else if(pEnt&&pEnt->client&&(pEnt-g_entities)<MAX_CLIENTS&&!strcmp(pMsg->m_StatName,"tce_carried_flag_tag"))
+                        pMsg->m_Result=obUserData(pEnt->client->ps.powerups[PW_REDFLAG]?PW_REDFLAG:pEnt->client->ps.powerups[PW_BLUEFLAG]?PW_BLUEFLAG:0);
+                    else if(pEnt && !strcmp(pMsg->m_StatName, "tce_flag_captures") &&
+                            pEnt->classname && (!Q_stricmp(pEnt->classname, "team_CTF_redflag") ||
+                                                !Q_stricmp(pEnt->classname, "team_CTF_blueflag")))
+                        pMsg->m_Result = obUserData(pEnt->s.density);
 				}
 				break;
 			}
@@ -4269,6 +4714,8 @@ public:
 
 void Bot_Interface_InitHandles()
 {
+    memset(tceObjectiveObserved,0,sizeof(tceObjectiveObserved));
+    memset(tceBombBindings,0,sizeof(tceBombBindings));
     memset(tceOmniClients,0,sizeof(tceOmniClients));
     memset(tceOmniWeaponBits,0,sizeof(tceOmniWeaponBits));
     memset(tceOmniSuicide,0,sizeof(tceOmniSuicide));

@@ -577,6 +577,11 @@ typedef struct {
 	// these will be different functions during game and cgame
 	void		(*trace)( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentMask );
 	int			(*pointcontents)( const vec3_t point, int passEntityNum );
+#ifdef GAMEDLL
+	/* One trusted Omni input may use the original TC free-climb physics.
+	 * Server-local tail field; playerState/network and cgame layout unchanged. */
+	qboolean tceBotFreeClimb;
+#endif
 } pmove_t;
 
 // if a full pmove isn't done on the client, you can just update the angles

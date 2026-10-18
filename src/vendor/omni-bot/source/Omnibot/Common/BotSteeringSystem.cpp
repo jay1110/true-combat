@@ -10,6 +10,7 @@ namespace AiState
 		: StateChild("SteeringSystem")
 		, m_TargetVector	(Vector3f::ZERO)
 		, m_TargetRadius	(32.f)
+		, m_InputScale	(1.f)
 		, m_MoveMode		(Run)
 		, m_DistanceToTarget(0.f)
 		, m_MoveVec			(Vector3f::ZERO)
@@ -39,10 +40,11 @@ namespace AiState
 		return m_bMoveEnabled ? m_MoveVec : Vector3f::ZERO;
 	}
 
-	bool SteeringSystem::SetTarget(const Vector3f &_pos, float _radius, MoveMode _movemode, bool _in3d)
+	bool SteeringSystem::SetTarget(const Vector3f &_pos, float _radius, MoveMode _movemode, bool _in3d, float _inputScale)
 	{
 		m_TargetVector = _pos;	
 		m_TargetRadius = _radius;
+		m_InputScale = ClampT(_inputScale, 0.f, 1.f);
 		m_TargetVector3d = _in3d;
 		m_MoveMode = _movemode;
 		m_MoveType = Arrive;
@@ -93,6 +95,9 @@ namespace AiState
 			m_MoveVec = Vector3f::ZERO;
 			return;
 		}
+		// Optional input taper for a precise, physically stationary action
+		// launch. Ordinary targets keep unit input; no velocity is modified.
+		m_MoveVec *= m_InputScale;
 
 		//////////////////////////////////////////////////////////////////////////
 

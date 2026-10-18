@@ -1,0 +1,31 @@
+// TC actions are owned and validated by the server. Bind to its live trigger.
+this.GoalType = "TCEOBJECTIVE";
+this.Version = 1;
+this.DefaultPriority = 1.2;
+this.CreateOnLoad = false;
+this.RemoveWithEntity = true;
+this.MinRadius = 10;
+this.MaxUsers_InUse(1);
+this.MaxUsers_InProgress(2);
+this.Schema = Schema();
+this.Schema.UsePosition = Validate.Type("vector3").Default(Vector3(0,0,0));
+this.Schema.AimPosition = Validate.Type("vector3").Default(Vector3(0,0,0));
+this.Schema.ActivationRadius = Validate.NumRange(1,40).Default(12);
+this.Schema.Operation = Validate.Type("string").Default("");
+this.Schema.Check(this);
+this.UpgradeVersion = function(Props)
+{
+ this.Schema.Check(Props);
+ this.UsePosition = Props.UsePosition;
+ this.AimPosition = Props.AimPosition;
+ this.ActivationRadius = Props.ActivationRadius;
+ this.Operation = Props.Operation;
+ if(!this.Schema.Check(this)) { this.DisableGoal(true); }
+};
+this.Serialize = function(Props)
+{
+ Props.UsePosition = this.UsePosition;
+ Props.AimPosition = this.AimPosition;
+ Props.ActivationRadius = this.ActivationRadius;
+ Props.Operation = this.Operation;
+};

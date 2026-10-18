@@ -13,13 +13,6 @@ void CG_WaterRipple(qhandle_t,vec3_t,vec3_t,int,int);
 void CG_AddDebris(vec3_t,vec3_t,int,int,int);
 
 /* Original eight-argument wall controller and all its material/media groups. */
-static int volume(vec3_t origin,float amount,float range,int linear) {
-    tce_fragmentSoundContext_t s;
-    memset(&s,0,sizeof(s));VectorCopy(cg.refdef.vieworg,s.listener);
-    s.distanceVariant=tceSmokeNewBBox;s.attenuation=tceFlash.deafness;
-    s.disabled=cg.tcePortalScopeRendering;
-    return TCE_CG_SoundVolume(origin,amount,range,linear,&s);
-}
 static void printMessage(const char *s) { CG_Printf("%s",s); }
 static void particle(vec3_t p,vec3_t d,int count,int type,float alpha) {
     tce_impactParticleMedia_t m;
@@ -64,7 +57,7 @@ void CG_TCEMissileHitWall(int weapon,int effect,vec3_t origin,vec3_t normal,vec3
     s.flatSparks=CG_FlatSparks;s.explode=CG_Explodef;s.registerShader=trap_R_RegisterShader;
     /* Original weaponDef base34c1df20, field34c1e068 = pelletCount(+148). */
     for(i=0;i<64;++i)s.weaponMaterialMode[i]=weaponDef[i].pelletCount;
-    s.soundVolume=volume;s.print=printMessage;s.particle=particle;
+    s.soundVolume=CG_SoundVolume;s.print=printMessage;s.particle=particle;
     s.concussion=flash;s.sparks=CG_GlowSparks;
     s.debrisParticles=CG_EliteAddBulletParticles;s.smokePuff=puff;
     s.cmPointContents=trap_CM_PointContents;s.boxTrace=trap_CM_BoxTrace;
@@ -81,8 +74,10 @@ void CG_TCEMissileHitWall(int weapon,int effect,vec3_t origin,vec3_t normal,vec3
     s.media.snow=cgs.media.tceImpactSand;
     s.media.grass=cgs.media.tceImpactGravel;
     s.media.mud=cgs.media.tceImpactSoil;
-    s.media.explosive4=trap_S_RegisterSound("sound/weapons/grenade/m84_boost.wav",qfalse);
-    s.media.explosive30=trap_S_RegisterSound("sound/weapons/grenade/m83smoke_boost.wav",qfalse);
+    /* Original impacts read the handles populated by CG_RegisterSounds;
+     * registering here adds loading/formatter callbacks to every impact. */
+    s.media.explosive4=cgs.media.tceGrenadeBoost[1];
+    s.media.explosive30=cgs.media.tceGrenadeBoost[2];
     {
         s.media.bulletDefault=cgs.media.bulletMarkShader;
         s.media.bulletStone=cgs.media.tceBulletStoneMark;
@@ -93,25 +88,25 @@ void CG_TCEMissileHitWall(int weapon,int effect,vec3_t origin,vec3_t normal,vec3
         s.media.exitWood=cgs.media.tceBulletWoodExit;
         s.media.bulletGlass=cgs.media.bulletMarkShaderGlass;
         for(i=0;i<5;++i) {
-            s.media.fabricHit[i]=trap_S_RegisterSound(va("sound/weapons/impact/bullethit_fence%i.wav",i+1),qfalse);
-            s.media.metal2Hit[i]=trap_S_RegisterSound(va("sound/weapons/impact/bullethit_tin%i.wav",i+1),qfalse);
-            s.media.strawHit[i]=trap_S_RegisterSound(va("sound/weapons/impact/bullethit_foliage%i.wav",i+1),qfalse);
-            s.media.metalHit[i]=trap_S_RegisterSound(va("sound/weapons/impact/metal%i.wav",i+1),qfalse);
-            s.media.woodHit[i]=trap_S_RegisterSound(va("sound/weapons/impact/wood%i.wav",i+1),qfalse);
-            s.media.glassHit[i]=trap_S_RegisterSound(va("sound/weapons/impact/glass%i.wav",i+1),qfalse);
-            s.media.stoneHit[i]=trap_S_RegisterSound(va("sound/weapons/impact/stone%i.wav",i+1),qfalse);
+            s.media.fabricHit[i]=cgs.media.tceBulletFence[i];
+            s.media.metal2Hit[i]=cgs.media.tceBulletTin[i];
+            s.media.strawHit[i]=cgs.media.tceBulletFoliage[i];
+            s.media.metalHit[i]=cgs.media.sfx_bullet_metalhit[i];
+            s.media.woodHit[i]=cgs.media.sfx_bullet_woodhit[i];
+            s.media.glassHit[i]=cgs.media.sfx_bullet_glasshit[i];
+            s.media.stoneHit[i]=cgs.media.sfx_bullet_stonehit[i];
         }
     }
     s.media.knife=cgs.media.tceKnifeMark;
-    for(i=0;i<4;++i)s.media.knifeFlesh[i]=trap_S_RegisterSound(va("sound/weapons/knife/knife_hit%i.wav",i+1),qfalse);
-    s.media.knifeWall=trap_S_RegisterSound("sound/weapons/knife/knife_hitwall1.wav",qfalse);
-    s.media.explosion=trap_S_RegisterSound("sound/weapons/rocket/rocket_expl.wav",qfalse);
-    s.media.explosionFar=trap_S_RegisterSound("sound/weapons/rocket/rocket_expl_far.wav",qfalse);
-    s.media.explosionWater=trap_S_RegisterSound("sound/weapons/grenade/gren_expl_water.wav",qfalse);
-    s.media.grenade=trap_S_RegisterSound("sound/weapons/grenade/mk3a2_boost.wav",qfalse);
-    s.media.grenadeFar=trap_S_RegisterSound("sound/weapons/grenade/gren_expl_far.wav",qfalse);
-    s.media.artillery=trap_S_RegisterSound("sound/weapons/dynamite/dynamite_expl.wav",qfalse);
-    s.media.artilleryFar=trap_S_RegisterSound("sound/weapons/dynamite/dynamite_expl_far.wav",qfalse);
+    for(i=0;i<4;++i)s.media.knifeFlesh[i]=cgs.media.sfx_knifehit[i];
+    s.media.knifeWall=cgs.media.sfx_knifehit[4];
+    s.media.explosion=cgs.media.sfx_rockexp;
+    s.media.explosionFar=cgs.media.sfx_rockexpDist;
+    s.media.explosionWater=cgs.media.sfx_rockexpWater;
+    s.media.grenade=cgs.media.tceGrenadeBoost[0];
+    s.media.grenadeFar=cgs.media.sfx_grenexpDist;
+    s.media.artillery=cgs.media.sfx_dynamiteexp;
+    s.media.artilleryFar=cgs.media.sfx_dynamiteexpDist;
     /* CG_RegisterSounds30048e80 explicitly clears rocket[3]/mortar[3], their
      * far handles, dynamite and satchel handles. Preserve zero, not SDK sounds. */
     TCE_CG_MissileHitWall(weapon,effect,origin,normal,direction,flags,forceEffect,materialIsType,&s);
@@ -126,15 +121,11 @@ void CG_TCEBullet(vec3_t end,int source,vec3_t normal,int flesh,int victim,int o
     float water,int seed,int damage,vec3_t start,int predicted) {
     static int lastBloodSpat;
     tce_bulletRendererContext_t c;
-    int i;
     memset(&c,0,sizeof(c));c.wall=CG_TCEMissileHitWall;c.particle=particle;
-    c.mark=mark;c.soundVolume=volume;c.attenuation=tceFlash.deafness;
+    c.mark=mark;c.soundVolume=CG_SoundVolume;c.attenuation=tceFlash.deafness;
     c.portal=cg.tcePortalScopeRendering;c.lastBloodSpat=&lastBloodSpat;
-    /* Original CG_RegisterSounds30048e80 uses TC flesh, not SDK fleshN.wav. */
-    for(i=0;i<5;++i) {
-        cgs.media.sfx_bullet_fleshhit[i]=trap_S_RegisterSound(va("sound/weapons/impact/bullethit_flesh%i.wav",i+1),qfalse);
-        cgs.media.sfx_bullet_waterhit[i]=trap_S_RegisterSound(va("sound/weapons/impact/water%i.wav",i+1),qfalse);
-    }
+    /* The delegated original consumer reads the flesh/water handles already
+     * populated by CG_RegisterSounds. Do not reload them for every bullet. */
     TCE_CG_Bullet(end,source,normal,flesh,victim,other,water,seed,damage,start,predicted,&c);
 }
 static void predictedWall(int weapon,int effect,vec3_t origin,vec3_t normal,vec3_t direction,int flags,int force,int material) {

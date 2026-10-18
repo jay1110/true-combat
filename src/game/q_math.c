@@ -2,6 +2,7 @@
 //
 // q_math.c -- stateless support routines that are included in each code module
 #include "q_shared.h"
+#include "tce_numeric.h"
 
 
 vec3_t	vec3_origin = {0,0,0};
@@ -164,114 +165,41 @@ vec3_t	bytedirs[NUMVERTEXNORMALS] =
 
 //==============================================================
 
-/* TC 748: original modulo-32 seed update and platform x87 return/store chain. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-static const float tceRandomScale748 = 0.0000152587890625f;
-static const double tceRandomHalf748 = 0.5;
-__declspec(naked) int Q_rand(int *seed) {
- __asm {
-  mov edx,dword ptr [esp + 0x4]
-  mov ecx,dword ptr [edx]
-  lea eax,[ecx + ecx*0x4]
-  shl eax,0x8
-  sub eax,ecx
-  lea eax,[eax + eax*0x8]
-  lea eax,[ecx + eax*0x2]
-  lea eax,[eax + eax*0x2 + 0x1]
-  mov dword ptr [edx],eax
-  ret
- }
+/* The native seed is a signed32 object with a modulo32 update. Unsigned
+ * arithmetic defines the overflow; copying its bits avoids an out-of-range
+ * unsigned-to-signed conversion. The returned value is the value just stored. */
+typedef char tceRandomSeedLayout_t[(CHAR_BIT == 8 && sizeof(int) == 4 && sizeof(unsigned int) == 4 &&
+    UINT_MAX == 0xffffffffu && INT_MAX == 2147483647 &&
+    INT_MIN == (-2147483647 - 1)) ? 1 : -1];
+
+int Q_rand(int *seed) {
+    unsigned int next = (unsigned int)*seed * 69069u + 1u;
+    int result;
+    memcpy(&result, &next, sizeof(result));
+    *seed = result;
+    return result;
 }
-__declspec(naked) float Q_random(int *seed) {
- __asm {
-  mov eax,dword ptr [esp + 0x4]
-  push eax
-  call Q_rand
-  and eax,0xffff
-  add esp,0x4
-  mov dword ptr [esp + 0x4],eax
-  fild dword ptr [esp + 0x4]
-  fmul dword ptr tceRandomScale748
-  ret
- }
+
+/* The masked seed has at most 16 significant bits. Both the scale and
+ * the centered result are exact binary32 values for every int seed. */
+typedef char tceRandomFloatLayout_t[(sizeof(float) == 4 && FLT_RADIX == 2 &&
+    FLT_MANT_DIG == 24 && FLT_MIN_EXP == -125 && FLT_MAX_EXP == 128) ? 1 : -1];
+
+float Q_random(int *seed) {
+    unsigned int low = (unsigned int)Q_rand(seed) & 0xffffu;
+    return (float)low * 0.0000152587890625f;
 }
-__declspec(naked) float Q_crandom(int *seed) {
- __asm {
-  mov eax,dword ptr [esp + 0x4]
-  push eax
-  call Q_random
-  fsub qword ptr tceRandomHalf748
-  add esp,0x4
-  fadd st(0),st(0)
-  ret
- }
-}
-#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-__attribute__((naked)) int Q_rand(int *seed) {
- __asm__(
- ".intel_syntax noprefix\n"
- "mov ecx,dword ptr [esp + 0x4]\n"
- "mov eax,dword ptr [ecx]\n"
- "imul eax,eax,0x10dcd\n"
- "inc eax\n"
- "mov dword ptr [ecx],eax\n"
- "ret\n"
- ".att_syntax prefix\n"
- );
-}
-__attribute__((naked)) float Q_random(int *seed) {
- __asm__(
- ".intel_syntax noprefix\n"
- "sub esp,0xc\n"
- "mov edx,dword ptr [esp + 0x10]\n"
- "mov dword ptr [esp + 0x8],ebx\n"
- "mov dword ptr [esp],edx\n"
- "call Q_rand\n"
- "and eax,0xffff\n"
- "push eax\n"
- "fild dword ptr [esp]\n"
- "mov dword ptr [esp+8],0x37800000\n"
- "fmul dword ptr [esp+8]\n"
- "mov ebx,dword ptr [esp + 0xc]\n"
- "add esp,0x10\n"
- "ret\n"
- ".att_syntax prefix\n"
- );
-}
-__attribute__((naked)) float Q_crandom(int *seed) {
- __asm__(
- ".intel_syntax noprefix\n"
- "sub esp,0xc\n"
- "mov edx,dword ptr [esp + 0x10]\n"
- "mov dword ptr [esp + 0x8],ebx\n"
- "mov dword ptr [esp],edx\n"
- "call Q_random\n"
- "mov dword ptr [esp+4],0x3f000000\n"
- "fld dword ptr [esp+4]\n"
- "mov ebx,dword ptr [esp + 0x8]\n"
- "fsubp st(1),st(0)\n"
- "fadd st(0),st(0)\n"
- "fstp dword ptr [esp + 0x4]\n"
- "fld dword ptr [esp + 0x4]\n"
- "add esp,0xc\n"
- "ret\n"
- ".att_syntax prefix\n"
- );
-}
+
+float Q_crandom(int *seed) {
+    long double centered = (long double)Q_random(seed) - 0.5L;
+#if defined(__linux__)
+    /* The ELF body stores and reloads its final result as float. */
+    volatile float result = (float)(centered + centered);
+    return result;
 #else
-int		Q_rand( int *seed ) {
-	*seed = (69069 * *seed + 1);
-	return *seed;
-}
-
-float	Q_random( int *seed ) {
-	return ( Q_rand( seed ) & 0xffff ) / (float)0x10000;
-}
-
-float	Q_crandom( int *seed ) {
-	return 2.0 * ( Q_random( seed ) - 0.5 );
-}
+    return (float)(centered + centered);
 #endif
+}
 
 
 //=======================================================
@@ -299,65 +227,46 @@ signed short ClampShort( int i ) {
 
 // this isn't a real cheap function to call!
 int DirToByte( vec3_t dir ) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-	int i, best = 0;
-	float bestd = 0.f;
-	if ( !dir ) return 0;
-	for ( i = 0; i < NUMVERTEXNORMALS; ++i ) {
-		const float *row = bytedirs[i];
-		int replace;
-		__asm {
-			mov ecx,row
-			mov edx,dir
-			fld dword ptr [ecx]
-			fmul dword ptr [edx]
-			fld dword ptr [ecx+8]
-			fmul dword ptr [edx+8]
-			faddp st(1),st(0)
-			fld dword ptr [edx+4]
-			fmul dword ptr [ecx+4]
-			faddp st(1),st(0)
-			fcom bestd
-			fnstsw ax
-			test ah,041h
-			setz al
-			movzx eax,al
-			mov replace,eax
-			jz dirbyte_replace
-			fstp st(0)
-			jmp dirbyte_done
-		dirbyte_replace:
-			fstp bestd
-		dirbyte_done:
-		}
-		if ( replace ) best = i;
-	}
-	return best;
-#elif defined(__GNUC__) && defined(__i386__)
-	int best;
-	if ( !dir ) return 0;
-	/* Linux keeps the winning dot product extended across all162 rows. */
-	__asm__ volatile (
-		".intel_syntax noprefix\n\t"
-		"fldz\n\t" "xor esi,esi\n\t" "xor ecx,ecx\n\t"
-		"fld dword ptr [ebx]\n\t" "fld dword ptr [ebx+4]\n\t" "fld dword ptr [ebx+8]\n\t"
-		"xor edx,edx\n\t"
-		"1: fld st(2)\n\t" "fld st(2)\n\t"
-		"fmul dword ptr [edi+edx+4]\n\t" "fxch st(1)\n\t"
-		"fmul dword ptr [edi+edx]\n\t" "faddp st(1),st(0)\n\t"
-		"fld st(1)\n\t" "fmul dword ptr [edi+edx+8]\n\t"
-		"faddp st(1),st(0)\n\t" "fcom st(4)\n\t" "fnstsw ax\n\t" "sahf\n\t"
-		"jbe 2f\n\t" "fstp st(4)\n\t" "mov esi,ecx\n\t" "jmp 3f\n\t"
-		"2: fstp st(0)\n\t"
-		"3: inc ecx\n\t" "add edx,12\n\t" "cmp ecx,161\n\t" "jle 1b\n\t"
-		"fstp st(0)\n\t" "fstp st(0)\n\t" "fstp st(0)\n\t" "fstp st(0)\n\t"
-		".att_syntax prefix"
-		: "=S" (best) : "b" (dir), "D" (bytedirs)
-		: "eax", "ecx", "edx", "cc", "memory", "st", "st(1)", "st(2)", "st(3)", "st(4)", "st(5)"
-	);
-	return best;
+#if defined(_WIN32) || defined(__linux__)
+    int i, best = 0;
+#if defined(_WIN32)
+    volatile float bestDot = 0.0f;
 #else
-
+    long double bestDot = 0.0L;
+    long double x, y, z;
+#endif
+    if (!dir) return 0;
+#if !defined(_WIN32)
+    /* The ELF body loads the input once, before scanning the table. */
+    x = dir[0];
+    y = dir[1];
+    z = dir[2];
+#endif
+    for (i = 0; i < NUMVERTEXNORMALS; ++i) {
+        const float *row = bytedirs[i];
+        long double dot;
+#if defined(_WIN32)
+        /* Windows compares the held dot against a float-rounded winner. */
+        dot = (long double)row[0] * dir[0];
+        dot += (long double)row[2] * dir[2];
+        dot += (long double)dir[1] * row[1];
+#else
+        dot = y * row[1];
+        dot += x * row[0];
+        dot += z * row[2];
+#endif
+        /* Equal or unordered comparisons do not replace the stored winner. */
+        if (dot > bestDot) {
+#if defined(_WIN32)
+            bestDot = (float)dot;
+#else
+            bestDot = dot;
+#endif
+            best = i;
+        }
+    }
+    return best;
+#else
 	int		i, best;
 	float	d, bestd;
 
@@ -381,35 +290,29 @@ int DirToByte( vec3_t dir ) {
 #endif
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(CGAMEDLL)
-/* TC3007dda0: raw component copies; invalid x alone travels through x87. */
-__declspec(naked) void ByteToDir(int b, vec3_t dir) {
- __asm {
-  mov eax,dword ptr [esp+4]
-  test eax,eax
-  jl tceByteInvalid824
-  cmp eax,162
-  jge tceByteInvalid824
-  mov ecx,dword ptr [esp+8]
-  lea eax,[eax+eax*2]
-  shl eax,2
-  mov edx,dword ptr bytedirs[eax]
-  mov dword ptr [ecx],edx
-  mov edx,dword ptr bytedirs[eax+4]
-  mov dword ptr [ecx+4],edx
-  mov eax,dword ptr bytedirs[eax+8]
-  mov dword ptr [ecx+8],eax
-  ret
- tceByteInvalid824:
-  fld dword ptr vec3_origin
-  mov eax,dword ptr [esp+8]
-  fstp dword ptr [eax]
-  mov ecx,dword ptr vec3_origin[4]
-  mov dword ptr [eax+4],ecx
-  mov edx,dword ptr vec3_origin[8]
-  mov dword ptr [eax+8],edx
-  ret
- }
+#if defined(__linux__) || (defined(_WIN32) && defined(CGAMEDLL))
+/* Copy one float representation at a time. A whole-vector memcpy would
+ * change the original load/store order when source and destination overlap. */
+static void TCE_CopyDirectionComponent(float *destination, const float *source) {
+    unsigned int representation;
+    memcpy(&representation, source, sizeof(representation));
+    memcpy(destination, &representation, sizeof(representation));
+}
+
+void ByteToDir(int b, vec3_t dir) {
+    const float *source = (b < 0 || b >= NUMVERTEXNORMALS) ? vec3_origin : bytedirs[b];
+#if defined(_WIN32) && defined(CGAMEDLL)
+    if (b < 0 || b >= NUMVERTEXNORMALS) {
+        /* Only the invalid Windows-CGame x component takes a float transfer. */
+        volatile float x = source[0];
+        dir[0] = x;
+    } else
+#endif
+    {
+        TCE_CopyDirectionComponent(&dir[0], &source[0]);
+    }
+    TCE_CopyDirectionComponent(&dir[1], &source[1]);
+    TCE_CopyDirectionComponent(&dir[2], &source[2]);
 }
 #else
 void ByteToDir( int b, vec3_t dir ) {
@@ -420,7 +323,6 @@ void ByteToDir( int b, vec3_t dir ) {
 	VectorCopy (bytedirs[b], dir);
 }
 #endif
-
 
 unsigned ColorBytes3 (float r, float g, float b) {
 	unsigned	i;
@@ -494,120 +396,78 @@ RotatePointAroundVector
 This is not implemented very well...
 ===============
 */
-#if defined(_MSC_VER) && defined(_M_IX86)
-static const unsigned int tceRotate770Pi=0x40490fdbu,tceRotate770Div180=0x3bb60b61u;
-__declspec(naked) void RotatePointAroundVector(vec3_t dst,const vec3_t dir,const vec3_t point,float degrees) {
- __asm {
-SUB ESP,0xdc
-MOV EAX,dword ptr [ESP + 0xe4]
-PUSH ESI
-PUSH EDI
-PUSH EAX
-MOV EDX,dword ptr [EAX + 0x4]
-MOV ECX,dword ptr [EAX]
-MOV dword ptr [ESP + 0x10],EDX
-MOV dword ptr [ESP + 0xc],ECX
-MOV ECX,dword ptr [EAX + 0x8]
-LEA EDX,[ESP + 0x1c]
-PUSH EDX
-MOV dword ptr [ESP + 0x18],ECX
-call PerpendicularVector
-LEA EAX,[ESP + 0x2c]
-LEA ECX,[ESP + 0x10]
-PUSH EAX
-LEA EDX,[ESP + 0x24]
-PUSH ECX
-PUSH EDX
-call CrossProduct
-FLD dword ptr [ESP + 0x108]
-FMUL dword ptr tceRotate770Pi
-MOV ECX,dword ptr [ESP + 0x30]
-MOV EAX,dword ptr [ESP + 0x2c]
-MOV EDX,dword ptr [ESP + 0x34]
-MOV dword ptr [ESP + 0x50],ECX
-FMUL dword ptr tceRotate770Div180
-MOV ECX,dword ptr [ESP + 0x3c]
-MOV dword ptr [ESP + 0x44],EAX
-MOV EAX,dword ptr [ESP + 0x38]
-MOV dword ptr [ESP + 0x5c],EDX
-FST dword ptr [ESP + 0x28]
-FCOS
-MOV EDX,dword ptr [ESP + 0x40]
-MOV dword ptr [ESP + 0x54],ECX
-MOV ECX,dword ptr [ESP + 0x20]
-MOV dword ptr [ESP + 0x48],EAX
-MOV EAX,dword ptr [ESP + 0x1c]
-MOV dword ptr [ESP + 0x60],EDX
-MOV EDX,dword ptr [ESP + 0x24]
-MOV dword ptr [ESP + 0x58],ECX
-MOV ECX,0x9
-LEA ESI,[ESP + 0x44]
-LEA EDI,[ESP + 0x68]
-MOV dword ptr [ESP + 0x4c],EAX
-MOV EAX,dword ptr [ESP + 0x30]
-MOV dword ptr [ESP + 0x64],EDX
-rep movsd
-MOV ECX,dword ptr [ESP + 0x34]
-MOV dword ptr [ESP + 0x6c],EAX
-MOV EAX,dword ptr [ESP + 0x40]
-MOV dword ptr [ESP + 0x70],ECX
-MOV ECX,dword ptr [ESP + 0x1c]
-MOV dword ptr [ESP + 0x7c],EAX
-MOV dword ptr [ESP + 0x80],ECX
-MOV ECX,0x9
-XOR EAX,EAX
-LEA EDI,[ESP + 0x8c]
-rep stosd
-MOV EDX,dword ptr [ESP + 0x38]
-LEA EAX,[ESP + 0xb0]
-MOV dword ptr [ESP + 0x74],EDX
-MOV EDX,dword ptr [ESP + 0x20]
-MOV dword ptr [ESP + 0x84],EDX
-LEA ECX,[ESP + 0x8c]
-PUSH EAX
-LEA EDX,[ESP + 0x48]
-PUSH ECX
-PUSH EDX
-MOV dword ptr [ESP + 0xb8],0x3f800000
-FST dword ptr [ESP + 0x98]
-FLD dword ptr [ESP + 0x34]
-FSIN
-FST dword ptr [ESP + 0x9c]
-FCHS
-FSTP dword ptr [ESP + 0xa4]
-FSTP dword ptr [ESP + 0xa8]
-call MatrixMultiply
-LEA EAX,[ESP + 0xe0]
-LEA ECX,[ESP + 0x74]
-PUSH EAX
-LEA EDX,[ESP + 0xc0]
-PUSH ECX
-PUSH EDX
-call MatrixMultiply
-MOV ECX,dword ptr [ESP + 0x11c]
-MOV EDX,dword ptr [ESP + 0x114]
-ADD ESP,0x2c
-LEA EAX,[ESP + 0xc4]
-MOV ESI,0x3
-tce_rotate770_loop:
-FLD dword ptr [EAX + -0x4]
-FMUL dword ptr [ECX]
-FLD dword ptr [EAX + 0x4]
-FMUL dword ptr [ECX + 0x8]
-ADD EAX,0xc
-ADD EDX,0x4
-DEC ESI
-faddp st(1),st(0)
-FLD dword ptr [EAX + -0xc]
-FMUL dword ptr [ECX + 0x4]
-faddp st(1),st(0)
-FSTP dword ptr [EDX + -0x4]
-JNZ tce_rotate770_loop
-POP EDI
-POP ESI
-ADD ESP,0xdc
-RET
- }
+#if defined(_WIN32) || defined(__linux__)
+void RotatePointAroundVector(vec3_t dst, const vec3_t dir, const vec3_t point, float degrees) {
+    vec3_t forward, right, up;
+    float basis[3][3], inverse[3][3], around[3][3];
+    float temporary[3][3], rotation[3][3];
+    int row, column;
+
+    /* Snapshot the rotation axis before the perpendicular-vector provider. */
+    memcpy(forward, dir, sizeof(forward));
+    PerpendicularVector(right, dir);
+    CrossProduct(right, forward, up);
+#if defined(__linux__) && !defined(_WIN32)
+    {
+        /* ELF transfers these two perpendicular components through float. */
+        volatile float z = right[2];
+        volatile float y = right[1];
+        right[2] = z;
+        right[1] = y;
+    }
+#endif
+    for (row = 0; row < 3; ++row) {
+        memcpy(&basis[row][0], &right[row], sizeof(float));
+        memcpy(&basis[row][1], &up[row], sizeof(float));
+        memcpy(&basis[row][2], &forward[row], sizeof(float));
+    }
+    for (row = 0; row < 3; ++row)
+        for (column = 0; column < 3; ++column)
+            memcpy(&inverse[row][column], &basis[column][row], sizeof(float));
+    memset(around, 0, sizeof(around));
+    around[2][2] = 1.0f;
+#if defined(_WIN32)
+    {
+        long double angle = (long double)degrees * 3.1415927410125732421875f;
+        volatile float roundedAngle;
+        long double cosine, sine;
+        angle *= 0.0055555556900799274444580078125f;
+        roundedAngle = (float)angle;
+        /* The Windows cosine keeps the angle preceding its float store. */
+        cosine = cosl(angle);
+        around[0][0] = (float)cosine;
+        sine = sinl((long double)roundedAngle);
+        around[0][1] = (float)sine;
+        around[1][0] = (float)-sine;
+        around[1][1] = (float)cosine;
+    }
+#else
+    {
+        /* ELF multiplies the double conversion factor, then stores float. */
+        volatile float roundedAngle =
+            (float)((long double)0.017453292519943295 * degrees);
+        around[0][0] = (float)cosl((long double)roundedAngle);
+        around[0][1] = (float)sinl((long double)roundedAngle);
+        around[1][0] = (float)-sinl((long double)roundedAngle);
+        around[1][1] = (float)cosl((long double)roundedAngle);
+    }
+#endif
+    MatrixMultiply(basis, around, temporary);
+    MatrixMultiply(temporary, inverse, rotation);
+    for (row = 0; row < 3; ++row) {
+        long double product;
+#if defined(_WIN32)
+        product = (long double)rotation[row][0] * point[0];
+        product += (long double)rotation[row][2] * point[2];
+        product += (long double)rotation[row][1] * point[1];
+#else
+        product = (long double)point[1] * rotation[row][1];
+        product += (long double)point[0] * rotation[row][0];
+        product += (long double)point[2] * rotation[row][2];
+#endif
+        /* Do not snapshot point: earlier output may alias later input. */
+        dst[row] = (float)product;
+    }
 }
 #else
 void RotatePointAroundVector( vec3_t dst, const vec3_t dir, const vec3_t point,
@@ -712,51 +572,19 @@ void RotatePointAroundVertex ( vec3_t pnt, float rot_x, float rot_y, float rot_z
 RotateAroundDirection
 ===============
 */
-#if defined(_MSC_VER) && defined(_M_IX86)
-/* TC3007dfb0: C3 skips both zero and unordered yaw; preserve integer copies. */
-static const float tceRotateZero822 = 0.0f;
-__declspec(naked) void RotateAroundDirection(vec3_t axis[3], float yaw) {
- __asm {
-  SUB ESP,0xc
-  PUSH ESI
-  MOV ESI,dword ptr [ESP + 0x14]
-  PUSH EDI
-  PUSH ESI
-  LEA EDI,[ESI + 0xc]
-  PUSH EDI
-  call PerpendicularVector
-  FLD dword ptr [ESP + 0x24]
-  fcomp dword ptr tceRotateZero822
-  ADD ESP,0x8
-  FNSTSW AX
-  TEST AH,0x40
-  jnz tceRotateCross822
-  MOV EAX,dword ptr [EDI]
-  MOV ECX,dword ptr [ESI + 0x10]
-  MOV EDX,dword ptr [ESI + 0x14]
-  MOV dword ptr [ESP + 0x8],EAX
-  MOV EAX,dword ptr [ESP + 0x1c]
-  MOV dword ptr [ESP + 0xc],ECX
-  LEA ECX,[ESP + 0x8]
-  PUSH EAX
-  PUSH ECX
-  PUSH ESI
-  PUSH EDI
-  MOV dword ptr [ESP + 0x20],EDX
-  call RotatePointAroundVector
-  ADD ESP,0x10
-  tceRotateCross822:
-LEA EDX,[ESI + 0x18]
-  PUSH EDX
-  PUSH EDI
-  PUSH ESI
-  call CrossProduct
-  ADD ESP,0xc
-  POP EDI
-  POP ESI
-  ADD ESP,0xc
-  RET
- }
+#if defined(_WIN32) || defined(__linux__)
+void RotateAroundDirection(vec3_t axis[3], float yaw) {
+    unsigned int magnitude;
+    PerpendicularVector(axis[1], axis[0]);
+    memcpy(&magnitude, &yaw, sizeof(magnitude));
+    magnitude &= 0x7fffffffu;
+    /* Both native C3 gates skip zero and unordered yaw, but allow infinity. */
+    if (magnitude != 0 && magnitude <= 0x7f800000u) {
+        vec3_t temporary;
+        memcpy(temporary, axis[1], sizeof(temporary));
+        RotatePointAroundVector(axis[1], axis[0], temporary, yaw);
+    }
+    CrossProduct(axis[0], axis[1], axis[2]);
 }
 #else
 void RotateAroundDirection( vec3_t axis[3], float yaw ) {
@@ -779,309 +607,79 @@ void RotateAroundDirection( vec3_t axis[3], float yaw ) {
 
 
 
-/* TC vectoangles: preserve platform-specific x87 staging and degree constants.
- * Evidence: reconstruction/evidence/vectoangles_739.md. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-static const float tceVecAnglesZero = 0.0f, tceVecAngles90 = 90.0f;
-static const float tceVecAngles270 = 270.0f, tceVecAngles360 = 360.0f;
-static const double tceVecAnglesDegrees = 57.29577791868204;
-__declspec(naked) void vectoangles(const vec3_t value1, vec3_t angles) {
-    __asm {
-            mov ecx,dword ptr [esp + 0x4]
-            fld dword ptr [ecx + 0x4]
-            fcomp dword ptr tceVecAnglesZero
-            fnstsw ax
-            test ah,0x40
-            jz tce_va_200a062b
-            fld dword ptr [ecx]
-            fcomp dword ptr tceVecAnglesZero
-            fnstsw ax
-            test ah,0x40
-            jz tce_va_200a062b
-            fld dword ptr tceVecAnglesZero
-            fld dword ptr [ecx + 0x8]
-            fcomp dword ptr tceVecAnglesZero
-            fnstsw ax
-            test ah,0x41
-            jnz tce_va_200a0612
-            fld dword ptr tceVecAngles90
-            mov eax,dword ptr [esp + 0x8]
-            fchs
-            fstp dword ptr [eax]
-            mov dword ptr [eax + 0x8],0x0
-            fstp dword ptr [eax + 0x4]
-            ret
-        tce_va_200a0612:
-            fld dword ptr tceVecAngles270
-            mov eax,dword ptr [esp + 0x8]
-            fchs
-            fstp dword ptr [eax]
-            mov dword ptr [eax + 0x8],0x0
-            fstp dword ptr [eax + 0x4]
-            ret
-        tce_va_200a062b:
-            fld dword ptr [ecx]
-            fcomp dword ptr tceVecAnglesZero
-            fnstsw ax
-            test ah,0x40
-            jnz tce_va_200a06a6
-            fld dword ptr [ecx + 0x4]
-            fld dword ptr [ecx]
-            fpatan
-            fmul qword ptr tceVecAnglesDegrees
-            fcom dword ptr tceVecAnglesZero
-            fnstsw ax
-            test ah,0x1
-            jz tce_va_200a065a
-            fadd dword ptr tceVecAngles360
-        tce_va_200a065a:
-            fld dword ptr [ecx + 0x4]
-            fld dword ptr [ecx]
-            fld dword ptr [ecx + 0x8]
-            fld st(1)
-            fmul st(0),st(2)
-            fld st(3)
-            fmul st(0),st(4)
-            faddp st(1),st(0)
-            fsqrt
-            fstp st(3)
-            fxch st(1)
-            fxch st(2)
-            fpatan
-            fmul qword ptr tceVecAnglesDegrees
-            fxch st(1)
-            fstp st(0)
-            fcom dword ptr tceVecAnglesZero
-            fnstsw ax
-            test ah,0x1
-            jz tce_va_200a0693
-            fadd dword ptr tceVecAngles360
-        tce_va_200a0693:
-            mov eax,dword ptr [esp + 0x8]
-            fchs
-            fstp dword ptr [eax]
-            mov dword ptr [eax + 0x8],0x0
-            fstp dword ptr [eax + 0x4]
-            ret
-        tce_va_200a06a6:
-            fld dword ptr [ecx + 0x4]
-            fcomp dword ptr tceVecAnglesZero
-            fnstsw ax
-            test ah,0x41
-            jnz tce_va_200a06be
-            fld dword ptr tceVecAngles90
-            jmp tce_va_200a065a
-        tce_va_200a06be:
-            fld dword ptr tceVecAngles270
-            jmp tce_va_200a065a
+/* Native direction-angle stages and aliased output order; proof961.
+ * atan2l/sqrtl do not establish FPATAN/FSQRT equivalence. */
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+void vectoangles(const vec3_t value1, vec3_t angles) {
+    long double x, y, z, yaw, pitch, squared, root;
+#if defined(_WIN32)
+    if (TCE_FloatIsZeroOrNaN(value1[1]) && TCE_FloatIsZeroOrNaN(value1[0])) {
+        pitch = value1[2] > 0.0f ? 90.0L : 270.0L;
+        angles[PITCH] = (float)-pitch;
+        angles[ROLL] = 0.0f;
+        angles[YAW] = 0.0f;
+        return;
     }
-}
-#elif defined(__GNUC__) && defined(__i386__)
-__attribute__((naked)) void vectoangles(const vec3_t value1, vec3_t angles) {
-    __asm__ volatile (
-        ".intel_syntax noprefix\n"
-        ".Ltce_va_00113e3c:\n"
-        "push ebx\n"
-        ".Ltce_va_00113e3d:\n"
-        "sub esp,0x28\n"
-        "mov dword ptr [esp+0x10],0\n"
-        "mov dword ptr [esp+0x14],0x42b40000\n"
-        "mov dword ptr [esp+0x18],0x43870000\n"
-        "mov dword ptr [esp+0x1c],0x43b40000\n"
-        "mov dword ptr [esp+0x20],0x1a63c1f8\n"
-        "mov dword ptr [esp+0x24],0x404ca5dc\n"
-        ".Ltce_va_00113e40:\n"
-        "mov ecx,dword ptr [esp + 0x30]\n"
-        ".Ltce_va_00113e4f:\n"
-        "fld dword ptr [esp + 0x10]\n"
-        ".Ltce_va_00113e55:\n"
-        "mov edx,dword ptr [esp + 0x34]\n"
-        ".Ltce_va_00113e59:\n"
-        "fld dword ptr [ecx + 0x4]\n"
-        ".Ltce_va_00113e5c:\n"
-        "fcom st(1)\n"
-        ".Ltce_va_00113e5e:\n"
-        "fnstsw ax\n"
-        ".Ltce_va_00113e60:\n"
-        "sahf\n"
-        ".Ltce_va_00113e61:\n"
-        "jnz .Ltce_va_00113f22\n"
-        ".Ltce_va_00113e67:\n"
-        "fld dword ptr [ecx]\n"
-        ".Ltce_va_00113e69:\n"
-        "fcom st(2)\n"
-        ".Ltce_va_00113e6b:\n"
-        "fnstsw ax\n"
-        ".Ltce_va_00113e6d:\n"
-        "sahf\n"
-        ".Ltce_va_00113e6e:\n"
-        "jnz .Ltce_va_00113eac\n"
-        ".Ltce_va_00113e70:\n"
-        "fstp st(0)\n"
-        ".Ltce_va_00113e72:\n"
-        "fstp st(0)\n"
-        ".Ltce_va_00113e74:\n"
-        "fld dword ptr [ecx + 0x8]\n"
-        ".Ltce_va_00113e77:\n"
-        "fld st(1)\n"
-        ".Ltce_va_00113e79:\n"
-        "fxch st(1)\n"
-        ".Ltce_va_00113e7b:\n"
-        "fcomp st(2)\n"
-        ".Ltce_va_00113e7d:\n"
-        "fnstsw ax\n"
-        ".Ltce_va_00113e7f:\n"
-        "fstp st(1)\n"
-        ".Ltce_va_00113e81:\n"
-        "sahf\n"
-        ".Ltce_va_00113e82:\n"
-        "jbe .Ltce_va_00113ea4\n"
-        ".Ltce_va_00113e84:\n"
-        "fld dword ptr [esp + 0x14]\n"
-        ".Ltce_va_00113e8a:\n"
-        "fxch st(1)\n"
-        ".Ltce_va_00113e8c:\n"
-        "fxch st(1)\n"
-        ".Ltce_va_00113e8e:\n"
-        "fchs\n"
-        ".Ltce_va_00113e90:\n"
-        "fxch st(1)\n"
-        ".Ltce_va_00113e92:\n"
-        "fstp dword ptr [edx + 0x4]\n"
-        ".Ltce_va_00113e95:\n"
-        "mov dword ptr [edx + 0x8],0x0\n"
-        ".Ltce_va_00113e9c:\n"
-        "fstp dword ptr [edx]\n"
-        ".Ltce_va_00113e9e:\n"
-        "add esp,0x28\n"
-        ".Ltce_va_00113ea1:\n"
-        "pop ebx\n"
-        ".Ltce_va_00113ea2:\n"
-        "ret\n"
-        ".Ltce_va_00113ea4:\n"
-        "fld dword ptr [esp + 0x18]\n"
-        ".Ltce_va_00113eaa:\n"
-        "jmp .Ltce_va_00113e8a\n"
-        ".Ltce_va_00113eac:\n"
-        "fld st(1)\n"
-        ".Ltce_va_00113eae:\n"
-        "fld st(1)\n"
-        ".Ltce_va_00113eb0:\n"
-        "fpatan\n"
-        ".Ltce_va_00113eb2:\n"
-        "fstp qword ptr [esp + 0x8]\n"
-        ".Ltce_va_00113eb6:\n"
-        "fld qword ptr [esp + 0x8]\n"
-        ".Ltce_va_00113eba:\n"
-        "fld qword ptr [esp + 0x20]\n"
-        ".Ltce_va_00113ec0:\n"
-        "fmul st(1),st(0)\n"
-        ".Ltce_va_00113ec2:\n"
-        "fxch st(1)\n"
-        ".Ltce_va_00113ec4:\n"
-        "fstp dword ptr [esp + 0x4]\n"
-        ".Ltce_va_00113ec8:\n"
-        "fld dword ptr [esp + 0x4]\n"
-        ".Ltce_va_00113ecc:\n"
-        "fcom st(4)\n"
-        ".Ltce_va_00113ece:\n"
-        "fnstsw ax\n"
-        ".Ltce_va_00113ed0:\n"
-        "sahf\n"
-        ".Ltce_va_00113ed1:\n"
-        "jnc .Ltce_va_00113ed9\n"
-        ".Ltce_va_00113ed3:\n"
-        "fadd dword ptr [esp + 0x1c]\n"
-        ".Ltce_va_00113ed9:\n"
-        "fxch st(3)\n"
-        ".Ltce_va_00113edb:\n"
-        "fmul st(0),st(0)\n"
-        ".Ltce_va_00113edd:\n"
-        "fxch st(2)\n"
-        ".Ltce_va_00113edf:\n"
-        "fmul st(0),st(0)\n"
-        ".Ltce_va_00113ee1:\n"
-        "faddp st(2),st(0)\n"
-        ".Ltce_va_00113ee3:\n"
-        "fxch st(1)\n"
-        ".Ltce_va_00113ee5:\n"
-        "fsqrt\n"
-        ".Ltce_va_00113ee7:\n"
-        "fstp dword ptr [esp + 0x4]\n"
-        ".Ltce_va_00113eeb:\n"
-        "fld dword ptr [esp + 0x4]\n"
-        ".Ltce_va_00113eef:\n"
-        "fld dword ptr [ecx + 0x8]\n"
-        ".Ltce_va_00113ef2:\n"
-        "fxch st(1)\n"
-        ".Ltce_va_00113ef4:\n"
-        "fpatan\n"
-        ".Ltce_va_00113ef6:\n"
-        "fstp qword ptr [esp + 0x8]\n"
-        ".Ltce_va_00113efa:\n"
-        "fld qword ptr [esp + 0x8]\n"
-        ".Ltce_va_00113efe:\n"
-        "fmulp st(1),st(0)\n"
-        ".Ltce_va_00113f00:\n"
-        "fstp dword ptr [esp + 0x4]\n"
-        ".Ltce_va_00113f04:\n"
-        "fld dword ptr [esp + 0x4]\n"
-        ".Ltce_va_00113f08:\n"
-        "fcom st(2)\n"
-        ".Ltce_va_00113f0a:\n"
-        "fnstsw ax\n"
-        ".Ltce_va_00113f0c:\n"
-        "fstp st(2)\n"
-        ".Ltce_va_00113f0e:\n"
-        "sahf\n"
-        ".Ltce_va_00113f0f:\n"
-        "jnc .Ltce_va_00113e8c\n"
-        ".Ltce_va_00113f15:\n"
-        "fxch st(1)\n"
-        ".Ltce_va_00113f17:\n"
-        "fadd dword ptr [esp + 0x1c]\n"
-        ".Ltce_va_00113f1d:\n"
-        "jmp .Ltce_va_00113e8a\n"
-        ".Ltce_va_00113f22:\n"
-        "fld dword ptr [ecx]\n"
-        ".Ltce_va_00113f24:\n"
-        "fcom st(2)\n"
-        ".Ltce_va_00113f26:\n"
-        "fnstsw ax\n"
-        ".Ltce_va_00113f28:\n"
-        "sahf\n"
-        ".Ltce_va_00113f29:\n"
-        "jnz .Ltce_va_00113eac\n"
-        ".Ltce_va_00113f2b:\n"
-        "fxch st(1)\n"
-        ".Ltce_va_00113f2d:\n"
-        "fcom st(2)\n"
-        ".Ltce_va_00113f2f:\n"
-        "fnstsw ax\n"
-        ".Ltce_va_00113f31:\n"
-        "sahf\n"
-        ".Ltce_va_00113f32:\n"
-        "jbe .Ltce_va_00113f4a\n"
-        ".Ltce_va_00113f34:\n"
-        "fld dword ptr [esp + 0x14]\n"
-        ".Ltce_va_00113f3a:\n"
-        "fld qword ptr [esp + 0x20]\n"
-        ".Ltce_va_00113f40:\n"
-        "fxch st(1)\n"
-        ".Ltce_va_00113f42:\n"
-        "fxch st(2)\n"
-        ".Ltce_va_00113f44:\n"
-        "fxch st(3)\n"
-        ".Ltce_va_00113f46:\n"
-        "fxch st(2)\n"
-        ".Ltce_va_00113f48:\n"
-        "jmp .Ltce_va_00113ecc\n"
-        ".Ltce_va_00113f4a:\n"
-        "fld dword ptr [esp + 0x18]\n"
-        ".Ltce_va_00113f50:\n"
-        "jmp .Ltce_va_00113f3a\n"
-        ".att_syntax prefix\n"
-    );
+    if (TCE_FloatIsZeroOrNaN(value1[0])) {
+        yaw = value1[1] > 0.0f ? 90.0L : 270.0L;
+    } else {
+        y = (long double)value1[1];
+        x = (long double)value1[0];
+        yaw = atan2l(y, x);
+        yaw *= (long double)57.29577791868204;
+        if (!(yaw >= 0.0L)) yaw += (long double)360.0f;
+    }
+    y = (long double)value1[1];
+    x = (long double)value1[0];
+    z = (long double)value1[2];
+    squared = x * x;
+    squared += y * y;
+    root = sqrtl(squared);
+    pitch = atan2l(z, root);
+    pitch *= (long double)57.29577791868204;
+    if (!(pitch >= 0.0L)) pitch += (long double)360.0f;
+    angles[PITCH] = (float)-pitch;
+    angles[ROLL] = 0.0f;
+    angles[YAW] = (float)yaw;
+#else
+    {
+        qboolean axial = qfalse;
+        volatile double angleSpill;
+        volatile float degreesSpill, rootSpill;
+        y = (long double)value1[1];
+        if (y == 0.0L || y != y) {
+            x = (long double)value1[0];
+            axial = x == 0.0L || x != x;
+        } else {
+            x = (long double)value1[0];
+        }
+        if (axial) {
+            yaw = 0.0L;
+            pitch = value1[2] > 0.0f ? 90.0L : 270.0L;
+        } else {
+            if (x == 0.0L || x != x) {
+                yaw = y > 0.0L ? 90.0L : 270.0L;
+            } else {
+                angleSpill = (double)atan2l(y, x);
+                degreesSpill = (float)((long double)angleSpill * (long double)57.29577951308232);
+                yaw = (long double)degreesSpill;
+            }
+            if (!(yaw >= 0.0L)) yaw += (long double)360.0f;
+            squared = y * y;
+            squared += x * x;
+            rootSpill = (float)sqrtl(squared);
+            root = (long double)rootSpill;
+            z = (long double)value1[2];
+            angleSpill = (double)atan2l(z, root);
+            degreesSpill = (float)((long double)57.29577951308232 * (long double)angleSpill);
+            pitch = (long double)degreesSpill;
+            if (!(pitch >= 0.0L)) pitch += (long double)360.0f;
+        }
+        angles[YAW] = (float)yaw;
+        angles[ROLL] = 0.0f;
+        angles[PITCH] = (float)-pitch;
+    }
+#endif
 }
 #else
 void vectoangles( const vec3_t value1, vec3_t angles ) {
@@ -1124,42 +722,21 @@ void vectoangles( const vec3_t value1, vec3_t angles ) {
 }
 #endif
 
-
 /*
 =================
 AnglesToAxis
 =================
 */
 void AnglesToAxis( const vec3_t angles, vec3_t axis[3] ) {
-	vec3_t	right;
-
-	// angle vectors returns "right" instead of "y axis"
-	AngleVectors( angles, axis[0], right, axis[2] );
-#if defined(_MSC_VER) && defined(_M_IX86)
-	__asm {
-		lea ecx,right
-		mov edx,axis
-		add edx,12
-		lea eax,vec3_origin
-		fld dword ptr [eax]
-		fsub dword ptr [ecx]
-		fstp dword ptr [edx]
-		fld dword ptr [eax+4]
-		fsub dword ptr [ecx+4]
-		fstp dword ptr [edx+4]
-		fld dword ptr [eax+8]
-		fsub dword ptr [ecx+8]
-		fstp dword ptr [edx+8]
-	}
-#elif defined(__GNUC__) && defined(__i386__)
-	__asm__ volatile (
-		"flds 0(%%ecx)\n\t" "fsubrs 0(%%eax)\n\t" "fstps 0(%%edx)\n\t"
-		"flds 4(%%ecx)\n\t" "fsubrs 4(%%eax)\n\t" "fstps 4(%%edx)\n\t"
-		"flds 8(%%ecx)\n\t" "fsubrs 8(%%eax)\n\t" "fstps 8(%%edx)"
-		: : "c" (right), "a" (vec3_origin), "d" (axis[1]) : "memory", "st"
-	);
+    vec3_t right;
+    AngleVectors(angles, axis[0], right, axis[2]);
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+    /* Keep mutable vec3_origin reads after the child and between stores. */
+    axis[1][0] = (float)((long double)vec3_origin[0] - (long double)right[0]);
+    axis[1][1] = (float)((long double)vec3_origin[1] - (long double)right[1]);
+    axis[1][2] = (float)((long double)vec3_origin[2] - (long double)right[2]);
 #else
-	VectorSubtract( vec3_origin, right, axis[1] );
+    VectorSubtract(vec3_origin, right, axis[1]);
 #endif
 }
 
@@ -1175,187 +752,68 @@ void AxisClear( vec3_t axis[3] ) {
 	axis[2][2] = 1;
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) void AxisCopy( vec3_t in[3], vec3_t out[3] ) {
-	__asm {
-		mov eax,[esp+4]
-		mov ecx,[esp+8]
-		mov edx,dword ptr [eax]
-		mov dword ptr [ecx],edx
-		mov edx,dword ptr [eax+4]
-		mov dword ptr [ecx+4],edx
-		mov edx,dword ptr [eax+8]
-		mov dword ptr [ecx+8],edx
-		mov edx,dword ptr [eax+12]
-		mov dword ptr [ecx+12],edx
-		mov edx,dword ptr [eax+16]
-		mov dword ptr [ecx+16],edx
-		mov edx,dword ptr [eax+20]
-		mov dword ptr [ecx+20],edx
-		mov edx,dword ptr [eax+24]
-		mov dword ptr [ecx+24],edx
-		mov edx,dword ptr [eax+28]
-		mov dword ptr [ecx+28],edx
-		mov eax,dword ptr [eax+32]
-		mov dword ptr [ecx+32],eax
-		ret
-	}
-}
-#elif defined(__GNUC__) && defined(__i386__)
-__attribute__((naked)) void AxisCopy( vec3_t in[3], vec3_t out[3] ) {
-	__asm__ volatile (
-		".intel_syntax noprefix\n\t"
-		"mov edx,[esp+4]\n\t"
-		"mov ecx,[esp+8]\n\t"
-		"mov eax,dword ptr [edx]\n\t"
-		"mov dword ptr [ecx],eax\n\t"
-		"mov eax,dword ptr [edx+4]\n\t"
-		"mov dword ptr [ecx+4],eax\n\t"
-		"mov eax,dword ptr [edx+8]\n\t"
-		"mov dword ptr [ecx+8],eax\n\t"
-		"mov eax,dword ptr [edx+12]\n\t"
-		"mov dword ptr [ecx+12],eax\n\t"
-		"mov eax,dword ptr [edx+16]\n\t"
-		"mov dword ptr [ecx+16],eax\n\t"
-		"mov eax,dword ptr [edx+20]\n\t"
-		"mov dword ptr [ecx+20],eax\n\t"
-		"mov eax,dword ptr [edx+24]\n\t"
-		"mov dword ptr [ecx+24],eax\n\t"
-		"mov eax,dword ptr [edx+28]\n\t"
-		"mov dword ptr [ecx+28],eax\n\t"
-		"mov eax,dword ptr [edx+32]\n\t"
-		"mov dword ptr [ecx+32],eax\n\t"
-		"ret\n\t"
-		".att_syntax prefix\n\t"
-	);
-}
-#else
-void AxisCopy( vec3_t in[3], vec3_t out[3] ) {
-	VectorCopy( in[0], out[0] );
-	VectorCopy( in[1], out[1] );
-	VectorCopy( in[2], out[2] );
-}
-#endif
+void AxisCopy(vec3_t in[3], vec3_t out[3]) {
+    typedef char axisCopyWordLayout[(sizeof(float) == 4 && sizeof(unsigned) == 4) ? 1 : -1];
+    int row, component;
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-static const float tceProjectOne = 1.f;
-__declspec(naked) void ProjectPointOnPlane( vec3_t dst, const vec3_t p, const vec3_t normal ) {
-	__asm {
-		SUB ESP,0ch
-		MOV EAX,dword ptr [ESP + 018h]
-		MOV ECX,dword ptr [ESP + 014h]
-		FLD dword ptr [EAX + 08h]
-		FLD dword ptr [EAX + 04h]
-		FLD dword ptr [EAX]
-		FLD st(0)
-		fmul st(0),st(1)
-		FLD st(2)
-		fmul st(0),st(3)
-		faddp st(1),st(0)
-		FLD st(3)
-		fmul st(0),st(4)
-		faddp st(1),st(0)
-		FDIVR tceProjectOne
-		FSTP st(3)
-		FSTP st(0)
-		FSTP st(0)
-		FLD dword ptr [ECX + 08h]
-		FMUL dword ptr [EAX + 08h]
-		FLD dword ptr [ECX + 04h]
-		FMUL dword ptr [EAX + 04h]
-		faddp st(1),st(0)
-		FLD dword ptr [ECX]
-		FMUL dword ptr [EAX]
-		faddp st(1),st(0)
-		fmul st(0),st(1)
-		FSTP dword ptr [ESP + 018h]
-		FLD st(0)
-		FMUL dword ptr [EAX]
-		FSTP dword ptr [ESP]
-		FLD st(0)
-		FMUL dword ptr [EAX + 04h]
-		FSTP dword ptr [ESP + 04h]
-		FMUL dword ptr [EAX + 08h]
-		FLD dword ptr [ESP]
-		FMUL dword ptr [ESP + 018h]
-		MOV EAX,dword ptr [ESP + 010h]
-		FSUBR dword ptr [ECX]
-		FSTP dword ptr [EAX]
-		FLD dword ptr [ESP + 04h]
-		FMUL dword ptr [ESP + 018h]
-		FSUBR dword ptr [ECX + 04h]
-		FSTP dword ptr [EAX + 04h]
-		FMUL dword ptr [ESP + 018h]
-		FSUBR dword ptr [ECX + 08h]
-		FSTP dword ptr [EAX + 08h]
-		ADD ESP,0ch
-		RET
-	}
+    /* Each original word is loaded immediately before its output store.
+     * Keep that forward order for overlapping axes, and preserve float bits
+     * without an additional floating conversion. */
+    for (row = 0; row < 3; ++row) {
+        for (component = 0; component < 3; ++component) {
+            unsigned bits;
+            memcpy(&bits, &in[row][component], sizeof(bits));
+            memcpy(&out[row][component], &bits, sizeof(bits));
+        }
+    }
 }
-#elif defined(__GNUC__) && defined(__i386__)
-__attribute__((naked)) void ProjectPointOnPlane( vec3_t dst, const vec3_t p, const vec3_t normal ) {
-	__asm__ volatile (
-		".intel_syntax noprefix\n\t"
-		"PUSH EBX\n\t"
-		"SUB ESP,0x18\n\t"
-		"MOV EAX,dword ptr [ESP + 0x28]\n\t"
-		"mov dword ptr [esp],0x3f800000\n\t"
-		"MOV EDX,dword ptr [ESP + 0x24]\n\t"
-		"MOV ECX,dword ptr [ESP + 0x20]\n\t"
-		"FLD dword ptr [EAX]\n\t"
-		"FLD dword ptr [EAX + 0x4]\n\t"
-		"FLD dword ptr [EAX + 0x8]\n\t"
-		"FLD st(2)\n\t"
-		"FLD st(2)\n\t"
-		"FLD dword ptr [EDX]\n\t"
-		"fxch st(1)\n\t"
-		"fmul st(0),st(4)\n\t"
-		"FXCH st(2)\n\t"
-		"fmul st(0),st(5)\n\t"
-		"FLD st(5)\n\t"
-		"fmul st(0),st(2)\n\t"
-		"fxch st(1)\n\t"
-		"FADDP st(3),st(0)\n\t"
-		"FLD st(3)\n\t"
-		"fmul st(0),st(4)\n\t"
-		"FADDP st(3),st(0)\n\t"
-		"FLD st(4)\n\t"
-		"FXCH st(3)\n\t"
-		"FDIVR dword ptr [esp]\n\t"
-		"FXCH st(3)\n\t"
-		"FMUL dword ptr [EDX + 0x4]\n\t"
-		"FXCH st(6)\n\t"
-		"fmul st(0),st(3)\n\t"
-		"FXCH st(5)\n\t"
-		"fmul st(0),st(3)\n\t"
-		"fxch st(1)\n\t"
-		"FADDP st(6),st(0)\n\t"
-		"FLD st(3)\n\t"
-		"fmul st(0),st(3)\n\t"
-		"FXCH st(4)\n\t"
-		"FMUL dword ptr [EDX + 0x8]\n\t"
-		"FADDP st(6),st(0)\n\t"
-		"FXCH st(5)\n\t"
-		"FMULP st(2),st(0)\n\t"
-		"FXCH st(3)\n\t"
-		"fmul st(0),st(1)\n\t"
-		"FXCH st(4)\n\t"
-		"fmul st(0),st(1)\n\t"
-		"fxch st(1)\n\t"
-		"FMULP st(2),st(0)\n\t"
-		"FXCH st(2)\n\t"
-		"FSUBRP st(3),st(0)\n\t"
-		"FXCH st(2)\n\t"
-		"FSTP dword ptr [ECX]\n\t"
-		"FSUBR dword ptr [EDX + 0x4]\n\t"
-		"FSTP dword ptr [ECX + 0x4]\n\t"
-		"FSUBR dword ptr [EDX + 0x8]\n\t"
-		"FSTP dword ptr [ECX + 0x8]\n\t"
-		"ADD ESP,0x18\n\t"
-		"POP EBX\n\t"
-		"RET\n\t"
-		".att_syntax prefix\n\t"
-	);
+
+#if defined(_WIN32) || defined(__linux__)
+void ProjectPointOnPlane(vec3_t dst, const vec3_t p, const vec3_t normal) {
+#if defined(_WIN32)
+    long double z = normal[2], y = normal[1], x = normal[0];
+    long double denominator = x * x;
+    long double inverse, dot, scaledZ;
+    volatile float distance, scaledX, scaledY;
+    denominator += y * y;
+    denominator += z * z;
+    inverse = 1.0L / denominator;
+    dot = (long double)p[2] * normal[2];
+    dot += (long double)p[1] * normal[1];
+    dot += (long double)p[0] * normal[0];
+    distance = (float)(dot * inverse);
+    scaledX = (float)(inverse * normal[0]);
+    scaledY = (float)(inverse * normal[1]);
+    scaledZ = inverse * normal[2];
+    dst[0] = (float)((long double)p[0] - (long double)scaledX * distance);
+    dst[1] = (float)((long double)p[1] - (long double)scaledY * distance);
+    dst[2] = (float)((long double)p[2] - scaledZ * distance);
+#else
+    long double x = normal[0], y = normal[1], z = normal[2];
+    long double pointX = p[0];
+    long double denominator = y * y;
+    long double squareX = x * x;
+    long double dotX = x * pointX;
+    long double inverse, dotY, dot, scaledX, scaledY, scaledZ;
+    long double distance, correctionX, correctionY, correctionZ;
+    denominator += squareX;
+    denominator += z * z;
+    inverse = 1.0L / denominator;
+    dotY = y * p[1];
+    scaledX = x * inverse;
+    scaledY = y * inverse;
+    dot = dotY + dotX;
+    scaledZ = z * inverse;
+    dot += z * p[2];
+    distance = inverse * dot;
+    correctionX = scaledX * distance;
+    correctionY = scaledY * distance;
+    correctionZ = scaledZ * distance;
+    /* ELF snapshots p.x, but reloads p.y/z after the preceding output stores. */
+    dst[0] = (float)(pointX - correctionX);
+    dst[1] = (float)((long double)p[1] - correctionY);
+    dst[2] = (float)((long double)p[2] - correctionZ);
+#endif
 }
 #else
 void ProjectPointOnPlane( vec3_t dst, const vec3_t p, const vec3_t normal )
@@ -1414,55 +872,33 @@ void VectorRotate( vec3_t in, vec3_t matrix[3], vec3_t out )
 /*
 ** float q_rsqrt( float number )
 */
-#if defined(_MSC_VER) && defined(_M_IX86)
-static const float tceRsqrtHalf = .5f, tceRsqrtThreeHalfs = 1.5f;
-__declspec(naked) float Q_rsqrt( float number ) {
-	__asm {
-		PUSH ECX
-		MOV EAX,dword ptr [ESP + 08h]
-		MOV EDX,05f3759dfh
-		FLD dword ptr [ESP + 08h]
-		FMUL tceRsqrtHalf
-		MOV ECX,EAX
-		MOV dword ptr [ESP],EAX
-		SAR ECX,01h
-		SUB EDX,ECX
-		MOV dword ptr [ESP],EDX
-		FMUL dword ptr [ESP]
-		FMUL dword ptr [ESP]
-		FSUBR tceRsqrtThreeHalfs
-		FMUL dword ptr [ESP]
-		POP ECX
-		RET
-	}
+#if defined(_WIN32) || defined(__linux__)
+/* Shared arithmetic value for native consumers which retain the return value
+ * beyond binary32. The public Q_rsqrt API still returns float. */
+long double TCE_ReciprocalSquareRootValue(float number) {
+    uint32_t bits, shifted, estimateBits;
+    float estimate;
+    long double correction;
+    memcpy(&bits, &number, sizeof(bits));
+    /* Native SAR is signed; use unsigned operations to define sign filling. */
+    shifted = (bits >> 1) | (bits & 0x80000000u);
+    estimateBits = 0x5f3759dfu - shifted;
+    memcpy(&estimate, &estimateBits, sizeof(estimate));
+    correction = (long double)number * 0.5f;
+    correction *= (long double)estimate;
+#if defined(_WIN32)
+    correction *= (long double)estimate;
+    correction = 1.5f - correction;
+    return correction * (long double)estimate;
+#else
+    correction = (long double)estimate * correction;
+    correction = 1.5f - correction;
+    return (long double)estimate * correction;
+#endif
 }
-#elif defined(__GNUC__) && defined(__i386__)
-__attribute__((naked)) float Q_rsqrt( float number ) {
-	__asm__ volatile (
-		".intel_syntax noprefix\n\t"
-		"sub esp,12\n\t"
-		"mov dword ptr [esp+4],0x3f000000\n\t"
-		"mov dword ptr [esp+8],0x3fc00000\n\t"
-		"MOV EAX,dword ptr [ESP + 0x10]\n\t"
-		"MOV dword ptr [ESP],EAX\n\t"
-		"MOV EDX,EAX\n\t"
-		"SAR EDX,0x1\n\t"
-		"FLD dword ptr [ESP]\n\t"
-		"MOV EAX,0x5f3759df\n\t"
-		"SUB EAX,EDX\n\t"
-		"FMUL dword ptr [esp+4]\n\t"
-		"MOV dword ptr [ESP],EAX\n\t"
-		"FLD dword ptr [ESP]\n\t"
-		"FLD st(0)\n\t"
-		"FXCH st(2)\n\t"
-		"fmul st(0),st(1)\n\t"
-		"fmulp st(1),st(0)\n\t"
-		"FSUBR dword ptr [esp+8]\n\t"
-		"add esp,12\n\t"
-		"fmulp st(1),st(0)\n\t"
-		"RET\n\t"
-		".att_syntax prefix\n\t"
-	);
+
+float Q_rsqrt(float number) {
+    return (float)TCE_ReciprocalSquareRootValue(number);
 }
 #else
 float Q_rsqrt( float number )
@@ -1484,39 +920,9 @@ float Q_rsqrt( float number )
 }
 #endif
 
-/* Original x86 branch/staging contract: line_744.md. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) float Q_fabs(float f) {
-    __asm {
-        mov eax,dword ptr [esp + 0x4]
-        and eax,0x7fffffff
-        mov dword ptr [esp + 0x4],eax
-        fld dword ptr [esp + 0x4]
-        ret
-    }
-}
-#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-__attribute__((naked)) float Q_fabs(float f) {
-    __asm__(
-        ".intel_syntax noprefix\n"
-        ".Ltce_744_001141e6:\n"
-        "sub esp,0x4\n"
-        ".Ltce_744_001141e9:\n"
-        "mov edx,dword ptr [esp + 0x8]\n"
-        ".Ltce_744_001141ed:\n"
-        "and edx,0x7fffffff\n"
-        ".Ltce_744_001141f3:\n"
-        "mov dword ptr [esp],edx\n"
-        ".Ltce_744_001141f6:\n"
-        "fld dword ptr [esp]\n"
-        ".Ltce_744_001141f9:\n"
-        "pop edx\n"
-        ".Ltce_744_001141fa:\n"
-        "ret\n"
-        ".att_syntax prefix\n"
-    );
-}
-#else
+/* Clear the stored sign bit before returning the Float value. Finite magnitudes
+ * need no extra precision; signaling-NaN conversion/exception behavior at the
+ * native x87 return boundary remains compiler-dependent (proof933). */
 float Q_fabs( float f ) {
 	uint32_t bits;
 	memcpy(&bits, &f, sizeof(bits));
@@ -1524,14 +930,20 @@ float Q_fabs( float f ) {
 	memcpy(&f, &bits, sizeof(f));
 	return f;
 }
-#endif
 
 #if id386 && !( (defined __linux__ || defined __FreeBSD__ || defined __GNUC__ ) && (defined __i386__ ) ) // rb010123
-long myftol( float f ) {
-	static int tmp;
-	__asm fld f
-	__asm fistp tmp
-	__asm mov eax, tmp
+long myftol(float f) {
+    static int tmp;
+    /* FISTP follows the current rounding direction, rather than truncating.
+     * Float inputs and their rounded integral results need no wider mantissa.
+     * CRT/x87 exception and control-word equivalence remains unverified. */
+    float rounded = rintf(f);
+    if (!(rounded >= -2147483648.0f && rounded < 2147483648.0f)) {
+        tmp = INT_MIN;
+    } else {
+        tmp = (int)rounded;
+    }
+    return (long)tmp;
 }
 #endif
 
@@ -1543,78 +955,44 @@ LerpAngle
 
 ===============
 */
-#if defined(_MSC_VER) && defined(_M_IX86)
-static const float la763Pos=180.f, la763Neg=-180.f, la763Turn=360.f;
-__declspec(naked) float LerpAngle(float from,float to,float frac) {
- __asm {
-FLD dword ptr [ESP + 0x8]
-FLD st(0)
-FSUB dword ptr [ESP + 0x4]
-FCOMP dword ptr la763Pos
-FNSTSW AX
-TEST AH,041h
-JNZ la763_3007e31d
-FSUB dword ptr la763Turn
-la763_3007e31d:
-FLD st(0)
-FSUB dword ptr [ESP + 0x4]
-FCOMP dword ptr la763Neg
-FNSTSW AX
-TEST AH,01h
-JZ la763_3007e336
-FADD dword ptr la763Turn
-la763_3007e336:
-FSUB dword ptr [ESP + 0x4]
-FMUL dword ptr [ESP + 0xc]
-FADD dword ptr [ESP + 0x4]
-RET
- }
-}
-#elif defined(__GNUC__) && defined(__i386__)
-__attribute__((naked)) float LerpAngle(float from,float to,float frac) {
- __asm__ volatile (
- ".intel_syntax noprefix\n\t"
- "sub esp,12\n\t"
- "mov dword ptr [esp],0x43340000\n\t"
- "mov dword ptr [esp+4],0x43b40000\n\t"
- "mov dword ptr [esp+8],0xc3340000\n\t"
- "FLD dword ptr [esp+20]\n\t"
- "FLD dword ptr [esp+16]\n\t"
- "FLD dword ptr [esp+24]\n\t"
- "FLD st(2)\n\t"
- "FSUB st(0),st(2)\n\t"
- "FCOM dword ptr [esp]\n\t"
- "FNSTSW AX\n\t"
- "SAHF\n\t"
- "JBE la763_000ecc42\n\t"
- "FSTP st(0)\n\t"
- "FXCH st(2)\n\t"
- "FSUB dword ptr [esp+4]\n\t"
- "FLD st(0)\n\t"
- "FSUB st(0),st(2)\n\t"
- "FXCH st(1)\n\t"
- "FXCH st(3)\n\t"
- "FXCH st(1)\n\t"
- "la763_000ecc42:\n\t"
- "FCOM dword ptr [esp+8]\n\t"
- "FNSTSW AX\n\t"
- "SAHF\n\t"
- "JNC la763_000ecc60\n\t"
- "FSTP st(0)\n\t"
- "FXCH st(2)\n\t"
- "FADD dword ptr [esp+4]\n\t"
- "FSUB st(0),st(1)\n\t"
- "FXCH st(2)\n\t"
- "la763_000ecc5b:\n\t"
- "FMULP st(2),st(0)\n\t"
- "FADDP st(1),st(0)\n\t"
- "ADD ESP,12\n\t"
- "RET\n\t"
- "la763_000ecc60:\n\t"
- "FSTP st(3)\n\t"
- "JMP la763_000ecc5b\n\t"
- ".att_syntax prefix\n\t"
- );
+/* Original native interpolation keeps adjusted endpoints and products wide.
+ * The lower comparison includes unordered values; the upper one does not.
+ * Public Float return/FP exception equivalence remains open; see proof934. */
+#if defined(_WIN32) || defined(__linux__)
+float LerpAngle(float from, float to, float frac) {
+    long double endpoint = (long double)to;
+    long double start = (long double)from;
+#if defined(__linux__) && !defined(_WIN32)
+    long double factor = (long double)frac;
+#endif
+    long double difference = endpoint - start;
+    long double product;
+
+    if (difference > 180.0L) {
+        endpoint -= 360.0L;
+#if !defined(_WIN32)
+        difference = endpoint - start;
+#endif
+    }
+#if defined(_WIN32)
+    /* Windows repeats the subtraction for the second comparison. */
+    difference = endpoint - start;
+#endif
+    if (!(difference >= -180.0L)) {
+        endpoint += 360.0L;
+#if !defined(_WIN32)
+        difference = endpoint - start;
+#endif
+    }
+#if defined(_WIN32)
+    difference = endpoint - start;
+#endif
+#if defined(_WIN32)
+    product = difference * (long double)frac;
+#else
+    product = difference * factor;
+#endif
+    return (float)(product + start);
 }
 #else
 float LerpAngle(float from,float to,float frac) {
@@ -1623,7 +1001,6 @@ float LerpAngle(float from,float to,float frac) {
  return from+frac*(to-from);
 }
 #endif
-
 /*
 =================
 LerpPosition
@@ -1631,71 +1008,40 @@ LerpPosition
 =================
 */
 
-/* Original platform interpolation stores: lerp_746.md. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) void LerpPosition(vec3_t start, vec3_t end, float frac, vec3_t result) {
-    __asm {
-        sub esp,0xc
-        mov ecx,dword ptr [esp + 0x14]
-        mov eax,dword ptr [esp + 0x10]
-        fld dword ptr [ecx]
-        fsub dword ptr [eax]
-        fld dword ptr [ecx + 0x4]
-        fsub dword ptr [eax + 0x4]
-        fstp dword ptr [esp + 0x4]
-        fld dword ptr [ecx + 0x8]
-        fsub dword ptr [eax + 0x8]
-        mov ecx,dword ptr [esp + 0x1c]
-        fstp dword ptr [esp + 0x8]
-        fmul dword ptr [esp + 0x18]
-        fadd dword ptr [eax]
-        fstp dword ptr [ecx]
-        fld dword ptr [esp + 0x4]
-        fmul dword ptr [esp + 0x18]
-        fadd dword ptr [eax + 0x4]
-        fstp dword ptr [ecx + 0x4]
-        fld dword ptr [esp + 0x8]
-        fmul dword ptr [esp + 0x18]
-        fadd dword ptr [eax + 0x8]
-        fstp dword ptr [ecx + 0x8]
-        add esp,0xc
-        ret
-    }
+/* Platform interpolation stages from the original bodies; see proof913. */
+#if defined(_WIN32)
+void LerpPosition(vec3_t start, vec3_t end, float frac, vec3_t result) {
+    long double differenceX = (long double)end[0] - start[0];
+    volatile float differenceY = (float)((long double)end[1] - start[1]);
+    volatile float differenceZ = (float)((long double)end[2] - start[2]);
+    long double product;
+
+    product = differenceX * (long double)frac;
+    result[0] = (float)(product + (long double)start[0]);
+    product = (long double)differenceY * (long double)frac;
+    result[1] = (float)(product + (long double)start[1]);
+    product = (long double)differenceZ * (long double)frac;
+    result[2] = (float)(product + (long double)start[2]);
 }
-#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-__attribute__((naked)) void LerpPosition(vec3_t start, vec3_t end, float frac, vec3_t result) {
-    __asm__(
-        ".intel_syntax noprefix\n"
-        "sub esp,0x1c\n"
-        "mov edx,dword ptr [esp + 0x20]\n"
-        "mov eax,dword ptr [esp + 0x24]\n"
-        "fld dword ptr [esp + 0x28]\n"
-        "mov ecx,dword ptr [esp + 0x2c]\n"
-        "fld dword ptr [edx]\n"
-        "fld dword ptr [eax]\n"
-        "fld dword ptr [edx + 0x4]\n"
-        "fsubr dword ptr [eax + 0x4]\n"
-        "fxch st(1)\n"
-        "fsub st(0),st(2)\n"
-        "fld dword ptr [edx + 0x8]\n"
-        "fsubr dword ptr [eax + 0x8]\n"
-        "fxch st(1)\n"
-        "fmul st(0),st(4)\n"
-        "fxch st(2)\n"
-        "fmul st(0),st(4)\n"
-        "fxch st(1)\n"
-        "fmulp st(4),st(0)\n"
-        "fxch st(2)\n"
-        "faddp st(1),st(0)\n"
-        "fstp dword ptr [ecx]\n"
-        "fadd dword ptr [edx + 0x4]\n"
-        "fstp dword ptr [ecx + 0x4]\n"
-        "fadd dword ptr [edx + 0x8]\n"
-        "fstp dword ptr [ecx + 0x8]\n"
-        "add esp,0x1c\n"
-        "ret\n"
-        ".att_syntax prefix\n"
-    );
+#elif defined(__linux__)
+void LerpPosition(vec3_t start, vec3_t end, float frac, vec3_t result) {
+    long double factor = (long double)frac;
+    long double startX = start[0];
+    long double endX = end[0];
+    long double startY = start[1];
+    long double differenceY = (long double)end[1] - startY;
+    long double differenceX = endX - startX;
+    long double startZ = start[2];
+    long double differenceZ = (long double)end[2] - startZ;
+    long double productX = differenceX * factor;
+    long double productY = differenceY * factor;
+    long double productZ = factor * differenceZ;
+
+    /* Only X retains its original starting value across the output stores.
+     * Y and Z reload start so overlapping input/output keeps native order. */
+    result[0] = (float)(productX + startX);
+    result[1] = (float)(productY + (long double)start[1]);
+    result[2] = (float)(productZ + (long double)start[2]);
 }
 #else
 void LerpPosition( vec3_t start, vec3_t end, float frac, vec3_t out) {
@@ -1713,177 +1059,78 @@ AngleSubtract
 Always returns a value from -180 to 180
 =================
 */
-#if defined(_MSC_VER) && defined(_M_IX86)
-static const float tceAngleHalfTurn = 180.0f;
-static const float tceAngleNegativeHalfTurn = -180.0f;
-static const float tceAngleTurn = 360.0f;
-/* Naked x86 entry preserves the original extended ST0 result until its caller stores it. */
-__declspec(naked) float AngleSubtract( float a1, float a2 )
-{
-    __asm {
-        fld dword ptr [esp + 4]
-        fsub dword ptr [esp + 8]
-        fcom tceAngleHalfTurn
-        fnstsw ax
-        test ah, 041h
-        jnz angle_sub_lower
-    angle_sub_upper:
-        fsub tceAngleTurn
-        fcom tceAngleHalfTurn
-        fnstsw ax
-        test ah, 041h
-        jz angle_sub_upper
-    angle_sub_lower:
-        fcom tceAngleNegativeHalfTurn
-        fnstsw ax
-        test ah, 1
-        jz angle_sub_done
-    angle_sub_add:
-        fadd tceAngleTurn
-        fcom tceAngleNegativeHalfTurn
-        fnstsw ax
-        test ah, 1
-        jnz angle_sub_add
-    angle_sub_done:
-        ret
-    }
-}
-#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-__attribute__((naked)) float AngleSubtract( float a1, float a2 )
-{
-    /* Stack-local constants keep this whole original sequence position independent. */
-    __asm__(
-        ".intel_syntax noprefix\n"
-        "sub esp, 12\n"
-        "mov dword ptr [esp], 0x43340000\n"
-        "mov dword ptr [esp+4], 0xc3340000\n"
-        "mov dword ptr [esp+8], 0x43b40000\n"
-        "fld dword ptr [esp+20]\n"
-        "fsubr dword ptr [esp+16]\n"
-        "fld dword ptr [esp]\n"
-        "fcom st(1)\n"
-        "fnstsw ax\n"
-        "sahf\n"
-        "jnc 5f\n"
-        "fld dword ptr [esp+8]\n"
-        "1: fsub st(2), st(0)\n"
-        "fxch st(2)\n"
-        "fcom st(1)\n"
-        "fnstsw ax\n"
-        "sahf\n"
-        "jbe 2f\n"
-        "fxch st(2)\n"
-        "jmp 1b\n"
-        "2: fstp st(1)\n"
-        "fstp st(1)\n"
-        "3: fld dword ptr [esp+4]\n"
-        "fcom st(1)\n"
-        "fnstsw ax\n"
-        "sahf\n"
-        "jbe 6f\n"
-        "fld dword ptr [esp+8]\n"
-        "4: fadd st(2), st(0)\n"
-        "fxch st(2)\n"
-        "fcom st(1)\n"
-        "fnstsw ax\n"
-        "sahf\n"
-        "jnc 7f\n"
-        "fxch st(2)\n"
-        "jmp 4b\n"
-        "5: fstp st(0)\n"
-        "jmp 3b\n"
-        "6: fstp st(0)\n"
-        "jmp 8f\n"
-        "7: fstp st(1)\n"
-        "fstp st(1)\n"
-        "8: add esp, 12\n"
-        "ret\n"
-        ".att_syntax prefix\n"
-    );
-}
+float AngleSubtract(float a1, float a2) {
+#if defined(_WIN32) || defined(__linux__)
+    /* Wide original consumers use TCE_AngleSubtractValue directly. */
+    return (float)TCE_AngleSubtractValue(a1, a2);
 #else
-/* Portable fallback does not claim the original x87 exceptional-input contract. */
-float AngleSubtract( float a1, float a2 )
-{
     float a = a1 - a2;
-    while ( a > 180 ) { a -= 360; }
-    while ( a < -180 ) { a += 360; }
+    while (a > 180) { a -= 360; }
+    while (a < -180) { a += 360; }
     return a;
-}
 #endif
-
-
-void AnglesSubtract( vec3_t v1, vec3_t v2, vec3_t v3 )
-{
-	v3[0] = AngleSubtract( v1[0], v2[0] );
-	v3[1] = AngleSubtract( v1[1], v2[1] );
-	v3[2] = AngleSubtract( v1[2], v2[2] );
 }
 
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-static const double tceAngleToShort = 65536.0 / 360.0;
-static const double tceShortToAngle = 360.0 / 65536.0;
-__declspec(naked) float AngleMod(float a)
-{
-    __asm {
-        fld dword ptr [esp + 4]
-        fmul tceAngleToShort
-        sub esp, 16
-        /* Original __ftol uses a truncating 64-bit conversion and restores the CW. */
-        fstcw word ptr [esp + 12]
-        fwait
-        mov ax, word ptr [esp + 12]
-        or ah, 0ch
-        mov word ptr [esp + 14], ax
-        fldcw word ptr [esp + 14]
-        fistp qword ptr [esp]
-        fldcw word ptr [esp + 12]
-        mov eax, dword ptr [esp]
-        and eax, 0ffffh
-        mov dword ptr [esp], eax
-        fild dword ptr [esp]
-        fmul tceShortToAngle
-        add esp, 16
-        ret
+#if defined(_WIN32) || defined(__linux__)
+/* Shared value path retains the original wide result for native C consumers.
+ * The public scalar entry rounds only at its declared Float return boundary. */
+long double TCE_AngleSubtractValue(float a1, float a2) {
+#if defined(_WIN32)
+    long double value = (long double)a1 - (long double)a2;
+    while (value > 180.0L) {
+        value -= 360.0L;
     }
-}
-#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-__attribute__((naked)) float AngleMod(float a)
-{
-    __asm__(
-        ".intel_syntax noprefix\n"
-        "sub esp, 24\n"
-        "mov dword ptr [esp+8], 0x16c16c17\n"
-        "mov dword ptr [esp+12], 0x4066c16c\n"
-        "mov dword ptr [esp+16], 0x3bb40000\n"
-        "fnstcw word ptr [esp+4]\n"
-        "movzx ecx, word ptr [esp+4]\n"
-        "fld qword ptr [esp+8]\n"
-        "fmul dword ptr [esp+28]\n"
-        "or cx, 0x0c00\n"
-        "mov word ptr [esp+6], cx\n"
-        "fldcw word ptr [esp+6]\n"
-        "fistp dword ptr [esp]\n"
-        "fldcw word ptr [esp+4]\n"
-        "mov ecx, dword ptr [esp]\n"
-        "and ecx, 0xffff\n"
-        "mov dword ptr [esp], ecx\n"
-        "fild dword ptr [esp]\n"
-        "fmul dword ptr [esp+16]\n"
-        "fstp dword ptr [esp]\n"
-        "fld dword ptr [esp]\n"
-        "add esp, 24\n"
-        "ret\n"
-        ".att_syntax prefix\n"
-    );
-}
+    /* The original lower loop repeats for unordered comparisons as well. */
+    while (!(value >= -180.0L)) {
+        value += 360.0L;
+    }
+    return value;
 #else
-float AngleMod(float a)
-{
-    return((360.0 / 65536) * ((int)(a * (65536 / 360.0)) & 65535));
+    long double second = (long double)a2;
+    long double value = (long double)a1 - second;
+    /* Linux enters the upper loop for an unordered first comparison, then
+     * exits that loop on unordered; the initial lower comparison skips it. */
+    if (!(value <= 180.0L)) {
+        do {
+            value -= 360.0L;
+        } while (value > 180.0L);
+    }
+    if (value < -180.0L) {
+        do {
+            value += 360.0L;
+        } while (!(value >= -180.0L));
+    }
+    return value;
+#endif
 }
 #endif
+
+void AnglesSubtract(vec3_t v1, vec3_t v2, vec3_t v3) {
+#if defined(_WIN32) || defined(__linux__)
+    v3[0] = (float)TCE_AngleSubtractValue(v1[0], v2[0]);
+    v3[1] = (float)TCE_AngleSubtractValue(v1[1], v2[1]);
+    v3[2] = (float)TCE_AngleSubtractValue(v1[2], v2[2]);
+#else
+    v3[0] = AngleSubtract(v1[0], v2[0]);
+    v3[1] = AngleSubtract(v1[1], v2[1]);
+    v3[2] = AngleSubtract(v1[2], v2[2]);
+#endif
+}
+
+
+float AngleMod(float angle) {
+#if defined(_WIN32) || defined(__linux__)
+    /* Match the original double scale and platform integer conversion.
+     * Do not narrow the product to float before truncation. */
+    long double scaled = (long double)angle * (long double)(65536.0 / 360.0);
+    unsigned shortAngle = (unsigned)TCE_TruncateNativeInteger(scaled) & 65535u;
+    /* 45 * shortAngle fits in 22 bits, so the final float is exact. */
+    return (float)((long double)shortAngle * (long double)(360.0 / 65536.0));
+#else
+    return (360.0 / 65536) * ((int)(angle * (65536 / 360.0)) & 65535);
+#endif
+}
 
 /*
 =================
@@ -1903,20 +1150,20 @@ AngleNormalize360
 returns angle normalized to the range [0 <= angle < 360]
 =================
 */
-/* Same original conversion as AngleMod, with no C float-return spill. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) float AngleNormalize360(float angle) {
-    __asm { jmp AngleMod }
-}
-#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-__attribute__((naked)) float AngleNormalize360(float angle) {
-    __asm__("jmp AngleMod");
-}
+float AngleNormalize360(float angle) {
+#if defined(_WIN32) || defined(__linux__)
+    /* The original multiplies by a double constant before truncation:
+     * Windows __ftol consumes signed64, Linux FISTP consumes signed32.
+     * Keep the product wide until the platform conversion, not in float. */
+    long double scaled = (long double)angle * (long double)(65536.0 / 360.0);
+    unsigned shortAngle = (unsigned)TCE_TruncateNativeInteger(scaled) & 65535u;
+    /* 45 * shortAngle fits in 22 bits. This dyadic product is already
+     * exactly representable as float, including the native wide return. */
+    return (float)((long double)shortAngle * (long double)(360.0 / 65536.0));
 #else
-float AngleNormalize360 ( float angle ) {
-	return (360.0 / 65536) * ((int)(angle * (65536 / 360.0)) & 65535);
-}
+    return (360.0 / 65536) * ((int)(angle * (65536 / 360.0)) & 65535);
 #endif
+}
 
 
 /*
@@ -1926,62 +1173,23 @@ AngleNormalize180
 returns angle normalized to the range [-180 < angle <= 180]
 =================
 */
-/* Original caller consumes Normalize360 directly in ST0. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-static const double tceNormalizeHalf = 180.0, tceNormalizeTurn = 360.0;
-__declspec(naked) float AngleNormalize180(float angle) {
-    __asm {
-        mov eax, dword ptr [esp+4]
-        push eax
-        call AngleNormalize360
-        fcom qword ptr tceNormalizeHalf
-        add esp, 4
-        fnstsw ax
-        test ah, 41h
-        jnz tce_normalize180_done
-        fsub qword ptr tceNormalizeTurn
-    tce_normalize180_done:
-        ret
+float AngleNormalize180(float angle) {
+    /* Normalize360 returns an exactly representable float for the native
+     * quantized range. Retain wide arithmetic through the comparison. */
+    long double normalized = (long double)AngleNormalize360(angle);
+#if defined(__linux__)
+    /* Linux compares 180 against the result; unordered also subtracts. */
+    if (!(normalized <= 180.0L)) {
+        normalized = (long double)(float)(normalized - 360.0L);
     }
-}
-#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-__attribute__((naked)) float AngleNormalize180(float angle) {
-    __asm__(
-        ".intel_syntax noprefix\n"
-        "sub esp,20\n"
-        "fld dword ptr [esp+24]\n"
-        "mov dword ptr [esp+8],ebx\n"
-        "mov dword ptr [esp+12],0x43340000\n"
-        "mov dword ptr [esp+16],0x43b40000\n"
-        "fstp dword ptr [esp]\n"
-        "call AngleNormalize360\n"
-        "fld st(0)\n"
-        "fld dword ptr [esp+12]\n"
-        "fcomp st(1)\n"
-        "fnstsw ax\n"
-        "sahf\n"
-        "jnc 1f\n"
-        "fstp st(1)\n"
-        "fsub dword ptr [esp+16]\n"
-        "fstp dword ptr [esp+4]\n"
-        "fld dword ptr [esp+4]\n"
-        "jmp 2f\n"
-        "1: fstp st(0)\n"
-        "2: mov ebx,dword ptr [esp+8]\n"
-        "add esp,20\n"
-        "ret\n"
-        ".att_syntax prefix\n"
-    );
-}
 #else
-float AngleNormalize180 ( float angle ) {
-	angle = AngleNormalize360( angle );
-	if ( angle > 180.0 ) {
-		angle -= 360.0;
-	}
-	return angle;
-}
+    /* Windows skips subtraction for unordered and equal comparisons. */
+    if (normalized > 180.0L) {
+        normalized -= 360.0L;
+    }
 #endif
+    return (float)normalized;
+}
 
 
 /*
@@ -1991,40 +1199,22 @@ AngleDelta
 returns the normalized delta from angle1 to angle2
 =================
 */
-/* Original x86 argument staging and retained return: shared_742.md. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) float AngleDelta(float angle1, float angle2) {
-    __asm {
-        fld dword ptr [esp + 0x4]
-        fsub dword ptr [esp + 0x8]
-        push ecx
-        fstp dword ptr [esp]
-        call AngleNormalize180
-        pop ecx
-        ret
-    }
-}
-#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-__attribute__((naked)) float AngleDelta(float angle1, float angle2) {
-    __asm__(
-        ".intel_syntax noprefix\n"
-        "sub esp,0xc\n"
-        "fld dword ptr [esp + 0x14]\n"
-        "fsubr dword ptr [esp + 0x10]\n"
-        "mov dword ptr [esp + 0x8],ebx\n"
-        "fstp dword ptr [esp]\n"
-        "call AngleNormalize180\n"
-        "mov ebx,dword ptr [esp + 0x8]\n"
-        "add esp,0xc\n"
-        "ret\n"
-        ".att_syntax prefix\n"
-    );
-}
+float AngleDelta(float angle1, float angle2) {
+#if defined(_WIN32) || defined(__linux__)
+    volatile float difference;
+#if defined(__linux__)
+    /* The Linux original loads angle2, then subtracts it from angle1. */
+    long double second = (long double)angle2;
+    difference = (float)((long double)angle1 - second);
 #else
-float AngleDelta ( float angle1, float angle2 ) {
-	return AngleNormalize180( angle1 - angle2 );
-}
+    difference = (float)((long double)angle1 - (long double)angle2);
 #endif
+    /* Both originals store a Float argument before normalization. */
+    return AngleNormalize180(difference);
+#else
+    return AngleNormalize180(angle1 - angle2);
+#endif
+}
 
 
 //============================================================
@@ -2411,128 +1601,69 @@ int BoxOnPlaneSide (vec3_t emins, vec3_t emaxs, struct cplane_s *p) {
 RadiusFromBounds
 =================
 */
-/* TC749: platform-specific unordered selection and x87 helper boundaries. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) float RadiusFromBounds(const vec3_t mins, const vec3_t maxs) {
- __asm {
-  sub esp,0xc
-  push ebx
-  push ebp
-  mov ebp,dword ptr [esp + 0x18]
-  push esi
-  mov esi,dword ptr [esp + 0x20]
-  push edi
-  lea edi,[esp + 0x10]
-  sub ebp,esi
-  sub edi,esi
-  mov ebx,0x3
-  tce749_200a091c:
-  mov eax,dword ptr [esi + ebp*0x1]
-  push eax
-  call Q_fabs
-  mov ecx,dword ptr [esi]
-  fstp dword ptr [esp + 0x28]
-  push ecx
-  call Q_fabs
-  fld dword ptr [esp + 0x2c]
-  fcomp st(1)
-  add esp,0x8
-  fnstsw ax
-  test ah,0x41
-  jnz tce749_200a0947
-  fstp st(0)
-  fld dword ptr [esp + 0x24]
-  tce749_200a0947:
-  fstp dword ptr [edi + esi*0x1]
-  add esi,0x4
-  dec ebx
-  jnz tce749_200a091c
-  lea edx,[esp + 0x10]
-  push edx
-  call VectorLength
-  add esp,0x4
-  pop edi
-  pop esi
-  pop ebp
-  pop ebx
-  add esp,0xc
-  ret
- }
+#if defined(_WIN32) || defined(__linux__)
+/* Internal value paths avoid an extra public float-return boundary between
+ * reconstructed helpers. Native x87 precision/exception parity remains open.
+ */
+long double TCE_VectorLengthSquaredValue( const vec3_t v ) {
+	long double x, y, z, xSquared, ySquared, sum;
+
+#if defined(_WIN32)
+	z = v[2];
+	y = v[1];
+	x = v[0];
+#else
+	x = v[0];
+	y = v[1];
+#endif
+	xSquared = x * x;
+	ySquared = y * y;
+	sum = xSquared + ySquared;
+#if !defined(_WIN32)
+	z = v[2];
+#endif
+	return sum + z * z;
 }
-#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-__attribute__((naked)) float RadiusFromBounds(const vec3_t mins, const vec3_t maxs) {
- __asm__(
- ".intel_syntax noprefix\n"
- ".Ltce749_00114530:\n"
- "push ebp\n"
- ".Ltce749_00114531:\n"
- "push edi\n"
- ".Ltce749_00114532:\n"
- "push esi\n"
- ".Ltce749_00114533:\n"
- "xor esi,esi\n"
- ".Ltce749_00114535:\n"
- "push ebx\n"
- ".Ltce749_00114536:\n"
- "sub esp,0x3c\n"
- ".Ltce749_00114539:\n"
- "mov ebp,dword ptr [esp + 0x50]\n"
- ".Ltce749_0011453d:\n"
- "mov edi,dword ptr [esp + 0x54]\n"
- ".Ltce749_0011454c:\n"
- "mov edx,dword ptr [ebp + esi*0x4]\n"
- ".Ltce749_00114550:\n"
- "mov dword ptr [esp],edx\n"
- ".Ltce749_00114553:\n"
- "call Q_fabs\n"
- ".Ltce749_00114558:\n"
- "fstp dword ptr [esp + 0x1c]\n"
- ".Ltce749_0011455c:\n"
- "mov edx,dword ptr [edi + esi*0x4]\n"
- ".Ltce749_0011455f:\n"
- "mov dword ptr [esp],edx\n"
- ".Ltce749_00114562:\n"
- "call Q_fabs\n"
- ".Ltce749_00114567:\n"
- "fcom dword ptr [esp + 0x1c]\n"
- ".Ltce749_0011456b:\n"
- "fnstsw ax\n"
- ".Ltce749_0011456d:\n"
- "sahf\n"
- ".Ltce749_0011456e:\n"
- "jnc .Ltce749_00114576\n"
- ".Ltce749_00114570:\n"
- "fstp st(0)\n"
- ".Ltce749_00114572:\n"
- "fld dword ptr [esp + 0x1c]\n"
- ".Ltce749_00114576:\n"
- "fstp dword ptr [esp + esi*0x4 + 0x20]\n"
- ".Ltce749_0011457a:\n"
- "inc esi\n"
- ".Ltce749_0011457b:\n"
- "cmp esi,0x2\n"
- ".Ltce749_0011457e:\n"
- "jle .Ltce749_0011454c\n"
- ".Ltce749_00114580:\n"
- "lea ecx,[esp + 0x20]\n"
- ".Ltce749_00114584:\n"
- "mov dword ptr [esp],ecx\n"
- ".Ltce749_00114587:\n"
- "call VectorLength\n"
- ".Ltce749_0011458c:\n"
- "add esp,0x3c\n"
- ".Ltce749_0011458f:\n"
- "pop ebx\n"
- ".Ltce749_00114590:\n"
- "pop esi\n"
- ".Ltce749_00114591:\n"
- "pop edi\n"
- ".Ltce749_00114592:\n"
- "pop ebp\n"
- ".Ltce749_00114593:\n"
- "ret\n"
- ".att_syntax prefix\n"
- );
+
+long double TCE_VectorLengthValue( const vec3_t v ) {
+	long double length = sqrtl( TCE_VectorLengthSquaredValue( v ) );
+
+#if !defined(_WIN32)
+	/* The Linux VectorLength stores and reloads its root as float. */
+	volatile float storedLength = (float)length;
+	length = storedLength;
+#endif
+	return length;
+}
+
+static void TCE_VectorDifferenceFloat( const vec3_t p1, const vec3_t p2, vec3_t delta ) {
+	volatile float *stored = delta;
+
+	/* These three original stores precede the length helper call. */
+	stored[0] = (float)((long double)p2[0] - (long double)p1[0]);
+	stored[1] = (float)((long double)p2[1] - (long double)p1[1]);
+	stored[2] = (float)((long double)p2[2] - (long double)p1[2]);
+}
+#endif
+
+#if defined(_WIN32) || defined(__linux__)
+float RadiusFromBounds( const vec3_t mins, const vec3_t maxs ) {
+	vec3_t corner;
+	int i;
+
+	for (i = 0; i < 3; ++i) {
+		volatile float minAbs = Q_fabs( mins[i] );
+		long double maxAbs = Q_fabs( maxs[i] );
+
+#if defined(_WIN32)
+		/* Unordered comparisons keep maxAbs in the Windows original. */
+		corner[i] = (float)((long double)minAbs > maxAbs ? (long double)minAbs : maxAbs);
+#else
+		/* JNC keeps maxAbs only for an ordered greater-or-equal result. */
+		corner[i] = (float)(maxAbs >= (long double)minAbs ? maxAbs : (long double)minAbs);
+#endif
+	}
+	return (float)TCE_VectorLengthValue( corner );
 }
 #else
 float RadiusFromBounds( const vec3_t mins, const vec3_t maxs ) {
@@ -2556,168 +1687,33 @@ void ClearBounds( vec3_t mins, vec3_t maxs ) {
 	maxs[0] = maxs[1] = maxs[2] = -99999;
 }
 
-/* TC750: original ordered/unordered bounds gates and platform store contract. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) void AddPointToBounds(const vec3_t v, vec3_t mins, vec3_t maxs) {
- __asm {
-  mov ecx,dword ptr [esp + 0x4]
-  push esi
-  mov esi,dword ptr [esp + 0xc]
-  fld dword ptr [ecx]
-  fcomp dword ptr [esi]
-  fnstsw ax
-  test ah,0x1
-  jz tce750_200a0988
-  mov eax,dword ptr [ecx]
-  mov dword ptr [esi],eax
-  tce750_200a0988:
-  mov edx,dword ptr [esp + 0x10]
-  fld dword ptr [ecx]
-  fcomp dword ptr [edx]
-  fnstsw ax
-  test ah,0x41
-  jnz tce750_200a099b
-  mov eax,dword ptr [ecx]
-  mov dword ptr [edx],eax
-  tce750_200a099b:
-  fld dword ptr [ecx + 0x4]
-  fcomp dword ptr [esi + 0x4]
-  fnstsw ax
-  test ah,0x1
-  jz tce750_200a09ae
-  mov eax,dword ptr [ecx + 0x4]
-  mov dword ptr [esi + 0x4],eax
-  tce750_200a09ae:
-  fld dword ptr [ecx + 0x4]
-  fcomp dword ptr [edx + 0x4]
-  fnstsw ax
-  test ah,0x41
-  jnz tce750_200a09c1
-  mov eax,dword ptr [ecx + 0x4]
-  mov dword ptr [edx + 0x4],eax
-  tce750_200a09c1:
-  fld dword ptr [ecx + 0x8]
-  fcomp dword ptr [esi + 0x8]
-  fnstsw ax
-  test ah,0x1
-  jz tce750_200a09d4
-  mov eax,dword ptr [ecx + 0x8]
-  mov dword ptr [esi + 0x8],eax
-  tce750_200a09d4:
-  fld dword ptr [ecx + 0x8]
-  fcomp dword ptr [edx + 0x8]
-  pop esi
-  fnstsw ax
-  test ah,0x41
-  jnz tce750_200a09e8
-  mov ecx,dword ptr [ecx + 0x8]
-  mov dword ptr [edx + 0x8],ecx
-  tce750_200a09e8:
-  ret
- }
-}
-#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-__attribute__((naked)) void AddPointToBounds(const vec3_t v, vec3_t mins, vec3_t maxs) {
- __asm__(
- ".intel_syntax noprefix\n"
- ".Ltce750_001145c6:\n"
- "push esi\n"
- ".Ltce750_001145c7:\n"
- "mov edx,dword ptr [esp + 0x8]\n"
- ".Ltce750_001145cb:\n"
- "mov esi,dword ptr [esp + 0xc]\n"
- ".Ltce750_001145cf:\n"
- "mov ecx,dword ptr [esp + 0x10]\n"
- ".Ltce750_001145d3:\n"
- "fld dword ptr [edx]\n"
- ".Ltce750_001145d5:\n"
- "fcom dword ptr [esi]\n"
- ".Ltce750_001145d7:\n"
- "fnstsw ax\n"
- ".Ltce750_001145d9:\n"
- "sahf\n"
- ".Ltce750_001145da:\n"
- "jnc .Ltce750_001145e0\n"
- ".Ltce750_001145dc:\n"
- "fstp dword ptr [esi]\n"
- ".Ltce750_001145de:\n"
- "fld dword ptr [edx]\n"
- ".Ltce750_001145e0:\n"
- "fcom dword ptr [ecx]\n"
- ".Ltce750_001145e2:\n"
- "fnstsw ax\n"
- ".Ltce750_001145e4:\n"
- "sahf\n"
- ".Ltce750_001145e5:\n"
- "jbe .Ltce750_0011462c\n"
- ".Ltce750_001145e7:\n"
- "fstp dword ptr [ecx]\n"
- ".Ltce750_001145e9:\n"
- "fld dword ptr [edx + 0x4]\n"
- ".Ltce750_001145ec:\n"
- "fcom dword ptr [esi + 0x4]\n"
- ".Ltce750_001145ef:\n"
- "fnstsw ax\n"
- ".Ltce750_001145f1:\n"
- "sahf\n"
- ".Ltce750_001145f2:\n"
- "jnc .Ltce750_001145fa\n"
- ".Ltce750_001145f4:\n"
- "fstp dword ptr [esi + 0x4]\n"
- ".Ltce750_001145f7:\n"
- "fld dword ptr [edx + 0x4]\n"
- ".Ltce750_001145fa:\n"
- "fcom dword ptr [ecx + 0x4]\n"
- ".Ltce750_001145fd:\n"
- "fnstsw ax\n"
- ".Ltce750_001145ff:\n"
- "sahf\n"
- ".Ltce750_00114600:\n"
- "jbe .Ltce750_00114628\n"
- ".Ltce750_00114602:\n"
- "fstp dword ptr [ecx + 0x4]\n"
- ".Ltce750_00114605:\n"
- "fld dword ptr [edx + 0x8]\n"
- ".Ltce750_00114608:\n"
- "fcom dword ptr [esi + 0x8]\n"
- ".Ltce750_0011460b:\n"
- "fnstsw ax\n"
- ".Ltce750_0011460d:\n"
- "sahf\n"
- ".Ltce750_0011460e:\n"
- "jnc .Ltce750_00114616\n"
- ".Ltce750_00114610:\n"
- "fstp dword ptr [esi + 0x8]\n"
- ".Ltce750_00114613:\n"
- "fld dword ptr [edx + 0x8]\n"
- ".Ltce750_00114616:\n"
- "fcom dword ptr [ecx + 0x8]\n"
- ".Ltce750_00114619:\n"
- "fnstsw ax\n"
- ".Ltce750_0011461b:\n"
- "sahf\n"
- ".Ltce750_0011461c:\n"
- "jbe .Ltce750_00114624\n"
- ".Ltce750_0011461e:\n"
- "fstp dword ptr [ecx + 0x8]\n"
- ".Ltce750_00114621:\n"
- "pop esi\n"
- ".Ltce750_00114622:\n"
- "ret\n"
- ".Ltce750_00114624:\n"
- "fstp st(0)\n"
- ".Ltce750_00114626:\n"
- "jmp .Ltce750_00114621\n"
- ".Ltce750_00114628:\n"
- "fstp st(0)\n"
- ".Ltce750_0011462a:\n"
- "jmp .Ltce750_00114605\n"
- ".Ltce750_0011462c:\n"
- "fstp st(0)\n"
- ".Ltce750_0011462e:\n"
- "jmp .Ltce750_001145e9\n"
- ".att_syntax prefix\n"
- );
+/* Original unordered minimum gate and platform copy/reload stages; proof958. */
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+void AddPointToBounds(const vec3_t v, vec3_t mins, vec3_t maxs) {
+    int i;
+#if defined(_WIN32)
+    unsigned word;
+    for (i = 0; i < 3; ++i) {
+        if (!((long double)v[i] >= (long double)mins[i])) {
+            memcpy(&word, &v[i], sizeof(word));
+            memcpy(&mins[i], &word, sizeof(word));
+        }
+        if ((long double)v[i] > (long double)maxs[i]) {
+            memcpy(&word, &v[i], sizeof(word));
+            memcpy(&maxs[i], &word, sizeof(word));
+        }
+    }
+#else
+    long double point;
+    for (i = 0; i < 3; ++i) {
+        point = (long double)v[i];
+        if (!(point >= (long double)mins[i])) {
+            mins[i] = (float)point;
+            point = (long double)v[i];
+        }
+        if (point > (long double)maxs[i]) maxs[i] = (float)point;
+    }
+#endif
 }
 #else
 void AddPointToBounds( const vec3_t v, vec3_t mins, vec3_t maxs ) {
@@ -2744,163 +1740,24 @@ void AddPointToBounds( const vec3_t v, vec3_t mins, vec3_t maxs ) {
 }
 #endif
 
-/* TC750: original ordered/unordered bounds gates and platform store contract. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) qboolean PointInBounds(const vec3_t v, const vec3_t mins, const vec3_t maxs) {
- __asm {
-  mov ecx,dword ptr [esp + 0x4]
-  push esi
-  mov esi,dword ptr [esp + 0xc]
-  fld dword ptr [ecx]
-  fcomp dword ptr [esi]
-  fnstsw ax
-  test ah,0x1
-  jz tce750_200a0a08
-  xor eax,eax
-  pop esi
-  ret
-  tce750_200a0a08:
-  mov edx,dword ptr [esp + 0x10]
-  fld dword ptr [ecx]
-  fcomp dword ptr [edx]
-  fnstsw ax
-  test ah,0x41
-  jnz tce750_200a0a1b
-  xor eax,eax
-  pop esi
-  ret
-  tce750_200a0a1b:
-  fld dword ptr [ecx + 0x4]
-  fcomp dword ptr [esi + 0x4]
-  fnstsw ax
-  test ah,0x1
-  jz tce750_200a0a2c
-  xor eax,eax
-  pop esi
-  ret
-  tce750_200a0a2c:
-  fld dword ptr [ecx + 0x4]
-  fcomp dword ptr [edx + 0x4]
-  fnstsw ax
-  test ah,0x41
-  jnz tce750_200a0a3d
-  xor eax,eax
-  pop esi
-  ret
-  tce750_200a0a3d:
-  fld dword ptr [ecx + 0x8]
-  fcomp dword ptr [esi + 0x8]
-  fnstsw ax
-  test ah,0x1
-  jz tce750_200a0a4e
-  xor eax,eax
-  pop esi
-  ret
-  tce750_200a0a4e:
-  fld dword ptr [ecx + 0x8]
-  fcomp dword ptr [edx + 0x8]
-  fnstsw ax
-  test ah,0x41
-  jnz tce750_200a0a5f
-  xor eax,eax
-  pop esi
-  ret
-  tce750_200a0a5f:
-  mov eax,0x1
-  pop esi
-  ret
- }
-}
-#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-__attribute__((naked)) qboolean PointInBounds(const vec3_t v, const vec3_t mins, const vec3_t maxs) {
- __asm__(
- ".intel_syntax noprefix\n"
- ".Ltce750_00114630:\n"
- "sub esp,0x8\n"
- ".Ltce750_00114633:\n"
- "mov edx,dword ptr [esp + 0xc]\n"
- ".Ltce750_00114637:\n"
- "mov dword ptr [esp],esi\n"
- ".Ltce750_0011463a:\n"
- "mov ecx,dword ptr [esp + 0x10]\n"
- ".Ltce750_0011463e:\n"
- "xor esi,esi\n"
- ".Ltce750_00114640:\n"
- "mov dword ptr [esp + 0x4],edi\n"
- ".Ltce750_00114644:\n"
- "mov edi,dword ptr [esp + 0x14]\n"
- ".Ltce750_00114648:\n"
- "fld dword ptr [edx]\n"
- ".Ltce750_0011464a:\n"
- "fcom dword ptr [ecx]\n"
- ".Ltce750_0011464c:\n"
- "fnstsw ax\n"
- ".Ltce750_0011464e:\n"
- "sahf\n"
- ".Ltce750_0011464f:\n"
- "jc .Ltce750_00114690\n"
- ".Ltce750_00114651:\n"
- "fcomp dword ptr [edi]\n"
- ".Ltce750_00114653:\n"
- "fnstsw ax\n"
- ".Ltce750_00114655:\n"
- "sahf\n"
- ".Ltce750_00114656:\n"
- "ja .Ltce750_00114682\n"
- ".Ltce750_00114658:\n"
- "fld dword ptr [edx + 0x4]\n"
- ".Ltce750_0011465b:\n"
- "fcom dword ptr [ecx + 0x4]\n"
- ".Ltce750_0011465e:\n"
- "fnstsw ax\n"
- ".Ltce750_00114660:\n"
- "sahf\n"
- ".Ltce750_00114661:\n"
- "jc .Ltce750_00114690\n"
- ".Ltce750_00114663:\n"
- "fcomp dword ptr [edi + 0x4]\n"
- ".Ltce750_00114666:\n"
- "fnstsw ax\n"
- ".Ltce750_00114668:\n"
- "sahf\n"
- ".Ltce750_00114669:\n"
- "ja .Ltce750_00114682\n"
- ".Ltce750_0011466b:\n"
- "fld dword ptr [edx + 0x8]\n"
- ".Ltce750_0011466e:\n"
- "fcom dword ptr [ecx + 0x8]\n"
- ".Ltce750_00114671:\n"
- "fnstsw ax\n"
- ".Ltce750_00114673:\n"
- "sahf\n"
- ".Ltce750_00114674:\n"
- "jc .Ltce750_00114690\n"
- ".Ltce750_00114676:\n"
- "fcomp dword ptr [edi + 0x8]\n"
- ".Ltce750_00114679:\n"
- "fnstsw ax\n"
- ".Ltce750_0011467b:\n"
- "sahf\n"
- ".Ltce750_0011467c:\n"
- "setbe dl\n"
- ".Ltce750_0011467f:\n"
- "movzx esi,dl\n"
- ".Ltce750_00114682:\n"
- "mov eax,esi\n"
- ".Ltce750_00114684:\n"
- "mov edi,dword ptr [esp + 0x4]\n"
- ".Ltce750_00114688:\n"
- "mov esi,dword ptr [esp]\n"
- ".Ltce750_0011468b:\n"
- "add esp,0x8\n"
- ".Ltce750_0011468e:\n"
- "ret\n"
- ".Ltce750_00114690:\n"
- "fstp st(0)\n"
- ".Ltce750_00114692:\n"
- "jmp .Ltce750_00114682\n"
- ".att_syntax prefix\n"
- );
+/* The lower gate rejects unordered; the upper gate rejects only ordered >. */
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+qboolean PointInBounds(const vec3_t v, const vec3_t mins, const vec3_t maxs) {
+    int i;
+#if defined(_WIN32)
+    for (i = 0; i < 3; ++i) {
+        if (!((long double)v[i] >= (long double)mins[i])) return qfalse;
+        if ((long double)v[i] > (long double)maxs[i]) return qfalse;
+    }
+#else
+    long double point;
+    for (i = 0; i < 3; ++i) {
+        point = (long double)v[i];
+        if (!(point >= (long double)mins[i])) return qfalse;
+        if (point > (long double)maxs[i]) return qfalse;
+    }
+#endif
+    return qtrue;
 }
 #else
 qboolean PointInBounds( const vec3_t v, const vec3_t mins, const vec3_t maxs ) {
@@ -2929,83 +1786,16 @@ qboolean PointInBounds( const vec3_t v, const vec3_t mins, const vec3_t maxs ) {
 }
 #endif
 
-
-/* TC751: original C3-only comparisons include unordered operands. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) int VectorCompare(const vec3_t v1, const vec3_t v2) {
- __asm {
-  mov ecx,dword ptr [esp + 0x4]
-  mov edx,dword ptr [esp + 0x8]
-  fld dword ptr [ecx]
-  fcomp dword ptr [edx]
-  fnstsw ax
-  test ah,0x40
-  jz tce751_200a0aa3
-  fld dword ptr [ecx + 0x4]
-  fcomp dword ptr [edx + 0x4]
-  fnstsw ax
-  test ah,0x40
-  jz tce751_200a0aa3
-  fld dword ptr [ecx + 0x8]
-  fcomp dword ptr [edx + 0x8]
-  fnstsw ax
-  test ah,0x40
-  jz tce751_200a0aa3
-  mov eax,0x1
-  ret
-  tce751_200a0aa3:
-  xor eax,eax
-  ret
- }
-}
-#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-__attribute__((naked)) int VectorCompare(const vec3_t v1, const vec3_t v2) {
- __asm__(
- ".intel_syntax noprefix\n"
- ".Ltce751_00114694:\n"
- "mov ecx,dword ptr [esp + 0x4]\n"
- ".Ltce751_00114698:\n"
- "mov edx,dword ptr [esp + 0x8]\n"
- ".Ltce751_0011469c:\n"
- "fld dword ptr [ecx]\n"
- ".Ltce751_0011469e:\n"
- "fcomp dword ptr [edx]\n"
- ".Ltce751_001146a0:\n"
- "fnstsw ax\n"
- ".Ltce751_001146a2:\n"
- "sahf\n"
- ".Ltce751_001146a3:\n"
- "jnz .Ltce751_001146c0\n"
- ".Ltce751_001146a5:\n"
- "fld dword ptr [ecx + 0x4]\n"
- ".Ltce751_001146a8:\n"
- "fcomp dword ptr [edx + 0x4]\n"
- ".Ltce751_001146ab:\n"
- "fnstsw ax\n"
- ".Ltce751_001146ad:\n"
- "sahf\n"
- ".Ltce751_001146ae:\n"
- "jnz .Ltce751_001146c0\n"
- ".Ltce751_001146b0:\n"
- "fld dword ptr [ecx + 0x8]\n"
- ".Ltce751_001146b3:\n"
- "mov ecx,0x1\n"
- ".Ltce751_001146b8:\n"
- "fcomp dword ptr [edx + 0x8]\n"
- ".Ltce751_001146bb:\n"
- "fnstsw ax\n"
- ".Ltce751_001146bd:\n"
- "sahf\n"
- ".Ltce751_001146be:\n"
- "jz .Ltce751_001146c2\n"
- ".Ltce751_001146c0:\n"
- "xor ecx,ecx\n"
- ".Ltce751_001146c2:\n"
- "mov eax,ecx\n"
- ".Ltce751_001146c4:\n"
- "ret\n"
- ".att_syntax prefix\n"
- );
+/* Original C3-only equality accepts unordered; reject ordered unequal only. */
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+int VectorCompare(const vec3_t v1, const vec3_t v2) {
+    int i;
+    for (i = 0; i < 3; ++i) {
+        long double a = (long double)v1[i];
+        long double b = (long double)v2[i];
+        if (a < b || a > b) return 0;
+    }
+    return 1;
 }
 #else
 int VectorCompare( const vec3_t v1, const vec3_t v2 ) {
@@ -3017,96 +1807,48 @@ int VectorCompare( const vec3_t v1, const vec3_t v2 ) {
 }
 #endif
 
-
 /* Original TC x86 return precision differs by platform; no C return spill. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-static const float tceNormalizeZero = 0.0f, tceNormalizeOne = 1.0f;
-#endif
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) vec_t VectorNormalize( vec3_t v ) {
-    __asm {
-        mov ecx, [esp+4]
-        fld dword ptr [ecx+8]
-        fld dword ptr [ecx+4]
-        fld dword ptr [ecx]
-        fld st(0)
-        fmul st(0), st(1)
-        fld st(2)
-        fmul st(0), st(3)
-        faddp st(1), st(0)
-        fld st(3)
-        fmul st(0), st(4)
-        faddp st(1), st(0)
-        fsqrt
-        fstp st(3)
-        fstp st(0)
-        fstp st(0)
-        fcom dword ptr tceNormalizeZero
-        fnstsw ax
-        test ah,40h
-        jnz zeroLength
-        fld dword ptr tceNormalizeOne
-        fdiv st(0),st(1)
-        fld st(0)
-        fmul dword ptr [ecx]
-        fstp dword ptr [ecx]
-        fld st(0)
-        fmul dword ptr [ecx+4]
-        fstp dword ptr [ecx+4]
-        fmul dword ptr [ecx+8]
-        fstp dword ptr [ecx+8]
-        ret
-zeroLength:
-        ret
+#if defined(_WIN32) || defined(__linux__)
+vec_t VectorNormalize(vec3_t v) {
+    long double x, y, z, squared, length;
+#if defined(_WIN32)
+    z = v[2];
+    y = v[1];
+    x = v[0];
+    squared = x * x;
+    squared += y * y;
+    squared += z * z;
+    length = sqrtl(squared);
+    /* Native C3 skips both zero and unordered lengths without writing v. */
+    if (length != 0.0L && length == length) {
+        long double inverse = 1.0L / length;
+        v[0] = (float)(inverse * (long double)v[0]);
+        v[1] = (float)(inverse * (long double)v[1]);
+        v[2] = (float)(inverse * (long double)v[2]);
     }
-}
-#elif defined(__GNUC__) && defined(__i386__)
-__attribute__((naked)) vec_t VectorNormalize( vec3_t v ) {
-    __asm__ volatile (
-        ".intel_syntax noprefix\n\t"
-        "sub esp,12\n\t"
-        "mov edx,[esp+16]\n\t"
-        "mov dword ptr [esp+4],0\n\t"
-        "mov dword ptr [esp+8],0x3f800000\n\t"
-        "fld dword ptr [edx]\n\t"
-        "fld dword ptr [edx+4]\n\t"
-        "fld dword ptr [edx+8]\n\t"
-        "fld st(2)\n\t"
-        "fld st(2)\n\t"
-        "fmul st,st(3)\n\t"
-        "fxch st(1)\n\t"
-        "fmul st,st(4)\n\t"
-        "faddp st(1),st\n\t"
-        "fld st(1)\n\t"
-        "fmul st,st(2)\n\t"
-        "faddp st(1),st\n\t"
-        "fsqrt\n\t"
-        "fstp dword ptr [esp]\n\t"
-        "fld dword ptr [esp]\n\t"
-        "fcom dword ptr [esp+4]\n\t"
-        "fnstsw ax\n\t"
-        "sahf\n\t"
-        "jz 1f\n\t"
-        "fld dword ptr [esp+8]\n\t"
-        "fdiv st,st(1)\n\t"
-        "fmul st(4),st\n\t"
-        "fmul st(3),st\n\t"
-        "fmulp st(2),st\n\t"
-        "fxch st(3)\n\t"
-        "fstp dword ptr [edx]\n\t"
-        "fxch st(1)\n\t"
-        "fstp dword ptr [edx+4]\n\t"
-        "fstp dword ptr [edx+8]\n\t"
-        "add esp,12\n\t"
-        "ret\n\t"
-        "1:\n\t"
-        "fstp st(1)\n\t"
-        "fstp st(1)\n\t"
-        "fstp st(1)\n\t"
-        "add esp,12\n\t"
-        "ret\n\t"
-        ".att_syntax prefix\n\t"
-    );
+#else
+    x = v[0];
+    y = v[1];
+    z = v[2];
+    squared = y * y;
+    squared += x * x;
+    squared += z * z;
+    {
+        /* ELF stores/reloads the length before comparing and dividing. */
+        volatile float storedLength = (float)sqrtl(squared);
+        length = storedLength;
+    }
+    if (length != 0.0L && length == length) {
+        long double inverse = 1.0L / length;
+        x *= inverse;
+        y *= inverse;
+        z *= inverse;
+        v[0] = (float)x;
+        v[1] = (float)y;
+        v[2] = (float)z;
+    }
+#endif
+    return (float)length;
 }
 #else
 vec_t VectorNormalize( vec3_t v ) {
@@ -3130,77 +1872,39 @@ vec_t VectorNormalize( vec3_t v ) {
 // fast vector normalize routine that does not check to make sure
 // that length != 0, nor does it return length
 //
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) void VectorNormalizeFast( vec3_t v ) {
-	__asm {
-		PUSH ESI
-		MOV ESI,dword ptr [ESP + 08h]
-		PUSH ECX
-		FLD dword ptr [ESI + 08h]
-		FLD dword ptr [ESI + 04h]
-		FLD dword ptr [ESI]
-		FLD st(0)
-		fmul st(0),st(1)
-		FLD st(2)
-		fmul st(0),st(3)
-		faddp st(1),st(0)
-		FLD st(3)
-		fmul st(0),st(4)
-		faddp st(1),st(0)
-		FSTP dword ptr [ESP]
-		FSTP st(0)
-		FSTP st(0)
-		FSTP st(0)
-		call Q_rsqrt
-		FLD st(0)
-		FMUL dword ptr [ESI]
-		ADD ESP,04h
-		FSTP dword ptr [ESI]
-		FLD st(0)
-		FMUL dword ptr [ESI + 04h]
-		FSTP dword ptr [ESI + 04h]
-		FMUL dword ptr [ESI + 08h]
-		FSTP dword ptr [ESI + 08h]
-		POP ESI
-		RET
-	}
-}
-#elif defined(__GNUC__) && defined(__i386__)
-__attribute__((naked)) void VectorNormalizeFast( vec3_t v ) {
-	__asm__ volatile (
-		".intel_syntax noprefix\n\t"
-		"SUB ESP,0xc\n\t"
-		"MOV dword ptr [ESP + 0x8],ESI\n\t"
-		"MOV ESI,dword ptr [ESP + 0x10]\n\t"
-		"MOV dword ptr [ESP + 0x4],EBX\n\t"
-		"FLD dword ptr [ESI]\n\t"
-		"FLD dword ptr [ESI + 0x4]\n\t"
-		"fxch st(1)\n\t"
-		"fmul st(0),st(0)\n\t"
-		"fxch st(1)\n\t"
-		"fmul st(0),st(0)\n\t"
-		"faddp st(1),st(0)\n\t"
-		"FLD dword ptr [ESI + 0x8]\n\t"
-		"fmul st(0),st(0)\n\t"
-		"faddp st(1),st(0)\n\t"
-		"FSTP dword ptr [ESP]\n\t"
-		"call Q_rsqrt\n\t"
-		"FLD dword ptr [ESI]\n\t"
-		"fmul st(0),st(1)\n\t"
-		"FSTP dword ptr [ESI]\n\t"
-		"FLD dword ptr [ESI + 0x4]\n\t"
-		"fmul st(0),st(1)\n\t"
-		"fxch st(1)\n\t"
-		"FMUL dword ptr [ESI + 0x8]\n\t"
-		"fxch st(1)\n\t"
-		"FSTP dword ptr [ESI + 0x4]\n\t"
-		"FSTP dword ptr [ESI + 0x8]\n\t"
-		"MOV EBX,dword ptr [ESP + 0x4]\n\t"
-		"MOV ESI,dword ptr [ESP + 0x8]\n\t"
-		"ADD ESP,0xc\n\t"
-		"RET\n\t"
-		".att_syntax prefix\n\t"
-	);
+#if defined(_WIN32) || defined(__linux__)
+void VectorNormalizeFast(vec3_t v) {
+    long double x, y, z, squared, inverse;
+    volatile float argument;
+#if defined(_WIN32)
+    z = v[2];
+    y = v[1];
+    x = v[0];
+#else
+    x = v[0];
+    y = v[1];
+#endif
+    squared = x * x;
+    squared += y * y;
+#if !defined(_WIN32)
+    z = v[2];
+#endif
+    squared += z * z;
+    argument = (float)squared;
+    inverse = TCE_ReciprocalSquareRootValue(argument);
+#if defined(_WIN32)
+    v[0] = (float)(inverse * (long double)v[0]);
+    v[1] = (float)(inverse * (long double)v[1]);
+    v[2] = (float)(inverse * (long double)v[2]);
+#else
+    v[0] = (float)((long double)v[0] * inverse);
+    {
+        long double scaledY = (long double)v[1] * inverse;
+        long double scaledZ = inverse * (long double)v[2];
+        v[1] = (float)scaledY;
+        v[2] = (float)scaledZ;
+    }
+#endif
 }
 #else
 void VectorNormalizeFast( vec3_t v )
@@ -3215,97 +1919,48 @@ void VectorNormalizeFast( vec3_t v )
 }
 #endif
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) vec_t VectorNormalize2( const vec3_t v, vec3_t out ) {
-    __asm {
-        mov ecx, [esp+4]
-        fld dword ptr [ecx+8]
-        fld dword ptr [ecx+4]
-        fld dword ptr [ecx]
-        fld st(0)
-        fmul st(0), st(1)
-        fld st(2)
-        fmul st(0), st(3)
-        faddp st(1), st(0)
-        fld st(3)
-        fmul st(0), st(4)
-        faddp st(1), st(0)
-        fsqrt
-        fstp st(3)
-        fstp st(0)
-        fstp st(0)
-        fcom dword ptr tceNormalizeZero
-        fnstsw ax
-        test ah,40h
-        jnz zeroLength
-        fld dword ptr tceNormalizeOne
-        fdiv st(0),st(1)
-        mov edx,[esp+8]
-        fld st(0)
-        fmul dword ptr [ecx]
-        fstp dword ptr [edx]
-        fld st(0)
-        fmul dword ptr [ecx+4]
-        fstp dword ptr [edx+4]
-        fmul dword ptr [ecx+8]
-        fstp dword ptr [edx+8]
-        ret
-zeroLength:
-        mov edx,[esp+8]
-        mov dword ptr [edx+8],0
-        mov dword ptr [edx+4],0
-        mov dword ptr [edx],0
-        ret
+#if defined(_WIN32) || defined(__linux__)
+vec_t VectorNormalize2(const vec3_t v, vec3_t out) {
+    long double x, y, z, squared, length;
+#if defined(_WIN32)
+    z = v[2];
+    y = v[1];
+    x = v[0];
+#else
+    x = v[0];
+    y = v[1];
+#endif
+    squared = x * x;
+    squared += y * y;
+#if !defined(_WIN32)
+    z = v[2];
+#endif
+    squared += z * z;
+#if defined(_WIN32)
+    length = sqrtl(squared);
+#else
+    {
+        volatile float storedLength = (float)sqrtl(squared);
+        length = storedLength;
     }
-}
-#elif defined(__GNUC__) && defined(__i386__)
-__attribute__((naked)) vec_t VectorNormalize2( const vec3_t v, vec3_t out ) {
-    __asm__ volatile (
-        ".intel_syntax noprefix\n\t"
-        "sub esp,12\n\t"
-        "mov ecx,[esp+16]\n\t"
-        "mov edx,[esp+20]\n\t"
-        "mov dword ptr [esp+4],0\n\t"
-        "mov dword ptr [esp+8],0x3f800000\n\t"
-        "fld dword ptr [ecx]\n\t"
-        "fld dword ptr [ecx+4]\n\t"
-        "fld st(1)\n\t"
-        "fmul st,st(2)\n\t"
-        "fxch st(1)\n\t"
-        "fmul st,st\n\t"
-        "faddp st(1),st\n\t"
-        "fld dword ptr [ecx+8]\n\t"
-        "fmul st,st\n\t"
-        "faddp st(1),st\n\t"
-        "fsqrt\n\t"
-        "fstp dword ptr [esp]\n\t"
-        "fld dword ptr [esp]\n\t"
-        "fcom dword ptr [esp+4]\n\t"
-        "fnstsw ax\n\t"
-        "sahf\n\t"
-        "jz 1f\n\t"
-        "fld dword ptr [esp+8]\n\t"
-        "fdiv st,st(1)\n\t"
-        "fmul st(2),st\n\t"
-        "fxch st(2)\n\t"
-        "fstp dword ptr [edx]\n\t"
-        "fld dword ptr [ecx+4]\n\t"
-        "fmul st,st(2)\n\t"
-        "fstp dword ptr [edx+4]\n\t"
-        "fxch st(1)\n\t"
-        "fmul dword ptr [ecx+8]\n\t"
-        "fstp dword ptr [edx+8]\n\t"
-        "add esp,12\n\t"
-        "ret\n\t"
-        "1:\n\t"
-        "fstp st(1)\n\t"
-        "mov dword ptr [edx+8],0\n\t"
-        "mov dword ptr [edx+4],0\n\t"
-        "mov dword ptr [edx],0\n\t"
-        "add esp,12\n\t"
-        "ret\n\t"
-        ".att_syntax prefix\n\t"
-    );
+#endif
+    if (length != 0.0L && length == length) {
+        long double inverse = 1.0L / length;
+        /* Reload subsequent inputs after the preceding output store. */
+#if defined(_WIN32)
+        out[0] = (float)(inverse * (long double)v[0]);
+        out[1] = (float)(inverse * (long double)v[1]);
+#else
+        out[0] = (float)(x * inverse);
+        out[1] = (float)((long double)v[1] * inverse);
+#endif
+        out[2] = (float)(inverse * (long double)v[2]);
+    } else {
+        out[2] = 0.0f;
+        out[1] = 0.0f;
+        out[0] = 0.0f;
+    }
+    return (float)length;
 }
 #else
 vec_t VectorNormalize2( const vec3_t v, vec3_t out) {
@@ -3364,65 +2019,33 @@ void _VectorScale( const vec3_t in, vec_t scale, vec3_t out ) {
 	out[2] = in[2]*scale;
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) void CrossProduct( const vec3_t v1, const vec3_t v2, vec3_t cross ) {
-	__asm {
-		MOV ECX,dword ptr [ESP + 08h]
-		MOV EAX,dword ptr [ESP + 04h]
-		MOV EDX,dword ptr [ESP + 0ch]
-		FLD dword ptr [ECX + 08h]
-		FMUL dword ptr [EAX + 04h]
-		FLD dword ptr [EAX + 08h]
-		FMUL dword ptr [ECX + 04h]
-		fsubp st(1),st(0)
-		FSTP dword ptr [EDX]
-		FLD dword ptr [EAX + 08h]
-		FMUL dword ptr [ECX]
-		FLD dword ptr [EAX]
-		FMUL dword ptr [ECX + 08h]
-		fsubp st(1),st(0)
-		FSTP dword ptr [EDX + 04h]
-		FLD dword ptr [EAX]
-		FMUL dword ptr [ECX + 04h]
-		FLD dword ptr [ECX]
-		FMUL dword ptr [EAX + 04h]
-		fsubp st(1),st(0)
-		FSTP dword ptr [EDX + 08h]
-		RET
-	}
-}
-#elif defined(__GNUC__) && defined(__i386__)
-__attribute__((naked)) void CrossProduct( const vec3_t v1, const vec3_t v2, vec3_t cross ) {
-	__asm__ volatile (
-		".intel_syntax noprefix\n\t"
-		"MOV EAX,dword ptr [ESP + 0x8]\n\t"
-		"MOV EDX,dword ptr [ESP + 0x4]\n\t"
-		"MOV ECX,dword ptr [ESP + 0xc]\n\t"
-		"FLD dword ptr [EAX + 0x8]\n\t"
-		"FLD dword ptr [EAX + 0x4]\n\t"
-		"FMUL dword ptr [EDX + 0x8]\n\t"
-		"fxch st(1)\n\t"
-		"FMUL dword ptr [EDX + 0x4]\n\t"
-		"fsubrp st(1),st(0)\n\t"
-		"FSTP dword ptr [ECX]\n\t"
-		"FLD dword ptr [EAX]\n\t"
-		"FLD dword ptr [EAX + 0x8]\n\t"
-		"FMUL dword ptr [EDX]\n\t"
-		"fxch st(1)\n\t"
-		"FMUL dword ptr [EDX + 0x8]\n\t"
-		"fsubrp st(1),st(0)\n\t"
-		"FSTP dword ptr [ECX + 0x4]\n\t"
-		"FLD dword ptr [EAX + 0x4]\n\t"
-		"FLD dword ptr [EAX]\n\t"
-		"fxch st(1)\n\t"
-		"FMUL dword ptr [EDX]\n\t"
-		"fxch st(1)\n\t"
-		"FMUL dword ptr [EDX + 0x4]\n\t"
-		"fsubp st(1),st(0)\n\t"
-		"FSTP dword ptr [ECX + 0x8]\n\t"
-		"RET\n\t"
-		".att_syntax prefix\n\t"
-	);
+#if defined(_WIN32) || defined(__linux__)
+void CrossProduct(const vec3_t v1, const vec3_t v2, vec3_t cross) {
+    long double left, right;
+#if defined(_WIN32)
+    left = (long double)v2[2] * v1[1];
+    right = (long double)v1[2] * v2[1];
+#else
+    right = (long double)v2[1] * v1[2];
+    left = (long double)v2[2] * v1[1];
+#endif
+    cross[0] = (float)(left - right);
+#if defined(_WIN32)
+    left = (long double)v1[2] * v2[0];
+    right = (long double)v1[0] * v2[2];
+#else
+    right = (long double)v2[2] * v1[0];
+    left = (long double)v2[0] * v1[2];
+#endif
+    cross[1] = (float)(left - right);
+#if defined(_WIN32)
+    left = (long double)v1[0] * v2[1];
+#else
+    left = (long double)v2[1] * v1[0];
+#endif
+    right = (long double)v2[0] * v1[1];
+    /* Store each component before reading inputs for the next component. */
+    cross[2] = (float)(left - right);
 }
 #else
 void CrossProduct( const vec3_t v1, const vec3_t v2, vec3_t cross ) {
@@ -3530,53 +2153,12 @@ vec_t VectorLengthSquared( const vec3_t v ) {
 }
 #endif
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) vec_t Distance( const vec3_t p1, const vec3_t p2 ) {
-	__asm {
-		SUB ESP,0ch
-		MOV EAX,dword ptr [ESP + 014h]
-		MOV ECX,dword ptr [ESP + 010h]
-		FLD dword ptr [EAX]
-		FSUB dword ptr [ECX]
-		FSTP dword ptr [ESP]
-		FLD dword ptr [EAX + 04h]
-		FSUB dword ptr [ECX + 04h]
-		FSTP dword ptr [ESP + 04h]
-		FLD dword ptr [EAX + 08h]
-		FSUB dword ptr [ECX + 08h]
-		LEA EAX,[ESP]
-		PUSH EAX
-		FSTP dword ptr [ESP + 0ch]
-		call VectorLength
-		ADD ESP,010h
-		RET
-	}
-}
-#elif defined(__GNUC__) && defined(__i386__)
-__attribute__((naked)) vec_t Distance( const vec3_t p1, const vec3_t p2 ) {
-	__asm__ volatile (
-		".intel_syntax noprefix\n\t"
-		"SUB ESP,0x2c\n\t"
-		"MOV EDX,dword ptr [ESP + 0x30]\n\t"
-		"MOV dword ptr [ESP + 0x28],EBX\n\t"
-		"MOV ECX,dword ptr [ESP + 0x34]\n\t"
-		"FLD dword ptr [EDX]\n\t"
-		"FSUBR dword ptr [ECX]\n\t"
-		"FSTP dword ptr [ESP + 0x10]\n\t"
-		"FLD dword ptr [EDX + 0x4]\n\t"
-		"FSUBR dword ptr [ECX + 0x4]\n\t"
-		"FSTP dword ptr [ESP + 0x14]\n\t"
-		"FLD dword ptr [EDX + 0x8]\n\t"
-		"LEA EDX,[ESP + 0x10]\n\t"
-		"FSUBR dword ptr [ECX + 0x8]\n\t"
-		"MOV dword ptr [ESP],EDX\n\t"
-		"FSTP dword ptr [ESP + 0x18]\n\t"
-		"call VectorLength\n\t"
-		"MOV EBX,dword ptr [ESP + 0x28]\n\t"
-		"ADD ESP,0x2c\n\t"
-		"RET\n\t"
-		".att_syntax prefix\n\t"
-	);
+#if defined(_WIN32) || defined(__linux__)
+vec_t Distance( const vec3_t p1, const vec3_t p2 ) {
+	vec3_t delta;
+
+	TCE_VectorDifferenceFloat( p1, p2, delta );
+	return (vec_t)TCE_VectorLengthValue( delta );
 }
 #else
 vec_t Distance( const vec3_t p1, const vec3_t p2 ) {
@@ -3587,59 +2169,35 @@ vec_t Distance( const vec3_t p1, const vec3_t p2 ) {
 }
 #endif
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) vec_t DistanceSquared( const vec3_t p1, const vec3_t p2 ) {
-	__asm {
-		MOV EAX,dword ptr [ESP + 08h]
-		MOV ECX,dword ptr [ESP + 04h]
-		FLD dword ptr [EAX]
-		FSUB dword ptr [ECX]
-		FLD dword ptr [EAX + 04h]
-		FSUB dword ptr [ECX + 04h]
-		FLD dword ptr [EAX + 08h]
-		FSUB dword ptr [ECX + 08h]
-		FLD st(0)
-		fmul st(0),st(1)
-		FLD st(2)
-		fmul st(0),st(3)
-		faddp st(1),st(0)
-		FLD st(3)
-		fmul st(0),st(4)
-		faddp st(1),st(0)
-		FSTP st(3)
-		FSTP st(0)
-		FSTP st(0)
-		RET
-	}
+#if defined(_WIN32) || defined(__linux__)
+/* Unlike VectorDistanceSquared, the originals keep each difference wide.
+ * Keep the platform sum order separate; reassociation changes boundary values.
+ * A C long double and the public vec_t return do not prove native x87 parity.
+ */
+long double TCE_DistanceSquaredValue( const vec3_t p1, const vec3_t p2 ) {
+	long double x, y, z;
+	long double xSquared, ySquared, zSquared, sum;
+
+	x = (long double)p2[0] - (long double)p1[0];
+	y = (long double)p2[1] - (long double)p1[1];
+	z = (long double)p2[2] - (long double)p1[2];
+#if defined(_WIN32)
+	zSquared = z * z;
+	ySquared = y * y;
+	sum = zSquared + ySquared;
+	xSquared = x * x;
+	return sum + xSquared;
+#else
+	xSquared = x * x;
+	ySquared = y * y;
+	zSquared = z * z;
+	sum = ySquared + xSquared;
+	return sum + zSquared;
+#endif
 }
-#elif defined(__GNUC__) && defined(__i386__)
-__attribute__((naked)) vec_t DistanceSquared( const vec3_t p1, const vec3_t p2 ) {
-	__asm__ volatile (
-		".intel_syntax noprefix\n\t"
-		"SUB ESP,0x1c\n\t"
-		"MOV EDX,dword ptr [ESP + 0x20]\n\t"
-		"MOV ECX,dword ptr [ESP + 0x24]\n\t"
-		"FLD dword ptr [EDX]\n\t"
-		"FLD dword ptr [EDX + 0x4]\n\t"
-		"fxch st(1)\n\t"
-		"FSUBR dword ptr [ECX]\n\t"
-		"fxch st(1)\n\t"
-		"FSUBR dword ptr [ECX + 0x4]\n\t"
-		"FLD dword ptr [EDX + 0x8]\n\t"
-		"FSUBR dword ptr [ECX + 0x8]\n\t"
-		"FXCH st(2)\n\t"
-		"fmul st(0),st(0)\n\t"
-		"fxch st(1)\n\t"
-		"ADD ESP,0x1c\n\t"
-		"fmul st(0),st(0)\n\t"
-		"FXCH st(2)\n\t"
-		"fmul st(0),st(0)\n\t"
-		"fxch st(1)\n\t"
-		"FADDP st(2),st(0)\n\t"
-		"faddp st(1),st(0)\n\t"
-		"RET\n\t"
-		".att_syntax prefix\n\t"
-	);
+
+vec_t DistanceSquared( const vec3_t p1, const vec3_t p2 ) {
+	return (vec_t)TCE_DistanceSquaredValue( p1, p2 );
 }
 #else
 vec_t DistanceSquared( const vec3_t p1, const vec3_t p2 ) {
@@ -3651,33 +2209,24 @@ vec_t DistanceSquared( const vec3_t p1, const vec3_t p2 ) {
 #endif
 
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) void VectorInverse( vec3_t v ) {
-	__asm {
-		MOV EAX,dword ptr [ESP + 04h]
-		FLD dword ptr [EAX]
-		FCHS
-		FSTP dword ptr [EAX]
-		FLD dword ptr [EAX + 04h]
-		FCHS
-		FSTP dword ptr [EAX + 04h]
-		FLD dword ptr [EAX + 08h]
-		FCHS
-		FSTP dword ptr [EAX + 08h]
-		RET
+#if defined(__linux__)
+void VectorInverse( vec3_t v ) {
+	unsigned char *bytes = (unsigned char *)v;
+	int component;
+
+	/* The native little-endian binary32 path never loads a floating value. */
+	for (component = 0; component < 3; ++component) {
+		bytes[component * sizeof(vec_t) + 3] ^= 0x80u;
 	}
 }
-#elif defined(__GNUC__) && defined(__i386__)
-__attribute__((naked)) void VectorInverse( vec3_t v ) {
-	__asm__ volatile (
-		".intel_syntax noprefix\n\t"
-		"MOV EDX,dword ptr [ESP + 0x4]\n\t"
-		"XOR byte ptr [EDX + 0x3],0x80\n\t"
-		"XOR byte ptr [EDX + 0x7],0x80\n\t"
-		"XOR byte ptr [EDX + 0xb],0x80\n\t"
-		"RET\n\t"
-		".att_syntax prefix\n\t"
-	);
+#elif defined(_WIN32)
+void VectorInverse( vec3_t v ) {
+	volatile vec_t *components = v;
+
+	/* Finish each floating load/negation/store before reading the next. */
+	components[0] = (vec_t)-(long double)components[0];
+	components[1] = (vec_t)-(long double)components[1];
+	components[2] = (vec_t)-(long double)components[2];
 }
 #else
 void VectorInverse( vec3_t v ){
@@ -3696,7 +2245,12 @@ void Vector4Scale( const vec4_t in, vec_t scale, vec4_t out ) {
 
 
 int Q_log2( int val ) {
+#if defined(__linux__)
+	/* The native counter wraps while negative values keep shifting to -1. */
+	uint32_t answer;
+#else
 	int answer;
+#endif
 
 	answer = 0;
 	while ( ( val>>=1 ) != 0 ) {
@@ -3732,193 +2286,57 @@ MatrixMultiply
 ================
 */
 void MatrixMultiply(float in1[3][3], float in2[3][3], float result[3][3]) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-	/* UI40001910: preserve x87 evaluation, operand loads and per-store rounding. */
-	__asm {
-		mov eax, in1
-		mov ecx, in2
-		mov edx, result
-		fld dword ptr [eax]
-		fmul dword ptr [ecx]
-		fld dword ptr [eax + 0x4]
-		fmul dword ptr [ecx + 0xc]
-		faddp st(1), st(0)
-		fld dword ptr [ecx + 0x18]
-		fmul dword ptr [eax + 0x8]
-		faddp st(1), st(0)
-		fstp dword ptr [edx]
-		fld dword ptr [eax + 0x4]
-		fmul dword ptr [ecx + 0x10]
-		fld dword ptr [ecx + 0x1c]
-		fmul dword ptr [eax + 0x8]
-		faddp st(1), st(0)
-		fld dword ptr [ecx + 0x4]
-		fmul dword ptr [eax]
-		faddp st(1), st(0)
-		fstp dword ptr [edx + 0x4]
-		fld dword ptr [eax + 0x4]
-		fmul dword ptr [ecx + 0x14]
-		fld dword ptr [ecx + 0x20]
-		fmul dword ptr [eax + 0x8]
-		faddp st(1), st(0)
-		fld dword ptr [ecx + 0x8]
-		fmul dword ptr [eax]
-		faddp st(1), st(0)
-		fstp dword ptr [edx + 0x8]
-		fld dword ptr [eax + 0x10]
-		fmul dword ptr [ecx + 0xc]
-		fld dword ptr [eax + 0xc]
-		fmul dword ptr [ecx]
-		faddp st(1), st(0)
-		fld dword ptr [eax + 0x14]
-		fmul dword ptr [ecx + 0x18]
-		faddp st(1), st(0)
-		fstp dword ptr [edx + 0xc]
-		fld dword ptr [eax + 0x14]
-		fmul dword ptr [ecx + 0x1c]
-		fld dword ptr [eax + 0x10]
-		fmul dword ptr [ecx + 0x10]
-		faddp st(1), st(0)
-		fld dword ptr [eax + 0xc]
-		fmul dword ptr [ecx + 0x4]
-		faddp st(1), st(0)
-		fstp dword ptr [edx + 0x10]
-		fld dword ptr [eax + 0x14]
-		fmul dword ptr [ecx + 0x20]
-		fld dword ptr [eax + 0x10]
-		fmul dword ptr [ecx + 0x14]
-		faddp st(1), st(0)
-		fld dword ptr [eax + 0xc]
-		fmul dword ptr [ecx + 0x8]
-		faddp st(1), st(0)
-		fstp dword ptr [edx + 0x14]
-		fld dword ptr [eax + 0x18]
-		fmul dword ptr [ecx]
-		fld dword ptr [ecx + 0x18]
-		fmul dword ptr [eax + 0x20]
-		faddp st(1), st(0)
-		fld dword ptr [eax + 0x1c]
-		fmul dword ptr [ecx + 0xc]
-		faddp st(1), st(0)
-		fstp dword ptr [edx + 0x18]
-		fld dword ptr [ecx + 0x1c]
-		fmul dword ptr [eax + 0x20]
-		fld dword ptr [ecx + 0x10]
-		fmul dword ptr [eax + 0x1c]
-		faddp st(1), st(0)
-		fld dword ptr [ecx + 0x4]
-		fmul dword ptr [eax + 0x18]
-		faddp st(1), st(0)
-		fstp dword ptr [edx + 0x1c]
-		fld dword ptr [ecx + 0x20]
-		fmul dword ptr [eax + 0x20]
-		fld dword ptr [ecx + 0x14]
-		fmul dword ptr [eax + 0x1c]
-		faddp st(1), st(0)
-		fld dword ptr [ecx + 0x8]
-		fmul dword ptr [eax + 0x18]
-		faddp st(1), st(0)
-		fstp dword ptr [edx + 0x20]
-	}
-#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-	/* Linux UI00055b22 has a different evaluation schedule. */
-	__asm__ __volatile__(
-		"flds (%%eax)\n\t"
-		"flds 0xc(%%eax)\n\t"
-		"fmuls 0x4(%%edx)\n\t"
-		"fxch %%st(1)\n\t"
-		"fmuls (%%edx)\n\t"
-		"faddp %%st, %%st(1)\n\t"
-		"flds 0x18(%%eax)\n\t"
-		"fmuls 0x8(%%edx)\n\t"
-		"faddp %%st, %%st(1)\n\t"
-		"fstps (%%ecx)\n\t"
-		"flds 0x4(%%eax)\n\t"
-		"flds 0x10(%%eax)\n\t"
-		"fmuls 0x4(%%edx)\n\t"
-		"fxch %%st(1)\n\t"
-		"fmuls (%%edx)\n\t"
-		"faddp %%st, %%st(1)\n\t"
-		"flds 0x1c(%%eax)\n\t"
-		"fmuls 0x8(%%edx)\n\t"
-		"faddp %%st, %%st(1)\n\t"
-		"fstps 0x4(%%ecx)\n\t"
-		"flds 0x8(%%eax)\n\t"
-		"flds 0x14(%%eax)\n\t"
-		"fmuls 0x4(%%edx)\n\t"
-		"fxch %%st(1)\n\t"
-		"fmuls (%%edx)\n\t"
-		"faddp %%st, %%st(1)\n\t"
-		"flds 0x20(%%eax)\n\t"
-		"fmuls 0x8(%%edx)\n\t"
-		"faddp %%st, %%st(1)\n\t"
-		"fstps 0x8(%%ecx)\n\t"
-		"flds (%%eax)\n\t"
-		"flds 0xc(%%eax)\n\t"
-		"fmuls 0x10(%%edx)\n\t"
-		"fxch %%st(1)\n\t"
-		"fmuls 0xc(%%edx)\n\t"
-		"faddp %%st, %%st(1)\n\t"
-		"flds 0x18(%%eax)\n\t"
-		"fmuls 0x14(%%edx)\n\t"
-		"faddp %%st, %%st(1)\n\t"
-		"fstps 0xc(%%ecx)\n\t"
-		"flds 0x4(%%eax)\n\t"
-		"flds 0x10(%%eax)\n\t"
-		"fmuls 0x10(%%edx)\n\t"
-		"fxch %%st(1)\n\t"
-		"fmuls 0xc(%%edx)\n\t"
-		"faddp %%st, %%st(1)\n\t"
-		"flds 0x1c(%%eax)\n\t"
-		"fmuls 0x14(%%edx)\n\t"
-		"faddp %%st, %%st(1)\n\t"
-		"fstps 0x10(%%ecx)\n\t"
-		"flds 0x8(%%eax)\n\t"
-		"flds 0x14(%%eax)\n\t"
-		"fmuls 0x10(%%edx)\n\t"
-		"fxch %%st(1)\n\t"
-		"fmuls 0xc(%%edx)\n\t"
-		"faddp %%st, %%st(1)\n\t"
-		"flds 0x20(%%eax)\n\t"
-		"fmuls 0x14(%%edx)\n\t"
-		"faddp %%st, %%st(1)\n\t"
-		"fstps 0x14(%%ecx)\n\t"
-		"flds (%%eax)\n\t"
-		"flds 0xc(%%eax)\n\t"
-		"fmuls 0x1c(%%edx)\n\t"
-		"fxch %%st(1)\n\t"
-		"fmuls 0x18(%%edx)\n\t"
-		"faddp %%st, %%st(1)\n\t"
-		"flds 0x18(%%eax)\n\t"
-		"fmuls 0x20(%%edx)\n\t"
-		"faddp %%st, %%st(1)\n\t"
-		"fstps 0x18(%%ecx)\n\t"
-		"flds 0x4(%%eax)\n\t"
-		"flds 0x10(%%eax)\n\t"
-		"fmuls 0x1c(%%edx)\n\t"
-		"fxch %%st(1)\n\t"
-		"fmuls 0x18(%%edx)\n\t"
-		"faddp %%st, %%st(1)\n\t"
-		"flds 0x1c(%%eax)\n\t"
-		"fmuls 0x20(%%edx)\n\t"
-		"faddp %%st, %%st(1)\n\t"
-		"fstps 0x1c(%%ecx)\n\t"
-		"flds 0x8(%%eax)\n\t"
-		"flds 0x14(%%eax)\n\t"
-		"fmuls 0x1c(%%edx)\n\t"
-		"fxch %%st(1)\n\t"
-		"fmuls 0x18(%%edx)\n\t"
-		"faddp %%st, %%st(1)\n\t"
-		"flds 0x20(%%eax)\n\t"
-		"fmuls 0x20(%%edx)\n\t"
-		"faddp %%st, %%st(1)\n\t"
-		"fstps 0x20(%%ecx)\n\t"
-		:
-		: "a" (in2), "d" (in1), "c" (result)
-		: "memory", "st", "st(1)", "st(2)"
-	);
+#if defined(_WIN32)
+    long double dot;
+    /* Each cell has its native sum order and is stored before the next reads. */
+    dot = (long double)in1[0][0] * in2[0][0];
+    dot += (long double)in1[0][1] * in2[1][0];
+    dot += (long double)in2[2][0] * in1[0][2];
+    result[0][0] = (float)dot;
+    dot = (long double)in1[0][1] * in2[1][1];
+    dot += (long double)in2[2][1] * in1[0][2];
+    dot += (long double)in2[0][1] * in1[0][0];
+    result[0][1] = (float)dot;
+    dot = (long double)in1[0][1] * in2[1][2];
+    dot += (long double)in2[2][2] * in1[0][2];
+    dot += (long double)in2[0][2] * in1[0][0];
+    result[0][2] = (float)dot;
+    dot = (long double)in1[1][1] * in2[1][0];
+    dot += (long double)in1[1][0] * in2[0][0];
+    dot += (long double)in1[1][2] * in2[2][0];
+    result[1][0] = (float)dot;
+    dot = (long double)in1[1][2] * in2[2][1];
+    dot += (long double)in1[1][1] * in2[1][1];
+    dot += (long double)in1[1][0] * in2[0][1];
+    result[1][1] = (float)dot;
+    dot = (long double)in1[1][2] * in2[2][2];
+    dot += (long double)in1[1][1] * in2[1][2];
+    dot += (long double)in1[1][0] * in2[0][2];
+    result[1][2] = (float)dot;
+    dot = (long double)in1[2][0] * in2[0][0];
+    dot += (long double)in2[2][0] * in1[2][2];
+    dot += (long double)in1[2][1] * in2[1][0];
+    result[2][0] = (float)dot;
+    dot = (long double)in2[2][1] * in1[2][2];
+    dot += (long double)in2[1][1] * in1[2][1];
+    dot += (long double)in2[0][1] * in1[2][0];
+    result[2][1] = (float)dot;
+    dot = (long double)in2[2][2] * in1[2][2];
+    dot += (long double)in2[1][2] * in1[2][1];
+    dot += (long double)in2[0][2] * in1[2][0];
+    result[2][2] = (float)dot;
+#elif defined(__linux__)
+    int row, column;
+    for (row = 0; row < 3; ++row) {
+        for (column = 0; column < 3; ++column) {
+            long double dot = (long double)in2[1][column] * in1[row][1];
+            dot += (long double)in2[0][column] * in1[row][0];
+            dot += (long double)in2[2][column] * in1[row][2];
+            result[row][column] = (float)dot;
+        }
+    }
 #else
-	/* Portable fallback; exact original x87 parity is limited to the paths above. */
+	/* SDK ordering for other targets; original precision remains unverified. */
 	result[0][0] = in1[0][0] * in2[0][0] + in1[0][1] * in2[1][0] + in1[0][2] * in2[2][0];
 	result[0][1] = in1[0][0] * in2[0][1] + in1[0][1] * in2[1][1] + in1[0][2] * in2[2][1];
 	result[0][2] = in1[0][0] * in2[0][2] + in1[0][1] * in2[1][2] + in1[0][2] * in2[2][2];
@@ -3932,96 +2350,123 @@ void MatrixMultiply(float in1[3][3], float in2[3][3], float result[3][3]) {
 }
 
 
-/* TC Windows qagame200a0de0/cgame3007e850/ui40001a00 all use the
- * same float32 radians constant, but do not round its product before sin/cos.
- * The SDK float angle temporary can reverse prone leg geometry at +/-90. */
-#if defined(CGAMEDLL) && defined(_MSC_VER) && defined(_M_IX86)
-/* Original cgame3007e850: module-local trig scratch and retained x87 chain. */
-static const float angle839Radians = 0.01745329238474369049072265625f;
-static const float angle839NegativeOne = -1.0f;
-static float angle839Sr, angle839Cr, angle839Sp, angle839Cy, angle839Cp, angle839Sy;
-__declspec(naked) void AngleVectors(const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up) {
-    __asm {
-        MOV eax, dword ptr [esp + 4]
-        FLD dword ptr [eax + 4]
-        FMUL dword ptr [angle839Radians]
-        FLD st(0)
-        FSIN 
-        FSTP dword ptr [angle839Sy]
-        FCOS 
-        FSTP dword ptr [angle839Cy]
-        FLD dword ptr [eax]
-        FMUL dword ptr [angle839Radians]
-        FLD st(0)
-        FSIN 
-        FSTP dword ptr [angle839Sp]
-        FCOS 
-        FSTP dword ptr [angle839Cp]
-        FLD dword ptr [eax + 8]
-        FMUL dword ptr [angle839Radians]
-        MOV eax, dword ptr [esp + 8]
-        TEST eax, eax
-        FLD st(0)
-        FSIN 
-        FSTP dword ptr [angle839Sr]
-        FCOS 
-        FSTP dword ptr [angle839Cr]
-        JE angle839_3007e8d4
-        FLD dword ptr [angle839Cp]
-        FMUL dword ptr [angle839Cy]
-        FSTP dword ptr [eax]
-        FLD dword ptr [angle839Cp]
-        FMUL dword ptr [angle839Sy]
-        FSTP dword ptr [eax + 4]
-        FLD dword ptr [angle839Sp]
-        FCHS 
-        FSTP dword ptr [eax + 8]
-angle839_3007e8d4:
-        MOV eax, dword ptr [esp + 0xc]
-        TEST eax, eax
-        JE angle839_3007e93c
-        FLD dword ptr [angle839Cr]
-        FMUL dword ptr [angle839Sy]
-        FLD dword ptr [angle839Sr]
-        FMUL dword ptr [angle839Sp]
-        FMUL dword ptr [angle839Cy]
-        FSUBP st(1), st(0)
-        FSTP dword ptr [eax]
-        FLD dword ptr [angle839Sr]
-        FMUL dword ptr [angle839Sp]
-        FMUL dword ptr [angle839Sy]
-        FLD dword ptr [angle839Cr]
-        FMUL dword ptr [angle839Cy]
-        FADDP st(1), st(0)
-        FMUL dword ptr [angle839NegativeOne]
-        FSTP dword ptr [eax + 4]
-        FLD dword ptr [angle839Sr]
-        FMUL dword ptr [angle839Cp]
-        FMUL dword ptr [angle839NegativeOne]
-        FSTP dword ptr [eax + 8]
-angle839_3007e93c:
-        MOV eax, dword ptr [esp + 0x10]
-        TEST eax, eax
-        JE angle839_3007e998
-        FLD dword ptr [angle839Cr]
-        FMUL dword ptr [angle839Sp]
-        FMUL dword ptr [angle839Cy]
-        FLD dword ptr [angle839Sr]
-        FMUL dword ptr [angle839Sy]
-        FADDP st(1), st(0)
-        FSTP dword ptr [eax]
-        FLD dword ptr [angle839Cr]
-        FMUL dword ptr [angle839Sp]
-        FMUL dword ptr [angle839Sy]
-        FLD dword ptr [angle839Sr]
-        FMUL dword ptr [angle839Cy]
-        FSUBP st(1), st(0)
-        FSTP dword ptr [eax + 4]
-        FLD dword ptr [angle839Cr]
-        FMUL dword ptr [angle839Cp]
-        FSTP dword ptr [eax + 8]
-angle839_3007e998:
-        RET 
+/* Original native trig scratch and platform FP stages; proof957.
+ * sinl/cosl do not establish hardware FSIN/FCOS equivalence. */
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+static volatile float tceSinRoll, tceCosRoll, tceSinPitch;
+static volatile float tceCosYaw, tceCosPitch, tceSinYaw;
+
+void AngleVectors(const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up) {
+    long double phase, a, b;
+#if !defined(_WIN32)
+    long double heldCosYaw, heldCosPitch;
+    volatile float phaseSpill, cosineSpill;
+#endif
+#if defined(_WIN32)
+    phase = (long double)angles[YAW] * (long double)0.01745329238474369f;
+#else
+    phase = (long double)0.017453292519943295 * (long double)angles[YAW];
+    phaseSpill = (float)phase;
+    phase = (long double)phaseSpill;
+#endif
+    tceSinYaw = (float)sinl(phase);
+#if defined(_WIN32)
+    tceCosYaw = (float)cosl(phase);
+#else
+    cosineSpill = (float)cosl(phase);
+    heldCosYaw = (long double)cosineSpill;
+    tceCosYaw = (float)heldCosYaw;
+#endif
+#if defined(_WIN32)
+    phase = (long double)angles[PITCH] * (long double)0.01745329238474369f;
+#else
+    phase = (long double)0.017453292519943295 * (long double)angles[PITCH];
+    phaseSpill = (float)phase;
+    phase = (long double)phaseSpill;
+#endif
+    tceSinPitch = (float)sinl(phase);
+#if defined(_WIN32)
+    tceCosPitch = (float)cosl(phase);
+#else
+    cosineSpill = (float)cosl(phase);
+    heldCosPitch = (long double)cosineSpill;
+    tceCosPitch = (float)heldCosPitch;
+#endif
+#if defined(_WIN32)
+    phase = (long double)angles[ROLL] * (long double)0.01745329238474369f;
+#else
+    phase = (long double)0.017453292519943295 * (long double)angles[ROLL];
+    phaseSpill = (float)phase;
+    phase = (long double)phaseSpill;
+#endif
+    tceSinRoll = (float)sinl(phase);
+    tceCosRoll = (float)cosl(phase);
+    if (forward) {
+#if defined(_WIN32)
+        forward[0] = (float)((long double)tceCosPitch * (long double)tceCosYaw);
+        forward[1] = (float)((long double)tceCosPitch * (long double)tceSinYaw);
+        forward[2] = (float)(-(long double)tceSinPitch);
+#else
+        unsigned bits;
+        forward[0] = (float)(heldCosYaw * heldCosPitch);
+        forward[1] = (float)((long double)tceSinYaw * (long double)tceCosPitch);
+        /* Original Linux XOR changes the sign bit without FP negation. */
+        memcpy(&bits, (const void *)&tceSinPitch, sizeof(bits));
+        bits ^= 0x80000000u;
+        memcpy(&forward[2], &bits, sizeof(bits));
+#endif
+    }
+    if (right) {
+#if defined(_WIN32)
+        a = (long double)tceCosRoll * (long double)tceSinYaw;
+        b = (long double)tceSinRoll * (long double)tceSinPitch;
+        b *= (long double)tceCosYaw;
+        right[0] = (float)(a - b);
+        b = (long double)tceSinRoll * (long double)tceSinPitch;
+        b *= (long double)tceSinYaw;
+        a = (long double)tceCosRoll * (long double)tceCosYaw;
+        right[1] = (float)((b + a) * (long double)-1.0f);
+        a = (long double)tceSinRoll * (long double)tceCosPitch;
+        right[2] = (float)(a * (long double)-1.0f);
+#else
+        b = (long double)tceSinRoll;
+        a = (long double)tceSinYaw * (long double)tceCosRoll;
+        b = -b;
+        b *= (long double)tceSinPitch;
+        b *= (long double)tceCosYaw;
+        right[0] = (float)(a + b);
+        b = (long double)tceSinRoll;
+        a = (long double)tceCosRoll * (long double)tceCosYaw;
+        b = -b;
+        b *= (long double)tceSinPitch;
+        b *= (long double)tceSinYaw;
+        right[1] = (float)(b - a);
+        a = -(long double)tceSinRoll;
+        right[2] = (float)(a * (long double)tceCosPitch);
+#endif
+    }
+    if (up) {
+#if defined(_WIN32)
+        a = (long double)tceCosRoll * (long double)tceSinPitch;
+        a *= (long double)tceCosYaw;
+        b = (long double)tceSinRoll * (long double)tceSinYaw;
+        up[0] = (float)(a + b);
+        a = (long double)tceCosRoll * (long double)tceSinPitch;
+        a *= (long double)tceSinYaw;
+        b = (long double)tceSinRoll * (long double)tceCosYaw;
+        up[1] = (float)(a - b);
+        up[2] = (float)((long double)tceCosRoll * (long double)tceCosPitch);
+#else
+        a = (long double)tceSinPitch * (long double)tceCosRoll;
+        b = (long double)tceSinYaw * (long double)tceSinRoll;
+        a *= (long double)tceCosYaw;
+        up[0] = (float)(b + a);
+        a = (long double)tceSinPitch * (long double)tceCosRoll;
+        b = (long double)tceSinRoll * (long double)tceCosYaw;
+        a *= (long double)tceSinYaw;
+        up[1] = (float)(a - b);
+        up[2] = (float)((long double)tceCosPitch * (long double)tceCosRoll);
+#endif
     }
 }
 #else
@@ -4056,166 +2501,30 @@ void AngleVectors(const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up) 
 /*
 ** assumes "src" is normalized
 */
-/* TC 747: preserve the original C0-only (including unordered) axis gate,
- * helper-call float stores and x87 return disposal on each original x86 ABI. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) void PerpendicularVector(vec3_t dst, const vec3_t src) {
- __asm {
-  sub esp,0x10
-  push ebx
-  push ebp
-  mov ebp,dword ptr [esp + 0x20]
-  push esi
-  push edi
-  xor ebx,ebx
-  mov dword ptr [esp + 0x10],0x3f800000
-  xor esi,esi
-  mov edi,ebp
-  tce_747_200a0f49:
-  mov eax,dword ptr [edi]
-  push eax
-  call Q_fabs
-  fcomp dword ptr [esp + 0x14]
-  add esp,0x4
-  fnstsw ax
-  test ah,0x1
-  jz tce_747_200a0f70
-  mov ecx,dword ptr [edi]
-  mov ebx,esi
-  push ecx
-  call Q_fabs
-  fstp dword ptr [esp + 0x14]
-  add esp,0x4
-  tce_747_200a0f70:
-  inc esi
-  add edi,0x4
-  cmp esi,0x3
-  jl tce_747_200a0f49
-  mov esi,dword ptr [esp + 0x24]
-  lea edx,[esp + 0x14]
-  push ebp
-  push edx
-  mov dword ptr [esp + 0x24],0x0
-  mov dword ptr [esp + 0x20],0x0
-  mov dword ptr [esp + 0x1c],0x0
-  push esi
-  mov dword ptr [esp + ebx*0x4 + 0x20],0x3f800000
-  call ProjectPointOnPlane
-  push esi
-  call VectorNormalize
-  add esp,0x10
-  fstp st(0)
-  pop edi
-  pop esi
-  pop ebp
-  pop ebx
-  add esp,0x10
-  ret
- }
-}
-#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-__attribute__((naked)) void PerpendicularVector(vec3_t dst, const vec3_t src) {
- __asm__(
- ".intel_syntax noprefix\n"
- ".Ltce_747_00114cac:\n"
- "push ebp\n"
- ".Ltce_747_00114cad:\n"
- "xor ebp,ebp\n"
- ".Ltce_747_00114caf:\n"
- "push edi\n"
- ".Ltce_747_00114cb0:\n"
- "push esi\n"
- ".Ltce_747_00114cb1:\n"
- "xor esi,esi\n"
- ".Ltce_747_00114cb3:\n"
- "push ebx\n"
- ".Ltce_747_00114cb4:\n"
- "sub esp,0x3c\n"
- ".Ltce_747_00114cb7:\n"
- "mov edi,dword ptr [esp + 0x54]\n"
- ".Ltce_747_00114cc6:\n"
- "mov dword ptr [esp+0x30],0x3f800000\n"
- "fld dword ptr [esp+0x30]\n"
- ".Ltce_747_00114ccc:\n"
- "fstp dword ptr [esp + 0x1c]\n"
- ".Ltce_747_00114cd0:\n"
- "mov edx,dword ptr [edi + esi*0x4]\n"
- ".Ltce_747_00114cd3:\n"
- "mov dword ptr [esp],edx\n"
- ".Ltce_747_00114cd6:\n"
- "call Q_fabs\n"
- ".Ltce_747_00114cdb:\n"
- "fcomp dword ptr [esp + 0x1c]\n"
- ".Ltce_747_00114cdf:\n"
- "fnstsw ax\n"
- ".Ltce_747_00114ce1:\n"
- "sahf\n"
- ".Ltce_747_00114ce2:\n"
- "jc .Ltce_747_00114d34\n"
- ".Ltce_747_00114ce4:\n"
- "inc esi\n"
- ".Ltce_747_00114ce5:\n"
- "cmp esi,0x2\n"
- ".Ltce_747_00114ce8:\n"
- "jle .Ltce_747_00114cd0\n"
- ".Ltce_747_00114cea:\n"
- "mov ecx,0\n"
- ".Ltce_747_00114cf0:\n"
- "mov edx,0x3f800000\n"
- ".Ltce_747_00114cf6:\n"
- "mov dword ptr [esp + 0x28],ecx\n"
- ".Ltce_747_00114cfa:\n"
- "mov dword ptr [esp + 0x24],ecx\n"
- ".Ltce_747_00114cfe:\n"
- "mov dword ptr [esp + 0x20],ecx\n"
- ".Ltce_747_00114d02:\n"
- "mov dword ptr [esp + ebp*0x4 + 0x20],edx\n"
- ".Ltce_747_00114d06:\n"
- "mov esi,dword ptr [esp + 0x50]\n"
- ".Ltce_747_00114d0a:\n"
- "mov dword ptr [esp + 0x8],edi\n"
- ".Ltce_747_00114d0e:\n"
- "lea edi,[esp + 0x20]\n"
- ".Ltce_747_00114d12:\n"
- "mov dword ptr [esp + 0x4],edi\n"
- ".Ltce_747_00114d16:\n"
- "mov dword ptr [esp],esi\n"
- ".Ltce_747_00114d19:\n"
- "call ProjectPointOnPlane\n"
- ".Ltce_747_00114d1e:\n"
- "mov ecx,dword ptr [esp + 0x50]\n"
- ".Ltce_747_00114d22:\n"
- "mov dword ptr [esp],ecx\n"
- ".Ltce_747_00114d25:\n"
- "call VectorNormalize\n"
- ".Ltce_747_00114d2a:\n"
- "fstp st(0)\n"
- ".Ltce_747_00114d2c:\n"
- "add esp,0x3c\n"
- ".Ltce_747_00114d2f:\n"
- "pop ebx\n"
- ".Ltce_747_00114d30:\n"
- "pop esi\n"
- ".Ltce_747_00114d31:\n"
- "pop edi\n"
- ".Ltce_747_00114d32:\n"
- "pop ebp\n"
- ".Ltce_747_00114d33:\n"
- "ret\n"
- ".Ltce_747_00114d34:\n"
- "mov edx,dword ptr [edi + esi*0x4]\n"
- ".Ltce_747_00114d37:\n"
- "mov ebp,esi\n"
- ".Ltce_747_00114d39:\n"
- "mov dword ptr [esp],edx\n"
- ".Ltce_747_00114d3c:\n"
- "call Q_fabs\n"
- ".Ltce_747_00114d41:\n"
- "fstp dword ptr [esp + 0x1c]\n"
- ".Ltce_747_00114d45:\n"
- "jmp .Ltce_747_00114ce4\n"
- ".att_syntax prefix\n"
- );
+/* The native smallest-axis gate selects less-than OR unordered, and calls
+ * Q_fabs again before storing a new minimum. Keep both provider calls. */
+#if defined(_WIN32) || defined(__linux__)
+void PerpendicularVector(vec3_t dst, const vec3_t src) {
+    int axis, smallest = 0;
+    float minimum = 1.0f;
+    vec3_t basis;
+    for (axis = 0; axis < 3; ++axis) {
+        float candidate = Q_fabs(src[axis]);
+        unsigned int candidateBits, minimumBits;
+        int unordered;
+        memcpy(&candidateBits, &candidate, sizeof(candidateBits));
+        memcpy(&minimumBits, &minimum, sizeof(minimumBits));
+        unordered = (candidateBits & 0x7fffffffu) > 0x7f800000u ||
+            (minimumBits & 0x7fffffffu) > 0x7f800000u;
+        if (unordered || (long double)candidate < (long double)minimum) {
+            smallest = axis;
+            minimum = Q_fabs(src[axis]);
+        }
+    }
+    memset(basis, 0, sizeof(basis));
+    basis[smallest] = 1.0f;
+    ProjectPointOnPlane(dst, basis, src);
+    (void)VectorNormalize(dst);
 }
 #else
 void PerpendicularVector( vec3_t dst, const vec3_t src )
@@ -4259,111 +2568,17 @@ GetPerpendicularViewVector
   Used to find an "up" vector for drawing a sprite so that it always faces the view as best as possible
 =================
 */
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) void GetPerpendicularViewVector( const vec3_t point, const vec3_t p1, const vec3_t p2, vec3_t up ) {
-    __asm {
-        sub esp,0x18
-        mov eax,dword ptr [esp + 0x20]
-        push esi
-        mov esi,dword ptr [esp + 0x20]
-        fld dword ptr [esi]
-        fsub dword ptr [eax]
-        fstp dword ptr [esp + 0x10]
-        fld dword ptr [esi + 0x4]
-        fsub dword ptr [eax + 0x4]
-        fstp dword ptr [esp + 0x14]
-        fld dword ptr [esi + 0x8]
-        fsub dword ptr [eax + 0x8]
-        lea eax,[esp + 0x10]
-        push eax
-        fstp dword ptr [esp + 0x1c]
-        call VectorNormalize
-        mov eax,dword ptr [esp + 0x2c]
-        lea ecx,[esp + 0x8]
-        fstp st(0)
-        fld dword ptr [esi]
-        fsub dword ptr [eax]
-        push ecx
-        fstp dword ptr [esp + 0xc]
-        fld dword ptr [esi + 0x4]
-        fsub dword ptr [eax + 0x4]
-        fstp dword ptr [esp + 0x10]
-        fld dword ptr [esi + 0x8]
-        fsub dword ptr [eax + 0x8]
-        fstp dword ptr [esp + 0x14]
-        call VectorNormalize
-        mov esi,dword ptr [esp + 0x34]
-        lea edx,[esp + 0xc]
-        push esi
-        lea eax,[esp + 0x1c]
-        push edx
-        push eax
-        fstp st(0)
-        call CrossProduct
-        push esi
-        call VectorNormalize
-        add esp,0x18
-        fstp st(0)
-        pop esi
-        add esp,0x18
-        ret
-    }
-}
-#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-__attribute__((naked)) void GetPerpendicularViewVector( const vec3_t point, const vec3_t p1, const vec3_t p2, vec3_t up ) {
-    __asm__(
-        ".intel_syntax noprefix\n"
-        "push ebp\n"
-        "push edi\n"
-        "push esi\n"
-        "push ebx\n"
-        "sub esp,0x3c\n"
-        "mov ecx,dword ptr [esp + 0x54]\n"
-        "mov esi,dword ptr [esp + 0x50]\n"
-        "lea ebp,[esp + 0x20]\n"
-        "mov edi,dword ptr [esp + 0x58]\n"
-        "fld dword ptr [ecx]\n"
-        "fsubr dword ptr [esi]\n"
-        "fstp dword ptr [esp + 0x20]\n"
-        "fld dword ptr [ecx + 0x4]\n"
-        "fsubr dword ptr [esi + 0x4]\n"
-        "fstp dword ptr [esp + 0x24]\n"
-        "fld dword ptr [ecx + 0x8]\n"
-        "fsubr dword ptr [esi + 0x8]\n"
-        "mov dword ptr [esp],ebp\n"
-        "fstp dword ptr [esp + 0x28]\n"
-        "call VectorNormalize\n"
-        "fstp st(0)\n"
-        "fld dword ptr [edi]\n"
-        "fsubr dword ptr [esi]\n"
-        "fstp dword ptr [esp + 0x10]\n"
-        "fld dword ptr [edi + 0x4]\n"
-        "fsubr dword ptr [esi + 0x4]\n"
-        "fstp dword ptr [esp + 0x14]\n"
-        "fld dword ptr [edi + 0x8]\n"
-        "lea edi,[esp + 0x10]\n"
-        "fsubr dword ptr [esi + 0x8]\n"
-        "mov dword ptr [esp],edi\n"
-        "fstp dword ptr [esp + 0x18]\n"
-        "call VectorNormalize\n"
-        "fstp st(0)\n"
-        "mov dword ptr [esp + 0x4],edi\n"
-        "mov edx,dword ptr [esp + 0x5c]\n"
-        "mov dword ptr [esp],ebp\n"
-        "mov dword ptr [esp + 0x8],edx\n"
-        "call CrossProduct\n"
-        "mov eax,dword ptr [esp + 0x5c]\n"
-        "mov dword ptr [esp],eax\n"
-        "call VectorNormalize\n"
-        "fstp st(0)\n"
-        "add esp,0x3c\n"
-        "pop ebx\n"
-        "pop esi\n"
-        "pop edi\n"
-        "pop ebp\n"
-        "ret\n"
-        ".att_syntax prefix\n"
-    );
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+void GetPerpendicularViewVector(const vec3_t point, const vec3_t p1,
+    const vec3_t p2, vec3_t up) {
+    vec3_t v1, v2;
+    /* Differences must round to Float before each normalization call. */
+    TCE_VectorDifferenceFloat(p1, point, v1);
+    (void)VectorNormalize(v1);
+    TCE_VectorDifferenceFloat(p2, point, v2);
+    (void)VectorNormalize(v2);
+    CrossProduct(v1, v2, up);
+    (void)VectorNormalize(up);
 }
 #else
 void GetPerpendicularViewVector( const vec3_t point, const vec3_t p1, const vec3_t p2, vec3_t up )
@@ -4386,128 +2601,39 @@ void GetPerpendicularViewVector( const vec3_t point, const vec3_t p1, const vec3
 ProjectPointOntoVector
 ================
 */
-/* TC projection: original platform-specific dot accumulation stays in x87. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) void ProjectPointOntoVector(vec3_t point, vec3_t vStart, vec3_t vEnd, vec3_t vProj) {
-    __asm {
-        sub esp,0x18
-        mov eax,dword ptr [esp + 0x1c]
-        push esi
-        mov esi,dword ptr [esp + 0x24]
-        fld dword ptr [eax]
-        fsub dword ptr [esi]
-        fstp dword ptr [esp + 0x10]
-        fld dword ptr [eax + 0x4]
-        fsub dword ptr [esi + 0x4]
-        fstp dword ptr [esp + 0x14]
-        fld dword ptr [eax + 0x8]
-        fsub dword ptr [esi + 0x8]
-        mov eax,dword ptr [esp + 0x28]
-        fstp dword ptr [esp + 0x18]
-        fld dword ptr [eax]
-        fsub dword ptr [esi]
-        fstp dword ptr [esp + 0x4]
-        fld dword ptr [eax + 0x4]
-        fsub dword ptr [esi + 0x4]
-        fstp dword ptr [esp + 0x8]
-        fld dword ptr [eax + 0x8]
-        fsub dword ptr [esi + 0x8]
-        lea eax,[esp + 0x4]
-        push eax
-        fstp dword ptr [esp + 0x10]
-        call VectorNormalize
-        fstp st(0)
-        fld dword ptr [esp + 0x10]
-        fmul dword ptr [esp + 0x1c]
-        fld dword ptr [esp + 0xc]
-        fmul dword ptr [esp + 0x18]
-        mov eax,dword ptr [esp + 0x30]
-        add esp,0x4
-        faddp st(1),st(0)
-        fld dword ptr [esp + 0x4]
-        fmul dword ptr [esp + 0x10]
-        faddp st(1),st(0)
-        fld st(0)
-        fmul dword ptr [esp + 0x4]
-        fadd dword ptr [esi]
-        fstp dword ptr [eax]
-        fld st(0)
-        fmul dword ptr [esp + 0x8]
-        fadd dword ptr [esi + 0x4]
-        fstp dword ptr [eax + 0x4]
-        fmul dword ptr [esp + 0xc]
-        fadd dword ptr [esi + 0x8]
-        pop esi
-        fstp dword ptr [eax + 0x8]
-        add esp,0x18
-        ret
-    }
-}
-#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-__attribute__((naked)) void ProjectPointOntoVector(vec3_t point, vec3_t vStart, vec3_t vEnd, vec3_t vProj) {
-    __asm__(
-        ".intel_syntax noprefix\n"
-        "push edi\n"
-        "push esi\n"
-        "push ebx\n"
-        "sub esp,0x30\n"
-        "mov esi,dword ptr [esp + 0x44]\n"
-        "mov edx,dword ptr [esp + 0x40]\n"
-        "mov ecx,dword ptr [esp + 0x48]\n"
-        "mov edi,dword ptr [esp + 0x4c]\n"
-        "fld dword ptr [esi]\n"
-        "fld dword ptr [edx]\n"
-        "fsub st(0),st(1)\n"
-        "fstp dword ptr [esp + 0x20]\n"
-        "fld dword ptr [esi + 0x4]\n"
-        "fld dword ptr [edx + 0x4]\n"
-        "fsub st(0),st(1)\n"
-        "fstp dword ptr [esp + 0x24]\n"
-        "fld dword ptr [esi + 0x8]\n"
-        "fld dword ptr [edx + 0x8]\n"
-        "lea edx,[esp + 0x10]\n"
-        "fsub st(0),st(1)\n"
-        "fstp dword ptr [esp + 0x28]\n"
-        "fxch st(2)\n"
-        "fsubr dword ptr [ecx]\n"
-        "fstp dword ptr [esp + 0x10]\n"
-        "fsubr dword ptr [ecx + 0x4]\n"
-        "fstp dword ptr [esp + 0x14]\n"
-        "fsubr dword ptr [ecx + 0x8]\n"
-        "mov dword ptr [esp],edx\n"
-        "fstp dword ptr [esp + 0x18]\n"
-        "call VectorNormalize\n"
-        "fstp st(0)\n"
-        "fld dword ptr [esp + 0x10]\n"
-        "fld dword ptr [esp + 0x14]\n"
-        "fld dword ptr [esp + 0x20]\n"
-        "fld dword ptr [esp + 0x24]\n"
-        "fld dword ptr [esp + 0x18]\n"
-        "fxch st(2)\n"
-        "fmul st(0),st(4)\n"
-        "fxch st(1)\n"
-        "fmul st(0),st(3)\n"
-        "faddp st(1),st(0)\n"
-        "fld dword ptr [esp + 0x28]\n"
-        "fmul st(0),st(2)\n"
-        "faddp st(1),st(0)\n"
-        "fmul st(3),st(0)\n"
-        "fmul st(2),st(0)\n"
-        "fmulp st(1),st(0)\n"
-        "fxch st(2)\n"
-        "fadd dword ptr [esi]\n"
-        "fstp dword ptr [edi]\n"
-        "fadd dword ptr [esi + 0x4]\n"
-        "fstp dword ptr [edi + 0x4]\n"
-        "fadd dword ptr [esi + 0x8]\n"
-        "fstp dword ptr [edi + 0x8]\n"
-        "add esp,0x30\n"
-        "pop ebx\n"
-        "pop esi\n"
-        "pop edi\n"
-        "ret\n"
-        ".att_syntax prefix\n"
-    );
+#if defined(_WIN32) || defined(__linux__)
+void ProjectPointOntoVector(vec3_t point, vec3_t vStart, vec3_t vEnd, vec3_t vProj) {
+	vec3_t pVec, direction;
+	long double dot;
+#if !defined(_WIN32)
+	long double productX, productY, productZ;
+#endif
+
+	TCE_VectorDifferenceFloat( vStart, point, pVec );
+	TCE_VectorDifferenceFloat( vStart, vEnd, direction );
+	(void)VectorNormalize( direction );
+#if defined(_WIN32)
+	/* The original keeps the dot value across all three output stores. */
+	dot = (long double)direction[2] * (long double)pVec[2];
+	dot += (long double)direction[1] * (long double)pVec[1];
+	dot += (long double)direction[0] * (long double)pVec[0];
+	vProj[0] = (float)(dot * (long double)direction[0] + (long double)vStart[0]);
+	vProj[1] = (float)(dot * (long double)direction[1] + (long double)vStart[1]);
+	vProj[2] = (float)(dot * (long double)direction[2] + (long double)vStart[2]);
+#else
+	dot = (long double)pVec[0] * (long double)direction[0];
+	dot += (long double)pVec[1] * (long double)direction[1];
+	dot += (long double)pVec[2] * (long double)direction[2];
+	/* Linux computes the products before writing output. vStart is reloaded
+	 * after each preceding store, so overlapping input/output stays meaningful.
+	 */
+	productX = (long double)direction[0] * dot;
+	productY = (long double)direction[1] * dot;
+	productZ = (long double)direction[2] * dot;
+	vProj[0] = (float)(productX + (long double)vStart[0]);
+	vProj[1] = (float)(productY + (long double)vStart[1]);
+	vProj[2] = (float)(productZ + (long double)vStart[2]);
+#endif
 }
 #else
 void ProjectPointOntoVector( vec3_t point, vec3_t vStart, vec3_t vEnd, vec3_t vProj )
@@ -4555,338 +2681,44 @@ void ProjectPointOntoVectorBounded( vec3_t point, vec3_t vStart, vec3_t vEnd, ve
 DistanceFromLineSquared
 ================
 */
-/* Original x86 branch/staging contract: line_744.md. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) float DistanceFromLineSquared(vec3_t p, vec3_t lp1, vec3_t lp2) {
-    __asm {
-        sub esp,0x18
-        mov ecx,dword ptr [esp + 0x1c]
-        lea eax,[esp + 0xc]
-        push ebx
-        mov ebx,dword ptr [esp + 0x28]
-        push ebp
-        mov ebp,dword ptr [esp + 0x28]
-        push esi
-        push edi
-        push eax
-        push ebx
-        push ebp
-        push ecx
-        call ProjectPointOntoVector
-        mov edx,ebp
-        lea eax,[esp + 0x2c]
-        sub edx,eax
-        mov edi,ebx
-        lea eax,[esp + 0x2c]
-        add esp,0x10
-        xor esi,esi
-        lea ecx,[esp + 0x1c]
-        sub edi,eax
-        tce_744_200a1099:
-        fld dword ptr [ecx]
-        fcomp dword ptr [edx + ecx*0x1]
-        fnstsw ax
-        test ah,0x41
-        jnz tce_744_200a10b1
-        fld dword ptr [ecx]
-        fcomp dword ptr [edi + ecx*0x1]
-        fnstsw ax
-        test ah,0x41
-        jz tce_744_200a110b
-        tce_744_200a10b1:
-        fld dword ptr [ecx]
-        fcomp dword ptr [edx + ecx*0x1]
-        fnstsw ax
-        test ah,0x1
-        jz tce_744_200a10c9
-        fld dword ptr [ecx]
-        fcomp dword ptr [edi + ecx*0x1]
-        fnstsw ax
-        test ah,0x1
-        jnz tce_744_200a110b
-        tce_744_200a10c9:
-        inc esi
-        add ecx,0x4
-        cmp esi,0x3
-        jl tce_744_200a1099
-        tce_744_200a10d2:
-        mov eax,dword ptr [esp + 0x2c]
-        lea edx,[esp + 0x10]
-        push edx
-        fld dword ptr [eax]
-        fsub dword ptr [esp + 0x20]
-        fstp dword ptr [esp + 0x14]
-        fld dword ptr [eax + 0x4]
-        fsub dword ptr [esp + 0x24]
-        fstp dword ptr [esp + 0x18]
-        fld dword ptr [eax + 0x8]
-        fsub dword ptr [esp + 0x28]
-        fstp dword ptr [esp + 0x1c]
-        call VectorLengthSquared
-        add esp,0x4
-        pop edi
-        pop esi
-        pop ebp
-        pop ebx
-        add esp,0x18
-        ret
-        tce_744_200a110b:
-        cmp esi,0x3
-        jge tce_744_200a10d2
-        fld dword ptr [esp + esi*0x4 + 0x1c]
-        fsub dword ptr [ebp + esi*0x4]
-        push ecx
-        fstp dword ptr [esp]
-        call Q_fabs
-        fstp dword ptr [esp + 0x38]
-        fld dword ptr [esp + esi*0x4 + 0x20]
-        fsub dword ptr [ebx + esi*0x4]
-        fstp dword ptr [esp]
-        call Q_fabs
-        fcomp dword ptr [esp + 0x38]
-        add esp,0x4
-        fnstsw ax
-        test ah,0x41
-        mov eax,dword ptr [esp + 0x2c]
-        fld dword ptr [eax]
-        jnz tce_744_200a1178
-        fsub dword ptr [ebp]
-        lea ecx,[esp + 0x10]
-        push ecx
-        fstp dword ptr [esp + 0x14]
-        fld dword ptr [eax + 0x4]
-        fsub dword ptr [ebp + 0x4]
-        fstp dword ptr [esp + 0x18]
-        fld dword ptr [eax + 0x8]
-        fsub dword ptr [ebp + 0x8]
-        fstp dword ptr [esp + 0x1c]
-        call VectorLengthSquared
-        add esp,0x4
-        pop edi
-        pop esi
-        pop ebp
-        pop ebx
-        add esp,0x18
-        ret
-        tce_744_200a1178:
-        fsub dword ptr [ebx]
-        lea ecx,[esp + 0x10]
-        push ecx
-        fstp dword ptr [esp + 0x14]
-        fld dword ptr [eax + 0x4]
-        fsub dword ptr [ebx + 0x4]
-        fstp dword ptr [esp + 0x18]
-        fld dword ptr [eax + 0x8]
-        fsub dword ptr [ebx + 0x8]
-        fstp dword ptr [esp + 0x1c]
-        call VectorLengthSquared
-        add esp,0x4
-        pop edi
-        pop esi
-        pop ebp
-        pop ebx
-        add esp,0x18
-        ret
-    }
+#if defined(_WIN32) || defined(__linux__)
+long double TCE_DistanceFromLineSquaredValue(vec3_t p, vec3_t lp1, vec3_t lp2) {
+	vec3_t proj, delta;
+	const float *closest = proj;
+	int j;
+
+	ProjectPointOntoVector( p, lp1, lp2, proj );
+	for (j = 0; j < 3; ++j) {
+#if defined(_WIN32)
+		/* C0-only lower gates also accept unordered comparisons. */
+		if ((proj[j] > lp1[j] && proj[j] > lp2[j]) ||
+			(!(proj[j] >= lp1[j]) && !(proj[j] >= lp2[j])))
+			break;
+#else
+		/* Linux compares the first endpoint against the projection first. */
+		if ((!(lp1[j] >= proj[j]) && proj[j] > lp2[j]) ||
+			(lp1[j] > proj[j] && !(proj[j] >= lp2[j])))
+			break;
+#endif
+	}
+	if (j < 3) {
+		volatile float firstDifference = (float)((long double)proj[j] - (long double)lp1[j]);
+		volatile float firstAbs = Q_fabs( firstDifference );
+		volatile float secondDifference = (float)((long double)proj[j] - (long double)lp2[j]);
+		long double secondAbs = Q_fabs( secondDifference );
+
+#if defined(_WIN32)
+		closest = (long double)firstAbs < secondAbs ? lp1 : lp2;
+#else
+		/* Unordered endpoint-distance selection takes lp1 on Linux. */
+		closest = !((long double)firstAbs >= secondAbs) ? lp1 : lp2;
+#endif
+	}
+	TCE_VectorDifferenceFloat( closest, p, delta );
+	return TCE_VectorLengthSquaredValue( delta );
 }
-#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-__attribute__((naked)) float DistanceFromLineSquared(vec3_t p, vec3_t lp1, vec3_t lp2) {
-    __asm__(
-        ".intel_syntax noprefix\n"
-        ".Ltce_744_00114fe4:\n"
-        "push ebp\n"
-        ".Ltce_744_00114fe5:\n"
-        "push edi\n"
-        ".Ltce_744_00114fe6:\n"
-        "push esi\n"
-        ".Ltce_744_00114fe7:\n"
-        "xor esi,esi\n"
-        ".Ltce_744_00114fe9:\n"
-        "push ebx\n"
-        ".Ltce_744_00114fea:\n"
-        "sub esp,0x4c\n"
-        ".Ltce_744_00114fed:\n"
-        "lea edx,[esp + 0x30]\n"
-        ".Ltce_744_00114ff1:\n"
-        "mov dword ptr [esp + 0xc],edx\n"
-        ".Ltce_744_00114ff5:\n"
-        "mov ebp,dword ptr [esp + 0x60]\n"
-        ".Ltce_744_00115004:\n"
-        "mov edi,dword ptr [esp + 0x68]\n"
-        ".Ltce_744_00115008:\n"
-        "mov edx,dword ptr [esp + 0x64]\n"
-        ".Ltce_744_0011500c:\n"
-        "mov dword ptr [esp],ebp\n"
-        ".Ltce_744_0011500f:\n"
-        "mov dword ptr [esp + 0x8],edi\n"
-        ".Ltce_744_00115013:\n"
-        "mov dword ptr [esp + 0x4],edx\n"
-        ".Ltce_744_00115017:\n"
-        "call ProjectPointOntoVector\n"
-        ".Ltce_744_0011501c:\n"
-        "fld dword ptr [esp + esi*0x4 + 0x30]\n"
-        ".Ltce_744_00115020:\n"
-        "mov ecx,dword ptr [esp + 0x64]\n"
-        ".Ltce_744_00115024:\n"
-        "fld dword ptr [ecx + esi*0x4]\n"
-        ".Ltce_744_00115027:\n"
-        "fcom st(1)\n"
-        ".Ltce_744_00115029:\n"
-        "fnstsw ax\n"
-        ".Ltce_744_0011502b:\n"
-        "sahf\n"
-        ".Ltce_744_0011502c:\n"
-        "jnc .Ltce_744_0011503e\n"
-        ".Ltce_744_0011502e:\n"
-        "fxch st(1)\n"
-        ".Ltce_744_00115030:\n"
-        "fcom dword ptr [edi + esi*0x4]\n"
-        ".Ltce_744_00115033:\n"
-        "fnstsw ax\n"
-        ".Ltce_744_00115035:\n"
-        "sahf\n"
-        ".Ltce_744_00115036:\n"
-        "ja .Ltce_744_00115101\n"
-        ".Ltce_744_0011503c:\n"
-        "fxch st(1)\n"
-        ".Ltce_744_0011503e:\n"
-        "fcomp st(1)\n"
-        ".Ltce_744_00115040:\n"
-        "fnstsw ax\n"
-        ".Ltce_744_00115042:\n"
-        "sahf\n"
-        ".Ltce_744_00115043:\n"
-        "jbe .Ltce_744_001150fa\n"
-        ".Ltce_744_00115049:\n"
-        "fcomp dword ptr [edi + esi*0x4]\n"
-        ".Ltce_744_0011504c:\n"
-        "fnstsw ax\n"
-        ".Ltce_744_0011504e:\n"
-        "sahf\n"
-        ".Ltce_744_0011504f:\n"
-        "jc .Ltce_744_0011508c\n"
-        ".Ltce_744_00115051:\n"
-        "inc esi\n"
-        ".Ltce_744_00115052:\n"
-        "cmp esi,0x2\n"
-        ".Ltce_744_00115055:\n"
-        "jle .Ltce_744_0011501c\n"
-        ".Ltce_744_00115057:\n"
-        "fld dword ptr [esp + 0x30]\n"
-        ".Ltce_744_0011505b:\n"
-        "fsubr dword ptr [ebp]\n"
-        ".Ltce_744_0011505e:\n"
-        "fstp dword ptr [esp + 0x20]\n"
-        ".Ltce_744_00115062:\n"
-        "fld dword ptr [esp + 0x34]\n"
-        ".Ltce_744_00115066:\n"
-        "fsubr dword ptr [ebp + 0x4]\n"
-        ".Ltce_744_00115069:\n"
-        "fstp dword ptr [esp + 0x24]\n"
-        ".Ltce_744_0011506d:\n"
-        "fld dword ptr [esp + 0x38]\n"
-        ".Ltce_744_00115071:\n"
-        "fsubr dword ptr [ebp + 0x8]\n"
-        ".Ltce_744_00115074:\n"
-        "lea edi,[esp + 0x20]\n"
-        ".Ltce_744_00115078:\n"
-        "mov dword ptr [esp],edi\n"
-        ".Ltce_744_0011507b:\n"
-        "fstp dword ptr [esp + 0x28]\n"
-        ".Ltce_744_0011507f:\n"
-        "call VectorLengthSquared\n"
-        ".Ltce_744_00115084:\n"
-        "add esp,0x4c\n"
-        ".Ltce_744_00115087:\n"
-        "pop ebx\n"
-        ".Ltce_744_00115088:\n"
-        "pop esi\n"
-        ".Ltce_744_00115089:\n"
-        "pop edi\n"
-        ".Ltce_744_0011508a:\n"
-        "pop ebp\n"
-        ".Ltce_744_0011508b:\n"
-        "ret\n"
-        ".Ltce_744_0011508c:\n"
-        "cmp esi,0x2\n"
-        ".Ltce_744_0011508f:\n"
-        "jg .Ltce_744_00115057\n"
-        ".Ltce_744_00115091:\n"
-        "mov edx,dword ptr [esp + 0x64]\n"
-        ".Ltce_744_00115095:\n"
-        "fld dword ptr [edx + esi*0x4]\n"
-        ".Ltce_744_00115098:\n"
-        "fsubr dword ptr [esp + esi*0x4 + 0x30]\n"
-        ".Ltce_744_0011509c:\n"
-        "fstp dword ptr [esp]\n"
-        ".Ltce_744_0011509f:\n"
-        "call Q_fabs\n"
-        ".Ltce_744_001150a4:\n"
-        "fstp dword ptr [esp + 0x1c]\n"
-        ".Ltce_744_001150a8:\n"
-        "fld dword ptr [edi + esi*0x4]\n"
-        ".Ltce_744_001150ab:\n"
-        "fsubr dword ptr [esp + esi*0x4 + 0x30]\n"
-        ".Ltce_744_001150af:\n"
-        "fstp dword ptr [esp]\n"
-        ".Ltce_744_001150b2:\n"
-        "call Q_fabs\n"
-        ".Ltce_744_001150b7:\n"
-        "fld dword ptr [esp + 0x1c]\n"
-        ".Ltce_744_001150bb:\n"
-        "fcompp\n"
-        ".Ltce_744_001150bd:\n"
-        "fnstsw ax\n"
-        ".Ltce_744_001150bf:\n"
-        "sahf\n"
-        ".Ltce_744_001150c0:\n"
-        "jnc .Ltce_744_001150de\n"
-        ".Ltce_744_001150c2:\n"
-        "mov esi,dword ptr [esp + 0x64]\n"
-        ".Ltce_744_001150c6:\n"
-        "fld dword ptr [esi]\n"
-        ".Ltce_744_001150c8:\n"
-        "fsubr dword ptr [ebp]\n"
-        ".Ltce_744_001150cb:\n"
-        "fstp dword ptr [esp + 0x20]\n"
-        ".Ltce_744_001150cf:\n"
-        "fld dword ptr [esi + 0x4]\n"
-        ".Ltce_744_001150d2:\n"
-        "fsubr dword ptr [ebp + 0x4]\n"
-        ".Ltce_744_001150d5:\n"
-        "fstp dword ptr [esp + 0x24]\n"
-        ".Ltce_744_001150d9:\n"
-        "fld dword ptr [esi + 0x8]\n"
-        ".Ltce_744_001150dc:\n"
-        "jmp .Ltce_744_00115071\n"
-        ".Ltce_744_001150de:\n"
-        "fld dword ptr [edi]\n"
-        ".Ltce_744_001150e0:\n"
-        "fsubr dword ptr [ebp]\n"
-        ".Ltce_744_001150e3:\n"
-        "fstp dword ptr [esp + 0x20]\n"
-        ".Ltce_744_001150e7:\n"
-        "fld dword ptr [edi + 0x4]\n"
-        ".Ltce_744_001150ea:\n"
-        "fsubr dword ptr [ebp + 0x4]\n"
-        ".Ltce_744_001150ed:\n"
-        "fstp dword ptr [esp + 0x24]\n"
-        ".Ltce_744_001150f1:\n"
-        "fld dword ptr [edi + 0x8]\n"
-        ".Ltce_744_001150f4:\n"
-        "jmp .Ltce_744_00115071\n"
-        ".Ltce_744_001150fa:\n"
-        "fstp st(0)\n"
-        ".Ltce_744_001150fc:\n"
-        "jmp .Ltce_744_00115051\n"
-        ".Ltce_744_00115101:\n"
-        "fstp st(0)\n"
-        ".Ltce_744_00115103:\n"
-        "fstp st(0)\n"
-        ".Ltce_744_00115105:\n"
-        "jmp .Ltce_744_0011508c\n"
-        ".att_syntax prefix\n"
-    );
+float DistanceFromLineSquared(vec3_t p, vec3_t lp1, vec3_t lp2) {
+	return (float)TCE_DistanceFromLineSquaredValue( p, lp1, lp2 );
 }
 #else
 float DistanceFromLineSquared(vec3_t p, vec3_t lp1, vec3_t lp2) {
@@ -4915,6 +2747,15 @@ float DistanceFromLineSquared(vec3_t p, vec3_t lp1, vec3_t lp2) {
 DistanceFromVectorSquared
 ================
 */
+#if defined(_WIN32) || defined(__linux__)
+float DistanceFromVectorSquared(vec3_t p, vec3_t lp1, vec3_t lp2) {
+	vec3_t proj, delta;
+
+	ProjectPointOntoVector( p, lp1, lp2, proj );
+	TCE_VectorDifferenceFloat( proj, p, delta );
+	return (float)TCE_VectorLengthSquaredValue( delta );
+}
+#else
 float DistanceFromVectorSquared(vec3_t p, vec3_t lp1, vec3_t lp2) {
 	vec3_t proj, t;
 
@@ -4922,162 +2763,48 @@ float DistanceFromVectorSquared(vec3_t p, vec3_t lp1, vec3_t lp2) {
 	VectorSubtract(p, proj, t);
 	return VectorLengthSquared(t);
 }
+#endif
 
-/* TC vectoyaw: retain original ST0 result; see vectoyaw_740.md. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) float vectoyaw(const vec3_t vec) {
-    __asm {
-            mov ecx,dword ptr [esp + 0x4]
-            fld dword ptr [ecx + 0x4]
-            fcomp dword ptr tceVecAnglesZero
-            fnstsw ax
-            test ah,0x40
-            jz tce_vy_200a11da
-            fld dword ptr [ecx]
-            fcomp dword ptr tceVecAnglesZero
-            fnstsw ax
-            test ah,0x40
-            jz tce_vy_200a11da
-            fld dword ptr tceVecAnglesZero
-            ret
-        tce_vy_200a11da:
-            fld dword ptr [ecx]
-            fcomp dword ptr tceVecAnglesZero
-            fnstsw ax
-            test ah,0x40
-            jnz tce_vy_200a120a
-            fld dword ptr [ecx + 0x4]
-            fld dword ptr [ecx]
-            fpatan
-            fmul qword ptr tceVecAnglesDegrees
-            fcom dword ptr tceVecAnglesZero
-            fnstsw ax
-            test ah,0x1
-            jz tce_vy_200a1209
-            fadd dword ptr tceVecAngles360
-        tce_vy_200a1209:
-            ret
-        tce_vy_200a120a:
-            fld dword ptr [ecx + 0x4]
-            fcomp dword ptr tceVecAnglesZero
-            fnstsw ax
-            test ah,0x41
-            jnz tce_vy_200a1221
-            fld dword ptr tceVecAngles90
-            ret
-        tce_vy_200a1221:
-            fld dword ptr tceVecAngles270
-            ret
+/* Native scalar stages; FPATAN/libm and external x87 ABI remain unverified. */
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+long double TCE_VectorYawValue(const vec3_t vec) {
+    long double yaw;
+#if defined(__linux__)
+    float y = vec[1];
+    float x = vec[0];
+    if (TCE_FloatIsZeroOrNaN(y) && TCE_FloatIsZeroOrNaN(x)) {
+        return 0.0L;
     }
+    if (!TCE_FloatIsZeroOrNaN(x)) {
+        volatile double radians = (double)atan2l((long double)y, (long double)x);
+        volatile float degrees = (float)((long double)radians *
+            (long double)57.29577951308232);
+        yaw = (long double)degrees;
+    } else {
+        yaw = y > 0.0f ? 90.0L : 270.0L;
+    }
+#else
+    if (TCE_FloatIsZeroOrNaN(vec[1]) && TCE_FloatIsZeroOrNaN(vec[0])) {
+        return 0.0L;
+    }
+    if (!TCE_FloatIsZeroOrNaN(vec[0])) {
+        long double y = (long double)vec[1];
+        long double x = (long double)vec[0];
+        yaw = atan2l(y, x) * (long double)57.29577791868204;
+    } else {
+        return vec[1] > 0.0f ? 90.0L : 270.0L;
+    }
+#endif
+    /* C0/CF includes unordered on both platforms. No Float spill after add. */
+    if (!(yaw >= 0.0L)) {
+        yaw = yaw + 360.0L;
+    }
+    return yaw;
 }
-#elif defined(__GNUC__) && defined(__i386__)
-__attribute__((naked)) float vectoyaw(const vec3_t vec) {
-    __asm__ volatile (
-        ".intel_syntax noprefix\n"
-        ".Ltce_vy_0011517a:\n"
-        "sub esp,0x2c\n"
-        "mov dword ptr [esp+0x14],0\n"
-        "mov dword ptr [esp+0x18],0x42b40000\n"
-        "mov dword ptr [esp+0x1c],0x43870000\n"
-        "mov dword ptr [esp+0x20],0x43b40000\n"
-        "mov dword ptr [esp+0x24],0x1a63c1f8\n"
-        "mov dword ptr [esp+0x28],0x404ca5dc\n"
-        ".Ltce_vy_0011517d:\n"
-        "mov edx,dword ptr [esp + 0x30]\n"
-        ".Ltce_vy_0011518c:\n"
-        "fld dword ptr [esp + 0x14]\n"
-        ".Ltce_vy_00115192:\n"
-        "fld dword ptr [edx + 0x4]\n"
-        ".Ltce_vy_00115195:\n"
-        "fcom st(1)\n"
-        ".Ltce_vy_00115197:\n"
-        "fnstsw ax\n"
-        ".Ltce_vy_00115199:\n"
-        "sahf\n"
-        ".Ltce_vy_0011519a:\n"
-        "jnz .Ltce_vy_001151de\n"
-        ".Ltce_vy_0011519c:\n"
-        "fld dword ptr [edx]\n"
-        ".Ltce_vy_0011519e:\n"
-        "fld st(2)\n"
-        ".Ltce_vy_001151a0:\n"
-        "fxch st(1)\n"
-        ".Ltce_vy_001151a2:\n"
-        "fcom st(3)\n"
-        ".Ltce_vy_001151a4:\n"
-        "fnstsw ax\n"
-        ".Ltce_vy_001151a6:\n"
-        "sahf\n"
-        ".Ltce_vy_001151a7:\n"
-        "jz .Ltce_vy_001151d6\n"
-        ".Ltce_vy_001151a9:\n"
-        "fstp st(1)\n"
-        ".Ltce_vy_001151ab:\n"
-        "fpatan\n"
-        ".Ltce_vy_001151ad:\n"
-        "fstp qword ptr [esp + 0x8]\n"
-        ".Ltce_vy_001151b1:\n"
-        "fld qword ptr [esp + 0x8]\n"
-        ".Ltce_vy_001151b5:\n"
-        "fmul qword ptr [esp + 0x24]\n"
-        ".Ltce_vy_001151bb:\n"
-        "fstp dword ptr [esp + 0x4]\n"
-        ".Ltce_vy_001151bf:\n"
-        "fld dword ptr [esp + 0x4]\n"
-        ".Ltce_vy_001151c3:\n"
-        "fcom st(1)\n"
-        ".Ltce_vy_001151c5:\n"
-        "fnstsw ax\n"
-        ".Ltce_vy_001151c7:\n"
-        "fstp st(1)\n"
-        ".Ltce_vy_001151c9:\n"
-        "sahf\n"
-        ".Ltce_vy_001151ca:\n"
-        "jnc .Ltce_vy_001151d2\n"
-        ".Ltce_vy_001151cc:\n"
-        "fadd dword ptr [esp + 0x20]\n"
-        ".Ltce_vy_001151d2:\n"
-        "add esp,0x2c\n"
-        ".Ltce_vy_001151d5:\n"
-        "ret\n"
-        ".Ltce_vy_001151d6:\n"
-        "fstp st(0)\n"
-        ".Ltce_vy_001151d8:\n"
-        "fstp st(1)\n"
-        ".Ltce_vy_001151da:\n"
-        "fstp st(1)\n"
-        ".Ltce_vy_001151dc:\n"
-        "jmp .Ltce_vy_001151d2\n"
-        ".Ltce_vy_001151de:\n"
-        "fld dword ptr [edx]\n"
-        ".Ltce_vy_001151e0:\n"
-        "fcom st(2)\n"
-        ".Ltce_vy_001151e2:\n"
-        "fnstsw ax\n"
-        ".Ltce_vy_001151e4:\n"
-        "sahf\n"
-        ".Ltce_vy_001151e5:\n"
-        "jnz .Ltce_vy_001151ab\n"
-        ".Ltce_vy_001151e7:\n"
-        "fstp st(0)\n"
-        ".Ltce_vy_001151e9:\n"
-        "fcomp st(1)\n"
-        ".Ltce_vy_001151eb:\n"
-        "fnstsw ax\n"
-        ".Ltce_vy_001151ed:\n"
-        "sahf\n"
-        ".Ltce_vy_001151ee:\n"
-        "jbe .Ltce_vy_001151f8\n"
-        ".Ltce_vy_001151f0:\n"
-        "fld dword ptr [esp + 0x18]\n"
-        ".Ltce_vy_001151f6:\n"
-        "jmp .Ltce_vy_001151c3\n"
-        ".Ltce_vy_001151f8:\n"
-        "fld dword ptr [esp + 0x1c]\n"
-        ".Ltce_vy_001151fe:\n"
-        "jmp .Ltce_vy_001151c3\n"
-        ".att_syntax prefix\n"
-    );
+
+float vectoyaw(const vec3_t vec) {
+    /* Float API consumers round here; wide consumers use the value helper. */
+    return (float)TCE_VectorYawValue(vec);
 }
 #else
 float vectoyaw( const vec3_t vec ) {
@@ -5112,92 +2839,82 @@ AxisToAngles
   using this during gameplay
 =================
 */
-#if defined(_MSC_VER) && defined(_M_IX86)
-static const float tceAxis769Zero=0.f,tceAxis769Neg90=-90.f,tceAxis769Pos90=90.f;
-__declspec(naked) void AxisToAngles(vec3_t axis[3], vec3_t angles) {
- __asm {
-SUB ESP,0x24
-PUSH ESI
-MOV ESI,dword ptr [ESP + 0x2c]
-PUSH EDI
-MOV EDI,dword ptr [ESP + 0x34]
-PUSH EDI
-PUSH ESI
-call vectoangles
-MOV EAX,dword ptr [ESI + 0xc]
-MOV ECX,dword ptr [ESI + 0x10]
-FLD dword ptr [EDI + 0x4]
-MOV EDX,dword ptr [ESI + 0x14]
-ADD ESP,0x4
-MOV dword ptr [ESP + 0xc],EAX
-LEA EAX,[ESP + 0xc]
-FCHS
-FSTP dword ptr [ESP]
-MOV dword ptr [ESP + 0x10],ECX
-PUSH EAX
-LEA ECX,[ESP + 0x1c]
-lea eax,axisDefault
-add eax,24
-push eax
-PUSH ECX
-MOV dword ptr [ESP + 0x20],EDX
-call RotatePointAroundVector
-FLD dword ptr [EDI]
-ADD ESP,0xc
-LEA EDX,[ESP + 0x18]
-FCHS
-FSTP dword ptr [ESP]
-PUSH EDX
-LEA EAX,[ESP + 0x10]
-lea ecx,axisDefault
-add ecx,12
-push ecx
-PUSH EAX
-call RotatePointAroundVector
-LEA ECX,[ESP + 0x30]
-LEA EDX,[ESP + 0x18]
-PUSH ECX
-PUSH EDX
-call vectoangles
-MOV EAX,dword ptr [ESP + 0x38]
-PUSH EAX
-call AngleNormalize180
-FLD dword ptr [axisDefault+20]
-FMUL dword ptr [ESP + 0x2c]
-FLD dword ptr [axisDefault+16]
-FMUL dword ptr [ESP + 0x28]
-ADD ESP,0x1c
-faddp st(1),st(0)
-FLD dword ptr [axisDefault+12]
-FMUL dword ptr [ESP + 0x8]
-faddp st(1),st(0)
-FCOMP dword ptr tceAxis769Zero
-FNSTSW AX
-TEST AH,0x1
-JZ tce_axis769_3007ec41
-FCOM dword ptr tceAxis769Zero
-FNSTSW AX
-TEST AH,0x1
-JZ tce_axis769_3007ec35
-FSUBR dword ptr tceAxis769Neg90
-FSUB dword ptr tceAxis769Pos90
-FCHS
-FSTP dword ptr [EDI + 0x8]
-POP EDI
-POP ESI
-ADD ESP,0x24
-RET
-tce_axis769_3007ec35:
-FSUBR dword ptr tceAxis769Pos90
-FADD dword ptr tceAxis769Pos90
-tce_axis769_3007ec41:
-FCHS
-FSTP dword ptr [EDI + 0x8]
-POP EDI
-POP ESI
-ADD ESP,0x24
-RET
- }
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+void AxisToAngles(vec3_t axis[3], vec3_t angles) {
+    vec3_t right, rollAngles, rotated;
+    volatile float yaw, pitch;
+    long double roll, dot, product;
+#if defined(__linux__)
+    unsigned bits;
+    float axisX, axisY;
+    volatile float roundedRoll;
+#endif
+
+    vectoangles(axis[0], angles);
+    /* The original copies the right vector after writing pitch and yaw. */
+    memcpy(right, axis[1], sizeof(right));
+#if defined(__linux__)
+    memcpy(&bits, &angles[YAW], sizeof(bits));
+    bits ^= 0x80000000u;
+    memcpy((void *)&yaw, &bits, sizeof(bits));
+#else
+    yaw = (float)(-(long double)angles[YAW]);
+#endif
+    RotatePointAroundVector(rotated, axisDefault[2], right, yaw);
+#if defined(__linux__)
+    memcpy(&bits, &angles[PITCH], sizeof(bits));
+    bits ^= 0x80000000u;
+    memcpy((void *)&pitch, &bits, sizeof(bits));
+#else
+    pitch = (float)(-(long double)angles[PITCH]);
+#endif
+    RotatePointAroundVector(right, axisDefault[1], rotated, pitch);
+    vectoangles(right, rollAngles);
+    /* Normalize180's quantized dyadic result is exactly Float-representable;
+     * the public Float return therefore loses no retained numeric bits here. */
+    roll = (long double)AngleNormalize180(rollAngles[PITCH]);
+#if defined(__linux__)
+    roundedRoll = (float)roll;
+    axisX = axisDefault[1][0];
+    axisY = axisDefault[1][1];
+    product = (long double)axisY * (long double)right[1];
+    dot = (long double)axisX * (long double)right[0];
+    dot = product + dot;
+    product = (long double)axisDefault[1][2] * (long double)right[2];
+    dot = dot + product;
+    /* Linux skips adjustment for unordered dot; the inner gate differs. */
+    if (dot < 0.0L) {
+        roll = (long double)roundedRoll;
+        if (!(roll >= 0.0L)) {
+            roll = -90.0L - roll;
+            roll = roll + -90.0L;
+        } else {
+            roll = 90.0L - roll;
+            roll = 90.0L + roll;
+        }
+        roundedRoll = (float)roll;
+    }
+    memcpy(&bits, (const void *)&roundedRoll, sizeof(bits));
+    bits ^= 0x80000000u;
+    memcpy(&angles[ROLL], &bits, sizeof(bits));
+#else
+    dot = (long double)axisDefault[1][2] * (long double)right[2];
+    product = (long double)axisDefault[1][1] * (long double)right[1];
+    dot = dot + product;
+    product = (long double)axisDefault[1][0] * (long double)right[0];
+    dot = dot + product;
+    /* Windows tests C0 alone: negative and unordered both enter. */
+    if (!(dot >= 0.0L)) {
+        if (!(roll >= 0.0L)) {
+            roll = -90.0L - roll;
+            roll = roll - 90.0L;
+        } else {
+            roll = 90.0L - roll;
+            roll = roll + 90.0L;
+        }
+    }
+    angles[ROLL] = (float)-roll;
+#endif
 }
 #else
 void AxisToAngles( vec3_t axis[3], vec3_t angles ) {
@@ -5226,6 +2943,14 @@ void AxisToAngles( vec3_t axis[3], vec3_t angles ) {
 }
 #endif
 
+#if defined(_WIN32) || defined(__linux__)
+float VectorDistance(vec3_t v1, vec3_t v2) {
+	vec3_t delta;
+
+	TCE_VectorDifferenceFloat( v1, v2, delta );
+	return (float)TCE_VectorLengthValue( delta );
+}
+#else
 float VectorDistance(vec3_t v1, vec3_t v2)
 {
 	vec3_t dir;
@@ -5234,54 +2959,14 @@ float VectorDistance(vec3_t v1, vec3_t v2)
 	return VectorLength(dir);
 }
 
-/* Original x86 argument staging and retained return: shared_742.md. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) float VectorDistanceSquared(vec3_t v1, vec3_t v2) {
-    __asm {
-        sub esp,0xc
-        mov eax,dword ptr [esp + 0x14]
-        mov ecx,dword ptr [esp + 0x10]
-        fld dword ptr [eax]
-        fsub dword ptr [ecx]
-        fstp dword ptr [esp]
-        fld dword ptr [eax + 0x4]
-        fsub dword ptr [ecx + 0x4]
-        fstp dword ptr [esp + 0x4]
-        fld dword ptr [eax + 0x8]
-        fsub dword ptr [ecx + 0x8]
-        lea eax,[esp]
-        push eax
-        fstp dword ptr [esp + 0xc]
-        call VectorLengthSquared
-        add esp,0x10
-        ret
-    }
-}
-#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-__attribute__((naked)) float VectorDistanceSquared(vec3_t v1, vec3_t v2) {
-    __asm__(
-        ".intel_syntax noprefix\n"
-        "sub esp,0x2c\n"
-        "mov edx,dword ptr [esp + 0x30]\n"
-        "mov dword ptr [esp + 0x28],ebx\n"
-        "mov ecx,dword ptr [esp + 0x34]\n"
-        "fld dword ptr [edx]\n"
-        "fsubr dword ptr [ecx]\n"
-        "fstp dword ptr [esp + 0x10]\n"
-        "fld dword ptr [edx + 0x4]\n"
-        "fsubr dword ptr [ecx + 0x4]\n"
-        "fstp dword ptr [esp + 0x14]\n"
-        "fld dword ptr [edx + 0x8]\n"
-        "lea edx,[esp + 0x10]\n"
-        "fsubr dword ptr [ecx + 0x8]\n"
-        "mov dword ptr [esp],edx\n"
-        "fstp dword ptr [esp + 0x18]\n"
-        "call VectorLengthSquared\n"
-        "mov ebx,dword ptr [esp + 0x28]\n"
-        "add esp,0x2c\n"
-        "ret\n"
-        ".att_syntax prefix\n"
-    );
+#endif
+
+#if defined(_WIN32) || defined(__linux__)
+float VectorDistanceSquared(vec3_t v1, vec3_t v2) {
+	vec3_t delta;
+
+	TCE_VectorDifferenceFloat( v1, v2, delta );
+	return (float)TCE_VectorLengthSquaredValue( delta );
 }
 #else
 float VectorDistanceSquared(vec3_t v1, vec3_t v2) {

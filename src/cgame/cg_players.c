@@ -906,6 +906,102 @@ CG_SwingAngles
 */
 static void CG_SwingAngles( float destination, float swingTolerance, float clampTolerance,
 					float speed, float *angle, qboolean *swinging ) {
+#if defined(_WIN32) && !defined(Q3_VM)
+    long double held, magnitude, scale, move;
+    volatile float swing;
+    if (!*swinging) {
+        held = TCE_AngleSubtractValue(*angle, destination);
+        if (held > (long double)swingTolerance || !(held >= -(long double)swingTolerance)) {
+            *swinging = qtrue;
+        }
+    }
+    if (!*swinging) {
+        return;
+    }
+    held = TCE_AngleSubtractValue(destination, *angle);
+    swing = (float)held;
+    magnitude = fabsl(held);
+    scale = magnitude * (long double)0.05;
+    if (!(scale >= 0.5L)) {
+        scale = 0.5L;
+    }
+    move = (scale * (long double)cg.frametime) * (long double)speed;
+    if (!(swing >= 0.0f)) {
+        move = -move;
+        if (!(move > (long double)swing)) {
+            move = (long double)swing;
+            *swinging = qfalse;
+        } else {
+            *swinging = SWING_RIGHT;
+        }
+    } else {
+        if (move >= (long double)swing) {
+            move = (long double)swing;
+            *swinging = qfalse;
+        } else {
+            *swinging = SWING_LEFT;
+        }
+    }
+    *angle = AngleMod((float)(move + (long double)*angle));
+    held = TCE_AngleSubtractValue(destination, *angle);
+    if (held > (long double)clampTolerance) {
+        *angle = AngleMod((float)((long double)destination - ((long double)clampTolerance - 1.0L)));
+    } else if (!(held >= -(long double)clampTolerance)) {
+        *angle = AngleMod((float)(((long double)clampTolerance - 1.0L) + (long double)destination));
+    }
+#elif defined(__linux__) && !defined(Q3_VM)
+    long double held, magnitude, scale, move;
+    volatile float signedSpeed, adjustedTolerance, argument;
+    qboolean negative;
+    if (!*swinging) {
+        held = TCE_AngleSubtractValue(*angle, destination);
+        if (held > (long double)swingTolerance || held < -(long double)swingTolerance) {
+            *swinging = qtrue;
+        }
+    }
+    if (!*swinging) {
+        return;
+    }
+    held = TCE_AngleSubtractValue(destination, *angle);
+    magnitude = fabsl(held);
+    {
+        volatile float storedScale = (float)(magnitude * (long double)0.05);
+        scale = (long double)storedScale;
+    }
+    if (!(scale >= 0.5L)) {
+        scale = 0.5L;
+    }
+    negative = !(held >= 0.0L);
+    signedSpeed = negative ? -speed : speed;
+    move = (scale * (long double)cg.frametime) * (long double)signedSpeed;
+    if (negative) {
+        if (!(move > held)) {
+            move = held;
+            *swinging = qfalse;
+        } else {
+            *swinging = SWING_RIGHT;
+        }
+    } else {
+        if (move >= held) {
+            move = held;
+            *swinging = qfalse;
+        } else {
+            *swinging = SWING_LEFT;
+        }
+    }
+    argument = (float)(move + (long double)*angle);
+    *angle = AngleMod(argument);
+    held = TCE_AngleSubtractValue(destination, *angle);
+    if (held > (long double)clampTolerance) {
+        adjustedTolerance = (float)((long double)clampTolerance - 1.0L);
+        argument = (float)((long double)destination - (long double)adjustedTolerance);
+        *angle = AngleMod(argument);
+    } else if (held < -(long double)clampTolerance) {
+        adjustedTolerance = (float)((long double)clampTolerance - 1.0L);
+        argument = (float)((long double)destination + (long double)adjustedTolerance);
+        *angle = AngleMod(argument);
+    }
+#else
 	float	swing;
 	float	move;
 	float	scale;
@@ -958,6 +1054,7 @@ static void CG_SwingAngles( float destination, float swingTolerance, float clamp
 	} else if ( swing < -clampTolerance ) {
 		*angle = AngleMod( destination + (clampTolerance - 1) );
 	}
+#endif
 }
 
 /*
@@ -2352,6 +2449,55 @@ CG_SwingAngles_Limbo
 */
 static void CG_SwingAngles_Limbo( float destination, float swingTolerance, float clampTolerance,
 					float speed, float *angle, qboolean *swinging ) {
+#if defined(__linux__) && !defined(Q3_VM)
+    long double held, magnitude, scale, move;
+    volatile float signedSpeed, adjustedTolerance, argument;
+    qboolean negative;
+    if (!*swinging) {
+        held = TCE_AngleSubtractValue(*angle, destination);
+        if (held > (long double)swingTolerance || held < -(long double)swingTolerance) {
+            *swinging = qtrue;
+        }
+    }
+    if (!*swinging) {
+        return;
+    }
+    held = TCE_AngleSubtractValue(destination, *angle);
+    magnitude = fabsl(held);
+    if (!(magnitude >= 0.5L * (long double)swingTolerance)) {
+        scale = 0.5L;
+    } else if (!(magnitude >= (long double)swingTolerance)) {
+        scale = 1.0L;
+    } else {
+        scale = 2.0L;
+    }
+    negative = !(held >= 0.0L);
+    signedSpeed = negative ? -speed : speed;
+    move = (scale * (long double)cg.frametime) * (long double)signedSpeed;
+    if (negative) {
+        if (!(move > held)) {
+            move = held;
+            *swinging = qfalse;
+        }
+    } else {
+        if (move >= held) {
+            move = held;
+            *swinging = qfalse;
+        }
+    }
+    argument = (float)(move + (long double)*angle);
+    *angle = AngleMod(argument);
+    held = TCE_AngleSubtractValue(destination, *angle);
+    if (held > (long double)clampTolerance) {
+        adjustedTolerance = (float)((long double)clampTolerance - 1.0L);
+        argument = (float)((long double)destination - (long double)adjustedTolerance);
+        *angle = AngleMod(argument);
+    } else if (held < -(long double)clampTolerance) {
+        adjustedTolerance = (float)((long double)clampTolerance - 1.0L);
+        argument = (float)((long double)destination + (long double)adjustedTolerance);
+        *angle = AngleMod(argument);
+    }
+#else
 	float	swing;
 	float	move;
 	float	scale;
@@ -2404,6 +2550,7 @@ static void CG_SwingAngles_Limbo( float destination, float swingTolerance, float
 	} else if ( swing < -clampTolerance ) {
 		*angle = AngleMod( destination + (clampTolerance - 1) );
 	}
+#endif
 }
 
 /*

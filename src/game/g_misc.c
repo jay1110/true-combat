@@ -7,6 +7,7 @@
 
 
 #include "g_local.h"
+#include "tce_numeric.h"
 
 extern void AimAtTarget ( gentity_t * self );
 extern float AngleDifference(float ang1, float ang2);
@@ -744,36 +745,23 @@ The target for a misc_portal_director.  You can set either angles or target anot
 void SP_misc_portal_camera(gentity_t *ent) {
 	float	roll;
 
+#if defined(_WIN32) || defined(__linux__)
+	ent->r.mins[2] = 0.0f;
+	ent->r.mins[1] = 0.0f;
+	ent->r.mins[0] = 0.0f;
+	ent->r.maxs[2] = 0.0f;
+	ent->r.maxs[1] = 0.0f;
+	ent->r.maxs[0] = 0.0f;
+#else
 	VectorClear( ent->r.mins );
 	VectorClear( ent->r.maxs );
+#endif
 	trap_LinkEntity (ent);
 
 	G_SpawnFloat( "roll", "0", &roll );
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-	{
-		/* TC 200672bf: one f64 multiply retained into __ftol64. */
-		static const double portalRollScale = 0.7111111111111111;
-		unsigned short savedControl, truncControl;
-		__int64 convertedRoll;
-		int rollInteger;
-		__asm {
-			fld roll
-			fmul portalRollScale
-			fwait
-			fnstcw savedControl
-			fwait
-			mov ax, savedControl
-			or ax, 0x0c00
-			mov truncControl, ax
-			fldcw truncControl
-			fistp convertedRoll
-			fldcw savedControl
-			mov eax, dword ptr convertedRoll
-			mov rollInteger, eax
-		}
-		ent->s.clientNum = rollInteger;
-	}
+#if defined(_WIN32) || defined(__linux__)
+	ent->s.clientNum = TCE_TruncateNativeInteger( (long double)roll * (long double)0.7111111111111111 );
 #else
 	ent->s.clientNum = roll/360.0 * 256;
 #endif
@@ -808,32 +796,31 @@ void Use_Shooter( gentity_t *ent, gentity_t *other, gentity_t *activator ) {
 		float *basis = pass ? right : up;
 		float *direction = dir;
 		float *spread = &ent->random;
-#if defined(_MSC_VER) && defined(_M_IX86)
-		static const float shooterReciprocal = 3.0518509447574615e-05f;
-		static const double shooterHalf = 0.5;
-		__asm {
-			mov ecx, basis
-			mov edx, direction
-			mov eax, spread
-			fild shooterRandom
-			fmul shooterReciprocal
-			fsub shooterHalf
-			fadd st(0), st(0)
-			fmul dword ptr [eax]
-			fld dword ptr [ecx]
-			fmul st(0), st(1)
-			fadd dword ptr [edx]
-			fstp dword ptr [edx]
-			fld dword ptr [ecx + 4]
-			fmul st(0), st(1)
-			fadd dword ptr [edx + 4]
-			fstp dword ptr [edx + 4]
-			fld dword ptr [ecx + 8]
-			fmul st(0), st(1)
-			fadd dword ptr [edx + 8]
-			fstp dword ptr [edx + 8]
-			fstp st(0)
+#if defined(_WIN32) || defined(__linux__)
+		long double scale = (long double)shooterRandom * (long double)3.0518509447574615e-05f;
+		scale -= 0.5L;
+		scale = scale + scale;
+		scale *= (long double)*spread;
+#if !defined(_WIN32)
+		{
+			volatile float storedScale = (float)scale;
+			scale = storedScale;
 		}
+#endif
+		direction[0] = (float)((long double)basis[0] * scale + (long double)direction[0]);
+#if defined(_WIN32)
+		direction[1] = (float)((long double)basis[1] * scale + (long double)direction[1]);
+		direction[2] = (float)((long double)basis[2] * scale + (long double)direction[2]);
+#else
+		{
+			long double productY = (long double)basis[1] * scale;
+			long double productZ = scale * (long double)basis[2];
+			long double resultY = productY + (long double)direction[1];
+			long double resultZ = productZ + (long double)direction[2];
+			direction[1] = (float)resultY;
+			direction[2] = (float)resultZ;
+		}
+#endif
 #else
 		float deg = (2.0f * (shooterRandom * (1.0f/32767.0f) - 0.5f)) * ent->random;
 		VectorMA( dir, deg, basis, dir );
@@ -847,49 +834,39 @@ void Use_Shooter( gentity_t *ent, gentity_t *other, gentity_t *activator ) {
 		break;
 	case 65:
 		fire_rocket( ent, ent->s.origin, dir );
+#if defined(_WIN32)
+		for( axis = 0; axis < 3; ++axis ) {
+			long double value = ent->s.pos.trDelta[axis];
+			value = value + value;
+			ent->s.pos.trDelta[axis] = (float)TCE_TruncateNativeInteger( value );
+		}
+#elif defined(__linux__)
+		{
+			long double x = ent->s.pos.trDelta[0];
+			long double y = ent->s.pos.trDelta[1];
+			long double z = ent->s.pos.trDelta[2];
+			x = x + x;
+			y = y + y;
+			z = z + z;
+			ent->s.pos.trDelta[0] = (float)TCE_TruncateNativeInteger( x );
+			ent->s.pos.trDelta[1] = (float)TCE_TruncateNativeInteger( y );
+			ent->s.pos.trDelta[2] = (float)TCE_TruncateNativeInteger( z );
+		}
+#else
 		for( axis = 0; axis < 3; ++axis ) {
 			float *velocityComponent = &ent->s.pos.trDelta[axis];
-#if defined(_MSC_VER) && defined(_M_IX86)
-			unsigned short savedControl, truncControl;
-			__int64 convertedVelocity;
-			int velocityInteger;
-			__asm {
-				mov ecx, velocityComponent
-				fld dword ptr [ecx]
-				fadd st(0), st(0)
-				fwait
-				fnstcw savedControl
-				fwait
-				mov ax, savedControl
-				or ax, 0x0c00
-				mov truncControl, ax
-				fldcw truncControl
-				fistp convertedVelocity
-				fldcw savedControl
-				mov eax, dword ptr convertedVelocity
-				mov velocityInteger, eax
-				fild velocityInteger
-				fstp dword ptr [ecx]
-			}
-#else
 			*velocityComponent = (float)(int)(*velocityComponent * 2.0f);
-#endif
 		}
+#endif
 		break;
 	case 17:
 		AimAtTarget( ent );
 		for( axis = 0; axis < 3; ++axis ) {
 			float *launchVector = ent->s.origin2;
 			float *directionComponent = &dir[axis];
-#if defined(_MSC_VER) && defined(_M_IX86)
-			__asm {
-				push launchVector
-				call VectorLength
-				add esp, 4
-				mov ecx, directionComponent
-				fmul dword ptr [ecx]
-				fstp dword ptr [ecx]
-			}
+#if defined(_WIN32) || defined(__linux__)
+			long double length = TCE_VectorLengthValue( launchVector );
+			*directionComponent = (float)(length * (long double)*directionComponent);
 #else
 			*directionComponent *= VectorLength( launchVector );
 #endif
@@ -913,26 +890,22 @@ void InitShooter( gentity_t *ent, int weapon ) {
 
 	G_SetMovedir( ent->s.angles, ent->movedir );
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_WIN32) || defined(__linux__)
 	{
-		/* TC 20067599..200675cf: C3 includes unordered, then FMUL32/FSIN. */
-		static const unsigned int shooterDegreeBits = 0x3c8efa35u;
-		static const float shooterZero = 0.0f;
-		float *shooterSpread = &ent->random;
-		__asm {
-			mov ecx, shooterSpread
-			fld dword ptr [ecx]
-			fcomp shooterZero
-			fnstsw ax
-			test ah, 0x40
-			je shooterHasSpread
-			mov dword ptr [ecx], 0x3f800000
-		shooterHasSpread:
-			fld dword ptr [ecx]
-			fmul dword ptr shooterDegreeBits
-			fsin
-			fstp dword ptr [ecx]
-		}
+		long double angle;
+		if (TCE_FloatIsZeroOrNaN( ent->random ))
+			ent->random = 1.0f;
+#if defined(_WIN32)
+		angle = (long double)ent->random * (long double)0.01745329238474369f;
+#else
+		angle = (long double)0.017453292519943295 * (long double)ent->random;
+#endif
+		/* FSIN leaves a finite argument outside its reduction range intact. */
+		if (angle >= -LDBL_MAX && angle <= LDBL_MAX &&
+			(angle <= -9223372036854775808.0L || angle >= 9223372036854775808.0L))
+			ent->random = (float)angle;
+		else
+			ent->random = (float)sinl( angle );
 	}
 #else
 	if ( !ent->random ) {
@@ -945,7 +918,16 @@ void InitShooter( gentity_t *ent, int weapon ) {
 	// target might be a moving object, so we can't set movedir for it
 	if ( ent->target ) {
 		ent->think = InitShooter_Finish;
+#if defined(_WIN32) || defined(__linux__)
+		{
+			uint32_t timeBits = (uint32_t)level.time + 500u;
+			int32_t nextTime;
+			memcpy( &nextTime, &timeBits, sizeof(nextTime) );
+			ent->nextthink = nextTime;
+		}
+#else
 		ent->nextthink = level.time + 500;
+#endif
 	}
 	trap_LinkEntity( ent );
 }
@@ -1289,7 +1271,12 @@ Fire_Lead
 void Fire_Lead_Ext( gentity_t *ent, gentity_t *activator, float spread, int damage, vec3_t muzzle, vec3_t forward, vec3_t right, vec3_t up, int mod ) {
 	trace_t		tr;
 	vec3_t		end;
+#if defined(_WIN32) || defined(__linux__)
+	volatile float r;
+	long double verticalSpread;
+#else
 	float		r;
+#endif
 	float		u;
 	gentity_t	*tent;
 	gentity_t	*traceEnt;
@@ -1297,58 +1284,37 @@ void Fire_Lead_Ext( gentity_t *ent, gentity_t *activator, float spread, int dama
 
 	r = (float)((double)Q_crandom(&seed) * (double)spread);
 	u = Q_crandom(&seed);
+#if defined(_WIN32) || defined(__linux__)
+	verticalSpread = (long double)u * (long double)spread;
+#endif
 
 	ent->s.eFlags |= EF_MG42_ACTIVE;
 	activator->s.eFlags |= EF_MG42_ACTIVE;
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-	/* TC20067e39..20067ef7: retained second spread and X, stored Y/Z stages. */
+#if defined(_WIN32) || defined(__linux__)
 	{
-		float range = 8192.0f;
-		float *endpoint = end;
-		__asm {
-			mov eax, forward
-			mov ecx, muzzle
-			mov edx, endpoint
-			fld u
-			fmul spread
-			fld dword ptr [eax]
-			fmul range
-			fadd dword ptr [ecx]
-			fld dword ptr [eax+4]
-			fmul range
-			fadd dword ptr [ecx+4]
-			fstp dword ptr [edx+4]
-			fld dword ptr [eax+8]
-			fmul range
-			fadd dword ptr [ecx+8]
-			fstp dword ptr [edx+8]
-			mov eax, right
-			fld r
-			fmul dword ptr [eax]
-			faddp st(1), st(0)
-			fld r
-			fmul dword ptr [eax+4]
-			fadd dword ptr [edx+4]
-			fstp dword ptr [edx+4]
-			fld r
-			fmul dword ptr [eax+8]
-			fadd dword ptr [edx+8]
-			fstp dword ptr [edx+8]
-			mov eax, up
-			fld st(1)
-			fmul dword ptr [eax]
-			fadd st(0), st(1)
-			fstp dword ptr [edx]
-			fstp st(0)
-			fld st(0)
-			fmul dword ptr [eax+4]
-			fadd dword ptr [edx+4]
-			fstp dword ptr [edx+4]
-			fmul dword ptr [eax+8]
-			fadd dword ptr [edx+8]
-			fstp dword ptr [edx+8]
-		}
+#if defined(_WIN32)
+		long double horizontalX = (long double)forward[0] * 8192.0f + (long double)muzzle[0];
+		end[1] = (float)((long double)forward[1] * 8192.0f + (long double)muzzle[1]);
+		end[2] = (float)((long double)forward[2] * 8192.0f + (long double)muzzle[2]);
+		horizontalX += (long double)r * (long double)right[0];
+		end[1] = (float)((long double)r * (long double)right[1] + (long double)end[1]);
+		end[2] = (float)((long double)r * (long double)right[2] + (long double)end[2]);
+		end[0] = (float)(verticalSpread * (long double)up[0] + horizontalX);
+		end[1] = (float)(verticalSpread * (long double)up[1] + (long double)end[1]);
+		end[2] = (float)(verticalSpread * (long double)up[2] + (long double)end[2]);
+#else
+		/* Linux keeps all three base/right sums until the final stores. */
+		long double baseX = (long double)forward[0] * 8192.0f + (long double)muzzle[0];
+		long double baseY = (long double)forward[1] * 8192.0f + (long double)muzzle[1];
+		long double baseZ = 8192.0f * (long double)forward[2] + (long double)muzzle[2];
+		long double horizontalX = (long double)right[0] * (long double)r + baseX;
+		long double horizontalY = (long double)right[1] * (long double)r + baseY;
+		long double horizontalZ = (long double)r * (long double)right[2] + baseZ;
+		end[0] = (float)(horizontalX + (long double)up[0] * verticalSpread);
+		end[1] = (float)(horizontalY + (long double)up[1] * verticalSpread);
+		end[2] = (float)(horizontalZ + verticalSpread * (long double)up[2]);
+#endif
 	}
 #else
 	u *= spread;
@@ -1394,7 +1360,7 @@ void Fire_Lead_Ext( gentity_t *ent, gentity_t *activator, float spread, int dama
 	} else {
 		// Ridah, bullet impact should reflect off surface
 		vec3_t	reflect;
-#if !defined(_MSC_VER) || !defined(_M_IX86)
+#if !defined(_WIN32) && !defined(__linux__)
 		float	dot;
 #endif
 
@@ -1405,37 +1371,36 @@ void Fire_Lead_Ext( gentity_t *ent, gentity_t *activator, float spread, int dama
 			tent->r.svFlags |= SVF_BROADCAST;
 		}
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-		/* TC2006800c: X+Z+Y dot product, retained scaled ST0 for all axes. */
+#if defined(_WIN32) || defined(__linux__)
 		{
-			float *normal = tr.plane.normal;
-			float *reflection = reflect;
-			float factor = -2.0f;
-			__asm {
-				mov eax, normal
-				mov ecx, forward
-				mov edx, reflection
-				fld dword ptr [eax]
-				fmul dword ptr [ecx]
-				fld dword ptr [eax+8]
-				fmul dword ptr [ecx+8]
-				faddp st(1), st(0)
-				fld dword ptr [eax+4]
-				fmul dword ptr [ecx+4]
-				faddp st(1), st(0)
-				fmul factor
-				fld st(0)
-				fmul dword ptr [eax]
-				fadd dword ptr [ecx]
-				fstp dword ptr [edx]
-				fld st(0)
-				fmul dword ptr [eax+4]
-				fadd dword ptr [ecx+4]
-				fstp dword ptr [edx+4]
-				fmul dword ptr [eax+8]
-				fadd dword ptr [ecx+8]
-				fstp dword ptr [edx+8]
-			}
+#if defined(_WIN32)
+			long double dot = (long double)tr.plane.normal[0] * (long double)forward[0];
+			dot += (long double)tr.plane.normal[2] * (long double)forward[2];
+			dot += (long double)tr.plane.normal[1] * (long double)forward[1];
+			dot *= -2.0f;
+			reflect[0] = (float)(dot * (long double)tr.plane.normal[0] + (long double)forward[0]);
+			reflect[1] = (float)(dot * (long double)tr.plane.normal[1] + (long double)forward[1]);
+			reflect[2] = (float)(dot * (long double)tr.plane.normal[2] + (long double)forward[2]);
+#else
+			long double nx = tr.plane.normal[0], ny = tr.plane.normal[1], nz = tr.plane.normal[2];
+			long double fx = forward[0], fy = forward[1], fz = forward[2];
+			long double dot = fy * ny;
+			long double x, y, z, resultX, resultY, resultZ;
+			dot += fx * nx;
+			dot += fz * nz;
+			x = nx * dot;
+			y = ny * dot;
+			z = dot * nz;
+			x *= -2.0f;
+			y *= -2.0f;
+			z = -2.0f * z;
+			resultX = x + fx;
+			resultY = y + fy;
+			resultZ = z + fz;
+			reflect[0] = (float)resultX;
+			reflect[1] = (float)resultY;
+			reflect[2] = (float)resultZ;
+#endif
 		}
 #else
 		dot = DotProduct( forward, tr.plane.normal );
@@ -1489,12 +1454,62 @@ void clamp_playerbehindgun (gentity_t *self, gentity_t *other, vec3_t dang) {
 	trap_LinkEntity( other );
 }
 
+#if defined(_WIN32) || defined(__linux__)
+void clamp_hweapontofirearc(gentity_t *self, vec3_t dang) {
+	long double difference, halfArc;
+	volatile float argument;
+#if defined(_WIN32)
+	int lowerCandidate;
+#else
+	long double initialPitch;
+#endif
+
+#if defined(_WIN32)
+	memmove( &dang[PITCH], &self->s.angles[PITCH], sizeof(float) );
+	lowerCandidate = !(dang[PITCH] >= 0.0f);
+#else
+	initialPitch = self->s.angles[PITCH];
+	dang[PITCH] = (float)initialPitch;
+#endif
+	memmove( &dang[YAW], &self->s.angles[YAW], sizeof(float) );
+	memmove( &dang[ROLL], &self->s.angles[ROLL], sizeof(float) );
+#if defined(_WIN32)
+	if (lowerCandidate) {
+		long double negativeArc = -(long double)self->varc;
+		if (negativeArc > (long double)dang[PITCH])
+			dang[PITCH] = (float)negativeArc;
+	}
+#else
+	if (initialPitch < 0.0L) {
+		long double negativeArc = -(long double)self->varc;
+		if (negativeArc > initialPitch)
+			dang[PITCH] = (float)negativeArc;
+	}
+#endif
+	if (dang[PITCH] > 0.0f) {
+#if defined(_WIN32)
+		halfArc = (long double)self->varc * 0.5f;
+#else
+		halfArc = 0.5f * (long double)self->varc;
+#endif
+		/* Both native upper gates include unordered comparisons. */
+		if (!(halfArc >= (long double)dang[PITCH]))
+			dang[PITCH] = (float)halfArc;
+	}
+	difference = TCE_BotAngleDifferenceValue( self->s.angles[YAW], dang[YAW] );
+	if (!((long double)self->harc >= fabsl( difference ))) {
+		if (difference > 0.0L)
+			argument = (float)((long double)self->s.angles[YAW] - (long double)self->harc);
+		else
+			argument = (float)((long double)self->harc + (long double)self->s.angles[YAW]);
+		dang[YAW] = AngleMod( argument );
+	}
+}
+#else
 void clamp_hweapontofirearc (gentity_t *self, vec3_t dang) 
 {
 	float yawspeed;
-#if !defined(_MSC_VER) || !defined(_M_IX86)
 	float diff;
-#endif
 	int outsideArc, positiveDifference;
 	qboolean clamped;
 
@@ -1517,41 +1532,9 @@ void clamp_hweapontofirearc (gentity_t *self, vec3_t dang)
 	}
 
 	// sanity check the angles again to make sure we don't go passed the harc
-#if defined(_MSC_VER) && defined(_M_IX86)
-	/* Keep AngleDifference's original ST0 result through both comparisons. */
-	{
-		float firstYaw = self->s.angles[YAW];
-		float secondYaw = dang[YAW];
-		float horizontalArc = self->harc;
-		__asm {
-			push secondYaw
-			push firstYaw
-			call AngleDifference
-			add esp, 8
-			fld st(0)
-			fabs
-			fld horizontalArc
-			fcompp
-			fnstsw ax
-			test ah, 1
-			setnz al
-			movzx eax, al
-			mov outsideArc, eax
-			fldz
-			fxch st(1)
-			fcompp
-			fnstsw ax
-			test ah, 041h
-			setz al
-			movzx eax, al
-			mov positiveDifference, eax
-		}
-	}
-#else
 	diff = AngleDifference( self->s.angles[YAW], dang[YAW] );
 	outsideArc = !(self->harc >= fabs(diff));
 	positiveDifference = diff > 0;
-#endif
 	if (outsideArc) {
 		clamped = qtrue;
 		
@@ -1571,6 +1554,8 @@ void clamp_hweapontofirearc (gentity_t *self, vec3_t dang)
 
 
 
+
+#endif
 
 // Gordon: quad 20mm specs from marauder
 // Fire each barrel every 1s, so 250ms per shot total

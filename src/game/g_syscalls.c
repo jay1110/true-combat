@@ -6,16 +6,25 @@
 // this file is only included when building a dll
 // g_syscalls.asm is included instead when building a qvm
 
+#ifdef __EMSCRIPTEN__
+static intptr_t (QDECL *syscall)(intptr_t *args);
+#else
 static intptr_t (QDECL *syscall)( intptr_t arg, ... ) = (intptr_t (QDECL *)( intptr_t, ...))-1;
+#endif
 
 #if defined(__MACOS__)
 #ifndef __GNUC__
 #pragma export on
 #endif
 #endif
+#ifdef __EMSCRIPTEN__
+TCE_VM_EXPORT void dllEntry(intptr_t (QDECL *syscallptr)(intptr_t *args)) { syscall = syscallptr; }
+TCE_VM_EXPORT int vmWasmAbi1(void) { return 1; }
+#else
 void dllEntry( intptr_t (QDECL *syscallptr)( intptr_t arg,... ) ) {
 	syscall = syscallptr;
 }
+#endif
 #if defined(__MACOS__)
 #ifndef __GNUC__
 #pragma export off

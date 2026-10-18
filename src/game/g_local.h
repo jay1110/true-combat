@@ -888,6 +888,8 @@ struct gclient_s {
 	qboolean		hasaward;
 	qboolean		wantsscore;
 	qboolean		maxlivescalced;
+	/* Consumed by the next real ClientThink Pmove. Never a playerState flag. */
+	qboolean tceNavFreeClimbRequested;
 };
 
 typedef struct {
@@ -959,6 +961,7 @@ typedef struct {
     int             tceVipTeam; /* TC22223940 */
     qboolean        tceVipAssigned; /* TC22223944 */
     int             tceVipCarrier; /* TC22223948; -1 when dropped/unassigned */
+    qboolean tceCustomDMSpawns; /* Map-script opt-in, GT7 only. */
     int tceSpawnPhase; /* TC level22223930, reinforcement group. */
     int tceSpawnPhaseTime; /* TC level2222392c, elapsed schedule. */
     int             tceBombCarrierCount; /* TC22223938; active bomb ownership count. */
@@ -1398,6 +1401,7 @@ team_t TeamCount( int ignoreClientNum, int team );			// NERVE - SMF - merge from
 team_t PickTeam( int ignoreClientNum );
 void SetClientViewAngle( gentity_t *ent, vec3_t angle );
 gentity_t *SelectSpawnPoint ( vec3_t avoidPoint, vec3_t origin, vec3_t angles );
+gentity_t *SelectIntermissionSpawnPoint( vec3_t origin, vec3_t angles );
 void respawn (gentity_t *ent, qboolean hostage);
 void BeginIntermission (void);
 void InitClientPersistant (gclient_t *client);
@@ -1409,6 +1413,7 @@ void AddScore( gentity_t *ent, int score );
 void AddKillScore( gentity_t *ent, int score );
 void CalculateRanks( void );
 qboolean SpotWouldTelefrag( gentity_t *spot );
+qboolean G_SpawnOriginWorldClear(const vec3_t baseOrigin);
 qboolean G_CheckForExistingModelInfo( bg_playerclass_t* classInfo, const char *modelName, animModelInfo_t **modelInfo );
 void G_StartPlayerAppropriateSound(gentity_t *ent, char* soundType);
 void SetWolfSpawnWeapons( gclient_t *client );
@@ -1640,6 +1645,9 @@ void script_mover_use(gentity_t *ent, gentity_t *other, gentity_t *activator);
 void script_mover_blocked( gentity_t *ent, gentity_t *other );
 
 float AngleDifference(float ang1, float ang2);
+#if defined(_WIN32) || defined(__linux__)
+long double TCE_BotAngleDifferenceValue(long double first, long double second);
+#endif
 
 // g_props.c
 void Props_Chair_Skyboxtouch (gentity_t *ent);

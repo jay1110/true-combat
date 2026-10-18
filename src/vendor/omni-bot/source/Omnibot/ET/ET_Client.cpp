@@ -109,6 +109,28 @@ void ET_Client::Update()
 	Client::Update();
 }
 
+bool ET_Client::UseValidatedWalkEntries() const
+{
+	return ET_Game::IsTCE;
+}
+
+bool ET_Client::GetNavigationHull(AABB &_bounds, NavFlags _flags) const
+{
+	if(!Client::GetNavigationHull(_bounds, _flags)) return false;
+	// Das echte lokale Hull liefert den profilabhaengigen Fussversatz:
+	// -24 bedeutet 70/49 Einheiten, -30 bedeutet 87/61 Einheiten.
+	// Unteren Rand erhalten und bereits geduckte oder liegende Bots nie vergroessern.
+	if(ET_Game::IsTCE && (_flags & F_NAV_CROUCH))
+	{
+		float crouchHeight;
+		if(_bounds.m_Mins[2] == -24.f) crouchHeight = 49.f;
+		else if(_bounds.m_Mins[2] == -30.f) crouchHeight = 61.f;
+		else return false; // Unbekanntes Profil nicht durch eine kleinere Box freigeben.
+		_bounds.m_Maxs[2] = MinT(_bounds.m_Maxs[2], _bounds.m_Mins[2] + crouchHeight);
+	}
+	return true;
+}
+
 int ET_Client::ConvertWeaponIdToMod(int weaponId)
 {
 	if(ET_Game::IsNoQuarter)

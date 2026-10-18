@@ -9,6 +9,7 @@
 #include "gmBot.h"
 #include "ScriptGoal.h"
 #include "gmScriptGoal.h"
+#include "../../../../../game/tce_nav_water.h"
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -155,7 +156,7 @@ void Client::Update()
 			}
 		}
 
-		if (m_ButtonFlags.CheckFlag(BOT_BUTTON_JUMP) && !m_StuckExpanded)
+		if (m_ButtonFlags.CheckFlag(BOT_BUTTON_JUMP) && !m_StuckExpanded && !UseValidatedWalkEntries())
 		{
 			m_StuckExpanded = true;
 			m_StuckBounds.ExpandAxis(0, 20);
@@ -164,6 +165,9 @@ void Client::Update()
 		}
 	}	
 
+	// Observe the completed steering/state result, never an earlier desired
+	// vector. Only recently crossed TCE door actions enable this bounded log.
+	if(UseValidatedWalkEntries() && GetFollowPath()) GetFollowPath()->TraceDoorMotion();
 	// Update my input with the engine
 	m_ClientInput.m_MoveDir[0]		= m_MoveVector.x;
 	m_ClientInput.m_MoveDir[1]		= m_MoveVector.y;
@@ -240,6 +244,12 @@ void Client::ProcessEvent(const MessageHelper &_message, CallbackParameters &_cb
 		{
 			// Clear the goal list so the bot can re-evaluate the goals
 			_cb.CallScript();
+			if(UseValidatedWalkEntries())
+			{
+				GetFollowPath()->Stop(true);
+				GetFollowPath()->ResetTceDropTrafficLease();
+				GetFollowPath()->ResetTceOrdinaryLadderContact();
+			}
 			ResetStuckTime();
 			ReleaseAllHeldButtons();
 			break;
@@ -608,6 +618,13 @@ void Client::Shutdown()
 
 void Client::CheckStuck()
 {
+	if(UseValidatedWalkEntries() && HasEntityFlag(ENT_FLAG_ONLADDER) &&
+		m_StuckBounds.m_Maxs[2] - m_StuckBounds.m_Mins[2] > 16.f)
+	{
+		m_StuckBounds.Set(Vector3f(-8,-8,-8), Vector3f(8,8,8));
+		m_StuckBounds.SetCenter(GetPosition());
+		ResetStuckTime();
+	}
 	if(m_StuckBounds.Contains(GetPosition()))
 	{
 		m_StuckTime += IGame::GetDeltaTime();
@@ -616,7 +633,15 @@ void Client::CheckStuck()
 	{
 		ResetStuckTime();
 		m_StuckExpanded = false;
-		m_StuckBounds.Set(Vector3f(-32.f, -32.f, -32.f), Vector3f(32.f, 32.f, 32.f));
+		if(UseValidatedWalkEntries())
+		{
+			// Slow turns/crouch movement are progress. Repeated vertical hops at
+			// the same obstruction are not; actual ladder movement is.
+			const float z = HasEntityFlag(ENT_FLAG_ONLADDER) ? 8.f : 128.f;
+			m_StuckBounds.Set(Vector3f(-8.f, -8.f, -z), Vector3f(8.f, 8.f, z));
+		}
+		else
+			m_StuckBounds.Set(Vector3f(-32.f, -32.f, -32.f), Vector3f(32.f, 32.f, 32.f));
 		m_StuckBounds.SetCenter(GetPosition());
 	}
 
@@ -624,6 +649,283 @@ void Client::CheckStuck()
 	return true;
 	else
 	return false;*/
+}
+
+bool Client::GetNavigationHull(AABB &_bounds, NavFlags _flags) const
+{
+	return EngineFuncs::EntityLocalAABB(GetGameEntity(), _bounds);
+}
+
+static bool NavigationGroundContentsSafe(const Vector3f &_feet, bool _allowWading, float _middleHeight)
+{
+	const int contents = g_EngineFuncs->GetPointContents(_feet);
+	if(contents & (CONT_SLIME | CONT_LAVA)) return false;
+	if(contents & CONT_WATER)
+	{
+		// Match PM_SetWaterLevel's real posture-dependent middle sample.
+		// Other games retain their prior no-wading policy.
+		if(!_allowWading || _middleHeight <= 0.f || (g_EngineFuncs->GetPointContents(_feet.AddZ(_middleHeight)) &
+			(CONT_WATER | CONT_SLIME | CONT_LAVA))) return false;
+	}
+	return true;
+}
+
+static bool NavigationGroundSurfaceSafe(float _normalZ, int _surface, bool _allowFlatSlick)
+{
+	// Match native NG_OrdinarySurface: a horizontal slick floor still supports
+	// PM_WalkMove. A sloped slick surface needs a separate sliding recipe.
+	return _normalZ >= .7f && (!(_surface & SURFACE_SLICK) ||
+		(_allowFlatSlick && _normalZ >= .9999f));
+}
+
+bool Client::CanWalkTo(const Vector3f &_destination, NavFlags _flags) const
+{
+	return TraceWalkTo(_destination, _flags, 0.f, NULL);
+}
+
+bool Client::ResolveWalkDestination(const Vector3f &_destination, float _radius,
+	NavFlags _flags, Vector3f &_supported) const
+{
+	_supported = _destination;
+	if(!UseValidatedWalkEntries()) return CanWalkTo(_destination, _flags);
+	// The existing walk remains limited to 512 XY / 128 Z and 128 steps.
+	// Invalid/unbounded caller radii cannot turn this into a floor search.
+	if(!(_radius >= 0.f && _radius <= 100000.f)) return false;
+	if(_radius == 0.f) return CanWalkTo(_destination, _flags);
+	// Only the caller's appended final destination uses this volume contract.
+	// A grounded actor already inside its original 3-D sphere need not walk
+	// through an obstacle to the centre. Its current full body, support, slope
+	// and water clearance must still pass the same fresh native walk proof.
+	const Vector3f position = GetPosition();
+	if(HasEntityFlag(ENT_FLAG_ONGROUND) &&
+		(position-_destination).SquaredLength() <= _radius*_radius)
+	{
+		AABB hull;
+		if(!GetNavigationHull(hull, _flags)) return false;
+		int enlarged;
+		if(hull.m_Mins[2] == -30.f) enlarged = 1;
+		else if(hull.m_Mins[2] == -24.f) enlarged = 0;
+		else return false;
+		const float middle = TCE_NavWaterMiddleSample(enlarged,
+			hull.m_Maxs[2]-hull.m_Mins[2] <= (enlarged ? 61.f : 49.f));
+		const int mask = TR_MASK_SOLID | TR_MASK_PLAYERCLIP | TR_MASK_NAVCAPSULE;
+		obTraceResult clearance, ground;
+		// A stationary NAVCAPSULE query requires two unobstructed +/- .01u
+		// sweeps. At PMove's .125u resting epsilon its downward half properly
+		// hits the floor. Here prove clearance and SUPPORT separately instead:
+		// both nonzero sweeps include the exact, unmodified current full hull.
+		if(!EngineFuncs::TraceLine(clearance,position,position.AddZ(.01f),&hull,
+			mask,GetGameID(),False) || clearance.m_StartSolid || clearance.m_Fraction < 1.f ||
+			!EngineFuncs::TraceLine(ground,position,position.AddZ(-2.25f),&hull,
+			mask,GetGameID(),False) || ground.m_StartSolid || ground.m_Fraction >= 1.f ||
+			!NavigationGroundSurfaceSafe(ground.m_Normal[2],ground.m_Surface,true) ||
+			Mathf::FAbs(ground.m_Endpos[2]-position.z) > 2.f ||
+			!NavigationGroundContentsSafe(Vector3f(ground.m_Endpos).AddZ(hull.m_Mins[2]),true,middle)) return false;
+		_supported = position;
+		return true;
+	}
+	return TraceWalkTo(_destination, _flags, _radius, &_supported);
+}
+
+bool Client::TraceWalkTo(const Vector3f &_destination, NavFlags _flags,
+	float _arrivalRadius, Vector3f *_supported) const
+{
+#define NAV_WALK_REJECT() do { if(IsDebugEnabled(BOT_DEBUG_PLANNER)) EngineFuncs::ConsoleMessage(va("TCE2WALK_REJECT bot=%d line=%d from=(%.3f %.3f %.3f) to=(%.3f %.3f %.3f)", GetGameID(), __LINE__, GetPosition().x,GetPosition().y,GetPosition().z,_destination.x,_destination.y,_destination.z)); return false; } while(0)
+	// A bounded native step-and-ground walk. Player traffic is temporary and
+	// deliberately excluded from this static entry/corner geometry decision.
+	AABB hull;
+	if(!GetNavigationHull(hull, _flags)) NAV_WALK_REJECT();
+	float waterMiddleHeight=0.f;
+	if(UseValidatedWalkEntries())
+	{
+		int enlarged;
+		if(hull.m_Mins[2]==-30.f) enlarged=1;
+		else if(hull.m_Mins[2]==-24.f) enlarged=0;
+		else NAV_WALK_REJECT();
+		const float height=hull.m_Maxs[2]-hull.m_Mins[2];
+		waterMiddleHeight=TCE_NavWaterMiddleSample(enlarged,height<=(enlarged?61.f:49.f));
+	}
+	Vector3f position = GetPosition();
+	Vector3f delta = _destination - position;
+	const float horizontal = Mathf::Sqrt(delta.x*delta.x + delta.y*delta.y);
+	if(!(horizontal <= 512.f) || !(Mathf::FAbs(delta.z) <= 128.f)) NAV_WALK_REJECT();
+	const int steps = MaxT(1, (int)ceilf(delta.Length() / 8.f));
+	if(steps > 128) NAV_WALK_REJECT();
+	int tangentCorrections = 0;
+	// ET_Client::m_StepHeight is an 8-unit early-jump heuristic, not PMove's
+	// actual 18-unit step. TC's generated walk proof uses the latter.
+	const float stepHeight = UseValidatedWalkEntries() ? 18.25f : GetStepHeight() + 0.25f;
+	const int mask = TR_MASK_SOLID | TR_MASK_PLAYERCLIP;
+	const int bodyMask = mask | (UseValidatedWalkEntries() ? TR_MASK_NAVCAPSULE : 0);
+	if(UseValidatedWalkEntries())
+	{
+		// Follow PMove's body, not a separate flat foot box: on patch slopes
+		// the capsule can rest above that box's floor. Prove each short move
+		// and step with the complete hull, and require support after every move.
+		for(int i=1; i<=steps; ++i)
+		{
+			const float fraction=(float)i/steps;
+			Vector3f target(GetPosition().x+delta.x*fraction,
+				GetPosition().y+delta.y*fraction,position.z);
+			const auto capsuleStep = [&](Vector3f &supported) -> bool
+			{
+				obTraceResult horizontalTrace, ground;
+				if(!EngineFuncs::TraceLine(horizontalTrace,position,target,&hull,bodyMask,GetGameID(),False) || horizontalTrace.m_StartSolid) return false;
+				Vector3f above=target;
+				if(horizontalTrace.m_Fraction<1.f)
+				{
+					const Vector3f raised=position.AddZ(18.f);
+					above=target.AddZ(18.f);
+					obTraceResult up;
+					if(!EngineFuncs::TraceLine(up,position,raised,&hull,bodyMask,GetGameID(),False) || up.m_StartSolid || up.m_Fraction<1.f) return false;
+					if(!EngineFuncs::TraceLine(horizontalTrace,raised,above,&hull,bodyMask,GetGameID(),False) || horizontalTrace.m_StartSolid || horizontalTrace.m_Fraction<1.f) return false;
+				}
+				if(!EngineFuncs::TraceLine(ground,above,target.AddZ(-18.5f),&hull,bodyMask,GetGameID(),False) || ground.m_StartSolid || ground.m_Fraction>=1.f || !NavigationGroundSurfaceSafe(ground.m_Normal[2],ground.m_Surface,true)) return false;
+				supported=Vector3f(ground.m_Endpos)+Vector3f(0,0,.125f);
+				return supported.z-position.z<=18.25f && position.z-supported.z<=18.5f &&
+					NavigationGroundContentsSafe(supported.AddZ(hull.m_Mins[2]),true,waterMiddleHeight);
+			};
+			const auto groundedStep = [&](Vector3f &supported) -> bool
+			{
+				// A small slope does not require lifting the body a full 18u:
+				// that artificial lift can strike a ceiling above a clear walk.
+				// Match native NG_Ground's height proposal, but never accept its
+				// flat foot box as support for the actual capsule across an edge.
+				const Vector3f horizontalDelta=target-position;
+				if(horizontalDelta.x*horizontalDelta.x+horizontalDelta.y*horizontalDelta.y<=.000001f) return false;
+				AABB feet=hull;feet.m_Maxs[2]=feet.m_Mins[2]+.25f;
+				obTraceResult foot,move,ground,clearance;
+				if(!EngineFuncs::TraceLine(foot,target.AddZ(18.f),target.AddZ(-18.5f),&feet,mask,GetGameID(),False) ||
+					foot.m_StartSolid || foot.m_Fraction>=1.f || !NavigationGroundSurfaceSafe(foot.m_Normal[2],foot.m_Surface,true)) return false;
+				const Vector3f anchor=Vector3f(foot.m_Endpos).AddZ(.125f);
+				if(anchor.z-position.z>18.25f || position.z-anchor.z>18.5f ||
+					!EngineFuncs::TraceLine(move,position,anchor,&hull,bodyMask,GetGameID(),False) ||
+					move.m_StartSolid || move.m_Fraction<1.f) return false;
+				if(!EngineFuncs::TraceLine(ground,anchor,anchor.AddZ(-18.5f),&hull,bodyMask,GetGameID(),False) ||
+					ground.m_StartSolid || ground.m_Fraction>=1.f ||
+					!NavigationGroundSurfaceSafe(ground.m_Normal[2],ground.m_Surface,true)) return false;
+				supported=Vector3f(ground.m_Endpos).AddZ(.125f);
+				if(supported.z-position.z>18.25f || position.z-supported.z>18.5f ||
+					!NavigationGroundContentsSafe(supported.AddZ(hull.m_Mins[2]),true,waterMiddleHeight)) return false;
+				// Check the small final separation with the same full body too.
+				return EngineFuncs::TraceLine(clearance,Vector3f(ground.m_Endpos),supported,&hull,bodyMask,GetGameID(),False) &&
+					!clearance.m_StartSolid && clearance.m_Fraction>=1.f;
+			};
+			Vector3f supported;
+			if(!capsuleStep(supported))
+			{
+				if(!groundedStep(supported)) NAV_WALK_REJECT();
+				if(IsDebugEnabled(BOT_DEBUG_PLANNER)) EngineFuncs::ConsoleMessage(va("TCE2WALK_GROUNDFIRST bot=%d step=%d/%d from=(%.3f %.3f %.3f) supported=(%.3f %.3f %.3f)",
+					GetGameID(),i,steps,position.x,position.y,position.z,supported.x,supported.y,supported.z));
+			}
+			position=supported;
+		}
+		if(IsDebugEnabled(BOT_DEBUG_PLANNER)) EngineFuncs::ConsoleMessage(va("TCE2WALK_CAPSULE bot=%d endz=%.3f destinationz=%.3f",GetGameID(),position.z,_destination.z));
+		if(_supported)
+		{
+			// Every preceding 8u move already proved body clearance, support,
+			// slope and water. This changes only the final goal-volume test,
+			// never the walk proof or an authored waypoint/action coordinate.
+			if((position-_destination).SquaredLength() > _arrivalRadius*_arrivalRadius) NAV_WALK_REJECT();
+			*_supported = position;
+			return true;
+		}
+		if(Mathf::FAbs(position.z-_destination.z)<=2.f) return true;
+		// Exported anchors use flat-foot support. Accept its small slope offset
+		// only when a fresh box support query reproduces that exact anchor;
+		// the body route above is still required and cannot cross a gap.
+		if(Mathf::FAbs(position.z-_destination.z)>stepHeight) NAV_WALK_REJECT();
+		AABB supportBox=hull;
+		supportBox.m_Maxs[2]=supportBox.m_Mins[2]+.25f;
+		obTraceResult anchor;
+		return EngineFuncs::TraceLine(anchor,position.AddZ(18.f),position.AddZ(-18.5f),
+			&supportBox,mask,GetGameID(),False) && !anchor.m_StartSolid && anchor.m_Fraction<1.f &&
+			NavigationGroundSurfaceSafe(anchor.m_Normal[2],anchor.m_Surface,true) &&
+			Mathf::FAbs(anchor.m_Endpos[2]+.125f-_destination.z)<=2.f;
+	}
+	AABB feet = hull;
+	feet.m_Maxs[2] = feet.m_Mins[2] + 0.25f;
+	for(int i = 1; i <= steps; ++i)
+	{
+		const float fraction = (float)i / steps;
+		Vector3f target(GetPosition().x + delta.x*fraction,
+			GetPosition().y + delta.y*fraction, position.z);
+		// The thin support box must be independent of headroom, exactly as in
+		// NG_Ground: raising the whole player here rejects legal low doorsteps.
+		obTraceResult ground;
+		if(!EngineFuncs::TraceLine(ground, target.AddZ(18.f), target.AddZ(-18.5f),
+			&feet, mask, GetGameID(), False) || ground.m_StartSolid || ground.m_Fraction >= 1.f ||
+			!NavigationGroundSurfaceSafe(ground.m_Normal[2],ground.m_Surface,UseValidatedWalkEntries())) {
+			if(IsDebugEnabled(BOT_DEBUG_PLANNER)) EngineFuncs::ConsoleMessage(va("TCE2WALK_GROUND bot=%d step=%d solid=%d frac=%.5f normal=%.4f targetz=%.4f endz=%.4f mins=%.2f maxs=%.2f", GetGameID(),i,(int)ground.m_StartSolid,ground.m_Fraction,ground.m_Normal[2],target.z,ground.m_Endpos[2],hull.m_Mins[2],hull.m_Maxs[2]));
+			NAV_WALK_REJECT();
+		}
+		target = Vector3f(ground.m_Endpos) + Vector3f(0,0,0.125f);
+		if(Mathf::FAbs(target.z-position.z) > stepHeight) NAV_WALK_REJECT();
+		const Vector3f footPosition = target.AddZ(hull.m_Mins[2]);
+		if(!NavigationGroundContentsSafe(footPosition, UseValidatedWalkEntries(),waterMiddleHeight)) NAV_WALK_REJECT();
+		obTraceResult move;
+		if(!EngineFuncs::TraceLine(move, target, target, &hull, bodyMask, GetGameID(), False) || move.m_StartSolid) NAV_WALK_REJECT();
+		if(!EngineFuncs::TraceLine(move, position, target, &hull, bodyMask, GetGameID(), False)) NAV_WALK_REJECT();
+		if(move.m_StartSolid) NAV_WALK_REJECT();
+		if(UseValidatedWalkEntries() && move.m_Fraction < 1.f)
+		{
+			const Vector3f normal(move.m_Normal);
+			const float normalLengthSq = normal.SquaredLength();
+			const float inward = (target-position).Dot(normal);
+			// A resting player is held .125u away from a wall by PMove's trace
+			// epsilon. An otherwise valid node can lie .02u beyond that movement
+			// boundary. Reproduce only this tiny wall-tangent slide, not a detour
+			// around a real obstacle. Every corrected step is proved again below.
+			if(Mathf::FAbs(normal.z) <= .001f && normalLengthSq >= .999f &&
+				normalLengthSq <= 1.001f && inward < 0.f && inward >= -.125f)
+			{
+				if(tangentCorrections >= 8) NAV_WALK_REJECT();
+				const Vector3f tangent = target-normal*inward;
+				obTraceResult support, slide;
+				if(!EngineFuncs::TraceLine(support, tangent.AddZ(18.f), tangent.AddZ(-18.5f),
+					&feet, mask, GetGameID(), False) || support.m_StartSolid ||
+					support.m_Fraction >= 1.f || !NavigationGroundSurfaceSafe(support.m_Normal[2],
+						support.m_Surface,UseValidatedWalkEntries())) NAV_WALK_REJECT();
+				const Vector3f supported = Vector3f(support.m_Endpos)+Vector3f(0,0,.125f);
+				if(Mathf::FAbs(supported.z-tangent.z) > .25f ||
+					!NavigationGroundContentsSafe(supported.AddZ(hull.m_Mins[2]),
+						UseValidatedWalkEntries(),waterMiddleHeight)) NAV_WALK_REJECT();
+				if(!EngineFuncs::TraceLine(slide, supported, supported, &hull, bodyMask,
+					GetGameID(), False) || slide.m_StartSolid || slide.m_Fraction < 1.f) NAV_WALK_REJECT();
+				if(!EngineFuncs::TraceLine(slide, position, supported, &hull, bodyMask,
+					GetGameID(), False) || slide.m_StartSolid || slide.m_Fraction < 1.f) NAV_WALK_REJECT();
+				target = supported;
+				move = slide;
+				++tangentCorrections;
+				if(IsDebugEnabled(BOT_DEBUG_PLANNER))
+					EngineFuncs::ConsoleMessage(va("TCE2WALK_TANGENT bot=%d step=%d/%d inward=%.5f position=(%.3f %.3f %.3f) corrected=(%.3f %.3f %.3f)",
+						GetGameID(), i, steps, inward, position.x, position.y, position.z,
+						target.x, target.y, target.z));
+			}
+		}
+		if(move.m_Fraction < 1.f)
+		{
+			const Vector3f raised = position.AddZ(18.f);
+			const Vector3f raisedTarget(target.x, target.y, raised.z);
+			obTraceResult up;
+			if(!EngineFuncs::TraceLine(up, position, raised, &hull,
+				bodyMask, GetGameID(), False) || up.m_StartSolid || up.m_Fraction < 1.f) NAV_WALK_REJECT();
+			if(!EngineFuncs::TraceLine(move, raised, raisedTarget,
+				&hull, bodyMask, GetGameID(), False) || move.m_StartSolid || move.m_Fraction < 1.f) NAV_WALK_REJECT();
+			if(!EngineFuncs::TraceLine(move, raisedTarget, target,
+				&hull, bodyMask, GetGameID(), False) || move.m_StartSolid) NAV_WALK_REJECT();
+			if(move.m_Fraction < 1.f)
+			{
+				if(move.m_Normal[2] < 0.7f || SquaredLength(Vector3f(move.m_Endpos), target) > 0.25f) NAV_WALK_REJECT();
+				target = Vector3f(move.m_Endpos) + Vector3f(0,0,0.125f);
+			}
+		}
+		position = target;
+	}
+	const Vector3f remainder = position-_destination;
+	return Mathf::FAbs(remainder.z) <= 2.f &&
+		remainder.x*remainder.x + remainder.y*remainder.y <= .25f*.25f;
+#undef NAV_WALK_REJECT
 }
 
 bool Client::TurnTowardFacing(const Vector3f &_facing)

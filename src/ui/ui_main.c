@@ -12,6 +12,7 @@ USER INTERFACE MAIN
 */
 
 #include "ui_local.h"
+#include "../game/tce_numeric.h"
 #include "../game/tce_guid.h"
 
 // NERVE - SMF
@@ -84,6 +85,13 @@ static int QDECL UI_ServersQsortCompare( const void *arg1, const void *arg2 );
 static int UI_MapCountByGameType(qboolean singlePlayer);
 static const char *UI_SelectedMap(qboolean singlePlayer, int index, int *actual);
 static int UI_GetIndexFromSelection(int actual);
+static int TCE_UI_WrapAdd(int tceLeft, int tceRight);
+static int TCE_UI_CvarInteger(float value);
+static int UI_CvarIntegerValue(const char *name);
+static qboolean UI_CvarIsZeroOrNaN(const char *name);
+static qboolean UI_CvarIsNegativeOrNaN(const char *name);
+static int UI_AddTime32(int a,int b);
+static int UI_SubtractTime32(int a,int b);
 
 static const char *UI_SelectedCampaign(int index, int *actual);
 static int UI_CampaignCount(qboolean singlePlayer);
@@ -245,7 +253,7 @@ qboolean _UI_IsFullscreen( void );
 #pragma export on
 #endif
 #endif
-intptr_t vmMain( intptr_t command, intptr_t arg0, intptr_t arg1, intptr_t arg2, intptr_t arg3, intptr_t arg4, intptr_t arg5, intptr_t arg6, intptr_t arg7, intptr_t arg8, intptr_t arg9, intptr_t arg10, intptr_t arg11  ) {
+TCE_VM_EXPORT intptr_t vmMain( intptr_t command, intptr_t arg0, intptr_t arg1, intptr_t arg2, intptr_t arg3, intptr_t arg4, intptr_t arg5, intptr_t arg6, intptr_t arg7, intptr_t arg8, intptr_t arg9, intptr_t arg10, intptr_t arg11  ) {
 #if defined(__MACOS__)
 #ifndef __GNUC__
 #pragma export off
@@ -273,6 +281,7 @@ intptr_t vmMain( intptr_t command, intptr_t arg0, intptr_t arg1, intptr_t arg2, 
 		return 0;
 
 	case UI_REFRESH:
+		TCE_RendererBeginFrame((int)arg0);
 		_UI_Refresh( arg0 );
 		return 0;
 
@@ -969,17 +978,19 @@ void _UI_Refresh( int realtime )
 	//	return;
 	//}
 
-	uiInfo.uiDC.frameTime = realtime - uiInfo.uiDC.realTime;
+	int previousRealtime = uiInfo.uiDC.realTime;
+
 	uiInfo.uiDC.realTime = realtime;
+	uiInfo.uiDC.frameTime = UI_SubtractTime32(realtime, previousRealtime);
 
 	previousTimes[index % UI_FPS_FRAMES] = uiInfo.uiDC.frameTime;
-	index++;
+	index=UI_AddTime32(index,1);
 	if ( index > UI_FPS_FRAMES ) {
 		int i, total;
 		// average multiple frames together to smooth changes out a bit
 		total = 0;
 		for ( i = 0 ; i < UI_FPS_FRAMES ; i++ ) {
-			total += previousTimes[i];
+			total=UI_AddTime32(total,previousTimes[i]);
 		}
 		if ( !total ) {
 			total = 1;
@@ -989,9 +1000,9 @@ void _UI_Refresh( int realtime )
 
 	UI_UpdateCvars();
 
-	if( trap_Cvar_VariableValue( "ui_connecting" ) ) {
+	if( !UI_CvarIsZeroOrNaN("ui_connecting") ) {
 		UI_DrawLoadPanel( qtrue, qfalse, qtrue );
-		if ( !trap_Cvar_VariableValue( "ui_connecting" ) ) {
+		if ( UI_CvarIsZeroOrNaN("ui_connecting") ) {
 			trap_Cvar_Set( "ui_connecting", "1" );
 		}
 		return;
@@ -1341,7 +1352,7 @@ static const char *handicapValues[] = {"None","95","90","85","80","75","70","65"
 static void UI_DrawHandicap(rectDef_t *rect, float scale, vec4_t color, int textStyle) {
   int i, h;
 
-  h = Com_Clamp( 5, 100, trap_Cvar_VariableValue("handicap") );
+  h = TCE_UI_CvarInteger(Com_Clamp( 5, 100, trap_Cvar_VariableValue("handicap") ));
   i = 20 - h / 5;
 
   Text_Paint(rect->x, rect->y, scale, color, handicapValues[i], 0, 0, textStyle);
@@ -1430,8 +1441,46 @@ static void UI_DrawClanLogo(rectDef_t *rect, float scale, vec4_t color) {
 UI_DrawClanCinematic
 ==============
 */
+typedef struct {
+    int x, y, w, h;
+} uiCinematicExtents_t;
+
+typedef char uiCinematicExtentsLayout[
+    (sizeof(int) == 4 && sizeof(float) == 4 && sizeof(uiCinematicExtents_t) == 16 &&
+     offsetof(uiCinematicExtents_t, x) == 0 && offsetof(uiCinematicExtents_t, y) == 4 &&
+     offsetof(uiCinematicExtents_t, w) == 8 && offsetof(uiCinematicExtents_t, h) == 12 &&
+     offsetof(rectDef_t, x) == 0 && offsetof(rectDef_t, y) == 4 &&
+     offsetof(rectDef_t, w) == 8 && offsetof(rectDef_t, h) == 12) ? 1 : -1];
+
+/* RunCinematic precedes these fresh rectangle reads. Both originals convert
+ * height, width, y and x in this order, then reload the cinematic handle.
+ * The shared helper models numeric conversion, not x87 status or exceptions. */
+static void UI_BuildCinematicExtents(const rectDef_t *rect,
+    uiCinematicExtents_t *extents) {
+    extents->h = TCE_TruncateNativeInteger((long double)rect->h);
+    extents->w = TCE_TruncateNativeInteger((long double)rect->w);
+    extents->y = TCE_TruncateNativeInteger((long double)rect->y);
+    extents->x = TCE_TruncateNativeInteger((long double)rect->x);
+}
+
+/* Preview fallback keeps scale as a word copy on Windows and a float value
+ * store on Linux. Exact SNaN quieting and the native call frame remain open. */
+static void UI_DrawCinematicPreview(rectDef_t *rect, const float *scale,
+    vec4_t color, qboolean net,
+    void (*preview)(rectDef_t *, float, vec4_t, qboolean)) {
+    float previewScale;
+#if defined(__linux__)
+    volatile float storedScale = *scale;
+    previewScale = storedScale;
+#else
+    memcpy(&previewScale, scale, sizeof(previewScale));
+#endif
+    preview(rect, previewScale, color, net);
+}
+
 static void UI_DrawClanCinematic(rectDef_t *rect, float scale, vec4_t color) {
   int i;
+	uiCinematicExtents_t tceExtents;
   i = UI_TeamIndexFromName(UI_Cvar_VariableString("ui_teamName"));
   if (i >= 0 && i < uiInfo.teamCount) {
 
@@ -1441,7 +1490,8 @@ static void UI_DrawClanCinematic(rectDef_t *rect, float scale, vec4_t color) {
 			}
 			if (uiInfo.teamList[i].cinematic >= 0) {
 			  trap_CIN_RunCinematic(uiInfo.teamList[i].cinematic);
-				trap_CIN_SetExtents(uiInfo.teamList[i].cinematic, rect->x, rect->y, rect->w, rect->h);
+				UI_BuildCinematicExtents(rect, &tceExtents);
+				trap_CIN_SetExtents(uiInfo.teamList[i].cinematic, tceExtents.x, tceExtents.y, tceExtents.w, tceExtents.h);
 	 			trap_CIN_DrawCinematic(uiInfo.teamList[i].cinematic);
 			} else {
 				uiInfo.teamList[i].cinematic = -2;
@@ -1456,11 +1506,17 @@ static void UI_DrawClanCinematic(rectDef_t *rect, float scale, vec4_t color) {
 }
 
 static void UI_DrawPreviewCinematic(rectDef_t *rect, float scale, vec4_t color) {
+	int tceHeight, tceWidth, tceY, tceX;
 	if (uiInfo.previewMovie > -2) {
 		uiInfo.previewMovie = trap_CIN_PlayCinematic(va("%s.roq", uiInfo.movieList[uiInfo.movieIndex]), 0, 0, 0, 0, (CIN_loop | CIN_silent) );
 		if (uiInfo.previewMovie >= 0) {
 		  trap_CIN_RunCinematic(uiInfo.previewMovie);
-			trap_CIN_SetExtents(uiInfo.previewMovie, rect->x, rect->y, rect->w, rect->h);
+			/* Both original argument lists truncate h, w, y, x in that order. */
+			tceHeight = TCE_UI_CvarInteger(rect->h);
+			tceWidth = TCE_UI_CvarInteger(rect->w);
+			tceY = TCE_UI_CvarInteger(rect->y);
+			tceX = TCE_UI_CvarInteger(rect->x);
+			trap_CIN_SetExtents(uiInfo.previewMovie, tceX, tceY, tceWidth, tceHeight);
  			trap_CIN_DrawCinematic(uiInfo.previewMovie);
 		} else {
 			uiInfo.previewMovie = -2;
@@ -1492,155 +1548,204 @@ static void UI_DrawTeamName(rectDef_t *rect, float scale, vec4_t color, qboolean
 static void UI_DrawTeamMember(rectDef_t *rect, float scale, vec4_t color, qboolean blue, int num, int textStyle) {
 }
 
+/* Shared owner-draw geometry uses 32-bit integers and binary32 fields.
+ * Semantic C keeps explicit numeric/store boundaries; original x87 state,
+ * precision and compiler-generated spills remain separate constraints. */
+typedef char tceUIOwnerRectLayout[
+	(sizeof(int) == 4 && sizeof(float) == 4 && sizeof(double) == 8 &&
+	 UINT_MAX == 0xffffffffu && INT_MAX == 2147483647 &&
+	 FLT_RADIX == 2 && FLT_MANT_DIG == 24 && FLT_MAX_EXP == 128 &&
+	 DBL_MANT_DIG == 53 && DBL_MAX_EXP == 1024 && NUM_CROSSHAIRS == 10 &&
+	 offsetof(rectDef_t, x) == 0 && offsetof(rectDef_t, y) == 4 &&
+	 offsetof(rectDef_t, w) == 8 && offsetof(rectDef_t, h) == 12) ? 1 : -1];
+
+static void TCE_UI_EffectsX(const rectDef_t *tceRect, int tceColor, float *tceX) {
+    unsigned int shiftedBits = (unsigned int)tceColor << 4;
+    int shiftedColor;
+    memcpy(&shiftedColor, &shiftedBits, sizeof(shiftedColor));
+    /* The color shift wraps at 32 bits; neither addition has a float store. */
+    *tceX = (float)(((long double)shiftedColor + tceRect->x) + 8.0f);
+}
+
 static void UI_DrawEffects(rectDef_t *rect, float scale, vec4_t color) {
+	float tceEffectsX;
 	UI_DrawHandlePic( rect->x, rect->y, 128, 8, uiInfo.uiDC.Assets.fxBasePic );
-	UI_DrawHandlePic( rect->x + uiInfo.effectsColor * 16 + 8, rect->y, 16, 12, uiInfo.uiDC.Assets.fxPic[uiInfo.effectsColor] );
+	TCE_UI_EffectsX(rect, uiInfo.effectsColor, &tceEffectsX);
+	UI_DrawHandlePic( tceEffectsX, rect->y, 16, 12, uiInfo.uiDC.Assets.fxPic[uiInfo.effectsColor] );
+}
+
+/* Atlas coordinates, cropped map views and their labels are shared by both
+ * original UI builds. Keep explicit float stores at their published boundaries. */
+static float UI_PreviewMapCoordinate(float position, float origin,
+    float extent, float offset) {
+    const float inverseSpan = 0.0015384615398943424f;
+    return (float)(((long double)position - origin) * extent * inverseSpan + offset);
+}
+
+static void UI_PreviewMapCrop(float position, float *lower, float *upper) {
+    long double edge = (long double)position - 325.0;
+    *lower = (float)edge;
+    if (!(edge >= 0.0L)) *lower = 0.0f;
+    edge = (long double)*lower + 650.0f;
+    *upper = (float)edge;
+    if (edge > 1024.0L) {
+        *upper = 1024.0f;
+        *lower = 374.0f;
+    }
+}
+
+static mapInfo *UI_PreviewMapInfo(int map, int campaignMap) {
+    if (campaignMap >= 0) {
+        if (campaignMap >= MAX_MAPS_PER_CAMPAIGN) return NULL;
+        return uiInfo.campaignList[map].mapInfos[campaignMap];
+    }
+    return &uiInfo.mapList[map];
+}
+
+static qboolean UI_PreviewLabelOnLeft(const rectDef_t *rect, float x,
+    int textWidth, qboolean textPass) {
+    long double edge;
+    long double width = textPass ? (long double)(float)textWidth :
+        (long double)textWidth;
+    long double right = (long double)rect->x + rect->w;
+#if defined(_WIN32)
+    edge = (width + x) + 10.0f;
+#else
+    edge = ((long double)x + 10.0f) + width;
+    /* The ELF's final text comparison is ordered, unlike its box comparison. */
+    if (textPass) return edge > right;
+#endif
+    return !(right >= edge);
+}
+
+static void UI_DrawPreviewMapLabel(rectDef_t *rect, float scale, int map,
+    int campaignMap, float x, float y) {
+    vec4_t fadedBlack = {0.0f, 0.0f, 0.0f, 0.4f};
+    mapInfo *info = UI_PreviewMapInfo(map, campaignMap);
+    int measuredWidth;
+    float width, boxWidth, textX;
+    long double boxX, boxY;
+    qboolean left;
+    qhandle_t pin;
+
+    if (!info) return;
+    measuredWidth = Text_Width(info->mapName, scale, 0);
+    width = (float)measuredWidth;
+    left = UI_PreviewLabelOnLeft(rect, x, measuredWidth, qfalse);
+    boxX = left ? ((long double)x - width) - 12.0f : x;
+    boxY = (long double)y - 6.0f;
+    boxWidth = (float)((long double)width + 12.0f);
+    UI_FillRect((float)(boxX + 1.0f), (float)(boxY + 1.0f),
+        boxWidth, 12.0f, fadedBlack);
+    UI_FillRect((float)boxX, (float)boxY, boxWidth, 12.0f, colorBlack);
+    pin = trap_R_RegisterShaderNoMip("gfx/loading/pin_neutral");
+    UI_DrawHandlePic((float)((long double)x - 8.0f),
+        (float)((long double)y - 8.0f), 16.0f, 16.0f, pin);
+
+    /* Rendering can change the rectangle or map data. Reload the final label
+     * decision and its name at the original point after drawing the pin. */
+    left = UI_PreviewLabelOnLeft(rect, x, measuredWidth, qtrue);
+    textX = left ? (float)(((long double)x - width) - 10.0f) :
+        (float)((long double)x + 10.0f);
+    info = UI_PreviewMapInfo(map, campaignMap);
+    if (!info) return;
+    Text_Paint(textX, (float)((long double)y + 3.0f), scale,
+        colorWhite, info->mapName, 0.0f, 0, 0);
+}
+
+static void UI_DrawUnknownMapPreview(rectDef_t *rect) {
+    qhandle_t image = trap_R_RegisterShaderNoMip("levelshots/unknownmap");
+    UI_DrawHandlePic(rect->x, rect->y, rect->w, rect->h, image);
 }
 
 void UI_DrawMapPreview(rectDef_t *rect, float scale, vec4_t color, qboolean net) {
-	int map = (net) ? ui_currentNetMap.integer : ui_currentMap.integer;
-	int game = net ? ui_netGameType.integer : uiInfo.gameTypes[ui_gameType.integer].gtEnum;
+    int map = net ? ui_currentNetMap.integer : ui_currentMap.integer;
+    int game;
+    int capacity;
+    int count;
+    int i;
+    float x, y;
+    rectDef_t screen;
+    vec2_t lower, upper;
+    qhandle_t image;
+    (void)color;
 
-	if( game == GT_WOLF_CAMPAIGN ) {
-		if( map < 0 || map > uiInfo.campaignCount ) {
-			if( net ) {
-				ui_currentNetMap.integer = 0;
-				trap_Cvar_Set( "ui_currentNetMap", "0" );
-			} else {
-				ui_currentMap.integer = 0;
-				trap_Cvar_Set( "ui_currentMap", "0" );
-			}
-			map = 0;
-		}
+    if (net) {
+        game = ui_netGameType.integer;
+    } else {
+        /* Corrupt cvar values do not designate an actual gameTypes element. */
+        if ((unsigned)ui_gameType.integer >=
+            sizeof(uiInfo.gameTypes) / sizeof(uiInfo.gameTypes[0])) {
+            UI_DrawUnknownMapPreview(rect);
+            return;
+        }
+        game = uiInfo.gameTypes[ui_gameType.integer].gtEnum;
+    }
+    capacity = game == GT_WOLF_CAMPAIGN ? MAX_CAMPAIGNS : MAX_MAPS;
+    count = game == GT_WOLF_CAMPAIGN ? uiInfo.campaignCount : uiInfo.mapCount;
+    /* The original uses >count, not >=count. Preserve that check inside the
+     * real arrays; an index outside their capacity has no valid C object. */
+    if (map < 0 || map > count || map >= capacity) {
+        if (net) {
+            ui_currentNetMap.integer = 0;
+            trap_Cvar_Set("ui_currentNetMap", "0");
+        } else {
+            ui_currentMap.integer = 0;
+            trap_Cvar_Set("ui_currentMap", "0");
+        }
+        map = 0;
+    }
 
-		if( uiInfo.campaignList[map].mapTC[0][0] && uiInfo.campaignList[map].mapTC[1][0] ) {
-			float x, y, w, h;
-			int i;
+    if (game == GT_WOLF_CAMPAIGN) {
+        if (TCE_FloatIsZeroOrNaN(uiInfo.campaignList[map].mapTC[0][0]) ||
+            TCE_FloatIsZeroOrNaN(uiInfo.campaignList[map].mapTC[1][0])) {
+            UI_DrawUnknownMapPreview(rect);
+            return;
+        }
+        screen = *rect;
+        UI_AdjustFrom640(&screen.x, &screen.y, &screen.w, &screen.h);
+        trap_R_DrawStretchPic(screen.x, screen.y, screen.w, screen.h,
+            (float)((long double)uiInfo.campaignList[map].mapTC[0][0] * 0.0009765625f),
+            (float)((long double)uiInfo.campaignList[map].mapTC[0][1] * 0.0009765625f),
+            (float)((long double)uiInfo.campaignList[map].mapTC[1][0] * 0.0009765625f),
+            (float)((long double)uiInfo.campaignList[map].mapTC[1][1] * 0.0009765625f),
+            uiInfo.campaignMap);
+        for (i = 0; i < uiInfo.campaignList[map].mapCount &&
+            i < MAX_MAPS_PER_CAMPAIGN; ++i) {
+            mapInfo *info = UI_PreviewMapInfo(map, i);
+            if (!info) continue;
+            x = UI_PreviewMapCoordinate(info->mappos[0],
+                uiInfo.campaignList[map].mapTC[0][0], rect->w, rect->x);
+            y = UI_PreviewMapCoordinate(info->mappos[1],
+                uiInfo.campaignList[map].mapTC[0][1], rect->h, rect->y);
+            UI_DrawPreviewMapLabel(rect, scale, map, i, x, y);
+        }
+        return;
+    }
 
-			x = rect->x;
-			y = rect->y;
-			w = rect->w;
-			h = rect->h;
-			UI_AdjustFrom640( &x, &y, &w, &h );
-			trap_R_DrawStretchPic( x, y, w, h,
-								   uiInfo.campaignList[map].mapTC[0][0] / 1024.f,
-								   uiInfo.campaignList[map].mapTC[0][1] / 1024.f,
-								   uiInfo.campaignList[map].mapTC[1][0] / 1024.f,
-								   uiInfo.campaignList[map].mapTC[1][1] / 1024.f,
-								   uiInfo.campaignMap );
-			for( i = 0; i < uiInfo.campaignList[map].mapCount; i++ ) {
-				vec4_t colourFadedBlack = { 0.f, 0.f, 0.f, 0.4f };
-
-				x = rect->x + ( ( uiInfo.campaignList[map].mapInfos[i]->mappos[0] - uiInfo.campaignList[map].mapTC[0][0] ) / 650.f * rect->w );
-				y = rect->y + ( ( uiInfo.campaignList[map].mapInfos[i]->mappos[1] - uiInfo.campaignList[map].mapTC[0][1] ) / 650.f * rect->h );
-
-				w = Text_Width( uiInfo.campaignList[map].mapInfos[i]->mapName, scale, 0 );
-
-				if( x + 10 + w > rect->x + rect->w ) {
-					UI_FillRect( x - w - 12 + 1, y - 6 + 1, 12 + w, 12, colourFadedBlack );
-					UI_FillRect( x - w - 12, y - 6, 12 + w, 12, colorBlack );
-				} else {
-					UI_FillRect( x + 1, y - 6 + 1, 12 + w, 12, colourFadedBlack );
-					UI_FillRect( x, y - 6, 12 + w, 12, colorBlack );
-				}
-
-				UI_DrawHandlePic( x - 8, y - 8, 16, 16, trap_R_RegisterShaderNoMip( "gfx/loading/pin_neutral" ) );
-
-				if( x + 10 + w > rect->x + rect->w ) {
-					Text_Paint( x - w - 10, y + 3, scale, colorWhite, uiInfo.campaignList[map].mapInfos[i]->mapName, 0, 0, 0 );
-				} else {
-					Text_Paint( x + 10, y + 3, scale, colorWhite, uiInfo.campaignList[map].mapInfos[i]->mapName, 0, 0, 0 );
-				}
-			}
-		} else {
-			UI_DrawHandlePic( rect->x, rect->y, rect->w, rect->h, trap_R_RegisterShaderNoMip("levelshots/unknownmap"));
-		}
-		return;
-	}
-
-	if( map < 0 || map > uiInfo.mapCount ) {
-		if( net ) {
-			ui_currentNetMap.integer = 0;
-			trap_Cvar_Set("ui_currentNetMap", "0");
-		} else {
-			ui_currentMap.integer = 0;
-			trap_Cvar_Set("ui_currentMap", "0");
-		}
-		map = 0;
-	}
-
-	if( uiInfo.mapList[map].mappos[0] && uiInfo.mapList[map].mappos[1] ) {
-		float x, y, w, h;
-		vec2_t tl, br;
-		vec4_t colourFadedBlack = { 0.f, 0.f, 0.f, 0.4f };
-
-		tl[0] = uiInfo.mapList[map].mappos[0] - .5*650.f;
-		if( tl[0] < 0 )
-			tl[0] = 0;
-		br[0] = tl[0] + 650.f;
-		if( br[0] > 1024.f ) {
-			br[0] = 1024.f;
-			tl[0] = br[0] - 650.f;
-		}
-
-		tl[1] = uiInfo.mapList[map].mappos[1] - .5*650.f;
-		if( tl[1] < 0 )
-			tl[1] = 0;
-		br[1] = tl[1] + 650.f;
-		if( br[1] > 1024.f ) {
-			br[1] = 1024.f;
-			tl[1] = br[1] - 650.f;
-		}
-
-		x = rect->x;
-		y = rect->y;
-		w = rect->w;
-		h = rect->h;
-		UI_AdjustFrom640( &x, &y, &w, &h );
-		trap_R_DrawStretchPic( x, y, w, h,
-								tl[0] / 1024.f,
-								tl[1] / 1024.f,
-								br[0] / 1024.f,
-								br[1] / 1024.f,
-								uiInfo.campaignMap );
-
-		x = rect->x + ( ( uiInfo.mapList[map].mappos[0] - tl[0] ) / 650.f * rect->w );
-		y = rect->y + ( ( uiInfo.mapList[map].mappos[1] - tl[1] ) / 650.f * rect->h );
-
-		w = Text_Width( uiInfo.mapList[map].mapName, scale, 0 );
-
-		if( x + 10 + w > rect->x + rect->w ) {
-			UI_FillRect( x - w - 12 + 1, y - 6 + 1, 12 + w, 12, colourFadedBlack );
-			UI_FillRect( x - w - 12, y - 6, 12 + w, 12, colorBlack );
-		} else {
-			UI_FillRect( x + 1, y - 6 + 1, 12 + w, 12, colourFadedBlack );
-			UI_FillRect( x, y - 6, 12 + w, 12, colorBlack );
-		}
-
-		UI_DrawHandlePic( x - 8, y - 8, 16, 16, trap_R_RegisterShaderNoMip( "gfx/loading/pin_neutral" ) );
-
-		if( x + 10 + w > rect->x + rect->w ) {
-			Text_Paint( x - w - 10, y + 3, scale, colorWhite, uiInfo.mapList[map].mapName, 0, 0, 0 );
-		} else {
-			Text_Paint( x + 10, y + 3, scale, colorWhite, uiInfo.mapList[map].mapName, 0, 0, 0 );
-		}
-	} else {
-        /* TC UI_DrawMapPreview 40005590: maps without campaign coordinates. */
-        qhandle_t shot = trap_R_RegisterShaderNoMip(va("levelshots/%s", uiInfo.mapList[map].mapLoadName));
-        if (shot <= 0) shot = trap_R_RegisterShaderNoMip("levelshots/unknownmap");
-        UI_DrawHandlePic(rect->x, rect->y, rect->w, rect->h, shot);
-	}
-
-	/*if (uiInfo.mapList[map].levelShot == -1) {
-		uiInfo.mapList[map].levelShot = trap_R_RegisterShaderNoMip(uiInfo.mapList[map].imageName);
-	}
-
-	if (uiInfo.mapList[map].levelShot > 0) {
-		UI_DrawHandlePic( rect->x, rect->y, rect->w, rect->h, uiInfo.mapList[map].levelShot);
-	} else {
-		UI_DrawHandlePic( rect->x, rect->y, rect->w, rect->h, trap_R_RegisterShaderNoMip("levelshots/unknownmap"));
-	}*/
-}		
+    if (TCE_FloatIsZeroOrNaN(uiInfo.mapList[map].mappos[0]) ||
+        TCE_FloatIsZeroOrNaN(uiInfo.mapList[map].mappos[1])) {
+        image = trap_R_RegisterShaderNoMip(va("levelshots/%s",
+            uiInfo.mapList[map].mapLoadName));
+        if (image > 0)
+            UI_DrawHandlePic(rect->x, rect->y, rect->w, rect->h, image);
+        else
+            UI_DrawUnknownMapPreview(rect);
+        return;
+    }
+    UI_PreviewMapCrop(uiInfo.mapList[map].mappos[0], &lower[0], &upper[0]);
+    UI_PreviewMapCrop(uiInfo.mapList[map].mappos[1], &lower[1], &upper[1]);
+    screen = *rect;
+    UI_AdjustFrom640(&screen.x, &screen.y, &screen.w, &screen.h);
+    trap_R_DrawStretchPic(screen.x, screen.y, screen.w, screen.h,
+        (float)((long double)lower[0] * 0.0009765625f),
+        (float)((long double)lower[1] * 0.0009765625f),
+        (float)((long double)upper[0] * 0.0009765625f),
+        (float)((long double)upper[1] * 0.0009765625f), uiInfo.campaignMap);
+    x = UI_PreviewMapCoordinate(uiInfo.mapList[map].mappos[0], lower[0], rect->w, rect->x);
+    y = UI_PreviewMapCoordinate(uiInfo.mapList[map].mappos[1], lower[1], rect->h, rect->y);
+    UI_DrawPreviewMapLabel(rect, scale, map, -1, x, y);
+}
 
 void UI_DrawNetMapPreview( rectDef_t *rect, float scale, vec4_t color, qboolean net )
 {
@@ -1672,6 +1777,7 @@ static void UI_DrawMapCinematic(rectDef_t *rect, float scale, vec4_t color, qboo
 
 	int map = (net) ? ui_currentNetMap.integer : ui_currentMap.integer; 
 	int game = net ? ui_netGameType.integer : uiInfo.gameTypes[ui_gameType.integer].gtEnum;
+	uiCinematicExtents_t tceExtents;
 
 	if( game == GT_WOLF_CAMPAIGN ) {
 		if( map < 0 || map > uiInfo.campaignCount ) {
@@ -1697,7 +1803,7 @@ static void UI_DrawMapCinematic(rectDef_t *rect, float scale, vec4_t color, qboo
 				uiInfo.campaignList[map].campaignCinematic = -2;
 			}
 		} else*/ {
-			UI_DrawMapPreview( rect, scale, color, net );
+			UI_DrawCinematicPreview(rect, &scale, color, net, UI_DrawMapPreview);
 		}
 		return;
 	}
@@ -1719,13 +1825,14 @@ static void UI_DrawMapCinematic(rectDef_t *rect, float scale, vec4_t color, qboo
 		}
 		if (uiInfo.mapList[map].cinematic >= 0) {
 			trap_CIN_RunCinematic(uiInfo.mapList[map].cinematic);
-			trap_CIN_SetExtents(uiInfo.mapList[map].cinematic, rect->x, rect->y, rect->w, rect->h);
+			UI_BuildCinematicExtents(rect, &tceExtents);
+			trap_CIN_SetExtents(uiInfo.mapList[map].cinematic, tceExtents.x, tceExtents.y, tceExtents.w, tceExtents.h);
  			trap_CIN_DrawCinematic(uiInfo.mapList[map].cinematic);
 		} else {
 			uiInfo.mapList[map].cinematic = -2;
 		}
 	} else {
-		UI_DrawMapPreview(rect, scale, color, net);
+		UI_DrawCinematicPreview(rect, &scale, color, net, UI_DrawMapPreview);
 	}
 }
 
@@ -1754,7 +1861,15 @@ static void UI_DrawCampaignPreview(rectDef_t *rect, float scale, vec4_t color, q
 }			
 
 static void UI_DrawCampaignCinematic(rectDef_t *rect, float scale, vec4_t color, qboolean net) {
-	int campaign = (net) ? ui_currentNetCampaign.integer : ui_currentCampaign.integer; 
+	int campaign;
+	uiCinematicExtents_t tceExtents;
+#if defined(__linux__)
+    /* The ELF campaign path saves the float scale before selecting a campaign;
+     * its preview fallback performs a second float store before the call. */
+    volatile float storedScale = scale;
+    scale = storedScale;
+#endif
+	campaign = (net) ? ui_currentNetCampaign.integer : ui_currentCampaign.integer;
 	if (campaign < 0 || campaign > uiInfo.campaignCount) {
 		if (net) {
 			ui_currentNetCampaign.integer = 0;
@@ -1772,13 +1887,14 @@ static void UI_DrawCampaignCinematic(rectDef_t *rect, float scale, vec4_t color,
 		}
 		if (uiInfo.campaignList[campaign].campaignCinematic >= 0) {
 			trap_CIN_RunCinematic(uiInfo.campaignList[campaign].campaignCinematic);
-			trap_CIN_SetExtents(uiInfo.campaignList[campaign].campaignCinematic, rect->x, rect->y, rect->w, rect->h);
+			UI_BuildCinematicExtents(rect, &tceExtents);
+			trap_CIN_SetExtents(uiInfo.campaignList[campaign].campaignCinematic, tceExtents.x, tceExtents.y, tceExtents.w, tceExtents.h);
  			trap_CIN_DrawCinematic(uiInfo.campaignList[campaign].campaignCinematic);
 		} else {
 			uiInfo.campaignList[campaign].campaignCinematic = -2;
 		}
 	} else {
-		UI_DrawCampaignPreview(rect, scale, color, net);
+		UI_DrawCinematicPreview(rect, &scale, color, net, UI_DrawCampaignPreview);
 	}
 }
 
@@ -2226,10 +2342,11 @@ static void UI_DrawPlayerModel(rectDef_t *rect) {
 	vec3_t	viewangles;
 	static vec3_t	moveangles = { 0, 0, 0 };
 
-	if (trap_Cvar_VariableValue("ui_Q3Model")) {
+	/* TC treats both zero and unordered values as the team-model mode. */
+	if (!UI_CvarIsZeroOrNaN("ui_Q3Model")) {
 		// NERVE - SMF
 		int teamval;
-		teamval = trap_Cvar_VariableValue( "mp_team" );
+		teamval = UI_CvarIntegerValue( "mp_team" );
 
 		if ( teamval == ALLIES_TEAM )
 			strcpy( model, "multi" );
@@ -2259,22 +2376,22 @@ static void UI_DrawPlayerModel(rectDef_t *rect) {
 	{
 		int v1, v2;
 
-		v1 = trap_Cvar_VariableValue( "mp_team" );
-		v2 = trap_Cvar_VariableValue( "ui_prevTeam" );
+		v1 = UI_CvarIntegerValue( "mp_team" );
+		v2 = UI_CvarIntegerValue( "ui_prevTeam" );
 		if ( v1 != v2 ) {
 			trap_Cvar_Set( "ui_prevTeam", va( "%i", v1 ) );
 			updateModel = qtrue;
 		}
 
-		v1 = trap_Cvar_VariableValue( "mp_playerType" );
-		v2 = trap_Cvar_VariableValue( "ui_prevClass" );
+		v1 = UI_CvarIntegerValue( "mp_playerType" );
+		v2 = UI_CvarIntegerValue( "ui_prevClass" );
 		if ( v1 != v2 ) {
 			trap_Cvar_Set( "ui_prevClass", va( "%i", v1 ) );
 			updateModel = qtrue;
 		}
 
-		v1 = trap_Cvar_VariableValue( "mp_weapon" );
-		v2 = trap_Cvar_VariableValue( "ui_prevWeapon" );
+		v1 = UI_CvarIntegerValue( "mp_weapon" );
+		v2 = UI_CvarIntegerValue( "ui_prevWeapon" );
 		if ( v1 != v2 ) {
 			trap_Cvar_Set( "ui_prevWeapon", va( "%i", v1 ) );
 			updateModel = qtrue;
@@ -2755,21 +2872,57 @@ static void UI_DrawRedBlue(rectDef_t *rect, float scale, vec4_t color, int textS
   Text_Paint(rect->x, rect->y, scale, color, (uiInfo.redBlue == 0) ? "Red" : "Blue", 0, 0, textStyle);
 }
 
+static void TCE_UI_CrosshairSize(const rectDef_t *tceRect, int tceRequested,
+    int *tceCurrent, float *tceResult) {
+    /* This is the original rounded binary32 inverse, not a new division. */
+    const float inverse96 = 0.010416666977107524871826171875f;
+    long double requested = (long double)tceRequested;
+    long double scaledWidth;
+
+    if ((unsigned int)*tceCurrent >= NUM_CROSSHAIRS) *tceCurrent = 0;
+#if defined(__linux__)
+    scaledWidth = (long double)inverse96 * tceRect->w;
+    /* ELF publishes this maximum-size float before selecting the clamp. */
+    *tceResult = (float)(96.0L * scaledWidth);
+    if (requested > 96.0L) return;
+    if (requested < 24.0L) requested = 24.0L;
+    *tceResult = (float)(requested * scaledWidth);
+#else
+    if (requested > 96.0L) requested = 96.0L;
+    else if (requested < 24.0L) requested = 24.0L;
+    scaledWidth = (long double)tceRect->w * inverse96;
+    *tceResult = (float)(scaledWidth * requested);
+#endif
+}
+
+static void TCE_UI_CrosshairRect(const rectDef_t *tceRect,
+    const float *tceSize, rectDef_t *tceResult) {
+#if defined(__linux__)
+    long double vertical = (long double)*tceSize;
+    memcpy(&tceResult->h, tceSize, sizeof(tceResult->h));
+    memcpy(&tceResult->w, tceSize, sizeof(tceResult->w));
+    vertical = (long double)tceRect->h - vertical;
+#else
+    long double vertical = (long double)tceRect->h - *tceSize;
+    memcpy(&tceResult->w, tceSize, sizeof(tceResult->w));
+    memcpy(&tceResult->h, tceSize, sizeof(tceResult->h));
+#endif
+    /* Recomputed after each SetColor callback; y is stored before x. */
+    tceResult->y = (float)(vertical * 0.5f + tceRect->y);
+    tceResult->x = (float)((((long double)tceRect->w - *tceSize) * 0.5f) + tceRect->x);
+}
+
 static void UI_DrawCrosshair(rectDef_t *rect, float scale, vec4_t color)
 {
-	float size = cg_crosshairSize.integer;
-
-	if(uiInfo.currentCrosshair < 0 || uiInfo.currentCrosshair >= NUM_CROSSHAIRS) {
-		uiInfo.currentCrosshair = 0;
-	}
-
-	size = (rect->w / 96.0f) * ((size > 96.0f) ? 96.0f : ((size < 24.0f) ? 24.0f : size));
-
+	float tceSize;
+	rectDef_t tceCrossRect;
+	TCE_UI_CrosshairSize(rect, cg_crosshairSize.integer, &uiInfo.currentCrosshair, &tceSize);
 	trap_R_SetColor(uiInfo.xhairColor);
-	UI_DrawHandlePic( rect->x + (rect->w - size)/2, rect->y + (rect->h - size)/2, size, size, uiInfo.uiDC.Assets.crosshairShader[uiInfo.currentCrosshair]);
+	TCE_UI_CrosshairRect(rect, &tceSize, &tceCrossRect);
+	UI_DrawHandlePic( tceCrossRect.x, tceCrossRect.y, tceCrossRect.w, tceCrossRect.h, uiInfo.uiDC.Assets.crosshairShader[uiInfo.currentCrosshair]);
 	trap_R_SetColor(uiInfo.xhairColorAlt);
-	UI_DrawHandlePic( rect->x + (rect->w - size)/2, rect->y + (rect->h - size)/2, size, size, uiInfo.uiDC.Assets.crosshairAltShader[uiInfo.currentCrosshair]);
-
+	TCE_UI_CrosshairRect(rect, &tceSize, &tceCrossRect);
+	UI_DrawHandlePic( tceCrossRect.x, tceCrossRect.y, tceCrossRect.w, tceCrossRect.h, uiInfo.uiDC.Assets.crosshairAltShader[uiInfo.currentCrosshair]);
 	trap_R_SetColor( NULL );
 }
 
@@ -2840,21 +2993,56 @@ static void UI_BuildPlayerList() {
 
 static void UI_DrawSelectedPlayer(rectDef_t *rect, float scale, vec4_t color, int textStyle) {
 	if (uiInfo.uiDC.realTime > uiInfo.playerRefresh) {
-		uiInfo.playerRefresh = uiInfo.uiDC.realTime + 3000;
+		uiInfo.playerRefresh = TCE_UI_WrapAdd(uiInfo.uiDC.realTime, 3000);
 		UI_BuildPlayerList();
 	}
   Text_Paint(rect->x, rect->y, scale, color, (uiInfo.teamLeader) ? UI_Cvar_VariableString("cg_selectedPlayerName") : UI_Cvar_VariableString("name") , 0, 0, textStyle);
 }
 
+typedef struct {
+	vec4_t lowLight;
+	float interpolation;
+	int quotient;
+} tceUIRefreshMath_t;
+
+typedef char tceUIRefreshMathLayout[
+	(offsetof(tceUIRefreshMath_t, interpolation) == 16 &&
+	 offsetof(tceUIRefreshMath_t, quotient) == 20 &&
+	 sizeof(tceUIRefreshMath_t) == 24 && PULSE_DIVISOR == 75) ? 1 : -1];
+
+static void TCE_UI_RefreshMath(const float *color, int time,
+    tceUIRefreshMath_t *pulse) {
+    const double dim = 0.8;
+    int channel;
+    long double wave;
+
+    /* Signed division truncates towards zero for the full int32 time domain.
+     * Keep a binary32 store for each dimmed channel before the sine operation. */
+    pulse->quotient = time / PULSE_DIVISOR;
+    for (channel = 0; channel < 4; ++channel) {
+#if defined(__linux__)
+        pulse->lowLight[channel] = (float)((long double)dim * color[channel]);
+#else
+        pulse->lowLight[channel] = (float)((long double)color[channel] * dim);
+#endif
+    }
+    wave = sinl((long double)pulse->quotient);
+#if defined(__linux__)
+    pulse->interpolation = (float)(wave * 0.5f + 0.5f);
+#else
+    pulse->interpolation = (float)((wave + 1.0) * 0.5);
+#endif
+    /* sinl states the operation; FSIN, FPU and compiler precision parity is
+     * deliberately not inferred from this formula. */
+}
+
 static void UI_DrawServerRefreshDate(rectDef_t *rect, float scale, vec4_t color, int textStyle) {
 	int serverCount;			// NERVE - SMF
 	if (uiInfo.serverStatus.refreshActive) {
-		vec4_t lowLight, newColor;
-		lowLight[0] = 0.8 * color[0]; 
-		lowLight[1] = 0.8 * color[1]; 
-		lowLight[2] = 0.8 * color[2]; 
-		lowLight[3] = 0.8 * color[3]; 
-		LerpColor(color,lowLight,newColor,0.5+0.5*sin(uiInfo.uiDC.realTime / PULSE_DIVISOR));
+		tceUIRefreshMath_t tceRefreshMath;
+		vec4_t newColor;
+		TCE_UI_RefreshMath(color, uiInfo.uiDC.realTime, &tceRefreshMath);
+		LerpColor(color,tceRefreshMath.lowLight,newColor,tceRefreshMath.interpolation);
 		// NERVE - SMF
 		serverCount = trap_LAN_GetServerCount( ui_netSource.integer );
 		if ( serverCount >= 0 )
@@ -2868,63 +3056,66 @@ static void UI_DrawServerRefreshDate(rectDef_t *rect, float scale, vec4_t color,
 	}
 }
 
+static long double UI_ServerMOTDRight(const rectDef_t *rect) {
+    return ((long double)rect->w + rect->x) - 2.0f;
+}
+
 static void UI_DrawServerMOTD(rectDef_t *rect, float scale, vec4_t color) {
-	if (uiInfo.serverStatus.motdLen) {
-		float maxX;
-	 
-		if (uiInfo.serverStatus.motdWidth == -1) {
-			uiInfo.serverStatus.motdWidth = 0;
-			uiInfo.serverStatus.motdPaintX = rect->x + 1;
-			uiInfo.serverStatus.motdPaintX2 = -1;
-		}
+    serverStatus_t *status = &uiInfo.serverStatus;
+    int length = status->motdLen;
+    int width;
+    float maxX;
+    long double scrollEdge;
 
-		if( uiInfo.serverStatus.motdOffset > uiInfo.serverStatus.motdLen ) {
-			uiInfo.serverStatus.motdOffset = 0;
-			uiInfo.serverStatus.motdPaintX = rect->x + 1;
-			uiInfo.serverStatus.motdPaintX2 = -1;
-		}
-
-		if (uiInfo.uiDC.realTime > uiInfo.serverStatus.motdTime) {
-			uiInfo.serverStatus.motdTime = uiInfo.uiDC.realTime + 10;
-			if( uiInfo.serverStatus.motdPaintX <= rect->x + 2 ) {
-				if( uiInfo.serverStatus.motdOffset < uiInfo.serverStatus.motdLen ) {
-					uiInfo.serverStatus.motdPaintX += Text_Width(&uiInfo.serverStatus.motd[uiInfo.serverStatus.motdOffset], scale, 1) - 1;
-					uiInfo.serverStatus.motdOffset++;
-				} else {
-					uiInfo.serverStatus.motdOffset = 0;
-					if (uiInfo.serverStatus.motdPaintX2 >= 0) {
-						uiInfo.serverStatus.motdPaintX = uiInfo.serverStatus.motdPaintX2;
-					} else {
-						uiInfo.serverStatus.motdPaintX = rect->x + rect->w - 2;
-					}
-					uiInfo.serverStatus.motdPaintX2 = -1;
-				}
-			} else {
-				//serverStatus.motdPaintX--;
-				uiInfo.serverStatus.motdPaintX -= 2;
-				if (uiInfo.serverStatus.motdPaintX2 >= 0) {
-					//serverStatus.motdPaintX2--;
-					uiInfo.serverStatus.motdPaintX2 -= 2;
-				}
-			}
-		}
-
-		maxX = rect->x + rect->w - 2;
-		Text_Paint_Limit(&maxX, uiInfo.serverStatus.motdPaintX, rect->y, scale, color, &uiInfo.serverStatus.motd[uiInfo.serverStatus.motdOffset], 0, 0); 
-		if( uiInfo.serverStatus.motdPaintX2 >= 0 ) {
-			float maxX2 = rect->x + rect->w - 2;
-			Text_Paint_Limit(&maxX2, uiInfo.serverStatus.motdPaintX2, rect->y, scale, color, uiInfo.serverStatus.motd, 0, uiInfo.serverStatus.motdOffset); 
-		}
-		if( uiInfo.serverStatus.motdOffset && maxX > 0 ) {
-			// if we have an offset ( we are skipping the first part of the string ) and we fit the string
-			if (uiInfo.serverStatus.motdPaintX2 == -1) {
-				uiInfo.serverStatus.motdPaintX2 = rect->x + rect->w - 2;
-			}
-		} else {
-			uiInfo.serverStatus.motdPaintX2 = -1;
-		}
-
-	}
+    /* Negative lengths and offsets outside the real text array are invalid
+     * native states, not addresses to reproduce with undefined C accesses. */
+    if (length <= 0 || length >= sizeof(status->motd)) return;
+    if (status->motdWidth == -1) {
+        status->motdWidth = 0;
+        status->motdPaintX = TCE_TruncateNativeInteger((long double)rect->x + 1.0f);
+        status->motdPaintX2 = -1;
+    }
+    if (status->motdOffset < 0 || status->motdOffset > length) {
+        status->motdOffset = 0;
+        status->motdPaintX = TCE_TruncateNativeInteger((long double)rect->x + 1.0f);
+        status->motdPaintX2 = -1;
+    }
+    if (uiInfo.uiDC.realTime > status->motdTime) {
+        status->motdTime = UI_AddTime32(uiInfo.uiDC.realTime, 10);
+        scrollEdge = (long double)rect->x + 2.0f;
+        /* The originals take this branch for unordered as well as edge<x. */
+        if (!(scrollEdge >= (long double)status->motdPaintX)) {
+            status->motdPaintX = UI_AddTime32(status->motdPaintX, -2);
+            if (status->motdPaintX2 >= 0)
+                status->motdPaintX2 = UI_AddTime32(status->motdPaintX2, -2);
+        } else if (status->motdOffset < length) {
+            width = Text_Width(&status->motd[status->motdOffset], scale, 1);
+            /* Text measurement precedes the fresh offset/paint-state reads. */
+            status->motdOffset = UI_AddTime32(status->motdOffset, 1);
+            status->motdPaintX = UI_AddTime32(status->motdPaintX,
+                UI_AddTime32(width, -1));
+        } else {
+            status->motdOffset = 0;
+            status->motdPaintX = status->motdPaintX2 >= 0 ? status->motdPaintX2 :
+                TCE_TruncateNativeInteger(UI_ServerMOTDRight(rect));
+            status->motdPaintX2 = -1;
+        }
+    }
+    if ((unsigned)status->motdOffset >= sizeof(status->motd)) return;
+    maxX = (float)UI_ServerMOTDRight(rect);
+    Text_Paint_Limit(&maxX, (float)status->motdPaintX, rect->y, scale, color,
+        &status->motd[status->motdOffset], 0.0f, 0);
+    if (status->motdPaintX2 >= 0) {
+        float maxX2 = (float)UI_ServerMOTDRight(rect);
+        Text_Paint_Limit(&maxX2, (float)status->motdPaintX2, rect->y, scale, color,
+            status->motd, 0.0f, status->motdOffset);
+    }
+    if (status->motdOffset && maxX > 0.0f) {
+        if (status->motdPaintX2 == -1)
+            status->motdPaintX2 = TCE_TruncateNativeInteger(UI_ServerMOTDRight(rect));
+    } else {
+        status->motdPaintX2 = -1;
+    }
 }
 
 static void UI_DrawKeyBindStatus(rectDef_t *rect, float scale, vec4_t color, int textStyle, float text_x, float text_y) {
@@ -2966,13 +3157,34 @@ static void UI_ParseGLConfig( void ) {
 
 // FIXME: table drive
 //
+/* Build the rectangle before dispatch, including unknown owner values.
+ * Linux adds text_x+x after loading y; Windows adds x+text_x before loading y.
+ * Width and height are raw binary32 copies. Wide sums express the original
+ * retained intermediates, not a guarantee of x87 precision or FP exceptions. */
+static void UI_BuildOwnerDrawRect(const float *x, const float *y,
+    const float *width, const float *height, const float *textX,
+    const float *textY, rectDef_t *rect) {
+#if defined(__linux__)
+    long double vertical = (long double)*y;
+    long double horizontal = (long double)*textX;
+    memcpy(&rect->w, width, sizeof(rect->w));
+    horizontal += (long double)*x;
+    vertical += (long double)*textY;
+    memcpy(&rect->h, height, sizeof(rect->h));
+    rect->x = (float)horizontal;
+    rect->y = (float)vertical;
+#else
+    long double horizontal = (long double)*x + (long double)*textX;
+    memcpy(&rect->w, width, sizeof(rect->w));
+    memcpy(&rect->h, height, sizeof(rect->h));
+    rect->x = (float)horizontal;
+    rect->y = (float)((long double)*y + (long double)*textY);
+#endif
+}
+
 static void UI_OwnerDraw(float x, float y, float w, float h, float text_x, float text_y, int ownerDraw, int ownerDrawFlags, int align, float special, float scale, vec4_t color, qhandle_t shader, int textStyle) {
 	rectDef_t rect;
-
-  rect.x = x + text_x;
-  rect.y = y + text_y;
-  rect.w = w;
-  rect.h = h;
+	UI_BuildOwnerDrawRect(&x, &y, &w, &h, &text_x, &text_y, &rect);
 
 	switch (ownerDraw) {
 /*		case UI_TEAMFLAG:
@@ -3180,6 +3392,44 @@ static void UI_OwnerDraw(float x, float y, float w, float h, float text_x, float
 	}
 }
 
+/* All original UI fields and callback operands here use the engine's 32-bit
+ * integer / IEEE binary32 ABI, including the newer architecture fallbacks. */
+typedef char tceUIConsumer32Layout[
+	(CHAR_BIT == 8 && sizeof(int) == 4 && sizeof(unsigned int) == 4 && sizeof(float) == 4 &&
+	 UINT_MAX == 0xffffffffu && INT_MAX == 2147483647 && INT_MIN == (-2147483647 - 1) &&
+	 FLT_RADIX == 2 && FLT_MANT_DIG == 24 && FLT_MAX_EXP == 128) ? 1 : -1];
+
+static int TCE_UI_WrapAdd(int tceLeft, int tceRight) {
+	unsigned int tceBits = (unsigned int)tceLeft + (unsigned int)tceRight;
+	int tceResult;
+	memcpy(&tceResult, &tceBits, sizeof(tceResult));
+	return tceResult;
+}
+
+/* The first feeder comparison in both original x86 modules tests only x87 C3:
+ * zero and unordered values both select HEADS. Ordinary C == loses that NaN
+ * branch. Later comparisons need no adaptation once it has been selected. */
+static qboolean TCE_UI_FirstFeederIsHeads(float tceValue) {
+	unsigned int bits;
+	/* Preserve the numeric zero/unordered decision without FPU-status code. */
+	memcpy(&bits, &tceValue, sizeof(bits));
+	bits &= 0x7fffffffu;
+	return bits == 0u || bits > 0x7f800000u;
+}
+
+/* ServerStatus uses the same C3-only x87 predicate, against one. Both native
+ * originals therefore enter the browser branch for unordered values too. */
+static qboolean TCE_UI_ServerBrowserIsOne(float tceValue) {
+	unsigned int bits;
+	memcpy(&bits, &tceValue, sizeof(bits));
+	return bits == 0x3f800000u || (bits & 0x7fffffffu) > 0x7f800000u;
+}
+
+/* Keep platform-specific numeric conversion results in portable C. */
+static int TCE_UI_CvarInteger(float value) {
+    return TCE_TruncateNativeInteger((long double)value);
+}
+
 qboolean UI_OwnerDrawVisible(int flags) {
 	qboolean vis = qtrue;
 
@@ -3302,7 +3552,7 @@ qboolean UI_OwnerDrawVisible(int flags) {
 			flags &= ~UI_SHOW_CAMPAIGNMAP6EXISTS;
 		}
 		if( flags & UI_SHOW_SELECTEDCAMPAIGNMAPPLAYABLE ) {
-			int map = trap_Cvar_VariableValue( "ui_campaignmap" );
+			int map = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_campaignmap" ));
 
 			if( map > uiInfo.campaignList[ui_currentCampaign.integer].progress ) {
 				vis = qfalse;
@@ -3310,7 +3560,7 @@ qboolean UI_OwnerDrawVisible(int flags) {
 			flags &= ~UI_SHOW_SELECTEDCAMPAIGNMAPPLAYABLE;
 		}
 		if( flags & UI_SHOW_SELECTEDCAMPAIGNMAPNOTPLAYABLE ) {
-			int map = trap_Cvar_VariableValue( "ui_campaignmap" );
+			int map = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_campaignmap" ));
 
 			if( map <= uiInfo.campaignList[ui_currentCampaign.integer].progress ) {
 				vis = qfalse;
@@ -4214,7 +4464,7 @@ UI_Update
 ==============
 */
 void UI_Update(const char *name) {
-	int	val = trap_Cvar_VariableValue(name);
+	int	val = TCE_UI_CvarInteger(trap_Cvar_VariableValue(name));
 
  	if (Q_stricmp(name, "ui_SetName") == 0) {
 		trap_Cvar_Set( "name", UI_Cvar_VariableString("ui_Name"));
@@ -4298,12 +4548,16 @@ void UI_RunMenuScript(char **args) {
 	if (String_Parse(args, &name)) {
 
         if (Q_stricmp(name, "RunTCEMod") == 0) {
-            int mode = (int)trap_Cvar_VariableValue("ui_netGameType");
-            if (mode == (int)trap_Cvar_VariableValue("g_gametype")) return;
+            int mode = TCE_UI_CvarInteger(trap_Cvar_VariableValue("ui_netGameType"));
+            if (mode == TCE_UI_CvarInteger(trap_Cvar_VariableValue("g_gametype"))) return;
             trap_Cvar_Set("g_gametype", va("%i",mode));
             trap_Cvar_Set("sv_gametype", va("%i",mode));
-            if (mode == 2 || mode == 5 || mode == 7)
-                trap_Cvar_Set("ui_menufiles", va("ui/menus_gt%i.txt",mode));
+            if (mode == 2)
+                trap_Cvar_Set("ui_menufiles", "ui/menus_gt2.txt");
+            else if (mode == 5)
+                trap_Cvar_Set("ui_menufiles", "ui/menus_gt5.txt");
+            else if (mode == 7)
+                trap_Cvar_Set("ui_menufiles", "ui/menus_gt7.txt");
             trap_Cmd_ExecuteText(EXEC_APPEND,"vid_restart;");
         } else if (Q_stricmp(name, "StartServer") == 0) {
 			float	skill;
@@ -4311,8 +4565,8 @@ void UI_RunMenuScript(char **args) {
 
 			// DHM - Nerve
 			if ( !ui_dedicated.integer ) {
-				pb_sv = (int)trap_Cvar_VariableValue( "sv_punkbuster" );
-				pb_cl = (int)trap_Cvar_VariableValue( "cl_punkbuster" );
+				pb_sv = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "sv_punkbuster" ));
+				pb_cl = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "cl_punkbuster" ));
 
 				if ( pb_sv && !pb_cl ) {
 					trap_Cvar_Set("com_errorMessage", "You must either disable PunkBuster on the Server, or enable PunkBuster on the Client before starting a non-dedicated server.");
@@ -4338,7 +4592,7 @@ void UI_RunMenuScript(char **args) {
 
 			// NERVE - SMF - set user cvars here
 			// set timelimit
-			val = trap_Cvar_VariableValue( "ui_userTimelimit" );
+			val = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_userTimelimit" ));
 
 			if ( val && val != uiInfo.mapList[ui_mapIndex.integer].Timelimit )
 				trap_Cvar_Set("g_userTimelimit", va( "%i", val ) );
@@ -4346,7 +4600,7 @@ void UI_RunMenuScript(char **args) {
 				trap_Cvar_Set("g_userTimelimit", "0" );
 
 			// set axis respawn time
-			val = trap_Cvar_VariableValue( "ui_userAxisRespawnTime" );
+			val = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_userAxisRespawnTime" ));
 
 			if ( val && val != uiInfo.mapList[ui_mapIndex.integer].AxisRespawnTime )
 				trap_Cvar_Set("g_userAxisRespawnTime", va( "%i", val ) );
@@ -4354,7 +4608,7 @@ void UI_RunMenuScript(char **args) {
 				trap_Cvar_Set("g_userAxisRespawnTime", "0" );
 
 			// set allied respawn time
-			val = trap_Cvar_VariableValue( "ui_userAlliedRespawnTime" );
+			val = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_userAlliedRespawnTime" ));
 
 			if ( val && val != uiInfo.mapList[ui_mapIndex.integer].AlliedRespawnTime )
 				trap_Cvar_Set("g_userAlliedRespawnTime", va( "%i", val ) );
@@ -4474,7 +4728,7 @@ void UI_RunMenuScript(char **args) {
 				trap_Cmd_ExecuteText( EXEC_APPEND, va("demo \"%s\"\n", uiInfo.demoList[uiInfo.demoIndex]));
 		} else if( Q_stricmp( name, "deleteDemo" ) == 0 ) {
 			if( uiInfo.demoIndex >= 0 && uiInfo.demoIndex < uiInfo.demoCount ) {
-                trap_FS_Delete( va( "demos/%s.dm_%d", uiInfo.demoList[uiInfo.demoIndex], (int)trap_Cvar_VariableValue("protocol") ) );
+                trap_FS_Delete( va( "demos/%s.dm_%d", uiInfo.demoList[uiInfo.demoIndex], TCE_UI_CvarInteger(trap_Cvar_VariableValue("protocol")) ) );
 			}
 		} else if (Q_stricmp(name, "closeJoin") == 0) {
 			if (uiInfo.serverStatus.refreshActive) {
@@ -4515,7 +4769,7 @@ void UI_RunMenuScript(char **args) {
 		} else if (Q_stricmp(name, "ServerStatus") == 0) {
 			// the server info dialog has been turned into a modal thing
 			// it can be called in several situations
-			if (trap_Cvar_VariableValue( "ui_serverBrowser" ) == 1)
+			if (TCE_UI_ServerBrowserIsOne(trap_Cvar_VariableValue( "ui_serverBrowser" )))
 			{
 				// legacy, from the server browser
 				trap_LAN_GetServerAddressString(ui_netSource.integer, uiInfo.serverStatus.displayServers[uiInfo.serverStatus.currentServer], uiInfo.serverStatusAddress, sizeof(uiInfo.serverStatusAddress));
@@ -4603,7 +4857,7 @@ void UI_RunMenuScript(char **args) {
 		} else if (Q_stricmp(name, "Leave") == 0) {
 			// ATVI Wolfenstein Misc #460
 			// if we are running a local server, make sure we kill it cleanly for other clients
-			if (trap_Cvar_VariableValue("sv_running"))
+			if (!TCE_UI_FirstFeederIsHeads(trap_Cvar_VariableValue("sv_running")))
 			{
 				trap_Cvar_Set( "sv_killserver", "1" );
 			}
@@ -4674,24 +4928,24 @@ void UI_RunMenuScript(char **args) {
 				trap_Cmd_ExecuteText( EXEC_APPEND, va("callvote unreferee \"%s\"\n", uiInfo.playerNames[uiInfo.playerIndex]) );
 			}
 		} else if (Q_stricmp(name, "voteGame") == 0) {
-			int ui_voteGameType = trap_Cvar_VariableValue( "ui_voteGameType" );
+			int ui_voteGameType = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_voteGameType" ));
 			if (ui_voteGameType >= 0 && ui_voteGameType < uiInfo.numGameTypes) {
 				trap_Cmd_ExecuteText( EXEC_APPEND, va("callvote gametype %i\n", ui_voteGameType ) );
 			}
 		} else if (Q_stricmp(name, "refGame") == 0) {
-			int ui_voteGameType = trap_Cvar_VariableValue( "ui_voteGameType" );
+			int ui_voteGameType = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_voteGameType" ));
 			if (ui_voteGameType >= 0 && ui_voteGameType < uiInfo.numGameTypes) {
 				trap_Cmd_ExecuteText( EXEC_APPEND, va("ref gametype %i\n", ui_voteGameType ) );
 			}
 		} else if (Q_stricmp(name, "voteTimelimit") == 0) {
 			trap_Cmd_ExecuteText( EXEC_APPEND, va("callvote timelimit %f\n", trap_Cvar_VariableValue( "ui_voteTimelimit" ) ) );
 		} else if (Q_stricmp(name, "voteWarmupDamage") == 0) {
-			trap_Cmd_ExecuteText( EXEC_APPEND, va("callvote warmupdamage %d\n", (int)trap_Cvar_VariableValue( "ui_voteWarmupDamage" ) ) );
+			trap_Cmd_ExecuteText( EXEC_APPEND, va("callvote warmupdamage %d\n", TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_voteWarmupDamage" )) ) );
 
 		} else if (Q_stricmp(name, "refTimelimit") == 0) {
 			trap_Cmd_ExecuteText( EXEC_APPEND, va("ref timelimit %f\n", trap_Cvar_VariableValue( "ui_voteTimelimit" ) ) );
 		} else if (Q_stricmp(name, "refWarmupDamage") == 0) {
-			trap_Cmd_ExecuteText( EXEC_APPEND, va("ref warmupdamage %d\n", (int)trap_Cvar_VariableValue( "ui_voteWarmupDamage" ) ) );
+			trap_Cmd_ExecuteText( EXEC_APPEND, va("ref warmupdamage %d\n", TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_voteWarmupDamage" )) ) );
 		} else if (Q_stricmp(name, "voteInitToggles") == 0) {
 				char info[MAX_INFO_STRING];
 
@@ -4798,7 +5052,7 @@ void UI_RunMenuScript(char **args) {
 		} else if (Q_stricmp(name, "orders") == 0) {
 			const char *orders;
 			if (String_Parse(args, &orders)) {
-				int selectedPlayer = trap_Cvar_VariableValue("cg_selectedPlayer");
+				int selectedPlayer = TCE_UI_CvarInteger(trap_Cvar_VariableValue("cg_selectedPlayer"));
 				if (selectedPlayer < uiInfo.myTeamCount) {
 					strcpy(buff, orders);
 					trap_Cmd_ExecuteText( EXEC_APPEND, va(buff, uiInfo.teamClientNums[selectedPlayer]) );
@@ -4822,7 +5076,7 @@ void UI_RunMenuScript(char **args) {
 		} else if (Q_stricmp(name, "voiceOrdersTeam") == 0) {
 			const char *orders;
 			if (String_Parse(args, &orders)) {
-				int selectedPlayer = trap_Cvar_VariableValue("cg_selectedPlayer");
+				int selectedPlayer = TCE_UI_CvarInteger(trap_Cvar_VariableValue("cg_selectedPlayer"));
 				if (selectedPlayer == uiInfo.myTeamCount) {
 					trap_Cmd_ExecuteText( EXEC_APPEND, orders );
 					trap_Cmd_ExecuteText( EXEC_APPEND, "\n" );
@@ -4835,7 +5089,7 @@ void UI_RunMenuScript(char **args) {
 		} else if (Q_stricmp(name, "voiceOrders") == 0) {
 			const char *orders;
 			if (String_Parse(args, &orders)) {
-				int selectedPlayer = trap_Cvar_VariableValue("cg_selectedPlayer");
+				int selectedPlayer = TCE_UI_CvarInteger(trap_Cvar_VariableValue("cg_selectedPlayer"));
 				if (selectedPlayer < uiInfo.myTeamCount) {
 					strcpy(buff, orders);
 					trap_Cmd_ExecuteText( EXEC_APPEND, va(buff, uiInfo.teamClientNums[selectedPlayer]) );
@@ -4963,7 +5217,7 @@ void UI_RunMenuScript(char **args) {
 		} else if( Q_stricmp( name, "setupCampaign" ) == 0 ) {
 			trap_Cvar_Set( "ui_campaignmap", va( "%i", uiInfo.campaignList[ui_currentCampaign.integer].progress ) );
 		} else if( Q_stricmp( name, "playCampaign" ) == 0 ) {
-			int map = trap_Cvar_VariableValue( "ui_campaignmap" );
+			int map = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_campaignmap" ));
 			
 			if( map <= uiInfo.campaignList[ui_currentCampaign.integer].progress ) {
 				//trap_Cmd_ExecuteText( EXEC_APPEND, va("spmap \"%s\"\n", uiInfo.campaignList[ui_currentCampaign.integer].mapInfos[uiInfo.campaignList[ui_currentCampaign.integer].progress]->mapLoadName));
@@ -5117,34 +5371,34 @@ void UI_RunMenuScript(char **args) {
 			trap_Cvar_Set( "ui_profile_renameto", "" );
 		} else if (Q_stricmp(name, "togglePbSvStatus") == 0) {			
 			// TTimo
-			int sv_pb = trap_Cvar_VariableValue( "sv_punkbuster" );
+			int sv_pb = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "sv_punkbuster" ));
 			if (sv_pb)
 				trap_SetPbSvStatus(0);
 			else
 				trap_SetPbSvStatus(1);
 		} else if (Q_stricmp(name, "initHostGameFeatures") == 0) {
-			int cvar = trap_Cvar_VariableValue( "g_maxlives" );
+			int cvar = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "g_maxlives" ));
 			if( cvar ) {
 				trap_Cvar_Set( "ui_maxlives", "1" );
 			} else {
 				trap_Cvar_Set( "ui_maxlives", "0" );
 			}
 
-			cvar = trap_Cvar_VariableValue( "g_heavyWeaponRestriction" );
+			cvar = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "g_heavyWeaponRestriction" ));
 			if( cvar == 100 ) {
 				trap_Cvar_Set( "ui_heavyWeaponRestriction", "0" );
 			} else {
 				trap_Cvar_Set( "ui_heavyWeaponRestriction", "1" );
 			}
 		} else if (Q_stricmp(name, "toggleMaxLives") == 0) {
-			int ui_ml = trap_Cvar_VariableValue( "ui_maxlives" );
+			int ui_ml = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_maxlives" ));
 			if( ui_ml ) {
 				trap_Cvar_Set( "g_maxlives", "5" );
 			} else {
 				trap_Cvar_Set( "g_maxlives", "0" );
 			}
 		} else if (Q_stricmp(name, "toggleWeaponRestriction") == 0) {
-			int ui_hwr = trap_Cvar_VariableValue( "ui_heavyWeaponRestriction" );
+			int ui_hwr = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_heavyWeaponRestriction" ));
 			if( ui_hwr ) {
 				trap_Cvar_Set( "g_heavyWeaponRestriction", "10" );
 			} else {
@@ -5159,9 +5413,9 @@ void UI_RunMenuScript(char **args) {
 			// we use ui_finalURL as an auxiliary variable to gather URLs from various sources
 			trap_openURL( UI_Cvar_VariableString("ui_finalURL") );
 		} else if (Q_stricmp(name, "clientCheckVote") == 0) {
-			int flags = trap_Cvar_VariableValue( "cg_ui_voteFlags" );
+			int flags = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "cg_ui_voteFlags" ));
 
-			if(flags == VOTING_DISABLED) trap_Cvar_SetValue("cg_ui_novote", 1);
+			if ((unsigned int)flags == ((1u << ((unsigned int)numVotesAvailable & 31u)) - 1u)) trap_Cvar_SetValue("cg_ui_novote", 1);
 			else trap_Cvar_SetValue("cg_ui_novote", 0);
 		} else if (Q_stricmp(name, "reconnect") == 0) {
 			// TODO: if dumped because of cl_allowdownload problem, toggle on first (we don't have appropriate support for this yet)
@@ -5204,24 +5458,24 @@ void UI_RunMenuScript(char **args) {
 		else if( Q_stricmp( name, "systemCvarsGet" ) == 0 ) {
 			int ui_r_mode = TCE_UI_GetVideoMode();
 			float ui_r_gamma = trap_Cvar_VariableValue( "r_gamma" );
-			int ui_rate = trap_Cvar_VariableValue( "rate" );
-			int ui_cl_maxpackets = trap_Cvar_VariableValue( "cl_maxpackets" );
-			int ui_cl_packetdup = trap_Cvar_VariableValue( "cl_packetdup" );
+			int ui_rate = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "rate" ));
+			int ui_cl_maxpackets = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "cl_maxpackets" ));
+			int ui_cl_packetdup = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "cl_packetdup" ));
 			float ui_sensitivity = trap_Cvar_VariableValue( "sensitivity" );
-			int ui_r_colorbits = trap_Cvar_VariableValue( "r_colorbits" );
-			int ui_r_fullscreen = trap_Cvar_VariableValue( "r_fullscreen" );
-			int ui_r_lodbias = trap_Cvar_VariableValue( "r_lodbias" );
-			int ui_r_subdivisions = trap_Cvar_VariableValue( "r_subdivisions" );
-			int ui_r_picmip = trap_Cvar_VariableValue( "r_picmip" );
-			int ui_r_texturebits = trap_Cvar_VariableValue( "r_texturebits" );
-			int ui_r_depthbits = trap_Cvar_VariableValue( "r_depthbits" );
-			int ui_r_ext_compressed_textures = trap_Cvar_VariableValue( "r_ext_compressed_textures" );
-			int ui_r_finish = trap_Cvar_VariableValue( "r_finish" );
-			int ui_r_dynamiclight = trap_Cvar_VariableValue( "r_dynamiclight" );
-			int ui_r_allowextensions = trap_Cvar_VariableValue( "r_allowextensions" );
-			int ui_m_filter = trap_Cvar_VariableValue( "m_filter" );
-			int ui_s_khz = trap_Cvar_VariableValue( "s_khz" );
-			int ui_r_detailtextures = trap_Cvar_VariableValue( "r_detailtextures" );
+			int ui_r_colorbits = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "r_colorbits" ));
+			int ui_r_fullscreen = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "r_fullscreen" ));
+			int ui_r_lodbias = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "r_lodbias" ));
+			int ui_r_subdivisions = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "r_subdivisions" ));
+			int ui_r_picmip = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "r_picmip" ));
+			int ui_r_texturebits = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "r_texturebits" ));
+			int ui_r_depthbits = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "r_depthbits" ));
+			int ui_r_ext_compressed_textures = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "r_ext_compressed_textures" ));
+			int ui_r_finish = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "r_finish" ));
+			int ui_r_dynamiclight = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "r_dynamiclight" ));
+			int ui_r_allowextensions = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "r_allowextensions" ));
+			int ui_m_filter = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "m_filter" ));
+			int ui_s_khz = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "s_khz" ));
+			int ui_r_detailtextures = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "r_detailtextures" ));
 			char ui_r_texturemode[MAX_CVAR_VALUE_STRING];
 			trap_Cvar_VariableStringBuffer( "r_texturemode", ui_r_texturemode, sizeof(ui_r_texturemode) );
 
@@ -5269,26 +5523,27 @@ void UI_RunMenuScript(char **args) {
 			trap_Cvar_Set( "ui_r_detailtextures", "" );			
 			trap_Cvar_Set( "ui_r_texturemode", "" );
 		} else if( Q_stricmp( name, "systemCvarsApply" ) == 0 ) {
-			int ui_r_mode = trap_Cvar_VariableValue( "ui_r_mode" );
+			int ui_r_mode = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_r_mode" ));
 			float ui_r_gamma = trap_Cvar_VariableValue( "ui_r_gamma" );
-			int ui_rate = trap_Cvar_VariableValue( "ui_rate" );
-			int ui_cl_maxpackets = trap_Cvar_VariableValue( "ui_cl_maxpackets" );
-			int ui_cl_packetdup = trap_Cvar_VariableValue( "ui_cl_packetdup" );
+			int ui_rate = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_rate" ));
+			int ui_cl_maxpackets = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_cl_maxpackets" ));
+			int ui_cl_packetdup = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_cl_packetdup" ));
 			float ui_sensitivity = trap_Cvar_VariableValue( "ui_sensitivity" );
-			int ui_r_colorbits = trap_Cvar_VariableValue( "ui_r_colorbits" );
-			int ui_r_fullscreen = trap_Cvar_VariableValue( "ui_r_fullscreen" );
-			int ui_r_lodbias = trap_Cvar_VariableValue( "ui_r_lodbias" );
-			int ui_r_subdivisions = trap_Cvar_VariableValue( "ui_r_subdivisions" );
-			int ui_r_picmip = trap_Cvar_VariableValue( "ui_r_picmip" );
-			int ui_r_texturebits = trap_Cvar_VariableValue( "ui_r_texturebits" );
-			int ui_r_depthbits = trap_Cvar_VariableValue( "ui_r_depthbits" );
-			int ui_r_ext_compressed_textures = trap_Cvar_VariableValue( "ui_r_ext_compressed_textures" );
-			int ui_r_finish = trap_Cvar_VariableValue( "ui_r_finish" );
-			int ui_r_dynamiclight = trap_Cvar_VariableValue( "ui_r_dynamiclight" );
-			int ui_r_allowextensions = trap_Cvar_VariableValue( "ui_r_allowextensions" );
-			int ui_m_filter = trap_Cvar_VariableValue( "ui_m_filter" );
-			int ui_s_khz = trap_Cvar_VariableValue( "ui_s_khz" );
-			int ui_r_detailtextures = trap_Cvar_VariableValue( "ui_r_detailtextures" );			
+			int ui_r_colorbits = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_r_colorbits" ));
+			int ui_r_fullscreen = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_r_fullscreen" ));
+			int ui_r_lodbias = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_r_lodbias" ));
+			int ui_r_subdivisions = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_r_subdivisions" ));
+			int ui_r_picmip = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_r_picmip" ));
+			int ui_r_texturebits = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_r_texturebits" ));
+			int ui_r_depthbits = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_r_depthbits" ));
+			int ui_r_ext_compressed_textures = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_r_ext_compressed_textures" ));
+			int ui_r_finish = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_r_finish" ));
+			int ui_r_dynamiclight = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_r_dynamiclight" ));
+			int ui_r_allowextensions = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_r_allowextensions" ));
+			int ui_m_filter = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_m_filter" ));
+			/* The native Apply branch discards this read without FISTP. */
+			float ui_s_khz = trap_Cvar_VariableValue( "ui_s_khz" );
+			int ui_r_detailtextures = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_r_detailtextures" ));
 			char ui_r_texturemode[MAX_CVAR_VALUE_STRING];
 			trap_Cvar_VariableStringBuffer( "ui_r_texturemode", ui_r_texturemode, sizeof(ui_r_texturemode) );
 
@@ -5343,12 +5598,12 @@ void UI_RunMenuScript(char **args) {
 			trap_Cvar_Set( "ui_r_detailtextures", "" );			
 			trap_Cvar_Set( "ui_r_texturemode", "" );
 		} else if( Q_stricmp( name, "profileCvarsGet" ) == 0 ) {
-			int ui_profile_mousePitch = trap_Cvar_VariableValue( "ui_mousePitch" );
+			int ui_profile_mousePitch = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_mousePitch" ));
 
 			trap_Cvar_Set( "ui_profile_mousePitch", va("%i",ui_profile_mousePitch) );
 		} else if( Q_stricmp( name, "profileCvarsApply" ) == 0 ) {
-			int ui_handedness = trap_Cvar_VariableValue( "ui_handedness" );
-			int ui_profile_mousePitch = trap_Cvar_VariableValue( "ui_profile_mousePitch" );
+			int ui_handedness = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_handedness" ));
+			int ui_profile_mousePitch = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_profile_mousePitch" ));
 
 			trap_Cvar_Set( "ui_mousePitch", va("%i",ui_profile_mousePitch) );
 
@@ -5374,7 +5629,7 @@ void UI_RunMenuScript(char **args) {
 			trap_Cvar_Set( "ui_handedness", "" );
 			trap_Cvar_Set( "ui_profile_mousePitch", "" );
 		} else if( Q_stricmp( name, "defaultControls" ) == 0 ) {
-			int ui_handedness = trap_Cvar_VariableValue( "ui_handedness" );
+			int ui_handedness = TCE_UI_CvarInteger(trap_Cvar_VariableValue( "ui_handedness" ));
 
 			if( ui_handedness == 0 ) {
 				// exec default.cfg
@@ -5405,7 +5660,7 @@ static int UI_MapCountByGameType(qboolean singlePlayer) {
 	c = 0;
 	game = singlePlayer ? uiInfo.gameTypes[ui_gameType.integer].gtEnum : ui_netGameType.integer;
 	/* TC host-game official-server policy, Windows 4000b360. */
-	officialOnly = (int)trap_Cvar_VariableValue("sv_gametype");
+	officialOnly = TCE_UI_CvarInteger(trap_Cvar_VariableValue("sv_gametype"));
 
 	if( game == GT_WOLF_CAMPAIGN ) {
 		for (i = 0; i < uiInfo.campaignCount; i++) {
@@ -5416,7 +5671,9 @@ static int UI_MapCountByGameType(qboolean singlePlayer) {
 	} else {
 		for (i = 0; i < uiInfo.mapCount; i++) {
 			uiInfo.mapList[i].active = qfalse;
-			if ( uiInfo.mapList[i].typeBits & (1 << game)) {
+			/* Both original x86 modules mask the shift count through CL. */
+			if ((unsigned int)uiInfo.mapList[i].typeBits &
+			    (1u << ((unsigned int)game & 31u))) {
 				if (singlePlayer || (officialOnly && !uiInfo.mapList[i].tceOfficial)) {
 					continue;
 				}
@@ -6180,7 +6437,7 @@ UI_FeederCount
 ==================
 */
 static int UI_FeederCount(float feederID) {
-	if (feederID == FEEDER_HEADS) {
+	if (TCE_UI_FirstFeederIsHeads(feederID)) {
 		return uiInfo.characterCount;
 	} else if (feederID == FEEDER_Q3HEADS) {
 		return uiInfo.q3HeadCount;
@@ -6204,13 +6461,13 @@ static int UI_FeederCount(float feederID) {
 		return uiInfo.numFoundPlayerServers;
 	} else if (feederID == FEEDER_PLAYER_LIST) {
 		if (uiInfo.uiDC.realTime > uiInfo.playerRefresh) {
-			uiInfo.playerRefresh = uiInfo.uiDC.realTime + 3000;
+			uiInfo.playerRefresh = TCE_UI_WrapAdd(uiInfo.uiDC.realTime, 3000);
 			UI_BuildPlayerList();
 		}
 		return uiInfo.playerCount;
 	} else if (feederID == FEEDER_TEAM_LIST) {
 		if (uiInfo.uiDC.realTime > uiInfo.playerRefresh) {
-			uiInfo.playerRefresh = uiInfo.uiDC.realTime + 3000;
+			uiInfo.playerRefresh = TCE_UI_WrapAdd(uiInfo.uiDC.realTime, 3000);
 			UI_BuildPlayerList();
 		}
 		return uiInfo.myTeamCount;
@@ -6325,8 +6582,9 @@ const char *UI_FeederItemText( float feederID, int index, int column, qhandle_t 
 	static char pingstr[10];
 	static int lastColumn = -1;
 	static int lastTime = 0;
+	qboolean tceHeads = TCE_UI_FirstFeederIsHeads(feederID);
 	*numhandles = 0;
-	if (feederID == FEEDER_HEADS) {
+	if (tceHeads) {
 		if (index >= 0 && index < uiInfo.characterCount) {
 			return uiInfo.characterList[index].name;
 		}
@@ -6353,7 +6611,7 @@ const char *UI_FeederItemText( float feederID, int index, int column, qhandle_t 
 	} else if (feederID == FEEDER_SERVERS) {
 		if( index >= 0 && index < uiInfo.serverStatus.numDisplayServers) {
 			int ping, game, antilag, needpass, friendlyfire, maxlives, punkbuster, weaponrestrictions, balancedteams, serverload;
-			if (lastColumn != column || lastTime > uiInfo.uiDC.realTime + 5000) {
+			if (lastColumn != column || lastTime > TCE_UI_WrapAdd(uiInfo.uiDC.realTime, 5000)) {
 				trap_LAN_GetServerInfo(ui_netSource.integer, uiInfo.serverStatus.displayServers[index], info, MAX_STRING_CHARS);
 				lastColumn = column;
 				lastTime = uiInfo.uiDC.realTime;
@@ -6525,7 +6783,7 @@ const char *UI_FeederItemText( float feederID, int index, int column, qhandle_t 
 
 
 static qhandle_t UI_FeederItemImage(float feederID, int index) {
-	if (feederID == FEEDER_HEADS) {
+	if (TCE_UI_FirstFeederIsHeads(feederID)) {
 		if (index >= 0 && index < uiInfo.characterCount) {
 			if (uiInfo.characterList[index].headImage == -1) {
 				uiInfo.characterList[index].headImage = trap_R_RegisterShaderNoMip(uiInfo.characterList[index].imageName);
@@ -6582,7 +6840,7 @@ static qhandle_t UI_FeederItemImage(float feederID, int index) {
 
 void UI_FeederSelection(float feederID, int index) {
 	static char info[MAX_STRING_CHARS];
-  if (feederID == FEEDER_HEADS) {
+  if (TCE_UI_FirstFeederIsHeads(feederID)) {
     if (index >= 0 && index < uiInfo.characterCount) {
       trap_Cvar_Set( "team_model", uiInfo.characterList[index].female ? "janet" : "james");
       trap_Cvar_Set( "team_headmodel", va("*%s", uiInfo.characterList[index].name)); 
@@ -6735,20 +6993,73 @@ void UI_FeederSelection(float feederID, int index) {
 }
 
 extern void Item_ListBox_MouseEnter( itemDef_t *item, float x, float y, qboolean click );
+/* Windows tests the server feeder's binary32 bits with CMP. Linux i386 tests
+ * only x87 C3, so an unordered Special also enters the original click path. */
+static qboolean TCE_UI_ServerFeederClick(const float *tceSpecial) {
+	unsigned int bits;
+	memcpy(&bits, tceSpecial, sizeof(bits));
+#if defined(_WIN32)
+	return bits == 0x40000000u;
+#else
+	/* Linux also accepts unordered; this does not model x87 exceptions. */
+	return bits == 0x40000000u || (bits & 0x7fffffffu) > 0x7f800000u;
+#endif
+}
+
+/* Native geometry keeps its product until the y store. Windows obtains
+ * the row difference before x, Linux after x; width is held only on Windows.
+ * These are numeric/store stages, not an emulation of the x87 environment. */
+static void TCE_UI_ServerFavoriteRect(const itemDef_t *tceItem,
+	const listBoxDef_t *tceList, rectDef_t *tceRect) {
+#if defined(_WIN32) || defined(__linux__)
+	long double columnX = (long double)tceList->columnInfo[SORT_FAVOURITES].pos;
+	unsigned int differenceBits;
+	int difference;
+#if defined(_WIN32)
+	long double width;
+	differenceBits = (unsigned int)tceList->cursorPos;
+	differenceBits -= (unsigned int)tceList->startPos;
+	tceRect->x = (float)(columnX + tceItem->window.rect.x);
+#else
+	tceRect->x = (float)(columnX + tceItem->window.rect.x);
+	differenceBits = (unsigned int)tceList->cursorPos;
+	differenceBits -= (unsigned int)tceList->startPos;
+#endif
+	memcpy(&difference, &differenceBits, sizeof(difference));
+	tceRect->y = (float)((long double)difference * tceList->elementHeight +
+		tceItem->window.rect.y);
+#if defined(_WIN32)
+	width = (long double)tceList->columnInfo[SORT_FAVOURITES].width;
+	tceRect->w = (float)width;
+	tceRect->h = (float)width;
+#else
+	tceRect->w = (float)(long double)tceList->columnInfo[SORT_FAVOURITES].width;
+	tceRect->h = (float)(long double)tceList->columnInfo[SORT_FAVOURITES].width;
+#endif
+#else
+	/* Defined integer wrap only; these targets do not claim i386 x87 precision,
+	 * exception flags, rounding-mode or original spill-schedule equivalence. */
+	unsigned int tceDiffBits = (unsigned int)tceList->cursorPos - (unsigned int)tceList->startPos;
+	int tceClickRectDiff;
+	memcpy(&tceClickRectDiff, &tceDiffBits, sizeof(tceClickRectDiff));
+	tceRect->x = tceItem->window.rect.x + tceList->columnInfo[SORT_FAVOURITES].pos;
+	tceRect->y = tceItem->window.rect.y + tceClickRectDiff * tceList->elementHeight;
+	tceRect->w = tceList->columnInfo[SORT_FAVOURITES].width;
+	tceRect->h = tceList->columnInfo[SORT_FAVOURITES].width;
+#endif
+}
+
 qboolean UI_FeederSelectionClick( itemDef_t *item )
 {
 	listBoxDef_t *listPtr = (listBoxDef_t*)item->typeData;
 
-	if( item->special == FEEDER_SERVERS && !Menus_CaptureFuncActive() ) {
+	if( TCE_UI_ServerFeederClick(&item->special) && !Menus_CaptureFuncActive() ) {
 		// ugly hack for favourites handling
 		rectDef_t rect;
 
 		Item_ListBox_MouseEnter( item, DC->cursorx, DC->cursory, qtrue );
 
-		rect.x = item->window.rect.x + listPtr->columnInfo[SORT_FAVOURITES].pos;
-		rect.y = item->window.rect.y + (listPtr->cursorPos - listPtr->startPos) * listPtr->elementHeight;
-		rect.w = listPtr->columnInfo[SORT_FAVOURITES].width;
-		rect.h = listPtr->columnInfo[SORT_FAVOURITES].width;
+		TCE_UI_ServerFavoriteRect(item, listPtr, &rect);
 		
 		if( BG_CursorInRect( &rect ) ) {
 			char buff[MAX_STRING_CHARS];
@@ -7311,42 +7622,68 @@ static void UI_BuildQ3Model_List( void )
 UI_Init
 =================
 */
-void _UI_Init( qboolean inGameLoad ) {
-	int start, x;
-	int tcGameType = (int)trap_Cvar_VariableValue("g_gametype");
+/* Numeric contracts from the Windows/Linux UI controllers. */
+static int UI_AddTime32(int a,int b) {
+    unsigned bits=(unsigned)a+(unsigned)b;
+    int result;
+    memcpy(&result,&bits,sizeof(result));
+    return result;
+}
 
-	//uiInfo.inGameLoad = inGameLoad;
+static int UI_SubtractTime32(int a,int b) {
+    unsigned bits=(unsigned)a-(unsigned)b;
+    int result;
+    memcpy(&result,&bits,sizeof(result));
+    return result;
+}
 
-	/* TC 4000db90 / Linux 00031d88: preserve the archived host selection.
-	 * The running gametype selects the menu file independently below. */
-	UI_RegisterCvars();
-	TCE_InitClientGUID();
-	UI_InitMemory();
-	trap_PC_RemoveAllGlobalDefines();
+static int UI_CvarIntegerValue(const char *name) {
+    return TCE_TruncateNativeInteger((long double)trap_Cvar_VariableValue(name));
+}
 
-	/* TC chooses its existing asset menu set before loading any menus. */
-	trap_Cvar_Set("ui_menuFiles", tcGameType == 7 ? "ui/menus_gt7.txt" :
-	    tcGameType == 2 ? "ui/menus_gt2.txt" : "ui/menus_gt5.txt");
+static qboolean UI_CvarIsZeroOrNaN(const char *name) {
+    return TCE_FloatIsZeroOrNaN(trap_Cvar_VariableValue(name)) ? qtrue : qfalse;
+}
 
-	// cache redundant calulations
-	trap_GetGlconfig( &uiInfo.uiDC.glconfig );
+static qboolean UI_CvarIsNegativeOrNaN(const char *name) {
+    float value=trap_Cvar_VariableValue(name);
+    return (value<0.0f || TCE_FloatIsNaN(value)) ? qtrue : qfalse;
+}
 
-	UI_ParseGLConfig();
+/* The aspect comparison in both originals multiplies signed 32-bit video
+ * dimensions with wraparound before comparing them. Use unsigned arithmetic
+ * for the product, then recover its signed value without an overflowing cast. */
+static int UI_Multiply32(int value, unsigned factor) {
+    unsigned bits = (unsigned)value * factor;
+    int result;
+    memcpy(&result, &bits, sizeof(result));
+    return result;
+}
 
-	// for 640x480 virtualized screen
-	uiInfo.uiDC.yscale = uiInfo.uiDC.glconfig.vidHeight * (1.0/480.0);
-	uiInfo.uiDC.xscale = uiInfo.uiDC.glconfig.vidWidth * (1.0/640.0);
-	if ( uiInfo.uiDC.glconfig.vidWidth * 480 > uiInfo.uiDC.glconfig.vidHeight * 640 ) {
-		// wide screen
-		uiInfo.uiDC.bias = 0.5 * ( uiInfo.uiDC.glconfig.vidWidth - ( uiInfo.uiDC.glconfig.vidHeight * (640.0/480.0) ) );
-	}
-	else {
-		// no wide screen
-		uiInfo.uiDC.bias = 0;
-	}
+static void UI_InitDisplayGeometry(void) {
+    int width = uiInfo.uiDC.glconfig.vidWidth;
+    int height = uiInfo.uiDC.glconfig.vidHeight;
+    int scaledWidth = UI_Multiply32(width, 480u);
+    int scaledHeight = UI_Multiply32(height, 640u);
+    long double virtualWidth = (long double)width;
+    long double virtualHeight = (long double)height;
 
+    /* These are the original binary64 factors, followed by binary32 stores.
+     * long double expresses retained intermediate precision where supported;
+     * it is not a guarantee of the original x87 rounding or exception state. */
+    uiInfo.uiDC.yscale = (float)(virtualHeight * (long double)(1.0 / 480.0));
+    uiInfo.uiDC.xscale = (float)(virtualWidth * (long double)(1.0 / 640.0));
+    if (scaledWidth > scaledHeight) {
+        uiInfo.uiDC.bias = (float)((virtualWidth -
+            virtualHeight * (long double)(640.0 / 480.0)) * 0.5L);
+    } else {
+        uiInfo.uiDC.bias = 0.0f;
+    }
+}
 
-  //UI_Load();
+/* Install the complete callback table before Init_Display publishes it.
+ * The originals share this table; no callback runs during these assignments. */
+static void UI_InitDisplayCallbacks(void) {
 	uiInfo.uiDC.registerShaderNoMip = &trap_R_RegisterShaderNoMip;
 	uiInfo.uiDC.setColor = &UI_SetColor;
 	uiInfo.uiDC.drawHandlePic = &UI_DrawHandlePic;
@@ -7364,7 +7701,6 @@ void _UI_Init( qboolean inGameLoad ) {
 	uiInfo.uiDC.modelBounds = &trap_R_ModelBounds;
 	uiInfo.uiDC.fillRect = &UI_FillRect;
 	uiInfo.uiDC.drawRect = &_UI_DrawRect;
-	uiInfo.uiDC.drawSides = &_UI_DrawSides;
 	uiInfo.uiDC.drawTopBottom = &_UI_DrawTopBottom;
 	uiInfo.uiDC.clearScene = &trap_R_ClearScene;
 	uiInfo.uiDC.drawSides = &_UI_DrawSides;
@@ -7418,8 +7754,32 @@ void _UI_Init( qboolean inGameLoad ) {
 	uiInfo.uiDC.updateScreen = &trap_UpdateScreen;
 	uiInfo.uiDC.getHunkData = &trap_GetHunkData;
 	uiInfo.uiDC.getConfigString = &trap_GetConfigString;
+}
 
+void _UI_Init( qboolean inGameLoad ) {
+	unsigned x;
+	int tcGameType = UI_CvarIntegerValue("g_gametype");
 
+	//uiInfo.inGameLoad = inGameLoad;
+
+	/* TC 4000db90 / Linux 00031d88: preserve the archived host selection.
+	 * The running gametype selects the menu file independently below. */
+	UI_RegisterCvars();
+	TCE_InitClientGUID();
+	UI_InitMemory();
+	trap_PC_RemoveAllGlobalDefines();
+
+	/* TC chooses its existing asset menu set before loading any menus. */
+	trap_Cvar_Set("ui_menuFiles", tcGameType == 7 ? "ui/menus_gt7.txt" :
+	    tcGameType == 2 ? "ui/menus_gt2.txt" : "ui/menus_gt5.txt");
+
+	// cache redundant calulations
+	trap_GetGlconfig( &uiInfo.uiDC.glconfig );
+
+	UI_ParseGLConfig();
+
+	UI_InitDisplayGeometry();
+	UI_InitDisplayCallbacks();
 
 	Init_Display(&uiInfo.uiDC);
 
@@ -7440,7 +7800,8 @@ void _UI_Init( qboolean inGameLoad ) {
 
 	uiInfo.campaignMap = trap_R_RegisterShaderNoMip( "gfx/loading/camp_map.tga" );
 
-	start = trap_Milliseconds();
+	/* The original samples this clock even though it does not use the result. */
+	trap_Milliseconds();
 
 	uiInfo.teamCount = 0;
 	uiInfo.characterCount = 0;
@@ -7458,17 +7819,17 @@ void _UI_Init( qboolean inGameLoad ) {
 	// sets defaults for ui temp cvars
 	// rain - bounds check array index, although I'm pretty sure this
 	// stuff isn't used anymore...
-	x = (int)trap_Cvar_VariableValue("color")-1;
-	if (x < 0 || x >= sizeof(gamecodetoui)/sizeof(gamecodetoui[0]))
+	x = (unsigned)UI_CvarIntegerValue("color")-1u;
+	if (x >= sizeof(gamecodetoui)/sizeof(gamecodetoui[0]))
 		x = 0;
 	uiInfo.effectsColor = gamecodetoui[x];
-	uiInfo.currentCrosshair = (int)trap_Cvar_VariableValue("cg_drawCrosshair");
-	trap_Cvar_Set("ui_mousePitch", (trap_Cvar_VariableValue("m_pitch") >= 0) ? "0" : "1");
+	uiInfo.currentCrosshair = UI_CvarIntegerValue("cg_drawCrosshair");
+	trap_Cvar_Set("ui_mousePitch", UI_CvarIsNegativeOrNaN("m_pitch") ? "1" : "0");
 
 	uiInfo.serverStatus.currentServerCinematic = -1;
 	uiInfo.previewMovie = -1;
 
-	if (trap_Cvar_VariableValue("ui_TeamArenaFirstRun") == 0) {
+	if (UI_CvarIsZeroOrNaN("ui_TeamArenaFirstRun")) {
 		trap_Cvar_Set("s_volume", "0.8");
 		trap_Cvar_Set("s_musicvolume", "0.5");
 		trap_Cvar_Set("ui_TeamArenaFirstRun", "1");
@@ -7499,7 +7860,8 @@ void _UI_KeyEvent( int key, qboolean down ) {
 	if (Menu_Count() > 0) {
 		menuDef_t *menu = Menu_GetFocused();
 		if (menu) {
-			if ( trap_Cvar_VariableValue( "cl_bypassMouseInput" ) )
+			/* Both originals invert the same zero/unordered C3 gate. */
+			if ( !TCE_UI_FirstFeederIsHeads(trap_Cvar_VariableValue( "cl_bypassMouseInput" )) )
 				bypassKeyClear = qtrue;
 
 //			if (key == K_ESCAPE && down && !Menus_AnyFullScreenVisible()) {
@@ -7542,13 +7904,13 @@ UI_MouseEvent
 void _UI_MouseEvent( int dx, int dy )
 {
 	// update mouse screen position
-	uiInfo.uiDC.cursorx += dx;
+	uiInfo.uiDC.cursorx = TCE_UI_WrapAdd(uiInfo.uiDC.cursorx, dx);
 	if (uiInfo.uiDC.cursorx < 0)
 		uiInfo.uiDC.cursorx = 0;
 	else if (uiInfo.uiDC.cursorx > 852)
 		uiInfo.uiDC.cursorx = 852;
 
-	uiInfo.uiDC.cursory += dy;
+	uiInfo.uiDC.cursory = TCE_UI_WrapAdd(uiInfo.uiDC.cursory, dy);
 	if (uiInfo.uiDC.cursory < 0)
 		uiInfo.uiDC.cursory = 0;
 	else if (uiInfo.uiDC.cursory > SCREEN_HEIGHT)

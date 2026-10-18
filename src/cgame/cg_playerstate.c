@@ -153,84 +153,184 @@ CG_Respawn
 A respawn happened this snapshot
 ================
 */
-void CG_Respawn( qboolean revived ) {
-	cg.serverRespawning = qfalse;	// Arnout: just in case
+/* The two original builds reset the same TC state in different orders.
+ * Keep those orders around the real animation, command, cvar and fog calls. */
+static void CG_ResetRespawnEffects( void ) {
+    int firemodeTime;
+    int preservedZoneEffect;
 
-	// no error decay on player movement
-	cg.thisFrameTeleport = qtrue;
-
-	// need to reset client-side weapon animations
-	cg.predictedPlayerState.weapAnim = ( ( cg.predictedPlayerState.weapAnim & ANIM_TOGGLEBIT ) ^ ANIM_TOGGLEBIT ) | PM_IdleAnimForWeapon(cg.snap->ps.weapon);	// reset weapon animations
-	cg.predictedPlayerState.weaponstate = WEAPON_READY;	// hmm, set this?  what to?
-
-	// display weapons available
-	cg.weaponSelectTime = cg.time;
-
-	cg.cursorHintIcon = 0;
-	cg.cursorHintTime = 0;
-
-	cg.cameraMode = qfalse;	//----(SA)	get out of camera for sure
-
-	// select the weapon the server says we are using
-	cg.weaponSelect = cg.snap->ps.weapon;
-	// DHM - Nerve :: Clear even more things on respawn
-	cg.zoomedBinoc = qfalse;
-	cg.zoomedScope = qfalse;
-	cg.zoomTime = 0;
-	cg.zoomval = 0;
-
-	trap_SendConsoleCommand( "-zoom\n" );
-	cg.binocZoomTime = 0;
-
-
-	// clear pmext
-	memset( &cg.pmext, 0, sizeof(cg.pmext) );
-	
-	cg.pmext.bAutoReload = (cg_autoReload.integer > 0);
-
-	cg.pmext.sprintTime = SPRINTTIME;
-
-	if( !revived ) {
-		cgs.limboLoadoutSelected = qfalse;
-	}
-
-
-    /* TC respawn state that already has productive native consumers. */
-    cg.tceAimActive = cg.tceAimComplete = cg.tceAimRequested = 0;
+#if defined(_WIN32)
+    firemodeTime = cg.time;
+    preservedZoneEffect = cg.tceSoundZoneEffects[1][1];
+    cg.tceShotHoldUntil = firemodeTime;
+    cg.tceSoundZoneEffects[1][0] = preservedZoneEffect;
+    cg.tceSoundZoneEffects[0][1] = preservedZoneEffect;
+    cg.tceSoundZoneEffects[0][0] = preservedZoneEffect;
+    cg.tceFiremodeTime = firemodeTime;
+    cg.binocZoomTime = 0;
+    cg.tceScopeBlocked = 0;
+    cg.tceAimRequested = 0;
+    cg.tceAimComplete = 0;
+    cg.tceAimActive = 0;
+    cg.tceTacticalScale = 0.0f;
     cg.tceAimWeaponLatch = 0;
-    cg.tceTacticalScale = 0; /* Original34846e6c; offset producer and weapon-position consumer share this state. */
-    cg.tceActionTransitionTime = 0;
-    cg.tceShotHoldUntil=cg.time;
-    cg.tceHeartbeatNext=cg.tceHeartbeatUntil=0;
-    cg.tceAdsBreathTime=0;
-    cg.tceCoronaBlendAlpha=0;
-    cg.tceSoundSampleTime=cg.tceSoundEnvironment=0;
-    VectorClear(cg.tceSoundLastOrigin);
-    VectorClear(cg.tceRoomExtent);
-    cg.tceRoomDistance=0;
-    memset(cg.tceRoomWeights,0,sizeof(cg.tceRoomWeights));
-    cg.tceSoundZoneEffects[0][0]=cg.tceSoundZoneEffects[0][1]=
-        cg.tceSoundZoneEffects[1][0]=cg.tceSoundZoneEffects[1][1];
-    memset(cg.tceSoundZoneSounds,0,sizeof(cg.tceSoundZoneSounds));
-    memset(cg.tceSoundZoneVolume,0,sizeof(cg.tceSoundZoneVolume));
-    cg.tceSoundZoneActive=cg.tceSoundZoneTransitionTime=0;
-    cg.tceFiremodeTime = cg.time;
+    cg.tceRoomDistance = 0.0f;
+    cg.tceSoundSampleTime = 0;
+    cg.tceRoomExtent[0] = 0.0f;
+    cg.tceRoomExtent[1] = 0.0f;
+    cg.tceRoomExtent[2] = 0.0f;
+    cg.tceSoundLastOrigin[0] = 0.0f;
+    cg.tceSoundLastOrigin[1] = 0.0f;
+    cg.tceSoundLastOrigin[2] = 0.0f;
+    cg.tceRoomWeights[3] = 0.0f;
+    cg.tceRoomWeights[2] = 0.0f;
+    cg.tceRoomWeights[1] = 0.0f;
+    cg.tceRoomWeights[0] = 0.0f;
+    cg.tceSoundEnvironment = 0;
+    tceFlash.blindActive = 0;
+    tceFlash.blindUntil = 0;
+    cg.tceCoronaBlendAlpha = 0.0f;
+    cg.tceEyeSmooth = 0.0f;
+    cg.tceEyeLinear = 0.0f;
+    cg.tceScopeLightBoost = 1.0f;
+    cg.tceEyeFlareFrame = 0;
+    cg.tceEyeFlare = 0.0f;
+    cg.tceEyeSampleTime = 0;
+    tceFlash.deafUntil = 0;
+    tceFlash.deafness = 0.0f;
+    cg.tceSoundZoneTransitionTime = 0;
+    cg.tceSoundZoneActive = 0;
+    cg.tceSoundZoneSounds[1][1] = 0;
+    cg.tceSoundZoneSounds[1][0] = 0;
+    cg.tceSoundZoneSounds[0][1] = 0;
+    cg.tceSoundZoneSounds[0][0] = 0;
+    cg.tceSoundZoneVolume[1] = 0;
+    cg.tceSoundZoneVolume[0] = 0;
     cg.tceFiremodeAnimationTime = -1000;
-    tceFlash.blindUntil = tceFlash.blindActive = tceFlash.deafUntil = 0;
-    tceFlash.deafness = 0;
-    trap_Cvar_Set("r_ambientscale", "1.3");
-	cg.proneMovingTime = 0;
-	/* TC30056cb0 resets stance4950 and scopeBlocked4b0c, but preserves
-	 * duck4948/prone4958, sway4a04.. and the captured scope entity. */
-	cg.tceStanceTime=cg.tceScopeBlocked=0;
-	cg.tceEyeSampleTime=0; /* original340a4bd0 */
-	cg.tceEyeSmooth=cg.tceEyeLinear=cg.tceEyeFlare=0;
-	cg.tceEyeFlareFrame=0;cg.tceScopeLightBoost=1;
-
-	// reset fog to world fog (if present)
-	trap_R_SetFog(FOG_CMD_SWITCHFOG, FOG_MAP,20,0,0,0,0);
-	// dhm - end
+#else
+    cg.tceScopeBlocked = 0;
+    cg.binocZoomTime = 0;
+    cg.tceAimRequested = 0;
+    cg.tceAimActive = 0;
+    cg.tceAimComplete = 0;
+    cg.tceAimWeaponLatch = 0;
+    cg.tceSoundSampleTime = 0;
+    cg.tceTacticalScale = 0.0f;
+    cg.tceRoomDistance = 0.0f;
+    cg.tceRoomExtent[0] = 0.0f;
+    cg.tceRoomExtent[1] = 0.0f;
+    cg.tceRoomExtent[2] = 0.0f;
+    cg.tceSoundLastOrigin[0] = 0.0f;
+    cg.tceSoundLastOrigin[1] = 0.0f;
+    cg.tceSoundLastOrigin[2] = 0.0f;
+    cg.tceRoomWeights[3] = 0.0f;
+    cg.tceRoomWeights[2] = 0.0f;
+    cg.tceRoomWeights[1] = 0.0f;
+    cg.tceRoomWeights[0] = 0.0f;
+    cg.tceSoundEnvironment = 0;
+    tceFlash.blindUntil = 0;
+    firemodeTime = cg.time;
+    tceFlash.blindActive = 0;
+    cg.tceCoronaBlendAlpha = 0.0f;
+    cg.tceEyeSmooth = 0.0f;
+    cg.tceEyeLinear = 0.0f;
+    cg.tceShotHoldUntil = firemodeTime;
+    cg.tceScopeLightBoost = 1.0f;
+    cg.tceEyeFlareFrame = 0;
+    cg.tceEyeSampleTime = 0;
+    tceFlash.deafUntil = 0;
+    cg.tceSoundZoneTransitionTime = 0;
+    cg.tceSoundZoneSounds[1][1] = 0;
+    cg.tceSoundZoneSounds[1][0] = 0;
+    cg.tceSoundZoneSounds[0][1] = 0;
+    cg.tceSoundZoneVolume[1] = 0;
+    preservedZoneEffect = cg.tceSoundZoneEffects[1][1];
+    cg.tceSoundZoneSounds[0][0] = 0;
+    cg.tceSoundZoneVolume[0] = 0;
+    cg.tceEyeFlare = 0.0f;
+    tceFlash.deafness = 0.0f;
+    cg.tceSoundZoneActive = 0;
+    cg.tceSoundZoneEffects[1][0] = preservedZoneEffect;
+    cg.tceSoundZoneEffects[0][1] = preservedZoneEffect;
+    cg.tceSoundZoneEffects[0][0] = preservedZoneEffect;
+    cg.tceFiremodeTime = firemodeTime;
+    cg.tceFiremodeAnimationTime = -1000;
+#endif
 }
+
+void CG_Respawn( qboolean revived ) {
+    snapshot_t *snapshot = cg.snap;
+    int animation;
+    int idleAnimation;
+    int selectedWeapon;
+#if !defined(_WIN32)
+    int selectionTime;
+#endif
+    int autoReload;
+
+    cg.thisFrameTeleport = qtrue;
+#if defined(_WIN32)
+    cg.serverRespawning = qfalse;
+    idleAnimation = PM_IdleAnimForWeapon(snapshot->ps.weapon);
+    animation = cg.predictedPlayerState.weapAnim;
+    snapshot = cg.snap;
+    cg.predictedPlayerState.weaponstate = WEAPON_READY;
+    cg.cursorHintIcon = 0;
+    cg.predictedPlayerState.weapAnim = idleAnimation | (~animation & ANIM_TOGGLEBIT);
+    cg.weaponSelectTime = cg.time;
+    cg.cursorHintTime = 0;
+    cg.cameraMode = qfalse;
+    selectedWeapon = snapshot->ps.weapon;
+    cg.weaponSelect = selectedWeapon;
+    cg.zoomedBinoc = qfalse;
+#else
+    /* Linux retains the toggle sampled before the IdleAnim callback. */
+    animation = cg.predictedPlayerState.weapAnim;
+    cg.serverRespawning = qfalse;
+    idleAnimation = PM_IdleAnimForWeapon(snapshot->ps.weapon);
+    cg.predictedPlayerState.weapAnim =
+        ((animation & ANIM_TOGGLEBIT) ^ ANIM_TOGGLEBIT) | idleAnimation;
+    cg.cursorHintIcon = 0;
+    selectionTime = cg.time;
+    snapshot = cg.snap;
+    cg.predictedPlayerState.weaponstate = WEAPON_READY;
+    cg.cursorHintTime = 0;
+    cg.cameraMode = qfalse;
+    cg.weaponSelectTime = selectionTime;
+    selectedWeapon = snapshot->ps.weapon;
+    cg.zoomedBinoc = qfalse;
+    cg.weaponSelect = selectedWeapon;
+#endif
+    cg.zoomedScope = qfalse;
+    cg.zoomTime = 0;
+    cg.zoomval = 0.0f;
+    trap_SendConsoleCommand("-zoom\n");
+
+    CG_ResetRespawnEffects();
+    /* Reset the original movement state and our pending freelook-recoil tail. */
+    memset(&cg.pmext, 0, sizeof(cg.pmext));
+    autoReload = cg_autoReload.integer;
+    cg.pmext.sprintTime = SPRINTTIME;
+    cg.pmext.bAutoReload = autoReload > 0;
+    if (!revived) {
+        cgs.limboLoadoutSelected = qfalse;
+    }
+
+    cg.proneMovingTime = 0;
+#if defined(_WIN32)
+    cg.tceStanceTime = 0;
+    cg.tceActionTransitionTime = 0;
+#else
+    cg.tceActionTransitionTime = 0;
+    cg.tceStanceTime = 0;
+#endif
+    cg.tceHeartbeatNext = 0;
+    cg.tceHeartbeatUntil = 0;
+    cg.tceAdsBreathTime = 0;
+    trap_Cvar_Set("r_ambientscale", "1.3");
+    trap_R_SetFog(FOG_CMD_SWITCHFOG, FOG_MAP, 20, 0.0f, 0.0f, 0.0f, 0.0f);
+}
+
 
 extern char *eventnames[];
 

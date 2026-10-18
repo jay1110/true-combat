@@ -49,35 +49,69 @@ namespace Priority
 namespace Utils
 {
 	bool RegexMatch( const char * exp, const char * str )
-	{		
-		for(; ; exp++, str++)
+	{
+		// A matching literal prefix says nothing about the other alternatives.
+		// Only bypass the regex engine when the ENTIRE pattern is a name or a
+		// name followed by .*. Never pass a truncated expression/string to it.
+		const char * literalEnd = exp;
+		while((*literalEnd >= 'A' && *literalEnd <= 'Z') ||
+			(*literalEnd >= 'a' && *literalEnd <= 'z') ||
+			(*literalEnd >= '0' && *literalEnd <= '9') || *literalEnd == '_') ++literalEnd;
+		if(!*literalEnd || (literalEnd[0] == '.' && literalEnd[1] == '*' && !literalEnd[2]))
 		{
-			char e = *exp, s = *str;
-			if(!e) return !s;
-			if(e == s) continue;
-			if(e >= 'A' && e <= 'Z')
+			const char * value = str;
+			for(const char * name = exp; name != literalEnd; ++name, ++value)
 			{
-				if(e + ('a' - 'A') == s) continue; //case insensitive
+				char e = *name, s = *value;
+				if(e >= 'A' && e <= 'Z') e += 'a' - 'A';
+				if(s >= 'A' && s <= 'Z') s += 'a' - 'A';
+				if(e != s) return false;
 			}
-			else if(e >= 'a' && e <= 'z')
-			{
-				if(e - ('a' - 'A') == s) continue;
-			}
-			else if(e != '_' && !(e >= '0' && e <= '9'))
-			{
-				if(e == '*' || (e == '\\' && exp[1] == '{')) exp--, str--; //repeat last char
-				break;
-			}
-			e = exp[1];
-			if(e != '*' && e != '\\') return false;
-			break;
+			return *literalEnd || !*value;
 		}
 
-		if(exp[0]=='.' && exp[1]=='*' && exp[2]=='\0') return true;
+		// Scripts use ordinary groups/unions, while stock commands also use
+		// BRE \(...\), \{n\} and newline unions. Normalize those few legacy
+		// operators to egrep; MSVC's grep does not handle the stock grouped
+		// newline union. Escaped characters and bracket contents stay intact.
+		String normalized;
+		bool inClass = false, classFirst = false;
+		for(const char * scan = exp; *scan; ++scan)
+		{
+			if(*scan == '\\' && scan[1])
+			{
+				++scan;
+				if(inClass || (*scan != '(' && *scan != ')' && *scan != '{' && *scan != '}'))
+					normalized += '\\';
+				normalized += *scan;
+				classFirst = false;
+				continue;
+			}
+			if(inClass)
+			{
+				// Do not mistake the inner ] of [[:alpha:]], [[.x.]] or
+				// [[=x=]] for the end of the surrounding bracket expression.
+				if(*scan == '[' && (scan[1] == ':' || scan[1] == '.' || scan[1] == '='))
+				{
+					const char * begin = scan;
+					const char delimiter = *++scan;
+					while(scan[1] && !(scan[0] == delimiter && scan[1] == ']')) ++scan;
+					if(scan[1]) ++scan;
+					normalized.append(begin, scan - begin + 1);
+					classFirst = false;
+					continue;
+				}
+				else if(*scan == ']' && !classFirst) inClass = false;
+				else if(*scan != '^' || !classFirst || scan[-1] != '[') classFirst = false;
+			}
+			else if(*scan == '[') { inClass = true; classFirst = true; }
+			else if(*scan == '\n') { normalized += '|'; continue; }
+			normalized += *scan;
+		}
 
 		try
 		{
-			obre::regex expression( exp, REGEX_OPTIONS );
+			obre::regex expression( normalized, obre::regex::egrep|obre::regex::icase );
 			return obre::regex_match( str, expression );
 		}
 		catch(const std::exception&e)

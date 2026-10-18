@@ -20,6 +20,7 @@ public:
 	static int gmfGetVelocity(gmThread *a_thread);
 	static int gmfIsStuck(gmThread *a_thread);
 	static int gmfResetStuckTime(gmThread *a_thread);
+	static int gmfGetPathState(gmThread *a_thread);
 	static int gmfGetTeam(gmThread *a_thread);
 	static int gmfGetClassId(gmThread *a_thread);
 	static int gmfGetAllType(gmThread *a_thread);

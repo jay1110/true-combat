@@ -1756,21 +1756,24 @@ void CG_Debriefing_ScrollCheckOffset( panel_button_t* button ) {
 #if defined(_MSC_VER) && defined(_M_IX86)
 /* Original __ftol contract: consume ST0, truncate to int64, return low32. */
 static __declspec(naked) int CG_Debriefing_TruncateST0( void ) {
-	__asm {
-		sub esp, 12
-		fstcw word ptr [esp + 8]
-		fwait
-		mov ax, word ptr [esp + 8]
-		or ax, 0c00h
-		mov word ptr [esp + 10], ax
-		fldcw word ptr [esp + 10]
-		fistp qword ptr [esp]
-		fldcw word ptr [esp + 8]
-		mov eax, dword ptr [esp]
-		mov edx, dword ptr [esp + 4]
-		add esp, 12
-		ret
-	}
+    __asm {
+        push ebp
+        mov ebp, esp
+        add esp, -12
+        fwait
+        fnstcw word ptr [ebp-2]
+        fwait
+        mov ax, word ptr [ebp-2]
+        or ah, 0ch
+        mov word ptr [ebp-4], ax
+        fldcw word ptr [ebp-4]
+        fistp qword ptr [ebp-12]
+        fldcw word ptr [ebp-2]
+        mov eax, dword ptr [ebp-12]
+        mov edx, dword ptr [ebp-8]
+        leave
+        ret
+    }
 }
 #endif
 

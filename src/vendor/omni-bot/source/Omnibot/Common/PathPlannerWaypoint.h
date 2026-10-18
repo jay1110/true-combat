@@ -2,6 +2,7 @@
 #define __PATHPLANNERWAYPOINT_H__
 
 #include "PathPlannerBase.h"
+#include "Path.h"
 #include "Timer.h"
 #include "Waypoint.h"
 #include "gmbinder2.h"
@@ -97,6 +98,8 @@ public:
 	void PlanPathToGoal(Client *_client, const Vector3f &_start, const Vector3f &_goal, const NavFlags _team);
 	int PlanPathToNearest(Client *_client, const Vector3f &_start, const Vector3List &_goals, const NavFlags &_team);
 	int PlanPathToNearest(Client *_client, const Vector3f &_start, const DestinationVector &_goals, const NavFlags &_team);
+	int PlanPathToNearestWithEntryPolicy(Client *_client, const Vector3f &_start,
+		const DestinationVector &_goals, const NavFlags &_team, bool _ordinaryEntry);
 
 	bool IsDone() const;
 	bool FoundGoal() const;
@@ -108,6 +111,8 @@ public:
 	static void SetNavDir(String &navDir, const char *_file);
 
 	void GetPath(Path &_path, int _smoothiterations);
+	static Path::TceDoorRecipe ReadDoorRecipe(const Waypoint *wp);
+	bool BuildDoorRoute(Client *client, int fromUid, int toUid, Path &path);
 
 	// waypoint creation methods
 	Waypoint *AddWaypoint(const Vector3f &_pos, const Vector3f &_facing = Vector3f::ZERO, bool _blockdupe = false);
@@ -249,6 +254,8 @@ protected:
 	void cmdWaypointDelete(const StringVector &_args);
 	void cmdWaypointDeleteX(const StringVector &_args);
 	void cmdWaypointStats(const StringVector &_args);
+    void cmdNavStudioSnapshot(const StringVector &_args);
+    void cmdNavStudioImport(const StringVector &_args);
 	void cmdWaypointSave(const StringVector &_args);
 	void cmdWaypointLoad(const StringVector &_args);
 	void cmdWaypointAutoBuild(const StringVector &_args);

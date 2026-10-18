@@ -36,6 +36,16 @@ endforeach()
 if(NOT module_files)
   message(FATAL_ERROR "No supported native module binaries found")
 endif()
+# Include the optional WASM build as a pair in the same cross-platform package.
+if(EXISTS "${MODULE_DIRECTORY}/cgame.mp.wasm32.so" OR EXISTS "${MODULE_DIRECTORY}/ui.mp.wasm32.so")
+  foreach(module cgame ui)
+    if(NOT EXISTS "${MODULE_DIRECTORY}/${module}.mp.wasm32.so")
+      message(FATAL_ERROR "Incomplete WASM client build: missing ${module}.mp.wasm32.so")
+    endif()
+    file(COPY "${MODULE_DIRECTORY}/${module}.mp.wasm32.so" DESTINATION "${stage}")
+    list(APPEND module_files "${module}.mp.wasm32.so")
+  endforeach()
+endif()
 file(WRITE "${stage}/tce2/${version}/client.manifest" "${version}")
 list(APPEND module_files "tce2/${version}/client.manifest")
 # Required CQB-style compass marker resources; reference pak files stay untouched.
@@ -43,6 +53,14 @@ foreach(asset radar_arrow.tga radar_dot.tga)
   file(MAKE_DIRECTORY "${stage}/gfx/misc")
   file(COPY "${CMAKE_CURRENT_LIST_DIR}/../assets/gfx/misc/${asset}" DESTINATION "${stage}/gfx/misc")
   list(APPEND module_files "gfx/misc/${asset}")
+endforeach()
+
+# Production UI overrides remove editor entry points even with older base assets.
+set(ui_assets ingame_main.menu menus.txt menus_gt2.txt menus_gt5.txt menus_gt7.txt)
+file(MAKE_DIRECTORY "${stage}/ui")
+foreach(asset_name IN LISTS ui_assets)
+  file(COPY "${CMAKE_CURRENT_LIST_DIR}/../assets/ui/${asset_name}" DESTINATION "${stage}/ui")
+  list(APPEND module_files "ui/${asset_name}")
 endforeach()
 
 execute_process(COMMAND "${CMAKE_COMMAND}" -E tar cf "${MODULE_DIRECTORY}/${package_name}" --format=zip -- ${module_files}

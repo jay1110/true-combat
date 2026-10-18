@@ -1766,7 +1766,7 @@ void CG_LimboPanel_WeaponPanel_DrawWeapon( rectDef_t* rect, weapon_t weap, qbool
         name=wt->desc;description=wt->description;category=wt->category;
     } else {
         /* Out-of-range IDs are not valid card inputs. */
-        if(weap<0 || weap>=TCE_MAX_WEAPONS)return;
+        if((int)weap<0 || (int)weap>=(int)TCE_MAX_WEAPONS)return;
         name=tce_cg_weapons[weap].deployMenuShortName;
         description=tce_cg_weapons[weap].deployMenuDescription;
         category=tce_cg_weapons[weap].deployMenuType;

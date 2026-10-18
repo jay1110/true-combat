@@ -317,11 +317,37 @@ PARSING
 ============================================================================
 */
 
-static	char	com_token[MAX_TOKEN_CHARS];
-static	char	com_parsename[MAX_TOKEN_CHARS];
+/* The original quoted-token path can store its NUL at offset 1024.  That
+ * byte belongs to backup_lines in all three Windows modules, but to the
+ * parse-name buffer in all three Linux modules.  Model the proven adjacent
+ * storage as one object so the original side effect has defined C bounds.
+ * com_token addresses the whole object's character representation; returning
+ * it also permits the original 1024-character result plus its terminator. */
+#if defined(_WIN32)
+typedef struct {
+	char token[MAX_TOKEN_CHARS];
+	int backupLines;
+} tceParseStorage_t;
+static tceParseStorage_t com_parseStorage;
+#define com_token ((char *)&com_parseStorage)
+#define backup_lines com_parseStorage.backupLines
+static char com_parsename[MAX_TOKEN_CHARS];
+typedef char tceParseStorageLayout[(MAX_TOKEN_CHARS == 1024 && sizeof(int) == 4 &&
+	offsetof(tceParseStorage_t, backupLines) == MAX_TOKEN_CHARS) ? 1 : -1];
+#else
+typedef struct {
+	char token[MAX_TOKEN_CHARS];
+	char parseName[MAX_TOKEN_CHARS];
+} tceParseStorage_t;
+static tceParseStorage_t com_parseStorage;
+#define com_token ((char *)&com_parseStorage)
+#define com_parsename com_parseStorage.parseName
+static int backup_lines;
+typedef char tceParseStorageLayout[(MAX_TOKEN_CHARS == 1024 && sizeof(int) == 4 &&
+	offsetof(tceParseStorage_t, parseName) == MAX_TOKEN_CHARS) ? 1 : -1];
+#endif
 static	int		com_lines;
 
-static	int		backup_lines;
 static	char	*backup_text;
 
 void COM_BeginParseSession( const char *name )
@@ -499,7 +525,7 @@ char *COM_ParseExt( char **data_p, qboolean allowLineBreaks )
 			return com_token;
 		}
 
-		c = *data;
+		c = (signed char)*data;
 
 		// skip double slash comments
 		if ( c == '/' && data[1] == '/' )
@@ -538,7 +564,7 @@ char *COM_ParseExt( char **data_p, qboolean allowLineBreaks )
 		data++;
 		while (1)
 		{
-			c = *data++;
+			c = (signed char)*data++;
 			if( c == '\\' && *(data) == '\"' ) {
 				// Arnout: string-in-string
 				if (len < MAX_TOKEN_CHARS)
@@ -549,7 +575,7 @@ char *COM_ParseExt( char **data_p, qboolean allowLineBreaks )
 				data++;
 
 				while(1) {
-					c = *data++;
+					c = (signed char)*data++;
 
 					if( !c ) {
 						com_token[len] = 0;
@@ -564,7 +590,7 @@ char *COM_ParseExt( char **data_p, qboolean allowLineBreaks )
 							len++;
 						}
 						data++;
-						c = *data++;
+						c = (signed char)*data++;
 						break;
 					}
 					if (len < MAX_TOKEN_CHARS)
@@ -597,9 +623,11 @@ char *COM_ParseExt( char **data_p, qboolean allowLineBreaks )
 			len++;
 		}
 		data++;
-		c = *data;
-		if ( c == '\n' )
-			com_lines++;
+		c = (signed char)*data;
+		if ( c == '\n' ) {
+			/* Both original modules increment the 32-bit parser line word. */
+			++*(unsigned int *)&com_lines;
+		}
 	} while (c>32);
 
 	if (len == MAX_TOKEN_CHARS)

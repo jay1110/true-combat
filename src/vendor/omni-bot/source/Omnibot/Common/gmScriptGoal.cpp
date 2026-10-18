@@ -51,6 +51,7 @@ GMBIND_FUNCTION_MAP_BEGIN( gmScriptGoal )
 
 	GMBIND_FUNCTION( "DidPathSucceed", gmfDidPathSucceed )
 	GMBIND_FUNCTION( "DidPathFail", gmfDidPathFail )
+	GMBIND_FUNCTION( "GetPathFailureDetails", gmfGetPathFailureDetails )
 
 	GMBIND_FUNCTION( "AddAimRequest", gmfAddAimRequest )
 	GMBIND_FUNCTION( "ReleaseAimRequest", gmfReleaseAimRequest )
@@ -467,6 +468,32 @@ int gmScriptGoal::gmfDidPathFail(gmThread *a_thread)
 	CHECK_THIS_SGOAL();
 	a_thread->PushInt(native->DidPathFail() ? 1 : 0);
 	return GM_SYS_KILL; 
+}
+
+int gmScriptGoal::gmfGetPathFailureDetails(gmThread *a_thread)
+{
+	CHECK_THIS_SGOAL();
+	GM_CHECK_TABLE_PARAM(out, 0);
+	gmMachine *machine = a_thread->GetMachine();
+	DisableGCInScope gc(machine);
+	const ScriptGoal::PathFailureDetails &details = native->GetPathFailureDetails();
+	const char *reason = "none";
+	switch(native->GetFailType())
+	{
+	case FollowPathUser::NoPath: reason = "no_path"; break;
+	case FollowPathUser::Blocked: reason = "blocked"; break;
+	case FollowPathUser::Interrupted: reason = "interrupted"; break;
+	default: break;
+	}
+	out->Set(machine, "reason", gmVariable(machine->AllocStringObject(reason)));
+	out->Set(machine, "time", gmVariable(details.time * 0.001f));
+	out->Set(machine, "waypoint", gmVariable(details.waypoint));
+	gmVariable position, target;
+	position.SetVector(details.position);
+	target.SetVector(details.target);
+	out->Set(machine, "position", position);
+	out->Set(machine, "target", target);
+	return GM_OK;
 }
 
 int gmScriptGoal::gmfIsActive(gmThread *a_thread)

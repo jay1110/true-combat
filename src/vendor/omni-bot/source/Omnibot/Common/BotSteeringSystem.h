@@ -25,7 +25,7 @@ namespace AiState
 		// function: SetTarget
 		//		Sets <m_TargetVector>, which is the goal point the bot 
 		//		should be heading for.
-		bool SetTarget(const Vector3f &_pos, float _radius = 32.f, MoveMode _movemode = Run, bool _in3d = false);
+		bool SetTarget(const Vector3f &_pos, float _radius = 32.f, MoveMode _movemode = Run, bool _in3d = false, float _inputScale = 1.f);
 
 		const Vector3f &GetTarget() const { return m_TargetVector; }
 		float GetTargetRadius() const { return m_TargetRadius; }
@@ -59,6 +59,7 @@ namespace AiState
 		//		The current position we are suppose to be going for
 		Vector3f	m_TargetVector;
 		float		m_TargetRadius;
+		float		m_InputScale;
 		MoveMode	m_MoveMode;
 
 		float		m_DistanceToTarget;

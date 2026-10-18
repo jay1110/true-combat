@@ -1,5 +1,73 @@
 # TC:E-Rekonstruktion bauen
 
+## Mapbasierter Waypoint-Generator (in Entwicklung)
+
+Der Standard benoetigt **keine WPS-Datei und keine vorhandenen Waypoints**.
+`tce_navgen` liest die aktuell geladene BSP-Datei und verwendet Spielerspawns,
+Bodenflaechen und Leiterflaechen als Geometriequellen. Ein gemeinsames Raster
+verhindert ueberlagerte Punktketten. Neue Wege werden gegen die reale TCE-
+Spielerkollision geprueft. Spawnverbundene Bereiche haben Vorrang; isolierte
+Geometrie wird gesondert ausgewiesen. Sprung-/Leiterkandidaten erhalten native
+Omni-bot-Flags, gelten jedoch erst nach einem Bot-Probelauf als live bestaetigt.
+
+Die Erkundung verwendet ein feines Suchnetz; der Export vereinfacht es danach
+ueber kollisionsgepruefte Ersatzverbindungen. Enge Tueren zwischen Rasterlinien
+werden gezielt mit feineren Suchschritten untersucht. Unverbundene Punkte werden
+nicht exportiert, bleiben jedoch mit Position und Fehlergrund im Bericht.
+Der Audit zaehlt ueberlappende Ankunftsradien, isolierte Punkte und Abbruchlimits.
+Ein ausgeschlossener Spawn oder ein unentdeckter Raum ist dadurch nicht behoben.
+
+Lange Leitern verwenden vier eigene `climb`-Fuehrungspunkte mit getrennten
+Auf-/Abstiegsverbindungen nach dem Omni-bot-Waypointing-Schema. Der innere
+Fuehrungspunkt ist ein Steuerungsziel, keine begehbare Position im Mauerwerk.
+Punktradien werden einzeln gespeichert und gegen den JSON-Bericht geprueft.
+Kollisionsnachweis und erfolgreicher Bot-Durchlauf bleiben zusaetzlich notwendig.
+
+Nur auf einem leeren Testserver ausfuehren: die begrenzte Berechnung laeuft
+synchron. Ergebnis: `navgen/<map>_auto.way` und JSON-Bericht im Schreibverzeichnis
+`fs_homepath/tce2`. Der Bericht trennt Dateigueltigkeit, Erreichbarkeit,
+Flaechensuch-Abbruch, isolierte Geometrie und ungepruefte Spezialwege.
+Ein erfolgreicher Dateicheck bedeutet keine vollstaendige spielbare Map.
+
+Python 3 und ein lokal erreichbares Server-Schreibverzeichnis werden benoetigt.
+Der Testserver muss die gewuenschte Map mit der aktuellen qagame geladen haben.
+Fuer Custom-Maps vorher `set sv_official 0` setzen.
+
+```powershell
+$env:TCE_RCON_PASSWORD = "DEIN_TESTSERVER_RCON_PASSWORT"
+python src/tools/tce_navgen.py generate build/navgen-overkill/tce2 --map obj_overkill --port 27986
+python src/tools/tce_navgen.py inspect build/navgen-overkill/tce2/navgen/obj_overkill_auto.json
+```
+
+`generate` installiert nichts automatisch. Exitcode 0 bedeutet bestandene
+Graph-/Suchpruefungen, 2 verbleibenden Pruefbedarf, 1 einen Eingabe-/Serverfehler.
+Die erzeugte Datei kann fuer Tests als `<map>_auto.way` ins Omni-bot-nav-
+Verzeichnis kopiert und mit `bot waypoint_load _auto` geladen werden.
+`install REPORT NAV_DIRECTORY --install` uebernimmt ein Ergebnis mit Backup;
+getrennte Graphen werden standardmaessig abgelehnt. Standardnavigation und
+Originalassets werden bei der Generierung nicht veraendert.
+
+Optionales Camping: `vendor/omni-bot/tce2-scripts/goals/goal_tce2_roamcamp.gm`
+nach `omni-bot/et/scripts/goals/` kopieren. `set omnibot_tce_roamcamp 1` aktiviert
+kurze Aufenthalte an generierten `tce2_camp_*`-Punkten; `0` deaktiviert sie.
+`set omnibot_tce_roamcamp_debug 1` protokolliert Anfahrt, Ankunft und Abbruch.
+Kampf und hoeher priorisierte Aufgaben haben Vorrang. Deckung ist eine
+Geometrieheuristik, keine garantierte taktisch gute Position.
+
+Verteilte Erkundung: `goal_tce2_explore.gm` aus demselben Quellverzeichnis
+nach `omni-bot/et/scripts/goals/` kopieren. `omnibot_tce_explore 1` aktiviert
+die Auswahl verschiedener erreichbarer Laufziele mit teamweisen Reservierungen
+und Besuchshistorie; `0` schaltet sie ab. Standard-Objectives und Kampf behalten
+Vorrang. Individuelle Map-Skripte mit Prioritaeten unter 0.115 koennen dagegen
+unterbrochen werden. Das ersetzt weder fehlende Verbindungen noch Objective-AI.
+Die mitgelieferte `goal_checkstuck.gm` ersetzt blindes Springen bei Teamstaus
+durch kurzzeitiges Warten oder mit Spielerhuelle/Boden gepruefte Ausweichschritte.
+`omnibot_tce_explore_debug 1` protokolliert Ziele, Ergebnisse und Ausweichen;
+im normalen Betrieb auf `0` lassen. Vollstaendige Engpassfreiheit ist unbewiesen.
+
+Nur fuer ausdruecklich gewuenschten Altbestand existiert `generate ... --wps
+PFAD`: WPS sind optional und werden standardmaessig weder gelesen noch gebraucht.
+
 Das Projekt baut die rekonstruierten TC:E-Module. Die Rekonstruktion ist
 noch unvollstaendig. Git enthaelt Produktionsquellen und Build-Dateien;
 Referenzbinaries, Tests, Rekonstruktionslisten und Belege bleiben lokal.

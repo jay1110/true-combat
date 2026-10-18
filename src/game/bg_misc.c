@@ -10,6 +10,7 @@
 #include "bg_public.h"
 #include "tce_weapon_ammo.h"
 #include "tce_trajectory.h"
+#include "tce_numeric.h"
 #include "tce_bg.h"
 
 #include "../ui/menudef.h"
@@ -1065,284 +1066,9 @@ qboolean	BG_CanItemBeGrabbed( const entityState_t *ent, const playerState_t *ps,
 
 //======================================================================
 
-#ifdef CGAMEDLL
 void BG_CalculateSpline_r(splinePath_t *, vec3_t, vec3_t, float);
-#else
-#if defined(GAMEDLL) && defined(_MSC_VER) && defined(_M_IX86)
-/* TC qagame 2002bbc0: complete original frame and retained x87 schedule. */
-enum {
-    calc838OriginX = offsetof(splinePath_t,point) + offsetof(pathCorner_t,origin),
-    calc838OriginY = calc838OriginX + sizeof(float),
-    calc838OriginZ = calc838OriginX + 2*sizeof(float),
-    calc838Count = offsetof(splinePath_t,numControls),
-    calc838Next = offsetof(splinePath_t,next),
-    calc838ControlY = offsetof(splinePath_t,controls) + offsetof(pathCorner_t,origin) + sizeof(float),
-    calc838Stride = sizeof(pathCorner_t)
-};
-typedef char tceSplineCalculateLayout838[(sizeof(float)==4 && sizeof(vec3_t)==12 && sizeof(void*)==4 && offsetof(pathCorner_t,origin)+sizeof(vec3_t)==sizeof(pathCorner_t)) ? 1 : -1];
-__declspec(naked) void BG_CalculateSpline_r(splinePath_t* spline, vec3_t out1, vec3_t out2, float tension) {
-    __asm {
-        SUB ESP,0xe4
-        MOV EDX,dword ptr [ESP + 0xe8]
-        PUSH EBX
-        PUSH ESI
-        PUSH EDI
-        MOV EAX,dword ptr [EDX + calc838OriginX]
-        MOV ESI,dword ptr [EDX + calc838Count]
-        MOV ECX,dword ptr [EDX + calc838OriginY]
-        MOV dword ptr [ESP + 0x18],EAX
-        MOV EAX,dword ptr [EDX + calc838OriginZ]
-        XOR EDI,EDI
-        TEST ESI,ESI
-        LEA EBX,[ESI + 0x2]
-        MOV dword ptr [ESP + 0x1c],ECX
-        MOV dword ptr [ESP + 0x20],EAX
-        JLE calc838_2002bc1c
-        PUSH EBP
-        LEA ECX,[ESP + 0x2c]
-        LEA EAX,[EDX + calc838ControlY]
-        MOV EDI,ESI
-calc838_2002bc01:
-        MOV EBP,dword ptr [EAX + -0x4]
-        ADD EAX,calc838Stride
-        MOV dword ptr [ECX + -0x4],EBP
-        MOV EBP,dword ptr [EAX - calc838Stride]
-        MOV dword ptr [ECX],EBP
-        MOV EBP,dword ptr [EAX - calc838Stride + 4]
-        MOV dword ptr [ECX + 0x4],EBP
-        ADD ECX,0xc
-        DEC ESI
-        JNZ calc838_2002bc01
-        POP EBP
-calc838_2002bc1c:
-        MOV EDX,dword ptr [EDX + calc838Next]
-        TEST EDX,EDX
-        JZ calc838_2002bce2
-        MOV ECX,dword ptr [EDX + calc838OriginX]
-        LEA EAX,[EDI + EDI*0x2]
-        SHL EAX,0x2
-        CMP EBX,0x2
-        MOV dword ptr [ESP + EAX*0x1 + 0x24],ECX
-        MOV ECX,dword ptr [EDX + calc838OriginY]
-        MOV EDX,dword ptr [EDX + calc838OriginZ]
-        MOV dword ptr [ESP + EAX*0x1 + 0x28],ECX
-        MOV dword ptr [ESP + EAX*0x1 + 0x2c],EDX
-        JLE calc838_2002bcac
-        LEA EDX,[EBX + -0x1]
-        ADD EBX,-0x2
-calc838_2002bc50:
-        TEST EDX,EDX
-        JLE calc838_2002bca8
-        LEA EAX,[ESP + 0x18]
-        MOV ECX,EDX
-calc838_2002bc5a:
-        FLD dword ptr [EAX + 0xc]
-        FSUB dword ptr [EAX]
-        FLD dword ptr [EAX + 0x10]
-        FSUB dword ptr [EAX + 0x4]
-        ADD EAX,0xc
-        DEC ECX
-        FSTP dword ptr [ESP + 0x10]
-        FLD dword ptr [EAX + 0x8]
-        FSUB dword ptr [EAX + -0x4]
-        FSTP dword ptr [ESP + 0x14]
-        FMUL dword ptr [ESP + 0x100]
-        FADD dword ptr [EAX + -0xc]
-        FSTP dword ptr [EAX + -0xc]
-        FLD dword ptr [ESP + 0x10]
-        FMUL dword ptr [ESP + 0x100]
-        FADD dword ptr [EAX + -0x8]
-        FSTP dword ptr [EAX + -0x8]
-        FLD dword ptr [ESP + 0x14]
-        FMUL dword ptr [ESP + 0x100]
-        FADD dword ptr [EAX + -0x4]
-        FSTP dword ptr [EAX + -0x4]
-        JNZ calc838_2002bc5a
-calc838_2002bca8:
-        DEC EDX
-        DEC EBX
-        JNZ calc838_2002bc50
-calc838_2002bcac:
-        FLD dword ptr [ESP + 0x18]
-        MOV EAX,dword ptr [ESP + 0xf8]
-        MOV ECX,dword ptr [ESP + 0x1c]
-        MOV EDX,dword ptr [ESP + 0x20]
-        FSTP dword ptr [EAX]
-        FLD dword ptr [ESP + 0x24]
-        MOV dword ptr [EAX + 0x4],ECX
-        MOV ECX,dword ptr [ESP + 0x28]
-        MOV dword ptr [EAX + 0x8],EDX
-        MOV EAX,dword ptr [ESP + 0xfc]
-        MOV EDX,dword ptr [ESP + 0x2c]
-        FSTP dword ptr [EAX]
-        MOV dword ptr [EAX + 0x4],ECX
-        MOV dword ptr [EAX + 0x8],EDX
-calc838_2002bce2:
-        POP EDI
-        POP ESI
-        POP EBX
-        ADD ESP,0xe4
-        RET
-    }
-}
-#else
-void BG_CalculateSpline_r(splinePath_t* spline, vec3_t out1, vec3_t out2, float tension) {
-	vec3_t points[18];
-	int i;
-	int count = spline->numControls + 2;
-	vec3_t dist;
 
-	VectorCopy( spline->point.origin, points[0] );
-	for( i = 0; i < spline->numControls; i++ ) {
-		VectorCopy( spline->controls[i].origin, points[i+1] );
-	}
-	if(!spline->next) {
-		return;
-//		Com_Error( ERR_DROP, "Spline (%s) with no target referenced", spline->point.name );
-	}
-	VectorCopy( spline->next->point.origin, points[i+1] );
-
-
-	while(count > 2) {
-		for( i = 0; i < count-1; i++ ) {
-#ifdef _WIN32
-			/* TC2002bc5a: X stays extended; Y/Z differences are stored
-			 * before the multiply/add, then each result is stored once. */
-			double dx = (double)points[i+1][0] - (double)points[i][0];
-			dist[1] = points[i+1][1] - points[i][1];
-			dist[2] = points[i+1][2] - points[i][2];
-			points[i][0] = (float)(dx * (double)tension + (double)points[i][0]);
-			points[i][1] = (float)((double)dist[1] * (double)tension + (double)points[i][1]);
-			points[i][2] = (float)((double)dist[2] * (double)tension + (double)points[i][2]);
-#else
-			VectorSubtract( points[i+1], points[i], dist );
-			VectorMA(points[i], tension, dist, points[i]);
-#endif
-		}
-		count--;
-	}
-
-	VectorCopy( points[0], out1 );
-	VectorCopy( points[1], out2 );
-}
-#endif
-
-#endif
-
-#ifdef CGAMEDLL
 qboolean BG_TraverseSpline(float *, splinePath_t **);
-#else
-#if defined(GAMEDLL) && defined(_MSC_VER) && defined(_M_IX86)
-/* TC qagame2002bcf0: retain values across FST and the following comparisons. */
-static const float tceTraverseOne839 = 1.0f, tceTraverseZero839 = 0.0f;
-enum {
-    traverse839Length = offsetof(splinePath_t,length),
-    traverse839Next = offsetof(splinePath_t,next),
-    traverse839Prev = offsetof(splinePath_t,prev)
-};
-__declspec(naked) qboolean BG_TraverseSpline(float* deltaTime, splinePath_t** pSpline) {
-    __asm {
-        MOV ECX,dword ptr [ESP + 0x4]
-        PUSH ESI
-        MOV ESI,dword ptr [ESP + 0xc]
-        FLD dword ptr [ECX]
-        FCOMP dword ptr [tceTraverseOne839]
-        FNSTSW AX
-        TEST AH,0x41
-        JNZ traverse839_2002bd52
-traverse839_2002bd08:
-        FLD dword ptr [ECX]
-        FSUB dword ptr [tceTraverseOne839]
-        FST dword ptr [ECX]
-        MOV EAX,dword ptr [ESI]
-        MOV EDX,dword ptr [EAX + traverse839Next]
-        FMUL dword ptr [EAX + traverse839Length]
-        TEST EDX,EDX
-        JZ traverse839_2002bdae
-        FLD dword ptr [EDX + traverse839Length]
-        FCOMP dword ptr [tceTraverseZero839]
-        FNSTSW AX
-        TEST AH,0x40
-        JNZ traverse839_2002bdae
-        MOV dword ptr [ESI],EDX
-        FDIV dword ptr [EDX + traverse839Length]
-        FST dword ptr [ECX]
-        FCOMP dword ptr [tceTraverseOne839]
-        FNSTSW AX
-        TEST AH,0x41
-        JZ traverse839_2002bd08
-traverse839_2002bd52:
-        FLD dword ptr [ECX]
-        FCOMP dword ptr [tceTraverseZero839]
-        FNSTSW AX
-        TEST AH,0x1
-        JZ traverse839_2002bda7
-traverse839_2002bd61:
-        MOV EAX,dword ptr [ESI]
-        FLD dword ptr [EAX + traverse839Length]
-        FMUL dword ptr [ECX]
-        MOV EDX,dword ptr [EAX + traverse839Prev]
-        TEST EDX,EDX
-        FCHS
-        JZ traverse839_2002bdae
-        FLD dword ptr [EDX + traverse839Length]
-        FCOMP dword ptr [tceTraverseZero839]
-        FNSTSW AX
-        TEST AH,0x40
-        JNZ traverse839_2002bdae
-        MOV dword ptr [ESI],EDX
-        FDIV dword ptr [EDX + traverse839Length]
-        FSUBR dword ptr [tceTraverseOne839]
-        FST dword ptr [ECX]
-        FCOMP dword ptr [tceTraverseZero839]
-        FNSTSW AX
-        TEST AH,0x1
-        JNZ traverse839_2002bd61
-traverse839_2002bda7:
-        MOV EAX,0x1
-        POP ESI
-        RET
-traverse839_2002bdae:
-        FSTP ST(0)
-        XOR EAX,EAX
-        POP ESI
-        RET
-    }
-}
-#else
-qboolean BG_TraverseSpline( float* deltaTime, splinePath_t** pSpline) {
-	float dist;
-
-	while( (*deltaTime) > 1 ) {
-		(*deltaTime) -= 1;
-		dist = (*pSpline)->length * (*deltaTime);
-
-		if(!(*pSpline)->next || !(*pSpline)->next->length) {
-			return qfalse;
-//			Com_Error( ERR_DROP, "Spline path end passed (%s)", (*pSpline)->point.name );
-		}
-
-		(*pSpline) = (*pSpline)->next;
-		*deltaTime = dist / (*pSpline)->length;
-	}
-
-	while( (*deltaTime) < 0 ) {
-		dist = -((*pSpline)->length * (*deltaTime));
-
-		if(!(*pSpline)->prev || !(*pSpline)->prev->length) {
-			return qfalse;
-//			Com_Error( ERR_DROP, "Spline path end passed (%s)", (*pSpline)->point.name );
-		}
-
-		(*pSpline) = (*pSpline)->prev;
-		(*deltaTime) = 1 - (dist / (*pSpline)->length);
-	}
-
-	return qtrue;
-}
-#endif
-
-#endif
 
 /*
 ================
@@ -1351,73 +1077,66 @@ BG_RaySphereIntersection
 ================
 */
 
-#if defined(_MSC_VER) && defined(_M_IX86) && (defined(CGAMEDLL) || defined(GAMEDLL))
-/* TC cgame 30003ed0 / qagame 2002bdc0: original x87 operand/store order. */
-static const float tceSplineZero828 = 0.0f;
-static const float tceSplineHalf828 = 0.5f;
-static const float tceSplineFour828 = 4.0f;
-typedef char tceSplineSegmentLayout828[(offsetof(splineSegment_t,start)==0 && offsetof(splineSegment_t,v_norm)==12 && offsetof(splineSegment_t,length)==24 && sizeof(splineSegment_t)==28 && MAX_SPLINE_SEGMENTS==16) ? 1 : -1];
-__declspec(naked) qboolean BG_RaySphereIntersection( float radius, vec3_t origin, splineSegment_t* path, float *t0, float *t1 ) {
-    __asm {
-        MOV EAX,dword ptr [ESP + 0xc]
-        MOV ECX,dword ptr [ESP + 0x8]
-        FLD dword ptr [EAX]
-        FSUB dword ptr [ECX]
-        FLD dword ptr [EAX + 0x4]
-        FSUB dword ptr [ECX + 0x4]
-        FLD dword ptr [EAX + 0x8]
-        FSUB dword ptr [ECX + 0x8]
-        FLD ST(0)
-        FMUL dword ptr [EAX + 0x14]
-        FLD ST(2)
-        FMUL dword ptr [EAX + 0x10]
-        FADDP ST(1),ST(0)
-        FLD ST(3)
-        FMUL dword ptr [EAX + 0xc]
-        FADDP ST(1),ST(0)
-        FADD ST(0),ST(0)
-        FST dword ptr [ESP + 0xc]
-        FMUL dword ptr [ESP + 0xc]
-        FLD ST(1)
-        FMUL ST(0),ST(2)
-        FLD ST(3)
-        FMUL ST(0),ST(4)
-        FADDP ST(1),ST(0)
-        FLD ST(4)
-        FMUL ST(0),ST(5)
-        FADDP ST(1),ST(0)
-        FLD dword ptr [ESP + 0x4]
-        FMUL dword ptr [ESP + 0x4]
-        FSUBP ST(1),ST(0)
-        FMUL dword ptr [tceSplineFour828]
-        FSUBP ST(1),ST(0)
-        FSTP ST(3)
-        FSTP ST(0)
-        FSTP ST(0)
-        FCOM dword ptr [tceSplineZero828]
-        FNSTSW AX
-        TEST AH,0x1
-        JZ spline828_30003f3f
-        FSTP ST(0)
-        XOR EAX,EAX
-        RET
-spline828_30003f3f:
-        FSQRT
-        MOV EAX,dword ptr [ESP + 0x10]
-        MOV ECX,dword ptr [ESP + 0x14]
-        FLD ST(0)
-        FSUB dword ptr [ESP + 0xc]
-        FMUL dword ptr [tceSplineHalf828]
-        FSTP dword ptr [EAX]
-        FLD dword ptr [ESP + 0xc]
-        FCHS
-        FSUB ST(0),ST(1)
-        MOV EAX,0x1
-        FMUL dword ptr [tceSplineHalf828]
-        FSTP dword ptr [ECX]
-        FSTP ST(0)
-        RET
+#if defined(CGAMEDLL) || defined(GAMEDLL)
+/* Intersect the segment's normalized line with the sphere centered at origin.
+ * Preserve the distinct TC projection and root stores on each platform. */
+qboolean BG_RaySphereIntersection(float radius, vec3_t origin, splineSegment_t *path,
+                                  float *t0, float *t1) {
+    long double dx, dy, dz, projection, squaredDistance, discriminant, root;
+#if defined(_WIN32)
+    float storedProjection;
+#else
+    long double radiusSquared, firstRoot, secondRoot;
+    float storedRoot;
+    volatile vec3_t storedOffsets;
+
+    radiusSquared = (long double)radius * radius;
+#endif
+    dx = (long double)path->start[0] - origin[0];
+#if !defined(_WIN32)
+    /* Native Linux writes these float copies but keeps the differences for
+     * the following products. Volatile retains the source-level stores. */
+    storedOffsets[0] = (float)dx;
+#endif
+    dy = (long double)path->start[1] - origin[1];
+#if !defined(_WIN32)
+    storedOffsets[1] = (float)dy;
+#endif
+    dz = (long double)path->start[2] - origin[2];
+#if !defined(_WIN32)
+    storedOffsets[2] = (float)dz;
+#endif
+
+#if defined(_WIN32)
+    projection = dx * path->v_norm[0] + (dy * path->v_norm[1] + dz * path->v_norm[2]);
+    projection += projection;
+    storedProjection = (float)projection;
+    squaredDistance = dx * dx + (dy * dy + dz * dz);
+    discriminant = projection * storedProjection -
+        (squaredDistance - (long double)radius * radius) * 4.0f;
+#else
+    projection = (dy * path->v_norm[1] + dx * path->v_norm[0]) + dz * path->v_norm[2];
+    projection += projection;
+    squaredDistance = dz * dz + (dy * dy + dx * dx);
+    discriminant = projection * projection - (squaredDistance - radiusSquared) * 4.0f;
+#endif
+    /* The native C0/CF gate rejects unordered as well as negative values. */
+    if (!(discriminant >= 0.0L)) {
+        return qfalse;
     }
+
+    root = sqrtl(discriminant);
+#if defined(_WIN32)
+    *t0 = (float)((root - storedProjection) * 0.5f);
+    *t1 = (float)((-(long double)storedProjection - root) * 0.5f);
+#else
+    storedRoot = (float)root;
+    firstRoot = ((long double)storedRoot - projection) * 0.5f;
+    secondRoot = (-projection - storedRoot) * 0.5f;
+    *t0 = (float)firstRoot;
+    *t1 = (float)secondRoot;
+#endif
+    return qtrue;
 }
 #else
 qboolean BG_RaySphereIntersection( float radius, vec3_t origin, splineSegment_t* path, float *t0, float *t1 ) {
@@ -1442,283 +1161,120 @@ qboolean BG_RaySphereIntersection( float radius, vec3_t origin, splineSegment_t*
 }
 #endif
 
-#if defined(_MSC_VER) && defined(_M_IX86) && (defined(CGAMEDLL) || defined(GAMEDLL))
-/* TC cgame30003f70 / qagame2002be60: ST0/argument slots; fifth native argument unused. */
-static const float tcePathSegments829 = 16.0f, tcePathGranularity829 = 0.0625f;
-static const float tcePathZero829 = 0.0f, tcePathOne829 = 1.0f;
-static double (__cdecl *const tcePathFloor829)(double) = floor;
-enum {
- path829StartX=offsetof(splinePath_t,segments)+offsetof(splineSegment_t,start),
- path829StartY=path829StartX+sizeof(float), path829StartZ=path829StartX+2*sizeof(float),
- path829NormX=offsetof(splinePath_t,segments)+offsetof(splineSegment_t,v_norm),
- path829NormY=path829NormX+sizeof(float), path829NormZ=path829NormX+2*sizeof(float),
- path829Length=offsetof(splinePath_t,segments)+offsetof(splineSegment_t,length),
- path829Next=offsetof(splinePath_t,next),path829Prev=offsetof(splinePath_t,prev)
-};
-/* Private original __ftol ST0 ABI; not a C float argument or spilled floor result. */
-__declspec(naked) static int TCE_PathInteger829(void) {
- __asm {
-  push ebp
-  mov ebp,esp
-  sub esp,12
-  fstcw word ptr [ebp-2]
-  wait
-  mov ax,word ptr [ebp-2]
-  or ah,0ch
-  mov word ptr [ebp-4],ax
-  fldcw word ptr [ebp-4]
-  fistp qword ptr [ebp-12]
-  fldcw word ptr [ebp-2]
-  mov eax,dword ptr [ebp-12]
-  mov edx,dword ptr [ebp-8]
-  leave
-  ret
- }
+#if defined(CGAMEDLL) || defined(GAMEDLL)
+/* TC spline offsets: backwards is part of the shared API, but these native
+ * controllers choose traversal direction from radius and do not consume it. */
+
+static qboolean BG_PathFractionInSegment(long double value) {
+    return value >= 0.0L && value <= 1.0L;
 }
-__declspec(naked) void BG_LinearPathOrigin2(float radius, splinePath_t** pSpline, float *deltaTime, vec3_t result, qboolean backwards) {
-    __asm {
-        SUB ESP,0xc
-        PUSH EBX
-        PUSH EBP
-        PUSH ESI
-        MOV ESI,dword ptr [ESP + 0x24]
-        PUSH EDI
-        MOV dword ptr [ESP + 0x18],0x1
-        FLD dword ptr [ESI]
-        FMUL dword ptr [tcePathSegments829]
-        SUB ESP,0x8
-        FSTP qword ptr [ESP]
-        CALL dword ptr [tcePathFloor829]
-        ADD ESP,0x8
-        CALL TCE_PathInteger829
-        MOV EBX,EAX
-        CMP EBX,0x10
-        MOV dword ptr [ESP + 0x10],EBX
-        JL path829_30003fbc
-        MOV EBX,0xf
-        MOV dword ptr [ESP + 0x14],0x3f800000
-        MOV dword ptr [ESP + 0x10],EBX
-        JMP path829_30003fcc
-path829_30003fbc:
-        FLD dword ptr [ESI]
-        FMUL dword ptr [tcePathSegments829]
-        FISUB dword ptr [ESP + 0x10]
-        FSTP dword ptr [ESP + 0x14]
-path829_30003fcc:
-        MOV EBP,dword ptr [ESP + 0x2c]
-        MOV EDI,dword ptr [ESP + 0x24]
-path829_30003fd4:
-        LEA ESI,[EBX*0x8 + 0x0]
-        SUB ESI,EBX
-        SHL ESI,0x2
-path829_30003fe0:
-        MOV EDX,dword ptr [EDI]
-        LEA EAX,[ESP + 0x24]
-        PUSH EAX
-        LEA ECX,[ESP + 0x30]
-        LEA EAX,[EDX + ESI*0x1 + path829StartX]
-        PUSH ECX
-        MOV ECX,dword ptr [ESP + 0x28]
-        PUSH EAX
-        PUSH EBP
-        PUSH ECX
-        CALL BG_RaySphereIntersection
-        ADD ESP,0x14
-        TEST EAX,EAX
-        JZ path829_300040b7
-        MOV EDX,dword ptr [EDI]
-        FLD dword ptr [ESP + 0x2c]
-        FDIV dword ptr [EDX + ESI*0x1 + path829Length]
-        LEA EAX,[EDX + ESI*0x1 + path829Length]
-        FSTP dword ptr [ESP + 0x2c]
-        FLD dword ptr [ESP + 0x24]
-        FDIV dword ptr [EAX]
-        MOV EAX,dword ptr [ESP + 0x18]
-        TEST EAX,EAX
-        FSTP dword ptr [ESP + 0x24]
-        FLD dword ptr [ESP + 0x20]
-        FCOMP dword ptr [tcePathZero829]
-        FNSTSW AX
-        JZ path829_30004128
-        FLD dword ptr [ESP + 0x2c]
-        FCOMP dword ptr [ESP + 0x14]
-        TEST AH,0x1
-        FNSTSW AX
-        JZ path829_300040e7
-        TEST AH,0x1
-        JZ path829_30004084
-        FLD dword ptr [ESP + 0x2c]
-        FCOMP dword ptr [tcePathZero829]
-        FNSTSW AX
-        TEST AH,0x1
-        JNZ path829_30004084
-        FLD dword ptr [ESP + 0x2c]
-        FCOMP dword ptr [tcePathOne829]
-        FNSTSW AX
-        TEST AH,0x41
-        JZ path829_30004084
-        FLD dword ptr [ESP + 0x2c]
-        JMP path829_30004097
-path829_30004084:
-        FLD dword ptr [ESP + 0x24]
-        FCOMP dword ptr [ESP + 0x14]
-        FNSTSW AX
-        TEST AH,0x1
-        JZ path829_300040b7
-path829_30004093:
-        FLD dword ptr [ESP + 0x24]
-path829_30004097:
-        FCOM dword ptr [tcePathZero829]
-        FNSTSW AX
-        TEST AH,0x1
-        JNZ path829_300040b5
-        FCOM dword ptr [tcePathOne829]
-        FNSTSW AX
-        TEST AH,0x41
-        JNZ path829_30004210
-path829_300040b5:
-        FSTP ST(0)
-path829_300040b7:
-        FLD dword ptr [ESP + 0x20]
-        FCOMP dword ptr [tcePathZero829]
-        MOV dword ptr [ESP + 0x18],0x0
-        FNSTSW AX
-        TEST AH,0x1
-        JZ path829_300041af
-        DEC EBX
-        SUB ESI,0x1c
-        MOV dword ptr [ESP + 0x10],EBX
-        JS path829_300041c4
-        JMP path829_30003fe0
-path829_300040e7:
-        TEST AH,0x41
-        JNZ path829_30004114
-        FLD dword ptr [ESP + 0x2c]
-        FCOMP dword ptr [tcePathZero829]
-        FNSTSW AX
-        TEST AH,0x1
-        JNZ path829_30004114
-        FLD dword ptr [ESP + 0x2c]
-        FCOMP dword ptr [tcePathOne829]
-        FNSTSW AX
-        TEST AH,0x41
-        JZ path829_30004114
-        FLD dword ptr [ESP + 0x2c]
-        JMP path829_30004097
-path829_30004114:
-        FLD dword ptr [ESP + 0x24]
-        FCOMP dword ptr [ESP + 0x14]
-        FNSTSW AX
-        TEST AH,0x41
-        JNZ path829_300040b7
-        JMP path829_30004093
-path829_30004128:
-        FLD dword ptr [ESP + 0x2c]
-        FCOMP dword ptr [ESP + 0x24]
-        TEST AH,0x1
-        FNSTSW AX
-        JZ path829_30004173
-        TEST AH,0x1
-        JZ path829_30004093
-        FLD dword ptr [ESP + 0x2c]
-        FCOMP dword ptr [tcePathZero829]
-        FNSTSW AX
-        TEST AH,0x1
-        JNZ path829_30004093
-        FLD dword ptr [ESP + 0x2c]
-        FCOMP dword ptr [tcePathOne829]
-        FNSTSW AX
-        TEST AH,0x41
-        JZ path829_30004093
-        FLD dword ptr [ESP + 0x2c]
-        JMP path829_30004097
-path829_30004173:
-        TEST AH,0x41
-        JNZ path829_30004093
-        FLD dword ptr [ESP + 0x2c]
-        FCOMP dword ptr [tcePathZero829]
-        FNSTSW AX
-        TEST AH,0x1
-        JNZ path829_30004093
-        FLD dword ptr [ESP + 0x2c]
-        FCOMP dword ptr [tcePathOne829]
-        FNSTSW AX
-        TEST AH,0x41
-        JZ path829_30004093
-        FLD dword ptr [ESP + 0x2c]
-        JMP path829_30004097
-path829_300041af:
-        ADD ESI,0x1c
-        INC EBX
-        CMP ESI,0x1c0
-        MOV dword ptr [ESP + 0x10],EBX
-        JGE path829_300041cb
-        JMP path829_30003fe0
-path829_300041c4:
-        MOV EBX,0xf
-        JMP path829_300041cd
-path829_300041cb:
-        XOR EBX,EBX
-path829_300041cd:
-        FLD dword ptr [ESP + 0x20]
-        FCOMP dword ptr [tcePathZero829]
-        MOV dword ptr [ESP + 0x10],EBX
-        FNSTSW AX
-        TEST AH,0x1
-        JZ path829_300041f9
-        MOV EAX,dword ptr [EDI]
-        MOV EAX,dword ptr [EAX + path829Prev]
-        TEST EAX,EAX
-        JZ path829_30004290
-        MOV dword ptr [EDI],EAX
-        JMP path829_30003fd4
-path829_300041f9:
-        MOV ECX,dword ptr [EDI]
-        MOV EAX,dword ptr [ECX + path829Next]
-        TEST EAX,EAX
-        JZ path829_30004290
-        MOV dword ptr [EDI],EAX
-        JMP path829_30003fd4
-path829_30004210:
-        FILD dword ptr [ESP + 0x10]
-        MOV EDX,dword ptr [ESP + 0x28]
-        LEA EAX,[EBX*0x8 + 0x0]
-        SUB EAX,EBX
-        FMUL dword ptr [tcePathGranularity829]
-        FLD ST(1)
-        FMUL dword ptr [tcePathGranularity829]
-        SHL EAX,0x2
-        FADDP ST(1),ST(0)
-        FSTP dword ptr [EDX]
-        MOV ECX,dword ptr [EDI]
-        ADD ECX,EAX
-        FLD ST(0)
-        FMUL dword ptr [ECX + path829Length]
-        FMUL dword ptr [ECX + path829NormX]
-        FADD dword ptr [ECX + path829StartX]
-        FSTP dword ptr [EBP]
-        MOV EDX,dword ptr [EDI]
-        FLD ST(0)
-        FMUL dword ptr [EDX + EAX*0x1 + path829Length]
-        LEA ECX,[EDX + EAX*0x1]
-        FMUL dword ptr [ECX + path829NormY]
-        FADD dword ptr [ECX + path829StartY]
-        LEA ECX,[EBX + 0x11]
-        LEA EDX,[ECX*0x8 + 0x0]
-        FSTP dword ptr [EBP + 0x4]
-        MOV EDI,dword ptr [EDI]
-        SUB EDX,ECX
-        FMUL dword ptr [EDI + EAX*0x1 + path829Length]
-        FMUL dword ptr [EDI + EAX + path829NormZ]
-        FADD dword ptr [EDI + EAX*0x1 + path829StartZ]
-        FSTP dword ptr [EBP + 0x8]
-path829_30004290:
-        POP EDI
-        POP ESI
-        POP EBP
-        POP EBX
-        ADD ESP,0xc
-        RET
+
+void BG_LinearPathOrigin2(float radius, splinePath_t **pSpline, float *deltaTime,
+                          vec3_t result, qboolean backwards) {
+    long double position = (long double)*deltaTime * MAX_SPLINE_SEGMENTS;
+    float fraction;
+    int index;
+    qboolean first = qtrue, reverse;
+
+    (void)backwards;
+#if defined(_WIN32)
+    index = TCE_TruncateNativeInteger(floor((double)position));
+    reverse = !(radius >= 0.0f);
+#else
+    index = TCE_TruncateNativeInteger((double)floorl(position));
+    reverse = radius < 0.0f;
+#endif
+    if (index >= MAX_SPLINE_SEGMENTS) {
+        index = MAX_SPLINE_SEGMENTS - 1;
+        fraction = 1.0f;
+    } else {
+#if defined(_WIN32)
+        /* The native Windows controller reloads delta after the CRT call. */
+        fraction = (float)((long double)*deltaTime * MAX_SPLINE_SEGMENTS - index);
+#else
+        fraction = (float)(position - index);
+#endif
+    }
+
+    for (;;) {
+        float t0, t1;
+        if (BG_RaySphereIntersection(radius, result, &(*pSpline)->segments[index], &t0, &t1)) {
+            const splineSegment_t *segment = &(*pSpline)->segments[index];
+            long double normalized0, normalized1, firstRoot, secondRoot, selected;
+            qboolean found = qfalse, preferFirst;
+            int axis;
+
+#if defined(_WIN32)
+            normalized0 = (long double)t0 / segment->length;
+            t0 = (float)normalized0;
+            normalized1 = (long double)t1 / segment->length;
+            t1 = (float)normalized1;
+            firstRoot = t0;
+            secondRoot = t1;
+#else
+            normalized0 = (1.0L / segment->length) * t0;
+            t0 = (float)normalized0;
+            normalized1 = (1.0L / segment->length) * t1;
+            t1 = (float)normalized1;
+            /* Linux retains the first normalized root only when reversing;
+             * the second is retained only after the first segment. */
+            firstRoot = reverse ? normalized0 : (long double)t0;
+            secondRoot = reverse && !first ? normalized1 : (long double)t1;
+#endif
+            if (first) {
+                preferFirst = reverse ? !(firstRoot >= fraction) : firstRoot > fraction;
+                if (preferFirst && BG_PathFractionInSegment(firstRoot)) {
+                    selected = firstRoot;
+                    found = qtrue;
+                } else if (reverse ? !(secondRoot >= fraction) : secondRoot > fraction) {
+                    selected = secondRoot;
+                    found = qtrue;
+                }
+            } else {
+                if (reverse) {
+                    preferFirst = !(firstRoot >= secondRoot);
+                } else {
+#if defined(_WIN32)
+                    preferFirst = firstRoot > secondRoot;
+#else
+                    preferFirst = !(secondRoot >= firstRoot);
+#endif
+                }
+                selected = preferFirst && BG_PathFractionInSegment(firstRoot) ? firstRoot : secondRoot;
+                found = qtrue;
+            }
+
+            if (found && BG_PathFractionInSegment(selected)) {
+                *deltaTime = (float)((long double)index * 0.0625f + selected * 0.0625f);
+                for (axis = 0; axis < 3; ++axis) {
+                    /* Reload the spline after each visible output store. */
+                    segment = &(*pSpline)->segments[index];
+                    result[axis] = (float)((selected * segment->length) * segment->v_norm[axis] + segment->start[axis]);
+                }
+                return;
+            }
+        }
+
+        first = qfalse;
+        if (reverse) {
+            if (--index >= 0) {
+                continue;
+            }
+            index = MAX_SPLINE_SEGMENTS - 1;
+            if (!(*pSpline)->prev) {
+                return;
+            }
+            *pSpline = (*pSpline)->prev;
+        } else {
+            if (++index < MAX_SPLINE_SEGMENTS) {
+                continue;
+            }
+            index = 0;
+            if (!(*pSpline)->next) {
+                return;
+            }
+            *pSpline = (*pSpline)->next;
+        }
     }
 }
 #else
@@ -1828,117 +1384,93 @@ void BG_LinearPathOrigin2(float radius, splinePath_t** pSpline, float *deltaTime
 }
 #endif
 
-#if defined(_MSC_VER) && defined(_M_IX86) && (defined(CGAMEDLL) || defined(GAMEDLL))
-/* TC cgame 300042a0 / qagame 2002c190: original x87 operand/store order. */
-static const float tceSplineGranularity828 = 0.0625f;
+#if defined(_WIN32) || defined(__linux__)
 typedef char tceComputeSegmentLayout838[(offsetof(splineSegment_t,start)==0 && offsetof(splineSegment_t,v_norm)==12 && offsetof(splineSegment_t,length)==24 && sizeof(splineSegment_t)==28 && MAX_SPLINE_SEGMENTS==16) ? 1 : -1];
-enum { spline828SegmentY = offsetof(splinePath_t,segments) + sizeof(float) };
-__declspec(naked) void BG_ComputeSegments(splinePath_t* pSpline) {
-    __asm {
-        SUB ESP,0x34
-        PUSH EBX
-        MOV EBX,dword ptr [ESP + 0x3c]
-        PUSH EBP
-        PUSH ESI
-        PUSH EDI
-        XOR EDI,EDI
-        MOV dword ptr [ESP + 0x10],EDI
-        LEA ESI,[EBX + spline828SegmentY]
-spline828_300042b7:
-        FILD dword ptr [ESP + 0x10]
-        LEA ECX,[ESP + 0x20]
-        LEA EDX,[ESP + 0x14]
-        FMUL dword ptr [tceSplineGranularity828]
-        FSTP dword ptr [ESP + 0x48]
-        MOV EAX,dword ptr [ESP + 0x48]
-        PUSH EAX
-        PUSH ECX
-        PUSH EDX
-        PUSH EBX
-        CALL BG_CalculateSpline_r
-        FLD dword ptr [ESP + 0x30]
-        FSUB dword ptr [ESP + 0x24]
-        LEA EBP,[EDI + 0x1]
-        LEA ECX,[ESP + 0x48]
-        LEA EDX,[ESP + 0x3c]
-        FSTP dword ptr [ESI + -0x4]
-        FLD dword ptr [ESP + 0x34]
-        FSUB dword ptr [ESP + 0x28]
-        FSTP dword ptr [ESI]
-        FLD dword ptr [ESP + 0x38]
-        FSUB dword ptr [ESP + 0x2c]
-        FSTP dword ptr [ESI + 0x4]
-        FLD dword ptr [ESP + 0x58]
-        FMUL dword ptr [ESI + -0x4]
-        FADD dword ptr [ESP + 0x24]
-        FSTP dword ptr [ESI + -0x4]
-        FLD dword ptr [ESP + 0x58]
-        FMUL dword ptr [ESI]
-        FADD dword ptr [ESP + 0x28]
-        FSTP dword ptr [ESI]
-        FLD dword ptr [ESP + 0x58]
-        FMUL dword ptr [ESI + 0x4]
-        MOV dword ptr [ESP + 0x58],EBP
-        FADD dword ptr [ESP + 0x2c]
-        FSTP dword ptr [ESI + 0x4]
-        FILD dword ptr [ESP + 0x58]
-        FMUL dword ptr [tceSplineGranularity828]
-        FSTP dword ptr [ESP + 0x58]
-        MOV EAX,dword ptr [ESP + 0x58]
-        PUSH EAX
-        PUSH ECX
-        PUSH EDX
-        PUSH EBX
-        CALL BG_CalculateSpline_r
-        FLD dword ptr [ESP + 0x58]
-        FSUB dword ptr [ESP + 0x4c]
-        FLD dword ptr [ESP + 0x5c]
-        FSUB dword ptr [ESP + 0x50]
-        LEA EDI,[ESI + 0x8]
-        PUSH EDI
-        FSTP dword ptr [ESP + 0x3c]
-        FLD dword ptr [ESP + 0x64]
-        FSUB dword ptr [ESP + 0x58]
-        FSTP dword ptr [ESP + 0x40]
-        FLD dword ptr [ESP + 0x6c]
-        FMUL ST(0),ST(1)
-        FADD dword ptr [ESP + 0x50]
-        FSTP dword ptr [ESP + 0x38]
-        FSTP ST(0)
-        FLD dword ptr [ESP + 0x6c]
-        FMUL dword ptr [ESP + 0x3c]
-        FADD dword ptr [ESP + 0x54]
-        FSTP dword ptr [ESP + 0x3c]
-        FLD dword ptr [ESP + 0x6c]
-        FMUL dword ptr [ESP + 0x40]
-        FADD dword ptr [ESP + 0x58]
-        FSTP dword ptr [ESP + 0x40]
-        FLD dword ptr [ESP + 0x38]
-        FSUB dword ptr [ESI + -0x4]
-        FSTP dword ptr [EDI]
-        FLD dword ptr [ESP + 0x3c]
-        FSUB dword ptr [ESI]
-        FSTP dword ptr [ESI + 0xc]
-        FLD dword ptr [ESP + 0x40]
-        FSUB dword ptr [ESI + 0x4]
-        FSTP dword ptr [ESI + 0x10]
-        CALL VectorLength
-        FSTP dword ptr [ESI + 0x14]
-        PUSH EDI
-        CALL VectorNormalize
-        MOV EDI,EBP
-        ADD ESP,0x28
-        ADD ESI,0x1c
-        CMP EDI,0x10
-        FSTP ST(0)
-        MOV dword ptr [ESP + 0x10],EDI
-        JL spline828_300042b7
-        POP EDI
-        POP ESI
-        POP EBP
-        POP EBX
-        ADD ESP,0x34
-        RET
+void BG_ComputeSegments(splinePath_t *pSpline) {
+    vec3_t polygon[4], endPoint;
+    int i;
+
+    for (i = 0; i < MAX_SPLINE_SEGMENTS; ++i) {
+        splineSegment_t *segment = &pSpline->segments[i];
+        volatile vec_t *start = segment->start;
+        volatile vec_t *direction = segment->v_norm;
+        volatile vec_t *storedEnd = endPoint;
+        volatile float *storedLength = &segment->length;
+        float parameter = (float)((long double)i * 0.0625f);
+        float nextParameter;
+
+        BG_CalculateSpline_r(pSpline, polygon[0], polygon[1], parameter);
+#if defined(_WIN32)
+        /* Windows reloads the three rounded differences from the segment. */
+        start[0] = (float)((long double)polygon[1][0] - polygon[0][0]);
+        start[1] = (float)((long double)polygon[1][1] - polygon[0][1]);
+        start[2] = (float)((long double)polygon[1][2] - polygon[0][2]);
+        {
+            long double scaled = (long double)parameter * start[0];
+            start[0] = (float)(scaled + polygon[0][0]);
+            scaled = (long double)parameter * start[1];
+            start[1] = (float)(scaled + polygon[0][1]);
+            scaled = (long double)parameter * start[2];
+            start[2] = (float)(scaled + polygon[0][2]);
+        }
+#else
+        {
+            long double dx = (long double)polygon[1][0] - polygon[0][0];
+            long double dy, dz, scaledX, scaledY, scaledZ, resultX;
+            start[0] = (float)dx;
+            dy = (long double)polygon[1][1] - polygon[0][1];
+            start[1] = (float)dy;
+            dz = (long double)polygon[1][2] - polygon[0][2];
+            start[2] = (float)dz;
+            /* Linux writes these copies but multiplies the held differences. */
+            scaledX = dx * parameter;
+            scaledY = dy * parameter;
+            resultX = scaledX + polygon[0][0];
+            scaledZ = (long double)parameter * dz;
+            start[0] = (float)resultX;
+            start[1] = (float)(scaledY + polygon[0][1]);
+            start[2] = (float)(scaledZ + polygon[0][2]);
+        }
+#endif
+        nextParameter = (float)((long double)(i + 1) * 0.0625f);
+        BG_CalculateSpline_r(pSpline, polygon[2], polygon[3], nextParameter);
+#if defined(_WIN32)
+        {
+            long double dx = (long double)polygon[3][0] - polygon[2][0];
+            volatile float dy = (float)((long double)polygon[3][1] - polygon[2][1]);
+            volatile float dz = (float)((long double)polygon[3][2] - polygon[2][2]);
+            long double scaled = (long double)nextParameter * dx;
+            storedEnd[0] = (float)(scaled + polygon[2][0]);
+            scaled = (long double)nextParameter * dy;
+            storedEnd[1] = (float)(scaled + polygon[2][1]);
+            scaled = (long double)nextParameter * dz;
+            storedEnd[2] = (float)(scaled + polygon[2][2]);
+            direction[0] = (float)((long double)storedEnd[0] - start[0]);
+            direction[1] = (float)((long double)storedEnd[1] - start[1]);
+            direction[2] = (float)((long double)storedEnd[2] - start[2]);
+        }
+#else
+        {
+            long double x = polygon[2][0], y = polygon[2][1], z = polygon[2][2];
+            long double nextX = polygon[3][0], nextY = polygon[3][1], nextZ = polygon[3][2];
+            long double dx = nextX - x, dy = nextY - y, dz = nextZ - z;
+            long double scaledX = dx * nextParameter;
+            long double scaledY = dy * nextParameter;
+            long double scaledZ = (long double)nextParameter * dz;
+            long double resultX = x + scaledX;
+            long double resultY = y + scaledY;
+            long double resultZ = z + scaledZ;
+            storedEnd[0] = (float)resultX;
+            storedEnd[1] = (float)resultY;
+            storedEnd[2] = (float)resultZ;
+            /* Only X remains held for the final subtraction on Linux. */
+            direction[0] = (float)(resultX - start[0]);
+            direction[1] = (float)((long double)storedEnd[1] - start[1]);
+            direction[2] = (float)((long double)storedEnd[2] - start[2]);
+        }
+#endif
+        *storedLength = (float)TCE_VectorLengthValue(segment->v_norm);
+        (void)VectorNormalize(segment->v_norm);
     }
 }
 #else
@@ -1979,7 +1511,7 @@ void BG_EvaluateTrajectory( const trajectory_t *tr, int atTime, vec3_t result, q
 	qboolean backwards = qfalse;
 	float deltaTime2;
 
-#if defined(CGAMEDLL) || defined(GAMEDLL)
+#if defined(CGAMEDLL) || defined(GAMEDLL) || defined(UIDLL)
 	/* Script producers and linked-entity consumers use original TC path16.
 	 * All runtime types now share the original six-argument evaluator;
 	 * legacy five-argument callers have the original default gravity scale1. */
@@ -2235,7 +1767,7 @@ void BG_EvaluateTrajectoryDelta( const trajectory_t *tr, int atTime, vec3_t resu
 	float	deltaTime;
 	float	phase;
 
-#if defined(CGAMEDLL) || defined(GAMEDLL)
+#if defined(CGAMEDLL) || defined(GAMEDLL) || defined(UIDLL)
 	/* Script producers and linked-entity consumers use original TC path16.
 	 * All runtime types now share the original six-argument evaluator;
 	 * legacy five-argument callers have the original default gravity scale1. */
@@ -2325,195 +1857,97 @@ BG_GetMarkDir
 ============
 */
 void BG_GetMarkDir( const vec3_t dir, const vec3_t normal, vec3_t result ) {
-	vec3_t	ndir, lnormal;
-	float	minDot = 0.3;
-	int x = 0;
-	int normalFallback;
-	static const float one = 1.0f;
-	static const double half = 0.5;
+	vec3_t ndir, lnormal;
+	float minDot = 0.3f;
+	int x = 0, component, normalFallback;
 
-	/* Original x87 carry branch includes unordered components. */
-	if( !(dir[0] >= 0.001) && !(dir[1] >= 0.001) ) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-		/* Preserve original integer copies even for signaling NaN bits. */
-		__asm {
-			mov ecx,dir
-			mov edx,result
-			mov eax,dword ptr [ecx]
-			mov dword ptr [edx],eax
-			mov eax,dword ptr [ecx+4]
-			mov dword ptr [edx+4],eax
-			mov eax,dword ptr [ecx+8]
-			mov dword ptr [edx+8],eax
+	/* Carry includes unordered components in this early-return condition. */
+	if (!(dir[0] >= 0.001) && !(dir[1] >= 0.001)) {
+#if defined(_WIN32)
+		for (component = 0; component < 3; ++component) {
+			unsigned int bits;
+			memcpy(&bits, &dir[component], sizeof(bits));
+			memcpy(&result[component], &bits, sizeof(bits));
 		}
-#elif defined(__GNUC__) && defined(__i386__)
-		/* Linux84385 stores X through x87, then copies Y/Z integer bits. */
-		__asm__ volatile (
-			"flds 0(%%ecx)\n\t" "fstps 0(%%edx)\n\t"
-			"movl 4(%%ecx), %%eax\n\t" "movl %%eax, 4(%%edx)\n\t"
-			"movl 8(%%ecx), %%eax\n\t" "movl %%eax, 8(%%edx)"
-			: : "c" (dir), "d" (result) : "eax", "memory", "st"
-		);
+#elif defined(__linux__)
+		volatile long double first = (long double)dir[0];
+		result[0] = (float)first;
+		for (component = 1; component < 3; ++component) {
+			unsigned int bits;
+			memcpy(&bits, &dir[component], sizeof(bits));
+			memcpy(&result[component], &bits, sizeof(bits));
+		}
 #else
-		/* Portable fallback; no exact exceptional-value ABI claim. */
-		VectorCopy( dir, result );
+		VectorCopy(dir, result);
 #endif
 		return;
 	}
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-	/* Compare the callee's live ST0 return, without a C float spill. */
-	__asm {
-		push normal
-		call VectorLengthSquared
-		add esp,4
-		fcomp one
-		fnstsw ax
-		test ah,1
-		setnz al
-		movzx eax,al
-		mov normalFallback,eax
+#if defined(_WIN32) || defined(__linux__)
+	{
+		long double squared = TCE_VectorLengthSquaredValue(normal);
+#if defined(_WIN32)
+		normalFallback = !(squared >= 1.0L);
+#else
+		/* Linux normalizes unordered squared lengths instead of falling back. */
+		normalFallback = squared < 1.0L;
+#endif
 	}
-#elif defined(__GNUC__) && defined(__i386__)
-	__asm__ volatile (
-		"pushl %1\n\t"
-		"call *%2\n\t"
-		"addl $4, %%esp\n\t"
-		"fld1\n\t"
-		"fcom %%st(1)\n\t"
-		"fnstsw %%ax\n\t"
-		"fstp %%st(0)\n\t"
-		"fstp %%st(0)\n\t"
-		"testb $0x41, %%ah\n\t"
-		"setz %%al\n\t"
-		"movzbl %%al, %%eax"
-		: "=a" (normalFallback)
-		: "r" (normal), "r" (VectorLengthSquared)
-		: "ecx", "edx", "cc", "memory", "st", "st(1)", "st(2)", "st(3)"
-	);
-#elif defined(_WIN32)
-	normalFallback = !(VectorLengthSquared(normal) >= 1.0f);
 #else
 	normalFallback = VectorLengthSquared(normal) < 1.0f;
 #endif
-	if( normalFallback ) {
-		VectorSet( lnormal, 0.f, 0.f, 1.f );
-	} else {
-		//VectorCopy( normal, lnormal );
-		//VectorNormalizeFast( lnormal );
-		VectorNormalize2( normal, lnormal );
-	}
+	if (normalFallback)
+		VectorSet(lnormal, 0.0f, 0.0f, 1.0f);
+	else
+		(void)VectorNormalize2(normal, lnormal);
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-	__asm {
-		mov ecx,dir
-		lea edx,ndir
-		fld dword ptr [ecx]
-		fchs
-		fstp dword ptr [edx]
-		fld dword ptr [ecx+4]
-		fchs
-		fstp dword ptr [edx+4]
-		fld dword ptr [ecx+8]
-		fchs
-		fstp dword ptr [edx+8]
-	}
-#elif defined(__GNUC__) && defined(__i386__)
-	__asm__ volatile (
-		"movl 0(%%ecx), %%eax\n\t" "xorl $0x80000000, %%eax\n\t" "movl %%eax, 0(%%edx)\n\t"
-		"movl 4(%%ecx), %%eax\n\t" "xorl $0x80000000, %%eax\n\t" "movl %%eax, 4(%%edx)\n\t"
-		"movl 8(%%ecx), %%eax\n\t" "xorl $0x80000000, %%eax\n\t" "movl %%eax, 8(%%edx)"
-		: : "c" (dir), "d" (ndir) : "eax", "cc", "memory"
-	);
+	for (component = 0; component < 3; ++component) {
+#if defined(_WIN32)
+		volatile long double value = (long double)dir[component];
+		ndir[component] = (float)-value;
+#elif defined(__linux__)
+		unsigned int bits;
+		memcpy(&bits, &dir[component], sizeof(bits));
+		bits ^= 0x80000000u;
+		memcpy(&ndir[component], &bits, sizeof(bits));
 #else
-	VectorNegate( dir, ndir );
+		ndir[component] = -dir[component];
 #endif
-	VectorNormalize( ndir );
-	if( normal[2] > .8f ) {
-		minDot = .7f;
 	}
+	(void)VectorNormalize(ndir);
+	if (normal[2] > 0.8f)
+		minDot = 0.7f;
 
-	/* Windows2002d243/2002d2b5 adds (z*z + y*y) + x*x on x87
-	 * and branches on C0, including unordered, without a float spill. */
-	for( ;; ) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-		int below;
-		__asm {
-			lea ecx, ndir
-			lea edx, lnormal
-			fld dword ptr [ecx+8]
-			fmul dword ptr [edx+8]
-			fld dword ptr [ecx+4]
-			fmul dword ptr [edx+4]
-			faddp st(1), st(0)
-			fld dword ptr [ecx]
-			fmul dword ptr [edx]
-			faddp st(1), st(0)
-			fcomp minDot
-			fnstsw ax
-			test ah, 1
-			setnz al
-			movzx eax, al
-			mov below, eax
+	for (;;) {
+#if defined(_WIN32) || defined(__linux__)
+		long double productX, productY, productZ, dot;
+#if defined(_WIN32)
+		productZ = (long double)ndir[2] * (long double)lnormal[2];
+		productY = (long double)ndir[1] * (long double)lnormal[1];
+		dot = productZ + productY;
+		productX = (long double)ndir[0] * (long double)lnormal[0];
+		dot = dot + productX;
+#else
+		productX = (long double)ndir[0] * (long double)lnormal[0];
+		productY = (long double)ndir[1] * (long double)lnormal[1];
+		dot = productY + productX;
+		productZ = (long double)ndir[2] * (long double)lnormal[2];
+		dot = productZ + dot;
+#endif
+		/* Evaluate the dot before the ten-update cap, as in the originals. */
+		if (dot >= (long double)minDot || x >= 10)
+			break;
+		for (component = 0; component < 3; ++component) {
+			long double product = (long double)lnormal[component] * 0.5L;
+			ndir[component] = (float)(product + (long double)ndir[component]);
 		}
-		if( !below || x >= 10 ) break;
-#elif defined(__GNUC__) && defined(__i386__)
-		int below;
-		/* Linux8441b/844aa: (y product + x product), then z + sum. */
-		__asm__ volatile (
-			"flds 0(%%ecx)\n\t"
-			"fmuls 0(%%edx)\n\t"
-			"flds 4(%%ecx)\n\t"
-			"fmuls 4(%%edx)\n\t"
-			"fxch %%st(1)\n\t"
-			"faddp %%st, %%st(1)\n\t"
-			"flds 8(%%ecx)\n\t"
-			"fmuls 8(%%edx)\n\t"
-			"fxch %%st(1)\n\t"
-			"faddp %%st, %%st(1)\n\t"
-			"fcomps %1\n\t"
-			"fnstsw %%ax\n\t"
-			"testb $1, %%ah\n\t"
-			"setnz %%al\n\t"
-			"movzbl %%al, %%eax"
-			: "=a" (below)
-			: "m" (minDot), "c" (ndir), "d" (lnormal)
-			: "cc", "memory", "st", "st(1)"
-		);
-		if( !below || x >= 10 ) break;
 #else
-		if( !(DotProduct( ndir, lnormal ) < minDot) || x >= 10 ) break;
+		if (!(DotProduct(ndir, lnormal) < minDot) || x >= 10)
+			break;
+		VectorMA(ndir, 0.5, lnormal, ndir);
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
-		__asm {
-			lea ecx,ndir
-			lea edx,lnormal
-			fld dword ptr [edx]
-			fmul half
-			fadd dword ptr [ecx]
-			fstp dword ptr [ecx]
-			fld dword ptr [edx+4]
-			fmul half
-			fadd dword ptr [ecx+4]
-			fstp dword ptr [ecx+4]
-			fld dword ptr [edx+8]
-			fmul half
-			fadd dword ptr [ecx+8]
-			fstp dword ptr [ecx+8]
-		}
-#elif defined(__GNUC__) && defined(__i386__)
-		__asm__ volatile (
-			"fldl %0\n\t" "fmuls 0(%%edx)\n\t" "fadds 0(%%ecx)\n\t" "fstps 0(%%ecx)\n\t"
-			"fldl %0\n\t" "fmuls 4(%%edx)\n\t" "fadds 4(%%ecx)\n\t" "fstps 4(%%ecx)\n\t"
-			"fldl %0\n\t" "fmuls 8(%%edx)\n\t" "fadds 8(%%ecx)\n\t" "fstps 8(%%ecx)"
-			: : "m" (half), "c" (ndir), "d" (lnormal) : "memory", "st"
-		);
-#else
-		VectorMA( ndir, .5, lnormal, ndir );
-#endif
-		VectorNormalize( ndir );
-
-		x++;
+		(void)VectorNormalize(ndir);
+		++x;
 	}
 
 #ifdef GAMEDLL
@@ -2524,27 +1958,27 @@ void BG_GetMarkDir( const vec3_t dir, const vec3_t normal, vec3_t result ) {
 	}
 #endif // GAMEDLL
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-	/* Original final X is stored through x87; Y/Z are integer copies. */
-	__asm {
-		lea ecx,ndir
-		mov edx,result
-		fld dword ptr [ecx]
-		fstp dword ptr [edx]
-		mov eax,dword ptr [ecx+4]
-		mov dword ptr [edx+4],eax
-		mov eax,dword ptr [ecx+8]
-		mov dword ptr [edx+8],eax
+#if defined(_WIN32)
+	{
+		volatile long double first = (long double)ndir[0];
+		result[0] = (float)first;
+		for (component = 1; component < 3; ++component) {
+			unsigned int bits;
+			memcpy(&bits, &ndir[component], sizeof(bits));
+			memcpy(&result[component], &bits, sizeof(bits));
+		}
 	}
-#elif defined(__GNUC__) && defined(__i386__)
-	/* Original84513 writes all three carried float components via x87. */
-	__asm__ volatile (
-		"flds 8(%%ecx)\n\t" "flds 4(%%ecx)\n\t" "flds 0(%%ecx)\n\t"
-		"fstps 0(%%edx)\n\t" "fstps 4(%%edx)\n\t" "fstps 8(%%edx)"
-		: : "c" (ndir), "d" (result) : "memory", "st", "st(1)", "st(2)"
-	);
+#elif defined(__linux__)
+	{
+		volatile long double z = (long double)ndir[2];
+		volatile long double y = (long double)ndir[1];
+		volatile long double first = (long double)ndir[0];
+		result[0] = (float)first;
+		result[1] = (float)y;
+		result[2] = (float)z;
+	}
 #else
-	VectorCopy( ndir, result );
+	VectorCopy(ndir, result);
 #endif
 }
 
@@ -2785,410 +2219,51 @@ static void BG_TCEPlayerStateFields(const playerState_t *ps, entityState_t *s) {
 	}
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(CGAMEDLL)
-/* TC300052b0: field-mapped original snapshot producer, including low32 ftol snapping. */
-static const float tceSnapshotTurn830 = 256.0f;
-enum {
- snapshot830P4=offsetof(playerState_t,pm_type),
- snapshot830P14=offsetof(playerState_t,origin),
- snapshot830P18=offsetof(playerState_t,origin)+1*sizeof(float),
- snapshot830P1c=offsetof(playerState_t,origin)+2*sizeof(float),
- snapshot830Pa0=offsetof(playerState_t,clientNum),
- snapshot830Pb0=offsetof(playerState_t,viewangles),
- snapshot830Pb4=offsetof(playerState_t,viewangles)+1*sizeof(float),
- snapshot830Pb8=offsetof(playerState_t,viewangles)+2*sizeof(float),
- snapshot830P64=offsetof(playerState_t,movementDir),
- snapshot830P58=offsetof(playerState_t,legsAnim),
- snapshot830P60=offsetof(playerState_t,torsoAnim),
- snapshot830P68=offsetof(playerState_t,eFlags),
- snapshot830P6c=offsetof(playerState_t,eventSequence),
- snapshot830P70=offsetof(playerState_t,events),
- snapshot830P80=offsetof(playerState_t,eventParms),
- snapshot830P90=offsetof(playerState_t,oldEventSequence),
- snapshot830P94=offsetof(playerState_t,externalEvent),
- snapshot830P98=offsetof(playerState_t,externalEventParm),
- snapshot830P470=offsetof(playerState_t,entityEventSequence),
- snapshot830Pa4=offsetof(playerState_t,weapon),
- snapshot830P50=offsetof(playerState_t,groundEntityNum),
- snapshot830P150=offsetof(playerState_t,powerups),
- snapshot830P41c=offsetof(playerState_t,nextWeapon),
- snapshot830P420=offsetof(playerState_t,teamNum),
- snapshot830P5a8=offsetof(playerState_t,aiState),
- snapshot830P3c=offsetof(playerState_t,leanf),
- snapshot830Pc=offsetof(playerState_t,pm_flags),
- snapshot830Pd0=offsetof(playerState_t,stats)+0*sizeof(int),
- snapshot830P140=offsetof(playerState_t,persistant)+PERS_HWEAPON_USE*sizeof(int),
- snapshot830P170=offsetof(playerState_t,powerups)+PW_OPS_DISGUISED*sizeof(int),
- snapshot830Pf0=offsetof(playerState_t,stats)+8*sizeof(int),
- snapshot830Pf4=offsetof(playerState_t,stats)+9*sizeof(int),
- snapshot830P10c=offsetof(playerState_t,stats)+15*sizeof(int),
- snapshot830P3b8=offsetof(playerState_t,holdable)+10*sizeof(int),
- snapshot830P398=offsetof(playerState_t,holdable)+2*sizeof(int),
- snapshot830P39c=offsetof(playerState_t,holdable)+3*sizeof(int),
- snapshot830P3a0=offsetof(playerState_t,holdable)+4*sizeof(int),
- snapshot830E0=offsetof(entityState_t,number),
- snapshot830E4=offsetof(entityState_t,eType),
- snapshot830E8=offsetof(entityState_t,eFlags),
- snapshot830Ec=offsetof(entityState_t,pos)+offsetof(trajectory_t,trType),
- snapshot830E18=offsetof(entityState_t,pos)+offsetof(trajectory_t,trBase)+0*sizeof(float),
- snapshot830E1c=offsetof(entityState_t,pos)+offsetof(trajectory_t,trBase)+1*sizeof(float),
- snapshot830E20=offsetof(entityState_t,pos)+offsetof(trajectory_t,trBase)+2*sizeof(float),
- snapshot830E30=offsetof(entityState_t,apos)+offsetof(trajectory_t,trType),
- snapshot830E3c=offsetof(entityState_t,apos)+offsetof(trajectory_t,trBase)+0*sizeof(float),
- snapshot830E40=offsetof(entityState_t,apos)+offsetof(trajectory_t,trBase)+1*sizeof(float),
- snapshot830E44=offsetof(entityState_t,apos)+offsetof(trajectory_t,trBase)+2*sizeof(float),
- snapshot830E84=offsetof(entityState_t,angles2)+sizeof(float),
- snapshot830E88=offsetof(entityState_t,angles2)+2*sizeof(float),
- snapshot830Eec=offsetof(entityState_t,legsAnim),
- snapshot830Ef0=offsetof(entityState_t,torsoAnim),
- snapshot830Eac=offsetof(entityState_t,clientNum),
- snapshot830Eb8=offsetof(entityState_t,event),
- snapshot830Ebc=offsetof(entityState_t,eventParm),
- snapshot830Ec0=offsetof(entityState_t,eventSequence),
- snapshot830Ec4=offsetof(entityState_t,events),
- snapshot830Ed4=offsetof(entityState_t,eventParms),
- snapshot830Ee8=offsetof(entityState_t,weapon),
- snapshot830Ee4=offsetof(entityState_t,powerups),
- snapshot830E94=offsetof(entityState_t,groundEntityNum),
- snapshot830E104=offsetof(entityState_t,nextWeapon),
- snapshot830E108=offsetof(entityState_t,teamNum),
- snapshot830E118=offsetof(entityState_t,aiState),
- snapshot830E10c=offsetof(entityState_t,effect1Time),
- snapshot830E110=offsetof(entityState_t,effect2Time),
- snapshot830E114=offsetof(entityState_t,effect3Time),
- snapshot830Ea8=offsetof(entityState_t,modelindex2)
-};
-typedef char tceSnapshotArrays830[(MAX_EVENTS==4 && MAX_POWERUPS==16)?1:-1];
-__declspec(naked) void BG_PlayerStateToEntityState( playerState_t *ps, entityState_t *s, qboolean snap ) {
-    __asm {
-        PUSH ECX
-        PUSH EBX
-        PUSH EBP
-        PUSH ESI
-        PUSH EDI
-        MOV EDI,dword ptr [ESP + 0x18]
-        XOR EBX,EBX
-        MOV dword ptr [ESP + 0x10],EBX
-        MOV EAX,dword ptr [EDI + snapshot830P4]
-        CMP EAX,0x5
-        JZ snapshot830_300052e6
-        CMP EAX,0x2
-        JZ snapshot830_300052e6
-        MOV EAX,dword ptr [EDI + snapshot830Pd0]
-        MOV ESI,dword ptr [ESP + 0x1c]
-        CMP EAX,0xffffff51
-        JLE snapshot830_300052ea
-        MOV dword ptr [ESI + snapshot830E4],0x1
-        JMP snapshot830_300052f1
-snapshot830_300052e6:
-        MOV ESI,dword ptr [ESP + 0x1c]
-snapshot830_300052ea:
-        MOV dword ptr [ESI + snapshot830E4],0xa
-snapshot830_300052f1:
-        MOV EAX,dword ptr [EDI + snapshot830Pa0]
-        MOV EBP,dword ptr [ESP + 0x20]
-        MOV dword ptr [ESI + snapshot830E0],EAX
-        MOV dword ptr [ESI + snapshot830Ec],0x1
-        MOV ECX,dword ptr [EDI + snapshot830P14]
-        CMP EBP,EBX
-        MOV dword ptr [ESI + snapshot830E18],ECX
-        MOV EDX,dword ptr [EDI + snapshot830P18]
-        MOV dword ptr [ESI + snapshot830E1c],EDX
-        MOV EAX,dword ptr [EDI + snapshot830P1c]
-        MOV dword ptr [ESI + snapshot830E20],EAX
-        JZ snapshot830_30005353
-        FLD dword ptr [ESI + snapshot830E18]
-        CALL TCE_PathInteger829
-        MOV dword ptr [ESP + 0x1c],EAX
-        FILD dword ptr [ESP + 0x1c]
-        FSTP dword ptr [ESI + snapshot830E18]
-        FLD dword ptr [ESI + snapshot830E1c]
-        CALL TCE_PathInteger829
-        MOV dword ptr [ESP + 0x1c],EAX
-        FILD dword ptr [ESP + 0x1c]
-        FSTP dword ptr [ESI + snapshot830E1c]
-        FLD dword ptr [ESI + snapshot830E20]
-        CALL TCE_PathInteger829
-        MOV dword ptr [ESP + 0x1c],EAX
-        FILD dword ptr [ESP + 0x1c]
-        FSTP dword ptr [ESI + snapshot830E20]
-snapshot830_30005353:
-        MOV dword ptr [ESI + snapshot830E30],0x1
-        MOV ECX,dword ptr [EDI + snapshot830Pb0]
-        MOV dword ptr [ESI + snapshot830E3c],ECX
-        MOV EDX,dword ptr [EDI + snapshot830Pb4]
-        MOV dword ptr [ESI + snapshot830E40],EDX
-        MOV EAX,dword ptr [EDI + snapshot830Pb8]
-        CMP EBP,EBX
-        MOV dword ptr [ESI + snapshot830E44],EAX
-        JZ snapshot830_300053b2
-        FLD dword ptr [ESI + snapshot830E3c]
-        CALL TCE_PathInteger829
-        MOV dword ptr [ESP + 0x1c],EAX
-        FILD dword ptr [ESP + 0x1c]
-        FSTP dword ptr [ESI + snapshot830E3c]
-        FLD dword ptr [ESI + snapshot830E40]
-        CALL TCE_PathInteger829
-        MOV dword ptr [ESP + 0x1c],EAX
-        FILD dword ptr [ESP + 0x1c]
-        FSTP dword ptr [ESI + snapshot830E40]
-        FLD dword ptr [ESI + snapshot830E44]
-        CALL TCE_PathInteger829
-        MOV dword ptr [ESP + 0x1c],EAX
-        FILD dword ptr [ESP + 0x1c]
-        FSTP dword ptr [ESI + snapshot830E44]
-snapshot830_300053b2:
-        MOV EAX,dword ptr [EDI + snapshot830P64]
-        MOV dword ptr [ESP + 0x1c],EAX
-        CMP EAX,0x80
-        FILD dword ptr [ESP + 0x1c]
-        JLE snapshot830_300053ca
-        FSUB dword ptr [tceSnapshotTurn830]
-snapshot830_300053ca:
-        FSTP dword ptr [ESI + snapshot830E84]
-        MOV ECX,dword ptr [EDI + snapshot830P58]
-        MOV dword ptr [ESI + snapshot830Eec],ECX
-        MOV EDX,dword ptr [EDI + snapshot830P60]
-        MOV dword ptr [ESI + snapshot830Ef0],EDX
-        MOV EAX,dword ptr [EDI + snapshot830Pa0]
-        MOV dword ptr [ESI + snapshot830Eac],EAX
-        MOV EAX,dword ptr [EDI + snapshot830P68]
-        TEST AH,0x80
-        JZ snapshot830_30005400
-        AND EAX,0xffbfffdf
-        MOV dword ptr [EDI + snapshot830P68],EAX
-        JMP snapshot830_3000542f
-snapshot830_30005400:
-        MOV ECX,dword ptr [EDI + snapshot830P140]
-        DEC ECX
-        JZ snapshot830_3000541f
-        DEC ECX
-        JZ snapshot830_30005416
-        AND EAX,0xffbfffdf
-        MOV dword ptr [EDI + snapshot830P68],EAX
-        JMP snapshot830_3000542f
-snapshot830_30005416:
-        AND AL,0xdf
-        OR EAX,0x400000
-        JMP snapshot830_30005426
-snapshot830_3000541f:
-        AND EAX,0xffbfffff
-        OR AL,0x20
-snapshot830_30005426:
-        MOV dword ptr [EDI + snapshot830P68],EAX
-        MOV dword ptr [EDI + snapshot830P170],EBX
-snapshot830_3000542f:
-        MOV EAX,dword ptr [EDI + snapshot830P68]
-        MOV dword ptr [ESI + snapshot830E8],EAX
-        MOV ECX,dword ptr [EDI + snapshot830Pd0]
-        CMP ECX,EBX
-        JG snapshot830_30005443
-        OR AL,0x1
-        JMP snapshot830_30005445
-snapshot830_30005443:
-        AND AL,0xfe
-snapshot830_30005445:
-        MOV dword ptr [ESI + snapshot830E8],EAX
-        MOV EAX,dword ptr [EDI + snapshot830P94]
-        CMP EAX,EBX
-        JZ snapshot830_30005466
-        MOV dword ptr [ESI + snapshot830Eb8],EAX
-        MOV ECX,dword ptr [EDI + snapshot830P98]
-        MOV dword ptr [ESI + snapshot830Ebc],ECX
-        JMP snapshot830_300054b4
-snapshot830_30005466:
-        MOV EAX,dword ptr [EDI + snapshot830P470]
-        MOV ECX,dword ptr [EDI + snapshot830P6c]
-        CMP EAX,ECX
-        JGE snapshot830_300054b4
-        ADD ECX,-0x4
-        CMP EAX,ECX
-        JGE snapshot830_30005480
-        MOV dword ptr [EDI + snapshot830P470],ECX
-snapshot830_30005480:
-        MOV EAX,dword ptr [EDI + snapshot830P470]
-        AND EAX,0x3
-        MOV EDX,EAX
-        MOV ECX,dword ptr [EDI + EAX*0x4 + snapshot830P70]
-        SHL EDX,0x8
-        OR ECX,EDX
-        MOV dword ptr [ESI + snapshot830Eb8],ECX
-        MOV EDX,dword ptr [EDI + EAX*0x4 + snapshot830P80]
-        MOV dword ptr [ESI + snapshot830Ebc],EDX
-        MOV EAX,dword ptr [EDI + snapshot830P470]
-        INC EAX
-        MOV dword ptr [EDI + snapshot830P470],EAX
-snapshot830_300054b4:
-        MOV ECX,dword ptr [EDI + snapshot830P90]
-        MOV EAX,dword ptr [EDI + snapshot830P6c]
-        CMP ECX,EAX
-        JZ snapshot830_30005506
-snapshot830_300054c1:
-        MOV EDX,dword ptr [ESI + snapshot830Ec0]
-        MOV EAX,ECX
-        AND EAX,0x3
-        AND EDX,0x3
-        MOV EBP,dword ptr [EDI + EAX*0x4 + snapshot830P70]
-        MOV dword ptr [ESI + EDX*0x4 + snapshot830Ec4],EBP
-        MOV EDX,dword ptr [ESI + snapshot830Ec0]
-        MOV EAX,dword ptr [EDI + EAX*0x4 + snapshot830P80]
-        AND EDX,0x3
-        MOV dword ptr [ESI + EDX*0x4 + snapshot830Ed4],EAX
-        MOV EBP,dword ptr [ESI + snapshot830Ec0]
-        INC EBP
-        INC ECX
-        MOV dword ptr [ESI + snapshot830Ec0],EBP
-        MOV EAX,dword ptr [EDI + snapshot830P6c]
-        CMP ECX,EAX
-        JNZ snapshot830_300054c1
-snapshot830_30005506:
-        MOV ECX,dword ptr [EDI + snapshot830P6c]
-        MOV EDX,dword ptr [EDI + snapshot830Pa4]
-        MOV dword ptr [EDI + snapshot830P90],ECX
-        MOV dword ptr [ESI + snapshot830Ee8],EDX
-        MOV EAX,dword ptr [EDI + snapshot830P50]
-        MOV dword ptr [ESI + snapshot830Ee4],EBX
-        MOV dword ptr [ESI + snapshot830E94],EAX
-        XOR ECX,ECX
-        LEA EAX,[EDI + snapshot830P150]
-snapshot830_30005532:
-        CMP dword ptr [EAX],EBX
-        JZ snapshot830_3000554b
-        MOV EBP,dword ptr [ESI + snapshot830Ee4]
-        MOV EDX,0x1
-        SHL EDX,CL
-        OR EBP,EDX
-        MOV dword ptr [ESI + snapshot830Ee4],EBP
-snapshot830_3000554b:
-        INC ECX
-        ADD EAX,0x4
-        CMP ECX,0x10
-        JL snapshot830_30005532
-        MOV EAX,dword ptr [EDI + snapshot830P41c]
-        MOV dword ptr [ESI + snapshot830E104],EAX
-        MOV ECX,dword ptr [EDI + snapshot830P420]
-        MOV dword ptr [ESI + snapshot830E108],ECX
-        MOV EDX,dword ptr [EDI + snapshot830P5a8]
-        MOV dword ptr [ESI + snapshot830E118],EDX
-        MOV EAX,dword ptr [EDI + snapshot830P3c]
-        MOV dword ptr [ESI + snapshot830E88],EAX
-        MOV dword ptr [ESI + snapshot830E10c],EBX
-        TEST byte ptr [EDI + snapshot830Pc],0x1
-        JZ snapshot830_30005597
-        MOV dword ptr [ESI + snapshot830E10c],0x2
-snapshot830_30005597:
-        TEST dword ptr [EDI + snapshot830P68],0x80000
-        JZ snapshot830_300055ae
-        MOV EAX,dword ptr [ESI + snapshot830E10c]
-        OR AL,0x4
-        MOV dword ptr [ESI + snapshot830E10c],EAX
-snapshot830_300055ae:
-        MOV AL,byte ptr [EDI + snapshot830Pc]
-        MOV ECX,0x400
-        TEST AL,0x4
-        JZ snapshot830_300055c0
-        OR dword ptr [ESI + snapshot830E10c],ECX
-snapshot830_300055c0:
-        MOV AL,byte ptr [EDI + snapshot830Pf0]
-        MOV EBX,0x8
-        TEST AL,0x20
-        JZ snapshot830_300055d5
-        OR dword ptr [ESI + snapshot830E10c],EBX
-snapshot830_300055d5:
-        MOV EDX,dword ptr [EDI + snapshot830Pf0]
-        MOV EAX,0x100
-        TEST EAX,EDX
-        JZ snapshot830_300055eb
-        OR dword ptr [ESI + snapshot830E10c],0x10
-snapshot830_300055eb:
-        TEST dword ptr [EDI + snapshot830Pf4],EAX
-        JZ snapshot830_30005609
-        MOV EAX,dword ptr [ESI + snapshot830E10c]
-        MOV dword ptr [ESP + 0x10],0x1
-        OR AL,0x20
-        MOV dword ptr [ESI + snapshot830E10c],EAX
-snapshot830_30005609:
-        MOV EAX,dword ptr [EDI + snapshot830Pf4]
-        MOV EBP,0x40
-        TEST ECX,EAX
-        JZ snapshot830_3000562e
-        MOV EAX,dword ptr [ESI + snapshot830E10c]
-        MOV dword ptr [ESP + 0x10],0x1
-        OR EAX,EBP
-        MOV dword ptr [ESI + snapshot830E10c],EAX
-snapshot830_3000562e:
-        MOV dword ptr [ESI + snapshot830E110],0x0
-        MOV ECX,dword ptr [EDI + snapshot830P3b8]
-        PUSH ECX
-        CALL BG_WeaponOnBackToWeap
-        MOV ECX,dword ptr [EDI + snapshot830Pa4]
-        ADD ESP,0x4
-        CMP ECX,EAX
-        JZ snapshot830_30005665
-        MOV EAX,dword ptr [ESP + 0x10]
-        TEST EAX,EAX
-        JNZ snapshot830_30005665
-        MOV EDX,dword ptr [EDI + snapshot830P3b8]
-        MOV dword ptr [ESI + snapshot830E110],EDX
-snapshot830_30005665:
-        MOV EAX,dword ptr [EDI + snapshot830P10c]
-        MOV dword ptr [ESI + snapshot830Ea8],0x0
-        AND EAX,0xff
-        MOV dword ptr [ESI + snapshot830E114],EAX
-        MOV EAX,dword ptr [EDI + snapshot830P398]
-        CMP EAX,0x42
-        JLE snapshot830_30005697
-        MOV dword ptr [ESI + snapshot830Ea8],0x4
-        JMP snapshot830_300056a6
-snapshot830_30005697:
-        CMP EAX,0x21
-        JLE snapshot830_300056a6
-        MOV dword ptr [ESI + snapshot830Ea8],0x2
-snapshot830_300056a6:
-        MOV EAX,dword ptr [EDI + snapshot830P39c]
-        CMP EAX,0x42
-        JLE snapshot830_300056bb
-        MOV EAX,dword ptr [ESI + snapshot830Ea8]
-        OR AL,0x10
-        JMP snapshot830_300056c8
-snapshot830_300056bb:
-        CMP EAX,0x21
-        JLE snapshot830_300056ce
-        MOV EAX,dword ptr [ESI + snapshot830Ea8]
-        OR EAX,EBX
-snapshot830_300056c8:
-        MOV dword ptr [ESI + snapshot830Ea8],EAX
-snapshot830_300056ce:
-        MOV EDI,dword ptr [EDI + snapshot830P3a0]
-        CMP EDI,0x42
-        JLE snapshot830_300056ed
-        MOV EAX,dword ptr [ESI + snapshot830Ea8]
-        POP EDI
-        OR EAX,EBP
-        MOV dword ptr [ESI + snapshot830Ea8],EAX
-        POP ESI
-        POP EBP
-        POP EBX
-        POP ECX
-        RET
-snapshot830_300056ed:
-        CMP EDI,0x21
-        JLE snapshot830_30005700
-        MOV EAX,dword ptr [ESI + snapshot830Ea8]
-        OR AL,0x20
-        MOV dword ptr [ESI + snapshot830Ea8],EAX
-snapshot830_30005700:
-        POP EDI
-        POP ESI
-        POP EBP
-        POP EBX
-        POP ECX
-        RET
-    }
+/* The event sequence is a native wrapping 32-bit counter, not signed C
+ * arithmetic. Copy its bits back without an out-of-range signed conversion. */
+static int BG_SnapshotSequenceAdd(int sequence, unsigned increment) {
+    unsigned bits = (unsigned)sequence + increment;
+    int result;
+    memcpy(&result, &bits, sizeof(result));
+    return result;
 }
+
+/* Windows copies bits then reloads output for signed64/low32 truncation.
+ * Linux retains the three input FP values across the initial stores and
+ * truncates each to signed32. FPU exception/control-word parity stays open. */
+static void BG_SnapshotVector(const vec3_t input, vec3_t output, qboolean snap) {
+    int component;
+#if defined(_WIN32)
+    for (component = 0; component < 3; ++component) {
+        unsigned bits;
+        memcpy(&bits, &input[component], sizeof(bits));
+        memcpy(&output[component], &bits, sizeof(bits));
+    }
+    if (snap) {
+        for (component = 0; component < 3; ++component)
+            output[component] = (float)TCE_TruncateNativeInteger(output[component]);
+    }
+#elif defined(__linux__)
+    long double held[3];
+    for (component = 0; component < 3; ++component) {
+        held[component] = (long double)input[component];
+        output[component] = (float)held[component];
+    }
+    if (snap) {
+        for (component = 0; component < 3; ++component)
+            output[component] = (float)TCE_TruncateNativeInteger(held[component]);
+    }
 #else
+    VectorCopy(input, output);
+    if (snap) {
+        SnapVector(output);
+    }
+#endif
+}
+
 void BG_PlayerStateToEntityState( playerState_t *ps, entityState_t *s, qboolean snap ) {
 	int		i;
+	unsigned sequence;
 
 	if(ps->pm_type == PM_INTERMISSION || ps->pm_type == PM_SPECTATOR) {// || ps->pm_flags & PMF_LIMBO ) { // JPW NERVE limbo
 		s->eType = ET_INVISIBLE;
@@ -3201,21 +2276,16 @@ void BG_PlayerStateToEntityState( playerState_t *ps, entityState_t *s, qboolean 
 	s->number = ps->clientNum;
 
 	s->pos.trType = TR_INTERPOLATE;
-	VectorCopy( ps->origin, s->pos.trBase );
-	if ( snap ) {
-		SnapVector( s->pos.trBase );
-	}
+	BG_SnapshotVector(ps->origin, s->pos.trBase, snap);
 
 	s->apos.trType = TR_INTERPOLATE;
-	VectorCopy( ps->viewangles, s->apos.trBase );
-	if ( snap ) {
-		SnapVector( s->apos.trBase );
-	}
+	BG_SnapshotVector(ps->viewangles, s->apos.trBase, snap);
 
+	/* FILD32, optional subtraction, then one float store. */
 	if (ps->movementDir > 128)
-		s->angles2[YAW] = (float)ps->movementDir - 256;
+		s->angles2[YAW] = (float)((long double)ps->movementDir - 256.0L);
 	else
-		s->angles2[YAW] = ps->movementDir;
+		s->angles2[YAW] = (float)ps->movementDir;
 
 	s->legsAnim		= ps->legsAnim;
 	s->torsoAnim	= ps->torsoAnim;
@@ -3246,22 +2316,23 @@ void BG_PlayerStateToEntityState( playerState_t *ps, entityState_t *s, qboolean 
 	} else if ( ps->entityEventSequence < ps->eventSequence ) {
 		int		seq;
 
-		if ( ps->entityEventSequence < ps->eventSequence - MAX_EVENTS) {
-			ps->entityEventSequence = ps->eventSequence - MAX_EVENTS;
+		if ( ps->entityEventSequence < BG_SnapshotSequenceAdd(ps->eventSequence, 0u - MAX_EVENTS)) {
+			ps->entityEventSequence = BG_SnapshotSequenceAdd(ps->eventSequence, 0u - MAX_EVENTS);
 		}
 		seq = ps->entityEventSequence & (MAX_EVENTS-1);
 		s->event = ps->events[ seq ] | ( ( ps->entityEventSequence & 3 ) << 8 );
 		s->eventParm = ps->eventParms[ seq ];
-		ps->entityEventSequence++;
+		ps->entityEventSequence = BG_SnapshotSequenceAdd(ps->entityEventSequence, 1u);
 	}
 // end
 	// Ridah, now using a circular list of events for all entities
 	// add any new events that have been added to the playerState_t
 	// (possibly overwriting entityState_t events)
-	for (i = ps->oldEventSequence; i != ps->eventSequence; i++) {
-		s->events[s->eventSequence & (MAX_EVENTS-1)] = ps->events[i & (MAX_EVENTS-1)];
-		s->eventParms[s->eventSequence & (MAX_EVENTS-1)] = ps->eventParms[i & (MAX_EVENTS-1)];
-		s->eventSequence++;
+	for (sequence = (unsigned)ps->oldEventSequence;
+	     sequence != (unsigned)ps->eventSequence; ++sequence) {
+		s->events[s->eventSequence & (MAX_EVENTS-1)] = ps->events[sequence & (MAX_EVENTS-1)];
+		s->eventParms[s->eventSequence & (MAX_EVENTS-1)] = ps->eventParms[sequence & (MAX_EVENTS-1)];
+		s->eventSequence = BG_SnapshotSequenceAdd(s->eventSequence, 1u);
 	}
 	ps->oldEventSequence = ps->eventSequence;
 
@@ -3281,7 +2352,6 @@ void BG_PlayerStateToEntityState( playerState_t *ps, entityState_t *s, qboolean 
 	s->aiState = ps->aiState;		// xkan, 1/10/2003
 	BG_TCEPlayerStateFields(ps, s);
 }
-#endif
 
 /*
 ========================
@@ -3601,86 +2671,80 @@ void BG_AddSplineControl(splinePath_t* spline, const char* name) {
 	spline->numControls++;
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86) && (defined(CGAMEDLL) || defined(GAMEDLL))
-/* TC cgame 30005a10 / qagame 2002df50: retain x87 intermediates and loop comparison. */
-static const float tceSplineZero826 = 0.0f;
-static const float tceSplineOne826 = 1.0f;
-static const float tceSplineStep826 = 0.01f;
-__declspec(naked) float BG_SplineLength(splinePath_t *pSpline) {
-    __asm {
-        SUB ESP,0x38
-        PUSH ESI
-        MOV ESI,dword ptr [ESP + 0x40]
-        MOV dword ptr [ESP + 0x8],0x0
-        MOV dword ptr [ESP + 0x4],0x0
-spline826_30005a28:
-        MOV EAX,dword ptr [ESP + 0x4]
-        LEA ECX,[ESP + 0x30]
-        PUSH EAX
-        LEA EDX,[ESP + 0x28]
-        PUSH ECX
-        PUSH EDX
-        PUSH ESI
-        CALL BG_CalculateSpline_r
-        FLD dword ptr [ESP + 0x40]
-        FSUB dword ptr [ESP + 0x34]
-        FLD dword ptr [ESP + 0x44]
-        FSUB dword ptr [ESP + 0x38]
-        ADD ESP,0x10
-        FSTP dword ptr [ESP + 0x10]
-        FLD dword ptr [ESP + 0x38]
-        FSUB dword ptr [ESP + 0x2c]
-        FSTP dword ptr [ESP + 0x14]
-        FMUL dword ptr [ESP + 0x4]
-        FADD dword ptr [ESP + 0x24]
-        FSTP dword ptr [ESP + 0xc]
-        FLD dword ptr [ESP + 0x10]
-        FMUL dword ptr [ESP + 0x4]
-        FADD dword ptr [ESP + 0x28]
-        FSTP dword ptr [ESP + 0x10]
-        FLD dword ptr [ESP + 0x14]
-        FMUL dword ptr [ESP + 0x4]
-        FADD dword ptr [ESP + 0x2c]
-        FSTP dword ptr [ESP + 0x14]
-        FLD dword ptr [ESP + 0x4]
-        FCOMP dword ptr [tceSplineZero826]
-        FNSTSW AX
-        TEST AH,0x40
-        JNZ spline826_30005ad6
-        FLD dword ptr [ESP + 0xc]
-        FSUB dword ptr [ESP + 0x18]
-        LEA EAX,[ESP + 0x24]
-        PUSH EAX
-        FSTP dword ptr [ESP + 0x28]
-        FLD dword ptr [ESP + 0x14]
-        FSUB dword ptr [ESP + 0x20]
-        FSTP dword ptr [ESP + 0x2c]
-        FLD dword ptr [ESP + 0x18]
-        FSUB dword ptr [ESP + 0x24]
-        FSTP dword ptr [ESP + 0x30]
-        CALL VectorLength
-        FADD dword ptr [ESP + 0xc]
-        ADD ESP,0x4
-        FSTP dword ptr [ESP + 0x8]
-spline826_30005ad6:
-        FLD dword ptr [ESP + 0x4]
-        FADD dword ptr [tceSplineStep826]
-        MOV EAX,dword ptr [ESP + 0x14]
-        MOV ECX,dword ptr [ESP + 0xc]
-        MOV EDX,dword ptr [ESP + 0x10]
-        MOV dword ptr [ESP + 0x20],EAX
-        MOV dword ptr [ESP + 0x18],ECX
-        MOV dword ptr [ESP + 0x1c],EDX
-        FST dword ptr [ESP + 0x4]
-        FCOMP dword ptr [tceSplineOne826]
-        FNSTSW AX
-        TEST AH,0x41
-        JNZ spline826_30005a28
-        FLD dword ptr [ESP + 0x8]
-        POP ESI
-        ADD ESP,0x38
-        RET
-    }
+#if defined(_WIN32) || defined(__linux__)
+float BG_SplineLength(splinePath_t *pSpline) {
+    vec3_t polygon[2], point, previousPoint, delta;
+    volatile vec_t *storedPoint = point;
+    volatile vec_t *storedDelta = delta;
+    volatile float parameter = 0.0f;
+    volatile float distance = 0.0f;
+    long double nextParameter = 0.0L;
+
+    do {
+        long double pointX, pointY, pointZ;
+        qboolean sampleDistance;
+#if defined(__linux__)
+        /* Linux stores the held loop value only when starting another probe. */
+        parameter = (float)nextParameter;
+#endif
+        BG_CalculateSpline_r(pSpline, polygon[0], polygon[1], parameter);
+#if defined(_WIN32)
+        {
+            long double dx = (long double)polygon[1][0] - polygon[0][0];
+            volatile float dy = (float)((long double)polygon[1][1] - polygon[0][1]);
+            volatile float dz = (float)((long double)polygon[1][2] - polygon[0][2]);
+            long double scaled = dx * parameter;
+            pointX = scaled + polygon[0][0];
+            storedPoint[0] = (float)pointX;
+            scaled = (long double)dy * parameter;
+            pointY = scaled + polygon[0][1];
+            storedPoint[1] = (float)pointY;
+            scaled = (long double)dz * parameter;
+            pointZ = scaled + polygon[0][2];
+            storedPoint[2] = (float)pointZ;
+            sampleDistance = !TCE_FloatIsZeroOrNaN(parameter);
+        }
+#else
+        {
+            long double x = polygon[0][0], y = polygon[0][1], z = polygon[0][2];
+            long double nextX = polygon[1][0], nextY = polygon[1][1], nextZ = polygon[1][2];
+            long double dx = nextX - x;
+            long double dy = nextY - y;
+            long double dz = nextZ - z;
+            long double scaledX = dx * parameter;
+            long double scaledY = dy * parameter;
+            long double scaledZ = dz * parameter;
+            pointX = x + scaledX;
+            pointY = y + scaledY;
+            sampleDistance = !TCE_FloatIsZeroOrNaN(parameter);
+            pointZ = z + scaledZ;
+            storedPoint[0] = (float)pointX;
+            storedPoint[1] = (float)pointY;
+            storedPoint[2] = (float)pointZ;
+        }
+#endif
+        if (sampleDistance) {
+            long double segmentLength;
+#if defined(_WIN32)
+            storedDelta[0] = (float)((long double)storedPoint[0] - previousPoint[0]);
+            storedDelta[1] = (float)((long double)storedPoint[1] - previousPoint[1]);
+            storedDelta[2] = (float)((long double)storedPoint[2] - previousPoint[2]);
+#else
+            /* Linux keeps these coordinates despite their preceding float copies. */
+            storedDelta[0] = (float)(pointX - previousPoint[0]);
+            storedDelta[1] = (float)(pointY - previousPoint[1]);
+            storedDelta[2] = (float)(pointZ - previousPoint[2]);
+#endif
+            segmentLength = TCE_VectorLengthValue(delta);
+            distance = (float)(segmentLength + distance);
+        }
+        nextParameter = (long double)parameter + (long double)0.01f;
+        memcpy(previousPoint, point, sizeof(vec3_t));
+#if defined(_WIN32)
+        parameter = (float)nextParameter;
+#endif
+    } while (!(nextParameter > 1.0L));
+    return distance;
 }
 #else
 float BG_SplineLength(splinePath_t* pSpline) {
@@ -3763,6 +2827,20 @@ void BG_BuildSplinePaths() {
 }
 
 #ifndef CGAMEDLL
+#if defined(_WIN32) || defined(__linux__)
+/* Preserve native 32-bit NEG/DEC without signed overflow, including INT_MIN. */
+splinePath_t *BG_GetSplineData(int number, qboolean *backwards) {
+    unsigned magnitude = (unsigned)number;
+    unsigned indexBits;
+    int index;
+    *backwards = number < 0 ? qtrue : qfalse;
+    if (number < 0) magnitude = 0u - magnitude;
+    indexBits = magnitude - 1u;
+    memcpy(&index, &indexBits, sizeof(index));
+    if (index < 0 || index >= numSplinePaths) return NULL;
+    return &splinePaths[index];
+}
+#else
 splinePath_t* BG_GetSplineData( int number, qboolean* backwards ) {
 	if( number < 0 ) {
 		*backwards = qtrue;
@@ -3778,7 +2856,8 @@ splinePath_t* BG_GetSplineData( int number, qboolean* backwards ) {
 
 	return &splinePaths[number];
 }
-#endif /* CGAMEDLL uses the verified TC lookup. */
+#endif
+#endif /* CGAMEDLL uses the unchanged TC lookup. */
 
 /* TC 2002e1c0: the parsed definition is the complete reserve limit. */
 int BG_MaxAmmoForWeapon( weapon_t weaponNum, int *skill ) {
@@ -3816,40 +2895,43 @@ BG_RotatePoint
 ================
 */
 void BG_RotatePoint(vec3_t point, const vec3_t matrix[3]) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-	/* TC30005ce0 retains the input and accumulates Z, Y, X in ST0. */
-	__asm {
-		mov ecx, point
-		mov eax, matrix
-		fld dword ptr [ecx]
-		fld dword ptr [ecx+4]
-		fld dword ptr [ecx+8]
-		fld st(0)
-		fmul dword ptr [eax+8]
-		fld st(2)
-		fmul dword ptr [eax+4]
-		faddp st(1), st(0)
-		fld st(3)
-		fmul dword ptr [eax]
-		faddp st(1), st(0)
-		fstp dword ptr [ecx]
-		fld st(0)
-		fmul dword ptr [eax+20]
-		fld st(2)
-		fmul dword ptr [eax+16]
-		faddp st(1), st(0)
-		fld st(3)
-		fmul dword ptr [eax+12]
-		faddp st(1), st(0)
-		fstp dword ptr [ecx+4]
-		fmul dword ptr [eax+32]
-		fxch st(1)
-		fmul dword ptr [eax+28]
-		faddp st(1), st(0)
-		fxch st(1)
-		fmul dword ptr [eax+24]
-		faddp st(1), st(0)
-		fstp dword ptr [ecx+8]
+#if defined(_WIN32) || defined(__linux__)
+	/* Keep the input while writing each result; matrix rows are read only
+	 * when needed, including when point overlaps the matrix storage. */
+	const long double x = (long double)point[0];
+	const long double y = (long double)point[1];
+	const long double z = (long double)point[2];
+	int row;
+
+	for (row = 0; row < 3; ++row) {
+		long double productX, productY, productZ, sum;
+#if defined(_WIN32)
+		/* Both Windows modules add Z, then Y, then X without float spills. */
+		productZ = z * (long double)matrix[row][2];
+		productY = y * (long double)matrix[row][1];
+		sum = productZ + productY;
+		productX = x * (long double)matrix[row][0];
+		sum = sum + productX;
+#else
+		/* Linux retains the vector too, but adds the X/Y pair before Z.
+		 * Preserve its row-specific operand order as well as grouping. */
+		if (row == 2) {
+			productX = x * (long double)matrix[row][0];
+			productY = y * (long double)matrix[row][1];
+			productZ = z * (long double)matrix[row][2];
+			sum = productY + productX;
+		} else {
+			productX = (long double)matrix[row][0] * x;
+			productY = (long double)matrix[row][1] * y;
+			if (row == 1)
+				sum = productX + productY;
+			else
+				sum = productY + productX;
+			productZ = (long double)matrix[row][2] * z;
+		}
+		sum = sum + productZ;
+#endif
+		point[row] = (float)sum;
 	}
 #else
 	vec3_t tvec;
@@ -3868,167 +2950,64 @@ void BG_RotatePoint(vec3_t point, const vec3_t matrix[3]) {
 BG_AdjustAAGunMuzzleForBarrel
 ================
 */
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(CGAMEDLL)
-/* TC cgame 30005d30: sequential x87 stores, positive-product FSUBR on left barrels. */
-static const float tceAAGunHigh827 = 40.0f;
-static const float tceAAGunSide827 = 20.0f;
-static const float tceAAGunForward827 = 64.0f;
-__declspec(naked) void BG_AdjustAAGunMuzzleForBarrel(vec_t *origin, vec_t *forward, vec_t *right, vec_t *up, int barrel) {
-    __asm {
-        MOV EAX,dword ptr [ESP + 0x14]
-        CMP EAX,0x3
-        JA aagun827_30005f25
-        CMP EAX,0
-        JE aagun827_30005d44
-        CMP EAX,1
-        JE aagun827_30005da6
-        CMP EAX,2
-        JE aagun827_30005e08
-        JMP aagun827_30005e97
-aagun827_30005d44:
-        MOV ECX,dword ptr [ESP + 0x8]
-        MOV EAX,dword ptr [ESP + 0x4]
-        FLD dword ptr [ECX]
-        FMUL dword ptr [tceAAGunForward827]
-        FADD dword ptr [EAX]
-        FSTP dword ptr [EAX]
-        FLD dword ptr [ECX + 0x4]
-        FMUL dword ptr [tceAAGunForward827]
-        FADD dword ptr [EAX + 0x4]
-        FSTP dword ptr [EAX + 0x4]
-        FLD dword ptr [ECX + 0x8]
-        FMUL dword ptr [tceAAGunForward827]
-        MOV ECX,dword ptr [ESP + 0xc]
-        FADD dword ptr [EAX + 0x8]
-        FSTP dword ptr [EAX + 0x8]
-        FLD dword ptr [ECX]
-        FMUL dword ptr [tceAAGunSide827]
-        FADD dword ptr [EAX]
-        FSTP dword ptr [EAX]
-        FLD dword ptr [ECX + 0x4]
-        FMUL dword ptr [tceAAGunSide827]
-        FADD dword ptr [EAX + 0x4]
-        FSTP dword ptr [EAX + 0x4]
-        FLD dword ptr [ECX + 0x8]
-        FMUL dword ptr [tceAAGunSide827]
-        FADD dword ptr [EAX + 0x8]
-        JMP aagun827_30005e65
-aagun827_30005da6:
-        MOV ECX,dword ptr [ESP + 0x8]
-        MOV EAX,dword ptr [ESP + 0x4]
-        FLD dword ptr [ECX]
-        FMUL dword ptr [tceAAGunForward827]
-        FADD dword ptr [EAX]
-        FSTP dword ptr [EAX]
-        FLD dword ptr [ECX + 0x4]
-        FMUL dword ptr [tceAAGunForward827]
-        FADD dword ptr [EAX + 0x4]
-        FSTP dword ptr [EAX + 0x4]
-        FLD dword ptr [ECX + 0x8]
-        FMUL dword ptr [tceAAGunForward827]
-        MOV ECX,dword ptr [ESP + 0xc]
-        FADD dword ptr [EAX + 0x8]
-        FSTP dword ptr [EAX + 0x8]
-        FLD dword ptr [ECX]
-        FMUL dword ptr [tceAAGunSide827]
-        FADD dword ptr [EAX]
-        FSTP dword ptr [EAX]
-        FLD dword ptr [ECX + 0x4]
-        FMUL dword ptr [tceAAGunSide827]
-        FADD dword ptr [EAX + 0x4]
-        FSTP dword ptr [EAX + 0x4]
-        FLD dword ptr [ECX + 0x8]
-        FMUL dword ptr [tceAAGunSide827]
-        FADD dword ptr [EAX + 0x8]
-        JMP aagun827_30005ef4
-aagun827_30005e08:
-        MOV ECX,dword ptr [ESP + 0x8]
-        MOV EAX,dword ptr [ESP + 0x4]
-        FLD dword ptr [ECX]
-        FMUL dword ptr [tceAAGunForward827]
-        FADD dword ptr [EAX]
-        FSTP dword ptr [EAX]
-        FLD dword ptr [ECX + 0x4]
-        FMUL dword ptr [tceAAGunForward827]
-        FADD dword ptr [EAX + 0x4]
-        FSTP dword ptr [EAX + 0x4]
-        FLD dword ptr [ECX + 0x8]
-        FMUL dword ptr [tceAAGunForward827]
-        MOV ECX,dword ptr [ESP + 0xc]
-        FADD dword ptr [EAX + 0x8]
-        FSTP dword ptr [EAX + 0x8]
-        FLD dword ptr [ECX]
-        FMUL dword ptr [tceAAGunSide827]
-        FSUBR dword ptr [EAX]
-        FSTP dword ptr [EAX]
-        FLD dword ptr [ECX + 0x4]
-        FMUL dword ptr [tceAAGunSide827]
-        FSUBR dword ptr [EAX + 0x4]
-        FSTP dword ptr [EAX + 0x4]
-        FLD dword ptr [ECX + 0x8]
-        FMUL dword ptr [tceAAGunSide827]
-        FSUBR dword ptr [EAX + 0x8]
-aagun827_30005e65:
-        MOV ECX,dword ptr [ESP + 0x10]
-        FSTP dword ptr [EAX + 0x8]
-        FLD dword ptr [ECX]
-        FMUL dword ptr [tceAAGunHigh827]
-        FADD dword ptr [EAX]
-        FSTP dword ptr [EAX]
-        FLD dword ptr [ECX + 0x4]
-        FMUL dword ptr [tceAAGunHigh827]
-        FADD dword ptr [EAX + 0x4]
-        FSTP dword ptr [EAX + 0x4]
-        FLD dword ptr [ECX + 0x8]
-        FMUL dword ptr [tceAAGunHigh827]
-        FADD dword ptr [EAX + 0x8]
-        FSTP dword ptr [EAX + 0x8]
-        RET
-aagun827_30005e97:
-        MOV ECX,dword ptr [ESP + 0x8]
-        MOV EAX,dword ptr [ESP + 0x4]
-        FLD dword ptr [ECX]
-        FMUL dword ptr [tceAAGunForward827]
-        FADD dword ptr [EAX]
-        FSTP dword ptr [EAX]
-        FLD dword ptr [ECX + 0x4]
-        FMUL dword ptr [tceAAGunForward827]
-        FADD dword ptr [EAX + 0x4]
-        FSTP dword ptr [EAX + 0x4]
-        FLD dword ptr [ECX + 0x8]
-        FMUL dword ptr [tceAAGunForward827]
-        MOV ECX,dword ptr [ESP + 0xc]
-        FADD dword ptr [EAX + 0x8]
-        FSTP dword ptr [EAX + 0x8]
-        FLD dword ptr [ECX]
-        FMUL dword ptr [tceAAGunSide827]
-        FSUBR dword ptr [EAX]
-        FSTP dword ptr [EAX]
-        FLD dword ptr [ECX + 0x4]
-        FMUL dword ptr [tceAAGunSide827]
-        FSUBR dword ptr [EAX + 0x4]
-        FSTP dword ptr [EAX + 0x4]
-        FLD dword ptr [ECX + 0x8]
-        FMUL dword ptr [tceAAGunSide827]
-        FSUBR dword ptr [EAX + 0x8]
-aagun827_30005ef4:
-        MOV ECX,dword ptr [ESP + 0x10]
-        FSTP dword ptr [EAX + 0x8]
-        FLD dword ptr [ECX]
-        FMUL dword ptr [tceAAGunSide827]
-        FADD dword ptr [EAX]
-        FSTP dword ptr [EAX]
-        FLD dword ptr [ECX + 0x4]
-        FMUL dword ptr [tceAAGunSide827]
-        FADD dword ptr [EAX + 0x4]
-        FSTP dword ptr [EAX + 0x4]
-        FLD dword ptr [ECX + 0x8]
-        FMUL dword ptr [tceAAGunSide827]
-        FADD dword ptr [EAX + 0x8]
-        FSTP dword ptr [EAX + 0x8]
-aagun827_30005f25:
-        RET
-    }
+#if defined(_WIN32) || defined(__linux__)
+void BG_AdjustAAGunMuzzleForBarrel( vec_t* origin, vec_t* forward, vec_t* right, vec_t* up, int barrel ) {
+	volatile vec_t *storedOrigin = origin;
+	const long double height = (barrel & 1) ? 20.0L : 40.0L;
+	long double product;
+	int component;
+
+	/* Invalid barrel numbers must not read or write any vector. */
+	if ((unsigned int)barrel > 3u)
+		return;
+
+#if defined(_WIN32)
+	/* Windows reloads the rounded position at each of the three stages. */
+	for (component = 0; component < 3; ++component) {
+		product = (long double)forward[component] * 64.0L;
+		storedOrigin[component] = (float)(product + (long double)origin[component]);
+	}
+	for (component = 0; component < 3; ++component) {
+		product = (long double)right[component] * 20.0L;
+		if (barrel >= 2)
+			storedOrigin[component] = (float)((long double)origin[component] - product);
+		else
+			storedOrigin[component] = (float)(product + (long double)origin[component]);
+	}
+	for (component = 0; component < 3; ++component) {
+		product = (long double)up[component] * height;
+		storedOrigin[component] = (float)(product + (long double)origin[component]);
+	}
+#else
+	/* Linux writes each stage too, but keeps the unrounded position for
+	 * the next addition. Direction components are still loaded in order. */
+	long double position[3];
+	const long double side = (barrel >= 2) ? -20.0L : 20.0L;
+	for (component = 0; component < 3; ++component) {
+		if (component == 2)
+			product = 64.0L * (long double)forward[component];
+		else
+			product = (long double)forward[component] * 64.0L;
+		position[component] = product + (long double)origin[component];
+		storedOrigin[component] = (float)position[component];
+	}
+	for (component = 0; component < 3; ++component) {
+		if (component == 2 && barrel != 1)
+			product = side * (long double)right[component];
+		else
+			product = (long double)right[component] * side;
+		position[component] = position[component] + product;
+		storedOrigin[component] = (float)position[component];
+	}
+	for (component = 0; component < 3; ++component) {
+		if (component == 2)
+			product = height * (long double)up[component];
+		else
+			product = (long double)up[component] * height;
+		position[component] = position[component] + product;
+		storedOrigin[component] = (float)position[component];
+	}
+#endif
 }
 #else
 void BG_AdjustAAGunMuzzleForBarrel( vec_t* origin, vec_t* forward, vec_t* right, vec_t* up, int barrel ) {
@@ -4125,18 +3104,14 @@ qboolean PC_Float_Parse(int handle, float *f) {
 		PC_SourceError(handle, "expected float but found %s\n", token.string);
 		return qfalse;
 	}
-	/* TC771: Windows converts through x87; Linux copies the token bits and
-	 * flips only the sign bit. Preserve their different NaN handling. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-	__asm {
-		lea eax, token
-		mov edx, f
-		fld dword ptr [eax + 12]
-		cmp negative, 0
-		je tce_pcfloat771_store
-		fchs
-	tce_pcfloat771_store:
-		fstp dword ptr [edx]
+	/* Windows uses a floating conversion; Linux below copies the token bits.
+	 * The C conversion does not establish identical x87 exception/NaN behavior. */
+#if defined(_WIN32)
+	{
+		volatile long double value = (long double)token.floatvalue;
+		if (negative)
+			value = -value;
+		*f = (float)value;
 	}
 #elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
 	{
@@ -4182,7 +3157,9 @@ qboolean PC_Vec_Parse(int handle, vec3_t *c) {
 		if (!PC_Float_Parse(handle, &f)) {
 			return qfalse;
 		}
-		(*c)[i] = f;
+		/* Original transfers the parsed float as integer bits, without another
+		 * floating conversion or NaN quieting step. */
+		memcpy(&(*c)[i], &f, sizeof(f));
 	}
 	return qtrue;
 }
@@ -4262,8 +3239,22 @@ qboolean PC_String_ParseNoAlloc(int handle, char *out, size_t size) {
 	if( !trap_PC_ReadToken(handle, &token) )
 		return qfalse;
 	
-	if (size == 0 || size > INT_MAX) return qfalse;
-	Q_strncpyz( out, token.string, (int)size );
+#if !defined(Q3_VM) && (defined(_M_IX86) || defined(__i386__)) && \
+    (defined(_WIN32) || defined(__linux__))
+    {
+        /* The native API passes all 32 size bits to Q_strncpyz, including
+         * zero/negative sizes and their original fatal-error behavior. */
+        typedef char parserStringSizeLayout[(sizeof(size_t) == 4 &&
+            sizeof(unsigned) == 4 && sizeof(int) == 4) ? 1 : -1];
+        unsigned sizeBits = (unsigned)size;
+        int nativeSize;
+        memcpy(&nativeSize, &sizeBits, sizeof(nativeSize));
+        Q_strncpyz(out, token.string, nativeSize);
+    }
+#else
+    if (size == 0 || size > INT_MAX) return qfalse;
+    Q_strncpyz(out, token.string, (int)size);
+#endif
     return qtrue;
 }
 
@@ -4511,366 +3502,65 @@ colorTable_t OSP_Colortable[] =
 
 extern void trap_Cvar_Set( const char *var_name, const char *value );
 #if defined(_MSC_VER) && defined(_M_IX86) && defined(CGAMEDLL)
-static const float tceCrossOne825=1.0f, tceCrossZero825=0.0f;
-static const double tceCrossScale825=0.00392156862745098;
-static const char tceCrossWhite825[]="White";
 typedef char tceCrossTableLayout825[(sizeof(colorTable_t)==8 && offsetof(colorTable_t,color)==4)?1:-1];
-/* TC30006300 whole Windows controller, including unordered alpha and FILD/FMUL. */
-__declspec(naked) void BG_setCrosshair(char *colString, float *col, float alpha, char *cvarName) {
- __asm {
- FLD dword ptr [ESP + 0xc]
- FCOMP dword ptr tceCrossOne825
- PUSH EBX
- PUSH EBP
- MOV EBP,dword ptr [ESP + 0x10]
- MOV EAX,0x3f800000
- PUSH ESI
- PUSH EDI
- MOV dword ptr [EBP],EAX
- MOV dword ptr [EBP + 0x4],EAX
- MOV dword ptr [EBP + 0x8],EAX
- FNSTSW AX
- TEST AH,0x41
- JNZ tceCross825_3000632f
- FLD dword ptr tceCrossOne825
- JMP tceCross825_3000634c
-tceCross825_3000632f:
- FLD dword ptr [ESP + 0x1c]
- FCOMP dword ptr tceCrossZero825
- FNSTSW AX
- TEST AH,0x1
- JZ tceCross825_30006348
- FLD dword ptr tceCrossZero825
- JMP tceCross825_3000634c
-tceCross825_30006348:
- FLD dword ptr [ESP + 0x1c]
-tceCross825_3000634c:
- MOV EBX,dword ptr [ESP + 0x14]
- FSTP dword ptr [EBP + 0xc]
- CMP byte ptr [EBX],0x30
- JNZ tceCross825_30006576
- MOV AL,byte ptr [EBX + 0x1]
- CMP AL,0x78
- JZ tceCross825_3000636b
- CMP AL,0x58
- JNZ tceCross825_30006576
-tceCross825_3000636b:
- MOV CL,byte ptr [EBX + 0x2]
- TEST CL,CL
- JZ tceCross825_300065a5
- CMP CL,0x30
- JL tceCross825_30006380
- CMP CL,0x39
- JLE tceCross825_3000639c
-tceCross825_30006380:
- CMP CL,0x41
- JL tceCross825_3000638a
- CMP CL,0x46
- JLE tceCross825_3000639c
-tceCross825_3000638a:
- CMP CL,0x61
- JL tceCross825_300065a5
- CMP CL,0x66
- JG tceCross825_300065a5
-tceCross825_3000639c:
- MOV DL,byte ptr [EBX + 0x3]
- TEST DL,DL
- JZ tceCross825_300065a5
- CMP DL,0x30
- JL tceCross825_300063b1
- CMP DL,0x39
- JLE tceCross825_300063cd
-tceCross825_300063b1:
- CMP DL,0x41
- JL tceCross825_300063bb
- CMP DL,0x46
- JLE tceCross825_300063cd
-tceCross825_300063bb:
- CMP DL,0x61
- JL tceCross825_300065a5
- CMP DL,0x66
- JG tceCross825_300065a5
-tceCross825_300063cd:
- MOV AL,byte ptr [EBX + 0x4]
- TEST AL,AL
- JZ tceCross825_300065a5
- CMP AL,0x30
- JL tceCross825_300063e0
- CMP AL,0x39
- JLE tceCross825_300063f8
-tceCross825_300063e0:
- CMP AL,0x41
- JL tceCross825_300063e8
- CMP AL,0x46
- JLE tceCross825_300063f8
-tceCross825_300063e8:
- CMP AL,0x61
- JL tceCross825_300065a5
- CMP AL,0x66
- JG tceCross825_300065a5
-tceCross825_300063f8:
- MOV AL,byte ptr [EBX + 0x5]
- TEST AL,AL
- JZ tceCross825_300065a5
- CMP AL,0x30
- JL tceCross825_3000640b
- CMP AL,0x39
- JLE tceCross825_30006423
-tceCross825_3000640b:
- CMP AL,0x41
- JL tceCross825_30006413
- CMP AL,0x46
- JLE tceCross825_30006423
-tceCross825_30006413:
- CMP AL,0x61
- JL tceCross825_300065a5
- CMP AL,0x66
- JG tceCross825_300065a5
-tceCross825_30006423:
- MOV AL,byte ptr [EBX + 0x6]
- TEST AL,AL
- JZ tceCross825_300065a5
- CMP AL,0x30
- JL tceCross825_30006436
- CMP AL,0x39
- JLE tceCross825_3000644e
-tceCross825_30006436:
- CMP AL,0x41
- JL tceCross825_3000643e
- CMP AL,0x46
- JLE tceCross825_3000644e
-tceCross825_3000643e:
- CMP AL,0x61
- JL tceCross825_300065a5
- CMP AL,0x66
- JG tceCross825_300065a5
-tceCross825_3000644e:
- MOV AL,byte ptr [EBX + 0x7]
- TEST AL,AL
- JZ tceCross825_300065a5
- CMP AL,0x30
- JL tceCross825_30006461
- CMP AL,0x39
- JLE tceCross825_30006479
-tceCross825_30006461:
- CMP AL,0x41
- JL tceCross825_30006469
- CMP AL,0x46
- JLE tceCross825_30006479
-tceCross825_30006469:
- CMP AL,0x61
- JL tceCross825_300065a5
- CMP AL,0x66
- JG tceCross825_300065a5
-tceCross825_30006479:
- CMP CL,0x39
- JLE tceCross825_30006490
- CMP CL,0x61
- MOVSX EAX,CL
- JL tceCross825_3000648b
- SUB EAX,0x57
- JMP tceCross825_30006496
-tceCross825_3000648b:
- SUB EAX,0x37
- JMP tceCross825_30006496
-tceCross825_30006490:
- MOVSX EAX,CL
- SUB EAX,0x30
-tceCross825_30006496:
- CMP DL,0x39
- JLE tceCross825_300064ad
- CMP DL,0x61
- MOVSX ECX,DL
- JL tceCross825_300064a8
- SUB ECX,0x57
- JMP tceCross825_300064b3
-tceCross825_300064a8:
- SUB ECX,0x37
- JMP tceCross825_300064b3
-tceCross825_300064ad:
- MOVSX ECX,DL
- SUB ECX,0x30
-tceCross825_300064b3:
- SHL EAX,0x4
- ADD EAX,ECX
- MOV dword ptr [ESP + 0x1c],EAX
- FILD dword ptr [ESP + 0x1c]
- FMUL qword ptr tceCrossScale825
- FSTP dword ptr [EBP]
- MOV AL,byte ptr [EBX + 0x4]
- CMP AL,0x39
- JLE tceCross825_300064e1
- CMP AL,0x61
- MOVSX EAX,AL
- JL tceCross825_300064dc
- SUB EAX,0x57
- JMP tceCross825_300064e7
-tceCross825_300064dc:
- SUB EAX,0x37
- JMP tceCross825_300064e7
-tceCross825_300064e1:
- MOVSX EAX,AL
- SUB EAX,0x30
-tceCross825_300064e7:
- MOV CL,byte ptr [EBX + 0x5]
- CMP CL,0x39
- JLE tceCross825_30006501
- CMP CL,0x61
- MOVSX ECX,CL
- JL tceCross825_300064fc
- SUB ECX,0x57
- JMP tceCross825_30006507
-tceCross825_300064fc:
- SUB ECX,0x37
- JMP tceCross825_30006507
-tceCross825_30006501:
- MOVSX ECX,CL
- SUB ECX,0x30
-tceCross825_30006507:
- SHL EAX,0x4
- ADD EAX,ECX
- MOV dword ptr [ESP + 0x1c],EAX
- FILD dword ptr [ESP + 0x1c]
- FMUL qword ptr tceCrossScale825
- FSTP dword ptr [EBP + 0x4]
- MOV AL,byte ptr [EBX + 0x6]
- CMP AL,0x39
- JLE tceCross825_30006535
- CMP AL,0x61
- MOVSX EAX,AL
- JL tceCross825_30006530
- SUB EAX,0x57
- JMP tceCross825_3000653b
-tceCross825_30006530:
- SUB EAX,0x37
- JMP tceCross825_3000653b
-tceCross825_30006535:
- MOVSX EAX,AL
- SUB EAX,0x30
-tceCross825_3000653b:
- MOV CL,byte ptr [EBX + 0x7]
- CMP CL,0x39
- JLE tceCross825_30006555
- CMP CL,0x61
- MOVSX ECX,CL
- JL tceCross825_30006550
- SUB ECX,0x57
- JMP tceCross825_3000655b
-tceCross825_30006550:
- SUB ECX,0x37
- JMP tceCross825_3000655b
-tceCross825_30006555:
- MOVSX ECX,CL
- SUB ECX,0x30
-tceCross825_3000655b:
- SHL EAX,0x4
- ADD EAX,ECX
- POP EDI
- MOV dword ptr [ESP + 0x18],EAX
- POP ESI
- FILD dword ptr [ESP + 0x14]
- FMUL qword ptr tceCrossScale825
- FSTP dword ptr [EBP + 0x8]
- POP EBP
- POP EBX
- RET
-tceCross825_30006576:
- mov eax,dword ptr OSP_Colortable
- XOR EDI,EDI
- TEST EAX,EAX
- JZ tceCross825_300065a5
- mov eax,OFFSET OSP_Colortable
- MOV ESI,EAX
-tceCross825_30006588:
- MOV EAX,dword ptr [EAX]
- PUSH EAX
- PUSH EBX
- call Q_stricmp
- ADD ESP,0x8
- TEST EAX,EAX
- JZ tceCross825_300065bc
- MOV ECX,dword ptr [ESI + 0x8]
- ADD ESI,0x8
- INC EDI
- MOV EAX,ESI
- TEST ECX,ECX
- JNZ tceCross825_30006588
-tceCross825_300065a5:
- MOV ECX,dword ptr [ESP + 0x20]
- push OFFSET tceCrossWhite825
- PUSH ECX
- call trap_Cvar_Set
- ADD ESP,0x8
- POP EDI
- POP ESI
- POP EBP
- POP EBX
- RET
-tceCross825_300065bc:
- MOV ECX,dword ptr OSP_Colortable[edi*8+4]
- MOV EDX,dword ptr [ECX]
- MOV dword ptr [EBP],EDX
- MOV EAX,dword ptr OSP_Colortable[edi*8+4]
- MOV ECX,dword ptr [EAX + 0x4]
- MOV dword ptr [EBP + 0x4],ECX
- MOV EDX,dword ptr OSP_Colortable[edi*8+4]
- POP EDI
- POP ESI
- MOV EAX,dword ptr [EDX + 0x8]
- MOV dword ptr [EBP + 0x8],EAX
- POP EBP
- POP EBX
- RET
- }
-}
-#else
+#endif
 void BG_setCrosshair(char *colString, float *col, float alpha, char *cvarName)
 {
 	char *s = colString;
-	/* Original UI40001580 uses this double reciprocal before a float store. */
 	const double byteToUnit = 0.00392156862745098;
+	int component;
+#if defined(_WIN32)
+	/* Windows performs its first alpha comparison before the RGB stores. */
+	int aboveOne = alpha > 1.0f;
+#endif
 
 	col[0] = 1.0f;
 	col[1] = 1.0f;
 	col[2] = 1.0f;
-#if defined(UIDLL)
 #if defined(_WIN32)
-	/* Windows x87 unordered compares reach the zero-alpha arm. */
-	col[3] = alpha > 1.0f ? 1.0f : !(alpha >= 0.0f) ? 0.0f : alpha;
-#else
-	/* Linux's reversed first comparison sends unordered alpha to one. */
+	col[3] = aboveOne ? 1.0f : !(alpha >= 0.0f) ? 0.0f : alpha;
+#elif defined(__linux__) || defined(UIDLL)
+	/* All three Linux originals send unordered alpha to one. */
 	col[3] = !(alpha <= 1.0f) ? 1.0f : alpha < 0.0f ? 0.0f : alpha;
-#endif
 #else
-	col[3] = (alpha > 1.0f) ? 1.0f : (alpha < 0.0f) ? 0.0f : alpha;
+	col[3] = alpha > 1.0f ? 1.0f : alpha < 0.0f ? 0.0f : alpha;
 #endif
 
-	if(*s == '0' && (*(s+1) == 'x' || *(s+1) == 'X')) {
-		s +=2;
-		//parse rrggbb
-		if(Q_IsHexColorString(s)) {
-			col[0] = (float)((gethex(*(s)) * 16 + gethex(*(s+1))) * byteToUnit);
-			col[1] = (float)((gethex(*(s+2)) * 16 + gethex(*(s+3))) * byteToUnit);
-			col[2] = (float)((gethex(*(s+4)) * 16 + gethex(*(s+5))) * byteToUnit);
+	if (*s == '0' && (s[1] == 'x' || s[1] == 'X')) {
+		s += 2;
+		/* Exactly six valid digits; the original accepts following text. */
+		if (Q_IsHexColorString(s)) {
+			for (component = 0; component < 3; ++component) {
+				int high = (signed char)s[component * 2];
+				int low = (signed char)s[component * 2 + 1];
+				int value = gethex(high) * 16 + gethex(low);
+#if defined(_WIN32) || defined(__linux__)
+				long double scaled = (long double)value * (long double)byteToUnit;
+				col[component] = (float)scaled;
+#else
+				col[component] = (float)(value * byteToUnit);
+#endif
+			}
 			return;
 		}
 	} else {
-		int i = 0;
-		while(OSP_Colortable[i].colorname != NULL) {
-			if(Q_stricmp(s, OSP_Colortable[i].colorname) == 0) {
-				col[0] = (*OSP_Colortable[i].color)[0];
-				col[1] = (*OSP_Colortable[i].color)[1];
-				col[2] = (*OSP_Colortable[i].color)[2];
+		int index = 0;
+		while (OSP_Colortable[index].colorname != NULL) {
+			if (Q_stricmp(s, OSP_Colortable[index].colorname) == 0) {
+				/* Integer copies, reloading the entry after each output store. */
+				for (component = 0; component < 3; ++component) {
+					unsigned int bits;
+					memcpy(&bits, &(*OSP_Colortable[index].color)[component], sizeof(bits));
+					memcpy(&col[component], &bits, sizeof(bits));
+				}
 				return;
 			}
-			i++;
+			++index;
 		}
 	}
-
 	trap_Cvar_Set(cvarName, "White");
 }
 
-#endif
 
 qboolean BG_isLightWeaponSupportingFastReload( int weapon ) {
 	if( weapon == WP_LUGER ||
@@ -4901,230 +3591,110 @@ static locInfo_t locInfo;
 
 void BG_InitLocations( vec2_t world_mins, vec2_t world_maxs )
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
-	/* TC2002e9d0: first probe uses rounded reciprocal, subsequent probes
-	 * divide; ftol truncates to 64 bits and consumes the signed low32. */
-	static const unsigned int reciprocalBits = 0x3a5a740e;
-	static const float density = 7.f, decrement = 50.f, half = .5f;
-	unsigned short savedCW, truncateCW;
-	__int64 converted;
-	__asm {
-		mov ecx,world_mins
-		mov edx,world_maxs
-		lea esi,locInfo
-		mov dword ptr [esi+8],044960000h
-		mov dword ptr [esi+12],044960000h
-		fld dword ptr [edx]
-		fsub dword ptr [ecx]
-		fmul dword ptr reciprocalBits
-		fcomp density
-		fnstsw ax
-		test ah,1
-		jz grid_y_probe
-	grid_x_reduce:
-		fld dword ptr [esi+8]
-		fsub decrement
-		fstp dword ptr [esi+8]
-		fld dword ptr [edx]
-		fsub dword ptr [ecx]
-		fdiv dword ptr [esi+8]
-		fcomp density
-		fnstsw ax
-		test ah,1
-		jnz grid_x_reduce
-	grid_y_probe:
-		fld dword ptr [ecx+4]
-		fsub dword ptr [edx+4]
-		fmul dword ptr reciprocalBits
-		fcomp density
-		fnstsw ax
-		test ah,1
-		jz grid_starts
-	grid_y_reduce:
-		fld dword ptr [esi+12]
-		fsub decrement
-		fstp dword ptr [esi+12]
-		fld dword ptr [ecx+4]
-		fsub dword ptr [edx+4]
-		fdiv dword ptr [esi+12]
-		fcomp density
-		fnstsw ax
-		test ah,1
-		jnz grid_y_reduce
-	grid_starts:
-		fstcw savedCW
-		mov ax,savedCW
-		or ah,0ch
-		mov truncateCW,ax
-		fld dword ptr [edx]
-		fsub dword ptr [ecx]
-		fdiv dword ptr [esi+8]
-		fld st(0)
-		fldcw truncateCW
-		fistp qword ptr converted
-		fldcw savedCW
-		fild dword ptr converted
-		fsubr st(0),st(1)
-		fmul dword ptr [esi+8]
-		fmul half
-		fadd dword ptr [ecx]
-		fstp dword ptr [esi]
-		fstp st(0)
-		fld dword ptr [ecx+4]
-		fsub dword ptr [edx+4]
-		fdiv dword ptr [esi+12]
-		fld st(0)
-		fldcw truncateCW
-		fistp qword ptr converted
-		fldcw savedCW
-		fild dword ptr converted
-		fsubr st(0),st(1)
-		fmul dword ptr [esi+12]
-		fmul half
-		fsubr dword ptr [ecx+4]
-		fstp dword ptr [esi+4]
-		fstp st(0)
-	}
-#elif defined(__GNUC__) && defined(__i386__)
-	/* Linux0008656c: retain the original carried x87 stack across both
-	 * density loops and the two FIST32 origin calculations. */
-	static const float constants[5] = { 1.f, 1200.f, 7.f, 50.f, .5f };
-	const float *mins = world_mins;
-	__asm__ volatile (
-		".intel_syntax noprefix\n\t"
-		"sub esp, 12\n\t"
-		"fld dword ptr [edi]\n\t"
-		"fld st(0)\n\t"
-		"mov eax, dword ptr [edi+4]\n\t"
-		"mov dword ptr [esp], eax\n\t"
-		"fld dword ptr [esp]\n\t"
-		"mov dword ptr [ebx+8], eax\n\t"
-		"fdiv st(1), st(0)\n\t"
-		"fstp dword ptr [ebx+12]\n\t"
-		"fld dword ptr [ecx]\n\t"
-		"fld dword ptr [edx]\n\t"
-		"fld st(1)\n\t"
-		"fsub st(0), st(1)\n\t"
-		"fld dword ptr [edi+8]\n\t"
-		"fxch st(1)\n\t"
-		"fmulp st(4), st(0)\n\t"
-		"fcom st(3)\n\t"
-		"fnstsw ax\n\t"
-		"fstp st(3)\n\t"
-		"sahf\n\t"
-		"jbe 3f\n\t"
-		"fstp st(0)\n\t"
-		"fstp st(0)\n\t"
-		"fld dword ptr [edi+12]\n\t"
-		"1:\n\t"
-		"fld dword ptr [ebx+8]\n\t"
-		"fsub st(0), st(1)\n\t"
-		"fst dword ptr [ebx+8]\n\t"
-		"fdivr st(0), st(3)\n\t"
-		"fld dword ptr [ecx]\n\t"
-		"fld dword ptr [edx]\n\t"
-		"fld st(1)\n\t"
-		"fsub st(0), st(1)\n\t"
-		"fmulp st(3), st(0)\n\t"
-		"fxch st(2)\n\t"
-		"fcomp st(4)\n\t"
-		"fnstsw ax\n\t"
-		"sahf\n\t"
-		"jnc 2f\n\t"
-		"fstp st(0)\n\t"
-		"fstp st(0)\n\t"
-		"jmp 1b\n\t"
-		"2: fstp st(2)\n\t"
-		"3: fstp st(2)\n\t"
-		"fld dword ptr [ebx+12]\n\t"
-		"fld st(3)\n\t"
-		"fld dword ptr [ecx+4]\n\t"
-		"fxch st(1)\n\t"
-		"fdiv st(0), st(2)\n\t"
-		"fld st(2)\n\t"
-		"fxch st(2)\n\t"
-		"fsubr dword ptr [edx+4]\n\t"
-		"fmulp st(1), st(0)\n\t"
-		"fcomp dword ptr [edi+8]\n\t"
-		"fnstsw ax\n\t"
-		"sahf\n\t"
-		"jnc 8f\n\t"
-		"fstp st(1)\n\t"
-		"fstp st(1)\n\t"
-		"fstp st(1)\n\t"
-		"fld dword ptr [edi+12]\n\t"
-		"4:\n\t"
-		"fsub st(1), st(0)\n\t"
-		"fld st(2)\n\t"
-		"fdiv st(0), st(2)\n\t"
-		"fld st(2)\n\t"
-		"fst dword ptr [ebx+12]\n\t"
-		"fld dword ptr [ecx+4]\n\t"
-		"fsubr dword ptr [edx+4]\n\t"
-		"fmulp st(2), st(0)\n\t"
-		"fxch st(1)\n\t"
-		"fcomp dword ptr [edi+8]\n\t"
-		"fnstsw ax\n\t"
-		"sahf\n\t"
-		"jnc 5f\n\t"
-		"fstp st(0)\n\t"
-		"jmp 4b\n\t"
-		"5: fstp st(1)\n\t"
-		"fstp st(1)\n\t"
-		"fld dword ptr [ecx]\n\t"
-		"fld dword ptr [edx]\n\t"
-		"6: fnstcw word ptr [esp+10]\n\t"
-		"fld st(3)\n\t"
-		"fld dword ptr [ebx+8]\n\t"
-		"fxch st(5)\n\t"
-		"fdiv st(0), st(4)\n\t"
-		"fxch st(1)\n\t"
-		"movzx eax, word ptr [esp+10]\n\t"
-		"or ax, 0xc00\n\t"
-		"mov word ptr [esp+8], ax\n\t"
-		"fdiv st(0), st(5)\n\t"
-		"fxch st(3)\n\t"
-		"fsub st(0), st(2)\n\t"
-		"fld dword ptr [edi+16]\n\t"
-		"fxch st(1)\n\t"
-		"fmulp st(4), st(0)\n\t"
-		"fxch st(3)\n\t"
-		"fldcw word ptr [esp+8]\n\t"
-		"fist dword ptr [esp+4]\n\t"
-		"fldcw word ptr [esp+10]\n\t"
-		"fild dword ptr [esp+4]\n\t"
-		"fsubp st(1), st(0)\n\t"
-		"fmulp st(5), st(0)\n\t"
-		"fxch st(4)\n\t"
-		"fmul st(0), st(2)\n\t"
-		"faddp st(1), st(0)\n\t"
-		"fstp dword ptr [ebx]\n\t"
-		"fld dword ptr [edx+4]\n\t"
-		"fld st(0)\n\t"
-		"fsub dword ptr [ecx+4]\n\t"
-		"fmulp st(4), st(0)\n\t"
-		"fxch st(3)\n\t"
-		"fldcw word ptr [esp+8]\n\t"
-		"fist dword ptr [esp+4]\n\t"
-		"fldcw word ptr [esp+10]\n\t"
-		"fild dword ptr [esp+4]\n\t"
-		"fsubp st(1), st(0)\n\t"
-		"fmulp st(2), st(0)\n\t"
-		"fmulp st(1), st(0)\n\t"
-		"fsubp st(1), st(0)\n\t"
-		"fstp dword ptr [ebx+4]\n\t"
-		"add esp, 12\n\t"
-		"jmp 9f\n\t"
-		"8: fstp st(0)\n\t"
-		"fxch st(2)\n\t"
-		"jmp 6b\n\t"
-		"9:\n\t"
-		".att_syntax prefix"
-		: : "c" (world_maxs), "d" (mins), "b" (&locInfo), "D" (constants)
-		: "eax", "cc", "memory", "st", "st(1)", "st(2)", "st(3)",
-		  "st(4)", "st(5)", "st(6)", "st(7)"
-	);
+#if defined(_WIN32) || defined(__linux__)
+	volatile locInfo_t *grid = &locInfo;
+	long double count, fraction, offset;
+	int whole;
 
+	grid->gridStep[0] = 1200.0f;
+	grid->gridStep[1] = 1200.0f;
+#if defined(_WIN32)
+	{
+		/* The first probe uses the original rounded binary32 reciprocal. */
+		const float firstInverse = 0.000833333353511989116668701171875f;
+		int axis;
+		for (axis = 0; axis < 2; ++axis) {
+			long double difference = axis == 0
+				? (long double)world_maxs[0] - (long double)world_mins[0]
+				: (long double)world_mins[1] - (long double)world_maxs[1];
+			count = difference * (long double)firstInverse;
+			/* C0 repeats on unordered too; do not turn this into ordered <. */
+			while (!(count >= 7.0L)) {
+				grid->gridStep[axis] = (float)((long double)locInfo.gridStep[axis] - 50.0L);
+				difference = axis == 0
+					? (long double)world_maxs[0] - (long double)world_mins[0]
+					: (long double)world_mins[1] - (long double)world_maxs[1];
+				count = difference / (long double)locInfo.gridStep[axis];
+			}
+		}
+		count = ((long double)world_maxs[0] - (long double)world_mins[0])
+			/ (long double)locInfo.gridStep[0];
+		whole = TCE_TruncateNativeInteger(count);
+		fraction = count - (long double)whole;
+		offset = fraction * (long double)locInfo.gridStep[0];
+		offset = offset * 0.5L;
+		grid->gridStartCoord[0] = (float)(offset + (long double)world_mins[0]);
+		count = ((long double)world_mins[1] - (long double)world_maxs[1])
+			/ (long double)locInfo.gridStep[1];
+		whole = TCE_TruncateNativeInteger(count);
+		fraction = count - (long double)whole;
+		offset = fraction * (long double)locInfo.gridStep[1];
+		offset = offset * 0.5L;
+		grid->gridStartCoord[1] = (float)((long double)world_mins[1] - offset);
+	}
+#else
+	{
+		long double inverse = 1.0L / 1200.0L;
+		long double maximumX = (long double)world_maxs[0];
+		long double minimumX = (long double)world_mins[0];
+		long double difference = maximumX - minimumX;
+		long double stepY, maximumY, minimumY, stepX, inverseY;
+		qboolean reducedY = qfalse;
+
+		count = inverse * difference;
+		/* Only the first X gate exits on unordered. Later gates repeat. */
+		if (count < 7.0L) {
+			do {
+				long double step = (long double)locInfo.gridStep[0] - 50.0L;
+				grid->gridStep[0] = (float)step;
+				inverse = 1.0L / step;
+				maximumX = (long double)world_maxs[0];
+				minimumX = (long double)world_mins[0];
+				difference = maximumX - minimumX;
+				count = inverse * difference;
+			} while (!(count >= 7.0L));
+		}
+
+		stepY = (long double)locInfo.gridStep[1];
+		maximumY = (long double)world_maxs[1];
+		inverse = 1.0L / stepY;
+		difference = (long double)world_mins[1] - maximumY;
+		count = inverse * difference;
+		while (!(count >= 7.0L)) {
+			/* Y retains the step between iterations despite each float store. */
+			stepY = stepY - 50.0L;
+			inverse = 1.0L / stepY;
+			grid->gridStep[1] = (float)stepY;
+			maximumY = (long double)world_maxs[1];
+			difference = (long double)world_mins[1] - maximumY;
+			count = inverse * difference;
+			reducedY = qtrue;
+		}
+		if (reducedY) {
+			maximumX = (long double)world_maxs[0];
+			minimumX = (long double)world_mins[0];
+		}
+
+		stepX = (long double)locInfo.gridStep[0];
+		inverseY = 1.0L / stepY;
+		inverse = 1.0L / stepX;
+		difference = maximumX - minimumX;
+		count = inverse * difference;
+		whole = TCE_TruncateNativeInteger(count);
+		fraction = count - (long double)whole;
+		offset = stepX * fraction;
+		offset = offset * 0.5L;
+		grid->gridStartCoord[0] = (float)(minimumX + offset);
+		minimumY = (long double)world_mins[1];
+		difference = minimumY - (long double)world_maxs[1];
+		count = inverseY * difference;
+		whole = TCE_TruncateNativeInteger(count);
+		fraction = count - (long double)whole;
+		offset = stepY * fraction;
+		offset = offset * 0.5L;
+		grid->gridStartCoord[1] = (float)(minimumY - offset);
+	}
+#endif
 #else
 
 	// keep this in sync with CG_DrawGrid
@@ -5145,75 +3715,32 @@ void BG_InitLocations( vec2_t world_mins, vec2_t world_maxs )
 char *BG_GetLocationString( vec_t* pos )
 {
     static char coord[6];
-	int x, y;
+	int x, y, column;
+	unsigned int columnBits;
 
 	coord[0] = '\0';
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-	/* TC2002eae0: extended division, then legacy _ftol's 64-bit store. */
+#if defined(_WIN32)
+	/* Windows divides each held difference directly before signed64 truncation. */
 	{
-		unsigned short savedCW, truncateCW;
-		__int64 converted;
-		__asm {
-			mov ecx, pos
-			lea edx, locInfo
-			fld dword ptr [ecx]
-			fsub dword ptr [edx]
-			fdiv dword ptr [edx+8]
-			fstcw savedCW
-			fwait
-			mov ax, savedCW
-			or ax, 0c00h
-			mov truncateCW, ax
-			fldcw truncateCW
-			fistp qword ptr converted
-			fldcw savedCW
-			mov eax, dword ptr converted
-			mov x, eax
-			fld dword ptr [edx+4]
-			fsub dword ptr [ecx+4]
-			fdiv dword ptr [edx+12]
-			fstcw savedCW
-			fwait
-			fldcw truncateCW
-			fistp qword ptr converted
-			fldcw savedCW
-			mov eax, dword ptr converted
-			mov y, eax
-		}
+		long double coordinate = (long double)pos[0] - (long double)locInfo.gridStartCoord[0];
+		coordinate = coordinate / (long double)locInfo.gridStep[0];
+		x = TCE_TruncateNativeInteger(coordinate);
+		coordinate = (long double)locInfo.gridStartCoord[1] - (long double)pos[1];
+		coordinate = coordinate / (long double)locInfo.gridStep[1];
+		y = TCE_TruncateNativeInteger(coordinate);
 	}
-#elif defined(__GNUC__) && defined(__i386__)
-	/* Linux00086700 keeps both reciprocals on x87; FISTP is 32-bit. */
+#elif defined(__linux__)
+	/* Linux retains both reciprocals before converting the first coordinate. */
 	{
-		unsigned short savedCW, truncateCW;
-		__asm__ volatile (
-			"fld1\n\t"
-			"flds 0(%%edx)\n\t"
-			"fld %%st(1)\n\t"
-			"fdivs 8(%%edx)\n\t"
-			"fxch %%st(2)\n\t"
-			"fdivs 12(%%edx)\n\t"
-			"fxch %%st(1)\n\t"
-			"fsubrs 0(%%ecx)\n\t"
-			"fnstcw %2\n\t"
-			"movzwl %2, %%eax\n\t"
-			"fmulp %%st, %%st(2)\n\t"
-			"fxch %%st(1)\n\t"
-			"orw $0xc00, %%ax\n\t"
-			"movw %%ax, %3\n\t"
-			"fldcw %3\n\t"
-			"fistpl %0\n\t"
-			"fldcw %2\n\t"
-			"flds 4(%%ecx)\n\t"
-			"fsubrs 4(%%edx)\n\t"
-			"fmulp %%st, %%st(1)\n\t"
-			"fldcw %3\n\t"
-			"fistpl %1\n\t"
-			"fldcw %2"
-			: "=m" (x), "=m" (y), "=m" (savedCW), "=m" (truncateCW)
-			: "c" (pos), "d" (&locInfo)
-			: "eax", "memory", "st", "st(1)", "st(2)"
-		);
+		const long double inverseX = 1.0L / (long double)locInfo.gridStep[0];
+		const long double inverseY = 1.0L / (long double)locInfo.gridStep[1];
+		long double difference = (long double)pos[0] - (long double)locInfo.gridStartCoord[0];
+		long double coordinate = inverseX * difference;
+		x = TCE_TruncateNativeInteger(coordinate);
+		difference = (long double)locInfo.gridStartCoord[1] - (long double)pos[1];
+		coordinate = inverseY * difference;
+		y = TCE_TruncateNativeInteger(coordinate);
 	}
 #else
 	/* Portable fallback: original modules specify the two x86 paths above. */
@@ -5224,7 +3751,10 @@ char *BG_GetLocationString( vec_t* pos )
 	if( x < 0 ) x = 0;
 	if( y < 0 ) y = 0;
 
-	Com_sprintf( coord, sizeof(coord), "%c,%i", 'A' + x, y );
+	/* Native ADD wraps before the formatter consumes the character argument. */
+	columnBits = (unsigned int)x + (unsigned int)'A';
+	memcpy(&column, &columnBits, sizeof(column));
+	Com_sprintf( coord, sizeof(coord), "%c,%i", column, y );
 
 	return coord;
 }

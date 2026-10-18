@@ -4,6 +4,7 @@
 #include "../game/tce_bg.h"
 #include "tce_lightgrid.h"
 #include "tce_flash.h"
+#include "../game/tce_numeric.h"
 extern vmCvar_t cg_portalScopes;
 extern vmCvar_t cg_aspectMode;
 
@@ -798,16 +799,19 @@ CG_DrawScreenFade
 static void CG_SampleEyeLighting(void) {
     static const float side[9] = {0,-.25f,.25f,-.25f,.25f,-.5f,.5f,0,0};
     static const float up[9] = {0,.15f,.15f,-.15f,-.15f,0,0,-.3f,.3f};
-    vec3_t end, point, light;
+    vec3_t eyeStart, end, point, light;
     trace_t trace;
     float strongest;
     int i,j;
     cg.tceEyeSkySamples = cg.tceEyeSurfaceSamples = 0;
+    /* Each ray keeps the start sampled before the first engine callback.
+     * Its endpoint still uses the current view for that particular ray. */
+    VectorCopy(cg.refdef.vieworg,eyeStart);
     for (i=0;i<9;i++) {
         for (j=0;j<3;j++)
             end[j] = cg.refdef.vieworg[j] + 8192.0f *
                 (up[i]*cg.refdef.viewaxis[2][j] + side[i]*cg.refdef.viewaxis[1][j] + cg.refdef.viewaxis[0][j]);
-        CG_Trace(&trace,cg.refdef.vieworg,NULL,NULL,end,cg.snap->ps.clientNum,CONTENTS_SOLID);
+        CG_Trace(&trace,eyeStart,NULL,NULL,end,cg.snap->ps.clientNum,CONTENTS_SOLID);
         if (trace.surfaceFlags & SURF_SKY) cg.tceEyeSkySamples += 1;
         else {
             VectorMA(trace.endpos,8.0f,trace.plane.normal,point);
@@ -827,6 +831,26 @@ static void CG_TCERoomRay(vec3_t direction, const vec3_t signs, int axis) {
     for(j=0;j<3;j++) direction[j]=2.0f*((rand()&32767)*(1.0f/32767.0f)-.5f);
     if(axis<3)direction[axis]+=signs[axis];else direction[2]-=1.0f;
     VectorNormalize(direction);
+}
+
+static void CG_TCEReflectRoomRay(vec3_t direction, const vec3_t normal) {
+#if defined(_WIN32)
+    /* Windows adds z+y before x and retains the reflection scale until
+     * the three new direction components have each been stored. */
+    long double dot = (long double)normal[2] * direction[2] +
+        (long double)normal[1] * direction[1];
+    long double reflection;
+    int axis;
+    dot += (long double)normal[0] * direction[0];
+    reflection = dot * -2.0L;
+    for (axis=0;axis<3;axis++)
+        direction[axis] = (float)((long double)normal[axis] * reflection + direction[axis]);
+#else
+    /* Linux still uses the existing expression. Its retained component
+     * and endpoint stages remain to be reconstructed. */
+    float reflection = -2.0f * DotProduct(normal,direction);
+    VectorMA(direction,reflection,normal,direction);
+#endif
 }
 
 static void CG_TCECollectRoomTrace(const trace_t *tr, const vec3_t corner,
@@ -862,10 +886,17 @@ static void CG_EliteSndEffects(void) {
     vec3_t low={0,0,0},high={0,0,0},corner,signs,dir,end,start;
     float distance=0,hardness=0,weight,nearest=1e8f,inRadius=1e8f,dist;
     int sky=0,i,j,axis,kind,closest=-1,bounded=-1,bank;
+    int sampleTime=cg.time,timeUntilSample;
+    unsigned sampleBits;
     const entityState_t *global=NULL,*selected;
     trace_t tr;
-    if(cg.tceSoundSampleTime>cg.time)return;
-    cg.tceSoundSampleTime=cg.time+100;
+    /* The native clock subtraction and addition wrap in 32 bits. */
+    sampleBits=(unsigned)cg.tceSoundSampleTime-(unsigned)sampleTime;
+    memcpy(&timeUntilSample,&sampleBits,sizeof(timeUntilSample));
+    if(timeUntilSample>0)return;
+    sampleBits=(unsigned)sampleTime+100u;
+    memcpy(&cg.tceSoundSampleTime,&sampleBits,sizeof(cg.tceSoundSampleTime));
+    (void)Distance(cg.tceSoundLastOrigin,cg.snap->ps.origin);
     VectorCopy(cg.snap->ps.origin,cg.tceSoundLastOrigin);
     for(i=0;i<4;i++) {
         VectorCopy(cg.snap->ps.origin,corner);
@@ -880,9 +911,8 @@ static void CG_EliteSndEffects(void) {
                 VectorCopy(corner,start);
                 CG_TCERoomRay(dir,signs,axis);
             } else {
-                float reflection=-2*DotProduct(tr.plane.normal,dir);
                 VectorCopy(tr.endpos,start);
-                VectorMA(dir,reflection,tr.plane.normal,dir);
+                CG_TCEReflectRoomRay(dir,tr.plane.normal);
             }
             VectorMA(start,2048,dir,end);
             CG_Trace(&tr,start,NULL,NULL,end,cg.snap->ps.clientNum,CONTENTS_SOLID);
@@ -917,12 +947,12 @@ static void CG_EliteSndEffects(void) {
             cg.tceEnvironmentSun=es->nextWeapon*(1.0f/255.0f);
         } else {
             if(dist<nearest && !es->density){nearest=dist;closest=i;}
-            if(dist<inRadius && dist<=es->dmgFlags){inRadius=dist;bounded=i;}
+            if(dist<inRadius && (long double)dist<=(long double)es->dmgFlags){inRadius=dist;bounded=i;}
         }
     }
     if(bounded>=0)closest=bounded;
     bank=cg.tceSoundZoneActive;
-    if(cg.tceSoundEnvironment==3 && global && bounded==-1) {
+    if(cg.tceSoundEnvironment==3 && global && global->onFireEnd>=0 && bounded==-1) {
         if(cg.tceSoundZoneSounds[bank][0]!=global->onFireEnd || cg.tceSoundZoneVolume[bank]!=global->onFireStart)
             CG_TCESetSoundZone(global);
     } else if(closest<0) {
@@ -940,23 +970,89 @@ static void CG_EliteSndEffects(void) {
     }
 }
 
-/* Windows30067ed0: one-second stereo ambient crossfade, with flash deafness. */
-static void CG_EliteSndEnvironment(void) {
-    float blend=1,gain;
-    vec3_t point;
-    int i,bank,volume;
-    if(!cg.tceSoundZoneSounds[0][0]&&!cg.tceSoundZoneSounds[1][0])return;
-    if(cg.time-cg.tceSoundZoneTransitionTime<1000)blend=(cg.time-cg.tceSoundZoneTransitionTime)*.001f;
-    for(i=0;i<2;i++) {
-        bank=i?1-cg.tceSoundZoneActive:cg.tceSoundZoneActive;
-        if(!cg.tceSoundZoneSounds[bank][0] || (i && blend>=1))continue;
-        gain=i?1-blend:blend;
-        volume=(int)(cg.tceSoundZoneVolume[bank]*(1-tceFlash.deafness)*gain);
-        VectorMA(cg.refdef_current->vieworg,64,cg.refdef_current->viewaxis[1],point);
-        trap_S_AddLoopingSound(point,vec3_origin,cgs.gameSounds[cg.tceSoundZoneSounds[bank][0]],volume,0);
-        VectorMA(cg.refdef_current->vieworg,-64,cg.refdef_current->viewaxis[1],point);
-        trap_S_AddLoopingSound(point,vec3_origin,cgs.gameSounds[cg.tceSoundZoneSounds[bank][1]],volume,0);
+/* A loop is positioned independently for each ear. The engine callback may
+ * change the current view or sound zone before the other ear is submitted. */
+static void CG_AmbientLoopOrigin(vec3_t point, qboolean rightEar) {
+    const refdef_t *view = cg.refdef_current;
+    int axis;
+
+    for (axis = 0; axis < 3; ++axis) {
+#if defined(_WIN32)
+        long double offset = (long double)view->viewaxis[1][axis] * 64.0f;
+        point[axis] = rightEar ? (float)((long double)view->vieworg[axis] - offset)
+                               : (float)(offset + view->vieworg[axis]);
+#else
+        long double offset = (long double)view->viewaxis[1][axis] * (rightEar ? -64.0f : 64.0f);
+        point[axis] = (float)(offset + view->vieworg[axis]);
+#endif
     }
+}
+
+static int CG_AmbientLoopVolume(int bank, long double gain) {
+    long double amount = (long double)cg.tceSoundZoneVolume[bank];
+    long double hearing = 1.0L - tceFlash.deafness;
+    return TCE_TruncateNativeInteger((amount * hearing) * gain);
+}
+
+static void CG_EliteSndEnvironment(void) {
+    unsigned elapsedBits;
+    int elapsed, bank, sound, volume;
+    long double blend = 1.0L;
+    long double previousGain;
+    float previousRightGain;
+    vec3_t point;
+
+    if (!cg.tceSoundZoneSounds[0][0] && !cg.tceSoundZoneSounds[1][0])
+        return;
+
+    /* ET's millisecond clock and the original subtraction wrap at 32 bits. */
+    elapsedBits = (unsigned)cg.time - (unsigned)cg.tceSoundZoneTransitionTime;
+    memcpy(&elapsed, &elapsedBits, sizeof(elapsed));
+    if (elapsed < 1000) {
+        blend = (long double)elapsed * 0.001f;
+#if defined(_WIN32)
+        blend = (float)blend;
+#endif
+    }
+
+    bank = cg.tceSoundZoneActive;
+    sound = cg.tceSoundZoneSounds[bank][0];
+    if (sound) {
+        CG_AmbientLoopOrigin(point, qfalse);
+        volume = CG_AmbientLoopVolume(bank, blend);
+#if !defined(_WIN32)
+        /* Linux spills the fade before the first sound callback; its later
+         * ear and previous-zone decisions use that binary32 value. */
+        blend = (float)blend;
+#endif
+        trap_S_AddLoopingSound(point, vec3_origin, cgs.gameSounds[sound], volume, 0);
+
+        bank = cg.tceSoundZoneActive;
+        CG_AmbientLoopOrigin(point, qtrue);
+        volume = CG_AmbientLoopVolume(bank, blend);
+        sound = cg.tceSoundZoneSounds[bank][1];
+        trap_S_AddLoopingSound(point, vec3_origin, cgs.gameSounds[sound], volume, 0);
+    }
+
+    bank = 1 - cg.tceSoundZoneActive;
+    sound = cg.tceSoundZoneSounds[bank][0];
+    if (!sound || blend >= 1.0L)
+        return;
+
+    previousGain = 1.0L - blend;
+#if defined(_WIN32)
+    previousGain = (float)previousGain;
+#endif
+    previousRightGain = (float)previousGain;
+    CG_AmbientLoopOrigin(point, qfalse);
+    volume = CG_AmbientLoopVolume(bank, previousGain);
+    trap_S_AddLoopingSound(point, vec3_origin, cgs.gameSounds[sound], volume, 0);
+
+    bank = 1 - cg.tceSoundZoneActive;
+    CG_AmbientLoopOrigin(point, qtrue);
+    volume = CG_AmbientLoopVolume(bank, previousRightGain);
+    sound = cg.tceSoundZoneSounds[bank][1];
+    trap_S_AddLoopingSound(point, vec3_origin, cgs.gameSounds[sound], volume, 0);
 }
 
 /* Complete Windows 30069520 / Linux CG_DrawScreenFade 000b632a.

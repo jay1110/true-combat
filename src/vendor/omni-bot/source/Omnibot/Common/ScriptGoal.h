@@ -82,6 +82,13 @@ namespace AiState
 		bool GetNextDestination(DestinationVector &_desination, bool &_final, bool &_skiplastpt);
 		void OnPathSucceeded();
 		void OnPathFailed(FollowPathUser::FailType _how);
+		struct PathFailureDetails
+		{
+			Vector3f position, target;
+			int waypoint, time;
+			PathFailureDetails() : position(Vector3f::ZERO), target(Vector3f::ZERO), waypoint(0), time(0) {}
+		};
+		const PathFailureDetails &GetPathFailureDetails() const { return m_PathFailureDetails; }
 
 		// AimerUser functions.
 		bool GetAimPosition(Vector3f &_aimpos);
@@ -172,6 +179,7 @@ namespace AiState
 		void InternalSignal(const gmVariable &_signal);
 		void InternalExit() ;
 	private:
+		PathFailureDetails m_PathFailureDetails;
 		Vector3f					m_AimVector;
 		obint32						m_AimWeaponId;
 

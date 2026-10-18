@@ -13,6 +13,7 @@
 
 #include "bg_local.h"
 #include "tce_bg.h"
+#include "tce_numeric.h"
 #include "tce_weapon_ammo.h"
 #include "tce_reload.h"
 #include "tce_movement.h"
@@ -7819,139 +7820,6 @@ PM_AdjustAimSpreadScale
 static void PM_WeaponTruncateST0(void);
 #endif
 
-/* Original signed gates after wrapping SUB/ADD,3001086c..30010893. */
-static qboolean PM_TCEAimPostureReady(int commandTime, int proneTime) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-    int aimPostureReady;
-    __asm {
-        mov eax, commandTime
-        mov edx, proneTime
-        mov ecx, eax
-        sub ecx, edx
-        cmp ecx, 200
-        jl aim_posture_wait
-        add edx, eax
-        cmp edx, 200
-        jl aim_posture_wait
-        mov aimPostureReady, 1
-        jmp aim_posture_done
-aim_posture_wait:
-        mov aimPostureReady, 0
-aim_posture_done:
-    }
-    return aimPostureReady;
-#else
-    return (int)((unsigned int)commandTime - (unsigned int)proneTime) >= 200 &&
-        (int)((unsigned int)proneTime + (unsigned int)commandTime) >= 200;
-#endif
-}
-
-/* Windows PM_Weapon 30010740..30010a49: requested/active aiming and
- * key-edge latch. This is a complete branch, not the whole weapon controller. */
-static qboolean PM_TCEAimInput(qboolean delayedFire) {
-    playerState_t *ps = pm->ps;
-    int flags = ps->stats[STAT_TCE_WEAPON_FLAGS];
-    qboolean pressed = (pm->cmd.wbuttons & WBUTTON_ZOOM) != 0;
-    qboolean tryAim = qfalse;
-    if (!pressed && (flags & 0x8000)) {
-        ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~0x8000;
-    } else {
-        if (pressed && !(flags & 0x8000) && ps->weaponTime <= 0 &&
-            !delayedFire && ps->weaponstate == WEAPON_READY) tryAim = qtrue;
-        else if (ps->weaponTime <= 0 && (flags & 12) == 8) tryAim = qtrue;
-        if (tryAim && ps->weaponstate != WEAPON_DROPPING &&
-            ps->weaponstate != WEAPON_RELOADING && ps->weaponstate != 10 && ps->weaponstate != 11 &&
-            ps->weapon != 1 && ps->weapon != 21 && ps->weapon != 19 && ps->weapon != 12 && ps->weapon != 15 &&
-            (!(pm->cmd.buttons & BUTTON_SPRINT) || (!pm->cmd.forwardmove && !pm->cmd.rightmove) ||
-             (ps->pm_flags & PMF_DUCKED) || (ps->eFlags & EF_PRONE)) &&
-            pm->waterlevel < 3 && (pm->waterlevel < 1 || ps->groundEntityNum != ENTITYNUM_NONE) &&
-            !pml.ladder && ps->velocity[2] >= -360.0f && !(flags & 0x1000) &&
-            PM_TCEAimPostureReady(pm->cmd.serverTime, pm->pmext->proneTime) &&
-            !(ps->eFlags & EF_PRONE_MOVING) && ps->weapon) {
-            if (pressed) ps->stats[STAT_TCE_WEAPON_FLAGS] = (flags | 0x8000) ^ 8;
-            flags = ps->stats[STAT_TCE_WEAPON_FLAGS];
-            if ((flags & 12) == 4 || (flags & 12) == 8) {
-                ps->stats[STAT_TCE_WEAPON_FLAGS] ^= 4;
-                ps->stats[STAT_TCE_MOVEMENT_INSTABILITY] = 1000;
-                if (ps->weaponstate != WEAPON_FIRING) {
-                    unsigned int seed = (unsigned int)ps->stats[STAT_TCE_SHOT_SEED];
-#if defined(_MSC_VER) && defined(_M_IX86)
-                    const float aimPhaseScale = 1000.0f;
-                    int *aimPhase = &ps->stats[STAT_TCE_AIM_PHASE];
-                    __asm {
-                        lea eax, seed
-                        push eax
-                        call Q_random
-                        fmul aimPhaseScale
-                        add esp, 4
-                        call PM_WeaponTruncateST0
-                        mov ecx, aimPhase
-                        mov dword ptr [ecx], eax
-                    }
-#else
-                    /* Original3007dd50 returns the masked random value in x87
-                     * precision; do not round its scaled result through float. */
-                    seed = 69069u * seed + 1u;
-                    ps->stats[STAT_TCE_AIM_PHASE] = (int)((double)(seed & 65535u) * (1000.0 / 65536.0));
-#endif
-                    if (ps->stats[STAT_TCE_AIM_PHASE] > 1000) ps->stats[STAT_TCE_AIM_PHASE] -= 1000;
-                    if (!weaponDef[ps->weapon].noTacMode && (ps->stats[STAT_TCE_WEAPON_FLAGS] & 4)) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-                        const float aimTurn = 6.2831854820251465f;
-                        const double aimPitchScale = 200.0, aimYawScale = 400.0, aimBias = 2000.0;
-                        int *aimOffsets = &ps->holdable[5];
-                        __asm {
-                            lea eax, seed
-                            push eax
-                            call Q_random
-                            fmul aimTurn
-                            add esp, 4
-                            fld st(0)
-                            fcos
-                            fmul aimPitchScale
-                            fadd aimBias
-                            call PM_WeaponTruncateST0
-                            fsin
-                            mov ecx, aimOffsets
-                            mov dword ptr [ecx], eax
-                            fmul aimYawScale
-                            fadd aimBias
-                            call PM_WeaponTruncateST0
-                            mov ecx, aimOffsets
-                            mov dword ptr [ecx+4], eax
-                        }
-#else
-                        double angle;
-                        seed = 69069u * seed + 1u;
-                        angle = ((double)(seed & 65535u) / 65536.0) * (double)6.2831854820251465f;
-                        ps->holdable[5] = (int)(cos(angle) * 200.0 + 2000.0);
-                        ps->holdable[6] = (int)(sin(angle) * 400.0 + 2000.0);
-#endif
-                    }
-                    ps->stats[STAT_TCE_SHOT_SEED] = seed & 0xffff;
-                }
-#if defined(_MSC_VER) && defined(_M_IX86)
-                {
-                    int *aimTimer = &ps->weaponTime;
-                    __asm {
-                        mov eax, aimTimer
-                        add dword ptr [eax], 300
-                    }
-                }
-#else
-                ps->weaponTime = (int)((unsigned int)ps->weaponTime + 300u);
-#endif
-                PM_AddEvent(EV_TCE_TOGGLE_AIMING);
-                return qtrue;
-            }
-        }
-    }
-    flags = ps->stats[STAT_TCE_WEAPON_FLAGS];
-    if (pressed && (flags & 0x800c) == 8)
-        ps->stats[STAT_TCE_WEAPON_FLAGS] = (flags | 0x8000) & ~8;
-    return qfalse;
-}
-
 /* PmoveSingle 3000c180: movement/reload can cancel active aim after PM_Weapon. */
 static qboolean PM_TCECancelAim(void) {
     playerState_t *ps = pm->ps;
@@ -8556,551 +8424,12 @@ Generates weapon events and modifes the weapon counter
 
 //#define DO_WEAPON_DBG 1
 
-/* Original common recoil recovery3001020b, shared by all weapons. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-static void PM_WeaponTruncateST0(void);
-#endif
-static void PM_TCERecoverHipRecoil(void) {
-    int *remaining = &pm->ps->stats[STAT_TCE_RECOIL_REMAINDER];
-    if (*remaining > 0) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-        const float recoveryRate = 1.333f;
-        int recoveryMsec = pml.msec;
-        int recovered;
-        int *recoveryPitch = &pm->ps->delta_angles[PITCH];
-        __asm {
-            fild recoveryMsec
-            fmul recoveryRate
-            call PM_WeaponTruncateST0
-            mov recovered, eax
-            mov ecx, remaining
-            mov edx, dword ptr [ecx]
-            cmp edx, eax
-            jge recovery_subtract
-            mov recovered, edx
-            mov dword ptr [ecx], 0
-            jmp recovery_pitch
-        recovery_subtract:
-            sub edx, eax
-            mov dword ptr [ecx], edx
-        recovery_pitch:
-            fild recovered
-            fadd st(0), st(0)
-            mov ecx, recoveryPitch
-            fiadd dword ptr [ecx]
-            call PM_WeaponTruncateST0
-            mov ecx, recoveryPitch
-            mov dword ptr [ecx], eax
-        }
-#else
-        int recovered = (int)((double)pml.msec * (double)1.333f);
-        if (recovered > *remaining) recovered = *remaining;
-        *remaining -= recovered;
-        pm->ps->delta_angles[PITCH] += 2 * recovered;
-#endif
-    }
-}
-
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
-/* Private PM_Weapon2003a73d..2003a91c common shot prelude. */
-static const double pre842K200ac1e0 = 3.0;
-static const float pre842K200ac6ec = 255.0f;
-static const float pre842K200ac484 = 0.0010000000474974513f;
-static const float pre842K200ac3ac = 1000.0f;
-static const float pre842K200ac190 = 30.0f;
-enum {
-    pre842SpreadF = offsetof(playerState_t,aimSpreadScaleFloat),
-    pre842SpreadI = offsetof(playerState_t,aimSpreadScale),
-    pre842Move = offsetof(playerState_t,stats)+STAT_TCE_MOVEMENT_INSTABILITY*4,
-    pre842Shot = offsetof(playerState_t,stats)+STAT_TCE_SHOT_INSTABILITY*4,
-    pre842Hold0 = offsetof(playerState_t,holdable),
-    pre842Hold1 = offsetof(playerState_t,holdable)+4,
-    pre842Weapon = offsetof(playerState_t,weapon),
-    pre842Flags = offsetof(playerState_t,stats)+STAT_TCE_WEAPON_FLAGS*4,
-    pre842Eflags = offsetof(playerState_t,eFlags),
-    pre842Velocity = offsetof(playerState_t,velocity),
-    pre842View0 = offsetof(playerState_t,viewangles),
-    pre842View1 = offsetof(playerState_t,viewangles)+4,
-    pre842View2 = offsetof(playerState_t,viewangles)+8,
-    pre842Ext = offsetof(pmove_t,pmext),
-    pre842Angles0 = offsetof(pmoveExt_t,tceShotAngles),
-    pre842Angles1 = offsetof(pmoveExt_t,tceShotAngles)+4,
-    pre842Angles2 = offsetof(pmoveExt_t,tceShotAngles)+8,
-    pre842Minimum = offsetof(tce_weaponDef_t,unknown_0f8)+6*4,
-    pre842Tac = offsetof(tce_weaponDef_t,unknown_0f8)+8*4,
-    pre842Hip = offsetof(tce_weaponDef_t,unknown_0f8)+7*4
-};
-static __declspec(naked) void PM_TCEShotPrelude842(int spreadAddition, int *recoilResult, float *postureResult) {
-    __asm {
-        sub esp, 0x38
-        push ebx
-        push ebp
-        push esi
-        push edi
-        mov eax, dword ptr [esp+0x4c]
-        mov dword ptr [esp+0x18], eax
-        mov ebp, 1000
-        fild dword ptr [esp + 0x18]
-        mov edx, dword ptr [pm]
-        fmul qword ptr [pre842K200ac1e0]
-        mov eax, dword ptr [edx]
-        fadd dword ptr [eax+pre842SpreadF]
-        fstp dword ptr [eax+pre842SpreadF]
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax]
-        fld dword ptr [ecx+pre842SpreadF]
-        fcomp dword ptr [pre842K200ac6ec]
-        fnstsw ax
-        test ah, 0x41
-        jne pre842_2003a77f
-        mov dword ptr [ecx+pre842SpreadF], 0x437f0000
-pre842_2003a77f:
-        mov ecx, dword ptr [pm]
-        mov esi, dword ptr [ecx]
-        fld dword ptr [esi+pre842SpreadF]
-        call PM_WeaponTruncateST0
-        mov dword ptr [esi+pre842SpreadI], eax
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx]
-        mov ecx, dword ptr [eax+pre842Move]
-        mov dword ptr [eax+pre842Hold0], ecx
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx]
-        mov ecx, dword ptr [eax+pre842Shot]
-        mov dword ptr [eax+pre842Hold1], ecx
-        mov edx, dword ptr [pm]
-        mov esi, dword ptr [edx]
-        fild dword ptr [esi+pre842Shot]
-        mov ecx, dword ptr [esi+pre842Weapon]
-        fld st(0)
-        fmul dword ptr [pre842K200ac484]
-        lea eax, [ecx + ecx*2]
-        shl eax, 3
-        fsqrt 
-        sub eax, ecx
-        lea eax, [eax + eax*4]
-        fild dword ptr [eax*4 + weaponDef+pre842Minimum]
-        fmul dword ptr [pre842K200ac484]
-        fstp dword ptr [esp + 0x28]
-        fcom dword ptr [esp + 0x28]
-        fnstsw ax
-        test ah, 1
-        je pre842_2003a80b
-        fstp st(0)
-        fld dword ptr [esp + 0x28]
-pre842_2003a80b:
-        fmul dword ptr [pre842K200ac3ac]
-        fadd st(0), st(1)
-        call PM_WeaponTruncateST0
-        mov dword ptr [esi+pre842Shot], eax
-        mov ecx, dword ptr [pm]
-        fstp st(0)
-        mov eax, dword ptr [ecx]
-        cmp dword ptr [eax+pre842Shot], ebp
-        jle pre842_2003a836
-        mov dword ptr [eax+pre842Shot], ebp
-pre842_2003a836:
-        mov edx, dword ptr [pm]
-        mov dword ptr [esp + 0x1c], 0x3f800000
-        mov ecx, dword ptr [edx]
-        test byte ptr [ecx+pre842Flags], 4
-        je pre842_2003a8c3
-        mov edx, dword ptr [ecx+pre842Weapon]
-        lea eax, [edx + edx*2]
-        shl eax, 3
-        sub eax, edx
-        lea eax, [eax + eax*4]
-        mov edi, dword ptr [eax*4 + weaponDef+pre842Tac]
-        mov al, byte ptr [ecx +pre842Eflags]
-        test al, 0x10
-        je pre842_2003a88f
-        add ecx, pre842Velocity
-        push ecx
-        call VectorLength
-        fcomp dword ptr [pre842K200ac190]
-        add esp, 4
-        fnstsw ax
-        test ah, 1
-        je pre842_2003a88f
-        mov dword ptr [esp + 0x1c], 0x3f333333
-pre842_2003a88f:
-        mov ecx, dword ptr [pm]
-        mov eax, dword ptr [ecx]
-        test dword ptr [eax +pre842Eflags], 0x80000
-        je pre842_2003a8e3
-        add eax, pre842Velocity
-        push eax
-        call VectorLength
-        fcomp dword ptr [pre842K200ac190]
-        add esp, 4
-        fnstsw ax
-        test ah, 1
-        je pre842_2003a8e3
-        mov dword ptr [esp + 0x1c], 0x3f19999a
-        jmp pre842_2003a8e3
-pre842_2003a8c3:
-        mov ecx, dword ptr [ecx+pre842Weapon]
-        mov dword ptr [esp + 0x1c], 0x3f800000
-        lea eax, [ecx + ecx*2]
-        shl eax, 3
-        sub eax, ecx
-        lea edx, [eax + eax*4]
-        mov edi, dword ptr [edx*4 + weaponDef+pre842Hip]
-pre842_2003a8e3:
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax]
-        mov edx, dword ptr [eax +pre842Ext]
-        mov eax, dword ptr [ecx+pre842View0]
-        mov dword ptr [edx +pre842Angles0], eax
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax]
-        mov edx, dword ptr [eax +pre842Ext]
-        mov eax, dword ptr [ecx+pre842View1]
-        mov dword ptr [edx +pre842Angles1], eax
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax]
-        mov edx, dword ptr [eax +pre842Ext]
-        mov eax, dword ptr [ecx+pre842View2]
-        mov dword ptr [edx +pre842Angles2], eax
-        mov eax, dword ptr [esp+0x50]
-        mov dword ptr [eax], edi
-        mov eax, dword ptr [esp+0x54]
-        mov ecx, dword ptr [esp+0x1c]
-        mov dword ptr [eax], ecx
-        pop edi
-        pop esi
-        pop ebp
-        pop ebx
-        add esp, 0x38
-        ret
-    }
-}
-#endif
-
-static void PM_TCEShotRecoil(int interval, unsigned int seed, int spreadAddition) {
-    const tce_weaponDef_t *w = &weaponDef[pm->ps->weapon];
-    int oldInstability = pm->ps->holdable[1];
-    int oldRecoilPitch = pm->ps->delta_angles[PITCH];
-    int oldRecoilYaw = pm->ps->delta_angles[YAW];
-    int recoil;
-    int half, kick, minimum;
-    float randomScale, kickFloat;
-#if !defined(_MSC_VER) || !defined(_M_IX86) || !defined(GAMEDLL)
-    float increment;
-#endif
-#if defined(_MSC_VER) && defined(_M_IX86)
-    const float instabilityScale = 0.001f, instabilityUnits = 1000.0f;
-    int *instabilityState = &pm->ps->stats[STAT_TCE_SHOT_INSTABILITY];
-    const int *instabilityMinimum = &w->unknown_0f8[6];
-#else
-    double growth;
-#endif
-    float postureScale = 1.0f;
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
-    PM_TCEShotPrelude842(spreadAddition, &recoil, &postureScale);
-    w = &weaponDef[pm->ps->weapon];
-#else
-    (void)spreadAddition;
-    /* Seed and snapshots were captured by the common firing-tail producer. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-    /* Original 30012480..300124dc: keep the integer addend and square
-     * root on the x87 stack; only the definition-derived minimum spills. */
-    __asm {
-        mov ecx, instabilityState
-        fild dword ptr [ecx]
-        fld st(0)
-        fmul instabilityScale
-        fsqrt
-        mov ecx, instabilityMinimum
-        fild dword ptr [ecx]
-        fmul instabilityScale
-        fstp increment
-        fcom increment
-        fnstsw ax
-        test ah, 1
-        jz instability_selected
-        fstp st(0)
-        fld increment
-    instability_selected:
-        fmul instabilityUnits
-        fadd st(0), st(1)
-        call PM_WeaponTruncateST0
-        mov ecx, instabilityState
-        mov dword ptr [ecx], eax
-        fstp st(0)
-    }
-#else
-    increment = (float)((double)w->unknown_0f8[6] * (double)0.001f);
-    growth = sqrt((double)oldInstability * (double)0.001f);
-    if (growth < increment) growth = increment;
-    pm->ps->stats[STAT_TCE_SHOT_INSTABILITY] = (int)(oldInstability + growth * 1000.0f);
-#endif
-    if (pm->ps->stats[STAT_TCE_SHOT_INSTABILITY] > 1000)
-        pm->ps->stats[STAT_TCE_SHOT_INSTABILITY] = 1000;
-    recoil = w->unknown_0f8[(pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) ? 8 : 7]; /* definition offsets114/118 */
-    if (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-        const float postureSpeedLimit = 30.0f;
-        const float *postureVelocity;
-        if (pm->ps->eFlags & EF_CROUCHING) {
-            postureVelocity = pm->ps->velocity;
-            __asm {
-                push postureVelocity
-                call VectorLength
-                fcomp postureSpeedLimit
-                add esp, 4
-                fnstsw ax
-                test ah, 1
-                jz recoil_not_crouched
-                mov dword ptr postureScale, 03f333333h
-            recoil_not_crouched:
-            }
-        }
-        if (pm->ps->eFlags & EF_PRONE) {
-            postureVelocity = pm->ps->velocity;
-            __asm {
-                push postureVelocity
-                call VectorLength
-                fcomp postureSpeedLimit
-                add esp, 4
-                fnstsw ax
-                test ah, 1
-                jz recoil_not_prone
-                mov dword ptr postureScale, 03f19999ah
-            recoil_not_prone:
-            }
-        }
-#else
-        double speed = sqrt((double)pm->ps->velocity[0] * pm->ps->velocity[0] +
-                            (double)pm->ps->velocity[1] * pm->ps->velocity[1] +
-                            (double)pm->ps->velocity[2] * pm->ps->velocity[2]);
-        if ((pm->ps->eFlags & EF_CROUCHING) && speed < 30.0f) postureScale = 0.7f;
-        if ((pm->ps->eFlags & EF_PRONE) && speed < 30.0f) postureScale = 0.6f;
-#endif
-    }
-    /* Original3001259b: the angle snapshot follows instability and posture. */
-    VectorCopy(pm->ps->viewangles, pm->pmext->tceShotAngles);
-#endif
-    if ((pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) && !w->noTacMode) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-        const float shotAngleBias = 2000.0f, shotAngleScale = 0.01f;
-        const int *shotAngleInputs = &pm->ps->holdable[5];
-        float *shotAngleOutputs = pm->pmext->tceShotAngles;
-        __asm {
-            mov ecx, shotAngleInputs
-            mov edx, shotAngleOutputs
-            fild dword ptr [ecx]
-            fsub shotAngleBias
-            fmul shotAngleScale
-            fld st(0)
-            fadd dword ptr [edx]
-            fstp dword ptr [edx]
-            fstp st(0)
-            fild dword ptr [ecx+4]
-            fsub shotAngleBias
-            fmul shotAngleScale
-            fld st(0)
-            fadd dword ptr [edx+4]
-            fstp dword ptr [edx+4]
-            fstp st(0)
-        }
-#else
-        /* Original FILD/FSUB/FMUL/FADD retains the offset product until the
-         * final angle store. Avoid an extra binary32 product rounding in the
-         * portable prediction/server path. */
-        pm->pmext->tceShotAngles[PITCH] = (float)((double)pm->pmext->tceShotAngles[PITCH] +
-            ((double)pm->ps->holdable[5] - 2000.0) * (double)0.01f);
-        pm->pmext->tceShotAngles[YAW] = (float)((double)pm->pmext->tceShotAngles[YAW] +
-            ((double)pm->ps->holdable[6] - 2000.0) * (double)0.01f);
-#endif
-    }
-    if (!recoil) {
-        pm->pmext->weapRecoilTime = 0;
-        return;
-    }
-#if defined(_MSC_VER) && defined(_M_IX86)
-    {
-        int *recoilRemainder = &pm->ps->stats[STAT_TCE_RECOIL_REMAINDER];
-        __asm {
-            mov eax, recoil
-            cdq
-            sub eax, edx
-            sar eax, 1
-            mov half, eax
-            mov ecx, recoilRemainder
-            mov edx, dword ptr [ecx]
-            cmp edx, eax
-            jle recoil_kick_selected
-            mov edx, eax
-        recoil_kick_selected:
-            add edx, recoil
-            mov kick, edx
-        }
-    }
-#else
-    half = recoil / 2;
-    kick = pm->ps->stats[STAT_TCE_RECOIL_REMAINDER];
-    if (kick > half) kick = half;
-    kick += recoil;
-#endif
-#if defined(_MSC_VER) && defined(_M_IX86)
-    {
-        const float recoilIntervalScale = 1.3333332538604736f;
-        const float recoilIntervalBias = 4.0f;
-        /* 3001267e..300126a6: neither product spills to binary64 before
-         * the original signed64 truncation / low32 return. */
-        __asm {
-            fild kick
-            fmul postureScale
-            call PM_WeaponTruncateST0
-            fild interval
-            mov kick, eax
-            fmul recoilIntervalScale
-            fadd recoilIntervalBias
-            call PM_WeaponTruncateST0
-            mov minimum, eax
-        }
-    }
-#else
-    kick = (int)((double)kick * (double)postureScale);
-    minimum = (int)((double)interval * (double)1.3333332538604736f + 4.0f);
-#endif
-    if (minimum > 250) minimum = 250;
-    if (kick < minimum) kick = minimum;
-#if defined(_MSC_VER) && defined(_M_IX86)
-    {
-        int *recoilRemainder = &pm->ps->stats[STAT_TCE_RECOIL_REMAINDER];
-        __asm {
-            mov ecx, recoilRemainder
-            mov edx, dword ptr [ecx]
-            add edx, kick
-            mov dword ptr [ecx], edx
-            mov eax, half
-            mov edx, interval
-            lea eax, [edx+eax*4]
-            cmp dword ptr [ecx], eax
-            jle recoil_interval_clamped
-            mov dword ptr [ecx], eax
-        recoil_interval_clamped:
-            cmp dword ptr [ecx], 500
-            jle recoil_maximum_clamped
-            mov dword ptr [ecx], 500
-        recoil_maximum_clamped:
-        }
-    }
-#else
-    pm->ps->stats[STAT_TCE_RECOIL_REMAINDER] += kick;
-    if (pm->ps->stats[STAT_TCE_RECOIL_REMAINDER] > interval + half * 4)
-        pm->ps->stats[STAT_TCE_RECOIL_REMAINDER] = interval + half * 4;
-    if (pm->ps->stats[STAT_TCE_RECOIL_REMAINDER] > 500)
-        pm->ps->stats[STAT_TCE_RECOIL_REMAINDER] = 500;
-#endif
-#if defined(_MSC_VER) && defined(_M_IX86)
-    {
-        int *recoilAngles = pm->ps->delta_angles;
-        int *recoilResetTime = &pm->pmext->weapRecoilTime;
-        const float recoilPitchBias = 2.0f;
-        float recoilOldAngle;
-        ++seed;
-#if defined(GAMEDLL)
-        /* Original2003aa58 reads the snapshot after the842 prelude wrote it. */
-        oldInstability = pm->ps->holdable[1];
-#endif
-        __asm {
-            fild oldInstability
-            mov ecx, recoilResetTime
-            mov dword ptr [ecx], 0
-            fmul instabilityScale
-            fstp randomScale
-            fild kick
-            fstp kickFloat
-            mov ecx, recoilAngles
-            fild dword ptr [ecx]
-            fstp recoilOldAngle
-            lea eax, seed
-            push eax
-            call Q_random
-            fmul randomScale
-            fadd recoilPitchBias
-            fmul kickFloat
-            fsubr recoilOldAngle
-            call PM_WeaponTruncateST0
-            mov ecx, recoilAngles
-            mov dword ptr [ecx], eax
-            fild dword ptr [ecx+4]
-            fstp recoilOldAngle
-            lea eax, seed
-            push eax
-            call Q_random
-            fmul randomScale
-            add esp, 8
-            fmul kickFloat
-            fsubr recoilOldAngle
-            call PM_WeaponTruncateST0
-            mov ecx, recoilAngles
-            mov dword ptr [ecx+4], eax
-        }
-    }
-#else
-    pm->pmext->weapRecoilTime = 0;
-    randomScale = (float)((double)oldInstability * (double)0.001f);
-    kickFloat = (float)kick;
-    ++seed;
-    seed = 69069u * seed + 1u;
-    pm->ps->delta_angles[PITCH] = (int)((double)pm->ps->delta_angles[PITCH] -
-        (((double)(seed & 65535u) / 65536.0 * randomScale) + 2.0) * kickFloat);
-    seed = 69069u * seed + 1u;
-    pm->ps->delta_angles[YAW] = (int)((double)pm->ps->delta_angles[YAW] -
-        ((double)(seed & 65535u) / 65536.0 * randomScale) * kickFloat);
-#endif
-    pm->pmext->tceFreelookRecoil[PITCH] += AngleNormalize180(SHORT2ANGLE(pm->ps->delta_angles[PITCH] - oldRecoilPitch));
-    pm->pmext->tceFreelookRecoil[YAW] += AngleNormalize180(SHORT2ANGLE(pm->ps->delta_angles[YAW] - oldRecoilYaw));
-}
-
-/* Complete activate-action branch of original PM_Weapon, 30010b6e..30010d16.
- * Timers are predicted on both modules; the server validates the target again
- * when consuming the completion event. The parent weapon controller is partial. */
-static void PM_TCEObjectiveAction(void) {
-    playerState_t *ps = pm->ps;
-    int hint = ps->serverCursorHint;
-    qboolean target = hint == HINT_DISARM || hint == HINT_BREAKABLE_DYNAMITE || hint == HINT_ACTIVATE;
-    if (!(pm->cmd.buttons & BUTTON_ACTIVATE)) {
-        if (ps->pm_flags & PMF_TCE_OBJECTIVE_ACTION) {
-            ps->pm_flags &= ~PMF_TCE_OBJECTIVE_ACTION;
-            ps->weaponTime = 100;
-            PM_AddEvent(EV_TCE_OBJECTIVE_STOP);
-        }
-        return;
-    }
-    if (target && ps->weaponTime <= 0 && ps->weaponDelay <= 0 &&
-        ps->weaponstate == WEAPON_READY && !(ps->pm_flags & PMF_TCE_OBJECTIVE_ACTION)) {
-        ps->pm_flags |= PMF_TCE_OBJECTIVE_ACTION;
-        ps->weaponTime = (ps->stats[STAT_TCE_FLAGS] & 2) ? 2000 : 4000;
-        if (hint == HINT_DISARM)
-            ps->weaponTime = (ps->stats[STAT_TCE_FLAGS] & 2) ? 5000 : 10000;
-        if (hint == HINT_ACTIVATE) PM_AddEvent(EV_TCE_OBJECTIVE_START);
-    } else if (ps->pm_flags & PMF_TCE_OBJECTIVE_ACTION) {
-        if (ps->weaponTime <= 0) {
-            if (hint == HINT_DISARM) PM_AddEvent(EV_TCE_DEFUSE);
-            else if (hint == HINT_BREAKABLE_DYNAMITE) PM_AddEvent(EV_TCE_PLANT);
-            else if (hint == HINT_ACTIVATE) PM_AddEvent(EV_TCE_OBJECTIVE_COMPLETE);
-            ps->weaponTime += 500;
-            ps->pm_flags &= ~PMF_TCE_OBJECTIVE_ACTION;
-        } else if (!target) {
-            ps->pm_flags &= ~PMF_TCE_OBJECTIVE_ACTION;
-            ps->weaponDelay = 0;
-            ps->weaponTime = 100;
-            PM_AddEvent(EV_TCE_OBJECTIVE_STOP);
-        }
-    }
-}
-
 #if defined(_MSC_VER) && defined(_M_IX86)
 static __declspec(naked) void PM_WeaponTruncateST0(void) {
     __asm {
         push ebp
         mov ebp, esp
-        sub esp, 12
+        add esp, -12 /* Original flags already observable at the following FWAIT. */
         fwait
         fnstcw word ptr [ebp-2]
         fwait
@@ -9117,77 +8446,28 @@ static __declspec(naked) void PM_WeaponTruncateST0(void) {
     }
 }
 
-/* Native extraction of the two original mounted-weapon cooling blocks. */
-static void PM_WeaponCoolMounted(void) {
-    static double (__cdecl *const mountedFloor)(double) = floor;
-    static const float mountedCooling = 300.0f;
-    static const float mountedReciprocal = 0.0006666666595265269f;
-    static const float mountedByteScale = 255.0f;
-    int *mountedHeat = &pm->ps->weapHeat[34];
-    int *mountedDisplay = &pm->ps->curWeapHeat;
-    float *mountedFrame = &pml.frametime;
-    __asm {
-        mov ecx, mountedHeat
-        fild dword ptr [ecx]
-        mov ecx, mountedFrame
-        fld dword ptr [ecx]
-        fmul mountedCooling
-        fsubp st(1), st(0)
-        call PM_WeaponTruncateST0
-        mov ecx, mountedHeat
-        mov dword ptr [ecx], eax
-        test eax, eax
-        jge mounted_heat_nonnegative
-        mov dword ptr [ecx], 0
-mounted_heat_nonnegative:
-        sub esp, 8
-        fild dword ptr [ecx]
-        fmul mountedReciprocal
-        fmul mountedByteScale
-        fstp qword ptr [esp]
-        call dword ptr [mountedFloor]
-        add esp, 8
-        call PM_WeaponTruncateST0
-        mov ecx, mountedDisplay
-        mov dword ptr [ecx], eax
-    }
-}
+
 #endif
 
-/* Extracted PM_Weapon recoil expressions; preserve the original final store. */
-static void PM_WeaponRandomPitch(float *recoilDestination, float recoilScale) {
-    int recoilBits = rand() & 0x7fff;
-#if defined(_MSC_VER) && defined(_M_IX86)
-    static const float recoilRandomScale = 3.0518509447574615e-05f;
-    __asm {
-        fild recoilBits
-        fmul recoilRandomScale
-        fmul recoilScale
-        mov eax, recoilDestination
-        fstp dword ptr [eax]
-    }
+/* Original random recoil expressions; only the final value is binary32.
+ * Linux has folded pitch multipliers in its own constant pool. */
+static void PM_WeaponRandomPitch(float *destination, float scale) {
+    int randomBits = rand() & 0x7fff;
+    long double value;
+#if defined(_WIN32)
+    value = (long double)randomBits * 3.0518509447574615e-05f * scale;
 #else
-    *recoilDestination = (float)((double)recoilBits * (double)3.0518509447574615e-05f * (double)recoilScale);
+    float multiplier = scale == 0.03750000149011612f ? 1.1444441270214156e-06f :
+        scale == 0.15000000596046448f ? 4.5777765080856625e-06f : 2.0599993604264455e-06f;
+    value = (long double)randomBits * multiplier;
 #endif
+    *destination = (float)value;
 }
 
-static void PM_WeaponRandomYaw(float *recoilDestination, double recoilScale) {
-    int recoilBits = rand() & 0x7fff;
-#if defined(_MSC_VER) && defined(_M_IX86)
-    static const float recoilRandomScale = 3.0518509447574615e-05f;
-    static const double recoilMidpoint = 0.5;
-    __asm {
-        fild recoilBits
-        fmul recoilRandomScale
-        fsub recoilMidpoint
-        fadd st(0), st(0)
-        fmul recoilScale
-        mov eax, recoilDestination
-        fstp dword ptr [eax]
-    }
-#else
-    *recoilDestination = (float)(((double)recoilBits * (double)3.0518509447574615e-05f - 0.5) * 2.0 * recoilScale);
-#endif
+static void PM_WeaponRandomYaw(float *destination, double scale) {
+    int randomBits = rand() & 0x7fff;
+    long double value = (long double)randomBits * 3.0518509447574615e-05f - 0.5L;
+    *destination = (float)((value + value) * scale);
 }
 
 /* Original inlined class-charge comparison: threshold > elapsed, ordered.
@@ -9212,830 +8492,15 @@ static qboolean PM_WeaponChargePending(int elapsed, int chargeTime, float fracti
 #endif
 }
 
-/* Inlined PM_Weapon ADD32 sites; preserve wrapping timer arithmetic. */
+/* Advance the command timer with the protocol's 32-bit wrap. */
 static void PM_WeaponAddTime(int interval) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-    int *cycleTimer = &pm->ps->weaponTime;
-    __asm {
-        mov eax, cycleTimer
-        mov ecx, interval
-        add dword ptr [eax], ecx
-    }
-#else
-    pm->ps->weaponTime = (int)((unsigned int)pm->ps->weaponTime + (unsigned int)interval);
-#endif
+    unsigned bits = (unsigned)pm->ps->weaponTime + (unsigned)interval;
+    memcpy(&pm->ps->weaponTime, &bits, sizeof(bits));
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
-/* PM_Weapon20037fb0 private extraction: 20038a65..20039074.
- * Existing64-definition domain only; not an independent original function. */
-static const float actions834K200ac788 = -360.0;
-static const float actions834K200ac3ac = 1000.0;
-static const float actions834K200ac6b8 = 6.2831854820251465;
-static const double actions834K200ac6a8 = 200.0;
-static const double actions834K200ac780 = 2000.0;
-static const double actions834K200ac6b0 = 400.0;
-enum {
-    actions834Ps = offsetof(pmove_t,ps),
-    actions834Ext = offsetof(pmove_t,pmext),
-    actions834Wbuttons = offsetof(pmove_t,cmd)+offsetof(usercmd_t,wbuttons),
-    actions834Buttons = offsetof(pmove_t,cmd)+offsetof(usercmd_t,buttons),
-    actions834ForwardCmd = offsetof(pmove_t,cmd)+offsetof(usercmd_t,forwardmove),
-    actions834RightCmd = offsetof(pmove_t,cmd)+offsetof(usercmd_t,rightmove),
-    actions834CmdTime = offsetof(pmove_t,cmd)+offsetof(usercmd_t,serverTime),
-    actions834Water = offsetof(pmove_t,waterlevel),
-    actions834Flags = offsetof(playerState_t,pm_flags),
-    actions834Eflags = offsetof(playerState_t,eFlags),
-    actions834Time = offsetof(playerState_t,weaponTime),
-    actions834Delay = offsetof(playerState_t,weaponDelay),
-    actions834VelocityZ = offsetof(playerState_t,velocity)+2*sizeof(float),
-    actions834Ground = offsetof(playerState_t,groundEntityNum),
-    actions834Weapon = offsetof(playerState_t,weapon),
-    actions834State = offsetof(playerState_t,weaponstate),
-    actions834WeaponFlags = offsetof(playerState_t,stats)+STAT_TCE_WEAPON_FLAGS*sizeof(int),
-    actions834TcFlags = offsetof(playerState_t,stats)+STAT_TCE_FLAGS*sizeof(int),
-    actions834Instability = offsetof(playerState_t,stats)+STAT_TCE_MOVEMENT_INSTABILITY*sizeof(int),
-    actions834Phase = offsetof(playerState_t,stats)+STAT_TCE_AIM_PHASE*sizeof(int),
-    actions834Seed = offsetof(playerState_t,stats)+STAT_TCE_SHOT_SEED*sizeof(int),
-    actions834RecoilX = offsetof(playerState_t,holdable)+5*sizeof(int),
-    actions834RecoilY = offsetof(playerState_t,holdable)+6*sizeof(int),
-    actions834Hint = offsetof(playerState_t,serverCursorHint),
-    actions834ProneTime = offsetof(pmoveExt_t,proneTime),
-    actions834Ladder = offsetof(pml_t,ladder),
-    actions834NoTac = offsetof(tce_weaponDef_t,noTacMode)
-};
-typedef char actions834Protocol[(offsetof(pmove_t,ps)==0 && sizeof(tce_weaponDef_t)==460 && offsetof(tce_weaponDef_t,noTacMode)==0x194 && HINT_DISARM==39 && HINT_BREAKABLE_DYNAMITE==10 && HINT_ACTIVATE==3 && PMF_TCE_OBJECTIVE_ACTION==128 && WBUTTON_ZOOM==2 && BUTTON_ACTIVATE==64 && WEAPON_FIRING==7) ? 1 : -1];
-static __declspec(naked) qboolean PM_TCEWeaponActions834(qboolean delayedFire) {
-    __asm {
-        sub esp, 0x38
-        push ebx
-        push ebp
-        push esi
-        push edi
-        mov ebp, dword ptr [esp+0x4c]
-        mov dword ptr [esp+0x18], ebp
-        mov esi, dword ptr [pm]
-        xor ebx, ebx
-        mov edi, 7
-        mov dl, byte ptr [esi+actions834Wbuttons]
-        and dl, 2
-        mov byte ptr [esp + 0x13], dl
-        jne actions834_20038a98
-        mov ecx, dword ptr [esi]
-        mov eax, dword ptr [ecx+actions834WeaponFlags]
-        test ah, 0x80
-        je actions834_20038a98
-        and ah, 0x7f
-        mov dword ptr [ecx+actions834WeaponFlags], eax
-        mov esi, dword ptr [pm]
-actions834_20038a8d:
-        mov ebx, dword ptr [esp + 0x18]
-        xor ebp, ebp
-        jmp actions834_20038d73
-actions834_20038a98:
-        test dl, dl
-        je actions834_20038ac7
-        mov ecx, dword ptr [esi]
-        mov ebx, dword ptr [ecx+actions834WeaponFlags]
-        test bh, 0x80
-        jne actions834_20038ac7
-        mov eax, dword ptr [ecx+actions834Time]
-        test eax, eax
-        jg actions834_20038ac7
-        test ebp, ebp
-        jne actions834_20038ac7
-        mov eax, dword ptr [ecx+actions834State]
-        cmp eax, edi
-        je actions834_20038ac7
-        cmp eax, 8
-        je actions834_20038ac7
-        test eax, eax
-        je actions834_20038ae0
-actions834_20038ac7:
-        mov ecx, dword ptr [esi]
-        mov eax, dword ptr [ecx+actions834Time]
-        test eax, eax
-        jg actions834_20038a8d
-        mov ebx, dword ptr [ecx+actions834WeaponFlags]
-        test bl, 8
-        je actions834_20038a8d
-        test bl, 4
-        jne actions834_20038a8d
-actions834_20038ae0:
-        mov eax, dword ptr [ecx+actions834State]
-        cmp eax, 3
-        je actions834_20038a8d
-        cmp eax, 9
-        je actions834_20038a8d
-        cmp eax, 0xa
-        je actions834_20038a8d
-        cmp eax, 0xb
-        je actions834_20038a8d
-        mov edi, dword ptr [ecx+actions834Weapon]
-        cmp edi, 1
-        je actions834_20038a8d
-        cmp edi, 0x15
-        je actions834_20038a8d
-        cmp edi, 0x13
-        je actions834_20038a8d
-        cmp edi, 0xc
-        je actions834_20038a8d
-        cmp edi, 0xf
-        je actions834_20038a8d
-        test byte ptr [esi+actions834Buttons], 0x20
-        je actions834_20038b4c
-        mov al, byte ptr [esi+actions834ForwardCmd]
-        test al, al
-        jne actions834_20038b39
-        mov al, byte ptr [esi+actions834RightCmd]
-        test al, al
-        je actions834_20038b4c
-actions834_20038b39:
-        test byte ptr [ecx+actions834Flags], 1
-        jne actions834_20038b4c
-        test dword ptr [ecx+actions834Eflags], 0x80000
-        je actions834_20038a8d
-actions834_20038b4c:
-        mov eax, dword ptr [esi+actions834Water]
-        cmp eax, 2
-        jg actions834_20038a8d
-        test eax, eax
-        jle actions834_20038b6c
-        cmp dword ptr [ecx+actions834Ground], 0x3ff
-        je actions834_20038a8d
-actions834_20038b6c:
-        mov eax, dword ptr [pml+actions834Ladder]
-        test eax, eax
-        jne actions834_20038a8d
-        fld dword ptr [ecx+actions834VelocityZ]
-        fcomp dword ptr [actions834K200ac788]
-        fnstsw ax
-        test ah, 1
-        jne actions834_20038a8d
-        test bh, 0x10
-        jne actions834_20038a8d
-        mov edx, dword ptr [esi+actions834Ext]
-        mov eax, dword ptr [esi+actions834CmdTime]
-        mov ebp, eax
-        mov edx, dword ptr [edx+actions834ProneTime]
-        sub ebp, edx
-        cmp ebp, 0xc8
-        jl actions834_20038a8d
-        add edx, eax
-        cmp edx, 0xc8
-        jl actions834_20038a8d
-        test dword ptr [ecx+actions834Eflags], 0x100000
-        jne actions834_20038a8d
-        xor ebp, ebp
-        cmp edi, ebp
-        je actions834_20038a8d
-        mov al, byte ptr [esp + 0x13]
-        test al, al
-        je actions834_20038c08
-        or bh, 0x80
-        mov dword ptr [ecx+actions834WeaponFlags], ebx
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax]
-        mov eax, dword ptr [ecx+actions834WeaponFlags]
-        test al, 8
-        je actions834_20038bfa
-        and al, 0xf7
-        jmp actions834_20038bfc
-actions834_20038bfa:
-        or al, 8
-actions834_20038bfc:
-        mov dword ptr [ecx+actions834WeaponFlags], eax
-        mov esi, dword ptr [pm]
-actions834_20038c08:
-        mov ecx, dword ptr [esi]
-        mov eax, dword ptr [ecx+actions834WeaponFlags]
-        mov edx, eax
-        and edx, 4
-        je actions834_20038c1f
-        test al, 8
-        jne actions834_20038c1f
-        and al, 0xfb
-        jmp actions834_20038c31
-actions834_20038c1f:
-        cmp edx, ebp
-        jne actions834_20038d6f
-        test al, 8
-        je actions834_20038d6f
-        or al, 4
-actions834_20038c31:
-        mov dword ptr [ecx+actions834WeaponFlags], eax
-        mov ecx, dword ptr [pm]
-        mov ebp, 0x3e8
-        mov edx, dword ptr [ecx]
-        mov dword ptr [edx+actions834Instability], ebp
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax]
-        cmp dword ptr [ecx+actions834State], 7
-        je actions834_20038d51
-        mov edx, ecx
-        lea ecx, [esp + 0x1c]
-        push ecx
-        mov eax, dword ptr [edx+actions834Seed]
-        mov dword ptr [esp + 0x20], eax
-        call Q_random
-        fmul dword ptr [actions834K200ac3ac]
-        add esp, 4
-        call PM_WeaponTruncateST0
-        mov edx, dword ptr [pm]
-        mov ecx, dword ptr [edx]
-        mov dword ptr [ecx+actions834Phase], eax
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx]
-        mov ecx, dword ptr [eax+actions834Phase]
-        cmp ecx, ebp
-        jle actions834_20038cae
-        add ecx, 0xfffffc18
-        mov dword ptr [eax+actions834Phase], ecx
-actions834_20038cae:
-        mov eax, dword ptr [pm]
-        mov edx, dword ptr [eax]
-        mov ecx, dword ptr [edx+actions834Weapon]
-        lea eax, [ecx + ecx*2]
-        shl eax, 3
-        sub eax, ecx
-        lea ecx, [eax + eax*4]
-        mov eax, dword ptr [ecx*4 + weaponDef+actions834NoTac]
-        test eax, eax
-        jne actions834_20038d31
-        test byte ptr [edx+actions834WeaponFlags], 4
-        je actions834_20038d31
-        lea edx, [esp + 0x1c]
-        push edx
-        call Q_random
-        fmul dword ptr [actions834K200ac6b8]
-        add esp, 4
-        fld st(0)
-        fcos 
-        fmul qword ptr [actions834K200ac6a8]
-        fadd qword ptr [actions834K200ac780]
-        call PM_WeaponTruncateST0
-        fsin 
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx]
-        mov dword ptr [edx+actions834RecoilX], eax
-        fmul qword ptr [actions834K200ac6b0]
-        fadd qword ptr [actions834K200ac780]
-        call PM_WeaponTruncateST0
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx]
-        mov dword ptr [edx+actions834RecoilY], eax
-actions834_20038d31:
-        mov eax, dword ptr [esp + 0x1c]
-        mov ecx, dword ptr [pm]
-        and eax, 0xffff
-        mov dword ptr [esp + 0x1c], eax
-        mov edx, dword ptr [ecx]
-        mov dword ptr [edx+actions834Seed], eax
-        mov eax, dword ptr [pm]
-actions834_20038d51:
-        mov eax, dword ptr [eax]
-        push EV_TCE_TOGGLE_AIMING
-        add dword ptr [eax+actions834Time], 0x12c
-        call PM_AddEvent
-        add esp, 4
-        pop edi
-        pop esi
-        pop ebp
-        pop ebx
-        add esp, 0x38
-        mov eax, 1
-        ret 
-actions834_20038d6f:
-        mov ebx, dword ptr [esp + 0x18]
-actions834_20038d73:
-        test byte ptr [esi+actions834Wbuttons], 2
-        je actions834_20038db3
-        mov ecx, dword ptr [esi]
-        mov eax, dword ptr [ecx+actions834WeaponFlags]
-        test ah, 0x80
-        jne actions834_20038db3
-        test al, 8
-        je actions834_20038db3
-        test al, 4
-        jne actions834_20038db3
-        or ah, 0x80
-        mov dword ptr [ecx+actions834WeaponFlags], eax
-        mov eax, dword ptr [pm]
-        mov eax, dword ptr [eax]
-        mov ecx, dword ptr [eax+actions834WeaponFlags]
-        and ecx, 0xfffffff7
-        mov dword ptr [eax+actions834WeaponFlags], ecx
-        mov esi, dword ptr [pm]
-actions834_20038db3:
-        cmp dword ptr [pml+actions834Ladder], ebp
-        je actions834_20038de8
-        mov eax, dword ptr [esi]
-        mov ecx, 0x1f4
-        cmp dword ptr [eax+actions834Time], ecx
-        jg actions834_20038dd0
-        mov dword ptr [eax+actions834Time], ecx
-        mov esi, dword ptr [pm]
-actions834_20038dd0:
-        mov esi, dword ptr [esi]
-        pop edi
-        mov eax, dword ptr [esi+actions834TcFlags]
-        or al, 8
-        mov dword ptr [esi+actions834TcFlags], eax
-        pop esi
-        pop ebp
-        pop ebx
-        add esp, 0x38
-        mov eax, 1
-        ret 
-actions834_20038de8:
-        test byte ptr [esi+actions834Buttons], 0x20
-        je actions834_20038e68
-        mov al, byte ptr [esi+actions834ForwardCmd]
-        test al, al
-        jne actions834_20038dfc
-        mov al, byte ptr [esi+actions834RightCmd]
-        test al, al
-        je actions834_20038e68
-actions834_20038dfc:
-        mov eax, dword ptr [esi]
-        test byte ptr [eax+actions834Flags], 1
-        jne actions834_20038e68
-        test dword ptr [eax+actions834Eflags], 0x80000
-        jne actions834_20038e68
-        mov esi, dword ptr [eax+actions834WeaponFlags]
-        or esi, 0x4000
-        mov dword ptr [eax+actions834WeaponFlags], esi
-        mov esi, dword ptr [pm]
-        mov eax, dword ptr [esi]
-        mov ecx, dword ptr [eax+actions834Weapon]
-        cmp ecx, 0x1e
-        je actions834_20038e3c
-        cmp ecx, 4
-        je actions834_20038e3c
-        cmp ecx, 9
-        jne actions834_20038e45
-actions834_20038e3c:
-        cmp ebx, ebp
-        je actions834_20038e45
-        mov dword ptr [eax+actions834Time], ebp
-        jmp actions834_20038e92
-actions834_20038e45:
-        cmp dword ptr [eax+actions834State], ebp
-        jne actions834_20038e98
-        mov edx, dword ptr [eax+actions834Time]
-        mov ecx, 0xfa
-        cmp edx, ecx
-        jg actions834_exit
-        pop edi
-        pop esi
-        pop ebp
-        mov dword ptr [eax+actions834Time], ecx
-        pop ebx
-        add esp, 0x38
-        mov eax, 1
-        ret 
-actions834_20038e68:
-        mov ecx, dword ptr [esi]
-        cmp dword ptr [ecx+actions834Time], ebp
-        jg actions834_20038e98
-        mov eax, dword ptr [ecx+actions834WeaponFlags]
-        test ah, 0x40
-        je actions834_20038e98
-        and ah, 0xbf
-        mov dword ptr [ecx+actions834WeaponFlags], eax
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx]
-        mov dword ptr [edx+actions834Time], 0xfa
-actions834_20038e92:
-        mov esi, dword ptr [pm]
-actions834_20038e98:
-        test byte ptr [esi+actions834Buttons], 0x40
-        je actions834_20039010
-        mov eax, dword ptr [esi]
-        mov edi, dword ptr [eax+actions834Hint]
-        cmp edi, 0x27
-        je actions834_20038ebd
-        cmp edi, 0xa
-        je actions834_20038ebd
-        cmp edi, 3
-        jne actions834_20038f79
-actions834_20038ebd:
-        cmp dword ptr [eax+actions834Time], ebp
-        jg actions834_20038f79
-        cmp dword ptr [eax+actions834Delay], ebp
-        jg actions834_20038f79
-        mov edx, dword ptr [eax+actions834State]
-        cmp edx, 3
-        je actions834_20038f79
-        cmp edx, 1
-        je actions834_20038f79
-        cmp edx, 9
-        je actions834_20038f79
-        cmp edx, 0xa
-        je actions834_20038f79
-        cmp edx, 0xb
-        je actions834_20038f79
-        mov ecx, dword ptr [eax+actions834Flags]
-        test cl, 0x80
-        jne actions834_20038f79
-        cmp edx, ebp
-        jne actions834_20038f79
-        or cl, 0x80
-        mov dword ptr [eax+actions834Flags], ecx
-        mov eax, dword ptr [pm]
-        mov eax, dword ptr [eax]
-        test byte ptr [eax+actions834TcFlags], 2
-        je actions834_20038f29
-        mov dword ptr [eax+actions834Time], 0x7d0
-        jmp actions834_20038f30
-actions834_20038f29:
-        mov dword ptr [eax+actions834Time], 0xfa0
-actions834_20038f30:
-        mov esi, dword ptr [pm]
-        mov eax, dword ptr [esi]
-        cmp dword ptr [eax+actions834Hint], 0x27
-        jne actions834_20038f60
-        test byte ptr [eax+actions834TcFlags], 2
-        je actions834_20038f53
-        mov dword ptr [eax+actions834Time], 0x1388
-        jmp actions834_20038f5a
-actions834_20038f53:
-        mov dword ptr [eax+actions834Time], 0x2710
-actions834_20038f5a:
-        mov esi, dword ptr [pm]
-actions834_20038f60:
-        mov ecx, dword ptr [esi]
-        cmp dword ptr [ecx+actions834Hint], 3
-        jne actions834_20039040
-        push EV_TCE_OBJECTIVE_START
-        jmp actions834_20039032
-actions834_20038f79:
-        mov ecx, dword ptr [eax+actions834Flags]
-        mov edx, ecx
-        and edx, 0x80
-        je actions834_20038fdc
-        cmp dword ptr [eax+actions834Time], ebp
-        jg actions834_20038fdc
-        cmp edi, 0x27
-        jne actions834_20038f97
-        push EV_TCE_DEFUSE
-        jmp actions834_20038fad
-actions834_20038f97:
-        cmp edi, 0xa
-        jne actions834_20038fa3
-        push EV_TCE_PLANT
-        jmp actions834_20038fad
-actions834_20038fa3:
-        cmp edi, 3
-        jne actions834_20038fbb
-        push EV_TCE_OBJECTIVE_COMPLETE
-actions834_20038fad:
-        call PM_AddEvent
-        mov esi, dword ptr [pm]
-        add esp, 4
-actions834_20038fbb:
-        mov esi, dword ptr [esi]
-        mov edx, dword ptr [esi+actions834Time]
-        add edx, 0x1f4
-        mov dword ptr [esi+actions834Time], edx
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx]
-        mov ecx, dword ptr [eax+actions834Flags]
-        and cl, 0x7f
-        mov dword ptr [eax+actions834Flags], ecx
-        jmp actions834_2003903a
-actions834_20038fdc:
-        cmp edx, ebp
-        je actions834_20039040
-        cmp edi, 0x27
-        je actions834_20039040
-        cmp edi, 0xa
-        je actions834_20039040
-        cmp edi, 3
-        je actions834_20039040
-        and cl, 0x7f
-        mov dword ptr [eax+actions834Flags], ecx
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax]
-        mov dword ptr [ecx+actions834Delay], ebp
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx]
-        mov dword ptr [eax+actions834Time], 0x64
-        jmp actions834_2003902d
-actions834_20039010:
-        mov ecx, dword ptr [esi]
-        mov eax, dword ptr [ecx+actions834Flags]
-        test al, 0x80
-        je actions834_20039040
-        and al, 0x7f
-        mov dword ptr [ecx+actions834Flags], eax
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx]
-        mov dword ptr [edx+actions834Time], 0x64
-actions834_2003902d:
-        push EV_TCE_OBJECTIVE_STOP
-actions834_20039032:
-        call PM_AddEvent
-        add esp, 4
-actions834_2003903a:
-        mov esi, dword ptr [pm]
-actions834_20039040:
-        mov esi, dword ptr [esi]
-        cmp dword ptr [esi+actions834Delay], ebp
-        jg actions834_exit
-        mov eax, dword ptr [esi+actions834Weapon]
-        push eax
-        call PM_CheckForReload
-        mov ecx, dword ptr [pm]
-        add esp, 4
-        mov eax, dword ptr [ecx]
-        cmp dword ptr [eax+actions834Time], ebp
-        jg actions834_exit
-        cmp dword ptr [eax+actions834Delay], ebp
-        jg actions834_exit
-        xor eax, eax
-        jmp actions834_done
-actions834_exit:
-        mov eax, 1
-actions834_done:
-        pop edi
-        pop esi
-        pop ebp
-        pop ebx
-        add esp, 0x38
-        ret
-    }
-}
-#endif
-
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
-/* Private PM_Weapon range2003908c..2003934d: trigger/burst/reload continuation.
- * Native fields, original callback order. No independent original function. */
-enum {
-    trigger835Buttons = offsetof(pmove_t,cmd)+offsetof(usercmd_t,buttons),
-    trigger835Flags = offsetof(playerState_t,pm_flags),
-    trigger835Weapon = offsetof(playerState_t,weapon),
-    trigger835State = offsetof(playerState_t,weaponstate),
-    trigger835Mode = offsetof(playerState_t,persistant)+10*sizeof(int),
-    trigger835BurstCount = offsetof(playerState_t,holdable)+11*sizeof(int),
-    trigger835TcFlags = offsetof(playerState_t,stats)+STAT_TCE_FLAGS*sizeof(int),
-    trigger835Clip = offsetof(playerState_t,ammoclip),
-    trigger835Time = offsetof(playerState_t,weaponTime),
-    trigger835Delay = offsetof(playerState_t,weaponDelay),
-    trigger835Semi = offsetof(tce_weaponDef_t,semiauto),
-    trigger835Burst = offsetof(tce_weaponDef_t,burst),
-    trigger835Pump = offsetof(tce_weaponDef_t,pump),
-    trigger835Bolt = offsetof(tce_weaponDef_t,bolt),
-    trigger835Single = offsetof(tce_weaponDef_t,singleReload)
-};
-typedef char trigger835Protocol[(offsetof(pmove_t,ps)==0 && sizeof(tce_weaponDef_t)==460 && offsetof(tce_weaponDef_t,semiauto)==0x15c && offsetof(tce_weaponDef_t,burst)==0x164 && offsetof(tce_weaponDef_t,pump)==0x168 && offsetof(tce_weaponDef_t,bolt)==0x16c && offsetof(tce_weaponDef_t,singleReload)==0x170 && BUTTON_ATTACK==1 && WEAPON_FIRING==7 && WEAPON_FIRINGALT==8) ? 1 : -1];
-static __declspec(naked) qboolean PM_TCEWeaponTrigger835(qboolean delayedFire) {
-    __asm {
-        sub esp, 0x38
-        push ebx
-        push ebp
-        push esi
-        push edi
-        mov ebx, dword ptr [esp+0x4c]
-        xor ebp, ebp
-        mov edi, 7
-        mov ecx, dword ptr [pm]
-        mov eax, dword ptr [ecx]
-        test byte ptr [ecx +trigger835Buttons], 1
-        jne trigger835_20039144
-        mov edx, dword ptr [eax+trigger835Flags]
-        test dh, 4
-        je trigger835_20039144
-        cmp ebx, ebp
-        jne trigger835_20039144
-        mov ecx, dword ptr [eax+trigger835Weapon]
-        push ecx
-        call BG_FiremodeWeapon
-        add esp, 4
-        test eax, eax
-        je trigger835_20039137
-        mov ecx, dword ptr [pm]
-        mov edi, 1
-        mov esi, dword ptr [ecx]
-        cmp dword ptr [esi+trigger835Mode], edi
-        jne trigger835_20039149
-        mov edx, dword ptr [esi+trigger835Weapon]
-        mov esi, dword ptr [esi+trigger835BurstCount]
-        lea eax, [edx + edx*2]
-        shl eax, 3
-        sub eax, edx
-        lea eax, [eax + eax*4]
-        cmp esi, dword ptr [eax*4 + weaponDef+trigger835Burst]
-        jge trigger835_20039149
-        mov esi, dword ptr [ecx]
-        push edx
-        call BG_FindClipForWeapon
-        mov ecx, dword ptr [esi + eax*4 +trigger835Clip]
-        add esp, 4
-        cmp ecx, ebp
-        je trigger835_2003913c
-        test byte ptr [esi+trigger835TcFlags], 8
-        jne trigger835_2003913c
-        mov esi, dword ptr [esi+trigger835State]
-        cmp esi, 7
-        je trigger835_20039121
-        cmp esi, 8
-        jne trigger835_2003913c
-trigger835_20039121:
-        mov eax, dword ptr [pm]
-        mov cl, byte ptr [eax +trigger835Buttons]
-        or cl, 1
-        mov byte ptr [eax +trigger835Buttons], cl
-        mov ecx, dword ptr [pm]
-        jmp trigger835_20039149
-trigger835_20039137:
-        mov edi, 1
-trigger835_2003913c:
-        mov ecx, dword ptr [pm]
-        jmp trigger835_20039149
-trigger835_20039144:
-        mov edi, 1
-trigger835_20039149:
-        test byte ptr [ecx +trigger835Buttons], 1
-        jne trigger835_20039163
-        cmp ebx, ebp
-        jne trigger835_20039163
-        mov ecx, dword ptr [ecx]
-        mov eax, dword ptr [ecx+trigger835Flags]
-        and ah, 0xfb
-        mov dword ptr [ecx+trigger835Flags], eax
-        jmp trigger835_20039325
-trigger835_20039163:
-        mov edx, dword ptr [ecx]
-        mov eax, dword ptr [edx+trigger835Flags]
-        test ah, 4
-        je trigger835_2003931f
-        cmp ebx, ebp
-        jne trigger835_2003931f
-        mov eax, dword ptr [edx+trigger835Weapon]
-        cmp eax, edi
-        je trigger835_2003930c
-        test dword ptr [edx+trigger835TcFlags], 0x800
-        jne trigger835_2003930c
-        push eax
-        call BG_FiremodeWeapon
-        mov edx, dword ptr [pm]
-        add esp, 4
-        test eax, eax
-        jne trigger835_200391e4
-        mov esi, dword ptr [edx]
-        mov ecx, dword ptr [esi+trigger835Weapon]
-        lea eax, [ecx + ecx*2]
-        shl eax, 3
-        sub eax, ecx
-        lea eax, [eax + eax*4]
-        shl eax, 2
-        cmp dword ptr [eax + weaponDef+trigger835Semi], ebp
-        jne trigger835_2003928a
-        cmp dword ptr [eax + weaponDef+trigger835Pump], ebp
-        jne trigger835_2003928a
-        cmp dword ptr [eax + weaponDef+trigger835Bolt], ebp
-        jne trigger835_2003928a
-trigger835_200391e4:
-        mov esi, dword ptr [edx]
-        mov ecx, esi
-        mov edx, dword ptr [ecx+trigger835Weapon]
-        push edx
-        call BG_FindClipForWeapon
-        mov ecx, dword ptr [esi + eax*4 +trigger835Clip]
-        add esp, 4
-        cmp ecx, ebp
-        jne trigger835_2003921b
-        mov eax, dword ptr [esi+trigger835Weapon]
-        cmp eax, edi
-        je trigger835_2003921b
-        cmp eax, 4
-        je trigger835_2003921b
-        cmp eax, 0x1e
-        je trigger835_2003921b
-        cmp eax, 9
-        jne trigger835_2003928a
-trigger835_2003921b:
-        mov eax, dword ptr [esi+trigger835Weapon]
-        push eax
-        call BG_FiremodeWeapon
-        mov ecx, dword ptr [pm]
-        add esp, 4
-        test eax, eax
-        je trigger835_2003930c
-        mov esi, dword ptr [ecx]
-        mov eax, dword ptr [esi+trigger835Mode]
-        cmp eax, 2
-        je trigger835_2003928a
-        cmp eax, edi
-        jne trigger835_2003926c
-        mov edx, dword ptr [esi+trigger835Weapon]
-        lea eax, [edx + edx*2]
-        shl eax, 3
-        sub eax, edx
-        lea edx, [eax + eax*4]
-        mov eax, dword ptr [edx*4 + weaponDef+trigger835Burst]
-        mov edx, dword ptr [esi+trigger835BurstCount]
-        dec eax
-        cmp edx, eax
-        jg trigger835_2003928a
-trigger835_2003926c:
-        mov edx, dword ptr [esi+trigger835Weapon]
-        lea eax, [edx + edx*2]
-        shl eax, 3
-        sub eax, edx
-        lea edx, [eax + eax*4]
-        cmp dword ptr [edx*4 + weaponDef+trigger835Single], ebp
-        je trigger835_2003930c
-trigger835_2003928a:
-        mov dword ptr [esi+trigger835Time], ebp
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax]
-        mov dword ptr [ecx+trigger835Delay], ebp
-        mov edx, dword ptr [pm]
-        mov ecx, dword ptr [edx]
-        mov eax, dword ptr [ecx+trigger835State]
-        cmp eax, 7
-        je trigger835_200392af
-        cmp eax, 8
-        jne trigger835_200392f6
-trigger835_200392af:
-        mov eax, dword ptr [ecx+trigger835Weapon]
-        push eax
-        call BG_FindClipForWeapon
-        mov ecx, dword ptr [pm]
-        add esp, 4
-        mov edx, dword ptr [ecx]
-        cmp dword ptr [edx + eax*4 +trigger835Clip], ebp
-        jne trigger835_200392ed
-        push edi
-        call PM_StartWeaponAnim
-        mov eax, dword ptr [pm]
-        add esp, 4
-        mov ecx, dword ptr [eax]
-        pop edi
-        pop esi
-        mov dword ptr [ecx+trigger835State], ebp
-        pop ebp
-        pop ebx
-        add esp, 0x38
-        mov eax, 1
-        ret 
-trigger835_200392ed:
-        push ebp
-        call PM_ContinueWeaponAnim
-        add esp, 4
-trigger835_200392f6:
-        mov edx, dword ptr [pm]
-        pop edi
-        pop esi
-        mov eax, dword ptr [edx]
-        mov dword ptr [eax+trigger835State], ebp
-        pop ebp
-        pop ebx
-        add esp, 0x38
-        mov eax, 1
-        ret 
-trigger835_2003930c:
-        test byte ptr [ecx +trigger835Buttons], 1
-        jne trigger835_2003932b
-        mov ecx, dword ptr [ecx]
-        mov eax, dword ptr [ecx+trigger835Flags]
-        and ah, 0xfb
-        mov dword ptr [ecx+trigger835Flags], eax
-        jmp trigger835_20039325
-trigger835_2003931f:
-        or ah, 4
-        mov dword ptr [edx+trigger835Flags], eax
-trigger835_20039325:
-        mov ecx, dword ptr [pm]
-trigger835_2003932b:
-        mov edx, dword ptr [ecx]
-        mov eax, dword ptr [edx+trigger835State]
-        cmp eax, 9
-        je trigger835_20039342
-        cmp eax, 0xb
-        je trigger835_20039342
-        cmp eax, 0xc
-        jne trigger835_2003934d
-trigger835_20039342:
-        call PM_FinishWeaponReload
-        mov ecx, dword ptr [pm]
-trigger835_2003934d:
-        xor eax, eax
-        pop edi
-        pop esi
-        pop ebp
-        pop ebx
-        add esp, 0x38
-        ret
-    }
-}
-#endif
-
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
+#if defined(_MSC_VER) && defined(_M_IX86) && (defined(GAMEDLL) || defined(CGAMEDLL))
 /* PM_Weapon200393ac..2003986e: charge/release/lean/zoom/water eligibility.
- * Server-only: original cgame omits the zoomed FieldOps fire event. */
+ * Shared native schedule; original cgame omits the zoomed FieldOps fire event. */
 static const float attack837K200ac2f0 = 0.6600000262260437f;
 static const float attack837K200ac180 = 0.5f;
 static const float attack837K200ac814 = 0.3499999940395355f;
@@ -10414,6 +8879,7 @@ attack837_200397d4:
         je attack837_exit
         mov ebp, dword ptr [edx+attack837Eflags]
         test ebp, 0x40000
+#ifdef GAMEDLL
         je attack837_20039813
         cmp dword ptr [edx+attack837Class], 3
         jne attack837_exit
@@ -10429,7 +8895,11 @@ attack837_200397d4:
         pop ebx
         add esp, 0x38
         mov eax, 1
-        ret 
+        ret
+#else
+        /* Original cgame300114b9: zoom returns without server FieldOps event. */
+        jne attack837_exit
+#endif
 attack837_20039813:
         cmp dword ptr [ecx+attack837Water], 3
         jne attack837_2003986e
@@ -10479,1474 +8949,2149 @@ attack837_done:
 }
 #endif
 
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
-/* Private PM_Weapon attack-start range2003986e..20039bc2.
- * Dispatch bytes are TC protocol; delay values are the separate static ammo
- * field, not new weaponDef records. Caller restricts definitions to0..63. */
-static const unsigned char start838Dispatch[65] = {0, 1, 2, 3, 1, 1, 1, 2, 3, 2, 8, 8, 1, 1, 3, 8, 8, 8, 2, 8, 2, 2, 1, 1, 1, 4, 5, 6, 5, 3, 2, 1, 2, 8, 8, 2, 1, 1, 1, 1, 2, 2, 2, 2, 2, 1, 1, 8, 8, 8, 1, 1, 1, 1, 1, 1, 1, 1, 2, 7, 8, 2, 8, 8, 1};
-static const int start838StaticDelay[64] = {50, 50, 50, 50, 100, 750, 50, 50, 50, 100, 50, 50, 50, 50, 50, 100, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 722, 100, 100, 50, 50, 50, 0, 750, 750, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-enum {
-    start838Weapon = offsetof(playerState_t,weapon),
-    start838State = offsetof(playerState_t,weaponstate),
-    start838Delay = offsetof(playerState_t,weaponDelay),
-    start838Grenade = offsetof(playerState_t,grenadeTimeLeft),
-    start838Eflags = offsetof(playerState_t,eFlags),
-    start838Character = offsetof(pmove_t,character),
-    start838AnimModel = offsetof(bg_character_t,animModelInfo),
-    start838DefDelay = offsetof(tce_weaponDef_t,fireDelayTime),
-    start838DefTimer = offsetof(tce_weaponDef_t,grenadeTimer)
-};
-typedef char start838Protocol[(offsetof(pmove_t,ps)==0 && sizeof(tce_weaponDef_t)==460 && offsetof(tce_weaponDef_t,fireDelayTime)==0xe8 && offsetof(tce_weaponDef_t,grenadeTimer)==0x198 && ANIM_ET_FIREWEAPON==2 && ANIM_ET_FIREWEAPON2==3 && ANIM_ET_FIREWEAPONPRONE==30 && ANIM_ET_FIREWEAPON2PRONE==31 && WEAPON_FIRING==7) ? 1 : -1];
-static __declspec(naked) void PM_TCEAttackStart838(qboolean delayedFire, qboolean akimboFire) {
-    __asm {
-        sub esp, 0x38
-        push ebx
-        push ebp
-        push esi
-        push edi
-        mov eax, dword ptr [esp+0x4c]
-        mov dword ptr [esp+0x18], eax
-        mov eax, dword ptr [esp+0x50]
-        mov dword ptr [esp+0x1c], eax
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx]
-        mov esi, dword ptr [edx+start838Weapon]
-        mov ebp, dword ptr [edx+start838Eflags]
-        lea edi, [esi-1]
-        cmp edi, 0x40
-        ja start838_20039b63
-        xor eax, eax
-        mov al, byte ptr [edi+start838Dispatch]
-        cmp eax, 0
-        je start838_200399ad
-        cmp eax, 1
-        je start838_200398c6
-        cmp eax, 2
-        je start838_20039889
-        cmp eax, 3
-        je start838_200399c6
-        cmp eax, 4
-        je start838_20039a68
-        cmp eax, 5
-        je start838_20039ad5
-        cmp eax, 6
-        je start838_20039b16
-        cmp eax, 7
-        je start838_20039955
-        cmp eax, 8
-        je start838_20039b63
-        jmp start838_20039b63
-start838_20039889:
-        mov eax, dword ptr [edx+start838State]
-        cmp eax, 7
-        je start838_200398b7
-        cmp eax, 8
-        je start838_200398b7
-        lea eax, [esi + esi*2]
-        shl eax, 3
-        sub eax, esi
-        lea eax, [eax + eax*4]
-        mov eax, dword ptr [eax*4 + weaponDef+start838DefDelay]
-        test eax, eax
-        je start838_200398b7
-        mov dword ptr [edx+start838Delay], eax
-        jmp start838_20039bb0
-start838_200398b7:
-        push 1
-        push 1
-        test ebp, 0x80000
-        jmp start838_20039b98
-start838_200398c6:
-        mov eax, dword ptr [edx+start838State]
-        cmp eax, 7
-        je start838_20039923
-        cmp eax, 8
-        je start838_20039923
-        lea eax, [esi + esi*2]
-        shl eax, 3
-        sub eax, esi
-        lea eax, [eax + eax*4]
-        mov edi, dword ptr [eax*4 + weaponDef+start838DefDelay]
-        test edi, edi
-        je start838_20039923
-        cmp esi, 0x41
-        jne start838_20039901
-        push EV_SPINUP
-        call PM_AddEvent
-        mov ecx, dword ptr [pm]
-        add esp, 4
-start838_20039901:
-        mov ecx, dword ptr [ecx]
-        mov edx, dword ptr [ecx+start838Weapon]
-        lea eax, [edx + edx*2]
-        shl eax, 3
-        sub eax, edx
-        lea edx, [eax + eax*4]
-        mov eax, dword ptr [edx*4 + weaponDef+start838DefDelay]
-        mov dword ptr [ecx+start838Delay], eax
-        jmp start838_20039bb0
-start838_20039923:
-        mov eax, dword ptr [esp + 0x1c]
-        test ebp, 0x80000
-        je start838_20039942
-        test eax, eax
-        push 1
-        push 0
-        je start838_20039b9a
-        push 0x1f
-        jmp start838_20039ba0
-start838_20039942:
-        test eax, eax
-        push 1
-        push 0
-        je start838_20039b9e
-        push 3
-        jmp start838_20039ba0
-start838_20039955:
-        mov eax, dword ptr [edx+start838State]
-        cmp eax, 7
-        je start838_20039b8e
-        cmp eax, 8
-        je start838_20039b8e
-        push EV_SPINUP
-        call PM_AddEvent
-        push 0x3c
-        call TCE_PM_AttackAnimForWeapon
-        push eax
-        call PM_StartWeaponAnim
-        mov ecx, dword ptr [pm]
-        add esp, 0xc
-        mov ecx, dword ptr [ecx]
-start838_2003998c:
-        mov edx, dword ptr [ecx+start838Weapon]
-        mov eax, edx
-        nop 
-        nop 
-        mov eax, dword ptr [eax*4+start838StaticDelay]
-        mov dword ptr [ecx+start838Delay], eax
-        jmp start838_20039bb0
-start838_200399ad:
-        mov eax, dword ptr [esp + 0x18]
-        test eax, eax
-        jne start838_20039bb6
-        test ebp, 0x80000
-        push 0
-        jmp start838_20039b96
-start838_200399c6:
-        mov eax, dword ptr [esp + 0x18]
-        test eax, eax
-        jne start838_20039bb6
-        push esi
-        call PM_WeaponAmmoAvailable
-        add esp, 4
-        test eax, eax
-        je start838_20039a40
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx]
-        mov ecx, dword ptr [edx+start838Weapon]
-        cmp ecx, 0xf
-        jne start838_200399fb
-        mov dword ptr [edx+start838Grenade], 0x32
-        jmp start838_20039a23
-start838_200399fb:
-        lea eax, [ecx + ecx*2]
-        push EV_TCE_GRENADE_PRIME
-        shl eax, 3
-        sub eax, ecx
-        lea eax, [eax + eax*4]
-        mov ecx, dword ptr [eax*4 + weaponDef+start838DefTimer]
-        add ecx, 0x1f4
-        mov dword ptr [edx+start838Grenade], ecx
-        call PM_AddEvent
-        add esp, 4
-start838_20039a23:
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx]
-        mov ecx, dword ptr [eax+start838Weapon]
-        push ecx
-        call TCE_PM_AttackAnimForWeapon
-        push eax
-        call PM_StartWeaponAnim
-        add esp, 8
-start838_20039a40:
-        mov edx, dword ptr [pm]
-        mov edx, dword ptr [edx]
-        mov ecx, dword ptr [edx+start838Weapon]
-        lea eax, [ecx + ecx*2]
-        shl eax, 3
-        sub eax, ecx
-        lea eax, [eax + eax*4]
-        mov ecx, dword ptr [eax*4 + weaponDef+start838DefDelay]
-        mov dword ptr [edx+start838Delay], ecx
-        jmp start838_20039bb0
-start838_20039a68:
-        mov eax, dword ptr [esp + 0x18]
-        test eax, eax
-        jne start838_20039bb6
-        push esi
-        call PM_WeaponAmmoAvailable
-        add esp, 4
-        test eax, eax
-        je start838_20039aac
-        mov ecx, dword ptr [pm]
-        push 1
-        push 0
-        mov eax, dword ptr [ecx]
-        test dword ptr [eax+start838Eflags], 0x80000
-        je start838_20039a9a
-        push 0x1f
-        jmp start838_20039a9c
-start838_20039a9a:
-        push 2
-start838_20039a9c:
-        mov edx, dword ptr [ecx +start838Character]
-        mov ecx, dword ptr [edx +start838AnimModel]
-        push ecx
-        push eax
-        call BG_AnimScriptEvent
-        add esp, 0x14
-start838_20039aac:
-        mov edx, dword ptr [pm]
-        mov ecx, dword ptr [edx]
-        mov edx, dword ptr [ecx+start838Weapon]
-        mov eax, edx
-        nop 
-        nop 
-        mov edx, dword ptr [eax*4+start838StaticDelay]
-        mov dword ptr [ecx+start838Delay], edx
-        jmp start838_20039bb0
-start838_20039ad5:
-        mov eax, dword ptr [esp + 0x18]
-        test eax, eax
-        jne start838_20039bb6
-        push esi
-        call PM_WeaponAmmoAvailable
-        add esp, 4
-        test eax, eax
-        je start838_20039b0a
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax]
-        mov edx, dword ptr [ecx+start838Weapon]
-        push edx
-        call TCE_PM_AttackAnimForWeapon
-        push eax
-        call PM_StartWeaponAnim
-        add esp, 8
-start838_20039b0a:
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax]
-        jmp start838_2003998c
-start838_20039b16:
-        mov eax, dword ptr [edx+start838State]
-        cmp eax, 7
-        je start838_20039b8e
-        cmp eax, 8
-        je start838_20039b8e
-        push EV_SPINUP
-        call PM_AddEvent
-        mov ecx, dword ptr [pm]
-        push 0x1c
-        mov ecx, dword ptr [ecx]
-        mov edx, dword ptr [ecx+start838Weapon]
-        mov eax, edx
-        nop 
-        nop 
-        mov eax, dword ptr [eax*4+start838StaticDelay]
-        mov dword ptr [ecx+start838Delay], eax
-        call TCE_PM_AttackAnimForWeapon
-        push eax
-        call PM_ContinueWeaponAnim
-        add esp, 0xc
-        jmp start838_20039bb0
-start838_20039b63:
-        mov eax, dword ptr [edx+start838State]
-        cmp eax, 7
-        je start838_20039b8e
-        cmp eax, 8
-        je start838_20039b8e
-        lea eax, [esi + esi*2]
-        shl eax, 3
-        sub eax, esi
-        lea eax, [eax + eax*4]
-        mov eax, dword ptr [eax*4 + weaponDef+start838DefDelay]
-        test eax, eax
-        je start838_20039b8e
-        mov dword ptr [edx+start838Delay], eax
-        jmp start838_20039bb0
-start838_20039b8e:
-        test ebp, 0x80000
-        push 1
-start838_20039b96:
-        push 0
-start838_20039b98:
-        je start838_20039b9e
-start838_20039b9a:
-        push 0x1e
-        jmp start838_20039ba0
-start838_20039b9e:
-        push 2
-start838_20039ba0:
-        mov ecx, dword ptr [ecx +start838Character]
-        mov eax, dword ptr [ecx +start838AnimModel]
-        push eax
-        push edx
-        call BG_AnimScriptEvent
-        add esp, 0x14
-start838_20039bb0:
-        mov ecx, dword ptr [pm]
-start838_20039bb6:
-        mov ecx, dword ptr [ecx]
-        mov dword ptr [ecx+start838State], 7
-        pop edi
-        pop esi
-        pop ebp
-        pop ebx
-        add esp, 0x38
-        ret
-    }
+#if defined(__GNUC__) && defined(__i386__) && defined(__linux__)
+/* Own GNU/i386 class charge, release/lean and underwater eligibility.
+ * Native server/client schedules remain separate; extraction ABI is partial. */
+typedef struct {
+    pmove_t **pmRoot;
+    int (*firemode)(int);
+    int (*idleAnim)(int);
+    void (*continueAnim)(int);
+    void (*addEvent)(int);
+    int (*animEvent)(playerState_t *,animModelInfo_t *,scriptAnimEventTypes_t,qboolean,qboolean);
+    float constants[7];
+} tceEligibilityLinux856Bindings_t;
+static __attribute__((noinline)) qboolean PM_TCEWeaponEligibilityLinux856(qboolean delayed) {
+    static const tceEligibilityLinux856Bindings_t bindings={
+        &pm,BG_FiremodeWeapon,PM_IdleAnimForWeapon,PM_ContinueWeaponAnim,PM_AddEvent,BG_AnimScriptEvent,
+        {0.0f,0.5f,0.25f,0.34999999403953552f,0.15000000596046448f,0.6600000262260437f,0.33000001311302185f}
+    };
+    typedef char EligibilityLinux856Layout[(sizeof(void*)==4 && sizeof(int)==4 && sizeof(float)==4 &&
+        offsetof(pmove_t,ps)==0 && offsetof(tceEligibilityLinux856Bindings_t,pmRoot)==0 &&
+        offsetof(tceEligibilityLinux856Bindings_t,firemode)==4 &&
+        offsetof(tceEligibilityLinux856Bindings_t,idleAnim)==8 &&
+        offsetof(tceEligibilityLinux856Bindings_t,continueAnim)==12 &&
+        offsetof(tceEligibilityLinux856Bindings_t,addEvent)==16 &&
+        offsetof(tceEligibilityLinux856Bindings_t,animEvent)==20 &&
+        offsetof(tceEligibilityLinux856Bindings_t,constants)==24 &&
+        sizeof(tceEligibilityLinux856Bindings_t)==52 &&
+        offsetof(pmove_t,soldierChargeTime)==offsetof(pmove_t,ltChargeTime)+4 &&
+        offsetof(pmove_t,engineerChargeTime)==offsetof(pmove_t,ltChargeTime)+8 &&
+        offsetof(pmove_t,medicChargeTime)==offsetof(pmove_t,ltChargeTime)+12 &&
+        offsetof(pmove_t,covertopsChargeTime)==offsetof(pmove_t,ltChargeTime)+16 &&
+        SK_EXPLOSIVES_AND_CONSTRUCTION==1 && SK_FIRST_AID==2 && SK_SIGNALS==3 &&
+        SK_HEAVY_WEAPONS==5 && SK_MILITARY_INTELLIGENCE_AND_SCOPED_WEAPONS==6)?1:-1];
+    int handled;
+    __asm__ volatile (
+        ".intel_syntax noprefix\n\t"
+        "push ebx\n\tpush ebp\n\tmov ebp,esp\n\tand esp,-16\n\tsub esp,0xf0\n\t"
+        "mov dword ptr [esp+0xec],ebp\n\tmov ebx,eax\n\t"
+        "mov dword ptr [esp+0x94],edx\n\tmov edi,dword ptr [ebx]\n\t"
+        "mov ecx,dword ptr [edi]\n\tmov edx,dword ptr [ecx]\n\t"
+#ifndef CGAMEDLL
+        ".Lelig856_00081a53_%=:\n\tmov eax, dword ptr [edx+%c[psWeapon]]\n\t"
+        ".Lelig856_00081a59_%=:\n\ttest eax, eax\n\t"
+        ".Lelig856_00081a5b_%=:\n\tje .Lelig856_0008114c_%=\n\t"
+        ".Lelig856_00081a61_%=:\n\tcmp eax, 0x41\n\t"
+        ".Lelig856_00081a64_%=:\n\tje .Lelig856_0008390f_%=\n\t"
+        ".Lelig856_00081a6a_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_00081a6c_%=:\n\tmov ecx, dword ptr [edx]\n\t"
+        ".Lelig856_00081a6e_%=:\n\tmov esi, dword ptr [ecx+%c[psWeapon]]\n\t"
+        ".Lelig856_00081a74_%=:\n\tlea ebp, [esi - 0x37]\n\t"
+        ".Lelig856_00081a77_%=:\n\tcmp ebp, 1\n\t"
+        ".Lelig856_00081a7a_%=:\n\tja .Lelig856_00081aa2_%=\n\t"
+        ".Lelig856_00081a7c_%=:\n\tmov eax, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_00081a7f_%=:\n\tmov ebp, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_00081a85_%=:\n\tsub eax, ebp\n\t"
+        ".Lelig856_00081a87_%=:\n\tpush eax\n\t"
+        ".Lelig856_00081a88_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_00081a8b_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_00081a8e_%=:\n\tfild dword ptr [edx+%c[pmCharges]+8]\n\t"
+        ".Lelig856_00081a91_%=:\n\tfmul dword ptr [ebx+28]\n\t"
+        ".Lelig856_00081a97_%=:\n\tfcompp \n\t"
+        ".Lelig856_00081a99_%=:\n\tfnstsw ax\n\t"
+        ".Lelig856_00081a9b_%=:\n\tsahf \n\t"
+        ".Lelig856_00081a9c_%=:\n\tja .Lelig856_0008114c_%=\n\t"
+        ".Lelig856_00081aa2_%=:\n\tcmp esi, 0x3c\n\t"
+        ".Lelig856_00081aa5_%=:\n\tje .Lelig856_0008389c_%=\n\t"
+        ".Lelig856_00081aab_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_00081aad_%=:\n\tmov ecx, dword ptr [edx]\n\t"
+        ".Lelig856_00081aaf_%=:\n\tcmp dword ptr [ecx+%c[psWeapon]], 0x1b\n\t"
+        ".Lelig856_00081ab6_%=:\n\tje .Lelig856_0008384c_%=\n\t"
+        ".Lelig856_00081abc_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_00081abe_%=:\n\tmov ecx, dword ptr [edx]\n\t"
+        ".Lelig856_00081ac0_%=:\n\tcmp dword ptr [ecx+%c[psWeapon]], 0x1a\n\t"
+        ".Lelig856_00081ac7_%=:\n\tje .Lelig856_000837f6_%=\n\t"
+        ".Lelig856_00081acd_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_00081acf_%=:\n\tmov ecx, dword ptr [edx]\n\t"
+        ".Lelig856_00081ad1_%=:\n\tcmp dword ptr [ecx+%c[psWeapon]], 0xf\n\t"
+        ".Lelig856_00081ad8_%=:\n\tje .Lelig856_000837a6_%=\n\t"
+        ".Lelig856_00081ade_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_00081ae0_%=:\n\tmov ecx, dword ptr [edx]\n\t"
+        ".Lelig856_00081ae2_%=:\n\tcmp dword ptr [ecx+%c[psWeapon]], 0xc\n\t"
+        ".Lelig856_00081ae9_%=:\n\tje .Lelig856_0008374f_%=\n\t"
+        ".Lelig856_00081aef_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_00081af1_%=:\n\tmov ecx, dword ptr [edx]\n\t"
+        ".Lelig856_00081af3_%=:\n\tcmp dword ptr [ecx+%c[psWeapon]], 0x13\n\t"
+        ".Lelig856_00081afa_%=:\n\tje .Lelig856_000836bf_%=\n\t"
+        ".Lelig856_00081b00_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_00081b02_%=:\n\tmov ecx, dword ptr [edx]\n\t"
+        ".Lelig856_00081b04_%=:\n\tcmp dword ptr [ecx+%c[psWeapon]], 0x16\n\t"
+        ".Lelig856_00081b0b_%=:\n\tje .Lelig856_0008366f_%=\n\t"
+        ".Lelig856_00081b11_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_00081b13_%=:\n\tmov esi, dword ptr [edx]\n\t"
+        ".Lelig856_00081b15_%=:\n\tmov ecx, dword ptr [esi+%c[psWeapon]]\n\t"
+        ".Lelig856_00081b1b_%=:\n\tcmp ecx, 0x3d\n\t"
+        ".Lelig856_00081b1e_%=:\n\tje .Lelig856_00083656_%=\n\t"
+        ".Lelig856_00081b24_%=:\n\ttest byte ptr [edx+%c[pmButtons]], 1\n\t"
+        ".Lelig856_00081b28_%=:\n\tjne .Lelig856_00081b35_%=\n\t"
+        ".Lelig856_00081b2a_%=:\n\tmov edx, dword ptr [esp + 0x94]\n\t"
+        ".Lelig856_00081b31_%=:\n\ttest edx, edx\n\t"
+        ".Lelig856_00081b33_%=:\n\tje .Lelig856_00081b98_%=\n\t"
+        ".Lelig856_00081b35_%=:\n\tfld dword ptr [esi+%c[psLean]]\n\t"
+        ".Lelig856_00081b38_%=:\n\tfcomp dword ptr [ebx+24]\n\t"
+        ".Lelig856_00081b3e_%=:\n\tfnstsw ax\n\t"
+        ".Lelig856_00081b40_%=:\n\tsahf \n\t"
+        ".Lelig856_00081b41_%=:\n\tje .Lelig856_00081b5b_%=\n\t"
+        ".Lelig856_00081b43_%=:\n\tcmp ecx, 4\n\t"
+        ".Lelig856_00081b46_%=:\n\tje .Lelig856_00081b5b_%=\n\t"
+        ".Lelig856_00081b48_%=:\n\tcmp ecx, 9\n\t"
+        ".Lelig856_00081b4b_%=:\n\tje .Lelig856_00081b5b_%=\n\t"
+        ".Lelig856_00081b4d_%=:\n\tcmp ecx, 0x1e\n\t"
+        ".Lelig856_00081b50_%=:\n\tje .Lelig856_00081b5b_%=\n\t"
+        ".Lelig856_00081b52_%=:\n\ttest byte ptr [esi+%c[psFlags]], 4\n\t"
+        ".Lelig856_00081b59_%=:\n\tje .Lelig856_00081b98_%=\n\t"
+        ".Lelig856_00081b5b_%=:\n\tmov ecx, dword ptr [edi]\n\t"
+        ".Lelig856_00081b5d_%=:\n\tmov eax, dword ptr [ecx]\n\t"
+        ".Lelig856_00081b5f_%=:\n\ttest byte ptr [eax+%c[psFlags]+1], 0x40\n\t"
+        ".Lelig856_00081b66_%=:\n\tje .Lelig856_00081c49_%=\n\t"
+        ".Lelig856_00081b6c_%=:\n\tmov esi, dword ptr [esp + 0x94]\n\t"
+        ".Lelig856_00081b73_%=:\n\ttest esi, esi\n\t"
+        ".Lelig856_00081b75_%=:\n\tje .Lelig856_00081b98_%=\n\t"
+        ".Lelig856_00081b77_%=:\n\tmov eax, dword ptr [eax+%c[psWeapon]]\n\t"
+        ".Lelig856_00081b7d_%=:\n\tcmp eax, 4\n\t"
+        ".Lelig856_00081b80_%=:\n\tje .Lelig856_00081c49_%=\n\t"
+        ".Lelig856_00081b86_%=:\n\tcmp eax, 9\n\t"
+        ".Lelig856_00081b89_%=:\n\tje .Lelig856_00081c49_%=\n\t"
+        ".Lelig856_00081b8f_%=:\n\tcmp eax, 0x1e\n\t"
+        ".Lelig856_00081b92_%=:\n\tje .Lelig856_00081c49_%=\n\t"
+        ".Lelig856_00081b98_%=:\n\tmov ebp, dword ptr [edi]\n\t"
+        ".Lelig856_00081b9a_%=:\n\tmov esi, dword ptr [ebp]\n\t"
+        ".Lelig856_00081b9d_%=:\n\tmov dword ptr [esi+%c[psTime]], 0\n\t"
+        ".Lelig856_00081ba4_%=:\n\tmov ecx, dword ptr [edi]\n\t"
+        ".Lelig856_00081ba6_%=:\n\tmov edx, dword ptr [ecx]\n\t"
+        ".Lelig856_00081ba8_%=:\n\tmov dword ptr [edx+%c[psDelay]], 0\n\t"
+        ".Lelig856_00081baf_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_00081bb1_%=:\n\tmov ecx, dword ptr [edx]\n\t"
+        ".Lelig856_00081bb3_%=:\n\tmov ebp, dword ptr [ecx+%c[psState]]\n\t"
+        ".Lelig856_00081bb9_%=:\n\tsub ebp, 7\n\t"
+        ".Lelig856_00081bbc_%=:\n\tcmp ebp, 1\n\t"
+        ".Lelig856_00081bbf_%=:\n\tjbe .Lelig856_00081c2c_%=\n\t"
+        ".Lelig856_00081bc1_%=:\n\tmov eax, dword ptr [edx]\n\t"
+        ".Lelig856_00081bc3_%=:\n\tmov ecx, dword ptr [eax+%c[psBurst]]\n\t"
+        ".Lelig856_00081bc9_%=:\n\ttest ecx, ecx\n\t"
+        ".Lelig856_00081bcb_%=:\n\tjle .Lelig856_00081c24_%=\n\t"
+        ".Lelig856_00081bcd_%=:\n\tmov esi, dword ptr [eax+%c[psWeapon]]\n\t"
+        ".Lelig856_00081bd3_%=:\n\tmov dword ptr [esp], esi\n\t"
+        ".Lelig856_00081bd6_%=:\n\tcall dword ptr [ebx+4]\n\t"
+        ".Lelig856_00081bdb_%=:\n\ttest eax, eax\n\t"
+        ".Lelig856_00081bdd_%=:\n\tje .Lelig856_00081bed_%=\n\t"
+        ".Lelig856_00081bdf_%=:\n\tmov ebp, dword ptr [edi]\n\t"
+        ".Lelig856_00081be1_%=:\n\tmov eax, dword ptr [ebp]\n\t"
+        ".Lelig856_00081be4_%=:\n\tcmp dword ptr [eax+%c[psFiremode]], 1\n\t"
+        ".Lelig856_00081beb_%=:\n\tje .Lelig856_00081c1b_%=\n\t"
+        ".Lelig856_00081bed_%=:\n\tmov edi, dword ptr [ebx+0]\n\t"
+        ".Lelig856_00081bf3_%=:\n\txor ebp, ebp\n\t"
+        ".Lelig856_00081bf5_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_00081bf7_%=:\n\tmov esi, dword ptr [edx]\n\t"
+        ".Lelig856_00081bf9_%=:\n\tmov dword ptr [esi+%c[psBurst]], ebp\n\t"
+        ".Lelig856_00081bff_%=:\n\tmov ecx, dword ptr [edi]\n\t"
+        ".Lelig856_00081c01_%=:\n\tmov edx, dword ptr [ecx]\n\t"
+        ".Lelig856_00081c03_%=:\n\tand dword ptr [edx+%c[psOtherFlags]], 0xfffffff7\n\t"
+        ".Lelig856_00081c0a_%=:\n\tmov eax, dword ptr [edi]\n\t"
+        ".Lelig856_00081c0c_%=:\n\tmov eax, dword ptr [eax]\n\t"
+        ".Lelig856_00081c0e_%=:\n\txor edi, edi\n\t"
+        ".Lelig856_00081c10_%=:\n\tmov dword ptr [eax+%c[psState]], edi\n\t"
+        ".Lelig856_00081c16_%=:\n\tjmp .Lelig856_0008114c_%=\n\t"
+        ".Lelig856_00081c1b_%=:\n\tmov dword ptr [eax+%c[psTime]], 0x32\n\t"
+        ".Lelig856_00081c22_%=:\n\tjmp .Lelig856_00081bed_%=\n\t"
+        ".Lelig856_00081c24_%=:\n\tmov edi, dword ptr [ebx+0]\n\t"
+        ".Lelig856_00081c2a_%=:\n\tjmp .Lelig856_00081c0a_%=\n\t"
+        ".Lelig856_00081c2c_%=:\n\tmov edx, dword ptr [ecx+%c[psWeapon]]\n\t"
+        ".Lelig856_00081c32_%=:\n\tmov dword ptr [esp], edx\n\t"
+        ".Lelig856_00081c35_%=:\n\tcall dword ptr [ebx+8]\n\t"
+        ".Lelig856_00081c3a_%=:\n\tmov dword ptr [esp], eax\n\t"
+        ".Lelig856_00081c3d_%=:\n\tcall dword ptr [ebx+12]\n\t"
+        ".Lelig856_00081c42_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_00081c44_%=:\n\tjmp .Lelig856_00081bc1_%=\n\t"
+        ".Lelig856_00081c49_%=:\n\tmov ecx, dword ptr [edi]\n\t"
+        ".Lelig856_00081c4b_%=:\n\tmov eax, dword ptr [ecx]\n\t"
+        ".Lelig856_00081c4d_%=:\n\tmov edx, dword ptr [eax+%c[psWeapon]]\n\t"
+        ".Lelig856_00081c53_%=:\n\tcmp edx, 0x23\n\t"
+        ".Lelig856_00081c56_%=:\n\tje .Lelig856_0008114c_%=\n\t"
+        ".Lelig856_00081c5c_%=:\n\ttest byte ptr [eax+%c[psEFlagsHigh]], 4\n\t"
+        ".Lelig856_00081c60_%=:\n\tje .Lelig856_00081c87_%=\n\t"
+        ".Lelig856_00081c62_%=:\n\tcmp dword ptr [eax+%c[psClass]], 3\n\t"
+        ".Lelig856_00081c69_%=:\n\tjne .Lelig856_0008114c_%=\n\t"
+        ".Lelig856_00081c6f_%=:\n\tadd dword ptr [eax+%c[psTime]], 0x1f4\n\t"
+        ".Lelig856_00081c76_%=:\n\tmov dword ptr [esp], 0x28\n\t"
+        ".Lelig856_00081c7d_%=:\n\tcall dword ptr [ebx+16]\n\t"
+        ".Lelig856_00081c82_%=:\n\tjmp .Lelig856_0008114c_%=\n\t"
+        ".Lelig856_00081c87_%=:\n\tcmp dword ptr [ecx+%c[pmWater]], 3\n\t"
+        ".Lelig856_00081c8e_%=:\n\tje .Lelig856_000835f0_%=\n\t"
+        "jmp .Lelig856_00081c94_%=\n\t"
+        ".Lelig856_000835f0_%=:\n\tcmp edx, 1\n\t"
+        ".Lelig856_000835f3_%=:\n\tje .Lelig856_00081c94_%=\n\t"
+        ".Lelig856_000835f9_%=:\n\tcmp edx, 4\n\t"
+        ".Lelig856_000835fc_%=:\n\tje .Lelig856_00081c94_%=\n\t"
+        ".Lelig856_00083602_%=:\n\tcmp edx, 9\n\t"
+        ".Lelig856_00083605_%=:\n\tje .Lelig856_00081c94_%=\n\t"
+        ".Lelig856_0008360b_%=:\n\tcmp edx, 0xf\n\t"
+        ".Lelig856_0008360e_%=:\n\tje .Lelig856_00081c94_%=\n\t"
+        ".Lelig856_00083614_%=:\n\tcmp edx, 0x1a\n\t"
+        ".Lelig856_00083617_%=:\n\tje .Lelig856_00081c94_%=\n\t"
+        ".Lelig856_0008361d_%=:\n\tcmp edx, 0x1d\n\t"
+        ".Lelig856_00083620_%=:\n\tje .Lelig856_00081c94_%=\n\t"
+        ".Lelig856_00083626_%=:\n\tcmp edx, 0x1e\n\t"
+        ".Lelig856_00083629_%=:\n\tje .Lelig856_00081c94_%=\n\t"
+        ".Lelig856_0008362f_%=:\n\tmov dword ptr [esp], 0x2b\n\t"
+        ".Lelig856_00083636_%=:\n\tcall dword ptr [ebx+16]\n\t"
+        ".Lelig856_0008363b_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_0008363d_%=:\n\tmov ebp, dword ptr [edx]\n\t"
+        ".Lelig856_0008363f_%=:\n\tmov dword ptr [ebp+%c[psTime]], 0x1f4\n\t"
+        ".Lelig856_00083646_%=:\n\tmov esi, dword ptr [edi]\n\t"
+        ".Lelig856_00083648_%=:\n\tmov ecx, dword ptr [esi]\n\t"
+        ".Lelig856_0008364a_%=:\n\tmov dword ptr [ecx+%c[psDelay]], 0\n\t"
+        ".Lelig856_00083651_%=:\n\tjmp .Lelig856_0008114c_%=\n\t"
+        ".Lelig856_00083656_%=:\n\tmov eax, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_00083659_%=:\n\tmov ebp, dword ptr [esi+%c[psChargeTime]]\n\t"
+        ".Lelig856_0008365f_%=:\n\tsub eax, ebp\n\t"
+        ".Lelig856_00083661_%=:\n\tcmp eax, dword ptr [edx+%c[pmCharges]+12]\n\t"
+        ".Lelig856_00083664_%=:\n\tjl .Lelig856_0008114c_%=\n\t"
+        ".Lelig856_0008366a_%=:\n\tjmp .Lelig856_00081b24_%=\n\t"
+        ".Lelig856_0008366f_%=:\n\tmov esi, dword ptr [edx+%c[pmSkill]]\n\t"
+        ".Lelig856_00083675_%=:\n\tcmp dword ptr [esi + 0xc], 1\n\t"
+        ".Lelig856_00083679_%=:\n\tjle .Lelig856_000836a6_%=\n\t"
+        ".Lelig856_0008367b_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_00083681_%=:\n\tmov esi, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_00083684_%=:\n\tsub esi, eax\n\t"
+        ".Lelig856_00083686_%=:\n\tpush esi\n\t"
+        ".Lelig856_00083687_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_0008368a_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_0008368d_%=:\n\tfild dword ptr [edx+%c[pmCharges]]\n\t"
+        ".Lelig856_00083690_%=:\n\tfmul dword ptr [ebx+44]\n\t"
+        ".Lelig856_00083696_%=:\n\tfcompp \n\t"
+        ".Lelig856_00083698_%=:\n\tfnstsw ax\n\t"
+        ".Lelig856_0008369a_%=:\n\tsahf \n\t"
+        ".Lelig856_0008369b_%=:\n\tja .Lelig856_0008114c_%=\n\t"
+        ".Lelig856_000836a1_%=:\n\tjmp .Lelig856_00081b11_%=\n\t"
+        ".Lelig856_000836a6_%=:\n\tmov ebp, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000836a9_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000836af_%=:\n\tsub ebp, eax\n\t"
+        ".Lelig856_000836b1_%=:\n\tcmp ebp, dword ptr [edx+%c[pmCharges]]\n\t"
+        ".Lelig856_000836b4_%=:\n\tjl .Lelig856_0008114c_%=\n\t"
+        ".Lelig856_000836ba_%=:\n\tjmp .Lelig856_00081b11_%=\n\t"
+        ".Lelig856_000836bf_%=:\n\tmov esi, dword ptr [edx+%c[pmSkill]]\n\t"
+        ".Lelig856_000836c5_%=:\n\tcmp dword ptr [esi + 8], 1\n\t"
+        ".Lelig856_000836c9_%=:\n\tjle .Lelig856_00083730_%=\n\t"
+        ".Lelig856_000836cb_%=:\n\tmov esi, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000836ce_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000836d4_%=:\n\tsub esi, eax\n\t"
+        ".Lelig856_000836d6_%=:\n\tpush esi\n\t"
+        ".Lelig856_000836d7_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_000836da_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_000836dd_%=:\n\tfild dword ptr [edx+%c[pmCharges]+12]\n\t"
+        ".Lelig856_000836e0_%=:\n\tfmul dword ptr [ebx+40]\n\t"
+        ".Lelig856_000836e6_%=:\n\tfcompp \n\t"
+        ".Lelig856_000836e8_%=:\n\tfnstsw ax\n\t"
+        ".Lelig856_000836ea_%=:\n\tsahf \n\t"
+        ".Lelig856_000836eb_%=:\n\tjbe .Lelig856_00081b00_%=\n\t"
+        ".Lelig856_000836f1_%=:\n\ttest byte ptr [edx+%c[pmButtons]], 1\n\t"
+        ".Lelig856_000836f5_%=:\n\tje .Lelig856_0008114c_%=\n\t"
+        ".Lelig856_000836fb_%=:\n\txor ecx, ecx\n\t"
+        ".Lelig856_000836fd_%=:\n\tmov edx, 1\n\t"
+        ".Lelig856_00083702_%=:\n\tmov ebp, 0x23\n\t"
+        ".Lelig856_00083707_%=:\n\tmov dword ptr [esp + 0x10], ecx\n\t"
+        ".Lelig856_0008370b_%=:\n\tmov dword ptr [esp + 0xc], edx\n\t"
+        ".Lelig856_0008370f_%=:\n\tmov dword ptr [esp + 8], ebp\n\t"
+        ".Lelig856_00083713_%=:\n\tmov esi, dword ptr [edi]\n\t"
+        ".Lelig856_00083715_%=:\n\tmov ecx, dword ptr [esi+%c[pmCharacter]]\n\t"
+        ".Lelig856_00083718_%=:\n\tmov edx, dword ptr [ecx+%c[characterAnim]]\n\t"
+        ".Lelig856_0008371b_%=:\n\tmov dword ptr [esp + 4], edx\n\t"
+        ".Lelig856_0008371f_%=:\n\tmov eax, dword ptr [edi]\n\t"
+        ".Lelig856_00083721_%=:\n\tmov edi, dword ptr [eax]\n\t"
+        ".Lelig856_00083723_%=:\n\tmov dword ptr [esp], edi\n\t"
+        ".Lelig856_00083726_%=:\n\tcall dword ptr [ebx+20]\n\t"
+        ".Lelig856_0008372b_%=:\n\tjmp .Lelig856_0008114c_%=\n\t"
+        ".Lelig856_00083730_%=:\n\tmov ebp, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_00083733_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_00083739_%=:\n\tsub ebp, eax\n\t"
+        ".Lelig856_0008373b_%=:\n\tpush ebp\n\t"
+        ".Lelig856_0008373c_%=:\n\tfild dword ptr [edx+%c[pmCharges]+12]\n\t"
+        ".Lelig856_0008373f_%=:\n\tfmul dword ptr [ebx+32]\n\t"
+        ".Lelig856_00083745_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_00083748_%=:\n\tfxch st(1)\n\t"
+        ".Lelig856_0008374a_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_0008374d_%=:\n\tjmp .Lelig856_000836e6_%=\n\t"
+        ".Lelig856_0008374f_%=:\n\tmov ebp, dword ptr [edx+%c[pmSkill]]\n\t"
+        ".Lelig856_00083755_%=:\n\tmov esi, dword ptr [ebp + 0xc]\n\t"
+        ".Lelig856_00083758_%=:\n\ttest esi, esi\n\t"
+        ".Lelig856_0008375a_%=:\n\tjle .Lelig856_00083787_%=\n\t"
+        ".Lelig856_0008375c_%=:\n\tmov esi, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_0008375f_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_00083765_%=:\n\tsub esi, eax\n\t"
+        ".Lelig856_00083767_%=:\n\tpush esi\n\t"
+        ".Lelig856_00083768_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_0008376b_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_0008376e_%=:\n\tfild dword ptr [edx+%c[pmCharges]]\n\t"
+        ".Lelig856_00083771_%=:\n\tfmul dword ptr [ebx+40]\n\t"
+        ".Lelig856_00083777_%=:\n\tfcompp \n\t"
+        ".Lelig856_00083779_%=:\n\tfnstsw ax\n\t"
+        ".Lelig856_0008377b_%=:\n\tsahf \n\t"
+        ".Lelig856_0008377c_%=:\n\tja .Lelig856_000836f1_%=\n\t"
+        ".Lelig856_00083782_%=:\n\tjmp .Lelig856_00081aef_%=\n\t"
+        ".Lelig856_00083787_%=:\n\tmov ebp, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_0008378a_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_00083790_%=:\n\tsub ebp, eax\n\t"
+        ".Lelig856_00083792_%=:\n\tpush ebp\n\t"
+        ".Lelig856_00083793_%=:\n\tfild dword ptr [edx+%c[pmCharges]]\n\t"
+        ".Lelig856_00083796_%=:\n\tfmul dword ptr [ebx+32]\n\t"
+        ".Lelig856_0008379c_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_0008379f_%=:\n\tfxch st(1)\n\t"
+        ".Lelig856_000837a1_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_000837a4_%=:\n\tjmp .Lelig856_00083777_%=\n\t"
+        ".Lelig856_000837a6_%=:\n\tmov esi, dword ptr [edx+%c[pmSkill]]\n\t"
+        ".Lelig856_000837ac_%=:\n\tcmp dword ptr [esi + 4], 2\n\t"
+        ".Lelig856_000837b0_%=:\n\tjle .Lelig856_000837dd_%=\n\t"
+        ".Lelig856_000837b2_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000837b8_%=:\n\tmov esi, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000837bb_%=:\n\tsub esi, eax\n\t"
+        ".Lelig856_000837bd_%=:\n\tpush esi\n\t"
+        ".Lelig856_000837be_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_000837c1_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_000837c4_%=:\n\tfild dword ptr [edx+%c[pmCharges]+8]\n\t"
+        ".Lelig856_000837c7_%=:\n\tfmul dword ptr [ebx+44]\n\t"
+        ".Lelig856_000837cd_%=:\n\tfcompp \n\t"
+        ".Lelig856_000837cf_%=:\n\tfnstsw ax\n\t"
+        ".Lelig856_000837d1_%=:\n\tsahf \n\t"
+        ".Lelig856_000837d2_%=:\n\tja .Lelig856_0008114c_%=\n\t"
+        ".Lelig856_000837d8_%=:\n\tjmp .Lelig856_00081ade_%=\n\t"
+        ".Lelig856_000837dd_%=:\n\tmov ebp, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000837e0_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000837e6_%=:\n\tsub ebp, eax\n\t"
+        ".Lelig856_000837e8_%=:\n\tcmp ebp, dword ptr [edx+%c[pmCharges]+8]\n\t"
+        ".Lelig856_000837eb_%=:\n\tjl .Lelig856_0008114c_%=\n\t"
+        ".Lelig856_000837f1_%=:\n\tjmp .Lelig856_00081ade_%=\n\t"
+        ".Lelig856_000837f6_%=:\n\tmov esi, dword ptr [edx+%c[pmSkill]]\n\t"
+        ".Lelig856_000837fc_%=:\n\tcmp dword ptr [esi + 4], 1\n\t"
+        ".Lelig856_00083800_%=:\n\tjle .Lelig856_0008382d_%=\n\t"
+        ".Lelig856_00083802_%=:\n\tmov esi, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_00083805_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_0008380b_%=:\n\tsub esi, eax\n\t"
+        ".Lelig856_0008380d_%=:\n\tpush esi\n\t"
+        ".Lelig856_0008380e_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_00083811_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_00083814_%=:\n\tfild dword ptr [edx+%c[pmCharges]+8]\n\t"
+        ".Lelig856_00083817_%=:\n\tfmul dword ptr [ebx+48]\n\t"
+        ".Lelig856_0008381d_%=:\n\tfcompp \n\t"
+        ".Lelig856_0008381f_%=:\n\tfnstsw ax\n\t"
+        ".Lelig856_00083821_%=:\n\tsahf \n\t"
+        ".Lelig856_00083822_%=:\n\tja .Lelig856_0008114c_%=\n\t"
+        ".Lelig856_00083828_%=:\n\tjmp .Lelig856_00081acd_%=\n\t"
+        ".Lelig856_0008382d_%=:\n\tmov ebp, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_00083830_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_00083836_%=:\n\tsub ebp, eax\n\t"
+        ".Lelig856_00083838_%=:\n\tpush ebp\n\t"
+        ".Lelig856_00083839_%=:\n\tfild dword ptr [edx+%c[pmCharges]+8]\n\t"
+        ".Lelig856_0008383c_%=:\n\tfmul dword ptr [ebx+28]\n\t"
+        ".Lelig856_00083842_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_00083845_%=:\n\tfxch st(1)\n\t"
+        ".Lelig856_00083847_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_0008384a_%=:\n\tjmp .Lelig856_0008381d_%=\n\t"
+        ".Lelig856_0008384c_%=:\n\tmov esi, dword ptr [edx+%c[pmSkill]]\n\t"
+        ".Lelig856_00083852_%=:\n\tcmp dword ptr [esi + 0x18], 1\n\t"
+        ".Lelig856_00083856_%=:\n\tjle .Lelig856_00083883_%=\n\t"
+        ".Lelig856_00083858_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_0008385e_%=:\n\tmov esi, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_00083861_%=:\n\tsub esi, eax\n\t"
+        ".Lelig856_00083863_%=:\n\tpush esi\n\t"
+        ".Lelig856_00083864_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_00083867_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_0008386a_%=:\n\tfild dword ptr [edx+%c[pmCharges]+16]\n\t"
+        ".Lelig856_0008386d_%=:\n\tfmul dword ptr [ebx+44]\n\t"
+        ".Lelig856_00083873_%=:\n\tfcompp \n\t"
+        ".Lelig856_00083875_%=:\n\tfnstsw ax\n\t"
+        ".Lelig856_00083877_%=:\n\tsahf \n\t"
+        ".Lelig856_00083878_%=:\n\tja .Lelig856_0008114c_%=\n\t"
+        ".Lelig856_0008387e_%=:\n\tjmp .Lelig856_00081abc_%=\n\t"
+        ".Lelig856_00083883_%=:\n\tmov ebp, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_00083886_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_0008388c_%=:\n\tsub ebp, eax\n\t"
+        ".Lelig856_0008388e_%=:\n\tcmp ebp, dword ptr [edx+%c[pmCharges]+16]\n\t"
+        ".Lelig856_00083891_%=:\n\tjl .Lelig856_0008114c_%=\n\t"
+        ".Lelig856_00083897_%=:\n\tjmp .Lelig856_00081abc_%=\n\t"
+        ".Lelig856_0008389c_%=:\n\tmov ebp, dword ptr [edx+%c[pmSkill]]\n\t"
+        ".Lelig856_000838a2_%=:\n\tmov esi, dword ptr [ebp + 0x14]\n\t"
+        ".Lelig856_000838a5_%=:\n\ttest esi, esi\n\t"
+        ".Lelig856_000838a7_%=:\n\tjle .Lelig856_000838f0_%=\n\t"
+        ".Lelig856_000838a9_%=:\n\tmov esi, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000838ac_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000838b2_%=:\n\tsub esi, eax\n\t"
+        ".Lelig856_000838b4_%=:\n\tpush esi\n\t"
+        ".Lelig856_000838b5_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_000838b8_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_000838bb_%=:\n\tfild dword ptr [edx+%c[pmCharges]+4]\n\t"
+        ".Lelig856_000838be_%=:\n\tfmul dword ptr [ebx+36]\n\t"
+        ".Lelig856_000838c4_%=:\n\tfcompp \n\t"
+        ".Lelig856_000838c6_%=:\n\tfnstsw ax\n\t"
+        ".Lelig856_000838c8_%=:\n\tsahf \n\t"
+        ".Lelig856_000838c9_%=:\n\tja .Lelig856_0008114c_%=\n\t"
+        ".Lelig856_000838cf_%=:\n\tmov edx, dword ptr [esp + 0x94]\n\t"
+        ".Lelig856_000838d6_%=:\n\ttest edx, edx\n\t"
+        ".Lelig856_000838d8_%=:\n\tjne .Lelig856_00081aab_%=\n\t"
+        ".Lelig856_000838de_%=:\n\tmov ebp, dword ptr [edi]\n\t"
+        ".Lelig856_000838e0_%=:\n\txor esi, esi\n\t"
+        ".Lelig856_000838e2_%=:\n\tmov ecx, dword ptr [ebp]\n\t"
+        ".Lelig856_000838e5_%=:\n\tmov dword ptr [ecx+%c[psState]], esi\n\t"
+        ".Lelig856_000838eb_%=:\n\tjmp .Lelig856_00081aab_%=\n\t"
+        ".Lelig856_000838f0_%=:\n\tmov ebp, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000838f3_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000838f9_%=:\n\tsub ebp, eax\n\t"
+        ".Lelig856_000838fb_%=:\n\tpush ebp\n\t"
+        ".Lelig856_000838fc_%=:\n\tfild dword ptr [edx+%c[pmCharges]+4]\n\t"
+        ".Lelig856_000838ff_%=:\n\tfmul dword ptr [ebx+28]\n\t"
+        ".Lelig856_00083905_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_00083908_%=:\n\tfxch st(1)\n\t"
+        ".Lelig856_0008390a_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_0008390d_%=:\n\tjmp .Lelig856_000838c4_%=\n\t"
+        ".Lelig856_0008390f_%=:\n\ttest byte ptr [edx+%c[psEFlagsHigh]], 8\n\t"
+        ".Lelig856_00083913_%=:\n\tjne .Lelig856_0008114c_%=\n\t"
+        ".Lelig856_00083919_%=:\n\tmov ebp, dword ptr [ecx+%c[pmSkill]]\n\t"
+        ".Lelig856_0008391f_%=:\n\tmov esi, dword ptr [ebp + 0x14]\n\t"
+        ".Lelig856_00083922_%=:\n\ttest esi, esi\n\t"
+        ".Lelig856_00083924_%=:\n\tjle .Lelig856_00083951_%=\n\t"
+        ".Lelig856_00083926_%=:\n\tmov eax, dword ptr [edx+%c[psChargeTime]]\n\t"
+        ".Lelig856_0008392c_%=:\n\tmov esi, dword ptr [ecx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_0008392f_%=:\n\tsub esi, eax\n\t"
+        ".Lelig856_00083931_%=:\n\tpush esi\n\t"
+        ".Lelig856_00083932_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_00083935_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_00083938_%=:\n\tfild dword ptr [ecx+%c[pmCharges]+4]\n\t"
+        ".Lelig856_0008393b_%=:\n\tfmul dword ptr [ebx+44]\n\t"
+        ".Lelig856_00083941_%=:\n\tfcompp \n\t"
+        ".Lelig856_00083943_%=:\n\tfnstsw ax\n\t"
+        ".Lelig856_00083945_%=:\n\tsahf \n\t"
+        ".Lelig856_00083946_%=:\n\tja .Lelig856_0008114c_%=\n\t"
+        ".Lelig856_0008394c_%=:\n\tjmp .Lelig856_00081a6a_%=\n\t"
+        ".Lelig856_00083951_%=:\n\tmov ebp, dword ptr [ecx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_00083954_%=:\n\tmov eax, dword ptr [edx+%c[psChargeTime]]\n\t"
+        ".Lelig856_0008395a_%=:\n\tsub ebp, eax\n\t"
+        ".Lelig856_0008395c_%=:\n\tcmp ebp, dword ptr [ecx+%c[pmCharges]+4]\n\t"
+        ".Lelig856_0008395f_%=:\n\tjl .Lelig856_0008114c_%=\n\t"
+        ".Lelig856_00083965_%=:\n\tjmp .Lelig856_00081a6a_%=\n\t"
+        ".Lelig856_0008114c_%=:\n\tmov eax,1\n\tjmp .Lelig856_finish_%=\n\t"
+        ".Lelig856_00081c94_%=:\n\txor eax,eax\n\t"
+#endif
+#ifdef CGAMEDLL
+        ".Lelig856_000d32ad_%=:\n\tmov eax, dword ptr [edx+%c[psWeapon]]\n\t"
+        ".Lelig856_000d32b3_%=:\n\ttest eax, eax\n\t"
+        ".Lelig856_000d32b5_%=:\n\tje .Lelig856_000d29a4_%=\n\t"
+        ".Lelig856_000d32bb_%=:\n\tcmp eax, 0x41\n\t"
+        ".Lelig856_000d32be_%=:\n\tje .Lelig856_000d515f_%=\n\t"
+        ".Lelig856_000d32c4_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_000d32c6_%=:\n\tmov ecx, dword ptr [edx]\n\t"
+        ".Lelig856_000d32c8_%=:\n\tmov esi, dword ptr [ecx+%c[psWeapon]]\n\t"
+        ".Lelig856_000d32ce_%=:\n\tlea ebp, [esi - 0x37]\n\t"
+        ".Lelig856_000d32d1_%=:\n\tcmp ebp, 1\n\t"
+        ".Lelig856_000d32d4_%=:\n\tja .Lelig856_000d32fc_%=\n\t"
+        ".Lelig856_000d32d6_%=:\n\tmov eax, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000d32d9_%=:\n\tmov ebp, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000d32df_%=:\n\tsub eax, ebp\n\t"
+        ".Lelig856_000d32e1_%=:\n\tpush eax\n\t"
+        ".Lelig856_000d32e2_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_000d32e5_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_000d32e8_%=:\n\tfild dword ptr [edx+%c[pmCharges]+8]\n\t"
+        ".Lelig856_000d32eb_%=:\n\tfmul dword ptr [ebx+28]\n\t"
+        ".Lelig856_000d32f1_%=:\n\tfcompp \n\t"
+        ".Lelig856_000d32f3_%=:\n\tfnstsw ax\n\t"
+        ".Lelig856_000d32f5_%=:\n\tsahf \n\t"
+        ".Lelig856_000d32f6_%=:\n\tja .Lelig856_000d29a4_%=\n\t"
+        ".Lelig856_000d32fc_%=:\n\tcmp esi, 0x3c\n\t"
+        ".Lelig856_000d32ff_%=:\n\tje .Lelig856_000d50ec_%=\n\t"
+        ".Lelig856_000d3305_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_000d3307_%=:\n\tmov ecx, dword ptr [edx]\n\t"
+        ".Lelig856_000d3309_%=:\n\tcmp dword ptr [ecx+%c[psWeapon]], 0x1b\n\t"
+        ".Lelig856_000d3310_%=:\n\tje .Lelig856_000d509c_%=\n\t"
+        ".Lelig856_000d3316_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_000d3318_%=:\n\tmov ecx, dword ptr [edx]\n\t"
+        ".Lelig856_000d331a_%=:\n\tcmp dword ptr [ecx+%c[psWeapon]], 0x1a\n\t"
+        ".Lelig856_000d3321_%=:\n\tje .Lelig856_000d5046_%=\n\t"
+        ".Lelig856_000d3327_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_000d3329_%=:\n\tmov ecx, dword ptr [edx]\n\t"
+        ".Lelig856_000d332b_%=:\n\tcmp dword ptr [ecx+%c[psWeapon]], 0xf\n\t"
+        ".Lelig856_000d3332_%=:\n\tje .Lelig856_000d4ff6_%=\n\t"
+        ".Lelig856_000d3338_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_000d333a_%=:\n\tmov ecx, dword ptr [edx]\n\t"
+        ".Lelig856_000d333c_%=:\n\tcmp dword ptr [ecx+%c[psWeapon]], 0xc\n\t"
+        ".Lelig856_000d3343_%=:\n\tje .Lelig856_000d4f9f_%=\n\t"
+        ".Lelig856_000d3349_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_000d334b_%=:\n\tmov ecx, dword ptr [edx]\n\t"
+        ".Lelig856_000d334d_%=:\n\tcmp dword ptr [ecx+%c[psWeapon]], 0x13\n\t"
+        ".Lelig856_000d3354_%=:\n\tje .Lelig856_000d4f0c_%=\n\t"
+        ".Lelig856_000d335a_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_000d335c_%=:\n\tmov ecx, dword ptr [edx]\n\t"
+        ".Lelig856_000d335e_%=:\n\tcmp dword ptr [ecx+%c[psWeapon]], 0x16\n\t"
+        ".Lelig856_000d3365_%=:\n\tje .Lelig856_000d4ebc_%=\n\t"
+        ".Lelig856_000d336b_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_000d336d_%=:\n\tmov esi, dword ptr [edx]\n\t"
+        ".Lelig856_000d336f_%=:\n\tmov ecx, dword ptr [esi+%c[psWeapon]]\n\t"
+        ".Lelig856_000d3375_%=:\n\tcmp ecx, 0x3d\n\t"
+        ".Lelig856_000d3378_%=:\n\tje .Lelig856_000d4ea3_%=\n\t"
+        ".Lelig856_000d337e_%=:\n\ttest byte ptr [edx+%c[pmButtons]], 1\n\t"
+        ".Lelig856_000d3382_%=:\n\tjne .Lelig856_000d338f_%=\n\t"
+        ".Lelig856_000d3384_%=:\n\tmov edx, dword ptr [esp + 0x94]\n\t"
+        ".Lelig856_000d338b_%=:\n\ttest edx, edx\n\t"
+        ".Lelig856_000d338d_%=:\n\tje .Lelig856_000d33f2_%=\n\t"
+        ".Lelig856_000d338f_%=:\n\tfld dword ptr [esi+%c[psLean]]\n\t"
+        ".Lelig856_000d3392_%=:\n\tfcomp dword ptr [ebx+24]\n\t"
+        ".Lelig856_000d3398_%=:\n\tfnstsw ax\n\t"
+        ".Lelig856_000d339a_%=:\n\tsahf \n\t"
+        ".Lelig856_000d339b_%=:\n\tje .Lelig856_000d33b5_%=\n\t"
+        ".Lelig856_000d339d_%=:\n\tcmp ecx, 4\n\t"
+        ".Lelig856_000d33a0_%=:\n\tje .Lelig856_000d33b5_%=\n\t"
+        ".Lelig856_000d33a2_%=:\n\tcmp ecx, 9\n\t"
+        ".Lelig856_000d33a5_%=:\n\tje .Lelig856_000d33b5_%=\n\t"
+        ".Lelig856_000d33a7_%=:\n\tcmp ecx, 0x1e\n\t"
+        ".Lelig856_000d33aa_%=:\n\tje .Lelig856_000d33b5_%=\n\t"
+        ".Lelig856_000d33ac_%=:\n\ttest byte ptr [esi+%c[psFlags]], 4\n\t"
+        ".Lelig856_000d33b3_%=:\n\tje .Lelig856_000d33f2_%=\n\t"
+        ".Lelig856_000d33b5_%=:\n\tmov ecx, dword ptr [edi]\n\t"
+        ".Lelig856_000d33b7_%=:\n\tmov eax, dword ptr [ecx]\n\t"
+        ".Lelig856_000d33b9_%=:\n\ttest byte ptr [eax+%c[psFlags]+1], 0x40\n\t"
+        ".Lelig856_000d33c0_%=:\n\tje .Lelig856_000d34a3_%=\n\t"
+        ".Lelig856_000d33c6_%=:\n\tmov esi, dword ptr [esp + 0x94]\n\t"
+        ".Lelig856_000d33cd_%=:\n\ttest esi, esi\n\t"
+        ".Lelig856_000d33cf_%=:\n\tje .Lelig856_000d33f2_%=\n\t"
+        ".Lelig856_000d33d1_%=:\n\tmov eax, dword ptr [eax+%c[psWeapon]]\n\t"
+        ".Lelig856_000d33d7_%=:\n\tcmp eax, 4\n\t"
+        ".Lelig856_000d33da_%=:\n\tje .Lelig856_000d34a3_%=\n\t"
+        ".Lelig856_000d33e0_%=:\n\tcmp eax, 9\n\t"
+        ".Lelig856_000d33e3_%=:\n\tje .Lelig856_000d34a3_%=\n\t"
+        ".Lelig856_000d33e9_%=:\n\tcmp eax, 0x1e\n\t"
+        ".Lelig856_000d33ec_%=:\n\tje .Lelig856_000d34a3_%=\n\t"
+        ".Lelig856_000d33f2_%=:\n\tmov ebp, dword ptr [edi]\n\t"
+        ".Lelig856_000d33f4_%=:\n\tmov esi, dword ptr [ebp]\n\t"
+        ".Lelig856_000d33f7_%=:\n\tmov dword ptr [esi+%c[psTime]], 0\n\t"
+        ".Lelig856_000d33fe_%=:\n\tmov ecx, dword ptr [edi]\n\t"
+        ".Lelig856_000d3400_%=:\n\tmov edx, dword ptr [ecx]\n\t"
+        ".Lelig856_000d3402_%=:\n\tmov dword ptr [edx+%c[psDelay]], 0\n\t"
+        ".Lelig856_000d3409_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_000d340b_%=:\n\tmov ecx, dword ptr [edx]\n\t"
+        ".Lelig856_000d340d_%=:\n\tmov ebp, dword ptr [ecx+%c[psState]]\n\t"
+        ".Lelig856_000d3413_%=:\n\tsub ebp, 7\n\t"
+        ".Lelig856_000d3416_%=:\n\tcmp ebp, 1\n\t"
+        ".Lelig856_000d3419_%=:\n\tjbe .Lelig856_000d3486_%=\n\t"
+        ".Lelig856_000d341b_%=:\n\tmov eax, dword ptr [edx]\n\t"
+        ".Lelig856_000d341d_%=:\n\tmov ecx, dword ptr [eax+%c[psBurst]]\n\t"
+        ".Lelig856_000d3423_%=:\n\ttest ecx, ecx\n\t"
+        ".Lelig856_000d3425_%=:\n\tjle .Lelig856_000d347e_%=\n\t"
+        ".Lelig856_000d3427_%=:\n\tmov esi, dword ptr [eax+%c[psWeapon]]\n\t"
+        ".Lelig856_000d342d_%=:\n\tmov dword ptr [esp], esi\n\t"
+        ".Lelig856_000d3430_%=:\n\tcall dword ptr [ebx+4]\n\t"
+        ".Lelig856_000d3435_%=:\n\ttest eax, eax\n\t"
+        ".Lelig856_000d3437_%=:\n\tje .Lelig856_000d3447_%=\n\t"
+        ".Lelig856_000d3439_%=:\n\tmov ebp, dword ptr [edi]\n\t"
+        ".Lelig856_000d343b_%=:\n\tmov eax, dword ptr [ebp]\n\t"
+        ".Lelig856_000d343e_%=:\n\tcmp dword ptr [eax+%c[psFiremode]], 1\n\t"
+        ".Lelig856_000d3445_%=:\n\tje .Lelig856_000d3475_%=\n\t"
+        ".Lelig856_000d3447_%=:\n\tmov edi, dword ptr [ebx+0]\n\t"
+        ".Lelig856_000d344d_%=:\n\txor ebp, ebp\n\t"
+        ".Lelig856_000d344f_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_000d3451_%=:\n\tmov esi, dword ptr [edx]\n\t"
+        ".Lelig856_000d3453_%=:\n\tmov dword ptr [esi+%c[psBurst]], ebp\n\t"
+        ".Lelig856_000d3459_%=:\n\tmov ecx, dword ptr [edi]\n\t"
+        ".Lelig856_000d345b_%=:\n\tmov edx, dword ptr [ecx]\n\t"
+        ".Lelig856_000d345d_%=:\n\tand dword ptr [edx+%c[psOtherFlags]], 0xfffffff7\n\t"
+        ".Lelig856_000d3464_%=:\n\tmov eax, dword ptr [edi]\n\t"
+        ".Lelig856_000d3466_%=:\n\tmov eax, dword ptr [eax]\n\t"
+        ".Lelig856_000d3468_%=:\n\txor edi, edi\n\t"
+        ".Lelig856_000d346a_%=:\n\tmov dword ptr [eax+%c[psState]], edi\n\t"
+        ".Lelig856_000d3470_%=:\n\tjmp .Lelig856_000d29a4_%=\n\t"
+        ".Lelig856_000d3475_%=:\n\tmov dword ptr [eax+%c[psTime]], 0x32\n\t"
+        ".Lelig856_000d347c_%=:\n\tjmp .Lelig856_000d3447_%=\n\t"
+        ".Lelig856_000d347e_%=:\n\tmov edi, dword ptr [ebx+0]\n\t"
+        ".Lelig856_000d3484_%=:\n\tjmp .Lelig856_000d3464_%=\n\t"
+        ".Lelig856_000d3486_%=:\n\tmov edx, dword ptr [ecx+%c[psWeapon]]\n\t"
+        ".Lelig856_000d348c_%=:\n\tmov dword ptr [esp], edx\n\t"
+        ".Lelig856_000d348f_%=:\n\tcall dword ptr [ebx+8]\n\t"
+        ".Lelig856_000d3494_%=:\n\tmov dword ptr [esp], eax\n\t"
+        ".Lelig856_000d3497_%=:\n\tcall dword ptr [ebx+12]\n\t"
+        ".Lelig856_000d349c_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_000d349e_%=:\n\tjmp .Lelig856_000d341b_%=\n\t"
+        ".Lelig856_000d34a3_%=:\n\tmov ecx, dword ptr [edi]\n\t"
+        ".Lelig856_000d34a5_%=:\n\tmov edx, dword ptr [ecx]\n\t"
+        ".Lelig856_000d34a7_%=:\n\tmov eax, dword ptr [edx+%c[psWeapon]]\n\t"
+        ".Lelig856_000d34ad_%=:\n\tcmp eax, 0x23\n\t"
+        ".Lelig856_000d34b0_%=:\n\tje .Lelig856_000d29a4_%=\n\t"
+        ".Lelig856_000d34b6_%=:\n\ttest byte ptr [edx+%c[psEFlagsHigh]], 4\n\t"
+        ".Lelig856_000d34ba_%=:\n\tjne .Lelig856_000d29a4_%=\n\t"
+        ".Lelig856_000d34c0_%=:\n\tcmp dword ptr [ecx+%c[pmWater]], 3\n\t"
+        ".Lelig856_000d34c7_%=:\n\tje .Lelig856_000d4e3d_%=\n\t"
+        "jmp .Lelig856_000d34cd_%=\n\t"
+        ".Lelig856_000d4e3d_%=:\n\tcmp eax, 1\n\t"
+        ".Lelig856_000d4e40_%=:\n\tje .Lelig856_000d34cd_%=\n\t"
+        ".Lelig856_000d4e46_%=:\n\tcmp eax, 4\n\t"
+        ".Lelig856_000d4e49_%=:\n\tje .Lelig856_000d34cd_%=\n\t"
+        ".Lelig856_000d4e4f_%=:\n\tcmp eax, 9\n\t"
+        ".Lelig856_000d4e52_%=:\n\tje .Lelig856_000d34cd_%=\n\t"
+        ".Lelig856_000d4e58_%=:\n\tcmp eax, 0xf\n\t"
+        ".Lelig856_000d4e5b_%=:\n\tje .Lelig856_000d34cd_%=\n\t"
+        ".Lelig856_000d4e61_%=:\n\tcmp eax, 0x1a\n\t"
+        ".Lelig856_000d4e64_%=:\n\tje .Lelig856_000d34cd_%=\n\t"
+        ".Lelig856_000d4e6a_%=:\n\tcmp eax, 0x1d\n\t"
+        ".Lelig856_000d4e6d_%=:\n\tje .Lelig856_000d34cd_%=\n\t"
+        ".Lelig856_000d4e73_%=:\n\tcmp eax, 0x1e\n\t"
+        ".Lelig856_000d4e76_%=:\n\tje .Lelig856_000d34cd_%=\n\t"
+        ".Lelig856_000d4e7c_%=:\n\tmov dword ptr [esp], 0x2b\n\t"
+        ".Lelig856_000d4e83_%=:\n\tcall dword ptr [ebx+16]\n\t"
+        ".Lelig856_000d4e88_%=:\n\tmov edx, dword ptr [edi]\n\t"
+        ".Lelig856_000d4e8a_%=:\n\tmov ebp, dword ptr [edx]\n\t"
+        ".Lelig856_000d4e8c_%=:\n\tmov dword ptr [ebp+%c[psTime]], 0x1f4\n\t"
+        ".Lelig856_000d4e93_%=:\n\tmov esi, dword ptr [edi]\n\t"
+        ".Lelig856_000d4e95_%=:\n\tmov ecx, dword ptr [esi]\n\t"
+        ".Lelig856_000d4e97_%=:\n\tmov dword ptr [ecx+%c[psDelay]], 0\n\t"
+        ".Lelig856_000d4e9e_%=:\n\tjmp .Lelig856_000d29a4_%=\n\t"
+        ".Lelig856_000d4ea3_%=:\n\tmov eax, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000d4ea6_%=:\n\tmov ebp, dword ptr [esi+%c[psChargeTime]]\n\t"
+        ".Lelig856_000d4eac_%=:\n\tsub eax, ebp\n\t"
+        ".Lelig856_000d4eae_%=:\n\tcmp eax, dword ptr [edx+%c[pmCharges]+12]\n\t"
+        ".Lelig856_000d4eb1_%=:\n\tjl .Lelig856_000d29a4_%=\n\t"
+        ".Lelig856_000d4eb7_%=:\n\tjmp .Lelig856_000d337e_%=\n\t"
+        ".Lelig856_000d4ebc_%=:\n\tmov esi, dword ptr [edx+%c[pmSkill]]\n\t"
+        ".Lelig856_000d4ec2_%=:\n\tcmp dword ptr [esi + 0xc], 1\n\t"
+        ".Lelig856_000d4ec6_%=:\n\tjle .Lelig856_000d4ef3_%=\n\t"
+        ".Lelig856_000d4ec8_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000d4ece_%=:\n\tmov esi, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000d4ed1_%=:\n\tsub esi, eax\n\t"
+        ".Lelig856_000d4ed3_%=:\n\tpush esi\n\t"
+        ".Lelig856_000d4ed4_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_000d4ed7_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_000d4eda_%=:\n\tfild dword ptr [edx+%c[pmCharges]]\n\t"
+        ".Lelig856_000d4edd_%=:\n\tfmul dword ptr [ebx+44]\n\t"
+        ".Lelig856_000d4ee3_%=:\n\tfcompp \n\t"
+        ".Lelig856_000d4ee5_%=:\n\tfnstsw ax\n\t"
+        ".Lelig856_000d4ee7_%=:\n\tsahf \n\t"
+        ".Lelig856_000d4ee8_%=:\n\tja .Lelig856_000d29a4_%=\n\t"
+        ".Lelig856_000d4eee_%=:\n\tjmp .Lelig856_000d336b_%=\n\t"
+        ".Lelig856_000d4ef3_%=:\n\tmov ebp, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000d4ef6_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000d4efc_%=:\n\tsub ebp, eax\n\t"
+        ".Lelig856_000d4efe_%=:\n\tcmp ebp, dword ptr [edx+%c[pmCharges]]\n\t"
+        ".Lelig856_000d4f01_%=:\n\tjl .Lelig856_000d29a4_%=\n\t"
+        ".Lelig856_000d4f07_%=:\n\tjmp .Lelig856_000d336b_%=\n\t"
+        ".Lelig856_000d4f0c_%=:\n\tmov esi, dword ptr [edx+%c[pmSkill]]\n\t"
+        ".Lelig856_000d4f12_%=:\n\tcmp dword ptr [esi + 8], 1\n\t"
+        ".Lelig856_000d4f16_%=:\n\tjle .Lelig856_000d4f80_%=\n\t"
+        ".Lelig856_000d4f18_%=:\n\tmov esi, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000d4f1b_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000d4f21_%=:\n\tsub esi, eax\n\t"
+        ".Lelig856_000d4f23_%=:\n\tpush esi\n\t"
+        ".Lelig856_000d4f24_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_000d4f27_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_000d4f2a_%=:\n\tfild dword ptr [edx+%c[pmCharges]+12]\n\t"
+        ".Lelig856_000d4f2d_%=:\n\tfmul dword ptr [ebx+40]\n\t"
+        ".Lelig856_000d4f33_%=:\n\tfcompp \n\t"
+        ".Lelig856_000d4f35_%=:\n\tfnstsw ax\n\t"
+        ".Lelig856_000d4f37_%=:\n\tsahf \n\t"
+        ".Lelig856_000d4f38_%=:\n\tjbe .Lelig856_000d335a_%=\n\t"
+        ".Lelig856_000d4f3e_%=:\n\ttest byte ptr [edx+%c[pmButtons]], 1\n\t"
+        ".Lelig856_000d4f42_%=:\n\tje .Lelig856_000d29a4_%=\n\t"
+        ".Lelig856_000d4f48_%=:\n\txor ecx, ecx\n\t"
+        ".Lelig856_000d4f4a_%=:\n\tmov edx, 1\n\t"
+        ".Lelig856_000d4f4f_%=:\n\tmov ebp, 0x23\n\t"
+        ".Lelig856_000d4f54_%=:\n\tmov dword ptr [esp + 0x10], ecx\n\t"
+        ".Lelig856_000d4f58_%=:\n\tmov dword ptr [esp + 0xc], edx\n\t"
+        ".Lelig856_000d4f5c_%=:\n\tmov dword ptr [esp + 8], ebp\n\t"
+        ".Lelig856_000d4f60_%=:\n\tmov esi, dword ptr [edi]\n\t"
+        ".Lelig856_000d4f62_%=:\n\tmov ecx, dword ptr [esi+%c[pmCharacter]]\n\t"
+        ".Lelig856_000d4f65_%=:\n\tmov edx, dword ptr [ecx+%c[characterAnim]]\n\t"
+        ".Lelig856_000d4f6b_%=:\n\tmov dword ptr [esp + 4], edx\n\t"
+        ".Lelig856_000d4f6f_%=:\n\tmov eax, dword ptr [edi]\n\t"
+        ".Lelig856_000d4f71_%=:\n\tmov edi, dword ptr [eax]\n\t"
+        ".Lelig856_000d4f73_%=:\n\tmov dword ptr [esp], edi\n\t"
+        ".Lelig856_000d4f76_%=:\n\tcall dword ptr [ebx+20]\n\t"
+        ".Lelig856_000d4f7b_%=:\n\tjmp .Lelig856_000d29a4_%=\n\t"
+        ".Lelig856_000d4f80_%=:\n\tmov ebp, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000d4f83_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000d4f89_%=:\n\tsub ebp, eax\n\t"
+        ".Lelig856_000d4f8b_%=:\n\tpush ebp\n\t"
+        ".Lelig856_000d4f8c_%=:\n\tfild dword ptr [edx+%c[pmCharges]+12]\n\t"
+        ".Lelig856_000d4f8f_%=:\n\tfmul dword ptr [ebx+32]\n\t"
+        ".Lelig856_000d4f95_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_000d4f98_%=:\n\tfxch st(1)\n\t"
+        ".Lelig856_000d4f9a_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_000d4f9d_%=:\n\tjmp .Lelig856_000d4f33_%=\n\t"
+        ".Lelig856_000d4f9f_%=:\n\tmov ebp, dword ptr [edx+%c[pmSkill]]\n\t"
+        ".Lelig856_000d4fa5_%=:\n\tmov esi, dword ptr [ebp + 0xc]\n\t"
+        ".Lelig856_000d4fa8_%=:\n\ttest esi, esi\n\t"
+        ".Lelig856_000d4faa_%=:\n\tjle .Lelig856_000d4fd7_%=\n\t"
+        ".Lelig856_000d4fac_%=:\n\tmov esi, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000d4faf_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000d4fb5_%=:\n\tsub esi, eax\n\t"
+        ".Lelig856_000d4fb7_%=:\n\tpush esi\n\t"
+        ".Lelig856_000d4fb8_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_000d4fbb_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_000d4fbe_%=:\n\tfild dword ptr [edx+%c[pmCharges]]\n\t"
+        ".Lelig856_000d4fc1_%=:\n\tfmul dword ptr [ebx+40]\n\t"
+        ".Lelig856_000d4fc7_%=:\n\tfcompp \n\t"
+        ".Lelig856_000d4fc9_%=:\n\tfnstsw ax\n\t"
+        ".Lelig856_000d4fcb_%=:\n\tsahf \n\t"
+        ".Lelig856_000d4fcc_%=:\n\tja .Lelig856_000d4f3e_%=\n\t"
+        ".Lelig856_000d4fd2_%=:\n\tjmp .Lelig856_000d3349_%=\n\t"
+        ".Lelig856_000d4fd7_%=:\n\tmov ebp, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000d4fda_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000d4fe0_%=:\n\tsub ebp, eax\n\t"
+        ".Lelig856_000d4fe2_%=:\n\tpush ebp\n\t"
+        ".Lelig856_000d4fe3_%=:\n\tfild dword ptr [edx+%c[pmCharges]]\n\t"
+        ".Lelig856_000d4fe6_%=:\n\tfmul dword ptr [ebx+32]\n\t"
+        ".Lelig856_000d4fec_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_000d4fef_%=:\n\tfxch st(1)\n\t"
+        ".Lelig856_000d4ff1_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_000d4ff4_%=:\n\tjmp .Lelig856_000d4fc7_%=\n\t"
+        ".Lelig856_000d4ff6_%=:\n\tmov esi, dword ptr [edx+%c[pmSkill]]\n\t"
+        ".Lelig856_000d4ffc_%=:\n\tcmp dword ptr [esi + 4], 2\n\t"
+        ".Lelig856_000d5000_%=:\n\tjle .Lelig856_000d502d_%=\n\t"
+        ".Lelig856_000d5002_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000d5008_%=:\n\tmov esi, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000d500b_%=:\n\tsub esi, eax\n\t"
+        ".Lelig856_000d500d_%=:\n\tpush esi\n\t"
+        ".Lelig856_000d500e_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_000d5011_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_000d5014_%=:\n\tfild dword ptr [edx+%c[pmCharges]+8]\n\t"
+        ".Lelig856_000d5017_%=:\n\tfmul dword ptr [ebx+44]\n\t"
+        ".Lelig856_000d501d_%=:\n\tfcompp \n\t"
+        ".Lelig856_000d501f_%=:\n\tfnstsw ax\n\t"
+        ".Lelig856_000d5021_%=:\n\tsahf \n\t"
+        ".Lelig856_000d5022_%=:\n\tja .Lelig856_000d29a4_%=\n\t"
+        ".Lelig856_000d5028_%=:\n\tjmp .Lelig856_000d3338_%=\n\t"
+        ".Lelig856_000d502d_%=:\n\tmov ebp, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000d5030_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000d5036_%=:\n\tsub ebp, eax\n\t"
+        ".Lelig856_000d5038_%=:\n\tcmp ebp, dword ptr [edx+%c[pmCharges]+8]\n\t"
+        ".Lelig856_000d503b_%=:\n\tjl .Lelig856_000d29a4_%=\n\t"
+        ".Lelig856_000d5041_%=:\n\tjmp .Lelig856_000d3338_%=\n\t"
+        ".Lelig856_000d5046_%=:\n\tmov esi, dword ptr [edx+%c[pmSkill]]\n\t"
+        ".Lelig856_000d504c_%=:\n\tcmp dword ptr [esi + 4], 1\n\t"
+        ".Lelig856_000d5050_%=:\n\tjle .Lelig856_000d507d_%=\n\t"
+        ".Lelig856_000d5052_%=:\n\tmov esi, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000d5055_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000d505b_%=:\n\tsub esi, eax\n\t"
+        ".Lelig856_000d505d_%=:\n\tpush esi\n\t"
+        ".Lelig856_000d505e_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_000d5061_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_000d5064_%=:\n\tfild dword ptr [edx+%c[pmCharges]+8]\n\t"
+        ".Lelig856_000d5067_%=:\n\tfmul dword ptr [ebx+48]\n\t"
+        ".Lelig856_000d506d_%=:\n\tfcompp \n\t"
+        ".Lelig856_000d506f_%=:\n\tfnstsw ax\n\t"
+        ".Lelig856_000d5071_%=:\n\tsahf \n\t"
+        ".Lelig856_000d5072_%=:\n\tja .Lelig856_000d29a4_%=\n\t"
+        ".Lelig856_000d5078_%=:\n\tjmp .Lelig856_000d3327_%=\n\t"
+        ".Lelig856_000d507d_%=:\n\tmov ebp, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000d5080_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000d5086_%=:\n\tsub ebp, eax\n\t"
+        ".Lelig856_000d5088_%=:\n\tpush ebp\n\t"
+        ".Lelig856_000d5089_%=:\n\tfild dword ptr [edx+%c[pmCharges]+8]\n\t"
+        ".Lelig856_000d508c_%=:\n\tfmul dword ptr [ebx+28]\n\t"
+        ".Lelig856_000d5092_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_000d5095_%=:\n\tfxch st(1)\n\t"
+        ".Lelig856_000d5097_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_000d509a_%=:\n\tjmp .Lelig856_000d506d_%=\n\t"
+        ".Lelig856_000d509c_%=:\n\tmov esi, dword ptr [edx+%c[pmSkill]]\n\t"
+        ".Lelig856_000d50a2_%=:\n\tcmp dword ptr [esi + 0x18], 1\n\t"
+        ".Lelig856_000d50a6_%=:\n\tjle .Lelig856_000d50d3_%=\n\t"
+        ".Lelig856_000d50a8_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000d50ae_%=:\n\tmov esi, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000d50b1_%=:\n\tsub esi, eax\n\t"
+        ".Lelig856_000d50b3_%=:\n\tpush esi\n\t"
+        ".Lelig856_000d50b4_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_000d50b7_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_000d50ba_%=:\n\tfild dword ptr [edx+%c[pmCharges]+16]\n\t"
+        ".Lelig856_000d50bd_%=:\n\tfmul dword ptr [ebx+44]\n\t"
+        ".Lelig856_000d50c3_%=:\n\tfcompp \n\t"
+        ".Lelig856_000d50c5_%=:\n\tfnstsw ax\n\t"
+        ".Lelig856_000d50c7_%=:\n\tsahf \n\t"
+        ".Lelig856_000d50c8_%=:\n\tja .Lelig856_000d29a4_%=\n\t"
+        ".Lelig856_000d50ce_%=:\n\tjmp .Lelig856_000d3316_%=\n\t"
+        ".Lelig856_000d50d3_%=:\n\tmov ebp, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000d50d6_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000d50dc_%=:\n\tsub ebp, eax\n\t"
+        ".Lelig856_000d50de_%=:\n\tcmp ebp, dword ptr [edx+%c[pmCharges]+16]\n\t"
+        ".Lelig856_000d50e1_%=:\n\tjl .Lelig856_000d29a4_%=\n\t"
+        ".Lelig856_000d50e7_%=:\n\tjmp .Lelig856_000d3316_%=\n\t"
+        ".Lelig856_000d50ec_%=:\n\tmov ebp, dword ptr [edx+%c[pmSkill]]\n\t"
+        ".Lelig856_000d50f2_%=:\n\tmov esi, dword ptr [ebp + 0x14]\n\t"
+        ".Lelig856_000d50f5_%=:\n\ttest esi, esi\n\t"
+        ".Lelig856_000d50f7_%=:\n\tjle .Lelig856_000d5140_%=\n\t"
+        ".Lelig856_000d50f9_%=:\n\tmov esi, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000d50fc_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000d5102_%=:\n\tsub esi, eax\n\t"
+        ".Lelig856_000d5104_%=:\n\tpush esi\n\t"
+        ".Lelig856_000d5105_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_000d5108_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_000d510b_%=:\n\tfild dword ptr [edx+%c[pmCharges]+4]\n\t"
+        ".Lelig856_000d510e_%=:\n\tfmul dword ptr [ebx+36]\n\t"
+        ".Lelig856_000d5114_%=:\n\tfcompp \n\t"
+        ".Lelig856_000d5116_%=:\n\tfnstsw ax\n\t"
+        ".Lelig856_000d5118_%=:\n\tsahf \n\t"
+        ".Lelig856_000d5119_%=:\n\tja .Lelig856_000d29a4_%=\n\t"
+        ".Lelig856_000d511f_%=:\n\tmov edx, dword ptr [esp + 0x94]\n\t"
+        ".Lelig856_000d5126_%=:\n\ttest edx, edx\n\t"
+        ".Lelig856_000d5128_%=:\n\tjne .Lelig856_000d3305_%=\n\t"
+        ".Lelig856_000d512e_%=:\n\tmov ebp, dword ptr [edi]\n\t"
+        ".Lelig856_000d5130_%=:\n\txor esi, esi\n\t"
+        ".Lelig856_000d5132_%=:\n\tmov ecx, dword ptr [ebp]\n\t"
+        ".Lelig856_000d5135_%=:\n\tmov dword ptr [ecx+%c[psState]], esi\n\t"
+        ".Lelig856_000d513b_%=:\n\tjmp .Lelig856_000d3305_%=\n\t"
+        ".Lelig856_000d5140_%=:\n\tmov ebp, dword ptr [edx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000d5143_%=:\n\tmov eax, dword ptr [ecx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000d5149_%=:\n\tsub ebp, eax\n\t"
+        ".Lelig856_000d514b_%=:\n\tpush ebp\n\t"
+        ".Lelig856_000d514c_%=:\n\tfild dword ptr [edx+%c[pmCharges]+4]\n\t"
+        ".Lelig856_000d514f_%=:\n\tfmul dword ptr [ebx+28]\n\t"
+        ".Lelig856_000d5155_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_000d5158_%=:\n\tfxch st(1)\n\t"
+        ".Lelig856_000d515a_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_000d515d_%=:\n\tjmp .Lelig856_000d5114_%=\n\t"
+        ".Lelig856_000d515f_%=:\n\ttest byte ptr [edx+%c[psEFlagsHigh]], 8\n\t"
+        ".Lelig856_000d5163_%=:\n\tjne .Lelig856_000d29a4_%=\n\t"
+        ".Lelig856_000d5169_%=:\n\tmov ebp, dword ptr [ecx+%c[pmSkill]]\n\t"
+        ".Lelig856_000d516f_%=:\n\tmov esi, dword ptr [ebp + 0x14]\n\t"
+        ".Lelig856_000d5172_%=:\n\ttest esi, esi\n\t"
+        ".Lelig856_000d5174_%=:\n\tjle .Lelig856_000d51a1_%=\n\t"
+        ".Lelig856_000d5176_%=:\n\tmov eax, dword ptr [edx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000d517c_%=:\n\tmov esi, dword ptr [ecx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000d517f_%=:\n\tsub esi, eax\n\t"
+        ".Lelig856_000d5181_%=:\n\tpush esi\n\t"
+        ".Lelig856_000d5182_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lelig856_000d5185_%=:\n\tadd esp, 4\n\t"
+        ".Lelig856_000d5188_%=:\n\tfild dword ptr [ecx+%c[pmCharges]+4]\n\t"
+        ".Lelig856_000d518b_%=:\n\tfmul dword ptr [ebx+44]\n\t"
+        ".Lelig856_000d5191_%=:\n\tfcompp \n\t"
+        ".Lelig856_000d5193_%=:\n\tfnstsw ax\n\t"
+        ".Lelig856_000d5195_%=:\n\tsahf \n\t"
+        ".Lelig856_000d5196_%=:\n\tja .Lelig856_000d29a4_%=\n\t"
+        ".Lelig856_000d519c_%=:\n\tjmp .Lelig856_000d32c4_%=\n\t"
+        ".Lelig856_000d51a1_%=:\n\tmov ebp, dword ptr [ecx+%c[pmCmdTime]]\n\t"
+        ".Lelig856_000d51a4_%=:\n\tmov eax, dword ptr [edx+%c[psChargeTime]]\n\t"
+        ".Lelig856_000d51aa_%=:\n\tsub ebp, eax\n\t"
+        ".Lelig856_000d51ac_%=:\n\tcmp ebp, dword ptr [ecx+%c[pmCharges]+4]\n\t"
+        ".Lelig856_000d51af_%=:\n\tjl .Lelig856_000d29a4_%=\n\t"
+        ".Lelig856_000d51b5_%=:\n\tjmp .Lelig856_000d32c4_%=\n\t"
+        ".Lelig856_000d29a4_%=:\n\tmov eax,1\n\tjmp .Lelig856_finish_%=\n\t"
+        ".Lelig856_000d34cd_%=:\n\txor eax,eax\n\t"
+#endif
+        ".Lelig856_finish_%=:\n\tmov esp,dword ptr [esp+0xec]\n\t"
+        "pop ebp\n\tpop ebx\n\t.att_syntax prefix"
+        : "=a" (handled), "+d" (delayed)
+        : "0" (&bindings), "m" (bindings),
+          [pmButtons] "i" (offsetof(pmove_t,cmd)+offsetof(usercmd_t,buttons)),
+          [psWeapon] "i" (offsetof(playerState_t,weapon)),
+          [psState] "i" (offsetof(playerState_t,weaponstate)),
+          [psTime] "i" (offsetof(playerState_t,weaponTime)),
+          [psDelay] "i" (offsetof(playerState_t,weaponDelay)),
+          [psLean] "i" (offsetof(playerState_t,leanf)),
+          [psEFlagsHigh] "i" (offsetof(playerState_t,eFlags)+2),
+          [psClass] "i" (offsetof(playerState_t,stats)+STAT_PLAYER_CLASS*4),
+          [psFlags] "i" (offsetof(playerState_t,stats)+STAT_TCE_WEAPON_FLAGS*4),
+          [psOtherFlags] "i" (offsetof(playerState_t,stats)+STAT_TCE_FLAGS*4),
+          [psFiremode] "i" (offsetof(playerState_t,persistant)+10*4),
+          [psBurst] "i" (offsetof(playerState_t,holdable)+11*4),
+          [psChargeTime] "i" (offsetof(playerState_t,classWeaponTime)),
+          [pmCmdTime] "i" (offsetof(pmove_t,cmd)+offsetof(usercmd_t,serverTime)),
+          [pmCharges] "i" (offsetof(pmove_t,ltChargeTime)),
+          [pmSkill] "i" (offsetof(pmove_t,skill)),
+          [pmWater] "i" (offsetof(pmove_t,waterlevel)),
+          [pmCharacter] "i" (offsetof(pmove_t,character)),
+          [characterAnim] "i" (offsetof(bg_character_t,animModelInfo))
+        : "memory", "cc", "ecx", "esi", "edi",
+          "st", "st(1)", "st(2)", "st(3)", "st(4)", "st(5)", "st(6)", "st(7)"
+#ifdef __SSE__
+          ,"xmm0","xmm1","xmm2","xmm3","xmm4","xmm5","xmm6","xmm7"
+#endif
+    );
+    return (qboolean)handled;
 }
+
 #endif
 
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
-/* Private PM_Weapon20039bc2..20039f0d: ammo feedback, delay, slick kick,
- * and ammo consumption. TC IDs; no new definition65/66. */
-static const float ammo839K200ac160 = 2000.0f;
-static const float ammo839K200ac810 = 32000.0f;
-static const float ammo839K200ac45c = 400.0f;
-static const float ammo839K200ac100 = 0.0f;
-static const float ammo839K200ac698 = 0.004999999888241291f;
-static const float ammo839K200ac2e4 = -1.0f;
-static const unsigned char ammo839Dispatch[56] = {0, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 2, 2, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 1, 1, 1};
-enum {
-    ammo839Weapon = offsetof(playerState_t,weapon),
-    ammo839Ammo = offsetof(playerState_t,ammo),
-    ammo839Time = offsetof(playerState_t,weaponTime),
-    ammo839Delay = offsetof(playerState_t,weaponDelay),
-    ammo839WeaponFlags = offsetof(playerState_t,stats)+STAT_TCE_WEAPON_FLAGS*sizeof(int),
-    ammo839Eflags = offsetof(playerState_t,eFlags),
-    ammo839VelocityX = offsetof(playerState_t,velocity),
-    ammo839VelocityY = offsetof(playerState_t,velocity)+4,
-    ammo839VelocityZ = offsetof(playerState_t,velocity)+8,
-    ammo839PmTime = offsetof(playerState_t,pm_time),
-    ammo839Flags = offsetof(playerState_t,pm_flags),
-    ammo839Mounted = offsetof(playerState_t,persistant)+PERS_HWEAPON_USE*sizeof(int),
-    ammo839Ext = offsetof(pmove_t,pmext),
-    ammo839AutoReload = offsetof(pmoveExt_t,bAutoReload),
-    ammo839Wbuttons = offsetof(pmove_t,cmd)+offsetof(usercmd_t,wbuttons),
-    ammo839Uses = offsetof(tce_weaponDef_t,uses),
-    ammo839Single = offsetof(tce_weaponDef_t,singleReload),
-    ammo839GroundFlags = offsetof(pml_t,groundTrace)+offsetof(trace_t,surfaceFlags),
-    ammo839ForwardX = offsetof(pml_t,forward),
-    ammo839ForwardY = offsetof(pml_t,forward)+4,
-    ammo839ForwardZ = offsetof(pml_t,forward)+8
+/* TC:E firing pipeline shared by prediction and the server. These are TC gear
+ * IDs, not the ET SDK weapon_t aliases. The two legacy columns are the original
+ * initial MP ammo values; mutable 84-byte ammo-table loader parity is still open.
+ */
+typedef struct {
+    int fireDelay;
+    int nextShot;
+} tceLegacyWeaponTiming_t;
+
+static const tceLegacyWeaponTiming_t pm_tceLegacyTiming[TCE_WEAPON_CAPACITY] = {
+    {50,0}, {50,500}, {50,150}, {50,50}, {100,1600}, {750,2000}, {50,50}, {50,400},
+    {50,75}, {100,1600}, {50,50}, {50,1000}, {50,1000}, {50,1000}, {50,400}, {100,1600},
+    {50,0}, {50,0}, {50,0}, {50,0}, {50,0}, {50,0}, {50,0}, {50,400},
+    {50,400}, {50,400}, {50,100}, {50,2000}, {722,2000}, {100,2000}, {100,1600}, {50,50},
+    {50,400}, {50,75}, {0,0}, {750,1600}, {750,1600}, {50,100}, {50,100}, {50,150},
+    {50,350}, {50,75}, {50,100}, {50,100}, {50,80}, {50,75}, {50,500}, {50,700},
+    {50,200}, {50,350}, {50,120}, {50,700}, {0,0}, {0,0}, {0,0}, {0,0},
+    {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}, {0,0}
 };
-typedef char ammo839Protocol[(offsetof(pmove_t,ps)==0 && sizeof(tce_weaponDef_t)==460 && offsetof(tce_weaponDef_t,uses)==0xd4 && offsetof(tce_weaponDef_t,singleReload)==0x170 && WBUTTON_RELOAD==8 && SURF_SLICK==2 && EF_PRONE==0x80000 && EF_MOUNTEDTANK==0x8000 && PMF_TIME_KNOCKBACK==0x40) ? 1 : -1];
-static __declspec(naked) qboolean PM_TCEAmmoConsume839(void) {
-    __asm {
-        sub esp, 0x38
-        push ebx
-        push ebp
-        push esi
-        push edi
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx]
-        mov ecx, dword ptr [eax+ammo839Weapon]
-        lea eax, [ecx + ecx*2]
-        shl eax, 3
-        sub eax, ecx
-        test ecx, ecx
-        lea edx, [eax + eax*4]
-        mov esi, dword ptr [edx*4 + weaponDef+ammo839Uses]
-        je ammo839_20039dc0
-        push ecx
-        call PM_WeaponAmmoAvailable
-        add esp, 4
-        cmp esi, eax
-        jle ammo839_20039dc0
-        mov eax, dword ptr [pm]
-        mov edi, dword ptr [eax]
-        mov eax, edi
-        mov ecx, dword ptr [eax+ammo839Weapon]
-        push ecx
-        call BG_FindAmmoForWeapon
-        mov ebx, dword ptr [edi + eax*4 +ammo839Ammo]
-        mov ecx, dword ptr [pm]
-        add esp, 4
-        xor edx, edx
-        mov eax, dword ptr [ecx+ammo839Ext]
-        cmp esi, ebx
-        setle dl
-        mov esi, edx
-        mov edx, dword ptr [eax+ammo839AutoReload]
-        test edx, edx
-        jne ammo839_20039d05
-        mov eax, dword ptr [edi+ammo839Weapon]
-        cmp eax, 0x30
-        je ammo839_20039cfd
-        cmp eax, 0x33
-        je ammo839_20039cfd
-        cmp eax, 0x2c
-        je ammo839_20039cfd
-        cmp eax, 0x2d
-        je ammo839_20039cfd
-        cmp eax, 0x2b
-        je ammo839_20039cfd
-        cmp eax, 0x29
-        je ammo839_20039cfd
-        cmp eax, 0x2a
-        je ammo839_20039cfd
-        cmp eax, 0x2f
-        je ammo839_20039cfd
-        cmp eax, 0x2e
-        je ammo839_20039cfd
-        cmp eax, 0x27
-        je ammo839_20039cfd
-        cmp eax, 0x28
-        je ammo839_20039cfd
-        cmp eax, 0x25
-        je ammo839_20039cfd
-        cmp eax, 2
-        je ammo839_20039cfd
-        cmp eax, 7
-        je ammo839_20039cfd
-        cmp eax, 3
-        je ammo839_20039cfd
-        cmp eax, 8
-        je ammo839_20039cfd
-        cmp eax, 0xa
-        je ammo839_20039cfd
-        cmp eax, 0x31
-        je ammo839_20039cfd
-        cmp eax, 0x32
-        je ammo839_20039cfd
-        cmp eax, 0x17
-        je ammo839_20039cfd
-        cmp eax, 0x18
-        je ammo839_20039cfd
-        cmp eax, 0x39
-        je ammo839_20039cfd
-        cmp eax, 0x21
-        je ammo839_20039cfd
-        cmp eax, 0x20
-        je ammo839_20039cfd
-        cmp eax, 0x1f
-        je ammo839_20039cfd
-        cmp eax, 0x34
-        je ammo839_20039cfd
-        cmp eax, 0xe
-        je ammo839_20039cfd
-        cmp eax, 5
-        je ammo839_20039cfd
-        cmp eax, 6
-        je ammo839_20039cfd
-        cmp eax, 0xd
-        je ammo839_20039cfd
-        cmp eax, 0x19
-        je ammo839_20039cfd
-        cmp eax, 0x3a
-        je ammo839_20039cfd
-        cmp eax, 0x3b
-        jne ammo839_20039d05
-ammo839_20039cfd:
-        test byte ptr [ecx+ammo839Wbuttons], WBUTTON_RELOAD
-        jne ammo839_20039d05
-        xor esi, esi
-ammo839_20039d05:
-        mov eax, dword ptr [edi+ammo839Weapon]
-        add eax, -4
-        cmp eax, 0x37
-        ja ammo839_20039d22
-        xor ecx, ecx
-        mov cl, byte ptr [eax + ammo839Dispatch]
-        cmp ecx, 0
-        je ammo839_20039d30
-        cmp ecx, 1
-        je ammo839_20039d48
-        cmp ecx, 2
-        je ammo839_20039d22
-        jmp ammo839_20039d22
-ammo839_20039d22:
-        test esi, esi
-        je ammo839_20039d48
-        push EV_EMPTYCLIP
-        call PM_AddEvent
-        add esp, 4
-ammo839_20039d30:
-        test esi, esi
-        je ammo839_20039d52
-        push 1
-        call PM_ContinueWeaponAnim
-        mov edx, dword ptr [pm]
-        add esp, 4
-        mov eax, dword ptr [edx]
-        jmp ammo839_20039d75
-ammo839_20039d48:
-        push EV_NOAMMO
-        call PM_AddEvent
-        add esp, 4
-ammo839_20039d52:
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax]
-        mov edx, dword ptr [ecx+ammo839Weapon]
-        push edx
-        call TCE_PM_IdleAnimForWeapon
-        push eax
-        call PM_ContinueWeaponAnim
-        mov eax, dword ptr [pm]
-        add esp, 8
-        mov eax, dword ptr [eax]
-ammo839_20039d75:
-        mov ecx, dword ptr [eax+ammo839Time]
-        add ecx, 0x1f4
-        mov dword ptr [eax+ammo839Time], ecx
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx]
-        mov ecx, dword ptr [edx+ammo839Weapon]
-        lea eax, [ecx + ecx*2]
-        shl eax, 3
-        sub eax, ecx
-        lea eax, [eax + eax*4]
-        mov ecx, dword ptr [eax*4 + weaponDef+ammo839Single]
-        test ecx, ecx
-        je ammo839_exit
-        mov eax, dword ptr [edx+ammo839WeaponFlags]
-        pop edi
-        or ah, 8
-        pop esi
-        pop ebp
-        mov dword ptr [edx+ammo839WeaponFlags], eax
-        pop ebx
-        add esp, 0x38
-        mov eax, 1
-        ret 
-ammo839_20039dc0:
-        mov ecx, dword ptr [pm]
-        mov ecx, dword ptr [ecx]
-        mov eax, dword ptr [ecx+ammo839Delay]
-        test eax, eax
-        jg ammo839_exit
-        test dword ptr [ecx+ammo839Eflags], 0x80000
-        jne ammo839_20039ec4
-        test byte ptr [pml+ammo839GroundFlags], 2
-        je ammo839_20039ec4
-        mov eax, dword ptr [ecx+ammo839Weapon]
-        sub eax, 0x1f
-        je ammo839_20039e14
-        sub eax, 0x22
-        je ammo839_20039e0c
-        dec eax
-        jne ammo839_20039ec4
-        fld dword ptr [ammo839K200ac160]
-        jmp ammo839_20039e1a
-ammo839_20039e0c:
-        fld dword ptr [ammo839K200ac810]
-        jmp ammo839_20039e1a
-ammo839_20039e14:
-        fld dword ptr [ammo839K200ac45c]
-ammo839_20039e1a:
-        fld dword ptr [pml+ammo839ForwardZ]
-        fmul dword ptr [ecx+ammo839VelocityZ]
-        fld dword ptr [pml+ammo839ForwardY]
-        fmul dword ptr [ecx+ammo839VelocityY]
-        faddp st(1), st(0)
-        fld dword ptr [pml+ammo839ForwardX]
-        fmul dword ptr [ecx+ammo839VelocityX]
-        faddp st(1), st(0)
-        fcomp dword ptr [ammo839K200ac100]
-        fmul dword ptr [ammo839K200ac698]
-        fnstsw ax
-        fmul dword ptr [ammo839K200ac2e4]
-        test ah, 0x41
-        fst dword ptr [esp + 0x18]
-        fmul dword ptr [pml+ammo839ForwardX]
-        fld dword ptr [esp + 0x18]
-        fmul dword ptr [pml+ammo839ForwardY]
-        fstp dword ptr [esp + 0x40]
-        fld dword ptr [esp + 0x18]
-        fmul dword ptr [pml+ammo839ForwardZ]
-        fstp dword ptr [esp + 0x44]
-        fadd dword ptr [ecx+ammo839VelocityX]
-        fstp dword ptr [ecx+ammo839VelocityX]
-        mov edx, dword ptr [pm]
-        fld dword ptr [esp + 0x40]
-        mov eax, dword ptr [edx]
-        fadd dword ptr [eax+ammo839VelocityY]
-        fstp dword ptr [eax+ammo839VelocityY]
-        mov eax, dword ptr [pm]
-        fld dword ptr [esp + 0x44]
-        mov eax, dword ptr [eax]
-        fadd dword ptr [eax+ammo839VelocityZ]
-        fstp dword ptr [eax+ammo839VelocityZ]
-        mov ecx, dword ptr [pm]
-        mov eax, dword ptr [ecx]
-        mov ecx, dword ptr [eax+ammo839PmTime]
-        test ecx, ecx
-        jne ammo839_20039ec4
-        mov ebx, 0x64
-        mov dword ptr [eax+ammo839PmTime], ebx
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx]
-        or dword ptr [eax+ammo839Flags], 0x40
-        jmp ammo839_20039ec9
-ammo839_20039ec4:
-        mov ebx, 0x64
-ammo839_20039ec9:
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax]
-        mov edx, dword ptr [ecx+ammo839Weapon]
-        push edx
-        call PM_WeaponAmmoAvailable
-        add esp, 4
-        cmp eax, -1
-        je ammo839_20039f0d
-        mov eax, dword ptr [pm]
-        mov eax, dword ptr [eax]
-        mov ecx, dword ptr [eax+ammo839Mounted]
-        test ecx, ecx
-        jne ammo839_20039f0d
-        mov ecx, dword ptr [eax+ammo839Eflags]
-        test ch, 0x80
-        jne ammo839_20039f0d
-        mov ecx, dword ptr [eax+ammo839Weapon]
-        push esi
-        push ecx
-        call PM_WeaponUseAmmo
-        add esp, 8
-ammo839_20039f0d:
-        xor eax, eax
-        jmp ammo839_done
-ammo839_exit:
-        mov eax, 1
-ammo839_done:
-        pop edi
-        pop esi
-        pop ebp
-        pop ebx
-        add esp, 0x38
-        ret
-    }
+
+/* Timers and recoil accumulators in the protocol wrap at 32 bits. */
+static int PM_TCEAddWeaponCounter(int value, int change) {
+    unsigned bits = (unsigned)value + (unsigned)change;
+    int result;
+    memcpy(&result, &bits, sizeof(result));
+    return result;
 }
+
+static int PM_TCEWeaponAngleChange(int current, int previous) {
+    unsigned bits = (unsigned)current - (unsigned)previous;
+    int result;
+    memcpy(&result, &bits, sizeof(result));
+    return result;
+}
+
+static qboolean PM_TCEWeaponIsFiring(void) {
+    return pm->ps->weaponstate == WEAPON_FIRING ||
+        pm->ps->weaponstate == WEAPON_FIRINGALT;
+}
+
+/* Advance countdowns in the signed 32-bit command protocol without signed
+ * overflow. This also handles wrap at the original grenade/cadence gates. */
+static int PM_TCEElapsedWeaponCounter(int value, int elapsed) {
+    unsigned bits = (unsigned)value - (unsigned)elapsed;
+    int result;
+    memcpy(&result, &bits, sizeof(result));
+    return result;
+}
+
+/* The mounted heat slot is separate from the selected hand-held weapon.
+ * Windows calls floor after a stored double; ELF floors the folded product
+ * before its double store. Keep those numeric boundaries explicit. */
+static void PM_TCECoolMountedWeapon(void) {
+    int heat = pm->ps->weapHeat[WP_DUMMY_MG42];
+    double display;
+
+    if (!heat) return;
+    pm->ps->weapHeat[WP_DUMMY_MG42] = TCE_TruncateNativeInteger(
+        (long double)heat - (long double)pml.frametime * 300.0f);
+    if (pm->ps->weapHeat[WP_DUMMY_MG42] < 0)
+        pm->ps->weapHeat[WP_DUMMY_MG42] = 0;
+#if defined(_WIN32)
+    display = floor((double)((long double)pm->ps->weapHeat[WP_DUMMY_MG42] *
+        0.0006666666595265269f * 255.0f));
+#else
+    display = (double)floorl((long double)pm->ps->weapHeat[WP_DUMMY_MG42] *
+        0.17000000178813934f);
+#endif
+    pm->ps->curWeapHeat = TCE_TruncateNativeInteger((long double)display);
+}
+
+/* True means an original whole-PM_Weapon early exit. Only an ordinary,
+ * living, non-spectating player continues into the hand-held weapon phase. */
+static qboolean PM_TCEUpdateMountedWeapon(void) {
+    enum { mountedMG42 = 1, mountedAAGun = 2 };
+    int mounted;
+    int interval;
+
+    if (pm->ps->pm_flags & PMF_RESPAWNED) return qtrue;
+    if (pm->ps->persistant[PERS_TEAM] == TEAM_SPECTATOR) return qtrue;
+    if (pm->ps->stats[STAT_HEALTH] <= 0) return qtrue;
+
+    mounted = pm->ps->persistant[PERS_HWEAPON_USE];
+    if (mounted != mountedMG42 && mounted != mountedAAGun &&
+        !(pm->ps->eFlags & EF_MOUNTEDTANK)) return qfalse;
+
+    if (mounted != mountedAAGun) PM_TCECoolMountedWeapon();
+    if (pm->ps->weaponTime > 0) {
+        pm->ps->weaponTime = PM_TCEElapsedWeaponCounter(pm->ps->weaponTime, pml.msec);
+        if (pm->ps->weaponTime > 0) return qtrue;
+        if (!(pm->cmd.buttons & BUTTON_ATTACK)) {
+            pm->ps->weaponTime = 0;
+            return qtrue;
+        }
+    }
+    if (!(pm->cmd.buttons & BUTTON_ATTACK)) return qtrue;
+
+    if (mounted == mountedAAGun) {
+        PM_AddEvent(EV_FIRE_WEAPON_AAGUN);
+        PM_WeaponAddTime(100);
+        BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo,
+            ANIM_ET_FIREWEAPON, qfalse, qtrue);
+        return qtrue;
+    }
+
+    interval = mounted == mountedMG42 && (unsigned)PM_GameType <= 1u ? 100 : 66;
+    pm->ps->weapHeat[WP_DUMMY_MG42] = PM_TCEAddWeaponCounter(
+        pm->ps->weapHeat[WP_DUMMY_MG42], interval);
+    PM_AddEvent(mounted == mountedMG42 ? EV_FIRE_WEAPON_MG42 : EV_FIRE_WEAPON_MOUNTEDMG42);
+    /* The MG42 re-reads gametype after the event; its heat and time increments
+     * need not use the same value when a callback changes the current state. */
+    interval = mounted == mountedMG42 && (unsigned)PM_GameType <= 1u ? 100 : 66;
+    PM_WeaponAddTime(interval);
+    BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo,
+        ANIM_ET_FIREWEAPON, qfalse, qtrue);
+    if (mounted == mountedMG42) pm->ps->viewlocked = 2;
+    if (pm->ps->weapHeat[WP_DUMMY_MG42] >= 1500) {
+        /* The original changes weaponTime, not heat, before the event. */
+        pm->ps->weaponTime = 1500;
+        PM_AddEvent(EV_WEAP_OVERHEAT);
+        pm->ps->weaponTime = 2000;
+    }
+    return qtrue;
+}
+
+
+/* Preserve the original clip-query order and saved player-state lifetimes. */
+static qboolean PM_TCESelectAkimboShot(void) {
+    playerState_t *sidearmState;
+    int sidearm, sidearmClip, mainClip, sidearmAmmo, mainAmmo, weapon;
+#if !defined(_WIN32)
+    playerState_t *mainState;
 #endif
 
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
-/* Private contiguous PM_Weapon20039f0d..2003a163. Return the original EDI
- * attack animation live-out used by the subsequent cadence switch. */
-static const unsigned char fire840Dispatch[60] = {0, 1, 4, 4, 4, 0, 1, 0, 4, 4, 4, 4, 2, 4, 4, 4, 0, 4, 0, 0, 2, 2, 4, 2, 4, 0, 2, 1, 0, 2, 4, 4, 4, 0, 4, 4, 4, 4, 0, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 2, 2, 4, 4, 4, 3, 4, 0};
-enum {
-    fire840Weapon = offsetof(playerState_t,weapon),
-    fire840Clip28 = offsetof(playerState_t,ammoclip)+28*sizeof(int),
-    fire840Ammo27 = offsetof(playerState_t,ammo)+27*sizeof(int),
-    fire840Clip27 = offsetof(playerState_t,ammoclip)+27*sizeof(int),
-    fire840Ammo35 = offsetof(playerState_t,ammo)+35*sizeof(int),
-    fire840Ammo = offsetof(playerState_t,ammo),
-    fire840Mode = offsetof(playerState_t,persistant)+10*sizeof(int),
-    fire840LastFire = offsetof(playerState_t,lastFireTime),
-    fire840Ext = offsetof(pmove_t,pmext),
-    fire840Released = offsetof(pmoveExt_t,releasedFire),
-    fire840ServerTime = offsetof(pmove_t,cmd)+offsetof(usercmd_t,serverTime),
-    fire840Pump = offsetof(tce_weaponDef_t,pump)
-};
-typedef char fire840Protocol[(offsetof(pmove_t,ps)==0 && sizeof(tce_weaponDef_t)==460 && offsetof(tce_weaponDef_t,pump)==0x168 && WEAP_ATTACK1==2 && WEAP_ATTACK2==3 && EV_NOAMMO==32 && EV_FIRE_WEAPON==40 && EV_FIRE_WEAPONB==41 && EV_FIRE_WEAPON_LASTSHOT==42) ? 1 : -1];
-static __declspec(naked) int PM_TCEFireEvents840(qboolean akimboFire) {
-    __asm {
-        sub esp, 0x38
-        push ebx
-        push ebp
-        push esi
-        push edi
-        mov eax, dword ptr [esp+0x4c]
-        mov dword ptr [esp+0x1c], eax
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx]
-        mov ecx, dword ptr [eax+fire840Weapon]
-        push ecx
-        call BG_IsAkimboWeapon
-        add esp, 4
-        test eax, eax
-        je fire840_20039f35
-        mov edi, dword ptr [esp + 0x1c]
-        neg edi
-        sbb edi, edi
-        add edi, 3
-        jmp fire840_20039f70
-fire840_20039f35:
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx]
-        mov ecx, dword ptr [eax+fire840Weapon]
-        push ecx
-        call PM_WeaponClipEmpty
-        mov edx, dword ptr [pm]
-        add esp, 4
-        test eax, eax
-        mov eax, dword ptr [edx]
-        mov ecx, dword ptr [eax+fire840Weapon]
-        push ecx
-        je fire840_20039f66
-        call TCE_PM_LastAttackAnimForWeapon
-        jmp fire840_20039f6b
-fire840_20039f66:
-        call TCE_PM_AttackAnimForWeapon
-fire840_20039f6b:
-        add esp, 4
-        mov edi, eax
-fire840_20039f70:
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx]
-        mov eax, dword ptr [eax+fire840Weapon]
-        add eax, -3
-        cmp eax, 0x3b
-        ja fire840_20039fa1
-        xor ecx, ecx
-        mov cl, byte ptr [eax + fire840Dispatch]
-        cmp ecx, 0
-        je fire840_20039f99
-        cmp ecx, 1
-        je fire840_20039f95
-        cmp ecx, 2
-        je fire840_20039fa1
-        cmp ecx, 3
-        je fire840_20039faa
-        cmp ecx, 4
-        je fire840_20039fa1
-        jmp fire840_20039fa1
-fire840_20039f95:
-        push 3
-        jmp fire840_20039fa2
-fire840_20039f99:
-        push edi
-        call PM_ContinueWeaponAnim
-        jmp fire840_20039fa7
-fire840_20039fa1:
-        push edi
-fire840_20039fa2:
-        call PM_StartWeaponAnim
-fire840_20039fa7:
-        add esp, 4
-fire840_20039faa:
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx]
-        mov eax, dword ptr [eax+fire840Weapon]
-        cmp eax, 0x41
-        je fire840_20039fcc
-        cmp eax, 0x16
-        je fire840_20039fcc
-        cmp eax, 0x1a
-        je fire840_20039fcc
-        cmp eax, 0x1b
-        jne fire840_20039fd6
-fire840_20039fcc:
-        push 0x20
-        call PM_AddEvent
-        add esp, 4
-fire840_20039fd6:
-        mov ecx, dword ptr [pm]
-        mov eax, dword ptr [ecx]
-        cmp dword ptr [eax+fire840Weapon], 0x1b
-        jne fire840_2003a01c
-        mov dword ptr [eax+fire840Clip28], 1
-        mov edx, dword ptr [pm]
-        xor eax, eax
-        mov ecx, dword ptr [edx]
-        push eax
-        push 0x1c
-        push 0x1b
-        mov dword ptr [ecx+fire840Ammo27], eax
-        mov edx, dword ptr [pm]
-        mov ecx, dword ptr [edx]
-        mov dword ptr [ecx+fire840Clip27], eax
-        call PM_BeginWeaponChange
-        add esp, 0xc
-fire840_2003a01c:
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx]
-        mov eax, dword ptr [eax+fire840Weapon]
-        cmp eax, 0x38
-        je fire840_2003a034
-        cmp eax, 0x37
-        jne fire840_2003a05a
-fire840_2003a034:
-        push eax
-        call BG_FindAmmoForWeapon
-        mov ecx, dword ptr [pm]
-        add esp, 4
-        mov edx, dword ptr [ecx]
-        mov ecx, dword ptr [edx + eax*4 +fire840Ammo]
-        test ecx, ecx
-        jne fire840_2003a05a
-        push 0x20
-        call PM_AddEvent
-        add esp, 4
-fire840_2003a05a:
-        mov eax, dword ptr [pm]
-        mov eax, dword ptr [eax]
-        cmp dword ptr [eax+fire840Weapon], 0x3c
-        jne fire840_2003a07e
-        mov ecx, dword ptr [eax+fire840Ammo35]
-        test ecx, ecx
-        jne fire840_2003a07e
-        push 0x20
-        call PM_AddEvent
-        add esp, 4
-fire840_2003a07e:
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx]
-        mov eax, dword ptr [edx+fire840Weapon]
-        push eax
-        call BG_IsAkimboWeapon
-        add esp, 4
-        test eax, eax
-        je fire840_2003a0ac
-        mov eax, dword ptr [esp + 0x1c]
-        test eax, eax
-        jne fire840_2003a13b
-        push 0x29
-        jmp fire840_2003a13d
-fire840_2003a0ac:
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx]
-        mov ecx, dword ptr [edx+fire840Weapon]
-        lea eax, [ecx + ecx*2]
-        shl eax, 3
-        sub eax, ecx
-        lea eax, [eax + eax*4]
-        mov esi, dword ptr [eax*4 + weaponDef+fire840Pump]
-        test esi, esi
-        je fire840_2003a11c
-        mov eax, dword ptr [edx+fire840Mode]
-        test eax, eax
-        jle fire840_2003a11c
-        push ecx
-        call BG_FiremodeWeapon
-        add esp, 4
-        test eax, eax
-        je fire840_2003a11c
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx]
-        mov eax, dword ptr [edx+fire840Weapon]
-        push eax
-        call PM_WeaponClipEmpty
-        add esp, 4
-        test eax, eax
-        push 1
-        je fire840_2003a110
-        push 0x2a
-        call PM_AddEventExt
-        add esp, 8
-        jmp fire840_2003a145
-fire840_2003a110:
-        push 0x28
-        call PM_AddEventExt
-        add esp, 8
-        jmp fire840_2003a145
-fire840_2003a11c:
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx]
-        mov eax, dword ptr [edx+fire840Weapon]
-        push eax
-        call PM_WeaponClipEmpty
-        add esp, 4
-        test eax, eax
-        je fire840_2003a13b
-        push 0x2a
-        jmp fire840_2003a13d
-fire840_2003a13b:
-        push 0x28
-fire840_2003a13d:
-        call PM_AddEvent
-        add esp, 4
-fire840_2003a145:
-        mov ecx, dword ptr [pm]
-        xor esi, esi
-        mov edx, dword ptr [ecx+fire840Ext]
-        mov dword ptr [edx+fire840Released], esi
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax]
-        mov edx, dword ptr [eax+fire840ServerTime]
-        mov dword ptr [ecx+fire840LastFire], edx
-        mov eax, edi
-        pop edi
-        pop esi
-        pop ebp
-        pop ebx
-        add esp, 0x38
-        ret
-    }
-}
+    pm->watertype = 0;
+    if (!BG_IsAkimboWeapon(pm->ps->weapon)) return qfalse;
+    sidearmState = pm->ps;
+    sidearm = BG_AkimboSidearm(sidearmState->weapon);
+    sidearmClip = BG_FindClipForWeapon(sidearm);
+#if defined(_WIN32)
+    sidearmAmmo = sidearmState->ammoclip[sidearmClip];
+    mainClip = BG_FindClipForWeapon(sidearmState->weapon);
+    mainAmmo = sidearmState->ammoclip[mainClip];
+    weapon = sidearmState->weapon;
+#else
+    mainState = pm->ps;
+    mainClip = BG_FindClipForWeapon(mainState->weapon);
+    sidearmAmmo = sidearmState->ammoclip[sidearmClip];
+    mainAmmo = mainState->ammoclip[mainClip];
+    weapon = pm->ps->weapon;
 #endif
+    return BG_AkimboFireSequence(weapon, mainAmmo, sidearmAmmo);
+}
 
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
-/* Private PM_Weapon2003a163..2003a73d: seed, cadence and legacy recoil.
- * CRT rand remains a dependency boundary; no new slots65/66 are defined. */
-static int (__cdecl *const cad841Rand)(void) = rand;
-static const float cad841K200ac114 = 3.0518509447574615e-05f;
-static const double cad841K200ac128 = 0.5;
-static const double cad841K200ac170 = 0.25;
-static const float cad841K200ac180 = 0.5f;
-static const float cad841K200ac804 = 0.03750000149011612f;
-static const float cad841K200ac808 = 0.06750000268220901f;
-static const float cad841K200ac80c = 0.15000000596046448f;
-static const unsigned char cad841Dispatch[66] = {0, 1, 2, 0, 1, 1, 3, 4, 0, 2, 5, 5, 1, 1, 0, 13, 13, 13, 6, 13, 7, 6, 1, 1, 1, 0, 13, 13, 0, 0, 8, 1, 1, 13, 13, 5, 9, 10, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 3, 9, 10, 0, 0, 11, 11, 12, 0, 5, 8, 13, 13, 0, 0};
-static const unsigned char cad841RecoilDispatch[58] = {0, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 1, 4, 4, 4, 4, 4, 0, 0, 0, 0, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 0, 0, 0, 4, 4, 2, 2, 3};
-static const int cad841Legacy[64] = {0, 500, 150, 50, 1600, 2000, 50, 400, 75, 1600, 50, 1000, 1000, 1000, 400, 1600, 0, 0, 0, 0, 0, 0, 0, 400, 400, 400, 100, 2000, 2000, 2000, 1600, 50, 400, 75, 0, 1600, 1600, 100, 100, 150, 350, 75, 100, 100, 80, 75, 500, 700, 200, 350, 120, 700, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-enum {
-    cad841Weapon = offsetof(playerState_t,weapon),
-    cad841Seed = offsetof(playerState_t,stats)+STAT_TCE_SHOT_SEED*4,
-    cad841WeaponFlags = offsetof(playerState_t,stats)+STAT_TCE_WEAPON_FLAGS*4,
-    cad841Clips = offsetof(playerState_t,ammoclip),
-    cad841Ext = offsetof(pmove_t,pmext),
-    cad841ServerTime = offsetof(pmove_t,cmd)+offsetof(usercmd_t,serverTime),
-    cad841Skill = offsetof(pmove_t,skill),
-    cad841Pmflags = offsetof(playerState_t,pm_flags),
-    cad841Eflags = offsetof(playerState_t,eFlags),
-    cad841Delta = offsetof(pmoveExt_t,lastRecoilDeltaTime),
-    cad841Time = offsetof(pmoveExt_t,weapRecoilTime),
-    cad841Duration = offsetof(pmoveExt_t,weapRecoilDuration),
-    cad841Yaw = offsetof(pmoveExt_t,weapRecoilYaw),
-    cad841Pitch = offsetof(pmoveExt_t,weapRecoilPitch),
-    cad841NextShot = offsetof(tce_weaponDef_t,nextShotTime),
-    cad841Pump = offsetof(tce_weaponDef_t,pump)
-};
-typedef char cad841Protocol[(offsetof(pmove_t,ps)==0 && sizeof(tce_weaponDef_t)==460 && offsetof(tce_weaponDef_t,nextShotTime)==0xec && offsetof(tce_weaponDef_t,pump)==0x168 && SK_LIGHT_WEAPONS==4 && SK_MILITARY_INTELLIGENCE_AND_SCOPED_WEAPONS==6) ? 1 : -1];
-/* result[0]=masked seed; result[1]=cadence; result[2]=spread addition. */
-static __declspec(naked) void PM_TCECadenceRecoil841(qboolean akimboFire, int attackAnimation, int *result) {
-    __asm {
-        sub esp, 0x38
-        push ebx
-        push ebp
-        push esi
-        push edi
-        mov eax, dword ptr [esp+0x4c]
-        mov dword ptr [esp+0x1c], eax
-        mov edi, dword ptr [esp+0x50]
-        xor esi, esi
-        mov dword ptr [esp+0x14], esi
-        mov ebx, 100
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax]
-        lea eax, [esp + 0x20]
-        push eax
-        mov edx, dword ptr [ecx+cad841Seed]
-        mov dword ptr [esp + 0x24], edx
-        call Q_rand
-        mov eax, dword ptr [esp + 0x24]
-        mov ecx, dword ptr [pm]
-        and eax, 0xffff
-        mov dword ptr [esp + 0x1c], esi
-        mov dword ptr [esp + 0x24], eax
-        mov edx, dword ptr [ecx]
-        add esp, 4
-        mov ebp, 0x3e8
-        mov dword ptr [edx+cad841Seed], eax
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax]
-        mov eax, dword ptr [ecx+cad841Weapon]
-        lea esi, [eax - 1]
-        cmp esi, 0x41
-        ja cad841_2003a471
-        xor edx, edx
-        mov dl, byte ptr [esi + cad841Dispatch]
-        cmp edx, 0
-        je cad841_2003a1cd
-        cmp edx, 1
-        je cad841_2003a1e8
-        cmp edx, 2
-        je cad841_2003a3e6
-        cmp edx, 3
-        je cad841_2003a23d
-        cmp edx, 4
-        je cad841_2003a3ce
-        cmp edx, 5
-        je cad841_2003a44a
-        cmp edx, 6
-        je cad841_2003a46d
-        cmp edx, 7
-        je cad841_2003a463
-        cmp edx, 8
-        je cad841_2003a412
-        cmp edx, 9
-        je cad841_2003a260
-        cmp edx, 10
-        je cad841_2003a2f6
-        cmp edx, 11
-        je cad841_2003a38c
-        cmp edx, 12
-        je cad841_2003a3af
-        cmp edx, 13
-        je cad841_2003a471
-        jmp cad841_2003a471
-cad841_2003a1cd:
-        lea ecx, [eax + eax*2]
-        shl ecx, 3
-        sub ecx, eax
-        lea eax, [ecx + ecx*4]
-        mov ecx, dword ptr [eax*4 + weaponDef+cad841NextShot]
-        mov dword ptr [esp + 0x14], ecx
-        jmp cad841_2003a471
-cad841_2003a1e8:
-        lea edx, [eax + eax*2]
-        shl edx, 3
-        sub edx, eax
-        lea edx, [edx + edx*4]
-        mov eax, dword ptr [edx*4 + weaponDef+cad841Pump]
-        test eax, eax
-        je cad841_2003a20d
-        mov eax, dword ptr [ecx+cad841WeaponFlags]
-        and ah, 0xf7
-        mov dword ptr [ecx+cad841WeaponFlags], eax
-cad841_2003a20d:
-        mov eax, dword ptr [pm]
-        mov dword ptr [esp + 0x18], 0x23
-        mov ecx, dword ptr [eax]
-        mov ecx, dword ptr [ecx+cad841Weapon]
-        lea eax, [ecx + ecx*2]
-        shl eax, 3
-        sub eax, ecx
-        lea edx, [eax + eax*4]
-        mov eax, dword ptr [edx*4 + weaponDef+cad841NextShot]
-        mov dword ptr [esp + 0x14], eax
-        jmp cad841_2003a471
-cad841_2003a23d:
-        lea ecx, [eax + eax*2]
-        mov dword ptr [esp + 0x18], 0x14
-        shl ecx, 3
-        sub ecx, eax
-        lea ecx, [ecx + ecx*4]
-        mov edx, dword ptr [ecx*4 + weaponDef+cad841NextShot]
-        mov dword ptr [esp + 0x14], edx
-        jmp cad841_2003a471
-cad841_2003a260:
-        lea ecx, [eax + eax*2]
-        push eax
-        shl ecx, 3
-        sub ecx, eax
-        lea ecx, [ecx + ecx*4]
-        mov edx, dword ptr [ecx*4 + weaponDef+cad841NextShot]
-        mov ecx, dword ptr [pm]
-        mov dword ptr [esp + 0x18], edx
-        mov esi, dword ptr [ecx]
-        call BG_FindClipForWeapon
-        mov ecx, dword ptr [esi + eax*4 +cad841Clips]
-        add esp, 4
-        test ecx, ecx
-        jne cad841_2003a29c
-        mov eax, dword ptr [esp + 0x1c]
-        test eax, eax
-        jne cad841_2003a2e9
-        jmp cad841_2003a2cb
-cad841_2003a29c:
-        mov eax, dword ptr [pm]
-        mov esi, dword ptr [eax]
-        mov ecx, dword ptr [esi+cad841Weapon]
-        push ecx
-        call BG_AkimboSidearm
-        push eax
-        call BG_FindClipForWeapon
-        mov ecx, dword ptr [esi + eax*4 +cad841Clips]
-        add esp, 8
-        test ecx, ecx
-        jne cad841_2003a2e9
-        mov eax, dword ptr [esp + 0x1c]
-        test eax, eax
-        je cad841_2003a2e9
-cad841_2003a2cb:
-        mov ecx, dword ptr [esi+cad841Weapon]
-        lea eax, [ecx + ecx*2]
-        shl eax, 3
-        sub eax, ecx
-        lea edx, [eax + eax*4]
-        mov eax, dword ptr [edx*4 + weaponDef+cad841NextShot]
-        shl eax, 1
-        mov dword ptr [esp + 0x14], eax
-cad841_2003a2e9:
-        mov dword ptr [esp + 0x18], 0x14
-        jmp cad841_2003a471
-cad841_2003a2f6:
-        lea ecx, [eax + eax*2]
-        push eax
-        shl ecx, 3
-        sub ecx, eax
-        lea ecx, [ecx + ecx*4]
-        mov edx, dword ptr [ecx*4 + weaponDef+cad841NextShot]
-        mov ecx, dword ptr [pm]
-        mov dword ptr [esp + 0x18], edx
-        mov esi, dword ptr [ecx]
-        call BG_FindClipForWeapon
-        mov ecx, dword ptr [esi + eax*4 +cad841Clips]
-        add esp, 4
-        test ecx, ecx
-        jne cad841_2003a332
-        mov eax, dword ptr [esp + 0x1c]
-        test eax, eax
-        jne cad841_2003a37f
-        jmp cad841_2003a361
-cad841_2003a332:
-        mov eax, dword ptr [pm]
-        mov esi, dword ptr [eax]
-        mov ecx, dword ptr [esi+cad841Weapon]
-        push ecx
-        call BG_AkimboSidearm
-        push eax
-        call BG_FindClipForWeapon
-        mov ecx, dword ptr [esi + eax*4 +cad841Clips]
-        add esp, 8
-        test ecx, ecx
-        jne cad841_2003a37f
-        mov eax, dword ptr [esp + 0x1c]
-        test eax, eax
-        je cad841_2003a37f
-cad841_2003a361:
-        mov ecx, dword ptr [esi+cad841Weapon]
-        lea eax, [ecx + ecx*2]
-        shl eax, 3
-        sub eax, ecx
-        lea edx, [eax + eax*4]
-        mov eax, dword ptr [edx*4 + weaponDef+cad841NextShot]
-        shl eax, 1
-        mov dword ptr [esp + 0x14], eax
-cad841_2003a37f:
-        mov dword ptr [esp + 0x18], 0x23
-        jmp cad841_2003a471
-cad841_2003a38c:
-        lea ecx, [eax + eax*2]
-        mov dword ptr [esp + 0x18], 0xc8
-        shl ecx, 3
-        sub ecx, eax
-        lea eax, [ecx + ecx*4]
-        mov ecx, dword ptr [eax*4 + weaponDef+cad841NextShot]
-        mov dword ptr [esp + 0x14], ecx
-        jmp cad841_2003a471
-cad841_2003a3af:
-        lea ecx, [eax + eax*2]
-        mov dword ptr [esp + 0x18], ebx
-        shl ecx, 3
-        sub ecx, eax
-        lea edx, [ecx + ecx*4]
-        mov eax, dword ptr [edx*4 + weaponDef+cad841NextShot]
-        mov dword ptr [esp + 0x14], eax
-        jmp cad841_2003a471
-cad841_2003a3ce:
-        lea ecx, [eax + eax*2]
-        shl ecx, 3
-        sub ecx, eax
-        lea ecx, [ecx + ecx*4]
-        mov edx, dword ptr [ecx*4 + weaponDef+cad841NextShot]
-        mov dword ptr [esp + 0x14], edx
-        jmp cad841_2003a3fc
-cad841_2003a3e6:
-        lea ecx, [eax + eax*2]
-        shl ecx, 3
-        sub ecx, eax
-        lea edx, [ecx + ecx*4]
-        mov eax, dword ptr [edx*4 + weaponDef+cad841NextShot]
-        mov dword ptr [esp + 0x14], eax
-cad841_2003a3fc:
-        call dword ptr [cad841Rand]
-        cdq 
-        mov ecx, 0xa
-        idiv ecx
-        add edx, 0xf
-        mov dword ptr [esp + 0x18], edx
-        jmp cad841_2003a471
-cad841_2003a412:
-        cmp edi, 4
-        jne cad841_2003a429
-        mov dword ptr [esp + 0x14], 0x7d0
-        mov dword ptr [esp + 0x18], 0x14
-        jmp cad841_2003a471
-cad841_2003a429:
-        lea ecx, [eax*8]
-        mov dword ptr [esp + 0x18], 0x14
-        sub ecx, eax
-        lea edx, [ecx + ecx*2]
-        mov eax, dword ptr [eax*4+cad841Legacy]
-        mov dword ptr [esp + 0x14], eax
-        jmp cad841_2003a471
-cad841_2003a44a:
-        lea ecx, [eax*8]
-        sub ecx, eax
-        lea ecx, [ecx + ecx*2]
-        mov edx, dword ptr [eax*4+cad841Legacy]
-        mov dword ptr [esp + 0x14], edx
-        jmp cad841_2003a471
-cad841_2003a463:
-        mov dword ptr [esp + 0x14], 0x32
-        jmp cad841_2003a471
-cad841_2003a46d:
-        mov dword ptr [esp + 0x14], ebp
-cad841_2003a471:
-        mov eax, dword ptr [pm]
-        xor edx, edx
-        mov ecx, dword ptr [eax+cad841Ext]
-        mov dword ptr [ecx+cad841Delta], edx
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax]
-        mov ecx, dword ptr [ecx+cad841Weapon]
-        add ecx, -2
-        cmp ecx, 0x39
-        ja cad841_2003a72c
-        xor edx, edx
-        mov dl, byte ptr [ecx + cad841RecoilDispatch]
-        cmp edx, 0
-        je cad841_2003a685
-        cmp edx, 1
-        je cad841_2003a51f
-        cmp edx, 2
-        je cad841_2003a4a6
-        cmp edx, 3
-        je cad841_2003a60e
-        cmp edx, 4
-        je cad841_2003a72a
-        jmp cad841_2003a72a
-cad841_2003a4a6:
-        mov ecx, dword ptr [eax+cad841Ext]
-        mov edx, dword ptr [eax+cad841ServerTime]
-        mov dword ptr [ecx+cad841Time], edx
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax+cad841Ext]
-        mov dword ptr [ecx+cad841Duration], 0x12c
-        call dword ptr [cad841Rand]
-        and eax, 0x7fff
-        mov edx, dword ptr [pm]
-        mov dword ptr [esp + 0x38], eax
-        fild dword ptr [esp + 0x38]
-        mov eax, dword ptr [edx+cad841Ext]
-        fmul dword ptr [cad841K200ac114]
-        fsub qword ptr [cad841K200ac128]
-        fadd st(0), st(0)
-        fmul qword ptr [cad841K200ac128]
-        fstp dword ptr [eax+cad841Yaw]
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax+cad841Skill]
-        cmp dword ptr [ecx + 0x18], 3
-        jl cad841_2003a510
-        mov edx, dword ptr [eax+cad841Ext]
-        mov dword ptr [edx+cad841Pitch], 0x3e800000
-        jmp cad841_2003a73d
-cad841_2003a510:
-        mov eax, dword ptr [eax+cad841Ext]
-        mov dword ptr [eax+cad841Pitch], 0x3f000000
-        jmp cad841_2003a73d
-cad841_2003a51f:
-        mov ecx, dword ptr [eax+cad841Ext]
-        mov edx, dword ptr [eax+cad841ServerTime]
-        mov dword ptr [ecx+cad841Time], edx
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax+cad841Ext]
-        mov dword ptr [ecx+cad841Duration], 0xc8
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx]
-        test byte ptr [eax+cad841Pmflags], 1
-        jne cad841_2003a5ae
-        test dword ptr [eax+cad841Eflags], 0x80000
-        jne cad841_2003a5ae
-        call dword ptr [cad841Rand]
-        and eax, 0x7fff
-        mov dword ptr [esp + 0x38], eax
-        mov eax, dword ptr [pm]
-        fild dword ptr [esp + 0x38]
-        mov ecx, dword ptr [eax+cad841Ext]
-        fmul dword ptr [cad841K200ac114]
-        fsub qword ptr [cad841K200ac128]
-        fadd st(0), st(0)
-        fmul qword ptr [cad841K200ac170]
-        fstp dword ptr [ecx+cad841Yaw]
-        call dword ptr [cad841Rand]
-        and eax, 0x7fff
-        mov edx, dword ptr [pm]
-        mov dword ptr [esp + 0x38], eax
-        fild dword ptr [esp + 0x38]
-        mov eax, dword ptr [edx+cad841Ext]
-        fmul dword ptr [cad841K200ac114]
-        fmul dword ptr [cad841K200ac80c]
-        fstp dword ptr [eax+cad841Pitch]
-        jmp cad841_2003a73d
-cad841_2003a5ae:
-        call dword ptr [cad841Rand]
-        and eax, 0x7fff
-        mov ecx, dword ptr [pm]
-        mov dword ptr [esp + 0x38], eax
-        fild dword ptr [esp + 0x38]
-        mov edx, dword ptr [ecx+cad841Ext]
-        fmul dword ptr [cad841K200ac114]
-        fsub qword ptr [cad841K200ac128]
-        fadd st(0), st(0)
-        fmul qword ptr [cad841K200ac128]
-        fstp dword ptr [edx+cad841Yaw]
-        call dword ptr [cad841Rand]
-        and eax, 0x7fff
-        mov dword ptr [esp + 0x38], eax
-        mov eax, dword ptr [pm]
-        fild dword ptr [esp + 0x38]
-        mov ecx, dword ptr [eax+cad841Ext]
-        fmul dword ptr [cad841K200ac114]
-        fmul dword ptr [cad841K200ac808]
-        fstp dword ptr [ecx+cad841Pitch]
-        jmp cad841_2003a73d
-cad841_2003a60e:
-        mov edx, dword ptr [eax+cad841Ext]
-        mov eax, dword ptr [eax+cad841ServerTime]
-        mov dword ptr [edx+cad841Time], eax
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx+cad841Ext]
-        mov dword ptr [edx+cad841Duration], ebx
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax+cad841Ext]
-        mov dword ptr [ecx+cad841Yaw], 0
-        call dword ptr [cad841Rand]
-        and eax, 0x7fff
-        mov edx, dword ptr [pm]
-        mov dword ptr [esp + 0x38], eax
-        fild dword ptr [esp + 0x38]
-        mov eax, dword ptr [edx+cad841Ext]
-        fmul dword ptr [cad841K200ac114]
-        fmul dword ptr [cad841K200ac808]
-        fstp dword ptr [eax+cad841Pitch]
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax+cad841Skill]
-        cmp dword ptr [ecx + 0x18], 3
-        jl cad841_2003a73d
-        mov eax, dword ptr [eax+cad841Ext]
-        fld dword ptr [eax+cad841Pitch]
-        fmul dword ptr [cad841K200ac180]
-        fstp dword ptr [eax+cad841Pitch]
-        jmp cad841_2003a73d
-cad841_2003a685:
-        mov edx, dword ptr [eax+cad841Ext]
-        mov eax, dword ptr [eax+cad841ServerTime]
-        mov esi, 3
-        mov dword ptr [edx+cad841Time], eax
-        mov eax, dword ptr [pm]
-        xor edx, edx
-        mov ecx, dword ptr [eax+cad841Skill]
-        mov eax, dword ptr [eax+cad841Ext]
-        cmp dword ptr [ecx + 0x10], esi
-        setl dl
-        dec edx
-        and edx, 0xffffffe2
-        add edx, ebx
-        mov dword ptr [eax+cad841Duration], edx
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx+cad841Ext]
-        mov dword ptr [edx+cad841Yaw], 0
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax+cad841Skill]
-        cmp dword ptr [ecx + 0x10], esi
-        jl cad841_2003a6fe
-        call dword ptr [cad841Rand]
-        and eax, 0x7fff
-        mov edx, dword ptr [pm]
-        mov dword ptr [esp + 0x38], eax
-        fild dword ptr [esp + 0x38]
-        mov eax, dword ptr [edx+cad841Ext]
-        fmul dword ptr [cad841K200ac114]
-        fmul dword ptr [cad841K200ac804]
-        fstp dword ptr [eax+cad841Pitch]
-        jmp cad841_2003a73d
-cad841_2003a6fe:
-        call dword ptr [cad841Rand]
-        and eax, 0x7fff
-        mov edx, dword ptr [pm]
-        mov dword ptr [esp + 0x38], eax
-        fild dword ptr [esp + 0x38]
-        mov eax, dword ptr [edx+cad841Ext]
-        fmul dword ptr [cad841K200ac114]
-        fmul dword ptr [cad841K200ac808]
-        fstp dword ptr [eax+cad841Pitch]
-        jmp cad841_2003a73d
-cad841_2003a72a:
-        xor edx, edx
-cad841_2003a72c:
-        mov ecx, dword ptr [eax+cad841Ext]
-        mov dword ptr [ecx+cad841Time], edx
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax+cad841Ext]
-        mov dword ptr [ecx+cad841Yaw], edx
-cad841_2003a73d:
-        mov ecx, dword ptr [esp+0x54]
-        mov eax, dword ptr [esp+0x20]
-        mov dword ptr [ecx], eax
-        mov eax, dword ptr [esp+0x14]
-        mov dword ptr [ecx+4], eax
-        mov eax, dword ptr [esp+0x18]
-        mov dword ptr [ecx+8], eax
-        pop edi
-        pop esi
-        pop ebp
-        pop ebx
-        add esp, 0x38
-        ret
+/* A callback can change the selected weapon; check the fresh definition. */
+static void PM_TCEReconcileWeaponFiremode(void) {
+    int mode, weapon;
+
+    PM_CoolWeapons();
+    if (!BG_FiremodeWeapon(pm->ps->weapon)) return;
+    weapon = pm->ps->weapon;
+    if ((unsigned)weapon >= TCE_MAX_WEAPONS) return;
+    mode = pm->ps->persistant[10];
+    if (mode == 0 && weaponDef[weapon].fullauto < 1) {
+        if (weaponDef[weapon].burst > 1) pm->ps->persistant[10] = 1;
+    } else if (mode == 1 && weaponDef[weapon].burst < 2) {
+        pm->ps->persistant[10] = 0;
     }
 }
+
+static void PM_TCERecoverHipRecoil(void) {
+    int remaining = pm->ps->stats[STAT_TCE_RECOIL_REMAINDER];
+    int recovered;
+
+    if (remaining <= 0) return;
+    recovered = TCE_TruncateNativeInteger((long double)pml.msec * 1.3329999446868896f);
+    if (remaining < recovered) {
+        recovered = remaining;
+        pm->ps->stats[STAT_TCE_RECOIL_REMAINDER] = 0;
+    } else {
+        pm->ps->stats[STAT_TCE_RECOIL_REMAINDER] =
+            PM_TCEElapsedWeaponCounter(remaining, recovered);
+    }
+    pm->ps->delta_angles[PITCH] = TCE_TruncateNativeInteger(
+        ((long double)recovered + recovered) + pm->ps->delta_angles[PITCH]);
+}
+
+/* sinl expresses the numerical operation. Exact original FSIN/FPU exception
+ * and compiler precision behavior remains a separate open boundary. */
+static void PM_TCEUpdateWeaponSway(void) {
+    enum { weaponSwayPhase = 14 };
+    const float instabilityScale = 5.8823530707741156e-05f;
+    const float angleUnits = 182.04444885253906f;
+#if defined(_WIN32)
+    const float frequency1 = 0.00125663704238832f;
+    const float frequency2 = 0.0031415927223861217f;
+    const float frequency3 = 0.0018849557964131236f;
+    const float frequency5 = 0.002199114765971899f;
+#else
+    const double frequency1 = 0.0012566370801612688;
+    const double frequency2 = 0.0031415926535897933;
+    const double frequency3 = 0.0018849556670552817;
+    const double frequency5 = 0.002199114820062152;
 #endif
+    int amount, i, phase;
+    float baseWave, crossWave, thirdWave, pitchWave, driftWave;
+    float amplitude = 0.07000000029802322f;
+    long double cubicWave, amplitudeScale, pitch, yawOffset;
+    vec3_t angles;
+
+    if (!(pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) ||
+        (unsigned)pm->ps->weapon >= TCE_MAX_WEAPONS ||
+        pm->ps->weapon == TCE_WP_G1 || pm->ps->weapon == TCE_WP_G2 ||
+        pm->ps->weapon == TCE_WP_G3) return;
+
+    phase = pm->ps->stats[weaponSwayPhase];
+    VectorCopy(pm->ps->viewangles, angles);
+    baseWave = (float)sinl((long double)phase * frequency1);
+#if !defined(_WIN32)
+    phase = pm->ps->stats[weaponSwayPhase];
+#endif
+    crossWave = (float)sinl((long double)phase * frequency2 + 1.36);
+#if !defined(_WIN32)
+    phase = pm->ps->stats[weaponSwayPhase];
+#endif
+    thirdWave = (float)sinl((long double)phase * frequency3 + 0.5f);
+#if !defined(_WIN32)
+    phase = pm->ps->stats[weaponSwayPhase];
+#endif
+    pitchWave = (float)sinl((long double)phase * frequency1 + 0.89);
+#if !defined(_WIN32)
+    phase = pm->ps->stats[weaponSwayPhase];
+#endif
+    driftWave = (float)sinl((long double)phase * frequency5 + 4.71);
+    cubicWave = (long double)baseWave * baseWave * baseWave;
+#if defined(_WIN32)
+    cubicWave = (float)cubicWave;
+#endif
+    if (pm->ps->eFlags & EF_CROUCHING) {
+        /* ELF spills its held cubic wave before each posture callback. */
+#if !defined(_WIN32)
+        cubicWave = (float)cubicWave;
+#endif
+        if (!(VectorLength(pm->ps->velocity) >= 30.0f))
+            amplitude = 0.04500000178813934f;
+    }
+    if (pm->ps->eFlags & EF_PRONE) {
+#if !defined(_WIN32)
+        cubicWave = (float)cubicWave;
+#endif
+        if (!(VectorLength(pm->ps->velocity) >= 30.0f))
+            amplitude = 0.02500000037252903f;
+    }
+
+    if ((unsigned)pm->ps->weapon >= TCE_MAX_WEAPONS) return;
+    amplitudeScale = (long double)amplitude * 0.20000000298023224f;
+    amount = pm->ps->stats[STAT_TCE_MOVEMENT_INSTABILITY];
+#if defined(_WIN32)
+    {
+        float bias = 0.004000000189989805f;
+        long double instability;
+        float storedInstability;
+
+        if (weaponDef[pm->ps->weapon].scoped > 0.0f) {
+            amount = PM_TCEAddWeaponCounter(pm->ps->stats[STAT_TCE_SHOT_INSTABILITY], amount);
+        } else {
+            amplitudeScale *= 0.125f;
+            bias = 0.00024500000290572643f;
+        }
+        instability = (long double)amount * instabilityScale;
+        storedInstability = (float)instability;
+        pitch = (long double)angles[PITCH] -
+            (instability * pitchWave + amplitudeScale * cubicWave);
+        yawOffset = (((long double)driftWave + thirdWave) + crossWave) + cubicWave;
+        yawOffset *= (long double)storedInstability + bias;
+    }
+#else
+    {
+        long double bias = 0.004000000189989805f;
+        float storedPitchProduct;
+
+        if (weaponDef[pm->ps->weapon].scoped > 0.0f) {
+            amount = PM_TCEAddWeaponCounter(pm->ps->stats[STAT_TCE_SHOT_INSTABILITY], amount);
+        } else {
+            amplitudeScale *= 0.125f;
+            bias *= 0.061250001192092896f;
+            amount = pm->ps->stats[STAT_TCE_MOVEMENT_INSTABILITY];
+        }
+        storedPitchProduct = (float)((long double)pitchWave * amount);
+        pitch = (long double)angles[PITCH] -
+            ((long double)instabilityScale * storedPitchProduct + amplitudeScale * cubicWave);
+        yawOffset = ((cubicWave + crossWave) + thirdWave) + driftWave;
+        yawOffset *= (long double)amount * instabilityScale + bias;
+    }
+#endif
+    angles[PITCH] = (float)pitch;
+    angles[YAW] = (float)(yawOffset + angles[YAW]);
+    for (i = 0; i < 3; ++i) {
+        int converted = TCE_TruncateNativeInteger((long double)angles[i] * angleUnits);
+        pm->ps->delta_angles[i] = PM_TCEWeaponAngleChange(converted & 65535, pm->cmd.angles[i]);
+    }
+#if defined(_WIN32)
+    pm->ps->viewangles[PITCH] = (float)pitch;
+#else
+    pm->ps->viewangles[PITCH] = angles[PITCH];
+#endif
+    pm->ps->viewangles[YAW] = angles[YAW];
+    pm->ps->viewangles[ROLL] = angles[ROLL];
+    pm->ps->stats[weaponSwayPhase] =
+        PM_TCEAddWeaponCounter(pm->ps->stats[weaponSwayPhase], pml.msec);
+    if (pm->ps->stats[weaponSwayPhase] > 10000)
+        pm->ps->stats[weaponSwayPhase] =
+            PM_TCEElapsedWeaponCounter(pm->ps->stats[weaponSwayPhase], 10000);
+}
+
+static void PM_TCEApplyQueuedWeaponRecoil(void) {
+    if (pm->pmext->weapRecoilTime) {
+        pm->ps->delta_angles[PITCH] = TCE_TruncateNativeInteger(
+            (long double)pm->ps->delta_angles[PITCH] - pm->pmext->weapRecoilPitch);
+        pm->ps->delta_angles[YAW] = TCE_TruncateNativeInteger(
+            (long double)pm->ps->delta_angles[YAW] - pm->pmext->weapRecoilYaw);
+        pm->pmext->weapRecoilTime = 0;
+    }
+    PM_TCERecoverHipRecoil();
+}
+
+
+/* Original grenade/shot countdown, mechanical cycling and selection phase.
+ * True is a whole PM_Weapon early exit; otherwise publish delayedFire for the
+ * following aim/action gates. No native stack/register adapter is required. */
+static qboolean PM_TCEUpdateWeaponCycle(qboolean akimboFire, qboolean *delayedResult) {
+    qboolean delayedFire = qfalse;
+    int weapon = pm->ps->weapon;
+
+    if ((weapon == TCE_WP_G3 || weapon == TCE_WP_G1 ||
+         weapon == TCE_WP_DC1 || weapon == TCE_WP_G2) && pm->ps->grenadeTimeLeft > 0) {
+        qboolean forceThrow = qfalse;
+        int releaseGate;
+        if (weapon == TCE_WP_DC1) {
+            pm->ps->grenadeTimeLeft = PM_TCEAddWeaponCounter(pm->ps->grenadeTimeLeft, pml.msec);
+            if (pm->ps->grenadeTimeLeft < 5000) pm->ps->grenadeTimeLeft = 5000;
+        } else {
+            pm->ps->grenadeTimeLeft = PM_TCEElapsedWeaponCounter(pm->ps->grenadeTimeLeft, pml.msec);
+            if (pm->ps->grenadeTimeLeft <= 100) {
+                forceThrow = qtrue;
+                pm->ps->grenadeTimeLeft = 100;
+            }
+        }
+        if ((pm->cmd.buttons & BUTTON_ATTACK) && !forceThrow) return qtrue;
+        releaseGate = PM_TCEElapsedWeaponCounter(weaponDef[pm->ps->weapon].grenadeTimer, 250);
+        if (pm->ps->grenadeTimeLeft >= releaseGate) return qtrue;
+        if (pm->ps->weaponDelay == weaponDef[pm->ps->weapon].fireDelayTime || forceThrow) {
+            int animation;
+            if (pm->ps->eFlags & EF_PRONE)
+                animation = akimboFire ? ANIM_ET_FIREWEAPON2PRONE : ANIM_ET_FIREWEAPONPRONE;
+            else
+                animation = akimboFire ? ANIM_ET_FIREWEAPON2 : ANIM_ET_FIREWEAPON;
+            BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo, animation, qfalse, qtrue);
+        }
+        /* The animation callback precedes the fresh delay read. */
+        if (!pm->ps->weaponDelay) delayedFire = qtrue;
+    }
+    if (pm->ps->weaponDelay > 0) {
+        pm->ps->weaponDelay = PM_TCEElapsedWeaponCounter(pm->ps->weaponDelay, pml.msec);
+        if (pm->ps->weaponDelay <= 0) {
+            pm->ps->weaponDelay = 0;
+            delayedFire = qtrue;
+        }
+    }
+    if (pm->ps->weaponstate == WEAPON_RELAXING) {
+        pm->ps->weaponstate = WEAPON_READY;
+        return qtrue;
+    }
+    if ((pm->ps->eFlags & EF_PRONE_MOVING) && !delayedFire) {
+        pm->ps->stats[STAT_TCE_FLAGS] |= 8;
+        return qtrue;
+    }
+    if (pm->ps->weaponTime > 0) {
+        pm->ps->weaponTime = PM_TCEElapsedWeaponCounter(pm->ps->weaponTime, pml.msec);
+        if (!(pm->cmd.buttons & BUTTON_ATTACK) && pm->ps->weaponTime < 0)
+            pm->ps->weaponTime = 0;
+    }
+
+    /* A bolt's clip query occurs before its firing/timer checks. Keep the
+     * original callback order and reload the definition after callbacks. */
+    if ((unsigned)pm->ps->weapon < TCE_WEAPON_CAPACITY &&
+        weaponDef[pm->ps->weapon].bolt && !PM_WeaponClipEmpty(pm->ps->weapon) &&
+        pm->ps->weaponstate == WEAPON_FIRING && pm->ps->weaponDelay <= 0 &&
+        !delayedFire && pm->ps->weaponTime <= 0) {
+        PM_ContinueWeaponAnim(8);
+        PM_WeaponAddTime(weaponDef[pm->ps->weapon].unknown_1a0);
+        pm->ps->weaponstate = WEAPON_TCE_CYCLE;
+        PM_AddEvent(EV_TCE_RELOAD_BOLT);
+    }
+    if ((unsigned)pm->ps->weapon < TCE_WEAPON_CAPACITY &&
+        weaponDef[pm->ps->weapon].pump && pm->ps->weaponstate == WEAPON_FIRING &&
+        pm->ps->weaponDelay <= 0 && !delayedFire && pm->ps->weaponTime <= 0) {
+        if (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 0x800) {
+            pm->ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~0x800;
+        } else if (pm->ps->persistant[10] && weaponDef[pm->ps->weapon].semiauto) {
+            pm->ps->weaponstate = WEAPON_TCE_CYCLE;
+            PM_WeaponAddTime(100);
+        } else {
+            PM_ContinueWeaponAnim(WEAP_ATTACK2);
+            PM_WeaponAddTime(weaponDef[pm->ps->weapon].unknown_19c);
+            pm->ps->weaponstate = WEAPON_TCE_CYCLE;
+            PM_AddEvent(EV_TCE_RELOAD_PUMP2);
+        }
+    }
+    if (pm->ps->weaponstate == WEAPON_FIRING && pm->ps->weaponDelay <= 0 &&
+        !delayedFire && pm->ps->weaponTime <= 0)
+        pm->ps->holdable[11] = PM_TCEAddWeaponCounter(pm->ps->holdable[11], 1);
+
+    if ((pm->ps->weaponTime <= 0 || (!PM_TCEWeaponIsFiring() && pm->ps->weaponDelay <= 0)) &&
+        !delayedFire) {
+        if (pm->cmd.weapon < 55 && pm->ps->weapon != pm->cmd.weapon && !(pm->ps->pm_flags & 0x400))
+            PM_BeginWeaponChange(pm->ps->weapon, pm->cmd.weapon, qfalse);
+        /* Command 56 confirms the selection; it is not a new gear slot. */
+        if (pm->cmd.weapon == 56 && (pm->cmd.buttons & BUTTON_ATTACK)) {
+            PM_WeaponAddTime(50);
+            return qtrue;
+        }
+    }
+    if (pm->cmd.weapon == 55 && pm->ps->weaponTime <= 0 && !delayedFire &&
+        pm->ps->weaponstate == WEAPON_READY && (unsigned)pm->ps->weapon < TCE_WEAPON_CAPACITY &&
+        BG_FiremodeWeapon(pm->ps->weapon)) {
+        if (!pm->ps->persistant[10])
+            pm->ps->persistant[10] = weaponDef[pm->ps->weapon].burst <= 1 ? 2 : 1;
+        else if (pm->ps->persistant[10] == 1)
+            pm->ps->persistant[10] = 2;
+        else if (weaponDef[pm->ps->weapon].fullauto || weaponDef[pm->ps->weapon].pump)
+            pm->ps->persistant[10] = 0;
+        else if (weaponDef[pm->ps->weapon].burst > 1)
+            pm->ps->persistant[10] = 1;
+        PM_WeaponAddTime(750);
+        PM_AddEvent(EV_TCE_FIREMODE);
+        return qtrue;
+    }
+    *delayedResult = delayedFire;
+    return qfalse;
+}
+
+
+/* TC aim input and movement/action latches precede the trigger controller. */
+enum {
+    tceAimActive = 4,
+    tceAimRequested = 8,
+    tceAimBlocked = 0x1000,
+    tceSprintLatched = 0x4000,
+    tceAimButtonLatched = 0x8000,
+    tceAttackButtonLatched = 0x400
+};
+
+static qboolean PM_TCEAimPostureSettled(void) {
+    int commandTime = pm->cmd.serverTime;
+    int proneTime = pm->pmext->proneTime;
+    return PM_TCEElapsedWeaponCounter(commandTime, proneTime) >= 200 &&
+        PM_TCEAddWeaponCounter(proneTime, commandTime) >= 200;
+}
+
+static void PM_TCEBeginAimTransition(void) {
+    int seed;
+    long double random;
+
+    pm->ps->stats[STAT_TCE_WEAPON_FLAGS] ^= tceAimActive;
+    pm->ps->stats[STAT_TCE_MOVEMENT_INSTABILITY] = 1000;
+    if (pm->ps->weaponstate != WEAPON_FIRING) {
+        seed = pm->ps->stats[STAT_TCE_SHOT_SEED];
+#if defined(_WIN32)
+        random = Q_random(&seed);
+        pm->ps->stats[STAT_TCE_AIM_PHASE] = TCE_TruncateNativeInteger(random * 1000.0f);
+#else
+        /* Linux selects the phase destination before the random callback. */
+        playerState_t *phasePlayer = pm->ps;
+        random = Q_random(&seed);
+        phasePlayer->stats[STAT_TCE_AIM_PHASE] = TCE_TruncateNativeInteger(random * 1000.0f);
+#endif
+        if (pm->ps->stats[STAT_TCE_AIM_PHASE] > 1000)
+            pm->ps->stats[STAT_TCE_AIM_PHASE] =
+                PM_TCEElapsedWeaponCounter(pm->ps->stats[STAT_TCE_AIM_PHASE], 1000);
+
+        /* A callback must not turn the native64-slot definition lookup into
+         * an out-of-bounds access. Such invalid weapons have no invented row. */
+        if ((unsigned)pm->ps->weapon < TCE_WEAPON_CAPACITY &&
+            !weaponDef[pm->ps->weapon].noTacMode &&
+            (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & tceAimActive)) {
+            long double angle, wave;
+#if defined(_WIN32)
+            int pitch;
+            angle = (long double)Q_random(&seed) * 6.2831854820251465f;
+            pitch = TCE_TruncateNativeInteger(cosl(angle) * 200.0L + 2000.0L);
+            wave = sinl(angle);
+            pm->ps->holdable[5] = pitch;
+            pm->ps->holdable[6] = TCE_TruncateNativeInteger(wave * 400.0L + 2000.0L);
+#else
+            playerState_t *offsetPlayer;
+            /* The ELF controller stores the double-turn product as float,
+             * and doubles cosine before its separate100-unit multiplier. */
+            angle = (float)((long double)Q_random(&seed) * 6.2831853071795862);
+            offsetPlayer = pm->ps;
+            wave = cosl(angle);
+            offsetPlayer->holdable[5] =
+                TCE_TruncateNativeInteger((wave + wave) * 100.0f + 2000.0f);
+            offsetPlayer = pm->ps;
+            wave = sinl(angle);
+            offsetPlayer->holdable[6] = TCE_TruncateNativeInteger(wave * 400.0f + 2000.0f);
+#endif
+        }
+        pm->ps->stats[STAT_TCE_SHOT_SEED] = (unsigned)seed & 0xffffu;
+    }
+    PM_WeaponAddTime(300);
+    PM_AddEvent(EV_TCE_TOGGLE_AIMING);
+}
+
+static qboolean PM_TCEUpdateAimInput(qboolean delayedFire) {
+    playerState_t *ps = pm->ps;
+    int flags = ps->stats[STAT_TCE_WEAPON_FLAGS];
+    qboolean pressed = (pm->cmd.wbuttons & WBUTTON_ZOOM) != 0;
+    qboolean requested;
+
+    if (!pressed && (flags & tceAimButtonLatched)) {
+        ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~tceAimButtonLatched;
+    } else {
+        requested = pressed && !(flags & tceAimButtonLatched) &&
+            ps->weaponTime <= 0 && !delayedFire && ps->weaponstate == WEAPON_READY;
+        if (!requested)
+            requested = ps->weaponTime <= 0 &&
+                (flags & (tceAimActive | tceAimRequested)) == tceAimRequested;
+        if (requested && ps->weaponstate != WEAPON_DROPPING &&
+            ps->weaponstate != WEAPON_RELOADING &&
+            ps->weaponstate != WEAPON_TCE_RELOAD_START &&
+            ps->weaponstate != WEAPON_TCE_RELOAD_END &&
+            ps->weapon != TCE_WP_K1 && ps->weapon != TCE_ITEM_WEAPON_CLASS_SPECIAL &&
+            ps->weapon != TCE_ITEM_WEAPON_MEDIC_HEAL &&
+            ps->weapon != TCE_ITEM_WEAPON_MAGICAMMO && ps->weapon != TCE_WP_DC1 &&
+            (!(pm->cmd.buttons & BUTTON_SPRINT) ||
+             (!pm->cmd.forwardmove && !pm->cmd.rightmove) ||
+             (ps->pm_flags & PMF_DUCKED) || (ps->eFlags & EF_PRONE)) &&
+            pm->waterlevel <= 2 &&
+            (pm->waterlevel <= 0 || ps->groundEntityNum != ENTITYNUM_NONE) &&
+            !pml.ladder && ps->velocity[2] >= -360.0f && !(flags & tceAimBlocked) &&
+            PM_TCEAimPostureSettled() && !(ps->eFlags & EF_PRONE_MOVING) &&
+            ps->weapon != TCE_WP_NONE) {
+            if (pressed) {
+                ps->stats[STAT_TCE_WEAPON_FLAGS] |= tceAimButtonLatched;
+                pm->ps->stats[STAT_TCE_WEAPON_FLAGS] ^= tceAimRequested;
+            }
+            flags = pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & (tceAimActive | tceAimRequested);
+            if (flags == tceAimActive || flags == tceAimRequested) {
+                PM_TCEBeginAimTransition();
+                return qtrue;
+            }
+        }
+    }
+    if (pm->cmd.wbuttons & WBUTTON_ZOOM) {
+        flags = pm->ps->stats[STAT_TCE_WEAPON_FLAGS];
+        if ((flags & (tceAimButtonLatched | tceAimActive | tceAimRequested)) == tceAimRequested) {
+            pm->ps->stats[STAT_TCE_WEAPON_FLAGS] = flags | tceAimButtonLatched;
+            pm->ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~tceAimRequested;
+        }
+    }
+    return qfalse;
+}
+
+static void PM_TCEUpdateObjectiveAction(void) {
+    int hint = pm->ps->serverCursorHint;
+    qboolean target = hint == HINT_DISARM ||
+        hint == HINT_BREAKABLE_DYNAMITE || hint == HINT_ACTIVATE;
+
+    if (!(pm->cmd.buttons & BUTTON_ACTIVATE)) {
+        if (pm->ps->pm_flags & PMF_TCE_OBJECTIVE_ACTION) {
+            pm->ps->pm_flags &= ~PMF_TCE_OBJECTIVE_ACTION;
+            pm->ps->weaponTime = 100;
+            PM_AddEvent(EV_TCE_OBJECTIVE_STOP);
+        }
+        return;
+    }
+    if (target && pm->ps->weaponTime <= 0 && pm->ps->weaponDelay <= 0 &&
+        pm->ps->weaponstate == WEAPON_READY &&
+        !(pm->ps->pm_flags & PMF_TCE_OBJECTIVE_ACTION)) {
+        pm->ps->pm_flags |= PMF_TCE_OBJECTIVE_ACTION;
+        pm->ps->weaponTime = (pm->ps->stats[STAT_TCE_FLAGS] & 2) ? 2000 : 4000;
+        if (pm->ps->serverCursorHint == HINT_DISARM)
+            pm->ps->weaponTime = (pm->ps->stats[STAT_TCE_FLAGS] & 2) ? 5000 : 10000;
+        if (pm->ps->serverCursorHint == HINT_ACTIVATE) PM_AddEvent(EV_TCE_OBJECTIVE_START);
+    } else if (pm->ps->pm_flags & PMF_TCE_OBJECTIVE_ACTION) {
+        if (pm->ps->weaponTime <= 0) {
+            if (hint == HINT_DISARM) PM_AddEvent(EV_TCE_DEFUSE);
+            else if (hint == HINT_BREAKABLE_DYNAMITE) PM_AddEvent(EV_TCE_PLANT);
+            else if (hint == HINT_ACTIVATE) PM_AddEvent(EV_TCE_OBJECTIVE_COMPLETE);
+            /* Completion may publish a new movement/player root. */
+            PM_WeaponAddTime(500);
+            pm->ps->pm_flags &= ~PMF_TCE_OBJECTIVE_ACTION;
+        } else if (!target) {
+            pm->ps->pm_flags &= ~PMF_TCE_OBJECTIVE_ACTION;
+            pm->ps->weaponDelay = 0;
+            pm->ps->weaponTime = 100;
+            PM_AddEvent(EV_TCE_OBJECTIVE_STOP);
+        }
+    }
+}
+
+static qboolean PM_TCEUpdateWeaponActions(qboolean delayedFire) {
+    if ((unsigned)pm->ps->weapon < TCE_WEAPON_CAPACITY && PM_TCEUpdateAimInput(delayedFire))
+        return qtrue;
+
+    if (pml.ladder) {
+        if (pm->ps->weaponTime <= 500) pm->ps->weaponTime = 500;
+        pm->ps->stats[STAT_TCE_FLAGS] |= 8;
+        return qtrue;
+    }
+    if ((pm->cmd.buttons & BUTTON_SPRINT) && (pm->cmd.forwardmove || pm->cmd.rightmove) &&
+        !(pm->ps->pm_flags & PMF_DUCKED) && !(pm->ps->eFlags & EF_PRONE)) {
+        pm->ps->stats[STAT_TCE_WEAPON_FLAGS] |= tceSprintLatched;
+        if ((pm->ps->weapon == TCE_WP_G1 || pm->ps->weapon == TCE_WP_G2 ||
+             pm->ps->weapon == TCE_WP_G3) && delayedFire) {
+            pm->ps->weaponTime = 0;
+        } else if (pm->ps->weaponstate == WEAPON_READY) {
+            if (pm->ps->weaponTime <= 250) pm->ps->weaponTime = 250;
+            return qtrue;
+        }
+    } else if (pm->ps->weaponTime <= 0 &&
+               (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & tceSprintLatched)) {
+        pm->ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~tceSprintLatched;
+        pm->ps->weaponTime = 250;
+    }
+    PM_TCEUpdateObjectiveAction();
+    if (pm->ps->weaponDelay > 0) return qtrue;
+    PM_CheckForReload(pm->ps->weapon);
+    if (pm->ps->weaponTime > 0 || pm->ps->weaponDelay > 0) return qtrue;
+    if (pm->ps->weaponstate == WEAPON_DROPPING ||
+        pm->ps->weaponstate == WEAPON_DROPPING_TORELOAD) {
+        PM_FinishWeaponChange();
+        pm->ps->pm_flags &= ~tceAttackButtonLatched;
+        return qtrue;
+    }
+    return qfalse;
+}
+
+
+/* Continue a burst after key release, then apply the held-trigger rules. */
+enum { tceFiremodeBurst = 1, tceFiremodeSingle = 2 };
+
+static void PM_TCEContinueBurst(void) {
+    playerState_t *clipPlayer, *statePlayer;
+    int clip;
+
+    if ((pm->cmd.buttons & BUTTON_ATTACK) ||
+        !(pm->ps->pm_flags & tceAttackButtonLatched) ||
+        !BG_FiremodeWeapon(pm->ps->weapon)) return;
+    clipPlayer = pm->ps;
+    if ((unsigned)clipPlayer->weapon >= TCE_WEAPON_CAPACITY ||
+        clipPlayer->persistant[10] != tceFiremodeBurst ||
+        clipPlayer->holdable[11] >= weaponDef[clipPlayer->weapon].burst) return;
+    clip = BG_FindClipForWeapon(clipPlayer->weapon);
+    if (!clipPlayer->ammoclip[clip]) return;
+#if defined(_WIN32)
+    /* Windows retains the player across clip lookup for the final gates. */
+    statePlayer = clipPlayer;
+#else
+    statePlayer = pm->ps;
+#endif
+    if (!(statePlayer->stats[STAT_TCE_FLAGS] & 8) &&
+        (statePlayer->weaponstate == WEAPON_FIRING ||
+         statePlayer->weaponstate == WEAPON_FIRINGALT))
+        pm->cmd.buttons |= BUTTON_ATTACK;
+}
+
+static qboolean PM_TCEHeldTriggerStops(playerState_t **timerPlayer) {
+    playerState_t *ps;
+    int clip, weapon;
+
+    if ((unsigned)pm->ps->weapon >= TCE_WEAPON_CAPACITY) return qfalse;
+    if (!BG_FiremodeWeapon(pm->ps->weapon)) {
+        ps = pm->ps;
+        if ((unsigned)ps->weapon >= TCE_WEAPON_CAPACITY) return qfalse;
+        if (weaponDef[ps->weapon].semiauto || weaponDef[ps->weapon].pump ||
+            weaponDef[ps->weapon].bolt) {
+            *timerPlayer = ps;
+            return qtrue;
+        }
+    }
+    ps = pm->ps;
+    if ((unsigned)ps->weapon >= TCE_WEAPON_CAPACITY) return qfalse;
+    clip = BG_FindClipForWeapon(ps->weapon);
+#if defined(_WIN32)
+    weapon = ps->weapon;
+#else
+    weapon = pm->ps->weapon;
+#endif
+    if (!ps->ammoclip[clip] && weapon != TCE_WP_K1 && weapon != TCE_WP_G3 &&
+        weapon != TCE_WP_G2 && weapon != TCE_WP_G1) {
+#if defined(_WIN32)
+        *timerPlayer = ps;
+#else
+        *timerPlayer = pm->ps;
+#endif
+        return qtrue;
+    }
+    /* Windows supplies the weapon retained across clip lookup. Linux loads
+     * it from the current player before this second firemode callback. */
+#if defined(_WIN32)
+    weapon = ps->weapon;
+#else
+    weapon = pm->ps->weapon;
+#endif
+    if (BG_FiremodeWeapon(weapon)) {
+        ps = pm->ps;
+        if (ps->persistant[10] == tceFiremodeSingle) {
+            *timerPlayer = ps;
+            return qtrue;
+        }
+        if ((unsigned)ps->weapon >= TCE_WEAPON_CAPACITY) return qfalse;
+        if ((ps->persistant[10] == tceFiremodeBurst &&
+             ps->holdable[11] > PM_TCEElapsedWeaponCounter(weaponDef[ps->weapon].burst, 1)) ||
+            weaponDef[ps->weapon].singleReload) {
+            *timerPlayer = ps;
+            return qtrue;
+        }
+    }
+    return qfalse;
+}
+
+static void PM_TCEStopTrigger(playerState_t *timerPlayer) {
+    playerState_t *clipPlayer;
+    int clip;
+
+    /* In the Windows empty-clip exit only this first timer target was saved
+     * before lookup; the delay and final READY stores reload the player. */
+    timerPlayer->weaponTime = 0;
+    pm->ps->weaponDelay = 0;
+    if (PM_TCEWeaponIsFiring() && (unsigned)pm->ps->weapon < TCE_WEAPON_CAPACITY) {
+        clipPlayer = pm->ps;
+        clip = BG_FindClipForWeapon(clipPlayer->weapon);
+#if defined(_WIN32)
+        clipPlayer = pm->ps;
+#endif
+        if (clipPlayer->ammoclip[clip]) PM_ContinueWeaponAnim(WEAP_IDLE1);
+        else PM_StartWeaponAnim(WEAP_IDLE2);
+    }
+    pm->ps->weaponstate = WEAPON_READY;
+}
+
+static qboolean PM_TCEUpdateWeaponTrigger(qboolean delayedFire) {
+    playerState_t *timerPlayer;
+
+    if ((unsigned)pm->ps->weapon < TCE_WEAPON_CAPACITY) {
+        if (!delayedFire) PM_TCEContinueBurst();
+        if ((pm->cmd.buttons & BUTTON_ATTACK) || delayedFire) {
+            if (!(pm->ps->pm_flags & tceAttackButtonLatched) || delayedFire) {
+                pm->ps->pm_flags |= tceAttackButtonLatched;
+            } else {
+                if (pm->ps->weapon != TCE_WP_K1 && !(pm->ps->stats[STAT_TCE_FLAGS] & 0x800) &&
+                    PM_TCEHeldTriggerStops(&timerPlayer)) {
+                    PM_TCEStopTrigger(timerPlayer);
+                    return qtrue;
+                }
+                if (!(pm->cmd.buttons & BUTTON_ATTACK))
+                    pm->ps->pm_flags &= ~tceAttackButtonLatched;
+            }
+        } else {
+            pm->ps->pm_flags &= ~tceAttackButtonLatched;
+        }
+    }
+    if (pm->ps->weaponstate == WEAPON_RELOADING ||
+        pm->ps->weaponstate == WEAPON_TCE_RELOAD_END ||
+        pm->ps->weaponstate == WEAPON_TCE_CYCLE)
+        PM_FinishWeaponReload();
+    if (pm->ps->weaponstate == WEAPON_RAISING) {
+        int animation;
+        pm->ps->weaponstate = WEAPON_READY;
+        animation = PM_IdleAnimForWeapon(pm->ps->weapon);
+        PM_StartWeaponAnim(animation);
+        return qtrue;
+    }
+    if (pm->ps->weaponstate == WEAPON_RAISING_TORELOAD) {
+        pm->ps->weaponstate = WEAPON_READY;
+        PM_BeginWeaponReload(pm->ps->weapon);
+        return qtrue;
+    }
+    return qfalse;
+}
+
+
+static void PM_TCEStartAttack(qboolean delayedFire, qboolean akimboFire) {
+    int weapon = pm->ps->weapon;
+    int animation = (pm->ps->eFlags & EF_PRONE) ?
+        ANIM_ET_FIREWEAPONPRONE : ANIM_ET_FIREWEAPON;
+    qboolean firing = PM_TCEWeaponIsFiring();
+
+    switch (weapon) {
+    case TCE_WP_K1:
+        if (!delayedFire)
+            BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo,
+                animation, qfalse, qfalse);
+        break;
+    case 2: case 5: case 6: case 7: case 13: case 14: case 23: case 24:
+    case 25: case 32: case 37: case 38: case 39: case 40: case 46: case 47:
+    case 51: case 52: case 53: case 54: case 55: case 56: case 57: case 58:
+        if (firing || !weaponDef[weapon].fireDelayTime) {
+            if (akimboFire)
+                animation = (pm->ps->eFlags & EF_PRONE) ?
+                    ANIM_ET_FIREWEAPON2PRONE : ANIM_ET_FIREWEAPON2;
+            BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo,
+                animation, qfalse, qtrue);
+        } else {
+            pm->ps->weaponDelay = weaponDef[pm->ps->weapon].fireDelayTime;
+        }
+        break;
+    case 3: case 8: case 10: case 19: case 21: case 22: case 31: case 33:
+    case 36: case 41: case 42: case 43: case 44: case 45: case 59: case 62:
+        if (firing || !weaponDef[weapon].fireDelayTime)
+            BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo,
+                animation, qtrue, qtrue);
+        else
+            pm->ps->weaponDelay = weaponDef[pm->ps->weapon].fireDelayTime;
+        break;
+    case TCE_WP_G3: case TCE_WP_G1: case TCE_WP_DC1: case TCE_WP_G2:
+        if (!delayedFire) {
+            if (PM_WeaponAmmoAvailable(weapon)) {
+                if (pm->ps->weapon == TCE_WP_DC1) {
+                    pm->ps->grenadeTimeLeft = 50;
+                } else {
+                    pm->ps->grenadeTimeLeft = PM_TCEAddWeaponCounter(
+                        weaponDef[pm->ps->weapon].grenadeTimer, 500);
+                    PM_AddEvent(EV_TCE_GRENADE_PRIME);
+                }
+                PM_StartWeaponAnim(PM_AttackAnimForWeapon(pm->ps->weapon));
+            }
+            /* Event/animation callbacks precede this definition reload. */
+            pm->ps->weaponDelay = weaponDef[pm->ps->weapon].fireDelayTime;
+        }
+        break;
+    case TCE_ITEM_WEAPON_LANDMINE:
+        if (!delayedFire) {
+            if (PM_WeaponAmmoAvailable(weapon))
+                BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo,
+                    (pm->ps->eFlags & EF_PRONE) ? ANIM_ET_FIREWEAPON2PRONE :
+                    ANIM_ET_FIREWEAPON, qfalse, qtrue);
+            pm->ps->weaponDelay = pm_tceLegacyTiming[pm->ps->weapon].fireDelay;
+        }
+        break;
+    case TCE_ITEM_WEAPON_SATCHEL: case TCE_ITEM_WEAPON_TRIPMINE:
+        if (!delayedFire) {
+            if (PM_WeaponAmmoAvailable(weapon))
+                PM_StartWeaponAnim(PM_AttackAnimForWeapon(pm->ps->weapon));
+            pm->ps->weaponDelay = pm_tceLegacyTiming[pm->ps->weapon].fireDelay;
+        }
+        break;
+    case TCE_ITEM_WEAPON_SATCHELDETONATOR:
+        if (!firing) {
+            PM_AddEvent(EV_SPINUP);
+            pm->ps->weaponDelay = pm_tceLegacyTiming[pm->ps->weapon].fireDelay;
+            PM_ContinueWeaponAnim(PM_AttackAnimForWeapon(weapon));
+        } else {
+            BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo,
+                animation, qfalse, qtrue);
+        }
+        break;
+    case TCE_ITEM_WEAPON_MORTAR_SET:
+        if (!firing) {
+            PM_AddEvent(EV_SPINUP);
+            PM_StartWeaponAnim(PM_AttackAnimForWeapon(weapon));
+            pm->ps->weaponDelay = pm_tceLegacyTiming[pm->ps->weapon].fireDelay;
+        } else {
+            BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo,
+                animation, qfalse, qtrue);
+        }
+        break;
+    default:
+        if (firing || !weaponDef[weapon].fireDelayTime)
+            BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo,
+                animation, qfalse, qtrue);
+        else
+            pm->ps->weaponDelay = weaponDef[pm->ps->weapon].fireDelayTime;
+        break;
+    }
+    pm->ps->weaponstate = WEAPON_FIRING;
+}
+
+static qboolean PM_TCEAllowsAutoReload(int weapon) {
+    switch (weapon) {
+    case 2: case 3: case 5: case 6: case 7: case 8: case 10: case 13: case 14:
+    case 23: case 24: case 25: case 31: case 32: case 33: case 37: case 39:
+    case 40: case 41: case 42: case 43: case 44: case 45: case 46: case 47:
+    case 48: case 49: case 50: case 51: case 52: case 57: case 58: case 59:
+        return qtrue;
+    default:
+        return qfalse;
+    }
+}
+
+static void PM_TCEEmptyShot(int ammoNeeded) {
+    int weapon = pm->ps->weapon;
+    int ammoIndex = BG_FindAmmoForWeapon(weapon);
+    qboolean canReload = ammoNeeded <= pm->ps->ammo[ammoIndex];
+    qboolean quiet = qfalse;
+    qboolean scoped = qfalse;
+
+    if (!pm->pmext->bAutoReload && PM_TCEAllowsAutoReload(pm->ps->weapon) &&
+        !(pm->cmd.wbuttons & WBUTTON_RELOAD))
+        canReload = qfalse;
+    switch (pm->ps->weapon) {
+    case TCE_WP_G3: case TCE_WP_G1: case TCE_WP_DC1: case TCE_WP_G2:
+    case TCE_ITEM_WEAPON_LANDMINE: case TCE_ITEM_WEAPON_TRIPMINE:
+        quiet = qtrue;
+        break;
+    case 57: case 58: case 59:
+        scoped = qtrue;
+        break;
+    default:
+        break;
+    }
+    /* Scoped legacy weapons report NOAMMO and idle even with reserve ammo. */
+    if (!quiet) PM_AddEvent(canReload && !scoped ? EV_EMPTYCLIP : EV_NOAMMO);
+    if (canReload && !scoped)
+        PM_ContinueWeaponAnim(WEAP_IDLE2);
+    else
+        PM_ContinueWeaponAnim(PM_IdleAnimForWeapon(pm->ps->weapon));
+    pm->ps->weaponTime = PM_TCEAddWeaponCounter(pm->ps->weaponTime, 500);
+    if (weaponDef[pm->ps->weapon].singleReload)
+        pm->ps->stats[STAT_TCE_WEAPON_FLAGS] |= 0x800;
+}
+
+static void PM_TCESlickShotKick(void) {
+    float strength;
+    float impulse[3];
+    long double scale;
+    int axis;
+
+    if ((pm->ps->eFlags & EF_PRONE) || !(pml.groundTrace.surfaceFlags & SURF_SLICK))
+        return;
+    if (pm->ps->weapon != TCE_ITEM_WEAPON_MOBILE_MG42) return;
+    strength = 400.0f;
+#if defined(_WIN32)
+    scale = -(long double)strength * (long double)0.005f;
+    /* Windows keeps the first product extended, then reloads a stored scale
+     * for the other two components. Linux stores all impulse components. */
+    impulse[1] = (float)((long double)(float)scale * pml.forward[1]);
+    impulse[2] = (float)((long double)(float)scale * pml.forward[2]);
+    pm->ps->velocity[0] = (float)((long double)pm->ps->velocity[0] + scale * pml.forward[0]);
+    for (axis = 1; axis < 3; ++axis)
+        pm->ps->velocity[axis] = (float)((long double)pm->ps->velocity[axis] + impulse[axis]);
+#else
+    scale = -((long double)1.0f / 200.0f) * strength;
+    for (axis = 0; axis < 3; ++axis)
+        impulse[axis] = (float)(scale * pml.forward[axis]);
+    for (axis = 0; axis < 3; ++axis)
+        pm->ps->velocity[axis] = (float)((long double)pm->ps->velocity[axis] + impulse[axis]);
+#endif
+    if (!pm->ps->pm_time) {
+        pm->ps->pm_time = 100;
+        pm->ps->pm_flags |= PMF_TIME_KNOCKBACK;
+    }
+}
+
+/* False means this command either primed a delayed shot or ran out of ammo. */
+static qboolean PM_TCEConsumeShotAmmo(void) {
+    int ammoNeeded = weaponDef[pm->ps->weapon].uses;
+    if (pm->ps->weapon && ammoNeeded > PM_WeaponAmmoAvailable(pm->ps->weapon)) {
+        PM_TCEEmptyShot(ammoNeeded);
+        return qfalse;
+    }
+    if (pm->ps->weaponDelay > 0) return qfalse;
+    PM_TCESlickShotKick();
+    if (PM_WeaponAmmoAvailable(pm->ps->weapon) != -1 &&
+        !pm->ps->persistant[PERS_HWEAPON_USE] && !(pm->ps->eFlags & EF_MOUNTEDTANK))
+        PM_WeaponUseAmmo(pm->ps->weapon, ammoNeeded);
+    return qtrue;
+}
+
+static int PM_TCENotifyShot(qboolean akimboFire) {
+    int animation;
+    int fireEvent;
+    if (BG_IsAkimboWeapon(pm->ps->weapon))
+        animation = akimboFire ? WEAP_ATTACK1 : WEAP_ATTACK2;
+    else if (PM_WeaponClipEmpty(pm->ps->weapon))
+        animation = PM_LastAttackAnimForWeapon(pm->ps->weapon);
+    else
+        animation = PM_AttackAnimForWeapon(pm->ps->weapon);
+
+    switch (pm->ps->weapon) {
+    case 3: case 8: case 10: case 19: case 21: case 22: case 28:
+    case 31: case 36: case 41: case 42: case 43: case 44: case 45: case 62:
+        PM_ContinueWeaponAnim(animation);
+        break;
+    case TCE_WP_G3: case TCE_WP_G1: case TCE_WP_G2:
+        PM_StartWeaponAnim(WEAP_ATTACK2);
+        break;
+    case TCE_ITEM_WEAPON_MORTAR_SET:
+        break;
+    default:
+        PM_StartWeaponAnim(animation);
+        break;
+    }
+    if (pm->ps->weapon == TCE_ITEM_WEAPON_GRENADESMOKE ||
+        pm->ps->weapon == TCE_ITEM_WEAPON_LANDMINE ||
+        pm->ps->weapon == TCE_ITEM_WEAPON_SATCHEL)
+        PM_AddEvent(EV_NOAMMO);
+    if (pm->ps->weapon == TCE_ITEM_WEAPON_SATCHEL) {
+        pm->ps->ammoclip[TCE_ITEM_WEAPON_SATCHELDETONATOR] = 1;
+        pm->ps->ammo[TCE_ITEM_WEAPON_SATCHEL] = 0;
+        pm->ps->ammoclip[TCE_ITEM_WEAPON_SATCHEL] = 0;
+        PM_BeginWeaponChange(TCE_ITEM_WEAPON_SATCHEL, TCE_ITEM_WEAPON_SATCHELDETONATOR, qfalse);
+    }
+    if ((pm->ps->weapon == 55 || pm->ps->weapon == 56) &&
+        !pm->ps->ammo[BG_FindAmmoForWeapon(pm->ps->weapon)])
+        PM_AddEvent(EV_NOAMMO);
+    if (pm->ps->weapon == TCE_ITEM_WEAPON_MORTAR_SET &&
+        !pm->ps->ammo[TCE_ITEM_WEAPON_MORTAR])
+        PM_AddEvent(EV_NOAMMO);
+
+    if (BG_IsAkimboWeapon(pm->ps->weapon)) {
+        PM_AddEvent(akimboFire ? EV_FIRE_WEAPON : EV_FIRE_WEAPONB);
+    } else {
+        qboolean pumpMode = weaponDef[pm->ps->weapon].pump &&
+            pm->ps->persistant[10] > 0 && BG_FiremodeWeapon(pm->ps->weapon);
+        fireEvent = PM_WeaponClipEmpty(pm->ps->weapon) ? EV_FIRE_WEAPON_LASTSHOT : EV_FIRE_WEAPON;
+        if (pumpMode) PM_AddEventExt(fireEvent, 1);
+        else PM_AddEvent(fireEvent);
+    }
+    pm->pmext->releasedFire = qfalse;
+    pm->ps->lastFireTime = pm->cmd.serverTime;
+    return animation;
+}
+
+static int PM_TCEShotCadence(qboolean akimboFire, int attackAnimation, int *spread) {
+    int weapon = pm->ps->weapon;
+    int interval = 0;
+    qboolean doubleInterval = qfalse;
+    *spread = 0;
+    switch (weapon) {
+    case 1: case 4: case 9: case 15: case 26: case 29: case 30:
+    case 55: case 56: case 60:
+        interval = weaponDef[weapon].nextShotTime;
+        break;
+    case 2: case 5: case 6: case 13: case 14: case 23: case 24: case 25:
+    case 32: case 33: case 39: case 40: case 41: case 42: case 43: case 44:
+    case 45: case 46: case 47: case 48: case 49: case 50: case 51:
+        if (weaponDef[weapon].pump) pm->ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~0x800;
+        *spread = 35;
+        interval = weaponDef[pm->ps->weapon].nextShotTime;
+        break;
+    case 3: case 8: case 10:
+        interval = weaponDef[weapon].nextShotTime;
+        *spread = 15 + rand() % 10;
+        break;
+    case 7: case 52:
+        *spread = 20;
+        interval = weaponDef[weapon].nextShotTime;
+        break;
+    case 11: case 12: case 36: case 61:
+        interval = pm_tceLegacyTiming[weapon].nextShot;
+        break;
+    case 19: case 22:
+        interval = 1000;
+        break;
+    case 21:
+        interval = 50;
+        break;
+    case 31: case 62:
+        interval = attackAnimation == WEAP_ATTACK_LASTSHOT ? 2000 : pm_tceLegacyTiming[weapon].nextShot;
+        *spread = 20;
+        break;
+    case 37: case 53: case 38: case 54:
+        interval = weaponDef[weapon].nextShotTime;
+        if (!pm->ps->ammoclip[BG_FindClipForWeapon(pm->ps->weapon)]) {
+            if (!akimboFire) doubleInterval = qtrue;
+        } else {
+            int sidearm = BG_AkimboSidearm(pm->ps->weapon);
+            if (!pm->ps->ammoclip[BG_FindClipForWeapon(sidearm)] && akimboFire)
+                doubleInterval = qtrue;
+        }
+        if (doubleInterval) {
+            interval = weaponDef[pm->ps->weapon].nextShotTime;
+            interval = PM_TCEAddWeaponCounter(interval, interval);
+        }
+        *spread = weapon == 37 || weapon == 53 ? 20 : 35;
+        break;
+    case 57: case 58:
+        *spread = 200;
+        interval = weaponDef[weapon].nextShotTime;
+        break;
+    case 59:
+        *spread = 100;
+        interval = weaponDef[weapon].nextShotTime;
+        break;
+    default:
+        break;
+    }
+    return interval;
+}
+
+static void PM_TCELegacyShotRecoil(void) {
+    pm->pmext->lastRecoilDeltaTime = 0;
+    switch (pm->ps->weapon) {
+    case 57: case 58:
+        pm->pmext->weapRecoilTime = pm->cmd.serverTime;
+        pm->pmext->weapRecoilDuration = 300;
+        PM_WeaponRandomYaw(&pm->pmext->weapRecoilYaw, 0.5);
+        pm->pmext->weapRecoilPitch =
+            pm->skill[SK_MILITARY_INTELLIGENCE_AND_SCOPED_WEAPONS] >= 3 ? 0.25f : 0.5f;
+        break;
+    case TCE_ITEM_WEAPON_MOBILE_MG42:
+        pm->pmext->weapRecoilTime = pm->cmd.serverTime;
+        pm->pmext->weapRecoilDuration = 200;
+        if ((pm->ps->pm_flags & PMF_DUCKED) || (pm->ps->eFlags & EF_PRONE)) {
+            PM_WeaponRandomYaw(&pm->pmext->weapRecoilYaw, 0.5);
+            PM_WeaponRandomPitch(&pm->pmext->weapRecoilPitch, 0.06750000268220901f);
+        } else {
+            PM_WeaponRandomYaw(&pm->pmext->weapRecoilYaw, 0.25);
+            PM_WeaponRandomPitch(&pm->pmext->weapRecoilPitch, 0.15000000596046448f);
+        }
+        break;
+    case 59:
+        pm->pmext->weapRecoilTime = pm->cmd.serverTime;
+        pm->pmext->weapRecoilDuration = 100;
+        pm->pmext->weapRecoilYaw = 0.0f;
+        PM_WeaponRandomPitch(&pm->pmext->weapRecoilPitch, 0.06750000268220901f);
+        if (pm->skill[SK_MILITARY_INTELLIGENCE_AND_SCOPED_WEAPONS] >= 3)
+            pm->pmext->weapRecoilPitch *= 0.5f;
+        break;
+    case 2: case 14: case 38: case 54: case 7: case 39: case 40: case 52: case 37: case 53:
+        pm->pmext->weapRecoilTime = pm->cmd.serverTime;
+        pm->pmext->weapRecoilDuration = pm->skill[SK_LIGHT_WEAPONS] >= 3 ? 70 : 100;
+        pm->pmext->weapRecoilYaw = 0.0f;
+        PM_WeaponRandomPitch(&pm->pmext->weapRecoilPitch,
+            pm->skill[SK_LIGHT_WEAPONS] >= 3 ? 0.03750000149011612f : 0.06750000268220901f);
+        break;
+    default:
+        pm->pmext->weapRecoilTime = 0;
+        pm->pmext->weapRecoilYaw = 0.0f;
+        break;
+    }
+}
+
+static void PM_TCEApplyShotRecoil(int interval, int seed, int spread) {
+    int recoil;
+    int half, kick, minimum, maximum;
+    int previous, oldPitch, oldYaw;
+    float posture = 1.0f;
+    float randomScale, oldAngle, kickScale;
+#if defined(_WIN32)
+    float minimumGrowth;
+#else
+    long double minimumGrowth;
+#endif
+    long double growth;
+    long double random, pitchKick;
+
+    pm->ps->aimSpreadScaleFloat = (float)((long double)pm->ps->aimSpreadScaleFloat + 3.0L * spread);
+    if (pm->ps->aimSpreadScaleFloat > 255.0f) pm->ps->aimSpreadScaleFloat = 255.0f;
+    pm->ps->aimSpreadScale = TCE_TruncateNativeInteger(pm->ps->aimSpreadScaleFloat);
+    pm->ps->holdable[0] = pm->ps->stats[STAT_TCE_MOVEMENT_INSTABILITY];
+    pm->ps->holdable[1] = pm->ps->stats[STAT_TCE_SHOT_INSTABILITY];
+
+    previous = pm->ps->stats[STAT_TCE_SHOT_INSTABILITY];
+    growth = sqrtl((long double)previous * 0.001f);
+#if defined(_WIN32)
+    minimumGrowth = (float)((long double)weaponDef[pm->ps->weapon].unknown_0f8[6] * 0.001f);
+    if (!(growth >= minimumGrowth)) growth = minimumGrowth;
+#else
+    growth = (float)growth;
+    minimumGrowth = (long double)weaponDef[pm->ps->weapon].unknown_0f8[6] * 0.001f;
+    if (!(growth >= minimumGrowth)) growth = minimumGrowth;
+#endif
+    pm->ps->stats[STAT_TCE_SHOT_INSTABILITY] =
+        TCE_TruncateNativeInteger((long double)previous + growth * 1000.0f);
+    if (pm->ps->stats[STAT_TCE_SHOT_INSTABILITY] > 1000)
+        pm->ps->stats[STAT_TCE_SHOT_INSTABILITY] = 1000;
+    recoil = weaponDef[pm->ps->weapon].unknown_0f8[
+        pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4 ? 8 : 7];
+    if (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) {
+        if ((pm->ps->eFlags & EF_CROUCHING) && !(VectorLength(pm->ps->velocity) >= 30.0f)) posture = 0.7f;
+        if ((pm->ps->eFlags & EF_PRONE) && !(VectorLength(pm->ps->velocity) >= 30.0f)) posture = 0.6f;
+    }
+    VectorCopy(pm->ps->viewangles, pm->pmext->tceShotAngles);
+    if ((pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) && !weaponDef[pm->ps->weapon].noTacMode) {
+        int axis;
+        for (axis = PITCH; axis <= YAW; ++axis) {
+            long double offset = ((long double)pm->ps->holdable[5 + axis] - 2000.0f) * 0.01f;
+#if !defined(_WIN32)
+            offset = (float)offset;
+#endif
+            pm->pmext->tceShotAngles[axis] = (float)((long double)pm->pmext->tceShotAngles[axis] + offset);
+        }
+    }
+    if (!recoil) {
+        pm->pmext->weapRecoilTime = 0;
+        return;
+    }
+    oldPitch = pm->ps->delta_angles[PITCH];
+    oldYaw = pm->ps->delta_angles[YAW];
+    half = recoil / 2;
+    kick = pm->ps->stats[STAT_TCE_RECOIL_REMAINDER];
+    if (kick > half) kick = half;
+    kick = TCE_TruncateNativeInteger((long double)PM_TCEAddWeaponCounter(kick, recoil) * posture);
+    minimum = TCE_TruncateNativeInteger((long double)interval * 1.3333332538604736f + 4.0f);
+    if (minimum > 250) minimum = 250;
+    if (kick < minimum) kick = minimum;
+    pm->ps->stats[STAT_TCE_RECOIL_REMAINDER] =
+        PM_TCEAddWeaponCounter(pm->ps->stats[STAT_TCE_RECOIL_REMAINDER], kick);
+    maximum = PM_TCEAddWeaponCounter(interval, PM_TCEAddWeaponCounter(half, half));
+    maximum = PM_TCEAddWeaponCounter(maximum, PM_TCEAddWeaponCounter(half, half));
+    if (pm->ps->stats[STAT_TCE_RECOIL_REMAINDER] > maximum)
+        pm->ps->stats[STAT_TCE_RECOIL_REMAINDER] = maximum;
+    if (pm->ps->stats[STAT_TCE_RECOIL_REMAINDER] > 500)
+        pm->ps->stats[STAT_TCE_RECOIL_REMAINDER] = 500;
+    seed = PM_TCEAddWeaponCounter(seed, 1);
+    randomScale = (float)((long double)pm->ps->holdable[1] * 0.001f);
+    pm->pmext->weapRecoilTime = 0;
+    pitchKick = kick;
+#if defined(_WIN32)
+    kickScale = (float)kick;
+    pitchKick = kickScale;
+#endif
+    oldAngle = (float)pm->ps->delta_angles[PITCH];
+    random = Q_random(&seed);
+    pm->ps->delta_angles[PITCH] = TCE_TruncateNativeInteger(
+        (long double)oldAngle - (random * randomScale + 2.0f) * pitchKick);
+    oldAngle = (float)pm->ps->delta_angles[YAW];
+    /* Linux stores the integer kick as float across its second Q_random call. */
+#if !defined(_WIN32)
+    kickScale = (float)kick;
+#endif
+    random = Q_random(&seed);
+    pm->ps->delta_angles[YAW] = TCE_TruncateNativeInteger(
+        (long double)oldAngle - random * randomScale * kickScale);
+
+    /* Existing local free-look extension: retain the recoil accumulated by the
+     * native firing path when the independent camera view is in use. */
+    pm->pmext->tceFreelookRecoil[PITCH] += AngleNormalize180(SHORT2ANGLE(
+        PM_TCEWeaponAngleChange(pm->ps->delta_angles[PITCH], oldPitch)));
+    pm->pmext->tceFreelookRecoil[YAW] += AngleNormalize180(SHORT2ANGLE(
+        PM_TCEWeaponAngleChange(pm->ps->delta_angles[YAW], oldYaw)));
+}
+
+static void PM_TCEFireWeapon(qboolean delayedFire, qboolean akimboFire) {
+    int animation, interval, spread;
+    int seed;
+    /* The original definition and gear arrays each contain exactly 64 rows.
+     * Legacy protocol IDs 65/66 have no valid definition object here. */
+    if ((unsigned)pm->ps->weapon >= TCE_WEAPON_CAPACITY) return;
+    PM_TCEStartAttack(delayedFire, akimboFire);
+    if (!PM_TCEConsumeShotAmmo()) return;
+    animation = PM_TCENotifyShot(akimboFire);
+    seed = pm->ps->stats[STAT_TCE_SHOT_SEED];
+    Q_rand(&seed);
+    seed &= 65535;
+    pm->ps->stats[STAT_TCE_SHOT_SEED] = seed;
+    interval = PM_TCEShotCadence(akimboFire, animation, &spread);
+    PM_TCELegacyShotRecoil();
+    PM_TCEApplyShotRecoil(interval, seed, spread);
+    pm->ps->weaponTime = PM_TCEAddWeaponCounter(pm->ps->weaponTime, interval);
+    PM_SwitchIfEmpty();
+}
+
 
 static void PM_Weapon( void ) {
-	int			shotSeed;
-	int			addTime = 0; // TTimo: init
-	int			ammoNeeded;
 	qboolean	delayedFire;	//----(SA)  true if the delay time has just expired and this is the frame to send the fire event
-	int			aimSpreadScaleAdd;
-	int			weapattackanim;
 	qboolean	akimboFire;
 #ifdef DO_WEAPON_DBG
 	static int weaponstate_last = -1;
 #endif
 
-    /* Original PM_Weapon prefix3000fc80: dead/spectator/respawn guards,
-     * mounted MG42, AA gun and tank are self-contained early-return paths. */
-    if ((pm->ps->pm_flags & PMF_RESPAWNED) ||
-        pm->ps->persistant[PERS_TEAM] == TEAM_SPECTATOR || pm->ps->stats[STAT_HEALTH] <= 0)
-        return;
-    {
-        int mounted = pm->ps->persistant[PERS_HWEAPON_USE];
-        qboolean tank = mounted != 1 && mounted != 2 && (pm->ps->eFlags & EF_MOUNTEDTANK);
-        if (mounted == 1 || mounted == 2 || tank) {
-            int rate;
-            if (mounted != 2 && pm->ps->weapHeat[34]) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-                PM_WeaponCoolMounted();
-#else
-                /* Preserve original reciprocal multiply, not SDK division.
-                 * The original x87 chain remains extended until conversion. */
-                pm->ps->weapHeat[34] = (int)((double)pm->ps->weapHeat[34] -
-                    (double)pml.frametime * (double)300.0f);
-                if (pm->ps->weapHeat[34] < 0) pm->ps->weapHeat[34] = 0;
-                pm->ps->curWeapHeat = (int)floor((double)pm->ps->weapHeat[34] *
-                    (double)0.0006666666595265269f * (double)255.0f);
-#endif
-            }
-            if (pm->ps->weaponTime > 0) {
-                pm->ps->weaponTime -= pml.msec;
-                if (pm->ps->weaponTime > 0) return;
-                if (!(pm->cmd.buttons & BUTTON_ATTACK)) {
-                    pm->ps->weaponTime = 0;
-                    return;
-                }
-            }
-            if (!(pm->cmd.buttons & BUTTON_ATTACK)) return;
-            rate = mounted == 2 ? 100 :
-                (mounted == 1 && (PM_GameType == 0 || PM_GameType == 1) ? 100 : 66);
-            if (mounted != 2) pm->ps->weapHeat[34] += rate;
-            PM_AddEvent(mounted == 1 ? EV_FIRE_WEAPON_MG42 :
-                (mounted == 2 ? EV_FIRE_WEAPON_AAGUN : EV_FIRE_WEAPON_MOUNTEDMG42));
-            pm->ps->weaponTime += rate;
-            BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo, ANIM_ET_FIREWEAPON, qfalse, qtrue);
-            if (mounted == 1) pm->ps->viewlocked = 2;
-            if (mounted != 2 && pm->ps->weapHeat[34] >= 1500) {
-                /* Original writes weaponTime, not the heat slot, before the event. */
-                pm->ps->weaponTime = 1500;
-                PM_AddEvent(EV_WEAP_OVERHEAT);
-                pm->ps->weaponTime = 2000;
-            }
-            return;
-        }
-    }
+    if (PM_TCEUpdateMountedWeapon()) return;
 
-	pm->watertype = 0;
-
-	if( BG_IsAkimboWeapon( pm->ps->weapon ) )
-		akimboFire = BG_AkimboFireSequence( pm->ps->weapon, pm->ps->ammoclip[BG_FindClipForWeapon(pm->ps->weapon)], pm->ps->ammoclip[BG_FindClipForWeapon(BG_AkimboSidearm(pm->ps->weapon))] );
-	else
-		akimboFire = qfalse;
+    akimboFire = PM_TCESelectAkimboShot();
 
   // TTimo
   // https://zerowing.idsoftware.com/bugzilla/show_bug.cgi?id=416
@@ -11993,561 +11138,26 @@ static void PM_Weapon( void ) {
   }
 #endif
 
-	// weapon cool down
-	PM_CoolWeapons();
 
-    if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS && BG_FiremodeWeapon(pm->ps->weapon)) {
-        tce_weaponDef_t *def = &weaponDef[pm->ps->weapon];
-        if (pm->ps->persistant[10] == 0 && def->fullauto < 1) {
-            if (def->burst > 1) pm->ps->persistant[10] = 1;
-        } else if (pm->ps->persistant[10] == 1 && def->burst < 2) pm->ps->persistant[10] = 0;
-    }
+    PM_TCEReconcileWeaponFiremode();
+    PM_TCEUpdateWeaponSway();
+    PM_TCEApplyQueuedWeaponRecoil();
 
+    if (PM_TCEUpdateWeaponCycle(akimboFire, &delayedFire)) return;
 
-    /* Original3000ff..30010263: tactical sway, queued recoil, recovery. */
-    if ((pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) &&
-        pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS &&
-        pm->ps->weapon != 4 && pm->ps->weapon != 9 && pm->ps->weapon != 30) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-        const float swayFrequency1 = 0.00125663704238832f;
-        const float swayFrequency2 = 0.0031415927223861217f;
-        const float swayFrequency3 = 0.0018849557964131236f;
-        const float swayFrequency5 = 0.002199114765971899f;
-        const double swayPhase2 = 1.36, swayPhase3 = 0.5;
-        const double swayPhase4 = 0.89, swayPhase5 = 4.71;
-        const float swaySpeedLimit = 30.0f, swayZero = 0.0f;
-        const float swayAmplitudeScale = 0.2f, swayHipScale = 0.125f;
-        const float swayInstabilityScale = 5.8823530707741156e-05f;
-        const float swayAngleUnits = 182.04444885253906f;
-        int *swayPhaseInput = &pm->ps->stats[14];
-        const float *swayViewInput = pm->ps->viewangles;
-        const float *swayVelocity = pm->ps->velocity;
-        const float *swayScoped = &weaponDef[pm->ps->weapon].scoped;
-        const int *swayMovement = &pm->ps->stats[STAT_TCE_MOVEMENT_INSTABILITY];
-        const int *swayShot = &pm->ps->stats[STAT_TCE_SHOT_INSTABILITY];
-        const int *swayCommands = pm->cmd.angles;
-        int *swayDeltas = pm->ps->delta_angles;
-        float *swayViewOutput = pm->ps->viewangles;
-        int swayFlags = pm->ps->eFlags, swayMsec = pml.msec;
-        int swayAmount;
-        float swayWave1, swayWave2, swayWave3, swayWave4, swayWave5;
-        float swayAmplitude, swayBias, swayStoredInstability;
-        vec3_t swayAngles;
-        /* Original3000ff7d..300101c8, including retained pitch under the
-         * angle conversion calls. No C/libm sine or intermediate double. */
-        __asm {
-            mov ecx, swayPhaseInput
-            fild dword ptr [ecx]
-            mov ecx, swayViewInput
-            mov eax, dword ptr [ecx]
-            mov dword ptr swayAngles, eax
-            mov eax, dword ptr [ecx+4]
-            mov dword ptr swayAngles[4], eax
-            mov eax, dword ptr [ecx+8]
-            mov dword ptr swayAngles[8], eax
-            fld st(0)
-            fmul swayFrequency1
-            test swayFlags, 10h
-            fld st(0)
-            fsin
-            mov dword ptr swayAmplitude, 03d8f5c29h
-            fstp swayWave1
-            fld st(1)
-            fmul swayFrequency2
-            fadd swayPhase2
-            fsin
-            fstp swayWave2
-            fld st(1)
-            fmul swayFrequency3
-            fadd swayPhase3
-            fsin
-            fstp swayWave3
-            fadd swayPhase4
-            fsin
-            fstp swayWave4
-            fmul swayFrequency5
-            fadd swayPhase5
-            fsin
-            fstp swayWave5
-            fld swayWave1
-            fmul swayWave1
-            fmul swayWave1
-            fstp swayWave1
-            jz sway_duck_done
-            push swayVelocity
-            call VectorLength
-            fcomp swaySpeedLimit
-            add esp, 4
-            fnstsw ax
-            test ah, 1
-            jz sway_duck_done
-            mov dword ptr swayAmplitude, 03d3851ech
-        sway_duck_done:
-            test swayFlags, 80000h
-            jz sway_prone_done
-            push swayVelocity
-            call VectorLength
-            fcomp swaySpeedLimit
-            add esp, 4
-            fnstsw ax
-            test ah, 1
-            jz sway_prone_done
-            mov dword ptr swayAmplitude, 03ccccccdh
-        sway_prone_done:
-            mov dword ptr swayBias, 03b83126fh
-            fld swayAmplitude
-            fmul swayAmplitudeScale
-            mov ecx, swayScoped
-            fld dword ptr [ecx]
-            fcomp swayZero
-            fnstsw ax
-            test ah, 41h
-            jnz sway_hip_instability
-            mov ecx, swayShot
-            mov eax, dword ptr [ecx]
-            mov ecx, swayMovement
-            add eax, dword ptr [ecx]
-            mov swayAmount, eax
-            fild swayAmount
-            jmp sway_instability_ready
-        sway_hip_instability:
-            mov ecx, swayMovement
-            fild dword ptr [ecx]
-            fxch st(1)
-            fmul swayHipScale
-            fxch st(1)
-            mov dword ptr swayBias, 039807358h
-        sway_instability_ready:
-            fmul swayInstabilityScale
-            fst swayStoredInstability
-            fmul swayWave4
-            fxch st(1)
-            fmul swayWave1
-            faddp st(1), st(0)
-            fsubr dword ptr swayAngles
-            fst dword ptr swayAngles
-            fld swayWave5
-            fadd swayWave3
-            fadd swayWave2
-            fadd swayWave1
-            fld swayStoredInstability
-            fadd swayBias
-            fmulp st(1), st(0)
-            fadd dword ptr swayAngles[4]
-            fstp dword ptr swayAngles[4]
-            xor edi, edi
-        sway_convert_loop:
-            fld dword ptr swayAngles[edi]
-            fmul swayAngleUnits
-            call PM_WeaponTruncateST0
-            mov ecx, swayCommands
-            mov edx, dword ptr [ecx+edi]
-            and eax, 0ffffh
-            sub eax, edx
-            mov ecx, swayDeltas
-            mov dword ptr [ecx+edi], eax
-            add edi, 4
-            cmp edi, 12
-            jl sway_convert_loop
-            mov ecx, swayViewOutput
-            fstp dword ptr [ecx]
-            mov eax, dword ptr swayAngles[4]
-            mov dword ptr [ecx+4], eax
-            mov eax, dword ptr swayAngles[8]
-            mov dword ptr [ecx+8], eax
-            mov ecx, swayPhaseInput
-            mov eax, dword ptr [ecx]
-            add eax, swayMsec
-            mov dword ptr [ecx], eax
-            cmp eax, 10000
-            jle sway_native_done
-            add eax, -10000
-            mov dword ptr [ecx], eax
-        sway_native_done:
-        }
-#else
-        double phase = pm->ps->stats[14]; /* Original ps+108, distinct from aim phase13. */
-        float wave = (float)sin(phase * (double)0.00125663704238832f);
-        float wave2 = (float)sin(phase * (double)0.0031415927223861217f + 1.36);
-        float wave3 = (float)sin(phase * (double)0.0018849557964131236f + 0.5);
-        float wave4 = (float)sin(phase * (double)0.00125663704238832f + 0.89);
-        float wave5 = (float)sin(phase * (double)0.002199114765971899f + 4.71);
-        float amplitude = 0.07f, bias = 0.004f, instability;
-        double scale, speed;
-        vec3_t angles;
-        int amount, i;
-        wave = (float)((double)wave * wave * wave);
-        speed = sqrt((double)pm->ps->velocity[0] * pm->ps->velocity[0] +
-                     (double)pm->ps->velocity[1] * pm->ps->velocity[1] +
-                     (double)pm->ps->velocity[2] * pm->ps->velocity[2]);
-        if ((pm->ps->eFlags & EF_CROUCHING) && speed < 30.0f) amplitude = 0.045f;
-        if ((pm->ps->eFlags & EF_PRONE) && speed < 30.0f) amplitude = 0.025f;
-        scale = (double)amplitude * (double)0.2f;
-        amount = pm->ps->stats[STAT_TCE_MOVEMENT_INSTABILITY];
-        if (weaponDef[pm->ps->weapon].scoped <= 0.0f) {
-            scale *= (double)0.125f;
-            bias = 0.000245f;
-        } else amount += pm->ps->stats[STAT_TCE_SHOT_INSTABILITY];
-        instability = (float)((double)amount * (double)5.8823530707741156e-05f);
-        VectorCopy(pm->ps->viewangles, angles);
-        angles[PITCH] = (float)((double)angles[PITCH] -
-            (scale * wave + (double)amount * (double)5.8823530707741156e-05f * wave4));
-        angles[YAW] = (float)((double)angles[YAW] + ((double)instability + bias) *
-            ((double)wave5 + wave3 + wave2 + wave));
-        for (i = 0; i < 3; ++i)
-            pm->ps->delta_angles[i] = ((int)((double)angles[i] * (double)182.04444885253906f) & 65535) - pm->cmd.angles[i];
-        VectorCopy(angles, pm->ps->viewangles);
-        pm->ps->stats[14] += pml.msec;
-        if (pm->ps->stats[14] > 10000) pm->ps->stats[14] -= 10000;
-#endif
-    }
-    if (pm->pmext->weapRecoilTime) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-        int *queuedAngles = pm->ps->delta_angles;
-        const float *queuedPitch = &pm->pmext->weapRecoilPitch;
-        const float *queuedYaw = &pm->pmext->weapRecoilYaw;
-        __asm {
-            mov ecx, queuedAngles
-            fild dword ptr [ecx]
-            mov edx, queuedPitch
-            fsub dword ptr [edx]
-            call PM_WeaponTruncateST0
-            mov ecx, queuedAngles
-            mov dword ptr [ecx], eax
-            fild dword ptr [ecx+4]
-            mov edx, queuedYaw
-            fsub dword ptr [edx]
-            call PM_WeaponTruncateST0
-            mov ecx, queuedAngles
-            mov dword ptr [ecx+4], eax
-        }
-#else
-        pm->ps->delta_angles[PITCH] = (int)((double)pm->ps->delta_angles[PITCH] - pm->pmext->weapRecoilPitch);
-        pm->ps->delta_angles[YAW] = (int)((double)pm->ps->delta_angles[YAW] - pm->pmext->weapRecoilYaw);
-#endif
-        pm->pmext->weapRecoilTime = 0;
-    }
-    PM_TCERecoverHipRecoil();
+    if (PM_TCEUpdateWeaponActions(delayedFire)) return;
 
-	delayedFire = qfalse;
+    if (PM_TCEUpdateWeaponTrigger(delayedFire)) return;
 
-    /* Original grenade hold/release, delay and timer block. The timer gate
-     * is weaponDef+198, not a fixed SDK fuse; release cannot bypass it. */
-    if ((pm->ps->weapon == 4 || pm->ps->weapon == 9 ||
-         pm->ps->weapon == 15 || pm->ps->weapon == 30) &&
-        pm->ps->grenadeTimeLeft > 0) {
-        qboolean forceThrow = qfalse;
-#if defined(_MSC_VER) && defined(_M_IX86)
-        int *heldGrenadeTime = &pm->ps->grenadeTimeLeft;
-        int heldGrenadeWeapon = pm->ps->weapon;
-        int heldGrenadeMsec = pml.msec;
-        int heldGrenadeGate;
-        __asm {
-            mov ecx, heldGrenadeTime
-            mov eax, dword ptr [ecx]
-            cmp heldGrenadeWeapon, 15
-            jne held_grenade_countdown
-            add eax, heldGrenadeMsec
-            mov dword ptr [ecx], eax
-            cmp eax, 5000
-            jge held_grenade_updated
-            mov dword ptr [ecx], 5000
-            jmp held_grenade_updated
-        held_grenade_countdown:
-            sub eax, heldGrenadeMsec
-            mov dword ptr [ecx], eax
-            cmp eax, 100
-            jg held_grenade_updated
-            mov forceThrow, 1
-            mov dword ptr [ecx], 100
-        held_grenade_updated:
-        }
-#else
-        if (pm->ps->weapon == 15) {
-            pm->ps->grenadeTimeLeft += pml.msec;
-            if (pm->ps->grenadeTimeLeft < 5000) pm->ps->grenadeTimeLeft = 5000;
-        } else {
-            pm->ps->grenadeTimeLeft -= pml.msec;
-            if (pm->ps->grenadeTimeLeft < 101) {
-                forceThrow = qtrue;
-                pm->ps->grenadeTimeLeft = 100;
-            }
-        }
-#endif
-        if ((pm->cmd.buttons & BUTTON_ATTACK) && !forceThrow) return;
-#if defined(_MSC_VER) && defined(_M_IX86)
-        heldGrenadeGate = weaponDef[pm->ps->weapon].grenadeTimer;
-        __asm {
-            mov eax, heldGrenadeGate
-            sub eax, 250
-            mov heldGrenadeGate, eax
-        }
-        if (pm->ps->grenadeTimeLeft >= heldGrenadeGate) return;
-#else
-        if (weaponDef[pm->ps->weapon].grenadeTimer - 250 <= pm->ps->grenadeTimeLeft) return;
-#endif
-        if (pm->ps->weaponDelay == weaponDef[pm->ps->weapon].fireDelayTime || forceThrow) {
-            int event;
-            if (pm->ps->eFlags & EF_PRONE)
-                event = akimboFire ? ANIM_ET_FIREWEAPON2PRONE : ANIM_ET_FIREWEAPONPRONE;
-            else
-                event = akimboFire ? ANIM_ET_FIREWEAPON2 : ANIM_ET_FIREWEAPON;
-            BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo, event, qfalse, qtrue);
-        }
-        if (pm->ps->weaponDelay == 0) delayedFire = qtrue;
-    }
-    if (pm->ps->weaponDelay > 0) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-        int *shotDelay = &pm->ps->weaponDelay;
-        int shotDelayMsec = pml.msec;
-        __asm {
-            mov ecx, shotDelay
-            mov eax, dword ptr [ecx]
-            sub eax, shotDelayMsec
-            mov dword ptr [ecx], eax
-        }
-#else
-        pm->ps->weaponDelay -= pml.msec;
-#endif
-        if (pm->ps->weaponDelay < 1) {
-            pm->ps->weaponDelay = 0;
-            delayedFire = qtrue;
-        }
-    }
-    if (pm->ps->weaponstate == WEAPON_RELAXING) {
-        pm->ps->weaponstate = WEAPON_READY;
-        return;
-    }
-    if ((pm->ps->eFlags & EF_PRONE_MOVING) && !delayedFire) {
-        pm->ps->stats[STAT_TCE_FLAGS] |= 8;
-        return;
-    }
-    if (pm->ps->weaponTime > 0) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-        int *shotWeaponTime = &pm->ps->weaponTime;
-        int shotWeaponMsec = pml.msec;
-        __asm {
-            mov ecx, shotWeaponTime
-            mov eax, dword ptr [ecx]
-            sub eax, shotWeaponMsec
-            mov dword ptr [ecx], eax
-        }
-#else
-        pm->ps->weaponTime -= pml.msec;
-#endif
-        if (!(pm->cmd.buttons & BUTTON_ATTACK) && pm->ps->weaponTime < 0)
-            pm->ps->weaponTime = 0;
-    }
-
-    /* Original PM_Weapon3000fc80: bolt/pump post-shot cycling precedes
-     * burst accounting and reload control, in both prediction and qagame. */
+#if defined(__GNUC__) && defined(__i386__) && defined(__linux__)
     if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS) {
-        tce_weaponDef_t *def = &weaponDef[pm->ps->weapon];
-        if (def->bolt && !PM_WeaponClipEmpty(pm->ps->weapon) &&
-            pm->ps->weaponstate == WEAPON_FIRING && pm->ps->weaponDelay <= 0 &&
-            !delayedFire && pm->ps->weaponTime <= 0) {
-            PM_ContinueWeaponAnim(8);
-            PM_WeaponAddTime(weaponDef[pm->ps->weapon].unknown_1a0);
-            pm->ps->weaponstate = WEAPON_TCE_CYCLE;
-            PM_AddEvent(EV_TCE_RELOAD_BOLT);
-        }
-        def = &weaponDef[pm->ps->weapon];
-        if (def->pump && pm->ps->weaponstate == WEAPON_FIRING &&
-            pm->ps->weaponDelay <= 0 && !delayedFire && pm->ps->weaponTime <= 0) {
-            if (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 0x800) {
-                pm->ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~0x800;
-            } else if (!pm->ps->persistant[10] || !def->semiauto) {
-                PM_ContinueWeaponAnim(3);
-                PM_WeaponAddTime(weaponDef[pm->ps->weapon].unknown_19c);
-                pm->ps->weaponstate = WEAPON_TCE_CYCLE;
-                PM_AddEvent(EV_TCE_RELOAD_PUMP2);
-            } else {
-                pm->ps->weaponstate = WEAPON_TCE_CYCLE;
-                PM_WeaponAddTime(100);
-            }
-        }
-    }
-
-    if (pm->ps->weaponstate == WEAPON_FIRING &&
-        pm->ps->weaponDelay <= 0 && !delayedFire && pm->ps->weaponTime <= 0) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-        int *cycleBurstCount = &pm->ps->holdable[11];
-        __asm {
-            mov eax, cycleBurstCount
-            mov ecx, dword ptr [eax]
-            inc ecx
-            mov dword ptr [eax], ecx
-        }
-#else
-        pm->ps->holdable[11] = (int)((unsigned int)pm->ps->holdable[11] + 1u);
-#endif
-    }
-
-	// check for weapon change
-	// can't change if weapon is firing, but can change
-	// again if lowering or raising
-
-	if( (pm->ps->weaponTime <= 0 || ( !weaponstateFiring && pm->ps->weaponDelay <= 0 )) && !delayedFire) {
-		if ( pm->ps->weapon != pm->cmd.weapon && pm->cmd.weapon < 55 && !(pm->ps->pm_flags & 0x400)) {
-			PM_BeginWeaponChange( pm->ps->weapon, pm->cmd.weapon, qfalse );	//----(SA)	modified
-		}
-		/* TC selection HUD uses command 56 to confirm without firing. */
-		if (pm->cmd.weapon == 56 && (pm->cmd.buttons & BUTTON_ATTACK)) {
-			PM_WeaponAddTime(50);
-			return;
-		}
-	}
-
-    if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS && pm->cmd.weapon == 55 && pm->ps->weaponTime <= 0 && !delayedFire &&
-        pm->ps->weaponstate == WEAPON_READY && BG_FiremodeWeapon(pm->ps->weapon)) {
-        tce_weaponDef_t *def = &weaponDef[pm->ps->weapon];
-        if (pm->ps->persistant[10] == 0) pm->ps->persistant[10] = def->burst < 2 ? 2 : 1;
-        else if (pm->ps->persistant[10] == 1) pm->ps->persistant[10] = 2;
-        else if (def->fullauto || def->pump) pm->ps->persistant[10] = 0;
-        else if (def->burst > 1) pm->ps->persistant[10] = 1;
-        PM_WeaponAddTime(750);
-        PM_AddEvent(EV_TCE_FIREMODE);
-        return;
-    }
-
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
-    if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS) {
-        if (PM_TCEWeaponActions834(delayedFire)) return;
+        if (PM_TCEWeaponEligibilityLinux856(delayedFire)) return;
     } else
-#endif
-    {
-    if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS && PM_TCEAimInput(delayedFire)) return;
-
-    /* Original30010a..30010b: ladder blocks all shots; sprint action latch
-     * precedes objective handling and permits only pending grenade release. */
-    if (pml.ladder) {
-        if (pm->ps->weaponTime < 501) pm->ps->weaponTime = 500;
-        pm->ps->stats[STAT_TCE_FLAGS] |= 8;
-        return;
-    }
-    if (!(pm->cmd.buttons & BUTTON_SPRINT) || (!pm->cmd.forwardmove && !pm->cmd.rightmove) ||
-        (pm->ps->pm_flags & PMF_DUCKED) || (pm->ps->eFlags & EF_PRONE)) {
-        if (pm->ps->weaponTime <= 0 && (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 0x4000)) {
-            pm->ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~0x4000;
-            pm->ps->weaponTime = 250;
-        }
-    } else {
-        pm->ps->stats[STAT_TCE_WEAPON_FLAGS] |= 0x4000;
-        if ((pm->ps->weapon == 4 || pm->ps->weapon == 9 || pm->ps->weapon == 30) && delayedFire)
-            pm->ps->weaponTime = 0;
-        else if (pm->ps->weaponstate == WEAPON_READY) {
-            if (pm->ps->weaponTime > 250) return;
-            pm->ps->weaponTime = 250;
-            return;
-        }
-    }
-    PM_TCEObjectiveAction();
-
-	if( pm->ps->weaponDelay > 0 ) {
-		return;
-	}
-
-	// check for clip change
-	PM_CheckForReload( pm->ps->weapon );
-
-	if( pm->ps->weaponTime > 0 || pm->ps->weaponDelay > 0 ) {
-		return;
-	}
-
-    }
-
-    /* Original change -> trigger latch -> reload completion ordering. */
-    if (pm->ps->weaponstate == WEAPON_DROPPING || pm->ps->weaponstate == WEAPON_DROPPING_TORELOAD) {
-        PM_FinishWeaponChange();
-        pm->ps->pm_flags &= ~0x400;
-        return;
-    }
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
-    if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS) {
-        if (PM_TCEWeaponTrigger835(delayedFire)) return;
-    } else
-#endif
-    {
-    if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS) {
-        /* Original short-circuit lookups: do not eagerly cache mode/clip. */
-        if (!(pm->cmd.buttons & BUTTON_ATTACK) && (pm->ps->pm_flags & 0x400) && !delayedFire &&
-            BG_FiremodeWeapon(pm->ps->weapon) && pm->ps->persistant[10] == 1 &&
-            pm->ps->holdable[11] < weaponDef[pm->ps->weapon].burst &&
-            pm->ps->ammoclip[BG_FindClipForWeapon(pm->ps->weapon)] &&
-            !(pm->ps->stats[STAT_TCE_FLAGS] & 8) && weaponstateFiring)
-            pm->cmd.buttons |= BUTTON_ATTACK;
-        if ((pm->cmd.buttons & BUTTON_ATTACK) || delayedFire) {
-            if (!(pm->ps->pm_flags & 0x400) || delayedFire) pm->ps->pm_flags |= 0x400;
-            else {
-                if (pm->ps->weapon != 1 && !(pm->ps->stats[STAT_TCE_FLAGS] & 0x800)) {
-                    qboolean triggerStop = qfalse;
-                    if (!BG_FiremodeWeapon(pm->ps->weapon)) {
-                        tce_weaponDef_t *triggerDef = &weaponDef[pm->ps->weapon];
-                        if (triggerDef->semiauto || triggerDef->pump || triggerDef->bolt)
-                            triggerStop = qtrue;
-                    }
-                    if (!triggerStop && !pm->ps->ammoclip[BG_FindClipForWeapon(pm->ps->weapon)] &&
-                        pm->ps->weapon != 1 && pm->ps->weapon != 4 && pm->ps->weapon != 30 && pm->ps->weapon != 9)
-                        triggerStop = qtrue;
-                    if (!triggerStop && BG_FiremodeWeapon(pm->ps->weapon)) {
-                        if (pm->ps->persistant[10] == 2) triggerStop = qtrue;
-                        else {
-                            if (pm->ps->persistant[10] == 1) {
-                                int triggerBurstLimit = weaponDef[pm->ps->weapon].burst;
-#if defined(_MSC_VER) && defined(_M_IX86)
-                                __asm {
-                                    mov eax, triggerBurstLimit
-                                    dec eax
-                                    mov triggerBurstLimit, eax
-                                }
-#else
-                                triggerBurstLimit = (int)((unsigned int)triggerBurstLimit - 1u);
-#endif
-                                if (pm->ps->holdable[11] > triggerBurstLimit) triggerStop = qtrue;
-                            }
-                            if (!triggerStop && weaponDef[pm->ps->weapon].singleReload) triggerStop = qtrue;
-                        }
-                    }
-                    if (triggerStop) {
-                        pm->ps->weaponTime = 0;
-                        pm->ps->weaponDelay = 0;
-                        if (weaponstateFiring) {
-                            if (!pm->ps->ammoclip[BG_FindClipForWeapon(pm->ps->weapon)]) PM_StartWeaponAnim(1);
-                            else PM_ContinueWeaponAnim(0);
-                        }
-                        pm->ps->weaponstate = WEAPON_READY;
-                        return;
-                    }
-                }
-                if (!(pm->cmd.buttons & BUTTON_ATTACK)) pm->ps->pm_flags &= ~0x400;
-            }
-        } else pm->ps->pm_flags &= ~0x400;
-    }
-    if (pm->ps->weaponstate == WEAPON_RELOADING ||
-        pm->ps->weaponstate == WEAPON_TCE_RELOAD_END || pm->ps->weaponstate == WEAPON_TCE_CYCLE)
-        PM_FinishWeaponReload();
-    }
-
-	if( pm->ps->weaponstate == WEAPON_RAISING ) {
-		pm->ps->weaponstate = WEAPON_READY;
-
-//		if( pm->ps->eFlags & EF_PRONE && pm->ps->weapon == WP_MOBILE_MG42 )
-//			pm->pmext->proneMG42Zoomed = qtrue;
-
-		PM_StartWeaponAnim(TCE_PM_IdleAnimForWeapon(pm->ps->weapon));
-		return;
-	} else if( pm->ps->weaponstate == WEAPON_RAISING_TORELOAD ) {
-		pm->ps->weaponstate = WEAPON_READY;
-
-		PM_BeginWeaponReload( pm->ps->weapon );
-
-		return;
-	}
-
-
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
+#elif defined(_MSC_VER) && defined(_M_IX86) && (defined(GAMEDLL) || defined(CGAMEDLL))
     if (PM_TCEWeaponEligibility837(delayedFire)) return;
-#else
+#endif
+#if !defined(_MSC_VER) || !defined(_M_IX86) || (!defined(GAMEDLL) && !defined(CGAMEDLL))
+    {
 	if(pm->ps->weapon == WP_NONE)	// this is possible since the player starts with nothing
 		return;
 
@@ -12657,516 +11267,10 @@ static void PM_Weapon( void ) {
 		}
 	}
 
+    }
 #endif
 
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
-    if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS) {
-        PM_TCEAttackStart838(delayedFire, akimboFire);
-    } else
-#endif
-    {
-    /* Original300114..30011868 attack-start dispatch. TC ID groups and
-     * zero-delay immediate animation are independent of parser flags. */
-    {
-        int w = pm->ps->weapon;
-        int fireDelay = 0;
-        int fireAnim = (pm->ps->eFlags & EF_PRONE) ? ANIM_ET_FIREWEAPONPRONE : ANIM_ET_FIREWEAPON;
-        /* Grenade delay is read at its original post-animation point. */
-        if (w != 4 && w != 9 && w != 15 && w != 30)
-            fireDelay = w >= 0 && w < TCE_WEAPON_CAPACITY
-                ? weaponDef[w].fireDelayTime : GetAmmoTableData(w)->fireDelayTime;
-        switch (w) {
-        case 1:
-            if (!delayedFire)
-                BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo, fireAnim, qfalse, qfalse);
-            break;
-        case 2: case 5: case 6: case 7: case 13: case 14: case 23: case 24:
-        case 25: case 32: case 37: case 38: case 39: case 40: case 46: case 47:
-        case 51: case 52: case 53: case 54: case 55: case 56: case 57: case 58:
-            if (weaponstateFiring || !fireDelay) {
-                if (akimboFire)
-                    fireAnim = (pm->ps->eFlags & EF_PRONE) ? ANIM_ET_FIREWEAPON2PRONE : ANIM_ET_FIREWEAPON2;
-                BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo, fireAnim, qfalse, qtrue);
-            } else pm->ps->weaponDelay = fireDelay;
-            break;
-        case 3: case 8: case 10: case 19: case 21: case 22: case 31: case 33:
-        case 36: case 41: case 42: case 43: case 44: case 45: case 59: case 62:
-            if (weaponstateFiring || !fireDelay)
-                BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo, fireAnim, qtrue, qtrue);
-            else pm->ps->weaponDelay = fireDelay;
-            break;
-        case 4: case 9: case 15: case 30:
-            if (!delayedFire) {
-                if (PM_WeaponAmmoAvailable(w)) {
-                    if (pm->ps->weapon == 15) pm->ps->grenadeTimeLeft = 50;
-                    else {
-#if defined(_MSC_VER) && defined(_M_IX86)
-                        int primeInterval = weaponDef[pm->ps->weapon].grenadeTimer;
-                        int *primeTimer = &pm->ps->grenadeTimeLeft;
-                        __asm {
-                            mov eax, primeInterval
-                            add eax, 500
-                            mov ecx, primeTimer
-                            mov dword ptr [ecx], eax
-                        }
-#else
-                        pm->ps->grenadeTimeLeft = (int)((unsigned int)weaponDef[pm->ps->weapon].grenadeTimer + 500u);
-#endif
-                        PM_AddEvent(EV_TCE_GRENADE_PRIME);
-                    }
-                    PM_StartWeaponAnim(TCE_PM_AttackAnimForWeapon(pm->ps->weapon));
-                }
-                /* Original reloads this field after prime/event/animation. */
-                pm->ps->weaponDelay = weaponDef[pm->ps->weapon].fireDelayTime;
-            }
-            break;
-        case 26:
-            if (!delayedFire) {
-                if (PM_WeaponAmmoAvailable(w))
-                    BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo,
-                        (pm->ps->eFlags & EF_PRONE) ? ANIM_ET_FIREWEAPON2PRONE : ANIM_ET_FIREWEAPON,
-                        qfalse, qtrue);
-                pm->ps->weaponDelay = 50;
-            }
-            break;
-        case 27: case 29:
-            if (!delayedFire) {
-                if (PM_WeaponAmmoAvailable(w)) PM_StartWeaponAnim(TCE_PM_AttackAnimForWeapon(w));
-                pm->ps->weaponDelay = w == 27 ? 50 : 100;
-            }
-            break;
-        case 28:
-            if (!weaponstateFiring) {
-                PM_AddEvent(EV_SPINUP);
-                pm->ps->weaponDelay = 722;
-                PM_ContinueWeaponAnim(TCE_PM_AttackAnimForWeapon(w));
-            } else BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo, fireAnim, qfalse, qtrue);
-            break;
-        case 60:
-            if (!weaponstateFiring) {
-                PM_AddEvent(EV_SPINUP);
-                PM_StartWeaponAnim(TCE_PM_AttackAnimForWeapon(w));
-                pm->ps->weaponDelay = 0;
-            } else BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo, fireAnim, qfalse, qtrue);
-            break;
-        default:
-            if (weaponstateFiring || !fireDelay)
-                BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo, fireAnim, qfalse, qtrue);
-            else pm->ps->weaponDelay = fireDelay;
-            break;
-        }
-    }
-
-	pm->ps->weaponstate = WEAPON_FIRING;
-    }
-
-	// Gordon: reset player disguise on firing
-//	if( pm->ps->weapon != WP_SMOKE_BOMB && pm->ps->weapon != WP_SATCHEL && pm->ps->weapon != WP_SATCHEL_DET ) {	// Arnout: not for these weapons
-//		pm->ps->powerups[PW_OPS_DISGUISED] = 0;
-//	}
-
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
-    if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS) {
-        if (PM_TCEAmmoConsume839()) return;
-    } else
-#endif
-    {
-    /* Original30011868..30011a4d: TC uses/clip eligibility. The old SDK
-     * autoreload macro aliases several TC pistols and scoped weapons. */
-    ammoNeeded = pm->ps->weapon >= 0 && pm->ps->weapon < TCE_WEAPON_CAPACITY
-        ? weaponDef[pm->ps->weapon].uses : GetAmmoTableData(pm->ps->weapon)->uses;
-    if (pm->ps->weapon && ammoNeeded > PM_WeaponAmmoAvailable(pm->ps->weapon)) {
-        qboolean reloading = ammoNeeded <= pm->ps->ammo[BG_FindAmmoForWeapon(pm->ps->weapon)];
-        qboolean autoReloadWeapon = qfalse;
-        qboolean playSound = qtrue;
-        switch (pm->ps->weapon) {
-        case 2: case 3: case 5: case 6: case 7: case 8: case 10: case 13: case 14:
-        case 23: case 24: case 25: case 31: case 32: case 33: case 37: case 39:
-        case 40: case 41: case 42: case 43: case 44: case 45: case 46: case 47:
-        case 48: case 49: case 50: case 51: case 52: case 57: case 58: case 59:
-            autoReloadWeapon = qtrue;
-            break;
-        default:
-            break;
-        }
-        if (!pm->pmext->bAutoReload && autoReloadWeapon && !(pm->cmd.wbuttons & WBUTTON_RELOAD))
-            reloading = qfalse;
-        switch (pm->ps->weapon) {
-        case 4: case 9: case 15: case 26: case 29: case 30:
-            playSound = qfalse;
-            break;
-        case 57: case 58: case 59:
-            reloading = qfalse;
-            break;
-        default:
-            break;
-        }
-        if (playSound) PM_AddEvent(reloading ? EV_EMPTYCLIP : EV_NOAMMO);
-        PM_ContinueWeaponAnim(reloading ? WEAP_IDLE2 : TCE_PM_IdleAnimForWeapon(pm->ps->weapon));
-        PM_WeaponAddTime(500);
-        if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_WEAPON_CAPACITY &&
-            weaponDef[pm->ps->weapon].singleReload)
-            pm->ps->stats[STAT_TCE_WEAPON_FLAGS] |= 0x800;
-        return;
-    }
-
-	if(pm->ps->weaponDelay > 0)
-		// if it hits here, the 'fire' has just been hit and the weapon dictated a delay.
-		// animations have been started, weaponstate has been set, but no weapon events yet. (except possibly EV_NOAMMO)
-		// checks for delayed weapons that have already been fired are return'ed above.
-		return;
-
-    /* Original TC slick-surface kick uses31/65/66, not SDK5/6 aliases. */
-    if (!(pm->ps->eFlags & EF_PRONE) && (pml.groundTrace.surfaceFlags & SURF_SLICK)) {
-        float strength = pm->ps->weapon == 31 ? 400.0f :
-            (pm->ps->weapon == 65 ? 32000.0f : (pm->ps->weapon == 66 ? 2000.0f : 0.0f));
-        if (strength > 0.0f) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-            const float slickFactor = 0.005f, slickReverse = -1.0f, slickZero = 0.0f;
-            const float *slickForward = pml.forward;
-            float *slickVelocity = pm->ps->velocity;
-            float slickScale, slickY, slickZ;
-            __asm {
-                mov ecx, slickVelocity
-                mov edx, slickForward
-                fld strength
-                fld dword ptr [edx+8]
-                fmul dword ptr [ecx+8]
-                fld dword ptr [edx+4]
-                fmul dword ptr [ecx+4]
-                faddp st(1), st(0)
-                fld dword ptr [edx]
-                fmul dword ptr [ecx]
-                faddp st(1), st(0)
-                fcomp slickZero
-                fmul slickFactor
-                fnstsw ax
-                fmul slickReverse
-                test ah, 41h
-                fst slickScale
-                fmul dword ptr [edx]
-                fld slickScale
-                fmul dword ptr [edx+4]
-                fstp slickY
-                fld slickScale
-                fmul dword ptr [edx+8]
-                fstp slickZ
-                fadd dword ptr [ecx]
-                fstp dword ptr [ecx]
-                fld slickY
-                fadd dword ptr [ecx+4]
-                fstp dword ptr [ecx+4]
-                fld slickZ
-                fadd dword ptr [ecx+8]
-                fstp dword ptr [ecx+8]
-            }
-#else
-            double scale = (double)strength * (double)0.005f * -1.0;
-            int i;
-            for (i = 0; i < 3; ++i)
-                pm->ps->velocity[i] = (float)((double)pm->ps->velocity[i] + scale * pml.forward[i]);
-#endif
-            if (!pm->ps->pm_time) {
-                pm->ps->pm_time = 100;
-                pm->ps->pm_flags |= PMF_TIME_KNOCKBACK;
-            }
-        }
-    }
-
-	// take an ammo away if not infinite
-	if(PM_WeaponAmmoAvailable(pm->ps->weapon) != -1 ) {
-		// Rafael - check for being mounted on mg42
-		if (!(pm->ps->persistant[PERS_HWEAPON_USE]) && !(pm->ps->eFlags & EF_MOUNTEDTANK)) {
-			PM_WeaponUseAmmo(pm->ps->weapon, ammoNeeded);
-		}
-	}
-    }
-
-
-
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
-    if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS) {
-        weapattackanim = PM_TCEFireEvents840(akimboFire);
-    } else
-#endif
-    {
-    /* PM_Weapon3000fc80, original30011b..30011e: attack animation and
-     * shot events use TC IDs, independently of the selected gear parser. */
-    if (BG_IsAkimboWeapon(pm->ps->weapon)) {
-        weapattackanim = akimboFire ? WEAP_ATTACK1 : WEAP_ATTACK2;
-    } else {
-        weapattackanim = PM_WeaponClipEmpty(pm->ps->weapon)
-            ? TCE_PM_LastAttackAnimForWeapon(pm->ps->weapon)
-            : TCE_PM_AttackAnimForWeapon(pm->ps->weapon);
-    }
-    switch (pm->ps->weapon) {
-    case 3: case 8: case 10: case 19: case 21: case 22: case 28:
-    case 31: case 36: case 41: case 42: case 43: case 44: case 45: case 62:
-        PM_ContinueWeaponAnim(weapattackanim);
-        break;
-    case 4: case 9: case 30:
-        PM_StartWeaponAnim(WEAP_ATTACK2);
-        break;
-    case 60:
-        break;
-    default:
-        PM_StartWeaponAnim(weapattackanim);
-        break;
-    }
-
-    if (pm->ps->weapon == 65 || pm->ps->weapon == 22 ||
-        pm->ps->weapon == 26 || pm->ps->weapon == 27) {
-        PM_AddEvent(EV_NOAMMO);
-    }
-    if (pm->ps->weapon == 27) {
-        pm->ps->ammoclip[28] = 1;
-        pm->ps->ammo[27] = 0;
-        pm->ps->ammoclip[27] = 0;
-        PM_BeginWeaponChange(27, 28, qfalse);
-    }
-    if ((pm->ps->weapon == 55 || pm->ps->weapon == 56) &&
-        !pm->ps->ammo[BG_FindAmmoForWeapon(pm->ps->weapon)]) {
-        PM_AddEvent(EV_NOAMMO);
-    }
-    if (pm->ps->weapon == 60 && !pm->ps->ammo[35]) {
-        PM_AddEvent(EV_NOAMMO);
-    }
-
-    if (BG_IsAkimboWeapon(pm->ps->weapon)) {
-        PM_AddEvent(akimboFire ? EV_FIRE_WEAPON : EV_FIRE_WEAPONB);
-    } else {
-        /* Original pump/firemode eventParm=1 is consumed by the TC client.
-         * Keep the existing 64-slot data boundary explicit for residual65/66. */
-        if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_WEAPON_CAPACITY &&
-            weaponDef[pm->ps->weapon].pump && pm->ps->persistant[10] > 0 &&
-            BG_FiremodeWeapon(pm->ps->weapon)) {
-            int fireEvent = PM_WeaponClipEmpty(pm->ps->weapon)
-                ? EV_FIRE_WEAPON_LASTSHOT : EV_FIRE_WEAPON;
-            PM_AddEventExt(fireEvent, 1);
-        } else {
-            int fireEvent = PM_WeaponClipEmpty(pm->ps->weapon)
-                ? EV_FIRE_WEAPON_LASTSHOT : EV_FIRE_WEAPON;
-            PM_AddEvent(fireEvent);
-        }
-    }
-
-	// RF
-// rain - moved releasedFire into pmext instead of ps
-	pm->pmext->releasedFire = qfalse;
-	pm->ps->lastFireTime = pm->cmd.serverTime;
-    }
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
-    if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS) {
-        int cadenceResult841[3];
-        PM_TCECadenceRecoil841(akimboFire, weapattackanim, cadenceResult841);
-        shotSeed = cadenceResult841[0];
-        addTime = cadenceResult841[1];
-        aimSpreadScaleAdd = cadenceResult841[2];
-    } else
-#endif
-    {
-    /* Original30011e1b: the masked local seed is retained across cadence
-     * and passed to recoil, independently of later player-state reads. */
-    shotSeed = pm->ps->stats[STAT_TCE_SHOT_SEED];
-    Q_rand(&shotSeed);
-    shotSeed &= 65535;
-    pm->ps->stats[STAT_TCE_SHOT_SEED] = shotSeed;
-
-    /* Original30011e5a..30012130 cadence/spread switch for supported0..63.
-     * TC IDs deliberately do not use the SDK weapon enum aliases. */
-    aimSpreadScaleAdd = 0;
-    switch (pm->ps->weapon) {
-    case 1: case 4: case 9: case 15: case 26: case 29: case 30:
-    case 55: case 56: case 60:
-        addTime = weaponDef[pm->ps->weapon].nextShotTime; break;
-    case 2: case 5: case 6: case 13: case 14: case 23: case 24: case 25:
-    case 32: case 33: case 39: case 40: case 41: case 42: case 43: case 44:
-    case 45: case 46: case 47: case 48: case 49: case 50: case 51:
-        if (weaponDef[pm->ps->weapon].pump) pm->ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~0x800;
-        aimSpreadScaleAdd = 35;
-        addTime = weaponDef[pm->ps->weapon].nextShotTime; break;
-    case 3: case 8: case 10:
-        addTime = weaponDef[pm->ps->weapon].nextShotTime;
-        aimSpreadScaleAdd = 15 + rand()%10; break;
-    case 7: case 52:
-        aimSpreadScaleAdd = 20;
-        addTime = weaponDef[pm->ps->weapon].nextShotTime; break;
-    /* Original legacy cadence column300968cc; proven read-only table. */
-    case 11: case 12: addTime = 1000; break;
-    case 36: addTime = 1600; break;
-    case 61: addTime = 0; break;
-    case 19: case 22: addTime = 1000; break;
-    case 21: addTime = 50; break;
-    case 31: case 62:
-        addTime = weapattackanim == WEAP_ATTACK_LASTSHOT ? 2000 : (pm->ps->weapon == 31 ? 50 : 0);
-        aimSpreadScaleAdd = 20; break;
-    case 37: case 53: case 38: case 54: {
-        qboolean cadenceDouble = qfalse;
-        addTime = weaponDef[pm->ps->weapon].nextShotTime;
-        if (!pm->ps->ammoclip[BG_FindClipForWeapon(pm->ps->weapon)]) {
-            if (!akimboFire) cadenceDouble = qtrue;
-        } else if (!pm->ps->ammoclip[BG_FindClipForWeapon(BG_AkimboSidearm(pm->ps->weapon))]) {
-            if (akimboFire) cadenceDouble = qtrue;
-        }
-        if (cadenceDouble) {
-            /* Original reload after clip/sidearm calls, then SHL32. */
-            addTime = weaponDef[pm->ps->weapon].nextShotTime;
-#if defined(_MSC_VER) && defined(_M_IX86)
-            __asm {
-                mov eax, addTime
-                shl eax, 1
-                mov addTime, eax
-            }
-#else
-            addTime = (int)((unsigned int)addTime << 1);
-#endif
-        }
-        aimSpreadScaleAdd = (pm->ps->weapon == 37 || pm->ps->weapon == 53) ? 20 : 35;
-        break;
-    }
-    case 57: case 58:
-        aimSpreadScaleAdd = 200; addTime = weaponDef[pm->ps->weapon].nextShotTime; break;
-    case 59:
-        aimSpreadScaleAdd = 100; addTime = weaponDef[pm->ps->weapon].nextShotTime; break;
-    default: break;
-    }
-
-	// set weapon recoil
-	pm->pmext->lastRecoilDeltaTime = 0;
-
-	switch( pm->ps->weapon ) {
-	case 57:
-	case 58:
-		pm->pmext->weapRecoilTime = pm->cmd.serverTime;
-		pm->pmext->weapRecoilDuration = 300;
-		PM_WeaponRandomYaw(&pm->pmext->weapRecoilYaw, 0.5);
-
-		if( pm->skill[SK_MILITARY_INTELLIGENCE_AND_SCOPED_WEAPONS] >= 3 ) {
-			pm->pmext->weapRecoilPitch = .25f;
-		} else {
-			pm->pmext->weapRecoilPitch = .5f;
-		}
-		break;
-	case 31:
-		pm->pmext->weapRecoilTime = pm->cmd.serverTime;
-		pm->pmext->weapRecoilDuration = 200;
-		if( pm->ps->pm_flags & PMF_DUCKED || pm->ps->eFlags & EF_PRONE ) {
-			PM_WeaponRandomYaw(&pm->pmext->weapRecoilYaw, 0.5);
-			PM_WeaponRandomPitch(&pm->pmext->weapRecoilPitch, 0.06750000268220901f);
-		} else {
-			PM_WeaponRandomYaw(&pm->pmext->weapRecoilYaw, 0.25);
-			PM_WeaponRandomPitch(&pm->pmext->weapRecoilPitch, 0.15000000596046448f);
-		}
-		break;
-	/*case WP_MOBILE_MG42_SET:
-		pm->pmext->weapRecoilTime = 0;
-		pm->pmext->weapRecoilYaw = 0.f;
-		break;*/
-	case 59:
-		pm->pmext->weapRecoilTime = pm->cmd.serverTime;
-		pm->pmext->weapRecoilDuration = 100;
-		pm->pmext->weapRecoilYaw = 0.f;
-		PM_WeaponRandomPitch(&pm->pmext->weapRecoilPitch, 0.06750000268220901f);
-
-		if( pm->skill[SK_MILITARY_INTELLIGENCE_AND_SCOPED_WEAPONS] >= 3 ) {
-			pm->pmext->weapRecoilPitch *= .5f;
-		}
-		break;
-	case 2:
-	case 14:
-	case 38:
-	case 54:
-	case 7:
-	case 39:
-	case 40:
-	case 52:
-	case 37:
-	case 53:
-		pm->pmext->weapRecoilTime = pm->cmd.serverTime;
-		pm->pmext->weapRecoilDuration = pm->skill[SK_LIGHT_WEAPONS] >= 3 ? 70 : 100;
-		pm->pmext->weapRecoilYaw = 0.f;//crandom() * .1f;
-		PM_WeaponRandomPitch(&pm->pmext->weapRecoilPitch,
-            pm->skill[SK_LIGHT_WEAPONS] >= 3 ? 0.03750000149011612f : 0.06750000268220901f);
-		break;
-	default:
-		pm->pmext->weapRecoilTime = 0;
-		pm->pmext->weapRecoilYaw = 0.f;
-		break;
-	}
-
-    }
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
-    if (pm->ps->weapon < 0 || pm->ps->weapon >= TCE_MAX_WEAPONS)
-#endif
-    {
-    /* Original300124xx: multiplier30092538 is the double constant3.0.
-     * No SDK overheat tail or covert-ops spread-halving exists here. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-    {
-        static const double shotSpreadMultiplier = 3.0;
-        static const float shotSpreadLimit = 255.0f;
-        float *shotSpreadFloat = &pm->ps->aimSpreadScaleFloat;
-        int *shotSpreadInteger = &pm->ps->aimSpreadScale;
-        unsigned short shotSpreadSavedCW, shotSpreadTruncateCW;
-        __int64 shotSpreadConverted;
-        __asm {
-            fild aimSpreadScaleAdd
-            fmul shotSpreadMultiplier
-            mov ecx, shotSpreadFloat
-            fadd dword ptr [ecx]
-            fstp dword ptr [ecx]
-            fld dword ptr [ecx]
-            fcomp shotSpreadLimit
-            fnstsw ax
-            test ah, 41h
-            jnz shot_spread_unclamped
-            mov dword ptr [ecx], 437f0000h
-shot_spread_unclamped:
-            fld dword ptr [ecx]
-            fwait
-            fnstcw shotSpreadSavedCW
-            fwait
-            mov ax, shotSpreadSavedCW
-            or ah, 0ch
-            mov shotSpreadTruncateCW, ax
-            fldcw shotSpreadTruncateCW
-            fistp qword ptr shotSpreadConverted
-            fldcw shotSpreadSavedCW
-            mov eax, dword ptr shotSpreadConverted
-            mov ecx, shotSpreadInteger
-            mov dword ptr [ecx], eax
-        }
-    }
-#else
-    pm->ps->aimSpreadScaleFloat = (float)((double)pm->ps->aimSpreadScaleFloat + 3.0 * aimSpreadScaleAdd);
-    if (pm->ps->aimSpreadScaleFloat > 255.0f) pm->ps->aimSpreadScaleFloat = 255.0f;
-    pm->ps->aimSpreadScale = (int)pm->ps->aimSpreadScaleFloat;
-#endif
-
-    }
-    /* Original complete common tail applies to every supported weapon,
-     * with tactical definition118 versus hip114 recoil and shared snapshots. */
-    if (pm->ps->weapon >= 0 && pm->ps->weapon < TCE_MAX_WEAPONS) {
-#if !(defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL))
-        pm->ps->holdable[0] = pm->ps->stats[STAT_TCE_MOVEMENT_INSTABILITY];
-        pm->ps->holdable[1] = pm->ps->stats[STAT_TCE_SHOT_INSTABILITY];
-#endif
-        PM_TCEShotRecoil(addTime, (unsigned int)shotSeed, aimSpreadScaleAdd);
-    }
-#if defined(_MSC_VER) && defined(_M_IX86)
-    {
-        int *cadenceTimer = &pm->ps->weaponTime;
-        __asm {
-            mov eax, cadenceTimer
-            mov ecx, addTime
-            add dword ptr [eax], ecx
-        }
-    }
-#else
-    pm->ps->weaponTime = (int)((unsigned int)pm->ps->weaponTime + (unsigned int)addTime);
-#endif
-
-	PM_SwitchIfEmpty();
+    PM_TCEFireWeapon(delayedFire, akimboFire);
 }
 
 
@@ -16608,6 +14712,19 @@ static qboolean PM_ClimbSlideMove(int unused, const vec3_t normal, qboolean wasC
 }
 #endif
 
+/* Preserve the TC bot identity0x800 used by weapon logic. Only a trusted
+ * server-local navigation command bypasses its original free-climb ban;
+ * every clearance, surface, stamina and movement gate remains unchanged. */
+#if !defined(_MSC_VER) || !defined(_M_IX86)
+static qboolean PM_FreeClimbActorAllowed(void) {
+ if(!(pm->ps->stats[STAT_TCE_FLAGS]&0x800))return qtrue;
+#ifdef GAMEDLL
+ return pm->tceBotFreeClimb;
+#else
+ return qfalse;
+#endif
+}
+#endif
 /* TC qagame20033480: original control flow; undefined freeClimb remains a documented boundary. */
 #if defined(_MSC_VER) && defined(_M_IX86)
 /* TC qagame832: native offsets and original Windows x87 instruction order. */
@@ -16662,7 +14779,7 @@ enum {
     move832Material = offsetof(pml_t,tceLadderSurfaceFlags)
 };
 #ifdef GAMEDLL
-enum { move832Leadership = offsetof(pmove_t,leadership) };
+enum { move832Leadership = offsetof(pmove_t,leadership),move832FreeClimbPermission=offsetof(pmove_t,tceBotFreeClimb) };
 #endif
 typedef char move832TraceLayout[(sizeof(trace_t)==56 && offsetof(trace_t,fraction)==8 && offsetof(trace_t,plane)==24 && offsetof(trace_t,surfaceFlags)==44 && offsetof(trace_t,contents)==48 && offsetof(trace_t,entityNum)==52) ? 1 : -1];
 typedef char move832Protocol[(offsetof(pmove_t,ps)==0 && SK_BATTLE_SENSE==0 && offsetof(cplane_t,normal)==0 && PMF_LADDER==4 && PMF_DUCKED==1 && EF_PRONE==0x80000 && EF_PRONE_MOVING==0x100000 && EV_FOOTSTEP==1 && ANIM_ET_CLIMB_MOUNT==9 && ANIM_ET_CLIMB_DISMOUNT==10 && sizeof(tce_weaponDef_t)==460) ? 1 : -1];
@@ -16836,7 +14953,14 @@ move832_200336bd:
         je move832_2003374b
         mov eax, dword ptr [edx+move832TcFlags]
         test ah, 8
-        jne move832_2003374b
+        je move832_nav_free_actor_allowed
+#ifdef GAMEDLL
+        mov eax, dword ptr [pm]
+        cmp dword ptr [eax+move832FreeClimbPermission], 0
+        jne move832_nav_free_actor_allowed
+#endif
+        jmp move832_2003374b
+move832_nav_free_actor_allowed:
         test ebx, 0x40000
         jne move832_2003374b
         test dword ptr [esp + 0x68], 0x6000000
@@ -17086,7 +15210,7 @@ void PM_CheckLadderMove(void) {
     if (trace.fraction < 1.f && (trace.surfaceFlags & SURF_LADDER)) {
         if (pml.walking || pm->ps->velocity[2] >= -400.f) pml.ladder = qtrue;
     } else if (trace.fraction * tracedist < 1.f &&
-               !(pm->ps->stats[STAT_TCE_FLAGS] & 0x800) &&
+               PM_FreeClimbActorAllowed() &&
                !(trace.surfaceFlags & 0x40000) && !(trace.contents & 0x6000000) &&
                trace.entityNum == ENTITYNUM_WORLD && fabs(trace.plane.normal[2]) < 0.001 &&
                PM_ClimbSlideMove(1, trace.plane.normal, wasClimbing)) {

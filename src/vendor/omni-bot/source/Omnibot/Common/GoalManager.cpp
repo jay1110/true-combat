@@ -581,6 +581,8 @@ void GoalManager::InitGameGoals()
 void GoalManager::Reset()
 {
 	m_MapGoalList.clear();
+	m_LoadedMapGoals = gmGCRoot<gmTableObject>();
+	_SetActiveGoal(MapGoalPtr());
 }
 
 void GoalManager::InitCommands()
@@ -858,7 +860,8 @@ const char *MapGoalTable = "_MG";
 
 bool GoalManager::Save(const String &_map, ErrorObj &_err)
 {
-	const String filePath	= (m_NavDir.empty() ? String("nav/") : m_NavDir + "/") + String(g_EngineFuncs->GetMapName()) + "_goals.gm";
+	const String stem = IGameManager::GetInstance()->GetGame()->GetGoalScriptStem(true);
+	const String filePath	= (m_NavDir.empty() ? String("nav/") : m_NavDir + "/") + stem + "_goals.gm";
 
 	gmMachine *pMachine = ScriptManager::GetInstance()->GetMachine();
 	
@@ -919,7 +922,14 @@ bool GoalManager::Load(const String &_map, ErrorObj &_err)
 	bool LoadedOk = true;
 	m_NavDir = "";
 
-	filePath script( "nav/%s_goals.gm", _map.c_str() );
+	const String stem = _map == g_EngineFuncs->GetMapName() ?
+		IGameManager::GetInstance()->GetGame()->GetGoalScriptStem(false) : _map;
+	if (stem.empty()) {
+		m_LoadedMapGoals = gmGCRoot<gmTableObject>();
+		_err.AddError("Incomplete gametype navigation pair; goals not loaded.");
+		return false;
+	}
+	filePath script( "nav/%s_goals.gm", stem.c_str() );
 
 	int ThreadId = GM_INVALID_THREAD;
 	pMachine->GetGlobals()->Set(pMachine,MapGoalTable,gmVariable::s_null);

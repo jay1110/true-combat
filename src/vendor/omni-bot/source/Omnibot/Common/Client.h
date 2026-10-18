@@ -210,6 +210,16 @@ public:
 	inline bool IsDebugEnabled(obint32 _flag) const		{ return m_DebugFlags.CheckFlag(_flag); }
 
 	void CheckStuck();
+	// Generated TC navigation validates centre-to-centre walks. Runtime entry
+	// points and corner cuts must honour the same player hull, not visibility.
+	virtual bool UseValidatedWalkEntries() const { return false; }
+	virtual bool GetNavigationHull(AABB &_bounds, NavFlags _flags) const;
+	bool CanWalkTo(const Vector3f &_destination, NavFlags _flags = 0) const;
+	// A script's final Goto radius is a destination volume, which can be
+	// centred on an item rather than a player origin. Return only an actually
+	// supported actor position inside that volume; ordinary anchors stay exact.
+	bool ResolveWalkDestination(const Vector3f &_destination, float _radius,
+		NavFlags _flags, Vector3f &_supported) const;
 	inline int GetStuckTime() const { return m_StuckTime; }
 	inline void ResetStuckTime() { m_StuckTime = 0; }
 
@@ -280,6 +290,8 @@ public:
 	int		m_PreviousGoalTime;
 
 protected:
+	bool TraceWalkTo(const Vector3f &_destination, NavFlags _flags,
+		float _arrivalRadius, Vector3f *_supported) const;
 
 	float			m_StepHeight;
 	float			m_MaxSpeed;

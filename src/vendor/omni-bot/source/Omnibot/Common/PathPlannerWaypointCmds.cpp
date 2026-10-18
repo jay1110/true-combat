@@ -7,6 +7,7 @@
 #include "IGame.h"
 #include "Client.h"
 #include "ScriptManager.h"
+#include "NavStudioAdapter.h"
 
 using namespace std;
 
@@ -16,6 +17,11 @@ extern float g_fTopWaypointOffset;
 void PathPlannerWaypoint::InitCommands()
 {
 	PathPlannerBase::InitCommands();
+
+    SetEx("navstudio_snapshot", "Export original ET engine entities for NavStudio",
+        this, &PathPlannerWaypoint::cmdNavStudioSnapshot);
+    SetEx("navstudio_import", "Check staged NavStudio candidate using original ET engine traces",
+        this, &PathPlannerWaypoint::cmdNavStudioImport);
 
 	SetEx("waypoint_add", "Adds a waypoint at the current position", 
 		this, &PathPlannerWaypoint::cmdWaypointAdd);
@@ -119,6 +125,16 @@ void PathPlannerWaypoint::InitCommands()
 		this, &PathPlannerWaypoint::cmdWaypointImport);
 	SetEx("waypoint_export", "Save waypoints to a text file", 
 		this, &PathPlannerWaypoint::cmdWaypointExport);
+}
+
+void PathPlannerWaypoint::cmdNavStudioSnapshot(const StringVector &args)
+{
+    NavStudioAdapter::Snapshot(args);
+}
+
+void PathPlannerWaypoint::cmdNavStudioImport(const StringVector &args)
+{
+    NavStudioAdapter::Import(args);
 }
 
 void PathPlannerWaypoint::cmdWaypointAdd(const StringVector &_args)

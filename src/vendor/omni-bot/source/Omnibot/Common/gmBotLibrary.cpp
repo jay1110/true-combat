@@ -1689,7 +1689,14 @@ static int gmfGetEntityAABB(gmThread *a_thread)
 	GM_CHECK_GAMEENTITY_FROM_PARAM(gameEnt, 0);
 	OBASSERT(gameEnt.IsValid(), "Bad Entity");
 
-	GM_GMBIND_PARAM(AABB*, gmAABB, aabb, 1, NULL);
+	// ParamType reads the raw VM stack, including slots beyond the actual
+	// arguments. Never mistake a previous native AABB for this optional out.
+	AABB *aabb = NULL;
+	if(a_thread->GetNumParams() > 1)
+	{
+		GM_GMBIND_PARAM(AABB*, gmAABB, supplied, 1, NULL);
+		aabb = supplied;
+	}
 
 	AABB worldaabb;
 	if(gameEnt.IsValid() && EngineFuncs::EntityWorldAABB(gameEnt, worldaabb))

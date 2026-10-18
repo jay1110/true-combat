@@ -51,8 +51,6 @@ enum {
     TraceLoadFloor = offsetof(tracemap_t, groundfloor),
     TraceLoadCeil = offsetof(tracemap_t, groundceil)
 };
-static const float traceQueryMaxHeight = 65536.0f;
-static const float traceQueryMinHeight = -65536.0f;
 static const float traceLoadZero = 0.0f, traceLoadOne = 1.0f;
 static const float traceLoadScale = 254.0f, traceLoadInverseSize = 0.00390625f;
 static const char traceLoadPath[] = "maps/%s_tracemap.tga";
@@ -1431,56 +1429,56 @@ qboolean BG_LoadTraceMap( char *rawmapname, vec2_t world_mins, vec2_t world_maxs
 
 #endif
 
-#if (defined(CGAMEDLL) || defined(GAMEDLL)) && defined(_MSC_VER) && defined(_M_IX86)
-static __declspec(naked) void BG_ClampPointToTracemapExtends(vec3_t point, vec2_t clampedPoint) {
-    __asm {
-        MOV EDX,dword ptr [ESP + 0x4]
-        FLD dword ptr [EDX]
-        FCOMP dword ptr [tracemap + TraceQueryMinX]
-        FNSTSW AX
-        TEST AH,0x1
-        JZ tq_30016c01
-        FLD dword ptr [tracemap + TraceQueryMinX]
-        MOV ECX,dword ptr [ESP + 0x8]
-        FSTP dword ptr [ECX]
-        JMP tq_30016c26
-tq_30016c01:
-        FLD dword ptr [EDX]
-        FCOMP dword ptr [tracemap + TraceQueryMaxX]
-        FNSTSW AX
-        TEST AH,0x41
-        JNZ tq_30016c1e
-        FLD dword ptr [tracemap + TraceQueryMaxX]
-        MOV ECX,dword ptr [ESP + 0x8]
-        FSTP dword ptr [ECX]
-        JMP tq_30016c26
-tq_30016c1e:
-        MOV ECX,dword ptr [ESP + 0x8]
-        MOV EAX,dword ptr [EDX]
-        MOV dword ptr [ECX],EAX
-tq_30016c26:
-        FLD dword ptr [EDX + 0x4]
-        FCOMP dword ptr [tracemap + TraceQueryMaxY]
-        FNSTSW AX
-        TEST AH,0x1
-        JZ tq_30016c40
-        MOV EDX,dword ptr [tracemap + TraceQueryMaxY]
-        MOV dword ptr [ECX + 0x4],EDX
-        RET
-tq_30016c40:
-        FLD dword ptr [EDX + 0x4]
-        FCOMP dword ptr [tracemap + TraceQueryMinY]
-        FNSTSW AX
-        TEST AH,0x41
-        JNZ tq_30016c59
-        MOV EAX,dword ptr [tracemap + TraceQueryMinY]
-        MOV dword ptr [ECX + 0x4],EAX
-        RET
-tq_30016c59:
-        MOV EDX,dword ptr [EDX + 0x4]
-        MOV dword ptr [ECX + 0x4],EDX
-        RET
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+static void BG_ClampPointToTracemapExtends(vec3_t point, vec2_t out) {
+    const float *selected;
+    volatile float stored;
+#if !defined(__linux__)
+    unsigned int raw;
+#endif
+#if defined(__linux__)
+    /* ELF compares the bound against the point: unordered reaches upper. */
+    if ((long double)tracemap.world_mins[0] > (long double)point[0]) {
+        selected = &tracemap.world_mins[0];
+    } else if (!((long double)tracemap.world_maxs[0] >= (long double)point[0])) {
+        selected = &tracemap.world_maxs[0];
+    } else {
+        selected = &point[0];
     }
+    stored = (float)(long double)*selected;
+    out[0] = stored;
+    if ((long double)tracemap.world_maxs[1] > (long double)point[1]) {
+        selected = &tracemap.world_maxs[1];
+    } else if (!((long double)tracemap.world_mins[1] >= (long double)point[1])) {
+        selected = &tracemap.world_mins[1];
+    } else {
+        selected = &point[1];
+    }
+    stored = (float)(long double)*selected;
+    out[1] = stored;
+#else
+    /* PE C0 lower gate accepts unordered; upper gate is ordered greater. */
+    if (!((long double)point[0] >= (long double)tracemap.world_mins[0])) {
+        stored = (float)(long double)tracemap.world_mins[0];
+        out[0] = stored;
+    } else if ((long double)point[0] > (long double)tracemap.world_maxs[0]) {
+        stored = (float)(long double)tracemap.world_maxs[0];
+        out[0] = stored;
+    } else {
+        memcpy(&raw, &point[0], sizeof(raw));
+        memcpy(&out[0], &raw, sizeof(raw));
+    }
+    /* Original Y outputs are raw copies; read Y only after writing X. */
+    if (!((long double)point[1] >= (long double)tracemap.world_maxs[1])) {
+        selected = &tracemap.world_maxs[1];
+    } else if ((long double)point[1] > (long double)tracemap.world_mins[1]) {
+        selected = &tracemap.world_mins[1];
+    } else {
+        selected = &point[1];
+    }
+    memcpy(&raw, selected, sizeof(raw));
+    memcpy(&out[1], &raw, sizeof(raw));
+#endif
 }
 #else
 
@@ -1504,49 +1502,33 @@ static void BG_ClampPointToTracemapExtends( vec3_t point, vec2_t out ) {
 
 #endif
 
-#if (defined(CGAMEDLL) || defined(GAMEDLL)) && defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) float BG_GetSkyHeightAtPoint(vec3_t pos) {
-    __asm {
-        MOV EAX,dword ptr [tracemap + TraceQueryLoaded]
-        SUB ESP,0xc
-        TEST EAX,EAX
-        JNZ tq_30016b66
-        FLD dword ptr [traceQueryMaxHeight]
-        ADD ESP,0xc
-        RET
-tq_30016b66:
-        MOV ECX,dword ptr [ESP + 0x10]
-        LEA EAX,[ESP + 0x4]
-        PUSH EAX
-        PUSH ECX
-        CALL BG_ClampPointToTracemapExtends
-        FLD dword ptr [ESP + 0xc]
-        FSUB dword ptr [tracemap + TraceQueryMinX]
-        ADD ESP,0x4
-        FMUL dword ptr [one_over_mapgrid_factor]
-        FSTP dword ptr [ESP]
-        CALL myftol
-        FLD dword ptr [ESP + 0xc]
-        FSUB dword ptr [tracemap + TraceQueryMinY]
-        MOV dword ptr [ESP + 0x4],EAX
-        FMUL dword ptr [one_over_mapgrid_factor + 4]
-        FSTP dword ptr [ESP]
-        CALL myftol
-        MOV dword ptr [ESP + 0x14],EAX
-        LEA EDX,[ESP + 0x14]
-        LEA EAX,[ESP + 0x4]
-        PUSH EDX
-        PUSH EAX
-        CALL etpro_FinalizeTracemapClamp
-        MOV ECX,dword ptr [ESP + 0x1c]
-        MOV EAX,dword ptr [ESP + 0xc]
-        IMUL ECX,TRACEMAP_SIZE
-        ADD ESP,0xc
-        ADD ECX,EAX
-        FLD dword ptr [ECX*0x4 + tracemap + TraceQuerySky]
-        ADD ESP,0xc
-        RET
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+static void BG_TracemapQueryIndices(vec3_t pos, int *x, int *y) {
+    vec2_t point;
+    long double coordinate;
+    volatile float stored;
+    BG_ClampPointToTracemapExtends(pos, point);
+    coordinate = (long double)point[0] - (long double)tracemap.world_mins[0];
+    coordinate = coordinate * (long double)one_over_mapgrid_factor[0];
+    stored = (float)coordinate;
+    *x = (int)myftol(stored);
+    /* The second conversion follows the first call, including its FP effects. */
+    coordinate = (long double)point[1] - (long double)tracemap.world_mins[1];
+    coordinate = coordinate * (long double)one_over_mapgrid_factor[1];
+    stored = (float)coordinate;
+    *y = (int)myftol(stored);
+    etpro_FinalizeTracemapClamp(x, y);
+}
+#endif
+
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+float BG_GetSkyHeightAtPoint(vec3_t pos) {
+    int x, y;
+    if (!tracemap.loaded) {
+        return MAX_WORLD_HEIGHT;
     }
+    BG_TracemapQueryIndices(pos, &x, &y);
+    return tracemap.sky[y][x];
 }
 #else
 
@@ -1578,49 +1560,14 @@ float BG_GetSkyHeightAtPoint( vec3_t pos ) {
 
 #endif
 
-#if defined(CGAMEDLL) && defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) float BG_GetSkyGroundHeightAtPoint(vec3_t pos) {
-    __asm {
-        MOV EAX,dword ptr [tracemap + TraceQueryLoaded]
-        SUB ESP,0xc
-        TEST EAX,EAX
-        JNZ tq_30016c76
-        FLD dword ptr [traceQueryMaxHeight]
-        ADD ESP,0xc
-        RET
-tq_30016c76:
-        MOV ECX,dword ptr [ESP + 0x10]
-        LEA EAX,[ESP + 0x4]
-        PUSH EAX
-        PUSH ECX
-        CALL BG_ClampPointToTracemapExtends
-        FLD dword ptr [ESP + 0xc]
-        FSUB dword ptr [tracemap + TraceQueryMinX]
-        ADD ESP,0x4
-        FMUL dword ptr [one_over_mapgrid_factor]
-        FSTP dword ptr [ESP]
-        CALL myftol
-        FLD dword ptr [ESP + 0xc]
-        FSUB dword ptr [tracemap + TraceQueryMinY]
-        MOV dword ptr [ESP + 0x4],EAX
-        FMUL dword ptr [one_over_mapgrid_factor + 4]
-        FSTP dword ptr [ESP]
-        CALL myftol
-        MOV dword ptr [ESP + 0x14],EAX
-        LEA EDX,[ESP + 0x14]
-        LEA EAX,[ESP + 0x4]
-        PUSH EDX
-        PUSH EAX
-        CALL etpro_FinalizeTracemapClamp
-        MOV ECX,dword ptr [ESP + 0x1c]
-        MOV EAX,dword ptr [ESP + 0xc]
-        IMUL ECX,TRACEMAP_SIZE
-        ADD ESP,0xc
-        ADD ECX,EAX
-        FLD dword ptr [ECX*0x4 + tracemap + TraceQuerySkyGround]
-        ADD ESP,0xc
-        RET
+#if ((defined(CGAMEDLL) && defined(_WIN32)) || defined(__linux__)) && !defined(Q3_VM)
+float BG_GetSkyGroundHeightAtPoint(vec3_t pos) {
+    int x, y;
+    if (!tracemap.loaded) {
+        return MAX_WORLD_HEIGHT;
     }
+    BG_TracemapQueryIndices(pos, &x, &y);
+    return tracemap.skyground[y][x];
 }
 #else
 
@@ -1652,50 +1599,14 @@ float BG_GetSkyGroundHeightAtPoint( vec3_t pos ) {
 
 #endif
 
-#if defined(GAMEDLL) && defined(_MSC_VER) && defined(_M_IX86)
-/* TC qagame 2003e190: retain x87 intermediate precision and original stores. */
-__declspec(naked) float BG_GetGroundHeightAtPoint(vec3_t pos) {
-    __asm {
-        MOV EAX, dword ptr [tracemap + TraceQueryLoaded]
-        SUB ESP, 0Ch
-        TEST EAX, EAX
-        JNZ tq837_ground_loaded
-        FLD dword ptr [traceQueryMinHeight]
-        ADD ESP, 0Ch
-        RET
-    tq837_ground_loaded:
-        MOV ECX, dword ptr [ESP + 10h]
-        LEA EAX, [ESP + 4]
-        PUSH EAX
-        PUSH ECX
-        CALL BG_ClampPointToTracemapExtends
-        FLD dword ptr [ESP + 0Ch]
-        FSUB dword ptr [tracemap + TraceQueryMinX]
-        ADD ESP, 4
-        FMUL dword ptr [one_over_mapgrid_factor]
-        FSTP dword ptr [ESP]
-        CALL myftol
-        FLD dword ptr [ESP + 0Ch]
-        FSUB dword ptr [tracemap + TraceQueryMinY]
-        MOV dword ptr [ESP + 4], EAX
-        FMUL dword ptr [one_over_mapgrid_factor + 4]
-        FSTP dword ptr [ESP]
-        CALL myftol
-        MOV dword ptr [ESP + 14h], EAX
-        LEA EDX, [ESP + 14h]
-        LEA EAX, [ESP + 4]
-        PUSH EDX
-        PUSH EAX
-        CALL etpro_FinalizeTracemapClamp
-        MOV ECX, dword ptr [ESP + 1Ch]
-        MOV EAX, dword ptr [ESP + 0Ch]
-        SHL ECX, 8
-        ADD ESP, 0Ch
-        ADD ECX, EAX
-        FLD dword ptr [tracemap + TraceLoadGround + ECX*4]
-        ADD ESP, 0Ch
-        RET
+#if ((defined(GAMEDLL) && defined(_WIN32)) || defined(__linux__)) && !defined(Q3_VM)
+float BG_GetGroundHeightAtPoint(vec3_t pos) {
+    int x, y;
+    if (!tracemap.loaded) {
+        return MIN_WORLD_HEIGHT;
     }
+    BG_TracemapQueryIndices(pos, &x, &y);
+    return tracemap.ground[y][x];
 }
 #else
 float BG_GetGroundHeightAtPoint( vec3_t pos ) {

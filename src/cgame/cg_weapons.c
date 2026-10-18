@@ -12,6 +12,7 @@
 #include "tce_weapon_offset.h"
 #include "tce_weapon_position.h"
 #include "tce_flash.h"
+#include "../game/tce_numeric.h"
 #include "tce_fragment_sound.h"
 #include "tce_smoke_grenade.h"
 #include "../game/tce_bg.h"
@@ -3570,12 +3571,22 @@ void CG_MortarEFX(centity_t *cent) {
 CG_WeaponFireRecoil
 ==============
 */
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__GNUC__) && defined(__i386__) && defined(__linux__))
+static void CG_TCEWeaponFireRecoil857(int weapon);
+#endif
 void CG_WeaponFireRecoil( int weapon ) {
 //	const	vec3_t maxKickAngles = {25, 30, 25};
 	float	pitchRecoilAdd, pitchAdd;
 	float	yawRandom;
 	vec3_t	recoil;
-    if(gearDef.parsed) { TCE_CG_WeaponFireRecoil(weapon,cg.kickAVel);return; }
+    if(gearDef.parsed) {
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__GNUC__) && defined(__i386__) && defined(__linux__))
+        CG_TCEWeaponFireRecoil857(weapon);
+#else
+        TCE_CG_WeaponFireRecoil(weapon,cg.kickAVel);
+#endif
+        return;
+    }
 	//
 	pitchRecoilAdd = 0;
 	pitchAdd = 0;
@@ -3654,6 +3665,1507 @@ Caused by an EV_FIRE_WEAPON event
 */
 /* Original CG_EliteEffectSound30076de0 / Linux000cd6ee. Both sides of
  * the room transition are retained, including its repeated old-side sound. */
+void CG_EliteEffectSound(centity_t *cent,int volume);
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* Original30088628: consume ST0, retain the low word of signed64 truncation. */
+static __declspec(naked) int CG_TCEFireWarningFtol853(void) {
+    __asm {
+        push ebp
+        mov ebp, esp
+        add esp, -12
+        fwait
+        fnstcw word ptr [ebp-2]
+        fwait
+        mov ax, word ptr [ebp-2]
+        or ah, 0ch
+        mov word ptr [ebp-4], ax
+        fldcw word ptr [ebp-4]
+        fistp qword ptr [ebp-12]
+        fldcw word ptr [ebp-2]
+        mov eax, dword ptr [ebp-12]
+        mov edx, dword ptr [ebp-8]
+        leave
+        ret
+    }
+}
+#endif
+
+/* The grenade callout has no binary32 intermediate between its arithmetic
+ * and conversion. Windows consumes __ftol's low32; Linux uses FISTP32. */
+static int CG_TCEFireWarningVolume853(void) {
+    static const float tceWarningOne=1.0f, tceWarningMaximum=127.0f;
+#if defined(_MSC_VER) && defined(_M_IX86)
+    const float *tceWarningAttenuation=&tceFlash.deafness;
+    int tceWarningAmount;
+    __asm {
+        fld dword ptr tceWarningOne
+        mov ecx, tceWarningAttenuation
+        fsub dword ptr [ecx]
+        fmul dword ptr tceWarningMaximum
+        call CG_TCEFireWarningFtol853
+        mov tceWarningAmount, eax
+    }
+    return tceWarningAmount;
+#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
+    struct {
+        unsigned short savedControl, truncateControl;
+        int converted;
+    } tceWarningState;
+    __asm__ volatile (
+        "flds %3\n\t"
+        "fsubs %4\n\t"
+        "fnstcw %1\n\t"
+        "fmuls %5\n\t"
+        "movzwl %1, %%eax\n\t"
+        "orw $0x0c00, %%ax\n\t"
+        "movw %%ax, %2\n\t"
+        "fldcw %2\n\t"
+        "fistpl %0\n\t"
+        "fldcw %1"
+        : "=m" (tceWarningState.converted),
+          "=m" (tceWarningState.savedControl),
+          "=m" (tceWarningState.truncateControl)
+        : "m" (tceWarningOne), "m" (tceFlash.deafness),
+          "m" (tceWarningMaximum)
+        : "eax", "st", "cc", "memory"
+    );
+    return tceWarningState.converted;
+#else
+    /* Numeric compatibility on other targets; native x87 flags/frame are
+     * only represented above. Avoid undefined out-of-range C conversions. */
+    double tceWarningValue=((double)tceWarningOne-tceFlash.deafness)*tceWarningMaximum;
+#if defined(_WIN32)
+    unsigned int tceWarningBits;
+    int tceWarningAmount;
+    if (!(tceWarningValue>=-9223372036854775808.0 &&
+          tceWarningValue<9223372036854775808.0)) return 0;
+    tceWarningBits=(unsigned int)(long long)tceWarningValue;
+    memcpy(&tceWarningAmount,&tceWarningBits,sizeof(tceWarningAmount));
+    return tceWarningAmount;
+#else
+    if (!(tceWarningValue>=-2147483648.0 &&
+          tceWarningValue<2147483648.0)) return (-2147483647-1);
+    return (int)tceWarningValue;
+#endif
+#endif
+}
+
+/* TC sound attenuation, including the platform-specific range clamp. */
+int CG_SoundVolume(vec3_t origin,float amount,float range,int linear) {
+    long double distance = Distance(origin, cg.refdef.vieworg);
+    long double nearDistance = (long double)range * (linear ? 0.01f : 0.1f);
+    long double gain, result;
+    float deafness;
+
+    if (tceSmokeNewBBox)
+        distance *= 0.8f;
+#if defined(_WIN32)
+    /* The Windows original stores nearDistance as a float before clamping. */
+    nearDistance = (float)nearDistance;
+    if (!(distance >= nearDistance))
+        distance = nearDistance;
+#else
+    if (distance < nearDistance)
+        distance = nearDistance;
+#endif
+    if (linear)
+        gain = nearDistance / distance;
+    else
+        gain = (nearDistance * nearDistance) / (distance * distance);
+    result = (long double)amount * gain;
+
+    deafness = tceFlash.deafness;
+    if (!TCE_FloatIsZeroOrNaN(deafness)) {
+        result *= 1.0L - tceFlash.deafness;
+        if (!(result >= 0.0L))
+            result = 0.0L;
+    }
+    return TCE_TruncateNativeInteger(result);
+}
+
+/* Original CG_FireWeapon platform schedules, connected to the actual
+ * mutable cgame fields and cached media. Extraction frames and direct
+ * sound/vector/reverb dependencies remain separately tracked. */
+enum {
+    f855Time=offsetof(cg_t,time), f855ShotHold=offsetof(cg_t,tceShotHoldUntil),
+    f855Instability=offsetof(cg_t,predictedPlayerState)+offsetof(playerState_t,stats)+STAT_TCE_SHOT_INSTABILITY*4,
+    f855Vertical=offsetof(cg_t,tceSwayVertical), f855Horizontal=offsetof(cg_t,tceSwayHorizontal),
+    f855Refdef=offsetof(cg_t,refdef_current),
+    f855CentNumber=offsetof(centity_t,currentState)+offsetof(entityState_t,number),
+    f855CentWeapon=offsetof(centity_t,currentState)+offsetof(entityState_t,weapon),
+    f855CentOrigin=offsetof(centity_t,currentState)+offsetof(entityState_t,pos)+offsetof(trajectory_t,trBase),
+    f855CentStride=sizeof(centity_t), f855ViewOrigin=offsetof(refdef_t,vieworg),
+    f855DefSuppressed=offsetof(tce_weaponDef_t,suppressed), f855DefSubsonic=offsetof(tce_weaponDef_t,subsonic),
+    f855Reverb=offsetof(tce_weaponInfo_t,flashReverbVolume), f855Echo=offsetof(tce_weaponInfo_t,flashEchoSound)
+};
+#if defined(_MSC_VER) && defined(_M_IX86)
+static const float f855One=1.0f;
+static const float f855Maximum=127.0f;
+static const float f855ReverbScale=0.003921568859368563f;
+static const float f855EchoMinimum=512.0f;
+static const float f855EchoMaximum=4096.0f;
+static const float f855EchoOffset=64.0f;
+static const float f855Half=0.5f;
+static const float f855RandomScale=3.0518509447574615e-05f;
+static const float f855InstabilityScale=0.0010000000474974513f;
+static const float f855WinTwoPi=6.2831854820251465f;
+static const double f855WinAmplitude=1.5;
+static void CG_TCEFireSway855(void) {
+    union { int randomBits;float instability; } tceSwayScratch;
+    __asm {
+        mov edx,dword ptr [cg+f855Time]
+        add edx,100
+        mov dword ptr [cg+f855ShotHold],edx
+        call rand
+        and eax,7fffh
+        mov dword ptr tceSwayScratch,eax
+        fild dword ptr tceSwayScratch
+        fmul dword ptr f855RandomScale
+        fild dword ptr [cg+f855Instability]
+        fmul dword ptr f855InstabilityScale
+        fstp dword ptr tceSwayScratch
+        fmul dword ptr f855WinTwoPi
+        fld st(0)
+        fsin
+        fmul dword ptr tceSwayScratch
+        fmul qword ptr f855WinAmplitude
+        fadd dword ptr [cg+f855Vertical]
+        fstp dword ptr [cg+f855Vertical]
+        fcos
+        fmul dword ptr tceSwayScratch
+        fmul qword ptr f855WinAmplitude
+        fadd dword ptr [cg+f855Horizontal]
+        fstp dword ptr [cg+f855Horizontal]
+    }
+}
+static __declspec(naked) void CG_TCEFireSound855(centity_t *cent,tce_weaponInfo_t *weap,int *sounds) {
+    __asm {
+        push ebp
+        push ebx
+        push esi
+        push edi
+        sub esp,54h
+        mov esi,dword ptr [esp+68h]
+        mov edi,dword ptr [esp+6ch]
+        mov ebx,dword ptr [esp+70h]
+        mov dword ptr [esp+18h],edi
+        lea eax,[edi+f855Echo]
+        mov dword ptr [esp+48h],eax
+        xor ebp,ebp
+    fire855_win_30076ae9:
+        xor edi, edi
+    fire855_win_30076aeb:
+        mov eax, ebx
+    fire855_win_30076aed:
+        cmp dword ptr [eax], ebp
+    fire855_win_30076aef:
+        je fire855_win_30076afa
+    fire855_win_30076af1:
+        inc edi
+    fire855_win_30076af2:
+        add eax, 4
+    fire855_win_30076af5:
+        cmp edi, 4
+    fire855_win_30076af8:
+        jl fire855_win_30076aed
+    fire855_win_30076afa:
+        cmp edi, ebp
+    fire855_win_30076afc:
+        jle fire855_win_finish
+    fire855_win_30076b02:
+        call rand
+    fire855_win_30076b07:
+        cdq
+    fire855_win_30076b08:
+        idiv edi
+    fire855_win_30076b0a:
+        mov ebp, edx
+    fire855_win_30076b0c:
+        cmp dword ptr [ebx + ebp*4], 0
+    fire855_win_30076b10:
+        je fire855_win_finish
+    fire855_win_30076b16:
+        fld dword ptr tceFlash.deafness
+    fire855_win_30076b1c:
+        fcomp dword ptr f855One
+    fire855_win_30076b22:
+        fnstsw ax
+    fire855_win_30076b24:
+        test ah, 0x40
+    fire855_win_30076b27:
+        jne fire855_win_finish
+    fire855_win_30076b2d:
+        mov eax, dword ptr [esi+f855CentNumber]
+        imul eax,eax,f855CentStride
+        lea ecx,[cg_entities+eax]
+    fire855_win_30076b48:
+        mov dword ptr [esp + 0x14], ecx
+    fire855_win_30076b4c:
+        mov ecx, dword ptr [esi+f855CentWeapon]
+    fire855_win_30076b52:
+        lea eax, [ecx + ecx*2]
+    fire855_win_30076b55:
+        shl eax, 3
+    fire855_win_30076b58:
+        sub eax, ecx
+    fire855_win_30076b5a:
+        lea eax, [eax + eax*4]
+    fire855_win_30076b5d:
+        shl eax, 2
+    fire855_win_30076b60:
+        mov ecx, dword ptr [eax+weaponDef+f855DefSuppressed]
+    fire855_win_30076b66:
+        test ecx, ecx
+    fire855_win_30076b68:
+        jne fire855_win_30076b8d
+    fire855_win_30076b6a:
+        mov ecx, dword ptr [eax+weaponDef+f855DefSubsonic]
+    fire855_win_30076b70:
+        test ecx, ecx
+    fire855_win_30076b72:
+        jne fire855_win_30076b8d
+    fire855_win_30076b74:
+        fld dword ptr f855One
+    fire855_win_30076b7a:
+        fsub dword ptr tceFlash.deafness
+    fire855_win_30076b80:
+        fmul dword ptr f855Maximum
+    fire855_win_30076b86:
+        call CG_TCEFireWarningFtol853
+    fire855_win_30076b8b:
+        jmp fire855_win_30076ba9
+    fire855_win_30076b8d:
+        mov edx, dword ptr [esp + 0x14]
+    fire855_win_30076b91:
+        push 0
+    fire855_win_30076b93:
+        push 0x44e10000
+    fire855_win_30076b98:
+        add edx,f855CentOrigin
+    fire855_win_30076b9b:
+        push 0x42fe0000
+    fire855_win_30076ba0:
+        push edx
+    fire855_win_30076ba1:
+        call CG_SoundVolume
+    fire855_win_30076ba6:
+        add esp, 0x10
+    fire855_win_30076ba9:
+        mov ecx, dword ptr [esi+f855CentNumber]
+    fire855_win_30076bab:
+        mov edi, eax
+    fire855_win_30076bad:
+        mov eax, dword ptr [ebx + ebp*4]
+    fire855_win_30076bb0:
+        push edi
+    fire855_win_30076bb1:
+        push 0x10
+    fire855_win_30076bb3:
+        push eax
+    fire855_win_30076bb4:
+        push 2
+    fire855_win_30076bb6:
+        push ecx
+    fire855_win_30076bb7:
+        push 0
+    fire855_win_30076bb9:
+        mov dword ptr [esp + 0x28], edi
+    fire855_win_30076bbd:
+        call trap_S_StartSoundExVControl
+    fire855_win_30076bc2:
+        mov edx, dword ptr [esp + 0x30]
+    fire855_win_30076bc6:
+        add esp, 0x18
+    fire855_win_30076bc9:
+        mov eax, dword ptr [edx+f855Reverb]
+    fire855_win_30076bcf:
+        test eax, eax
+    fire855_win_30076bd1:
+        mov dword ptr [esp + 0x1c], eax
+    fire855_win_30076bd5:
+        je fire855_win_30076bec
+    fire855_win_30076bd7:
+        fild dword ptr [esp + 0x10]
+    fire855_win_30076bdb:
+        fimul dword ptr [esp + 0x1c]
+    fire855_win_30076bdf:
+        fmul dword ptr f855ReverbScale
+    fire855_win_30076be5:
+        call CG_TCEFireWarningFtol853
+    fire855_win_30076bea:
+        jmp fire855_win_30076bee
+    fire855_win_30076bec:
+        mov eax, edi
+    fire855_win_30076bee:
+        mov ebx, dword ptr [esp + 0x14]
+    fire855_win_30076bf2:
+        push eax
+    fire855_win_30076bf3:
+        push ebx
+    fire855_win_30076bf4:
+        call CG_EliteEffectSound
+    fire855_win_30076bf9:
+        mov edi, dword ptr [esp + 0x50]
+    fire855_win_30076bfd:
+        add esp, 8
+    fire855_win_30076c00:
+        test edi, edi
+    fire855_win_30076c02:
+        je fire855_win_finish
+    fire855_win_30076c08:
+        cmp dword ptr [edi + ebp*4], 0
+    fire855_win_30076c0c:
+        je fire855_win_finish
+    fire855_win_30076c12:
+        mov eax, dword ptr [ebx+f855CentOrigin+0]
+    fire855_win_30076c15:
+        mov ecx, dword ptr [ebx+f855CentOrigin+4]
+    fire855_win_30076c18:
+        mov edx, dword ptr [ebx+f855CentOrigin+8]
+    fire855_win_30076c1b:
+        mov dword ptr [esp + 0x20], eax
+    fire855_win_30076c1f:
+        mov eax, dword ptr [cg+f855Refdef]
+    fire855_win_30076c24:
+        mov dword ptr [esp + 0x24], ecx
+    fire855_win_30076c28:
+        mov dword ptr [esp + 0x28], edx
+    fire855_win_30076c2c:
+        fld dword ptr [eax+f855ViewOrigin+0]
+    fire855_win_30076c2f:
+        fld dword ptr [esp + 0x20]
+    fire855_win_30076c33:
+        mov ecx, dword ptr [eax+f855ViewOrigin+4]
+    fire855_win_30076c36:
+        mov edx, dword ptr [eax+f855ViewOrigin+8]
+    fire855_win_30076c39:
+        fsub st(1)
+    fire855_win_30076c3b:
+        mov dword ptr [esp + 0x3c], ecx
+    fire855_win_30076c3f:
+        mov dword ptr [esp + 0x40], edx
+    fire855_win_30076c43:
+        lea eax, [esp + 0x2c]
+    fire855_win_30076c47:
+        push eax
+    fire855_win_30076c48:
+        fstp dword ptr [esp + 0x30]
+    fire855_win_30076c4c:
+        fstp st(0)
+    fire855_win_30076c4e:
+        fld dword ptr [esp + 0x28]
+    fire855_win_30076c52:
+        fsub dword ptr [esp + 0x40]
+    fire855_win_30076c56:
+        fstp dword ptr [esp + 0x34]
+    fire855_win_30076c5a:
+        fld dword ptr [esp + 0x2c]
+    fire855_win_30076c5e:
+        fsub dword ptr [esp + 0x44]
+    fire855_win_30076c62:
+        fstp dword ptr [esp + 0x38]
+    fire855_win_30076c66:
+        call VectorNormalize
+    fire855_win_30076c6b:
+        fcom dword ptr f855EchoMinimum
+    fire855_win_30076c71:
+        add esp, 4
+    fire855_win_30076c74:
+        fnstsw ax
+    fire855_win_30076c76:
+        test ah, 0x41
+    fire855_win_30076c79:
+        jne fire855_win_30076cea
+    fire855_win_30076c7b:
+        fcomp dword ptr f855EchoMaximum
+    fire855_win_30076c81:
+        fnstsw ax
+    fire855_win_30076c83:
+        test ah, 1
+    fire855_win_30076c86:
+        je fire855_win_finish
+    fire855_win_30076c88:
+        fld dword ptr [esp + 0x2c]
+    fire855_win_30076c8c:
+        fmul dword ptr f855EchoOffset
+    fire855_win_30076c92:
+        mov eax, dword ptr [cg+f855Refdef]
+    fire855_win_30076c97:
+        fadd dword ptr [eax+f855ViewOrigin+0]
+    fire855_win_30076c9a:
+        fstp dword ptr [esp + 0x20]
+    fire855_win_30076c9e:
+        fld dword ptr [esp + 0x30]
+    fire855_win_30076ca2:
+        fmul dword ptr f855EchoOffset
+    fire855_win_30076ca8:
+        fadd dword ptr [eax+f855ViewOrigin+4]
+    fire855_win_30076cab:
+        fstp dword ptr [esp + 0x24]
+    fire855_win_30076caf:
+        fld dword ptr [esp + 0x34]
+    fire855_win_30076cb3:
+        fmul dword ptr f855EchoOffset
+    fire855_win_30076cb9:
+        fadd dword ptr [eax+f855ViewOrigin+8]
+    fire855_win_30076cbc:
+        fstp dword ptr [esp + 0x28]
+    fire855_win_30076cc0:
+        fild dword ptr [esp + 0x10]
+    fire855_win_30076cc4:
+        fmul dword ptr f855Half
+    fire855_win_30076cca:
+        call CG_TCEFireWarningFtol853
+    fire855_win_30076ccf:
+        mov ecx, dword ptr [edi + ebp*4]
+    fire855_win_30076cd2:
+        mov edx, dword ptr [esi+f855CentNumber]
+    fire855_win_30076cd4:
+        push eax
+    fire855_win_30076cd5:
+        push 0x10
+    fire855_win_30076cd7:
+        push ecx
+    fire855_win_30076cd8:
+        push 2
+    fire855_win_30076cda:
+        lea eax, [esp + 0x30]
+    fire855_win_30076cde:
+        push edx
+    fire855_win_30076cdf:
+        push eax
+    fire855_win_30076ce0:
+        call trap_S_StartSoundExVControl
+    fire855_win_30076ce5:
+        add esp, 0x18
+    fire855_win_30076ce8:
+        jmp fire855_win_finish
+    fire855_win_30076cea:
+        fstp st(0)
+    fire855_win_finish:
+        add esp,54h
+        pop edi
+        pop esi
+        pop ebx
+        pop ebp
+        ret
+    }
+}
+#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
+typedef struct {
+    cg_t *cgRoot;int (*random)(void);float constants32[4];double twoPi;
+} tceFireSway855Bindings_t;
+static __attribute__((noinline)) void CG_TCEFireSway855(void) {
+    static const tceFireSway855Bindings_t bindings={&cg,rand,
+        {3.0518509447574615e-05f,0.0010000000474974513f,1.5f,0.0f},
+        0x1.921fb54442d18p+2};
+    const tceFireSway855Bindings_t *cursor=&bindings;
+    typedef char Sway855Layout[(sizeof(void*)==4 && sizeof(int)==4 &&
+        offsetof(tceFireSway855Bindings_t,random)==4 &&
+        offsetof(tceFireSway855Bindings_t,constants32)==8 &&
+        offsetof(tceFireSway855Bindings_t,twoPi)==24 && sizeof(tceFireSway855Bindings_t)==32)?1:-1];
+    __asm__ volatile (
+        ".intel_syntax noprefix\n\t"
+        "push ebx\n\tpush ebp\n\tmov ebp,esp\n\tand esp,-16\n\tsub esp,16\n\t"
+        "mov dword ptr [esp+12],ebp\n\tmov ebx,eax\n\tmov esi,dword ptr [ebx]\n\t"
+        "mov ecx,dword ptr [esi+%c[time]]\n\tadd ecx,100\n\t"
+        "mov dword ptr [esi+%c[hold]],ecx\n\tcall dword ptr [ebx+4]\n\t"
+        "fld qword ptr [ebx+24]\n\tand eax,0x7fff\n\tpush eax\n\tfild dword ptr [esp]\n\tadd esp,4\n\t"
+        "fmul dword ptr [ebx+8]\n\tfild dword ptr [esi+%c[instability]]\n\t"
+        "fmul dword ptr [ebx+12]\n\tfld dword ptr [esi+%c[vertical]]\n\t"
+        "fxch st(3)\n\tfmulp st(2)\n\tfld st(1)\n\tfsin\n\tfmul st(1)\n\t"
+        "fld dword ptr [ebx+16]\n\tfmul st(1),st(0)\n\tfxch st(4)\n\tfaddp st(1)\n\t"
+        "fld dword ptr [esi+%c[horizontal]]\n\tfxch st(1)\n\t"
+        "fstp dword ptr [esi+%c[vertical]]\n\tfxch st(2)\n\tfcos\n\t"
+        "fmulp st(1)\n\tfmulp st(2)\n\tfaddp st(1)\n\tfstp dword ptr [esi+%c[horizontal]]\n\t"
+        "mov esp,dword ptr [esp+12]\n\tpop ebp\n\tpop ebx\n\t.att_syntax prefix"
+        : "+a" (cursor)
+        : "m" (bindings), [time] "i" (f855Time), [hold] "i" (f855ShotHold),
+          [instability] "i" (f855Instability), [vertical] "i" (f855Vertical), [horizontal] "i" (f855Horizontal)
+        : "ecx","edx","esi","edi","cc","memory",
+          "st","st(1)","st(2)","st(3)","st(4)","st(5)","st(6)","st(7)"
+#ifdef __SSE__
+          ,"xmm0","xmm1","xmm2","xmm3","xmm4","xmm5","xmm6","xmm7"
+#endif
+    );
+}
+typedef struct {
+    cg_t *cgRoot;centity_t *entities;tce_weaponDef_t *definitions;const float *attenuation;
+    int (*random)(void);
+    int (*volume)(vec3_t,float,float,int);
+    void (*start)(vec3_t,int,int,sfxHandle_t,int,int);
+    void (*effect)(centity_t*,int);float (*normalize)(vec3_t);
+    float constants32[8];
+} tceFireSound855Bindings_t;
+static __attribute__((noinline)) void CG_TCEFireSound855(centity_t *cent,tce_weaponInfo_t *weap,int *sounds) {
+    static const tceFireSound855Bindings_t bindings={&cg,cg_entities,weaponDef,&tceFlash.deafness,
+        rand,CG_SoundVolume,trap_S_StartSoundExVControl,CG_EliteEffectSound,VectorNormalize,
+        {1.0f,127.0f,1800.0f,0.003921568859368563f,0.5f,512.0f,4096.0f,64.0f}};
+    const tceFireSound855Bindings_t *cursor=&bindings;
+    typedef char Sound855Layout[(sizeof(void*)==4 && sizeof(int)==4 && sizeof(float)==4 &&
+        offsetof(tceFireSound855Bindings_t,cgRoot)==0 && offsetof(tceFireSound855Bindings_t,entities)==4 &&
+        offsetof(tceFireSound855Bindings_t,definitions)==8 && offsetof(tceFireSound855Bindings_t,attenuation)==12 &&
+        offsetof(tceFireSound855Bindings_t,random)==16 && offsetof(tceFireSound855Bindings_t,volume)==20 &&
+        offsetof(tceFireSound855Bindings_t,start)==24 && offsetof(tceFireSound855Bindings_t,effect)==28 &&
+        offsetof(tceFireSound855Bindings_t,normalize)==32 && offsetof(tceFireSound855Bindings_t,constants32)==36 &&
+        sizeof(tceFireSound855Bindings_t)==68)?1:-1];
+    __asm__ volatile (
+        ".intel_syntax noprefix\n\t"
+        "push ebx\n\tpush ebp\n\tmov ebp,esp\n\tand esp,-16\n\tsub esp,0xa0\n\t"
+        "mov dword ptr [esp+0x9c],ebp\n\tmov ebx,eax\n\tmov edi,ecx\n\tmov ebp,esi\n\t"
+        "mov dword ptr [esp+0x34],edx\n\tlea eax,[edx+%c[echo]]\n\tmov dword ptr [esp+0x30],eax\n\t"
+        ".Lfire855_linux_000b26b7_%=:\nxor esi, esi\n\t"
+        ".Lfire855_linux_000b26b9_%=:\nmov edx, dword ptr [ebp + esi*4]\n\t"
+        ".Lfire855_linux_000b26bd_%=:\ntest edx, edx\n\t"
+        ".Lfire855_linux_000b26bf_%=:\nje .Lfire855_linux_000b26c7_%=\n\t"
+        ".Lfire855_linux_000b26c1_%=:\ninc esi\n\t"
+        ".Lfire855_linux_000b26c2_%=:\ncmp esi, 3\n\t"
+        ".Lfire855_linux_000b26c5_%=:\njle .Lfire855_linux_000b26b9_%=\n\t"
+        ".Lfire855_linux_000b26c7_%=:\ntest esi, esi\n\t"
+        ".Lfire855_linux_000b26c9_%=:\njle .Lfire855_linux_finish_%=\n\t"
+        ".Lfire855_linux_000b26cf_%=:\ncall dword ptr [ebx+16]\n\t"
+        ".Lfire855_linux_000b26d4_%=:\ncdq \n\t"
+        ".Lfire855_linux_000b26d5_%=:\nidiv esi\n\t"
+        ".Lfire855_linux_000b26d7_%=:\nmov dword ptr [esp + 0x2c], edx\n\t"
+        ".Lfire855_linux_000b26db_%=:\nmov ecx, dword ptr [ebp + edx*4]\n\t"
+        ".Lfire855_linux_000b26df_%=:\ntest ecx, ecx\n\t"
+        ".Lfire855_linux_000b26e1_%=:\nje .Lfire855_linux_finish_%=\n\t"
+        ".Lfire855_linux_000b26e7_%=:\nfld dword ptr [ebx+36]\n\t"
+        ".Lfire855_linux_000b26ed_%=:\nmov esi, dword ptr [ebx+0]\n\t"
+        ".Lfire855_linux_000b26f3_%=:\npush edx\nmov edx,dword ptr [ebx+12]\nfld dword ptr [edx]\npop edx\n\t"
+        ".Lfire855_linux_000b26f9_%=:\nfcom st(1)\n\t"
+        ".Lfire855_linux_000b26fb_%=:\nfnstsw ax\n\t"
+        ".Lfire855_linux_000b26fd_%=:\nsahf \n\t"
+        ".Lfire855_linux_000b26fe_%=:\nje .Lfire855_linux_000b2a1f_%=\n\t"
+        ".Lfire855_linux_000b2704_%=:\nmov edx, dword ptr [edi+%c[number]]\n\t"
+        ".Lfire855_linux_000b2706_%=:\nmov eax, dword ptr [edi+%c[weapon]]\n\t"
+        ".Lfire855_linux_000b270c_%=:\nmov ecx, dword ptr [ebx+4]\n\t"
+        ".Lfire855_linux_000b2712_%=:\nmov esi, edx\n\t"
+        ".Lfire855_linux_000b2714_%=:\nimul esi, esi, %c[centStride]\n\t"
+        ".Lfire855_linux_000b271a_%=:\nimul eax, eax, %c[defStride]\n\t"
+        ".Lfire855_linux_000b2720_%=:\nadd esi, ecx\n\t"
+        ".Lfire855_linux_000b2722_%=:\nmov ecx, dword ptr [ebx+8]\n\t"
+        ".Lfire855_linux_000b2728_%=:\nadd eax, ecx\n\t"
+        ".Lfire855_linux_000b272a_%=:\nmov ecx, dword ptr [eax+%c[suppressed]]\n\t"
+        ".Lfire855_linux_000b2730_%=:\ntest ecx, ecx\n\t"
+        ".Lfire855_linux_000b2732_%=:\njne .Lfire855_linux_000b2742_%=\n\t"
+        ".Lfire855_linux_000b2734_%=:\nmov ecx, dword ptr [eax+%c[subsonic]]\n\t"
+        ".Lfire855_linux_000b273a_%=:\ntest ecx, ecx\n\t"
+        ".Lfire855_linux_000b273c_%=:\nje .Lfire855_linux_000b29f3_%=\n\t"
+        ".Lfire855_linux_000b2742_%=:\nfstp st(0)\n\t"
+        ".Lfire855_linux_000b2744_%=:\nfstp st(0)\n\t"
+        ".Lfire855_linux_000b2746_%=:\nmov edx, dword ptr [ebx+44]\n\t"
+        ".Lfire855_linux_000b274c_%=:\nxor ecx, ecx\n\t"
+        ".Lfire855_linux_000b274e_%=:\nmov dword ptr [esp + 0xc], ecx\n\t"
+        ".Lfire855_linux_000b2752_%=:\nmov ecx, dword ptr [ebx+40]\n\t"
+        ".Lfire855_linux_000b2758_%=:\nmov dword ptr [esp + 8], edx\n\t"
+        ".Lfire855_linux_000b275c_%=:\nlea edx,[esi+%c[origin]]\n\t"
+        ".Lfire855_linux_000b275f_%=:\nmov dword ptr [esp], edx\n\t"
+        ".Lfire855_linux_000b2762_%=:\nmov dword ptr [esp + 4], ecx\n\t"
+        ".Lfire855_linux_000b2766_%=:\ncall dword ptr [ebx+20]\n\t"
+        ".Lfire855_linux_000b276b_%=:\nmov dword ptr [esp + 0x28], eax\n\t"
+        ".Lfire855_linux_000b276f_%=:\nmov edx, dword ptr [edi+%c[number]]\n\t"
+        ".Lfire855_linux_000b2771_%=:\nmov eax, dword ptr [esp + 0x28]\n\t"
+        ".Lfire855_linux_000b2775_%=:\nmov ecx, 0x10\n\t"
+        ".Lfire855_linux_000b277a_%=:\nmov dword ptr [esp + 0x10], ecx\n\t"
+        ".Lfire855_linux_000b277e_%=:\nmov ecx, dword ptr [esp + 0x2c]\n\t"
+        ".Lfire855_linux_000b2782_%=:\nmov dword ptr [esp + 0x14], eax\n\t"
+        ".Lfire855_linux_000b2786_%=:\nmov eax, dword ptr [ebp + ecx*4]\n\t"
+        ".Lfire855_linux_000b278a_%=:\nmov ecx, 2\n\t"
+        ".Lfire855_linux_000b278f_%=:\nmov dword ptr [esp + 4], edx\n\t"
+        ".Lfire855_linux_000b2793_%=:\nmov dword ptr [esp + 0xc], eax\n\t"
+        ".Lfire855_linux_000b2797_%=:\nmov dword ptr [esp + 8], ecx\n\t"
+        ".Lfire855_linux_000b279b_%=:\nmov dword ptr [esp], 0\n\t"
+        ".Lfire855_linux_000b27a2_%=:\ncall dword ptr [ebx+24]\n\t"
+        ".Lfire855_linux_000b27a7_%=:\nmov ebp, dword ptr [esp + 0x34]\n\t"
+        ".Lfire855_linux_000b27ab_%=:\nmov eax, dword ptr [esp + 0x28]\n\t"
+        ".Lfire855_linux_000b27af_%=:\nmov edx, dword ptr [ebp+%c[reverb]]\n\t"
+        ".Lfire855_linux_000b27b5_%=:\ntest edx, edx\n\t"
+        ".Lfire855_linux_000b27b7_%=:\nje .Lfire855_linux_000b27ef_%=\n\t"
+        ".Lfire855_linux_000b27b9_%=:\nfild dword ptr [esp + 0x28]\n\t"
+        ".Lfire855_linux_000b27bd_%=:\npush edx\n\t"
+        ".Lfire855_linux_000b27be_%=:\nfild dword ptr [esp]\n\t"
+        ".Lfire855_linux_000b27c1_%=:\nadd esp, 4\n\t"
+        ".Lfire855_linux_000b27c4_%=:\nfnstcw word ptr [esp + 0x3e]\n\t"
+        ".Lfire855_linux_000b27c8_%=:\nmovzx edx, word ptr [esp + 0x3e]\n\t"
+        ".Lfire855_linux_000b27cd_%=:\nor dx, 0xc00\n\t"
+        ".Lfire855_linux_000b27d2_%=:\nfmulp st(1)\n\t"
+        ".Lfire855_linux_000b27d4_%=:\nmov word ptr [esp + 0x3c], dx\n\t"
+        ".Lfire855_linux_000b27d9_%=:\nfmul dword ptr [ebx+48]\n\t"
+        ".Lfire855_linux_000b27df_%=:\nfldcw word ptr [esp + 0x3c]\n\t"
+        ".Lfire855_linux_000b27e3_%=:\nfistp dword ptr [esp + 0x38]\n\t"
+        ".Lfire855_linux_000b27e7_%=:\nfldcw word ptr [esp + 0x3e]\n\t"
+        ".Lfire855_linux_000b27eb_%=:\nmov eax, dword ptr [esp + 0x38]\n\t"
+        ".Lfire855_linux_000b27ef_%=:\nmov dword ptr [esp + 4], eax\n\t"
+        ".Lfire855_linux_000b27f3_%=:\nmov dword ptr [esp], esi\n\t"
+        ".Lfire855_linux_000b27f6_%=:\ncall dword ptr [ebx+28]\n\t"
+        ".Lfire855_linux_000b27fb_%=:\nmov ebp, dword ptr [esp + 0x30]\n\t"
+        ".Lfire855_linux_000b27ff_%=:\ntest ebp, ebp\n\t"
+        ".Lfire855_linux_000b2801_%=:\nje .Lfire855_linux_finish_%=\n\t"
+        ".Lfire855_linux_000b2803_%=:\nmov ecx, dword ptr [esp + 0x2c]\n\t"
+        ".Lfire855_linux_000b2807_%=:\nmov eax, dword ptr [esp + 0x30]\n\t"
+        ".Lfire855_linux_000b280b_%=:\nmov ebp, dword ptr [eax + ecx*4]\n\t"
+        ".Lfire855_linux_000b280e_%=:\ntest ebp, ebp\n\t"
+        ".Lfire855_linux_000b2810_%=:\njne .Lfire855_linux_000b28d6_%=\n\t"
+        ".Lfire855_linux_000b28d6_%=:\nfnstcw word ptr [esp + 0x3e]\n\t"
+        ".Lfire855_linux_000b28da_%=:\nlea edx, [esp + 0x40]\n\t"
+        ".Lfire855_linux_000b28de_%=:\nfild dword ptr [esp + 0x28]\n\t"
+        ".Lfire855_linux_000b28e2_%=:\nmovzx ecx, word ptr [esp + 0x3e]\n\t"
+        ".Lfire855_linux_000b28e7_%=:\nfmul dword ptr [ebx+52]\n\t"
+        ".Lfire855_linux_000b28ed_%=:\nor cx, 0xc00\n\t"
+        ".Lfire855_linux_000b28f2_%=:\nmov word ptr [esp + 0x3c], cx\n\t"
+        ".Lfire855_linux_000b28f7_%=:\nfldcw word ptr [esp + 0x3c]\n\t"
+        ".Lfire855_linux_000b28fb_%=:\nfistp dword ptr [esp + 0x28]\n\t"
+        ".Lfire855_linux_000b28ff_%=:\nfldcw word ptr [esp + 0x3e]\n\t"
+        ".Lfire855_linux_000b2903_%=:\nfld dword ptr [esi+%c[origin]+0]\n\t"
+        ".Lfire855_linux_000b2906_%=:\nfst dword ptr [esp + 0x50]\n\t"
+        ".Lfire855_linux_000b290a_%=:\nfld dword ptr [esi+%c[origin]+4]\n\t"
+        ".Lfire855_linux_000b290d_%=:\nfst dword ptr [esp + 0x54]\n\t"
+        ".Lfire855_linux_000b2911_%=:\nfld dword ptr [esi+%c[origin]+8]\n\t"
+        ".Lfire855_linux_000b2914_%=:\nmov esi, dword ptr [ebx+0]\n\t"
+        ".Lfire855_linux_000b291a_%=:\nmov ebp, dword ptr [esi+%c[refdef]]\n\t"
+        ".Lfire855_linux_000b2920_%=:\nfst dword ptr [esp + 0x58]\n\t"
+        ".Lfire855_linux_000b2924_%=:\nfld dword ptr [ebp+%c[viewOrigin]+0]\n\t"
+        ".Lfire855_linux_000b2927_%=:\nfsub st(3), st(0)\n\t"
+        ".Lfire855_linux_000b2929_%=:\nfstp dword ptr [esp + 0x60]\n\t"
+        ".Lfire855_linux_000b292d_%=:\nfld dword ptr [ebp+%c[viewOrigin]+4]\n\t"
+        ".Lfire855_linux_000b2930_%=:\nfsub st(2), st(0)\n\t"
+        ".Lfire855_linux_000b2932_%=:\nfstp dword ptr [esp + 0x64]\n\t"
+        ".Lfire855_linux_000b2936_%=:\nfld dword ptr [ebp+%c[viewOrigin]+8]\n\t"
+        ".Lfire855_linux_000b2939_%=:\nfxch st(3)\n\t"
+        ".Lfire855_linux_000b293b_%=:\nfstp dword ptr [esp + 0x40]\n\t"
+        ".Lfire855_linux_000b293f_%=:\nfxch st(1)\n\t"
+        ".Lfire855_linux_000b2941_%=:\nfstp dword ptr [esp + 0x44]\n\t"
+        ".Lfire855_linux_000b2945_%=:\nfsub st(1)\n\t"
+        ".Lfire855_linux_000b2947_%=:\nfxch st(1)\n\t"
+        ".Lfire855_linux_000b2949_%=:\nfstp dword ptr [esp + 0x68]\n\t"
+        ".Lfire855_linux_000b294d_%=:\nmov dword ptr [esp], edx\n\t"
+        ".Lfire855_linux_000b2950_%=:\nfstp dword ptr [esp + 0x48]\n\t"
+        ".Lfire855_linux_000b2954_%=:\ncall dword ptr [ebx+32]\n\t"
+        ".Lfire855_linux_000b2959_%=:\nfcom dword ptr [ebx+56]\n\t"
+        ".Lfire855_linux_000b295f_%=:\nfnstsw ax\n\t"
+        ".Lfire855_linux_000b2961_%=:\nsahf \n\t"
+        ".Lfire855_linux_000b2962_%=:\njbe .Lfire855_linux_000b29ec_%=\n\t"
+        ".Lfire855_linux_000b2968_%=:\nfcomp dword ptr [ebx+60]\n\t"
+        ".Lfire855_linux_000b296e_%=:\nfnstsw ax\n\t"
+        ".Lfire855_linux_000b2970_%=:\nsahf \n\t"
+        ".Lfire855_linux_000b2971_%=:\njae .Lfire855_linux_finish_%=\n\t"
+        ".Lfire855_linux_000b2977_%=:\nfld dword ptr [ebx+64]\n\t"
+        ".Lfire855_linux_000b297d_%=:\nmov ecx, 0x10\n\t"
+        ".Lfire855_linux_000b2982_%=:\nmov ebp, dword ptr [esi+%c[refdef]]\n\t"
+        ".Lfire855_linux_000b2988_%=:\nfld dword ptr [esp + 0x40]\n\t"
+        ".Lfire855_linux_000b298c_%=:\nmov eax, dword ptr [esp + 0x28]\n\t"
+        ".Lfire855_linux_000b2990_%=:\nmov edx, dword ptr [esp + 0x2c]\n\t"
+        ".Lfire855_linux_000b2994_%=:\nfmul st(1)\n\t"
+        ".Lfire855_linux_000b2996_%=:\nmov esi, dword ptr [esp + 0x30]\n\t"
+        ".Lfire855_linux_000b299a_%=:\nfadd dword ptr [ebp+%c[viewOrigin]+0]\n\t"
+        ".Lfire855_linux_000b299d_%=:\nfstp dword ptr [esp + 0x50]\n\t"
+        ".Lfire855_linux_000b29a1_%=:\nfld dword ptr [esp + 0x44]\n\t"
+        ".Lfire855_linux_000b29a5_%=:\nfmul st(1)\n\t"
+        ".Lfire855_linux_000b29a7_%=:\nfxch st(1)\n\t"
+        ".Lfire855_linux_000b29a9_%=:\nfmul dword ptr [esp + 0x48]\n\t"
+        ".Lfire855_linux_000b29ad_%=:\nfxch st(1)\n\t"
+        ".Lfire855_linux_000b29af_%=:\nfadd dword ptr [ebp+%c[viewOrigin]+4]\n\t"
+        ".Lfire855_linux_000b29b2_%=:\nfstp dword ptr [esp + 0x54]\n\t"
+        ".Lfire855_linux_000b29b6_%=:\nfadd dword ptr [ebp+%c[viewOrigin]+8]\n\t"
+        ".Lfire855_linux_000b29b9_%=:\nmov dword ptr [esp + 0x14], eax\n\t"
+        ".Lfire855_linux_000b29bd_%=:\nmov eax, 2\n\t"
+        ".Lfire855_linux_000b29c2_%=:\nmov dword ptr [esp + 0x10], ecx\n\t"
+        ".Lfire855_linux_000b29c6_%=:\nfstp dword ptr [esp + 0x58]\n\t"
+        ".Lfire855_linux_000b29ca_%=:\nmov ebp, dword ptr [esi + edx*4]\n\t"
+        ".Lfire855_linux_000b29cd_%=:\nlea esi, [esp + 0x50]\n\t"
+        ".Lfire855_linux_000b29d1_%=:\nmov dword ptr [esp + 8], eax\n\t"
+        ".Lfire855_linux_000b29d5_%=:\nmov dword ptr [esp + 0xc], ebp\n\t"
+        ".Lfire855_linux_000b29d9_%=:\nmov edx, dword ptr [edi+%c[number]]\n\t"
+        ".Lfire855_linux_000b29db_%=:\nmov dword ptr [esp], esi\n\t"
+        ".Lfire855_linux_000b29de_%=:\nmov dword ptr [esp + 4], edx\n\t"
+        ".Lfire855_linux_000b29e2_%=:\ncall dword ptr [ebx+24]\n\t"
+        ".Lfire855_linux_000b29e7_%=:\njmp .Lfire855_linux_finish_%=\n\t"
+        ".Lfire855_linux_000b29ec_%=:\nfstp st(0)\n\t"
+        ".Lfire855_linux_000b29ee_%=:\njmp .Lfire855_linux_finish_%=\n\t"
+        ".Lfire855_linux_000b29f3_%=:\nfnstcw word ptr [esp + 0x3e]\n\t"
+        ".Lfire855_linux_000b29f7_%=:\nfsubp st(1)\n\t"
+        ".Lfire855_linux_000b29f9_%=:\nmovzx ecx, word ptr [esp + 0x3e]\n\t"
+        ".Lfire855_linux_000b29fe_%=:\nfmul dword ptr [ebx+40]\n\t"
+        ".Lfire855_linux_000b2a04_%=:\nor cx, 0xc00\n\t"
+        ".Lfire855_linux_000b2a09_%=:\nmov word ptr [esp + 0x3c], cx\n\t"
+        ".Lfire855_linux_000b2a0e_%=:\nfldcw word ptr [esp + 0x3c]\n\t"
+        ".Lfire855_linux_000b2a12_%=:\nfistp dword ptr [esp + 0x28]\n\t"
+        ".Lfire855_linux_000b2a16_%=:\nfldcw word ptr [esp + 0x3e]\n\t"
+        ".Lfire855_linux_000b2a1a_%=:\njmp .Lfire855_linux_000b2771_%=\n\t"
+        ".Lfire855_linux_000b2a1f_%=:\nfstp st(0)\n\t"
+        ".Lfire855_linux_000b2a21_%=:\njmp .Lfire855_linux_000b29ec_%=\n\t"
+        ".Lfire855_linux_finish_%=:\n\tmov esp,dword ptr [esp+0x9c]\n\tpop ebp\n\tpop ebx\n\t.att_syntax prefix"
+        : "+a" (cursor), "+c" (cent), "+d" (weap), "+S" (sounds)
+        : "m" (bindings), [echo] "i" (f855Echo), [centStride] "i" (f855CentStride),
+          [defStride] "i" (sizeof(tce_weaponDef_t)), [weapon] "i" (f855CentWeapon), [number] "i" (f855CentNumber),
+          [suppressed] "i" (f855DefSuppressed), [subsonic] "i" (f855DefSubsonic),
+          [reverb] "i" (f855Reverb), [refdef] "i" (f855Refdef), [origin] "i" (f855CentOrigin), [viewOrigin] "i" (f855ViewOrigin)
+        : "edi","cc","memory","st","st(1)","st(2)","st(3)","st(4)","st(5)","st(6)","st(7)"
+#ifdef __SSE__
+          ,"xmm0","xmm1","xmm2","xmm3","xmm4","xmm5","xmm6","xmm7"
+#endif
+    );
+}
+#else
+/* Defined numeric compatibility on other architectures; native x87 order
+ * is represented only in the two original-platform implementations above. */
+static void CG_TCEFireSway855(void) {
+    unsigned int holdBits=(unsigned int)cg.time+100u;
+    double angle;
+    memcpy(&cg.tceShotHoldUntil,&holdBits,sizeof(cg.tceShotHoldUntil));
+    angle=(rand()&32767)*(double)(1.f/32767.f)*(double)6.2831854820251465f;
+    cg.tceSwayVertical=(float)(cg.tceSwayVertical+sin(angle)*((float)cg.predictedPlayerState.stats[STAT_TCE_SHOT_INSTABILITY]*.001f)*1.5);
+    cg.tceSwayHorizontal=(float)(cg.tceSwayHorizontal+cos(angle)*((float)cg.predictedPlayerState.stats[STAT_TCE_SHOT_INSTABILITY]*.001f)*1.5);
+}
+#endif
+
+/* Full native soundzone response, with actual mutable producer fields.
+ * Private GNU extraction frame and external math/audio integration remain
+ * explicit source adapters; other targets retain the portable body below. */
+enum {
+    f856Sounds=offsetof(cg_t,tceSoundZoneSounds), f856Effects=offsetof(cg_t,tceSoundZoneEffects),
+    f856Active=offsetof(cg_t,tceSoundZoneActive), f856Transition=offsetof(cg_t,tceSoundZoneTransitionTime),
+    f856GameSounds=offsetof(cgs_t,gameSounds), f856CvarInteger=offsetof(vmCvar_t,integer),
+    f856ViewRight=offsetof(refdef_t,viewaxis)+sizeof(vec3_t)
+};
+#if defined(_MSC_VER) && defined(_M_IX86)
+__declspec(naked) void CG_EliteEffectSound(centity_t *cent,int volume) {
+    __asm {
+    zone856_win_30076de0:
+        mov eax, dword ptr [esp + 8]
+    zone856_win_30076de4:
+        sub esp, 0x2c
+    zone856_win_30076de7:
+        test eax, eax
+    zone856_win_30076de9:
+        push esi
+    zone856_win_30076dea:
+        push edi
+    zone856_win_30076deb:
+        je zone856_win_300770f3
+    zone856_win_30076df1:
+        mov edx, dword ptr [esp + 0x38]
+    zone856_win_30076df5:
+        mov ecx, dword ptr [edx+f855CentWeapon]
+    zone856_win_30076dfb:
+        cmp ecx, 1
+    zone856_win_30076dfe:
+        je zone856_win_300770f3
+    zone856_win_30076e04:
+        cmp ecx, 4
+    zone856_win_30076e07:
+        je zone856_win_300770f3
+    zone856_win_30076e0d:
+        cmp ecx, 9
+    zone856_win_30076e10:
+        je zone856_win_300770f3
+    zone856_win_30076e16:
+        cmp ecx, 0x1e
+    zone856_win_30076e19:
+        je zone856_win_300770f3
+    zone856_win_30076e1f:
+        cmp ecx, 0xc
+    zone856_win_30076e22:
+        je zone856_win_300770f3
+    zone856_win_30076e28:
+        cmp ecx, 0x15
+    zone856_win_30076e2b:
+        je zone856_win_300770f3
+    zone856_win_30076e31:
+        cmp ecx, 0xb
+    zone856_win_30076e34:
+        je zone856_win_300770f3
+    zone856_win_30076e3a:
+        lea eax, [ecx + ecx*2]
+    zone856_win_30076e3d:
+        shl eax, 3
+    zone856_win_30076e40:
+        sub eax, ecx
+    zone856_win_30076e42:
+        lea eax, [eax + eax*4]
+    zone856_win_30076e45:
+        shl eax, 2
+    zone856_win_30076e48:
+        mov ecx, dword ptr [eax+weaponDef+f855DefSubsonic]
+    zone856_win_30076e4e:
+        test ecx, ecx
+    zone856_win_30076e50:
+        jne zone856_win_300770f3
+    zone856_win_30076e56:
+        mov ecx, dword ptr [eax+weaponDef+f855DefSuppressed]
+    zone856_win_30076e5c:
+        test ecx, ecx
+    zone856_win_30076e5e:
+        jne zone856_win_300770f3
+    zone856_win_30076e64:
+        mov eax, dword ptr [cg+f856Sounds]
+    zone856_win_30076e69:
+        mov dword ptr [esp + 8], 0x3f800000
+    zone856_win_30076e71:
+        test eax, eax
+    zone856_win_30076e73:
+        jne zone856_win_30076e82
+    zone856_win_30076e75:
+        mov eax, dword ptr [cg+f856Sounds+8]
+    zone856_win_30076e7a:
+        test eax, eax
+    zone856_win_30076e7c:
+        je zone856_win_300770f3
+    zone856_win_30076e82:
+        mov eax, dword ptr [edx+f855CentOrigin+0]
+    zone856_win_30076e85:
+        mov ecx, dword ptr [edx+f855CentOrigin+4]
+    zone856_win_30076e88:
+        mov edx, dword ptr [edx+f855CentOrigin+8]
+    zone856_win_30076e8b:
+        mov dword ptr [esp + 0x10], eax
+    zone856_win_30076e8f:
+        mov eax, dword ptr [cg+f855Refdef]
+    zone856_win_30076e94:
+        mov dword ptr [esp + 0x14], ecx
+    zone856_win_30076e98:
+        mov dword ptr [esp + 0x18], edx
+    zone856_win_30076e9c:
+        fld dword ptr [eax+f855ViewOrigin+0]
+    zone856_win_30076e9f:
+        fld dword ptr [esp + 0x10]
+    zone856_win_30076ea3:
+        mov ecx, dword ptr [eax+f855ViewOrigin+4]
+    zone856_win_30076ea6:
+        mov edx, dword ptr [eax+f855ViewOrigin+8]
+    zone856_win_30076ea9:
+        fsub st(1)
+    zone856_win_30076eab:
+        mov dword ptr [esp + 0x20], ecx
+    zone856_win_30076eaf:
+        mov dword ptr [esp + 0x24], edx
+    zone856_win_30076eb3:
+        lea eax, [esp + 0x28]
+    zone856_win_30076eb7:
+        push eax
+    zone856_win_30076eb8:
+        fstp dword ptr [esp + 0x2c]
+    zone856_win_30076ebc:
+        fstp st(0)
+    zone856_win_30076ebe:
+        fld dword ptr [esp + 0x18]
+    zone856_win_30076ec2:
+        fsub dword ptr [esp + 0x24]
+    zone856_win_30076ec6:
+        fstp dword ptr [esp + 0x30]
+    zone856_win_30076eca:
+        fld dword ptr [esp + 0x1c]
+    zone856_win_30076ece:
+        fsub dword ptr [esp + 0x28]
+    zone856_win_30076ed2:
+        fstp dword ptr [esp + 0x34]
+    zone856_win_30076ed6:
+        call VectorNormalize
+    zone856_win_30076edb:
+        fst dword ptr [esp + 0x3c]
+    zone856_win_30076edf:
+        fcomp dword ptr f855EchoOffset
+    zone856_win_30076ee5:
+        add esp, 4
+    zone856_win_30076ee8:
+        fnstsw ax
+    zone856_win_30076eea:
+        test ah, 1
+    zone856_win_30076eed:
+        je zone856_win_30076ef7
+    zone856_win_30076eef:
+        mov dword ptr [esp + 0x38], 0x42800000
+    zone856_win_30076ef7:
+        mov eax, dword ptr [cg+f855Time]
+    zone856_win_30076efc:
+        mov edx, dword ptr [cg+f856Transition]
+    zone856_win_30076f02:
+        sub eax, edx
+    zone856_win_30076f04:
+        cmp eax, 0x3e8
+    zone856_win_30076f09:
+        mov dword ptr [esp + 0xc], eax
+    zone856_win_30076f0d:
+        jge zone856_win_30076f1d
+    zone856_win_30076f0f:
+        fild dword ptr [esp + 0xc]
+    zone856_win_30076f13:
+        fmul dword ptr f855InstabilityScale
+    zone856_win_30076f19:
+        fstp dword ptr [esp + 8]
+    zone856_win_30076f1d:
+        fild dword ptr [cg_snd_reverb+f856CvarInteger]
+    zone856_win_30076f23:
+        mov edi, dword ptr [cg+f856Active]
+    zone856_win_30076f29:
+        mov eax, dword ptr [edi*8 + cg+f856Sounds]
+    zone856_win_30076f30:
+        fmul dword ptr f855ReverbScale
+    zone856_win_30076f36:
+        test eax, eax
+    zone856_win_30076f38:
+        fstp dword ptr [esp + 0xc]
+    zone856_win_30076f3c:
+        je zone856_win_30077000
+    zone856_win_30076f42:
+        fild dword ptr [esp + 0x3c]
+    zone856_win_30076f46:
+        fmul dword ptr [esp + 0xc]
+    zone856_win_30076f4a:
+        fmul dword ptr [esp + 8]
+    zone856_win_30076f4e:
+        call CG_TCEFireWarningFtol853
+    zone856_win_30076f53:
+        fld dword ptr [esp + 0x38]
+    zone856_win_30076f57:
+        mov esi, eax
+    zone856_win_30076f59:
+        mov eax, dword ptr [cg+f855Refdef]
+    zone856_win_30076f5e:
+        mov ecx, dword ptr [edi*8 + cg+f856Effects]
+    zone856_win_30076f65:
+        push esi
+    zone856_win_30076f66:
+        fmul dword ptr [eax+f856ViewRight+0]
+    zone856_win_30076f69:
+        mov edx, dword ptr [ecx*4 + cgs+f856GameSounds]
+    zone856_win_30076f70:
+        push 0x10
+    zone856_win_30076f72:
+        push edx
+    zone856_win_30076f73:
+        push 2
+    zone856_win_30076f75:
+        fadd dword ptr [eax+f855ViewOrigin+0]
+    zone856_win_30076f78:
+        push -1
+    zone856_win_30076f7a:
+        fstp dword ptr [esp + 0x24]
+    zone856_win_30076f7e:
+        fld dword ptr [esp + 0x4c]
+    zone856_win_30076f82:
+        fmul dword ptr [eax+f856ViewRight+4]
+    zone856_win_30076f85:
+        fadd dword ptr [eax+f855ViewOrigin+4]
+    zone856_win_30076f88:
+        fstp dword ptr [esp + 0x28]
+    zone856_win_30076f8c:
+        fld dword ptr [esp + 0x4c]
+    zone856_win_30076f90:
+        fmul dword ptr [eax+f856ViewRight+8]
+    zone856_win_30076f93:
+        fadd dword ptr [eax+f855ViewOrigin+8]
+    zone856_win_30076f96:
+        lea eax, [esp + 0x24]
+    zone856_win_30076f9a:
+        push eax
+    zone856_win_30076f9b:
+        fstp dword ptr [esp + 0x30]
+    zone856_win_30076f9f:
+        call trap_S_StartSoundExVControl
+    zone856_win_30076fa4:
+        fld dword ptr [esp + 0x50]
+    zone856_win_30076fa8:
+        mov eax, dword ptr [cg+f855Refdef]
+    zone856_win_30076fad:
+        mov ecx, dword ptr [cg+f856Active]
+    zone856_win_30076fb3:
+        fchs
+    zone856_win_30076fb5:
+        fld st(0)
+    zone856_win_30076fb7:
+        fmul dword ptr [eax+f856ViewRight+0]
+    zone856_win_30076fba:
+        mov edx, dword ptr [ecx*8 + cg+f856Effects+4]
+    zone856_win_30076fc1:
+        push esi
+    zone856_win_30076fc2:
+        push 0x10
+    zone856_win_30076fc4:
+        lea ecx, [esp + 0x30]
+    zone856_win_30076fc8:
+        fadd dword ptr [eax+f855ViewOrigin+0]
+    zone856_win_30076fcb:
+        fstp dword ptr [esp + 0x30]
+    zone856_win_30076fcf:
+        fld st(0)
+    zone856_win_30076fd1:
+        fmul dword ptr [eax+f856ViewRight+4]
+    zone856_win_30076fd4:
+        fadd dword ptr [eax+f855ViewOrigin+4]
+    zone856_win_30076fd7:
+        fstp dword ptr [esp + 0x34]
+    zone856_win_30076fdb:
+        fmul dword ptr [eax+f856ViewRight+8]
+    zone856_win_30076fde:
+        fadd dword ptr [eax+f855ViewOrigin+8]
+    zone856_win_30076fe1:
+        mov eax, dword ptr [edx*4 + cgs+f856GameSounds]
+    zone856_win_30076fe8:
+        push eax
+    zone856_win_30076fe9:
+        push 2
+    zone856_win_30076feb:
+        push -1
+    zone856_win_30076fed:
+        push ecx
+    zone856_win_30076fee:
+        fstp dword ptr [esp + 0x48]
+    zone856_win_30076ff2:
+        call trap_S_StartSoundExVControl
+    zone856_win_30076ff7:
+        mov edi, dword ptr [cg+f856Active]
+    zone856_win_30076ffd:
+        add esp, 0x30
+    zone856_win_30077000:
+        shl edi, 3
+    zone856_win_30077003:
+        lea edx, [cg+f856Sounds+8]
+    zone856_win_30077008:
+        sub edx, edi
+    zone856_win_3007700a:
+        cmp dword ptr [edx], 0
+    zone856_win_3007700d:
+        je zone856_win_300770f3
+    zone856_win_30077013:
+        fld dword ptr [esp + 8]
+    zone856_win_30077017:
+        fcomp dword ptr f855One
+    zone856_win_3007701d:
+        fnstsw ax
+    zone856_win_3007701f:
+        test ah, 1
+    zone856_win_30077022:
+        je zone856_win_300770f3
+    zone856_win_30077028:
+        fld dword ptr f855One
+    zone856_win_3007702e:
+        fsub dword ptr [esp + 8]
+    zone856_win_30077032:
+        fild dword ptr [esp + 0x3c]
+    zone856_win_30077036:
+        fmulp st(1)
+    zone856_win_30077038:
+        fmul dword ptr [esp + 0xc]
+    zone856_win_3007703c:
+        call CG_TCEFireWarningFtol853
+    zone856_win_30077041:
+        fld dword ptr [esp + 0x38]
+    zone856_win_30077045:
+        mov esi, eax
+    zone856_win_30077047:
+        mov eax, dword ptr [cg+f855Refdef]
+    zone856_win_3007704c:
+        push esi
+    zone856_win_3007704d:
+        push 0x10
+    zone856_win_3007704f:
+        fmul dword ptr [eax+f856ViewRight+0]
+    zone856_win_30077052:
+        fadd dword ptr [eax+f855ViewOrigin+0]
+    zone856_win_30077055:
+        fstp dword ptr [esp + 0x18]
+    zone856_win_30077059:
+        fld dword ptr [esp + 0x40]
+    zone856_win_3007705d:
+        fmul dword ptr [eax+f856ViewRight+4]
+    zone856_win_30077060:
+        fadd dword ptr [eax+f855ViewOrigin+4]
+    zone856_win_30077063:
+        fstp dword ptr [esp + 0x1c]
+    zone856_win_30077067:
+        fld dword ptr [esp + 0x40]
+    zone856_win_3007706b:
+        fmul dword ptr [eax+f856ViewRight+8]
+    zone856_win_3007706e:
+        fadd dword ptr [eax+f855ViewOrigin+8]
+    zone856_win_30077071:
+        lea eax, [cg+f856Effects+8]
+    zone856_win_30077076:
+        sub eax, edi
+    zone856_win_30077078:
+        mov ecx, dword ptr [eax]
+    zone856_win_3007707a:
+        lea eax, [esp + 0x18]
+    zone856_win_3007707e:
+        fstp dword ptr [esp + 0x20]
+    zone856_win_30077082:
+        mov edx, dword ptr [ecx*4 + cgs+f856GameSounds]
+    zone856_win_30077089:
+        push edx
+    zone856_win_3007708a:
+        push 2
+    zone856_win_3007708c:
+        push -1
+    zone856_win_3007708e:
+        push eax
+    zone856_win_3007708f:
+        call trap_S_StartSoundExVControl
+    zone856_win_30077094:
+        fld dword ptr [esp + 0x50]
+    zone856_win_30077098:
+        mov eax, dword ptr [cg+f855Refdef]
+    zone856_win_3007709d:
+        mov ecx, dword ptr [cg+f856Active]
+    zone856_win_300770a3:
+        fchs
+    zone856_win_300770a5:
+        fld st(0)
+    zone856_win_300770a7:
+        fmul dword ptr [eax+f856ViewRight+0]
+    zone856_win_300770aa:
+        lea edx, [ecx*8]
+    zone856_win_300770b1:
+        push esi
+    zone856_win_300770b2:
+        push 0x10
+    zone856_win_300770b4:
+        fadd dword ptr [eax+f855ViewOrigin+0]
+    zone856_win_300770b7:
+        fstp dword ptr [esp + 0x30]
+    zone856_win_300770bb:
+        fld st(0)
+    zone856_win_300770bd:
+        fmul dword ptr [eax+f856ViewRight+4]
+    zone856_win_300770c0:
+        fadd dword ptr [eax+f855ViewOrigin+4]
+    zone856_win_300770c3:
+        fstp dword ptr [esp + 0x34]
+    zone856_win_300770c7:
+        fmul dword ptr [eax+f856ViewRight+8]
+    zone856_win_300770ca:
+        fadd dword ptr [eax+f855ViewOrigin+8]
+    zone856_win_300770cd:
+        lea eax, [cg+f856Effects+8]
+    zone856_win_300770d2:
+        sub eax, edx
+    zone856_win_300770d4:
+        mov ecx, dword ptr [eax]
+    zone856_win_300770d6:
+        lea eax, [esp + 0x30]
+    zone856_win_300770da:
+        fstp dword ptr [esp + 0x38]
+    zone856_win_300770de:
+        mov edx, dword ptr [ecx*4 + cgs+f856GameSounds]
+    zone856_win_300770e5:
+        push edx
+    zone856_win_300770e6:
+        push 2
+    zone856_win_300770e8:
+        push -1
+    zone856_win_300770ea:
+        push eax
+    zone856_win_300770eb:
+        call trap_S_StartSoundExVControl
+    zone856_win_300770f0:
+        add esp, 0x30
+    zone856_win_300770f3:
+        pop edi
+    zone856_win_300770f4:
+        pop esi
+    zone856_win_300770f5:
+        add esp, 0x2c
+    zone856_win_300770f8:
+        ret
+    }
+}
+#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
+typedef struct {
+    cg_t *cgRoot;cgs_t *cgsRoot;tce_weaponDef_t *definitions;vmCvar_t *reverb;
+    float (*normalize)(vec3_t);
+    void (*start)(vec3_t,int,int,sfxHandle_t,int,int);
+    float constants32[4];
+} tceSoundZone856Bindings_t;
+void CG_EliteEffectSound(centity_t *cent,int volume) {
+    static const tceSoundZone856Bindings_t bindings={&cg,&cgs,weaponDef,&cg_snd_reverb,
+        VectorNormalize,trap_S_StartSoundExVControl,
+        {1.0f,64.0f,0.0010000000474974513f,0.003921568859368563f}};
+    const tceSoundZone856Bindings_t *cursor=&bindings;
+    typedef char SoundZone856Layout[(sizeof(void*)==4 && sizeof(int)==4 && sizeof(float)==4 &&
+        offsetof(tceSoundZone856Bindings_t,cgRoot)==0 && offsetof(tceSoundZone856Bindings_t,cgsRoot)==4 &&
+        offsetof(tceSoundZone856Bindings_t,definitions)==8 && offsetof(tceSoundZone856Bindings_t,reverb)==12 &&
+        offsetof(tceSoundZone856Bindings_t,normalize)==16 && offsetof(tceSoundZone856Bindings_t,start)==20 &&
+        offsetof(tceSoundZone856Bindings_t,constants32)==24 && sizeof(tceSoundZone856Bindings_t)==40 &&
+        sizeof(cg.tceSoundZoneSounds[0])==8 && sizeof(cg.tceSoundZoneEffects[0])==8 &&
+        sizeof(cgs.gameSounds[0])==4)?1:-1];
+    __asm__ volatile (
+        ".intel_syntax noprefix\n\t"
+        "push ebx\n\tpush ebp\n\tmov ebp,esp\n\tand esp,-16\n\tsub esp,0xb0\n\t"
+        "mov dword ptr [esp+0xac],ebp\n\tmov ebx,eax\n\tmov ebp,edx\n\tmov edx,ecx\n\t"
+        ".Lzone856_linux_000bd722_%=:\n\ttest ebp, ebp\n\t"
+        ".Lzone856_linux_000bd724_%=:\n\tmov dword ptr [esp + 0x94], edi\n\t"
+        ".Lzone856_linux_000bd72b_%=:\n\tje .Lzone856_linux_finish_%=\n\t"
+        ".Lzone856_linux_000bd731_%=:\n\tmov eax, dword ptr [edx+%c[weapon]]\n\t"
+        ".Lzone856_linux_000bd737_%=:\n\tcmp eax, 1\n\t"
+        ".Lzone856_linux_000bd73a_%=:\n\tje .Lzone856_linux_finish_%=\n\t"
+        ".Lzone856_linux_000bd740_%=:\n\tcmp eax, 4\n\t"
+        ".Lzone856_linux_000bd743_%=:\n\tje .Lzone856_linux_finish_%=\n\t"
+        ".Lzone856_linux_000bd749_%=:\n\tcmp eax, 9\n\t"
+        ".Lzone856_linux_000bd74c_%=:\n\tje .Lzone856_linux_finish_%=\n\t"
+        ".Lzone856_linux_000bd752_%=:\n\tcmp eax, 0x1e\n\t"
+        ".Lzone856_linux_000bd755_%=:\n\tje .Lzone856_linux_finish_%=\n\t"
+        ".Lzone856_linux_000bd75b_%=:\n\tcmp eax, 0xc\n\t"
+        ".Lzone856_linux_000bd75e_%=:\n\tje .Lzone856_linux_finish_%=\n\t"
+        ".Lzone856_linux_000bd764_%=:\n\tcmp eax, 0x15\n\t"
+        ".Lzone856_linux_000bd767_%=:\n\tje .Lzone856_linux_finish_%=\n\t"
+        ".Lzone856_linux_000bd76d_%=:\n\tcmp eax, 0xb\n\t"
+        ".Lzone856_linux_000bd770_%=:\n\tje .Lzone856_linux_finish_%=\n\t"
+        ".Lzone856_linux_000bd776_%=:\n\timul eax, eax, %c[defStride]\n\t"
+        ".Lzone856_linux_000bd77c_%=:\n\tmov ecx, dword ptr [ebx+8]\n\t"
+        ".Lzone856_linux_000bd782_%=:\n\tadd eax, ecx\n\t"
+        ".Lzone856_linux_000bd784_%=:\n\tmov esi, dword ptr [eax+%c[subsonic]]\n\t"
+        ".Lzone856_linux_000bd78a_%=:\n\ttest esi, esi\n\t"
+        ".Lzone856_linux_000bd78c_%=:\n\tjne .Lzone856_linux_finish_%=\n\t"
+        ".Lzone856_linux_000bd792_%=:\n\tmov esi, dword ptr [eax+%c[suppressed]]\n\t"
+        ".Lzone856_linux_000bd798_%=:\n\ttest esi, esi\n\t"
+        ".Lzone856_linux_000bd79a_%=:\n\tjne .Lzone856_linux_finish_%=\n\t"
+        ".Lzone856_linux_000bd7a0_%=:\n\tfld dword ptr [ebx+24]\n\t"
+        ".Lzone856_linux_000bd7a6_%=:\n\tmov eax, dword ptr [ebx+0]\n\t"
+        ".Lzone856_linux_000bd7ac_%=:\n\tmov ecx, dword ptr [eax+%c[sounds]]\n\t"
+        ".Lzone856_linux_000bd7b2_%=:\n\tfstp dword ptr [esp + 0x34]\n\t"
+        ".Lzone856_linux_000bd7b6_%=:\n\ttest ecx, ecx\n\t"
+        ".Lzone856_linux_000bd7b8_%=:\n\tjne .Lzone856_linux_000bd7c8_%=\n\t"
+        ".Lzone856_linux_000bd7ba_%=:\n\tmov edi, dword ptr [eax+%c[sounds]+8]\n\t"
+        ".Lzone856_linux_000bd7c0_%=:\n\ttest edi, edi\n\t"
+        ".Lzone856_linux_000bd7c2_%=:\n\tje .Lzone856_linux_finish_%=\n\t"
+        ".Lzone856_linux_000bd7c8_%=:\n\tfld dword ptr [edx+%c[origin]+0]\n\t"
+        ".Lzone856_linux_000bd7cb_%=:\n\tmov esi, dword ptr [eax+%c[refdef]]\n\t"
+        ".Lzone856_linux_000bd7d1_%=:\n\tfst dword ptr [esp + 0x50]\n\t"
+        ".Lzone856_linux_000bd7d5_%=:\n\tfld dword ptr [edx+%c[origin]+4]\n\t"
+        ".Lzone856_linux_000bd7d8_%=:\n\tfst dword ptr [esp + 0x54]\n\t"
+        ".Lzone856_linux_000bd7dc_%=:\n\tfld dword ptr [edx+%c[origin]+8]\n\t"
+        ".Lzone856_linux_000bd7df_%=:\n\tlea edx, [esp + 0x40]\n\t"
+        ".Lzone856_linux_000bd7e3_%=:\n\tfst dword ptr [esp + 0x58]\n\t"
+        ".Lzone856_linux_000bd7e7_%=:\n\tfld dword ptr [esi+%c[viewOrigin]+0]\n\t"
+        ".Lzone856_linux_000bd7ea_%=:\n\tfsub st(3), st(0)\n\t"
+        ".Lzone856_linux_000bd7ec_%=:\n\tfstp dword ptr [esp + 0x60]\n\t"
+        ".Lzone856_linux_000bd7f0_%=:\n\tfld dword ptr [esi+%c[viewOrigin]+4]\n\t"
+        ".Lzone856_linux_000bd7f3_%=:\n\tfsub st(2), st(0)\n\t"
+        ".Lzone856_linux_000bd7f5_%=:\n\tfstp dword ptr [esp + 0x64]\n\t"
+        ".Lzone856_linux_000bd7f9_%=:\n\tfld dword ptr [esi+%c[viewOrigin]+8]\n\t"
+        ".Lzone856_linux_000bd7fc_%=:\n\tfxch st(3)\n\t"
+        ".Lzone856_linux_000bd7fe_%=:\n\tfstp dword ptr [esp + 0x40]\n\t"
+        ".Lzone856_linux_000bd802_%=:\n\tfxch st(1)\n\t"
+        ".Lzone856_linux_000bd804_%=:\n\tfstp dword ptr [esp + 0x44]\n\t"
+        ".Lzone856_linux_000bd808_%=:\n\tfsub st(1)\n\t"
+        ".Lzone856_linux_000bd80a_%=:\n\tfxch st(1)\n\t"
+        ".Lzone856_linux_000bd80c_%=:\n\tfstp dword ptr [esp + 0x68]\n\t"
+        ".Lzone856_linux_000bd810_%=:\n\tmov dword ptr [esp], edx\n\t"
+        ".Lzone856_linux_000bd813_%=:\n\tfstp dword ptr [esp + 0x48]\n\t"
+        ".Lzone856_linux_000bd817_%=:\n\tcall dword ptr [ebx+16]\n\t"
+        ".Lzone856_linux_000bd81c_%=:\n\tfstp dword ptr [esp + 0x2c]\n\t"
+        ".Lzone856_linux_000bd820_%=:\n\tfld dword ptr [esp + 0x2c]\n\t"
+        ".Lzone856_linux_000bd824_%=:\n\tfld dword ptr [ebx+28]\n\t"
+        ".Lzone856_linux_000bd82a_%=:\n\tfcom st(1)\n\t"
+        ".Lzone856_linux_000bd82c_%=:\n\tfnstsw ax\n\t"
+        ".Lzone856_linux_000bd82e_%=:\n\tfstp st(1)\n\t"
+        ".Lzone856_linux_000bd830_%=:\n\tsahf\n\t"
+        ".Lzone856_linux_000bd831_%=:\n\tjbe .Lzone856_linux_000bdb47_%=\n\t"
+        ".Lzone856_linux_000bd837_%=:\n\tfstp dword ptr [esp + 0x2c]\n\t"
+        ".Lzone856_linux_000bd83b_%=:\n\tmov edi, dword ptr [ebx+0]\n\t"
+        ".Lzone856_linux_000bd841_%=:\n\tmov eax, dword ptr [edi+%c[time]]\n\t"
+        ".Lzone856_linux_000bd847_%=:\n\tmov edx, dword ptr [edi+%c[transition]]\n\t"
+        ".Lzone856_linux_000bd84d_%=:\n\tsub eax, edx\n\t"
+        ".Lzone856_linux_000bd84f_%=:\n\tcmp eax, 0x3e7\n\t"
+        ".Lzone856_linux_000bd854_%=:\n\tjg .Lzone856_linux_000bd867_%=\n\t"
+        ".Lzone856_linux_000bd856_%=:\n\tpush eax\n\t"
+        ".Lzone856_linux_000bd857_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lzone856_linux_000bd85a_%=:\n\tadd esp, 4\n\t"
+        ".Lzone856_linux_000bd85d_%=:\n\tfmul dword ptr [ebx+32]\n\t"
+        ".Lzone856_linux_000bd863_%=:\n\tfstp dword ptr [esp + 0x34]\n\t"
+        ".Lzone856_linux_000bd867_%=:\n\tmov esi, dword ptr [ebx+12]\n\t"
+        ".Lzone856_linux_000bd86d_%=:\n\tmov eax, dword ptr [edi+%c[active]]\n\t"
+        ".Lzone856_linux_000bd873_%=:\n\tfild dword ptr [esi+%c[cvarInteger]]\n\t"
+        ".Lzone856_linux_000bd876_%=:\n\tmov ecx, dword ptr [edi + eax*8+%c[sounds]]\n\t"
+        ".Lzone856_linux_000bd87d_%=:\n\tfmul dword ptr [ebx+36]\n\t"
+        ".Lzone856_linux_000bd883_%=:\n\ttest ecx, ecx\n\t"
+        ".Lzone856_linux_000bd885_%=:\n\tfst dword ptr [esp + 0x30]\n\t"
+        ".Lzone856_linux_000bd889_%=:\n\tjne .Lzone856_linux_000bda12_%=\n\t"
+        ".Lzone856_linux_000bd88f_%=:\n\tfstp st(0)\n\t"
+        ".Lzone856_linux_000bd891_%=:\n\tmov esi, 1\n\t"
+        ".Lzone856_linux_000bd896_%=:\n\tsub esi, eax\n\t"
+        ".Lzone856_linux_000bd898_%=:\n\tmov edx, dword ptr [edi + esi*8+%c[sounds]]\n\t"
+        ".Lzone856_linux_000bd89f_%=:\n\ttest edx, edx\n\t"
+        ".Lzone856_linux_000bd8a1_%=:\n\tje .Lzone856_linux_finish_%=\n\t"
+        ".Lzone856_linux_000bd8a3_%=:\n\tfld dword ptr [ebx+24]\n\t"
+        ".Lzone856_linux_000bd8a9_%=:\n\tfld dword ptr [esp + 0x34]\n\t"
+        ".Lzone856_linux_000bd8ad_%=:\n\tfcomp st(1)\n\t"
+        ".Lzone856_linux_000bd8af_%=:\n\tfnstsw ax\n\t"
+        ".Lzone856_linux_000bd8b1_%=:\n\tsahf\n\t"
+        ".Lzone856_linux_000bd8b2_%=:\n\tjb .Lzone856_linux_000bd8d9_%=\n\t"
+        ".Lzone856_linux_000bd8b4_%=:\n\tfstp st(0)\n\t"
+        "jmp .Lzone856_linux_finish_%=\n\t"
+        ".Lzone856_linux_000bd8d9_%=:\n\tpush ebp\n\t"
+        ".Lzone856_linux_000bd8da_%=:\n\tmov ecx, 1\n\t"
+        ".Lzone856_linux_000bd8df_%=:\n\tmov ebp, 0x10\n\t"
+        ".Lzone856_linux_000bd8e4_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lzone856_linux_000bd8e7_%=:\n\tfxch st(1)\n\t"
+        ".Lzone856_linux_000bd8e9_%=:\n\tadd esp, 4\n\t"
+        ".Lzone856_linux_000bd8ec_%=:\n\tfsub dword ptr [esp + 0x34]\n\t"
+        ".Lzone856_linux_000bd8f0_%=:\n\tfnstcw word ptr [esp + 0x3e]\n\t"
+        ".Lzone856_linux_000bd8f4_%=:\n\tmovzx esi, word ptr [esp + 0x3e]\n\t"
+        ".Lzone856_linux_000bd8f9_%=:\n\tfmulp st(1)\n\t"
+        ".Lzone856_linux_000bd8fb_%=:\n\tor si, 0xc00\n\t"
+        ".Lzone856_linux_000bd900_%=:\n\tmov word ptr [esp + 0x3c], si\n\t"
+        ".Lzone856_linux_000bd905_%=:\n\tfld dword ptr [esp + 0x2c]\n\t"
+        ".Lzone856_linux_000bd909_%=:\n\tfxch st(1)\n\t"
+        ".Lzone856_linux_000bd90b_%=:\n\tfmul dword ptr [esp + 0x30]\n\t"
+        ".Lzone856_linux_000bd90f_%=:\n\tfldcw word ptr [esp + 0x3c]\n\t"
+        ".Lzone856_linux_000bd913_%=:\n\tfistp dword ptr [esp + 0x38]\n\t"
+        ".Lzone856_linux_000bd917_%=:\n\tfldcw word ptr [esp + 0x3e]\n\t"
+        ".Lzone856_linux_000bd91b_%=:\n\tmov edx, dword ptr [edi+%c[refdef]]\n\t"
+        ".Lzone856_linux_000bd921_%=:\n\tmov esi, dword ptr [esp + 0x38]\n\t"
+        ".Lzone856_linux_000bd925_%=:\n\tfmul dword ptr [edx+%c[viewRight]+0]\n\t"
+        ".Lzone856_linux_000bd928_%=:\n\tfadd dword ptr [edx+%c[viewOrigin]+0]\n\t"
+        ".Lzone856_linux_000bd92b_%=:\n\tfstp dword ptr [esp + 0x50]\n\t"
+        ".Lzone856_linux_000bd92f_%=:\n\tfld dword ptr [esp + 0x2c]\n\t"
+        ".Lzone856_linux_000bd933_%=:\n\tfmul dword ptr [edx+%c[viewRight]+4]\n\t"
+        ".Lzone856_linux_000bd936_%=:\n\tfadd dword ptr [edx+%c[viewOrigin]+4]\n\t"
+        ".Lzone856_linux_000bd939_%=:\n\tfstp dword ptr [esp + 0x54]\n\t"
+        ".Lzone856_linux_000bd93d_%=:\n\tfld dword ptr [esp + 0x2c]\n\t"
+        ".Lzone856_linux_000bd941_%=:\n\tfmul dword ptr [edx+%c[viewRight]+8]\n\t"
+        ".Lzone856_linux_000bd944_%=:\n\tfadd dword ptr [edx+%c[viewOrigin]+8]\n\t"
+        ".Lzone856_linux_000bd947_%=:\n\tmov dword ptr [esp + 0x14], esi\n\t"
+        ".Lzone856_linux_000bd94b_%=:\n\tmov dword ptr [esp + 0x10], ebp\n\t"
+        ".Lzone856_linux_000bd94f_%=:\n\tmov eax, dword ptr [edi+%c[active]]\n\t"
+        ".Lzone856_linux_000bd955_%=:\n\tmov ebp, dword ptr [ebx+4]\n\t"
+        ".Lzone856_linux_000bd95b_%=:\n\tfstp dword ptr [esp + 0x58]\n\t"
+        ".Lzone856_linux_000bd95f_%=:\n\tsub ecx, eax\n\t"
+        ".Lzone856_linux_000bd961_%=:\n\tmov edx, dword ptr [edi + ecx*8+%c[effects]]\n\t"
+        ".Lzone856_linux_000bd968_%=:\n\tmov ecx, dword ptr [ebp + edx*4+%c[gameSounds]]\n\t"
+        ".Lzone856_linux_000bd96f_%=:\n\tmov edx, 2\n\t"
+        ".Lzone856_linux_000bd974_%=:\n\tmov dword ptr [esp + 8], edx\n\t"
+        ".Lzone856_linux_000bd978_%=:\n\tlea edx, [esp + 0x50]\n\t"
+        ".Lzone856_linux_000bd97c_%=:\n\tmov dword ptr [esp + 0xc], ecx\n\t"
+        ".Lzone856_linux_000bd980_%=:\n\tmov ecx, 0xffffffff\n\t"
+        ".Lzone856_linux_000bd985_%=:\n\tmov dword ptr [esp + 4], ecx\n\t"
+        ".Lzone856_linux_000bd989_%=:\n\tmov dword ptr [esp + 0x20], edx\n\t"
+        ".Lzone856_linux_000bd98d_%=:\n\tmov dword ptr [esp], edx\n\t"
+        ".Lzone856_linux_000bd990_%=:\n\tcall dword ptr [ebx+20]\n\t"
+        ".Lzone856_linux_000bd995_%=:\n\tfld dword ptr [esp + 0x2c]\n\t"
+        ".Lzone856_linux_000bd999_%=:\n\tmov edx, 0x10\n\t"
+        ".Lzone856_linux_000bd99e_%=:\n\tmov ecx, dword ptr [edi+%c[refdef]]\n\t"
+        ".Lzone856_linux_000bd9a4_%=:\n\tfchs\n\t"
+        ".Lzone856_linux_000bd9a6_%=:\n\tfld dword ptr [ecx+%c[viewRight]+0]\n\t"
+        ".Lzone856_linux_000bd9a9_%=:\n\tfmul st(1)\n\t"
+        ".Lzone856_linux_000bd9ab_%=:\n\tfadd dword ptr [ecx+%c[viewOrigin]+0]\n\t"
+        ".Lzone856_linux_000bd9ae_%=:\n\tfstp dword ptr [esp + 0x50]\n\t"
+        ".Lzone856_linux_000bd9b2_%=:\n\tfld dword ptr [ecx+%c[viewRight]+4]\n\t"
+        ".Lzone856_linux_000bd9b5_%=:\n\tfmul st(1)\n\t"
+        ".Lzone856_linux_000bd9b7_%=:\n\tfadd dword ptr [ecx+%c[viewOrigin]+4]\n\t"
+        ".Lzone856_linux_000bd9ba_%=:\n\tfstp dword ptr [esp + 0x54]\n\t"
+        ".Lzone856_linux_000bd9be_%=:\n\tfmul dword ptr [ecx+%c[viewRight]+8]\n\t"
+        ".Lzone856_linux_000bd9c1_%=:\n\tfadd dword ptr [ecx+%c[viewOrigin]+8]\n\t"
+        ".Lzone856_linux_000bd9c4_%=:\n\tmov dword ptr [esp + 0x14], esi\n\t"
+        ".Lzone856_linux_000bd9c8_%=:\n\tmov esi, 1\n\t"
+        ".Lzone856_linux_000bd9cd_%=:\n\tmov dword ptr [esp + 0x10], edx\n\t"
+        ".Lzone856_linux_000bd9d1_%=:\n\tmov eax, dword ptr [edi+%c[active]]\n\t"
+        ".Lzone856_linux_000bd9d7_%=:\n\tfstp dword ptr [esp + 0x58]\n\t"
+        ".Lzone856_linux_000bd9db_%=:\n\tsub esi, eax\n\t"
+        ".Lzone856_linux_000bd9dd_%=:\n\tmov ecx, dword ptr [edi + esi*8+%c[effects]]\n\t"
+        ".Lzone856_linux_000bd9e4_%=:\n\tmov eax, dword ptr [esp + 0x20]\n\t"
+        ".Lzone856_linux_000bd9e8_%=:\n\tmov edi, 2\n\t"
+        ".Lzone856_linux_000bd9ed_%=:\n\tmov edx, dword ptr [ebp + ecx*4+%c[gameSounds]]\n\t"
+        ".Lzone856_linux_000bd9f4_%=:\n\tmov dword ptr [esp + 8], edi\n\t"
+        ".Lzone856_linux_000bd9f8_%=:\n\tmov ebp, 0xffffffff\n\t"
+        ".Lzone856_linux_000bd9fd_%=:\n\tmov dword ptr [esp + 4], ebp\n\t"
+        ".Lzone856_linux_000bda01_%=:\n\tmov dword ptr [esp + 0xc], edx\n\t"
+        ".Lzone856_linux_000bda05_%=:\n\tmov dword ptr [esp], eax\n\t"
+        ".Lzone856_linux_000bda08_%=:\n\tcall dword ptr [ebx+20]\n\t"
+        ".Lzone856_linux_000bda0d_%=:\n\tjmp .Lzone856_linux_finish_%=\n\t"
+        ".Lzone856_linux_000bda12_%=:\n\tpush ebp\n\t"
+        ".Lzone856_linux_000bda13_%=:\n\tmov edx, 0x10\n\t"
+        ".Lzone856_linux_000bda18_%=:\n\tfild dword ptr [esp]\n\t"
+        ".Lzone856_linux_000bda1b_%=:\n\tadd esp, 4\n\t"
+        ".Lzone856_linux_000bda1e_%=:\n\tfmul dword ptr [esp + 0x34]\n\t"
+        ".Lzone856_linux_000bda22_%=:\n\tfnstcw word ptr [esp + 0x3e]\n\t"
+        ".Lzone856_linux_000bda26_%=:\n\tmovzx esi, word ptr [esp + 0x3e]\n\t"
+        ".Lzone856_linux_000bda2b_%=:\n\tfmulp st(1)\n\t"
+        ".Lzone856_linux_000bda2d_%=:\n\tor si, 0xc00\n\t"
+        ".Lzone856_linux_000bda32_%=:\n\tmov word ptr [esp + 0x3c], si\n\t"
+        ".Lzone856_linux_000bda37_%=:\n\tfldcw word ptr [esp + 0x3c]\n\t"
+        ".Lzone856_linux_000bda3b_%=:\n\tfistp dword ptr [esp + 0x38]\n\t"
+        ".Lzone856_linux_000bda3f_%=:\n\tfldcw word ptr [esp + 0x3e]\n\t"
+        ".Lzone856_linux_000bda43_%=:\n\tfld dword ptr [esp + 0x2c]\n\t"
+        ".Lzone856_linux_000bda47_%=:\n\tmov ecx, dword ptr [edi+%c[refdef]]\n\t"
+        ".Lzone856_linux_000bda4d_%=:\n\tmov esi, dword ptr [esp + 0x38]\n\t"
+        ".Lzone856_linux_000bda51_%=:\n\tfmul dword ptr [ecx+%c[viewRight]+0]\n\t"
+        ".Lzone856_linux_000bda54_%=:\n\tfadd dword ptr [ecx+%c[viewOrigin]+0]\n\t"
+        ".Lzone856_linux_000bda57_%=:\n\tfstp dword ptr [esp + 0x50]\n\t"
+        ".Lzone856_linux_000bda5b_%=:\n\tfld dword ptr [esp + 0x2c]\n\t"
+        ".Lzone856_linux_000bda5f_%=:\n\tfmul dword ptr [ecx+%c[viewRight]+4]\n\t"
+        ".Lzone856_linux_000bda62_%=:\n\tfadd dword ptr [ecx+%c[viewOrigin]+4]\n\t"
+        ".Lzone856_linux_000bda65_%=:\n\tfstp dword ptr [esp + 0x54]\n\t"
+        ".Lzone856_linux_000bda69_%=:\n\tfld dword ptr [esp + 0x2c]\n\t"
+        ".Lzone856_linux_000bda6d_%=:\n\tfmul dword ptr [ecx+%c[viewRight]+8]\n\t"
+        ".Lzone856_linux_000bda70_%=:\n\tfadd dword ptr [ecx+%c[viewOrigin]+8]\n\t"
+        ".Lzone856_linux_000bda73_%=:\n\tmov ecx, dword ptr [ebx+4]\n\t"
+        ".Lzone856_linux_000bda79_%=:\n\tmov dword ptr [esp + 0x14], esi\n\t"
+        ".Lzone856_linux_000bda7d_%=:\n\tmov dword ptr [esp + 0x10], edx\n\t"
+        ".Lzone856_linux_000bda81_%=:\n\tmov dword ptr [esp + 0x28], ecx\n\t"
+        ".Lzone856_linux_000bda85_%=:\n\tmov edx, dword ptr [edi+%c[active]]\n\t"
+        ".Lzone856_linux_000bda8b_%=:\n\tfstp dword ptr [esp + 0x58]\n\t"
+        ".Lzone856_linux_000bda8f_%=:\n\tmov eax, dword ptr [edi + edx*8+%c[effects]]\n\t"
+        ".Lzone856_linux_000bda96_%=:\n\tmov edx, dword ptr [esp + 0x28]\n\t"
+        ".Lzone856_linux_000bda9a_%=:\n\tmov ecx, dword ptr [edx + eax*4+%c[gameSounds]]\n\t"
+        ".Lzone856_linux_000bdaa1_%=:\n\tmov edx, 0xffffffff\n\t"
+        ".Lzone856_linux_000bdaa6_%=:\n\tmov dword ptr [esp + 0xc], ecx\n\t"
+        ".Lzone856_linux_000bdaaa_%=:\n\tmov ecx, 2\n\t"
+        ".Lzone856_linux_000bdaaf_%=:\n\tmov dword ptr [esp + 8], ecx\n\t"
+        ".Lzone856_linux_000bdab3_%=:\n\tlea ecx, [esp + 0x50]\n\t"
+        ".Lzone856_linux_000bdab7_%=:\n\tmov dword ptr [esp + 4], edx\n\t"
+        ".Lzone856_linux_000bdabb_%=:\n\tmov dword ptr [esp + 0x24], ecx\n\t"
+        ".Lzone856_linux_000bdabf_%=:\n\tmov dword ptr [esp], ecx\n\t"
+        ".Lzone856_linux_000bdac2_%=:\n\tcall dword ptr [ebx+20]\n\t"
+        ".Lzone856_linux_000bdac7_%=:\n\tfld dword ptr [esp + 0x2c]\n\t"
+        ".Lzone856_linux_000bdacb_%=:\n\tmov ecx, 0x10\n\t"
+        ".Lzone856_linux_000bdad0_%=:\n\tmov edx, dword ptr [edi+%c[refdef]]\n\t"
+        ".Lzone856_linux_000bdad6_%=:\n\tfchs\n\t"
+        ".Lzone856_linux_000bdad8_%=:\n\tfld dword ptr [edx+%c[viewRight]+0]\n\t"
+        ".Lzone856_linux_000bdadb_%=:\n\tfmul st(1)\n\t"
+        ".Lzone856_linux_000bdadd_%=:\n\tfadd dword ptr [edx+%c[viewOrigin]+0]\n\t"
+        ".Lzone856_linux_000bdae0_%=:\n\tfstp dword ptr [esp + 0x50]\n\t"
+        ".Lzone856_linux_000bdae4_%=:\n\tfld dword ptr [edx+%c[viewRight]+4]\n\t"
+        ".Lzone856_linux_000bdae7_%=:\n\tfmul st(1)\n\t"
+        ".Lzone856_linux_000bdae9_%=:\n\tfadd dword ptr [edx+%c[viewOrigin]+4]\n\t"
+        ".Lzone856_linux_000bdaec_%=:\n\tfstp dword ptr [esp + 0x54]\n\t"
+        ".Lzone856_linux_000bdaf0_%=:\n\tfmul dword ptr [edx+%c[viewRight]+8]\n\t"
+        ".Lzone856_linux_000bdaf3_%=:\n\tfadd dword ptr [edx+%c[viewOrigin]+8]\n\t"
+        ".Lzone856_linux_000bdaf6_%=:\n\tmov dword ptr [esp + 0x14], esi\n\t"
+        ".Lzone856_linux_000bdafa_%=:\n\tmov dword ptr [esp + 0x10], ecx\n\t"
+        ".Lzone856_linux_000bdafe_%=:\n\tmov edx, dword ptr [edi+%c[active]]\n\t"
+        ".Lzone856_linux_000bdb04_%=:\n\tfstp dword ptr [esp + 0x58]\n\t"
+        ".Lzone856_linux_000bdb08_%=:\n\tmov esi, dword ptr [edi + edx*8+%c[effects]+4]\n\t"
+        ".Lzone856_linux_000bdb0f_%=:\n\tmov edx, dword ptr [esp + 0x28]\n\t"
+        ".Lzone856_linux_000bdb13_%=:\n\tmov ecx, dword ptr [edx + esi*4+%c[gameSounds]]\n\t"
+        ".Lzone856_linux_000bdb1a_%=:\n\tmov edx, dword ptr [esp + 0x24]\n\t"
+        ".Lzone856_linux_000bdb1e_%=:\n\tmov esi, 2\n\t"
+        ".Lzone856_linux_000bdb23_%=:\n\tmov dword ptr [esp + 8], esi\n\t"
+        ".Lzone856_linux_000bdb27_%=:\n\tmov dword ptr [esp + 0xc], ecx\n\t"
+        ".Lzone856_linux_000bdb2b_%=:\n\tmov ecx, 0xffffffff\n\t"
+        ".Lzone856_linux_000bdb30_%=:\n\tmov dword ptr [esp + 4], ecx\n\t"
+        ".Lzone856_linux_000bdb34_%=:\n\tmov dword ptr [esp], edx\n\t"
+        ".Lzone856_linux_000bdb37_%=:\n\tcall dword ptr [ebx+20]\n\t"
+        ".Lzone856_linux_000bdb3c_%=:\n\tmov eax, dword ptr [edi+%c[active]]\n\t"
+        ".Lzone856_linux_000bdb42_%=:\n\tjmp .Lzone856_linux_000bd891_%=\n\t"
+        ".Lzone856_linux_000bdb47_%=:\n\tfstp st(0)\n\t"
+        ".Lzone856_linux_000bdb49_%=:\n\tjmp .Lzone856_linux_000bd83b_%=\n\t"
+        ".Lzone856_linux_finish_%=:\n\tmov esp,dword ptr [esp+0xac]\n\tpop ebp\n\tpop ebx\n\t.att_syntax prefix"
+        : "+a" (cursor), "+c" (cent), "+d" (volume)
+        : "m" (bindings), [defStride] "i" (sizeof(tce_weaponDef_t)), [weapon] "i" (f855CentWeapon),
+          [subsonic] "i" (f855DefSubsonic), [suppressed] "i" (f855DefSuppressed),
+          [sounds] "i" (f856Sounds), [effects] "i" (f856Effects), [active] "i" (f856Active),
+          [transition] "i" (f856Transition), [refdef] "i" (f855Refdef), [time] "i" (f855Time),
+          [origin] "i" (f855CentOrigin), [viewOrigin] "i" (f855ViewOrigin), [viewRight] "i" (f856ViewRight),
+          [gameSounds] "i" (f856GameSounds), [cvarInteger] "i" (f856CvarInteger)
+        : "esi","edi","cc","memory","st","st(1)","st(2)","st(3)","st(4)","st(5)","st(6)","st(7)"
+#ifdef __SSE__
+          ,"xmm0","xmm1","xmm2","xmm3","xmm4","xmm5","xmm6","xmm7"
+#endif
+    );
+}
+#else
 void CG_EliteEffectSound(centity_t *cent,int volume) {
     int weapon=cent->currentState.weapon,active=cg.tceSoundZoneActive,side,v;
     float blend=1,scale=(float)cg_snd_reverb.integer*(1.0f/255.0f),distance;
@@ -3674,6 +5186,2014 @@ void CG_EliteEffectSound(centity_t *cent,int volume) {
         trap_S_StartSoundExVControl(position,-1,CHAN_WEAPON,cgs.gameSounds[cg.tceSoundZoneEffects[bank][side?0:1]],SND_NOCUT,v);
     }
 }
+#endif
+
+/* Complete original Fire/Recoil857 platform controllers. Actual source
+ * structures and immutable media remain distinct from live entity re-reads.
+ * Other targets keep the established SDK/numeric fallback. */
+enum {
+    f857Portal=offsetof(cg_t,tcePortalScopeRendering),
+    f857Snap=offsetof(cg_t,snap),
+    f857SnapClient=offsetof(snapshot_t,ps)+offsetof(playerState_t,clientNum),
+    f857SnapTeam=offsetof(snapshot_t,ps)+offsetof(playerState_t,persistant)+PERS_TEAM*4,
+    f857LastFired=offsetof(cg_t,lastFiredWeapon),
+    f857AimRequested=offsetof(cg_t,tceAimRequested),
+    f857AimActive=offsetof(cg_t,tceAimActive),
+    f857AimSync=offsetof(cg_t,tceAimSyncTime),
+    f857AimRetry=offsetof(cg_t,tceAimRetryTime),
+    f857ZoomTime=offsetof(cg_t,zoomTime),
+    f857MortarTime=offsetof(cg_t,mortarImpactTime),
+    f857MortarPitch=offsetof(cg_t,mortarFireAngles),
+    f857MortarYaw=offsetof(cg_t,mortarFireAngles)+4,
+    f857PredPitch=offsetof(cg_t,predictedPlayerState)+offsetof(playerState_t,viewangles),
+    f857PredYaw=offsetof(cg_t,predictedPlayerState)+offsetof(playerState_t,viewangles)+4,
+    f857WeaponSelect=offsetof(cg_t,weaponSelect),
+    f857Kick=offsetof(cg_t,kickAVel),
+    f857RecoilPitch=offsetof(cg_t,recoilPitch),
+    f857Flags=offsetof(centity_t,currentState)+offsetof(entityState_t,eFlags),
+    f857Client=offsetof(centity_t,currentState)+offsetof(entityState_t,clientNum),
+    f857Event=offsetof(centity_t,currentState)+offsetof(entityState_t,event),
+    f857EventParm=offsetof(centity_t,currentState)+offsetof(entityState_t,eventParm),
+    f857Apos=offsetof(centity_t,currentState)+offsetof(entityState_t,apos)+offsetof(trajectory_t,trBase),
+    f857Density=offsetof(centity_t,currentState)+offsetof(entityState_t,density),
+    f857TagParent=offsetof(centity_t,tagParent),
+    f857TankParent=offsetof(centity_t,tankparent),
+    f857Muzzle=offsetof(centity_t,muzzleFlashTime),
+    f857Lightning=offsetof(centity_t,pe)+offsetof(playerEntity_t,lightningFiring),
+    f857Pending=offsetof(centity_t,tceFireEffectPending),
+    f857Eject=offsetof(centity_t,tceEjectPending),
+    f857InfoBase=offsetof(cgs_t,clientinfo),
+    f857InfoStride=sizeof(clientInfo_t),
+    f857InfoValid=offsetof(clientInfo_t,infoValid),
+    f857InfoTeam=offsetof(clientInfo_t,team),
+    f857Heavy=offsetof(cgs_t,media)+offsetof(cgMedia_t,hWeaponSnd),
+    f857Heavy2=offsetof(cgs_t,media)+offsetof(cgMedia_t,hWeaponSnd_2),
+    f857WarnTeam1=offsetof(cgs_t,media)+offsetof(cgMedia_t,tceRoundWarning),
+    f857WarnTeam2=offsetof(cgs_t,media)+offsetof(cgMedia_t,tceRoundWarning)+8,
+    f857DefBolt=offsetof(tce_weaponDef_t,bolt),
+    f857DefSingle=offsetof(tce_weaponDef_t,singleReload),
+    f857Brass=offsetof(tce_weaponInfo_t,ejectBrass),
+    f857Flash=offsetof(tce_weaponInfo_t,flashSound),
+    f857LastShot=offsetof(tce_weaponInfo_t,lastShotSound),
+    f857CvarInt=offsetof(vmCvar_t,integer),
+    f857Time=f855Time,
+    f857Hold=f855ShotHold,
+    f857Instability=f855Instability,
+    f857Vertical=f855Vertical,
+    f857Horizontal=f855Horizontal,
+    f857Refdef=f855Refdef,
+    f857CentNumber=f855CentNumber,
+    f857CentWeapon=f855CentWeapon,
+    f857CentOrigin=f855CentOrigin,
+    f857CentStride=f855CentStride,
+    f857ViewOrigin=f855ViewOrigin,
+    f857Suppressed=f855DefSuppressed,
+    f857Subsonic=f855DefSubsonic,
+    f857Reverb=f855Reverb,
+    f857Echo=f855Echo
+};
+#if defined(_MSC_VER) && defined(_M_IX86)
+static const float f857Zero=0.0f;
+static const double f857RecoilAuto=0.3;
+static const double f857RecoilHalf=0.5;
+static const float f857RecoilThirty=30.0f;
+static const unsigned char f857RecoilCase[64]={0,1,4,4,4,0,1,4,1,4,4,4,0,4,4,4,4,4,4,4,4,2,2,2,4,4,4,4,4,1,2,1,4,4,4,0,0,4,4,1,4,4,4,4,4,4,4,4,4,4,0,0,0,4,4,3,3,1,4,4,1,4,4,0};
+static const char f857PortalText[]="ELITE PORTAL: CG_FireWeapon\n";
+static const char f857ErrorText[]="CG_FireWeapon: ent->weapon >= WP_NUM_WEAPONS";
+static __declspec(naked) void CG_TCEWeaponFireRecoil857(int weapon) {
+    __asm {
+    recoil857_win_30075a00:
+        sub esp, 0x14
+    recoil857_win_30075a03:
+        mov eax, dword ptr [esp + 0x18]
+    recoil857_win_30075a07:
+        mov dword ptr [esp], 0
+    recoil857_win_30075a0f:
+        add eax, -2
+    recoil857_win_30075a12:
+        mov dword ptr [esp + 4], 0
+    recoil857_win_30075a1a:
+        cmp eax, 0x3f
+    recoil857_win_30075a1d:
+        ja recoil857_win_30075aed
+    recoil857_win_30075a23:
+        xor ecx, ecx
+    recoil857_win_30075a25:
+        mov cl,byte ptr [eax+f857RecoilCase]
+    recoil857_win_30075a2b:
+        cmp ecx,0
+        je recoil857_win_30075a76
+        cmp ecx,1
+        je recoil857_win_30075a4e
+        cmp ecx,2
+        je recoil857_win_30075a32
+        cmp ecx,3
+        je recoil857_win_30075a44
+        jmp recoil857_win_30075aed
+    recoil857_win_30075a32:
+        mov dword ptr [esp], 0x40000000
+    recoil857_win_30075a3a:
+        mov dword ptr [esp + 4], 0x3f800000
+    recoil857_win_30075a42:
+        jmp recoil857_win_30075a76
+    recoil857_win_30075a44:
+        mov dword ptr [esp], 0x3e99999a
+    recoil857_win_30075a4c:
+        jmp recoil857_win_30075a76
+    recoil857_win_30075a4e:
+        call rand
+    recoil857_win_30075a53:
+        cdq
+    recoil857_win_30075a54:
+        mov ecx, 3
+    recoil857_win_30075a59:
+        mov dword ptr [esp + 4], 0x3f19999a
+    recoil857_win_30075a61:
+        idiv ecx
+    recoil857_win_30075a63:
+        inc edx
+    recoil857_win_30075a64:
+        mov dword ptr [esp + 0x18], edx
+    recoil857_win_30075a68:
+        fild dword ptr [esp + 0x18]
+    recoil857_win_30075a6c:
+        fmul qword ptr f857RecoilAuto
+    recoil857_win_30075a72:
+        fstp dword ptr [esp]
+    recoil857_win_30075a76:
+        call rand
+    recoil857_win_30075a7b:
+        and eax, 0x7fff
+    recoil857_win_30075a80:
+        mov ecx, dword ptr [cg+f857RecoilPitch]
+    recoil857_win_30075a86:
+        mov dword ptr [esp + 0x18], eax
+    recoil857_win_30075a8a:
+        mov dword ptr [cg+f857RecoilPitch], ecx
+    recoil857_win_30075a90:
+        fild dword ptr [esp + 0x18]
+    recoil857_win_30075a94:
+        fmul dword ptr f855RandomScale
+    recoil857_win_30075a9a:
+        fsub qword ptr f857RecoilHalf
+    recoil857_win_30075aa0:
+        fadd st(0), st(0)
+    recoil857_win_30075aa2:
+        fmul dword ptr [esp + 4]
+    recoil857_win_30075aa6:
+        fld st(0)
+    recoil857_win_30075aa8:
+        fchs
+    recoil857_win_30075aaa:
+        fstp dword ptr [esp + 0x10]
+    recoil857_win_30075aae:
+        fld dword ptr [esp]
+    recoil857_win_30075ab2:
+        fchs
+    recoil857_win_30075ab4:
+        fmul dword ptr f857RecoilThirty
+    recoil857_win_30075aba:
+        fxch st(1)
+    recoil857_win_30075abc:
+        fmul dword ptr f857RecoilThirty
+    recoil857_win_30075ac2:
+        fstp dword ptr [esp + 0xc]
+    recoil857_win_30075ac6:
+        fld dword ptr [esp + 0x10]
+    recoil857_win_30075aca:
+        fmul dword ptr f857RecoilThirty
+    recoil857_win_30075ad0:
+        mov edx, dword ptr [esp + 0xc]
+    recoil857_win_30075ad4:
+        mov dword ptr [cg+f857Kick+4], edx
+    recoil857_win_30075ada:
+        fstp dword ptr [esp + 0x10]
+    recoil857_win_30075ade:
+        mov eax, dword ptr [esp + 0x10]
+    recoil857_win_30075ae2:
+        fstp dword ptr [cg+f857Kick]
+    recoil857_win_30075ae8:
+        mov dword ptr [cg+f857Kick+8], eax
+    recoil857_win_30075aed:
+        add esp, 0x14
+    recoil857_win_30075af0:
+        ret
+    }
+}
+__declspec(naked) void CG_FireWeapon(centity_t *cent) {
+    __asm {
+    fire857_win_300766b0:
+        mov eax, dword ptr [cg+f857Portal]
+    fire857_win_300766b5:
+        sub esp, 0x34
+    fire857_win_300766b8:
+        push ebx
+    fire857_win_300766b9:
+        push ebp
+    fire857_win_300766ba:
+        xor ebp, ebp
+    fire857_win_300766bc:
+        push esi
+    fire857_win_300766bd:
+        cmp eax, ebp
+    fire857_win_300766bf:
+        push edi
+    fire857_win_300766c0:
+        je fire857_win_300766cf
+    fire857_win_300766c2:
+        push offset f857PortalText
+    fire857_win_300766c7:
+        call CG_Printf
+    fire857_win_300766cc:
+        add esp, 4
+    fire857_win_300766cf:
+        mov esi, dword ptr [esp + 0x48]
+    fire857_win_300766d3:
+        mov eax, dword ptr [esi+f857Flags]
+    fire857_win_300766d6:
+        test ah, 0x80
+    fire857_win_300766d9:
+        je fire857_win_3007677d
+    fire857_win_300766df:
+        mov eax, dword ptr [esi+f857CentNumber]
+    fire857_win_300766e1:
+        imul ecx,eax,f857CentStride
+        mov ecx,dword ptr [cg_entities+ecx+f857TagParent]
+    fire857_win_300766fa:
+        imul ecx,ecx,f857CentStride
+        mov ecx,dword ptr [cg_entities+ecx+f857TankParent]
+    fire857_win_30076713:
+        imul ecx,ecx,f857CentStride
+        test byte ptr [cg_entities+ecx+f857Density],8
+    fire857_win_3007672d:
+        je fire857_win_30076756
+    fire857_win_3007672f:
+        mov edx, dword ptr [cgs+f857Heavy2]
+    fire857_win_30076735:
+        push edx
+    fire857_win_30076736:
+        push 2
+    fire857_win_30076738:
+        push eax
+    fire857_win_30076739:
+        push ebp
+    fire857_win_3007673a:
+        call trap_S_StartSound
+    fire857_win_3007673f:
+        mov edx, dword ptr [cg+f857Time]
+    fire857_win_30076745:
+        add esp, 0x10
+    fire857_win_30076748:
+        mov dword ptr [esi+f857Muzzle], edx
+    fire857_win_3007674e:
+        pop edi
+    fire857_win_3007674f:
+        pop esi
+    fire857_win_30076750:
+        pop ebp
+    fire857_win_30076751:
+        pop ebx
+    fire857_win_30076752:
+        add esp, 0x34
+    fire857_win_30076755:
+        ret
+    fire857_win_30076756:
+        mov ecx, dword ptr [cgs+f857Heavy]
+    fire857_win_3007675c:
+        push ecx
+    fire857_win_3007675d:
+        push 2
+    fire857_win_3007675f:
+        push eax
+    fire857_win_30076760:
+        push ebp
+    fire857_win_30076761:
+        call trap_S_StartSound
+    fire857_win_30076766:
+        mov edx, dword ptr [cg+f857Time]
+    fire857_win_3007676c:
+        add esp, 0x10
+    fire857_win_3007676f:
+        mov dword ptr [esi+f857Muzzle], edx
+    fire857_win_30076775:
+        pop edi
+    fire857_win_30076776:
+        pop esi
+    fire857_win_30076777:
+        pop ebp
+    fire857_win_30076778:
+        pop ebx
+    fire857_win_30076779:
+        add esp, 0x34
+    fire857_win_3007677c:
+        ret
+    fire857_win_3007677d:
+        test al, 0x20
+    fire857_win_3007677f:
+        jne fire857_win_30076d92
+    fire857_win_30076785:
+        test eax, 0x400000
+    fire857_win_3007678a:
+        jne fire857_win_30076dad
+    fire857_win_30076790:
+        mov eax, dword ptr [esi+f857CentWeapon]
+    fire857_win_30076796:
+        cmp eax, ebp
+    fire857_win_30076798:
+        je fire857_win_30076dca
+    fire857_win_3007679e:
+        cmp eax, 0x40
+    fire857_win_300767a1:
+        jl fire857_win_300767b8
+    fire857_win_300767a3:
+        push offset f857ErrorText
+    fire857_win_300767a8:
+        call CG_Error
+    fire857_win_300767ad:
+        add esp, 4
+    fire857_win_300767b0:
+        pop edi
+    fire857_win_300767b1:
+        pop esi
+    fire857_win_300767b2:
+        pop ebp
+    fire857_win_300767b3:
+        pop ebx
+    fire857_win_300767b4:
+        add esp, 0x34
+    fire857_win_300767b7:
+        ret
+    fire857_win_300767b8:
+        mov ecx, eax
+    fire857_win_300767ba:
+        mov edx, dword ptr [esi+f857Client]
+    fire857_win_300767c0:
+        shl ecx, 6
+    fire857_win_300767c3:
+        sub ecx, eax
+    fire857_win_300767c5:
+        lea edi, [eax + ecx*4]
+    fire857_win_300767c8:
+        mov ecx, dword ptr [cg+f857Snap]
+    fire857_win_300767ce:
+        shl edi, 4
+    fire857_win_300767d1:
+        mov ebx, dword ptr [ecx+f857SnapClient]
+    fire857_win_300767d7:
+        add edi, offset tce_cg_weapons
+    fire857_win_300767dd:
+        cmp edx, ebx
+    fire857_win_300767df:
+        mov dword ptr [esp + 0x18], edi
+    fire857_win_300767e3:
+        jne fire857_win_300767ea
+    fire857_win_300767e5:
+        mov dword ptr [cg+f857LastFired], eax
+    fire857_win_300767ea:
+        mov edx, dword ptr [cg+f857Time]
+    fire857_win_300767f0:
+        mov eax, dword ptr [esi+f857CentNumber]
+    fire857_win_300767f2:
+        mov dword ptr [esi+f857Muzzle], edx
+    fire857_win_300767f8:
+        mov edx, dword ptr [cg+f857Snap]
+    fire857_win_300767fe:
+        cmp eax, dword ptr [edx+f857SnapClient]
+    fire857_win_30076804:
+        jne fire857_win_3007688e
+    fire857_win_3007680a:
+        mov ecx, dword ptr [esi+f857CentWeapon]
+    fire857_win_30076810:
+        push ecx
+    fire857_win_30076811:
+        call CG_WeaponFireRecoil
+    fire857_win_30076816:
+        mov edx, dword ptr [cg+f857Time]
+    fire857_win_3007681c:
+        add esp, 4
+    fire857_win_3007681f:
+        add edx, 0x64
+    fire857_win_30076822:
+        mov dword ptr [cg+f857Hold], edx
+    fire857_win_30076828:
+        call rand
+    fire857_win_3007682d:
+        and eax, 0x7fff
+    fire857_win_30076832:
+        mov edx, dword ptr [cg+f857Snap]
+    fire857_win_30076838:
+        mov dword ptr [esp + 0x48], eax
+    fire857_win_3007683c:
+        fild dword ptr [esp + 0x48]
+    fire857_win_30076840:
+        fmul dword ptr f855RandomScale
+    fire857_win_30076846:
+        fild dword ptr [cg+f857Instability]
+    fire857_win_3007684c:
+        fmul dword ptr f855InstabilityScale
+    fire857_win_30076852:
+        fstp dword ptr [esp + 0x48]
+    fire857_win_30076856:
+        fmul dword ptr f855WinTwoPi
+    fire857_win_3007685c:
+        fld st(0)
+    fire857_win_3007685e:
+        fsin
+    fire857_win_30076860:
+        fmul dword ptr [esp + 0x48]
+    fire857_win_30076864:
+        fmul qword ptr f855WinAmplitude
+    fire857_win_3007686a:
+        fadd dword ptr [cg+f857Vertical]
+    fire857_win_30076870:
+        fstp dword ptr [cg+f857Vertical]
+    fire857_win_30076876:
+        fcos
+    fire857_win_30076878:
+        fmul dword ptr [esp + 0x48]
+    fire857_win_3007687c:
+        fmul qword ptr f855WinAmplitude
+    fire857_win_30076882:
+        fadd dword ptr [cg+f857Horizontal]
+    fire857_win_30076888:
+        fstp dword ptr [cg+f857Horizontal]
+    fire857_win_3007688e:
+        mov eax, dword ptr [esi+f857CentNumber]
+    fire857_win_30076890:
+        mov ecx, dword ptr [edx+f857SnapClient]
+    fire857_win_30076896:
+        cmp eax, ecx
+    fire857_win_30076898:
+        jne fire857_win_300768b1
+    fire857_win_3007689a:
+        cmp dword ptr [cg_predictBullets+f857CvarInt], ebp
+    fire857_win_300768a0:
+        jle fire857_win_300768b1
+    fire857_win_300768a2:
+        push esi
+    fire857_win_300768a3:
+        call CG_PredictedFire
+    fire857_win_300768a8:
+        mov edx, dword ptr [cg+f857Snap]
+    fire857_win_300768ae:
+        add esp, 4
+    fire857_win_300768b1:
+        mov ecx, dword ptr [esi+f857CentNumber]
+    fire857_win_300768b3:
+        mov eax, dword ptr [edx+f857SnapClient]
+    fire857_win_300768b9:
+        cmp ecx, eax
+    fire857_win_300768bb:
+        jne fire857_win_300768f4
+    fire857_win_300768bd:
+        cmp dword ptr [esi+f857CentWeapon], 0x2e
+    fire857_win_300768c4:
+        jne fire857_win_300768f4
+    fire857_win_300768c6:
+        cmp dword ptr [cg+f857AimRequested], ebp
+    fire857_win_300768cc:
+        je fire857_win_300768f4
+    fire857_win_300768ce:
+        mov eax, dword ptr [cg+f857Time]
+    fire857_win_300768d3:
+        mov dword ptr [cg+f857AimRequested], ebp
+    fire857_win_300768d9:
+        add eax, 0xfffffed4
+    fire857_win_300768de:
+        mov dword ptr [cg+f857AimActive], ebp
+    fire857_win_300768e4:
+        mov dword ptr [cg+f857ZoomTime], eax
+    fire857_win_300768e9:
+        mov dword ptr [cg+f857AimSync], eax
+    fire857_win_300768ee:
+        mov dword ptr [cg+f857AimRetry], ebp
+    fire857_win_300768f4:
+        cmp dword ptr [esi+f857CentWeapon], 0x3c
+    fire857_win_300768fb:
+        jne fire857_win_3007692d
+    fire857_win_300768fd:
+        mov ecx, dword ptr [esi+f857Client]
+    fire857_win_30076903:
+        mov eax, dword ptr [edx+f857SnapClient]
+    fire857_win_30076909:
+        cmp ecx, eax
+    fire857_win_3007690b:
+        jne fire857_win_3007692d
+    fire857_win_3007690d:
+        mov eax, dword ptr [cg+f857PredPitch]
+    fire857_win_30076912:
+        mov ecx, dword ptr [cg+f857PredYaw]
+    fire857_win_30076918:
+        mov dword ptr [cg+f857MortarTime], 0xffffffff
+    fire857_win_30076922:
+        mov dword ptr [cg+f857MortarPitch], eax
+    fire857_win_30076927:
+        mov dword ptr [cg+f857MortarYaw], ecx
+    fire857_win_3007692d:
+        mov eax, dword ptr [esi+f857CentWeapon]
+    fire857_win_30076933:
+        cmp eax, 0x42
+    fire857_win_30076936:
+        jne fire857_win_30076949
+    fire857_win_30076938:
+        cmp dword ptr [esi+f857Lightning], ebp
+    fire857_win_3007693e:
+        jne fire857_win_30076dca
+    fire857_win_30076944:
+        jmp fire857_win_30076a47
+    fire857_win_30076949:
+        cmp eax, 4
+    fire857_win_3007694c:
+        je fire857_win_30076975
+    fire857_win_3007694e:
+        cmp eax, 9
+    fire857_win_30076951:
+        je fire857_win_3007697e
+    fire857_win_30076953:
+        cmp eax, 0xf
+    fire857_win_30076956:
+        je fire857_win_30076975
+    fire857_win_30076958:
+        cmp eax, 0x16
+    fire857_win_3007695b:
+        je fire857_win_30076975
+    fire857_win_3007695d:
+        cmp eax, 0x1a
+    fire857_win_30076960:
+        je fire857_win_30076975
+    fire857_win_30076962:
+        cmp eax, 0x1b
+    fire857_win_30076965:
+        je fire857_win_30076975
+    fire857_win_30076967:
+        cmp eax, 0x1d
+    fire857_win_3007696a:
+        je fire857_win_30076975
+    fire857_win_3007696c:
+        cmp eax, 0x1e
+    fire857_win_3007696f:
+        jne fire857_win_30076a47
+    fire857_win_30076975:
+        cmp eax, 9
+    fire857_win_30076978:
+        jne fire857_win_30076a33
+    fire857_win_3007697e:
+        mov ecx, dword ptr [esi+f857CentNumber]
+    fire857_win_30076980:
+        imul eax,ecx,f857InfoStride
+    fire857_win_3007698c:
+        cmp dword ptr [cgs+eax+f857InfoBase+f857InfoValid], ebp
+    fire857_win_30076992:
+        je fire857_win_30076a33
+    fire857_win_30076998:
+        mov eax, dword ptr [cgs+eax+f857InfoBase+f857InfoTeam]
+    fire857_win_3007699e:
+        mov ecx, dword ptr [edx+f857SnapTeam]
+    fire857_win_300769a4:
+        cmp eax, ecx
+    fire857_win_300769a6:
+        jne fire857_win_30076a33
+    fire857_win_300769ac:
+        cmp eax, 1
+    fire857_win_300769af:
+        jne fire857_win_300769e9
+    fire857_win_300769b1:
+        fld dword ptr f855One
+    fire857_win_300769b7:
+        fsub dword ptr tceFlash.deafness
+    fire857_win_300769bd:
+        fmul dword ptr f855Maximum
+    fire857_win_300769c3:
+        call CG_TCEFireWarningFtol853
+    fire857_win_300769c8:
+        push eax
+    fire857_win_300769c9:
+        call rand
+    fire857_win_300769ce:
+        and eax, 0x80000001
+    fire857_win_300769d3:
+        jns fire857_win_300769da
+    fire857_win_300769d5:
+        dec eax
+    fire857_win_300769d6:
+        or eax, 0xfffffffe
+    fire857_win_300769d9:
+        inc eax
+    fire857_win_300769da:
+        mov edx, dword ptr [cgs+eax*4+f857WarnTeam1]
+    fire857_win_300769e1:
+        mov eax, dword ptr [esi+f857CentNumber]
+    fire857_win_300769e3:
+        push edx
+    fire857_win_300769e4:
+        push 2
+    fire857_win_300769e6:
+        push eax
+    fire857_win_300769e7:
+        jmp fire857_win_30076a24
+    fire857_win_300769e9:
+        cmp eax, 2
+    fire857_win_300769ec:
+        jne fire857_win_30076a33
+    fire857_win_300769ee:
+        fld dword ptr f855One
+    fire857_win_300769f4:
+        fsub dword ptr tceFlash.deafness
+    fire857_win_300769fa:
+        fmul dword ptr f855Maximum
+    fire857_win_30076a00:
+        call CG_TCEFireWarningFtol853
+    fire857_win_30076a05:
+        push eax
+    fire857_win_30076a06:
+        call rand
+    fire857_win_30076a0b:
+        and eax, 0x80000001
+    fire857_win_30076a10:
+        jns fire857_win_30076a17
+    fire857_win_30076a12:
+        dec eax
+    fire857_win_30076a13:
+        or eax, 0xfffffffe
+    fire857_win_30076a16:
+        inc eax
+    fire857_win_30076a17:
+        mov ecx, dword ptr [cgs+eax*4+f857WarnTeam2]
+    fire857_win_30076a1e:
+        mov edx, dword ptr [esi+f857CentNumber]
+    fire857_win_30076a20:
+        push ecx
+    fire857_win_30076a21:
+        push 2
+    fire857_win_30076a23:
+        push edx
+    fire857_win_30076a24:
+        push ebp
+    fire857_win_30076a25:
+        call trap_S_StartSoundVControl
+    fire857_win_30076a2a:
+        mov edx, dword ptr [cg+f857Snap]
+    fire857_win_30076a30:
+        add esp, 0x14
+    fire857_win_30076a33:
+        fld dword ptr [esi+f857Apos]
+    fire857_win_30076a36:
+        fcomp dword ptr f857Zero
+    fire857_win_30076a3c:
+        fnstsw ax
+    fire857_win_30076a3e:
+        test ah, 0x41
+    fire857_win_30076a41:
+        je fire857_win_30076dca
+    fire857_win_30076a47:
+        mov eax, dword ptr [esi+f857CentWeapon]
+    fire857_win_30076a4d:
+        cmp eax, 0x37
+    fire857_win_30076a50:
+        jne fire857_win_30076a6e
+    fire857_win_30076a52:
+        mov eax, dword ptr [esi+f857Client]
+    fire857_win_30076a58:
+        mov ecx, dword ptr [edx+f857SnapClient]
+    fire857_win_30076a5e:
+        cmp eax, ecx
+    fire857_win_30076a60:
+        jne fire857_win_30076a8d
+    fire857_win_30076a62:
+        mov dword ptr [cg+f857WeaponSelect], 0x17
+    fire857_win_30076a6c:
+        jmp fire857_win_30076a8d
+    fire857_win_30076a6e:
+        cmp eax, 0x38
+    fire857_win_30076a71:
+        jne fire857_win_30076a8d
+    fire857_win_30076a73:
+        mov ecx, dword ptr [esi+f857Client]
+    fire857_win_30076a79:
+        mov eax, dword ptr [edx+f857SnapClient]
+    fire857_win_30076a7f:
+        cmp ecx, eax
+    fire857_win_30076a81:
+        jne fire857_win_30076a8d
+    fire857_win_30076a83:
+        mov dword ptr [cg+f857WeaponSelect], 0x18
+    fire857_win_30076a8d:
+        mov edx, dword ptr [esi+f857Event]
+    fire857_win_30076a93:
+        and dh, 0xfc
+    fire857_win_30076a96:
+        cmp edx, 0x2a
+    fire857_win_30076a99:
+        jne fire857_win_30076acc
+    fire857_win_30076a9b:
+        lea ebx, [edi+f857LastShot]
+    fire857_win_30076aa1:
+        lea edx, [edi+f857Echo]
+    fire857_win_30076aa7:
+        mov dword ptr [esp + 0x48], edx
+    fire857_win_30076aab:
+        xor eax, eax
+    fire857_win_30076aad:
+        mov ecx, ebx
+    fire857_win_30076aaf:
+        cmp dword ptr [ecx], ebp
+    fire857_win_30076ab1:
+        je fire857_win_30076abc
+    fire857_win_30076ab3:
+        inc eax
+    fire857_win_30076ab4:
+        add ecx, 4
+    fire857_win_30076ab7:
+        cmp eax, 4
+    fire857_win_30076aba:
+        jl fire857_win_30076aaf
+    fire857_win_30076abc:
+        cmp eax, ebp
+    fire857_win_30076abe:
+        jne fire857_win_30076adc
+    fire857_win_30076ac0:
+        lea ebx, [edi+f857Flash]
+    fire857_win_30076ac6:
+        mov dword ptr [esp + 0x48], edx
+    fire857_win_30076aca:
+        jmp fire857_win_30076adc
+    fire857_win_30076acc:
+        lea ebx, [edi+f857Flash]
+    fire857_win_30076ad2:
+        add edi,f857Echo
+    fire857_win_30076ad8:
+        mov dword ptr [esp + 0x48], edi
+    fire857_win_30076adc:
+        test dword ptr [esi+f857Flags], 0x40000
+    fire857_win_30076ae3:
+        jne fire857_win_30076dca
+    fire857_win_30076ae9:
+        xor edi, edi
+    fire857_win_30076aeb:
+        mov eax, ebx
+    fire857_win_30076aed:
+        cmp dword ptr [eax], ebp
+    fire857_win_30076aef:
+        je fire857_win_30076afa
+    fire857_win_30076af1:
+        inc edi
+    fire857_win_30076af2:
+        add eax, 4
+    fire857_win_30076af5:
+        cmp edi, 4
+    fire857_win_30076af8:
+        jl fire857_win_30076aed
+    fire857_win_30076afa:
+        cmp edi, ebp
+    fire857_win_30076afc:
+        jle fire857_win_30076cec
+    fire857_win_30076b02:
+        call rand
+    fire857_win_30076b07:
+        cdq
+    fire857_win_30076b08:
+        idiv edi
+    fire857_win_30076b0a:
+        mov ebp, edx
+    fire857_win_30076b0c:
+        cmp dword ptr [ebx + ebp*4], 0
+    fire857_win_30076b10:
+        je fire857_win_30076cec
+    fire857_win_30076b16:
+        fld dword ptr tceFlash.deafness
+    fire857_win_30076b1c:
+        fcomp dword ptr f855One
+    fire857_win_30076b22:
+        fnstsw ax
+    fire857_win_30076b24:
+        test ah, 0x40
+    fire857_win_30076b27:
+        jne fire857_win_30076cec
+    fire857_win_30076b2d:
+        mov eax, dword ptr [esi+f857CentNumber]
+    fire857_win_30076b2f:
+        imul eax,eax,f857CentStride
+        lea ecx,[cg_entities+eax]
+    fire857_win_30076b48:
+        mov dword ptr [esp + 0x14], ecx
+    fire857_win_30076b4c:
+        mov ecx, dword ptr [esi+f857CentWeapon]
+    fire857_win_30076b52:
+        lea eax, [ecx + ecx*2]
+    fire857_win_30076b55:
+        shl eax, 3
+    fire857_win_30076b58:
+        sub eax, ecx
+    fire857_win_30076b5a:
+        lea eax, [eax + eax*4]
+    fire857_win_30076b5d:
+        shl eax, 2
+    fire857_win_30076b60:
+        mov ecx, dword ptr [weaponDef+eax+f857Suppressed]
+    fire857_win_30076b66:
+        test ecx, ecx
+    fire857_win_30076b68:
+        jne fire857_win_30076b8d
+    fire857_win_30076b6a:
+        mov ecx, dword ptr [weaponDef+eax+f857Subsonic]
+    fire857_win_30076b70:
+        test ecx, ecx
+    fire857_win_30076b72:
+        jne fire857_win_30076b8d
+    fire857_win_30076b74:
+        fld dword ptr f855One
+    fire857_win_30076b7a:
+        fsub dword ptr tceFlash.deafness
+    fire857_win_30076b80:
+        fmul dword ptr f855Maximum
+    fire857_win_30076b86:
+        call CG_TCEFireWarningFtol853
+    fire857_win_30076b8b:
+        jmp fire857_win_30076ba9
+    fire857_win_30076b8d:
+        mov edx, dword ptr [esp + 0x14]
+    fire857_win_30076b91:
+        push 0
+    fire857_win_30076b93:
+        push 0x44e10000
+    fire857_win_30076b98:
+        add edx,f857CentOrigin
+    fire857_win_30076b9b:
+        push 0x42fe0000
+    fire857_win_30076ba0:
+        push edx
+    fire857_win_30076ba1:
+        call CG_SoundVolume
+    fire857_win_30076ba6:
+        add esp, 0x10
+    fire857_win_30076ba9:
+        mov ecx, dword ptr [esi+f857CentNumber]
+    fire857_win_30076bab:
+        mov edi, eax
+    fire857_win_30076bad:
+        mov eax, dword ptr [ebx + ebp*4]
+    fire857_win_30076bb0:
+        push edi
+    fire857_win_30076bb1:
+        push 0x10
+    fire857_win_30076bb3:
+        push eax
+    fire857_win_30076bb4:
+        push 2
+    fire857_win_30076bb6:
+        push ecx
+    fire857_win_30076bb7:
+        push 0
+    fire857_win_30076bb9:
+        mov dword ptr [esp + 0x28], edi
+    fire857_win_30076bbd:
+        call trap_S_StartSoundExVControl
+    fire857_win_30076bc2:
+        mov edx, dword ptr [esp + 0x30]
+    fire857_win_30076bc6:
+        add esp, 0x18
+    fire857_win_30076bc9:
+        mov eax, dword ptr [edx+f857Reverb]
+    fire857_win_30076bcf:
+        test eax, eax
+    fire857_win_30076bd1:
+        mov dword ptr [esp + 0x1c], eax
+    fire857_win_30076bd5:
+        je fire857_win_30076bec
+    fire857_win_30076bd7:
+        fild dword ptr [esp + 0x10]
+    fire857_win_30076bdb:
+        fimul dword ptr [esp + 0x1c]
+    fire857_win_30076bdf:
+        fmul dword ptr f855ReverbScale
+    fire857_win_30076be5:
+        call CG_TCEFireWarningFtol853
+    fire857_win_30076bea:
+        jmp fire857_win_30076bee
+    fire857_win_30076bec:
+        mov eax, edi
+    fire857_win_30076bee:
+        mov ebx, dword ptr [esp + 0x14]
+    fire857_win_30076bf2:
+        push eax
+    fire857_win_30076bf3:
+        push ebx
+    fire857_win_30076bf4:
+        call CG_EliteEffectSound
+    fire857_win_30076bf9:
+        mov edi, dword ptr [esp + 0x50]
+    fire857_win_30076bfd:
+        add esp, 8
+    fire857_win_30076c00:
+        test edi, edi
+    fire857_win_30076c02:
+        je fire857_win_30076cec
+    fire857_win_30076c08:
+        cmp dword ptr [edi + ebp*4], 0
+    fire857_win_30076c0c:
+        je fire857_win_30076cec
+    fire857_win_30076c12:
+        mov eax, dword ptr [ebx+f857CentOrigin+0]
+    fire857_win_30076c15:
+        mov ecx, dword ptr [ebx+f857CentOrigin+4]
+    fire857_win_30076c18:
+        mov edx, dword ptr [ebx+f857CentOrigin+8]
+    fire857_win_30076c1b:
+        mov dword ptr [esp + 0x20], eax
+    fire857_win_30076c1f:
+        mov eax, dword ptr [cg+f857Refdef]
+    fire857_win_30076c24:
+        mov dword ptr [esp + 0x24], ecx
+    fire857_win_30076c28:
+        mov dword ptr [esp + 0x28], edx
+    fire857_win_30076c2c:
+        fld dword ptr [eax+f857ViewOrigin+0]
+    fire857_win_30076c2f:
+        fld dword ptr [esp + 0x20]
+    fire857_win_30076c33:
+        mov ecx, dword ptr [eax+f857ViewOrigin+4]
+    fire857_win_30076c36:
+        mov edx, dword ptr [eax+f857ViewOrigin+8]
+    fire857_win_30076c39:
+        fsub st(1)
+    fire857_win_30076c3b:
+        mov dword ptr [esp + 0x3c], ecx
+    fire857_win_30076c3f:
+        mov dword ptr [esp + 0x40], edx
+    fire857_win_30076c43:
+        lea eax, [esp + 0x2c]
+    fire857_win_30076c47:
+        push eax
+    fire857_win_30076c48:
+        fstp dword ptr [esp + 0x30]
+    fire857_win_30076c4c:
+        fstp st(0)
+    fire857_win_30076c4e:
+        fld dword ptr [esp + 0x28]
+    fire857_win_30076c52:
+        fsub dword ptr [esp + 0x40]
+    fire857_win_30076c56:
+        fstp dword ptr [esp + 0x34]
+    fire857_win_30076c5a:
+        fld dword ptr [esp + 0x2c]
+    fire857_win_30076c5e:
+        fsub dword ptr [esp + 0x44]
+    fire857_win_30076c62:
+        fstp dword ptr [esp + 0x38]
+    fire857_win_30076c66:
+        call VectorNormalize
+    fire857_win_30076c6b:
+        fcom dword ptr f855EchoMinimum
+    fire857_win_30076c71:
+        add esp, 4
+    fire857_win_30076c74:
+        fnstsw ax
+    fire857_win_30076c76:
+        test ah, 0x41
+    fire857_win_30076c79:
+        jne fire857_win_30076cea
+    fire857_win_30076c7b:
+        fcomp dword ptr f855EchoMaximum
+    fire857_win_30076c81:
+        fnstsw ax
+    fire857_win_30076c83:
+        test ah, 1
+    fire857_win_30076c86:
+        je fire857_win_30076cec
+    fire857_win_30076c88:
+        fld dword ptr [esp + 0x2c]
+    fire857_win_30076c8c:
+        fmul dword ptr f855EchoOffset
+    fire857_win_30076c92:
+        mov eax, dword ptr [cg+f857Refdef]
+    fire857_win_30076c97:
+        fadd dword ptr [eax+f857ViewOrigin+0]
+    fire857_win_30076c9a:
+        fstp dword ptr [esp + 0x20]
+    fire857_win_30076c9e:
+        fld dword ptr [esp + 0x30]
+    fire857_win_30076ca2:
+        fmul dword ptr f855EchoOffset
+    fire857_win_30076ca8:
+        fadd dword ptr [eax+f857ViewOrigin+4]
+    fire857_win_30076cab:
+        fstp dword ptr [esp + 0x24]
+    fire857_win_30076caf:
+        fld dword ptr [esp + 0x34]
+    fire857_win_30076cb3:
+        fmul dword ptr f855EchoOffset
+    fire857_win_30076cb9:
+        fadd dword ptr [eax+f857ViewOrigin+8]
+    fire857_win_30076cbc:
+        fstp dword ptr [esp + 0x28]
+    fire857_win_30076cc0:
+        fild dword ptr [esp + 0x10]
+    fire857_win_30076cc4:
+        fmul dword ptr f855Half
+    fire857_win_30076cca:
+        call CG_TCEFireWarningFtol853
+    fire857_win_30076ccf:
+        mov ecx, dword ptr [edi + ebp*4]
+    fire857_win_30076cd2:
+        mov edx, dword ptr [esi+f857CentNumber]
+    fire857_win_30076cd4:
+        push eax
+    fire857_win_30076cd5:
+        push 0x10
+    fire857_win_30076cd7:
+        push ecx
+    fire857_win_30076cd8:
+        push 2
+    fire857_win_30076cda:
+        lea eax, [esp + 0x30]
+    fire857_win_30076cde:
+        push edx
+    fire857_win_30076cdf:
+        push eax
+    fire857_win_30076ce0:
+        call trap_S_StartSoundExVControl
+    fire857_win_30076ce5:
+        add esp, 0x18
+    fire857_win_30076ce8:
+        jmp fire857_win_30076cec
+    fire857_win_30076cea:
+        fstp st(0)
+    fire857_win_30076cec:
+        mov ecx, dword ptr [esi+f857CentWeapon]
+    fire857_win_30076cf2:
+        push ecx
+    fire857_win_30076cf3:
+        call BG_CheckUTWeapon
+    fire857_win_30076cf8:
+        add esp, 4
+    fire857_win_30076cfb:
+        test eax, eax
+    fire857_win_30076cfd:
+        je fire857_win_30076d37
+    fire857_win_30076cff:
+        mov eax, dword ptr [esi+f857CentWeapon]
+    fire857_win_30076d05:
+        cmp eax, 4
+    fire857_win_30076d08:
+        je fire857_win_30076d37
+    fire857_win_30076d0a:
+        cmp eax, 9
+    fire857_win_30076d0d:
+        je fire857_win_30076d37
+    fire857_win_30076d0f:
+        cmp eax, 0xf
+    fire857_win_30076d12:
+        je fire857_win_30076d37
+    fire857_win_30076d14:
+        cmp eax, 0x16
+    fire857_win_30076d17:
+        je fire857_win_30076d37
+    fire857_win_30076d19:
+        cmp eax, 0x1a
+    fire857_win_30076d1c:
+        je fire857_win_30076d37
+    fire857_win_30076d1e:
+        cmp eax, 0x1b
+    fire857_win_30076d21:
+        je fire857_win_30076d37
+    fire857_win_30076d23:
+        cmp eax, 1
+    fire857_win_30076d26:
+        je fire857_win_30076d37
+    fire857_win_30076d28:
+        cmp eax, 0x1e
+    fire857_win_30076d2b:
+        je fire857_win_30076d37
+    fire857_win_30076d2d:
+        mov dword ptr [esi+f857Pending], 1
+    fire857_win_30076d37:
+        mov ecx, dword ptr [esi+f857CentWeapon]
+    fire857_win_30076d3d:
+        lea eax, [ecx + ecx*2]
+    fire857_win_30076d40:
+        shl eax, 3
+    fire857_win_30076d43:
+        sub eax, ecx
+    fire857_win_30076d45:
+        lea eax, [eax + eax*4]
+    fire857_win_30076d48:
+        shl eax, 2
+    fire857_win_30076d4b:
+        mov ecx, dword ptr [weaponDef+eax+f857DefBolt]
+    fire857_win_30076d51:
+        test ecx, ecx
+    fire857_win_30076d53:
+        jne fire857_win_30076dca
+    fire857_win_30076d55:
+        mov ecx, dword ptr [weaponDef+eax+f857DefSingle]
+    fire857_win_30076d5b:
+        test ecx, ecx
+    fire857_win_30076d5d:
+        je fire857_win_30076d69
+    fire857_win_30076d5f:
+        mov eax, dword ptr [esi+f857EventParm]
+    fire857_win_30076d65:
+        test eax, eax
+    fire857_win_30076d67:
+        je fire857_win_30076dca
+    fire857_win_30076d69:
+        mov edx, dword ptr [esp + 0x18]
+    fire857_win_30076d6d:
+        mov eax, dword ptr [edx+f857Brass]
+    fire857_win_30076d73:
+        test eax, eax
+    fire857_win_30076d75:
+        je fire857_win_30076dca
+    fire857_win_30076d77:
+        mov eax, dword ptr [cg_brassTime+f857CvarInt]
+    fire857_win_30076d7c:
+        test eax, eax
+    fire857_win_30076d7e:
+        jle fire857_win_30076dca
+    fire857_win_30076d80:
+        mov dword ptr [esi+f857Eject], 1
+    fire857_win_30076d8a:
+        pop edi
+    fire857_win_30076d8b:
+        pop esi
+    fire857_win_30076d8c:
+        pop ebp
+    fire857_win_30076d8d:
+        pop ebx
+    fire857_win_30076d8e:
+        add esp, 0x34
+    fire857_win_30076d91:
+        ret
+    fire857_win_30076d92:
+        test eax, 0x400000
+    fire857_win_30076d97:
+        jne fire857_win_30076dad
+    fire857_win_30076d99:
+        mov eax, dword ptr [cgs+f857Heavy]
+    fire857_win_30076d9e:
+        mov ecx, dword ptr [esi+f857CentNumber]
+    fire857_win_30076da0:
+        push eax
+    fire857_win_30076da1:
+        push 2
+    fire857_win_30076da3:
+        push ecx
+    fire857_win_30076da4:
+        push ebp
+    fire857_win_30076da5:
+        call trap_S_StartSound
+    fire857_win_30076daa:
+        add esp, 0x10
+    fire857_win_30076dad:
+        cmp dword ptr [cg_brassTime+f857CvarInt], ebp
+    fire857_win_30076db3:
+        jle fire857_win_30076dbe
+    fire857_win_30076db5:
+        push esi
+    fire857_win_30076db6:
+        call CG_MachineGunEjectBrass
+    fire857_win_30076dbb:
+        add esp, 4
+    fire857_win_30076dbe:
+        mov edx, dword ptr [cg+f857Time]
+    fire857_win_30076dc4:
+        mov dword ptr [esi+f857Muzzle], edx
+    fire857_win_30076dca:
+        pop edi
+    fire857_win_30076dcb:
+        pop esi
+    fire857_win_30076dcc:
+        pop ebp
+    fire857_win_30076dcd:
+        pop ebx
+    fire857_win_30076dce:
+        add esp, 0x34
+    fire857_win_30076dd1:
+        ret
+    }
+}
+#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
+typedef struct { cg_t *cgRoot;int (*random)(void);float constants32[7];double automatic; } tceFireRecoil857Bindings_t;
+static __attribute__((noinline)) void CG_TCEWeaponFireRecoil857(int weapon) {
+    static const tceFireRecoil857Bindings_t bindings={&cg,rand,{0.0f,1.0f,2.0f,3.0518509447574615e-05f,0.5f,30.0f,0.30000001192092896f},0.3};
+    const tceFireRecoil857Bindings_t *cursor=&bindings;
+    typedef char Recoil857Layout[(sizeof(void*)==4 && offsetof(tceFireRecoil857Bindings_t,random)==4 && offsetof(tceFireRecoil857Bindings_t,constants32)==8 && offsetof(tceFireRecoil857Bindings_t,automatic)==36 && sizeof(tceFireRecoil857Bindings_t)==44)?1:-1];
+    /* .set emits no runtime instructions; each immediate is a real offsetof. */
+    __asm__ volatile (
+        ".set tceFire857Kick,%c[Kick]\n\t"
+        ".set tceFire857RecoilPitch,%c[RecoilPitch]\n\t"
+        : : [Kick] "i" (f857Kick), [RecoilPitch] "i" (f857RecoilPitch));
+    __asm__ volatile (
+        ".intel_syntax noprefix\n\t"
+        "push ebx\n\tpush ebp\n\tmov ebp,esp\n\tand esp,-16\n\tsub esp,128\n\t"
+        "mov dword ptr [esp+124],ebp\n\tmov ebx,eax\n\t"
+        "recoil857_linux_000b13ae%=:\n\tcmp edx, 0x41\n\t"
+        "recoil857_linux_000b13b1%=:\n\tmov esi, dword ptr [ebx+8]\n\t"
+        "recoil857_linux_000b13bb%=:\n\tmov dword ptr [esp + 0xc], esi\n\t"
+        "recoil857_linux_000b13bf%=:\n\tfld dword ptr [esp + 0xc]\n\t"
+        "recoil857_linux_000b13c3%=:\n\tfld st(0)\n\t"
+        "recoil857_linux_000b13c5%=:\n\tja recoil857_linux_000b14f4%=\n\t"
+        "recoil857_linux_000b13cb%=:\n\tcall recoil857_linux_pc%=\n\trecoil857_linux_pc%=:\n\tpop edi\n\tadd edi,recoil857_linux_table%=-recoil857_linux_pc%=\n\t"
+        "recoil857_linux_000b13d1%=:\n\tmov ecx, dword ptr [edi + edx*4]\n\t"
+        "recoil857_linux_000b13d4%=:\n\tadd ecx,edi\n\t"
+        "recoil857_linux_000b13d6%=:\n\tjmp ecx\n\t"
+        "recoil857_linux_000b13d8%=:\n\tfstp st(0)\n\t"
+        "recoil857_linux_000b13da%=:\n\tfstp st(0)\n\t"
+        "recoil857_linux_000b13dc%=:\n\tfld dword ptr [ebx+16]\n\t"
+        "recoil857_linux_000b13e2%=:\n\tfld dword ptr [ebx+12]\n\t"
+        "recoil857_linux_000b13e8%=:\n\tfstp dword ptr [esp + 0x20]\n\t"
+        "recoil857_linux_000b13ec%=:\n\tfstp dword ptr [esp + 0x10]\n\t"
+        "recoil857_linux_000b13f0%=:\n\tcall dword ptr [ebx+4]\n\t"
+        "recoil857_linux_000b13f5%=:\n\tfld dword ptr [ebx+24]\n\t"
+        "recoil857_linux_000b13fb%=:\n\tand eax, 0x7fff\n\t"
+        "recoil857_linux_000b1400%=:\n\tmov edi, dword ptr [ebx+0]\n\t"
+        "recoil857_linux_000b1406%=:\n\tpush eax\n\t"
+        "recoil857_linux_000b1407%=:\n\tfild dword ptr [esp]\n\t"
+        "recoil857_linux_000b140a%=:\n\tadd esp, 4\n\t"
+        "recoil857_linux_000b140d%=:\n\tfmul dword ptr [ebx+20]\n\t"
+        "recoil857_linux_000b1413%=:\n\tfld dword ptr [esp + 0x20]\n\t"
+        "recoil857_linux_000b1417%=:\n\tfld dword ptr [esp + 0x10]\n\t"
+        "recoil857_linux_000b141b%=:\n\tfxch st(3)\n\t"
+        "recoil857_linux_000b141d%=:\n\tfsubp st(2)\n\t"
+        "recoil857_linux_000b141f%=:\n\tfxch st(1)\n\t"
+        "recoil857_linux_000b1421%=:\n\tfadd st(0)\n\t"
+        "recoil857_linux_000b1423%=:\n\tfmulp st(1)\n\t"
+        "recoil857_linux_000b1425%=:\n\tfxch st(1)\n\t"
+        "recoil857_linux_000b1427%=:\n\tfchs \n\t"
+        "recoil857_linux_000b1429%=:\n\tfxch st(1)\n\t"
+        "recoil857_linux_000b142b%=:\n\tfstp dword ptr [esp + 0x3c]\n\t"
+        "recoil857_linux_000b142f%=:\n\tfld dword ptr [esp + 0x3c]\n\t"
+        "recoil857_linux_000b1433%=:\n\tfld dword ptr [ebx+28]\n\t"
+        "recoil857_linux_000b1439%=:\n\tfld st(1)\n\t"
+        "recoil857_linux_000b143b%=:\n\tfxch st(3)\n\t"
+        "recoil857_linux_000b143d%=:\n\tfmul st(1)\n\t"
+        "recoil857_linux_000b143f%=:\n\tfxch st(3)\n\t"
+        "recoil857_linux_000b1441%=:\n\tfchs \n\t"
+        "recoil857_linux_000b1443%=:\n\tfxch st(2)\n\t"
+        "recoil857_linux_000b1445%=:\n\tfmul st(1)\n\t"
+        "recoil857_linux_000b1447%=:\n\tfxch st(2)\n\t"
+        "recoil857_linux_000b1449%=:\n\tfmulp st(1)\n\t"
+        "recoil857_linux_000b144b%=:\n\tfxch st(2)\n\t"
+        "recoil857_linux_000b144d%=:\n\tfst dword ptr [edi+tceFire857Kick+0]\n\t"
+        "recoil857_linux_000b1453%=:\n\tfstp dword ptr [esp + 0x40]\n\t"
+        "recoil857_linux_000b1457%=:\n\tfst dword ptr [edi+tceFire857Kick+4]\n\t"
+        "recoil857_linux_000b145d%=:\n\tfstp dword ptr [esp + 0x44]\n\t"
+        "recoil857_linux_000b1461%=:\n\tfst dword ptr [edi+tceFire857Kick+8]\n\t"
+        "recoil857_linux_000b1467%=:\n\tmov dword ptr [esp + 0xc], esi\n\t"
+        "recoil857_linux_000b146b%=:\n\tfld dword ptr [esp + 0xc]\n\t"
+        "recoil857_linux_000b146f%=:\n\tfsubr dword ptr [edi+tceFire857RecoilPitch]\n\t"
+        "recoil857_linux_000b1475%=:\n\tfxch st(1)\n\t"
+        "recoil857_linux_000b1477%=:\n\tfstp dword ptr [esp + 0x48]\n\t"
+        "recoil857_linux_000b147b%=:\n\tfstp dword ptr [edi+tceFire857RecoilPitch]\n\t"
+        "recoil857_linux_000b1481%=:\n\tjmp recoil857_linux_finish%=\n\t"
+        "recoil857_linux_000b1491%=:\n\tfstp st(1)\n\t"
+        "recoil857_linux_000b1493%=:\n\tfld dword ptr [ebx+32]\n\t"
+        "recoil857_linux_000b1499%=:\n\tfxch st(1)\n\t"
+        "recoil857_linux_000b149b%=:\n\tjmp recoil857_linux_000b13e8%=\n\t"
+        "recoil857_linux_000b14a0%=:\n\tfstp st(0)\n\t"
+        "recoil857_linux_000b14a2%=:\n\tfstp st(0)\n\t"
+        "recoil857_linux_000b14a4%=:\n\tcall dword ptr [ebx+4]\n\t"
+        "recoil857_linux_000b14a9%=:\n\tfld qword ptr [ebx+36]\n\t"
+        "recoil857_linux_000b14af%=:\n\tmov ecx, 0x55555556\n\t"
+        "recoil857_linux_000b14b4%=:\n\tmov edi, eax\n\t"
+        "recoil857_linux_000b14b6%=:\n\timul ecx\n\t"
+        "recoil857_linux_000b14b8%=:\n\tmov eax, edi\n\t"
+        "recoil857_linux_000b14ba%=:\n\tsar eax, 0x1f\n\t"
+        "recoil857_linux_000b14bd%=:\n\tfld dword ptr [ebx+16]\n\t"
+        "recoil857_linux_000b14c3%=:\n\tsub edx, eax\n\t"
+        "recoil857_linux_000b14c5%=:\n\tfld st(1)\n\t"
+        "recoil857_linux_000b14c7%=:\n\tlea eax, [edx + edx*2]\n\t"
+        "recoil857_linux_000b14ca%=:\n\tsub edi, eax\n\t"
+        "recoil857_linux_000b14cc%=:\n\tfmulp st(1)\n\t"
+        "recoil857_linux_000b14ce%=:\n\tlea edx, [edi + 1]\n\t"
+        "recoil857_linux_000b14d1%=:\n\tpush edx\n\t"
+        "recoil857_linux_000b14d2%=:\n\tfild dword ptr [esp]\n\t"
+        "recoil857_linux_000b14d5%=:\n\tadd esp, 4\n\t"
+        "recoil857_linux_000b14d8%=:\n\tfmulp st(2)\n\t"
+        "recoil857_linux_000b14da%=:\n\tfxch st(1)\n\t"
+        "recoil857_linux_000b14dc%=:\n\tfstp dword ptr [esp + 0x3c]\n\t"
+        "recoil857_linux_000b14e0%=:\n\tfld dword ptr [esp + 0x3c]\n\t"
+        "recoil857_linux_000b14e4%=:\n\tfxch st(1)\n\t"
+        "recoil857_linux_000b14e6%=:\n\tfstp dword ptr [esp + 0x3c]\n\t"
+        "recoil857_linux_000b14ea%=:\n\tfld dword ptr [esp + 0x3c]\n\t"
+        "recoil857_linux_000b14ee%=:\n\tjmp recoil857_linux_000b13e8%=\n\t"
+        "recoil857_linux_000b14f3%=:\n\tnop \n\t"
+        "recoil857_linux_000b14f4%=:\n\tfstp st(0)\n\t"
+        "recoil857_linux_000b14f6%=:\n\tfstp st(0)\n\t"
+        "recoil857_linux_000b14f8%=:\n\tjmp recoil857_linux_000b1481%=\n\t"
+        "recoil857_linux_finish%=:\n\tmov esp,dword ptr [esp+124]\n\tpop ebp\n\tpop ebx\n\tjmp recoil857_linux_done%=\n\t"
+        ".balign 4\n\trecoil857_linux_table%=:\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b13e8%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14a0%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b13e8%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14a0%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14a0%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b13e8%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b13d8%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b13d8%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b13d8%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14a0%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b13d8%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14a0%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b13e8%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b13e8%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14a0%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b13e8%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b13e8%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b13e8%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b1491%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b1491%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14a0%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14a0%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
+        ".long recoil857_linux_000b13e8%=-recoil857_linux_table%=\n\t"
+        "recoil857_linux_done%=:\n\t.att_syntax prefix"
+        : "+a" (cursor), "+d" (weapon) : "m" (bindings)
+        : "ecx","esi","edi","cc","memory","st","st(1)","st(2)","st(3)","st(4)","st(5)","st(6)","st(7)"
+#ifdef __SSE__
+          ,"xmm0","xmm1","xmm2","xmm3","xmm4","xmm5","xmm6","xmm7"
+#endif
+    );
+}
+typedef struct {
+    cg_t *cgRoot;cgs_t *cgsRoot;centity_t *entities;tce_weaponDef_t *definitions;tce_weaponInfo_t *media;
+    const float *attenuation;const vmCvar_t *predict,*brass;
+    void (*print)(const char *,...);
+    void (*start)(vec3_t,int,int,sfxHandle_t);
+    void (*error)(const char *,...);
+    void (*recoil)(int);int (*random)(void);void (*predicted)(centity_t *);
+    int (*volume)(vec3_t,float,float,int);
+    void (*startEx)(vec3_t,int,int,sfxHandle_t,int,int);
+    void (*effect)(centity_t *,int);int (*check)(int);float (*normalize)(vec3_t);
+    void (*startV)(vec3_t,int,int,sfxHandle_t,int);void (*eject)(centity_t *);
+    float constants32[12];double twoPi;const char *errorText,*portalText;
+} tceFire857Bindings_t;
+__attribute__((noinline)) void CG_FireWeapon(centity_t *cent) {
+    static const tceFire857Bindings_t bindings={&cg,&cgs,cg_entities,weaponDef,tce_cg_weapons,&tceFlash.deafness,&cg_predictBullets,&cg_brassTime,
+        CG_Printf,trap_S_StartSound,CG_Error,CG_WeaponFireRecoil,rand,CG_PredictedFire,CG_SoundVolume,trap_S_StartSoundExVControl,
+        CG_EliteEffectSound,BG_CheckUTWeapon,VectorNormalize,trap_S_StartSoundVControl,CG_MachineGunEjectBrass,
+        {0.0f,1.0f,1.5f,3.0518509447574615e-05f,0.5f,64.0f,0.0010000000474974513f,0.003921568859368563f,512.0f,127.0f,4096.0f,1800.0f},6.283185307179586,"CG_FireWeapon: ent->weapon >= WP_NUM_WEAPONS","ELITE PORTAL: CG_FireWeapon\n"};
+    const tceFire857Bindings_t *cursor=&bindings;
+    typedef char Fire857Layout[(sizeof(void*)==4 && offsetof(tceFire857Bindings_t,media)==16 && offsetof(tceFire857Bindings_t,print)==32 && offsetof(tceFire857Bindings_t,eject)==80 && offsetof(tceFire857Bindings_t,constants32)==84 && offsetof(tceFire857Bindings_t,twoPi)==132 && offsetof(tceFire857Bindings_t,errorText)==140 && offsetof(tceFire857Bindings_t,portalText)==144 && sizeof(tceFire857Bindings_t)==148)?1:-1];
+    /* .set emits no runtime instructions; each immediate is a real offsetof. */
+    __asm__ volatile (
+        ".set tceFire857Portal,%c[Portal]\n\t"
+        ".set tceFire857Snap,%c[Snap]\n\t"
+        ".set tceFire857SnapClient,%c[SnapClient]\n\t"
+        ".set tceFire857SnapTeam,%c[SnapTeam]\n\t"
+        ".set tceFire857LastFired,%c[LastFired]\n\t"
+        ".set tceFire857AimRequested,%c[AimRequested]\n\t"
+        ".set tceFire857AimActive,%c[AimActive]\n\t"
+        ".set tceFire857AimSync,%c[AimSync]\n\t"
+        ".set tceFire857AimRetry,%c[AimRetry]\n\t"
+        ".set tceFire857ZoomTime,%c[ZoomTime]\n\t"
+        ".set tceFire857MortarTime,%c[MortarTime]\n\t"
+        ".set tceFire857MortarPitch,%c[MortarPitch]\n\t"
+        ".set tceFire857MortarYaw,%c[MortarYaw]\n\t"
+        ".set tceFire857PredPitch,%c[PredPitch]\n\t"
+        ".set tceFire857PredYaw,%c[PredYaw]\n\t"
+        ".set tceFire857WeaponSelect,%c[WeaponSelect]\n\t"
+        ".set tceFire857Kick,%c[Kick]\n\t"
+        ".set tceFire857RecoilPitch,%c[RecoilPitch]\n\t"
+        ".set tceFire857Flags,%c[Flags]\n\t"
+        ".set tceFire857Client,%c[Client]\n\t"
+        ".set tceFire857Event,%c[Event]\n\t"
+        ".set tceFire857EventParm,%c[EventParm]\n\t"
+        ".set tceFire857Apos,%c[Apos]\n\t"
+        ".set tceFire857Density,%c[Density]\n\t"
+        : : [Portal] "i" (f857Portal), [Snap] "i" (f857Snap), [SnapClient] "i" (f857SnapClient), [SnapTeam] "i" (f857SnapTeam), [LastFired] "i" (f857LastFired), [AimRequested] "i" (f857AimRequested), [AimActive] "i" (f857AimActive), [AimSync] "i" (f857AimSync), [AimRetry] "i" (f857AimRetry), [ZoomTime] "i" (f857ZoomTime), [MortarTime] "i" (f857MortarTime), [MortarPitch] "i" (f857MortarPitch), [MortarYaw] "i" (f857MortarYaw), [PredPitch] "i" (f857PredPitch), [PredYaw] "i" (f857PredYaw), [WeaponSelect] "i" (f857WeaponSelect), [Kick] "i" (f857Kick), [RecoilPitch] "i" (f857RecoilPitch), [Flags] "i" (f857Flags), [Client] "i" (f857Client), [Event] "i" (f857Event), [EventParm] "i" (f857EventParm), [Apos] "i" (f857Apos), [Density] "i" (f857Density));
+    __asm__ volatile (
+        ".set tceFire857TagParent,%c[TagParent]\n\t"
+        ".set tceFire857TankParent,%c[TankParent]\n\t"
+        ".set tceFire857Muzzle,%c[Muzzle]\n\t"
+        ".set tceFire857Lightning,%c[Lightning]\n\t"
+        ".set tceFire857Pending,%c[Pending]\n\t"
+        ".set tceFire857Eject,%c[Eject]\n\t"
+        ".set tceFire857InfoBase,%c[InfoBase]\n\t"
+        ".set tceFire857InfoStride,%c[InfoStride]\n\t"
+        ".set tceFire857InfoValid,%c[InfoValid]\n\t"
+        ".set tceFire857InfoTeam,%c[InfoTeam]\n\t"
+        ".set tceFire857Heavy,%c[Heavy]\n\t"
+        ".set tceFire857Heavy2,%c[Heavy2]\n\t"
+        ".set tceFire857WarnTeam1,%c[WarnTeam1]\n\t"
+        ".set tceFire857WarnTeam2,%c[WarnTeam2]\n\t"
+        ".set tceFire857DefBolt,%c[DefBolt]\n\t"
+        ".set tceFire857DefSingle,%c[DefSingle]\n\t"
+        ".set tceFire857Brass,%c[Brass]\n\t"
+        ".set tceFire857Flash,%c[Flash]\n\t"
+        ".set tceFire857LastShot,%c[LastShot]\n\t"
+        ".set tceFire857CvarInt,%c[CvarInt]\n\t"
+        ".set tceFire857Time,%c[Time]\n\t"
+        ".set tceFire857Hold,%c[Hold]\n\t"
+        ".set tceFire857Instability,%c[Instability]\n\t"
+        ".set tceFire857Vertical,%c[Vertical]\n\t"
+        : : [TagParent] "i" (f857TagParent), [TankParent] "i" (f857TankParent), [Muzzle] "i" (f857Muzzle), [Lightning] "i" (f857Lightning), [Pending] "i" (f857Pending), [Eject] "i" (f857Eject), [InfoBase] "i" (f857InfoBase), [InfoStride] "i" (f857InfoStride), [InfoValid] "i" (f857InfoValid), [InfoTeam] "i" (f857InfoTeam), [Heavy] "i" (f857Heavy), [Heavy2] "i" (f857Heavy2), [WarnTeam1] "i" (f857WarnTeam1), [WarnTeam2] "i" (f857WarnTeam2), [DefBolt] "i" (f857DefBolt), [DefSingle] "i" (f857DefSingle), [Brass] "i" (f857Brass), [Flash] "i" (f857Flash), [LastShot] "i" (f857LastShot), [CvarInt] "i" (f857CvarInt), [Time] "i" (f857Time), [Hold] "i" (f857Hold), [Instability] "i" (f857Instability), [Vertical] "i" (f857Vertical));
+    __asm__ volatile (
+        ".set tceFire857Horizontal,%c[Horizontal]\n\t"
+        ".set tceFire857Refdef,%c[Refdef]\n\t"
+        ".set tceFire857CentNumber,%c[CentNumber]\n\t"
+        ".set tceFire857CentWeapon,%c[CentWeapon]\n\t"
+        ".set tceFire857CentOrigin,%c[CentOrigin]\n\t"
+        ".set tceFire857CentStride,%c[CentStride]\n\t"
+        ".set tceFire857ViewOrigin,%c[ViewOrigin]\n\t"
+        ".set tceFire857Suppressed,%c[Suppressed]\n\t"
+        ".set tceFire857Subsonic,%c[Subsonic]\n\t"
+        ".set tceFire857Reverb,%c[Reverb]\n\t"
+        ".set tceFire857Echo,%c[Echo]\n\t"
+        : : [Horizontal] "i" (f857Horizontal), [Refdef] "i" (f857Refdef), [CentNumber] "i" (f857CentNumber), [CentWeapon] "i" (f857CentWeapon), [CentOrigin] "i" (f857CentOrigin), [CentStride] "i" (f857CentStride), [ViewOrigin] "i" (f857ViewOrigin), [Suppressed] "i" (f857Suppressed), [Subsonic] "i" (f857Subsonic), [Reverb] "i" (f857Reverb), [Echo] "i" (f857Echo));
+    __asm__ volatile (
+        ".intel_syntax noprefix\n\t"
+        "push ebx\n\tpush ebp\n\tmov ebp,esp\n\tand esp,-16\n\tsub esp,192\n\t"
+        "mov dword ptr [esp+188],ebp\n\tmov ebx,eax\n\tmov edi,edx\n\t"
+        "fire857_linux_000b2494%=:\n\tmov esi, dword ptr [ebx+0]\n\t"
+        "fire857_linux_000b249a%=:\n\tmov eax, dword ptr [esi+tceFire857Portal]\n\t"
+        "fire857_linux_000b24a0%=:\n\ttest eax, eax\n\t"
+        "fire857_linux_000b24a2%=:\n\tjne fire857_linux_000b2d3a%=\n\t"
+        "fire857_linux_000b24a8%=:\n\tmovzx ecx, word ptr [edi+tceFire857Flags]\n\t"
+        "fire857_linux_000b24ac%=:\n\tand ecx, 0xffff8000\n\t"
+        "fire857_linux_000b24b2%=:\n\ttest cx, cx\n\t"
+        "fire857_linux_000b24b5%=:\n\tje fire857_linux_000b2544%=\n\t"
+        "fire857_linux_000b24bb%=:\n\tmov ecx, dword ptr [edi+tceFire857CentNumber]\n\t"
+        "fire857_linux_000b24bd%=:\n\tmov esi, dword ptr [ebx+8]\n\t"
+        "fire857_linux_000b24c3%=:\n\tmov ebp, ecx\n\t"
+        "fire857_linux_000b24c5%=:\n\timul ebp, ebp, tceFire857CentStride\n\t"
+        "fire857_linux_000b24cb%=:\n\tmov edx, dword ptr [esi+ebp+tceFire857TagParent]\n\t"
+        "fire857_linux_000b24d2%=:\n\timul edx, edx, tceFire857CentStride\n\t"
+        "fire857_linux_000b24d8%=:\n\tmov ebp, dword ptr [esi+edx+tceFire857TankParent]\n\t"
+        "fire857_linux_000b24df%=:\n\timul ebp, ebp, tceFire857CentStride\n\t"
+        "fire857_linux_000b24e5%=:\n\ttest byte ptr [esi+ebp+tceFire857Density], 8\n\t"
+        "fire857_linux_000b24ed%=:\n\tje fire857_linux_000b2536%=\n\t"
+        "fire857_linux_000b24ef%=:\n\tmov esi, dword ptr [ebx+4]\n\t"
+        "fire857_linux_000b24f5%=:\n\tmov eax, dword ptr [esi+tceFire857Heavy2]\n\t"
+        "fire857_linux_000b24fb%=:\n\tmov dword ptr [esp + 0xc], eax\n\t"
+        "fire857_linux_000b24ff%=:\n\tmov eax, 2\n\t"
+        "fire857_linux_000b2504%=:\n\tmov dword ptr [esp + 8], eax\n\t"
+        "fire857_linux_000b2508%=:\n\tmov dword ptr [esp + 4], ecx\n\t"
+        "fire857_linux_000b250c%=:\n\tmov dword ptr [esp], 0\n\t"
+        "fire857_linux_000b2513%=:\n\tcall dword ptr [ebx+36]\n\t"
+        "fire857_linux_000b2518%=:\n\tmov ecx, dword ptr [ebx+0]\n\t"
+        "fire857_linux_000b251e%=:\n\tmov eax, dword ptr [ecx+tceFire857Time]\n\t"
+        "fire857_linux_000b2524%=:\n\tmov dword ptr [edi+tceFire857Muzzle], eax\n\t"
+        "fire857_linux_000b252a%=:\n\tjmp fire857_linux_finish%=\n\t"
+        "fire857_linux_000b2535%=:\n\tnop \n\t"
+        "fire857_linux_000b2536%=:\n\tmov edx, dword ptr [ebx+4]\n\t"
+        "fire857_linux_000b253c%=:\n\tmov eax, dword ptr [edx+tceFire857Heavy]\n\t"
+        "fire857_linux_000b2542%=:\n\tjmp fire857_linux_000b24fb%=\n\t"
+        "fire857_linux_000b2544%=:\n\tmov eax, dword ptr [edi+tceFire857Flags]\n\t"
+        "fire857_linux_000b2547%=:\n\ttest eax, 0x408020\n\t"
+        "fire857_linux_000b254c%=:\n\tje fire857_linux_000b25a0%=\n\t"
+        "fire857_linux_000b254e%=:\n\ttest eax, 0x400000\n\t"
+        "fire857_linux_000b2553%=:\n\tje fire857_linux_000b2572%=\n\t"
+        "fire857_linux_000b2555%=:\n\tmov edx, dword ptr [ebx+28]\n\t"
+        "fire857_linux_000b255b%=:\n\tmov ecx,dword ptr [edx+tceFire857CvarInt]\n\t"
+        "fire857_linux_000b255e%=:\n\ttest ecx, ecx\n\t"
+        "fire857_linux_000b2560%=:\n\tjle fire857_linux_000b256a%=\n\t"
+        "fire857_linux_000b2562%=:\n\tmov dword ptr [esp], edi\n\t"
+        "fire857_linux_000b2565%=:\n\tcall dword ptr [ebx+80]\n\t"
+        "fire857_linux_000b256a%=:\n\tmov eax, dword ptr [esi+tceFire857Time]\n\t"
+        "fire857_linux_000b2570%=:\n\tjmp fire857_linux_000b2524%=\n\t"
+        "fire857_linux_000b2572%=:\n\tmov ebp, dword ptr [ebx+4]\n\t"
+        "fire857_linux_000b2578%=:\n\tmov ecx, 2\n\t"
+        "fire857_linux_000b257d%=:\n\tmov edx, dword ptr [ebp+tceFire857Heavy]\n\t"
+        "fire857_linux_000b2583%=:\n\tmov dword ptr [esp + 8], ecx\n\t"
+        "fire857_linux_000b2587%=:\n\tmov dword ptr [esp + 0xc], edx\n\t"
+        "fire857_linux_000b258b%=:\n\tmov ebp, dword ptr [edi+tceFire857CentNumber]\n\t"
+        "fire857_linux_000b258d%=:\n\tmov dword ptr [esp], 0\n\t"
+        "fire857_linux_000b2594%=:\n\tmov dword ptr [esp + 4], ebp\n\t"
+        "fire857_linux_000b2598%=:\n\tcall dword ptr [ebx+36]\n\t"
+        "fire857_linux_000b259d%=:\n\tjmp fire857_linux_000b2555%=\n\t"
+        "fire857_linux_000b259f%=:\n\tnop \n\t"
+        "fire857_linux_000b25a0%=:\n\tmov edx, dword ptr [edi+tceFire857CentWeapon]\n\t"
+        "fire857_linux_000b25a6%=:\n\ttest edx, edx\n\t"
+        "fire857_linux_000b25a8%=:\n\tje fire857_linux_000b252a%=\n\t"
+        "fire857_linux_000b25aa%=:\n\tcmp edx, 0x3f\n\t"
+        "fire857_linux_000b25ad%=:\n\tjg fire857_linux_000b2d26%=\n\t"
+        "fire857_linux_000b25b3%=:\n\tmov ebp, edx\n\t"
+        "fire857_linux_000b25b5%=:\n\tmov eax, dword ptr [ebx+16]\n\t"
+        "fire857_linux_000b25bb%=:\n\timul ebp, ebp, 0xfd0\n\t"
+        "fire857_linux_000b25c1%=:\n\tmov ecx, dword ptr [esi+tceFire857Snap]\n\t"
+        "fire857_linux_000b25c4%=:\n\tadd ebp, eax\n\t"
+        "fire857_linux_000b25c6%=:\n\tmov dword ptr [esp + 0x34], ebp\n\t"
+        "fire857_linux_000b25ca%=:\n\tmov ebp, dword ptr [ecx+tceFire857SnapClient]\n\t"
+        "fire857_linux_000b25d0%=:\n\tcmp dword ptr [edi+tceFire857Client], ebp\n\t"
+        "fire857_linux_000b25d6%=:\n\tje fire857_linux_000b2d1b%=\n\t"
+        "fire857_linux_000b25dc%=:\n\tmov edx, dword ptr [esi+tceFire857Time]\n\t"
+        "fire857_linux_000b25e2%=:\n\tmov dword ptr [edi+tceFire857Muzzle], edx\n\t"
+        "fire857_linux_000b25e8%=:\n\tmov ecx, dword ptr [esi+tceFire857Snap]\n\t"
+        "fire857_linux_000b25eb%=:\n\tmov edx, dword ptr [edi+tceFire857CentNumber]\n\t"
+        "fire857_linux_000b25ed%=:\n\tcmp edx, dword ptr [ecx+tceFire857SnapClient]\n\t"
+        "fire857_linux_000b25f3%=:\n\tje fire857_linux_000b2c6a%=\n\t"
+        "fire857_linux_000b25f9%=:\n\tmov esi, dword ptr [ebx+0]\n\t"
+        "fire857_linux_000b25ff%=:\n\tmov ecx, dword ptr [esi+tceFire857Snap]\n\t"
+        "fire857_linux_000b2602%=:\n\tcmp edx, dword ptr [ecx+tceFire857SnapClient]\n\t"
+        "fire857_linux_000b2608%=:\n\tje fire857_linux_000b2c18%=\n\t"
+        "fire857_linux_000b260e%=:\n\tmov edx, dword ptr [edi+tceFire857CentWeapon]\n\t"
+        "fire857_linux_000b2614%=:\n\tcmp edx, 0x3c\n\t"
+        "fire857_linux_000b2617%=:\n\tje fire857_linux_000b2bd5%=\n\t"
+        "fire857_linux_000b261d%=:\n\tcmp edx, 0x42\n\t"
+        "fire857_linux_000b2620%=:\n\tje fire857_linux_000b2bc2%=\n\t"
+        "fire857_linux_000b2626%=:\n\tcmp edx, 4\n\t"
+        "fire857_linux_000b2629%=:\n\tje fire857_linux_000b2aa8%=\n\t"
+        "fire857_linux_000b262f%=:\n\tcmp edx, 9\n\t"
+        "fire857_linux_000b2632%=:\n\tje fire857_linux_000b2aca%=\n\t"
+        "fire857_linux_000b2638%=:\n\tcmp edx, 0xf\n\t"
+        "fire857_linux_000b263b%=:\n\tje fire857_linux_000b2aa8%=\n\t"
+        "fire857_linux_000b2641%=:\n\tcmp edx, 0x16\n\t"
+        "fire857_linux_000b2644%=:\n\tje fire857_linux_000b2aa8%=\n\t"
+        "fire857_linux_000b264a%=:\n\tcmp edx, 0x1a\n\t"
+        "fire857_linux_000b264d%=:\n\tje fire857_linux_000b2aa8%=\n\t"
+        "fire857_linux_000b2653%=:\n\tcmp edx, 0x1b\n\t"
+        "fire857_linux_000b2656%=:\n\tje fire857_linux_000b2aa8%=\n\t"
+        "fire857_linux_000b265c%=:\n\tcmp edx, 0x1d\n\t"
+        "fire857_linux_000b265f%=:\n\tje fire857_linux_000b2aa8%=\n\t"
+        "fire857_linux_000b2665%=:\n\tcmp edx, 0x1e\n\t"
+        "fire857_linux_000b2668%=:\n\tje fire857_linux_000b2aa8%=\n\t"
+        "fire857_linux_000b266e%=:\n\tcmp edx, 0x37\n\t"
+        "fire857_linux_000b2671%=:\n\tje fire857_linux_000b2a86%=\n\t"
+        "fire857_linux_000b2677%=:\n\tcmp edx, 0x38\n\t"
+        "fire857_linux_000b267a%=:\n\tje fire857_linux_000b2a5b%=\n\t"
+        "fire857_linux_000b2680%=:\n\tmov edx, dword ptr [edi+tceFire857Event]\n\t"
+        "fire857_linux_000b2686%=:\n\tand edx, 0xfffffcff\n\t"
+        "fire857_linux_000b268c%=:\n\tcmp edx, 0x2a\n\t"
+        "fire857_linux_000b268f%=:\n\tje fire857_linux_000b2a23%=\n\t"
+        "fire857_linux_000b2695%=:\n\tmov esi, dword ptr [esp + 0x34]\n\t"
+        "fire857_linux_000b2699%=:\n\tmov ebp, dword ptr [esp + 0x34]\n\t"
+        "fire857_linux_000b269d%=:\n\tadd esi, tceFire857Echo\n\t"
+        "fire857_linux_000b26a3%=:\n\tmov dword ptr [esp + 0x30], esi\n\t"
+        "fire857_linux_000b26a7%=:\n\tadd ebp, tceFire857Flash\n\t"
+        "fire857_linux_000b26ad%=:\n\ttest byte ptr [edi+tceFire857Flags+2],4\n\t"
+        "fire857_linux_000b26b1%=:\n\tjne fire857_linux_000b252a%=\n\t"
+        "fire857_linux_000b26b7%=:\n\txor esi, esi\n\t"
+        "fire857_linux_000b26b9%=:\n\tmov edx, dword ptr [ebp + esi*4]\n\t"
+        "fire857_linux_000b26bd%=:\n\ttest edx, edx\n\t"
+        "fire857_linux_000b26bf%=:\n\tje fire857_linux_000b26c7%=\n\t"
+        "fire857_linux_000b26c1%=:\n\tinc esi\n\t"
+        "fire857_linux_000b26c2%=:\n\tcmp esi, 3\n\t"
+        "fire857_linux_000b26c5%=:\n\tjle fire857_linux_000b26b9%=\n\t"
+        "fire857_linux_000b26c7%=:\n\ttest esi, esi\n\t"
+        "fire857_linux_000b26c9%=:\n\tjle fire857_linux_000b2816%=\n\t"
+        "fire857_linux_000b26cf%=:\n\tcall dword ptr [ebx+48]\n\t"
+        "fire857_linux_000b26d4%=:\n\tcdq \n\t"
+        "fire857_linux_000b26d5%=:\n\tidiv esi\n\t"
+        "fire857_linux_000b26d7%=:\n\tmov dword ptr [esp + 0x2c], edx\n\t"
+        "fire857_linux_000b26db%=:\n\tmov ecx, dword ptr [ebp + edx*4]\n\t"
+        "fire857_linux_000b26df%=:\n\ttest ecx, ecx\n\t"
+        "fire857_linux_000b26e1%=:\n\tje fire857_linux_000b2816%=\n\t"
+        "fire857_linux_000b26e7%=:\n\tfld dword ptr [ebx+88]\n\t"
+        "fire857_linux_000b26ed%=:\n\tmov esi, dword ptr [ebx+0]\n\t"
+        "fire857_linux_000b26f3%=:\n\tpush edx\n\tmov edx,dword ptr [ebx+20]\n\tfld dword ptr [edx]\n\tpop edx\n\t"
+        "fire857_linux_000b26f9%=:\n\tfcom st(1)\n\t"
+        "fire857_linux_000b26fb%=:\n\tfnstsw ax\n\t"
+        "fire857_linux_000b26fd%=:\n\tsahf \n\t"
+        "fire857_linux_000b26fe%=:\n\tje fire857_linux_000b2a1f%=\n\t"
+        "fire857_linux_000b2704%=:\n\tmov edx, dword ptr [edi+tceFire857CentNumber]\n\t"
+        "fire857_linux_000b2706%=:\n\tmov eax, dword ptr [edi+tceFire857CentWeapon]\n\t"
+        "fire857_linux_000b270c%=:\n\tmov ecx, dword ptr [ebx+8]\n\t"
+        "fire857_linux_000b2712%=:\n\tmov esi, edx\n\t"
+        "fire857_linux_000b2714%=:\n\timul esi, esi, tceFire857CentStride\n\t"
+        "fire857_linux_000b271a%=:\n\timul eax, eax, 0x1cc\n\t"
+        "fire857_linux_000b2720%=:\n\tadd esi, ecx\n\t"
+        "fire857_linux_000b2722%=:\n\tmov ecx, dword ptr [ebx+12]\n\t"
+        "fire857_linux_000b2728%=:\n\tadd eax, ecx\n\t"
+        "fire857_linux_000b272a%=:\n\tmov ecx, dword ptr [eax+tceFire857Suppressed]\n\t"
+        "fire857_linux_000b2730%=:\n\ttest ecx, ecx\n\t"
+        "fire857_linux_000b2732%=:\n\tjne fire857_linux_000b2742%=\n\t"
+        "fire857_linux_000b2734%=:\n\tmov ecx, dword ptr [eax+tceFire857Subsonic]\n\t"
+        "fire857_linux_000b273a%=:\n\ttest ecx, ecx\n\t"
+        "fire857_linux_000b273c%=:\n\tje fire857_linux_000b29f3%=\n\t"
+        "fire857_linux_000b2742%=:\n\tfstp st(0)\n\t"
+        "fire857_linux_000b2744%=:\n\tfstp st(0)\n\t"
+        "fire857_linux_000b2746%=:\n\tmov edx, dword ptr [ebx+128]\n\t"
+        "fire857_linux_000b274c%=:\n\txor ecx, ecx\n\t"
+        "fire857_linux_000b274e%=:\n\tmov dword ptr [esp + 0xc], ecx\n\t"
+        "fire857_linux_000b2752%=:\n\tmov ecx, dword ptr [ebx+120]\n\t"
+        "fire857_linux_000b2758%=:\n\tmov dword ptr [esp + 8], edx\n\t"
+        "fire857_linux_000b275c%=:\n\tlea edx,[esi+tceFire857CentOrigin]\n\t"
+        "fire857_linux_000b275f%=:\n\tmov dword ptr [esp], edx\n\t"
+        "fire857_linux_000b2762%=:\n\tmov dword ptr [esp + 4], ecx\n\t"
+        "fire857_linux_000b2766%=:\n\tcall dword ptr [ebx+56]\n\t"
+        "fire857_linux_000b276b%=:\n\tmov dword ptr [esp + 0x28], eax\n\t"
+        "fire857_linux_000b276f%=:\n\tmov edx, dword ptr [edi+tceFire857CentNumber]\n\t"
+        "fire857_linux_000b2771%=:\n\tmov eax, dword ptr [esp + 0x28]\n\t"
+        "fire857_linux_000b2775%=:\n\tmov ecx, 0x10\n\t"
+        "fire857_linux_000b277a%=:\n\tmov dword ptr [esp + 0x10], ecx\n\t"
+        "fire857_linux_000b277e%=:\n\tmov ecx, dword ptr [esp + 0x2c]\n\t"
+        "fire857_linux_000b2782%=:\n\tmov dword ptr [esp + 0x14], eax\n\t"
+        "fire857_linux_000b2786%=:\n\tmov eax, dword ptr [ebp + ecx*4]\n\t"
+        "fire857_linux_000b278a%=:\n\tmov ecx, 2\n\t"
+        "fire857_linux_000b278f%=:\n\tmov dword ptr [esp + 4], edx\n\t"
+        "fire857_linux_000b2793%=:\n\tmov dword ptr [esp + 0xc], eax\n\t"
+        "fire857_linux_000b2797%=:\n\tmov dword ptr [esp + 8], ecx\n\t"
+        "fire857_linux_000b279b%=:\n\tmov dword ptr [esp], 0\n\t"
+        "fire857_linux_000b27a2%=:\n\tcall dword ptr [ebx+60]\n\t"
+        "fire857_linux_000b27a7%=:\n\tmov ebp, dword ptr [esp + 0x34]\n\t"
+        "fire857_linux_000b27ab%=:\n\tmov eax, dword ptr [esp + 0x28]\n\t"
+        "fire857_linux_000b27af%=:\n\tmov edx, dword ptr [ebp+tceFire857Reverb]\n\t"
+        "fire857_linux_000b27b5%=:\n\ttest edx, edx\n\t"
+        "fire857_linux_000b27b7%=:\n\tje fire857_linux_000b27ef%=\n\t"
+        "fire857_linux_000b27b9%=:\n\tfild dword ptr [esp + 0x28]\n\t"
+        "fire857_linux_000b27bd%=:\n\tpush edx\n\t"
+        "fire857_linux_000b27be%=:\n\tfild dword ptr [esp]\n\t"
+        "fire857_linux_000b27c1%=:\n\tadd esp, 4\n\t"
+        "fire857_linux_000b27c4%=:\n\tfnstcw word ptr [esp + 0x3e]\n\t"
+        "fire857_linux_000b27c8%=:\n\tmovzx edx, word ptr [esp + 0x3e]\n\t"
+        "fire857_linux_000b27cd%=:\n\tor dx, 0xc00\n\t"
+        "fire857_linux_000b27d2%=:\n\tfmulp st(1)\n\t"
+        "fire857_linux_000b27d4%=:\n\tmov word ptr [esp + 0x3c], dx\n\t"
+        "fire857_linux_000b27d9%=:\n\tfmul dword ptr [ebx+112]\n\t"
+        "fire857_linux_000b27df%=:\n\tfldcw word ptr [esp + 0x3c]\n\t"
+        "fire857_linux_000b27e3%=:\n\tfistp dword ptr [esp + 0x38]\n\t"
+        "fire857_linux_000b27e7%=:\n\tfldcw word ptr [esp + 0x3e]\n\t"
+        "fire857_linux_000b27eb%=:\n\tmov eax, dword ptr [esp + 0x38]\n\t"
+        "fire857_linux_000b27ef%=:\n\tmov dword ptr [esp + 4], eax\n\t"
+        "fire857_linux_000b27f3%=:\n\tmov dword ptr [esp], esi\n\t"
+        "fire857_linux_000b27f6%=:\n\tcall dword ptr [ebx+64]\n\t"
+        "fire857_linux_000b27fb%=:\n\tmov ebp, dword ptr [esp + 0x30]\n\t"
+        "fire857_linux_000b27ff%=:\n\ttest ebp, ebp\n\t"
+        "fire857_linux_000b2801%=:\n\tje fire857_linux_000b2816%=\n\t"
+        "fire857_linux_000b2803%=:\n\tmov ecx, dword ptr [esp + 0x2c]\n\t"
+        "fire857_linux_000b2807%=:\n\tmov eax, dword ptr [esp + 0x30]\n\t"
+        "fire857_linux_000b280b%=:\n\tmov ebp, dword ptr [eax + ecx*4]\n\t"
+        "fire857_linux_000b280e%=:\n\ttest ebp, ebp\n\t"
+        "fire857_linux_000b2810%=:\n\tjne fire857_linux_000b28d6%=\n\t"
+        "fire857_linux_000b2816%=:\n\tmov esi, dword ptr [edi+tceFire857CentWeapon]\n\t"
+        "fire857_linux_000b281c%=:\n\tmov dword ptr [esp], esi\n\t"
+        "fire857_linux_000b281f%=:\n\tcall dword ptr [ebx+68]\n\t"
+        "fire857_linux_000b2824%=:\n\ttest eax, eax\n\t"
+        "fire857_linux_000b2826%=:\n\tje fire857_linux_000b28ce%=\n\t"
+        "fire857_linux_000b282c%=:\n\tmov edx, dword ptr [edi+tceFire857CentWeapon]\n\t"
+        "fire857_linux_000b2832%=:\n\tcmp edx, 4\n\t"
+        "fire857_linux_000b2835%=:\n\tje fire857_linux_000b2865%=\n\t"
+        "fire857_linux_000b2837%=:\n\tcmp edx, 9\n\t"
+        "fire857_linux_000b283a%=:\n\tje fire857_linux_000b2865%=\n\t"
+        "fire857_linux_000b283c%=:\n\tcmp edx, 0xf\n\t"
+        "fire857_linux_000b283f%=:\n\tje fire857_linux_000b2865%=\n\t"
+        "fire857_linux_000b2841%=:\n\tcmp edx, 0x16\n\t"
+        "fire857_linux_000b2844%=:\n\tje fire857_linux_000b2865%=\n\t"
+        "fire857_linux_000b2846%=:\n\tcmp edx, 0x1a\n\t"
+        "fire857_linux_000b2849%=:\n\tje fire857_linux_000b2865%=\n\t"
+        "fire857_linux_000b284b%=:\n\tcmp edx, 0x1b\n\t"
+        "fire857_linux_000b284e%=:\n\tje fire857_linux_000b2865%=\n\t"
+        "fire857_linux_000b2850%=:\n\tcmp edx, 1\n\t"
+        "fire857_linux_000b2853%=:\n\tje fire857_linux_000b2865%=\n\t"
+        "fire857_linux_000b2855%=:\n\tcmp edx, 0x1e\n\t"
+        "fire857_linux_000b2858%=:\n\tje fire857_linux_000b2865%=\n\t"
+        "fire857_linux_000b285a%=:\n\tmov ecx, 1\n\t"
+        "fire857_linux_000b285f%=:\n\tmov dword ptr [edi+tceFire857Pending], ecx\n\t"
+        "fire857_linux_000b2865%=:\n\tmov eax, edx\n\t"
+        "fire857_linux_000b2867%=:\n\timul eax, eax, 0x1cc\n\t"
+        "fire857_linux_000b286d%=:\n\tmov edx, dword ptr [ebx+12]\n\t"
+        "fire857_linux_000b2873%=:\n\tadd eax, edx\n\t"
+        "fire857_linux_000b2875%=:\n\tmov ebp, dword ptr [eax+tceFire857DefBolt]\n\t"
+        "fire857_linux_000b287b%=:\n\ttest ebp, ebp\n\t"
+        "fire857_linux_000b287d%=:\n\tjne fire857_linux_000b252a%=\n\t"
+        "fire857_linux_000b2883%=:\n\tmov esi, dword ptr [eax+tceFire857DefSingle]\n\t"
+        "fire857_linux_000b2889%=:\n\ttest esi, esi\n\t"
+        "fire857_linux_000b288b%=:\n\tje fire857_linux_000b289b%=\n\t"
+        "fire857_linux_000b288d%=:\n\tmov ecx, dword ptr [edi+tceFire857EventParm]\n\t"
+        "fire857_linux_000b2893%=:\n\ttest ecx, ecx\n\t"
+        "fire857_linux_000b2895%=:\n\tje fire857_linux_000b252a%=\n\t"
+        "fire857_linux_000b289b%=:\n\tmov eax, dword ptr [esp + 0x34]\n\t"
+        "fire857_linux_000b289f%=:\n\tmov ebp, dword ptr [eax+tceFire857Brass]\n\t"
+        "fire857_linux_000b28a5%=:\n\ttest ebp, ebp\n\t"
+        "fire857_linux_000b28a7%=:\n\tje fire857_linux_000b252a%=\n\t"
+        "fire857_linux_000b28ad%=:\n\tmov esi, dword ptr [ebx+28]\n\t"
+        "fire857_linux_000b28b3%=:\n\tmov edx,dword ptr [esi+tceFire857CvarInt]\n\t"
+        "fire857_linux_000b28b6%=:\n\ttest edx, edx\n\t"
+        "fire857_linux_000b28b8%=:\n\tjle fire857_linux_000b252a%=\n\t"
+        "fire857_linux_000b28be%=:\n\tmov ecx, 1\n\t"
+        "fire857_linux_000b28c3%=:\n\tmov dword ptr [edi+tceFire857Eject], ecx\n\t"
+        "fire857_linux_000b28c9%=:\n\tjmp fire857_linux_000b252a%=\n\t"
+        "fire857_linux_000b28ce%=:\n\tmov edx, dword ptr [edi+tceFire857CentWeapon]\n\t"
+        "fire857_linux_000b28d4%=:\n\tjmp fire857_linux_000b2865%=\n\t"
+        "fire857_linux_000b28d6%=:\n\tfnstcw word ptr [esp + 0x3e]\n\t"
+        "fire857_linux_000b28da%=:\n\tlea edx, [esp + 0x40]\n\t"
+        "fire857_linux_000b28de%=:\n\tfild dword ptr [esp + 0x28]\n\t"
+        "fire857_linux_000b28e2%=:\n\tmovzx ecx, word ptr [esp + 0x3e]\n\t"
+        "fire857_linux_000b28e7%=:\n\tfmul dword ptr [ebx+100]\n\t"
+        "fire857_linux_000b28ed%=:\n\tor cx, 0xc00\n\t"
+        "fire857_linux_000b28f2%=:\n\tmov word ptr [esp + 0x3c], cx\n\t"
+        "fire857_linux_000b28f7%=:\n\tfldcw word ptr [esp + 0x3c]\n\t"
+        "fire857_linux_000b28fb%=:\n\tfistp dword ptr [esp + 0x28]\n\t"
+        "fire857_linux_000b28ff%=:\n\tfldcw word ptr [esp + 0x3e]\n\t"
+        "fire857_linux_000b2903%=:\n\tfld dword ptr [esi+tceFire857CentOrigin]\n\t"
+        "fire857_linux_000b2906%=:\n\tfst dword ptr [esp + 0x50]\n\t"
+        "fire857_linux_000b290a%=:\n\tfld dword ptr [esi+tceFire857CentOrigin+4]\n\t"
+        "fire857_linux_000b290d%=:\n\tfst dword ptr [esp + 0x54]\n\t"
+        "fire857_linux_000b2911%=:\n\tfld dword ptr [esi+tceFire857CentOrigin+8]\n\t"
+        "fire857_linux_000b2914%=:\n\tmov esi, dword ptr [ebx+0]\n\t"
+        "fire857_linux_000b291a%=:\n\tmov ebp, dword ptr [esi+tceFire857Refdef]\n\t"
+        "fire857_linux_000b2920%=:\n\tfst dword ptr [esp + 0x58]\n\t"
+        "fire857_linux_000b2924%=:\n\tfld dword ptr [ebp+tceFire857ViewOrigin]\n\t"
+        "fire857_linux_000b2927%=:\n\tfsub st(3), st(0)\n\t"
+        "fire857_linux_000b2929%=:\n\tfstp dword ptr [esp + 0x60]\n\t"
+        "fire857_linux_000b292d%=:\n\tfld dword ptr [ebp+tceFire857ViewOrigin+4]\n\t"
+        "fire857_linux_000b2930%=:\n\tfsub st(2), st(0)\n\t"
+        "fire857_linux_000b2932%=:\n\tfstp dword ptr [esp + 0x64]\n\t"
+        "fire857_linux_000b2936%=:\n\tfld dword ptr [ebp+tceFire857ViewOrigin+8]\n\t"
+        "fire857_linux_000b2939%=:\n\tfxch st(3)\n\t"
+        "fire857_linux_000b293b%=:\n\tfstp dword ptr [esp + 0x40]\n\t"
+        "fire857_linux_000b293f%=:\n\tfxch st(1)\n\t"
+        "fire857_linux_000b2941%=:\n\tfstp dword ptr [esp + 0x44]\n\t"
+        "fire857_linux_000b2945%=:\n\tfsub st(1)\n\t"
+        "fire857_linux_000b2947%=:\n\tfxch st(1)\n\t"
+        "fire857_linux_000b2949%=:\n\tfstp dword ptr [esp + 0x68]\n\t"
+        "fire857_linux_000b294d%=:\n\tmov dword ptr [esp], edx\n\t"
+        "fire857_linux_000b2950%=:\n\tfstp dword ptr [esp + 0x48]\n\t"
+        "fire857_linux_000b2954%=:\n\tcall dword ptr [ebx+72]\n\t"
+        "fire857_linux_000b2959%=:\n\tfcom dword ptr [ebx+116]\n\t"
+        "fire857_linux_000b295f%=:\n\tfnstsw ax\n\t"
+        "fire857_linux_000b2961%=:\n\tsahf \n\t"
+        "fire857_linux_000b2962%=:\n\tjbe fire857_linux_000b29ec%=\n\t"
+        "fire857_linux_000b2968%=:\n\tfcomp dword ptr [ebx+124]\n\t"
+        "fire857_linux_000b296e%=:\n\tfnstsw ax\n\t"
+        "fire857_linux_000b2970%=:\n\tsahf \n\t"
+        "fire857_linux_000b2971%=:\n\tjae fire857_linux_000b2816%=\n\t"
+        "fire857_linux_000b2977%=:\n\tfld dword ptr [ebx+104]\n\t"
+        "fire857_linux_000b297d%=:\n\tmov ecx, 0x10\n\t"
+        "fire857_linux_000b2982%=:\n\tmov ebp, dword ptr [esi+tceFire857Refdef]\n\t"
+        "fire857_linux_000b2988%=:\n\tfld dword ptr [esp + 0x40]\n\t"
+        "fire857_linux_000b298c%=:\n\tmov eax, dword ptr [esp + 0x28]\n\t"
+        "fire857_linux_000b2990%=:\n\tmov edx, dword ptr [esp + 0x2c]\n\t"
+        "fire857_linux_000b2994%=:\n\tfmul st(1)\n\t"
+        "fire857_linux_000b2996%=:\n\tmov esi, dword ptr [esp + 0x30]\n\t"
+        "fire857_linux_000b299a%=:\n\tfadd dword ptr [ebp+tceFire857ViewOrigin]\n\t"
+        "fire857_linux_000b299d%=:\n\tfstp dword ptr [esp + 0x50]\n\t"
+        "fire857_linux_000b29a1%=:\n\tfld dword ptr [esp + 0x44]\n\t"
+        "fire857_linux_000b29a5%=:\n\tfmul st(1)\n\t"
+        "fire857_linux_000b29a7%=:\n\tfxch st(1)\n\t"
+        "fire857_linux_000b29a9%=:\n\tfmul dword ptr [esp + 0x48]\n\t"
+        "fire857_linux_000b29ad%=:\n\tfxch st(1)\n\t"
+        "fire857_linux_000b29af%=:\n\tfadd dword ptr [ebp+tceFire857ViewOrigin+4]\n\t"
+        "fire857_linux_000b29b2%=:\n\tfstp dword ptr [esp + 0x54]\n\t"
+        "fire857_linux_000b29b6%=:\n\tfadd dword ptr [ebp+tceFire857ViewOrigin+8]\n\t"
+        "fire857_linux_000b29b9%=:\n\tmov dword ptr [esp + 0x14], eax\n\t"
+        "fire857_linux_000b29bd%=:\n\tmov eax, 2\n\t"
+        "fire857_linux_000b29c2%=:\n\tmov dword ptr [esp + 0x10], ecx\n\t"
+        "fire857_linux_000b29c6%=:\n\tfstp dword ptr [esp + 0x58]\n\t"
+        "fire857_linux_000b29ca%=:\n\tmov ebp, dword ptr [esi + edx*4]\n\t"
+        "fire857_linux_000b29cd%=:\n\tlea esi, [esp + 0x50]\n\t"
+        "fire857_linux_000b29d1%=:\n\tmov dword ptr [esp + 8], eax\n\t"
+        "fire857_linux_000b29d5%=:\n\tmov dword ptr [esp + 0xc], ebp\n\t"
+        "fire857_linux_000b29d9%=:\n\tmov edx, dword ptr [edi+tceFire857CentNumber]\n\t"
+        "fire857_linux_000b29db%=:\n\tmov dword ptr [esp], esi\n\t"
+        "fire857_linux_000b29de%=:\n\tmov dword ptr [esp + 4], edx\n\t"
+        "fire857_linux_000b29e2%=:\n\tcall dword ptr [ebx+60]\n\t"
+        "fire857_linux_000b29e7%=:\n\tjmp fire857_linux_000b2816%=\n\t"
+        "fire857_linux_000b29ec%=:\n\tfstp st(0)\n\t"
+        "fire857_linux_000b29ee%=:\n\tjmp fire857_linux_000b2816%=\n\t"
+        "fire857_linux_000b29f3%=:\n\tfnstcw word ptr [esp + 0x3e]\n\t"
+        "fire857_linux_000b29f7%=:\n\tfsubp st(1)\n\t"
+        "fire857_linux_000b29f9%=:\n\tmovzx ecx, word ptr [esp + 0x3e]\n\t"
+        "fire857_linux_000b29fe%=:\n\tfmul dword ptr [ebx+120]\n\t"
+        "fire857_linux_000b2a04%=:\n\tor cx, 0xc00\n\t"
+        "fire857_linux_000b2a09%=:\n\tmov word ptr [esp + 0x3c], cx\n\t"
+        "fire857_linux_000b2a0e%=:\n\tfldcw word ptr [esp + 0x3c]\n\t"
+        "fire857_linux_000b2a12%=:\n\tfistp dword ptr [esp + 0x28]\n\t"
+        "fire857_linux_000b2a16%=:\n\tfldcw word ptr [esp + 0x3e]\n\t"
+        "fire857_linux_000b2a1a%=:\n\tjmp fire857_linux_000b2771%=\n\t"
+        "fire857_linux_000b2a1f%=:\n\tfstp st(0)\n\t"
+        "fire857_linux_000b2a21%=:\n\tjmp fire857_linux_000b29ec%=\n\t"
+        "fire857_linux_000b2a23%=:\n\tmov eax, dword ptr [esp + 0x34]\n\t"
+        "fire857_linux_000b2a27%=:\n\txor esi, esi\n\t"
+        "fire857_linux_000b2a29%=:\n\tmov ebp, dword ptr [esp + 0x34]\n\t"
+        "fire857_linux_000b2a2d%=:\n\tadd eax, tceFire857Echo\n\t"
+        "fire857_linux_000b2a32%=:\n\tadd ebp, tceFire857LastShot\n\t"
+        "fire857_linux_000b2a38%=:\n\tmov dword ptr [esp + 0x30], eax\n\t"
+        "fire857_linux_000b2a3c%=:\n\tmov ecx, dword ptr [ebp + esi*4]\n\t"
+        "fire857_linux_000b2a40%=:\n\ttest ecx, ecx\n\t"
+        "fire857_linux_000b2a42%=:\n\tje fire857_linux_000b2a4a%=\n\t"
+        "fire857_linux_000b2a44%=:\n\tinc esi\n\t"
+        "fire857_linux_000b2a45%=:\n\tcmp esi, 3\n\t"
+        "fire857_linux_000b2a48%=:\n\tjle fire857_linux_000b2a3c%=\n\t"
+        "fire857_linux_000b2a4a%=:\n\ttest esi, esi\n\t"
+        "fire857_linux_000b2a4c%=:\n\tjne fire857_linux_000b26ad%=\n\t"
+        "fire857_linux_000b2a52%=:\n\tmov ebp, dword ptr [esp + 0x34]\n\t"
+        "fire857_linux_000b2a56%=:\n\tjmp fire857_linux_000b26a7%=\n\t"
+        "fire857_linux_000b2a5b%=:\n\tmov edx, dword ptr [ebx+0]\n\t"
+        "fire857_linux_000b2a61%=:\n\tmov ecx, dword ptr [edx+tceFire857Snap]\n\t"
+        "fire857_linux_000b2a64%=:\n\tmov esi, dword ptr [ecx+tceFire857SnapClient]\n\t"
+        "fire857_linux_000b2a6a%=:\n\tcmp dword ptr [edi+tceFire857Client], esi\n\t"
+        "fire857_linux_000b2a70%=:\n\tjne fire857_linux_000b2680%=\n\t"
+        "fire857_linux_000b2a76%=:\n\tmov ebp, 0x18\n\t"
+        "fire857_linux_000b2a7b%=:\n\tmov dword ptr [edx+tceFire857WeaponSelect], ebp\n\t"
+        "fire857_linux_000b2a81%=:\n\tjmp fire857_linux_000b2680%=\n\t"
+        "fire857_linux_000b2a86%=:\n\tmov edx, dword ptr [ebx+0]\n\t"
+        "fire857_linux_000b2a8c%=:\n\tmov ecx, dword ptr [edx+tceFire857Snap]\n\t"
+        "fire857_linux_000b2a8f%=:\n\tmov esi, dword ptr [ecx+tceFire857SnapClient]\n\t"
+        "fire857_linux_000b2a95%=:\n\tcmp dword ptr [edi+tceFire857Client], esi\n\t"
+        "fire857_linux_000b2a9b%=:\n\tjne fire857_linux_000b2680%=\n\t"
+        "fire857_linux_000b2aa1%=:\n\tmov ebp, 0x17\n\t"
+        "fire857_linux_000b2aa6%=:\n\tjmp fire857_linux_000b2a7b%=\n\t"
+        "fire857_linux_000b2aa8%=:\n\tcmp edx, 9\n\t"
+        "fire857_linux_000b2aab%=:\n\tje fire857_linux_000b2aca%=\n\t"
+        "fire857_linux_000b2aad%=:\n\tfld dword ptr [edi+tceFire857Apos]\n\t"
+        "fire857_linux_000b2ab0%=:\n\tfcomp dword ptr [ebx+84]\n\t"
+        "fire857_linux_000b2ab6%=:\n\tfnstsw ax\n\t"
+        "fire857_linux_000b2ab8%=:\n\tsahf \n\t"
+        "fire857_linux_000b2ab9%=:\n\tja fire857_linux_000b252a%=\n\t"
+        "fire857_linux_000b2abf%=:\n\tmov edx, dword ptr [edi+tceFire857CentWeapon]\n\t"
+        "fire857_linux_000b2ac5%=:\n\tjmp fire857_linux_000b266e%=\n\t"
+        "fire857_linux_000b2aca%=:\n\tmov eax, dword ptr [edi+tceFire857CentNumber]\n\t"
+        "fire857_linux_000b2acc%=:\n\tmov ebp, dword ptr [ebx+4]\n\t"
+        "fire857_linux_000b2ad2%=:\n\timul ecx,eax,tceFire857InfoStride\n\t"
+        "fire857_linux_000b2ade%=:\n\tlea edx, [ebp+ecx+tceFire857InfoBase]\n\t"
+        "fire857_linux_000b2ae2%=:\n\tmov eax, dword ptr [edx+tceFire857InfoValid]\n\t"
+        "fire857_linux_000b2ae8%=:\n\ttest eax, eax\n\t"
+        "fire857_linux_000b2aea%=:\n\tje fire857_linux_000b2aad%=\n\t"
+        "fire857_linux_000b2aec%=:\n\tmov ecx, dword ptr [esi+tceFire857Snap]\n\t"
+        "fire857_linux_000b2aef%=:\n\tmov edx, dword ptr [edx+tceFire857InfoTeam]\n\t"
+        "fire857_linux_000b2af5%=:\n\tcmp edx, dword ptr [ecx+tceFire857SnapTeam]\n\t"
+        "fire857_linux_000b2afb%=:\n\tjne fire857_linux_000b2aad%=\n\t"
+        "fire857_linux_000b2afd%=:\n\tcmp edx, 1\n\t"
+        "fire857_linux_000b2b00%=:\n\tje fire857_linux_000b2b75%=\n\t"
+        "fire857_linux_000b2b02%=:\n\tcmp edx, 2\n\t"
+        "fire857_linux_000b2b05%=:\n\tjne fire857_linux_000b2aad%=\n\t"
+        "fire857_linux_000b2b07%=:\n\tcall dword ptr [ebx+48]\n\t"
+        "fire857_linux_000b2b0c%=:\n\tfld dword ptr [ebx+88]\n\t"
+        "fire857_linux_000b2b12%=:\n\tmov edx, eax\n\t"
+        "fire857_linux_000b2b14%=:\n\tshr edx, 0x1f\n\t"
+        "fire857_linux_000b2b17%=:\n\tpush edx\n\tmov edx,dword ptr [ebx+20]\n\tfsub dword ptr [edx]\n\tpop edx\n\t"
+        "fire857_linux_000b2b1d%=:\n\tfnstcw word ptr [esp + 0x3e]\n\t"
+        "fire857_linux_000b2b21%=:\n\tlea ecx, [edx + eax]\n\t"
+        "fire857_linux_000b2b24%=:\n\tand ecx, 0xfffffffe\n\t"
+        "fire857_linux_000b2b27%=:\n\tmovzx esi, word ptr [esp + 0x3e]\n\t"
+        "fire857_linux_000b2b2c%=:\n\tsub eax, ecx\n\t"
+        "fire857_linux_000b2b2e%=:\n\tfmul dword ptr [ebx+120]\n\t"
+        "fire857_linux_000b2b34%=:\n\tor si, 0xc00\n\t"
+        "fire857_linux_000b2b39%=:\n\tmov word ptr [esp + 0x3c], si\n\t"
+        "fire857_linux_000b2b3e%=:\n\tfldcw word ptr [esp + 0x3c]\n\t"
+        "fire857_linux_000b2b42%=:\n\tfistp dword ptr [esp + 0x10]\n\t"
+        "fire857_linux_000b2b46%=:\n\tfldcw word ptr [esp + 0x3e]\n\t"
+        "fire857_linux_000b2b4a%=:\n\tmov eax, dword ptr [ebp+eax*4+tceFire857WarnTeam2]\n\t"
+        "fire857_linux_000b2b51%=:\n\tmov dword ptr [esp + 0xc], eax\n\t"
+        "fire857_linux_000b2b55%=:\n\tmov ebp, 2\n\t"
+        "fire857_linux_000b2b5a%=:\n\tmov dword ptr [esp + 8], ebp\n\t"
+        "fire857_linux_000b2b5e%=:\n\tmov edx, dword ptr [edi+tceFire857CentNumber]\n\t"
+        "fire857_linux_000b2b60%=:\n\tmov dword ptr [esp], 0\n\t"
+        "fire857_linux_000b2b67%=:\n\tmov dword ptr [esp + 4], edx\n\t"
+        "fire857_linux_000b2b6b%=:\n\tcall dword ptr [ebx+76]\n\t"
+        "fire857_linux_000b2b70%=:\n\tjmp fire857_linux_000b2aad%=\n\t"
+        "fire857_linux_000b2b75%=:\n\tcall dword ptr [ebx+48]\n\t"
+        "fire857_linux_000b2b7a%=:\n\tfld dword ptr [ebx+88]\n\t"
+        "fire857_linux_000b2b80%=:\n\tmov edx, eax\n\t"
+        "fire857_linux_000b2b82%=:\n\tshr edx, 0x1f\n\t"
+        "fire857_linux_000b2b85%=:\n\tpush edx\n\tmov edx,dword ptr [ebx+20]\n\tfsub dword ptr [edx]\n\tpop edx\n\t"
+        "fire857_linux_000b2b8b%=:\n\tfnstcw word ptr [esp + 0x3e]\n\t"
+        "fire857_linux_000b2b8f%=:\n\tlea ecx, [edx + eax]\n\t"
+        "fire857_linux_000b2b92%=:\n\tand ecx, 0xfffffffe\n\t"
+        "fire857_linux_000b2b95%=:\n\tmovzx esi, word ptr [esp + 0x3e]\n\t"
+        "fire857_linux_000b2b9a%=:\n\tsub eax, ecx\n\t"
+        "fire857_linux_000b2b9c%=:\n\tfmul dword ptr [ebx+120]\n\t"
+        "fire857_linux_000b2ba2%=:\n\tor si, 0xc00\n\t"
+        "fire857_linux_000b2ba7%=:\n\tmov word ptr [esp + 0x3c], si\n\t"
+        "fire857_linux_000b2bac%=:\n\tfldcw word ptr [esp + 0x3c]\n\t"
+        "fire857_linux_000b2bb0%=:\n\tfistp dword ptr [esp + 0x10]\n\t"
+        "fire857_linux_000b2bb4%=:\n\tfldcw word ptr [esp + 0x3e]\n\t"
+        "fire857_linux_000b2bb8%=:\n\tmov eax, dword ptr [ebp+eax*4+tceFire857WarnTeam1]\n\t"
+        "fire857_linux_000b2bbf%=:\n\tjmp fire857_linux_000b2b51%=\n\t"
+        "fire857_linux_000b2bc1%=:\n\tnop \n\t"
+        "fire857_linux_000b2bc2%=:\n\tmov ebp, dword ptr [edi+tceFire857Lightning]\n\t"
+        "fire857_linux_000b2bc8%=:\n\ttest ebp, ebp\n\t"
+        "fire857_linux_000b2bca%=:\n\tje fire857_linux_000b266e%=\n\t"
+        "fire857_linux_000b2bd0%=:\n\tjmp fire857_linux_000b252a%=\n\t"
+        "fire857_linux_000b2bd5%=:\n\tmov ebp, dword ptr [esi+tceFire857Snap]\n\t"
+        "fire857_linux_000b2bd8%=:\n\tmov ecx, dword ptr [ebp+tceFire857SnapClient]\n\t"
+        "fire857_linux_000b2bde%=:\n\tcmp dword ptr [edi+tceFire857Client], ecx\n\t"
+        "fire857_linux_000b2be4%=:\n\tjne fire857_linux_000b261d%=\n\t"
+        "fire857_linux_000b2bea%=:\n\tmov edx, dword ptr [esi+tceFire857PredYaw]\n\t"
+        "fire857_linux_000b2bf0%=:\n\tmov eax, 0xffffffff\n\t"
+        "fire857_linux_000b2bf5%=:\n\tmov ecx, dword ptr [esi+tceFire857PredPitch]\n\t"
+        "fire857_linux_000b2bfb%=:\n\tmov dword ptr [esi+tceFire857MortarTime], eax\n\t"
+        "fire857_linux_000b2c01%=:\n\tmov dword ptr [esi+tceFire857MortarYaw], edx\n\t"
+        "fire857_linux_000b2c07%=:\n\tmov dword ptr [esi+tceFire857MortarPitch], ecx\n\t"
+        "fire857_linux_000b2c0d%=:\n\tmov edx, dword ptr [edi+tceFire857CentWeapon]\n\t"
+        "fire857_linux_000b2c13%=:\n\tjmp fire857_linux_000b261d%=\n\t"
+        "fire857_linux_000b2c18%=:\n\tmov edx, dword ptr [edi+tceFire857CentWeapon]\n\t"
+        "fire857_linux_000b2c1e%=:\n\tcmp edx, 0x2e\n\t"
+        "fire857_linux_000b2c21%=:\n\tjne fire857_linux_000b2614%=\n\t"
+        "fire857_linux_000b2c27%=:\n\tmov ebp, dword ptr [esi+tceFire857AimRequested]\n\t"
+        "fire857_linux_000b2c2d%=:\n\ttest ebp, ebp\n\t"
+        "fire857_linux_000b2c2f%=:\n\tje fire857_linux_000b2614%=\n\t"
+        "fire857_linux_000b2c35%=:\n\tmov ecx, dword ptr [esi+tceFire857Time]\n\t"
+        "fire857_linux_000b2c3b%=:\n\txor edx, edx\n\t"
+        "fire857_linux_000b2c3d%=:\n\txor ebp, ebp\n\t"
+        "fire857_linux_000b2c3f%=:\n\tmov dword ptr [esi+tceFire857AimRequested], edx\n\t"
+        "fire857_linux_000b2c45%=:\n\txor edx, edx\n\t"
+        "fire857_linux_000b2c47%=:\n\tsub ecx, 0x12c\n\t"
+        "fire857_linux_000b2c4d%=:\n\tmov dword ptr [esi+tceFire857AimActive], ebp\n\t"
+        "fire857_linux_000b2c53%=:\n\tmov dword ptr [esi+tceFire857ZoomTime], ecx\n\t"
+        "fire857_linux_000b2c59%=:\n\tmov dword ptr [esi+tceFire857AimSync], ecx\n\t"
+        "fire857_linux_000b2c5f%=:\n\tmov dword ptr [esi+tceFire857AimRetry], edx\n\t"
+        "fire857_linux_000b2c65%=:\n\tjmp fire857_linux_000b260e%=\n\t"
+        "fire857_linux_000b2c6a%=:\n\tmov edx, dword ptr [edi+tceFire857CentWeapon]\n\t"
+        "fire857_linux_000b2c70%=:\n\tmov dword ptr [esp], edx\n\t"
+        "fire857_linux_000b2c73%=:\n\tcall dword ptr [ebx+44]\n\t"
+        "fire857_linux_000b2c78%=:\n\tmov ecx, dword ptr [esi+tceFire857Time]\n\t"
+        "fire857_linux_000b2c7e%=:\n\tadd ecx, 0x64\n\t"
+        "fire857_linux_000b2c81%=:\n\tmov dword ptr [esi+tceFire857Hold], ecx\n\t"
+        "fire857_linux_000b2c87%=:\n\tcall dword ptr [ebx+48]\n\t"
+        "fire857_linux_000b2c8c%=:\n\tfld qword ptr [ebx+132]\n\t"
+        "fire857_linux_000b2c92%=:\n\tand eax, 0x7fff\n\t"
+        "fire857_linux_000b2c97%=:\n\tpush eax\n\t"
+        "fire857_linux_000b2c98%=:\n\tfild dword ptr [esp]\n\t"
+        "fire857_linux_000b2c9b%=:\n\tadd esp, 4\n\t"
+        "fire857_linux_000b2c9e%=:\n\tfmul dword ptr [ebx+96]\n\t"
+        "fire857_linux_000b2ca4%=:\n\tfild dword ptr [esi+tceFire857Instability]\n\t"
+        "fire857_linux_000b2caa%=:\n\tfmul dword ptr [ebx+108]\n\t"
+        "fire857_linux_000b2cb0%=:\n\tfld dword ptr [esi+tceFire857Vertical]\n\t"
+        "fire857_linux_000b2cb6%=:\n\tfxch st(3)\n\t"
+        "fire857_linux_000b2cb8%=:\n\tfmulp st(2)\n\t"
+        "fire857_linux_000b2cba%=:\n\tfld st(1)\n\t"
+        "fire857_linux_000b2cbc%=:\n\tfsin \n\t"
+        "fire857_linux_000b2cbe%=:\n\tfmul st(1)\n\t"
+        "fire857_linux_000b2cc0%=:\n\tfld dword ptr [ebx+92]\n\t"
+        "fire857_linux_000b2cc6%=:\n\tfmul st(1), st(0)\n\t"
+        "fire857_linux_000b2cc8%=:\n\tfxch st(4)\n\t"
+        "fire857_linux_000b2cca%=:\n\tfaddp st(1)\n\t"
+        "fire857_linux_000b2ccc%=:\n\tfld dword ptr [esi+tceFire857Horizontal]\n\t"
+        "fire857_linux_000b2cd2%=:\n\tfxch st(1)\n\t"
+        "fire857_linux_000b2cd4%=:\n\tfstp dword ptr [esi+tceFire857Vertical]\n\t"
+        "fire857_linux_000b2cda%=:\n\tfxch st(2)\n\t"
+        "fire857_linux_000b2cdc%=:\n\tfcos \n\t"
+        "fire857_linux_000b2cde%=:\n\tmov ebp, dword ptr [esi+tceFire857Snap]\n\t"
+        "fire857_linux_000b2ce1%=:\n\tfmulp st(1)\n\t"
+        "fire857_linux_000b2ce3%=:\n\tfmulp st(2)\n\t"
+        "fire857_linux_000b2ce5%=:\n\tfaddp st(1)\n\t"
+        "fire857_linux_000b2ce7%=:\n\tfstp dword ptr [esi+tceFire857Horizontal]\n\t"
+        "fire857_linux_000b2ced%=:\n\tmov edx, dword ptr [edi+tceFire857CentNumber]\n\t"
+        "fire857_linux_000b2cef%=:\n\tcmp edx, dword ptr [ebp+tceFire857SnapClient]\n\t"
+        "fire857_linux_000b2cf5%=:\n\tjne fire857_linux_000b25f9%=\n\t"
+        "fire857_linux_000b2cfb%=:\n\tmov ebp, dword ptr [ebx+24]\n\t"
+        "fire857_linux_000b2d01%=:\n\tmov esi,dword ptr [ebp+tceFire857CvarInt]\n\t"
+        "fire857_linux_000b2d04%=:\n\ttest esi, esi\n\t"
+        "fire857_linux_000b2d06%=:\n\tjle fire857_linux_000b25f9%=\n\t"
+        "fire857_linux_000b2d0c%=:\n\tmov dword ptr [esp], edi\n\t"
+        "fire857_linux_000b2d0f%=:\n\tcall dword ptr [ebx+52]\n\t"
+        "fire857_linux_000b2d14%=:\n\tmov edx, dword ptr [edi+tceFire857CentNumber]\n\t"
+        "fire857_linux_000b2d16%=:\n\tjmp fire857_linux_000b25f9%=\n\t"
+        "fire857_linux_000b2d1b%=:\n\tmov dword ptr [esi+tceFire857LastFired], edx\n\t"
+        "fire857_linux_000b2d21%=:\n\tjmp fire857_linux_000b25dc%=\n\t"
+        "fire857_linux_000b2d26%=:\n\tmov edi,dword ptr [ebx+140]\n\t"
+        "fire857_linux_000b2d2c%=:\n\tmov dword ptr [esp], edi\n\t"
+        "fire857_linux_000b2d2f%=:\n\tcall dword ptr [ebx+40]\n\t"
+        "fire857_linux_000b2d34%=:\n\tjmp fire857_linux_000b252a%=\n\t"
+        "fire857_linux_000b2d39%=:\n\tnop \n\t"
+        "fire857_linux_000b2d3a%=:\n\tmov edx,dword ptr [ebx+144]\n\t"
+        "fire857_linux_000b2d40%=:\n\tmov dword ptr [esp], edx\n\t"
+        "fire857_linux_000b2d43%=:\n\tcall dword ptr [ebx+32]\n\t"
+        "fire857_linux_000b2d48%=:\n\tjmp fire857_linux_000b24a8%=\n\t"
+        "fire857_linux_finish%=:\n\tmov esp,dword ptr [esp+188]\n\tpop ebp\n\tpop ebx\n\t.att_syntax prefix"
+        : "+a" (cursor), "+d" (cent) : "m" (bindings)
+        : "ecx","esi","edi","cc","memory","st","st(1)","st(2)","st(3)","st(4)","st(5)","st(6)","st(7)"
+#ifdef __SSE__
+          ,"xmm0","xmm1","xmm2","xmm3","xmm4","xmm5","xmm6","xmm7"
+#endif
+    );
+}
+#else
 void CG_FireWeapon(centity_t *cent) {
     entityState_t *ent=&cent->currentState;
     tce_weaponInfo_t *weap;
@@ -3681,7 +7201,6 @@ void CG_FireWeapon(centity_t *cent) {
     int *sound;
     vec3_t direction,position;
     float distance;
-    double angle;
     if(cg.tcePortalScopeRendering)CG_Printf("ELITE PORTAL: CG_FireWeapon\n");
     if(ent->eFlags&0x8000) {
         int tank=cg_entities[cg_entities[cg_entities[ent->number].tagParent].tankparent].currentState.density&8;
@@ -3699,10 +7218,8 @@ void CG_FireWeapon(centity_t *cent) {
     if(ent->clientNum==cg.snap->ps.clientNum)cg.lastFiredWeapon=weapon;
     cent->muzzleFlashTime=cg.time;
     if(ent->number==cg.snap->ps.clientNum) {
-        CG_WeaponFireRecoil(weapon);cg.tceShotHoldUntil=cg.time+100;
-        angle=(rand()&32767)*(double)(1.f/32767.f)*(double)6.2831854820251465f;
-        cg.tceSwayVertical=(float)(cg.tceSwayVertical+sin(angle)*((float)cg.predictedPlayerState.stats[STAT_TCE_SHOT_INSTABILITY]*.001f)*1.5);
-        cg.tceSwayHorizontal=(float)(cg.tceSwayHorizontal+cos(angle)*((float)cg.predictedPlayerState.stats[STAT_TCE_SHOT_INSTABILITY]*.001f)*1.5);
+        CG_WeaponFireRecoil(ent->weapon);
+        CG_TCEFireSway855();
     }
     if(ent->number==cg.snap->ps.clientNum&&cg_predictBullets.integer>0)CG_PredictedFire(cent);
     if(ent->number==cg.snap->ps.clientNum&&weapon==46&&cg.tceAimRequested) {
@@ -3718,8 +7235,17 @@ void CG_FireWeapon(centity_t *cent) {
         if(weapon==9&&cgs.clientinfo[ent->number].infoValid&&cgs.clientinfo[ent->number].team==cg.snap->ps.persistant[PERS_TEAM]) {
             int team=cgs.clientinfo[ent->number].team;
             if(team==1||team==2) {
-                const char *name=va("sound/chat/%s_15%c.wav",team==1?"allies":"specops",'a'+rand()%2);
-                trap_S_StartSoundVControl(NULL,ent->number,CHAN_WEAPON,trap_S_RegisterSound(name,qfalse),(int)((1.f-tceFlash.deafness)*127.f));
+                /* Native Linux calls rand before reading attenuation;
+                 * Windows converts first. Both read the cached team bank. */
+#if defined(__linux__)
+                index=rand()%2;
+                volume=CG_TCEFireWarningVolume853();
+#else
+                volume=CG_TCEFireWarningVolume853();
+                index=rand()%2;
+#endif
+                trap_S_StartSoundVControl(NULL,ent->number,CHAN_WEAPON,
+                    cgs.media.tceRoundWarning[team-1][index],volume);
             }
         }
         if(ent->apos.trBase[0]>0)return;
@@ -3733,6 +7259,9 @@ void CG_FireWeapon(centity_t *cent) {
         if(count)sound=weap->lastShotSound;
     }
     if(ent->eFlags&0x40000)return;
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__GNUC__) && defined(__i386__) && defined(__linux__))
+    CG_TCEFireSound855(cent,weap,sound);
+#else
     for(count=0;count<4&&sound[count];++count){}
     if(count>0) {
         index=rand()%count;
@@ -3740,10 +7269,7 @@ void CG_FireWeapon(centity_t *cent) {
             centity_t *source=&cg_entities[ent->number];
             if(!weaponDef[weapon].suppressed&&!weaponDef[weapon].subsonic)volume=(int)((1.f-tceFlash.deafness)*127.f);
             else {
-                tce_fragmentSoundContext_t context;
-                memset(&context,0,sizeof(context));VectorCopy(cg.refdef_current->vieworg,context.listener);
-                context.distanceVariant=tceSmokeNewBBox;context.attenuation=tceFlash.deafness;context.disabled=cg.tcePortalScopeRendering;
-                volume=TCE_CG_SoundVolume(source->currentState.pos.trBase,127,1800,0,&context);
+                volume=CG_SoundVolume(source->currentState.pos.trBase,127,1800,0);
             }
             trap_S_StartSoundExVControl(NULL,ent->number,CHAN_WEAPON,sound[index],SND_NOCUT,volume);
             reverb=weap->flashReverbVolume?(int)((double)volume*weap->flashReverbVolume*(double)(1.f/255.f)):volume;
@@ -3758,6 +7284,7 @@ void CG_FireWeapon(centity_t *cent) {
             }
         }
     }
+#endif
     if(BG_CheckUTWeapon(weapon)&&weapon!=4&&weapon!=9&&weapon!=15&&weapon!=22&&weapon!=26&&weapon!=27&&weapon!=1&&weapon!=30)
         cent->tceFireEffectPending=1;
     if(weaponDef[weapon].bolt)return;
@@ -3765,6 +7292,8 @@ void CG_FireWeapon(centity_t *cent) {
     if(!weap->ejectBrass||cg_brassTime.integer<1)return;
     cent->tceEjectPending=1;
 }
+
+#endif
 
 
 

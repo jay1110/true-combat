@@ -40,6 +40,8 @@ qboolean G_ScriptAction_StopSound( gentity_t *ent, char *params );
 //qboolean G_ScriptAction_StartCam( gentity_t *ent, char *params );
 qboolean G_ScriptAction_EntityScriptName( gentity_t *ent, char *params);
 qboolean G_ScriptAction_AIScriptName( gentity_t *ent, char *params);
+qboolean G_ScriptAction_TCEDMSpawns( gentity_t *ent, char *params );
+qboolean G_ScriptAction_TCEDMSpawn( gentity_t *ent, char *params );
 qboolean G_ScriptAction_AxisRespawntime( gentity_t *ent, char *params );
 qboolean G_ScriptAction_AlliedRespawntime( gentity_t *ent, char *params );
 qboolean G_ScriptAction_NumberofObjectives( gentity_t *ent, char *params );
@@ -158,6 +160,8 @@ g_script_stack_action_t gScriptActions[] =
 //	{"startcam",						G_ScriptAction_StartCam},
 	{"entityscriptname",				G_ScriptAction_EntityScriptName},
 	{"aiscriptname",					G_ScriptAction_AIScriptName},
+	{"tce_dmspawns", G_ScriptAction_TCEDMSpawns},
+	{"tce_dmspawn", G_ScriptAction_TCEDMSpawn},
 	{"wm_axis_respawntime",				G_ScriptAction_AxisRespawntime},
 	{"wm_allied_respawntime",			G_ScriptAction_AlliedRespawntime},
 	{"wm_number_of_objectives",			G_ScriptAction_NumberofObjectives},

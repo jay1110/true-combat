@@ -10,9 +10,32 @@
 #include "ScriptManager.h"
 #include "IGameManager.h"
 #include "gmETBinds.h"
+#include "FileSystem.h"
 
 int ET_Game::CLASSEXoffset;
 bool ET_Game::IsETBlight, ET_Game::IsBastardmod, ET_Game::IsNoQuarter, ET_Game::IsTCE;
+
+String ET_Game::GetGoalScriptStem(bool saving)
+{
+	const String map(g_EngineFuncs->GetMapName());
+	if (!IsTCE) return map;
+	const String variant = String(va("%s_gt%d", map.c_str(), InterfaceFuncs::GetGameType()));
+	if (saving) return variant;
+	const bool goals = FileSystem::FileExists(filePath("nav/%s_goals.gm", variant.c_str()));
+	const bool script = FileSystem::FileExists(filePath("nav/%s.gm", variant.c_str()));
+	if (goals != script) {
+		EngineFuncs::ConsoleError(va("Incomplete TCE2 navigation pair: %s.gm / %s_goals.gm; no legacy mixing", variant.c_str(), variant.c_str()));
+		return String();
+	}
+	if (goals) return variant;
+	const bool legacyGoals = FileSystem::FileExists(filePath("nav/%s_goals.gm", map.c_str()));
+	const bool legacyScript = FileSystem::FileExists(filePath("nav/%s.gm", map.c_str()));
+	if (legacyGoals != legacyScript) {
+		EngineFuncs::ConsoleError(va("Incomplete TCE2 legacy navigation pair: %s; no partial load", map.c_str()));
+		return String();
+	}
+	return map;
+}
 bool ET_Game::m_WatchForMines;
 
 IGame *CreateGameInstance()

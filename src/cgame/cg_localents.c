@@ -10,6 +10,7 @@
 #include "tce_flash.h"
 #include "tce_smoke_grenade.h"
 #include "../game/tce_trajectory.h"
+#include "../game/tce_numeric.h"
 
 // Ridah, increased this
 //#define	MAX_LOCAL_ENTITIES	512
@@ -451,154 +452,96 @@ void CG_AddMoveGravityFade(localEntity_t *le) {
     trap_R_AddRefEntityToScene(re);
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-/* Original __ftol ABI: consume ST0 and return low32 of truncating int64. */
-static __declspec(naked) int CG_LocalEffectTruncateST0(void) {
-    __asm {
-        sub esp, 12
-        fstcw word ptr [esp + 8]
-        fwait
-        mov ax, word ptr [esp + 8]
-        or ah, 0ch
-        mov word ptr [esp + 10], ax
-        fldcw word ptr [esp + 10]
-        fistp qword ptr [esp]
-        fldcw word ptr [esp + 8]
-        mov eax, dword ptr [esp]
-        mov edx, dword ptr [esp + 4]
-        add esp, 12
-        ret
-    }
-}
 
-/* FLD/FSUB/FSTP per component; compare the direct VectorLength ST0 result. */
-static int CG_LocalEffectInsideRadius(const float *effectOrigin, const float *effectView, float effectRadius) {
-    vec3_t effectDelta;
-    int effectInside;
-    __asm {
-        mov ecx, effectOrigin
-        mov edx, effectView
-        fld dword ptr [ecx]
-        fsub dword ptr [edx]
-        fstp effectDelta[0]
-        fld dword ptr [ecx + 4]
-        fsub dword ptr [edx + 4]
-        fstp effectDelta[4]
-        fld dword ptr [ecx + 8]
-        fsub dword ptr [edx + 8]
-        fstp effectDelta[8]
-        lea eax, effectDelta
-        push eax
-        call VectorLength
-        add esp, 4
-        fcomp effectRadius
-        fnstsw ax
-        and eax, 100h
-        mov effectInside, eax
-    }
-    return effectInside;
+
+/* Original 30047090 / Linux CG_AddMoveGravityFadeRGB, local type 17. */
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+static int CG_LocalEffectTimeDifference(int a, int b) {
+    unsigned bits = (unsigned)a - (unsigned)b;
+    int value;
+    memcpy(&value, &bits, sizeof(value));
+    return value;
 }
 #endif
 
-/* Original 30047090 / Linux CG_AddMoveGravityFadeRGB, local type 17. */
 static void CG_AddMoveGravityFadeRGB(localEntity_t *le) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-    enum { gfEnd=offsetof(localEntity_t,endTime), gfStart=offsetof(localEntity_t,startTime),
-        gfFade=offsetof(localEntity_t,fadeInTime), gfRate=offsetof(localEntity_t,lifeRate),
-        gfColor=offsetof(localEntity_t,color), gfFlags=offsetof(localEntity_t,leFlags),
-        gfGravity=offsetof(localEntity_t,tceGravity),
-        gfBase=offsetof(localEntity_t,pos)+offsetof(trajectory_t,trBase),
-        gfDelta=offsetof(localEntity_t,pos)+offsetof(trajectory_t,trDelta),
-        gfRotBase=offsetof(localEntity_t,angles)+offsetof(trajectory_t,trBase),
-        gfRotDelta=offsetof(localEntity_t,angles)+offsetof(trajectory_t,trDelta) };
-    static const double gravityOne=1.0;
-    static const float gravityFactor=.0004f;
-    int gravityTime=cg.time, gravityTemp;
-    localEntity_t *gravityEntity=le;
-    refEntity_t *re=&le->refEntity;
-    byte *gravityRGBA=re->shaderRGBA;
-    float *gravityOrigin=re->origin, *gravityRotation=&re->rotation;
-    __asm {
-        mov esi, gravityEntity
-        mov ebx, gravityTime
-        mov eax, [esi + gfEnd]
-        mov edx, [esi + gfFade]
-        mov ecx, eax
-        sub ecx, ebx
-        cmp ebx, edx
-        mov gravityTemp, ecx
-        fild gravityTemp
-        fmul dword ptr [esi + gfRate]
-        jle gravityPosition
-        mov ebx, ecx
-        sub eax, edx
-        shl ebx, 8
-        sub ebx, ecx
-        mov gravityTemp, ebx
-        fild gravityTemp
-        mov gravityTemp, eax
-        fild gravityTemp
-        fdivp st(1), st(0)
-        mov edi, gravityRGBA
-        fld st(0)
-        fmul dword ptr [esi + gfColor + 0]
-        call CG_LocalEffectTruncateST0
-        mov byte ptr [edi + 0], al
-        fld st(0)
-        fmul dword ptr [esi + gfColor + 4]
-        call CG_LocalEffectTruncateST0
-        mov byte ptr [edi + 1], al
-        fld st(0)
-        fmul dword ptr [esi + gfColor + 8]
-        call CG_LocalEffectTruncateST0
-        mov byte ptr [edi + 2], al
-        fmul dword ptr [esi + gfColor + 12]
-        call CG_LocalEffectTruncateST0
-        mov byte ptr [edi + 3], al
-    gravityPosition:
-        mov edi, gravityOrigin
-        fld st(0)
-        fsubr gravityOne
-        fld dword ptr [esi + gfDelta]
-        fmul st(0), st(1)
-        fadd dword ptr [esi + gfBase]
-        fstp dword ptr [edi]
-        fld dword ptr [esi + gfDelta + 4]
-        fmul st(0), st(1)
-        fadd dword ptr [esi + gfBase + 4]
-        fstp dword ptr [edi + 4]
-        fmul dword ptr [esi + gfDelta + 8]
-        fadd dword ptr [esi + gfBase + 8]
-        fst dword ptr [edi + 8]
-        mov eax, gravityTime
-        sub eax, [esi + gfStart]
-        mov gravityTemp, eax
-        fild gravityTemp
-        fld st(0)
-        fmul dword ptr [esi + gfGravity]
-        fmul st(0), st(1)
-        fmul gravityFactor
-        fsubr st(0), st(2)
-        fstp dword ptr [edi + 8]
-        fstp st(0)
-        fstp st(0)
-        test dword ptr [esi + gfFlags], 2
-        jz gravityDiscard
-        fmul dword ptr [esi + gfRotDelta]
-        fadd dword ptr [esi + gfRotBase]
-        mov eax, gravityRotation
-        fstp dword ptr [eax]
-        jmp gravityDone
-    gravityDiscard:
-        fstp st(0)
-    gravityDone:
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+    refEntity_t *re = &le->refEntity;
+    long double remaining, colorFraction, movement, value, positionZ, elapsed, gravity, length;
+    vec3_t delta;
+    int remainingTime, numerator, denominator, i;
+    unsigned numeratorBits;
+    volatile float *storedZ = &re->origin[2];
+    remainingTime = CG_LocalEffectTimeDifference(le->endTime, cg.time);
+    remaining = (long double)remainingTime * (long double)le->lifeRate;
+    if (cg.time > le->fadeInTime) {
+        numeratorBits = ((unsigned)remainingTime << 8) - (unsigned)remainingTime;
+        memcpy(&numerator, &numeratorBits, sizeof(numerator));
+        denominator = CG_LocalEffectTimeDifference(le->endTime, le->fadeInTime);
+#if defined(_WIN32)
+        colorFraction = (long double)numerator / (long double)denominator;
+#else
+        colorFraction = 1.0L / (long double)denominator;
+        colorFraction *= (long double)numerator;
+#endif
+        for (i = 0; i < 4; ++i) {
+            value = colorFraction * (long double)le->color[i];
+#if defined(_WIN32)
+            re->shaderRGBA[i] = (byte)(unsigned)TCE_TruncateNativeInteger(value);
+#else
+            if (value > -32769.0L && value < 32768.0L)
+                re->shaderRGBA[i] = (byte)(unsigned)(int)value;
+            else re->shaderRGBA[i] = 0;
+#endif
+        }
     }
-    if(CG_LocalEffectInsideRadius(re->origin,cg.refdef.vieworg,le->radius)) {
+    movement = 1.0L - remaining;
+#if defined(_WIN32)
+    value = (long double)le->pos.trDelta[0] * movement;
+#else
+    value = movement * (long double)le->pos.trDelta[0];
+#endif
+    re->origin[0] = (float)(value + (long double)le->pos.trBase[0]);
+#if defined(_WIN32)
+    value = (long double)le->pos.trDelta[1] * movement;
+#else
+    value = movement * (long double)le->pos.trDelta[1];
+#endif
+    re->origin[1] = (float)(value + (long double)le->pos.trBase[1]);
+    value = movement * (long double)le->pos.trDelta[2];
+    positionZ = value + (long double)le->pos.trBase[2];
+#if !defined(_WIN32)
+    {
+        volatile float roundedZ = (float)positionZ;
+        positionZ = (long double)roundedZ;
+    }
+#endif
+    *storedZ = (float)positionZ;
+    elapsed = (long double)CG_LocalEffectTimeDifference(cg.time, le->startTime);
+#if defined(_WIN32)
+    gravity = elapsed * (long double)le->tceGravity;
+    gravity *= elapsed;
+#else
+    gravity = (long double)le->tceGravity * elapsed;
+    gravity = elapsed * gravity;
+#endif
+    gravity *= (long double)0.0004f;
+    *storedZ = (float)(positionZ - gravity);
+    if (le->leFlags & 2) {
+        value = remaining * (long double)le->angles.trDelta[0];
+        re->rotation = (float)(value + (long double)le->angles.trBase[0]);
+    }
+    delta[0] = (float)((long double)re->origin[0] - (long double)cg.refdef.vieworg[0]);
+    delta[1] = (float)((long double)re->origin[1] - (long double)cg.refdef.vieworg[1]);
+    delta[2] = (float)((long double)re->origin[2] - (long double)cg.refdef.vieworg[2]);
+    length = TCE_VectorLengthValue(delta);
+    if (!(length >= (long double)le->radius)) {
         CG_FreeLocalEntity(le);
         return;
     }
     trap_R_AddRefEntityToScene(re);
 #else
+
 
     refEntity_t *re=&le->refEntity;
     vec3_t delta;
@@ -620,124 +563,86 @@ static void CG_AddMoveGravityFadeRGB(localEntity_t *le) {
 
 /* Original 30046d80 / Linux CG_AddMoveScaleFadeRGB, local type 18. */
 static void CG_AddMoveScaleFadeRGB(localEntity_t *le) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-    enum { efFade=offsetof(localEntity_t,fadeInTime), efStart=offsetof(localEntity_t,startTime),
-        efEnd=offsetof(localEntity_t,endTime), efRate=offsetof(localEntity_t,lifeRate), efRenderFx=offsetof(refEntity_t,renderfx),
-        efColor=offsetof(localEntity_t,color), efFlags=offsetof(localEntity_t,leFlags),
-        efRadius=offsetof(localEntity_t,radius), efRotBase=offsetof(localEntity_t,angles)+offsetof(trajectory_t,trBase),
-        efRotDelta=offsetof(localEntity_t,angles)+offsetof(trajectory_t,trDelta) };
-    static const double effectOne=1.0, effectHalf=0.5, effectEight=8.0;
-    static const float effectByte=255.0f, effectZero=0.0f;
-    int effectTime=cg.time, effectTemp;
-    localEntity_t *effectEntity=le;
-    refEntity_t *effectRef=&le->refEntity;
-    byte *effectRGBA=effectRef->shaderRGBA;
-    float *effectRotation=&effectRef->rotation, *effectRadiusOut=&effectRef->radius;
-    float effectGravity=le->tceGravity;
-    __asm {
-        mov esi, effectEntity
-        mov eax, [esi + efFade]
-        mov ecx, [esi + efStart]
-        mov edx, effectTime
-        cmp eax, ecx
-        jle effectLate
-        cmp edx, eax
-        jge effectLate
-        mov ebx, eax
-        sub ebx, edx
-        sub eax, ecx
-        mov effectTemp, ebx
-        fild effectTemp
-        mov effectTemp, eax
-        fidiv effectTemp
-        fsubr effectOne
-        jmp effectFractionReady
-    effectLate:
-        mov eax, [esi + efEnd]
-        sub eax, edx
-        mov effectTemp, eax
-        fild effectTemp
-        fmul dword ptr [esi + efRate]
-    effectFractionReady:
-        mov edi, effectRGBA
-        fld st(0)
-        fmul dword ptr [esi + efColor + 0]
-        fmul effectByte
-        call CG_LocalEffectTruncateST0
-        mov byte ptr [edi + 0], al
-        fld st(0)
-        fmul dword ptr [esi + efColor + 4]
-        fmul effectByte
-        call CG_LocalEffectTruncateST0
-        mov byte ptr [edi + 1], al
-        fld st(0)
-        fmul dword ptr [esi + efColor + 8]
-        fmul effectByte
-        call CG_LocalEffectTruncateST0
-        mov byte ptr [edi + 2], al
-        fld st(0)
-        fmul dword ptr [esi + efColor + 12]
-        fmul effectByte
-        call CG_LocalEffectTruncateST0
-        mov byte ptr [edi + 3], al
-        test dword ptr [esi + efFlags], 2
-        jz effectRadiusBegin
-        fld st(0)
-        fmul dword ptr [esi + efRotDelta]
-        fadd dword ptr [esi + efRotBase]
-        mov ecx, effectRotation
-        fstp dword ptr [ecx]
-    effectRadiusBegin:
-        mov eax, [esi + efFlags]
-        mov ecx, effectRadiusOut
-        test eax, 40h
-        jz effectSmallRadius
-        fsubr effectOne
-        fadd effectOne
-        fmul dword ptr [esi + efRadius]
-        fmul effectHalf
-        fstp dword ptr [ecx]
-        jmp effectRadiusDone
-    effectSmallRadius:
-        test eax, 20h
-        jz effectRenderFlag
-        fsubr effectOne
-        fmul dword ptr [esi + efRadius]
-        fadd effectOne
-        fstp dword ptr [ecx]
-        jmp effectRadiusDone
-    effectRenderFlag:
-        test eax, 100h
-        jz effectNormalRadius
-        fstp st(0)
-        mov ecx, effectRef
-        mov dword ptr [ecx + efRenderFx], 8
-        jmp effectRadiusDone
-    effectNormalRadius:
-        test eax, 1
-        jnz effectRadiusDiscard
-        fsubr effectOne
-        fmul dword ptr [esi + efRadius]
-        fadd effectEight
-        fstp dword ptr [ecx]
-        jmp effectRadiusDone
-    effectRadiusDiscard:
-        fstp st(0)
-    effectRadiusDone:
-        fld effectGravity
-        fcomp effectZero
-        fnstsw ax
-        test ah, 40h
-        jz effectGravityReady
-        mov effectGravity, 3f800000h
-    effectGravityReady:
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+    refEntity_t *re = &le->refEntity;
+    long double fraction, value, length;
+    vec3_t delta;
+    float gravity;
+    int numerator, denominator, i;
+    if (le->fadeInTime > le->startTime && cg.time < le->fadeInTime) {
+        numerator = CG_LocalEffectTimeDifference(le->fadeInTime, cg.time);
+        denominator = CG_LocalEffectTimeDifference(le->fadeInTime, le->startTime);
+#if defined(_WIN32)
+        fraction = (long double)numerator / (long double)denominator;
+        fraction = 1.0L - fraction;
+#else
+        {
+            volatile float roundedFraction;
+            fraction = 1.0L / (long double)denominator;
+            fraction = (long double)numerator * fraction;
+            fraction = 1.0L - fraction;
+            roundedFraction = (float)fraction;
+            fraction = (long double)roundedFraction;
+        }
+#endif
+    } else {
+        numerator = CG_LocalEffectTimeDifference(le->endTime, cg.time);
+        fraction = (long double)numerator * (long double)le->lifeRate;
     }
-    TCE_BG_EvaluateTrajectory(&le->pos,cg.time,effectRef->origin,qfalse,-1,effectGravity);
-    if(CG_LocalEffectInsideRadius(effectRef->origin,cg.refdef.vieworg,le->radius)) {
+    for (i = 0; i < 4; ++i) {
+        value = fraction * (long double)le->color[i];
+#if defined(_WIN32)
+        value *= (long double)255.0f;
+        re->shaderRGBA[i] = (byte)(unsigned)TCE_TruncateNativeInteger(value);
+#else
+        if (i == 3) value = (long double)255.0f * value;
+        else value *= (long double)255.0f;
+        if (value > -32769.0L && value < 32768.0L)
+            re->shaderRGBA[i] = (byte)(unsigned)(int)value;
+        else re->shaderRGBA[i] = 0;
+#endif
+    }
+    if (le->leFlags & 2) {
+#if defined(_WIN32)
+        value = fraction * (long double)le->angles.trDelta[0];
+#else
+        value = (long double)le->angles.trDelta[0] * fraction;
+#endif
+        re->rotation = (float)(value + (long double)le->angles.trBase[0]);
+    }
+    if (le->leFlags & 0x40) {
+        value = 1.0L - fraction;
+        value += 1.0L;
+        value *= (long double)le->radius;
+        value *= 0.5L;
+        re->radius = (float)value;
+    } else if (le->leFlags & 0x20) {
+        value = 1.0L - fraction;
+        value *= (long double)le->radius;
+#if defined(_WIN32)
+        re->radius = (float)(value + 1.0L);
+#else
+        re->radius = (float)(1.0L + value);
+#endif
+    } else if (le->leFlags & 0x100) {
+        re->renderfx = 8;
+    } else if (!(le->leFlags & 1)) {
+        value = 1.0L - fraction;
+        value *= (long double)le->radius;
+        re->radius = (float)(value + 8.0L);
+    }
+    gravity = le->tceGravity;
+    if (gravity == 0.0f || gravity != gravity) gravity = 1.0f;
+    TCE_BG_EvaluateTrajectory(&le->pos, cg.time, re->origin, qfalse, -1, gravity);
+    delta[0] = (float)((long double)re->origin[0] - (long double)cg.refdef.vieworg[0]);
+    delta[1] = (float)((long double)re->origin[1] - (long double)cg.refdef.vieworg[1]);
+    delta[2] = (float)((long double)re->origin[2] - (long double)cg.refdef.vieworg[2]);
+    length = TCE_VectorLengthValue(delta);
+    if (!(length >= (long double)le->radius)) {
         CG_FreeLocalEntity(le);
         return;
     }
-    trap_R_AddRefEntityToScene(effectRef);
+    trap_R_AddRefEntityToScene(re);
 #else
 
     refEntity_t *re=&le->refEntity;
@@ -763,75 +668,76 @@ static void CG_AddMoveScaleFadeRGB(localEntity_t *le) {
 /* Original 30046bf0 / Linux 00080d1a, type19. The original retains these
    diagnostic prints; do not substitute a sprite fade for the model axis. */
 static void CG_AddShrinkWiden(localEntity_t *le) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-    refEntity_t *re=&le->refEntity;
-    vec3_t angles;
-    float effectFraction, effectEnvelope;
-    const float *effectRate=&le->lifeRate;
-    int effectNumerator, effectDenominator;
-    static const double effectOne=1.0;
-    static const float effectPitchScale=.33f;
-    if(le->fadeInTime>le->startTime && cg.time<le->fadeInTime) {
-        effectNumerator=(int)((unsigned)le->fadeInTime-(unsigned)cg.time);
-        effectDenominator=(int)((unsigned)le->fadeInTime-(unsigned)le->startTime);
-        __asm {
-            fild effectNumerator
-            fidiv effectDenominator
-            fsubr effectOne
-            fstp effectFraction
-        }
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+    refEntity_t *re = &le->refEntity;
+    vec3_t angles, delta;
+    volatile float fraction, envelope;
+    long double value, scale, productY, productZ, length;
+    int numerator, denominator;
+    if (le->fadeInTime > le->startTime && cg.time < le->fadeInTime) {
+        numerator = CG_LocalEffectTimeDifference(le->fadeInTime, cg.time);
+        denominator = CG_LocalEffectTimeDifference(le->fadeInTime, le->startTime);
+#if defined(_WIN32)
+        value = (long double)numerator / (long double)denominator;
+#else
+        value = 1.0L / (long double)denominator;
+        value = (long double)numerator * value;
+#endif
+        fraction = (float)(1.0L - value);
     } else {
-        effectNumerator=(int)((unsigned)le->endTime-(unsigned)cg.time);
-        __asm {
-            fild effectNumerator
-            mov eax, effectRate
-            fmul dword ptr [eax]
-            fstp effectFraction
+        numerator = CG_LocalEffectTimeDifference(le->endTime, cg.time);
+#if !defined(_WIN32)
+        {
+            volatile float integerSpill = (float)(long double)numerator;
         }
+#endif
+        value = (long double)numerator * (long double)le->lifeRate;
+        fraction = (float)value;
     }
-    CG_Printf("here we are reType %i\n",re->reType);
-    if((le->leFlags&0x400) && re->reType==RT_MODEL && effectFraction>0) {
-        const float *effectRadius=&le->radius;
-        float *effectAxis=re->axis[2];
-        VectorCopy(cg.predictedPlayerState.viewangles,angles);
-        /* The envelope is stored before the diagnostic and AnglesToAxis call. */
-        __asm {
-            fld effectFraction
-            fsubr effectOne
-            fld st(0)
-            fmul st(0), st(1)
-            fsubr effectOne
-            fstp effectEnvelope
-            fstp st(0)
+    CG_Printf("here we are reType %i\n", re->reType);
+    if ((le->leFlags & 0x400) && re->reType == RT_MODEL && fraction > 0.0f) {
+        value = 1.0L - (long double)fraction;
+#if !defined(_WIN32)
+        {
+            volatile float roundedDifference = (float)value;
+            value = (long double)roundedDifference;
         }
-        CG_Printf("here we are oriented, pitch %f\n",angles[0]);
-        __asm {
-            fld angles[0]
-            fmul effectPitchScale
-            fstp angles[0]
-        }
-        AnglesToAxis(angles,re->axis);
-        __asm {
-            fld effectEnvelope
-            mov eax, effectRadius
-            fmul dword ptr [eax]
-            mov eax, effectAxis
-            fld st(0)
-            fmul dword ptr [eax]
-            fstp dword ptr [eax]
-            fld st(0)
-            fmul dword ptr [eax + 4]
-            fstp dword ptr [eax + 4]
-            fmul dword ptr [eax + 8]
-            fstp dword ptr [eax + 8]
-        }
+#endif
+        VectorCopy(cg.predictedPlayerState.viewangles, angles);
+        value = value * value;
+        envelope = (float)(1.0L - value);
+        CG_Printf("here we are oriented, pitch %f\n", angles[0]);
+#if defined(_WIN32)
+        value = (long double)angles[0] * (long double)0.33f;
+#else
+        value = (long double)0.33f * (long double)angles[0];
+#endif
+        angles[0] = (float)value;
+        AnglesToAxis(angles, re->axis);
+        scale = (long double)envelope * (long double)le->radius;
+#if defined(_WIN32)
+        re->axis[2][0] = (float)(scale * (long double)re->axis[2][0]);
+        re->axis[2][1] = (float)(scale * (long double)re->axis[2][1]);
+        re->axis[2][2] = (float)(scale * (long double)re->axis[2][2]);
+#else
+        re->axis[2][0] = (float)((long double)re->axis[2][0] * scale);
+        productY = (long double)re->axis[2][1] * scale;
+        productZ = scale * (long double)re->axis[2][2];
+        re->axis[2][1] = (float)productY;
+        re->axis[2][2] = (float)productZ;
+#endif
     }
-    if(CG_LocalEffectInsideRadius(re->origin,cg.refdef_current->vieworg,le->radius)) {
+    delta[0] = (float)((long double)re->origin[0] - (long double)cg.refdef_current->vieworg[0]);
+    delta[1] = (float)((long double)re->origin[1] - (long double)cg.refdef_current->vieworg[1]);
+    delta[2] = (float)((long double)re->origin[2] - (long double)cg.refdef_current->vieworg[2]);
+    length = TCE_VectorLengthValue(delta);
+    if (!(length >= (long double)le->radius)) {
         CG_FreeLocalEntity(le);
         return;
     }
     trap_R_AddRefEntityToScene(re);
 #else
+
 
     refEntity_t *re=&le->refEntity;
     vec3_t angles,delta;
@@ -855,6 +761,89 @@ static void CG_AddShrinkWiden(localEntity_t *le) {
 }
 
 void CG_AddMoveScaleFade(localEntity_t *le) {
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+    refEntity_t *re = &le->refEntity;
+    long double fraction, value, length;
+    vec3_t delta;
+    float gravity;
+    int numerator, denominator;
+    if (le->fadeInTime > le->startTime && cg.time < le->fadeInTime) {
+        numerator = CG_LocalEffectTimeDifference(le->fadeInTime, cg.time);
+        denominator = CG_LocalEffectTimeDifference(le->fadeInTime, le->startTime);
+#if defined(_WIN32)
+        fraction = (long double)numerator / (long double)denominator;
+        fraction = 1.0L - fraction;
+#else
+        {
+            volatile float roundedFraction;
+            fraction = 1.0L / (long double)denominator;
+            fraction = (long double)numerator * fraction;
+            fraction = 1.0L - fraction;
+            roundedFraction = (float)fraction;
+            fraction = (long double)roundedFraction;
+        }
+#endif
+    } else {
+        numerator = CG_LocalEffectTimeDifference(le->endTime, cg.time);
+        fraction = (long double)numerator * (long double)le->lifeRate;
+    }
+    if (!(le->leFlags & 4)) {
+        value = fraction * (long double)le->color[3];
+        value *= (long double)255.0f;
+#if defined(_WIN32)
+        re->shaderRGBA[3] = (byte)(unsigned)TCE_TruncateNativeInteger(value);
+#else
+        /* Signed16 integer-indefinite has a zero low byte. */
+        if (value > -32769.0L && value < 32768.0L)
+            re->shaderRGBA[3] = (byte)(unsigned)(int)value;
+        else re->shaderRGBA[3] = 0;
+#endif
+    }
+    if (le->leFlags & 2) {
+#if defined(_WIN32)
+        value = fraction * (long double)le->angles.trDelta[0];
+#else
+        value = (long double)le->angles.trDelta[0] * fraction;
+#endif
+        re->rotation = (float)(value + (long double)le->angles.trBase[0]);
+    }
+    if (le->leFlags & 0x40) {
+        value = 1.0L - fraction;
+        value += 1.0L;
+        value *= (long double)le->radius;
+        value *= 0.5L;
+        re->radius = (float)value;
+    } else if (le->leFlags & 0x20) {
+        value = 1.0L - fraction;
+        value *= (long double)le->radius;
+#if defined(_WIN32)
+        re->radius = (float)(value + 1.0L);
+#else
+        re->radius = (float)(1.0L + value);
+#endif
+    } else if (le->leFlags & 0x100) {
+        re->renderfx = 8;
+    } else if (!(le->leFlags & 1)) {
+        numerator = CG_LocalEffectTimeDifference(le->endTime, cg.time);
+        value = (long double)numerator * (long double)le->lifeRate;
+        value = 1.0L - value;
+        value *= (long double)le->radius;
+        re->radius = (float)(value + 8.0L);
+    }
+    gravity = le->tceGravity;
+    if (gravity == 0.0f || gravity != gravity) gravity = 1.0f;
+    TCE_BG_EvaluateTrajectory(&le->pos, cg.time, re->origin, qfalse, -1, gravity);
+    delta[0] = (float)((long double)re->origin[0] - (long double)cg.refdef_current->vieworg[0]);
+    delta[1] = (float)((long double)re->origin[1] - (long double)cg.refdef_current->vieworg[1]);
+    delta[2] = (float)((long double)re->origin[2] - (long double)cg.refdef_current->vieworg[2]);
+    length = TCE_VectorLengthValue(delta);
+    if (!(length >= (long double)le->radius)) {
+        CG_FreeLocalEntity(le);
+        return;
+    }
+    trap_R_AddRefEntityToScene(re);
+#else
+
     refEntity_t *re=&le->refEntity;
     vec3_t delta;
     double fraction,length;
@@ -872,6 +861,7 @@ void CG_AddMoveScaleFade(localEntity_t *le) {
     length=sqrt((double)delta[0]*delta[0]+(double)delta[1]*delta[1]+(double)delta[2]*delta[2]);
     if(length<le->radius) { CG_FreeLocalEntity(le);return; }
     trap_R_AddRefEntityToScene(re);
+#endif
 }
 
 

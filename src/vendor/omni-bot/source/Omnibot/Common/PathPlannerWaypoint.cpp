@@ -1,4 +1,5 @@
 #include "PrecompCommon.h"
+#include "NavStudioAdapter.h"
 #include <limits>
 
 #include "PathPlannerWaypoint.h"
@@ -24,6 +25,37 @@
 // TODO: next wp version, remove F_NAV_TEAMONLY 
 
 using namespace std;
+
+// Short-lived team corridor reservations. Costs never remove an edge: a
+// unique doorway remains usable, while comparable alternatives spread traffic.
+struct TceRouteReservation {
+    int owner, team, created, expires;
+    std::vector<obuint32> nodes;
+};
+static std::vector<TceRouteReservation> tceRoutes;
+static std::map<obuint32, float> tceRouteCosts;
+static int tceRouteOwner = -1;
+static void TcePrepareRoutes(Client *client) {
+    tceRouteCosts.clear(); tceRouteOwner = -1;
+    if(!client || !client->UseValidatedWalkEntries()) return;
+    const int now = IGame::GetTime(); tceRouteOwner = client->GetGameID();
+    for(size_t i=0;i<tceRoutes.size();) {
+        const TceRouteReservation &r=tceRoutes[i];
+        if(r.expires<=now || r.created>now) {
+            tceRoutes.erase(tceRoutes.begin()+i); continue;
+        }
+        if(r.owner!=tceRouteOwner && r.team==client->GetTeam())
+            for(size_t n=0;n<r.nodes.size();++n) tceRouteCosts[r.nodes[n]] += .4f;
+        ++i;
+    }
+}
+static float TceRouteMultiplier(obuint32 uid) {
+    if(tceRouteOwner<0) return 1.f;
+    const unsigned int hash=(uid*2654435761u)^((unsigned int)(tceRouteOwner+1)*2246822519u);
+    std::map<obuint32,float>::const_iterator it=tceRouteCosts.find(uid);
+    const float crowd=it==tceRouteCosts.end()?0.f:std::min(it->second,1.2f);
+    return 1.f+crowd+(hash%101)*.0015f;
+}
 
 typedef enum
 {
@@ -431,6 +463,7 @@ int PathPlannerWaypoint::CheckBlockable()
 void PathPlannerWaypoint::Update()
 {
 	Prof(PathPlannerWaypoint);
+    NavStudioAdapter::Update();
 
 	if(IsViewOn()) UpdateNavRender();
 
@@ -666,7 +699,15 @@ int PathPlannerWaypoint::PlanPathToNearest(Client *_client, const Vector3f &_sta
 
 int PathPlannerWaypoint::PlanPathToNearest(Client *_client, const Vector3f &_start, const DestinationVector &_goals, const NavFlags &_team)
 {
-	if(_goals.size() == 1 && Length(_goals[0].m_Position, _start) <= _goals[0].m_Radius)
+	return PlanPathToNearestWithEntryPolicy(_client, _start, _goals, _team, false);
+}
+
+int PathPlannerWaypoint::PlanPathToNearestWithEntryPolicy(Client *_client, const Vector3f &_start,
+	const DestinationVector &_goals, const NavFlags &_team, bool _ordinaryEntry)
+{
+	// Ordinary recovery explicitly requires a real, freshly walkable graph
+	// entry. A volume-only shortcut produces no entry and cannot satisfy it.
+	if(!_ordinaryEntry && _goals.size() == 1 && Length(_goals[0].m_Position, _start) <= _goals[0].m_Radius)
 	{
 		//bot is already at goal
 		m_Solution.clear();
@@ -675,10 +716,52 @@ int PathPlannerWaypoint::PlanPathToNearest(Client *_client, const Vector3f &_sta
 	}
 
 	m_Client = _client;
+	TcePrepareRoutes(_client);
 	m_GoalIndex = 0;
 
 	//m_Start = _GetClosestLink(_start, _team);
 	m_Start = ClosestLink(_GetClosestWaypoint(_start, _team, SKIP_NO_CONNECTIONS, NULL));
+	if(_client && _client->UseValidatedWalkEntries() &&
+		!_client->HasEntityFlag(ENT_FLAG_ONLADDER) &&
+		_client->HasEntityFlag(ENT_FLAG_ONGROUND))
+	{
+		// The Euclidean nearest point may be behind a thin wall/container.
+		// Replanning from that same unreachable anchor can never recover.
+		// Search a bounded nearest-first set, using native player-hull walks.
+		typedef std::pair<float, Waypoint *> EntryCandidate;
+		std::vector<EntryCandidate> candidates;
+		for(size_t i = 0; i < m_WaypointList.size(); ++i)
+		{
+			Waypoint *point = m_WaypointList[i];
+			if(point->IsFlagOn(F_NAV_CLOSED) || point->m_Connections.empty() ||
+				(point->IsFlagOn(F_NAV_TEAMONLY) && !point->IsFlagOn(_team) && _team)) continue;
+			if(_ordinaryEntry)
+			{
+				// Match FollowPath's recovery contract before selecting the first
+				// candidate. Selecting a nearer jump then rejecting it after the
+				// search hides a farther, fully walkable ordinary entry.
+				const NavFlags actions = F_NAV_CLIMB | F_NAV_JUMP | F_NAV_JUMPLOW | F_NAV_JUMPGAP |
+					F_NAV_TELEPORT | F_NAV_ELEVATOR | F_NAV_SCRIPT | F_NAV_DOOR;
+				if(point->IsFlagOn(actions) || point->OnPathThrough() ||
+					point->GetPropertyMap().GetProperty("tce_walk_drop") == "1" ||
+					point->GetPropertyMap().GetProperty("tce_stand_jump") == "1" ||
+					point->GetPropertyMap().GetProperty("tce_free_climb") == "1") continue;
+			}
+			const float distance = SquaredLength(point->GetPosition(), _start);
+			if(distance <= 512.f*512.f) candidates.push_back(EntryCandidate(distance, point));
+		}
+		std::sort(candidates.begin(), candidates.end());
+		m_Start = ClosestLink();
+		for(size_t i = 0; i < candidates.size() && i < 32; ++i)
+		{
+			Waypoint *point = candidates[i].second;
+			if(_client->CanWalkTo(point->GetPosition(), point->GetNavigationFlags()))
+			{
+				m_Start = ClosestLink(point);
+				break;
+			}
+		}
+	}
 
 	if(m_Start.IsValid())
 	{
@@ -726,11 +809,20 @@ int PathPlannerWaypoint::PlanPathToNearest(Client *_client, const Vector3f &_sta
 #else
 			_RunDijkstra(_team);
 #endif
+			if(_client && _client->UseValidatedWalkEntries() && !FoundGoal())
+				EngineFuncs::ConsoleMessage(va("TCE2PATH NO_SOLUTION bot=%d start=(%.3f %.3f %.3f) entry=%d target=(%.3f %.3f %.3f)",
+					_client->GetGameID(), _start.x, _start.y, _start.z,
+					m_Start.m_Wp[0] ? (int)m_Start.m_Wp[0]->GetUID() : 0,
+					_goals[0].m_Position.x, _goals[0].m_Position.y, _goals[0].m_Position.z));
 			return m_GoalIndex;
 		}
 	}
 
 	// None exist.
+	if(_client && _client->UseValidatedWalkEntries())
+		EngineFuncs::ConsoleMessage(va("TCE2PATH NO_ENTRY bot=%d pos=(%.3f %.3f %.3f) grounded=%d ladder=%d",
+			_client->GetGameID(), _start.x, _start.y, _start.z,
+			_client->HasEntityFlag(ENT_FLAG_ONGROUND) ? 1 : 0, _client->HasEntityFlag(ENT_FLAG_ONLADDER) ? 1 : 0));
 	m_PlannerFlags.SetFlag(WAYPOINT_ISDONE);
 	m_PlannerFlags.ClearFlag(NAV_FOUNDGOAL);
 
@@ -826,7 +918,7 @@ void PathPlannerWaypoint::_RunDijkstra(const NavFlags _team)
 				if (pNextWp->IsFlagOn(F_NAV_PRONE)) len *= 3.8f;
 				else if (pNextWp->IsFlagOn(F_NAV_CROUCH)) len *= 3.2f;
 				else if (pNextWp->IsFlagOn(F_NAV_SNEAK)) len *= 2.0f;
-				fSuccesorCost += len;
+				fSuccesorCost += len * TceRouteMultiplier(pNextWp->GetUID());
 			}
 
 			if(pNextWp->m_PathSerial == serial)
@@ -942,7 +1034,7 @@ void PathPlannerWaypoint::_RunAStar(const NavFlags _team, const Vector3f &_goalP
 			// Ignore distance to next node if this is flagged as a teleporter.
 			float fSuccesorCost = pCurrentNode->m_GivenCost;
 			if(!(it->m_ConnectionFlags & F_LNK_TELEPORT))
-				fSuccesorCost += (pCurrentNode->GetPosition() - pNextWp->GetPosition()).Length();
+				fSuccesorCost += (pCurrentNode->GetPosition() - pNextWp->GetPosition()).Length() * TceRouteMultiplier(pNextWp->GetUID());
 
 			if(pNextWp->m_PathSerial == serial)
 			{
@@ -1480,6 +1572,7 @@ bool PathPlannerWaypoint::Export(const String &_mapname)
 
 void PathPlannerWaypoint::Unload()
 {
+	tceRoutes.clear(); tceRouteCosts.clear(); tceRouteOwner=-1;
 	WaypointList::iterator it = m_WaypointList.begin();
 	for( ;it != m_WaypointList.end(); ++it)
 		delete (*it);
@@ -2002,8 +2095,96 @@ void PathPlannerWaypoint::RegisterGameGoals()
 	}
 }
 
+Path::TceDoorRecipe PathPlannerWaypoint::ReadDoorRecipe(const Waypoint *wp)
+{
+	Path::TceDoorRecipe recipe;
+	if(!wp) return recipe;
+	const PropertyMap &props = wp->GetPropertyMap();
+	recipe.marked = !props.GetProperty("tce_door_role").empty();
+	recipe.entity = props.GetProperty("tce_door_entity").empty() ? -1 : atoi(props.GetProperty("tce_door_entity").c_str());
+	recipe.useEntity = props.GetProperty("tce_door_use_entity").empty() ? -1 : atoi(props.GetProperty("tce_door_use_entity").c_str());
+	recipe.target = atoi(props.GetProperty("tce_door_target").c_str());
+	recipe.team = atoi(props.GetProperty("tce_door_team").c_str());
+	recipe.model = atoi(props.GetProperty("tce_door_model").c_str());
+	recipe.useModel = atoi(props.GetProperty("tce_door_use_model").c_str());
+	recipe.useNav = atoi(props.GetProperty("tce_door_use_nav").c_str());
+	recipe.entry = atoi(props.GetProperty("tce_door_entry").c_str());
+	const String mode = props.GetProperty("tce_door_mode"), role = props.GetProperty("tce_door_role");
+	recipe.mode = mode == "direct" ? 1 : mode == "button" ? 2 : mode == "local" ? 3 : atoi(mode.c_str());
+	recipe.role = role == "use" ? 1 : role == "entry" ? 2 : role == "exit" ? 3 : atoi(role.c_str());
+	char extra;
+	if(sscanf(props.GetProperty("tce_door_aim").c_str(), "%f %f %f %c", &recipe.aim.x,
+		&recipe.aim.y, &recipe.aim.z, &extra) != 3 || !std::isfinite(recipe.aim.x) ||
+		!std::isfinite(recipe.aim.y) || !std::isfinite(recipe.aim.z)) recipe.mode = 0;
+	return recipe;
+}
+
+bool PathPlannerWaypoint::BuildDoorRoute(Client *client, int fromUid, int toUid, Path &path)
+{
+	path.Clear();
+	Waypoint *from = GetWaypointByGUID(fromUid), *to = GetWaypointByGUID(toUid);
+	if(!client || !from || !to || !client->CanWalkTo(from->GetPosition(), from->GetNavigationFlags())) return false;
+	// Use only existing ordinary directed graph edges on the closed side. An
+	// activation detour must never depend on passing the door it is opening.
+	const NavFlags excluded = F_NAV_CLIMB | F_NAV_JUMP | F_NAV_JUMPLOW | F_NAV_JUMPGAP |
+		F_NAV_TELEPORT | F_NAV_ELEVATOR | F_NAV_SCRIPT;
+	std::vector<Waypoint*> queue(1, from);
+	std::map<Waypoint*, Waypoint*> parent;
+	parent[from] = 0;
+	for(size_t head = 0; head < queue.size() && queue.size() <= m_WaypointList.size(); ++head)
+	{
+		Waypoint *current = queue[head];
+		if(current == to) break;
+		Path::TceDoorRecipe currentRecipe = ReadDoorRecipe(current);
+		for(Waypoint::ConnectionList::const_iterator edge = current->m_Connections.begin(); edge != current->m_Connections.end(); ++edge)
+		{
+			Waypoint *next = edge->m_Connection;
+			if(!next || parent.find(next) != parent.end() || (edge->m_ConnectionFlags & F_LNK_CLOSED) ||
+				((current->GetNavigationFlags() | next->GetNavigationFlags()) & excluded) || next->IsFlagOn(F_NAV_CLOSED) ||
+				(next->IsFlagOn(F_NAV_TEAMONLY) && !next->IsFlagOn(client->GetTeamFlag())) ||
+				((m_CallbackFlags & next->GetNavigationFlags()) &&
+				 client->NavCallback(next->GetNavigationFlags(), current, next) == 0.f) ||
+				(currentRecipe.Valid() && currentRecipe.role == 2 && currentRecipe.target == (int)next->GetUID())) continue;
+			parent[next] = current;
+			queue.push_back(next);
+		}
+	}
+	if(parent.find(to) == parent.end()) return false;
+	std::vector<Waypoint*> reversed;
+	for(Waypoint *current = to; current; current = parent[current]) reversed.push_back(current);
+	if(reversed.size() > 500) return false;
+	const float offset = g_fBottomWaypointOffset + (g_fTopWaypointOffset - g_fBottomWaypointOffset) * g_fPathLevelOffset;
+	for(size_t i = reversed.size(); i > 0; --i)
+	{
+		Waypoint *wp = reversed[i-1];
+		// DOOR is deliberately cleared on ordinary detour nodes. It must not
+		// reintroduce the legacy blind USE behavior or bypass walking checks.
+		path.AddPt(wp->GetPosition().AddZ(offset), i == 1 ? 2.f : wp->GetRadius())
+			.Flags(wp->GetNavigationFlags() & ~F_NAV_DOOR).NavId(wp->GetUID());
+	}
+	return true;
+}
+
 void PathPlannerWaypoint::GetPath(Path &_path, int _smoothiterations)
 {
+    if(m_Client && m_Client->UseValidatedWalkEntries() && !m_Solution.empty()) {
+        TceRouteReservation route;
+        route.owner=m_Client->GetGameID(); route.team=m_Client->GetTeam();
+        route.created=IGame::GetTime(); route.expires=route.created+8000;
+        float length=0.f;
+        for(int i=(int)m_Solution.size()-1;i>=0 && route.nodes.size()<64;--i) {
+            route.nodes.push_back(m_Solution[i]->GetUID());
+            if(i>0) length+=(m_Solution[i]->GetPosition()-m_Solution[i-1]->GetPosition()).Length();
+            if(length>=1024.f) break;
+        }
+        // Only a delivered path reserves space; speculative cost queries do not.
+        for(size_t i=0;i<tceRoutes.size();) {
+            if(tceRoutes[i].owner==route.owner) tceRoutes.erase(tceRoutes.begin()+i);
+            else ++i;
+        }
+        tceRoutes.push_back(route);
+    }
+
 	const float offset = g_fBottomWaypointOffset + (g_fTopWaypointOffset-g_fBottomWaypointOffset) * g_fPathLevelOffset;
 	
 	bool bFirst = true;
@@ -2012,6 +2193,46 @@ void PathPlannerWaypoint::GetPath(Path &_path, int _smoothiterations)
 		// Center the waypoint position according to offsets.
 		Waypoint *pWp = m_Solution.back();
 		Vector3f vWpPos = pWp->GetPosition().AddZ(offset);
+		// A drop property belongs to one directed, natively checked edge.
+		// The same launch may also have ordinary approach/retreat connections.
+		const bool tceWalkDrop = m_Client && m_Client->UseValidatedWalkEntries() &&
+			m_Solution.size() > 1 && pWp->GetPropertyMap().GetProperty("tce_walk_drop") == "1" &&
+			atoi(pWp->GetPropertyMap().GetProperty("tce_walk_drop_target").c_str()) ==
+				m_Solution[m_Solution.size()-2]->GetUID();
+
+        const bool tceStandJump = m_Client && m_Client->UseValidatedWalkEntries() &&
+            m_Solution.size() > 1 && pWp->GetPropertyMap().GetProperty("tce_stand_jump") == "1" &&
+            atoi(pWp->GetPropertyMap().GetProperty("tce_stand_jump_target").c_str()) ==
+                m_Solution[m_Solution.size()-2]->GetUID();
+        const bool tceFreeClimb = m_Client && m_Client->UseValidatedWalkEntries() &&
+            m_Solution.size() > 1 && pWp->GetPropertyMap().GetProperty("tce_free_climb") == "1" &&
+            atoi(pWp->GetPropertyMap().GetProperty("tce_free_climb_target").c_str()) ==
+                m_Solution[m_Solution.size()-2]->GetUID();
+
+        NavFlags pathFlags=pWp->GetNavigationFlags();
+        Path::TceDoorRecipe doorRecipe = ReadDoorRecipe(pWp);
+        if(doorRecipe.Valid() && doorRecipe.role == 2 && (m_Solution.size() <= 1 ||
+            doorRecipe.target != (int)m_Solution[m_Solution.size()-2]->GetUID())) doorRecipe.role = 0;
+        // Mode3 starts at its safe USE, before entering the rotating leaf's
+        // sweep. Keep that marker only for this exact directed action chain.
+        if(doorRecipe.Valid() && doorRecipe.mode == 3 && doorRecipe.role == 1)
+        {
+            const Path::TceDoorRecipe entry = m_Solution.size() > 1 ?
+                ReadDoorRecipe(m_Solution[m_Solution.size()-2]) : Path::TceDoorRecipe();
+            if(m_Solution.size() <= 2 || !entry.Valid() || entry.role != 2 ||
+                !doorRecipe.SameDoor(entry) || doorRecipe.target != entry.entry ||
+                entry.target != (int)m_Solution[m_Solution.size()-3]->GetUID()) doorRecipe.role = 0;
+        }
+        if(m_Client && m_Client->UseValidatedWalkEntries() &&
+            !pWp->GetPropertyMap().GetProperty("tce_door_role").empty() && doorRecipe.role != 2 &&
+            !(doorRecipe.mode == 3 && doorRecipe.role == 1))
+            pathFlags &= ~F_NAV_DOOR;
+        if(m_Client&&m_Client->UseValidatedWalkEntries() &&
+            pWp->GetPropertyMap().GetProperty("tce_stand_jump")=="1"&&!tceStandJump)
+            pathFlags&=~(F_NAV_JUMP|F_NAV_JUMPLOW|F_NAV_JUMPGAP);
+        if(m_Client&&m_Client->UseValidatedWalkEntries() &&
+            pWp->GetPropertyMap().GetProperty("tce_free_climb")=="1"&&!tceFreeClimb)
+            pathFlags&=~F_NAV_CLIMB;
 
 		if(bFirst)
 		{
@@ -2025,10 +2246,15 @@ void PathPlannerWaypoint::GetPath(Path &_path, int _smoothiterations)
 					Vector3f vNextWpPos = pWp2->GetPosition().AddZ(offset);
 					Vector3f vClosest;
 					float t = Utils::ClosestPtOnLine(vWpPos, vNextWpPos, m_Client->GetPosition(), vClosest);
-					if(t > 0.f) //bot is near connection between the first and second waypoint
+					const NavFlags actions = F_NAV_CLIMB | F_NAV_JUMP | F_NAV_JUMPLOW |
+						F_NAV_JUMPGAP | F_NAV_TELEPORT | F_NAV_ELEVATOR | F_NAV_SCRIPT | F_NAV_DOOR;
+					const bool validatedEntry = !m_Client->UseValidatedWalkEntries() ||
+						(!tceWalkDrop && !tceStandJump && !tceFreeClimb && !((pWp->GetNavigationFlags() | pWp2->GetNavigationFlags()) & actions) &&
+						 m_Client->CanWalkTo(vClosest.AddZ(-offset), pWp->GetNavigationFlags()));
+					if(t > 0.f && validatedEntry)
 					{
 						_path.AddPt(vClosest, pWp->GetRadius() + t * (pWp2->GetRadius() - pWp->GetRadius()))
-							.Flags(pWp->GetNavigationFlags());
+							.Flags(pWp->GetNavigationFlags()).NavId(pWp->GetUID());
 
 						m_Solution.pop_back();
 						continue;
@@ -2038,7 +2264,13 @@ void PathPlannerWaypoint::GetPath(Path &_path, int _smoothiterations)
 		}
 
 		_path.AddPt(vWpPos, pWp->GetRadius())
-			.Flags(pWp->GetNavigationFlags())
+			.Flags(pathFlags)
+			.TceAscentRelease(pWp->GetPropertyMap().GetProperty("tce_ascent_release") == "1")
+			.TceAscentAlignment(pWp->GetPropertyMap().GetProperty("tce_ascent_alignment") == "1")
+			.TceWalkDrop(tceWalkDrop)
+			.TceStandJump(tceStandJump)
+			.TceFreeClimb(tceFreeClimb)
+			.TceDoor(doorRecipe)
 			.OnPathThrough(pWp->OnPathThrough())
 			.NavId(pWp->GetUID())
 			.OnPathThroughParam(pWp->OnPathThroughParam());

@@ -383,6 +383,7 @@ void CG_EliteImpactMark(qhandle_t shader, vec3_t origin, vec3_t dir,
                   MAX_MARK_POINTS, (float *)markPoints, MAX_MARK_FRAGMENTS * multiplier, fragments);
         fallback = qtrue;
     }
+    if (count < 0 || count > MAX_MARK_FRAGMENTS) return;
     colors[0] = (byte)(int)((double)red * 255);
     colors[1] = (byte)(int)((double)green * 255);
     colors[2] = (byte)(int)((double)blue * 255);
@@ -394,7 +395,10 @@ void CG_EliteImpactMark(qhandle_t shader, vec3_t origin, vec3_t dir,
         if (mf->numPoints > MAX_VERTS_ON_POLY) mf->numPoints = MAX_VERTS_ON_POLY;
         if (fallback && mf->numPoints < 0) continue;
         hasST = mf->numPoints < 0;
+        if (mf->numPoints < -MAX_VERTS_ON_POLY) continue;
         if (hasST) mf->numPoints = -mf->numPoints;
+        if (mf->numPoints < 3 || mf->firstPoint < 0 ||
+            mf->firstPoint > MAX_MARK_POINTS - mf->numPoints) continue;
         for (j = 0; j < mf->numPoints; ++j) {
             float *p = markPoints[mf->firstPoint + j];
             VectorCopy(p, verts[j].xyz);

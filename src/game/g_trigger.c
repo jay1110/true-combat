@@ -1,4 +1,7 @@
 #include "g_local.h"
+#ifdef FEATURE_OMNIBOT
+#include "g_etbot_interface.h"
+#endif
 
 void InitTrigger(gentity_t *self);
 
@@ -1101,6 +1104,9 @@ void Touch_flagonly (gentity_t *ent, gentity_t *other, trace_t *trace) {
 	
 
 	if ( ent->spawnflags & RED_FLAG && other->client->ps.powerups[ PW_REDFLAG ] ) {
+#ifdef FEATURE_OMNIBOT
+        Bot_Event_TCEFlagCapture(other->s.number,ent->s.number,other->client->flagParent);
+#endif
 
 		if( ent->spawnflags & 4 ) {
 			other->client->ps.powerups[ PW_REDFLAG ] = 0;
@@ -1124,6 +1130,9 @@ void Touch_flagonly (gentity_t *ent, gentity_t *other, trace_t *trace) {
 		ent->nextthink = level.time + FRAMETIME;
 		ent->think = G_FreeEntity;
 	} else if ( ent->spawnflags & BLUE_FLAG && other->client->ps.powerups[ PW_BLUEFLAG ] ) {
+#ifdef FEATURE_OMNIBOT
+        Bot_Event_TCEFlagCapture(other->s.number,ent->s.number,other->client->flagParent);
+#endif
 
 		if( ent->spawnflags & 4 ) {
 			other->client->ps.powerups[ PW_BLUEFLAG ] = 0;
@@ -1164,6 +1173,9 @@ void Touch_flagonly_multiple (gentity_t *ent, gentity_t *other, trace_t *trace) 
     else
         return;
     other->client->speedScale = 0;
+#ifdef FEATURE_OMNIBOT
+    Bot_Event_TCEFlagCapture(other->s.number,ent->s.number,other->client->flagParent);
+#endif
     AddScore(other, (int)ent->accuracy);
     AddKillScore(other, (int)ent->accuracy);
     savedParent = ent->parent;
@@ -1228,36 +1240,58 @@ void SP_trigger_flagonly_multiple( gentity_t *ent ) {
 	trap_LinkEntity (ent);
 }
 
+/* Indicator references are entity-pool pointers. A removed owner/target must
+ * not be dereferenced while the marker waits for its next think. */
+static qboolean G_IndicatorEntityIsLive( const gentity_t *entity ) {
+	uintptr_t address = (uintptr_t)entity;
+	uintptr_t first = (uintptr_t)&g_entities[0];
+	uintptr_t end = (uintptr_t)&g_entities[MAX_GENTITIES];
+
+	if ( address < first || address >= end || (address - first) % sizeof(gentity_t) ) {
+		return qfalse;
+	}
+	return entity->inuse;
+}
+
+static void G_FreeObjectiveIndicator( gentity_t *ent ) {
+	mapEntityData_t *mEnt;
+	int team;
+
+	for ( team = 0; team < 2; ++team ) {
+		mEnt = G_FindMapEntityData( &mapEntityData[team], (int)(ent - g_entities) );
+		if ( mEnt ) {
+			G_FreeMapEntityData( &mapEntityData[team], mEnt );
+		}
+	}
+	G_FreeEntity( ent );
+}
+
 // NERVE - SMF - spawn an explosive indicator
 void explosive_indicator_think( gentity_t *ent ) {
 	gentity_t *parent;
 
+	if ( ent->r.ownerNum < 0 || ent->r.ownerNum >= MAX_GENTITIES ) {
+		G_FreeObjectiveIndicator( ent );
+		return;
+	}
 	parent = &g_entities[ent->r.ownerNum];
 
  	if ( !parent->inuse || ( parent->s.eType == ET_CONSTRUCTIBLE && !parent->r.linked ) ) {
-
-		// update our map
-		{
-			mapEntityData_t	*mEnt;
-
-			if((mEnt = G_FindMapEntityData( &mapEntityData[0], (int)(ent - g_entities))) != NULL) {
-				G_FreeMapEntityData( &mapEntityData[0], mEnt );
-			}
-			if((mEnt = G_FindMapEntityData( &mapEntityData[1], (int)(ent - g_entities))) != NULL) {
-				G_FreeMapEntityData( &mapEntityData[1], mEnt );
-			}
-		}
-
-		//ent->think = G_FreeEntity;
-		//ent->nextthink = level.time + FRAMETIME;
-		G_FreeEntity( ent );
+		G_FreeObjectiveIndicator( ent );
+		return;
+	}
+	if ( parent->s.eType == ET_OID_TRIGGER && !G_IndicatorEntityIsLive( parent->target_ent ) ) {
+		G_FreeObjectiveIndicator( ent );
 		return;
 	}
 
-	/* TC marker state follows the objective target, not just its existence. */
-	if (ent->s.eType == ET_EXPLOSIVE_INDICATOR) {
+	/* TC objective markers follow their trigger's target. Standard ET also
+	 * creates markers owned directly by a constructible, with no target_ent;
+	 * their state/team is already set by the constructible spawn/build code. */
+	if (ent->s.eType == ET_EXPLOSIVE_INDICATOR && parent->s.eType == ET_OID_TRIGGER) {
 		if (parent->target_ent->entstate == 4) {
-			G_FreeEntity(ent);
+			G_FreeObjectiveIndicator(ent);
+			return;
 		} else if (parent->target_ent->entstate == 3) {
 			ent->s.onFireStart = 0;
 		} else if (parent->target_ent->entstate == 0 && ent->s.onFireStart == 0 && ent->tceObjectiveScore) {
@@ -1268,6 +1302,10 @@ void explosive_indicator_think( gentity_t *ent ) {
 		else if (parent->spawnflags & ALLIED_OBJECTIVE) ent->s.teamNum = 2;
 	}
 	if(ent->s.eType == ET_TANK_INDICATOR || ent->s.eType == ET_TANK_INDICATOR_DEAD) {
+		if ( !G_IndicatorEntityIsLive( ent->parent ) ) {
+			G_FreeObjectiveIndicator( ent );
+			return;
+		}
 		VectorCopy( ent->parent->r.currentOrigin, ent->s.pos.trBase );
 	}
 	ent->nextthink = level.time + FRAMETIME;
@@ -1284,13 +1322,31 @@ void constructible_indicator_think( gentity_t *ent ) {
 	gentity_t *parent;
 	gentity_t *constructible;
 
+	if ( ent->r.ownerNum < 0 || ent->r.ownerNum >= MAX_GENTITIES ) {
+		G_FreeObjectiveIndicator( ent );
+		return;
+	}
 	parent = &g_entities[ent->r.ownerNum];
+	if ( !parent->inuse ) {
+		G_FreeObjectiveIndicator( ent );
+		return;
+	}
 	constructible = parent->target_ent;
+	if ( !G_IndicatorEntityIsLive( constructible ) ) {
+		parent->count2 = 0;
+		G_FreeObjectiveIndicator( ent );
+		return;
+	}
 
 	if( parent->chain ) {
 		// use the target that has the same team as the indicator
 		if( constructible->s.teamNum != ent->s.teamNum ) {
 			constructible = parent->chain;
+			if ( !G_IndicatorEntityIsLive( constructible ) ) {
+				parent->count2 = 0;
+				G_FreeObjectiveIndicator( ent );
+				return;
+			}
 		}
 	}
 
@@ -1327,6 +1383,11 @@ void constructible_indicator_think( gentity_t *ent ) {
 	}
 
 	if(ent->s.eType == ET_TANK_INDICATOR || ent->s.eType == ET_TANK_INDICATOR_DEAD) {
+		if ( !G_IndicatorEntityIsLive( ent->parent ) ) {
+			parent->count2 = 0;
+			G_FreeObjectiveIndicator( ent );
+			return;
+		}
 		VectorCopy( ent->parent->r.currentOrigin, ent->s.pos.trBase );
 	}
 	ent->s.effect1Time = parent->constructibleStats.weaponclass;

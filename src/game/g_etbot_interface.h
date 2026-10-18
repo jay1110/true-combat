@@ -37,6 +37,10 @@ extern vmCvar_t g_OmniBotEnable, g_OmniBotPath, g_OmniBotFlags, g_OmniBotPlaying
 qboolean Bot_Interface_IsOmnibot(int clientNum);
 void Bot_Interface_RestoreClient(int clientNum, qboolean isBot);
 void Bot_Event_Respawn(int clientNum);
+/* Read-only observation counters: 1=confirmed plant, 2=confirmed defuse. */
+void Bot_Event_TCEObjectiveAction(int clientNum, int bombNum, int action, int objectiveNum);
+/* Observes an actual flagonly capture; never changes flag/player state. */
+void Bot_Event_TCEFlagCapture(int clientNum, int triggerNum, int flagNum);
 int Bot_Interface_Init(void);
 void Bot_Interface_InitHandles(void);
 int Bot_Interface_Shutdown(qboolean disconnectClients);

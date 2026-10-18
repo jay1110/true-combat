@@ -8,6 +8,10 @@
 
 #include "../game/g_local.h"
 #include "../game/q_shared.h"
+#include "tce_navgen.h"
+#ifdef FEATURE_OMNIBOT
+#include "g_etbot_interface.h"
+#endif
 
 /*
 Contains the code to handle the various commands available with an event script.
@@ -3077,6 +3081,9 @@ qboolean G_ScriptAction_Announce( gentity_t *ent, char *params )
 				
 	trap_SendServerCommand( -1, va("cpm \"%s\"", token ));
 //	trap_SendServerCommand( -1, va("cp \"%s\" 2", token ));
+#ifdef FEATURE_OMNIBOT
+	Bot_Util_SendTrigger(ent, NULL, token, "announce");
+#endif
 
 	return qtrue;
 }
@@ -4366,5 +4373,38 @@ qboolean G_ScriptAction_AddScore(gentity_t *ent, char *params) {
     if(!*token) G_Error("G_ScriptAction_AddScore: score parameter required\n");
     level.teamScores[team+1]+=atoi(token);
     CalculateRanks();
+    return qtrue;
+}
+
+/* Map-local switch: never persists into the next map or changes GT2/GT5. */
+qboolean G_ScriptAction_TCEDMSpawns(gentity_t *ent, char *params) {
+    char *token = COM_ParseExt(&params, qfalse);
+    if (Q_stricmp(token,"0") && Q_stricmp(token,"1")) G_Error("tce_dmspawns requires 0 or 1\n");
+    level.tceCustomDMSpawns = g_gametype.integer == 7 && atoi(token) == 1;
+    G_Printf("TCE GT7 custom deathmatch spawns: %s\n", level.tceCustomDMSpawns ? "enabled" : "disabled");
+    return qtrue;
+}
+
+/* Narrow mapscript extension, not an unrestricted entity constructor.
+ * Coordinates are player origins, not floor coordinates. Invalid hulls are rejected. */
+qboolean G_ScriptAction_TCEDMSpawn(gentity_t *ent, char *params) {
+    vec3_t origin, feet;
+    float values[4]; int i; char *token, *end; const char *why; gentity_t *spot;
+    for(i=0;i<4;i++) {
+        token=COM_ParseExt(&params,qfalse);
+        if(!token[0]) G_Error("tce_dmspawn requires x y z yaw\n");
+        values[i]=(float)strtod(token,&end);
+        if(*end || !(values[i]>=-131072.f && values[i]<=131072.f)) G_Error("Invalid tce_dmspawn coordinate\n");
+    }
+    if(g_gametype.integer != 7) return qtrue;
+    VectorSet(origin,values[0],values[1],values[2]);
+    why=TCE_NavgenValidateSpawn(origin,feet,NULL);
+    if(why) { G_Printf("Rejected GT7 spawn %s: %s\n",vtos(origin),why); return qtrue; }
+    spot=NULL;
+    while((spot=G_Find(spot,FOFS(classname),"info_player_deathmatch"))!=NULL)
+        if(DistanceSquared(spot->s.origin,origin)<1.f) return qtrue;
+    spot=G_Spawn(); spot->classname="info_player_deathmatch";
+    G_SetOrigin(spot,origin); VectorCopy(origin,spot->s.origin); spot->s.angles[YAW]=values[3];
+    G_Printf("Added GT7 info_player_deathmatch %s\n",vtos(origin));
     return qtrue;
 }

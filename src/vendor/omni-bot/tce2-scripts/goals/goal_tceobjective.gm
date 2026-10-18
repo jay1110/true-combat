@@ -1,0 +1,143 @@
+// TC capture/plant/defuse use BUTTON_ACTIVATE, not ET engineer weapons.
+// GetStat exposes read-only native state; completion always remains server-side.
+this.Name = "TCEOBJECTIVE";
+this.Parent = "HighLevel";
+this.AutoAdd = true;
+this.SkipGetPriorityWhenActive = true;
+this.MapGoal = null;
+this.Eligible = function(goal, bot, current)
+{
+ ent = goal.GetEntity();
+ if(!ent || !EntityIsValid(ent)) { return false; }
+ // A brush center can be solid. Only a supplied, checked standing use point
+ // activates this behavior; native registration alone does not invent one.
+ if(!goal.UsePosition || goal.UsePosition.IsZero()) { return false; }
+ state = GetEntityStat(ent,"tce_objective_state");
+ if(typeName(state) != "int" || state == 4) { return false; }
+ mode = bot.GetStat("tce_gametype");
+ operation = GetEntityStat(ent,"tce_objective_operation");
+ owner = GetEntityStat(ent,"tce_objective_owner");
+ team = bot.GetTeam();
+ // TC use-target flags specify which team may activate. Completion flips them.
+ if(mode == 2 && operation == 1)
+ { return (goal.Operation == null || goal.Operation == "" || goal.Operation == "activate_capture") && state != 3 && (owner == team || owner == 3); }
+ if((mode != 2 && mode != 5) || operation != 2 ||
+    (goal.Operation != null && goal.Operation != "" && goal.Operation != "plant_defuse")) { return false; }
+ if(owner != 1 && owner != 2 && owner != 3) { return false; }
+ bomb = GetEntityStat(ent,"tce_objective_bomb");
+ if(mode == 2)
+ {
+  // A native plant event binds each GT2 bomb to its own objective. Another
+  // site's bomb never turns this unplanted site into a defuse destination.
+  if(typeName(bomb) != "int" || bomb < -1) { return false; }
+  planted = bomb >= 0;
+ }
+ else { planted = bot.GetStat("tce_bomb_planted"); }
+ // A dynamited target can be inactive while its live bomb still needs defusing.
+ // This is not permission to approach an inactive target before a real plant.
+ if(state == 3 && planted != 1) { return false; }
+ if(planted == 0)
+ { return (mode == 2 || bot.GetStat("tce_bomb_carrier") == 1) && owner != team; }
+ if(bomb == null || bomb < 0) { return false; }
+ bombTeam = GetEntityStat(bomb,"tce_bomb_team");
+ return (bombTeam == 1 || bombTeam == 2) && bombTeam != team;
+};
+this.Trace = function(event)
+{
+ if(GetCvar("omnibot_tce_objective_debug") != 0 && this.MapGoal)
+ { print("TCEOBJECTIVE",event,"bot",this.Bot.GetGameId(),"goal",this.MapGoal.GetName(),"time",GetTime()); }
+};
+this.GetPriority = function()
+{
+ Util.GetPriority(this,"TCEOBJECTIVE_.*",null,null,this.Eligible);
+};
+this.Enter = function()
+{
+ if(!this.MarkInProgress()) { this.Finished(); return; }
+ this.Trace("BEGIN");
+};
+this.Exit = function()
+{
+ this.Bot.ReleaseButton(BTN.USE);
+ this.Bot.ReleaseButton(BTN.CROUCH);
+ this.ReleaseAimRequest();
+ this.Stop();
+};
+this.Update = function()
+{
+ if(!this.MapGoal || !this.Eligible(this.MapGoal,this.Bot,this)) { this.Finished(); return; }
+ ent = this.MapGoal.GetEntity();
+ mode = this.Bot.GetStat("tce_gametype");
+ plantDefuse = GetEntityStat(ent,"tce_objective_operation") == 2;
+ oldOwner = GetEntityStat(ent,"tce_objective_owner");
+ oldBomb = this.Bot.GetStat("tce_bomb_planted");
+ if(mode == 2 && plantDefuse)
+ { oldBomb = GetEntityStat(ent,"tce_objective_bomb") >= 0; }
+ oldPlants = this.Bot.GetStat("tce_bomb_plant_count");
+ oldDefuses = this.Bot.GetStat("tce_bomb_defuse_count");
+ if(plantDefuse && (typeName(oldPlants) != "int" || typeName(oldDefuses) != "int"))
+ { this.Trace("NATIVE_OBSERVER_MISSING"); this.Finished(); return; }
+ usePos = this.MapGoal.UsePosition;
+ if(!usePos || usePos.IsZero()) { usePos = this.MapGoal.GetPosition(); }
+ aimPos = this.MapGoal.AimPosition;
+ if(!aimPos || aimPos.IsZero()) { aimPos = GetEntPosition(ent); }
+ if(plantDefuse && oldBomb == 1)
+ {
+  bomb = GetEntityStat(ent,"tce_objective_bomb");
+  if(bomb == null || bomb < 0) { this.Finished(); return; }
+  aimPos = GetEntPosition(bomb);
+  // Keep the checked standing anchor, including its height. MapGoal.GetPosition
+  // may be the trigger brush center; an arbitrary bomb XY is not a checked floor.
+ }
+ this.AddAimRequest(Priority.Low,"movedirection");
+ // Standard MapGoal routes are intermediate destinations. Their final fallback
+ // must be the checked use floor, never this live trigger's solid brush center.
+ this.MapGoal.ClearUsePoints();
+ this.MapGoal.AddUsePoint(usePos);
+ if(this.RouteTo(this.MapGoal,32) != EVENT.PATH_SUCCESS)
+ { this.Trace("NO_ROUTE_PATH"); this.BlackboardDelay(15); this.Finished(); return; }
+ if(this.Goto(usePos,this.MapGoal.ActivationRadius) != EVENT.PATH_SUCCESS)
+ { this.Trace("NO_PATH"); this.BlackboardDelay(15); this.Finished(); return; }
+ this.Stop();
+ this.AddAimRequest(Priority.High,"position",aimPos);
+ deadline = GetTime()+14;
+ using = false;
+ while(GetTime() < deadline)
+ {
+  if(!EntityIsValid(ent)) { this.Trace("ENTITY_GONE"); this.Finished(); return; }
+  if(mode == 2 && !plantDefuse && GetEntityStat(ent,"tce_objective_owner") != oldOwner)
+  { this.Trace("OWNER_CHANGED"); this.Finished(); return; }
+  if(plantDefuse && this.Bot.GetStat("tce_bomb_plant_count") != oldPlants)
+  {
+   if(this.Bot.GetStat("tce_last_plant_objective") == GetGameIdFromEntity(ent)) { this.Trace("PLANTED"); }
+   else { this.Trace("OTHER_OBJECTIVE_PLANTED"); }
+   this.Finished(); return;
+  }
+  if(plantDefuse && this.Bot.GetStat("tce_bomb_defuse_count") != oldDefuses)
+  {
+   if(oldBomb == 1 && this.Bot.GetStat("tce_last_defuse_bomb") == bomb) { this.Trace("DEFUSED"); }
+   else { this.Trace("OTHER_BOMB_DEFUSED"); }
+   this.Finished(); return;
+  }
+  if(plantDefuse && !this.Eligible(this.MapGoal,this.Bot,this))
+  { this.Trace("OBJECTIVE_CHANGED_WITHOUT_OWN_COMPLETION"); this.Finished(); return; }
+  if(this.Bot.HasAnyEntityFlag(ENTFLAG.DEAD,ENTFLAG.LIMBO) || this.Bot.HasTarget())
+  { this.Trace("INTERRUPTED"); this.Finished(); return; }
+  hint = this.Bot.GetStat("tce_cursor_hint");
+  // Crouching gives close low targets/bombs sufficient eye-to-surface range.
+  this.Bot.HoldButton(BTN.CROUCH,0.3);
+  expected = 39;
+  if(!plantDefuse) { expected = 3; }
+  else if(oldBomb == 0) { expected = 10; }
+  if(hint == expected)
+  {
+   if(!using) { this.Trace("USE"); using = true; }
+   this.Bot.HoldButton(BTN.USE,0.3);
+  }
+  else { this.Bot.ReleaseButton(BTN.USE); }
+  sleep(0.1);
+ }
+ this.Trace("USE_TIMEOUT");
+ this.BlackboardDelay(10);
+ this.Finished();
+};

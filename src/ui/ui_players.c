@@ -211,14 +211,10 @@ static void UI_LegsSequencing( playerInfo_t *pi ) {
 UI_PositionEntityOnTag
 ======================
 */
-/* TC x87 keeps each three-product sum until the destination float store. */
+/* The native tag transforms use the shared matrix provider. */
 static void UI_TagMatrixMultiply(const vec3_t a[3], const vec3_t b[3], vec3_t out[3]) {
-    int row, col;
-    for(row=0; row<3; ++row) for(col=0; col<3; ++col) {
-        out[row][col] = (float)((double)a[row][0]*(double)b[0][col]
-            + (double)a[row][1]*(double)b[1][col]
-            + (double)a[row][2]*(double)b[2][col]);
-    }
+    /* MatrixMultiply retains its SDK signature but only reads its inputs. */
+    MatrixMultiply((float (*)[3])a, (float (*)[3])b, out);
 }
 
 static void UI_PositionEntityOnTag( refEntity_t *entity, const refEntity_t *parent, 
@@ -410,6 +406,97 @@ UI_SwingAngles
 */
 static void UI_SwingAngles( float destination, float swingTolerance, float clampTolerance,
 					float speed, float *angle, qboolean *swinging ) {
+#if defined(_WIN32) && !defined(Q3_VM)
+    long double held, magnitude, scale, move;
+    volatile float swing;
+    if (!*swinging) {
+        held = TCE_AngleSubtractValue(*angle, destination);
+        if (held > (long double)swingTolerance || !(held >= -(long double)swingTolerance)) {
+            *swinging = qtrue;
+        }
+    }
+    if (!*swinging) {
+        return;
+    }
+    held = TCE_AngleSubtractValue(destination, *angle);
+    swing = (float)held;
+    magnitude = fabsl(held);
+    if ((long double)swingTolerance * 0.5L > magnitude) {
+        scale = 0.5L;
+    } else if (!(magnitude >= (long double)swingTolerance)) {
+        scale = 1.0L;
+    } else {
+        scale = 2.0L;
+    }
+    move = (scale * (long double)uis.frametime) * (long double)speed;
+    if (!(swing >= 0.0f)) {
+        move = -move;
+        if (!(move > (long double)swing)) {
+            move = (long double)swing;
+            *swinging = qfalse;
+        }
+    } else {
+        if (move >= (long double)swing) {
+            move = (long double)swing;
+            *swinging = qfalse;
+        }
+    }
+    *angle = AngleMod((float)(move + (long double)*angle));
+    held = TCE_AngleSubtractValue(destination, *angle);
+    if (held > (long double)clampTolerance) {
+        *angle = AngleMod((float)((long double)destination - ((long double)clampTolerance - 1.0L)));
+    } else if (!(held >= -(long double)clampTolerance)) {
+        *angle = AngleMod((float)(((long double)clampTolerance - 1.0L) + (long double)destination));
+    }
+#elif defined(__linux__) && !defined(Q3_VM)
+    long double held, magnitude, scale, move;
+    volatile float signedSpeed, adjustedTolerance, argument;
+    qboolean negative;
+    if (!*swinging) {
+        held = TCE_AngleSubtractValue(*angle, destination);
+        if (held > (long double)swingTolerance || held < -(long double)swingTolerance) {
+            *swinging = qtrue;
+        }
+    }
+    if (!*swinging) {
+        return;
+    }
+    held = TCE_AngleSubtractValue(destination, *angle);
+    magnitude = fabsl(held);
+    if (!(magnitude >= 0.5L * (long double)swingTolerance)) {
+        scale = 0.5L;
+    } else if (!(magnitude >= (long double)swingTolerance)) {
+        scale = 1.0L;
+    } else {
+        scale = 2.0L;
+    }
+    negative = !(held >= 0.0L);
+    signedSpeed = negative ? -speed : speed;
+    move = (scale * (long double)uis.frametime) * (long double)signedSpeed;
+    if (negative) {
+        if (!(move > held)) {
+            move = held;
+            *swinging = qfalse;
+        }
+    } else {
+        if (move >= held) {
+            move = held;
+            *swinging = qfalse;
+        }
+    }
+    argument = (float)(move + (long double)*angle);
+    *angle = AngleMod(argument);
+    held = TCE_AngleSubtractValue(destination, *angle);
+    if (held > (long double)clampTolerance) {
+        adjustedTolerance = (float)((long double)clampTolerance - 1.0L);
+        argument = (float)((long double)destination - (long double)adjustedTolerance);
+        *angle = AngleMod(argument);
+    } else if (held < -(long double)clampTolerance) {
+        adjustedTolerance = (float)((long double)clampTolerance - 1.0L);
+        argument = (float)((long double)destination + (long double)adjustedTolerance);
+        *angle = AngleMod(argument);
+    }
+#else
 	float	swing;
 	float	move;
 	float	scale;
@@ -462,6 +549,7 @@ static void UI_SwingAngles( float destination, float swingTolerance, float clamp
 	} else if ( swing < -clampTolerance ) {
 		*angle = AngleMod( destination + (clampTolerance - 1) );
 	}
+#endif
 }
 
 

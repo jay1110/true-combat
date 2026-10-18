@@ -2338,7 +2338,11 @@ const char *CG_ConfigString( int index );
 int CG_ConfigStringCopy( int index, char* buff, int buffsize );
 const char *CG_Argv( int arg );
 
+#if defined(_WIN32) && !defined(Q3_VM)
+double CG_Cvar_Get(const char *cvar);
+#else
 float CG_Cvar_Get(const char *cvar);
+#endif
 
 char *CG_generateFilename(void);
 int CG_findClientNum(char *s);
@@ -2576,6 +2580,7 @@ void CG_TCEShotgunFire(entityState_t *);
 void CG_PredictedFire(centity_t *);
 void CG_CalcEntityVisibility(centity_t *);
 void CG_EliteEffectSound(centity_t *, int);
+int CG_SoundVolume(vec3_t origin,float amount,float range,int linear);
 void CG_DrawTracer( vec3_t start, vec3_t finish );
 
 // Rafael
@@ -3071,6 +3076,7 @@ void		trap_R_AddPolyToScene( qhandle_t hShader , int numVerts, const polyVert_t 
 void		trap_R_AddPolyBufferToScene( polyBuffer_t* pPolyBuffer );
 // Ridah
 void		trap_R_AddPolysToScene( qhandle_t hShader , int numVerts, const polyVert_t *verts, int numPolys );
+void TCE_RendererBeginFrame(int frameTime);
 // done.
 void		trap_R_AddLightToScene( const vec3_t org, float radius, float intensity, float r, float g, float b, qhandle_t hShader, int flags );
 void		trap_R_AddCoronaToScene( const vec3_t org, float r, float g, float b, float scale, int id, qboolean visible);

@@ -1,0 +1,243 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>TCE2 · Navstudio</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="/project-ui.css">
+  <script src="/bsp-viewer.js" defer></script>
+  <script src="/flags.js" defer></script>
+  <script src="/app.js" defer></script>
+  <script src="/language.js" defer></script>
+  <script src="/navbundle.js" defer></script>
+  <script src="/botmenu.js" defer></script>
+  <script src="/menu.js" defer></script>
+  <script src="/project-ui.js" defer></script>
+</head>
+<body class="project-inactive">
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="TCE2 Navstudio"><span class="brand-mark">N</span><strong>TCE2 <span>Navstudio</span></strong></a>
+    <span class="local-badge"><i></i> LOKALES WERKZEUG</span>
+    <span id="connection" class="connection" role="status">Verbinde …</span>
+    <div class="button-pair" aria-label="Game mode"><button id="mode-tce2" data-action="mode_tce2" class="button secondary">TCE2 Maps</button><button id="mode-et" data-action="mode_et" class="button secondary">ET Maps</button></div>
+    <button id="language-toggle" class="button secondary">English</button>
+    <a id="guide-open" class="button secondary" href="/guide.html" target="_blank" rel="noopener">Anleitung ↗</a>
+    <button id="settings-open" class="button secondary">⚙ Einstellungen</button>
+  </header>
+  <main class="workspace">
+    <aside class="sidebar">
+      <section class="panel map-panel">
+        <p class="eyebrow">01 / MAP & GEOMETRIE</p>
+        <label for="map-select">Map auswählen</label>
+        <div class="input-row"><select id="map-select"><option value="">Map auswählen / Select map</option></select><button id="reload-scene" class="icon-button" title="Ansicht aktualisieren" aria-label="Ansicht aktualisieren">↻</button></div>
+        <p id="scene-status" class="muted">Lade lokalen Projektstand …</p>
+        <p id="mode-info" class="hint"></p>
+        <button id="navbundle-open" class="button secondary full">WAY / GM · Navigationspaket</button>
+<button id="botmenu-open" class="button secondary" type="button">Omni-bot · Live-Editor / Goals</button>
+        <label for="test-gametype">TCE2 Test-Gametype (Neustart)</label><select id="test-gametype"><option value="2">GT2</option><option value="5">GT5</option><option value="7">GT7</option></select>
+        <p id="gametype-availability-status" class="hint" role="status"></p>
+        <button id="project-package-export" class="button secondary full" type="button" disabled>Wegpunkte, Goals &amp; Mapscripts als ZIP exportieren</button>
+        <p id="project-package-status" class="hint" role="status">Zuerst ein Map-Projekt öffnen.</p>
+        <button id="open-test-map" data-action="load_map" class="button primary full">Map im Testspiel öffnen</button>
+        <p id="game-status" class="hint" aria-live="polite">Spielstatus wird gelesen …</p>
+        <p id="game-input-status" class="hint"></p>
+        <button data-action="stop_test" class="text-button">Testspiel beenden</button>
+        <p class="hint">Map laden startet bei Bedarf dieselbe sichtbare Testinstanz. Das Testspiel ist jederzeit normal bedienbar. Die BSP-Ansicht funktioniert weiterhin offline.</p>
+      </section>
+      <section class="panel">
+        <p class="eyebrow">02 / NAVIGATION ERZEUGEN</p>
+        <button data-action="generate" class="button primary full">Netz, Goals &amp; Spawns automatisch erstellen</button>
+        <p class="hint">Öffnet die Map, erzeugt das Netz und prüft es nativ. Bis zu zwei gezielte Nachbesserungen; keine automatische Installation.</p>
+        <button data-action="rebuild" class="text-button">Nur Recast & Wegnetz erzeugen</button>
+        <div class="button-pair"><button data-action="native_check" class="button secondary">Nativ prüfen</button><button data-action="repair" class="button secondary">Pfade nachbessern</button></div>
+        <button data-action="snapshot" class="text-button">Mapmodell-Zustand erfassen</button>
+        <div id="job-status" class="job-status" aria-live="polite"><span class="status-dot idle"></span><span>Bereit</span></div>
+        <progress id="job-progress" value="0" max="100" hidden></progress>
+      </section>
+      <section class="panel layers-panel">
+        <p class="eyebrow">03 / EBENEN</p>
+        <label for="view-preset">Darstellung</label>
+        <select id="view-preset"><option value="ingame" selected>Ingame-Wegpunkte</option><option value="analysis">Recast & Prüfung</option></select>
+        <p id="view-preset-help" class="hint">Magenta Pfosten = Wegpunkte · Weiß = gerichtete Verbindungen. Ansicht sofort sichtbar, kein Spielstart nötig.</p>
+        <label class="toggle"><input type="checkbox" data-layer="bsp" checked><span>BSP-Darstellung</span><span class="swatch grey"></span></label>
+        <label class="toggle"><input type="checkbox" data-layer="stand"><span>Navmesh · Stehen</span><span class="swatch teal"></span></label>
+        <label class="toggle"><input type="checkbox" data-layer="duck"><span>Navmesh · Ducken</span><span class="swatch amber"></span></label>
+        <label class="toggle"><input type="checkbox" data-layer="collision"><span>Exportierte Kollision</span><span class="swatch grey"></span></label>
+        <label class="toggle"><input type="checkbox" data-layer="nodes" checked><span>Wegpunkte</span><span class="swatch magenta"></span></label>
+        <label class="toggle"><input type="checkbox" data-layer="goals" checked><span>Gespeicherte Goals</span><span class="swatch teal"></span></label>
+        <label class="toggle"><input type="checkbox" data-layer="labels" checked><span>Omni-bot-Texte / Eigenschaften</span></label>
+        <p id="goal-layer-status" class="hint">Goals werden für den gewählten Gametype aus der GM-Datei gelesen.</p>
+        <label class="toggle"><input type="checkbox" data-layer="accepted" checked><span>Akzeptierte Prüfungen</span></label>
+        <label class="toggle"><input type="checkbox" data-layer="rejected"><span>Abgelehnte Prüfungen</span><span class="swatch red"></span></label>
+        <label class="toggle"><input type="checkbox" data-layer="xray"><span>Durch Wände anzeigen</span></label>
+        <label class="compact-label" for="edge-mode">Gerichtete Verbindungen</label>
+        <select id="edge-mode"><option value="all">Alle Verbindungen</option><option value="selected">Nur Auswahl · übersichtlich</option><option value="none">Ausblenden</option></select>
+        <label class="compact-label" for="nav-distance">Sichtweite der Wegpunkte</label>
+        <select id="nav-distance"><option value="600">600 Units · direktes Umfeld</option><option value="1000">1000 Units</option><option value="2000" selected>2000 Units</option><option value="0">Unbegrenzt</option></select>
+        <div class="height-row"><label for="min-z">Z von <input id="min-z" type="number" placeholder="−∞" step="16"></label><label for="max-z">bis <input id="max-z" type="number" placeholder="+∞" step="16"></label><button id="reset-height" class="icon-button" title="Alle Höhen">↺</button></div>
+        <button id="camera-floor" class="text-button">Nur aktuelle Kamerahöhe ±96 Units</button>
+        <p class="hint">Navmesh ist ein Geometriekandidat. Erst die native Prüfung bewertet den TCE2-Spielerhull.</p>
+      </section>
+      <section class="panel install-panel">
+        <p class="eyebrow">04 / INSTALLIEREN</p>
+        <button data-action="inspect" class="button secondary full">Stand prüfen</button>
+        <button data-action="install_test" class="button secondary full">In vorhandener Testinstanz nutzen</button>
+        <button id="install-production" class="text-button">Geprüfte WAY in TCE2 installieren …</button>
+        <p class="hint">Installation setzt einen aktuellen, erfolgreich auditierten Stand voraus.</p>
+      </section>
+    </aside>
+    <section class="viewer-area" aria-label="3D-Navigationsansicht">
+      <div class="viewport-top"><div><span class="eyebrow">RAUMANSICHT</span><h1 id="map-title">Map auswählen</h1></div><div class="view-modes"><button id="inspect-mode" class="mode active" aria-pressed="true">Auswählen</button><button id="eye-level" class="mode" title="An ausgewähltem Wegpunkt auf Augenhöhe schauen">Augenhöhe</button><button id="fly-mode" class="mode" aria-pressed="false">Kamera fliegen</button><button id="focus-map" class="icon-button" title="Navigation von oben fokussieren">⌖</button></div></div>
+      <div class="mouse-editor" aria-label="Wegpunktwerkzeuge">
+        <div class="edit-toolbar" role="toolbar" aria-label="Mit der Maus bearbeiten">
+          <button id="mouse-begin" class="button primary">Bearbeiten</button>
+          <button data-edit-tool="select" class="mode active" aria-pressed="true" title="Punkt auswählen und mit gedrückter linker Maustaste auf Boden ziehen (V)">↖ Verschieben</button>
+          <button data-edit-tool="add" class="mode" aria-pressed="false" title="Boden anklicken, um einen Wegpunkt hinzuzufügen (A)">+ Punkt</button>
+          <button data-edit-tool="link" class="mode" aria-pressed="false" title="Ersten und zweiten Wegpunkt anklicken (L)">↔ Verbinden</button>
+          <button data-edit-tool="unlink" class="mode" aria-pressed="false" title="Verbindung anklicken oder zwei Wegpunkte wählen (U)">✂ Trennen</button>
+          <label class="toolbar-toggle"><input id="mouse-both" type="checkbox" checked> Beide Richtungen</label>
+          <button id="mouse-delete" class="mode" title="Ausgewählten Punkt oder Verbindung löschen (Entf)">Löschen</button>
+          <button id="mouse-undo" class="mode" title="Rückgängig (Strg+Z)">↶</button>
+          <button id="mouse-redo" class="mode" title="Wiederholen (Strg+Umschalt+Z / Strg+Y)">↷</button>
+        </div>
+        <p id="mouse-help" role="status">Bearbeiten öffnet einen lokalen Entwurf. Rechts ziehen: Kamera drehen · Mausrad: vor/zurück.</p>
+      </div>
+      <canvas id="viewer" tabindex="0" aria-label="BSP und Navigation in 3D"></canvas>
+      <div id="loading" class="loading"><span class="spinner"></span><strong>Map wird geladen</strong><span id="loading-detail">Lokale BSP-Geometrie …</span></div>
+      <div id="notice" class="notice" role="alert" hidden></div>
+      <div class="viewport-bottom"><span id="camera-help">Klick: Punkt oder Kante auswählen · Auswahl auch durch Wände möglich</span><span id="camera-position">X — Y — Z —</span></div>
+      <div class="stats-strip"><div><strong id="stat-nodes">—</strong><span>Wegpunkte</span></div><div><strong id="stat-edges">—</strong><span>Verbindungen</span></div><div><strong id="stat-rejected">—</strong><span>Abgelehnt im Netz</span></div><div><strong id="stat-mesh">—</strong><span>Navmesh-Polygone</span></div><div class="stat-proof"><strong id="stat-proof">—</strong><span>Prüfstand</span></div></div>
+    </section>
+    <aside class="inspector">
+      <section class="panel editor-panel">
+        <p class="eyebrow">WEGPUNKTE BEARBEITEN</p>
+        <button id="edit-begin" class="button secondary full">Lokalen Entwurf anlegen / öffnen</button>
+        <button id="edit-restore" class="button secondary full">Letzten archivierten Entwurf wieder öffnen</button>
+        <p id="edit-status" class="hint" role="status">Änderungen werden als Entwurf gespeichert und erst nach neuer nativer Prüfung installiert.</p>
+        <div id="edit-controls" hidden>
+          <label class="toggle"><input id="edit-show" type="checkbox" checked><span>Entwurf anzeigen</span></label>
+          <div class="button-pair"><button id="edit-undo" class="button secondary">↶ Undo</button><button id="edit-redo" class="button secondary">↷ Redo</button></div>
+          <p id="edit-selection" class="hint">Punkt im Bild auswählen. Zum Verschieben mit linker Maustaste ziehen.</p>
+          <label>Wegpunktname<input id="edit-name" type="text" maxlength="255" placeholder="Optionaler Omni-bot-Name"></label>
+          <label>Blickrichtung · X Y Z<input id="edit-facing" type="text" value="0 0 0" placeholder="0 0 0 · keine Vorgabe / 1 0 0"></label>
+          <div class="button-pair"><label>Radius · gewöhnlich 10–300<input id="edit-radius" type="number" min="10" max="300" step="any" value="35"></label><label>Flagmaske (64 Bit)<input id="edit-flags" value="0" readonly></label></div>
+          <div id="edit-flag-picker" class="flag-picker" aria-label="Omni-bot Flags"></div>
+          <label>Stand-Sprungziel<select id="edit-standing-jump" disabled><option value="">Kein Stand-Sprung</option></select></label>
+          <label>TCE2-Freikletterziel<select id="edit-free-climb" disabled><option value="">Kein Freiklettern</option></select></label>
+          <p class="hint">Freiklettern an einer Kante: Leertaste/Sprung und Blick nach oben. Keine Leiter. Ein gerichtetes Zielrezept wird nativ geprüft.</p>
+          <p class="hint">Nur verbundene Ziele in Sprungrichtung. Der Startpunkt erhält ein genaues Stand-Sprungrezept; Bewegung und Landung werden nativ geprüft.</p>
+          <p class="hint">Flags kombinieren. Sprünge/Leitern benötigen passende gerichtete Verbindungen; die native Prüfung untersucht die Bewegung. ET-Klassenflags erzeugen keine fehlenden TCE-Waffen oder Klassen.</p>
+          <button id="edit-properties" class="button secondary full">Radius / Flags übernehmen</button>
+          <button id="edit-delete" class="text-button">Ausgewählten Punkt löschen</button>
+          <p class="hint">Ring am Fuß zeigt den Entwurfsradius. Native Prüfung kann ihn geometrisch begrenzen. Alte gewöhnliche Radien unter 10 werden sichtbar auf 35 umgestellt. Leiter-/Sprungpunkte sind bearbeitbar und bleiben beim Prüfen erhalten. Zusätzliche Übergänge sucht der Generator automatisch.</p>
+          <details class="edit-advanced"><summary>Genaue Koordinaten / Verbindungs-IDs</summary>
+          <div class="edit-coordinates"><label>X<input id="edit-x" type="number" step="0.25"></label><label>Y<input id="edit-y" type="number" step="0.25"></label><label>Z · Fuß<input id="edit-z" type="number" step="0.25"></label></div>
+          <div class="button-pair"><button id="edit-surface" class="text-button">Fußpunkt im BSP wählen</button><button id="edit-camera" class="text-button">Kamerafuß übernehmen</button></div>
+          <div class="button-pair"><button id="edit-update" class="button secondary">Koordinaten übernehmen</button><button id="edit-add" class="button secondary">Punkt an Koordinaten hinzufügen</button></div>
+          <div class="button-pair"><label>Von-ID<input id="edit-from" type="number" min="0" step="1"></label><label>Nach-ID<input id="edit-to" type="number" min="0" step="1"></label></div>
+          <div class="button-pair"><button id="edit-as-from" class="text-button">Auswahl als Von</button><button id="edit-as-to" class="text-button">Auswahl als Nach</button></div>
+          <label class="toggle"><input id="edit-both" type="checkbox" checked><span>Beide Richtungen ↔</span></label>
+          <div class="button-pair"><button id="edit-link" class="button secondary">Verbinden</button><button id="edit-unlink" class="button secondary">Verbindung löschen</button></div>
+          </details>
+          <button id="apply-draft" data-action="apply_draft" class="button primary full">Änderungen ins Spiel übernehmen</button>
+          <p class="hint">Sichert, exportiert, prüft und lädt deine Änderungen ins Testspiel. Dein Entwurf bleibt geöffnet.</p>
+          <button id="edit-save" class="button primary full">Entwurf speichern</button>
+          <button id="edit-export" class="button secondary full">Als nativen Prüfkandidaten exportieren</button>
+          <div class="button-pair"><button id="edit-download" class="text-button">JSON herunterladen</button><button id="edit-archive" class="text-button">Entwurf schließen und archivieren</button></div>
+          <p class="hint">Danach links <strong>Nativ prüfen</strong>. Zum Vergleich „Entwurf anzeigen“ ausschalten. Speichern/Export allein ersetzt keine WAY-Datei.</p>
+        </div>
+      </section>
+      <section class="panel">
+        <p class="eyebrow">INSPEKTOR</p>
+        <form id="node-search" class="node-search"><label for="node-id">Wegpunkt-ID direkt anfahren</label><div class="input-row"><input id="node-id" type="number" min="0" step="1" placeholder="z. B. 166" aria-label="Wegpunkt-ID"><button type="submit" class="button secondary">Anfahren</button></div><p id="node-search-status" class="hint" aria-live="polite"></p></form>
+        <h2 id="selection-title">Einen Punkt auswählen</h2>
+        <p id="selection-description" class="muted">Prüfergebnis, Koordinaten und Nachbarverbindungen werden hier angezeigt.</p>
+        <div id="selection-details"></div>
+        <button id="focus-selection" class="button secondary full" hidden>Auswahl mit Kamera anfahren</button>
+        <div id="selection-neighbors"></div>
+      </section>
+      <section class="panel" id="problems-panel">
+        <div class="section-heading"><p class="eyebrow">PROBLEME BEHEBEN</p><span id="problem-count" class="count">0</span></div>
+        <p id="problem-summary" class="hint">Map auswählen und prüfen.</p>
+        <div id="problem-list" class="reason-list"></div>
+        <section id="generation-diagnostics" class="generation-diagnostics" hidden>
+          <div class="section-heading"><h3>Bodenproben ohne Routenbeleg</h3><span><span id="coverage-count" class="count">0</span> Proben · <span id="coverage-region-count">0</span> Bereiche</span></div>
+          <p id="coverage-status" class="hint"></p>
+          <div id="coverage-list" class="reason-list"></div>
+          <details id="scanner-diagnostics">
+            <summary>Verworfene Geometrieproben · <span id="scanner-count">0</span></summary>
+            <p class="hint">Der Scanner prüft auch Hindernisse, Decken und direkte Wege durch Wände. Verworfene Proben bleiben im Generierungsbericht erhalten. Fehler im aktuellen Wegnetz stehen unter „Ablehnungsgründe“.</p>
+            <div id="scanner-reason-list" class="reason-list"></div>
+            <p id="scanner-source" class="source-info"></p>
+          </details>
+        </section>
+        <section id="door-diagnostics" class="door-diagnostics" hidden>
+          <h3>Türdiagnosen</h3><p id="door-diagnostic-status" class="hint"></p>
+          <div id="door-diagnostic-list" class="door-diagnostic-list"></div>
+        </section>
+        <button data-action="repair_check" class="button secondary full">Verbindungen reparieren &amp; prüfen</button>
+        <p class="hint">Reparatur versucht zusätzliche begehbare Wege und prüft sie im Spiel. Keine automatische Installation. Mit „Kamera hin“ kannst du jede Reststelle ansehen und im Mauseditor ändern.</p>
+      </section>
+      <section class="panel">
+        <div class="section-heading"><p class="eyebrow">LOKALE VERBINDUNGEN</p><span id="shortcut-count" class="count">0</span></div>
+        <p id="shortcut-summary" class="hint">Noch keine lokalen Verbindungsprüfungen geladen.</p>
+        <div id="shortcut-list" class="reason-list"></div>
+      </section>
+      <section class="panel">
+        <div class="section-heading"><p class="eyebrow">ABLEHNUNGSGRÜNDE</p><span id="reason-count" class="count">0</span></div>
+        <div id="reason-list" class="reason-list"><p class="hint">Noch kein nativer Prüfbericht geladen.</p></div>
+      </section>
+      <section class="panel provenance-panel">
+        <p class="eyebrow">DATENQUELLEN</p>
+        <p class="hint">Die BSP-Ansicht zeigt Renderflächen. Exportierte Kollision enthält den erfassten Zustand der Mapmodelle. Bewegliche Modelle können ihren Zustand später ändern.</p>
+        <div id="source-info" class="source-info"></div>
+        <details><summary>Auftragsprotokoll</summary><pre id="job-log">Noch keine Aufträge.</pre></details>
+      </section>
+    </aside>
+  </main>
+  <dialog id="navbundle-dialog" aria-labelledby="navbundle-title" style="width:min(1000px,92vw);max-width:1000px">
+    <h2 id="navbundle-title">Omni-bot: WAY und GM</h2>
+    <p>.way: Wegnetz · _goals.gm: gespeicherte Bot-Ziele · .gm: Missionslogik, Trigger und Routen. GM ist GameMonkey, nicht Lua.</p>
+    <label for="navbundle-map">Navigationspaket (exakter Mapname)</label><select id="navbundle-map"></select><label for="navbundle-gametype">Gametype (WAY bleibt gemeinsam)</label><select id="navbundle-gametype"><option value="">Gemeinsam / Legacy (ET)</option><option value="2">TCE2 GT 2</option><option value="5">TCE2 GT 5</option><option value="7">TCE2 GT 7</option></select><button id="navbundle-create" type="button" class="button secondary">Gametype-Paar anlegen / Legacy kopieren</button>
+    <p id="navbundle-summary" class="hint"></p>
+    <div class="button-pair"><button id="navbundle-script" class="button secondary">.gm · Map-Skript</button><button id="navbundle-goals" class="button secondary">_goals.gm · Ziele</button><button id="navbundle-custommapscript" type="button">Custom Map-Script bearbeiten</button>
+<button id="navbundle-spawns" type="button">GT7 Customspawns automatisch erstellen</button>
+<button id="navbundle-mapscript" class="button secondary">PK3 Map-Script (lesen)</button><a id="navbundle-export" class="button secondary">Paket als ZIP</a></div>
+    <p id="navbundle-file" class="hint"></p>
+    <textarea id="navbundle-text" aria-label="GM source" spellcheck="false" style="width:100%;height:42vh;font:12px/1.5 Consolas,monospace;white-space:pre;overflow:auto"></textarea>
+    <p class="hint">Speichern sichert die Originaldatei. Keine automatische Ausführung oder Syntaxprüfung. Danach Map neu laden; waypoint_load lädt nur das Wegnetz. Eigene Skripte können Namen aus der WAY referenzieren.</p>
+    <p id="navbundle-status" class="hint" role="status"></p>
+    <div class="button-pair"><button id="navbundle-save" class="button primary">Skript speichern</button><button id="navbundle-reload" class="button secondary">Änderungen verwerfen / neu laden</button><button id="navbundle-close" class="button secondary">Schließen</button></div>
+  </dialog>
+  <dialog id="settings-dialog" aria-labelledby="settings-title"><form id="settings-form">
+    <p class="eyebrow">LOKALE INSTANZ</p><h2 id="settings-title">Einstellungen</h2>
+    <p class="hint">Die bestehende Spielinstallation wird direkt verwendet. Es wird keine zweite Installation angelegt. Vor dem Ändern Testspiel und laufende Aufträge beenden.</p>
+    <label for="settings-instance">Ordner der Testinstanz (absoluter Pfad)</label><input id="settings-instance" required autocomplete="off" placeholder="C:\Spiele\TCE2">
+    <label for="settings-executable">Spiel-EXE direkt in diesem Ordner</label><input id="settings-executable" required autocomplete="off" placeholder="C:\Spiele\TCE2\ET.exe">
+    <label for="settings-maps">Zusätzliche Mapordner (ein absoluter Pfad je Zeile)</label><textarea id="settings-maps" rows="3" spellcheck="false" placeholder="C:\Maps"></textarea>
+    <p id="settings-info" class="hint"></p><p id="settings-error" class="error-text" role="alert"></p>
+    <div class="button-pair"><button id="settings-reload" type="button" class="button secondary">Neu laden</button><button id="settings-save" type="submit" class="button primary">Speichern</button></div>
+    <button id="settings-close" type="button" class="text-button">Schließen</button>
+  </form></dialog>
+  <dialog id="install-dialog"><form method="dialog"><p class="eyebrow">TCE2-NAVIGATION INSTALLIEREN</p><h2>Geprüften Stand übernehmen?</h2><p>Die erzeugte WAY-Datei für <strong id="install-map"></strong> wird in TCE2 installiert. Der Server prüft vorher erneut den Auditstand.</p><label for="install-confirm">Zur Bestätigung INSTALL eingeben</label><input id="install-confirm" autocomplete="off" placeholder="INSTALL"><p id="install-error" class="error-text"></p><div class="button-pair"><button value="cancel" class="button secondary">Abbrechen</button><button id="install-confirm-button" type="button" class="button primary">Installieren</button></div></form></dialog>
+<dialog id="botmenu-dialog" style="width:min(1000px,92vw);max-height:90vh;overflow:auto">
+<h2>Omni-bot Live-Editor</h2><p id="botmenu-context"></p>
+<p>Bearbeitet die laufende Testinstanz. Position und Fadenkreuz stammen vom Spieler im Spiel, nicht von der Studio-Kamera. Erst Goals anzeigen, dann ein Goal auswaehlen. Save Goals schreibt &lt;mapname&gt;_goals.gm. Nicht gespeicherte Aenderungen gehen beim Neuladen verloren.</p>
+<div id="botmenu-actions"></div>
+<h3>Benanntes Goal erstellen</h3><select id="botmenu-type"></select><input id="botmenu-name" placeholder="Name_ohne_Leerzeichen" maxlength="64"><button id="botmenu-create" type="button">Goal erstellen / Create</button>
+<h3>Ausgewaehltes Goal bearbeiten</h3><select id="botmenu-property"><option>name</option><option>group</option><option>radius</option><option>mincamptime</option><option>maxcamptime</option><option>facing</option><option>position</option></select><input id="botmenu-value" placeholder="Wert; facing: 0..3 / clear; position: &lt;position&gt; / &lt;aimpoint&gt;"><button id="botmenu-set" type="button">Anwenden / Apply</button>
+<pre id="botmenu-result" style="white-space:pre-wrap" role="status"></pre><button id="botmenu-close" type="button">Schliessen / Close</button>
+</dialog><dialog id="prerequisite-dialog">
+  <h2>Entwurf zuerst sichern</h2>
+  <p id="prerequisite-message"></p>
+  <p id="prerequisite-error" role="alert"></p>
+  <div class="button-pair">
+    <button id="prerequisite-continue" class="button">Sichern, archivieren &amp; fortfahren</button>
+    <button id="prerequisite-save" class="button secondary">Nur lokal sichern</button>
+    <button id="prerequisite-cancel" class="button secondary">Abbrechen</button>
+  </div>
+</dialog>
+</body>
+</html>

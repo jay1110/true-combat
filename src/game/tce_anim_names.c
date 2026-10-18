@@ -5,29 +5,33 @@
  * Extra native slot64 remains the existing zero-initialized lookup sentinel. */
 animStringItem_t weaponStrings[65];
 
-long BG_StringHashValue( const char *fname ) {
-	int		i;
-	long	hash;
+long BG_StringHashValue(const char *fname) {
+    typedef char stringHashLayout[(sizeof(unsigned) == 4 && sizeof(int) == 4) ? 1 : -1];
+    unsigned hash = 0, weight = 119;
+    const char *cursor = fname;
+    int result;
 
-	if( !fname ) {
-		return -1;
-	}
+    if (!fname) {
+        return -1;
+    }
 
-	hash = 0;
-	i = 0;
-	while (fname[i] != '\0') {
-		if( Q_isupper( fname[i] ) ) {
-			hash += (long)(fname[i] + ('a' - 'A'))*(i+119);
-		} else {
-			hash += (long)(fname[i])*(i+119);
-		}
-
-		i++;
-	}
-	if (hash == -1) {
-		hash = 0;	// never return -1
-	}
-	return hash;
+    while (*cursor != '\0') {
+        int upper = Q_isupper((signed char)*cursor);
+        int character = (signed char)*cursor;
+        if (upper) {
+            character += 'a' - 'A';
+        }
+        /* Native IMUL and ADD retain the low 32 bits, including for signed
+         * bytes outside ASCII and for long inputs. The weight wraps too. */
+        hash += (unsigned)character * weight;
+        ++weight;
+        ++cursor;
+    }
+    if (hash == 0xffffffffu) {
+        hash = 0; /* Only the null-input result uses the -1 sentinel. */
+    }
+    memcpy(&result, &hash, sizeof(result));
+    return (long)result;
 }
 
 void BG_InitWeaponStrings(void) {

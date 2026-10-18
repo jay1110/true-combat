@@ -235,7 +235,9 @@ eomnibot_error Omnibot_LoadLibrary(int version, const char *lib, const char *pat
 #ifdef __APPLE__
 #define SUFFIX "_mac"
 #else
-#ifdef __x86_64__
+#if defined(__EMSCRIPTEN__)
+#define SUFFIX ".wasm32"
+#elif defined(__x86_64__)
 #define SUFFIX ".x86_64"
 #elif defined __aarch64__
 #define SUFFIX ".aarch64"

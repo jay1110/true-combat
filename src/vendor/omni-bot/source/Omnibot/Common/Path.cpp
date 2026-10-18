@@ -19,6 +19,9 @@ Path::PathPoint &Path::AddPt(const Vector3f &_pt, float _radius)
 
 	if(m_NumPts < MAX_PATH_PTS-1)
 	{
+		// Reused path storage must not retain action metadata/IDs from an old
+		// route, especially when the appended final destination has no flags.
+		m_Pts[m_NumPts] = PathPoint();
 		m_Pts[m_NumPts].m_Pt = _pt;
 		m_Pts[m_NumPts].m_Radius = _radius;
 		m_Pts[m_NumPts].m_NavFlags = 0;

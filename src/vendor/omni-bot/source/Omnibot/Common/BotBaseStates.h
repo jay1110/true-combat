@@ -182,6 +182,9 @@ namespace AiState
 
 		bool GetAimPosition(Vector3f &_aimpos);
 		void OnTarget();
+		void TraceDoorMotion();
+		void ResetTceDropTrafficLease();
+		void ResetTceOrdinaryLadderContact();
 
 		static bool m_OldLadderStyle;
 
@@ -212,6 +215,45 @@ namespace AiState
 		PathStatus	m_PathStatus;
 		Vector3f	m_PtOnPath;
 		Vector3f	m_LookAheadPt;
+		int m_TceCentreNavId, m_TceCentreNextId, m_TceCentreAttempts;
+		obint32 m_TceCentreStart, m_TceCentreStillSince;
+		obint32 m_TceCentreLastProgress;
+		float m_TceCentreBestDistance;
+		int m_TceReentryAttempts;
+		bool m_TceReentryPlanning, m_TceReentryPendingProgress;
+		Vector3f m_TceReentryPosition;
+		Vector3f m_TceReentryBudgetPosition, m_TceReentryDestination;
+		float m_TceReentryBestRemaining;
+		int m_TceReentryCheckpointId;
+		bool m_TceAirWaitActive;
+		obint32 m_TceAirWaitStart;
+		obint32 m_TceOrdinaryLadderStart;
+		obint32		m_TceExitStartTime;
+		int			m_TceExitNavId;
+		obint32		m_TceDropStartTime;
+		int			m_TceDropNavId;
+		int			m_TceDropLaunchNavId;
+		obint32		m_TceDropSettleStart;
+		obint32		m_TceDropStableSince;
+		obint32 m_TceDropTrafficStart, m_TceDropTrafficLast, m_TceDropTrafficCredit;
+		int m_TceDropTrafficNavId;
+		bool m_TceDropTrafficContact;
+		Vector3f m_TceDropTrafficPosition;
+		int m_TceStandNavId, m_TceStandPhase;
+		obint32 m_TceStandStart, m_TceStandStable, m_TceStandAttempt;
+		int m_TceFreeNavId, m_TceFreePhase;
+		obint32 m_TceFreeStart;
+		Path m_TceDoorSavedPath;
+		Path::PathPoint m_TceDoorEntry, m_TceDoorExit, m_TceDoorUse;
+		int m_TceDoorPhase, m_TceDoorCycles;
+		int m_TceDoorWaitState;
+		bool m_TceDoorPassageLogged;
+		obint32 m_TceDoorStart, m_TceDoorPhaseStart, m_TceDoorPulse;
+		obint32 m_TceDoorEgressStart;
+		obint32 m_TceDoorSweepWaitUntil;
+		int m_TceDoorTraceEntity;
+		obint32 m_TceDoorTraceUntil, m_TceDoorTraceTime;
+		int m_TceDoorBypassCount, m_TceDoorSweepNavId, m_TceDoorSweepResult;
 		int			m_LadderDirection;
 		obint32		m_JumpTime;
 		obint32		m_LastStuckTime;
@@ -226,6 +268,18 @@ namespace AiState
 		bool CheckForMover(const Vector3f &_pos);
 		void CheckForLowJumps(const Vector3f &_destination);
 		void CheckForGapJumps(const Vector3f &_destination);
+		void ResetTceDoor();
+		void ResetTceCentreApproach();
+		bool TryTceReentry(const Path::PathPoint &blocked);
+		void ReplenishTceReentryBudget(const Path::PathPoint &reached);
+		bool WaitForTceGround(const Path::PathPoint &point);
+		int UpdateTceOrdinaryLadderContact(const Path::PathPoint &point);
+		int UpdateTceDropTraffic(const Path::PathPoint &point);
+		bool MaintainTceDropTrafficLease(const Path::PathPoint &point);
+		void ResetTceFreeClimb();
+		void ResetTceStandingJump();
+		bool TceDoorRoute(int fromUid, int toUid, int phase);
+		int UpdateTceDoor(const Path::PathPoint &pt);
 	};
 
 	//////////////////////////////////////////////////////////////////////////

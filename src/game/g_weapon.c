@@ -1980,6 +1980,9 @@ void Weapon_Engineer( gentity_t *ent ) {
 
 	if (traceEnt->timestamp > level.time || traceEnt->health >= 248) return;
 	traceEnt->health = 255;
+#ifdef FEATURE_OMNIBOT
+    Bot_Event_TCEObjectiveAction((int)(ent-g_entities),(int)(traceEnt-g_entities),2,-1);
+#endif
 	traceEnt->think = G_FreeEntity;
 	traceEnt->nextthink = level.time + FRAMETIME;
 	VectorCopy(traceEnt->r.currentOrigin, origin);

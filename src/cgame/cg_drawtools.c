@@ -3,81 +3,57 @@
 #include "../ui/tce_ui_coordinates.h"
 extern qboolean tce_uiCoordinates;
 
-/* Original cgame30029760; native-coordinate adapter chooses this body only
- * for TC callers. Keep retained aspect/y operands and sequential aliasing. */
-static void CG_TCAdjustFrom640(float *x,float *y,float *w,float *h) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-    int screenWidth=cgs.glconfig.vidWidth, screenHeight=cgs.glconfig.vidHeight;
-    float *scaleX=&cgs.screenXScale, *scaleY=&cgs.screenYScale;
-    const float coordHeight=480.0f, coordAspect=0.00117187504656612873077392578125f;
-    const float coordHorizontal=0.750000059604644775390625f, coordOne=1.0f;
-    const float coordCenter=240.0f, coordShift=80.0f;
-    if((unsigned)screenWidth*480u != (unsigned)screenHeight*640u) {
-        __asm {
-            fild screenWidth
-            fmul coordHeight
-            fidiv screenHeight
-            fmul coordAspect
-            mov eax, x
-            mov ecx, scaleX
-            fld dword ptr [ecx]
-            fmul dword ptr [eax]
-            fmul coordHorizontal
-            fstp dword ptr [eax]
-            fld coordOne
-            fdiv st(0), st(1)
-            fsub coordOne
-            fmul coordCenter
-            mov eax, y
-            fadd dword ptr [eax]
-            fst dword ptr [eax]
-            mov ecx, scaleY
-            fmul dword ptr [ecx]
-            fmul st(0), st(1)
-            fstp dword ptr [eax]
-            mov eax, w
-            mov ecx, scaleX
-            fld dword ptr [ecx]
-            fmul dword ptr [eax]
-            fmul coordHorizontal
-            fstp dword ptr [eax]
-            mov eax, h
-            mov ecx, scaleY
-            fld dword ptr [ecx]
-            fmul dword ptr [eax]
-            fmul st(0), st(1)
-            fstp dword ptr [eax]
-            fstp st(0)
-        }
+/* TC coordinate conversion: Windows 30029760 / Linux 00055570.
+ * Keep the native quotient/product stages and the live sequential x/y/w/h
+ * stores. The public wrapper below retains the separate SDK640 canvas. */
+static void CG_TCAdjustFrom640(float *x, float *y, float *w, float *h) {
+#if defined(_WIN32) || defined(__linux__)
+    const float aspectFactor = 0.00117187504656612873077392578125f;
+    const float horizontal = 0.750000059604644775390625f;
+    int screenWidth = cgs.glconfig.vidWidth;
+    int screenHeight = cgs.glconfig.vidHeight;
+    long double shifted;
+
+    /* The native integer products wrap before their equality comparison. */
+    if ((unsigned)screenWidth * 480u != (unsigned)screenHeight * 640u) {
+        long double aspect = (long double)screenWidth * 480.0f;
+#if defined(_WIN32)
+        aspect = (aspect / screenHeight) * aspectFactor;
+        *x = (float)(((long double)cgs.screenXScale * *x) * horizontal);
+        shifted = ((1.0L / aspect) - 1.0L) * 240.0f + *y;
+#else
+        long double xProduct;
+
+        aspect *= 1.0L / screenHeight;
+        xProduct = (long double)cgs.screenXScale * *x;
+        aspect *= aspectFactor;
+        shifted = ((1.0L / aspect) - 1.0L) * 240.0f;
+        *x = (float)(xProduct * horizontal);
+        shifted += *y;
+#endif
+        /* Publish the shifted value, but retain it for the final Y product.
+         * A coordinate may alias a scale, so read scales after each store. */
+        *y = (float)shifted;
+#if defined(_WIN32)
+        *y = (float)((shifted * cgs.screenYScale) * aspect);
+        *w = (float)(((long double)cgs.screenXScale * *w) * horizontal);
+        *h = (float)(((long double)cgs.screenYScale * *h) * aspect);
+#else
+        *y = (float)(shifted * ((long double)cgs.screenYScale * aspect));
+        *w = (float)(horizontal * ((long double)cgs.screenXScale * *w));
+        *h = (float)((aspect * cgs.screenYScale) * *h);
+#endif
     } else {
-        __asm {
-            mov eax, x
-            mov ecx, scaleX
-            fld dword ptr [ecx]
-            fmul dword ptr [eax]
-            fmul coordHorizontal
-            fstp dword ptr [eax]
-            mov eax, y
-            fld dword ptr [eax]
-            fadd coordShift
-            fst dword ptr [eax]
-            mov ecx, scaleY
-            fmul dword ptr [ecx]
-            fmul coordHorizontal
-            fstp dword ptr [eax]
-            mov eax, w
-            mov ecx, scaleX
-            fld dword ptr [ecx]
-            fmul dword ptr [eax]
-            fmul coordHorizontal
-            fstp dword ptr [eax]
-            mov eax, h
-            mov ecx, scaleY
-            fld dword ptr [ecx]
-            fmul dword ptr [eax]
-            fmul coordHorizontal
-            fstp dword ptr [eax]
-        }
+        *x = (float)(((long double)cgs.screenXScale * *x) * horizontal);
+#if defined(_WIN32)
+        shifted = (long double)*y + 80.0f;
+#else
+        shifted = 80.0L + *y;
+#endif
+        *y = (float)shifted;
+        *y = (float)((shifted * cgs.screenYScale) * horizontal);
+        *w = (float)(((long double)cgs.screenXScale * *w) * horizontal);
+        *h = (float)(((long double)cgs.screenYScale * *h) * horizontal);
     }
 #else
     TCE_UI_AdjustCoordinates(x,y,w,h,cgs.glconfig.vidWidth,cgs.glconfig.vidHeight,cgs.screenXScale,cgs.screenYScale);
@@ -184,116 +160,96 @@ flags:
 
 #define BAR_BORDERSIZE 2
 
+/* Windows 300298b0 / Linux 000557d4. Keep the native channel products,
+ * background callback order and platform-specific geometry rounding. */
 void CG_FilledBar(float x, float y, float w, float h, float *startColor, float *endColor, const float *bgColor, float frac, int flags) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-    vec4_t backgroundcolor={1,1,1,.25f}, colorAtPos;
-    const float barOne=1.0f, barZero=0.0f, barHalf=.5f;
-    const float barInset=2.0f, barDoubleInset=4.0f, barTallInset=6.0f, barTallDouble=12.0f;
-    float *barOrigin, *barExtent;
-    __asm {
-        fld frac
-        fcomp barOne
-        fnstsw ax
-        test ah, 41h
-        jnz bar_lower
-        mov frac, 3f800000h
-        jmp bar_clamped
-bar_lower:
-        fld frac
-        fcomp barZero
-        fnstsw ax
-        test ah, 1
-        jz bar_clamped
-        mov frac, 0
-bar_clamped:
+#if defined(_WIN32) || defined(__linux__)
+    vec4_t backgroundcolor = {1.0f, 1.0f, 1.0f, 0.25f}, colorAtPos;
+    long double barX, barY, barW, barH;
+    long double *barOrigin, *barExtent;
+
+    if (frac > 1.0f) {
+        frac = 1.0f;
     }
-    if((flags & BAR_BG) && bgColor) Vector4Copy(bgColor,backgroundcolor);
-    if(flags & BAR_LERP_COLOR) {
-        __asm {
-            mov eax, endColor
-            mov ecx, startColor
-            lea edx, colorAtPos
-            fld barOne
-            fsub frac
-            fld frac
-            fmul dword ptr [eax]
-            fld st(1)
-            fmul dword ptr [ecx]
-            faddp st(1), st(0)
-            fstp dword ptr [edx]
-            fld st(0)
-            fmul dword ptr [ecx+4]
-            fld frac
-            fmul dword ptr [eax+4]
-            faddp st(1), st(0)
-            fstp dword ptr [edx+4]
-            fld st(0)
-            fmul dword ptr [ecx+8]
-            fld frac
-            fmul dword ptr [eax+8]
-            faddp st(1), st(0)
-            fstp dword ptr [edx+8]
-            fmul dword ptr [ecx+12]
-            fld frac
-            fmul dword ptr [eax+12]
-            faddp st(1), st(0)
-            fstp dword ptr [edx+12]
+#if defined(_WIN32)
+    /* The native lower C0 gate also clamps unordered fractions to zero. */
+    if (!(frac >= 0.0f)) {
+#else
+    if (frac < 0.0f) {
+#endif
+        frac = 0.0f;
+    }
+    if ((flags & BAR_BG) && bgColor) {
+        memcpy(backgroundcolor, bgColor, sizeof(backgroundcolor));
+    }
+    if (flags & BAR_LERP_COLOR) {
+        long double inverse = 1.0L - frac;
+        int channel;
+#if defined(_WIN32)
+        colorAtPos[0] = (float)((long double)frac * endColor[0] + inverse * startColor[0]);
+        for (channel = 1; channel < 4; ++channel) {
+            colorAtPos[channel] = (float)(inverse * startColor[channel] + (long double)frac * endColor[channel]);
+        }
+#else
+        for (channel = 0; channel < 3; ++channel) {
+            colorAtPos[channel] = (float)((long double)startColor[channel] * inverse + (long double)endColor[channel] * frac);
+        }
+        colorAtPos[3] = (float)(inverse * startColor[3] + (long double)endColor[3] * frac);
+#endif
+    }
+
+    if (flags & BAR_BG) {
+        CG_FillRect(x, y, w, h, backgroundcolor);
+    }
+    /* The background call precedes all inset, anchor and extent decisions.
+     * Without color interpolation the final call keeps the live color pointer. */
+    barX = x;
+    barY = y;
+    barW = w;
+    barH = h;
+    if ((flags & BAR_BG) && !(flags & BAR_BGSPACING_X0Y0)) {
+        if (flags & BAR_BGSPACING_X0Y5) {
+#if defined(_WIN32)
+            barY = (float)(barY + 6.0f);
+            barH = (float)(barH - 12.0f);
+#else
+            barY += 6.0L;
+            barH -= 12.0L;
+#endif
+        } else {
+#if defined(_WIN32)
+            barX = (float)(barX + 2.0f);
+            barY = (float)(barY + 2.0f);
+            barW = (float)(barW - 4.0f);
+            barH = (float)(barH - 4.0f);
+#else
+            barX += 2.0L;
+            barY += 2.0L;
+            barW -= 4.0L;
+            barH -= 4.0L;
+#endif
         }
     }
-    if(flags & BAR_BG) {
-        CG_FillRect(x,y,w,h,backgroundcolor);
-        if(!(flags & BAR_BGSPACING_X0Y0)) {
-            if(flags & BAR_BGSPACING_X0Y5) {
-                __asm {
-                    fld y
-                    fadd barTallInset
-                    fstp y
-                    fld h
-                    fsub barTallDouble
-                    fstp h
-                }
-            } else {
-                __asm {
-                    fld x
-                    fadd barInset
-                    fstp x
-                    fld y
-                    fadd barInset
-                    fstp y
-                    fld w
-                    fsub barDoubleInset
-                    fstp w
-                    fld h
-                    fsub barDoubleInset
-                    fstp h
-                }
-            }
+    barOrigin = (flags & BAR_VERT) ? &barY : &barX;
+    barExtent = (flags & BAR_VERT) ? &barH : &barW;
+    if (flags & (BAR_LEFT | BAR_CENTER)) {
+        long double shift = (1.0L - frac) * *barExtent;
+        if (!(flags & BAR_LEFT)) {
+            shift *= 0.5f;
         }
+#if defined(_WIN32)
+        *barOrigin = (float)(shift + *barOrigin);
+#else
+        *barOrigin += shift;
+#endif
     }
-    barOrigin=(flags & BAR_VERT)?&y:&x;
-    barExtent=(flags & BAR_VERT)?&h:&w;
-    if(flags & (BAR_LEFT|BAR_CENTER)) {
-        __asm {
-            mov eax, barExtent
-            mov ecx, barOrigin
-            fld barOne
-            fsub frac
-            fmul dword ptr [eax]
-            test flags, 1
-            jnz bar_anchor
-            fmul barHalf
-bar_anchor:
-            fadd dword ptr [ecx]
-            fstp dword ptr [ecx]
-        }
-    }
-    __asm {
-        mov eax, barExtent
-        fld dword ptr [eax]
-        fmul frac
-        fstp dword ptr [eax]
-    }
-    CG_FillRect(x,y,w,h,(flags & BAR_LERP_COLOR)?colorAtPos:startColor);
+#if defined(_WIN32)
+    *barExtent = (float)(*barExtent * frac);
+#else
+    *barExtent = (float)((long double)frac * *barExtent);
+#endif
+    CG_FillRect((float)barX, (float)barY, (float)barW, (float)barH,
+        (flags & BAR_LERP_COLOR) ? colorAtPos : startColor);
 #else
 	vec4_t	backgroundcolor = {1, 1, 1, 0.25f}, colorAtPos;	// colorAtPos is the lerped color if necessary
 	int indent = BAR_BORDERSIZE;
@@ -465,35 +421,30 @@ CG_DrawPic
 Coordinates are 640*480 virtual values
 =================
 */
+/* TC Windows 30029ea0 / Linux 000560f0. Linux flips only ordered negative
+ * widths; Windows also flips unordered widths. Both height gates include
+ * unordered values. Exact x87 exceptions and NaN payloads remain unverified. */
 void CG_DrawPic( float x, float y, float width, float height, qhandle_t hShader ) {
-	float	s0;
-	float	s1;
-	float	t0;
-	float	t1;
+    float s0 = 0.0f, t0 = 0.0f, s1 = 1.0f, t1 = 1.0f;
 
-	/* TC Windows tests x87 C0: unordered dimensions also take the flip. */
-	if( !(width >= 0.0f) ) {	// flip about vertical
-		width  = -width;
-		s0 = 1;
-		s1 = 0;
-	}
-	else {
-		s0 = 0;
-		s1 = 1;
-	}
+#if defined(__linux__)
+    if (width < 0.0f) {
+#else
+    if (!(width >= 0.0f)) {
+#endif
+        width = -width;
+        s0 = 1.0f;
+        s1 = 0.0f;
+    }
+    if (!(height >= 0.0f)) {
+        height = -height;
+        t0 = 1.0f;
+        t1 = 0.0f;
+    }
 
-	if( !(height >= 0.0f) ) {	// flip about horizontal
-		height= -height;
-		t0 = 1;
-		t1 = 0;
-	}
-	else {
-		t0 = 0;
-		t1 = 1;
-	}
-	
-	CG_AdjustFrom640( &x, &y, &width, &height );
-	trap_R_DrawStretchPic( x, y, width, height, s0, t0, s1, t1, hShader );
+    /* Preserve the live TC/native coordinate adapter and its user mode. */
+    CG_AdjustFrom640(&x, &y, &width, &height);
+    trap_R_DrawStretchPic(x, y, width, height, s0, t0, s1, t1, hShader);
 }
 
 // NERVE - SMF

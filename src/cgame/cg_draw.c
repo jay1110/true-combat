@@ -8,6 +8,9 @@
 // active (after loading) gameplay
 
 #include "cg_local.h"
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+#include "../game/tce_numeric.h"
+#endif
 #include "tce_levelshot_fade.h"
 #include "tce_weapon_media.h"
 #include "tce_lightgrid.h"
@@ -1330,18 +1333,311 @@ CROSSHAIRS
 CG_DrawWeapReticle
 ==============
 */
-/* Shared TC scope projection, CG_DrawActive/CG_DrawWeapReticle. */
+#if defined(__GNUC__) && defined(__i386__) && defined(__linux__)
+/* Reticle ELF00042ebe..42f5f has its own held-angle load/stack order.
+ * Its center constants are stored before the actual AngleVectors calls. */
+static void CG_TCELinuxReticleAngles(float *x,float *y,vec3_t angles) {
+    struct { vec3_t angles; int heldPitch,heldYaw; float x,y,width; } data;
+    static const float constants[5]={480.f,2000.f,.01f,240.f,426.f};
+    typedef char ReticleAngleLayout[(sizeof(data)==32 && sizeof(float)==4 &&
+        sizeof(int)==4 && offsetof(__typeof__(data),x)==20)?1:-1];
+    memcpy(data.angles,cg.predictedPlayerState.viewangles,sizeof(vec3_t));
+    data.heldPitch=cg.predictedPlayerState.holdable[5];
+    data.heldYaw=cg.predictedPlayerState.holdable[6];
+    __asm__ volatile (
+        ".intel_syntax noprefix\n\t"
+        "fld dword ptr [edi]\n\tfld dword ptr [edi+4]\n\tfld dword ptr [edi+8]\n\t"
+        "fxch st(2)\n\tfstp dword ptr [esi+28]\n\t"
+        "fld dword ptr [edi+12]\n\tfld dword ptr [edi+16]\n\tfld dword ptr [esi+4]\n\t"
+        "fxch st(2)\n\tfstp dword ptr [esi+24]\n\tfild dword ptr [esi+12]\n\t"
+        "fxch st(1)\n\tfstp dword ptr [esi+20]\n\tfld dword ptr [esi]\n\t"
+        "fxch st(1)\n\tfsub st(0),st(3)\n\tfmul st(0),st(4)\n\tfaddp st(1),st(0)\n\t"
+        "fild dword ptr [esi+16]\n\tfxch st(1)\n\tfstp dword ptr [esi]\n\t"
+        "fsubrp st(2),st(0)\n\tfxch st(1)\n\tfmulp st(2),st(0)\n\tfaddp st(1),st(0)\n\t"
+        "fstp dword ptr [esi+4]\n\t.att_syntax prefix"
+        : "+m" (data) : "S" (&data), "D" (constants)
+        : "memory", "st", "st(1)", "st(2)", "st(3)", "st(4)"
+    );
+    memcpy(angles,data.angles,sizeof(vec3_t));*x=data.x;*y=data.y;
+}
+
+/* Reticle ELF00042f8c..430c9: inline asin is FSQRT/FPATAN. Unlike
+ * DrawActive, the final X addition loads X first, and a retained1.2 is
+ * live for the later size block. Store only that constant at extraction
+ * exit; later size/light/draw arithmetic remains a separate boundary. */
+static void CG_TCELinuxReticleProject(const vec3_t forward,const vec3_t right,
+                                     const vec3_t up,float *x,float *y) {
+    struct { vec3_t forward,right,up; float fov,x,y,dx,dy; double angle;
+             float sizeScale; } data;
+    static const struct { float one,degrees; double pi,width; float sizeScale; }
+        constants={1.f,0.0055555556900799274f,3.141592653589793,852.0,1.2f};
+    typedef char ReticleProjectLayout[(offsetof(__typeof__(data),angle)==56 &&
+        offsetof(__typeof__(data),sizeScale)==64 && sizeof(data)>=68 &&
+        offsetof(__typeof__(constants),pi)==8 &&
+        offsetof(__typeof__(constants),sizeScale)==24)?1:-1];
+    memcpy(data.forward,forward,sizeof(vec3_t));
+    memcpy(data.right,right,sizeof(vec3_t));
+    memcpy(data.up,up,sizeof(vec3_t));
+    data.fov=cg.refdef.fov_x;data.x=*x;data.y=*y;
+    __asm__ volatile (
+        ".intel_syntax noprefix\n\t"
+        "fld dword ptr [eax]\n\tfld dword ptr [eax+4]\n\tfld dword ptr [eax+8]\n\t"
+        "fld st(2)\n\tfld st(2)\n\tfmul dword ptr [eax+16]\n\tfxch st(1)\n\t"
+        "fmul dword ptr [eax+12]\n\tfld dword ptr [edx]\n\tfxch st(1)\n\t"
+        "faddp st(2),st(0)\n\tfld st(2)\n\tfmul dword ptr [eax+20]\n\t"
+        "faddp st(2),st(0)\n\tfld st(1)\n\tfmul st(0),st(0)\n\t"
+        "fsubr st(0),st(1)\n\tfsqrt\n\tfxch st(1)\n\tfxch st(2)\n\tfxch st(1)\n\t"
+        "fpatan\n\tfstp qword ptr [eax+56]\n\t"
+        "fld dword ptr [eax+36]\n\tfmul dword ptr [edx+4]\n\tfld qword ptr [edx+8]\n\t"
+        "fxch st(5)\n\tfmul dword ptr [eax+24]\n\tfxch st(4)\n\t"
+        "fmul dword ptr [eax+28]\n\tfxch st(1)\n\tfmul st(0),st(5)\n\t"
+        "fxch st(3)\n\tfmul dword ptr [eax+32]\n\tfxch st(4)\n\t"
+        "faddp st(1),st(0)\n\tfxch st(2)\n\tfdivr st(0),st(1)\n\t"
+        "fld qword ptr [eax+56]\n\tfxch st(3)\n\tfaddp st(4),st(0)\n\t"
+        "fmulp st(2),st(0)\n\tfld st(2)\n\tfmul st(0),st(0)\n\t"
+        "fxch st(2)\n\tfmul qword ptr [edx+16]\n\tfxch st(2)\n\t"
+        "fsubr st(0),st(1)\n\tfxch st(2)\n\tfstp dword ptr [eax+48]\n\t"
+        "fxch st(1)\n\tfsqrt\n\tfxch st(1)\n\tfxch st(2)\n\tfxch st(1)\n\t"
+        "fpatan\n\tfstp qword ptr [eax+56]\n\t"
+        "fld dword ptr [edx+4]\n\tfmul dword ptr [eax+36]\n\tfld qword ptr [eax+56]\n\t"
+        "fxch st(3)\n\tfmulp st(1),st(0)\n\tfld dword ptr [eax+40]\n\t"
+        "fadd dword ptr [eax+48]\n\tfxch st(2)\n\tfdivrp st(1),st(0)\n\t"
+        "fmulp st(2),st(0)\n\tfstp dword ptr [eax+40]\n\t"
+        "fld dword ptr [edx+24]\n\tfxch st(1)\n\tfmul qword ptr [edx+16]\n\t"
+        "fstp dword ptr [eax+52]\n\tfld dword ptr [eax+52]\n\t"
+        "fsubr dword ptr [eax+44]\n\tfstp dword ptr [eax+44]\n\t"
+        "fstp dword ptr [eax+64]\n\t.att_syntax prefix"
+        : "+m" (data) : "a" (&data), "d" (&constants)
+        : "memory", "st", "st(1)", "st(2)", "st(3)", "st(4)", "st(5)", "st(6)", "st(7)"
+    );
+    *x=data.x;*y=data.y;
+}
+
+/* Native Linux portal-reticle continuation. The private frame retains the
+ * original binary32/binary64 scratch slots across real draw callbacks. */
+typedef union {
+    unsigned int bits[96];
+    float value[96];
+    double alignment;
+} tceReticlePortalFrame851_t;
+
+/* All three renderer callbacks use 32-bit cdecl slots. Copy their argument bits
+ * without additional FLD/FSTP conversions, and establish call-site alignment.
+ * ESI/EDI are ordinary callee-saved inputs; ESP is restored inside the block. */
+static void CG_TCELinuxReticleCall851(const tceReticlePortalFrame851_t *data,
+                                     void (*callback)(void)) {
+    __asm__ volatile (
+        "movl %%esp, %%eax\n\tandl $-16, %%esp\n\tsubl $32, %%esp\n\t"
+        "movl %%eax, 28(%%esp)\n\t"
+        "movl 0(%%esi), %%eax\n\tmovl %%eax, 0(%%esp)\n\t"
+        "movl 4(%%esi), %%eax\n\tmovl %%eax, 4(%%esp)\n\t"
+        "movl 8(%%esi), %%eax\n\tmovl %%eax, 8(%%esp)\n\t"
+        "movl 12(%%esi), %%eax\n\tmovl %%eax, 12(%%esp)\n\t"
+        "movl 16(%%esi), %%eax\n\tmovl %%eax, 16(%%esp)\n\t"
+        "call *%%edi\n\tmovl 28(%%esp), %%esp"
+        : : "S" (data), "D" (callback)
+        : "eax", "ecx", "edx", "cc", "memory",
+          "st", "st(1)", "st(2)", "st(3)", "st(4)", "st(5)", "st(6)", "st(7)"
+#if defined(__SSE__)
+          , "xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"
+#endif
+    );
+}
+
+#define TCE_RETICLE_ASM851(body) __asm__ volatile ( \
+    ".intel_syntax noprefix\n\t" body "\n\t.att_syntax prefix" \
+    : "+m" (data) : "S" (&data), "D" (constants) \
+    : "eax", "cc", "memory", "st", "st(1)", "st(2)", "st(3)" )
+#define TCE_RETICLE_FILL851(color) do { \
+    const float *tceColor851=(color); \
+    memcpy(&data.bits[4],&tceColor851,sizeof(tceColor851)); \
+    CG_TCELinuxReticleCall851(&data,(void (*)(void))CG_FillRect); \
+} while(0)
+
+static void CG_TCELinuxReticlePortal851(int type,const float *x,const float *y,
+                                       const vec4_t black,const vec4_t red) {
+    tceReticlePortalFrame851_t data;
+    /* zero,one,half,quarter,three-quarters,250,220,.88,M76-y,overlay-y,
+     * size multiplier,viewport width,three,two: own original ELF constants. */
+    static const float constants[]={0.f,1.f,.5f,.25f,.75f,250.f,220.f,.88f,
+        .03181818127632141f,.09375f,1.2f,480.f,3.f,2.f};
+    typedef char ReticlePortalLayout851[(sizeof(data)==384 && sizeof(int)==4 &&
+        sizeof(float)==4 && sizeof(void*)==4)?1:-1];
+    memset(&data,0,sizeof(data));
+    memcpy(&data.value[0xb8/4],x,sizeof(float));
+    memcpy(&data.value[0xb4/4],y,sizeof(float));
+    data.bits[0x174/4]=(unsigned int)tce_cg_weapons[0].portalScopeWidth;
+    /* Projection's extracted live-out is exactly binary32 1.2. The viewport
+     * product is spilled before all type branches, as at raw430c9..430d9. */
+    TCE_RETICLE_ASM851(
+        "fld dword ptr [edi+40]\n\tfld dword ptr [edi+44]\n\t"
+        "fmul st(0),st(1)\n\tfstp dword ptr [esi+0xbc]\n\tfstp st(0)"
+    );
+    if(type==2) {
+        /* 43545..435b0/435b0..435ee: keep the selected extended width live
+         * through the shader gate and all four argument stores. */
+        data.bits[4]=(unsigned int)cgs.media.tceM76ReticleShader;
+        TCE_RETICLE_ASM851(
+            "fld dword ptr [edi+40]\n\tfild dword ptr [esi+0x174]\n\t"
+            "fmul dword ptr [edi+28]\n\tfcom dword ptr [edi]\n\tfnstsw ax\n\tsahf\n\t"
+            "ja 1f\n\tfstp st(0)\n\tfld dword ptr [edi+24]\n\t1:\n\t"
+            "fmulp st(1),st(0)\n\tcmp dword ptr [esi+16],0\n\tje 2f\n\t"
+            "fst dword ptr [esi+8]\n\tfld st(0)\n\tfmul dword ptr [edi+8]\n\t"
+            "fxch st(1)\n\tfmul dword ptr [edi+32]\n\tfxch st(1)\n\t"
+            "fst dword ptr [esi+12]\n\tfxch st(1)\n\tfsubr dword ptr [esi+0xb4]\n\t"
+            "fxch st(1)\n\tfsubr dword ptr [esi+0xb8]\n\tfxch st(1)\n\t"
+            "fstp dword ptr [esi+4]\n\tfstp dword ptr [esi]\n\tjmp 3f\n\t"
+            "2:\n\tfstp st(0)\n\t3:"
+        );
+        if(data.bits[4])CG_TCELinuxReticleCall851(&data,(void (*)(void))CG_DrawPic);
+        TCE_RETICLE_ASM851(
+            "fld dword ptr [edi+4]\n\tfld dword ptr [esi+0xb4]\n\tfsub st(0),st(1)\n\t"
+            "fxch st(1)\n\tfsubr dword ptr [esi+0xb8]\n\tfxch st(1)\n\t"
+            "fstp dword ptr [esi+4]\n\tfstp dword ptr [esi]"
+        );
+        data.bits[2]=data.bits[3]=0x40000000u;
+        TCE_RETICLE_FILL851(red);
+    } else if(type==1) {
+        /* 4333d..433ce. Width is first spilled as float, then multiplied
+         * by the retained1.2; the half/left cache has its original spills. */
+        TCE_RETICLE_ASM851(
+            "fld dword ptr [edi+40]\n\tfild dword ptr [esi+0x174]\n\t"
+            "fcom dword ptr [edi]\n\tfnstsw ax\n\tsahf\n\tfstp dword ptr [esi+0xa8]\n\t"
+            "ja 1f\n\tfld dword ptr [edi+20]\n\tfstp dword ptr [esi+0xa8]\n\t1:\n\t"
+            "fmul dword ptr [esi+0xa8]\n\tfld dword ptr [edi+4]\n\t"
+            "fst dword ptr [esi+0xa4]\n\tfxch st(1)\n\tfst dword ptr [esi+0xa8]\n\t"
+            "fxch st(1)\n\tfstp dword ptr [esi+12]\n\tfstp dword ptr [esi+8]\n\t"
+            "fld dword ptr [esi+0xa8]\n\tfld dword ptr [esi+0xb4]\n\tfxch st(1)\n\t"
+            "fmul dword ptr [edi+8]\n\tfxch st(1)\n\tfstp dword ptr [esi+4]\n\t"
+            "fld dword ptr [esi+0xb8]\n\tfsub st(0),st(1)\n\tfxch st(1)\n\t"
+            "fstp dword ptr [esi+0xa0]\n\tfst dword ptr [esi+0x9c]\n\tfstp dword ptr [esi]"
+        );
+        TCE_RETICLE_FILL851(black);
+        TCE_RETICLE_ASM851(
+            "fld dword ptr [esi+0xa8]\n\tfld dword ptr [esi+0xa4]\n\tfxch st(1)\n\t"
+            "fstp dword ptr [esi+12]\n\tfld dword ptr [esi+0xb4]\n\t"
+            "fsub dword ptr [esi+0xa0]\n\tfxch st(1)\n\tfstp dword ptr [esi+8]\n\t"
+            "fld dword ptr [esi+0xb8]\n\tfxch st(1)\n\tfst dword ptr [esi+0x98]\n\t"
+            "fstp dword ptr [esi+4]\n\tfstp dword ptr [esi]"
+        );
+        TCE_RETICLE_FILL851(black);
+        TCE_RETICLE_ASM851(
+            "fld dword ptr [esi+0xa8]\n\tfmul dword ptr [edi+12]\n\t"
+            "fld dword ptr [esi+0xb4]\n\tfsub dword ptr [esi+0xa4]\n\tfxch st(1)\n\t"
+            "fstp dword ptr [esi+0x2c]\n\tfld dword ptr [esi+0x9c]\n\tfxch st(1)\n\t"
+            "fstp dword ptr [esi+0x34]\n\tfstp dword ptr [esi]"
+        );
+        data.bits[2]=data.bits[0x2c/4];data.bits[1]=data.bits[0x34/4];data.bits[3]=0x40400000u;
+        TCE_RETICLE_FILL851(black);
+        TCE_RETICLE_ASM851(
+            "fld dword ptr [edi+16]\n\tfmul dword ptr [esi+0xa8]\n\t"
+            "fst qword ptr [esi+0x90]\n\tfadd dword ptr [esi+0x9c]\n\tfstp dword ptr [esi]"
+        );
+        TCE_RETICLE_FILL851(black);
+        TCE_RETICLE_ASM851(
+            "fld dword ptr [esi+0xb8]\n\tfsub dword ptr [esi+0xa4]\n\t"
+            "fld dword ptr [esi+0x98]\n\tfxch st(1)\n\tfstp dword ptr [esi+0x38]\n\t"
+            "fstp dword ptr [esi+4]"
+        );
+        data.bits[3]=data.bits[0x2c/4];data.bits[2]=0x40400000u;data.bits[0]=data.bits[0x38/4];
+        TCE_RETICLE_FILL851(black);
+        TCE_RETICLE_ASM851(
+            "fld qword ptr [esi+0x90]\n\tfadd dword ptr [esi+0x98]\n\tfstp dword ptr [esi+4]"
+        );
+        TCE_RETICLE_FILL851(black);
+        TCE_RETICLE_ASM851(
+            "fld dword ptr [esi+0xa4]\n\tfld dword ptr [esi+0xb4]\n\tfxch st(1)\n\t"
+            "fst dword ptr [esi+12]\n\tfstp dword ptr [esi+8]\n\t"
+            "fld dword ptr [esi+0xb8]\n\tfxch st(1)\n\tfstp dword ptr [esi+4]\n\tfstp dword ptr [esi]"
+        );
+        TCE_RETICLE_FILL851(red);
+    } else {
+        /* 430f7..431bf, default thin crosshair. */
+        TCE_RETICLE_ASM851(
+            "fild dword ptr [esi+0x174]\n\tfcom dword ptr [edi]\n\tfnstsw ax\n\tsahf\n\t"
+            "ja 1f\n\tfstp st(0)\n\tfld dword ptr [edi+20]\n\t1:\n\t"
+            "fld dword ptr [esi+0xb4]\n\tfld st(1)\n\tfmul dword ptr [edi+8]\n\t"
+            "fxch st(1)\n\tfstp dword ptr [esi+4]\n\tfld dword ptr [esi+0xb8]\n\t"
+            "fxch st(2)\n\tfst dword ptr [esi+8]\n\tfxch st(2)\n\tfsub st(0),st(1)\n\t"
+            "fxch st(1)\n\tfstp dword ptr [esi+0x50]\n\tfxch st(1)\n\t"
+            "fstp dword ptr [esi+0x40]\n\tfstp dword ptr [esi]"
+        );
+        data.bits[3]=0x3f800000u;TCE_RETICLE_FILL851(black);
+        TCE_RETICLE_ASM851(
+            "fld dword ptr [esi+0x50]\n\tfsubr dword ptr [esi+0xb4]\n\t"
+            "fld dword ptr [esi+0xb8]\n\tfld dword ptr [esi+0x40]\n\tfxch st(2)\n\t"
+            "fstp dword ptr [esi+4]\n\tfstp dword ptr [esi]\n\tfstp dword ptr [esi+12]"
+        );
+        data.bits[2]=0x3f800000u;TCE_RETICLE_FILL851(black);
+        TCE_RETICLE_ASM851(
+            "fld dword ptr [esi+0xb4]\n\tfld dword ptr [esi+0xb8]\n\tfxch st(1)\n\t"
+            "fstp dword ptr [esi+4]\n\tfstp dword ptr [esi]"
+        );
+        data.bits[2]=data.bits[3]=0x3f800000u;TCE_RETICLE_FILL851(red);
+    }
+    if(cgs.media.tcePortalScopeShader) {
+        vec3_t lighting;
+        const float *color=&data.value[0xe0/4];
+        TCE_CG_LightForParticleSimple(TCE_CG_MapLightGrid(),cg.refdef.vieworg,lighting);
+        memcpy(&data.value[0xd0/4],lighting,sizeof(lighting));
+        memcpy(&data.value[0x178/4],&cg.tceScopeLightBoost,sizeof(float));
+        /* 43218..432a0 (+43330): red compares extended precision BEFORE
+         * its spill; green and blue compare their rounded float spills. */
+        TCE_RETICLE_ASM851(
+            "fld dword ptr [edi+4]\n\tfld dword ptr [esi+0xd0]\n\t"
+            "fld dword ptr [esi+0xd4]\n\tfld dword ptr [esi+0x178]\n\tfadd st(0),st(3)\n\t"
+            "fmul st(2),st(0)\n\tfmul st(1),st(0)\n\tfmul dword ptr [esi+0xd8]\n\t"
+            "fxch st(2)\n\tfcom st(3)\n\tfnstsw ax\n\tsahf\n\t"
+            "fstp dword ptr [esi+0xe0]\n\tfstp dword ptr [esi+0xe4]\n\tfstp dword ptr [esi+0xe8]\n\t"
+            "jb 1f\n\tfstp dword ptr [esi+0xe0]\n\tjmp 2f\n\t1:\n\tfstp st(0)\n\t2:\n\t"
+            "fld dword ptr [edi+4]\n\tfld dword ptr [esi+0xe4]\n\tfcomp st(1)\n\t"
+            "fnstsw ax\n\tsahf\n\tjb 3f\n\tfst dword ptr [esi+0xe4]\n\t3:\n\t"
+            "fld dword ptr [esi+0xe8]\n\tfcompp\n\tfnstsw ax\n\tsahf\n\t"
+            "jb 4f\n\tmov dword ptr [esi+0xe8],0x3f800000\n\t4:"
+        );
+        data.bits[0xec/4]=0x3f800000u;
+        memcpy(&data.bits[0],&color,sizeof(color));
+        CG_TCELinuxReticleCall851(&data,(void (*)(void))trap_R_SetColor);
+        /* 432af..4331f, including the ORIGINAL .09375 scale: no rounded
+         * precomputed 54.0000038 offset is substituted. Re-read the shader. */
+        data.bits[4]=(unsigned int)cgs.media.tcePortalScopeShader;
+        TCE_RETICLE_ASM851(
+            "fld dword ptr [esi+0xbc]\n\tfld dword ptr [esi+0xb4]\n\tfxch st(1)\n\t"
+            "fst dword ptr [esi+12]\n\tfst dword ptr [esi+8]\n\tfmul dword ptr [edi+8]\n\t"
+            "fsub st(1),st(0)\n\tfsubr dword ptr [esi+0xb8]\n\tfxch st(1)\n\t"
+            "fstp dword ptr [esi+0xb4]\n\tfld dword ptr [esi+0xbc]\n\t"
+            "fmul dword ptr [edi+36]\n\tfxch st(1)\n\tfstp dword ptr [esi]\n\t"
+            "fstp dword ptr [esi+0xbc]\n\tfld dword ptr [esi+0xb4]\n\t"
+            "fadd dword ptr [esi+0xbc]\n\tfstp dword ptr [esi+4]"
+        );
+        CG_TCELinuxReticleCall851(&data,(void (*)(void))CG_DrawPic);
+        data.bits[0]=0;CG_TCELinuxReticleCall851(&data,(void (*)(void))trap_R_SetColor);
+    }
+}
+#undef TCE_RETICLE_FILL851
+#undef TCE_RETICLE_ASM851
+#endif
+
+/* Native TC scope projection used by CG_DrawWeapReticle. */
 static void CG_TCEScopeCenter(float *x, float *y, vec3_t angles) {
     vec3_t forward, right, up;
+#if defined(__GNUC__) && defined(__i386__) && defined(__linux__)
+    CG_TCELinuxReticleAngles(x,y,angles);
+#else
     float radians;
     VectorCopy(cg.predictedPlayerState.viewangles, angles);
     angles[0] += ((float)cg.predictedPlayerState.holdable[5] - 2000.0f) * 0.01f;
     angles[1] += ((float)cg.predictedPlayerState.holdable[6] - 2000.0f) * 0.01f;
+#endif
     AngleVectors(angles, forward, NULL, NULL);
-    AngleVectors(cg.refdefViewAngles, NULL, right, up);
+    AngleVectors(cg.predictedPlayerState.viewangles, NULL, right, up);
+#if defined(__GNUC__) && defined(__i386__) && defined(__linux__)
+    CG_TCELinuxReticleProject(forward,right,up,x,y);
+#else
     radians = cg.refdef.fov_x * 0.01745329238474369f;
     *x = (float)((asin(DotProduct(forward,right)) / radians) * 852.0 + 426.0);
     *y = (float)(240.0 - (asin(DotProduct(forward,up)) / radians) * 852.0);
+#endif
 }
 
 static void CG_DrawWeapReticle(void) {
@@ -1379,6 +1675,9 @@ static void CG_DrawWeapReticle(void) {
         }
     } else {
         CG_TCEScopeCenter(&x,&y,angles);
+#if defined(__GNUC__) && defined(__i386__) && defined(__linux__)
+        CG_TCELinuxReticlePortal851(type,&x,&y,black,red);
+#else
         /* Original reticle reads slot-zero width, unlike the scene viewport. */
         size=(float)tce_cg_weapons[0].portalScopeWidth;
         if(type==2) {
@@ -1402,6 +1701,7 @@ static void CG_DrawWeapReticle(void) {
             CG_DrawPic(x-288,(y-288)+54.000003814697266f,576,576,cgs.media.tcePortalScopeShader);
             trap_R_SetColor(NULL);
         }
+#endif
     }
     tce_uiCoordinates=previous;
 }
@@ -1411,913 +1711,150 @@ static void CG_DrawWeapReticle(void) {
 CG_DrawMortarReticle
 ==============
 */
-#if defined(_MSC_VER) && defined(_M_IX86)
-/* TC300247c0: whole Windows reticle instruction graph; actual native cg fields. */
-enum {
-	MortarField3407df70 = offsetof(cg_t, predictedPlayerState) + offsetof(playerState_t, viewangles),
-	MortarField3407df74 = offsetof(cg_t, predictedPlayerState) + offsetof(playerState_t, viewangles) + 4,
-	MortarField34087f28 = offsetof(cg_t, pmext) + offsetof(pmoveExt_t, mountedWeaponAngles),
-	MortarField34087f2c = offsetof(cg_t, pmext) + offsetof(pmoveExt_t, mountedWeaponAngles) + 4,
-	MortarField34080f0c = offsetof(cg_t, lastFiredWeapon),
-	MortarField340a2454 = offsetof(cg_t, mortarImpactTime),
-	MortarField3407dea4 = offsetof(cg_t, time),
-	MortarField3407e6b4 = offsetof(cg_t, predictedPlayerEntity) + offsetof(centity_t, muzzleFlashTime),
-	MortarField340a244c = offsetof(cg_t, mortarFireAngles),
-	MortarField340a2450 = offsetof(cg_t, mortarFireAngles) + 4,
-	MortarField340a246c = offsetof(cg_t, artilleryRequestPos) + 4,
-	MortarField340a2768 = offsetof(cg_t, artilleryRequestTime),
-	MortarField340a2868 = offsetof(cg_t, artilleryRequestTime) + sizeof(((cg_t *)0)->artilleryRequestTime),
-	MortarField3407eb7c = offsetof(cg_t, predictedPlayerEntity) + offsetof(centity_t, lerpOrigin),
-	MortarField3407eb80 = offsetof(cg_t, predictedPlayerEntity) + offsetof(centity_t, lerpOrigin) + 4,
-	MortarField32588f8c = offsetof(cgs_t, media) + offsetof(cgMedia_t, limboFont1),
-	MortarField32588ea8 = offsetof(cgs_t, media) + offsetof(cgMedia_t, ccMortarTargetArrow),
-	MortarField32588ea4 = offsetof(cgs_t, media) + offsetof(cgMedia_t, ccMortarTarget),
-    MortarRequestTimeStride = sizeof(((cg_t *)0)->artilleryRequestTime[0]),
-    MortarRequestPositionStride = sizeof(((cg_t *)0)->artilleryRequestPos[0])
-};
-static const unsigned int mortarConst30092a44[] = { 0x42b40000 };
-static const unsigned int mortarConst300923e0[] = { 0x43b40000 };
-static const unsigned int mortarConst30092a40[] = { 0x464ccccd };
-static const unsigned int mortarConst30092a3c[] = { 0x38a00000 };
-static const unsigned int mortarConst30092a38[] = { 0x3d888889 };
-static const unsigned int mortarConst30092a30[] = { 0x9999999a, 0x3fc99999 };
-static const unsigned int mortarConst300924d0[] = { 0x41200000 };
-static const unsigned int mortarConst300928b8[] = { 0x43160000 };
-static const unsigned int mortarConst30092a28[] = { 0x43520000 };
-static const unsigned int mortarConst30092a24[] = { 0x43fa0000 };
-static const unsigned int mortarConst300922b8[] = { 0x3f000000 };
-static const unsigned int mortarConst300928d4[] = { 0x42340000 };
-static const unsigned int mortarConst30092a20[] = { 0x3e4ccccd };
-static const unsigned int mortarConst30092a1c[] = { 0x43a00000 };
-static const unsigned int mortarConst30092a18[] = { 0x39aec33e };
-static const unsigned int mortarConst300922b4[] = { 0x3f800000 };
-static const unsigned int mortarConst300920e0[] = { 0x00000000 };
-static const unsigned int mortarConst30092a10[] = { 0x0d03cf25, 0x404ca5dc };
-static const unsigned int mortarConst300928d0[] = { 0x3951b717 };
-static const unsigned int mortarConst300924cc[] = { 0x43870000 };
-static const unsigned int mortarConst300922e8[] = { 0x41000000 };
-static const unsigned int mortarConst300923d0[] = { 0x42700000 };
-static const unsigned int mortarConst30092a0c[] = { 0x46cccccd };
-static const unsigned int mortarConst30092a08[] = { 0x38200000 };
-static const unsigned int mortarConst30092a04[] = { 0x41c80000 };
-static const unsigned int mortarConst30092a00[] = { 0x3dcccccd };
-static const unsigned int mortarConst300929f8[] = { 0x00000000, 0x40240000 };
-static const unsigned int mortarConst300929f0[] = { 0x47ae147b, 0x3fa47ae1 };
-static const unsigned int mortarConst300922bc[] = { 0x40800000 };
-static const unsigned int mortarConst300929e8[] = { 0x43240000 };
-static const unsigned int mortarConst3009233c[] = { 0x41a00000 };
-static const unsigned int mortarConst30092398[] = { 0x41f00000 };
-static const unsigned int mortarConst300929e4[] = { 0x3ecccccd };
-static const unsigned int mortarConst300923e8[] = { 0x42c80000 };
-static const unsigned int mortarConst300929e0[] = { 0x43840000 };
-static const char mortarReticleFormat[] = "%i";
-/* Preserve the original double argument/ST0 boundary; CRT floor remains external. */
-static double (__cdecl *mortarReticleFloor)(double) = floor;
-__declspec(naked) static int CG_MortarReticleTruncateST0(void)
-{
-	__asm {
-		push ebp
-		mov ebp, esp
-		sub esp, 12
-		fwait
-		fnstcw word ptr [ebp-2]
-		fwait
-		mov ax, word ptr [ebp-2]
-		or ah, 0ch
-		mov word ptr [ebp-4], ax
-		fldcw word ptr [ebp-4]
-		fistp qword ptr [ebp-12]
-		fldcw word ptr [ebp-2]
-		mov eax, dword ptr [ebp-12]
-		mov edx, dword ptr [ebp-8]
-		leave
-		ret
-	}
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+typedef char mortarTimerLayout_t[(sizeof(int) == 4 && sizeof(unsigned) == 4) ? 1 : -1];
+
+/* Native SUB/LEA time arithmetic wraps before the signed age comparison. */
+static int CG_MortarTimeSince(int now, int eventTime, unsigned delay) {
+    unsigned bits = (unsigned)now - (unsigned)eventTime - delay;
+    int elapsed;
+    memcpy(&elapsed, &bits, sizeof(elapsed));
+    return elapsed;
 }
-__declspec(naked) static void CG_DrawMortarReticle(void)
-{
-	__asm {
-		SUB ESP,070h
-		PUSH EBX
-		PUSH EBP
-		PUSH ESI
-		LEA EAX,[ESP + 06ch]
-		PUSH EDI
-		PUSH EAX
-		PUSH 042180000h
-		PUSH 0431a0000h
-		PUSH 0436c0000h
-		PUSH 043080000h
-		MOV dword ptr [ESP + 044h],03f800000h
-		MOV dword ptr [ESP + 048h],03f800000h
-		MOV dword ptr [ESP + 04ch],03f800000h
-		MOV dword ptr [ESP + 050h],03f000000h
-		MOV dword ptr [ESP + 084h],00h
-		MOV dword ptr [ESP + 088h],00h
-		MOV dword ptr [ESP + 08ch],00h
-		MOV dword ptr [ESP + 090h],03e800000h
-		MOV dword ptr [ESP + 054h],03f451eb8h
-		MOV dword ptr [ESP + 058h],03f3ae148h
-		MOV dword ptr [ESP + 05ch],03dcccccdh
-		MOV dword ptr [ESP + 060h],03f800000h
-		MOV dword ptr [ESP + 064h],03f451eb8h
-		MOV dword ptr [ESP + 068h],03dcccccdh
-		MOV dword ptr [ESP + 06ch],03dcccccdh
-		MOV dword ptr [ESP + 070h],03f800000h
-		MOV dword ptr [ESP + 074h],03f800000h
-		MOV dword ptr [ESP + 078h],03f800000h
-		MOV dword ptr [ESP + 07ch],03f800000h
-		MOV dword ptr [ESP + 080h],03f800000h
-		CALL CG_FillRect
-		LEA ECX,[ESP + 084h]
-		PUSH ECX
-		PUSH 043500000h
-		PUSH 042700000h
-		PUSH 043200000h
-		PUSH 043910000h
-		CALL CG_FillRect
-		LEA EDX,[ESP + 098h]
-		PUSH EDX
-		PUSH 042180000h
-		PUSH 0431a0000h
-		PUSH 0436c0000h
-		PUSH 043af0000h
-		CALL CG_FillRect
-		LEA EAX,[ESP + 06ch]
-		PUSH EAX
-		PUSH 03f800000h
-		PUSH 043160000h
-		PUSH 043840000h
-		PUSH 0430c0000h
-		CALL CG_FillRect
-		ADD ESP,050h
-		LEA ECX,[ESP + 030h]
-		PUSH ECX
-		PUSH 03f800000h
-		PUSH 043160000h
-		PUSH 043840000h
-		PUSH 043af0000h
-		CALL CG_FillRect
-		FLD dword ptr [cg + MortarField3407df74]
-		FSUB dword ptr [mortarConst30092a44]
-		ADD ESP,010h
-		FSTP dword ptr [ESP]
-		CALL AngleNormalize360
-		FSUBR dword ptr [mortarConst300923e0]
-		FST dword ptr [ESP + 018h]
-		FMUL dword ptr [mortarConst30092a40]
-		CALL CG_MortarReticleTruncateST0
-		AND EAX,0ffffh
-		MOV dword ptr [ESP + 024h],EAX
-		FILD dword ptr [ESP + 024h]
-		FMUL dword ptr [mortarConst30092a3c]
-		FSTP dword ptr [ESP + 01ch]
-		FLD dword ptr [ESP + 018h]
-		FSUB dword ptr [mortarConst30092a44]
-		FSTP dword ptr [ESP + 024h]
-		MOV EDI,dword ptr [ESP + 024h]
-		PUSH EDI
-		CALL AngleNormalize360
-		FMUL dword ptr [mortarConst30092a38]
-		CALL CG_MortarReticleTruncateST0
-		PUSH EDI
-		LEA ESI,[EAX + EAX*02h]
-		CALL AngleNormalize360
-		FSTP qword ptr [ESP + 04h]
-		ADD ESP,04h
-		CALL dword ptr [mortarReticleFloor]
-		CALL CG_MortarReticleTruncateST0
-		CDQ
-		MOV ECX,0fh
-		IDIV ECX
-		MOV dword ptr [ESP + 028h],EDX
-		FILD dword ptr [ESP + 028h]
-		FSTP qword ptr [ESP]
-		CALL dword ptr [mortarReticleFloor]
-		FMUL qword ptr [mortarConst30092a30]
-		ADD ESP,08h
-		CALL CG_MortarReticleTruncateST0
-		FLD dword ptr [ESP + 018h]
-		FADD st(0),st(0)
-		XOR EBP,EBP
-		LEA EDI,[ESI + ESI*04h + 0b4h]
-		LEA EBX,[ESI + ESI*04h + 0ffffff4ch]
-		MOV dword ptr [ESP + 01ch],EAX
-		MOV dword ptr [ESP + 010h],EBP
-		LEA ESI,[ESI + ESI*04h + 021ch]
-		FSTP dword ptr [ESP + 020h]
-mortarNative_300249e4:
-		FILD dword ptr [ESP + 010h]
-		FMUL dword ptr [mortarConst300924d0]
-		FADD dword ptr [ESP + 020h]
-		FST dword ptr [ESP + 010h]
-		FCOMP dword ptr [mortarConst300928b8]
-		FNSTSW AX
-		TEST AH,01h
-		JNZ mortarNative_30024a36
-		FLD dword ptr [ESP + 010h]
-		FCOMP dword ptr [mortarConst30092a28]
-		FNSTSW AX
-		TEST AH,041h
-		JZ mortarNative_30024a36
-		MOV EAX,EBP
-		MOV ECX,03h
-		CDQ
-		IDIV ECX
-		CMP EDX,dword ptr [ESP + 01ch]
-		JNZ mortarNative_30024b1f
-		SUB EDI,0fh
-		SUB ESI,0fh
-		SUB EBX,0fh
-		JMP mortarNative_30024b1f
-mortarNative_30024a36:
-		MOV EAX,EBP
-		MOV ECX,03h
-		CDQ
-		IDIV ECX
-		CMP EDX,dword ptr [ESP + 01ch]
-		JNZ mortarNative_30024af5
-		TEST EDI,EDI
-		MOV EAX,EDI
-		JGE mortarNative_30024a54
-		MOV EAX,ESI
-		JMP mortarNative_30024a5e
-mortarNative_30024a54:
-		CMP EDI,0168h
-		JL mortarNative_30024a5e
-		MOV EAX,EBX
-mortarNative_30024a5e:
-		PUSH EAX
-		PUSH OFFSET mortarReticleFormat
-		CALL va
-		ADD ESP,08h
-		LEA EDX,[ESP + 030h]
-		FLD dword ptr [mortarConst30092a24]
-		FSUB dword ptr [ESP + 010h]
-		PUSH OFFSET cgs + MortarField32588f8c
-		PUSH 00h
-		PUSH 00h
-		PUSH 00h
-		PUSH EAX
-		PUSH EDX
-		FSTP dword ptr [ESP + 030h]
-		PUSH 03e19999ah
-		PUSH 03e19999ah
-		PUSH 043740000h
-		PUSH OFFSET cgs + MortarField32588f8c
-		PUSH 00h
-		PUSH 03e19999ah
-		PUSH EAX
-		CALL CG_Text_Width_Ext
-		MOV dword ptr [ESP + 044h],EAX
-		ADD ESP,0ch
-		FILD dword ptr [ESP + 038h]
-		FMUL dword ptr [mortarConst300922b8]
-		FSUBR dword ptr [ESP + 040h]
-		FSTP dword ptr [ESP]
-		CALL CG_Text_Paint_Ext
-		MOV ECX,dword ptr [ESP + 040h]
-		LEA EAX,[ESP + 058h]
-		PUSH EAX
-		PUSH 041800000h
-		PUSH 03f800000h
-		PUSH 043780000h
-		PUSH ECX
-		CALL CG_FillRect
-		ADD ESP,03ch
-		SUB EDI,0fh
-		SUB ESI,0fh
-		SUB EBX,0fh
-		JMP mortarNative_30024b1f
-mortarNative_30024af5:
-		FLD dword ptr [mortarConst30092a24]
-		FSUB dword ptr [ESP + 010h]
-		LEA EDX,[ESP + 030h]
-		PUSH EDX
-		PUSH 041000000h
-		PUSH 03f800000h
-		PUSH 043800000h
-		PUSH ECX
-		FSTP dword ptr [ESP]
-		CALL CG_FillRect
-		ADD ESP,014h
-mortarNative_30024b1f:
-		INC EBP
-		CMP EBP,024h
-		MOV dword ptr [ESP + 010h],EBP
-		JL mortarNative_300249e4
-		FLD dword ptr [cg + MortarField34087f2c]
-		FSUB dword ptr [mortarConst30092a44]
-		PUSH ECX
-		FSUBR dword ptr [mortarConst300923e0]
-		FSUB dword ptr [mortarConst300928d4]
-		FSTP dword ptr [ESP]
-		CALL AngleNormalize360
-		FSTP dword ptr [ESP + 01ch]
-		FLD dword ptr [cg + MortarField34087f2c]
-		FSUB dword ptr [mortarConst30092a44]
-		FSUBR dword ptr [mortarConst300923e0]
-		FADD dword ptr [mortarConst300928d4]
-		FSTP dword ptr [ESP]
-		CALL AngleNormalize360
-		FSTP dword ptr [ESP + 024h]
-		FLD dword ptr [ESP + 018h]
-		FSUB dword ptr [ESP + 01ch]
-		FSTP dword ptr [ESP]
-		CALL AngleNormalize360
-		FMUL dword ptr [mortarConst30092a20]
-		ADD ESP,04h
-		LEA EAX,[ESP + 040h]
-		FMUL dword ptr [mortarConst300924d0]
-		FLD dword ptr [mortarConst30092a1c]
-		PUSH EAX
-		PUSH 041900000h
-		PUSH 040000000h
-		PUSH 0437c0000h
-		FSUB st(0),st(1)
-		PUSH ECX
-		FSTP dword ptr [ESP]
-		FSTP st(0)
-		CALL CG_FillRect
-		FLD dword ptr [ESP + 034h]
-		FSUB dword ptr [ESP + 028h]
-		ADD ESP,010h
-		FSTP dword ptr [ESP]
-		CALL AngleNormalize360
-		FMUL dword ptr [mortarConst30092a20]
-		ADD ESP,04h
-		LEA ECX,[ESP + 040h]
-		FMUL dword ptr [mortarConst300924d0]
-		PUSH ECX
-		PUSH 041900000h
-		PUSH 040000000h
-		PUSH 0437c0000h
-		FADD dword ptr [mortarConst30092a1c]
-		PUSH ECX
-		FSTP dword ptr [ESP]
-		CALL CG_FillRect
-		MOV EAX,[cg + MortarField34080f0c]
-		ADD ESP,014h
-		XOR EBX,EBX
-		CMP EAX,03ch
-		MOV dword ptr [ESP + 01ch],EBX
-		JNZ mortarNative_30024cc1
-		CMP dword ptr [cg + MortarField340a2454],-01h
-		JL mortarNative_30024cc1
-		MOV EAX,[cg + MortarField3407dea4]
-		MOV ESI,dword ptr [cg + MortarField3407e6b4]
-		SUB EAX,ESI
-		SUB EAX,01388h
-		CMP EAX,0bb8h
-		MOV dword ptr [ESP + 01ch],EAX
-		JGE mortarNative_30024cc1
-		CMP EAX,EBX
-		JLE mortarNative_30024c5a
-		FILD dword ptr [ESP + 01ch]
-		FMUL dword ptr [mortarConst30092a18]
-		FSUBR dword ptr [mortarConst300922b4]
-		FSTP dword ptr [ESP + 05ch]
-mortarNative_30024c5a:
-		FLD dword ptr [cg + MortarField340a2450]
-		FSUB dword ptr [mortarConst30092a44]
-		PUSH ECX
-		FSUBR dword ptr [mortarConst300923e0]
-		FSTP dword ptr [ESP]
-		CALL AngleNormalize360
-		FSTP dword ptr [ESP + 024h]
-		MOV EDX,dword ptr [ESP + 024h]
-		MOV EAX,dword ptr [ESP + 018h]
-		PUSH EDX
-		PUSH EAX
-		CALL AngleSubtract
-		FMUL dword ptr [mortarConst30092a20]
-		ADD ESP,0ch
-		LEA ECX,[ESP + 050h]
-		FMUL dword ptr [mortarConst300924d0]
-		FLD dword ptr [mortarConst30092a1c]
-		PUSH ECX
-		PUSH 041900000h
-		PUSH 040000000h
-		PUSH 0437c0000h
-		FSUB st(0),st(1)
-		PUSH ECX
-		FSTP dword ptr [ESP]
-		FSTP st(0)
-		CALL CG_FillRect
-		ADD ESP,014h
-mortarNative_30024cc1:
-		MOV EAX,OFFSET cg + MortarField340a246c
-		XOR EBP,EBP
-		MOV dword ptr [ESP + 020h],EAX
-		MOV EDI,OFFSET cg + MortarField340a2768
-mortarNative_30024cd1:
-		MOV ECX,dword ptr [cg + MortarField3407dea4]
-		MOV EDX,dword ptr [EDI]
-		SUB ECX,EDX
-		SUB ECX,061a8h
-		CMP ECX,01388h
-		MOV dword ptr [ESP + 010h],ECX
-		JGE mortarNative_30024ebe
-		FLD dword ptr [EAX + -04h]
-		FSUB dword ptr [cg + MortarField3407eb7c]
-		FSTP dword ptr [ESP + 024h]
-		FLD dword ptr [EAX]
-		FSUB dword ptr [cg + MortarField3407eb80]
-		FCOM dword ptr [mortarConst300920e0]
-		FLD dword ptr [ESP + 024h]
-		FNSTSW AX
-		FCOMP dword ptr [mortarConst300920e0]
-		TEST AH,040h
-		FNSTSW AX
-		JZ mortarNative_30024d2e
-		TEST AH,040h
-		JZ mortarNative_30024d37
-		FSTP st(0)
-		FLD dword ptr [mortarConst300920e0]
-		JMP mortarNative_30024d56
-mortarNative_30024d2e:
-		TEST AH,040h
-		JNZ mortarNative_30024ded
-mortarNative_30024d37:
-		FLD dword ptr [ESP + 024h]
-		FPATAN
-		FMUL qword ptr [mortarConst30092a10]
-		FCOM dword ptr [mortarConst300920e0]
-		FNSTSW AX
-		TEST AH,01h
-		JZ mortarNative_30024d56
-		FADD dword ptr [mortarConst300923e0]
-mortarNative_30024d56:
-		TEST ECX,ECX
-		JLE mortarNative_30024d6e
-		FILD dword ptr [ESP + 010h]
-		FMUL dword ptr [mortarConst300928d0]
-		FSUBR dword ptr [mortarConst300922b4]
-		FSTP dword ptr [ESP + 06ch]
-mortarNative_30024d6e:
-		FSUB dword ptr [mortarConst30092a44]
-		PUSH ECX
-		FSUBR dword ptr [mortarConst300923e0]
-		FSTP dword ptr [ESP]
-		CALL AngleNormalize360
-		FSTP dword ptr [ESP + 014h]
-		MOV EDX,dword ptr [ESP + 01ch]
-		MOV ESI,dword ptr [ESP + 014h]
-		PUSH EDX
-		PUSH ESI
-		CALL AngleSubtract
-		FCOM dword ptr [mortarConst300920e0]
-		ADD ESP,0ch
-		FNSTSW AX
-		TEST AH,01h
-		JZ mortarNative_30024e10
-		TEST EBP,EBP
-		FSTP st(0)
-		JNZ mortarNative_30024ebe
-		LEA EAX,[ESP + 060h]
-		PUSH EAX
-		CALL trap_R_SetColor
-		MOV ECX,dword ptr [cgs + MortarField32588ea8]
-		PUSH ECX
-		PUSH 041000000h
-		PUSH 041000000h
-		PUSH 043848000h
-		PUSH 0430a0000h
-		CALL CG_DrawPic
-		PUSH EBP
-		CALL trap_R_SetColor
-		ADD ESP,01ch
-		MOV EBP,01h
-		JMP mortarNative_30024ebe
-mortarNative_30024ded:
-		FCOMP dword ptr [mortarConst300920e0]
-		FNSTSW AX
-		TEST AH,041h
-		JNZ mortarNative_30024e05
-		FLD dword ptr [mortarConst30092a44]
-		JMP mortarNative_30024d56
-mortarNative_30024e05:
-		FLD dword ptr [mortarConst300924cc]
-		JMP mortarNative_30024d56
-mortarNative_30024e10:
-		FCOMP dword ptr [mortarConst30092a44]
-		FNSTSW AX
-		TEST AH,041h
-		JNZ mortarNative_30024e5e
-		TEST EBX,EBX
-		JNZ mortarNative_30024ebe
-		LEA EDX,[ESP + 060h]
-		PUSH EDX
-		CALL trap_R_SetColor
-		MOV EAX,[cgs + MortarField32588ea8]
-		PUSH EAX
-		PUSH 041000000h
-		PUSH 0c1000000h
-		PUSH 043848000h
-		PUSH 043f70000h
-		CALL CG_DrawPic
-		PUSH EBX
-		CALL trap_R_SetColor
-		ADD ESP,01ch
-		MOV EBX,01h
-		JMP mortarNative_30024ebe
-mortarNative_30024e5e:
-		MOV ECX,dword ptr [ESP + 014h]
-		PUSH ESI
-		PUSH ECX
-		CALL AngleSubtract
-		FMUL dword ptr [mortarConst30092a20]
-		LEA EDX,[ESP + 068h]
-		PUSH EDX
-		FMUL dword ptr [mortarConst300924d0]
-		FSTP dword ptr [ESP + 01ch]
-		CALL trap_R_SetColor
-		FLD dword ptr [mortarConst30092a1c]
-		MOV EAX,[cgs + MortarField32588ea4]
-		ADD ESP,0ch
-		FSUB dword ptr [ESP + 010h]
-		PUSH EAX
-		PUSH 041800000h
-		PUSH 041800000h
-		PUSH 043800000h
-		FSUB dword ptr [mortarConst300922e8]
-		PUSH ECX
-		FSTP dword ptr [ESP]
-		CALL CG_DrawPic
-		PUSH 00h
-		CALL trap_R_SetColor
-		ADD ESP,018h
-mortarNative_30024ebe:
-		MOV EAX,dword ptr [ESP + 020h]
-		ADD EDI,MortarRequestTimeStride
-		ADD EAX,MortarRequestPositionStride
-		CMP EDI,OFFSET cg + MortarField340a2868
-		MOV dword ptr [ESP + 020h],EAX
-		JL mortarNative_30024cd1
-		LEA ECX,[ESP + 030h]
-		PUSH ECX
-		PUSH 043480000h
-		PUSH 03f800000h
-		PUSH 043240000h
-		PUSH 043938000h
-		CALL CG_FillRect
-		LEA EDX,[ESP + 044h]
-		PUSH EDX
-		PUSH 043480000h
-		PUSH 03f800000h
-		PUSH 043240000h
-		PUSH 043ac8000h
-		CALL CG_FillRect
-		FLD dword ptr [cg + MortarField3407df70]
-		FSUB dword ptr [mortarConst300923d0]
-		ADD ESP,024h
-		FSUBR dword ptr [mortarConst300923e0]
-		FSTP dword ptr [ESP]
-		CALL AngleNormalize180
-		FST dword ptr [ESP + 018h]
-		FMUL dword ptr [mortarConst30092a0c]
-		CALL CG_MortarReticleTruncateST0
-		AND EAX,0ffffh
-		PUSH ECX
-		MOV dword ptr [ESP + 028h],EAX
-		FILD dword ptr [ESP + 028h]
-		FMUL dword ptr [mortarConst30092a08]
-		FSTP dword ptr [ESP + 020h]
-		FLD dword ptr [ESP + 01ch]
-		FADD dword ptr [mortarConst30092a04]
-		FST dword ptr [ESP + 028h]
-		FMUL dword ptr [mortarConst30092a00]
-		FSTP qword ptr [ESP]
-		CALL dword ptr [mortarReticleFloor]
-		FMUL qword ptr [mortarConst300929f8]
-		CALL CG_MortarReticleTruncateST0
-		FLD dword ptr [ESP + 028h]
-		FMUL dword ptr [mortarConst300924d0]
-		MOV EDI,EAX
-		CALL CG_MortarReticleTruncateST0
-		CDQ
-		MOV ECX,064h
-		IDIV ECX
-		MOV dword ptr [ESP + 028h],EDX
-		FILD dword ptr [ESP + 028h]
-		FSTP qword ptr [ESP]
-		CALL dword ptr [mortarReticleFloor]
-		FMUL qword ptr [mortarConst300929f0]
-		ADD ESP,08h
-		CALL CG_MortarReticleTruncateST0
-		FLD dword ptr [ESP + 018h]
-		FMUL dword ptr [mortarConst300922bc]
-		XOR EBX,EBX
-		MOV EBP,EAX
-		MOV dword ptr [ESP + 010h],EBX
-		FSTP dword ptr [ESP + 020h]
-mortarNative_30024fcc:
-		FILD dword ptr [ESP + 010h]
-		MOV EDX,EBX
-		AND EDX,080000003h
-		FMUL dword ptr [mortarConst300924d0]
-		FADD dword ptr [ESP + 020h]
-		FSTP dword ptr [ESP + 010h]
-		JNS mortarNative_30024fed
-		DEC EDX
-		OR EDX,0fffffffch
-		INC EDX
-mortarNative_30024fed:
-		CMP EDX,EBP
-		JNZ mortarNative_300250ef
-		CMP EDI,0ffffff4ch
-		MOV EAX,EDI
-		JG mortarNative_30025007
-		LEA EAX,[EDI + 0168h]
-		JMP mortarNative_30025015
-mortarNative_30025007:
-		CMP EDI,0b4h
-		JL mortarNative_30025015
-		LEA EAX,[EDI + 0ffffff4ch]
-mortarNative_30025015:
-		PUSH EAX
-		PUSH OFFSET mortarReticleFormat
-		CALL va
-		ADD ESP,08h
-		MOV ESI,EAX
-		LEA EAX,[ESP + 030h]
-		PUSH OFFSET cgs + MortarField32588f8c
-		PUSH 00h
-		PUSH 00h
-		PUSH 00h
-		PUSH ESI
-		PUSH EAX
-		PUSH 03e19999ah
-		PUSH 03e19999ah
-		PUSH OFFSET cgs + MortarField32588f8c
-		PUSH 00h
-		PUSH 03e19999ah
-		PUSH ESI
-		CALL CG_Text_Height_Ext
-		MOV dword ptr [ESP + 048h],EAX
-		ADD ESP,0ch
-		FILD dword ptr [ESP + 03ch]
-		FMUL dword ptr [mortarConst300922b8]
-		FADD dword ptr [ESP + 034h]
-		FADD dword ptr [mortarConst300929e8]
-		FSTP dword ptr [ESP]
-		PUSH OFFSET cgs + MortarField32588f8c
-		PUSH 00h
-		PUSH 03e19999ah
-		PUSH ESI
-		CALL CG_Text_Width_Ext
-		MOV dword ptr [ESP + 04ch],EAX
-		ADD ESP,0ch
-		FILD dword ptr [ESP + 040h]
-		FMUL dword ptr [mortarConst300922b8]
-		FSUBR dword ptr [mortarConst30092a1c]
-		FSTP dword ptr [ESP]
-		CALL CG_Text_Paint_Ext
-		FLD dword ptr [ESP + 038h]
-		FADD dword ptr [mortarConst300929e8]
-		LEA ECX,[ESP + 058h]
-		PUSH ECX
-		PUSH 03f800000h
-		PUSH 041400000h
-		FSTP dword ptr [ESP + 04ch]
-		MOV ESI,dword ptr [ESP + 04ch]
-		PUSH ESI
-		PUSH 043940000h
-		CALL CG_FillRect
-		LEA EDX,[ESP + 06ch]
-		PUSH EDX
-		PUSH 03f800000h
-		PUSH 041400000h
-		PUSH ESI
-		PUSH 043a68000h
-		CALL CG_FillRect
-		ADD ESP,050h
-		SUB EDI,0ah
-		JMP mortarNative_30025138
-mortarNative_300250ef:
-		FLD dword ptr [ESP + 010h]
-		FADD dword ptr [mortarConst300929e8]
-		LEA EAX,[ESP + 030h]
-		PUSH EAX
-		PUSH 03f800000h
-		PUSH 041000000h
-		FSTP dword ptr [ESP + 024h]
-		MOV ESI,dword ptr [ESP + 024h]
-		PUSH ESI
-		PUSH 043940000h
-		CALL CG_FillRect
-		LEA ECX,[ESP + 044h]
-		PUSH ECX
-		PUSH 03f800000h
-		PUSH 041000000h
-		PUSH ESI
-		PUSH 043a88000h
-		CALL CG_FillRect
-		ADD ESP,028h
-mortarNative_30025138:
-		INC EBX
-		CMP EBX,014h
-		MOV dword ptr [ESP + 010h],EBX
-		JL mortarNative_30024fcc
-		FLD dword ptr [cg + MortarField34087f28]
-		FSUB dword ptr [mortarConst300923d0]
-		PUSH ECX
-		FSUBR dword ptr [mortarConst300923e0]
-		FSTP dword ptr [ESP]
-		CALL AngleNormalize180
-		FSUB dword ptr [mortarConst3009233c]
-		FSTP dword ptr [ESP + 01ch]
-		FLD dword ptr [cg + MortarField34087f28]
-		FSUB dword ptr [mortarConst300923d0]
-		FSUBR dword ptr [mortarConst300923e0]
-		FSTP dword ptr [ESP]
-		CALL AngleNormalize180
-		FADD dword ptr [mortarConst30092398]
-		ADD ESP,04h
-		FSUB dword ptr [ESP + 014h]
-		FST dword ptr [ESP + 010h]
-		FCOMP dword ptr [mortarConst300920e0]
-		FNSTSW AX
-		TEST AH,01h
-		JZ mortarNative_300251ab
-		MOV dword ptr [ESP + 010h],00h
-mortarNative_300251ab:
-		MOV EDX,dword ptr [ESP + 010h]
-		PUSH EDX
-		CALL AngleNormalize360
-		FMUL dword ptr [mortarConst300929e4]
-		ADD ESP,04h
-		FMUL dword ptr [mortarConst300924d0]
-		FCOM dword ptr [mortarConst300923e8]
-		FNSTSW AX
-		TEST AH,01h
-		JZ mortarNative_3002521c
-		FLD dword ptr [mortarConst300929e0]
-		FSUB st(0),st(1)
-		LEA EAX,[ESP + 040h]
-		PUSH EAX
-		PUSH 040000000h
-		PUSH 040c00000h
-		FSTP dword ptr [ESP + 01ch]
-		MOV ESI,dword ptr [ESP + 01ch]
-		PUSH ESI
-		PUSH 043928000h
-		FSTP st(0)
-		CALL CG_FillRect
-		LEA ECX,[ESP + 054h]
-		PUSH ECX
-		PUSH 040000000h
-		PUSH 040c00000h
-		PUSH ESI
-		PUSH 043ab0000h
-		CALL CG_FillRect
-		ADD ESP,028h
-		JMP mortarNative_3002521e
-mortarNative_3002521c:
-		FSTP st(0)
-mortarNative_3002521e:
-		FLD dword ptr [ESP + 014h]
-		FSUB dword ptr [ESP + 018h]
-		FST dword ptr [ESP + 010h]
-		FCOMP dword ptr [mortarConst300920e0]
-		FNSTSW AX
-		TEST AH,01h
-		JZ mortarNative_3002523f
-		MOV dword ptr [ESP + 010h],00h
-mortarNative_3002523f:
-		MOV EDX,dword ptr [ESP + 010h]
-		PUSH EDX
-		CALL AngleNormalize360
-		FMUL dword ptr [mortarConst300929e4]
-		ADD ESP,04h
-		FMUL dword ptr [mortarConst300924d0]
-		FCOM dword ptr [mortarConst300923e8]
-		FNSTSW AX
-		TEST AH,01h
-		JZ mortarNative_300252ac
-		FADD dword ptr [mortarConst300929e0]
-		LEA EAX,[ESP + 040h]
-		PUSH EAX
-		PUSH 040000000h
-		PUSH 040c00000h
-		FSTP dword ptr [ESP + 024h]
-		MOV ESI,dword ptr [ESP + 024h]
-		PUSH ESI
-		PUSH 043928000h
-		CALL CG_FillRect
-		LEA ECX,[ESP + 054h]
-		PUSH ECX
-		PUSH 040000000h
-		PUSH 040c00000h
-		PUSH ESI
-		PUSH 043ab0000h
-		CALL CG_FillRect
-		ADD ESP,028h
-		JMP mortarNative_300252ae
-mortarNative_300252ac:
-		FSTP st(0)
-mortarNative_300252ae:
-		CMP dword ptr [cg + MortarField34080f0c],03ch
-		JNZ mortarNative_300253fb
-		CMP dword ptr [cg + MortarField340a2454],-01h
-		JL mortarNative_300253fb
-		CMP dword ptr [ESP + 01ch],0bb8h
-		JGE mortarNative_300253fb
-		FLD dword ptr [cg + MortarField340a244c]
-		FSUB dword ptr [mortarConst300923d0]
-		PUSH ECX
-		FSUBR dword ptr [mortarConst300923e0]
-		FSTP dword ptr [ESP]
-		CALL AngleNormalize180
-		FCOM dword ptr [ESP + 018h]
-		ADD ESP,04h
-		FNSTSW AX
-		TEST AH,041h
-		JNZ mortarNative_30025369
-		FSUB dword ptr [ESP + 014h]
-		FST dword ptr [ESP + 010h]
-		FCOMP dword ptr [mortarConst300920e0]
-		FNSTSW AX
-		TEST AH,01h
-		JZ mortarNative_3002531c
-		MOV dword ptr [ESP + 010h],00h
-mortarNative_3002531c:
-		MOV EDX,dword ptr [ESP + 010h]
-		PUSH EDX
-		CALL AngleNormalize360
-		FMUL dword ptr [mortarConst300929e4]
-		ADD ESP,04h
-		FMUL dword ptr [mortarConst300924d0]
-		FCOM dword ptr [mortarConst300923e8]
-		FNSTSW AX
-		TEST AH,01h
-		JZ mortarNative_300253f9
-		FLD dword ptr [mortarConst300929e0]
-		FSUB st(0),st(1)
-		LEA EAX,[ESP + 050h]
-		PUSH EAX
-		PUSH 040000000h
-		PUSH 040c00000h
-		FSTP dword ptr [ESP + 01ch]
-		MOV ESI,dword ptr [ESP + 01ch]
-		FSTP st(0)
-		JMP mortarNative_300253c9
-mortarNative_30025369:
-		FSUBR dword ptr [ESP + 014h]
-		FST dword ptr [ESP + 010h]
-		FCOMP dword ptr [mortarConst300920e0]
-		FNSTSW AX
-		TEST AH,01h
-		JZ mortarNative_30025386
-		MOV dword ptr [ESP + 010h],00h
-mortarNative_30025386:
-		MOV EDX,dword ptr [ESP + 010h]
-		PUSH EDX
-		CALL AngleNormalize360
-		FMUL dword ptr [mortarConst300929e4]
-		ADD ESP,04h
-		FMUL dword ptr [mortarConst300924d0]
-		FCOM dword ptr [mortarConst300923e8]
-		FNSTSW AX
-		TEST AH,01h
-		JZ mortarNative_300253f9
-		FADD dword ptr [mortarConst300929e0]
-		LEA EAX,[ESP + 050h]
-		PUSH EAX
-		PUSH 040000000h
-		PUSH 040c00000h
-		FSTP dword ptr [ESP + 024h]
-		MOV ESI,dword ptr [ESP + 024h]
-mortarNative_300253c9:
-		PUSH ESI
-		PUSH 043928000h
-		CALL CG_FillRect
-		LEA ECX,[ESP + 064h]
-		PUSH ECX
-		PUSH 040000000h
-		PUSH 040c00000h
-		PUSH ESI
-		PUSH 043ab0000h
-		CALL CG_FillRect
-		ADD ESP,028h
-		POP EDI
-		POP ESI
-		POP EBP
-		POP EBX
-		ADD ESP,070h
-		RET
-mortarNative_300253f9:
-		FSTP st(0)
-mortarNative_300253fb:
-		POP EDI
-		POP ESI
-		POP EBP
-		POP EBX
-		ADD ESP,070h
-		RET
-	}
+
+/* Preserve the held product before native FISTP32 and the 16-bit mask. */
+static float CG_MortarScaleOffset(float angle, float unitsPerDegree, float degreesPerUnit) {
+    long double scaled = (long double)angle * (long double)unitsPerDegree;
+    unsigned units = (unsigned)TCE_TruncateNativeInteger(scaled) & 65535u;
+    return (float)((long double)units * (long double)degreesPerUnit);
 }
+
+/* Windows CRT floor receives a Double argument; Linux rounds held x87. */
+static long double CG_MortarFloorValue(long double value) {
+#if defined(_WIN32)
+    volatile double argument = (double)value;
+    return (long double)floor(argument);
 #else
+    return floorl(value);
+#endif
+}
+
+static void CG_MortarHorizontalLabels(float angle, int *minimum, int *major) {
+    volatile float argument = (float)((long double)angle - 90.0L);
+    long double normalized = (long double)AngleNormalize360(argument);
+    int sector = TCE_TruncateNativeInteger(normalized * (long double)0.06666667014360428f);
+    unsigned minimumBits = (unsigned)sector * 15u;
+    volatile double rounded;
+    int degrees, remainder;
+    memcpy(minimum, &minimumBits, sizeof(minimumBits));
+
+    normalized = (long double)AngleNormalize360(argument);
+    rounded = (double)CG_MortarFloorValue(normalized);
+    degrees = TCE_TruncateNativeInteger((long double)rounded);
+    remainder = degrees % 15;
+    rounded = (double)CG_MortarFloorValue((long double)remainder);
+    *major = TCE_TruncateNativeInteger((long double)rounded * (long double)0.2);
+}
+
+static void CG_MortarVerticalLabels(float angle, int *minimum, int *major) {
+    long double shifted = (long double)angle + 25.0L;
+    volatile double rounded = (double)CG_MortarFloorValue(shifted * (long double)0.10000000149011612f);
+    int tenths, remainder;
+#if defined(_WIN32)
+    volatile float storedShifted = (float)shifted;
+    *minimum = TCE_TruncateNativeInteger((long double)rounded * 10.0L);
+    tenths = TCE_TruncateNativeInteger((long double)storedShifted * 10.0L);
+#else
+    tenths = TCE_TruncateNativeInteger(shifted * 10.0L);
+    *minimum = TCE_TruncateNativeInteger((long double)rounded * 10.0L);
+#endif
+    remainder = tenths % 100;
+    rounded = (double)CG_MortarFloorValue((long double)remainder);
+    *major = TCE_TruncateNativeInteger((long double)rounded * (long double)0.04);
+}
+
+static float CG_MortarFadeAlpha(int elapsed, float reciprocal) {
+    return (float)(1.0L - (long double)elapsed * (long double)reciprocal);
+}
+
+static long double CG_MortarHorizontalOffset(long double difference) {
+#if defined(_WIN32)
+    return (difference * (long double)0.20000000298023224f) * 10.0L;
+#else
+    return difference + difference;
+#endif
+}
+
+static void CG_MortarPitchMarker(long double difference, qboolean above, const vec4_t color) {
+    volatile float argument;
+    long double offset;
+    float y;
+    if (!(difference >= 0.0L)) {
+        difference = 0.0L;
+    }
+    argument = (float)difference;
+    offset = (long double)AngleNormalize360(argument);
+#if defined(_WIN32)
+    offset = (offset * (long double)0.40000000596046448f) * 10.0L;
+#else
+    offset *= 4.0L;
+#endif
+    if (!(offset >= 100.0L)) {
+        y = (float)(above ? 264.0L - offset : 264.0L + offset);
+        CG_FillRect(293, y, 6, 2, color);
+        CG_FillRect(342, y, 6, 2, color);
+    }
+}
+
+/* Native Windows and Linux request-yaw value boundaries differ. */
+static long double CG_MortarRequestYaw(const vec3_t position, const vec3_t origin) {
+#if defined(_WIN32)
+    volatile float x = (float)((long double)position[0] - (long double)origin[0]);
+    long double y = (long double)position[1] - (long double)origin[1];
+    long double yaw;
+    if (!(y > 0.0L || y < 0.0L) && !(x > 0.0f || x < 0.0f)) {
+        return 0.0L;
+    }
+    if (x > 0.0f || x < 0.0f) {
+        yaw = atan2l(y, (long double)x) * (long double)57.29577791868204;
+    } else {
+        yaw = y > 0.0L ? 90.0L : 270.0L;
+    }
+    if (!(yaw >= 0.0L)) {
+        yaw += 360.0L;
+    }
+    return yaw;
+#else
+    long double deltaX = (long double)position[0] - (long double)origin[0];
+    long double deltaY = (long double)position[1] - (long double)origin[1];
+    volatile float x = (float)deltaX;
+    volatile float y = (float)deltaY;
+    /* The original also computes/stores Z before classifying X and Y. */
+    volatile float z = (float)((long double)position[2] - (long double)origin[2]);
+    long double yaw;
+    (void)z;
+
+    /* The native C3 zero tests treat unordered as equal. */
+    if (!(deltaY > 0.0L || deltaY < 0.0L) &&
+        !(deltaX > 0.0L || deltaX < 0.0L)) {
+        return 0.0L;
+    }
+    if (x > 0.0f || x < 0.0f) {
+        volatile double radians = (double)atan2l((long double)y, (long double)x);
+        volatile float degrees = (float)((long double)radians *
+            (long double)57.29577951308232);
+        yaw = (long double)degrees;
+    } else {
+        yaw = y > 0.0f ? 90.0L : 270.0L;
+    }
+    /* Linux adds a turn for negative or unordered, without a Float store. */
+    if (!(yaw >= 0.0L)) {
+        yaw += 360.0L;
+    }
+    return yaw;
+#endif
+}
+#endif
 
 static void CG_DrawMortarReticle( void ) {
 	vec4_t	color = { 1.f, 1.f, 1.f, .5f };
@@ -2350,9 +1887,17 @@ static void CG_DrawMortarReticle( void ) {
 	// that means left is cg.predictedPlayerState.viewangles[YAW] - .5f * 180
 	angle = 360 - AngleNormalize360(cg.predictedPlayerState.viewangles[YAW] - 90.f);
 
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+	offset = CG_MortarScaleOffset(angle, 13107.2001953125f, 0.0000762939453125f);
+#else
 	offset = (5.f / 65536) * ((int)(angle * (65536 / 5.f)) & 65535);
+#endif
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+	CG_MortarHorizontalLabels(angle, &min, &majorOffset);
+#else
 	min = (int)(AngleNormalize360(angle - .5f * 180) / 15.f) * 15;
 	majorOffset = (int)(floor((int)floor(AngleNormalize360(angle - .5f * 180)) % 15) / 5.f );
+#endif
 
 	for( val = i = 0; i < 36; i++ ) {
 		localOffset = i * 10.f + (offset * 2.f);
@@ -2390,44 +1935,82 @@ static void CG_DrawMortarReticle( void ) {
 	angleMax = AngleNormalize360(360 - (cg.pmext.mountedWeaponAngles[YAW] - 90.f) + (30.f + 15.f));
 
 	// right
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+    {
+        long double markerOffset = CG_MortarHorizontalOffset((long double)AngleNormalize360(angle - angleMin));
+        CG_FillRect((float)(320.0L - markerOffset), 252, 2, 18, color_extends);
+    }
+#else
 	localOffset = (AngleNormalize360(angle - angleMin) / 5.f ) * 10.f;
 	//CG_FillRect( 320 + localOffset, 252, 2, 18, color_extends);
 	CG_FillRect( 320 - localOffset, 252, 2, 18, color_extends);
+#endif
 
 	// left
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+    {
+        long double markerOffset = CG_MortarHorizontalOffset((long double)AngleNormalize360(angleMax - angle));
+        CG_FillRect((float)(320.0L + markerOffset), 252, 2, 18, color_extends);
+    }
+#else
 	localOffset = (AngleNormalize360(angleMax - angle) / 5.f ) * 10.f;
 	//CG_FillRect( 320 - localOffset, 252, 2, 18, color_extends);
 	CG_FillRect( 320 + localOffset, 252, 2, 18, color_extends);
+#endif
 
 	// last fire pos
 	fadeTime = 0;
 	if( cg.lastFiredWeapon == 60 && cg.mortarImpactTime >= -1 ) {
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+		fadeTime = CG_MortarTimeSince(cg.time, cg.predictedPlayerEntity.muzzleFlashTime, 5000u);
+#else
 		fadeTime = cg.time - (cg.predictedPlayerEntity.muzzleFlashTime + 5000);
+#endif
 
 		if( fadeTime < 3000 ) {
 			float lastfireAngle;
 
 			if( fadeTime > 0 ) {
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+				color_lastfire[3] = CG_MortarFadeAlpha(fadeTime, 0.00033333332976326346f);
+#else
 				color_lastfire[3] = 1.f - (fadeTime/3000.f);
+#endif
 			}
 
 			lastfireAngle = AngleNormalize360(360 - (cg.mortarFireAngles[YAW] - 90.f));
 
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+            {
+                long double difference = TCE_AngleSubtractValue(angle, lastfireAngle);
+                CG_FillRect((float)(320.0L - CG_MortarHorizontalOffset(difference)),
+                    252, 2, 18, color_lastfire);
+            }
+#else
 			localOffset = ( ( AngleSubtract( angle, lastfireAngle ) ) / 5.f ) * 10.f;
 			//CG_FillRect( 320 + localOffset, 252, 2, 18, color_lastfire);
 			CG_FillRect( 320 - localOffset, 252, 2, 18, color_lastfire);
+#endif
 		}
 	}
 
 	// mortar attack requests
 	hasRightTarget = hasLeftTarget = qfalse;
 	for( i = 0; i < MAX_CLIENTS; i++ ) {
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+		int requestFadeTime = CG_MortarTimeSince(cg.time, cg.artilleryRequestTime[i], 25000u);
+#else
 		int requestFadeTime = cg.time - (cg.artilleryRequestTime[i] + 25000);
+#endif
 
 		if( requestFadeTime < 5000 ) {
+			float attackRequestAngle;
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+			long double yaw = CG_MortarRequestYaw(cg.artilleryRequestPos[i],
+				cg.predictedPlayerEntity.lerpOrigin);
+#else
 			vec3_t dir;
 			float yaw;
-			float attackRequestAngle;
 
 			VectorSubtract( cg.artilleryRequestPos[i], cg.predictedPlayerEntity.lerpOrigin, dir );
 
@@ -2449,15 +2032,25 @@ static void CG_DrawMortarReticle( void ) {
 				}
 			}
 
+#endif
+
 			if( requestFadeTime > 0 ) {
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+				color_firerequest[3] = CG_MortarFadeAlpha(requestFadeTime, 0.00019999999494757503f);
+#else
 				color_firerequest[3] = 1.f - (requestFadeTime/5000.f);
+#endif
 			}
 
 			attackRequestAngle = AngleNormalize360(360 - (yaw - 90.f));
 
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+            yaw = TCE_AngleSubtractValue(attackRequestAngle, angleMin);
+            if (!(yaw >= 0.0L)) {
+#else
 			yaw = AngleSubtract( attackRequestAngle, angleMin );
-
 			if( yaw < 0 ) {
+#endif
 				if( !hasLeftTarget ) {
 					//CG_FillRect( 136 + 2, 236 + 38 - 6, 4, 4, color_firerequest );
 
@@ -2478,12 +2071,25 @@ static void CG_DrawMortarReticle( void ) {
 					hasRightTarget = qtrue;
 				}
 			} else {
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+                {
+                    long double difference = TCE_AngleSubtractValue(angle, attackRequestAngle);
+                    volatile float doubled = (float)CG_MortarHorizontalOffset(difference);
+                    localOffset = doubled;
+                }
+#else
 				localOffset = ( ( AngleSubtract( angle, attackRequestAngle ) ) / 5.f ) * 10.f;
+#endif
 				//CG_FillRect( 320 + localOffset - 3, 264 - 3, 6, 6, color_firerequest );
 
 				trap_R_SetColor( color_firerequest );
  				//CG_DrawPic( 320 + localOffset - 8, 264 - 8, 16, 16, cgs.media.ccMortarTarget );
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+                CG_DrawPic((float)((320.0L - (long double)localOffset) - 8.0L),
+                    264 - 8, 16, 16, cgs.media.ccMortarTarget);
+#else
 				CG_DrawPic( 320 - localOffset - 8, 264 - 8, 16, 16, cgs.media.ccMortarTarget );
+#endif
 				trap_R_SetColor( NULL );
 			}
 		}
@@ -2508,9 +2114,17 @@ static void CG_DrawMortarReticle( void ) {
 	// that means left is cg.predictedPlayerState.viewangles[PITCH] - .5f * 50
 	angle = AngleNormalize180(360 - (cg.predictedPlayerState.viewangles[PITCH] - 60));
 
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+	offset = CG_MortarScaleOffset(angle, 26214.400390625f, 0.00003814697265625f);
+#else
 	offset = (2.5f / 65536) * ((int)(angle * (65536 / 2.5f)) & 65535);
+#endif
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+	CG_MortarVerticalLabels(angle, &min, &majorOffset);
+#else
 	min = floor((angle + .5f * 50) / 10.f) * 10;
 	majorOffset = (int)(floor((int)((angle + .5f * 50) * 10.f) % 100) / 25.f );
+#endif
 
 	for( val = i = 0; i < 20; i++ ) {
 		localOffset = i * 10.f + (offset * 4.f);
@@ -2547,6 +2161,18 @@ static void CG_DrawMortarReticle( void ) {
 	angleMin = AngleNormalize180(360 - (cg.pmext.mountedWeaponAngles[PITCH] - 60)) - 20.f;
 	angleMax = AngleNormalize180(360 - (cg.pmext.mountedWeaponAngles[PITCH] - 60)) + 30.f;
 
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+    CG_MortarPitchMarker((long double)angleMax - (long double)angle, qtrue, color_extends);
+    CG_MortarPitchMarker((long double)angle - (long double)angleMin, qfalse, color_extends);
+    if (cg.lastFiredWeapon == 60 && cg.mortarImpactTime >= -1 && fadeTime < 3000) {
+        float lastfireAngle = AngleNormalize180(360 - (cg.mortarFireAngles[PITCH] - 60));
+        if (lastfireAngle > angle) {
+            CG_MortarPitchMarker((long double)lastfireAngle - (long double)angle, qtrue, color_lastfire);
+        } else {
+            CG_MortarPitchMarker((long double)angle - (long double)lastfireAngle, qfalse, color_lastfire);
+        }
+    }
+#else
 	// top
 	localOffset = angleMax - angle;
 	if( localOffset < 0 )
@@ -2596,6 +2222,7 @@ static void CG_DrawMortarReticle( void ) {
 		}
 	}
  
+#endif
 	/*s = va( "%.2f (%i / %i)", angle + .5f * 50, majorOffset, min );
 	CG_Text_Paint( 348, 164, .25f, color, s, 0, 0, 0 );
 	s = va( "%.2f",angle );
@@ -2604,7 +2231,6 @@ static void CG_DrawMortarReticle( void ) {
 	CG_Text_Paint( 348, 364, .25f, color, s, 0, 0, 0 );*/
 }
 
-#endif
 
 /*
 ==============
@@ -3812,22 +3438,45 @@ CG_DrawRadar
 =================
 */
 /* TC radar base; objective/team marker projection remains to be ported. */
-/* Whole Windows300215a0 / Linux000496fc. origin-target is intentional. */
+/* Originals Windows300215a0 / Linux000496fc; geometry/render fidelity remains open.
+ * origin-target is intentional. */
 static void CG_DrawRadarIcon(int x,int y,int w,int h,const vec3_t origin,const vec3_t target,
                              qhandle_t shader,qhandle_t above,qhandle_t below) {
     vec3_t delta,angles;
     float distance,z;
-    double radians,fraction,size;
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+    long double radians;
+#else
+    double radians;
+#endif
+    double fraction,size;
     int radius,px,py;
     VectorSubtract(origin,target,delta); z=delta[2];
     distance=(float)sqrt((double)delta[0]*delta[0]+(double)delta[1]*delta[1]+(double)delta[2]*delta[2]);
     VectorNormalize(delta);vectoangles(delta,angles);
     if(delta[0]==0 && delta[1]==0 && delta[2]==0)return;
     /* Original x87 retains these intermediates until the draw arguments. */
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+    radians = ((TCE_AngleSubtractValue(cg.predictedPlayerState.viewangles[YAW], angles[YAW]) +
+        180.0L) * (long double)0.0027777778450399637f - 0.25L) *
+        (long double)6.2831854820251465;
+#if defined(__linux__)
+    {
+        volatile float storedRadians = (float)radians;
+        radians = (long double)storedRadians;
+    }
+#endif
+#else
     radians=(((double)AngleSubtract(cg.predictedPlayerState.viewangles[YAW],angles[YAW])+180.f)*.0027777778450399637f-.25)*6.2831854820251465;
+#endif
     fraction=(double)distance*.0005f;if(fraction>1)fraction=1;
     radius=(int)((w/2)*fraction);
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+    px = TCE_TruncateNativeInteger((long double)(x + w/2) + cosl(radians) * (long double)radius);
+    py = TCE_TruncateNativeInteger((long double)(y + h/2) + sinl(radians) * (long double)radius);
+#else
     px=(int)(x+w/2+cos(radians)*radius);py=(int)(y+h/2+sin(radians)*radius);
+#endif
     if(z < -72 && above) shader=above;
     else if(z > 72 && below) shader=below;
     size=((1-fraction)+1)*8;
@@ -3857,21 +3506,47 @@ static void CG_DrawCompassContact(float y, const vec3_t target, float heading,
         AngleSubtract(cg.predictedPlayerState.viewangles[YAW],heading)/360.f+.125f);
 }
 
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+static void CG_UpdateRadarHeading(float viewYaw, float *lastAngle, float *angleSpeed) {
+    long double phase = ((long double)viewYaw + 180.0L) *
+        (long double)0.0027777778450399637f - 0.125L;
+    volatile float previous = (float)((long double)*lastAngle * 360.0L);
+    volatile float current = (float)(phase * 360.0L);
+    long double movement = TCE_AngleSubtractValue(current, previous) *
+        (long double)0.0027777778450399637f;
+    long double damped = (long double)*angleSpeed * (long double)0.9259259104728699f;
+    long double change = movement * (long double)0.009999999776482582f;
+    *angleSpeed = (float)(damped + change);
+    /* Native carry tests also clear an unordered absolute speed. */
+    if (!(Q_fabs(*angleSpeed) >= 0.000009999999747378752f)) {
+        *angleSpeed = 0.0f;
+    }
+    *lastAngle = (float)((long double)*angleSpeed + (long double)*lastAngle);
+}
+#endif
+
 static void CG_DrawRadar( void ) {
     extern qboolean tce_uiCoordinates;
     qboolean previous=tce_uiCoordinates;
     snapshot_t *snap=(cg.nextSnap&&!cg.nextFrameTeleport&&!cg.thisFrameTeleport)?cg.nextSnap:cg.snap;
-    char mode[16];float y,angle,diff;
+    char mode[16];float y;
     static float lastangle,anglespeed;
     if(snap->ps.persistant[PERS_TEAM]==TEAM_SPECTATOR||cg.mvTotalClients>0)return;
     trap_Cvar_VariableStringBuffer("cg_aspectMode",mode,sizeof(mode));
     y=atoi(mode)==1?23.33f:atoi(mode)==2?-30.f:50.f;
     tce_uiCoordinates=qtrue;trap_R_SetColor(colorWhite);
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+    CG_UpdateRadarHeading(cg.predictedPlayerState.viewangles[YAW], &lastangle, &anglespeed);
+#else
+    {
+        float angle, diff;
     angle=(cg.predictedPlayerState.viewangles[YAW]+180.f)/360.f-.125f;
     diff=AngleSubtract(angle*360,lastangle*360)/360.f;
     anglespeed=anglespeed*.9259259104728699f+diff*.01f;
     if(Q_fabs(anglespeed)<.00001f)anglespeed=0;
     lastangle+=anglespeed;
+    }
+#endif
     CG_DrawRotatedPic(752,y-40,80,80,trap_R_RegisterShader("gfx/misc/radarcompass2.tga"),lastangle);
     CG_DrawPic(742,y-50,100,100,trap_R_RegisterShader("gfx/misc/radarbg.tga"));
     trap_R_SetColor(NULL);
@@ -4922,10 +4597,123 @@ static int CG_TCEViewportInteger(float viewportValue) {
         fldcw word ptr viewportCW
     }
     return (int)viewportInteger;
+#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
+    struct { unsigned short saved,truncate; int result; } convert;
+    __asm__ volatile (
+        "flds %3\n\tfnstcw %1\n\tmovzwl %1,%%eax\n\t"
+        "orw $0x0c00,%%ax\n\tmovw %%ax,%2\n\tfldcw %2\n\t"
+        "fistpl %0\n\tfldcw %1"
+        : "=m" (convert.result), "=m" (convert.saved), "=m" (convert.truncate)
+        : "m" (viewportValue) : "eax", "st", "cc"
+    );
+    return convert.result;
+#elif defined(_WIN32)
+    unsigned int viewportBits; int viewportResult;
+    if (!((double)viewportValue >= -9223372036854775808.0 &&
+          (double)viewportValue < 9223372036854775808.0)) return 0;
+    viewportBits=(unsigned int)(long long)viewportValue;
+    memcpy(&viewportResult,&viewportBits,sizeof(viewportResult));
+    return viewportResult;
 #else
+    if (!((double)viewportValue >= -2147483648.0 &&
+          (double)viewportValue < 2147483648.0)) return (-2147483647-1);
     return (int)viewportValue;
 #endif
 }
+
+#if defined(__GNUC__) && defined(__i386__) && defined(__linux__)
+/* TC Linux0003adad..3aeb4: the size product is stored but retained for
+ * both corners; integer held angles are converted before biasing. This
+ * private frame has no foreign cg/playerState/refdef offsets. */
+static void CG_TCELinuxScopeSize(int width,float *size,float *x,float *y) {
+    struct { int width; float size,x,y; } data;
+    static const float constants[8]={250.f,1.2f,.5f,426.f,240.f,2000.f,.01f,0.f};
+    typedef char ScopePrepareLayout[(sizeof(data)==16 && sizeof(float)==4 && sizeof(int)==4)?1:-1];
+    data.width=width;
+    __asm__ volatile (
+        ".intel_syntax noprefix\n\t"
+        "fild dword ptr [esi]\n\tfcom dword ptr [edi+28]\n\tfnstsw ax\n\t"
+        "test ah,0x40\n\tjz 1f\n\tfstp st(0)\n\tfld dword ptr [edi]\n1:\n\t"
+        "fmul dword ptr [edi+4]\n\tfld dword ptr [edi+12]\n\tfxch st(1)\n\t"
+        "fst dword ptr [esi+4]\n\tfmul dword ptr [edi+8]\n\t"
+        "fsub st(1),st(0)\n\tfsubr dword ptr [edi+16]\n\tfxch st(1)\n\t"
+        "fstp dword ptr [esi+8]\n\tfstp dword ptr [esi+12]\n\t.att_syntax prefix"
+        : "+m" (data) : "S" (&data), "D" (constants)
+        : "eax", "cc", "memory", "st", "st(1)"
+    );
+    *size=data.size;*x=data.x;*y=data.y;
+}
+
+/* Kept after the real AxisCopy backup call, as in the original caller. */
+static void CG_TCELinuxScopeAngles(vec3_t angles) {
+    struct { vec3_t angles; int heldPitch,heldYaw; } data;
+    static const float constants[2]={2000.f,.01f};
+    typedef char ScopeAngleLayout[(sizeof(data)==20 && sizeof(float)==4 && sizeof(int)==4)?1:-1];
+    memcpy(data.angles,cg.predictedPlayerState.viewangles,sizeof(vec3_t));
+    data.heldPitch=cg.predictedPlayerState.holdable[5];
+    data.heldYaw=cg.predictedPlayerState.holdable[6];
+    __asm__ volatile (
+        ".intel_syntax noprefix\n\t"
+        "fild dword ptr [esi+12]\n\tfld dword ptr [edi]\n\t"
+        "fld dword ptr [edi+4]\n\tfld dword ptr [esi]\n\t"
+        "fld dword ptr [esi+4]\n\tfxch st(4)\n\t"
+        "fsub st(0),st(3)\n\tfmul st(0),st(2)\n\tfaddp st(1),st(0)\n\t"
+        "fild dword ptr [esi+16]\n\tfxch st(1)\n\tfstp dword ptr [esi]\n\t"
+        "fsubrp st(2),st(0)\n\tfmulp st(1),st(0)\n\tfaddp st(1),st(0)\n\t"
+        "fstp dword ptr [esi+4]\n\t.att_syntax prefix"
+        : "+m" (data) : "S" (&data), "D" (constants)
+        : "memory", "st", "st(1)", "st(2)", "st(3)", "st(4)"
+    );
+    memcpy(angles,data.angles,sizeof(vec3_t));
+}
+
+/* TC Linux0003aeea..3aff8. The two asin calculations are direct x87
+ * FSQRT/FPATAN, not the Windows CRT entry and not an asin(double) call.
+ * Keep both binary64 angle spills and separate binary32 displacements. */
+static void CG_TCELinuxScopeProject(const vec3_t forward,const vec3_t right,
+                                   const vec3_t up,float *x,float *y) {
+    struct { vec3_t forward,right,up; float fov,x,y,dx,dy; double angle; } data;
+    static const struct { float one,degrees; double pi,width; } constants={
+        1.f,0.0055555556900799274f,3.141592653589793,852.0};
+    typedef char ScopeProjectLayout[(offsetof(__typeof__(data),angle)==56 &&
+        sizeof(data)==64 && offsetof(__typeof__(constants),pi)==8)?1:-1];
+    memcpy(data.forward,forward,sizeof(vec3_t));
+    memcpy(data.right,right,sizeof(vec3_t));
+    memcpy(data.up,up,sizeof(vec3_t));
+    data.fov=cg.refdef.fov_x;data.x=*x;data.y=*y;
+    __asm__ volatile (
+        ".intel_syntax noprefix\n\t"
+        "fld dword ptr [eax]\n\tfld dword ptr [eax+4]\n\tfld dword ptr [eax+8]\n\t"
+        "fld st(2)\n\tfld st(2)\n\tfmul dword ptr [eax+16]\n\tfxch st(1)\n\t"
+        "fmul dword ptr [eax+12]\n\tfld dword ptr [edx]\n\tfxch st(1)\n\t"
+        "faddp st(2),st(0)\n\tfld st(2)\n\tfmul dword ptr [eax+20]\n\t"
+        "faddp st(2),st(0)\n\tfld st(1)\n\tfmul st(0),st(0)\n\t"
+        "fsubr st(0),st(1)\n\tfsqrt\n\tfxch st(1)\n\tfxch st(2)\n\tfxch st(1)\n\t"
+        "fpatan\n\tfstp qword ptr [eax+56]\n\t"
+        "fld dword ptr [eax+36]\n\tfmul dword ptr [edx+4]\n\tfld qword ptr [edx+8]\n\t"
+        "fxch st(5)\n\tfmul dword ptr [eax+24]\n\tfxch st(4)\n\t"
+        "fmul dword ptr [eax+28]\n\tfxch st(1)\n\tfmul st(0),st(5)\n\t"
+        "fxch st(3)\n\tfmul dword ptr [eax+32]\n\tfxch st(4)\n\t"
+        "faddp st(1),st(0)\n\tfxch st(2)\n\tfdivr st(0),st(1)\n\t"
+        "fld qword ptr [eax+56]\n\tfxch st(3)\n\tfaddp st(4),st(0)\n\t"
+        "fmulp st(2),st(0)\n\tfld st(2)\n\tfmul st(0),st(0)\n\t"
+        "fxch st(2)\n\tfmul qword ptr [edx+16]\n\tfxch st(2)\n\t"
+        "fsubr st(0),st(1)\n\tfxch st(2)\n\tfstp dword ptr [eax+48]\n\t"
+        "fxch st(1)\n\tfsqrt\n\tfxch st(1)\n\tfxch st(2)\n\tfxch st(1)\n\t"
+        "fpatan\n\tfstp qword ptr [eax+56]\n\t"
+        "fld dword ptr [edx+4]\n\tfmul dword ptr [eax+36]\n\tfld qword ptr [eax+56]\n\t"
+        "fxch st(3)\n\tfmulp st(1),st(0)\n\tfld dword ptr [eax+48]\n\t"
+        "fadd dword ptr [eax+40]\n\tfxch st(2)\n\tfdivrp st(1),st(0)\n\t"
+        "fmulp st(2),st(0)\n\tfstp dword ptr [eax+40]\n\t"
+        "fmul qword ptr [edx+16]\n\tfstp dword ptr [eax+52]\n\t"
+        "fld dword ptr [eax+52]\n\tfsubr dword ptr [eax+44]\n\tfstp dword ptr [eax+44]\n\t"
+        ".att_syntax prefix"
+        : "+m" (data) : "a" (&data), "d" (&constants)
+        : "memory", "st", "st(1)", "st(2)", "st(3)", "st(4)", "st(5)", "st(6)", "st(7)"
+    );
+    *x=data.x;*y=data.y;
+}
+#endif
 
 static void CG_DrawTCEScopeScene(void) {
     extern qboolean tce_uiCoordinates;
@@ -4933,10 +4721,10 @@ static void CG_DrawTCEScopeScene(void) {
     refdef_t modelView;
     vec3_t angles, forward, right, up;
     float x,y,w,h,scopeSize,radians;
-#if defined(_MSC_VER) && defined(_M_IX86)
     float scopeSavedViewport[4];
     float scopeSavedFov[2];
     vec3_t scopeSavedAxis[3];
+#if defined(_MSC_VER) && defined(_M_IX86)
     int scopeAllowed;
     int scopeWidth;
     float *scopeZoom;
@@ -4953,8 +4741,6 @@ static void CG_DrawTCEScopeScene(void) {
     static const float scopeCenterX = 426.0f, scopeCenterY = 240.0f;
     static const float scopeBias = 2000.0f, scopeAngleScale = 0.01f, scopeZero = 0.0f;
     static const float scopeFovScale = 0.10563380271196365f;
-#else
-    refdef_t saved;
 #endif
     int weapon=cg.predictedPlayerState.weapon;
     if(!cg_portalScopes.integer || cg.renderingThirdPerson || weapon<0 ||
@@ -5034,6 +4820,9 @@ static void CG_DrawTCEScopeScene(void) {
         mov eax,dword ptr [cg + ScopeAngles + 8]
         mov dword ptr angles[8],eax
     }
+#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
+    CG_TCELinuxScopeSize(tce_cg_weapons[weapon].portalScopeWidth,&scopeSize,&x,&y);
+    w=h=scopeSize;
 #else
     scopeSize=(float)tce_cg_weapons[weapon].portalScopeWidth;
     if(scopeSize==0)scopeSize=250;
@@ -5045,8 +4834,39 @@ static void CG_DrawTCEScopeScene(void) {
     angles[0]+=((float)cg.predictedPlayerState.holdable[5]-2000.0f)*0.01f;
     angles[1]+=((float)cg.predictedPlayerState.holdable[6]-2000.0f)*0.01f;
 #endif
+#if !defined(_MSC_VER) || !defined(_M_IX86)
+    {
+        int viewport[4];
+        viewport[0]=cg.refdef_current->x;viewport[1]=cg.refdef_current->y;
+        viewport[2]=cg.refdef_current->width;viewport[3]=cg.refdef_current->height;
+#if defined(__GNUC__) && defined(__i386__) && defined(__linux__)
+        __asm__ volatile (
+            "fildl 0(%1)\n\tfstps 0(%2)\n\tfildl 4(%1)\n\tfstps 4(%2)\n\t"
+            "fildl 8(%1)\n\tfstps 8(%2)\n\tfildl 12(%1)\n\tfstps 12(%2)"
+            : "=m" (scopeSavedViewport) : "r" (viewport), "r" (scopeSavedViewport)
+            : "st", "memory"
+        );
+#else
+        scopeSavedViewport[0]=(float)viewport[0];scopeSavedViewport[1]=(float)viewport[1];
+        scopeSavedViewport[2]=(float)viewport[2];scopeSavedViewport[3]=(float)viewport[3];
+#endif
+        memcpy(&scopeSavedFov[0],&cg.refdef_current->fov_x,sizeof(float));
+#if defined(__GNUC__) && defined(__i386__) && defined(__linux__)
+        __asm__ volatile ("flds %1\n\tfstps %0" : "=m" (scopeSavedFov[1])
+                          : "m" (cg.refdef_current->fov_y) : "st");
+#else
+        memcpy(&scopeSavedFov[1],&cg.refdef_current->fov_y,sizeof(float));
+#endif
+        AxisCopy(cg.refdef_current->viewaxis,scopeSavedAxis);
+    }
+#endif
+#if defined(__GNUC__) && defined(__i386__) && defined(__linux__)
+    CG_TCELinuxScopeAngles(angles);
+#endif
     AngleVectors(angles,forward,NULL,NULL);
-    AngleVectors(cg.refdefViewAngles,NULL,right,up);
+    /* Both TC originals project against predicted view angles, not the
+     * camera-shake/bob-adjusted refdefViewAngles. */
+    AngleVectors(cg.predictedPlayerState.viewangles,NULL,right,up);
 #if defined(_MSC_VER) && defined(_M_IX86)
     {
         const float scopeProjectionFov=cg.refdef.fov_x;
@@ -5093,8 +4913,9 @@ static void CG_DrawTCEScopeScene(void) {
             fstp dword ptr y
         }
     }
+#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
+    CG_TCELinuxScopeProject(forward,right,up,&x,&y);
 #else
-    saved=*cg.refdef_current;
     radians=cg.refdef.fov_x*0.01745329238474369f;
     x=(float)((asin(DotProduct(forward,right))/radians)*852.0+x);
     y=(float)(y-(asin(DotProduct(forward,up))/radians)*852.0);
@@ -5116,6 +4937,18 @@ static void CG_DrawTCEScopeScene(void) {
         mov edx,dword ptr [cg + ScopeCurrentRefdef]
         mov eax,dword ptr [edx + ScopeRefFovX]
         mov dword ptr [edx + ScopeRefFovY],eax
+    }
+#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
+    {
+        float product;
+        const float factor=0.10563380271196365f;
+        __asm__ volatile (
+            "flds %2\n\tfmuls %3\n\tfstps %0\n\tfld1\n\tfdivs %4\n\t"
+            "fmuls %0\n\tfstps %1"
+            : "=m" (product), "=m" (cg.refdef_current->fov_x)
+            : "m" (scopeSize), "m" (factor), "m" (weaponDef[weapon].scoped) : "st"
+        );
+        memcpy(&cg.refdef_current->fov_y,&cg.refdef_current->fov_x,sizeof(float));
     }
 #else
     cg.refdef_current->fov_x=(scopeSize*0.10563380271196365f)/weaponDef[weapon].scoped;
@@ -5145,10 +4978,18 @@ static void CG_DrawTCEScopeScene(void) {
     }
     AxisCopy(scopeSavedAxis,cg.refdef_current->viewaxis);
 #else
-    cg.refdef_current->x=saved.x;cg.refdef_current->y=saved.y;
-    cg.refdef_current->width=saved.width;cg.refdef_current->height=saved.height;
-    cg.refdef_current->fov_x=saved.fov_x;cg.refdef_current->fov_y=saved.fov_y;
-    AxisCopy(saved.viewaxis,cg.refdef_current->viewaxis);
+    cg.refdef_current->x=CG_TCEViewportInteger(scopeSavedViewport[0]);
+    cg.refdef_current->y=CG_TCEViewportInteger(scopeSavedViewport[1]);
+    cg.refdef_current->width=CG_TCEViewportInteger(scopeSavedViewport[2]);
+    cg.refdef_current->height=CG_TCEViewportInteger(scopeSavedViewport[3]);
+    memcpy(&cg.refdef_current->fov_x,&scopeSavedFov[0],sizeof(float));
+#if defined(__GNUC__) && defined(__i386__) && defined(__linux__)
+    __asm__ volatile ("flds %1\n\tfstps %0" : "=m" (cg.refdef_current->fov_y)
+                      : "m" (scopeSavedFov[1]) : "st");
+#else
+    memcpy(&cg.refdef_current->fov_y,&scopeSavedFov[1],sizeof(float));
+#endif
+    AxisCopy(scopeSavedAxis,cg.refdef_current->viewaxis);
 #endif
     cg.tcePortalScopeRendering=qfalse;
     if(cg.tcePortalScopeEntity.hModel) {
@@ -5156,7 +4997,6 @@ static void CG_DrawTCEScopeScene(void) {
         CG_Printf("ELITE DEBUG: draw model\n");
         modelView.rdflags=RDF_NOWORLDMODEL;
         AxisCopy(cg.refdef_current->viewaxis,modelView.viewaxis);
-#if defined(_MSC_VER) && defined(_M_IX86)
         /* Original also calls AxisCopy at vieworg: its trailing six words
          * rewrite the first two axis rows with the same source values. */
         {
@@ -5165,9 +5005,6 @@ static void CG_DrawTCEScopeScene(void) {
             AxisCopy((vec3_t *)((byte *)cg.refdef_current+offsetof(refdef_t,vieworg)),
                      (vec3_t *)((byte *)&modelView+offsetof(refdef_t,vieworg)));
         }
-#else
-        VectorCopy(cg.refdef_current->vieworg,modelView.vieworg);
-#endif
 #if defined(_MSC_VER) && defined(_M_IX86)
         __asm {
             mov eax,dword ptr [cg + ScopeCurrentRefdef]
@@ -5188,7 +5025,8 @@ static void CG_DrawTCEScopeScene(void) {
             mov dword ptr [edx + ScopeRefTime],ecx
         }
 #else
-        modelView.fov_x=cg.refdef_current->fov_x;modelView.fov_y=cg.refdef_current->fov_y;
+        memcpy(&modelView.fov_x,&cg.refdef_current->fov_x,sizeof(float));
+        memcpy(&modelView.fov_y,&cg.refdef_current->fov_y,sizeof(float));
         modelView.x=cg.refdef_current->x;modelView.y=cg.refdef_current->y;
         modelView.width=cg.refdef_current->width;modelView.height=cg.refdef_current->height;
         modelView.time=cg.refdef_current->time;
@@ -5289,11 +5127,35 @@ void CG_DrawActive( stereoFrame_t stereoView ) {
 		fstp dword ptr [eax + ActiveViewZ]
 	active_stereo_offset_done:
 	}
+#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
+    {
+        struct { float separation; float *origin,*right; float zero; } data={
+            separation,cg.refdef_current->vieworg,cg.refdef_current->viewaxis[1],0.f};
+        typedef char StereoDataLayout[(sizeof(data)==16 && sizeof(float)==4)?1:-1];
+        memcpy(baseOrg,cg.refdef_current->vieworg,sizeof(vec3_t));
+        __asm__ volatile (
+            ".intel_syntax noprefix\n\t"
+            "fld dword ptr [esi]\n\tfcomp dword ptr [esi+12]\n\tfnstsw ax\n\t"
+            "test ah,0x40\n\tjnz 1f\n\tfld dword ptr [esi]\n\tfchs\n\t"
+            "mov ecx,dword ptr [esi+4]\n\tmov edx,dword ptr [esi+8]\n\t"
+            "fld dword ptr [edx]\n\tfmul st(0),st(1)\n\tfadd dword ptr [ecx]\n\t"
+            "fstp dword ptr [ecx]\n\tfld dword ptr [edx+4]\n\t"
+            "fmul st(0),st(1)\n\tfadd dword ptr [ecx+4]\n\tfstp dword ptr [ecx+4]\n\t"
+            "fmul dword ptr [edx+8]\n\tfadd dword ptr [ecx+8]\n\tfstp dword ptr [ecx+8]\n1:\n\t"
+            ".att_syntax prefix"
+            : "+m" (data) : "S" (&data)
+            : "eax", "ecx", "edx", "cc", "memory", "st", "st(1)"
+        );
+    }
 #else
-	VectorCopy( cg.refdef_current->vieworg, baseOrg );
-	if ( separation != 0 ) {
-		VectorMA( cg.refdef_current->vieworg, -separation, cg.refdef_current->viewaxis[1], cg.refdef_current->vieworg );
-	}
+    memcpy(baseOrg,cg.refdef_current->vieworg,sizeof(vec3_t));
+    if (separation < 0.f || separation > 0.f) {
+        long double offset=-(long double)separation;
+        int axis;
+        for(axis=0;axis<3;++axis)
+            cg.refdef_current->vieworg[axis]=(float)(
+                cg.refdef_current->viewaxis[1][axis]*offset+cg.refdef_current->vieworg[axis]);
+    }
 #endif
 
 	cg.refdef_current->glfog.registered = 0;	// make sure it doesn't use fog from another scene
@@ -5366,9 +5228,9 @@ void CG_DrawActive( stereoFrame_t stereoView ) {
 	active_stereo_restore_done:
 	}
 #else
-	if ( separation != 0 ) {
-		VectorCopy( baseOrg, cg.refdef_current->vieworg );
-	}
+    /* Original C3 gate also skips unordered separation. Restore raw words. */
+    if (separation < 0.f || separation > 0.f)
+        memcpy(cg.refdef_current->vieworg,baseOrg,sizeof(vec3_t));
 #endif
 
 	if( !cg.showGameView ) {

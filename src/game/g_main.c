@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "tce_navgen.h"
 #include "tce_lua.h"
 #ifdef FEATURE_OMNIBOT
 #include "g_etbot_interface.h"
@@ -231,6 +232,8 @@ vmCvar_t bot_editWaypoints;
 
 cvarTable_t		gameCvarTable[] = {
 #ifdef FEATURE_OMNIBOT
+    { NULL, "omnibot_tce_explore", "1", CVAR_ARCHIVE },
+    { NULL, "omnibot_tce_explore_debug", "0", 0 },
     { &g_OmniBotEnable, "omnibot_enable", "0", CVAR_ARCHIVE | CVAR_LATCH },
     { &g_OmniBotPath, "omnibot_path", "", CVAR_ARCHIVE | CVAR_LATCH },
     { &g_OmniBotFlags, "omnibot_flags", "0", CVAR_ARCHIVE },
@@ -500,7 +503,7 @@ This must be the very first function compiled into the .q3vm file
 #pragma export on
 #endif
 #endif
-intptr_t vmMain( intptr_t command, intptr_t arg0, intptr_t arg1, intptr_t arg2, intptr_t arg3, intptr_t arg4, intptr_t arg5, intptr_t arg6, intptr_t arg7, intptr_t arg8, intptr_t arg9, intptr_t arg10, intptr_t arg11 ) {
+TCE_VM_EXPORT intptr_t vmMain( intptr_t command, intptr_t arg0, intptr_t arg1, intptr_t arg2, intptr_t arg3, intptr_t arg4, intptr_t arg5, intptr_t arg6, intptr_t arg7, intptr_t arg8, intptr_t arg9, intptr_t arg10, intptr_t arg11 ) {
 #if defined(__MACOS__)
 #ifndef __GNUC__
 #pragma export off
@@ -2646,7 +2649,7 @@ void FindIntermissionPoint( void ) {
 	}
 
 	if( !ent ) {	// the map creator forgot to put in an intermission point...
-		SelectSpawnPoint ( vec3_origin, level.intermission_origin, level.intermission_angle );
+		SelectIntermissionSpawnPoint ( level.intermission_origin, level.intermission_angle );
 	} else {
 		VectorCopy( ent->s.origin, level.intermission_origin );
 		VectorCopy( ent->s.angles, level.intermission_angle );
@@ -3119,6 +3122,7 @@ can see the last frag.
 void CheckExitRules( void ) {
 	char cs[MAX_STRING_CHARS];
 	int terrorists, specops, winner;
+	if (TCE_NavgenAuthoringActive()) return;
 	if (g_gamestate.integer == GS_INTERMISSION) { CheckIntermissionExit(); return; }
 	if (level.intermissionQueued) { level.intermissionQueued = 0; BeginIntermission(); return; }
 	if (level.time < level.tceExitRulesNotBefore) return;
@@ -3325,6 +3329,7 @@ void CheckWolfMP() {
 // -NERVE - SMF
 */
 void CheckWolfMP() {
+	if (TCE_NavgenAuthoringActive()) return;
 	// check because we run 6 game frames before calling Connect and/or ClientBegin
 	// for clients on a map_restart
 	if(g_gametype.integer >= GT_WOLF) {
@@ -3716,284 +3721,176 @@ qboolean G_PositionEntityOnTag( gentity_t *entity, gentity_t* parent, char *tagN
 	return qtrue;
 }
 
-#if defined(GAMEDLL) && defined(_MSC_VER) && defined(_M_IX86)
-/* TC20063e2f..20063ea1: store backdelta but compare retained x87 value. */
-enum {
-    tag840Duration = offsetof(gentity_t,s) + offsetof(entityState_t,pos) + offsetof(trajectory_t,trDuration),
-    tag840Start = offsetof(gentity_t,s) + offsetof(entityState_t,pos) + offsetof(trajectory_t,trTime),
-    tag840Delta = offsetof(gentity_t,backdelta),
-    tag840Back = offsetof(gentity_t,back),
-    tag840LevelTime = offsetof(level_locals_t,time)
-};
-static const float tag840Zero = 0.0f, tag840One = 1.0f;
-static __declspec(naked) void G_TagPathFraction840(gentity_t *ent, gentity_t *parent) {
-    __asm {
-        SUB ESP,8
-        MOV EDX,dword ptr [ESP + 12]
-        MOV ECX,dword ptr [ESP + 16]
-        MOV EAX,dword ptr [ECX + tag840Duration]
-        TEST EAX,EAX
-        MOV dword ptr [ESP + 4],EAX
-        JZ tag840_zero
-        MOV EAX,dword ptr [level + tag840LevelTime]
-        SUB EAX,dword ptr [ECX + tag840Start]
-        MOV dword ptr [ESP],EAX
-        FILD dword ptr [ESP]
-        FILD dword ptr [ESP + 4]
-        FDIVP ST(1),ST(0)
-        JMP tag840_clamp
-    tag840_zero:
-        FLD dword ptr [tag840Zero]
-    tag840_clamp:
-        FCOM dword ptr [tag840Zero]
-        FST dword ptr [EDX + tag840Delta]
-        FNSTSW AX
-        TEST AH,1
-        JZ tag840_upper
-        FSTP ST(0)
-        MOV dword ptr [EDX + tag840Delta],0
-        JMP tag840_reverse
-    tag840_upper:
-        FCOMP dword ptr [tag840One]
-        FNSTSW AX
-        TEST AH,0x41
-        JNZ tag840_reverse
-        MOV dword ptr [EDX + tag840Delta],0x3f800000
-    tag840_reverse:
-        CMP dword ptr [EDX + tag840Back],0
-        JZ tag840_done
-        FLD dword ptr [tag840One]
-        FSUB dword ptr [EDX + tag840Delta]
-        FSTP dword ptr [EDX + tag840Delta]
-    tag840_done:
-        ADD ESP,8
-        RET
-    }
-}
+/* TC path-linked movers use trajectory value 16; the SDK trajectory enum
+ * has a different layout and must not be substituted here. */
+enum { TCE_TAG_LINEAR_PATH = 16 };
+typedef char tceTagClockLayout_t[(sizeof(int) == 4 && sizeof(unsigned) == 4) ? 1 : -1];
 
-/* Native extraction of TC20063ea2..20063f44, not a separate original body. */
-enum {
-    tag841Spline = offsetof(gentity_t, backspline),
-    tag841Segments = offsetof(splinePath_t, segments),
-    tag841Stride = sizeof(splineSegment_t),
-    tag841Start = offsetof(splineSegment_t, start),
-    tag841Normal = offsetof(splineSegment_t, v_norm),
-    tag841Length = offsetof(splineSegment_t, length)
-};
-typedef char tag841ScalarLayout[(MAX_SPLINE_SEGMENTS == 16 && sizeof(float) == 4 && sizeof(int) == 4) ? 1 : -1];
-static const float tag841SegmentCount = 16.0f;
-static double (__cdecl *const tag841Floor)(double) = floor;
-static __declspec(naked) void G_TagTruncateST0841(void) {
-    __asm {
-        PUSH EBP
-        MOV EBP,ESP
-        SUB ESP,12
-        FWAIT
-        FNSTCW word ptr [EBP-2]
-        FWAIT
-        MOV AX,word ptr [EBP-2]
-        OR AH,0ch
-        MOV word ptr [EBP-4],AX
-        FLDCW word ptr [EBP-4]
-        FISTP qword ptr [EBP-12]
-        FLDCW word ptr [EBP-2]
-        MOV EAX,dword ptr [EBP-12]
-        MOV EDX,dword ptr [EBP-8]
-        LEAVE
-        RET
-    }
-}
-static __declspec(naked) void G_TagPathPoint841(gentity_t *ent, vec3_t point) {
-    __asm {
-        PUSH EBP
-        MOV EBP,ESP
-        SUB ESP,4
-        PUSH ESI
-        PUSH EDI
-        MOV ESI,dword ptr [EBP+8]
-        MOV EDI,dword ptr [EBP+12]
-        FLD dword ptr [ESI+tag840Delta]
-        FMUL dword ptr [tag841SegmentCount]
-        SUB ESP,8
-        FSTP qword ptr [ESP]
-        CALL dword ptr [tag841Floor]
-        ADD ESP,8
-        CALL G_TagTruncateST0841
-        MOV dword ptr [EBP-4],EAX
-        CMP EAX,16
-        JL tag841_fraction
-        MOV EAX,15
-        IMUL ECX,EAX,tag841Stride
-        MOV EDX,dword ptr [ESI+tag841Spline]
-        LEA ECX,[EDX+ECX+tag841Segments]
-        FLD dword ptr [ECX+tag841Length]
-        JMP tag841_point
-    tag841_fraction:
-        FLD dword ptr [ESI+tag840Delta]
-        FMUL dword ptr [tag841SegmentCount]
-        FISUB dword ptr [EBP-4]
-        IMUL ECX,EAX,tag841Stride
-        MOV EDX,dword ptr [ESI+tag841Spline]
-        LEA ECX,[EDX+ECX+tag841Segments]
-        FMUL dword ptr [ECX+tag841Length]
-    tag841_point:
-        FLD ST(0)
-        FMUL dword ptr [ECX+tag841Normal]
-        FADD dword ptr [ECX+tag841Start]
-        FSTP dword ptr [EDI]
-        FLD ST(0)
-        FMUL dword ptr [ECX+tag841Normal+4]
-        FADD dword ptr [ECX+tag841Start+4]
-        FSTP dword ptr [EDI+4]
-        FMUL dword ptr [ECX+tag841Normal+8]
-        FADD dword ptr [ECX+tag841Start+8]
-        FSTP dword ptr [EDI+8]
-        POP EDI
-        POP ESI
-        LEAVE
-        RET
-    }
-}
-#endif
+static long double G_TagPathFraction(gentity_t *ent, const gentity_t *parent) {
+    long double fraction;
+    unsigned elapsedBits;
+    int elapsed;
 
-void G_TagLinkEntity( gentity_t* ent, int msec ) {
-	gentity_t* parent = &g_entities[ent->s.torsoAnim];
-	vec3_t move, amove;
-	gentity_t* obstacle;
-	vec3_t origin, angles;
-	vec3_t v;
-
-	if( ent->linkTagTime >= level.time ) {
-		return;
-	}
-
-	G_RunEntity( parent, msec );
-
-	/* Original TC20063db0 and Linux000c2e22 leave angles uninitialized
-	 * when the follower offset is zero (they clear origin instead).
-	 * Define only that unsafe result: preserve current orientation.
-	 * This is an explicit safety repair, not original zero-offset parity. */
-	VectorCopy( ent->r.currentAngles, angles );
-
-	if (!(parent->s.eFlags & EF_PATH_LINK)) {
-		if( (int)parent->s.pos.trType == 16 ) {
-#if !defined(GAMEDLL) || !defined(_MSC_VER) || !defined(_M_IX86)
-			int pos;
-			float frac;
-#endif
-
-			if((ent->backspline = BG_GetSplineData( parent->s.effect2Time, &ent->back )) == NULL) {
-				return;
-			}
-
-#if defined(GAMEDLL) && defined(_MSC_VER) && defined(_M_IX86)
-			G_TagPathFraction840(ent, parent);
+    /* Original SUB wraps at 32 bits before the signed integer is converted. */
+    elapsedBits = (unsigned)level.time - (unsigned)parent->s.pos.trTime;
+    memcpy(&elapsed, &elapsedBits, sizeof(elapsed));
+    if (parent->s.pos.trDuration) {
+#if defined(_WIN32)
+        fraction = (long double)elapsed / parent->s.pos.trDuration;
 #else
-			ent->backdelta = parent->s.pos.trDuration ? (level.time - parent->s.pos.trTime) / ((float)parent->s.pos.trDuration) : 0;
-
-			if(ent->backdelta < 0.f) {
-				ent->backdelta = 0.f;
-			} else if(ent->backdelta > 1.f) {
-				ent->backdelta = 1.f;
-			}
-
-			if(ent->back) {
-				ent->backdelta = 1 - ent->backdelta;
-			}
+        fraction = (1.0L / parent->s.pos.trDuration) * elapsed;
 #endif
+    } else {
+        fraction = 0.0L;
+    }
 
-#if defined(GAMEDLL) && defined(_MSC_VER) && defined(_M_IX86)
-			G_TagPathPoint841(ent, v);
+    ent->backdelta = (float)fraction;
+    if (!(fraction >= 0.0L)) {
+        ent->backdelta = 0.0f;
+#if defined(_WIN32)
+    } else if (fraction > 1.0L) {
 #else
-			pos = floor(ent->backdelta * (MAX_SPLINE_SEGMENTS));
-			if(pos >= MAX_SPLINE_SEGMENTS) {
-				pos = MAX_SPLINE_SEGMENTS - 1;
-				frac = ent->backspline->segments[pos].length;
-			} else {
-				frac = ((ent->backdelta * (MAX_SPLINE_SEGMENTS)) - pos) * ent->backspline->segments[pos].length;
-			}
-			
-
-			VectorMA( ent->backspline->segments[pos].start, frac, ent->backspline->segments[pos].v_norm, v );
+    } else if (ent->backdelta > 1.0f) {
 #endif
-			if(parent->s.apos.trBase[0]) {
-				BG_LinearPathOrigin2( parent->s.apos.trBase[0], &ent->backspline, &ent->backdelta, v, ent->back );
-			}
-
-			VectorCopy( v, origin );
-			
-			if(ent->s.angles2[0]) {
-				BG_LinearPathOrigin2( ent->s.angles2[0], &ent->backspline, &ent->backdelta, v, ent->back );
-			}
-
-			VectorCopy( v, ent->backorigin );
-
-			if(	ent->s.angles2[0] < 0 ) {
-				VectorSubtract( v, origin, v );
-				vectoangles( v, angles );
-			} else if( ent->s.angles2[0] > 0 ){
-				VectorSubtract( origin, v, v );
-				vectoangles( v, angles );
-			} else {
-				VectorCopy( vec3_origin, origin );
-			}
-
-			ent->moving = qtrue;
-		} else {
-			ent->moving = qfalse;
-		}
-	} else {
-		if(parent->moving) {
-			VectorCopy( parent->backorigin, v );
-
-			ent->back =			parent->back;
-			ent->backdelta =	parent->backdelta;
-			ent->backspline =	parent->backspline;
-
-			VectorCopy( v, origin );
-			
-			if(ent->s.angles2[0]) {
-				BG_LinearPathOrigin2( ent->s.angles2[0], &ent->backspline, &ent->backdelta, v, ent->back );
-			}
-
-			VectorCopy( v, ent->backorigin );
-
-			if(	ent->s.angles2[0] < 0 ) {
-				VectorSubtract( v, origin, v );
-				vectoangles( v, angles );				
-			} else if( ent->s.angles2[0] > 0 ){
-				VectorSubtract( origin, v, v );
-				vectoangles( v, angles );
-			} else {
-				VectorCopy( vec3_origin, origin );
-			}
-
-			ent->moving = qtrue;
-		} else {
-			ent->moving = qfalse;
-		}
-	}
-
-	if( ent->moving ) {
-		VectorSubtract( origin, ent->r.currentOrigin, move );
-		VectorSubtract( angles, ent->r.currentAngles, amove );
-
-		if(!G_MoverPush( ent, move, amove, &obstacle )) {
-			script_mover_blocked( ent, obstacle );
-		}
-
-		VectorCopy( origin, ent->s.pos.trBase );
-		VectorCopy( angles, ent->s.apos.trBase );
-	} else {
-		memset( &ent->s.pos, 0, sizeof( ent->s.pos ) );
-		memset( &ent->s.apos, 0, sizeof( ent->s.apos ) );
-
-		VectorCopy( ent->r.currentOrigin, ent->s.pos.trBase );
-		VectorCopy( ent->r.currentAngles, ent->s.apos.trBase );
-	}
-
-	ent->linkTagTime = level.time;
+        ent->backdelta = 1.0f;
+    }
+    fraction = ent->backdelta;
+    if (ent->back) {
+        fraction = 1.0L - fraction;
+        ent->backdelta = (float)fraction;
+    }
+#if defined(_WIN32)
+    /* Windows samples the published float; Linux retains the reversed value. */
+    return ent->backdelta;
+#else
+    return fraction;
+#endif
 }
+
+static void G_TagPathPoint(gentity_t *ent, long double fraction, vec3_t point) {
+    const splineSegment_t *segment;
+    long double position = fraction * MAX_SPLINE_SEGMENTS;
+    long double distance;
+    int index, axis;
+
+    /* Fraction is clamped from finite integer clock/duration inputs, so the
+     * floor result lies in [0, MAX_SPLINE_SEGMENTS] before conversion to int. */
+#if defined(_WIN32)
+    index = (int)floor((double)position);
+#else
+    index = (int)floorl(position);
+#endif
+    if (index >= MAX_SPLINE_SEGMENTS) {
+        index = MAX_SPLINE_SEGMENTS - 1;
+        distance = ent->backspline->segments[index].length;
+    } else {
+        distance = (position - index) * ent->backspline->segments[index].length;
+    }
+    segment = &ent->backspline->segments[index];
+    for (axis = 0; axis < 3; ++axis) {
+        point[axis] = (float)(distance * segment->v_norm[axis] + segment->start[axis]);
+    }
+}
+
+static void G_TagFollowPoint(gentity_t *ent, vec3_t point, vec3_t origin, vec3_t angles) {
+    float offset;
+    int axis;
+
+    memcpy(origin, point, sizeof(vec3_t));
+    offset = ent->s.angles2[0];
+    /* Both native offset-call gates exclude unordered values. */
+    if (offset < 0.0f || offset > 0.0f) {
+        BG_LinearPathOrigin2(offset, &ent->backspline, &ent->backdelta, point, ent->back);
+    }
+    memcpy(ent->backorigin, point, sizeof(vec3_t));
+
+    /* Reload after the callback; the facing gate includes unordered values. */
+    offset = ent->s.angles2[0];
+    if (!(offset >= 0.0f)) {
+        for (axis = 0; axis < 3; ++axis) {
+            point[axis] = (float)((long double)point[axis] - origin[axis]);
+        }
+        vectoangles(point, angles);
+    } else if (offset > 0.0f) {
+        for (axis = 0; axis < 3; ++axis) {
+            point[axis] = (float)((long double)origin[axis] - point[axis]);
+        }
+        vectoangles(point, angles);
+    } else {
+        memcpy(origin, vec3_origin, sizeof(vec3_t));
+    }
+    ent->moving = qtrue;
+}
+
+static void G_TagPublishMove(gentity_t *ent, const vec3_t origin, const vec3_t angles) {
+    vec3_t move, amove;
+    gentity_t *obstacle;
+    int axis;
+
+    if (ent->moving) {
+        for (axis = 0; axis < 3; ++axis) {
+            move[axis] = (float)((long double)origin[axis] - ent->r.currentOrigin[axis]);
+        }
+        for (axis = 0; axis < 3; ++axis) {
+            amove[axis] = (float)((long double)angles[axis] - ent->r.currentAngles[axis]);
+        }
+        if (!G_MoverPush(ent, move, amove, &obstacle)) {
+            script_mover_blocked(ent, obstacle);
+        }
+        /* The original publishes the requested bases even after a blocked push. */
+        memcpy(ent->s.pos.trBase, origin, sizeof(vec3_t));
+        memcpy(ent->s.apos.trBase, angles, sizeof(vec3_t));
+    } else {
+        memset(&ent->s.pos, 0, sizeof(ent->s.pos));
+        memset(&ent->s.apos, 0, sizeof(ent->s.apos));
+        memcpy(ent->s.pos.trBase, ent->r.currentOrigin, sizeof(vec3_t));
+        memcpy(ent->s.apos.trBase, ent->r.currentAngles, sizeof(vec3_t));
+    }
+    ent->linkTagTime = level.time;
+}
+
+void G_TagLinkEntity(gentity_t *ent, int msec) {
+    gentity_t *parent = &g_entities[ent->s.torsoAnim];
+    vec3_t origin, angles, point;
+    float parentOffset;
+
+    if (ent->linkTagTime >= level.time) {
+        return;
+    }
+    G_RunEntity(parent, msec);
+
+    /* Both TC originals leave angles undefined for a zero follower offset
+     * (they clear origin instead). Preserve the existing explicit safety
+     * repair: retain current orientation, without claiming native parity. */
+    memcpy(angles, ent->r.currentAngles, sizeof(vec3_t));
+
+    if (!(parent->s.eFlags & EF_PATH_LINK)) {
+        if ((int)parent->s.pos.trType == TCE_TAG_LINEAR_PATH) {
+            ent->backspline = BG_GetSplineData(parent->s.effect2Time, &ent->back);
+            if (!ent->backspline) {
+                return;
+            }
+            G_TagPathPoint(ent, G_TagPathFraction(ent, parent), point);
+            parentOffset = parent->s.apos.trBase[0];
+            if (parentOffset < 0.0f || parentOffset > 0.0f) {
+                BG_LinearPathOrigin2(parentOffset, &ent->backspline, &ent->backdelta, point, ent->back);
+            }
+            G_TagFollowPoint(ent, point, origin, angles);
+        } else {
+            ent->moving = qfalse;
+        }
+    } else if (parent->moving) {
+        memcpy(point, parent->backorigin, sizeof(vec3_t));
+        ent->back = parent->back;
+        memcpy(&ent->backdelta, &parent->backdelta, sizeof(ent->backdelta));
+        ent->backspline = parent->backspline;
+        G_TagFollowPoint(ent, point, origin, angles);
+    } else {
+        ent->moving = qfalse;
+    }
+    G_TagPublishMove(ent, origin, angles);
+}
+
 
 void G_RunEntity( gentity_t* ent, int msec ) {
 	int axis;

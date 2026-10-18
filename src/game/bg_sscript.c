@@ -16,9 +16,35 @@ int BG_NumScriptSpeakers( void )
 	return numScriptSpeakers;
 }
 
-int BG_GetIndexForSpeaker( bg_speaker_t *speaker )
-{
-	return speaker - scriptSpeakers;
+int BG_GetIndexForSpeaker(bg_speaker_t *speaker) {
+#if !defined(Q3_VM) && (defined(_M_IX86) || defined(__i386__)) && \
+    (defined(_WIN32) || defined(__linux__))
+    typedef char speakerIndexLayout[(sizeof(bg_speaker_t) == 152 &&
+        sizeof(unsigned) == 4 && sizeof(int) == 4 && sizeof(uintptr_t) == 4) ? 1 : -1];
+    unsigned difference = (unsigned)(uintptr_t)speaker -
+                          (unsigned)(uintptr_t)scriptSpeakers;
+    int signedDifference;
+    memcpy(&signedDifference, &difference, sizeof(signedDifference));
+#if defined(_WIN32)
+    return signedDifference / 152;
+#else
+    /* The Linux pointer-difference optimization first floors by eight,
+     * then divides the remaining exact factor nineteen modulo 2^32.
+     * Keep that result for addresses that are not record boundaries too. */
+    int groups = signedDifference / 8;
+    unsigned indexBits;
+    int index;
+    if (signedDifference < 0 && signedDifference % 8 != 0) {
+        --groups;
+    }
+    /* 19 * 0x286bca1b == 1 modulo 2^32. */
+    indexBits = (unsigned)groups * 0x286bca1bu;
+    memcpy(&index, &indexBits, sizeof(index));
+    return index;
+#endif
+#else
+    return speaker - scriptSpeakers;
+#endif
 }
 
 bg_speaker_t *BG_GetScriptSpeaker( int index )
@@ -30,58 +56,64 @@ bg_speaker_t *BG_GetScriptSpeaker( int index )
 	return &scriptSpeakers[ index ];
 }
 
-qboolean BG_SS_DeleteSpeaker( int index )
-{
-	if( index < 0 || index >= numScriptSpeakers ) {
-		return qfalse;
-	}
+qboolean BG_SS_DeleteSpeaker(int index) {
+    size_t offset, bytes;
+    unsigned char *pool = (unsigned char *)scriptSpeakers;
+    unsigned char *destination;
+    const unsigned char *source;
 
-	memcpy( &scriptSpeakers[ index ], &scriptSpeakers[ index + 1 ], sizeof(bg_speaker_t) * ( numScriptSpeakers - index - 1 ) );
+    if (index < 0 || index >= numScriptSpeakers) {
+        return qfalse;
+    }
 
-	numScriptSpeakers--;
-
-	return qtrue;
+    destination = pool + (size_t)index * sizeof(bg_speaker_t);
+    source = destination + sizeof(bg_speaker_t);
+    bytes = sizeof(bg_speaker_t) * (numScriptSpeakers - index - 1);
+    /* Native copies towards the lower address, a word at a time. Access
+     * through the whole pool's byte representation permits crossing record
+     * boundaries without an overlapping memcpy of the entire tail. */
+    for (offset = 0; offset < bytes; offset += sizeof(unsigned)) {
+        unsigned word;
+        memcpy(&word, source + offset, sizeof(word));
+        memcpy(destination + offset, &word, sizeof(word));
+    }
+    --numScriptSpeakers;
+    return qtrue;
 }
 
-/* TC Windows2003d3d0: increment before the exact 38-dword forward copy. */
+/* The 32-bit original record is 38 words. Keep wider SDK layouts intact. */
 #if defined(_MSC_VER) && defined(_M_IX86)
 typedef char speaker835Layout[(sizeof(bg_speaker_t)==152 && MAX_SCRIPTSPEAKERS==256) ? 1 : -1];
-__declspec(naked) qboolean BG_SS_StoreSpeaker(bg_speaker_t *speaker) {
-    __asm {
-        MOV EAX,[numScriptSpeakers]
-        CMP EAX,0x100
-        JL speaker835Store
-        XOR EAX,EAX
-        RET
-speaker835Store:
-        LEA ECX,[EAX + EAX*8]
-        PUSH ESI
-        MOV ESI,dword ptr [ESP + 8]
-        PUSH EDI
-        LEA EDX,[EAX + ECX*2]
-        INC EAX
-        MOV ECX,0x26
-        MOV [numScriptSpeakers],EAX
-        LEA EDI,[EDX*8 + scriptSpeakers]
-        MOV EAX,1
-        REP MOVSD
-        POP EDI
-        POP ESI
-        RET
-    }
-}
-#else
-qboolean BG_SS_StoreSpeaker( bg_speaker_t *speaker )
-{
-	if( numScriptSpeakers >= MAX_SCRIPTSPEAKERS ) {
-		return qfalse;
-	}
-
-	memcpy( &scriptSpeakers[ numScriptSpeakers++ ], speaker, sizeof(bg_speaker_t) );
-
-	return qtrue;
-}
 #endif
+typedef char speakerCopyWordLayout[(sizeof(unsigned)==4 &&
+    sizeof(bg_speaker_t)%sizeof(unsigned)==0) ? 1 : -1];
+
+qboolean BG_SS_StoreSpeaker(bg_speaker_t *speaker) {
+    bg_speaker_t *destination;
+    size_t offset;
+
+    if (numScriptSpeakers >= MAX_SCRIPTSPEAKERS) {
+        return qfalse;
+    }
+
+    destination = &scriptSpeakers[numScriptSpeakers];
+#if defined(_WIN32) || !defined(__linux__)
+    /* Windows publishes the new count before copying the record. */
+    ++numScriptSpeakers;
+#endif
+    /* One word at a time preserves the native forward-copy order even when
+     * source and destination overlap. A whole-record memcpy would not. */
+    for (offset = 0; offset < sizeof(*speaker); offset += sizeof(unsigned)) {
+        unsigned word;
+        memcpy(&word, (const unsigned char *)speaker + offset, sizeof(word));
+        memcpy((unsigned char *)destination + offset, &word, sizeof(word));
+    }
+#if defined(__linux__) && !defined(_WIN32)
+    /* Linux REP MOVSD completes before the pool count is incremented. */
+    ++numScriptSpeakers;
+#endif
+    return qtrue;
+}
 
 static qboolean BG_SS_ParseError( int handle, char *format, ... )
 {

@@ -1,12 +1,10 @@
 /* Windows cgame:3002de20 and3002dee0; original-compatible SDK helpers. */
 #include "cg_local.h"
 
-/* Original x87 keeps each dot product precise until the final float store. */
+/* The native tag transforms use the shared matrix provider. */
 static void TCE_TagMatrixMultiply(const vec3_t a[3], const vec3_t b[3], vec3_t out[3]) {
-    int i, j;
-    for (i = 0; i < 3; ++i) for (j = 0; j < 3; ++j)
-        out[i][j] = (float)((double)a[i][0] * b[0][j] +
-            (double)a[i][1] * b[1][j] + (double)a[i][2] * b[2][j]);
+    /* MatrixMultiply retains its SDK signature but only reads its inputs. */
+    MatrixMultiply((float (*)[3])a, (float (*)[3])b, out);
 }
 static void TCE_TagOriginStep(vec3_t origin, float distance, const vec3_t axis) {
     int i;

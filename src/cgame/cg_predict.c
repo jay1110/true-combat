@@ -6,6 +6,9 @@
 // It also handles local physics interaction, like fragments bouncing off walls
 
 #include "cg_local.h"
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+#include "../game/tce_numeric.h"
+#endif
 
 /*static*/	pmove_t		cg_pmove;
 
@@ -351,8 +354,34 @@ Generates cg.predictedPlayerState by interpolating between
 cg.snap->player_state and cg.nextFrame->player_state
 ========================
 */
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+/* Snapshot times/cycles use wrapping signed32 differences in the originals. */
+static int CG_InterpolationDifference(int value, int previous) {
+    unsigned bits = (unsigned)value - (unsigned)previous;
+    int result;
+    memcpy(&result, &bits, sizeof(result));
+    return result;
+}
+
+static float CG_InterpolateSnapshotValue(float from, float to, long double factor) {
+    long double difference, product;
+#if defined(_WIN32)
+    difference = (long double)to - (long double)from;
+    product = difference * factor;
+    return (float)(product + (long double)from);
+#else
+    long double start = (long double)from;
+    difference = (long double)to - start;
+    product = difference * factor;
+    return (float)(start + product);
+#endif
+}
+#endif
+
 static void CG_InterpolatePlayerState( qboolean grabAngles ) {
+#if !((defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM))
 	float			f;
+#endif
 	int				i;
 	playerState_t	*out;
 	snapshot_t		*prev, *next;
@@ -388,6 +417,45 @@ static void CG_InterpolatePlayerState( qboolean grabAngles ) {
 		return;
 	}
 
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+    {
+        int duration = CG_InterpolationDifference(next->serverTime, prev->serverTime);
+        int elapsed = CG_InterpolationDifference(cg.time, prev->serverTime);
+        int cycleDifference;
+        long double factor, cycleProduct;
+        volatile float storedFactor;
+#if defined(_WIN32)
+        storedFactor = (float)((long double)elapsed / (long double)duration);
+        factor = (long double)storedFactor;
+#else
+        long double reciprocal = 1.0L / (long double)duration;
+        factor = (long double)elapsed * reciprocal;
+#endif
+
+        i = next->ps.bobCycle;
+        if (i < prev->ps.bobCycle)
+            i = CG_InterpolationDifference(i, -256);
+        cycleDifference = CG_InterpolationDifference(i, prev->ps.bobCycle);
+        cycleProduct = (long double)cycleDifference * factor;
+#if defined(_WIN32)
+        out->bobCycle = TCE_TruncateNativeInteger(cycleProduct + (long double)prev->ps.bobCycle);
+#else
+        out->bobCycle = TCE_TruncateNativeInteger((long double)prev->ps.bobCycle + cycleProduct);
+#endif
+
+        for (i = 0; i < 3; ++i) {
+            out->origin[i] = CG_InterpolateSnapshotValue(prev->ps.origin[i], next->ps.origin[i], factor);
+            if (!grabAngles) {
+                /* Linux retains the wide factor through the first position,
+                 * then spills/reloads it around each angle call. */
+                storedFactor = (float)factor;
+                out->viewangles[i] = LerpAngle(prev->ps.viewangles[i], next->ps.viewangles[i], storedFactor);
+                factor = (long double)storedFactor;
+            }
+            out->velocity[i] = CG_InterpolateSnapshotValue(prev->ps.velocity[i], next->ps.velocity[i], factor);
+        }
+    }
+#else
 	f = (float)( cg.time - prev->serverTime ) / ( next->serverTime - prev->serverTime );
 
 	i = next->ps.bobCycle;
@@ -406,6 +474,7 @@ static void CG_InterpolatePlayerState( qboolean grabAngles ) {
 			f * (next->ps.velocity[i] - prev->ps.velocity[i] );
 	}
 
+#endif
 }
 
 /*

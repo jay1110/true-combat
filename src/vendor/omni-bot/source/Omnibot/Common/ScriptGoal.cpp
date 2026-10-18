@@ -292,6 +292,7 @@ namespace AiState
 
 	void ScriptGoal::OnPathSucceeded()
 	{
+		FollowPathUser::OnPathSucceeded();
 		gmMachine *pMachine = ScriptManager::GetInstance()->GetMachine();
 		if(GetSourceThread() == GM_INVALID_THREAD)
 		{
@@ -307,6 +308,17 @@ namespace AiState
 
 	void ScriptGoal::OnPathFailed(FollowPathUser::FailType _how)
 	{
+		FollowPathUser::OnPathFailed(_how);
+		m_PathFailureDetails.time = IGame::GetTime();
+		m_PathFailureDetails.position = GetClient()->GetPosition();
+		m_PathFailureDetails.target = m_PathFailureDetails.position;
+		m_PathFailureDetails.waypoint = 0;
+		Path::PathPoint point;
+		if(GetClient()->GetFollowPath()->GetCurrentPath().GetCurrentPt(point))
+		{
+			m_PathFailureDetails.target = point.m_Pt;
+			m_PathFailureDetails.waypoint = point.m_NavId;
+		}
 		gmMachine *pMachine = ScriptManager::GetInstance()->GetMachine();
 		if(GetSourceThread() == GM_INVALID_THREAD)
 		{

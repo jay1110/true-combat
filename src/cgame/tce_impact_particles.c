@@ -7,18 +7,21 @@
 /* Original __ftol contract, including deeper ST registers used by gravity. */
 static __declspec(naked) int impactTruncateST0(void) {
     __asm {
-        sub esp, 12
-        fstcw word ptr [esp+8]
+        push ebp
+        mov ebp, esp
+        add esp, -12
         fwait
-        mov ax, word ptr [esp+8]
+        fnstcw word ptr [ebp-2]
+        fwait
+        mov ax, word ptr [ebp-2]
         or ah, 0ch
-        mov word ptr [esp+10], ax
-        fldcw word ptr [esp+10]
-        fistp qword ptr [esp]
-        fldcw word ptr [esp+8]
-        mov eax, dword ptr [esp]
-        mov edx, dword ptr [esp+4]
-        add esp, 12
+        mov word ptr [ebp-4], ax
+        fldcw word ptr [ebp-4]
+        fistp qword ptr [ebp-12]
+        fldcw word ptr [ebp-2]
+        mov eax, dword ptr [ebp-12]
+        mov edx, dword ptr [ebp-8]
+        leave
         ret
     }
 }

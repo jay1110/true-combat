@@ -1,0 +1,315 @@
+// This script contains functionality to jump or kill stucked bot
+if(TCE2TrafficShared == null)
+{ global TCE2TrafficShared = {yields={}}; }
+if(TCE2TrafficShared.recoveries == null) { TCE2TrafficShared.recoveries = {}; }
+if(TCE2TrafficShared.encounters == null) { TCE2TrafficShared.encounters = {}; }
+this.Name = "CheckStuck";
+this.Parent = "LowLevel";
+this.AutoAdd = true;
+this.KillWhenStuck = true;
+this.LogStuckage = true;
+this.Interval = 0.6;
+this.KillTime = 30.0; // terminal immobility after bounded recovery attempts
+this.TargetTimeout = 10; // time to destroy breakables or kill enemies
+this.SidestepTimeout = 3; // time to strafe left to sidestep another player
+this.JumpLimit = 1;
+this.Debug = false;
+
+// TCE traffic repair: a temporary teammate queue is not broken map navigation.
+// Never climb over a teammate or blindly strafe toward a wall. Trace the actual
+// engine-reported body and supporting floor before choosing a short sidestep.
+this.TrafficStepClear = function(destination)
+{
+    ent = this.Bot.GetGameEntity();
+    // This decoder is only valid for our own living, grounded player hull.
+    // Never apply the player offsets to a mover, corpse or ladder traversal.
+    if (this.Bot.HasAnyEntityFlag(ENTFLAG.DEAD, ENTFLAG.LIMBO, ENTFLAG.ON_LADDER) ||
+        !GetEntFlags(ent, ENTFLAG.ON_GROUND)) { return false; }
+    origin = this.Bot.GetPosition();
+    worldBox = GetEntWorldAABB(ent, null);
+    if (!worldBox) { return false; }
+    // AABB Mins/Maxs property getters in this Omni revision incorrectly push
+    // onto the VM stack instead of assigning the property result operand.
+    // Use the tested method bindings, which return ordinary vector/float values.
+    // GetEntityWorldAABB in g_etbot_interface.cpp returns SV_LinkEntity's
+    // broadphase bounds (one unit larger on every side), then raises both
+    // player Z bounds by two units. Undo that exact API contract before the
+    // sweep; tracing the padded box starts solid at legal wall/player contact
+    // and incorrectly rejects even safe steps away from the obstruction.
+    center = worldBox.CenterPoint() - origin - Vec3(0, 0, 2);
+    half = Vec3(worldBox.GetAxisLength("x"), worldBox.GetAxisLength("y"),
+        worldBox.GetAxisLength("z")) * 0.5 - Vec3(1, 1, 1);
+    if (half.x <= 0 || half.y <= 0 || half.z <= 0) { return false; }
+    mins = center - half;
+    maxs = center + half;
+    body = AABB(mins, maxs);
+    mask = TRACE.SOLID | TRACE.PLAYERCLIP | TRACE.PLAYER | TRACE.NAVCAPSULE;
+    sweep = TraceLine(origin, destination, body, mask, ent, false);
+    if (sweep.startsolid || sweep.fraction < 1.0) { return false; }
+    feet = AABB(Vec3(mins.x, mins.y, 0), Vec3(maxs.x, maxs.y, 0.25));
+    for (step = 1; step <= 8; step += 1)
+    {
+        sample = origin + (destination - origin) * (step / 8.0);
+        // Native Vec3 dot assignment is not supported by this GM build.
+        sample = sample + Vec3(0, 0, mins.z + 0.25);
+        ground = TraceLine(sample + Vec3(0,0,18), sample - Vec3(0,0,18.5), feet,
+            TRACE.SOLID | TRACE.PLAYERCLIP, ent, false);
+        if (ground.startsolid || ground.fraction >= 1.0 || ground.normal.z < 0.7) { return false; }
+        if (GetPointContents(ground.end + Vec3(0,0,1)) &
+            (CONTENT.WATER | CONTENT.SLIME | CONTENT.LAVA | CONTENT.MOVER | CONTENT.TRIGGER)) { return false; }
+    }
+    return true;
+};
+
+// A nearby teammate behind us is not proof that traffic blocks this path.
+// Trace the requested motion with our real capsule and require an actual ally
+// hit before granting any pause of the native path-stuck timer.
+this.TrafficBlocker = function(path)
+{
+    if(!path.active || path.climb || path.movement.Length() < 0.1 ||
+        this.Bot.HasAnyEntityFlag(ENTFLAG.DEAD, ENTFLAG.LIMBO, ENTFLAG.ON_LADDER) ||
+        !this.Bot.HasEntityFlag(ENTFLAG.ON_GROUND)) { return null; }
+    origin = this.Bot.GetPosition(); ent = this.Bot.GetGameEntity();
+    box = GetEntWorldAABB(ent, null); if(!box) { return null; }
+    center = box.CenterPoint()-origin-Vec3(0,0,2);
+    half = Vec3(box.GetAxisLength("x"),box.GetAxisLength("y"),box.GetAxisLength("z"))*0.5-Vec3(1,1,1);
+    if(half.x <= 0 || half.y <= 0 || half.z <= 0) { return null; }
+    direction = Vec3(path.movement.x,path.movement.y,0);
+    if(direction.Length() < 0.1) { return null; }
+    tr = TraceLine(origin,origin+direction.Normalize()*48,AABB(center-half,center+half),
+        TRACE.SOLID | TRACE.PLAYERCLIP | TRACE.PLAYER | TRACE.NAVCAPSULE,ent,false);
+    if(tr.fraction >= 1 || !tr.entity || GetEntTeam(tr.entity) != this.Bot.GetTeam() ||
+        GetEntFlags(tr.entity,ENTFLAG.DEAD) || GetEntFlags(tr.entity,ENTFLAG.LIMBO) ||
+        GetEntFlags(tr.entity,ENTFLAG.ON_LADDER)) { return null; }
+    return tr.entity;
+};
+
+this.TrafficYield = function(other)
+{
+    ent = this.Bot.GetGameEntity();
+    ownId = this.Bot.GetGameId();
+    otherId = GetGameIdFromEntity(other);
+    this.Bot.ReleaseButton(BTN.JUMP, BTN.STRAFE_L, BTN.STRAFE_R);
+    // Keep one ordering throughout a contact episode. A wall-clock flip used
+    // to make the same two bots repeatedly swap which one backed into a door.
+    lowId = ownId; highId = otherId; lowEnt = ent; highEnt = other;
+    if(ownId > otherId) { lowId=otherId; highId=ownId; lowEnt=other; highEnt=ent; }
+    key = lowId*1024+highId;
+    now = GetTime(); encounter = TCE2TrafficShared.encounters[key];
+    if(!encounter || encounter.low != lowEnt || encounter.high != highEnt ||
+        encounter.map != GetMapName() || now < encounter.started || now > encounter.expires)
+    {
+        encounter = {low=lowEnt, high=highEnt, map=GetMapName(), started=now,
+            deadline=now+4.0, expires=now+8.0};
+        TCE2TrafficShared.encounters[key] = encounter;
+    }
+    if(now >= encounter.deadline)
+    {
+        // The short queue budget is exhausted. Let the owner abandon/replan
+        // visibly instead of hiding an endless wait as successful progress.
+        TCE2TrafficShared.yields[ownId] = {entity=ent, map=GetMapName(),
+            kind="blocked_traffic", started=now, expires=now+0.5};
+        this.Stop();
+        this.Bot.MoveTowards(this.Bot.GetPosition(),4);
+        if(GetCvar("omnibot_tce_explore_debug") != 0)
+        { print("TCE2TRAFFIC BLOCKED",ownId,otherId,"seconds",now-encounter.started); }
+        return;
+    }
+    if(ownId == lowId)
+    {
+        // Called only after TrafficBlocker proved an ally obstructs this
+        // command; the unextended encounter deadline bounds this pause.
+        this.Bot.ResetStuckTime();
+        return;
+    }
+    origin = this.Bot.GetPosition();
+    delta = GetEntPosition(other) - origin;
+    flat = Vec3(delta.x, delta.y, 0);
+    if (flat.Length() < 0.01) { flat = GetEntFacing(ent); }
+    flat = Vec3(flat.x, flat.y, 0).Normalize();
+    side = Vec3(-flat.y, flat.x, 0);
+    if ((ownId % 2) != 0) { side = -side; }
+    // MoveTowards stops within 4u. A fixed 32u sidestep left two 16u
+    // players only 28u apart, so the yielding body still blocked the lane.
+    // Project BOTH actual bodies onto the side direction, retaining the
+    // API's one-unit broadphase padding correction and PMove separation.
+    ownBox = GetEntWorldAABB(ent, null); otherBox = GetEntWorldAABB(other, null);
+    yieldDistance = 0;
+    if(ownBox && otherBox)
+    {
+        sideX = side.x; if(sideX < 0) { sideX = -sideX; }
+        sideY = side.y; if(sideY < 0) { sideY = -sideY; }
+        widthX = (ownBox.GetAxisLength("x") + otherBox.GetAxisLength("x"))*0.5-2;
+        widthY = (ownBox.GetAxisLength("y") + otherBox.GetAxisLength("y"))*0.5-2;
+        if(widthX > 0 && widthY > 0)
+        { yieldDistance = widthX*sideX + widthY*sideY + 4.25; }
+    }
+    target = origin;
+    for (choice = 0; yieldDistance > 0 && choice < 3; choice += 1)
+    {
+        offset = side * yieldDistance;
+        if (choice == 1) { offset = -offset; }
+        if (choice == 2) { offset = -flat * 48; }
+        candidate = origin + offset;
+        if (this.TrafficStepClear(candidate)) { target = candidate; break; }
+    }
+    // No safe lateral route means a bounded stationary yield, not a blind
+    // movement button. Interrupt the old path so its owner can request a new
+    // route afterwards. Recheck every short movement interval.
+    yieldEndTime = GetTime() + 0.35;
+    if (GetCvar("omnibot_tce_explore_debug") != 0)
+    { print("TCE2TRAFFIC YIELD", ownId, otherId, (target-origin).Length()); }
+    while (GetTime() < yieldEndTime)
+    {
+        this.Bot.ReleaseButton(BTN.JUMP, BTN.STRAFE_L, BTN.STRAFE_R);
+        // Stop() reports PATH_FAILED even for this deliberate interruption.
+        // Entity serial, map and short lifetime prevent stale slot attribution.
+        TCE2TrafficShared.yields[ownId] = {entity=ent, map=GetMapName(),
+            started=GetTime(), expires=GetTime()+0.5};
+        this.Stop();
+        if ((target-origin).Length() > 1 && !this.TrafficStepClear(target)) { target = this.Bot.GetPosition(); }
+        this.Bot.MoveTowards(target, 4);
+        this.Bot.ResetStuckTime();
+        sleep(0.05);
+    }
+};
+
+// Move to a nearby hull- and floor-checked point before abandoning a route.
+// Every movement interval is rechecked against players and changing solids.
+this.Recover = function(path)
+{
+    origin = this.Bot.GetPosition();
+    flat = path.target-origin;
+    flat = Vec3(flat.x, flat.y, 0);
+    if(flat.Length() < 0.01) { flat = this.Bot.GetFacing(); }
+    flat = Vec3(flat.x,flat.y,0).Normalize();
+    side = Vec3(-flat.y,flat.x,0);
+    if((this.Bot.GetGameId()%2) != 0) { side = -side; }
+    offsets = {}; offsets[0] = -flat*48; offsets[1] = side*32;
+    offsets[2] = -side*32; offsets[3] = (side-flat).Normalize()*48;
+    offsets[4] = (-side-flat).Normalize()*48;
+    target = null;
+    foreach(offset in offsets)
+    {
+        candidate = origin+offset;
+        if(this.TrafficStepClear(candidate)) { target = candidate; break; }
+    }
+    if(!target) { return false; }
+    endTime = GetTime()+1.0;
+    while(GetTime() < endTime && (this.Bot.GetPosition()-target).Length() > 5)
+    {
+        if(this.Bot.HasTarget() || !this.TrafficStepClear(target)) { break; }
+        TCE2TrafficShared.yields[this.Bot.GetGameId()] =
+            {entity=this.Bot.GetGameEntity(), map=GetMapName(), kind="recovery",
+             started=GetTime(), expires=GetTime()+0.5};
+        this.Stop();
+        this.Bot.ReleaseButton(BTN.JUMP, BTN.STRAFE_L, BTN.STRAFE_R);
+        this.Bot.MoveTowards(target, 4);
+        this.Bot.ResetStuckTime();
+        sleep(0.05);
+    }
+    distance = (this.Bot.GetPosition()-origin).Length();
+    if(GetCvar("omnibot_tce_explore_debug") != 0)
+    { print("TCE2STUCK RECOVERY", this.Bot.GetGameId(), "moved", distance,
+        "from", origin, "to", target, "waypoint", path.waypoint); }
+    return distance >= 12;
+};
+
+this.GetPriority = function()
+{
+    anchor = this.Bot.GetPosition();
+    lastProgress = GetTime(); nextRecovery = lastProgress+5;
+    attempts = 0; jumpAttempts = 0; lastClock = lastProgress;
+    while(1)
+    {
+        now = GetTime();
+        path = {}; this.Bot.GetPathState(path);
+        request = TCE2TrafficShared.recoveries[this.Bot.GetGameId()];
+        if(request && !request.done && request.entity == this.Bot.GetGameEntity() &&
+            request.map == GetMapName() && request.expires > now && path.playing &&
+            !this.Bot.HasTarget() && !this.Bot.HasAnyEntityFlag(ENTFLAG.DEAD, ENTFLAG.LIMBO, ENTFLAG.ON_LADDER))
+        {
+            // FollowPath has already stopped after a classified blockage.
+            // Recover once here; the owning goal alone decides whether to retry.
+            request.moved = this.Recover(request);
+            request.done = true;
+            now = GetTime();
+        }
+        pos = this.Bot.GetPosition();
+        delta = pos-anchor;
+        moved = Vec3(delta.x,delta.y,0).Length() >= 16;
+        if(path.climb && (delta.z >= 8 || delta.z <= -8)) { moved = true; }
+        // A paused match, inactive path, combat hold, spawn and death end the
+        // episode. Old micro-stalls must not survive a later goal or a round.
+        reset = this.JustSpawned || now < lastClock || !path.playing || !path.active ||
+            this.Bot.HasAnyEntityFlag(ENTFLAG.DEAD, ENTFLAG.LIMBO) || this.Bot.HasTarget() ||
+            path.movement.Length() < 0.1;
+        lastClock = now;
+        if(reset || moved)
+        {
+            anchor = pos; lastProgress = now; nextRecovery = now+5;
+            attempts = 0; jumpAttempts = 0;
+            this.Bot.ResetStuckTime();
+            if(this.JustSpawned) { this.JustSpawned = false; sleep(1.2); }
+        }
+        else if(this.Bot.IsStuck(this.Interval))
+        {
+            blocker = this.TrafficBlocker(path);
+            if(blocker)
+            {
+                this.TrafficYield(blocker);
+                // Teammate queues get safe yields, not a delayed suicide after
+                // the other player finally moves away.
+                anchor = this.Bot.GetPosition(); lastProgress = GetTime();
+                nextRecovery = lastProgress+5; attempts = 0;
+            }
+            else if(now >= nextRecovery && attempts < 3 && !path.climb)
+            {
+                attempts += 1;
+                if(this.Recover(path))
+                { anchor = this.Bot.GetPosition(); lastProgress = GetTime(); attempts = 0; }
+                nextRecovery = GetTime()+5;
+            }
+            else if(now-lastProgress >= this.KillTime && attempts >= 3)
+            {
+                // Terminal geometry stall only: continuous requested motion,
+                // no combat/teammate queue and three unsuccessful safe escapes.
+                print("TCE2STUCK TERMINAL", this.Bot.GetGameId(), "seconds", now-lastProgress,
+                    "position", pos, "waypoint", path.waypoint, "target", path.target);
+                if(this.LogStuckage) { this.StuckageLog(pos); }
+                if(this.KillWhenStuck) { this.Bot.ExecCommand("kill"); }
+                anchor = pos; lastProgress = GetTime(); nextRecovery = lastProgress+5; attempts = 0;
+            }
+            else if(jumpAttempts < this.JumpLimit && !path.climb && !path.crouch)
+            {
+                this.Bot.PressButton(BTN.JUMP); jumpAttempts += 1;
+            }
+        }
+        sleep(this.Interval);
+    }
+};
+
+this.OnSpawn = function()
+{
+	this.JustSpawned = true;
+};
+
+// Note: this will write to ~/omni-bot/et/user. the file will need to be copied to ~/omni-bot/et/scripts
+this.StuckageLog = function(pos)
+{
+	gmfile = File();
+	fileName = GetMapName() + "_stuckages.gm";
+
+	if ( !System.FileExists(fileName) ) {
+		assert( gmfile.Open( fileName, "text", false ) );
+		head = "global Stuckages = {};";
+		assert( gmfile.Write( head, System.NewLine ) );
+	}
+	else {
+		assert( gmfile.Open( fileName, "text", false, true ) );
+	}
+
+	str = "Stuckages[ tableCount(Stuckages) ] = Vector3("+pos.x +","+pos.y+","+pos.z+");";
+	assert( gmfile.Write( str, System.NewLine ) );
+	gmfile.Close();
+};

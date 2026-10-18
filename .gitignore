@@ -112,3 +112,34 @@
 !/src/assets/gfx/misc/
 !/src/assets/gfx/misc/radar_arrow.tga
 !/src/assets/gfx/misc/radar_dot.tga
+!/src/assets/ui/
+!/src/assets/ui/*.menu
+!/src/assets/ui/menus*.txt
+!/src/cmake/build-omnibot-wasm.ps1
+!/src/cmake/build-wasm.ps1
+
+# Production waypoint generation/validation command-line companion.
+!/src/tools/
+/src/tools/*
+!/src/tools/tce_navgen.py
+# Offline BSP collision and navmesh preview tools (generated data stays in build/).
+!/src/tools/tce_bsp_navmesh.py
+!/src/tools/tce_bsp_patch.py
+!/src/tools/navmesh/
+/src/tools/navmesh/*
+!/src/tools/navmesh/CMakeLists.txt
+!/src/tools/navmesh/preview.cpp
+!/src/tools/navmesh/report.py
+!/src/tools/navmesh/README.md
+!/src/tools/navmesh/waygraph.py
+
+# Local BSP/Recast application: source, launcher and build inputs only.
+!/src/tools/navstudio/
+/src/tools/navstudio/*
+!/src/tools/navstudio/*.py
+!/src/tools/navstudio/*.js
+!/src/tools/navstudio/*.html
+!/src/tools/navstudio/*.css
+!/src/tools/navstudio/*.cmd
+!/src/tools/navstudio/*.ps1
+!/src/tools/navstudio/*.md

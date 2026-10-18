@@ -68,6 +68,7 @@ GMBIND_FUNCTION_MAP_BEGIN(gmBot)
 
 	GMBIND_FUNCTION( "IsStuck", gmfIsStuck )
 	GMBIND_FUNCTION( "ResetStuckTime", gmfResetStuckTime )
+	GMBIND_FUNCTION( "GetPathState", gmfGetPathState )
 
 	GMBIND_FUNCTION( "GetMostDesiredAmmo", gmfGetMostDesiredAmmo )
 
@@ -381,6 +382,27 @@ int gmBot::gmfIsStuck(gmThread *a_thread)
 //
 // Returns:
 //		none
+int gmBot::gmfGetPathState(gmThread *a_thread)
+{
+	CHECK_THIS_BOT();
+	GM_CHECK_TABLE_PARAM(out, 0);
+	gmMachine *machine = a_thread->GetMachine();
+	FollowPath *path = native->GetFollowPath();
+	Path::PathPoint point;
+	const bool active = path->IsActive() && path->GetCurrentPath().GetCurrentPt(point);
+	out->Set(machine, "active", gmVariable(active ? 1 : 0));
+	out->Set(machine, "playing", gmVariable(IGame::GetGameState() == GAME_STATE_PLAYING ? 1 : 0));
+	out->Set(machine, "waypoint", gmVariable(active ? point.m_NavId : 0));
+	out->Set(machine, "climb", gmVariable(active && (point.m_NavFlags & F_NAV_CLIMB) ? 1 : 0));
+	out->Set(machine, "crouch", gmVariable(active && (point.m_NavFlags & F_NAV_CROUCH) ? 1 : 0));
+	gmVariable target, movement;
+	target.SetVector(native->GetSteeringSystem()->GetTarget());
+	movement.SetVector(native->GetMovementVector());
+	out->Set(machine, "target", target);
+	out->Set(machine, "movement", movement);
+	return GM_OK;
+}
+
 int gmBot::gmfResetStuckTime(gmThread *a_thread)
 {
 	CHECK_THIS_BOT();

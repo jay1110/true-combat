@@ -1011,6 +1011,7 @@ void			trap_R_AddCoronaToScene( const vec3_t org, float r, float g, float b, flo
 void			trap_R_RenderScene( const refdef_t *fd );
 void			trap_R_SetColor( const float *rgba );
 void			trap_R_Add2dPolys( polyVert_t* verts, int numverts, qhandle_t hShader );
+void TCE_RendererBeginFrame(int frameTime);
 void			trap_R_DrawStretchPic( float x, float y, float w, float h, float s1, float t1, float s2, float t2, qhandle_t hShader );
 void			trap_R_DrawRotatedPic( float x, float y, float w, float h, float s1, float t1, float s2, float t2, qhandle_t hShader, float angle );
 void			trap_R_ModelBounds( clipHandle_t model, vec3_t mins, vec3_t maxs );

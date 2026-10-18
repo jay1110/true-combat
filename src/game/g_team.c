@@ -638,6 +638,17 @@ gentity_t *SelectRandomTeamSpawnPoint(int teamstate, team_t team, int spawnObjec
     float shortest;
     double distance, group;
     vec3_t target, offset;
+    if (!hostage && g_gametype.integer==7 && level.tceCustomDMSpawns) {
+        spot=NULL;
+        while((spot=G_Find(spot,FOFS(classname),"info_player_deathmatch"))!=NULL) {
+            if(SpotWouldTelefrag(spot) || spot->entstate==STATE_INVISIBLE ||
+               !G_SpawnOriginWorldClear(spot->s.origin)) continue;
+            spots[count++]=spot;
+            if(count==MAX_TEAM_SPAWN_POINTS) break;
+        }
+        if(count) return spots[rand()%count];
+        /* All occupied or no valid custom points: safe normal team fallback. */
+    }
     if (hostage) classname="team_hostage_spawn";
     else if (team==TEAM_AXIS) classname="team_CTF_redspawn";
     else if (team==TEAM_ALLIES) classname="team_CTF_bluespawn";
@@ -648,6 +659,7 @@ gentity_t *SelectRandomTeamSpawnPoint(int teamstate, team_t team, int spawnObjec
             if (SpotWouldTelefrag(spot) || !(spot->spawnflags&2)) continue;
             if (!pass && !hostage && preferredEntity>0 && spot->s.number!=preferredEntity) continue;
             if (spot->entstate==STATE_INVISIBLE || spot->entstate==STATE_UNDERCONSTRUCTION) continue;
+            if (!G_SpawnOriginWorldClear(spot->s.origin)) continue;
             spots[count++]=spot;
             if (count==MAX_TEAM_SPAWN_POINTS) break;
         }
@@ -655,9 +667,14 @@ gentity_t *SelectRandomTeamSpawnPoint(int teamstate, team_t team, int spawnObjec
     if (!count) {
         spot=NULL;
         while ((spot=G_Find(spot,FOFS(classname),classname))!=NULL) {
-            if ((spot->spawnflags&2) && spot->entstate!=STATE_INVISIBLE && spot->entstate!=STATE_UNDERCONSTRUCTION) return spot;
+            if ((spot->spawnflags&2) && spot->entstate!=STATE_INVISIBLE && spot->entstate!=STATE_UNDERCONSTRUCTION &&
+                G_SpawnOriginWorldClear(spot->s.origin)) return spot;
         }
-        return G_Find(NULL,FOFS(classname),classname);
+        spot=NULL;
+        while ((spot=G_Find(spot,FOFS(classname),classname))!=NULL) {
+            if (G_SpawnOriginWorldClear(spot->s.origin)) return spot;
+        }
+        return NULL;
     }
     if (!level.numspawntargets) { G_Error("No spawnpoints found\n"); return NULL; }
     if (!spawnObjective) {

@@ -544,6 +544,7 @@ void IGame::InitScriptTraceMasks(gmMachine *_machine, gmTableObject *_table)
 	_table->Set(_machine, "SMOKEBOMB",	gmVariable(TR_MASK_SMOKEBOMB));
 	_table->Set(_machine, "FLOODFILL",	gmVariable(TR_MASK_FLOODFILL));
 	_table->Set(_machine, "FLOODFILLENT",gmVariable(TR_MASK_FLOODFILLENT));
+	_table->Set(_machine, "NAVCAPSULE", gmVariable(TR_MASK_NAVCAPSULE));
 	_table->Set(_machine, "VISIBLE",gmVariable(TR_MASK_VISIBLE));
 }
 
@@ -1066,6 +1067,11 @@ void IGame::StartTraining()
 	}
 }
 
+String IGame::GetGoalScriptStem(bool saving)
+{
+	return String(g_EngineFuncs->GetMapName());
+}
+
 void IGame::InitMapScript()
 {
 	// Get Goals from the game.
@@ -1086,12 +1092,13 @@ void IGame::InitMapScript()
 	gmMachine *pMachine = ScriptManager::GetInstance()->GetMachine();
 	DisableGCInScope gcEn(pMachine);
 
-	filePath script( "nav/%s.gm", g_EngineFuncs->GetMapName() );
+	const String goalStem = GetGoalScriptStem(false);
+	filePath script( "nav/%s.gm", goalStem.c_str() );
 	GetMapScriptFile(script);
 
 	// Load the script for the current map.
 	int iThreadId = GM_INVALID_THREAD;
-	if(ScriptManager::GetInstance()->ExecuteFile( script, iThreadId ))
+	if(!goalStem.empty() && ScriptManager::GetInstance()->ExecuteFile( script, iThreadId ))
 	{
 		{
 			gmCall call;

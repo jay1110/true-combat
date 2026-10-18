@@ -2,17 +2,47 @@
 // cg_syscalls.asm is included instead when building a qvm
 #include "cg_local.h"
 #include "../game/tce_native_syscall.h"
+#include "../game/tce_renderer_limits.h"
 
+static tcePolyBudget_t tcePolyBudget;
+static void TCE_RendererEnsureBudget(void)
+{
+	char version[256];
+	if (tcePolyBudget.initialized) return;
+	trap_Cvar_VariableStringBuffer("version", version, sizeof(version));
+	TCE_PolyBudgetInit(&tcePolyBudget, version);
+}
+void TCE_RendererBeginFrame(int frameTime)
+{
+	TCE_RendererEnsureBudget();
+	TCE_PolyBudgetFrame(&tcePolyBudget, frameTime);
+}
+static int TCE_RendererTake(int numVerts, int numPolys)
+{
+	TCE_RendererEnsureBudget();
+	return TCE_PolyBudgetTake(&tcePolyBudget, numVerts, numPolys,
+		TCE_CLASSIC_CGAME_VERTS, TCE_CLASSIC_CGAME_POLYS);
+}
+
+#ifdef __EMSCRIPTEN__
+static intptr_t (QDECL *syscall)(intptr_t *args);
+#else
 static intptr_t (QDECL *syscall)( intptr_t arg, ... ) = (intptr_t (QDECL *)( intptr_t, ...))-1;
+#endif
 
 #if defined(__MACOS__)
 #ifndef __GNUC__
 #pragma export on
 #endif
 #endif
+#ifdef __EMSCRIPTEN__
+TCE_VM_EXPORT void dllEntry(intptr_t (QDECL *syscallptr)(intptr_t *args)) { syscall = syscallptr; }
+TCE_VM_EXPORT int vmWasmAbi1(void) { return 1; }
+#else
 void dllEntry( intptr_t (QDECL *syscallptr)( intptr_t arg,... ) ) {
 	syscall = syscallptr;
 }
+#endif
 #if defined(__MACOS__)
 #ifndef __GNUC__
 #pragma export off
@@ -331,6 +361,7 @@ void	trap_R_AddRefEntityToScene( const refEntity_t *re ) {
 }
 
 void	trap_R_AddPolyToScene( qhandle_t hShader , int numVerts, const polyVert_t *verts ) {
+	if (!verts || !TCE_RendererTake(numVerts, 1)) return;
 	TCE_SYSCALL_3( CG_R_ADDPOLYTOSCENE, hShader, numVerts, verts );
 }
 
@@ -340,6 +371,7 @@ void	trap_R_AddPolyBufferToScene( polyBuffer_t* pPolyBuffer ) {
 
 // Ridah
 void	trap_R_AddPolysToScene( qhandle_t hShader , int numVerts, const polyVert_t *verts, int numPolys ) {
+	if (!verts || numPolys <= 0 || !TCE_RendererTake(numVerts, numPolys)) return;
 	TCE_SYSCALL_4( CG_R_ADDPOLYSTOSCENE, hShader, numVerts, verts, numPolys );
 }
 // done.
@@ -407,6 +439,7 @@ void	trap_R_DrawStretchPicGradient(	float x, float y, float w, float h,
 }
 
 void trap_R_Add2dPolys( polyVert_t* verts, int numverts, qhandle_t hShader ) {
+	if (!verts || !TCE_RendererTake(numverts, 0)) return;
 	TCE_SYSCALL_3( CG_R_DRAW2DPOLYS, verts, numverts, hShader );
 }
 

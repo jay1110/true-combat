@@ -1,6 +1,16 @@
 #ifndef __Q_SHARED_H
 #define __Q_SHARED_H
 
+/* Public entry points only: wasm modules share a global dynamic symbol table. */
+#ifdef __EMSCRIPTEN__
+#define TCE_VM_EXPORT __attribute__((visibility("default")))
+#ifndef CPUSTRING
+#define CPUSTRING "wasm32"
+#endif
+#else
+#define TCE_VM_EXPORT
+#endif
+
 // q_shared.h -- included first by ALL program modules.
 // A user mod should never modify this file
 
@@ -574,6 +584,14 @@ extern	vec3_t	axisDefault[3];
 
 float Q_fabs( float f );
 float Q_rsqrt( float f );		// reciprocal square root
+#if defined(_WIN32) || defined(__linux__)
+/* Internal value path for consumers which retain more than float precision. */
+long double TCE_ReciprocalSquareRootValue(float number);
+long double TCE_VectorLengthValue(const vec3_t v);
+long double TCE_VectorLengthSquaredValue(const vec3_t v);
+long double TCE_DistanceSquaredValue(const vec3_t p1, const vec3_t p2);
+long double TCE_DistanceFromLineSquaredValue(vec3_t p, vec3_t lp1, vec3_t lp2);
+#endif
 
 #define SQRTFAST( x ) ( 1.0f / Q_rsqrt( x ) )
 
@@ -682,6 +700,9 @@ float	Q_crandom( int *seed );
 
 void vectoangles( const vec3_t value1, vec3_t angles);
 float vectoyaw( const vec3_t vec );
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+long double TCE_VectorYawValue(const vec3_t vec);
+#endif
 void AnglesToAxis( const vec3_t angles, vec3_t axis[3] );
 // TTimo: const vec_t ** would require explicit casts for ANSI C conformance
 // see unix/const-arg.c
@@ -700,6 +721,10 @@ float	AngleMod(float a);
 float	LerpAngle (float from, float to, float frac);
 void	LerpPosition( vec3_t start, vec3_t end, float frac, vec3_t out);
 float	AngleSubtract( float a1, float a2 );
+#if defined(_WIN32) || defined(__linux__)
+/* Internal wide value path for C consumers; public float API is unchanged. */
+long double TCE_AngleSubtractValue(float a1, float a2);
+#endif
 void	AnglesSubtract( vec3_t v1, vec3_t v2, vec3_t v3 );
 
 float AngleNormalize2Pi ( float angle );

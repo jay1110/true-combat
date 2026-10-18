@@ -1295,6 +1295,8 @@ void ClientThink_real( gentity_t *ent ) {
 	pm.ps = &client->ps;
 	pm.pmext = &client->pmext;
 	pm.character = client->pers.character;
+	pm.tceBotFreeClimb = (ent->r.svFlags & SVF_BOT) && client->tceNavFreeClimbRequested;
+	client->tceNavFreeClimbRequested = qfalse;
 	pm.cmd = *ucmd;
 	pm.oldcmd = client->pers.oldcmd;
 	// MrE: always use capsule for AI and player
@@ -1404,8 +1406,13 @@ void ClientThink_real( gentity_t *ent ) {
 	// end
 
 	// server cursor hints
-	// TAT 1/10/2003 - bots don't need to check for cursor hints
-	if ( !(ent->r.svFlags & SVF_BOT) && ent->lastHintCheckTime < level.time )
+    // TC activate-held actions consume the same cursor hints as human input.
+    // Keep the SDK skip for other bots; Omni-bot needs the native plant/use hint.
+    qboolean updateHints = !(ent->r.svFlags & SVF_BOT);
+#ifdef FEATURE_OMNIBOT
+    updateHints = updateHints || Bot_Interface_IsOmnibot((int)(ent - g_entities));
+#endif
+	if ( updateHints && ent->lastHintCheckTime < level.time )
 	{
 		G_CheckForCursorHints(ent);
 

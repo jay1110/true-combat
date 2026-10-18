@@ -58,6 +58,7 @@
 #include "QuadTree.cpp"
 #endif
 
+#include "NavStudioAdapter.cpp"
 #include "PathPlannerWaypoint.cpp"
 #include "PathPlannerWaypointCmds.cpp"
 #include "PathPlannerWaypointScript.cpp"

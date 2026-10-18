@@ -21,6 +21,8 @@ public:
 	void SendVoiceMacro(int _macroId);
 
 	void ProcessGotoNode(const Path &_path);
+	bool UseValidatedWalkEntries() const;
+	bool GetNavigationHull(AABB &_bounds, NavFlags _flags) const;
 
 	float GetGameVar(GameVar _var) const;
 	float GetAvoidRadius(int _class) const;

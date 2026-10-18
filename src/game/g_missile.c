@@ -1,4 +1,7 @@
 #include "g_local.h"
+#ifdef FEATURE_OMNIBOT
+#include "g_etbot_interface.h"
+#endif
 #include "tce_trajectory.h"
 
 /* All original missile controllers call the six-argument TC evaluator.
@@ -1598,6 +1601,9 @@ gentity_t *fire_grenade(gentity_t *self,vec3_t start,vec3_t dir,int grenadeWPID)
                 sound->r.svFlags|=SVF_BROADCAST;
                 if(enemy) {
                     level.tceBombPlanted=qtrue;
+#ifdef FEATURE_OMNIBOT
+                    Bot_Event_TCEObjectiveAction((int)(self-g_entities),(int)(bolt-g_entities),1,(int)(hit-g_entities));
+#endif
                     self->client->ps.stats[STAT_TCE_WEAPON_FLAGS]&=~0x100;
                     self->client->tceBombPossessionOrder=0;
                     level.tceBombCarrierCount--;

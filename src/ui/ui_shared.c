@@ -6,6 +6,9 @@
 
 #include "ui_shared.h"
 #include "ui_local.h"	// For CS settings/retrieval
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+#include "../game/tce_numeric.h"
+#endif
 
 
 #define SCROLL_TIME_START					500
@@ -67,7 +70,7 @@ static qboolean Menu_OverActiveItem(menuDef_t *menu, float x, float y);
 #ifdef CGAME
 #define MEM_POOL_SIZE  128 * 1024
 #else
-#define MEM_POOL_SIZE  1536 * 1024	// Arnout: was 1024
+#define MEM_POOL_SIZE  4096 * 1024 // Base TCE menus plus the optional full DMS.
 #endif
 
 static char		memoryPool[MEM_POOL_SIZE];
@@ -125,7 +128,7 @@ void *UI_Alloc( int size ) {
 
 	if ( allocPoint + size > MEM_POOL_SIZE ) {
 		outOfMemory = qtrue;
-		if (DC->Print) {
+		if (DC && DC->Print) {
 			DC->Print("UI_Alloc: Failure. Out of memory!\n");
 		}
     //DC->trap_Print(S_COLOR_YELLOW"WARNING: UI Out of Memory!\n");
@@ -230,6 +233,10 @@ const char *String_Alloc(const char *p) {
 		}
 
 		str  = UI_Alloc(sizeof(stringDef_t));
+		if (!str) {
+			strPoolIndex = ph;
+			return NULL;
+		}
 		str->next = NULL;
 		str->str = &strPool[ph];
 		if (last) {
@@ -284,50 +291,43 @@ LerpColor
 	lerp and clamp each component of <a> and <b> into <c> by the fraction <t>
 =================
 */
-#if defined(_MSC_VER) && defined(_M_IX86)
-static const float tceLerp776Zero = 0.0f;
-static const double tceLerp776One = 1.0;
-__declspec(naked) void LerpColor(vec4_t a, vec4_t b, vec4_t c, float t) {
-	__asm {
-		mov eax,[esp+4]
-		mov edx,[esp+8]
-		mov ecx,[esp+12]
-		push esi
-		mov esi,eax
-		push edi
-		sub edx,eax
-		sub esi,ecx
-		mov edi,4
-	tceLerp776Loop:
-		lea eax,[esi+ecx]
-		fld dword ptr [eax+edx]
-		fsub dword ptr [eax]
-		fmul dword ptr [esp+24]
-		fadd dword ptr [eax]
-		fst dword ptr [esp+20]
-		fstp dword ptr [ecx]
-		fld dword ptr [esp+20]
-		fcomp tceLerp776Zero
-		fnstsw ax
-		test ah,1
-		jz tceLerp776Upper
-		mov dword ptr [ecx],0
-		jmp tceLerp776Next
-	tceLerp776Upper:
-		fld dword ptr [esp+20]
-		fcomp tceLerp776One
-		fnstsw ax
-		test ah,041h
-		jnz tceLerp776Next
-		mov dword ptr [ecx],03f800000h
-	tceLerp776Next:
-		add ecx,4
-		dec edi
-		jnz tceLerp776Loop
-		pop edi
-		pop esi
-		ret
-	}
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+void LerpColor(vec4_t a, vec4_t b, vec4_t c, float t) {
+    int i;
+#if defined(__linux__)
+    long double factor = (long double)t;
+#endif
+    for (i = 0; i < 4; ++i) {
+        long double value;
+#if defined(__linux__)
+        long double start = (long double)a[i];
+        int belowZero;
+        value = (long double)b[i] - start;
+        value = value * factor;
+        value = start + value;
+        /* ELF compares the held result before its first Float output. */
+        belowZero = !(value >= 0.0L);
+        *(volatile float *)&c[i] = (float)value;
+        if (belowZero) {
+            c[i] = 0.0f;
+        } else if ((long double)c[i] > 1.0L) {
+            c[i] = 1.0f;
+        }
+#else
+        volatile float rounded;
+        value = (long double)b[i] - (long double)a[i];
+        value = value * (long double)t;
+        value = value + (long double)a[i];
+        /* Windows writes scratch and output before either clamp test. */
+        rounded = (float)value;
+        *(volatile float *)&c[i] = (float)value;
+        if (!((long double)rounded >= 0.0L)) {
+            c[i] = 0.0f;
+        } else if ((long double)rounded > 1.0L) {
+            c[i] = 1.0f;
+        }
+#endif
+    }
 }
 #else
 void LerpColor(vec4_t a, vec4_t b, vec4_t c, float t) {
@@ -526,69 +526,62 @@ void Window_Init(Window *w) {
 	w->cinematic = -1;
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86) && !defined(UIDLL)
-static const double fade787Zero=0.;
-enum { fade787Time=offsetof(displayContextDef_t,realTime) };
-/* FST intentionally retains the unrounded result for the following comparison. */
-__declspec(naked) void Fade(int *flags, float *f, float clamp, int *nextTime, int offsetTime, qboolean bFlags, float fadeAmount) {
- __asm {
- MOV ECX,dword ptr [ESP + 0x4]
- PUSH ESI
- TEST byte ptr [ECX],0x60
- JZ fade787_3007fd85
- MOV EAX,DC
- MOV EDX,dword ptr [ESP + 0x14]
- MOV EAX,dword ptr [EAX + fade787Time]
- MOV ESI,dword ptr [EDX]
- CMP EAX,ESI
- JLE fade787_3007fd85
- MOV ESI,dword ptr [ESP + 0x18]
- ADD EAX,ESI
- MOV dword ptr [EDX],EAX
- MOV AL,byte ptr [ECX]
- TEST AL,0x20
- JZ fade787_3007fd56
- MOV EAX,dword ptr [ESP + 0xc]
- FLD dword ptr [EAX]
- FSUB dword ptr [ESP + 0x20]
- FST dword ptr [EAX]
- MOV EAX,dword ptr [ESP + 0x1c]
- TEST EAX,EAX
- JZ fade787_3007fd83
- FCOMP qword ptr fade787Zero
- FNSTSW AX
- TEST AH,0x41
- JZ fade787_3007fd85
- MOV EAX,dword ptr [ECX]
- POP ESI
- AND AL,0xdb
- MOV dword ptr [ECX],EAX
- RET
-fade787_3007fd56:
- MOV EDX,dword ptr [ESP + 0xc]
- FLD dword ptr [ESP + 0x20]
- FADD dword ptr [EDX]
- FST dword ptr [EDX]
- FCOMP dword ptr [ESP + 0x10]
- FNSTSW AX
- TEST AH,0x1
- JNZ fade787_3007fd85
- MOV EAX,dword ptr [ESP + 0x10]
- MOV dword ptr [EDX],EAX
- MOV EAX,dword ptr [ESP + 0x1c]
- TEST EAX,EAX
- JZ fade787_3007fd85
- MOV EAX,dword ptr [ECX]
- POP ESI
- AND AL,0xbf
- MOV dword ptr [ECX],EAX
- RET
-fade787_3007fd83:
- FSTP st(0)
-fade787_3007fd85:
- POP ESI
- RET
- }
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+void Fade(int *flags, float *f, float clamp, int *nextTime, int offsetTime,
+    qboolean bFlags, float fadeAmount) {
+    int now, next, finished;
+    unsigned wrapped;
+    long double value;
+#if defined(__linux__)
+    long double limit = (long double)clamp;
+    long double amount = (long double)fadeAmount;
+#endif
+    if (!(*flags & (WINDOW_FADINGOUT | WINDOW_FADINGIN))) return;
+    now = DC->realTime;
+    if (now <= *nextTime) return;
+    /* Native ADD wraps its signed32 timestamp; express the bit result. */
+    wrapped = (unsigned)now + (unsigned)offsetTime;
+    memcpy(&next, &wrapped, sizeof(next));
+    *nextTime = next;
+    /* Re-read after the timestamp write in case these int pointers alias. */
+    if (*flags & WINDOW_FADINGOUT) {
+#if defined(__linux__)
+        value = (long double)*f - amount;
+#else
+        value = (long double)*f - (long double)fadeAmount;
+#endif
+        *(volatile float *)f = (float)value;
+        if (bFlags) {
+#if defined(__linux__)
+            finished = value <= 0.0L;
+#else
+            /* Windows C0|C3 includes unordered as well as nonpositive. */
+            finished = !(value > 0.0L);
+#endif
+            if (finished) *flags &= ~(WINDOW_FADINGOUT | WINDOW_VISIBLE);
+        }
+    } else {
+#if defined(__linux__)
+        value = amount + (long double)*f;
+#else
+        value = (long double)fadeAmount + (long double)*f;
+#endif
+        *(volatile float *)f = (float)value;
+#if defined(__linux__)
+        finished = value >= limit;
+#else
+        finished = value >= (long double)clamp;
+#endif
+        if (finished) {
+#if defined(__linux__)
+            *f = (float)limit;
+#else
+            /* Original Windows copies the unmodified Float argument bits. */
+            memcpy(f, &clamp, sizeof(clamp));
+#endif
+            if (bFlags) *flags &= ~WINDOW_FADINGIN;
+        }
+    }
 }
 #else
 void Fade(int *flags, float *f, float clamp, int *nextTime, int offsetTime, qboolean bFlags, float fadeAmount) {
@@ -1122,95 +1115,85 @@ void Window_Paint(Window *w, float fadeAmount, float fadeClamp, float fadeCycle)
 
 #endif
 
-#if defined(_MSC_VER) && defined(_M_IX86) && !defined(UIDLL)
-static const float sc804Limit=635.f,sc804Zero=0.f;
-enum {
- sc804I0=offsetof(itemDef_t,window.rect.x),
- sc804I4=offsetof(itemDef_t,window.rect.y),
- sc804I8=offsetof(itemDef_t,window.rect.w),
- sc804I10=offsetof(itemDef_t,window.rectClient.x),
- sc804I14=offsetof(itemDef_t,window.rectClient.y),
- sc804I18=offsetof(itemDef_t,window.rectClient.w),
- sc804I270=offsetof(itemDef_t,toolTipData),
- sc804Ic=offsetof(itemDef_t,window.rect.h),
- sc804I1c=offsetof(itemDef_t,window.rectClient.h),
- sc804Ic0=offsetof(itemDef_t,textRect.w),
- sc804Ic4=offsetof(itemDef_t,textRect.h),
- sc804Iec=offsetof(itemDef_t,parent),
- sc804MenuX=offsetof(menuDef_t,window.rect.x),
- sc804MenuY=offsetof(menuDef_t,window.rect.y)
-};
-__declspec(naked) void Item_SetScreenCoords(itemDef_t *item,float x,float y) {
- __asm {
- PUSH ESI
- MOV ESI,dword ptr [ESP + 0x8]
- TEST ESI,ESI
- JZ sc804_30080261
- FLD dword ptr [ESP + 0xc]
- FADD dword ptr [ESI + sc804I10]
- MOV EAX,dword ptr [ESI + sc804I18]
- MOV ECX,dword ptr [ESI + sc804I1c]
- MOV dword ptr [ESI + sc804I8],EAX
- MOV EAX,dword ptr [ESI + sc804I270]
- TEST EAX,EAX
- FSTP dword ptr [ESI + sc804I0]
- FLD dword ptr [ESP + 0x10]
- FADD dword ptr [ESI + sc804I14]
- MOV dword ptr [ESI + sc804Ic],ECX
- FSTP dword ptr [ESI + sc804I4]
- JZ sc804_3008024d
- MOV EDX,dword ptr [ESP + 0x10]
- MOV ECX,dword ptr [ESP + 0xc]
- PUSH EDX
- PUSH ECX
- PUSH EAX
- CALL Item_SetScreenCoords
- MOV ECX,dword ptr [ESI + sc804I270]
- ADD ESP,0xc
- FLD dword ptr [ECX + sc804I8]
- FADD dword ptr [ECX + sc804I0]
- FSUB dword ptr [sc804Limit]
- FCOM dword ptr [sc804Zero]
- FNSTSW AX
- TEST AH,0x41
- JNZ sc804_3008024b
- FLD dword ptr [ECX + sc804I10]
- FSUB ST(0),ST(1)
- FSTP dword ptr [ECX + sc804I10]
- MOV EAX,dword ptr [ESI + sc804I270]
- FLD dword ptr [EAX + sc804I0]
- FSUB ST(0),ST(1)
- FSTP dword ptr [EAX + sc804I0]
-sc804_3008024b:
- FSTP ST(0)
-sc804_3008024d:
- MOV dword ptr [ESI + sc804Ic0],0x0
- MOV dword ptr [ESI + sc804Ic4],0x0
-sc804_30080261:
- POP ESI
- RET
- }
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+void Item_SetScreenCoords(itemDef_t *item, float x, float y) {
+    itemDef_t *tooltip;
+    unsigned widthBits, heightBits;
+    long double screenX, screenY, overflow;
+#if defined(__linux__)
+    long double originX = (long double)x;
+    long double originY = (long double)y;
+#endif
+    if (!item) return;
+#if defined(__linux__)
+    memcpy(&widthBits, &item->window.rectClient.w, sizeof(widthBits));
+    tooltip = item->toolTipData;
+    screenX = originX + (long double)item->window.rectClient.x;
+    memcpy(&item->window.rect.w, &widthBits, sizeof(widthBits));
+    memcpy(&heightBits, &item->window.rectClient.h, sizeof(heightBits));
+#else
+    screenX = (long double)x + (long double)item->window.rectClient.x;
+    memcpy(&widthBits, &item->window.rectClient.w, sizeof(widthBits));
+    memcpy(&heightBits, &item->window.rectClient.h, sizeof(heightBits));
+    memcpy(&item->window.rect.w, &widthBits, sizeof(widthBits));
+    tooltip = item->toolTipData;
+#endif
+    item->window.rect.x = (float)screenX;
+#if defined(__linux__)
+    screenY = originY + (long double)item->window.rectClient.y;
+#else
+    screenY = (long double)y + (long double)item->window.rectClient.y;
+#endif
+    memcpy(&item->window.rect.h, &heightBits, sizeof(heightBits));
+    item->window.rect.y = (float)screenY;
+    if (tooltip) {
+        Item_SetScreenCoords(tooltip, x, y);
+        tooltip = item->toolTipData;
+#if defined(__linux__)
+        screenX = (long double)tooltip->window.rect.x;
+        overflow = screenX + (long double)tooltip->window.rect.w;
+#else
+        overflow = (long double)tooltip->window.rect.w;
+        overflow = overflow + (long double)tooltip->window.rect.x;
+#endif
+        overflow = overflow - 635.0L;
+        if (overflow > 0.0L) {
+#if defined(__linux__)
+            long double clientX;
+            screenX = screenX - overflow;
+            clientX = (long double)tooltip->window.rectClient.x - overflow;
+            tooltip->window.rect.x = (float)screenX;
+            tooltip->window.rectClient.x = (float)clientX;
+#else
+            tooltip->window.rectClient.x =
+                (float)((long double)tooltip->window.rectClient.x - overflow);
+            /* Original re-fetches the tooltip after the first store. */
+            tooltip = item->toolTipData;
+            tooltip->window.rect.x =
+                (float)((long double)tooltip->window.rect.x - overflow);
+#endif
+        }
+    }
+    item->textRect.w = 0.0f;
+    item->textRect.h = 0.0f;
 }
-__declspec(naked) void Item_UpdatePosition(itemDef_t *item) {
- __asm {
- MOV ECX,dword ptr [ESP + 0x4]
- TEST ECX,ECX
- JZ sc804_30080298
- MOV EAX,dword ptr [ECX + sc804Iec]
- TEST EAX,EAX
- JZ sc804_30080298
- FLD dword ptr [EAX + sc804MenuY]
- PUSH ECX
- FSTP dword ptr [ESP]
- FLD dword ptr [EAX + sc804MenuX]
- PUSH ECX
- FSTP dword ptr [ESP]
- PUSH ECX
- CALL Item_SetScreenCoords
- ADD ESP,0xc
-sc804_30080298:
- RET
- }
+
+void Item_UpdatePosition(itemDef_t *item) {
+    menuDef_t *menu;
+    float x, y;
+    if (!item) return;
+    menu = item->parent;
+    if (!menu) return;
+#if defined(__linux__)
+    /* ELF copies both Float argument representations without conversion. */
+    memcpy(&x, &menu->window.rect.x, sizeof(x));
+    memcpy(&y, &menu->window.rect.y, sizeof(y));
+#else
+    /* Windows stages Y before X through Float call-argument stores. */
+    y = (float)(long double)menu->window.rect.y;
+    x = (float)(long double)menu->window.rect.x;
+#endif
+    Item_SetScreenCoords(item, x, y);
 }
 #else
 void Item_SetScreenCoords(itemDef_t *item, float x, float y) {
@@ -1339,6 +1322,41 @@ qboolean IsVisible(int flags) {
 	return (flags & WINDOW_VISIBLE && !(flags & WINDOW_FADINGOUT));
 }
 
+#if ((defined(_WIN32) && defined(UIDLL)) || defined(__linux__)) && !defined(Q3_VM)
+qboolean Rect_ContainsPoint(rectDef_t *rect, float x, float y) {
+    long double pointX, pointY, edge;
+#if defined(__linux__)
+    long double start;
+    /* ELF loads the point first, then tests the nullable rectangle. */
+    pointX = (long double)x;
+    pointY = (long double)y;
+#endif
+    if (!rect) return qfalse;
+#if defined(__linux__)
+    start = (long double)rect->x;
+    /* JNC rejects ordered >=, but lets unordered reach the next test. */
+    if (start >= pointX) return qfalse;
+    edge = start + (long double)rect->w;
+    if (!(edge > pointX)) return qfalse;
+    start = (long double)rect->y;
+    if (start >= pointY) return qfalse;
+    edge = start + (long double)rect->h;
+    return edge > pointY ? qtrue : qfalse;
+#else
+    pointX = (long double)x;
+    if (!(pointX > (long double)rect->x)) return qfalse;
+    /* Original Windows adds extent first; never Float-round these edges. */
+    edge = (long double)rect->w;
+    edge = edge + (long double)rect->x;
+    if (!(edge > pointX)) return qfalse;
+    pointY = (long double)y;
+    if (!(pointY > (long double)rect->y)) return qfalse;
+    edge = (long double)rect->h;
+    edge = edge + (long double)rect->y;
+    return edge > pointY ? qtrue : qfalse;
+#endif
+}
+#else
 qboolean Rect_ContainsPoint(rectDef_t *rect, float x, float y) {
 	if (rect) {
 		if (x > rect->x && x < rect->x + rect->w && y > rect->y && y < rect->y + rect->h) {
@@ -1347,6 +1365,8 @@ qboolean Rect_ContainsPoint(rectDef_t *rect, float x, float y) {
 	}
 	return qfalse;
 }
+
+#endif
 
 int Menu_ItemsMatchingGroup(menuDef_t *menu, const char *name) {
 	int i;
@@ -2081,183 +2101,83 @@ void Script_NotebookShowpage(itemDef_t *item, qboolean *bAbort, char **args) {
 
 
 
-#if defined(_MSC_VER) && defined(_M_IX86) && !defined(UIDLL)
-/* TC cgame movement script consumers: preserve x87 conversion and integer copies. */
-enum {
- mv805_10 = offsetof(itemDef_t, window) + offsetof(windowDef_t, rectClient.x),
- mv805_14 = offsetof(itemDef_t, window) + offsetof(windowDef_t, rectClient.y),
- mv805_48 = offsetof(itemDef_t, window) + offsetof(windowDef_t, flags),
- mv805_50 = offsetof(itemDef_t, window) + offsetof(windowDef_t, rectEffects.y),
- mv805_60 = offsetof(itemDef_t, window) + offsetof(windowDef_t, rectEffects2.y),
- mv805_64 = offsetof(itemDef_t, window) + offsetof(windowDef_t, rectEffects2.w),
- mv805_68 = offsetof(itemDef_t, window) + offsetof(windowDef_t, rectEffects2.h),
- mv805_4c = offsetof(itemDef_t, window) + offsetof(windowDef_t, rectEffects.x),
- mv805_5c = offsetof(itemDef_t, window) + offsetof(windowDef_t, rectEffects2.x),
- mv805_6c = offsetof(itemDef_t, window) + offsetof(windowDef_t, offsetTime),
-};
-typedef char tceMovement805RectLayout[(sizeof(rectDef_t) == 16 && offsetof(rectDef_t, x) == 0 && offsetof(rectDef_t, y) == 4 && offsetof(rectDef_t, w) == 8 && offsetof(rectDef_t, h) == 12) ? 1 : -1];
-__declspec(naked) void Menu_TransitionItemByName(menuDef_t *menu, const char *p, rectDef_t rectFrom, rectDef_t rectTo, int time, float amt) {
-	__asm {
-		SUB ESP,0x8
-		MOV EAX,dword ptr [ESP + 0x10]
-		MOV ECX,dword ptr [ESP + 0xc]
-		PUSH EAX
-		PUSH ECX
-		CALL Menu_ItemsMatchingGroup
-		ADD ESP,0x8
-		MOV dword ptr [ESP + 0x4],EAX
-		TEST EAX,EAX
-		MOV dword ptr [ESP],0x0
-		JLE mv805_30081a03
-		PUSH EBX
-		MOV EBX,dword ptr [ESP + 0x30]
-		PUSH EBP
-		MOV EBP,dword ptr [ESP + 0x30]
-		PUSH ESI
-		PUSH EDI
-		MOV EDI,dword ptr [ESP + 0x44]
-mv805_300818f9:
-		MOV EDX,dword ptr [ESP + 0x20]
-		MOV EAX,dword ptr [ESP + 0x10]
-		MOV ECX,dword ptr [ESP + 0x1c]
-		PUSH EDX
-		PUSH EAX
-		PUSH ECX
-		CALL Menu_GetMatchingItemByNumber
-		MOV ESI,EAX
-		ADD ESP,0xc
-		TEST ESI,ESI
-		JZ mv805_300819ea
-		MOV EDX,dword ptr [ESI + mv805_48]
-		MOV EAX,dword ptr [ESP + 0x24]
-		MOV ECX,dword ptr [ESP + 0x28]
-		OR EDX,0x104
-		MOV dword ptr [ESI + mv805_48],EDX
-		LEA EDX,[ESI + mv805_10]
-		FLD dword ptr [ESP + 0x34]
-		MOV dword ptr [EDX],EAX
-		MOV EAX,dword ptr [ESP + 0x2c]
-		FSUB dword ptr [ESP + 0x24]
-		MOV dword ptr [EDX + 0x4],ECX
-		MOV ECX,dword ptr [ESP + 0x30]
-		MOV dword ptr [ESI + mv805_6c],EDI
-		MOV dword ptr [EDX + 0x8],EAX
-		MOV EAX,dword ptr [ESP + 0x34]
-		MOV dword ptr [EDX + 0xc],ECX
-		LEA EDX,[ESI + mv805_4c]
-		MOV ECX,dword ptr [ESP + 0x40]
-		MOV dword ptr [EDX],EAX
-		MOV dword ptr [EDX + 0x4],EBP
-		MOV dword ptr [EDX + 0x8],EBX
-		MOV dword ptr [EDX + 0xc],ECX
-		CALL TCE_TextInteger788
-		CDQ
-		XOR EAX,EDX
-		SUB EAX,EDX
-		MOV dword ptr [ESP + 0x44],EAX
-		FILD dword ptr [ESP + 0x44]
-		FDIV dword ptr [ESP + 0x48]
-		FSTP dword ptr [ESI + mv805_5c]
-		FLD dword ptr [ESP + 0x38]
-		FSUB dword ptr [ESP + 0x28]
-		CALL TCE_TextInteger788
-		CDQ
-		XOR EAX,EDX
-		SUB EAX,EDX
-		MOV dword ptr [ESP + 0x44],EAX
-		FILD dword ptr [ESP + 0x44]
-		FDIV dword ptr [ESP + 0x48]
-		FSTP dword ptr [ESI + mv805_60]
-		FLD dword ptr [ESP + 0x3c]
-		FSUB dword ptr [ESP + 0x2c]
-		CALL TCE_TextInteger788
-		CDQ
-		XOR EAX,EDX
-		SUB EAX,EDX
-		MOV dword ptr [ESP + 0x44],EAX
-		FILD dword ptr [ESP + 0x44]
-		FDIV dword ptr [ESP + 0x48]
-		FSTP dword ptr [ESI + mv805_64]
-		FLD dword ptr [ESP + 0x40]
-		FSUB dword ptr [ESP + 0x30]
-		CALL TCE_TextInteger788
-		CDQ
-		XOR EAX,EDX
-		PUSH ESI
-		SUB EAX,EDX
-		MOV dword ptr [ESP + 0x48],EAX
-		FILD dword ptr [ESP + 0x48]
-		FDIV dword ptr [ESP + 0x4c]
-		FSTP dword ptr [ESI + mv805_68]
-		CALL Item_UpdatePosition
-		ADD ESP,0x4
-mv805_300819ea:
-		MOV EAX,dword ptr [ESP + 0x10]
-		MOV ECX,dword ptr [ESP + 0x14]
-		INC EAX
-		CMP EAX,ECX
-		MOV dword ptr [ESP + 0x10],EAX
-		JL mv805_300818f9
-		POP EDI
-		POP ESI
-		POP EBP
-		POP EBX
-mv805_30081a03:
-		ADD ESP,0x8
-		RET
-	}
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+/* Native ABS wraps INT_MIN back to INT_MIN, rather than invoking C abs UB. */
+static int TCE_TransitionMagnitude(long double difference) {
+    int converted = TCE_TruncateNativeInteger(difference);
+    unsigned bits = (unsigned)converted;
+    int magnitude;
+    if (converted < 0) bits = 0u - bits;
+    memcpy(&magnitude, &bits, sizeof(magnitude));
+    return magnitude;
 }
-__declspec(naked) void Menu_OrbitItemByName(menuDef_t *menu, const char *p, float x, float y, float cx, float cy, int time) {
-	__asm {
-		PUSH EBX
-		MOV EBX,dword ptr [ESP + 0x8]
-		PUSH EBP
-		PUSH ESI
-		PUSH EDI
-		MOV EDI,dword ptr [ESP + 0x18]
-		PUSH EDI
-		PUSH EBX
-		CALL Menu_ItemsMatchingGroup
-		MOV EBP,EAX
-		ADD ESP,0x8
-		XOR ESI,ESI
-		TEST EBP,EBP
-		JLE mv805_30081b6a
-mv805_30081b1e:
-		PUSH EDI
-		PUSH ESI
-		PUSH EBX
-		CALL Menu_GetMatchingItemByNumber
-		ADD ESP,0xc
-		TEST EAX,EAX
-		JZ mv805_30081b65
-		MOV EDX,dword ptr [EAX + mv805_48]
-		MOV ECX,dword ptr [ESP + 0x2c]
-		OR EDX,0x10004
-		MOV dword ptr [EAX + mv805_6c],ECX
-		MOV ECX,dword ptr [ESP + 0x28]
-		MOV dword ptr [EAX + mv805_48],EDX
-		MOV EDX,dword ptr [ESP + 0x24]
-		MOV dword ptr [EAX + mv805_50],ECX
-		MOV ECX,dword ptr [ESP + 0x20]
-		MOV dword ptr [EAX + mv805_4c],EDX
-		MOV EDX,dword ptr [ESP + 0x1c]
-		PUSH EAX
-		MOV dword ptr [EAX + mv805_10],EDX
-		MOV dword ptr [EAX + mv805_14],ECX
-		CALL Item_UpdatePosition
-		ADD ESP,0x4
-mv805_30081b65:
-		INC ESI
-		CMP ESI,EBP
-		JL mv805_30081b1e
-mv805_30081b6a:
-		POP EDI
-		POP ESI
-		POP EBP
-		POP EBX
-		RET
-	}
+
+void Menu_TransitionItemByName(menuDef_t *menu, const char *name,
+    rectDef_t from, rectDef_t to, int time, float amount) {
+    int index, magnitude;
+    int count = Menu_ItemsMatchingGroup(menu, name);
+    long double difference;
+#if defined(__linux__)
+    long double reciprocal;
+#endif
+    for (index = 0; index < count; ++index) {
+        itemDef_t *item = Menu_GetMatchingItemByNumber(menu, index, name);
+        if (!item) continue;
+        item->window.flags |= WINDOW_INTRANSITION | WINDOW_VISIBLE;
+#if defined(__linux__)
+        item->window.offsetTime = time;
+#else
+        /* Windows computes X difference before the rectangle copies. */
+        difference = (long double)to.x - (long double)from.x;
+#endif
+        memcpy(&item->window.rectClient.x, &from.x, sizeof(from.x));
+        memcpy(&item->window.rectClient.y, &from.y, sizeof(from.y));
+#if defined(_WIN32)
+        item->window.offsetTime = time;
+#endif
+        memcpy(&item->window.rectClient.w, &from.w, sizeof(from.w));
+        memcpy(&item->window.rectClient.h, &from.h, sizeof(from.h));
+        memcpy(&item->window.rectEffects.x, &to.x, sizeof(to.x));
+        memcpy(&item->window.rectEffects.y, &to.y, sizeof(to.y));
+        memcpy(&item->window.rectEffects.w, &to.w, sizeof(to.w));
+        memcpy(&item->window.rectEffects.h, &to.h, sizeof(to.h));
+#if defined(__linux__)
+        difference = (long double)to.x - (long double)from.x;
+        magnitude = TCE_TransitionMagnitude(difference);
+        /* The original retains this reciprocal for all four steps. */
+        reciprocal = 1.0L / (long double)amount;
+        item->window.rectEffects2.x = (float)((long double)magnitude * reciprocal);
+#else
+        magnitude = TCE_TransitionMagnitude(difference);
+        item->window.rectEffects2.x =
+            (float)((long double)magnitude / (long double)amount);
+#endif
+        difference = (long double)to.y - (long double)from.y;
+        magnitude = TCE_TransitionMagnitude(difference);
+#if defined(__linux__)
+        item->window.rectEffects2.y = (float)((long double)magnitude * reciprocal);
+#else
+        item->window.rectEffects2.y =
+            (float)((long double)magnitude / (long double)amount);
+#endif
+        difference = (long double)to.w - (long double)from.w;
+        magnitude = TCE_TransitionMagnitude(difference);
+#if defined(__linux__)
+        item->window.rectEffects2.w = (float)((long double)magnitude * reciprocal);
+#else
+        item->window.rectEffects2.w =
+            (float)((long double)magnitude / (long double)amount);
+#endif
+        difference = (long double)to.h - (long double)from.h;
+        magnitude = TCE_TransitionMagnitude(difference);
+#if defined(__linux__)
+        item->window.rectEffects2.h = (float)(reciprocal * (long double)magnitude);
+#else
+        item->window.rectEffects2.h =
+            (float)((long double)magnitude / (long double)amount);
+#endif
+        Item_UpdatePosition(item);
+    }
 }
 #else
 void Menu_TransitionItemByName(menuDef_t *menu, const char *p, rectDef_t rectFrom, rectDef_t rectTo, int time, float amt) {
@@ -2282,7 +2202,6 @@ void Menu_TransitionItemByName(menuDef_t *menu, const char *p, rectDef_t rectFro
 
 #endif
 
-
 void Script_Transition(itemDef_t *item, qboolean *bAbort, char **args) {
 	const char *name=NULL;
 	rectDef_t rectFrom, rectTo;
@@ -2297,7 +2216,38 @@ void Script_Transition(itemDef_t *item, qboolean *bAbort, char **args) {
 }
 
 
-#if !defined(_MSC_VER) || !defined(_M_IX86) || defined(UIDLL)
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+void Menu_OrbitItemByName(menuDef_t *menu, const char *name, float x, float y,
+    float centerX, float centerY, int time) {
+    int index;
+    int count = Menu_ItemsMatchingGroup(menu, name);
+    for (index = 0; index < count; ++index) {
+        itemDef_t *item = Menu_GetMatchingItemByNumber(menu, index, name);
+        if (!item) continue;
+#if defined(__linux__)
+        item->window.flags |= WINDOW_ORBITING | WINDOW_VISIBLE;
+        item->window.offsetTime = time;
+        /* Original ELF stages each argument through Float load/store. */
+        item->window.rectEffects.x = (float)(long double)centerX;
+        item->window.rectEffects.y = (float)(long double)centerY;
+        item->window.rectClient.x = (float)(long double)x;
+        item->window.rectClient.y = (float)(long double)y;
+#else
+        {
+            int flags = item->window.flags | WINDOW_ORBITING | WINDOW_VISIBLE;
+            item->window.offsetTime = time;
+            item->window.flags = flags;
+        }
+        /* Windows preserves all four argument representations verbatim. */
+        memcpy(&item->window.rectEffects.y, &centerY, sizeof(centerY));
+        memcpy(&item->window.rectEffects.x, &centerX, sizeof(centerX));
+        memcpy(&item->window.rectClient.x, &x, sizeof(x));
+        memcpy(&item->window.rectClient.y, &y, sizeof(y));
+#endif
+        Item_UpdatePosition(item);
+    }
+}
+#else
 void Menu_OrbitItemByName(menuDef_t *menu, const char *p, float x, float y, float cx, float cy, int time) {
   itemDef_t *item;
   int i;
@@ -2317,7 +2267,6 @@ void Menu_OrbitItemByName(menuDef_t *menu, const char *p, float x, float y, floa
 }
 
 #endif
-
 
 void Script_Orbit(itemDef_t *item, qboolean *bAbort, char **args) {
   const char *name=NULL;
@@ -2486,35 +2435,21 @@ void Script_SetMenuFocus(itemDef_t *item, qboolean *bAbort, char **args) {
 	}
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86) && !defined(UIDLL)
-/* TC cgame 300820f0: the filename argument slot is also the handle output.
- * Preserve its pointer bits before the provider writes it, and close on both
- * outcomes. This is an ABI port, not a claim of improved profile handling. */
-__declspec(naked) qboolean FileExists( char *filename ) {
-	__asm {
-		mov ecx, dword ptr [esp + 4]
-		lea eax, [esp + 4]
-		push 0
-		push eax
-		push ecx
-		call trap_FS_FOpenFile
-		add esp, 12
-		test eax, eax
-		jge tceFileExists813Success
-		mov edx, dword ptr [esp + 4]
-		push edx
-		call trap_FS_FCloseFile
-		add esp, 4
-		xor eax, eax
-		ret
-	tceFileExists813Success:
-		mov eax, dword ptr [esp + 4]
-		push eax
-		call trap_FS_FCloseFile
-		add esp, 4
-		mov eax, 1
-		ret
-	}
+#if defined(_WIN32) && (defined(_M_IX86) || defined(__i386__)) && !defined(Q3_VM)
+typedef char tceFileHandle986[(sizeof(fileHandle_t) == 4 && sizeof(char *) == 4) ? 1 : -1];
+qboolean FileExists(char *filename) {
+    fileHandle_t handle;
+    int length;
+    /* Both Windows originals reuse the filename slot as the handle output.
+     * Preserve its initial representation if the provider leaves it alone. */
+    memcpy(&handle, &filename, sizeof(handle));
+    length = trap_FS_FOpenFile(filename, &handle, FS_READ);
+    if (length < 0) {
+        trap_FS_FCloseFile(handle);
+        return qfalse;
+    }
+    trap_FS_FCloseFile(handle);
+    return qtrue;
 }
 #else
 qboolean FileExists( char *filename ) {
@@ -2881,203 +2816,37 @@ qboolean Item_SetFocus(itemDef_t *item, float x, float y) {
 	return qtrue;
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86) && !defined(UIDLL)
-static const float lb799Zero = 0.0f, lb799OneFloat = 1.0f;
-static const double lb799ThirtyTwo = 32.0, lb799Two = 2.0, lb799Sixteen = 16.0, lb799Seventeen = 17.0, lb799Eight = 8.0, lb799One = 1.0;
-enum {
- lb799I0 = offsetof(itemDef_t, window.rect.x),
- lb799I4 = offsetof(itemDef_t, window.rect.y),
- lb799I8 = offsetof(itemDef_t, window.rect.w),
- lb799I48 = offsetof(itemDef_t, window.flags),
- lb799I248 = offsetof(itemDef_t, special),
- lb799I250 = offsetof(itemDef_t, typeData),
- lb799Ic = offsetof(itemDef_t, window.rect.h),
- lb799L0 = offsetof(listBoxDef_t, startPos),
- lb799L10 = offsetof(listBoxDef_t, elementWidth),
- lb799L14 = offsetof(listBoxDef_t, elementHeight),
- lb799D90 = offsetof(displayContextDef_t, feederCount),
- lb799D128 = offsetof(displayContextDef_t, cursorx),
- lb799D12c = offsetof(displayContextDef_t, cursory),
-};
-__declspec(naked) int Item_ListBox_MaxScroll(itemDef_t *item) {
- __asm {
- MOV ECX,dword ptr [DC]
- PUSH EBX
- PUSH ESI
- PUSH EDI
- MOV EDI,dword ptr [ESP + 0x10]
- MOV EAX,dword ptr [EDI + lb799I248]
- MOV EBX,dword ptr [EDI + lb799I250]
- PUSH EAX
- CALL dword ptr [ECX + lb799D90]
- MOV ESI,EAX
- MOV EAX,dword ptr [EDI + lb799I48]
- ADD ESP,0x4
- TEST AH,0x4
- JZ lb799_300827e5
- FLD dword ptr [EDI + lb799I8]
- FDIV dword ptr [EBX + lb799L10]
- JMP lb799_300827eb
-lb799_300827e5:
- FLD dword ptr [EDI + lb799Ic]
- FDIV dword ptr [EBX + lb799L14]
-lb799_300827eb:
- CALL TCE_TextInteger788
- SUB ESI,EAX
- XOR EAX,EAX
- TEST ESI,ESI
- SETL AL
- DEC EAX
- POP EDI
- AND EAX,ESI
- POP ESI
- POP EBX
- RET
- }
-}
-
-__declspec(naked) int Item_ListBox_ThumbPosition(itemDef_t *item) {
- __asm {
- PUSH ESI
- MOV ESI,dword ptr [ESP + 0x8]
- PUSH EDI
- PUSH ESI
- MOV EDI,dword ptr [ESI + lb799I250]
- CALL Item_ListBox_MaxScroll
- MOV dword ptr [ESP + 0x10],EAX
- MOV EAX,dword ptr [ESI + lb799I48]
- FILD dword ptr [ESP + 0x10]
- ADD ESP,0x4
- TEST AH,0x4
- FSTP dword ptr [ESP + 0xc]
- FLD dword ptr [ESP + 0xc]
- FCOMP dword ptr [lb799Zero]
- FNSTSW AX
- JZ lb799_30082869
- TEST AH,0x41
- JNZ lb799_3008285b
- FLD dword ptr [ESI + lb799I8]
- FSUB qword ptr [lb799ThirtyTwo]
- FSUB qword ptr [lb799Two]
- FSUB qword ptr [lb799Sixteen]
- FDIV dword ptr [ESP + 0xc]
- FILD dword ptr [EDI + lb799L0]
- FMUL ST(0),ST(1)
- FLD dword ptr [ESI + lb799I0]
- JMP lb799_30082896
-lb799_3008285b:
- FLD dword ptr [lb799Zero]
- FILD dword ptr [EDI + lb799L0]
- FMUL ST(0),ST(1)
- FLD dword ptr [ESI + lb799I0]
- JMP lb799_30082896
-lb799_30082869:
- TEST AH,0x41
- JNZ lb799_30082889
- FLD dword ptr [ESI + lb799Ic]
- FSUB qword ptr [lb799ThirtyTwo]
- FSUB qword ptr [lb799Two]
- FSUB qword ptr [lb799Sixteen]
- FDIV dword ptr [ESP + 0xc]
- JMP lb799_3008288f
-lb799_30082889:
- FLD dword ptr [lb799Zero]
-lb799_3008288f:
- FILD dword ptr [EDI + lb799L0]
- FMUL ST(0),ST(1)
- FLD dword ptr [ESI + lb799I4]
-lb799_30082896:
- FADD dword ptr [lb799OneFloat]
- FADDP ST(1),ST(0)
- FADD qword ptr [lb799Sixteen]
- CALL TCE_TextInteger788
- POP EDI
- POP ESI
- FSTP ST(0)
- RET
- }
-}
-
-__declspec(naked) int Item_ListBox_ThumbDrawPosition(itemDef_t *item) {
- __asm {
- MOV EAX,[itemCapture]
- PUSH ESI
- MOV ESI,dword ptr [ESP + 0x8]
- CMP EAX,ESI
- JNZ lb799_300829ad
- MOV EAX,dword ptr [ESI + lb799I48]
- TEST AH,0x4
- JZ lb799_3008293b
- MOV EAX,[DC]
- FILD dword ptr [EAX + lb799D128]
- FLD dword ptr [ESI + lb799I0]
- FADD qword ptr [lb799Seventeen]
- CALL TCE_TextInteger788
- MOV dword ptr [ESP + 0x8],EAX
- FILD dword ptr [ESP + 0x8]
- FADD qword ptr [lb799Eight]
- FLD ST(1)
- FCOMPP
- FNSTSW AX
- TEST AH,0x1
- JNZ lb799_300829ab
- FLD dword ptr [ESI + lb799I8]
- FADD dword ptr [ESI + lb799I0]
- FSUB qword ptr [lb799ThirtyTwo]
- FSUB qword ptr [lb799One]
- CALL TCE_TextInteger788
- MOV dword ptr [ESP + 0x8],EAX
- FILD dword ptr [ESP + 0x8]
- FADD qword ptr [lb799Eight]
- FLD ST(1)
- FCOMPP
- FNSTSW AX
- TEST AH,0x41
- JZ lb799_300829ab
- FSUB qword ptr [lb799Eight]
- CALL TCE_TextInteger788
- POP ESI
- RET
-lb799_3008293b:
- MOV ECX,dword ptr [DC]
- FILD dword ptr [ECX + lb799D12c]
- FLD dword ptr [ESI + lb799I4]
- FADD qword ptr [lb799Seventeen]
- CALL TCE_TextInteger788
- MOV dword ptr [ESP + 0x8],EAX
- FILD dword ptr [ESP + 0x8]
- FADD qword ptr [lb799Eight]
- FLD ST(1)
- FCOMPP
- FNSTSW AX
- TEST AH,0x1
- JNZ lb799_300829ab
- FLD dword ptr [ESI + lb799Ic]
- FADD dword ptr [ESI + lb799I4]
- FSUB qword ptr [lb799ThirtyTwo]
- FSUB qword ptr [lb799One]
- CALL TCE_TextInteger788
- MOV dword ptr [ESP + 0x8],EAX
- FILD dword ptr [ESP + 0x8]
- FADD qword ptr [lb799Eight]
- FLD ST(1)
- FCOMPP
- FNSTSW AX
- TEST AH,0x41
- JZ lb799_300829ab
- FSUB qword ptr [lb799Eight]
- CALL TCE_TextInteger788
- POP ESI
- RET
-lb799_300829ab:
- FSTP ST(0)
-lb799_300829ad:
- PUSH ESI
- CALL Item_ListBox_ThumbPosition
- ADD ESP,0x4
- POP ESI
- RET
- }
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+int Item_ListBox_MaxScroll(itemDef_t *item) {
+    displayContextDef_t *context = DC;
+    listBoxDef_t *list = (listBoxDef_t *)item->typeData;
+    int count = context->feederCount(item->special);
+    int visible, result;
+    unsigned wrapped;
+    long double quotient;
+    /* Keep the pre-callback list pointer, but read flags/dimensions after it. */
+    if (item->window.flags & WINDOW_HORIZONTAL) {
+#if defined(__linux__)
+        quotient = 1.0L / (long double)list->elementWidth;
+        quotient = quotient * (long double)item->window.rect.w;
+#else
+        quotient = (long double)item->window.rect.w;
+        quotient = quotient / (long double)list->elementWidth;
+#endif
+    } else {
+#if defined(__linux__)
+        quotient = 1.0L / (long double)list->elementHeight;
+        quotient = quotient * (long double)item->window.rect.h;
+#else
+        quotient = (long double)item->window.rect.h;
+        quotient = quotient / (long double)list->elementHeight;
+#endif
+    }
+    visible = TCE_TruncateNativeInteger(quotient);
+    /* Native SUB wraps before testing the signed result. */
+    wrapped = (unsigned)count - (unsigned)visible;
+    memcpy(&result, &wrapped, sizeof(result));
+    return result < 0 ? 0 : result;
 }
 #else
 int Item_ListBox_MaxScroll(itemDef_t *item) {
@@ -3097,6 +2866,63 @@ int Item_ListBox_MaxScroll(itemDef_t *item) {
 	return max;
 }
 
+#endif
+
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+#if defined(_M_IX86) || defined(__i386__)
+/* Original 32-bit display context callback slot and scalar ABI. */
+typedef char tceListCallbackABI979[(sizeof(int) == 4 && sizeof(float) == 4 &&
+    sizeof(void (*)(void)) == 4 &&
+    offsetof(displayContextDef_t, feederCount) == 0x90) ? 1 : -1];
+#endif
+int Item_ListBox_ThumbPosition(itemDef_t *item) {
+    listBoxDef_t *list = (listBoxDef_t *)item->typeData;
+    int maximum = Item_ListBox_MaxScroll(item);
+    int horizontal = item->window.flags & WINDOW_HORIZONTAL;
+    long double size, step = 0.0L, position, origin, result;
+#if defined(__linux__)
+    volatile float storedSize;
+    /* ELF keeps the signed32 count exact; only size and step Float-spill. */
+    size = horizontal ? (long double)item->window.rect.w :
+        (long double)item->window.rect.h;
+    size = size - 32.0L;
+    size = size - 2.0L;
+    storedSize = (float)size;
+    if (maximum > 0) {
+        long double reciprocal;
+        volatile float storedStep;
+        size = (long double)storedSize - 16.0L;
+        reciprocal = 1.0L / (long double)maximum;
+        step = reciprocal * size;
+        storedStep = (float)step;
+        step = (long double)storedStep;
+    }
+    position = step * (long double)list->startPos;
+    origin = horizontal ? (long double)item->window.rect.x :
+        (long double)item->window.rect.y;
+    origin = 1.0L + origin;
+    result = 16.0L + origin;
+    result = result + position;
+#else
+    volatile float storedMaximum = (float)(long double)maximum;
+    if (storedMaximum > 0.0f) {
+        size = horizontal ? (long double)item->window.rect.w :
+            (long double)item->window.rect.h;
+        size = size - 32.0L;
+        size = size - 2.0L;
+        size = size - 16.0L;
+        step = size / (long double)storedMaximum;
+    }
+    position = (long double)list->startPos * step;
+    origin = horizontal ? (long double)item->window.rect.x :
+        (long double)item->window.rect.y;
+    origin = origin + 1.0L;
+    result = position + origin;
+    result = result + 16.0L;
+#endif
+    return TCE_TruncateNativeInteger(result);
+}
+#else
 int Item_ListBox_ThumbPosition(itemDef_t *item) {
 	float max, pos, size;
 	listBoxDef_t *listPtr = (listBoxDef_t*)item->typeData;
@@ -3125,6 +2951,51 @@ int Item_ListBox_ThumbPosition(itemDef_t *item) {
 	}
 }
 
+#endif
+
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+int Item_ListBox_ThumbDrawPosition(itemDef_t *item) {
+    if (itemCapture == item) {
+        int horizontal = item->window.flags & WINDOW_HORIZONTAL;
+        int minimum, maximum;
+        long double origin, edge, cursor;
+#if defined(__linux__)
+        /* ELF retains origin and computes both bounds before reading cursor. */
+        origin = horizontal ? (long double)item->window.rect.x :
+            (long double)item->window.rect.y;
+        edge = 16.0L + origin;
+        minimum = TCE_TruncateNativeInteger(edge + 1.0L);
+        edge = origin + (horizontal ? (long double)item->window.rect.w :
+            (long double)item->window.rect.h);
+        edge = edge - 32.0L;
+        maximum = TCE_TruncateNativeInteger(edge - 1.0L);
+        cursor = horizontal ? (long double)DC->cursorx : (long double)DC->cursory;
+        if (cursor >= (long double)minimum + 8.0L &&
+            cursor <= (long double)maximum + 8.0L) {
+            return TCE_TruncateNativeInteger(cursor - 8.0L);
+        }
+#else
+        /* PE reads cursor first, and only computes max after the lower gate. */
+        cursor = horizontal ? (long double)DC->cursorx : (long double)DC->cursory;
+        origin = horizontal ? (long double)item->window.rect.x :
+            (long double)item->window.rect.y;
+        minimum = TCE_TruncateNativeInteger(origin + 17.0L);
+        if (cursor >= (long double)minimum + 8.0L) {
+            edge = horizontal ? (long double)item->window.rect.w :
+                (long double)item->window.rect.h;
+            edge = edge + (horizontal ? (long double)item->window.rect.x :
+                (long double)item->window.rect.y);
+            edge = edge - 32.0L;
+            maximum = TCE_TruncateNativeInteger(edge - 1.0L);
+            if (cursor <= (long double)maximum + 8.0L) {
+                return TCE_TruncateNativeInteger(cursor - 8.0L);
+            }
+        }
+#endif
+    }
+    return Item_ListBox_ThumbPosition(item);
+}
+#else
 int Item_ListBox_ThumbDrawPosition(itemDef_t *item) {
 	int min, max;
 
@@ -3158,75 +3029,62 @@ int Item_ListBox_ThumbDrawPosition(itemDef_t *item) {
 
 #endif
 
-#if !defined(UIDLL) && defined(_MSC_VER) && defined(_M_IX86)
-static const float tceSlider783Gap = 8.0f;
-static const double tceSlider783Width = 96.0;
-typedef char tceSlider783Layout[
- (offsetof(editFieldDef_t, minVal) == 0 && offsetof(editFieldDef_t, maxVal) == 4 &&
-  offsetof(itemDef_t, window) + offsetof(windowDef_t, rect) + offsetof(rectDef_t, x) == 0) ? 1 : -1];
-enum {
- tceSlider783Text = offsetof(itemDef_t,text),
- tceSlider783Data = offsetof(itemDef_t,typeData),
- tceSlider783TextX = offsetof(itemDef_t,textRect) + offsetof(rectDef_t,x),
- tceSlider783TextW = offsetof(itemDef_t,textRect) + offsetof(rectDef_t,w),
- tceSlider783Cvar = offsetof(itemDef_t,cvar),
- tceSlider783GetValue = offsetof(displayContextDef_t,getCVarValue)
-};
-__declspec(naked) float Item_Slider_ThumbPosition(itemDef_t *item) {
-    __asm {
-        mov eax,dword ptr [esp + 0x4]
-        push esi
-        mov ecx,dword ptr [eax + tceSlider783Text]
-        mov esi,dword ptr [eax + tceSlider783Data]
-        test ecx,ecx
-        jz tceSlider783_300829ed
-        fld dword ptr [eax + tceSlider783TextW]
-        fadd dword ptr [eax + tceSlider783TextX]
-        fadd dword ptr tceSlider783Gap
-        fstp dword ptr [esp + 0x8]
-        jmp tceSlider783_300829f3
-    tceSlider783_300829ed:
-        mov ecx,dword ptr [eax]
-        mov dword ptr [esp + 0x8],ecx
-    tceSlider783_300829f3:
-        test esi,esi
-        jnz tceSlider783_30082a07
-        mov ecx,dword ptr [eax + tceSlider783Cvar]
-        test ecx,ecx
-        jz tceSlider783_30082a07
-        fld dword ptr [esp + 0x8]
-        pop esi
-        ret
-    tceSlider783_30082a07:
-        mov edx,dword ptr [eax + tceSlider783Cvar]
-        mov eax,DC
-        push edx
-        call dword ptr [eax + tceSlider783GetValue]
-        fcom dword ptr [esi]
-        add esp,0x4
-        fnstsw ax
-        test ah,0x1
-        jz tceSlider783_30082a28
-        fstp st(0)
-        fld dword ptr [esi]
-        jmp tceSlider783_30082a37
-    tceSlider783_30082a28:
-        fcom dword ptr [esi + 0x4]
-        fnstsw ax
-        test ah,0x41
-        jnz tceSlider783_30082a37
-        fstp st(0)
-        fld dword ptr [esi + 0x4]
-    tceSlider783_30082a37:
-        fsub dword ptr [esi]
-        fld dword ptr [esi + 0x4]
-        fsub dword ptr [esi]
-        pop esi
-        fdivp st(1),st(0)
-        fmul qword ptr tceSlider783Width
-        fadd dword ptr [esp + 0x4]
-        ret
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+/* Internal callers consume the original broad result before their Float store. */
+static long double TCE_SliderThumbValue(itemDef_t *item) {
+    editFieldDef_t *editDef = (editFieldDef_t *)item->typeData;
+    long double origin, value, minimum, maximum, difference, range, result;
+    volatile float storedOrigin;
+    if (item->text) {
+        origin = (long double)item->textRect.w + (long double)item->textRect.x;
+        origin = origin + 8.0L;
+    } else {
+        origin = (long double)item->window.rect.x;
     }
+#if defined(__linux__)
+    if (editDef == NULL && item->cvar) {
+        return origin;
+    }
+    storedOrigin = (float)origin;
+#else
+    storedOrigin = (float)origin;
+    if (editDef == NULL && item->cvar) {
+        return (long double)storedOrigin;
+    }
+#endif
+    /* Keep the callback and captured typeData order; no invented null guard. */
+    value = (long double)DC->getCVarValue(item->cvar);
+    minimum = (long double)editDef->minVal;
+    if (!(value >= minimum)) {
+        value = minimum;
+    } else if (value > (long double)editDef->maxVal) {
+        value = (long double)editDef->maxVal;
+    }
+#if defined(__linux__)
+    {
+        long double reciprocal;
+        volatile float storedOffset;
+        maximum = (long double)editDef->maxVal;
+        difference = value - minimum;
+        range = maximum - minimum;
+        reciprocal = 1.0L / range;
+        result = reciprocal * difference;
+        result = result * 96.0L;
+        storedOffset = (float)result;
+        return (long double)storedOrigin + (long double)storedOffset;
+    }
+#else
+    difference = value - (long double)editDef->minVal;
+    maximum = (long double)editDef->maxVal;
+    range = maximum - (long double)editDef->minVal;
+    result = difference / range;
+    result = result * 96.0L;
+    return result + (long double)storedOrigin;
+#endif
+}
+
+float Item_Slider_ThumbPosition(itemDef_t *item) {
+    return (float)TCE_SliderThumbValue(item);
 }
 #else
 float Item_Slider_ThumbPosition(itemDef_t *item) {
@@ -3266,7 +3124,11 @@ float Item_Slider_ThumbPosition(itemDef_t *item) {
 int Item_Slider_OverSlider(itemDef_t *item, float x, float y) {
 	rectDef_t r;
 
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+	r.x = (float)(TCE_SliderThumbValue(item) - 6.0L);
+#else
 	r.x = Item_Slider_ThumbPosition(item) - (SLIDER_THUMB_WIDTH / 2);
+#endif
 	//r.y = item->window.rect.y - 2;
 	r.y = item->window.rect.y;
 	r.w = SLIDER_THUMB_WIDTH;
@@ -3801,98 +3663,50 @@ int Item_Multi_FindCvarByValue(itemDef_t *item) {
 	return 0;
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86) && !defined(UIDLL)
-static const char ms793None[]="None Defined",ms793Custom[]="Custom";
-enum { ms793Data=offsetof(itemDef_t,typeData),ms793Cvar=offsetof(itemDef_t,cvar),
-ms793Str=offsetof(multiDef_t,strDef),ms793Count=offsetof(multiDef_t,count),
-ms793Undefined=offsetof(multiDef_t,undefinedStr),ms793Values=offsetof(multiDef_t,cvarValue),
-ms793StringsDelta=offsetof(multiDef_t,cvarStr)-offsetof(multiDef_t,cvarValue),
-ms793List=offsetof(multiDef_t,cvarList),ms793GetString=offsetof(displayContextDef_t,getCVarString),
-ms793GetValue=offsetof(displayContextDef_t,getCVarValue) };
-__declspec(naked) const char *Item_Multi_Setting(itemDef_t *item) {
- __asm {
- SUB ESP,0x404
- MOV EAX,dword ptr [ESP + 0x408]
- PUSH EBX
- PUSH ESI
- PUSH EDI
- MOV ESI,dword ptr [EAX + ms793Data]
- MOV dword ptr [ESP + 0xc],0x0
- TEST ESI,ESI
- JZ ms793_30082b83
- MOV ECX,dword ptr [ESI + ms793Str]
- TEST ECX,ECX
- JZ ms793_30082b1e
- MOV EDX,dword ptr [EAX + ms793Cvar]
- MOV EAX,DC
- LEA ECX,[ESP + 0x10]
- PUSH 0x400
- PUSH ECX
- PUSH EDX
- CALL dword ptr [EAX + ms793GetString]
- ADD ESP,0xc
- JMP ms793_30082b35
-ms793_30082b1e:
- MOV ECX,dword ptr [EAX + ms793Cvar]
- MOV EDX,dword ptr DC
- PUSH ECX
- CALL dword ptr [EDX + ms793GetValue]
- FSTP dword ptr [ESP + 0x10]
- ADD ESP,0x4
-ms793_30082b35:
- MOV EAX,dword ptr [ESI + ms793Count]
- XOR EDI,EDI
- TEST EAX,EAX
- JLE ms793_30082b83
- LEA EBX,[ESI + ms793Values]
-ms793_30082b47:
- MOV EAX,dword ptr [ESI + ms793Str]
- TEST EAX,EAX
- JZ ms793_30082b68
- MOV EAX,dword ptr [EBX + ms793StringsDelta]
- LEA ECX,[ESP + 0x10]
- PUSH EAX
- PUSH ECX
- CALL Q_stricmp
- ADD ESP,0x8
- TEST EAX,EAX
- JZ ms793_30082bab
- JMP ms793_30082b75
-ms793_30082b68:
- FLD dword ptr [EBX]
- FCOMP dword ptr [ESP + 0xc]
- FNSTSW AX
- TEST AH,0x40
- JNZ ms793_30082bab
-ms793_30082b75:
- MOV EAX,dword ptr [ESI + ms793Count]
- INC EDI
- ADD EBX,0x4
- CMP EDI,EAX
- JL ms793_30082b47
-ms793_30082b83:
- MOV EAX,dword ptr [ESI + ms793Undefined]
- TEST EAX,EAX
- JNZ ms793_30082ba1
- MOV EAX,dword ptr [ESI + ms793Count]
- TEST EAX,EAX
- MOV EAX,offset ms793None
- JZ ms793_30082ba1
- MOV EAX,offset ms793Custom
-ms793_30082ba1:
- POP EDI
- POP ESI
- POP EBX
- ADD ESP,0x404
- RET
-ms793_30082bab:
- MOV EAX,dword ptr [ESI + EDI*4 + ms793List]
- POP EDI
- POP ESI
- POP EBX
- ADD ESP,0x404
- RET
- }
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+static qboolean TCE_MultiValueMatches(float candidate, float value) {
+    unsigned int candidateBits, valueBits;
+    memcpy(&candidateBits, &candidate, sizeof(candidateBits));
+    memcpy(&valueBits, &value, sizeof(valueBits));
+    /* Native FCOM tests C3 alone: equal and unordered both match. */
+    return (candidateBits & 0x7fffffffu) > 0x7f800000u ||
+        (valueBits & 0x7fffffffu) > 0x7f800000u || candidate == value;
+}
+
+const char *Item_Multi_Setting(itemDef_t *item) {
+    char buff[1024];
+    volatile float storedValue = 0.0f;
+    multiDef_t *multi = (multiDef_t *)item->typeData;
+    int i, limit;
+    if (multi) {
+        if (multi->strDef) {
+            DC->getCVarString(item->cvar, buff, sizeof(buff));
+        } else {
+            storedValue = (float)DC->getCVarValue(item->cvar);
+        }
+        limit = multi->count;
+        for (i = 0; i < limit; i++) {
+            if (multi->strDef) {
+                if (Q_stricmp(buff, multi->cvarStr[i]) == 0) {
+                    return multi->cvarList[i];
+                }
+                /* Linux refreshes count after the external string comparison. */
+                limit = multi->count;
+            } else {
+                if (TCE_MultiValueMatches(multi->cvarValue[i], storedValue)) {
+                    return multi->cvarList[i];
+                }
+#if !defined(__linux__)
+                limit = multi->count;
+#endif
+            }
+        }
+    }
+    /* Preserve the original fallback, including its invalid null-data case. */
+    if (multi->undefinedStr) {
+        return multi->undefinedStr;
+    }
+    return multi->count == 0 ? "None Defined" : "Custom";
 }
 #else
 const char *Item_Multi_Setting(itemDef_t *item) {
@@ -4606,43 +4420,42 @@ void Menus_HandleOOBClick(menuDef_t *menu, int key, qboolean down) {
 	}
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86) && !defined(UIDLL)
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 static rectDef_t tceCorrectedRect806;
-static const float tceCorrectedZero806 = 0.0f;
-enum { cr806Text = offsetof(itemDef_t, textRect) };
-typedef char tceCorrectedRectLayout806[(sizeof(rectDef_t) == 16 && offsetof(rectDef_t, x) == 0 && offsetof(rectDef_t, y) == 4 && offsetof(rectDef_t, w) == 8 && offsetof(rectDef_t, h) == 12) ? 1 : -1];
-/* TC 30082d30: integer copies, then x87 C3 gate (zero or unordered skips). */
-__declspec(naked) static rectDef_t *Item_CorrectedTextRect(itemDef_t *item) {
- __asm {
-  XOR EAX,EAX
-  MOV dword ptr [tceCorrectedRect806],EAX
-  MOV dword ptr [tceCorrectedRect806 + 4],EAX
-  MOV dword ptr [tceCorrectedRect806 + 8],EAX
-  MOV dword ptr [tceCorrectedRect806 + 12],EAX
-  MOV EAX,dword ptr [ESP + 4]
-  TEST EAX,EAX
-  JZ cr806Done
-  ADD EAX,cr806Text
-  MOV ECX,dword ptr [EAX]
-  MOV dword ptr [tceCorrectedRect806],ECX
-  MOV EDX,dword ptr [EAX + 4]
-  MOV dword ptr [tceCorrectedRect806 + 4],EDX
-  MOV ECX,dword ptr [EAX + 8]
-  MOV dword ptr [tceCorrectedRect806 + 8],ECX
-  FLD dword ptr [tceCorrectedRect806 + 8]
-  FCOMP dword ptr [tceCorrectedZero806]
-  MOV EDX,dword ptr [EAX + 12]
-  MOV dword ptr [tceCorrectedRect806 + 12],EDX
-  FNSTSW AX
-  TEST AH,0x40
-  JNZ cr806Done
-  FLD dword ptr [tceCorrectedRect806 + 4]
-  FSUB dword ptr [tceCorrectedRect806 + 12]
-  FSTP dword ptr [tceCorrectedRect806 + 4]
- cr806Done:
-  MOV EAX,OFFSET tceCorrectedRect806
-  RET
- }
+
+static rectDef_t *Item_CorrectedTextRect(itemDef_t *item) {
+    rectDef_t *rect = &tceCorrectedRect806;
+    int correctY;
+    long double value;
+    rect->x = 0.0f;
+    rect->y = 0.0f;
+    rect->w = 0.0f;
+    rect->h = 0.0f;
+    if (item) {
+        /* Keep the sequential raw32 copies; this is a shared static result. */
+        memcpy(&rect->x, &item->textRect.x, sizeof(rect->x));
+        memcpy(&rect->y, &item->textRect.y, sizeof(rect->y));
+        memcpy(&rect->w, &item->textRect.w, sizeof(rect->w));
+#if defined(_WIN32)
+        correctY = !TCE_FloatIsZeroOrNaN(rect->w);
+#endif
+        memcpy(&rect->h, &item->textRect.h, sizeof(rect->h));
+#if defined(__linux__)
+        correctY = !TCE_FloatIsZeroOrNaN(rect->w);
+#endif
+        if (correctY) {
+#if defined(__linux__)
+            /* ELF loads height first, then performs reverse subtraction. */
+            long double height = (long double)rect->h;
+            value = (long double)rect->y - height;
+#else
+            value = (long double)rect->y;
+            value = value - (long double)rect->h;
+#endif
+            rect->y = (float)value;
+        }
+    }
+    return rect;
 }
 #else
 static rectDef_t *Item_CorrectedTextRect(itemDef_t *item) {
@@ -4884,21 +4697,21 @@ void Menu_HandleKey(menuDef_t *menu, int key, qboolean down) {
 	inHandler = qfalse;
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86) && !defined(UIDLL)
-enum { tw788X=offsetof(windowDef_t,rect)+offsetof(rectDef_t,x), tw788Y=offsetof(windowDef_t,rect)+offsetof(rectDef_t,y) };
-__declspec(naked) void ToWindowCoords(float *x, float *y, windowDef_t *window) {
- __asm {
-  mov eax,dword ptr [esp+4]
-  mov ecx,dword ptr [esp+12]
-  fld dword ptr [eax]
-  fadd dword ptr [ecx+tw788X]
-  fstp dword ptr [eax]
-  mov eax,dword ptr [esp+8]
-  fld dword ptr [ecx+tw788Y]
-  fadd dword ptr [eax]
-  fstp dword ptr [eax]
-  ret
- }
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+void ToWindowCoords(float *x, float *y, windowDef_t *window) {
+    long double sum;
+    volatile float stored;
+#if defined(__linux__)
+    sum = (long double)window->rect.x + (long double)*x;
+#else
+    sum = (long double)*x + (long double)window->rect.x;
+#endif
+    stored = (float)sum;
+    *x = stored;
+    /* Read both Y operands after X is stored, even for overlapping inputs. */
+    sum = (long double)window->rect.y + (long double)*y;
+    stored = (float)sum;
+    *y = stored;
 }
 #else
 void ToWindowCoords(float *x, float *y, windowDef_t *window) {
@@ -7355,7 +7168,7 @@ sp785_30084276:
         PUSH ECX
         CALL dword ptr [EAX + sp785Draw]
         PUSH ESI
-        CALL Item_Slider_ThumbPosition
+        CALL TCE_SliderThumbValue
         MOV EAX,DC
         MOV ECX,dword ptr [ESP + 0x20]
         FSUB qword ptr sp785Six
@@ -7404,9 +7217,17 @@ void Item_Slider_Paint(itemDef_t *item) {
 	//DC->drawHandlePic( x, y, SLIDER_WIDTH, SLIDER_HEIGHT, DC->Assets.sliderBar );
 	DC->drawHandlePic( x, y + 1, SLIDER_WIDTH, SLIDER_HEIGHT, DC->Assets.sliderBar );
 
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+	x = (float)(TCE_SliderThumbValue(item) - 6.0L);
+#else
 	x = Item_Slider_ThumbPosition(item);
+#endif
 	//DC->drawHandlePic( x - (SLIDER_THUMB_WIDTH / 2), y - 2, SLIDER_THUMB_WIDTH, SLIDER_THUMB_HEIGHT, DC->Assets.sliderThumb );
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+	DC->drawHandlePic( x, y, SLIDER_THUMB_WIDTH, SLIDER_THUMB_HEIGHT, DC->Assets.sliderThumb );
+#else
 	DC->drawHandlePic( x - (SLIDER_THUMB_WIDTH / 2), y, SLIDER_THUMB_WIDTH, SLIDER_THUMB_HEIGHT, DC->Assets.sliderThumb );
+#endif
 }
 
 #endif
@@ -10629,9 +10450,11 @@ void Item_ValidateTypeData(itemDef_t *item) {
 
 	if (item->type == ITEM_TYPE_LISTBOX) {
 		item->typeData = UI_Alloc(sizeof(listBoxDef_t));
+		if (!item->typeData) return;
 		memset(item->typeData, 0, sizeof(listBoxDef_t));
 	} else if (item->type == ITEM_TYPE_EDITFIELD || item->type == ITEM_TYPE_NUMERICFIELD || item->type == ITEM_TYPE_YESNO || item->type == ITEM_TYPE_BIND || item->type == ITEM_TYPE_SLIDER || item->type == ITEM_TYPE_TEXT) {
 		item->typeData = UI_Alloc(sizeof(editFieldDef_t));
+		if (!item->typeData) return;
 		memset(item->typeData, 0, sizeof(editFieldDef_t));
 		if (item->type == ITEM_TYPE_EDITFIELD) {
 			if (!((editFieldDef_t *) item->typeData)->maxPaintChars) {
@@ -12103,6 +11926,10 @@ qboolean MenuParse_itemDef( itemDef_t *item, int handle ) {
 
 	if (menu->itemCount < MAX_MENUITEMS) {
 		menu->items[menu->itemCount] = UI_Alloc(sizeof(itemDef_t));
+		if (!menu->items[menu->itemCount]) {
+			PC_SourceError(handle, "UI item pool exhausted; menu was not loaded");
+			return qfalse;
+		}
 		Item_Init(menu->items[menu->itemCount]);
 		if (!Item_Parse(handle, menu->items[menu->itemCount])) {
 			return qfalse;
@@ -12276,6 +12103,10 @@ qboolean Menu_Parse(int handle, menuDef_t *menu) {
 		}
 		if ( !key->func((itemDef_t*)menu, handle) ) {
 			PC_SourceError(handle, "couldn't parse menu keyword %s", token.string);
+			return qfalse;
+		}
+		if (UI_OutOfMemory()) {
+			PC_SourceError(handle, "UI pool exhausted; menu was not loaded");
 			return qfalse;
 		}
 	}

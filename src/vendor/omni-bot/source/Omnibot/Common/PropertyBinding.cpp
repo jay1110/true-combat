@@ -625,6 +625,7 @@ public:
 				}
 			}
 			m_Value = bf;
+			return true;
 		}
 		return false;
 	}

@@ -1,0 +1,110 @@
+// Optional TCE2 generated-corner fallback. Install alongside the other goal scripts.
+// Enable: set omnibot_tce_roamcamp 1; disable: set omnibot_tce_roamcamp 0.
+// Debug events: set omnibot_tce_roamcamp_debug 1 (default silent).
+// Requires collision-validated waypoints named tce2_camp_* by the generator.
+// This is not an objective planner: default roam remains active during cooldowns.
+// Priority 0.11 beats idle Roam=0.05 and generic ROAMING=0.1, below CAMP=0.5.
+// Never change combat movement, weapon preferences or target selection here.
+if(TCE2CampReservations == null) { global TCE2CampReservations = {}; }
+this.Name = "TCE2RoamCamp";
+this.Parent = "HighLevel";
+this.AutoAdd = true;
+this.SkipGetPriorityWhenActive = false;
+this.Candidates = {};
+this.NextScan = 0;
+this.NextCamp = 0;
+this.CampPoint = null;
+this.LastGuid = -1;
+this.PathDeadline = 0;
+this.Trace = function(event)
+{
+ if(GetCvar("omnibot_tce_roamcamp_debug") != 0 && this.CampPoint)
+ { print("TCE2CAMP", event, "bot", this.Bot.GetGameId(), "node", this.CampPoint.guid, "time", GetTime()); }
+};
+this.Initialize = function()
+{
+ this.NextCamp = GetTime() + RandFloat(5,15);
+};
+this.GetPriority = function()
+{
+ this.Priority = 0.0;
+ now = GetTime();
+ if(this.PathDeadline > 0 && now >= this.PathDeadline)
+ { this.Trace("TIMEOUT"); return; }
+ if(GetCvar("omnibot_tce_roamcamp") == 0 || this.Bot.HasTarget()
+  || this.Bot.HasAnyEntityFlag(ENTFLAG.DEAD, ENTFLAG.LIMBO, ENTFLAG.CARRYINGGOAL, ENTFLAG.ON_LADDER)
+  || now < this.NextCamp) { return; }
+ // Refresh after reloads without scanning the whole graph on every bot frame.
+ if(now >= this.NextScan)
+ {
+  this.Candidates = {};
+  allpoints = {};
+  Wp.GetAllWaypoints(allpoints);
+  foreach(point in allpoints)
+  {
+   if(point.name && point.name.Left(10) == "tce2_camp_")
+   { Util.AddToTable(this.Candidates, point); }
+  }
+  this.NextScan = now + RandFloat(20,30);
+ }
+ if(tableCount(this.Candidates) > 0) { this.Priority = 0.11; }
+};
+this.Enter = function()
+{
+ choices = {};
+ now = GetTime();
+ foreach(point in this.Candidates)
+ {
+  reserved = TCE2CampReservations[point.guid];
+  distance = this.Bot.DistanceTo(point.position);
+  if(point.guid != this.LastGuid && distance >= 64 && distance <= 1600
+   && (!reserved || reserved.expires < now))
+  { Util.AddToTable(choices, point); }
+ }
+ this.CampPoint = null;
+ if(tableCount(choices) == 0) { this.Finished(); return; }
+ this.CampPoint = Util.GetRandomTableValue(choices);
+ this.LastGuid = this.CampPoint.guid;
+ TCE2CampReservations[this.CampPoint.guid] = {owner=this.Bot.GetGameId(), expires=now+22};
+ this.PathDeadline = now+12;
+ this.Trace("BEGIN");
+ this.AddAimRequest(Priority.Low, "movedirection");
+};
+this.Exit = function()
+{
+ this.Trace("EXIT");
+ this.Stop();
+ this.ReleaseAimRequest();
+ if(this.CampPoint)
+ {
+  reservation = TCE2CampReservations[this.CampPoint.guid];
+  if(reservation && reservation.owner == this.Bot.GetGameId())
+  { TCE2CampReservations[this.CampPoint.guid] = null; }
+ }
+ this.CampPoint = null;
+ this.PathDeadline = 0;
+ this.NextCamp = GetTime() + RandFloat(20,45);
+};
+this.Update = function()
+{
+ if(!this.CampPoint) { this.Finished(); return; }
+ this.Trace("UPDATE");
+ if(this.Goto(this.CampPoint.position, 24.0) != EVENT.PATH_SUCCESS)
+ { this.Trace("FAIL_NOPATH"); this.Finished(); return; }
+ this.PathDeadline = 0;
+ this.Trace("ARRIVE");
+ this.Stop();
+ this.ReleaseAimRequest();
+ if(!this.CampPoint.facing.IsZero())
+ { this.AddAimRequest(Priority.Low, "facing", this.CampPoint.facing); }
+ deadline = GetTime()+RandFloat(2,6);
+ while(GetTime() < deadline)
+ {
+  if(this.Bot.HasTarget() || GetCvar("omnibot_tce_roamcamp") == 0)
+  { this.Trace("INTERRUPTED"); this.Finished(); return; }
+  sleep(0.1);
+ }
+ this.Trace("COMPLETE");
+ this.Finished();
+};
+

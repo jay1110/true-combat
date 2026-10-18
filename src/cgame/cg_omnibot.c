@@ -79,6 +79,7 @@ PolygonList g_DebugPolygons;
 static int	g_LastRenderTime;
 static char InfoText[1024];
 static int InfoColor;
+static int InfoExpires;
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -95,7 +96,7 @@ void CG_DrawLine(float *start, float *end, int color)
 	// A very long line is invisible if the player is near line center.
 	{
 		vec3_t toline;
-		float fRenderDistanceSq = cg_omnibot_render_distance.integer * cg_omnibot_render_distance.integer;
+		float fRenderDistanceSq = cg_omnibot_render_distance.value * cg_omnibot_render_distance.value;
 		VectorSubtract(cg.refdef_current->vieworg, start, toline);
 		if(VectorLengthSquared(toline) > fRenderDistanceSq){
 			VectorSubtract(cg.refdef_current->vieworg, end, toline);
@@ -451,43 +452,79 @@ void DrawDebugPolygon(vec3_t *verts, int _numverts, int _duration, int _color)
 
 typedef struct { vec3_t origin; char text[512]; int color, expires; } OmniText;
 static OmniText omniText[256];
+static OmniText omniWaypointText;
 static int omniTextNext;
+static qboolean OmniIsWaypointSelection(const char *text) {
+ int index, uid, end=0; float radius;
+ /* UpdateSelectedWpRender emits one inspector, not an independent label for
+    every waypoint visited during its two-second lifetime. */
+ return sscanf(text,"Waypoint %d, Radius %f, UID %d%n",&index,&radius,&uid,&end)==3 &&
+        end>0 && (text[end]=='\n' || text[end]==0);
+}
 static qboolean CG_AddOnScreenText(const char *text, vec3_t origin, int color, float duration) {
- OmniText *entry = &omniText[omniTextNext];
- omniTextNext=(omniTextNext+1)%256;
+ int i;
+ OmniText *entry = NULL;
+ /* Selection changes and moving/edited waypoints replace their previous
+    inspector immediately. A separate slot also keeps goal/debug-label bursts
+    from evicting the current selection before its next server refresh. */
+ if(OmniIsWaypointSelection(text)) entry=&omniWaypointText;
+ /* Other draw callbacks refresh the same label repeatedly. Refresh its
+    lifetime in place: duplicate labels otherwise exhaust the fixed ring and
+    overpaint the same glyphs until they become unreadable. */
+ for(i=0;!entry && i<256;++i) {
+  if(omniText[i].text[0] && omniText[i].expires>=cg.time &&
+     omniText[i].color==color && VectorCompare(omniText[i].origin,origin) &&
+     !strncmp(omniText[i].text,text,sizeof(omniText[i].text)-1)) { entry=&omniText[i]; break; }
+ }
+ if(!entry) { entry=&omniText[omniTextNext]; omniTextNext=(omniTextNext+1)%256; }
  VectorCopy(origin, entry->origin); Q_strncpyz(entry->text,text,sizeof(entry->text));
  entry->color=color; entry->expires=cg.time+(int)(duration*1000.f)+1; return qtrue;
 }
-static void OmniPaint(float x,float y,int packed,const char *text) {
+static void OmniPaint(float x,float y,int packed,const char *text, qboolean centered) {
  unsigned char *bytes=(unsigned char *)&packed; vec4_t color;
+ const float scale=.22f;
  int i; for(i=0;i<4;++i) color[i]=bytes[i]/255.f;
  while(*text) {
-  char line[512]; int count=0;
+  char line[512]; int count=0; float width, left;
   while(*text && *text!='\n') { if(count<(int)sizeof(line)-1) line[count++]=*text; ++text; }
-  line[count]=0; CG_Text_Paint(x,y,.18f,color,line,0,0,ITEM_TEXTSTYLE_SHADOWED);
-  y+=12; if(*text=='\n') ++text;
+  /* TCE does not load the SDK HUD menu fonts in cgDC.Assets. Its registered
+     HUD font is limboFont1, also used by the spectator/teammate labels. */
+  line[count]=0; width=CG_Text_Width_Ext(line,scale,0,&cgs.media.limboFont1);
+  left=centered?x-width*.5f:x;
+  if(width>636)left=2;
+  else { if(left<2)left=2; if(left+width>638)left=638-width; }
+  if(y>=0 && y<=478) CG_Text_Paint_Ext(left,y,scale,scale,color,line,0,0,ITEM_TEXTSTYLE_SHADOWED,&cgs.media.limboFont1);
+  y+=14; if(*text=='\n') ++text;
  }
+}
+static void OmniRenderWorldText(OmniText *entry) {
+  vec3_t delta; float depth,x,y;
+  if(!entry->text[0] || entry->expires<cg.time) return;
+  VectorSubtract(entry->origin,cg.refdef_current->vieworg,delta);
+  depth=DotProduct(delta,cg.refdef_current->viewaxis[0]); if(depth<=.01f) return;
+  if(VectorLengthSquared(delta)>cg_omnibot_render_distance.value*cg_omnibot_render_distance.value) return;
+  x=320.f-320.f*DotProduct(delta,cg.refdef_current->viewaxis[1])/(depth*tan(cg.refdef_current->fov_x*M_PI/360.f));
+  y=240.f-240.f*DotProduct(delta,cg.refdef_current->viewaxis[2])/(depth*tan(cg.refdef_current->fov_y*M_PI/360.f));
+  if(x>=0 && x<=640 && y>=0 && y<=480) OmniPaint(x,y,entry->color,entry->text,qtrue);
 }
 void OmnibotRenderDebugText(void) {
  int i; if(!cg_omnibotdrawing.integer) { ClearDebugDraw(); return; }
- for(i=0;i<256;++i) {
-  OmniText *entry=&omniText[i]; vec3_t delta; float depth,x,y;
-  if(!entry->text[0] || entry->expires<cg.time) continue;
-  VectorSubtract(entry->origin,cg.refdef_current->vieworg,delta);
-  depth=DotProduct(delta,cg.refdef_current->viewaxis[0]); if(depth<=.01f) continue;
-  if(VectorLengthSquared(delta)>cg_omnibot_render_distance.value*cg_omnibot_render_distance.value) continue;
-  x=320.f-320.f*DotProduct(delta,cg.refdef_current->viewaxis[1])/(depth*tan(cg.refdef_current->fov_x*M_PI/360.f));
-  y=240.f-240.f*DotProduct(delta,cg.refdef_current->viewaxis[2])/(depth*tan(cg.refdef_current->fov_y*M_PI/360.f));
-  if(x>=0 && x<=640 && y>=0 && y<=480) OmniPaint(x,y,entry->color,entry->text);
- }
- if(InfoText[0]) { OmniPaint(8,80,InfoColor,InfoText); InfoText[0]=0; }
+ for(i=0;i<256;++i) OmniRenderWorldText(&omniText[i]);
+ /* Paint the one selected-waypoint inspector last so nearby goal labels do
+    not alternately cover it as their server refresh order changes. */
+ OmniRenderWorldText(&omniWaypointText);
+ if(InfoText[0] && InfoExpires>=cg.time) OmniPaint(8,80,InfoColor,InfoText,qfalse);
+ else InfoText[0]=0;
 }
-void OmnibotClearText(void) { memset(omniText,0,sizeof(omniText)); omniTextNext=0; InfoText[0]=0; }
+void OmnibotClearText(void) { memset(omniText,0,sizeof(omniText)); memset(&omniWaypointText,0,sizeof(omniWaypointText)); omniTextNext=0; InfoText[0]=0; InfoExpires=0; }
 
 
 void DrawDebugText(float *_start, const char *_msg, int _duration, int _color)
 {
 	if(cg_omnibotdrawing.integer){
+		if(!_msg || !_msg[0]) return;
+		if(_duration<0) _duration=0;
+		if(_duration>60000) _duration=60000;
 		if(_start && !VectorCompare(_start, vec3_origin))
 		{
 			vec3_t v3;
@@ -498,6 +535,7 @@ void DrawDebugText(float *_start, const char *_msg, int _duration, int _color)
 		{
 			Q_strncpyz(InfoText, _msg, sizeof(InfoText));
 			InfoColor = _color;
+			InfoExpires = cg.time + _duration + 1;
 		}
 	}
 }

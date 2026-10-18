@@ -53,6 +53,14 @@ public:
 	virtual void PlanPathToGoal(Client *_client, const Vector3f &_start, const Vector3f &_goal, const NavFlags _team) = 0;
 	virtual int PlanPathToNearest(Client *_client, const Vector3f &_start, const Vector3List &_goals, const NavFlags &_team) = 0;
 	virtual int PlanPathToNearest(Client *_client, const Vector3f &_start, const DestinationVector &_goals, const NavFlags &_team) = 0;
+	// Recovery can require an ordinary walk entry without changing normal
+	// queries, which may deliberately begin at an action waypoint.
+	virtual int PlanPathToNearestWithEntryPolicy(Client *_client, const Vector3f &_start,
+		const DestinationVector &_goals, const NavFlags &_team, bool _ordinaryEntry)
+	{
+		(void)_ordinaryEntry;
+		return PlanPathToNearest(_client, _start, _goals, _team);
+	}
 
 	virtual bool GetNavFlagByName(const String &_flagname, NavFlags &_flag) const = 0;
 

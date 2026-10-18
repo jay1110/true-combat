@@ -111,22 +111,22 @@ static const unsigned int swayConst30092c28 = 0xc0000000u;
  * truncated int64 in EDX:EAX with the saved control word restored. */
 static __declspec(naked) void TCE_WeaponPositionTruncateST0(void) {
     __asm {
-        PUSH EBP
-        MOV EBP,ESP
-        SUB ESP,12
-        FWAIT
-        FNSTCW word ptr [EBP - 2]
-        FWAIT
-        MOV AX,word ptr [EBP - 2]
-        OR AH,0x0c
-        MOV word ptr [EBP - 4],AX
-        FLDCW word ptr [EBP - 4]
-        FISTP qword ptr [EBP - 12]
-        FLDCW word ptr [EBP - 2]
-        MOV EAX,dword ptr [EBP - 12]
-        MOV EDX,dword ptr [EBP - 8]
-        LEAVE
-        RET
+        push ebp
+        mov ebp, esp
+        add esp, -12
+        fwait
+        fnstcw word ptr [ebp-2]
+        fwait
+        mov ax, word ptr [ebp-2]
+        or ah, 0ch
+        mov word ptr [ebp-4], ax
+        fldcw word ptr [ebp-4]
+        fistp qword ptr [ebp-12]
+        fldcw word ptr [ebp-2]
+        mov eax, dword ptr [ebp-12]
+        mov edx, dword ptr [ebp-8]
+        leave
+        ret
     }
 }
 

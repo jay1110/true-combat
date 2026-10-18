@@ -48,6 +48,7 @@ public:
 	virtual int ConvertWeaponId(int weaponId);
 
 	int GetLogSize();
+	virtual String GetGoalScriptStem(bool saving);
 
 	static int CLASSEXoffset;
 	static bool IsETBlight, IsBastardmod, IsNoQuarter, IsTCE;

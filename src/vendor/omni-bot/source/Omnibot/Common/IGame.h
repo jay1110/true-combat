@@ -59,6 +59,8 @@ public:
 	virtual void RegisterPathCheck(PathPlannerWaypoint::pfbWpPathCheck &_pfnPathCheck) { }
 	virtual void InitMapScript();
 	virtual void GetMapScriptFile(filePath &script) { };
+	// Empty rejects an incomplete map/goal pair. WAY names remain map-only.
+	virtual String GetGoalScriptStem(bool saving);
 
 	virtual void ClientJoined(const Event_SystemClientConnected *_msg);
 	virtual void ClientLeft(const Event_SystemClientDisConnected *_msg);

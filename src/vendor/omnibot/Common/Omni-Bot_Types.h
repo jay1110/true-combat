@@ -785,6 +785,7 @@ typedef enum eTraceMasks
 	TR_MASK_SMOKEBOMB	= (1<<9), // blocked by smoke bombs
 	TR_MASK_FLOODFILL	= (1<<10), // flood fill filter
 	TR_MASK_FLOODFILLENT= (1<<11), // flood fill filter with entities
+	TR_MASK_NAVCAPSULE = (1<<12), // TCE2 physical player capsule; contents come from other mask bits
 
 	// THIS MUST BE LAST
 	TR_MASK_START_USER	= (1<<24),

@@ -954,7 +954,7 @@ void Svcmd_ListCampaigns_f(void) {
 
 
 // ydnar: modified from maddoc sp func
-extern void ReviveEntity(gentity_t *ent, gentity_t *traceEnt);
+extern qboolean ReviveEntity(gentity_t *ent, gentity_t *traceEnt);
 extern int FindClientByName( char *name );
 
 void Svcmd_RevivePlayer( char *name )
@@ -1337,8 +1337,11 @@ static void TCE_SvcmdConnectNodes( void ) {
 	}
 }
 
+#include "tce_navgen.h"
+
 qboolean	ConsoleCommand( void ) {
 	char	cmd[MAX_TOKEN_CHARS];
+	if ( TCE_NavgenCommand() ) return qtrue;
 	if ( TCE_LuaCommand( -1, qtrue ) ) {
 		return qtrue;
 	}

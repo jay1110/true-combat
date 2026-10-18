@@ -113,6 +113,22 @@ qboolean SpotWouldTelefrag( gentity_t *spot ) {
 	return qfalse;
 }
 
+/* Admission is separate from the original live-player overlap policy. Test
+ * the exact standing body ClientSpawn will create at the unchanged +9 pose;
+ * occupied but world-clear fallback spawns must remain available. */
+qboolean G_SpawnOriginWorldClear(const vec3_t baseOrigin) {
+    trace_t trace;
+    vec3_t origin, mins, maxs;
+    float halfWidth = g_newbbox.integer ? 16.0f : 14.0f;
+    VectorCopy(baseOrigin, origin);
+    origin[2] += 9;
+    VectorSet(mins, -halfWidth, -halfWidth, g_newbbox.integer ? -30.0f : -24.0f);
+    VectorSet(maxs, halfWidth, halfWidth, g_newbbox.integer ? 57.0f : 46.0f);
+    trap_TraceCapsule(&trace, origin, mins, maxs, origin, ENTITYNUM_NONE,
+        MASK_PLAYERSOLID & ~CONTENTS_BODY);
+    return !trace.startsolid && !trace.allsolid && trace.fraction == 1.0f;
+}
+
 /*
 ================
 SelectNearestDeathmatchSpawnPoint
@@ -185,6 +201,7 @@ go to a random point that doesn't telefrag
 #define	MAX_SPAWN_POINTS	128
 gentity_t *SelectRandomDeathmatchSpawnPoint( void ) {
 	gentity_t	*spot;
+	gentity_t	*worldClearFallback = NULL;
 	int			count;
 	int			selection;
 	gentity_t	*spots[MAX_SPAWN_POINTS];
@@ -193,6 +210,8 @@ gentity_t *SelectRandomDeathmatchSpawnPoint( void ) {
 	spot = NULL;
 
 	while ((spot = G_Find (spot, FOFS(classname), "info_player_deathmatch")) != NULL) {
+		if (!G_SpawnOriginWorldClear(spot->r.currentOrigin)) continue;
+		if (!worldClearFallback) worldClearFallback = spot;
 		if ( SpotWouldTelefrag( spot ) ) {
 			continue;
 		}
@@ -201,7 +220,7 @@ gentity_t *SelectRandomDeathmatchSpawnPoint( void ) {
 	}
 
 	if ( !count ) {	// no spots that won't telefrag
-		return G_Find( NULL, FOFS(classname), "info_player_deathmatch");
+		return worldClearFallback;
 	}
 
 	selection = rand() % count;
@@ -279,6 +298,21 @@ SelectSpectatorSpawnPoint
 
 ============
 */
+/* Intermission/spectator cameras have no standing player collision body.
+ * Preserve an authored fallback pose even if every DM spawn is unsuitable
+ * for a real player; playing clients retain SelectSpawnPoint admission. */
+gentity_t *SelectIntermissionSpawnPoint( vec3_t origin, vec3_t angles ) {
+	gentity_t *spot = G_Find(NULL, FOFS(classname), "info_player_deathmatch");
+	if (!spot) {
+		G_Error("Couldn't find a spawn point");
+		return NULL;
+	}
+	VectorCopy(spot->r.currentOrigin, origin);
+	origin[2] += 9;
+	VectorCopy(spot->s.angles, angles);
+	return spot;
+}
+
 gentity_t *SelectSpectatorSpawnPoint( vec3_t origin, vec3_t angles ) {
 	FindIntermissionPoint();
 
@@ -1553,6 +1587,7 @@ gentity_t *SelectSpawnPointFromList( char *list, vec3_t spawn_origin, vec3_t spa
 	while((token = COM_Parse( &pStr )) != NULL && token[0]) {
 		trav = g_entities + level.maxclients;
 		while((trav = G_FindByTargetname(trav, token)) != NULL) {
+			if (!G_SpawnOriginWorldClear(trav->r.currentOrigin)) continue;
 			if (!spawnPoint) spawnPoint = trav;
 			if (!SpotWouldTelefrag( trav )) {
 				valid[numValid++] = trav->s.number;
@@ -1566,6 +1601,9 @@ gentity_t *SelectSpawnPointFromList( char *list, vec3_t spawn_origin, vec3_t spa
 	if (numValid)
 	{
 		spawnPoint = &g_entities[valid[rand()%numValid]];
+	}
+	if (spawnPoint)
+	{
 
 		// Set the origin of where the bot will spawn
 		VectorCopy (spawnPoint->r.currentOrigin, spawn_origin);

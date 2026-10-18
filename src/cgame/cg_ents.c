@@ -1731,6 +1731,73 @@ static void CG_EntityTrajectory(const entityState_t *state, const trajectory_t *
 	else TCE_BG_EvaluateTrajectory(tr, atTime, result, isAngle, splinePath, 1.f);
 }
 
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+/* Native entity position/motion stages; see proof936. The difference spills
+ * do not round the values retained for interpolation. */
+static void CG_InterpolateEntityOrigin(centity_t *cent, const vec3_t current,
+    const vec3_t next, float fraction) {
+    long double differenceX, differenceY, differenceZ, product;
+#if defined(_WIN32)
+    differenceX = (long double)next[0] - current[0];
+    product = differenceX * (long double)fraction;
+    cent->lerpOrigin[0] = (float)(product + (long double)current[0]);
+    differenceY = (long double)next[1] - current[1];
+    cent->tceEntityMotion[1] = (float)differenceY;
+    product = differenceY * (long double)fraction;
+    cent->lerpOrigin[1] = (float)(product + (long double)current[1]);
+    differenceZ = (long double)next[2] - current[2];
+    cent->tceEntityMotion[2] = (float)differenceZ;
+    product = differenceZ * (long double)fraction;
+    cent->lerpOrigin[2] = (float)(product + (long double)current[2]);
+    cent->tceEntityMotion[0] = (float)differenceX;
+#else
+    long double start, end, factor;
+    start = (long double)current[0];
+    end = (long double)next[0];
+    factor = (long double)fraction;
+    differenceX = end - start;
+    product = factor * differenceX;
+    cent->lerpOrigin[0] = (float)(product + start);
+    start = (long double)current[1];
+    end = (long double)next[1];
+    factor = (long double)fraction;
+    differenceY = end - start;
+    product = factor * differenceY;
+    cent->lerpOrigin[1] = (float)(product + start);
+    start = (long double)current[2];
+    end = (long double)next[2];
+    factor = (long double)fraction;
+    cent->tceEntityMotion[0] = (float)differenceX;
+    differenceZ = end - start;
+    cent->tceEntityMotion[1] = (float)differenceY;
+    product = factor * differenceZ;
+    cent->tceEntityMotion[2] = (float)differenceZ;
+    cent->lerpOrigin[2] = (float)(start + product);
+#endif
+}
+
+static void CG_InterpolateEntityMotion(vec3_t result, const vec3_t current,
+    const vec3_t next, float fraction) {
+    int i;
+    long double difference, product;
+#if !defined(_WIN32)
+    long double start;
+#endif
+    for (i = 0; i < 3; ++i) {
+#if defined(_WIN32)
+        difference = (long double)next[i] - current[i];
+        product = difference * (long double)fraction;
+        result[i] = (float)(product + (long double)current[i]);
+#else
+        start = (long double)current[i];
+        difference = (long double)next[i] - start;
+        product = difference * (long double)fraction;
+        result[i] = (float)(start + product);
+#endif
+    }
+}
+#endif
+
 static void CG_InterpolateEntityPosition( centity_t *cent ) {
 	vec3_t		current, next;
 	float		f;
@@ -1752,10 +1819,14 @@ static void CG_InterpolateEntityPosition( centity_t *cent ) {
 	CG_EntityTrajectory(&cent->currentState, &cent->currentState.pos, cg.snap->serverTime, current, qfalse, cent->currentState.effect2Time, qfalse);
 	CG_EntityTrajectory(&cent->nextState, &cent->nextState.pos, cg.nextSnap->serverTime, next, qfalse, cent->currentState.effect2Time, qfalse);
 
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+	CG_InterpolateEntityOrigin(cent, current, next, f);
+#else
 	cent->lerpOrigin[0] = current[0] + f * ( next[0] - current[0] );
 	cent->lerpOrigin[1] = current[1] + f * ( next[1] - current[1] );
 	cent->lerpOrigin[2] = current[2] + f * ( next[2] - current[2] );
 	VectorSubtract(next, current, cent->tceEntityMotion);
+#endif
 
 	CG_EntityTrajectory(&cent->currentState, &cent->currentState.apos, cg.snap->serverTime, current, qtrue, cent->currentState.effect2Time, qfalse);
 	CG_EntityTrajectory(&cent->nextState, &cent->nextState.apos, cg.nextSnap->serverTime, next, qtrue, cent->currentState.effect2Time, qfalse);
@@ -1767,9 +1838,13 @@ static void CG_InterpolateEntityPosition( centity_t *cent ) {
 		current, qfalse, cent->currentState.effect2Time, qtrue);
 	CG_EntityTrajectory(&cent->nextState, &cent->nextState.pos, cg.nextSnap->serverTime,
 		next, qfalse, cent->currentState.effect2Time, qtrue);
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+	CG_InterpolateEntityMotion(cent->tceEntityMotion, current, next, f);
+#else
 	cent->tceEntityMotion[0] = current[0] + f * (next[0] - current[0]);
 	cent->tceEntityMotion[1] = current[1] + f * (next[1] - current[1]);
 	cent->tceEntityMotion[2] = current[2] + f * (next[2] - current[2]);
+#endif
 
 }
 

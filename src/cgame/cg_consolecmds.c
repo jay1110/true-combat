@@ -9,6 +9,30 @@
 #include "cg_local.h"
 #include "../game/tce_bg.h"
 
+/* OB_DMS name dialogs use cg_genericText. Forward only to the typed UI
+ * handlers, which validate the value before building the local bot command. */
+static void CG_OmniTextCommand(const char *command) {
+    char local[16], text[128];
+    trap_Cvar_VariableStringBuffer("sv_running",local,sizeof(local));
+    if (!atoi(local)) { CG_Printf("Omni-bot editing requires a local game.\n"); return; }
+    trap_Cvar_VariableStringBuffer("cg_genericText",text,sizeof(text));
+    trap_Cvar_Set("ui_omnibotGoalName",text);
+    trap_SendConsoleCommand(va("%s\n",command));
+}
+static void CG_SetGoalName_f(void) { CG_OmniTextCommand("omnibot_goalname"); }
+static void CG_SetGroupName_f(void) { CG_OmniTextCommand("omnibot_goalgroup"); }
+static void CG_SetWaypointName_f(void) { CG_OmniTextCommand("omnibot_waypointname"); }
+
+/* The optional NavStudio authoring game has a spectator observer. Ordinary
+ * spectators keep the original voice restrictions in public games. */
+static qboolean CG_NavStudioVoiceEditor(void) {
+    char local[16], editor[16], cheats[16];
+    trap_Cvar_VariableStringBuffer("sv_running",local,sizeof(local));
+    trap_Cvar_VariableStringBuffer("navstudio_editor",editor,sizeof(editor));
+    trap_Cvar_VariableStringBuffer("sv_cheats",cheats,sizeof(cheats));
+    return atoi(local)!=0 && atoi(editor)!=0 && atoi(cheats)!=0;
+}
+
 /* Windows 3001bd70 / 3001be10; cmd.weapon55 is a request, not a gear slot. */
 void CG_FiremodeDown_f(void) {
     if (!cg.snap || (cg.snap->ps.pm_flags & PMF_FOLLOW)) return;
@@ -343,7 +367,7 @@ static void CG_Fade_f( void ) {
 }
 
 void CG_QuickMessage_f( void ) {
-	if( cgs.clientinfo[ cg.clientNum ].team == TEAM_SPECTATOR ) {
+	if( cgs.clientinfo[ cg.clientNum ].team == TEAM_SPECTATOR && !CG_NavStudioVoiceEditor() ) {
 		return;
 	}
 
@@ -357,7 +381,7 @@ void CG_QuickMessage_f( void ) {
 }
 
 void CG_QuickFireteamMessage_f( void ) {
-	if( cgs.clientinfo[ cg.clientNum ].team == TEAM_SPECTATOR ) {
+	if( cgs.clientinfo[ cg.clientNum ].team == TEAM_SPECTATOR && !CG_NavStudioVoiceEditor() ) {
 		return;
 	}
 
@@ -386,6 +410,10 @@ void CG_QuickFireteamAdmin_f( void ) {
 }
 
 static void CG_QuickFireteams_f( void ) {
+	if (cgs.clientinfo[cg.clientNum].team==TEAM_SPECTATOR && CG_NavStudioVoiceEditor()) {
+		CG_QuickFireteamMessage_f();
+		return;
+	}
 	if( cg.showFireteamMenu ) {
 		if( cgs.ftMenuMode == 0 ) {
 			CG_EventHandling( CGAME_EVENT_NONE, qfalse );
@@ -975,6 +1003,9 @@ static void CG_FreeLookDown_f(void) { CG_FreeLookCommand(qtrue); }
 static void CG_FreeLookUp_f(void) { CG_FreeLookCommand(qfalse); }
 
 static consoleCommand_t commands[] = {
+	{ "setGoalName", CG_SetGoalName_f },
+	{ "setGroupName", CG_SetGroupName_f },
+	{ "setWaypointName", CG_SetWaypointName_f },
 	{ "+freelook", CG_FreeLookDown_f },
 	{ "-freelook", CG_FreeLookUp_f },
 	{ "testgun", CG_TestGun_f },

@@ -13,7 +13,7 @@
 #define MAX_ITEMACTION 64
 #define MAX_MENUDEFFILE 4096
 #define MAX_MENUFILE 32768
-#define MAX_MENUS 128
+#define MAX_MENUS 256 // Full optional DMS authoring pages alongside the TCE menus.
 //#define MAX_MENUITEMS 256
 #define MAX_MENUITEMS 128 // JPW NERVE q3ta was 96
 #define MAX_COLOR_RANGES 10
@@ -396,7 +396,12 @@ typedef struct {
 	void (*runScript)(char **p);
 	void (*getTeamColor)(vec4_t *color);
 	void (*getCVarString)(const char *cvar, char *buffer, int bufsize);
+#if defined(CGAMEDLL) && defined(_WIN32) && !defined(Q3_VM)
+	/* Native cgame forwards a Double64 value in ST0; pointer slot is unchanged. */
+	double (*getCVarValue)(const char *cvar);
+#else
 	float (*getCVarValue)(const char *cvar);
+#endif
 	void (*setCVar)(const char *cvar, const char *value);
 	void (*drawTextWithCursor)(float x, float y, float scale, vec4_t color, const char *text, int cursorPos, char cursor, int limit, int style);
 	void (*setOverstrikeMode)(qboolean b);
