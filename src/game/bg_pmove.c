@@ -4253,272 +4253,48 @@ PM_NoclipMove
 ===============
 */
 #if defined(_MSC_VER) && defined(_M_IX86)
-static __declspec(naked) void PM_NoclipMove(void) {
-    __asm {
-
-        MOV EAX,[pm]
-
-        SUB ESP,0x20
-
-        MOV ECX,dword ptr [EAX + movementPs833]
-
-        MOV dword ptr [ECX + movementViewHeight833],0x2a
-
-        MOV EDX,dword ptr [pm]
-
-        MOV EAX,dword ptr [EDX + movementPs833]
-
-        ADD EAX,movementVelocity833
-
-        PUSH EAX
-
-        CALL VectorLength
-
-        FCOM dword ptr [movementK200ac110]
-
-        ADD ESP,0x4
-
-        FNSTSW AX
-
-        TEST AH,0x1
-
-        JZ movementAt20036679
-
-        MOV ECX,dword ptr [pm]
-
-        MOV EAX,[vec3_origin]
-
-        FSTP ST(0)
-
-        MOV EDX,dword ptr [ECX + movementPs833]
-
-        MOV dword ptr [EDX + movementVelocity833],EAX
-
-        MOV ECX,dword ptr [pm]
-
-        MOV EAX,[vec3_origin + 4]
-
-        MOV EDX,dword ptr [ECX + movementPs833]
-
-        MOV dword ptr [EDX + movementVelocityY833],EAX
-
-        MOV ECX,dword ptr [pm]
-
-        MOV EAX,[vec3_origin + 8]
-
-        MOV EDX,dword ptr [ECX + movementPs833]
-
-        MOV dword ptr [EDX + movementVelocityZ833],EAX
-
-        JMP movementAt200366f4
-    movementAt20036679:
-        FLD dword ptr [pm_friction]
-
-        FMUL qword ptr [movementK200ac708]
-
-        FLD ST(1)
-
-        FCOMP dword ptr [pm_stopspeed]
-
-        FNSTSW AX
-
-        TEST AH,0x1
-
-        JZ movementAt2003669c
-
-        FLD dword ptr [pm_stopspeed]
-
-        JMP movementAt2003669e
-    movementAt2003669c:
-        FLD ST(1)
-    movementAt2003669e:
-        FLD dword ptr [pml + movementFrameTime833]
-
-        FMUL ST(0),ST(1)
-
-        FMULP ST(2),ST(0)
-
-        FXCH ST(1)
-
-        FSUBR ST(0),ST(2)
-
-        FXCH ST(1)
-
-        FSTP ST(0)
-
-        FCOM dword ptr [movementK200ac100]
-
-        FNSTSW AX
-
-        TEST AH,0x1
-
-        JZ movementAt200366c5
-
-        FSTP ST(0)
-
-        FLD dword ptr [movementK200ac100]
-    movementAt200366c5:
-        FDIVRP ST(1),ST(0)
-
-        MOV ECX,dword ptr [pm]
-
-        MOV EAX,dword ptr [ECX + movementPs833]
-
-        FLD ST(0)
-
-        FMUL dword ptr [EAX + movementVelocity833]
-
-        FSTP dword ptr [EAX + movementVelocity833]
-
-        MOV EDX,dword ptr [pm]
-
-        FLD ST(0)
-
-        MOV EAX,dword ptr [EDX + movementPs833]
-
-        FMUL dword ptr [EAX + movementVelocityY833]
-
-        FSTP dword ptr [EAX + movementVelocityY833]
-
-        MOV EAX,[pm]
-
-        MOV EAX,dword ptr [EAX + movementPs833]
-
-        FMUL dword ptr [EAX + movementVelocityZ833]
-
-        FSTP dword ptr [EAX + movementVelocityZ833]
-    movementAt200366f4:
-        MOV ECX,dword ptr [pm]
-
-        ADD ECX,movementCmd833
-
-        PUSH ECX
-
-        CALL PM_CmdScale
-
-        MOV ECX,dword ptr [pm]
-
-        ADD ESP,0x4
-
-        FSTP dword ptr [ESP + 0x4]
-
-        MOVSX EDX,byte ptr [ECX + movementForwardCmd833]
-
-        MOVSX EAX,byte ptr [ECX + movementRightCmd833]
-
-        MOV dword ptr [ESP],EDX
-
-        FILD dword ptr [ESP]
-
-        MOV dword ptr [ESP],EAX
-
-        XOR EAX,EAX
-
-        FILD dword ptr [ESP]
-    movementAt2003672a:
-        FLD ST(0)
-
-        FMUL dword ptr [EAX + pml + movementRight833]
-
-        FLD ST(2)
-
-        FMUL dword ptr [EAX + pml + movementForward833]
-
-        ADD EAX,0x4
-
-        CMP EAX,0xc
-
-        FADDP ST(1),ST(0)
-
-        FSTP dword ptr [ESP + EAX*0x1 + 0x10]
-
-        JL movementAt2003672a
-
-        MOVSX ECX,byte ptr [ECX + movementUpCmd833]
-
-        FSTP ST(0)
-
-        FSTP ST(0)
-
-        MOV dword ptr [ESP],ECX
-
-        MOV EDX,dword ptr [ESP + 0x14]
-
-        FILD dword ptr [ESP]
-
-        MOV EAX,dword ptr [ESP + 0x18]
-
-        LEA ECX,[ESP + 0x8]
-
-        PUSH ECX
-
-        MOV dword ptr [ESP + 0xc],EDX
-
-        FADD dword ptr [ESP + 0x20]
-
-        MOV dword ptr [ESP + 0x10],EAX
-
-        FSTP dword ptr [ESP + 0x14]
-
-        CALL VectorNormalize
-
-        MOV EDX,dword ptr [pm_accelerate]
-
-        LEA ECX,[ESP + 0xc]
-
-        FMUL dword ptr [ESP + 0x8]
-
-        PUSH EDX
-
-        FSTP dword ptr [ESP + 0xc]
-
-        MOV EAX,dword ptr [ESP + 0xc]
-
-        PUSH EAX
-
-        PUSH ECX
-
-        CALL PM_Accelerate
-
-        MOV EDX,dword ptr [pm]
-
-        FLD dword ptr [pml + movementFrameTime833]
-
-        MOV EAX,dword ptr [EDX + movementPs833]
-
-        FMUL dword ptr [EAX + movementVelocity833]
-
-        FADD dword ptr [EAX + movementOrigin833]
-
-        FSTP dword ptr [EAX + movementOrigin833]
-
-        MOV EAX,[pm]
-
-        FLD dword ptr [pml + movementFrameTime833]
-
-        MOV EAX,dword ptr [EAX + movementPs833]
-
-        FMUL dword ptr [EAX + movementVelocityY833]
-
-        FADD dword ptr [EAX + movementOriginY833]
-
-        FSTP dword ptr [EAX + movementOriginY833]
-
-        MOV ECX,dword ptr [pm]
-
-        FLD dword ptr [pml + movementFrameTime833]
-
-        MOV EAX,dword ptr [ECX + movementPs833]
-
-        FMUL dword ptr [EAX + movementVelocityZ833]
-
-        FADD dword ptr [EAX + movementOriginZ833]
-
-        FSTP dword ptr [EAX + movementOriginZ833]
-
-        ADD ESP,0x30
-
-        RET
+static void PM_NoclipMove(void) {
+    long double speed, control, friction, drop, remaining, ratio;
+    volatile float scale, wishspeed;
+    vec3_t wishvel, wishdir;
+    int forwardMove, rightMove, i;
+
+    pm->ps->viewheight = 42;
+    speed = TCE_VectorLengthValue(pm->ps->velocity);
+    if (speed < 1.0L || speed != speed) {
+        pm->ps->velocity[0] = vec3_origin[0];
+        pm->ps->velocity[1] = vec3_origin[1];
+        pm->ps->velocity[2] = vec3_origin[2];
+    } else {
+        friction = (long double)pm_friction * 1.5;
+        control = pm_stopspeed;
+        /* Native C0 keeps stop speed when either operand is unordered. */
+        if (speed >= control) control = speed;
+        drop = (long double)pml.frametime * control;
+        drop *= friction;
+        remaining = speed - drop;
+        if (remaining < 0.0L || remaining != remaining) remaining = 0.0L;
+        ratio = remaining / speed;
+        pm->ps->velocity[0] = (float)(ratio * pm->ps->velocity[0]);
+        pm->ps->velocity[1] = (float)(ratio * pm->ps->velocity[1]);
+        pm->ps->velocity[2] = (float)(ratio * pm->ps->velocity[2]);
+    }
+    scale = PM_CmdScale(&pm->cmd);
+    forwardMove = pm->cmd.forwardmove;
+    rightMove = pm->cmd.rightmove;
+    for (i = 0; i < 3; ++i) {
+        long double right = (long double)rightMove * pml.right[i];
+        long double forward = (long double)forwardMove * pml.forward[i];
+        wishvel[i] = (float)(right + forward);
+    }
+    wishdir[0] = wishvel[0];
+    wishdir[1] = wishvel[1];
+    wishdir[2] = (float)((long double)pm->cmd.upmove + wishvel[2]);
+    wishspeed = (float)(TCE_VectorNormalizeValue(wishdir) * scale);
+    PM_Accelerate(wishdir, wishspeed, pm_accelerate);
+    for (i = 0; i < 3; ++i) {
+        long double movement = (long double)pml.frametime * pm->ps->velocity[i];
+        pm->ps->origin[i] = (float)(movement + pm->ps->origin[i]);
     }
 }
 #else
