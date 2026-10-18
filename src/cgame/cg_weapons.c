@@ -3798,6 +3798,30 @@ enum {
     f855DefSuppressed=offsetof(tce_weaponDef_t,suppressed), f855DefSubsonic=offsetof(tce_weaponDef_t,subsonic),
     f855Reverb=offsetof(tce_weaponInfo_t,flashReverbVolume), f855Echo=offsetof(tce_weaponInfo_t,flashEchoSound)
 };
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__GNUC__) && defined(__i386__) && defined(__linux__))
+static void CG_TCEFireSway855(void) {
+    unsigned int holdBits = (unsigned int)cg.time + 100u;
+    long double angle, instability;
+
+    memcpy(&cg.tceShotHoldUntil, &holdBits, sizeof(cg.tceShotHoldUntil));
+    angle = (long double)(rand() & 0x7fff) *
+            (long double)3.0518509447574615e-05f;
+    instability = (long double)cg.predictedPlayerState.stats[STAT_TCE_SHOT_INSTABILITY] *
+                  (long double)0.0010000000474974513f;
+#if defined(_WIN32)
+    /* The Windows original spills instability and uses a binary32 period. */
+    instability = (float)instability;
+    angle *= (long double)6.2831854820251465f;
+#else
+    angle *= (long double)6.283185307179586;
+#endif
+    cg.tceSwayVertical = (float)((long double)sin((double)angle) * instability *
+                               1.5L + (long double)cg.tceSwayVertical);
+    cg.tceSwayHorizontal = (float)((long double)cos((double)angle) * instability *
+                                 1.5L + (long double)cg.tceSwayHorizontal);
+}
+#endif
+
 #if defined(_MSC_VER) && defined(_M_IX86)
 static const float f855One=1.0f;
 static const float f855Maximum=127.0f;
@@ -3810,34 +3834,6 @@ static const float f855RandomScale=3.0518509447574615e-05f;
 static const float f855InstabilityScale=0.0010000000474974513f;
 static const float f855WinTwoPi=6.2831854820251465f;
 static const double f855WinAmplitude=1.5;
-static void CG_TCEFireSway855(void) {
-    union { int randomBits;float instability; } tceSwayScratch;
-    __asm {
-        mov edx,dword ptr [cg+f855Time]
-        add edx,100
-        mov dword ptr [cg+f855ShotHold],edx
-        call rand
-        and eax,7fffh
-        mov dword ptr tceSwayScratch,eax
-        fild dword ptr tceSwayScratch
-        fmul dword ptr f855RandomScale
-        fild dword ptr [cg+f855Instability]
-        fmul dword ptr f855InstabilityScale
-        fstp dword ptr tceSwayScratch
-        fmul dword ptr f855WinTwoPi
-        fld st(0)
-        fsin
-        fmul dword ptr tceSwayScratch
-        fmul qword ptr f855WinAmplitude
-        fadd dword ptr [cg+f855Vertical]
-        fstp dword ptr [cg+f855Vertical]
-        fcos
-        fmul dword ptr tceSwayScratch
-        fmul qword ptr f855WinAmplitude
-        fadd dword ptr [cg+f855Horizontal]
-        fstp dword ptr [cg+f855Horizontal]
-    }
-}
 static __declspec(naked) void CG_TCEFireSound855(centity_t *cent,tce_weaponInfo_t *weap,int *sounds) {
     __asm {
         push ebp
@@ -4152,43 +4148,6 @@ static __declspec(naked) void CG_TCEFireSound855(centity_t *cent,tce_weaponInfo_
     }
 }
 #elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-typedef struct {
-    cg_t *cgRoot;int (*random)(void);float constants32[4];double twoPi;
-} tceFireSway855Bindings_t;
-static __attribute__((noinline)) void CG_TCEFireSway855(void) {
-    static const tceFireSway855Bindings_t bindings={&cg,rand,
-        {3.0518509447574615e-05f,0.0010000000474974513f,1.5f,0.0f},
-        0x1.921fb54442d18p+2};
-    const tceFireSway855Bindings_t *cursor=&bindings;
-    typedef char Sway855Layout[(sizeof(void*)==4 && sizeof(int)==4 &&
-        offsetof(tceFireSway855Bindings_t,random)==4 &&
-        offsetof(tceFireSway855Bindings_t,constants32)==8 &&
-        offsetof(tceFireSway855Bindings_t,twoPi)==24 && sizeof(tceFireSway855Bindings_t)==32)?1:-1];
-    __asm__ volatile (
-        ".intel_syntax noprefix\n\t"
-        "push ebx\n\tpush ebp\n\tmov ebp,esp\n\tand esp,-16\n\tsub esp,16\n\t"
-        "mov dword ptr [esp+12],ebp\n\tmov ebx,eax\n\tmov esi,dword ptr [ebx]\n\t"
-        "mov ecx,dword ptr [esi+%c[time]]\n\tadd ecx,100\n\t"
-        "mov dword ptr [esi+%c[hold]],ecx\n\tcall dword ptr [ebx+4]\n\t"
-        "fld qword ptr [ebx+24]\n\tand eax,0x7fff\n\tpush eax\n\tfild dword ptr [esp]\n\tadd esp,4\n\t"
-        "fmul dword ptr [ebx+8]\n\tfild dword ptr [esi+%c[instability]]\n\t"
-        "fmul dword ptr [ebx+12]\n\tfld dword ptr [esi+%c[vertical]]\n\t"
-        "fxch st(3)\n\tfmulp st(2)\n\tfld st(1)\n\tfsin\n\tfmul st(1)\n\t"
-        "fld dword ptr [ebx+16]\n\tfmul st(1),st(0)\n\tfxch st(4)\n\tfaddp st(1)\n\t"
-        "fld dword ptr [esi+%c[horizontal]]\n\tfxch st(1)\n\t"
-        "fstp dword ptr [esi+%c[vertical]]\n\tfxch st(2)\n\tfcos\n\t"
-        "fmulp st(1)\n\tfmulp st(2)\n\tfaddp st(1)\n\tfstp dword ptr [esi+%c[horizontal]]\n\t"
-        "mov esp,dword ptr [esp+12]\n\tpop ebp\n\tpop ebx\n\t.att_syntax prefix"
-        : "+a" (cursor)
-        : "m" (bindings), [time] "i" (f855Time), [hold] "i" (f855ShotHold),
-          [instability] "i" (f855Instability), [vertical] "i" (f855Vertical), [horizontal] "i" (f855Horizontal)
-        : "ecx","edx","esi","edi","cc","memory",
-          "st","st(1)","st(2)","st(3)","st(4)","st(5)","st(6)","st(7)"
-#ifdef __SSE__
-          ,"xmm0","xmm1","xmm2","xmm3","xmm4","xmm5","xmm6","xmm7"
-#endif
-    );
-}
 typedef struct {
     cg_t *cgRoot;centity_t *entities;tce_weaponDef_t *definitions;const float *attenuation;
     int (*random)(void);
@@ -5252,134 +5211,59 @@ enum {
     f857Reverb=f855Reverb,
     f857Echo=f855Echo
 };
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__GNUC__) && defined(__i386__) && defined(__linux__))
+static void CG_TCEWeaponFireRecoil857(int weapon) {
+    float pitch = 0.0f, yawScale = 0.0f;
+    long double yaw;
+#if defined(_WIN32)
+    float negativeYaw;
+#else
+    float storedYaw;
+#endif
+
+    switch (weapon) {
+    case 2: case 7: case 14: case 37: case 38:
+    case 52: case 53: case 54: case 65:
+        break;
+    case 3: case 8: case 10: case 31: case 33: case 41: case 59: case 62:
+        pitch = (float)((long double)(rand() % 3 + 1) * (long double)0.3);
+        yawScale = 0.6f;
+        break;
+    case 23: case 24: case 25: case 32:
+        pitch = 2.0f;
+        yawScale = 1.0f;
+        break;
+    case 57: case 58:
+        pitch = 0.3f;
+        break;
+    default:
+        return;
+    }
+
+    yaw = (long double)(rand() & 0x7fff) *
+          (long double)3.0518509447574615e-05f - 0.5L;
+    yaw = (yaw + yaw) * (long double)yawScale;
+#if defined(_WIN32)
+    /* Windows rounds the negative lane before scaling, but retains yaw. */
+    negativeYaw = (float)-yaw;
+    cg.kickAVel[YAW] = (float)(yaw * 30.0L);
+    cg.kickAVel[PITCH] = (float)(-(long double)pitch * 30.0L);
+    cg.kickAVel[ROLL] = (float)((long double)negativeYaw * 30.0L);
+#else
+    /* Linux spills yaw before producing both signed lanes. */
+    storedYaw = (float)yaw;
+    cg.kickAVel[PITCH] = (float)(-(long double)pitch * 30.0L);
+    cg.kickAVel[YAW] = (float)((long double)storedYaw * 30.0L);
+    cg.kickAVel[ROLL] = (float)(-(long double)storedYaw * 30.0L);
+    cg.recoilPitch = (float)((long double)cg.recoilPitch - 0.0L);
+#endif
+}
+#endif
+
 #if defined(_MSC_VER) && defined(_M_IX86)
 static const float f857Zero=0.0f;
-static const double f857RecoilAuto=0.3;
-static const double f857RecoilHalf=0.5;
-static const float f857RecoilThirty=30.0f;
-static const unsigned char f857RecoilCase[64]={0,1,4,4,4,0,1,4,1,4,4,4,0,4,4,4,4,4,4,4,4,2,2,2,4,4,4,4,4,1,2,1,4,4,4,0,0,4,4,1,4,4,4,4,4,4,4,4,4,4,0,0,0,4,4,3,3,1,4,4,1,4,4,0};
 static const char f857PortalText[]="ELITE PORTAL: CG_FireWeapon\n";
 static const char f857ErrorText[]="CG_FireWeapon: ent->weapon >= WP_NUM_WEAPONS";
-static __declspec(naked) void CG_TCEWeaponFireRecoil857(int weapon) {
-    __asm {
-    recoil857_win_30075a00:
-        sub esp, 0x14
-    recoil857_win_30075a03:
-        mov eax, dword ptr [esp + 0x18]
-    recoil857_win_30075a07:
-        mov dword ptr [esp], 0
-    recoil857_win_30075a0f:
-        add eax, -2
-    recoil857_win_30075a12:
-        mov dword ptr [esp + 4], 0
-    recoil857_win_30075a1a:
-        cmp eax, 0x3f
-    recoil857_win_30075a1d:
-        ja recoil857_win_30075aed
-    recoil857_win_30075a23:
-        xor ecx, ecx
-    recoil857_win_30075a25:
-        mov cl,byte ptr [eax+f857RecoilCase]
-    recoil857_win_30075a2b:
-        cmp ecx,0
-        je recoil857_win_30075a76
-        cmp ecx,1
-        je recoil857_win_30075a4e
-        cmp ecx,2
-        je recoil857_win_30075a32
-        cmp ecx,3
-        je recoil857_win_30075a44
-        jmp recoil857_win_30075aed
-    recoil857_win_30075a32:
-        mov dword ptr [esp], 0x40000000
-    recoil857_win_30075a3a:
-        mov dword ptr [esp + 4], 0x3f800000
-    recoil857_win_30075a42:
-        jmp recoil857_win_30075a76
-    recoil857_win_30075a44:
-        mov dword ptr [esp], 0x3e99999a
-    recoil857_win_30075a4c:
-        jmp recoil857_win_30075a76
-    recoil857_win_30075a4e:
-        call rand
-    recoil857_win_30075a53:
-        cdq
-    recoil857_win_30075a54:
-        mov ecx, 3
-    recoil857_win_30075a59:
-        mov dword ptr [esp + 4], 0x3f19999a
-    recoil857_win_30075a61:
-        idiv ecx
-    recoil857_win_30075a63:
-        inc edx
-    recoil857_win_30075a64:
-        mov dword ptr [esp + 0x18], edx
-    recoil857_win_30075a68:
-        fild dword ptr [esp + 0x18]
-    recoil857_win_30075a6c:
-        fmul qword ptr f857RecoilAuto
-    recoil857_win_30075a72:
-        fstp dword ptr [esp]
-    recoil857_win_30075a76:
-        call rand
-    recoil857_win_30075a7b:
-        and eax, 0x7fff
-    recoil857_win_30075a80:
-        mov ecx, dword ptr [cg+f857RecoilPitch]
-    recoil857_win_30075a86:
-        mov dword ptr [esp + 0x18], eax
-    recoil857_win_30075a8a:
-        mov dword ptr [cg+f857RecoilPitch], ecx
-    recoil857_win_30075a90:
-        fild dword ptr [esp + 0x18]
-    recoil857_win_30075a94:
-        fmul dword ptr f855RandomScale
-    recoil857_win_30075a9a:
-        fsub qword ptr f857RecoilHalf
-    recoil857_win_30075aa0:
-        fadd st(0), st(0)
-    recoil857_win_30075aa2:
-        fmul dword ptr [esp + 4]
-    recoil857_win_30075aa6:
-        fld st(0)
-    recoil857_win_30075aa8:
-        fchs
-    recoil857_win_30075aaa:
-        fstp dword ptr [esp + 0x10]
-    recoil857_win_30075aae:
-        fld dword ptr [esp]
-    recoil857_win_30075ab2:
-        fchs
-    recoil857_win_30075ab4:
-        fmul dword ptr f857RecoilThirty
-    recoil857_win_30075aba:
-        fxch st(1)
-    recoil857_win_30075abc:
-        fmul dword ptr f857RecoilThirty
-    recoil857_win_30075ac2:
-        fstp dword ptr [esp + 0xc]
-    recoil857_win_30075ac6:
-        fld dword ptr [esp + 0x10]
-    recoil857_win_30075aca:
-        fmul dword ptr f857RecoilThirty
-    recoil857_win_30075ad0:
-        mov edx, dword ptr [esp + 0xc]
-    recoil857_win_30075ad4:
-        mov dword ptr [cg+f857Kick+4], edx
-    recoil857_win_30075ada:
-        fstp dword ptr [esp + 0x10]
-    recoil857_win_30075ade:
-        mov eax, dword ptr [esp + 0x10]
-    recoil857_win_30075ae2:
-        fstp dword ptr [cg+f857Kick]
-    recoil857_win_30075ae8:
-        mov dword ptr [cg+f857Kick+8], eax
-    recoil857_win_30075aed:
-        add esp, 0x14
-    recoil857_win_30075af0:
-        ret
-    }
-}
 __declspec(naked) void CG_FireWeapon(centity_t *cent) {
     __asm {
     fire857_win_300766b0:
@@ -6373,190 +6257,6 @@ __declspec(naked) void CG_FireWeapon(centity_t *cent) {
     }
 }
 #elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-typedef struct { cg_t *cgRoot;int (*random)(void);float constants32[7];double automatic; } tceFireRecoil857Bindings_t;
-static __attribute__((noinline)) void CG_TCEWeaponFireRecoil857(int weapon) {
-    static const tceFireRecoil857Bindings_t bindings={&cg,rand,{0.0f,1.0f,2.0f,3.0518509447574615e-05f,0.5f,30.0f,0.30000001192092896f},0.3};
-    const tceFireRecoil857Bindings_t *cursor=&bindings;
-    typedef char Recoil857Layout[(sizeof(void*)==4 && offsetof(tceFireRecoil857Bindings_t,random)==4 && offsetof(tceFireRecoil857Bindings_t,constants32)==8 && offsetof(tceFireRecoil857Bindings_t,automatic)==36 && sizeof(tceFireRecoil857Bindings_t)==44)?1:-1];
-    /* .set emits no runtime instructions; each immediate is a real offsetof. */
-    __asm__ volatile (
-        ".set tceFire857Kick,%c[Kick]\n\t"
-        ".set tceFire857RecoilPitch,%c[RecoilPitch]\n\t"
-        : : [Kick] "i" (f857Kick), [RecoilPitch] "i" (f857RecoilPitch));
-    __asm__ volatile (
-        ".intel_syntax noprefix\n\t"
-        "push ebx\n\tpush ebp\n\tmov ebp,esp\n\tand esp,-16\n\tsub esp,128\n\t"
-        "mov dword ptr [esp+124],ebp\n\tmov ebx,eax\n\t"
-        "recoil857_linux_000b13ae%=:\n\tcmp edx, 0x41\n\t"
-        "recoil857_linux_000b13b1%=:\n\tmov esi, dword ptr [ebx+8]\n\t"
-        "recoil857_linux_000b13bb%=:\n\tmov dword ptr [esp + 0xc], esi\n\t"
-        "recoil857_linux_000b13bf%=:\n\tfld dword ptr [esp + 0xc]\n\t"
-        "recoil857_linux_000b13c3%=:\n\tfld st(0)\n\t"
-        "recoil857_linux_000b13c5%=:\n\tja recoil857_linux_000b14f4%=\n\t"
-        "recoil857_linux_000b13cb%=:\n\tcall recoil857_linux_pc%=\n\trecoil857_linux_pc%=:\n\tpop edi\n\tadd edi,recoil857_linux_table%=-recoil857_linux_pc%=\n\t"
-        "recoil857_linux_000b13d1%=:\n\tmov ecx, dword ptr [edi + edx*4]\n\t"
-        "recoil857_linux_000b13d4%=:\n\tadd ecx,edi\n\t"
-        "recoil857_linux_000b13d6%=:\n\tjmp ecx\n\t"
-        "recoil857_linux_000b13d8%=:\n\tfstp st(0)\n\t"
-        "recoil857_linux_000b13da%=:\n\tfstp st(0)\n\t"
-        "recoil857_linux_000b13dc%=:\n\tfld dword ptr [ebx+16]\n\t"
-        "recoil857_linux_000b13e2%=:\n\tfld dword ptr [ebx+12]\n\t"
-        "recoil857_linux_000b13e8%=:\n\tfstp dword ptr [esp + 0x20]\n\t"
-        "recoil857_linux_000b13ec%=:\n\tfstp dword ptr [esp + 0x10]\n\t"
-        "recoil857_linux_000b13f0%=:\n\tcall dword ptr [ebx+4]\n\t"
-        "recoil857_linux_000b13f5%=:\n\tfld dword ptr [ebx+24]\n\t"
-        "recoil857_linux_000b13fb%=:\n\tand eax, 0x7fff\n\t"
-        "recoil857_linux_000b1400%=:\n\tmov edi, dword ptr [ebx+0]\n\t"
-        "recoil857_linux_000b1406%=:\n\tpush eax\n\t"
-        "recoil857_linux_000b1407%=:\n\tfild dword ptr [esp]\n\t"
-        "recoil857_linux_000b140a%=:\n\tadd esp, 4\n\t"
-        "recoil857_linux_000b140d%=:\n\tfmul dword ptr [ebx+20]\n\t"
-        "recoil857_linux_000b1413%=:\n\tfld dword ptr [esp + 0x20]\n\t"
-        "recoil857_linux_000b1417%=:\n\tfld dword ptr [esp + 0x10]\n\t"
-        "recoil857_linux_000b141b%=:\n\tfxch st(3)\n\t"
-        "recoil857_linux_000b141d%=:\n\tfsubp st(2)\n\t"
-        "recoil857_linux_000b141f%=:\n\tfxch st(1)\n\t"
-        "recoil857_linux_000b1421%=:\n\tfadd st(0)\n\t"
-        "recoil857_linux_000b1423%=:\n\tfmulp st(1)\n\t"
-        "recoil857_linux_000b1425%=:\n\tfxch st(1)\n\t"
-        "recoil857_linux_000b1427%=:\n\tfchs \n\t"
-        "recoil857_linux_000b1429%=:\n\tfxch st(1)\n\t"
-        "recoil857_linux_000b142b%=:\n\tfstp dword ptr [esp + 0x3c]\n\t"
-        "recoil857_linux_000b142f%=:\n\tfld dword ptr [esp + 0x3c]\n\t"
-        "recoil857_linux_000b1433%=:\n\tfld dword ptr [ebx+28]\n\t"
-        "recoil857_linux_000b1439%=:\n\tfld st(1)\n\t"
-        "recoil857_linux_000b143b%=:\n\tfxch st(3)\n\t"
-        "recoil857_linux_000b143d%=:\n\tfmul st(1)\n\t"
-        "recoil857_linux_000b143f%=:\n\tfxch st(3)\n\t"
-        "recoil857_linux_000b1441%=:\n\tfchs \n\t"
-        "recoil857_linux_000b1443%=:\n\tfxch st(2)\n\t"
-        "recoil857_linux_000b1445%=:\n\tfmul st(1)\n\t"
-        "recoil857_linux_000b1447%=:\n\tfxch st(2)\n\t"
-        "recoil857_linux_000b1449%=:\n\tfmulp st(1)\n\t"
-        "recoil857_linux_000b144b%=:\n\tfxch st(2)\n\t"
-        "recoil857_linux_000b144d%=:\n\tfst dword ptr [edi+tceFire857Kick+0]\n\t"
-        "recoil857_linux_000b1453%=:\n\tfstp dword ptr [esp + 0x40]\n\t"
-        "recoil857_linux_000b1457%=:\n\tfst dword ptr [edi+tceFire857Kick+4]\n\t"
-        "recoil857_linux_000b145d%=:\n\tfstp dword ptr [esp + 0x44]\n\t"
-        "recoil857_linux_000b1461%=:\n\tfst dword ptr [edi+tceFire857Kick+8]\n\t"
-        "recoil857_linux_000b1467%=:\n\tmov dword ptr [esp + 0xc], esi\n\t"
-        "recoil857_linux_000b146b%=:\n\tfld dword ptr [esp + 0xc]\n\t"
-        "recoil857_linux_000b146f%=:\n\tfsubr dword ptr [edi+tceFire857RecoilPitch]\n\t"
-        "recoil857_linux_000b1475%=:\n\tfxch st(1)\n\t"
-        "recoil857_linux_000b1477%=:\n\tfstp dword ptr [esp + 0x48]\n\t"
-        "recoil857_linux_000b147b%=:\n\tfstp dword ptr [edi+tceFire857RecoilPitch]\n\t"
-        "recoil857_linux_000b1481%=:\n\tjmp recoil857_linux_finish%=\n\t"
-        "recoil857_linux_000b1491%=:\n\tfstp st(1)\n\t"
-        "recoil857_linux_000b1493%=:\n\tfld dword ptr [ebx+32]\n\t"
-        "recoil857_linux_000b1499%=:\n\tfxch st(1)\n\t"
-        "recoil857_linux_000b149b%=:\n\tjmp recoil857_linux_000b13e8%=\n\t"
-        "recoil857_linux_000b14a0%=:\n\tfstp st(0)\n\t"
-        "recoil857_linux_000b14a2%=:\n\tfstp st(0)\n\t"
-        "recoil857_linux_000b14a4%=:\n\tcall dword ptr [ebx+4]\n\t"
-        "recoil857_linux_000b14a9%=:\n\tfld qword ptr [ebx+36]\n\t"
-        "recoil857_linux_000b14af%=:\n\tmov ecx, 0x55555556\n\t"
-        "recoil857_linux_000b14b4%=:\n\tmov edi, eax\n\t"
-        "recoil857_linux_000b14b6%=:\n\timul ecx\n\t"
-        "recoil857_linux_000b14b8%=:\n\tmov eax, edi\n\t"
-        "recoil857_linux_000b14ba%=:\n\tsar eax, 0x1f\n\t"
-        "recoil857_linux_000b14bd%=:\n\tfld dword ptr [ebx+16]\n\t"
-        "recoil857_linux_000b14c3%=:\n\tsub edx, eax\n\t"
-        "recoil857_linux_000b14c5%=:\n\tfld st(1)\n\t"
-        "recoil857_linux_000b14c7%=:\n\tlea eax, [edx + edx*2]\n\t"
-        "recoil857_linux_000b14ca%=:\n\tsub edi, eax\n\t"
-        "recoil857_linux_000b14cc%=:\n\tfmulp st(1)\n\t"
-        "recoil857_linux_000b14ce%=:\n\tlea edx, [edi + 1]\n\t"
-        "recoil857_linux_000b14d1%=:\n\tpush edx\n\t"
-        "recoil857_linux_000b14d2%=:\n\tfild dword ptr [esp]\n\t"
-        "recoil857_linux_000b14d5%=:\n\tadd esp, 4\n\t"
-        "recoil857_linux_000b14d8%=:\n\tfmulp st(2)\n\t"
-        "recoil857_linux_000b14da%=:\n\tfxch st(1)\n\t"
-        "recoil857_linux_000b14dc%=:\n\tfstp dword ptr [esp + 0x3c]\n\t"
-        "recoil857_linux_000b14e0%=:\n\tfld dword ptr [esp + 0x3c]\n\t"
-        "recoil857_linux_000b14e4%=:\n\tfxch st(1)\n\t"
-        "recoil857_linux_000b14e6%=:\n\tfstp dword ptr [esp + 0x3c]\n\t"
-        "recoil857_linux_000b14ea%=:\n\tfld dword ptr [esp + 0x3c]\n\t"
-        "recoil857_linux_000b14ee%=:\n\tjmp recoil857_linux_000b13e8%=\n\t"
-        "recoil857_linux_000b14f3%=:\n\tnop \n\t"
-        "recoil857_linux_000b14f4%=:\n\tfstp st(0)\n\t"
-        "recoil857_linux_000b14f6%=:\n\tfstp st(0)\n\t"
-        "recoil857_linux_000b14f8%=:\n\tjmp recoil857_linux_000b1481%=\n\t"
-        "recoil857_linux_finish%=:\n\tmov esp,dword ptr [esp+124]\n\tpop ebp\n\tpop ebx\n\tjmp recoil857_linux_done%=\n\t"
-        ".balign 4\n\trecoil857_linux_table%=:\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b13e8%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14a0%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b13e8%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14a0%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14a0%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b13e8%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b13d8%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b13d8%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b13d8%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14a0%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b13d8%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14a0%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b13e8%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b13e8%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14a0%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b13e8%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b13e8%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b13e8%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b1491%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b1491%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14a0%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14a0%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b14f4%=-recoil857_linux_table%=\n\t"
-        ".long recoil857_linux_000b13e8%=-recoil857_linux_table%=\n\t"
-        "recoil857_linux_done%=:\n\t.att_syntax prefix"
-        : "+a" (cursor), "+d" (weapon) : "m" (bindings)
-        : "ecx","esi","edi","cc","memory","st","st(1)","st(2)","st(3)","st(4)","st(5)","st(6)","st(7)"
-#ifdef __SSE__
-          ,"xmm0","xmm1","xmm2","xmm3","xmm4","xmm5","xmm6","xmm7"
-#endif
-    );
-}
 typedef struct {
     cg_t *cgRoot;cgs_t *cgsRoot;centity_t *entities;tce_weaponDef_t *definitions;tce_weaponInfo_t *media;
     const float *attenuation;const vmCvar_t *predict,*brass;
