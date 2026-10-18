@@ -858,27 +858,6 @@ to the facing dir
 typedef char moveCommandSize827[(sizeof(usercmd_t) == 28) ? 1 : -1];
 typedef char moveCommandTime827[(offsetof(usercmd_t, serverTime) == 0) ? 1 : -1];
 typedef char moveProtocol827[(DT_MOVELEFT == 1 && EF_PRONE == 0x80000 && ENTITYNUM_NONE == 0x3ff) ? 1 : -1];
-/* Private original __ftol ABI extraction: consumes ST0, returns low EAX/high EDX. */
-static __declspec(naked) void PM_MovementTruncate827(void) {
-    __asm {
-        push ebp
-        mov ebp, esp
-        add esp, -12
-        fwait
-        fnstcw word ptr [ebp-2]
-        fwait
-        mov ax, word ptr [ebp-2]
-        or ah, 0ch
-        mov word ptr [ebp-4], ax
-        fldcw word ptr [ebp-4]
-        fistp qword ptr [ebp-12]
-        fldcw word ptr [ebp-2]
-        mov eax, dword ptr [ebp-12]
-        mov edx, dword ptr [ebp-8]
-        leave
-        ret
-    }
-}
 static void PM_SetMovementDir(void) {
     vec3_t moved, direction;
     long double speed;
@@ -4221,22 +4200,10 @@ static void PM_WeaponRandomYaw(float *destination, double scale) {
 }
 
 /* Original inlined class-charge comparison: threshold > elapsed, ordered.
- * The product remains in ST0 until FCOMPP, not rounded to binary32. */
+ * C models the held product; compiled intermediate precision remains open. */
 static qboolean PM_WeaponChargePending(int elapsed, int chargeTime, float fraction) {
 #if defined(_MSC_VER) && defined(_M_IX86)
-    int chargePending;
-    __asm {
-        fild elapsed
-        fild chargeTime
-        fmul fraction
-        fcompp
-        fnstsw ax
-        test ah, 41h
-        setz al
-        movzx eax, al
-        mov chargePending, eax
-    }
-    return chargePending;
+    return (long double)chargeTime * fraction > (long double)elapsed;
 #else
     return elapsed < chargeTime * fraction;
 #endif
@@ -10055,76 +10022,7 @@ PmoveSingle
 void trap_SnapVector( float *v );
 
 #if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
-/* TC qagame200344f0: complete Windows controller, native layout, original x87 order.
- * Direct movement/weapon dependencies retain their separate integration boundaries. */
-static const float single833K200ac100 = 0.0;
-static const double single833K200ac378 = 0.001;
-static const float single833K200ac788 = -360.0;
-static const float single833K200ac6ec = 255.0;
-static const float single833K200ac3ac = 1000.0;
-static const float single833K200ac6b8 = 6.2831854820251465;
-static const double single833K200ac6a8 = 200.0;
-static const double single833K200ac780 = 2000.0;
-static const double single833K200ac6b0 = 400.0;
-enum {
-    single833Ps = offsetof(pmove_t,ps),
-    single833Ext = offsetof(pmove_t,pmext),
-    single833Character = offsetof(pmove_t,character),
-    single833Numtouch = offsetof(pmove_t,numtouch),
-    single833WaterType = offsetof(pmove_t,watertype),
-    single833WaterLevel = offsetof(pmove_t,waterlevel),
-    single833Mask = offsetof(pmove_t,tracemask),
-    single833Trace = offsetof(pmove_t,trace),
-    single833Cmd = offsetof(pmove_t,cmd),
-    single833CmdTime = offsetof(pmove_t,cmd)+offsetof(usercmd_t,serverTime),
-    single833Buttons = offsetof(pmove_t,cmd)+offsetof(usercmd_t,buttons),
-    single833Wbuttons = offsetof(pmove_t,cmd)+offsetof(usercmd_t,wbuttons),
-    single833CmdWeapon = offsetof(pmove_t,cmd)+offsetof(usercmd_t,weapon),
-    single833ForwardCmd = offsetof(pmove_t,cmd)+offsetof(usercmd_t,forwardmove),
-    single833RightCmd = offsetof(pmove_t,cmd)+offsetof(usercmd_t,rightmove),
-    single833UpCmd = offsetof(pmove_t,cmd)+offsetof(usercmd_t,upmove),
-    single833Tap = offsetof(pmove_t,cmd)+offsetof(usercmd_t,doubleTap),
-    single833CommandTime = offsetof(playerState_t,commandTime),
-    single833Type = offsetof(playerState_t,pm_type),
-    single833Flags = offsetof(playerState_t,pm_flags),
-    single833Origin = offsetof(playerState_t,origin),
-    single833Velocity = offsetof(playerState_t,velocity),
-    single833Lean = offsetof(playerState_t,leanf),
-    single833Ground = offsetof(playerState_t,groundEntityNum),
-    single833Eflags = offsetof(playerState_t,eFlags),
-    single833Weapon = offsetof(playerState_t,weapon),
-    single833WeaponState = offsetof(playerState_t,weaponstate),
-    single833ViewAngles = offsetof(playerState_t,viewangles),
-    single833ViewHeight = offsetof(playerState_t,viewheight),
-    single833Health = offsetof(playerState_t,stats)+STAT_HEALTH*sizeof(int),
-    single833Class = offsetof(playerState_t,stats)+STAT_PLAYER_CLASS*sizeof(int),
-    single833Seed = offsetof(playerState_t,stats)+STAT_TCE_SHOT_SEED*sizeof(int),
-    single833WeaponFlags = offsetof(playerState_t,stats)+STAT_TCE_WEAPON_FLAGS*sizeof(int),
-    single833TcFlags = offsetof(playerState_t,stats)+STAT_TCE_FLAGS*sizeof(int),
-    single833Instability = offsetof(playerState_t,stats)+STAT_TCE_MOVEMENT_INSTABILITY*sizeof(int),
-    single833Phase = offsetof(playerState_t,stats)+STAT_TCE_AIM_PHASE*sizeof(int),
-    single833HeavyUse = offsetof(playerState_t,persistant)+PERS_HWEAPON_USE*sizeof(int),
-    single833Persist14 = offsetof(playerState_t,persistant)+14*sizeof(int),
-    single833Clip28 = offsetof(playerState_t,ammoclip)+28*sizeof(int),
-    single833RecoilX = offsetof(playerState_t,holdable)+5*sizeof(int),
-    single833RecoilY = offsetof(playerState_t,holdable)+6*sizeof(int),
-    single833Spread = offsetof(playerState_t,aimSpreadScaleFloat),
-    single833Silenced = offsetof(pmoveExt_t,silencedSideArm),
-    single833ProneTime = offsetof(pmoveExt_t,proneTime),
-    single833Model = offsetof(bg_character_t,animModelInfo),
-    single833DefNoTac = offsetof(tce_weaponDef_t,noTacMode),
-    single833PmlDwords = sizeof(pml_t)/sizeof(int),
-    single833forward = offsetof(pml_t,forward),
-    single833right = offsetof(pml_t,right),
-    single833up = offsetof(pml_t,up),
-    single833frametime = offsetof(pml_t,frametime),
-    single833msec = offsetof(pml_t,msec),
-    single833walking = offsetof(pml_t,walking),
-    single833previous_origin = offsetof(pml_t,previous_origin),
-    single833previous_velocity = offsetof(pml_t,previous_velocity),
-    single833previous_waterlevel = offsetof(pml_t,previous_waterlevel),
-    single833ladder = offsetof(pml_t,ladder)
-};
+/* Native movement layout and protocol bounds retained after C reconstruction. */
 typedef char single833Layouts[(sizeof(pml_t)==156 && offsetof(pmove_t,ps)==0 && sizeof(tce_weaponDef_t)==460 && offsetof(tce_weaponDef_t,noTacMode)==0x194) ? 1 : -1];
 typedef char single833Protocol[(WEAPON_READY==0 && WEAPON_FIRING==7 && BUTTON_ATTACK==1 && BUTTON_TALK==2 && BUTTON_WALKING==16 && BUTTON_SPRINT==32 && PMF_LIMBO==0x4000 && PMF_TIME_LOCKPLAYER==0x8000 && PM_NORMAL==0 && PM_NOCLIP==1 && PM_SPECTATOR==2 && PM_DEAD==3 && PM_FREEZE==4 && PM_INTERMISSION==5 && PMF_RESPAWNED==0x200 && EF_TALK==0x200 && EF_FIRING==0x80 && EF_ZOOMING==0x40000 && EF_PRONE==0x80000 && EF_PRONE_MOVING==0x100000 && EF_MOUNTEDTANK==0x8000 && ANIM_MT_IDLE==1) ? 1 : -1];
 #endif
