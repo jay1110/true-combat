@@ -1,6 +1,9 @@
 #include "../game/q_shared.h"
 #include "../game/tce_bg.h"
 #include "tce_weapon_position.h"
+#if defined(__linux__) && !defined(Q3_VM)
+#include "../game/tce_numeric.h"
+#endif
 
 #if defined(_MSC_VER) && defined(_M_IX86)
 typedef char tceWeaponPositionNativeLayout[
@@ -1291,6 +1294,16 @@ static float clampSway(float value,float limit) {
     if(value>limit)return limit;
     return value < -limit ? -limit : value;
 }
+#if defined(__linux__) && !defined(Q3_VM)
+static int nativeLeanMagnitude(float lean) {
+    int value = TCE_TruncateNativeInteger((long double)lean);
+    unsigned int bits = (unsigned int)value;
+    if (value < 0) bits = 0u - bits;
+    memcpy(&value, &bits, sizeof(value));
+    return value;
+}
+#endif
+
 static void posture(tce_weaponPosition_t *s,float *origin,float *angles,int active,int timer,int kind) {
     int delta=active?s->time-timer:s->time+timer;
     float f;
@@ -1334,11 +1347,22 @@ void TCE_CG_CalculateWeaponPosition(tce_weaponPosition_t *s,float *origin,float 
     delta=s->time-s->leanTime;
     f=s->aiming?(delta<200?(float)(1.0-delta*(double).005f):0.0f):
         (delta<200?(float)(delta*(double).005f):1.0f);
-    if(s->lean!=0 && f>0) {
+    if (
+#if defined(__linux__) && !defined(Q3_VM)
+        !TCE_FloatIsZeroOrNaN(s->lean)
+#else
+        s->lean != 0
+#endif
+        && f > 0) {
         angles[2]=(float)(angles[2]-s->lean*.5*f);
         AngleVectors(angles,NULL,right,up);
         translate(origin,right,(double)f*angles[2]);
+#if defined(__linux__) && !defined(Q3_VM)
+        angles[0] = (float)((long double)angles[0] +
+                           (long double)nativeLeanMagnitude(s->lean) * (long double)f * 0.5L);
+#else
         angles[0]=(float)(angles[0]+abs((int)s->lean)*.5*f);
+#endif
         AngleVectors(s->viewAngles,NULL,right,NULL);
         translate(origin,right,-s->lean*.25*f);
     }

@@ -3761,7 +3761,8 @@ static void CG_TCEFireSound855(centity_t *cent, tce_weaponInfo_t *weap, int *sou
     int *echo = weap->flashEchoSound;
     centity_t *source;
     vec3_t direction, position;
-    float attenuation, distance;
+    float attenuation;
+    long double distance;
 
     for (count = 0; count < 4 && sounds[count]; ++count) {}
     if (count <= 0) return;
@@ -3795,8 +3796,8 @@ static void CG_TCEFireSound855(centity_t *cent, tce_weaponInfo_t *weap, int *sou
     volume = TCE_TruncateNativeInteger((long double)volume * 0.5L);
 #endif
     VectorSubtract(source->currentState.pos.trBase, cg.refdef_current->vieworg, direction);
-    distance = VectorNormalize(direction);
-    if (!(distance > 512.0f && distance < 4096.0f)) return;
+    distance = TCE_VectorNormalizeValue(direction);
+    if (!(distance > 512.0L && distance < 4096.0L)) return;
     position[0] = (float)((long double)direction[0] * 64.0L +
                           (long double)cg.refdef_current->vieworg[0]);
     position[1] = (float)((long double)direction[1] * 64.0L +
@@ -3839,7 +3840,7 @@ void CG_EliteEffectSound(centity_t *cent, int volume) {
     int weapon, active, amount, elapsed;
     unsigned int elapsedBits;
     float distance, blend = 1.0f, storedScale;
-    long double scale;
+    long double scale, normalized;
     vec3_t direction, position;
 
     if (!volume) return;
@@ -3850,8 +3851,14 @@ void CG_EliteEffectSound(centity_t *cent, int volume) {
     if (!cg.tceSoundZoneSounds[0][0] && !cg.tceSoundZoneSounds[1][0]) return;
 
     VectorSubtract(cent->currentState.pos.trBase, cg.refdef_current->vieworg, direction);
-    distance = VectorNormalize(direction);
-    if (distance < 64.0f) distance = 64.0f;
+    normalized = TCE_VectorNormalizeValue(direction);
+    distance = (float)normalized;
+#if defined(_WIN32)
+    /* The Windows C0 test also clamps an unordered result. */
+    if (!(normalized >= 64.0L)) distance = 64.0f;
+#else
+    if (normalized < 64.0L) distance = 64.0f;
+#endif
     elapsedBits = (unsigned int)cg.time - (unsigned int)cg.tceSoundZoneTransitionTime;
     memcpy(&elapsed, &elapsedBits, sizeof(elapsed));
     if (elapsed < 1000) {
