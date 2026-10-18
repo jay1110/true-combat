@@ -7583,98 +7583,27 @@ qboolean Item_Bind_HandleKey(itemDef_t *item, int key, qboolean down) {
 
 #include "tce_ui_coordinates.h"
 #if !defined(UIDLL) && defined(_MSC_VER) && defined(_M_IX86)
-static const float tceAdjust780Height = 480.0f;
-static const float tceAdjust780Ratio = 0.00117187504656612873077392578125f;
-static const float tceAdjust780Horizontal = 0.750000059604644775390625f;
-static const float tceAdjust780One = 1.0f;
-static const float tceAdjust780Center = 240.0f;
-static const float tceAdjust780Shift = 80.0f;
-enum {
-    tceAdjust780VidWidth = offsetof(displayContextDef_t, glconfig) + offsetof(glconfig_t, vidWidth),
-    tceAdjust780VidHeight = offsetof(displayContextDef_t, glconfig) + offsetof(glconfig_t, vidHeight),
-    tceAdjust780Xscale = offsetof(displayContextDef_t, xscale),
-    tceAdjust780Yscale = offsetof(displayContextDef_t, yscale)
-};
-__declspec(naked) void AdjustFrom640(float *x,float *y,float *w,float *h) {
-    __asm {
-        sub esp,0x8
-        mov eax,DC
-        push esi
-        mov ecx,dword ptr [eax + tceAdjust780VidHeight]
-        mov edx,dword ptr [eax + tceAdjust780VidWidth]
-        mov dword ptr [esp + 0x8],ecx
-        mov dword ptr [esp + 0x4],edx
-        lea esi,[ecx + ecx*0x4]
-        lea ecx,[edx + edx*0x2]
-        shl esi,0x7
-        lea ecx,[ecx + ecx*0x4]
-        shl ecx,0x5
-        cmp ecx,esi
-        pop esi
-        jz tceAdjust780Standard
-        fild dword ptr [esp]
-        fmul dword ptr tceAdjust780Height
-        fidiv dword ptr [esp + 0x4]
-        fmul dword ptr tceAdjust780Ratio
-        fld dword ptr [eax + tceAdjust780Xscale]
-        mov eax,dword ptr [esp + 0xc]
-        fmul dword ptr [eax]
-        fmul dword ptr tceAdjust780Horizontal
-        fstp dword ptr [eax]
-        fld dword ptr tceAdjust780One
-        fdiv st(0),st(1)
-        mov eax,dword ptr [esp + 0x10]
-        fsub dword ptr tceAdjust780One
-        fmul dword ptr tceAdjust780Center
-        fadd dword ptr [eax]
-        fst dword ptr [eax]
-        mov edx,dword ptr DC
-        fmul dword ptr [edx + tceAdjust780Yscale]
-        fmul st(0),st(1)
-        fstp dword ptr [eax]
-        mov eax,DC
-        fld dword ptr [eax + tceAdjust780Xscale]
-        mov eax,dword ptr [esp + 0x14]
-        fmul dword ptr [eax]
-        fmul dword ptr tceAdjust780Horizontal
-        fstp dword ptr [eax]
-        mov ecx,dword ptr DC
-        mov eax,dword ptr [esp + 0x18]
-        fld dword ptr [ecx + tceAdjust780Yscale]
-        fmul dword ptr [eax]
-        fmul st(0),st(1)
-        fstp dword ptr [eax]
-        fstp st(0)
-        add esp,0x8
-        ret
-        tceAdjust780Standard:
-        fld dword ptr [eax + tceAdjust780Xscale]
-        mov eax,dword ptr [esp + 0xc]
-        fmul dword ptr [eax]
-        fmul dword ptr tceAdjust780Horizontal
-        fstp dword ptr [eax]
-        mov eax,dword ptr [esp + 0x10]
-        fld dword ptr [eax]
-        fadd dword ptr tceAdjust780Shift
-        fst dword ptr [eax]
-        mov edx,dword ptr DC
-        fmul dword ptr [edx + tceAdjust780Yscale]
-        fmul dword ptr tceAdjust780Horizontal
-        fstp dword ptr [eax]
-        mov eax,DC
-        fld dword ptr [eax + tceAdjust780Xscale]
-        mov eax,dword ptr [esp + 0x14]
-        fmul dword ptr [eax]
-        fmul dword ptr tceAdjust780Horizontal
-        fstp dword ptr [eax]
-        mov ecx,dword ptr DC
-        mov eax,dword ptr [esp + 0x18]
-        fld dword ptr [ecx + tceAdjust780Yscale]
-        fmul dword ptr [eax]
-        fmul dword ptr tceAdjust780Horizontal
-        fstp dword ptr [eax]
-        add esp,0x8
-        ret
+void AdjustFrom640(float *x, float *y, float *w, float *h) {
+    int width = DC->glconfig.vidWidth, height = DC->glconfig.vidHeight;
+    long double scale, shifted;
+    const float horizontal = 0.750000059604644775390625f;
+
+    if ((unsigned)width * 480u != (unsigned)height * 640u) {
+        scale = ((long double)width * 480.0f / height) *
+            0.00117187504656612873077392578125f;
+        *x = (float)((long double)DC->xscale * *x * horizontal);
+        shifted = (1.0f / scale - 1.0f) * 240.0f + *y;
+        *y = (float)shifted;
+        *y = (float)(shifted * DC->yscale * scale);
+        *w = (float)((long double)DC->xscale * *w * horizontal);
+        *h = (float)((long double)DC->yscale * *h * scale);
+    } else {
+        *x = (float)((long double)DC->xscale * *x * horizontal);
+        shifted = (long double)*y + 80.0f;
+        *y = (float)shifted;
+        *y = (float)(shifted * DC->yscale * horizontal);
+        *w = (float)((long double)DC->xscale * *w * horizontal);
+        *h = (float)((long double)DC->yscale * *h * horizontal);
     }
 }
 #else
@@ -7685,49 +7614,13 @@ void AdjustFrom640(float *x,float *y,float *w,float *h) {
 #endif
 
 #if !defined(UIDLL) && defined(_MSC_VER) && defined(_M_IX86)
-/* Original __ftol returns the low word of a truncating signed64 conversion. */
-static int TCE_ModelViewportInteger782(float tceModel782Value) {
-    unsigned short tceModel782Saved, tceModel782Truncate;
-    __int64 tceModel782Result;
-    int tceModel782Low;
-    __asm {
-        fld dword ptr tceModel782Value
-        fstcw word ptr tceModel782Saved
-        wait
-        mov ax,word ptr tceModel782Saved
-        or ah,0x0c
-        mov word ptr tceModel782Truncate,ax
-        fldcw word ptr tceModel782Truncate
-        fistp qword ptr tceModel782Result
-        fldcw word ptr tceModel782Saved
-        mov eax,dword ptr tceModel782Result
-        mov tceModel782Low,eax
-    }
-    return tceModel782Low;
+/* Use the shared numeric model for native signed64 truncation's low word. */
+static int TCE_ModelViewportInteger782(float value) {
+    return TCE_TruncateNativeInteger((long double)value);
 }
-static int TCE_ModelFloorInteger782(float tceModel782Value) {
-    double (__cdecl *tceModel782Floor)(double) = floor;
-    unsigned short tceModel782Saved, tceModel782Truncate;
-    __int64 tceModel782Result;
-    int tceModel782Low;
-    __asm {
-        fld dword ptr tceModel782Value
-        sub esp,8
-        fstp qword ptr [esp]
-        call tceModel782Floor
-        add esp,8
-        fstcw word ptr tceModel782Saved
-        wait
-        mov ax,word ptr tceModel782Saved
-        or ah,0x0c
-        mov word ptr tceModel782Truncate,ax
-        fldcw word ptr tceModel782Truncate
-        fistp qword ptr tceModel782Result
-        fldcw word ptr tceModel782Saved
-        mov eax,dword ptr tceModel782Result
-        mov tceModel782Low,eax
-    }
-    return tceModel782Low;
+
+static int TCE_ModelFloorInteger782(float value) {
+    return TCE_TruncateNativeInteger((long double)floor((double)value));
 }
 #endif
 void Item_Model_Paint(itemDef_t *item) {
@@ -12360,63 +12253,6 @@ qboolean PC_Rect_Parse(int handle, rectDef_t *r) {
 // ======================================================
 panel_button_t* bg_focusButton;
 
-#if defined(_MSC_VER) && defined(_M_IX86) && !defined(UIDLL)
-enum { cr802X=offsetof(displayContextDef_t,cursorx), cr802Y=offsetof(displayContextDef_t,cursory), cr802RX=offsetof(rectDef_t,x), cr802RY=offsetof(rectDef_t,y), cr802RW=offsetof(rectDef_t,w), cr802RH=offsetof(rectDef_t,h) };
-__declspec(naked) qboolean BG_RectContainsPoint(float x,float y,float w,float h,float px,float py) {
- __asm {
- FLD dword ptr [ESP + 0x14]
- FCOMP dword ptr [ESP + 0x4]
- FNSTSW AX
- TEST AH,0x41
- JNZ cr802_30087aea
- FLD dword ptr [ESP + 0x4]
- FADD dword ptr [ESP + 0xc]
- FCOMP dword ptr [ESP + 0x14]
- FNSTSW AX
- TEST AH,0x41
- JNZ cr802_30087aea
- FLD dword ptr [ESP + 0x18]
- FCOMP dword ptr [ESP + 0x8]
- FNSTSW AX
- TEST AH,0x41
- JNZ cr802_30087aea
- FLD dword ptr [ESP + 0x8]
- FADD dword ptr [ESP + 0x10]
- FCOMP dword ptr [ESP + 0x18]
- FNSTSW AX
- TEST AH,0x41
- JNZ cr802_30087aea
- MOV EAX,0x1
- RET
-cr802_30087aea:
- XOR EAX,EAX
- RET
- }
-}
-__declspec(naked) qboolean BG_CursorInRect(rectDef_t *rect) {
- __asm {
- MOV EAX,[DC]
- PUSH ECX
- FILD dword ptr [EAX + cr802Y]
- FSTP dword ptr [ESP]
- FILD dword ptr [EAX + cr802X]
- MOV EAX,dword ptr [ESP + 0x8]
- PUSH ECX
- MOV ECX,dword ptr [EAX + cr802RH]
- MOV EDX,dword ptr [EAX + cr802RW]
- FSTP dword ptr [ESP]
- PUSH ECX
- MOV ECX,dword ptr [EAX + cr802RY]
- PUSH EDX
- MOV EDX,dword ptr [EAX + cr802RX]
- PUSH ECX
- PUSH EDX
- CALL BG_RectContainsPoint
- ADD ESP,0x18
- RET
- }
-}
-#else
 qboolean BG_RectContainsPoint(float x, float y, float w, float h, float px, float py) {
 	if(px > x && px < x + w && py > y && py < y + h) {
 		return qtrue;
@@ -12429,7 +12265,6 @@ qboolean BG_CursorInRect( rectDef_t* rect ) {
 }
 
 
-#endif
 
 void BG_PanelButton_RenderEdit( panel_button_t* button ) {
 	qboolean useCvar = button->data[0] ? qfalse : qtrue;
