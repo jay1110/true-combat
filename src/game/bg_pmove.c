@@ -10135,400 +10135,86 @@ PM_CheckLadderMove
 qboolean	ladderforward;
 vec3_t		laddervec;
 
-/* TC:E30013140 / Linux000e7658: free-climb clearance and stamina gate. */
-/* TC:E qagame2003b480: original trace/x87 schedule, native field offsets. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-typedef char climb832TraceLayout[(sizeof(trace_t)==56 && offsetof(trace_t, allsolid)==0 && offsetof(trace_t, fraction)==8)?1:-1];
-enum {
-    climb832PmExt = offsetof(pmove_t, pmext),
-    climb832Field0 = offsetof(pmove_t, ps),
-    climb832Field1 = offsetof(playerState_t, stats) + STAT_TCE_FLAGS * sizeof(int),
-    climb832Field2 = offsetof(playerState_t, origin) + 0,
-    climb832Field3 = offsetof(playerState_t, origin) + 4,
-    climb832Field4 = offsetof(playerState_t, origin) + 8,
-    climb832Field5 = offsetof(pmove_t, maxs) + 0,
-    climb832Field6 = offsetof(pmove_t, maxs) + 4,
-    climb832Field7 = offsetof(pmove_t, maxs) + 8,
-    climb832Field8 = offsetof(playerState_t, velocity) + 8,
-    climb832Field9 = offsetof(pmove_t, tracemask),
-    climb832Field10 = offsetof(playerState_t, clientNum),
-    climb832Field11 = offsetof(pmove_t, mins),
-    climb832Field12 = offsetof(pmove_t, trace),
-    climb832Field13 = offsetof(pmoveExt_t, sprintTime)
-};
-static const unsigned int climb832Const200ac110 = 0x3f800000u;
-static const unsigned int climb832Const200ac180 = 0x3f000000u;
-static const unsigned int climb832Const200ac1c4 = 0x43800000u;
-static const unsigned int climb832Const200ac2bc = 0x40800000u;
-static const unsigned int climb832Const200ac2d8 = 0x41900000u;
-static const unsigned int climb832Const200ac32c = 0x42c00000u;
-static const unsigned int climb832Const200ac7d4 = 0xc3480000u;
-static const unsigned int climb832Const200ac85c = 0x42ca0000u;
-static const unsigned int climb832Const200ac860 = 0x427c0000u;
-static const unsigned int climb832Const200ac864 = 0xc1880000u;
-static const unsigned int climb832Const200ac868 = 0xc3800000u;
-static __declspec(naked) qboolean PM_ClimbSlideMove(int unused, const vec3_t normal, qboolean wasClimbing) {
-    __asm {
-        sub esp, 0x74
-        mov eax, dword ptr [pm]
-        mov dword ptr [esp + 4], 0x3f800000
-        mov ecx, dword ptr [eax + climb832Field0]
-        mov edx, dword ptr [ecx + climb832Field1]
-        test dh, 2
-        je climb832_2003b4a5
-        mov dword ptr [esp + 4], 0x3fa00000
-climb832_2003b4a5:
-        mov ecx, dword ptr [ecx + climb832Field2]
-        push esi
-        mov dword ptr [esp + 0x28], ecx
-        mov edx, dword ptr [eax + climb832Field0]
-        push edi
-        mov ecx, dword ptr [edx + climb832Field3]
-        mov dword ptr [esp + 0x30], ecx
-        mov edx, dword ptr [eax + climb832Field0]
-        mov ecx, dword ptr [edx + climb832Field4]
-        mov dword ptr [esp + 0x34], ecx
-        mov edx, dword ptr [eax + climb832Field5]
-        mov dword ptr [esp + 0x38], edx
-        mov ecx, dword ptr [eax + climb832Field6]
-        mov dword ptr [esp + 0x3c], ecx
-        mov edx, dword ptr [eax + climb832Field7]
-        mov dword ptr [esp + 0x40], edx
-        mov eax, dword ptr [eax + climb832Field0]
-        mov ecx, dword ptr [eax + climb832Field1]
-        and ecx, 0xffffffdf
-        mov dword ptr [eax + climb832Field1], ecx
-        mov ecx, dword ptr [pm]
-        mov eax, dword ptr [ecx + climb832Field0]
-        fld dword ptr [eax + climb832Field8]
-        fcomp dword ptr [climb832Const200ac7d4]
-        fnstsw ax
-        test ah, 1
-        je climb832_2003b50f
-        pop edi
-        xor eax, eax
-        pop esi
-        add esp, 0x74
-        ret 
-climb832_2003b50f:
-        fld dword ptr [esp + 0x34]
-        mov edx, dword ptr [esp + 0x2c]
-        mov eax, dword ptr [esp + 0x30]
-        fsub dword ptr [climb832Const200ac1c4]
-        mov dword ptr [esp + 0x14], edx
-        mov dword ptr [esp + 0x18], eax
-        fstp dword ptr [esp + 0x1c]
-        mov edx, dword ptr [ecx + climb832Field9]
-        mov eax, dword ptr [ecx + climb832Field0]
-        push edx
-        mov edx, dword ptr [eax + climb832Field10]
-        lea eax, [esp + 0x18]
-        push edx
-        push eax
-        lea edx, [esp + 0x44]
-        lea eax, [ecx + climb832Field11]
-        push edx
-        push eax
-        lea edx, [esp + 0x40]
-        lea eax, [esp + 0x58]
-        push edx
-        push eax
-        call dword ptr [ecx + climb832Field12]
-        fld dword ptr [esp + 0x68]
-        fmul dword ptr [climb832Const200ac868]
-        add esp, 0x1c
-        xor edi, edi
-        fst dword ptr [esp + 0x10]
-        fcomp dword ptr [climb832Const200ac864]
-        fnstsw ax
-        test ah, 0x41
-        jne climb832_2003b580
-        mov edi, 1
-climb832_2003b580:
-        fld dword ptr [esp + 0xc]
-        fmul dword ptr [climb832Const200ac32c]
-        mov ecx, dword ptr [esp + 0x2c]
-        mov edx, dword ptr [esp + 0x30]
-        mov eax, dword ptr [pm]
-        mov dword ptr [esp + 0x14], ecx
-        mov dword ptr [esp + 0x18], edx
-        fstp dword ptr [esp + 8]
-        fld dword ptr [esp + 0x34]
-        fadd dword ptr [esp + 8]
-        fstp dword ptr [esp + 0x1c]
-        mov ecx, dword ptr [eax + climb832Field9]
-        mov edx, dword ptr [eax]
-        push ecx
-        mov ecx, dword ptr [edx + climb832Field10]
-        lea edx, [esp + 0x18]
-        push ecx
-        push edx
-        lea ecx, [esp + 0x44]
-        lea edx, [eax + climb832Field11]
-        push ecx
-        push edx
-        lea ecx, [esp + 0x40]
-        lea edx, [esp + 0x58]
-        push ecx
-        push edx
-        call dword ptr [eax + climb832Field12]
-        fld dword ptr [esp + 0x68]
-        fcomp dword ptr [climb832Const200ac110]
-        add esp, 0x1c
-        fnstsw ax
-        test ah, 1
-        je climb832_2003b5fd
-        fld dword ptr [esp + 0x4c]
-        fmul dword ptr [esp + 8]
-        fstp dword ptr [esp + 8]
-climb832_2003b5fd:
-        fld dword ptr [esp + 8]
-        fcomp dword ptr [climb832Const200ac2d8]
-        fnstsw ax
-        test ah, 1
-        je climb832_2003b616
-        pop edi
-        xor eax, eax
-        pop esi
-        add esp, 0x74
-        ret 
-climb832_2003b616:
-        fld dword ptr [esp + 0x34]
-        mov esi, dword ptr [esp + 0x84]
-        mov eax, dword ptr [esp + 0x2c]
-        fadd dword ptr [esp + 8]
-        mov ecx, dword ptr [esp + 0x30]
-        lea edx, [esp + 0x20]
-        push edx
-        mov dword ptr [esp + 0x18], eax
-        mov dword ptr [esp + 0x1c], ecx
-        mov dword ptr [esp + 0x2c], 0
-        fstp dword ptr [esp + 0x20]
-        fld dword ptr [esi]
-        fchs 
-        fstp dword ptr [esp + 0x24]
-        fld dword ptr [esi + 4]
-        fchs 
-        fstp dword ptr [esp + 0x28]
-        call VectorNormalize
-        fstp st(0)
-        fld dword ptr [esp + 0x24]
-        fmul dword ptr [climb832Const200ac2bc]
-        mov eax, dword ptr [pm]
-        fadd dword ptr [esp + 0x18]
-        fstp dword ptr [esp + 0x18]
-        fld dword ptr [esp + 0x28]
-        fmul dword ptr [climb832Const200ac2bc]
-        fadd dword ptr [esp + 0x1c]
-        fstp dword ptr [esp + 0x1c]
-        fld dword ptr [esp + 0x2c]
-        fmul dword ptr [climb832Const200ac2bc]
-        fadd dword ptr [esp + 0x20]
-        fstp dword ptr [esp + 0x20]
-        mov ecx, dword ptr [eax + climb832Field9]
-        mov edx, dword ptr [eax + climb832Field0]
-        push ecx
-        mov ecx, dword ptr [edx + climb832Field10]
-        lea edx, [esp + 0x1c]
-        push ecx
-        push edx
-        lea ecx, [esp + 0x48]
-        lea edx, [eax + climb832Field11]
-        push ecx
-        push edx
-        lea ecx, [esp + 0x2c]
-        lea edx, [esp + 0x5c]
-        push ecx
-        push edx
-        call dword ptr [eax + climb832Field12]
-        mov eax, dword ptr [esp + 0x64]
-        add esp, 0x20
-        test eax, eax
-        je climb832_2003b7ad
-        fld dword ptr [esp + 8]
-        fsub dword ptr [climb832Const200ac2d8]
-        mov eax, dword ptr [esp + 0x2c]
-        mov ecx, dword ptr [esp + 0x30]
-        lea edx, [esp + 0x20]
-        mov dword ptr [esp + 0x14], eax
-        fmul dword ptr [climb832Const200ac180]
-        push edx
-        mov dword ptr [esp + 0x1c], ecx
-        mov dword ptr [esp + 0x2c], 0
-        fadd dword ptr [climb832Const200ac2d8]
-        fstp dword ptr [esp + 0xc]
-        fld dword ptr [esp + 0x38]
-        fadd dword ptr [esp + 0xc]
-        fstp dword ptr [esp + 0x20]
-        fld dword ptr [esi]
-        fchs 
-        fstp dword ptr [esp + 0x24]
-        fld dword ptr [esi + 4]
-        fchs 
-        fstp dword ptr [esp + 0x28]
-        call VectorNormalize
-        fstp st(0)
-        fld dword ptr [esp + 0x24]
-        fmul dword ptr [climb832Const200ac2bc]
-        mov eax, dword ptr [pm]
-        fadd dword ptr [esp + 0x18]
-        fstp dword ptr [esp + 0x18]
-        fld dword ptr [esp + 0x28]
-        fmul dword ptr [climb832Const200ac2bc]
-        fadd dword ptr [esp + 0x1c]
-        fstp dword ptr [esp + 0x1c]
-        fld dword ptr [esp + 0x2c]
-        fmul dword ptr [climb832Const200ac2bc]
-        fadd dword ptr [esp + 0x20]
-        fstp dword ptr [esp + 0x20]
-        mov ecx, dword ptr [eax + climb832Field9]
-        mov edx, dword ptr [eax + climb832Field0]
-        push ecx
-        mov ecx, dword ptr [edx + climb832Field10]
-        lea edx, [esp + 0x1c]
-        push ecx
-        push edx
-        lea ecx, [esp + 0x48]
-        lea edx, [eax + climb832Field11]
-        push ecx
-        push edx
-        lea ecx, [esp + 0x2c]
-        lea edx, [esp + 0x5c]
-        push ecx
-        push edx
-        call dword ptr [eax + climb832Field12]
-        mov eax, dword ptr [esp + 0x64]
-        add esp, 0x20
-        test eax, eax
-        je climb832_2003b7ad
-        pop edi
-        xor eax, eax
-        pop esi
-        add esp, 0x74
-        ret 
-climb832_2003b7ad:
-        fld dword ptr [esp + 0x34]
-        fadd dword ptr [esp + 8]
-        mov eax, dword ptr [esp + 0x2c]
-        mov ecx, dword ptr [esp + 0x30]
-        lea edx, [esp + 0x20]
-        mov dword ptr [esp + 0x14], eax
-        push edx
-        mov dword ptr [esp + 0x1c], ecx
-        fstp dword ptr [esp + 0x20]
-        fld dword ptr [esi]
-        fchs 
-        fstp dword ptr [esp + 0x24]
-        fld dword ptr [esi + 4]
-        fchs 
-        fstp dword ptr [esp + 0x28]
-        mov dword ptr [esp + 0x2c], 0
-        call VectorNormalize
-        fstp st(0)
-        fld dword ptr [esp + 0x24]
-        fmul dword ptr [climb832Const200ac2bc]
-        fadd dword ptr [esp + 0x18]
-        fst dword ptr [esp + 0x18]
-        fld dword ptr [esp + 0x28]
-        fmul dword ptr [climb832Const200ac2bc]
-        fadd dword ptr [esp + 0x1c]
-        fstp dword ptr [esp + 0x1c]
-        fld dword ptr [esp + 0x2c]
-        fmul dword ptr [climb832Const200ac2bc]
-        mov eax, dword ptr [esp + 0x1c]
-        mov dword ptr [esp + 0x28], eax
-        mov eax, dword ptr [pm]
-        fadd dword ptr [esp + 0x20]
-        fstp dword ptr [esp + 0x20]
-        fstp dword ptr [esp + 0x24]
-        fld dword ptr [esp + 0x20]
-        fsub dword ptr [climb832Const200ac1c4]
-        fstp dword ptr [esp + 0x2c]
-        mov ecx, dword ptr [eax + climb832Field9]
-        mov edx, dword ptr [eax + climb832Field0]
-        push ecx
-        mov ecx, dword ptr [edx + climb832Field10]
-        lea edx, [esp + 0x28]
-        push ecx
-        push edx
-        lea ecx, [esp + 0x48]
-        lea edx, [eax + climb832Field11]
-        push ecx
-        push edx
-        lea ecx, [esp + 0x2c]
-        lea edx, [esp + 0x5c]
-        push ecx
-        push edx
-        call dword ptr [eax + climb832Field12]
-        fld dword ptr [esp + 0x28]
-        fsub dword ptr [esp + 0x30]
-        fld dword ptr [esp + 0x6c]
-        fmul dword ptr [climb832Const200ac1c4]
-        add esp, 0x20
-        fsubp st(1), st(0)
-        fcom dword ptr [climb832Const200ac860]
-        fnstsw ax
-        test ah, 1
-        je climb832_2003b8b5
-        mov eax, dword ptr [pm]
-        pop edi
-        fstp st(0)
-        mov eax, dword ptr [eax + climb832Field0]
-        pop esi
-        mov ecx, dword ptr [eax + climb832Field1]
-        or ecx, 0x40
-        mov dword ptr [eax + climb832Field1], ecx
-        xor eax, eax
-        add esp, 0x74
-        ret 
-climb832_2003b8b5:
-        fld dword ptr [esp + 0xc]
-        fmul dword ptr [climb832Const200ac85c]
-        fxch st(1)
-        fcompp 
-        fnstsw ax
-        test ah, 0x41
-        jne climb832_2003b8d2
-        pop edi
-        xor eax, eax
-        pop esi
-        add esp, 0x74
-        ret 
-climb832_2003b8d2:
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax + climb832PmExt]
-        mov ecx, dword ptr [ecx + climb832Field13]
-        cmp ecx, 0x384
-        jge climb832_2003b8f8
-        mov edx, dword ptr [esp + 0x88]
-        test edx, edx
-        jne climb832_2003b8f8
-        pop edi
-        xor eax, eax
-        pop esi
-        add esp, 0x74
-        ret 
-climb832_2003b8f8:
-        cmp ecx, 0xa
-        jge climb832_2003b905
-        pop edi
-        xor eax, eax
-        pop esi
-        add esp, 0x74
-        ret 
-climb832_2003b905:
-        mov eax, dword ptr [eax + climb832Field0]
-        mov edx, dword ptr [eax + climb832Field1]
-        or edx, 0x20
-        mov dword ptr [eax + climb832Field1], edx
-        xor eax, eax
-        test edi, edi
-        pop edi
-        pop esi
-        sete al
-        add esp, 0x74
-        ret 
+/* TCE free-climb clearance and stamina gate; no SDK counterpart.
+ * Native value stores and callback order are explicit, compiled ABI remains open. */
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+typedef char climbTraceLayout[(sizeof(trace_t) == 56 && offsetof(trace_t, allsolid) == 0 &&
+    offsetof(trace_t, fraction) == 8) ? 1 : -1];
+static qboolean PM_ClimbSlideMove(int unused, const vec3_t normal, qboolean wasClimbing) {
+    vec3_t origin, point, end, direction, maxs;
+    trace_t trace;
+    float scale;
+    volatile float below, rise;
+    long double belowValue, height;
+    int axis, attempt;
+#if !defined(__linux__)
+    int stamina;
+#endif
+    qboolean nearGround;
+
+    (void)unused;
+    scale = (pm->ps->stats[STAT_TCE_FLAGS] & 0x200) ? 1.25f : 1.0f;
+    for (axis = 0; axis < 3; ++axis) origin[axis] = pm->ps->origin[axis];
+    memcpy(maxs, pm->maxs, sizeof(maxs));
+    pm->ps->stats[STAT_TCE_FLAGS] &= ~0x20;
+    if (pm->ps->velocity[2] < -200.0f || TCE_FloatIsNaN(pm->ps->velocity[2])) return qfalse;
+    memcpy(end, origin, sizeof(end));
+    end[2] = (float)((long double)origin[2] - 256.0f);
+    pm->trace(&trace, origin, pm->mins, maxs, end, pm->ps->clientNum, pm->tracemask);
+    belowValue = (long double)trace.fraction * -256.0f;
+    below = (float)belowValue;
+    nearGround = belowValue > -17.0f;
+    rise = (float)((long double)scale * 96.0f);
+    memcpy(end, origin, sizeof(end));
+    end[2] = (float)((long double)origin[2] + rise);
+    pm->trace(&trace, origin, pm->mins, maxs, end, pm->ps->clientNum, pm->tracemask);
+    if (trace.fraction < 1.0f || TCE_FloatIsNaN(trace.fraction))
+        rise = (float)((long double)trace.fraction * rise);
+    if (!(rise >= 18.0f)) return qfalse;
+
+    for (attempt = 0; attempt < 2; ++attempt) {
+        if (attempt) rise = (float)(((long double)rise - 18.0f) * 0.5f + 18.0f);
+        memcpy(point, origin, sizeof(point));
+        point[2] = (float)((long double)origin[2] + rise);
+        direction[0] = -normal[0];
+        direction[1] = -normal[1];
+        direction[2] = 0.0f;
+        VectorNormalize(direction);
+        for (axis = 0; axis < 3; ++axis)
+            point[axis] = (float)((long double)direction[axis] * 4.0f + point[axis]);
+        /* The clearance trace deliberately aliases its start and end pointers. */
+        pm->trace(&trace, point, pm->mins, maxs, point, pm->ps->clientNum, pm->tracemask);
+        if (!trace.allsolid) break;
     }
+    if (trace.allsolid) return qfalse;
+    memcpy(point, origin, sizeof(point));
+    point[2] = (float)((long double)origin[2] + rise);
+    direction[0] = -normal[0];
+    direction[1] = -normal[1];
+    direction[2] = 0.0f;
+    VectorNormalize(direction);
+    for (axis = 0; axis < 3; ++axis)
+        point[axis] = (float)((long double)direction[axis] * 4.0f + point[axis]);
+    memcpy(end, point, sizeof(end));
+    end[2] = (float)((long double)point[2] - 256.0f);
+    pm->trace(&trace, point, pm->mins, maxs, end, pm->ps->clientNum, pm->tracemask);
+    height = (long double)rise - below;
+    height -= (long double)trace.fraction * 256.0f;
+    if (!(height >= 63.0f)) {
+        pm->ps->stats[STAT_TCE_FLAGS] |= 0x40;
+        return qfalse;
+    }
+    if (height > (long double)scale * 101.0f) return qfalse;
+#if defined(__linux__)
+    if (pm->pmext->sprintTime < 900 && !wasClimbing) return qfalse;
+    if (pm->pmext->sprintTime < 10) return qfalse;
+#else
+    stamina = pm->pmext->sprintTime;
+    if (stamina < 900 && !wasClimbing) return qfalse;
+    if (stamina < 10) return qfalse;
+#endif
+    pm->ps->stats[STAT_TCE_FLAGS] |= 0x20;
+    return !nearGround;
 }
 #else
 static qboolean PM_ClimbSlideMove(int unused, const vec3_t normal, qboolean wasClimbing) {
