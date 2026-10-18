@@ -3176,515 +3176,142 @@ PM_WalkMove
 
 ===================
 */
-/* TC WalkMove 20035bf0: retained x87 schedule and native field bindings. */
+/* Windows original WalkMove: TCE ground restrictions and jump stamina.
+ * Explicit float stores retain native rounding boundaries; FPU flags and
+ * compiler extended precision remain separately tracked reconstruction work. */
 #if defined(_MSC_VER) && defined(_M_IX86)
-typedef char walk833CommandLayout[(sizeof(usercmd_t)==28 && offsetof(usercmd_t,serverTime)==0) ? 1 : -1];
-static const unsigned int walk833Const200ac100 = 0x00000000u;
-static const unsigned int walk833Const200ac130[2] = {0x00000000u, 0x3ff00000u};
-static const unsigned int walk833Const200ac180 = 0x3f000000u;
-static const unsigned int walk833Const200ac198 = 0x3e800000u;
-static const unsigned int walk833Const200ac798[2] = {0x55555555u, 0x3fd55555u};
-static const unsigned int walk833Const200ac7a0 = 0x3e785ce3u;
-static const unsigned int walk833Const200ac7a8[2] = {0x00000000u, 0xc0100000u};
-static const unsigned int walk833Const200ac7b0 = 0x3ee4faf6u;
-static const unsigned int walk833Const200ac7b8[2] = {0x00000000u, 0xc0000000u};
-static const unsigned int walk833Const200ac7c0 = 0x3f350bf3u;
-static const unsigned int walk833Const200ac7c4 = 0x3f0e38e4u;
-static const unsigned int walk833Const200ac7c8 = 0x3f200000u;
-enum {
-    walk833pml223cf460 = offsetof(pml_t, forward),
-    walk833pml223cf464 = offsetof(pml_t, forward)+4,
-    walk833pml223cf468 = offsetof(pml_t, forward)+8,
-    walk833pml223cf46c = offsetof(pml_t, right),
-    walk833pml223cf470 = offsetof(pml_t, right)+4,
-    walk833pml223cf474 = offsetof(pml_t, right)+8,
-    walk833pml223cf484 = offsetof(pml_t, frametime),
-    walk833pml223cf4ac = offsetof(pml_t, groundTrace)+offsetof(trace_t,plane)+offsetof(cplane_t,normal),
-    walk833pml223cf4b0 = offsetof(pml_t, groundTrace)+offsetof(trace_t,plane)+offsetof(cplane_t,normal)+4,
-    walk833pml223cf4b4 = offsetof(pml_t, groundTrace)+offsetof(trace_t,plane)+offsetof(cplane_t,normal)+8,
-    walk833pml223cf4c0 = offsetof(pml_t, groundTrace)+offsetof(trace_t,surfaceFlags),
-    walk833pml223cf4f0 = offsetof(pml_t, tceContentRestriction),
-    walk833pml223cf4f4 = offsetof(pml_t, tceGroundExtension),
-    walk833pm110 = offsetof(pmove_t, waterlevel),
-    walk833pm4 = offsetof(pmove_t, pmext),
-    walk833pmc = offsetof(pmove_t, cmd),
-    walk833ext4 = offsetof(pmoveExt_t, jumpTime),
-    walk833ext10 = offsetof(pmoveExt_t, sprintTime),
-    walk833pm0 = offsetof(pmove_t, ps),
-    walk833ps3b4 = offsetof(playerState_t, holdable)+9*sizeof(int),
-    walk833ps47c = offsetof(playerState_t, jumpTime),
-    walk833pm20 = offsetof(pmove_t, cmd)+offsetof(usercmd_t,forwardmove),
-    walk833pm21 = offsetof(pmove_t, cmd)+offsetof(usercmd_t,rightmove),
-    walk833ps68 = offsetof(playerState_t, eFlags),
-    walk833psc = offsetof(playerState_t, pm_flags),
-    walk833ps40 = offsetof(playerState_t, speed),
-    walk833ps40c = offsetof(playerState_t, crouchSpeedScale),
-    walk833pm10c = offsetof(pmove_t, watertype),
-    walk833pm10 = offsetof(pmove_t, cmd)+offsetof(usercmd_t,buttons),
-    walk833ps3c = offsetof(playerState_t, leanf),
-    walk833psf0 = offsetof(playerState_t, stats)+STAT_TCE_WEAPON_FLAGS*sizeof(int),
-    walk833ps38 = offsetof(playerState_t, gravity),
-    walk833ps28 = offsetof(playerState_t, velocity)+8,
-    walk833psd0 = offsetof(playerState_t, stats)+STAT_HEALTH*sizeof(int),
-    walk833ps20 = offsetof(playerState_t, velocity),
-    walk833ps24 = offsetof(playerState_t, velocity)+4,
-    walk833ext38 = offsetof(pmoveExt_t, proneGroundTime)
-};
-static __declspec(naked) void PM_WalkMove(void) {
-    __asm {
-        MOV EAX,[pm]
-        SUB ESP,0x40
-        MOV ECX,dword ptr [EAX + walk833pm110]
-        PUSH EBX
-        PUSH ESI
-        CMP ECX,0x2
-        PUSH EDI
-        JLE walk833_20035c47
-        FLD dword ptr [pml + walk833pml223cf4b4]
-        FMUL dword ptr [pml + walk833pml223cf468]
-        FLD dword ptr [pml + walk833pml223cf4b0]
-        FMUL dword ptr [pml + walk833pml223cf464]
-        FADDP ST(1),ST(0)
-        FLD dword ptr [pml + walk833pml223cf4ac]
-        FMUL dword ptr [pml + walk833pml223cf460]
-        FADDP ST(1),ST(0)
-        FCOMP dword ptr [walk833Const200ac100]
-        FNSTSW AX
-        TEST AH,0x41
-        JNZ walk833_20035c47
-        CALL PM_WaterMove
-        POP EDI
-        POP ESI
-        POP EBX
-        ADD ESP,0x40
-        RET
-walk833_20035c47:
-        CALL PM_CheckJump
-        TEST EAX,EAX
-        JZ walk833_20035d10
-        MOV ECX,dword ptr [pm]
-        CMP dword ptr [ECX + walk833pm110],0x1
-        JLE walk833_20035c6a
-        CALL PM_WaterMove
-        JMP walk833_20035c6f
-walk833_20035c6a:
-        CALL PM_AirMove
-walk833_20035c6f:
-        MOV EAX,[pm]
-        MOV ESI,dword ptr [EAX + walk833pm4]
-        MOV EDX,dword ptr [EAX + walk833pmc]
-        SUB EDX,dword ptr [ESI + walk833ext4]
-        CMP EDX,0x352
-        JL walk833_20035cfe
-        MOV ECX,dword ptr [ESI + walk833ext10]
-        CMP ECX,0x5dc
-        MOV dword ptr [ESP + 0xc],ECX
-        JGE walk833_20035c9d
-        MOV dword ptr [ESI + walk833ext10],0x0
-        JMP walk833_20035cd3
-walk833_20035c9d:
-        MOV EAX,dword ptr [EAX + walk833pm0]
-        MOV EAX,dword ptr [EAX + walk833ps3b4]
-        SUB EAX,0x4
-        JZ walk833_20035cc1
-        FILD dword ptr [ESP + 0xc]
-        DEC EAX
-        JZ walk833_20035cb9
-        FMUL dword ptr [walk833Const200ac7c8]
-        JMP walk833_20035ccb
-walk833_20035cb9:
-        FMUL dword ptr [walk833Const200ac180]
-        JMP walk833_20035ccb
-walk833_20035cc1:
-        FILD dword ptr [ESP + 0xc]
-        FMUL dword ptr [walk833Const200ac7c4]
-walk833_20035ccb:
-        CALL PM_MovementTruncate827
-        MOV dword ptr [ESI + walk833ext10],EAX
-walk833_20035cd3:
-        MOV ECX,dword ptr [pm]
-        MOV EAX,dword ptr [ECX + walk833pm4]
-        MOV EDX,dword ptr [EAX + walk833ext10]
-        TEST EDX,EDX
-        JGE walk833_20035cf0
-        MOV dword ptr [EAX + walk833ext10],0x0
-        MOV ECX,dword ptr [pm]
-walk833_20035cf0:
-        MOV EDX,dword ptr [ECX + walk833pm4]
-        MOV EAX,dword ptr [ECX + walk833pmc]
-        MOV dword ptr [EDX + walk833ext4],EAX
-        MOV EAX,[pm]
-walk833_20035cfe:
-        MOV ECX,dword ptr [EAX + walk833pm0]
-        MOV EDX,dword ptr [EAX + walk833pmc]
-        POP EDI
-        POP ESI
-        MOV dword ptr [ECX + walk833ps47c],EDX
-        POP EBX
-        ADD ESP,0x40
-        RET
-walk833_20035d10:
-        MOV EAX,[pm]
-        MOV EBX,0x1
-        CMP dword ptr [EAX + walk833pm110],EBX
-        JG walk833_20035d37
-        CALL PM_CheckDodge
-        TEST EAX,EAX
-        JZ walk833_20035d37
-        CALL PM_AirMove
-        POP EDI
-        POP ESI
-        POP EBX
-        ADD ESP,0x40
-        RET
-walk833_20035d37:
-        CALL PM_Friction
-        MOV EAX,[pm]
-        LEA EDI,[ESP + 0x30]
-        MOVSX ECX,byte ptr [EAX + walk833pm20]
-        MOVSX EDX,byte ptr [EAX + walk833pm21]
-        MOV dword ptr [ESP + 0x10],ECX
-        LEA ESI,[EAX + walk833pmc]
-        FILD dword ptr [ESP + 0x10]
-        MOV dword ptr [ESP + 0x10],EDX
-        MOV ECX,0x7
-        LEA EAX,[ESP + 0x30]
-        FSTP dword ptr [ESP + 0xc]
-        FILD dword ptr [ESP + 0x10]
-        REP MOVSD
-        FSTP dword ptr [ESP + 0x10]
-        PUSH EAX
-        CALL PM_CmdScale
-        MOV EAX,[pml + walk833pml223cf4f0]
-        ADD ESP,0x4
-        FSTP dword ptr [ESP + 0x14]
-        TEST EAX,EAX
-        MOV dword ptr [pml + walk833pml223cf468],0x0
-        MOV dword ptr [pml + walk833pml223cf474],0x0
-        JZ walk833_20035da6
-        MOV EAX,[pml + walk833pml223cf4f4]
-        TEST EAX,EAX
-        JNZ walk833_20035ddb
-walk833_20035da6:
-        PUSH 0x3f8020c5
-        PUSH OFFSET pml + walk833pml223cf460
-        PUSH OFFSET pml + walk833pml223cf4ac
-        PUSH OFFSET pml + walk833pml223cf460
-        CALL PM_ClipVelocity
-        PUSH 0x3f8020c5
-        PUSH OFFSET pml + walk833pml223cf46c
-        PUSH OFFSET pml + walk833pml223cf4ac
-        PUSH OFFSET pml + walk833pml223cf46c
-        CALL PM_ClipVelocity
-        ADD ESP,0x20
-walk833_20035ddb:
-        PUSH OFFSET pml + walk833pml223cf460
-        CALL VectorNormalize
-        FSTP ST(0)
-        PUSH OFFSET pml + walk833pml223cf46c
-        CALL VectorNormalize
-        ADD ESP,0x8
-        XOR EAX,EAX
-        FSTP ST(0)
-walk833_20035df8:
-        FLD dword ptr [ESP + 0x10]
-        FMUL dword ptr [EAX + pml + walk833pml223cf46c]
-        FLD dword ptr [ESP + 0xc]
-        FMUL dword ptr [EAX + pml + walk833pml223cf460]
-        ADD EAX,0x4
-        CMP EAX,0xc
-        FADDP ST(1),ST(0)
-        FSTP dword ptr [ESP + EAX*0x1 + 0x14]
-        JL walk833_20035df8
-        MOV EAX,[pml + walk833pml223cf4f4]
-        TEST EAX,EAX
-        JZ walk833_20035edb
-        MOV EAX,[pml + walk833pml223cf4f0]
-        CMP EAX,EBX
-        JNZ walk833_20035e65
-        FLD dword ptr [ESP + 0x1c]
-        FMUL dword ptr [ESP + 0x1c]
-        FLD dword ptr [ESP + 0x18]
-        FMUL dword ptr [ESP + 0x18]
-        FADDP ST(1),ST(0)
-        FSQRT
-        FCHS
-        FMUL dword ptr [walk833Const200ac7c0]
-        FLD dword ptr [ESP + 0x1c]
-        FMUL dword ptr [walk833Const200ac7c0]
-        FLD dword ptr [ESP + 0x18]
-        FMUL dword ptr [walk833Const200ac7c0]
-        JMP walk833_20035ee7
-walk833_20035e65:
-        CMP EAX,0x2
-        JNZ walk833_20035ea0
-        FLD dword ptr [ESP + 0x1c]
-        FMUL dword ptr [ESP + 0x1c]
-        FLD dword ptr [ESP + 0x18]
-        FMUL dword ptr [ESP + 0x18]
-        FADDP ST(1),ST(0)
-        FSQRT
-        FMUL qword ptr [walk833Const200ac7b8]
-        FMUL dword ptr [walk833Const200ac7b0]
-        FLD dword ptr [ESP + 0x1c]
-        FMUL dword ptr [walk833Const200ac7b0]
-        FLD dword ptr [ESP + 0x18]
-        FMUL dword ptr [walk833Const200ac7b0]
-        JMP walk833_20035ee7
-walk833_20035ea0:
-        CMP EAX,0x3
-        JNZ walk833_20035edb
-        FLD dword ptr [ESP + 0x1c]
-        FMUL dword ptr [ESP + 0x1c]
-        FLD dword ptr [ESP + 0x18]
-        FMUL dword ptr [ESP + 0x18]
-        FADDP ST(1),ST(0)
-        FSQRT
-        FMUL qword ptr [walk833Const200ac7a8]
-        FMUL dword ptr [walk833Const200ac7a0]
-        FLD dword ptr [ESP + 0x1c]
-        FMUL dword ptr [walk833Const200ac7a0]
-        FLD dword ptr [ESP + 0x18]
-        FMUL dword ptr [walk833Const200ac7a0]
-        JMP walk833_20035ee7
-walk833_20035edb:
-        FLD dword ptr [ESP + 0x20]
-        FLD dword ptr [ESP + 0x1c]
-        FLD dword ptr [ESP + 0x18]
-walk833_20035ee7:
-        FSTP dword ptr [ESP + 0x24]
-        LEA ECX,[ESP + 0x24]
-        FSTP dword ptr [ESP + 0x28]
-        PUSH ECX
-        FSTP dword ptr [ESP + 0x30]
-        CALL VectorNormalize
-        MOV EDX,dword ptr [pm]
-        ADD ESP,0x4
-        MOV ECX,dword ptr [EDX + walk833pm0]
-        FMUL dword ptr [ESP + 0x14]
-        TEST dword ptr [ECX + walk833ps68],0x180000
-        FSTP dword ptr [ESP + 0xc]
-        JNZ walk833_20035f29
-        TEST byte ptr [ECX + walk833psc],BL
-        JZ walk833_20035f47
-        FILD dword ptr [ECX + walk833ps40]
-        FMUL dword ptr [ECX + walk833ps40c]
-        JMP walk833_20035f32
-walk833_20035f29:
-        FILD dword ptr [ECX + walk833ps40]
-        FMUL dword ptr [pm_proneSpeedScale]
-walk833_20035f32:
-        FLD dword ptr [ESP + 0xc]
-        FCOMP ST(1)
-        FNSTSW AX
-        TEST AH,0x41
-        JNZ walk833_20035f45
-        FSTP dword ptr [ESP + 0xc]
-        JMP walk833_20035f47
-walk833_20035f45:
-        FSTP ST(0)
-walk833_20035f47:
-        MOV EAX,dword ptr [EDX + walk833pm110]
-        MOV EBX,0x10
-        TEST EAX,EAX
-        MOV dword ptr [ESP + 0x14],EAX
-        JZ walk833_20035fa2
-        FILD dword ptr [ESP + 0x14]
-        CMP dword ptr [EDX + walk833pm10c],EBX
-        FMUL qword ptr [walk833Const200ac798]
-        JNZ walk833_20035f74
-        FLD dword ptr [pm_slagSwimScale]
-        JMP walk833_20035f7a
-walk833_20035f74:
-        FLD dword ptr [pm_waterSwimScale]
-walk833_20035f7a:
-        FSUBR qword ptr [walk833Const200ac130]
-        FXCH ST(1)
-        FMULP ST(1),ST(0)
-        FSUBR qword ptr [walk833Const200ac130]
-        FIMUL dword ptr [ECX + walk833ps40]
-        FLD dword ptr [ESP + 0xc]
-        FCOMP ST(1)
-        FNSTSW AX
-        TEST AH,0x41
-        JNZ walk833_20035fa0
-        FSTP dword ptr [ESP + 0xc]
-        JMP walk833_20035fa2
-walk833_20035fa0:
-        FSTP ST(0)
-walk833_20035fa2:
-        MOV EAX,[pml + walk833pml223cf4f0]
-        TEST EAX,EAX
-        JZ walk833_20035ff2
-        TEST byte ptr [EDX + walk833pm10],BL
-        JNZ walk833_20035fd4
-        FLD dword ptr [ECX + walk833ps3c]
-        FCOMP dword ptr [walk833Const200ac100]
-        FNSTSW AX
-        TEST AH,0x40
-        JZ walk833_20035fd4
-        TEST byte ptr [ECX + walk833psf0],0x4
-        JNZ walk833_20035fd4
-        FILD dword ptr [ECX + walk833ps40]
-        FMUL dword ptr [walk833Const200ac180]
-        JMP walk833_20035fdd
-walk833_20035fd4:
-        FILD dword ptr [ECX + walk833ps40]
-        FMUL dword ptr [walk833Const200ac198]
-walk833_20035fdd:
-        FLD dword ptr [ESP + 0xc]
-        FCOMP ST(1)
-        FNSTSW AX
-        TEST AH,0x41
-        JNZ walk833_20035ff0
-        FSTP dword ptr [ESP + 0xc]
-        JMP walk833_20035ff2
-walk833_20035ff0:
-        FSTP ST(0)
-walk833_20035ff2:
-        MOV AL,[pml + walk833pml223cf4c0]
-        MOV BL,0x40
-        TEST AL,0x2
-        JNZ walk833_2003600e
-        TEST byte ptr [ECX + walk833psc],BL
-        JNZ walk833_2003600e
-        MOV EDX,dword ptr [pm_accelerate]
-        MOV dword ptr [ESP + 0x10],EDX
-        JMP walk833_20036017
-walk833_2003600e:
-        MOV EAX,[pm_airaccelerate]
-        MOV dword ptr [ESP + 0x10],EAX
-walk833_20036017:
-        MOV ECX,dword ptr [ESP + 0x10]
-        MOV EDX,dword ptr [ESP + 0xc]
-        PUSH ECX
-        LEA EAX,[ESP + 0x28]
-        PUSH EDX
-        PUSH EAX
-        CALL PM_Accelerate
-        MOV ECX,dword ptr [pml + walk833pml223cf4c0]
-        MOV EAX,[pm]
-        ADD ESP,0xc
-        TEST CL,0x2
-        JNZ walk833_20036045
-        MOV EDX,dword ptr [EAX + walk833pm0]
-        TEST byte ptr [EDX + walk833psc],BL
-        JZ walk833_20036061
-walk833_20036045:
-        MOV EAX,dword ptr [EAX + walk833pm0]
-        FILD dword ptr [EAX + walk833ps38]
-        FMUL dword ptr [pml + walk833pml223cf484]
-        FSUBR dword ptr [EAX + walk833ps28]
-        FSTP dword ptr [EAX + walk833ps28]
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [pml + walk833pml223cf4c0]
-walk833_20036061:
-        AND ECX,0xff000000
-        CMP ECX,0xd000000
-        JNZ walk833_20036086
-        MOV ECX,dword ptr [EAX + walk833pm0]
-        MOV EDX,dword ptr [ECX + walk833psd0]
-        TEST EDX,EDX
-        JLE walk833_20036086
-        MOV EAX,dword ptr [ECX + walk833ps68]
-        OR AH,0x1
-        MOV dword ptr [ECX + walk833ps68],EAX
-        JMP walk833_20036091
-walk833_20036086:
-        MOV EAX,dword ptr [EAX + walk833pm0]
-        MOV ECX,dword ptr [EAX + walk833ps68]
-        AND CH,0xfe
-        MOV dword ptr [EAX + walk833ps68],ECX
-walk833_20036091:
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX + walk833pm0]
-        ADD ECX,walk833ps20
-        PUSH ECX
-        CALL VectorLength
-        MOV EAX,[pml + walk833pml223cf4f4]
-        ADD ESP,0x4
-        FSTP dword ptr [ESP + 0xc]
-        TEST EAX,EAX
-        JNZ walk833_200360d0
-        MOV EDX,dword ptr [pm]
-        PUSH 0x3f8020c5
-        MOV EAX,dword ptr [EDX + walk833pm0]
-        ADD EAX,walk833ps20
-        PUSH EAX
-        PUSH OFFSET pml + walk833pml223cf4ac
-        PUSH EAX
-        CALL PM_ClipVelocity
-        ADD ESP,0x10
-walk833_200360d0:
-        MOV ECX,dword ptr [pm]
-        MOV ESI,0x80000
-        MOV EDX,dword ptr [ECX + walk833pm0]
-        FLD dword ptr [EDX + walk833ps20]
-        FCOMP dword ptr [walk833Const200ac100]
-        FNSTSW AX
-        TEST AH,0x40
-        JZ walk833_2003611a
-        FLD dword ptr [EDX + walk833ps24]
-        FCOMP dword ptr [walk833Const200ac100]
-        FNSTSW AX
-        TEST AH,0x40
-        JZ walk833_2003611a
-        TEST dword ptr [EDX + walk833ps68],ESI
-        JZ walk833_20036111
-        MOV EAX,dword ptr [ECX + walk833pm4]
-        MOV ECX,dword ptr [ECX + walk833pmc]
-        MOV dword ptr [EAX + walk833ext38],ECX
-        MOV ECX,dword ptr [pm]
-walk833_20036111:
-        MOV EAX,[pml + walk833pml223cf4f4]
-        TEST EAX,EAX
-        JZ walk833_2003618e
-walk833_2003611a:
-        MOV EDX,dword ptr [ECX + walk833pm0]
-        ADD EDX,walk833ps20
-        PUSH EDX
-        CALL VectorNormalize
-        MOV EAX,[pm]
-        ADD ESP,0x4
-        FSTP ST(0)
-        MOV EAX,dword ptr [EAX + walk833pm0]
-        PUSH 0x0
-        FLD dword ptr [ESP + 0x10]
-        FMUL dword ptr [EAX + walk833ps20]
-        FSTP dword ptr [EAX + walk833ps20]
-        MOV ECX,dword ptr [pm]
-        FLD dword ptr [ESP + 0x10]
-        MOV EAX,dword ptr [ECX + walk833pm0]
-        FMUL dword ptr [EAX + walk833ps24]
-        FSTP dword ptr [EAX + walk833ps24]
-        MOV EDX,dword ptr [pm]
-        FLD dword ptr [ESP + 0x10]
-        MOV EAX,dword ptr [EDX + walk833pm0]
-        FMUL dword ptr [EAX + walk833ps28]
-        FSTP dword ptr [EAX + walk833ps28]
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX + walk833pm0]
-        TEST dword ptr [ECX + walk833ps68],ESI
-        JZ walk833_20036181
-        CALL PM_StepSlideMoveProne
-        ADD ESP,0x4
-        CALL PM_SetMovementDir
-        POP EDI
-        POP ESI
-        POP EBX
-        ADD ESP,0x40
-        RET
-walk833_20036181:
-        CALL PM_StepSlideMove
-        ADD ESP,0x4
-        CALL PM_SetMovementDir
-walk833_2003618e:
-        POP EDI
-        POP ESI
-        POP EBX
-        ADD ESP,0x40
-        RET
+typedef char walkCommandLayout[(sizeof(usercmd_t) == 28 && offsetof(usercmd_t, serverTime) == 0) ? 1 : -1];
+static void PM_WalkMove(void) {
+    vec3_t wishvel, wishdir;
+    usercmd_t cmd;
+    float forwardMove, rightMove, accelerate;
+    volatile float scale, wishspeed, speed;
+    long double groundDot, limit;
+    unsigned elapsedBits;
+    int elapsed, i;
+
+    if (pm->waterlevel > 2) {
+        groundDot = (long double)pml.groundTrace.plane.normal[2] * pml.forward[2];
+        groundDot += (long double)pml.groundTrace.plane.normal[1] * pml.forward[1];
+        groundDot += (long double)pml.groundTrace.plane.normal[0] * pml.forward[0];
+        if (groundDot > 0.0L) {
+            PM_WaterMove();
+            return;
+        }
     }
+    if (PM_CheckJump()) {
+        if (pm->waterlevel > 1) PM_WaterMove();
+        else PM_AirMove();
+        elapsedBits = (unsigned)pm->cmd.serverTime - (unsigned)pm->pmext->jumpTime;
+        memcpy(&elapsed, &elapsedBits, sizeof(elapsed));
+        if (elapsed >= 850) {
+            if (pm->pmext->sprintTime < 1500) {
+                pm->pmext->sprintTime = 0;
+            } else {
+                float factor = pm->ps->holdable[9] == 4 ? 0.5555555820465088f :
+                    pm->ps->holdable[9] == 5 ? 0.5f : 0.625f;
+                pm->pmext->sprintTime = TCE_TruncateNativeInteger(
+                    (long double)pm->pmext->sprintTime * factor);
+            }
+            if (pm->pmext->sprintTime < 0) pm->pmext->sprintTime = 0;
+            pm->pmext->jumpTime = pm->cmd.serverTime;
+        }
+        pm->ps->jumpTime = pm->cmd.serverTime;
+        return;
+    }
+    if (pm->waterlevel <= 1 && PM_CheckDodge()) {
+        PM_AirMove();
+        return;
+    }
+    PM_Friction();
+    forwardMove = pm->cmd.forwardmove;
+    rightMove = pm->cmd.rightmove;
+    memcpy(&cmd, &pm->cmd, sizeof(cmd));
+    scale = PM_CmdScale(&cmd);
+    pml.forward[2] = 0.0f;
+    pml.right[2] = 0.0f;
+    if (!pml.tceContentRestriction || !pml.tceGroundExtension) {
+        PM_ClipVelocity(pml.forward, pml.groundTrace.plane.normal, pml.forward, OVERCLIP);
+        PM_ClipVelocity(pml.right, pml.groundTrace.plane.normal, pml.right, OVERCLIP);
+    }
+    (void)TCE_VectorNormalizeValue(pml.forward);
+    (void)TCE_VectorNormalizeValue(pml.right);
+    for (i = 0; i < 3; ++i) {
+        long double right = (long double)rightMove * pml.right[i];
+        long double forward = (long double)forwardMove * pml.forward[i];
+        wishvel[i] = (float)(right + forward);
+    }
+    VectorCopy(wishvel, wishdir);
+    if (pml.tceGroundExtension && pml.tceContentRestriction >= 1 &&
+        pml.tceContentRestriction <= 3) {
+        long double horizontal = (long double)wishvel[1] * wishvel[1];
+        float factor;
+        horizontal += (long double)wishvel[0] * wishvel[0];
+        horizontal = sqrtl(horizontal);
+        if (pml.tceContentRestriction == 1) {
+            factor = 0.7072135806083679f;
+            horizontal = -horizontal;
+        } else if (pml.tceContentRestriction == 2) {
+            factor = 0.4472271800041199f;
+            horizontal *= -2.0L;
+        } else {
+            factor = 0.2425418347120285f;
+            horizontal *= -4.0L;
+        }
+        wishdir[0] = (float)((long double)wishvel[0] * factor);
+        wishdir[1] = (float)((long double)wishvel[1] * factor);
+        wishdir[2] = (float)(horizontal * factor);
+    }
+    wishspeed = (float)(TCE_VectorNormalizeValue(wishdir) * scale);
+    if (pm->ps->eFlags & (EF_PRONE | EF_PRONE_MOVING)) {
+        limit = (long double)pm->ps->speed * pm_proneSpeedScale;
+        if ((long double)wishspeed > limit) wishspeed = (float)limit;
+    } else if (pm->ps->pm_flags & PMF_DUCKED) {
+        limit = (long double)pm->ps->speed * pm->ps->crouchSpeedScale;
+        if ((long double)wishspeed > limit) wishspeed = (float)limit;
+    }
+    if (pm->waterlevel) {
+        long double depth = (long double)pm->waterlevel * (long double)0.33333333333333331;
+        float swimScale = pm->watertype == CONTENTS_SLIME ? pm_slagSwimScale : pm_waterSwimScale;
+        limit = (1.0L - depth * (1.0L - swimScale)) * pm->ps->speed;
+        if ((long double)wishspeed > limit) wishspeed = (float)limit;
+    }
+    if (pml.tceContentRestriction) {
+        /* Native C3 accepts unordered lean as well as zero. */
+        float factor = !(pm->cmd.buttons & BUTTON_WALKING) &&
+            (pm->ps->leanf == 0.0f || TCE_FloatIsNaN(pm->ps->leanf)) &&
+            !(pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) ? 0.5f : 0.25f;
+        limit = (long double)pm->ps->speed * factor;
+        if ((long double)wishspeed > limit) wishspeed = (float)limit;
+    }
+    accelerate = (pml.groundTrace.surfaceFlags & SURF_SLICK) ||
+        (pm->ps->pm_flags & PMF_TIME_KNOCKBACK) ? pm_airaccelerate : pm_accelerate;
+    PM_Accelerate(wishdir, wishspeed, accelerate);
+    if ((pml.groundTrace.surfaceFlags & SURF_SLICK) ||
+        (pm->ps->pm_flags & PMF_TIME_KNOCKBACK)) {
+        pm->ps->velocity[2] = (float)((long double)pm->ps->velocity[2] -
+            (long double)pm->ps->gravity * pml.frametime);
+    }
+    if ((pml.groundTrace.surfaceFlags & 0xff000000) == 0x0d000000 &&
+        pm->ps->stats[STAT_HEALTH] > 0) pm->ps->eFlags |= EF_BREATH;
+    else pm->ps->eFlags &= ~EF_BREATH;
+    speed = (float)TCE_VectorLengthValue(pm->ps->velocity);
+    if (!pml.tceGroundExtension) {
+        PM_ClipVelocity(pm->ps->velocity, pml.groundTrace.plane.normal,
+            pm->ps->velocity, OVERCLIP);
+    }
+    if ((pm->ps->velocity[0] == 0.0f || TCE_FloatIsNaN(pm->ps->velocity[0])) &&
+        (pm->ps->velocity[1] == 0.0f || TCE_FloatIsNaN(pm->ps->velocity[1]))) {
+        if (pm->ps->eFlags & EF_PRONE) pm->pmext->proneGroundTime = pm->cmd.serverTime;
+        if (!pml.tceGroundExtension) return;
+    }
+    (void)TCE_VectorNormalizeValue(pm->ps->velocity);
+    for (i = 0; i < 3; ++i) {
+        pm->ps->velocity[i] = (float)((long double)speed * pm->ps->velocity[i]);
+    }
+    if (pm->ps->eFlags & EF_PRONE) PM_StepSlideMoveProne(qfalse);
+    else PM_StepSlideMove(qfalse);
+    PM_SetMovementDir();
 }
 #else
 static void PM_WalkMove( void ) {
