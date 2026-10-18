@@ -4224,19 +4224,12 @@ static void PM_DeadMove( void ) {
 
 #if defined(_MSC_VER) && defined(_M_IX86)
     {
-        float *deadVelocity = pm->ps->velocity;
-        const float deadDrag = 20.0f, deadZero = 0.0f;
-        __asm {
-            push deadVelocity
-            call VectorLength
-            add esp, 4
-            fsub deadDrag
-            fst forward
-            fcomp deadZero
-            fnstsw ax
-            and eax, 4100h
-            mov stopDead, eax
-        }
+        long double remaining = TCE_VectorLengthValue(pm->ps->velocity) - 20.0f;
+        volatile float storedForward = (float)remaining;
+
+        /* Compare the held value, then use the stored float for scaling. */
+        forward = storedForward;
+        stopDead = remaining <= 0.0L || remaining != remaining;
     }
 #else
 	forward = VectorLength (pm->ps->velocity);
