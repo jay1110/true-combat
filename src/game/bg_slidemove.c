@@ -1036,9 +1036,9 @@ qboolean PM_SlideMoveProne( qboolean gravity ) {
 #endif
 
 /* TC:E prone step controller: direct trace callbacks retain aliased endpoints.
- * Windows float stores and comparison gates follow the original listings;
+ * Platform comparison gates and height rounding follow the original listings;
  * FPU exception/control state and compiled engine ABI remain separately open. */
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 typedef char stepTraceLayout828[(sizeof(trace_t) == 56 && offsetof(trace_t, allsolid) == 0 &&
     offsetof(trace_t, fraction) == 8 && offsetof(trace_t, endpos) == 12 &&
     offsetof(trace_t, plane) + offsetof(cplane_t, normal) == 24) ? 1 : -1];
@@ -1047,7 +1047,10 @@ void PM_StepSlideMoveProne(qboolean gravity) {
     vec3_t startOrigin, startVelocity, up, down;
     trace_t trace;
     long double height;
+    qboolean clip;
+#if !defined(__linux__)
     volatile float delta;
+#endif
 
     VectorCopy(pm->ps->origin, startOrigin);
     VectorCopy(pm->ps->velocity, startVelocity);
@@ -1079,16 +1082,30 @@ void PM_StepSlideMoveProne(qboolean gravity) {
     pm->trace(&trace, pm->ps->origin, pm->mins, pm->maxs, down,
         pm->ps->clientNum, pm->tracemask);
     if (!trace.allsolid) VectorCopy(trace.endpos, pm->ps->origin);
-    if (trace.fraction < 1.0f || trace.fraction != trace.fraction) {
+#if defined(__linux__)
+    /* ELF one-vs-fraction JA is ordered and skips unordered fractions. */
+    clip = trace.fraction < 1.0f;
+#else
+    clip = trace.fraction < 1.0f || trace.fraction != trace.fraction;
+#endif
+    if (clip) {
         PM_ClipVelocity(pm->ps->velocity, trace.plane.normal, pm->ps->velocity, OVERCLIP);
     }
     height = (long double)pm->ps->origin[2] - startOrigin[2];
+#if defined(__linux__)
+    /* ELF keeps the height subtraction through every event threshold. */
+    if (height > 2.0L) {
+        PM_AddEvent(height < 7.0L ? EV_STEP_4 : height < 11.0L ? EV_STEP_8 :
+            height < 15.0L ? EV_STEP_12 : EV_STEP_16);
+    }
+#else
     delta = (float)height;
-    /* The initial gate uses the held subtraction; event bins use its float store. */
+    /* Windows bins use the float store after the held initial gate. */
     if (height > 2.0L) {
         PM_AddEvent(delta < 7.0f ? EV_STEP_4 : delta < 11.0f ? EV_STEP_8 :
             delta < 15.0f ? EV_STEP_12 : EV_STEP_16);
     }
+#endif
     if (pm->debugLevel) Com_Printf("%i:stepped\n", c_pmove);
 }
 #else
