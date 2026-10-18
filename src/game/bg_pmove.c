@@ -699,8 +699,8 @@ This allows the clients to use axial -127 to 127 values for all directions
 without getting a sqrt(2) distortion in speed.
 ============
 */
-#if defined(_MSC_VER) && defined(_M_IX86)
-/* Windows TCE input scaling. Native held values and float stores are
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+/* Native TCE input scaling. Native held values and float stores are
  * represented explicitly. The private return keeps the value for native
  * callers to store or consume; compiled x87 precision/ABI remains open. */
 typedef char cmdScaleLayout[(sizeof(int) == 4 && sizeof(usercmd_t) == 28 &&
@@ -716,18 +716,34 @@ typedef char cmdScaleLayout[(sizeof(int) == 4 && sizeof(usercmd_t) == 28 &&
 #endif
 static long double PM_CmdScale(usercmd_t *cmd) {
     int movespeed = CS_MOVE_CVAR.integer;
+#if defined(__linux__)
+    int entryGametype = CS_GAME_CVAR.integer;
+#endif
     int forward = cmd->forwardmove, right = cmd->rightmove, up = cmd->upmove;
     int maximum = abs(forward), buttons, ducked, weight, gametype;
-    volatile float total, adjustedForward;
+    volatile float total;
+#if !defined(__linux__)
+    volatile float adjustedForward;
+#endif
     float backwardsDivisor, sidewaysDivisor;
     long double scale, sideways, squared;
+#if defined(__linux__)
+    volatile float baseScale, directionRatio;
+    long double linuxForward;
+#endif
     qboolean leaning, tactical;
 
     if (abs(right) > maximum) maximum = abs(right);
     if (abs(up) > maximum) maximum = abs(up);
     if (!maximum) return 0.0L;
     total = (float)sqrtl((long double)(forward * forward + up * up + right * right));
+#if defined(__linux__)
+    baseScale = (float)(((long double)pm->ps->speed * maximum) *
+        (1.0L / ((long double)total * 127.0f)));
+    scale = baseScale;
+#else
     scale = (long double)pm->ps->speed * maximum / ((long double)total * 127.0);
+#endif
     buttons = pm->cmd.buttons;
     ducked = pm->ps->pm_flags & PMF_DUCKED;
     tactical = (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) != 0;
@@ -760,9 +776,18 @@ static long double PM_CmdScale(usercmd_t *cmd) {
         else if (pm->ps->holdable[9] < 4) scale *= 1.05f;
         else if (pm->ps->holdable[9] < 5) scale *= 1.025f;
     }
+#if defined(__linux__)
+    gametype = entryGametype;
+#else
     gametype = CS_GAME_CVAR.integer;
+#endif
     if (gametype == 0 || gametype == 1) {
+#if defined(__linux__)
+        scale *= movespeed;
+        scale *= 0.007874015718698502f;
+#else
         scale *= (long double)movespeed * 0.007874015718698502f;
+#endif
     }
     buttons = cmd->buttons;
     if (((buttons & BUTTON_WALKING) && !(buttons & BUTTON_SPRINT)) || tactical || leaning || ducked) {
@@ -775,6 +800,17 @@ static long double PM_CmdScale(usercmd_t *cmd) {
         backwardsDivisor = 1.875f;
         sidewaysDivisor = 1.5f;
     }
+#if defined(__linux__)
+    /* Linux keeps both corrected components held, then stores the ratio. */
+    linuxForward = forward;
+    if (forward < 0) linuxForward *= 1.0L / backwardsDivisor;
+    sideways = (long double)right * (1.0L / sidewaysDivisor);
+    squared = linuxForward * linuxForward;
+    squared += sideways * sideways;
+    squared += up * up;
+    directionRatio = (float)(sqrtl(squared) * (1.0L / total));
+    return (long double)directionRatio * scale;
+#else
     adjustedForward = (float)forward;
     if (forward < 0) adjustedForward = (float)((long double)adjustedForward / backwardsDivisor);
     sideways = (long double)right / sidewaysDivisor;
@@ -782,6 +818,7 @@ static long double PM_CmdScale(usercmd_t *cmd) {
     squared += (long double)adjustedForward * adjustedForward;
     squared += up * up;
     return (sqrtl(squared) / total) * scale;
+#endif
 }
 #undef CS_MOVE_CVAR
 #undef CS_GAME_CVAR
@@ -11404,14 +11441,6 @@ static const float move832K200ac720 = -400.0;
 static const double move832K200ac378 = 0.001;
 static const double move832K200ac130 = 1.0;
 static const float move832K200ac100 = 0.0;
-static const float move832K200ac778 = 20000.0;
-static const float move832K200ac774 = 3500.0;
-static const float move832K200ac250 = 3000.0;
-static const float move832K200ac6dc = 2500.0;
-static const float move832K200ac2ec = 0.33000001311302185;
-static const float move832K200ac180 = 0.5;
-static const float move832K200ac770 = 1250.0;
-static const float move832K200ac700 = 120.0;
 enum {
     move832Ps = offsetof(pmove_t,ps),
     move832Ext = offsetof(pmove_t,pmext),
@@ -12258,245 +12287,85 @@ void PM_LadderMove (void) {
 PM_Sprint
 ==============
 */
-/* TC qagame20034210 / Linux0008c7bc: complete Windows server sprint controller. */
-#if defined(_MSC_VER) && defined(_M_IX86) && defined(GAMEDLL)
-__declspec(naked) void PM_Sprint(void) {
-    __asm {
-        mov ecx, dword ptr [pm]
-        sub esp, 8
-        mov al, byte ptr [ecx+move832Buttons]
-        push ebx
-        xor ebx, ebx
-        push esi
-        test al, 0x20
-        mov esi, 0x80000
-        je move832_20034396
-        cmp byte ptr [ecx+move832ForwardCmd], bl
-        jne move832_2003423b
-        cmp byte ptr [ecx+move832RightCmd], bl
-        je move832_20034396
-move832_2003423b:
-        mov edx, dword ptr [ecx]
-        test byte ptr [edx+move832Flags], 1
-        jne move832_20034396
-        test dword ptr [edx+move832Eflags], esi
-        jne move832_20034396
-        cmp dword ptr [edx+move832Adrenaline], ebx
-        je move832_20034267
-        mov eax, dword ptr [ecx+move832Ext]
-        mov dword ptr [eax+move832Sprint], 0x4e20
-        jmp move832_20034361
-move832_20034267:
-        mov eax, dword ptr [edx+move832Fatigue]
-        cmp eax, ebx
-        je move832_200342ca
-        add eax, -0x32
-        mov dword ptr [edx+move832Fatigue], eax
-        mov ecx, dword ptr [pm]
-        mov eax, dword ptr [ecx+move832Ext]
-        mov ecx, dword ptr [eax+move832Sprint]
-        add ecx, 0xa
-        mov dword ptr [eax+move832Sprint], ecx
-        mov edx, dword ptr [pm]
-        mov ecx, dword ptr [edx+move832Ext]
-        fild dword ptr [ecx+move832Sprint]
-        fcomp dword ptr [move832K200ac778]
-        fnstsw ax
-        test ah, 0x41
-        jne move832_200342ac
-        mov dword ptr [ecx+move832Sprint], 0x4e20
-move832_200342ac:
-        mov eax, dword ptr [pm]
-        mov eax, dword ptr [eax]
-        cmp dword ptr [eax+move832Fatigue], ebx
-        jge move832_20034361
-        mov dword ptr [eax+move832Fatigue], ebx
-        jmp move832_20034361
-move832_200342ca:
-        mov esi, dword ptr [edx+move832Weapon]
-        lea eax, [esi + esi*2]
-        shl eax, 3
-        sub eax, esi
-        lea eax, [eax + eax*4]
-        mov eax, dword ptr [eax*4 + weaponDef+move832DefWeight]
-        sub eax, 3
-        je move832_200342fd
-        dec eax
-        je move832_200342f5
-        dec eax
-        jne move832_200342fd
-        fld dword ptr [move832K200ac774]
-        jmp move832_20034303
-move832_200342f5:
-        fld dword ptr [move832K200ac250]
-        jmp move832_20034303
-move832_200342fd:
-        fld dword ptr [move832K200ac6dc]
-move832_20034303:
-        mov edx, dword ptr [edx+move832Carried]
-        sub edx, 3
-        je move832_20034324
-        dec edx
-        je move832_2003431c
-        dec edx
-        jne move832_20034324
-        fld dword ptr [move832K200ac774]
-        jmp move832_2003432a
-move832_2003431c:
-        fld dword ptr [move832K200ac250]
-        jmp move832_2003432a
-move832_20034324:
-        fld dword ptr [move832K200ac6dc]
-move832_2003432a:
-        fcom st(1)
-        fnstsw ax
-        test ah, 0x41
-        jne move832_2003433f
-        fsub st(0), st(1)
-        fmul dword ptr [move832K200ac2ec]
-        faddp st(1), st(0)
-        jmp move832_20034341
-move832_2003433f:
-        fstp st(0)
-move832_20034341:
-        mov esi, dword ptr [ecx+move832Ext]
-        fild dword ptr [esi+move832Sprint]
-        fld dword ptr [pml+move832Frame]
-        fmul st(0), st(2)
-        fmul dword ptr [move832K200ac180]
-        fsubp st(1), st(0)
-        call PM_MovementTruncate827
-        fstp st(0)
-        mov dword ptr [esi+move832Sprint], eax
-move832_20034361:
-        mov ecx, dword ptr [pm]
-        mov eax, dword ptr [ecx+move832Ext]
-        cmp dword ptr [eax+move832Sprint], ebx
-        jge move832_20034372
-        mov dword ptr [eax+move832Sprint], ebx
-move832_20034372:
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx]
-move832_2003437a:
-        cmp dword ptr [eax+move832Exert], ebx
-        jne move832_200344e9
-        pop esi
-        mov dword ptr [eax+move832Exert], 1
-        pop ebx
-        add esp, 8
-        ret 
-move832_20034396:
-        mov edx, dword ptr [ecx]
-        test byte ptr [edx+move832TcFlags], 0x80
-        je move832_200343d7
-        mov esi, dword ptr [ecx+move832Ext]
-        fild dword ptr [esi+move832Sprint]
-        fld dword ptr [pml+move832Frame]
-        fmul dword ptr [move832K200ac770]
-        fsubp st(1), st(0)
-        call PM_MovementTruncate827
-        mov dword ptr [esi+move832Sprint], eax
-        mov eax, dword ptr [pm]
-        mov eax, dword ptr [eax+move832Ext]
-        cmp dword ptr [eax+move832Sprint], ebx
-        jge move832_200343cd
-        mov dword ptr [eax+move832Sprint], ebx
-move832_200343cd:
-        mov ecx, dword ptr [pm]
-        mov eax, dword ptr [ecx]
-        jmp move832_2003437a
-move832_200343d7:
-        cmp dword ptr [edx+move832Adrenaline], ebx
-        je move832_200343ee
-        mov edx, dword ptr [ecx+move832Ext]
-        mov dword ptr [edx+move832Sprint], 0x4e20
-        jmp move832_200344bb
-move832_200343ee:
-        cmp dword ptr [edx+move832Fatigue], ebx
-        je move832_20034402
-        mov ecx, dword ptr [ecx+move832Ext]
-        add dword ptr [ecx+move832Sprint], 0xa
-        jmp move832_200344bb
-move832_20034402:
-        mov eax, dword ptr [ecx+move832Leadership]
-        mov dword ptr [esp + 8], 0x2ee
-        cmp eax, ebx
-        je move832_2003441e
-        mov dword ptr [esp + 8], 0x3e8
-        jmp move832_20034435
-move832_2003441e:
-        mov eax, dword ptr [ecx+move832Skill]
-        push ebp
-        mov ebp, dword ptr [eax]
-        cmp ebp, 2
-        pop ebp
-        jl move832_20034435
-        mov dword ptr [esp + 8], 0x4b0
-move832_20034435:
-        fld dword ptr [edx+move832Velocity+4]
-        fld dword ptr [edx+move832Velocity]
-        fld st(0)
-        fmul st(0), st(1)
-        fld st(2)
-        fmul st(0), st(3)
-        faddp st(1), st(0)
-        fsqrt 
-        fstp st(2)
-        fstp st(0)
-        fcomp dword ptr [move832K200ac700]
-        fnstsw ax
-        test ah, 0x41
-        jne move832_20034476
-        cmp byte ptr [ecx+move832ForwardCmd], bl
-        jne move832_20034462
-        cmp byte ptr [ecx+move832RightCmd], bl
-        je move832_20034476
-move832_20034462:
-        test byte ptr [edx+move832Flags], 1
-        jne move832_20034476
-        test dword ptr [edx+move832Eflags], esi
-        jne move832_20034476
-        test byte ptr [edx+move832WeaponFlags], 4
-        je move832_20034494
-move832_20034476:
-        fild dword ptr [esp + 8]
-        mov esi, dword ptr [ecx+move832Ext]
-        fmul dword ptr [pml+move832Frame]
-        fiadd dword ptr [esi+move832Sprint]
-        call PM_MovementTruncate827
-        mov dword ptr [esi+move832Sprint], eax
-        mov ecx, dword ptr [pm]
-move832_20034494:
-        mov esi, dword ptr [ecx+move832Ext]
-        mov eax, dword ptr [esi+move832Sprint]
-        cmp eax, 0x1388
-        mov dword ptr [esp + 0xc], eax
-        jle move832_200344c1
-        fild dword ptr [esp + 8]
-        fmul dword ptr [pml+move832Frame]
-        fiadd dword ptr [esp + 0xc]
-        call PM_MovementTruncate827
-        mov dword ptr [esi+move832Sprint], eax
-move832_200344bb:
-        mov ecx, dword ptr [pm]
-move832_200344c1:
-        mov edx, dword ptr [ecx+move832Ext]
-        fild dword ptr [edx+move832Sprint]
-        fcomp dword ptr [move832K200ac778]
-        fnstsw ax
-        test ah, 0x41
-        jne move832_200344e1
-        mov dword ptr [edx+move832Sprint], 0x4e20
-        mov ecx, dword ptr [pm]
-move832_200344e1:
-        mov ecx, dword ptr [ecx]
-        mov dword ptr [ecx+move832Exert], ebx
-move832_200344e9:
-        pop esi
-        pop ebx
-        add esp, 8
-        ret 
+/* TCE Windows sprint controller. Held arithmetic models native values;
+ * compiler x87 precision, exceptions and conversion ABI remain open. */
+#if defined(_MSC_VER) && defined(_M_IX86)
+void PM_Sprint(void) {
+    long double cost, carriedCost, speed, value;
+    unsigned counter;
+    int recharge;
+    pmoveExt_t *ext;
+    qboolean sprinting = (pm->cmd.buttons & BUTTON_SPRINT) &&
+        (pm->cmd.forwardmove || pm->cmd.rightmove) &&
+        !(pm->ps->pm_flags & PMF_DUCKED) && !(pm->ps->eFlags & EF_PRONE);
+
+    if (sprinting) {
+        if (pm->ps->powerups[PW_ADRENALINE]) {
+            pm->pmext->sprintTime = 20000;
+        } else if (pm->ps->powerups[PW_NOFATIGUE]) {
+            /* Native ADD wraps before the signed lower clamp. */
+            counter = (unsigned)pm->ps->powerups[PW_NOFATIGUE] - 50u;
+            memcpy(&pm->ps->powerups[PW_NOFATIGUE], &counter, sizeof(counter));
+            counter = (unsigned)pm->pmext->sprintTime + 10u;
+            memcpy(&pm->pmext->sprintTime, &counter, sizeof(counter));
+            if (pm->pmext->sprintTime > 20000) pm->pmext->sprintTime = 20000;
+            if (pm->ps->powerups[PW_NOFATIGUE] < 0) pm->ps->powerups[PW_NOFATIGUE] = 0;
+        } else {
+            cost = weaponDef[pm->ps->weapon].loadoutWeight == 4 ? 3000.0f :
+                weaponDef[pm->ps->weapon].loadoutWeight == 5 ? 3500.0f : 2500.0f;
+            carriedCost = pm->ps->holdable[9] == 4 ? 3000.0f :
+                pm->ps->holdable[9] == 5 ? 3500.0f : 2500.0f;
+            if (carriedCost > cost) cost += (carriedCost - cost) * 0.33f;
+            ext = pm->pmext;
+            value = (long double)pml.frametime * cost;
+            value *= 0.5f;
+            value = (long double)ext->sprintTime - value;
+            ext->sprintTime = TCE_TruncateNativeInteger(value);
+        }
+        if (pm->pmext->sprintTime < 0) pm->pmext->sprintTime = 0;
+    } else if (pm->ps->stats[STAT_TCE_FLAGS] & 0x80) {
+        ext = pm->pmext;
+        value = (long double)pml.frametime * 1250.0f;
+        value = (long double)ext->sprintTime - value;
+        ext->sprintTime = TCE_TruncateNativeInteger(value);
+        if (pm->pmext->sprintTime < 0) pm->pmext->sprintTime = 0;
+    } else {
+        if (pm->ps->powerups[PW_ADRENALINE]) {
+            pm->pmext->sprintTime = 20000;
+        } else if (pm->ps->powerups[PW_NOFATIGUE]) {
+            counter = (unsigned)pm->pmext->sprintTime + 10u;
+            memcpy(&pm->pmext->sprintTime, &counter, sizeof(counter));
+        } else {
+            recharge = 750;
+#ifdef GAMEDLL
+            if (pm->leadership) recharge = 1000;
+            else
+#endif
+            if (pm->skill[SK_BATTLE_SENSE] >= 2) recharge = 1200;
+            speed = (long double)pm->ps->velocity[0] * pm->ps->velocity[0];
+            speed += (long double)pm->ps->velocity[1] * pm->ps->velocity[1];
+            speed = sqrtl(speed);
+            /* Native C0/C3 also recharges for an unordered speed. */
+            if (!(speed > 120.0f) || (!pm->cmd.forwardmove && !pm->cmd.rightmove) ||
+                (pm->ps->pm_flags & PMF_DUCKED) || (pm->ps->eFlags & EF_PRONE) ||
+                (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4)) {
+                ext = pm->pmext;
+                value = (long double)recharge * pml.frametime;
+                value += ext->sprintTime;
+                ext->sprintTime = TCE_TruncateNativeInteger(value);
+            }
+            ext = pm->pmext;
+            if (ext->sprintTime > 5000) {
+                value = (long double)recharge * pml.frametime;
+                value += ext->sprintTime;
+                ext->sprintTime = TCE_TruncateNativeInteger(value);
+            }
+        }
+        if (pm->pmext->sprintTime > 20000) pm->pmext->sprintTime = 20000;
+        pm->ps->sprintExertTime = 0;
+        return;
     }
+    if (!pm->ps->sprintExertTime) pm->ps->sprintExertTime = 1;
 }
 #else
 /* Portable fallback; no instruction-level Linux parity claim. */
