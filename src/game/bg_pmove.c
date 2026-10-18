@@ -9596,395 +9596,114 @@ enum { move832Leadership = offsetof(pmove_t,leadership),move832FreeClimbPermissi
 typedef char move832TraceLayout[(sizeof(trace_t)==56 && offsetof(trace_t,fraction)==8 && offsetof(trace_t,plane)==24 && offsetof(trace_t,surfaceFlags)==44 && offsetof(trace_t,contents)==48 && offsetof(trace_t,entityNum)==52) ? 1 : -1];
 typedef char move832Protocol[(offsetof(pmove_t,ps)==0 && SK_BATTLE_SENSE==0 && offsetof(cplane_t,normal)==0 && PMF_LADDER==4 && PMF_DUCKED==1 && EF_PRONE==0x80000 && EF_PRONE_MOVING==0x100000 && EV_FOOTSTEP==1 && ANIM_ET_CLIMB_MOUNT==9 && ANIM_ET_CLIMB_DISMOUNT==10 && sizeof(tce_weaponDef_t)==460) ? 1 : -1];
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) void PM_CheckLadderMove(void) {
-    __asm {
-        sub esp, 0x64
-        mov eax, dword ptr [pm]
-        push ebx
-        xor ebx, ebx
-        push esi
-        mov eax, dword ptr [eax]
-        push edi
-        mov dword ptr [esp+0x10], 0 /* Defined native fallback for original uninitialized freeClimb. */
-        mov dword ptr [esp + 0xc], 0x3f800000
-        mov edx, dword ptr [eax+move832TcFlags]
-        and edx, 0xffffffbf
-        mov dword ptr [eax+move832TcFlags], edx
-        mov ecx, dword ptr [pm]
-        mov eax, dword ptr [ecx]
-        mov ecx, dword ptr [eax+move832TcFlags]
-        and ecx, 0xffffffdf
-        mov dword ptr [eax+move832TcFlags], ecx
-        mov eax, dword ptr [pml+move832Walking]
-        cmp eax, ebx
-        jne move832_200334ce
-        mov dword ptr [esp + 0xc], 0x42400000
-move832_200334ce:
-        mov edx, dword ptr [pml+move832Forward]
-        mov eax, dword ptr [pml+move832Forward+4]
-        lea ecx, [esp + 0x20]
-        mov dword ptr [esp + 0x20], edx
-        push ecx
-        mov dword ptr [esp + 0x28], eax
-        mov dword ptr [esp + 0x2c], 0
-        call VectorNormalize
-        mov eax, dword ptr [pm]
-        fstp st(0)
-        fld dword ptr [esp + 0x24]
-        fmul dword ptr [esp + 0x10]
-        mov edx, dword ptr [eax]
-        fadd dword ptr [edx+move832Origin]
-        fstp dword ptr [esp + 0x18]
-        fld dword ptr [esp + 0x28]
-        fmul dword ptr [esp + 0x10]
-        mov ecx, dword ptr [eax]
-        fadd dword ptr [ecx+move832Origin+4]
-        fstp dword ptr [esp + 0x1c]
-        fld dword ptr [esp + 0x2c]
-        fmul dword ptr [esp + 0x10]
-        mov edx, dword ptr [eax]
-        fadd dword ptr [edx+move832Origin+8]
-        fstp dword ptr [esp + 0x20]
-        mov ecx, dword ptr [eax]
-        mov edx, dword ptr [eax+move832Mask]
-        push edx
-        mov edx, dword ptr [ecx+move832Client]
-        add ecx, move832Origin
-        push edx
-        lea edx, [esp + 0x20]
-        push edx
-        lea edx, [eax+move832Maxs]
-        push edx
-        lea edx, [eax+move832Mins]
-        push edx
-        push ecx
-        lea ecx, [esp + 0x54]
-        push ecx
-        call dword ptr [eax+move832Trace]
-        fld dword ptr [esp + 0x60]
-        fcomp dword ptr [move832K200ac110]
-        add esp, 0x20
-        fnstsw ax
-        test ah, 1
-        je move832_200335b2
-        mov edx, dword ptr [esp + 0x64]
-        and edx, 0xff000000
-        cmp edx, 0x14000000
-        jne move832_200335c8
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax]
-        test byte ptr [ecx+move832WeaponFlags], 0x80
-        jne move832_200335c8
-        push EV_TCE_FENCE_TOUCH
-        call PM_AddEvent
-        mov edx, dword ptr [pm]
-        add esp, 4
-        mov eax, dword ptr [edx]
-        mov ecx, dword ptr [eax+move832WeaponFlags]
-        or cl, 0x80
-        jmp move832_200335c2
-move832_200335b2:
-        mov eax, dword ptr [pm]
-        mov eax, dword ptr [eax]
-        mov ecx, dword ptr [eax+move832WeaponFlags]
-        and cl, 0x7f
-move832_200335c2:
-        mov dword ptr [eax+move832WeaponFlags], ecx
-move832_200335c8:
-        mov ecx, dword ptr [esp + 0x64]
-        mov dword ptr [pml+move832Material], ecx
-        mov ecx, dword ptr [pm]
-        mov eax, dword ptr [ecx]
-        mov edi, dword ptr [eax+move832Flags]
-        mov esi, dword ptr [eax+move832TcFlags]
-        mov dword ptr [pml+move832Ladder], ebx
-        mov eax, dword ptr [ecx]
-        shr edi, 2
-        mov edx, dword ptr [eax+move832Flags]
-        and edi, 1
-        and edx, 0xfffffffb
-        mov dword ptr [eax+move832Flags], edx
-        mov edx, dword ptr [pm]
-        shr esi, 7
-        mov eax, dword ptr [edx]
-        and esi, 1
-        mov ecx, dword ptr [eax+move832TcFlags]
-        and cl, 0x7f
-        mov dword ptr [eax+move832TcFlags], ecx
-        mov ecx, dword ptr [pm]
-        mov dword ptr [ladderforward], ebx
-        mov edx, dword ptr [ecx]
-        cmp dword ptr [edx+move832Health], ebx
-        jg move832_20033647
-        mov dword ptr [edx+move832Ground], 0x3ff
-        pop edi
-        mov dword ptr [pml+move832GroundPlane], ebx
-        mov dword ptr [pml+move832Walking], ebx
-        pop esi
-        pop ebx
-        add esp, 0x64
-        ret 
-move832_20033647:
-        test dword ptr [edx+move832Eflags], 0x180000
-        jne move832_20033981
-        mov eax, dword ptr [edx+move832WeaponState]
-        cmp eax, 9
-        je move832_20033981
-        cmp eax, 0xa
-        je move832_20033981
-        cmp eax, 0xb
-        je move832_20033981
-        fld dword ptr [esp + 0x40]
-        fcomp dword ptr [move832K200ac110]
-        mov ebx, dword ptr [esp + 0x64]
-        fnstsw ax
-        test ah, 1
-        je move832_200336bd
-        test bl, 8
-        je move832_200336bd
-        mov eax, dword ptr [pml+move832Walking]
-        test eax, eax
-        jne move832_200336ac
-        fld dword ptr [edx+move832Velocity+8]
-        fcomp dword ptr [move832K200ac720]
-        fnstsw ax
-        test ah, 1
-        jne move832_2003374b
-move832_200336ac:
-        mov ebx, 1
-        mov eax, ebx
-        mov dword ptr [pml+move832Ladder], eax
-        jmp move832_2003375d
-move832_200336bd:
-        fld dword ptr [esp + 0x40]
-        fmul dword ptr [esp + 0xc]
-        fcomp dword ptr [move832K200ac110]
-        fnstsw ax
-        test ah, 1
-        je move832_2003374b
-        mov eax, dword ptr [edx+move832TcFlags]
-        test ah, 8
-        je move832_nav_free_actor_allowed
-#ifdef GAMEDLL
-        mov eax, dword ptr [pm]
-        cmp dword ptr [eax+move832FreeClimbPermission], 0
-        jne move832_nav_free_actor_allowed
-#endif
-        jmp move832_2003374b
-move832_nav_free_actor_allowed:
-        test ebx, 0x40000
-        jne move832_2003374b
-        test dword ptr [esp + 0x68], 0x6000000
-        jne move832_2003374b
-        cmp dword ptr [esp + 0x6c], 0x3fe
-        jne move832_2003374b
-        fld dword ptr [esp + 0x58]
-        fabs 
-        fcomp qword ptr [move832K200ac378]
-        fnstsw ax
-        test ah, 1
-        je move832_2003374b
-        lea eax, [esp + 0x50]
-        push esi
-        mov ebx, 1
-        push eax
-        push ebx
-        call PM_ClimbSlideMove
-        add esp, 0xc
-        test eax, eax
-        je move832_20033745
-        mov ecx, dword ptr [pm]
-        mov dword ptr [pml+move832Ladder], ebx
-        mov dword ptr [esp + 0x10], ebx
-        mov eax, dword ptr [ecx]
-        mov ecx, dword ptr [eax+move832TcFlags]
-        or cl, 0x80
-        mov dword ptr [eax+move832TcFlags], ecx
-move832_20033745:
-        mov ecx, dword ptr [pm]
-move832_2003374b:
-        mov eax, dword ptr [pml+move832Ladder]
-        mov ebx, 1
-        test eax, eax
-        je move832_200338af
-move832_2003375d:
-        mov edx, dword ptr [esp + 0x50]
-        mov dword ptr [laddervec], edx
-        mov edx, dword ptr [esp + 0x54]
-        mov dword ptr [laddervec+4], edx
-        mov edx, dword ptr [esp + 0x58]
-        test eax, eax
-        mov dword ptr [laddervec+8], edx
-        je move832_200338af
-        mov eax, dword ptr [pml+move832Walking]
-        test eax, eax
-        jne move832_200338c2
-        fld dword ptr [esp + 0x40]
-        fmul dword ptr [esp + 0xc]
-        fcomp qword ptr [move832K200ac130]
-        fnstsw ax
-        test ah, 0x41
-        jne move832_200338c2
-        fld dword ptr [esp + 0xc]
-        mov dword ptr [pml+move832Ladder], 0
-        mov eax, dword ptr [ecx+move832Mins]
-        fchs 
-        mov dword ptr [esp + 0x2c], eax
-        mov edx, dword ptr [ecx+move832Mins+4]
-        fld st(0)
-        fmul dword ptr [esp + 0x50]
-        mov dword ptr [esp + 0x30], edx
-        mov dword ptr [esp + 0x34], 0xbf800000
-        mov eax, dword ptr [ecx]
-        fadd dword ptr [eax+move832Origin]
-        fstp dword ptr [esp + 0x14]
-        mov edx, dword ptr [ecx]
-        fld st(0)
-        fmul dword ptr [esp + 0x54]
-        fadd dword ptr [edx+move832Origin+4]
-        fstp dword ptr [esp + 0x18]
-        mov eax, dword ptr [ecx]
-        fmul dword ptr [esp + 0x58]
-        fadd dword ptr [eax+move832Origin+8]
-        fstp dword ptr [esp + 0x1c]
-        mov eax, dword ptr [ecx]
-        mov edx, dword ptr [ecx+move832Mask]
-        push edx
-        mov edx, dword ptr [eax+move832Client]
-        add eax, move832Origin
-        push edx
-        lea edx, [esp + 0x1c]
-        push edx
-        lea edx, [ecx+move832Maxs]
-        push edx
-        lea edx, [esp + 0x3c]
-        push edx
-        push eax
-        lea eax, [esp + 0x50]
-        push eax
-        call dword ptr [ecx+move832Trace]
-        fld dword ptr [esp + 0x5c]
-        fcomp dword ptr [move832K200ac110]
-        add esp, 0x1c
-        fnstsw ax
-        test ah, 1
-        je move832_2003389f
-        test byte ptr [esp + 0x64], 8
-        je move832_20033862
-        mov ecx, dword ptr [pm]
-        mov dword ptr [ladderforward], ebx
-        mov dword ptr [pml+move832Ladder], ebx
-        mov eax, dword ptr [ecx]
-        or dword ptr [eax+move832Flags], 4
-        jmp move832_200338cc
-move832_20033862:
-        mov eax, dword ptr [esp + 0x10]
-        test eax, eax
-        je move832_2003389f
-        mov edx, dword ptr [pm]
-        mov dword ptr [ladderforward], ebx
-        mov dword ptr [pml+move832Ladder], ebx
-        mov eax, dword ptr [edx]
-        mov edx, dword ptr [eax+move832Flags]
-        or edx, 4
-        mov dword ptr [eax+move832Flags], edx
-        mov eax, dword ptr [pm]
-        mov eax, dword ptr [eax]
-        mov ecx, dword ptr [eax+move832TcFlags]
-        or cl, 0x80
-        mov dword ptr [eax+move832TcFlags], ecx
-        jmp move832_200338cc
-move832_2003389f:
-        mov dword ptr [pml+move832Ladder], 0
-move832_200338a9:
-        mov ecx, dword ptr [pm]
-move832_200338af:
-        test esi, esi
-        je move832_200338f7
-        mov edx, dword ptr [ecx]
-        test byte ptr [edx+move832TcFlags], 0x80
-        jne move832_20033913
-        push 0x11
-        jmp move832_20033904
-move832_200338c2:
-        mov ecx, dword ptr [ecx]
-        mov eax, dword ptr [ecx+move832Flags]
-        or al, 4
-        mov dword ptr [ecx+move832Flags], eax
-move832_200338cc:
-        mov eax, dword ptr [pml+move832Ladder]
-        test eax, eax
-        je move832_200338a9
-        mov eax, dword ptr [pml+move832Walking]
-        test eax, eax
-        je move832_200338a9
-        mov ecx, dword ptr [pm]
-        mov al, byte ptr [ecx+move832ForwardCmd]
-        test al, al
-        jg move832_200338af
-        mov dword ptr [pml+move832Ladder], 0
-        jmp move832_200338af
-move832_200338f7:
-        mov eax, dword ptr [ecx]
-        test byte ptr [eax+move832TcFlags], 0x80
-        je move832_20033913
-        push 0x10
-move832_20033904:
-        push ebx
-        call PM_AddEventExt
-        mov ecx, dword ptr [pm]
-        add esp, 8
-move832_20033913:
-        mov eax, dword ptr [pml+move832Ladder]
-        test eax, eax
-        jne move832_20033957
-        test edi, edi
-        je move832_20033981
-        mov edx, dword ptr [ecx]
-        fld dword ptr [edx+move832Velocity+8]
-        fcomp dword ptr [move832K200ac100]
-        fnstsw ax
-        test ah, 0x41
-        jne move832_20033981
-        mov ecx, dword ptr [ecx+move832Character]
-        push 0
-        push 0
-        push 0xa
-        mov eax, dword ptr [ecx+move832Model]
-        push eax
-        push edx
-        call BG_AnimScriptEvent
-        mov eax, dword ptr [pml+move832Ladder]
-        add esp, 0x14
-        test eax, eax
-        je move832_20033981
-        mov ecx, dword ptr [pm]
-move832_20033957:
-        test edi, edi
-        jne move832_20033981
-        mov edx, dword ptr [ecx]
-        fld dword ptr [edx+move832Velocity+8]
-        fcomp dword ptr [move832K200ac100]
-        fnstsw ax
-        test ah, 1
-        je move832_20033981
-        mov ecx, dword ptr [ecx+move832Character]
-        push edi
-        push edi
-        push 9
-        mov eax, dword ptr [ecx+move832Model]
-        push eax
-        push edx
-        call BG_AnimScriptEvent
-        add esp, 0x14
-move832_20033981:
-        pop edi
-        pop esi
-        pop ebx
-        add esp, 0x64
-        ret 
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+void PM_CheckLadderMove(void) {
+    vec3_t spot, flatforward, mins;
+    trace_t trace;
+    float tracedist;
+    long double distance, normalAlignment;
+    int i;
+    qboolean wasOnLadder, wasClimbing, freeClimb = qfalse;
+    qboolean ladderHit, backTrace, acceptHit;
+
+    /* Keep the existing defined fallback for the original unset freeClimb local. */
+    pm->ps->stats[STAT_TCE_FLAGS] &= ~0x40;
+    pm->ps->stats[STAT_TCE_FLAGS] &= ~0x20;
+    tracedist = pml.walking ? 1.0f : 48.0f;
+    VectorSet(flatforward, pml.forward[0], pml.forward[1], 0);
+    VectorNormalize(flatforward);
+    for (i = 0; i < 3; ++i)
+        spot[i] = (float)((long double)flatforward[i] * tracedist + pm->ps->origin[i]);
+    pm->trace(&trace, pm->ps->origin, pm->mins, pm->maxs, spot,
+        pm->ps->clientNum, pm->tracemask);
+    if (trace.fraction >= 1.0f) pm->ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~0x80;
+    else if ((trace.surfaceFlags & 0xff000000) == 0x14000000 &&
+        !(pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 0x80)) {
+        PM_AddEvent(EV_TCE_FENCE_TOUCH);
+        pm->ps->stats[STAT_TCE_WEAPON_FLAGS] |= 0x80;
     }
+    pml.tceLadderSurfaceFlags = trace.surfaceFlags;
+    wasOnLadder = (pm->ps->pm_flags & PMF_LADDER) != 0;
+    wasClimbing = (pm->ps->stats[STAT_TCE_FLAGS] & 0x80) != 0;
+    pml.ladder = qfalse;
+    pm->ps->pm_flags &= ~PMF_LADDER;
+    pm->ps->stats[STAT_TCE_FLAGS] &= ~0x80;
+    ladderforward = qfalse;
+    if (pm->ps->stats[STAT_HEALTH] < 1) {
+        pm->ps->groundEntityNum = ENTITYNUM_NONE;
+        pml.groundPlane = qfalse;
+        pml.walking = qfalse;
+        return;
+    }
+    if (pm->ps->eFlags & (EF_PRONE | EF_PRONE_MOVING)) return;
+    if (pm->ps->weaponstate == 9 || pm->ps->weaponstate == 10 || pm->ps->weaponstate == 11) return;
+    distance = (long double)trace.fraction * tracedist;
+#if defined(__linux__)
+    ladderHit = trace.fraction < 1.0f;
+#else
+    ladderHit = trace.fraction < 1.0f || TCE_FloatIsNaN(trace.fraction);
+#endif
+    if (ladderHit && (trace.surfaceFlags & SURF_LADDER)) {
+        if (pml.walking || (pm->ps->velocity[2] >= -400.0f &&
+            !TCE_FloatIsNaN(pm->ps->velocity[2]))) pml.ladder = qtrue;
+    } else if ((distance < 1.0f || distance != distance) &&
+        PM_FreeClimbActorAllowed() && !(trace.surfaceFlags & 0x40000) &&
+        !(trace.contents & 0x6000000) && trace.entityNum == ENTITYNUM_WORLD) {
+#if defined(__linux__)
+        /* Linux retains the complete dot product with the fixed up vector. */
+        normalAlignment = (long double)trace.plane.normal[0] * 0.0f;
+        normalAlignment += (long double)trace.plane.normal[1] * 0.0f;
+        normalAlignment += (long double)trace.plane.normal[2] * 1.0f;
+#else
+        normalAlignment = trace.plane.normal[2];
+#endif
+        if ((fabsl(normalAlignment) < 0.001 || normalAlignment != normalAlignment) &&
+            PM_ClimbSlideMove(1, trace.plane.normal, wasClimbing)) {
+            pml.ladder = qtrue;
+            freeClimb = qtrue;
+            pm->ps->stats[STAT_TCE_FLAGS] |= 0x80;
+        }
+    }
+    if (pml.ladder) {
+        VectorCopy(trace.plane.normal, laddervec);
+        /* The climb helper may have changed movement state; read walking afresh. */
+        distance = (long double)trace.fraction * tracedist;
+        backTrace = distance > 1.0;
+#if defined(__linux__)
+        backTrace = backTrace || distance != distance;
+#endif
+        if (!pml.walking && backTrace) {
+            pml.ladder = qfalse;
+            VectorCopy(pm->mins, mins);
+            mins[2] = -1.0f;
+            for (i = 0; i < 3; ++i)
+                spot[i] = (float)(-(long double)tracedist * trace.plane.normal[i] + pm->ps->origin[i]);
+            pm->trace(&trace, pm->ps->origin, mins, pm->maxs, spot,
+                pm->ps->clientNum, pm->tracemask);
+            acceptHit = freeClimb;
+#if defined(__linux__)
+            /* Compiled Linux accepts an ordered hit even without ladder material. */
+            ladderHit = trace.fraction < 1.0f;
+            acceptHit = qtrue;
+#else
+            ladderHit = trace.fraction < 1.0f || TCE_FloatIsNaN(trace.fraction);
+#endif
+            if (ladderHit && ((trace.surfaceFlags & SURF_LADDER) || acceptHit)) {
+                ladderforward = qtrue;
+                pml.ladder = qtrue;
+                pm->ps->pm_flags |= PMF_LADDER;
+                if (!(trace.surfaceFlags & SURF_LADDER)) pm->ps->stats[STAT_TCE_FLAGS] |= 0x80;
+            }
+        } else pm->ps->pm_flags |= PMF_LADDER;
+        if (pml.ladder && pml.walking && pm->cmd.forwardmove <= 0) pml.ladder = qfalse;
+    }
+    if (wasClimbing != ((pm->ps->stats[STAT_TCE_FLAGS] & 0x80) != 0))
+        PM_AddEventExt(EV_FOOTSTEP, wasClimbing ? 17 : 16);
+    if (!pml.ladder && wasOnLadder && pm->ps->velocity[2] > 0.0f)
+        BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo, ANIM_ET_CLIMB_DISMOUNT, qfalse, qfalse);
+    if (pml.ladder && !wasOnLadder &&
+        (pm->ps->velocity[2] < 0.0f || TCE_FloatIsNaN(pm->ps->velocity[2])))
+        BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo, ANIM_ET_CLIMB_MOUNT, qfalse, qfalse);
 }
 #else
 /* Portable fallback; no instruction-level Linux parity claim. */
