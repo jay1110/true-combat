@@ -2679,241 +2679,95 @@ enum {
 typedef char groundTraceLayout831[(sizeof(trace_t)==56 && offsetof(trace_t,allsolid)==0 && offsetof(trace_t,fraction)==8 && offsetof(trace_t,plane)==24 && offsetof(trace_t,surfaceFlags)==44 && offsetof(trace_t,entityNum)==52) ? 1 : -1];
 typedef char groundProtocol831[(EF_MG42_ACTIVE==0x20 && EF_AAGUN_ACTIVE==0x400000 && EF_MOUNTEDTANK==0x8000 && EF_PRONE==0x80000 && PMF_BACKWARDS_JUMP==8 && PMF_TIME_WATERJUMP==0x100 && PMF_TIME_LAND==0x20 && ENTITYNUM_NONE==1023 && ANIM_ET_JUMP==4 && ANIM_ET_JUMPBK==5 && ANIM_ET_LAND==6) ? 1 : -1];
 #endif
-/* Whole TC3000e9c0: steep landings suppress the small landing sounds. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-static __declspec(naked) void PM_CrashLand(qboolean steep) {
-    __asm {
-        push ecx
-        mov edx, dword ptr [pm]
-        push esi
-        fld dword ptr [pml+groundOldVelZ831]
-        mov ecx, dword ptr [edx+groundPs831]
-        mov eax, dword ptr [ecx+groundGravity831]
-        neg eax
-        mov dword ptr [esp + 4], eax
-        fild dword ptr [esp + 4]
-        fld st(0)
-        fmul dword ptr [groundK200ac180]
-        fld st(2)
-        fmul st(0), st(3)
-        fld dword ptr [ecx+groundOrigin831+8]
-        fsub dword ptr [pml+groundOldZ831]
-        fchs 
-        fmul st(0), st(2)
-        fmul dword ptr [groundK200ac2bc]
-        fsubp st(1), st(0)
-        fcom dword ptr [groundK200ac100]
-        fnstsw ax
-        test ah, 1
-        jne ground831_20036fad
-        fld st(3)
-        fchs 
-        fxch st(1)
-        fsqrt 
-        mov eax, dword ptr [ecx+groundTcFlags831]
-        test ah, 2
-        fsubp st(1), st(0)
-        fxch st(1)
-        fadd st(0), st(0)
-        fdivp st(1), st(0)
-        fmul st(0), st(1)
-        faddp st(2), st(0)
-        fstp st(0)
-        je ground831_20036d86
-        fmul dword ptr [groundK200ac704]
-ground831_20036d86:
-        mov eax, dword ptr [edx+groundWater831]
-        fld st(0)
-        fmulp st(1), st(0)
-        cmp eax, 3
-        fmul qword ptr [groundK200ac368]
-        je ground831_20036fb3
-        cmp eax, 2
-        jne ground831_20036daa
-        fmul qword ptr [groundK200ac170]
-ground831_20036daa:
-        cmp eax, 1
-        jne ground831_20036db5
-        fmul qword ptr [groundK200ac128]
-ground831_20036db5:
-        fcom dword ptr [groundK200ac110]
-        fnstsw ax
-        test ah, 1
-        jne ground831_20036fb3
-        mov al, byte ptr [pml+groundSurface831]
-        xor esi, esi
-        fadd st(0), st(0)
-        push edi
-        mov edi, dword ptr [esp + 0x10]
-        test al, 1
-        fstp dword ptr [esp + 8]
-        jne ground831_20036f24
-        cmp dword ptr [edx+groundDebug831], esi
-        je ground831_20036dfc
-        fld dword ptr [esp + 8]
-        sub esp, 8
-        fstp qword ptr [esp]
-        push offset groundS200bc610
-        call Com_Printf
-        add esp, 0xc
-ground831_20036dfc:
-        fld dword ptr [esp + 8]
-        fcomp dword ptr [groundK200ac38c]
-        fnstsw ax
-        test ah, 0x41
-        jne ground831_20036e1a
-        call PM_FootstepForSurface
-        push eax
-        push EV_FALL_NDIE
-        jmp ground831_20036f1c
-ground831_20036e1a:
-        fld dword ptr [esp + 8]
-        fcomp dword ptr [groundK200ac7e8]
-        fnstsw ax
-        test ah, 0x41
-        jne ground831_20036e3b
-        call PM_FootstepForSurface
-        push eax
-        push EV_TCE_FALL_DMG_75
-        jmp ground831_20036f1c
-ground831_20036e3b:
-        fld dword ptr [esp + 8]
-        fcomp dword ptr [groundK200ac208]
-        fnstsw ax
-        test ah, 0x41
-        jne ground831_20036e59
-        call PM_FootstepForSurface
-        push eax
-        push EV_FALL_DMG_50
-        jmp ground831_20036f1c
-ground831_20036e59:
-        fld dword ptr [esp + 8]
-        fcomp dword ptr [groundK200ac7e4]
-        fnstsw ax
-        test ah, 0x41
-        jne ground831_20036e8b
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx+groundPs831]
-        cmp dword ptr [edx+groundHealth831], esi
-        jle ground831_20036f24
-        call PM_FootstepForSurface
-        push eax
-        push EV_FALL_DMG_25
-        jmp ground831_20036f1c
-ground831_20036e8b:
-        fld dword ptr [esp + 8]
-        fcomp dword ptr [groundK200ac2b0]
-        fnstsw ax
-        test ah, 0x41
-        jne ground831_20036eb5
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax+groundPs831]
-        cmp dword ptr [ecx+groundHealth831], esi
-        jle ground831_20036f24
-        call PM_FootstepForSurface
-        push eax
-        push EV_FALL_DMG_15
-        jmp ground831_20036f1c
-ground831_20036eb5:
-        fld dword ptr [esp + 8]
-        fcomp dword ptr [groundK200ac7e0]
-        fnstsw ax
-        test ah, 0x41
-        jne ground831_20036ee0
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx+groundPs831]
-        cmp dword ptr [eax+groundHealth831], esi
-        jle ground831_20036f24
-        call PM_FootstepForSurface
-        push eax
-        push EV_FALL_DMG_10
-        jmp ground831_20036f1c
-ground831_20036ee0:
-        fld dword ptr [esp + 8]
-        fcomp dword ptr [groundK200ac7dc]
-        fnstsw ax
-        test ah, 0x41
-        jne ground831_20036eff
-        cmp edi, esi
-        jne ground831_20036eff
-        call PM_FootstepForSurface
-        push eax
-        push EV_FALL_SHORT
-        jmp ground831_20036f1c
-ground831_20036eff:
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx+groundPs831]
-        test byte ptr [edx+groundWeaponFlags831], 2
-        jne ground831_20036f24
-        cmp edi, esi
-        jne ground831_20036f24
-        call PM_FootstepForSurface
-        push eax
-        push EV_FOOTSTEP
-ground831_20036f1c:
-        call PM_AddEventExt
-        add esp, 8
-ground831_20036f24:
-        fld dword ptr [esp + 8]
-        fcomp dword ptr [groundK200ac7e0]
-        fnstsw ax
-        test ah, 0x41
-        jne ground831_20036f55
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax+groundPs831]
-        mov dword ptr [ecx+groundVelocity831+8], esi
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx+groundPs831]
-        mov dword ptr [eax+groundVelocity831+4], esi
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx+groundPs831]
-        mov dword ptr [edx+groundVelocity831], esi
-ground831_20036f55:
-        cmp edi, esi
-        pop edi
-        je ground831_20036f6b
-        fld dword ptr [esp + 4]
-        fcomp dword ptr [groundK200ac7e0]
-        fnstsw ax
-        test ah, 0x41
-        jne ground831_20036fb5
-ground831_20036f6b:
-        mov edx, dword ptr [pm]
-        mov ecx, dword ptr [edx+groundPs831]
-        cmp dword ptr [ecx+groundLegsTimer831], esi
-        jne ground831_20036fa0
-        fld dword ptr [pml+groundOldVelZ831]
-        fcomp dword ptr [groundK200ac7d8]
-        fnstsw ax
-        test ah, 1
-        je ground831_20036fa0
-        mov eax, dword ptr [edx+groundCharacter831]
-        push 1
-        push esi
-        push 6
-        mov edx, dword ptr [eax+groundAnimModel831]
-        push edx
-        push ecx
-        call BG_AnimScriptEvent
-        add esp, 0x14
-ground831_20036fa0:
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax+groundPs831]
-        mov dword ptr [ecx+groundBob831], esi
-        pop esi
-        pop ecx
-        ret 
-ground831_20036fad:
-        fstp st(0)
-        fstp st(0)
-        fstp st(0)
-ground831_20036fb3:
-        fstp st(0)
-ground831_20036fb5:
-        pop esi
-        pop ecx
-        ret 
+/* TCE landing severity and events. Held values model the original path;
+ * compiled FPU/libm precision and lower-call ABI remain open. */
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+typedef char crashEventProtocol[(EV_FALL_NDIE == 0x13 && EV_TCE_FALL_DMG_75 == 0xa2 &&
+    EV_FALL_DMG_50 == 0x17 && EV_FALL_DMG_25 == 0x16 && EV_FALL_DMG_15 == 0x15 &&
+    EV_FALL_DMG_10 == 0x14 && EV_FALL_SHORT == 0x10 && EV_FOOTSTEP == 1) ? 1 : -1];
+static void PM_CrashLand(qboolean steep) {
+    unsigned accelerationBits = 0u - (unsigned)pm->ps->gravity;
+    int accelerationInteger, event = -1;
+    long double velocity, acceleration, halfAcceleration, distance, discriminant;
+    long double duration, impact, severity;
+    volatile float delta;
+#if defined(__linux__)
+    volatile float stored;
+#endif
+
+    memcpy(&accelerationInteger, &accelerationBits, sizeof(accelerationInteger));
+    velocity = pml.previous_velocity[2];
+    acceleration = accelerationInteger;
+    halfAcceleration = acceleration * 0.5f;
+    distance = (long double)pm->ps->origin[2] - pml.previous_origin[2];
+    discriminant = velocity * velocity - ((-distance * halfAcceleration) * 4.0f);
+    /* Native C0 rejects a negative or unordered discriminant. */
+    if (!(discriminant >= 0.0L)) return;
+#if defined(__linux__)
+    duration = (1.0L / (halfAcceleration + halfAcceleration)) * (-velocity - sqrtl(discriminant));
+    stored = (float)duration;
+    duration = stored;
+#else
+    duration = (-velocity - sqrtl(discriminant)) / (halfAcceleration + halfAcceleration);
+#endif
+    impact = velocity + duration * acceleration;
+#if defined(__linux__)
+    /* The modifier consumes held impact; the other branch reloads its store. */
+    stored = (float)impact;
+    if (pm->ps->stats[STAT_TCE_FLAGS] & 0x200) stored = (float)(impact * 0.8f);
+    impact = stored;
+#else
+    if (pm->ps->stats[STAT_TCE_FLAGS] & 0x200) impact *= 0.8f;
+#endif
+    severity = impact * impact;
+    severity *= 0.0001;
+#if defined(__linux__)
+    stored = (float)severity;
+    severity = stored;
+#endif
+    if (pm->waterlevel == 3) return;
+#if defined(__linux__)
+    if (pm->waterlevel == 2) {
+        stored = (float)(severity * 0.25f);
+        severity = stored;
     }
+    if (pm->waterlevel == 1) {
+        stored = (float)(severity * 0.5f);
+        severity = stored;
+    }
+#else
+    if (pm->waterlevel == 2) severity *= 0.25;
+    if (pm->waterlevel == 1) severity *= 0.5;
+#endif
+    if (!(severity >= 1.0f)) return;
+    delta = (float)(severity + severity);
+    if (!(pml.groundTrace.surfaceFlags & SURF_NODAMAGE)) {
+        if (pm->debugLevel) Com_Printf("delta: %5.2f\n", (double)delta);
+        if (delta > 75.0f) event = EV_FALL_NDIE;
+        else if (delta > 56.0f) event = EV_TCE_FALL_DMG_75;
+        else if (delta > 48.0f) event = EV_FALL_DMG_50;
+        else if (delta > 44.0f) {
+            if (pm->ps->stats[STAT_HEALTH] > 0) event = EV_FALL_DMG_25;
+        } else if (delta > 40.0f) {
+            if (pm->ps->stats[STAT_HEALTH] > 0) event = EV_FALL_DMG_15;
+        } else if (delta > 38.0f) {
+            if (pm->ps->stats[STAT_HEALTH] > 0) event = EV_FALL_DMG_10;
+        } else if (delta > 13.0f && !steep) event = EV_FALL_SHORT;
+        else if (!(pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 2) && !steep) event = EV_FOOTSTEP;
+        if (event >= 0) PM_AddEventExt(event, PM_FootstepForSurface());
+    }
+    if (delta > 38.0f) {
+        pm->ps->velocity[2] = 0.0f;
+        pm->ps->velocity[1] = 0.0f;
+        pm->ps->velocity[0] = 0.0f;
+    }
+    if (steep && !(delta > 38.0f)) return;
+    if (!pm->ps->legsTimer &&
+        (pml.previous_velocity[2] < -220.0f || TCE_FloatIsNaN(pml.previous_velocity[2]))) {
+        BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo,
+            ANIM_ET_LAND, qfalse, qtrue);
+    }
+    pm->ps->bobCycle = 0;
 }
 #else
 /* Portable fallback; no Linux instruction-level parity claim. */
@@ -5091,7 +4945,7 @@ static qboolean PM_TCECancelAim(void) {
     return qtrue;
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 /* TCE movement/shot instability controller. Explicit stores model the
  * native value path; compiled x87 precision and conversion ABI remain open. */
 typedef char aimRecoveryLayout[(sizeof(tce_weaponDef_t) == 0x1cc &&
@@ -5100,7 +4954,14 @@ typedef char aimRecoveryLayout[(sizeof(tce_weaponDef_t) == 0x1cc &&
     offsetof(tce_weaponDef_t, scoped) == 0x174) ? 1 : -1];
 void PM_AdjustAimSpreadScale(void) {
     playerState_t *ps = pm->ps;
-    volatile float seconds, decrease, increase;
+    volatile float seconds, decrease;
+#if defined(__linux__)
+    volatile float storedMotion;
+    long double increase;
+    playerState_t *phasePlayer;
+#else
+    volatile float increase;
+#endif
     long double motion, rate, excess, value;
     unsigned elapsedBits;
     int elapsed, recovery, phaseAdvance, seed, i;
@@ -5122,21 +4983,47 @@ void PM_AdjustAimSpreadScale(void) {
             value = (long double)pm->cmd.angles[i] * 0.0054931640625;
             value -= (long double)pm->oldcmd.angles[i] * 0.0054931640625;
             motion += fabsl(value) * 1.5;
+#if defined(__linux__)
+            storedMotion = (float)motion;
+            motion = storedMotion;
+#endif
         }
-        for (i = 0; i < 2; ++i) motion += fabsl((long double)ps->velocity[i]);
+        for (i = 0; i < 2; ++i) {
+            motion += fabsl((long double)ps->velocity[i]);
+#if defined(__linux__)
+            storedMotion = (float)motion;
+            motion = storedMotion;
+#endif
+        }
         if (ps->stats[STAT_TCE_FLAGS] & 0x200) motion *= 0.8f;
+#if defined(__linux__)
+        rate = (1.0L / seconds) * motion;
+#else
         rate = motion / seconds;
+#endif
         excess = rate - 30.0f;
+#if defined(__linux__)
+        increase = excess;
+#else
         increase = (float)excess;
+#endif
         /* Native C0/C3 clamps negative, zero and unordered values to zero. */
         if (!(excess > 0.0L)) increase = 0.0f;
         else if (increase > 120.0f) increase = 120.0f;
         if (!(rate > 0.0L)) rate = 0.0L;
         else if (rate > 120.0f) rate = 120.0f;
+#if defined(__linux__)
+        value = (1.0L / 120.0f) * increase;
+#else
         value = (long double)increase * 0.008333333767950535f;
+#endif
         value *= seconds;
         value *= 3200.0f;
+#if defined(__linux__)
+        increase = TCE_TruncateNativeInteger(value);
+#else
         increase = (float)TCE_TruncateNativeInteger(value);
+#endif
         value = rate * 0.008333333767950535f;
         value *= seconds;
         value *= 3200.0f;
@@ -5163,8 +5050,17 @@ void PM_AdjustAimSpreadScale(void) {
         if (pm->ps->weaponstate != 0 || postureChanged) {
             /* Original randomization uses a local seed and does not write it back. */
             seed = pm->ps->stats[STAT_TCE_SHOT_SEED];
+#if defined(__linux__)
+            phasePlayer = pm->ps;
+            /* The native call spills the pending increase while preserving ps. */
+            storedMotion = (float)increase;
+            increase = storedMotion;
+            value = (long double)Q_random(&seed) * 1000.0f;
+            phasePlayer->stats[STAT_TCE_AIM_PHASE] = TCE_TruncateNativeInteger(value);
+#else
             value = (long double)Q_random(&seed) * 1000.0f;
             pm->ps->stats[STAT_TCE_AIM_PHASE] = TCE_TruncateNativeInteger(value);
+#endif
         }
         if (pm->ps->stats[STAT_TCE_AIM_PHASE] > 1000)
             pm->ps->stats[STAT_TCE_AIM_PHASE] -= 1000;
@@ -5172,7 +5068,11 @@ void PM_AdjustAimSpreadScale(void) {
     ps = pm->ps;
     if ((ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) &&
         TCE_FloatIsZeroOrNaN(weaponDef[ps->weapon].scoped)) {
+#if defined(__linux__)
+        increase *= 0.67f;
+#else
         increase = (float)((long double)increase * 0.67f);
+#endif
         if (ps->stats[STAT_TCE_MOVEMENT_INSTABILITY] > 200) increase = 0.0f;
     }
     value = (long double)increase - decrease;
