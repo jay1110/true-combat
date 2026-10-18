@@ -5869,12 +5869,15 @@ are being updated isntead of a full move
 // rain - take a tracemask as well - we can't use anything out of pm
 /* Windows3000a3b0 prone branch. The shared TC player bounds differ from
  * SDK PM_TraceLegs; rejection restores yaw and recomputes its command delta. */
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 static int PM_TCEViewCommandDelta(long double angle, int commandAngle) {
     unsigned encoded = (unsigned)TCE_TruncateNativeInteger(angle * 182.0444488525390625f) & 0xffffu;
     return PM_ProneTimeValue(encoded - (unsigned)commandAngle);
 }
 
+#endif
+
+#if defined(_MSC_VER) && defined(_M_IX86)
 /* TC:E's additional view constraint, distinct from the SDK mount limits. */
 static void PM_TCETetheredView(playerState_t *ps, pmoveExt_t *ext,
     usercmd_t *cmd, float oldYaw) {
@@ -6003,6 +6006,50 @@ restoreYaw:
     ps->delta_angles[YAW] = PM_TCEViewCommandDelta(oldYaw, cmd->angles[YAW]);
 }
 #else
+#if defined(__linux__) && !defined(Q3_VM)
+static void PM_TCEProneViewCollision(playerState_t *ps, pmoveExt_t *ext,
+    usercmd_t *cmd, float oldYaw, int delta) {
+    vec3_t forward, start, end;
+    vec3_t mins = {-13.5f, -13.5f, -24.0f}, maxs = {13.5f, 13.5f, -14.4f};
+    long double startHeight;
+    float scale = 1.0f;
+    int i;
+    trace_t result;
+    pmove_t *move;
+
+    if (ps->stats[STAT_TCE_FLAGS] & 0x200) {
+        scale = 1.25f;
+        for (i = 0; i < 3; ++i) {
+            mins[i] = (float)((long double)mins[i] * scale);
+            maxs[i] = (float)((long double)maxs[i] * scale);
+        }
+    }
+    AngleVectors(ps->viewangles, forward, NULL, NULL);
+    forward[2] = 0.0f;
+    VectorNormalizeFast(forward);
+    move = pm;
+    start[0] = (float)((long double)forward[0] * scale * -32.0f + ps->origin[0]);
+    start[1] = (float)((long double)forward[1] * scale * -32.0f + ps->origin[1]);
+    startHeight = (long double)ps->origin[2] + 24.0f;
+    start[2] = (float)startHeight;
+    VectorCopy(start, end);
+    end[2] = (float)((startHeight - 21.6f) - 24.0f);
+    move->trace(&result, start, mins, maxs, end, ps->clientNum, move->tracemask);
+    if (result.startsolid && result.entityNum >= 64) goto restoreYaw;
+    VectorCopy(result.endpos, start);
+    VectorCopy(start, end);
+    end[2] = (float)((long double)start[2] + 21.6f);
+    move = pm;
+    move->trace(&result, start, mins, maxs, end, ps->clientNum, move->tracemask);
+    if (result.allsolid && result.entityNum >= 64) goto restoreYaw;
+    ps->delta_angles[YAW] = delta;
+    ext->proneLegsOffset = (float)((long double)start[2] - ps->origin[2]);
+    return;
+restoreYaw:
+    ps->viewangles[YAW] = oldYaw;
+    ps->delta_angles[YAW] = PM_TCEViewCommandDelta(oldYaw, cmd->angles[YAW]);
+}
+#endif
 static void PM_TCEProneView(playerState_t *ps, pmoveExt_t *ext, usercmd_t *cmd, float oldYaw) {
     float yaw=ps->viewangles[YAW],diff,limit=40,scale;
     int delta=ps->delta_angles[YAW];
@@ -6032,6 +6079,9 @@ static void PM_TCEProneView(playerState_t *ps, pmoveExt_t *ext, usercmd_t *cmd, 
         ps->delta_angles[PITCH]=ANGLE2SHORT(ps->viewangles[PITCH])-cmd->angles[PITCH];
     }
     if(ps->viewangles[YAW]==oldYaw)return;
+#if defined(__linux__) && !defined(Q3_VM)
+    PM_TCEProneViewCollision(ps, ext, cmd, oldYaw, delta);
+#else
     scale=(ps->stats[STAT_TCE_FLAGS]&0x200)?1.25f:1;
     VectorScale(mins,scale,mins);VectorScale(maxs,scale,maxs);
     AngleVectors(ps->viewangles,forward,NULL,NULL);forward[2]=0;VectorNormalizeFast(forward);
@@ -6044,6 +6094,7 @@ static void PM_TCEProneView(playerState_t *ps, pmoveExt_t *ext, usercmd_t *cmd, 
     pm->trace(&tr,start,mins,maxs,end,ps->clientNum,pm->tracemask);
     if(tr.allsolid && tr.entityNum>=64) { ps->viewangles[YAW]=oldYaw;ps->delta_angles[YAW]=ANGLE2SHORT(oldYaw)-cmd->angles[YAW];return; }
     ps->delta_angles[YAW]=delta;ext->proneLegsOffset=start[2]-ps->origin[2];
+#endif
 }
 
 #endif
@@ -6088,6 +6139,39 @@ static void PM_TCETacticalView(playerState_t *ps, const vec3_t oldAngles) {
         ps->holdable[6] = TCE_TruncateNativeInteger((long double)yawTarget * 100.0f + 2000.0f);
     }
 }
+#elif defined(__linux__) && !defined(Q3_VM)
+static void PM_TCETacticalView(playerState_t *ps, const vec3_t oldAngles) {
+    float pitchDelta, yawDelta, pitchTarget, yawTarget, totalYaw, radius;
+    long double pitchOffset, yawOffset, pitchHeld, inverseRadius, pitchClamp, yawClamp;
+
+    if (!(ps->persistant[14] & 0x10)) return;
+    if (weaponDef[pm->ps->weapon].noTacMode) return;
+    if (!(ps->stats[STAT_TCE_WEAPON_FLAGS] & 4)) return;
+
+    pitchDelta = AngleNormalize180((float)((long double)ps->viewangles[PITCH] - oldAngles[PITCH]));
+    yawDelta = AngleNormalize180((float)((long double)ps->viewangles[YAW] - oldAngles[YAW]));
+    pitchOffset = ((long double)ps->holdable[5] - 2000.0f) * .01f;
+    yawOffset = ((long double)ps->holdable[6] - 2000.0f) * .01f;
+    pitchHeld = (long double)pitchDelta * .5f + pitchOffset;
+    pitchTarget = (float)pitchHeld;
+    yawTarget = (float)((long double)yawDelta * .5f + yawOffset);
+    totalYaw = (float)(yawOffset + yawDelta);
+    radius = (float)sqrtl((long double)yawTarget * yawTarget * .25f + pitchHeld * pitchHeld);
+    if (radius > 3.0f) {
+        inverseRadius = 1.0f / (long double)radius;
+        pitchClamp = pitchHeld * inverseRadius * 3.0f;
+        ps->holdable[5] = TCE_TruncateNativeInteger(pitchClamp * 100.0f + 2000.0f);
+        yawClamp = (long double)yawTarget * inverseRadius * 3.0f;
+        ps->holdable[6] = TCE_TruncateNativeInteger(yawClamp * 100.0f + 2000.0f);
+        ps->viewangles[PITCH] = (float)(((pitchOffset + pitchDelta) - pitchClamp) + oldAngles[PITCH]);
+        ps->viewangles[YAW] = (float)(((long double)totalYaw - yawClamp) + oldAngles[YAW]);
+    } else {
+        ps->viewangles[PITCH] = (float)((long double)pitchDelta * .5f + oldAngles[PITCH]);
+        ps->viewangles[YAW] = (float)((long double)yawDelta * .5f + oldAngles[YAW]);
+        ps->holdable[5] = TCE_TruncateNativeInteger((long double)pitchTarget * 100.0f + 2000.0f);
+        ps->holdable[6] = TCE_TruncateNativeInteger((long double)yawTarget * 100.0f + 2000.0f);
+    }
+}
 #else
 static void PM_TCETacticalView(playerState_t *ps,const vec3_t oldAngles) {
     float dp,dy,oy,hp,hy,totalPitch,halfPitch,halfYaw,clampedYaw;
@@ -6119,6 +6203,46 @@ static void PM_TCETacticalView(playerState_t *ps,const vec3_t oldAngles) {
     }
 }
 
+#endif
+
+#if defined(__linux__) && !defined(Q3_VM)
+static void PM_TCETetheredView(playerState_t *ps, pmoveExt_t *ext,
+    usercmd_t *cmd, float oldYaw) {
+    long double yaw = ps->viewangles[YAW], step, angle, center, diff;
+    float cosine;
+
+    if (yaw - oldYaw > 180.0f) yaw -= 360.0f;
+    if (!(yaw - oldYaw >= -180.0f)) yaw += 360.0f;
+    if (yaw > oldYaw) {
+        step = (long double)120.0f * pml.frametime;
+        if (!(step >= yaw - oldYaw)) {
+            yaw = (long double)oldYaw + step;
+            ps->viewangles[YAW] = (float)yaw;
+            ps->delta_angles[YAW] = PM_TCEViewCommandDelta(yaw, cmd->angles[YAW]);
+        } else yaw = ps->viewangles[YAW];
+    } else if (!(yaw >= oldYaw)) {
+        step = (long double)120.0f * pml.frametime;
+        if (!(step >= (long double)oldYaw - yaw)) {
+            yaw = (long double)oldYaw - step;
+            ps->viewangles[YAW] = (float)yaw;
+            ps->delta_angles[YAW] = PM_TCEViewCommandDelta(yaw, cmd->angles[YAW]);
+        } else yaw = ps->viewangles[YAW];
+    } else yaw = ps->viewangles[YAW];
+
+    angle = AngleNormalize180((float)((long double)ext->centerangles[YAW] - yaw));
+    cosine = (float)cosl((long double)0.017453292519943295 * angle);
+    angle = AngleNormalize180(-ext->centerangles[PITCH]);
+    center = -AngleNormalize360((float)(angle * cosine));
+    ext->centerangles[PITCH] = (float)center;
+    diff = AngleNormalize180((float)((long double)ps->viewangles[PITCH] - center));
+    if (diff > 20.0f || diff < -20.0f) {
+        angle = diff > 20.0f ? (long double)ext->centerangles[PITCH] + 20.0f :
+            (long double)ext->centerangles[PITCH] - 20.0f;
+        angle = AngleNormalize180((float)angle);
+        ps->viewangles[PITCH] = (float)angle;
+        ps->delta_angles[PITCH] = PM_TCEViewCommandDelta(angle, cmd->angles[PITCH]);
+    }
+}
 #endif
 
 void PM_TCEUpdateViewAngles( playerState_t *ps, pmoveExt_t *pmext, usercmd_t *cmd, void (trace)( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentMask ), int tracemask ) {	//----(SA)	modified
@@ -6166,7 +6290,7 @@ void PM_TCEUpdateViewAngles( playerState_t *ps, pmoveExt_t *pmext, usercmd_t *cm
 
 	/* TC:E EF0x01000000 view constraint precedes ordinary mounts. */
     if (ps->eFlags & 0x01000000) {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
         PM_TCETetheredView(ps, pmext, cmd, oldViewAngles[YAW]);
 #else
         float yaw = ps->viewangles[YAW], oldYaw = oldViewAngles[YAW];
