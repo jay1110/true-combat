@@ -4321,100 +4321,44 @@ static void CG_DrawTCEScopeScene(void) {
     float scopeSavedFov[2];
     vec3_t scopeSavedAxis[3];
 #if defined(_MSC_VER) && defined(_M_IX86)
-    int scopeAllowed;
-    int scopeWidth;
     float *scopeZoom;
-    enum { ScopeAngles = offsetof(cg_t,predictedPlayerState)+offsetof(playerState_t,viewangles),
-        ScopeHoldPitch = offsetof(cg_t,predictedPlayerState)+offsetof(playerState_t,holdable)+5*sizeof(int),
-        ScopeHoldYaw = offsetof(cg_t,predictedPlayerState)+offsetof(playerState_t,holdable)+6*sizeof(int),
-        ScopeCurrentRefdef = offsetof(cg_t,refdef_current),
+    enum { ScopeCurrentRefdef = offsetof(cg_t,refdef_current),
         ScopeRefX = offsetof(refdef_t,x), ScopeRefY = offsetof(refdef_t,y),
         ScopeRefWidth = offsetof(refdef_t,width), ScopeRefHeight = offsetof(refdef_t,height),
         ScopeRefFovX = offsetof(refdef_t,fov_x), ScopeRefFovY = offsetof(refdef_t,fov_y),
         ScopeRefTime = offsetof(refdef_t,time) };
-    static const float scopeDefault = 250.0f, scopeScale = 1.2f, scopeHalf = 0.5f;
-    static const float scopeOne = 1.0f;
-    static const float scopeCenterX = 426.0f, scopeCenterY = 240.0f;
-    static const float scopeBias = 2000.0f, scopeAngleScale = 0.01f, scopeZero = 0.0f;
     static const float scopeFovScale = 0.10563380271196365f;
 #endif
     int weapon=cg.predictedPlayerState.weapon;
     if(!cg_portalScopes.integer || cg.renderingThirdPerson || weapon<0 ||
        weapon>=TCE_MAX_WEAPONS)return;
-#if defined(_MSC_VER) && defined(_M_IX86)
-    scopeZoom=&weaponDef[weapon].scoped;
-    __asm {
-        mov eax,scopeZoom
-        fld dword ptr [eax]
-        fcomp dword ptr [scopeOne]
-        fnstsw ax
-        xor ecx,ecx
-        test ah,41h
-        setz cl
-        mov scopeAllowed,ecx
-    }
-    if(!scopeAllowed)return;
-#else
-    if(!(weaponDef[weapon].scoped>1.0f))return;
-#endif
+    if (!(weaponDef[weapon].scoped > 1.0f)) return;
     if(!cg.tceAimActive || !cg.tceAimComplete || cg.tceScopeBlocked ||
        (cg.limboEndCinematicTime>cg.time && cg.showGameView))return;
 #if defined(_MSC_VER) && defined(_M_IX86)
-    scopeWidth=tce_cg_weapons[weapon].portalScopeWidth;
-    __asm {
-        fild scopeWidth
-        fcom dword ptr [scopeZero]
-        fnstsw ax
-        test ah,40h
-        jz scope_width_present
-        fstp st(0)
-        fld dword ptr [scopeDefault]
-    scope_width_present:
-        fmul dword ptr [scopeScale]
-        fstp scopeSize
-        fld scopeSize
-        fmul dword ptr [scopeHalf]
-        fld dword ptr [scopeCenterX]
-        fsub st(0),st(1)
-        fstp x
-        fld dword ptr [scopeCenterY]
-        fsub st(0),st(1)
-        fstp y
-        fstp st(0)
-    }
-    w=h=scopeSize;
-    /* Original viewport backup is FILD/FSTP, not a lossless integer copy. */
-    __asm {
-        mov eax,dword ptr [cg + ScopeCurrentRefdef]
-        mov ecx,dword ptr [eax + ScopeRefFovX]
-        mov edx,dword ptr [eax + ScopeRefFovY]
-        mov dword ptr scopeSavedFov[0],ecx
-        mov dword ptr scopeSavedFov[4],edx
-        fild dword ptr [eax + ScopeRefX]
-        fstp dword ptr scopeSavedViewport[0]
-        fild dword ptr [eax + ScopeRefY]
-        fstp dword ptr scopeSavedViewport[4]
-        fild dword ptr [eax + ScopeRefWidth]
-        fstp dword ptr scopeSavedViewport[8]
-        fild dword ptr [eax + ScopeRefHeight]
-        fstp dword ptr scopeSavedViewport[12]
-    }
-    AxisCopy(cg.refdef_current->viewaxis,scopeSavedAxis);
-    __asm {
-        fld dword ptr [cg + ScopeAngles]
-        fild dword ptr [cg + ScopeHoldPitch]
-        fsub dword ptr [scopeBias]
-        fmul dword ptr [scopeAngleScale]
-        fadd st(0),st(1)
-        fstp dword ptr angles[0]
-        fstp st(0)
-        fild dword ptr [cg + ScopeHoldYaw]
-        fsub dword ptr [scopeBias]
-        fmul dword ptr [scopeAngleScale]
-        fadd dword ptr [cg + ScopeAngles + 4]
-        fstp dword ptr angles[4]
-        mov eax,dword ptr [cg + ScopeAngles + 8]
-        mov dword ptr angles[8],eax
+    {
+        int width = tce_cg_weapons[weapon].portalScopeWidth;
+        long double selectedWidth = width != 0 ? (long double)width : 250.0L;
+        long double halfWidth, pitch, yaw;
+
+        scopeSize = (float)(selectedWidth * (long double)1.2f);
+        halfWidth = (long double)scopeSize * 0.5L;
+        x = (float)(426.0L - halfWidth);
+        y = (float)(240.0L - halfWidth);
+        w = h = scopeSize;
+        memcpy(scopeSavedFov, &cg.refdef_current->fov_x, sizeof(scopeSavedFov));
+        scopeSavedViewport[0] = (float)cg.refdef_current->x;
+        scopeSavedViewport[1] = (float)cg.refdef_current->y;
+        scopeSavedViewport[2] = (float)cg.refdef_current->width;
+        scopeSavedViewport[3] = (float)cg.refdef_current->height;
+        AxisCopy(cg.refdef_current->viewaxis, scopeSavedAxis);
+        pitch = (long double)cg.predictedPlayerState.holdable[5] - 2000.0L;
+        pitch *= (long double)0.01f;
+        angles[0] = (float)(pitch + cg.predictedPlayerState.viewangles[0]);
+        yaw = (long double)cg.predictedPlayerState.holdable[6] - 2000.0L;
+        yaw *= (long double)0.01f;
+        angles[1] = (float)(yaw + cg.predictedPlayerState.viewangles[1]);
+        memcpy(&angles[2], &cg.predictedPlayerState.viewangles[2], sizeof(float));
     }
 #elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
     CG_TCELinuxScopeSize(tce_cg_weapons[weapon].portalScopeWidth,&scopeSize,&x,&y);
@@ -4435,24 +4379,12 @@ static void CG_DrawTCEScopeScene(void) {
         int viewport[4];
         viewport[0]=cg.refdef_current->x;viewport[1]=cg.refdef_current->y;
         viewport[2]=cg.refdef_current->width;viewport[3]=cg.refdef_current->height;
-#if defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-        __asm__ volatile (
-            "fildl 0(%1)\n\tfstps 0(%2)\n\tfildl 4(%1)\n\tfstps 4(%2)\n\t"
-            "fildl 8(%1)\n\tfstps 8(%2)\n\tfildl 12(%1)\n\tfstps 12(%2)"
-            : "=m" (scopeSavedViewport) : "r" (viewport), "r" (scopeSavedViewport)
-            : "st", "memory"
-        );
-#else
-        scopeSavedViewport[0]=(float)viewport[0];scopeSavedViewport[1]=(float)viewport[1];
-        scopeSavedViewport[2]=(float)viewport[2];scopeSavedViewport[3]=(float)viewport[3];
-#endif
+        scopeSavedViewport[0] = (float)viewport[0];
+        scopeSavedViewport[1] = (float)viewport[1];
+        scopeSavedViewport[2] = (float)viewport[2];
+        scopeSavedViewport[3] = (float)viewport[3];
         memcpy(&scopeSavedFov[0],&cg.refdef_current->fov_x,sizeof(float));
-#if defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-        __asm__ volatile ("flds %1\n\tfstps %0" : "=m" (scopeSavedFov[1])
-                          : "m" (cg.refdef_current->fov_y) : "st");
-#else
-        memcpy(&scopeSavedFov[1],&cg.refdef_current->fov_y,sizeof(float));
-#endif
+        memcpy(&scopeSavedFov[1], &cg.refdef_current->fov_y, sizeof(float));
         AxisCopy(cg.refdef_current->viewaxis,scopeSavedAxis);
     }
 #endif
@@ -4465,49 +4397,23 @@ static void CG_DrawTCEScopeScene(void) {
     AngleVectors(cg.predictedPlayerState.viewangles,NULL,right,up);
 #if defined(_MSC_VER) && defined(_M_IX86)
     {
-        const float scopeProjectionFov=cg.refdef.fov_x;
-        static const float scopeRadiansScale=0.01745329238474369f;
-        static const double scopeProjectionWidth=852.0;
-        static double (__cdecl * const scopeAsin)(double)=asin;
-        /* Original Z/Y/X accumulation and post-asin projection. The cdecl
-         * binary64 argument remains an adapter, not the original ST0 ABI. */
-        __asm {
-            fld dword ptr scopeProjectionFov
-            fmul dword ptr scopeRadiansScale
-            fstp dword ptr radians
-            fld dword ptr right[8]
-            fmul dword ptr forward[8]
-            fld dword ptr right[4]
-            fmul dword ptr forward[4]
-            faddp st(1),st(0)
-            fld dword ptr right[0]
-            fmul dword ptr forward[0]
-            faddp st(1),st(0)
-            sub esp,8
-            fstp qword ptr [esp]
-            call dword ptr [scopeAsin]
-            add esp,8
-            fdiv dword ptr radians
-            fmul qword ptr scopeProjectionWidth
-            fadd dword ptr x
-            fstp dword ptr x
-            fld dword ptr up[8]
-            fmul dword ptr forward[8]
-            fld dword ptr up[4]
-            fmul dword ptr forward[4]
-            faddp st(1),st(0)
-            fld dword ptr up[0]
-            fmul dword ptr forward[0]
-            faddp st(1),st(0)
-            sub esp,8
-            fstp qword ptr [esp]
-            call dword ptr [scopeAsin]
-            add esp,8
-            fdiv dword ptr radians
-            fmul qword ptr scopeProjectionWidth
-            fsubr dword ptr y
-            fstp dword ptr y
-        }
+        long double dot, displacement;
+        double angle;
+
+        radians = (float)((long double)cg.refdef.fov_x * 0.01745329238474369f);
+        dot = (long double)right[2] * forward[2]
+            + (long double)right[1] * forward[1];
+        dot += (long double)right[0] * forward[0];
+        angle = asin((double)dot);
+        displacement = ((long double)angle / radians) * 852.0L;
+        x = (float)(displacement + x);
+
+        dot = (long double)up[2] * forward[2]
+            + (long double)up[1] * forward[1];
+        dot += (long double)up[0] * forward[0];
+        angle = asin((double)dot);
+        displacement = ((long double)angle / radians) * 852.0L;
+        y = (float)((long double)y - displacement);
     }
 #elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
     CG_TCELinuxScopeProject(forward,right,up,&x,&y);
