@@ -116,7 +116,7 @@ int BG_WeaponIsAvailable(int weapon, int requiredSkill, int weaponTeam,
      * index gearDef. Zero requiredSkill disables a weapon in the original;
      * negative values are deliberately not treated as zero. */
     return TCE_BG_WeaponInWolfMP(weapon) &&
-        (weaponTeam > 1 || weaponTeam == playerTeam - 1) &&
+        (weaponTeam > 1 || (unsigned int)weaponTeam == (unsigned int)playerTeam - 1u) &&
         gearDef.weaponFile[weapon][0] != '\0' &&
         requiredSkill != 0 && requiredSkill <= playerSkill;
 }

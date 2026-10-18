@@ -34,14 +34,34 @@ static qboolean CG_NavStudioVoiceEditor(void) {
 }
 
 /* Windows 3001bd70 / 3001be10; cmd.weapon55 is a request, not a gear slot. */
+static qboolean CG_FiremodeDelayPassed(int now, int then, int delay) {
+    unsigned int bits = (unsigned int)now - (unsigned int)then;
+    int elapsed;
+
+    /* Native SUB wraps before the signed delay comparison. */
+    memcpy(&elapsed, &bits, sizeof(elapsed));
+    return elapsed > delay;
+}
+
 void CG_FiremodeDown_f(void) {
+    int now;
+
     if (!cg.snap || (cg.snap->ps.pm_flags & PMF_FOLLOW)) return;
-    if (BG_FiremodeWeapon(cg.snap->ps.weapon) &&
-        cg.time - cg.weaponSelectTime > 1599 && cg.time - cg.tceFiremodeTime > 749 &&
-        cg.snap->ps.weaponstate == WEAPON_READY && cg.predictedPlayerState.weaponstate == WEAPON_READY &&
-        cg.snap->ps.weapon == cg.weaponSelect && cg.snap->ps.weapon == cg.predictedPlayerState.weapon) {
+    if (!BG_FiremodeWeapon(cg.snap->ps.weapon)) return;
+    now = cg.time;
+    if (CG_FiremodeDelayPassed(now, cg.weaponSelectTime, 1599) &&
+        CG_FiremodeDelayPassed(now, cg.tceFiremodeTime, 749) &&
+        cg.snap->ps.weaponstate == WEAPON_READY &&
+        cg.predictedPlayerState.weaponstate == WEAPON_READY &&
+        cg.snap->ps.weapon == cg.weaponSelect &&
+        cg.snap->ps.weapon == cg.predictedPlayerState.weapon) {
+#if defined(__linux__)
+        cg.tceFiremodeTime = now;
         cg.weaponSelect = 55;
-        cg.tceFiremodeTime = cg.time;
+#else
+        cg.weaponSelect = 55;
+        cg.tceFiremodeTime = now;
+#endif
     }
 }
 

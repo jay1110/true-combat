@@ -7765,93 +7765,83 @@ PM_CoolWeapons
 /* Original legacy ammo-table thermal columns300968d0/d4, stride84.
  * Only TC slots31 (MG42) and34 (mounted dummy) have thermal storage. */
 static int PM_TCEMaxHeat(int weapon) {
-    return weapon == 31 || weapon == 34 ? 1500 : 0;
+    return GetAmmoTableData(weapon)->maxHeat;
 }
 static int PM_TCECoolRate(int weapon) {
-    return weapon == 31 || weapon == 34 ? 300 : 0;
+    return GetAmmoTableData(weapon)->coolRate;
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-static void PM_WeaponTruncateST0(void);
-#endif
-
-/* TC:E qagame20031e50. The Windows arithmetic retains ST0 until __ftol. */
+/* Original cooling keeps its arithmetic value until integer conversion.
+ * Long-double expressions preserve the operation order; generated x87 precision
+ * and exception behavior still require separate compiler/ABI verification. */
 void PM_CoolWeapons(void) {
-    int weapon, maxHeat;
+    int weapon;
+    playerState_t *state;
+    long double display;
+    double roundedDisplay;
+
     for (weapon = 0; weapon < 64; ++weapon) {
-        if (COM_BitCheck(pm->ps->weapons, weapon) && pm->ps->weapHeat[weapon]) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-            int heatValue = pm->ps->weapHeat[weapon];
-            int coolingRate = PM_TCECoolRate(weapon);
-            float coolingFrame = pml.frametime;
-            int coolingDouble = pm->skill[SK_HEAVY_WEAPONS] >= 2 &&
-                pm->ps->stats[STAT_PLAYER_CLASS] == PC_SOLDIER;
-            __asm {
-                fild heatValue
-                fild coolingRate
-                fmul coolingFrame
-                cmp coolingDouble, 0
-                je coolingSubtract
-                fadd st(0), st(0)
-            coolingSubtract:
-                fsubp st(1), st(0)
-                call PM_WeaponTruncateST0
-                mov heatValue, eax
-            }
-            pm->ps->weapHeat[weapon] = heatValue;
+        int heat, rate;
+        qboolean doubleCooling;
+        long double cooling;
+
+        if (!COM_BitCheck(pm->ps->weapons, weapon)) continue;
+        state = pm->ps;
+        heat = state->weapHeat[weapon];
+        if (!heat) continue;
+        doubleCooling = pm->skill[SK_HEAVY_WEAPONS] >= 2 &&
+            state->stats[STAT_PLAYER_CLASS] == PC_SOLDIER;
+        rate = PM_TCECoolRate(weapon);
+#if defined(__linux__)
+        cooling = (long double)rate;
+        if (doubleCooling) cooling += cooling;
+        cooling *= (long double)pml.frametime;
 #else
-            float cooling = PM_TCECoolRate(weapon) * pml.frametime;
-            if (pm->skill[SK_HEAVY_WEAPONS] >= 2 &&
-                pm->ps->stats[STAT_PLAYER_CLASS] == PC_SOLDIER) cooling += cooling;
-            pm->ps->weapHeat[weapon] = (int)(pm->ps->weapHeat[weapon] - cooling);
+        cooling = (long double)rate * (long double)pml.frametime;
+        if (doubleCooling) cooling += cooling;
 #endif
-            if (pm->ps->weapHeat[weapon] < 0) pm->ps->weapHeat[weapon] = 0;
-        }
+        state->weapHeat[weapon] = TCE_TruncateNativeInteger(
+            (long double)heat - cooling);
+        state = pm->ps;
+        if (state->weapHeat[weapon] < 0) state->weapHeat[weapon] = 0;
     }
-    if (!pm->ps->weapon) return;
-#if defined(_MSC_VER) && defined(_M_IX86)
-    {
-        static const float coolingMountedScale = 0.0006666666595265269f;
-        static const float coolingDisplayScale = 255.0f;
-        static double (__cdecl *const coolingFloor)(double) = floor;
-        int heatValue;
-        int mountedHeat = pm->ps->persistant[PERS_HWEAPON_USE] ||
-            (pm->ps->eFlags & EF_MOUNTEDTANK);
-        if (mountedHeat) heatValue = pm->ps->weapHeat[34];
-        else {
-            maxHeat = PM_TCEMaxHeat(pm->ps->weapon);
-            if (!maxHeat) { pm->ps->curWeapHeat = 0; return; }
-            heatValue = pm->ps->weapHeat[pm->ps->weapon];
-        }
-        __asm {
-            fild heatValue
-            cmp mountedHeat, 0
-            je coolingDivide
-            fmul coolingMountedScale
-            jmp coolingDisplay
-        coolingDivide:
-            fidiv maxHeat
-        coolingDisplay:
-            fmul coolingDisplayScale
-            sub esp, 8
-            fstp qword ptr [esp]
-            call dword ptr [coolingFloor]
-            add esp, 8
-            call PM_WeaponTruncateST0
-            mov heatValue, eax
-        }
-        pm->ps->curWeapHeat = heatValue;
-    }
+
+    state = pm->ps;
+    weapon = state->weapon;
+    if (!weapon) return;
+    if (state->persistant[PERS_HWEAPON_USE] ||
+        (state->eFlags & EF_MOUNTEDTANK)) {
+#if defined(__linux__)
+        display = (long double)state->weapHeat[34] *
+            (long double)0.17000000178813934326171875f;
 #else
-    if (pm->ps->persistant[PERS_HWEAPON_USE] || (pm->ps->eFlags & EF_MOUNTEDTANK)) {
-        pm->ps->curWeapHeat = (int)floor((pm->ps->weapHeat[34] * (1.0f / 1500.0f)) * 255.0f);
+        display = (long double)state->weapHeat[34] *
+            (long double)0.000666666659526526927947998046875f;
+        display *= (long double)255.0f;
+#endif
     } else {
-        maxHeat = PM_TCEMaxHeat(pm->ps->weapon);
-        if (!maxHeat) { pm->ps->curWeapHeat = 0; return; }
-        pm->ps->curWeapHeat = (int)floor(((float)pm->ps->weapHeat[pm->ps->weapon] / maxHeat) * 255.0f);
-    }
+        int maxHeat = PM_TCEMaxHeat(weapon);
+        if (!maxHeat) {
+            state->curWeapHeat = 0;
+            return;
+        }
+#if defined(__linux__)
+        display = 1.0L / (long double)maxHeat;
+        display *= (long double)state->weapHeat[weapon];
+#else
+        display = (long double)state->weapHeat[weapon] / (long double)maxHeat;
 #endif
+        display *= (long double)255.0f;
+    }
+#if defined(__linux__)
+    roundedDisplay = (double)floorl(display);
+#else
+    roundedDisplay = floor((double)display);
+    state = pm->ps;
+#endif
+    state->curWeapHeat = TCE_TruncateNativeInteger((long double)roundedDisplay);
 }
+
 
 /*
 ==============
