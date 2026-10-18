@@ -20,6 +20,25 @@
 #include "tce_attack.h"
 #include "tce_aim.h"
 
+/* Native movement passes ps, character->animModelInfo, event, continue, force.
+ * Cgame media extends the character layout; qagame has only its file and model. */
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && defined(__i386__))
+typedef char movementCharacterPointers[(sizeof(void *) == 4 && sizeof(qhandle_t) == 4 &&
+    MAX_QPATH == 64 && offsetof(pmove_t, ps) == 0 && offsetof(pmove_t, pmext) == 4 &&
+    offsetof(pmove_t, character) == 8) ? 1 : -1];
+#ifdef CGAMEDLL
+typedef char movementCharacterMedia[(ACC_MAX == 13 && MAX_HD_ANIMATIONS == 16 &&
+    sizeof(animation_t) == 0x70 && offsetof(bg_character_t, bodyDamageSkins) == 0x808 &&
+    offsetof(bg_character_t, armsSkins) == 0x828 &&
+    offsetof(bg_character_t, headDamageSkins) == 0x834 &&
+    offsetof(bg_character_t, animModelInfo) == 0x83c &&
+    sizeof(bg_character_t) == 0x840) ? 1 : -1];
+#else
+typedef char movementCharacterModel[(offsetof(bg_character_t, animModelInfo) == 0x40 &&
+    sizeof(bg_character_t) == 0x44) ? 1 : -1];
+#endif
+#endif
+
 #ifdef CGAMEDLL
 #define PM_GameType cg_gameType.integer
 #elif GAMEDLL
@@ -2610,72 +2629,6 @@ Check for hard landings that generate sound events
 =================
 */
 #if defined(_MSC_VER) && defined(_M_IX86)
-/* TC ground/landing controllers: original Windows flow, native layouts. */
-static const float groundK200ac180 = 0.5;
-static const float groundK200ac2bc = 4.0;
-static const float groundK200ac100 = 0.0;
-static const float groundK200ac704 = 0.800000011920929;
-static const double groundK200ac368 = 0.0001;
-static const double groundK200ac170 = 0.25;
-static const double groundK200ac128 = 0.5;
-static const float groundK200ac110 = 1.0;
-static const float groundK200ac38c = 75.0;
-static const float groundK200ac7e8 = 56.0;
-static const float groundK200ac208 = 48.0;
-static const float groundK200ac7e4 = 44.0;
-static const float groundK200ac2b0 = 40.0;
-static const float groundK200ac7e0 = 38.0;
-static const float groundK200ac7dc = 13.0;
-static const float groundK200ac7d8 = -220.0;
-static const double groundK200ac130 = 1.0;
-static const float groundK200ac198 = 0.25;
-static const float groundK200ac2b8 = 10.0;
-static const float groundK200ac148 = 12.0;
-static const double groundK200ac268 = 0.7;
-static const float groundK200ac2dc = 80.0;
-static const float groundK200ac7d4 = -200.0;
-static const char groundS200bc610[] = "delta: %5.2f\n";
-static const char groundS200bc604[] = "%i:kickoff\n";
-static const char groundS200bc5f8[] = "%i:steep\n";
-static const char groundS200bc5ec[] = "%i:Land\n";
-enum {
-    groundPs831=offsetof(pmove_t,ps),
-    groundExt831=offsetof(pmove_t,pmext),
-    groundCharacter831=offsetof(pmove_t,character),
-    groundCommandTime831=offsetof(pmove_t,cmd)+offsetof(usercmd_t,serverTime),
-    groundForwardCmd831=offsetof(pmove_t,cmd)+offsetof(usercmd_t,forwardmove),
-    groundTraceMask831=offsetof(pmove_t,tracemask),
-    groundDebug831=offsetof(pmove_t,debugLevel),
-    groundMins831=offsetof(pmove_t,mins),
-    groundMaxs831=offsetof(pmove_t,maxs),
-    groundTrace831=offsetof(pmove_t,trace),
-    groundWater831=offsetof(pmove_t,waterlevel),
-    groundOrigin831=offsetof(playerState_t,origin),
-    groundVelocity831=offsetof(playerState_t,velocity),
-    groundFlags831=offsetof(playerState_t,pm_flags),
-    groundTime831=offsetof(playerState_t,pm_time),
-    groundEflags831=offsetof(playerState_t,eFlags),
-    groundClient831=offsetof(playerState_t,clientNum),
-    groundGround831=offsetof(playerState_t,groundEntityNum),
-    groundGravity831=offsetof(playerState_t,gravity),
-    groundLegsTimer831=offsetof(playerState_t,legsTimer),
-    groundHealth831=offsetof(playerState_t,stats)+STAT_HEALTH*sizeof(int),
-    groundWeaponFlags831=offsetof(playerState_t,stats)+STAT_TCE_WEAPON_FLAGS*sizeof(int),
-    groundTcFlags831=offsetof(playerState_t,stats)+STAT_TCE_FLAGS*sizeof(int),
-    groundJumpTime831=offsetof(playerState_t,jumpTime),
-    groundBob831=offsetof(playerState_t,bobCycle),
-    groundExtProne831=offsetof(pmoveExt_t,proneTime),
-    groundExtJump831=offsetof(pmoveExt_t,jumpTime),
-    groundAnimModel831=offsetof(bg_character_t,animModelInfo),
-    groundWalking831=offsetof(pml_t,walking),
-    groundGroundPlane831=offsetof(pml_t,groundPlane),
-    groundGroundTrace831=offsetof(pml_t,groundTrace),
-    groundSurface831=offsetof(pml_t,groundTrace)+offsetof(trace_t,surfaceFlags),
-    groundOldZ831=offsetof(pml_t,previous_origin)+2*sizeof(float),
-    groundOldVelZ831=offsetof(pml_t,previous_velocity)+2*sizeof(float),
-    groundContent831=offsetof(pml_t,tceContentRestriction),
-    groundExtension831=offsetof(pml_t,tceGroundExtension)
-};
 typedef char groundTraceLayout831[(sizeof(trace_t)==56 && offsetof(trace_t,allsolid)==0 && offsetof(trace_t,fraction)==8 && offsetof(trace_t,plane)==24 && offsetof(trace_t,surfaceFlags)==44 && offsetof(trace_t,entityNum)==52) ? 1 : -1];
 typedef char groundProtocol831[(EF_MG42_ACTIVE==0x20 && EF_AAGUN_ACTIVE==0x400000 && EF_MOUNTEDTANK==0x8000 && EF_PRONE==0x80000 && PMF_BACKWARDS_JUMP==8 && PMF_TIME_WATERJUMP==0x100 && PMF_TIME_LAND==0x20 && ENTITYNUM_NONE==1023 && ANIM_ET_JUMP==4 && ANIM_ET_JUMPBK==5 && ANIM_ET_LAND==6) ? 1 : -1];
 #endif
@@ -2966,417 +2919,121 @@ static void PM_GroundTraceMissed( void ) {
 PM_GroundTrace
 =============
 */
-/* Whole TC3000e490. Direct original capsule trace, including content and
- * prone ground-extension paths absent from the SDK ground controller. */
+/* TCE capsule ground controller, including content/prone ground extension.
+ * Native predicates and callback ordering are explicit; compiled ABI remains open. */
 #if defined(_MSC_VER) && defined(_M_IX86)
-static __declspec(naked) void PM_GroundTrace(void) {
-    __asm {
-        sub esp, 0x44
-        mov eax, dword ptr [pm]
-        push ebp
-        xor ebp, ebp
-        push esi
-        mov ecx, dword ptr [eax+groundPs831]
-        push edi
-        mov edx, dword ptr [ecx+groundOrigin831]
-        mov dword ptr [esp + 0xc], edx
-        mov ecx, dword ptr [eax+groundPs831]
-        mov edx, dword ptr [ecx+groundOrigin831+4]
-        mov dword ptr [esp + 0x10], edx
-        mov ecx, dword ptr [eax+groundPs831]
-        mov edx, dword ptr [ecx+groundEflags831]
-        test dl, 0x20
-        jne ground831_2003681c
-        test edx, 0x400000
-        jne ground831_2003681c
-        fld dword ptr [ecx+groundOrigin831+8]
-        fsub dword ptr [groundK200ac198]
-        jmp ground831_20036825
-ground831_2003681c:
-        fld dword ptr [ecx+groundOrigin831+8]
-        fsub dword ptr [groundK200ac110]
-ground831_20036825:
-        fstp dword ptr [esp + 0x14]
-        mov ecx, dword ptr [eax+groundPs831]
-        mov edx, dword ptr [eax+groundTraceMask831]
-        push edx
-        mov edx, dword ptr [ecx+groundClient831]
-        add ecx, groundOrigin831
-        push edx
-        lea edx, [esp + 0x14]
-        push edx
-        lea edx, [eax+groundMaxs831]
-        push edx
-        lea edx, [eax+groundMins831]
-        push edx
-        push ecx
-        lea ecx, [esp + 0x30]
-        push ecx
-        call dword ptr [eax+groundTrace831]
-        mov eax, dword ptr [esp + 0x34]
-        add esp, 0x1c
-        mov ecx, 0xe
-        lea esi, [esp + 0x18]
-        mov edi, offset pml+groundGroundTrace831
-        test eax, eax
-        rep movsd 
-        je ground831_20036898
-        mov ecx, dword ptr [pm]
-        mov edx, dword ptr [ecx+groundPs831]
-        mov eax, dword ptr [edx+groundEflags831]
-        test ah, 0x80
-        jne ground831_2003689e
-        lea eax, [esp + 0x18]
-        push eax
-        call PM_CorrectAllSolid
-        add esp, 4
-        test eax, eax
-        je ground831_20036cfd
-ground831_20036898:
-        mov ecx, dword ptr [pm]
-ground831_2003689e:
-        fld dword ptr [esp + 0x20]
-        fcomp qword ptr [groundK200ac130]
-        fnstsw ax
-        test ah, 0x40
-        je ground831_20036a1f
-        mov eax, dword ptr [pml+groundContent831]
-        xor edi, edi
-        cmp eax, edi
-        je ground831_20036974
-        mov edx, dword ptr [ecx+groundPs831]
-        fld dword ptr [edx+groundVelocity831+8]
-        fcomp dword ptr [groundK200ac2b8]
-        fnstsw ax
-        test ah, 1
-        je ground831_20036974
-        fld dword ptr [esp + 0x14]
-        fsub dword ptr [groundK200ac148]
-        fstp dword ptr [esp + 0x14]
-        mov eax, dword ptr [ecx+groundPs831]
-        mov edx, dword ptr [ecx+groundTraceMask831]
-        push edx
-        mov edx, dword ptr [eax+groundClient831]
-        add eax, groundOrigin831
-        push edx
-        lea edx, [esp + 0x14]
-        push edx
-        lea edx, [ecx+groundMaxs831]
-        push edx
-        lea edx, [ecx+groundMins831]
-        push edx
-        push eax
-        lea eax, [esp + 0x30]
-        push eax
-        call dword ptr [ecx+groundTrace831]
-        fld dword ptr [esp + 0x3c]
-        fcomp qword ptr [groundK200ac130]
-        add esp, 0x1c
-        fnstsw ax
-        test ah, 1
-        je ground831_200369f5
-        cmp dword ptr [esp + 0x18], edi
-        jne ground831_200369f5
-        fld dword ptr [esp + 0x38]
-        fcomp qword ptr [groundK200ac268]
-        fnstsw ax
-        test ah, 0x41
-        jne ground831_200369f5
-        mov ebp, 1
-        mov ecx, 0xe
-        lea esi, [esp + 0x18]
-        mov edi, offset pml+groundGroundTrace831
-        mov dword ptr [pml+groundExtension831], ebp
-        rep movsd 
-        mov ecx, dword ptr [pm]
-        xor edi, edi
-        jmp ground831_20036a26
-ground831_20036974:
-        mov edx, dword ptr [ecx+groundPs831]
-        test dword ptr [edx+groundEflags831], 0x80000
-        je ground831_200369fb
-        fld dword ptr [esp + 0x14]
-        fsub dword ptr [groundK200ac148]
-        fstp dword ptr [esp + 0x14]
-        mov eax, dword ptr [ecx+groundPs831]
-        mov edx, dword ptr [ecx+groundTraceMask831]
-        push edx
-        mov edx, dword ptr [eax+groundClient831]
-        add eax, groundOrigin831
-        push edx
-        lea edx, [esp + 0x14]
-        push edx
-        lea edx, [ecx+groundMaxs831]
-        push edx
-        lea edx, [ecx+groundMins831]
-        push edx
-        push eax
-        lea eax, [esp + 0x30]
-        push eax
-        call dword ptr [ecx+groundTrace831]
-        fld dword ptr [esp + 0x3c]
-        fcomp qword ptr [groundK200ac130]
-        add esp, 0x1c
-        fnstsw ax
-        test ah, 1
-        je ground831_200369f5
-        cmp dword ptr [esp + 0x18], edi
-        jne ground831_200369f5
-        mov ecx, 0xe
-        lea esi, [esp + 0x18]
-        mov edi, offset pml+groundGroundTrace831
-        mov ebp, 1
-        rep movsd 
-        mov ecx, dword ptr [pm]
-        xor edi, edi
-        jmp ground831_200369fb
-ground831_200369f5:
-        mov ecx, dword ptr [pm]
-ground831_200369fb:
-        cmp dword ptr [pml+groundExtension831], edi
-        jne ground831_20036a21
-        cmp ebp, edi
-        jne ground831_20036a21
-        call PM_GroundTraceMissed
-        mov dword ptr [pml+groundGroundPlane831], edi
-        mov dword ptr [pml+groundWalking831], edi
-        pop edi
-        pop esi
-        pop ebp
-        add esp, 0x44
-        ret 
-ground831_20036a1f:
-        xor edi, edi
-ground831_20036a21:
-        mov ebp, 1
-ground831_20036a26:
-        mov edx, dword ptr [ecx+groundPs831]
-        fld dword ptr [edx+groundVelocity831+8]
-        fcomp dword ptr [groundK200ac100]
-        fnstsw ax
-        test ah, 0x41
-        jne ground831_20036b06
-        fld dword ptr [esp + 0x34]
-        fmul dword ptr [edx+groundVelocity831+4]
-        fld dword ptr [esp + 0x30]
-        fmul dword ptr [edx+groundVelocity831]
-        faddp st(1), st(0)
-        fld dword ptr [esp + 0x38]
-        fmul dword ptr [edx+groundVelocity831+8]
-        faddp st(1), st(0)
-        fcomp dword ptr [groundK200ac2dc]
-        fnstsw ax
-        test ah, 0x41
-        jne ground831_20036b06
-        test dword ptr [edx+groundEflags831], 0x80000
-        jne ground831_20036b06
-        cmp dword ptr [ecx+groundDebug831], edi
-        je ground831_20036a92
-        mov ecx, dword ptr [c_pmove]
-        push ecx
-        push offset groundS200bc604
-        call Com_Printf
-        mov ecx, dword ptr [pm]
-        add esp, 8
-ground831_20036a92:
-        mov al, byte ptr [ecx+groundForwardCmd831]
-        push edi
-        test al, al
-        push edi
-        jl ground831_20036abf
-        mov edx, dword ptr [ecx+groundCharacter831]
-        mov ecx, dword ptr [ecx+groundPs831]
-        push 4
-        mov eax, dword ptr [edx+groundAnimModel831]
-        push eax
-        push ecx
-        call BG_AnimScriptEvent
-        mov edx, dword ptr [pm]
-        add esp, 0x14
-        mov eax, dword ptr [edx+groundPs831]
-        mov ecx, dword ptr [eax+groundFlags831]
-        and ecx, 0xfffffff7
-        jmp ground831_20036ae1
-ground831_20036abf:
-        mov eax, dword ptr [ecx+groundCharacter831]
-        push 5
-        mov edx, dword ptr [eax+groundAnimModel831]
-        mov eax, dword ptr [ecx+groundPs831]
-        push edx
-        push eax
-        call BG_AnimScriptEvent
-        mov ecx, dword ptr [pm]
-        add esp, 0x14
-        mov eax, dword ptr [ecx+groundPs831]
-        mov ecx, dword ptr [eax+groundFlags831]
-        or ecx, 8
-ground831_20036ae1:
-        mov dword ptr [eax+groundFlags831], ecx
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx+groundPs831]
-        mov dword ptr [eax+groundGround831], 0x3ff
-        mov dword ptr [pml+groundGroundPlane831], edi
-        mov dword ptr [pml+groundWalking831], edi
-        pop edi
-        pop esi
-        pop ebp
-        add esp, 0x44
-        ret 
-ground831_20036b06:
-        fld dword ptr [esp + 0x38]
-        fcomp qword ptr [groundK200ac268]
-        mov esi, 0x3ff
-        fnstsw ax
-        test ah, 1
-        je ground831_20036b61
-        cmp dword ptr [ecx+groundDebug831], edi
-        je ground831_20036b3b
-        mov ecx, dword ptr [c_pmove]
-        push ecx
-        push offset groundS200bc5f8
-        call Com_Printf
-        mov ecx, dword ptr [pm]
-        add esp, 8
-ground831_20036b3b:
-        mov eax, dword ptr [ecx+groundPs831]
-        test byte ptr [eax+groundTcFlags831], 4
-        je ground831_20036b4b
-        cmp dword ptr [eax+groundGround831], esi
-        je ground831_20036b61
-ground831_20036b4b:
-        mov dword ptr [eax+groundGround831], esi
-        mov dword ptr [pml+groundWalking831], edi
-        pop edi
-        mov dword ptr [pml+groundGroundPlane831], ebp
-        pop esi
-        pop ebp
-        add esp, 0x44
-        ret 
-ground831_20036b61:
-        mov dword ptr [pml+groundGroundPlane831], ebp
-        mov dword ptr [pml+groundWalking831], ebp
-        mov edx, dword ptr [ecx+groundPs831]
-        mov eax, dword ptr [edx+groundFlags831]
-        test ah, 1
-        je ground831_20036b90
-        and eax, 0xfffffedf
-        mov dword ptr [edx+groundFlags831], eax
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx+groundPs831]
-        mov dword ptr [eax+groundTime831], edi
-        mov ecx, dword ptr [pm]
-ground831_20036b90:
-        mov edx, dword ptr [ecx+groundPs831]
-        cmp dword ptr [edx+groundGround831], esi
-        jne ground831_20036ccd
-        cmp dword ptr [ecx+groundDebug831], edi
-        je ground831_20036bb3
-        mov eax, dword ptr [c_pmove]
-        push eax
-        push offset groundS200bc5ec
-        call Com_Printf
-        add esp, 8
-ground831_20036bb3:
-        fld dword ptr [esp + 0x38]
-        fcomp qword ptr [groundK200ac268]
-        fnstsw ax
-        test ah, 1
-        je ground831_20036bc8
-        mov eax, ebp
-        jmp ground831_20036bca
-ground831_20036bc8:
-        xor eax, eax
-ground831_20036bca:
-        push eax
-        call PM_CrashLand
-        fld dword ptr [pml+groundOldVelZ831]
-        fcomp dword ptr [groundK200ac7d4]
-        add esp, 4
-        fnstsw ax
-        test ah, 1
-        je ground831_20036c40
-        mov ecx, dword ptr [pm]
-        mov eax, dword ptr [ecx+groundPs831]
-        mov ebp, dword ptr [eax+groundFlags831]
-        or ebp, 0x20
-        mov dword ptr [eax+groundFlags831], ebp
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx+groundPs831]
-        mov dword ptr [eax+groundTime831], 0xfa
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax+groundCommandTime831]
-        mov edx, dword ptr [eax+groundExt831]
-        neg ecx
-        mov dword ptr [edx+groundExtProne831], ecx
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax+groundCommandTime831]
-        mov edx, dword ptr [eax+groundExt831]
-        sub ecx, 0x258
-        mov dword ptr [edx+groundExtJump831], ecx
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax+groundCommandTime831]
-        mov edx, dword ptr [eax+groundPs831]
-        sub ecx, 0x258
-        mov dword ptr [edx+groundJumpTime831], ecx
-ground831_20036c40:
-        mov ecx, dword ptr [pm]
-        mov eax, dword ptr [ecx+groundPs831]
-        mov edx, dword ptr [eax+groundWeaponFlags831]
-        test dh, 0x10
-        je ground831_20036cb3
-        mov dword ptr [eax+groundTime831], 0x3e8
-        mov eax, dword ptr [pm]
-        mov eax, dword ptr [eax+groundPs831]
-        mov ebp, dword ptr [eax+groundWeaponFlags831]
-        and ebp, 0xffffefff
-        mov dword ptr [eax+groundWeaponFlags831], ebp
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax+groundCommandTime831]
-        mov edx, dword ptr [eax+groundExt831]
-        neg ecx
-        mov dword ptr [edx+groundExtProne831], ecx
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax+groundCommandTime831]
-        mov edx, dword ptr [eax+groundExt831]
-        sub ecx, 0x258
-        mov dword ptr [edx+groundExtJump831], ecx
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax+groundCommandTime831]
-        mov edx, dword ptr [eax+groundPs831]
-        sub ecx, 0x258
-        mov dword ptr [edx+groundJumpTime831], ecx
-        mov ecx, dword ptr [pm]
-ground831_20036cb3:
-        mov edx, dword ptr [ecx+groundPs831]
-        mov eax, dword ptr [edx+groundTcFlags831]
-        test al, 4
-        je ground831_20036ccd
-        and al, 0xfb
-        mov dword ptr [edx+groundTcFlags831], eax
-        mov ecx, dword ptr [pm]
-ground831_20036ccd:
-        mov eax, dword ptr [ecx+groundPs831]
-        mov ecx, dword ptr [esp + 0x4c]
-        mov dword ptr [eax+groundGround831], ecx
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx+groundPs831]
-        cmp dword ptr [eax+groundGround831], 0x40
-        jge ground831_20036cf0
-        mov eax, dword ptr [pml+groundSurface831]
-        or al, 2
-        mov dword ptr [pml+groundSurface831], eax
-ground831_20036cf0:
-        mov ecx, dword ptr [esp + 0x4c]
-        push ecx
-        call PM_AddTouchEnt
-        add esp, 4
-ground831_20036cfd:
-        pop edi
-        pop esi
-        pop ebp
-        add esp, 0x44
-        ret 
+typedef char groundCallbackBounds[(offsetof(pmove_t, mins) == 0xf4 &&
+    offsetof(pmove_t, maxs) == 0x100 && offsetof(pmove_t, tracemask) == 0x44 &&
+    offsetof(playerState_t, origin) == 0x14 && offsetof(playerState_t, clientNum) == 0xa0) ? 1 : -1];
+#ifdef CGAMEDLL
+typedef char groundCallbackSlot[(offsetof(pmove_t, trace) == 0x124) ? 1 : -1];
+#else
+typedef char groundCallbackSlot[(offsetof(pmove_t, trace) == 0x128) ? 1 : -1];
+#endif
+static void PM_GroundTrace(void) {
+    vec3_t point;
+    trace_t trace;
+    long double separation;
+    qboolean proneGround = qfalse;
+
+    point[0] = pm->ps->origin[0];
+    point[1] = pm->ps->origin[1];
+    if (pm->ps->eFlags & (EF_MG42_ACTIVE | EF_AAGUN_ACTIVE))
+        point[2] = (float)((long double)pm->ps->origin[2] - 1.0f);
+    else point[2] = (float)((long double)pm->ps->origin[2] - 0.25f);
+    pm->trace(&trace, pm->ps->origin, pm->mins, pm->maxs, point,
+        pm->ps->clientNum, pm->tracemask);
+    memcpy(&pml.groundTrace, &trace, sizeof(trace));
+    if (trace.allsolid && !(pm->ps->eFlags & EF_MOUNTEDTANK) &&
+        !PM_CorrectAllSolid(&trace)) return;
+
+    /* Native C3 takes the no-hit path for fraction one or unordered. */
+    if (trace.fraction == 1.0f || TCE_FloatIsNaN(trace.fraction)) {
+        if (pml.tceContentRestriction &&
+            (pm->ps->velocity[2] < 10.0f || TCE_FloatIsNaN(pm->ps->velocity[2]))) {
+            point[2] = (float)((long double)point[2] - 12.0f);
+            pm->trace(&trace, pm->ps->origin, pm->mins, pm->maxs, point,
+                pm->ps->clientNum, pm->tracemask);
+            if ((trace.fraction < 1.0f || TCE_FloatIsNaN(trace.fraction)) &&
+                !trace.allsolid && (long double)trace.plane.normal[2] > 0.7) {
+                pml.tceGroundExtension = qtrue;
+                memcpy(&pml.groundTrace, &trace, sizeof(trace));
+            }
+        } else if (pm->ps->eFlags & EF_PRONE) {
+            point[2] = (float)((long double)point[2] - 12.0f);
+            pm->trace(&trace, pm->ps->origin, pm->mins, pm->maxs, point,
+                pm->ps->clientNum, pm->tracemask);
+            if ((trace.fraction < 1.0f || TCE_FloatIsNaN(trace.fraction)) && !trace.allsolid) {
+                proneGround = qtrue;
+                memcpy(&pml.groundTrace, &trace, sizeof(trace));
+            }
+        }
+        if (!pml.tceGroundExtension && !proneGround) {
+            PM_GroundTraceMissed();
+            pml.groundPlane = qfalse;
+            pml.walking = qfalse;
+            return;
+        }
     }
+    if (pm->ps->velocity[2] > 0.0f) {
+        separation = (long double)trace.plane.normal[1] * pm->ps->velocity[1];
+        separation += (long double)trace.plane.normal[0] * pm->ps->velocity[0];
+        separation += (long double)trace.plane.normal[2] * pm->ps->velocity[2];
+        if (separation > 80.0f && !(pm->ps->eFlags & EF_PRONE)) {
+            if (pm->debugLevel) Com_Printf("%i:kickoff\n", c_pmove);
+            if (pm->cmd.forwardmove < 0) {
+                BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo,
+                    ANIM_ET_JUMPBK, qfalse, qfalse);
+                pm->ps->pm_flags |= PMF_BACKWARDS_JUMP;
+            } else {
+                BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo,
+                    ANIM_ET_JUMP, qfalse, qfalse);
+                pm->ps->pm_flags &= ~PMF_BACKWARDS_JUMP;
+            }
+            pm->ps->groundEntityNum = ENTITYNUM_NONE;
+            pml.groundPlane = qfalse;
+            pml.walking = qfalse;
+            return;
+        }
+    }
+    if ((long double)trace.plane.normal[2] < 0.7 || TCE_FloatIsNaN(trace.plane.normal[2])) {
+        if (pm->debugLevel) Com_Printf("%i:steep\n", c_pmove);
+        if (!(pm->ps->stats[STAT_TCE_FLAGS] & 4) || pm->ps->groundEntityNum != ENTITYNUM_NONE) {
+            pm->ps->groundEntityNum = ENTITYNUM_NONE;
+            pml.walking = qfalse;
+            pml.groundPlane = qtrue;
+            return;
+        }
+    }
+    pml.groundPlane = qtrue;
+    pml.walking = qtrue;
+    if (pm->ps->pm_flags & PMF_TIME_WATERJUMP) {
+        pm->ps->pm_flags &= ~(PMF_TIME_WATERJUMP | PMF_TIME_LAND);
+        pm->ps->pm_time = 0;
+    }
+    if (pm->ps->groundEntityNum == ENTITYNUM_NONE) {
+        if (pm->debugLevel) Com_Printf("%i:Land\n", c_pmove);
+        PM_CrashLand((long double)trace.plane.normal[2] < 0.7 ||
+            TCE_FloatIsNaN(trace.plane.normal[2]));
+        if (pml.previous_velocity[2] < -200.0f || TCE_FloatIsNaN(pml.previous_velocity[2])) {
+            pm->ps->pm_flags |= PMF_TIME_LAND;
+            pm->ps->pm_time = 250;
+            pm->pmext->proneTime = PM_ProneTimeValue(0u - (unsigned)pm->cmd.serverTime);
+            pm->pmext->jumpTime = PM_ProneTimeValue((unsigned)pm->cmd.serverTime - 600u);
+            pm->ps->jumpTime = PM_ProneTimeValue((unsigned)pm->cmd.serverTime - 600u);
+        }
+        if (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 0x1000) {
+            pm->ps->pm_time = 1000;
+            pm->ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~0x1000;
+            pm->pmext->proneTime = PM_ProneTimeValue(0u - (unsigned)pm->cmd.serverTime);
+            pm->pmext->jumpTime = PM_ProneTimeValue((unsigned)pm->cmd.serverTime - 600u);
+            pm->ps->jumpTime = PM_ProneTimeValue((unsigned)pm->cmd.serverTime - 600u);
+        }
+        if (pm->ps->stats[STAT_TCE_FLAGS] & 4) pm->ps->stats[STAT_TCE_FLAGS] &= ~4;
+    }
+    pm->ps->groundEntityNum = trace.entityNum;
+    if (pm->ps->groundEntityNum < 64) pml.groundTrace.surfaceFlags |= 2;
+    PM_AddTouchEnt(trace.entityNum);
 }
 #else
 /* Portable fallback; no Linux instruction-level parity claim. */
