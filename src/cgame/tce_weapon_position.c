@@ -1429,7 +1429,8 @@ void TCE_CG_CalculateWeaponPosition(tce_weaponPosition_t *s,float *origin,float 
     float right[3],up[3],difference[3],target[2];
     double wave,recoilRate=0; int recoilPitch=0;
 #if defined(__linux__) && !defined(Q3_VM)
-    long double nativeLimit, vertical, verticalTarget;
+    long double nativeLimit, nativeStrength, vertical, verticalTarget;
+    long double heldOrigin[3];
 #endif
     VectorCopy(s->viewOrigin,origin);VectorCopy(s->viewAngles,angles);
     if(s->eFlags&0x8000)angles[0]=(float)(angles[0]*(5.0/6.0));
@@ -1515,9 +1516,17 @@ void TCE_CG_CalculateWeaponPosition(tce_weaponPosition_t *s,float *origin,float 
 #else
         limit=s->aiming?(float)(w->unknown_0f8[3]*(double)(1.0f/600.0f)):3.0f;
 #endif
+#if defined(__linux__) && !defined(Q3_VM)
+        nativeStrength = (long double)s->scale_3407dfc0 *
+                         (s->aiming ? 0.5L : 1.0L) * (long double)0.001f +
+                         (long double)s->scale_3407dfbc * (long double)0.001f;
+        if (nativeStrength > 1.0L) nativeStrength = 1.0L;
+        if (!s->aiming && nativeStrength < 0.5L) nativeStrength = 0.5L;
+#else
         secondary=s->aiming?.5f:1.0f;
         strength=(float)(s->scale_3407dfc0*(double)secondary*(double).001f+s->scale_3407dfbc*(double).001f);
         if(strength>1)strength=1;if(!s->aiming && strength<.5f)strength=.5f;
+#endif
 #if defined(__linux__) && !defined(Q3_VM)
         for (i = 0; i < 2; ++i) {
             /* Original JNC keeps only ordered magnitudes at least 0.2. */
@@ -1559,14 +1568,49 @@ void TCE_CG_CalculateWeaponPosition(tce_weaponPosition_t *s,float *origin,float 
 #if !defined(__linux__) || defined(Q3_VM)
         s->swayTime=s->time;
 #endif
+#if defined(__linux__) && !defined(Q3_VM)
+        for (i = 0; i < 3; ++i) {
+            heldOrigin[i] = (long double)s->swayHorizontal * nativeStrength *
+                            (long double)s->viewAxis[1][i] * 0.25L +
+                            (long double)origin[i];
+            origin[i] = (float)heldOrigin[i];
+        }
+        for (i = 0; i < 3; ++i) {
+            origin[i] = (float)(heldOrigin[i] + (long double)s->swayVertical *
+                                nativeStrength * (long double)s->viewAxis[2][i] * 0.25L);
+        }
+        angles[1] = (float)((long double)angles[1] -
+                            (long double)s->swayHorizontal * nativeStrength);
+        angles[0] = (float)((long double)s->swayVertical * nativeStrength +
+                            (long double)angles[0]);
+#else
         translate(origin,s->viewAxis[1],s->swayHorizontal*(double)strength*.25);
         translate(origin,s->viewAxis[2],s->swayVertical*(double)strength*.25);
         angles[1]=(float)(angles[1]-s->swayHorizontal*(double)strength);
         angles[0]=(float)(angles[0]+s->swayVertical*(double)strength);
+#endif
     }
     angles[2]=(float)(angles[2]+s->bobSin*(double)signedSpeed*bobScale*.005);
     angles[1]=(float)(angles[1]+s->bobSin*(double)signedSpeed*bobScale*.01);
     angles[0]=(float)(angles[0]+s->bobSin*(double)s->speed*bobScale*.005);
+#if defined(__linux__) && !defined(Q3_VM)
+    delta = nativePositionTime((unsigned int)s->time - (unsigned int)s->landTime);
+    if (bobScale > 0.0f && delta <= 449) {
+        vertical = delta <= 149 ?
+            (long double)delta * (long double)s->landChange * (long double)(1.0 / 600.0) :
+            (long double)(450 - delta) * (long double)s->landChange * (long double)(1.0 / 1200.0);
+        origin[2] = (float)(vertical + (long double)origin[2]);
+    }
+    for (i = 0; i < 3; ++i) {
+        heldOrigin[i] = (long double)s->gunViewAngles[i] + (long double)angles[i];
+        angles[i] = (float)heldOrigin[i];
+    }
+    if (s->developer) {
+        for (i = 0; i < 3; ++i) {
+            angles[i] = (float)(heldOrigin[i] + (long double)s->developerAngles[i]);
+        }
+    }
+#else
     delta=s->time-s->landTime;
     if(bobScale>0 && delta<450) {
         f=(float)(delta<150?s->landChange*(double)delta/600.0:(450-delta)*(double)s->landChange/1200.0);
@@ -1574,9 +1618,25 @@ void TCE_CG_CalculateWeaponPosition(tce_weaponPosition_t *s,float *origin,float 
     }
     for(i=0;i<3;++i)angles[i]+=s->gunViewAngles[i];
     if(s->developer)for(i=0;i<3;++i)angles[i]+=s->developerAngles[i];
-    if(!w->noTacMode && s->tacticalScale!=0) {
+#endif
+    if (!w->noTacMode &&
+#if defined(__linux__) && !defined(Q3_VM)
+        !TCE_FloatIsZeroOrNaN(s->tacticalScale)
+#else
+        s->tacticalScale != 0
+#endif
+    ) {
+#if defined(__linux__) && !defined(Q3_VM)
+        vertical = ((long double)s->tacticalPitch - 2000.0L) *
+                   (long double)s->tacticalScale * (long double)0.01f;
+        angles[0] = (float)(vertical + (long double)angles[0]);
+        vertical = ((long double)s->tacticalYaw - 2000.0L) *
+                   (long double)s->tacticalScale * (long double)0.01f;
+        angles[1] = (float)(vertical + (long double)angles[1]);
+#else
         angles[0]=(float)(angles[0]+(s->tacticalPitch-2000.0)*s->tacticalScale*(double).01f);
         angles[1]=(float)(angles[1]+(s->tacticalYaw-2000.0)*s->tacticalScale*(double).01f);
+#endif
     }
     if(!(s->eFlags&0x8000) && s->weapon!=60 && s->weapon!=62) {
         wave=sin(s->time*.001)*80.0*idleScale*.01;
