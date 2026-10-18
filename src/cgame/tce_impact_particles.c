@@ -3,38 +3,12 @@
 #include "tce_lightgrid.h"
 /* Windows 3002a870. Original mutates the caller's direction by normalization. */
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-/* Original __ftol contract, including deeper ST registers used by gravity. */
-static __declspec(naked) int impactTruncateST0(void) {
-    __asm {
-        push ebp
-        mov ebp, esp
-        add esp, -12
-        fwait
-        fnstcw word ptr [ebp-2]
-        fwait
-        mov ax, word ptr [ebp-2]
-        or ah, 0ch
-        mov word ptr [ebp-4], ax
-        fldcw word ptr [ebp-4]
-        fistp qword ptr [ebp-12]
-        fldcw word ptr [ebp-2]
-        mov eax, dword ptr [ebp-12]
-        mov edx, dword ptr [ebp-8]
-        leave
-        ret
-    }
-}
-#endif
-/* Single original FLD/FMUL/FSTP boundaries, including non-default x87 RC. */
+
+/* Float output boundaries for impact arithmetic; native FPU parity remains open. */
 static float impactMultiply(float first,float second) {
     float result;
 #if defined(_MSC_VER) && defined(_M_IX86)
-    __asm {
-        fld first
-        fmul second
-        fstp result
-    }
+    result = first * second;
 #else
     result=first*second;
 #endif
@@ -46,32 +20,17 @@ static float impactRandomOutput(int mode) {
     const double centeredHalf=.5, chipSpin=720.0, smokeSpin=90.0;
     float result;
 #if defined(_MSC_VER) && defined(_M_IX86)
-    __asm {
-        fild sample
-        fmul randomUnit
-        cmp mode, 0
-        je impact_random_store
-        cmp mode, 1
-        jne impact_random_angle
-        fadd randomHalf
-        jmp impact_random_store
-impact_random_angle:
-        cmp mode, 2
-        jne impact_random_spin
-        fmul angleCircle
-        jmp impact_random_store
-impact_random_spin:
-        fsub centeredHalf
-        fadd st(0), st(0)
-        cmp mode, 3
-        jne impact_random_smoke
-        fmul chipSpin
-        jmp impact_random_store
-impact_random_smoke:
-        fmul smokeSpin
-impact_random_store:
-        fstp result
+    long double value = (long double)sample * (long double)randomUnit;
+    if (mode == 1) {
+        value += (long double)randomHalf;
+    } else if (mode == 2) {
+        value *= (long double)angleCircle;
+    } else if (mode != 0) {
+        value -= (long double)centeredHalf;
+        value += value;
+        value *= mode == 3 ? (long double)chipSpin : (long double)smokeSpin;
     }
+    result = (float)value;
 #else
     { double r=sample*(double)randomUnit;
       result=(float)(mode==0?r:mode==1?r+.5:mode==2?r*360:(r-.5)*2*(mode==3?720:90)); }
@@ -82,14 +41,8 @@ static int impactChipLifetime(void) {
     int sample=rand()&32767, result;
     const float randomUnit=1.0f/32767.0f, lifeOne=1.0f, lifeBase=500.0f;
 #if defined(_MSC_VER) && defined(_M_IX86)
-    __asm {
-        fild sample
-        fmul randomUnit
-        fadd lifeOne
-        fmul lifeBase
-        call impactTruncateST0
-        mov result, eax
-    }
+    result = (int)(((long double)sample * (long double)randomUnit +
+                    (long double)lifeOne) * (long double)lifeBase);
 #else
     result=(int)((sample*(double)randomUnit+1)*500);
 #endif
@@ -99,13 +52,8 @@ static float impactSmokeSpeed(float randomScale,float speedScale) {
     const float geomRange=16.0f, geomBase=26.0f;
     float result;
 #if defined(_MSC_VER) && defined(_M_IX86)
-    __asm {
-        fld randomScale
-        fmul geomRange
-        fadd geomBase
-        fmul speedScale
-        fstp result
-    }
+    result = (float)(((long double)randomScale * (long double)geomRange +
+                       (long double)geomBase) * (long double)speedScale);
 #else
     result=(float)((randomScale*16.0+26.0)*speedScale);
 #endif
@@ -117,33 +65,13 @@ static void impactSmokeGeometry(int index,float spread,
     int factorIndex=index+2;
     const float geomOne=1.0f, geomThird=1.0f/3.0f;
 #if defined(_MSC_VER) && defined(_M_IX86)
-    float indexFloat;
-    __asm {
-        fild index
-        fadd geomOne
-        fstp indexFloat
-        fld spread
-        fmul indexFloat
-        mov eax, direction
-        mov ecx, origin
-        mov edx, position
-        fld st(0)
-        fmul dword ptr [eax]
-        fadd dword ptr [ecx]
-        fstp dword ptr [edx]
-        fld st(0)
-        fmul dword ptr [eax+4]
-        fadd dword ptr [ecx+4]
-        fstp dword ptr [edx+4]
-        fmul dword ptr [eax+8]
-        fadd dword ptr [ecx+8]
-        fstp dword ptr [edx+8]
-        fild factorIndex
-        fmul geomThird
-        fadd geomOne
-        mov eax, factor
-        fstp dword ptr [eax]
+    float indexFloat = (float)((long double)index + (long double)geomOne);
+    long double distance = (long double)spread * (long double)indexFloat;
+    int j;
+    for (j = 0; j < 3; ++j) {
+        position[j] = (float)(distance * (long double)direction[j] + (long double)origin[j]);
     }
+    *factor = (float)((long double)factorIndex * (long double)geomThird + (long double)geomOne);
 #else
     { int j;
       for(j=0;j<3;++j)position[j]=(float)(spread*(index+1.0)*direction[j]+origin[j]);
@@ -155,17 +83,11 @@ static float impactSmokeLifetime(float factor,float life,float lifeScale) {
     const float randomUnit=1.0f/32767.0f, lifeJitter=1.2f;
     float result;
 #if defined(_MSC_VER) && defined(_M_IX86)
-    __asm {
-        fild sample
-        fmul randomUnit
-        fmul life
-        fmul lifeJitter
-        fld factor
-        fmul life
-        faddp st(1), st(0)
-        fmul lifeScale
-        fstp result
-    }
+    long double value = (long double)sample * (long double)randomUnit;
+    value *= (long double)life;
+    value *= (long double)lifeJitter;
+    value += (long double)factor * (long double)life;
+    result = (float)(value * (long double)lifeScale);
 #else
     result=(float)((factor*(double)life+sample*(double)randomUnit*life*lifeJitter)*lifeScale);
 #endif
@@ -175,45 +97,28 @@ static void impactSmokeTrajectory(int index,float life,float gravity,int *durati
     const float timeOne=1.0f, timeHalf=.5f;
     float indexFloat=(float)(index+1);
 #if defined(_MSC_VER) && defined(_M_IX86)
-    __asm {
-        fld indexFloat
-        fmul timeHalf
-        fadd timeOne
-        fld st(0)
-        fmul life
-        call impactTruncateST0
-        mov ecx, duration
-        mov dword ptr [ecx], eax
-        fmul gravity
-        mov ecx, scaledGravity
-        fstp dword ptr [ecx]
-    }
+    long double factor = (long double)indexFloat * (long double)timeHalf +
+                         (long double)timeOne;
+    /* Only the bounded material lifetimes and indices from the producer enter here. */
+    *duration = (int)(factor * (long double)life);
+    *scaledGravity = (float)(factor * (long double)gravity);
 #else
     *duration=(int)((indexFloat*.5+1)*life);
     *scaledGravity=(float)((indexFloat*.5+1)*gravity);
 #endif
 }
-/* Original 3002ad28..3002ada1 / 3002afa9..3002b041. Keep the
- * random expression in ST0 until the component store, then call the real
- * VectorNormalize implementation rather than a private double approximation. */
+/* Randomize each component before normalizing the complete direction vector. */
 static float impactDirectionComponent(float base, qboolean dust) {
     int sample = rand() & 32767;
     const float randomUnit = 1.0f / 32767.0f;
     const double randomHalf = 0.5, dustSpread = 0.25;
     float component;
 #if defined(_MSC_VER) && defined(_M_IX86)
-    __asm {
-        fild sample
-        fmul randomUnit
-        fsub randomHalf
-        fadd st(0), st(0)
-        cmp dust, 0
-        je impact_direction_add
-        fmul dustSpread
-impact_direction_add:
-        fadd base
-        fstp component
-    }
+    long double value = (long double)sample * (long double)randomUnit;
+    value -= (long double)randomHalf;
+    value += value;
+    if (dust) value *= (long double)dustSpread;
+    component = (float)(value + (long double)base);
 #else
     component = (float)(((sample * (double)randomUnit - randomHalf) * 2.0) *
                         (dust ? dustSpread : 1.0) + base);
@@ -226,16 +131,12 @@ static float impactChipSpeed(float component, float scale) {
     const float speedRange = 24.0f, speedBase = 12.0f, speedFraction = 2.0f / 3.0f;
     float result;
 #if defined(_MSC_VER) && defined(_M_IX86)
-    __asm {
-        fild sample
-        fmul randomUnit
-        fmul speedRange
-        fadd speedBase
-        fmul scale
-        fmul speedFraction
-        fmul component
-        fstp result
-    }
+    long double value = (long double)sample * (long double)randomUnit;
+    value *= (long double)speedRange;
+    value += (long double)speedBase;
+    value *= (long double)scale;
+    value *= (long double)speedFraction;
+    result = (float)(value * (long double)component);
 #else
     result = (float)((sample * (double)randomUnit * speedRange + speedBase) *
                      scale * speedFraction * component);
@@ -272,16 +173,7 @@ void TCE_CG_ParticleTest(vec3_t origin,vec3_t direction,int count,int material,f
     VectorNormalize(direction);
     for(i=0;i<count;++i) {
         float radius;int duration;float scale;
-#if defined(_MSC_VER) && defined(_M_IX86)
-        const float chipOne=1.0f;
-        __asm {
-            fld randomScale
-            fadd chipOne
-            fstp scale
-        }
-#else
         scale=randomScale+1.0f;
-#endif
         for(j=0;j<3;++j) velocity[j]=impactDirectionComponent(direction[j],qfalse);
         VectorNormalize(velocity);
         for(j=0;j<3;++j) velocity[j]=impactChipSpeed(velocity[j],scale);
