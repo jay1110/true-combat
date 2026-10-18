@@ -2038,21 +2038,12 @@ vec_t VectorLengthSquared( const vec3_t v ) {
 	return (v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
 }
 
-#if defined(_WIN32) || defined(__linux__)
-vec_t Distance( const vec3_t p1, const vec3_t p2 ) {
-	vec3_t delta;
-
-	TCE_VectorDifferenceFloat( p1, p2, delta );
-	return (vec_t)TCE_VectorLengthValue( delta );
-}
-#else
 vec_t Distance( const vec3_t p1, const vec3_t p2 ) {
 	vec3_t	v;
 
 	VectorSubtract (p2, p1, v);
 	return VectorLength( v );
 }
-#endif
 
 #if defined(_WIN32) || defined(__linux__)
 /* Unlike VectorDistanceSquared, the originals keep each difference wide.
@@ -2081,45 +2072,21 @@ long double TCE_DistanceSquaredValue( const vec3_t p1, const vec3_t p2 ) {
 #endif
 }
 
-vec_t DistanceSquared( const vec3_t p1, const vec3_t p2 ) {
-	return (vec_t)TCE_DistanceSquaredValue( p1, p2 );
-}
-#else
+#endif
+
 vec_t DistanceSquared( const vec3_t p1, const vec3_t p2 ) {
 	vec3_t	v;
 
 	VectorSubtract (p2, p1, v);
 	return v[0]*v[0] + v[1]*v[1] + v[2]*v[2];
 }
-#endif
 
 
-#if defined(__linux__)
-void VectorInverse( vec3_t v ) {
-	unsigned char *bytes = (unsigned char *)v;
-	int component;
-
-	/* The native little-endian binary32 path never loads a floating value. */
-	for (component = 0; component < 3; ++component) {
-		bytes[component * sizeof(vec_t) + 3] ^= 0x80u;
-	}
-}
-#elif defined(_WIN32)
-void VectorInverse( vec3_t v ) {
-	volatile vec_t *components = v;
-
-	/* Finish each floating load/negation/store before reading the next. */
-	components[0] = (vec_t)-(long double)components[0];
-	components[1] = (vec_t)-(long double)components[1];
-	components[2] = (vec_t)-(long double)components[2];
-}
-#else
 void VectorInverse( vec3_t v ){
 	v[0] = -v[0];
 	v[1] = -v[1];
 	v[2] = -v[2];
 }
-#endif
 
 void Vector4Scale( const vec4_t in, vec_t scale, vec4_t out ) {
 	out[0] = in[0]*scale;
@@ -2749,14 +2716,6 @@ void AxisToAngles( vec3_t axis[3], vec3_t angles ) {
 	angles[ROLL] = -roll_angles[PITCH];
 }
 
-#if defined(_WIN32) || defined(__linux__)
-float VectorDistance(vec3_t v1, vec3_t v2) {
-	vec3_t delta;
-
-	TCE_VectorDifferenceFloat( v1, v2, delta );
-	return (float)TCE_VectorLengthValue( delta );
-}
-#else
 float VectorDistance(vec3_t v1, vec3_t v2)
 {
 	vec3_t dir;
@@ -2765,21 +2724,11 @@ float VectorDistance(vec3_t v1, vec3_t v2)
 	return VectorLength(dir);
 }
 
-#endif
 
-#if defined(_WIN32) || defined(__linux__)
-float VectorDistanceSquared(vec3_t v1, vec3_t v2) {
-	vec3_t delta;
-
-	TCE_VectorDifferenceFloat( v1, v2, delta );
-	return (float)TCE_VectorLengthSquaredValue( delta );
-}
-#else
 float VectorDistanceSquared(vec3_t v1, vec3_t v2) {
 	vec3_t dir;
 
 	VectorSubtract(v2, v1, dir);
 	return VectorLengthSquared(dir);
 }
-#endif
 // done.

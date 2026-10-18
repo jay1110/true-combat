@@ -38,32 +38,14 @@ void G_StoreClientPosition( gentity_t* ent ) {
 /* Windows2004eba0 deliberately weights the newer sample by frac. */
 static void G_TCELerpPose(float frac, const vec3_t newer, const vec3_t older, vec3_t poseOutput) {
 #if defined(_MSC_VER) && defined(_M_IX86)
-    float one = 1.0f;
-    /* TC2004eba0: inverse remains ST0, with original per-axis add order. */
-    __asm {
-        fld one
-        fsub frac
-        mov eax, newer
-        mov ecx, older
-        fld frac
-        fmul dword ptr [eax]
-        mov edx, poseOutput
-        fld st(1)
-        fmul dword ptr [ecx]
-        faddp st(1), st(0)
-        fstp dword ptr [edx]
-        fld st(0)
-        fmul dword ptr [ecx + 4]
-        fld frac
-        fmul dword ptr [eax + 4]
-        faddp st(1), st(0)
-        fstp dword ptr [edx + 4]
-        fmul dword ptr [ecx + 8]
-        fld frac
-        fmul dword ptr [eax + 8]
-        faddp st(1), st(0)
-        fstp dword ptr [edx + 8]
-    }
+    long double inverse = 1.0L - (long double)frac;
+
+    poseOutput[0] = (float)((long double)frac * (long double)newer[0] +
+                            inverse * (long double)older[0]);
+    poseOutput[1] = (float)(inverse * (long double)older[1] +
+                            (long double)frac * (long double)newer[1]);
+    poseOutput[2] = (float)(inverse * (long double)older[2] +
+                            (long double)frac * (long double)newer[2]);
 #else
     float inverse = 1.0f - frac;
     poseOutput[0] = inverse * older[0] + frac * newer[0];
