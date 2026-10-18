@@ -196,25 +196,21 @@ void PushBot( gentity_t *ent, gentity_t *other ) {
 #if defined(_MSC_VER) && defined(_M_IX86)
 	float *pushVelocity = other->client->ps.velocity;
 	float pushMinimum = 200.0f;
-	float pushVoiceLimit = 10.0f;
-	double pushSideScale = 100.0, pushSign;
-	float *pushComponent, *pushOrigin, *pushOtherOrigin;
+	double pushSign;
+	long double pushForce;
+	unsigned int pushPhaseBits;
+	float *pushComponent;
 	int pushAxis, pushPhase;
-	unsigned short pushCompare;
+	long double pushLength, pushSquared, pushSpeedSquared;
+	volatile float pushStoredSpeed;
 #endif
 	//
 #if defined(_MSC_VER) && defined(_M_IX86)
-	/* TC 20044b18 stores f32, but compares the retained return in ST0. */
-	__asm {
-		push pushVelocity
-		call VectorLength
-		add esp, 4
-		fst oldspeed
-		fcomp pushMinimum
-		fnstsw ax
-		mov pushCompare, ax
-	}
-	if (pushCompare & 0x100) oldspeed = 200.0f;
+	/* Keep the broad length for the gate and a separate Float speed store. */
+	pushLength = TCE_VectorLengthValue(pushVelocity);
+	pushStoredSpeed = (float)pushLength;
+	oldspeed = pushStoredSpeed;
+	if (!(pushLength >= (long double)pushMinimum)) oldspeed = 200.0f;
 #else
 	oldspeed = VectorLength( other->client->ps.velocity );
 	if (oldspeed < 200)
@@ -223,25 +219,10 @@ void PushBot( gentity_t *ent, gentity_t *other ) {
 	//
 #if defined(_MSC_VER) && defined(_M_IX86)
 	for (pushAxis = 0; pushAxis < 3; ++pushAxis) {
-		pushOrigin = &ent->r.currentOrigin[pushAxis];
-		pushOtherOrigin = &other->r.currentOrigin[pushAxis];
-		pushComponent = &dir[pushAxis];
-		__asm {
-			mov eax, pushOtherOrigin
-			fld dword ptr [eax]
-			mov eax, pushOrigin
-			fsub dword ptr [eax]
-			mov eax, pushComponent
-			fstp dword ptr [eax]
-		}
+		dir[pushAxis] = (float)((long double)other->r.currentOrigin[pushAxis] -
+            (long double)ent->r.currentOrigin[pushAxis]);
 	}
-	pushComponent = dir;
-	__asm {
-		push pushComponent
-		call VectorNormalize
-		add esp, 4
-		fstp st(0)
-	}
+	(void)VectorNormalize(dir);
 #else
 	VectorSubtract( other->r.currentOrigin, ent->r.currentOrigin, dir );
 	VectorNormalize( dir );
@@ -256,30 +237,20 @@ void PushBot( gentity_t *ent, gentity_t *other ) {
 	for (pushAxis = 0; pushAxis < 3; ++pushAxis) {
 		pushComponent = &f[pushAxis];
 		pushVelocity = &other->client->ps.velocity[pushAxis];
-		__asm {
-			mov eax, pushComponent
-			fld dword ptr [eax]
-			fmul pushMinimum
-			mov eax, pushVelocity
-			fadd dword ptr [eax]
-			fstp dword ptr [eax]
-		}
+		pushForce = (long double)*pushComponent * (long double)pushMinimum;
+		*pushVelocity = (float)(pushForce + (long double)*pushVelocity);
 	}
 	for (pushAxis = 0; pushAxis < 3; ++pushAxis) {
 		/* Original LEA arithmetic wraps at32 bits before signed IDIV. */
-		pushPhase = (int)((unsigned int)level.time + (unsigned int)ent->s.number * 1000u);
+		pushPhaseBits = (unsigned int)ent->s.number * 1000u;
+		pushPhaseBits = (unsigned int)level.time + pushPhaseBits;
+		memcpy(&pushPhase, &pushPhaseBits, sizeof(pushPhase));
 		pushSign = pushPhase % 4000 < 2000 ? 1.0 : -1.0;
 		pushComponent = &r[pushAxis];
 		pushVelocity = &other->client->ps.velocity[pushAxis];
-		__asm {
-			fld pushSign
-			fmul pushSideScale
-			mov eax, pushComponent
-			fmul dword ptr [eax]
-			mov eax, pushVelocity
-			fadd dword ptr [eax]
-			fstp dword ptr [eax]
-		}
+		pushForce = (long double)pushSign * 100.0L;
+		pushForce = pushForce * (long double)*pushComponent;
+		*pushVelocity = (float)(pushForce + (long double)*pushVelocity);
 	}
 #else
 	VectorMA( other->client->ps.velocity, 200, f, other->client->ps.velocity );
@@ -287,39 +258,19 @@ void PushBot( gentity_t *ent, gentity_t *other ) {
 #endif
 	//
 #if defined(_MSC_VER) && defined(_M_IX86)
-	/* TC 20044cce..20044ce5: both operands remain in x87, C0 also
-	 * includes unordered. Do not narrow the returned squared length. */
+	/* Original C0 compares the held square against a broad oldspeed square. */
 	pushVelocity = other->client->ps.velocity;
-	__asm {
-		push pushVelocity
-		call VectorLengthSquared
-		add esp, 4
-		fld oldspeed
-		fmul oldspeed
-		fcompp
-		fnstsw ax
-		mov pushCompare, ax
-	}
-	if (pushCompare & 0x100) {
+	pushSquared = TCE_VectorLengthSquaredValue(pushVelocity);
+	pushSpeedSquared = (long double)oldspeed * (long double)oldspeed;
+	if (!(pushSpeedSquared >= pushSquared)) {
 #else
 	if (VectorLengthSquared( other->client->ps.velocity ) > SQR(oldspeed)) {
 #endif
 #if defined(_MSC_VER) && defined(_M_IX86)
-		pushVelocity = other->client->ps.velocity;
-		__asm {
-			push pushVelocity
-			call VectorNormalize
-			add esp, 4
-			fstp st(0)
-		}
+		(void)VectorNormalize(other->client->ps.velocity);
 		for (pushAxis = 0; pushAxis < 3; ++pushAxis) {
 			pushVelocity = &other->client->ps.velocity[pushAxis];
-			__asm {
-				fld oldspeed
-				mov eax, pushVelocity
-				fmul dword ptr [eax]
-				fstp dword ptr [eax]
-			}
+			*pushVelocity = (float)((long double)oldspeed * (long double)*pushVelocity);
 		}
 #else
 		VectorNormalize( other->client->ps.velocity );
@@ -330,13 +281,8 @@ void PushBot( gentity_t *ent, gentity_t *other ) {
 	// also, if "ent" is a bot, tell "other" to move!
 	if (rand()%50 == 0 && (ent->r.svFlags & SVF_BOT)) {
 #if defined(_MSC_VER) && defined(_M_IX86)
-		__asm {
-			fld oldspeed
-			fcomp pushVoiceLimit
-			fnstsw ax
-			mov pushCompare, ax
-		}
-		if (!(pushCompare & 0x100)) return;
+		/* Original C0 gate also permits unordered to reach the voice call. */
+		if ((long double)oldspeed >= 10.0L) return;
 #else
 		if (!(oldspeed < 10)) return;
 #endif

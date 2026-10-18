@@ -12,6 +12,7 @@
 #include "g_etbot_interface.h"
 #endif
 #include "tce_bullet.h"
+#include "tce_numeric.h"
 
 
 vec3_t	forward, right, up;
@@ -597,45 +598,19 @@ void Weapon_AdrenalineSyringe(gentity_t *ent) {
 void G_ExplodeMissile( gentity_t *ent );
 void DynaSink(gentity_t* self );
 
-/* TC20098f1a..98f97: clamp by C0 and retain the enlarged radius in ST0. */
+/* Radius candidate value paths; x87/compiler precision and flags remain open. */
 static void G_TCERadiusCandidateBounds( const vec3_t radiusOrigin, float *candidateRadius,
                                       vec3_t candidateMins, vec3_t candidateMaxs ) {
 #if defined(_MSC_VER) && defined(_M_IX86)
-    const float radiusMinimum = 1.0f;
-    const double radiusExpansion = 1.41421356;
-    __asm {
-        mov edx, candidateRadius
-        fld dword ptr [edx]
-        fcomp dword ptr radiusMinimum
-        fnstsw ax
-        test ah, 1
-        jz radius_bounds_ready
-        mov dword ptr [edx], 03f800000h
-radius_bounds_ready:
-        fld dword ptr [edx]
-        fmul qword ptr radiusExpansion
-        mov eax, radiusOrigin
-        mov ecx, candidateMins
-        mov edx, candidateMaxs
-        fld dword ptr [eax]
-        fsub st(0), st(1)
-        fstp dword ptr [ecx]
-        fld st(0)
-        fadd dword ptr [eax]
-        fstp dword ptr [edx]
-        fld dword ptr [eax+4]
-        fsub st(0), st(1)
-        fstp dword ptr [ecx+4]
-        fld st(0)
-        fadd dword ptr [eax+4]
-        fstp dword ptr [edx+4]
-        fld dword ptr [eax+8]
-        fsub st(0), st(1)
-        fstp dword ptr [ecx+8]
-        fld st(0)
-        fadd dword ptr [eax+8]
-        fstp dword ptr [edx+8]
-        fstp st(0)
+    const double expansion = 1.41421356;
+    volatile float *mins = candidateMins, *maxs = candidateMaxs;
+    long double expanded;
+    int axis;
+    if (!(*candidateRadius >= 1.0f)) *(volatile float *)candidateRadius = 1.0f;
+    expanded = (long double)*candidateRadius * (long double)expansion;
+    for (axis = 0; axis < 3; ++axis) {
+        mins[axis] = (float)((long double)radiusOrigin[axis] - expanded);
+        maxs[axis] = (float)(expanded + (long double)radiusOrigin[axis]);
     }
 #else
     int radiusAxis;
@@ -649,67 +624,29 @@ radius_bounds_ready:
 #endif
 }
 
-/* Windows2009901e..56: unordered first comparison takes the lower-bound arm. */
 static void G_TCERadiusAxisDistance( float axisOrigin, float axisMin, float axisMax, float *axisDistance ) {
 #if defined(_MSC_VER) && defined(_M_IX86)
-    __asm {
-        mov edx, axisDistance
-        fld dword ptr axisOrigin
-        fcomp dword ptr axisMin
-        fnstsw ax
-        test ah, 1
-        jz radius_axis_upper
-        fld dword ptr axisMin
-        fsub dword ptr axisOrigin
-        fstp dword ptr [edx]
-        jmp radius_axis_done
-radius_axis_upper:
-        fld dword ptr axisOrigin
-        fcomp dword ptr axisMax
-        fnstsw ax
-        test ah, 041h
-        jnz radius_axis_zero
-        fld dword ptr axisOrigin
-        fsub dword ptr axisMax
-        fstp dword ptr [edx]
-        jmp radius_axis_done
-radius_axis_zero:
-        mov dword ptr [edx], 0
-radius_axis_done:
-    }
+    volatile float *stored = axisDistance;
+    if (!(axisOrigin >= axisMin))
+        *stored = (float)((long double)axisMin - (long double)axisOrigin);
+    else if (axisOrigin > axisMax)
+        *stored = (float)((long double)axisOrigin - (long double)axisMax);
+    else
+        *stored = 0.0f;
 #else
     *axisDistance = axisOrigin < axisMin ? axisMin - axisOrigin :
                     axisOrigin > axisMax ? axisOrigin - axisMax : 0.0f;
 #endif
 }
 
-/* Consume the actual VectorLength ST0 return without a C float-result spill. */
 static qboolean G_TCERadiusLengthGate( const vec3_t radiusDelta, float radiusLimit, qboolean closeGate ) {
 #if defined(_MSC_VER) && defined(_M_IX86)
-    const float closeScale = 0.2f;
-    unsigned short radiusStatus;
-    if( closeGate ) {
-        __asm {
-            push radiusDelta
-            call VectorLength
-            fld dword ptr radiusLimit
-            fmul dword ptr closeScale
-            add esp, 4
-            fcompp
-            fnstsw ax
-            mov radiusStatus, ax
-        }
-        return (radiusStatus & 0x4100) == 0;
+    long double distance = TCE_VectorLengthValue(radiusDelta);
+    if (closeGate) {
+        long double threshold = (long double)radiusLimit * (long double)0.2f;
+        return threshold > distance; /* C0/C3 clear: ordered greater only. */
     }
-    __asm {
-        push radiusDelta
-        call VectorLength
-        fcomp dword ptr radiusLimit
-        add esp, 4
-        fnstsw ax
-        mov radiusStatus, ax
-    }
-    return (radiusStatus & 0x100) != 0;
+    return !(distance >= (long double)radiusLimit); /* C0 includes unordered. */
 #else
     float radiusDistance = VectorLength( radiusDelta );
     return closeGate ? radiusDistance < radiusLimit * 0.2f : !(radiusDistance >= radiusLimit);
@@ -718,33 +655,19 @@ static qboolean G_TCERadiusLengthGate( const vec3_t radiusDelta, float radiusLim
 
 static void G_TCERadiusMidpoint( const vec3_t radiusMin, const vec3_t radiusMax, vec3_t radiusMidpoint ) {
 #if defined(_MSC_VER) && defined(_M_IX86)
-    const double midpointHalf = 0.5;
-    float midpointY, midpointZ;
-    __asm {
-        mov eax, radiusMax
-        mov ecx, radiusMin
-        mov edx, radiusMidpoint
-        fld dword ptr [eax]
-        fadd dword ptr [ecx]
-        fld dword ptr [eax+4]
-        fadd dword ptr [ecx+4]
-        fstp dword ptr midpointY
-        fld dword ptr [eax+8]
-        fadd dword ptr [ecx+8]
-        fstp dword ptr midpointZ
-        fmul qword ptr midpointHalf
-        fld dword ptr midpointY
-        fmul qword ptr midpointHalf
-        fstp dword ptr midpointY
-        fld dword ptr midpointZ
-        fmul qword ptr midpointHalf
-        mov eax, midpointY
-        mov dword ptr [edx+4], eax
-        fstp dword ptr midpointZ
-        mov ecx, midpointZ
-        fstp dword ptr [edx]
-        mov dword ptr [edx+8], ecx
-    }
+    volatile float y, z;
+    volatile float *stored = radiusMidpoint;
+    long double x, zProduct;
+    x = (long double)radiusMax[0] + (long double)radiusMin[0];
+    y = (float)((long double)radiusMax[1] + (long double)radiusMin[1]);
+    z = (float)((long double)radiusMax[2] + (long double)radiusMin[2]);
+    x = x * 0.5L;
+    y = (float)((long double)y * 0.5L);
+    zProduct = (long double)z * 0.5L;
+    stored[1] = y;
+    z = (float)zProduct;
+    stored[0] = (float)x;
+    stored[2] = z;
 #else
     VectorAdd( radiusMin, radiusMax, radiusMidpoint );
     VectorScale( radiusMidpoint, 0.5f, radiusMidpoint );
@@ -753,15 +676,7 @@ static void G_TCERadiusMidpoint( const vec3_t radiusMin, const vec3_t radiusMax,
 
 static qboolean G_TCERadiusTraceBlocked( float radiusFraction ) {
 #if defined(_MSC_VER) && defined(_M_IX86)
-    const double traceComplete = 1.0;
-    unsigned short radiusStatus;
-    __asm {
-        fld dword ptr radiusFraction
-        fcomp qword ptr traceComplete
-        fnstsw ax
-        mov radiusStatus, ax
-    }
-    return (radiusStatus & 0x100) != 0;
+    return !(radiusFraction >= 1.0f); /* less or unordered as original C0. */
 #else
     return radiusFraction < 1.0f;
 #endif
@@ -1039,184 +954,88 @@ static void HandleEntsThatBlockConstructible( gentity_t *constructor, gentity_t 
 // !! NOTE !!: if the conditions here of a buildable constructible change, then BotIsConstructible() must reflect those changes
 
 // returns qfalse when it couldn't build
-/* TC2009b379..2009b3a2: store progress but compare the retained ST0 sum. */
+/* Extracted construction value stages. Exact x87 precision/flags remain open. */
 static qboolean G_TCEAdvanceConstruction(int constructionDuration, float *constructionProgress) {
 #if defined(_MSC_VER) && defined(_M_IX86)
-	const float constructionScale = 0.01f;
-	const float constructionAmount = 255.0f, constructionThreshold = 250.0f;
-	int constructionComplete;
-	__asm {
-		mov edx, constructionProgress
-		fild constructionDuration
-		fmul constructionScale
-		fdivr constructionAmount
-		fadd dword ptr [edx]
-		fst dword ptr [edx]
-		fcomp constructionThreshold
-		fnstsw ax
-		test ah, 1
-		setz al
-		movzx eax, al
-		mov constructionComplete, eax
-	}
-	return constructionComplete;
+    const float scale = 0.01f;
+    long double value = (long double)constructionDuration * (long double)scale;
+    value = (long double)255.0f / value;
+    value = value + (long double)*constructionProgress;
+    *(volatile float *)constructionProgress = (float)value;
+    /* FST does not narrow the held operand used by FCOMP. */
+    return value >= (long double)250.0f;
 #else
-	*constructionProgress += 255.f / (constructionDuration / (float)FRAMETIME);
-	return *constructionProgress >= 250.f;
+    *constructionProgress += 255.f / (constructionDuration / (float)FRAMETIME);
+    return *constructionProgress >= 250.f;
 #endif
 }
-
-#if defined(_MSC_VER) && defined(_M_IX86)
-/* Original __ftol200a23e0 consumes ST0 and returns the low signed dword.
- * Keep any older x87 stack entries alive (the updated marker's Z sum). */
-static __declspec(naked) int G_TCEConstructionFtol(void) {
-	__asm {
-		sub esp, 12
-		fwait
-		fnstcw word ptr [esp + 10]
-		fwait
-		mov ax, word ptr [esp + 10]
-		or ax, 0c00h
-		mov word ptr [esp + 8], ax
-		fldcw word ptr [esp + 8]
-		fistp qword ptr [esp]
-		fldcw word ptr [esp + 10]
-		mov eax, dword ptr [esp]
-		add esp, 12
-		ret
-	}
-}
-#endif
 
 static int G_TCEConstructionScore(float constructionScore) {
 #if defined(_MSC_VER) && defined(_M_IX86)
-	int scoreInteger;
-	__asm {
-		fld constructionScore
-		call G_TCEConstructionFtol
-		mov scoreInteger, eax
-	}
-	return scoreInteger;
+    return TCE_TruncateNativeInteger((long double)constructionScore);
 #else
-	return (int)constructionScore;
+    return (int)constructionScore;
 #endif
 }
 
 static void G_TCEConstructionSoundCenter(const vec3_t centerMins, const vec3_t centerMaxs, vec3_t centerResult) {
 #if defined(_MSC_VER) && defined(_M_IX86)
-	const float centerHalf = 0.5f;
-	__asm {
-		mov edx, centerMins
-		mov ecx, centerMaxs
-		mov eax, centerResult
-		fld dword ptr [ecx]
-		fadd dword ptr [edx]
-		fstp dword ptr [eax]
-		fld dword ptr [ecx + 4]
-		fadd dword ptr [edx + 4]
-		fstp dword ptr [eax + 4]
-		fld dword ptr [ecx + 8]
-		fadd dword ptr [edx + 8]
-		fld dword ptr [eax]
-		fmul centerHalf
-		fstp dword ptr [eax]
-		fld dword ptr [eax + 4]
-		fmul centerHalf
-		fstp dword ptr [eax + 4]
-		fmul centerHalf
-		fstp dword ptr [eax + 8]
-	}
+    volatile float *stored = centerResult;
+    long double z;
+    stored[0] = (float)((long double)centerMaxs[0] + (long double)centerMins[0]);
+    stored[1] = (float)((long double)centerMaxs[1] + (long double)centerMins[1]);
+    z = (long double)centerMaxs[2] + (long double)centerMins[2];
+    stored[0] = (float)((long double)stored[0] * (long double)0.5f);
+    stored[1] = (float)((long double)stored[1] * (long double)0.5f);
+    stored[2] = (float)(z * (long double)0.5f);
 #else
-	VectorAdd(centerMins, centerMaxs, centerResult);
-	VectorScale(centerResult, 0.5f, centerResult);
+    VectorAdd(centerMins, centerMaxs, centerResult);
+    VectorScale(centerResult, 0.5f, centerResult);
 #endif
 }
 
 static void G_TCEConstructionSnap(vec3_t snapPosition) {
 #if defined(_MSC_VER) && defined(_M_IX86)
-	int snapInteger;
-	__asm {
-		mov ecx, snapPosition
-		fld dword ptr [ecx]
-		call G_TCEConstructionFtol
-		mov snapInteger, eax
-		fild snapInteger
-		fstp dword ptr [ecx]
-		fld dword ptr [ecx + 4]
-		call G_TCEConstructionFtol
-		mov snapInteger, eax
-		fild snapInteger
-		fstp dword ptr [ecx + 4]
-		fld dword ptr [ecx + 8]
-		call G_TCEConstructionFtol
-		mov snapInteger, eax
-		fild snapInteger
-		fstp dword ptr [ecx + 8]
-	}
+    volatile float *stored = snapPosition;
+    int axis;
+    for (axis = 0; axis < 3; ++axis) {
+        int value = TCE_TruncateNativeInteger((long double)stored[axis]);
+        stored[axis] = (float)value;
+    }
 #else
-	SnapVector(snapPosition);
+    SnapVector(snapPosition);
 #endif
 }
 
-/* Updated markers retain their Z sum through the X/Y conversions. */
 static void G_TCEConstructionUpdateCenter(const vec3_t markerMins, const vec3_t markerMaxs, vec3_t markerPosition) {
 #if defined(_MSC_VER) && defined(_M_IX86)
-	const double markerHalf = 0.5;
-	int markerInteger;
-	__asm {
-		mov edx, markerMins
-		mov ecx, markerMaxs
-		mov eax, markerPosition
-		fld dword ptr [ecx]
-		fadd dword ptr [edx]
-		fstp dword ptr [eax]
-		fld dword ptr [ecx + 4]
-		fadd dword ptr [edx + 4]
-		fstp dword ptr [eax + 4]
-		fld dword ptr [ecx + 8]
-		fadd dword ptr [edx + 8]
-		fst dword ptr [eax + 8]
-		mov ecx, eax
-		fld dword ptr [ecx]
-		fmul markerHalf
-		call G_TCEConstructionFtol
-		mov markerInteger, eax
-		fild markerInteger
-		fstp dword ptr [ecx]
-		fld dword ptr [ecx + 4]
-		fmul markerHalf
-		call G_TCEConstructionFtol
-		mov markerInteger, eax
-		fild markerInteger
-		fstp dword ptr [ecx + 4]
-		fmul markerHalf
-		call G_TCEConstructionFtol
-		mov markerInteger, eax
-		fild markerInteger
-		fstp dword ptr [ecx + 8]
-	}
+    volatile float *stored = markerPosition;
+    long double z;
+    int value;
+    stored[0] = (float)((long double)markerMaxs[0] + (long double)markerMins[0]);
+    stored[1] = (float)((long double)markerMaxs[1] + (long double)markerMins[1]);
+    z = (long double)markerMaxs[2] + (long double)markerMins[2];
+    stored[2] = (float)z;
+    value = TCE_TruncateNativeInteger((long double)stored[0] * 0.5L);
+    stored[0] = (float)value;
+    value = TCE_TruncateNativeInteger((long double)stored[1] * 0.5L);
+    stored[1] = (float)value;
+    /* Original Z stays broad across the earlier conversions and stores. */
+    value = TCE_TruncateNativeInteger(z * 0.5L);
+    stored[2] = (float)value;
 #else
-	VectorAdd(markerMins, markerMaxs, markerPosition);
-	VectorScale(markerPosition, 0.5f, markerPosition);
-	SnapVector(markerPosition);
+    VectorAdd(markerMins, markerMaxs, markerPosition);
+    VectorScale(markerPosition, 0.5f, markerPosition);
+    SnapVector(markerPosition);
 #endif
 }
 
-/* Original prefix branches select C0/C3 directly, including unordered. */
+/* Only comparison condition bits are consumed by these private call sites. */
 static unsigned int G_TCEConstructionCompare(float constructionLeft, float constructionRight) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-	unsigned short constructionStatus;
-	__asm {
-		fld constructionLeft
-		fcomp constructionRight
-		fnstsw constructionStatus
-	}
-	return constructionStatus;
-#else
-	if (constructionLeft != constructionLeft || constructionRight != constructionRight) return 0x4500u;
-	if (constructionLeft < constructionRight) return 0x100u;
-	return constructionLeft == constructionRight ? 0x4000u : 0u;
-#endif
+    if (TCE_FloatIsNaN(constructionLeft) || TCE_FloatIsNaN(constructionRight))
+        return 0x4500u;
+    if (constructionLeft < constructionRight) return 0x100u;
+    return constructionLeft == constructionRight ? 0x4000u : 0u;
 }
 
 static qboolean TryConstructing( gentity_t *ent ) {
@@ -2422,117 +2241,76 @@ void G_GlobalClientEvent( int event, int param, int client ) {
 Weapon_Artillery
 ==================
 */
-/* TC2009cea5..2009cebd retains the charge product until __ftol64. */
+/* Extracted TC artillery arithmetic; original parent remains under audit.
+ * Broad C stages model retained values, not exact x87 precision/flags. */
 static int G_TCEArtilleryChargeTime( int artilleryTime, int artilleryCharge ) {
 #if defined(_MSC_VER) && defined(_M_IX86)
-	const float artilleryFraction = 0.66f;
-	int artilleryResult;
-	__asm {
-		fild dword ptr artilleryCharge
-		fmul artilleryFraction
-		fiadd dword ptr artilleryTime
-		call G_TCEConstructionFtol
-		mov artilleryResult, eax
-	}
-	return artilleryResult;
+    const float artilleryFraction = 0.66f;
+    long double value = (long double)artilleryCharge * (long double)artilleryFraction;
+    value = value + (long double)artilleryTime;
+    return TCE_TruncateNativeInteger(value);
 #else
-	return artilleryTime + 0.66f * artilleryCharge;
+    return artilleryTime + 0.66f * artilleryCharge;
 #endif
 }
 
-/* TC2009cb43..cbda; rand state belongs to the existing CRT boundary. */
 static int G_TCEArtilleryShellTime( int artilleryIndex ) {
-	int artilleryRandom = rand() & 0x7fff;
-	int artilleryBase = (int)((unsigned int)level.time + 8950u + 2000u * (unsigned int)artilleryIndex);
+    int artilleryRandom = rand() & 0x7fff;
+    unsigned int baseBits = (unsigned int)level.time + 8950u
+                          + 2000u * (unsigned int)artilleryIndex;
+    int artilleryBase;
+    memcpy(&artilleryBase, &baseBits, sizeof(artilleryBase));
 #if defined(_MSC_VER) && defined(_M_IX86)
-	const float artilleryReciprocal = 3.0518509447574615e-05f;
-	const double artilleryHalf = 0.5, artilleryJitter = 800.0;
-	int artilleryResult;
-	__asm {
-		fild dword ptr artilleryRandom
-		fmul artilleryReciprocal
-		fsub qword ptr artilleryHalf
-		fadd st(0), st(0)
-		fmul qword ptr artilleryJitter
-		fild dword ptr artilleryBase
-		faddp st(1), st(0)
-		call G_TCEConstructionFtol
-		mov artilleryResult, eax
-	}
-	return artilleryResult;
+    {
+        const float artilleryReciprocal = 3.0518509447574615e-05f;
+        long double value = (long double)artilleryRandom * (long double)artilleryReciprocal;
+        value = value - 0.5L;
+        value = value + value;
+        value = value * 800.0L;
+        value = value + (long double)artilleryBase;
+        return TCE_TruncateNativeInteger(value);
+    }
 #else
-	return artilleryBase + (2.0f * ((float)artilleryRandom / 32767.0f - 0.5f)) * 800.0f;
+    return artilleryBase + (2.0f * ((float)artilleryRandom / 32767.0f - 0.5f)) * 800.0f;
 #endif
 }
 
-/* TC2009cc35..ccd7 stores each scaled offset once, after the f64 multiply. */
 static void G_TCEArtilleryOffset( float *artilleryDestination, double artilleryRadius ) {
-	int artilleryRandom = rand() & 0x7fff;
+    int artilleryRandom = rand() & 0x7fff;
 #if defined(_MSC_VER) && defined(_M_IX86)
-	const float artilleryReciprocal = 3.0518509447574615e-05f;
-	const double artilleryHalf = 0.5;
-	__asm {
-		fild dword ptr artilleryRandom
-		fmul artilleryReciprocal
-		fsub qword ptr artilleryHalf
-		fadd st(0), st(0)
-		fmul qword ptr artilleryRadius
-		mov eax, artilleryDestination
-		fstp dword ptr [eax]
-	}
+    const float artilleryReciprocal = 3.0518509447574615e-05f;
+    long double value = (long double)artilleryRandom * (long double)artilleryReciprocal;
+    value = value - 0.5L;
+    value = value + value;
+    value = value * (long double)artilleryRadius;
+    *(volatile float *)artilleryDestination = (float)value;
 #else
-	*artilleryDestination = (2.0f * ((float)artilleryRandom / 32767.0f - 0.5f)) * artilleryRadius;
+    *artilleryDestination = (2.0f * ((float)artilleryRandom / 32767.0f - 0.5f)) * artilleryRadius;
 #endif
 }
 
-/* TC2009c88e..c8f6: integer height and retained direction multiply/add. */
 static void G_TCEArtilleryAim( vec3_t artilleryMuzzle, int artilleryHeight,
-							const vec3_t artilleryForward, vec3_t artilleryEnd ) {
+                             const vec3_t artilleryForward, vec3_t artilleryEnd ) {
 #if defined(_MSC_VER) && defined(_M_IX86)
-	const float artilleryRange = 8192.0f;
-	int artilleryAxis;
-	float *artilleryZ = &artilleryMuzzle[2];
-	__asm {
-		mov eax, artilleryZ
-		fild dword ptr artilleryHeight
-		fadd dword ptr [eax]
-		fstp dword ptr [eax]
-	}
-	for (artilleryAxis = 0; artilleryAxis < 3; ++artilleryAxis) {
-		const float *artilleryDirection = &artilleryForward[artilleryAxis];
-		const float *artilleryOrigin = &artilleryMuzzle[artilleryAxis];
-		float *artilleryTarget = &artilleryEnd[artilleryAxis];
-		__asm {
-			mov eax, artilleryDirection
-			fld dword ptr [eax]
-			fmul artilleryRange
-			mov eax, artilleryOrigin
-			fadd dword ptr [eax]
-			mov eax, artilleryTarget
-			fstp dword ptr [eax]
-		}
-	}
+    int axis;
+    long double value = (long double)artilleryHeight + (long double)artilleryMuzzle[2];
+    ((volatile float *)artilleryMuzzle)[2] = (float)value;
+    for (axis = 0; axis < 3; ++axis) {
+        value = (long double)artilleryForward[axis] * (long double)8192.0f;
+        value = value + (long double)artilleryMuzzle[axis];
+        ((volatile float *)artilleryEnd)[axis] = (float)value;
+    }
 #else
-	artilleryMuzzle[2] += artilleryHeight;
-	VectorMA(artilleryMuzzle, 8192, artilleryForward, artilleryEnd);
+    artilleryMuzzle[2] += artilleryHeight;
+    VectorMA(artilleryMuzzle, 8192, artilleryForward, artilleryEnd);
 #endif
 }
 
+/* Only C0/C2/C3 are represented: callers mask C0 or C3, not exception flags. */
 static unsigned int G_TCEArtilleryTraceStatus( float artilleryFraction ) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-	const double artilleryFullTrace = 1.0;
-	unsigned short artilleryStatus;
-	__asm {
-		fld artilleryFraction
-		fcomp qword ptr artilleryFullTrace
-		fnstsw artilleryStatus
-	}
-	return artilleryStatus;
-#else
-	if (artilleryFraction != artilleryFraction) return 0x4500u;
-	if (artilleryFraction < 1.0f) return 0x100u;
-	return artilleryFraction == 1.0f ? 0x4000u : 0u;
-#endif
+    if (TCE_FloatIsNaN(artilleryFraction)) return 0x4500u;
+    if (artilleryFraction < 1.0f) return 0x100u;
+    return artilleryFraction == 1.0f ? 0x4000u : 0u;
 }
 
 void Weapon_Artillery(gentity_t *ent) {

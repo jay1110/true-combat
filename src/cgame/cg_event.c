@@ -6,100 +6,53 @@
 #include "tce_flash.h"
 #include "tce_smoke_grenade.h"
 #include "tce_fragment_sound.h"
+#include "../game/tce_numeric.h"
 
 extern void CG_StartShakeCamera( float param );
 extern void CG_ToggleAiming(void);
 extern void CG_Tracer( vec3_t source, vec3_t dest, int sparks );
 extern void CG_AddBulletParticles( vec3_t origin, vec3_t dir, int speed, int duration, int count, float randScale );
-#if defined(_MSC_VER) && defined(_M_IX86)
-/* TC 30088628: ST0 to signed64, with the caller consuming EAX. */
-static __declspec(naked) void CG_EventTruncateST0(void) {
-    __asm {
-        push ebp
-        mov ebp, esp
-        add esp, -12
-        fwait
-        fnstcw word ptr [ebp-2]
-        fwait
-        mov ax, word ptr [ebp-2]
-        or ah, 0ch
-        mov word ptr [ebp-4], ax
-        fldcw word ptr [ebp-4]
-        fistp qword ptr [ebp-12]
-        fldcw word ptr [ebp-2]
-        mov eax, dword ptr [ebp-12]
-        mov edx, dword ptr [ebp-8]
-        leave
-        ret
-    }
-}
-#endif
 
 #if defined(_MSC_VER) && defined(_M_IX86)
 /* Extracted Windows event expression; native helper, not an original body. */
 static int CG_EventGlobalSoundVolume(void) {
-	static const float globalSoundScale = 127.0f;
-	float *globalSoundDeafness = &tceFlash.deafness;
-	int globalSoundVolume;
-	__asm {
-		fld1
-		mov eax, globalSoundDeafness
-		fsub dword ptr [eax]
-		fmul globalSoundScale
-		call CG_EventTruncateST0
-		mov globalSoundVolume, eax
-	}
-	return globalSoundVolume;
+    long double volume = 1.0L - (long double)tceFlash.deafness;
+    volume = volume * (long double)127.0f;
+    /* Original __ftol truncates to signed64 and consumers use its low32.
+     * This models result bits, not x87 precision or exception side effects. */
+    return TCE_TruncateNativeInteger(volume);
 }
 
+#endif
+
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
 /* Shared expression from TC30038bb5 and30038ce9; not a separate original body. */
 static int CG_EventFiveSoundChoice(void) {
-	int soundRandom = rand() & 0x7fff;
-	int soundChoice;
-	float soundSample;
-	static const float soundRandomScale = 3.0518509447574615e-05f;
-	static const float soundFive = 5.0f, soundOne = 1.0f;
-	static const float soundTwo = 2.0f, soundThree = 3.0f, soundFour = 4.0f;
-	__asm {
-		fild soundRandom
-		fmul soundRandomScale
-		fmul soundFive
-		fst soundSample
-		fcomp soundOne
-		fnstsw ax
-		test ah, 1
-		jnz soundChoiceZero
-		fld soundSample
-		fcomp soundTwo
-		fnstsw ax
-		test ah, 1
-		jnz soundChoiceOne
-		fld soundSample
-		fcomp soundThree
-		fnstsw ax
-		test ah, 1
-		jnz soundChoiceTwo
-		fld soundSample
-		fcomp soundFour
-		fnstsw ax
-		test ah, 1
-		jnz soundChoiceThree
-		mov soundChoice, 4
-		jmp soundChoiceDone
-	soundChoiceZero:
-		mov soundChoice, 0
-		jmp soundChoiceDone
-	soundChoiceOne:
-		mov soundChoice, 1
-		jmp soundChoiceDone
-	soundChoiceTwo:
-		mov soundChoice, 2
-		jmp soundChoiceDone
-	soundChoiceThree:
-		mov soundChoice, 3
-	soundChoiceDone:
-	}
-	return soundChoice;
+    int soundRandom = rand() & 0x7fff;
+    long double sample;
+#if defined(__linux__)
+    static const float soundFiveScale = 0.00015259254723787308f;
+    /* Linux multiplies once and retains the broad sample at every gate. */
+    sample = (long double)soundRandom * (long double)soundFiveScale;
+    if (!(sample >= 1.0L)) return 0;
+    if (!(sample >= 2.0L)) return 1;
+    if (!(sample >= 3.0L)) return 2;
+    if (!(sample >= 4.0L)) return 3;
+#else
+    static const float soundRandomScale = 3.0518509447574615e-05f;
+    volatile float storedSample;
+    sample = (long double)soundRandom * (long double)soundRandomScale;
+    sample = sample * 5.0L;
+    /* Windows FST preserves the held value for the first comparison. Later
+     * comparisons reload the Float store. C0 includes unordered results.
+     * Exact x87 precision/exception behavior remains unverified. */
+    storedSample = (float)sample;
+    if (!(sample >= 1.0L)) return 0;
+    if (!(storedSample >= 2.0f)) return 1;
+    if (!(storedSample >= 3.0f)) return 2;
+    if (!(storedSample >= 4.0f)) return 3;
+#endif
+    return 4;
 }
 #endif
 //==========================================================================
@@ -1134,15 +1087,13 @@ void CG_ShardJunk (centity_t *cent, vec3_t origin, vec3_t dir)
 {
 	localEntity_t	*le;
 	refEntity_t		*re;
+	unsigned int timeBits;
 #if defined(_MSC_VER) && defined(_M_IX86)
 	int sample, baseTime, duration, axis;
-	float *shardOutput;
-	unsigned short savedCW, truncCW;
-	__int64 converted;
+	long double value;
 	static const float randomUnit = 0.000030518509447574615f;
 	static const float lifetime = 5000.0f, speed = 80.0f;
 	static const float spread = 100.0f, bias = 50.0f;
-	static const double one = 1.0;
 #endif
 	(void)cent; /* Original does not dereference this argument. */
 
@@ -1153,39 +1104,26 @@ void CG_ShardJunk (centity_t *cent, vec3_t origin, vec3_t dir)
 	le->startTime			= cg.time;
 #if defined(_MSC_VER) && defined(_M_IX86)
 	sample = rand() & 32767;
-	baseTime = (int)((unsigned)le->startTime + 5000u);
-	/* Original retained x87 value is consumed by __ftol, not a float cast. */
-	__asm {
-		fild sample
-		fmul randomUnit
-		fmul lifetime
-		fiadd baseTime
-		fstcw savedCW
-		fwait
-		mov ax, savedCW
-		or ah, 0ch
-		mov truncCW, ax
-		fldcw truncCW
-		fistp converted
-		fldcw savedCW
-	}
-	le->endTime = (int)converted;
+	timeBits = (unsigned int)le->startTime + 5000u;
+	memcpy(&baseTime, &timeBits, sizeof(baseTime));
+	/* Keep arithmetic stages broad through signed64/low32 conversion.
+	 * C precision and exception behavior are not proven x87-identical. */
+	value = (long double)sample * (long double)randomUnit;
+	value = value * (long double)lifetime;
+	value = value + (long double)baseTime;
+	le->endTime = TCE_TruncateNativeInteger(value);
 #else
 	le->endTime = le->startTime + 5000 + random() * 5000;
 #endif
 
-	re->fadeStartTime = (int)((unsigned)le->endTime - 1000u);
+	timeBits = (unsigned int)le->endTime - 1000u;
+	memcpy(&re->fadeStartTime, &timeBits, sizeof(re->fadeStartTime));
 	re->fadeEndTime			= le->endTime;
 
 #if defined(_MSC_VER) && defined(_M_IX86)
-	duration = (int)((unsigned)le->endTime - (unsigned)le->startTime);
-	shardOutput = &le->lifeRate;
-	__asm {
-		mov eax, shardOutput
-		fild duration
-		fdivr one
-		fstp dword ptr [eax]
-	}
+	timeBits = (unsigned int)le->endTime - (unsigned int)le->startTime;
+	memcpy(&duration, &timeBits, sizeof(duration));
+	le->lifeRate = (float)(1.0L / (long double)duration);
 #else
 	le->lifeRate = 1.0/(le->endTime - le->startTime);
 #endif
@@ -1203,20 +1141,8 @@ void CG_ShardJunk (centity_t *cent, vec3_t origin, vec3_t dir)
 	VectorCopy( origin, le->pos.trBase );
 	VectorNormalize(dir);
 #if defined(_MSC_VER) && defined(_M_IX86)
-	shardOutput = le->pos.trDelta;
-	__asm {
-		mov eax, dir
-		mov edx, shardOutput
-		fld dword ptr [eax]
-		fmul speed
-		fstp dword ptr [edx]
-		fld dword ptr [eax+4]
-		fmul speed
-		fstp dword ptr [edx+4]
-		fld dword ptr [eax+8]
-		fmul speed
-		fstp dword ptr [edx+8]
-	}
+	for (axis = 0; axis < 3; ++axis)
+		le->pos.trDelta[axis] = (float)((long double)dir[axis] * (long double)speed);
 #else
 	VectorScale(dir, 80, le->pos.trDelta);
 #endif
@@ -1224,28 +1150,16 @@ void CG_ShardJunk (centity_t *cent, vec3_t origin, vec3_t dir)
 #if defined(_MSC_VER) && defined(_M_IX86)
 	for (axis = 0; axis < 2; ++axis) {
 		sample = rand() & 32767;
-		shardOutput = &le->pos.trDelta[axis];
-		__asm {
-			mov eax, shardOutput
-			fild sample
-			fmul randomUnit
-			fmul spread
-			fsub bias
-			fadd dword ptr [eax]
-			fstp dword ptr [eax]
-		}
+		value = (long double)sample * (long double)randomUnit;
+		value = value * (long double)spread;
+		value = value - (long double)bias;
+		le->pos.trDelta[axis] = (float)(value + (long double)le->pos.trDelta[axis]);
 	}
 	sample = rand() & 32767;
 	le->angles.trType = TR_LINEAR;
-	shardOutput = &le->pos.trDelta[2];
-	__asm {
-		mov eax, shardOutput
-		fild sample
-		fmul randomUnit
-		fmul spread
-		fadd bias
-		fstp dword ptr [eax]
-	}
+	value = (long double)sample * (long double)randomUnit;
+	value = value * (long double)spread;
+	le->pos.trDelta[2] = (float)(value + (long double)bias);
 #else
 	le->pos.trDelta[0] += ((random() * 100) - 50);
 	le->pos.trDelta[1] += ((random() * 100) - 50);
@@ -1538,7 +1452,7 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
         int choice;
         DEBUGNAME("EV_TOUCH_FENCE");
         if(tceEventVolume) {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
             choice=CG_EventFiveSoundChoice();
 #else
             /* Original random()*5 uses the final slot for the endpoint too. */
@@ -1613,10 +1527,11 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		DEBUGNAME("EV_STEP");
 	{
 		int		delta;
+		unsigned int stepBits;
 		int		step;
 #if defined(_MSC_VER) && defined(_M_IX86)
 		float *stepOutput = &cg.stepChange;
-		static const float stepDecay = 0.005f, stepZero = 0.0f, stepMaximum = 32.0f;
+		static const float stepDecay = 0.005f, stepMaximum = 32.0f;
 		int stepRemaining;
 #else
 		float oldStep;
@@ -1631,34 +1546,24 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 			break;
 		}
 		// check for stepping up before a previous step is completed
-		delta = (int)((unsigned)cg.time - (unsigned)cg.stepTime);
+		stepBits = (unsigned int)cg.time - (unsigned int)cg.stepTime;
+		memcpy(&delta, &stepBits, sizeof(delta));
 #if defined(_MSC_VER) && defined(_M_IX86)
-		/* TC 300384ce..30038542: retain decay in ST0 until the new step
-		 * is added; only then store binary32 and compare the stored value. */
-		stepRemaining = (int)(200u - (unsigned)delta);
-		step = 4 * (event - EV_STEP_4 + 1);
-		__asm {
-			mov ecx, stepOutput
-			cmp delta, 200
-			jge stepNoPrevious
-			fild stepRemaining
-			fmul dword ptr [ecx]
-			fmul stepDecay
-			jmp stepAddCurrent
-		stepNoPrevious:
-			fld stepZero
-		stepAddCurrent:
-			fild step
-			fadd st(0), st(1)
-			fstp dword ptr [ecx]
-			fstp st(0)
-			fld dword ptr [ecx]
-			fcomp stepMaximum
-			fnstsw ax
-			test ah, 41h
-			jnz stepStoreTime
-			mov dword ptr [ecx], 42000000h
-		stepStoreTime:
+		/* Decay remains broad until step+decay is stored to Float.
+		 * Clamp the stored value; unordered/equal/less must not clamp. */
+		{
+			long double previousStep = 0.0L;
+			volatile float storedStep;
+			step = 4 * (event - EV_STEP_4 + 1);
+			if (delta < 200) {
+				stepBits = 200u - (unsigned int)delta;
+				memcpy(&stepRemaining, &stepBits, sizeof(stepRemaining));
+				previousStep = (long double)stepRemaining * (long double)*stepOutput;
+				previousStep = previousStep * (long double)stepDecay;
+			}
+			storedStep = (float)((long double)step + previousStep);
+			*stepOutput = storedStep;
+			if (*stepOutput > stepMaximum) *stepOutput = stepMaximum;
 		}
 #else
 		if (delta < STEP_TIME) {
@@ -1880,59 +1785,28 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		static const float echoNear = 512.0f, echoFar = 4096.0f, echoOffset = 64.0f;
 		/* TC30039043..300390f8: the normalization return remains on ST0
 		 * through both distance gates. Each echo coordinate has one store. */
-		__asm {
-			mov ecx, echoSource
-			mov edx, echoListener
-			mov eax, echoDirection
-			fld dword ptr [edx]
-			fld dword ptr [ecx]
-			fsub st(0), st(1)
-			fstp dword ptr [eax]
-			fstp st(0)
-			fld dword ptr [ecx+4]
-			fsub dword ptr [edx+4]
-			fstp dword ptr [eax+4]
-			fld dword ptr [ecx+8]
-			fsub dword ptr [edx+8]
-			fstp dword ptr [eax+8]
-			push eax
-			call VectorNormalize
-			fcom echoNear
-			add esp, 4
-			fnstsw ax
-			test ah, 41h
-			jnz echoRejectPop
-			fcomp echoFar
-			fnstsw ax
-			test ah, 1
-			jz echoReject
-			mov echoAudible, 1
-			jmp echoGateDone
-		echoRejectPop:
-			fstp st(0)
-		echoReject:
-			mov echoAudible, 0
-		echoGateDone:
+		{
+			long double distance;
+			volatile float *storedDirection = echoDirection;
+			int axis;
+			for (axis = 0; axis < 3; ++axis)
+				storedDirection[axis] = (float)((long double)echoSource[axis]
+				                               - (long double)echoListener[axis]);
+			distance = TCE_VectorNormalizeValue(echoDirection);
+			echoAudible = distance > (long double)echoNear
+			           && distance < (long double)echoFar;
 		}
 		if (echoAudible) {
 			/* The original reloads refdef_current after VectorNormalize. */
 			echoListener = cg.refdef_current->vieworg;
-			__asm {
-				mov ecx, echoDirection
-				mov edx, echoListener
-				mov eax, echoOrigin
-				fld dword ptr [ecx]
-				fmul echoOffset
-				fadd dword ptr [edx]
-				fstp dword ptr [eax]
-				fld dword ptr [ecx+4]
-				fmul echoOffset
-				fadd dword ptr [edx+4]
-				fstp dword ptr [eax+4]
-				fld dword ptr [ecx+8]
-				fmul echoOffset
-				fadd dword ptr [edx+8]
-				fstp dword ptr [eax+8]
+			{
+				volatile float *storedOrigin = echoOrigin;
+				int axis;
+				for (axis = 0; axis < 3; ++axis) {
+					long double offset = (long double)echoDirection[axis]
+					                   * (long double)echoOffset;
+					storedOrigin[axis] = (float)(offset + (long double)echoListener[axis]);
+				}
 			}
 		}
 #else
@@ -2093,7 +1967,7 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
     case EV_TCE_BULLET_NEAR_MISS: {
         tce_fragmentSoundContext_t context;
         int volume, choice;
-#if !defined(_MSC_VER) || !defined(_M_IX86)
+#if (!defined(_MSC_VER) || !defined(_M_IX86)) && !defined(__linux__)
         float sample;
 #endif
         DEBUGNAME("EV_BULLET_FLYBY");
@@ -2105,7 +1979,7 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
         context.disabled=cg.tcePortalScopeRendering;
         volume=TCE_CG_SoundVolume(es->pos.trBase,127.f,300.f,0,&context);
         if (!volume) break;
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
         choice=CG_EventFiveSoundChoice();
 #else
         sample=(float)(rand()&0x7fff)*(1.f/32767.f)*5.f;
@@ -2183,16 +2057,12 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 			#if defined(_MSC_VER) && defined(_M_IX86)
 			{
 				static const float fxRandomScale = 1.0f / 32767.0f;
+				int fxBank = es->eventParm;
 				int fxRandomBits = rand() & 0x7fff;
-				int *fxMaximum = &fxSounds[ es->eventParm ].max;
-				__asm {
-					fild fxRandomBits
-					fmul fxRandomScale
-					mov eax, fxMaximum
-					fimul dword ptr [eax]
-					call CG_EventTruncateST0
-					mov sound, eax
-				}
+				int *fxMaximum = &fxSounds[ fxBank ].max;
+				long double fxChoice = (long double)fxRandomBits * (long double)fxRandomScale;
+				fxChoice = fxChoice * (long double)*fxMaximum;
+				sound = TCE_TruncateNativeInteger(fxChoice);
 			}
 			#else
 			sound = random()*fxSounds[ es->eventParm ].max;
@@ -2202,24 +2072,19 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 				fxSounds[ es->eventParm ].sound[ sound ] = trap_S_RegisterSound( fxSounds[ es->eventParm ].soundfile[ sound ], qfalse );
 			}
 
-			sound = fxSounds[ es->eventParm ].sound[ sound ];
-
 			#if defined(_MSC_VER) && defined(_M_IX86)
 			{
 				static const float fxVolumeScale = 255.0f;
 				float *fxDeafness = &tceFlash.deafness;
 				int fxVolume;
-				__asm {
-					fld1
-					mov eax, fxDeafness
-					fsub dword ptr [eax]
-					fmul fxVolumeScale
-					call CG_EventTruncateST0
-					mov fxVolume, eax
-				}
+				long double fxScaledVolume = 1.0L - (long double)*fxDeafness;
+				fxScaledVolume = fxScaledVolume * (long double)fxVolumeScale;
+				fxVolume = TCE_TruncateNativeInteger(fxScaledVolume);
+				sound = fxSounds[ es->eventParm ].sound[ sound ];
 				trap_S_StartSoundVControl( NULL, es->number, CHAN_VOICE, sound, fxVolume );
 			}
 			#else
+			sound = fxSounds[ es->eventParm ].sound[ sound ];
 			trap_S_StartSoundVControl( NULL, es->number, CHAN_VOICE, sound, (int)((1.0-(double)tceFlash.deafness)*255.0) );
 			#endif
 		}
@@ -2249,30 +2114,23 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 			// done.
 			if ( cgs.gameSounds[ sound ] ) {
 				#if defined(_MSC_VER) && defined(_M_IX86)
+				int registeredSound = cgs.gameSounds[ sound ];
 				float *eventDeafness = &tceFlash.deafness;
-				__asm {
-					fld1
-					mov eax, eventDeafness
-					fsub dword ptr [eax]
-					fimul eventVolume
-					call CG_EventTruncateST0
-					mov volume, eax
-				}
-				#endif
+				long double eventScaledVolume = 1.0L - (long double)*eventDeafness;
+				eventScaledVolume = eventScaledVolume * (long double)eventVolume;
+				volume = TCE_TruncateNativeInteger(eventScaledVolume);
+				trap_S_StartSoundVControl( NULL, es->number, CHAN_VOICE, registeredSound, volume );
+				#else
 				trap_S_StartSoundVControl( NULL, es->number, CHAN_VOICE, cgs.gameSounds[ sound ], volume );
+				#endif
 			} else {
 				s = CG_ConfigString( CS_SOUNDS + sound );
 				#if defined(_MSC_VER) && defined(_M_IX86)
 				{
 					float *eventDeafness = &tceFlash.deafness;
-					__asm {
-						fld1
-						mov eax, eventDeafness
-						fsub dword ptr [eax]
-						fimul eventVolume
-						call CG_EventTruncateST0
-						mov volume, eax
-					}
+					long double eventScaledVolume = 1.0L - (long double)*eventDeafness;
+					eventScaledVolume = eventScaledVolume * (long double)eventVolume;
+					volume = TCE_TruncateNativeInteger(eventScaledVolume);
 				}
 				#endif
 				trap_S_StartSoundVControl( NULL, es->number, CHAN_VOICE, CG_CustomSound( es->number, s ), volume );
@@ -2561,20 +2419,9 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 			int gunSparkCount = cent->currentState.density;
 			/* Original 3003a227..3003a251: six arguments, signed64
 			 * truncation followed by low32, not a direct signed32 cast. */
-			__asm {
-				mov edx, gunSparkCount
-				mov eax, gunSparkSpeed
-				push 3f800000h
-				fld dword ptr [eax]
-				push edx
-				push 800
-				call CG_EventTruncateST0
-				push eax
-				push gunSparkDirection
-				push gunSparkOrigin
-				call CG_AddBulletParticles
-				add esp, 24
-			}
+			int gunSparkVelocity = TCE_TruncateNativeInteger((long double)*gunSparkSpeed);
+			CG_AddBulletParticles(gunSparkOrigin, gunSparkDirection,
+			                     gunSparkVelocity, 800, gunSparkCount, 1.0f);
 #else
 			int	numsparks;
 			int	speed;
@@ -2666,9 +2513,9 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 		{
 			vec3_t v;
 #if defined(_MSC_VER) && defined(_M_IX86)
-			float *shakePlayerOrigin = cg.snap->ps.origin;
-			float *shakeEventOrigin = cent->lerpOrigin;
-			int *shakeRadius = &cent->currentState.onFireStart;
+			float *shakePlayerOrigin;
+			float *shakeEventOrigin;
+			int *shakeRadius;
 			float shakeStrength;
 			static const float shakeOne = 1.0f;
 #else
@@ -2678,49 +2525,29 @@ void CG_EntityEvent( centity_t *cent, vec3_t position ) {
 			DEBUGNAME("EV_SHAKE");
 #if defined(_MSC_VER) && defined(_M_IX86)
 			/* Original 3003a478..3003a4f9 keeps VectorLength's ST0 return. */
-			__asm {
-				mov eax, shakePlayerOrigin
-				mov edx, shakeEventOrigin
-				lea ecx, v
-				fld dword ptr [eax]
-				fsub dword ptr [edx]
-				fstp dword ptr [ecx]
-				fld dword ptr [eax+4]
-				fsub dword ptr [edx+4]
-				fstp dword ptr [ecx+4]
-				fld dword ptr [eax+8]
-				fsub dword ptr [edx+8]
-				push ecx
-				fstp dword ptr [ecx+8]
-				call VectorLength
-				mov ecx, shakeRadius
-				fild dword ptr [ecx]
-				fld st(1)
-				add esp, 4
-				fcomp st(1)
-				fnstsw ax
-				test ah, 41h
-				jz shakeOutsideRadius
-				fxch st(1)
-				fdiv st(0), st(1)
-				fsubr shakeOne
-				fstp shakeStrength
-				fstp st(0)
-				fld shakeOne
-				fcomp shakeStrength
-				fnstsw ax
-				test ah, 1
-				jz shakeCallCamera
-				mov shakeStrength, 3f800000h
-			shakeCallCamera:
-				push shakeStrength
-				call CG_StartShakeCamera
-				add esp, 4
-				jmp shakeEventDone
-			shakeOutsideRadius:
-				fstp st(0)
-				fstp st(0)
-			shakeEventDone:
+			{
+				long double distance, radius, strength;
+				volatile float *difference = v;
+				volatile float storedStrength;
+				int axis;
+				/* Original pointer loads follow the debug print. */
+				shakePlayerOrigin = cg.snap->ps.origin;
+				shakeEventOrigin = cent->lerpOrigin;
+				shakeRadius = &cent->currentState.onFireStart;
+				for (axis = 0; axis < 3; ++axis)
+					difference[axis] = (float)((long double)shakePlayerOrigin[axis]
+					                          - (long double)shakeEventOrigin[axis]);
+				distance = TCE_VectorLengthValue(v);
+				radius = (long double)*shakeRadius;
+				/* C0/C3 accepts less, equal and unordered. No zero-radius guard. */
+				if (!(distance > radius)) {
+					strength = distance / radius;
+					strength = (long double)shakeOne - strength;
+					storedStrength = (float)strength;
+					shakeStrength = storedStrength;
+					if (!(shakeOne >= shakeStrength)) shakeStrength = shakeOne;
+					CG_StartShakeCamera(shakeStrength);
+				}
 			}
 #else
 			VectorSubtract( cg.snap->ps.origin, cent->lerpOrigin, v );

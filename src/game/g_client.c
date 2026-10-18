@@ -4,6 +4,7 @@
 #include "g_etbot_interface.h"
 #endif
 #include "tce_bg.h"
+#include "tce_numeric.h"
 #include "../ui/menudef.h"
 
 // g_client.c -- client functions that don't happen every frame
@@ -150,34 +151,16 @@ gentity_t *SelectNearestDeathmatchSpawnPoint( vec3_t from ) {
 	while ((spot = G_Find (spot, FOFS(classname), "info_player_deathmatch")) != NULL) {
 
 		VectorSubtract( spot->r.currentOrigin, from, delta );
-#if defined(_MSC_VER) && defined(_M_IX86)
-		/* TC2004abe8 compares retained ST0 before the winning float store. */
-		{
-			int nearer;
-			__asm {
-				lea eax, delta
-				push eax
-				call VectorLength
-				add esp, 4
-				fcom nearestDist
-				fnstsw ax
-				test ah, 1
-				setnz al
-				movzx eax, al
-				mov nearer, eax
-				test eax, eax
-				jz nearestDiscardLength
-				fstp dist
-				jmp nearestLengthDone
-			nearestDiscardLength:
-				fstp st(0)
-			nearestLengthDone:
-			}
-			if (nearer) {
-				nearestDist = dist;
-				nearestSpot = spot;
-			}
-		}
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
+        {
+            long double length = TCE_VectorLengthValue(delta);
+            /* C0 includes unordered; store Float only for a winning spot. */
+            if (!(length >= (long double)nearestDist)) {
+                dist = (float)length;
+                nearestDist = dist;
+                nearestSpot = spot;
+            }
+        }
 #else
 		dist = VectorLength( delta );
 		if ( dist < nearestDist ) {
@@ -1370,43 +1353,32 @@ char *ClientConnect( int clientNum, qboolean firstTime, qboolean isBot ) {
 //
 int G_ComputeMaxLives(gclient_t *cl, int maxRespawns)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
-	/* TC2004ca00: no f32 scaled store and no zero-timelimit bypass. */
-	int elapsed = (int)((unsigned int)level.time - (unsigned int)level.startTime);
-	int remaining = (int)((unsigned int)maxRespawns - 1u);
-	int val;
-	float limit = g_timelimit.value, minute = 60000.0f, one = 1.0f, half = 0.5f;
-	unsigned short savedControl, truncControl, comparison;
-	__int64 converted;
-	(void)cl;
-	__asm {
-		fild elapsed
-		fld limit
-		fmul minute
-		fdivp st(1), st(0)
-		fsubr one
-		fimul remaining
-		fld st(0)
-		/* Original __ftol truncates to64 bits, caller consumes EAX. */
-		fwait
-		fnstcw savedControl
-		fwait
-		mov ax, savedControl
-		or ax, 0x0c00
-		mov truncControl, ax
-		fldcw truncControl
-		fistp converted
-		fldcw savedControl
-		mov eax, dword ptr converted
-		mov val, eax
-		fild val
-		fsubr st(0), st(1)
-		fcomp half
-		fnstsw ax
-		mov comparison, ax
-		fstp st(0)
-	}
-	return (comparison & 0x100) ? val : (int)((unsigned int)val + 1u);
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
+    unsigned int bits;
+    int elapsed, remaining, val;
+    long double denominator, ratio, scaled, fraction;
+    (void)cl;
+    bits = (unsigned int)level.time - (unsigned int)level.startTime;
+    memcpy(&elapsed, &bits, sizeof(elapsed));
+    bits = (unsigned int)maxRespawns - 1u;
+    memcpy(&remaining, &bits, sizeof(remaining));
+#if defined(__linux__)
+    denominator = (long double)60000.0f * (long double)g_timelimit.value;
+    ratio = 1.0L / denominator;
+    ratio = ratio * (long double)elapsed;
+#else
+    denominator = (long double)g_timelimit.value * (long double)60000.0f;
+    ratio = (long double)elapsed / denominator;
+#endif
+    scaled = 1.0L - ratio;
+    scaled = scaled * (long double)remaining;
+    /* Win signed64/low32; ELF signed32. No scaled Float spill or zero bypass. */
+    val = TCE_TruncateNativeInteger(scaled);
+    fraction = scaled - (long double)val;
+    if (!(fraction >= 0.5L)) return val;
+    bits = (unsigned int)val + 1u;
+    memcpy(&val, &bits, sizeof(val));
+    return val;
 #else
 	float scaled = (float)(maxRespawns - 1) * (1.0f - ((float)(level.time - level.startTime) / (g_timelimit.value * 60000.0f)));
 	int val = (int)scaled;

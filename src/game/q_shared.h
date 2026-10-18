@@ -589,6 +589,7 @@ float Q_rsqrt( float f );		// reciprocal square root
 long double TCE_ReciprocalSquareRootValue(float number);
 long double TCE_VectorLengthValue(const vec3_t v);
 long double TCE_VectorLengthSquaredValue(const vec3_t v);
+long double TCE_VectorNormalizeValue(vec3_t v);
 long double TCE_DistanceSquaredValue(const vec3_t p1, const vec3_t p2);
 long double TCE_DistanceFromLineSquaredValue(vec3_t p, vec3_t lp1, vec3_t lp2);
 #endif

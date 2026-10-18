@@ -420,54 +420,41 @@ void CG_Concussive (centity_t *cent)
 #if defined(_MSC_VER) && defined(_M_IX86)
 	{
 		static const float limit = 1024.f, numerator = 32.f, amplitudeScale = 64.f, kickScale = 30.f;
-		float amplitude, yaw, roll, pitch;
+		float amplitude, roll, pitch;
 		float *kick = cg.kickAVel, *recoilPitch = &cg.recoilPitch;
-		__asm {
-			lea eax, vec
-			push eax
-			call VectorLength
-			fcom limit
-			add esp, 4
-			fnstsw ax
-			test ah, 41h
-			jz concussive_outside
-			fdivr numerator
-			fmul amplitudeScale
-			fst amplitude
-			fstp yaw
-			call rand
-			cdq
-			fld yaw
-			mov ecx, 100
-			idiv ecx
-			cmp edx, 50
-			jle concussive_sign_done
-			fchs
-		concussive_sign_done:
-			fld st(0)
-			fchs
-			fstp roll
-			fld amplitude
-			fchs
-			fmul kickScale
-			mov ecx, recoilPitch
-			mov edx, dword ptr [ecx]
-			mov dword ptr [ecx], edx
-			fstp pitch
-			fmul kickScale
-			fld roll
-			fmul kickScale
-			mov ecx, kick
-			mov edx, pitch
-			mov dword ptr [ecx], edx
-			fstp roll
-			mov eax, roll
-			fstp dword ptr [ecx + 4]
-			mov dword ptr [ecx + 8], eax
-			jmp concussive_done
-		concussive_outside:
-			fstp st(0)
-		concussive_done:
+		{
+			long double distance = TCE_VectorLengthValue(vec);
+			long double value, yawValue, pitchValue, rollValue;
+			volatile float amplitudeStore, yawStore, rollStore, pitchStore;
+			unsigned int recoilBits;
+			int sample;
+			/* C0/C3 admits less/equal/unordered lengths. No zero guard. */
+			if (!(distance > (long double)limit)) {
+				value = (long double)numerator / distance;
+				value = value * (long double)amplitudeScale;
+				amplitudeStore = (float)value;
+				yawStore = (float)value;
+				sample = rand();
+				yawValue = (long double)yawStore;
+				if (sample % 100 > 50) yawValue = -yawValue;
+				rollStore = (float)-yawValue;
+				amplitude = amplitudeStore;
+				pitchValue = -(long double)amplitude * (long double)kickScale;
+				/* Preserve raw recoil bits rather than arithmetic subtraction0.
+				 * The compiler may elide this same-value memory rewrite. */
+				memcpy(&recoilBits, recoilPitch, sizeof(recoilBits));
+				memcpy(recoilPitch, &recoilBits, sizeof(recoilBits));
+				pitchStore = (float)pitchValue;
+				pitch = pitchStore;
+				yawValue = yawValue * (long double)kickScale;
+				roll = rollStore;
+				rollValue = (long double)roll * (long double)kickScale;
+				memcpy(&kick[0], &pitch, sizeof(pitch));
+				rollStore = (float)rollValue;
+				roll = rollStore;
+				kick[1] = (float)yawValue;
+				memcpy(&kick[2], &roll, sizeof(roll));
+			}
 		}
 	}
 #else
@@ -644,15 +631,25 @@ void CG_Zoom( void ) {
 }
 
 void CG_ToggleAiming(void) {
-    int elapsed=cg.time-cg.zoomTime;
-    if(elapsed<0) elapsed=0;
-    cg.tceAimRequested=!cg.tceAimRequested;
-    cg.tceAimActive=cg.tceAimRequested;
-    cg.tceAimComplete=0;
-    cg.tceAimWeaponLatch=0;
-    cg.zoomTime=elapsed>199?cg.time:cg.time-200+elapsed;
-    cg.tceAimSyncTime=cg.zoomTime;
-    cg.tceAimRetryTime=0;
+    unsigned int elapsed = (unsigned int)cg.time - (unsigned int)cg.zoomTime;
+    unsigned int transitionBits;
+    int transition;
+
+    /* The original clamps the sign bit after a wrapping 32-bit subtraction. */
+    if (elapsed & 0x80000000u) {
+        elapsed = 0;
+    }
+    cg.tceAimRequested = !cg.tceAimRequested;
+    cg.tceAimActive = cg.tceAimRequested;
+    cg.tceAimComplete = 0;
+    cg.tceAimWeaponLatch = 0;
+    transitionBits = elapsed >= 200u ? (unsigned int)cg.time :
+        (unsigned int)cg.time - 200u + elapsed;
+    /* Preserve the wrapped timestamp without an out-of-range signed cast. */
+    memcpy(&transition, &transitionBits, sizeof(transition));
+    cg.zoomTime = transition;
+    cg.tceAimSyncTime = transition;
+    cg.tceAimRetryTime = 0;
 }
 
 /*
@@ -1485,75 +1482,63 @@ void CG_SetupFrustum( void ) {
 //
 //	CG_CullPoint - returns true if culled
 //
-/* TC Windows keeps the x+z+y plane expression in ST0 until FCOMP.
- * C0 alone is intentional: unordered inputs are culled as in the DLL. */
-#if defined(_MSC_VER) && defined(_M_IX86)
-static const float cg_cullZero = 0.0f;
-__declspec(naked) qboolean CG_CullPoint( vec3_t pt ) {
-	__asm {
-		mov edx, dword ptr [esp+4]
-		lea ecx, frustum
-		add ecx, 4
-	cull_point_plane:
-		fld dword ptr [ecx-4]
-		fmul dword ptr [edx]
-		fld dword ptr [ecx+4]
-		fmul dword ptr [edx+8]
-		faddp st(1), st(0)
-		fld dword ptr [edx+4]
-		fmul dword ptr [ecx]
-		faddp st(1), st(0)
-		fsub dword ptr [ecx+8]
-		fcomp dword ptr [cg_cullZero]
-		fnstsw ax
-		test ah, 1
-		jnz cull_point_yes
-		add ecx, 16
-		lea eax, frustum
-		add eax, 68
-		cmp ecx, eax
-		jl cull_point_plane
-		xor eax, eax
-		ret
-	cull_point_yes:
-		mov eax, 1
-		ret
-	}
+/* Original C0 gates cull both less-than and unordered distances.
+ * Explicit platform stages preserve operation order; exact x87/compiler
+ * precision and exception parity remain unverified. */
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
+qboolean CG_CullPoint( vec3_t pt ) {
+    int i;
+    long double distance;
+#if defined(__linux__)
+    long double x = (long double)pt[0];
+    long double y = (long double)pt[1];
+    long double z = (long double)pt[2];
+#endif
+    for (i = 0; i < 4; ++i) {
+        const plane_t *plane = &frustum[i];
+#if defined(__linux__)
+        distance = y * (long double)plane->normal[1];
+        distance = distance + x * (long double)plane->normal[0];
+        distance = distance + z * (long double)plane->normal[2];
+#else
+        distance = (long double)plane->normal[0] * (long double)pt[0];
+        distance = distance + (long double)plane->normal[2] * (long double)pt[2];
+        distance = distance + (long double)pt[1] * (long double)plane->normal[1];
+#endif
+        distance = distance - (long double)plane->dist;
+        if (!(distance >= 0.0L)) return qtrue;
+    }
+    return qfalse;
 }
 
-__declspec(naked) qboolean CG_CullPointAndRadius( const vec3_t pt, vec_t radius ) {
-	__asm {
-		fld dword ptr [esp+8]
-		mov edx, dword ptr [esp+4]
-		lea ecx, frustum
-		add ecx, 4
-		fchs
-		fstp dword ptr [esp+4]
-	cull_radius_plane:
-		fld dword ptr [ecx-4]
-		fmul dword ptr [edx]
-		fld dword ptr [ecx+4]
-		fmul dword ptr [edx+8]
-		faddp st(1), st(0)
-		fld dword ptr [ecx]
-		fmul dword ptr [edx+4]
-		faddp st(1), st(0)
-		fsub dword ptr [ecx+8]
-		fcomp dword ptr [esp+4]
-		fnstsw ax
-		test ah, 1
-		jnz cull_radius_yes
-		add ecx, 16
-		lea eax, frustum
-		add eax, 68
-		cmp ecx, eax
-		jl cull_radius_plane
-		xor eax, eax
-		ret
-	cull_radius_yes:
-		mov eax, 1
-		ret
-	}
+qboolean CG_CullPointAndRadius( const vec3_t pt, vec_t radius ) {
+    int i;
+    long double distance, negativeRadius;
+#if defined(__linux__)
+    long double x = (long double)pt[0];
+    long double y = (long double)pt[1];
+    long double z = (long double)pt[2];
+    negativeRadius = -(long double)radius;
+#else
+    /* Windows FCHS stores/reloads Float; it does not modify the caller's pt. */
+    volatile float storedRadius = (float)-(long double)radius;
+    negativeRadius = (long double)storedRadius;
+#endif
+    for (i = 0; i < 4; ++i) {
+        const plane_t *plane = &frustum[i];
+#if defined(__linux__)
+        distance = y * (long double)plane->normal[1];
+        distance = distance + x * (long double)plane->normal[0];
+        distance = distance + z * (long double)plane->normal[2];
+#else
+        distance = (long double)plane->normal[0] * (long double)pt[0];
+        distance = distance + (long double)plane->normal[2] * (long double)pt[2];
+        distance = distance + (long double)plane->normal[1] * (long double)pt[1];
+#endif
+        distance = distance - (long double)plane->dist;
+        if (!(distance >= negativeRadius)) return qtrue;
+    }
+    return qfalse;
 }
 #else
 qboolean CG_CullPoint( vec3_t pt ) {

@@ -1126,6 +1126,7 @@ void CG_RumbleEfx ( float pitch, float yaw ) {
 #if defined(_MSC_VER) && defined(_M_IX86)
 	{
 		double power, powerBase;
+		long double recoilValue;
 		float *velocity;
 		int randomPitch, divisor, remainder, powerSample;
 		unsigned short savedCW, truncCW;
@@ -1134,36 +1135,19 @@ void CG_RumbleEfx ( float pitch, float yaw ) {
 		static const float baseRecoil = 10.0f;
 		static const double halfRecoil = 0.5;
 		static const float powerUnit = 0.000030518509447574615f;
-		__asm {
-			fld pitch
-			fcomp minimumPitch
-			fnstsw ax
-			test ah, 1
-			jz rumble_pitch_ready
-			mov pitch, 3f800000h
-rumble_pitch_ready:
-		}
+		if (!(pitch >= minimumPitch)) pitch = minimumPitch;
 		/* __CIpow30088e90 spills the retained random product directly to double.
 		 * Its internal CRT implementation, not this input rounding, remains open. */
 		powerSample = rand() & 32767;
-		__asm {
-			fild powerSample
-			fmul powerUnit
-			fstp powerBase
-		}
+		powerBase = (double)((long double)powerSample * (long double)powerUnit);
 		power = pow(powerBase, 8);
 		velocity = cg.snap->ps.velocity;
-		__asm {
-			mov eax, velocity
-			push eax
-			call VectorLength
-			fmul speedFactor
-			add esp, 4
-			fadd baseRecoil
-			fmul power
-			fmul halfRecoil
-			fstp pitchRecoilAdd
-		}
+		recoilValue = TCE_VectorLengthValue(velocity);
+		recoilValue = recoilValue * (long double)speedFactor;
+		recoilValue = recoilValue + (long double)baseRecoil;
+		recoilValue = recoilValue * (long double)power;
+		recoilValue = recoilValue * (long double)halfRecoil;
+		pitchRecoilAdd = (float)recoilValue;
 		randomPitch = rand();
 		__asm {
 			fld pitch
@@ -1208,99 +1192,46 @@ rumble_pitch_ready:
 #endif
 
 #if defined(_MSC_VER) && defined(_M_IX86)
-	/* TC3002da33..3002dbc6: preserve branch flags, retained yaw and roll spill.
-	 * Only the separate original CRT pow implementation remains open. */
-	{
-		int sample;
-		float rollStore, pitchStore;
-		float *kick = cg.kickAVel, *recoilPitch = &cg.recoilPitch;
-		static const float zero = 0.0f, unit = 0.000030518509447574615f;
-		static const float gain = 30.0f;
-		static const double switchChance = 0.05, half = 0.5;
-		__asm {
-			mov ecx, kick
-			fld dword ptr [ecx+4]
-			fcomp zero
-			fnstsw ax
-			test ah, 41h
-			jnz rumble_nonpositive
-			call rand
-			and eax, 7fffh
-			mov sample, eax
-			fild sample
-			fmul unit
-			fcomp switchChance
-			fnstsw ax
-			test ah, 1
-			jnz rumble_negative
-			jmp rumble_positive
-rumble_nonpositive:
-			mov ecx, kick
-			fld dword ptr [ecx+4]
-			fcomp zero
-			fnstsw ax
-			test ah, 1
-			jz rumble_zero
-			call rand
-			and eax, 7fffh
-			mov sample, eax
-			fild sample
-			fmul unit
-			fcomp switchChance
-			fnstsw ax
-			test ah, 1
-			jnz rumble_positive
-			jmp rumble_negative
-rumble_zero:
-			call rand
-			and eax, 7fffh
-			mov sample, eax
-			fild sample
-			fmul unit
-			fcomp half
-			fnstsw ax
-			test ah, 1
-			jnz rumble_positive
-rumble_negative:
-			call rand
-			and eax, 7fffh
-			mov sample, eax
-			fild sample
-			fmul unit
-			fmul yawRandom
-			fchs
-			jmp rumble_output
-rumble_positive:
-			call rand
-			and eax, 7fffh
-			mov sample, eax
-			fild sample
-			fmul unit
-			fmul yawRandom
-rumble_output:
-			fld st(0)
-			fchs
-			fstp rollStore
-			fld pitchAdd
-			fchs
-			fmul gain
-			fstp pitchStore
-			fmul gain
-			fld rollStore
-			fmul gain
-			mov ecx, kick
-			mov edx, pitchStore
-			mov dword ptr [ecx], edx
-			fstp rollStore
-			mov eax, rollStore
-			fstp dword ptr [ecx+4]
-			mov edx, recoilPitch
-			fld dword ptr [edx]
-			fsub pitchRecoilAdd
-			mov dword ptr [ecx+8], eax
-			fstp dword ptr [edx]
-		}
-	}
+    /* Native random branches and broad yaw/Float roll output stages. */
+    {
+        int sample, negative;
+        long double chance, yawValue, pitchValue, rollValue, recoilValue;
+        volatile float rollStore;
+        float pitchStore, rollOutput;
+        float *kick = cg.kickAVel, *recoilPitch = &cg.recoilPitch;
+        static const float unit = 0.000030518509447574615f, gain = 30.0f;
+        static const double switchChance = 0.05, half = 0.5;
+        if ((long double)kick[YAW] > 0.0L) {
+            sample = rand() & 32767;
+            chance = (long double)sample * (long double)unit;
+            negative = chance < (long double)switchChance;
+        } else if (!((long double)kick[YAW] >= 0.0L)) {
+            /* C0 sends unordered through the negative-state branch too. */
+            sample = rand() & 32767;
+            chance = (long double)sample * (long double)unit;
+            negative = !(chance < (long double)switchChance);
+        } else {
+            sample = rand() & 32767;
+            chance = (long double)sample * (long double)unit;
+            negative = !(chance < (long double)half);
+        }
+        sample = rand() & 32767;
+        yawValue = (long double)sample * (long double)unit;
+        yawValue = yawValue * (long double)yawRandom;
+        if (negative) yawValue = -yawValue;
+        rollStore = (float)(-yawValue);
+        pitchValue = -(long double)pitchAdd;
+        pitchValue = pitchValue * (long double)gain;
+        pitchStore = (float)pitchValue;
+        yawValue = yawValue * (long double)gain;
+        rollValue = (long double)rollStore * (long double)gain;
+        memcpy(&kick[PITCH], &pitchStore, sizeof(pitchStore));
+        rollOutput = (float)rollValue;
+        kick[YAW] = (float)yawValue;
+        recoilValue = (long double)*recoilPitch - (long double)pitchRecoilAdd;
+        memcpy(&kick[ROLL], &rollOutput, sizeof(rollOutput));
+        *recoilPitch = (float)recoilValue;
+    }
 #else
 	// calc the recoil
 
@@ -1426,35 +1357,32 @@ void CG_AddSmokeSprites( void ) {
     smokesprite_t *sprite = lastusedsmokesprite;
     while( sprite ) {
         int age;
+        unsigned int ageBits;
         float dist, smokeAge;
         vec3_t direction;
         if( sprite->smokebomb && !sprite->smokebomb->currentValid ) {
             sprite = sprite->prev;
             continue;
         }
-        age = (int)((unsigned)cg.time - (unsigned)sprite->birthTime);
+        ageBits = (unsigned int)cg.time - (unsigned int)sprite->birthTime;
+        memcpy(&age, &ageBits, sizeof(age));
 #if defined(_MSC_VER) && defined(_M_IX86)
         {
-            int smokeFrame=cg.frametime;
-            const float smokeDecay=6.666666740784422e-05f;
-            const float smokeStep=.032f, smokeOne=1.0f, smokeZero=0.0f;
-            /* 3002dd45..dd78: compare retained result, not its float store. */
-            __asm {
-                fild age
-                fst smokeAge
-                fmul smokeDecay
-                fsubr smokeOne
-                fild smokeFrame
-                fmul smokeStep
-                fmulp st(1), st(0)
-                fst dist
-                fcomp smokeZero
-                fnstsw ax
-                test ah, 1
-                jz smoke_distance_done
-                mov dist, 0
-smoke_distance_done:
-            }
+            static const float smokeDecay = 6.666666740784422e-05f;
+            static const float smokeStep = .032f;
+            long double retainedAge = (long double)age;
+            long double decay, step, distance;
+            volatile float storedAge, storedDistance;
+            /* FST age/dist does not narrow the original held x87 operands. */
+            storedAge = (float)retainedAge;
+            smokeAge = storedAge;
+            decay = retainedAge * (long double)smokeDecay;
+            decay = 1.0L - decay;
+            step = (long double)cg.frametime * (long double)smokeStep;
+            distance = decay * step;
+            storedDistance = (float)distance;
+            dist = storedDistance;
+            if (!(distance >= 0.0L)) dist = 0.0f;
         }
 #else
         smokeAge=(float)age;
@@ -1478,69 +1406,52 @@ smoke_distance_done:
 
 /* TC3002e3d0: shake an arbitrary render position, without expiring shake state. */
 void CG_ApplyCameraShakeToVec( vec3_t origin ) {
-	int remaining;
-#if defined(_MSC_VER) && defined(_M_IX86)
-	float *shakeLengthPtr = &cg.cameraShakeLength;
-	float *shakePhasePtr = &cg.cameraShakePhase;
-	float *shakeScalePtr = &cg.cameraShakeScale;
-	static const float zFrequency = 21.99114990234375f;
-	static const float yFrequency = 40.84070587158203f;
-	static const float xFrequency = 53.40707778930664f;
-	static const double amplitude = 4.0;
-#endif
-	if ( cg.time > cg.cameraShakeTime ) return;
-	remaining = (int)((unsigned)cg.cameraShakeTime - (unsigned)cg.time);
-#if defined(_MSC_VER) && defined(_M_IX86)
-	/* Keep fraction on ST0 across all three original trigonometric operations. */
-	__asm {
-		mov eax, origin
-		mov ecx, shakeLengthPtr
-		fild remaining
-		fdiv dword ptr [ecx]
-		fld st(0)
-		fmul zFrequency
-		mov ecx, shakePhasePtr
-		fadd dword ptr [ecx]
-		fsin
-		mov ecx, shakeScalePtr
-		fmul dword ptr [ecx]
-		fld st(1)
-		fmulp st(1), st(0)
-		fmul amplitude
-		fadd dword ptr [eax+8]
-		fstp dword ptr [eax+8]
-		fld st(0)
-		fmul yFrequency
-		mov ecx, shakePhasePtr
-		fadd dword ptr [ecx]
-		fsin
-		mov ecx, shakeScalePtr
-		fmul dword ptr [ecx]
-		fld st(1)
-		fmulp st(1), st(0)
-		fmul amplitude
-		fadd dword ptr [eax+4]
-		fstp dword ptr [eax+4]
-		fld st(0)
-		fmul xFrequency
-		mov ecx, shakePhasePtr
-		fadd dword ptr [ecx]
-		fcos
-		mov ecx, shakeScalePtr
-		fmul dword ptr [ecx]
-		fxch st(1)
-		fmulp st(1), st(0)
-		fmul amplitude
-		fadd dword ptr [eax]
-		fstp dword ptr [eax]
-	}
+    int remaining, axis;
+    unsigned int remainingBits;
+    long double fraction, angle, wave, displacement;
+    if (cg.time > cg.cameraShakeTime) return;
+    remainingBits = (unsigned int)cg.cameraShakeTime - (unsigned int)cg.time;
+    memcpy(&remaining, &remainingBits, sizeof(remaining));
+#if defined(__linux__)
+    {
+        static const double frequency[3] = { 53.40707511102649, 40.840704496667314, 21.991148575128552 };
+        /* Linux retains the reciprocal product and spills each displacement
+         * before adding it to the destination coordinate. */
+        fraction = 1.0L / (long double)cg.cameraShakeLength;
+        fraction = (long double)remaining * fraction;
+        for (axis = 2; axis >= 0; --axis) {
+            volatile float storedDisplacement;
+            angle = fraction * (long double)frequency[axis];
+            angle = angle + (long double)cg.cameraShakePhase;
+            wave = axis == 0 ? cosl(angle) : sinl(angle);
+            displacement = wave * fraction;
+            displacement = displacement * (long double)cg.cameraShakeScale;
+            displacement = displacement * 4.0L;
+            storedDisplacement = (float)displacement;
+            origin[axis] = (float)((long double)storedDisplacement
+                                  + (long double)origin[axis]);
+        }
+    }
 #else
-	/* Portable formula; this is not a claim of Windows x87 bit parity. */
-	{
-		double f = (double)remaining / cg.cameraShakeLength;
-		origin[2] = (float)(origin[2] + f*sin(f*21.99114990234375+cg.cameraShakePhase)*cg.cameraShakeScale*4);
-		origin[1] = (float)(origin[1] + f*sin(f*40.84070587158203+cg.cameraShakePhase)*cg.cameraShakeScale*4);
-		origin[0] = (float)(origin[0] + f*cos(f*53.40707778930664+cg.cameraShakePhase)*cg.cameraShakeScale*4);
-	}
+    {
+        static const float frequency[3] = {
+            53.40707778930664f, 40.84070587158203f, 21.99114990234375f
+        };
+        /* Windows retains the fraction across Z/Y/X. Phase and scale must
+         * be read again after each destination store, including aliases.
+         * C long double/libm does not prove x87 precision, FSIN/FCOS range
+         * behavior or floating-point exception parity. */
+        fraction = (long double)remaining / (long double)cg.cameraShakeLength;
+        for (axis = 2; axis >= 0; --axis) {
+            angle = fraction * (long double)frequency[axis];
+            angle = angle + (long double)cg.cameraShakePhase;
+            wave = axis == 0 ? cosl(angle) : sinl(angle);
+            displacement = wave * (long double)cg.cameraShakeScale;
+            displacement = axis == 0 ? fraction * displacement
+                                     : displacement * fraction;
+            displacement = displacement * 4.0L;
+            origin[axis] = (float)(displacement + (long double)origin[axis]);
+        }
+    }
 #endif
 }

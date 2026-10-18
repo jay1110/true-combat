@@ -1807,9 +1807,10 @@ int VectorCompare( const vec3_t v1, const vec3_t v2 ) {
 }
 #endif
 
-/* Original TC x86 return precision differs by platform; no C return spill. */
+/* Wide internal return for held-value consumers; public ABI remains Float.
+ * Exact x87 precision/exception behavior is still unverified. */
 #if defined(_WIN32) || defined(__linux__)
-vec_t VectorNormalize(vec3_t v) {
+long double TCE_VectorNormalizeValue(vec3_t v) {
     long double x, y, z, squared, length;
 #if defined(_WIN32)
     z = v[2];
@@ -1848,7 +1849,11 @@ vec_t VectorNormalize(vec3_t v) {
         v[2] = (float)z;
     }
 #endif
-    return (float)length;
+    return length;
+}
+
+vec_t VectorNormalize(vec3_t v) {
+    return (float)TCE_VectorNormalizeValue(v);
 }
 #else
 vec_t VectorNormalize( vec3_t v ) {
