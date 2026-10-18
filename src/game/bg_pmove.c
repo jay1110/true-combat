@@ -2041,110 +2041,31 @@ enum {
     waterGround830=offsetof(pml_t,groundPlane),
     waterNormal830=offsetof(pml_t,groundTrace)+offsetof(trace_t,plane)+offsetof(cplane_t,normal)
 };
-static __declspec(naked) qboolean PM_CheckWaterJump(void) {
-    __asm {
-        mov eax, dword ptr [pm]
-        sub esp, 0x18
-        mov ecx, dword ptr [eax+waterPlayerState830]
-        mov edx, dword ptr [ecx+waterPmTime830]
-        test edx, edx
-        je water830_200356b7
-        xor eax, eax
-        add esp, 0x18
-        ret 
-water830_200356b7:
-        cmp dword ptr [eax+waterLevel830], 2
-        je water830_200356c6
-        xor eax, eax
-        add esp, 0x18
-        ret 
-water830_200356c6:
-        mov edx, dword ptr [pml+waterForward830]
-        mov eax, dword ptr [pml+waterForward830+4]
-        lea ecx, [esp]
-        mov dword ptr [esp], edx
-        push ecx
-        mov dword ptr [esp + 8], eax
-        mov dword ptr [esp + 0xc], 0
-        call VectorNormalize
-        mov eax, dword ptr [pm]
-        fstp st(0)
-        fld dword ptr [esp + 4]
-        fmul dword ptr [waterK200ac190]
-        mov edx, dword ptr [eax+waterPlayerState830]
-        fadd dword ptr [edx+waterOrigin830]
-        fstp dword ptr [esp + 0x10]
-        fld dword ptr [esp + 8]
-        fmul dword ptr [waterK200ac190]
-        mov ecx, dword ptr [eax+waterPlayerState830]
-        fadd dword ptr [ecx+waterOrigin830+4]
-        fstp dword ptr [esp + 0x14]
-        fld dword ptr [esp + 0xc]
-        fmul dword ptr [waterK200ac190]
-        mov edx, dword ptr [eax+waterPlayerState830]
-        fadd dword ptr [edx+waterOrigin830+8]
-        fadd dword ptr [waterK200ac2bc]
-        fstp dword ptr [esp + 0x18]
-        mov ecx, dword ptr [eax+waterPlayerState830]
-        mov edx, dword ptr [ecx+waterClient830]
-        lea ecx, [esp + 0x10]
-        push edx
-        push ecx
-        call dword ptr [eax+waterContents830]
-        add esp, 0xc
-        test al, 1
-        jne water830_20035752
-        xor eax, eax
-        add esp, 0x18
-        ret 
-water830_20035752:
-        fld dword ptr [esp + 0x14]
-        fadd dword ptr [waterK200ac384]
-        mov eax, dword ptr [pm]
-        fstp dword ptr [esp + 0x14]
-        mov edx, dword ptr [eax+waterPlayerState830]
-        mov ecx, dword ptr [edx+waterClient830]
-        lea edx, [esp + 0xc]
-        push ecx
-        push edx
-        call dword ptr [eax+waterContents830]
-        add esp, 8
-        test eax, eax
-        je water830_20035786
-        xor eax, eax
-        add esp, 0x18
-        ret 
-water830_20035786:
-        fld dword ptr [pml+waterForward830]
-        mov eax, dword ptr [pm]
-        fmul dword ptr [waterK200ac1a4]
-        mov ecx, dword ptr [eax+waterPlayerState830]
-        fstp dword ptr [ecx+waterVelocity830]
-        fld dword ptr [pml+waterForward830+4]
-        mov edx, dword ptr [pm]
-        fmul dword ptr [waterK200ac1a4]
-        mov eax, dword ptr [edx+waterPlayerState830]
-        fstp dword ptr [eax+waterVelocity830+4]
-        fld dword ptr [pml+waterForward830+8]
-        mov ecx, dword ptr [pm]
-        fmul dword ptr [waterK200ac1a4]
-        mov edx, dword ptr [ecx+waterPlayerState830]
-        fstp dword ptr [edx+waterVelocity830+8]
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax+waterPlayerState830]
-        mov dword ptr [ecx+waterVelocity830+8], 0x43af0000
-        mov edx, dword ptr [pm]
-        mov eax, dword ptr [edx+waterPlayerState830]
-        mov ecx, dword ptr [eax+waterPmFlags830]
-        or ch, 1
-        mov dword ptr [eax+waterPmFlags830], ecx
-        mov eax, dword ptr [pm]
-        mov ecx, dword ptr [eax+waterPlayerState830]
-        mov eax, 1
-        mov dword ptr [ecx+waterPmTime830], 0x7d0
-        add esp, 0x18
-        ret 
-    }
+static qboolean PM_CheckWaterJump(void) {
+    vec3_t flatforward, spot;
+    int contents;
+
+    if (pm->ps->pm_time || pm->waterlevel != 2) return qfalse;
+    flatforward[0] = pml.forward[0];
+    flatforward[1] = pml.forward[1];
+    flatforward[2] = 0.0f;
+    VectorNormalize(flatforward);
+    spot[0] = (float)((long double)flatforward[0] * 30.0f + pm->ps->origin[0]);
+    spot[1] = (float)((long double)flatforward[1] * 30.0f + pm->ps->origin[1]);
+    spot[2] = (float)((long double)flatforward[2] * 30.0f + pm->ps->origin[2] + 4.0f);
+    contents = pm->pointcontents(spot, pm->ps->clientNum);
+    if (!(contents & CONTENTS_SOLID)) return qfalse;
+    spot[2] = (float)((long double)spot[2] + 16.0f);
+    /* Reload the callback and player after the preceding callback. */
+    contents = pm->pointcontents(spot, pm->ps->clientNum);
+    if (contents) return qfalse;
+    pm->ps->velocity[0] = (float)((long double)pml.forward[0] * 200.0f);
+    pm->ps->velocity[1] = (float)((long double)pml.forward[1] * 200.0f);
+    pm->ps->velocity[2] = (float)((long double)pml.forward[2] * 200.0f);
+    pm->ps->velocity[2] = 350.0f;
+    pm->ps->pm_flags |= PMF_TIME_WATERJUMP;
+    pm->ps->pm_time = 2000;
+    return qtrue;
 }
 #else
 /* Portable fallback; no Linux instruction-level parity claim. */
@@ -2958,24 +2879,13 @@ static void PM_WaterJumpMove( void ) {
 
 #if defined(_MSC_VER) && defined(_M_IX86)
     {
-        int *jumpGravity = &pm->ps->gravity;
-        float *jumpVelocity = &pm->ps->velocity[2];
-        float *jumpFrame = &pml.frametime;
-        const float jumpZero = 0.0f;
-        __asm {
-            mov ecx, jumpGravity
-            mov edx, jumpFrame
-            fild dword ptr [ecx]
-            fmul dword ptr [edx]
-            mov ecx, jumpVelocity
-            fsubr dword ptr [ecx]
-            fstp dword ptr [ecx]
-            fld dword ptr [ecx]
-            fcomp jumpZero
-            fnstsw ax
-            and eax, 100h
-            mov falling, eax
-        }
+        long double gravityStep = (long double)pm->ps->gravity * pml.frametime;
+        float verticalSpeed;
+
+        pm->ps->velocity[2] = (float)((long double)pm->ps->velocity[2] - gravityStep);
+        verticalSpeed = pm->ps->velocity[2];
+        /* Native C0 also cancels the timer for an unordered stored speed. */
+        falling = verticalSpeed < 0.0f || verticalSpeed != verticalSpeed;
     }
 #else
 	pm->ps->velocity[2] -= pm->ps->gravity * pml.frametime;
