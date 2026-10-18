@@ -3178,74 +3178,33 @@ Only with the flight powerup
 ===================
 */
 #if defined(_MSC_VER) && defined(_M_IX86)
-static const float flyZero825 = 0.0f;
-enum { flyCmd825 = offsetof(pmove_t,cmd), flyForwardCmd825 = offsetof(pmove_t,cmd)+offsetof(usercmd_t,forwardmove), flyRightCmd825 = offsetof(pmove_t,cmd)+offsetof(usercmd_t,rightmove), flyUpCmd825 = offsetof(pmove_t,cmd)+offsetof(usercmd_t,upmove), flyForward825 = offsetof(pml_t,forward), flyRight825 = offsetof(pml_t,right) };
-static __declspec(naked) void PM_FlyMove(void) {
-    __asm {
-        sub esp, 01ch
-        call PM_Friction
-        mov eax, dword ptr [pm]
-        add eax, flyCmd825
-        push eax
-        call PM_CmdScale
-        fcom dword ptr [flyZero825]
-        add esp, 4
-        fnstsw ax
-        test ah, 040h
-        je flyL20035840
-        fstp st(0)
-        fld dword ptr [flyZero825]
-        mov dword ptr [esp + 4], 0
-        mov dword ptr [esp + 8], 0
-        jmp flyL20035894
-    flyL20035840:
-        mov ecx, dword ptr [pm]
-        movsx edx, byte ptr [ecx + flyRightCmd825]
-        movsx eax, byte ptr [ecx + flyForwardCmd825]
-        mov dword ptr [esp], edx
-        fild dword ptr [esp]
-        mov dword ptr [esp], eax
-        xor eax, eax
-        fild dword ptr [esp]
-    flyL20035860:
-        fld st(1)
-        fmul dword ptr [eax + pml + flyRight825]
-        fld st(1)
-        fmul dword ptr [eax + pml + flyForward825]
-        add eax, 4
-        cmp eax, 0ch
-        faddp st(1), st(0)
-        fmul st(0), st(3)
-        fstp dword ptr [esp + eax]
-        jl flyL20035860
-        movsx ecx, byte ptr [ecx + flyUpCmd825]
-        fstp st(0)
-        fstp st(0)
-        mov dword ptr [esp], ecx
-        fimul dword ptr [esp]
-        fadd dword ptr [esp + 0ch]
-    flyL20035894:
-        mov edx, dword ptr [esp + 4]
-        mov eax, dword ptr [esp + 8]
-        fstp dword ptr [esp + 018h]
-        lea ecx, [esp + 010h]
-        mov dword ptr [esp + 010h], edx
-        push ecx
-        mov dword ptr [esp + 018h], eax
-        call VectorNormalize
-        fstp dword ptr [esp + 4]
-        mov edx, dword ptr [pm_flyaccelerate]
-        mov eax, dword ptr [esp + 4]
-        push edx
-        lea ecx, [esp + 018h]
-        push eax
-        push ecx
-        call PM_Accelerate
-        push 0
-        call PM_StepSlideMove
-        add esp, 030h
-        ret 
+static void PM_FlyMove(void) {
+    long double scale;
+    volatile float wishspeed;
+    vec3_t wishvel, wishdir;
+    int forwardMove, rightMove, i;
+
+    PM_Friction();
+    scale = PM_CmdScale(&pm->cmd);
+    /* Native C3 takes the zero-input path for zero or unordered scale. */
+    if (scale == 0.0L || scale != scale) {
+        wishvel[0] = 0.0f;
+        wishvel[1] = 0.0f;
+        wishvel[2] = 0.0f;
+    } else {
+        forwardMove = pm->cmd.forwardmove;
+        rightMove = pm->cmd.rightmove;
+        for (i = 0; i < 3; ++i) {
+            long double right = (long double)rightMove * pml.right[i];
+            long double forward = (long double)forwardMove * pml.forward[i];
+            wishvel[i] = (float)((right + forward) * scale);
+        }
+        wishvel[2] = (float)(scale * pm->cmd.upmove + wishvel[2]);
     }
+    VectorCopy(wishvel, wishdir);
+    wishspeed = (float)TCE_VectorNormalizeValue(wishdir);
+    PM_Accelerate(wishdir, wishspeed, pm_flyaccelerate);
+    PM_StepSlideMove(qfalse);
 }
 #else
 static void PM_FlyMove( void ) {
