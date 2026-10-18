@@ -35,85 +35,6 @@ void CG_Text_SetActiveFont( int font ) {
 	activeFont = font;
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-/* TC x87 metric accumulator and scale stay resident through the glyph loop.
- * These compile-time contracts describe native fontInfo_t, not game globals. */
-typedef char CG_Text_Width_Ext_layout[(sizeof(glyphInfo_t)==80 && offsetof(fontInfo_t,glyphScale)==0x5000 && offsetof(glyphInfo_t,xSkip)==16 && offsetof(glyphInfo_t,height)==0)?1:-1];
-__declspec(naked) int CG_Text_Width_Ext(const char *text, float scale, int limit, fontInfo_t *font) {
-    __asm {
-        push ebx
-        push ebp
-        push esi
-        push edi
-        mov edx, dword ptr [esp+20]
-        mov ebp, dword ptr [esp+32]
-        fld dword ptr [esp+24]
-        fmul dword ptr [ebp+5000h]
-        fldz
-        test edx, edx
-        jz metric_done
-        mov edi, edx
-        or ecx, -1
-        xor eax, eax
-        repne scasb
-        not ecx
-        dec ecx
-        mov eax, dword ptr [esp+28]
-        test eax, eax
-        jle metric_limit
-        cmp ecx, eax
-        jle metric_limit
-        mov ecx, eax
-    metric_limit:
-        xor esi, esi
-    metric_loop:
-        mov al, byte ptr [edx]
-        test al, al
-        jz metric_done
-        cmp esi, ecx
-        jge metric_done
-        cmp al, 5eh
-        jne metric_glyph
-        mov bl, byte ptr [edx+1]
-        test bl, bl
-        jz metric_glyph
-        cmp bl, al
-        je metric_glyph
-        add edx, 2
-        jmp metric_next
-    metric_glyph:
-        and eax, 0ffh
-        lea eax, [eax+eax*4]
-        shl eax, 4
-        fiadd dword ptr [eax+ebp+16]
-        inc edx
-        inc esi
-    metric_next:
-        test edx, edx
-        jnz metric_loop
-    metric_done:
-        fmul st(0), st(1)
-        sub esp, 12
-        fstcw word ptr [esp+8]
-        fwait
-        mov ax, word ptr [esp+8]
-        or ax, 0c00h
-        mov word ptr [esp+10], ax
-        fldcw word ptr [esp+10]
-        fistp qword ptr [esp]
-        fldcw word ptr [esp+8]
-        mov eax, dword ptr [esp]
-        mov edx, dword ptr [esp+4]
-        add esp, 12
-        fstp st(0)
-        pop edi
-        pop esi
-        pop ebp
-        pop ebx
-        ret
-    }
-}
-#else
 int CG_Text_Width_Ext( const char *text, float scale, int limit, fontInfo_t* font ) {
 	int count, len;
 	glyphInfo_t *glyph;
@@ -143,7 +64,7 @@ int CG_Text_Width_Ext( const char *text, float scale, int limit, fontInfo_t* fon
 	return out * useScale;
 }
 
-#endif
+
 
 int CG_Text_Width( const char *text, float scale, int limit ) {
 	fontInfo_t *font = &cgDC.Assets.fonts[activeFont];
@@ -151,95 +72,6 @@ int CG_Text_Width( const char *text, float scale, int limit ) {
 	return CG_Text_Width_Ext( text, scale, limit, font );
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-/* TC x87 metric accumulator and scale stay resident through the glyph loop.
- * These compile-time contracts describe native fontInfo_t, not game globals. */
-typedef char CG_Text_Height_Ext_layout[(sizeof(glyphInfo_t)==80 && offsetof(fontInfo_t,glyphScale)==0x5000 && offsetof(glyphInfo_t,xSkip)==16 && offsetof(glyphInfo_t,height)==0)?1:-1];
-__declspec(naked) int CG_Text_Height_Ext(const char *text, float scale, int limit, fontInfo_t *font) {
-    __asm {
-        push ebx
-        push ebp
-        push esi
-        push edi
-        mov edx, dword ptr [esp+20]
-        mov ebp, dword ptr [esp+32]
-        fld dword ptr [esp+24]
-        fmul dword ptr [ebp+5000h]
-        fldz
-        test edx, edx
-        jz metric_done
-        mov edi, edx
-        or ecx, -1
-        xor eax, eax
-        repne scasb
-        not ecx
-        dec ecx
-        mov eax, dword ptr [esp+28]
-        test eax, eax
-        jle metric_limit
-        cmp ecx, eax
-        jle metric_limit
-        mov ecx, eax
-    metric_limit:
-        xor esi, esi
-    metric_loop:
-        mov al, byte ptr [edx]
-        test al, al
-        jz metric_done
-        cmp esi, ecx
-        jge metric_done
-        cmp al, 5eh
-        jne metric_glyph
-        mov bl, byte ptr [edx+1]
-        test bl, bl
-        jz metric_glyph
-        cmp bl, al
-        je metric_glyph
-        add edx, 2
-        jmp metric_next
-    metric_glyph:
-        and eax, 0ffh
-        lea eax, [eax+eax*4]
-        shl eax, 4
-        push eax
-        fild dword ptr [eax+ebp]
-        fstp dword ptr [esp]
-        fcom dword ptr [esp]
-        fnstsw ax
-        test ah, 1
-        jz metric_keep
-        fstp st(0)
-        fld dword ptr [esp]
-    metric_keep:
-        add esp, 4
-        inc edx
-        inc esi
-    metric_next:
-        test edx, edx
-        jnz metric_loop
-    metric_done:
-        fmul st(0), st(1)
-        sub esp, 12
-        fstcw word ptr [esp+8]
-        fwait
-        mov ax, word ptr [esp+8]
-        or ax, 0c00h
-        mov word ptr [esp+10], ax
-        fldcw word ptr [esp+10]
-        fistp qword ptr [esp]
-        fldcw word ptr [esp+8]
-        mov eax, dword ptr [esp]
-        mov edx, dword ptr [esp+4]
-        add esp, 12
-        fstp st(0)
-        pop edi
-        pop esi
-        pop ebp
-        pop ebx
-        ret
-    }
-}
-#else
 int CG_Text_Height_Ext( const char *text, float scale, int limit, fontInfo_t* font ) {
  int len, count;
 	float max;
@@ -272,7 +104,7 @@ int CG_Text_Height_Ext( const char *text, float scale, int limit, fontInfo_t* fo
 	return max * useScale;
 }
 
-#endif
+
 
 int CG_Text_Height( const char *text, float scale, int limit ) {
 	fontInfo_t *font = &cgDC.Assets.fonts[activeFont];
@@ -296,19 +128,8 @@ void CG_Text_PaintChar(float x, float y, float width, float height, float scale,
 }
 
 void CG_Text_Paint_Centred_Ext( float x, float y, float scalex, float scaley, vec4_t color, const char *text, float adjust, int limit, int style, fontInfo_t* font ) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-	static const float half = 0.5f;
-	int width = CG_Text_Width_Ext(text, scalex, limit, font);
-	/* The integer metric stays exact until the final coordinate store. */
-	__asm {
-		fild dword ptr [width]
-		fmul dword ptr [half]
-		fsubr dword ptr [x]
-		fstp dword ptr [x]
-	}
-#else
 	x -= CG_Text_Width_Ext(text, scalex, limit, font) * 0.5f;
-#endif
+
 
 	CG_Text_Paint_Ext( x, y, scalex, scaley, color, text, adjust, limit, style, font );
 }
@@ -661,24 +482,11 @@ static void CG_DrawFPSContents( float y ) {
 
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-static const float cg_fpsLineAdvance = 16.f;
-static __declspec(naked) float CG_DrawFPS(float y) {
-    __asm {
-        push dword ptr [esp+4]
-        call CG_DrawFPSContents
-        add esp, 4
-        fld dword ptr [esp+4]
-        fadd dword ptr [cg_fpsLineAdvance]
-        ret
-    }
-}
-#else
 static float CG_DrawFPS(float y) {
     CG_DrawFPSContents(y);
     return y + 16.f;
 }
-#endif
+
 
 /*
 =================
