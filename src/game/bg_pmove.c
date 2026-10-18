@@ -6050,6 +6050,59 @@ restoreYaw:
     ps->delta_angles[YAW] = PM_TCEViewCommandDelta(oldYaw, cmd->angles[YAW]);
 }
 #endif
+#if defined(__linux__) && !defined(Q3_VM)
+static void PM_TCEProneView(playerState_t *ps, pmoveExt_t *ext, usercmd_t *cmd, float oldYaw) {
+    long double yaw = ps->viewangles[YAW], diff, constrained, step;
+    float limit = 40.0f;
+    int delta = ps->delta_angles[YAW], weapon = ps->weapon;
+
+    if (yaw - oldYaw > 180.0f) yaw -= 360.0f;
+    if (yaw - oldYaw < -180.0f) yaw += 360.0f;
+    if (yaw > oldYaw) {
+        step = (long double)120.0f * pml.frametime;
+        if (!(step >= yaw - oldYaw)) {
+            yaw = (long double)oldYaw + step;
+            ps->viewangles[YAW] = (float)yaw;
+            delta = PM_TCEViewCommandDelta(yaw, cmd->angles[YAW]);
+        }
+    } else if (oldYaw > yaw) {
+        step = (long double)120.0f * pml.frametime;
+        if (!(step >= (long double)oldYaw - yaw)) {
+            yaw = (long double)oldYaw - step;
+            ps->viewangles[YAW] = (float)yaw;
+            delta = PM_TCEViewCommandDelta(yaw, cmd->angles[YAW]);
+        }
+    }
+    if (weapon == 62) {
+        limit = 20.0f;
+        diff = (long double)ps->viewangles[YAW] - ext->mountedWeaponAngles[YAW];
+        if (diff > 180.0f) diff -= 360.0f;
+        else if (!(diff >= -180.0f)) diff += 360.0f;
+        if (diff > 20.0f || !(diff >= -20.0f)) {
+            constrained = diff > 20.0f ?
+                (long double)ext->mountedWeaponAngles[YAW] + 20.0f :
+                (long double)ext->mountedWeaponAngles[YAW] - 20.0f;
+            constrained = AngleNormalize180((float)constrained);
+            ps->viewangles[YAW] = (float)constrained;
+            ps->delta_angles[YAW] = PM_TCEViewCommandDelta(constrained, cmd->angles[YAW]);
+        }
+    }
+    diff = (long double)ps->viewangles[PITCH] - ext->mountedWeaponAngles[PITCH];
+    if (diff > 180.0f) diff -= 360.0f;
+    else if (!(diff >= -180.0f)) diff += 360.0f;
+    if (diff > limit || diff < -limit) {
+        constrained = diff > limit ?
+            (long double)ext->mountedWeaponAngles[PITCH] + limit :
+            (long double)ext->mountedWeaponAngles[PITCH] - limit;
+        constrained = AngleNormalize180((float)constrained);
+        ps->viewangles[PITCH] = (float)constrained;
+        ps->delta_angles[PITCH] = PM_TCEViewCommandDelta(constrained, cmd->angles[PITCH]);
+    }
+    if (ps->viewangles[YAW] == oldYaw ||
+        ps->viewangles[YAW] != ps->viewangles[YAW] || oldYaw != oldYaw) return;
+    PM_TCEProneViewCollision(ps, ext, cmd, oldYaw, delta);
+}
+#else
 static void PM_TCEProneView(playerState_t *ps, pmoveExt_t *ext, usercmd_t *cmd, float oldYaw) {
     float yaw=ps->viewangles[YAW],diff,limit=40,scale;
     int delta=ps->delta_angles[YAW];
@@ -6096,6 +6149,8 @@ static void PM_TCEProneView(playerState_t *ps, pmoveExt_t *ext, usercmd_t *cmd, 
     ps->delta_angles[YAW]=delta;ext->proneLegsOffset=start[2]-ps->origin[2];
 #endif
 }
+
+#endif
 
 #endif
 
