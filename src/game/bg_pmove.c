@@ -9547,52 +9547,7 @@ static qboolean PM_FreeClimbActorAllowed(void) {
 #endif
 /* TC qagame20033480: original control flow; undefined freeClimb remains a documented boundary. */
 #if defined(_MSC_VER) && defined(_M_IX86)
-/* TC qagame832: native offsets and original Windows x87 instruction order. */
-static const float move832K200ac110 = 1.0;
-static const float move832K200ac720 = -400.0;
-static const double move832K200ac378 = 0.001;
-static const double move832K200ac130 = 1.0;
-static const float move832K200ac100 = 0.0;
-enum {
-    move832Ps = offsetof(pmove_t,ps),
-    move832Ext = offsetof(pmove_t,pmext),
-    move832Character = offsetof(pmove_t,character),
-    move832Buttons = offsetof(pmove_t,cmd)+offsetof(usercmd_t,buttons),
-    move832ForwardCmd = offsetof(pmove_t,cmd)+offsetof(usercmd_t,forwardmove),
-    move832RightCmd = offsetof(pmove_t,cmd)+offsetof(usercmd_t,rightmove),
-    move832Mask = offsetof(pmove_t,tracemask),
-    move832Mins = offsetof(pmove_t,mins),
-    move832Maxs = offsetof(pmove_t,maxs),
-    move832Trace = offsetof(pmove_t,trace),
-    move832Skill = offsetof(pmove_t,skill),
-    move832Origin = offsetof(playerState_t,origin),
-    move832Velocity = offsetof(playerState_t,velocity),
-    move832Flags = offsetof(playerState_t,pm_flags),
-    move832Eflags = offsetof(playerState_t,eFlags),
-    move832Health = offsetof(playerState_t,stats)+STAT_HEALTH*sizeof(int),
-    move832TcFlags = offsetof(playerState_t,stats)+STAT_TCE_FLAGS*sizeof(int),
-    move832WeaponFlags = offsetof(playerState_t,stats)+STAT_TCE_WEAPON_FLAGS*sizeof(int),
-    move832Ground = offsetof(playerState_t,groundEntityNum),
-    move832Client = offsetof(playerState_t,clientNum),
-    move832Weapon = offsetof(playerState_t,weapon),
-    move832WeaponState = offsetof(playerState_t,weaponstate),
-    move832Adrenaline = offsetof(playerState_t,powerups)+PW_ADRENALINE*sizeof(int),
-    move832Fatigue = offsetof(playerState_t,powerups)+PW_NOFATIGUE*sizeof(int),
-    move832Carried = offsetof(playerState_t,holdable)+9*sizeof(int),
-    move832Exert = offsetof(playerState_t,sprintExertTime),
-    move832Sprint = offsetof(pmoveExt_t,sprintTime),
-    move832Model = offsetof(bg_character_t,animModelInfo),
-    move832DefWeight = offsetof(tce_weaponDef_t,loadoutWeight),
-    move832Frame = offsetof(pml_t,frametime),
-    move832Walking = offsetof(pml_t,walking),
-    move832GroundPlane = offsetof(pml_t,groundPlane),
-    move832Forward = offsetof(pml_t,forward),
-    move832Ladder = offsetof(pml_t,ladder),
-    move832Material = offsetof(pml_t,tceLadderSurfaceFlags)
-};
-#ifdef GAMEDLL
-enum { move832Leadership = offsetof(pmove_t,leadership),move832FreeClimbPermission=offsetof(pmove_t,tceBotFreeClimb) };
-#endif
+/* Native trace layout and movement protocol bounds retained after C reconstruction. */
 typedef char move832TraceLayout[(sizeof(trace_t)==56 && offsetof(trace_t,fraction)==8 && offsetof(trace_t,plane)==24 && offsetof(trace_t,surfaceFlags)==44 && offsetof(trace_t,contents)==48 && offsetof(trace_t,entityNum)==52) ? 1 : -1];
 typedef char move832Protocol[(offsetof(pmove_t,ps)==0 && SK_BATTLE_SENSE==0 && offsetof(cplane_t,normal)==0 && PMF_LADDER==4 && PMF_DUCKED==1 && EF_PRONE==0x80000 && EF_PRONE_MOVING==0x100000 && EV_FOOTSTEP==1 && ANIM_ET_CLIMB_MOUNT==9 && ANIM_ET_CLIMB_DISMOUNT==10 && sizeof(tce_weaponDef_t)==460) ? 1 : -1];
 #endif
@@ -11049,174 +11004,36 @@ Pmove
 Can be called by either the server or the client
 ================
 */
-#if defined(_MSC_VER) && defined(_M_IX86)
-/* TC qagame2003b3a0: exact outer timing, wrap arithmetic and call order. */
-enum {
-    outerPs834 = offsetof(pmove_t,ps),
-    outerCommand834 = offsetof(pmove_t,cmd)+offsetof(usercmd_t,serverTime),
-    outerUp834 = offsetof(pmove_t,cmd)+offsetof(usercmd_t,upmove),
-    outerFixed834 = offsetof(pmove_t,pmove_fixed),
-    outerMsec834 = offsetof(pmove_t,pmove_msec),
-    outerTime834 = offsetof(playerState_t,commandTime),
-    outerFlags834 = offsetof(playerState_t,pm_flags),
-    outerFrame834 = offsetof(playerState_t,pmove_framecount),
-    outerHeat834 = offsetof(playerState_t,curWeapHeat)
-};
-__declspec(naked) int Pmove(pmove_t *pmove) {
-    __asm {
-
-        PUSH ESI
-
-        MOV ESI,dword ptr [ESP + 0x8]
-
-        PUSH EDI
-
-        MOV ECX,dword ptr [ESI + outerPs834]
-
-        MOV EDI,dword ptr [ESI + outerCommand834]
-
-        MOV EAX,dword ptr [ECX + outerTime834]
-
-        CMP EDI,EAX
-
-        JL outerAt2003b477
-
-        ADD EAX,0x3e8
-
-        CMP EDI,EAX
-
-        JLE outerAt2003b3c6
-
-        LEA EAX,[EDI - 1000]
-
-        MOV dword ptr [ECX + outerTime834],EAX
-    outerAt2003b3c6:
-        MOV EAX,dword ptr [ESI + outerPs834]
-
-        MOV ECX,dword ptr [EAX + outerFlags834]
-
-        TEST CH,0x20
-
-        JZ outerAt2003b3e0
-
-        MOV EDX,dword ptr [EAX + outerTime834]
-
-        MOV ECX,EDI
-
-        SUB ECX,EDX
-
-        CMP ECX,0x32
-
-        JLE outerAt2003b3e0
-
-        LEA EDX,[EDI + -0x32]
-
-        MOV dword ptr [EAX + outerTime834],EDX
-    outerAt2003b3e0:
-        MOV EAX,dword ptr [ESI + outerPs834]
-
-        MOV ECX,dword ptr [EAX + outerFrame834]
-
-        INC ECX
-
-        AND ECX,0x3f
-
-        MOV dword ptr [EAX + outerFrame834],ECX
-
-        MOV dword ptr [pm],ESI
-
-        CALL PM_AdjustAimSpreadScale
-
-        MOV EDX,dword ptr [ESI + outerPs834]
-
-        MOV ECX,dword ptr [EDX + outerTime834]
-
-        CMP ECX,EDI
-
-        JZ outerAt2003b44b
-    outerAt2003b405:
-        MOV EDX,dword ptr [ESI + outerFixed834]
-
-        MOV EAX,EDI
-
-        SUB EAX,ECX
-
-        TEST EDX,EDX
-
-        JZ outerAt2003b421
-
-        MOV EDX,dword ptr [ESI + outerMsec834]
-
-        CMP EAX,EDX
-
-        JLE outerAt2003b42b
-
-        MOV EAX,EDX
-
-        JMP outerAt2003b42b
-    outerAt2003b421:
-        CMP EAX,0x32
-
-        JLE outerAt2003b42b
-
-        MOV EAX,0x32
-    outerAt2003b42b:
-        ADD ECX,EAX
-
-        PUSH ESI
-
-        MOV dword ptr [ESI + outerCommand834],ECX
-
-        CALL PmoveSingle
-
-        MOV EAX,dword ptr [ESI + outerPs834]
-
-        ADD ESP,0x4
-
-        TEST byte ptr [EAX + outerFlags834],0x2
-
-        JZ outerAt2003b445
-
-        MOV byte ptr [ESI + outerUp834],0x14
-    outerAt2003b445:
-        MOV ECX,dword ptr [EAX + outerTime834]
-
-        CMP ECX,EDI
-
-        JNZ outerAt2003b405
-    outerAt2003b44b:
-        MOV ESI,dword ptr [ESI + outerPs834]
-
-        MOV EAX,dword ptr [ESI + outerHeat834]
-
-        CMP EAX,0xff
-
-        JLE outerAt2003b469
-
-        MOV dword ptr [ESI + outerHeat834],0xff
-
-        POP EDI
-
-        XOR EAX,EAX
-
-        POP ESI
-
-        RET
-    outerAt2003b469:
-        TEST EAX,EAX
-
-        JGE outerAt2003b477
-
-        MOV dword ptr [ESI + outerHeat834],0x0
-    outerAt2003b477:
-        POP EDI
-
-        XOR EAX,EAX
-
-        POP ESI
-
-        RET
+/* TC:E retains SDK substep scheduling but always returns zero.
+ * Explicit unsigned arithmetic preserves the original 32-bit time wrapping. */
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+int Pmove(pmove_t *pmove) {
+    int finalTime = pmove->cmd.serverTime;
+    int msec;
+
+    if (finalTime < pmove->ps->commandTime) return 0;
+    if (finalTime > PM_ProneTimeValue((unsigned)pmove->ps->commandTime + 1000u))
+        pmove->ps->commandTime = PM_ProneTimeValue((unsigned)finalTime - 1000u);
+    if ((pmove->ps->pm_flags & PMF_TIME_LOAD) &&
+        PM_ProneTimeValue((unsigned)finalTime - (unsigned)pmove->ps->commandTime) > 50)
+        pmove->ps->commandTime = PM_ProneTimeValue((unsigned)finalTime - 50u);
+
+    pmove->ps->pmove_framecount = ((unsigned)pmove->ps->pmove_framecount + 1u) &
+        ((1u << PS_PMOVEFRAMECOUNTBITS) - 1u);
+    pm = pmove;
+    PM_AdjustAimSpreadScale();
+    while (pmove->ps->commandTime != finalTime) {
+        msec = PM_ProneTimeValue((unsigned)finalTime - (unsigned)pmove->ps->commandTime);
+        if (pmove->pmove_fixed) {
+            if (msec > pmove->pmove_msec) msec = pmove->pmove_msec;
+        } else if (msec > 50) msec = 50;
+        pmove->cmd.serverTime = PM_ProneTimeValue((unsigned)pmove->ps->commandTime + (unsigned)msec);
+        PmoveSingle(pmove);
+        if (pmove->ps->pm_flags & PMF_JUMP_HELD) pmove->cmd.upmove = 20;
     }
+    if (pmove->ps->curWeapHeat > 255) pmove->ps->curWeapHeat = 255;
+    else if (pmove->ps->curWeapHeat < 0) pmove->ps->curWeapHeat = 0;
+    return 0;
 }
 #else
 int Pmove (pmove_t *pmove) {
