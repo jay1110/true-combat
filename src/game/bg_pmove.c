@@ -39,6 +39,17 @@ typedef char movementCharacterModel[(offsetof(bg_character_t, animModelInfo) == 
 #endif
 #endif
 
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+/* Interpret wrapped native posture timestamps without signed C overflow. */
+typedef char proneTimeLayout[(sizeof(unsigned) == 4 && sizeof(int) == 4) ? 1 : -1];
+static int PM_ProneTimeValue(unsigned bits) {
+    int value;
+    memcpy(&value, &bits, sizeof(value));
+    return value;
+}
+
+#endif
+
 #ifdef CGAMEDLL
 #define PM_GameType cg_gameType.integer
 #elif GAMEDLL
@@ -1500,14 +1511,6 @@ enum {
     posture832ps3c = offsetof(playerState_t, leanf),
     posture832pm10 = offsetof(pmove_t, cmd)+offsetof(usercmd_t,buttons)
 };
-/* Interpret wrapped native posture timestamps without signed C overflow. */
-typedef char proneTimeLayout[(sizeof(unsigned) == 4 && sizeof(int) == 4) ? 1 : -1];
-static int PM_ProneTimeValue(unsigned bits) {
-    int value;
-    memcpy(&value, &bits, sizeof(value));
-    return value;
-}
-
 static qboolean PM_CheckProne(void) {
     trace_t trace;
     vec3_t mins = {-13.5f, -13.5f, -24.0f}, maxs = {13.5f, 13.5f, -14.4f};
@@ -2843,7 +2846,7 @@ PM_GroundTraceMissed
 The ground trace didn't hit a surface, so we are in freefall
 =============
 */
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 static void PM_GroundTraceMissed(void) {
     trace_t trace;
     vec3_t point;
@@ -2921,7 +2924,8 @@ PM_GroundTrace
 */
 /* TCE capsule ground controller, including content/prone ground extension.
  * Native predicates and callback ordering are explicit; compiled ABI remains open. */
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && defined(__i386__))
 typedef char groundCallbackBounds[(offsetof(pmove_t, mins) == 0xf4 &&
     offsetof(pmove_t, maxs) == 0x100 && offsetof(pmove_t, tracemask) == 0x44 &&
     offsetof(playerState_t, origin) == 0x14 && offsetof(playerState_t, clientNum) == 0xa0) ? 1 : -1];
@@ -2930,11 +2934,12 @@ typedef char groundCallbackSlot[(offsetof(pmove_t, trace) == 0x124) ? 1 : -1];
 #else
 typedef char groundCallbackSlot[(offsetof(pmove_t, trace) == 0x128) ? 1 : -1];
 #endif
+#endif
 static void PM_GroundTrace(void) {
     vec3_t point;
     trace_t trace;
     long double separation;
-    qboolean proneGround = qfalse;
+    qboolean proneGround = qfalse, candidateHit;
 
     point[0] = pm->ps->origin[0];
     point[1] = pm->ps->origin[1];
@@ -2954,7 +2959,11 @@ static void PM_GroundTrace(void) {
             point[2] = (float)((long double)point[2] - 12.0f);
             pm->trace(&trace, pm->ps->origin, pm->mins, pm->maxs, point,
                 pm->ps->clientNum, pm->tracemask);
-            if ((trace.fraction < 1.0f || TCE_FloatIsNaN(trace.fraction)) &&
+            candidateHit = trace.fraction < 1.0f;
+#if !defined(__linux__)
+            candidateHit = candidateHit || TCE_FloatIsNaN(trace.fraction);
+#endif
+            if (candidateHit &&
                 !trace.allsolid && (long double)trace.plane.normal[2] > 0.7) {
                 pml.tceGroundExtension = qtrue;
                 memcpy(&pml.groundTrace, &trace, sizeof(trace));
@@ -2963,7 +2972,11 @@ static void PM_GroundTrace(void) {
             point[2] = (float)((long double)point[2] - 12.0f);
             pm->trace(&trace, pm->ps->origin, pm->mins, pm->maxs, point,
                 pm->ps->clientNum, pm->tracemask);
-            if ((trace.fraction < 1.0f || TCE_FloatIsNaN(trace.fraction)) && !trace.allsolid) {
+            candidateHit = trace.fraction < 1.0f;
+#if !defined(__linux__)
+            candidateHit = candidateHit || TCE_FloatIsNaN(trace.fraction);
+#endif
+            if (candidateHit && !trace.allsolid) {
                 proneGround = qtrue;
                 memcpy(&pml.groundTrace, &trace, sizeof(trace));
             }
