@@ -1632,530 +1632,139 @@ enum {
     posture832ps3c = offsetof(playerState_t, leanf),
     posture832pm10 = offsetof(pmove_t, cmd)+offsetof(usercmd_t,buttons)
 };
-static __declspec(naked) qboolean PM_CheckProne(void) {
-    __asm {
-        MOV EAX,[pm]
-        SUB ESP,0x68
-        MOV EDX,dword ptr [EAX + posture832pm0]
-        PUSH EBX
-        PUSH ESI
-        PUSH EDI
-        MOV ECX,dword ptr [EDX + posture832ps68]
-        MOV ESI,0x40
-        TEST ECX,0x80000
-        JNZ posture832_20035028
-        TEST ECX,0x100000
-        JZ posture832_20034d4d
-        MOV EDI,dword ptr [EAX + posture832pm4]
-        MOV EBX,dword ptr [EAX + posture832pmc]
-        MOV EDI,dword ptr [EDI + posture832ext34]
-        ADD EDI,EBX
-        CMP EDI,0x2ee
-        JLE posture832_20034d4d
-        AND ECX,0xffefffff
-        MOV dword ptr [EDX + posture832ps68],ECX
-        MOV EAX,[pm]
-        MOV EAX,dword ptr [EAX + posture832pm0]
-        MOV ECX,dword ptr [EAX + posture832ps68]
-        AND ECX,0xff7fffff
-        MOV dword ptr [EAX + posture832ps68],ECX
-        MOV EAX,[pm]
-posture832_20034d4d:
-        MOV ECX,dword ptr [EAX + posture832pm0]
-        MOV EBX,dword ptr [ECX + posture832psc]
-        TEST BL,0x4
-        JNZ posture832_2003541d
-        MOV EDX,dword ptr [ECX + posture832ps140]
-        TEST EDX,EDX
-        JNZ posture832_2003541d
-        MOV EDX,dword ptr [ECX + posture832ps68]
-        TEST DH,0x80
-        JNZ posture832_2003541d
-        MOV EDI,dword ptr [ECX + posture832ps30]
-        TEST EDI,EDI
-        JZ posture832_20034d89
-        CMP dword ptr [ECX + posture832psa4],0x41
-        JZ posture832_2003541d
-posture832_20034d89:
-        CMP dword ptr [ECX + posture832psa4],0x3c
-        JZ posture832_2003541d
-        TEST EDX,0x1000000
-        JNZ posture832_2003541d
-        MOV EDX,dword ptr [ECX + posture832psf0]
-        TEST DH,0x10
-        JNZ posture832_2003541d
-        MOV ECX,dword ptr [ECX + posture832ps50]
-        CMP ECX,0x3ff
-        JZ posture832_2003541d
-        MOV EDX,dword ptr [pml.tceContentRestriction]
-        TEST EDX,EDX
-        JNZ posture832_2003541d
-        CMP ECX,ESI
-        JL posture832_2003541d
-        CMP dword ptr [EAX + posture832pm110],0x1
-        JG posture832_2003541d
-        TEST BL,0x1
-        JZ posture832_20034dee
-        CMP byte ptr [EAX + posture832pm23],0x3
-        JZ posture832_20034df8
-posture832_20034dee:
-        TEST byte ptr [EAX + posture832pm11],0x80
-        JZ posture832_20035028
-posture832_20034df8:
-        MOV ECX,dword ptr [EAX + posture832pm4]
-        MOV EDI,dword ptr [EAX + posture832pmc]
-        MOV EDX,dword ptr [ECX + posture832ext34]
-        ADD EDX,EDI
-        CMP EDX,0x2ee
-        JLE posture832_20035028
-        MOV ECX,dword ptr [playerlegsProneMins]
-        MOV EDX,dword ptr [playerlegsProneMins+4]
-        MOV dword ptr [ESP + 0x18],ECX
-        MOV ECX,dword ptr [playerlegsProneMins+8]
-        MOV dword ptr [ESP + 0x1c],EDX
-        MOV EDX,dword ptr [playerlegsProneMaxs]
-        MOV dword ptr [ESP + 0x20],ECX
-        MOV ECX,dword ptr [playerlegsProneMaxs+4]
-        MOV dword ptr [ESP + 0xc],EDX
-        MOV EDX,dword ptr [playerlegsProneMaxs+8]
-        FLD dword ptr [posture832Const200ac110]
-        MOV dword ptr [ESP + 0x10],ECX
-        MOV dword ptr [ESP + 0x14],EDX
-        MOV ECX,dword ptr [EAX + posture832pm0]
-        MOV EDX,dword ptr [ECX + posture832psf4]
-        TEST DH,0x2
-        JZ posture832_20034eba
-        FSTP ST(0)
-        FLD dword ptr [posture832Const200ac6e8]
-        FLD dword ptr [ESP + 0x18]
-        FMUL dword ptr [posture832Const200ac6e8]
-        FSTP dword ptr [ESP + 0x18]
-        FLD dword ptr [ESP + 0x1c]
-        FMUL dword ptr [posture832Const200ac6e8]
-        FSTP dword ptr [ESP + 0x1c]
-        FLD dword ptr [ESP + 0x20]
-        FMUL dword ptr [posture832Const200ac6e8]
-        FSTP dword ptr [ESP + 0x20]
-        FLD dword ptr [ESP + 0xc]
-        FMUL dword ptr [posture832Const200ac6e8]
-        FSTP dword ptr [ESP + 0xc]
-        FLD dword ptr [ESP + 0x10]
-        FMUL dword ptr [posture832Const200ac6e8]
-        FSTP dword ptr [ESP + 0x10]
-        FLD dword ptr [ESP + 0x14]
-        FMUL dword ptr [posture832Const200ac6e8]
-        FSTP dword ptr [ESP + 0x14]
-posture832_20034eba:
-        FLD dword ptr [pml.forward]
-        MOV EDX,dword ptr [pml.forward+4]
-        FMUL ST(0),ST(1)
-        MOV dword ptr [ESP + 0x34],EDX
-        MOV ECX,dword ptr [EAX + posture832pm0]
-        FMUL dword ptr [posture832Const200ac2d4]
-        FSUBR dword ptr [ECX + posture832ps14]
-        FSTP dword ptr [ESP + 0x24]
-        MOV EDX,dword ptr [EAX + posture832pm0]
-        FMUL dword ptr [ESP + 0x34]
-        FMUL dword ptr [posture832Const200ac2d4]
-        FSUBR dword ptr [EDX + posture832ps18]
-        MOV EDX,dword ptr [ESP + 0x24]
-        FST dword ptr [ESP + 0x28]
-        MOV ECX,dword ptr [EAX + posture832pm0]
-        FLD dword ptr [ECX + posture832ps1c]
-        FADD dword ptr [posture832Const200ac290]
-        MOV dword ptr [ESP + 0x30],EDX
-        FSTP dword ptr [ESP + 0x2c]
-        FSTP dword ptr [ESP + 0x34]
-        FLD dword ptr [ESP + 0x2c]
-        FSUB dword ptr [posture832Const200ac71c]
-        FSUB dword ptr [posture832Const200ac290]
-        FSTP dword ptr [ESP + 0x38]
-        MOV ECX,dword ptr [EAX + posture832pm44]
-        MOV EDX,dword ptr [EAX + posture832pm0]
-        PUSH ECX
-        MOV ECX,dword ptr [EDX + posture832psa0]
-        LEA EDX,[ESP + 0x34]
-        PUSH ECX
-        PUSH EDX
-        LEA ECX,[ESP + 0x18]
-        LEA EDX,[ESP + 0x24]
-        PUSH ECX
-        PUSH EDX
-        LEA ECX,[ESP + 0x38]
-        LEA EDX,[ESP + 0x50]
-        PUSH ECX
-        PUSH EDX
-        CALL dword ptr [EAX + posture832pm128]
-        MOV EAX,dword ptr [ESP + 0x5c]
-        ADD ESP,0x1c
-        TEST EAX,EAX
-        JZ posture832_20034f5e
-        CMP dword ptr [ESP + 0x70],ESI
-        JGE posture832_2003541d
-posture832_20034f5e:
-        FLD dword ptr [ESP + 0x44]
-        FCOMP dword ptr [posture832Const200ac110]
-        FNSTSW AX
-        TEST AH,0x40
-        JNZ posture832_2003541d
-        FLD dword ptr [ESP + 0x50]
-        MOV EAX,dword ptr [ESP + 0x48]
-        MOV ECX,dword ptr [ESP + 0x4c]
-        FADD dword ptr [posture832Const200ac71c]
-        MOV EDX,dword ptr [ESP + 0x50]
-        MOV dword ptr [ESP + 0x24],EAX
-        MOV dword ptr [ESP + 0x30],EAX
-        MOV EAX,[pm]
-        FSTP dword ptr [ESP + 0x38]
-        MOV dword ptr [ESP + 0x28],ECX
-        MOV dword ptr [ESP + 0x2c],EDX
-        MOV dword ptr [ESP + 0x34],ECX
-        MOV EDX,dword ptr [EAX + posture832pm44]
-        MOV ECX,dword ptr [EAX + posture832pm0]
-        PUSH EDX
-        MOV EDX,dword ptr [ECX + posture832psa0]
-        LEA ECX,[ESP + 0x34]
-        PUSH EDX
-        PUSH ECX
-        LEA EDX,[ESP + 0x18]
-        LEA ECX,[ESP + 0x24]
-        PUSH EDX
-        PUSH ECX
-        LEA EDX,[ESP + 0x38]
-        LEA ECX,[ESP + 0x50]
-        PUSH EDX
-        PUSH ECX
-        CALL dword ptr [EAX + posture832pm128]
-        MOV EAX,dword ptr [ESP + 0x58]
-        ADD ESP,0x1c
-        TEST EAX,EAX
-        JZ posture832_20034fe3
-        CMP dword ptr [ESP + 0x70],ESI
-        JGE posture832_20035023
-posture832_20034fe3:
-        MOV EDX,dword ptr [pm]
-        MOV EAX,dword ptr [EDX + posture832pm0]
-        MOV EDX,dword ptr [EAX + posture832psc]
-        OR EDX,0x1
-        MOV dword ptr [EAX + posture832psc],EDX
-        MOV EAX,[pm]
-        MOV EAX,dword ptr [EAX + posture832pm0]
-        MOV ECX,dword ptr [EAX + posture832ps68]
-        OR ECX,0x80000
-        MOV dword ptr [EAX + posture832ps68],ECX
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX + posture832pm4]
-        MOV EDX,dword ptr [EAX + posture832pmc]
-        MOV dword ptr [ECX + posture832ext34],EDX
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX + posture832pm4]
-        MOV EDX,dword ptr [EAX + posture832pmc]
-        MOV dword ptr [ECX + posture832ext38],EDX
-posture832_20035023:
-        MOV EAX,[pm]
-posture832_20035028:
-        MOV ECX,dword ptr [EAX + posture832pm0]
-        MOV EDI,0x800000
-        MOV EDX,dword ptr [ECX + posture832ps68]
-        TEST EDX,0x80000
-        JZ posture832_2003524d
-        CMP dword ptr [EAX + posture832pm110],0x1
-        JG posture832_200350a3
-        CMP dword ptr [ECX + posture832ps4],0x3
-        JZ posture832_200350a3
-        TEST DH,0x80
-        JNZ posture832_200350a3
-        MOV EDX,dword ptr [ECX + posture832ps50]
-        CMP EDX,0x3ff
-        JZ posture832_200350a3
-        CMP EDX,ESI
-        JL posture832_200350a3
-        TEST byte ptr [ECX + posture832psc],0x4
-        JNZ posture832_200350a3
-        MOV ECX,dword ptr [pml.tceContentRestriction]
-        TEST ECX,ECX
-        JNZ posture832_200350a3
-        CMP byte ptr [EAX + posture832pm23],0x4
-        JZ posture832_2003508e
-        MOV CL,byte ptr [EAX + posture832pm22]
-        CMP CL,0xa
-        JG posture832_2003508e
-        CMP CL,0xf6
-        JL posture832_2003508e
-        TEST byte ptr [EAX + posture832pm11],0x80
-        JZ posture832_2003524d
-posture832_2003508e:
-        MOV ECX,dword ptr [EAX + posture832pm4]
-        MOV EDX,dword ptr [EAX + posture832pmc]
-        SUB EDX,dword ptr [ECX + posture832ext34]
-        CMP EDX,0x2ee
-        JLE posture832_2003524d
-posture832_200350a3:
-        MOV ECX,dword ptr [EAX + posture832pm0]
-        MOV EDX,dword ptr [ECX + posture832ps3dc]
-        MOV dword ptr [EAX + posture832pmf4],EDX
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX + posture832pm0]
-        MOV EDX,dword ptr [ECX + posture832ps3e0]
-        MOV dword ptr [EAX + posture832pmf8],EDX
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX + posture832pm0]
-        MOV EDX,dword ptr [ECX + posture832ps3e8]
-        MOV dword ptr [EAX + posture832pm100],EDX
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX + posture832pm0]
-        MOV EDX,dword ptr [ECX + posture832ps3ec]
-        MOV dword ptr [EAX + posture832pm104],EDX
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX + posture832pm0]
-        MOV EDX,dword ptr [ECX + posture832ps3e4]
-        MOV dword ptr [EAX + posture832pmfc],EDX
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX + posture832pm0]
-        MOV EDX,dword ptr [ECX + posture832ps3f4]
-        MOV dword ptr [EAX + posture832pm108],EDX
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX + posture832pm0]
-        MOV ESI,dword ptr [EAX + posture832pm44]
-        PUSH ESI
-        LEA EDX,[ECX + posture832ps14]
-        MOV ECX,dword ptr [ECX + posture832psa0]
-        PUSH ECX
-        LEA ECX,[EAX + posture832pm100]
-        PUSH EDX
-        PUSH ECX
-        LEA ECX,[EAX + posture832pmf4]
-        PUSH ECX
-        PUSH EDX
-        LEA EDX,[ESP + 0x54]
-        PUSH EDX
-        CALL dword ptr [EAX + posture832pm128]
-        MOV EAX,dword ptr [ESP + 0x58]
-        ADD ESP,0x1c
-        TEST EAX,EAX
-        MOV EAX,[pm]
-        JNZ posture832_2003524d
-        MOV EAX,dword ptr [EAX + posture832pm0]
-        MOV ESI,dword ptr [EAX + posture832psc]
-        OR ESI,0x1
-        MOV dword ptr [EAX + posture832psc],ESI
-        MOV ECX,dword ptr [pm]
-        MOV EAX,dword ptr [ECX + posture832pm0]
-        MOV EDX,dword ptr [EAX + posture832ps68]
-        AND EDX,0xfff7ffff
-        MOV dword ptr [EAX + posture832ps68],EDX
-        MOV EDX,dword ptr [pm]
-        MOV EAX,dword ptr [EDX + posture832pm0]
-        MOV ECX,dword ptr [EAX + posture832ps68]
-        OR ECX,0x100000
-        MOV dword ptr [EAX + posture832ps68],ECX
-        MOV EAX,[pm]
-        MOV EAX,dword ptr [EAX + posture832pm0]
-        MOV EBX,dword ptr [EAX + posture832ps68]
-        OR EBX,EDI
-        MOV dword ptr [EAX + posture832ps68],EBX
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX + posture832pmc]
-        MOV EDX,dword ptr [EAX + posture832pm4]
-        NEG ECX
-        MOV dword ptr [EDX + posture832ext34],ECX
-        MOV EAX,[pm]
-        MOV CL,byte ptr [EAX + posture832pm22]
-        CMP CL,0xa
-        JLE posture832_200351cb
-        MOV ESI,dword ptr [EAX + posture832pm0]
-        MOV EDX,dword ptr [ESI + posture832psf0]
-        TEST DH,0x2
-        JZ posture832_200351cb
-        AND DH,0xfd
-        MOV dword ptr [ESI + posture832psf0],EDX
-        JMP posture832_20035200
-posture832_200351cb:
-        CMP CL,0xf6
-        JGE posture832_20035205
-        MOV ECX,dword ptr [EAX + posture832pm0]
-        TEST byte ptr [ECX + posture832ps148],0x4
-        JZ posture832_20035205
-        MOV EDX,dword ptr [ECX + posture832psf0]
-        OR DH,0x2
-        MOV dword ptr [ECX + posture832psf0],EDX
-        MOV EAX,[pm]
-        MOV EAX,dword ptr [EAX + posture832pm0]
-        MOV ECX,dword ptr [EAX + posture832psf0]
-        OR CH,0x4
-        MOV dword ptr [EAX + posture832psf0],ECX
-posture832_20035200:
-        MOV EAX,[pm]
-posture832_20035205:
-        MOV ECX,dword ptr [EAX + posture832pm0]
-        CMP dword ptr [ECX + posture832psa4],0x3e
-        JNZ posture832_20035223
-        PUSH 0x0
-        PUSH 0x1f
-        PUSH 0x3e
-        CALL PM_BeginWeaponChange
-        MOV EAX,[pm]
-        ADD ESP,0xc
-posture832_20035223:
-        MOV EDX,dword ptr [EAX + posture832pmc]
-        MOV EAX,dword ptr [EAX + posture832pm4]
-        SUB EDX,0x28a
-        MOV dword ptr [EAX + posture832ext4],EDX
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX + posture832pmc]
-        MOV EDX,dword ptr [EAX + posture832pm0]
-        SUB ECX,0x28a
-        MOV dword ptr [EDX + posture832ps47c],ECX
-        MOV EAX,[pm]
-posture832_2003524d:
-        MOV EAX,dword ptr [EAX + posture832pm0]
-        TEST dword ptr [EAX + posture832ps68],0x80000
-        JZ posture832_2003541d
-        ADD EAX,posture832ps20
-        PUSH EAX
-        CALL VectorLength
-        MOV ECX,dword ptr [pm]
-        ADD ESP,0x4
-        FCOMP dword ptr [posture832Const200ac19c]
-        MOVSX EAX,byte ptr [ECX + posture832pm21]
-        CDQ
-        MOV ESI,EAX
-        MOVSX EAX,byte ptr [ECX + posture832pm20]
-        XOR ESI,EDX
-        SUB ESI,EDX
-        CDQ
-        XOR EAX,EDX
-        SUB EAX,EDX
-        ADD ESI,EAX
-        XOR EAX,EAX
-        CMP ESI,0xa
-        SETG AL
-        TEST EAX,EAX
-        FNSTSW AX
-        JZ posture832_200352fa
-        TEST AH,0x41
-        JNZ posture832_20035319
-        MOV EDX,dword ptr [ECX + posture832pm0]
-        MOV EAX,dword ptr [EDX + posture832ps68]
-        TEST EAX,0x100000
-        JNZ posture832_20035319
-        OR EAX,0x100000
-        MOV dword ptr [EDX + posture832ps68],EAX
-        MOV ECX,dword ptr [pm]
-        MOV EAX,dword ptr [ECX + posture832pm0]
-        MOV EAX,dword ptr [EAX + posture832psa4]
-        SUB EAX,0x39
-        JZ posture832_200352ea
-        DEC EAX
-        JZ posture832_200352da
-        DEC EAX
-        JNZ posture832_20035319
-        PUSH 0x0
-        PUSH 0x21
-        PUSH 0x3b
-        CALL PM_BeginWeaponChange
-        ADD ESP,0xc
-        JMP posture832_20035313
-posture832_200352da:
-        PUSH 0x0
-        PUSH 0x20
-        PUSH 0x3a
-        CALL PM_BeginWeaponChange
-        ADD ESP,0xc
-        JMP posture832_20035313
-posture832_200352ea:
-        PUSH 0x0
-        PUSH 0x19
-        PUSH 0x39
-        CALL PM_BeginWeaponChange
-        ADD ESP,0xc
-        JMP posture832_20035313
-posture832_200352fa:
-        TEST AH,0x1
-        JZ posture832_20035319
-        MOV EDX,dword ptr [ECX + posture832pm0]
-        MOV EAX,dword ptr [EDX + posture832ps68]
-        TEST EAX,0x100000
-        JZ posture832_20035319
-        AND EAX,0xffefffff
-        MOV dword ptr [EDX + posture832ps68],EAX
-posture832_20035313:
-        MOV ECX,dword ptr [pm]
-posture832_20035319:
-        MOV EDX,dword ptr [ECX + posture832pm4]
-        MOV EAX,dword ptr [ECX + posture832pmc]
-        MOV ECX,dword ptr [ECX + posture832pm0]
-        SUB EAX,dword ptr [EDX + posture832ext34]
-        CMP EAX,0x2ee
-        JGE posture832_20035344
-        MOV EDX,dword ptr [ECX + posture832ps68]
-        OR EDX,0x100000
-        MOV dword ptr [ECX + posture832ps68],EDX
-        MOV ECX,dword ptr [pm]
-        MOV EAX,dword ptr [ECX + posture832pm0]
-        OR dword ptr [EAX + posture832ps68],EDI
-        JMP posture832_2003534b
-posture832_20035344:
-        AND dword ptr [ECX + posture832ps68],0xff7fffff
-posture832_2003534b:
-        MOV EAX,[pm]
-        MOV EDX,dword ptr [EAX + posture832pm0]
-        MOV ECX,dword ptr [EDX + posture832ps3dc]
-        MOV dword ptr [EAX + posture832pmf4],ECX
-        MOV EAX,[pm]
-        MOV EDX,dword ptr [EAX + posture832pm0]
-        MOV ECX,dword ptr [EDX + posture832ps3e0]
-        MOV dword ptr [EAX + posture832pmf8],ECX
-        MOV EAX,[pm]
-        MOV EDX,dword ptr [EAX + posture832pm0]
-        MOV ECX,dword ptr [EDX + posture832ps3e8]
-        MOV dword ptr [EAX + posture832pm100],ECX
-        MOV EAX,[pm]
-        MOV EDX,dword ptr [EAX + posture832pm0]
-        MOV ECX,dword ptr [EDX + posture832ps3ec]
-        MOV dword ptr [EAX + posture832pm104],ECX
-        MOV EAX,[pm]
-        MOV EDX,dword ptr [EAX + posture832pm0]
-        MOV ECX,dword ptr [EDX + posture832ps3e4]
-        MOV dword ptr [EAX + posture832pmfc],ECX
-        MOV ECX,dword ptr [pm]
-        MOV EAX,dword ptr [ECX + posture832pm0]
-        MOV EDX,dword ptr [EAX + posture832psf4]
-        FLD dword ptr [EAX + posture832ps3f0]
-        FSUB dword ptr [EAX + posture832ps3fc]
-        TEST DH,0x2
-        JZ posture832_200353f3
-        FSUB dword ptr [posture832Const200ac790]
-        POP EDI
-        POP ESI
-        POP EBX
-        FSTP dword ptr [ECX + posture832pm108]
-        MOV EDX,dword ptr [pm]
-        MOV EAX,dword ptr [EDX + posture832pm0]
-        MOV dword ptr [EAX + posture832psbc],0xfffffff6
-        MOV EAX,0x1
-        ADD ESP,0x68
-        RET
-posture832_200353f3:
-        FSUB dword ptr [posture832Const200ac78c]
-        POP EDI
-        POP ESI
-        MOV EAX,0x1
-        POP EBX
-        FSTP dword ptr [ECX + posture832pm108]
-        MOV ECX,dword ptr [pm]
-        MOV EDX,dword ptr [ECX + posture832pm0]
-        MOV dword ptr [EDX + posture832psbc],0xfffffff8
-        ADD ESP,0x68
-        RET
-posture832_2003541d:
-        POP EDI
-        POP ESI
-        XOR EAX,EAX
-        POP EBX
-        ADD ESP,0x68
-        RET
+/* Interpret wrapped native posture timestamps without signed C overflow. */
+typedef char proneTimeLayout[(sizeof(unsigned) == 4 && sizeof(int) == 4) ? 1 : -1];
+static int PM_ProneTimeValue(unsigned bits) {
+    int value;
+    memcpy(&value, &bits, sizeof(value));
+    return value;
+}
+
+static qboolean PM_CheckProne(void) {
+    trace_t trace;
+    vec3_t mins = {-13.5f, -13.5f, -24.0f}, maxs = {13.5f, 13.5f, -14.4f};
+    vec3_t start, end;
+    float scale = 1.0f;
+    long double speed, maxZ;
+    int axis, movement, weapon;
+    qboolean leave;
+
+    if (!(pm->ps->eFlags & EF_PRONE)) {
+        if ((pm->ps->eFlags & EF_PRONE_MOVING) &&
+            PM_ProneTimeValue((unsigned)pm->pmext->proneTime + (unsigned)pm->cmd.serverTime) > 750) {
+            pm->ps->eFlags &= ~EF_PRONE_MOVING;
+            pm->ps->eFlags &= ~0x800000;
+        }
+        if (pm->ps->pm_flags & PMF_LADDER) return qfalse;
+        if (pm->ps->persistant[PERS_HWEAPON_USE]) return qfalse;
+        if (pm->ps->eFlags & EF_MOUNTEDTANK) return qfalse;
+        if (pm->ps->weaponDelay && pm->ps->weapon == 65) return qfalse;
+        if (pm->ps->weapon == 60) return qfalse;
+        if (pm->ps->eFlags & 0x1000000) return qfalse;
+        if (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 0x1000) return qfalse;
+        if (pm->ps->groundEntityNum == ENTITYNUM_NONE) return qfalse;
+        if (pml.tceContentRestriction) return qfalse;
+        if (pm->ps->groundEntityNum < MAX_CLIENTS) return qfalse;
+        if (pm->waterlevel > 1) return qfalse;
+        if ((((pm->ps->pm_flags & PMF_DUCKED) && pm->cmd.doubleTap == DT_FORWARD) ||
+            (pm->cmd.wbuttons & WBUTTON_PRONE)) &&
+            PM_ProneTimeValue((unsigned)pm->pmext->proneTime + (unsigned)pm->cmd.serverTime) > 750) {
+            if (pm->ps->stats[STAT_TCE_FLAGS] & 0x200) {
+                for (axis = 0; axis < 3; ++axis) mins[axis] = (float)((long double)mins[axis] * 1.25f);
+                for (axis = 0; axis < 3; ++axis) maxs[axis] = (float)((long double)maxs[axis] * 1.25f);
+                scale = 1.25f;
+            }
+            start[0] = (float)((long double)pm->ps->origin[0] - (long double)pml.forward[0] * scale * 32.0f);
+            start[1] = (float)((long double)pm->ps->origin[1] - (long double)scale * pml.forward[1] * 32.0f);
+            start[2] = (float)((long double)pm->ps->origin[2] + 24.0f);
+            end[0] = start[0];
+            end[1] = start[1];
+            end[2] = (float)((long double)start[2] - 21.6f - 24.0f);
+            pm->trace(&trace, start, mins, maxs, end, pm->ps->clientNum, pm->tracemask);
+            if (trace.startsolid && trace.entityNum >= MAX_CLIENTS) return qfalse;
+            if (trace.fraction == 1.0f || trace.fraction != trace.fraction) return qfalse;
+            VectorCopy(trace.endpos, start);
+            VectorCopy(start, end);
+            end[2] = (float)((long double)start[2] + 21.6f);
+            pm->trace(&trace, start, mins, maxs, end, pm->ps->clientNum, pm->tracemask);
+            if (!trace.allsolid || trace.entityNum < MAX_CLIENTS) {
+                pm->ps->pm_flags |= PMF_DUCKED;
+                pm->ps->eFlags |= EF_PRONE;
+                pm->pmext->proneTime = pm->cmd.serverTime;
+                pm->pmext->proneGroundTime = pm->cmd.serverTime;
+            }
+        }
     }
+    if (pm->ps->eFlags & EF_PRONE) {
+        leave = pm->waterlevel > 1 || pm->ps->pm_type == PM_DEAD ||
+            (pm->ps->eFlags & EF_MOUNTEDTANK) || pm->ps->groundEntityNum == ENTITYNUM_NONE ||
+            pm->ps->groundEntityNum < MAX_CLIENTS || (pm->ps->pm_flags & PMF_LADDER) ||
+            pml.tceContentRestriction;
+        if (!leave && (pm->cmd.doubleTap == DT_BACK || pm->cmd.upmove > 10 ||
+            pm->cmd.upmove < -10 || (pm->cmd.wbuttons & WBUTTON_PRONE))) {
+            leave = PM_ProneTimeValue((unsigned)pm->cmd.serverTime - (unsigned)pm->pmext->proneTime) > 750;
+        }
+        if (leave) {
+            pm->mins[0] = pm->ps->mins[0];
+            pm->mins[1] = pm->ps->mins[1];
+            pm->maxs[0] = pm->ps->maxs[0];
+            pm->maxs[1] = pm->ps->maxs[1];
+            pm->mins[2] = pm->ps->mins[2];
+            pm->maxs[2] = pm->ps->crouchMaxZ;
+            pm->trace(&trace, pm->ps->origin, pm->mins, pm->maxs, pm->ps->origin,
+                pm->ps->clientNum, pm->tracemask);
+            if (!trace.allsolid) {
+                pm->ps->pm_flags |= PMF_DUCKED;
+                pm->ps->eFlags &= ~EF_PRONE;
+                pm->ps->eFlags |= EF_PRONE_MOVING;
+                pm->ps->eFlags |= 0x800000;
+                pm->pmext->proneTime = PM_ProneTimeValue(0u - (unsigned)pm->cmd.serverTime);
+                if (pm->cmd.upmove > 10 && (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 0x200)) {
+                    pm->ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~0x200;
+                } else if (pm->cmd.upmove < -10 && (pm->ps->persistant[14] & 4)) {
+                    pm->ps->stats[STAT_TCE_WEAPON_FLAGS] |= 0x200;
+                    pm->ps->stats[STAT_TCE_WEAPON_FLAGS] |= 0x400;
+                }
+                if (pm->ps->weapon == 62) PM_BeginWeaponChange(62, 31, qfalse);
+                pm->pmext->jumpTime = PM_ProneTimeValue((unsigned)pm->cmd.serverTime - 650u);
+                pm->ps->jumpTime = PM_ProneTimeValue((unsigned)pm->cmd.serverTime - 650u);
+            }
+        }
+    }
+    if (!(pm->ps->eFlags & EF_PRONE)) return qfalse;
+    speed = TCE_VectorLengthValue(pm->ps->velocity);
+    movement = abs((int)pm->cmd.rightmove) + abs((int)pm->cmd.forwardmove);
+    if (movement < 11) {
+        if ((speed < 20.0L || speed != speed) && (pm->ps->eFlags & EF_PRONE_MOVING)) {
+            pm->ps->eFlags &= ~EF_PRONE_MOVING;
+        }
+    } else if (speed > 20.0L && !(pm->ps->eFlags & EF_PRONE_MOVING)) {
+        pm->ps->eFlags |= EF_PRONE_MOVING;
+        weapon = pm->ps->weapon;
+        if (weapon == 57) PM_BeginWeaponChange(57, 25, qfalse);
+        else if (weapon == 58) PM_BeginWeaponChange(58, 32, qfalse);
+        else if (weapon == 59) PM_BeginWeaponChange(59, 33, qfalse);
+    }
+    if (PM_ProneTimeValue((unsigned)pm->cmd.serverTime - (unsigned)pm->pmext->proneTime) < 750) {
+        pm->ps->eFlags |= EF_PRONE_MOVING;
+        pm->ps->eFlags |= 0x800000;
+    } else {
+        pm->ps->eFlags &= ~0x800000;
+    }
+    pm->mins[0] = pm->ps->mins[0];
+    pm->mins[1] = pm->ps->mins[1];
+    pm->maxs[0] = pm->ps->maxs[0];
+    pm->maxs[1] = pm->ps->maxs[1];
+    pm->mins[2] = pm->ps->mins[2];
+    maxZ = (long double)pm->ps->maxs[2] - pm->ps->standViewHeight;
+    if (pm->ps->stats[STAT_TCE_FLAGS] & 0x200) {
+        pm->maxs[2] = (float)(maxZ + 10.0f);
+        pm->ps->viewheight = -10;
+    } else {
+        pm->maxs[2] = (float)(maxZ + 8.0f);
+        pm->ps->viewheight = -8;
+    }
+    return qtrue;
 }
 #else
 static qboolean PM_CheckProne(void) {
