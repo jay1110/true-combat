@@ -3666,73 +3666,16 @@ Caused by an EV_FIRE_WEAPON event
 /* Original CG_EliteEffectSound30076de0 / Linux000cd6ee. Both sides of
  * the room transition are retained, including its repeated old-side sound. */
 void CG_EliteEffectSound(centity_t *cent,int volume);
-#if defined(_MSC_VER) && defined(_M_IX86)
-/* Original30088628: consume ST0, retain the low word of signed64 truncation. */
-static __declspec(naked) int CG_TCEFireWarningFtol853(void) {
-    __asm {
-        push ebp
-        mov ebp, esp
-        add esp, -12
-        fwait
-        fnstcw word ptr [ebp-2]
-        fwait
-        mov ax, word ptr [ebp-2]
-        or ah, 0ch
-        mov word ptr [ebp-4], ax
-        fldcw word ptr [ebp-4]
-        fistp qword ptr [ebp-12]
-        fldcw word ptr [ebp-2]
-        mov eax, dword ptr [ebp-12]
-        mov edx, dword ptr [ebp-8]
-        leave
-        ret
-    }
-}
-#endif
+
 
 /* The grenade callout has no binary32 intermediate between its arithmetic
  * and conversion. Windows consumes __ftol's low32; Linux uses FISTP32. */
 static int CG_TCEFireWarningVolume853(void) {
     static const float tceWarningOne=1.0f, tceWarningMaximum=127.0f;
-#if defined(_MSC_VER) && defined(_M_IX86)
-    const float *tceWarningAttenuation=&tceFlash.deafness;
-    int tceWarningAmount;
-    __asm {
-        fld dword ptr tceWarningOne
-        mov ecx, tceWarningAttenuation
-        fsub dword ptr [ecx]
-        fmul dword ptr tceWarningMaximum
-        call CG_TCEFireWarningFtol853
-        mov tceWarningAmount, eax
-    }
-    return tceWarningAmount;
-#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-    struct {
-        unsigned short savedControl, truncateControl;
-        int converted;
-    } tceWarningState;
-    __asm__ volatile (
-        "flds %3\n\t"
-        "fsubs %4\n\t"
-        "fnstcw %1\n\t"
-        "fmuls %5\n\t"
-        "movzwl %1, %%eax\n\t"
-        "orw $0x0c00, %%ax\n\t"
-        "movw %%ax, %2\n\t"
-        "fldcw %2\n\t"
-        "fistpl %0\n\t"
-        "fldcw %1"
-        : "=m" (tceWarningState.converted),
-          "=m" (tceWarningState.savedControl),
-          "=m" (tceWarningState.truncateControl)
-        : "m" (tceWarningOne), "m" (tceFlash.deafness),
-          "m" (tceWarningMaximum)
-        : "eax", "st", "cc", "memory"
-    );
-    return tceWarningState.converted;
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__GNUC__) && defined(__i386__) && defined(__linux__))
+    return TCE_TruncateNativeInteger((1.0L - (long double)tceFlash.deafness) * 127.0L);
 #else
-    /* Numeric compatibility on other targets; native x87 flags/frame are
-     * only represented above. Avoid undefined out-of-range C conversions. */
+    /* Other targets retain the established numeric compatibility path. */
     double tceWarningValue=((double)tceWarningOne-tceFlash.deafness)*tceWarningMaximum;
 #if defined(_WIN32)
     unsigned int tceWarningBits;
@@ -3786,18 +3729,7 @@ int CG_SoundVolume(vec3_t origin,float amount,float range,int linear) {
 /* Original CG_FireWeapon platform schedules, connected to the actual
  * mutable cgame fields and cached media. Extraction frames and direct
  * sound/vector/reverb dependencies remain separately tracked. */
-enum {
-    f855Time=offsetof(cg_t,time), f855ShotHold=offsetof(cg_t,tceShotHoldUntil),
-    f855Instability=offsetof(cg_t,predictedPlayerState)+offsetof(playerState_t,stats)+STAT_TCE_SHOT_INSTABILITY*4,
-    f855Vertical=offsetof(cg_t,tceSwayVertical), f855Horizontal=offsetof(cg_t,tceSwayHorizontal),
-    f855Refdef=offsetof(cg_t,refdef_current),
-    f855CentNumber=offsetof(centity_t,currentState)+offsetof(entityState_t,number),
-    f855CentWeapon=offsetof(centity_t,currentState)+offsetof(entityState_t,weapon),
-    f855CentOrigin=offsetof(centity_t,currentState)+offsetof(entityState_t,pos)+offsetof(trajectory_t,trBase),
-    f855CentStride=sizeof(centity_t), f855ViewOrigin=offsetof(refdef_t,vieworg),
-    f855DefSuppressed=offsetof(tce_weaponDef_t,suppressed), f855DefSubsonic=offsetof(tce_weaponDef_t,subsonic),
-    f855Reverb=offsetof(tce_weaponInfo_t,flashReverbVolume), f855Echo=offsetof(tce_weaponInfo_t,flashEchoSound)
-};
+
 #if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__GNUC__) && defined(__i386__) && defined(__linux__))
 static void CG_TCEFireSway855(void) {
     unsigned int holdBits = (unsigned int)cg.time + 100u;
@@ -3822,19 +3754,7 @@ static void CG_TCEFireSway855(void) {
 }
 #endif
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-static const float f855One=1.0f;
-static const float f855Maximum=127.0f;
-static const float f855ReverbScale=0.003921568859368563f;
-static const float f855EchoMinimum=512.0f;
-static const float f855EchoMaximum=4096.0f;
-static const float f855EchoOffset=64.0f;
-static const float f855Half=0.5f;
-static const float f855RandomScale=3.0518509447574615e-05f;
-static const float f855InstabilityScale=0.0010000000474974513f;
-static const float f855WinTwoPi=6.2831854820251465f;
-static const double f855WinAmplitude=1.5;
-#endif
+
 #if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__GNUC__) && defined(__i386__) && defined(__linux__))
 static void CG_TCEFireSound855(centity_t *cent, tce_weaponInfo_t *weap, int *sounds) {
     int count, index, volume, reverb, weapon;
@@ -3902,750 +3822,72 @@ static void CG_TCEFireSway855(void) {
 }
 #endif
 
-/* Full native soundzone response, with actual mutable producer fields.
- * Private GNU extraction frame and external math/audio integration remain
- * explicit source adapters; other targets retain the portable body below. */
-enum {
-    f856Sounds=offsetof(cg_t,tceSoundZoneSounds), f856Effects=offsetof(cg_t,tceSoundZoneEffects),
-    f856Active=offsetof(cg_t,tceSoundZoneActive), f856Transition=offsetof(cg_t,tceSoundZoneTransitionTime),
-    f856GameSounds=offsetof(cgs_t,gameSounds), f856CvarInteger=offsetof(vmCvar_t,integer),
-    f856ViewRight=offsetof(refdef_t,viewaxis)+sizeof(vec3_t)
-};
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) void CG_EliteEffectSound(centity_t *cent,int volume) {
-    __asm {
-    zone856_win_30076de0:
-        mov eax, dword ptr [esp + 8]
-    zone856_win_30076de4:
-        sub esp, 0x2c
-    zone856_win_30076de7:
-        test eax, eax
-    zone856_win_30076de9:
-        push esi
-    zone856_win_30076dea:
-        push edi
-    zone856_win_30076deb:
-        je zone856_win_300770f3
-    zone856_win_30076df1:
-        mov edx, dword ptr [esp + 0x38]
-    zone856_win_30076df5:
-        mov ecx, dword ptr [edx+f855CentWeapon]
-    zone856_win_30076dfb:
-        cmp ecx, 1
-    zone856_win_30076dfe:
-        je zone856_win_300770f3
-    zone856_win_30076e04:
-        cmp ecx, 4
-    zone856_win_30076e07:
-        je zone856_win_300770f3
-    zone856_win_30076e0d:
-        cmp ecx, 9
-    zone856_win_30076e10:
-        je zone856_win_300770f3
-    zone856_win_30076e16:
-        cmp ecx, 0x1e
-    zone856_win_30076e19:
-        je zone856_win_300770f3
-    zone856_win_30076e1f:
-        cmp ecx, 0xc
-    zone856_win_30076e22:
-        je zone856_win_300770f3
-    zone856_win_30076e28:
-        cmp ecx, 0x15
-    zone856_win_30076e2b:
-        je zone856_win_300770f3
-    zone856_win_30076e31:
-        cmp ecx, 0xb
-    zone856_win_30076e34:
-        je zone856_win_300770f3
-    zone856_win_30076e3a:
-        lea eax, [ecx + ecx*2]
-    zone856_win_30076e3d:
-        shl eax, 3
-    zone856_win_30076e40:
-        sub eax, ecx
-    zone856_win_30076e42:
-        lea eax, [eax + eax*4]
-    zone856_win_30076e45:
-        shl eax, 2
-    zone856_win_30076e48:
-        mov ecx, dword ptr [eax+weaponDef+f855DefSubsonic]
-    zone856_win_30076e4e:
-        test ecx, ecx
-    zone856_win_30076e50:
-        jne zone856_win_300770f3
-    zone856_win_30076e56:
-        mov ecx, dword ptr [eax+weaponDef+f855DefSuppressed]
-    zone856_win_30076e5c:
-        test ecx, ecx
-    zone856_win_30076e5e:
-        jne zone856_win_300770f3
-    zone856_win_30076e64:
-        mov eax, dword ptr [cg+f856Sounds]
-    zone856_win_30076e69:
-        mov dword ptr [esp + 8], 0x3f800000
-    zone856_win_30076e71:
-        test eax, eax
-    zone856_win_30076e73:
-        jne zone856_win_30076e82
-    zone856_win_30076e75:
-        mov eax, dword ptr [cg+f856Sounds+8]
-    zone856_win_30076e7a:
-        test eax, eax
-    zone856_win_30076e7c:
-        je zone856_win_300770f3
-    zone856_win_30076e82:
-        mov eax, dword ptr [edx+f855CentOrigin+0]
-    zone856_win_30076e85:
-        mov ecx, dword ptr [edx+f855CentOrigin+4]
-    zone856_win_30076e88:
-        mov edx, dword ptr [edx+f855CentOrigin+8]
-    zone856_win_30076e8b:
-        mov dword ptr [esp + 0x10], eax
-    zone856_win_30076e8f:
-        mov eax, dword ptr [cg+f855Refdef]
-    zone856_win_30076e94:
-        mov dword ptr [esp + 0x14], ecx
-    zone856_win_30076e98:
-        mov dword ptr [esp + 0x18], edx
-    zone856_win_30076e9c:
-        fld dword ptr [eax+f855ViewOrigin+0]
-    zone856_win_30076e9f:
-        fld dword ptr [esp + 0x10]
-    zone856_win_30076ea3:
-        mov ecx, dword ptr [eax+f855ViewOrigin+4]
-    zone856_win_30076ea6:
-        mov edx, dword ptr [eax+f855ViewOrigin+8]
-    zone856_win_30076ea9:
-        fsub st(1)
-    zone856_win_30076eab:
-        mov dword ptr [esp + 0x20], ecx
-    zone856_win_30076eaf:
-        mov dword ptr [esp + 0x24], edx
-    zone856_win_30076eb3:
-        lea eax, [esp + 0x28]
-    zone856_win_30076eb7:
-        push eax
-    zone856_win_30076eb8:
-        fstp dword ptr [esp + 0x2c]
-    zone856_win_30076ebc:
-        fstp st(0)
-    zone856_win_30076ebe:
-        fld dword ptr [esp + 0x18]
-    zone856_win_30076ec2:
-        fsub dword ptr [esp + 0x24]
-    zone856_win_30076ec6:
-        fstp dword ptr [esp + 0x30]
-    zone856_win_30076eca:
-        fld dword ptr [esp + 0x1c]
-    zone856_win_30076ece:
-        fsub dword ptr [esp + 0x28]
-    zone856_win_30076ed2:
-        fstp dword ptr [esp + 0x34]
-    zone856_win_30076ed6:
-        call VectorNormalize
-    zone856_win_30076edb:
-        fst dword ptr [esp + 0x3c]
-    zone856_win_30076edf:
-        fcomp dword ptr f855EchoOffset
-    zone856_win_30076ee5:
-        add esp, 4
-    zone856_win_30076ee8:
-        fnstsw ax
-    zone856_win_30076eea:
-        test ah, 1
-    zone856_win_30076eed:
-        je zone856_win_30076ef7
-    zone856_win_30076eef:
-        mov dword ptr [esp + 0x38], 0x42800000
-    zone856_win_30076ef7:
-        mov eax, dword ptr [cg+f855Time]
-    zone856_win_30076efc:
-        mov edx, dword ptr [cg+f856Transition]
-    zone856_win_30076f02:
-        sub eax, edx
-    zone856_win_30076f04:
-        cmp eax, 0x3e8
-    zone856_win_30076f09:
-        mov dword ptr [esp + 0xc], eax
-    zone856_win_30076f0d:
-        jge zone856_win_30076f1d
-    zone856_win_30076f0f:
-        fild dword ptr [esp + 0xc]
-    zone856_win_30076f13:
-        fmul dword ptr f855InstabilityScale
-    zone856_win_30076f19:
-        fstp dword ptr [esp + 8]
-    zone856_win_30076f1d:
-        fild dword ptr [cg_snd_reverb+f856CvarInteger]
-    zone856_win_30076f23:
-        mov edi, dword ptr [cg+f856Active]
-    zone856_win_30076f29:
-        mov eax, dword ptr [edi*8 + cg+f856Sounds]
-    zone856_win_30076f30:
-        fmul dword ptr f855ReverbScale
-    zone856_win_30076f36:
-        test eax, eax
-    zone856_win_30076f38:
-        fstp dword ptr [esp + 0xc]
-    zone856_win_30076f3c:
-        je zone856_win_30077000
-    zone856_win_30076f42:
-        fild dword ptr [esp + 0x3c]
-    zone856_win_30076f46:
-        fmul dword ptr [esp + 0xc]
-    zone856_win_30076f4a:
-        fmul dword ptr [esp + 8]
-    zone856_win_30076f4e:
-        call CG_TCEFireWarningFtol853
-    zone856_win_30076f53:
-        fld dword ptr [esp + 0x38]
-    zone856_win_30076f57:
-        mov esi, eax
-    zone856_win_30076f59:
-        mov eax, dword ptr [cg+f855Refdef]
-    zone856_win_30076f5e:
-        mov ecx, dword ptr [edi*8 + cg+f856Effects]
-    zone856_win_30076f65:
-        push esi
-    zone856_win_30076f66:
-        fmul dword ptr [eax+f856ViewRight+0]
-    zone856_win_30076f69:
-        mov edx, dword ptr [ecx*4 + cgs+f856GameSounds]
-    zone856_win_30076f70:
-        push 0x10
-    zone856_win_30076f72:
-        push edx
-    zone856_win_30076f73:
-        push 2
-    zone856_win_30076f75:
-        fadd dword ptr [eax+f855ViewOrigin+0]
-    zone856_win_30076f78:
-        push -1
-    zone856_win_30076f7a:
-        fstp dword ptr [esp + 0x24]
-    zone856_win_30076f7e:
-        fld dword ptr [esp + 0x4c]
-    zone856_win_30076f82:
-        fmul dword ptr [eax+f856ViewRight+4]
-    zone856_win_30076f85:
-        fadd dword ptr [eax+f855ViewOrigin+4]
-    zone856_win_30076f88:
-        fstp dword ptr [esp + 0x28]
-    zone856_win_30076f8c:
-        fld dword ptr [esp + 0x4c]
-    zone856_win_30076f90:
-        fmul dword ptr [eax+f856ViewRight+8]
-    zone856_win_30076f93:
-        fadd dword ptr [eax+f855ViewOrigin+8]
-    zone856_win_30076f96:
-        lea eax, [esp + 0x24]
-    zone856_win_30076f9a:
-        push eax
-    zone856_win_30076f9b:
-        fstp dword ptr [esp + 0x30]
-    zone856_win_30076f9f:
-        call trap_S_StartSoundExVControl
-    zone856_win_30076fa4:
-        fld dword ptr [esp + 0x50]
-    zone856_win_30076fa8:
-        mov eax, dword ptr [cg+f855Refdef]
-    zone856_win_30076fad:
-        mov ecx, dword ptr [cg+f856Active]
-    zone856_win_30076fb3:
-        fchs
-    zone856_win_30076fb5:
-        fld st(0)
-    zone856_win_30076fb7:
-        fmul dword ptr [eax+f856ViewRight+0]
-    zone856_win_30076fba:
-        mov edx, dword ptr [ecx*8 + cg+f856Effects+4]
-    zone856_win_30076fc1:
-        push esi
-    zone856_win_30076fc2:
-        push 0x10
-    zone856_win_30076fc4:
-        lea ecx, [esp + 0x30]
-    zone856_win_30076fc8:
-        fadd dword ptr [eax+f855ViewOrigin+0]
-    zone856_win_30076fcb:
-        fstp dword ptr [esp + 0x30]
-    zone856_win_30076fcf:
-        fld st(0)
-    zone856_win_30076fd1:
-        fmul dword ptr [eax+f856ViewRight+4]
-    zone856_win_30076fd4:
-        fadd dword ptr [eax+f855ViewOrigin+4]
-    zone856_win_30076fd7:
-        fstp dword ptr [esp + 0x34]
-    zone856_win_30076fdb:
-        fmul dword ptr [eax+f856ViewRight+8]
-    zone856_win_30076fde:
-        fadd dword ptr [eax+f855ViewOrigin+8]
-    zone856_win_30076fe1:
-        mov eax, dword ptr [edx*4 + cgs+f856GameSounds]
-    zone856_win_30076fe8:
-        push eax
-    zone856_win_30076fe9:
-        push 2
-    zone856_win_30076feb:
-        push -1
-    zone856_win_30076fed:
-        push ecx
-    zone856_win_30076fee:
-        fstp dword ptr [esp + 0x48]
-    zone856_win_30076ff2:
-        call trap_S_StartSoundExVControl
-    zone856_win_30076ff7:
-        mov edi, dword ptr [cg+f856Active]
-    zone856_win_30076ffd:
-        add esp, 0x30
-    zone856_win_30077000:
-        shl edi, 3
-    zone856_win_30077003:
-        lea edx, [cg+f856Sounds+8]
-    zone856_win_30077008:
-        sub edx, edi
-    zone856_win_3007700a:
-        cmp dword ptr [edx], 0
-    zone856_win_3007700d:
-        je zone856_win_300770f3
-    zone856_win_30077013:
-        fld dword ptr [esp + 8]
-    zone856_win_30077017:
-        fcomp dword ptr f855One
-    zone856_win_3007701d:
-        fnstsw ax
-    zone856_win_3007701f:
-        test ah, 1
-    zone856_win_30077022:
-        je zone856_win_300770f3
-    zone856_win_30077028:
-        fld dword ptr f855One
-    zone856_win_3007702e:
-        fsub dword ptr [esp + 8]
-    zone856_win_30077032:
-        fild dword ptr [esp + 0x3c]
-    zone856_win_30077036:
-        fmulp st(1)
-    zone856_win_30077038:
-        fmul dword ptr [esp + 0xc]
-    zone856_win_3007703c:
-        call CG_TCEFireWarningFtol853
-    zone856_win_30077041:
-        fld dword ptr [esp + 0x38]
-    zone856_win_30077045:
-        mov esi, eax
-    zone856_win_30077047:
-        mov eax, dword ptr [cg+f855Refdef]
-    zone856_win_3007704c:
-        push esi
-    zone856_win_3007704d:
-        push 0x10
-    zone856_win_3007704f:
-        fmul dword ptr [eax+f856ViewRight+0]
-    zone856_win_30077052:
-        fadd dword ptr [eax+f855ViewOrigin+0]
-    zone856_win_30077055:
-        fstp dword ptr [esp + 0x18]
-    zone856_win_30077059:
-        fld dword ptr [esp + 0x40]
-    zone856_win_3007705d:
-        fmul dword ptr [eax+f856ViewRight+4]
-    zone856_win_30077060:
-        fadd dword ptr [eax+f855ViewOrigin+4]
-    zone856_win_30077063:
-        fstp dword ptr [esp + 0x1c]
-    zone856_win_30077067:
-        fld dword ptr [esp + 0x40]
-    zone856_win_3007706b:
-        fmul dword ptr [eax+f856ViewRight+8]
-    zone856_win_3007706e:
-        fadd dword ptr [eax+f855ViewOrigin+8]
-    zone856_win_30077071:
-        lea eax, [cg+f856Effects+8]
-    zone856_win_30077076:
-        sub eax, edi
-    zone856_win_30077078:
-        mov ecx, dword ptr [eax]
-    zone856_win_3007707a:
-        lea eax, [esp + 0x18]
-    zone856_win_3007707e:
-        fstp dword ptr [esp + 0x20]
-    zone856_win_30077082:
-        mov edx, dword ptr [ecx*4 + cgs+f856GameSounds]
-    zone856_win_30077089:
-        push edx
-    zone856_win_3007708a:
-        push 2
-    zone856_win_3007708c:
-        push -1
-    zone856_win_3007708e:
-        push eax
-    zone856_win_3007708f:
-        call trap_S_StartSoundExVControl
-    zone856_win_30077094:
-        fld dword ptr [esp + 0x50]
-    zone856_win_30077098:
-        mov eax, dword ptr [cg+f855Refdef]
-    zone856_win_3007709d:
-        mov ecx, dword ptr [cg+f856Active]
-    zone856_win_300770a3:
-        fchs
-    zone856_win_300770a5:
-        fld st(0)
-    zone856_win_300770a7:
-        fmul dword ptr [eax+f856ViewRight+0]
-    zone856_win_300770aa:
-        lea edx, [ecx*8]
-    zone856_win_300770b1:
-        push esi
-    zone856_win_300770b2:
-        push 0x10
-    zone856_win_300770b4:
-        fadd dword ptr [eax+f855ViewOrigin+0]
-    zone856_win_300770b7:
-        fstp dword ptr [esp + 0x30]
-    zone856_win_300770bb:
-        fld st(0)
-    zone856_win_300770bd:
-        fmul dword ptr [eax+f856ViewRight+4]
-    zone856_win_300770c0:
-        fadd dword ptr [eax+f855ViewOrigin+4]
-    zone856_win_300770c3:
-        fstp dword ptr [esp + 0x34]
-    zone856_win_300770c7:
-        fmul dword ptr [eax+f856ViewRight+8]
-    zone856_win_300770ca:
-        fadd dword ptr [eax+f855ViewOrigin+8]
-    zone856_win_300770cd:
-        lea eax, [cg+f856Effects+8]
-    zone856_win_300770d2:
-        sub eax, edx
-    zone856_win_300770d4:
-        mov ecx, dword ptr [eax]
-    zone856_win_300770d6:
-        lea eax, [esp + 0x30]
-    zone856_win_300770da:
-        fstp dword ptr [esp + 0x38]
-    zone856_win_300770de:
-        mov edx, dword ptr [ecx*4 + cgs+f856GameSounds]
-    zone856_win_300770e5:
-        push edx
-    zone856_win_300770e6:
-        push 2
-    zone856_win_300770e8:
-        push -1
-    zone856_win_300770ea:
-        push eax
-    zone856_win_300770eb:
-        call trap_S_StartSoundExVControl
-    zone856_win_300770f0:
-        add esp, 0x30
-    zone856_win_300770f3:
-        pop edi
-    zone856_win_300770f4:
-        pop esi
-    zone856_win_300770f5:
-        add esp, 0x2c
-    zone856_win_300770f8:
-        ret
+/* TCE room response with live room lookups and native rounding points.
+ * Other targets retain the established portable body below. */
+
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__GNUC__) && defined(__i386__) && defined(__linux__))
+static void CG_TCESoundZonePosition856(float distance, vec3_t position) {
+    refdef_t *view = cg.refdef_current;
+    int i;
+    for (i = 0; i < 3; ++i) {
+        position[i] = (float)((long double)distance * (long double)view->viewaxis[1][i] +
+                              (long double)view->vieworg[i]);
     }
 }
-#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-typedef struct {
-    cg_t *cgRoot;cgs_t *cgsRoot;tce_weaponDef_t *definitions;vmCvar_t *reverb;
-    float (*normalize)(vec3_t);
-    void (*start)(vec3_t,int,int,sfxHandle_t,int,int);
-    float constants32[4];
-} tceSoundZone856Bindings_t;
-void CG_EliteEffectSound(centity_t *cent,int volume) {
-    static const tceSoundZone856Bindings_t bindings={&cg,&cgs,weaponDef,&cg_snd_reverb,
-        VectorNormalize,trap_S_StartSoundExVControl,
-        {1.0f,64.0f,0.0010000000474974513f,0.003921568859368563f}};
-    const tceSoundZone856Bindings_t *cursor=&bindings;
-    typedef char SoundZone856Layout[(sizeof(void*)==4 && sizeof(int)==4 && sizeof(float)==4 &&
-        offsetof(tceSoundZone856Bindings_t,cgRoot)==0 && offsetof(tceSoundZone856Bindings_t,cgsRoot)==4 &&
-        offsetof(tceSoundZone856Bindings_t,definitions)==8 && offsetof(tceSoundZone856Bindings_t,reverb)==12 &&
-        offsetof(tceSoundZone856Bindings_t,normalize)==16 && offsetof(tceSoundZone856Bindings_t,start)==20 &&
-        offsetof(tceSoundZone856Bindings_t,constants32)==24 && sizeof(tceSoundZone856Bindings_t)==40 &&
-        sizeof(cg.tceSoundZoneSounds[0])==8 && sizeof(cg.tceSoundZoneEffects[0])==8 &&
-        sizeof(cgs.gameSounds[0])==4)?1:-1];
-    __asm__ volatile (
-        ".intel_syntax noprefix\n\t"
-        "push ebx\n\tpush ebp\n\tmov ebp,esp\n\tand esp,-16\n\tsub esp,0xb0\n\t"
-        "mov dword ptr [esp+0xac],ebp\n\tmov ebx,eax\n\tmov ebp,edx\n\tmov edx,ecx\n\t"
-        ".Lzone856_linux_000bd722_%=:\n\ttest ebp, ebp\n\t"
-        ".Lzone856_linux_000bd724_%=:\n\tmov dword ptr [esp + 0x94], edi\n\t"
-        ".Lzone856_linux_000bd72b_%=:\n\tje .Lzone856_linux_finish_%=\n\t"
-        ".Lzone856_linux_000bd731_%=:\n\tmov eax, dword ptr [edx+%c[weapon]]\n\t"
-        ".Lzone856_linux_000bd737_%=:\n\tcmp eax, 1\n\t"
-        ".Lzone856_linux_000bd73a_%=:\n\tje .Lzone856_linux_finish_%=\n\t"
-        ".Lzone856_linux_000bd740_%=:\n\tcmp eax, 4\n\t"
-        ".Lzone856_linux_000bd743_%=:\n\tje .Lzone856_linux_finish_%=\n\t"
-        ".Lzone856_linux_000bd749_%=:\n\tcmp eax, 9\n\t"
-        ".Lzone856_linux_000bd74c_%=:\n\tje .Lzone856_linux_finish_%=\n\t"
-        ".Lzone856_linux_000bd752_%=:\n\tcmp eax, 0x1e\n\t"
-        ".Lzone856_linux_000bd755_%=:\n\tje .Lzone856_linux_finish_%=\n\t"
-        ".Lzone856_linux_000bd75b_%=:\n\tcmp eax, 0xc\n\t"
-        ".Lzone856_linux_000bd75e_%=:\n\tje .Lzone856_linux_finish_%=\n\t"
-        ".Lzone856_linux_000bd764_%=:\n\tcmp eax, 0x15\n\t"
-        ".Lzone856_linux_000bd767_%=:\n\tje .Lzone856_linux_finish_%=\n\t"
-        ".Lzone856_linux_000bd76d_%=:\n\tcmp eax, 0xb\n\t"
-        ".Lzone856_linux_000bd770_%=:\n\tje .Lzone856_linux_finish_%=\n\t"
-        ".Lzone856_linux_000bd776_%=:\n\timul eax, eax, %c[defStride]\n\t"
-        ".Lzone856_linux_000bd77c_%=:\n\tmov ecx, dword ptr [ebx+8]\n\t"
-        ".Lzone856_linux_000bd782_%=:\n\tadd eax, ecx\n\t"
-        ".Lzone856_linux_000bd784_%=:\n\tmov esi, dword ptr [eax+%c[subsonic]]\n\t"
-        ".Lzone856_linux_000bd78a_%=:\n\ttest esi, esi\n\t"
-        ".Lzone856_linux_000bd78c_%=:\n\tjne .Lzone856_linux_finish_%=\n\t"
-        ".Lzone856_linux_000bd792_%=:\n\tmov esi, dword ptr [eax+%c[suppressed]]\n\t"
-        ".Lzone856_linux_000bd798_%=:\n\ttest esi, esi\n\t"
-        ".Lzone856_linux_000bd79a_%=:\n\tjne .Lzone856_linux_finish_%=\n\t"
-        ".Lzone856_linux_000bd7a0_%=:\n\tfld dword ptr [ebx+24]\n\t"
-        ".Lzone856_linux_000bd7a6_%=:\n\tmov eax, dword ptr [ebx+0]\n\t"
-        ".Lzone856_linux_000bd7ac_%=:\n\tmov ecx, dword ptr [eax+%c[sounds]]\n\t"
-        ".Lzone856_linux_000bd7b2_%=:\n\tfstp dword ptr [esp + 0x34]\n\t"
-        ".Lzone856_linux_000bd7b6_%=:\n\ttest ecx, ecx\n\t"
-        ".Lzone856_linux_000bd7b8_%=:\n\tjne .Lzone856_linux_000bd7c8_%=\n\t"
-        ".Lzone856_linux_000bd7ba_%=:\n\tmov edi, dword ptr [eax+%c[sounds]+8]\n\t"
-        ".Lzone856_linux_000bd7c0_%=:\n\ttest edi, edi\n\t"
-        ".Lzone856_linux_000bd7c2_%=:\n\tje .Lzone856_linux_finish_%=\n\t"
-        ".Lzone856_linux_000bd7c8_%=:\n\tfld dword ptr [edx+%c[origin]+0]\n\t"
-        ".Lzone856_linux_000bd7cb_%=:\n\tmov esi, dword ptr [eax+%c[refdef]]\n\t"
-        ".Lzone856_linux_000bd7d1_%=:\n\tfst dword ptr [esp + 0x50]\n\t"
-        ".Lzone856_linux_000bd7d5_%=:\n\tfld dword ptr [edx+%c[origin]+4]\n\t"
-        ".Lzone856_linux_000bd7d8_%=:\n\tfst dword ptr [esp + 0x54]\n\t"
-        ".Lzone856_linux_000bd7dc_%=:\n\tfld dword ptr [edx+%c[origin]+8]\n\t"
-        ".Lzone856_linux_000bd7df_%=:\n\tlea edx, [esp + 0x40]\n\t"
-        ".Lzone856_linux_000bd7e3_%=:\n\tfst dword ptr [esp + 0x58]\n\t"
-        ".Lzone856_linux_000bd7e7_%=:\n\tfld dword ptr [esi+%c[viewOrigin]+0]\n\t"
-        ".Lzone856_linux_000bd7ea_%=:\n\tfsub st(3), st(0)\n\t"
-        ".Lzone856_linux_000bd7ec_%=:\n\tfstp dword ptr [esp + 0x60]\n\t"
-        ".Lzone856_linux_000bd7f0_%=:\n\tfld dword ptr [esi+%c[viewOrigin]+4]\n\t"
-        ".Lzone856_linux_000bd7f3_%=:\n\tfsub st(2), st(0)\n\t"
-        ".Lzone856_linux_000bd7f5_%=:\n\tfstp dword ptr [esp + 0x64]\n\t"
-        ".Lzone856_linux_000bd7f9_%=:\n\tfld dword ptr [esi+%c[viewOrigin]+8]\n\t"
-        ".Lzone856_linux_000bd7fc_%=:\n\tfxch st(3)\n\t"
-        ".Lzone856_linux_000bd7fe_%=:\n\tfstp dword ptr [esp + 0x40]\n\t"
-        ".Lzone856_linux_000bd802_%=:\n\tfxch st(1)\n\t"
-        ".Lzone856_linux_000bd804_%=:\n\tfstp dword ptr [esp + 0x44]\n\t"
-        ".Lzone856_linux_000bd808_%=:\n\tfsub st(1)\n\t"
-        ".Lzone856_linux_000bd80a_%=:\n\tfxch st(1)\n\t"
-        ".Lzone856_linux_000bd80c_%=:\n\tfstp dword ptr [esp + 0x68]\n\t"
-        ".Lzone856_linux_000bd810_%=:\n\tmov dword ptr [esp], edx\n\t"
-        ".Lzone856_linux_000bd813_%=:\n\tfstp dword ptr [esp + 0x48]\n\t"
-        ".Lzone856_linux_000bd817_%=:\n\tcall dword ptr [ebx+16]\n\t"
-        ".Lzone856_linux_000bd81c_%=:\n\tfstp dword ptr [esp + 0x2c]\n\t"
-        ".Lzone856_linux_000bd820_%=:\n\tfld dword ptr [esp + 0x2c]\n\t"
-        ".Lzone856_linux_000bd824_%=:\n\tfld dword ptr [ebx+28]\n\t"
-        ".Lzone856_linux_000bd82a_%=:\n\tfcom st(1)\n\t"
-        ".Lzone856_linux_000bd82c_%=:\n\tfnstsw ax\n\t"
-        ".Lzone856_linux_000bd82e_%=:\n\tfstp st(1)\n\t"
-        ".Lzone856_linux_000bd830_%=:\n\tsahf\n\t"
-        ".Lzone856_linux_000bd831_%=:\n\tjbe .Lzone856_linux_000bdb47_%=\n\t"
-        ".Lzone856_linux_000bd837_%=:\n\tfstp dword ptr [esp + 0x2c]\n\t"
-        ".Lzone856_linux_000bd83b_%=:\n\tmov edi, dword ptr [ebx+0]\n\t"
-        ".Lzone856_linux_000bd841_%=:\n\tmov eax, dword ptr [edi+%c[time]]\n\t"
-        ".Lzone856_linux_000bd847_%=:\n\tmov edx, dword ptr [edi+%c[transition]]\n\t"
-        ".Lzone856_linux_000bd84d_%=:\n\tsub eax, edx\n\t"
-        ".Lzone856_linux_000bd84f_%=:\n\tcmp eax, 0x3e7\n\t"
-        ".Lzone856_linux_000bd854_%=:\n\tjg .Lzone856_linux_000bd867_%=\n\t"
-        ".Lzone856_linux_000bd856_%=:\n\tpush eax\n\t"
-        ".Lzone856_linux_000bd857_%=:\n\tfild dword ptr [esp]\n\t"
-        ".Lzone856_linux_000bd85a_%=:\n\tadd esp, 4\n\t"
-        ".Lzone856_linux_000bd85d_%=:\n\tfmul dword ptr [ebx+32]\n\t"
-        ".Lzone856_linux_000bd863_%=:\n\tfstp dword ptr [esp + 0x34]\n\t"
-        ".Lzone856_linux_000bd867_%=:\n\tmov esi, dword ptr [ebx+12]\n\t"
-        ".Lzone856_linux_000bd86d_%=:\n\tmov eax, dword ptr [edi+%c[active]]\n\t"
-        ".Lzone856_linux_000bd873_%=:\n\tfild dword ptr [esi+%c[cvarInteger]]\n\t"
-        ".Lzone856_linux_000bd876_%=:\n\tmov ecx, dword ptr [edi + eax*8+%c[sounds]]\n\t"
-        ".Lzone856_linux_000bd87d_%=:\n\tfmul dword ptr [ebx+36]\n\t"
-        ".Lzone856_linux_000bd883_%=:\n\ttest ecx, ecx\n\t"
-        ".Lzone856_linux_000bd885_%=:\n\tfst dword ptr [esp + 0x30]\n\t"
-        ".Lzone856_linux_000bd889_%=:\n\tjne .Lzone856_linux_000bda12_%=\n\t"
-        ".Lzone856_linux_000bd88f_%=:\n\tfstp st(0)\n\t"
-        ".Lzone856_linux_000bd891_%=:\n\tmov esi, 1\n\t"
-        ".Lzone856_linux_000bd896_%=:\n\tsub esi, eax\n\t"
-        ".Lzone856_linux_000bd898_%=:\n\tmov edx, dword ptr [edi + esi*8+%c[sounds]]\n\t"
-        ".Lzone856_linux_000bd89f_%=:\n\ttest edx, edx\n\t"
-        ".Lzone856_linux_000bd8a1_%=:\n\tje .Lzone856_linux_finish_%=\n\t"
-        ".Lzone856_linux_000bd8a3_%=:\n\tfld dword ptr [ebx+24]\n\t"
-        ".Lzone856_linux_000bd8a9_%=:\n\tfld dword ptr [esp + 0x34]\n\t"
-        ".Lzone856_linux_000bd8ad_%=:\n\tfcomp st(1)\n\t"
-        ".Lzone856_linux_000bd8af_%=:\n\tfnstsw ax\n\t"
-        ".Lzone856_linux_000bd8b1_%=:\n\tsahf\n\t"
-        ".Lzone856_linux_000bd8b2_%=:\n\tjb .Lzone856_linux_000bd8d9_%=\n\t"
-        ".Lzone856_linux_000bd8b4_%=:\n\tfstp st(0)\n\t"
-        "jmp .Lzone856_linux_finish_%=\n\t"
-        ".Lzone856_linux_000bd8d9_%=:\n\tpush ebp\n\t"
-        ".Lzone856_linux_000bd8da_%=:\n\tmov ecx, 1\n\t"
-        ".Lzone856_linux_000bd8df_%=:\n\tmov ebp, 0x10\n\t"
-        ".Lzone856_linux_000bd8e4_%=:\n\tfild dword ptr [esp]\n\t"
-        ".Lzone856_linux_000bd8e7_%=:\n\tfxch st(1)\n\t"
-        ".Lzone856_linux_000bd8e9_%=:\n\tadd esp, 4\n\t"
-        ".Lzone856_linux_000bd8ec_%=:\n\tfsub dword ptr [esp + 0x34]\n\t"
-        ".Lzone856_linux_000bd8f0_%=:\n\tfnstcw word ptr [esp + 0x3e]\n\t"
-        ".Lzone856_linux_000bd8f4_%=:\n\tmovzx esi, word ptr [esp + 0x3e]\n\t"
-        ".Lzone856_linux_000bd8f9_%=:\n\tfmulp st(1)\n\t"
-        ".Lzone856_linux_000bd8fb_%=:\n\tor si, 0xc00\n\t"
-        ".Lzone856_linux_000bd900_%=:\n\tmov word ptr [esp + 0x3c], si\n\t"
-        ".Lzone856_linux_000bd905_%=:\n\tfld dword ptr [esp + 0x2c]\n\t"
-        ".Lzone856_linux_000bd909_%=:\n\tfxch st(1)\n\t"
-        ".Lzone856_linux_000bd90b_%=:\n\tfmul dword ptr [esp + 0x30]\n\t"
-        ".Lzone856_linux_000bd90f_%=:\n\tfldcw word ptr [esp + 0x3c]\n\t"
-        ".Lzone856_linux_000bd913_%=:\n\tfistp dword ptr [esp + 0x38]\n\t"
-        ".Lzone856_linux_000bd917_%=:\n\tfldcw word ptr [esp + 0x3e]\n\t"
-        ".Lzone856_linux_000bd91b_%=:\n\tmov edx, dword ptr [edi+%c[refdef]]\n\t"
-        ".Lzone856_linux_000bd921_%=:\n\tmov esi, dword ptr [esp + 0x38]\n\t"
-        ".Lzone856_linux_000bd925_%=:\n\tfmul dword ptr [edx+%c[viewRight]+0]\n\t"
-        ".Lzone856_linux_000bd928_%=:\n\tfadd dword ptr [edx+%c[viewOrigin]+0]\n\t"
-        ".Lzone856_linux_000bd92b_%=:\n\tfstp dword ptr [esp + 0x50]\n\t"
-        ".Lzone856_linux_000bd92f_%=:\n\tfld dword ptr [esp + 0x2c]\n\t"
-        ".Lzone856_linux_000bd933_%=:\n\tfmul dword ptr [edx+%c[viewRight]+4]\n\t"
-        ".Lzone856_linux_000bd936_%=:\n\tfadd dword ptr [edx+%c[viewOrigin]+4]\n\t"
-        ".Lzone856_linux_000bd939_%=:\n\tfstp dword ptr [esp + 0x54]\n\t"
-        ".Lzone856_linux_000bd93d_%=:\n\tfld dword ptr [esp + 0x2c]\n\t"
-        ".Lzone856_linux_000bd941_%=:\n\tfmul dword ptr [edx+%c[viewRight]+8]\n\t"
-        ".Lzone856_linux_000bd944_%=:\n\tfadd dword ptr [edx+%c[viewOrigin]+8]\n\t"
-        ".Lzone856_linux_000bd947_%=:\n\tmov dword ptr [esp + 0x14], esi\n\t"
-        ".Lzone856_linux_000bd94b_%=:\n\tmov dword ptr [esp + 0x10], ebp\n\t"
-        ".Lzone856_linux_000bd94f_%=:\n\tmov eax, dword ptr [edi+%c[active]]\n\t"
-        ".Lzone856_linux_000bd955_%=:\n\tmov ebp, dword ptr [ebx+4]\n\t"
-        ".Lzone856_linux_000bd95b_%=:\n\tfstp dword ptr [esp + 0x58]\n\t"
-        ".Lzone856_linux_000bd95f_%=:\n\tsub ecx, eax\n\t"
-        ".Lzone856_linux_000bd961_%=:\n\tmov edx, dword ptr [edi + ecx*8+%c[effects]]\n\t"
-        ".Lzone856_linux_000bd968_%=:\n\tmov ecx, dword ptr [ebp + edx*4+%c[gameSounds]]\n\t"
-        ".Lzone856_linux_000bd96f_%=:\n\tmov edx, 2\n\t"
-        ".Lzone856_linux_000bd974_%=:\n\tmov dword ptr [esp + 8], edx\n\t"
-        ".Lzone856_linux_000bd978_%=:\n\tlea edx, [esp + 0x50]\n\t"
-        ".Lzone856_linux_000bd97c_%=:\n\tmov dword ptr [esp + 0xc], ecx\n\t"
-        ".Lzone856_linux_000bd980_%=:\n\tmov ecx, 0xffffffff\n\t"
-        ".Lzone856_linux_000bd985_%=:\n\tmov dword ptr [esp + 4], ecx\n\t"
-        ".Lzone856_linux_000bd989_%=:\n\tmov dword ptr [esp + 0x20], edx\n\t"
-        ".Lzone856_linux_000bd98d_%=:\n\tmov dword ptr [esp], edx\n\t"
-        ".Lzone856_linux_000bd990_%=:\n\tcall dword ptr [ebx+20]\n\t"
-        ".Lzone856_linux_000bd995_%=:\n\tfld dword ptr [esp + 0x2c]\n\t"
-        ".Lzone856_linux_000bd999_%=:\n\tmov edx, 0x10\n\t"
-        ".Lzone856_linux_000bd99e_%=:\n\tmov ecx, dword ptr [edi+%c[refdef]]\n\t"
-        ".Lzone856_linux_000bd9a4_%=:\n\tfchs\n\t"
-        ".Lzone856_linux_000bd9a6_%=:\n\tfld dword ptr [ecx+%c[viewRight]+0]\n\t"
-        ".Lzone856_linux_000bd9a9_%=:\n\tfmul st(1)\n\t"
-        ".Lzone856_linux_000bd9ab_%=:\n\tfadd dword ptr [ecx+%c[viewOrigin]+0]\n\t"
-        ".Lzone856_linux_000bd9ae_%=:\n\tfstp dword ptr [esp + 0x50]\n\t"
-        ".Lzone856_linux_000bd9b2_%=:\n\tfld dword ptr [ecx+%c[viewRight]+4]\n\t"
-        ".Lzone856_linux_000bd9b5_%=:\n\tfmul st(1)\n\t"
-        ".Lzone856_linux_000bd9b7_%=:\n\tfadd dword ptr [ecx+%c[viewOrigin]+4]\n\t"
-        ".Lzone856_linux_000bd9ba_%=:\n\tfstp dword ptr [esp + 0x54]\n\t"
-        ".Lzone856_linux_000bd9be_%=:\n\tfmul dword ptr [ecx+%c[viewRight]+8]\n\t"
-        ".Lzone856_linux_000bd9c1_%=:\n\tfadd dword ptr [ecx+%c[viewOrigin]+8]\n\t"
-        ".Lzone856_linux_000bd9c4_%=:\n\tmov dword ptr [esp + 0x14], esi\n\t"
-        ".Lzone856_linux_000bd9c8_%=:\n\tmov esi, 1\n\t"
-        ".Lzone856_linux_000bd9cd_%=:\n\tmov dword ptr [esp + 0x10], edx\n\t"
-        ".Lzone856_linux_000bd9d1_%=:\n\tmov eax, dword ptr [edi+%c[active]]\n\t"
-        ".Lzone856_linux_000bd9d7_%=:\n\tfstp dword ptr [esp + 0x58]\n\t"
-        ".Lzone856_linux_000bd9db_%=:\n\tsub esi, eax\n\t"
-        ".Lzone856_linux_000bd9dd_%=:\n\tmov ecx, dword ptr [edi + esi*8+%c[effects]]\n\t"
-        ".Lzone856_linux_000bd9e4_%=:\n\tmov eax, dword ptr [esp + 0x20]\n\t"
-        ".Lzone856_linux_000bd9e8_%=:\n\tmov edi, 2\n\t"
-        ".Lzone856_linux_000bd9ed_%=:\n\tmov edx, dword ptr [ebp + ecx*4+%c[gameSounds]]\n\t"
-        ".Lzone856_linux_000bd9f4_%=:\n\tmov dword ptr [esp + 8], edi\n\t"
-        ".Lzone856_linux_000bd9f8_%=:\n\tmov ebp, 0xffffffff\n\t"
-        ".Lzone856_linux_000bd9fd_%=:\n\tmov dword ptr [esp + 4], ebp\n\t"
-        ".Lzone856_linux_000bda01_%=:\n\tmov dword ptr [esp + 0xc], edx\n\t"
-        ".Lzone856_linux_000bda05_%=:\n\tmov dword ptr [esp], eax\n\t"
-        ".Lzone856_linux_000bda08_%=:\n\tcall dword ptr [ebx+20]\n\t"
-        ".Lzone856_linux_000bda0d_%=:\n\tjmp .Lzone856_linux_finish_%=\n\t"
-        ".Lzone856_linux_000bda12_%=:\n\tpush ebp\n\t"
-        ".Lzone856_linux_000bda13_%=:\n\tmov edx, 0x10\n\t"
-        ".Lzone856_linux_000bda18_%=:\n\tfild dword ptr [esp]\n\t"
-        ".Lzone856_linux_000bda1b_%=:\n\tadd esp, 4\n\t"
-        ".Lzone856_linux_000bda1e_%=:\n\tfmul dword ptr [esp + 0x34]\n\t"
-        ".Lzone856_linux_000bda22_%=:\n\tfnstcw word ptr [esp + 0x3e]\n\t"
-        ".Lzone856_linux_000bda26_%=:\n\tmovzx esi, word ptr [esp + 0x3e]\n\t"
-        ".Lzone856_linux_000bda2b_%=:\n\tfmulp st(1)\n\t"
-        ".Lzone856_linux_000bda2d_%=:\n\tor si, 0xc00\n\t"
-        ".Lzone856_linux_000bda32_%=:\n\tmov word ptr [esp + 0x3c], si\n\t"
-        ".Lzone856_linux_000bda37_%=:\n\tfldcw word ptr [esp + 0x3c]\n\t"
-        ".Lzone856_linux_000bda3b_%=:\n\tfistp dword ptr [esp + 0x38]\n\t"
-        ".Lzone856_linux_000bda3f_%=:\n\tfldcw word ptr [esp + 0x3e]\n\t"
-        ".Lzone856_linux_000bda43_%=:\n\tfld dword ptr [esp + 0x2c]\n\t"
-        ".Lzone856_linux_000bda47_%=:\n\tmov ecx, dword ptr [edi+%c[refdef]]\n\t"
-        ".Lzone856_linux_000bda4d_%=:\n\tmov esi, dword ptr [esp + 0x38]\n\t"
-        ".Lzone856_linux_000bda51_%=:\n\tfmul dword ptr [ecx+%c[viewRight]+0]\n\t"
-        ".Lzone856_linux_000bda54_%=:\n\tfadd dword ptr [ecx+%c[viewOrigin]+0]\n\t"
-        ".Lzone856_linux_000bda57_%=:\n\tfstp dword ptr [esp + 0x50]\n\t"
-        ".Lzone856_linux_000bda5b_%=:\n\tfld dword ptr [esp + 0x2c]\n\t"
-        ".Lzone856_linux_000bda5f_%=:\n\tfmul dword ptr [ecx+%c[viewRight]+4]\n\t"
-        ".Lzone856_linux_000bda62_%=:\n\tfadd dword ptr [ecx+%c[viewOrigin]+4]\n\t"
-        ".Lzone856_linux_000bda65_%=:\n\tfstp dword ptr [esp + 0x54]\n\t"
-        ".Lzone856_linux_000bda69_%=:\n\tfld dword ptr [esp + 0x2c]\n\t"
-        ".Lzone856_linux_000bda6d_%=:\n\tfmul dword ptr [ecx+%c[viewRight]+8]\n\t"
-        ".Lzone856_linux_000bda70_%=:\n\tfadd dword ptr [ecx+%c[viewOrigin]+8]\n\t"
-        ".Lzone856_linux_000bda73_%=:\n\tmov ecx, dword ptr [ebx+4]\n\t"
-        ".Lzone856_linux_000bda79_%=:\n\tmov dword ptr [esp + 0x14], esi\n\t"
-        ".Lzone856_linux_000bda7d_%=:\n\tmov dword ptr [esp + 0x10], edx\n\t"
-        ".Lzone856_linux_000bda81_%=:\n\tmov dword ptr [esp + 0x28], ecx\n\t"
-        ".Lzone856_linux_000bda85_%=:\n\tmov edx, dword ptr [edi+%c[active]]\n\t"
-        ".Lzone856_linux_000bda8b_%=:\n\tfstp dword ptr [esp + 0x58]\n\t"
-        ".Lzone856_linux_000bda8f_%=:\n\tmov eax, dword ptr [edi + edx*8+%c[effects]]\n\t"
-        ".Lzone856_linux_000bda96_%=:\n\tmov edx, dword ptr [esp + 0x28]\n\t"
-        ".Lzone856_linux_000bda9a_%=:\n\tmov ecx, dword ptr [edx + eax*4+%c[gameSounds]]\n\t"
-        ".Lzone856_linux_000bdaa1_%=:\n\tmov edx, 0xffffffff\n\t"
-        ".Lzone856_linux_000bdaa6_%=:\n\tmov dword ptr [esp + 0xc], ecx\n\t"
-        ".Lzone856_linux_000bdaaa_%=:\n\tmov ecx, 2\n\t"
-        ".Lzone856_linux_000bdaaf_%=:\n\tmov dword ptr [esp + 8], ecx\n\t"
-        ".Lzone856_linux_000bdab3_%=:\n\tlea ecx, [esp + 0x50]\n\t"
-        ".Lzone856_linux_000bdab7_%=:\n\tmov dword ptr [esp + 4], edx\n\t"
-        ".Lzone856_linux_000bdabb_%=:\n\tmov dword ptr [esp + 0x24], ecx\n\t"
-        ".Lzone856_linux_000bdabf_%=:\n\tmov dword ptr [esp], ecx\n\t"
-        ".Lzone856_linux_000bdac2_%=:\n\tcall dword ptr [ebx+20]\n\t"
-        ".Lzone856_linux_000bdac7_%=:\n\tfld dword ptr [esp + 0x2c]\n\t"
-        ".Lzone856_linux_000bdacb_%=:\n\tmov ecx, 0x10\n\t"
-        ".Lzone856_linux_000bdad0_%=:\n\tmov edx, dword ptr [edi+%c[refdef]]\n\t"
-        ".Lzone856_linux_000bdad6_%=:\n\tfchs\n\t"
-        ".Lzone856_linux_000bdad8_%=:\n\tfld dword ptr [edx+%c[viewRight]+0]\n\t"
-        ".Lzone856_linux_000bdadb_%=:\n\tfmul st(1)\n\t"
-        ".Lzone856_linux_000bdadd_%=:\n\tfadd dword ptr [edx+%c[viewOrigin]+0]\n\t"
-        ".Lzone856_linux_000bdae0_%=:\n\tfstp dword ptr [esp + 0x50]\n\t"
-        ".Lzone856_linux_000bdae4_%=:\n\tfld dword ptr [edx+%c[viewRight]+4]\n\t"
-        ".Lzone856_linux_000bdae7_%=:\n\tfmul st(1)\n\t"
-        ".Lzone856_linux_000bdae9_%=:\n\tfadd dword ptr [edx+%c[viewOrigin]+4]\n\t"
-        ".Lzone856_linux_000bdaec_%=:\n\tfstp dword ptr [esp + 0x54]\n\t"
-        ".Lzone856_linux_000bdaf0_%=:\n\tfmul dword ptr [edx+%c[viewRight]+8]\n\t"
-        ".Lzone856_linux_000bdaf3_%=:\n\tfadd dword ptr [edx+%c[viewOrigin]+8]\n\t"
-        ".Lzone856_linux_000bdaf6_%=:\n\tmov dword ptr [esp + 0x14], esi\n\t"
-        ".Lzone856_linux_000bdafa_%=:\n\tmov dword ptr [esp + 0x10], ecx\n\t"
-        ".Lzone856_linux_000bdafe_%=:\n\tmov edx, dword ptr [edi+%c[active]]\n\t"
-        ".Lzone856_linux_000bdb04_%=:\n\tfstp dword ptr [esp + 0x58]\n\t"
-        ".Lzone856_linux_000bdb08_%=:\n\tmov esi, dword ptr [edi + edx*8+%c[effects]+4]\n\t"
-        ".Lzone856_linux_000bdb0f_%=:\n\tmov edx, dword ptr [esp + 0x28]\n\t"
-        ".Lzone856_linux_000bdb13_%=:\n\tmov ecx, dword ptr [edx + esi*4+%c[gameSounds]]\n\t"
-        ".Lzone856_linux_000bdb1a_%=:\n\tmov edx, dword ptr [esp + 0x24]\n\t"
-        ".Lzone856_linux_000bdb1e_%=:\n\tmov esi, 2\n\t"
-        ".Lzone856_linux_000bdb23_%=:\n\tmov dword ptr [esp + 8], esi\n\t"
-        ".Lzone856_linux_000bdb27_%=:\n\tmov dword ptr [esp + 0xc], ecx\n\t"
-        ".Lzone856_linux_000bdb2b_%=:\n\tmov ecx, 0xffffffff\n\t"
-        ".Lzone856_linux_000bdb30_%=:\n\tmov dword ptr [esp + 4], ecx\n\t"
-        ".Lzone856_linux_000bdb34_%=:\n\tmov dword ptr [esp], edx\n\t"
-        ".Lzone856_linux_000bdb37_%=:\n\tcall dword ptr [ebx+20]\n\t"
-        ".Lzone856_linux_000bdb3c_%=:\n\tmov eax, dword ptr [edi+%c[active]]\n\t"
-        ".Lzone856_linux_000bdb42_%=:\n\tjmp .Lzone856_linux_000bd891_%=\n\t"
-        ".Lzone856_linux_000bdb47_%=:\n\tfstp st(0)\n\t"
-        ".Lzone856_linux_000bdb49_%=:\n\tjmp .Lzone856_linux_000bd83b_%=\n\t"
-        ".Lzone856_linux_finish_%=:\n\tmov esp,dword ptr [esp+0xac]\n\tpop ebp\n\tpop ebx\n\t.att_syntax prefix"
-        : "+a" (cursor), "+c" (cent), "+d" (volume)
-        : "m" (bindings), [defStride] "i" (sizeof(tce_weaponDef_t)), [weapon] "i" (f855CentWeapon),
-          [subsonic] "i" (f855DefSubsonic), [suppressed] "i" (f855DefSuppressed),
-          [sounds] "i" (f856Sounds), [effects] "i" (f856Effects), [active] "i" (f856Active),
-          [transition] "i" (f856Transition), [refdef] "i" (f855Refdef), [time] "i" (f855Time),
-          [origin] "i" (f855CentOrigin), [viewOrigin] "i" (f855ViewOrigin), [viewRight] "i" (f856ViewRight),
-          [gameSounds] "i" (f856GameSounds), [cvarInteger] "i" (f856CvarInteger)
-        : "esi","edi","cc","memory","st","st(1)","st(2)","st(3)","st(4)","st(5)","st(6)","st(7)"
-#ifdef __SSE__
-          ,"xmm0","xmm1","xmm2","xmm3","xmm4","xmm5","xmm6","xmm7"
+
+void CG_EliteEffectSound(centity_t *cent, int volume) {
+    int weapon, active, amount, elapsed;
+    unsigned int elapsedBits;
+    float distance, blend = 1.0f, storedScale;
+    long double scale;
+    vec3_t direction, position;
+
+    if (!volume) return;
+    weapon = cent->currentState.weapon;
+    if (weapon == 1 || weapon == 4 || weapon == 9 || weapon == 30 ||
+        weapon == 12 || weapon == 21 || weapon == 11 ||
+        weaponDef[weapon].subsonic || weaponDef[weapon].suppressed) return;
+    if (!cg.tceSoundZoneSounds[0][0] && !cg.tceSoundZoneSounds[1][0]) return;
+
+    VectorSubtract(cent->currentState.pos.trBase, cg.refdef_current->vieworg, direction);
+    distance = VectorNormalize(direction);
+    if (distance < 64.0f) distance = 64.0f;
+    elapsedBits = (unsigned int)cg.time - (unsigned int)cg.tceSoundZoneTransitionTime;
+    memcpy(&elapsed, &elapsedBits, sizeof(elapsed));
+    if (elapsed < 1000) {
+        blend = (float)((long double)elapsed * (long double)0.0010000000474974513f);
+    }
+    scale = (long double)cg_snd_reverb.integer * (long double)0.003921568859368563f;
+    storedScale = (float)scale;
+    active = cg.tceSoundZoneActive;
+    if (cg.tceSoundZoneSounds[active][0]) {
+#if defined(_WIN32)
+        amount = TCE_TruncateNativeInteger((long double)volume *
+                                          (long double)storedScale * (long double)blend);
+#else
+        amount = TCE_TruncateNativeInteger((long double)volume * (long double)blend * scale);
 #endif
-    );
+        CG_TCESoundZonePosition856(distance, position);
+        trap_S_StartSoundExVControl(position, -1, CHAN_WEAPON,
+            cgs.gameSounds[cg.tceSoundZoneEffects[active][0]], SND_NOCUT, amount);
+        CG_TCESoundZonePosition856(-distance, position);
+        trap_S_StartSoundExVControl(position, -1, CHAN_WEAPON,
+            cgs.gameSounds[cg.tceSoundZoneEffects[cg.tceSoundZoneActive][1]], SND_NOCUT, amount);
+    }
+
+    active = cg.tceSoundZoneActive;
+    if (cg.tceSoundZoneSounds[1 - active][0] &&
+        (blend < 1.0f || TCE_FloatIsNaN(blend))) {
+        amount = TCE_TruncateNativeInteger((1.0L - (long double)blend) *
+                                          (long double)volume * (long double)storedScale);
+        CG_TCESoundZonePosition856(distance, position);
+        trap_S_StartSoundExVControl(position, -1, CHAN_WEAPON,
+            cgs.gameSounds[cg.tceSoundZoneEffects[1 - cg.tceSoundZoneActive][0]], SND_NOCUT, amount);
+        CG_TCESoundZonePosition856(-distance, position);
+        /* Both original old-side calls use the first effect. */
+        trap_S_StartSoundExVControl(position, -1, CHAN_WEAPON,
+            cgs.gameSounds[cg.tceSoundZoneEffects[1 - cg.tceSoundZoneActive][0]], SND_NOCUT, amount);
+    }
 }
 #else
 void CG_EliteEffectSound(centity_t *cent,int volume) {
@@ -4673,67 +3915,7 @@ void CG_EliteEffectSound(centity_t *cent,int volume) {
 /* Complete original Fire/Recoil857 platform controllers. Actual source
  * structures and immutable media remain distinct from live entity re-reads.
  * Other targets keep the established SDK/numeric fallback. */
-enum {
-    f857Portal=offsetof(cg_t,tcePortalScopeRendering),
-    f857Snap=offsetof(cg_t,snap),
-    f857SnapClient=offsetof(snapshot_t,ps)+offsetof(playerState_t,clientNum),
-    f857SnapTeam=offsetof(snapshot_t,ps)+offsetof(playerState_t,persistant)+PERS_TEAM*4,
-    f857LastFired=offsetof(cg_t,lastFiredWeapon),
-    f857AimRequested=offsetof(cg_t,tceAimRequested),
-    f857AimActive=offsetof(cg_t,tceAimActive),
-    f857AimSync=offsetof(cg_t,tceAimSyncTime),
-    f857AimRetry=offsetof(cg_t,tceAimRetryTime),
-    f857ZoomTime=offsetof(cg_t,zoomTime),
-    f857MortarTime=offsetof(cg_t,mortarImpactTime),
-    f857MortarPitch=offsetof(cg_t,mortarFireAngles),
-    f857MortarYaw=offsetof(cg_t,mortarFireAngles)+4,
-    f857PredPitch=offsetof(cg_t,predictedPlayerState)+offsetof(playerState_t,viewangles),
-    f857PredYaw=offsetof(cg_t,predictedPlayerState)+offsetof(playerState_t,viewangles)+4,
-    f857WeaponSelect=offsetof(cg_t,weaponSelect),
-    f857Kick=offsetof(cg_t,kickAVel),
-    f857RecoilPitch=offsetof(cg_t,recoilPitch),
-    f857Flags=offsetof(centity_t,currentState)+offsetof(entityState_t,eFlags),
-    f857Client=offsetof(centity_t,currentState)+offsetof(entityState_t,clientNum),
-    f857Event=offsetof(centity_t,currentState)+offsetof(entityState_t,event),
-    f857EventParm=offsetof(centity_t,currentState)+offsetof(entityState_t,eventParm),
-    f857Apos=offsetof(centity_t,currentState)+offsetof(entityState_t,apos)+offsetof(trajectory_t,trBase),
-    f857Density=offsetof(centity_t,currentState)+offsetof(entityState_t,density),
-    f857TagParent=offsetof(centity_t,tagParent),
-    f857TankParent=offsetof(centity_t,tankparent),
-    f857Muzzle=offsetof(centity_t,muzzleFlashTime),
-    f857Lightning=offsetof(centity_t,pe)+offsetof(playerEntity_t,lightningFiring),
-    f857Pending=offsetof(centity_t,tceFireEffectPending),
-    f857Eject=offsetof(centity_t,tceEjectPending),
-    f857InfoBase=offsetof(cgs_t,clientinfo),
-    f857InfoStride=sizeof(clientInfo_t),
-    f857InfoValid=offsetof(clientInfo_t,infoValid),
-    f857InfoTeam=offsetof(clientInfo_t,team),
-    f857Heavy=offsetof(cgs_t,media)+offsetof(cgMedia_t,hWeaponSnd),
-    f857Heavy2=offsetof(cgs_t,media)+offsetof(cgMedia_t,hWeaponSnd_2),
-    f857WarnTeam1=offsetof(cgs_t,media)+offsetof(cgMedia_t,tceRoundWarning),
-    f857WarnTeam2=offsetof(cgs_t,media)+offsetof(cgMedia_t,tceRoundWarning)+8,
-    f857DefBolt=offsetof(tce_weaponDef_t,bolt),
-    f857DefSingle=offsetof(tce_weaponDef_t,singleReload),
-    f857Brass=offsetof(tce_weaponInfo_t,ejectBrass),
-    f857Flash=offsetof(tce_weaponInfo_t,flashSound),
-    f857LastShot=offsetof(tce_weaponInfo_t,lastShotSound),
-    f857CvarInt=offsetof(vmCvar_t,integer),
-    f857Time=f855Time,
-    f857Hold=f855ShotHold,
-    f857Instability=f855Instability,
-    f857Vertical=f855Vertical,
-    f857Horizontal=f855Horizontal,
-    f857Refdef=f855Refdef,
-    f857CentNumber=f855CentNumber,
-    f857CentWeapon=f855CentWeapon,
-    f857CentOrigin=f855CentOrigin,
-    f857CentStride=f855CentStride,
-    f857ViewOrigin=f855ViewOrigin,
-    f857Suppressed=f855DefSuppressed,
-    f857Subsonic=f855DefSubsonic,
-    f857Reverb=f855Reverb,
-    f857Echo=f855Echo
-};
+
 #if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__GNUC__) && defined(__i386__) && defined(__linux__))
 static void CG_TCEWeaponFireRecoil857(int weapon) {
     float pitch = 0.0f, yawScale = 0.0f;
