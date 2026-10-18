@@ -2024,139 +2024,19 @@ void _VectorScale( const vec3_t in, vec_t scale, vec3_t out ) {
 	out[2] = in[2]*scale;
 }
 
-#if defined(_WIN32) || defined(__linux__)
-void CrossProduct(const vec3_t v1, const vec3_t v2, vec3_t cross) {
-    long double left, right;
-#if defined(_WIN32)
-    left = (long double)v2[2] * v1[1];
-    right = (long double)v1[2] * v2[1];
-#else
-    right = (long double)v2[1] * v1[2];
-    left = (long double)v2[2] * v1[1];
-#endif
-    cross[0] = (float)(left - right);
-#if defined(_WIN32)
-    left = (long double)v1[2] * v2[0];
-    right = (long double)v1[0] * v2[2];
-#else
-    right = (long double)v2[2] * v1[0];
-    left = (long double)v2[0] * v1[2];
-#endif
-    cross[1] = (float)(left - right);
-#if defined(_WIN32)
-    left = (long double)v1[0] * v2[1];
-#else
-    left = (long double)v2[1] * v1[0];
-#endif
-    right = (long double)v2[0] * v1[1];
-    /* Store each component before reading inputs for the next component. */
-    cross[2] = (float)(left - right);
-}
-#else
 void CrossProduct( const vec3_t v1, const vec3_t v2, vec3_t cross ) {
 	cross[0] = v1[1]*v2[2] - v1[2]*v2[1];
 	cross[1] = v1[2]*v2[0] - v1[0]*v2[2];
 	cross[2] = v1[0]*v2[1] - v1[1]*v2[0];
 }
-#endif
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) vec_t VectorLength( const vec3_t v ) {
-	__asm {
-		MOV EAX,dword ptr [ESP + 04h]
-		FLD dword ptr [EAX + 08h]
-		FLD dword ptr [EAX + 04h]
-		FLD dword ptr [EAX]
-		FLD st(0)
-		fmul st(0),st(1)
-		FLD st(2)
-		fmul st(0),st(3)
-		faddp st(1),st(0)
-		FLD st(3)
-		fmul st(0),st(4)
-		faddp st(1),st(0)
-		FSQRT
-		FSTP st(3)
-		FSTP st(0)
-		FSTP st(0)
-		RET
-	}
-}
-#elif defined(__GNUC__) && defined(__i386__)
-__attribute__((naked)) vec_t VectorLength( const vec3_t v ) {
-	__asm__ volatile (
-		".intel_syntax noprefix\n\t"
-		"SUB ESP,0x4\n\t"
-		"MOV EDX,dword ptr [ESP + 0x8]\n\t"
-		"FLD dword ptr [EDX]\n\t"
-		"FLD dword ptr [EDX + 0x4]\n\t"
-		"fxch st(1)\n\t"
-		"fmul st(0),st(0)\n\t"
-		"fxch st(1)\n\t"
-		"fmul st(0),st(0)\n\t"
-		"faddp st(1),st(0)\n\t"
-		"FLD dword ptr [EDX + 0x8]\n\t"
-		"fmul st(0),st(0)\n\t"
-		"faddp st(1),st(0)\n\t"
-		"FSQRT\n\t"
-		"FSTP dword ptr [ESP]\n\t"
-		"FLD dword ptr [ESP]\n\t"
-		"POP EAX\n\t"
-		"RET\n\t"
-		".att_syntax prefix\n\t"
-	);
-}
-#else
 vec_t VectorLength( const vec3_t v ) {
 	return sqrt (v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
 }
-#endif
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) vec_t VectorLengthSquared( const vec3_t v ) {
-    __asm {
-        mov ecx, [esp+4]
-        fld dword ptr [ecx+8]
-        fld dword ptr [ecx+4]
-        fld dword ptr [ecx]
-        fld st(0)
-        fmul st(0), st(1)
-        fld st(2)
-        fmul st(0), st(3)
-        faddp st(1), st(0)
-        fld st(3)
-        fmul st(0), st(4)
-        faddp st(1), st(0)
-        fstp st(3)
-        fstp st(0)
-        fstp st(0)
-        ret
-    }
-}
-#elif defined(__GNUC__) && defined(__i386__)
-__attribute__((naked)) vec_t VectorLengthSquared( const vec3_t v ) {
-    __asm__ volatile (
-        ".intel_syntax noprefix\n\t"
-        "mov edx,[esp+4]\n\t"
-        "fld dword ptr [edx]\n\t"
-        "fld dword ptr [edx+4]\n\t"
-        "fxch st(1)\n\t"
-        "fmul st,st\n\t"
-        "fxch st(1)\n\t"
-        "fmul st,st\n\t"
-        "faddp st(1),st\n\t"
-        "fld dword ptr [edx+8]\n\t"
-        "fmul st,st\n\t"
-        "faddp st(1),st\n\t"
-        "ret\n\t"
-        ".att_syntax prefix\n\t"
-    );
-}
-#else
 vec_t VectorLengthSquared( const vec3_t v ) {
 	return (v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
 }
-#endif
 
 #if defined(_WIN32) || defined(__linux__)
 vec_t Distance( const vec3_t p1, const vec3_t p2 ) {
