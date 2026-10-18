@@ -4361,7 +4361,6 @@ static const float groundK200ac2b0 = 40.0;
 static const float groundK200ac7e0 = 38.0;
 static const float groundK200ac7dc = 13.0;
 static const float groundK200ac7d8 = -220.0;
-static const float groundK200ac1cc = 64.0;
 static const double groundK200ac130 = 1.0;
 static const float groundK200ac198 = 0.25;
 static const float groundK200ac2b8 = 10.0;
@@ -4371,7 +4370,6 @@ static const float groundK200ac2dc = 80.0;
 static const float groundK200ac7d4 = -200.0;
 static const char groundS200bc610[] = "delta: %5.2f\n";
 static const char groundS200bc620[] = "%i:allsolid\n";
-static const char groundS200bc630[] = "%i:lift\n";
 static const char groundS200bc604[] = "%i:kickoff\n";
 static const char groundS200bc5f8[] = "%i:steep\n";
 static const char groundS200bc5ec[] = "%i:Land\n";
@@ -4879,103 +4877,32 @@ The ground trace didn't hit a surface, so we are in freefall
 =============
 */
 #if defined(_MSC_VER) && defined(_M_IX86)
-static __declspec(naked) void PM_GroundTraceMissed(void) {
-    __asm {
-        mov eax, dword ptr [pm]
-        sub esp, 0x44
-        mov ecx, dword ptr [eax+groundPs831]
-        push ebx
-        xor ebx, ebx
-        cmp dword ptr [ecx+groundGround831], 0x3ff
-        je ground831_20037298
-        cmp dword ptr [eax+groundDebug831], ebx
-        je ground831_200371d8
-        mov edx, dword ptr [c_pmove]
-        push edx
-        push offset groundS200bc630
-        call Com_Printf
-        mov eax, dword ptr [pm]
-        add esp, 8
-ground831_200371d8:
-        mov ecx, dword ptr [eax+groundPs831]
-        mov edx, dword ptr [ecx+groundOrigin831]
-        mov dword ptr [esp + 4], edx
-        mov ecx, dword ptr [eax+groundPs831]
-        mov edx, dword ptr [ecx+groundOrigin831+4]
-        mov dword ptr [esp + 8], edx
-        mov ecx, dword ptr [eax+groundPs831]
-        fld dword ptr [ecx+groundOrigin831+8]
-        fsub dword ptr [groundK200ac1cc]
-        fstp dword ptr [esp + 0xc]
-        mov ecx, dword ptr [eax+groundPs831]
-        mov edx, dword ptr [eax+groundTraceMask831]
-        push edx
-        mov edx, dword ptr [ecx+groundClient831]
-        add ecx, groundOrigin831
-        push edx
-        lea edx, [esp + 0xc]
-        push edx
-        lea edx, [eax+groundMaxs831]
-        push edx
-        lea edx, [eax+groundMins831]
-        push edx
-        push ecx
-        lea ecx, [esp + 0x28]
-        push ecx
-        call dword ptr [eax+groundTrace831]
-        fld dword ptr [esp + 0x34]
-        fcomp qword ptr [groundK200ac130]
-        add esp, 0x1c
-        fnstsw ax
-        test ah, 0x40
-        mov eax, dword ptr [pm]
-        je ground831_20037298
-        mov cl, byte ptr [eax+groundForwardCmd831]
-        push 1
-        cmp cl, bl
-        push ebx
-        jl ground831_2003726e
-        mov edx, dword ptr [eax+groundCharacter831]
-        push 4
-        mov ecx, dword ptr [edx+groundAnimModel831]
-        mov edx, dword ptr [eax+groundPs831]
-        push ecx
-        push edx
-        call BG_AnimScriptEvent
-        mov eax, dword ptr [pm]
-        add esp, 0x14
-        mov eax, dword ptr [eax+groundPs831]
-        mov ecx, dword ptr [eax+groundFlags831]
-        and ecx, 0xfffffff7
-        jmp ground831_20037290
-ground831_2003726e:
-        mov ecx, dword ptr [eax+groundCharacter831]
-        mov eax, dword ptr [eax+groundPs831]
-        push 5
-        mov edx, dword ptr [ecx+groundAnimModel831]
-        push edx
-        push eax
-        call BG_AnimScriptEvent
-        mov ecx, dword ptr [pm]
-        add esp, 0x14
-        mov eax, dword ptr [ecx+groundPs831]
-        mov ecx, dword ptr [eax+groundFlags831]
-        or ecx, 8
-ground831_20037290:
-        mov dword ptr [eax+groundFlags831], ecx
-        mov eax, dword ptr [pm]
-ground831_20037298:
-        mov eax, dword ptr [eax+groundPs831]
-        cmp dword ptr [eax+groundGround831], -1
-        je ground831_200372a7
-        mov dword ptr [eax+groundGround831], 0x3ff
-ground831_200372a7:
-        mov dword ptr [pml+groundGroundPlane831], ebx
-        mov dword ptr [pml+groundWalking831], ebx
-        pop ebx
-        add esp, 0x44
-        ret 
+static void PM_GroundTraceMissed(void) {
+    trace_t trace;
+    vec3_t point;
+
+    if (pm->ps->groundEntityNum != ENTITYNUM_NONE) {
+        if (pm->debugLevel) Com_Printf("%i:lift\n", c_pmove);
+        memcpy(point, pm->ps->origin, 2 * sizeof(float));
+        point[2] = (float)((long double)pm->ps->origin[2] - 64.0L);
+        pm->trace(&trace, pm->ps->origin, pm->mins, pm->maxs, point,
+            pm->ps->clientNum, pm->tracemask);
+        /* Native C3 accepts equality and unordered trace fractions. */
+        if (trace.fraction == 1.0f || TCE_FloatIsNaN(trace.fraction)) {
+            if (pm->cmd.forwardmove >= 0) {
+                BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo,
+                    ANIM_ET_JUMP, qfalse, qtrue);
+                pm->ps->pm_flags &= ~PMF_BACKWARDS_JUMP;
+            } else {
+                BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo,
+                    ANIM_ET_JUMPBK, qfalse, qtrue);
+                pm->ps->pm_flags |= PMF_BACKWARDS_JUMP;
+            }
+        }
     }
+    if (pm->ps->groundEntityNum != -1) pm->ps->groundEntityNum = ENTITYNUM_NONE;
+    pml.groundPlane = qfalse;
+    pml.walking = qfalse;
 }
 #else
 /* Portable fallback; no Linux instruction-level parity claim. */
@@ -5515,7 +5442,6 @@ PM_SetWaterLevel	FIXME: avoid this twice?  certainly if not moving
 /* TC qagame 200372c0/20037460: integer field copies and retained x87
  * sampling / __ftol return schedule. Native offsets replace original ABI slots. */
 #if defined(_MSC_VER) && defined(_M_IX86)
-static const float posture831One = 1.0f;
 typedef char posture831PsAtZero[(offsetof(pmove_t, ps) == 0) ? 1 : -1];
 typedef char posture831TraceLayout[(sizeof(trace_t) == 56 && offsetof(trace_t, allsolid) == 0) ? 1 : -1];
 enum {
@@ -5557,120 +5483,36 @@ enum {
     posture831ps47c = offsetof(playerState_t, jumpTime),
     posture831ps3fc = offsetof(playerState_t, standViewHeight)
 };
-static __declspec(naked) void PM_SetWaterLevel(void) {
-    __asm {
-        SUB ESP,0x14
-        MOV ECX,dword ptr [pm]
-        XOR EAX,EAX
-        PUSH EBX
-        MOV dword ptr [ECX + posture831pm110],EAX
-        MOV EDX,dword ptr [pm]
-        MOV dword ptr [EDX + posture831pm10c],EAX
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX]
-        MOV EDX,dword ptr [ECX + posture831ps14]
-        MOV dword ptr [ESP + 0xc],EDX
-        MOV ECX,dword ptr [EAX]
-        MOV EDX,dword ptr [ECX + posture831ps18]
-        MOV dword ptr [ESP + 0x10],EDX
-        MOV ECX,dword ptr [EAX]
-        FLD dword ptr [ECX + posture831ps3e4]
-        FADD dword ptr [ECX + posture831ps1c]
-        FADD dword ptr [posture831One]
-        FSTP dword ptr [ESP + 0x14]
-        MOV ECX,dword ptr [EAX]
-        MOV EDX,dword ptr [ECX + posture831psa0]
-        LEA ECX,[ESP + 0xc]
-        PUSH EDX
-        PUSH ECX
-        CALL dword ptr [EAX + posture831pm12c]
-        MOV EBX,EAX
-        ADD ESP,0x8
-        TEST BL,0x38
-        JZ posture831_200373f6
-        PUSH ESI
-        MOV ESI,dword ptr [pm]
-        MOV EAX,dword ptr [ESI]
-        FILD dword ptr [EAX + posture831psbc]
-        FSUB dword ptr [EAX + posture831ps3e4]
-        CALL PM_MovementTruncate827
-        MOV dword ptr [ESI + posture831pm10c],EBX
-        MOV EDX,dword ptr [pm]
-        MOV dword ptr [ESP + 0xc],EAX
-        MOV dword ptr [EDX + posture831pm110],0x1
-        MOV ECX,dword ptr [pm]
-        CDQ
-        MOV ESI,dword ptr [ECX]
-        SUB EAX,EDX
-        SAR EAX,0x1
-        MOV dword ptr [ESP + 0x8],EAX
-        FILD dword ptr [ESP + 0x8]
-        FADD dword ptr [ESI + posture831ps3e4]
-        FADD dword ptr [ESI + posture831ps1c]
-        FSTP dword ptr [ESP + 0x18]
-        MOV EAX,dword ptr [ECX]
-        MOV EDX,dword ptr [EAX + posture831psa0]
-        LEA EAX,[ESP + 0x10]
-        PUSH EDX
-        PUSH EAX
-        CALL dword ptr [ECX + posture831pm12c]
-        ADD ESP,0x8
-        MOV EBX,EAX
-        TEST BL,0x38
-        POP ESI
-        JZ posture831_200373f6
-        MOV ECX,dword ptr [pm]
-        MOV dword ptr [ECX + posture831pm110],0x2
-        MOV EAX,[pm]
-        MOV ECX,dword ptr [EAX]
-        FLD dword ptr [ECX + posture831ps3e4]
-        FADD dword ptr [ECX + posture831ps1c]
-        FIADD dword ptr [ESP + 0x8]
-        FSTP dword ptr [ESP + 0x14]
-        MOV EDX,dword ptr [EAX]
-        MOV ECX,dword ptr [EDX + posture831psa0]
-        LEA EDX,[ESP + 0xc]
-        PUSH ECX
-        PUSH EDX
-        CALL dword ptr [EAX + posture831pm12c]
-        MOV EBX,EAX
-        ADD ESP,0x8
-        TEST BL,0x38
-        JZ posture831_200373f6
-        MOV EAX,[pm]
-        MOV dword ptr [EAX + posture831pm110],0x3
-posture831_200373f6:
-        TEST BH,0x10
-        JZ posture831_20037407
-        MOV dword ptr [pml.tceContentRestriction],0x1
-        JMP posture831_20037427
-posture831_20037407:
-        TEST BH,0x8
-        JZ posture831_20037418
-        MOV dword ptr [pml.tceContentRestriction],0x2
-        JMP posture831_20037427
-posture831_20037418:
-        TEST BH,0x4
-        JZ posture831_20037427
-        MOV dword ptr [pml.tceContentRestriction],0x3
-posture831_20037427:
-        MOV EAX,[pm]
-        XOR ECX,ECX
-        PUSH 0x1
-        MOV EBX,dword ptr [EAX + posture831pm110]
-        MOV EDX,dword ptr [EAX]
-        CMP EBX,0x2
-        MOV EAX,dword ptr [EDX + posture831psa0]
-        SETG CL
-        PUSH ECX
-        PUSH 0x3
-        PUSH EAX
-        CALL BG_UpdateConditionValue
-        ADD ESP,0x10
-        POP EBX
-        ADD ESP,0x14
-        RET
+static void PM_SetWaterLevel(void) {
+    vec3_t point;
+    int contents, sampleHeight, middleHeight;
+
+    pm->waterlevel = 0;
+    pm->watertype = 0;
+    memcpy(point, pm->ps->origin, 2 * sizeof(float));
+    point[2] = (float)((long double)pm->ps->mins[2] + pm->ps->origin[2] + 1.0L);
+    contents = pm->pointcontents(point, pm->ps->clientNum);
+    if (contents & MASK_WATER) {
+        sampleHeight = TCE_TruncateNativeInteger(
+            (long double)pm->ps->viewheight - pm->ps->mins[2]);
+        pm->watertype = contents;
+        pm->waterlevel = 1;
+        middleHeight = sampleHeight / 2;
+        point[2] = (float)((long double)middleHeight + pm->ps->mins[2] + pm->ps->origin[2]);
+        contents = pm->pointcontents(point, pm->ps->clientNum);
+        if (contents & MASK_WATER) {
+            pm->waterlevel = 2;
+            point[2] = (float)((long double)pm->ps->mins[2] + pm->ps->origin[2] + sampleHeight);
+            contents = pm->pointcontents(point, pm->ps->clientNum);
+            if (contents & MASK_WATER) pm->waterlevel = 3;
+        }
     }
+    /* Native retains the earlier restriction when the last sample has no bit. */
+    if (contents & 0x1000) pml.tceContentRestriction = 1;
+    else if (contents & 0x800) pml.tceContentRestriction = 2;
+    else if (contents & 0x400) pml.tceContentRestriction = 3;
+    BG_UpdateConditionValue(pm->ps->clientNum, ANIM_COND_UNDERWATER,
+        pm->waterlevel > 2, qtrue);
 }
 #else
 static void PM_SetWaterLevel( void ) {
