@@ -115,6 +115,15 @@ CG_ClipMoveToEntities
 
 ====================
 */
+/* Native C0 also selects a candidate for an unordered fraction comparison. */
+static qboolean CG_TraceFractionBefore(float candidate, float previous) {
+    if (candidate < previous) return qtrue;
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+    if (TCE_FloatIsNaN(candidate) || TCE_FloatIsNaN(previous)) return qtrue;
+#endif
+    return qfalse;
+}
+
 static void CG_ClipMoveToEntities ( const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end,
 							int skipNumber, int mask, int capsule, trace_t *tr ) {
 	int			i, x, zd, zu;
@@ -167,7 +176,7 @@ static void CG_ClipMoveToEntities ( const vec3_t start, const vec3_t mins, const
 				mins, maxs, cmodel,  mask, origin, angles);
 		}
 
-		if (trace.allsolid || trace.fraction < tr->fraction) {
+		if (trace.allsolid || CG_TraceFractionBefore(trace.fraction, tr->fraction)) {
 			trace.entityNum = ent->number;
 			*tr = trace;
 		} else if (trace.startsolid) {
@@ -246,12 +255,21 @@ static void CG_ClipMoveToEntities_FT ( const vec3_t start, const vec3_t mins, co
 CG_Trace
 ================
 */
+/* Native C3 treats an unordered fraction like equality for the entity tag. */
+static int CG_TraceEntityNumber(float fraction) {
+    if (fraction == 1.0f) return ENTITYNUM_NONE;
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+    if (TCE_FloatIsNaN(fraction)) return ENTITYNUM_NONE;
+#endif
+    return ENTITYNUM_WORLD;
+}
+
 void	CG_Trace( trace_t *result, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, 
 					 int skipNumber, int mask ) {
 	trace_t	t;
 
 	trap_CM_BoxTrace ( &t, start, end, mins, maxs, 0, mask );
-	t.entityNum = t.fraction != 1.0 ? ENTITYNUM_WORLD : ENTITYNUM_NONE;
+	t.entityNum = CG_TraceEntityNumber(t.fraction);
 	// check all other solid models
 	CG_ClipMoveToEntities (start, mins, maxs, end, skipNumber, mask, qfalse, &t);
 
@@ -287,20 +305,11 @@ void	CG_FTTrace( trace_t *result, const vec3_t start, const vec3_t mins, const v
 CG_TraceCapsule
 ================
 */
-/* Native C3 treats an unordered fraction like equality for the entity tag. */
-static int CG_CapsuleTraceEntityNumber(float fraction) {
-    if (fraction == 1.0f) return ENTITYNUM_NONE;
-#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
-    if (TCE_FloatIsNaN(fraction)) return ENTITYNUM_NONE;
-#endif
-    return ENTITYNUM_WORLD;
-}
-
 void CG_TraceCapsule( trace_t *result, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int skipNumber, int mask ) {
 	trace_t	t;
 
 	trap_CM_CapsuleTrace ( &t, start, end, mins, maxs, 0, mask );
-	t.entityNum = CG_CapsuleTraceEntityNumber(t.fraction);
+	t.entityNum = CG_TraceEntityNumber(t.fraction);
 	// check all other solid models
 	CG_ClipMoveToEntities (start, mins, maxs, end, skipNumber, mask, qtrue, &t);
 
@@ -311,7 +320,7 @@ void CG_TraceCapsule_World( trace_t *result, const vec3_t start, const vec3_t mi
 	trace_t	t;
 	trap_CM_CapsuleTrace ( &t, start, end, mins, maxs, 0, mask );
 
-	t.entityNum = CG_CapsuleTraceEntityNumber(t.fraction);
+	t.entityNum = CG_TraceEntityNumber(t.fraction);
 	*result = t;
 }
 /*
