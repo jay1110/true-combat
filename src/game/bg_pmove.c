@@ -1554,7 +1554,7 @@ static void PM_WaterJumpMove( void ) {
 
 	PM_StepSlideMove( qtrue );
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
     {
         long double gravityStep = (long double)pm->ps->gravity * pml.frametime;
         float verticalSpeed;
@@ -2298,14 +2298,19 @@ static void PM_DeadMove( void ) {
 
 	// extra friction
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
     {
         long double remaining = TCE_VectorLengthValue(pm->ps->velocity) - 20.0f;
         volatile float storedForward = (float)remaining;
 
         /* Compare the held value, then use the stored float for scaling. */
         forward = storedForward;
+#if defined(__linux__)
+        /* Inlined ELF path scales an unordered remaining speed instead of stopping. */
+        stopDead = remaining <= 0.0L;
+#else
         stopDead = remaining <= 0.0L || remaining != remaining;
+#endif
     }
 #else
 	forward = VectorLength (pm->ps->velocity);
@@ -3862,7 +3867,7 @@ static void PM_WeaponTruncateST0(void);
 #endif
 
 /* PmoveSingle 3000c180: movement/reload can cancel active aim after PM_Weapon. */
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 /* Native TCE PmoveSingle aim-cancellation tail; controller integration remains separate. */
 static qboolean PM_TCECancelAim(void) {
     playerState_t *ps = pm->ps;
@@ -3870,6 +3875,10 @@ static qboolean PM_TCECancelAim(void) {
     int state = ps->weaponstate;
     int seed, phase;
     long double random, angle, wave;
+#if defined(__linux__)
+    playerState_t *phasePlayer, *offsetPlayer;
+    volatile float storedAngle;
+#endif
 
     if (!(flags & 4)) return qfalse;
     if (state != WEAPON_DROPPING && !(state == WEAPON_RAISING && !(flags & 8)) &&
@@ -3893,19 +3902,38 @@ static qboolean PM_TCECancelAim(void) {
     pm->ps->stats[STAT_TCE_MOVEMENT_INSTABILITY] = 1000;
     if (pm->ps->weaponstate != WEAPON_FIRING) {
         seed = pm->ps->stats[STAT_TCE_SHOT_SEED];
+#if defined(__linux__)
+        phasePlayer = pm->ps;
+        random = Q_random(&seed);
+        phasePlayer->stats[STAT_TCE_AIM_PHASE] = TCE_TruncateNativeInteger(random * 1000.0f);
+#else
         random = Q_random(&seed);
         pm->ps->stats[STAT_TCE_AIM_PHASE] = TCE_TruncateNativeInteger(random * 1000.0f);
+#endif
         phase = pm->ps->stats[STAT_TCE_AIM_PHASE];
         if (phase > 1000) pm->ps->stats[STAT_TCE_AIM_PHASE] = phase - 1000;
         /* Original re-reads the definition and aim bit after the random call. */
         if (!weaponDef[pm->ps->weapon].noTacMode &&
             (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4)) {
+#if defined(__linux__)
+            /* ELF stores the double-turn product as float before hardware trig. */
+            storedAngle = (float)((long double)Q_random(&seed) * 6.2831853071795862);
+            angle = storedAngle;
+            offsetPlayer = pm->ps;
+            wave = cosl(angle);
+            offsetPlayer->holdable[5] =
+                TCE_TruncateNativeInteger((wave + wave) * 100.0f + 2000.0f);
+            offsetPlayer = pm->ps;
+            wave = sinl(angle);
+            offsetPlayer->holdable[6] = TCE_TruncateNativeInteger(wave * 400.0f + 2000.0f);
+#else
             int pitch;
             angle = (long double)Q_random(&seed) * 6.2831854820251465f;
             pitch = TCE_TruncateNativeInteger(cosl(angle) * 200.0 + 2000.0);
             wave = sinl(angle);
             pm->ps->holdable[5] = pitch;
             pm->ps->holdable[6] = TCE_TruncateNativeInteger(wave * 400.0 + 2000.0);
+#endif
         }
         pm->ps->stats[STAT_TCE_SHOT_SEED] = (unsigned)seed & 0xffffu;
     }
@@ -10099,6 +10127,8 @@ enum {
 };
 typedef char single833Layouts[(sizeof(pml_t)==156 && offsetof(pmove_t,ps)==0 && sizeof(tce_weaponDef_t)==460 && offsetof(tce_weaponDef_t,noTacMode)==0x194) ? 1 : -1];
 typedef char single833Protocol[(WEAPON_READY==0 && WEAPON_FIRING==7 && BUTTON_ATTACK==1 && BUTTON_TALK==2 && BUTTON_WALKING==16 && BUTTON_SPRINT==32 && PMF_LIMBO==0x4000 && PMF_TIME_LOCKPLAYER==0x8000 && PM_NORMAL==0 && PM_NOCLIP==1 && PM_SPECTATOR==2 && PM_DEAD==3 && PM_FREEZE==4 && PM_INTERMISSION==5 && PMF_RESPAWNED==0x200 && EF_TALK==0x200 && EF_FIRING==0x80 && EF_ZOOMING==0x40000 && EF_PRONE==0x80000 && EF_PRONE_MOVING==0x100000 && EF_MOUNTEDTANK==0x8000 && ANIM_MT_IDLE==1) ? 1 : -1];
+#endif
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 /* TCE single movement step. Original helper order and fresh callback-state reads
  * are retained; compiled callback ABI and FPU behavior remain separately open. */
 void PmoveSingle(pmove_t *pmove) {
