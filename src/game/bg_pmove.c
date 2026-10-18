@@ -315,33 +315,17 @@ void PM_TraceLegs( trace_t *trace, float *legsOffset, vec3_t start, vec3_t end, 
 
 #if defined(_MSC_VER) && defined(_M_IX86)
     {
-        const float tracePi = 3.1415927410125732421875f;
-        const float traceRadians = 0.0055555556900799274444580078125f;
-        const float traceBack = -32.0f;
-        float traceCos, traceSin;
-        float *traceYaw = &viewangles[YAW];
-        float *traceOfs = ofs;
-        /* TC20030edd..f33: retained angle, hardware trig, f32 trig outputs. */
-        __asm {
-            fld sizeScale
-            mov ecx, traceYaw
-            fld dword ptr [ecx]
-            fmul tracePi
-            fmul traceRadians
-            fld st(0)
-            fcos
-            fstp traceCos
-            fsin
-            fstp traceSin
-            fmul traceBack
-            fld st(0)
-            fmul traceCos
-            mov ecx, traceOfs
-            fstp dword ptr [ecx]
-            fmul traceSin
-            fstp dword ptr [ecx + 4]
-            mov dword ptr [ecx + 8], 0
-        }
+        long double angleValue = (long double)viewangles[YAW] * 3.1415927410125732421875f;
+        volatile float traceCos, traceSin;
+        long double distance = (long double)sizeScale * -32.0f;
+
+        angleValue *= 0.0055555556900799274444580078125f;
+        /* Original hardware trig outputs are stored as float before scaling. */
+        traceCos = (float)cosl(angleValue);
+        traceSin = (float)sinl(angleValue);
+        ofs[0] = (float)(distance * traceCos);
+        ofs[1] = (float)(distance * traceSin);
+        ofs[2] = 0.0f;
     }
 #else
 	angle = DEG2RAD(viewangles[YAW]);
@@ -358,17 +342,9 @@ void PM_TraceLegs( trace_t *trace, float *legsOffset, vec3_t start, vec3_t end, 
     tryStep = !bodytrace;
     if (bodytrace) {
 #if defined(_MSC_VER) && defined(_M_IX86)
-        float *traceFraction = &trace->fraction;
-        float *bodyFraction = &bodytrace->fraction;
-        __asm {
-            mov ecx, traceFraction
-            mov edx, bodyFraction
-            fld dword ptr [ecx]
-            fcomp dword ptr [edx]
-            fnstsw ax
-            and eax, 100h
-            mov tryStep, eax
-        }
+        /* Native C0 also accepts an unordered comparison. */
+        tryStep = trace->fraction < bodytrace->fraction ||
+            TCE_FloatIsNaN(trace->fraction) || TCE_FloatIsNaN(bodytrace->fraction);
 #else
         tryStep = trace->fraction < bodytrace->fraction;
 #endif
@@ -386,19 +362,7 @@ void PM_TraceLegs( trace_t *trace, float *legsOffset, vec3_t start, vec3_t end, 
         tryStep = 0;
         if (!steptrace.allsolid && !steptrace.startsolid) {
 #if defined(_MSC_VER) && defined(_M_IX86)
-            float *stepFraction = &steptrace.fraction;
-            float *traceFraction = &trace->fraction;
-            __asm {
-                mov ecx, stepFraction
-                mov edx, traceFraction
-                fld dword ptr [ecx]
-                fcomp dword ptr [edx]
-                fnstsw ax
-                test ah, 41h
-                sete al
-                movzx eax, al
-                mov tryStep, eax
-            }
+            tryStep = steptrace.fraction > trace->fraction;
 #else
             tryStep = steptrace.fraction > trace->fraction;
 #endif
@@ -418,19 +382,8 @@ void PM_TraceLegs( trace_t *trace, float *legsOffset, vec3_t start, vec3_t end, 
 				tracefunc(&steptrace, org, legMins, legMaxs, point, ignoreent, tracemask);
 				if (!steptrace.allsolid) {
 #if defined(_MSC_VER) && defined(_M_IX86)
-                    float *traceOrgZ = &org[2];
-                    float *traceEndZ = &steptrace.endpos[2];
-                    float *traceOfsZ = &ofs[2];
-                    __asm {
-                        mov ecx, traceOrgZ
-                        mov edx, traceEndZ
-                        fld dword ptr [ecx]
-                        fsub dword ptr [edx]
-                        mov ecx, traceOfsZ
-                        fsubr dword ptr [ecx]
-                        mov edx, legsOffset
-                        fstp dword ptr [edx]
-                    }
+                    *legsOffset = (float)((long double)ofs[2] -
+                        ((long double)org[2] - steptrace.endpos[2]));
 #else
 					*legsOffset = ofs[2] - (org[2] - steptrace.endpos[2]);
 #endif
@@ -441,71 +394,20 @@ void PM_TraceLegs( trace_t *trace, float *legsOffset, vec3_t start, vec3_t end, 
 }
 
 /* Traces all player bboxes -- body and legs */
-void	PM_TraceAllLegs( trace_t *trace, float *legsOffset, vec3_t start, vec3_t end )
-{
-	pm->trace(trace, start, pm->mins, pm->maxs, end, pm->ps->clientNum, pm->tracemask);
-	
+void PM_TraceAllLegs( trace_t *trace, float *legsOffset, vec3_t start, vec3_t end ) {
+	pm->trace( trace, start, pm->mins, pm->maxs, end, pm->ps->clientNum, pm->tracemask );
+
 	/* legs */
 	if ( pm->ps->eFlags & EF_PRONE ) {
 		trace_t legtrace;
-		int nearerLeg;
 
 		PM_TraceLegs( &legtrace, legsOffset, start, end, trace, pm->ps->viewangles, pm->trace, pm->ps->clientNum, pm->tracemask );
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-		/* TC2003115f: C0 includes an unordered fraction comparison. */
-		{
-			float *legFraction = &legtrace.fraction;
-			float *bodyFraction = &trace->fraction;
-			__asm {
-				mov ecx, legFraction
-				mov edx, bodyFraction
-				fld dword ptr [ecx]
-				fcomp dword ptr [edx]
-				fnstsw ax
-				and eax, 100h
-				mov nearerLeg, eax
-			}
-		}
-#else
-		nearerLeg = legtrace.fraction < trace->fraction;
-#endif
-		if (nearerLeg ||
-		    legtrace.startsolid ||
-		    legtrace.allsolid) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-			/* TC20031180: retain X; round Y/Z differences before scaling. */
-			float *legEnd = legtrace.endpos;
-			float *legFraction = &legtrace.fraction;
-			__asm {
-				mov ecx, end
-				mov edx, start
-				mov eax, legEnd
-				fld dword ptr [ecx]
-				fsub dword ptr [edx]
-				fld dword ptr [ecx + 4]
-				fsub dword ptr [edx + 4]
-				fstp dword ptr [eax + 4]
-				fld dword ptr [ecx + 8]
-				fsub dword ptr [edx + 8]
-				fstp dword ptr [eax + 8]
-				mov ecx, legFraction
-				fmul dword ptr [ecx]
-				fadd dword ptr [edx]
-				fstp dword ptr [eax]
-				fld dword ptr [eax + 4]
-				fmul dword ptr [ecx]
-				fadd dword ptr [edx + 4]
-				fstp dword ptr [eax + 4]
-				fld dword ptr [eax + 8]
-				fmul dword ptr [ecx]
-				fadd dword ptr [edx + 8]
-				fstp dword ptr [eax + 8]
-			}
-#else
+		if ( legtrace.fraction < trace->fraction ||
+			 legtrace.startsolid ||
+			 legtrace.allsolid ) {
 			VectorSubtract( end, start, legtrace.endpos );
 			VectorMA( start, legtrace.fraction, legtrace.endpos, legtrace.endpos );
-#endif
 			*trace = legtrace;
 		}
 	}
