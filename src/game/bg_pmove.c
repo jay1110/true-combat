@@ -982,7 +982,6 @@ PM_CheckJump
 /* TC:E CheckJump: native Windows gates, float stores and event ordering.
  * Linux retains its existing fallback; FPU/ABI parity is tracked separately. */
 #if defined(_MSC_VER) && defined(_M_IX86)
-static void PM_WeaponTruncateST0(void);
 typedef char movementScalarLayout833[(sizeof(float) == 4 && sizeof(int) == 4 &&
     sizeof(vec3_t) == 12 && EV_JUMP == 24 && ANIM_ET_JUMP == 4 && ANIM_ET_JUMPBK == 5) ? 1 : -1];
 static qboolean PM_CheckJump(void) {
@@ -3842,7 +3841,6 @@ PM_AdjustAimSpreadScale
 
 
 #if defined(_MSC_VER) && defined(_M_IX86)
-static void PM_WeaponTruncateST0(void);
 #endif
 
 /* PmoveSingle 3000c180: movement/reload can cancel active aim after PM_Weapon. */
@@ -4152,31 +4150,6 @@ Generates weapon events and modifes the weapon counter
 #define VENOM_LOWER		WEAP_ATTACK_LASTSHOT
 
 //#define DO_WEAPON_DBG 1
-
-#if defined(_MSC_VER) && defined(_M_IX86)
-static __declspec(naked) void PM_WeaponTruncateST0(void) {
-    __asm {
-        push ebp
-        mov ebp, esp
-        add esp, -12 /* Original flags already observable at the following FWAIT. */
-        fwait
-        fnstcw word ptr [ebp-2]
-        fwait
-        mov ax, word ptr [ebp-2]
-        or ah, 0ch
-        mov word ptr [ebp-4], ax
-        fldcw word ptr [ebp-4]
-        fistp qword ptr [ebp-12]
-        fldcw word ptr [ebp-2]
-        mov eax, dword ptr [ebp-12]
-        mov edx, dword ptr [ebp-8]
-        leave
-        ret
-    }
-}
-
-
-#endif
 
 /* Original random recoil expressions; only the final value is binary32.
  * Linux has folded pitch multipliers in its own constant pool. */
@@ -5825,97 +5798,10 @@ PM_CalcLean
 /* Windows30009fe0. TC lean traces the full target before approaching it.
  * This is shared by server movement and client prediction. */
 #if defined(_MSC_VER) && defined(_M_IX86)
-/* TC qagame20032340/20032710. Each foreign data offset is mapped to its native base. */
-enum {
-    posturePs4 = offsetof(playerState_t, pm_type),
-    posturePsc = offsetof(playerState_t, pm_flags),
-    posturePs14 = offsetof(playerState_t, origin),
-    posturePs18 = offsetof(playerState_t, origin) + sizeof(float),
-    posturePs1c = offsetof(playerState_t, origin) + 2 * sizeof(float),
-    posturePs3c = offsetof(playerState_t, leanf),
-    posturePs44 = offsetof(playerState_t, delta_angles),
-    posturePs48 = offsetof(playerState_t, delta_angles) + sizeof(int),
-    posturePs68 = offsetof(playerState_t, eFlags),
-    posturePsa0 = offsetof(playerState_t, clientNum),
-    posturePsa4 = offsetof(playerState_t, weapon),
-    posturePsa8 = offsetof(playerState_t, weaponstate),
-    posturePsb0 = offsetof(playerState_t, viewangles),
-    posturePsb4 = offsetof(playerState_t, viewangles) + sizeof(float),
-    posturePsb8 = offsetof(playerState_t, viewangles) + 2 * sizeof(float),
-    posturePsbc = offsetof(playerState_t, viewheight),
-    posturePsd0 = offsetof(playerState_t, stats) + STAT_HEALTH * sizeof(int),
-    posturePsd8 = offsetof(playerState_t, stats) + STAT_DEAD_YAW * sizeof(int),
-    posturePsf0 = offsetof(playerState_t, stats) + STAT_TCE_WEAPON_FLAGS * sizeof(int),
-    posturePsf4 = offsetof(playerState_t, stats) + STAT_TCE_FLAGS * sizeof(int),
-    posturePs148 = offsetof(playerState_t, persistant) + 14 * sizeof(int),
-    posturePs3a4 = offsetof(playerState_t, holdable) + 5 * sizeof(int),
-    posturePs3a8 = offsetof(playerState_t, holdable) + 6 * sizeof(int),
-    postureExt18 = offsetof(pmoveExt_t, varc),
-    postureExt1c = offsetof(pmoveExt_t, harc),
-    postureExt20 = offsetof(pmoveExt_t, centerangles),
-    postureExt24 = offsetof(pmoveExt_t, centerangles) + sizeof(float),
-    postureExt3c = offsetof(pmoveExt_t, proneLegsOffset),
-    postureExt40 = offsetof(pmoveExt_t, mountedWeaponAngles),
-    postureExt44 = offsetof(pmoveExt_t, mountedWeaponAngles) + sizeof(float),
-    postureCmdButtons = offsetof(usercmd_t, wbuttons),
-    postureCmdUp = offsetof(usercmd_t, upmove),
-    postureCmdAngles = offsetof(usercmd_t, angles),
-    posturePmTrace = offsetof(pmove_t, trace),
-    posturePmMask = offsetof(pmove_t, tracemask),
-    posturePmlFrame = offsetof(pml_t, frametime),
-    posturePmlMsec = offsetof(pml_t, msec),
-    posturePmlLadder = offsetof(pml_t, ladder),
-    postureDefStride = sizeof(tce_weaponDef_t),
-    postureNoTac = offsetof(tce_weaponDef_t, noTacMode),
-    postureTpmSpace = (sizeof(pmove_t) + 3) & ~3,
-    postureTraceFraction = offsetof(trace_t, fraction),
-    postureTraceStartsolid = offsetof(trace_t, startsolid),
-    postureTraceAllsolid = offsetof(trace_t, allsolid),
-    postureTraceEntity = offsetof(trace_t, entityNum),
-    postureTraceEnd = offsetof(trace_t, endpos),
-    postureTraceEndY = offsetof(trace_t, endpos) + sizeof(float),
-    postureTraceEndZ = offsetof(trace_t, endpos) + 2 * sizeof(float),
-    postureViewStack = 0x1bc + postureTpmSpace
-};
+/* Native trace and scalar bounds retained after C reconstruction. */
 typedef char postureTraceBuffer832[sizeof(trace_t) <= 0x38 ? 1 : -1];
 typedef char postureElementSize832[sizeof(int) == 4 && sizeof(float) == 4 ? 1 : -1];
-static const unsigned int postureConstant200ac100 = 0x00000000u;
-static const unsigned int postureConstant200ac11c = 0x42700000u;
-static const unsigned int postureConstant200ac138 = 0x43340000u;
-static const unsigned int postureConstant200ac160 = 0x44fa0000u;
-static const unsigned int postureConstant200ac170[2] = { 0x00000000u, 0x3fd00000u };
-static const unsigned int postureConstant200ac180 = 0x3f000000u;
-static const unsigned int postureConstant200ac190 = 0x41f00000u;
-static const unsigned int postureConstant200ac19c = 0x41a00000u;
-static const unsigned int postureConstant200ac1a0 = 0x42c80000u;
-static const unsigned int postureConstant200ac290 = 0x41c00000u;
-static const unsigned int postureConstant200ac2bc = 0x40800000u;
-static const unsigned int postureConstant200ac2d4 = 0x42000000u;
-static const unsigned int postureConstant200ac2e0 = 0x41000000u;
-static const unsigned int postureConstant200ac2f8 = 0x3c23d70au;
-static const unsigned int postureConstant200ac30c = 0x40400000u;
-static const unsigned int postureConstant200ac380 = 0x43b40000u;
-static const unsigned int postureConstant200ac388 = 0x40490fdbu;
-static const unsigned int postureConstant200ac464 = 0x43960000u;
-static const unsigned int postureConstant200ac46c = 0xc1a00000u;
-static const unsigned int postureConstant200ac474 = 0xc1f00000u;
-static const unsigned int postureConstant200ac478 = 0xc3340000u;
-static const unsigned int postureConstant200ac480 = 0x43360b61u;
-static const unsigned int postureConstant200ac488[2] = { 0x00000000u, 0x3f768000u };
-static const unsigned int postureConstant200ac698 = 0x3ba3d70au;
-static const unsigned int postureConstant200ac6e4 = 0x3bb60b61u;
-static const unsigned int postureConstant200ac6e8 = 0x3fa00000u;
-static const unsigned int postureConstant200ac700 = 0x42f00000u;
-static const unsigned int postureConstant200ac710 = 0x41600000u;
-static const unsigned int postureConstant200ac714 = 0x41e00000u;
-static const unsigned int postureConstant200ac718 = 0x3b5a740eu;
-static const unsigned int postureConstant200ac71c = 0x41accccdu;
-static const unsigned int postureConstant200b4080 = 0xc1580000u;
-static const unsigned int postureConstant200b4084 = 0xc1580000u;
-static const unsigned int postureConstant200b4088 = 0xc1c00000u;
-static const unsigned int postureConstant200b408c = 0x41580000u;
-static const unsigned int postureConstant200b4090 = 0x41580000u;
-static const unsigned int postureConstant200b4094 = 0xc1666666u;
+
 #endif
 
 void PM_UpdateLean(playerState_t *ps, usercmd_t *cmd, pmove_t *tpm) {
@@ -5983,6 +5869,140 @@ are being updated isntead of a full move
 // rain - take a tracemask as well - we can't use anything out of pm
 /* Windows3000a3b0 prone branch. The shared TC player bounds differ from
  * SDK PM_TraceLegs; rejection restores yaw and recomputes its command delta. */
+#if defined(_MSC_VER) && defined(_M_IX86)
+static int PM_TCEViewCommandDelta(long double angle, int commandAngle) {
+    unsigned encoded = (unsigned)TCE_TruncateNativeInteger(angle * 182.0444488525390625f) & 0xffffu;
+    return PM_ProneTimeValue(encoded - (unsigned)commandAngle);
+}
+
+/* TC:E's additional view constraint, distinct from the SDK mount limits. */
+static void PM_TCETetheredView(playerState_t *ps, pmoveExt_t *ext,
+    usercmd_t *cmd, float oldYaw) {
+    long double yaw = ps->viewangles[YAW], angle, center, diff;
+    float step, cosine;
+
+    if (yaw - oldYaw > 180.0f) yaw -= 360.0f;
+    if (yaw - oldYaw < -180.0f || yaw != yaw) yaw += 360.0f;
+    if (yaw > oldYaw) {
+        step = (float)((long double)pml.frametime * 120.0f);
+        if (yaw - oldYaw > step) {
+            yaw = (long double)oldYaw + step;
+            ps->viewangles[YAW] = (float)yaw;
+            ps->delta_angles[YAW] = PM_TCEViewCommandDelta(yaw, cmd->angles[YAW]);
+        }
+    } else if (oldYaw > yaw) {
+        step = (float)((long double)pml.frametime * 120.0f);
+        if ((long double)oldYaw - yaw > step) {
+            yaw = (long double)oldYaw - step;
+            ps->viewangles[YAW] = (float)yaw;
+            ps->delta_angles[YAW] = PM_TCEViewCommandDelta(yaw, cmd->angles[YAW]);
+        }
+    }
+    angle = AngleNormalize180((float)((long double)ext->centerangles[YAW] - ps->viewangles[YAW]));
+    cosine = (float)cosl(angle * 3.1415927410125732421875f * .0055555556900799274444580078125f);
+    angle = AngleNormalize180(-ext->centerangles[PITCH]);
+    center = -AngleNormalize360((float)(angle * cosine));
+    ext->centerangles[PITCH] = (float)center;
+    diff = AngleNormalize180((float)((long double)ps->viewangles[PITCH] - center));
+    if (diff > 20.0f || diff < -20.0f || diff != diff) {
+        angle = diff > 20.0f ? (long double)ext->centerangles[PITCH] + 20.0f :
+            (long double)ext->centerangles[PITCH] - 20.0f;
+        angle = AngleNormalize180((float)angle);
+        ps->viewangles[PITCH] = (float)angle;
+        ps->delta_angles[PITCH] = PM_TCEViewCommandDelta(angle, cmd->angles[PITCH]);
+    }
+}
+
+/* Native Windows prone-view constraint and collision rollback. */
+static void PM_TCEProneView(playerState_t *ps, pmoveExt_t *ext, usercmd_t *cmd, float oldYaw) {
+    long double yaw = ps->viewangles[YAW], diff, constrained;
+    float step, limit = 40.0f, scale = 1.0f;
+    int delta = ps->delta_angles[YAW], weapon = ps->weapon, i;
+    vec3_t forward, start, end;
+    vec3_t mins = {-13.5f, -13.5f, -24.0f};
+    vec3_t maxs = {13.5f, 13.5f, -14.4f};
+    trace_t tr;
+    pmove_t *move;
+
+    if (yaw - oldYaw > 180.0f) yaw -= 360.0f;
+    if (yaw - oldYaw < -180.0f || yaw != yaw) yaw += 360.0f;
+    if (yaw > oldYaw) {
+        step = (float)((long double)pml.frametime * 120.0f);
+        if (yaw - oldYaw > step) {
+            yaw = (long double)oldYaw + step;
+            ps->viewangles[YAW] = (float)yaw;
+            delta = PM_TCEViewCommandDelta(yaw, cmd->angles[YAW]);
+        }
+    } else if (oldYaw > yaw) {
+        step = (float)((long double)pml.frametime * 120.0f);
+        if ((long double)oldYaw - yaw > step) {
+            yaw = (long double)oldYaw - step;
+            ps->viewangles[YAW] = (float)yaw;
+            delta = PM_TCEViewCommandDelta(yaw, cmd->angles[YAW]);
+        }
+    }
+    if (weapon == 62) {
+        limit = 20.0f;
+        diff = (long double)ps->viewangles[YAW] - ext->mountedWeaponAngles[YAW];
+        if (diff > 180.0f) diff -= 360.0f;
+        else if (diff < -180.0f || diff != diff) diff += 360.0f;
+        if (diff > 20.0f || diff < -20.0f || diff != diff) {
+            constrained = diff > 20.0f ?
+                (long double)ext->mountedWeaponAngles[YAW] + 20.0f :
+                (long double)ext->mountedWeaponAngles[YAW] - 20.0f;
+            constrained = AngleNormalize180((float)constrained);
+            ps->viewangles[YAW] = (float)constrained;
+            ps->delta_angles[YAW] = PM_TCEViewCommandDelta(constrained, cmd->angles[YAW]);
+        }
+    }
+    diff = (long double)ps->viewangles[PITCH] - ext->mountedWeaponAngles[PITCH];
+    if (diff > 180.0f) diff -= 360.0f;
+    else if (diff < -180.0f || diff != diff) diff += 360.0f;
+    if (diff > limit || diff < -limit || diff != diff) {
+        constrained = diff > limit ?
+            (long double)ext->mountedWeaponAngles[PITCH] + limit :
+            (long double)ext->mountedWeaponAngles[PITCH] - limit;
+        constrained = AngleNormalize180((float)constrained);
+        ps->viewangles[PITCH] = (float)constrained;
+        ps->delta_angles[PITCH] = PM_TCEViewCommandDelta(constrained, cmd->angles[PITCH]);
+    }
+    if (ps->viewangles[YAW] == oldYaw ||
+        ps->viewangles[YAW] != ps->viewangles[YAW] || oldYaw != oldYaw) return;
+
+    if (ps->stats[STAT_TCE_FLAGS] & 0x200) {
+        scale = 1.25f;
+        for (i = 0; i < 3; ++i) {
+            mins[i] = (float)((long double)mins[i] * scale);
+            maxs[i] = (float)((long double)maxs[i] * scale);
+        }
+    }
+    AngleVectors(ps->viewangles, forward, NULL, NULL);
+    forward[2] = 0.0f;
+    VectorNormalizeFast(forward);
+    move = pm;
+    start[0] = (float)((long double)ps->origin[0] - (long double)forward[0] * scale * 32.0f);
+    start[1] = (float)((long double)ps->origin[1] - (long double)forward[1] * scale * 32.0f);
+    start[2] = (float)((long double)ps->origin[2] + 24.0f);
+    VectorCopy(start, end);
+    end[2] = (float)(((long double)start[2] - 21.6f) - 24.0f);
+    move->trace(&tr, start, mins, maxs, end, ps->clientNum, move->tracemask);
+    if (tr.startsolid && tr.entityNum >= 64) goto restoreYaw;
+
+    VectorCopy(tr.endpos, start);
+    VectorCopy(start, end);
+    end[2] = (float)((long double)start[2] + 21.6f);
+    move = pm;
+    move->trace(&tr, start, mins, maxs, end, ps->clientNum, move->tracemask);
+    if (tr.allsolid && tr.entityNum >= 64) goto restoreYaw;
+    ps->delta_angles[YAW] = delta;
+    ext->proneLegsOffset = (float)((long double)start[2] - ps->origin[2]);
+    return;
+
+restoreYaw:
+    ps->viewangles[YAW] = oldYaw;
+    ps->delta_angles[YAW] = PM_TCEViewCommandDelta(oldYaw, cmd->angles[YAW]);
+}
+#else
 static void PM_TCEProneView(playerState_t *ps, pmoveExt_t *ext, usercmd_t *cmd, float oldYaw) {
     float yaw=ps->viewangles[YAW],diff,limit=40,scale;
     int delta=ps->delta_angles[YAW];
@@ -6026,11 +6046,12 @@ static void PM_TCEProneView(playerState_t *ps, pmoveExt_t *ext, usercmd_t *cmd, 
     ps->delta_angles[YAW]=delta;ext->proneLegsOffset=start[2]-ps->origin[2];
 }
 
+#endif
+
 /* Windows3000a483..3000a63b tactical view ellipse. Offsets are encoded
  * in hundredths of a degree around2000 in holdable5/6 (ps+3a4/3a8). */
 #if defined(_MSC_VER) && defined(_M_IX86)
-/* Windows tactical-view dependency. The native controller still has its own
- * inline implementation until the remaining view constraints are reconstructed. */
+/* Native Windows tactical-view ellipse and encoded weapon offsets. */
 static void PM_TCETacticalView(playerState_t *ps, const vec3_t oldAngles) {
     float pitchDelta, yawOffset, halfPitch, halfYaw;
     float pitchTarget, yawTarget, totalPitch, clampedYaw;
@@ -6100,1841 +6121,6 @@ static void PM_TCETacticalView(playerState_t *ps,const vec3_t oldAngles) {
 
 #endif
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) void PM_TCEUpdateViewAngles(playerState_t *ps, pmoveExt_t *pmext, usercmd_t *cmd, void (trace)(trace_t *, const vec3_t, const vec3_t, const vec3_t, const vec3_t, int, int), int tracemask) {
-    __asm {
-
-        SUB ESP,postureViewStack
-
-        PUSH ESI
-
-        MOV ESI,dword ptr [ESP + 01c4h + postureTpmSpace]
-
-        MOV EAX,dword ptr [ESI + posturePs4]
-
-        CMP EAX,05h
-
-        JZ postureAt20033471
-
-        MOV ECX,dword ptr [ESI + posturePsc]
-
-        TEST CH,080h
-
-        JNZ postureAt20033471
-
-        CMP EAX,02h
-
-        JZ postureAt20032765
-
-        MOV EAX,dword ptr [ESI + posturePsd0]
-
-        TEST EAX,EAX
-
-        JG postureAt20032765
-
-        MOV ECX,dword ptr [ESP + 01cch + postureTpmSpace]
-
-        MOV AX,word ptr [ESI + posturePs48]
-
-        ADD AX,word ptr [ECX + postureCmdAngles + 4]
-
-        MOVSX EDX,AX
-
-        MOV dword ptr [ESI + posturePsd8],EDX
-
-        POP ESI
-
-        ADD ESP,postureViewStack
-
-        RET
-    postureAt20032765:
-        MOV ECX,dword ptr [ESI + posturePsb4]
-
-        MOV EAX,dword ptr [ESI + posturePsb0]
-
-        PUSH EBX
-
-        PUSH EBP
-
-        PUSH EDI
-
-        MOV EDI,dword ptr [ESP + 01d8h + postureTpmSpace]
-
-        MOV dword ptr [ESP + 01ch],ECX
-
-        MOV dword ptr [ESP + 018h],EAX
-
-        XOR ECX,ECX
-    postureAt20032785:
-        MOV AX,word ptr [ESI + ECX*4 + posturePs44]
-
-        ADD AX,word ptr [EDI + ECX*4 + postureCmdAngles]
-
-        TEST ECX,ECX
-
-        JNZ postureAt200327c5
-
-        CMP AX,03e80h
-
-        JLE postureAt200327ad
-
-        MOV EAX,dword ptr [EDI + postureCmdAngles]
-
-        MOV EDX,03e80h
-
-        SUB EDX,EAX
-
-        MOV EAX,03e80h
-
-        MOV dword ptr [ESI + posturePs44],EDX
-
-        JMP postureAt200327c5
-    postureAt200327ad:
-        CMP AX,0c180h
-
-        JGE postureAt200327c5
-
-        MOV EDX,dword ptr [EDI + postureCmdAngles]
-
-        MOV EAX,0ffffc180h
-
-        SUB EAX,EDX
-
-        MOV dword ptr [ESI + posturePs44],EAX
-
-        MOV EAX,0ffffc180h
-    postureAt200327c5:
-        MOVSX EDX,AX
-
-        MOV dword ptr [ESP + 014h],EDX
-
-        INC ECX
-
-        FILD dword ptr [ESP + 014h]
-
-        CMP ECX,03h
-
-        FMUL qword ptr [postureConstant200ac488]
-
-        FSTP dword ptr [ESI + ECX*4 + posturePsb0 - 4]
-
-        JL postureAt20032785
-
-        TEST byte ptr [ESI + posturePs148],010h
-
-        JZ postureAt2003299b
-
-        MOV EAX,[pm]
-
-        MOV ECX,dword ptr [EAX]
-
-        MOV ECX,dword ptr [ECX + posturePsa4]
-
-        IMUL EDX,ECX,postureDefStride
-
-        NOP
-
-        NOP
-
-        NOP
-
-        MOV EAX,dword ptr [weaponDef + EDX + postureNoTac]
-
-        TEST EAX,EAX
-
-        JNZ postureAt2003299b
-
-        TEST byte ptr [ESI + posturePsf0],04h
-
-        JZ postureAt2003299b
-
-        FLD dword ptr [ESI + posturePsb0]
-
-        FSUB dword ptr [ESP + 018h]
-
-        PUSH ECX
-
-        FSTP dword ptr [ESP]
-
-        CALL AngleNormalize180
-
-        FSTP dword ptr [ESP + 058h]
-
-        FLD dword ptr [ESI + posturePsb4]
-
-        FSUB dword ptr [ESP + 020h]
-
-        FSTP dword ptr [ESP]
-
-        CALL AngleNormalize180
-
-        FILD dword ptr [ESI + posturePs3a4]
-
-        ADD ESP,04h
-
-        FSUB dword ptr [postureConstant200ac160]
-
-        FMUL dword ptr [postureConstant200ac2f8]
-
-        FILD dword ptr [ESI + posturePs3a8]
-
-        FSUB dword ptr [postureConstant200ac160]
-
-        FMUL dword ptr [postureConstant200ac2f8]
-
-        FSTP dword ptr [ESP + 040h]
-
-        FLD dword ptr [ESP + 054h]
-
-        FMUL dword ptr [postureConstant200ac180]
-
-        FST dword ptr [ESP + 014h]
-
-        FADD ST(0),ST(1)
-
-        FSTP dword ptr [ESP + 024h]
-
-        FLD ST(1)
-
-        FMUL dword ptr [postureConstant200ac180]
-
-        FST dword ptr [ESP + 010h]
-
-        FADD dword ptr [ESP + 040h]
-
-        FSTP dword ptr [ESP + 028h]
-
-        FADD dword ptr [ESP + 054h]
-
-        FSTP dword ptr [ESP + 054h]
-
-        FADD dword ptr [ESP + 040h]
-
-        FLD dword ptr [ESP + 028h]
-
-        FLD dword ptr [ESP + 024h]
-
-        FMUL dword ptr [ESP + 024h]
-
-        FLD ST(1)
-
-        FMUL ST(0),ST(2)
-
-        FMUL qword ptr [postureConstant200ac170]
-
-        FADDP ST(1),ST(0)
-
-        FSQRT
-
-        FSTP ST(1)
-
-        FCOM dword ptr [postureConstant200ac30c]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032945
-
-        FLD dword ptr [ESP + 024h]
-
-        FDIV ST(0),ST(1)
-
-        FMUL dword ptr [postureConstant200ac30c]
-
-        FLD ST(0)
-
-        FMUL dword ptr [postureConstant200ac1a0]
-
-        FADD dword ptr [postureConstant200ac160]
-
-        CALL PM_WeaponTruncateST0
-
-        FLD dword ptr [ESP + 028h]
-
-        FDIV ST(0),ST(2)
-
-        MOV dword ptr [ESI + posturePs3a4],EAX
-
-        FMUL dword ptr [postureConstant200ac30c]
-
-        FST dword ptr [ESP + 014h]
-
-        FMUL dword ptr [postureConstant200ac1a0]
-
-        FADD dword ptr [postureConstant200ac160]
-
-        CALL PM_WeaponTruncateST0
-
-        FLD dword ptr [ESP + 054h]
-
-        FSUB ST(0),ST(1)
-
-        MOV dword ptr [ESI + posturePs3a8],EAX
-
-        FADD dword ptr [ESP + 018h]
-
-        FSTP dword ptr [ESI + posturePsb0]
-
-        FSTP ST(0)
-
-        FSTP ST(0)
-
-        FSUB dword ptr [ESP + 014h]
-
-        FADD dword ptr [ESP + 01ch]
-
-        FSTP dword ptr [ESI + posturePsb4]
-
-        JMP postureAt2003299b
-    postureAt20032945:
-        FSTP ST(0)
-
-        FSTP ST(0)
-
-        FLD dword ptr [ESP + 014h]
-
-        FADD dword ptr [ESP + 018h]
-
-        FSTP dword ptr [ESI + posturePsb0]
-
-        FLD dword ptr [ESP + 010h]
-
-        FADD dword ptr [ESP + 01ch]
-
-        FSTP dword ptr [ESI + posturePsb4]
-
-        FLD dword ptr [ESP + 024h]
-
-        FMUL dword ptr [postureConstant200ac1a0]
-
-        FADD dword ptr [postureConstant200ac160]
-
-        CALL PM_WeaponTruncateST0
-
-        FLD dword ptr [ESP + 028h]
-
-        FMUL dword ptr [postureConstant200ac1a0]
-
-        MOV dword ptr [ESI + posturePs3a4],EAX
-
-        FADD dword ptr [postureConstant200ac160]
-
-        CALL PM_WeaponTruncateST0
-
-        MOV dword ptr [ESI + posturePs3a8],EAX
-    postureAt2003299b:
-        MOV EBX,dword ptr [ESI + posturePs68]
-
-        TEST EBX,01000000h
-
-        JZ postureAt20032b04
-
-        FLD dword ptr [ESI + posturePsb4]
-
-        FLD ST(0)
-
-        FSUB dword ptr [ESP + 01ch]
-
-        FCOMP dword ptr [postureConstant200ac138]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt200329c9
-
-        FSUB dword ptr [postureConstant200ac380]
-    postureAt200329c9:
-        FLD ST(0)
-
-        FSUB dword ptr [ESP + 01ch]
-
-        FCOMP dword ptr [postureConstant200ac478]
-
-        FNSTSW AX
-
-        TEST AH,01h
-
-        JZ postureAt200329e2
-
-        FADD dword ptr [postureConstant200ac380]
-    postureAt200329e2:
-        FCOM dword ptr [ESP + 01ch]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032a16
-
-        FLD dword ptr [pml + posturePmlFrame]
-
-        FMUL dword ptr [postureConstant200ac700]
-
-        FSTP dword ptr [ESP + 010h]
-
-        FSUB dword ptr [ESP + 01ch]
-
-        FCOMP dword ptr [ESP + 010h]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032a70
-
-        FLD dword ptr [ESP + 010h]
-
-        FADD dword ptr [ESP + 01ch]
-
-        JMP postureAt20032a4e
-    postureAt20032a16:
-        FLD dword ptr [ESP + 01ch]
-
-        FCOMP
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032a6e
-
-        FLD dword ptr [pml + posturePmlFrame]
-
-        FMUL dword ptr [postureConstant200ac700]
-
-        FSTP dword ptr [ESP + 010h]
-
-        FLD dword ptr [ESP + 01ch]
-
-        FSUB ST(0),ST(1)
-
-        FCOMP dword ptr [ESP + 010h]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        FSTP ST(0)
-
-        JNZ postureAt20032a70
-
-        FLD dword ptr [ESP + 01ch]
-
-        FSUB dword ptr [ESP + 010h]
-    postureAt20032a4e:
-        FST dword ptr [ESI + posturePsb4]
-
-        FMUL dword ptr [postureConstant200ac480]
-
-        CALL PM_WeaponTruncateST0
-
-        MOV ECX,dword ptr [EDI + postureCmdAngles + 4]
-
-        AND EAX,0ffffh
-
-        SUB EAX,ECX
-
-        MOV dword ptr [ESI + posturePs48],EAX
-
-        JMP postureAt20032a70
-    postureAt20032a6e:
-        FSTP ST(0)
-    postureAt20032a70:
-        MOV EBP,dword ptr [ESP + 01d4h + postureTpmSpace]
-
-        PUSH ECX
-
-        FLD dword ptr [EBP + postureExt24]
-
-        FSUB dword ptr [ESI + posturePsb4]
-
-        FSTP dword ptr [ESP]
-
-        CALL AngleNormalize180
-
-        FMUL dword ptr [postureConstant200ac388]
-
-        FMUL dword ptr [postureConstant200ac6e4]
-
-        FCOS
-
-        FSTP dword ptr [ESP + 018h]
-
-        FLD dword ptr [EBP + postureExt20]
-
-        FCHS
-
-        FSTP dword ptr [ESP]
-
-        CALL AngleNormalize180
-
-        FMUL dword ptr [ESP + 018h]
-
-        FSTP dword ptr [ESP]
-
-        CALL AngleNormalize360
-
-        FCHS
-
-        FST dword ptr [EBP + postureExt20]
-
-        FLD dword ptr [ESI + posturePsb0]
-
-        FSUB ST(0),ST(1)
-
-        FSTP dword ptr [ESP]
-
-        FSTP ST(0)
-
-        CALL AngleNormalize180
-
-        FCOM dword ptr [postureConstant200ac19c]
-
-        ADD ESP,04h
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032ae5
-
-        FSTP ST(0)
-
-        FLD dword ptr [EBP + postureExt20]
-
-        JMP postureAt20032d89
-    postureAt20032ae5:
-        FCOMP dword ptr [postureConstant200ac46c]
-
-        FNSTSW AX
-
-        TEST AH,01h
-
-        JZ postureAt2003344e
-
-        FLD dword ptr [EBP + postureExt20]
-
-        FSUB dword ptr [postureConstant200ac19c]
-
-        JMP postureAt20032d8f
-    postureAt20032b04:
-        TEST BL,020h
-
-        JNZ postureAt20033216
-
-        TEST EBX,0408000h
-
-        JNZ postureAt20033216
-
-        MOV EBP,dword ptr [ESI + posturePsa4]
-
-        CMP EBP,03ch
-
-        JNZ postureAt20032dda
-
-        FLD dword ptr [ESI + posturePsb4]
-
-        FLD ST(0)
-
-        FSUB dword ptr [ESP + 01ch]
-
-        FCOMP dword ptr [postureConstant200ac138]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032b47
-
-        FSUB dword ptr [postureConstant200ac380]
-    postureAt20032b47:
-        FLD ST(0)
-
-        FSUB dword ptr [ESP + 01ch]
-
-        FCOMP dword ptr [postureConstant200ac478]
-
-        FNSTSW AX
-
-        TEST AH,01h
-
-        JZ postureAt20032b60
-
-        FADD dword ptr [postureConstant200ac380]
-    postureAt20032b60:
-        FCOM dword ptr [ESP + 01ch]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032b94
-
-        FLD dword ptr [pml + posturePmlFrame]
-
-        FMUL dword ptr [postureConstant200ac11c]
-
-        FSTP dword ptr [ESP + 010h]
-
-        FSUB dword ptr [ESP + 01ch]
-
-        FCOMP dword ptr [ESP + 010h]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032bee
-
-        FLD dword ptr [ESP + 010h]
-
-        FADD dword ptr [ESP + 01ch]
-
-        JMP postureAt20032bcc
-    postureAt20032b94:
-        FLD dword ptr [ESP + 01ch]
-
-        FCOMP
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032bec
-
-        FLD dword ptr [pml + posturePmlFrame]
-
-        FMUL dword ptr [postureConstant200ac11c]
-
-        FSTP dword ptr [ESP + 010h]
-
-        FLD dword ptr [ESP + 01ch]
-
-        FSUB ST(0),ST(1)
-
-        FCOMP dword ptr [ESP + 010h]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        FSTP ST(0)
-
-        JNZ postureAt20032bee
-
-        FLD dword ptr [ESP + 01ch]
-
-        FSUB dword ptr [ESP + 010h]
-    postureAt20032bcc:
-        FST dword ptr [ESI + posturePsb4]
-
-        FMUL dword ptr [postureConstant200ac480]
-
-        CALL PM_WeaponTruncateST0
-
-        MOV ECX,dword ptr [EDI + postureCmdAngles + 4]
-
-        AND EAX,0ffffh
-
-        SUB EAX,ECX
-
-        MOV dword ptr [ESI + posturePs48],EAX
-
-        JMP postureAt20032bee
-    postureAt20032bec:
-        FSTP ST(0)
-    postureAt20032bee:
-        FLD dword ptr [ESI + posturePsb0]
-
-        FLD ST(0)
-
-        FSUB dword ptr [ESP + 018h]
-
-        FCOMP dword ptr [postureConstant200ac138]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032c0d
-
-        FSUB dword ptr [postureConstant200ac380]
-    postureAt20032c0d:
-        FLD ST(0)
-
-        FSUB dword ptr [ESP + 018h]
-
-        FCOMP dword ptr [postureConstant200ac478]
-
-        FNSTSW AX
-
-        TEST AH,01h
-
-        JZ postureAt20032c26
-
-        FADD dword ptr [postureConstant200ac380]
-    postureAt20032c26:
-        FCOM dword ptr [ESP + 018h]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032c5a
-
-        FLD dword ptr [pml + posturePmlFrame]
-
-        FMUL dword ptr [postureConstant200ac11c]
-
-        FSTP dword ptr [ESP + 010h]
-
-        FSUB dword ptr [ESP + 018h]
-
-        FCOMP dword ptr [ESP + 010h]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032cb4
-
-        FLD dword ptr [ESP + 010h]
-
-        FADD dword ptr [ESP + 018h]
-
-        JMP postureAt20032c92
-    postureAt20032c5a:
-        FLD dword ptr [ESP + 018h]
-
-        FCOMP
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032cb2
-
-        FLD dword ptr [pml + posturePmlFrame]
-
-        FMUL dword ptr [postureConstant200ac11c]
-
-        FSTP dword ptr [ESP + 010h]
-
-        FLD dword ptr [ESP + 018h]
-
-        FSUB ST(0),ST(1)
-
-        FCOMP dword ptr [ESP + 010h]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        FSTP ST(0)
-
-        JNZ postureAt20032cb4
-
-        FLD dword ptr [ESP + 018h]
-
-        FSUB dword ptr [ESP + 010h]
-    postureAt20032c92:
-        FST dword ptr [ESI + posturePsb0]
-
-        FMUL dword ptr [postureConstant200ac480]
-
-        CALL PM_WeaponTruncateST0
-
-        MOV ECX,dword ptr [EDI + postureCmdAngles]
-
-        AND EAX,0ffffh
-
-        SUB EAX,ECX
-
-        MOV dword ptr [ESI + posturePs44],EAX
-
-        JMP postureAt20032cb4
-    postureAt20032cb2:
-        FSTP ST(0)
-    postureAt20032cb4:
-        MOV EBP,dword ptr [ESP + 01d4h + postureTpmSpace]
-
-        FLD dword ptr [ESI + posturePsb4]
-
-        FSUB dword ptr [EBP + postureExt44]
-
-        FCOM dword ptr [postureConstant200ac138]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032cd9
-
-        FSUB dword ptr [postureConstant200ac380]
-
-        JMP postureAt20032cec
-    postureAt20032cd9:
-        FCOM dword ptr [postureConstant200ac478]
-
-        FNSTSW AX
-
-        TEST AH,01h
-
-        JZ postureAt20032cec
-
-        FADD dword ptr [postureConstant200ac380]
-    postureAt20032cec:
-        FCOM dword ptr [postureConstant200ac190]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032d06
-
-        FSTP ST(0)
-
-        FLD dword ptr [EBP + postureExt44]
-
-        FADD dword ptr [postureConstant200ac190]
-
-        JMP postureAt20032d1c
-    postureAt20032d06:
-        FCOMP dword ptr [postureConstant200ac474]
-
-        FNSTSW AX
-
-        TEST AH,01h
-
-        JZ postureAt20032d46
-
-        FLD dword ptr [EBP + postureExt44]
-
-        FSUB dword ptr [postureConstant200ac190]
-    postureAt20032d1c:
-        PUSH ECX
-
-        FSTP dword ptr [ESP]
-
-        CALL AngleNormalize180
-
-        FST dword ptr [ESI + posturePsb4]
-
-        FMUL dword ptr [postureConstant200ac480]
-
-        ADD ESP,04h
-
-        CALL PM_WeaponTruncateST0
-
-        MOV ECX,dword ptr [EDI + postureCmdAngles + 4]
-
-        AND EAX,0ffffh
-
-        SUB EAX,ECX
-
-        MOV dword ptr [ESI + posturePs48],EAX
-    postureAt20032d46:
-        FLD dword ptr [ESI + posturePsb0]
-
-        FSUB dword ptr [EBP + postureExt40]
-
-        FCOM dword ptr [postureConstant200ac138]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032d64
-
-        FSUB dword ptr [postureConstant200ac380]
-
-        JMP postureAt20032d77
-    postureAt20032d64:
-        FCOM dword ptr [postureConstant200ac478]
-
-        FNSTSW AX
-
-        TEST AH,01h
-
-        JZ postureAt20032d77
-
-        FADD dword ptr [postureConstant200ac380]
-    postureAt20032d77:
-        FCOM dword ptr [postureConstant200ac19c]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032dbe
-
-        FSTP ST(0)
-
-        FLD dword ptr [EBP + postureExt40]
-    postureAt20032d89:
-        FADD dword ptr [postureConstant200ac19c]
-    postureAt20032d8f:
-        PUSH ECX
-
-        FSTP dword ptr [ESP]
-
-        CALL AngleNormalize180
-
-        FST dword ptr [ESI + posturePsb0]
-
-        FMUL dword ptr [postureConstant200ac480]
-
-        ADD ESP,04h
-
-        CALL PM_WeaponTruncateST0
-
-        MOV ECX,dword ptr [EDI + postureCmdAngles]
-
-        AND EAX,0ffffh
-
-        SUB EAX,ECX
-
-        MOV dword ptr [ESI + posturePs44],EAX
-
-        JMP postureAt2003344e
-    postureAt20032dbe:
-        FCOMP dword ptr [postureConstant200ac474]
-
-        FNSTSW AX
-
-        TEST AH,01h
-
-        JZ postureAt2003344e
-
-        FLD dword ptr [EBP + postureExt40]
-
-        FSUB dword ptr [postureConstant200ac190]
-
-        JMP postureAt20032d8f
-    postureAt20032dda:
-        TEST EBX,080000h
-
-        JZ postureAt2003344e
-
-        FLD dword ptr [ESI + posturePsb4]
-
-        FLD ST(0)
-
-        FSUB dword ptr [ESP + 01ch]
-
-        MOV EBX,dword ptr [ESI + posturePs48]
-
-        MOV dword ptr [ESP + 014h],042200000h
-
-        FCOMP dword ptr [postureConstant200ac138]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032e10
-
-        FSUB dword ptr [postureConstant200ac380]
-    postureAt20032e10:
-        FLD ST(0)
-
-        FSUB dword ptr [ESP + 01ch]
-
-        FCOMP dword ptr [postureConstant200ac478]
-
-        FNSTSW AX
-
-        TEST AH,01h
-
-        JZ postureAt20032e29
-
-        FADD dword ptr [postureConstant200ac380]
-    postureAt20032e29:
-        FCOM dword ptr [ESP + 01ch]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032e5d
-
-        FLD dword ptr [pml + posturePmlFrame]
-
-        FMUL dword ptr [postureConstant200ac700]
-
-        FSTP dword ptr [ESP + 010h]
-
-        FSUB dword ptr [ESP + 01ch]
-
-        FCOMP dword ptr [ESP + 010h]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032eb7
-
-        FLD dword ptr [ESP + 010h]
-
-        FADD dword ptr [ESP + 01ch]
-
-        JMP postureAt20032e95
-    postureAt20032e5d:
-        FLD dword ptr [ESP + 01ch]
-
-        FCOMP
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032eb5
-
-        FLD dword ptr [pml + posturePmlFrame]
-
-        FMUL dword ptr [postureConstant200ac700]
-
-        FSTP dword ptr [ESP + 010h]
-
-        FLD dword ptr [ESP + 01ch]
-
-        FSUB ST(0),ST(1)
-
-        FCOMP dword ptr [ESP + 010h]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        FSTP ST(0)
-
-        JNZ postureAt20032eb7
-
-        FLD dword ptr [ESP + 01ch]
-
-        FSUB dword ptr [ESP + 010h]
-    postureAt20032e95:
-        FST dword ptr [ESI + posturePsb4]
-
-        FMUL dword ptr [postureConstant200ac480]
-
-        CALL PM_WeaponTruncateST0
-
-        MOV EBX,EAX
-
-        MOV EAX,dword ptr [EDI + postureCmdAngles + 4]
-
-        AND EBX,0ffffh
-
-        SUB EBX,EAX
-
-        JMP postureAt20032eb7
-    postureAt20032eb5:
-        FSTP ST(0)
-    postureAt20032eb7:
-        CMP EBP,03eh
-
-        MOV EBP,dword ptr [ESP + 01d4h + postureTpmSpace]
-
-        JNZ postureAt20032f5a
-
-        FLD dword ptr [ESI + posturePsb4]
-
-        FSUB dword ptr [EBP + postureExt44]
-
-        MOV dword ptr [ESP + 014h],041a00000h
-
-        FCOM dword ptr [postureConstant200ac138]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032eed
-
-        FSUB dword ptr [postureConstant200ac380]
-
-        JMP postureAt20032f00
-    postureAt20032eed:
-        FCOM dword ptr [postureConstant200ac478]
-
-        FNSTSW AX
-
-        TEST AH,01h
-
-        JZ postureAt20032f00
-
-        FADD dword ptr [postureConstant200ac380]
-    postureAt20032f00:
-        FCOM dword ptr [postureConstant200ac19c]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032f1a
-
-        FSTP ST(0)
-
-        FLD dword ptr [EBP + postureExt44]
-
-        FADD dword ptr [postureConstant200ac19c]
-
-        JMP postureAt20032f30
-    postureAt20032f1a:
-        FCOMP dword ptr [postureConstant200ac46c]
-
-        FNSTSW AX
-
-        TEST AH,01h
-
-        JZ postureAt20032f5a
-
-        FLD dword ptr [EBP + postureExt44]
-
-        FSUB dword ptr [postureConstant200ac19c]
-    postureAt20032f30:
-        PUSH ECX
-
-        FSTP dword ptr [ESP]
-
-        CALL AngleNormalize180
-
-        FST dword ptr [ESI + posturePsb4]
-
-        FMUL dword ptr [postureConstant200ac480]
-
-        ADD ESP,04h
-
-        CALL PM_WeaponTruncateST0
-
-        MOV ECX,dword ptr [EDI + postureCmdAngles + 4]
-
-        AND EAX,0ffffh
-
-        SUB EAX,ECX
-
-        MOV dword ptr [ESI + posturePs48],EAX
-    postureAt20032f5a:
-        FLD dword ptr [ESI + posturePsb0]
-
-        FSUB dword ptr [EBP + postureExt40]
-
-        FCOM dword ptr [postureConstant200ac138]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032f78
-
-        FSUB dword ptr [postureConstant200ac380]
-
-        JMP postureAt20032f8b
-    postureAt20032f78:
-        FCOM dword ptr [postureConstant200ac478]
-
-        FNSTSW AX
-
-        TEST AH,01h
-
-        JZ postureAt20032f8b
-
-        FADD dword ptr [postureConstant200ac380]
-    postureAt20032f8b:
-        FCOM dword ptr [ESP + 014h]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20032fa1
-
-        FSTP ST(0)
-
-        FLD dword ptr [ESP + 014h]
-
-        FADD dword ptr [EBP + postureExt40]
-
-        JMP postureAt20032fb9
-    postureAt20032fa1:
-        FLD dword ptr [ESP + 014h]
-
-        FCHS
-
-        FXCH ST(1)
-
-        FCOMPP
-
-        FNSTSW AX
-
-        TEST AH,01h
-
-        JZ postureAt20032fe3
-
-        FLD dword ptr [EBP + postureExt40]
-
-        FSUB dword ptr [ESP + 014h]
-    postureAt20032fb9:
-        PUSH ECX
-
-        FSTP dword ptr [ESP]
-
-        CALL AngleNormalize180
-
-        FST dword ptr [ESI + posturePsb0]
-
-        FMUL dword ptr [postureConstant200ac480]
-
-        ADD ESP,04h
-
-        CALL PM_WeaponTruncateST0
-
-        MOV ECX,dword ptr [EDI + postureCmdAngles]
-
-        AND EAX,0ffffh
-
-        SUB EAX,ECX
-
-        MOV dword ptr [ESI + posturePs44],EAX
-    postureAt20032fe3:
-        FLD dword ptr [ESI + posturePsb4]
-
-        FCOMP dword ptr [ESP + 01ch]
-
-        FNSTSW AX
-
-        TEST AH,040h
-
-        JNZ postureAt2003344e
-
-        MOV EAX,[postureConstant200b4080]
-
-        MOV ECX,dword ptr [postureConstant200b4084]
-
-        MOV EDX,dword ptr [postureConstant200b4088]
-
-        MOV dword ptr [ESP + 030h],EAX
-
-        MOV EAX,[postureConstant200b408c]
-
-        MOV dword ptr [ESP + 034h],ECX
-
-        MOV ECX,dword ptr [postureConstant200b4090]
-
-        MOV dword ptr [ESP + 048h],EAX
-
-        MOV EAX,dword ptr [ESI + posturePsf4]
-
-        MOV dword ptr [ESP + 038h],EDX
-
-        MOV EDX,dword ptr [postureConstant200b4094]
-
-        MOV dword ptr [ESP + 014h],03f800000h
-
-        TEST AH,02h
-
-        MOV dword ptr [ESP + 04ch],ECX
-
-        MOV dword ptr [ESP + 050h],EDX
-
-        JZ postureAt200330a1
-
-        FLD dword ptr [ESP + 030h]
-
-        FMUL dword ptr [postureConstant200ac6e8]
-
-        MOV dword ptr [ESP + 014h],03fa00000h
-
-        FSTP dword ptr [ESP + 030h]
-
-        FLD dword ptr [ESP + 034h]
-
-        FMUL dword ptr [postureConstant200ac6e8]
-
-        FSTP dword ptr [ESP + 034h]
-
-        FLD dword ptr [ESP + 038h]
-
-        FMUL dword ptr [postureConstant200ac6e8]
-
-        FSTP dword ptr [ESP + 038h]
-
-        FLD dword ptr [ESP + 048h]
-
-        FMUL dword ptr [postureConstant200ac6e8]
-
-        FSTP dword ptr [ESP + 048h]
-
-        FLD dword ptr [ESP + 04ch]
-
-        FMUL dword ptr [postureConstant200ac6e8]
-
-        FSTP dword ptr [ESP + 04ch]
-
-        FLD dword ptr [ESP + 050h]
-
-        FMUL dword ptr [postureConstant200ac6e8]
-
-        FSTP dword ptr [ESP + 050h]
-    postureAt200330a1:
-        PUSH 00h
-
-        LEA EAX,[ESP + 058h]
-
-        PUSH 00h
-
-        PUSH EAX
-
-        LEA EAX,[ESI + posturePsb0]
-
-        PUSH EAX
-
-        CALL AngleVectors
-
-        LEA ECX,[ESP + 064h]
-
-        MOV dword ptr [ESP + 06ch],00h
-
-        PUSH ECX
-
-        CALL VectorNormalizeFast
-
-        FLD dword ptr [ESP + 068h]
-
-        FMUL dword ptr [ESP + 028h]
-
-        MOV EAX,[pm]
-
-        FMUL dword ptr [postureConstant200ac2d4]
-
-        FSUBR dword ptr [ESI + posturePs14]
-
-        FST dword ptr [ESP + 038h]
-
-        FLD dword ptr [ESP + 06ch]
-
-        FMUL dword ptr [ESP + 028h]
-
-        FMUL dword ptr [postureConstant200ac2d4]
-
-        FSUBR dword ptr [ESI + posturePs18]
-
-        FSTP dword ptr [ESP + 03ch]
-
-        FLD dword ptr [ESI + posturePs1c]
-
-        FADD dword ptr [postureConstant200ac290]
-
-        MOV EDX,dword ptr [ESP + 03ch]
-
-        MOV dword ptr [ESP + 054h],EDX
-
-        MOV EDX,dword ptr [ESI + posturePsa0]
-
-        FSTP dword ptr [ESP + 040h]
-
-        FSTP dword ptr [ESP + 050h]
-
-        FLD dword ptr [ESP + 040h]
-
-        FSUB dword ptr [postureConstant200ac71c]
-
-        FSUB dword ptr [postureConstant200ac290]
-
-        FSTP dword ptr [ESP + 058h]
-
-        MOV ECX,dword ptr [EAX + posturePmMask]
-
-        PUSH ECX
-
-        LEA ECX,[ESP + 054h]
-
-        PUSH EDX
-
-        PUSH ECX
-
-        LEA EDX,[ESP + 068h]
-
-        LEA ECX,[ESP + 050h]
-
-        PUSH EDX
-
-        PUSH ECX
-
-        LEA EDX,[ESP + 04ch]
-
-        LEA ECX,[ESP + 08ch]
-
-        PUSH EDX
-
-        PUSH ECX
-
-        CALL dword ptr [EAX + posturePmTrace]
-
-        MOV EAX,dword ptr [ESP + 094h + postureTraceStartsolid]
-
-        ADD ESP,030h
-
-        TEST EAX,EAX
-
-        JZ postureAt2003317c
-
-        CMP dword ptr [ESP + 064h + postureTraceEntity],040h
-
-        JL postureAt2003317c
-
-        MOV EDX,dword ptr [ESP + 01ch]
-
-        FLD dword ptr [ESP + 01ch]
-
-        MOV dword ptr [ESI + posturePsb4],EDX
-
-        JMP postureAt20033436
-    postureAt2003317c:
-        FLD dword ptr [ESP + 064h + postureTraceEndZ]
-
-        MOV EAX,dword ptr [ESP + 064h + postureTraceEnd]
-
-        MOV ECX,dword ptr [ESP + 064h + postureTraceEndY]
-
-        FADD dword ptr [postureConstant200ac71c]
-
-        MOV EDX,dword ptr [ESP + 064h + postureTraceEndZ]
-
-        MOV dword ptr [ESP + 024h],EAX
-
-        MOV dword ptr [ESP + 03ch],EAX
-
-        MOV EAX,[pm]
-
-        FSTP dword ptr [ESP + 044h]
-
-        MOV dword ptr [ESP + 028h],ECX
-
-        MOV dword ptr [ESP + 02ch],EDX
-
-        MOV dword ptr [ESP + 040h],ECX
-
-        MOV EDX,dword ptr [EAX + posturePmMask]
-
-        MOV ECX,dword ptr [ESI + posturePsa0]
-
-        PUSH EDX
-
-        LEA EDX,[ESP + 040h]
-
-        PUSH ECX
-
-        PUSH EDX
-
-        LEA ECX,[ESP + 054h]
-
-        LEA EDX,[ESP + 03ch]
-
-        PUSH ECX
-
-        PUSH EDX
-
-        LEA ECX,[ESP + 038h]
-
-        LEA EDX,[ESP + 078h]
-
-        PUSH ECX
-
-        PUSH EDX
-
-        CALL dword ptr [EAX + posturePmTrace]
-
-        MOV EAX,dword ptr [ESP + 080h + postureTraceAllsolid]
-
-        ADD ESP,01ch
-
-        TEST EAX,EAX
-
-        JZ postureAt20033204
-
-        CMP dword ptr [ESP + 064h + postureTraceEntity],040h
-
-        JL postureAt20033204
-
-        MOV EAX,dword ptr [ESP + 01ch]
-
-        FLD dword ptr [ESP + 01ch]
-
-        MOV dword ptr [ESI + posturePsb4],EAX
-
-        JMP postureAt20033436
-    postureAt20033204:
-        FLD dword ptr [ESP + 02ch]
-
-        FSUB dword ptr [ESI + posturePs1c]
-
-        MOV dword ptr [ESI + posturePs48],EBX
-
-        FSTP dword ptr [EBP + postureExt3c]
-
-        JMP postureAt2003344e
-    postureAt20033216:
-        FLD dword ptr [ESI + posturePsb4]
-
-        FLD ST(0)
-
-        FSUB dword ptr [ESP + 01ch]
-
-        FCOMP dword ptr [postureConstant200ac138]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20033235
-
-        FSUB dword ptr [postureConstant200ac380]
-    postureAt20033235:
-        FLD ST(0)
-
-        FSUB dword ptr [ESP + 01ch]
-
-        FCOMP dword ptr [postureConstant200ac478]
-
-        FNSTSW AX
-
-        TEST AH,01h
-
-        JZ postureAt2003324e
-
-        FADD dword ptr [postureConstant200ac380]
-    postureAt2003324e:
-        FCOM dword ptr [ESP + 01ch]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20033282
-
-        FLD dword ptr [pml + posturePmlFrame]
-
-        FMUL dword ptr [postureConstant200ac464]
-
-        FSTP dword ptr [ESP + 014h]
-
-        FSUB dword ptr [ESP + 01ch]
-
-        FCOMP dword ptr [ESP + 014h]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt200332dc
-
-        FLD dword ptr [ESP + 014h]
-
-        FADD dword ptr [ESP + 01ch]
-
-        JMP postureAt200332ba
-    postureAt20033282:
-        FLD dword ptr [ESP + 01ch]
-
-        FCOMP
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt200332da
-
-        FLD dword ptr [pml + posturePmlFrame]
-
-        FMUL dword ptr [postureConstant200ac464]
-
-        FSTP dword ptr [ESP + 014h]
-
-        FLD dword ptr [ESP + 01ch]
-
-        FSUB ST(0),ST(1)
-
-        FCOMP dword ptr [ESP + 014h]
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        FSTP ST(0)
-
-        JNZ postureAt200332dc
-
-        FLD dword ptr [ESP + 01ch]
-
-        FSUB dword ptr [ESP + 014h]
-    postureAt200332ba:
-        FST dword ptr [ESI + posturePsb4]
-
-        FMUL dword ptr [postureConstant200ac480]
-
-        CALL PM_WeaponTruncateST0
-
-        MOV ECX,dword ptr [EDI + postureCmdAngles + 4]
-
-        AND EAX,0ffffh
-
-        SUB EAX,ECX
-
-        MOV dword ptr [ESI + posturePs48],EAX
-
-        JMP postureAt200332dc
-    postureAt200332da:
-        FSTP ST(0)
-    postureAt200332dc:
-        MOV EBP,dword ptr [ESP + 01d4h + postureTpmSpace]
-
-        TEST EBX,0400000h
-
-        MOV ECX,dword ptr [EBP + postureExt18]
-
-        MOV dword ptr [ESP + 010h],ECX
-
-        JZ postureAt200332fc
-
-        MOV dword ptr [ESP + 014h],00h
-
-        JMP postureAt20033365
-    postureAt200332fc:
-        TEST BH,080h
-
-        JZ postureAt20033358
-
-        FLD dword ptr [EBP + postureExt24]
-
-        FSUB dword ptr [ESI + posturePsb4]
-
-        PUSH ECX
-
-        MOV dword ptr [ESP + 018h],041600000h
-
-        MOV dword ptr [ESP + 014h],042480000h
-
-        FSTP dword ptr [ESP]
-
-        CALL AngleNormalize180
-
-        FMUL dword ptr [postureConstant200ac388]
-
-        FMUL dword ptr [postureConstant200ac6e4]
-
-        FCOS
-
-        FSTP dword ptr [ESP + 064h]
-
-        FLD dword ptr [EBP + postureExt20]
-
-        FCHS
-
-        FSTP dword ptr [ESP]
-
-        CALL AngleNormalize180
-
-        FMUL dword ptr [ESP + 064h]
-
-        FSTP dword ptr [ESP]
-
-        CALL AngleNormalize360
-
-        FCHS
-
-        FSTP dword ptr [EBP + postureExt20]
-
-        ADD ESP,04h
-
-        JMP postureAt20033365
-    postureAt20033358:
-        FLD dword ptr [EBP + postureExt18]
-
-        FMUL dword ptr [postureConstant200ac180]
-
-        FSTP dword ptr [ESP + 014h]
-    postureAt20033365:
-        FLD dword ptr [ESI + posturePsb0]
-
-        FSUB dword ptr [EBP + postureExt20]
-
-        PUSH ECX
-
-        FSTP dword ptr [ESP]
-
-        CALL AngleNormalize180
-
-        FCOM dword ptr [ESP + 018h]
-
-        ADD ESP,04h
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt20033390
-
-        FSTP ST(0)
-
-        FLD dword ptr [ESP + 014h]
-
-        FADD dword ptr [EBP + postureExt20]
-
-        JMP postureAt200333a8
-    postureAt20033390:
-        FLD dword ptr [ESP + 010h]
-
-        FCHS
-
-        FXCH ST(1)
-
-        FCOMPP
-
-        FNSTSW AX
-
-        TEST AH,01h
-
-        JZ postureAt200333d2
-
-        FLD dword ptr [EBP + postureExt20]
-
-        FSUB dword ptr [ESP + 010h]
-    postureAt200333a8:
-        PUSH ECX
-
-        FSTP dword ptr [ESP]
-
-        CALL AngleNormalize180
-
-        FST dword ptr [ESI + posturePsb0]
-
-        FMUL dword ptr [postureConstant200ac480]
-
-        ADD ESP,04h
-
-        CALL PM_WeaponTruncateST0
-
-        MOV ECX,dword ptr [EDI + postureCmdAngles]
-
-        AND EAX,0ffffh
-
-        SUB EAX,ECX
-
-        MOV dword ptr [ESI + posturePs44],EAX
-    postureAt200333d2:
-        MOV EAX,dword ptr [ESI + posturePs68]
-
-        TEST AH,080h
-
-        JNZ postureAt2003344e
-
-        FLD dword ptr [ESI + posturePsb4]
-
-        FSUB dword ptr [EBP + postureExt24]
-
-        MOV EDX,dword ptr [EBP + postureExt1c]
-
-        PUSH ECX
-
-        MOV dword ptr [ESP + 014h],EDX
-
-        FSTP dword ptr [ESP]
-
-        CALL AngleNormalize180
-
-        FCOM dword ptr [ESP + 014h]
-
-        ADD ESP,04h
-
-        FNSTSW AX
-
-        TEST AH,041h
-
-        JNZ postureAt2003340c
-
-        FSTP ST(0)
-
-        FLD dword ptr [ESP + 010h]
-
-        FADD dword ptr [EBP + postureExt24]
-
-        JMP postureAt20033424
-    postureAt2003340c:
-        FLD dword ptr [ESP + 010h]
-
-        FCHS
-
-        FXCH ST(1)
-
-        FCOMPP
-
-        FNSTSW AX
-
-        TEST AH,01h
-
-        JZ postureAt2003344e
-
-        FLD dword ptr [EBP + postureExt24]
-
-        FSUB dword ptr [ESP + 010h]
-    postureAt20033424:
-        PUSH ECX
-
-        FSTP dword ptr [ESP]
-
-        CALL AngleNormalize180
-
-        FST dword ptr [ESI + posturePsb4]
-
-        ADD ESP,04h
-    postureAt20033436:
-        FMUL dword ptr [postureConstant200ac480]
-
-        CALL PM_WeaponTruncateST0
-
-        MOV ECX,dword ptr [EDI + postureCmdAngles + 4]
-
-        AND EAX,0ffffh
-
-        SUB EAX,ECX
-
-        MOV dword ptr [ESI + posturePs48],EAX
-    postureAt2003344e:
-        MOV EAX,dword ptr [ESP + 01dch + postureTpmSpace]
-
-        LEA ECX,[ESP + 01cch]
-
-        PUSH ECX
-
-        PUSH EDI
-
-        PUSH ESI
-
-        MOV dword ptr [ESP + 01d8h + posturePmTrace],EAX
-
-        CALL PM_UpdateLean
-
-        ADD ESP,0ch
-
-        POP EDI
-
-        POP EBP
-
-        POP EBX
-    postureAt20033471:
-        POP ESI
-
-        ADD ESP,postureViewStack
-
-        RET
-    }
-}
-#else
-
 void PM_TCEUpdateViewAngles( playerState_t *ps, pmoveExt_t *pmext, usercmd_t *cmd, void (trace)( trace_t *results, const vec3_t start, const vec3_t mins, const vec3_t maxs, const vec3_t end, int passEntityNum, int contentMask ), int tracemask ) {	//----(SA)	modified
 	short	temp;
 	int		i;
@@ -7980,6 +6166,9 @@ void PM_TCEUpdateViewAngles( playerState_t *ps, pmoveExt_t *pmext, usercmd_t *cm
 
 	/* TC:E EF0x01000000 view constraint precedes ordinary mounts. */
     if (ps->eFlags & 0x01000000) {
+#if defined(_MSC_VER) && defined(_M_IX86)
+        PM_TCETetheredView(ps, pmext, cmd, oldViewAngles[YAW]);
+#else
         float yaw = ps->viewangles[YAW], oldYaw = oldViewAngles[YAW];
         float diff, center;
         if (yaw - oldYaw > 180.0f) yaw -= 360.0f;
@@ -7999,6 +6188,8 @@ void PM_TCEUpdateViewAngles( playerState_t *ps, pmoveExt_t *pmext, usercmd_t *cm
             ps->viewangles[PITCH] = AngleNormalize180(center + (diff > 20.0f ? 20.0f : -20.0f));
             ps->delta_angles[PITCH] = ANGLE2SHORT(ps->viewangles[PITCH]) - cmd->angles[PITCH];
         }
+
+#endif
     } else if( BG_PlayerMounted(ps->eFlags) ) {
 		float yaw, oldYaw;
 		float degsSec = MG42_YAWSPEED;
@@ -8031,7 +6222,7 @@ void PM_TCEUpdateViewAngles( playerState_t *ps, pmoveExt_t *pmext, usercmd_t *cm
 		}
 
 		// limit harc and varc
-		
+
 		// pitch (varc)
 		arcMax = pmext->varc;
 		if(ps->eFlags & EF_AAGUN_ACTIVE) {
@@ -8059,7 +6250,7 @@ void PM_TCEUpdateViewAngles( playerState_t *ps, pmoveExt_t *pmext, usercmd_t *cm
 			ps->delta_angles[PITCH] = ANGLE2SHORT(ps->viewangles[PITCH]) - cmd->angles[PITCH];
 		} else if( arcDiff < -arcMax ) {
 			ps->viewangles[PITCH] = AngleNormalize180( pmext->centerangles[PITCH] - arcMax );
-			
+
 			// Set delta_angles properly
 			ps->delta_angles[PITCH] = ANGLE2SHORT(ps->viewangles[PITCH]) - cmd->angles[PITCH];
 		}
@@ -8076,7 +6267,7 @@ void PM_TCEUpdateViewAngles( playerState_t *ps, pmoveExt_t *pmext, usercmd_t *cm
 				ps->delta_angles[YAW] = ANGLE2SHORT(ps->viewangles[YAW]) - cmd->angles[YAW];
 			} else if( arcDiff < -arcMax ) {
 				ps->viewangles[YAW] = AngleNormalize180( pmext->centerangles[YAW] - arcMax );
-				
+
 				// Set delta_angles properly
 				ps->delta_angles[YAW] = ANGLE2SHORT(ps->viewangles[YAW]) - cmd->angles[YAW];
 			}
@@ -8156,7 +6347,7 @@ void PM_TCEUpdateViewAngles( playerState_t *ps, pmoveExt_t *pmext, usercmd_t *cm
 			ps->delta_angles[YAW] = ANGLE2SHORT(ps->viewangles[YAW]) - cmd->angles[YAW];
 		} else if( yawDiff < -30 ) {
 			ps->viewangles[YAW] = AngleNormalize180( pmext->mountedWeaponAngles[YAW] - 30.f );
-			
+
 			// Set delta_angles properly
 			ps->delta_angles[YAW] = ANGLE2SHORT(ps->viewangles[YAW]) - cmd->angles[YAW];
 		}
@@ -8177,7 +6368,7 @@ void PM_TCEUpdateViewAngles( playerState_t *ps, pmoveExt_t *pmext, usercmd_t *cm
 			ps->delta_angles[PITCH] = ANGLE2SHORT(ps->viewangles[PITCH]) - cmd->angles[PITCH];
 		} else if( pitchDiff < -(pitchMax) ) {
 			ps->viewangles[PITCH] = AngleNormalize180( pmext->mountedWeaponAngles[PITCH] - (pitchMax) );
-			
+
 			// Set delta_angles properly
 			ps->delta_angles[PITCH] = ANGLE2SHORT(ps->viewangles[PITCH]) - cmd->angles[PITCH];
 		}
@@ -8191,7 +6382,6 @@ void PM_TCEUpdateViewAngles( playerState_t *ps, pmoveExt_t *pmext, usercmd_t *cm
 	PM_UpdateLean( ps, cmd, &tpm );
 }
 
-#endif
 
 /* CQB PM_UpdateViewAngles: shared free-look ellipse and return spring.
  * TC keeps holdable13 for locations; the two free network shorts14/15 carry
