@@ -62,6 +62,7 @@ float	pm_slagfriction		= 1;
 float	pm_flightfriction	= 3;
 float	pm_ladderfriction	= 14;
 float	pm_spectatorfriction = 5.0f;
+float pm_VC100friction = 2.0f;
 
 //----(SA)	end
 
@@ -531,213 +532,68 @@ Handles both ground friction and water friction
 */
 /* Whole TC:E3000b950 / Linux000dee7e. */
 #if defined(_MSC_VER) && defined(_M_IX86)
-/* TC20033cb0 x87 schedule; original saved-Z state contract remains open. */
-static const unsigned int frictionK200ac100 = 0x0u;
-static const unsigned int frictionK200ac110 = 0x3f800000u;
-static const unsigned int frictionK200ac180 = 0x3f000000u;
-static const unsigned int frictionK200ac19c = 0x41a00000u;
-static const unsigned int frictionK200ac30c = 0x40400000u;
-static const float frictionMounted = 2.0f;
-enum {
-    frVel = offsetof(playerState_t,velocity),
-    frType = offsetof(playerState_t,pm_type),
-    frFlags = offsetof(playerState_t,pm_flags),
-    frEFlags = offsetof(playerState_t,eFlags),
-    frExt = offsetof(pmove_t,pmext),
-    frTime = offsetof(pmove_t,cmd)+offsetof(usercmd_t,serverTime),
-    frDodge = offsetof(pmoveExt_t,dodgeTime),
-    frWater = offsetof(pmove_t,waterlevel),
-    frWaterType = offsetof(pmove_t,watertype),
-    frWalk = offsetof(pml_t,walking),
-    frGround = offsetof(pml_t,tceGroundExtension),
-    frFrame = offsetof(pml_t,frametime),
-    frSurface = offsetof(pml_t,groundTrace)+offsetof(trace_t,surfaceFlags),
-    frLadder = offsetof(pml_t,ladder)
-};
-static __declspec(naked) void PM_Friction(void) {
-    __asm {
-        sub esp, 018h
-        mov eax, dword ptr [pm]
-        push esi
-        mov dword ptr [esp + 0ch], 0 /* Defined fallback for original uninitialized saved Z. */
-        mov esi, dword ptr [eax]
-        add esi, frVel
-        mov ecx, dword ptr [esi]
-        mov dword ptr [esp + 010h], ecx
-        mov edx, dword ptr [esi + 4]
-        mov dword ptr [esp + 014h], edx
-        mov eax, dword ptr [esi + 8]
-        mov dword ptr [esp + 018h], eax
-        mov eax, dword ptr [pml + frWalk]
-        test eax, eax
-        je frL20033cf4
-        mov eax, dword ptr [pml + frGround]
-        test eax, eax
-        je frL20033cec
-        mov ecx, dword ptr [esp + 018h]
-        mov dword ptr [esp + 0ch], ecx
-    frL20033cec:
-        mov dword ptr [esp + 018h], 0
-    frL20033cf4:
-        lea edx, [esp + 010h]
-        push edx
-        call VectorLength
-        fst dword ptr [esp + 8]
-        fcomp dword ptr [frictionK200ac110]
-        mov ecx, dword ptr [pm]
-        add esp, 4
-        fnstsw ax
-        test ah, 1
-        je frL20033d39
-        mov eax, dword ptr [ecx]
-        mov eax, dword ptr [eax + frType]
-        cmp eax, 2
-        je frL20033d39
-        cmp eax, 1
-        je frL20033d39
-        mov dword ptr [esi], 0
-        mov dword ptr [esi + 4], 0
-        pop esi
-        add esp, 018h
-        ret 
-    frL20033d39:
-        mov edx, dword ptr [ecx + frExt]
-        mov eax, dword ptr [ecx + frTime]
-        fld dword ptr [frictionK200ac100]
-        push edi
-        mov edi, dword ptr [edx + frDodge]
-        sub eax, edi
-        pop edi
-        cmp eax, 015eh
-        jge frL20033d6c
-        cmp eax, 0fah
-        jle frL20033d6c
-        fstp st(0)
-        fld dword ptr [pml + frFrame]
-        fmul dword ptr [esp + 4]
-        fmul dword ptr [frictionK200ac19c]
-    frL20033d6c:
-        mov edx, dword ptr [ecx + frWater]
-        cmp edx, 1
-        mov dword ptr [esp + 8], edx
-        jg frL20033dc6
-        mov eax, dword ptr [pml + frWalk]
-        test eax, eax
-        je frL20033dc6
-        test byte ptr [pml + frSurface], 2
-        jne frL20033dc6
-        mov eax, dword ptr [ecx]
-        test byte ptr [eax + frFlags], 040h
-        jne frL20033dc6
-        fld dword ptr [pm_stopspeed]
-        fmul dword ptr [frictionK200ac180]
-        fld dword ptr [esp + 4]
-        fcomp st(1)
-        fnstsw ax
-        test ah, 1
-        jne frL20033db4
-        fstp st(0)
-        fld dword ptr [esp + 4]
-    frL20033db4:
-        fld dword ptr [pm_friction]
-        fmul dword ptr [pml + frFrame]
-        fmul st(0), st(1)
-        faddp st(2), st(0)
-        fstp st(0)
-    frL20033dc6:
-        test edx, edx
-        je frL20033df3
-        mov eax, dword ptr [ecx + frWaterType]
-        fild dword ptr [esp + 8]
-        cmp eax, 010h
-        jne frL20033de1
-        fmul dword ptr [pm_slagfriction]
-        jmp frL20033de7
-    frL20033de1:
-        fmul dword ptr [pm_waterfriction]
-    frL20033de7:
-        fmul dword ptr [pml + frFrame]
-        fmul dword ptr [esp + 4]
-        faddp st(1), st(0)
-    frL20033df3:
-        mov ecx, dword ptr [ecx]
-        mov edx, dword ptr [ecx + frType]
-        cmp edx, 2
-        jne frL20033e0f
-        fld dword ptr [pm_spectatorfriction]
-        fmul dword ptr [pml + frFrame]
-        fmul dword ptr [esp + 4]
-        faddp st(1), st(0)
-    frL20033e0f:
-        test dword ptr [ecx + frEFlags], 01000000h
-        je frL20033e2a
-        fld dword ptr [frictionMounted]
-        fmul dword ptr [pml + frFrame]
-        fmul dword ptr [esp + 4]
-        faddp st(1), st(0)
-    frL20033e2a:
-        mov eax, dword ptr [pml + frLadder]
-        test eax, eax
-        je frL20033e45
-        fld dword ptr [pm_ladderfriction]
-        fmul dword ptr [pml + frFrame]
-        fmul dword ptr [esp + 4]
-        faddp st(1), st(0)
-    frL20033e45:
-        fld dword ptr [esp + 4]
-        fsub st(0), st(1)
-        fcom dword ptr [frictionK200ac100]
-        fnstsw ax
-        test ah, 1
-        je frL20033e60
-        fstp st(0)
-        fld dword ptr [frictionK200ac100]
-    frL20033e60:
-        fdiv dword ptr [esp + 4]
-        cmp edx, 2
-        fstp dword ptr [esp + 8]
-        je frL20033e72
-        cmp edx, 1
-        jne frL20033e9a
-    frL20033e72:
-        fcomp dword ptr [frictionK200ac110]
-        fnstsw ax
-        test ah, 1
-        je frL20033e9c
-        fld dword ptr [esp + 4]
-        fcomp dword ptr [frictionK200ac30c]
-        fnstsw ax
-        test ah, 1
-        je frL20033e9c
-        mov dword ptr [esp + 8], 0
-        jmp frL20033e9c
-    frL20033e9a:
-        fstp st(0)
-    frL20033e9c:
-        fld dword ptr [esp + 8]
-        fmul dword ptr [esi]
-        fstp dword ptr [esi]
-        fld dword ptr [esp + 8]
-        fmul dword ptr [esi + 4]
-        fstp dword ptr [esi + 4]
-        fld dword ptr [esp + 8]
-        fmul dword ptr [esi + 8]
-        fstp dword ptr [esi + 8]
-        mov eax, dword ptr [pml + frGround]
-        test eax, eax
-        je frL20033ed9
-        fld dword ptr [esp + 0ch]
-        fcomp dword ptr [frictionK200ac100]
-        fnstsw ax
-        test ah, 1
-        je frL20033ed9
-        mov ecx, dword ptr [esp + 0ch]
-        mov dword ptr [esi + 8], ecx
-    frL20033ed9:
-        pop esi
-        add esp, 018h
-        ret 
+static void PM_Friction(void) {
+    float *velocity = pm->ps->velocity;
+    vec3_t vec;
+    float preservedZ = 0.0f;
+    volatile float speed, ratio;
+    long double heldSpeed, drop = 0.0L, control, remaining;
+    unsigned elapsedBits;
+    int elapsed, type;
+
+    VectorCopy(velocity, vec);
+    if (pml.walking) {
+        if (pml.tceGroundExtension) preservedZ = vec[2];
+        vec[2] = 0.0f;
     }
+    heldSpeed = TCE_VectorLengthValue(vec);
+    speed = (float)heldSpeed;
+    /* Native C0 also takes the low-speed branch for unordered values. */
+    if ((heldSpeed < 1.0L || heldSpeed != heldSpeed) &&
+        pm->ps->pm_type != PM_SPECTATOR && pm->ps->pm_type != PM_NOCLIP) {
+        velocity[0] = velocity[1] = 0.0f;
+        return;
+    }
+    elapsedBits = (unsigned)pm->cmd.serverTime - (unsigned)pm->pmext->dodgeTime;
+    memcpy(&elapsed, &elapsedBits, sizeof(elapsed));
+    if (elapsed > 250 && elapsed < 350) {
+        drop = (long double)pml.frametime * speed;
+        drop *= 20.0f;
+    }
+    if (pm->waterlevel < 2 && pml.walking &&
+        !(pml.groundTrace.surfaceFlags & SURF_SLICK) &&
+        !(pm->ps->pm_flags & PMF_TIME_KNOCKBACK)) {
+        control = (long double)pm_stopspeed * 0.5f;
+        if (speed >= control) control = speed;
+        drop += (long double)pm_friction * pml.frametime * control;
+    }
+    if (pm->waterlevel) {
+        long double waterDrop = pm->waterlevel;
+        waterDrop *= pm->watertype == CONTENTS_SLIME ? pm_slagfriction : pm_waterfriction;
+        waterDrop *= pml.frametime;
+        waterDrop *= speed;
+        drop += waterDrop;
+    }
+    type = pm->ps->pm_type;
+    if (type == PM_SPECTATOR)
+        drop += (long double)pm_spectatorfriction * pml.frametime * speed;
+    if (pm->ps->eFlags & 0x01000000)
+        drop += (long double)pm_VC100friction * pml.frametime * speed;
+    if (pml.ladder)
+        drop += (long double)pm_ladderfriction * pml.frametime * speed;
+    remaining = (long double)speed - drop;
+    if (remaining < 0.0L || remaining != remaining) remaining = 0.0L;
+    ratio = (float)(remaining / speed);
+    if ((type == PM_SPECTATOR || type == PM_NOCLIP) &&
+        (drop < 1.0L || drop != drop) && (speed < 3.0f || speed != speed)) {
+        ratio = 0.0f;
+    }
+    velocity[0] = (float)((long double)ratio * velocity[0]);
+    velocity[1] = (float)((long double)ratio * velocity[1]);
+    velocity[2] = (float)((long double)ratio * velocity[2]);
+    /* Keep the prior defined fallback; native saved-Z reachability is unresolved. */
+    if (pml.tceGroundExtension && (preservedZ < 0.0f || preservedZ != preservedZ))
+        velocity[2] = preservedZ;
 }
 #else
 static void PM_Friction(void) {
@@ -767,7 +623,7 @@ static void PM_Friction(void) {
     if (pm->waterlevel)
         drop += (double)pm->waterlevel * (pm->watertype == CONTENTS_SLIME ? pm_slagfriction : pm_waterfriction) * pml.frametime * speed;
     if (pm->ps->pm_type == PM_SPECTATOR) drop += (double)pm_spectatorfriction*pml.frametime*speed;
-    if (pm->ps->eFlags & 0x01000000) drop += 2.0*pml.frametime*speed;
+    if (pm->ps->eFlags & 0x01000000) drop += (double)pm_VC100friction*pml.frametime*speed;
     if (pml.ladder) drop += (double)pm_ladderfriction*pml.frametime*speed;
     remaining = speed - drop;
     if (remaining < 0) remaining = 0;
