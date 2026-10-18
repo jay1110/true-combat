@@ -4257,97 +4257,58 @@ static int CG_TCEViewportInteger(float viewportValue) {
 }
 
 #if defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-/* TC Linux0003adad..3aeb4: the size product is stored but retained for
- * both corners; integer held angles are converted before biasing. This
- * private frame has no foreign cg/playerState/refdef offsets. */
-static void CG_TCELinuxScopeSize(int width,float *size,float *x,float *y) {
-    struct { int width; float size,x,y; } data;
-    static const float constants[8]={250.f,1.2f,.5f,426.f,240.f,2000.f,.01f,0.f};
-    typedef char ScopePrepareLayout[(sizeof(data)==16 && sizeof(float)==4 && sizeof(int)==4)?1:-1];
-    data.width=width;
-    __asm__ volatile (
-        ".intel_syntax noprefix\n\t"
-        "fild dword ptr [esi]\n\tfcom dword ptr [edi+28]\n\tfnstsw ax\n\t"
-        "test ah,0x40\n\tjz 1f\n\tfstp st(0)\n\tfld dword ptr [edi]\n1:\n\t"
-        "fmul dword ptr [edi+4]\n\tfld dword ptr [edi+12]\n\tfxch st(1)\n\t"
-        "fst dword ptr [esi+4]\n\tfmul dword ptr [edi+8]\n\t"
-        "fsub st(1),st(0)\n\tfsubr dword ptr [edi+16]\n\tfxch st(1)\n\t"
-        "fstp dword ptr [esi+8]\n\tfstp dword ptr [esi+12]\n\t.att_syntax prefix"
-        : "+m" (data) : "S" (&data), "D" (constants)
-        : "eax", "cc", "memory", "st", "st(1)"
-    );
-    *size=data.size;*x=data.x;*y=data.y;
+/* Linux retains the scaled scope width for both window corners. */
+static void CG_TCELinuxScopeSize(int width, float *size, float *x, float *y) {
+    long double scaledWidth = width != 0 ? (long double)width : 250.0L;
+    long double halfWidth;
+
+    scaledWidth *= (long double)1.2f;
+    *size = (float)scaledWidth;
+    halfWidth = scaledWidth * 0.5L;
+    *x = (float)(426.0L - halfWidth);
+    *y = (float)(240.0L - halfWidth);
 }
 
-/* Kept after the real AxisCopy backup call, as in the original caller. */
+/* Called after backing up the current view axis. */
 static void CG_TCELinuxScopeAngles(vec3_t angles) {
-    struct { vec3_t angles; int heldPitch,heldYaw; } data;
-    static const float constants[2]={2000.f,.01f};
-    typedef char ScopeAngleLayout[(sizeof(data)==20 && sizeof(float)==4 && sizeof(int)==4)?1:-1];
-    memcpy(data.angles,cg.predictedPlayerState.viewangles,sizeof(vec3_t));
-    data.heldPitch=cg.predictedPlayerState.holdable[5];
-    data.heldYaw=cg.predictedPlayerState.holdable[6];
-    __asm__ volatile (
-        ".intel_syntax noprefix\n\t"
-        "fild dword ptr [esi+12]\n\tfld dword ptr [edi]\n\t"
-        "fld dword ptr [edi+4]\n\tfld dword ptr [esi]\n\t"
-        "fld dword ptr [esi+4]\n\tfxch st(4)\n\t"
-        "fsub st(0),st(3)\n\tfmul st(0),st(2)\n\tfaddp st(1),st(0)\n\t"
-        "fild dword ptr [esi+16]\n\tfxch st(1)\n\tfstp dword ptr [esi]\n\t"
-        "fsubrp st(2),st(0)\n\tfmulp st(1),st(0)\n\tfaddp st(1),st(0)\n\t"
-        "fstp dword ptr [esi+4]\n\t.att_syntax prefix"
-        : "+m" (data) : "S" (&data), "D" (constants)
-        : "memory", "st", "st(1)", "st(2)", "st(3)", "st(4)"
-    );
-    memcpy(angles,data.angles,sizeof(vec3_t));
+    long double pitch, yaw;
+
+    memcpy(angles, cg.predictedPlayerState.viewangles, sizeof(vec3_t));
+    pitch = (long double)cg.predictedPlayerState.holdable[5] - 2000.0L;
+    pitch *= (long double)0.01f;
+    yaw = (long double)cg.predictedPlayerState.holdable[6] - 2000.0L;
+    yaw *= (long double)0.01f;
+    angles[0] = (float)((long double)angles[0] + pitch);
+    angles[1] = (float)((long double)angles[1] + yaw);
 }
 
-/* TC Linux0003aeea..3aff8. The two asin calculations are direct x87
- * FSQRT/FPATAN, not the Windows CRT entry and not an asin(double) call.
- * Keep both binary64 angle spills and separate binary32 displacements. */
-static void CG_TCELinuxScopeProject(const vec3_t forward,const vec3_t right,
-                                   const vec3_t up,float *x,float *y) {
-    struct { vec3_t forward,right,up; float fov,x,y,dx,dy; double angle; } data;
-    static const struct { float one,degrees; double pi,width; } constants={
-        1.f,0.0055555556900799274f,3.141592653589793,852.0};
-    typedef char ScopeProjectLayout[(offsetof(__typeof__(data),angle)==56 &&
-        sizeof(data)==64 && offsetof(__typeof__(constants),pi)==8)?1:-1];
-    memcpy(data.forward,forward,sizeof(vec3_t));
-    memcpy(data.right,right,sizeof(vec3_t));
-    memcpy(data.up,up,sizeof(vec3_t));
-    data.fov=cg.refdef.fov_x;data.x=*x;data.y=*y;
-    __asm__ volatile (
-        ".intel_syntax noprefix\n\t"
-        "fld dword ptr [eax]\n\tfld dword ptr [eax+4]\n\tfld dword ptr [eax+8]\n\t"
-        "fld st(2)\n\tfld st(2)\n\tfmul dword ptr [eax+16]\n\tfxch st(1)\n\t"
-        "fmul dword ptr [eax+12]\n\tfld dword ptr [edx]\n\tfxch st(1)\n\t"
-        "faddp st(2),st(0)\n\tfld st(2)\n\tfmul dword ptr [eax+20]\n\t"
-        "faddp st(2),st(0)\n\tfld st(1)\n\tfmul st(0),st(0)\n\t"
-        "fsubr st(0),st(1)\n\tfsqrt\n\tfxch st(1)\n\tfxch st(2)\n\tfxch st(1)\n\t"
-        "fpatan\n\tfstp qword ptr [eax+56]\n\t"
-        "fld dword ptr [eax+36]\n\tfmul dword ptr [edx+4]\n\tfld qword ptr [edx+8]\n\t"
-        "fxch st(5)\n\tfmul dword ptr [eax+24]\n\tfxch st(4)\n\t"
-        "fmul dword ptr [eax+28]\n\tfxch st(1)\n\tfmul st(0),st(5)\n\t"
-        "fxch st(3)\n\tfmul dword ptr [eax+32]\n\tfxch st(4)\n\t"
-        "faddp st(1),st(0)\n\tfxch st(2)\n\tfdivr st(0),st(1)\n\t"
-        "fld qword ptr [eax+56]\n\tfxch st(3)\n\tfaddp st(4),st(0)\n\t"
-        "fmulp st(2),st(0)\n\tfld st(2)\n\tfmul st(0),st(0)\n\t"
-        "fxch st(2)\n\tfmul qword ptr [edx+16]\n\tfxch st(2)\n\t"
-        "fsubr st(0),st(1)\n\tfxch st(2)\n\tfstp dword ptr [eax+48]\n\t"
-        "fxch st(1)\n\tfsqrt\n\tfxch st(1)\n\tfxch st(2)\n\tfxch st(1)\n\t"
-        "fpatan\n\tfstp qword ptr [eax+56]\n\t"
-        "fld dword ptr [edx+4]\n\tfmul dword ptr [eax+36]\n\tfld qword ptr [eax+56]\n\t"
-        "fxch st(3)\n\tfmulp st(1),st(0)\n\tfld dword ptr [eax+48]\n\t"
-        "fadd dword ptr [eax+40]\n\tfxch st(2)\n\tfdivrp st(1),st(0)\n\t"
-        "fmulp st(2),st(0)\n\tfstp dword ptr [eax+40]\n\t"
-        "fmul qword ptr [edx+16]\n\tfstp dword ptr [eax+52]\n\t"
-        "fld dword ptr [eax+52]\n\tfsubr dword ptr [eax+44]\n\tfstp dword ptr [eax+44]\n\t"
-        ".att_syntax prefix"
-        : "+m" (data) : "a" (&data), "d" (&constants)
-        : "memory", "st", "st(1)", "st(2)", "st(3)", "st(4)", "st(5)", "st(6)", "st(7)"
-    );
-    *x=data.x;*y=data.y;
+/* Second-scene projection adds the rounded displacement before the X corner. */
+static void CG_TCELinuxScopeProject(const vec3_t forward, const vec3_t right,
+                                     const vec3_t up, float *x, float *y) {
+    const float degrees = 0.0055555556900799274f;
+    const double pi = 3.141592653589793;
+    float fov = cg.refdef.fov_x;
+    float dx, dy;
+    double angle;
+    long double rightDot, upDot, reciprocal;
+
+    rightDot = (long double)forward[1] * right[1]
+             + (long double)forward[0] * right[0];
+    rightDot += (long double)forward[2] * right[2];
+    angle = (double)atan2l(rightDot, sqrtl(1.0L - rightDot * rightDot));
+    reciprocal = 1.0L / (((long double)fov * degrees) * pi);
+    dx = (float)(((long double)angle * reciprocal) * 852.0L);
+
+    upDot = (long double)forward[1] * up[1]
+          + (long double)forward[0] * up[0];
+    upDot = (long double)forward[2] * up[2] + upDot;
+    angle = (double)atan2l(upDot, sqrtl(1.0L - upDot * upDot));
+    *x = (float)((long double)dx + *x);
+    reciprocal = 1.0L / (((long double)degrees * fov) * pi);
+    dy = (float)(((long double)angle * reciprocal) * 852.0L);
+    *y = (float)((long double)*y - dy);
 }
+
 #endif
 
 static void CG_DrawTCEScopeScene(void) {
