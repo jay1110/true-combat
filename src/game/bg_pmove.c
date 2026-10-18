@@ -111,8 +111,29 @@ int PM_LastAttackAnimForWeapon(int weapon) {
     return TCE_PM_LastAttackAnimForWeapon(weapon);
 }
 
+int PM_NonemptyReloadAnimForWeapon(int weapon) {
+    if (weapon == TCE_WP_SH1 || weapon == TCE_WP_SH2 || weapon == TCE_WP_SH5) {
+        return 9;
+    }
+    if (pm->skill[SK_LIGHT_WEAPONS] >= 2 &&
+        BG_isLightWeaponSupportingFastReload(weapon)) {
+        return 8;
+    }
+    return 7;
+}
+
 int PM_ReloadAnimForWeapon(int weapon) {
-    return TCE_PM_ReloadAnimForWeapon(weapon, pm->skill[SK_LIGHT_WEAPONS]);
+    if (weapon == 55 || weapon == 56) {
+        return 8;
+    }
+    if (weapon == 62) {
+        return 9;
+    }
+    if (pm->skill[SK_LIGHT_WEAPONS] >= 2 &&
+        BG_isLightWeaponSupportingFastReload(weapon)) {
+        return 8;
+    }
+    return 7;
 }
 
 int PM_RaiseAnimForWeapon(int weapon) { return TCE_PM_RaiseAnimForWeapon(weapon); }
@@ -7429,8 +7450,8 @@ static void PM_BeginWeaponReload(int weapon) {
     if (weapon != 35 && weapon != 60) {
         int reloadAnim = TCE_PM_WeaponClipEmpty(weapon, pm->noWeapClips,
             pm->ps->ammo, pm->ps->ammoclip)
-            ? TCE_PM_ReloadAnimForWeapon(pm->ps->weapon, pm->skill[SK_LIGHT_WEAPONS])
-            : TCE_PM_NonemptyReloadAnimForWeapon(pm->ps->weapon, pm->skill[SK_LIGHT_WEAPONS]);
+            ? PM_ReloadAnimForWeapon(pm->ps->weapon)
+            : PM_NonemptyReloadAnimForWeapon(pm->ps->weapon);
         PM_ContinueWeaponAnim(reloadAnim);
     }
     /* Original reads current state/time after the body-animation callback. */
@@ -7552,9 +7573,37 @@ PM_ReloadClip
 ==============
 */
 static void PM_ReloadClip(int weapon) {
-    /* TC reserve/clip semantics also apply before gearDef.parsed is set. */
-    if (weapon >= 0 && weapon < TCE_MAX_WEAPONS)
-        TCE_PM_ReloadClip(weapon, pm->ps->ammo, pm->ps->ammoclip, weaponDef);
+    do {
+        int reserve = pm->ps->ammo[BG_FindAmmoForWeapon(weapon)];
+        int move;
+
+        /* Retain the original lookup before reading the weapon definition. */
+        (void)BG_FindClipForWeapon(weapon);
+        move = weaponDef[weapon].maxclip;
+        if (reserve < move) {
+            move = reserve;
+        }
+        if (weaponDef[weapon].singleReload) {
+            if (move >= 2) {
+                move = 1;
+            }
+            if (move) {
+                int index = BG_FindAmmoForWeapon(weapon);
+                ((unsigned int *)pm->ps->ammo)[index] -= (unsigned int)move;
+                index = BG_FindClipForWeapon(weapon);
+                ((unsigned int *)pm->ps->ammoclip)[index] += (unsigned int)move;
+            }
+        } else if (move) {
+            int index = BG_FindAmmoForWeapon(weapon);
+            ((unsigned int *)pm->ps->ammo)[index] -= (unsigned int)move;
+            index = BG_FindClipForWeapon(weapon);
+            pm->ps->ammoclip[index] = move;
+        }
+        if (!BG_IsAkimboWeapon(weapon)) {
+            return;
+        }
+        weapon = BG_AkimboSidearm(weapon);
+    } while (1);
 }
 
 /*
@@ -7634,9 +7683,9 @@ void PM_CheckForReload(int weapon) {
         clipIndex = TCE_BG_FindClipForWeapon(weapon);
         ammoIndex = TCE_BG_FindAmmoForWeapon(weapon);
         if (weapon >= 57 && weapon <= 59) {
-            /* Original immutable legacy maxclip entries57..59 are zero. */
+            /* Legacy scoped slots use the ammo table, not weaponDef. */
             if (!(pm->cmd.wbuttons & WBUTTON_RELOAD) || !pm->ps->ammo[ammoIndex] ||
-                pm->ps->ammoclip[clipIndex] >= 0) return;
+                pm->ps->ammoclip[clipIndex] >= GetAmmoTableData(weapon)->maxclip) return;
             PM_BeginWeaponChange(weapon,weapAlts[weapon],qtrue);
             return;
         }

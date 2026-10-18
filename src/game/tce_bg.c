@@ -205,7 +205,7 @@ int BG_DefaultWeaponForClass(int team, int playerClass) {
     return tcClass == 1 ? TCE_WP_SH7 : tcClass == 2 ? TCE_WP_TH14 : TCE_WP_TH4;
 }
 
-/* Original whitelist, including reserved SH3 (52), not SDK MP5SD (41). */
+/* Original whitelist includes SH3 (52), replacing SDK WP_SILENCED_COLT (41). */
 int TCE_BG_SupportsFastReload(int weapon) {
     switch (weapon) {
     case 2: case 7: case 3: case 8: case 10: case 14: case 33: case 52: return 1;

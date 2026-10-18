@@ -3570,7 +3570,7 @@ qboolean BG_isLightWeaponSupportingFastReload( int weapon ) {
 		weapon == WP_STEN ||
 		weapon == WP_SILENCER ||
 		weapon == WP_FG42 ||
-		weapon == 52 ) /* TC2002e8a0; SDK47 is TC's PSG1. */
+		weapon == 52 ) /* TCE uses 52 here; the SDK uses WP_SILENCED_COLT (41). */
 		return qtrue;
 	return qfalse;
 }
