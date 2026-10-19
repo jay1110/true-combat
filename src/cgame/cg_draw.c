@@ -4452,17 +4452,7 @@ static void CG_DrawTCEScopeScene(void) {
 void CG_DrawActive( stereoFrame_t stereoView ) {
 	float		separation;
 	vec3_t		baseOrg;
-#if defined(_MSC_VER) && defined(_M_IX86)
-	enum { ActiveRefdef = offsetof(cg_t, refdef_current),
-		ActiveViewX = offsetof(refdef_t, vieworg),
-		ActiveViewY = offsetof(refdef_t, vieworg)+4,
-		ActiveViewZ = offsetof(refdef_t, vieworg)+8,
-		ActiveAxisX = offsetof(refdef_t, viewaxis)+12,
-		ActiveAxisY = offsetof(refdef_t, viewaxis)+16,
-		ActiveAxisZ = offsetof(refdef_t, viewaxis)+20,
-		ActiveCvarValue = offsetof(vmCvar_t, value) };
-	static const float activeHalf = 0.5f, activeNegativeHalf = -0.5f, activeZero = 0.0f;
-#endif
+
 
 	// optionally draw the info screen instead
 	if ( !cg.snap ) {
@@ -4482,22 +4472,12 @@ void CG_DrawActive( stereoFrame_t stereoView ) {
 		separation = 0;
 		break;
 	case STEREO_LEFT:
-		#if defined(_MSC_VER) && defined(_M_IX86)
-		__asm { fld dword ptr [cg_stereoSeparation + ActiveCvarValue]
-			fmul dword ptr [activeNegativeHalf]
-			fstp separation }
-		#else
 		separation = -cg_stereoSeparation.value / 2;
-		#endif
+
 		break;
 	case STEREO_RIGHT:
-		#if defined(_MSC_VER) && defined(_M_IX86)
-		__asm { fld dword ptr [cg_stereoSeparation + ActiveCvarValue]
-			fmul dword ptr [activeHalf]
-			fstp separation }
-		#else
 		separation = cg_stereoSeparation.value / 2;
-		#endif
+
 		break;
 	default:
 		separation = 0;
@@ -4509,58 +4489,6 @@ void CG_DrawActive( stereoFrame_t stereoView ) {
 	CG_TileClear();
 
 	// offset vieworg appropriately if we're doing stereo separation
-#if defined(_MSC_VER) && defined(_M_IX86)
-	__asm {
-		mov ecx, dword ptr [cg + ActiveRefdef]
-		fld separation
-		mov eax, dword ptr [ecx + ActiveViewX]
-		mov edx, dword ptr [ecx + ActiveViewY]
-		fcomp dword ptr [activeZero]
-		mov dword ptr baseOrg[0], eax
-		mov eax, dword ptr [ecx + ActiveViewZ]
-		mov dword ptr baseOrg[8], eax
-		mov dword ptr baseOrg[4], edx
-		fnstsw ax
-		test ah, 40h
-		jnz active_stereo_offset_done
-		fld separation
-		fchs
-		fld st(0)
-		fmul dword ptr [ecx + ActiveAxisX]
-		fadd dword ptr [ecx + ActiveViewX]
-		fstp dword ptr [ecx + ActiveViewX]
-		mov eax, dword ptr [cg + ActiveRefdef]
-		fld st(0)
-		fmul dword ptr [eax + ActiveAxisY]
-		fadd dword ptr [eax + ActiveViewY]
-		fstp dword ptr [eax + ActiveViewY]
-		mov eax, dword ptr [cg + ActiveRefdef]
-		fmul dword ptr [eax + ActiveAxisZ]
-		fadd dword ptr [eax + ActiveViewZ]
-		fstp dword ptr [eax + ActiveViewZ]
-	active_stereo_offset_done:
-	}
-#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-    {
-        struct { float separation; float *origin,*right; float zero; } data={
-            separation,cg.refdef_current->vieworg,cg.refdef_current->viewaxis[1],0.f};
-        typedef char StereoDataLayout[(sizeof(data)==16 && sizeof(float)==4)?1:-1];
-        memcpy(baseOrg,cg.refdef_current->vieworg,sizeof(vec3_t));
-        __asm__ volatile (
-            ".intel_syntax noprefix\n\t"
-            "fld dword ptr [esi]\n\tfcomp dword ptr [esi+12]\n\tfnstsw ax\n\t"
-            "test ah,0x40\n\tjnz 1f\n\tfld dword ptr [esi]\n\tfchs\n\t"
-            "mov ecx,dword ptr [esi+4]\n\tmov edx,dword ptr [esi+8]\n\t"
-            "fld dword ptr [edx]\n\tfmul st(0),st(1)\n\tfadd dword ptr [ecx]\n\t"
-            "fstp dword ptr [ecx]\n\tfld dword ptr [edx+4]\n\t"
-            "fmul st(0),st(1)\n\tfadd dword ptr [ecx+4]\n\tfstp dword ptr [ecx+4]\n\t"
-            "fmul dword ptr [edx+8]\n\tfadd dword ptr [ecx+8]\n\tfstp dword ptr [ecx+8]\n1:\n\t"
-            ".att_syntax prefix"
-            : "+m" (data) : "S" (&data)
-            : "eax", "ecx", "edx", "cc", "memory", "st", "st(1)"
-        );
-    }
-#else
     memcpy(baseOrg,cg.refdef_current->vieworg,sizeof(vec3_t));
     if (separation < 0.f || separation > 0.f) {
         long double offset=-(long double)separation;
@@ -4569,7 +4497,7 @@ void CG_DrawActive( stereoFrame_t stereoView ) {
             cg.refdef_current->vieworg[axis]=(float)(
                 cg.refdef_current->viewaxis[1][axis]*offset+cg.refdef_current->vieworg[axis]);
     }
-#endif
+
 
 	cg.refdef_current->glfog.registered = 0;	// make sure it doesn't use fog from another scene
 
@@ -4621,30 +4549,10 @@ void CG_DrawActive( stereoFrame_t stereoView ) {
 	CG_DrawTCEScopeScene();
 
 	// restore original viewpoint if running stereo
-#if defined(_MSC_VER) && defined(_M_IX86)
-	__asm {
-		fld separation
-		fcomp dword ptr [activeZero]
-		fnstsw ax
-		test ah, 40h
-		jnz active_stereo_restore_done
-		lea edx, baseOrg
-		fld dword ptr [edx]
-		mov ecx, dword ptr [cg + ActiveRefdef]
-		fstp dword ptr [ecx + ActiveViewX]
-		fld dword ptr [edx+4]
-		mov ecx, dword ptr [cg + ActiveRefdef]
-		fstp dword ptr [ecx + ActiveViewY]
-		fld dword ptr [edx+8]
-		mov ecx, dword ptr [cg + ActiveRefdef]
-		fstp dword ptr [ecx + ActiveViewZ]
-	active_stereo_restore_done:
-	}
-#else
     /* Original C3 gate also skips unordered separation. Restore raw words. */
     if (separation < 0.f || separation > 0.f)
         memcpy(cg.refdef_current->vieworg,baseOrg,sizeof(vec3_t));
-#endif
+
 
 	if( !cg.showGameView ) {
 		// draw status bar and other floating elements
