@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "tce_float_integer.h"
 #include "tce_lua.h"
 #include "tce_bg.h"
 
@@ -2948,25 +2949,7 @@ static void G_TCESendPortalCamera( gentity_t *ent, int i, int val ) {
 	for( component = 5; component >= 0; --component ) {
 		float *cameraValue = component >= 3 ? &level.limboCams[i].angles[component - 3] : &level.limboCams[i].origin[component];
 #if defined(_MSC_VER) && defined(_M_IX86)
-		unsigned short savedControl, truncControl;
-		__int64 convertedCamera;
-		int cameraInteger;
-		__asm {
-			mov ecx, cameraValue
-			fld dword ptr [ecx]
-			fwait
-			fnstcw savedControl
-			fwait
-			mov ax, savedControl
-			or ax, 0x0c00
-			mov truncControl, ax
-			fldcw truncControl
-			fistp convertedCamera
-			fldcw savedControl
-			mov eax, dword ptr convertedCamera
-			mov cameraInteger, eax
-		}
-		cameraInts[component] = cameraInteger;
+        cameraInts[component] = TCE_FloatToInt64Low(*cameraValue);
 #else
 		cameraInts[component] = (int)*cameraValue;
 #endif
