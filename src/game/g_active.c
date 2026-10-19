@@ -55,11 +55,11 @@ void P_DamageFeedback( gentity_t *player ) {
 
 	// play an apropriate pain sound
 	if ( (level.time > player->pain_debounce_time) && !(player->flags & FL_GODMODE) && !(player->s.powerups & PW_INVULNERABLE) ) {	//----(SA)	
-		player->pain_debounce_time = level.time + 700;
+		player->pain_debounce_time = TCE_AddInt32(level.time, 700);
 		G_AddEvent( player, EV_PAIN, player->health );
 	}
 
-	client->ps.damageEvent++;	// Ridah, always increment this since we do multiple view damage anims
+	client->ps.damageEvent = TCE_AddInt32(client->ps.damageEvent, 1);
 
 	client->ps.damageCount = count;
 
@@ -1882,7 +1882,8 @@ void ClientEndFrame(gentity_t *ent) {
     for (i = 0; i < 16; ++i) {
         if ((i >= 2 && i <= 5) || (i >= 8 && i <= 11) || !client->ps.powerups[i]) continue;
         if (level.match_pause != PAUSE_NONE && client->ps.powerups[i] != INT_MAX)
-            client->ps.powerups[i] += level.time - level.previousTime;
+            client->ps.powerups[i] = TCE_AddInt32(client->ps.powerups[i],
+                TCE_SubInt32(level.time, level.previousTime));
         if (client->ps.powerups[i] < level.time) client->ps.powerups[i] = 0;
     }
     /* TC +e8: stats6 stores the skill total; stats8 remains weapon flags. */
@@ -1893,36 +1894,36 @@ void ClientEndFrame(gentity_t *ent) {
         client->ps.stats[6] = TCE_TruncateNativeInteger(
             (double)client->ps.stats[6] + (double)client->sess.skillpoints[i]);
     if (level.match_pause != PAUSE_NONE) {
-        int delta = level.time - level.previousTime;
-        client->airOutTime += delta;
-        client->inactivityTime += delta;
-        client->lastBurnTime += delta;
-        client->pers.connectTime += delta;
-        client->pers.enterTime += delta;
+        int delta = TCE_SubInt32(level.time, level.previousTime);
+        client->airOutTime = TCE_AddInt32(client->airOutTime, delta);
+        client->inactivityTime = TCE_AddInt32(client->inactivityTime, delta);
+        client->lastBurnTime = TCE_AddInt32(client->lastBurnTime, delta);
+        client->pers.connectTime = TCE_AddInt32(client->pers.connectTime, delta);
+        client->pers.enterTime = TCE_AddInt32(client->pers.enterTime, delta);
         client->pers.teamState.lastreturnedflag += (float)delta;
         client->pers.teamState.lasthurtcarrier += (float)delta;
         client->pers.teamState.lastfraggedcarrier += (float)delta;
-        client->ps.classWeaponTime += delta;
-        ent->lastHintCheckTime += delta;
-        ent->pain_debounce_time += delta;
-        ent->s.onFireEnd += delta;
-        client->tceObjectiveActivityUntil += delta;
+        client->ps.classWeaponTime = TCE_AddInt32(client->ps.classWeaponTime, delta);
+        ent->lastHintCheckTime = TCE_AddInt32(ent->lastHintCheckTime, delta);
+        ent->pain_debounce_time = TCE_AddInt32(ent->pain_debounce_time, delta);
+        ent->s.onFireEnd = TCE_AddInt32(ent->s.onFireEnd, delta);
+        client->tceObjectiveActivityUntil = TCE_AddInt32(client->tceObjectiveActivityUntil, delta);
     }
     if (level.intermissiontime) return;
     P_WorldEffects(ent);
     P_DamageFeedback(ent);
     client = ent->client;
-    if (level.time - client->lastCmdTime > 1000) ent->s.eFlags |= EF_CONNECTION;
+    if (TCE_SubInt32(level.time, client->lastCmdTime) > 1000) ent->s.eFlags |= EF_CONNECTION;
     else ent->s.eFlags &= ~EF_CONNECTION;
 
     if (g_gametype.integer == 5 && (client->ps.stats[STAT_TCE_WEAPON_FLAGS] & 0x100) &&
         level.tceBombAssigned && !level.tceBombPlanted && level.tceBombCarrier == client->ps.clientNum &&
-        (level.time - client->lastCmdTime > 5000 || client->tceObjectiveActivityUntil < level.time) &&
+        (TCE_SubInt32(level.time, client->lastCmdTime) > 5000 || client->tceObjectiveActivityUntil < level.time) &&
         level.tceBombDropCount < 2) {
         G_TCEDropBomb(ent);
         client = ent->client;
         client->ps.stats[STAT_TCE_WEAPON_FLAGS] &= ~0x100;
-        level.tceBombCarrierCount--;
+        level.tceBombCarrierCount = TCE_SubInt32(level.tceBombCarrierCount, 1);
         level.tceBombCarrier = -1;
         client->tceBombPossessionOrder = 0;
         popup = G_PopupMessage(PM_MESSAGE);
@@ -1936,9 +1937,10 @@ void ClientEndFrame(gentity_t *ent) {
         client->ps.stats[STAT_TCE_WEAPON_FLAGS] &= ~0x100;
         G_Printf("ELITE DEBUG: removed invalid bomb carrier\n");
     }
+    client = ent->client;
     if (g_gametype.integer == 5 && (client->ps.stats[STAT_TCE_FLAGS] & 0x100) &&
         level.tceVipAssigned && level.tceVipCarrier == client->ps.clientNum &&
-        (level.time - client->lastCmdTime > 5000 || client->tceObjectiveActivityUntil < level.time)) {
+        (TCE_SubInt32(level.time, client->lastCmdTime) > 5000 || client->tceObjectiveActivityUntil < level.time)) {
         G_TCEDropVip(ent);
         client = ent->client;
         client->ps.stats[STAT_TCE_FLAGS] &= ~0x100;
@@ -1954,21 +1956,25 @@ void ClientEndFrame(gentity_t *ent) {
         client->ps.stats[STAT_TCE_FLAGS] &= ~0x100;
         G_Printf("ELITE DEBUG: removed invalid VIP\n");
     }
+    client = ent->client;
     client->ps.stats[STAT_HEALTH] = ent->health;
     G_SetClientSound(ent);
+    client = ent->client;
     if (g_smoothClients.integer)
         BG_PlayerStateToEntityStateExtraPolate(&client->ps, &ent->s, level.time, qfalse);
     else BG_PlayerStateToEntityState(&client->ps, &ent->s, qfalse);
-    if (ent->props_frame_state >= 0 && level.time - ent->s.effect3Time > 100)
+    if (ent->props_frame_state >= 0 && TCE_SubInt32(level.time, ent->s.effect3Time) > 100)
         ent->props_frame_state = -1;
     if (ent->health > 0) {
         if (StuckInClient(ent)) {
+            client = ent->client;
             G_DPrintf("%s is stuck in a client.\n", client->pers.netname);
             ent->r.contents = CONTENTS_CORPSE;
         }
         if (ent->health > 0 && ent->r.contents == CONTENTS_CORPSE && !(ent->s.eFlags & EF_MOUNTEDTANK))
             WolfReviveBbox(ent);
     }
+    client = ent->client;
     if (!(client->buttons & BUTTON_ATTACK)) ent->count2 = 0;
     G_TouchTriggers(ent);
     G_Script_ScriptRun(ent);
