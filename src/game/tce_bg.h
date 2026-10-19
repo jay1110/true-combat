@@ -68,7 +68,7 @@ extern tce_gearDef_t gearDef;
 /* Windows gametypeDef stride16: the third field is not named speculatively. */
 typedef struct { int maxClients, field04, unknown08, field0c; } tce_gametypeDef_t;
 extern tce_gametypeDef_t tce_gametypeDef[8];
-void BG_InitializeGametypeDef(void);
+int BG_InitializeGametypeDef(void);
 int BG_MapIsOfficial(const char *mapname);
 
 int TCE_PWF_ParseError(int handle, const char *format, ...);

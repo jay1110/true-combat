@@ -7,7 +7,7 @@ tce_gearDef_t gearDef;
 tce_gametypeDef_t tce_gametypeDef[8];
 
 /* qagame2002eca0: leave unrelated entries/fields untouched. */
-void BG_InitializeGametypeDef(void) {
+int BG_InitializeGametypeDef(void) {
     tce_gametypeDef[5].maxClients = 20;
     tce_gametypeDef[5].field04 = 16;
     tce_gametypeDef[5].field0c = 1;
@@ -17,6 +17,7 @@ void BG_InitializeGametypeDef(void) {
     tce_gametypeDef[2].maxClients = 36;
     tce_gametypeDef[2].field04 = 32;
     tce_gametypeDef[2].field0c = 1;
+    return 1;
 }
 
 /* UI400016b0. This is the original official-map classification, not a

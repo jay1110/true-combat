@@ -2,6 +2,22 @@
 #include "q_shared.h"
 #include "bg_public.h"
 #include "tce_bg.h"
+#include "tce_float_integer.h"
+
+/* Preserve the numeric result of the original masked x87 conversion.
+ * Floating-point exception flags and traps are not reproduced here. */
+static int TCE_GearSkillToInt(float value)
+{
+#if defined(_MSC_VER) && defined(_M_IX86)
+    return TCE_FloatToInt64Low(value);
+#elif defined(__linux__) && defined(__i386__)
+    if (!(value >= -2147483648.0f && value < 2147483648.0f))
+        return -2147483647 - 1;
+    return (int)value;
+#else
+    return (int)value;
+#endif
+}
 
 int BG_ParseGearDef(const char *primary, const char *fallback, tce_gearDef_t *def) {
     int handle, weapon = 0, i;
@@ -58,7 +74,8 @@ int BG_ParseGearDef(const char *primary, const char *fallback, tce_gearDef_t *de
                 } else if (!Q_stricmp(token.string, "requiredSkill")) {
                     if (!PC_Vec_Parse(handle, &skill))
                         return TCE_PWF_ParseError(handle, "expected 3 requiredSkill values");
-                    for (i = 0; i < 3; ++i) def->requiredSkill[weapon][i] = (int)skill[i];
+                    for (i = 0; i < 3; ++i)
+                        def->requiredSkill[weapon][i] = TCE_GearSkillToInt(skill[i]);
                 } else if (!Q_stricmp(token.string, "startClips")) {
                     if (!PC_Int_Parse(handle, &def->startClips[weapon]))
                         return TCE_PWF_ParseError(handle, "expected startClips value");
