@@ -2478,6 +2478,9 @@ void CG_AltWeapon_f(void)
 		return;
 	}
 
+	/* TC:E blocks alternate selection while this status bit is set. */
+	if (cg.snap->ps.eFlags & 0x01000000) return;
+
 	// Overload for spec mode when following
 	if((cg.snap->ps.pm_flags & PMF_FOLLOW) || cg.mvTotalClients > 0) {
 		return;
@@ -2545,13 +2548,13 @@ void CG_AltWeapon_f(void)
 		}
 	}
 
-	// Arnout: don't allow another weapon switch when we're still swapping the gpg40, to prevent animation breaking
-	if( ( cg.snap->ps.weaponstate == WEAPON_RAISING || cg.snap->ps.weaponstate == WEAPON_DROPPING ) &&
-		( (original == WP_GPG40 || num == WP_GPG40 || original == WP_M7 || num == WP_M7) ||
-		  (original == WP_SILENCER || num == WP_SILENCER || original == WP_SILENCED_COLT || num == WP_SILENCED_COLT) ||
-		  (original == WP_AKIMBO_SILENCEDCOLT || num == WP_AKIMBO_SILENCEDCOLT || original == WP_AKIMBO_SILENCEDLUGER || num == WP_AKIMBO_SILENCEDLUGER) ||
-		  (original == WP_MORTAR_SET || num == WP_MORTAR_SET) ||
-		  (original == WP_MOBILE_MG42_SET || num == WP_MOBILE_MG42_SET) ) )
+	/* Use TC:E protocol IDs while either weapon is raising or dropping. */
+	if ((cg.snap->ps.weaponstate == WEAPON_RAISING ||
+	     cg.snap->ps.weaponstate == WEAPON_DROPPING) &&
+	    (original == 55 || num == 55 || original == 56 || num == 56 ||
+	     original == 14 || num == 14 || original == 52 || num == 52 ||
+	     original == 53 || num == 53 || original == 54 || num == 54 ||
+	     original == 60 || num == 60 || original == 62 || num == 62))
 		return;
 
 	if( CG_WeaponSelectable( num ) ) {	// new weapon is valid
@@ -3173,11 +3176,11 @@ void CG_WeaponBank_f(void) {
 	if(cg.time - cg.weaponSelectTime < cg_weaponCycleDelay.integer)
 		return;	// force pause so holding it down won't go too fast
 	
-	if( cg.weaponSelect == (gearDef.parsed ? 60 : WP_MORTAR_SET) || cg.weaponSelect == (gearDef.parsed ? 62 : WP_MOBILE_MG42_SET) ) {
+	if( cg.weaponSelect == 60 || cg.weaponSelect == 62 ) {
 		return;
 	}
 
-	if(gearDef.parsed && (cg.snap->ps.eFlags & 0x1000000)) return;
+	if (cg.snap->ps.eFlags & 0x01000000) return;
 
 	cg.weaponSelectTime = cg.time;	// flash the current weapon icon
 
@@ -3214,13 +3217,13 @@ void CG_WeaponBank_f(void) {
 			qboolean found = qfalse;
 			switch( num ) {
 				case WP_CARBINE:
-					if ((found = CG_WeaponSelectable( (gearDef.parsed ? 56 : WP_M7) ))) {
-						num = (gearDef.parsed ? 56 : WP_M7);
+					if ((found = CG_WeaponSelectable( 56 ))) {
+						num = 56;
 					}
 					break;
 				case WP_KAR98:
-					if ((found = CG_WeaponSelectable( (gearDef.parsed ? 55 : WP_GPG40) ))) {
-						num = (gearDef.parsed ? 55 : WP_GPG40);
+					if ((found = CG_WeaponSelectable( 55 ))) {
+						num = 55;
 					}
 					break;
 			}
@@ -3236,9 +3239,9 @@ void CG_WeaponBank_f(void) {
 
 	// Arnout: don't allow another weapon switch when we're still swapping the gpg40, to prevent animation breaking
 	if( ( cg.snap->ps.weaponstate == WEAPON_RAISING || cg.snap->ps.weaponstate == WEAPON_DROPPING ) &&
-		( (curweap == (gearDef.parsed ? 55 : WP_GPG40) || num == (gearDef.parsed ? 55 : WP_GPG40) || curweap == (gearDef.parsed ? 56 : WP_M7) || num == (gearDef.parsed ? 56 : WP_M7)) ||
-		  (curweap == WP_SILENCER || num == WP_SILENCER || curweap == (gearDef.parsed ? 52 : WP_SILENCED_COLT) || num == (gearDef.parsed ? 52 : WP_SILENCED_COLT)) ||
-		  (curweap == (gearDef.parsed ? 60 : WP_MORTAR_SET) || num == (gearDef.parsed ? 60 : WP_MORTAR_SET) ) ) )
+		( (curweap == 55 || num == 55 || curweap == 56 || num == 56) ||
+		  (curweap == WP_SILENCER || num == WP_SILENCER || curweap == 52 || num == 52) ||
+		  (curweap == 60 || num == 60 ) ) )
 		return;
 
 	CG_FinishWeaponChange(curweap, num);
@@ -3269,9 +3272,10 @@ void CG_Weapon_f( void ) {
 		return;
 	}
 
-	if( cg.weaponSelect == WP_MORTAR_SET || cg.weaponSelect == WP_MOBILE_MG42_SET ) {
+	if (cg.weaponSelect == 60 || cg.weaponSelect == 62) {
 		return;
 	}
+	if (cg.snap->ps.eFlags & 0x01000000) return;
 
 	num = atoi( CG_Argv( 1 ) );
 
@@ -3345,11 +3349,12 @@ void CG_OutOfAmmoChange( qboolean allowforceswitch ) {
 	// trivial switching (Windows TC 30075480; retain original bank order)
 	//
 
-	if( (cg.snap->ps.eFlags & 0x1000000) ) return;
-
 	if( cg.weaponSelect == WP_PLIERS || ( cg.weaponSelect == WP_SATCHEL_DET && cg.predictedPlayerState.ammo[WP_SATCHEL_DET] ) ) {
 		return;
 	}
+
+	/* The original special-case returns above precede the snapshot read. */
+	if (cg.snap->ps.eFlags & 0x01000000) return;
 
 	if( allowforceswitch ) {
 		if( cg.weaponSelect == WP_SMOKE_BOMB ) {
