@@ -345,7 +345,7 @@ qboolean CG_RegisterCharacter( const char *characterFile, bg_character_t *charac
 {
 	bg_characterDef_t	characterDef;
 	char *filename;
-	char skinBase[MAX_INFO_STRING + MAX_QPATH * 4];
+	char *skinBase;
 	const char *camo = Info_ValueForKey( CG_ConfigString( CS_MULTI_INFO ), "camo" );
 	char buf[MAX_QPATH];
 	char accessoryname[MAX_QPATH];
@@ -365,18 +365,29 @@ qboolean CG_RegisterCharacter( const char *characterFile, bg_character_t *charac
 	COM_StripExtension( characterDef.mesh, buf );
 	/* Windows 30018460: map camouflage, group fallback, then base skin.
 	 * The final registration is intentionally repeated, as in the original. */
-	Com_sprintf( skinBase, sizeof(skinBase), "models/players/%s/%s_%s%s",
-		*gearDef.playerSkinGroup ? gearDef.playerSkinGroup : characterDef.skinGroup,
-		characterDef.skinRoot, characterDef.skin, camo ? camo : "" );
+	if( camo ) {
+		skinBase = va( "models/players/%s/%s_%s%s",
+			*gearDef.playerSkinGroup ? gearDef.playerSkinGroup : characterDef.skinGroup,
+			characterDef.skinRoot, characterDef.skin, camo );
+	} else {
+		skinBase = va( "models/players/%s/%s_%s",
+			*gearDef.playerSkinGroup ? gearDef.playerSkinGroup : characterDef.skinGroup,
+			characterDef.skinRoot, characterDef.skin );
+	}
 	filename = va( "%s.skin", skinBase );
 	character->skin = trap_R_RegisterSkin( filename );
 	if( !character->skin ) {
-		Com_sprintf( skinBase, sizeof(skinBase), "models/players/%s/%s_%s%s",
-			characterDef.skinGroup, characterDef.skinRoot, characterDef.skin, camo ? camo : "" );
+		if( camo ) {
+			skinBase = va( "models/players/%s/%s_%s%s",
+				characterDef.skinGroup, characterDef.skinRoot, characterDef.skin, camo );
+		} else {
+			skinBase = va( "models/players/%s/%s_%s",
+				characterDef.skinGroup, characterDef.skinRoot, characterDef.skin );
+		}
 		filename = va( "%s.skin", skinBase );
 		character->skin = trap_R_RegisterSkin( filename );
 		if( !character->skin ) {
-			Com_sprintf( skinBase, sizeof(skinBase), "models/players/%s/%s_%s",
+			skinBase = va( "models/players/%s/%s_%s",
 				characterDef.skinGroup, characterDef.skinRoot, characterDef.skin );
 			filename = va( "%s.skin", skinBase );
 		}

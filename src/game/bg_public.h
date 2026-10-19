@@ -2359,7 +2359,11 @@ typedef struct bg_characterDef_s {
 	char		hudheadskin[MAX_QPATH];
 	char		skinGroup[MAX_QPATH]; /* TC:E: 0x240 */
 	char		skinRoot[MAX_QPATH];  /* TC:E: 0x280 */
+	/* Original character definitions occupy 0x540 bytes; tail semantics unknown. */
+	unsigned char unknown_2c0[0x280];
 } bg_characterDef_t;
+
+typedef char tce_character_def_size_check[sizeof(bg_characterDef_t) == 0x540 ? 1 : -1];
 
 qboolean BG_ParseCharacterFile( const char *filename, bg_characterDef_t* characterDef );
 bg_character_t *BG_GetCharacter( int team, int cls );
