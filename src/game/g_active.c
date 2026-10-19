@@ -1,5 +1,6 @@
 
 #include "g_local.h"
+#include "tce_numeric.h"
 #ifdef FEATURE_OMNIBOT
 #include "g_etbot_interface.h"
 #endif
@@ -1872,6 +1873,7 @@ void ClientEndFrame(gentity_t *ent) {
         client->sess.sessionTeam != TEAM_SPECTATOR && !(client->ps.pm_flags & PMF_LIMBO)) {
         limbo(ent, qtrue);
     }
+    client = ent->client;
     client->ps.powerups[PW_BLACKOUT] = 0;
     if (client->sess.sessionTeam == TEAM_SPECTATOR || (client->ps.pm_flags & PMF_LIMBO)) {
         SpectatorClientEndFrame(ent);
@@ -1888,7 +1890,8 @@ void ClientEndFrame(gentity_t *ent) {
     for (i = 0; i < 7; ++i)
         /* 20047662..2004766b: FILD integer, FADD binary32 skill, then
          * truncate directly; no intervening binary32 rounding. */
-        client->ps.stats[6] = (int)((double)client->ps.stats[6] + (double)client->sess.skillpoints[i]);
+        client->ps.stats[6] = TCE_TruncateNativeInteger(
+            (double)client->ps.stats[6] + (double)client->sess.skillpoints[i]);
     if (level.match_pause != PAUSE_NONE) {
         int delta = level.time - level.previousTime;
         client->airOutTime += delta;
@@ -1908,6 +1911,7 @@ void ClientEndFrame(gentity_t *ent) {
     if (level.intermissiontime) return;
     P_WorldEffects(ent);
     P_DamageFeedback(ent);
+    client = ent->client;
     if (level.time - client->lastCmdTime > 1000) ent->s.eFlags |= EF_CONNECTION;
     else ent->s.eFlags &= ~EF_CONNECTION;
 
@@ -1916,11 +1920,13 @@ void ClientEndFrame(gentity_t *ent) {
         (level.time - client->lastCmdTime > 5000 || client->tceObjectiveActivityUntil < level.time) &&
         level.tceBombDropCount < 2) {
         G_TCEDropBomb(ent);
+        client = ent->client;
         client->ps.stats[STAT_TCE_WEAPON_FLAGS] &= ~0x100;
         level.tceBombCarrierCount--;
         level.tceBombCarrier = -1;
         client->tceBombPossessionOrder = 0;
         popup = G_PopupMessage(PM_MESSAGE);
+        client = ent->client;
         popup->s.effect2Time = client->ps.persistant[PERS_TEAM];
         popup->s.density = 1;
         popup->s.effect3Time = client->ps.clientNum;
@@ -1934,9 +1940,11 @@ void ClientEndFrame(gentity_t *ent) {
         level.tceVipAssigned && level.tceVipCarrier == client->ps.clientNum &&
         (level.time - client->lastCmdTime > 5000 || client->tceObjectiveActivityUntil < level.time)) {
         G_TCEDropVip(ent);
+        client = ent->client;
         client->ps.stats[STAT_TCE_FLAGS] &= ~0x100;
         level.tceVipCarrier = -1;
         popup = G_PopupMessage(PM_MESSAGE);
+        client = ent->client;
         popup->s.effect2Time = client->ps.persistant[PERS_TEAM];
         popup->s.density = 4;
         popup->s.effect3Time = client->ps.clientNum;
