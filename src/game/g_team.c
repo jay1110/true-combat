@@ -811,21 +811,26 @@ void TeamplayInfoMessage( team_t team ) {
  * rather than a signed-int32 conversion. Linux keeps its native int cast. */
 static int G_TCETeamLocationInteger(float locationValue) {
 #if defined(_MSC_VER) && defined(_M_IX86)
-	unsigned short locationControl, locationTruncate;
-	__int64 locationInteger;
-	__asm {
-		fld locationValue
-		fwait
-		fnstcw locationControl
-		fwait
-		mov ax, locationControl
-		or ax, 0c00h
-		mov locationTruncate, ax
-		fldcw locationTruncate
-		fistp locationInteger
-		fldcw locationControl
-	}
-	return (int)(unsigned int)locationInteger;
+    unsigned int bits, magnitude;
+    int exponent, result;
+
+    memcpy(&bits, &locationValue, sizeof(bits));
+    exponent = (int)((bits >> 23) & 255u) - 127;
+    /* Fractions truncate to zero. Exponents 55..62 are multiples of
+     * 2^32; larger values and masked invalid conversions also have a
+     * zero low word in the original signed 64-bit conversion. */
+    if (exponent < 0 || exponent >= 55)
+        return 0;
+
+    magnitude = (bits & 0x7fffffu) | 0x800000u;
+    if (exponent < 23)
+        magnitude >>= 23 - exponent;
+    else
+        magnitude <<= exponent - 23;
+    if (bits & 0x80000000u)
+        magnitude = 0u - magnitude;
+    memcpy(&result, &magnitude, sizeof(result));
+    return result;
 #else
 	return (int)locationValue;
 #endif
