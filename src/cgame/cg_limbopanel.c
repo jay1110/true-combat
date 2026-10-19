@@ -2,7 +2,6 @@
 #include "../game/tce_bg.h"
 #include "../game/tce_numeric.h"
 #include "tce_limbo_widgets.h"
-#include "tce_limbo_loadout.h"
 #include "tce_weapon_media.h"
 #include "../ui/tce_ui_coordinates.h"
 
@@ -1208,8 +1207,8 @@ void CG_LimboPanel_SendSetupMsg(qboolean forceteam)
 	 * the original short-name text, including an intentionally empty name. */
 	name = weapon1 >= 0 && weapon1 < TCE_MAX_WEAPONS ?
 	       tce_cg_weapons[weapon1].deployMenuShortName : "^1UNKNOWN WEAPON";
-	CG_AddPMItem((popupMessageType_t)4, va("You will deploy as a %s with a %s.", label, name),
-	             cgs.media.pmImages[4]);
+	CG_AddPMItemBig((popupMessageBigType_t)4, va("You will deploy as a %s with a %s.", label, name),
+	                cgs.media.pmImages[4]);
 	cgs.limboLoadoutSelected = qtrue;
 	cgs.limboLoadoutModified = qtrue;
 }
@@ -2963,66 +2962,52 @@ int CG_LimboPanel_WeaponCount(void)
 	return CG_LimboPanel_WeaponCount_ForSlot(cgs.ccSelectedWeaponNumber);
 }
 
-static tce_limboLoadout_t TCE_LimboLoadout(void)
-{
-	tce_limboLoadout_t s;
-	clientInfo_t       *ci = &cgs.clientinfo[cg.clientNum];
-	memset(&s, 0, sizeof(s));
-	s.team       = CG_LimboPanel_GetTeam(); s.playerClass = CG_LimboPanel_GetClass();
-	s.rating     = ci->tceClassRating; s.previousRating = ci->tcePreviousClassRating;
-	s.scoreClass = ci->tceScorePlayerClass; s.lightSkill = ci->skill[SK_LIGHT_WEAPONS];
-	s.heavySkill = ci->skill[SK_HEAVY_WEAPONS]; s.gametype = cgs.gametype;
-	s.primary    = TCE_LimboWeaponForNumber(&s, cgs.ccSelectedWeapon, 1);
-	return s;
-}
-
+/* TC counts the native class tables regardless of gear loading success. */
 int CG_LimboPanel_WeaponCount_ForSlot(int number)
 {
-	if (gearDef.parsed)
-	{
-		tce_limboLoadout_t s = TCE_LimboLoadout(); return TCE_LimboWeaponCount(&s, number);
-	}
-	if (number == 1)
-	{
-		bg_playerclass_t *classInfo = CG_LimboPanel_GetPlayerClass();
-		int              cnt = 0, i;
+	bg_playerclass_t *classInfo;
+	clientInfo_t     *ci;
+	weapon_t         *weapons;
+	int              role, rating, primary = 0, count = 0, i;
 
-		for (i = 0; i < MAX_WEAPS_PER_CLASS; i++)
-		{
-			if (!classInfo->classWeapons[i])
-			{
-				break;
-			}
-
-			cnt++;
-		}
-		return cnt;
-	}
-	else
+	if (number == 2)
 	{
-		if (cgs.clientinfo[cg.clientNum].skill[SK_HEAVY_WEAPONS] >= 4 && CG_LimboPanel_GetClass() == PC_SOLDIER)
+		CG_LimboPanel_GetSelectedWeaponForSlot(1);
+		if (cgs.gametype != 7 && BG_WolfClassToTCE(CG_LimboPanel_GetClass()) == 1)
 		{
-			if (cgs.clientinfo[cg.clientNum].skill[SK_LIGHT_WEAPONS] >= 4)
-			{
-				return 3;
-			}
-			else
-			{
-				return 2;
-			}
+			return 2;
 		}
-		else
+		return 1;
+	}
+
+	classInfo = CG_LimboPanel_GetPlayerClass();
+	role      = BG_WolfClassToTCE(CG_LimboPanel_GetClass());
+	ci        = &cgs.clientinfo[cg.clientNum];
+	rating    = role == BG_WolfClassToTCE(ci->tceScorePlayerClass) ?
+	            ci->tceClassRating : ci->tcePreviousClassRating;
+	weapons = number == 1 ? classInfo->classWeapons : classInfo->classWeapons2;
+	if (number != 1)
+	{
+		primary = CG_LimboPanel_GetSelectedWeaponForSlot(1);
+	}
+
+	for (i = 0; i < MAX_WEAPS_PER_CLASS && weapons[i]; ++i)
+	{
+		int weapon = weapons[i];
+		int team;
+		if (number != 1 && !BG_SidearmAvailableForPrimary(weapon, primary))
 		{
-			if (cgs.clientinfo[cg.clientNum].skill[SK_LIGHT_WEAPONS] >= 4)
-			{
-				return 2;
-			}
-			else
-			{
-				return 1;
-			}
+			continue;
+		}
+		team = CG_LimboPanel_GetTeam();
+		role = BG_WolfClassToTCE(CG_LimboPanel_GetClass());
+		if (BG_WeaponIsAvailable(weapon, gearDef.requiredSkill[weapon][role],
+		                         gearDef.team[weapon], TCE_AddInt32(rating, 20), team))
+		{
+			++count;
 		}
 	}
+	return count;
 }
 
 int CG_LimboPanel_GetWeaponNumberForPos(int pos)
@@ -3111,7 +3096,7 @@ weapon_t CG_LimboPanel_GetWeaponForNumber(int number, int slot, qboolean ignoreD
 	{
 		weapon = weapons[i];
 		if (BG_WeaponIsAvailable(weapon, gearDef.requiredSkill[weapon][role],
-		                         gearDef.team[weapon], rating + 20, CG_LimboPanel_GetTeam()))
+		                         gearDef.team[weapon], TCE_AddInt32(rating, 20), CG_LimboPanel_GetTeam()))
 		{
 			if (count == number)
 			{
