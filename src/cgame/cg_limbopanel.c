@@ -1,5 +1,6 @@
 #include "cg_local.h"
 #include "../game/tce_bg.h"
+#include "../game/tce_numeric.h"
 #include "tce_limbo_widgets.h"
 #include "tce_limbo_loadout.h"
 #include "tce_weapon_media.h"
@@ -3272,21 +3273,8 @@ int CG_LimboPanel_TeamCount(weapon_t weap)
 
 qboolean CG_IsHeavyWeapon(weapon_t weap)
 {
-	int i;
-	if (gearDef.parsed)
-	{
-		return TCE_BG_IsHeavyWeapon((int)weap);
-	}
-
-	for ( i = 0; i < NUM_HEAVY_WEAPONS; i++ )
-	{
-		if (bg_heavyWeapons[i] == weap)
-		{
-			return qtrue;
-		}
-	}
-
-	return qfalse;
+	/* Both TC originals classify these IDs before gear parsing succeeds. */
+	return TCE_BG_IsHeavyWeapon((int)weap);
 }
 
 /* TC30043ca0 tests the unfiltered class slot, not the gear-filtered selection. */
@@ -3319,7 +3307,7 @@ qboolean CG_LimboPanel_RealWeaponIsDisabled(weapon_t weap)
 		return qtrue;
 	}
 	role = BG_WolfClassToTCE(CG_LimboPanel_GetClass());
-	if (rating + 1 < gearDef.requiredSkill[weap][role])
+	if (TCE_AddInt32(rating, 1) < gearDef.requiredSkill[weap][role])
 	{
 		return qtrue;
 	}
