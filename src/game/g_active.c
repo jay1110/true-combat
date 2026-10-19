@@ -915,10 +915,10 @@ void ClientEvents( gentity_t *ent, int oldEventSequence ) {
 
 		case EV_TCE_PLANT:
 			G_TouchTriggers(ent);
-			if (client->tceObjectiveContact && client->ps.serverCursorHint == HINT_BREAKABLE_DYNAMITE) {
+			if (ent->client->tceObjectiveContact && ent->client->ps.serverCursorHint == HINT_BREAKABLE_DYNAMITE) {
 				weapon_grenadelauncher_fire(ent, 15);
-				client->ps.stats[STAT_TCE_WEAPON_FLAGS] &= ~0x100;
-				client->tceBombPossessionOrder = 0;
+				ent->client->ps.stats[STAT_TCE_WEAPON_FLAGS] &= ~0x100;
+				ent->client->tceBombPossessionOrder = 0;
 			}
 			break;
 		case EV_TCE_DEFUSE:
@@ -927,9 +927,9 @@ void ClientEvents( gentity_t *ent, int oldEventSequence ) {
 		case EV_TCE_OBJECTIVE_START:
 		case EV_TCE_OBJECTIVE_COMPLETE:
 			G_TouchTriggers(ent);
-			if (!client->tceObjectiveContact || client->ps.serverCursorHint != HINT_ACTIVATE) break;
-			if (client->tceObjectiveEntity < 0 || client->tceObjectiveEntity >= MAX_GENTITIES) break;
-			objective = &g_entities[client->tceObjectiveEntity];
+			if (!ent->client->tceObjectiveContact || ent->client->ps.serverCursorHint != HINT_ACTIVATE) break;
+			if (ent->client->tceObjectiveEntity < 0 || ent->client->tceObjectiveEntity >= MAX_GENTITIES) break;
+			objective = &g_entities[ent->client->tceObjectiveEntity];
 			if (objective->s.eType != 65) break;
 			if (event == EV_TCE_OBJECTIVE_START) {
 				G_Script_ScriptEvent(objective, "activated", "");
@@ -948,8 +948,8 @@ void ClientEvents( gentity_t *ent, int oldEventSequence ) {
 			}
 			break;
 		case EV_TCE_OBJECTIVE_STOP:
-			if (client->tceObjectiveEntity >= 0 && client->tceObjectiveEntity < MAX_GENTITIES) {
-				objective = &g_entities[client->tceObjectiveEntity];
+			if (ent->client->tceObjectiveEntity >= 0 && ent->client->tceObjectiveEntity < MAX_GENTITIES) {
+				objective = &g_entities[ent->client->tceObjectiveEntity];
 				if (objective->s.eType == 65) G_Script_ScriptEvent(objective, "stopped", "");
 			}
 			break;
