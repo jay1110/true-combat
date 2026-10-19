@@ -2396,8 +2396,20 @@ void CG_SetSniperZoom(int lastweap, int newweap) {
     else if (newweap == 59) cg.zoomedScope = 1;
     else return;
     cg.zoomval = cg_zoomDefaultSniper.value;
-    if (cg.zoomval > 90) cg.zoomval = 90;
-    if (cg.zoomval < 60) cg.zoomval = 60;
+#if defined(__linux__) && defined(__i386__)
+    /* The original upper-bound FCOM also clamps unordered values. */
+    if (!(cg.zoomval <= zoomTable[ZOOM_SNIPER][ZOOM_OUT]))
+#else
+    if (cg.zoomval > zoomTable[ZOOM_SNIPER][ZOOM_OUT])
+#endif
+        cg.zoomval = zoomTable[ZOOM_SNIPER][ZOOM_OUT];
+#if defined(_MSC_VER) && defined(_M_IX86)
+    /* Windows clamps an unordered lower-bound comparison instead. */
+    if (!(cg.zoomval >= zoomTable[ZOOM_SNIPER][ZOOM_IN]))
+#else
+    if (cg.zoomval < zoomTable[ZOOM_SNIPER][ZOOM_IN])
+#endif
+        cg.zoomval = zoomTable[ZOOM_SNIPER][ZOOM_IN];
     cg.zoomTime = cg.time;
 }
 
