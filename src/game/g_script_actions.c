@@ -9,6 +9,7 @@
 #include "../game/g_local.h"
 #include "../game/q_shared.h"
 #include "tce_navgen.h"
+#include "tce_numeric.h"
 #ifdef FEATURE_OMNIBOT
 #include "g_etbot_interface.h"
 #endif
@@ -4371,7 +4372,10 @@ qboolean G_ScriptAction_AddScore(gentity_t *ent, char *params) {
     if(team<0 || team>1) G_Error("G_ScriptAction_AddScore: team parameter required\n");
     token=COM_Parse(&params);
     if(!*token) G_Error("G_ScriptAction_AddScore: score parameter required\n");
-    level.teamScores[team+1]+=atoi(token);
+    {
+        int score = atoi(token);
+        level.teamScores[team + 1] = TCE_AddInt32(level.teamScores[team + 1], score);
+    }
     CalculateRanks();
     return qtrue;
 }
