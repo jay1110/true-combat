@@ -552,7 +552,13 @@ void CG_KillTrail( trailJunc_t *t )
 	return;
     }
     next = t->nextJunc;
-    if (next<&trailJuncs[0] || next>=&trailJuncs[MAX_TRAILJUNCS]) {
+#ifdef Q3_VM
+    if (next<&trailJuncs[0] || next>=&trailJuncs[MAX_TRAILJUNCS])
+#else
+    if ((uintptr_t)next < (uintptr_t)trailJuncs ||
+        (uintptr_t)next >= (uintptr_t)(trailJuncs + MAX_TRAILJUNCS))
+#endif
+    {
 	next = NULL;
     }
     t->nextJunc = NULL;
