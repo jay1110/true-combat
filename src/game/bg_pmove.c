@@ -2450,7 +2450,8 @@ typedef char groundProtocol831[(EF_MG42_ACTIVE==0x20 && EF_AAGUN_ACTIVE==0x40000
 /* TCE landing severity and events. Held values model the original path;
  * compiled FPU/libm precision and lower-call ABI remain open. */
 #if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
-typedef char crashEventProtocol[(EV_FALL_NDIE == 0x13 && EV_TCE_FALL_DMG_75 == 0xa2 &&
+/* The 75-damage event uses the reconstructed private enum, not original ID 162. */
+typedef char crashEventProtocol[(EV_FALL_NDIE == 0x13 && EV_TCE_FALL_DMG_75 < EV_MAX_EVENTS &&
     EV_FALL_DMG_50 == 0x17 && EV_FALL_DMG_25 == 0x16 && EV_FALL_DMG_15 == 0x15 &&
     EV_FALL_DMG_10 == 0x14 && EV_FALL_SHORT == 0x10 && EV_FOOTSTEP == 1) ? 1 : -1];
 static void PM_CrashLand(qboolean steep) {
@@ -6765,7 +6766,6 @@ static qboolean PM_ClimbSlideMove(int unused, const vec3_t normal, qboolean wasC
 /* Preserve the TC bot identity0x800 used by weapon logic. Only a trusted
  * server-local navigation command bypasses its original free-climb ban;
  * every clearance, surface, stamina and movement gate remains unchanged. */
-#if !defined(_MSC_VER) || !defined(_M_IX86)
 static qboolean PM_FreeClimbActorAllowed(void) {
  if(!(pm->ps->stats[STAT_TCE_FLAGS]&0x800))return qtrue;
 #ifdef GAMEDLL
@@ -6774,7 +6774,6 @@ static qboolean PM_FreeClimbActorAllowed(void) {
  return qfalse;
 #endif
 }
-#endif
 /* TC qagame20033480: original control flow; undefined freeClimb remains a documented boundary. */
 #if defined(_MSC_VER) && defined(_M_IX86)
 /* Native trace layout and movement protocol bounds retained after C reconstruction. */
