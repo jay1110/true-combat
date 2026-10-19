@@ -13,6 +13,7 @@
 #include "g_local.h"
 #include "tce_bg.h"
 #include "tce_trajectory.h"
+#include "tce_numeric.h"
 
 
 
@@ -367,17 +368,21 @@ int Pickup_Ammo(gentity_t *ent,gentity_t *other) {
             cl->ps.stats[STAT_TCE_WEAPON_FLAGS]|=0x100;
             level.tceBombCarrier=cl->ps.clientNum;
             cl->tceBombPossessionOrder=++level.tceBombCarrierCount;
-            popup=G_PopupMessage(PM_MESSAGE);popup->s.effect2Time=cl->ps.persistant[PERS_TEAM];
+            popup=G_PopupMessage(PM_MESSAGE);
+            cl=other->client;
+            popup->s.effect2Time=cl->ps.persistant[PERS_TEAM];
             popup->s.effect3Time=cl->ps.clientNum;popup->s.density=2;
             if(cl->ps.persistant[PERS_TEAM]!=level.tceDemolitionTeam) {
                 level.tceExitRulesNotBefore=level.time+1000;
-                if(level.gameManager)G_Script_ScriptEvent(level.gameManager,"trigger","bomb_secured");
+                G_Script_ScriptEvent(level.gameManager,"trigger","bomb_secured");
             }
         }
     } else if(!Q_stricmp(ent->classname,"ammo_VIP") && level.tceVipCarrier==-1) {
         cl->ps.stats[STAT_TCE_FLAGS]|=0x100;level.tceVipCarrier=cl->ps.clientNum;
         SetWolfSpawnWeapons(cl);
-        popup=G_PopupMessage(PM_MESSAGE);popup->s.effect2Time=cl->ps.persistant[PERS_TEAM];
+        popup=G_PopupMessage(PM_MESSAGE);
+        cl=other->client;
+        popup->s.effect2Time=cl->ps.persistant[PERS_TEAM];
         popup->s.effect3Time=cl->ps.clientNum;popup->s.density=3;
     }
     return -1;
@@ -391,12 +396,32 @@ static gentity_t *G_TCELaunchObjective(gentity_t *ent,qboolean vip) {
     gitem_t *item=BG_FindItemForClassName(vip?"ammo_VIP":"ammo_dynamite");
     if(!item)return NULL; /* Invalid catalog guard; original assumes entry. */
     VectorCopy(ent->client->ps.viewangles,angles);
+#if defined(__linux__) && defined(__i386__)
+    /* The native lower-bound comparison also clamps an unordered pitch. */
+    if (!(angles[PITCH] >= -30.0f)) angles[PITCH] = -30.0f;
+    else if (angles[PITCH] > 30.0f) angles[PITCH] = 30.0f;
+#else
     if(angles[PITCH]<-30)angles[PITCH]=-30;else if(angles[PITCH]>30)angles[PITCH]=30;
+#endif
     angles[YAW]-=45;
     AngleVectors(angles,velocity,NULL,NULL);
-    VectorScale(velocity,64,offset);offset[2]+=ent->client->ps.viewheight*.5f;
+    VectorScale(velocity,64,offset);
+#if defined(__linux__) && defined(__i386__)
+    /* FST keeps the scaled Z in x87 for the following height addition. */
+    offset[2] = (float)((long double)velocity[2] * 64.0L +
+        (long double)ent->client->ps.viewheight * 0.5L);
+#else
+    offset[2] += ent->client->ps.viewheight * .5f;
+#endif
     VectorScale(velocity,75,velocity);
+#if defined(__linux__) && defined(__i386__)
+    /* The original stores 35/32767 as one binary32 factor. */
+    velocity[2] = (float)(((long double)(rand() & 0x7fff) *
+        (long double)0.0010681478306651115f + 50.0L) +
+        (long double)velocity[2]);
+#else
     velocity[2]+=(rand()&0x7fff)*(1.0f/32767.0f)*35+50;
+#endif
     VectorAdd(ent->client->ps.origin,offset,origin);
     trap_Trace(&tr,ent->client->ps.origin,mins,maxs,origin,ent->s.number,CONTENTS_SOLID);
     VectorCopy(tr.endpos,origin);
@@ -659,8 +684,8 @@ int Pickup_Weapon( gentity_t *ent, gentity_t *other ) {
             Add_Ammo(other, sidearm, weaponDef[sidearm].maxclip, qfalse);
         }
         Add_Ammo(other, ent->item->giTag, quantity, qfalse);
-        if (ent->delay)
-            Add_Ammo(other, weapAlts[ent->item->giTag], (int)ent->delay, qfalse);
+        if (!TCE_FloatIsZeroOrNaN(ent->delay))
+            Add_Ammo(other, weapAlts[ent->item->giTag], TCE_TruncateNativeInteger((long double)ent->delay), qfalse);
     } else {
         int weapon = ent->item->giTag;
         int primary;
@@ -685,8 +710,8 @@ int Pickup_Weapon( gentity_t *ent, gentity_t *other ) {
             other->client->ps.ammo[BG_FindAmmoForWeapon(weapon)] = 0;
             if (weapon == 35) {
                 other->client->ps.ammo[BG_FindClipForWeapon(weapon)] = quantity;
-                if (ent->delay)
-                    Add_Ammo(other, weapAlts[weapon], (int)ent->delay, qfalse);
+                if (!TCE_FloatIsZeroOrNaN(ent->delay))
+                    Add_Ammo(other, weapAlts[weapon], TCE_TruncateNativeInteger((long double)ent->delay), qfalse);
             } else {
                 if (ent->s.otherEntityNum != other->client->ps.clientNum) {
                     int sidearm = G_GetSecondaryWeaponForClient(other->client);
@@ -695,8 +720,8 @@ int Pickup_Weapon( gentity_t *ent, gentity_t *other ) {
                 other->client->ps.ammo[BG_FindClipForWeapon(weapon)] = quantity;
                 if (ent->count2)
                     other->client->ps.ammoclip[BG_FindClipForWeapon(weapon)] = ent->count2;
-                if (ent->delay)
-                    other->client->ps.ammo[weapAlts[weapon]] = (int)ent->delay;
+                if (!TCE_FloatIsZeroOrNaN(ent->delay))
+                    other->client->ps.ammo[weapAlts[weapon]] = TCE_TruncateNativeInteger((long double)ent->delay);
             }
         }
     }
