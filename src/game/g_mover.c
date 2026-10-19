@@ -1840,8 +1840,6 @@ static void Touch_DoorTriggerSpectator( gentity_t *ent, gentity_t *other, trace_
 		float *doorPoint = &other->s.origin[axis];
 		float *doorMin = &ent->r.absmin[axis];
 		float *doorMax = &ent->r.absmax[axis];
-		float *doorDestination = &origin[axis];
-		float doorMargin = 10.0f;
 		unsigned short doorSideStatus;
 		__asm {
 			mov ecx, doorPoint
@@ -1859,22 +1857,10 @@ static void Touch_DoorTriggerSpectator( gentity_t *ent, gentity_t *other, trace_
 		}
 		if (!(doorSideStatus & 0x4100)) {
 			dir[axis] = -1.0f;
-			__asm {
-				mov ecx, doorMin
-				mov edx, doorDestination
-				fld dword ptr [ecx]
-				fsub doorMargin
-				fstp dword ptr [edx]
-			}
+            origin[axis] = (float)((double)*doorMin - 10.0);
 		} else {
 			dir[axis] = 1.0f;
-			__asm {
-				mov ecx, doorMax
-				mov edx, doorDestination
-				fld dword ptr [ecx]
-				fadd doorMargin
-				fstp dword ptr [edx]
-			}
+            origin[axis] = (float)((double)*doorMax + 10.0);
 		}
 	}
 #else
@@ -1891,21 +1877,8 @@ static void Touch_DoorTriggerSpectator( gentity_t *ent, gentity_t *other, trace_
 	for (i = 0; i < 3; i++) {
 		if (i == axis) continue;
 #if defined(_MSC_VER) && defined(_M_IX86)
-		{
-			float *doorMin = &ent->r.absmin[i];
-			float *doorMax = &ent->r.absmax[i];
-			float *doorDestination = &origin[i];
-			double doorHalf = 0.5;
-			__asm {
-				mov ecx, doorMax
-				fld dword ptr [ecx]
-				mov ecx, doorMin
-				fadd dword ptr [ecx]
-				fmul qword ptr doorHalf
-				mov ecx, doorDestination
-				fstp dword ptr [ecx]
-			}
-		}
+        origin[i] = (float)(((double)ent->r.absmax[i] +
+            (double)ent->r.absmin[i]) * 0.5);
 #else
 		origin[i] = (ent->r.absmin[i] + ent->r.absmax[i]) * 0.5;
 #endif
