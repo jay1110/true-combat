@@ -3,6 +3,7 @@
 #include <limits.h>
 
 #include "g_local.h"
+#include "tce_numeric.h"
 
 typedef struct teamgame_s
 {
@@ -686,7 +687,7 @@ gentity_t *SelectRandomTeamSpawnPoint(int teamstate, team_t team, int spawnObjec
     VectorSubtract(target,spots[0]->s.origin,offset);
     shortest=(float)TCE_SpawnDistance(offset);
     if ((g_gametype.integer==2 || g_gametype.integer==7) && !spots[0]->tceObjectiveScore && level.tceSpawnPhase>0) shortest+=16000.f;
-    delta=spots[0]->tceObjectiveScore-level.tceSpawnPhase;
+    delta=TCE_SubInt32(spots[0]->tceObjectiveScore, level.tceSpawnPhase);
     if (spots[0]->tceObjectiveScore && delta) {
         group=delta;
         if (group<0) group=.5-group;
@@ -697,7 +698,7 @@ gentity_t *SelectRandomTeamSpawnPoint(int teamstate, team_t team, int spawnObjec
         distance=TCE_SpawnDistance(offset);
         /* Original loop intentionally differs from initial score for gametype7. */
         if (g_gametype.integer==2 && !spots[i]->tceObjectiveScore && level.tceSpawnPhase>0) distance+=16000.f;
-        delta=spots[i]->tceObjectiveScore-level.tceSpawnPhase;
+        delta=TCE_SubInt32(spots[i]->tceObjectiveScore, level.tceSpawnPhase);
         if (spots[i]->tceObjectiveScore && delta) {
             group=delta;
             if (group<0) group=.5-group;

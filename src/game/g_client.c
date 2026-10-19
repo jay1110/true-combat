@@ -97,12 +97,8 @@ qboolean SpotWouldTelefrag( gentity_t *spot ) {
 	int			touch[MAX_GENTITIES];
 	gentity_t	*hit;
 	vec3_t		mins, maxs;
-	/* TC spawn-overlap hull, PE200bd794/200bd7a0. */
-	static const vec3_t spawnMins = {-14, -14, -24};
-	static const vec3_t spawnMaxs = {14, 14, 46};
-
-	VectorAdd( spot->r.currentOrigin, spawnMins, mins );
-	VectorAdd( spot->r.currentOrigin, spawnMaxs, maxs );
+	VectorAdd( spot->r.currentOrigin, playerMins, mins );
+	VectorAdd( spot->r.currentOrigin, playerMaxs, maxs );
 	num = trap_EntitiesInBox( mins, maxs, touch, MAX_GENTITIES );
 
 	for (i=0 ; i<num ; i++) {
