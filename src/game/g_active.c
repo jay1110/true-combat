@@ -678,14 +678,27 @@ Returns qfalse if the client is dropped
 =================
 */
 /* Whole TC200458d0 objective inactivity controller. */
-void G_TCEObjectiveActivity(gclient_t *client) {
-    if(g_gametype.integer==5 && ((client->ps.stats[STAT_TCE_WEAPON_FLAGS]|client->ps.stats[STAT_TCE_FLAGS])&0x100)) {
-        if(client->pers.cmd.forwardmove || client->pers.cmd.rightmove || client->pers.cmd.upmove ||
-            (client->pers.cmd.wbuttons&0x31) || (client->pers.cmd.buttons&BUTTON_ATTACK) ||
-            client->ps.pm_type==PM_DEAD || client->ps.stats[STAT_TCE_MOVEMENT_INSTABILITY]>0)
-            client->tceObjectiveActivityUntil=level.time+20000;
-    } else client->tceObjectiveActivityUntil=level.time+60000;
+void G_TCEObjectiveActivity(gclient_t *client)
+{
+    unsigned int deadline;
+
+    if (g_gametype.integer == 5 &&
+        ((client->ps.stats[STAT_TCE_WEAPON_FLAGS] |
+          client->ps.stats[STAT_TCE_FLAGS]) & 0x100)) {
+        if (!(client->pers.cmd.forwardmove || client->pers.cmd.rightmove ||
+              client->pers.cmd.upmove || (client->pers.cmd.wbuttons & 0x31) ||
+              (client->pers.cmd.buttons & BUTTON_ATTACK) ||
+              client->ps.pm_type == PM_DEAD ||
+              client->ps.stats[STAT_TCE_MOVEMENT_INSTABILITY] > 0))
+            return;
+        deadline = (unsigned int)level.time + 20000u;
+    } else {
+        deadline = (unsigned int)level.time + 60000u;
+    }
+    /* The original ADD stores the wrapped 32-bit deadline. */
+    memcpy(&client->tceObjectiveActivityUntil, &deadline, sizeof(deadline));
 }
+
 
 qboolean ClientInactivityTimer( gclient_t *client ) {
 	// OSP - modified
