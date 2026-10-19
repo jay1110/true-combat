@@ -3,6 +3,7 @@
 */
 
 #include "g_local.h"
+#include "tce_numeric.h"
 
 static char text[100000];			// <- was causing callstacks >64k
 
@@ -155,7 +156,7 @@ void G_UpdateCharacter( gclient_t *client )
         characterIndex = atoi(s);
         if (client->pers.characterIndex == characterIndex) return;
         client->pers.characterIndex = characterIndex;
-        trap_GetConfigstring(CS_CHARACTERS + characterIndex, infostring, sizeof(infostring));
+        trap_GetConfigstring(TCE_AddInt32(CS_CHARACTERS, characterIndex), infostring, sizeof(infostring));
         client->pers.character = BG_FindCharacter(infostring);
         if (!client->pers.character) {
             client->pers.character = BG_FindFreeCharacter(infostring);
