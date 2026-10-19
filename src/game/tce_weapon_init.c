@@ -109,7 +109,13 @@ int BG_InitializeWeaponDef(tce_weaponDef_t *w) {
     else if (w->maxclip < 1) w->maxclip = 1;
     w->startingClip = w->maxclip;
     if (w->startClips >= 0) {
-        w->startingAmmo = w->singleReload ? w->startClips : w->startClips * w->maxclip;
+        if (w->singleReload) {
+            w->startingAmmo = w->startClips;
+        } else {
+            /* Both originals retain the low 32 bits before the signed clamp. */
+            unsigned int ammo = (unsigned int)w->startClips * (unsigned int)w->maxclip;
+            memcpy(&w->startingAmmo, &ammo, sizeof(w->startingAmmo));
+        }
         if (w->startingAmmo > w->maxammo) w->startingAmmo = w->maxammo;
     }
     if (w->pelletCount && w->singleReload && w->maxclip < 7) w->loadoutWeight = 3;
