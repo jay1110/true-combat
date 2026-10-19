@@ -516,6 +516,14 @@ static void CG_VoiceChat_f( void ) {
 		}
 	}
 
+    /* TC:E only transmits voice from a living, active player. */
+    if (!cg.snap || (cg.snap->ps.pm_flags & PMF_FOLLOW) ||
+        cg.snap->ps.stats[STAT_HEALTH] <= 0 ||
+        cg.snap->ps.persistant[PERS_TEAM] >= TEAM_SPECTATOR ||
+        (CG_PointContents(cg.refdef.vieworg, -1) & MASK_WATER)) {
+        return;
+    }
+
 	trap_Argv( 1, chatCmd, 64 );
 
 	trap_SendConsoleCommand( va( "cmd vsay %s\n", chatCmd ) );
@@ -536,6 +544,14 @@ static void CG_TeamVoiceChat_f( void ) {
 			return;
 		}
 	}
+
+    /* TC:E only transmits team voice from a living, active player. */
+    if (!cg.snap || (cg.snap->ps.pm_flags & PMF_FOLLOW) ||
+        cg.snap->ps.stats[STAT_HEALTH] <= 0 ||
+        cg.snap->ps.persistant[PERS_TEAM] >= TEAM_SPECTATOR ||
+        (CG_PointContents(cg.refdef.vieworg, -1) & MASK_WATER)) {
+        return;
+    }
 
 	trap_Argv( 1, chatCmd, 64 );
 
