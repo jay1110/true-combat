@@ -9,6 +9,16 @@ static int IsCaliber(const tce_weaponDef_t *w, const char *name) {
     return Q_stricmp(w->caliberClass, name) == 0;
 }
 
+/* Linux i386's FCOM/JNC also takes the clamp path for unordered values.
+ * Windows tests the unordered flags and preserves the original NaN instead. */
+static int TCE_WeaponScopeExceeds(float value, float maximum) {
+#if defined(__linux__) && defined(__i386__)
+    return !(value <= maximum);
+#else
+    return value > maximum;
+#endif
+}
+
 int BG_InitializeWeaponDef(tce_weaponDef_t *w) {
     const int *table;
     int i, defaultClip;
@@ -44,21 +54,21 @@ int BG_InitializeWeaponDef(tce_weaponDef_t *w) {
         w->weaponCategory = 2;
         w->bolt = w->pump = 0;
         w->unknown_1b0 = 1;
-        if (w->scoped > 2) w->scoped = 2;
+        if (TCE_WeaponScopeExceeds(w->scoped, 2)) w->scoped = 2;
         w->unknown_1ac = 75;
     } else if (!Q_stricmp(w->weapClass, "CAR")) {
         w->characteristic = IsCaliber(w,"545x39") ? 15 : 14;
         w->weaponCategory = 3;
         w->pump = w->bolt = 0;
         w->unknown_1b0 = 1;
-        if (w->scoped > 4) w->scoped = 4;
+        if (TCE_WeaponScopeExceeds(w->scoped, 4)) w->scoped = 4;
         w->unknown_1ac = 75;
     } else if (!Q_stricmp(w->weapClass, "MBR")) {
         w->characteristic = IsCaliber(w,"762x39") ? 17 : IsCaliber(w,"762x51") ? 18 : 16;
         w->weaponCategory = 3;
         w->pump = 0;
         w->unknown_1b0 = 1;
-        if (w->scoped > 4) w->scoped = 4;
+        if (TCE_WeaponScopeExceeds(w->scoped, 4)) w->scoped = 4;
         w->unknown_1ac = 60;
     } else if (!Q_stricmp(w->weapClass, "SG")) {
         w->characteristic = IsCaliber(w,"76") ? 20 : 19;
@@ -86,7 +96,7 @@ int BG_InitializeWeaponDef(tce_weaponDef_t *w) {
             w->burst = 0;
         }
         w->fullauto = w->pump = 0;
-        if (w->scoped > 8) w->scoped = 8;
+        if (TCE_WeaponScopeExceeds(w->scoped, 8)) w->scoped = 8;
         w->unknown_1c0 = 1;
         w->unknown_1ac = 60;
     }
