@@ -4309,7 +4309,7 @@ qboolean etpro_ScriptAction_SetValues( gentity_t *ent, char *params ) {
 /* TC script actions recovered from the Windows action table at 200c62c0. */
 qboolean G_ScriptAction_Score(gentity_t *ent, char *params) {
     char *token=COM_ParseExt(&params,qfalse);
-    if (!token) G_Error("G_Scripting: score must have a parameter\n");
+    if (!token) G_Error("G_Scripting: \"score\" must have a score value\n");
     ent->tceObjectiveScore=atoi(token);
     return qtrue;
 }
@@ -4325,9 +4325,9 @@ qboolean G_ScriptAction_SetCamo(gentity_t *ent, char *params) {
 }
 qboolean G_ScriptAction_SetDemolitionTeam(gentity_t *ent, char *params) {
     char *token=COM_Parse(&params); int team;
-    if(!*token) G_Error("G_ScriptAction_SetDemolitionTeam: number parameter required\n");
+    if(!*token) G_Error("G_ScriptAction_SetDemolitionTeam: no team specified\n");
     team=atoi(token);
-    if(team<0 || team>1) G_Error("G_ScriptAction_SetDemolitionTeam: Invalid team number %d\n",team);
+    if(team<0 || team>1) G_Error("G_ScriptAction_SetDemolitionTeam: has a bad value %i\n",team);
     level.tceDemolitionTeam=team+1;
     return qtrue;
 }
@@ -4368,7 +4368,7 @@ qboolean G_ScriptAction_AddScore(gentity_t *ent, char *params) {
     char *token=COM_Parse(&params); int team;
     if(!*token) G_Error("G_ScriptAction_AddScore: number parameter required\n");
     team=atoi(token);
-    if(team<0 || team>1) G_Error("G_ScriptAction_AddScore: team parameter out of range\n");
+    if(team<0 || team>1) G_Error("G_ScriptAction_AddScore: team parameter required\n");
     token=COM_Parse(&params);
     if(!*token) G_Error("G_ScriptAction_AddScore: score parameter required\n");
     level.teamScores[team+1]+=atoi(token);
