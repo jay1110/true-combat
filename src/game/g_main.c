@@ -1,6 +1,7 @@
 #include "g_local.h"
 #include "tce_navgen.h"
 #include "tce_lua.h"
+#include "tce_numeric.h"
 #ifdef FEATURE_OMNIBOT
 #include "g_etbot_interface.h"
 #endif
@@ -3628,7 +3629,8 @@ void G_RunThink (gentity_t *ent) {
 	// OSP - If paused, push nextthink
 	if(level.match_pause != PAUSE_NONE && (ent - g_entities) >= g_maxclients.integer &&
 	  ent->nextthink > level.time && strstr(ent->classname, "DPRINTF_") == NULL) {
-		ent->nextthink += level.time - level.previousTime;
+		ent->nextthink = TCE_AddInt32(ent->nextthink,
+		    TCE_SubInt32(level.time, level.previousTime));
 	}
 
 	// RF, run scripting

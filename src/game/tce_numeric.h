@@ -18,6 +18,14 @@ static __inline int TCE_AddInt32(int left, int right) {
     return -1 - (int)(UINT_MAX - sum);
 }
 
+/* Model a native 32-bit SUB, including subtraction of INT_MIN. */
+static __inline int TCE_SubInt32(int left, int right) {
+    unsigned difference = (unsigned)left - (unsigned)right;
+    if (difference <= (unsigned)INT_MAX)
+        return (int)difference;
+    return -1 - (int)(UINT_MAX - difference);
+}
+
 /* Preserve the original branch decisions without relying on FPU status bits. */
 static __inline int TCE_FloatIsNaN(float value) {
     unsigned bits;
