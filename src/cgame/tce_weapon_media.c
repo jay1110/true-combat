@@ -10,7 +10,8 @@ static void FormatDiagnostic(char *destination, const char *format, ...) {
 }
 
 int TCE_CG_RW_ParseError(int handle, const char *format, ...) {
-    char message[4096], filename[128], diagnostic[1024];
+    static char message[4096];
+    char filename[128], diagnostic[1024];
     int line = 0;
     va_list args;
     va_start(args, format); Q_vsnprintf(message, sizeof(message), format, args); va_end(args);
