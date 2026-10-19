@@ -12,8 +12,10 @@
 // Ridah, new bounding box
 //static vec3_t	playerMins = {-15, -15, -24};
 //static vec3_t	playerMaxs = {15, 15, 32};
-vec3_t	playerMins = {-18, -18, -24};
-vec3_t	playerMaxs = {18, 18, 48};
+vec3_t	playerMins = {-14, -14, -24};
+vec3_t	playerMaxs = {14, 14, 46};
+vec3_t	playerMinsNew = {-16, -16, -30};
+vec3_t	playerMaxsNew = {16, 16, 57};
 // done.
 
 /*QUAKED info_player_deathmatch (1 0 1) (-18 -18 -24) (18 18 48)
@@ -1792,11 +1794,9 @@ void ClientSpawn( gentity_t *ent, qboolean revived, qboolean hostage )
 	
 	VectorCopy( playerMins, ent->r.mins );
 	VectorCopy( playerMaxs, ent->r.maxs );
-    {
-        /* ClientSpawn2004cd90, ps+0x3dc..0x3f0. The stock SDK hull is wider. */
-        float halfWidth = g_newbbox.integer ? 16.0f : 14.0f;
-        VectorSet(ent->r.mins, -halfWidth, -halfWidth, g_newbbox.integer ? -30.0f : -24.0f);
-        VectorSet(ent->r.maxs, halfWidth, halfWidth, g_newbbox.integer ? 57.0f : 46.0f);
+    if (g_newbbox.integer) {
+        VectorCopy(playerMinsNew, ent->r.mins);
+        VectorCopy(playerMaxsNew, ent->r.maxs);
     }
 
 

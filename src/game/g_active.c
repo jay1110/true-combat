@@ -49,8 +49,10 @@ void P_DamageFeedback( gentity_t *player ) {
 		vectoangles( client->damage_from, angles );
 		/* Windows20044849/20044861 multiply the stored double256/360
 		 * before truncation; do not introduce an intermediate division. */
-		client->ps.damagePitch = (double)angles[PITCH] * (256.0 / 360.0);
-		client->ps.damageYaw = (double)angles[YAW] * (256.0 / 360.0);
+		client->ps.damagePitch = TCE_TruncateNativeInteger(
+		    (double)angles[PITCH] * (256.0 / 360.0));
+		client->ps.damageYaw = TCE_TruncateNativeInteger(
+		    (double)angles[YAW] * (256.0 / 360.0));
 	}
 
 	// play an apropriate pain sound
@@ -1764,7 +1766,7 @@ qboolean StuckInClient( gentity_t *self ) {
 	return(qfalse);
 }
 
-extern vec3_t	playerMins, playerMaxs;
+extern vec3_t	playerMins, playerMaxs, playerMinsNew, playerMaxsNew;
 #define WR_PUSHAMOUNT 25
 
 void WolfRevivePushEnt( gentity_t *self, gentity_t *other ) {
@@ -1814,11 +1816,11 @@ void WolfReviveBbox( gentity_t *self ) {
 
 	/* Original TC playerMins/Maxs and newBBox alternatives200bd794..7c0. */
     if (g_newbbox.integer) {
-        VectorSet(mins, -16.f, -16.f, -30.f);
-        VectorSet(maxs, 16.f, 16.f, 57.f);
+        VectorCopy(playerMinsNew, mins);
+        VectorCopy(playerMaxsNew, maxs);
     } else {
-        VectorSet(mins, -14.f, -14.f, -24.f);
-        VectorSet(maxs, 14.f, 14.f, 46.f);
+        VectorCopy(playerMins, mins);
+        VectorCopy(playerMaxs, maxs);
     }
     VectorAdd(self->r.currentOrigin, mins, mins);
     VectorAdd(self->r.currentOrigin, maxs, maxs);
