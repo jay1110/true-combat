@@ -36,9 +36,30 @@ int TCE_CG_ParseWeaponConfig(const char *filename, tce_weaponInfo_t *info) {
         animation->firstFrame = atoi(COM_Parse(&cursor));
         animation->numFrames = atoi(COM_Parse(&cursor));
         fps = atof(COM_Parse(&cursor));
-        if (fps == 0) fps = 1;
+#if defined(__linux__) && defined(__i386__)
+        {
+            /* The original stores FPS as binary32 before x87 arithmetic. */
+            volatile float storedFps = (float)fps;
+            long double nativeFps = (long double)storedFps;
+            long double duration;
+            int frameLerp;
+
+            /* FCOM's equal flag is also set for an unordered comparison. */
+            if (nativeFps == 0.0L || nativeFps != nativeFps)
+                nativeFps = 1.0L;
+            duration = (1.0L / nativeFps) * 1000.0L;
+            /* Masked FISTP returns INT_MIN if truncation is out of range. */
+            if (duration <= -2147483649.0L || duration >= 2147483648.0L)
+                frameLerp = -2147483647 - 1;
+            else
+                frameLerp = (int)duration;
+            animation->frameLerp = animation->initialLerp = frameLerp;
+        }
+#else
+        if (fps == 0 || fps != fps) fps = 1;
         /* Windows keeps atof's double in x87; no intermediate float cast. */
         animation->frameLerp = animation->initialLerp = (int)(1000.0 / fps);
+#endif
         animation->loopFrames = atoi(COM_Parse(&cursor));
         if (animation->loopFrames > animation->numFrames) animation->loopFrames = animation->numFrames;
         else if (animation->loopFrames < 0) animation->loopFrames = 0;
