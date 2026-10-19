@@ -4214,35 +4214,9 @@ Perform all drawing needed to completely fill the screen
 */
 /* Original CG_DrawActive 30022370 portal-scoped second scene. The parent
  * still needs a complete differential comparison of both rendering passes. */
-/* TC viewport stores use __ftol's signed64 conversion and low EAX. */
+/* Windows keeps the low word of a signed64 conversion; Linux converts to int32. */
 static int CG_TCEViewportInteger(float viewportValue) {
-#if defined(_MSC_VER) && defined(_M_IX86)
-    unsigned short viewportCW, viewportTruncateCW;
-    __int64 viewportInteger;
-    __asm {
-        fld dword ptr viewportValue
-        fwait
-        fnstcw word ptr viewportCW
-        fwait
-        mov ax, word ptr viewportCW
-        or ah, 0ch
-        mov word ptr viewportTruncateCW, ax
-        fldcw word ptr viewportTruncateCW
-        fistp qword ptr viewportInteger
-        fldcw word ptr viewportCW
-    }
-    return (int)viewportInteger;
-#elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-    struct { unsigned short saved,truncate; int result; } convert;
-    __asm__ volatile (
-        "flds %3\n\tfnstcw %1\n\tmovzwl %1,%%eax\n\t"
-        "orw $0x0c00,%%ax\n\tmovw %%ax,%2\n\tfldcw %2\n\t"
-        "fistpl %0\n\tfldcw %1"
-        : "=m" (convert.result), "=m" (convert.saved), "=m" (convert.truncate)
-        : "m" (viewportValue) : "eax", "st", "cc"
-    );
-    return convert.result;
-#elif defined(_WIN32)
+#if defined(_WIN32)
     unsigned int viewportBits; int viewportResult;
     if (!((double)viewportValue >= -9223372036854775808.0 &&
           (double)viewportValue < 9223372036854775808.0)) return 0;
@@ -4320,15 +4294,6 @@ static void CG_DrawTCEScopeScene(void) {
     float scopeSavedViewport[4];
     float scopeSavedFov[2];
     vec3_t scopeSavedAxis[3];
-#if defined(_MSC_VER) && defined(_M_IX86)
-    float *scopeZoom;
-    enum { ScopeCurrentRefdef = offsetof(cg_t,refdef_current),
-        ScopeRefX = offsetof(refdef_t,x), ScopeRefY = offsetof(refdef_t,y),
-        ScopeRefWidth = offsetof(refdef_t,width), ScopeRefHeight = offsetof(refdef_t,height),
-        ScopeRefFovX = offsetof(refdef_t,fov_x), ScopeRefFovY = offsetof(refdef_t,fov_y),
-        ScopeRefTime = offsetof(refdef_t,time) };
-    static const float scopeFovScale = 0.10563380271196365f;
-#endif
     int weapon=cg.predictedPlayerState.weapon;
     if(!cg_portalScopes.integer || cg.renderingThirdPerson || weapon<0 ||
        weapon>=TCE_MAX_WEAPONS)return;
@@ -4428,29 +4393,16 @@ static void CG_DrawTCEScopeScene(void) {
     cg.refdef_current->x=CG_TCEViewportInteger(x);cg.refdef_current->y=CG_TCEViewportInteger(y);
     cg.refdef_current->width=CG_TCEViewportInteger(w);cg.refdef_current->height=CG_TCEViewportInteger(h);
 #if defined(_MSC_VER) && defined(_M_IX86)
-    scopeZoom=&weaponDef[weapon].scoped;
-    __asm {
-        fld scopeSize
-        fmul dword ptr [scopeFovScale]
-        mov eax,scopeZoom
-        fdiv dword ptr [eax]
-        mov edx,dword ptr [cg + ScopeCurrentRefdef]
-        fstp dword ptr [edx + ScopeRefFovX]
-        mov edx,dword ptr [cg + ScopeCurrentRefdef]
-        mov eax,dword ptr [edx + ScopeRefFovX]
-        mov dword ptr [edx + ScopeRefFovY],eax
-    }
+    cg.refdef_current->fov_x = (float)(((long double)scopeSize *
+        (long double)0.10563380271196365f) / weaponDef[weapon].scoped);
+    memcpy(&cg.refdef_current->fov_y, &cg.refdef_current->fov_x, sizeof(float));
 #elif defined(__GNUC__) && defined(__i386__) && defined(__linux__)
     {
-        float product;
-        const float factor=0.10563380271196365f;
-        __asm__ volatile (
-            "flds %2\n\tfmuls %3\n\tfstps %0\n\tfld1\n\tfdivs %4\n\t"
-            "fmuls %0\n\tfstps %1"
-            : "=m" (product), "=m" (cg.refdef_current->fov_x)
-            : "m" (scopeSize), "m" (factor), "m" (weaponDef[weapon].scoped) : "st"
-        );
-        memcpy(&cg.refdef_current->fov_y,&cg.refdef_current->fov_x,sizeof(float));
+        float product = (float)((long double)scopeSize * 0.10563380271196365f);
+        long double reciprocal = 1.0L / weaponDef[weapon].scoped;
+
+        cg.refdef_current->fov_x = (float)(reciprocal * product);
+        memcpy(&cg.refdef_current->fov_y, &cg.refdef_current->fov_x, sizeof(float));
     }
 #else
     cg.refdef_current->fov_x=(scopeSize*0.10563380271196365f)/weaponDef[weapon].scoped;
@@ -4465,34 +4417,13 @@ static void CG_DrawTCEScopeScene(void) {
     CG_PB_RenderPolyBuffers();CG_DrawMiscGamemodels();CG_DrawMiscClientsprites();
     CG_DrawScreenFade();
     trap_R_RenderScene(cg.refdef_current);
-#if defined(_MSC_VER) && defined(_M_IX86)
-    cg.refdef_current->x=CG_TCEViewportInteger(scopeSavedViewport[0]);
-    cg.refdef_current->y=CG_TCEViewportInteger(scopeSavedViewport[1]);
-    cg.refdef_current->width=CG_TCEViewportInteger(scopeSavedViewport[2]);
-    cg.refdef_current->height=CG_TCEViewportInteger(scopeSavedViewport[3]);
-    __asm {
-        fld dword ptr scopeSavedFov[0]
-        mov eax,dword ptr [cg + ScopeCurrentRefdef]
-        fstp dword ptr [eax + ScopeRefFovX]
-        fld dword ptr scopeSavedFov[4]
-        mov ecx,dword ptr [cg + ScopeCurrentRefdef]
-        fstp dword ptr [ecx + ScopeRefFovY]
-    }
-    AxisCopy(scopeSavedAxis,cg.refdef_current->viewaxis);
-#else
-    cg.refdef_current->x=CG_TCEViewportInteger(scopeSavedViewport[0]);
-    cg.refdef_current->y=CG_TCEViewportInteger(scopeSavedViewport[1]);
-    cg.refdef_current->width=CG_TCEViewportInteger(scopeSavedViewport[2]);
-    cg.refdef_current->height=CG_TCEViewportInteger(scopeSavedViewport[3]);
-    memcpy(&cg.refdef_current->fov_x,&scopeSavedFov[0],sizeof(float));
-#if defined(__GNUC__) && defined(__i386__) && defined(__linux__)
-    __asm__ volatile ("flds %1\n\tfstps %0" : "=m" (cg.refdef_current->fov_y)
-                      : "m" (scopeSavedFov[1]) : "st");
-#else
-    memcpy(&cg.refdef_current->fov_y,&scopeSavedFov[1],sizeof(float));
-#endif
-    AxisCopy(scopeSavedAxis,cg.refdef_current->viewaxis);
-#endif
+    cg.refdef_current->x = CG_TCEViewportInteger(scopeSavedViewport[0]);
+    cg.refdef_current->y = CG_TCEViewportInteger(scopeSavedViewport[1]);
+    cg.refdef_current->width = CG_TCEViewportInteger(scopeSavedViewport[2]);
+    cg.refdef_current->height = CG_TCEViewportInteger(scopeSavedViewport[3]);
+    memcpy(&cg.refdef_current->fov_x, &scopeSavedFov[0], sizeof(float));
+    memcpy(&cg.refdef_current->fov_y, &scopeSavedFov[1], sizeof(float));
+    AxisCopy(scopeSavedAxis, cg.refdef_current->viewaxis);
     cg.tcePortalScopeRendering=qfalse;
     if(cg.tcePortalScopeEntity.hModel) {
         memset(&modelView,0,sizeof(modelView));
@@ -4507,32 +4438,12 @@ static void CG_DrawTCEScopeScene(void) {
             AxisCopy((vec3_t *)((byte *)cg.refdef_current+offsetof(refdef_t,vieworg)),
                      (vec3_t *)((byte *)&modelView+offsetof(refdef_t,vieworg)));
         }
-#if defined(_MSC_VER) && defined(_M_IX86)
-        __asm {
-            mov eax,dword ptr [cg + ScopeCurrentRefdef]
-            lea edx,modelView
-            mov ecx,dword ptr [eax + ScopeRefFovX]
-            mov dword ptr [edx + ScopeRefFovX],ecx
-            mov ecx,dword ptr [eax + ScopeRefFovY]
-            mov dword ptr [edx + ScopeRefFovY],ecx
-            mov ecx,dword ptr [eax + ScopeRefX]
-            mov dword ptr [edx + ScopeRefX],ecx
-            mov ecx,dword ptr [eax + ScopeRefY]
-            mov dword ptr [edx + ScopeRefY],ecx
-            mov ecx,dword ptr [eax + ScopeRefWidth]
-            mov dword ptr [edx + ScopeRefWidth],ecx
-            mov ecx,dword ptr [eax + ScopeRefHeight]
-            mov dword ptr [edx + ScopeRefHeight],ecx
-            mov ecx,dword ptr [eax + ScopeRefTime]
-            mov dword ptr [edx + ScopeRefTime],ecx
-        }
-#else
         memcpy(&modelView.fov_x,&cg.refdef_current->fov_x,sizeof(float));
         memcpy(&modelView.fov_y,&cg.refdef_current->fov_y,sizeof(float));
         modelView.x=cg.refdef_current->x;modelView.y=cg.refdef_current->y;
         modelView.width=cg.refdef_current->width;modelView.height=cg.refdef_current->height;
         modelView.time=cg.refdef_current->time;
-#endif
+
         trap_R_ClearScene();trap_R_AddRefEntityToScene(&cg.tcePortalScopeEntity);
         trap_R_RenderScene(&modelView);
     }
