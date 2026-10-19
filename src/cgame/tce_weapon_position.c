@@ -218,6 +218,43 @@ static void TCE_WeaponPositionFinalAngles(const tce_weaponPosition_t *s, float *
         angles[i] = (float)((long double)angles[i] + amount);
 }
 
+static void TCE_WeaponPositionLanding(const tce_weaponPosition_t *s, float *origin) {
+    unsigned int elapsed;
+    int delta;
+    long double amount;
+
+    if (s->aiming && s->weapon != 30 && s->weapon != 9 && s->weapon != 4 &&
+        weaponDef[s->weapon].scoped > 1.0f && s->scopeEnabled) return;
+    elapsed = (unsigned int)s->time - (unsigned int)s->landTime;
+    memcpy(&delta, &elapsed, sizeof(delta));
+    if (delta < 150) {
+        amount = (long double)s->landChange * delta * (long double)(1.0 / 600.0);
+    } else if (delta < 450) {
+        amount = (long double)(450 - delta) * s->landChange * (long double)(1.0 / 1200.0);
+    } else {
+        return;
+    }
+    origin[2] = (float)(amount + origin[2]);
+}
+
+static void TCE_WeaponPositionBob(const tce_weaponPosition_t *s, float *angles) {
+    float scale = 1.0f;
+    long double signedSpeed = (long double)s->speed;
+    long double amount;
+
+    if (s->bobCycle & 1) signedSpeed = -signedSpeed;
+    if (s->aiming && s->weapon != 30 && s->weapon != 9 && s->weapon != 4) {
+        scale = 0.15f;
+        if (weaponDef[s->weapon].scoped > 1.0f && s->scopeEnabled) scale = 0.0f;
+    }
+    amount = (long double)s->bobSin * signedSpeed * scale * (long double)0.005;
+    angles[2] = (float)(amount + angles[2]);
+    amount = (long double)s->bobSin * signedSpeed * scale * (long double)0.01;
+    angles[1] = (float)(amount + angles[1]);
+    amount = (long double)s->bobSin * s->speed * scale * (long double)0.005;
+    angles[0] = (float)(amount + angles[0]);
+}
+
 typedef char tceWeaponPositionNativeLayout[
     sizeof(float) == 4 && sizeof(int) == 4 &&
     offsetof(tce_weaponPosition_t, viewAxis) ==
@@ -638,52 +675,7 @@ sway30073f7e:
         FADD dword ptr [EDI] // 30074047
         FSTP dword ptr [EDI] // 30074049
 sway3007404b:
-        FLD dword ptr [EBP + swayState_bobSin] // 3007404b
-        FMUL ST(0),ST(1) // 30074051
-        FMUL dword ptr [ESP + 0x10] // 30074055
-        FMUL qword ptr [swayConst30092ad0] // 30074059
-        FADD dword ptr [EDI + 0x8] // 3007405f
-        FSTP dword ptr [EDI + 0x8] // 30074062
-        FLD dword ptr [EBP + swayState_bobSin] // 30074065
-        FMUL ST(0),ST(1) // 3007406b
-        FMUL dword ptr [ESP + 0x10] // 3007406d
-        FMUL qword ptr [swayConst30092c70] // 30074071
-        FADD dword ptr [EDI + 0x4] // 30074077
-        FSTP dword ptr [EDI + 0x4] // 3007407a
         FSTP ST(0) // 3007407d
-        FLD dword ptr [EBP + swayState_bobSin] // 3007407f
-        FMUL dword ptr [EBP + swayState_speed] // 30074085
-        FMUL dword ptr [ESP + 0x10] // 3007408b
-        FMUL qword ptr [swayConst30092ad0] // 3007408f
-        FADD dword ptr [EDI] // 30074095
-        FSTP dword ptr [EDI] // 30074097
-        FLD dword ptr [ESP + 0x10] // 30074099
-        FCOMP dword ptr [swayConst300920e0] // 3007409d
-        FNSTSW AX // 300740a3
-        TEST AH,0x41 // 300740a5
-        JNZ sway300740fc // 300740a8
-        MOV EAX,[EBP + swayState_time] // 300740aa
-        MOV EDX,dword ptr [EBP + swayState_landTime] // 300740af
-        SUB EAX,EDX // 300740b5
-        CMP EAX,0x96 // 300740b7
-        MOV dword ptr [ESP + 0x30],EAX // 300740bc
-        JGE sway300740d4 // 300740c0
-        FLD dword ptr [EBP + swayState_landChange] // 300740c2
-        FIMUL dword ptr [ESP + 0x30] // 300740c8
-        FMUL qword ptr [swayConst30093028] // 300740cc
-        JMP sway300740f6 // 300740d2
-sway300740d4:
-        CMP EAX,0x1c2 // 300740d4
-        JGE sway300740fc // 300740d9
-        MOV ECX,0x1c2 // 300740db
-        SUB ECX,EAX // 300740e0
-        MOV dword ptr [ESP + 0x30],ECX // 300740e2
-        FILD dword ptr [ESP + 0x30] // 300740e6
-        FMUL dword ptr [EBP + swayState_landChange] // 300740ea
-        FMUL qword ptr [swayConst30093020] // 300740f0
-sway300740f6:
-        FADD dword ptr [ESI + 0x8] // 300740f6
-        FSTP dword ptr [ESI + 0x8] // 300740f9
 sway300740fc:
         ADD ESP,0x40
         POP EBP
@@ -877,6 +869,8 @@ void TCE_CG_CalculateWeaponPosition(tce_weaponPosition_t *s,float *origin,float 
     TCE_WeaponPositionRecoil(s, origin, angles);
     TCE_WeaponPositionFiremode(s, origin, angles);
     TCE_WeaponPositionNative(s,origin,angles);
+    TCE_WeaponPositionBob(s, angles);
+    TCE_WeaponPositionLanding(s, origin);
     TCE_WeaponPositionFinalAngles(s, angles);
     VectorMA(angles, -1.0, s->kickAngles, angles);
 #else
