@@ -7,6 +7,7 @@ int BG_ParseGearDef(const char *primary, const char *fallback, tce_gearDef_t *de
     int handle, weapon = 0, i;
     pc_token_t token;
     char value[64];
+    const char *setting;
     vec3_t skill;
     handle = trap_PC_LoadSource(primary);
     if (!handle) handle = trap_PC_LoadSource(fallback);
@@ -46,12 +47,14 @@ int BG_ParseGearDef(const char *primary, const char *fallback, tce_gearDef_t *de
                 } else if (!Q_stricmp(token.string, "team")) {
                     if (!PC_String_ParseNoAlloc(handle, value, 64))
                         return TCE_PWF_ParseError(handle, "expected team name");
-                    def->team[weapon] = !Q_stricmp(value, "terrorists") ? 0 :
-                        !Q_stricmp(value, "specops") ? 1 : 2;
+                    setting = va("%s", value);
+                    def->team[weapon] = !Q_stricmp(setting, "terrorists") ? 0 :
+                        !Q_stricmp(setting, "specops") ? 1 : 2;
                 } else if (!Q_stricmp(token.string, "slot")) {
                     if (!PC_String_ParseNoAlloc(handle, value, 64))
                         return TCE_PWF_ParseError(handle, "expected slot name");
-                    def->slot[weapon] = !Q_stricmp(value, "secondary") ? 2 : 1;
+                    setting = va("%s", value);
+                    def->slot[weapon] = !Q_stricmp(setting, "secondary") ? 2 : 1;
                 } else if (!Q_stricmp(token.string, "requiredSkill")) {
                     if (!PC_Vec_Parse(handle, &skill))
                         return TCE_PWF_ParseError(handle, "expected 3 requiredSkill values");
