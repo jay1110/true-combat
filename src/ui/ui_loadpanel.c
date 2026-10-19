@@ -322,7 +322,7 @@ const char *UI_DownloadInfo(const char *downloadName)
 
 	if (downloadCount < 4096 || !downloadTime)
 	{
-		s = va("%s\n %s\n%s\n\n%s\n estimating...\n\n%s\n\n%s copied", dlText, ds, totalSizeBuf,
+		s = va("%s, %s %s, %s estimating...\n%s, %s copied", dlText, ds, totalSizeBuf,
 		       etaText,
 		       xferText,
 		       dlSizeBuf);
@@ -368,7 +368,7 @@ const char *UI_DownloadInfo(const char *downloadName)
 
 		if (xferRate)
 		{
-			s = va("%s\n %s\n%s\n\n%s\n %s\n\n%s\n %s/sec\n\n%s copied", dlText, ds, totalSizeBuf,
+			s = va("%s, %s %s, %s, %s, %s\n %s/sec, %s copied", dlText, ds, totalSizeBuf,
 			       etaText, dlTimeBuf,
 			       xferText, xferRateBuf,
 			       dlSizeBuf);
@@ -377,14 +377,14 @@ const char *UI_DownloadInfo(const char *downloadName)
 		{
 			if (downloadSize)
 			{
-				s = va("%s\n %s\n%s\n\n%s\n estimating...\n\n%s\n\n%s copied", dlText, ds, totalSizeBuf,
+				s = va("%s, %s %s, %s estimating...\n%s, %s copied", dlText, ds, totalSizeBuf,
 				       etaText,
 				       xferText,
 				       dlSizeBuf);
 			}
 			else
 			{
-				s = va("%s\n %s\n\n%s\n estimating...\n\n%s\n\n%s copied", dlText, ds,
+				s = va("%s, %s, %s estimating...\n%s, %s copied", dlText, ds,
 				       etaText,
 				       xferText,
 				       dlSizeBuf);
