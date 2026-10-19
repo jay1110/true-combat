@@ -255,436 +255,91 @@ static void TCE_WeaponPositionBob(const tce_weaponPosition_t *s, float *angles) 
     angles[0] = (float)(amount + angles[0]);
 }
 
-typedef char tceWeaponPositionNativeLayout[
-    sizeof(float) == 4 && sizeof(int) == 4 &&
-    offsetof(tce_weaponPosition_t, viewAxis) ==
-        offsetof(tce_weaponPosition_t, viewOrigin) + 3 * sizeof(float) ? 1 : -1];
-/* Initial view and posture are handled by the C helpers above.
- * The remaining Windows motion schedule still needs conversion to C.
- * State offsets refer to the local snapshot, not original cg_t addresses. */
-enum {
-    swayState_viewAngles = offsetof(tce_weaponPosition_t, viewAngles),
-    swayState_thirdPerson = offsetof(tce_weaponPosition_t, thirdPerson),
-    swayState_weaponState = offsetof(tce_weaponPosition_t, weaponState),
-    swayState_mountedPitch = offsetof(tce_weaponPosition_t, mountedPitch),
-    swayState_postureModified = offsetof(tce_weaponPosition_t, postureModified),
-    swayState_proneMovingTime = offsetof(tce_weaponPosition_t, proneMovingTime),
-    swayState_flags_3407dfb0 = offsetof(tce_weaponPosition_t, flags_3407dfb0),
-    swayState_stanceTime = offsetof(tce_weaponPosition_t, stanceTime),
-    swayState_pmFlags = offsetof(tce_weaponPosition_t, pmFlags),
-    swayState_duckTime = offsetof(tce_weaponPosition_t, duckTime),
-    swayState_lean = offsetof(tce_weaponPosition_t, lean),
-    swayState_leanTime = offsetof(tce_weaponPosition_t, leanTime),
-    swayState_shotTime = offsetof(tce_weaponPosition_t, shotTime),
-    swayState_count_3407dff8 = offsetof(tce_weaponPosition_t, count_3407dff8),
-    swayState_firemodeTime = offsetof(tce_weaponPosition_t, firemodeTime),
-    swayState_viewOrigin = offsetof(tce_weaponPosition_t, viewOrigin),
-    swayState_time = offsetof(tce_weaponPosition_t, time),
-    swayState_weapon = offsetof(tce_weaponPosition_t, weapon),
-    swayState_bobCycle = offsetof(tce_weaponPosition_t, bobCycle),
-    swayState_speed = offsetof(tce_weaponPosition_t, speed),
-    swayState_aiming = offsetof(tce_weaponPosition_t, aiming),
-    swayState_scopeEnabled = offsetof(tce_weaponPosition_t, scopeEnabled),
-    swayState_swayTime = offsetof(tce_weaponPosition_t, swayTime),
-    swayState_priorForward = offsetof(tce_weaponPosition_t, priorForward),
-    swayState_stepTime = offsetof(tce_weaponPosition_t, stepTime),
-    swayState_eFlags = offsetof(tce_weaponPosition_t, eFlags),
-    swayState_velocity = offsetof(tce_weaponPosition_t, velocity),
-    swayState_proneTime = offsetof(tce_weaponPosition_t, proneTime),
-    swayState_stepChange = offsetof(tce_weaponPosition_t, stepChange),
-    swayState_scale_3407dfbc = offsetof(tce_weaponPosition_t, scale_3407dfbc),
-    swayState_scale_3407dfc0 = offsetof(tce_weaponPosition_t, scale_3407dfc0),
-    swayState_swayHorizontal = offsetof(tce_weaponPosition_t, swayHorizontal),
-    swayState_swayVertical = offsetof(tce_weaponPosition_t, swayVertical),
-    swayState_bobSin = offsetof(tce_weaponPosition_t, bobSin),
-    swayState_viewAxis = offsetof(tce_weaponPosition_t, viewAxis),
-    swayState_landTime = offsetof(tce_weaponPosition_t, landTime),
-    swayState_landChange = offsetof(tce_weaponPosition_t, landChange),
-    swayState_gunViewAngles = offsetof(tce_weaponPosition_t, gunViewAngles),
-    swayState_developer = offsetof(tce_weaponPosition_t, developer),
-    swayState_developerAngles = offsetof(tce_weaponPosition_t, developerAngles),
-    swayState_tacticalScale = offsetof(tce_weaponPosition_t, tacticalScale),
-    swayState_tacticalPitch = offsetof(tce_weaponPosition_t, tacticalPitch),
-    swayState_tacticalYaw = offsetof(tce_weaponPosition_t, tacticalYaw),
-    swayState_kickAngles = offsetof(tce_weaponPosition_t, kickAngles),
-    swayWeaponStride = sizeof(tce_weaponDef_t),
-    swayWeaponNoTacMode = offsetof(tce_weaponDef_t, noTacMode),
-    swayWeaponUsesRecoil = offsetof(tce_weaponDef_t, usesRecoilAnimMod),
-    swayWeaponPump = offsetof(tce_weaponDef_t, pump),
-    swayWeaponSemiauto = offsetof(tce_weaponDef_t, semiauto),
-    swayWeaponUsesPistol = offsetof(tce_weaponDef_t, usesPistolAnimMod),
-    swayWeaponScoped = offsetof(tce_weaponDef_t, scoped),
-    swayWeaponLimit = offsetof(tce_weaponDef_t, unknown_0f8) + 3 * sizeof(int)
-};
-static const unsigned int swayConst300922b4 = 0x3f800000u;
-static const unsigned int swayConst300924d8 = 0x3a83126fu;
-static const unsigned int swayConst30092f8c = 0x3ba3d70au;
-static const unsigned int swayConst30092a00 = 0x3dcccccdu;
-static const unsigned int swayConst30092d74 = 0x443b8000u;
-static const unsigned int swayConst300928b4 = 0x437a0000u;
-static const unsigned int swayConst30093030 = 0x3ada740eu;
-static const unsigned int swayConst300922b8 = 0x3f000000u;
-static const unsigned int swayConst300923ec = 0x40400000u;
-static const unsigned int swayConst30092a30[2] = { 0x9999999au, 0x3fc99999u };
-static const unsigned int swayConst30092520 = 0x3dcccccdu;
-static const unsigned int swayConst30092c40 = 0x3f68ba2eu;
-static const unsigned int swayConst30092490 = 0x3e800000u;
-static const unsigned int swayConst30092ad0[2] = { 0x47ae147bu, 0x3f747ae1u };
-static const unsigned int swayConst30092c70[2] = { 0x47ae147bu, 0x3f847ae1u };
-static const unsigned int swayConst300920e0 = 0x00000000u;
-static const unsigned int swayConst30093028[2] = { 0xb4e81b4fu, 0x3f5b4e81u };
-static const unsigned int swayConst30093020[2] = { 0xb4e81b4fu, 0x3f4b4e81u };
-static const unsigned int swayConst300923fc = 0x44fa0000u;
-static const unsigned int swayConst300923f8 = 0x3c23d70au;
-static const unsigned int swayConst30092318[2] = { 0xd2f1a9fcu, 0x3f50624du };
-static const unsigned int swayConst300924e0 = 0x42a00000u;
-static const unsigned int swayConst30092858[2] = { 0xaaaaaaabu, 0x3feaaaaau };
-static const unsigned int swayConst30092488 = 0x43480000u;
-static const unsigned int swayConst30093038 = 0xc1c80000u;
-static const unsigned int swayConst3009248c = 0x40a00000u;
-static const unsigned int swayConst30092ff0 = 0xc0a00000u;
-static const unsigned int swayConst300923d0 = 0x42700000u;
-static const unsigned int swayConst300924d0 = 0x41200000u;
-static const unsigned int swayConst30092398 = 0x41f00000u;
-static const unsigned int swayConst300923d4 = 0xc1a00000u;
-static const unsigned int swayConst300922ec = 0x3ba3d70au;
-static const unsigned int swayConst300923b8 = 0x3b5a740eu;
-static const unsigned int swayConst30092950[2] = { 0x60000000u, 0x400921fbu };
-static const unsigned int swayConst30093034 = 0xc0800000u;
-static const unsigned int swayConst300922bc = 0x40800000u;
-static const unsigned int swayConst30092a68 = 0x3b03126fu;
-static const unsigned int swayConst30092c30 = 0x3ca3d70au;
-static const unsigned int swayConst30092f88 = 0x3aaec33eu;
-static const unsigned int swayConst30092310 = 0x40c90fdbu;
-static const unsigned int swayConst300922c8[2] = { 0x00000000u, 0x3ff00000u };
-static const unsigned int swayConst300922e0[2] = { 0x00000000u, 0x3fe00000u };
-static const unsigned int swayConst30092c28 = 0xc0000000u;
-static __declspec(naked) void TCE_WeaponPositionNative(
-    tce_weaponPosition_t *s, float *origin, float *angles) {
-    __asm {
-        PUSH EBX
-        PUSH ESI
-        PUSH EDI
-        PUSH EBP
-        MOV EBP,dword ptr [ESP + 20]
-        MOV ESI,dword ptr [ESP + 24]
-        MOV EDI,dword ptr [ESP + 28]
-        SUB ESP,0x40
-        MOV dword ptr [ESP + 0x10],0x3f800000
-        MOV dword ptr [ESP + 0x14],0x3f800000
-        MOV EBX,dword ptr [EBP + swayState_time] // 30073b37
-        MOV ECX,dword ptr [EBP + swayState_weapon] // 30073c38
+static void TCE_WeaponPositionSway(tce_weaponPosition_t *s, float *origin, float *angles) {
+    const tce_weaponDef_t *w = &weaponDef[s->weapon];
+    unsigned int elapsed;
+    int delta, stepDelta, proneDelta, i;
+    float target[2], strength;
+    long double dt, difference[3], rightDelta, upDelta, rightVelocity, forwardVelocity;
+    long double limit, shotScale, vertical, amount;
 
-        MOV AL,[EBP + swayState_bobCycle] // 30073c3e
-        FLD dword ptr [EBP + swayState_speed] // 30073c43
-        TEST AL,0x1 // 30073c49
-        JZ sway30073c4f // 30073c4b
-        FCHS // 30073c4d
-sway30073c4f:
-        CMP dword ptr [EBP + swayState_aiming],0 // 30073c55
-        JZ sway30073ca8 // 30073c57
-        CMP ECX,0x1e // 30073c59
-        JZ sway30073ca8 // 30073c5c
-        CMP ECX,0x9 // 30073c5e
-        JZ sway30073ca8 // 30073c61
-        CMP ECX,0x4 // 30073c63
-        JZ sway30073ca8 // 30073c66
-        IMUL EAX,ECX,swayWeaponStride // 30073c68
-        MOV dword ptr [ESP + 0x10],0x3e19999a // 30073c6b
-        MOV dword ptr [ESP + 0x14],0x0 // 30073c78
-        FLD dword ptr [EAX + weaponDef + swayWeaponScoped] // 30073c83
-        FCOMP dword ptr [swayConst300922b4] // 30073c8a
-        FNSTSW AX // 30073c90
-        TEST AH,0x41 // 30073c92
-        JNZ sway30073ca8 // 30073c95
-        MOV EAX,[EBP + swayState_scopeEnabled] // 30073c97
-        TEST EAX,EAX // 30073c9c
-        JZ sway30073ca8 // 30073c9e
-        MOV dword ptr [ESP + 0x10],0x0 // 30073ca0
-sway30073ca8:
-        IMUL EDX,ECX,swayWeaponStride // 30073ca8
-        FLD dword ptr [EDX + weaponDef + swayWeaponScoped] // 30073cb6
-        FCOMP dword ptr [swayConst300922b4] // 30073cbc
-        FNSTSW AX // 30073cc2
-        TEST AH,0x41 // 30073cc4
-        JNZ sway30073cda // 30073cc7
-        CMP dword ptr [EBP + swayState_aiming],0 // 30073cc9
-        JZ sway30073cda // 30073ccb
-        MOV EAX,[EBP + swayState_scopeEnabled] // 30073ccd
-        TEST EAX,EAX // 30073cd2
-        JNZ sway3007404b // 30073cd4
-sway30073cda:
-        MOV ECX,dword ptr [EBP + swayState_swayTime] // 30073cda
-        SUB ECX,EBX // 30073ce0
-        MOV dword ptr [ESP + 0x38],ECX // 30073ce2
-        FILD dword ptr [ESP + 0x38] // 30073ce6
-        FMUL dword ptr [swayConst300924d8] // 30073cea
-        FCOM dword ptr [swayConst30092f8c] // 30073cf0
-        FNSTSW AX // 30073cf6
-        TEST AH,0x1 // 30073cf8
-        JZ sway30073d05 // 30073cfb
-        FSTP ST(0) // 30073cfd
-        FLD dword ptr [swayConst30092f8c] // 30073cff
-sway30073d05:
-        LEA ECX,[EBP + swayState_viewAxis] // 30073d05
-        MOV dword ptr [EBP + swayState_swayTime],EBX // 30073d0b
-        FLD dword ptr [ECX + 0] // 30073d11
-        FSUB dword ptr [EBP + swayState_priorForward] // 30073d14
-        FLD dword ptr [ECX + 4] // 30073d1a
-        FSUB dword ptr [EBP + swayState_priorForward + 4] // 30073d1d
-        MOV EAX,dword ptr [ECX + 0] // 30073d23
-        FLD dword ptr [ECX + 8] // 30073d26
-        FSUB dword ptr [EBP + swayState_priorForward + 8] // 30073d29
-        MOV [EBP + swayState_priorForward],EAX // 30073d2f
-        MOV EAX,dword ptr [ECX + 4] // 30073d34
-        MOV [EBP + swayState_priorForward + 4],EAX // 30073d37
-        MOV EAX,dword ptr [ECX + 8] // 30073d3c
-        FLD ST(2) // 30073d3f
-        MOV [EBP + swayState_priorForward + 8],EAX // 30073d41
-        MOV EAX,EBX // 30073d46
-        FMUL dword ptr [ECX + 12] // 30073d48
-        FLD ST(1) // 30073d4b
-        FMUL dword ptr [ECX + 20] // 30073d4d
-        SUB EAX,dword ptr [EBP + swayState_stepTime] // 30073d50
-        FADDP ST(1),ST(0) // 30073d56
-        FLD ST(2) // 30073d58
-        FMUL dword ptr [ECX + 16] // 30073d5a
-        MOV dword ptr [ESP + 0x38],EAX // 30073d5d
-        MOV EAX,[EBP + swayState_eFlags] // 30073d61
-        TEST EAX,0x80000 // 30073d66
-        FADDP ST(1),ST(0) // 30073d6b
-        FDIV ST(0),ST(4) // 30073d6d
-        FCHS // 30073d6f
-        FSTP dword ptr [ESP + 0x1c] // 30073d71
-        FMUL dword ptr [ECX + 32] // 30073d75
-        FXCH ST(1) // 30073d78
-        FMUL dword ptr [ECX + 28] // 30073d7a
-        FADDP ST(1),ST(0) // 30073d7d
-        FXCH ST(1) // 30073d7f
-        FMUL dword ptr [ECX + 24] // 30073d81
-        FADDP ST(1),ST(0) // 30073d84
-        FDIVRP ST(1),ST(0) // 30073d86
-        FCHS // 30073d88
-        FLD dword ptr [EBP + swayState_velocity + 4] // 30073d8a
-        FMUL dword ptr [ECX + 16] // 30073d90
-        FLD dword ptr [EBP + swayState_velocity] // 30073d93
-        FMUL dword ptr [ECX + 12] // 30073d99
-        FADDP ST(1),ST(0) // 30073d9c
-        FLD dword ptr [EBP + swayState_velocity + 8] // 30073d9e
-        FMUL dword ptr [ECX + 20] // 30073da4
-        FADDP ST(1),ST(0) // 30073da7
-        FMUL dword ptr [swayConst30092a00] // 30073da9
-        FADD dword ptr [ESP + 0x1c] // 30073daf
-        FSTP dword ptr [ESP + 0x1c] // 30073db3
-        FLD dword ptr [EBP + swayState_velocity + 8] // 30073db7
-        FMUL dword ptr [ECX + 8] // 30073dbd
-        FLD dword ptr [EBP + swayState_velocity] // 30073dc0
-        FMUL dword ptr [ECX + 0] // 30073dc6
-        FADDP ST(1),ST(0) // 30073dc9
-        FLD dword ptr [EBP + swayState_velocity + 4] // 30073dcb
-        FMUL dword ptr [ECX + 4] // 30073dd1
-        FADDP ST(1),ST(0) // 30073dd4
-        FMUL dword ptr [swayConst30092a00] // 30073dd6
-        FADD ST(0),ST(1) // 30073ddc
-        FSTP dword ptr [ESP + 0x20] // 30073dde
-        FSTP ST(0) // 30073de2
-        FILD dword ptr [ESP + 0x38] // 30073de4
-        JNZ sway30073df8 // 30073de8
-        MOV EAX,[EBP + swayState_proneTime] // 30073dea
-        ADD EAX,EBX // 30073def
-        CMP EAX,0x2ee // 30073df1
-        JGE sway30073e07 // 30073df6
-sway30073df8:
-        FCOMP dword ptr [swayConst30092d74] // 30073df8
-        FNSTSW AX // 30073dfe
-        TEST AH,0x1 // 30073e00
-        JZ sway30073e22 // 30073e03
-        JMP sway30073e14 // 30073e05
-sway30073e07:
-        FCOMP dword ptr [swayConst300928b4] // 30073e07
-        FNSTSW AX // 30073e0d
-        TEST AH,0x1 // 30073e0f
-        JZ sway30073e22 // 30073e12
-sway30073e14:
-        FLD dword ptr [EBP + swayState_stepChange] // 30073e14
-        FADD dword ptr [ESP + 0x20] // 30073e1a
-        FSTP dword ptr [ESP + 0x20] // 30073e1e
-sway30073e22:
-        CMP dword ptr [EBP + swayState_aiming],0 // 30073e22
-        JZ sway30073e3a // 30073e24
-        FILD dword ptr [EDX + weaponDef + swayWeaponLimit] // 30073e26
-        FMUL dword ptr [swayConst30093030] // 30073e2c
-        FLD dword ptr [swayConst300922b8] // 30073e32
-        JMP sway30073e46 // 30073e38
-sway30073e3a:
-        FLD dword ptr [swayConst300923ec] // 30073e3a
-        FLD dword ptr [swayConst300922b4] // 30073e40
-sway30073e46:
-        FILD dword ptr [EBP + swayState_scale_3407dfbc] // 30073e46
-        FMUL dword ptr [swayConst300924d8] // 30073e4c
-        FILD dword ptr [EBP + swayState_scale_3407dfc0] // 30073e52
-        FMUL ST(0),ST(2) // 30073e58
-        FMUL dword ptr [swayConst300924d8] // 30073e5a
-        FADDP ST(1),ST(0) // 30073e60
-        FSTP dword ptr [ESP + 0x38] // 30073e62
-        FSTP ST(0) // 30073e66
-        FLD dword ptr [ESP + 0x38] // 30073e68
-        FCOMP dword ptr [swayConst300922b4] // 30073e6c
-        FNSTSW AX // 30073e72
-        TEST AH,0x41 // 30073e74
-        JNZ sway30073e81 // 30073e77
-        MOV dword ptr [ESP + 0x38],0x3f800000 // 30073e79
-sway30073e81:
-        CMP dword ptr [EBP + swayState_aiming],0 // 30073e81
-        JNZ sway30073e9e // 30073e83
-        FLD dword ptr [ESP + 0x38] // 30073e85
-        FCOMP dword ptr [swayConst300922b8] // 30073e89
-        FNSTSW AX // 30073e8f
-        TEST AH,0x1 // 30073e91
-        JZ sway30073e9e // 30073e94
-        MOV dword ptr [ESP + 0x38],0x3f000000 // 30073e96
-sway30073e9e:
-        LEA EDX,[ESP + 0x1c] // 30073e9e
-        MOV EBX,0x2 // 30073ea2
-sway30073ea7:
-        FLD dword ptr [EDX] // 30073ea7
-        FABS // 30073ea9
-        FCOMP qword ptr [swayConst30092a30] // 30073eab
-        FNSTSW AX // 30073eb1
-        TEST AH,0x1 // 30073eb3
-        JZ sway30073ec0 // 30073eb6
-        MOV dword ptr [EDX],0x0 // 30073eb8
-        JMP sway30073ee0 // 30073ebe
-sway30073ec0:
-        FCOM dword ptr [EDX] // 30073ec0
-        FNSTSW AX // 30073ec2
-        TEST AH,0x1 // 30073ec4
-        JZ sway30073ecd // 30073ec7
-        FST dword ptr [EDX] // 30073ec9
-        JMP sway30073ee0 // 30073ecb
-sway30073ecd:
-        FLD ST(0) // 30073ecd
-        FCHS // 30073ecf
-        FCOM dword ptr [EDX] // 30073ed1
-        FNSTSW AX // 30073ed3
-        TEST AH,0x41 // 30073ed5
-        JNZ sway30073ede // 30073ed8
-        FSTP dword ptr [EDX] // 30073eda
-        JMP sway30073ee0 // 30073edc
-sway30073ede:
-        FSTP ST(0) // 30073ede
-sway30073ee0:
-        ADD EDX,0x4 // 30073ee0
-        DEC EBX // 30073ee3
-        JNZ sway30073ea7 // 30073ee4
-        FLD dword ptr [ESP + 0x1c] // 30073ee6
-        FMUL dword ptr [swayConst30092520] // 30073eea
-        FADD dword ptr [EBP + swayState_swayHorizontal] // 30073ef0
-        FMUL dword ptr [swayConst30092c40] // 30073ef6
-        FSTP dword ptr [EBP + swayState_swayHorizontal] // 30073efc
-        FLD dword ptr [ESP + 0x20] // 30073f02
-        FMUL dword ptr [swayConst30092520] // 30073f06
-        FADD dword ptr [EBP + swayState_swayVertical] // 30073f0c
-        FMUL dword ptr [swayConst30092c40] // 30073f12
-        FST dword ptr [EBP + swayState_swayVertical] // 30073f18
-        FCOMP ST(1) // 30073f1e
-        FNSTSW AX // 30073f20
-        TEST AH,0x41 // 30073f22
-        JNZ sway30073f2f // 30073f25
-        FST dword ptr [EBP + swayState_swayVertical] // 30073f27
-        JMP sway30073f4c // 30073f2d
-sway30073f2f:
-        FLD ST(0) // 30073f2f
-        FCHS // 30073f31
-        FLD dword ptr [EBP + swayState_swayVertical] // 30073f33
-        FCOMP ST(1) // 30073f39
-        FNSTSW AX // 30073f3b
-        TEST AH,0x1 // 30073f3d
-        JZ sway30073f4a // 30073f40
-        FSTP dword ptr [EBP + swayState_swayVertical] // 30073f42
-        JMP sway30073f4c // 30073f48
-sway30073f4a:
-        FSTP ST(0) // 30073f4a
-sway30073f4c:
-        FLD dword ptr [EBP + swayState_swayHorizontal] // 30073f4c
-        FCOMP ST(1) // 30073f52
-        FNSTSW AX // 30073f54
-        TEST AH,0x41 // 30073f56
-        JNZ sway30073f63 // 30073f59
-        FSTP dword ptr [EBP + swayState_swayHorizontal] // 30073f5b
-        JMP sway30073f7e // 30073f61
-sway30073f63:
-        FCHS // 30073f63
-        FLD dword ptr [EBP + swayState_swayHorizontal] // 30073f65
-        FCOMP ST(1) // 30073f6b
-        FNSTSW AX // 30073f6d
-        TEST AH,0x1 // 30073f6f
-        JZ sway30073f7c // 30073f72
-        FSTP dword ptr [EBP + swayState_swayHorizontal] // 30073f74
-        JMP sway30073f7e // 30073f7a
-sway30073f7c:
-        FSTP ST(0) // 30073f7c
-sway30073f7e:
-        FLD dword ptr [EBP + swayState_swayHorizontal] // 30073f7e
-        FMUL dword ptr [ESP + 0x38] // 30073f84
-        FMUL dword ptr [swayConst30092490] // 30073f88
-        FMUL dword ptr [ECX + 12] // 30073f8e
-        FADD dword ptr [ESI] // 30073f91
-        FSTP dword ptr [ESI] // 30073f93
-        FLD dword ptr [EBP + swayState_swayHorizontal] // 30073f95
-        FMUL dword ptr [ESP + 0x38] // 30073f9b
-        LEA ECX,[EBP + swayState_viewAxis] // 30073f9f
-        FMUL dword ptr [swayConst30092490] // 30073fa5
-        FMUL dword ptr [ECX + 16] // 30073fab
-        FADD dword ptr [ESI + 0x4] // 30073fae
-        FSTP dword ptr [ESI + 0x4] // 30073fb1
-        FLD dword ptr [EBP + swayState_swayHorizontal] // 30073fb4
-        FMUL dword ptr [ESP + 0x38] // 30073fba
-        LEA EDX,[EBP + swayState_viewAxis] // 30073fbe
-        FMUL dword ptr [swayConst30092490] // 30073fc4
-        FMUL dword ptr [EDX + 20] // 30073fca
-        FADD dword ptr [ESI + 0x8] // 30073fcd
-        FSTP dword ptr [ESI + 0x8] // 30073fd0
-        FLD dword ptr [EBP + swayState_swayVertical] // 30073fd3
-        FMUL dword ptr [ESP + 0x38] // 30073fd9
-        LEA EAX,[EBP + swayState_viewAxis] // 30073fdd
-        FMUL dword ptr [swayConst30092490] // 30073fe2
-        FMUL dword ptr [EAX + 24] // 30073fe8
-        FADD dword ptr [ESI] // 30073feb
-        FSTP dword ptr [ESI] // 30073fed
-        FLD dword ptr [EBP + swayState_swayVertical] // 30073fef
-        FMUL dword ptr [ESP + 0x38] // 30073ff5
-        LEA ECX,[EBP + swayState_viewAxis] // 30073ff9
-        FMUL dword ptr [swayConst30092490] // 30073fff
-        FMUL dword ptr [ECX + 28] // 30074005
-        FADD dword ptr [ESI + 0x4] // 30074008
-        FSTP dword ptr [ESI + 0x4] // 3007400b
-        FLD dword ptr [EBP + swayState_swayVertical] // 3007400e
-        FMUL dword ptr [ESP + 0x38] // 30074014
-        LEA EDX,[EBP + swayState_viewAxis] // 30074018
-        FMUL dword ptr [swayConst30092490] // 3007401e
-        FMUL dword ptr [EDX + 32] // 30074024
-        FADD dword ptr [ESI + 0x8] // 30074027
-        FSTP dword ptr [ESI + 0x8] // 3007402a
-        FLD dword ptr [EBP + swayState_swayHorizontal] // 3007402d
-        FMUL dword ptr [ESP + 0x38] // 30074033
-        FSUBR dword ptr [EDI + 0x4] // 30074037
-        FSTP dword ptr [EDI + 0x4] // 3007403a
-        FLD dword ptr [EBP + swayState_swayVertical] // 3007403d
-        FMUL dword ptr [ESP + 0x38] // 30074043
-        FADD dword ptr [EDI] // 30074047
-        FSTP dword ptr [EDI] // 30074049
-sway3007404b:
-        FSTP ST(0) // 3007407d
-sway300740fc:
-        ADD ESP,0x40
-        POP EBP
-        POP EDI
-        POP ESI
-        POP EBX
-        RET
+    if (w->scoped > 1.0f && s->aiming && s->scopeEnabled) return;
+    elapsed = (unsigned int)s->swayTime - (unsigned int)s->time;
+    memcpy(&delta, &elapsed, sizeof(delta));
+    dt = (long double)delta * (long double)0.001f;
+    if (!(dt >= (long double)0.005f)) dt = (long double)0.005f;
+    s->swayTime = s->time;
+    for (i = 0; i < 3; ++i)
+        difference[i] = (long double)s->viewAxis[0][i] - s->priorForward[i];
+    memcpy(s->priorForward, s->viewAxis[0], sizeof(vec3_t));
+
+    rightDelta = difference[0] * s->viewAxis[1][0]
+               + difference[2] * s->viewAxis[1][2];
+    rightDelta += difference[1] * s->viewAxis[1][1];
+    target[0] = (float)-(rightDelta / dt);
+    upDelta = difference[2] * s->viewAxis[2][2]
+            + difference[1] * s->viewAxis[2][1];
+    upDelta += difference[0] * s->viewAxis[2][0];
+    upDelta = -(upDelta / dt);
+    rightVelocity = (long double)s->velocity[1] * s->viewAxis[1][1]
+                  + (long double)s->velocity[0] * s->viewAxis[1][0];
+    rightVelocity += (long double)s->velocity[2] * s->viewAxis[1][2];
+    target[0] = (float)(rightVelocity * (long double)0.1f + target[0]);
+    forwardVelocity = (long double)s->velocity[2] * s->viewAxis[0][2]
+                    + (long double)s->velocity[0] * s->viewAxis[0][0];
+    forwardVelocity += (long double)s->velocity[1] * s->viewAxis[0][1];
+    target[1] = (float)(forwardVelocity * (long double)0.1f + upDelta);
+
+    elapsed = (unsigned int)s->time - (unsigned int)s->stepTime;
+    memcpy(&stepDelta, &elapsed, sizeof(stepDelta));
+    elapsed = (unsigned int)s->proneTime + (unsigned int)s->time;
+    memcpy(&proneDelta, &elapsed, sizeof(proneDelta));
+    if (stepDelta < (((s->eFlags & 0x80000) || proneDelta < 750) ? 750 : 250))
+        target[1] = (float)((long double)s->stepChange + target[1]);
+
+    limit = s->aiming ? (long double)w->unknown_0f8[3] *
+                        (long double)(1.0f / 600.0f) : 3.0L;
+    shotScale = s->aiming ? 0.5L : 1.0L;
+    strength = (float)((long double)s->scale_3407dfbc * (long double)0.001f +
+                      ((long double)s->scale_3407dfc0 * shotScale) * (long double)0.001f);
+    if (strength > 1.0f) strength = 1.0f;
+    if (!s->aiming && !(strength >= 0.5f)) strength = 0.5f;
+    for (i = 0; i < 2; ++i) {
+        if (!(fabsl((long double)target[i]) >= (long double)0.2)) {
+            target[i] = 0.0f;
+        } else if (limit < (long double)target[i]) {
+            target[i] = (float)limit;
+        } else if (-limit > (long double)target[i]) {
+            target[i] = (float)-limit;
+        }
     }
+    s->swayHorizontal = (float)(((long double)target[0] * (long double)0.1f +
+                                 s->swayHorizontal) * (long double)0.9090908765792847f);
+    vertical = ((long double)target[1] * (long double)0.1f + s->swayVertical) *
+                (long double)0.9090908765792847f;
+    s->swayVertical = (float)vertical;
+    if (vertical > limit) {
+        s->swayVertical = (float)limit;
+    } else if (!((long double)s->swayVertical >= -limit)) {
+        s->swayVertical = (float)-limit;
+    }
+    if ((long double)s->swayHorizontal > limit) {
+        s->swayHorizontal = (float)limit;
+    } else if (!((long double)s->swayHorizontal >= -limit)) {
+        s->swayHorizontal = (float)-limit;
+    }
+    for (i = 0; i < 3; ++i) {
+        amount = (long double)s->swayHorizontal * strength * 0.25L;
+        origin[i] = (float)(amount * s->viewAxis[1][i] + origin[i]);
+    }
+    for (i = 0; i < 3; ++i) {
+        amount = (long double)s->swayVertical * strength * 0.25L;
+        origin[i] = (float)(amount * s->viewAxis[2][i] + origin[i]);
+    }
+    angles[1] = (float)((long double)angles[1] - (long double)s->swayHorizontal * strength);
+    angles[0] = (float)((long double)s->swayVertical * strength + angles[0]);
 }
+
 #endif
 
 /* Portable fallback; its evaluation schedule is not a Windows x87 claim. */
@@ -868,7 +523,7 @@ void TCE_CG_CalculateWeaponPosition(tce_weaponPosition_t *s,float *origin,float 
     TCE_WeaponPositionLean(s, origin, angles);
     TCE_WeaponPositionRecoil(s, origin, angles);
     TCE_WeaponPositionFiremode(s, origin, angles);
-    TCE_WeaponPositionNative(s,origin,angles);
+    TCE_WeaponPositionSway(s, origin, angles);
     TCE_WeaponPositionBob(s, angles);
     TCE_WeaponPositionLanding(s, origin);
     TCE_WeaponPositionFinalAngles(s, angles);
