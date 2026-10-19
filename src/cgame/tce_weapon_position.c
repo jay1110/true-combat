@@ -185,6 +185,39 @@ static void TCE_WeaponPositionFiremode(const tce_weaponPosition_t *s, float *ori
     }
 }
 
+static void TCE_WeaponPositionFinalAngles(const tce_weaponPosition_t *s, float *angles) {
+    int i;
+    float idleScale = 1.0f;
+    long double amount;
+
+    for (i = 0; i < 3; ++i)
+        angles[i] = (float)((long double)s->gunViewAngles[i] + angles[i]);
+    if (s->developer) {
+        for (i = 0; i < 3; ++i)
+            angles[i] = (float)((long double)s->developerAngles[i] + angles[i]);
+    }
+    if (!weaponDef[s->weapon].noTacMode &&
+        (s->tacticalScale < 0.0f || s->tacticalScale > 0.0f)) {
+        amount = (long double)s->tacticalPitch - 2000.0L;
+        amount *= (long double)s->tacticalScale;
+        amount *= (long double)0.01f;
+        angles[0] = (float)(amount + angles[0]);
+        amount = (long double)s->tacticalYaw - 2000.0L;
+        amount *= (long double)s->tacticalScale;
+        amount *= (long double)0.01f;
+        angles[1] = (float)(amount + angles[1]);
+    }
+    if ((s->eFlags & 0x8000) || s->weapon == 60 || s->weapon == 62) return;
+    if (s->aiming && s->weapon != 30 && s->weapon != 9 && s->weapon != 4)
+        idleScale = 0.0f;
+    amount = sinl((long double)s->time * (long double)0.001);
+    amount *= 80.0L;
+    amount *= (long double)idleScale;
+    amount *= (long double)0.01;
+    for (i = 2; i >= 0; --i)
+        angles[i] = (float)((long double)angles[i] + amount);
+}
+
 typedef char tceWeaponPositionNativeLayout[
     sizeof(float) == 4 && sizeof(int) == 4 &&
     offsetof(tce_weaponPosition_t, viewAxis) ==
@@ -652,86 +685,6 @@ sway300740f6:
         FADD dword ptr [ESI + 0x8] // 300740f6
         FSTP dword ptr [ESI + 0x8] // 300740f9
 sway300740fc:
-        LEA EAX,[EBP + swayState_gunViewAngles] // 300740fc
-        FLD dword ptr [EAX + 0] // 30074100
-        FADD dword ptr [EDI] // 30074106
-        FSTP dword ptr [EDI] // 30074108
-        FLD dword ptr [EAX + 4] // 3007410a
-        FADD dword ptr [EDI + 0x4] // 30074110
-        FSTP dword ptr [EDI + 0x4] // 30074113
-        FLD dword ptr [EAX + 8] // 30074116
-        FADD dword ptr [EDI + 0x8] // 3007411c
-        FSTP dword ptr [EDI + 0x8] // 3007411f
-        MOV EAX,[EBP + swayState_developer] // 30074122
-        TEST EAX,EAX // 30074127
-        JZ sway3007414d // 30074129
-        FLD dword ptr [EBP + swayState_developerAngles] // 3007412b
-        FADD dword ptr [EDI] // 30074131
-        FSTP dword ptr [EDI] // 30074133
-        FLD dword ptr [EBP + swayState_developerAngles + 4] // 30074135
-        FADD dword ptr [EDI + 0x4] // 3007413b
-        FSTP dword ptr [EDI + 0x4] // 3007413e
-        FLD dword ptr [EBP + swayState_developerAngles + 8] // 30074141
-        FADD dword ptr [EDI + 0x8] // 30074147
-        FSTP dword ptr [EDI + 0x8] // 3007414a
-sway3007414d:
-        MOV ECX,dword ptr [EBP + swayState_weapon] // 3007414d
-        IMUL EDX,ECX,swayWeaponStride // 30074153
-        MOV EAX,dword ptr [EDX + weaponDef + swayWeaponNoTacMode] // 3007415e
-        TEST EAX,EAX // 30074165
-        JNZ sway300741bc // 30074167
-        FLD dword ptr [EBP + swayState_tacticalScale] // 30074169
-        FCOMP dword ptr [swayConst300920e0] // 3007416f
-        FNSTSW AX // 30074175
-        TEST AH,0x40 // 30074177
-        JNZ sway300741bc // 3007417a
-        FILD dword ptr [EBP + swayState_tacticalPitch] // 3007417c
-        FSUB dword ptr [swayConst300923fc] // 30074182
-        FMUL dword ptr [EBP + swayState_tacticalScale] // 30074188
-        FMUL dword ptr [swayConst300923f8] // 3007418e
-        FADD dword ptr [EDI] // 30074194
-        FSTP dword ptr [EDI] // 30074196
-        FILD dword ptr [EBP + swayState_tacticalYaw] // 30074198
-        FSUB dword ptr [swayConst300923fc] // 3007419e
-        FMUL dword ptr [EBP + swayState_tacticalScale] // 300741a4
-        FMUL dword ptr [swayConst300923f8] // 300741aa
-        FADD dword ptr [EDI + 0x4] // 300741b0
-        FSTP dword ptr [EDI + 0x4] // 300741b3
-        MOV ECX,dword ptr [EBP + swayState_weapon] // 300741b6
-sway300741bc:
-        MOV EAX,[EBP + swayState_eFlags] // 300741bc
-        TEST AH,0x80 // 300741c1
-        JNZ sway30074206 // 300741c4
-        CMP ECX,0x3c // 300741c6
-        JZ sway30074206 // 300741c9
-        CMP ECX,0x3e // 300741cb
-        JZ sway30074206 // 300741ce
-        FILD dword ptr [EBP + swayState_time] // 300741d0
-        FMUL qword ptr [swayConst30092318] // 300741d6
-        FSIN // 300741dc
-        FMUL dword ptr [swayConst300924e0] // 300741de
-        FMUL dword ptr [ESP + 0x14] // 300741e4
-        FMUL qword ptr [swayConst30092c70] // 300741e8
-        FLD dword ptr [EDI + 0x8] // 300741ee
-        FADD ST(0),ST(1) // 300741f1
-        FSTP dword ptr [EDI + 0x8] // 300741f3
-        FLD dword ptr [EDI + 0x4] // 300741f6
-        FADD ST(0),ST(1) // 300741f9
-        FSTP dword ptr [EDI + 0x4] // 300741fb
-        FLD dword ptr [EDI] // 300741fe
-        FADD ST(0),ST(1) // 30074200
-        FSTP dword ptr [EDI] // 30074202
-        FSTP ST(0) // 30074204
-sway30074206:
-        FLD dword ptr [EDI] // 30074206
-        FSUB dword ptr [EBP + swayState_kickAngles] // 30074208
-        FSTP dword ptr [EDI] // 3007420e
-        FLD dword ptr [EDI + 0x4] // 30074210
-        FSUB dword ptr [EBP + swayState_kickAngles + 4] // 30074213
-        FSTP dword ptr [EDI + 0x4] // 30074219
-        FLD dword ptr [EDI + 0x8] // 3007421c
-        FSUB dword ptr [EBP + swayState_kickAngles + 8] // 3007421f
-        FSTP dword ptr [EDI + 0x8] // 30074225
         ADD ESP,0x40
         POP EBP
         POP EDI
@@ -924,6 +877,8 @@ void TCE_CG_CalculateWeaponPosition(tce_weaponPosition_t *s,float *origin,float 
     TCE_WeaponPositionRecoil(s, origin, angles);
     TCE_WeaponPositionFiremode(s, origin, angles);
     TCE_WeaponPositionNative(s,origin,angles);
+    TCE_WeaponPositionFinalAngles(s, angles);
+    VectorMA(angles, -1.0, s->kickAngles, angles);
 #else
     const tce_weaponDef_t *w=&weaponDef[s->weapon];
     int i,delta,scoped=s->aiming && s->scopeEnabled && w->scoped>1;
