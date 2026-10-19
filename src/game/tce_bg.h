@@ -57,6 +57,8 @@ typedef struct {
 
 /* C89-compatible compile-time checks for the recovered 32-bit layouts. */
 typedef char tce_weapon_size_check[sizeof(tce_weaponDef_t) == 0x1cc ? 1 : -1];
+typedef char tce_maxclip_offset_check[offsetof(tce_weaponDef_t, maxclip) == 0x0d8 ? 1 : -1];
+typedef char tce_single_reload_offset_check[offsetof(tce_weaponDef_t, singleReload) == 0x170 ? 1 : -1];
 typedef char tce_weight_offset_check[offsetof(tce_weaponDef_t, loadoutWeight) == 0x11c ? 1 : -1];
 typedef char tce_firemode_offset_check[offsetof(tce_weaponDef_t, semiauto) == 0x15c ? 1 : -1];
 typedef char tce_parsed_offset_check[offsetof(tce_weaponDef_t, parsed) == 0x1c4 ? 1 : -1];

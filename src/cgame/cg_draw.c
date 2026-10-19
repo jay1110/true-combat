@@ -3244,41 +3244,13 @@ static int CG_PlayerAmmoValue( int *ammo, int *clips, int *akimboammo ) {
 	if ( !weap )
 		return weap;
 
-    if (gearDef.parsed) {
-        switch (weap) {
+    /* Both originals use TC weapon IDs even when gear loading failed. */
+    switch (weap) {
         case 1: case 12: case 15: case 19: case 20: case 21: case 22: case 27: case 28:
             return weap;
         case 4: case 9: case 11: case 26: case 30: case 35: case 60: case 61: case 65: case 66:
             skipammo = qtrue;
-        }
-    } else switch(weap) {		// some weapons don't draw ammo count text
-		case WP_AMMO:
-		case WP_MEDKIT:
-		case WP_KNIFE:
-		case WP_PLIERS:
-		case WP_SMOKE_MARKER:
-		case WP_DYNAMITE:
-		case WP_SATCHEL:
-		case WP_SATCHEL_DET:
-		case WP_SMOKE_BOMB:
-		case WP_BINOCULARS:
-			return weap;
-
-		case WP_LANDMINE:
-		case WP_MEDIC_SYRINGE:
-		case WP_MEDIC_ADRENALINE:
-		case WP_GRENADE_LAUNCHER:
-		case WP_GRENADE_PINEAPPLE:
-		case WP_FLAMETHROWER:
-		case WP_MORTAR:
-		case WP_MORTAR_SET:
-		case WP_PANZERFAUST:
-			skipammo = qtrue;
-			break;
-
-		default:
-			break;
-	}
+    }
 
 	if( cg.snap->ps.eFlags & EF_MG42_ACTIVE || cg.snap->ps.eFlags & EF_MOUNTEDTANK ) {
 		return WP_MOBILE_MG42;
@@ -3286,7 +3258,7 @@ static int CG_PlayerAmmoValue( int *ammo, int *clips, int *akimboammo ) {
 
 	// total ammo in clips
 	*clips = cg.snap->ps.ammo[BG_FindAmmoForWeapon(weap)];
-    if (gearDef.parsed && weap > 0 && weap < TCE_MAX_WEAPONS &&
+    if (weap > 0 && weap < TCE_MAX_WEAPONS &&
         weaponDef[weap].maxclip > 1 && !weaponDef[weap].singleReload)
         *clips /= weaponDef[weap].maxclip;
 
@@ -3299,7 +3271,7 @@ static int CG_PlayerAmmoValue( int *ammo, int *clips, int *akimboammo ) {
 		*akimboammo = -1;
 	}
 
-	if( weap == (gearDef.parsed ? 26 : WP_LANDMINE) ) {
+	if( weap == 26 ) {
 		if( !cgs.gameManager ) {
 			*ammo = 0;
 		} else {
@@ -3309,7 +3281,7 @@ static int CG_PlayerAmmoValue( int *ammo, int *clips, int *akimboammo ) {
 				*ammo = cgs.gameManager->currentState.otherEntityNum2;
 			}
 		}
-	} else if( gearDef.parsed ? (weap == 35 || weap == 60 || weap == 65) : (weap == WP_MORTAR || weap == WP_MORTAR_SET || weap == WP_PANZERFAUST) ) {
+	} else if( weap == 35 || weap == 60 || weap == 65 ) {
 		*ammo += *clips;
 	}
 	
