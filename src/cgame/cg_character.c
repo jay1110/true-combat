@@ -3,6 +3,7 @@
 */
 
 #include "cg_local.h"
+#include "../game/tce_bg.h"
 
 char bigTextBuffer[100000];
 
@@ -277,8 +278,8 @@ static qboolean CG_CheckForExistingAnimModelInfo( const char *animationGroup, co
 		CG_Error( "unable to find a free modelinfo slot, cannot continue\n" );
 	} else {
 		*animModelInfo = firstFree;
-		// clear the structure out ready for use
-		memset( *animModelInfo, 0, sizeof(**animModelInfo) );
+		/* The original i386 code clears only the first four bytes. */
+		memset( *animModelInfo, 0, 4 );
 	}
 
 	// qfalse signifies that we need to parse the information from the script files
@@ -365,7 +366,7 @@ qboolean CG_RegisterCharacter( const char *characterFile, bg_character_t *charac
 	/* Windows 30018460: map camouflage, group fallback, then base skin.
 	 * The final registration is intentionally repeated, as in the original. */
 	Com_sprintf( skinBase, sizeof(skinBase), "models/players/%s/%s_%s%s",
-		*cgs.tceCharacterSkinGroup ? cgs.tceCharacterSkinGroup : characterDef.skinGroup,
+		*gearDef.playerSkinGroup ? gearDef.playerSkinGroup : characterDef.skinGroup,
 		characterDef.skinRoot, characterDef.skin, camo ? camo : "" );
 	filename = va( "%s.skin", skinBase );
 	character->skin = trap_R_RegisterSkin( filename );

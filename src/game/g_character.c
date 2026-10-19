@@ -77,8 +77,8 @@ static qboolean G_CheckForExistingAnimModelInfo( const char *animationGroup, con
 		G_Error( "unable to find a free modelinfo slot, cannot continue\n" );
 	} else {
 		*animModelInfo = firstFree;
-		// clear the structure out ready for use
-		memset( *animModelInfo, 0, sizeof(**animModelInfo) );
+		/* The original i386 code clears only the first four bytes. */
+		memset( *animModelInfo, 0, 4 );
 	}
 
 	// qfalse signifies that we need to parse the information from the script files
