@@ -2,6 +2,7 @@
 // of event processing
 
 #include "cg_local.h"
+#include "../game/tce_float_integer.h"
 #include "tce_smoke_grenade.h"
 
 
@@ -1129,8 +1130,6 @@ void CG_RumbleEfx ( float pitch, float yaw ) {
 		long double recoilValue;
 		float *velocity;
 		int randomPitch, divisor, remainder, powerSample;
-		unsigned short savedCW, truncCW;
-		__int64 converted;
 		static const float minimumPitch = 1.0f, speedFactor = 0.20000000298023224f;
 		static const float baseRecoil = 10.0f;
 		static const double halfRecoil = 0.5;
@@ -1149,18 +1148,7 @@ void CG_RumbleEfx ( float pitch, float yaw ) {
 		recoilValue = recoilValue * (long double)halfRecoil;
 		pitchRecoilAdd = (float)recoilValue;
 		randomPitch = rand();
-		__asm {
-			fld pitch
-			fstcw savedCW
-			fwait
-			mov ax, savedCW
-			or ah, 0ch
-			mov truncCW, ax
-			fldcw truncCW
-			fistp converted
-			fldcw savedCW
-		}
-		divisor = (int)converted;
+        divisor = TCE_FloatToInt64Low(pitch);
 		__asm {
 			mov eax, randomPitch
 			cdq
