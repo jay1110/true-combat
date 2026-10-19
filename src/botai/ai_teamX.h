@@ -26,4 +26,3 @@ void AI_Team_Init_All_Teams();
 
 
 #endif // __AI_TEAMX_H__
-

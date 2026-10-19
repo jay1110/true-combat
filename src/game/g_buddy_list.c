@@ -61,7 +61,7 @@ void G_SetWayPoint( gentity_t *ent, wayPointType_t wayPointType, vec3_t loc ) {
 	} else {
 
 		wp = client->pers.wayPoint;
-		
+
 		if( level.time - wp->lastHintCheckTime < WAYPOINTSET_POSTDELAY_TIME ) {
 			// Latching, more hijacking
 			wp->botDelayBegin = qtrue;	// to indicate we got latched values
@@ -95,10 +95,12 @@ void G_SetWayPoint( gentity_t *ent, wayPointType_t wayPointType, vec3_t loc ) {
 	}
 }*/
 
-void G_RemoveFromAllIgnoreLists( int clientNum ) {
+void G_RemoveFromAllIgnoreLists(int clientNum)
+{
 	int i;
 
-	for( i = 0; i < MAX_CLIENTS; i++) {
-		COM_BitClear( level.clients[i].sess.ignoreClients, clientNum );
+	for ( i = 0; i < MAX_CLIENTS; i++)
+	{
+		COM_BitClear(level.clients[i].sess.ignoreClients, clientNum);
 	}
 }

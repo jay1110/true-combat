@@ -7,16 +7,16 @@
  *
  *****************************************************************************/
 
-#define MAX_AVOIDGOALS			64
-#define MAX_GOALSTACK			8
+#define MAX_AVOIDGOALS          64
+#define MAX_GOALSTACK           8
 
-#define GFL_NONE				0
-#define GFL_ITEM				1
-#define GFL_ROAM				2
-#define GFL_NOSLOWAPPROACH		4
-#define	GFL_DEFEND_CLOSE		8
-#define GFL_LEADER				16
-#define	GFL_DEBUGPATH			32
+#define GFL_NONE                0
+#define GFL_ITEM                1
+#define GFL_ROAM                2
+#define GFL_NOSLOWAPPROACH      4
+#define GFL_DEFEND_CLOSE        8
+#define GFL_LEADER              16
+#define GFL_DEBUGPATH           32
 
 // Rafael gameskill
 /*typedef enum {
@@ -29,23 +29,23 @@
 } gameskill_t;*/
 
 // bot goal urgency
-#define	BGU_LOW					0
-#define	BGU_MEDIUM				1
-#define	BGU_HIGH				2
-#define	BGU_MAXIMUM				3
+#define BGU_LOW                 0
+#define BGU_MEDIUM              1
+#define BGU_HIGH                2
+#define BGU_MAXIMUM             3
 
 //a bot goal
 typedef struct bot_goal_s
 {
-	vec3_t origin;				//origin of the goal
-	int areanum;				//area number of the goal
-	vec3_t mins, maxs;			//mins and maxs of the goal
-	int entitynum;				//number of the goal entity
-	int number;					//goal number
-	int flags;					//goal flags
-	int iteminfo;				//item information
-	int	urgency;				//how urgent is the goal? should we be allowed to exit autonomy range to reach the goal?
-	int goalEndTime;			// When is the shortest time this can end?
+	vec3_t origin;              //origin of the goal
+	int areanum;                //area number of the goal
+	vec3_t mins, maxs;          //mins and maxs of the goal
+	int entitynum;              //number of the goal entity
+	int number;                 //goal number
+	int flags;                  //goal flags
+	int iteminfo;               //item information
+	int urgency;                //how urgent is the goal? should we be allowed to exit autonomy range to reach the goal?
+	int goalEndTime;            // When is the shortest time this can end?
 } bot_goal_t;
 
 //reset the whole goal state, but keep the item weights
@@ -73,7 +73,7 @@ int BotGetSecondGoal(int goalstate, bot_goal_t *goal);
 int BotChooseLTGItem(int goalstate, vec3_t origin, int *inventory, int travelflags);
 //choose the best nearby goal item for the bot
 int BotChooseNBGItem(int goalstate, vec3_t origin, int *inventory, int travelflags,
-							bot_goal_t *ltg, float maxtime);
+                     bot_goal_t *ltg, float maxtime);
 //returns true if the bot touches the goal
 int BotTouchingGoal(vec3_t origin, bot_goal_t *goal);
 //returns true if the goal should be visible but isn't

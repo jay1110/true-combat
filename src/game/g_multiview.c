@@ -7,19 +7,37 @@
 qboolean G_smvCommands(gentity_t *ent, char *cmd)
 {
 #ifdef MV_SUPPORT
-	if(!Q_stricmp(cmd, "mvadd")) G_smvAdd_cmd(ent);
-	else if(!Q_stricmp(cmd, "mvdel")) G_smvDel_cmd(ent);
-	else if(!Q_stricmp(cmd, "mvallies")) G_smvAddTeam_cmd(ent, TEAM_ALLIES);
-	else if(!Q_stricmp(cmd, "mvaxis")) G_smvAddTeam_cmd(ent, TEAM_AXIS);
-	else if(!Q_stricmp(cmd, "mvall")) {
+	if (!Q_stricmp(cmd, "mvadd"))
+	{
+		G_smvAdd_cmd(ent);
+	}
+	else if (!Q_stricmp(cmd, "mvdel"))
+	{
+		G_smvDel_cmd(ent);
+	}
+	else if (!Q_stricmp(cmd, "mvallies"))
+	{
+		G_smvAddTeam_cmd(ent, TEAM_ALLIES);
+	}
+	else if (!Q_stricmp(cmd, "mvaxis"))
+	{
+		G_smvAddTeam_cmd(ent, TEAM_AXIS);
+	}
+	else if (!Q_stricmp(cmd, "mvall"))
+	{
 		G_smvAddTeam_cmd(ent, TEAM_ALLIES);
 		G_smvAddTeam_cmd(ent, TEAM_AXIS);
-	} else if(!Q_stricmp(cmd, "mvnone")) {
-		if(ent->client->pers.mvCount > 0) {
+	}
+	else if (!Q_stricmp(cmd, "mvnone"))
+	{
+		if (ent->client->pers.mvCount > 0)
+		{
 			G_smvRemoveInvalidClients(ent, TEAM_AXIS);
 			G_smvRemoveInvalidClients(ent, TEAM_ALLIES);
 		}
-	} else {
+	}
+	else
+	{
 		return(qfalse);
 	}
 
@@ -36,24 +54,27 @@ qboolean G_smvCommands(gentity_t *ent, char *cmd)
 
 void G_smvAdd_cmd(gentity_t *ent)
 {
-	int pID;
+	int  pID;
 	char str[MAX_TOKEN_CHARS];
 
 
 	// Clients will always send pIDs
 	trap_Argv(1, str, sizeof(str));
 	pID = atoi(str);
-	if(pID < 0 || pID > level.maxclients || g_entities[pID].client->pers.connected != CON_CONNECTED) {
+	if (pID < 0 || pID > level.maxclients || g_entities[pID].client->pers.connected != CON_CONNECTED)
+	{
 		CP(va("print \"[lof]** [lon]Client[lof] %d [lon]is not connected[lof]!\n\"", pID));
 		return;
 	}
 
-	if(g_entities[pID].client->sess.sessionTeam == TEAM_SPECTATOR) {
+	if (g_entities[pID].client->sess.sessionTeam == TEAM_SPECTATOR)
+	{
 		CP(va("print \"[lof]** [lon]Client[lof] %s^7 [lon]is not in the game[lof]!\n\"", level.clients[pID].pers.netname));
 		return;
 	}
 
-	if(!G_allowFollow(ent, G_teamID(&g_entities[pID]))) {
+	if (!G_allowFollow(ent, G_teamID(&g_entities[pID])))
+	{
 		CP(va("print \"[lof]** [lon]The %s team is locked from spectators[lof]!\n\"", aTeams[G_teamID(&g_entities[pID])]));
 		return;
 	}
@@ -66,21 +87,24 @@ void G_smvAddTeam_cmd(gentity_t *ent, int nTeam)
 {
 	int i, pID;
 
-	if(!G_allowFollow(ent, nTeam)) {
+	if (!G_allowFollow(ent, nTeam))
+	{
 		CP(va("print \"[lof]** [lon]The %s team is locked from spectators[lof]!\n\"", aTeams[nTeam]));
 		return;
 	}
 
 	// For limbo'd MV action
-	if(ent->client->sess.sessionTeam != TEAM_SPECTATOR &&
-	  (!(ent->client->ps.pm_flags & PMF_LIMBO) || ent->client->sess.sessionTeam != nTeam))
+	if (ent->client->sess.sessionTeam != TEAM_SPECTATOR &&
+	    (!(ent->client->ps.pm_flags & PMF_LIMBO) || ent->client->sess.sessionTeam != nTeam))
 	{
 		return;
 	}
 
-	for(i=0; i<level.numPlayingClients; i++) {
+	for (i = 0; i < level.numPlayingClients; i++)
+	{
 		pID = level.sortedClients[i];
-		if(g_entities[pID].client->sess.sessionTeam == nTeam && ent != &g_entities[pID]) {
+		if (g_entities[pID].client->sess.sessionTeam == nTeam && ent != &g_entities[pID])
+		{
 			G_smvAddView(ent, pID);
 		}
 	}
@@ -89,13 +113,14 @@ void G_smvAddTeam_cmd(gentity_t *ent, int nTeam)
 
 void G_smvDel_cmd(gentity_t *ent)
 {
-	int pID;
+	int  pID;
 	char str[MAX_TOKEN_CHARS];
 
 	// Clients will always send pIDs
 	trap_Argv(1, str, sizeof(str));
 	pID = atoi(str);
-	if(!G_smvLocateEntityInMVList(ent, pID, qtrue)) {
+	if (!G_smvLocateEntityInMVList(ent, pID, qtrue))
+	{
 		CP(va("print \"[lof]** [lon]Client[lof] %s^7 [lon]is not currently viewed[lof]!\n\"", level.clients[pID].pers.netname));
 	}
 }
@@ -104,46 +129,58 @@ void G_smvDel_cmd(gentity_t *ent)
 // Add a player entity to another player's multiview list
 void G_smvAddView(gentity_t *ent, int pID)
 {
-	int i;
-	mview_t *mv = NULL;
+	int       i;
+	mview_t   *mv = NULL;
 	gentity_t *v;
 
-	if(pID >= MAX_MVCLIENTS || G_smvLocateEntityInMVList(ent, pID, qfalse)) return;
+	if (pID >= MAX_MVCLIENTS || G_smvLocateEntityInMVList(ent, pID, qfalse))
+	{
+		return;
+	}
 
-	for(i=0; i<MULTIVIEW_MAXVIEWS; i++) {
-		if(!ent->client->pers.mv[i].fActive) {
+	for (i = 0; i < MULTIVIEW_MAXVIEWS; i++)
+	{
+		if (!ent->client->pers.mv[i].fActive)
+		{
 			mv = &ent->client->pers.mv[i];
 			break;
 		}
 	}
 
-	if(mv == NULL) {
+	if (mv == NULL)
+	{
 		CP(va("print \"[lof]** [lon]Sorry, no more MV slots available (all[lof] %d [lon]in use)[lof]\n\"", MULTIVIEW_MAXVIEWS));
 		return;
 	}
 
 	mv->camera = G_Spawn();
-	if(mv->camera == NULL) return;
+	if (mv->camera == NULL)
+	{
+		return;
+	}
 
-	if(ent->client->sess.sessionTeam == TEAM_SPECTATOR && /*ent->client->sess.sessionTeam != TEAM_SPECTATOR ||*/
-	  ent->client->sess.spectatorState == SPECTATOR_FOLLOW) {
-		SetTeam( ent, "s", qtrue, -1, -1, -1, qfalse );
-	} else if(ent->client->sess.sessionTeam != TEAM_SPECTATOR && !(ent->client->ps.pm_flags & PMF_LIMBO)) {
+	if (ent->client->sess.sessionTeam == TEAM_SPECTATOR && /*ent->client->sess.sessionTeam != TEAM_SPECTATOR ||*/
+	    ent->client->sess.spectatorState == SPECTATOR_FOLLOW)
+	{
+		SetTeam(ent, "s", qtrue, -1, -1, -1, qfalse);
+	}
+	else if (ent->client->sess.sessionTeam != TEAM_SPECTATOR && !(ent->client->ps.pm_flags & PMF_LIMBO))
+	{
 		limbo(ent, qtrue);
 	}
 
-	ent->client->ps.clientNum = ent - g_entities;
+	ent->client->ps.clientNum        = ent - g_entities;
 	ent->client->sess.spectatorState = SPECTATOR_FREE;
 
 	ent->client->pers.mvCount++;
 	mv->fActive = qtrue;
-	mv->entID = pID;
+	mv->entID   = pID;
 
-	v = mv->camera;
-	v->classname = "misc_portal_surface";
-	v->r.svFlags = SVF_PORTAL | SVF_SINGLECLIENT;	// Only merge snapshots for the target client
+	v                 = mv->camera;
+	v->classname      = "misc_portal_surface";
+	v->r.svFlags      = SVF_PORTAL | SVF_SINGLECLIENT; // Only merge snapshots for the target client
 	v->r.singleClient = ent->s.number;
-	v->s.eType = ET_PORTAL;
+	v->s.eType        = ET_PORTAL;
 
 	VectorClear(v->r.mins);
 	VectorClear(v->r.maxs);
@@ -151,7 +188,7 @@ void G_smvAddView(gentity_t *ent, int pID)
 
 	v->target_ent = &g_entities[pID];
 	v->TargetFlag = pID;
-	v->tagParent = ent;
+	v->tagParent  = ent;
 
 	G_smvUpdateClientCSList(ent);
 }
@@ -162,10 +199,16 @@ qboolean G_smvLocateEntityInMVList(gentity_t *ent, int pID, qboolean fRemove)
 {
 	int i;
 
-	if(ent->client->pers.mvCount > 0) {
-		for(i=0; i<MULTIVIEW_MAXVIEWS; i++) {
-			if(ent->client->pers.mv[i].fActive && ent->client->pers.mv[i].entID == pID) {
-				if(fRemove) G_smvRemoveEntityInMVList(ent, &ent->client->pers.mv[i]);
+	if (ent->client->pers.mvCount > 0)
+	{
+		for (i = 0; i < MULTIVIEW_MAXVIEWS; i++)
+		{
+			if (ent->client->pers.mv[i].fActive && ent->client->pers.mv[i].entID == pID)
+			{
+				if (fRemove)
+				{
+					G_smvRemoveEntityInMVList(ent, &ent->client->pers.mv[i]);
+				}
 				return(qtrue);
 			}
 		}
@@ -178,7 +221,7 @@ qboolean G_smvLocateEntityInMVList(gentity_t *ent, int pID, qboolean fRemove)
 // Explicitly shutdown a camera and update global list
 void G_smvRemoveEntityInMVList(gentity_t *ent, mview_t *ref)
 {
-	ref->entID = -1;
+	ref->entID   = -1;
 	ref->fActive = qfalse;
 	G_FreeEntity(ref->camera);
 	ref->camera = NULL;
@@ -193,8 +236,10 @@ unsigned int G_smvGenerateClientList(gentity_t *ent)
 {
 	unsigned int i, mClients = 0;
 
-	for(i=0; i<MULTIVIEW_MAXVIEWS; i++) {
-		if(ent->client->pers.mv[i].fActive) {
+	for (i = 0; i < MULTIVIEW_MAXVIEWS; i++)
+	{
+		if (ent->client->pers.mv[i].fActive)
+		{
 			/* TC SHL r32,CL masks the count, including bit31. */
 			mClients |= 1u << ((unsigned int)ent->client->pers.mv[i].entID & 31u);
 		}
@@ -209,8 +254,12 @@ void G_smvRegenerateClients(gentity_t *ent, int clientList)
 {
 	int i;
 
-	for(i=0; i<MAX_MVCLIENTS; i++) {
-		if((unsigned int)clientList & (1u << i)) G_smvAddView(ent, i);
+	for (i = 0; i < MAX_MVCLIENTS; i++)
+	{
+		if ((unsigned int)clientList & (1u << i))
+		{
+			G_smvAddView(ent, i);
+		}
 	}
 }
 
@@ -228,11 +277,18 @@ void G_smvRemoveInvalidClients(gentity_t *ent, int nTeam)
 {
 	int i, id;
 
-	for(i=0; i<level.numConnectedClients; i++) {
+	for (i = 0; i < level.numConnectedClients; i++)
+	{
 		id = level.sortedClients[i];
 
-		if(level.clients[id].sess.sessionTeam == TEAM_SPECTATOR) continue;
-		if(level.clients[id].sess.sessionTeam != nTeam && ent->client->sess.sessionTeam == TEAM_SPECTATOR) continue;
+		if (level.clients[id].sess.sessionTeam == TEAM_SPECTATOR)
+		{
+			continue;
+		}
+		if (level.clients[id].sess.sessionTeam != nTeam && ent->client->sess.sessionTeam == TEAM_SPECTATOR)
+		{
+			continue;
+		}
 
 		G_smvLocateEntityInMVList(ent, id, qtrue);
 	}
@@ -241,13 +297,17 @@ void G_smvRemoveInvalidClients(gentity_t *ent, int nTeam)
 // Scan all MV lists for a single client to remove
 void G_smvAllRemoveSingleClient(int pID)
 {
-	int i;
+	int       i;
 	gentity_t *ent;
 
-	for(i=0; i<level.numConnectedClients; i++) {
+	for (i = 0; i < level.numConnectedClients; i++)
+	{
 		ent = g_entities + level.sortedClients[i];
 
-		if(ent->client->pers.mvCount < 1) continue;
+		if (ent->client->pers.mvCount < 1)
+		{
+			continue;
+		}
 		G_smvLocateEntityInMVList(ent, pID, qtrue);
 	}
 }
@@ -256,15 +316,16 @@ void G_smvAllRemoveSingleClient(int pID)
 /* TC camera packing: FILD/FMUL[/FIDIV], double floor argument, then
  * retained floor result plus optional one and __ftol64/low EAX. */
 static int G_TCECameraQuantize(int cameraValue, unsigned int cameraFactorBits,
-	int cameraDivisor, qboolean cameraAddOne, qboolean cameraDivide) {
+                               int cameraDivisor, qboolean cameraAddOne, qboolean cameraDivide)
+{
 	float cameraFactor;
 	memcpy(&cameraFactor, &cameraFactorBits, sizeof(cameraFactor));
 #if defined(_MSC_VER) && defined(_M_IX86)
 	{
-		double (__cdecl *cameraFloor)(double) = floor;
-		double cameraOne = 1.0;
+		double(__cdecl * cameraFloor)(double) = floor;
+		double         cameraOne = 1.0;
 		unsigned short cameraCW, cameraTruncCW;
-		__int64 cameraResult;
+		__int64        cameraResult;
 		__asm {
 			fild cameraValue
 			fmul cameraFactor
@@ -273,7 +334,7 @@ static int G_TCECameraQuantize(int cameraValue, unsigned int cameraFactorBits,
 			fidiv cameraDivisor
 camera_no_divide:
 			sub esp, 8
-			fstp qword ptr [esp]
+			fstp qword ptr[esp]
 			call cameraFloor
 			add esp, 8
 			cmp cameraAddOne, 0
@@ -294,14 +355,15 @@ camera_no_increment:
 	}
 #else
 	return (int)(floor((double)cameraValue * cameraFactor /
-		(cameraDivide ? cameraDivisor : 1)) + (cameraAddOne ? 1.0 : 0.0));
+	                   (cameraDivide ? cameraDivisor : 1)) + (cameraAddOne ? 1.0 : 0.0));
 #endif
 }
 
-static int G_TCECameraCharge(float cameraChargeValue) {
+static int G_TCECameraCharge(float cameraChargeValue)
+{
 #if defined(_MSC_VER) && defined(_M_IX86)
 	unsigned short chargeCW, chargeTruncCW;
-	__int64 chargeResult;
+	__int64        chargeResult;
 	__asm {
 		fld cameraChargeValue
 		fwait
@@ -323,24 +385,32 @@ static int G_TCECameraCharge(float cameraChargeValue) {
 // Set up snapshot merge based on this portal
 qboolean G_smvRunCamera(gentity_t *ent)
 {
-	int id = ent->TargetFlag;
-	int chargeTime, sprintTime, hintTime, weapHeat, chargeElapsed;
+	int           id = ent->TargetFlag;
+	int           chargeTime, sprintTime, hintTime, weapHeat, chargeElapsed;
 	playerState_t *tps, *ps;
 
 	// Opt out if not a real MV portal
-	if(ent->tagParent == NULL || ent->tagParent->client == NULL) return(qfalse);
-	
-	if((ps = &ent->tagParent->client->ps) == NULL) return(qfalse);
+	if (ent->tagParent == NULL || ent->tagParent->client == NULL)
+	{
+		return(qfalse);
+	}
+
+	if ((ps = &ent->tagParent->client->ps) == NULL)
+	{
+		return(qfalse);
+	}
 
 	// If viewing client is no longer connected, delete this camera
-	if(ent->tagParent->client->pers.connected != CON_CONNECTED) {
+	if (ent->tagParent->client->pers.connected != CON_CONNECTED)
+	{
 		G_FreeEntity(ent);
 		return(qtrue);
 	}
 
 	// Also remove if the target player is no longer in the game playing
-	if(ent->target_ent->client->pers.connected != CON_CONNECTED ||
-	  ent->target_ent->client->sess.sessionTeam == TEAM_SPECTATOR) {
+	if (ent->target_ent->client->pers.connected != CON_CONNECTED ||
+	    ent->target_ent->client->sess.sessionTeam == TEAM_SPECTATOR)
+	{
 		G_smvLocateEntityInMVList(ent->tagParent, ent->target_ent - g_entities, qtrue);
 		return(qtrue);
 	}
@@ -357,24 +427,42 @@ qboolean G_smvRunCamera(gentity_t *ent)
 	trap_LinkEntity(ent);
 
 	// Only allow client ids 0 to (MAX_MVCLIENTS-1) to be updated with extra info
-	if(id >= MAX_MVCLIENTS) return(qtrue);
+	if (id >= MAX_MVCLIENTS)
+	{
+		return(qtrue);
+	}
 
 	tps = &ent->target_ent->client->ps;
 
-	if(tps->stats[STAT_PLAYER_CLASS] == PC_ENGINEER) chargeTime = G_TCECameraCharge(g_engineerChargeTime.value);
-	else if(tps->stats[STAT_PLAYER_CLASS] == PC_MEDIC) chargeTime = G_TCECameraCharge(g_medicChargeTime.value);
-	else if(tps->stats[STAT_PLAYER_CLASS] == PC_FIELDOPS) chargeTime = G_TCECameraCharge(g_LTChargeTime.value);
-	else if(tps->stats[STAT_PLAYER_CLASS] == PC_COVERTOPS) chargeTime = G_TCECameraCharge(g_covertopsChargeTime.value);
-	else chargeTime = G_TCECameraCharge(g_soldierChargeTime.value);
+	if (tps->stats[STAT_PLAYER_CLASS] == PC_ENGINEER)
+	{
+		chargeTime = G_TCECameraCharge(g_engineerChargeTime.value);
+	}
+	else if (tps->stats[STAT_PLAYER_CLASS] == PC_MEDIC)
+	{
+		chargeTime = G_TCECameraCharge(g_medicChargeTime.value);
+	}
+	else if (tps->stats[STAT_PLAYER_CLASS] == PC_FIELDOPS)
+	{
+		chargeTime = G_TCECameraCharge(g_LTChargeTime.value);
+	}
+	else if (tps->stats[STAT_PLAYER_CLASS] == PC_COVERTOPS)
+	{
+		chargeTime = G_TCECameraCharge(g_covertopsChargeTime.value);
+	}
+	else
+	{
+		chargeTime = G_TCECameraCharge(g_soldierChargeTime.value);
+	}
 
 	chargeElapsed = (int)((unsigned int)level.time - (unsigned int)tps->classWeaponTime);
-	chargeTime = (chargeElapsed >= chargeTime) ? 0 :
-		G_TCECameraQuantize(chargeElapsed, 0x41700000u, chargeTime, qtrue, qtrue);
+	chargeTime    = (chargeElapsed >= chargeTime) ? 0 :
+	                G_TCECameraQuantize(chargeElapsed, 0x41700000u, chargeTime, qtrue, qtrue);
 	sprintTime = (ent->target_ent->client->pmext.sprintTime >= 20000) ? 0 :
-		G_TCECameraQuantize(ent->target_ent->client->pmext.sprintTime, 0x39b78034u, 0, qtrue, qfalse);
+	             G_TCECameraQuantize(ent->target_ent->client->pmext.sprintTime, 0x39b78034u, 0, qtrue, qfalse);
 	weapHeat = G_TCECameraQuantize(tps->curWeapHeat, 0x3d70f0f1u, 0, qfalse, qfalse);
-	hintTime   = (tps->serverCursorHint != HINT_BUILD && (tps->serverCursorHintVal >= 255 || tps->serverCursorHintVal == 0)) ?
-														0 : G_TCECameraQuantize(tps->serverCursorHintVal, 0x3d70f0f1u, 0, qtrue, qfalse);
+	hintTime = (tps->serverCursorHint != HINT_BUILD && (tps->serverCursorHintVal >= 255 || tps->serverCursorHintVal == 0)) ?
+	           0 : G_TCECameraQuantize(tps->serverCursorHintVal, 0x3d70f0f1u, 0, qtrue, qfalse);
 
 	// (Remaining bits)
 	// ammo      : 0
@@ -383,25 +471,28 @@ qboolean G_smvRunCamera(gentity_t *ent)
 	// ammoclip-1: 16
 	id = MAX_WEAPONS - 1 - (id * 2);
 
-	if(tps->pm_flags & PMF_LIMBO) {
-		ps->ammo[id] = 0;
-		ps->ammo[id - 1] = 0;
+	if (tps->pm_flags & PMF_LIMBO)
+	{
+		ps->ammo[id]         = 0;
+		ps->ammo[id - 1]     = 0;
 		ps->ammoclip[id - 1] = 0;
-	} else {
-		ps->ammo[id]  = (((ent->target_ent->health > 0) ? ent->target_ent->health : 0) & 0xFF);	// Meds up to 140 :(
-		ps->ammo[id] |= (hintTime & 0x0F) << 8;	// 4 bits for work on current item (dynamite, weapon repair, etc.)
+	}
+	else
+	{
+		ps->ammo[id]  = (((ent->target_ent->health > 0) ? ent->target_ent->health : 0) & 0xFF); // Meds up to 140 :(
+		ps->ammo[id] |= (hintTime & 0x0F) << 8; // 4 bits for work on current item (dynamite, weapon repair, etc.)
 		ps->ammo[id] |= (weapHeat & 0x0F) << 12;// 4 bits for weapon heat info
 
-		ps->ammo[id - 1]  = tps->ammo[BG_FindAmmoForWeapon(tps->weapon)] & 0x3FF;	// 11 bits needed to cover 1500 Venom ammo
-		ps->ammo[id - 1] |= (BG_simpleWeaponState(tps->weaponstate) & 0x03) << 11;	// 2 bits for current weapon state
-		ps->ammo[id - 1] |= ((tps->persistant[PERS_HWEAPON_USE]) ? 1 : 0) << 13;	// 1 bit for mg42 use
-		ps->ammo[id - 1] |= (BG_simpleHintsCollapse(tps->serverCursorHint, hintTime) & 0x03) << 14;	// 2 bits for cursor hints
+		ps->ammo[id - 1]  = tps->ammo[BG_FindAmmoForWeapon(tps->weapon)] & 0x3FF;   // 11 bits needed to cover 1500 Venom ammo
+		ps->ammo[id - 1] |= (BG_simpleWeaponState(tps->weaponstate) & 0x03) << 11;  // 2 bits for current weapon state
+		ps->ammo[id - 1] |= ((tps->persistant[PERS_HWEAPON_USE]) ? 1 : 0) << 13;    // 1 bit for mg42 use
+		ps->ammo[id - 1] |= (BG_simpleHintsCollapse(tps->serverCursorHint, hintTime) & 0x03) << 14; // 2 bits for cursor hints
 
 //	G_Printf("tps->hint: %d, dr: %d, collapse: %d\n", tps->serverCursorHint, HINT_DOOR_ROTATING, G_simpleHintsCollapse(tps->serverCursorHint, hintTime));
 
-		ps->ammoclip[id - 1]  = tps->ammoclip[BG_FindClipForWeapon(tps->weapon)] & 0x1FF;	// 9 bits to cover 500 Venom ammo clip
-		ps->ammoclip[id - 1] |= (chargeTime & 0x0F) << 9;	// 4 bits for weapon charge time
-		ps->ammoclip[id - 1] |= (sprintTime & 0x07) << 13;	// 3 bits for fatigue
+		ps->ammoclip[id - 1]  = tps->ammoclip[BG_FindClipForWeapon(tps->weapon)] & 0x1FF;   // 9 bits to cover 500 Venom ammo clip
+		ps->ammoclip[id - 1] |= (chargeTime & 0x0F) << 9;   // 4 bits for weapon charge time
+		ps->ammoclip[id - 1] |= (sprintTime & 0x07) << 13;  // 3 bits for fatigue
 	}
 
 	return(qtrue);

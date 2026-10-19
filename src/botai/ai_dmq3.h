@@ -58,79 +58,79 @@ typedef struct BotTarget_s
 qboolean BotJustShotMe(bot_state_t *bs, int suspect);
 
 void BotCountLandMines(void);
-int BotBestTargetWeapon( bot_state_t *bs, int targetNum );
-gentity_t *BotGetVisibleDamagableScriptMover( bot_state_t *bs );
-qboolean BotEnemyCarryingFlag( int entnum );
-float BotHealthScale( int entnum );
-int BotGetNumVisibleSniperSpots( bot_state_t *bs );
-int BotCanSnipe( bot_state_t *bs, qboolean checkAmmo );
-qboolean BotIsConstructible( team_t botTeam, int toiNum );
-qboolean BotGetReachableEntityArea( bot_state_t *bs, int entityNum, bot_goal_t *goal );
-qboolean BotEntityTargetClassnameMatch( int entityNum, const char *classname );
-qboolean BotDirectMoveToGoal( bot_state_t *bs, bot_goal_t *goal, bot_moveresult_t *moveresult );
-int BotLastHurt( bot_state_t *bs );
-qboolean BotBattleNewNode( bot_state_t *bs );
-int BotLastAttacked( bot_state_t *bs );
-int BotTravelTimeToEntity( bot_state_t *bs, int entnum );
-int BotReduceListByTravelTime( int *list, int numList, vec3_t destpos, int destarea, int traveltime );
-qboolean BotCanAttack( bot_state_t *bs );
-float *BotGetOrigin( int entnum );
-float *BotGetEye( int entnum );
-int BotGetArea( int entnum );
-qboolean BotSeekCover( bot_state_t *bs );
-void BotShareLastAttacked( bot_state_t *bs );
-char *BotStringForMovementAutonomy( int value );
-char *BotStringForWeaponAutonomy( int value );
-qboolean BotCanPursue( bot_state_t *bs, int enemy );
-int BotGetMovementAutonomyLevel( bot_state_t *bs );
-void BotEnemyFire( bot_state_t *bs );
-void BotDefaultNode( bot_state_t *bs );
-qboolean BotGetMovementAutonomyPos( bot_state_t *bs, vec3_t pos );
-qboolean BotCheckEmergencyTargets( bot_state_t *bs );
-qboolean BotFindSpecialGoals( bot_state_t *bs );
-void BotCheckVoiceChats( bot_state_t *bs );
-int BotWeaponAutonomyForString( char *string );
-int BotMovementAutonomyForString( char *string );
-int BotScriptAutonomyForString( char *string );
-float BotGetRawMovementAutonomyRange( bot_state_t *bs );
-float BotGetMovementAutonomyRange( bot_state_t *bs, bot_goal_t *goal );
+int BotBestTargetWeapon(bot_state_t *bs, int targetNum);
+gentity_t *BotGetVisibleDamagableScriptMover(bot_state_t *bs);
+qboolean BotEnemyCarryingFlag(int entnum);
+float BotHealthScale(int entnum);
+int BotGetNumVisibleSniperSpots(bot_state_t *bs);
+int BotCanSnipe(bot_state_t *bs, qboolean checkAmmo);
+qboolean BotIsConstructible(team_t botTeam, int toiNum);
+qboolean BotGetReachableEntityArea(bot_state_t *bs, int entityNum, bot_goal_t *goal);
+qboolean BotEntityTargetClassnameMatch(int entityNum, const char *classname);
+qboolean BotDirectMoveToGoal(bot_state_t *bs, bot_goal_t *goal, bot_moveresult_t *moveresult);
+int BotLastHurt(bot_state_t *bs);
+qboolean BotBattleNewNode(bot_state_t *bs);
+int BotLastAttacked(bot_state_t *bs);
+int BotTravelTimeToEntity(bot_state_t *bs, int entnum);
+int BotReduceListByTravelTime(int *list, int numList, vec3_t destpos, int destarea, int traveltime);
+qboolean BotCanAttack(bot_state_t *bs);
+float *BotGetOrigin(int entnum);
+float *BotGetEye(int entnum);
+int BotGetArea(int entnum);
+qboolean BotSeekCover(bot_state_t *bs);
+void BotShareLastAttacked(bot_state_t *bs);
+char *BotStringForMovementAutonomy(int value);
+char *BotStringForWeaponAutonomy(int value);
+qboolean BotCanPursue(bot_state_t *bs, int enemy);
+int BotGetMovementAutonomyLevel(bot_state_t *bs);
+void BotEnemyFire(bot_state_t *bs);
+void BotDefaultNode(bot_state_t *bs);
+qboolean BotGetMovementAutonomyPos(bot_state_t *bs, vec3_t pos);
+qboolean BotCheckEmergencyTargets(bot_state_t *bs);
+qboolean BotFindSpecialGoals(bot_state_t *bs);
+void BotCheckVoiceChats(bot_state_t *bs);
+int BotWeaponAutonomyForString(char *string);
+int BotMovementAutonomyForString(char *string);
+int BotScriptAutonomyForString(char *string);
+float BotGetRawMovementAutonomyRange(bot_state_t *bs);
+float BotGetMovementAutonomyRange(bot_state_t *bs, bot_goal_t *goal);
 
 // Start - TAT 9/18/2002
 //	What distance should a bot be from its leader during a follow order?  Based on autonomy
-float BotGetFollowAutonomyDist( bot_state_t *bs );
+float BotGetFollowAutonomyDist(bot_state_t *bs);
 
 // Is a bot within the desired distance of its leader?
-qboolean BotWithinLeaderFollowDist( bot_state_t *bs );
+qboolean BotWithinLeaderFollowDist(bot_state_t *bs);
 // End - TAT 9/18/2002
 
 // Start	TAT 9/23/2002
 // Update recon state information for a bot
 void BotUpdateReconInfo(bot_state_t *bs);
 
-qboolean BotPointWithinMovementAutonomy( bot_state_t *bs, bot_goal_t *goal, vec3_t point );
-qboolean BotPointWithinRawMovementAutonomy( bot_state_t *bs, vec3_t point );
-qboolean BotGoalWithinMovementAutonomy( bot_state_t *bs, bot_goal_t *goal, int urgency );
-qboolean BotCheckMovementAutonomy( bot_state_t *bs, bot_goal_t *goal );
-qboolean BotGoalForEntity( bot_state_t *bs, int entityNum, bot_goal_t *goal, int urgency );
-qboolean BotDangerousGoal( bot_state_t *bs, bot_goal_t *goal );
+qboolean BotPointWithinMovementAutonomy(bot_state_t *bs, bot_goal_t *goal, vec3_t point);
+qboolean BotPointWithinRawMovementAutonomy(bot_state_t *bs, vec3_t point);
+qboolean BotGoalWithinMovementAutonomy(bot_state_t *bs, bot_goal_t *goal, int urgency);
+qboolean BotCheckMovementAutonomy(bot_state_t *bs, bot_goal_t *goal);
+qboolean BotGoalForEntity(bot_state_t *bs, int entityNum, bot_goal_t *goal, int urgency);
+qboolean BotDangerousGoal(bot_state_t *bs, bot_goal_t *goal);
 qboolean BotCarryingFlag(int client);
-qboolean BotFindNearbyGoal( bot_state_t *bs );
+qboolean BotFindNearbyGoal(bot_state_t *bs);
 
-float BotWeaponWantScale( bot_state_t *bs, weapon_t weapon );
-qboolean BotWeaponCharged( bot_state_t *bs, int weapon );
-void BotRecordTeamChange( int client );
-void BotRecordKill( int client, int enemy );
-void BotRecordPain( int client, int enemy, int mod );
-void BotRecordDeath( int client, int enemy );
-void BotGetAimAccuracySkill( bot_state_t *bs, float *outAimAccuracy, float *outSkill );
-int BotBestSniperSpot( bot_state_t *bs );
-int BotBestLandmineSpotingSpot( bot_state_t *bs );
-int BotGetRandomVisibleSniperSpot( bot_state_t *bs );
-void BotClearGoal( bot_goal_t *goal );
-qboolean BotGotEnoughAmmoForWeapon( bot_state_t *bs, int weapon );
-int BotReachableBBoxAreaNum( bot_state_t *bs, vec3_t absmin, vec3_t absmax );
-void BotDropFlag( bot_state_t *bs );
-int BotBestMG42Spot( bot_state_t *bs, qboolean force );
+float BotWeaponWantScale(bot_state_t *bs, weapon_t weapon);
+qboolean BotWeaponCharged(bot_state_t *bs, int weapon);
+void BotRecordTeamChange(int client);
+void BotRecordKill(int client, int enemy);
+void BotRecordPain(int client, int enemy, int mod);
+void BotRecordDeath(int client, int enemy);
+void BotGetAimAccuracySkill(bot_state_t *bs, float *outAimAccuracy, float *outSkill);
+int BotBestSniperSpot(bot_state_t *bs);
+int BotBestLandmineSpotingSpot(bot_state_t *bs);
+int BotGetRandomVisibleSniperSpot(bot_state_t *bs);
+void BotClearGoal(bot_goal_t *goal);
+qboolean BotGotEnoughAmmoForWeapon(bot_state_t *bs, int weapon);
+int BotReachableBBoxAreaNum(bot_state_t *bs, vec3_t absmin, vec3_t absmax);
+void BotDropFlag(bot_state_t *bs);
+int BotBestMG42Spot(bot_state_t *bs, qboolean force);
 
 //setup the deathmatch AI
 void BotSetupDeathmatchAI(void);
@@ -205,9 +205,9 @@ int TeamPlayIsOn(void);
 
 // Set up our danger spots
 void BotFindEnemies
-( 
-	bot_state_t *bs, 
-	int *dangerSpots, 
+(
+	bot_state_t *bs,
+	int *dangerSpots,
 	int *dangerSpotCount
 );
 
@@ -225,10 +225,10 @@ void BotUpdateViewAngles(bot_state_t *bs, bot_goal_t *goal, bot_moveresult_t mov
 int BotFindEnemyMP(bot_state_t *bs, int curenemy, qboolean ignoreViewRestrictions);
 
 //returns true if the entity is within our view restrictions
-qboolean BotEntityWithinView( bot_state_t *bs, int viewEnt );
+qboolean BotEntityWithinView(bot_state_t *bs, int viewEnt);
 
-float BotWeaponRange( bot_state_t *bs, int weaponnum );
-qboolean BotScopedWeapon( int weapon );
+float BotWeaponRange(bot_state_t *bs, int weaponnum);
+qboolean BotScopedWeapon(int weapon);
 
 //returns a roam goal
 void BotRoamGoal(bot_state_t *bs, vec3_t goal);
@@ -253,23 +253,23 @@ int BotPointAreaNum(int entnum, vec3_t origin);
 //
 void BotMapScripts(bot_state_t *bs);
 //
-qboolean BotMoveWhileFiring( int weapon );
+qboolean BotMoveWhileFiring(int weapon);
 
-qboolean ChangeBotAlertState( bot_state_t *bs, aistateEnum_t newAlertState, qboolean force);
+qboolean ChangeBotAlertState(bot_state_t *bs, aistateEnum_t newAlertState, qboolean force);
 
 //ctf flags
-#define CTF_FLAG_NONE		0
-#define CTF_FLAG_RED		1
-#define CTF_FLAG_BLUE		2
+#define CTF_FLAG_NONE       0
+#define CTF_FLAG_RED        1
+#define CTF_FLAG_BLUE       2
 //CTF skins
-#define CTF_SKIN_REDTEAM	"red"
-#define CTF_SKIN_BLUETEAM	"blue"
+#define CTF_SKIN_REDTEAM    "red"
+#define CTF_SKIN_BLUETEAM   "blue"
 //CTF teams
-#define CTF_TEAM_NONE		0
-#define CTF_TEAM_AXIS		1
-#define CTF_TEAM_ALLIES		2
+#define CTF_TEAM_NONE       0
+#define CTF_TEAM_AXIS       1
+#define CTF_TEAM_ALLIES     2
 
-extern int gametype;		//game type
+extern int gametype;        //game type
 
 // Rafael gameskill
 extern int gameskill;

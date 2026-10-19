@@ -5,8 +5,8 @@
  * -1 requests automatic selection. Selection changes next-spawn latches only. */
 qboolean TCE_OmniClassValid(int playerClass);
 qboolean TCE_OmniWeaponAvailable(gentity_t *ent, int playerClass,
-    int weapon, int slot, int primary);
+                                 int weapon, int slot, int primary);
 qboolean TCE_OmniSelectLoadout(gentity_t *ent, int playerClass,
-    int primary, int secondary);
+                               int primary, int secondary);
 
 #endif

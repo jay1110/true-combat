@@ -5,6 +5,7 @@
 
 # Publish production sources and build inputs only. Local research is retained.
 /src/*
+!/src/uncrustify.cfg
 !/src/botai/
 !/src/cgame/
 !/src/game/

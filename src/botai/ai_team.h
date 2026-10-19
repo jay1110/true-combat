@@ -8,9 +8,10 @@
  *****************************************************************************/
 
 #ifndef BOT_SHOWTEXT
-#define	BOT_SHOWTEXT	2
+#define BOT_SHOWTEXT    2
 
-typedef enum {
+typedef enum
+{
 	VCHAT_MEDIC,
 	VCHAT_NEEDAMMO,
 	VCHAT_NEEDBACKUP,
@@ -43,41 +44,41 @@ typedef struct AI_Team_s
 
 
 
-qboolean BotCheckNeedEngineer( bot_state_t *bs, team_t team  );
+qboolean BotCheckNeedEngineer(bot_state_t *bs, team_t team);
 int BotSuggestClass(bot_state_t *bs, team_t team);
-int BotFlagAtBase( int team, gentity_t **returnEnt );
-qboolean BotCheckEmergencyTargets( bot_state_t *bs );
-int BotFindSparseDefendArea( bot_state_t *bs, bot_goal_t *goal, qboolean force );
+int BotFlagAtBase(int team, gentity_t **returnEnt);
+qboolean BotCheckEmergencyTargets(bot_state_t *bs);
+int BotFindSparseDefendArea(bot_state_t *bs, bot_goal_t *goal, qboolean force);
 int BotNumTeamMatesWithTarget(bot_state_t *bs, int targetEntity, int *list, int maxList);
-int BotNumTeamMatesWithTargetAndCloser( bot_state_t *bs, int targetEntity, int targetArea, int *list, int maxList, int playerType );
+int BotNumTeamMatesWithTargetAndCloser(bot_state_t *bs, int targetEntity, int targetArea, int *list, int maxList, int playerType);
 int BotNumTeamMatesWithTargetByClass(bot_state_t *bs, int targetEntity, int *list, int maxList, int playerType);
 int BotNumTeamMates(bot_state_t *bs, int *list, int maxList);
 gentity_t *BotGetEnemyFlagCarrier(bot_state_t *bs);
 // Start - TAT 9/20/2002
 // covert ops bot looks for nearby corpses
-qboolean BotClass_CovertOpsCheckDisguises( bot_state_t *bs, int maxTravel, bot_goal_t *goal);
+qboolean BotClass_CovertOpsCheckDisguises(bot_state_t *bs, int maxTravel, bot_goal_t *goal);
 // End - TAT 9/20/2002
-qboolean BotClass_MedicCheckRevives( bot_state_t *bs, int maxtravel, bot_goal_t *goal, qboolean lookForBots );
-qboolean BotClass_MedicCheckGiveHealth( bot_state_t *bs, int maxTravelTime, bot_goal_t *goal );
-qboolean BotClass_LtCheckGiveAmmo( bot_state_t *bs, int maxTravelTime, bot_goal_t *goal );
-qboolean BotFindDroppedFlag( gentity_t **returnEnt );
-void BotSendVoiceChat( bot_state_t *bs, const char *id, int mode, int delay, qboolean voiceonly, qboolean forceIfDead );
-void BotCheckVoiceChatResponse( bot_state_t *bs );
+qboolean BotClass_MedicCheckRevives(bot_state_t *bs, int maxtravel, bot_goal_t *goal, qboolean lookForBots);
+qboolean BotClass_MedicCheckGiveHealth(bot_state_t *bs, int maxTravelTime, bot_goal_t *goal);
+qboolean BotClass_LtCheckGiveAmmo(bot_state_t *bs, int maxTravelTime, bot_goal_t *goal);
+qboolean BotFindDroppedFlag(gentity_t **returnEnt);
+void BotSendVoiceChat(bot_state_t *bs, const char *id, int mode, int delay, qboolean voiceonly, qboolean forceIfDead);
+void BotCheckVoiceChatResponse(bot_state_t *bs);
 void BotSpawnSpecialEntities(void);
-int BotSuggestWeapon( bot_state_t *bs, team_t team );
+int BotSuggestWeapon(bot_state_t *bs, team_t team);
 int BotGetTeamFlagCarrier(bot_state_t *bs);
-float *BotSortPlayersByDistance( vec3_t target, int *list, int numList );
-float *BotSortPlayersByTraveltime( int areanum, int *list, int numList );
-int	BotGetLeader( bot_state_t *bs, qboolean onlyRequested );
-void BotVoiceChatAfterIdleTime( int client, const char *id, int mode, int delay, qboolean voiceonly, int idleTime, qboolean forceIfDead );
-void BotVoiceChatAfterTeamIdleTime( int client, const char *id, int mode, int delay, qboolean voiceonly, int idleTime, qboolean forceIfDead );
-void BotSetLeaderTagEnt( bot_state_t *bs );
-int BotEngagementFunc( bot_state_t *bs );
-int BotBehaviourFunc( bot_state_t *bs );
-int BotObjectiveFunc( bot_state_t *bs );
-qboolean G_RequestedAmmo( bot_state_t *bs, int client, qboolean clear );
-int BotGetConstructibles( team_t team, int *list, int listSize, qboolean ignoreBuilt );
-int BotClosestSeekCoverSpot( bot_state_t *bs );
+float *BotSortPlayersByDistance(vec3_t target, int *list, int numList);
+float *BotSortPlayersByTraveltime(int areanum, int *list, int numList);
+int BotGetLeader(bot_state_t *bs, qboolean onlyRequested);
+void BotVoiceChatAfterIdleTime(int client, const char *id, int mode, int delay, qboolean voiceonly, int idleTime, qboolean forceIfDead);
+void BotVoiceChatAfterTeamIdleTime(int client, const char *id, int mode, int delay, qboolean voiceonly, int idleTime, qboolean forceIfDead);
+void BotSetLeaderTagEnt(bot_state_t *bs);
+int BotEngagementFunc(bot_state_t *bs);
+int BotBehaviourFunc(bot_state_t *bs);
+int BotObjectiveFunc(bot_state_t *bs);
+qboolean G_RequestedAmmo(bot_state_t *bs, int client, qboolean clear);
+int BotGetConstructibles(team_t team, int *list, int listSize, qboolean ignoreBuilt);
+int BotClosestSeekCoverSpot(bot_state_t *bs);
 
 // OK, this one looks in the specified direction (retreat/advance) and
 // find the next available spot.
@@ -85,7 +86,7 @@ int BotClosestSeekCoverSpot( bot_state_t *bs );
 int BotSquadGetNextAvailableSeekCoverSpot
 (
 	// The info for the bot
-	bot_state_t *bs, 
+	bot_state_t *bs,
 	// Moving forwards or backwards?
 	qboolean advance,
 	// entity id of the player we should check being in a seek_cover_sequence

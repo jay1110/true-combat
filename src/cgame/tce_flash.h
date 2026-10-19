@@ -1,8 +1,9 @@
 #ifndef TCE_FLASH_H
 #define TCE_FLASH_H
-typedef struct {
-    int blindUntil, blindActive, deafUntil;
-    float deafness;
+typedef struct
+{
+	int blindUntil, blindActive, deafUntil;
+	float deafness;
 } tceFlashState_t;
 extern tceFlashState_t tceFlash;
 void TCE_CG_FlashBang(const vec3_t origin, int concussionOnly);

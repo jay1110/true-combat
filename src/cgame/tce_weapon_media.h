@@ -2,45 +2,48 @@
 #define TCE_WEAPON_MEDIA_H
 #include <stddef.h>
 /* Windows TC:E media ABI. Unknown regions remain explicit until recovered. */
-typedef struct {
-    char tagName[64];
-    int model, skin[3];
-    int portalScope, noPortalScope, tacView, noTacView, modFlags;
+typedef struct
+{
+	char tagName[64];
+	int model, skin[3];
+	int portalScope, noPortalScope, tacView, noTacView, modFlags;
 } tce_partModel_t;
 typedef struct { int model, skin[3]; } tce_weaponModel_t;
 #ifdef CGAMEDLL
 /* Identical, checked cgame animation ABI; no incompatible pointer casts. */
 typedef animation_t tce_weaponAnimation_t;
 #else
-typedef struct {
-    int mdxFile;
-    char name[64];
-    int firstFrame, numFrames, loopFrames, frameLerp, initialLerp, moveSpeed;
-    int animBlend, duration, nameHash, flags, movetype;
+typedef struct
+{
+	int mdxFile;
+	char name[64];
+	int firstFrame, numFrames, loopFrames, frameLerp, initialLerp, moveSpeed;
+	int animBlend, duration, nameHash, flags, movetype;
 } tce_weaponAnimation_t;
 #endif
-typedef struct {
-    int registered;
-    tce_weaponAnimation_t animations[13];
-    int handsModel, standModel, droppedAnglesHack;
-    tce_weaponModel_t weaponModel[3];
-    tce_partModel_t partModels[3][7];
-    int flashModel[3], modModels[6];
-    vec3_t flashDlightColor;
-    int flashSound[4], flashEchoSound[4], lastShotSound[4];
-    int weaponIcon, weaponSelectedIcon, unknown_e8c;
-    int missileModel, missileAlliedSkin, missileAxisSkin, missileSound;
-    int missileTrail; /* semantic callback ID; original stores a code pointer */
-    float missileDlight;
-    vec3_t missileDlightColor;
-    int missileRenderfx;
-    vec3_t gunViewOffset, gunViewAimOffset, gunViewAngles;
-    float foreShorten;
-    int tagsInMain, portalScopeWidth, flashReverbVolume;
-    char deployMenuShortName[64], deployMenuDescription[64], deployMenuType[64];
-    int ejectBrass; /* semantic callback ID; original stores a code pointer */
-    int readySound, firingSound, overheatSound, reloadSound, reloadFastSound;
-    int spinupSound, spindownSound, switchSound;
+typedef struct
+{
+	int registered;
+	tce_weaponAnimation_t animations[13];
+	int handsModel, standModel, droppedAnglesHack;
+	tce_weaponModel_t weaponModel[3];
+	tce_partModel_t partModels[3][7];
+	int flashModel[3], modModels[6];
+	vec3_t flashDlightColor;
+	int flashSound[4], flashEchoSound[4], lastShotSound[4];
+	int weaponIcon, weaponSelectedIcon, unknown_e8c;
+	int missileModel, missileAlliedSkin, missileAxisSkin, missileSound;
+	int missileTrail; /* semantic callback ID; original stores a code pointer */
+	float missileDlight;
+	vec3_t missileDlightColor;
+	int missileRenderfx;
+	vec3_t gunViewOffset, gunViewAimOffset, gunViewAngles;
+	float foreShorten;
+	int tagsInMain, portalScopeWidth, flashReverbVolume;
+	char deployMenuShortName[64], deployMenuDescription[64], deployMenuType[64];
+	int ejectBrass; /* semantic callback ID; original stores a code pointer */
+	int readySound, firingSound, overheatSound, reloadSound, reloadFastSound;
+	int spinupSound, spindownSound, switchSound;
 } tce_weaponInfo_t;
 typedef char tce_animation_size_check[sizeof(tce_weaponAnimation_t) == 0x70 ? 1 : -1];
 typedef char tce_firstframe_offset_check[(offsetof(tce_weaponInfo_t, animations) + offsetof(tce_weaponAnimation_t, firstFrame)) == 0x48 ? 1 : -1];

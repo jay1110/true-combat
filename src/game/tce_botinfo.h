@@ -3,13 +3,13 @@
 /* Original TC state stride0x1258. Do not substitute SDK bot_state_t.
  * Remaining storage is reserved until the corresponding navigation producers
  * and consumers are ported. Offsets in ClearBotInfo are original ABI offsets. */
-typedef struct { int active;short mode,skill;byte storage[0x1250]; } tceBotInfo_t;
+typedef struct { int active; short mode, skill; byte storage[0x1250]; } tceBotInfo_t;
 extern tceBotInfo_t tceBotInfo[64];
-extern int tceNumBots;
+extern int          tceNumBots;
 void TCE_ClearBotInfo(int clientNum);
 void TCE_InitBotInfo(void);
 void TCE_UpdateBotInfo(void);
-int TCE_ClientNumberFromNameMatch(const char *name,int *matches);
+int TCE_ClientNumberFromNameMatch(const char *name, int *matches);
 void TCE_SvcmdKickBot(void);
 /* Original Botthink owns a frame-local command at TC offset8. Pass it
  * explicitly instead of storing a native pointer in the fixed-width record. */

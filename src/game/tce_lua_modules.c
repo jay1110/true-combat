@@ -9,58 +9,76 @@ extern int luaopen_luasql_sqlite3(lua_State *L);
 extern char *TCE_LuaReadSource(const char *path, int *length);
 static char loadingMarker;
 
-static int Require(lua_State *L) {
-    size_t n, i; char path[MAX_QPATH]; int size, status;
-    char *source; const char *name = luaL_checklstring(L, 1, &n);
-    luaL_argcheck(L, n > 0 && n + 5 < sizeof(path) && !memchr(name, 0, n)
-        && !strstr(name, "..") && name[0] != '/', 1, "invalid module name");
-    for(i = 0; i < n; ++i) {
-        unsigned char c = name[i];
-        luaL_argcheck(L, (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
-            (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '/' || c == '.',
-            1, "invalid module name");
-        path[i] = c == '.' ? '/' : c;
-    }
-    path[n] = 0;
-    lua_getfield(L, LUA_REGISTRYINDEX, "tce.modules");
-    lua_getfield(L, -1, path);
-    if(lua_touserdata(L, -1) == &loadingMarker)
-        return luaL_error(L, "circular require: %s", name);
-    if(!lua_isnil(L, -1)) return 1;
-    lua_pop(L, 1);
-    lua_pushlightuserdata(L, &loadingMarker); lua_setfield(L, -2, path);
-    if(!strcmp(path, "luasql/sqlite3")) {
-        lua_pushcfunction(L, luaopen_luasql_sqlite3);
-    } else {
-        char filename[MAX_QPATH]; Com_sprintf(filename, sizeof(filename), "%s.lua", path);
-        source = TCE_LuaReadSource(filename, &size);
-        if(!source) {
-            lua_pushnil(L); lua_setfield(L, -2, path);
-            return luaL_error(L, "module missing or exceeds 1 MiB: %s", filename);
-        }
-        status = luaL_loadbufferx(L, source, size, filename, "t"); free(source);
-        if(status != LUA_OK) {
-            lua_pushnil(L); lua_setfield(L, -3, path); return lua_error(L);
-        }
-    }
-    status = lua_pcall(L, 0, 1, 0);
-    if(status != LUA_OK) {
-        lua_pushnil(L); lua_setfield(L, -3, path); return lua_error(L);
-    }
-    if(lua_isnil(L, -1)) { lua_pop(L, 1); lua_pushboolean(L, 1); }
-    lua_pushvalue(L, -1); lua_setfield(L, -3, path);
-    return 1;
+static int Require(lua_State *L)
+{
+	size_t n, i; char path[MAX_QPATH]; int size, status;
+	char   *source; const char *name = luaL_checklstring(L, 1, &n);
+	luaL_argcheck(L, n > 0 && n + 5 < sizeof(path) && !memchr(name, 0, n)
+	              && !strstr(name, "..") && name[0] != '/', 1, "invalid module name");
+	for (i = 0; i < n; ++i)
+	{
+		unsigned char c = name[i];
+		luaL_argcheck(L, (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+		              (c >= '0' && c <= '9') || c == '_' || c == '-' || c == '/' || c == '.',
+		              1, "invalid module name");
+		path[i] = c == '.' ? '/' : c;
+	}
+	path[n] = 0;
+	lua_getfield(L, LUA_REGISTRYINDEX, "tce.modules");
+	lua_getfield(L, -1, path);
+	if (lua_touserdata(L, -1) == &loadingMarker)
+	{
+		return luaL_error(L, "circular require: %s", name);
+	}
+	if (!lua_isnil(L, -1))
+	{
+		return 1;
+	}
+	lua_pop(L, 1);
+	lua_pushlightuserdata(L, &loadingMarker); lua_setfield(L, -2, path);
+	if (!strcmp(path, "luasql/sqlite3"))
+	{
+		lua_pushcfunction(L, luaopen_luasql_sqlite3);
+	}
+	else
+	{
+		char filename[MAX_QPATH]; Com_sprintf(filename, sizeof(filename), "%s.lua", path);
+		source = TCE_LuaReadSource(filename, &size);
+		if (!source)
+		{
+			lua_pushnil(L); lua_setfield(L, -2, path);
+			return luaL_error(L, "module missing or exceeds 1 MiB: %s", filename);
+		}
+		status = luaL_loadbufferx(L, source, size, filename, "t"); free(source);
+		if (status != LUA_OK)
+		{
+			lua_pushnil(L); lua_setfield(L, -3, path); return lua_error(L);
+		}
+	}
+	status = lua_pcall(L, 0, 1, 0);
+	if (status != LUA_OK)
+	{
+		lua_pushnil(L); lua_setfield(L, -3, path); return lua_error(L);
+	}
+	if (lua_isnil(L, -1))
+	{
+		lua_pop(L, 1); lua_pushboolean(L, 1);
+	}
+	lua_pushvalue(L, -1); lua_setfield(L, -3, path);
+	return 1;
 }
 
-void TCE_LuaRegisterModules(lua_State *L) {
-    static const char *allowed[] = {"time", "date", "difftime", "clock", NULL};
-    int i;
-    lua_newtable(L); lua_setfield(L, LUA_REGISTRYINDEX, "tce.modules");
-    lua_pushcfunction(L, Require); lua_setglobal(L, "require");
-    /* Copy only clock/calendar operations, never publish the full os library. */
-    luaopen_os(L); lua_newtable(L);
-    for(i = 0; allowed[i]; ++i) {
-        lua_getfield(L, -2, allowed[i]); lua_setfield(L, -2, allowed[i]);
-    }
-    lua_setglobal(L, "os"); lua_pop(L, 1);
+void TCE_LuaRegisterModules(lua_State *L)
+{
+	static const char *allowed[] = { "time", "date", "difftime", "clock", NULL };
+	int               i;
+	lua_newtable(L); lua_setfield(L, LUA_REGISTRYINDEX, "tce.modules");
+	lua_pushcfunction(L, Require); lua_setglobal(L, "require");
+	/* Copy only clock/calendar operations, never publish the full os library. */
+	luaopen_os(L); lua_newtable(L);
+	for (i = 0; allowed[i]; ++i)
+	{
+		lua_getfield(L, -2, allowed[i]); lua_setfield(L, -2, allowed[i]);
+	}
+	lua_setglobal(L, "os"); lua_pop(L, 1);
 }

@@ -42,7 +42,7 @@
 // It a client is going faster than this, we think they're moving
 #define kBOT_ENTITY_MOVING_UNSTEALTHY_SPEED 2
 
-// If our best enemy is this close to us, and we're on an mg42, drop 
+// If our best enemy is this close to us, and we're on an mg42, drop
 // the gun...
 #define kBOT_DROP_MG42_DISTANCE 240 // 20 feet roughly
 
@@ -222,13 +222,13 @@
 // NOTE: 1 == take full damage at max dist, 0 == use scripted ratio
 #define NO_LEADER_DAMAGE_PENALTY (0.6f)
 
-// How much to penalize the aiming accuracy based on distance from 
+// How much to penalize the aiming accuracy based on distance from
 // leader.  1 == can't hit at all, 0 == No penalty
 #define NO_LEADER_MAX_AIM_PENALTY (0.5f)
 
 // how much inaccuracy to remove. e.g. 0.5 = 50% less inaccuracy
-#define AIM_ACCURACY_BONUS_PRONE	0.5
-#define AIM_ACCURACY_BONUS_CROUCH	0.3
-#define AIM_SKILL_BONUS_PRONE		0.5
-#define AIM_ACCURACY_ENEMY_PENALTY_PRONE	0.5
-#define AIM_ACCURACY_ENEMY_PENALTY_CROUCH	0.2
+#define AIM_ACCURACY_BONUS_PRONE    0.5
+#define AIM_ACCURACY_BONUS_CROUCH   0.3
+#define AIM_SKILL_BONUS_PRONE       0.5
+#define AIM_ACCURACY_ENEMY_PENALTY_PRONE    0.5
+#define AIM_ACCURACY_ENEMY_PENALTY_CROUCH   0.2

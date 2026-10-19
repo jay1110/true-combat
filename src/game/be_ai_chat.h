@@ -7,25 +7,25 @@
  *
  *****************************************************************************/
 
-#define MAX_MESSAGE_SIZE		150			//limit in game dll
-#define MAX_CHATTYPE_NAME		32
-#define MAX_MATCHVARIABLES		8
+#define MAX_MESSAGE_SIZE        150         //limit in game dll
+#define MAX_CHATTYPE_NAME       32
+#define MAX_MATCHVARIABLES      8
 
-#define CHAT_GENDERLESS			0
-#define CHAT_GENDERFEMALE		1
-#define CHAT_GENDERMALE			2
+#define CHAT_GENDERLESS         0
+#define CHAT_GENDERFEMALE       1
+#define CHAT_GENDERMALE         2
 
-#define CHAT_ALL					0
-#define CHAT_TEAM					1
+#define CHAT_ALL                    0
+#define CHAT_TEAM                   1
 
 //a console message
 typedef struct bot_consolemessage_s
 {
 	int handle;
-	float time;											//message time
-	int type;											//message type
-	char message[MAX_MESSAGE_SIZE];				//message
-	struct bot_consolemessage_s *prev, *next;	//prev and next in list
+	float time;                                         //message time
+	int type;                                           //message type
+	char message[MAX_MESSAGE_SIZE];             //message
+	struct bot_consolemessage_s *prev, *next;   //prev and next in list
 } bot_consolemessage_t;
 
 //match variable
@@ -87,4 +87,3 @@ int BotLoadChatFile(int chatstate, char *chatfile, char *chatname);
 void BotSetChatGender(int chatstate, int gender);
 //store the bot name in the chat state
 void BotSetChatName(int chatstate, char *name);
-

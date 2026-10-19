@@ -8,14 +8,14 @@
  *****************************************************************************/
 
 //projectile flags
-#define PFL_WINDOWDAMAGE			1		//projectile damages through window
-#define PFL_RETURN					2		//set when projectile returns to owner
+#define PFL_WINDOWDAMAGE            1       //projectile damages through window
+#define PFL_RETURN                  2       //set when projectile returns to owner
 //weapon flags
-#define WFL_FIRERELEASED			1		//set when projectile is fired with key-up event
+#define WFL_FIRERELEASED            1       //set when projectile is fired with key-up event
 //damage types
-#define DAMAGETYPE_IMPACT			1		//damage on impact
-#define DAMAGETYPE_RADIAL			2		//radial damage
-#define DAMAGETYPE_VISIBLE			4		//damage to all entities visible to the projectile
+#define DAMAGETYPE_IMPACT           1       //damage on impact
+#define DAMAGETYPE_RADIAL           2       //radial damage
+#define DAMAGETYPE_VISIBLE          4       //damage to all entities visible to the projectile
 
 typedef struct projectileinfo_s
 {
@@ -37,8 +37,8 @@ typedef struct projectileinfo_s
 
 typedef struct weaponinfo_s
 {
-	int valid;					//true if the weapon info is valid
-	int number;									//number of the weapon
+	int valid;                  //true if the weapon info is valid
+	int number;                                 //number of the weapon
 	char name[MAX_STRINGFIELD];
 	char model[MAX_STRINGFIELD];
 	int level;
@@ -60,7 +60,7 @@ typedef struct weaponinfo_s
 	float reload;
 	float spinup;
 	float spindown;
-	projectileinfo_t proj;						//pointer to the used projectile
+	projectileinfo_t proj;                      //pointer to the used projectile
 } weaponinfo_t;
 
 //setup the weapon AI

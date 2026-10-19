@@ -4,7 +4,8 @@
  */
 #include "cg_local.h"
 
-void TCE_CG_GrenadeTrail(centity_t *ent, const weaponInfo_t *wi) {
-    (void)ent;
-    (void)wi;
+void TCE_CG_GrenadeTrail(centity_t *ent, const weaponInfo_t *wi)
+{
+	(void)ent;
+	(void)wi;
 }

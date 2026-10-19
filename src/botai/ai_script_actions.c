@@ -8,15 +8,15 @@
 
 #include "../game/g_local.h"
 #include "../game/q_shared.h"
-#include "../game/botlib.h"		//bot lib interface
+#include "../game/botlib.h"     //bot lib interface
 #include "../game/be_aas.h"
 #include "../game/be_ea.h"
 #include "../game/be_ai_gen.h"
 #include "../game/be_ai_goal.h"
 #include "../game/be_ai_move.h"
-#include "../botai/botai.h"			//bot ai interface
+#include "../botai/botai.h"         //bot ai interface
 
-#include "inv.h"				//indexes into the inventory
+#include "inv.h"                //indexes into the inventory
 
 #include "ai_main.h"
 #include "ai_dmq3.h"
@@ -28,22 +28,25 @@ These functions will return true if the action has been performed, and the scrip
 should proceed to the next item on the list.
 */
 
-qboolean Bot_ScriptAction_SetSpeed( bot_state_t* bs, char *params ) {
+qboolean Bot_ScriptAction_SetSpeed(bot_state_t *bs, char *params)
+{
 	vec3_t speed;
-	char* pString;
-	int i;
-	char* token;
+	char   *pString;
+	int    i;
+	char   *token;
 
 	pString = params;
-	for(i = 0; i < 3; i++) {
+	for (i = 0; i < 3; i++)
+	{
 		token = COM_Parse(&pString);
-		if (!token || !*token) {
-			G_Error( "G_Scripting: syntax: setspeed <x> <y> <z>\n" );
+		if (!token || !*token)
+		{
+			G_Error("G_Scripting: syntax: setspeed <x> <y> <z>\n");
 		}
 		speed[i] = atoi(token);
-	}	
+	}
 
-	VectorAdd( g_entities[bs->entitynum].client->ps.velocity, speed, g_entities[bs->entitynum].client->ps.velocity );
+	VectorAdd(g_entities[bs->entitynum].client->ps.velocity, speed, g_entities[bs->entitynum].client->ps.velocity);
 
 	return qtrue;
 }
@@ -53,18 +56,19 @@ qboolean Bot_ScriptAction_SetSpeed( bot_state_t* bs, char *params ) {
 Bot_ScriptError
 =================
 */
-void Bot_ScriptError( bot_state_t *bs, char *fmt, ... )
+void Bot_ScriptError(bot_state_t *bs, char *fmt, ...)
 {
 	va_list ap;
-	char text[512];
+	char    text[512];
 	//
 	va_start(ap, fmt);
-	Q_vsnprintf( text, sizeof(text), fmt, ap );
-	if (strlen(text) >= sizeof(text)) {
-		text[sizeof(text)-1] = '\0';
+	Q_vsnprintf(text, sizeof(text), fmt, ap);
+	if (strlen(text) >= sizeof(text))
+	{
+		text[sizeof(text) - 1] = '\0';
 	}
 	//
-	G_Error( "BotScript (line %i): %s", bs->script.status.currentItem->lineNum, text );
+	G_Error("BotScript (line %i): %s", bs->script.status.currentItem->lineNum, text);
 	//
 	va_end(ap);
 }
@@ -78,13 +82,14 @@ Bot_ScriptAction_Print
   Mostly for debugging purposes
 =================
 */
-qboolean Bot_ScriptAction_Print( bot_state_t *bs, char *params )
+qboolean Bot_ScriptAction_Print(bot_state_t *bs, char *params)
 {
 	char *pString, *token, *printThis;
-	int printLevel = 0;
+	int  printLevel = 0;
 
-	if (!params || !params[0]) {
-		Bot_ScriptError( bs, "print requires some text" );
+	if (!params || !params[0])
+	{
+		Bot_ScriptError(bs, "print requires some text");
 	}
 
 	// Start parsing at the beginning of the string
@@ -94,7 +99,7 @@ qboolean Bot_ScriptAction_Print( bot_state_t *bs, char *params )
 	printThis = params;
 
 	// See if the first parameter is a /N, where N is a number
-	if ((token = COM_ParseExt( &pString, qfalse )) && token[0] == '/') 
+	if ((token = COM_ParseExt(&pString, qfalse)) && token[0] == '/')
 	{
 		// Get the integer version of the print debug level
 		printLevel = atoi(&(token[1]));
@@ -124,150 +129,210 @@ Bot_ScriptAction_SetAccumToPlayerCount
   condition list: team [axis/allies], class [medic/engineer/etc], weapon [flamethrower/sniperrifle/etc], within_range <targetname> <distance>
 =================
 */
-qboolean Bot_ScriptAction_SetAccumToPlayerCount( bot_state_t *bs, char *params )
+qboolean Bot_ScriptAction_SetAccumToPlayerCount(bot_state_t *bs, char *params)
 {
-	char	*pStr, *pStrBackup, *token;
-	int		count, i, val, accum, weapons[2];
-	gitem_t	*item=NULL;
-	gentity_t	*ent;
-	byte	validPlayers[MAX_CLIENTS];
+	char      *pStr, *pStrBackup, *token;
+	int       count, i, val, accum, weapons[2];
+	gitem_t   *item = NULL;
+	gentity_t *ent;
+	byte      validPlayers[MAX_CLIENTS];
 
 	// setup the list of starting validPlayers
-	memset( validPlayers, 0, sizeof(validPlayers) );
+	memset(validPlayers, 0, sizeof(validPlayers));
 	count = 0;
-	for (i=0; i<level.maxclients; i++) {
-		if (!g_entities[i].inuse) continue;
-		if (!g_entities[i].client) continue;
-		if (g_entities[i].client->pers.connected != CON_CONNECTED) continue;
+	for (i = 0; i < level.maxclients; i++)
+	{
+		if (!g_entities[i].inuse)
+		{
+			continue;
+		}
+		if (!g_entities[i].client)
+		{
+			continue;
+		}
+		if (g_entities[i].client->pers.connected != CON_CONNECTED)
+		{
+			continue;
+		}
 		validPlayers[i] = 1;
 		count++;
 	}
 
 	pStr = params;
 
-	token = COM_ParseExt( &pStr, qfalse );
-	if (!token || !token[0] || (token[0]<'0') || (token[0]>'9')) {
-		Bot_ScriptError( bs, "accum buffer index expected, %s found: SetAccumToPlayerCount %s", token, params );
+	token = COM_ParseExt(&pStr, qfalse);
+	if (!token || !token[0] || (token[0] < '0') || (token[0] > '9'))
+	{
+		Bot_ScriptError(bs, "accum buffer index expected, %s found: SetAccumToPlayerCount %s", token, params);
 	}
 	accum = atoi(token);
-	if (accum < 0 || accum >= MAX_SCRIPT_ACCUM_BUFFERS) {
-		Bot_ScriptError( bs, "accum buffer index out of range, %s found (range is 0 - %i): SetAccumToPlayerCount %s", token, MAX_SCRIPT_ACCUM_BUFFERS-1, params );
+	if (accum < 0 || accum >= MAX_SCRIPT_ACCUM_BUFFERS)
+	{
+		Bot_ScriptError(bs, "accum buffer index out of range, %s found (range is 0 - %i): SetAccumToPlayerCount %s", token, MAX_SCRIPT_ACCUM_BUFFERS - 1, params);
 	}
 
 	// eliminate them with each condition not met
-	while (qtrue) {
+	while (qtrue)
+	{
 		val = 0;
 		//
-		token = COM_ParseExt( &pStr, qfalse );
-		if (!token || !token[0]) {
+		token = COM_ParseExt(&pStr, qfalse);
+		if (!token || !token[0])
+		{
 			// we're done
 			break;
 		}
 		//
-		if (token[0] != '/') {
-			Bot_ScriptError( bs, "condition identifier expected, %s found: SetAccumToPlayerCount %s", token, params );
+		if (token[0] != '/')
+		{
+			Bot_ScriptError(bs, "condition identifier expected, %s found: SetAccumToPlayerCount %s", token, params);
 		}
 		//
-		if (!Q_stricmp( token, "/team" )) {
-			token = COM_ParseExt( &pStr, qfalse );
-			if (!token || !token[0] || token[0] == '/') {
-				Bot_ScriptError( bs, "unexpected end of command: SetAccumToPlayerCount %s", params );
+		if (!Q_stricmp(token, "/team"))
+		{
+			token = COM_ParseExt(&pStr, qfalse);
+			if (!token || !token[0] || token[0] == '/')
+			{
+				Bot_ScriptError(bs, "unexpected end of command: SetAccumToPlayerCount %s", params);
 			}
 			//
-			if (!Q_stricmp( token, "axis" )) {
+			if (!Q_stricmp(token, "axis"))
+			{
 				val = TEAM_AXIS;
-			} else if (!Q_stricmp( token, "allies" )) {
+			}
+			else if (!Q_stricmp(token, "allies"))
+			{
 				val = TEAM_ALLIES;
-			} else {
-				Bot_ScriptError( bs, "unknown team \"%s\": SetAccumToPlayerCount %s", token, params );
+			}
+			else
+			{
+				Bot_ScriptError(bs, "unknown team \"%s\": SetAccumToPlayerCount %s", token, params);
 			}
 			// eliminate players
-			for (i=0; i<level.maxclients; i++) {
-				if (!validPlayers[i]) continue;
-				if (g_entities[i].client->sess.sessionTeam != val) {
+			for (i = 0; i < level.maxclients; i++)
+			{
+				if (!validPlayers[i])
+				{
+					continue;
+				}
+				if (g_entities[i].client->sess.sessionTeam != val)
+				{
 					validPlayers[i] = 0;
 					count--;
 				}
 			}
-		} else
+		}
+		else
 		//
-		if (!Q_stricmp( token, "/class" )) {
-			token = COM_ParseExt( &pStr, qfalse );
-			if (!token || !token[0] || token[0] == '/') {
-				Bot_ScriptError( bs, "unexpected end of command: SetAccumToPlayerCount %s", params );
+		if (!Q_stricmp(token, "/class"))
+		{
+			token = COM_ParseExt(&pStr, qfalse);
+			if (!token || !token[0] || token[0] == '/')
+			{
+				Bot_ScriptError(bs, "unexpected end of command: SetAccumToPlayerCount %s", params);
 			}
 			//
-			val = Team_ClassForString( token );
-			if (val < 0) {
-				Bot_ScriptError( bs, "unknown class \"%s\": SetAccumToPlayerCount %s", token, params );
+			val = Team_ClassForString(token);
+			if (val < 0)
+			{
+				Bot_ScriptError(bs, "unknown class \"%s\": SetAccumToPlayerCount %s", token, params);
 			}
 			// eliminate players
-			for (i=0; i<level.maxclients; i++) {
-				if (!validPlayers[i]) continue;
-				if (g_entities[i].client->sess.playerType != val) {
+			for (i = 0; i < level.maxclients; i++)
+			{
+				if (!validPlayers[i])
+				{
+					continue;
+				}
+				if (g_entities[i].client->sess.playerType != val)
+				{
 					validPlayers[i] = 0;
 					count--;
 				}
 			}
-		} else
+		}
+		else
 		//
-		if (!Q_stricmp( token, "/weapon" )) {
-			memset( weapons, 0, sizeof(weapons) );
+		if (!Q_stricmp(token, "/weapon"))
+		{
+			memset(weapons, 0, sizeof(weapons));
 			// for each weapon
-			while (qtrue) {
+			while (qtrue)
+			{
 				// read the weapon
-				token = COM_ParseExt( &pStr, qfalse );
-				if (!token || !token[0] || token[0] == '/') {
-					Bot_ScriptError( bs, "unexpected end of command: SetAccumToPlayerCount %s", params );
+				token = COM_ParseExt(&pStr, qfalse);
+				if (!token || !token[0] || token[0] == '/')
+				{
+					Bot_ScriptError(bs, "unexpected end of command: SetAccumToPlayerCount %s", params);
 				}
 				//
-				if ((item = BG_FindItem( token ))) {
-					if (!item->giTag) {
-						Bot_ScriptError( bs, "unknown weapon \"%s\": SetAccumToPlayerCount %s", token, params );
+				if ((item = BG_FindItem(token)))
+				{
+					if (!item->giTag)
+					{
+						Bot_ScriptError(bs, "unknown weapon \"%s\": SetAccumToPlayerCount %s", token, params);
 					}
-					COM_BitSet( weapons, item->giTag );
-				} else {
-					Bot_ScriptError( bs, "unknown weapon \"%s\": SetAccumToPlayerCount %s", token, params );
+					COM_BitSet(weapons, item->giTag);
+				}
+				else
+				{
+					Bot_ScriptError(bs, "unknown weapon \"%s\": SetAccumToPlayerCount %s", token, params);
 				}
 				//
 				pStrBackup = pStr;
-				token = COM_ParseExt( &pStr, qfalse );
-				if (!token[0] || (Q_stricmp( token, "or" ) != 0)) {
+				token      = COM_ParseExt(&pStr, qfalse);
+				if (!token[0] || (Q_stricmp(token, "or") != 0))
+				{
 					// not OR, so drop out of here
 					pStr = pStrBackup;
 					break;
 				}
 			}
 			// eliminate players
-			for (i=0; i<level.maxclients; i++) {
-				if (!validPlayers[i]) continue;
-				if (!(g_entities[i].client->ps.weapons[0] & weapons[0]) && !(g_entities[i].client->ps.weapons[1] & weapons[1])) {
+			for (i = 0; i < level.maxclients; i++)
+			{
+				if (!validPlayers[i])
+				{
+					continue;
+				}
+				if (!(g_entities[i].client->ps.weapons[0] & weapons[0]) && !(g_entities[i].client->ps.weapons[1] & weapons[1]))
+				{
 					validPlayers[i] = 0;
 					count--;
 				}
 			}
-		} else
+		}
+		else
 		//
-		if (!Q_stricmp( token, "/within_range" )) {
+		if (!Q_stricmp(token, "/within_range"))
+		{
 			// targetname
-			token = COM_ParseExt( &pStr, qfalse );
-			if (!token || !token[0] || token[0] == '/') {
-				Bot_ScriptError( bs, "unexpected end of command: SetAccumToPlayerCount %s", params );
+			token = COM_ParseExt(&pStr, qfalse);
+			if (!token || !token[0] || token[0] == '/')
+			{
+				Bot_ScriptError(bs, "unexpected end of command: SetAccumToPlayerCount %s", params);
 			}
-			ent = G_FindByTargetname( NULL, token );
-			if (!ent) {
-				Bot_ScriptError( bs, "unknown spawn point \"%s\": SetAccumToPlayerCount %s", token, params );
+			ent = G_FindByTargetname(NULL, token);
+			if (!ent)
+			{
+				Bot_ScriptError(bs, "unknown spawn point \"%s\": SetAccumToPlayerCount %s", token, params);
 			}
 			// range
-			token = COM_ParseExt( &pStr, qfalse );
-			if (!token || !token[0] || token[0] == '/') {
-				Bot_ScriptError( bs, "range expected, not found: SetAccumToPlayerCount %s", params );
+			token = COM_ParseExt(&pStr, qfalse);
+			if (!token || !token[0] || token[0] == '/')
+			{
+				Bot_ScriptError(bs, "range expected, not found: SetAccumToPlayerCount %s", params);
 			}
 			//
 			// eliminate players
-			for (i=0; i<level.maxclients; i++) {
-				if (!validPlayers[i]) continue;
-				if (VectorDistanceSquared( g_entities[i].r.currentOrigin, ent->s.origin ) > SQR(atof(token))) {
+			for (i = 0; i < level.maxclients; i++)
+			{
+				if (!validPlayers[i])
+				{
+					continue;
+				}
+				if (VectorDistanceSquared(g_entities[i].r.currentOrigin, ent->s.origin) > SQR(atof(token)))
+				{
 					validPlayers[i] = 0;
 					count--;
 				}
@@ -287,10 +352,10 @@ Bot_ScriptAction_SpawnBot
   see Svcmd_SpawnBot()
 ======================
 */
-qboolean Bot_ScriptAction_SpawnBot( bot_state_t *bs, char *params )
+qboolean Bot_ScriptAction_SpawnBot(bot_state_t *bs, char *params)
 {
 	//trap_SendConsoleCommand( EXEC_APPEND, va("spawnbot %s\n", params) );
-	G_SpawnBot( params );
+	G_SpawnBot(params);
 	return qtrue;
 }
 
@@ -316,115 +381,162 @@ Bot_ScriptAction_Accum
 =================
 */
 
-qboolean Bot_ScriptAction_Trigger( bot_state_t *bs, char *params );
+qboolean Bot_ScriptAction_Trigger(bot_state_t *bs, char *params);
 
-qboolean Bot_ScriptAction_Accum( bot_state_t *bs, char *params )
+qboolean Bot_ScriptAction_Accum(bot_state_t *bs, char *params)
 {
 	char *pString, *token, lastToken[MAX_QPATH];
-	int bufferIndex;
+	int  bufferIndex;
 
 	pString = params;
 
-	token = COM_ParseExt( &pString, qfalse );
-	if (!token[0]) {
-		Bot_ScriptError( bs, "accum: without a buffer index" );
+	token = COM_ParseExt(&pString, qfalse);
+	if (!token[0])
+	{
+		Bot_ScriptError(bs, "accum: without a buffer index");
 	}
 
 	bufferIndex = atoi(token);
-	if (bufferIndex >= MAX_SCRIPT_ACCUM_BUFFERS) {
-		Bot_ScriptError( bs, "accum: buffer is outside range (0 - %i)", MAX_SCRIPT_ACCUM_BUFFERS );
+	if (bufferIndex >= MAX_SCRIPT_ACCUM_BUFFERS)
+	{
+		Bot_ScriptError(bs, "accum: buffer is outside range (0 - %i)", MAX_SCRIPT_ACCUM_BUFFERS);
 	}
 
-	token = COM_ParseExt( &pString, qfalse );
-	if (!token[0]) {
-		Bot_ScriptError( bs, "accum: without a command" );
+	token = COM_ParseExt(&pString, qfalse);
+	if (!token[0])
+	{
+		Bot_ScriptError(bs, "accum: without a command");
 	}
 
-	Q_strncpyz( lastToken, token, sizeof(lastToken) );
-	token = COM_ParseExt( &pString, qfalse );
+	Q_strncpyz(lastToken, token, sizeof(lastToken));
+	token = COM_ParseExt(&pString, qfalse);
 
-	if (!Q_stricmp(lastToken, "inc")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "accum:: %s requires a parameter", lastToken );
+	if (!Q_stricmp(lastToken, "inc"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "accum:: %s requires a parameter", lastToken);
 		}
 		bs->script.accumBuffer[bufferIndex] += atoi(token);
-	} else if (!Q_stricmp(lastToken, "abort_if_less_than")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "accum: %s requires a parameter", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "abort_if_less_than"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "accum: %s requires a parameter", lastToken);
 		}
-		if (bs->script.accumBuffer[bufferIndex] < atoi(token)) {
+		if (bs->script.accumBuffer[bufferIndex] < atoi(token))
+		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
 		}
-	} else if (!Q_stricmp(lastToken, "abort_if_greater_than")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "accum: %s requires a parameter", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "abort_if_greater_than"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "accum: %s requires a parameter", lastToken);
 		}
-		if (bs->script.accumBuffer[bufferIndex] > atoi(token)) {
+		if (bs->script.accumBuffer[bufferIndex] > atoi(token))
+		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
 		}
-	} else if (!Q_stricmp(lastToken, "abort_if_not_equal") || !Q_stricmp(lastToken, "abort_if_not_equals")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "accum: %s requires a parameter", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "abort_if_not_equal") || !Q_stricmp(lastToken, "abort_if_not_equals"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "accum: %s requires a parameter", lastToken);
 		}
-		if (bs->script.accumBuffer[bufferIndex] != atoi(token)) {
+		if (bs->script.accumBuffer[bufferIndex] != atoi(token))
+		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
 		}
-	} else if (!Q_stricmp(lastToken, "abort_if_equal")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "accum: %s requires a parameter", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "abort_if_equal"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "accum: %s requires a parameter", lastToken);
 		}
-		if (bs->script.accumBuffer[bufferIndex] == atoi(token)) {
+		if (bs->script.accumBuffer[bufferIndex] == atoi(token))
+		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
 		}
-	} else if (!Q_stricmp(lastToken, "bitset")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "accum: %s requires a parameter", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "bitset"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "accum: %s requires a parameter", lastToken);
 		}
-		bs->script.accumBuffer[bufferIndex] |= (1<<atoi(token));
-	} else if (!Q_stricmp(lastToken, "bitclear")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "accum: %s requires a parameter", lastToken );
+		bs->script.accumBuffer[bufferIndex] |= (1 << atoi(token));
+	}
+	else if (!Q_stricmp(lastToken, "bitclear"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "accum: %s requires a parameter", lastToken);
 		}
-		bs->script.accumBuffer[bufferIndex] &= ~(1<<atoi(token));
-	} else if (!Q_stricmp(lastToken, "abort_if_bitset")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "accum: %s requires a parameter", lastToken );
+		bs->script.accumBuffer[bufferIndex] &= ~(1 << atoi(token));
+	}
+	else if (!Q_stricmp(lastToken, "abort_if_bitset"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "accum: %s requires a parameter", lastToken);
 		}
-		if (bs->script.accumBuffer[bufferIndex] & (1<<atoi(token))) {
+		if (bs->script.accumBuffer[bufferIndex] & (1 << atoi(token)))
+		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
 		}
-	} else if (!Q_stricmp(lastToken, "abort_if_not_bitset")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "accum: %s requires a parameter", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "abort_if_not_bitset"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "accum: %s requires a parameter", lastToken);
 		}
-		if (!(bs->script.accumBuffer[bufferIndex] & (1<<atoi(token)))) {
+		if (!(bs->script.accumBuffer[bufferIndex] & (1 << atoi(token))))
+		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
 		}
-	} else if (!Q_stricmp(lastToken, "set_to") || !Q_stricmp(lastToken, "set")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "accum: %s requires a parameter", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "set_to") || !Q_stricmp(lastToken, "set"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "accum: %s requires a parameter", lastToken);
 		}
 		bs->script.accumBuffer[bufferIndex] = atoi(token);
-	} else if (!Q_stricmp(lastToken, "random")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "accum: %s requires a parameter", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "random"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "accum: %s requires a parameter", lastToken);
 		}
 		bs->script.accumBuffer[bufferIndex] = rand() % atoi(token);
-	} else if (!Q_stricmp(lastToken, "trigger_if_equal")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "accum: %s requires a parameter", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "trigger_if_equal"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "accum: %s requires a parameter", lastToken);
 		}
-		if (bs->script.accumBuffer[bufferIndex] == atoi(token)) {
-			return Bot_ScriptAction_Trigger( bs, pString );
+		if (bs->script.accumBuffer[bufferIndex] == atoi(token))
+		{
+			return Bot_ScriptAction_Trigger(bs, pString);
 		}
-	} else {
-		Bot_ScriptError( bs, "accum: %s: unknown command", params );
+	}
+	else
+	{
+		Bot_ScriptError(bs, "accum: %s: unknown command", params);
 	}
 
 	return qtrue;
@@ -435,13 +547,15 @@ qboolean Bot_ScriptAction_Accum( bot_state_t *bs, char *params )
 Bot_ScriptAction_Wait
 ======================
 */
-qboolean Bot_ScriptAction_Wait( bot_state_t *bs, char *params )
+qboolean Bot_ScriptAction_Wait(bot_state_t *bs, char *params)
 {
-	if (!params || !params[0]) {
-		Bot_ScriptError( bs, "Wait requires a duration." );
+	if (!params || !params[0])
+	{
+		Bot_ScriptError(bs, "Wait requires a duration.");
 	}
-	if (!atoi(params)) {
-		Bot_ScriptError( bs, "Wait has invalid duration." );
+	if (!atoi(params))
+	{
+		Bot_ScriptError(bs, "Wait has invalid duration.");
 	}
 	//
 	// Gordon: check <= 0 instead of == 0?
@@ -453,19 +567,19 @@ qboolean Bot_ScriptAction_Wait( bot_state_t *bs, char *params )
 Bot_ScriptAction_MoveToMarker
 ======================
 */
-qboolean Bot_ScriptAction_MoveToMarker( bot_state_t *bs, char *params )
+qboolean Bot_ScriptAction_MoveToMarker(bot_state_t *bs, char *params)
 {
-	char *pString, *token;
+	char             *pString, *token;
 	g_serverEntity_t *target;
-	vec3_t	vec;
-	
+	vec3_t           vec;
+
 	// Gordon: 24/10/02
 	float radius = 24;
 
 
 	// TAT 11/14/2002 - This causes a crash if you have guys on patrol routes
 	//		Why did we need it?
-	// Gordon: 27/11/02: dont want to teleport dead players, can move further down, 
+	// Gordon: 27/11/02: dont want to teleport dead players, can move further down,
 	// but i see no reason a general early out wouldn't be as good
 	// why does it crash?
 	/*
@@ -498,56 +612,75 @@ qboolean Bot_ScriptAction_MoveToMarker( bot_state_t *bs, char *params )
 		return qtrue;
 
 	} // if (bs->movementFailedBadly)...
-	
+
 	//
-	if (!params || !params[0]) {
-		Bot_ScriptError( bs, "MoveToMarker requires a targetname." );
+	if (!params || !params[0])
+	{
+		Bot_ScriptError(bs, "MoveToMarker requires a targetname.");
 	}
 	//
 	pString = params;
-	token = COM_ParseExt( &pString, qfalse );
-	target = FindServerEntity( NULL, SE_FOFS(name), token );
-	if (!target) {
-		Bot_ScriptError( bs, "MoveToMarker has unknown targetname: \"%s\"", token );
+	token   = COM_ParseExt(&pString, qfalse);
+	target  = FindServerEntity(NULL, SE_FOFS(name), token);
+	if (!target)
+	{
+		Bot_ScriptError(bs, "MoveToMarker has unknown targetname: \"%s\"", token);
 	}
 	//
 	bs->script.frameFlags |= BSFFL_MOVETOTARGET;
-	bs->script.entityNum = target->number;
-	bs->script.moveType = BSMT_DEFAULT;
+	bs->script.entityNum   = target->number;
+	bs->script.moveType    = BSMT_DEFAULT;
 	//
-	while ((token = COM_ParseExt( &pString, qfalse )) && token[0]) {
-		if (!Q_stricmp( token, "/WALKING" )) {
+	while ((token = COM_ParseExt(&pString, qfalse)) && token[0])
+	{
+		if (!Q_stricmp(token, "/WALKING"))
+		{
 			bs->script.moveType = BSMT_WALKING;
-		} else if (!Q_stricmp( token, "/CROUCHING" )) {
+		}
+		else if (!Q_stricmp(token, "/CROUCHING"))
+		{
 			bs->script.moveType = BSMT_CROUCHING;
-		} else if (!Q_stricmp( token, "/DIRECT" )) {
+		}
+		else if (!Q_stricmp(token, "/DIRECT"))
+		{
 			bs->script.frameFlags |= BSFFL_DIRECTMOVE;
-		// Gordon: 24/10/02 Adding ability to set custom radius for movement goal
-		} else if (!Q_stricmp( token, "radius" )) {
-			token = COM_ParseExt( &pString, qfalse );
-			if(!*token) {
-				Bot_ScriptError( bs, "MoveToMarker with radius has no value" );
-			} else {
+			// Gordon: 24/10/02 Adding ability to set custom radius for movement goal
+		}
+		else if (!Q_stricmp(token, "radius"))
+		{
+			token = COM_ParseExt(&pString, qfalse);
+			if (!*token)
+			{
+				Bot_ScriptError(bs, "MoveToMarker with radius has no value");
+			}
+			else
+			{
 				radius = atof(token);
 			}
-		// Gordon: 24/10/02 Adding ability to teleport a bot somewhere
-		} else if (!Q_stricmp( token, "instant" )) {
-			TeleportPlayer( &g_entities[bs->entitynum], target->origin, g_entities[bs->entitynum].client->ps.viewangles );
+			// Gordon: 24/10/02 Adding ability to teleport a bot somewhere
+		}
+		else if (!Q_stricmp(token, "instant"))
+		{
+			TeleportPlayer(&g_entities[bs->entitynum], target->origin, g_entities[bs->entitynum].client->ps.viewangles);
 			return qtrue;
-		// Gordon: end
-		}		
+			// Gordon: end
+		}
 	}
 	// START	Mad Doctor I changes, 8/19/2002
 	// The check was too constrictive and failed too often.  I may have made it too loose, but it seems to work.
 	// if we have passed or are close enough to the marker, then return qtrue
 	// Gordon: added custom radius ability, default is 24 as Ian had set here
-	if (VectorDistanceSquared( bs->origin, target->origin ) < SQR(radius)) {
+	if (VectorDistanceSquared(bs->origin, target->origin) < SQR(radius))
+	{
 //	if (VectorDistanceSquared( bs->origin, target->s.origin ) < SQR(12)) {
-	// END		Mad Doctor I changes, 8/19/2002
+		// END		Mad Doctor I changes, 8/19/2002
 		return qtrue;
-	} else if ((bs->script.status.stackChangeTime < level.time - 500) && VectorDistanceSquared( bs->origin, target->origin ) < SQR(48)) {
-		VectorSubtract( target->origin, bs->origin, vec );
-		if (DotProduct( bs->cur_ps.velocity, vec) < 0) {
+	}
+	else if ((bs->script.status.stackChangeTime < level.time - 500) && VectorDistanceSquared(bs->origin, target->origin) < SQR(48))
+	{
+		VectorSubtract(target->origin, bs->origin, vec);
+		if (DotProduct(bs->cur_ps.velocity, vec) < 0)
+		{
 			return qtrue;
 		}
 	}
@@ -560,91 +693,123 @@ qboolean Bot_ScriptAction_MoveToMarker( bot_state_t *bs, char *params )
 Bot_ScriptAction_Trigger
 =====================
 */
-qboolean Bot_ScriptAction_Trigger( bot_state_t *bs, char *params )
+qboolean Bot_ScriptAction_Trigger(bot_state_t *bs, char *params)
 {
 	gentity_t *trent, *ent;
-	char *pString, name[MAX_QPATH], trigger[MAX_QPATH], *token;
-	int oldId, i;
-	qboolean terminate, found;
+	char      *pString, name[MAX_QPATH], trigger[MAX_QPATH], *token;
+	int       oldId, i;
+	qboolean  terminate, found;
 
 	// get the cast name
 	pString = params;
-	token = COM_ParseExt( &pString, qfalse );
-	Q_strncpyz( name, token, sizeof(name) );
+	token   = COM_ParseExt(&pString, qfalse);
+	Q_strncpyz(name, token, sizeof(name));
 	if (!name[0])
 	{
-		G_Error( "G_Scripting: trigger must have a name and an identifier\n" );
+		G_Error("G_Scripting: trigger must have a name and an identifier\n");
 	}
 
-	token = COM_ParseExt( &pString, qfalse );
-	Q_strncpyz( trigger, token, sizeof(trigger) );
+	token = COM_ParseExt(&pString, qfalse);
+	Q_strncpyz(trigger, token, sizeof(trigger));
 	if (!trigger[0])
 	{
-		G_Error( "G_Scripting: trigger must have a name and an identifier\n" );
+		G_Error("G_Scripting: trigger must have a name and an identifier\n");
 	}
 
-	ent = BotGetEntity( bs->client );
+	ent = BotGetEntity(bs->client);
 
 	// START	Mad Doctor I changes, 8/14/2002
-	// Changes to fix bugs caused if you used "trigger Foo FooAction" within bot Foo's 
+	// Changes to fix bugs caused if you used "trigger Foo FooAction" within bot Foo's
 	// scripts instead of using "trigger self FooAction".
-	if ((!Q_stricmp( name, "self" )) || (!Q_stricmp( name, ent->scriptName )))
+	if ((!Q_stricmp(name, "self")) || (!Q_stricmp(name, ent->scriptName)))
 	{
 		trent = ent;
 		oldId = bs->script.status.id;
-		Bot_ScriptEvent( bs->client, "trigger", trigger );
+		Bot_ScriptEvent(bs->client, "trigger", trigger);
 
 		// See if we've popped back to the original script
 		return (oldId == bs->script.status.id);
 //		return (oldId == trent->scriptStatus.scriptId);
-	// END		Mad Doctor I changes, 8/14/2002
-	} else if (!Q_stricmp( name, "global" )) {
+		// END		Mad Doctor I changes, 8/14/2002
+	}
+	else if (!Q_stricmp(name, "global"))
+	{
 		terminate = qfalse;
-		found = qfalse;
+		found     = qfalse;
 		// for all entities/bots
 		trent = g_entities;
-		for (i=0; i<level.num_entities; i++, trent++) {
-			if (!trent->inuse) continue;
-			if (!trent->scriptName) continue;
-			if (!trent->scriptName[0]) continue;
+		for (i = 0; i < level.num_entities; i++, trent++)
+		{
+			if (!trent->inuse)
+			{
+				continue;
+			}
+			if (!trent->scriptName)
+			{
+				continue;
+			}
+			if (!trent->scriptName[0])
+			{
+				continue;
+			}
 			found = qtrue;
-			if (!(trent->r.svFlags & SVF_BOT)) {
-				G_Script_ScriptEvent( trent, "trigger", trigger );
-			} else {
+			if (!(trent->r.svFlags & SVF_BOT))
+			{
+				G_Script_ScriptEvent(trent, "trigger", trigger);
+			}
+			else
+			{
 				oldId = bs->script.status.id;
-				Bot_ScriptEvent( bs->client, "trigger", trigger );
+				Bot_ScriptEvent(bs->client, "trigger", trigger);
 				// if the script changed, return false so we don't muck with it's variables
-				if ((trent == ent) && (oldId != bs->script.status.id)) {
+				if ((trent == ent) && (oldId != bs->script.status.id))
+				{
 					terminate = qtrue;
 				}
 			}
 		}
 		//
-		if (terminate) return qfalse;
-		if (found) return qtrue;
-	} else {
+		if (terminate)
+		{
+			return qfalse;
+		}
+		if (found)
+		{
+			return qtrue;
+		}
+	}
+	else
+	{
 		terminate = qfalse;
-		found = qfalse;
+		found     = qfalse;
 		// for all entities/bots with this scriptName
 		trent = NULL;
-		while ((trent = BotFindEntity( trent, FOFS(scriptName), name ))) {
+		while ((trent = BotFindEntity(trent, FOFS(scriptName), name)))
+		{
 			found = qtrue;
-			if (!(trent->r.svFlags & SVF_BOT)) {
+			if (!(trent->r.svFlags & SVF_BOT))
+			{
 				oldId = trent->scriptStatus.scriptId;
-				G_Script_ScriptEvent( trent, "trigger", trigger );
+				G_Script_ScriptEvent(trent, "trigger", trigger);
 				// if the script changed, return false so we don't muck with it's variables
-				if ((trent == ent) && (oldId != trent->scriptStatus.scriptId)) {
+				if ((trent == ent) && (oldId != trent->scriptStatus.scriptId))
+				{
 					terminate = qtrue;
 				}
-			} else {
-				Bot_ScriptEvent( trent->s.number, "trigger", trigger );
+			}
+			else
+			{
+				Bot_ScriptEvent(trent->s.number, "trigger", trigger);
 			}
 		}
 		//
-		if (terminate) return qfalse;
+		if (terminate)
+		{
+			return qfalse;
+		}
 
 		// Did we find a bot?
-		if (found) 
+		if (found)
 		{
 
 			// We found one, and triggered the action, so keep going on with our script
@@ -656,8 +821,8 @@ qboolean Bot_ScriptAction_Trigger( bot_state_t *bs, char *params )
 	} // else...
 
 //	G_Error( "G_Scripting: trigger has unknown name: %s\n", name );
-	G_Printf( "G_Scripting: trigger has unknown name: %s\n", name );
-	return qfalse;	// shutup the compiler
+	G_Printf("G_Scripting: trigger has unknown name: %s\n", name);
+	return qfalse;  // shutup the compiler
 }
 
 /*
@@ -665,42 +830,48 @@ qboolean Bot_ScriptAction_Trigger( bot_state_t *bs, char *params )
 Bot_ScriptAction_Logging
 =====================
 */
-qboolean Bot_ScriptAction_Logging( bot_state_t *bs, char *params )
+qboolean Bot_ScriptAction_Logging(bot_state_t *bs, char *params)
 {
 	struct tm *localTime;
-	time_t long_time;
-	char filename[MAX_QPATH];
+	time_t    long_time;
+	char      filename[MAX_QPATH];
 
-	if (!params || !params[0]) {
-		Bot_ScriptError( bs, "Logging requires an ON/OFF" );
+	if (!params || !params[0])
+	{
+		Bot_ScriptError(bs, "Logging requires an ON/OFF");
 	}
-	if (!Q_stricmp( params, "ON" )) {
-		if (bs->script.flags & BSFL_LOGGING) {
+	if (!Q_stricmp(params, "ON"))
+	{
+		if (bs->script.flags & BSFL_LOGGING)
+		{
 			// logging already started
 			return qtrue;
 		}
 		bs->script.flags |= BSFL_LOGGING;
 		// get the time/date
-		time( &long_time );
-		localTime = localtime( &long_time );
-		Q_strncpyz( filename, va("BotLog_%s_[%i]_[%4i_%2i_%2i]_[%2i_%2i_%2i].txt", g_entities[bs->client].aiName, bs->client, 1900+localTime->tm_year, 1+localTime->tm_mon, 1+localTime->tm_mday, localTime->tm_hour, localTime->tm_min, localTime->tm_sec ), sizeof(filename) );
+		time(&long_time);
+		localTime = localtime(&long_time);
+		Q_strncpyz(filename, va("BotLog_%s_[%i]_[%4i_%2i_%2i]_[%2i_%2i_%2i].txt", g_entities[bs->client].aiName, bs->client, 1900 + localTime->tm_year, 1 + localTime->tm_mon, 1 + localTime->tm_mday, localTime->tm_hour, localTime->tm_min, localTime->tm_sec), sizeof(filename));
 		// open the log file
-		if (trap_FS_FOpenFile(	filename, &bs->script.logFile, FS_APPEND ) < 0)
+		if (trap_FS_FOpenFile(filename, &bs->script.logFile, FS_APPEND) < 0)
 		{
-			Bot_ScriptError( bs, "Cannot open file for logging: %s", filename );
+			Bot_ScriptError(bs, "Cannot open file for logging: %s", filename);
 		}
 	}
-	else if (!Q_stricmp( params, "OFF" )) {
-		if (!(bs->script.flags & BSFL_LOGGING)) {
+	else if (!Q_stricmp(params, "OFF"))
+	{
+		if (!(bs->script.flags & BSFL_LOGGING))
+		{
 			// logging already started
 			return qtrue;
 		}
 		bs->script.flags &= ~BSFL_LOGGING;
-		trap_FS_FCloseFile( bs->script.logFile );
+		trap_FS_FCloseFile(bs->script.logFile);
 		bs->script.logFile = 0;
 	}
-	else {
-		Bot_ScriptError( bs, "Logging has unknown parameter (%s), expected ON/OFF", params );
+	else
+	{
+		Bot_ScriptError(bs, "Logging has unknown parameter (%s), expected ON/OFF", params);
 	}
 
 	return qtrue;
@@ -711,9 +882,10 @@ qboolean Bot_ScriptAction_Logging( bot_state_t *bs, char *params )
 Bot_ScriptAction_AbortIfWarmup
 =====================
 */
-qboolean Bot_ScriptAction_AbortIfWarmup( bot_state_t *bs, char *params )
+qboolean Bot_ScriptAction_AbortIfWarmup(bot_state_t *bs, char *params)
 {
-	if (level.warmupTime) {
+	if (level.warmupTime)
+	{
 		// abort the current script
 		bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
 	}
@@ -721,7 +893,7 @@ qboolean Bot_ScriptAction_AbortIfWarmup( bot_state_t *bs, char *params )
 	return qtrue;
 }
 
-char *botAttributeStrings[] = 
+char *botAttributeStrings[] =
 {
 
 
@@ -744,23 +916,27 @@ Bot_ScriptAction_SetAttribute
   returns qfalse if error
 =============
 */
-qboolean Bot_ScriptAction_SetAttribute( bot_state_t *bs, char *params )
+qboolean Bot_ScriptAction_SetAttribute(bot_state_t *bs, char *params)
 {
-	int i;
+	int  i;
 	char *pString, *token;
 
 	// get the attribString
 	pString = params;
-	token = COM_ParseExt( &pString, qfalse );
-	if (!token[0]) {
-		Bot_ScriptError( bs, "attribute string required" );
+	token   = COM_ParseExt(&pString, qfalse);
+	if (!token[0])
+	{
+		Bot_ScriptError(bs, "attribute string required");
 	}
 
-	for (i=0; botAttributeStrings[i]; i++) {
-		if (!Q_stricmp( botAttributeStrings[i], token )) {
-			token = COM_ParseExt( &pString, qfalse );
-			if (!token[0]) {
-				Bot_ScriptError( bs, "attribute value required" );
+	for (i = 0; botAttributeStrings[i]; i++)
+	{
+		if (!Q_stricmp(botAttributeStrings[i], token))
+		{
+			token = COM_ParseExt(&pString, qfalse);
+			if (!token[0])
+			{
+				Bot_ScriptError(bs, "attribute value required");
 			}
 			bs->attribs[i] = atof(token);
 			return qtrue;
@@ -768,7 +944,7 @@ qboolean Bot_ScriptAction_SetAttribute( bot_state_t *bs, char *params )
 	}
 
 	// Let's give a big old error right here!
-	Bot_ScriptError( bs, "SetAttribute: Invalid attribute %s.", token );
+	Bot_ScriptError(bs, "SetAttribute: Invalid attribute %s.", token);
 
 	return qfalse;
 }
@@ -778,32 +954,37 @@ qboolean Bot_ScriptAction_SetAttribute( bot_state_t *bs, char *params )
 Bot_ScriptAction_MountMG42
 ===============
 */
-qboolean Bot_ScriptAction_MountMG42( bot_state_t *bs, char *params )
+qboolean Bot_ScriptAction_MountMG42(bot_state_t *bs, char *params)
 {
 	gentity_t *mg42, *mg42Spot;
 	//
-	if (!params || !params[0]) {
-		Bot_ScriptError( bs, "MountMG42 requires a targetname" );
+	if (!params || !params[0])
+	{
+		Bot_ScriptError(bs, "MountMG42 requires a targetname");
 	}
 	// find the mg42
 	mg42 = NULL;
-	while ((mg42 = BotFindNextStaticEntity( mg42, BOTSTATICENTITY_MG42 ))) {
-		if (!Q_stricmp( mg42->targetname, params )) {
+	while ((mg42 = BotFindNextStaticEntity(mg42, BOTSTATICENTITY_MG42)))
+	{
+		if (!Q_stricmp(mg42->targetname, params))
+		{
 			break;
 		}
 	}
 	//
-	if (!mg42) {
-		Bot_ScriptError( bs, "MountMG42: targetname \"%s\" not found", params );
+	if (!mg42)
+	{
+		Bot_ScriptError(bs, "MountMG42: targetname \"%s\" not found", params);
 	}
 	//
 	mg42Spot = mg42->melee;
 	//
-	if (!mg42Spot) {
-		Bot_ScriptError( bs, "MountMG42: (internal error) mg42 (\"%s\") has invalid mg42_spot", params );
+	if (!mg42Spot)
+	{
+		Bot_ScriptError(bs, "MountMG42: (internal error) mg42 (\"%s\") has invalid mg42_spot", params);
 	}
 	//
-	bs->script.flags |= BSFL_MOUNT_MG42;
+	bs->script.flags     |= BSFL_MOUNT_MG42;
 	bs->script.mg42entnum = mg42Spot->s.number;
 	//
 	return qtrue;
@@ -818,25 +999,28 @@ Bot_ScriptAction_PlaySoundAtPlayer
 
 ===============
 */
-qboolean Bot_ScriptAction_PlaySoundAtPlayer( bot_state_t *bs, char *params )
+qboolean Bot_ScriptAction_PlaySoundAtPlayer(bot_state_t *bs, char *params)
 {
 	// We need to find out who the player is
 	gentity_t *player = NULL;
-	
-	if (!params || !params[0]) {
-		Bot_ScriptError( bs, "PlaySound requires a soundname" );
+
+	if (!params || !params[0])
+	{
+		Bot_ScriptError(bs, "PlaySound requires a soundname");
 	}
 
 	// Look up the player entity by name
 	// NOTE: This would need adjusting for COOP play.
-	player = BotFindEntityForName( "player" );
+	player = BotFindEntityForName("player");
 
 	// Bail if no player exists
 	if (player == NULL)
+	{
 		return qtrue;
+	}
 
 	//
-	G_AddEvent( player, EV_GENERAL_SOUND, G_SoundIndex( params ) );	
+	G_AddEvent(player, EV_GENERAL_SOUND, G_SoundIndex(params));
 	//
 	return qtrue;
 
@@ -845,28 +1029,29 @@ qboolean Bot_ScriptAction_PlaySoundAtPlayer( bot_state_t *bs, char *params )
 // END		Mad Doctor I changes, 8/19/2002
 
 
-extern qboolean AddWeaponToPlayer( gclient_t *client, weapon_t weapon, int ammo, int ammoclip, qboolean setcurrent );
+extern qboolean AddWeaponToPlayer(gclient_t *client, weapon_t weapon, int ammo, int ammoclip, qboolean setcurrent);
 
 /*
 ===============
 Bot_ScriptAction_SetWeapon
 ===============
 */
-qboolean Bot_ScriptAction_SetWeapon( bot_state_t *bs, char *params )
+qboolean Bot_ScriptAction_SetWeapon(bot_state_t *bs, char *params)
 {
-	char	userinfo[MAX_INFO_STRING];
+	char userinfo[MAX_INFO_STRING];
 
 	// Which class are we?
-	int		playerClass = g_entities[bs->client].client->sess.playerType;
+	int playerClass = g_entities[bs->client].client->sess.playerType;
 
 	int weapon;
 	//
-	if (!params || !params[0]) {
-		Bot_ScriptError( bs, "SetWeapon requires a weapon name" );
+	if (!params || !params[0])
+	{
+		Bot_ScriptError(bs, "SetWeapon requires a weapon name");
 	}
 
 
-	weapon = Bot_GetWeaponForClassAndTeam( playerClass, g_entities[bs->client].client->sess.sessionTeam, params );
+	weapon = Bot_GetWeaponForClassAndTeam(playerClass, g_entities[bs->client].client->sess.sessionTeam, params);
 	if (weapon == -1)
 	{
 		// can't use this weapon
@@ -875,9 +1060,9 @@ qboolean Bot_ScriptAction_SetWeapon( bot_state_t *bs, char *params )
 
 	if (weapon == WP_NONE)
 	{
-		trap_GetUserinfo( bs->client, userinfo, sizeof(userinfo) );
-		Info_SetValueForKey( userinfo, "pWeapon", "NONE");
-		trap_SetUserinfo( bs->client, userinfo );
+		trap_GetUserinfo(bs->client, userinfo, sizeof(userinfo));
+		Info_SetValueForKey(userinfo, "pWeapon", "NONE");
+		trap_SetUserinfo(bs->client, userinfo);
 		ClientUserinfoChanged(bs->client);
 		// TAT 12/26/2002 - make sure the bot state knows we have no weapon
 		bs->weaponnum = WP_NONE;
@@ -885,38 +1070,40 @@ qboolean Bot_ScriptAction_SetWeapon( bot_state_t *bs, char *params )
 	else
 	{
 		gentity_t *player;
-		int i;
+		int       i;
 		// make sure we tell all the clients that we have a weapon
-		for(i = 0; i < level.numConnectedClients; i++)
+		for (i = 0; i < level.numConnectedClients; i++)
 		{
 			// send the noweapon command with who as the 1st param, and 0 meaning we don't have no weapon
 			player = g_entities + level.sortedClients[i];
 			if (player->inuse && player->client->sess.sessionTeam == bs->mpTeam)
+			{
 				trap_SendServerCommand(player->s.number, va("nwp %i 0", bs->client));
+			}
 		}
 /*
 		trap_GetUserinfo( bs->client, userinfo, sizeof(userinfo) );
 		Info_SetValueForKey( userinfo, "pWeapon", va("%i", weapon));
-		trap_SetUserinfo( bs->client, userinfo ); 
+		trap_SetUserinfo( bs->client, userinfo );
 		ClientUserinfoChanged(bs->client);
 */
 
 	}
 
-	// set the weapon 
+	// set the weapon
 	g_entities[bs->client].client->sess.playerWeapon = weapon;
-	g_entities[bs->client].client->ps.weapon = weapon;
-	g_entities[bs->client].s.weapon = weapon;
- 
+	g_entities[bs->client].client->ps.weapon         = weapon;
+	g_entities[bs->client].s.weapon                  = weapon;
+
 	// use this new func: don't bother with the whole weaponSpawnNumber thing
-	SetWolfSpawnWeapons(g_entities[bs->client].client); 
+	SetWolfSpawnWeapons(g_entities[bs->client].client);
 
 	if (weapon != WP_NONE)
 	{
 //		AddWeaponToPlayer( g_entities[bs->client].client, weapon, 1, 0, qtrue );
 
 		// Make sure this weapon is allowed
-		COM_BitSet( g_entities[bs->client].client->ps.weapons, weapon );
+		COM_BitSet(g_entities[bs->client].client->ps.weapons, weapon);
 
 		//@TODO set ammo with an extra toekn
 //		client->ps.ammoclip[BG_FindClipForWeapon(weapon)] = ammoclip;
@@ -935,36 +1122,52 @@ qboolean Bot_ScriptAction_SetWeapon( bot_state_t *bs, char *params )
 Bot_ScriptAction_SetClass
 ===============
 */
-qboolean Bot_ScriptAction_SetClass( bot_state_t *bs, char *params )
+qboolean Bot_ScriptAction_SetClass(bot_state_t *bs, char *params)
 {
-	int		val = -1;
-	char	userinfo[MAX_INFO_STRING];
+	int  val = -1;
+	char userinfo[MAX_INFO_STRING];
 	//
-	if (!params || !params[0]) {
-		Bot_ScriptError( bs, "SetClass requires a class name" );
+	if (!params || !params[0])
+	{
+		Bot_ScriptError(bs, "SetClass requires a class name");
 	}
 	//
-	if (!Q_stricmp( params, "ANY" )) {
+	if (!Q_stricmp(params, "ANY"))
+	{
 		val = -1;
-	} else if (!Q_stricmp( params, "soldier" )) {
+	}
+	else if (!Q_stricmp(params, "soldier"))
+	{
 		val = PC_SOLDIER;
-	} else if (!Q_stricmp( params, "medic" )) {
+	}
+	else if (!Q_stricmp(params, "medic"))
+	{
 		val = PC_MEDIC;
-	} else if (!Q_stricmp( params, "engineer" )) {
+	}
+	else if (!Q_stricmp(params, "engineer"))
+	{
 		val = PC_ENGINEER;
-	} else if (!Q_stricmp( params, "lieutenant" )) { // FIXME: remove this from missionpack? once all scripts have been updated
+	}
+	else if (!Q_stricmp(params, "lieutenant"))       // FIXME: remove this from missionpack? once all scripts have been updated
+	{
 		val = PC_FIELDOPS;
-	} else if (!Q_stricmp( params, "fieldops" )) {
+	}
+	else if (!Q_stricmp(params, "fieldops"))
+	{
 		val = PC_FIELDOPS;
-	} else if (!Q_stricmp( params, "covertops" )) {
+	}
+	else if (!Q_stricmp(params, "covertops"))
+	{
 		val = PC_COVERTOPS;
-	} else {
-		Bot_ScriptError( bs, "unknown class \"%s\"", params );
+	}
+	else
+	{
+		Bot_ScriptError(bs, "unknown class \"%s\"", params);
 	}
 	//
-	trap_GetUserinfo( bs->client, userinfo, sizeof(userinfo) );
-	Info_SetValueForKey( userinfo, "pClass", va("%i", val) );
-	trap_SetUserinfo( bs->client, userinfo );
+	trap_GetUserinfo(bs->client, userinfo, sizeof(userinfo));
+	Info_SetValueForKey(userinfo, "pClass", va("%i", val));
+	trap_SetUserinfo(bs->client, userinfo);
 	//
 	return qtrue;
 }
@@ -990,106 +1193,149 @@ Bot_ScriptAction_GlobalAccum
 	globalAccum <n> abort_if_not_bitset <m>
 =================
 */
-qboolean Bot_ScriptAction_GlobalAccum( bot_state_t *bs, char *params )
+qboolean Bot_ScriptAction_GlobalAccum(bot_state_t *bs, char *params)
 {
 	char *pString, *token, lastToken[MAX_QPATH];
-	int bufferIndex;
+	int  bufferIndex;
 
 	pString = params;
 
-	token = COM_ParseExt( &pString, qfalse );
-	if (!token[0]) {
-		Bot_ScriptError( bs, "globalAccum: without a buffer index" );
+	token = COM_ParseExt(&pString, qfalse);
+	if (!token[0])
+	{
+		Bot_ScriptError(bs, "globalAccum: without a buffer index");
 	}
 
 	bufferIndex = atoi(token);
-	if (bufferIndex >= MAX_SCRIPT_ACCUM_BUFFERS) {
-		Bot_ScriptError( bs, "globalAccum: buffer is outside range (0 - %i)", MAX_SCRIPT_ACCUM_BUFFERS );
+	if (bufferIndex >= MAX_SCRIPT_ACCUM_BUFFERS)
+	{
+		Bot_ScriptError(bs, "globalAccum: buffer is outside range (0 - %i)", MAX_SCRIPT_ACCUM_BUFFERS);
 	}
 
-	token = COM_ParseExt( &pString, qfalse );
-	if (!token[0]) {
-		Bot_ScriptError( bs, "globalAccum: without a command" );
+	token = COM_ParseExt(&pString, qfalse);
+	if (!token[0])
+	{
+		Bot_ScriptError(bs, "globalAccum: without a command");
 	}
 
-	Q_strncpyz( lastToken, token, sizeof(lastToken) );
-	token = COM_ParseExt( &pString, qfalse );
+	Q_strncpyz(lastToken, token, sizeof(lastToken));
+	token = COM_ParseExt(&pString, qfalse);
 
-	if (!Q_stricmp(lastToken, "inc")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "globalAccum:: %s requires a parameter", lastToken );
+	if (!Q_stricmp(lastToken, "inc"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "globalAccum:: %s requires a parameter", lastToken);
 		}
 		level.globalAccumBuffer[bufferIndex] += atoi(token);
-	} else if (!Q_stricmp(lastToken, "abort_if_less_than")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "globalAccum: %s requires a parameter", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "abort_if_less_than"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "globalAccum: %s requires a parameter", lastToken);
 		}
-		if (level.globalAccumBuffer[bufferIndex] < atoi(token)) {
+		if (level.globalAccumBuffer[bufferIndex] < atoi(token))
+		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
 		}
-	} else if (!Q_stricmp(lastToken, "abort_if_greater_than")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "globalAccum: %s requires a parameter", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "abort_if_greater_than"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "globalAccum: %s requires a parameter", lastToken);
 		}
-		if (level.globalAccumBuffer[bufferIndex] > atoi(token)) {
+		if (level.globalAccumBuffer[bufferIndex] > atoi(token))
+		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
 		}
-	} else if (!Q_stricmp(lastToken, "abort_if_not_equal") || !Q_stricmp(lastToken, "abort_if_not_equals")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "globalAccum: %s requires a parameter", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "abort_if_not_equal") || !Q_stricmp(lastToken, "abort_if_not_equals"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "globalAccum: %s requires a parameter", lastToken);
 		}
-		if (level.globalAccumBuffer[bufferIndex] != atoi(token)) {
+		if (level.globalAccumBuffer[bufferIndex] != atoi(token))
+		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
 		}
-	} else if (!Q_stricmp(lastToken, "abort_if_equal")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "globalAccum: %s requires a parameter", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "abort_if_equal"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "globalAccum: %s requires a parameter", lastToken);
 		}
-		if (level.globalAccumBuffer[bufferIndex] == atoi(token)) {
+		if (level.globalAccumBuffer[bufferIndex] == atoi(token))
+		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
 		}
-	} else if (!Q_stricmp(lastToken, "bitset")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "globalAccum: %s requires a parameter", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "bitset"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "globalAccum: %s requires a parameter", lastToken);
 		}
-		level.globalAccumBuffer[bufferIndex] |= (1<<atoi(token));
-	} else if (!Q_stricmp(lastToken, "bitclear")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "globalAccum: %s requires a parameter", lastToken );
+		level.globalAccumBuffer[bufferIndex] |= (1 << atoi(token));
+	}
+	else if (!Q_stricmp(lastToken, "bitclear"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "globalAccum: %s requires a parameter", lastToken);
 		}
-		level.globalAccumBuffer[bufferIndex] &= ~(1<<atoi(token));
-	} else if (!Q_stricmp(lastToken, "abort_if_bitset")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "globalAccum: %s requires a parameter", lastToken );
+		level.globalAccumBuffer[bufferIndex] &= ~(1 << atoi(token));
+	}
+	else if (!Q_stricmp(lastToken, "abort_if_bitset"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "globalAccum: %s requires a parameter", lastToken);
 		}
-		if (level.globalAccumBuffer[bufferIndex] & (1<<atoi(token))) {
+		if (level.globalAccumBuffer[bufferIndex] & (1 << atoi(token)))
+		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
 		}
-	} else if (!Q_stricmp(lastToken, "abort_if_not_bitset")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "globalAccum: %s requires a parameter", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "abort_if_not_bitset"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "globalAccum: %s requires a parameter", lastToken);
 		}
-		if (!(level.globalAccumBuffer[bufferIndex] & (1<<atoi(token)))) {
+		if (!(level.globalAccumBuffer[bufferIndex] & (1 << atoi(token))))
+		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
 		}
-	} else if (!Q_stricmp(lastToken, "set_to") || !Q_stricmp(lastToken, "set")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "globalAccum: %s requires a parameter", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "set_to") || !Q_stricmp(lastToken, "set"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "globalAccum: %s requires a parameter", lastToken);
 		}
 		level.globalAccumBuffer[bufferIndex] = atoi(token);
-	} else if (!Q_stricmp(lastToken, "random")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "globalAccum: %s requires a parameter", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "random"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "globalAccum: %s requires a parameter", lastToken);
 		}
 		level.globalAccumBuffer[bufferIndex] = rand() % atoi(token);
-	} else {
-		Bot_ScriptError( bs, "globalAccum: %s: unknown command", params );
+	}
+	else
+	{
+		Bot_ScriptError(bs, "globalAccum: %s: unknown command", params);
 	}
 
 	return qtrue;
@@ -1100,58 +1346,72 @@ qboolean Bot_ScriptAction_GlobalAccum( bot_state_t *bs, char *params )
 Bot_ScriptAction_FollowLeader
 =================
 */
-qboolean Bot_ScriptAction_FollowLeader( bot_state_t *bs, char *params )
+qboolean Bot_ScriptAction_FollowLeader(bot_state_t *bs, char *params)
 {
-	char *pString, *token;
-	gentity_t	*target;
+	char      *pString, *token;
+	gentity_t *target;
 //	vec3_t	vec;
 	int duration;
 	//
-	if (!params || !params[0]) {
-		Bot_ScriptError( bs, "FollowLeader requires a name." );
+	if (!params || !params[0])
+	{
+		Bot_ScriptError(bs, "FollowLeader requires a name.");
 	}
 
 	// TAT 8/20/2002
 	//		If we have received a player command that overrides our movement scripts,
 	//		we should end the script
 	if (bs->overrideMovementScripts)
+	{
 		return qfalse;
+	}
 
 	//
 	pString = params;
-	token = COM_ParseExt( &pString, qfalse );
-	target = BotFindEntityForName( token );
-	if (!target) {
-		if(bs->script.status.stackChangeTime != level.time) {
+	token   = COM_ParseExt(&pString, qfalse);
+	target  = BotFindEntityForName(token);
+	if (!target)
+	{
+		if (bs->script.status.stackChangeTime != level.time)
+		{
 			// Gordon: lets assume they have died...
 			return qtrue;
 		}
-		Bot_ScriptError( bs, "FollowLeader has unknown name: \"%s\"", token );
+		Bot_ScriptError(bs, "FollowLeader has unknown name: \"%s\"", token);
 	}
 
-	if(target->health <= 0) {
+	if (target->health <= 0)
+	{
 		// Gordon: dead, dont follow
 		return qtrue;
 	}
 	// read the duration
-	token = COM_ParseExt( &pString, qfalse );
-	if (!token[0]) {
-		Bot_ScriptError( bs, "FollowLeader requires a duration" );
+	token = COM_ParseExt(&pString, qfalse);
+	if (!token[0])
+	{
+		Bot_ScriptError(bs, "FollowLeader requires a duration");
 	}
-	if (!Q_stricmp( token, "forever" )) {
+	if (!Q_stricmp(token, "forever"))
+	{
 		duration = (int)0x7fffffff;
-	} else {
+	}
+	else
+	{
 		duration = atoi(token);
 	}
 	//
 	bs->script.frameFlags |= BSFFL_FOLLOW_LEADER;
-	bs->script.entityNum = target->s.number;
-	bs->script.moveType = BSMT_DEFAULT;
+	bs->script.entityNum   = target->s.number;
+	bs->script.moveType    = BSMT_DEFAULT;
 	//
-	while ((token = COM_ParseExt( &pString, qfalse )) && token[0]) {
-		if (!Q_stricmp( token, "/WALKING" )) {
+	while ((token = COM_ParseExt(&pString, qfalse)) && token[0])
+	{
+		if (!Q_stricmp(token, "/WALKING"))
+		{
 			bs->script.moveType = BSMT_WALKING;
-		} else if (!Q_stricmp( token, "/CROUCHING" )) {
+		}
+		else if (!Q_stricmp(token, "/CROUCHING"))
+		{
 			bs->script.moveType = BSMT_CROUCHING;
 		}
 	}
@@ -1166,151 +1426,211 @@ Bot_ScriptAction_Cvar
   syntax: cvar <cvarName> <operation> <value>
 ===================
 */
-qboolean Bot_ScriptAction_Cvar( bot_state_t *bs, char *params )
+qboolean Bot_ScriptAction_Cvar(bot_state_t *bs, char *params)
 {
-	char *pString, *token, lastToken[MAX_QPATH], name[MAX_QPATH], cvarName[MAX_QPATH];
-	int cvarValue;
+	char     *pString, *token, lastToken[MAX_QPATH], name[MAX_QPATH], cvarName[MAX_QPATH];
+	int      cvarValue;
 	qboolean terminate, found;
 
 	pString = params;
 
-	token = COM_ParseExt( &pString, qfalse );
-	if (!token[0]) {
-		Bot_ScriptError( bs, "cvar without a cvar name\n" );
+	token = COM_ParseExt(&pString, qfalse);
+	if (!token[0])
+	{
+		Bot_ScriptError(bs, "cvar without a cvar name\n");
 	}
 
-	cvarValue = trap_Cvar_VariableIntegerValue( cvarName );
+	cvarValue = trap_Cvar_VariableIntegerValue(cvarName);
 
-	token = COM_ParseExt( &pString, qfalse );
-	if (!token[0]) {
-		Bot_ScriptError( bs, "cvar without a command\n" );
+	token = COM_ParseExt(&pString, qfalse);
+	if (!token[0])
+	{
+		Bot_ScriptError(bs, "cvar without a command\n");
 	}
 
-	Q_strncpyz( lastToken, token, sizeof(lastToken) );
-	token = COM_ParseExt( &pString, qfalse );
+	Q_strncpyz(lastToken, token, sizeof(lastToken));
+	token = COM_ParseExt(&pString, qfalse);
 
-	if (!Q_stricmp(lastToken, "inc")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "cvar %s requires a parameter\n", lastToken );
+	if (!Q_stricmp(lastToken, "inc"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "cvar %s requires a parameter\n", lastToken);
 		}
-		trap_Cvar_Set( cvarName, va("%i", cvarValue+1) );
-	} else if (!Q_stricmp(lastToken, "abort_if_less_than")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "cvar %s requires a parameter\n", lastToken );
+		trap_Cvar_Set(cvarName, va("%i", cvarValue + 1));
+	}
+	else if (!Q_stricmp(lastToken, "abort_if_less_than"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "cvar %s requires a parameter\n", lastToken);
 		}
-		if (cvarValue < atoi(token)) {
+		if (cvarValue < atoi(token))
+		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
 		}
-	} else if (!Q_stricmp(lastToken, "abort_if_greater_than")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "cvar %s requires a parameter\n", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "abort_if_greater_than"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "cvar %s requires a parameter\n", lastToken);
 		}
-		if (cvarValue > atoi(token)) {
+		if (cvarValue > atoi(token))
+		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
 		}
-	} else if (!Q_stricmp(lastToken, "abort_if_not_equal") || !Q_stricmp(lastToken, "abort_if_not_equals")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "cvar %s requires a parameter\n", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "abort_if_not_equal") || !Q_stricmp(lastToken, "abort_if_not_equals"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "cvar %s requires a parameter\n", lastToken);
 		}
-		if (cvarValue != atoi(token)) {
+		if (cvarValue != atoi(token))
+		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
 		}
-	} else if (!Q_stricmp(lastToken, "abort_if_equal")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "cvar %s requires a parameter\n", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "abort_if_equal"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "cvar %s requires a parameter\n", lastToken);
 		}
-		if (cvarValue == atoi(token)) {
+		if (cvarValue == atoi(token))
+		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
 		}
-	} else if (!Q_stricmp(lastToken, "bitset")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "cvar %s requires a parameter\n", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "bitset"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "cvar %s requires a parameter\n", lastToken);
 		}
-		cvarValue |= (1<<atoi(token));
-	} else if (!Q_stricmp(lastToken, "bitreset")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "cvar %s requires a parameter\n", lastToken );
+		cvarValue |= (1 << atoi(token));
+	}
+	else if (!Q_stricmp(lastToken, "bitreset"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "cvar %s requires a parameter\n", lastToken);
 		}
-		cvarValue &= ~(1<<atoi(token));
-	} else if (!Q_stricmp(lastToken, "abort_if_bitset")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "cvar %s requires a parameter\n", lastToken );
+		cvarValue &= ~(1 << atoi(token));
+	}
+	else if (!Q_stricmp(lastToken, "abort_if_bitset"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "cvar %s requires a parameter\n", lastToken);
 		}
-		if (cvarValue & (1<<atoi(token))) {
+		if (cvarValue & (1 << atoi(token)))
+		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
 		}
-	} else if (!Q_stricmp(lastToken, "abort_if_not_bitset")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "cvar %s requires a parameter\n", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "abort_if_not_bitset"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "cvar %s requires a parameter\n", lastToken);
 		}
-		if (!(cvarValue & (1<<atoi(token)))) {
+		if (!(cvarValue & (1 << atoi(token))))
+		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
 		}
-	} else if (!Q_stricmp(lastToken, "set")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "cvar %s requires a parameter\n", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "set"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "cvar %s requires a parameter\n", lastToken);
 		}
 		cvarValue = atoi(token);
-	} else if (!Q_stricmp(lastToken, "random")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "cvar %s requires a parameter\n", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "random"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "cvar %s requires a parameter\n", lastToken);
 		}
 		cvarValue = rand() % atoi(token);
-	} else if (!Q_stricmp(lastToken, "trigger_if_equal")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "cvar %s requires a parameter\n", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "trigger_if_equal"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "cvar %s requires a parameter\n", lastToken);
 		}
-		if (cvarValue == atoi(token)) {
-			gentity_t* trent;
-			int oldId;
+		if (cvarValue == atoi(token))
+		{
+			gentity_t *trent;
+			int       oldId;
 
-			token = COM_ParseExt( &pString, qfalse );
-			Q_strncpyz( lastToken, token, sizeof(lastToken) );
-			if (!*lastToken) {
-				Bot_ScriptError( bs, "trigger must have a name and an identifier\n" );
+			token = COM_ParseExt(&pString, qfalse);
+			Q_strncpyz(lastToken, token, sizeof(lastToken));
+			if (!*lastToken)
+			{
+				Bot_ScriptError(bs, "trigger must have a name and an identifier\n");
 			}
 
-			token = COM_ParseExt( &pString, qfalse );
-			Q_strncpyz( name, token, sizeof(name) );
-			if (!*name) {
-				Bot_ScriptError( bs, "trigger must have a name and an identifier\n" );
+			token = COM_ParseExt(&pString, qfalse);
+			Q_strncpyz(name, token, sizeof(name));
+			if (!*name)
+			{
+				Bot_ScriptError(bs, "trigger must have a name and an identifier\n");
 			}
 
 			terminate = qfalse;
-			found = qfalse;
-			trent = NULL;
-			while ((trent = BotFindEntity( trent, FOFS(scriptName), lastToken ))) {
+			found     = qfalse;
+			trent     = NULL;
+			while ((trent = BotFindEntity(trent, FOFS(scriptName), lastToken)))
+			{
 				found = qtrue;
 				oldId = trent->scriptStatus.scriptId;
-				G_Script_ScriptEvent( trent, "trigger", name );
+				G_Script_ScriptEvent(trent, "trigger", name);
 				// if the script changed, return false so we don't muck with it's variables
-				if ((trent->s.number == bs->client) && (oldId != trent->scriptStatus.scriptId)) {
+				if ((trent->s.number == bs->client) && (oldId != trent->scriptStatus.scriptId))
+				{
 					terminate = qtrue;
 				}
 			}
 
-			if (terminate) return qfalse;
-			if (found) return qtrue;
+			if (terminate)
+			{
+				return qfalse;
+			}
+			if (found)
+			{
+				return qtrue;
+			}
 
 //			Bot_ScriptError( bs, "trigger has unknown name: %s\n", name );
-			G_Printf( "trigger has unknown name: %s\n", name );
+			G_Printf("trigger has unknown name: %s\n", name);
 			return qfalse;
 		}
-	} else if (!Q_stricmp(lastToken, "wait_while_equal")) {
-		if (!token[0]) {
-			Bot_ScriptError( bs, "cvar %s requires a parameter\n", lastToken );
+	}
+	else if (!Q_stricmp(lastToken, "wait_while_equal"))
+	{
+		if (!token[0])
+		{
+			Bot_ScriptError(bs, "cvar %s requires a parameter\n", lastToken);
 		}
-		if (cvarValue == atoi(token)) {
+		if (cvarValue == atoi(token))
+		{
 			return qfalse;
 		}
-	} else {
-		Bot_ScriptError( bs, "cvar %s: unknown command\n", params );
+	}
+	else
+	{
+		Bot_ScriptError(bs, "cvar %s: unknown command\n", params);
 	}
 
 	return qtrue;
@@ -1321,26 +1641,29 @@ qboolean Bot_ScriptAction_Cvar( bot_state_t *bs, char *params )
 Bot_ScriptAction_SetMovementAutonomy
 =================
 */
-qboolean Bot_ScriptAction_SetMovementAutonomy( bot_state_t *bs, char *params )
+qboolean Bot_ScriptAction_SetMovementAutonomy(bot_state_t *bs, char *params)
 {
 	int mlevel;
 
-	if (!params || !params[0]) {
-		Bot_ScriptError( bs, "SetMovementAutonomy requires a parameter" );
+	if (!params || !params[0])
+	{
+		Bot_ScriptError(bs, "SetMovementAutonomy requires a parameter");
 	}
 	//
-	mlevel = BotMovementAutonomyForString( params );
-	if (mlevel < 0) {
-		Bot_ScriptError( bs, "SetMovementAutonomy: unknown parameter \"%s\"", params );
+	mlevel = BotMovementAutonomyForString(params);
+	if (mlevel < 0)
+	{
+		Bot_ScriptError(bs, "SetMovementAutonomy: unknown parameter \"%s\"", params);
 	}
 	bs->script.movementAutonomy = mlevel;
 	// TAT - why are there 2 of these vars?  set both of them
 	bs->movementAutonomy = mlevel;
 
 	//
-	if (bs->leader < 0) {
-		VectorCopy( level.clients[bs->client].ps.origin, bs->script.movementAutonomyPos );
-		VectorCopy( level.clients[bs->client].ps.origin, bs->movementAutonomyPos );
+	if (bs->leader < 0)
+	{
+		VectorCopy(level.clients[bs->client].ps.origin, bs->script.movementAutonomyPos);
+		VectorCopy(level.clients[bs->client].ps.origin, bs->movementAutonomyPos);
 	}
 	//
 	return qtrue;
@@ -1351,64 +1674,75 @@ qboolean Bot_ScriptAction_SetMovementAutonomy( bot_state_t *bs, char *params )
 Bot_ScriptAction_MovementAutonomy
 ======================
 */
-qboolean Bot_ScriptAction_MovementAutonomy( bot_state_t *bs, char *params )
+qboolean Bot_ScriptAction_MovementAutonomy(bot_state_t *bs, char *params)
 {
 	char *pString, *token, *operand;
-	int	maLevel;
+	int  maLevel;
 
-	if (!params || !params[0]) {
-		Bot_ScriptError( bs, "MovementAutonomy requires a parameter" );
+	if (!params || !params[0])
+	{
+		Bot_ScriptError(bs, "MovementAutonomy requires a parameter");
 	}
 	//
 	pString = params;
 	//
 	// read the operand
-	token = COM_ParseExt( &pString, qfalse );
-	operand = va("%s", token);	// RF, this is a cheap and nasty way of saving memory
+	token   = COM_ParseExt(&pString, qfalse);
+	operand = va("%s", token);  // RF, this is a cheap and nasty way of saving memory
 	//
-	if (!operand[0]) {
-		Bot_ScriptError( bs, "MovementAutonomy requires an operand" );
+	if (!operand[0])
+	{
+		Bot_ScriptError(bs, "MovementAutonomy requires an operand");
 	}
 	//
 	// read the level
-	token = COM_ParseExt( &pString, qfalse );
+	token = COM_ParseExt(&pString, qfalse);
 	//
-	if (!token[0]) {
-		Bot_ScriptError( bs, "MovementAutonomy requires a level" );
+	if (!token[0])
+	{
+		Bot_ScriptError(bs, "MovementAutonomy requires a level");
 	}
 	//
-	maLevel = BotMovementAutonomyForString( token );
-	if (maLevel < 0) {
-		Bot_ScriptError( bs, "SetMovementAutonomy: unknown movementAutonomy \"%s\"", params );
+	maLevel = BotMovementAutonomyForString(token);
+	if (maLevel < 0)
+	{
+		Bot_ScriptError(bs, "SetMovementAutonomy: unknown movementAutonomy \"%s\"", params);
 	}
 	//
 	// apply the function
-	if (!Q_stricmp(operand, "set")) {
+	if (!Q_stricmp(operand, "set"))
+	{
 		bs->script.movementAutonomy = maLevel;
-		VectorCopy( level.clients[bs->client].ps.origin, bs->script.movementAutonomyPos );
+		VectorCopy(level.clients[bs->client].ps.origin, bs->script.movementAutonomyPos);
 	}
 	//
-	if (!Q_stricmp(operand, "force")) {
+	if (!Q_stricmp(operand, "force"))
+	{
 		bs->script.movementAutonomy = maLevel;
-		VectorCopy( level.clients[bs->client].ps.origin, bs->script.movementAutonomyPos );
-		bs->leader = -1;	// stop following others
+		VectorCopy(level.clients[bs->client].ps.origin, bs->script.movementAutonomyPos);
+		bs->leader = -1;    // stop following others
 		//
-		bs->script.flags |= BSFL_FORCED_MOVEMENT_AUTONOMY;	// force this level
+		bs->script.flags |= BSFL_FORCED_MOVEMENT_AUTONOMY;  // force this level
 	}
 	//
-	if (!Q_stricmp(operand, "unforce")) {
-		bs->script.flags &= ~BSFL_FORCED_MOVEMENT_AUTONOMY;	// turn it off
+	if (!Q_stricmp(operand, "unforce"))
+	{
+		bs->script.flags &= ~BSFL_FORCED_MOVEMENT_AUTONOMY; // turn it off
 	}
 	//
-	else if (!Q_stricmp(operand, "abort_if_less_than")) {
-		if (bs->movementAutonomy < maLevel) {
+	else if (!Q_stricmp(operand, "abort_if_less_than"))
+	{
+		if (bs->movementAutonomy < maLevel)
+		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
 		}
 	}
 	//
-	else if (!Q_stricmp(operand, "abort_if_greater_than")) {
-		if (bs->movementAutonomy > maLevel) {
+	else if (!Q_stricmp(operand, "abort_if_greater_than"))
+	{
+		if (bs->movementAutonomy > maLevel)
+		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
 		}
@@ -1430,27 +1764,29 @@ Bot_ScriptAction_NoTarget
 =================
 */
 qboolean Bot_ScriptAction_NoTarget
-( 
+(
 	bot_state_t *bs,
 	char *params
 )
 {
 	// The user needs to specify on or off
-	if (!params || !params[0]) 
+	if (!params || !params[0])
 	{
-		Bot_ScriptError( bs, "notarget requires ON or OFF as parameter" );
+		Bot_ScriptError(bs, "notarget requires ON or OFF as parameter");
 
 	} // if (!params || !params[0]) ...
-	
-	if (!Q_stricmp( params, "ON" )) 
+
+	if (!Q_stricmp(params, "ON"))
 	{
 		g_entities[bs->client].flags |= FL_NOTARGET;
-	} else if (!Q_stricmp( params, "OFF" )) 
+	}
+	else if (!Q_stricmp(params, "OFF"))
 	{
 		g_entities[bs->client].flags &= ~FL_NOTARGET;
-	} else 
+	}
+	else
 	{
-		Bot_ScriptError( bs,  "notarget requires ON or OFF as parameter" );
+		Bot_ScriptError(bs, "notarget requires ON or OFF as parameter");
 	}
 
 	return qtrue;
@@ -1462,7 +1798,8 @@ qboolean Bot_ScriptAction_NoTarget
 Bot_ScriptAction_ResetScript
 ====================
 */
-qboolean Bot_ScriptAction_ResetScript( bot_state_t *bs, char *params ) {
+qboolean Bot_ScriptAction_ResetScript(bot_state_t *bs, char *params)
+{
 	return qtrue;
 }
 
@@ -1478,12 +1815,12 @@ qboolean Bot_ScriptAction_SetFieldOfView
 (
 	bot_state_t *bs,
 	char *params
-) 
+)
 {
 	// Make sure we have a parameter to set the FOV to.
-	if (!params || !params[0]) 
+	if (!params || !params[0])
 	{
-		Bot_ScriptError( bs, "SetFieldOfView requires a FOV value" );
+		Bot_ScriptError(bs, "SetFieldOfView requires a FOV value");
 
 	} // if (!params || !params[0]) ...
 
@@ -1505,12 +1842,12 @@ qboolean Bot_ScriptAction_SetHearingRange
 (
 	bot_state_t *bs,
 	char *params
-) 
+)
 {
 	// Make sure we have a parameter to set the hearing range to.
-	if (!params || !params[0]) 
+	if (!params || !params[0])
 	{
-		Bot_ScriptError( bs, "SetHearingRange requires a range value" );
+		Bot_ScriptError(bs, "SetHearingRange requires a range value");
 
 	} // if (!params || !params[0]) ...
 
@@ -1526,36 +1863,43 @@ qboolean Bot_ScriptAction_SetHearingRange
 =================
 Bot_ScriptAction_SetCrouch
 
-  syntax: SetCrouch <OnOffFlag> 
+  syntax: SetCrouch <OnOffFlag>
 
   OnOffFlag - 1 crouch; 0 don't crouch.
 =================
 */
 qboolean Bot_ScriptAction_SetCrouch
-( 
+(
 	bot_state_t *bs,
 	char *params
 )
-
 {
 	char *pString, *token;
 
-	if (!params || !params[0]) {
-		G_Error( "Bot_ScriptAction_SetCrouch: syntax: SetCrouch <On/Off>\n" );
+	if (!params || !params[0])
+	{
+		G_Error("Bot_ScriptAction_SetCrouch: syntax: SetCrouch <On/Off>\n");
 	}
 
 	pString = params;
-	token = COM_Parse(&pString);
-	if (!token || !token[0]) {
-		G_Error( "Bot_ScriptAction_SetCrouch: syntax: SetCrouch <On/Off>\n" );
+	token   = COM_Parse(&pString);
+	if (!token || !token[0])
+	{
+		G_Error("Bot_ScriptAction_SetCrouch: syntax: SetCrouch <On/Off>\n");
 	}
 	if (!Q_stricmp(token, "on"))
+	{
 		bs->script.flags |= BSFL_CROUCH;
+	}
 	else if (!Q_stricmp(token, "off"))
+	{
 		bs->script.flags &= ~BSFL_CROUCH;
+	}
 	else
-		G_Error( "Bot_ScriptAction_SetCrouch: syntax: SetCrouch <On/Off>\n");
-	
+	{
+		G_Error("Bot_ScriptAction_SetCrouch: syntax: SetCrouch <On/Off>\n");
+	}
+
 	// We're done here!
 	return qtrue;
 
@@ -1563,29 +1907,37 @@ qboolean Bot_ScriptAction_SetCrouch
 
 
 qboolean Bot_ScriptAction_SetProne
-( 
+(
 	bot_state_t *bs,
 	char *params
 )
 {
 	char *pString, *token;
 
-	if (!params || !params[0]) {
-		G_Error( "Bot_ScriptAction_SetProne: syntax: SetProne <On/Off>\n" );
+	if (!params || !params[0])
+	{
+		G_Error("Bot_ScriptAction_SetProne: syntax: SetProne <On/Off>\n");
 	}
 
 	pString = params;
-	token = COM_Parse(&pString);
-	if (!token || !token[0]) {
-		G_Error( "Bot_ScriptAction_SetProne: syntax: SetProne <On/Off>\n" );
+	token   = COM_Parse(&pString);
+	if (!token || !token[0])
+	{
+		G_Error("Bot_ScriptAction_SetProne: syntax: SetProne <On/Off>\n");
 	}
 	if (!Q_stricmp(token, "on"))
+	{
 		bs->script.flags |= BSFL_PRONE;
+	}
 	else if (!Q_stricmp(token, "off"))
+	{
 		bs->script.flags &= ~BSFL_PRONE;
+	}
 	else
-		G_Error( "Bot_ScriptAction_SetProne: syntax: SetProne <On/Off>\n");
-	
+	{
+		G_Error("Bot_ScriptAction_SetProne: syntax: SetProne <On/Off>\n");
+	}
+
 	// We're done here!
 	return qtrue;
 } // Bot_ScriptAction_SetProne
@@ -1600,31 +1952,33 @@ G_ScriptAction_PrintAccum
   prints out the value of  accum 'accumNumber'
 ===================
 */
-qboolean Bot_ScriptAction_PrintAccum( bot_state_t *bs, char *params ) 
+qboolean Bot_ScriptAction_PrintAccum(bot_state_t *bs, char *params)
 {
-	char *token, *pString;
+	char      *token, *pString;
 	gentity_t *ent;
-	int bufferIndex;
+	int       bufferIndex;
 
-	if (!params || !params[0]) {
-		G_Error( "Bot_ScriptAction_PrintAccum: syntax: PrintAccum <accumNumber>\n" );
+	if (!params || !params[0])
+	{
+		G_Error("Bot_ScriptAction_PrintAccum: syntax: PrintAccum <accumNumber>\n");
 	}
 
 	pString = params;
 
-	token = COM_ParseExt( &pString, qfalse );
-	if (!token[0]) {
-		G_Error( "Bot_ScriptAction_PrintAccum: syntax: PrintAccum <accumNumber>\n" );
+	token = COM_ParseExt(&pString, qfalse);
+	if (!token[0])
+	{
+		G_Error("Bot_ScriptAction_PrintAccum: syntax: PrintAccum <accumNumber>\n");
 	}
 
 
 	bufferIndex = atoi(token);
-	if ((bufferIndex < 0) || (bufferIndex >= MAX_SCRIPT_ACCUM_BUFFERS) )
+	if ((bufferIndex < 0) || (bufferIndex >= MAX_SCRIPT_ACCUM_BUFFERS))
 	{
-		G_Error("Bot_ScriptAction_PrintAccum: buffer is outside range (0 - %i)", MAX_SCRIPT_ACCUM_BUFFERS );
+		G_Error("Bot_ScriptAction_PrintAccum: buffer is outside range (0 - %i)", MAX_SCRIPT_ACCUM_BUFFERS);
 	}
 
-	ent = BotGetEntity( bs->client );
+	ent = BotGetEntity(bs->client);
 
 	G_Printf("(BotScript)  %s: Accum[%i] = %d\n", ent->scriptName, bufferIndex, ent->scriptAccumBuffer[bufferIndex]);
 
@@ -1642,27 +1996,29 @@ Bot_ScriptAction_PrintGlobalAccum
   prints out the value of global accum 'globalaccumnumber'
 ===================
 */
-qboolean Bot_ScriptAction_PrintGlobalAccum( gentity_t *ent, char *params ) 
+qboolean Bot_ScriptAction_PrintGlobalAccum(gentity_t *ent, char *params)
 {
 	char *token, *pString;
-	int bufferIndex;
+	int  bufferIndex;
 
-	if (!params || !params[0]) {
-		G_Error( "Bot_ScriptAction_PrintGlobalAccum: syntax: PrintGlobalAccum <globalAccumNumber>\n" );
+	if (!params || !params[0])
+	{
+		G_Error("Bot_ScriptAction_PrintGlobalAccum: syntax: PrintGlobalAccum <globalAccumNumber>\n");
 	}
 
 	pString = params;
 
-	token = COM_ParseExt( &pString, qfalse );
-	if (!token[0]) {
-		G_Error( "Bot_ScriptAction_PrintGlobalAccum: syntax: PrintGlobalAccum <globalAccumNumber>\n" );
+	token = COM_ParseExt(&pString, qfalse);
+	if (!token[0])
+	{
+		G_Error("Bot_ScriptAction_PrintGlobalAccum: syntax: PrintGlobalAccum <globalAccumNumber>\n");
 	}
 
 
 	bufferIndex = atoi(token);
-	if ((bufferIndex < 0) || (bufferIndex >= MAX_SCRIPT_ACCUM_BUFFERS) )
+	if ((bufferIndex < 0) || (bufferIndex >= MAX_SCRIPT_ACCUM_BUFFERS))
 	{
-		G_Error("PrintGlobalAccum: buffer is outside range (0 - %i)", MAX_SCRIPT_ACCUM_BUFFERS );
+		G_Error("PrintGlobalAccum: buffer is outside range (0 - %i)", MAX_SCRIPT_ACCUM_BUFFERS);
 	}
 
 
@@ -1687,19 +2043,21 @@ Bot_ScriptAction_BotDebugging
   toggles bot debugging
 ===================
 */
-qboolean Bot_ScriptAction_BotDebugging(gentity_t *ent, char *params )
+qboolean Bot_ScriptAction_BotDebugging(gentity_t *ent, char *params)
 {
 	char *token, *pString;
 
-	if (!params || !params[0]) {
-		G_Error( "Bot_ScriptAction_BotDebugging: syntax: BotDebugging <ON/OFF>\n" );
+	if (!params || !params[0])
+	{
+		G_Error("Bot_ScriptAction_BotDebugging: syntax: BotDebugging <ON/OFF>\n");
 	}
 
 	pString = params;
 
-	token = COM_ParseExt( &pString, qfalse );
-	if (!token[0]) {
-		G_Error( "Bot_ScriptAction_BotDebugging: syntax: BotDebugging <ON/OFF>\n" );
+	token = COM_ParseExt(&pString, qfalse);
+	if (!token[0])
+	{
+		G_Error("Bot_ScriptAction_BotDebugging: syntax: BotDebugging <ON/OFF>\n");
 	}
 
 	if (!Q_stricmp(token, "ON"))
@@ -1712,7 +2070,7 @@ qboolean Bot_ScriptAction_BotDebugging(gentity_t *ent, char *params )
 	}
 	else
 	{
-		G_Error( "Bot_ScriptAction_BotDebugging: syntax: BotDebugging <ON/OFF>\n" );
+		G_Error("Bot_ScriptAction_BotDebugging: syntax: BotDebugging <ON/OFF>\n");
 	}
 
 	return qtrue;
@@ -1729,24 +2087,28 @@ Bot_ScriptAction_SetFireRate
    a few more bullets.
 =======================
 */
-qboolean Bot_ScriptAction_SetFireRate( bot_state_t *bs, char *params)
+qboolean Bot_ScriptAction_SetFireRate(bot_state_t *bs, char *params)
 {
-	char *pString, *token;
+	char  *pString, *token;
 	float fireRate;
 
-	if (!params || !params[0]) {
-		G_Error( "Bot_ScriptAction_SetFireRate: syntax: SetFireRate <0-1>\n");
+	if (!params || !params[0])
+	{
+		G_Error("Bot_ScriptAction_SetFireRate: syntax: SetFireRate <0-1>\n");
 	}
 
 	pString = params;
-	token = COM_Parse(&pString);
-	if (!token || !token[0]) {
-		G_Error( "Bot_ScriptAction_SetFireRate: syntax: SetFireRate <0-1>\n");
+	token   = COM_Parse(&pString);
+	if (!token || !token[0])
+	{
+		G_Error("Bot_ScriptAction_SetFireRate: syntax: SetFireRate <0-1>\n");
 	}
 	fireRate = atof(token);
 	if (fireRate < 0.0 || fireRate > 1.0)
-		G_Error( "Bot_ScriptAction_SetFireRate: syntax: SetFireRate <0-1>\n");
-	
+	{
+		G_Error("Bot_ScriptAction_SetFireRate: syntax: SetFireRate <0-1>\n");
+	}
+
 	bs->fireRate = fireRate;
 	// We're done here!
 	return qtrue;
@@ -1759,30 +2121,33 @@ Bot_ScriptAction_SetFireCycleTime
 
    Sets the minimum/maximum fire cycle time. Actual fire cycle time is a random number between
    minimum cycle time and maximum cycle time.
-   
+
    during a fire cycle, the bot will fire for a duration equal to fireRate * cycleTime,
    and hold fire for the rest of the cycle (which is equal to (1-fireRate)*cycleTime.)
 
 =======================
 */
-qboolean Bot_ScriptAction_SetFireCycleTime( bot_state_t *bs, char *params)
+qboolean Bot_ScriptAction_SetFireCycleTime(bot_state_t *bs, char *params)
 {
 	char *pString, *token;
 
-	if (!params || !params[0]) {
-		G_Error( "Bot_ScriptAction_SetFireCycleTime: syntax: SetFireCycleTime <minimum time in msec> <maximum time in msec>\n");
+	if (!params || !params[0])
+	{
+		G_Error("Bot_ScriptAction_SetFireCycleTime: syntax: SetFireCycleTime <minimum time in msec> <maximum time in msec>\n");
 	}
 
 	pString = params;
-	token = COM_Parse(&pString);
-	if (!token || !token[0] || token[0] < '0' || token[0] > '9') {
-		G_Error( "Bot_ScriptAction_SetFireCycleTime: syntax: SetFireCycleTime <minimum time in msec> <maximum time in msec>\n");
+	token   = COM_Parse(&pString);
+	if (!token || !token[0] || token[0] < '0' || token[0] > '9')
+	{
+		G_Error("Bot_ScriptAction_SetFireCycleTime: syntax: SetFireCycleTime <minimum time in msec> <maximum time in msec>\n");
 	}
 	bs->minFireRateCycleTime = atoi(token);
 
 	token = COM_Parse(&pString);
-	if (!token || !token[0] || token[0] < '0' || token[0] > '9') {
-		G_Error( "Bot_ScriptAction_SetFireCycleTime: syntax: SetFireCycleTime <minimum time in msec> <maximum time in msec>\n");
+	if (!token || !token[0] || token[0] < '0' || token[0] > '9')
+	{
+		G_Error("Bot_ScriptAction_SetFireCycleTime: syntax: SetFireCycleTime <minimum time in msec> <maximum time in msec>\n");
 	}
 	bs->maxFireRateCycleTime = atoi(token);
 
@@ -1799,22 +2164,24 @@ Mad Doctor I, 10/23/2002
 Set a maximum vision range for bots to see you
 =======================
 */
-qboolean Bot_ScriptAction_SetVisionRange( bot_state_t *bs, char *params)
+qboolean Bot_ScriptAction_SetVisionRange(bot_state_t *bs, char *params)
 {
-	char *pString, *token;
+	char  *pString, *token;
 	float visionRange = 0;
 
-	if (!params || !params[0]) {
-		G_Error( "Bot_ScriptAction_SetVisionRange: syntax: SetVisionRange <range>\n" );
+	if (!params || !params[0])
+	{
+		G_Error("Bot_ScriptAction_SetVisionRange: syntax: SetVisionRange <range>\n");
 	}
 
 	pString = params;
-	token = COM_Parse(&pString);
-	if (!token || !token[0]) {
-		G_Error( "Bot_ScriptAction_SetVisionRange: syntax: SetVisionRange <range>\n" );
+	token   = COM_Parse(&pString);
+	if (!token || !token[0])
+	{
+		G_Error("Bot_ScriptAction_SetVisionRange: syntax: SetVisionRange <range>\n");
 	}
 	visionRange = atof(token);
-	
+
 	// Set the range for the bot
 	bs->visionRange = visionRange;
 
@@ -1832,22 +2199,24 @@ Mad Doctor I, 10/23/2002
 Set a maximum vision range for bots to "spot and report" not attack
 =======================
 */
-qboolean Bot_ScriptAction_SetFarSeeingRange( bot_state_t *bs, char *params)
+qboolean Bot_ScriptAction_SetFarSeeingRange(bot_state_t *bs, char *params)
 {
-	char *pString, *token;
+	char  *pString, *token;
 	float farSeeingRange = 0;
 
-	if (!params || !params[0]) {
-		G_Error( "Bot_ScriptAction_SetFarSeeingRange: syntax: SetFarSeeingRange <range>\n" );
+	if (!params || !params[0])
+	{
+		G_Error("Bot_ScriptAction_SetFarSeeingRange: syntax: SetFarSeeingRange <range>\n");
 	}
 
 	pString = params;
-	token = COM_Parse(&pString);
-	if (!token || !token[0]) {
-		G_Error( "Bot_ScriptAction_SetFarSeeingRange: syntax: SetFarSeeingRange <range>\n" );
+	token   = COM_Parse(&pString);
+	if (!token || !token[0])
+	{
+		G_Error("Bot_ScriptAction_SetFarSeeingRange: syntax: SetFarSeeingRange <range>\n");
 	}
 	farSeeingRange = atof(token);
-	
+
 	// Set the range for the bot
 	bs->farSeeingRange = farSeeingRange;
 
@@ -1865,22 +2234,24 @@ Mad Doctor I, 10/23/2002
 When an enemy is this close, you can sense them outside FOV
 =======================
 */
-qboolean Bot_ScriptAction_SetCloseHearingRange( bot_state_t *bs, char *params)
+qboolean Bot_ScriptAction_SetCloseHearingRange(bot_state_t *bs, char *params)
 {
-	char *pString, *token;
+	char  *pString, *token;
 	float closeHearingRange = 0;
 
-	if (!params || !params[0]) {
-		G_Error( "Bot_ScriptAction_SetCloseHearingRange: syntax: SetCloseHearingRange <range>\n" );
+	if (!params || !params[0])
+	{
+		G_Error("Bot_ScriptAction_SetCloseHearingRange: syntax: SetCloseHearingRange <range>\n");
 	}
 
 	pString = params;
-	token = COM_Parse(&pString);
-	if (!token || !token[0]) {
-		G_Error( "Bot_ScriptAction_SetCloseHearingRange: syntax: SetCloseHearingRange <range>\n" );
+	token   = COM_Parse(&pString);
+	if (!token || !token[0])
+	{
+		G_Error("Bot_ScriptAction_SetCloseHearingRange: syntax: SetCloseHearingRange <range>\n");
 	}
 	closeHearingRange = atof(token);
-	
+
 	// Set the range for the bot
 	bs->closeHearingRange = closeHearingRange;
 
@@ -1896,7 +2267,8 @@ Bot_ScriptAction_SetSpeedCoefficient
 Mad Doctor I, 11/26/2002.  Set an individual bot's speed
 =======================
 */
-qboolean Bot_ScriptAction_SetSpeedCoefficient( bot_state_t *bs, char *params) {
+qboolean Bot_ScriptAction_SetSpeedCoefficient(bot_state_t *bs, char *params)
+{
 	return qtrue;
 }
 
@@ -1907,15 +2279,16 @@ extern void UpdateSelectedBots(gentity_t *ent);
 qboolean Bot_ScriptAction_SetActiveWeapon(bot_state_t *bs, char *params)
 {
 	// Which class are we?
-	int		playerClass = g_entities[bs->client].client->sess.playerType;
+	int playerClass = g_entities[bs->client].client->sess.playerType;
 
 	int weapon;
 	//
-	if (!params || !params[0]) {
-		Bot_ScriptError( bs, "SetActiveWeapon requires a weapon name" );
+	if (!params || !params[0])
+	{
+		Bot_ScriptError(bs, "SetActiveWeapon requires a weapon name");
 	}
 
-	weapon = Bot_GetWeaponForClassAndTeam( playerClass, g_entities[bs->client].client->sess.sessionTeam, params );
+	weapon = Bot_GetWeaponForClassAndTeam(playerClass, g_entities[bs->client].client->sess.sessionTeam, params);
 	if (weapon == -1)
 	{
 		Bot_ScriptError(bs, "Bot %s on team %s cannot use weapon %s\n", g_entities[bs->client].aiName, (g_entities[bs->client].client->sess.sessionTeam == TEAM_AXIS)?"Axis":"Allies", params);
@@ -1929,7 +2302,7 @@ qboolean Bot_ScriptAction_SetActiveWeapon(bot_state_t *bs, char *params)
 
 	// otherwise, set the commanded weapon
 	bs->commandedWeapon = weapon;
-	bs->weaponnum = weapon;
+	bs->weaponnum       = weapon;
 	// and switch to it
 	trap_EA_SelectWeapon(bs->client, weapon);
 
@@ -1947,21 +2320,23 @@ Bot_ScriptAction_Announce
 	syntax: wm_announce <"text to send to all clients">
 ===================
 */
-qboolean Bot_ScriptAction_Announce( bot_state_t *bs, char *params )
+qboolean Bot_ScriptAction_Announce(bot_state_t *bs, char *params)
 {
 	char *pString, *token;
 
-	if ( level.intermissiontime ) {
+	if (level.intermissiontime)
+	{
 		return qtrue;
 	}
 
 	pString = params;
-	token = COM_Parse(&pString);
-	if (!token[0]) {
-		G_Error( "Bot_ScriptAction_Announce: statement parameter required\n" );
+	token   = COM_Parse(&pString);
+	if (!token[0])
+	{
+		G_Error("Bot_ScriptAction_Announce: statement parameter required\n");
 	}
 
-	trap_SendServerCommand( -1, va("cp \"%s\" 2", token ));
+	trap_SendServerCommand(-1, va("cp \"%s\" 2", token));
 
 	return qtrue;
 }
@@ -1973,30 +2348,30 @@ Bot_ScriptAction_FireAtTarget
   syntax: fireattarget <targetname> [duration]
 =================
 */
-qboolean Bot_ScriptAction_FireAtTarget( bot_state_t *bs, char *params )
+qboolean Bot_ScriptAction_FireAtTarget(bot_state_t *bs, char *params)
 {
-	gentity_t	*ent;
-	vec3_t		vec, org, src;
-	char *pString, *token;
-	float	diff;
-	int		i;
+	gentity_t *ent;
+	vec3_t    vec, org, src;
+	char      *pString, *token;
+	float     diff;
+	int       i;
 
 	pString = params;
 
-	token = COM_ParseExt( &pString, qfalse );
+	token = COM_ParseExt(&pString, qfalse);
 	if (!token[0])
 	{
-		Bot_ScriptError( bs, "AI Scripting: fireattarget without a targetname\n" );
+		Bot_ScriptError(bs, "AI Scripting: fireattarget without a targetname\n");
 	}
 
 	// find this targetname
-	ent = BotFindEntityForName( token );
+	ent = BotFindEntityForName(token);
 	if (!ent)
 	{
-		ent = G_FindByTargetname( NULL, token );
+		ent = G_FindByTargetname(NULL, token);
 		if (!ent)
 		{
-			Bot_ScriptError(bs,  "AI Scripting: fireattarget cannot find targetname/aiName \"%s\"\n", token );
+			Bot_ScriptError(bs, "AI Scripting: fireattarget cannot find targetname/aiName \"%s\"\n", token);
 		}
 	}
 
@@ -2022,15 +2397,16 @@ qboolean Bot_ScriptAction_FireAtTarget( bot_state_t *bs, char *params )
 	//bs->castScriptStatus.playAnimViewlockTime = 0;
 
 	// set the view angle manually
-	BG_EvaluateTrajectory( &ent->s.pos, level.time, org, qfalse, -1 );
-	VectorCopy( bs->origin, src );
+	BG_EvaluateTrajectory(&ent->s.pos, level.time, org, qfalse, -1);
+	VectorCopy(bs->origin, src);
 	src[2] += bs->cur_ps.viewheight;
 
-	VectorSubtract( org, src, vec );
-	VectorNormalize( vec );
-	vectoangles( vec, bs->ideal_viewangles );
+	VectorSubtract(org, src, vec);
+	VectorNormalize(vec);
+	vectoangles(vec, bs->ideal_viewangles);
 
-	if(bs->weaponnum == WP_MORTAR_SET) {
+	if (bs->weaponnum == WP_MORTAR_SET)
+	{
 /*		vec_t x, y, u, d, b, g, a;
 		vec3_t diff;
 		VectorSubtract( org, src, diff );
@@ -2055,22 +2431,28 @@ qboolean Bot_ScriptAction_FireAtTarget( bot_state_t *bs, char *params )
 		float g = -g_gravity.value;
 
 		float uz = sqrt(-2 * 3072 * g);
-		float t = ((-uz)/g) * 2;
+		float t  = ((-uz) / g) * 2;
 		float ux = (org[0] - src[0]) / t;
 		float uy = (org[1] - src[1]) / t;
 
-		VectorSet( g_entities[bs->entitynum].gDelta, ux, uy, uz );
+		VectorSet(g_entities[bs->entitynum].gDelta, ux, uy, uz);
 	}
 	else //if (bs->weaponnum != WP_MORTAR_SET)
 	{
-		for (i = 0; i < 2; i++) {
+		for (i = 0; i < 2; i++)
+		{
 			diff = fabsf(AngleDifference(bs->cur_ps.viewangles[i], bs->ideal_viewangles[i]));
-			if (VectorCompare( vec3_origin, ent->s.pos.trDelta )) {
-				if (diff) {
-					return qfalse;	// not facing yet
+			if (VectorCompare(vec3_origin, ent->s.pos.trDelta))
+			{
+				if (diff)
+				{
+					return qfalse;  // not facing yet
 				}
-			} else {
-				if (diff > 25) {	// allow some slack when target is moving
+			}
+			else
+			{
+				if (diff > 25)      // allow some slack when target is moving
+				{
 					return qfalse;
 				}
 			}
@@ -2088,11 +2470,14 @@ qboolean Bot_ScriptAction_FireAtTarget( bot_state_t *bs, char *params )
 	//}
 
 	// do we need to stay and fire for a duration?
-	token = COM_ParseExt( &pString, qfalse );
+	token = COM_ParseExt(&pString, qfalse);
 	if (!token[0])
-		return qtrue;	// no need to wait around
+	{
+		return qtrue;   // no need to wait around
 
-	if(!Q_stricmp(token, "forever")) {
+	}
+	if (!Q_stricmp(token, "forever"))
+	{
 		return qfalse;
 	}
 
@@ -2109,17 +2494,19 @@ qboolean Bot_ScriptAction_FireAtTarget( bot_state_t *bs, char *params )
 Bot_ScriptAction_SetScriptAutonomy
 =======================
 */
-qboolean Bot_ScriptAction_SetScriptAutonomy( bot_state_t *bs, char *params )
+qboolean Bot_ScriptAction_SetScriptAutonomy(bot_state_t *bs, char *params)
 {
 	scriptAutonomy_t level;
 
-	if (!params || !params[0]) {
-		Bot_ScriptError( bs, "SetScriptAutonomy requires a parameter" );
+	if (!params || !params[0])
+	{
+		Bot_ScriptError(bs, "SetScriptAutonomy requires a parameter");
 	}
 	//
-	level = BotScriptAutonomyForString( params );
-	if (level < 0) {
-		Bot_ScriptError( bs, "SetScriptAutonomy: unknown parameter \"%s\"", params );
+	level = BotScriptAutonomyForString(params);
+	if (level < 0)
+	{
+		Bot_ScriptError(bs, "SetScriptAutonomy: unknown parameter \"%s\"", params);
 	}
 
 	bs->scriptAutonomy = level;
@@ -2132,21 +2519,23 @@ qboolean Bot_ScriptAction_SetScriptAutonomy( bot_state_t *bs, char *params )
 //		Doesn't change the current weapon loadout (which weapons we carry)
 qboolean Bot_ScriptAction_SetAmmoAmount(bot_state_t *bs, char *params)
 {
-	char *pString, *token;
-	int weapon, amount;
+	char     *pString, *token;
+	int      weapon, amount;
 	qboolean clipOnly = qfalse;
 
 	if (!params || !params[0])
+	{
 		Bot_ScriptError(bs, "Bot_ScriptAction_SetAmmoAmmount: syntax: SetAmmoAmount <weaponname> <number>");
+	}
 
 	pString = params;
-	token = COM_Parse(&pString);
+	token   = COM_Parse(&pString);
 	if (!token[0])
 	{
 		Bot_ScriptError(bs, "Bot_ScriptAction_SetAmmoAmmount: syntax: SetAmmoAmount <weaponname> <number>");
 	}
 
-	weapon = Bot_GetWeaponForClassAndTeam( g_entities[bs->client].client->sess.playerType, g_entities[bs->client].client->sess.sessionTeam, token );
+	weapon = Bot_GetWeaponForClassAndTeam(g_entities[bs->client].client->sess.playerType, g_entities[bs->client].client->sess.sessionTeam, token);
 	if (weapon == -1)
 	{
 		// can't use this weapon
@@ -2171,18 +2560,18 @@ qboolean Bot_ScriptAction_SetAmmoAmount(bot_state_t *bs, char *params)
 	// Some specials use the clip only
 	switch (weapon)
 	{
-		case WP_AMMO:
-		case WP_MEDKIT:
-		case WP_LANDMINE:
-		case WP_MEDIC_SYRINGE:
-		case WP_GRENADE_LAUNCHER:
-		case WP_GRENADE_PINEAPPLE:
-		case WP_FLAMETHROWER:
-		case WP_MORTAR:
-		case WP_MORTAR_SET:
-		case WP_DYNAMITE:
-			clipOnly = qtrue;
-			break;
+	case WP_AMMO:
+	case WP_MEDKIT:
+	case WP_LANDMINE:
+	case WP_MEDIC_SYRINGE:
+	case WP_GRENADE_LAUNCHER:
+	case WP_GRENADE_PINEAPPLE:
+	case WP_FLAMETHROWER:
+	case WP_MORTAR:
+	case WP_MORTAR_SET:
+	case WP_DYNAMITE:
+		clipOnly = qtrue;
+		break;
 	}
 
 	if (clipOnly)
@@ -2203,16 +2592,24 @@ qboolean Bot_ScriptAction_SetCivilian(bot_state_t *bs, char *params)
 	char *pString, *token;
 
 	if (!params || !params[0])
+	{
 		Bot_ScriptError(bs, "Bot_ScriptAction_SetCivilian: syntax: SetCivilian <Yes/No>");
+	}
 
 	pString = params;
-	token = COM_Parse(&pString);
+	token   = COM_Parse(&pString);
 	if (token[0] && !Q_stricmp(token, "yes"))
+	{
 		g_entities[bs->client].client->isCivilian = qtrue;
+	}
 	else if (token[0] && !Q_stricmp(token, "no"))
+	{
 		g_entities[bs->client].client->isCivilian = qfalse;
+	}
 	else
+	{
 		Bot_ScriptError(bs, "Bot_ScriptAction_SetCivilian: syntax: SetCivilian <Yes/No>");
+	}
 
 	// done
 	return qtrue;

@@ -273,22 +273,34 @@ static void MD5Final(struct MD5Context *ctx, unsigned char *digest)
 
 /* ETLegacy Com_MD5FileETCompat / CalculateGUID compatibility. Only the digest,
  * never the private etkey bytes, may be put in client userinfo. */
-static void SeedDigest(const char *key, uint32_t seed, char out[33]) {
-    MD5_CTX ctx; unsigned char digest[16]; int i;
-    static const char hex[]="0123456789abcdef";
-    MD5Init(&ctx);
-    ctx.buf[0] += seed * 11u; ctx.buf[1] += seed * 71u;
-    ctx.buf[2] += seed * 37u; ctx.buf[3] += seed * 97u;
-    MD5Update(&ctx, (const unsigned char *)key, (unsigned)strlen(key));
-    MD5Final(&ctx,digest);
-    for(i=0;i<16;i++) { out[2*i]=hex[digest[i]>>4]; out[2*i+1]=hex[digest[i]&15]; }
-    out[32]=0;
+static void SeedDigest(const char *key, uint32_t seed, char out[33])
+{
+	MD5_CTX           ctx; unsigned char digest[16]; int i;
+	static const char hex[] = "0123456789abcdef";
+	MD5Init(&ctx);
+	ctx.buf[0] += seed * 11u; ctx.buf[1] += seed * 71u;
+	ctx.buf[2] += seed * 37u; ctx.buf[3] += seed * 97u;
+	MD5Update(&ctx, (const unsigned char *)key, (unsigned)strlen(key));
+	MD5Final(&ctx, digest);
+	for (i = 0; i < 16; i++)
+	{
+		out[2 * i] = hex[digest[i] >> 4]; out[2 * i + 1] = hex[digest[i] & 15];
+	}
+	out[32] = 0;
 }
-int TCE_GUIDFromETKey(const unsigned char *data, int length, char out[33]) {
-    char key[19], first[33]; int i;
-    out[0]=0; if(length<28)return 0;
-    memcpy(key,data+10,18);key[18]=0;
-    SeedDigest(key,0x00b684a3u,first);SeedDigest(first,0x00051a56u,out);
-    for(i=0;i<32;i++)if(out[i]>='a' && out[i]<='f')out[i]-='a'-'A';
-    memset(key,0,sizeof(key));memset(first,0,sizeof(first));return 1;
+int TCE_GUIDFromETKey(const unsigned char *data, int length, char out[33])
+{
+	char key[19], first[33]; int i;
+	out[0] = 0; if (length < 28)
+	{
+		return 0;
+	}
+	memcpy(key, data + 10, 18); key[18] = 0;
+	SeedDigest(key, 0x00b684a3u, first); SeedDigest(first, 0x00051a56u, out);
+	for (i = 0; i < 32; i++)
+		if (out[i] >= 'a' && out[i] <= 'f')
+		{
+			out[i] -= 'a' - 'A';
+		}
+	memset(key, 0, sizeof(key)); memset(first, 0, sizeof(first)); return 1;
 }

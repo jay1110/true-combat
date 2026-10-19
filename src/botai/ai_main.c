@@ -9,7 +9,7 @@
 
 #include "../game/g_local.h"
 #include "../game/q_shared.h"
-#include "../game/botlib.h"		//bot lib interface
+#include "../game/botlib.h"     //bot lib interface
 #include "../game/be_aas.h"
 #include "../game/be_ea.h"
 #include "../game/be_ai_char.h"
@@ -18,7 +18,7 @@
 #include "../game/be_ai_goal.h"
 #include "../game/be_ai_move.h"
 #include "../game/be_ai_weap.h"
-#include "../botai/botai.h"			//bot ai interface
+#include "../botai/botai.h"         //bot ai interface
 
 #include "ai_main.h"
 #include "ai_dmq3.h"
@@ -31,11 +31,11 @@
 #include "syn.h"
 
 #ifndef MAX_PATH // LBO 1/26/05
-#define MAX_PATH		144
+#define MAX_PATH        144
 #endif
 
 //bot states
-bot_state_t	botstates[MAX_CLIENTS];
+bot_state_t botstates[MAX_CLIENTS];
 //number of bots
 int ai_numbots;
 //time to do a regular update
@@ -52,42 +52,45 @@ vmCvar_t bot_findgoal;
 BotAI_Print
 ==================
 */
-void QDECL BotAI_Print(int type, char *fmt, ...) {
-	char str[2048];
+void QDECL BotAI_Print(int type, char *fmt, ...)
+{
+	char    str[2048];
 	va_list ap;
 
 	va_start(ap, fmt);
 	Q_vsnprintf(str, sizeof(str), fmt, ap);
 	va_end(ap);
 
-	switch(type) {
-		case PRT_MESSAGE: {
-			trap_Cvar_Update(&bot_verbose);
-			if (bot_verbose.integer == 1) {
+	switch (type)
+	{
+	case PRT_MESSAGE: {
+		trap_Cvar_Update(&bot_verbose);
+		if (bot_verbose.integer == 1)
+		{
 			G_Printf("%s", str);
-			}
-			break;
 		}
-		case PRT_WARNING: {
-			G_Printf( S_COLOR_YELLOW "Warning: %s", str );
-			break;
-		}
-		case PRT_ERROR: {
-			G_Printf( S_COLOR_RED "Error: %s", str );
-			break;
-		}
-		case PRT_FATAL: {
-			G_Printf( S_COLOR_RED "Fatal: %s", str );
-			break;
-		}
-		case PRT_EXIT: {
-			G_Error( S_COLOR_RED "Exit: %s", str );
-			break;
-		}
-		default: {
-			G_Printf( "unknown print type\n" );
-			break;
-		}
+		break;
+	}
+	case PRT_WARNING: {
+		G_Printf(S_COLOR_YELLOW "Warning: %s", str);
+		break;
+	}
+	case PRT_ERROR: {
+		G_Printf(S_COLOR_RED "Error: %s", str);
+		break;
+	}
+	case PRT_FATAL: {
+		G_Printf(S_COLOR_RED "Fatal: %s", str);
+		break;
+	}
+	case PRT_EXIT: {
+		G_Error(S_COLOR_RED "Exit: %s", str);
+		break;
+	}
+	default: {
+		G_Printf("unknown print type\n");
+		break;
+	}
 	}
 }
 
@@ -96,24 +99,25 @@ void QDECL BotAI_Print(int type, char *fmt, ...) {
 BotAI_Trace
 ==================
 */
-void BotAI_Trace(bsp_trace_t *bsptrace, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int passent, int contentmask) {
+void BotAI_Trace(bsp_trace_t *bsptrace, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end, int passent, int contentmask)
+{
 	trace_t trace;
 
 	trap_Trace(&trace, start, mins, maxs, end, passent, contentmask);
 	//copy the trace information
-	bsptrace->allsolid = trace.allsolid;
+	bsptrace->allsolid   = trace.allsolid;
 	bsptrace->startsolid = trace.startsolid;
-	bsptrace->fraction = trace.fraction;
+	bsptrace->fraction   = trace.fraction;
 	VectorCopy(trace.endpos, bsptrace->endpos);
 	bsptrace->plane.dist = trace.plane.dist;
 	VectorCopy(trace.plane.normal, bsptrace->plane.normal);
 	bsptrace->plane.signbits = trace.plane.signbits;
-	bsptrace->plane.type = trace.plane.type;
-	bsptrace->surface.value = trace.surfaceFlags;
-	bsptrace->ent = trace.entityNum;
-	bsptrace->exp_dist = 0;
-	bsptrace->sidenum = 0;
-	bsptrace->contents = 0;
+	bsptrace->plane.type     = trace.plane.type;
+	bsptrace->surface.value  = trace.surfaceFlags;
+	bsptrace->ent            = trace.entityNum;
+	bsptrace->exp_dist       = 0;
+	bsptrace->sidenum        = 0;
+	bsptrace->contents       = 0;
 }
 
 /*
@@ -121,16 +125,19 @@ void BotAI_Trace(bsp_trace_t *bsptrace, vec3_t start, vec3_t mins, vec3_t maxs, 
 BotAI_GetClientState
 ==================
 */
-int BotAI_GetClientState( int clientNum, playerState_t *state ) {
-	gentity_t* ent = &g_entities[clientNum];
-	if( !ent->inuse ) {
+int BotAI_GetClientState(int clientNum, playerState_t *state)
+{
+	gentity_t *ent = &g_entities[clientNum];
+	if (!ent->inuse)
+	{
 		return qfalse;
 	}
-	if( !ent->client ) {
+	if (!ent->client)
+	{
 		return qfalse;
 	}
 
-	memcpy( state, &ent->client->ps, sizeof(playerState_t) );
+	memcpy(state, &ent->client->ps, sizeof(playerState_t));
 	return qtrue;
 }
 
@@ -139,15 +146,25 @@ int BotAI_GetClientState( int clientNum, playerState_t *state ) {
 BotAI_GetEntityState
 ==================
 */
-int BotAI_GetEntityState( int entityNum, entityState_t *state ) {
-	gentity_t	*ent;
+int BotAI_GetEntityState(int entityNum, entityState_t *state)
+{
+	gentity_t *ent;
 
-	ent = BotGetEntity( entityNum );
-	memset( state, 0, sizeof(entityState_t) );
-	if (!ent->inuse) return qfalse;
-	if (!ent->r.linked) return qfalse;
-	if (ent->r.svFlags & SVF_NOCLIENT) return qfalse;
-	memcpy( state, &ent->s, sizeof(entityState_t) );
+	ent = BotGetEntity(entityNum);
+	memset(state, 0, sizeof(entityState_t));
+	if (!ent->inuse)
+	{
+		return qfalse;
+	}
+	if (!ent->r.linked)
+	{
+		return qfalse;
+	}
+	if (ent->r.svFlags & SVF_NOCLIENT)
+	{
+		return qfalse;
+	}
+	memcpy(state, &ent->s, sizeof(entityState_t));
 	return qtrue;
 }
 
@@ -156,16 +173,18 @@ int BotAI_GetEntityState( int entityNum, entityState_t *state ) {
 BotAI_GetSnapshotEntity
 ==================
 */
-int BotAI_GetSnapshotEntity( int clientNum, int sequence, entityState_t *state ) {
-	int		entNum;
+int BotAI_GetSnapshotEntity(int clientNum, int sequence, entityState_t *state)
+{
+	int entNum;
 
-	entNum = trap_BotGetSnapshotEntity( clientNum, sequence );
-	if ( entNum == -1 ) {
+	entNum = trap_BotGetSnapshotEntity(clientNum, sequence);
+	if (entNum == -1)
+	{
 		memset(state, 0, sizeof(entityState_t));
 		return -1;
 	}
 
-	BotAI_GetEntityState( entNum, state );
+	BotAI_GetEntityState(entNum, state);
 
 	return sequence + 1;
 }
@@ -175,30 +194,33 @@ int BotAI_GetSnapshotEntity( int clientNum, int sequence, entityState_t *state )
 BotAI_BotInitialChat
 ==================
 */
-void QDECL BotAI_BotInitialChat( bot_state_t *bs, char *type, ... ) {
-	int		i, mcontext;
-	va_list	ap;
-	char	*p;
-	char	*vars[MAX_MATCHVARIABLES];
+void QDECL BotAI_BotInitialChat(bot_state_t *bs, char *type, ...)
+{
+	int     i, mcontext;
+	va_list ap;
+	char    *p;
+	char    *vars[MAX_MATCHVARIABLES];
 
 // RF, disabled
-return;
+	return;
 
 	memset(vars, 0, sizeof(vars));
 	va_start(ap, type);
 	p = va_arg(ap, char *);
-	for (i = 0; i < MAX_MATCHVARIABLES; i++) {
-		if( !p ) {
+	for (i = 0; i < MAX_MATCHVARIABLES; i++)
+	{
+		if (!p)
+		{
 			break;
 		}
 		vars[i] = p;
-		p = va_arg(ap, char *);
+		p       = va_arg(ap, char *);
 	}
 	va_end(ap);
 
-	mcontext = CONTEXT_NORMAL|CONTEXT_NEARBYITEM|CONTEXT_NAMES;
+	mcontext = CONTEXT_NORMAL | CONTEXT_NEARBYITEM | CONTEXT_NAMES;
 
-	trap_BotInitialChat( bs->cs, type, mcontext, vars[0], vars[1], vars[2], vars[3], vars[4], vars[5], vars[6], vars[7] );
+	trap_BotInitialChat(bs->cs, type, mcontext, vars[0], vars[1], vars[2], vars[3], vars[4], vars[5], vars[6], vars[7]);
 }
 
 /*
@@ -206,30 +228,38 @@ return;
 BotInterbreeding
 ==============
 */
-void BotInterbreeding(void) {
+void BotInterbreeding(void)
+{
 	float ranks[MAX_CLIENTS];
-	int parent1, parent2, child;
-	int i, j;
+	int   parent1, parent2, child;
+	int   i, j;
 
 	// get rankings for all the bots
-	for (i = 0; i < level.numConnectedClients; i++) {
+	for (i = 0; i < level.numConnectedClients; i++)
+	{
 		j = level.sortedClients[i];
-		if( botstates[j].inuse ) {
+		if (botstates[j].inuse)
+		{
 			ranks[j] = botstates[i].num_kills * 2 - botstates[j].num_deaths;
-		} else {
+		}
+		else
+		{
 			ranks[j] = -1;
 		}
 	}
 
-	if (trap_GeneticParentsAndChildSelection(MAX_CLIENTS, ranks, &parent1, &parent2, &child)) {
+	if (trap_GeneticParentsAndChildSelection(MAX_CLIENTS, ranks, &parent1, &parent2, &child))
+	{
 		trap_BotInterbreedGoalFuzzyLogic(botstates[parent1].gs, botstates[parent2].gs, botstates[child].gs);
 		trap_BotMutateGoalFuzzyLogic(botstates[child].gs, 1);
 	}
 	// reset the kills and deaths
-	for (i = 0; i < level.numConnectedClients; i++) {
+	for (i = 0; i < level.numConnectedClients; i++)
+	{
 		j = level.sortedClients[i];
-		if( botstates[j].inuse ) {
-			botstates[j].num_kills = 0;
+		if (botstates[j].inuse)
+		{
+			botstates[j].num_kills  = 0;
 			botstates[j].num_deaths = 0;
 		}
 	}
@@ -240,7 +270,8 @@ void BotInterbreeding(void) {
 BotEntityInfo
 ==============
 */
-void BotEntityInfo(int entnum, aas_entityinfo_t *info) {
+void BotEntityInfo(int entnum, aas_entityinfo_t *info)
+{
 	trap_AAS_EntityInfo(entnum, info);
 }
 
@@ -249,7 +280,8 @@ void BotEntityInfo(int entnum, aas_entityinfo_t *info) {
 BotAI_GetNumBots
 ==============
 */
-int BotAI_GetNumBots(void) {
+int BotAI_GetNumBots(void)
+{
 	return ai_numbots;
 }
 
@@ -258,7 +290,8 @@ int BotAI_GetNumBots(void) {
 BotAI_SetNumBots
 ==============
 */
-void BotAI_SetNumBots(int numbots) {
+void BotAI_SetNumBots(int numbots)
+{
 	ai_numbots = numbots;
 }
 
@@ -270,17 +303,25 @@ AngleDifference
 */
 #if defined(_WIN32) || defined(__linux__)
 /* Shared value path for view smoothing and mounted-weapon arc checks. */
-long double TCE_BotAngleDifferenceValue(long double first, long double second) {
+long double TCE_BotAngleDifferenceValue(long double first, long double second)
+{
 	long double difference = first - second;
 
-	if (first > second) {
+	if (first > second)
+	{
 		if (!(difference > 180.0L))
+		{
 			return difference;
+		}
 		difference -= 360.0L;
-	} else {
+	}
+	else
+	{
 		/* The lower native gate includes unordered differences. */
 		if (difference >= -180.0L)
+		{
 			return difference;
+		}
 		difference += 360.0L;
 	}
 #if defined(_WIN32)
@@ -295,19 +336,29 @@ long double TCE_BotAngleDifferenceValue(long double first, long double second) {
 #endif
 
 #if defined(_WIN32) || defined(__linux__)
-float AngleDifference(float ang1, float ang2) {
-	return (float)TCE_BotAngleDifferenceValue( ang1, ang2 );
+float AngleDifference(float ang1, float ang2)
+{
+	return (float)TCE_BotAngleDifferenceValue(ang1, ang2);
 }
 #else
-float AngleDifference(float ang1, float ang2) {
+float AngleDifference(float ang1, float ang2)
+{
 	float diff;
 
 	diff = ang1 - ang2;
-	if (ang1 > ang2) {
-		if (diff > 180.0) diff -= 360.0;
+	if (ang1 > ang2)
+	{
+		if (diff > 180.0)
+		{
+			diff -= 360.0;
+		}
 	}
-	else {
-		if (diff < -180.0) diff += 360.0;
+	else
+	{
+		if (diff < -180.0)
+		{
+			diff += 360.0;
+		}
 	}
 	return diff;
 }
@@ -319,36 +370,48 @@ BotChangeViewAngle
 ==============
 */
 #if defined(_WIN32) || defined(__linux__)
-float BotChangeViewAngle(float angle, float ideal_angle, float speed) {
+float BotChangeViewAngle(float angle, float ideal_angle, float speed)
+{
 	volatile float current, argument;
-	long double ideal, move;
+	long double    ideal, move;
 #if defined(_WIN32)
 	volatile float storedIdeal;
 #endif
 
-	current = AngleMod( angle );
+	current = AngleMod(angle);
 #if defined(_WIN32)
-	storedIdeal = AngleMod( ideal_angle );
-	ideal = storedIdeal;
+	storedIdeal = AngleMod(ideal_angle);
+	ideal       = storedIdeal;
 #else
-	ideal = AngleMod( ideal_angle );
+	ideal = AngleMod(ideal_angle);
 #endif
 	/* The native equality status also returns here for unordered values. */
 	if (!(ideal < (long double)current) && !(ideal > (long double)current))
+	{
 		return current;
-	move = TCE_BotAngleDifferenceValue( ideal, current );
-	if (move > 0.0L) {
+	}
+	move = TCE_BotAngleDifferenceValue(ideal, current);
+	if (move > 0.0L)
+	{
 		if (move > (long double)speed)
+		{
 			move = speed;
-	} else {
+		}
+	}
+	else
+	{
 #if defined(_WIN32)
 		volatile float negativeSpeed = (float)(-(long double)speed);
 		if (!(move >= (long double)negativeSpeed))
+		{
 			move = negativeSpeed;
+		}
 #else
 		long double negativeSpeed = -(long double)speed;
 		if (negativeSpeed > move)
+		{
 			move = negativeSpeed;
+		}
 #endif
 	}
 #if defined(_WIN32)
@@ -356,27 +419,47 @@ float BotChangeViewAngle(float angle, float ideal_angle, float speed) {
 #else
 	argument = (float)((long double)current + move);
 #endif
-	return AngleMod( argument );
+	return AngleMod(argument);
 }
 #else
-float BotChangeViewAngle(float angle, float ideal_angle, float speed) {
+float BotChangeViewAngle(float angle, float ideal_angle, float speed)
+{
 	float move;
 
-	angle = AngleMod(angle);
+	angle       = AngleMod(angle);
 	ideal_angle = AngleMod(ideal_angle);
-	if (angle == ideal_angle) return angle;
+	if (angle == ideal_angle)
+	{
+		return angle;
+	}
 	move = ideal_angle - angle;
-	if (ideal_angle > angle) {
-		if (move > 180.0) move -= 360.0;
+	if (ideal_angle > angle)
+	{
+		if (move > 180.0)
+		{
+			move -= 360.0;
+		}
 	}
-	else {
-		if (move < -180.0) move += 360.0;
+	else
+	{
+		if (move < -180.0)
+		{
+			move += 360.0;
+		}
 	}
-	if (move > 0) {
-		if (move > speed) move = speed;
+	if (move > 0)
+	{
+		if (move > speed)
+		{
+			move = speed;
+		}
 	}
-	else {
-		if (move < -speed) move = -speed;
+	else
+	{
+		if (move < -speed)
+		{
+			move = -speed;
+		}
 	}
 	return AngleMod(angle + move);
 }
@@ -388,77 +471,103 @@ BotChangeViewAngles
 ==============
 */
 #if defined(_WIN32) || defined(__linux__)
-void BotChangeViewAngles(bot_state_t *bs, float thinktime) {
+void BotChangeViewAngles(bot_state_t *bs, float thinktime)
+{
 	volatile float factor, maxchange;
-	long double maximum;
-	int i;
+	long double    maximum;
+	int            i;
 
 	if (bs->ideal_viewangles[PITCH] > 180.0f)
+	{
 		bs->ideal_viewangles[PITCH] = (float)((long double)bs->ideal_viewangles[PITCH] - 360.0f);
-	if (bs->enemy >= 0) {
-		factor = trap_Characteristic_BFloat( bs->character, CHARACTERISTIC_VIEW_FACTOR, 0.01f, 1.0f );
+	}
+	if (bs->enemy >= 0)
+	{
+		factor = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_VIEW_FACTOR, 0.01f, 1.0f);
 #if defined(_WIN32)
-		maximum = trap_Characteristic_BFloat( bs->character, CHARACTERISTIC_VIEW_MAXCHANGE, 1.0f, 1800.0f );
+		maximum = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_VIEW_MAXCHANGE, 1.0f, 1800.0f);
 #else
 		{
-			volatile float storedMaximum = trap_Characteristic_BFloat( bs->character,
-				CHARACTERISTIC_VIEW_MAXCHANGE, 1.0f, 1800.0f );
+			volatile float storedMaximum = trap_Characteristic_BFloat(bs->character,
+			                                                          CHARACTERISTIC_VIEW_MAXCHANGE, 1.0f, 1800.0f);
 			maximum = storedMaximum;
 		}
 #endif
-	} else {
-		factor = 0.15f;
+	}
+	else
+	{
+		factor  = 0.15f;
 		maximum = 240.0f;
 	}
 	maxchange = (float)(maximum * (long double)thinktime);
-	for (i = 0; i < 2; ++i) {
-		long double difference = TCE_BotAngleDifferenceValue( bs->viewangles[i], bs->ideal_viewangles[i] );
-		long double scaled = fabsl( difference ) * (long double)factor;
+	for (i = 0; i < 2; ++i)
+	{
+		long double    difference = TCE_BotAngleDifferenceValue(bs->viewangles[i], bs->ideal_viewangles[i]);
+		long double    scaled     = fabsl(difference) * (long double)factor;
 		volatile float anglespeed;
 
 #if defined(_WIN32)
 		/* Windows stores first, then compares the still-held product. */
 		anglespeed = (float)scaled;
 		if (scaled > (long double)maxchange)
+		{
 			anglespeed = maxchange;
+		}
 #else
 		if (scaled > (long double)maxchange)
+		{
 			scaled = maxchange;
+		}
 		anglespeed = (float)scaled;
 #endif
-		bs->viewangles[i] = BotChangeViewAngle( bs->viewangles[i], bs->ideal_viewangles[i], anglespeed );
+		bs->viewangles[i] = BotChangeViewAngle(bs->viewangles[i], bs->ideal_viewangles[i], anglespeed);
 	}
 	if (bs->viewangles[PITCH] > 180.0f)
+	{
 		bs->viewangles[PITCH] = (float)((long double)bs->viewangles[PITCH] - 360.0f);
-	trap_EA_View( bs->client, bs->viewangles );
+	}
+	trap_EA_View(bs->client, bs->viewangles);
 }
 #else
-void BotChangeViewAngles(bot_state_t *bs, float thinktime) {
+void BotChangeViewAngles(bot_state_t *bs, float thinktime)
+{
 	float factor, maxchange, anglespeed;
 	float diff;
-	int i;
+	int   i;
 
-	if (bs->ideal_viewangles[PITCH] > 180) bs->ideal_viewangles[PITCH] -= 360;
+	if (bs->ideal_viewangles[PITCH] > 180)
+	{
+		bs->ideal_viewangles[PITCH] -= 360;
+	}
 	//
-	if (bs->enemy >= 0) {
-		factor = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_VIEW_FACTOR, 0.01, 1);
+	if (bs->enemy >= 0)
+	{
+		factor    = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_VIEW_FACTOR, 0.01, 1);
 		maxchange = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_VIEW_MAXCHANGE, 1, 1800);
 	}
-	else {
-		factor = 0.15;
+	else
+	{
+		factor    = 0.15;
 		maxchange = 240;
 	}
 	maxchange *= thinktime;
-	for (i = 0; i < 2; i++) {
-		diff = fabs(AngleDifference(bs->viewangles[i], bs->ideal_viewangles[i]));
+	for (i = 0; i < 2; i++)
+	{
+		diff       = fabs(AngleDifference(bs->viewangles[i], bs->ideal_viewangles[i]));
 		anglespeed = diff * factor;
-		if (anglespeed > maxchange) anglespeed = maxchange;
+		if (anglespeed > maxchange)
+		{
+			anglespeed = maxchange;
+		}
 		bs->viewangles[i] = BotChangeViewAngle(bs->viewangles[i],
-										bs->ideal_viewangles[i], anglespeed);
+		                                       bs->ideal_viewangles[i], anglespeed);
 		//BotAI_Print(PRT_MESSAGE, "ideal_angles %f %f\n", bs->ideal_viewangles[0], bs->ideal_viewangles[1], bs->ideal_viewangles[2]);`
 		//bs->viewangles[i] = bs->ideal_viewangles[i];
 	}
-	if (bs->viewangles[PITCH] > 180) bs->viewangles[PITCH] -= 360;
+	if (bs->viewangles[PITCH] > 180)
+	{
+		bs->viewangles[PITCH] -= 360;
+	}
 	//elementary action: view
 	trap_EA_View(bs->client, bs->viewangles);
 }
@@ -471,7 +580,8 @@ void BotChangeViewAngles(bot_state_t *bs, float thinktime) {
 BotSpeedBonus
 ==============
 */
-void BotSpeedBonus(int clientNum) {
+void BotSpeedBonus(int clientNum)
+{
 }
 
 /*
@@ -479,11 +589,12 @@ void BotSpeedBonus(int clientNum) {
 BotInputToUserCommand
 ==============
 */
-void BotInputToUserCommand(bot_state_t *bs, bot_input_t *bi, usercmd_t *ucmd, int delta_angles[3], int time) {
+void BotInputToUserCommand(bot_state_t *bs, bot_input_t *bi, usercmd_t *ucmd, int delta_angles[3], int time)
+{
 	vec3_t angles, forward, right;
-	short temp;
-	int j;
-	int value = 0;
+	short  temp;
+	int    j;
+	int    value = 0;
 
 	//clear the whole structure
 	memset(ucmd, 0, sizeof(usercmd_t));
@@ -492,37 +603,56 @@ void BotInputToUserCommand(bot_state_t *bs, bot_input_t *bi, usercmd_t *ucmd, in
 	//the duration for the user command in milli seconds
 	ucmd->serverTime = time;
 	//
-	if (bi->actionflags & ACTION_DELAYEDJUMP) {
+	if (bi->actionflags & ACTION_DELAYEDJUMP)
+	{
 		bi->actionflags |= ACTION_JUMP;
 		bi->actionflags &= ~ACTION_DELAYEDJUMP;
 	}
 	//set the buttons
 	//if (bi->actionflags & ACTION_RESPAWN) ucmd->buttons = BUTTON_ATTACK;
-	if (bi->actionflags & ACTION_ATTACK) {
+	if (bi->actionflags & ACTION_ATTACK)
+	{
 		ucmd->buttons |= BUTTON_ATTACK;
 	}
-	if (bi->actionflags & ACTION_TALK) ucmd->buttons |= BUTTON_TALK;
-	if (bi->actionflags & ACTION_GESTURE) ucmd->buttons |= BUTTON_GESTURE;
-	if (bi->actionflags & ACTION_USE) ucmd->buttons |= BUTTON_ACTIVATE;
-	if (bi->actionflags & ACTION_WALK) ucmd->buttons |= BUTTON_WALKING;
-	if (bi->actionflags & ACTION_RELOAD) ucmd->wbuttons |= WBUTTON_RELOAD;
+	if (bi->actionflags & ACTION_TALK)
+	{
+		ucmd->buttons |= BUTTON_TALK;
+	}
+	if (bi->actionflags & ACTION_GESTURE)
+	{
+		ucmd->buttons |= BUTTON_GESTURE;
+	}
+	if (bi->actionflags & ACTION_USE)
+	{
+		ucmd->buttons |= BUTTON_ACTIVATE;
+	}
+	if (bi->actionflags & ACTION_WALK)
+	{
+		ucmd->buttons |= BUTTON_WALKING;
+	}
+	if (bi->actionflags & ACTION_RELOAD)
+	{
+		ucmd->wbuttons |= WBUTTON_RELOAD;
+	}
 
 	// START	xkan, 9/16/2002
 	// see if the bots should prone
 	// there are 3 cases here (from highest priority to lowest):
 	//   1. the script set the bot to prone
 	//   2. the player has ordered the bot to prone
-	//   3. the player is proning, and the bot is following his lead 
-	if ((bi->actionflags & ACTION_PRONE || bs->script.flags & BSFL_PRONE) 
-		&& !(g_entities[bs->client].client->ps.eFlags & EF_PRONE))
+	//   3. the player is proning, and the bot is following his lead
+	if ((bi->actionflags & ACTION_PRONE || bs->script.flags & BSFL_PRONE)
+	    && !(g_entities[bs->client].client->ps.eFlags & EF_PRONE))
+	{
 		// xkan, 10/23/2002 - only set WBUTTON_PRONE if we are not proning already
 		// 'cause setting it again will cancel the proning
 		ucmd->wbuttons |= WBUTTON_PRONE;
-	else if ( !(bi->actionflags & ACTION_PRONE) 
-		 && !(bs->script.flags & BSFL_PRONE)
-		 && (g_entities[bs->client].client->ps.eFlags & EF_PRONE) )
-		// now see if we should unprone, setting WBUTTON_PRONE again while 
-		// we are already proning will unprone - xkan, 10/23/2002
+	}
+	else if (!(bi->actionflags & ACTION_PRONE)
+	         && !(bs->script.flags & BSFL_PRONE)
+	         && (g_entities[bs->client].client->ps.eFlags & EF_PRONE))
+	// now see if we should unprone, setting WBUTTON_PRONE again while
+	// we are already proning will unprone - xkan, 10/23/2002
 	{
 		ucmd->wbuttons |= WBUTTON_PRONE;
 	}
@@ -532,7 +662,9 @@ void BotInputToUserCommand(bot_state_t *bs, bot_input_t *bi, usercmd_t *ucmd, in
 	// Bots aren't zooming when they start using binoculars
 	//		so if our new weapon is binoculars, do a start zoom
 	if (ucmd->weapon != bi->weapon && bi->weapon == WP_BINOCULARS)
+	{
 		ucmd->wbuttons |= WBUTTON_ZOOM;
+	}
 	// End - TAT 9/18/2002
 
 /*	// Test having the bots lean left
@@ -549,10 +681,11 @@ void BotInputToUserCommand(bot_state_t *bs, bot_input_t *bi, usercmd_t *ucmd, in
 	//set the view angles
 	//NOTE: the ucmd->angles are the angles WITHOUT the delta angles
 	ucmd->angles[PITCH] = ANGLE2SHORT(bi->viewangles[PITCH]);
-	ucmd->angles[YAW] = ANGLE2SHORT(bi->viewangles[YAW]);
-	ucmd->angles[ROLL] = ANGLE2SHORT(bi->viewangles[ROLL]);
+	ucmd->angles[YAW]   = ANGLE2SHORT(bi->viewangles[YAW]);
+	ucmd->angles[ROLL]  = ANGLE2SHORT(bi->viewangles[ROLL]);
 	//subtract the delta angles
-	for (j = 0; j < 3; j++) {
+	for (j = 0; j < 3; j++)
+	{
 		temp = ucmd->angles[j] - delta_angles[j];
 		/*NOTE: disabled because temp should be mod first
 		if ( j == PITCH ) {
@@ -566,9 +699,15 @@ void BotInputToUserCommand(bot_state_t *bs, bot_input_t *bi, usercmd_t *ucmd, in
 	//NOTE: movement is relative to the REAL view angles
 	//get the horizontal forward and right vector
 	//get the pitch in the range [-180, 180]
-	if (bi->dir[2]) angles[PITCH] = bi->viewangles[PITCH];
-	else angles[PITCH] = 0;
-	angles[YAW] = bi->viewangles[YAW];
+	if (bi->dir[2])
+	{
+		angles[PITCH] = bi->viewangles[PITCH];
+	}
+	else
+	{
+		angles[PITCH] = 0;
+	}
+	angles[YAW]  = bi->viewangles[YAW];
 	angles[ROLL] = 0;
 	AngleVectors(angles, forward, right, NULL);
 	//bot input speed is in the range [0, 400]
@@ -596,23 +735,40 @@ void BotInputToUserCommand(bot_state_t *bs, bot_input_t *bi, usercmd_t *ucmd, in
 //Com_Printf( "BotInputToUserCommand: bi->dir %s\n", vtosf(bi->dir) );
 	//set the view independent movement
 	ucmd->forwardmove = DotProduct(forward, bi->dir) * bi->speed;
-	ucmd->rightmove = DotProduct(right, bi->dir) * bi->speed;
-	ucmd->upmove = fabsf(forward[2]) * bi->dir[2] * bi->speed;
+	ucmd->rightmove   = DotProduct(right, bi->dir) * bi->speed;
+	ucmd->upmove      = fabsf(forward[2]) * bi->dir[2] * bi->speed;
 	//normal keyboard movement
-	if (bi->actionflags & ACTION_MOVEFORWARD) ucmd->forwardmove += 127;
-	if (bi->actionflags & ACTION_MOVEBACK) ucmd->forwardmove -= 127;
-	if (bi->actionflags & ACTION_MOVELEFT) ucmd->rightmove -= 127;
-	if (bi->actionflags & ACTION_MOVERIGHT) ucmd->rightmove += 127;
+	if (bi->actionflags & ACTION_MOVEFORWARD)
+	{
+		ucmd->forwardmove += 127;
+	}
+	if (bi->actionflags & ACTION_MOVEBACK)
+	{
+		ucmd->forwardmove -= 127;
+	}
+	if (bi->actionflags & ACTION_MOVELEFT)
+	{
+		ucmd->rightmove -= 127;
+	}
+	if (bi->actionflags & ACTION_MOVERIGHT)
+	{
+		ucmd->rightmove += 127;
+	}
 	//jump/moveup
-	if (bi->actionflags & ACTION_JUMP) ucmd->upmove += 127;
+	if (bi->actionflags & ACTION_JUMP)
+	{
+		ucmd->upmove += 127;
+	}
 	//crouch/movedown
 	if ((bi->actionflags & ACTION_CROUCH)
-		// START	xkan, 8/23/2002
-		// if the script says crouch, then crouch.
-		|| (bs->script.flags & BSFL_CROUCH)
-		// END		xkan, 8/23/2002
-		) 
+	    // START	xkan, 8/23/2002
+	    // if the script says crouch, then crouch.
+	    || (bs->script.flags & BSFL_CROUCH)
+	    // END		xkan, 8/23/2002
+	    )
+	{
 		ucmd->upmove -= 127;
+	}
 
 
 	//
@@ -623,59 +779,79 @@ void BotInputToUserCommand(bot_state_t *bs, bot_input_t *bi, usercmd_t *ucmd, in
 		// Axis bots should be slow
 		if (bs->sess.sessionTeam == TEAM_AXIS)
 		{
-		if (ucmd->buttons & BUTTON_WALKING) {
-			if (ucmd->forwardmove || ucmd->rightmove) {
-				g_entities[bs->client].client->ps.friction = 0.1;
-			} else {
-				g_entities[bs->client].client->ps.friction = 1.0;
+			if (ucmd->buttons & BUTTON_WALKING)
+			{
+				if (ucmd->forwardmove || ucmd->rightmove)
+				{
+					g_entities[bs->client].client->ps.friction = 0.1;
+				}
+				else
+				{
+					g_entities[bs->client].client->ps.friction = 1.0;
+				}
+				value = 24; // make sure feet dont slide in single player
 			}
-			value = 24;	// make sure feet dont slide in single player
-		} else {
-			g_entities[bs->client].client->ps.friction = 1.0;
-			value = 80;
-		}
+			else
+			{
+				g_entities[bs->client].client->ps.friction = 1.0;
+				value                                      = 80;
+			}
 		} // if (bs->sess.sessionTeam == TEAM_AXIS)) ...
 		// Allied bots should keep up with you
 		else
 		{
-			if (ucmd->buttons & BUTTON_WALKING) {
-				if (ucmd->forwardmove || ucmd->rightmove) {
+			if (ucmd->buttons & BUTTON_WALKING)
+			{
+				if (ucmd->forwardmove || ucmd->rightmove)
+				{
 					g_entities[bs->client].client->ps.friction = 0.1;
-				} else {
+				}
+				else
+				{
 					g_entities[bs->client].client->ps.friction = 1.0;
 				}
-				value = 64;	// as fast as the player
-			} else {
+				value = 64; // as fast as the player
+			}
+			else
+			{
 				g_entities[bs->client].client->ps.friction = 1.0;
-				value = 127; // as fast as the player
-		} // else...
-	} // if (BotSinglePlayer())...
+				value                                      = 127; // as fast as the player
+			} // else...
+		} // if (BotSinglePlayer())...
 
-	} else {
-		if (ucmd->buttons & BUTTON_WALKING) {
-			value = 64;	// keep in line with player movements
+	}
+	else
+	{
+		if (ucmd->buttons & BUTTON_WALKING)
+		{
+			value = 64; // keep in line with player movements
 		}
 	}
 	//
 	//if (bs->leader == 0 && bs->leader_tagent == 0)
 	//	G_Printf( "%s: %i, %i\n", g_entities[bs->client].client->pers.netname, ucmd->forwardmove, ucmd->rightmove );
-	if (value > 0) {
-		if (ucmd->forwardmove > value) {
-			ucmd->rightmove = (int)((float)ucmd->rightmove * ((float)value / (float)ucmd->forwardmove));
+	if (value > 0)
+	{
+		if (ucmd->forwardmove > value)
+		{
+			ucmd->rightmove   = (int)((float)ucmd->rightmove * ((float)value / (float)ucmd->forwardmove));
 			ucmd->forwardmove = value;
 		}
-		else if (ucmd->forwardmove < -value) {
-			ucmd->rightmove = (int)((float)ucmd->rightmove * ((float)-value / (float)ucmd->forwardmove));
+		else if (ucmd->forwardmove < -value)
+		{
+			ucmd->rightmove   = (int)((float)ucmd->rightmove * ((float)-value / (float)ucmd->forwardmove));
 			ucmd->forwardmove = -value;
 		}
 		//
-		if (ucmd->rightmove > value) {
+		if (ucmd->rightmove > value)
+		{
 			ucmd->forwardmove = (int)((float)ucmd->forwardmove * ((float)value / (float)ucmd->rightmove));
-			ucmd->rightmove = value;
+			ucmd->rightmove   = value;
 		}
-		else if (ucmd->rightmove < -value) {
+		else if (ucmd->rightmove < -value)
+		{
 			ucmd->forwardmove = (int)((float)ucmd->forwardmove * ((float)-value / (float)ucmd->rightmove));
-			ucmd->rightmove = -value;
+			ucmd->rightmove   = -value;
 		}
 	}
 	//Com_Printf("forward = %d right = %d up = %d\n", ucmd.forwardmove, ucmd.rightmove, ucmd.upmove);
@@ -687,44 +863,66 @@ void BotInputToUserCommand(bot_state_t *bs, bot_input_t *bi, usercmd_t *ucmd, in
 BotUpdateInput
 ==============
 */
-void BotUpdateInput(bot_state_t *bs, int time) {
+void BotUpdateInput(bot_state_t *bs, int time)
+{
 	bot_input_t bi;
-	int j;
+	int         j;
 
 	//add the delta angles to the bot's current view angles
-	for (j = 0; j < 3; j++) {
+	for (j = 0; j < 3; j++)
+	{
 		bs->viewangles[j] = AngleMod(bs->viewangles[j] + SHORT2ANGLE(bs->cur_ps.delta_angles[j]));
 	}
 	//
 	BotChangeViewAngles(bs, (float) time / 1000);
 	trap_EA_GetInput(bs->client, (float) time / 1000, &bi);
 	//respawn hack
-	if (bi.actionflags & ACTION_RESPAWN) {
-		if (bs->lastucmd.buttons & BUTTON_ATTACK) bi.actionflags &= ~(ACTION_RESPAWN|ACTION_ATTACK);
+	if (bi.actionflags & ACTION_RESPAWN)
+	{
+		if (bs->lastucmd.buttons & BUTTON_ATTACK)
+		{
+			bi.actionflags &= ~(ACTION_RESPAWN | ACTION_ATTACK);
+		}
 	}
 	//
 	BotInputToUserCommand(bs, &bi, &bs->lastucmd, bs->cur_ps.delta_angles, time);
 	// sprint always if we have no enemy
-	if (!(bs->lastucmd.buttons & BUTTON_WALKING)) {
-		if (bs->flags & BFL_SPRINT) {
+	if (!(bs->lastucmd.buttons & BUTTON_WALKING))
+	{
+		if (bs->flags & BFL_SPRINT)
+		{
 			bs->lastucmd.buttons |= BUTTON_SPRINT;
-			if (level.clients[bs->client].pmext.sprintTime < 200) bs->flags &= ~BFL_SPRINT;
-		} else {
-			if (level.clients[bs->client].pmext.sprintTime > 7000) {
+			if (level.clients[bs->client].pmext.sprintTime < 200)
+			{
+				bs->flags &= ~BFL_SPRINT;
+			}
+		}
+		else
+		{
+			if (level.clients[bs->client].pmext.sprintTime > 7000)
+			{
 				// if we are trying to escape an enemy, or chasing them
-				if (bs->enemy > -1 && bs->last_fire < level.time - 1000) bs->flags |= BFL_SPRINT;
+				if (bs->enemy > -1 && bs->last_fire < level.time - 1000)
+				{
+					bs->flags |= BFL_SPRINT;
+				}
 				// if we are defending someone, try to stay close
-				if (bs->target_goal.entitynum == bs->leader && bs->leader >= 0) bs->flags |= BFL_SPRINT;
+				if (bs->target_goal.entitynum == bs->leader && bs->leader >= 0)
+				{
+					bs->flags |= BFL_SPRINT;
+				}
 			}
 		}
 	}
 	// if someone is trying to help us, walk
-	if (g_entities[bs->client].missionLevel > level.time + 200) {
+	if (g_entities[bs->client].missionLevel > level.time + 200)
+	{
 		bs->lastucmd.buttons |= BUTTON_WALKING;
 	}
 	bs->lastucmd.serverTime = time;
 	//subtract the delta angles
-	for (j = 0; j < 3; j++) {
+	for (j = 0; j < 3; j++)
+	{
 		bs->viewangles[j] = AngleMod(bs->viewangles[j] - SHORT2ANGLE(bs->cur_ps.delta_angles[j]));
 	}
 }
@@ -734,8 +932,10 @@ void BotUpdateInput(bot_state_t *bs, int time) {
 BotAIRegularUpdate
 ==============
 */
-void BotAIRegularUpdate(void) {
-	if (regularupdate_time < trap_AAS_Time()) {
+void BotAIRegularUpdate(void)
+{
+	if (regularupdate_time < trap_AAS_Time())
+	{
 		trap_BotUpdateEntityItems();
 		regularupdate_time = trap_AAS_Time() + 1;
 	}
@@ -748,35 +948,48 @@ BotTravelFlagsForClient
   Only returns special flags that are absolutely necessary for this level
 ================
 */
-int BotTravelFlagsForClient( int client )
+int BotTravelFlagsForClient(int client)
 {
-	int tfl;
+	int       tfl;
 	gclient_t *cl = &level.clients[client];
 	//
-	if (!cl || cl->pers.connected != CON_CONNECTED) {
+	if (!cl || cl->pers.connected != CON_CONNECTED)
+	{
 		return 0;
 	}
 	//
 	tfl = TFL_DEFAULT;
 	//
-	if (cl->sess.sessionTeam == TEAM_ALLIES) {
+	if (cl->sess.sessionTeam == TEAM_ALLIES)
+	{
 		tfl |= TFL_TEAM_ALLIES;
-	} else if (cl->sess.sessionTeam == TEAM_AXIS) {
+	}
+	else if (cl->sess.sessionTeam == TEAM_AXIS)
+	{
 		tfl |= TFL_TEAM_AXIS;
 	}
 	//
 	// if there are no team doors in the level, then always use defaults
-	if (!level.doorAllowTeams) {
+	if (!level.doorAllowTeams)
+	{
 		return tfl;
 	}
 	//
-	if ((level.doorAllowTeams & TEAM_ALLIES) && cl->sess.sessionTeam == TEAM_ALLIES) {
+	if ((level.doorAllowTeams & TEAM_ALLIES) && cl->sess.sessionTeam == TEAM_ALLIES)
+	{
 		tfl |= TFL_TEAM_ALLIES;
-		if ((level.doorAllowTeams & ALLOW_DISGUISED_CVOPS) && cl->ps.powerups[PW_OPS_DISGUISED]) tfl |= TFL_TEAM_ALLIES_DISGUISED;
+		if ((level.doorAllowTeams & ALLOW_DISGUISED_CVOPS) && cl->ps.powerups[PW_OPS_DISGUISED])
+		{
+			tfl |= TFL_TEAM_ALLIES_DISGUISED;
+		}
 	}
-	if ((level.doorAllowTeams & TEAM_AXIS) && cl->sess.sessionTeam == TEAM_AXIS) {
+	if ((level.doorAllowTeams & TEAM_AXIS) && cl->sess.sessionTeam == TEAM_AXIS)
+	{
 		tfl |= TFL_TEAM_AXIS;
-		if ((level.doorAllowTeams & ALLOW_DISGUISED_CVOPS) && cl->ps.powerups[PW_OPS_DISGUISED]) tfl |= TFL_TEAM_AXIS_DISGUISED;
+		if ((level.doorAllowTeams & ALLOW_DISGUISED_CVOPS) && cl->ps.powerups[PW_OPS_DISGUISED])
+		{
+			tfl |= TFL_TEAM_AXIS_DISGUISED;
+		}
 	}
 	//
 	return tfl;
@@ -787,21 +1000,23 @@ int BotTravelFlagsForClient( int client )
 BotAI
 ==============
 */
-int BotAI(int client, float thinktime) {
+int BotAI(int client, float thinktime)
+{
 	bot_state_t *bs;
-	char buf[1024];
-	int j, areanum;
+	char        buf[1024];
+	int         j, areanum;
 
 	trap_EA_ResetInput(client, NULL);
 
 	bs = &botstates[client];
-	if(!bs->inuse) {
+	if (!bs->inuse)
+	{
 		BotAI_Print(PRT_FATAL, "client %d hasn't been setup\n", client);
 		return BLERR_AICLIENTNOTSETUP;
 	}
 
 	//retrieve the current client state
-	BotAI_GetClientState( client, &bs->cur_ps );
+	BotAI_GetClientState(client, &bs->cur_ps);
 
 	// Mad Doctor I, 9/19/2002
 	// If we haven't yet set up our initial desired weapon, do so now.
@@ -819,10 +1034,12 @@ int BotAI(int client, float thinktime) {
 
 	//retrieve any waiting console messages
 	// Gordon: you MUST do this to acknowledge any commands sent
-	while( trap_BotGetServerCommand(client, buf, sizeof(buf)) );
+	while (trap_BotGetServerCommand(client, buf, sizeof(buf)))
+		;
 
 	//add the delta angles to the bot's current view angles
-	for (j = 0; j < 3; j++) {
+	for (j = 0; j < 3; j++)
+	{
 		bs->viewangles[j] = AngleMod(bs->viewangles[j] + SHORT2ANGLE(bs->cur_ps.delta_angles[j]));
 	}
 	//increase the local time of the bot
@@ -836,15 +1053,17 @@ int BotAI(int client, float thinktime) {
 	bs->eye[2] += bs->cur_ps.viewheight;
 
 	//set the travelflags for this bot
-	bs->tfl = BotTravelFlagsForClient( bs->client );
+	bs->tfl = BotTravelFlagsForClient(bs->client);
 
 	//get the area the bot is in
 	areanum = BotPointAreaNum(bs->client, bs->origin);
-	if( areanum ) {
+	if (areanum)
+	{
 		bs->areanum = areanum;
 	}
 
-	if(bot_profile.integer == 3) {
+	if (bot_profile.integer == 3)
+	{
 		int t = trap_Milliseconds();
 
 		// the real AI
@@ -852,15 +1071,18 @@ int BotAI(int client, float thinktime) {
 
 		t = trap_Milliseconds() - t;
 
-		G_Printf( "Time for BotDeathmatchAI: %s: %i\n", level.clients[bs->client].pers.netname, t );
-	} else {
+		G_Printf("Time for BotDeathmatchAI: %s: %i\n", level.clients[bs->client].pers.netname, t);
+	}
+	else
+	{
 		BotDeathmatchAI(bs, thinktime);
 	}
 
-	level.clients[bs->client].sess.latchPlayerType = bs->mpClass;	// FIXME: better place for this?
+	level.clients[bs->client].sess.latchPlayerType = bs->mpClass;   // FIXME: better place for this?
 
 	//subtract the delta angles
-	for (j = 0; j < 3; j++) {
+	for (j = 0; j < 3; j++)
+	{
 		bs->viewangles[j] = AngleMod(bs->viewangles[j] - SHORT2ANGLE(bs->cur_ps.delta_angles[j]));
 	}
 
@@ -873,13 +1095,16 @@ int BotAI(int client, float thinktime) {
 BotScheduleBotThink
 ==================
 */
-void BotScheduleBotThink(void) {
+void BotScheduleBotThink(void)
+{
 	int i, j, botnum = 0;
 	int numbots = BotAI_GetNumBots();
 
-	for( i = 0; i < level.numConnectedClients; i++ ) {
+	for ( i = 0; i < level.numConnectedClients; i++ )
+	{
 		j = level.sortedClients[i];
-		if(!botstates[j].inuse ) {
+		if (!botstates[j].inuse)
+		{
 			continue;
 		}
 		//initialize the bot think residual time
@@ -893,7 +1118,7 @@ void BotScheduleBotThink(void) {
 BotGetInitialAttributes
 ==============
 */
-void BotGetInitialAttributes(bot_state_t *bs) 
+void BotGetInitialAttributes(bot_state_t *bs)
 {
 	if (G_IsSinglePlayerGame())
 	{
@@ -901,33 +1126,32 @@ void BotGetInitialAttributes(bot_state_t *bs)
 		if (bs->mpTeam == TEAM_ALLIES)
 		{
 			bs->attribs[BOT_REACTION_TIME] = 0.5f;
-			bs->attribs[BOT_AIM_ACCURACY] = 0.35f;
-			bs->attribs[BOT_WIMP_FACTOR] = 0.25f;
+			bs->attribs[BOT_AIM_ACCURACY]  = 0.35f;
+			bs->attribs[BOT_WIMP_FACTOR]   = 0.25f;
 
 		} // if (bs->mp_team == TEAM_ALLIES)...
-
 		// Make Nazis wimpier
 		else
 		{
 			bs->attribs[BOT_REACTION_TIME] = 1.5f;
-			bs->attribs[BOT_AIM_ACCURACY] = 0.2f;
-			bs->attribs[BOT_WIMP_FACTOR] = 0.25f;
+			bs->attribs[BOT_AIM_ACCURACY]  = 0.2f;
+			bs->attribs[BOT_WIMP_FACTOR]   = 0.25f;
 
 		} // else...
 
 	} // if (G_IsSinglePlayerGame())...
 	else
 	{
-	
-	
-	
+
+
+
 		bs->attribs[BOT_REACTION_TIME] = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_REACTIONTIME, 0, 1);
-		bs->attribs[BOT_AIM_ACCURACY] = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_ACCURACY, 0, 1);
-	
-	
-	
-	
-	
+		bs->attribs[BOT_AIM_ACCURACY]  = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_ACCURACY, 0, 1);
+
+
+
+
+
 		// default to not wimpy at all
 		bs->attribs[BOT_WIMP_FACTOR] = 0.01f;
 
@@ -1025,29 +1249,33 @@ void ParseBotDefaultAttributes
 
 	// Bail if we've already loaded this
 	if (g_loadedDefaultBotAttributes)
+	{
 		return;
+	}
 
 	// Open the text file containing the AI default attributes
-	len = trap_FS_FOpenFile( fileName, &botAttributeFile, FS_READ );
+	len = trap_FS_FOpenFile(fileName, &botAttributeFile, FS_READ);
 
 	// empty file?
-	if ( len <= 0 )
+	if (len <= 0)
+	{
 		return;
+	}
 
 	// too big file
-	if ( len >= ( sizeof( data ) - 1 ) ) 
+	if (len >= (sizeof(data) - 1))
 	{
-		Com_Printf( "File %s too long\n", fileName );
+		Com_Printf("File %s too long\n", fileName);
 		return;
 	}
 
 	// read all the data into the buffer
-	trap_FS_Read( data, len, botAttributeFile );
+	trap_FS_Read(data, len, botAttributeFile);
 	data[len] = 0;
-	trap_FS_FCloseFile( botAttributeFile );
+	trap_FS_FCloseFile(botAttributeFile);
 
 	ptr = data;
-	p = &ptr;
+	p   = &ptr;
 
 
 	while (1)
@@ -1057,7 +1285,9 @@ void ParseBotDefaultAttributes
 
 		// if no more tokens, we're done looping
 		if (!token || token[0] == 0)
+		{
 			break;
+		}
 
 		// Are we finished?
 		if (!Q_stricmp(token, "DONE"))
@@ -1068,9 +1298,9 @@ void ParseBotDefaultAttributes
 				// Report an error if there were not enough fields
 				if (fieldCount < MAX_BOT_DEFAULT_KEYS)
 				{
-					Com_Printf( "File %s has bot %s without enough fields\n", 
-						fileName,  g_botDefaultValues[g_botDefaultValueCount].m_botName);
-					
+					Com_Printf("File %s has bot %s without enough fields\n",
+					           fileName, g_botDefaultValues[g_botDefaultValueCount].m_botName);
+
 				} // if (fieldCount < MAX_BOT_DEFAULT_KEYS)...
 
 				// Go on to the next bot
@@ -1099,9 +1329,9 @@ void ParseBotDefaultAttributes
 						// Report an error if there were not enough fields
 						if (fieldCount < MAX_BOT_DEFAULT_KEYS)
 						{
-							Com_Printf( "File %s has bot %s without enough fields\n", 
-								fileName,  g_botDefaultValues[g_botDefaultValueCount].m_botName);
-							
+							Com_Printf("File %s has bot %s without enough fields\n",
+							           fileName, g_botDefaultValues[g_botDefaultValueCount].m_botName);
+
 						} // if (fieldCount < MAX_BOT_DEFAULT_KEYS)...
 
 						// Go on to the next bot
@@ -1122,7 +1352,7 @@ void ParseBotDefaultAttributes
 					break;
 				case e_BOT_REACTION_TIME:
 					// Read entity's name
-					token = COM_ParseExt(p, qtrue);
+					token                                                     = COM_ParseExt(p, qtrue);
 					g_botDefaultValues[g_botDefaultValueCount].m_reactionTime = atof(token);
 
 					// We've found another field
@@ -1131,7 +1361,7 @@ void ParseBotDefaultAttributes
 					break;
 				case e_BOT_AIM_ACCURACY:
 					// Read entity's classname
-					token = COM_ParseExt(p, qtrue);
+					token                                                    = COM_ParseExt(p, qtrue);
 					g_botDefaultValues[g_botDefaultValueCount].m_aimAccuracy = atof(token);
 
 					// We've found another field
@@ -1141,7 +1371,7 @@ void ParseBotDefaultAttributes
 
 				case e_BOT_WIMP_FACTOR:
 					// Read entity's classname
-					token = COM_ParseExt(p, qtrue);
+					token                                                   = COM_ParseExt(p, qtrue);
 					g_botDefaultValues[g_botDefaultValueCount].m_wimpFactor = atof(token);
 
 					// We've found another field
@@ -1151,7 +1381,7 @@ void ParseBotDefaultAttributes
 
 				case e_SETSPEEDCOEFFICIENT:
 					// Read entity's classname
-					token = COM_ParseExt(p, qtrue);
+					token                                                         = COM_ParseExt(p, qtrue);
 					g_botDefaultValues[g_botDefaultValueCount].m_speedCoefficient = atof(token);
 
 					// We've found another field
@@ -1161,7 +1391,7 @@ void ParseBotDefaultAttributes
 
 				case e_SETFIRERATE:
 					// Read entity's classname
-					token = COM_ParseExt(p, qtrue);
+					token                                                 = COM_ParseExt(p, qtrue);
 					g_botDefaultValues[g_botDefaultValueCount].m_fireRate = atof(token);
 
 					// We've found another field
@@ -1173,13 +1403,13 @@ void ParseBotDefaultAttributes
 					// Read min fire rate
 					token = COM_ParseExt(p, qtrue);
 
-					g_botDefaultValues[g_botDefaultValueCount].m_minFireRateCycleTime = 
+					g_botDefaultValues[g_botDefaultValueCount].m_minFireRateCycleTime =
 						atoi(token);
 
 					// Read max fire rate
 					token = COM_ParseExt(p, qtrue);
 
-					g_botDefaultValues[g_botDefaultValueCount].m_maxFireRateCycleTime = 
+					g_botDefaultValues[g_botDefaultValueCount].m_maxFireRateCycleTime =
 						atoi(token);
 
 					// We've found another field
@@ -1189,7 +1419,7 @@ void ParseBotDefaultAttributes
 
 				case e_SETFIELDOFVIEW:
 					// Read entity's classname
-					token = COM_ParseExt(p, qtrue);
+					token                                                            = COM_ParseExt(p, qtrue);
 					g_botDefaultValues[g_botDefaultValueCount].m_scriptedFieldOfView = atof(token);
 
 					// We've found another field
@@ -1199,7 +1429,7 @@ void ParseBotDefaultAttributes
 
 				case e_SETHEARINGRANGE:
 					// Read entity's classname
-					token = COM_ParseExt(p, qtrue);
+					token                                                             = COM_ParseExt(p, qtrue);
 					g_botDefaultValues[g_botDefaultValueCount].m_scriptedHearingRange = atof(token);
 
 					// We've found another field
@@ -1209,7 +1439,7 @@ void ParseBotDefaultAttributes
 
 				case e_SETCLOSEHEARINGRANGE:
 					// Read entity's classname
-					token = COM_ParseExt(p, qtrue);
+					token                                                          = COM_ParseExt(p, qtrue);
 					g_botDefaultValues[g_botDefaultValueCount].m_closeHearingRange = atof(token);
 
 					// We've found another field
@@ -1219,7 +1449,7 @@ void ParseBotDefaultAttributes
 
 				case e_SETVISIONRANGE:
 					// Read entity's classname
-					token = COM_ParseExt(p, qtrue);
+					token                                                    = COM_ParseExt(p, qtrue);
 					g_botDefaultValues[g_botDefaultValueCount].m_visionRange = atof(token);
 
 					// We've found another field
@@ -1229,7 +1459,7 @@ void ParseBotDefaultAttributes
 
 				case e_SETFARSEEINGRANGE:
 					// Read entity's classname
-					token = COM_ParseExt(p, qtrue);
+					token                                                       = COM_ParseExt(p, qtrue);
 					g_botDefaultValues[g_botDefaultValueCount].m_farSeeingRange = atof(token);
 
 					// We've found another field
@@ -1239,8 +1469,8 @@ void ParseBotDefaultAttributes
 
 				case e_SETMOVEMENTAUTONOMY:
 					// Read entity's classname
-					token = COM_ParseExt(p, qtrue);
-					level = BotWeaponAutonomyForString( token );
+					token                                                         = COM_ParseExt(p, qtrue);
+					level                                                         = BotWeaponAutonomyForString(token);
 					g_botDefaultValues[g_botDefaultValueCount].m_movementAutonomy = level;
 
 					// We've found another field
@@ -1250,8 +1480,8 @@ void ParseBotDefaultAttributes
 
 				case e_SETWEAPONAUTONOMY:
 					// Read entity's classname
-					token = COM_ParseExt(p, qtrue);
-					level = BotMovementAutonomyForString( token );
+					token                                                       = COM_ParseExt(p, qtrue);
+					level                                                       = BotMovementAutonomyForString(token);
 					g_botDefaultValues[g_botDefaultValueCount].m_weaponAutonomy = level;
 
 					// We've found another field
@@ -1259,7 +1489,8 @@ void ParseBotDefaultAttributes
 
 					break;
 
-				};
+				}
+				;
 
 				// We found a match, so don't keep checking
 				break;
@@ -1335,7 +1566,7 @@ void BotSetCharacterAttributes
 	bs->farSeeingRange = defaults->m_farSeeingRange;
 
 	// How independent?
-	bs->movementAutonomy = defaults->m_movementAutonomy;
+	bs->movementAutonomy        = defaults->m_movementAutonomy;
 	bs->script.movementAutonomy = defaults->m_movementAutonomy;
 }
 //
@@ -1368,11 +1599,11 @@ void BotSetUpCharacter
 	for (i = 0; i < g_botDefaultValueCount; i++)
 	{
 		// Is this the bot default to use?
-		if (!Q_stricmp(g_entities[bs->client].scriptName, 
-				g_botDefaultValues[i].m_botName))
+		if (!Q_stricmp(g_entities[bs->client].scriptName,
+		               g_botDefaultValues[i].m_botName))
 		{
 			// Use these defaults
-			BotSetCharacterAttributes(bs, &(g_botDefaultValues[i]) );
+			BotSetCharacterAttributes(bs, &(g_botDefaultValues[i]));
 
 		} // if (!Q_stricmp(g_entities[bs->client].scriptName...
 
@@ -1391,25 +1622,29 @@ void BotSetUpCharacter
 BotAISetupClient
 ==============
 */
-int BotAISetupClient(int client, struct bot_settings_s *settings) {
-	char filename[MAX_PATH], name[MAX_PATH], gender[MAX_PATH];
+int BotAISetupClient(int client, struct bot_settings_s *settings)
+{
+	char        filename[MAX_PATH], name[MAX_PATH], gender[MAX_PATH];
 	bot_state_t *bs;
-	int errnum, i;
+	int         errnum, i;
 
 	bs = &botstates[client];
-	if( bs->inuse ) {
+	if (bs->inuse)
+	{
 		BotAI_Print(PRT_FATAL, "client %d already setup\n", client);
 		return qfalse;
 	}
 
-	if (!trap_AAS_Initialized()) {
+	if (!trap_AAS_Initialized())
+	{
 		BotAI_Print(PRT_FATAL, "AAS not initialized\n");
-	//	return qfalse;
+		//	return qfalse;
 	}
 
 	//load the bot character
 	bs->character = trap_BotLoadCharacter(settings->characterfile, settings->skill);
-	if (!bs->character) {
+	if (!bs->character)
+	{
 		BotAI_Print(PRT_FATAL, "couldn't load skill %d from %s\n", settings->skill, settings->characterfile);
 		return qfalse;
 	}
@@ -1420,7 +1655,8 @@ int BotAISetupClient(int client, struct bot_settings_s *settings) {
 	//load the item weights
 	trap_Characteristic_String(bs->character, CHARACTERISTIC_ITEMWEIGHTS, filename, MAX_PATH);
 	errnum = trap_BotLoadItemWeights(bs->gs, filename);
-	if (errnum != BLERR_NOERROR) {
+	if (errnum != BLERR_NOERROR)
+	{
 		trap_BotFreeGoalState(bs->gs);
 		return qfalse;
 	}
@@ -1429,7 +1665,8 @@ int BotAISetupClient(int client, struct bot_settings_s *settings) {
 	//load the weapon weights
 	trap_Characteristic_String(bs->character, CHARACTERISTIC_WEAPONWEIGHTS, filename, MAX_PATH);
 	errnum = trap_BotLoadWeaponWeights(bs->ws, filename);
-	if (errnum != BLERR_NOERROR) {
+	if (errnum != BLERR_NOERROR)
+	{
 		trap_BotFreeGoalState(bs->gs);
 		trap_BotFreeWeaponState(bs->ws);
 		return qfalse;
@@ -1440,7 +1677,8 @@ int BotAISetupClient(int client, struct bot_settings_s *settings) {
 	trap_Characteristic_String(bs->character, CHARACTERISTIC_CHAT_FILE, filename, MAX_PATH);
 	trap_Characteristic_String(bs->character, CHARACTERISTIC_CHAT_NAME, name, MAX_PATH);
 	errnum = trap_BotLoadChatFile(bs->cs, filename, name);
-	if (errnum != BLERR_NOERROR) {
+	if (errnum != BLERR_NOERROR)
+	{
 		trap_BotFreeChatState(bs->cs);
 		trap_BotFreeGoalState(bs->gs);
 		trap_BotFreeWeaponState(bs->ws);
@@ -1449,35 +1687,44 @@ int BotAISetupClient(int client, struct bot_settings_s *settings) {
 	//get the gender characteristic
 	trap_Characteristic_String(bs->character, CHARACTERISTIC_GENDER, gender, MAX_PATH);
 	//set the chat gender
-	if (*gender == 'f' || *gender == 'F') trap_BotSetChatGender(bs->cs, CHAT_GENDERFEMALE);
-	else if (*gender == 'm' || *gender == 'M') trap_BotSetChatGender(bs->cs, CHAT_GENDERMALE);
-	else trap_BotSetChatGender(bs->cs, CHAT_GENDERLESS);
+	if (*gender == 'f' || *gender == 'F')
+	{
+		trap_BotSetChatGender(bs->cs, CHAT_GENDERFEMALE);
+	}
+	else if (*gender == 'm' || *gender == 'M')
+	{
+		trap_BotSetChatGender(bs->cs, CHAT_GENDERMALE);
+	}
+	else
+	{
+		trap_BotSetChatGender(bs->cs, CHAT_GENDERLESS);
+	}
 
-	bs->inuse = qtrue;
-	bs->client = client;
-	bs->entitynum = client;
+	bs->inuse      = qtrue;
+	bs->client     = client;
+	bs->entitynum  = client;
 	bs->setupcount = 4;
 
-	bs->ms = trap_BotAllocMoveState();
-	bs->walker = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_WALKER, 0, 1);
-	bs->enemy = -1;
-	bs->altenemy = -1;
-	bs->leader = -1;
-	bs->leader_tagent = -1;
-	bs->returnToLeader = -1;
+	bs->ms              = trap_BotAllocMoveState();
+	bs->walker          = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_WALKER, 0, 1);
+	bs->enemy           = -1;
+	bs->altenemy        = -1;
+	bs->leader          = -1;
+	bs->leader_tagent   = -1;
+	bs->returnToLeader  = -1;
 	bs->isBotSelectable = qtrue;
 	// setup initial teamplay selections
-	bs->mpTeam = (!Q_stricmp( settings->team, "axis" ) ? TEAM_AXIS : TEAM_ALLIES);
-	bs->mpClass = BotSuggestClass(bs, bs->mpTeam);
-	bs->mpWeapon = BotSuggestWeapon(bs, bs->mpTeam);
-	level.clients[bs->client].sess.latchPlayerType = bs->mpClass;	// FIXME: better place for this?
-	level.clients[bs->client].sess.latchPlayerWeapon = bs->mpWeapon;	// FIXME: better place for this?
-	level.clients[bs->client].sess.latchPlayerWeapon2 = 0;	// FIXME: better place for this?
+	bs->mpTeam                                        = (!Q_stricmp(settings->team, "axis") ? TEAM_AXIS : TEAM_ALLIES);
+	bs->mpClass                                       = BotSuggestClass(bs, bs->mpTeam);
+	bs->mpWeapon                                      = BotSuggestWeapon(bs, bs->mpTeam);
+	level.clients[bs->client].sess.latchPlayerType    = bs->mpClass; // FIXME: better place for this?
+	level.clients[bs->client].sess.latchPlayerWeapon  = bs->mpWeapon;   // FIXME: better place for this?
+	level.clients[bs->client].sess.latchPlayerWeapon2 = 0;  // FIXME: better place for this?
 	//
-	bs->movementAutonomy = BMA_NOVALUE;
+	bs->movementAutonomy        = BMA_NOVALUE;
 	bs->script.movementAutonomy = BMA_NOVALUE;
-	bs->script.weaponAutonomy = BWA_NOVALUE;
-	bs->scriptAutonomy = BSA_QUITSCRIPT;
+	bs->script.weaponAutonomy   = BWA_NOVALUE;
+	bs->scriptAutonomy          = BSA_QUITSCRIPT;
 
 	//	TAT 11/14/2002 - no commanded weapon, use whatever you want
 	bs->commandedWeapon = -1;
@@ -1539,11 +1786,11 @@ int BotAISetupClient(int client, struct bot_settings_s *settings) {
 	bs->overrideMovementScripts = qfalse;
 
 	// last time an anim was played using scripting
-	bs->scriptAnimTime = -1;	
-	
+	bs->scriptAnimTime = -1;
+
 	// which anim was last played by the scripts
 
-	
+
 	// We'll want to find a new combat spot right away
 	bs->whenToFindNewCombatSpot = 0;
 
@@ -1578,7 +1825,7 @@ int BotAISetupClient(int client, struct bot_settings_s *settings) {
 	bs->weaponnum = -1;
 
 	//
-	BotAI_SetNumBots(BotAI_GetNumBots()+1);
+	BotAI_SetNumBots(BotAI_GetNumBots() + 1);
 
 	//NOTE: reschedule the bot thinking
 	BotScheduleBotThink();
@@ -1591,7 +1838,7 @@ int BotAISetupClient(int client, struct bot_settings_s *settings) {
 	bs->fireRate = 1.0; // xkan, 10/23/2002 - init to normal(maximum) fire rate
 
 	// We can check fire rate at start
-	bs->fireRateCheckTime = 0;
+	bs->fireRateCheckTime    = 0;
 	bs->minFireRateCycleTime = kBOT_MIN_FIRE_CYCLE_TIME;
 	bs->maxFireRateCycleTime = kBOT_MAX_FIRE_CYCLE_TIME;
 
@@ -1606,19 +1853,22 @@ int BotAISetupClient(int client, struct bot_settings_s *settings) {
 BotAIShutdownClient
 ==============
 */
-int BotAIShutdownClient(int client) {
+int BotAIShutdownClient(int client)
+{
 	bot_state_t *bs;
 
 	bs = &botstates[client];
-	if( !bs->inuse ) {
+	if (!bs->inuse)
+	{
 		// BotAI_Print(PRT_ERROR, "client %d already shutdown\n", client);
 		return BLERR_AICLIENTALREADYSHUTDOWN;
 	}
 
 	// close log file
-	if (bs->script.logFile && (bs->script.flags & BSFL_LOGGING)) {
+	if (bs->script.logFile && (bs->script.flags & BSFL_LOGGING))
+	{
 		bs->script.flags &= ~BSFL_LOGGING;
-		trap_FS_FCloseFile( bs->script.logFile );
+		trap_FS_FCloseFile(bs->script.logFile);
 		bs->script.logFile = 0;
 	}
 
@@ -1639,7 +1889,7 @@ int BotAIShutdownClient(int client) {
 	//set the inuse flag to qfalse
 	bs->inuse = qfalse;
 	//there's one bot less
-	BotAI_SetNumBots(BotAI_GetNumBots()-1);
+	BotAI_SetNumBots(BotAI_GetNumBots() - 1);
 	//everything went ok
 	return BLERR_NOERROR;
 }
@@ -1652,24 +1902,25 @@ called when a bot enters the intermission or observer mode and
 when the level is changed
 ==============
 */
-void BotResetState(bot_state_t *bs) {
-	int client, entitynum, inuse;
-	int movestate, goalstate, chatstate, weaponstate;
+void BotResetState(bot_state_t *bs)
+{
+	int            client, entitynum, inuse;
+	int            movestate, goalstate, chatstate, weaponstate;
 	bot_settings_t settings;
-	int character;
-	playerState_t ps;							//current player state
+	int            character;
+	playerState_t  ps;                          //current player state
 //	float entergame_time;
 
 	//save some things that should not be reset here
 	memcpy(&settings, &bs->settings, sizeof(bot_settings_t));
 	memcpy(&ps, &bs->cur_ps, sizeof(playerState_t));
-	inuse = bs->inuse;
-	client = bs->client;
-	entitynum = bs->entitynum;
-	character = bs->character;
-	movestate = bs->ms;
-	goalstate = bs->gs;
-	chatstate = bs->cs;
+	inuse       = bs->inuse;
+	client      = bs->client;
+	entitynum   = bs->entitynum;
+	character   = bs->character;
+	movestate   = bs->ms;
+	goalstate   = bs->gs;
+	chatstate   = bs->cs;
 	weaponstate = bs->ws;
 
 	//free checkpoints and patrol points
@@ -1684,17 +1935,32 @@ void BotResetState(bot_state_t *bs) {
 	bs->ws = weaponstate;
 	memcpy(&bs->cur_ps, &ps, sizeof(playerState_t));
 	memcpy(&bs->settings, &settings, sizeof(bot_settings_t));
-	bs->inuse = inuse;
-	bs->client = client;
+	bs->inuse     = inuse;
+	bs->client    = client;
 	bs->entitynum = entitynum;
 	bs->character = character;
 
 	//reset several states
-	if (bs->ms) trap_BotResetMoveState(bs->ms);
-	if (bs->gs) trap_BotResetGoalState(bs->gs);
-	if (bs->ws) trap_BotResetWeaponState(bs->ws);
-	if (bs->gs) trap_BotResetAvoidGoals(bs->gs);
-	if (bs->ms) trap_BotResetAvoidReach(bs->ms);
+	if (bs->ms)
+	{
+		trap_BotResetMoveState(bs->ms);
+	}
+	if (bs->gs)
+	{
+		trap_BotResetGoalState(bs->gs);
+	}
+	if (bs->ws)
+	{
+		trap_BotResetWeaponState(bs->ws);
+	}
+	if (bs->gs)
+	{
+		trap_BotResetAvoidGoals(bs->gs);
+	}
+	if (bs->ms)
+	{
+		trap_BotResetAvoidReach(bs->ms);
+	}
 
 	// Start		TAT 9/27/2002
 	// We should make sure the returnToLeader is -1, meaning no one
@@ -1707,21 +1973,27 @@ void BotResetState(bot_state_t *bs) {
 BotAILoadMap
 ==============
 */
-int BotAILoadMap( int restart ) {
-	int			i;
-	vmCvar_t	mapname;
+int BotAILoadMap(int restart)
+{
+	int      i;
+	vmCvar_t mapname;
 
-	if (!restart) {
-		trap_Cvar_Register( &mapname, "mapname", "", CVAR_SERVERINFO | CVAR_ROM );
-		trap_BotLibLoadMap( mapname.string );
-	} else {
+	if (!restart)
+	{
+		trap_Cvar_Register(&mapname, "mapname", "", CVAR_SERVERINFO | CVAR_ROM);
+		trap_BotLibLoadMap(mapname.string);
+	}
+	else
+	{
 		// NULL mapname is a restart
-		trap_BotLibLoadMap( NULL );
+		trap_BotLibLoadMap(NULL);
 	}
 
-	for (i = 0; i < MAX_CLIENTS; i++) {
-		if( botstates[i].inuse ) {
-			BotResetState( &botstates[i] );
+	for (i = 0; i < MAX_CLIENTS; i++)
+	{
+		if (botstates[i].inuse)
+		{
+			BotResetState(&botstates[i]);
 			botstates[i].setupcount = 4;
 		}
 	}
@@ -1744,7 +2016,8 @@ BotPreProcessAI
 Perform Pre-processing steps on the bots and entities
 ==================
 */
-void BotPreProcessAI() {
+void BotPreProcessAI()
+{
 }
 
 int botTime_EmergencyGoals;
@@ -1756,15 +2029,19 @@ int botTime_FindEnemy;
 BotAIThinkFrame
 ==================
 */
-int BotAIThinkFrame(int time) {
-	int i;
-	int elapsed_time, thinktime, thinkcount, lastthinkbot, botcount;
+int BotAIThinkFrame(int time)
+{
+	int        i;
+	int        elapsed_time, thinktime, thinkcount, lastthinkbot, botcount;
 	static int local_time;
 	static int botlib_residual;
 	static int lastbotthink_time;
 	static int lastbot;
-	int startTime/*, totalProfileTime*/;
-	if (bot_profile.integer == 1) startTime = trap_Milliseconds();
+	int        startTime /*, totalProfileTime*/;
+	if (bot_profile.integer == 1)
+	{
+		startTime = trap_Milliseconds();
+	}
 
 	trap_Cvar_Update(&bot_rocketjump);
 	trap_Cvar_Update(&bot_grapple);
@@ -1774,42 +2051,49 @@ int BotAIThinkFrame(int time) {
 	trap_Cvar_Update(&bot_thinktime);
 	trap_Cvar_Update(&bot_profile);
 	// Ridah, set the default AAS world
-	trap_AAS_SetCurrentWorld( 0 );
+	trap_AAS_SetCurrentWorld(0);
 	trap_Cvar_Update(&memorydump);
 
 	botTime_EmergencyGoals = 0;
-	botTime_FindGoals = 0;
-	botTime_FindEnemy = 0;
+	botTime_FindGoals      = 0;
+	botTime_FindEnemy      = 0;
 
-	if(memorydump.integer) {
+	if (memorydump.integer)
+	{
 		trap_BotLibVarSet("memorydump", "1");
 		trap_Cvar_Set("memorydump", "0");
 	}
 
 	//if the bot think time changed we should reschedule the bots
-	if(bot_thinktime.integer != lastbotthink_time) {
+	if (bot_thinktime.integer != lastbotthink_time)
+	{
 		lastbotthink_time = bot_thinktime.integer;
 		BotScheduleBotThink();
 	}
 
 	elapsed_time = time - local_time;
-	local_time = time;
+	local_time   = time;
 
 	botlib_residual += elapsed_time;
 
-	if(elapsed_time > bot_thinktime.integer) {
+	if (elapsed_time > bot_thinktime.integer)
+	{
 		thinktime = elapsed_time;
-	} else {
+	}
+	else
+	{
 		thinktime = bot_thinktime.integer;
 	}
 
-	thinkcount = 0;
+	thinkcount   = 0;
 	lastthinkbot = lastbot;
 
 	// execute scheduled bot AI
-	for( i = lastbot + 1, botcount = 0; botcount < MAX_CLIENTS; i++, botcount++ )  {
+	for ( i = lastbot + 1, botcount = 0; botcount < MAX_CLIENTS; i++, botcount++ )
+	{
 		// If we've gone past the end of the list, start over
-		if( i >= MAX_CLIENTS ) {
+		if (i >= MAX_CLIENTS)
+		{
 			// Start back at the beginning of the list
 			i = 0;
 
@@ -1817,24 +2101,29 @@ int BotAIThinkFrame(int time) {
 			BotPreProcessAI();
 		}
 
-		if( !botstates[i].inuse ) {
+		if (!botstates[i].inuse)
+		{
 			continue;
 		}
 
-		botstates[i].botthink_residual += elapsed_time + (rand()%(bot_thinktime.integer/4));	// randomize the times a bit so they are more likely to disperse amongst frames
+		botstates[i].botthink_residual += elapsed_time + (rand() % (bot_thinktime.integer / 4));    // randomize the times a bit so they are more likely to disperse amongst frames
 
-		if( botstates[i].botthink_residual >= thinktime * ((VectorLengthSquared(botstates[i].cur_ps.velocity) < SQR(10)) ? 2 : 1) ) {
+		if (botstates[i].botthink_residual >= thinktime * ((VectorLengthSquared(botstates[i].cur_ps.velocity) < SQR(10)) ? 2 : 1))
+		{
 			botstates[i].botthink_residual -= thinktime * ((VectorLengthSquared(botstates[i].cur_ps.velocity) < SQR(10)) ? 2 : 1);
 			if (botstates[i].botthink_residual > thinktime)
+			{
 				botstates[i].botthink_residual = thinktime;
+			}
 
 /*			if (!trap_AAS_Initialized()) {
 				return BLERR_NOERROR;
 			}*/
 
-			if( g_entities[i].client->pers.connected == CON_CONNECTED ) {
+			if (g_entities[i].client->pers.connected == CON_CONNECTED)
+			{
 				BotAI(i, thinktime / 1000.f);
-				BotUpdateInput( &botstates[i], time );
+				BotUpdateInput(&botstates[i], time);
 				trap_BotUserCommand(botstates[i].client, &botstates[i].lastucmd);
 				//
 				lastthinkbot = i;
@@ -1863,13 +2152,14 @@ int BotAIThinkFrame(int time) {
 BotAIStartFrame
 ==================
 */
-int BotAIStartFrame(int time) {
-	int i;
-	gentity_t	*ent;
+int BotAIStartFrame(int time)
+{
+	int               i;
+	gentity_t         *ent;
 	bot_entitystate_t state;
 	//entityState_t entitystate;
 	//vec3_t mins = {-15, -15, -24}, maxs = {15, 15, 32};
-	int elapsed_time, thinktime;
+	int        elapsed_time, thinktime;
 	static int local_time;
 	static int botlib_residual;
 	static int lastbotthink_time;
@@ -1883,96 +2173,115 @@ int BotAIStartFrame(int time) {
 	trap_Cvar_Update(&bot_testrchat);
 	trap_Cvar_Update(&bot_thinktime);
 	// Ridah, set the default AAS world
-	trap_AAS_SetCurrentWorld( 0 );
+	trap_AAS_SetCurrentWorld(0);
 	trap_Cvar_Update(&memorydump);
 
-	if (memorydump.integer) {
+	if (memorydump.integer)
+	{
 		trap_BotLibVarSet("memorydump", "1");
 		trap_Cvar_Set("memorydump", "0");
 	}
 
 	//if the bot think time changed we should reschedule the bots
-	if (bot_thinktime.integer != lastbotthink_time) {
+	if (bot_thinktime.integer != lastbotthink_time)
+	{
 		lastbotthink_time = bot_thinktime.integer;
 		BotScheduleBotThink();
 	}
 
 	elapsed_time = time - local_time;
-	local_time = time;
+	local_time   = time;
 
 	botlib_residual += elapsed_time;
 
-	if (elapsed_time > bot_thinktime.integer) {
+	if (elapsed_time > bot_thinktime.integer)
+	{
 		thinktime = elapsed_time;
-	} else {
+	}
+	else
+	{
 		thinktime = bot_thinktime.integer;
 	}
 
 	BotCountLandMines();
 
 	// update the bot library
-	if ( botlib_residual >= thinktime ) {
+	if (botlib_residual >= thinktime)
+	{
 		botlib_residual -= thinktime;
 
 		trap_BotLibStartFrame((float) time / 1000);
 
 		// Ridah, only check the default world
-		trap_AAS_SetCurrentWorld( 0 );
+		trap_AAS_SetCurrentWorld(0);
 
-		if( !trap_AAS_Initialized() ) {
+		if (!trap_AAS_Initialized())
+		{
 			return BLERR_NOERROR;
 		}
 
 		//update entities in the botlib
-		for (i = 0; i < level.num_entities; i++) {
+		for (i = 0; i < level.num_entities; i++)
+		{
 			// Ridah - WOLF, we only need client entity information
 			//if (i > level.maxclients) {
 			//	break;
 			//}
 
 			ent = &g_entities[i];
-			if( !ent->inuse ) {
+			if (!ent->inuse)
+			{
 				continue;
 			}
-			if( !ent->r.linked ) {
+			if (!ent->r.linked)
+			{
 				continue;
 			}
-			if( ent->r.svFlags & SVF_NOCLIENT ) {
+			if (ent->r.svFlags & SVF_NOCLIENT)
+			{
 				continue;
 			}
 
 			memset(&state, 0, sizeof(bot_entitystate_t));
 
-			VectorCopy( BotGetOrigin(i), state.origin);
-			
-			if (!VectorCompare( ent->r.currentAngles, vec3_origin )) {
+			VectorCopy(BotGetOrigin(i), state.origin);
+
+			if (!VectorCompare(ent->r.currentAngles, vec3_origin))
+			{
 				VectorCopy(ent->r.currentAngles, state.angles);
-			} else if (ent->client) {
+			}
+			else if (ent->client)
+			{
 				VectorCopy(ent->client->ps.viewangles, state.angles);
-			} else {
+			}
+			else
+			{
 				VectorCopy(ent->s.angles, state.angles);
 			}
 
 			VectorCopy(ent->s.origin2, state.old_origin);
 			VectorCopy(ent->r.mins, state.mins);
 			VectorCopy(ent->r.maxs, state.maxs);
-			state.type = ent->s.eType;
+			state.type  = ent->s.eType;
 			state.flags = ent->s.eFlags;
 
-			if( ent->r.bmodel ) {
+			if (ent->r.bmodel)
+			{
 				state.solid = SOLID_BSP;
-			} else {
+			}
+			else
+			{
 				state.solid = SOLID_BBOX;
 			}
 
-			state.groundent = ent->s.groundEntityNum;
-			state.modelindex = ent->s.modelindex;
+			state.groundent   = ent->s.groundEntityNum;
+			state.modelindex  = ent->s.modelindex;
 			state.modelindex2 = ent->s.modelindex2;
-			state.frame = ent->s.frame;
-			state.powerups = ent->s.powerups;
-			state.legsAnim = ent->s.legsAnim;
-			state.torsoAnim = ent->s.torsoAnim;
-			state.weapon = ent->s.weapon;
+			state.frame       = ent->s.frame;
+			state.powerups    = ent->s.powerups;
+			state.legsAnim    = ent->s.legsAnim;
+			state.torsoAnim   = ent->s.torsoAnim;
+			state.weapon      = ent->s.weapon;
 
 			trap_BotLibUpdateEntity(i, &state);
 		}
@@ -1983,7 +2292,8 @@ int BotAIStartFrame(int time) {
 
 #ifndef NO_BOT_SUPPORT
 	// let bots do their thinking (only if this is dedicated, or the local client hasnt processed bot thinks in a while)
-	if( bot_enable.integer && (g_dedicated.integer || (level.lastClientBotThink < level.time - 200)) ) {
+	if (bot_enable.integer && (g_dedicated.integer || (level.lastClientBotThink < level.time - 200)))
+	{
 		BotAIThinkFrame(level.time);
 	}
 #endif // NO_BOT_SUPPORT
@@ -2011,71 +2321,126 @@ int BotAIStartFrame(int time) {
 BotInitLibrary
 ==============
 */
-int BotInitLibrary(void) {
+int BotInitLibrary(void)
+{
 	char buf[144];
 
 	//set the maxclients and maxentities library variables before calling BotSetupLibrary
 	trap_Cvar_VariableStringBuffer("sv_maxclients", buf, sizeof(buf));
-	if (!strlen(buf)) strcpy(buf, "8");
+	if (!strlen(buf))
+	{
+		strcpy(buf, "8");
+	}
 	trap_BotLibVarSet("maxclients", buf);
 	Com_sprintf(buf, sizeof(buf), "%d", MAX_GENTITIES);
 	trap_BotLibVarSet("maxentities", buf);
 	//bsp checksum
 	trap_Cvar_VariableStringBuffer("sv_mapChecksum", buf, sizeof(buf));
-	if (strlen(buf)) trap_BotLibVarSet("sv_mapChecksum", buf);
+	if (strlen(buf))
+	{
+		trap_BotLibVarSet("sv_mapChecksum", buf);
+	}
 	//maximum number of aas links
 	trap_Cvar_VariableStringBuffer("max_aaslinks", buf, sizeof(buf));
-	if (strlen(buf)) trap_BotLibVarSet("max_aaslinks", buf);
+	if (strlen(buf))
+	{
+		trap_BotLibVarSet("max_aaslinks", buf);
+	}
 	//maximum number of items in a level
 	trap_Cvar_VariableStringBuffer("max_levelitems", buf, sizeof(buf));
-	if (strlen(buf)) trap_BotLibVarSet("max_levelitems", buf);
+	if (strlen(buf))
+	{
+		trap_BotLibVarSet("max_levelitems", buf);
+	}
 	//automatically launch WinBSPC if AAS file not available
 	trap_Cvar_VariableStringBuffer("autolaunchbspc", buf, sizeof(buf));
-	if (strlen(buf)) trap_BotLibVarSet("autolaunchbspc", "1");
+	if (strlen(buf))
+	{
+		trap_BotLibVarSet("autolaunchbspc", "1");
+	}
 	//
 	trap_Cvar_VariableStringBuffer("g_gametype", buf, sizeof(buf));
-	if (!strlen(buf)) strcpy(buf, "0");
+	if (!strlen(buf))
+	{
+		strcpy(buf, "0");
+	}
 	trap_BotLibVarSet("g_gametype", buf);
 
 	trap_Cvar_VariableStringBuffer("bot_developer", buf, sizeof(buf));
-	if (!strlen(buf)) strcpy(buf, "0");
+	if (!strlen(buf))
+	{
+		strcpy(buf, "0");
+	}
 	trap_BotLibVarSet("bot_developer", buf);
 	//log file
 	trap_Cvar_VariableStringBuffer("bot_developer", buf, sizeof(buf));
-	if (!strlen(buf)) strcpy(buf, "0");
+	if (!strlen(buf))
+	{
+		strcpy(buf, "0");
+	}
 	trap_BotLibVarSet("log", buf);
 	//no chatting
 	trap_Cvar_VariableStringBuffer("bot_nochat", buf, sizeof(buf));
-	if (strlen(buf)) trap_BotLibVarSet("nochat", "0");
+	if (strlen(buf))
+	{
+		trap_BotLibVarSet("nochat", "0");
+	}
 	//forced clustering calculations
 	trap_Cvar_VariableStringBuffer("forceclustering", buf, sizeof(buf));
-	if (strlen(buf)) trap_BotLibVarSet("forceclustering", buf);
+	if (strlen(buf))
+	{
+		trap_BotLibVarSet("forceclustering", buf);
+	}
 	//forced reachability calculations
 	trap_Cvar_VariableStringBuffer("forcereachability", buf, sizeof(buf));
-	if (strlen(buf)) trap_BotLibVarSet("forcereachability", buf);
+	if (strlen(buf))
+	{
+		trap_BotLibVarSet("forcereachability", buf);
+	}
 	//force writing of AAS to file
 	trap_Cvar_VariableStringBuffer("forcewrite", buf, sizeof(buf));
-	if (strlen(buf)) trap_BotLibVarSet("forcewrite", buf);
+	if (strlen(buf))
+	{
+		trap_BotLibVarSet("forcewrite", buf);
+	}
 	//no AAS optimization
 	trap_Cvar_VariableStringBuffer("nooptimize", buf, sizeof(buf));
-	if (strlen(buf)) trap_BotLibVarSet("nooptimize", buf);
+	if (strlen(buf))
+	{
+		trap_BotLibVarSet("nooptimize", buf);
+	}
 	//number of reachabilities to calculate each frame
 	trap_Cvar_VariableStringBuffer("framereachability", buf, sizeof(buf));
-	if (!strlen(buf)) strcpy(buf, "20");
+	if (!strlen(buf))
+	{
+		strcpy(buf, "20");
+	}
 	trap_BotLibVarSet("framereachability", buf);
 	//
 	trap_Cvar_VariableStringBuffer("bot_reloadcharacters", buf, sizeof(buf));
-	if (!strlen(buf)) strcpy(buf, "0");
+	if (!strlen(buf))
+	{
+		strcpy(buf, "0");
+	}
 	trap_BotLibVarSet("bot_reloadcharacters", buf);
 	//base directory
 	trap_Cvar_VariableStringBuffer("fs_basepath", buf, sizeof(buf));
-	if (strlen(buf)) trap_BotLibVarSet("basedir", buf);
+	if (strlen(buf))
+	{
+		trap_BotLibVarSet("basedir", buf);
+	}
 	//game directory
 	trap_Cvar_VariableStringBuffer("fs_game", buf, sizeof(buf));
-	if (strlen(buf)) trap_BotLibVarSet("gamedir", buf);
+	if (strlen(buf))
+	{
+		trap_BotLibVarSet("gamedir", buf);
+	}
 	//cd directory
 	trap_Cvar_VariableStringBuffer("fs_cdpath", buf, sizeof(buf));
-	if (strlen(buf)) trap_BotLibVarSet("cddir", buf);
+	if (strlen(buf))
+	{
+		trap_BotLibVarSet("cddir", buf);
+	}
 	//setup the bot library
 	return trap_BotLibSetup();
 }
@@ -2085,8 +2450,9 @@ int BotInitLibrary(void) {
 BotAISetup
 ==============
 */
-int BotAISetup( int restart ) {
-	int			errnum;
+int BotAISetup(int restart)
+{
+	int errnum;
 
 #ifdef RANDOMIZE
 	srand((unsigned)time(NULL));
@@ -2099,15 +2465,17 @@ int BotAISetup( int restart ) {
 	trap_Cvar_Register(&bot_findgoal, "bot_findgoal", "0", 0);
 
 	//if the game is restarted for a tournament
-	if (restart) {
+	if (restart)
+	{
 		return BLERR_NOERROR;
 	}
 
 	//initialize the bot states
-	memset( botstates, 0, sizeof(botstates) );
+	memset(botstates, 0, sizeof(botstates));
 
 	errnum = BotInitLibrary();
-	if (errnum != BLERR_NOERROR) {
+	if (errnum != BLERR_NOERROR)
+	{
 		return qfalse;
 	}
 	return BLERR_NOERROR;
@@ -2118,21 +2486,26 @@ int BotAISetup( int restart ) {
 BotAIShutdown
 ==============
 */
-int BotAIShutdown( int restart ) {
+int BotAIShutdown(int restart)
+{
 
 	int i;
 
 	//if the game is restarted for a tournament
-	if ( restart ) {
+	if (restart)
+	{
 		//shutdown all the bots in the botlib
-		for (i = 0; i < level.numConnectedClients; i++) {
-			if( botstates[level.sortedClients[i]].inuse ) {
+		for (i = 0; i < level.numConnectedClients; i++)
+		{
+			if (botstates[level.sortedClients[i]].inuse)
+			{
 				BotAIShutdownClient(botstates[level.sortedClients[i]].client);
 			}
 		}
 		//don't shutdown the bot library
 	}
-	else {
+	else
+	{
 		trap_BotLibShutdown();
 	}
 	return qtrue;
@@ -2205,8 +2578,9 @@ gentity_t *BotCheckBotGameEntity( gentity_t *ent )
 }
 */
 
-gentity_t *BotFindEntity( gentity_t *from, int fieldofs, char *match ) {
-	return G_Find( from, fieldofs, match );
+gentity_t *BotFindEntity(gentity_t *from, int fieldofs, char *match)
+{
+	return G_Find(from, fieldofs, match);
 }
 
 
@@ -2221,7 +2595,7 @@ Get the bot state of a named bot
 bot_state_t *FindBotByName
 (
 	// Name of the bot to look up
-	char * botName
+	char *botName
 )
 {
 	// Pointer to another bot that might be specified in the scripting
@@ -2231,10 +2605,11 @@ bot_state_t *FindBotByName
 	int botNum = 0;
 
 	// Loop through all the bots
-	for (botNum=0; botNum<level.maxclients; botNum++) 
+	for (botNum = 0; botNum < level.maxclients; botNum++)
 	{
 		// RF, make sure it's still in use
-		if (!botstates[botNum].inuse) {
+		if (!botstates[botNum].inuse)
+		{
 			continue;
 		}
 
@@ -2257,10 +2632,12 @@ bot_state_t *FindBotByName
 } // bot_state_t *FindBotByName...
 
 
-gentity_t *BotGetEntity( int entityNum ){
+gentity_t *BotGetEntity(int entityNum)
+{
 #ifdef _DEBUG
-	if((entityNum < 0) || (entityNum >= MAX_GENTITIES)) {
-		G_Printf( "^1BotGetEntity: Invalid entityNum\n" );
+	if ((entityNum < 0) || (entityNum >= MAX_GENTITIES))
+	{
+		G_Printf("^1BotGetEntity: Invalid entityNum\n");
 		return NULL;
 	}
 #endif // _DEBUG
@@ -2274,7 +2651,8 @@ gentity_t *BotGetEntity( int entityNum ){
 //	Used to speed up searching of common entities
 //	!!! NOTE: must be in synch with enum list in ai_main.h
 
-char *botStaticEntityStrings[NUM_BOTSTATICENTITY] = {
+char *botStaticEntityStrings[NUM_BOTSTATICENTITY] =
+{
 	"team_WOLF_checkpoint",
 	"trigger_flagonly",
 	"misc_mg42",
@@ -2300,21 +2678,28 @@ gentity_t *botStaticEntityList[NUM_BOTSTATICENTITY];
 BotBuildStaticEntityCache
 ===============
 */
-void BotBuildStaticEntityCache(void) {
-	int i;
+void BotBuildStaticEntityCache(void)
+{
+	int       i;
 	gentity_t *trav, *p;
 	//
-	memset(botStaticEntityList, 0, sizeof(botStaticEntityList) );
+	memset(botStaticEntityList, 0, sizeof(botStaticEntityList));
 	//
-	for(i = 0; i < NUM_BOTSTATICENTITY; i++) {
+	for (i = 0; i < NUM_BOTSTATICENTITY; i++)
+	{
 		trav = NULL;
-		while ((trav = G_Find( trav, FOFS(classname), botStaticEntityStrings[i] ))) {
+		while ((trav = G_Find(trav, FOFS(classname), botStaticEntityStrings[i])))
+		{
 			trav->botNextStaticEntity = NULL;
-			p = botStaticEntityList[i];
-			if (!p) {
+			p                         = botStaticEntityList[i];
+			if (!p)
+			{
 				botStaticEntityList[i] = trav;
-			} else {	// add trav to the end of the list
-				while (p->botNextStaticEntity) p = p->botNextStaticEntity;
+			}
+			else        // add trav to the end of the list
+			{
+				while (p->botNextStaticEntity)
+					p = p->botNextStaticEntity;
 				p->botNextStaticEntity = trav;
 			}
 		}
@@ -2328,20 +2713,24 @@ void BotBuildStaticEntityCache(void) {
 BotFindNextStaticEntity
 ================
 */
-gentity_t *BotFindNextStaticEntity( gentity_t *start, botStaticEntityEnum_t entityEnum ) {
+gentity_t *BotFindNextStaticEntity(gentity_t *start, botStaticEntityEnum_t entityEnum)
+{
 	gentity_t *trav;
 
 	// Gordon: give stuff time to spawn, just in case
-	if(level.time - level.startTime < FRAMETIME*5) {
+	if (level.time - level.startTime < FRAMETIME * 5)
+	{
 		return NULL;
 	}
 
-	if(!level.initStaticEnts) {
+	if (!level.initStaticEnts)
+	{
 		BotBuildStaticEntityCache();
 	}
 
 	trav = botStaticEntityList[entityEnum];
-	while (trav && start && trav->s.number <= start->s.number) {
+	while (trav && start && trav->s.number <= start->s.number)
+	{
 		trav = trav->botNextStaticEntity;
 	}
 
@@ -2353,22 +2742,27 @@ gentity_t *BotFindNextStaticEntity( gentity_t *start, botStaticEntityEnum_t enti
 BotFindEntityForName
 ===============
 */
-gentity_t *BotFindEntityForName( char *name )
+gentity_t *BotFindEntityForName(char *name)
 {
 	gentity_t *trav;
-	int i;
+	int       i;
 
-	for (trav = g_entities, i = 0; i < level.maxclients; i++, trav++ ) {
-		if (!trav->inuse) {
+	for (trav = g_entities, i = 0; i < level.maxclients; i++, trav++ )
+	{
+		if (!trav->inuse)
+		{
 			continue;
 		}
-		if (!trav->client) {
+		if (!trav->client)
+		{
 			continue;
 		}
-		if (!trav->aiName) {
+		if (!trav->aiName)
+		{
 			continue;
 		}
-		if (Q_stricmp( trav->aiName, name )) {
+		if (Q_stricmp(trav->aiName, name))
+		{
 			continue;
 		}
 		return trav;
@@ -2383,8 +2777,10 @@ BotSinglePlayer
 */
 qboolean BotSinglePlayer()
 {
-	if (g_gametype.integer == GT_SINGLE_PLAYER) 
+	if (g_gametype.integer == GT_SINGLE_PLAYER)
+	{
 		return qtrue;
+	}
 	//
 	return qfalse;
 }
@@ -2396,8 +2792,10 @@ BotSinglePlayer
 */
 qboolean BotCoop()
 {
-	if (g_gametype.integer == GT_COOP) 
+	if (g_gametype.integer == GT_COOP)
+	{
 		return qtrue;
+	}
 	//
 	return qfalse;
 }
@@ -2410,20 +2808,24 @@ G_SetAASBlockingEntity
   Adjusts routing so AI knows it can't move through this entity
 ===============
 */
-void G_SetAASBlockingEntity( gentity_t *ent, int blocking ) {
+void G_SetAASBlockingEntity(gentity_t *ent, int blocking)
+{
 	// Gordon: short circuit this as we dont need it
 	return;
 
-	if (blocking > 0) {
+	if (blocking > 0)
+	{
 		// always add first flag if we are not clearing the flags
 		blocking |= 1;
 	}
 
 	// if we are not blocking now, and we were previously, always use the same box for removing the blocking areas
-	if( !(blocking&1) ) {
-		if (ent->AASblocking&1) {
+	if (!(blocking & 1))
+	{
+		if (ent->AASblocking & 1)
+		{
 			// turn off old blocking areas
-			trap_AAS_SetAASBlockingEntity( ent->AASblocking_mins, ent->AASblocking_maxs, qfalse );
+			trap_AAS_SetAASBlockingEntity(ent->AASblocking_mins, ent->AASblocking_maxs, qfalse);
 			ent->AASblocking = qfalse;
 		}
 		// we're done
@@ -2431,24 +2833,31 @@ void G_SetAASBlockingEntity( gentity_t *ent, int blocking ) {
 	}
 
 	// if we are currently blocking, and we are being asked to block again, but with a different box, turn off previous blocking
-	if (blocking&1 && ent->AASblocking&1 && (!VectorCompare( ent->r.absmin, ent->AASblocking_mins ) || !VectorCompare( ent->r.absmax, ent->AASblocking_maxs ))) {
+	if (blocking & 1 && ent->AASblocking & 1 && (!VectorCompare(ent->r.absmin, ent->AASblocking_mins) || !VectorCompare(ent->r.absmax, ent->AASblocking_maxs)))
+	{
 		// turn off old blocking areas
-		trap_AAS_SetAASBlockingEntity( ent->AASblocking_mins, ent->AASblocking_maxs, qfalse );
+		trap_AAS_SetAASBlockingEntity(ent->AASblocking_mins, ent->AASblocking_maxs, qfalse);
 	}
 
 	// if we are blocking now and before, and the bounds are the same, ignore
-	if ((blocking == ent->AASblocking) && (VectorCompare( ent->r.absmin, ent->AASblocking_mins ) && VectorCompare( ent->r.absmax, ent->AASblocking_maxs ))) {
+	if ((blocking == ent->AASblocking) && (VectorCompare(ent->r.absmin, ent->AASblocking_mins) && VectorCompare(ent->r.absmax, ent->AASblocking_maxs)))
+	{
 		return;
 	}
 
 	//
 	// determine mover status
 	//
-	if(ent->s.eType == ET_EXPLOSIVE ) {
+	if (ent->s.eType == ET_EXPLOSIVE)
+	{
 		blocking |= BLOCKINGFLAG_MOVER;
-	} else if( ent->s.eType == ET_CONSTRUCTIBLE && !(ent->spawnflags & 1024)) {
-		if( ent->spawnflags & 128 ) {	// must be blocking
-			if( !(ent->spawnflags & 512) ) {	// not ignored by AAS
+	}
+	else if (ent->s.eType == ET_CONSTRUCTIBLE && !(ent->spawnflags & 1024))
+	{
+		if (ent->spawnflags & 128)      // must be blocking
+		{
+			if (!(ent->spawnflags & 512))       // not ignored by AAS
+			{
 				blocking |= BLOCKINGFLAG_MOVER;
 			}
 		}
@@ -2458,10 +2867,11 @@ void G_SetAASBlockingEntity( gentity_t *ent, int blocking ) {
 	// set the new blocking
 	//
 	ent->AASblocking = (blocking & ~BLOCKINGFLAG_MOVER);
-	trap_AAS_SetAASBlockingEntity( ent->r.absmin, ent->r.absmax, blocking );
-	if( blocking ) {
-		VectorCopy( ent->r.absmin, ent->AASblocking_mins );
-		VectorCopy( ent->r.absmax, ent->AASblocking_maxs );
+	trap_AAS_SetAASBlockingEntity(ent->r.absmin, ent->r.absmax, blocking);
+	if (blocking)
+	{
+		VectorCopy(ent->r.absmin, ent->AASblocking_mins);
+		VectorCopy(ent->r.absmax, ent->AASblocking_maxs);
 	}
 }
 
@@ -2472,24 +2882,30 @@ BotRecordTeamDeath
   Allows the AAS to make dangerous routes more costly, therefore bots will avoid them when possible
 ===================
 */
-void BotRecordTeamDeath( int client )
+void BotRecordTeamDeath(int client)
 {
 	vec3_t org;
-	int area, travelflags, teamCount, team;
+	int    area, travelflags, teamCount, team;
 	//
 //RF, disabling for now, seems to cause routing loops
-return;
+	return;
 
-	if (G_IsSinglePlayerGame()) return;
+	if (G_IsSinglePlayerGame())
+	{
+		return;
+	}
 	//
-	VectorCopy( BotGetOrigin( client ), org );
-	area = BotGetArea( client );
-	if (!area) return;
-	travelflags = BotTravelFlagsForClient( client );
-	team = level.clients[client].sess.sessionTeam;
-	teamCount = TeamCount( -1, team );
+	VectorCopy(BotGetOrigin(client), org);
+	area = BotGetArea(client);
+	if (!area)
+	{
+		return;
+	}
+	travelflags = BotTravelFlagsForClient(client);
+	team        = level.clients[client].sess.sessionTeam;
+	teamCount   = TeamCount(-1, team);
 	//
-	trap_AAS_RecordTeamDeathArea( org, area, team, teamCount, travelflags );
+	trap_AAS_RecordTeamDeathArea(org, area, team, teamCount, travelflags);
 }
 
 
@@ -2500,10 +2916,10 @@ BotRecordAttack
   src has just attacked dest
 ===============
 */
-void BotRecordAttack( int src, int dest )
+void BotRecordAttack(int src, int dest)
 {
 	g_entities[dest].botLastAttackedTime = level.time;
-	g_entities[dest].botLastAttackedEnt = src;
+	g_entities[dest].botLastAttackedEnt  = src;
 }
 
 
@@ -2524,63 +2940,68 @@ void BotDebug(int clientNum)
 
 	bs = &botstates[clientNum];
 
-	if( bs->inuse ) {
+	if (bs->inuse)
+	{
 		// TAT - print more detailed info for follow leader
 		if (bs->leader > -1)
-			trap_Cvar_Set( "bot_debug_curAINode", va("%s: leader = %i tagent = %i", bs->ainodeText, bs->leader, bs->leader_tagent));
+		{
+			trap_Cvar_Set("bot_debug_curAINode", va("%s: leader = %i tagent = %i", bs->ainodeText, bs->leader, bs->leader_tagent));
+		}
 		else
-		trap_Cvar_Set( "bot_debug_curAINode", bs->ainodeText);
+		{
+			trap_Cvar_Set("bot_debug_curAINode", bs->ainodeText);
+		}
 		switch (bs->alertState)
 		{
-			case AISTATE_RELAXED:
-				trap_Cvar_Set( "bot_debug_alertState", "RELAXED");
-				break;
-			case AISTATE_QUERY:
-				trap_Cvar_Set( "bot_debug_alertState", "QUERY");
-				break;
-			case AISTATE_ALERT:
-				trap_Cvar_Set( "bot_debug_alertState", "ALERT");
-				break;
-			case AISTATE_COMBAT:
-				trap_Cvar_Set( "bot_debug_alertState", "COMBAT");
-				break;
-			default:
-				trap_Cvar_Set( "bot_debug_alertState", "ERROR bad state");
-				break;
+		case AISTATE_RELAXED:
+			trap_Cvar_Set("bot_debug_alertState", "RELAXED");
+			break;
+		case AISTATE_QUERY:
+			trap_Cvar_Set("bot_debug_alertState", "QUERY");
+			break;
+		case AISTATE_ALERT:
+			trap_Cvar_Set("bot_debug_alertState", "ALERT");
+			break;
+		case AISTATE_COMBAT:
+			trap_Cvar_Set("bot_debug_alertState", "COMBAT");
+			break;
+		default:
+			trap_Cvar_Set("bot_debug_alertState", "ERROR bad state");
+			break;
 		}
 
 		{
-			playerState_t	*ps = &bs->cur_ps;
-			animModelInfo_t	*animModelInfo = BG_GetCharacterForPlayerstate( ps )->animModelInfo;
-			trap_Cvar_Set( "bot_debug_anim", va( "leg-%s torso-%s", 
-							animModelInfo->animations[ps->legsAnim & ~ANIM_TOGGLEBIT]->name,
-							animModelInfo->animations[ps->torsoAnim & ~ANIM_TOGGLEBIT]->name ) );
+			playerState_t   *ps            = &bs->cur_ps;
+			animModelInfo_t *animModelInfo = BG_GetCharacterForPlayerstate(ps)->animModelInfo;
+			trap_Cvar_Set("bot_debug_anim", va("leg-%s torso-%s",
+			                                   animModelInfo->animations[ps->legsAnim & ~ANIM_TOGGLEBIT]->name,
+			                                   animModelInfo->animations[ps->torsoAnim & ~ANIM_TOGGLEBIT]->name));
 		}
 
-		trap_Cvar_Set( "bot_debug_pos", (va("(%f,%f,%f)", bs->origin[0], bs->origin[1], bs->origin[2])));
-		
+		trap_Cvar_Set("bot_debug_pos", (va("(%f,%f,%f)", bs->origin[0], bs->origin[1], bs->origin[2])));
+
 		// curr script function handled differently, so nothing here about it
 
 		Com_sprintf(buf, sizeof(buf), "%i", BotGetMovementAutonomyLevel(bs));
-		trap_Cvar_Set( "bot_debug_moveAut", buf);
+		trap_Cvar_Set("bot_debug_moveAut", buf);
 
 		// TAT 12/9/2002 - Throwing some extra info into the cover spot display
 		{
 			g_serverEntity_t *coverSpot = GetServerEntity(bs->seekCoverSpot);
 			Com_sprintf(buf, sizeof(buf), "%i(%s)  Enemy = %i", bs->seekCoverSpot, coverSpot ? coverSpot->name : "", bs->enemy);
-		trap_Cvar_Set( "bot_debug_cover_spot", buf);
-	}
+			trap_Cvar_Set("bot_debug_cover_spot", buf);
+		}
 	}
 	else
 	{
-		trap_Cvar_Set( "bot_debug_curAINode", "NULL");
-		trap_Cvar_Set( "bot_debug_alertState", "NULL");
-		trap_Cvar_Set( "bot_debug_pos", "(--,--,--)");
-		trap_Cvar_Set( "bot_debug_scriptFunc", "NULL");
-		trap_Cvar_Set( "bot_debug_weapAut", "NULL");
-		trap_Cvar_Set( "bot_debug_moveAut", "NULL");
-		trap_Cvar_Set( "bot_debug_cover_spot", "NULL");
-		trap_Cvar_Set( "bot_debug_anim", "NULL");
+		trap_Cvar_Set("bot_debug_curAINode", "NULL");
+		trap_Cvar_Set("bot_debug_alertState", "NULL");
+		trap_Cvar_Set("bot_debug_pos", "(--,--,--)");
+		trap_Cvar_Set("bot_debug_scriptFunc", "NULL");
+		trap_Cvar_Set("bot_debug_weapAut", "NULL");
+		trap_Cvar_Set("bot_debug_moveAut", "NULL");
+		trap_Cvar_Set("bot_debug_cover_spot", "NULL");
+		trap_Cvar_Set("bot_debug_anim", "NULL");
 	}
 }
 
@@ -2600,10 +3021,13 @@ void GetBotAutonomies(int clientNum, int *weapAutonomy, int *moveAutonomy)
 
 	bs = &botstates[clientNum];
 
-	if (bs->inuse) {
+	if (bs->inuse)
+	{
 		// use +1 so we can have 0 mean not found
 		*moveAutonomy = BotGetMovementAutonomyLevel(bs) + 1;
-	} else {
+	}
+	else
+	{
 		*moveAutonomy = 0;
 	}
 }
@@ -2623,8 +3047,8 @@ void GetBotAmmo(int clientNum, int *weapon, int *ammo, int *ammoclip)
 
 	ent = &g_entities[clientNum];
 
-	*weapon = ent->client->ps.weapon;
-	*ammo = ent->client->ps.ammo[BG_FindAmmoForWeapon(*weapon)];
+	*weapon   = ent->client->ps.weapon;
+	*ammo     = ent->client->ps.ammo[BG_FindAmmoForWeapon(*weapon)];
 	*ammoclip = ent->client->ps.ammoclip[BG_FindClipForWeapon(*weapon)];
 }
 
@@ -2637,20 +3061,22 @@ void BotSetIdealViewAngles(int clientNum, vec3_t angle)
 	bot_state_t *bs;
 
 	bs = &botstates[clientNum];
-	if (bs->inuse) {
-		VectorCopy( angle, bs->ideal_viewangles );
+	if (bs->inuse)
+	{
+		VectorCopy(angle, bs->ideal_viewangles);
 	}
 }
 
 // TAT 1/14/2003 - init the bot's movement autonomy pos to it's current position
-void BotInitMovementAutonomyPos(gentity_t *bot) {
-	bot_state_t* bs = &botstates[bot->s.number];
+void BotInitMovementAutonomyPos(gentity_t *bot)
+{
+	bot_state_t *bs = &botstates[bot->s.number];
 
-	if( bs->inuse )
+	if (bs->inuse)
 	{
 		// TAT 1/14/2003 - set the autonomy position to the current position
-		VectorCopy( bot->client->ps.origin, bs->script.movementAutonomyPos );
-		VectorCopy( bot->client->ps.origin, bs->movementAutonomyPos );
+		VectorCopy(bot->client->ps.origin, bs->script.movementAutonomyPos);
+		VectorCopy(bot->client->ps.origin, bs->movementAutonomyPos);
 	}
 }
 
@@ -2659,14 +3085,33 @@ void BotInitMovementAutonomyPos(gentity_t *bot) {
 BotDebugViewClient
 ===================
 */
-void BotDebugViewClient( int client ) {
+void BotDebugViewClient(int client)
+{
 	static int lastChange;
-	if (bot_debug.integer != 10) return;
-	if (!g_cheats.integer) return;
-	if (lastChange < level.time && lastChange > level.time - 5000) return;
-	if (level.clients[0].pers.connected != CON_CONNECTED) return;
-	if (g_entities[0].r.svFlags & SVF_BOT) return;
-	if (level.clients[0].sess.sessionTeam != TEAM_SPECTATOR) return;
+	if (bot_debug.integer != 10)
+	{
+		return;
+	}
+	if (!g_cheats.integer)
+	{
+		return;
+	}
+	if (lastChange < level.time && lastChange > level.time - 5000)
+	{
+		return;
+	}
+	if (level.clients[0].pers.connected != CON_CONNECTED)
+	{
+		return;
+	}
+	if (g_entities[0].r.svFlags & SVF_BOT)
+	{
+		return;
+	}
+	if (level.clients[0].sess.sessionTeam != TEAM_SPECTATOR)
+	{
+		return;
+	}
 	//
 	level.clients[0].sess.spectatorClient = client;
 }
