@@ -489,12 +489,12 @@ void	G_TouchTriggers( gentity_t *ent ) {
 			if (hit->s.teamNum != ent->client->sess.sessionTeam) {
 				vec3_t eye, direction, facing;
 				float distance;
+				AngleVectors(ent->client->ps.viewangles, facing, NULL, NULL);
 				VectorCopy(ent->client->ps.origin, eye);
 				eye[2] += ent->client->ps.viewheight;
 				VectorSubtract(hit->r.currentOrigin, eye, direction);
 				distance = VectorNormalize(direction);
-				AngleVectors(ent->client->ps.viewangles, facing, NULL, NULL);
-				if (DotProduct(facing, direction) > 0.707f && distance < 72.0f) {
+				if (DotProduct(facing, direction) > 0.707 && distance < 72.0f) {
 					ent->client->ps.serverCursorHint = HINT_DISARM;
 					ent->client->ps.serverCursorHintVal = 0;
 					ent->client->tceDefuseActive = qtrue;
