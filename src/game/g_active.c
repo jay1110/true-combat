@@ -935,10 +935,12 @@ void ClientEvents( gentity_t *ent, int oldEventSequence ) {
 				G_Script_ScriptEvent(objective, "activated", "");
 			} else {
 				G_Script_ScriptEvent(objective, "completed", "");
-				if (client->sess.sessionTeam == TEAM_AXIS) {
+				if (ent->client->sess.sessionTeam == TEAM_AXIS) {
 					G_Script_ScriptEvent(objective, "completed", "terrorists");
 					if (objective->parent) objective->parent->spawnflags = (objective->parent->spawnflags & ~1) | 2;
-				} else if (client->sess.sessionTeam == TEAM_ALLIES) {
+				}
+				/* The script callback may change the player's team. */
+				if (ent->client->sess.sessionTeam == TEAM_ALLIES) {
 					G_Script_ScriptEvent(objective, "completed", "specops");
 					if (objective->parent) objective->parent->spawnflags = (objective->parent->spawnflags | 1) & ~2;
 				}
