@@ -3024,64 +3024,32 @@ void SpawnPlatTrigger(gentity_t *ent)
 
 #if defined(_MSC_VER) && defined(_M_IX86)
 	{
-		float        *platMins = ent->r.mins, *platMaxs = ent->r.maxs, *platPos = ent->pos1;
-		const float  platInset = 33.0f, platHeight = 8.0f, platOne = 1.0f;
-		const double platHalf = 0.5;
-		/* TC200715e8..6c6: Y endpoints stay on the x87 stack. */
-		__asm {
-			mov esi, platMins
-			mov edi, platMaxs
-			mov ecx, platPos
-			fld dword ptr[esi]
-			fadd dword ptr[ecx]
-			fadd platInset
-			fstp dword ptr tmin[0]
-			fld dword ptr[esi + 4]
-			fadd dword ptr[ecx + 4]
-			fadd platInset
-			fld dword ptr[esi + 8]
-			fadd dword ptr[ecx + 8]
-			fstp dword ptr tmin[8]
-			fld dword ptr[ecx]
-			fadd dword ptr[edi]
-			fsub platInset
-			fstp dword ptr tmax[0]
-			fld dword ptr[ecx + 4]
-			fadd dword ptr[edi + 4]
-			fsub platInset
-			fst dword ptr tmax[4]
-			fld dword ptr[edi + 8]
-			fadd dword ptr[ecx + 8]
-			fadd platHeight
-			fstp dword ptr tmax[8]
-			fld dword ptr tmax[0]
-			fcomp dword ptr tmin[0]
-			fnstsw ax
-			test ah, 41h
-			jz plat_x_ready
-			fld dword ptr[esi]
-			fadd dword ptr[edi]
-			fmul platHalf
-			fadd dword ptr[ecx]
-			fst dword ptr tmin[0]
-			fadd platOne
-			fstp dword ptr tmax[0]
-plat_x_ready:
-			fcomp st(1)
-			fnstsw ax
-			test ah, 41h
-			jz plat_y_ready
-			fstp st(0)
-			fld dword ptr[esi + 4]
-			fadd dword ptr[edi + 4]
-			fmul platHalf
-			fadd dword ptr[ecx + 4]
-			fld st(0)
-			fadd platOne
-			fstp dword ptr tmax[4]
-plat_y_ready:
-			fstp dword ptr tmin[4]
+		long double lowY, highY, midpoint;
+
+		tmin[0] = (float)((long double)ent->r.mins[0] + ent->pos1[0] + 33.0L);
+		lowY = (long double)ent->r.mins[1] + ent->pos1[1] + 33.0L;
+		tmin[2] = (float)((long double)ent->r.mins[2] + ent->pos1[2]);
+		tmax[0] = (float)((long double)ent->pos1[0] + ent->r.maxs[0] - 33.0L);
+		highY = (long double)ent->pos1[1] + ent->r.maxs[1] - 33.0L;
+		tmax[1] = (float)highY;
+		tmax[2] = (float)((long double)ent->r.maxs[2] + ent->pos1[2] + 8.0L);
+
+		/* X compares stored endpoints; Y compares the retained endpoints.
+		 * Both native branches also repair unordered endpoint comparisons. */
+		if (!(tmax[0] > tmin[0]))
+		{
+			midpoint = ((long double)ent->r.mins[0] + ent->r.maxs[0]) * 0.5L;
+			midpoint += ent->pos1[0];
+			tmin[0] = (float)midpoint;
+			tmax[0] = (float)(midpoint + 1.0L);
 		}
+		if (!(highY > lowY))
+		{
+			lowY = ((long double)ent->r.mins[1] + ent->r.maxs[1]) * 0.5L;
+			lowY += ent->pos1[1];
+			tmax[1] = (float)(lowY + 1.0L);
+		}
+		tmin[1] = (float)lowY;
 	}
 #else
 	tmin[0] = ent->pos1[0] + ent->r.mins[0] + 33;
@@ -3143,19 +3111,7 @@ void SP_func_plat(gentity_t *ent)
 
 	if (!G_SpawnFloat("height", "0", &height))
 	{
-#if defined(_MSC_VER) && defined(_M_IX86)
-		float *platTop = &ent->r.maxs[2], *platBottom = &ent->r.mins[2];
-		__asm {
-			mov ecx, platTop
-			fld dword ptr[ecx]
-			mov ecx, platBottom
-			fsub dword ptr[ecx]
-			fsub dword ptr lip
-			fstp dword ptr height
-		}
-#else
 		height = (ent->r.maxs[2] - ent->r.mins[2]) - lip;
-#endif
 	}
 
 	// pos1 is the rest (bottom) position, pos2 is the top
@@ -3347,27 +3303,12 @@ void Reached_Train(gentity_t *ent)
 
 	// if the path_corner has a speed, use that
 #if defined(_MSC_VER) && defined(_M_IX86)
+	/* Native C3 selects the base speed for zero or unordered corner speed. */
+	speed = TCE_FloatIsZeroOrNaN(next->speed) ? ent->speed : next->speed;
+	/* Native C0 also clamps an unordered selected speed to one. */
+	if (!(speed >= 1.0f))
 	{
-		float       *trainCornerSpeed = &next->speed, *trainBaseSpeed = &ent->speed;
-		const float trainZero = 0.0f, trainOne = 1.0f;
-		__asm {
-			mov ecx, trainCornerSpeed
-			fld dword ptr[ecx]
-			fcomp trainZero
-			fnstsw ax
-			test ah, 40h
-			jz train_use_corner
-			mov ecx, trainBaseSpeed
-train_use_corner:
-			fld dword ptr[ecx]
-			fst speed
-			fcomp trainOne
-			fnstsw ax
-			test ah, 1
-			jz train_speed_ready
-			mov dword ptr speed, 03f800000h
-train_speed_ready:
-		}
+		speed = 1.0f;
 	}
 #else
 	if (next->speed)
@@ -3388,32 +3329,8 @@ train_speed_ready:
 	// calculate duration
 	VectorSubtract(ent->pos2, ent->pos1, move);
 #if defined(_MSC_VER) && defined(_M_IX86)
-	{
-		float          *trainMove        = move;
-		const float    trainMilliseconds = 1000.0f;
-		unsigned short trainCW, trainTruncCW;
-		__int64        trainInteger;
-		int            trainDuration;
-		__asm {
-			push trainMove
-			call VectorLength
-			add esp, 4
-			fmul trainMilliseconds
-			fdiv speed
-			fwait
-			fnstcw trainCW
-			fwait
-			mov ax, trainCW
-			or ax, 0c00h
-			mov trainTruncCW, ax
-			fldcw trainTruncCW
-			fistp qword ptr trainInteger
-			fldcw trainCW
-			mov eax, dword ptr trainInteger
-			mov trainDuration, eax
-		}
-		ent->s.pos.trDuration = trainDuration;
-	}
+	ent->s.pos.trDuration = TCE_TruncateNativeInteger(
+	    (long double)VectorLength(move) * 1000.0L / speed);
 #else
 	trainLength           = VectorLength(move);
 	ent->s.pos.trDuration = trainLength * 1000 / speed;
@@ -3429,47 +3346,15 @@ train_speed_ready:
 	// if there is a "wait" value on the target, don't start moving yet
 	/* Original C3-only zero gate excludes unordered waits as well. */
 #if defined(_MSC_VER) && defined(_M_IX86)
-	{
-		float          *trainWait = &next->wait;
-		const float    trainZero  = 0.0f;
-		unsigned short trainStatus;
-		__asm {
-			mov ecx, trainWait
-			fld dword ptr[ecx]
-			fcomp trainZero
-			fnstsw trainStatus
-		}
-		trainHasWait = !(trainStatus & 0x4000);
-	}
+	trainHasWait = !TCE_FloatIsZeroOrNaN(next->wait);
 #else
 	trainHasWait = next->wait < 0.0f || next->wait > 0.0f;
 #endif
 	if (trainHasWait)
 	{
 #if defined(_MSC_VER) && defined(_M_IX86)
-		float          *trainWait        = &next->wait;
-		const float    trainMilliseconds = 1000.0f;
-		int            trainNow = level.time, trainNextThink;
-		unsigned short trainCW, trainTruncCW;
-		__int64        trainInteger;
-		__asm {
-			mov ecx, trainWait
-			fld dword ptr[ecx]
-			fmul trainMilliseconds
-			fiadd trainNow
-			fwait
-			fnstcw trainCW
-			fwait
-			mov ax, trainCW
-			or ax, 0c00h
-			mov trainTruncCW, ax
-			fldcw trainTruncCW
-			fistp qword ptr trainInteger
-			fldcw trainCW
-			mov eax, dword ptr trainInteger
-			mov trainNextThink, eax
-		}
-		ent->nextthink = trainNextThink;
+		ent->nextthink = TCE_TruncateNativeInteger(
+		    (long double)next->wait * 1000.0L + level.time);
 #else
 		ent->nextthink = level.time + next->wait * 1000;
 #endif
@@ -3767,18 +3652,7 @@ void SP_func_train(gentity_t *self)
 	}
 
 #if defined(_MSC_VER) && defined(_M_IX86)
-	{
-		float          *trainSpeed = &self->speed;
-		const float    trainZero   = 0.0f;
-		unsigned short trainStatus;
-		__asm {
-			mov ecx, trainSpeed
-			fld dword ptr[ecx]
-			fcomp trainZero
-			fnstsw trainStatus
-		}
-		trainDefaultSpeed = (trainStatus & 0x4000) != 0;
-	}
+	trainDefaultSpeed = TCE_FloatIsZeroOrNaN(self->speed);
 #else
 	trainDefaultSpeed = !(self->speed < 0.0f || self->speed > 0.0f);
 #endif
@@ -3834,7 +3708,7 @@ void Reached_Train_rotating(gentity_t *ent)
 	vec3_t    move;
 	int       trainHasWait;
 #if defined(_MSC_VER) && defined(_M_IX86)
-	unsigned char rotateFrames80[10];
+	long double frames;
 #else
 	float trainLength;
 	float frames;
@@ -3856,27 +3730,10 @@ void Reached_Train_rotating(gentity_t *ent)
 	VectorCopy(next->nextTrain->s.origin, ent->pos2);
 
 #if defined(_MSC_VER) && defined(_M_IX86)
+	speed = TCE_FloatIsZeroOrNaN(next->speed) ? ent->speed : next->speed;
+	if (!(speed >= 1.0f))
 	{
-		float       *trainCornerSpeed = &next->speed, *trainBaseSpeed = &ent->speed;
-		const float trainZero = 0.0f, trainOne = 1.0f;
-		__asm {
-			mov ecx, trainCornerSpeed
-			fld dword ptr[ecx]
-			fcomp trainZero
-			fnstsw ax
-			test ah, 40h
-			jz rotate_use_corner
-			mov ecx, trainBaseSpeed
-rotate_use_corner:
-			fld dword ptr[ecx]
-			fst speed
-			fcomp trainOne
-			fnstsw ax
-			test ah, 1
-			jz rotate_speed_ready
-			mov dword ptr speed, 03f800000h
-rotate_speed_ready:
-		}
+		speed = 1.0f;
 	}
 #else
 	if (next->speed)
@@ -3902,44 +3759,11 @@ rotate_speed_ready:
 	VectorSubtract(ent->pos2, ent->pos1, move);
 #if defined(_MSC_VER) && defined(_M_IX86)
 	{
-		float          *trainMove        = move;
-		float          *rotateDuration   = &next->duration;
-		const float    rotateZero        = 0.0f;
-		const float    trainMilliseconds = 1000.0f;
-		unsigned short trainCW, trainTruncCW;
-		__int64        trainInteger;
-		int            trainDuration;
-		__asm {
-			push trainMove
-			call VectorLength
-			add esp, 4
-			mov ecx, rotateDuration
-			fld dword ptr[ecx]
-			fcomp rotateZero
-			fnstsw ax
-			test ah, 40h
-			jnz rotate_use_distance
-			fstp st(0)
-			fld dword ptr[ecx]
-			fmul trainMilliseconds
-			jmp rotate_duration_ready
-rotate_use_distance:
-			fmul trainMilliseconds
-			fdiv speed
-rotate_duration_ready:
-			fwait
-			fnstcw trainCW
-			fwait
-			mov ax, trainCW
-			or ax, 0c00h
-			mov trainTruncCW, ax
-			fldcw trainTruncCW
-			fistp qword ptr trainInteger
-			fldcw trainCW
-			mov eax, dword ptr trainInteger
-			mov trainDuration, eax
-		}
-		ent->s.pos.trDuration = trainDuration;
+		long double length = VectorLength(move);
+		long double duration = TCE_FloatIsZeroOrNaN(next->duration)
+		                     ? length * 1000.0L / speed
+		                     : (long double)next->duration * 1000.0L;
+		ent->s.pos.trDuration = TCE_TruncateNativeInteger(duration);
 	}
 #else
 	trainLength           = VectorLength(move);
@@ -3947,25 +3771,10 @@ rotate_duration_ready:
 #endif
 
 #if defined(_MSC_VER) && defined(_M_IX86)
+	frames = floor((double)(ent->s.pos.trDuration / 100));
+	if (frames == 0.0L)
 	{
-		int         rotateFrameInteger = ent->s.pos.trDuration / 100;
-		const float rotateZero = 0.0f, rotateMinimum = 0.001f;
-		double(__cdecl * rotateFloorCall)(double) = floor;
-		__asm {
-			sub esp, 8
-			fild rotateFrameInteger
-			fstp qword ptr[esp]
-			call dword ptr rotateFloorCall
-			add esp, 8
-			fcom rotateZero
-			fnstsw ax
-			test ah, 40h
-			jz rotate_frames_ready
-			fstp st(0)
-			fld rotateMinimum
-rotate_frames_ready:
-			fstp tbyte ptr rotateFrames80
-		}
+		frames = (long double)0.001f;
 	}
 #else
 	frames = floor(ent->s.pos.trDuration / 100);
@@ -3993,32 +3802,13 @@ rotate_frames_ready:
 
 #if defined(_MSC_VER) && defined(_M_IX86)
 	{
-		int         rotateIndex;
-		const float rotateZero = 0.0f, rotateTen = 10.0f;
-		for (rotateIndex = 0; rotateIndex < 3; ++rotateIndex)
+		int index;
+		for (index = 0; index < 3; ++index)
 		{
-			int   rotateAxis   = (rotateIndex + 2) % 3;
-			float *rotateValue = &ent->rotate[rotateAxis];
-			float *rotateDelta = &ent->s.apos.trDelta[rotateAxis];
-			__asm {
-				fld tbyte ptr rotateFrames80
-				mov ecx, rotateValue
-				mov edx, rotateDelta
-				fld dword ptr[ecx]
-				fcomp rotateZero
-				fnstsw ax
-				test ah, 40h
-				jnz rotate_axis_zero
-				fld dword ptr[ecx]
-				fdiv st(0), st(1)
-				fmul rotateTen
-				fstp dword ptr[edx]
-				jmp rotate_axis_done
-rotate_axis_zero:
-				mov dword ptr[edx], 0
-rotate_axis_done:
-				fstp st(0)
-			}
+			int axis = (index + 2) % 3;
+			ent->s.apos.trDelta[axis] = TCE_FloatIsZeroOrNaN(ent->rotate[axis])
+			                             ? 0.0f
+			                             : (float)((long double)ent->rotate[axis] / frames * 10.0L);
 		}
 	}
 #else
@@ -4068,47 +3858,15 @@ rotate_axis_done:
 	// if there is a "wait" value on the target, don't start moving yet
 	/* Original C3-only zero gate excludes unordered waits as well. */
 #if defined(_MSC_VER) && defined(_M_IX86)
-	{
-		float          *trainWait = &next->wait;
-		const float    trainZero  = 0.0f;
-		unsigned short trainStatus;
-		__asm {
-			mov ecx, trainWait
-			fld dword ptr[ecx]
-			fcomp trainZero
-			fnstsw trainStatus
-		}
-		trainHasWait = !(trainStatus & 0x4000);
-	}
+	trainHasWait = !TCE_FloatIsZeroOrNaN(next->wait);
 #else
 	trainHasWait = next->wait < 0.0f || next->wait > 0.0f;
 #endif
 	if (trainHasWait)
 	{
 #if defined(_MSC_VER) && defined(_M_IX86)
-		float          *trainWait        = &next->wait;
-		const float    trainMilliseconds = 1000.0f;
-		int            trainNow = level.time, trainNextThink;
-		unsigned short trainCW, trainTruncCW;
-		__int64        trainInteger;
-		__asm {
-			mov ecx, trainWait
-			fld dword ptr[ecx]
-			fmul trainMilliseconds
-			fiadd trainNow
-			fwait
-			fnstcw trainCW
-			fwait
-			mov ax, trainCW
-			or ax, 0c00h
-			mov trainTruncCW, ax
-			fldcw trainTruncCW
-			fistp qword ptr trainInteger
-			fldcw trainCW
-			mov eax, dword ptr trainInteger
-			mov trainNextThink, eax
-		}
-		ent->nextthink = trainNextThink;
+		ent->nextthink = TCE_TruncateNativeInteger(
+		    (long double)next->wait * 1000.0L + level.time);
 #else
 		ent->nextthink = level.time + next->wait * 1000;
 #endif

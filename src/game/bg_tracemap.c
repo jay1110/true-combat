@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include "tce_numeric.h"
 #ifdef CGAMEDLL
 #include "../cgame/cg_local.h"
 #else
@@ -36,26 +37,7 @@ typedef char TraceLoadLayoutGuard[
 		 offsetof(tracemap_t, skyground) == offsetof(tracemap_t, sky) + sizeof(((tracemap_t *) 0)->sky) &&
 		 offsetof(tracemap_t, ground) == offsetof(tracemap_t, skyground) + sizeof(((tracemap_t *) 0)->skyground) &&
 		 offsetof(tracemap_t, world_mins) == offsetof(tracemap_t, ground) + sizeof(((tracemap_t *) 0)->ground)) ? 1 : -1];
-/* Native fields for TC30016b50/30016be0/30016c60. */
-enum
-{
-	TraceQueryLoaded       = offsetof(tracemap_t, loaded),
-	TraceQueryMinX         = offsetof(tracemap_t, world_mins),
-	TraceQueryMinY         = offsetof(tracemap_t, world_mins) + sizeof(float),
-	TraceQueryMaxX         = offsetof(tracemap_t, world_maxs),
-	TraceQueryMaxY         = offsetof(tracemap_t, world_maxs) + sizeof(float),
-	TraceQuerySky          = offsetof(tracemap_t, sky),
-	TraceQuerySkyGround    = offsetof(tracemap_t, skyground),
-	TraceLoadGround        = offsetof(tracemap_t, ground),
-	TraceLoadSkyLast       = offsetof(tracemap_t, sky) + sizeof(((tracemap_t *)0)->sky) - sizeof(((tracemap_t *)0)->sky[0]),
-	TraceLoadSkyGroundLast = offsetof(tracemap_t, skyground) + sizeof(((tracemap_t *)0)->skyground) - sizeof(((tracemap_t *)0)->skyground[0]),
-	TraceLoadGroundLast    = offsetof(tracemap_t, ground) + sizeof(((tracemap_t *)0)->ground) - sizeof(((tracemap_t *)0)->ground[0]),
-	TraceLoadFloor         = offsetof(tracemap_t, groundfloor),
-	TraceLoadCeil          = offsetof(tracemap_t, groundceil)
-};
-static const float traceLoadZero = 0.0f, traceLoadOne = 1.0f;
-static const float traceLoadScale = 254.0f, traceLoadInverseSize = 0.00390625f;
-static const char  traceLoadPath[] = "maps/%s_tracemap.tga";
+
 #endif
 
 void etpro_FinalizeTracemapClamp(int *x, int *y);
@@ -71,211 +53,140 @@ static unsigned int CG_TraceMapBits(const float *traceValue)
 
 static void CG_TraceMapStoreHeight(float *traceDest, const float *traceSource)
 {
-	__asm {
-		mov ecx, traceSource
-		fld dword ptr[ecx]
-		mov ecx, traceDest
-		fstp dword ptr[ecx]
-	}
+	*traceDest = *traceSource;
 }
 
 static unsigned int CG_TraceMapCompare(float traceLeft, float traceRight)
 {
-	unsigned int traceFlags;
-	__asm {
-		fld traceLeft
-		fcomp traceRight
-		fnstsw ax
-		and eax, 4100h
-		mov traceFlags, eax
+	/* x87 C3:C0: unordered=11, equal=10, less=01, greater=00.
+	 * Binary64 also represents every signed 32-bit integer exactly. */
+	float left = (float)traceLeft;
+	float right = (float)traceRight;
+
+	if (left < right)
+	{
+		return 0x0100;
 	}
-	return traceFlags;
+	if (left > right)
+	{
+		return 0;
+	}
+	if (left == right)
+	{
+		return 0x4000;
+	}
+	return 0x4100;
 }
 
 static unsigned int CG_TraceMapCompareInteger(int traceLeft, float traceRight)
 {
-	unsigned int traceFlags;
-	__asm {
-		fild traceLeft
-		fcomp traceRight
-		fnstsw ax
-		and eax, 4100h
-		mov traceFlags, eax
+	/* x87 C3:C0: unordered=11, equal=10, less=01, greater=00.
+	 * Binary64 also represents every signed 32-bit integer exactly. */
+	double left = (double)traceLeft;
+	double right = (double)traceRight;
+
+	if (left < right)
+	{
+		return 0x0100;
 	}
-	return traceFlags;
+	if (left > right)
+	{
+		return 0;
+	}
+	if (left == right)
+	{
+		return 0x4000;
+	}
+	return 0x4100;
 }
 
-/* Store the new trace origin, then compare the unrounded x87 value. */
+/* Store the trace origin before comparing the retained intermediate. */
 static unsigned int CG_TraceMapUpdateZ(float traceValue, float traceStep,
                                        float *traceStored, float traceBound, int traceSubtract)
 {
-	unsigned int traceFlags;
-	__asm {
-		fld traceValue
-		cmp traceSubtract, 0
-		je traceZAdd
-		fsub traceStep
-		jmp traceZStore
-traceZAdd:
-		fadd traceStep
-traceZStore:
-		mov ecx, traceStored
-		fst dword ptr[ecx]
-		fcomp traceBound
-		fnstsw ax
-		and eax, 4100h
-		mov traceFlags, eax
+	long double value = traceSubtract ? (long double)traceValue - traceStep
+	                                 : (long double)traceValue + traceStep;
+
+	/* Compare the retained result, not the binary32 value written to memory. */
+	*traceStored = (float)value;
+	if (value < (long double)traceBound)
+	{
+		return 0x0100;
 	}
-	return traceFlags;
+	if (value > (long double)traceBound)
+	{
+		return 0;
+	}
+	if (value == (long double)traceBound)
+	{
+		return 0x4000;
+	}
+	return 0x4100;
 }
 
 static double CG_TraceMapProgress(int tracePoints)
 {
-	static const float traceFraction = 0.0000152587890625f, tracePercent = 100.0f;
-	double             traceResult;
-	__asm {
-		fild tracePoints
-		fmul traceFraction
-		fmul tracePercent
-		fstp traceResult
-	}
-	return traceResult;
+	/* Both products are exact in binary64 for every signed 32-bit input. */
+	return (double)tracePoints * 0.0000152587890625 * 100.0;
 }
 
 /* Original __ftol returns the low word of a truncating signed 64-bit store. */
 static int CG_TraceMapInteger(float traceValue)
 {
-	unsigned short traceSavedCW, traceTruncateCW;
-	__int64        traceInteger;
-	__asm {
-		fld traceValue
-		fstcw traceSavedCW
-		fwait
-		mov ax, traceSavedCW
-		or ah, 0ch
-		mov traceTruncateCW, ax
-		fldcw traceTruncateCW
-		fistp traceInteger
-		fldcw traceSavedCW
-	}
-	return (int)traceInteger;
+	return TCE_TruncateNativeInteger((long double)traceValue);
 }
 
 /* The original stores the same retained index*step+minimum result twice. */
 static void CG_TraceMapGridCoordinate(int gridIndex, float gridStep, float gridMin,
                                       float *gridStart, float *gridEnd)
 {
-	__asm {
-		fild gridIndex
-		fmul gridStep
-		fadd gridMin
-		mov eax, gridEnd
-		fst dword ptr[eax]
-		mov eax, gridStart
-		fstp dword ptr[eax]
-	}
+	long double coordinate = (long double)gridIndex * gridStep + gridMin;
+
+	*gridEnd = (float)coordinate;
+	*gridStart = (float)coordinate;
 }
 
-/* Original CG_GenerateTracemap 300160d4..30016288. Keep the scale and
- * integer minimum in x87 registers across the whole plane, not binary32. */
+/* Normalize one plane, retaining the scale until each binary32 store. */
 static void CG_TraceMapNormalizePlane(float *plane, int planeMin, int planeMax, int skyPlane)
 {
-	static const float  traceRange = 254.0f, traceOne = 1.0f, traceZero = 0.0f;
-	static const double traceOneDouble = 1.0, traceZeroDouble = 0.0, traceMaxDouble = 255.0;
-	int                 traceDelta;
-	__asm {
-		mov eax, planeMax
-		sub eax, planeMin
-		mov traceDelta, eax
-		cmp skyPlane, 0
-		jne traceSkyScale
-		fild traceDelta
-		fdivr traceRange
-		fcom traceZero
-		fnstsw ax
-		test ah, 40h
-		jz traceGroundScaleReady
-		fstp st(0)
-		fld traceOne
-traceGroundScaleReady:
-		fild planeMin
-		mov ecx, plane
-		mov edx, 65536
-traceGroundPixel:
-		fcom dword ptr[ecx]
-		fnstsw ax
-		test ah, 41h
-		jz traceGroundClamp
-		fld dword ptr[ecx]
-		fsub st(0), st(1)
-		fmul st(0), st(2)
-		fadd traceOneDouble
-		fstp dword ptr[ecx]
-traceGroundClamp:
-		fld dword ptr[ecx]
-		fcomp traceOneDouble
-		fnstsw ax
-		test ah, 1
-		jz traceGroundUpper
-		mov dword ptr[ecx], 3f800000h
-		jmp traceGroundNext
-traceGroundUpper:
-		fld dword ptr[ecx]
-		fcomp traceMaxDouble
-		fnstsw ax
-		test ah, 41h
-		jnz traceGroundNext
-		mov dword ptr[ecx], 437f0000h
-traceGroundNext:
-		add ecx, 4
-		dec edx
-		jnz traceGroundPixel
-		fstp st(0)
-		fstp st(0)
-		jmp traceNormalizeDone
-traceSkyScale:
-		cmp traceDelta, 0
-		jne traceSkyDivide
-		fld traceOne
-		jmp traceSkyScaleReady
-traceSkyDivide:
-		fild traceDelta
-		fdivr traceRange
-traceSkyScaleReady:
-		mov ecx, plane
-		mov edx, 65536
-traceSkyPixel:
-		cmp dword ptr[ecx], 47800000h
-		jne traceSkyValue
-		mov dword ptr[ecx], 0
-		jmp traceSkyClamp
-traceSkyValue:
-		fild planeMin
-		fsubr dword ptr[ecx]
-		fmul st(0), st(1)
-		fadd traceOne
-		fstp dword ptr[ecx]
-traceSkyClamp:
-		fld dword ptr[ecx]
-		fcomp traceZeroDouble
-		fnstsw ax
-		test ah, 1
-		jz traceSkyUpper
-		mov dword ptr[ecx], 0
-		jmp traceSkyNext
-traceSkyUpper:
-		fld dword ptr[ecx]
-		fcomp traceMaxDouble
-		fnstsw ax
-		test ah, 41h
-		jnz traceSkyNext
-		mov dword ptr[ecx], 437f0000h
-traceSkyNext:
-		add ecx, 4
-		dec edx
-		jnz traceSkyPixel
-		fstp st(0)
-		traceNormalizeDone :
+	int delta = TCE_SubInt32(planeMax, planeMin);
+	int pixel;
+	long double scale;
+	float lower = skyPlane ? 0.0f : 1.0f;
+
+	if (skyPlane && delta == 0)
+	{
+		scale = 1.0L;
+	}
+	else
+	{
+		scale = 254.0L / (long double)delta;
+		if (!skyPlane && !(scale < 0.0L || scale > 0.0L))
+		{
+			scale = 1.0L;
+		}
+	}
+
+	for (pixel = 0; pixel < TRACEMAP_SIZE * TRACEMAP_SIZE; ++pixel)
+	{
+		if (skyPlane && CG_TraceMapBits(&plane[pixel]) == 0x47800000u)
+		{
+			plane[pixel] = 0.0f;
+		}
+		else if (skyPlane || !((long double)planeMin > (long double)plane[pixel]))
+		{
+			plane[pixel] = (float)(((long double)plane[pixel] - planeMin) * scale + 1.0L);
+		}
+
+		/* The native lower comparison also clamps unordered values. */
+		if (!(plane[pixel] >= lower))
+		{
+			plane[pixel] = lower;
+		}
+		else if (plane[pixel] > 255.0f)
+		{
+			plane[pixel] = 255.0f;
+		}
 	}
 }
 #endif
@@ -304,12 +215,10 @@ void CG_GenerateTracemap(void)
 	static int   tracecount = 0;
 	int          ms;
 #if defined(_MSC_VER) && defined(_M_IX86)
-	int                traceSquare;
+	long double        traceWidth, traceHeight;
 	unsigned int       traceZFlags;
 	const float        *traceMins = cg.mapcoordsMins, *traceMaxs = cg.mapcoordsMaxs;
 	static const float traceGridScale  = 0.00390625f;
-	void               *traceClear     = &tracemap;
-	int                traceClearWords = sizeof(tracemap) / 4;
 #endif
 
 	if (!developer.integer)
@@ -324,20 +233,10 @@ void CG_GenerateTracemap(void)
 		return;
 	}
 #if defined(_MSC_VER) && defined(_M_IX86)
-	/* 3001594c: compare the two retained differences, including C3 unordered. */
-	__asm {
-		mov ecx, traceMaxs
-		mov edx, traceMins
-		fld dword ptr[ecx]
-		fsub dword ptr[edx]
-		fld dword ptr[edx + 4]
-		fsub dword ptr[ecx + 4]
-		fcompp
-		fnstsw ax
-		and eax, 4000h
-		mov traceSquare, eax
-	}
-	if (!traceSquare)
+	/* The native C3 test accepts both equality and unordered differences. */
+	traceWidth = (long double)traceMaxs[0] - traceMins[0];
+	traceHeight = (long double)traceMins[1] - traceMaxs[1];
+	if (traceHeight < traceWidth || traceHeight > traceWidth)
 	{
 #else
 	if ((cg.mapcoordsMaxs[0] - cg.mapcoordsMins[0]) != (cg.mapcoordsMins[1] - cg.mapcoordsMaxs[1]))
@@ -360,23 +259,10 @@ void CG_GenerateTracemap(void)
 	// calculate the size of the level
 	// ok, i'm lazy. Hijack commandmap extends for now and default to a TRACEMAP_SIZE by TRACEMAP_SIZE datablock
 #if defined(_MSC_VER) && defined(_M_IX86)
-	__asm {
-		mov ecx, traceMaxs
-		mov edx, traceMins
-		fld dword ptr[ecx]
-		fsub dword ptr[edx]
-		fmul traceGridScale
-		mov edi, traceClear
-		mov ecx, traceClearWords
-		xor eax, eax
-		rep stosd
-		fstp x_step
-		mov ecx, traceMaxs
-		fld dword ptr[ecx + 4]
-		fsub dword ptr[edx + 4]
-		fmul traceGridScale
-		fstp y_step
-	}
+	traceWidth = ((long double)traceMaxs[0] - traceMins[0]) * traceGridScale;
+	memset(&tracemap, 0, sizeof(tracemap));
+	x_step = (float)traceWidth;
+	y_step = (float)(((long double)traceMaxs[1] - traceMins[1]) * traceGridScale);
 #else
 	x_step = (cg.mapcoordsMaxs[0] - cg.mapcoordsMins[0]) / (float)TRACEMAP_SIZE;
 	y_step = (cg.mapcoordsMaxs[1] - cg.mapcoordsMins[1]) / (float)TRACEMAP_SIZE;
@@ -998,368 +884,188 @@ void CG_GenerateTracemap(void)
 #endif // CGAMEDLL
 
 #if (defined(CGAMEDLL) || defined(GAMEDLL)) && defined(_MSC_VER) && defined(_M_IX86)
-/* Complete Windows30016690 / qagame2003dbc0: identical instruction schedule
- * after module relocations; all data addresses use the native tracemap. */
-__declspec(naked) qboolean BG_LoadTraceMap(char *rawmapname, vec2_t world_mins, vec2_t world_maxs)
+/* Extended TGA metadata is signed little-endian, assembled without signed shifts. */
+static int BG_TraceMapReadInteger(const byte *data)
 {
-	__asm {
-		SUB ESP, 0x418
-		MOV ECX, dword ptr[ESP + 0x41c]
-		PUSH EBX
-		MOV EAX, 0xffff0000
-		PUSH EBP
-		PUSH ESI
-		MOV dword ptr[ESP + 0x14], EAX
-		MOV dword ptr[ESP + 0x18], EAX
-		PUSH EDI
-		MOV ESI, 0x10000
-		LEA EAX, [ESP + 0x20]
-		PUSH 0x0
-		MOV EDI, ESI
-		MOV EBP, ESI
-		PUSH EAX
-		PUSH ECX
-		MOV dword ptr[ESP + 0x1c], EDI
-		MOV EBX, ESI
-		MOV dword ptr[ESP + 0x20], EBP
-		CALL Q_strlwr
-		PUSH EAX
-		PUSH OFFSET traceLoadPath
-		CALL va
-		ADD ESP, 0xc
-		PUSH EAX
-		CALL trap_FS_FOpenFile
-		ADD ESP, 0xc
-		TEST EAX, EAX
-		JL tl_30016b1f
-		MOV dword ptr[ESP + 0x10], 0x12
-tl_300166f5:
-		MOV EDX, dword ptr[ESP + 0x20]
-		LEA EAX, [ESP + 0x27]
-		PUSH EDX
-		PUSH 0x1
-		PUSH EAX
-		CALL trap_FS_Read
-		MOV EAX, dword ptr[ESP + 0x1c]
-		ADD ESP, 0xc
-		DEC EAX
-		MOV dword ptr[ESP + 0x10], EAX
-		JNZ tl_300166f5
-		MOV dword ptr[ESP + 0x10], 0x0
-tl_3001671c:
-		MOV ECX, dword ptr[ESP + 0x20]
-		LEA EDX, [ESP + 0x28]
-		PUSH ECX
-		PUSH 0x400
-		PUSH EDX
-		CALL trap_FS_Read
-		ADD ESP, 0xc
-		XOR EDX, EDX
-tl_30016735:
-		MOV EAX, dword ptr[ESP + 0x10]
-		TEST EAX, EAX
-		JNZ tl_300168da
-		CMP EDX, 0x6
-		JGE tl_300168da
-		CMP EDX, 0x5
-		JA tl_300168b7
-		CMP EDX, 0
-		JE tl_3001675a
-		CMP EDX, 1
-		JE tl_30016799
-		CMP EDX, 2
-		JE tl_300167d8
-		CMP EDX, 3
-		JE tl_30016812
-		CMP EDX, 4
-		JE tl_3001684a
-		CMP EDX, 5
-		JE tl_30016881
-		JMP tl_300168b7
-tl_3001675a:
-		MOV EAX, dword ptr[ESP + 0x2b]
-		MOV ECX, dword ptr[ESP + 0x2a]
-		AND EAX, 0xff
-		AND ECX, 0xff
-		SHL EAX, 0x8
-		OR EAX, ECX
-		MOV ECX, dword ptr[ESP + 0x29]
-		SHL EAX, 0x8
-		AND ECX, 0xff
-		OR EAX, ECX
-		MOV ECX, dword ptr[ESP + 0x28]
-		SHL EAX, 0x8
-		AND ECX, 0xff
-		OR EAX, ECX
-		MOV dword ptr[ESP + 0x1c], EAX
-		JMP tl_300168b7
-tl_30016799:
-		MOV EAX, dword ptr[ESP + 0x2f]
-		MOV ECX, dword ptr[ESP + 0x2e]
-		AND EAX, 0xff
-		AND ECX, 0xff
-		SHL EAX, 0x8
-		OR EAX, ECX
-		MOV ECX, dword ptr[ESP + 0x2d]
-		SHL EAX, 0x8
-		AND ECX, 0xff
-		OR EAX, ECX
-		MOV ECX, dword ptr[ESP + 0x2c]
-		SHL EAX, 0x8
-		AND ECX, 0xff
-		OR EAX, ECX
-		MOV dword ptr[ESP + 0x18], EAX
-		JMP tl_300168b7
-tl_300167d8:
-		MOV EDI, dword ptr[ESP + 0x33]
-		MOV EAX, dword ptr[ESP + 0x32]
-		MOV ECX, dword ptr[ESP + 0x31]
-		AND EDI, 0xff
-		SHL EDI, 0x8
-		AND EAX, 0xff
-		AND ECX, 0xff
-		OR EDI, EAX
-		MOV EAX, dword ptr[ESP + 0x30]
-		SHL EDI, 0x8
-		OR EDI, ECX
-		AND EAX, 0xff
-		SHL EDI, 0x8
-		OR EDI, EAX
-		JMP tl_300168b7
-tl_30016812:
-		MOV ESI, dword ptr[ESP + 0x37]
-		MOV ECX, dword ptr[ESP + 0x36]
-		MOV EAX, dword ptr[ESP + 0x35]
-		AND ESI, 0xff
-		SHL ESI, 0x8
-		AND ECX, 0xff
-		AND EAX, 0xff
-		OR ESI, ECX
-		MOV ECX, dword ptr[ESP + 0x34]
-		SHL ESI, 0x8
-		OR ESI, EAX
-		AND ECX, 0xff
-		SHL ESI, 0x8
-		OR ESI, ECX
-		JMP tl_300168b7
-tl_3001684a:
-		MOV EBP, dword ptr[ESP + 0x3b]
-		MOV EAX, dword ptr[ESP + 0x3a]
-		MOV ECX, dword ptr[ESP + 0x39]
-		AND EBP, 0xff
-		SHL EBP, 0x8
-		AND EAX, 0xff
-		AND ECX, 0xff
-		OR EBP, EAX
-		MOV EAX, dword ptr[ESP + 0x38]
-		SHL EBP, 0x8
-		OR EBP, ECX
-		AND EAX, 0xff
-		SHL EBP, 0x8
-		OR EBP, EAX
-		JMP tl_300168b7
-tl_30016881:
-		MOV EBX, dword ptr[ESP + 0x3f]
-		MOV ECX, dword ptr[ESP + 0x3e]
-		MOV EAX, dword ptr[ESP + 0x3d]
-		AND EBX, 0xff
-		SHL EBX, 0x8
-		AND ECX, 0xff
-		AND EAX, 0xff
-		OR EBX, ECX
-		MOV ECX, dword ptr[ESP + 0x3c]
-		SHL EBX, 0x8
-		OR EBX, EAX
-		AND ECX, 0xff
-		SHL EBX, 0x8
-		OR EBX, ECX
-tl_300168b7:
-		MOV EAX, 0x47800000
-		MOV dword ptr[EDX * 0x4 + tracemap + TraceLoadSkyLast], EAX
-		MOV dword ptr[EDX * 0x4 + tracemap + TraceLoadSkyGroundLast], EAX
-		MOV dword ptr[EDX * 0x4 + tracemap + TraceLoadGroundLast], 0xc7800000
-		JMP tl_30016981
-tl_300168da:
-		XOR ECX, ECX
-		MOV CL, byte ptr[ESP + EDX * 0x4 + 0x28]
-		MOV dword ptr[ESP + 0x14], ECX
-		MOV ECX, EDX
-		FILD dword ptr[ESP + 0x14]
-		SHL EAX, 0x8
-		SUB ECX, EAX
-		SHL ECX, 0x2
-		FST dword ptr[ECX + tracemap + TraceLoadSkyLast]
-		FCOMP dword ptr[traceLoadZero]
-		FNSTSW AX
-		TEST AH, 0x40
-		JZ tl_3001690f
-		MOV dword ptr[ECX + tracemap + TraceLoadSkyLast], 0x47800000
-tl_3001690f:
-		XOR EAX, EAX
-		MOV AL, byte ptr[ESP + EDX * 0x4 + 0x29]
-		MOV dword ptr[ESP + 0x14], EAX
-		FILD dword ptr[ESP + 0x14]
-		FST dword ptr[ECX + tracemap + TraceLoadSkyGroundLast]
-		FCOMP dword ptr[traceLoadZero]
-		FNSTSW AX
-		TEST AH, 0x40
-		JZ tl_3001693a
-		MOV dword ptr[ECX + tracemap + TraceLoadSkyGroundLast], 0x47800000
-tl_3001693a:
-		XOR EAX, EAX
-		MOV AL, byte ptr[ESP + EDX * 0x4 + 0x2a]
-		MOV dword ptr[ESP + 0x14], EAX
-		FILD dword ptr[ESP + 0x14]
-		FST dword ptr[ECX + tracemap + TraceLoadGroundLast]
-		FCOMP dword ptr[traceLoadZero]
-		FNSTSW AX
-		TEST AH, 0x40
-		JZ tl_30016965
-		MOV dword ptr[ECX + tracemap + TraceLoadGroundLast], 0xc7800000
-tl_30016965:
-		MOV AL, byte ptr[ESP + EDX * 0x4 + 0x2b]
-		TEST AL, AL
-		JNZ tl_30016981
-		MOV dword ptr[ECX + tracemap + TraceLoadSkyGroundLast], 0x47800000
-		MOV dword ptr[ECX + tracemap + TraceLoadGroundLast], 0xc7800000
-tl_30016981:
-		INC EDX
-		CMP EDX, 0x100
-		JL tl_30016735
-		MOV EAX, dword ptr[ESP + 0x10]
-		INC EAX
-		CMP EAX, 0x100
-		MOV dword ptr[ESP + 0x10], EAX
-		JL tl_3001671c
-		MOV ECX, dword ptr[ESP + 0x20]
-		MOV dword ptr[ESP + 0x14], EBP
-		PUSH ECX
-		MOV dword ptr[ESP + 0x14], EDI
-		CALL trap_FS_FCloseFile
-		MOV EDX, dword ptr[ESP + 0x1c]
-		MOV ECX, dword ptr[ESP + 0x20]
-		MOV EAX, EDX
-		ADD ESP, 0x4
-		SUB EAX, ECX
-		MOV dword ptr[ESP + 0x18], EAX
-		JNZ tl_300169d1
-		FLD dword ptr[traceLoadOne]
-		JMP tl_300169db
-tl_300169d1:
-		FILD dword ptr[ESP + 0x18]
-		FDIVR dword ptr[traceLoadScale]
-tl_300169db:
-		MOV EAX, OFFSET tracemap + TraceLoadGround
-tl_300169e0:
-		MOV ECX, 0x100
-tl_300169e5:
-		CMP dword ptr[EAX], 0xc7800000
-		JZ tl_300169f7
-		FLD dword ptr[EAX]
-		FDIV ST(0), ST(1)
-		FIADD dword ptr[ESP + 0x1c]
-		FSTP dword ptr[EAX]
-tl_300169f7:
-		ADD EAX, 0x4
-		DEC ECX
-		JNZ tl_300169e5
-		CMP EAX, OFFSET tracemap + TraceQueryMinX
-		JL tl_300169e0
-		SUB ESI, EDI
-		FSTP ST(0)
-		MOV dword ptr[ESP + 0x18], ESI
-		JNZ tl_30016a16
-		FLD dword ptr[traceLoadOne]
-		JMP tl_30016a20
-tl_30016a16:
-		FILD dword ptr[ESP + 0x18]
-		FDIVR dword ptr[traceLoadScale]
-tl_30016a20:
-		MOV EAX, OFFSET tracemap + TraceQuerySkyGround
-tl_30016a25:
-		MOV ECX, 0x100
-tl_30016a2a:
-		CMP dword ptr[EAX], 0x47800000
-		JZ tl_30016a3c
-		FLD dword ptr[EAX]
-		FDIV ST(0), ST(1)
-		FIADD dword ptr[ESP + 0x10]
-		FSTP dword ptr[EAX]
-tl_30016a3c:
-		ADD EAX, 0x4
-		DEC ECX
-		JNZ tl_30016a2a
-		CMP EAX, OFFSET tracemap + TraceLoadGround
-		JL tl_30016a25
-		SUB EBX, EBP
-		FSTP ST(0)
-		MOV dword ptr[ESP + 0x18], EBX
-		JNZ tl_30016a5b
-		FLD dword ptr[traceLoadOne]
-		JMP tl_30016a65
-tl_30016a5b:
-		FILD dword ptr[ESP + 0x18]
-		FDIVR dword ptr[traceLoadScale]
-tl_30016a65:
-		MOV EAX, OFFSET tracemap + TraceQuerySky
-tl_30016a6a:
-		MOV ECX, 0x100
-tl_30016a6f:
-		CMP dword ptr[EAX], 0x47800000
-		JZ tl_30016a81
-		FLD dword ptr[EAX]
-		FDIV ST(0), ST(1)
-		FIADD dword ptr[ESP + 0x14]
-		FSTP dword ptr[EAX]
-tl_30016a81:
-		ADD EAX, 0x4
-		DEC ECX
-		JNZ tl_30016a6f
-		CMP EAX, OFFSET tracemap + TraceQuerySkyGround
-		JL tl_30016a6a
-		MOV EAX, dword ptr[ESP + 0x430]
-		POP EDI
-		FSTP ST(0)
-		MOV ECX, dword ptr[EAX]
-		POP ESI
-		MOV dword ptr[tracemap + TraceQueryMinX], ECX
-		MOV EAX, dword ptr[EAX + 0x4]
-		MOV dword ptr[tracemap + TraceQueryMinY], EAX
-		MOV EAX, dword ptr[ESP + 0x42c]
-		POP EBP
-		POP EBX
-		MOV ECX, dword ptr[EAX]
-		MOV dword ptr[tracemap + TraceQueryMaxX], ECX
-		MOV EAX, dword ptr[EAX + 0x4]
-		FLD dword ptr[tracemap + TraceQueryMaxX]
-		FSUB dword ptr[tracemap + TraceQueryMinX]
-		MOV dword ptr[tracemap + TraceQueryMaxY], EAX
-		MOV ECX, dword ptr[ESP + 0xc]
-		MOV EAX, 0x1
-		MOV dword ptr[tracemap + TraceLoadFloor], ECX
-		FMUL dword ptr[traceLoadInverseSize]
-		MOV dword ptr[tracemap + TraceLoadCeil], EDX
-		MOV dword ptr[tracemap + TraceQueryLoaded], EAX
-		FDIVR dword ptr[traceLoadOne]
-		FSTP dword ptr[one_over_mapgrid_factor]
-		FLD dword ptr[tracemap + TraceQueryMaxY]
-		FSUB dword ptr[tracemap + TraceQueryMinY]
-		FMUL dword ptr[traceLoadInverseSize]
-		FDIVR dword ptr[traceLoadOne]
-		FSTP dword ptr[one_over_mapgrid_factor + 4]
-		ADD ESP, 0x418
-		RET
-tl_30016b1f:
-		POP EDI
-		POP ESI
-		POP EBP
-		MOV dword ptr[tracemap + TraceQueryLoaded], 0x0
-		XOR EAX, EAX
-		POP EBX
-		ADD ESP, 0x418
-		RET
-	}
+	unsigned bits = (unsigned)data[0] | ((unsigned)data[1] << 8)
+	              | ((unsigned)data[2] << 16) | ((unsigned)data[3] << 24);
+	int value;
+	memcpy(&value, &bits, sizeof(value));
+	return value;
 }
+
+qboolean BG_LoadTraceMap(char *rawmapname, vec2_t world_mins, vec2_t world_maxs)
+{
+	int          i, j;
+	fileHandle_t f;
+	byte         data, datablock[TRACEMAP_SIZE][4];
+	int          sky_min, sky_max;
+	int          ground_min, ground_max;
+	int          skyground_min, skyground_max;
+	long double  scalefactor;
+	int          delta;
+
+	ground_min    = ground_max = MIN_WORLD_HEIGHT;
+	skyground_min = skyground_max = MAX_WORLD_HEIGHT;
+	sky_min       = sky_max = MAX_WORLD_HEIGHT;
+
+	if (trap_FS_FOpenFile(va("maps/%s_tracemap.tga", Q_strlwr(rawmapname)), &f, FS_READ) >= 0)
+	{
+		// skip over header
+		for ( i = 0; i < 18; i++ )
+		{
+			trap_FS_Read(&data, 1, f);
+		}
+
+		for ( i = 0; i < TRACEMAP_SIZE; i++ )
+		{
+			trap_FS_Read(&datablock, sizeof(datablock), f);     // TRACEMAP_SIZE * { b g r a }
+
+			for ( j = 0; j < TRACEMAP_SIZE; j++ )
+			{
+				if (i == 0 && j < 6)
+				{
+					// abuse first six pixels for our extended data
+					switch (j)
+					{
+					case 0: ground_min = BG_TraceMapReadInteger(datablock[j]); break;
+					case 1: ground_max = BG_TraceMapReadInteger(datablock[j]); break;
+					case 2: skyground_min = BG_TraceMapReadInteger(datablock[j]); break;
+					case 3: skyground_max = BG_TraceMapReadInteger(datablock[j]); break;
+					case 4: sky_min = BG_TraceMapReadInteger(datablock[j]); break;
+					case 5: sky_max = BG_TraceMapReadInteger(datablock[j]); break;
+					}
+					tracemap.sky[TRACEMAP_SIZE - 1 - i][j]       = MAX_WORLD_HEIGHT;
+					tracemap.skyground[TRACEMAP_SIZE - 1 - i][j] = MAX_WORLD_HEIGHT;
+					tracemap.ground[TRACEMAP_SIZE - 1 - i][j]    = MIN_WORLD_HEIGHT;
+					continue;
+				}
+
+				tracemap.sky[TRACEMAP_SIZE - 1 - i][j] = (float)datablock[j][0];    // FIXME: swap
+				if (tracemap.sky[TRACEMAP_SIZE - 1 - i][j] == 0)
+				{
+					tracemap.sky[TRACEMAP_SIZE - 1 - i][j] = MAX_WORLD_HEIGHT;
+				}
+
+				tracemap.skyground[TRACEMAP_SIZE - 1 - i][j] = (float)datablock[j][1];  // FIXME: swap
+				if (tracemap.skyground[TRACEMAP_SIZE - 1 - i][j] == 0)
+				{
+					tracemap.skyground[TRACEMAP_SIZE - 1 - i][j] = MAX_WORLD_HEIGHT;
+				}
+
+				tracemap.ground[TRACEMAP_SIZE - 1 - i][j] = (float)datablock[j][2]; // FIXME: swap
+				if (tracemap.ground[TRACEMAP_SIZE - 1 - i][j] == 0)
+				{
+					tracemap.ground[TRACEMAP_SIZE - 1 - i][j] = MIN_WORLD_HEIGHT;
+				}
+
+				if (datablock[j][3] == 0)
+				{
+					// just in case
+					tracemap.skyground[TRACEMAP_SIZE - 1 - i][j] = MAX_WORLD_HEIGHT;
+					tracemap.ground[TRACEMAP_SIZE - 1 - i][j]    = MIN_WORLD_HEIGHT;
+				}
+			}
+
+		}
+
+		trap_FS_FCloseFile(f);
+
+		// Ground
+		// calculate scalefactor
+		delta = TCE_SubInt32(ground_max, ground_min);
+		if (delta == 0)
+		{
+			scalefactor = 1.f;
+		}
+		else
+		{
+			// rain - scalefactor 254 to compensate for broken etmain behavior
+			scalefactor = 254.0L / (long double)delta;
+		}
+
+		// scale properly
+		for ( i = 0; i < TRACEMAP_SIZE; i++ )
+		{
+			for ( j = 0; j < TRACEMAP_SIZE; j++ )
+			{
+				if (tracemap.ground[i][j] != MIN_WORLD_HEIGHT)
+				{
+					tracemap.ground[i][j] = (float)((long double)tracemap.ground[i][j] / scalefactor + ground_min);
+				}
+			}
+		}
+
+		// SkyGround
+		// calculate scalefactor
+		delta = TCE_SubInt32(skyground_max, skyground_min);
+		if (delta == 0)
+		{
+			scalefactor = 1.f;
+		}
+		else
+		{
+			// rain - scalefactor 254 to compensate for broken etmain behavior
+			scalefactor = 254.0L / (long double)delta;
+		}
+
+		// scale properly
+		for ( i = 0; i < TRACEMAP_SIZE; i++ )
+		{
+			for ( j = 0; j < TRACEMAP_SIZE; j++ )
+			{
+				if (tracemap.skyground[i][j] != MAX_WORLD_HEIGHT)
+				{
+					tracemap.skyground[i][j] = (float)((long double)tracemap.skyground[i][j] / scalefactor + skyground_min);
+				}
+			}
+		}
+
+		// Sky
+		// calculate scalefactor
+		delta = TCE_SubInt32(sky_max, sky_min);
+		if (delta == 0)
+		{
+			scalefactor = 1.f;
+		}
+		else
+		{
+			// rain - scalefactor 254 to compensate for broken etmain behavior
+			scalefactor = 254.0L / (long double)delta;
+		}
+
+		// scale properly
+		for ( i = 0; i < TRACEMAP_SIZE; i++ )
+		{
+			for ( j = 0; j < TRACEMAP_SIZE; j++ )
+			{
+				if (tracemap.sky[i][j] != MAX_WORLD_HEIGHT)
+				{
+					tracemap.sky[i][j] = (float)((long double)tracemap.sky[i][j] / scalefactor + sky_min);
+				}
+			}
+		}
+	}
+	else
+	{
+		return(tracemap.loaded = qfalse);
+	}
+
+	tracemap.world_mins[0] = world_mins[0];
+	tracemap.world_mins[1] = world_mins[1];
+	tracemap.world_maxs[0] = world_maxs[0];
+	tracemap.world_maxs[1] = world_maxs[1];
+
+	tracemap.groundfloor = ground_min;
+	tracemap.groundceil = ground_max;
+	tracemap.loaded = qtrue;
+	one_over_mapgrid_factor[0] = (float)(1.0L / (((long double)tracemap.world_maxs[0] - tracemap.world_mins[0]) * 0.00390625L));
+	one_over_mapgrid_factor[1] = (float)(1.0L / (((long double)tracemap.world_maxs[1] - tracemap.world_mins[1]) * 0.00390625L));
+
+
+	return qtrue;
+}
+
 #else
 
 qboolean BG_LoadTraceMap(char *rawmapname, vec2_t world_mins, vec2_t world_maxs)
