@@ -574,7 +574,6 @@ typedef struct
 	int playerWeapon;               // DHM - Nerve :: for GT_WOLF
 	int playerWeapon2;              // Gordon: secondary weapon
 	int spawnObjectiveIndex;         // JPW NERVE index of objective to spawn nearest to (returned from UI)
-	int tcePreferredSpawnEntity;             /* Original session client+0xdf0. */
 	int latchPlayerType;            // DHM - Nerve :: for GT_WOLF not archived
 	int latchPlayerWeapon;          // DHM - Nerve :: for GT_WOLF not archived
 	int latchPlayerWeapon2;         // Gordon: secondary weapon
@@ -607,7 +606,7 @@ typedef struct
 
 	int tceSetupFlags; /* Original session+0x2b0, set by team command token6. */
 	int playerWeapon3, latchPlayerWeapon3; /* TC session +0x2b4/+0x2b8: third equipment choice. */
-	int tceSessionValues[4]; /* Original client 0xdec..0xdf8; persisted verbatim, producers still under reconstruction. */
+	int tceSessionValues[4]; /* Original client 0xdec..0xdf8; index 1 is the preferred spawn entity. */
 	qboolean versionOK;
 } clientSession_t;
 

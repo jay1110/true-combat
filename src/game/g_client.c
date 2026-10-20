@@ -1974,18 +1974,18 @@ void ClientSpawn(gentity_t *ent, qboolean revived, qboolean hostage)
 			{
 				spawnPoint = SelectCTFSpawnPoint(client->sess.sessionTeam, client->pers.teamState.state,
 				                                 spawn_origin, spawn_angles, client->sess.spawnObjectiveIndex,
-				                                 client->sess.tcePreferredSpawnEntity, qtrue);
+				                                 client->sess.tceSessionValues[1], qtrue);
 			}
 			else
 			{
 				spawnPoint = NULL;
-				if (client->sess.tcePreferredSpawnEntity &&
+				if (client->sess.tceSessionValues[1] &&
 				    (g_gametype.integer == 2 || g_gametype.integer == 5 || g_gametype.integer == 7) &&
 				    g_gamestate.integer != GS_WARMUP && g_gamestate.integer != GS_WARMUP_COUNTDOWN)
 				{
 					spawnPoint = SelectCTFSpawnPoint(client->sess.sessionTeam, client->pers.teamState.state,
 					                                 spawn_origin, spawn_angles, client->sess.spawnObjectiveIndex,
-					                                 client->sess.tcePreferredSpawnEntity, qfalse);
+					                                 client->sess.tceSessionValues[1], qfalse);
 				}
 				if (!spawnPoint)
 				{
@@ -1996,7 +1996,7 @@ void ClientSpawn(gentity_t *ent, qboolean revived, qboolean hostage)
 				if (spawnPoint && (g_gametype.integer == 2 || g_gametype.integer == 5 || g_gametype.integer == 7))
 				{
 					savedTCSpawn                         = spawnPoint;
-					client->sess.tcePreferredSpawnEntity = spawnPoint->s.number;
+					client->sess.tceSessionValues[1] = spawnPoint->s.number;
 				}
 			}
 //			}
