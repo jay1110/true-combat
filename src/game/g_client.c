@@ -385,7 +385,7 @@ After sitting around for five seconds, fall into the ground and dissapear
 void BodySink2(gentity_t *ent)
 {
 	ent->physicsObject = qfalse;
-	ent->nextthink     = level.time + BODY_TIME(BODY_TEAM(ent)) + 1500;
+	ent->nextthink     = TCE_AddInt32(level.time, BODY_TIME(BODY_TEAM(ent)) + 1500);
 	ent->think         = BodyUnlink;
 	ent->s.pos.trType  = TR_LINEAR;
 	ent->s.pos.trTime  = level.time;
@@ -407,7 +407,7 @@ void BodySink(gentity_t *ent)
 		// see if parent is still disguised
 		if (ent->activator->client->ps.powerups[PW_OPS_DISGUISED])
 		{
-			ent->nextthink = level.time + 100;
+			ent->nextthink = TCE_AddInt32(level.time, 100);
 			return;
 		}
 		else
