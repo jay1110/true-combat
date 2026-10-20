@@ -296,6 +296,35 @@ qint64 Long64NoSwap(qint64 ll)
 	return ll;
 }
 
+#if defined(__linux__) && defined(__i386__)
+/* TC:E's i386 exports take the address of the stored Float bits. */
+float FloatSwap(const float *f)
+{
+	int bits;
+	float result;
+
+	memcpy(&bits, f, sizeof(bits));
+	bits = LongSwap(bits);
+	memcpy(&result, &bits, sizeof(result));
+	return result;
+}
+
+float FloatNoSwap(const float *f)
+{
+	return *f;
+}
+
+/* Keep the SDK value-based wrappers type-compatible with these exports. */
+static float TCE_FloatSwapValue(float value)
+{
+	return FloatSwap(&value);
+}
+
+static float TCE_FloatNoSwapValue(float value)
+{
+	return FloatNoSwap(&value);
+}
+#else
 float FloatSwap(float f)
 {
 	union
@@ -317,6 +346,7 @@ float FloatNoSwap(float f)
 {
 	return f;
 }
+#endif
 
 /*
 ================
@@ -336,8 +366,13 @@ void Swap_Init(void)
 		_LittleLong   = LongNoSwap;
 		_BigLong64    = Long64Swap;
 		_LittleLong64 = Long64NoSwap;
+#if defined(__linux__) && defined(__i386__)
+		_BigFloat     = TCE_FloatSwapValue;
+		_LittleFloat  = TCE_FloatNoSwapValue;
+#else
 		_BigFloat     = FloatSwap;
 		_LittleFloat  = FloatNoSwap;
+#endif
 	}
 	else
 	{
@@ -347,8 +382,13 @@ void Swap_Init(void)
 		_LittleLong   = LongSwap;
 		_BigLong64    = Long64NoSwap;
 		_LittleLong64 = Long64Swap;
+#if defined(__linux__) && defined(__i386__)
+		_BigFloat     = TCE_FloatNoSwapValue;
+		_LittleFloat  = TCE_FloatSwapValue;
+#else
 		_BigFloat     = FloatNoSwap;
 		_LittleFloat  = FloatSwap;
+#endif
 	}
 
 }
