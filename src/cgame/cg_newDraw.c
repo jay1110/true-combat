@@ -1,5 +1,6 @@
 
 #include "cg_local.h"
+#include "../game/tce_numeric.h"
 
 int CG_DrawField(int x, int y, int width, int value, int charWidth, int charHeight, qboolean dodrawpic, qboolean leftAlign);        // NERVE - SMF
 
@@ -728,7 +729,7 @@ void CG_MouseEvent(int x, int y)
 	case CGAME_EVENT_GAMEVIEW:
 	case CGAME_EVENT_CAMPAIGNBREIFING:
 	case CGAME_EVENT_FIRETEAMMSG:
-		cgs.cursorX += x;
+		cgs.cursorX = TCE_AddInt32(cgs.cursorX, x);
 		if (cgs.cursorX < 0)
 		{
 			cgs.cursorX = 0;
@@ -738,7 +739,7 @@ void CG_MouseEvent(int x, int y)
 			cgs.cursorX = 852;
 		}
 
-		cgs.cursorY += y;
+		cgs.cursorY = TCE_AddInt32(cgs.cursorY, y);
 		if (cgs.cursorY < 0)
 		{
 			cgs.cursorY = 0;
@@ -755,7 +756,7 @@ void CG_MouseEvent(int x, int y)
 
 		break;
 	case CGAME_EVENT_DEMO:
-		cgs.cursorX += x;
+		cgs.cursorX = TCE_AddInt32(cgs.cursorX, x);
 		if (cgs.cursorX < 0)
 		{
 			cgs.cursorX = 0;
@@ -765,7 +766,7 @@ void CG_MouseEvent(int x, int y)
 			cgs.cursorX = 852;
 		}
 
-		cgs.cursorY += y;
+		cgs.cursorY = TCE_AddInt32(cgs.cursorY, y);
 		if (cgs.cursorY < 0)
 		{
 			cgs.cursorY = 0;
@@ -777,7 +778,7 @@ void CG_MouseEvent(int x, int y)
 
 		if (x != 0 || y != 0)
 		{
-			cgs.cursorUpdate = cg.time + 5000;
+			cgs.cursorUpdate = TCE_AddInt32(cg.time, 5000);
 		}
 		break;
 

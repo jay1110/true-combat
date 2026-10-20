@@ -1,5 +1,6 @@
 #include "g_local.h"
 #include "tce_float_integer.h"
+#include "tce_numeric.h"
 #include "tce_lua.h"
 #include "tce_bg.h"
 
@@ -3599,7 +3600,11 @@ void Cmd_SetSpawnPoint_f(gentity_t *ent)
 	{
 		/* TC 20053f00 gates the target-entity read on the spawn-camera flag. */
 		if (level.limboCams[i].spawn &&
+#if defined(_WIN32) && !defined(Q3_VM)
+		    TCE_SubInt32(g_entities[level.limboCams[i].targetEnt].count, CS_MULTI_SPAWNTARGETS - 1) == val)
+#else
 		    (g_entities[level.limboCams[i].targetEnt].count - CS_MULTI_SPAWNTARGETS) + 1 == val)
+#endif
 		{
 			G_TCESendPortalCamera(ent, i, val);
 			break;

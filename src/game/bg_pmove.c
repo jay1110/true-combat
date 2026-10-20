@@ -4700,14 +4700,13 @@ void PM_BeginWeaponChange(int oldweapon, int newweapon, qboolean reload)
 		return;
 	}
 	pm->ps->nextWeapon = newweapon;
-	alt                = newweapon == weapAlts[oldweapon];
 	switch (newweapon)
 	{
 	case 4: case 9: case 15: case 30:
 		pm->ps->grenadeTimeLeft = 0;
 		PM_AddEvent(EV_CHANGE_WEAPON); break;
 	case 23: case 24:
-		if (!alt)
+		if (newweapon != weapAlts[oldweapon])
 		{
 			PM_AddEvent(EV_CHANGE_WEAPON);
 		}

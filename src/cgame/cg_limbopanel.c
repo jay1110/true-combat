@@ -2782,10 +2782,6 @@ static qboolean TCE_LimboDrawContents(void)
 
 static void TCE_LimboKeyContents(int key, qboolean down)
 {
-#ifdef _WIN32
-	/* TC Windows 30044500 dispatches only; Linux retains the fallbacks below. */
-	BG_PanelButtonsKeyEvent(key, down, limboPanelButtons);
-#else
 	int b1, b2;
 	if (BG_PanelButtonsKeyEvent(key, down, limboPanelButtons))
 	{
@@ -2809,7 +2805,6 @@ static void TCE_LimboKeyContents(int key, qboolean down)
 			return;
 		}
 	}
-#endif
 }
 
 void CG_LimboPanel_GetWeaponCardIconData(weapon_t weap, qhandle_t *shader, float *w, float *h, float *s0, float *t0, float *s1, float *t1)
@@ -3306,30 +3301,23 @@ qboolean CG_LimboPanel_RealWeaponIsDisabled(weapon_t weap)
 	return wcount >= ceil((double)count * cgs.weaponRestrictions);
 }
 
-/* Scoped adapter: the rest of the still-SDK HUD keeps its 640-coordinate contract.
- * Input is inverted into the same TC canvas for rendering, hover and click dispatch. */
-static void TCE_LimboBegin(float *x, float *y, qboolean *previous)
-{
-	double scale, shift;
-	*x    = cgDC.cursorx; *y = cgDC.cursory; *previous = tce_uiCoordinates;
-	scale = cgs.glconfig.vidWidth * 480 == cgs.glconfig.vidHeight * 640 ? .7500000596046448 :
-	        ((double)cgs.glconfig.vidWidth * 480 / cgs.glconfig.vidHeight) * .0011718750465661287;
-	shift             = cgs.glconfig.vidWidth * 480 == cgs.glconfig.vidHeight * 640 ? 80 : (1 / scale - 1) * 240;
-	cgDC.cursorx      = (float)(*x / .7500000596046448);
-	cgDC.cursory      = (float)(*y / scale - shift);
-	tce_uiCoordinates = qtrue;
-}
-static void TCE_LimboEnd(float x, float y, qboolean previous)
-{
-	cgDC.cursorx = x; cgDC.cursory = y; tce_uiCoordinates = previous;
-}
+/* The mouse dispatcher already supplies native TC cursor coordinates. Only
+ * drawing needs the scoped canvas switch while the SDK HUD remains in use. */
 qboolean CG_LimboPanel_Draw(void)
 {
-	float x, y; qboolean previous, result;
-	TCE_LimboBegin(&x, &y, &previous); result = TCE_LimboDrawContents(); TCE_LimboEnd(x, y, previous); return result;
+	qboolean previous = tce_uiCoordinates;
+	qboolean result;
+
+	tce_uiCoordinates = qtrue;
+	result = TCE_LimboDrawContents();
+	tce_uiCoordinates = previous;
+	return result;
 }
 void CG_LimboPanel_KeyHandling(int key, qboolean down)
 {
-	float x, y; qboolean previous;
-	TCE_LimboBegin(&x, &y, &previous); TCE_LimboKeyContents(key, down); TCE_LimboEnd(x, y, previous);
+	qboolean previous = tce_uiCoordinates;
+
+	tce_uiCoordinates = qtrue;
+	TCE_LimboKeyContents(key, down);
+	tce_uiCoordinates = previous;
 }
