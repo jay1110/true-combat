@@ -12,6 +12,7 @@
 
 #include "cg_local.h"
 #include <stddef.h>
+#include "../game/tce_numeric.h"
 
 #define MAX_ATMOSPHERIC_HEIGHT          MAX_MAP_SIZE    // maximum world height
 #define MIN_ATMOSPHERIC_HEIGHT          -MAX_MAP_SIZE   // minimum world height
@@ -1825,128 +1826,6 @@ static qboolean CG_EffectGustCurrent(vec3_t curr, float *weight, int *num)
 
 #endif
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-/* Whole Windows range parsers 30018010/30018090. Native atof preserves the
- * call ABI, but its CRT implementation remains an explicit dependency. */
-static double(__cdecl * const weatherRangeAtof)(const char *) = atof;
-static __declspec(naked) void CG_EP_ParseFloats(char *floatstr, float *f1, float *f2)
-{
-	__asm {
-		SUB ESP, 040h
-		LEA EAX, [ESP]
-		PUSH ESI
-		PUSH EDI
-		MOV EDI, dword ptr[ESP + 04ch]
-		PUSH 040h
-		PUSH EDI
-		PUSH EAX
-		CALL Q_strncpyz
-		MOV AL, byte ptr[ESP + 014h]
-		ADD ESP, 0ch
-		TEST AL, AL
-		LEA ESI, [ESP + 08h]
-		JZ weatherRange30018041
-weatherRange30018035:
-		CMP AL, 020h
-		JZ weatherRange30018041
-		MOV AL, byte ptr[ESI + 01h]
-		INC ESI
-		TEST AL, AL
-		JNZ weatherRange30018035
-weatherRange30018041:
-		CMP byte ptr[ESI], 00h
-		JZ weatherRange3001806b
-		PUSH EDI
-		MOV byte ptr[ESI], 00h
-		CALL dword ptr[weatherRangeAtof]
-		MOV ECX, dword ptr[ESP + 054h]
-		INC ESI
-		PUSH ESI
-		FSTP dword ptr[ECX]
-		CALL dword ptr[weatherRangeAtof]
-		MOV EDX, dword ptr[ESP + 05ch]
-		ADD ESP, 08h
-		FSTP dword ptr[EDX]
-		POP EDI
-		POP ESI
-		ADD ESP, 040h
-		RET
-weatherRange3001806b:
-		PUSH EDI
-		CALL dword ptr[weatherRangeAtof]
-		MOV EAX, dword ptr[ESP + 058h]
-		MOV ECX, dword ptr[ESP + 054h]
-		FLD st(0)
-		ADD ESP, 04h
-		FSTP dword ptr[EAX]
-		POP EDI
-		POP ESI
-		FSTP dword ptr[ECX]
-		ADD ESP, 040h
-		RET
-	}
-}
-
-static __declspec(naked) void CG_EP_ParseInts(char *intstr, int *i1, int *i2)
-{
-	__asm {
-		SUB ESP, 040h
-		LEA EAX, [ESP]
-		PUSH ESI
-		PUSH EDI
-		MOV EDI, dword ptr[ESP + 04ch]
-		PUSH 040h
-		PUSH EDI
-		PUSH EAX
-		CALL Q_strncpyz
-		MOV AL, byte ptr[ESP + 014h]
-		ADD ESP, 0ch
-		TEST AL, AL
-		LEA ESI, [ESP + 08h]
-		JZ weatherRange300180c1
-weatherRange300180b5:
-		CMP AL, 020h
-		JZ weatherRange300180c1
-		MOV AL, byte ptr[ESI + 01h]
-		INC ESI
-		TEST AL, AL
-		JNZ weatherRange300180b5
-weatherRange300180c1:
-		CMP byte ptr[ESI], 00h
-		JZ weatherRange300180f5
-		PUSH EDI
-		MOV byte ptr[ESI], 00h
-		CALL dword ptr[weatherRangeAtof]
-		CALL CG_WeatherTruncateST0
-		MOV ECX, dword ptr[ESP + 054h]
-		INC ESI
-		PUSH ESI
-		MOV dword ptr[ECX], EAX
-		CALL dword ptr[weatherRangeAtof]
-		ADD ESP, 08h
-		CALL CG_WeatherTruncateST0
-		MOV EDX, dword ptr[ESP + 054h]
-		POP EDI
-		POP ESI
-		MOV dword ptr[EDX], EAX
-		ADD ESP, 040h
-		RET
-weatherRange300180f5:
-		PUSH EDI
-		CALL dword ptr[weatherRangeAtof]
-		ADD ESP, 04h
-		CALL CG_WeatherTruncateST0
-		MOV ECX, dword ptr[ESP + 054h]
-		MOV EDX, dword ptr[ESP + 050h]
-		POP EDI
-		POP ESI
-		MOV dword ptr[ECX], EAX
-		MOV dword ptr[EDX], EAX
-		ADD ESP, 040h
-		RET
-	}
-}
-#else
 static void CG_EP_ParseFloats(char *floatstr, float *f1, float *f2)
 {
 	// Parse the float or floats
@@ -1968,6 +1847,33 @@ static void CG_EP_ParseFloats(char *floatstr, float *f1, float *f2)
 		*f1 = *f2 = atof(floatstr);
 	}
 }
+
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* The original consumes the low 32 bits of signed 64-bit truncation. */
+static void CG_EP_ParseInts(char *intstr, int *i1, int *i2)
+{
+	char *middleptr;
+	char buff[64];
+
+	Q_strncpyz(buff, intstr, sizeof(buff));
+	for (middleptr = buff; *middleptr && *middleptr != ' '; middleptr++)
+	{
+	}
+	if (*middleptr)
+	{
+		*middleptr++ = 0;
+		*i1 = TCE_TruncateNativeInteger((long double)atof(intstr));
+		*i2 = TCE_TruncateNativeInteger((long double)atof(middleptr));
+	}
+	else
+	{
+		int value = TCE_TruncateNativeInteger((long double)atof(intstr));
+		*i2 = value;
+		*i1 = value;
+	}
+}
+
+#else
 
 static void CG_EP_ParseInts(char *intstr, int *i1, int *i2)
 {

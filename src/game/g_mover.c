@@ -7,6 +7,7 @@
 */
 
 #include "g_local.h"
+#include "tce_numeric.h"
 
 char *hintStrings[HINT_NUM_HINTS] =
 {
@@ -1189,22 +1190,7 @@ Reached_BinaryMover
 static int G_TCEReachedDelay(int moverTime, float moverWait)
 {
 #if defined(_MSC_VER) && defined(_M_IX86)
-	unsigned short moverCW, moverTruncCW;
-	__int64        moverTicks;
-	__asm {
-		fild dword ptr moverTime
-		fadd dword ptr moverWait
-		fwait
-		fnstcw moverCW
-		fwait
-		mov ax, moverCW
-		or ax, 0c00h
-		mov moverTruncCW, ax
-		fldcw moverTruncCW
-		fistp qword ptr moverTicks
-		fldcw moverCW
-	}
-	return (int)moverTicks;
+	return TCE_TruncateNativeInteger((long double)moverTime + (long double)moverWait);
 #else
 	return (int)(moverTime + moverWait);
 #endif
@@ -2192,22 +2178,18 @@ static void Touch_DoorTriggerSpectator(gentity_t *ent, gentity_t *other, trace_t
 		float          *doorPoint = &other->s.origin[axis];
 		float          *doorMin   = &ent->r.absmin[axis];
 		float          *doorMax   = &ent->r.absmax[axis];
-		unsigned short doorSideStatus;
-		__asm {
-			mov ecx, doorPoint
-			mov edx, doorMax
-			fld dword ptr[ecx]
-			fsub dword ptr[edx]
-			fabs
-			mov edx, doorMin
-			fld dword ptr[ecx]
-			fsub dword ptr[edx]
-			fabs
-			fcompp
-			fnstsw ax
-			mov doorSideStatus, ax
+		long double minDistance = (long double)*doorPoint - (long double)*doorMin;
+		long double maxDistance = (long double)*doorPoint - (long double)*doorMax;
+
+		if (minDistance < 0.0L)
+		{
+			minDistance = -minDistance;
 		}
-		if (!(doorSideStatus & 0x4100))
+		if (maxDistance < 0.0L)
+		{
+			maxDistance = -maxDistance;
+		}
+		if (minDistance > maxDistance)
 		{
 			dir[axis]    = -1.0f;
 			origin[axis] = (float)((double)*doorMin - 10.0);
