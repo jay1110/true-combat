@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "tce_numeric.h"
 #ifdef FEATURE_OMNIBOT
 #include "g_etbot_interface.h"
 #endif
@@ -1235,28 +1236,8 @@ void trigger_aidoor_stayopen(gentity_t *ent, gentity_t *other, trace_t *trace)
 		if ((door->moverState == MOVER_POS2ROTATE) || (door->moverState == MOVER_POS2))
 		{   // door is in open state waiting to close keep it open
 #if defined(_MSC_VER) && defined(_M_IX86)
-			/* TC 20093035: retain FILD(time)+wait+3000 until __ftol. */
-			{
-				int            now = level.time;
-				float          doorWait = door->wait, delay = 3000.0f;
-				unsigned short savedControl, truncateControl;
-				__int64        deadline;
-				__asm {
-					fild now
-					fadd doorWait
-					fadd delay
-					fwait
-					fnstcw savedControl
-					fwait
-					mov ax, savedControl
-					or ax, 0c00h
-					mov truncateControl, ax
-					fldcw truncateControl
-					fistp deadline
-					fldcw savedControl
-				}
-				door->nextthink = (int)deadline;
-			}
+			door->nextthink = TCE_TruncateNativeInteger(
+			    (long double)level.time + door->wait + 3000.0L);
 #else
 			door->nextthink = level.time + door->wait + 3000;
 #endif

@@ -1292,21 +1292,9 @@ void CG_RumbleEfx(float pitch, float yaw)
 		pitchRecoilAdd = (float)recoilValue;
 		randomPitch    = rand();
 		divisor        = TCE_FloatToInt64Low(pitch);
-		__asm {
-			mov eax, randomPitch
-			cdq
-			idiv divisor
-			mov remainder, edx
-			fild remainder
-			fld pitch
-			fmul halfRecoil
-			fsubp st(1), st(0)
-			fmul halfRecoil
-			fstp pitchAdd
-			fld yaw
-			fmul halfRecoil
-			fstp yawRandom
-		}
+		remainder = randomPitch % divisor;
+		pitchAdd = (float)(((long double)remainder - (long double)pitch * halfRecoil) * halfRecoil);
+		yawRandom = (float)((long double)yaw * halfRecoil);
 	}
 #else
 	if (pitch < 1)

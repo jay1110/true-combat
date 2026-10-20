@@ -1,4 +1,5 @@
 #include "cg_local.h"
+#include "../game/tce_numeric.h"
 
 team_t CG_Debriefing_FindWinningTeam(void);
 team_t CG_Debriefing_FindOveralWinningTeam(void);
@@ -1900,35 +1901,11 @@ void CG_Debriefing_ScrollGetBarRect(panel_button_t *button, rectDef_t *r)
 	if (cnt > max)
 	{
 		#if defined(_MSC_VER) && defined(_M_IX86)
-		/* TC 3001e1c3: store bar height, but retain its unrounded ST0
-		 * value for the remaining-height subtraction. */
-		float *height      = &button->rect.h;
-		float *top         = &button->rect.y;
-		float *barHeight   = &r->h;
-		float *barTop      = &r->y;
-		int   range        = cnt - max;
-		int   scrollOffset = offset;
-		__asm {
-			mov eax, height
-			fld dword ptr[eax]
-			fild max
-			fidiv cnt
-			fmul st(0), st(1)
-			fld st(0)
-			mov eax, barHeight
-			fstp dword ptr[eax]
-			fild scrollOffset
-			fidiv range
-			fxch st(2)
-			fsub st(0), st(1)
-			fmulp st(2), st(0)
-			fxch st(1)
-			mov eax, top
-			fadd dword ptr[eax]
-			mov eax, barTop
-			fstp dword ptr[eax]
-			fstp st(0)
-		}
+		long double height = button->rect.h;
+		long double barHeight = ((long double)max / cnt) * height;
+		int range = TCE_SubInt32(cnt, max);
+		r->h = (float)barHeight;
+		r->y = (float)((height - barHeight) * ((long double)offset / range) + button->rect.y);
 		#else
 		float h = button->rect.h;
 		r->h = h * (max / (float)cnt);
@@ -1963,30 +1940,6 @@ void CG_Debriefing_ScrollCheckOffset(panel_button_t *button)
 	}
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-/* Original __ftol contract: consume ST0, truncate to int64, return low32. */
-static __declspec(naked) int CG_Debriefing_TruncateST0(void)
-{
-	__asm {
-		push ebp
-		mov ebp, esp
-		add esp, -12
-		fwait
-		fnstcw word ptr[ebp - 2]
-		fwait
-		mov ax, word ptr[ebp - 2]
-		or ah, 0ch
-		mov word ptr[ebp - 4], ax
-		fldcw word ptr[ebp - 4]
-		fistp qword ptr[ebp - 12]
-		fldcw word ptr[ebp - 2]
-		mov eax, dword ptr[ebp - 12]
-		mov edx, dword ptr[ebp - 8]
-		leave
-		ret
-	}
-}
-#endif
 
 void CG_Debriefing_MouseEvent(int x, int y)
 {
@@ -2008,17 +1961,8 @@ void CG_Debriefing_MouseEvent(int x, int y)
 
 				#if defined(_MSC_VER) && defined(_M_IX86)
 			{
-				int                product = (int)((unsigned)cnt * (unsigned)button->data[1]);
-				float              *height = &r.h;
-				static const float half    = 0.5f;
-				__asm {
-					fild product
-					fmul half
-					mov eax, height
-					fdiv dword ptr[eax]
-					call CG_Debriefing_TruncateST0
-					mov count, eax
-				}
+				int product = (int)((unsigned)cnt * (unsigned)button->data[1]);
+				count = TCE_TruncateNativeInteger((long double)product * 0.5L / r.h);
 			}
 				#else
 			count = (cnt * button->data[1] * 0.5f) / (float)(r.h);
@@ -2033,20 +1977,8 @@ void CG_Debriefing_MouseEvent(int x, int y)
 				if (ofs == count)
 				{
 						#if defined(_MSC_VER) && defined(_M_IX86)
-					int   *accum  = &button->data[1];
-					float *height = &r.h;
-					__asm {
-						mov eax, accum
-						fild dword ptr[eax]
-						fild cnt
-						mov eax, height
-						fdivr dword ptr[eax]
-						fimul ofs
-						fsubp st(1), st(0)
-						call CG_Debriefing_TruncateST0
-						mov ecx, accum
-						mov dword ptr[ecx], eax
-					}
+					button->data[1] = TCE_TruncateNativeInteger(
+					    (long double)button->data[1] - (long double)r.h / cnt * ofs);
 						#else
 					button->data[1] -= ofs * (r.h / (float)cnt);
 						#endif
@@ -2055,20 +1987,7 @@ void CG_Debriefing_MouseEvent(int x, int y)
 
 			CG_Debriefing_ScrollGetBarRect(button, &r);
 				#if defined(_MSC_VER) && defined(_M_IX86)
-			{
-				int   *anchor = &button->data[2];
-				float *top    = &r.y;
-				int   cursor;
-				__asm {
-					mov eax, anchor
-					fild dword ptr[eax]
-					mov eax, top
-					fadd dword ptr[eax]
-					call CG_Debriefing_TruncateST0
-					mov cursor, eax
-				}
-				cgs.cursorY = cursor;
-			}
+			cgs.cursorY = TCE_TruncateNativeInteger((long double)button->data[2] + r.y);
 				#else
 			cgs.cursorY = r.y + button->data[2];
 				#endif

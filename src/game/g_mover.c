@@ -3976,18 +3976,7 @@ void SP_func_train_rotating(gentity_t *self)
 	}
 
 #if defined(_MSC_VER) && defined(_M_IX86)
-	{
-		float          *trainSpeed = &self->speed;
-		const float    trainZero   = 0.0f;
-		unsigned short trainStatus;
-		__asm {
-			mov ecx, trainSpeed
-			fld dword ptr[ecx]
-			fcomp trainZero
-			fnstsw trainStatus
-		}
-		trainDefaultSpeed = (trainStatus & 0x4000) != 0;
-	}
+	trainDefaultSpeed = TCE_FloatIsZeroOrNaN(self->speed);
 #else
 	trainDefaultSpeed = !(self->speed < 0.0f || self->speed > 0.0f);
 #endif
@@ -4762,43 +4751,19 @@ void func_explosive_explode(gentity_t *self, gentity_t *inflictor, gentity_t *at
 
 #if defined(_MSC_VER) && defined(_M_IX86)
 	{
-		float  *explosiveMin  = self->r.absmin;
-		float  *explosiveMax  = self->r.absmax;
-		float  *explosiveBase = self->s.pos.trBase;
-		float  explosiveY, explosiveZ, explosiveCenterY, explosiveCenterZ;
-		double explosiveHalf = 0.5;
-		__asm {
-			mov ecx, explosiveMax
-			mov edx, explosiveMin
-			fld dword ptr[ecx]
-			fsub dword ptr[edx]
-			fld dword ptr[ecx + 4]
-			fsub dword ptr[edx + 4]
-			fstp explosiveY
-			fld dword ptr[ecx + 8]
-			fsub dword ptr[edx + 8]
-			fstp explosiveZ
-			fmul qword ptr explosiveHalf
-			fld explosiveY
-			fmul qword ptr explosiveHalf
-			fstp explosiveY
-			fld explosiveZ
-			fmul qword ptr explosiveHalf
-			fstp explosiveZ
-			fadd dword ptr[edx]
-			fld explosiveY
-			fadd dword ptr[edx + 4]
-			fstp explosiveCenterY
-			fld explosiveZ
-			fadd dword ptr[edx + 8]
-			mov ecx, explosiveBase
-			mov eax, explosiveCenterY
-			mov dword ptr[ecx + 4], eax
-			fstp explosiveCenterZ
-			fstp dword ptr[ecx]
-			mov eax, explosiveCenterZ
-			mov dword ptr[ecx + 8], eax
-		}
+		long double centerX = ((long double)self->r.absmax[0] - self->r.absmin[0]) * 0.5L
+		                    + self->r.absmin[0];
+		float halfY = self->r.absmax[1] - self->r.absmin[1];
+		float halfZ = self->r.absmax[2] - self->r.absmin[2];
+		float centerY, centerZ;
+
+		halfY = (float)((long double)halfY * 0.5L);
+		halfZ = (float)((long double)halfZ * 0.5L);
+		centerY = (float)((long double)halfY + self->r.absmin[1]);
+		centerZ = (float)((long double)halfZ + self->r.absmin[2]);
+		self->s.pos.trBase[1] = centerY;
+		self->s.pos.trBase[0] = (float)centerX;
+		self->s.pos.trBase[2] = centerZ;
 	}
 #else
 	VectorSubtract(self->r.absmax, self->r.absmin, size);
@@ -4812,24 +4777,7 @@ void func_explosive_explode(gentity_t *self, gentity_t *inflictor, gentity_t *at
 
 	self->s.density = self->count;      // pass the "mass" to the client
 #if defined(_MSC_VER) && defined(_M_IX86)
-	{
-		float          explosiveDuration = self->duration;
-		unsigned short explosiveCW, explosiveTruncCW;
-		__int64        explosiveTicks;
-		__asm {
-			fld explosiveDuration
-			fwait
-			fnstcw explosiveCW
-			fwait
-			mov ax, explosiveCW
-			or ax, 0c00h
-			mov explosiveTruncCW, ax
-			fldcw explosiveTruncCW
-			fistp qword ptr explosiveTicks
-			fldcw explosiveCW
-		}
-		self->s.weapon = (int)explosiveTicks;
-	}
+	self->s.weapon = TCE_TruncateNativeInteger((long double)self->duration);
 #else
 	self->s.weapon = self->duration;    // pass the "force lowgrav" to client
 #endif
@@ -4872,16 +4820,7 @@ void func_explosive_explode(gentity_t *self, gentity_t *inflictor, gentity_t *at
 	if (!tent)
 	{
 #if defined(_MSC_VER) && defined(_M_IX86)
-		float          explosiveYaw  = self->s.angles[1];
-		float          explosiveZero = 0.0f;
-		unsigned short explosiveYawStatus;
-		__asm {
-			fld explosiveYaw
-			fcomp explosiveZero
-			fnstsw ax
-			mov explosiveYawStatus, ax
-		}
-		if (!(explosiveYawStatus & 0x4000))
+		if (!TCE_FloatIsZeroOrNaN(self->s.angles[1]))
 		{
 #else
 		if (self->s.angles[1])
@@ -5618,16 +5557,7 @@ void func_constructible_use(gentity_t *self, gentity_t *other, gentity_t *activa
 		{
 			int constructibleStageNonzero;
 #if defined(_MSC_VER) && defined(_M_IX86)
-			float          *constructibleStage = &self->s.angles2[1];
-			const float    constructibleZero   = 0.0f;
-			unsigned short constructibleStatus;
-			__asm {
-				mov ecx, constructibleStage
-				fld dword ptr[ecx]
-				fcomp constructibleZero
-				fnstsw constructibleStatus
-			}
-			constructibleStageNonzero = !(constructibleStatus & 0x4000);
+			constructibleStageNonzero = !TCE_FloatIsZeroOrNaN(self->s.angles2[1]);
 #else
 			constructibleStageNonzero = self->s.angles2[1] < 0.0f || self->s.angles2[1] > 0.0f;
 #endif
@@ -5695,31 +5625,12 @@ func_constructible_explode
 static qboolean G_TCEConstructibleDeathGate(gentity_t *self, qboolean resetProgress)
 {
 #if defined(_MSC_VER) && defined(_M_IX86)
-	float          *completionValue = &self->s.angles2[1];
-	float          *progressValue   = &self->s.angles2[0];
-	const float    completionZero   = 0.0f;
-	unsigned short completionStatus;
+	qboolean completed = !TCE_FloatIsZeroOrNaN(self->s.angles2[1]);
 	if (resetProgress)
 	{
-		__asm {
-			mov eax, completionValue
-			fld dword ptr[eax]
-			fcomp completionZero
-			mov eax, progressValue
-			mov dword ptr[eax], 0
-			fnstsw completionStatus
-		}
+		self->s.angles2[0] = 0.0f;
 	}
-	else
-	{
-		__asm {
-			mov eax, completionValue
-			fld dword ptr[eax]
-			fcomp completionZero
-			fnstsw completionStatus
-		}
-	}
-	return (completionStatus & 0x4000u) == 0;
+	return completed;
 #else
 	qboolean completed = self->s.angles2[1] != 0.0f;
 	if (resetProgress)
@@ -6098,28 +6009,8 @@ static void G_TCEConstructibleMarkerSnap(vec3_t markerPosition)
 	int markerAxis;
 	for (markerAxis = 0; markerAxis < 3; ++markerAxis)
 	{
-		float          *markerCoordinate = &markerPosition[markerAxis];
-		__int64        markerInteger;
-		int            markerLow;
-		unsigned short markerControl, markerTruncate;
-		__asm {
-			mov eax, markerCoordinate
-			fld dword ptr[eax]
-			fwait
-			fnstcw markerControl
-			fwait
-			mov ax, markerControl
-			or ax, 0c00h
-			mov markerTruncate, ax
-			fldcw markerTruncate
-			fistp qword ptr markerInteger
-			fldcw markerControl
-			mov eax, dword ptr markerInteger
-			mov markerLow, eax
-			fild dword ptr markerLow
-			mov eax, markerCoordinate
-			fstp dword ptr[eax]
-		}
+		int markerLow = TCE_TruncateNativeInteger((long double)markerPosition[markerAxis]);
+		markerPosition[markerAxis] = (float)markerLow;
 	}
 #else
 	SnapVector(markerPosition);

@@ -2,6 +2,7 @@
 // -------------------------
 //
 #include "g_local.h"
+#include "tce_numeric.h"
 #include "tce_bg.h"
 #include "../ui/menudef.h"
 
@@ -662,56 +663,24 @@ void G_printMatchInfo(gentity_t *ent)
 static qboolean G_TCEStopwatchValues(int elapsed, float limitValue, int limitWhole,
                                      qboolean calculateElapsed, int *minutes, int *seconds, int *limitSeconds)
 {
-	static const double minuteScale  = 1.6666666666666667e-05;
-	static const double secondsScale = 60.0;
-	unsigned short      originalControl, truncateControl;
-	__int64             converted;
-	int                 reached = 0, whole = 0, fraction = 0, limitFraction;
-	__asm {
-		fnstcw originalControl
-		mov ax, originalControl
-		or ax, 0c00h
-		mov truncateControl, ax
-		fild limitWhole
-		fsubr limitValue
-		fmul secondsScale
-		fldcw truncateControl
-		fistp converted
-		fldcw originalControl
-		mov eax, dword ptr converted
-		mov limitFraction, eax
-	}
-	*limitSeconds = limitFraction;
+	static const double minuteScale = 1.6666666666666667e-05;
+	long double elapsedMinutes;
+	int whole = 0, fraction = 0;
+	qboolean reached;
+
+	*limitSeconds = TCE_TruncateNativeInteger(((long double)limitValue - limitWhole) * 60.0L);
 	if (!calculateElapsed)
 	{
 		return qfalse;
 	}
-	__asm {
-		fild elapsed
-		fmul minuteScale
-		fcom limitValue
-		fnstsw ax
-		test ah, 1
-		jz stopwatch_not_reached
-		mov reached, 1
-		fld st(0)
-		fldcw truncateControl
-		fistp converted
-		fldcw originalControl
-		mov eax, dword ptr converted
-		mov whole, eax
-		fild whole
-		fsubp st(1), st(0)
-		fmul secondsScale
-		fldcw truncateControl
-		fistp converted
-		fldcw originalControl
-		mov eax, dword ptr converted
-		mov fraction, eax
-		jmp stopwatch_values_ready
-stopwatch_not_reached:
-		fstp st(0)
-		stopwatch_values_ready :
+
+	elapsedMinutes = (long double)elapsed * minuteScale;
+	/* Native C0 includes unordered in the branch that computes the values. */
+	reached = !(elapsedMinutes >= (long double)limitValue);
+	if (reached)
+	{
+		whole = TCE_TruncateNativeInteger(elapsedMinutes);
+		fraction = TCE_TruncateNativeInteger((elapsedMinutes - whole) * 60.0L);
 	}
 	*minutes = whole;
 	*seconds = fraction;

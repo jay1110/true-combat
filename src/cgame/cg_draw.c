@@ -4505,15 +4505,7 @@ static void CG_DrawStatsDebug(void)
 #if defined(_MSC_VER) && defined(_M_IX86)
 			static const float fadeRate = 0.00025f, baseAlpha = .5f;
 			int age = (int)((unsigned int)cg.time - (unsigned int)statsDebugTime[i] - 5000u);
-			float alpha;
-			__asm {
-				fild dword ptr[age]
-				fmul dword ptr[fadeRate]
-				fmul dword ptr[baseAlpha]
-				fsubr dword ptr[baseAlpha]
-				fstp dword ptr[alpha]
-			}
-			colour[3] = alpha;
+			colour[3] = (float)((long double)baseAlpha - (long double)age * fadeRate * baseAlpha);
 #else
 			colour[3] = .5f - .5f * ((cg.time - statsDebugTime[i] - 5000) / 4000.f);
 #endif
@@ -4530,15 +4522,7 @@ static void CG_DrawStatsDebug(void)
 #if defined(_MSC_VER) && defined(_M_IX86)
 			static const float fadeRate = 0.00025f, baseAlpha = 1.f;
 			int age = (int)((unsigned int)cg.time - (unsigned int)statsDebugTime[i] - 5000u);
-			float alpha;
-			__asm {
-				fild dword ptr[age]
-				fmul dword ptr[fadeRate]
-
-				fsubr dword ptr[baseAlpha]
-				fstp dword ptr[alpha]
-			}
-			colour[3] = alpha;
+			colour[3] = (float)((long double)baseAlpha - (long double)age * fadeRate);
 #else
 			colour[3] = 1.f - ((cg.time - statsDebugTime[i] - 5000) / 4000.f);
 #endif

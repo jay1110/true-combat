@@ -661,15 +661,7 @@ void G_DebugAddSkillPoints(gentity_t *ent, skillType_t skill, float points, cons
 static qboolean G_TCEAwardSkillQualifies(float awardPoints)
 {
 #if defined(_MSC_VER) && defined(_M_IX86)
-	const float    awardThreshold = 20.0f;
-	unsigned short awardStatus;
-	__asm {
-		fld dword ptr awardPoints
-		fcomp dword ptr awardThreshold
-		fnstsw ax
-		mov awardStatus, ax
-	}
-	return (awardStatus & 0x100) == 0;
+	return awardPoints >= 20.0f;
 #else
 	return awardPoints >= 20.0f;
 #endif
@@ -678,14 +670,7 @@ static qboolean G_TCEAwardSkillQualifies(float awardPoints)
 static qboolean G_TCEAwardAccuracyBetter(float candidateAccuracy, float bestAccuracy)
 {
 #if defined(_MSC_VER) && defined(_M_IX86)
-	unsigned short awardStatus;
-	__asm {
-		fld dword ptr candidateAccuracy
-		fcomp dword ptr bestAccuracy
-		fnstsw ax
-		mov awardStatus, ax
-	}
-	return (awardStatus & 0x4100) == 0;
+	return candidateAccuracy > bestAccuracy;
 #else
 	return candidateAccuracy > bestAccuracy;
 #endif
@@ -695,17 +680,9 @@ static qboolean G_TCEAwardSkillBetter(float candidatePoints, float candidateStar
                                       float bestPoints, float bestStart)
 {
 #if defined(_MSC_VER) && defined(_M_IX86)
-	unsigned short awardStatus;
-	__asm {
-		fld dword ptr candidatePoints
-		fsub dword ptr candidateStart
-		fld dword ptr bestPoints
-		fsub dword ptr bestStart
-		fcompp
-		fnstsw ax
-		mov awardStatus, ax
-	}
-	return (awardStatus & 0x100) != 0;
+	long double candidate = (long double)candidatePoints - candidateStart;
+	long double best = (long double)bestPoints - bestStart;
+	return !(best >= candidate);
 #else
 	return candidatePoints - candidateStart > bestPoints - bestStart;
 #endif
@@ -715,17 +692,9 @@ static qboolean G_TCEAwardRateBetter(int candidateScore, int candidateElapsed,
                                      int bestScore, int bestElapsed)
 {
 #if defined(_MSC_VER) && defined(_M_IX86)
-	unsigned short awardStatus;
-	__asm {
-		fild dword ptr candidateScore
-		fidiv dword ptr candidateElapsed
-		fild dword ptr bestScore
-		fidiv dword ptr bestElapsed
-		fcompp
-		fnstsw ax
-		mov awardStatus, ax
-	}
-	return (awardStatus & 0x100) != 0;
+	long double candidate = (long double)candidateScore / candidateElapsed;
+	long double best = (long double)bestScore / bestElapsed;
+	return !(best >= candidate);
 #else
 	return candidateScore / (float)candidateElapsed > bestScore / (float)bestElapsed;
 #endif
@@ -734,16 +703,7 @@ static qboolean G_TCEAwardRateBetter(int candidateScore, int candidateElapsed,
 static qboolean G_TCEAwardLossAllows(float awardStartXP, int awardScore)
 {
 #if defined(_MSC_VER) && defined(_M_IX86)
-	const float    awardLimit = 100.0f;
-	unsigned short awardStatus;
-	__asm {
-		fild dword ptr awardScore
-		fsubr dword ptr awardStartXP
-		fcomp dword ptr awardLimit
-		fnstsw ax
-		mov awardStatus, ax
-	}
-	return (awardStatus & 0x100) != 0;
+	return !((long double)awardStartXP - awardScore >= 100.0L);
 #else
 	return !(awardStartXP - awardScore >= 100);
 #endif

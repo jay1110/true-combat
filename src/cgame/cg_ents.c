@@ -627,9 +627,8 @@ qboolean CG_PlayerSeesItem(playerState_t *ps, entityState_t *item, int atTime, i
 #endif
 #if defined(_MSC_VER) && defined(_M_IX86)
 	static const float maxDistance = 255.f, coneBase = -0.94f;
-	static const float coneScale = 1.f / 255.f, coneSlope = 0.057f, one = 1.f;
-	int                reject;
-	float              traceFraction;
+	static const float coneScale = 1.f / 255.f, coneSlope = 0.057f;
+	long double distance, dotProduct, threshold;
 #endif
 	trace_t tr;
 
@@ -643,19 +642,9 @@ qboolean CG_PlayerSeesItem(playerState_t *ps, entityState_t *item, int atTime, i
 	VectorSubtract(vorigin, eorigin, dir);
 
 #if defined(_MSC_VER) && defined(_M_IX86)
-	/* Keep the normalize return in ST0 for the original distance gate. */
-	__asm {
-		lea eax, dir
-		push eax
-		call VectorNormalize
-		add esp, 4
-		fst dword ptr[dist]
-		fcomp dword ptr[maxDistance]
-		fnstsw ax
-		and eax, 4100h
-		mov reject, eax
-	}
-	if (!reject)
+	distance = VectorNormalize(dir);
+	dist = (float)distance;
+	if (distance > (long double)maxDistance)
 	{
 		return qfalse;
 	}
@@ -675,26 +664,11 @@ qboolean CG_PlayerSeesItem(playerState_t *ps, entityState_t *item, int atTime, i
 	//		have to do redundant calcs)
 	AngleVectors(ps->viewangles, viewa, 0, 0);
 #if defined(_MSC_VER) && defined(_M_IX86)
-	/* Original z+y+x dot and unspilled cone threshold, C0 rejection. */
-	__asm {
-		fld dword ptr[viewa + 8]
-		fmul dword ptr[dir + 8]
-		fld dword ptr[viewa + 4]
-		fmul dword ptr[dir + 4]
-		faddp st(1), st(0)
-		fld dword ptr[viewa]
-		fmul dword ptr[dir]
-		faddp st(1), st(0)
-		fld dword ptr[dist]
-		fmul dword ptr[coneScale]
-		fmul dword ptr[coneSlope]
-		fsubr dword ptr[coneBase]
-		fcompp
-		fnstsw ax
-		and eax, 100h
-		mov reject, eax
-	}
-	if (reject)
+	dotProduct = (long double)viewa[2] * dir[2] + (long double)viewa[1] * dir[1];
+	dotProduct += (long double)viewa[0] * dir[0];
+	threshold = (long double)coneBase - (long double)dist * coneScale * coneSlope;
+	/* Native C0 rejects both dot>threshold and unordered comparisons. */
+	if (!(threshold >= dotProduct))
 	{
 		return qfalse;
 	}
@@ -713,15 +687,8 @@ qboolean CG_PlayerSeesItem(playerState_t *ps, entityState_t *item, int atTime, i
 		CG_Trace(&tr, vorigin, NULL, NULL, eorigin, -1, MASK_SOLID);
 
 #if defined(_MSC_VER) && defined(_M_IX86)
-		traceFraction = tr.fraction;
-		__asm {
-			fld dword ptr[traceFraction]
-			fcomp dword ptr[one]
-			fnstsw ax
-			and eax, 4000h
-			mov reject, eax
-		}
-		if (!reject)
+		/* Native C3 accepts either equality or an unordered trace fraction. */
+		if (tr.fraction < 1.0f || tr.fraction > 1.0f)
 		{
 			return qfalse;
 		}

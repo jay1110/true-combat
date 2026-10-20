@@ -689,33 +689,8 @@ G_CheckForCursorHints
  * Unordered reaches the second test and is rejected there. */
 static qboolean G_TCEEmplacedHeightAllowsMount(float gunHeight, float playerHeight)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
-	const float mountUpper = 40.0f, mountLower = 0.0f;
-	int         mountAllowed;
-	__asm {
-		fld gunHeight
-		fsub playerHeight
-		fcom mountUpper
-		fnstsw ax
-		test ah, 1
-		jnz mountCheckLower
-		fstp st(0)
-		mov mountAllowed, 0
-		jmp mountCheckDone
-mountCheckLower:
-		fcomp mountLower
-		fnstsw ax
-		test ah, 1
-		setz al
-		movzx eax, al
-		mov mountAllowed, eax
-mountCheckDone:
-	}
-	return mountAllowed;
-#else
 	long double mountDifference = (long double)gunHeight - (long double)playerHeight;
 	return mountDifference < 40.0L && mountDifference >= 0.0L;
-#endif
 }
 
 qboolean G_EmplacedGunIsMountable(gentity_t *ent, gentity_t *other)
@@ -1887,21 +1862,7 @@ void bani_clearmapxp(void)
 static int G_TCEMapXPInteger(float mapXPValue)
 {
 #if defined(_MSC_VER) && defined(_M_IX86)
-	unsigned short mapXPCW, mapXPTruncCW;
-	__int64        mapXPResult;
-	__asm {
-		fld mapXPValue
-		fwait
-		fnstcw mapXPCW
-		fwait
-		mov ax, mapXPCW
-		or ax, 0c00h
-		mov mapXPTruncCW, ax
-		fldcw mapXPTruncCW
-		fistp qword ptr mapXPResult
-		fldcw mapXPCW
-	}
-	return (int)mapXPResult;
+	return TCE_TruncateNativeInteger((long double)mapXPValue);
 #else
 	return (int)mapXPValue;
 #endif

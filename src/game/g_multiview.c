@@ -2,6 +2,7 @@
 // ---------------------------------
 //
 #include "g_local.h"
+#include "tce_numeric.h"
 
 
 qboolean G_smvCommands(gentity_t *ent, char *cmd)
@@ -321,38 +322,17 @@ static int G_TCECameraQuantize(int cameraValue, unsigned int cameraFactorBits,
 	float cameraFactor;
 	memcpy(&cameraFactor, &cameraFactorBits, sizeof(cameraFactor));
 #if defined(_MSC_VER) && defined(_M_IX86)
+	long double value = (long double)cameraValue * cameraFactor;
+	if (cameraDivide)
 	{
-		double(__cdecl * cameraFloor)(double) = floor;
-		double         cameraOne = 1.0;
-		unsigned short cameraCW, cameraTruncCW;
-		__int64        cameraResult;
-		__asm {
-			fild cameraValue
-			fmul cameraFactor
-			cmp cameraDivide, 0
-			je camera_no_divide
-			fidiv cameraDivisor
-camera_no_divide:
-			sub esp, 8
-			fstp qword ptr[esp]
-			call cameraFloor
-			add esp, 8
-			cmp cameraAddOne, 0
-			je camera_no_increment
-			fadd qword ptr cameraOne
-camera_no_increment:
-			fwait
-			fnstcw cameraCW
-			fwait
-			mov ax, cameraCW
-			or ax, 0c00h
-			mov cameraTruncCW, ax
-			fldcw cameraTruncCW
-			fistp qword ptr cameraResult
-			fldcw cameraCW
-		}
-		return (int)cameraResult;
+		value /= cameraDivisor;
 	}
+	value = floor((double)value);
+	if (cameraAddOne)
+	{
+		value += 1.0L;
+	}
+	return TCE_TruncateNativeInteger(value);
 #else
 	return (int)(floor((double)cameraValue * cameraFactor /
 	                   (cameraDivide ? cameraDivisor : 1)) + (cameraAddOne ? 1.0 : 0.0));
@@ -362,21 +342,7 @@ camera_no_increment:
 static int G_TCECameraCharge(float cameraChargeValue)
 {
 #if defined(_MSC_VER) && defined(_M_IX86)
-	unsigned short chargeCW, chargeTruncCW;
-	__int64        chargeResult;
-	__asm {
-		fld cameraChargeValue
-		fwait
-		fnstcw chargeCW
-		fwait
-		mov ax, chargeCW
-		or ax, 0c00h
-		mov chargeTruncCW, ax
-		fldcw chargeTruncCW
-		fistp qword ptr chargeResult
-		fldcw chargeCW
-	}
-	return (int)chargeResult;
+	return TCE_TruncateNativeInteger((long double)cameraChargeValue);
 #else
 	return (int)cameraChargeValue;
 #endif

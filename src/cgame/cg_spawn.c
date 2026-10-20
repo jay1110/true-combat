@@ -5,6 +5,7 @@
 */
 
 #include "cg_local.h"
+#include "../game/tce_numeric.h"
 #include "tce_lightgrid.h"
 
 qboolean CG_SpawnString(const char *key, const char *defaultString, char **out)
@@ -152,64 +153,20 @@ for printing vectors
 =============
 */
 #if defined(_MSC_VER) && defined(_M_IX86)
-/* Original __ftol contract used by the map-entity diagnostic formatter. */
-static __declspec(naked) void CG_SpawnTruncateST0(void)
+char *vtos(const vec3_t v)
 {
-	__asm {
-		push ebp
-		mov ebp, esp
-		add esp, -12
-		fwait
-		fnstcw word ptr[ebp - 2]
-		fwait
-		mov ax, word ptr[ebp - 2]
-		or ah, 0ch
-		mov word ptr[ebp - 4], ax
-		fldcw word ptr[ebp - 4]
-		fistp qword ptr[ebp - 12]
-		fldcw word ptr[ebp - 2]
-		mov eax, dword ptr[ebp - 12]
-		mov edx, dword ptr[ebp - 8]
-		leave
-		ret
-	}
-}
+	static int index;
+	static char strings[8][32];
+	char *result = strings[index];
+	int x, y, z;
 
-__declspec(naked) char *vtos(const vec3_t v)
-{
-	static int        spawnVectorIndex;
-	static char       spawnVectorStrings[8][32];
-	static const char spawnVectorFormat[] = "(%i %i %i)";
-	__asm {
-		mov eax, spawnVectorIndex
-		push esi
-		mov esi, eax
-		push edi
-		mov edi, dword ptr[esp + 12]
-		shl esi, 5
-		add esi, offset spawnVectorStrings
-		inc eax
-		and eax, 7
-		mov spawnVectorIndex, eax
-		fld dword ptr[edi + 8]
-		call CG_SpawnTruncateST0
-		fld dword ptr[edi + 4]
-		push eax
-		call CG_SpawnTruncateST0
-		fld dword ptr[edi]
-		push eax
-		call CG_SpawnTruncateST0
-		push eax
-		push offset spawnVectorFormat
-		push 32
-		push esi
-		call Com_sprintf
-		add esp, 24
-		mov eax, esi
-		pop edi
-		pop esi
-		    ret
-	}
+	index = (index + 1) & 7;
+	/* The original converts Z, Y, X before formatting X, Y, Z. */
+	z = TCE_TruncateNativeInteger((long double)v[2]);
+	y = TCE_TruncateNativeInteger((long double)v[1]);
+	x = TCE_TruncateNativeInteger((long double)v[0]);
+	Com_sprintf(result, 32, "(%i %i %i)", x, y, z);
+	return result;
 }
 #else
 char *vtos(const vec3_t v)

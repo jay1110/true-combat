@@ -3902,34 +3902,15 @@ void Cmd_SelectedObjective_f(gentity_t *ent)
 			}
 			else
 			{
-				/* TC 20054721: preserve the distance return in ST0 until
-				 * C0 selects the winner; only a winner is rounded to f32. */
+				/* TC 20054721: compare before storing the selected float distance. */
 #if defined(_MSC_VER) && defined(_M_IX86)
-				float *cameraPosition = level.limboCams[i].origin;
-				float *targetPosition = g_entities[level.limboCams[i].targetEnt].r.currentOrigin;
-				int   replaceCamera;
-				__asm {
-					push targetPosition
-					push cameraPosition
-					call VectorDistanceSquared
-					add esp, 8
-					cmp nearest, -1
-					je selectedCameraWins
-					fcom neardist
-					fnstsw ax
-					test ah, 1
-					je selectedCameraLoses
-selectedCameraWins:
-					fstp neardist
-					mov replaceCamera, 1
-					jmp selectedCameraCompared
-selectedCameraLoses:
-					fstp st(0)
-					mov replaceCamera, 0
-selectedCameraCompared:
-				}
-				if (replaceCamera)
+				long double distance = VectorDistanceSquared(
+				    level.limboCams[i].origin,
+				    g_entities[level.limboCams[i].targetEnt].r.currentOrigin);
+				/* Native C0 also selects an unordered distance. */
+				if (nearest == -1 || !(distance >= (long double)neardist))
 				{
+					neardist = (float)distance;
 					nearest = i;
 				}
 #else

@@ -2,6 +2,7 @@
 // -------------------------------------------
 //
 #include "g_local.h"
+#include "tce_numeric.h"
 #include "../ui/menudef.h"
 
 int iWeap = WS_MAX;
@@ -849,46 +850,11 @@ void G_weaponStatsLeaders_cmd(gentity_t *ent, qboolean doTop, qboolean doWindow)
 			if (shots >= cQualifyingShots[iWeap])
 			{
 #if defined(_MSC_VER) && defined(_M_IX86)
-				/* Original20056cb0 keeps the unsigned-hit quotient in ST0
-				 * until comparison and truncating conversion of a new best. */
-				static const double percentScale = 100.0;
-				__int64             hitsWide     = (unsigned int)cl->sess.aWeaponStats[iWeap].hits;
-				__int64             converted;
-				unsigned short      originalControl, truncateControl;
-				int                 replace;
-				__asm {
-					fild hitsWide
-					fmul percentScale
-					fidiv shots
-					ficom wBestAcc
-					fnstsw ax
-					cmp doTop, 0
-					je stats_bottom_compare
-					test ah, 041h
-					setz al
-					jmp stats_compare_ready
-stats_bottom_compare:
-					and ah, 045h
-					cmp ah, 1
-					setz al
-stats_compare_ready:
-					movzx eax, al
-					mov replace, eax
-					test eax, eax
-					jz stats_keep_best
-					fnstcw originalControl
-					mov ax, originalControl
-					or ax, 0c00h
-					mov truncateControl, ax
-					fldcw truncateControl
-					fistp converted
-					fldcw originalControl
-					mov eax, dword ptr converted
-					mov wBestAcc, eax
-					jmp stats_best_ready
-stats_keep_best:
-					fstp st(0)
-					stats_best_ready :
+				long double accuracy = (long double)(unsigned int)cl->sess.aWeaponStats[iWeap].hits * 100.0L / shots;
+				int replace = doTop ? accuracy > (long double)wBestAcc : accuracy < (long double)wBestAcc;
+				if (replace)
+				{
+					wBestAcc = TCE_TruncateNativeInteger(accuracy);
 				}
 				aClients[cClients++] = level.sortedClients[i];
 				if (replace)
@@ -917,33 +883,11 @@ stats_keep_best:
 			cl = &level.clients[aClients[i]];
 #if defined(_MSC_VER) && defined(_M_IX86)
 			{
-				static const double percentScale = 100.0, bottomSlack = 0.999;
-				__int64             hitsWide = (unsigned int)cl->sess.aWeaponStats[iWeap].hits;
-				int                 attempts = (int)cl->sess.aWeaponStats[iWeap].atts;
-				/* Original second pass rounds only the final quotient to float,
-				 * then compares against an unrounded integer-plus-double bound. */
-				__asm {
-					fild hitsWide
-					fmul percentScale
-					fidiv attempts
-					fstp acc
-					cmp doTop, 0
-					je stats_bottom_include
-					fild wBestAcc
-					fld acc
-					jmp stats_include_compare
-stats_bottom_include:
-					fld acc
-					fild wBestAcc
-					fadd bottomSlack
-stats_include_compare:
-					fcompp
-					fnstsw ax
-					test ah, 1
-					setz al
-					movzx eax, al
-					mov selected, eax
-				}
+				static const double bottomSlack = 0.999;
+				int attempts = (int)cl->sess.aWeaponStats[iWeap].atts;
+				acc = (float)((long double)(unsigned int)cl->sess.aWeaponStats[iWeap].hits * 100.0L / attempts);
+				selected = doTop ? (long double)acc >= wBestAcc
+				                 : (long double)wBestAcc + bottomSlack >= (long double)acc;
 			}
 #else
 			acc      = (float)(cl->sess.aWeaponStats[iWeap].hits * 100.0) / (float)(cl->sess.aWeaponStats[iWeap].atts);
