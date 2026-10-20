@@ -26,10 +26,12 @@ static const char *gameNames[] =
 {
 	"Single Player",
 	"Cooperative",
-	"Objective",
+	"Reinforced Objective",
 	"Stopwatch",
 	"Campaign",
-	"Last Man Standing"
+	"Objective",
+	"Demolition SW",
+	"Bodycount"
 };
 
 
@@ -311,9 +313,9 @@ void G_GametypeList(gentity_t *ent)
 
 	G_refPrintf(ent, "\nAvailable gametypes:\n--------------------");
 
-	for (i = GT_WOLF; i < GT_MAX_GAME_TYPE; i++)
+	for (i = GT_WOLF_LMS; i < GT_MAX_GAME_TYPE; i++)
 	{
-		if (i != GT_WOLF_CAMPAIGN)
+		if (i != GT_TCE_RESERVED)
 		{
 			G_refPrintf(ent, "  %d ^3(%s)", i, gameNames[i]);
 		}
@@ -521,7 +523,22 @@ int G_Map_v(gentity_t *ent, unsigned int dwVoteIndex, char *arg, char *arg2, qbo
 	if (arg)
 	{
 		char serverinfo[MAX_INFO_STRING];
+		char mapinfo[MAX_INFO_STRING];
 		trap_GetServerinfo(serverinfo, sizeof(serverinfo));
+
+		Com_sprintf(mapinfo, sizeof(mapinfo), "scripts/%s.mapinfo", arg2);
+		if (!trap_PC_LoadSource(mapinfo))
+		{
+			G_refPrintf(ent, "[lof]^3%s^7 [lon]is not a valid tce map", arg2);
+			G_voteCurrentSetting(ent, arg, Info_ValueForKey(serverinfo, "mapname"));
+			return G_INVALID;
+		}
+		if (sv_official.integer && !BG_MapIsOfficial(arg2))
+		{
+			G_refPrintf(ent, "[lof]^3%s^7 [lon]is not an official tce map", arg2);
+			G_voteCurrentSetting(ent, arg, Info_ValueForKey(serverinfo, "mapname"));
+			return G_INVALID;
+		}
 
 		if (!vote_allow_map.integer && ent && !ent->client->sess.referee)
 		{
