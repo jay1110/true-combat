@@ -253,7 +253,8 @@ void G_addStats(gentity_t *targ, gentity_t *attacker, int dmg_ref, int mod)
 	 * precede suicide/team damage processing, including a null attacker. */
 	if (mod == 65)
 	{
-		targ->client->sess.tceSessionValues[3]++;
+		targ->client->sess.tceSessionValues[3] =
+		    TCE_AddInt32(targ->client->sess.tceSessionValues[3], 1);
 		return;
 	}
 
