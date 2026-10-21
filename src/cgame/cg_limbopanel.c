@@ -1435,7 +1435,14 @@ static void CG_LimboPanel_RenderTeamCounter(panel_button_t *button)
 
 void CG_LimboPanel_RenderClassButton(panel_button_t *button)
 {
-	TCE_LimboWidget(button, TCE_LimboClass);
+	CG_DrawPic(button->rect.x, button->rect.y, button->rect.w, button->rect.h,
+	           cgs.media.limboClassButton2Back_off);
+	if (CG_LimboPanel_GetTeam() != TEAM_SPECTATOR &&
+	    button->data[1] == CG_LimboPanel_GetClass())
+	{
+		CG_DrawPic(button->rect.x, button->rect.y, button->rect.w, button->rect.h,
+		           cgs.media.limboClassButton2Back_on);
+	}
 }
 
 int CG_LimboPanel_GetMaxObjectives(void)
@@ -2009,6 +2016,7 @@ void CG_LimboPanel_WeaponPanel_DrawWeapon(rectDef_t *rect, weapon_t weap, qboole
 	weaponType_t *wt = WM_FindWeaponTypeForWeapon(weap);
 	const char   *name, *description, *category;
 	vec4_t       shade  = { 0, 0, 0, .6f };
+	vec4_t       highlightColor = { 1, 1, 1, 1 };
 	float        *color = weaponPanelNameFont.colour;
 	CG_Text_Width_Ext(ofTxt, .2f, 0, &cgs.media.limboWeaponCountFont);
 	if (weap == 36 || weap == 19 || weap == 20 || weap == 21)
@@ -2036,7 +2044,7 @@ void CG_LimboPanel_WeaponPanel_DrawWeapon(rectDef_t *rect, weapon_t weap, qboole
 		if (highlight && !disabled && BG_CursorInRect(rect))
 		{
 			CG_DrawPic(rect->x, rect->y, rect->w, rect->h, cgs.media.limboWeaponCardHighlight);
-			color = colorWhite;
+			color = highlightColor;
 		}
 		CG_Text_Paint_Ext(rect->x + 4, rect->y + 12, weaponPanelNameFont.scalex, weaponPanelNameFont.scaley,
 		                  color, name, 0, 0, weaponPanelNameFont.style, weaponPanelNameFont.font);
@@ -2071,7 +2079,8 @@ void CG_DrawBorder(float x, float y, float w, float h, qboolean fill, qboolean h
 
 void CG_LimboPanel_Border_Draw(panel_button_t *button)
 {
-	TCE_LimboWidget(button, TCE_LimboBorder);
+	CG_DrawBorder(button->rect.x, button->rect.y, button->rect.w, button->rect.h,
+	              qtrue, qtrue);
 }
 
 
