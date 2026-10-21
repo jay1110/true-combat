@@ -3111,6 +3111,7 @@ CG_SetSniperZoom
 
 void CG_SetSniperZoom(int lastweap, int newweap)
 {
+	int scope;
 	if (lastweap == newweap)
 	{
 		return;
@@ -3119,20 +3120,31 @@ void CG_SetSniperZoom(int lastweap, int newweap)
 	{
 		cg.zoomval = 0;
 	}
+#if defined(__linux__) && defined(__i386__)
 	cg.zoomedScope = 0;
+#endif
 	if (newweap == 57 || newweap == 58)
 	{
-		cg.zoomedScope = 900;
+		scope = 900;
 	}
 	else if (newweap == 59)
 	{
-		cg.zoomedScope = 1;
+		scope = 1;
 	}
 	else
 	{
+#if !defined(__linux__) || !defined(__i386__)
+		cg.zoomedScope = 0;
+#endif
 		return;
 	}
+#if defined(__linux__) && defined(__i386__)
 	cg.zoomval = cg_zoomDefaultSniper.value;
+	cg.zoomedScope = scope;
+#else
+	cg.zoomedScope = scope;
+	cg.zoomval = cg_zoomDefaultSniper.value;
+#endif
 #if defined(__linux__) && defined(__i386__)
 	/* The original upper-bound FCOM also clamps unordered values. */
 	if (!(cg.zoomval <= zoomTable[ZOOM_SNIPER][ZOOM_OUT]))
@@ -3201,7 +3213,10 @@ void CG_FinishWeaponChange(int lastweap, int newweap)
 	cg.weaponSelectTime = cg.time;
 	if (cg.newCrosshairIndex)
 	{
-		trap_Cvar_Set("cg_drawCrossHair", va("%d", cg.newCrosshairIndex - 1));
+		unsigned int crosshairBits = (unsigned int)cg.newCrosshairIndex - 1u;
+		int crosshairIndex;
+		memcpy(&crosshairIndex, &crosshairBits, sizeof(crosshairIndex));
+		trap_Cvar_Set("cg_drawCrossHair", va("%d", crosshairIndex));
 	}
 	cg.newCrosshairIndex = 0;
 	if (CG_WeaponIndex(newweap, &bank, NULL))
@@ -3277,7 +3292,13 @@ void CG_AltWeapon_f(void)
 		}
 
 		// ydnar: don't allow set if moving
+#if defined(__linux__) && defined(__i386__)
+		/* The original comparison permits unordered values. */
+		long double movement = VectorLengthSquared(cg.snap->ps.velocity);
+		if (movement > 0.0L || movement < 0.0L)
+#else
 		if (VectorLengthSquared(cg.snap->ps.velocity))
+#endif
 		{
 			return;
 		}
@@ -3300,7 +3321,7 @@ void CG_AltWeapon_f(void)
 		}
 	}
 
-	if (cg.time - cg.weaponSelectTime < cg_weaponCycleDelay.integer)
+	if (TCE_CG_WeaponTimeDelta(cg.time, cg.weaponSelectTime) < cg_weaponCycleDelay.integer)
 	{
 		return; // force pause so holding it down won't go too fast
 
@@ -3325,7 +3346,7 @@ void CG_AltWeapon_f(void)
 		if (cg.snap->ps.eFlags & EF_ZOOMING)
 		{
 			trap_SendConsoleCommand("-zoom\n");
-			cg.binocZoomTime = -cg.time;
+			cg.binocZoomTime = TCE_CG_WeaponTimeDelta(0, cg.time);
 		}
 		else
 		{
@@ -4060,7 +4081,7 @@ void CG_WeaponBank_f(void)
 		return;
 	}
 
-	if (cg.time - cg.weaponSelectTime < cg_weaponCycleDelay.integer)
+	if (TCE_CG_WeaponTimeDelta(cg.time, cg.weaponSelectTime) < cg_weaponCycleDelay.integer)
 	{
 		return; // force pause so holding it down won't go too fast
 
