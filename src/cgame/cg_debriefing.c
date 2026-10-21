@@ -1611,7 +1611,7 @@ void CG_DebriefingTitle_Draw(panel_button_t *button)
 
 void CG_DebriefingXPHeader_Draw(panel_button_t *button)
 {
-	if (cgs.gametype == GT_WOLF_LMS)
+	if (cgs.gametype == GT_WOLF_LMS || cgs.gametype == GT_WOLF)
 	{
 		BG_PanelButtonsRender_TextExt(button, "Score");
 	}
@@ -2316,13 +2316,13 @@ void CG_Debriefing_ChatButton_Draw(panel_button_t *button)
 	switch (cgs.dbChatMode)
 	{
 	case 1:
-		str = "^5TO TEAM";
+		str = "^7TO TEAM";
 		break;
 	case 2:
-		str = "^3TO FIRETEAM";
+		str = "^7TO FIRETEAM";
 		break;
 	default:
-		str = "^2TO GLOBAL";
+		str = "^7TO GLOBAL";
 		break;
 	}
 
@@ -2570,7 +2570,7 @@ void CG_TeamDebriefingTeamXP_Draw(panel_button_t *button)
 
 	int xp = CG_TeamDebriefing_CalcXP(team, cgs.tdbSelectedMap - 1, -1);
 
-	CG_Text_Paint_Ext(button->rect.x, button->rect.y, button->font->scalex, button->font->scaley, button->font->colour, va("%s XP: %i", team == TEAM_AXIS ? "Axis" : "Allies", xp), 0, 0, 0, button->font->font);
+	CG_Text_Paint_Ext(button->rect.x, button->rect.y, button->font->scalex, button->font->scaley, button->font->colour, va("%s XP: %i", team == TEAM_AXIS ? "Terrorists" : "Specops", xp), 0, 0, 0, button->font->font);
 }
 
 void CG_TeamDebriefingTeamSkillXP_Draw(panel_button_t *button)
