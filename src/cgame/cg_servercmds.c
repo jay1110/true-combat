@@ -1641,6 +1641,11 @@ void CG_VoiceChatLocal(int mode, qboolean voiceOnly, int clientNum, int color, c
 	bufferedVoiceChat_t vchat;
 	const char          *loc = " "; // NERVE - SMF
 
+	if (tceFlash.deafness > 0.f)
+	{
+		return;
+	}
+
 /*	// NERVE - SMF - don't do this in wolfMP
 	// if we are going into the intermission, don't start any voices
 	if ( cg.intermissionStarted ) {

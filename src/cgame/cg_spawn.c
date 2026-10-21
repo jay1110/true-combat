@@ -301,8 +301,7 @@ void SP_misc_gamemodel(void)
 		}
 		CG_SpawnInt("drawdistance", "8192", &sprite->drawDistance);
 		CG_SpawnInt("fadedistance", "8192", &sprite->fadeDistance);
-		CG_SpawnString("randomscale", "1.0 1.0", &model);
-		sscanf(model, "%f %f", &randomScale[0], &randomScale[1]);
+		CG_SpawnVector2D("randomscale", "1.0 1.0", randomScale);
 		seed = cg.numMiscClientSprites + 7;
 		Q_random(&seed);
 		sprite->halfWidth = maxs[1]; sprite->top = maxs[2]; sprite->bottom = mins[2];

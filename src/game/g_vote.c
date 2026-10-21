@@ -2,6 +2,7 @@
 // -------------------------------
 //
 #include "g_local.h"
+#include "tce_bg.h"
 #include "../ui/menudef.h"  // For vote options
 
 

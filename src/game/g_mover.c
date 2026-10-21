@@ -4036,6 +4036,7 @@ void Use_Static(gentity_t *ent, gentity_t *other, gentity_t *activator)
 
 void Static_Pain(gentity_t *ent, gentity_t *attacker, int damage, vec3_t point)
 {
+	enum { TCE_STATIC_SHARD_WEAPON = 65 };
 	vec3_t temp;
 
 	if (ent->spawnflags & 4)
@@ -4052,7 +4053,7 @@ void Static_Pain(gentity_t *ent, gentity_t *attacker, int damage, vec3_t point)
 		// TBD only venom mg42 rocket and grenade can inflict damage
 		if (attacker && attacker->client
 		    && (attacker->s.weapon == WP_GRENADE_LAUNCHER
-		        || attacker->s.weapon == WP_PANZERFAUST
+		        || attacker->s.weapon == TCE_STATIC_SHARD_WEAPON
 		        || attacker->client->ps.persistant[PERS_HWEAPON_USE]))
 		{
 
@@ -4470,10 +4471,19 @@ void SP_func_door_rotating(gentity_t *ent)
 		ent->angle *= -1;
 	}
 
-	// TOGGLE
-	if (ent->spawnflags & 2)
+	// TC doors toggle by default; spawnflag 2 disables this behavior.
+	if (!(ent->spawnflags & 2))
 	{
 		ent->flags |= FL_TOGGLE;
+	}
+	// Preserve the additional door-state bits used by both TC originals.
+	if (ent->spawnflags & 1)
+	{
+		ent->flags |= 0x80;
+	}
+	if (ent->spawnflags & 64)
+	{
+		ent->flags |= 0x100;
 	}
 
 	//---- (SA) door keys

@@ -566,7 +566,8 @@ void SP_misc_gamemodel(gentity_t *ent)
 	qboolean reverse = qfalse;
 
 	// Gordon: static gamemodels client side only now :D so server can just wave bye-bye
-	if (!ent->scriptName && !ent->targetname && !ent->spawnflags)
+	if (!ent->scriptName && !ent->targetname &&
+	    (!ent->spawnflags || ent->spawnflags == 4))
 	{
 		G_FreeEntity(ent);
 		return;
