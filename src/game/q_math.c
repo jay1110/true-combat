@@ -1123,6 +1123,11 @@ LerpPosition
 #if defined(_WIN32)
 void LerpPosition(vec3_t start, vec3_t end, float frac, vec3_t result)
 {
+#if defined(__linux__)
+	vec3_t dist;
+	VectorSubtract(end, start, dist);
+	VectorMA(start, frac, dist, result);
+#else
 	long double    differenceX = (long double)end[0] - start[0];
 	volatile float differenceY = (float)((long double)end[1] - start[1]);
 	volatile float differenceZ = (float)((long double)end[2] - start[2]);
@@ -1134,6 +1139,7 @@ void LerpPosition(vec3_t start, vec3_t end, float frac, vec3_t result)
 	result[1] = (float)(product + (long double)start[1]);
 	product   = (long double)differenceZ * (long double)frac;
 	result[2] = (float)(product + (long double)start[2]);
+#endif
 }
 #elif defined(__linux__)
 void LerpPosition(vec3_t start, vec3_t end, float frac, vec3_t result)

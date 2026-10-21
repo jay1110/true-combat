@@ -1015,11 +1015,13 @@ void TeamplayInfoMessage(team_t team)
 }
 
 /* TC Windows2008e599/2008e5aa call __ftol (FISTP64, low EAX),
- * rather than a signed-int32 conversion. Linux keeps its native int cast. */
+ * rather than the signed-int32 conversion used by Linux. */
 static int G_TCETeamLocationInteger(float locationValue)
 {
 #if defined(_MSC_VER) && defined(_M_IX86)
 	return TCE_FloatToInt64Low(locationValue);
+#elif defined(__linux__)
+	return TCE_TruncateNativeInteger((long double)locationValue);
 #else
 	return (int)locationValue;
 #endif
@@ -1030,7 +1032,11 @@ void CheckTeamStatus(void)
 	int       i;
 	gentity_t *ent;
 
+#if defined(__linux__)
+	if (TCE_SubInt32(level.time, level.lastTeamLocationTime) > TEAM_LOCATION_UPDATE_TIME)
+#else
 	if ((int)((unsigned int)level.time - (unsigned int)level.lastTeamLocationTime) > TEAM_LOCATION_UPDATE_TIME)
+#endif
 	{
 		level.lastTeamLocationTime = level.time;
 		for (i = 0; i < level.numConnectedClients; i++)
@@ -2283,6 +2289,24 @@ gentity_t *Team_GetLocation(gentity_t *ent)
 	VectorCopy(ent->r.currentOrigin, origin);
 	for (location = level.locationHead; location; location = location->nextTrain)
 	{
+#if defined(__linux__)
+		long double dx = (long double)origin[0] - location->r.currentOrigin[0];
+		long double dy = (long double)origin[1] - location->r.currentOrigin[1];
+		long double dz = (long double)origin[2] - location->r.currentOrigin[2];
+		long double distance = dx * dx + dy * dy + dz * dz;
+
+		/* Compare while wide, then store the candidate before the PVS call.
+		 * Native JBE also accepts an unordered comparison here. */
+		if (!(distance > bestDistance))
+		{
+			float storedDistance = (float)distance;
+			if (trap_InPVS(origin, location->r.currentOrigin))
+			{
+				best = location;
+				bestDistance = storedDistance;
+			}
+		}
+#else
 		/* TC 2008ff3b..2008ff79 compares the unspilled x/y/z sum
 		 * against the float best value; rounding before this comparison
 		 * creates false ties and extra PVS queries. */
@@ -2295,6 +2319,7 @@ gentity_t *Team_GetLocation(gentity_t *ent)
 			best         = location;
 			bestDistance = (float)distance;
 		}
+#endif
 	}
 	return best;
 }
