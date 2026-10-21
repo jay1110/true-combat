@@ -2711,6 +2711,7 @@ and after local prediction on the client
 void BG_PlayerStateToEntityStateExtraPolate(playerState_t *ps, entityState_t *s, int time, qboolean snap)
 {
 	int i;
+	unsigned sequence;
 
 	if (ps->pm_type == PM_INTERMISSION || ps->pm_type == PM_SPECTATOR) // || ps->pm_flags & PMF_LIMBO ) { // JPW NERVE limbo
 	{
@@ -2728,11 +2729,7 @@ void BG_PlayerStateToEntityStateExtraPolate(playerState_t *ps, entityState_t *s,
 	s->number = ps->clientNum;
 
 	s->pos.trType = TR_LINEAR_STOP;
-	VectorCopy(ps->origin, s->pos.trBase);
-	if (snap)
-	{
-		SnapVector(s->pos.trBase);
-	}
+	BG_SnapshotVector(ps->origin, s->pos.trBase, snap);
 	// set the trDelta for flag direction and linear prediction
 	VectorCopy(ps->velocity, s->pos.trDelta);
 	// set the time for linear prediction
@@ -2741,11 +2738,7 @@ void BG_PlayerStateToEntityStateExtraPolate(playerState_t *ps, entityState_t *s,
 	s->pos.trDuration = 50; // 1000 / sv_fps (default = 20)
 
 	s->apos.trType = TR_INTERPOLATE;
-	VectorCopy(ps->viewangles, s->apos.trBase);
-	if (snap)
-	{
-		SnapVector(s->apos.trBase);
-	}
+	BG_SnapshotVector(ps->viewangles, s->apos.trBase, snap);
 
 	s->angles2[YAW] = ps->movementDir;
 	s->legsAnim     = ps->legsAnim;
@@ -2782,24 +2775,25 @@ void BG_PlayerStateToEntityStateExtraPolate(playerState_t *ps, entityState_t *s,
 	{
 		int seq;
 
-		if (ps->entityEventSequence < ps->eventSequence - MAX_EVENTS)
+		if (ps->entityEventSequence < BG_SnapshotSequenceAdd(ps->eventSequence, 0u - MAX_EVENTS))
 		{
-			ps->entityEventSequence = ps->eventSequence - MAX_EVENTS;
+			ps->entityEventSequence = BG_SnapshotSequenceAdd(ps->eventSequence, 0u - MAX_EVENTS);
 		}
 		seq          = ps->entityEventSequence & (MAX_EVENTS - 1);
 		s->event     = ps->events[seq] | ((ps->entityEventSequence & 3) << 8);
 		s->eventParm = ps->eventParms[seq];
-		ps->entityEventSequence++;
+		ps->entityEventSequence = BG_SnapshotSequenceAdd(ps->entityEventSequence, 1u);
 	}
 
 	// Ridah, now using a circular list of events for all entities
 	// add any new events that have been added to the playerState_t
 	// (possibly overwriting entityState_t events)
-	for (i = ps->oldEventSequence; i != ps->eventSequence; i++)
+	for (sequence = (unsigned)ps->oldEventSequence;
+	     sequence != (unsigned)ps->eventSequence; ++sequence)
 	{
-		s->events[s->eventSequence & (MAX_EVENTS - 1)]     = ps->events[i & (MAX_EVENTS - 1)];
-		s->eventParms[s->eventSequence & (MAX_EVENTS - 1)] = ps->eventParms[i & (MAX_EVENTS - 1)];
-		s->eventSequence++;
+		s->events[s->eventSequence & (MAX_EVENTS - 1)]     = ps->events[sequence & (MAX_EVENTS - 1)];
+		s->eventParms[s->eventSequence & (MAX_EVENTS - 1)] = ps->eventParms[sequence & (MAX_EVENTS - 1)];
+		s->eventSequence = BG_SnapshotSequenceAdd(s->eventSequence, 1u);
 	}
 	ps->oldEventSequence = ps->eventSequence;
 
