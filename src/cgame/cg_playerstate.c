@@ -50,7 +50,11 @@ void CG_DamageFeedback(int yawByte, int pitchByte, int damage)
 	float        left, front, up;
 	float        kick;
 	int          health;
+#if defined(_WIN32)
 	double       scale;
+#else
+	float        scale;
+#endif
 	vec3_t       dir;
 	vec3_t       angles;
 	float        dist;
@@ -109,8 +113,13 @@ void CG_DamageFeedback(int yawByte, int pitchByte, int damage)
 	else
 	{
 		// positional
+#if defined(_WIN32)
 		pitch = (float)(pitchByte * (360.0 / 255.0));
 		yaw   = (float)(yawByte * (360.0 / 255.0));
+#else
+		pitch = pitchByte / 255.0 * 360;
+		yaw   = yawByte / 255.0 * 360;
+#endif
 
 		angles[PITCH] = pitch;
 		angles[YAW]   = yaw;
@@ -119,10 +128,17 @@ void CG_DamageFeedback(int yawByte, int pitchByte, int damage)
 		AngleVectors(angles, dir, NULL, NULL);
 		VectorSubtract(vec3_origin, dir, dir);
 
+#if defined(_WIN32)
 		/* Original30056a68..ae1 sums Z,Y,X in x87 before storing each float. */
 		front = (float)(((double)dir[2] * cg.refdef.viewaxis[0][2] + (double)dir[1] * cg.refdef.viewaxis[0][1]) + (double)dir[0] * cg.refdef.viewaxis[0][0]);
 		left  = (float)(((double)dir[2] * cg.refdef.viewaxis[1][2] + (double)dir[1] * cg.refdef.viewaxis[1][1]) + (double)dir[0] * cg.refdef.viewaxis[1][0]);
 		up    = (float)(((double)dir[2] * cg.refdef.viewaxis[2][2] + (double)dir[1] * cg.refdef.viewaxis[2][1]) + (double)dir[0] * cg.refdef.viewaxis[2][0]);
+#else
+		/* Linux retains the SDK expressions; Windows arithmetic is not shared. */
+		front = DotProduct(dir, cg.refdef.viewaxis[0]);
+		left  = DotProduct(dir, cg.refdef.viewaxis[1]);
+		up    = DotProduct(dir, cg.refdef.viewaxis[2]);
+#endif
 
 		dir[0] = front;
 		dir[1] = left;
@@ -141,8 +157,13 @@ void CG_DamageFeedback(int yawByte, int pitchByte, int damage)
 		{
 			front = 0.1;
 		}
+#if defined(_WIN32)
 		vd->damageX = (float)((((double)(rand() & 32767) * (double)(1.0f / 32767.0f) - .5) * 2.0) * .3 - (double)left / front);
 		vd->damageY = (float)((((double)(rand() & 32767) * (double)(1.0f / 32767.0f) - .5) * 2.0) * .3 + (double)up / dist);
+#else
+		vd->damageX = crandom() * 0.3 + -left / front;
+		vd->damageY = crandom() * 0.3 + up / dist;
+#endif
 	}
 
 	// clamp the position

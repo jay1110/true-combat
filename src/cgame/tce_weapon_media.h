@@ -48,6 +48,7 @@ typedef struct
 typedef char tce_animation_size_check[sizeof(tce_weaponAnimation_t) == 0x70 ? 1 : -1];
 typedef char tce_firstframe_offset_check[(offsetof(tce_weaponInfo_t, animations) + offsetof(tce_weaponAnimation_t, firstFrame)) == 0x48 ? 1 : -1];
 typedef char tce_media_size_check[sizeof(tce_weaponInfo_t) == 0xfd0 ? 1 : -1];
+typedef char tce_deploy_name_offset_check[offsetof(tce_weaponInfo_t, deployMenuShortName) == 0xeec ? 1 : -1];
 typedef char tce_part_size_check[sizeof(tce_partModel_t) == 100 ? 1 : -1];
 typedef char tce_parts_offset_check[offsetof(tce_weaponInfo_t, partModels) == 0x5f0 ? 1 : -1];
 typedef char tce_mod_offset_check[offsetof(tce_weaponInfo_t, modModels) == 0xe30 ? 1 : -1];

@@ -1244,8 +1244,6 @@ qboolean CG_LimboPanel_TeamButton_KeyDown(panel_button_t *button, int key)
 				cgs.ccSelectedObjective = CG_LimboPanel_GetMaxObjectives();
 			}
 
-			CG_LimboPanel_SetSelectedWeaponNumForSlot(0, 0);
-
 			CG_LimboPanel_RequestWeaponStats();
 
 			cgs.limboLoadoutModified = qtrue;
@@ -2667,7 +2665,7 @@ void CG_LimboPanel_Setup(void)
 				cgs.ccSelectedWeapon = 0; break;
 			}
 			if (BG_WeaponIsAvailable(weapon, gearDef.requiredSkill[weapon][role],
-			                         gearDef.team[weapon], rating + 20, CG_LimboPanel_GetTeam()))
+			                         gearDef.team[weapon], TCE_AddInt32(rating, 20), CG_LimboPanel_GetTeam()))
 			{
 				if (!CG_LimboPanel_RealWeaponIsDisabled(weapon) && weapon == ci->latchedweapon)
 				{
@@ -3038,7 +3036,7 @@ weapon_t CG_LimboPanel_GetWeaponForNumber(int number, int slot, qboolean ignoreD
 	int              role   = BG_WolfClassToTCE(CG_LimboPanel_GetClass());
 	int              rating = role == BG_WolfClassToTCE(ci->tceScorePlayerClass) ?
 	                          ci->tceClassRating : ci->tcePreviousClassRating;
-	int      i, count = 0, weapon;
+	int      i, count = 0, weapon, available = 0;
 	weapon_t *weapons;
 	if (CG_LimboPanel_GetTeam() == TEAM_SPECTATOR)
 	{
@@ -3090,16 +3088,24 @@ weapon_t CG_LimboPanel_GetWeaponForNumber(int number, int slot, qboolean ignoreD
 	for (i = 0; i < MAX_WEAPS_PER_CLASS; i++)
 	{
 		weapon = weapons[i];
-		if (BG_WeaponIsAvailable(weapon, gearDef.requiredSkill[weapon][role],
-		                         gearDef.team[weapon], TCE_AddInt32(rating, 20), CG_LimboPanel_GetTeam()))
+		available = BG_WeaponIsAvailable(weapon, gearDef.requiredSkill[weapon][role],
+		                                gearDef.team[weapon], TCE_AddInt32(rating, 20), CG_LimboPanel_GetTeam());
+		if (available)
 		{
 			if (count == number)
 			{
-				return (weapon_t)weapon;
+				return weapons[i];
 			}
 			count++;
 		}
 	}
+#if defined(_WIN32) && !defined(Q3_VM)
+	/* The native primary-loop epilogue preserves the last availability result. */
+	if (slot == 1)
+	{
+		return (weapon_t)available;
+	}
+#endif
 	if (slot != 1 && number == 0)
 	{
 		if (CG_LimboPanel_GetClass() == PC_COVERTOPS)

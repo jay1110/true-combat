@@ -532,11 +532,11 @@ void CopyToBodyQue(gentity_t *ent)
 
 	body->activator = NULL;
 
-	body->nextthink = level.time + BODY_TIME(ent->client->sess.sessionTeam);
+	body->nextthink = TCE_AddInt32(level.time, BODY_TIME(ent->client->sess.sessionTeam));
 	if (g_maxlives.integer == 1 || g_gametype.integer == 5)
 	{
 		/* Preserve the original 32-bit wrapping timer addition. */
-		body->nextthink = (int)((unsigned int)level.time + 0x7fffffffu);
+		body->nextthink = TCE_AddInt32(level.time, 0x7fffffff);
 	}
 
 	body->think = BodySink;
@@ -648,11 +648,13 @@ void limbo(gentity_t *ent, qboolean makeCorpse)
 	}
 	if (ent->client->sess.sessionTeam == TEAM_AXIS)
 	{
-		ent->client->deployQueueNumber = level.redNumWaiting++;
+		ent->client->deployQueueNumber = level.redNumWaiting;
+		level.redNumWaiting = TCE_AddInt32(level.redNumWaiting, 1);
 	}
 	else if (ent->client->sess.sessionTeam == TEAM_ALLIES)
 	{
-		ent->client->deployQueueNumber = level.blueNumWaiting++;
+		ent->client->deployQueueNumber = level.blueNumWaiting;
+		level.blueNumWaiting = TCE_AddInt32(level.blueNumWaiting, 1);
 	}
 	for (i = 0; i < level.numConnectedClients; i++)
 	{
@@ -709,7 +711,7 @@ void respawn(gentity_t *ent, qboolean hostage)
 		{
 			return;
 		}
-		level.tceHostageRespawnCount++;
+		level.tceHostageRespawnCount = TCE_AddInt32(level.tceHostageRespawnCount, 1);
 		if ((team == TEAM_AXIS || team == TEAM_ALLIES) &&
 		    (level.tceHostageRespawnCount >= level.numFinalDead[team - TEAM_AXIS] ||
 		     level.tceHostageRespawnCount > 2))

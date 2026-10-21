@@ -112,6 +112,7 @@ BotMP_CheckEmergencyGoals
 */
 qboolean BotMP_CheckEmergencyGoals(bot_state_t *bs)
 {
+	enum { TCE_LEGACY_PANZER_WEAPON = 65 };
 	gentity_t *trav, *flag;
 	int       i, t;
 	int       list[32], numList;
@@ -516,9 +517,9 @@ qboolean BotMP_CheckEmergencyGoals(bot_state_t *bs)
 	}
 
 	// PANZER TARGETS
-	if ((COM_BitCheck(bs->cur_ps.weapons, WP_PANZERFAUST)))
+	if ((COM_BitCheck(bs->cur_ps.weapons, TCE_LEGACY_PANZER_WEAPON)))
 	{
-		if ((BotWeaponWantScale(bs, WP_PANZERFAUST) > 0))
+		if ((BotWeaponWantScale(bs, TCE_LEGACY_PANZER_WEAPON) > 0))
 		{
 			team_t team = bs->sess.sessionTeam == TEAM_AXIS ? TEAM_ALLIES : TEAM_AXIS;
 			// shoot towards gun emplacements after spawning in

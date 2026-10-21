@@ -196,13 +196,19 @@ void multi_trigger(gentity_t *ent, gentity_t *activator)
 
 	if (ent->wait > 0)
 	{
+#if defined(_WIN32)
 		double randomOffset;
+#endif
 		ent->think = multi_wait;
+#if defined(_WIN32)
 		/* TC20091f5f..20091f92: multiply by the stored float reciprocal,
 		 * then retain the time expression until the final integer conversion. */
 		randomOffset   = (double)(rand() & 0x7fff) * (double)(1.0f / 32767.0f) - 0.5;
 		ent->nextthink = (int)(level.time +
 		                       (ent->wait + ent->random * (randomOffset + randomOffset)) * 1000.0);
+#else
+		ent->nextthink = level.time + (ent->wait + ent->random * crandom()) * 1000;
+#endif
 	}
 	else
 	{

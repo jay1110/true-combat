@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "tce_numeric.h"
 #ifdef FEATURE_OMNIBOT
 #include "g_etbot_interface.h"
 #endif
@@ -2046,27 +2047,8 @@ gentity_t *fire_rocket(gentity_t *self, vec3_t start, vec3_t dir)
 		int rocketAxis;
 		for (rocketAxis = 0; rocketAxis < 3; ++rocketAxis)
 		{
-			float          *rocketComponent = &bolt->s.pos.trDelta[rocketAxis];
-			unsigned short rocketCW, rocketTruncCW;
-			__int64        rocketInteger;
-			int            rocketLow;
-			__asm {
-				mov ecx, rocketComponent
-				fld dword ptr[ecx]
-				fwait
-				fnstcw rocketCW
-				fwait
-				mov ax, rocketCW
-				or ax, 0c00h
-				mov rocketTruncCW, ax
-				fldcw rocketTruncCW
-				fistp qword ptr rocketInteger
-				fldcw rocketCW
-				mov eax, dword ptr rocketInteger
-				mov rocketLow, eax
-				fild rocketLow
-				fstp dword ptr[ecx]
-			}
+			int rocketLow = TCE_TruncateNativeInteger((long double)bolt->s.pos.trDelta[rocketAxis]);
+			bolt->s.pos.trDelta[rocketAxis] = (float)rocketLow;
 		}
 	}
 #else
@@ -2130,44 +2112,16 @@ gentity_t *fire_flamebarrel(gentity_t *self, vec3_t start, vec3_t dir)
 		for (flameAxis = 0; flameAxis < 3; ++flameAxis)
 		{
 			int   flameRandom     = rand() & 0x7fff;
-			float *flameDirection = &dir[flameAxis];
-			float *flameVelocity  = &bolt->s.pos.trDelta[flameAxis];
-			__asm {
-				fild flameRandom
-				fmul flameReciprocal
-				fsub flameHalf
-				fadd st(0), st(0)
-				fmul flameRange
-				fadd flameSpeed
-				mov ecx, flameDirection
-				fmul dword ptr[ecx]
-				mov ecx, flameVelocity
-				fstp dword ptr[ecx]
-			}
+			long double randomScale = (long double)flameRandom * flameReciprocal - flameHalf;
+			randomScale += randomScale;
+			randomScale *= flameRange;
+			randomScale += flameSpeed;
+			bolt->s.pos.trDelta[flameAxis] = (float)(randomScale * dir[flameAxis]);
 		}
 		for (flameAxis = 0; flameAxis < 3; ++flameAxis)
 		{
-			float          *flameVelocity = &bolt->s.pos.trDelta[flameAxis];
-			unsigned short flameCW, flameTruncCW;
-			__int64        flameInteger;
-			int            flameLow;
-			__asm {
-				mov ecx, flameVelocity
-				fld dword ptr[ecx]
-				fwait
-				fnstcw flameCW
-				fwait
-				mov ax, flameCW
-				or ax, 0c00h
-				mov flameTruncCW, ax
-				fldcw flameTruncCW
-				fistp qword ptr flameInteger
-				fldcw flameCW
-				mov eax, dword ptr flameInteger
-				mov flameLow, eax
-				fild flameLow
-				fstp dword ptr[ecx]
-			}
+			int flameLow = TCE_TruncateNativeInteger((long double)bolt->s.pos.trDelta[flameAxis]);
+			bolt->s.pos.trDelta[flameAxis] = (float)flameLow;
 		}
 	}
 #else

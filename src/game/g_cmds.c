@@ -111,13 +111,13 @@ void G_SendScore(gentity_t *ent)
 			{
 				int tcClass      = BG_WolfClassToTCE(cl->ps.stats[STAT_PLAYER_CLASS]);
 				int previous     = tcClass > 0?tcClass - 1:2;
-				int damageRating = (int)((unsigned)cl->sess.damage_given -
-				                         (unsigned)cl->sess.team_damage - (unsigned)cl->sess.damage_received);
+				int damageRating = TCE_SubInt32(TCE_SubInt32(cl->sess.damage_given,
+				                                            cl->sess.team_damage), cl->sess.damage_received);
 				/* Windows 2004ef80: complete fourteen-field TC wire order.
 				 * Rating/counter producers have their own reconstruction status. */
 				Com_sprintf(entry, sizeof(entry), " %i %i %i %i %i %i %i %i %i %i %i %i %i %i",
 				            level.sortedClients[i], cl->ps.persistant[PERS_SCORE], ping,
-				            (level.time - cl->pers.enterTime) / 60000,
+				            TCE_SubInt32(level.time, cl->pers.enterTime) / 60000,
 				            g_entities[level.sortedClients[i]].s.powerups, playerClass, respawnsLeft,
 				            (int)cl->sess.skillpoints[tcClass], (int)cl->sess.skillpoints[previous],
 				            damageRating, cl->sess.kills, cl->sess.deaths, cl->sess.suicides, cl->sess.team_kills);
@@ -1351,7 +1351,7 @@ void Cmd_Team_f(gentity_t *ent, unsigned int dwCommand, qboolean fValue)
 	char     s[MAX_TOKEN_CHARS];
 	char     ptype[4];
 	char     weap[4], weap2[4], weap3[4];
-	int      w3, health;
+	int      w3, setupSeed;
 	char     setupToken[MAX_TOKEN_CHARS];
 	weapon_t w, w2;
 
@@ -1385,19 +1385,20 @@ void Cmd_Team_f(gentity_t *ent, unsigned int dwCommand, qboolean fValue)
 	trap_Argv(3, weap, sizeof(weap));
 	trap_Argv(4, weap2, sizeof(weap2));
 
-	w  = atoi(weap);
-	w2 = atoi(weap2);
 	trap_Argv(5, weap3, sizeof(weap3));
-	w3 = atoi(weap3);
 	trap_Argv(6, setupToken, sizeof(setupToken));
-	health = ent->client->ps.stats[STAT_HEALTH];
-	if (health > 0xfbff)
+	/* The setup token uses the replicated seed at ps + 0xec. */
+	setupSeed = ent->client->ps.stats[STAT_TCE_SHOT_SEED];
+	if (setupSeed > 0xfbff)
 	{
-		health -= 0x400;
+		setupSeed -= 0x400;
 	}
 	ent->client->sess.tceSetupFlags =
-		atoi(setupToken) - ent->client->ps.clientNum - health == 2 ? 2 : 0;
+		TCE_SubInt32(TCE_SubInt32(atoi(setupToken), ent->client->ps.clientNum), setupSeed) == 2 ? 2 : 0;
 
+	w  = atoi(weap);
+	w2 = atoi(weap2);
+	w3 = atoi(weap3);
 	ent->client->sess.latchPlayerType = atoi(ptype);
 	if (ent->client->sess.latchPlayerType < PC_SOLDIER || ent->client->sess.latchPlayerType > 6)
 	{
@@ -1491,6 +1492,7 @@ void Cmd_TeamBot_f(gentity_t *foo)
 	ent->client->sess.latchPlayerType    = atoi(ptype);
 	ent->client->sess.latchPlayerWeapon  = atoi(weap);
 	ent->client->sess.latchPlayerWeapon2 = 0;
+	ent->client->sess.latchPlayerWeapon3 = 0;
 	ent->client->sess.playerType         = atoi(ptype);
 	ent->client->sess.playerWeapon       = atoi(weap);
 

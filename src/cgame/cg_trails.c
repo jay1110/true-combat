@@ -1,6 +1,7 @@
 // Ridah, cg_trails.c - draws a trail using multiple junction points
 
 #include "cg_local.h"
+#include "../game/tce_numeric.h"
 
 typedef struct trailJunc_s
 {
@@ -169,173 +170,91 @@ CG_AddTrailJunc
 */
 
 #if defined(_MSC_VER) && defined(_M_IX86)
-enum
+int CG_AddTrailJunc(int headJuncIndex, void *usedby, qhandle_t shader, int spawnTime, int sType, vec3_t pos, int trailLife, float alphaStart, float alphaEnd, float startWidth, float endWidth, int flags, vec3_t colorStart, vec3_t colorEnd, float sRatio, float animSpeed)
 {
-	TrailNative_usedby     = offsetof(trailJunc_t, usedby),
-	TrailNative_inuse      = offsetof(trailJunc_t, inuse),
-	TrailNative_shader     = offsetof(trailJunc_t, shader),
-	TrailNative_sType      = offsetof(trailJunc_t, sType),
-	TrailNative_flags      = offsetof(trailJunc_t, flags),
-	TrailNative_sTex       = offsetof(trailJunc_t, sTex),
-	TrailNative_pos        = offsetof(trailJunc_t, pos),
-	TrailNative_spawnTime  = offsetof(trailJunc_t, spawnTime),
-	TrailNative_endTime    = offsetof(trailJunc_t, endTime),
-	TrailNative_alphaStart = offsetof(trailJunc_t, alphaStart),
-	TrailNative_alphaEnd   = offsetof(trailJunc_t, alphaEnd),
-	TrailNative_colorStart = offsetof(trailJunc_t, colorStart),
-	TrailNative_colorEnd   = offsetof(trailJunc_t, colorEnd),
-	TrailNative_widthStart = offsetof(trailJunc_t, widthStart),
-	TrailNative_widthEnd   = offsetof(trailJunc_t, widthEnd),
-	TrailNativeSize        = sizeof(trailJunc_t),
-	TrailNativeTime        = offsetof(cg_t, time)
-};
-static const double trailNativeOneD = 1.0, trailNativeZeroD = 0.0, trailNativeMillis = 0.001;
-static const float  trailNativeOneF = 1.0f, trailNativeZeroF = 0.0f;
-/* TC30065c60: native pool layout, original x87 clamps and texture progression. */
-__declspec(naked) int CG_AddTrailJunc(int headJuncIndex, void *usedby, qhandle_t shader, int spawnTime, int sType, vec3_t pos, int trailLife, float alphaStart, float alphaEnd, float startWidth, float endWidth, int flags, vec3_t colorStart, vec3_t colorEnd, float sRatio, float animSpeed)
-{
-	__asm {
-		MOV EAX, dword ptr[ESP + 04h]
-		PUSH EBX
-		PUSH ESI
-		PUSH EDI
-		TEST EAX, EAX
-		JL trailNative_30065dff
-		CMP EAX, 01000h
-		JGE trailNative_30065dff
-		MOV EBX, dword ptr[ESP + 014h]
-		TEST EAX, EAX
-		JLE trailNative_30065ca0
-		DEC EAX
-		IMUL EAX, EAX, TrailNativeSize
-		LEA EDI, [trailJuncs + EAX]
-		MOV EAX, dword ptr[EDI + TrailNative_inuse]
-		TEST EAX, EAX
-		JZ trailNative_30065ca0
-		CMP dword ptr[EDI + TrailNative_usedby], EBX
-		JZ trailNative_30065ca2
-trailNative_30065ca0:
-		XOR EDI, EDI
-trailNative_30065ca2:
-		PUSH EDI
-		CALL CG_SpawnTrailJunc
-		MOV ESI, EAX
-		ADD ESP, 04h
-		TEST ESI, ESI
-		JZ trailNative_30065dff
-		FLD dword ptr[ESP + 02ch]
-		FCOMP qword ptr[trailNativeOneD]
-		MOV dword ptr[ESI + TrailNative_usedby], EBX
-		FNSTSW AX
-		TEST AH, 041h
-		JNZ trailNative_30065cd1
-		MOV dword ptr[ESP + 02ch], 03f800000h
-trailNative_30065cd1:
-		FLD dword ptr[ESP + 02ch]
-		FCOMP qword ptr[trailNativeZeroD]
-		FNSTSW AX
-		TEST AH, 01h
-		JZ trailNative_30065cea
-		MOV dword ptr[ESP + 02ch], 00h
-trailNative_30065cea:
-		FLD dword ptr[ESP + 030h]
-		FCOM qword ptr[trailNativeOneD]
-		FNSTSW AX
-		TEST AH, 041h
-		JNZ trailNative_30065d03
-		FSTP st(0)
-		FLD dword ptr[trailNativeOneF]
-trailNative_30065d03:
-		FCOM qword ptr[trailNativeZeroD]
-		FNSTSW AX
-		TEST AH, 01h
-		JZ trailNative_30065d18
-		FSTP st(0)
-		FLD dword ptr[trailNativeZeroF]
-trailNative_30065d18:
-		MOV EDX, dword ptr[ESP + 018h]
-		MOV EAX, dword ptr[ESP + 024h]
-		MOV dword ptr[ESI + TrailNative_shader], EDX
-		MOV EDX, dword ptr[ESP + 020h]
-		MOV dword ptr[ESI + TrailNative_sType], EDX
-		MOV ECX, dword ptr[EAX]
-		MOV dword ptr[ESI + TrailNative_pos], ECX
-		MOV ECX, dword ptr[EAX + 04h]
-		MOV dword ptr[ESI + TrailNative_pos + 4], ECX
-		MOV ECX, dword ptr[EAX + 08h]
-		MOV EBX, dword ptr[ESP + 028h]
-		MOV dword ptr[ESI + TrailNative_pos + 8], ECX
-		MOV ECX, dword ptr[ESP + 03ch]
-		MOV dword ptr[ESI + TrailNative_flags], ECX
-		MOV ECX, dword ptr[ESP + 01ch]
-		MOV dword ptr[ESI + TrailNative_spawnTime], ECX
-		ADD ECX, EBX
-		MOV dword ptr[ESI + TrailNative_endTime], ECX
-		MOV ECX, dword ptr[ESP + 040h]
-		CMP EDX, 01h
-		MOV EBX, dword ptr[ECX]
-		MOV dword ptr[ESI + TrailNative_colorStart], EBX
-		MOV EBX, dword ptr[ECX + 04h]
-		MOV dword ptr[ESI + TrailNative_colorStart + 4], EBX
-		MOV ECX, dword ptr[ECX + 08h]
-		MOV dword ptr[ESI + TrailNative_colorStart + 8], ECX
-		MOV ECX, dword ptr[ESP + 044h]
-		MOV EBX, dword ptr[ECX]
-		MOV dword ptr[ESI + TrailNative_colorEnd], EBX
-		MOV EBX, dword ptr[ECX + 04h]
-		MOV dword ptr[ESI + TrailNative_colorEnd + 4], EBX
-		MOV ECX, dword ptr[ECX + 08h]
-		MOV dword ptr[ESI + TrailNative_colorEnd + 8], ECX
-		MOV ECX, dword ptr[ESP + 02ch]
-		FSTP dword ptr[ESI + TrailNative_alphaEnd]
-		MOV dword ptr[ESI + TrailNative_alphaStart], ECX
-		MOV ECX, dword ptr[ESP + 034h]
-		MOV dword ptr[ESI + TrailNative_widthStart], ECX
-		MOV ECX, dword ptr[ESP + 038h]
-		MOV dword ptr[ESI + TrailNative_widthEnd], ECX
-		JNZ trailNative_30065de2
-		TEST EDI, EDI
-		JZ trailNative_30065db6
-		LEA EDX, [EDI + TrailNative_pos]
-		PUSH EAX
-		PUSH EDX
-		CALL Distance
-		FDIV dword ptr[ESP + 050h]
-		ADD ESP, 08h
-		FDIV dword ptr[ESI + TrailNative_widthEnd]
-		FADD dword ptr[EDI + TrailNative_sTex]
-		JMP trailNative_30065ddf
-trailNative_30065db6:
-		MOV EAX, [cg + TrailNativeTime]
-		MOV ECX, 03e8h
-		CDQ
-		IDIV ECX
-		MOV dword ptr[ESP + 02ch], EDX
-		FILD dword ptr[ESP + 02ch]
-		FMUL qword ptr[trailNativeMillis]
-		FSUBR qword ptr[trailNativeOneD]
-		FMUL dword ptr[ESP + 04ch]
-		FDIV dword ptr[ESP + 048h]
-trailNative_30065ddf:
-		FSTP dword ptr[ESI + TrailNative_sTex]
-trailNative_30065de2:
-		MOV EAX, ESI
-		SUB EAX, OFFSET trailJuncs
-		CDQ
-		MOV ECX, TrailNativeSize
-		IDIV ECX
-		INC EAX
-		POP EDI
-		POP ESI
-		POP EBX
-		RET
-trailNative_30065dff:
-		POP EDI
-		POP ESI
-		XOR EAX, EAX
-		POP EBX
-		RET
+	trailJunc_t *j, *headJunc;
+
+	if (headJuncIndex < 0 || headJuncIndex >= MAX_TRAILJUNCS)
+	{
+		return 0;
 	}
+
+	if (headJuncIndex > 0)
+	{
+		headJunc = &trailJuncs[headJuncIndex - 1];
+
+		// rain - zinx's trail fix
+		if (!headJunc->inuse || headJunc->usedby != usedby)
+		{
+			headJunc = NULL;
+		}
+	}
+	else
+	{
+		headJunc = NULL;
+	}
+
+	j = CG_SpawnTrailJunc(headJunc);
+	if (!j)
+	{
+//		CG_Printf("couldnt spawn trail junc\n");
+		return 0;
+	}
+
+	// rain - zinx's trail fix - mark who's using this trail so that
+	// we can handle the someone-else-stole-our-trail case
+	j->usedby = usedby;
+
+	if (alphaStart > 1.0)
+	{
+		alphaStart = 1.0;
+	}
+	if (!(alphaStart >= 0.0f))
+	{
+		alphaStart = 0.0;
+	}
+	if (alphaEnd > 1.0)
+	{
+		alphaEnd = 1.0;
+	}
+	if (!(alphaEnd >= 0.0f))
+	{
+		alphaEnd = 0.0;
+	}
+
+	// setup the trail junction
+	j->shader = shader;
+	j->sType  = sType;
+	VectorCopy(pos, j->pos);
+	j->flags = flags;
+
+	j->spawnTime = spawnTime;
+	j->endTime   = TCE_AddInt32(spawnTime, trailLife);
+
+	VectorCopy(colorStart, j->colorStart);
+	VectorCopy(colorEnd, j->colorEnd);
+
+	j->alphaStart = alphaStart;
+	j->alphaEnd   = alphaEnd;
+
+	j->widthStart = startWidth;
+	j->widthEnd   = endWidth;
+
+	if (sType == STYPE_REPEAT)
+	{
+		if (headJunc)
+		{
+			j->sTex = (float)((long double)Distance(headJunc->pos, pos) / sRatio / j->widthEnd + headJunc->sTex);
+		}
+		else
+		{
+			// FIXME: need a way to specify offset timing
+			j->sTex = (float)((1.0L - (long double)(cg.time % 1000) * (double)0.001) * animSpeed / sRatio);
+//			j->sTex = 0;
+		}
+	}
+
+	return ((int)(j - trailJuncs) + 1);
 }
 #else
 int CG_AddTrailJunc(int headJuncIndex, void *usedby, qhandle_t shader, int spawnTime, int sType, vec3_t pos, int trailLife, float alphaStart, float alphaEnd, float startWidth, float endWidth, int flags, vec3_t colorStart, vec3_t colorEnd, float sRatio, float animSpeed)
@@ -397,7 +316,7 @@ int CG_AddTrailJunc(int headJuncIndex, void *usedby, qhandle_t shader, int spawn
 	j->flags = flags;
 
 	j->spawnTime = spawnTime;
-	j->endTime   = spawnTime + trailLife;
+	j->endTime   = TCE_AddInt32(spawnTime, trailLife);
 
 	VectorCopy(colorStart, j->colorStart);
 	VectorCopy(colorEnd, j->colorEnd);
@@ -473,7 +392,7 @@ int CG_AddSparkJunc(int headJuncIndex, void *usedby, qhandle_t shader, vec3_t po
 	j->flags = TJFL_NOCULL;     // don't worry about fading up close
 
 	j->spawnTime = cg.time;
-	j->endTime   = cg.time + trailLife;
+	j->endTime   = TCE_AddInt32(cg.time, trailLife);
 
 	VectorSet(j->colorStart, 1.0, 0.8 + 0.2 * alphaStart, 0.4 + 0.4 * alphaStart);
 	VectorSet(j->colorEnd, 1.0, 0.8 + 0.2 * alphaEnd, 0.4 + 0.4 * alphaEnd);
@@ -538,7 +457,7 @@ int CG_AddSmokeJunc(int headJuncIndex, void *usedby, qhandle_t shader, vec3_t po
 	j->flags = TJFL_FADEIN;
 
 	j->spawnTime = cg.time;
-	j->endTime   = cg.time + trailLife;
+	j->endTime   = TCE_AddInt32(cg.time, trailLife);
 
 	VectorSet(j->colorStart, 0.7, 0.7, 0.7);
 	VectorSet(j->colorEnd, 0.0, 0.0, 0.0);
@@ -2248,7 +2167,8 @@ void CG_AddTrails(void)
 	j = activeTrails;
 	while (j)
 	{
-		lifeFrac = (float)(cg.time - j->spawnTime) / (float)(j->endTime - j->spawnTime);
+		lifeFrac = (float)TCE_SubInt32(cg.time, j->spawnTime) /
+		           (float)TCE_SubInt32(j->endTime, j->spawnTime);
 		if (lifeFrac >= 1.0)
 		{
 			j->inuse = qfalse;          // flag it as dead

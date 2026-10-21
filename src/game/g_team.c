@@ -2329,7 +2329,7 @@ qboolean G_allowFollow(gentity_t *ent, int nTeam)
 		}
 	}
 
-	if (level.time - level.startTime > 2500)
+	if (TCE_SubInt32(level.time, level.startTime) > 2500)
 	{
 		if (TeamCount(-1, TEAM_AXIS) == 0)
 		{
