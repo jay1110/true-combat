@@ -501,6 +501,8 @@ void CG_LoadPanel_RenderCampaignPins(panel_button_t *button)
 
 	if (cgs.gametype == GT_WOLF_STOPWATCH || cgs.gametype == GT_WOLF_LMS || cgs.gametype == GT_WOLF)
 	{
+		/* The original Linux client omits pins for individual maps. */
+#if defined(_WIN32)
 		float px, py;
 
 		if (!cgs.arenaInfoLoaded)
@@ -512,6 +514,7 @@ void CG_LoadPanel_RenderCampaignPins(panel_button_t *button)
 		py = (cgs.arenaData.mappos[1] / 1024.f) * 480.f;
 
 		CG_LoadPanel_DrawPin(cgs.arenaData.longname, px, py, 0.22f, 0.25f, bg_neutralpin, 16.f, 16.f);
+#endif
 	}
 	else
 	{

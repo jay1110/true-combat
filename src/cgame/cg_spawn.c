@@ -34,10 +34,13 @@ qboolean CG_SpawnString(const char *key, const char *defaultString, char **out)
 qboolean CG_SpawnFloat(const char *key, const char *defaultString, float *out)
 {
 	char       *s;
+#if defined(_WIN32)
 	const char *number;
+#endif
 	qboolean   present;
 
 	present = CG_SpawnString(key, defaultString, &s);
+#if defined(_WIN32)
 	/* The original Windows CRT accepts decimal input only. Modern atof
 	   also accepts C99 hexadecimal floats, changing e.g. "0x10" to 16. */
 	number = s;
@@ -55,6 +58,9 @@ qboolean CG_SpawnFloat(const char *key, const char *defaultString, float *out)
 	{
 		*out = atof(s);
 	}
+#else
+	*out = atof(s);
+#endif
 	return present;
 }
 
@@ -68,6 +74,7 @@ qboolean CG_SpawnInt(const char *key, const char *defaultString, int *out)
 	return present;
 }
 
+#if defined(_WIN32)
 /* Keep the original decimal scanf grammar when hosted by a C99 CRT. */
 static void CG_ScanSpawnVector(const char *text, float *out, int components)
 {
@@ -123,6 +130,7 @@ static void CG_ScanSpawnVector(const char *text, float *out, int components)
 		text   = end;
 	}
 }
+#endif
 
 qboolean CG_SpawnVector(const char *key, const char *defaultString, float *out)
 {
@@ -130,7 +138,11 @@ qboolean CG_SpawnVector(const char *key, const char *defaultString, float *out)
 	qboolean present;
 
 	present = CG_SpawnString(key, defaultString, &s);
+#if defined(_WIN32)
 	CG_ScanSpawnVector(s, out, 3);
+#else
+	sscanf(s, "%f %f %f", &out[0], &out[1], &out[2]);
+#endif
 	return present;
 }
 
@@ -140,7 +152,11 @@ qboolean CG_SpawnVector2D(const char *key, const char *defaultString, float *out
 	qboolean present;
 
 	present = CG_SpawnString(key, defaultString, &s);
+#if defined(_WIN32)
 	CG_ScanSpawnVector(s, out, 2);
+#else
+	sscanf(s, "%f %f", &out[0], &out[1]);
+#endif
 	return present;
 }
 
@@ -555,6 +571,7 @@ void SP_worldspawn(void)
 	/* TC worldspawn 300646a9: exposure controls impact-spark brightness. */
 	CG_SpawnString("exposure", "80.0", &s);
 	{
+#if defined(_WIN32)
 		double intensity = sqrt(20.0 / atof(s));
 		cg.tceSparkIntensity = (float)intensity;
 		if (intensity > 1.0)
@@ -565,6 +582,20 @@ void SP_worldspawn(void)
 		{
 			cg.tceSparkIntensity = .33f;
 		}
+#else
+		/* Linux rounds the square root to float before either clamp. */
+		float intensity = (float)sqrtl((1.0L / (long double)atof(s)) * 20.0L);
+
+		cg.tceSparkIntensity = intensity;
+		if (!(intensity <= 1.0f))
+		{
+			cg.tceSparkIntensity = 1.0f;
+		}
+		if (!(cg.tceSparkIntensity >= .33f))
+		{
+			cg.tceSparkIntensity = .33f;
+		}
+#endif
 	}
 	/* TC parses the map value but deliberately forces the renderer baseline. */
 	CG_SpawnString("ambientscale", "0.0", &s);
