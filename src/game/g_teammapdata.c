@@ -339,7 +339,7 @@ qboolean G_VisibleFromBinoculars(gentity_t *viewer, gentity_t *ent, vec3_t origi
 		return qfalse;
 	}
 
-	trap_Trace(&trace, vieworg, NULL, NULL, origin, viewer->s.number, MASK_SHOT);
+	trap_Trace(&trace, vieworg, NULL, NULL, origin, viewer->s.number, MASK_MISSILESHOT);
 
 /*	if( ent && trace.entityNum != ent-g_entities ) {
 		return qfalse;
