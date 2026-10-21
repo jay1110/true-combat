@@ -9,7 +9,10 @@
 #include "g_local.h"
 #include "tce_numeric.h"
 
-char *hintStrings[HINT_NUM_HINTS] =
+/* TC keeps 51 string slots, including three trailing null pointers. */
+enum { TCE_HINT_STRING_COUNT = 51 };
+
+char *hintStrings[TCE_HINT_STRING_COUNT] =
 {
 	"",                 // HINT_NONE
 	"HINT_NONE",        // actually HINT_FORCENONE, but since this is being specified in the ent, the designer actually means HINT_FORCENONE
@@ -5228,7 +5231,7 @@ void SP_func_explosive(gentity_t *ent)
 	if (G_SpawnString("cursorhint", "0", &cursorhint))
 	{
 
-		for (i = 0; i < HINT_NUM_HINTS; i++)
+		for (i = 0; i < TCE_HINT_STRING_COUNT; i++)
 		{
 			if (!Q_stricmp(cursorhint, hintStrings[i]))
 			{
@@ -5378,7 +5381,7 @@ void SP_func_invisible_user(gentity_t *ent)
 	if (G_SpawnString("cursorhint", "0", &cursorhint))
 	{
 
-		for (i = 0; i < HINT_NUM_HINTS; i++)
+		for (i = 0; i < TCE_HINT_STRING_COUNT; i++)
 		{
 			if (!Q_stricmp(cursorhint, hintStrings[i]))
 			{

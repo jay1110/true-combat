@@ -928,7 +928,8 @@ void Use_target_fog(gentity_t *ent, gentity_t *other, gentity_t *activator)
 //		density
 //		r,g,b
 //		time to complete
-	trap_SetConfigstring(CS_FOGVARS, va("%f %f %f %f %f %f %i", 1.0f, (float)ent->s.density, 1.0f, (float)ent->dl_color[0], (float)ent->dl_color[1], (float)ent->dl_color[2], ent->s.time));
+//		map fog (0 selects server fog)
+	trap_SetConfigstring(CS_FOGVARS, va("%f %f %f %f %f %f %i %i", 1.0f, (float)ent->s.density, 1.0f, (float)ent->dl_color[0], (float)ent->dl_color[1], (float)ent->dl_color[2], ent->s.time, 0));
 }
 
 /*QUAKED target_fog (1 1 0) (-8 -8 -8) (8 8 8)
