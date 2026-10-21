@@ -3398,8 +3398,10 @@ void CG_DrawPlayer_Limbo(float x, float y, float w, float h, playerInfo_t *pi, i
 			break;
 
 		case ACC_HAT:               // hat
+#if !defined(__linux__)
 		case ACC_MOUTH2:            // hat2
 		case ACC_MOUTH3:            // hat3
+#endif
 			CG_PositionEntityOnTag(&acc, &head, "tag_mouth", 0, NULL);
 			break;
 
