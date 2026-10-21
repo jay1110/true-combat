@@ -202,8 +202,11 @@ qboolean UI_ConsoleCommand(int realTime)
 {
 	char            *cmd;
 	uiClientState_t cstate;
+	unsigned int    elapsedTime;
 
-	uiInfo.uiDC.frameTime = realTime - uiInfo.uiDC.realTime;
+	/* Preserve the original 32-bit subtraction when the clock wraps. */
+	elapsedTime = (unsigned int)realTime - (unsigned int)uiInfo.uiDC.realTime;
+	memcpy(&uiInfo.uiDC.frameTime, &elapsedTime, sizeof(elapsedTime));
 	uiInfo.uiDC.realTime  = realTime;
 
 	cmd = UI_Argv(0);
