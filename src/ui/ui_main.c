@@ -547,8 +547,13 @@ int Text_Height_Ext(const char *text, float scale, int limit, fontInfo_t *font)
 		}
 	}
 
+#if defined(__linux__)
+	/* Linux applies scale before glyphScale, retaining the x87 product. */
+	return (int)((long double)max * (long double)scale * (long double)font->glyphScale);
+#else
 	// 4000444d: x87 multiplies glyphScale then scale without an intermediate float store.
 	return (int)((double)max * (double)font->glyphScale * (double)scale);
+#endif
 }
 
 int Text_Height(const char *text, float scale, int limit)

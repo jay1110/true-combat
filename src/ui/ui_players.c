@@ -627,11 +627,19 @@ static float UI_MovedirAdjustment(playerInfo_t *pi)
 
 	VectorSubtract(pi->viewAngles, pi->moveAngles, relativeAngles);
 	AngleVectors(relativeAngles, moveVector, NULL, NULL);
+#if defined(__linux__)
+	if (!(Q_fabs(moveVector[0]) >= 0.01))
+#else
 	if (Q_fabs(moveVector[0]) < 0.01)
+#endif
 	{
 		moveVector[0] = 0.0;
 	}
+#if defined(__linux__)
+	if (!(Q_fabs(moveVector[1]) >= 0.01))
+#else
 	if (Q_fabs(moveVector[1]) < 0.01)
+#endif
 	{
 		moveVector[1] = 0.0;
 	}

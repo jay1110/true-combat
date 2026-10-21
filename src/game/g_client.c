@@ -576,10 +576,16 @@ void SetClientViewAngle(gentity_t *ent, vec3_t angle)
 	{
 		int cmdAngle;
 
+#if defined(__linux__)
+		/* Linux FISTP consumes a signed 32-bit result before the word mask. */
+		cmdAngle = TCE_TruncateNativeInteger((long double)angle[i] * (long double)182.0444488525390625f) & 65535;
+		ent->client->ps.delta_angles[i] = TCE_SubInt32(cmdAngle, ent->client->pers.cmd.angles[i]);
+#else
 		/* TC 2004b32f: rounded f32 scale, retained product into __ftol.
 		 * A double holds the exact product of these two binary32 values. */
 		cmdAngle                        = (int)((long long)((double)angle[i] * (double)182.0444488525390625f) & 65535);
 		ent->client->ps.delta_angles[i] = cmdAngle - ent->client->pers.cmd.angles[i];
+#endif
 	}
 	VectorCopy(angle, ent->s.angles);
 	VectorCopy(ent->s.angles, ent->client->ps.viewangles);
@@ -589,9 +595,14 @@ void SetClientViewAnglePitch(gentity_t *ent, vec_t angle)
 {
 	int cmdAngle;
 
+#if defined(__linux__)
+	cmdAngle = TCE_TruncateNativeInteger((long double)angle * (long double)182.0444488525390625f) & 65535;
+	ent->client->ps.delta_angles[PITCH] = TCE_SubInt32(cmdAngle, ent->client->pers.cmd.angles[PITCH]);
+#else
 	/* TC 2004b3b4 uses the same f32 scale and truncating 64-bit __ftol. */
 	cmdAngle                            = (int)((long long)((double)angle * (double)182.0444488525390625f) & 65535);
 	ent->client->ps.delta_angles[PITCH] = cmdAngle - ent->client->pers.cmd.angles[PITCH];
+#endif
 
 	ent->s.angles[PITCH] = 0;
 	VectorCopy(ent->s.angles, ent->client->ps.viewangles);

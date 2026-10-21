@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "tce_numeric.h"
 
 /* Windows TC:E records an 80-byte pose, not the SDK's bounds/origin only. */
 static void G_CaptureClientMarker(gentity_t *ent, clientMarker_t *marker, int time)
@@ -32,15 +33,14 @@ void G_StoreClientPosition(gentity_t *ent)
 	}
 	if (!(ent->r.svFlags & SVF_BOT))
 	{
-		time = (int)((unsigned)trap_Milliseconds() +
-		             (unsigned)level.previousTime - (unsigned)level.frameTime);
+		time = TCE_SubInt32(TCE_AddInt32(trap_Milliseconds(), level.previousTime), level.frameTime);
 		if (time > level.time)
 		{
 			time = level.time;
 		}
 		else if (time <= level.previousTime)
 		{
-			time = level.previousTime + 1;
+			time = TCE_AddInt32(level.previousTime, 1);
 		}
 	}
 	G_CaptureClientMarker(ent, marker, time);
@@ -270,7 +270,7 @@ void G_ResetMarkers(gentity_t *ent)
 {
 	int i, time;
 	ent->client->topMarker = MAX_CLIENT_MARKERS - 1;
-	for ( i = MAX_CLIENT_MARKERS - 1, time = level.time; i >= 0; i--, time -= 50 )
+	for ( i = MAX_CLIENT_MARKERS - 1, time = level.time; i >= 0; i--, time = TCE_SubInt32(time, 50) )
 	{
 		G_CaptureClientMarker(ent, &ent->client->clientMarkers[i], time);
 		ent->client->clientMarkers[i].serverTime = time;
@@ -392,7 +392,7 @@ void G_TimeShiftAllClients(gentity_t *ent, qboolean scaleBounds)
 	for (i = 0; i < MAX_CLIENTS; ++i)
 	{
 		gentity_t *target = &g_entities[i];
-		if (target->client && target->inuse && target->client->sess.sessionTeam < TEAM_SPECTATOR &&
+		if (target->client && target->inuse && (unsigned)target->client->sess.sessionTeam < TEAM_SPECTATOR &&
 		    target != ent && target->health > 0)
 		{
 			G_TimeShiftClient(target, time);
@@ -424,7 +424,7 @@ void G_UnTimeShiftAllClients(gentity_t *ent)
 	for (i = 0; i < MAX_CLIENTS; ++i)
 	{
 		gentity_t *target = &g_entities[i];
-		if (target->client && target->inuse && target->client->sess.sessionTeam < TEAM_SPECTATOR &&
+		if (target->client && target->inuse && (unsigned)target->client->sess.sessionTeam < TEAM_SPECTATOR &&
 		    target != ent && target->health > 0)
 		{
 			if (target->r.svFlags & 0x60000)
