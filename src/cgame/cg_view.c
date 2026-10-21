@@ -200,6 +200,31 @@ Sets the coordinates of the rendered window
 //static float letterbox_frac = 1.0f;	// used for transitioning to letterbox for cutscenes // TODO: add to cg. // TTimo: unused
 void CG_Letterbox(float xsize, float ysize, qboolean center)
 {
+#if defined(__linux__)
+	if (cg_letterbox.integer)
+	{
+		float lbheight, lbdiff;
+
+		lbheight = ysize * 0.85;
+		lbdiff = ysize - lbheight;
+		if (!center)
+		{
+			int offset = (cgs.glconfig.vidHeight * (.5f * lbdiff)) / 100;
+			offset &= ~1;
+			cg.refdef.y += offset;
+		}
+		ysize = lbheight;
+	}
+	cg.refdef.width = cgs.glconfig.vidWidth * xsize / 100;
+	cg.refdef.width &= ~1;
+	cg.refdef.height = cgs.glconfig.vidHeight * ysize / 100;
+	cg.refdef.height &= ~1;
+	if (center)
+	{
+		cg.refdef.x = (cgs.glconfig.vidWidth - cg.refdef.width) / 2;
+		cg.refdef.y = (cgs.glconfig.vidHeight - cg.refdef.height) / 2;
+	}
+#else
 	/* Preserve original x87 precision and its float percent constant. */
 	double height = ysize;
 	if (cg_letterbox.integer)
@@ -218,6 +243,7 @@ void CG_Letterbox(float xsize, float ysize, qboolean center)
 		cg.refdef.x = (cgs.glconfig.vidWidth - cg.refdef.width) / 2;
 		cg.refdef.y = (cgs.glconfig.vidHeight - cg.refdef.height) / 2;
 	}
+#endif
 }
 void CG_CalcVrect(void)
 {
@@ -767,6 +793,39 @@ CG_Zoom
 */
 void CG_Zoom(void)
 {
+#if defined(__linux__)
+	tce_weaponDef_t *def;
+	if ((cg.snap->ps.pm_flags & PMF_FOLLOW) || cg.demoPlayback)
+	{
+		cg.predictedPlayerState.eFlags = cg.snap->ps.eFlags;
+		cg.predictedPlayerState.weapon = cg.snap->ps.weapon;
+		def = &weaponDef[cg.predictedPlayerState.weapon];
+		if (def->scoped > 1.0f && cg.tceAimActive && !cg_portalScopes.integer)
+		{
+			cg.zoomval = (float)((1.0L / def->scoped) * 90.0f);
+		}
+		else
+		{
+			cg.zoomval = def->unknown_1ac > 0 ? (float)def->unknown_1ac : 90.0f;
+		}
+	}
+	if (!cg.tceAimActive)
+	{
+		cg.zoomval = 0;
+	}
+	else if (TCE_FloatIsZeroOrNaN(cg.zoomval))
+	{
+		def = &weaponDef[cg.predictedPlayerState.weapon];
+		if (def->scoped > 1.0f && !cg_portalScopes.integer)
+		{
+			cg.zoomval = (float)((1.0L / def->scoped) * 90.0f);
+		}
+		else
+		{
+			cg.zoomval = def->unknown_1ac > 0 ? (float)def->unknown_1ac : 90.0f;
+		}
+	}
+#else
 	tce_weaponDef_t *def;
 	if ((cg.snap->ps.pm_flags & PMF_FOLLOW) || cg.demoPlayback)
 	{
@@ -784,6 +843,7 @@ void CG_Zoom(void)
 		def        = &weaponDef[cg.predictedPlayerState.weapon];
 		cg.zoomval = def->scoped > 1.0f && !cg_portalScopes.integer ? 90.0f / def->scoped : (def->unknown_1ac > 0?(float)def->unknown_1ac:90.0f);
 	}
+#endif
 }
 
 void CG_ToggleAiming(void)
@@ -1935,6 +1995,31 @@ static plane_t frustum[4];
 //
 void CG_SetupFrustum(void)
 {
+#if defined(__linux__)
+	int i;
+	float xs, xc;
+	float ang;
+
+	ang = cg.refdef_current->fov_x / 180 * M_PI * 0.5f;
+	xs = sin(ang);
+	xc = cos(ang);
+	VectorScale(cg.refdef_current->viewaxis[0], xs, frustum[0].normal);
+	VectorMA(frustum[0].normal, xc, cg.refdef_current->viewaxis[1], frustum[0].normal);
+	VectorScale(cg.refdef_current->viewaxis[0], xs, frustum[1].normal);
+	VectorMA(frustum[1].normal, -xc, cg.refdef_current->viewaxis[1], frustum[1].normal);
+
+	ang = cg.refdef.fov_y / 180 * M_PI * 0.5f;
+	xs = sin(ang);
+	xc = cos(ang);
+	VectorScale(cg.refdef_current->viewaxis[0], xs, frustum[2].normal);
+	VectorMA(frustum[2].normal, xc, cg.refdef_current->viewaxis[2], frustum[2].normal);
+	VectorScale(cg.refdef_current->viewaxis[0], xs, frustum[3].normal);
+	VectorMA(frustum[3].normal, -xc, cg.refdef_current->viewaxis[2], frustum[3].normal);
+	for (i = 0; i < 4; i++)
+	{
+		frustum[i].dist = DotProduct(cg.refdef_current->vieworg, frustum[i].normal);
+	}
+#else
 	int    plane, axis;
 	float  sine;
 	double angle, cosine;
@@ -1961,6 +2046,7 @@ void CG_SetupFrustum(void)
 			(double)frustum[plane].normal[2] * cg.refdef_current->vieworg[2] +
 			(double)frustum[plane].normal[0] * cg.refdef_current->vieworg[0]);
 	}
+#endif
 }
 
 
