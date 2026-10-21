@@ -4729,11 +4729,19 @@ int CG_SoundVolume(vec3_t origin, float amount, float range, int linear)
 #endif
 	if (linear)
 	{
+#if defined(__linux__)
+		gain = (1.0L / distance) * nearDistance;
+#else
 		gain = nearDistance / distance;
+#endif
 	}
 	else
 	{
+#if defined(__linux__)
+		gain = (1.0L / (distance * distance)) * (nearDistance * nearDistance);
+#else
 		gain = (nearDistance * nearDistance) / (distance * distance);
+#endif
 	}
 	result = (long double)amount * gain;
 
@@ -4741,7 +4749,12 @@ int CG_SoundVolume(vec3_t origin, float amount, float range, int linear)
 	if (!TCE_FloatIsZeroOrNaN(deafness))
 	{
 		result *= 1.0L - tceFlash.deafness;
+#if defined(__linux__)
+		/* The native JBE keeps an unordered result for integer conversion. */
+		if (result < 0.0L)
+#else
 		if (!(result >= 0.0L))
+#endif
 		{
 			result = 0.0L;
 		}

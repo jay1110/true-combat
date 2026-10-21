@@ -1574,6 +1574,10 @@ void CG_PlayVoiceChat(bufferedVoiceChat_t *vchat)
 		else if (vchat->clientNum != -1 &&
 		         (vchat->clientNum == cg.snap->ps.clientNum || cg_entities[vchat->clientNum].currentValid))
 		{
+#if defined(__linux__)
+			centity_t *speaker = &cg_entities[vchat->clientNum];
+			int volume = CG_SoundVolume(speaker->lerpOrigin, 127.f, 1200.f, 0);
+#else
 			tce_fragmentSoundContext_t context;
 			int                        volume;
 			centity_t                  *speaker = &cg_entities[vchat->clientNum];
@@ -1582,6 +1586,7 @@ void CG_PlayVoiceChat(bufferedVoiceChat_t *vchat)
 			context.attenuation     = tceFlash.deafness;
 			context.distanceVariant = tceSmokeNewBBox;
 			volume                  = TCE_CG_SoundVolume(speaker->lerpOrigin, 127.f, 1200.f, 0, &context);
+#endif
 			trap_S_StartSoundVControl(NULL, speaker->currentState.number, CHAN_VOICE, vchat->snd, volume);
 		}
 	}
