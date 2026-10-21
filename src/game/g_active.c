@@ -1193,7 +1193,7 @@ static void G_TCEStoreFramePosition(gentity_t *ent)
 	{
 		return;
 	}
-	index = ++client->tcePositionHistoryIndex;
+	index = client->tcePositionHistoryIndex = TCE_AddInt32(client->tcePositionHistoryIndex, 1);
 	if (index > 9)
 	{
 		index = client->tcePositionHistoryIndex = 0;

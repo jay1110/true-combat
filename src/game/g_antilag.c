@@ -46,6 +46,7 @@ void G_StoreClientPosition(gentity_t *ent)
 	G_CaptureClientMarker(ent, marker, time);
 }
 
+#if !defined(__linux__)
 /* Windows2004eba0 deliberately weights the newer sample by frac. */
 static void G_TCELerpPose(float frac, const vec3_t newer, const vec3_t older, vec3_t poseOutput)
 {
@@ -65,6 +66,7 @@ static void G_TCELerpPose(float frac, const vec3_t newer, const vec3_t older, ve
 	poseOutput[2] = frac * newer[2] + inverse * older[2];
 #endif
 }
+#endif
 
 static void G_ApplyClientMarker(gentity_t *ent, const clientMarker_t *marker)
 {
@@ -77,6 +79,21 @@ static void G_ApplyClientMarker(gentity_t *ent, const clientMarker_t *marker)
 	ent->client->ps.stats[STAT_TCE_WEAPON_FLAGS] = marker->weaponFlags;
 	ent->client->ps.eFlags                       = marker->eFlags;
 }
+
+#if defined(__linux__)
+/* The Linux original keeps the reciprocal and weights on the x87 stack. */
+static void G_TCELerpLinuxPose(long double fraction, const vec3_t newer,
+                              const vec3_t older, vec3_t output)
+{
+	long double inverse = 1.0L - fraction;
+	int axis;
+	for (axis = 0; axis < 3; ++axis)
+	{
+		output[axis] = (float)(fraction * (long double)newer[axis] +
+		                       inverse * (long double)older[axis]);
+	}
+}
+#endif
 
 /* Windows2004e790: pose rewind, including discrete bounds and pose flags. */
 void G_TimeShiftClient(gentity_t *ent, int time)
@@ -113,15 +130,34 @@ void G_TimeShiftClient(gentity_t *ent, int time)
 		G_CaptureClientMarker(ent, &client->backupMarker, client->backupMarker.time);
 	}
 	newer = &client->clientMarkers[j];
-	G_ApplyClientMarker(ent, newer);
 	if (i != client->topMarker)
 	{
+#if defined(__linux__)
+		long double fraction;
+		older = &client->clientMarkers[i];
+		fraction = (1.0L / (long double)TCE_SubInt32(newer->time, older->time)) *
+		           (long double)TCE_SubInt32(newer->time, time);
+		G_TCELerpLinuxPose(fraction, newer->origin, older->origin, ent->r.currentOrigin);
+		G_TCELerpLinuxPose(fraction, newer->angles, older->angles, ent->r.currentAngles);
+		G_TCELerpLinuxPose(fraction, newer->viewangles, older->viewangles, client->ps.viewangles);
+#else
 		float frac;
 		older = &client->clientMarkers[i];
-		frac  = (float)(newer->time - time) / (float)(newer->time - older->time);
+		frac  = (float)((long double)TCE_SubInt32(newer->time, time) /
+		                (long double)TCE_SubInt32(newer->time, older->time));
 		G_TCELerpPose(frac, newer->origin, older->origin, ent->r.currentOrigin);
 		G_TCELerpPose(frac, newer->angles, older->angles, ent->r.currentAngles);
 		G_TCELerpPose(frac, newer->viewangles, older->viewangles, client->ps.viewangles);
+#endif
+		VectorCopy(newer->mins, ent->r.mins);
+		VectorCopy(newer->maxs, ent->r.maxs);
+		client->ps.pm_flags = newer->pm_flags;
+		client->ps.stats[STAT_TCE_WEAPON_FLAGS] = newer->weaponFlags;
+		client->ps.eFlags = newer->eFlags;
+	}
+	else
+	{
+		G_ApplyClientMarker(ent, newer);
 	}
 }
 
@@ -251,10 +287,18 @@ void G_TCEResetFrameMarkers(gentity_t *ent)
 {
 	char   text[256];
 	int    i, time, fps;
+#if defined(__linux__)
+	long double spacing;
+#else
 	double spacing;
+#endif
 	trap_Cvar_VariableStringBuffer("sv_fps", text, 255);
 	fps                                  = atoi(text);
+#if defined(__linux__)
+	spacing = fps ? (1.0L / (long double)fps) * 1000.0L : 50.0L;
+#else
 	spacing                              = fps ? 1000.0 / fps : 50.0;
+#endif
 	ent->client->tcePositionHistoryIndex = 9;
 	for (i = 9, time = level.time; i >= 0; --i)
 	{
@@ -262,7 +306,11 @@ void G_TCEResetFrameMarkers(gentity_t *ent)
 		VectorCopy(ent->r.maxs, ent->client->tcePositionHistory[i].maxs);
 		VectorCopy(ent->r.currentOrigin, ent->client->tcePositionHistory[i].origin);
 		ent->client->tcePositionHistory[i].time = time;
-		time                                    = (int)((double)time - spacing);
+#if defined(__linux__)
+		time = TCE_TruncateNativeInteger((long double)time - spacing);
+#else
+		time = (int)((double)time - spacing);
+#endif
 	}
 }
 

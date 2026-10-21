@@ -1292,12 +1292,17 @@ qboolean IsArmShot(gentity_t *targ, gentity_t *ent, vec3_t point, int mod)
 
 	dot = DotProduct(path, view);
 
+#if defined(__linux__)
+	/* Linux rejects unordered dot products at the lower-bound comparison. */
+	return dot <= 0.4f && dot >= -0.75f;
+#else
 	if (dot > 0.4f || dot < -0.75f)
 	{
 		return qfalse;
 	}
 
 	return qtrue;
+#endif
 }
 
 /*
