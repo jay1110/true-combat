@@ -2685,11 +2685,11 @@ const char * CG_Debreifing2_WinStringForTeam(team_t team)
 	switch (team)
 	{
 	case TEAM_ALLIES:
-		return "ALLIES WIN!";
+		return "SPECOPS WIN";
 	case TEAM_AXIS:
-		return "AXIS WIN!";
+		return "TERRORISTS WIN";
 	default:
-		return "IT'S A TIE!";
+		return "IT'S A TIE";
 	}
 }
 
