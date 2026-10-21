@@ -1430,7 +1430,15 @@ static void TCE_LimboWidget(panel_button_t *button, void (*draw)(const tce_limbo
 }
 static void CG_LimboPanel_RenderTeamCounter(panel_button_t *button)
 {
-	TCE_LimboWidget(button, TCE_LimboCounter);
+	vec4_t on = { .99f, .99f, .99f, 1 };
+	vec4_t off = { .5f, .5f, .5f, 1 };
+	int value = CG_LimboPanel_RenderCounter_ValueForButton(button);
+	const char *text = va(value < 10 ? "[0%i]" : "[%i]", value);
+	float *color = CG_LimboPanel_GetTeam() == teamOrder[button->data[1]] ? on : off;
+
+	CG_Text_Paint_Ext(3.f + button->rect.x + 0.f,
+	                  (button->rect.h + button->rect.y) - 6.f,
+	                  .16f, .2f, color, text, 0, 0, 0, &cgs.media.limboFont1);
 }
 
 void CG_LimboPanel_RenderClassButton(panel_button_t *button)
@@ -1831,8 +1839,12 @@ void CG_LimboPanel_RenderHead(panel_button_t *button)
 
 	if (CG_LimboPanel_GetTeam() != TEAM_SPECTATOR)
 	{
+		bg_character_t *character, *headcharacter;
+
 		CG_FillRect(button->rect.x, button->rect.y, button->rect.w, button->rect.h, clrBack);
-		CG_DrawPlayerHead(&button->rect, CG_LimboPanel_GetCharacter(), CG_LimboPanel_GetCharacter(), 150, 0, qtrue, HD_IDLE4, 0, 0, qfalse);
+		headcharacter = CG_LimboPanel_GetCharacter();
+		character = CG_LimboPanel_GetCharacter();
+		CG_DrawPlayerHead(&button->rect, character, headcharacter, 150, 0, qtrue, HD_IDLE4, 0, 0, qfalse);
 	}
 	else
 	{
@@ -2231,9 +2243,14 @@ void CG_LimboPanel_WeaponPanel(panel_button_t *button)
 
 void CG_LimboPanel_RenderCounterNumber(float x, float y, float w, float h, float number, qhandle_t shaderBack, qhandle_t shaderRoll, int numbuttons)
 {
+#if defined(__linux__)
+	float numberS = (((numbuttons - 1) - number) + 0) * (1.f / numbuttons);
+	float numberE = (((numbuttons - 1) - number) + 1) * (1.f / numbuttons);
+#else
 	double digitOffset = (double)(numbuttons - 1) - number;
 	float  numberS     = (float)(digitOffset * (1.0 / numbuttons));
 	float  numberE     = (float)((digitOffset + 1.0) * (1.0 / numbuttons));
+#endif
 
 	CG_AdjustFrom640(&x, &y, &w, &h);
 	trap_R_DrawStretchPic(x, y, w, h, 0, 0, 1, 1, shaderBack);
@@ -2305,8 +2322,12 @@ int CG_LimboPanel_RenderCounter_ValueForButton(panel_button_t *button)
 		{
 			return 0;
 		}
-		/* Original x87 keeps the minute product and elapsed subtraction extended. */
+#if defined(__linux__)
+		count = ((cgs.timelimit * 60 * 1000) - (cg.time - cgs.levelStartTime)) / 1000;
+#else
+		/* Preserve the separately reconstructed Windows expression. */
 		count = (int)(((double)cgs.timelimit * 60000.0 - (cg.time - cgs.levelStartTime)) * (double)0.001f);
+#endif
 		switch (button->data[1])
 		{
 		case 0:         // secs
@@ -2698,12 +2719,15 @@ void CG_LimboPanel_Setup(void)
 		for ( i = 0; i < MAX_WEAPS_PER_CLASS; ++i )
 		{
 			int weapon = classInfo->classWeapons[i];
+			int team, requiredRole;
 			if (!weapon)
 			{
 				cgs.ccSelectedWeapon = 0; break;
 			}
-			if (BG_WeaponIsAvailable(weapon, gearDef.requiredSkill[weapon][role],
-			                         gearDef.team[weapon], TCE_AddInt32(rating, 20), CG_LimboPanel_GetTeam()))
+			team = CG_LimboPanel_GetTeam();
+			requiredRole = BG_WolfClassToTCE(CG_LimboPanel_GetClass());
+			if (BG_WeaponIsAvailable(weapon, gearDef.requiredSkill[weapon][requiredRole],
+			                         gearDef.team[weapon], TCE_AddInt32(rating, 20), team))
 			{
 				if (!CG_LimboPanel_RealWeaponIsDisabled(weapon) && weapon == ci->latchedweapon)
 				{
