@@ -579,6 +579,14 @@ int G_Map_v(gentity_t *ent, unsigned int dwVoteIndex, char *arg, char *arg2, qbo
 // *** Campaign - simpleton: we dont verify map is allowed/exists ***
 int G_Campaign_v(gentity_t *ent, unsigned int dwVoteIndex, char *arg, char *arg2, qboolean fRefereeCmd)
 {
+#if defined(__linux__)
+	(void)ent;
+	(void)dwVoteIndex;
+	(void)arg;
+	(void)arg2;
+	(void)fRefereeCmd;
+	return G_INVALID;
+#else
 	// Vote request (vote is being initiated)
 	if (arg)
 	{
@@ -616,6 +624,7 @@ int G_Campaign_v(gentity_t *ent, unsigned int dwVoteIndex, char *arg, char *arg2
 	}
 
 	return(G_OK);
+#endif
 }
 
 // *** Map Restart ***
@@ -948,6 +957,14 @@ int G_SwapTeams_v(gentity_t *ent, unsigned int dwVoteIndex, char *arg, char *arg
 // *** Team Damage ***
 int G_FriendlyFire_v(gentity_t *ent, unsigned int dwVoteIndex, char *arg, char *arg2, qboolean fRefereeCmd)
 {
+#if defined(__linux__)
+	(void)ent;
+	(void)dwVoteIndex;
+	(void)arg;
+	(void)arg2;
+	(void)fRefereeCmd;
+	return G_INVALID;
+#else
 	// Vote request (vote is being initiated)
 	if (arg)
 	{
@@ -965,6 +982,7 @@ int G_FriendlyFire_v(gentity_t *ent, unsigned int dwVoteIndex, char *arg, char *
 	}
 
 	return(G_OK);
+#endif
 }
 
 // Anti-Lag

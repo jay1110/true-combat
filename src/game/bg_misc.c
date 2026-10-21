@@ -617,12 +617,13 @@ qboolean BG_IsAkimboSideArm(int weaponNum, playerState_t *ps)
 {
 	switch (weaponNum)
 	{
-	case WP_COLT:   if (ps->weapon == WP_AKIMBO_COLT || ps->weapon == WP_AKIMBO_SILENCEDCOLT)
+	/* TC weapon IDs differ from the inherited ET weapon enum. */
+	case 39:   if (ps->weapon == 37 || ps->weapon == 53)
 		{
 			return qtrue;
 		}
 		break;
-	case WP_LUGER:  if (ps->weapon == WP_AKIMBO_LUGER || ps->weapon == WP_AKIMBO_SILENCEDLUGER)
+	case 2:    if (ps->weapon == 38 || ps->weapon == 54)
 		{
 			return qtrue;
 		}
