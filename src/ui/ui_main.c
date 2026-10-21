@@ -2703,7 +2703,12 @@ static void UI_DrawMissionBriefingObjectives(rectDef_t *rect, float scale, vec4_
 		{
 			if (len)
 			{
+#if defined(__linux__) && !defined(Q3_VM)
+				/* Linux spills the aligned offset before adding the window X. */
+				volatile float alignedX = textRect.x;
+#else
 				double alignedX = textRect.x;
+#endif
 				if (align == ITEM_ALIGN_LEFT)
 				{
 					alignedX = text_x;

@@ -6596,7 +6596,7 @@ void Item_Model_Paint(itemDef_t *item)
 
 #define NEWWAY
 #ifdef NEWWAY
-#if !defined(UIDLL) && defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(__linux__) && !defined(Q3_VM)) || (!defined(UIDLL) && defined(_MSC_VER) && defined(_M_IX86))
 	refdef.fov_x = TCE_FloatIsZeroOrNaN(modelPtr->fov_x) ? w : modelPtr->fov_x;
 	refdef.fov_y = TCE_FloatIsZeroOrNaN(modelPtr->fov_y) ? h : modelPtr->fov_y;
 #else

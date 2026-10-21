@@ -383,7 +383,11 @@ float NormalizeColor(const vec3_t in, vec3_t out)
 		max = in[2];
 	}
 
+#if defined(__linux__) && !defined(Q3_VM)
+	if (TCE_FloatIsZeroOrNaN(max))
+#else
 	if (!max)
+#endif
 	{
 		VectorClear(out);
 	}
@@ -412,7 +416,12 @@ qboolean PlaneFromPoints(vec4_t plane, const vec3_t a, const vec3_t b, const vec
 	VectorSubtract(b, a, d1);
 	VectorSubtract(c, a, d2);
 	CrossProduct(d2, d1, plane);
+#if defined(__linux__) && !defined(Q3_VM)
+	/* VectorNormalize returns a nonnegative length or NaN. */
+	if (!(VectorNormalize(plane) > 0.0f))
+#else
 	if (VectorNormalize(plane) == 0)
+#endif
 	{
 		return qfalse;
 	}
@@ -2762,14 +2771,24 @@ void ProjectPointOntoVectorBounded(vec3_t point, vec3_t vStart, vec3_t vEnd, vec
 	VectorMA(vStart, DotProduct(pVec, vec), vec, vProj);
 	// check bounds
 	for (j = 0; j < 3; j++)
+#if defined(__linux__) && !defined(Q3_VM)
+		if ((vProj[j] > vStart[j] && vProj[j] > vEnd[j]) ||
+		    (!(vProj[j] >= vStart[j]) && !(vProj[j] >= vEnd[j])))
+#else
 		if ((vProj[j] > vStart[j] && vProj[j] > vEnd[j]) ||
 		    (vProj[j] < vStart[j] && vProj[j] < vEnd[j]))
+#endif
 		{
 			break;
 		}
 	if (j < 3)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		float startDistance = Q_fabs(vProj[j] - vStart[j]);
+		if (!(startDistance >= Q_fabs(vProj[j] - vEnd[j])))
+#else
 		if (Q_fabs(vProj[j] - vStart[j]) < Q_fabs(vProj[j] - vEnd[j]))
+#endif
 		{
 			VectorCopy(vStart, vProj);
 		}
