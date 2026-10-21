@@ -1241,6 +1241,30 @@ char *Q_CleanStr(char *string)
 	return string;
 }
 
+char *Q_EliteCleanStr(char *string)
+{
+	char *source = string;
+	char *dest = string;
+	int c;
+
+	while ((c = *source) != 0)
+	{
+		/* TC removes doubled carets, rather than ordinary color codes. */
+		if (c == '^' && source[1] == '^')
+		{
+			source++;
+		}
+		else if (c >= 0x20 && c <= 0x7E)
+		{
+			*dest++ = c;
+		}
+		source++;
+	}
+	*dest = '\0';
+
+	return string;
+}
+
 // strips whitespaces and bad characters
 qboolean Q_isBadDirChar(char c)
 {

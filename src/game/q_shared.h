@@ -870,6 +870,7 @@ void    Q_strcat(char *dest, int size, const char *src);
 int Q_PrintStrlen(const char *string);
 // removes color sequences from string
 char *Q_CleanStr(char *string);
+char *Q_EliteCleanStr(char *string);
 // removes whitespaces and other bad directory characters
 char *Q_CleanDirName(char *dirname);
 

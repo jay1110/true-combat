@@ -2347,6 +2347,8 @@ skillType_t BG_ClassSkillForClass(int classnum);
 
 qboolean BG_isLightWeaponSupportingFastReload(int weapon);
 qboolean BG_IsScopedWeapon(int weapon);
+skillType_t BG_SkillGroupForWeapon(int weapon);
+weapon_t BG_EquivalentTeamWeapon(int weapon);
 
 int BG_FootstepForSurface(int surfaceFlags);
 

@@ -70,6 +70,17 @@ UI_ClampCvar
 */
 float UI_ClampCvar(float min, float max, float value)
 {
+#if defined(__linux__)
+	/* Original Linux comparisons choose the bound on unordered values. */
+	if (!(value >= min))
+	{
+		return min;
+	}
+	if (!(value <= max))
+	{
+		return max;
+	}
+#else
 	if (value < min)
 	{
 		return min;
@@ -78,6 +89,7 @@ float UI_ClampCvar(float min, float max, float value)
 	{
 		return max;
 	}
+#endif
 	return value;
 }
 

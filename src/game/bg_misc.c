@@ -4139,6 +4139,59 @@ qboolean BG_IsScopedWeapon(int weapon)
 	return (unsigned int)weapon - 57u < 3u ? qtrue : qfalse;
 }
 
+skillType_t BG_SkillGroupForWeapon(int weapon)
+{
+	/* TC:E protocol IDs; the SDK weapon names use different slots. */
+	switch (weapon)
+	{
+	case 3:
+	case 8:
+	case 10:
+	case 33:
+	case 41:
+	case 42:
+	case 43:
+	case 44:
+	case 45:
+	case 50:
+		return SK_HEAVY_WEAPONS;
+	case 46:
+	case 47:
+	case 51:
+		return SK_MILITARY_INTELLIGENCE_AND_SCOPED_WEAPONS;
+	case 48:
+	case 49:
+		return SK_SIGNALS;
+	default:
+		return SK_LIGHT_WEAPONS;
+	}
+}
+
+weapon_t BG_EquivalentTeamWeapon(int weapon)
+{
+	/* Preserve the original TC:E mapping, including its default of zero. */
+	switch (weapon)
+	{
+	case 2:  return 39;
+	case 3:  return 10;
+	case 8:  return 45;
+	case 10: return 3;
+	case 33: return 41;
+	case 37: return 38;
+	case 38: return 37;
+	case 39: return 2;
+	case 41: return 33;
+	case 43: return 44;
+	case 44: return 43;
+	case 45: return 8;
+	case 47: return 51;
+	case 48: return 49;
+	case 49: return 48;
+	case 51: return 47;
+	default: return WP_NONE;
+	}
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 typedef struct locInfo_s
 {

@@ -96,6 +96,11 @@ void Tooltip_Initialize(itemDef_t *item)
 
 void Tooltip_ComputePosition(itemDef_t *item)
 {
+#if defined(__linux__)
+	typedef long double tooltipCoord_t;
+#else
+	typedef double tooltipCoord_t;
+#endif
 	Rectangle *itemRect = &item->window.rectClient;
 	Rectangle *tipRect  = &item->toolTipData->window.rectClient;
 
@@ -103,15 +108,15 @@ void Tooltip_ComputePosition(itemDef_t *item)
 
 	// Set positioning based on item location
 	// TC 400147bf: multiply by float 1/3 and retain x87 precision until store.
-	tipRect->x = (float)((double)itemRect->w * (double)(1.0f / 3.0f) + itemRect->x);
-	tipRect->y = (float)((double)itemRect->h + itemRect->y + 8.0);
+	tipRect->x = (float)((tooltipCoord_t)itemRect->w * (tooltipCoord_t)(1.0f / 3.0f) + itemRect->x);
+	tipRect->y = (float)((tooltipCoord_t)itemRect->h + itemRect->y + 8.0);
 	//tipRect->h = 14.0f;
 	//tipRect->w = DC->textWidth( item->toolTipData->text, item->toolTipData->textscale, 0 ) + 6.0f;
 	tipRect->h = DC->multiLineTextHeight(item->toolTipData->text, item->toolTipData->textscale, 0) + 9.f;
 	tipRect->w = DC->multiLineTextWidth(item->toolTipData->text, item->toolTipData->textscale, 0) + 6.f;
-	if ((double)tipRect->w + tipRect->x > 635.0)
+	if ((tooltipCoord_t)tipRect->w + tipRect->x > 635.0)
 	{
-		tipRect->x = (float)((double)tipRect->x - ((double)tipRect->w + tipRect->x - 635.0));
+		tipRect->x = (float)((tooltipCoord_t)tipRect->x - ((tooltipCoord_t)tipRect->w + tipRect->x - 635.0));
 	}
 
 	item->toolTipData->parent        = item->parent;
@@ -9990,7 +9995,7 @@ qboolean BG_CursorInRect(rectDef_t *rect)
 
 
 
-#if defined(CGAMEDLL)
+#if defined(CGAMEDLL) || defined(__linux__)
 #define PANEL_EDIT_CURSOR_COLOR "^7"
 #else
 #define PANEL_EDIT_CURSOR_COLOR "^0"
@@ -9998,8 +10003,14 @@ qboolean BG_CursorInRect(rectDef_t *rect)
 
 void BG_PanelButton_RenderEdit(panel_button_t *button)
 {
+#if defined(_WIN32) || defined(__linux__)
+	typedef long double panelEditWidth_t;
+#else
+	typedef float panelEditWidth_t;
+#endif
 	qboolean useCvar = button->data[0] ? qfalse : qtrue;
 	int      offset  = -1;
+	int      textWidth;
 
 	if (useCvar)
 	{
@@ -10025,12 +10036,15 @@ void BG_PanelButton_RenderEdit(panel_button_t *button)
 		do
 		{
 			offset++;
+#if !defined(_WIN32) && !defined(__linux__)
 			if (buffer[offset] == '\0')
 			{
 				break;
 			}
+#endif
+			textWidth = DC->textWidthExt(buffer + offset, button->font->scalex, 0, button->font->font);
 		}
-		while (DC->textWidthExt(buffer + offset, button->font->scalex, 0, button->font->font) > button->rect.w);
+		while ((panelEditWidth_t)textWidth > button->rect.w);
 
 		DC->drawTextExt(button->rect.x, button->rect.y + button->rect.h, button->font->scalex, button->font->scaley, button->font->colour, va("^7%s", buffer + offset), 0, 0, button->font->style, button->font->font);
 	}
@@ -10057,12 +10071,15 @@ void BG_PanelButton_RenderEdit(panel_button_t *button)
 		do
 		{
 			offset++;
+#if !defined(_WIN32) && !defined(__linux__)
 			if (s[offset] == '\0')
 			{
 				break;
 			}
+#endif
+			textWidth = DC->textWidthExt(s + offset, button->font->scalex, 0, button->font->font);
 		}
-		while (DC->textWidthExt(s + offset, button->font->scalex, 0, button->font->font) > button->rect.w);
+		while ((panelEditWidth_t)textWidth > button->rect.w);
 
 		DC->drawTextExt(button->rect.x, button->rect.y + button->rect.h, button->font->scalex, button->font->scaley, button->font->colour, s + offset, 0, 0, button->font->style, button->font->font);
 	}
