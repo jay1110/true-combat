@@ -1,5 +1,6 @@
 
 #include "cg_local.h"
+#include "tce_weapon_media.h"
 #include "../game/tce_numeric.h"
 
 int CG_DrawField(int x, int y, int width, int value, int charWidth, int charHeight, qboolean dodrawpic, qboolean leftAlign);        // NERVE - SMF
@@ -219,6 +220,7 @@ void CG_FitTextToWidth_SingleLine(char *instr, float scale, float w, int size)
 weapIconDrawSize
 ==============
 */
+#if !defined(__linux__) && !defined(_WIN32)
 static int weapIconDrawSize(int weap)
 {
 	switch (weap)
@@ -254,6 +256,7 @@ static int weapIconDrawSize(int weap)
 
 	return 1;
 }
+#endif
 
 
 /*
@@ -263,6 +266,27 @@ CG_DrawPlayerWeaponIcon
 */
 void CG_DrawPlayerWeaponIcon(rectDef_t *rect, qboolean drawHighlighted, int align, vec4_t *refcolor)
 {
+#if defined(__linux__) || defined(_WIN32)
+	vec4_t color;
+	const char *name;
+	float x, y;
+
+	(void)drawHighlighted;
+	(void)align;
+	VectorCopy(*refcolor, color);
+	color[3] = 1.0f;
+	if (TCE_SubInt32(cg.time, cg.weaponSelectTime) > 1500 || cg.weaponSelect >= 55)
+	{
+		return;
+	}
+
+	/* TC displays the selected weapon's short name instead of the SDK icon. */
+	name = tce_cg_weapons[cg.weaponSelect].deployMenuShortName;
+	x = (rect->x + 82.0f) - 12.0f;
+	x -= CG_Text_Width_Ext(name, 0.2f, 0, &cgs.media.limboFont1);
+	y = ((((rect->y - 18.0f) + 12.0f) - 4.0f) - 12.0f) - 12.0f;
+	CG_Text_Paint_Ext(x, y, 0.2f, 0.2f, color, name, 0, 0, 3, &cgs.media.limboFont1);
+#else
 	int       size;
 	int       realweap;             // DHM - Nerve
 	qhandle_t icon;
@@ -390,6 +414,7 @@ void CG_DrawPlayerWeaponIcon(rectDef_t *rect, qboolean drawHighlighted, int alig
 		trap_R_SetColor(hcolor);   // JPW NERVE
 		CG_DrawPic(x, y, w, h, icon);
 	}
+#endif
 }
 
 #define CURSORHINT_SCALE    10
