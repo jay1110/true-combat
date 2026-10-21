@@ -2473,7 +2473,7 @@ qboolean BG_SS_StoreSpeaker(bg_speaker_t *speaker);
 qboolean BG_LoadSpeakerScript(const char *filename);
 
 // Lookup table to find ammo table entry
-extern ammotable_t ammoTableMP[WP_NUM_WEAPONS];
+extern ammotable_t ammoTableMP[MAX_WEAPONS];
 #define GetAmmoTableData(ammoIndex) ((ammotable_t *)(&ammoTableMP[ammoIndex]))
 
 #define MAX_MAP_SIZE 65536

@@ -151,7 +151,8 @@ int reloadableWeapons[] =
 // Separate table for SP and MP allow us to make the ammo and med packs function differently and may allow use to balance
 // weapons separately for each game.
 // Gordon: changed to actually use the maxammo values
-ammotable_t ammoTableMP[WP_NUM_WEAPONS] =
+/* TC also reads legacy slots beyond the 50-entry SDK weapon enum. */
+ammotable_t ammoTableMP[MAX_WEAPONS] =
 {
 	//	MAX				USES	MAX		START	START  RELOAD	FIRE			NEXT	HEAT,	COOL,	MOD,	...
 	//	AMMO			AMT.	CLIP	AMMO	CLIP	TIME	DELAY			SHOT
