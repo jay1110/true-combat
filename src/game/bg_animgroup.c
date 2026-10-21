@@ -107,7 +107,7 @@ static qboolean BG_RAG_ParseAnimation(int handle, animation_t *animation)
 		i = 1;
 	}
 
-#if defined(GAMEDLL) || defined(CGAMEDLL)
+#if defined(_WIN32) && (defined(GAMEDLL) || defined(CGAMEDLL))
 	/* TC qagame2002a860/cgame30002ea0: integer FPS is loaded directly into x87 and the
 	 * quotient is converted to integer without an intermediate float store. */
 	animation->frameLerp   = (int)(1000.0 / (double)i);
