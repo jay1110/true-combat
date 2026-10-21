@@ -1,4 +1,13 @@
 #include "tce_weapon_cycle.h"
+#include <string.h>
+
+int TCE_CG_WeaponTimeDelta(int newer, int older)
+{
+	unsigned int bits = (unsigned int)newer - (unsigned int)older;
+	int result;
+	memcpy(&result, &bits, sizeof(result));
+	return result;
+}
 /* Windows3004e6c0. Caller guarantees a nonnegative protocol selection. */
 void TCE_CG_DrawSelectedWeapon(const tce_weaponCycle_t *s, const float *rect,
                                const float *color, const tce_weaponCycleServices_t *api)
@@ -15,18 +24,18 @@ void TCE_CG_DrawSelectedWeapon(const tce_weaponCycle_t *s, const float *rect,
 void TCE_CG_CycleWeaponCommand(tce_weaponCycle_t *s, int direction)
 {
 	if (!s->hasSnapshot || (s->snapshotFlags & 0x1000000) ||
-	    (s->snapshotPmFlags & 0x1000) || s->time - s->weaponSelectTime < 1600 ||
+	    (s->snapshotPmFlags & 0x1000) || TCE_CG_WeaponTimeDelta(s->time, s->weaponSelectTime) < 1600 ||
 	    s->snapshotWeaponState != 0 || s->predictedWeaponState != 0 ||
 	    s->snapshotWeapon != s->predictedWeapon)
 	{
 		return;
 	}
-	if (s->time - s->cycleTime > 1500)
+	if (TCE_CG_WeaponTimeDelta(s->time, s->cycleTime) > 1500)
 	{
 		s->cycleOffset = 0;
 	}
 	s->cycleTime    = s->time;
-	s->cycleOffset += direction;
+	*(unsigned int *)&s->cycleOffset += (unsigned int)direction;
 	s->weaponSelect = 56;
 }
 

@@ -2599,6 +2599,8 @@ void CG_PrevWeaponInBank_f(void);   //----(SA)	added
 void CG_AltWeapon_f(void);
 void CG_NextWeapon_f(void);
 void CG_PrevWeapon_f(void);
+void CG_NextWeaponBar_f(void);
+void CG_PrevWeaponBar_f(void);
 void CG_Weapon_f(void);
 void CG_WeaponBank_f(void);
 qboolean CG_WeaponSelectable(int i);

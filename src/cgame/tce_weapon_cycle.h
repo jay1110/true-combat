@@ -11,6 +11,7 @@ typedef struct
 	int cycleSelected, buttons, cycleDelay;
 } tce_weaponCycle_t;
 void TCE_CG_CycleWeaponCommand(tce_weaponCycle_t *state, int direction);
+int TCE_CG_WeaponTimeDelta(int newer, int older);
 /* Renderer services mirror the original HUD dependencies. Width is measured at
  * scale .2; text is painted at .2/.2 with style 3, border size is 1. */
 typedef struct

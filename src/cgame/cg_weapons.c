@@ -3807,8 +3807,6 @@ CG_LastWeaponUsed_f
 */
 void CG_LastWeaponUsed_f(void)
 {
-	int lastweap;
-
 	//fretn - #447
 	//osp-rtcw & et pause bug
 	if (cg.snap->ps.pm_type == PM_FREEZE)
@@ -3816,7 +3814,7 @@ void CG_LastWeaponUsed_f(void)
 		return;
 	}
 
-	if (cg.time - cg.weaponSelectTime < cg_weaponCycleDelay.integer)
+	if (TCE_CG_WeaponTimeDelta(cg.time, cg.weaponSelectTime) < cg_weaponCycleDelay.integer)
 	{
 		return; // force pause so holding it down won't go too fast
 
@@ -3842,7 +3840,6 @@ void CG_LastWeaponUsed_f(void)
 
 	if (CG_WeaponSelectable(cg.switchbackWeapon))
 	{
-		lastweap = cg.weaponSelect;
 		CG_FinishWeaponChange(cg.weaponSelect, cg.switchbackWeapon);
 	}
 	else        // switchback no longer selectable, reset cycle
@@ -3864,7 +3861,7 @@ void CG_NextWeaponInBank_f(void)
 	{
 		return;
 	}
-	if (cg.time - cg.weaponSelectTime < cg_weaponCycleDelay.integer)
+	if (TCE_CG_WeaponTimeDelta(cg.time, cg.weaponSelectTime) < cg_weaponCycleDelay.integer)
 	{
 		return;
 	}
@@ -3884,7 +3881,7 @@ void CG_PrevWeaponInBank_f(void)
 	{
 		return;
 	}
-	if (cg.time - cg.weaponSelectTime < cg_weaponCycleDelay.integer)
+	if (TCE_CG_WeaponTimeDelta(cg.time, cg.weaponSelectTime) < cg_weaponCycleDelay.integer)
 	{
 		return;
 	}
@@ -3925,6 +3922,14 @@ static void CG_TCECycleCommand(int direction)
 {
 	tce_weaponCycle_t s; CG_TCECycleRead(&s);
 	TCE_CG_CycleWeaponCommand(&s, direction); CG_TCECycleWrite(&s);
+}
+void CG_NextWeaponBar_f(void)
+{
+	CG_TCECycleCommand(1);
+}
+void CG_PrevWeaponBar_f(void)
+{
+	CG_TCECycleCommand(-1);
 }
 static int CG_TCECycleWidth(int weapon)
 {
@@ -3973,72 +3978,26 @@ void CG_TCEDrawWeaponCycle(float bottom)
 
 void CG_NextWeapon_f(void)
 {
-	if (gearDef.parsed)
-	{
-		CG_TCECycleCommand(1); return;
-	}
-
-	if (!cg.snap)
+	if (!cg.snap || (cg.snap->ps.eFlags & 0x1000000))
 	{
 		return;
 	}
-
-	// Overload for MV clients
 	if (cg.mvTotalClients > 0)
 	{
 		CG_mvToggleView_f();
 		return;
 	}
-
-	//fretn - #447
-	//osp-rtcw & et pause bug
-	if (cg.snap->ps.pm_type == PM_FREEZE)
+	if (cg.snap->ps.pm_type == PM_FREEZE ||
+	    (cg.snap->ps.pm_flags & PMF_FOLLOW) ||
+	    TCE_CG_WeaponTimeDelta(cg.time, cg.weaponSelectTime) < cg_weaponCycleDelay.integer)
 	{
 		return;
 	}
-
-	if (cg.snap->ps.pm_flags & PMF_FOLLOW)
+	cg.weaponSelectTime = cg.time;
+	if (cg.snap->ps.weaponstate != WEAPON_RELOADING)
 	{
-		return;
+		CG_NextWeap(qtrue);
 	}
-
-	// this cvar is an option that lets the player use his weapon switching keys (probably the mousewheel)
-	// for zooming (binocs/snooper/sniper/etc.)
-	if (cg.zoomval)
-	{
-		if (cg_useWeapsForZoom.integer == 1)
-		{
-			CG_ZoomIn_f();
-			return;
-		}
-		else if (cg_useWeapsForZoom.integer == 2)
-		{
-			CG_ZoomOut_f();
-			return;
-		}
-	}
-
-	if (cg.time - cg.weaponSelectTime < cg_weaponCycleDelay.integer)
-	{
-		return; // force pause so holding it down won't go too fast
-
-	}
-	cg.weaponSelectTime = cg.time;  // flash the current weapon icon
-
-	// Don't try to switch when in the middle of reloading.
-	// cheatinfo:	The server actually would let you switch if this check were not
-	//				present, but would discard the reload.  So the when you switched
-	//				back you'd have to start the reload over.  This seems bad, however
-	//				the delay for the current reload is already in effect, so you'd lose
-	//				the reload time twice.  (the first pause for the current weapon reload,
-	//				and the pause when you have to reload again 'cause you canceled this one)
-
-	if (cg.snap->ps.weaponstate == WEAPON_RELOADING)
-	{
-		return;
-	}
-
-	CG_NextWeap(qtrue);
 }
 
 
@@ -4049,64 +4008,26 @@ CG_PrevWeapon_f
 */
 void CG_PrevWeapon_f(void)
 {
-	if (gearDef.parsed)
-	{
-		CG_TCECycleCommand(-1); return;
-	}
-	if (!cg.snap)
+	if (!cg.snap || (cg.snap->ps.eFlags & 0x1000000))
 	{
 		return;
 	}
-
-	// Overload for MV clients
 	if (cg.mvTotalClients > 0)
 	{
 		CG_mvSwapViews_f();
 		return;
 	}
-
-	//fretn - #447
-	//osp-rtcw & et pause bug
-	if (cg.snap->ps.pm_type == PM_FREEZE)
+	if (cg.snap->ps.pm_type == PM_FREEZE ||
+	    (cg.snap->ps.pm_flags & PMF_FOLLOW) ||
+	    TCE_CG_WeaponTimeDelta(cg.time, cg.weaponSelectTime) < cg_weaponCycleDelay.integer)
 	{
 		return;
 	}
-
-	if (cg.snap->ps.pm_flags & PMF_FOLLOW)
+	cg.weaponSelectTime = cg.time;
+	if (cg.snap->ps.weaponstate != WEAPON_RELOADING)
 	{
-		return;
+		CG_PrevWeap(qtrue);
 	}
-
-	// this cvar is an option that lets the player use his weapon switching keys (probably the mousewheel)
-	// for zooming (binocs/snooper/sniper/etc.)
-	if (cg.zoomval)
-	{
-		if (cg_useWeapsForZoom.integer == 1)
-		{
-			CG_ZoomOut_f();
-			return;
-		}
-		else if (cg_useWeapsForZoom.integer == 2)
-		{
-			CG_ZoomIn_f();
-			return;
-		}
-	}
-
-	if (cg.time - cg.weaponSelectTime < cg_weaponCycleDelay.integer)
-	{
-		return; // force pause so holding it down won't go too fast
-
-	}
-	cg.weaponSelectTime = cg.time;  // flash the current weapon icon
-
-	// Don't try to switch when in the middle of reloading.
-	if (cg.snap->ps.weaponstate == WEAPON_RELOADING)
-	{
-		return;
-	}
-
-	CG_PrevWeap(qtrue);
 }
 
 
