@@ -2528,6 +2528,22 @@ static void UI_DrawCampaignMapDescription(rectDef_t *rect, float scale, vec4_t c
 		{
 			if (len)
 			{
+#if defined(__linux__)
+				if (align == ITEM_ALIGN_LEFT)
+				{
+					textRect.x = text_x;
+				}
+				else if (align == ITEM_ALIGN_RIGHT)
+				{
+					textRect.x = text_x - newLineWidth;
+				}
+				else if (align == ITEM_ALIGN_CENTER)
+				{
+					textRect.x = text_x - newLineWidth / 2;
+				}
+				textRect.y = y;
+				textRect.x += rect->x;
+#else
 				double alignedX = textRect.x;
 				if (align == ITEM_ALIGN_LEFT)
 				{
@@ -2545,6 +2561,7 @@ static void UI_DrawCampaignMapDescription(rectDef_t *rect, float scale, vec4_t c
 
 				// Original 4000f646..4000f68c keeps subtraction/addition in x87.
 				textRect.x  = (float)(alignedX + rect->x);
+#endif
 				textRect.y += rect->y;
 
 				//

@@ -6505,6 +6505,34 @@ void AdjustFrom640(float *x, float *y, float *w, float *h)
 		*h      = (float)((long double)DC->yscale * *h * horizontal);
 	}
 }
+#elif defined(__linux__)
+void AdjustFrom640(float *x, float *y, float *w, float *h)
+{
+	int width = DC->glconfig.vidWidth, height = DC->glconfig.vidHeight;
+	const float horizontal = 0.750000059604644775390625f;
+	long double scale, shifted;
+
+	if ((unsigned)width * 480u != (unsigned)height * 640u)
+	{
+		scale = ((long double)width * 480.f / height) *
+		        0.00117187504656612873077392578125f;
+		*x = (float)((long double)DC->xscale * *x * horizontal);
+		shifted = (1.f / scale - 1.f) * 240.f + *y;
+		*y = (float)shifted;
+		*y = (float)(((long double)DC->yscale * scale) * shifted);
+		*w = (float)((long double)DC->xscale * *w * horizontal);
+		*h = (float)((scale * DC->yscale) * *h);
+	}
+	else
+	{
+		*x = (float)((long double)DC->xscale * *x * horizontal);
+		shifted = (long double)*y + 80.f;
+		*y = (float)shifted;
+		*y = (float)(shifted * DC->yscale * horizontal);
+		*w = (float)((long double)DC->xscale * *w * horizontal);
+		*h = (float)((long double)DC->yscale * *h * horizontal);
+	}
+}
 #else
 void AdjustFrom640(float *x, float *y, float *w, float *h)
 {

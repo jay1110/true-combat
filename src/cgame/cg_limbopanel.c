@@ -3339,7 +3339,7 @@ qboolean CG_LimboPanel_WeaponIsDisabled(int index)
 	count  = CG_LimboPanel_TeamCount(-1);
 	wcount = CG_LimboPanel_TeamCount(classinfo->classWeapons[index]);
 	/* Original x87 passes the product directly as double to ceil. */
-#if defined(__linux__) && defined(__i386__)
+#if defined(_WIN32) || (defined(__linux__) && defined(__i386__))
 	return !(wcount < ceil((double)count * cgs.weaponRestrictions));
 #else
 	return wcount >= ceil((double)count * cgs.weaponRestrictions);
@@ -3370,7 +3370,7 @@ qboolean CG_LimboPanel_RealWeaponIsDisabled(weapon_t weap)
 	count  = CG_LimboPanel_TeamCount(-1);
 	wcount = CG_LimboPanel_TeamCount(weap);
 	/* Preserve the quota boundary before ceil; do not round to float. */
-#if defined(__linux__) && defined(__i386__)
+#if defined(_WIN32) || (defined(__linux__) && defined(__i386__))
 	return !(wcount < ceil((double)count * cgs.weaponRestrictions));
 #else
 	return wcount >= ceil((double)count * cgs.weaponRestrictions);
