@@ -1071,7 +1071,7 @@ int BotTeamMatesNearEnemy(bot_state_t *bs)
 {
 	int   i, j;
 	vec_t *vec;
-	float range = SQR(G_GetWeaponDamage(WP_PANZERFAUST));
+	float range = SQR(G_GetWeaponDamage(TCE_ITEM_WEAPON_PANZERFAUST));
 	int   cnt   = 0;
 
 	if (bs->enemy < 0)
@@ -4821,13 +4821,13 @@ qboolean BotMoveWhileFiring(int weapon)
 {
 	switch (weapon)
 	{
-	case WP_BINOCULARS:
-	case WP_PANZERFAUST:
-	case WP_MOBILE_MG42:
-	case WP_MORTAR:
-	case WP_GARAND_SCOPE:
-	case WP_K43_SCOPE:
-	case WP_FG42SCOPE:
+	case TCE_ITEM_WEAPON_BINOCULARS:
+	case TCE_ITEM_WEAPON_PANZERFAUST:
+	case TCE_ITEM_WEAPON_MOBILE_MG42:
+	case TCE_ITEM_WEAPON_MORTAR:
+	case TCE_ITEM_WEAPON_GARANDRIFLESCOPE:
+	case TCE_ITEM_WEAPON_KAR43_SCOPE:
+	case TCE_ITEM_WEAPON_FG42SCOPE:
 		return qfalse;
 	}
 	//
@@ -6919,7 +6919,7 @@ int BotGetNumVisibleSniperSpots(bot_state_t *bs)
 		}
 		// is this spot visible?
 		VectorCopy(trav->s.origin, dest);
-		trap_Trace(&tr, bs->eye, NULL, NULL, dest, bs->client, MASK_SHOT);
+		trap_Trace(&tr, bs->eye, NULL, NULL, dest, bs->client, MASK_MISSILESHOT);
 		if (tr.fraction < 0.9)
 		{
 			continue;
@@ -6956,7 +6956,7 @@ int BotGetRandomVisibleSniperSpot(bot_state_t *bs)
 		}
 		// is this spot visible?
 		VectorCopy(trav->s.origin, dest);
-		trap_Trace(&tr, bs->eye, NULL, NULL, dest, bs->client, MASK_SHOT);
+		trap_Trace(&tr, bs->eye, NULL, NULL, dest, bs->client, MASK_MISSILESHOT);
 		if (tr.fraction < 0.9)
 		{
 			continue;
@@ -8194,7 +8194,7 @@ BotCanSnipe
 */
 int BotCanSnipe(bot_state_t *bs, qboolean checkAmmo)
 {
-	int sniperWeapons[] = { WP_GARAND_SCOPE, WP_K43_SCOPE, WP_FG42SCOPE, -1 };
+	int sniperWeapons[] = { TCE_ITEM_WEAPON_GARANDRIFLESCOPE, TCE_ITEM_WEAPON_KAR43_SCOPE, TCE_ITEM_WEAPON_FG42SCOPE, -1 };
 	int i, best, bestAmmo, thisAmmo;
 
 	// Gordon: early out if not covert ops only they have sniper weapons
@@ -8375,10 +8375,11 @@ BotBestTargetWeapon
 */
 int BotBestTargetWeapon(bot_state_t *bs, int targetNum)
 {
-	int       bestWeapon, i, *ammo, validWeapons[2];
+	int       bestWeapon, i, *ammo, validWeapons[3];
 	float     wantScale, bestWantScale, dist;
 	gentity_t *ent = &g_entities[targetNum];
 
+	/* Legacy ID 65 needs word three; selection still reads only IDs 0..63. */
 	memset(validWeapons, 0, sizeof(validWeapons));
 
 	// this function currently only supports the following types of target entities
@@ -8387,30 +8388,30 @@ int BotBestTargetWeapon(bot_state_t *bs, int targetNum)
 		if (ent->health > 0)
 		{
 			// explosive weapons are always valid
-			COM_BitSet(validWeapons, WP_PANZERFAUST);
-			COM_BitSet(validWeapons, WP_GRENADE_LAUNCHER);
-			COM_BitSet(validWeapons, WP_GRENADE_PINEAPPLE);
-			COM_BitSet(validWeapons, WP_SMOKE_MARKER);
+			COM_BitSet(validWeapons, TCE_ITEM_WEAPON_PANZERFAUST);
+			COM_BitSet(validWeapons, TCE_ITEM_WEAPON_GRENADELAUNCHER);
+			COM_BitSet(validWeapons, TCE_ITEM_WEAPON_GRENADEPINEAPPLE);
+			COM_BitSet(validWeapons, TCE_ITEM_WEAPON_GRENADESMOKE);
 
 			if (bs->sess.playerType == PC_FIELDOPS)
 			{
-				COM_BitSet(validWeapons, WP_BINOCULARS);
+				COM_BitSet(validWeapons, TCE_ITEM_WEAPON_BINOCULARS);
 			}
 
-			COM_BitSet(validWeapons, WP_MORTAR);
-			COM_BitSet(validWeapons, WP_GPG40);
-			COM_BitSet(validWeapons, WP_M7);
+			COM_BitSet(validWeapons, TCE_ITEM_WEAPON_MORTAR);
+			COM_BitSet(validWeapons, TCE_ITEM_WEAPON_GPG40);
+			COM_BitSet(validWeapons, TCE_ITEM_WEAPON_GPG40_ALLIED);
 
 			if (!(ent->spawnflags & 4))     // allow other weapons
 			// use any of these
 			{
-				COM_BitSet(validWeapons, WP_MP40);
-				COM_BitSet(validWeapons, WP_THOMPSON);
-				COM_BitSet(validWeapons, WP_KAR98);
-				COM_BitSet(validWeapons, WP_CARBINE);
-				COM_BitSet(validWeapons, WP_MOBILE_MG42);
-				COM_BitSet(validWeapons, WP_K43);
-				COM_BitSet(validWeapons, WP_FG42);
+				COM_BitSet(validWeapons, TCE_ITEM_WEAPON_MP40);
+				COM_BitSet(validWeapons, TCE_ITEM_WEAPON_THOMPSON);
+				COM_BitSet(validWeapons, TCE_ITEM_WEAPON_KAR98RIFLE);
+				COM_BitSet(validWeapons, TCE_ITEM_WEAPON_M1CARBINERIFLE);
+				COM_BitSet(validWeapons, TCE_ITEM_WEAPON_MOBILE_MG42);
+				COM_BitSet(validWeapons, TCE_ITEM_WEAPON_KAR43);
+				COM_BitSet(validWeapons, TCE_ITEM_WEAPON_FG42);
 			}
 		}
 	}
@@ -8421,19 +8422,19 @@ int BotBestTargetWeapon(bot_state_t *bs, int targetNum)
 			if (ent->spawnflags & 16)
 			{
 				// explosive
-				COM_BitSet(validWeapons, WP_PANZERFAUST);
-				COM_BitSet(validWeapons, WP_GRENADE_LAUNCHER);
-				COM_BitSet(validWeapons, WP_GRENADE_PINEAPPLE);
-				COM_BitSet(validWeapons, WP_SMOKE_MARKER);
+				COM_BitSet(validWeapons, TCE_ITEM_WEAPON_PANZERFAUST);
+				COM_BitSet(validWeapons, TCE_ITEM_WEAPON_GRENADELAUNCHER);
+				COM_BitSet(validWeapons, TCE_ITEM_WEAPON_GRENADEPINEAPPLE);
+				COM_BitSet(validWeapons, TCE_ITEM_WEAPON_GRENADESMOKE);
 
 				if (bs->sess.playerType == PC_FIELDOPS)
 				{
-					COM_BitSet(validWeapons, WP_BINOCULARS);
+					COM_BitSet(validWeapons, TCE_ITEM_WEAPON_BINOCULARS);
 				}
 
-				COM_BitSet(validWeapons, WP_MORTAR);
-				COM_BitSet(validWeapons, WP_GPG40);
-				COM_BitSet(validWeapons, WP_M7);
+				COM_BitSet(validWeapons, TCE_ITEM_WEAPON_MORTAR);
+				COM_BitSet(validWeapons, TCE_ITEM_WEAPON_GPG40);
+				COM_BitSet(validWeapons, TCE_ITEM_WEAPON_GPG40_ALLIED);
 			}
 		}
 	}
@@ -8450,7 +8451,7 @@ int BotBestTargetWeapon(bot_state_t *bs, int targetNum)
 
 	dist = VectorDistanceSquared(bs->origin, BotGetOrigin(ent->s.number));
 
-	for (i = WP_NONE + 1; i < WP_NUM_WEAPONS; i++)
+	for (i = WP_NONE + 1; i < MAX_WEAPONS; i++)
 	{
 		if (COM_BitCheck(bs->cur_ps.weapons, i) && COM_BitCheck(validWeapons, i))
 		{
