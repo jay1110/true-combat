@@ -1930,7 +1930,19 @@ qboolean CG_LimboPanel_WeaponLights_KeyDown(panel_button_t *button, int key)
 
 void CG_LimboPanel_WeaponLights(panel_button_t *button)
 {
-	TCE_LimboWidget(button, TCE_LimboWeaponLight);
+	qhandle_t shader;
+	CG_DrawBorder(button->rect.x + 2, button->rect.y + 2,
+	              button->rect.w - 4, button->rect.h - 4, qfalse, qfalse);
+	if (CG_LimboPanel_GetTeam() != TEAM_SPECTATOR &&
+	    button->data[0] == cgs.ccSelectedWeaponNumber)
+	{
+		shader = cgs.media.limboWeaponNumber_on;
+	}
+	else
+	{
+		shader = cgs.media.limboWeaponNumber_off;
+	}
+	CG_DrawPic(button->rect.x, button->rect.y, button->rect.w, button->rect.h, shader);
 }
 
 qboolean CG_LimboPanel_WeaponPanel_KeyDown(panel_button_t *button, int key)
@@ -2074,13 +2086,16 @@ void CG_LimboPanel_WeaponPanel(panel_button_t *button)
 		int          role, selected;
 		vec4_t       grey = { .7f, .7f, .7f, 1 };
 		CG_Text_Paint_Ext(button->rect.x + 2, button->rect.y - 252, .2f, .2f, grey,
-		                  "Armament Availability", 0, 0, 0, &cgs.media.limboFont2);
+		                  va("Armament Availability"), 0, 0, 0, &cgs.media.limboFont2);
 		selected = BG_WolfClassToTCE(CG_LimboPanel_GetClass());
 		for (role = 0; role < 3; ++role)
 		{
 			int rating = role == BG_WolfClassToTCE(ci->tceScorePlayerClass)?ci->tceClassRating:ci->tcePreviousClassRating;
-			CG_Text_Paint_Ext(button->rect.x + 2, button->rect.y - 240 + role * 11, .2f, .2f,
-			                  selected == role?colorWhite:grey, va("[%s]: %i", role == 0?"Assault":role == 1?"Recon":"Sniper", rating + 1),
+			const char *label = va("[%s]: %i", role == 0?"Assault":role == 1?"Recon":"Sniper", TCE_AddInt32(rating, 1));
+			float component = selected == role ? 1.f : .7f;
+			vec4_t ink = { component, component, component, 1.f };
+			CG_Text_Paint_Ext(button->rect.x + 2, (button->rect.y - 252.f) + 12.f + role * 11, .2f, .2f,
+			                  ink, label,
 			                  0, 0, 0, &cgs.media.limboFont2);
 		}
 	}
@@ -2126,11 +2141,17 @@ void CG_LimboPanel_WeaponPanel(panel_button_t *button)
 	{
 		int       i, x;
 		rectDef_t rect;
+		qboolean disabled;
+		const char *countText;
+		int selectedNumber;
 		CG_LimboPanel_GetPlayerClass();
 		memcpy(&rect, &button->rect, sizeof(rect));
 
 		CG_DrawBorder(rect.x + 2, rect.y + 2 - (cnt - 1) * rect.h, rect.w - 4, cnt * rect.h - 4, qfalse, qfalse);
-		CG_LimboPanel_WeaponPanel_DrawWeapon(&rect, weap, qtrue, va("%iof%i", CG_LimboPanel_GetSelectedWeaponNum() + 1, cnt), CG_LimboPanel_RealWeaponIsDisabled(weap));
+		disabled = CG_LimboPanel_RealWeaponIsDisabled(weap);
+		selectedNumber = CG_LimboPanel_GetSelectedWeaponNum();
+		countText = va("%iof%i", TCE_AddInt32(selectedNumber, 1), cnt);
+		CG_LimboPanel_WeaponPanel_DrawWeapon(&rect, weap, qtrue, countText, disabled);
 		if (BG_CursorInRect(&rect))
 		{
 			if (button->data[7] != 0)
@@ -2148,7 +2169,9 @@ void CG_LimboPanel_WeaponPanel(panel_button_t *button)
 			weapon_t cycleWeap = CG_LimboPanel_GetWeaponForNumber(i, cgs.ccSelectedWeaponNumber, qtrue);
 			if (cycleWeap != weap)
 			{
-				CG_LimboPanel_WeaponPanel_DrawWeapon(&rect, cycleWeap, qtrue, va("%iof%i", i + 1, cnt), CG_LimboPanel_RealWeaponIsDisabled(cycleWeap));
+				disabled = CG_LimboPanel_RealWeaponIsDisabled(cycleWeap);
+				countText = va("%iof%i", i + 1, cnt);
+				CG_LimboPanel_WeaponPanel_DrawWeapon(&rect, cycleWeap, qtrue, countText, disabled);
 
 				if (BG_CursorInRect(&rect))
 				{
@@ -2170,10 +2193,16 @@ void CG_LimboPanel_WeaponPanel(panel_button_t *button)
 	{
 		vec4_t clr  = { 0.f, 0.f, 0.f, 0.4f };
 		vec4_t clr2 = { 1.f, 1.f, 1.f, 0.4f };
+		qboolean disabled;
+		const char *countText;
+		int selectedNumber;
 
 		CG_DrawBorder(button->rect.x + 2, button->rect.y + 2, button->rect.w - 4, button->rect.h - 4, qfalse, qfalse);
 		// render in normal mode
-		CG_LimboPanel_WeaponPanel_DrawWeapon(&button->rect, weap, cnt > 1 ? qtrue : qfalse, va("%iof%i", CG_LimboPanel_GetSelectedWeaponNum() + 1, cnt), CG_LimboPanel_RealWeaponIsDisabled(weap));
+		disabled = CG_LimboPanel_RealWeaponIsDisabled(weap);
+		selectedNumber = CG_LimboPanel_GetSelectedWeaponNum();
+		countText = va("%iof%i", TCE_AddInt32(selectedNumber, 1), cnt);
+		CG_LimboPanel_WeaponPanel_DrawWeapon(&button->rect, weap, cnt > 1 ? qtrue : qfalse, countText, disabled);
 
 		if (cnt <= 1 || !BG_CursorInRect(&button->rect))
 		{
@@ -3099,7 +3128,7 @@ weapon_t CG_LimboPanel_GetWeaponForNumber(int number, int slot, qboolean ignoreD
 			count++;
 		}
 	}
-#if defined(_WIN32) && !defined(Q3_VM)
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 	/* The native primary-loop epilogue preserves the last availability result. */
 	if (slot == 1)
 	{
