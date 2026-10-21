@@ -9,6 +9,7 @@
 
 
 #include "../game/g_local.h"
+#include "../game/tce_weapon_ids.h"
 #include "../game/botlib.h"
 #include "../game/be_aas.h"
 #include "../game/be_ea.h"
@@ -854,7 +855,7 @@ qboolean G_WeaponCharged(playerState_t *ps, team_t team, int weapon, int *skill)
 {
 	switch (weapon)
 	{
-	case WP_PANZERFAUST:
+	case TCE_ITEM_WEAPON_PANZERFAUST:
 		if (ps->eFlags & EF_PRONE)
 		{
 			return qfalse;
@@ -871,7 +872,7 @@ qboolean G_WeaponCharged(playerState_t *ps, team_t team, int weapon, int *skill)
 		{
 			return qfalse;
 		}
-	case WP_MORTAR_SET:
+	case TCE_ITEM_WEAPON_MORTAR_SET:
 		if (skill[SK_HEAVY_WEAPONS] >= 1)
 		{
 			if (WC_WEAPON_TIME_LEFT < WC_SOLDIER_TIME * 0.33f)
@@ -884,8 +885,8 @@ qboolean G_WeaponCharged(playerState_t *ps, team_t team, int weapon, int *skill)
 			return qfalse;
 		}
 		return qtrue;
-	case WP_SMOKE_BOMB:
-	case WP_SATCHEL:
+	case TCE_ITEM_WEAPON_SMOKEBOMB:
+	case TCE_ITEM_WEAPON_SATCHEL:
 		if (skill[SK_MILITARY_INTELLIGENCE_AND_SCOPED_WEAPONS] >= 2)
 		{
 			if (WC_WEAPON_TIME_LEFT < WC_COVERTOPS_TIME * 0.66f)
@@ -899,7 +900,7 @@ qboolean G_WeaponCharged(playerState_t *ps, team_t team, int weapon, int *skill)
 		}
 		break;
 
-	case WP_LANDMINE:
+	case TCE_ITEM_WEAPON_LANDMINE:
 		if (skill[SK_EXPLOSIVES_AND_CONSTRUCTION] >= 2)
 		{
 			if (WC_WEAPON_TIME_LEFT < (WC_ENGINEER_TIME * 0.33f))
@@ -913,7 +914,7 @@ qboolean G_WeaponCharged(playerState_t *ps, team_t team, int weapon, int *skill)
 		}
 		break;
 
-	case WP_DYNAMITE:
+	case TCE_ITEM_WEAPON_DYNAMITE:
 		if (skill[SK_EXPLOSIVES_AND_CONSTRUCTION] >= 3)
 		{
 			if (WC_WEAPON_TIME_LEFT < (WC_ENGINEER_TIME * 0.66f))
@@ -927,7 +928,7 @@ qboolean G_WeaponCharged(playerState_t *ps, team_t team, int weapon, int *skill)
 		}
 		break;
 
-	case WP_MEDKIT:
+	case TCE_ITEM_WEAPON_MEDIC_HEAL:
 		if (skill[SK_FIRST_AID] >= 2)
 		{
 			if (WC_WEAPON_TIME_LEFT < WC_MEDIC_TIME * 0.15f)
@@ -941,7 +942,7 @@ qboolean G_WeaponCharged(playerState_t *ps, team_t team, int weapon, int *skill)
 		}
 		break;
 
-	case WP_AMMO:
+	case TCE_ITEM_WEAPON_MAGICAMMO:
 		if (skill[SK_SIGNALS] >= 1)
 		{
 			if (WC_WEAPON_TIME_LEFT < WC_FIELDOPS_TIME * 0.15f)
@@ -955,7 +956,7 @@ qboolean G_WeaponCharged(playerState_t *ps, team_t team, int weapon, int *skill)
 		}
 		break;
 
-	case WP_SMOKE_MARKER:
+	case TCE_ITEM_WEAPON_GRENADESMOKE:
 		if (skill[SK_SIGNALS] >= 2)
 		{
 			if (WC_WEAPON_TIME_LEFT < WC_FIELDOPS_TIME * 0.66f)
@@ -969,14 +970,14 @@ qboolean G_WeaponCharged(playerState_t *ps, team_t team, int weapon, int *skill)
 		}
 		break;
 
-	case WP_MEDIC_ADRENALINE:
+	case TCE_ITEM_WEAPON_MEDIC_ADRENALINE:
 		if (WC_WEAPON_TIME_LEFT < WC_MEDIC_TIME)
 		{
 			return qfalse;
 		}
 		break;
 
-	case WP_BINOCULARS:
+	case TCE_ITEM_WEAPON_BINOCULARS:
 		switch (ps->stats[STAT_PLAYER_CLASS])
 		{
 		case PC_FIELDOPS:
@@ -996,8 +997,8 @@ qboolean G_WeaponCharged(playerState_t *ps, team_t team, int weapon, int *skill)
 		}
 		break;
 
-	case WP_GPG40:
-	case WP_M7:
+	case TCE_ITEM_WEAPON_GPG40:
+	case TCE_ITEM_WEAPON_GPG40_ALLIED:
 		if (WC_WEAPON_TIME_LEFT < WC_ENGINEER_TIME * 0.5f)
 		{
 			return qfalse;
@@ -1024,14 +1025,14 @@ qboolean BotWeaponOnlyUseIfInInRange(int weaponnum)
 {
 	switch (weaponnum)
 	{
-	case WP_BINOCULARS:
-	case WP_SMOKE_MARKER:
-	case WP_PANZERFAUST:
-	case WP_MOBILE_MG42:
-	case WP_MORTAR:
-	case WP_GARAND_SCOPE:
-	case WP_K43_SCOPE:
-	case WP_FG42SCOPE:
+	case TCE_ITEM_WEAPON_BINOCULARS:
+	case TCE_ITEM_WEAPON_GRENADESMOKE:
+	case TCE_ITEM_WEAPON_PANZERFAUST:
+	case TCE_ITEM_WEAPON_MOBILE_MG42:
+	case TCE_ITEM_WEAPON_MORTAR:
+	case TCE_ITEM_WEAPON_GARANDRIFLESCOPE:
+	case TCE_ITEM_WEAPON_KAR43_SCOPE:
+	case TCE_ITEM_WEAPON_FG42SCOPE:
 		return qtrue;
 	}
 	return qfalse;
@@ -1046,21 +1047,21 @@ float BotWeaponClosestDist(int weaponnum)
 {
 	switch (weaponnum)
 	{
-	case WP_PANZERFAUST:
+	case TCE_ITEM_WEAPON_PANZERFAUST:
 		return 512.0f;
 
-	case WP_BINOCULARS:
-	case WP_GARAND_SCOPE:
-	case WP_K43_SCOPE:
-	case WP_FG42SCOPE:
+	case TCE_ITEM_WEAPON_BINOCULARS:
+	case TCE_ITEM_WEAPON_GARANDRIFLESCOPE:
+	case TCE_ITEM_WEAPON_KAR43_SCOPE:
+	case TCE_ITEM_WEAPON_FG42SCOPE:
 		return 1024.0f;
 
-	case WP_GRENADE_PINEAPPLE:
-	case WP_GRENADE_LAUNCHER:
+	case TCE_ITEM_WEAPON_GRENADEPINEAPPLE:
+	case TCE_ITEM_WEAPON_GRENADELAUNCHER:
 		return 128;
 
-	case WP_M7:
-	case WP_GPG40:
+	case TCE_ITEM_WEAPON_GPG40_ALLIED:
+	case TCE_ITEM_WEAPON_GPG40:
 		return 256;
 	}
 	return 0;
@@ -1136,7 +1137,7 @@ float BotWeaponWantScale(bot_state_t *bs, weapon_t weapon)
 
 	switch (weapon)
 	{
-	case WP_KNIFE:
+	case TCE_ITEM_WEAPON_KNIFE:
 		// for fun, have random bots use the knife in warmup scrumage
 		if (level.warmupTime > level.time && !((bs->client + level.warmupTime / 100) % 5))
 		{
@@ -1144,63 +1145,63 @@ float BotWeaponWantScale(bot_state_t *bs, weapon_t weapon)
 		}
 		return 0.2;
 
-	case WP_LUGER:
-	case WP_COLT:
+	case TCE_ITEM_WEAPON_LUGER:
+	case TCE_ITEM_WEAPON_COLT:
 		return 0.4;
 
-	case WP_SILENCER:
-	case WP_SILENCED_COLT:
+	case TCE_ITEM_WEAPON_SILENCER:
+	case TCE_ITEM_WEAPON_SILENCEDCOLT:
 		return 0.45;
 
-	case WP_AKIMBO_COLT:
-	case WP_AKIMBO_LUGER:
+	case TCE_ITEM_WEAPON_AKIMBOCOLT:
+	case TCE_ITEM_WEAPON_AKIMBOLUGER:
 		return 0.5;
 
-	case WP_AKIMBO_SILENCEDCOLT:
-	case WP_AKIMBO_SILENCEDLUGER:
+	case TCE_ITEM_WEAPON_AKIMBOSILENCEDCOLT:
+	case TCE_ITEM_WEAPON_AKIMBOSILENCEDLUGER:
 		return 0.55;
 
-	case WP_MP40:
-	case WP_THOMPSON:
-	case WP_STEN:
+	case TCE_ITEM_WEAPON_MP40:
+	case TCE_ITEM_WEAPON_THOMPSON:
+	case TCE_ITEM_WEAPON_STEN:
 		return 0.6;
 
-	case WP_GPG40:
-	case WP_M7:
+	case TCE_ITEM_WEAPON_GPG40:
+	case TCE_ITEM_WEAPON_GPG40_ALLIED:
 		if (bs->inventory[ENEMY_HORIZONTAL_DIST] > 512)
 		{
 			return 1.0;
 		}
 		return 0.1;
 
-	case WP_CARBINE:
-	case WP_GARAND:
-	case WP_FG42:
-	case WP_KAR98:
-	case WP_K43:
+	case TCE_ITEM_WEAPON_M1CARBINERIFLE:
+	case TCE_ITEM_WEAPON_GARANDRIFLE:
+	case TCE_ITEM_WEAPON_FG42:
+	case TCE_ITEM_WEAPON_KAR98RIFLE:
+	case TCE_ITEM_WEAPON_KAR43:
 		return 0.6;
 
-	case WP_MOBILE_MG42:
+	case TCE_ITEM_WEAPON_MOBILE_MG42:
 		if (!moving && bs->inventory[ENEMY_HORIZONTAL_DIST] > 500)
 		{
 			return 3.0;
 		}
 		return 0.3;
-	case WP_GARAND_SCOPE:
-	case WP_K43_SCOPE:
-	case WP_FG42SCOPE:
+	case TCE_ITEM_WEAPON_GARANDRIFLESCOPE:
+	case TCE_ITEM_WEAPON_KAR43_SCOPE:
+	case TCE_ITEM_WEAPON_FG42SCOPE:
 		if ((!moving && bs->enemy > -1) && (bs->inventory[ENEMY_HORIZONTAL_DIST] > 300))
 		{
 			return 1.0;
 		}
 		return 0.1;
-	case WP_FLAMETHROWER:
+	case TCE_ITEM_WEAPON_FLAMETHROWER:
 		if ((!moving || bs->enemy > -1) && bs->inventory[ENEMY_HORIZONTAL_DIST] < 800)
 		{
 			return 1.0;
 		}
 		return 0.1;
-	case WP_PANZERFAUST:
+	case TCE_ITEM_WEAPON_PANZERFAUST:
 		if (!moving || bs->enemy > -1)
 		{
 			if (bs->enemy >= 0)
@@ -1217,8 +1218,8 @@ float BotWeaponWantScale(bot_state_t *bs, weapon_t weapon)
 			}
 		}
 		return 0.1;
-	case WP_GRENADE_LAUNCHER:
-	case WP_GRENADE_PINEAPPLE:
+	case TCE_ITEM_WEAPON_GRENADELAUNCHER:
+	case TCE_ITEM_WEAPON_GRENADEPINEAPPLE:
 
 		if (bs->enemy > -1 && bs->inventory[ENEMY_HORIZONTAL_DIST] < 300)
 		{
@@ -1240,7 +1241,7 @@ float BotWeaponWantScale(bot_state_t *bs, weapon_t weapon)
 			return 0.1;
 		}
 		break;
-	case WP_SMOKE_MARKER:
+	case TCE_ITEM_WEAPON_GRENADESMOKE:
 		if (bs->sess.playerType == PC_FIELDOPS && bs->enemy > -1 && (bs->inventory[ENEMY_HORIZONTAL_DIST] < 400))
 		{
 			if (BG_GetSkyHeightAtPoint(BotGetOrigin(bs->enemy)) == MAX_MAP_SIZE)
@@ -1251,7 +1252,7 @@ float BotWeaponWantScale(bot_state_t *bs, weapon_t weapon)
 			return 1.f;
 		}
 		break;
-	case WP_BINOCULARS:
+	case TCE_ITEM_WEAPON_BINOCULARS:
 		if (!moving)
 		{
 			if (bs->sess.playerType == PC_FIELDOPS)
@@ -1309,7 +1310,7 @@ int BotBestFightWeapon(bot_state_t *bs)
 		dist = VectorDistance(bs->origin, BotGetOrigin(bs->enemy));
 	}
 
-	for ( i = 0; i < WP_NUM_WEAPONS; i++)
+	for ( i = 0; i < MAX_WEAPONS; i++)
 	{
 		if (COM_BitCheck(bs->cur_ps.weapons, i))
 		{
@@ -3960,80 +3961,80 @@ float BotWeaponRange(bot_state_t *bs, int weaponnum)
 	switch (weaponnum)
 	{
 	// dont use unless manually forced
-	case WP_PLIERS:
-	case WP_MEDKIT:
-	case WP_AMMO:
-	case WP_MEDIC_SYRINGE:
-	case WP_LANDMINE:
-	case WP_SATCHEL:
-	case WP_SATCHEL_DET:
-	case WP_TRIPMINE:
-	case WP_MEDIC_ADRENALINE:
-	case WP_DYNAMITE:
-	case WP_ARTY:
+	case TCE_ITEM_WEAPON_CLASS_SPECIAL:
+	case TCE_ITEM_WEAPON_MEDIC_HEAL:
+	case TCE_ITEM_WEAPON_MAGICAMMO:
+	case TCE_ITEM_WEAPON_MEDIC_SYRINGE:
+	case TCE_ITEM_WEAPON_LANDMINE:
+	case TCE_ITEM_WEAPON_SATCHEL:
+	case TCE_ITEM_WEAPON_SATCHELDETONATOR:
+	case TCE_ITEM_WEAPON_TRIPMINE:
+	case TCE_ITEM_WEAPON_MEDIC_ADRENALINE:
+	case TCE_ITEM_WEAPON_DYNAMITE:
+	case TCE_ITEM_WEAPON_ARTY:
 		return -2.0f;
 
 	// short range
-	case WP_KNIFE:
+	case TCE_ITEM_WEAPON_KNIFE:
 		return 256.0f;
 
-	case WP_GRENADE_PINEAPPLE:
-	case WP_GRENADE_LAUNCHER:
+	case TCE_ITEM_WEAPON_GRENADEPINEAPPLE:
+	case TCE_ITEM_WEAPON_GRENADELAUNCHER:
 		return 512.0f;
 
-	case WP_LUGER:
-	case WP_COLT:
+	case TCE_ITEM_WEAPON_LUGER:
+	case TCE_ITEM_WEAPON_COLT:
 
-	case WP_AKIMBO_COLT:
-	case WP_AKIMBO_LUGER:
-	case WP_SILENCER:
+	case TCE_ITEM_WEAPON_AKIMBOCOLT:
+	case TCE_ITEM_WEAPON_AKIMBOLUGER:
+	case TCE_ITEM_WEAPON_SILENCER:
 
-	case WP_SILENCED_COLT:
+	case TCE_ITEM_WEAPON_SILENCEDCOLT:
 
-	case WP_FLAMETHROWER:
-	case WP_SMOKE_MARKER:
-	case WP_SMOKE_BOMB:
+	case TCE_ITEM_WEAPON_FLAMETHROWER:
+	case TCE_ITEM_WEAPON_GRENADESMOKE:
+	case TCE_ITEM_WEAPON_SMOKEBOMB:
 
-	case WP_AKIMBO_SILENCEDCOLT:
-	case WP_AKIMBO_SILENCEDLUGER:
+	case TCE_ITEM_WEAPON_AKIMBOSILENCEDCOLT:
+	case TCE_ITEM_WEAPON_AKIMBOSILENCEDLUGER:
 
 		return 1000.f;
 
 	// low-mid range
-	case WP_MP40:
-	case WP_THOMPSON:
-	case WP_STEN:
+	case TCE_ITEM_WEAPON_MP40:
+	case TCE_ITEM_WEAPON_THOMPSON:
+	case TCE_ITEM_WEAPON_STEN:
 
-	case WP_GPG40:
-	case WP_M7:
+	case TCE_ITEM_WEAPON_GPG40:
+	case TCE_ITEM_WEAPON_GPG40_ALLIED:
 
 		return 2000.f;
 
 	// mid range
-	case WP_KAR98:
-	case WP_CARBINE:
-	case WP_GARAND:
+	case TCE_ITEM_WEAPON_KAR98RIFLE:
+	case TCE_ITEM_WEAPON_M1CARBINERIFLE:
+	case TCE_ITEM_WEAPON_GARANDRIFLE:
 
-	case WP_MOBILE_MG42:
-	case WP_K43:
-	case WP_FG42:
+	case TCE_ITEM_WEAPON_MOBILE_MG42:
+	case TCE_ITEM_WEAPON_KAR43:
+	case TCE_ITEM_WEAPON_FG42:
 
 		return 3000.f;
 
 	// long range
-	case WP_PANZERFAUST:
+	case TCE_ITEM_WEAPON_PANZERFAUST:
 
 		return 7000.f;
 
-	case WP_MORTAR:
-	case WP_MORTAR_SET:
+	case TCE_ITEM_WEAPON_MORTAR:
+	case TCE_ITEM_WEAPON_MORTAR_SET:
 
 		return 4500.f;
 
-	case WP_BINOCULARS:
-	case WP_GARAND_SCOPE:
-	case WP_K43_SCOPE:
-	case WP_FG42SCOPE:
+	case TCE_ITEM_WEAPON_BINOCULARS:
+	case TCE_ITEM_WEAPON_GARANDRIFLESCOPE:
+	case TCE_ITEM_WEAPON_KAR43_SCOPE:
+	case TCE_ITEM_WEAPON_FG42SCOPE:
 
 		return 6500.f;
 
@@ -4054,7 +4055,7 @@ qboolean BotHasWeaponWithRange(bot_state_t *bs, float dist)
 		return qtrue;
 	}
 
-	for (i = 0; i < WP_NUM_WEAPONS; i++)
+	for (i = 0; i < MAX_WEAPONS; i++)
 	{
 		if (COM_BitCheck(bs->cur_ps.weapons, i))
 		{
@@ -4842,10 +4843,10 @@ qboolean BotThrottleWeapon(int weapon)
 {
 	switch (weapon)
 	{
-	case WP_PANZERFAUST:
-	case WP_FLAMETHROWER:
-	case WP_GRENADE_LAUNCHER:
-	case WP_GRENADE_PINEAPPLE:
+	case TCE_ITEM_WEAPON_PANZERFAUST:
+	case TCE_ITEM_WEAPON_FLAMETHROWER:
+	case TCE_ITEM_WEAPON_GRENADELAUNCHER:
+	case TCE_ITEM_WEAPON_GRENADEPINEAPPLE:
 		return qfalse;
 	}
 	//
@@ -4861,10 +4862,10 @@ qboolean BotScopedWeapon(int weapon)
 {
 	switch (weapon)
 	{
-	case WP_BINOCULARS:
-	case WP_GARAND_SCOPE:
-	case WP_K43_SCOPE:
-	case WP_FG42SCOPE:
+	case TCE_ITEM_WEAPON_BINOCULARS:
+	case TCE_ITEM_WEAPON_GARANDRIFLESCOPE:
+	case TCE_ITEM_WEAPON_KAR43_SCOPE:
+	case TCE_ITEM_WEAPON_FG42SCOPE:
 		return qtrue;
 	}
 	//

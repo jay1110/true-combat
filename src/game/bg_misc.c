@@ -189,7 +189,7 @@ ammotable_t ammoTableMP[MAX_WEAPONS] =
 	{ 1,   0, 1,   0,  0,   3000, 722,          2000, 0,    0,   0,                       },                                        // WP_SATCHEL_DET			// 28
 	{ 6,   1, 1,   0,  0,   2000, DELAY_HIGH,   2000, 0,    0,   MOD_TRIPMINE             },                                        // WP_TRIPMINE				// 29
 
-	{ 1,   0, 10,  0,  1,   1000, DELAY_THROW,  1600, 0,    0,   MOD_SMOKEBOMB            },                                        // WP_SMOKE_BOMB			// 30
+	{ 1,   1, 10,  0,  1,   1000, DELAY_THROW,  1600, 0,    0,   MOD_SMOKEBOMB            },                                        // WP_SMOKE_BOMB			// 30
 	{ 450, 1, 150, 0,  150, 3000, DELAY_LOW,    66,   1500, 300, MOD_MOBILE_MG42          },                                        // WP_MOBILE_MG42			// 31
 	{ 30,  1, 10,  20, 10,  2500, DELAY_LOW,    400,  0,    0,   MOD_K43                  },                                        // WP_K43					// 32		K43
 	{ 60,  1, 20,  40, 20,  2000, DELAY_LOW,    100,  0,    0,   MOD_FG42                 },                                        // WP_FG42					// 33
@@ -210,6 +210,8 @@ ammotable_t ammoTableMP[MAX_WEAPONS] =
 	{ 48,  1, 8,   48, 8,   2700, DELAY_PISTOL, 200,  0,    0,   MOD_AKIMBO_SILENCEDCOLT  },                                        // WP_AKIMBO_SILENCEDCOLT	// 47
 	{ 48,  1, 8,   48, 8,   2700, DELAY_PISTOL, 200,  0,    0,   MOD_AKIMBO_SILENCEDLUGER },                                        // WP_AKIMBO_SILENCEDLUGER	// 48
 	{ 450, 1, 150, 0,  150, 3000, DELAY_LOW,    66,   0,    0,   MOD_MOBILE_MG42          },                                    // WP_MOBILE_MG42_SET		// 49
+	{ 0, 1 }, /* TC:E slot 50: required ammo; other projected fields remain zero. */
+	{ 0, 1 }, /* TC:E slot 51: required ammo; other projected fields remain zero. */
 };
 
 //----(SA)	moved in here so both games can get to it
