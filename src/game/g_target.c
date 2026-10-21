@@ -6,6 +6,9 @@
 */
 
 #include "g_local.h"
+#if defined(__linux__) || defined(_WIN32)
+#include "tce_numeric.h"
+#endif
 
 //==========================================================
 
@@ -1147,7 +1150,11 @@ void SP_target_smoke(gentity_t *ent)
 	}
 
 	// Arnout - modified this a lot to be sent to the client as one entity and then is shown at the client
+#if defined(_WIN32)
+	if (TCE_FloatIsZeroOrNaN(ent->delay))
+#else
 	if (!ent->delay)
+#endif
 	{
 		ent->delay = 100;
 	}
@@ -1161,6 +1168,32 @@ void SP_target_smoke(gentity_t *ent)
 	ent->r.svFlags = 0;
 	ent->s.eType   = ET_SMOKER;
 
+#if defined(__linux__) || defined(_WIN32)
+	/* TC sends RGB, opacity and fade-in separately from the spawn interval. */
+	{
+		float alpha;
+		long double red, green, blue;
+		unsigned int color;
+		if (!(ent->dl_color[0] > 0 || ent->dl_color[1] > 0 || ent->dl_color[2] > 0))
+		{
+			VectorClear(ent->dl_color);
+		}
+		red   = (long double)ent->dl_color[0] * 255.0L;
+		green = (long double)ent->dl_color[1] * 255.0L;
+		blue  = (long double)ent->dl_color[2] * 255.0L;
+		ent->dl_color[0] = (float)red;
+		ent->dl_color[1] = (float)green;
+		ent->dl_color[2] = (float)blue;
+		color = (unsigned int)TCE_TruncateNativeInteger(red) |
+		        ((unsigned int)TCE_TruncateNativeInteger(green) << 8) |
+		        ((unsigned int)TCE_TruncateNativeInteger(blue) << 16);
+		memcpy(&ent->s.effect1Time, &color, sizeof(color));
+		G_SpawnFloat("alpha", "1", &alpha);
+		ent->s.otherEntityNum = TCE_TruncateNativeInteger((long double)alpha * 255.0L);
+	}
+	ent->s.density = (ent->spawnflags & 2) ? 4 : (ent->spawnflags & 1) ? 0 : 6;
+	G_SpawnInt("fadeintime", "250", &ent->s.effect3Time);
+#else
 	if (ent->spawnflags & 2)
 	{
 		ent->s.density = 4;
@@ -1169,6 +1202,7 @@ void SP_target_smoke(gentity_t *ent)
 	{
 		ent->s.density = 0;
 	}
+#endif
 
 	// using "time"
 	ent->s.time = ent->speed;
@@ -1196,7 +1230,11 @@ void SP_target_smoke(gentity_t *ent)
 	}
 
 	ent->s.angles2[2] = ent->wait;
+#if defined(_WIN32)
+	if (TCE_FloatIsZeroOrNaN(ent->s.angles2[2]))
+#else
 	if (!ent->s.angles2[2])
+#endif
 	{
 		ent->s.angles2[2] = 50;
 	}
