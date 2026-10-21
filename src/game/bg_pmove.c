@@ -4722,28 +4722,30 @@ void PM_BeginWeaponChange(int oldweapon, int newweapon, qboolean reload)
 	/* Event emission and animation selection use separate native reads. */
 	alt = newweapon == weapAlts[oldweapon];
 	PM_StartWeaponAnim(alt ? PM_AltSwitchFromForWeapon(oldweapon) : PM_DropAnimForWeapon(oldweapon));
-	alt = newweapon == weapAlts[oldweapon];
-	if (alt)
+	switch (oldweapon)
 	{
-		switch (oldweapon)
+	case 14: case 52:
+		if (newweapon == weapAlts[oldweapon])
 		{
-		case 14: case 52:
 			bodyEvent = (pm->ps->eFlags & EF_PRONE)?ANIM_ET_UNDO_ALT_WEAPON_MODE_PRONE:ANIM_ET_UNDO_ALT_WEAPON_MODE;
-			break;
-		case 23: case 24:
-			if (!pm->ps->ammoclip[newweapon] && pm->ps->ammo[newweapon])
-			{
-				PM_ReloadClip(newweapon);
-			}
-			break;
-		case 31: case 35: {
+		}
+		break;
+	case 23: case 24:
+		if (newweapon == weapAlts[oldweapon] &&
+		    !pm->ps->ammoclip[newweapon] && pm->ps->ammo[newweapon])
+		{
+			PM_ReloadClip(newweapon);
+		}
+		break;
+	case 31: case 35:
+		if (newweapon == weapAlts[oldweapon])
+		{
 			vec3_t axis[3];
 			VectorCopy(pml.forward, axis[0]); VectorCopy(pml.right, axis[2]);
 			CrossProduct(axis[0], axis[2], axis[1]);
 			AxisToAngles(axis, pm->pmext->mountedWeaponAngles);
-			break;
 		}
-		}
+		break;
 	}
 	BG_AnimScriptEvent(pm->ps, pm->character->animModelInfo, bodyEvent, qfalse, qfalse);
 	pm->ps->weaponstate = reload?WEAPON_DROPPING_TORELOAD:WEAPON_DROPPING;
@@ -4761,7 +4763,7 @@ PM_FinishWeaponChange
 static void PM_FinishWeaponChange(void)
 {
 	int      oldweapon, newweapon = pm->ps->nextWeapon, bodyEvent;
-	qboolean altSwitch = qfalse, animate = qtrue, alt;
+	qboolean altSwitch = qfalse, animate = qtrue;
 	if (newweapon < 0 || newweapon >= TCE_MAX_WEAPONS)
 	{
 		newweapon = 0;
@@ -4785,16 +4787,24 @@ static void PM_FinishWeaponChange(void)
 	{
 		return;
 	}
-	alt = weapAlts[oldweapon] == newweapon;
 	switch (newweapon)
 	{
 	case 2: case 7: case 14: case 35: case 52: case 55: case 56: case 60:
-		altSwitch = alt; break;
+		altSwitch = weapAlts[oldweapon] == newweapon; break;
 	case 23: case 24:
-		if (alt)
+		if (weapAlts[oldweapon] == newweapon)
 		{
+			int ammoIndex;
+#if defined(__linux__) && !defined(Q3_VM)
+			playerState_t *clipState = pm->ps;
+#endif
 			altSwitch = qtrue;
-			if (!pm->ps->ammoclip[BG_FindAmmoForWeapon(oldweapon)])
+			ammoIndex = BG_FindAmmoForWeapon(oldweapon);
+#if defined(__linux__) && !defined(Q3_VM)
+			if (!clipState->ammoclip[ammoIndex])
+#else
+			if (!pm->ps->ammoclip[ammoIndex])
+#endif
 			{
 				animate = qfalse;
 			}
