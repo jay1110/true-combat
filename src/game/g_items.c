@@ -749,6 +749,20 @@ void G_DropWeapon(gentity_t *ent, weapon_t weapon)
 		client->ps.weapon = 0;
 	}
 
+#if defined(__linux__)
+	/* The original performs this first count write even though it is
+	 * overwritten below. Keep the ammo/clip lookups in their original order. */
+	if ((int)weapon == 35)
+	{
+		int ammo = BG_FindAmmoForWeapon(weapon);
+		int clip = BG_FindClipForWeapon(weapon);
+		ent2->count = TCE_AddInt32(client->ps.ammo[ammo], client->ps.ammoclip[clip]);
+	}
+	else
+	{
+		ent2->count = client->ps.ammoclip[BG_FindClipForWeapon(weapon)];
+	}
+#endif
 	ent2->delay                                       = 0;
 	ent2->count                                       = client->ps.ammo[BG_FindAmmoForWeapon(weapon)];
 	ent2->count2                                      = client->ps.ammoclip[BG_FindClipForWeapon(weapon)];
@@ -930,6 +944,30 @@ int Pickup_Health(gentity_t *ent, gentity_t *other)
 {
 	playerState_t *ps     = &other->client->ps;
 	int           maximum = ps->stats[STAT_MAX_HEALTH];
+#if defined(__linux__)
+	int           total = TCE_AddInt32(TCE_AddInt32(ps->holdable[2], ps->holdable[3]), ps->holdable[4]);
+	long double   reciprocal = total ? 1.0L / total : 0.0L;
+	int           i;
+
+	/* Linux multiplies in 32 bits before applying the shared reciprocal.
+	 * A zero total produces the native integer-indefinite conversion. */
+	for (i = 2; i <= 4; ++i)
+	{
+		unsigned product = (unsigned)ent->item->quantity * (unsigned)ps->holdable[i];
+		int      signedProduct, healed;
+
+		memcpy(&signedProduct, &product, sizeof(signedProduct));
+		healed = total ? TCE_TruncateNativeInteger(reciprocal * signedProduct) : INT_MIN;
+		ps->holdable[i] = TCE_SubInt32(ps->holdable[i], healed);
+		if (ps->holdable[i] < 0)
+		{
+			ps->holdable[i] = 0;
+		}
+	}
+	other->health = TCE_TruncateNativeInteger(
+		(long double)TCE_SubInt32(100, ps->holdable[2]) *
+		TCE_SubInt32(100, ps->holdable[3]) * TCE_SubInt32(100, ps->holdable[4]) * 0.000100001f);
+#else
 	int           total   = ps->holdable[2] + ps->holdable[3] + ps->holdable[4];
 	int           i;
 	/* TC heals the three injury components, not an ET medic health bonus.
@@ -947,6 +985,7 @@ int Pickup_Health(gentity_t *ent, gentity_t *other)
 	}
 	other->health = (int)((double)(100 - ps->holdable[4]) *
 	                      (100 - ps->holdable[3]) * (100 - ps->holdable[2]) * 0.000100001f);
+#endif
 	if (other->health > maximum)
 	{
 		other->health = maximum;
@@ -1515,27 +1554,58 @@ G_BounceItem
 void G_BounceItem(gentity_t *ent, trace_t *trace)
 {
 	vec3_t velocity;
+#if defined(__linux__)
+	long double dot, reflectedZ;
+#else
 	float  dot;
+#endif
 	int    hitTime;
 
 	// reflect the velocity on the trace plane
+#if defined(__linux__)
+	hitTime = TCE_TruncateNativeInteger((long double)level.previousTime +
+	                                  (long double)TCE_SubInt32(level.time, level.previousTime) * trace->fraction);
+#else
 	/* Windows 2005e7fa..2005e80f keeps the product and sum in x87
 	 * precision until __ftol. A float-rounded sum advances fractional
 	 * impacts by one millisecond (e.g. 100000 + 40 * 0.7f). */
 	hitTime = (int)((double)level.previousTime +
 	                (double)(level.time - level.previousTime) * (double)trace->fraction);
+#endif
 	TCE_BG_EvaluateTrajectoryDelta(&ent->s.pos, hitTime, velocity, qfalse, ent->s.effect2Time, 1.0f);
+#if defined(__linux__)
+	/* The Linux original retains the reflection through the bounce scale;
+	 * its intermediate FST instructions do not pop the wide values. */
+	dot = (long double)velocity[0] * trace->plane.normal[0] +
+	      (long double)velocity[1] * trace->plane.normal[1] +
+	      (long double)velocity[2] * trace->plane.normal[2];
+	ent->s.pos.trDelta[0] = (float)(((long double)trace->plane.normal[0] * dot * -2.0L + velocity[0]) * ent->physicsBounce);
+	ent->s.pos.trDelta[1] = (float)(((long double)trace->plane.normal[1] * dot * -2.0L + velocity[1]) * ent->physicsBounce);
+	reflectedZ = ((long double)trace->plane.normal[2] * dot * -2.0L + velocity[2]) * ent->physicsBounce;
+	ent->s.pos.trDelta[2] = (float)reflectedZ;
+#else
 	dot = DotProduct(velocity, trace->plane.normal);
 	VectorMA(velocity, -2 * dot, trace->plane.normal, ent->s.pos.trDelta);
 
 	// cut the velocity to keep from bouncing forever
 	VectorScale(ent->s.pos.trDelta, ent->physicsBounce, ent->s.pos.trDelta);
+#endif
 
 	// check for stop
+#if defined(__linux__)
+	if (trace->plane.normal[2] > 0 && !(reflectedZ >= 40.0L))
+#else
 	if (trace->plane.normal[2] > 0 && ent->s.pos.trDelta[2] < 40)
+#endif
 	{
 		trace->endpos[2] += 1.0;    // make sure it is off ground
+#if defined(__linux__)
+		trace->endpos[0] = (float)TCE_TruncateNativeInteger(trace->endpos[0]);
+		trace->endpos[1] = (float)TCE_TruncateNativeInteger(trace->endpos[1]);
+		trace->endpos[2] = (float)TCE_TruncateNativeInteger(trace->endpos[2]);
+#else
 		SnapVector(trace->endpos);
+#endif
 		G_SetOrigin(ent, trace->endpos);
 		ent->s.groundEntityNum = trace->entityNum;
 		return;

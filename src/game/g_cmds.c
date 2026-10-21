@@ -3569,6 +3569,8 @@ static void G_TCESendPortalCamera(gentity_t *ent, int i, int val)
 		float *cameraValue = component >= 3 ? &level.limboCams[i].angles[component - 3] : &level.limboCams[i].origin[component];
 #if defined(_MSC_VER) && defined(_M_IX86)
 		cameraInts[component] = TCE_FloatToInt64Low(*cameraValue);
+#elif defined(__linux__)
+		cameraInts[component] = TCE_TruncateNativeInteger((long double)*cameraValue);
 #else
 		cameraInts[component] = (int)*cameraValue;
 #endif
@@ -3602,7 +3604,7 @@ void Cmd_SetSpawnPoint_f(gentity_t *ent)
 	{
 		/* TC 20053f00 gates the target-entity read on the spawn-camera flag. */
 		if (level.limboCams[i].spawn &&
-#if defined(_WIN32) && !defined(Q3_VM)
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 		    TCE_SubInt32(g_entities[level.limboCams[i].targetEnt].count, CS_MULTI_SPAWNTARGETS - 1) == val)
 #else
 		    (g_entities[level.limboCams[i].targetEnt].count - CS_MULTI_SPAWNTARGETS) + 1 == val)
@@ -3874,7 +3876,7 @@ void Cmd_SelectedObjective_f(gentity_t *ent)
 	int   i, val;
 	char  buffer[16];
 	vec_t neardist = 0;
-#if !defined(_MSC_VER) || !defined(_M_IX86)
+#if (!defined(_MSC_VER) || !defined(_M_IX86)) && !defined(__linux__)
 	vec_t dist;
 #endif
 	int nearest = -1;
@@ -3915,6 +3917,19 @@ void Cmd_SelectedObjective_f(gentity_t *ent)
 				    level.limboCams[i].origin,
 				    g_entities[level.limboCams[i].targetEnt].r.currentOrigin);
 				/* Native C0 also selects an unordered distance. */
+				if (nearest == -1 || !(distance >= (long double)neardist))
+				{
+					neardist = (float)distance;
+					nearest = i;
+				}
+#elif defined(__linux__)
+				vec3_t delta;
+				long double distance;
+
+				/* The native helper stores the differences, but keeps the sum wide. */
+				VectorSubtract(g_entities[level.limboCams[i].targetEnt].r.currentOrigin,
+				               level.limboCams[i].origin, delta);
+				distance = TCE_VectorLengthSquaredValue(delta);
 				if (nearest == -1 || !(distance >= (long double)neardist))
 				{
 					neardist = (float)distance;

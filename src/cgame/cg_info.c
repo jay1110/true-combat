@@ -1,6 +1,7 @@
 // cg_info.c -- display information while data is being loading
 
 #include "cg_local.h"
+#include "../game/tce_numeric.h"
 
 /*
 ===================
@@ -91,12 +92,13 @@ void CG_ShowHelp_On(int *status)
 
 	if (*status == SHOW_SHUTDOWN && milli < cg.fadeTime)
 	{
-		/* Original integer ADD wraps before FILD; exact +200/-old then ftol low32. */
-		cg.fadeTime = (int)(2u * (unsigned int)milli + 200u - (unsigned int)cg.fadeTime);
+		/* The doubled clock wraps before the native floating conversion. */
+		cg.fadeTime = TCE_TruncateNativeInteger(
+			(long double)TCE_AddInt32(milli, milli) + 200.0L - cg.fadeTime);
 	}
 	else if (*status != SHOW_ON)
 	{
-		cg.fadeTime = (int)((unsigned int)milli + 200u);
+		cg.fadeTime = TCE_TruncateNativeInteger((long double)milli + 200.0L);
 	}
 
 	*status = SHOW_ON;
@@ -110,12 +112,12 @@ void CG_ShowHelp_Off(int *status)
 
 		if (milli < cg.fadeTime)
 		{
-			/* Original integer ADD wraps before FILD; exact +200/-old then ftol low32. */
-			cg.fadeTime = (int)(2u * (unsigned int)milli + 200u - (unsigned int)cg.fadeTime);
+			cg.fadeTime = TCE_TruncateNativeInteger(
+				(long double)TCE_AddInt32(milli, milli) + 200.0L - cg.fadeTime);
 		}
 		else
 		{
-			cg.fadeTime = (int)((unsigned int)milli + 200u);
+			cg.fadeTime = TCE_TruncateNativeInteger((long double)milli + 200.0L);
 		}
 
 		*status = SHOW_SHUTDOWN;
@@ -518,7 +520,11 @@ void CG_GameStatsDraw()
 		fontInfo_t *tFont   = FONT_TEXT;
 		vec4_t     tColor   = COLOR_TEXT;   // text
 
+#if defined(_WIN32)
 		float diff = cgs.gamestats.fadeTime - cg.time;
+#else
+		int diff = TCE_SubInt32(cgs.gamestats.fadeTime, cg.time);
+#endif
 
 
 		// FIXME: Should compute this beforehand
@@ -542,7 +548,11 @@ void CG_GameStatsDraw()
 		if (diff > 0.0f)
 		{
 			/* Original x87 keeps the reciprocal product through alpha/slide. */
+#if defined(_WIN32)
 			double scale = (double)diff * (double)0.005f;
+#else
+			long double scale = (long double)diff * (long double)0.005f;
+#endif
 
 			if (cgs.gamestats.show == SHOW_ON)
 			{
@@ -556,7 +566,11 @@ void CG_GameStatsDraw()
 			hdrColor[3]         *= scale;
 			tColor[3]           *= scale;
 
+#if defined(_WIN32)
 			y -= h * (1.0f - scale);
+#else
+			y = TCE_TruncateNativeInteger((long double)y - h * (1.0L - scale));
+#endif
 
 		}
 		else if (cgs.gamestats.show == SHOW_SHUTDOWN)
@@ -739,7 +753,11 @@ void CG_TopShotsDraw()
 		fontInfo_t *tFont   = FONT_TEXT;
 		vec4_t     tColor   = COLOR_TEXT;   // text
 
+#if defined(_WIN32)
 		float diff = cgs.topshots.fadeTime - cg.time;
+#else
+		int diff = TCE_SubInt32(cgs.topshots.fadeTime, cg.time);
+#endif
 
 
 		// FIXME: Should compute this beforehand
@@ -752,7 +770,11 @@ void CG_TopShotsDraw()
 		// Fade-in effects
 		if (diff > 0.0f)
 		{
+#if defined(_WIN32)
 			float scale = (float)((double)diff * (double)0.005f); /* Original reciprocal200. */
+#else
+			long double scale = (long double)diff * (long double)0.005f;
+#endif
 
 			if (cgs.topshots.show == SHOW_ON)
 			{
@@ -767,7 +789,11 @@ void CG_TopShotsDraw()
 			hdrColor2[3]        *= scale;
 			tColor[3]           *= scale;
 
+#if defined(_WIN32)
 			y += (TS_Y - h) * scale;
+#else
+			y = TCE_TruncateNativeInteger((long double)y + TCE_SubInt32(TS_Y, h) * scale);
+#endif
 
 		}
 		else if (cgs.topshots.show == SHOW_SHUTDOWN)
@@ -897,7 +923,11 @@ void CG_DemoHelpDraw()
 		fontInfo_t *tFont   = FONT_TEXT;
 		vec4_t     tColor   = COLOR_TEXT;   // text
 
+#if defined(_WIN32)
 		float diff = cg.fadeTime - trap_Milliseconds();
+#else
+		int diff = TCE_SubInt32(cg.fadeTime, trap_Milliseconds());
+#endif
 
 
 		// FIXME: Should compute this beforehand
@@ -911,7 +941,11 @@ void CG_DemoHelpDraw()
 		// Fade-in effects
 		if (diff > 0.0f)
 		{
+#if defined(_WIN32)
 			float scale = (float)((double)diff * (double)0.005f); /* Original reciprocal200. */
+#else
+			long double scale = (long double)diff * (long double)0.005f;
+#endif
 
 			if (cg.demohelpWindow == SHOW_ON)
 			{
@@ -925,7 +959,11 @@ void CG_DemoHelpDraw()
 			hdrColor2[3]        *= scale;
 			tColor[3]           *= scale;
 
+#if defined(_WIN32)
 			y += (DH_Y - h) * scale;
+#else
+			y = TCE_TruncateNativeInteger((long double)y + TCE_SubInt32(DH_Y, h) * scale);
+#endif
 
 		}
 		else if (cg.demohelpWindow == SHOW_SHUTDOWN)

@@ -957,7 +957,11 @@ void ammo_touch(gentity_t *self, gentity_t *other, trace_t *trace)
 	{
 		return;
 	}
+#if defined(__linux__)
+	self->timestamp = TCE_AddInt32(level.time, 1000);
+#else
 	self->timestamp = level.time + 1000;
+#endif
 
 	for ( i = 0; i < level.numConnectedClients; i++ )
 	{
@@ -982,9 +986,15 @@ void ammo_touch(gentity_t *self, gentity_t *other, trace_t *trace)
 	}
 	else
 	{
+#if defined(__linux__)
+		/* The native reciprocal product stays wide through the minimum. */
+		long double available = (1.0L / (long double)self->damage) * self->health;
+		count = TCE_TruncateNativeInteger(available > clientcount ? clientcount : available);
+#else
 		/* TC 20092b82: divide integer operands before the single float store. */
 		float available = (float)((double)self->health / (double)self->damage);
 		count = min(clientcount, available);
+#endif
 	}
 
 	for ( i = 0; i < count; i++)
@@ -1001,7 +1011,11 @@ void ammo_touch(gentity_t *self, gentity_t *other, trace_t *trace)
 			if (self->health != -9999)
 			{
 				// reduce the ammount of available ammo by the added clip number
+#if defined(__linux__)
+				self->health = TCE_SubInt32(self->health, self->damage);
+#else
 				self->health -= self->damage;
+#endif
 //				G_Printf("%i clips left\n", self->health );
 			}
 		}
@@ -1132,6 +1146,16 @@ so, the basic time between firing is a random time between
 */
 void func_timer_think(gentity_t *self)
 {
+#if defined(__linux__)
+	long double now, wait, randomOffset;
+
+	G_UseTargets(self, self->activator);
+	now = level.time;
+	wait = self->wait;
+	randomOffset = (long double)(rand() & 0x7fff) * (long double)(1.0f / 32767.0f) - 0.5L;
+	self->nextthink = TCE_TruncateNativeInteger(
+		((randomOffset + randomOffset) * self->random + wait) * 1000.0L + now);
+#else
 	double randomOffset;
 	G_UseTargets(self, self->activator);
 	/* TC20092e63..20092e8d: stored float reciprocal, no intermediate
@@ -1139,6 +1163,7 @@ void func_timer_think(gentity_t *self)
 	randomOffset    = (double)(rand() & 0x7fff) * (double)(1.0f / 32767.0f) - 0.5;
 	self->nextthink = (int)(((randomOffset + randomOffset) * (double)self->random +
 	                         (double)self->wait) * 1000.0 + (double)level.time);
+#endif
 }
 
 void func_timer_use(gentity_t *self, gentity_t *other, gentity_t *activator)
@@ -1309,8 +1334,13 @@ void Touch_flagonly(gentity_t *ent, gentity_t *other, trace_t *trace)
 			other->client->speedScale              = 0;
 		}
 
+#if defined(__linux__)
+		AddScore(other, TCE_TruncateNativeInteger((long double)ent->accuracy));
+		AddKillScore(other, TCE_TruncateNativeInteger((long double)ent->accuracy));
+#else
 		AddScore(other, (int)ent->accuracy);
 		AddKillScore(other, (int)ent->accuracy); // TC 2009311d: objective kill-score award
+#endif
 
 		tmp         = ent->parent;
 		ent->parent = other;
@@ -1338,8 +1368,13 @@ void Touch_flagonly(gentity_t *ent, gentity_t *other, trace_t *trace)
 			other->client->speedScale               = 0;
 		}
 
+#if defined(__linux__)
+		AddScore(other, TCE_TruncateNativeInteger((long double)ent->accuracy));
+		AddKillScore(other, TCE_TruncateNativeInteger((long double)ent->accuracy));
+#else
 		AddScore(other, (int)ent->accuracy);
 		AddKillScore(other, (int)ent->accuracy); // TC 200931e4: blue-flag counterpart
+#endif
 
 		tmp         = ent->parent;
 		ent->parent = other;
@@ -1384,8 +1419,13 @@ void Touch_flagonly_multiple(gentity_t *ent, gentity_t *other, trace_t *trace)
 #ifdef FEATURE_OMNIBOT
 	Bot_Event_TCEFlagCapture(other->s.number, ent->s.number, other->client->flagParent);
 #endif
+#if defined(__linux__)
+	AddScore(other, TCE_TruncateNativeInteger((long double)ent->accuracy));
+	AddKillScore(other, TCE_TruncateNativeInteger((long double)ent->accuracy));
+#else
 	AddScore(other, (int)ent->accuracy);
 	AddKillScore(other, (int)ent->accuracy);
+#endif
 	savedParent = ent->parent;
 	ent->parent = other;
 	G_Script_ScriptEvent(ent, "death", "");
