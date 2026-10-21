@@ -3,7 +3,11 @@
 #include "tce_damage.h"
 extern void G_Voice(gentity_t *, gentity_t *, int, const char *, qboolean);
 
-static void TCE_DamageDebugBox(gentity_t *part, const vec3_t start, const vec3_t end, float fraction)
+static void TCE_DamageDebugBox(gentity_t *part, const vec3_t start, const vec3_t end, float fraction
+#if defined(__linux__)
+                               , const vec3_t dir, float scale
+#endif
+                               )
 {
 	vec3_t mins, maxs, hit; gentity_t *event; int i;
 	if (g_debugBullets.integer <= 2)
@@ -12,26 +16,52 @@ static void TCE_DamageDebugBox(gentity_t *part, const vec3_t start, const vec3_t
 	}
 	VectorAdd(part->r.currentOrigin, part->r.mins, mins); VectorAdd(part->r.currentOrigin, part->r.maxs, maxs);
 	event = G_TempEntity(mins, EV_RAILTRAIL); VectorCopy(maxs, event->s.origin2); event->s.dmgFlags = 1;
+#if defined(__linux__)
+	VectorCopy(end, hit);
+	if (fraction != 1.0f && !TCE_FloatIsNaN(fraction))
+	{
+		long double length = (long double)fraction * scale;
+		for (i = 0; i < 3; ++i)
+		{
+			hit[i] = (float)((long double)dir[i] * length * 64.0f + start[i]);
+		}
+	}
+#else
 	for (i = 0; i < 3; ++i)
 		hit[i] = start[i] + fraction * (end[i] - start[i]);
+#endif
 	event = G_TempEntity((float *)start, EV_RAILTRAIL); VectorCopy(hit, event->s.origin2); event->s.dmgFlags = 0;
 }
 
-static int TCE_ApplyBodyDamage(gentity_t *targ, const vec3_t dir, const vec3_t point, int damage)
+static int TCE_ApplyBodyDamage(gentity_t *targ, const vec3_t dir, const vec3_t point, int damage
+#if defined(__linux__)
+                               , int *bodyStatus
+#endif
+                               )
 {
 	tceDamagePose_t pose; tceDamageVolume_t volumes[3]; float fractions[3] = { 1, 1, 1 };
-	gentity_t       *part; trace_t tr; vec3_t end; int i, j, amounts[3], take; float scales[3];
+	gentity_t       *part; trace_t tr; vec3_t end; int i, j, amounts[3], take; tce_damageScale_t scales[3];
+#if defined(__linux__)
+	*bodyStatus = 0;
+#endif
 	/* Original first diagnostic ray reads uninitialized locals.  Keep its
 	 * surrounding box/ray events, using the defined incoming ray instead. */
 	if (g_debugBullets.integer > 2)
 	{
 		for (j = 0; j < 3; ++j)
 			end[j] = point[j] + dir[j] * 64;
+#if defined(__linux__)
+		TCE_DamageDebugBox(targ, point, end, 1, dir, 1);
+#else
 		TCE_DamageDebugBox(targ, point, end, 1);
+#endif
 	}
 	part = G_Spawn(); G_SetOrigin(part, targ->r.currentOrigin);
 	if (targ->client->sess.sessionTeam != TEAM_AXIS && targ->client->sess.sessionTeam != TEAM_ALLIES)
 	{
+#if defined(__linux__)
+		*bodyStatus = -1;
+#endif
 		return -1;
 	}
 	VectorCopy(targ->r.currentOrigin, pose.origin); VectorCopy(targ->client->ps.viewangles, pose.angles);
@@ -68,8 +98,15 @@ static int TCE_ApplyBodyDamage(gentity_t *targ, const vec3_t dir, const vec3_t p
 		}
 	}
 	TCE_DamageVolumes(&pose, volumes);
+#if defined(__linux__)
+	for (j = 0; j < 3; ++j)
+	{
+		end[j] = (float)((long double)(pose.enlarged ? 1.25f : 1.0f) * dir[j] * 64.0f + point[j]);
+	}
+#else
 	for (j = 0; j < 3; ++j)
 		end[j] = point[j] + dir[j] * (pose.enlarged?80.0f:64.0f);
+#endif
 	for (i = 0; i < 3; ++i)
 	{
 		if (i)
@@ -90,18 +127,35 @@ static int TCE_ApplyBodyDamage(gentity_t *targ, const vec3_t dir, const vec3_t p
 				G_Printf(i == 0?"hit head\n":i == 1?"hit body\n":"hit legs\n");
 			}
 		}
+#if defined(__linux__)
+		TCE_DamageDebugBox(part, point, end, tr.fraction, dir, pose.enlarged ? 1.25f : 1.0f);
+#else
 		TCE_DamageDebugBox(part, point, end, tr.fraction);
+#endif
 	}
 	G_FreeEntity(part);
+#if defined(__linux__)
+	if ((fractions[0] == 1 || TCE_FloatIsNaN(fractions[0])) &&
+	    (fractions[1] == 1 || TCE_FloatIsNaN(fractions[1])) &&
+	    (fractions[2] == 1 || TCE_FloatIsNaN(fractions[2])))
+#else
 	if (fractions[0] == 1 && fractions[1] == 1 && fractions[2] == 1)
+#endif
 	{
+#if defined(__linux__)
+		*bodyStatus = -2;
+#endif
 		return -2;
 	}
 	take = TCE_DamageWeights(volumes, fractions, point, dir, pose.enlarged?1.25f:1.0f, damage, amounts, scales);
 	for (i = 0; i < 3; ++i)
 		if (amounts[i] > 0)
 		{
+#if defined(__linux__)
+			targ->client->ps.holdable[i + 2] = TCE_AddInt32(targ->client->ps.holdable[i + 2], amounts[i]);
+#else
 			targ->client->ps.holdable[i + 2] += amounts[i];
+#endif
 		}
 	if (g_debugDamage.integer)
 	{
@@ -110,7 +164,7 @@ static int TCE_ApplyBodyDamage(gentity_t *targ, const vec3_t dir, const vec3_t p
 	return take;
 }
 
-float G_Damage(gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
+tce_damageResult_t G_Damage(gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
                vec3_t dir, vec3_t point, int damage, int dflags, int mod)
 {
 	gclient_t *client; int take, wasAlive, i; mapEntityData_t *mapEnt;
@@ -195,7 +249,12 @@ float G_Damage(gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 		{
 			return 0;
 		}
+#if defined(__linux__)
+		if (attacker->client && !(dflags & DAMAGE_NO_PROTECTION) && targ != attacker &&
+		    level.time < TCE_AddInt32(client->tceDamageSpawnTime, 3000))
+#else
 		if (attacker->client && !(dflags & DAMAGE_NO_PROTECTION) && targ != attacker && level.time < client->tceDamageSpawnTime + 3000)
+#endif
 		{
 			if ((g_gametype.integer == 7 && !OnSameTeam(targ, attacker)) || (g_gametype.integer == 5 && OnSameTeam(targ, attacker)))
 			{
@@ -221,23 +280,51 @@ float G_Damage(gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 	take = damage;
 	if (IsHeadShotWeapon(mod) && client && wasAlive)
 	{
+#if defined(__linux__)
+		int bodyStatus;
+		take = TCE_ApplyBodyDamage(targ, dir, point, damage, &bodyStatus);
+		if (bodyStatus == -2)
+#else
 		take = TCE_ApplyBodyDamage(targ, dir, point, damage); if (take == -2)
+#endif
 		{
 			return 1;
 		}
+#if defined(__linux__)
+		if (bodyStatus < 0)
+#else
 		if (take < 0)
+#endif
 		{
 			return 0;
 		}
 		if (g_gametype.integer == 5 && attacker->client && !OnSameTeam(targ, attacker))
 		{
+#if defined(__linux__)
+			if (TCE_SubInt32(level.time, attacker->client->tceDamageVoiceTime) > 0)
+#else
 			if ((int)((unsigned)level.time - (unsigned)attacker->client->tceDamageVoiceTime) > 0)
+#endif
 			{
-				G_Voice(attacker, NULL, SAY_TEAM, "Contact", qfalse); attacker->client->tceDamageVoiceTime = level.time + 20000;
+				G_Voice(attacker, NULL, SAY_TEAM, "Contact", qfalse);
+#if defined(__linux__)
+				attacker->client->tceDamageVoiceTime = TCE_AddInt32(level.time, 20000);
+#else
+				attacker->client->tceDamageVoiceTime = level.time + 20000;
+#endif
 			}
+#if defined(__linux__)
+			if (TCE_SubInt32(level.time, client->tceDamageVoiceTime) > 0)
+#else
 			if ((int)((unsigned)level.time - (unsigned)client->tceDamageVoiceTime) > 0)
+#endif
 			{
-				G_Voice(targ, NULL, SAY_TEAM, "TakingFire", qfalse); client->tceDamageVoiceTime = level.time + 20000;
+				G_Voice(targ, NULL, SAY_TEAM, "TakingFire", qfalse);
+#if defined(__linux__)
+				client->tceDamageVoiceTime = TCE_AddInt32(level.time, 20000);
+#else
+				client->tceDamageVoiceTime = level.time + 20000;
+#endif
 			}
 		}
 		if (take < 1)
@@ -247,14 +334,27 @@ float G_Damage(gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 	}
 	else if (client && wasAlive)
 	{
+#if defined(__linux__)
+		client->ps.holdable[4] = TCE_AddInt32(client->ps.holdable[4], damage);
+#else
 		client->ps.holdable[4] += damage;
+#endif
 		if (mod == 4 || mod == 62 || mod == 18 || mod == 26)
 		{
+#if defined(__linux__)
+			client->ps.holdable[3] = TCE_AddInt32(client->ps.holdable[3], damage);
+			client->ps.stats[STAT_DEAD_YAW] = TCE_AddInt32(client->ps.stats[STAT_DEAD_YAW], damage / 2);
+#else
 			client->ps.holdable[3] += damage; client->ps.stats[STAT_DEAD_YAW] += damage / 2;
+#endif
 		}
 		else
 		{
+#if defined(__linux__)
+			client->ps.holdable[3] = TCE_AddInt32(client->ps.holdable[3], damage / 2);
+#else
 			client->ps.holdable[3] += damage / 2;
+#endif
 		}
 	}
 	if (dir)
@@ -263,7 +363,18 @@ float G_Damage(gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 	}
 	if (attacker->client && targ != attacker && targ->health > 0)
 	{
+#if defined(__linux__)
+		if (OnSameTeam(targ, attacker))
+		{
+			attacker->client->ps.persistant[PERS_HITS] = TCE_SubInt32(attacker->client->ps.persistant[PERS_HITS], take);
+		}
+		else
+		{
+			attacker->client->ps.persistant[PERS_HITS] = TCE_AddInt32(attacker->client->ps.persistant[PERS_HITS], take);
+		}
+#else
 		attacker->client->ps.persistant[PERS_HITS] += OnSameTeam(targ, attacker)?-take:take;
+#endif
 	}
 	if (g_debugDamage.integer)
 	{
@@ -271,7 +382,12 @@ float G_Damage(gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 	}
 	if (client)
 	{
+#if defined(__linux__)
+		client->ps.persistant[PERS_ATTACKER] = attacker->s.number;
+		client->damage_blood = TCE_AddInt32(client->damage_blood, take);
+#else
 		client->ps.persistant[PERS_ATTACKER] = attacker->s.number; client->damage_blood += take;
+#endif
 		if (wasAlive)
 		{
 			client->tceLastAppliedDamage = take;
@@ -296,17 +412,32 @@ float G_Damage(gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 #endif
 		if (!client)
 		{
+#if defined(__linux__)
+			targ->health = TCE_SubInt32(targ->health, take);
+#else
 			targ->health -= take;
+#endif
 		}
 		else
 		{
 			if (client->ps.holdable[2] < 100 && client->ps.holdable[3] < 100 && client->ps.holdable[4] < 100)
 			{
+#if defined(__linux__)
+				targ->health = TCE_TruncateNativeInteger(
+				    (long double)TCE_SubInt32(100, client->ps.holdable[2]) *
+				    TCE_SubInt32(100, client->ps.holdable[3]) *
+				    TCE_SubInt32(100, client->ps.holdable[4]) * 0.0001f);
+#else
 				targ->health = (int)((double)(100 - client->ps.holdable[2]) * (100 - client->ps.holdable[3]) * (100 - client->ps.holdable[4]) * 0.00009999999747378752);
+#endif
 			}
 			else if ((mod == 4 || mod == 18) && client->ps.holdable[3] > 100)
 			{
+#if defined(__linux__)
+				targ->health = TCE_SubInt32(100, client->ps.holdable[3]);
+#else
 				targ->health = 100 - client->ps.holdable[3];
+#endif
 			}
 			else
 			{
@@ -324,7 +455,12 @@ float G_Damage(gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 		}
 		if (targ->s.eType == ET_MOVER && !Q_stricmp(targ->classname, "script_mover"))
 		{
+#if defined(__linux__)
+			targ->s.dl_intensity = TCE_TruncateNativeInteger(
+			    (1.0L / targ->count) * targ->health * 255.0f);
+#else
 			targ->s.dl_intensity = (int)((double)targ->health / targ->count * 255);
+#endif
 		}
 		if (targ->health < 1)
 		{
@@ -404,10 +540,18 @@ float G_Damage(gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 		{
 			G_addStats(targ, attacker, take, mod);
 		}
+#if defined(__linux__)
+		G_Script_ScriptEvent(targ, "pain", va("%d %d", targ->health, TCE_AddInt32(targ->health, take)));
+#else
 		G_Script_ScriptEvent(targ, "pain", va("%d %d", targ->health, targ->health + take));
+#endif
 		if (targ->s.number < MAX_CLIENTS && (targ->r.svFlags & SVF_BOT) && TCE_INTERNAL_BOT(targ))
 		{
+#if defined(__linux__)
+			Bot_ScriptEvent(targ->s.number, "pain", va("%d %d", targ->health, TCE_AddInt32(targ->health, take)));
+#else
 			Bot_ScriptEvent(targ->s.number, "pain", va("%d %d", targ->health, targ->health + take));
+#endif
 		}
 		if (targ->s.number < level.maxclients && (targ->r.svFlags & SVF_BOT) && TCE_INTERNAL_BOT(targ))
 		{
@@ -416,7 +560,16 @@ float G_Damage(gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
 	}
 	if (targ->client)
 	{
+#if defined(__linux__)
+		long double remaining = 0;
+		if (damage > 0)
+		{
+			remaining = 1.0L - (long double)take * (1.0L / damage);
+		}
+		return remaining < (long double)0.1f ? (long double)0.1f : remaining;
+#else
 		float remaining = (float)(1.0 - (double)take / damage); return remaining < 0.1f?0.1f:remaining;
+#endif
 	}
 	return 0;
 }

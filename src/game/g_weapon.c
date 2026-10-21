@@ -3478,6 +3478,25 @@ Bullet_Fire_Extended
 	uses for this include shooting through entities (windows, doors, other players, etc.) and reflecting bullets
 ==============
 */
+#if defined(__linux__)
+static int G_TCEBulletExplosiveDamage(const tce_weaponDef_t *def, int damage,
+                                     int distance, float bboxScale)
+{
+	long double range = (long double)def->unknown_130 * bboxScale * 39.370079040527344f;
+	long double value;
+	if (!(range > 0))
+	{
+		range = 999999.0f;
+	}
+	value = (1.0L / ((1.0L / range) * distance + 1.0L)) * damage;
+	if (!(value >= 0))
+	{
+		value = 0;
+	}
+	return TCE_TruncateNativeInteger(value);
+}
+#endif
+
 /* Windows 2009d500 / Linux 0010eae8. TC's fourteen-argument trace
  * controller. Counters independently bound wall, flesh and bounding-box passes. */
 qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker,
@@ -3491,12 +3510,29 @@ qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker,
 	const tce_weaponDef_t      *def;
 	const tce_pierceMaterial_t *material, *exitMaterial;
 	float                      bboxScale = g_newbbox.integer ? 1.25f : 1.0f;
+#if defined(__linux__)
+	float                      result, fraction, energy;
+#else
 	float                      result, fraction, energy, range, value;
+#endif
 	int                        materialType, exitType, applied, i;
+#if defined(__linux__)
+	long double                thickness, retained;
+	long double                damageResult;
+#else
 	double                     thickness, retained;
+#endif
 
+#if defined(__linux__)
+	trap_Trace(&tr, start, NULL, NULL, end, source->s.number, MASK_MISSILESHOT);
+#else
 	trap_Trace(&tr, start, NULL, NULL, end, source->s.number, MASK_SHOT);
+#endif
+#if defined(__linux__)
+	if (maxDistance && !((long double)maxDistance >= (long double)tr.fraction * 8192.0f))
+#else
 	if (maxDistance && maxDistance < tr.fraction * 8192.0f)
+#endif
 	{
 		return qtrue;
 	}
@@ -3510,7 +3546,12 @@ qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker,
 	hit = &g_entities[tr.entityNum];
 	EmitterCheck(hit, attacker, &tr);
 	SnapVectorTowards(tr.endpos, start);
+#if defined(__linux__)
+	totalDistance = TCE_TruncateNativeInteger((long double)Distance(tr.endpos, start) +
+	                                          (float)totalDistance);
+#else
 	totalDistance = (int)(Distance(tr.endpos, start) + (float)totalDistance);
+#endif
 
 	if ((hit->takedamage && hit->client && g_debugBullets.integer > 1) ||
 	    (!(hit->takedamage && hit->client) && g_debugBullets.integer < -1))
@@ -3525,22 +3566,51 @@ qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker,
 	{
 		def     = &weaponDef[attacker->client->ps.weapon];
 		applied = TCE_BulletClientDamage(def, damage, totalDistance, g_newbbox.integer);
+#if defined(__linux__)
+		damageResult = G_Damage(hit, attacker, attacker, forward, tr.endpos, applied,
+		                        0, weaponDef[attacker->s.weapon].mod);
+		result = (float)damageResult;
+#else
 		result  = G_Damage(hit, attacker, attacker, forward, tr.endpos, applied,
 		                   0, weaponDef[attacker->s.weapon].mod);
+#endif
+#if defined(__linux__)
+		if (damageResult == 1.0L || TCE_FloatIsNaN(result))
+#else
 		if (result == 1.0f)
+#endif
 		{
+#if defined(__linux__)
+			trap_Trace(&next, tr.endpos, NULL, NULL, end, hit->s.number, MASK_MISSILESHOT);
+#else
 			trap_Trace(&next, tr.endpos, NULL, NULL, end, hit->s.number, MASK_SHOT);
+#endif
+#if defined(__linux__)
+			if (!((long double)Distance(next.endpos, tr.endpos) <= (long double)bboxScale * 48.0f))
+#else
 			if (Distance(next.endpos, tr.endpos) > bboxScale * 48.0f)
+#endif
 			{
 				VectorSubtract(end, tr.endpos, direction);
 				VectorNormalize(direction);
 				VectorMA(tr.endpos, 32.0f, direction, point);
 				VectorCopy(hit->client->ps.origin, eye);
 				eye[2] += hit->client->ps.viewheight;
+#if defined(__linux__)
+				{
+					float pointDistance = Distance(point, eye);
+					long double hitDistance = Distance(tr.endpos, eye);
+					if (hitDistance < pointDistance)
+					{
+						VectorCopy(tr.endpos, point);
+					}
+				}
+#else
 				if (Distance(tr.endpos, eye) < Distance(point, eye))
 				{
 					VectorCopy(tr.endpos, point);
 				}
+#endif
 				VectorSubtract(point, eye, direction);
 				VectorNormalize(direction);
 				event = G_TempEntity(point, EV_TCE_BULLET_NEAR_MISS);
@@ -3549,7 +3619,12 @@ qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker,
 				event->r.singleClient = hit->s.number;
 				event->r.svFlags      = SVF_SINGLECLIENT;
 			}
+#if defined(__linux__)
+			passesRemaining = TCE_SubInt32(passesRemaining, 1);
+			if (passesRemaining > 0)
+#else
 			if (--passesRemaining > 0)
+#endif
 			{
 				return Bullet_Fire_Extended(hit, attacker, tr.endpos, end, 0, damage,
 				                            penetration, 0, totalDistance, wallsRemaining, bodiesRemaining,
@@ -3576,6 +3651,34 @@ qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker,
 			}
 			if (result != 0.0f)
 			{
+#if defined(__linux__)
+				long double remaining = (long double)1.1f - result;
+				long double incoming = penetration;
+				long double retainedFraction, retainedEnergy;
+
+				material = &tcePierceTable[16];
+				retainedFraction =
+				    (incoming - ((1.0L / ((long double)material->thicknessScale * remaining)) *
+				                 16.0f + 1.0L) * material->resistance * remaining) *
+				    (1.0L / incoming);
+				retainedEnergy = incoming * retainedFraction;
+				if (retainedFraction > 0 && retainedEnergy >= 5.0f)
+				{
+					int nextDamage, nextPenetration;
+					bodiesRemaining = TCE_SubInt32(bodiesRemaining, 1);
+					nextPenetration = TCE_TruncateNativeInteger(retainedEnergy);
+					nextDamage = TCE_TruncateNativeInteger(
+					    retainedEnergy * (1.0L / weaponDef[attacker->client->ps.weapon].unknown_134) *
+					    (float)damage);
+					if (bodiesRemaining > 0)
+					{
+						return Bullet_Fire_Extended(hit, attacker, tr.endpos, end, 0,
+						                            nextDamage, nextPenetration, 0,
+						                            totalDistance, wallsRemaining, bodiesRemaining,
+						                            passesRemaining, seed, suppressWallEvents);
+					}
+				}
+#else
 				material = &tcePierceTable[16];
 				fraction = (penetration - material->resistance * (1.1f - result) *
 				            (16.0f / (material->thicknessScale * (1.1f - result)) + 1.0f)) /
@@ -3588,6 +3691,7 @@ qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker,
 					                            totalDistance, wallsRemaining, bodiesRemaining, passesRemaining,
 					                            seed, suppressWallEvents);
 				}
+#endif
 			}
 		}
 		return qfalse;
@@ -3618,7 +3722,11 @@ qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker,
 		VectorSubtract(end, start, direction);
 		VectorNormalize(direction);
 		for (i = 0; i < 3; ++i)
+#if defined(__linux__)
+			probe[i] = (float)(((long double)entry[i] - tr.plane.normal[i]) + direction[i]);
+#else
 			probe[i] = (entry[i] - tr.plane.normal[i]) + direction[i];
+#endif
 		trap_Trace(&next, probe, NULL, NULL, end, source->s.number, CONTENTS_SOLID);
 		if (next.fraction >= 1.0f)
 		{
@@ -3641,6 +3749,7 @@ qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker,
 		SnapVectorTowards(next.endpos, probe);
 		if (hit->s.eType == ET_EXPLOSIVE)
 		{
+#if !defined(__linux__)
 			range = def->unknown_130 * bboxScale * 39.370079f;
 			if (range <= 0.0f)
 			{
@@ -3651,13 +3760,31 @@ qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker,
 			{
 				value = 0.0f;
 			}
+#endif
+#if defined(__linux__)
+			G_Damage(hit, attacker, attacker, forward, entry,
+			         G_TCEBulletExplosiveDamage(def, damage, totalDistance, bboxScale), 0,
+			         weaponDef[attacker->s.weapon].mod);
+#else
 			G_Damage(hit, attacker, attacker, forward, entry, (int)value, 0,
 			         weaponDef[attacker->s.weapon].mod);
+#endif
 		}
+#if defined(__linux__)
+		{
+			float exitDistance = Distance(next.endpos, start);
+			long double entryDistance = Distance(entry, start);
+			if (!(exitDistance > entryDistance))
+			{
+				return qfalse;
+			}
+		}
+#else
 		if (Distance(next.endpos, start) <= Distance(entry, start))
 		{
 			return qfalse;
 		}
+#endif
 		exitType     = BG_SurfaceFlag2Type(next.surfaceFlags);
 		exitMaterial = &tcePierceTable[exitType];
 		if (exitMaterial->resistance >= material->resistance)
@@ -3669,12 +3796,21 @@ qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker,
 		{
 			thickness = 0;
 		}
+#if defined(__linux__)
+		retained = ((long double)penetration - (long double)(float)material->resistance *
+		            ((1.0L / (float)material->thicknessScale) * thickness + 1.0L)) *
+		           (1.0L / penetration);
+		fraction = (float)retained;
+		energy = (float)(retained * penetration);
+		if (retained > 0 && retained * penetration >= 5.0f)
+#else
 		retained = (penetration -
 		            (thickness / material->thicknessScale + 1.0) * material->resistance) /
 		           penetration;
 		fraction = (float)retained;
 		energy   = fraction * penetration;
 		if (retained > 0 && energy >= 5.0f)
+#endif
 		{
 			if (!suppressWallEvents)
 			{
@@ -3684,16 +3820,27 @@ qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker,
 				event->s.otherEntityNum  = attacker->s.number;
 			}
 			TCE_BulletDeflect(start, end, fraction, seed, wallsRemaining);
+#if defined(__linux__)
+			return Bullet_Fire_Extended(source, attacker, next.endpos, end, 0,
+			                            TCE_TruncateNativeInteger((1.0L /
+				                                weaponDef[source->client->ps.weapon].unknown_134) *
+				                                energy * damage),
+			                            TCE_TruncateNativeInteger(energy), 0,
+			                            totalDistance, TCE_SubInt32(wallsRemaining, 1),
+			                            bodiesRemaining, passesRemaining, seed, suppressWallEvents);
+#else
 			return Bullet_Fire_Extended(source, attacker, next.endpos, end, 0,
 			                            (int)(energy / def->unknown_134 * damage), (int)energy, 0,
 			                            totalDistance, wallsRemaining - 1, bodiesRemaining, passesRemaining,
 			                            seed, suppressWallEvents);
+#endif
 		}
 		return qfalse;
 	}
 damageExplosive:
 	if (hit->s.eType == ET_EXPLOSIVE)
 	{
+#if !defined(__linux__)
 		range = def->unknown_130 * bboxScale * 39.370079f;
 		if (range <= 0.0f)
 		{
@@ -3704,8 +3851,15 @@ damageExplosive:
 		{
 			value = 0.0f;
 		}
+#endif
+#if defined(__linux__)
+		G_Damage(hit, attacker, attacker, forward, entry,
+		         G_TCEBulletExplosiveDamage(def, damage, totalDistance, bboxScale), 0,
+		         weaponDef[attacker->s.weapon].mod);
+#else
 		G_Damage(hit, attacker, attacker, forward, entry, (int)value, 0,
 		         weaponDef[attacker->s.weapon].mod);
+#endif
 	}
 	return qfalse;
 }

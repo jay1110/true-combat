@@ -1,4 +1,5 @@
 #include "tce_bullet.h"
+#include "tce_numeric.h"
 
 void TCE_BulletEndpos(const tce_weaponDef_t *def,
                       const tce_bulletAim_t *aim, vec3_t end)
@@ -66,6 +67,35 @@ void TCE_BulletEndpos(const tce_weaponDef_t *def,
 int TCE_BulletClientDamage(const tce_weaponDef_t *def, int damage,
                            int distance, int newBoundingBox)
 {
+#if defined(__linux__)
+	long double range = (long double)def->unknown_130 *
+	                    (newBoundingBox ? 1.25f : 1.0f) * 39.370079040527344f;
+	long double value;
+	float input = (float)damage;
+
+	if (!(range > 0))
+	{
+		range = 999999.0f;
+	}
+	value = (1.0L / ((1.0L / range) * distance + 1.0L)) * input;
+	if (def->unknown_1c0 && (long double)def->unknown_12c * 1.25f < input)
+	{
+		if (distance < 240)
+		{
+			value *= 0.5f;
+		}
+		else if (distance < 480)
+		{
+			value *= ((long double)distance - 240.0f) * 0.0020833334419876337f + 0.5f;
+		}
+	}
+	value *= 1.35f;
+	if (!(value >= 0))
+	{
+		value = 0;
+	}
+	return TCE_TruncateNativeInteger(value);
+#else
 	double range = def->unknown_130 * (newBoundingBox?1.25:1.0) * (double)39.370079040527344f;
 	double value;
 	float  input = (float)damage, travelled = (float)distance;
@@ -91,4 +121,5 @@ int TCE_BulletClientDamage(const tce_weaponDef_t *def, int damage,
 		value = 0;
 	}
 	return (int)value;
+#endif
 }

@@ -5,13 +5,36 @@ void TCE_BulletDeflect(const vec3_t start, vec3_t end, float retainedFraction,
 {
 	vec3_t direction, right, up;
 	float  radius, horizontal;
+#if defined(__linux__)
+	float angle, vertical;
+	long double loss = 1.0L - retainedFraction;
+	long double offset;
+#else
 	double angle, vertical, loss = 1.0 - retainedFraction;
+#endif
 	int    i;
 	seed = (seed + 11u * (unsigned)wallsRemaining) & 65535u;
 	VectorSubtract(end, start, direction);
 	VectorNormalize(direction);
 	PerpendicularVector(right, direction);
 	CrossProduct(direction, right, up);
+#if defined(__linux__)
+	{
+		int randomSeed;
+		memcpy(&randomSeed, &seed, sizeof(randomSeed));
+		radius = (float)sqrtl((long double)Q_random(&randomSeed));
+		angle = (float)((long double)Q_crandom(&randomSeed) * 3.141);
+	}
+	offset = cosl((long double)angle) * radius * loss * 1269.9999809265137;
+	horizontal = (float)(offset + offset);
+	offset = (long double)radius * sinl((long double)angle) * loss * 1269.9999809265137;
+	vertical = (float)(offset + offset);
+	for (i = 0; i < 3; ++i)
+	{
+		end[i] = (float)(((long double)right[i] * horizontal + end[i]) +
+		                 (long double)up[i] * vertical);
+	}
+#else
 	seed       = seed * 69069u + 1u;
 	radius     = (float)sqrt((seed & 65535u) / 65536.0);
 	seed       = seed * 69069u + 1u;
@@ -20,6 +43,7 @@ void TCE_BulletDeflect(const vec3_t start, vec3_t end, float retainedFraction,
 	vertical   = sin(angle) * radius * loss * 2539.9999618530273;
 	for (i = 0; i < 3; ++i)
 		end[i] = (float)((double)right[i] * horizontal + (double)up[i] * vertical + end[i]);
+#endif
 }
 
 static void TCE_SnapWallPoint(vec3_t point, const vec3_t toward)
