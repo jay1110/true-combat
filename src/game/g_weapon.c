@@ -3336,6 +3336,81 @@ Bullet_Endpos
 */
 void Bullet_Endpos(gentity_t *ent, float spread, vec3_t *end)
 {
+#if defined(__linux__)
+	const tce_weaponDef_t *def = &weaponDef[ent->s.weapon];
+	gclient_t *client = ent->client;
+	long double shotScale = 0, movementScale = 0, minimum;
+	long double phase, lateral[3];
+	float shotSpread, radius, angle, horizontal, vertical;
+	float swayRight = 0, swayUp = 0;
+	vec3_t direction;
+	int seed = client->ps.stats[STAT_TCE_SHOT_SEED];
+	int distance = 8192, scatter = 1, axis;
+
+	if (!(client->ps.stats[STAT_TCE_WEAPON_FLAGS] & 4))
+	{
+		shotScale = (long double)def->unknown_0f8[0] * 0.001f;
+		movementScale = (long double)def->unknown_0f8[3] * 0.001f;
+	}
+	shotSpread = (float)(((long double)client->ps.holdable[0] * movementScale +
+	                      (long double)client->ps.holdable[1] * shotScale) * 0.7f);
+	minimum = (long double)def->unknown_0f8[2] * 0.08192f;
+	if (minimum > 0)
+	{
+		if (client->ps.eFlags & EF_PRONE)
+		{
+			minimum *= 0.33333f;
+		}
+		else if (client->ps.pm_flags & PMF_DUCKED)
+		{
+			minimum *= 0.66667f;
+		}
+		if (!(shotSpread >= minimum))
+		{
+			shotSpread = (float)minimum;
+		}
+	}
+	if (def->scoped > 0)
+	{
+		if (client->ps.stats[STAT_TCE_WEAPON_FLAGS] & 4)
+		{
+			distance = 16384;
+			scatter = 0;
+		}
+		else if (def->unknown_1c0)
+		{
+			shotSpread = 1200;
+		}
+	}
+	AngleVectors(client->pmext.tceShotAngles, direction, NULL, NULL);
+	for (axis = 0; axis < 3; ++axis)
+	{
+		(*end)[axis] = (float)((long double)direction[axis] * distance + muzzleTrace[axis]);
+	}
+	client = ent->client;
+	if (!(client->ps.stats[STAT_TCE_WEAPON_FLAGS] & 4))
+	{
+		phase = (long double)client->ps.stats[STAT_TCE_AIM_PHASE] * 0.006283185307179587;
+		swayRight = (float)(sinl(phase) * 600.0f);
+		swayUp = (float)(cosl(phase) * 600.0f);
+	}
+	if (scatter)
+	{
+		radius = (float)sqrtl((long double)Q_random(&seed));
+		angle = (float)((long double)Q_crandom(&seed) * 3.141);
+		horizontal = (float)(cosl((long double)angle) * radius * shotSpread * 1.27f + swayRight);
+		vertical = (float)(sinl((long double)angle) * radius * shotSpread * 1.27f + swayUp);
+		for (axis = 0; axis < 3; ++axis)
+		{
+			lateral[axis] = (long double)right[axis] * horizontal + (*end)[axis];
+			(*end)[axis] = (float)lateral[axis];
+		}
+		for (axis = 0; axis < 3; ++axis)
+		{
+			(*end)[axis] = (float)((long double)up[axis] * vertical + lateral[axis]);
+		}
+	}
+#else
 	/* TC 2009d1a0: every shot uses PM_Weapon's pre-recoil snapshot. */
 	{
 		tce_bulletAim_t aim;
@@ -3354,6 +3429,7 @@ void Bullet_Endpos(gentity_t *ent, float spread, vec3_t *end)
 		TCE_BulletEndpos(&weaponDef[ent->s.weapon], &aim, *end);
 		return;
 	}
+#endif
 }
 
 /*
@@ -3378,7 +3454,11 @@ void Bullet_Fire(gentity_t *ent, float spread, int damage, qboolean distance_fal
 	damage = def->unknown_12c;
 	if (def->unknown_1c0 && (ent->client->ps.stats[STAT_TCE_WEAPON_FLAGS] & 4))
 	{
+#if defined(__linux__)
+		damage = TCE_TruncateNativeInteger((long double)damage * 1.5f);
+#else
 		damage = (int)(damage * 1.5);
+#endif
 	}
 	Bullet_Fire_Extended(ent, ent, muzzleTrace, end, spread, damage,
 	                     def->unknown_134, 0, 0, 4, 4, 8, seed, 0);
@@ -3975,6 +4055,41 @@ AddLean
 */
 void AddLean(gentity_t *ent, vec3_t point)
 {
+#if defined(__linux__)
+	vec3_t angles, right;
+	float lean;
+	int axis;
+
+	if (!ent->client || TCE_FloatIsZeroOrNaN(ent->client->ps.leanf))
+	{
+		return;
+	}
+	lean = ent->client->ps.leanf;
+	if (g_leanmode.integer > 0)
+	{
+		float divisor = lean < 0 ? 3.3f : 1.8f;
+		long double reciprocal = 1.0L / divisor;
+		volatile float storedReciprocal;
+
+		VectorCopy(ent->client->ps.viewangles, angles);
+		angles[ROLL] = (float)((long double)lean * reciprocal + angles[ROLL]);
+		storedReciprocal = (float)reciprocal;
+		AngleVectors(angles, NULL, right, NULL);
+		for (axis = 0; axis < 3; ++axis)
+		{
+			point[axis] = (float)((long double)ent->client->ps.leanf * storedReciprocal *
+			                      right[axis] + point[axis]);
+		}
+	}
+	else
+	{
+		AngleVectors(ent->client->ps.viewangles, NULL, right, NULL);
+		for (axis = 0; axis < 3; ++axis)
+		{
+			point[axis] = (float)((long double)ent->client->ps.leanf * right[axis] + point[axis]);
+		}
+	}
+#else
 	/* Original Windows2009f400: asymmetric TC lean affects shot origin. */
 	if (ent->client && ent->client->ps.leanf)
 	{
@@ -3998,6 +4113,7 @@ void AddLean(gentity_t *ent, vec3_t point)
 			point[2] = (float)((double)lean * right[2] + point[2]);
 		}
 	}
+#endif
 }
 
 /*
@@ -4281,13 +4397,26 @@ void FireWeapon(gentity_t *ent)
 	case 21: Weapon_Engineer(ent); break;
 	case 22:
 		charge = level.lieutenantChargeTime[client->sess.sessionTeam - 1];
+#if defined(__linux__)
+		if (TCE_SubInt32(level.time, client->ps.classWeaponTime) > charge)
+#else
 		if (level.time - client->ps.classWeaponTime > charge)
+#endif
 		{
+#if defined(__linux__)
+			client->ps.classWeaponTime = TCE_SubInt32(level.time, charge);
+#else
 			client->ps.classWeaponTime = level.time - charge;
+#endif
 		}
 		if (client->sess.skill[SK_SIGNALS] >= 2)
 		{
+#if defined(__linux__)
+			client->ps.classWeaponTime = TCE_TruncateNativeInteger(
+			    (long double)client->ps.classWeaponTime + (long double)charge * .66f);
+#else
 			client->ps.classWeaponTime += .66f * charge;
+#endif
 		}
 		else
 		{
@@ -4312,11 +4441,24 @@ void FireWeapon(gentity_t *ent)
 		break;
 	case 55: case 56:
 		charge = level.engineerChargeTime[client->sess.sessionTeam - 1];
+#if defined(__linux__)
+		if (TCE_SubInt32(level.time, client->ps.classWeaponTime) > charge)
+#else
 		if (level.time - client->ps.classWeaponTime > charge)
+#endif
 		{
+#if defined(__linux__)
+			client->ps.classWeaponTime = TCE_SubInt32(level.time, charge);
+#else
 			client->ps.classWeaponTime = level.time - charge;
+#endif
 		}
+#if defined(__linux__)
+		client->ps.classWeaponTime = TCE_TruncateNativeInteger(
+		    (long double)client->ps.classWeaponTime + (long double)charge * .5f);
+#else
 		client->ps.classWeaponTime += .5f * charge;
+#endif
 		weapon_gpg40_fire(ent, weapon);
 		break;
 	case 57: case 58: case 59:
@@ -4324,11 +4466,24 @@ void FireWeapon(gentity_t *ent)
 		break;
 	case 60:
 		charge = level.soldierChargeTime[client->sess.sessionTeam - 1];
+#if defined(__linux__)
+		if (TCE_SubInt32(level.time, client->ps.classWeaponTime) > charge)
+#else
 		if (level.time - client->ps.classWeaponTime > charge)
+#endif
 		{
+#if defined(__linux__)
+			client->ps.classWeaponTime = TCE_SubInt32(level.time, charge);
+#else
 			client->ps.classWeaponTime = level.time - charge;
+#endif
 		}
+#if defined(__linux__)
+		client->ps.classWeaponTime = TCE_TruncateNativeInteger(
+		    (long double)client->ps.classWeaponTime + (long double)charge * (client->sess.skill[SK_HEAVY_WEAPONS] >= 1 ? .35f : .5f));
+#else
 		client->ps.classWeaponTime += (client->sess.skill[SK_HEAVY_WEAPONS] >= 1 ? .35f : .5f) * charge;
+#endif
 		weapon_mortar_fire(ent, weapon);
 		break;
 	case 61:
@@ -4342,13 +4497,26 @@ void FireWeapon(gentity_t *ent)
 		if (weapon == 27)
 		{
 			charge = level.covertopsChargeTime[client->sess.sessionTeam - 1];
-			if (level.time - client->ps.classWeaponTime > charge)
+#if defined(__linux__)
+		if (TCE_SubInt32(level.time, client->ps.classWeaponTime) > charge)
+#else
+		if (level.time - client->ps.classWeaponTime > charge)
+#endif
 			{
-				client->ps.classWeaponTime = level.time - charge;
+#if defined(__linux__)
+			client->ps.classWeaponTime = TCE_SubInt32(level.time, charge);
+#else
+			client->ps.classWeaponTime = level.time - charge;
+#endif
 			}
 			if (client->sess.skill[SK_MILITARY_INTELLIGENCE_AND_SCOPED_WEAPONS] >= 2)
 			{
+#if defined(__linux__)
+				client->ps.classWeaponTime = TCE_TruncateNativeInteger(
+				    (long double)client->ps.classWeaponTime + (long double)charge * .66f);
+#else
 				client->ps.classWeaponTime += .66f * charge;
+#endif
 			}
 			else
 			{
@@ -4358,22 +4526,48 @@ void FireWeapon(gentity_t *ent)
 		if (weapon == 26)
 		{
 			charge = level.engineerChargeTime[client->sess.sessionTeam - 1];
-			if (level.time - client->ps.classWeaponTime > charge)
+#if defined(__linux__)
+		if (TCE_SubInt32(level.time, client->ps.classWeaponTime) > charge)
+#else
+		if (level.time - client->ps.classWeaponTime > charge)
+#endif
 			{
-				client->ps.classWeaponTime = level.time - charge;
+#if defined(__linux__)
+			client->ps.classWeaponTime = TCE_SubInt32(level.time, charge);
+#else
+			client->ps.classWeaponTime = level.time - charge;
+#endif
 			}
+#if defined(__linux__)
+			client->ps.classWeaponTime = TCE_TruncateNativeInteger(
+			    (long double)client->ps.classWeaponTime + (long double)charge * (client->sess.skill[SK_EXPLOSIVES_AND_CONSTRUCTION] >= 3 ? .33f : .5f));
+#else
 			client->ps.classWeaponTime += (client->sess.skill[SK_EXPLOSIVES_AND_CONSTRUCTION] >= 3 ? .33f : .5f) * charge;
+#endif
 		}
 		if (weapon == 15)
 		{
 			charge = level.engineerChargeTime[client->sess.sessionTeam - 1];
-			if (level.time - client->ps.classWeaponTime > charge)
+#if defined(__linux__)
+		if (TCE_SubInt32(level.time, client->ps.classWeaponTime) > charge)
+#else
+		if (level.time - client->ps.classWeaponTime > charge)
+#endif
 			{
-				client->ps.classWeaponTime = level.time - charge;
+#if defined(__linux__)
+			client->ps.classWeaponTime = TCE_SubInt32(level.time, charge);
+#else
+			client->ps.classWeaponTime = level.time - charge;
+#endif
 			}
 			if (client->sess.skill[SK_EXPLOSIVES_AND_CONSTRUCTION] >= 3)
 			{
+#if defined(__linux__)
+				client->ps.classWeaponTime = TCE_TruncateNativeInteger(
+				    (long double)client->ps.classWeaponTime + (long double)charge * .66f);
+#else
 				client->ps.classWeaponTime += .66f * charge;
+#endif
 			}
 			else
 			{
@@ -4384,13 +4578,26 @@ void FireWeapon(gentity_t *ent)
 		break;
 	case 65:
 		charge = level.soldierChargeTime[client->sess.sessionTeam - 1];
+#if defined(__linux__)
+		if (TCE_SubInt32(level.time, client->ps.classWeaponTime) > charge)
+#else
 		if (level.time - client->ps.classWeaponTime > charge)
+#endif
 		{
+#if defined(__linux__)
+			client->ps.classWeaponTime = TCE_SubInt32(level.time, charge);
+#else
 			client->ps.classWeaponTime = level.time - charge;
+#endif
 		}
 		if (client->sess.skill[SK_HEAVY_WEAPONS] >= 1)
 		{
+#if defined(__linux__)
+			client->ps.classWeaponTime = TCE_TruncateNativeInteger(
+			    (long double)client->ps.classWeaponTime + (long double)charge * .66f);
+#else
 			client->ps.classWeaponTime += .66f * charge;
+#endif
 		}
 		else
 		{
@@ -4436,7 +4643,11 @@ qboolean IsSilencedWeapon
 	// Return true for any of the silenced types
 	switch (weaponType)
 	{
+#if defined(__linux__)
+	case 52:
+#else
 	case WP_SILENCED_COLT:
+#endif
 	case WP_STEN:
 	case WP_SILENCER:
 		return qtrue;
