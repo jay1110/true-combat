@@ -1588,12 +1588,12 @@ void CG_DebriefingTitle_Draw(panel_button_t *button)
 		else if (atoi(buf))
 		{
 			// allies
-			s = "Allies Win!";
+			s = "Specops Win!";
 		}
 		else
 		{
 			// axis
-			s = "Axis Win!";
+			s = "Terrorists Win!";
 		}
 	}
 
@@ -2641,9 +2641,9 @@ void CG_PanelButtonsRender_Button(panel_button_t *button)
 
 void CG_PanelButtonsRender_Window_Ext(rectDef_t *r, const char *text, int align, int innerheight, float fontscale, int yofs)
 {
-	vec4_t clrBdr      = { 0.5f, 0.5f, 0.5f, 0.5f };
-	vec4_t clrTitleBck = { 0.16f, 0.2f, 0.17f, 0.8f };
-	vec4_t clrBck      = { 0.0f, 0.0f, 0.0f, 0.8f };
+	vec4_t clrBdr      = { 0.0f, 0.0f, 0.0f, 0.6f };
+	vec4_t clrTitleBck = { 0.2f, 0.2f, 0.2f, 0.6f };
+	vec4_t clrBck      = { 0.0f, 0.0f, 0.0f, 0.6f };
 	vec4_t clrTxtBck   = { 0.6f, 0.6f, 0.6f, 1.0f };
 
 	CG_FillRect(r->x, r->y, r->w, r->h, clrBck);
@@ -3252,7 +3252,7 @@ void CG_Debriefing2TeamSkillHeaders_Draw(panel_button_t *button)
 	int    i, j;
 	vec4_t clrTxtBck = { 0.6f, 0.6f, 0.6f, 1.0f };
 
-	if (cg_gameType.integer == GT_WOLF_LMS)
+	if (cg_gameType.integer == GT_WOLF_LMS || cgs.gametype == GT_WOLF)
 	{
 		return;
 	}
@@ -3305,7 +3305,7 @@ void CG_Debriefing2TeamSkillXP_Draw(panel_button_t *button)
 	int    xp, i;
 	vec4_t clrTxtBck = { 0.6f, 0.6f, 0.6f, 1.0f };
 
-	if (cg_gameType.integer == GT_WOLF_LMS)
+	if (cg_gameType.integer == GT_WOLF_LMS || cgs.gametype == GT_WOLF)
 	{
 		return;
 	}
@@ -3331,10 +3331,10 @@ void CG_Debriefing2TeamSkillXP_Draw(panel_button_t *button)
 	switch (team)
 	{
 	case TEAM_AXIS:
-		CG_Text_Paint_Ext(button->rect.x, button->rect.y + 11, scale, scale, clrTxtBck, "Axis", 0, 0, 0, &cgs.media.limboFont2);
+		CG_Text_Paint_Ext(button->rect.x, button->rect.y + 11, scale, scale, clrTxtBck, "Terrorists", 0, 0, 0, &cgs.media.limboFont2);
 		break;
 	default:
-		CG_Text_Paint_Ext(button->rect.x, button->rect.y + 11, scale, scale, clrTxtBck, "Allies", 0, 0, 0, &cgs.media.limboFont2);
+		CG_Text_Paint_Ext(button->rect.x, button->rect.y + 11, scale, scale, clrTxtBck, "Specops", 0, 0, 0, &cgs.media.limboFont2);
 		break;
 	}
 
