@@ -17,4 +17,7 @@ typedef struct
 } tce_teamScoreboardContext_t;
 int TCE_WM_TeamScoreboard(int x, int y, int team, float fade, int maxrows,
                           const tce_teamScoreboardContext_t *ctx);
+int TCE_WM_TeamScoreboardWithFormat(int x, int y, int team, float fade, int maxrows,
+                                    const tce_teamScoreboardContext_t *ctx,
+                                    char *(*format)(const char *, ...));
 #endif

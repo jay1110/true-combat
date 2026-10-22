@@ -698,7 +698,7 @@ static void TCE_ScoreClientRow(int x, int y, int index, const float *color, floa
 	ctx.fill               = TCE_ScoreFill; ctx.pic = TCE_ScorePic; ctx.text = TCE_ScoreText;
 	ctx.drawStrlen         = CG_DrawStrlen; ctx.translate = TCE_ScoreTranslate;
 	ctx.locateMergedClient = TCE_ScoreLocateMerged;
-	TCE_WM_DrawClientScore(x, y, score, color, fade, &ctx);
+	TCE_WM_DrawClientScoreWithFormat(x, y, score, color, fade, &ctx, va);
 }
 static int TCE_ObjectivesReinforce(int menu)
 {
@@ -743,7 +743,7 @@ static int TCE_ScoreTeam(int x, int y, int team, float fade, int rows)
 	ctx.translate  = TCE_ScoreTranslate; ctx.fill = TCE_ScoreFill; ctx.border = TCE_ScoreBorder;
 	ctx.setColor   = trap_R_SetColor; ctx.topBottom = TCE_ScoreTopBottom; ctx.text = TCE_ScoreText;
 	ctx.smallText  = TCE_ScoreSmallText; ctx.clientRow = TCE_ScoreClientRow;
-	return TCE_WM_TeamScoreboard(x, y, team, fade, rows, &ctx);
+	return TCE_WM_TeamScoreboardWithFormat(x, y, team, fade, rows, &ctx, va);
 }
 qboolean CG_DrawScoreboard(void)
 {
@@ -751,8 +751,13 @@ qboolean CG_DrawScoreboard(void)
 	qboolean                previousCoordinates = tce_uiCoordinates;
 	int                     result;
 	tce_scoreboardContext_t ctx;
+	if (cg_paused.integer)
+	{
+		return qfalse;
+	}
 	ctx.paused          = cg_paused.integer; ctx.warmup = cg.warmup;
-	ctx.demoPlayback    = cg.demoPlayback; ctx.snapshotPmType = cg.snap->ps.pm_type;
+	ctx.demoPlayback    = cg.demoPlayback;
+	ctx.snapshotPmType  = cg.snap ? cg.snap->ps.pm_type : PM_NORMAL;
 	ctx.showScores      = cg.showScores; ctx.cameraMode = cg.cameraMode;
 	ctx.predictedPmType = cg.predictedPlayerState.pm_type;
 	ctx.scoreFadeTime   = cg.scoreFadeTime; ctx.gametype = cgs.gametype;

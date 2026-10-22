@@ -60,9 +60,20 @@ int TCE_ClientNumberFromNameMatch(const char *name, int *matches)
 	for (i = 0; i < level.maxclients; i++)
 		if (g_entities[i].client && g_entities[i].client->pers.connected == CON_CONNECTED)
 		{
+#if defined(__linux__) && defined(__GLIBC__) && !defined(Q3_VM)
+			const int *lowercase;
+#endif
 			Q_strncpyz(candidate, g_entities[i].client->pers.netname, sizeof(candidate)); Q_CleanStr(candidate);
+#if defined(__linux__) && defined(__GLIBC__) && !defined(Q3_VM)
+			/* Original Linux indexes glibc's compatibility table with signed bytes. */
+			lowercase = candidate[0] ? *__ctype_tolower_loc() : NULL;
+#endif
 			for (j = 0; candidate[j]; j++)
+#if defined(__linux__) && defined(__GLIBC__) && !defined(Q3_VM)
+				if (lowercase[(signed char)candidate[j]] == lowercase[(signed char)query[0]] &&
+#else
 				if (tolower((unsigned char)candidate[j]) == tolower((unsigned char)query[0]) &&
+#endif
 				    !Q_stricmpn(query, candidate + j, length))
 				{
 					matches[count++] = i; break;

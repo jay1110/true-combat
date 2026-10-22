@@ -19,4 +19,8 @@ typedef struct
 
 void TCE_WM_DrawClientScore(int x, int y, const tce_score_t *score,
                             const float *color, float fade, const tce_clientScoreContext_t *ctx);
+void TCE_WM_DrawClientScoreWithFormat(int x, int y, const tce_score_t *score,
+                                      const float *color, float fade,
+                                      const tce_clientScoreContext_t *ctx,
+                                      char *(*format)(const char *, ...));
 #endif

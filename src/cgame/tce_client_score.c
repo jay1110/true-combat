@@ -1,26 +1,40 @@
 #include "tce_client_score.h"
 #include <stdio.h>
+#include "../game/tce_numeric.h"
 
 static void number(const tce_clientScoreContext_t *c, float x, float y,
-                   const float *color, const char *format, int value)
+                   const float *color, const char *format, int value,
+                   char *(*formatText)(const char *, ...))
 {
 	char text[64];
-	snprintf(text, sizeof(text), format, value);
-	c->text(x, y, .2f, color, text);
+	const char *valueText;
+	if (formatText)
+	{
+		valueText = formatText(format, value);
+	}
+	else
+	{
+		snprintf(text, sizeof(text), format, value);
+		valueText = text;
+	}
+	c->text(x, y, .2f, color, valueText);
 }
 
 /* Windows 3005a960..3005b281. The input color is unused in the original. */
-void TCE_WM_DrawClientScore(int x, int y, const tce_score_t *s,
-                            const float *color, float fade, const tce_clientScoreContext_t *c)
+static void TCE_DrawClientScore(int x, int y, const tce_score_t *s,
+                                const float *color, float fade,
+                                const tce_clientScoreContext_t *c,
+                                char *(*formatText)(const char *, ...))
 {
 	float      tx, fy, highlight[4] = { .75f, .5f, 0, 0 }, white[4] = { 1, 1, 1, 0 };
 	int        offset = 0, i, extended = c->gameType == 2 || c->gameType == 5 || c->gameType == 6 || c->gameType == 7;
 	int        teammate = c->localTeam != 3 && c->team == c->localTeam;
 	int        hidden;
 	char       text[64];
+	const char *ratingText;
 	const char *spectator;
 	(void)color;
-	if ((int)((unsigned)y + 16u) >= 470)
+	if (TCE_AddInt32(y, 16) >= 470)
 	{
 		return;
 	}
@@ -85,46 +99,69 @@ void TCE_WM_DrawClientScore(int x, int y, const tce_score_t *s,
 		c->locateMergedClient(s->client);
 	}
 	hidden                                         = c->gameType == 5 && c->killMessage == 0 && c->viewedHealth > 0 && c->pmType != 5;
-	number(c, tx, fy, white, "%2i", s->kills); tx += 28;
+	number(c, tx, fy, white, "%2i", s->kills, formatText); tx += 28;
 	if (hidden)
 	{
-		c->text(tx, fy, .2f, white, "n/a");
+		c->text(tx, fy, .2f, white, formatText?formatText("n/a"):"n/a");
 	}
 	else
 	{
-		number(c, tx, fy, white, "%2i", s->deaths);
+		number(c, tx, fy, white, "%2i", s->deaths, formatText);
 	}
 	tx += 28;
 	if (hidden)
 	{
-		c->text(tx, fy, .2f, white, "n/a");
+		c->text(tx, fy, .2f, white, formatText?formatText("n/a"):"n/a");
 	}
 	else
 	{
-		number(c, tx, fy, white, "%2i", s->suicides);
+		number(c, tx, fy, white, "%2i", s->suicides, formatText);
 	}
 	tx                                                += 28;
-	number(c, tx, fy, white, "%2i", s->teamKills); tx += 28;
+	number(c, tx, fy, white, "%2i", s->teamKills, formatText); tx += 28;
 	if (hidden)
 	{
-		c->text(tx, fy, .2f, white, "n/a");
+		c->text(tx, fy, .2f, white, formatText?formatText("n/a"):"n/a");
 	}
 	else
 	{
-		number(c, tx, fy, white, "%3i", s->score);
+		number(c, tx, fy, white, "%3i", s->score, formatText);
 	}
 	tx += 42;
 	if (hidden)
 	{
-		c->text(tx, fy, .2f, white, "n/a");
+		c->text(tx, fy, .2f, white, formatText?formatText("n/a"):"n/a");
 	}
 	else
 	{
 		/* The original x87 promotes the product straight to double for va. */
-		snprintf(text, sizeof(text), "%4.2f", (double)s->damageRating * (double).01f);
-		c->text(tx, fy, .2f, white, text);
+		if (formatText)
+		{
+			ratingText = formatText("%4.2f", (double)s->damageRating * (double).01f);
+		}
+		else
+		{
+			snprintf(text, sizeof(text), "%4.2f", (double)s->damageRating * (double).01f);
+			ratingText = text;
+		}
+		c->text(tx, fy, .2f, white, ratingText);
 	}
 	tx += extended?40:36;
-	number(c, tx, fy, white, "%2i", (int)((unsigned)s->classRating + 1u));
-	number(c, tx + 28, fy, white, "%4i", s->ping);
+	number(c, tx, fy, white, "%2i", TCE_AddInt32(s->classRating, 1), formatText);
+	number(c, tx + 28, fy, white, "%4i", s->ping, formatText);
+}
+
+void TCE_WM_DrawClientScore(int x, int y, const tce_score_t *s,
+                            const float *color, float fade, const tce_clientScoreContext_t *c)
+{
+	TCE_DrawClientScore(x, y, s, color, fade, c, NULL);
+}
+
+/* Supply the module's va to retain each original formatting side effect. */
+void TCE_WM_DrawClientScoreWithFormat(int x, int y, const tce_score_t *s,
+                                      const float *color, float fade,
+                                      const tce_clientScoreContext_t *c,
+                                      char *(*formatText)(const char *, ...))
+{
+	TCE_DrawClientScore(x, y, s, color, fade, c, formatText);
 }

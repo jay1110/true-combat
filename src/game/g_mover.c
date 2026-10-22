@@ -1347,7 +1347,11 @@ qboolean IsBinaryMoverBlocked(gentity_t *ent, gentity_t *other, gentity_t *activ
 	vec3_t   dir, angles;
 	vec3_t   pos;
 	vec3_t   vec;
+#if defined(__linux__) && !defined(Q3_VM)
+	float    dot;
+#else
 	double   dot;
+#endif
 	vec3_t   forward;
 	qboolean is_relay = qfalse;
 
@@ -1374,8 +1378,10 @@ qboolean IsBinaryMoverBlocked(gentity_t *ent, gentity_t *other, gentity_t *activ
 
 		VectorAdd(ent->r.absmin, ent->r.absmax, pos);
 		VectorScale(pos, 0.5, pos);
+#if !defined(__linux__) || defined(Q3_VM)
 		/* TC 2006f821 keeps the X sum in x87; Y/Z are spilled first. */
 		pos[0] = (float)(((double)ent->r.absmax[0] + ent->r.absmin[0]) * 0.5);
+#endif
 
 		VectorSubtract(pos, ent->s.origin, dir);
 		vectoangles(dir, angles);
@@ -1406,9 +1412,14 @@ qboolean IsBinaryMoverBlocked(gentity_t *ent, gentity_t *other, gentity_t *activ
 		}
 
 		VectorNormalize(vec);
+#if defined(__linux__) && !defined(Q3_VM)
+		/* The Linux original retains the SDK dot-product expression. */
+		dot = DotProduct(vec, forward);
+#else
 		/* TC 2006f94b adds Z, Y, X and compares before a float spill. */
 		dot = ((double)forward[2] * vec[2] +
 		       (double)forward[1] * vec[1]) + (double)forward[0] * vec[0];
+#endif
 
 		if (dot >= 0)
 		{
@@ -1935,7 +1946,11 @@ so the movement delta can be calculated
 void InitMover(gentity_t *ent)
 {
 	vec3_t move;
+#if defined(__linux__) && !defined(Q3_VM)
+	float distance;
+#else
 	double distance;
+#endif
 
 	// if the "model2" key is set, use a seperate model
 	// for drawing, but clip against the brushes
@@ -1974,10 +1989,15 @@ void InitMover(gentity_t *ent)
 
 	// calculate time to reach second position from speed
 	VectorSubtract(ent->pos2, ent->pos1, move);
+#if defined(__linux__) && !defined(Q3_VM)
+	/* Keep the original Linux/SDK length-provider boundary. */
+	distance = VectorLength(move);
+#else
 	/* TC 200701d1 retains VectorLength's x87 result through duration
 	 * conversion, rather than rounding the distance to a float first. */
 	distance = sqrt(((double)move[0] * move[0] +
 	                 (double)move[1] * move[1]) + (double)move[2] * move[2]);
+#endif
 	if (!ent->speed)
 	{
 		ent->speed = 100;

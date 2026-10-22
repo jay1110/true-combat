@@ -1,14 +1,16 @@
 #include <stdio.h>
 #include "tce_team_scoreboard.h"
 
-int TCE_WM_TeamScoreboard(int x, int y, int team, float fade, int maxrows,
-                          const tce_teamScoreboardContext_t *ctx)
+static int TCE_TeamScoreboard(int x, int y, int team, float fade, int maxrows,
+                              const tce_teamScoreboardContext_t *ctx,
+                              char *(*format)(const char *, ...))
 {
 	float      header[4] = { .6f, .6f, .6f, 1 }, white[4] = { 1, 1, 1, fade }, band[4];
 	float      tx;
 	int        i, count, top;
 	char       title[1024], decorated[1200];
 	const char *players, *name;
+	const char *titleText, *decoratedText;
 	ctx->fill((float)(x - 5), (float)(y - 2), 399, 21, ctx->backColor);
 	ctx->fill((float)(x - 5), (float)(y - 2), 399, 21, ctx->barColor);
 	ctx->border((float)(x - 5), (float)(y - 2), 399, 21, 1, ctx->black);
@@ -16,16 +18,33 @@ int TCE_WM_TeamScoreboard(int x, int y, int team, float fade, int maxrows,
 	{
 		players = ctx->translate("PLAYERS");
 		name    = ctx->translate(team == 1?"TERRORISTS":"SPECOPS");
-		snprintf(title, sizeof(title), "%s [%d] (%d %s)", name, ctx->teamScores[team - 1], ctx->teamPlayers[team], players);
-		if (ctx->gameTypeCvar == 7)
+		if (format)
 		{
-			snprintf(decorated, sizeof(decorated), "%s ^3%s", title,
-			         ctx->firstBlood == team?ctx->translate("FIRST BLOOD"):"");
-			ctx->text((float)x, (float)(y + 13), .25f, header, decorated);
+			titleText = format("%s [%d] (%d %s)", name, ctx->teamScores[team - 1], ctx->teamPlayers[team], players);
 		}
 		else
 		{
-			ctx->text((float)x, (float)(y + 13), .25f, header, title);
+			snprintf(title, sizeof(title), "%s [%d] (%d %s)", name, ctx->teamScores[team - 1], ctx->teamPlayers[team], players);
+			titleText = title;
+		}
+		if (ctx->gameTypeCvar == 7)
+		{
+			if (format)
+			{
+				decoratedText = format("%s ^3%s", titleText,
+				                       ctx->firstBlood == team?ctx->translate("FIRST BLOOD"):"");
+			}
+			else
+			{
+				snprintf(decorated, sizeof(decorated), "%s ^3%s", titleText,
+				         ctx->firstBlood == team?ctx->translate("FIRST BLOOD"):"");
+				decoratedText = decorated;
+			}
+			ctx->text((float)x, (float)(y + 13), .25f, header, decoratedText);
+		}
+		else
+		{
+			ctx->text((float)x, (float)(y + 13), .25f, header, titleText);
 		}
 	}
 	y += 19; top = y;
@@ -95,4 +114,18 @@ int TCE_WM_TeamScoreboard(int x, int y, int team, float fade, int maxrows,
 		ctx->clientRow(x, y, i, white, fade); y += 16;
 	}
 	return y;
+}
+
+int TCE_WM_TeamScoreboard(int x, int y, int team, float fade, int maxrows,
+                          const tce_teamScoreboardContext_t *ctx)
+{
+	return TCE_TeamScoreboard(x, y, team, fade, maxrows, ctx, NULL);
+}
+
+/* The game supplies va so both formatting calls retain its buffer advance. */
+int TCE_WM_TeamScoreboardWithFormat(int x, int y, int team, float fade, int maxrows,
+                                    const tce_teamScoreboardContext_t *ctx,
+                                    char *(*format)(const char *, ...))
+{
+	return TCE_TeamScoreboard(x, y, team, fade, maxrows, ctx, format);
 }
