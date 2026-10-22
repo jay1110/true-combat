@@ -3,6 +3,7 @@
 // q_math.c -- stateless support routines that are included in each code module
 #include "q_shared.h"
 #include "tce_numeric.h"
+#include <float.h>
 
 
 vec3_t vec3_origin    = { 0, 0, 0 };
@@ -438,6 +439,17 @@ This is not implemented very well...
 ===============
 */
 #if defined(_WIN32) || defined(__linux__)
+/* Native FSIN/FCOS leave finite operands outside their reduction range intact. */
+static long double TCE_RotationTrigValue(long double angle, qboolean cosine)
+{
+	if ((angle >= 9223372036854775808.0L || angle <= -9223372036854775808.0L) &&
+	    angle <= LDBL_MAX && angle >= -LDBL_MAX)
+	{
+		return angle;
+	}
+	return cosine ? cosl(angle) : sinl(angle);
+}
+
 void RotatePointAroundVector(vec3_t dst, const vec3_t dir, const vec3_t point, float degrees)
 {
 	vec3_t forward, right, up;
@@ -477,9 +489,9 @@ void RotatePointAroundVector(vec3_t dst, const vec3_t dir, const vec3_t point, f
 		angle       *= 0.0055555556900799274444580078125f;
 		roundedAngle = (float)angle;
 		/* The Windows cosine keeps the angle preceding its float store. */
-		cosine       = cosl(angle);
+		cosine       = TCE_RotationTrigValue(angle, qtrue);
 		around[0][0] = (float)cosine;
-		sine         = sinl((long double)roundedAngle);
+		sine         = TCE_RotationTrigValue((long double)roundedAngle, qfalse);
 		around[0][1] = (float)sine;
 		around[1][0] = (float)-sine;
 		around[1][1] = (float)cosine;
@@ -489,10 +501,10 @@ void RotatePointAroundVector(vec3_t dst, const vec3_t dir, const vec3_t point, f
 		/* ELF multiplies the double conversion factor, then stores float. */
 		volatile float roundedAngle =
 			(float)((long double)0.017453292519943295 * degrees);
-		around[0][0] = (float)cosl((long double)roundedAngle);
-		around[0][1] = (float)sinl((long double)roundedAngle);
-		around[1][0] = (float)-sinl((long double)roundedAngle);
-		around[1][1] = (float)cosl((long double)roundedAngle);
+		around[0][0] = (float)TCE_RotationTrigValue((long double)roundedAngle, qtrue);
+		around[0][1] = (float)TCE_RotationTrigValue((long double)roundedAngle, qfalse);
+		around[1][0] = (float)-TCE_RotationTrigValue((long double)roundedAngle, qfalse);
+		around[1][1] = (float)TCE_RotationTrigValue((long double)roundedAngle, qtrue);
 	}
 #endif
 	MatrixMultiply(basis, around, temporary);
@@ -2469,11 +2481,11 @@ void AngleVectors(const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up)
 	phaseSpill = (float)phase;
 	phase      = (long double)phaseSpill;
 #endif
-	tceSinYaw = (float)sinl(phase);
+	tceSinYaw = (float)TCE_RotationTrigValue(phase, qfalse);
 #if defined(_WIN32)
-	tceCosYaw = (float)cosl(phase);
+	tceCosYaw = (float)TCE_RotationTrigValue(phase, qtrue);
 #else
-	cosineSpill = (float)cosl(phase);
+	cosineSpill = (float)TCE_RotationTrigValue(phase, qtrue);
 	heldCosYaw  = (long double)cosineSpill;
 	tceCosYaw   = (float)heldCosYaw;
 #endif
@@ -2484,11 +2496,11 @@ void AngleVectors(const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up)
 	phaseSpill = (float)phase;
 	phase      = (long double)phaseSpill;
 #endif
-	tceSinPitch = (float)sinl(phase);
+	tceSinPitch = (float)TCE_RotationTrigValue(phase, qfalse);
 #if defined(_WIN32)
-	tceCosPitch = (float)cosl(phase);
+	tceCosPitch = (float)TCE_RotationTrigValue(phase, qtrue);
 #else
-	cosineSpill  = (float)cosl(phase);
+	cosineSpill  = (float)TCE_RotationTrigValue(phase, qtrue);
 	heldCosPitch = (long double)cosineSpill;
 	tceCosPitch  = (float)heldCosPitch;
 #endif
@@ -2499,8 +2511,8 @@ void AngleVectors(const vec3_t angles, vec3_t forward, vec3_t right, vec3_t up)
 	phaseSpill = (float)phase;
 	phase      = (long double)phaseSpill;
 #endif
-	tceSinRoll = (float)sinl(phase);
-	tceCosRoll = (float)cosl(phase);
+	tceSinRoll = (float)TCE_RotationTrigValue(phase, qfalse);
+	tceCosRoll = (float)TCE_RotationTrigValue(phase, qtrue);
 	if (forward)
 	{
 #if defined(_WIN32)

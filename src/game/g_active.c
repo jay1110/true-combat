@@ -229,7 +229,7 @@ void PushBot(gentity_t *ent, gentity_t *other)
 {
 	vec3_t dir, ang, f, r;
 	float  oldspeed;
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 	float          *pushVelocity = other->client->ps.velocity;
 	float          pushMinimum   = 200.0f;
 	double         pushSign;
@@ -237,8 +237,11 @@ void PushBot(gentity_t *ent, gentity_t *other)
 	unsigned int   pushPhaseBits;
 	float          *pushComponent;
 	int            pushAxis, pushPhase;
-	long double    pushLength, pushSquared, pushSpeedSquared;
+	long double    pushSquared, pushSpeedSquared;
+#if defined(_MSC_VER) && defined(_M_IX86)
+	long double    pushLength;
 	volatile float pushStoredSpeed;
+#endif
 #endif
 	//
 #if defined(_MSC_VER) && defined(_M_IX86)
@@ -258,7 +261,7 @@ void PushBot(gentity_t *ent, gentity_t *other)
 	}
 #endif
 	//
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 	for (pushAxis = 0; pushAxis < 3; ++pushAxis)
 	{
 		dir[pushAxis] = (float)((long double)other->r.currentOrigin[pushAxis] -
@@ -274,8 +277,8 @@ void PushBot(gentity_t *ent, gentity_t *other)
 	f[2] = 0;
 	r[2] = 0;
 	//
-#if defined(_MSC_VER) && defined(_M_IX86)
-	/* TC: each multiply/add remains in ST0 until its component store. */
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+	/* Native multiply/add values remain wide until each component store. */
 	for (pushAxis = 0; pushAxis < 3; ++pushAxis)
 	{
 		pushComponent = &f[pushAxis];
@@ -301,7 +304,7 @@ void PushBot(gentity_t *ent, gentity_t *other)
 	VectorMA(other->client->ps.velocity, 100 * ((level.time + (ent->s.number * 1000)) % 4000 < 2000 ? 1.0 : -1.0), r, other->client->ps.velocity);
 #endif
 	//
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 	/* Original C0 compares the held square against a broad oldspeed square. */
 	pushVelocity     = other->client->ps.velocity;
 	pushSquared      = TCE_VectorLengthSquaredValue(pushVelocity);
@@ -312,7 +315,7 @@ void PushBot(gentity_t *ent, gentity_t *other)
 	if (VectorLengthSquared(other->client->ps.velocity) > SQR(oldspeed))
 	{
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 		(void)VectorNormalize(other->client->ps.velocity);
 		for (pushAxis = 0; pushAxis < 3; ++pushAxis)
 		{
@@ -328,7 +331,7 @@ void PushBot(gentity_t *ent, gentity_t *other)
 	// also, if "ent" is a bot, tell "other" to move!
 	if (rand() % 50 == 0 && (ent->r.svFlags & SVF_BOT))
 	{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 		/* Original C0 gate also permits unordered to reach the voice call. */
 		if ((long double)oldspeed >= 10.0L)
 		{

@@ -1958,7 +1958,11 @@ CG_DrawSkyBoxPortal
 void CG_DrawSkyBoxPortal(qboolean fLocalView)
 {
 	refdef_t rd;
+#if defined(__linux__)
+	long double inverseScale;
+#else
 	double   inverseScale;
+#endif
 	if (!cg_skybox.integer || !cg.skyboxEnabled || !fLocalView)
 	{
 		return;
@@ -1966,7 +1970,12 @@ void CG_DrawSkyBoxPortal(qboolean fLocalView)
 	memset(&rd, 0, sizeof(rd));
 	rd.rdflags = RDF_SKYBOXPORTAL;
 	AxisCopy(cg.refdef_current->viewaxis, rd.viewaxis);
+#if defined(__linux__)
+	/* Keep the reciprocal wide until the final view-origin stores. */
+	inverseScale = 1.0L / (long double)cg.skyboxViewFov;
+#else
 	inverseScale = 1.0 / cg.skyboxViewFov;
+#endif
 	VectorMA(cg.skyboxViewOrg, inverseScale, cg.refdef_current->vieworg, rd.vieworg);
 	rd.x     = cg.refdef_current->x; rd.y = cg.refdef_current->y;
 	rd.width = cg.refdef_current->width; rd.height = cg.refdef_current->height;
