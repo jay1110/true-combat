@@ -389,6 +389,20 @@ void CG_HorizontalPercentBar(float x, float y, float width, float height, float 
 	CG_FilledBar(x, y, width, height, color, NULL, bgcolor, percent, BAR_BG | BAR_NOHUDALPHA);
 }
 
+void CG_HorizontalPercentBarColor(float x, float y, float width, float height,
+                                 float *color, const float *bgcolor, float percent)
+{
+	CG_FilledBar(x, y, width, height, color, NULL, bgcolor, percent,
+	             BAR_BG | BAR_NOHUDALPHA);
+}
+
+void CG_VerticalPercentBarColor(float x, float y, float width, float height,
+                               float *color, const float *bgcolor, float percent)
+{
+	CG_FilledBar(x, y, width, height, color, NULL, bgcolor, percent,
+	             BAR_BG | BAR_NOHUDALPHA | BAR_VERT | BAR_LEFT);
+}
+
 
 /*
 ================

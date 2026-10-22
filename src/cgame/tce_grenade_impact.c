@@ -170,8 +170,13 @@ void CG_PredictedFire(centity_t *cent)
 	playerState_t           *ps = &cg.predictedPlayerState;
 	int                     weapon = cent->currentState.weapon, seed = ps->stats[STAT_TCE_SHOT_SEED];
 	int                     i, distance = 8192, scatter = 1;
-	float                   movement, shot, spread, minimum, radius, horizontal, swayRight = 0, swayUp = 0, lean;
+	float                   spread, radius, horizontal, swayRight = 0, swayUp = 0;
+#ifdef _WIN32
+	float                   movement, shot, minimum, lean;
 	double                  angle, vertical;
+#else
+	long double             movement, shot, minimum, lean, angle, vertical;
+#endif
 	vec3_t                  start, end, forward, right, up, angles;
 	tce_shotgunPrediction_t c;
 	const tce_weaponDef_t   *def = &weaponDef[weapon];
@@ -185,23 +190,51 @@ void CG_PredictedFire(centity_t *cent)
 		lean = ps->leanf;
 		if (cgs.tceLeanMode > 0)
 		{
+#ifdef _WIN32
 			lean /= lean < 0?3.3f:1.8f;
+#else
+			lean = (1.0L / (lean < 0 ? 3.3f : 1.8f)) * lean;
+#endif
 		}
 		AngleVectors(cg.refdefViewAngles, NULL, right, NULL);
+#ifdef _WIN32
 		VectorMA(start, lean, right, start);
+#else
+		for (i = 0; i < 3; ++i)
+		{
+			start[i] = (float)((long double)right[i] * lean + start[i]);
+		}
+#endif
 	}
 	start[2] -= 8;
 	AngleVectors(cg.refdefViewAngles, forward, NULL, up);
 	for (i = 0; i < 3; ++i)
+	{
+#ifdef _WIN32
 		start[i] = up[i] * 8 + forward[i] * 4 + start[i];
+#else
+		start[i] = (float)(((long double)forward[i] * 4.0L + start[i]) + (long double)up[i] * 8.0L);
+#endif
+	}
 	shot = movement = 0;
 	if (!(ps->stats[STAT_TCE_WEAPON_FLAGS] & 4))
 	{
+#ifdef _WIN32
 		shot     = (float)def->unknown_0f8[0] * .001f;
 		movement = (float)def->unknown_0f8[3] * .001f;
+#else
+		shot     = (long double)def->unknown_0f8[0] * .001f;
+		movement = (long double)def->unknown_0f8[3] * .001f;
+#endif
 	}
+#ifdef _WIN32
 	spread  = ((float)ps->holdable[1] * shot + (float)ps->holdable[0] * movement) * .7f;
 	minimum = (float)def->unknown_0f8[2] * .08192f;
+#else
+	spread = (float)(((long double)ps->holdable[0] * movement +
+	                  (long double)ps->holdable[1] * shot) * .7f);
+	minimum = (long double)def->unknown_0f8[2] * .08192f;
+#endif
 	if (minimum > 0)
 	{
 		if (ps->eFlags & EF_PRONE)
@@ -231,25 +264,58 @@ void CG_PredictedFire(centity_t *cent)
 	VectorCopy(ps->viewangles, angles);
 	if (!weaponDef[ps->weapon].noTacMode && (ps->stats[STAT_TCE_WEAPON_FLAGS] & 4))
 	{
+#ifdef _WIN32
 		angles[0] += ((float)ps->holdable[5] - 2000) * .01f;
 		angles[1] += ((float)ps->holdable[6] - 2000) * .01f;
+#else
+		for (i = 0; i < 2; ++i)
+		{
+			float offset = (float)(((long double)ps->holdable[5 + i] - 2000.0f) * .01f);
+			angles[i] = (float)((long double)offset + angles[i]);
+		}
+#endif
 	}
 	AngleVectors(angles, forward, right, up);
 	for (i = 0; i < 3; ++i)
+	{
+#ifdef _WIN32
 		end[i] = (float)distance * forward[i] + start[i];
+#else
+		end[i] = (float)((long double)distance * forward[i] + start[i]);
+#endif
+	}
 	if (!(ps->stats[STAT_TCE_WEAPON_FLAGS] & 4))
 	{
+#ifdef _WIN32
 		angle     = ps->stats[STAT_TCE_AIM_PHASE] * (double).0062831854447722435f;
 		swayRight = (float)(sin(angle) * 600.0); swayUp = (float)(cos(angle) * 600.0);
+#else
+		/* Native Linux literal at 10d1a8 is double, not a widened float. */
+		angle = (long double)ps->stats[STAT_TCE_AIM_PHASE] * (double)0.006283185307179587;
+		swayRight = (float)(sinl(angle) * 600.0L);
+		swayUp = (float)(cosl(angle) * 600.0L);
+#endif
 	}
 	if (scatter)
 	{
+#ifdef _WIN32
 		radius     = (float)sqrt(Q_random(&seed)); angle = Q_crandom(&seed) * 3.141;
 		horizontal = (float)(cos(angle) * radius * spread * (double)1.27f + swayRight);
 		vertical   = sin(angle) * radius * spread * (double)1.27f + swayUp;
 		end[0]     = (float)(vertical * up[0] + (double)horizontal * right[0] + end[0]);
 		end[1]     = (float)(vertical * up[1] + (float)(horizontal * right[1] + end[1]));
 		end[2]     = (float)(vertical * up[2] + (float)(horizontal * right[2] + end[2]));
+#else
+		radius = (float)sqrtl((long double)Q_random(&seed));
+		angle = (float)((long double)Q_crandom(&seed) * (double)3.141);
+		horizontal = (float)(cosl(angle) * radius * spread * 1.27f + swayRight);
+		vertical = (float)((long double)radius * sinl(angle) * spread * 1.27f + swayUp);
+		for (i = 0; i < 3; ++i)
+		{
+			long double base = (long double)right[i] * horizontal + end[i];
+			end[i] = (float)(base + (long double)up[i] * vertical);
+		}
+#endif
 	}
 	memset(&c, 0, sizeof(c)); c.localClient = cg.snap->ps.clientNum;
 	c.maxClients                            = cgs.maxclients; c.predictBullets = cg_predictBullets.integer;

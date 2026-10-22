@@ -3255,8 +3255,13 @@ static void CG_DrawFlashFire(void)
 {
 	extern qboolean tce_uiCoordinates;
 	vec4_t          col = { 1, 1, 1, 1 };
+#if defined(__linux__)
+	long double     alpha, f;
+	float           max;
+#else
 	float           alpha;
 	double          max, f;
+#endif
 	qboolean        previous;
 
 	if (!cg.snap)
@@ -3275,7 +3280,11 @@ static void CG_DrawFlashFire(void)
 		return;
 	}
 
+#if defined(__linux__)
+	alpha = (long double)(cg.snap->ps.onFireStart - cg.time + 1000) * 0.001f;
+#else
 	alpha = (float)(((double)(cg.snap->ps.onFireStart - cg.time + 1000)) * (double)0.001f);
+#endif
 	if (alpha > 0)
 	{
 		if (alpha >= 1.0)
@@ -3284,17 +3293,29 @@ static void CG_DrawFlashFire(void)
 		}
 
 		// fade in?
+#if defined(__linux__)
+		f = (long double)(cg.time - cg.v_noFireTime) * 0.001f;
+#else
 		f = (double)(cg.time - cg.v_noFireTime) * (double)0.001f;
+#endif
 		if (f >= 0.0 && f < 1.0)
 		{
 			alpha = f;
 		}
 
+#if defined(__linux__)
+		max = (float)(0.5L + sinl((long double)((cg.time / 10) % 1000) * (double)0.001) * 0.5L);
+#else
 		max = (sin((double)((cg.time / 10) % 1000) * 0.001) + 1.0) * 0.5;
+#endif
 		if (alpha > max)
 		{
 			alpha = max;
 		}
+#if defined(__linux__)
+		/* Color submission spills the selected alpha before sound-volume use. */
+		alpha = (float)alpha;
+#endif
 		col[0] = alpha;
 		col[1] = alpha;
 		col[2] = alpha;

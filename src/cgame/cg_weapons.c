@@ -5497,20 +5497,40 @@ void CG_AddBulletParticles(vec3_t origin, vec3_t dir, int speed, int duration, i
 	for (i = 0; i < count; ++i)
 	{
 		vec3_t velocity, position;
+#ifdef _WIN32
 		double z;
+#else
+		long double z;
+#endif
 		for (j = 0; j < 2; ++j)
 		{
+#ifdef _WIN32
 			double randomValue = (double)(rand() & 32767) * (double)(1.0f / 32767.0f) - 0.5;
+#else
+			long double randomValue = (long double)(rand() & 32767) * (1.0f / 32767.0f) - 0.5L;
+#endif
 			velocity[j] = (float)(dir[j] + (randomValue + randomValue) * randScale);
 		}
+#ifdef _WIN32
 		z = (double)(rand() & 32767) * (double)(1.0f / 32767.0f) - 0.5;
 		z = dir[2] + (z + z) * randScale;
-		/* x/y spill before scaling; z stays on x87 until after scaling. */
+#else
+		z = (long double)(rand() & 32767) * (1.0f / 32767.0f) - 0.5L;
+		/* Linux c3f1d stores z before scaling, just like the other axes. */
+		z = (float)(dir[2] + (z + z) * randScale);
+#endif
+		/* Windows retains z through scaling; Linux spills all three axes. */
 		velocity[0] *= (float)speed;
 		velocity[1] *= (float)speed;
 		velocity[2]  = (float)((float)speed * z);
 		for (j = 0; j < 3; ++j)
+		{
+#ifdef _WIN32
 			position[j] = (float)(origin[j] + ((double)(rand() & 32767) * (double)(1.0f / 32767.0f) * 4.0 + 2.0) * dir[j]);
+#else
+			position[j] = (float)(((long double)(rand() & 32767) * (4.0f / 32767.0f) + 2.0L) * dir[j] + origin[j]);
+#endif
+		}
 		CG_TCEParticleBulletDebris(position, velocity, rand() % 300 + 300);
 	}
 }
@@ -5518,6 +5538,7 @@ void CG_AddBulletParticles(vec3_t origin, vec3_t dir, int speed, int duration, i
 /* Windows30077330 / Linux CG_EliteAddBulletParticles000c3042. */
 void CG_EliteAddBulletParticles(vec3_t origin, vec3_t dir, int speed, int duration, int count, float randScale)
 {
+#ifdef _WIN32
 	int i, j;
 	for (i = 0; i < count; ++i)
 	{
@@ -5547,24 +5568,93 @@ void CG_EliteAddBulletParticles(vec3_t origin, vec3_t dir, int speed, int durati
 		randomValue = (double)(rand() & 32767) * (1.0f / 32767.0f);
 		CG_ParticleBulletDebris(position, velocity, (int)((randomValue + 1.0f) * (float)duration * 0.5f));
 	}
+#else
+	/* Linux c3042 retains scalar expressions until their native stores. */
+	int i, axis;
+	for (i = 0; i < count; ++i)
+	{
+		vec3_t velocity, position;
+		long double randomValue;
+		for (axis = 0; axis < 3; ++axis)
+		{
+			randomValue = (long double)(rand() & 32767) * (1.0f / 32767.0f) - 0.5L;
+			velocity[axis] = (float)(randomValue + randomValue);
+		}
+		VectorNormalize(velocity);
+		for (axis = 0; axis < 3; ++axis)
+		{
+			velocity[axis] = (float)((long double)velocity[axis] * randScale + dir[axis]);
+		}
+		for (axis = 0; axis < 3; ++axis)
+		{
+			randomValue = (long double)(rand() & 32767) * (1.0f / 32767.0f);
+			velocity[axis] = (float)((randomValue + 2.0L) * (float)speed * velocity[axis]);
+		}
+		VectorCopy(origin, position);
+		randomValue = (long double)(rand() & 32767) * (1.0f / 32767.0f);
+		CG_ParticleBulletDebris(position, velocity,
+		                       TCE_TruncateNativeInteger((randomValue + 1.0L) * (float)duration * 0.5L));
+	}
+#endif
 }
+
+#ifndef _WIN32
+/* Linux c325c is exported but has no internal caller in the original module. */
+void CG_AddEliteSparks(vec3_t origin, int count)
+{
+	int i, axis;
+	for (i = 0; i < count; ++i)
+	{
+		localEntity_t *le = CG_AllocLocalEntity();
+		le->leType = LE_FUSE_SPARK;
+		le->startTime = cg.time;
+		le->endTime = TCE_AddInt32(cg.time, 500);
+		le->lastTrailTime = cg.time;
+		VectorCopy(origin, le->refEntity.origin);
+		le->pos.trType = TR_GRAVITY_FLOAT;
+		VectorCopy(origin, le->pos.trBase);
+		for (axis = 0; axis < 3; ++axis)
+		{
+			long double value = (long double)(rand() & 32767) * (1.0f / 32767.0f) - 0.5L;
+			le->pos.trDelta[axis] = (float)(value + value);
+		}
+		VectorNormalize(le->pos.trDelta);
+		VectorScale(le->pos.trDelta, 50.0f, le->pos.trDelta);
+		le->pos.trTime = cg.time;
+	}
+}
+#endif
 
 void CG_AddDirtBulletParticles(vec3_t origin, vec3_t dir, int speed, int duration, int count, float randScale, float width, float height, float alpha, qhandle_t shader)
 {
 	vec3_t velocity, pos, color;
 	int    i;
+#ifdef _WIN32
 	float  randomValue;
+#endif
 	TCE_CG_LightForParticleSimple(TCE_CG_MapLightGrid(), origin, color);
 	VectorSet(velocity, 0, 0, (float)speed);
 	VectorCopy(origin, pos);
 	CG_ParticleDirtBulletDebris_Core(pos, velocity, duration, width, height, alpha, color, shader);
 	for (i = 0; i < count; ++i)
 	{
+#ifdef _WIN32
 		randomValue = (float)(rand() & 32767) * (1.0f / 32767.0f) - 0.5f;
 		velocity[0] = (randomValue + randomValue) * dir[0] * randScale * (float)speed;
 		randomValue = (float)(rand() & 32767) * (1.0f / 32767.0f) - 0.5f;
 		velocity[1] = (randomValue + randomValue) * dir[1] * randScale * (float)speed;
 		velocity[2] = (float)(rand() & 32767) * (1.0f / 32767.0f) * (float)speed * dir[2];
+#else
+		/* Native x/y keep the exact integer speed in double storage, while z
+		 * reloads the float speed used by the initial vertical particle. */
+		int axis;
+		for (axis = 0; axis < 2; ++axis)
+		{
+			long double randomValue = (long double)(rand() & 32767) * (1.0f / 32767.0f) - 0.5L;
+			velocity[axis] = (float)((randomValue + randomValue) * dir[axis] * (double)speed * randScale);
+		}
+		velocity[2] = (float)((long double)(rand() & 32767) * dir[2] * (float)speed * (1.0f / 32767.0f));
+#endif
 		CG_ParticleDirtBulletDebris_Core(pos, velocity, duration + rand() % (duration >> 1),
 		                                 width, height, alpha, color, shader);
 	}
@@ -5577,6 +5667,7 @@ CG_AddDebris
 */
 void CG_AddDebris(vec3_t origin, vec3_t dir, int speed, int duration, int count)
 {
+#ifdef _WIN32
 	int i, j, timeAdd;
 	for (i = 0; i < count; ++i)
 	{
@@ -5613,6 +5704,50 @@ void CG_AddDebris(vec3_t origin, vec3_t dir, int speed, int duration, int count)
 		le->effectWidth  = (float)(((double)(rand() & 32767) * (1.0f / 32767.0f) + 1.0) * 5.0f);
 		le->effectFlags |= 1;
 	}
+#else
+	/* Linux c4268 uses exact integer speed and a stored float time offset. */
+	int i, axis;
+	for (i = 0; i < count; ++i)
+	{
+		localEntity_t *le = CG_AllocLocalEntity();
+		vec3_t unitvel, velocity;
+		long double randomValue;
+		int timeAdd;
+		for (axis = 0; axis < 2; ++axis)
+		{
+			randomValue = (long double)(rand() & 32767) * (1.0f / 32767.0f) - 0.5L;
+			unitvel[axis] = (float)((randomValue + randomValue) * (double)0.9 + dir[axis]);
+		}
+		randomValue = (long double)(rand() & 32767) * (1.0f / 32767.0f);
+		unitvel[2] = (float)(fabs(dir[2]) > 0.5 ?
+		                         (randomValue * (double)0.8 + (double)0.2) * dir[2] :
+		                         randomValue * (double)0.6);
+		for (axis = 0; axis < 3; ++axis)
+		{
+			randomValue = (long double)(rand() & 32767) * (1.0f / 32767.0f) - 0.5L;
+			velocity[axis] = (float)(((randomValue + randomValue) * (double)speed * 0.5L +
+			                          (double)speed) * unitvel[axis]);
+		}
+		le->leType = LE_DEBRIS;
+		le->startTime = cg.time;
+		randomValue = (long double)(rand() & 32767) * (1.0f / 32767.0f) - 0.5L;
+		le->endTime = TCE_AddInt32(TCE_AddInt32(le->startTime, duration),
+		                         TCE_TruncateNativeInteger((randomValue + randomValue) * (float)duration * (double)0.8));
+		le->lastTrailTime = cg.time;
+		VectorCopy(origin, le->refEntity.origin);
+		AxisCopy(axisDefault, le->refEntity.axis);
+		le->pos.trType = (trType_t)7;
+		VectorCopy(origin, le->pos.trBase);
+		VectorCopy(velocity, le->pos.trDelta);
+		le->pos.trTime = cg.time;
+		timeAdd = TCE_TruncateNativeInteger((float)((long double)(rand() & 32767) *
+		                                           (1.0f / 32767.0f) * 40.0f + 10.0f));
+		TCE_BG_EvaluateTrajectory(&le->pos, TCE_AddInt32(cg.time, timeAdd), le->pos.trBase, qfalse, -1, 1.0f);
+		le->bounceFactor = 0.5f;
+		le->effectWidth = (float)((long double)(rand() & 32767) * (5.0f / 32767.0f) + 5.0f);
+		le->effectFlags |= 1;
+	}
+#endif
 }
 // done.
 

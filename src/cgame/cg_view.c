@@ -270,12 +270,23 @@ void CG_CalcVrect(void)
 	{
 		float height = cg_aspectMode.integer == 1 ? 83.33333587646484f :
 		               cg_aspectMode.integer == 2 ? 100.f : 75.f;
+#if defined(__linux__)
+		long double scaledHeight = 1.0L / ((long double)cgs.glconfig.vidHeight * 640.0L);
+		scaledHeight *= (long double)cgs.glconfig.vidWidth * 480.0L;
+		scaledHeight *= height;
+		if (!(scaledHeight <= 100.0L))
+		{
+			scaledHeight = 100.0L;
+		}
+		CG_Letterbox(100, (float)scaledHeight, qtrue);
+#else
 		height = ((float)cgs.glconfig.vidWidth * 480.f / ((float)cgs.glconfig.vidHeight * 640.f)) * height;
 		if (height > 100.f)
 		{
 			height = 100.f;
 		}
 		CG_Letterbox(100, height, qtrue);
+#endif
 	}
 }
 

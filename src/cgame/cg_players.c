@@ -1728,7 +1728,7 @@ Float sprites over the player's head
 static void CG_PlayerFloatSpriteDepthHack(centity_t *cent, qhandle_t shader, int height)
 {
 	refEntity_t ent;
-	if (cg_drawFriend.integer < 2 || VectorDistance(cent->lerpOrigin, cg.refdef_current->vieworg) > 256.f)
+	if (cg_drawFriend.integer < 2 || Distance(cent->lerpOrigin, cg.refdef_current->vieworg) > 256.f)
 	{
 		CG_PlayerFloatSprite(cent, shader, height);
 		return;

@@ -1,6 +1,7 @@
 #include "cg_local.h"
 #include "tce_smoke_grenade.h"
 #include "tce_flash.h"
+#include "../game/tce_numeric.h"
 
 tceFlashState_t tceFlash;
 
@@ -148,7 +149,11 @@ void TCE_CG_DrawFlashBang(void)
 	{
 		remaining = 3000;
 	}
+#if defined(__linux__)
+	color[3] = (float)((1.0L / 3000.0L) * remaining);
+#else
 	color[3] = remaining * (1.0f / 3000.0f);
+#endif
 	if (color[3] < 0)
 	{
 		color[3] = 0;
@@ -164,7 +169,11 @@ void TCE_CG_DrawFlashBang(void)
 void TCE_CG_UpdateFlashRinging(void)
 {
 	int    remaining = tceFlash.deafUntil - cg.time, volume;
+#if defined(__linux__)
+	long double fade;
+#else
 	double fade;
+#endif
 	tceFlash.deafness = 0;
 	if (!FlashCanRender() || remaining <= 0)
 	{
@@ -176,9 +185,15 @@ void TCE_CG_UpdateFlashRinging(void)
 	}
 	else
 	{
+#if defined(__linux__)
+		fade              = (1.0L / 6000.0L) * remaining;
+		tceFlash.deafness = (float)sqrtl(sqrtl(fade));
+		volume            = TCE_TruncateNativeInteger((fade * fade) * 255.0L);
+#else
 		fade              = (double)remaining * (1.0f / 6000.0f);
 		tceFlash.deafness = (float)sqrt(sqrt(fade));
 		volume            = (int)(fade * fade * 255);
+#endif
 	}
 	trap_S_AddLoopingSound(cg.refdef.vieworg, vec3_origin, cgs.media.tceDeafBeep, volume, 0);
 }
