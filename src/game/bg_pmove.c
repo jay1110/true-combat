@@ -2306,6 +2306,55 @@ static void PM_FlyMove(void)
 	PM_Accelerate(wishdir, wishspeed, pm_flyaccelerate);
 	PM_StepSlideMove(qfalse);
 }
+#elif defined(__linux__) && !defined(Q3_VM)
+static void PM_FlyMove(void)
+{
+	vec3_t         wishvel, wishdir, push;
+	long double    scale, speed, length, amount;
+	volatile float storedSpeed;
+	float          accelerate;
+	int            i;
+
+	PM_Friction();
+	scale = PM_CmdScale(&pm->cmd);
+	if (scale == 0.0L || scale != scale)
+	{
+		VectorClear(wishvel);
+	}
+	else
+	{
+		for (i = 0; i < 3; ++i)
+		{
+			long double right = (long double)pm->cmd.rightmove * scale * pml.right[i];
+			long double forward = scale * pml.forward[i] * pm->cmd.forwardmove;
+
+			wishvel[i] = (float)(right + forward);
+		}
+		wishvel[2] = (float)((long double)pm->cmd.upmove * scale + wishvel[2]);
+	}
+	VectorCopy(wishvel, wishdir);
+	speed = TCE_VectorNormalizeValue(wishdir);
+	accelerate = pm_flyaccelerate;
+	/* The inlined ELF acceleration retains each desired component until
+	 * subtracting velocity, then stores the push vector before normalization. */
+	for (i = 0; i < 3; ++i)
+	{
+		push[i] = (float)((long double)wishdir[i] * speed - pm->ps->velocity[i]);
+	}
+	storedSpeed = (float)speed;
+	length = TCE_VectorNormalizeValue(push);
+	amount = (long double)accelerate * pml.frametime * storedSpeed;
+	if (amount > length)
+	{
+		amount = length;
+	}
+	for (i = 0; i < 3; ++i)
+	{
+		pm->ps->velocity[i] = (float)((long double)push[i] * amount + pm->ps->velocity[i]);
+	}
+	PM_StepSlideMove(qfalse);
+}
+
 #else
 static void PM_FlyMove(void)
 {
@@ -9065,7 +9114,9 @@ static qboolean PM_ClimbSlideMove(int unused, const vec3_t normal, qboolean wasC
 	volatile float below, rise;
 	long double    belowValue, height;
 	int            axis, attempt;
-#if !defined(__linux__)
+#if defined(__linux__)
+	long double clearanceRise;
+#else
 	int stamina;
 #endif
 	qboolean nearGround;
@@ -9101,12 +9152,24 @@ static qboolean PM_ClimbSlideMove(int unused, const vec3_t normal, qboolean wasC
 
 	for (attempt = 0; attempt < 2; ++attempt)
 	{
+#if defined(__linux__)
+		clearanceRise = rise;
+		if (attempt)
+		{
+			/* ELF stores the reduced rise but retains it for this position. */
+			clearanceRise = ((long double)rise - 18.0f) * 0.5f + 18.0f;
+			rise = (float)clearanceRise;
+		}
+		memcpy(point, origin, sizeof(point));
+		point[2] = (float)(clearanceRise + origin[2]);
+#else
 		if (attempt)
 		{
 			rise = (float)(((long double)rise - 18.0f) * 0.5f + 18.0f);
 		}
 		memcpy(point, origin, sizeof(point));
-		point[2]     = (float)((long double)origin[2] + rise);
+		point[2] = (float)((long double)origin[2] + rise);
+#endif
 		direction[0] = -normal[0];
 		direction[1] = -normal[1];
 		direction[2] = 0.0f;

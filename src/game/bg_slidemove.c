@@ -22,9 +22,19 @@ Returns qtrue if the velocity was clipped in some way
 */
 #define MAX_CLIP_PLANES 5
 /* TC:E normal collision solver: four bumps, ground-extension handling and
- * direct body traces. Explicit held values/float stores follow the Windows
+ * direct body traces. Explicit held values/float stores follow each native
  * original; engine ABI and compiler FPU state remain separately tracked. */
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(__linux__) && !defined(Q3_VM)
+/* ELF collision tests retain Y + X before adding Z. */
+static long double PM_SlideDotProductYXZ(const vec3_t left, const vec3_t right)
+{
+	long double value = (long double)left[1] * right[1];
+	value += (long double)left[0] * right[0];
+	value += (long double)left[2] * right[2];
+	return value;
+}
+#endif
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 typedef char slide834TraceLayout[(sizeof(trace_t) == 56 && offsetof(trace_t, allsolid) == 0 &&
                                   offsetof(trace_t, startsolid) == 4 && offsetof(trace_t, fraction) == 8 &&
                                   offsetof(trace_t, endpos) == 12 && offsetof(trace_t, plane) + offsetof(cplane_t, normal) == 24 &&
@@ -41,10 +51,21 @@ qboolean PM_SlideMove(qboolean gravity)
 	VectorCopy(pm->ps->velocity, primalVelocity);
 	if (gravity || pml.tceGroundExtension)
 	{
+#if defined(__linux__)
+		long double fallingVelocity;
+#endif
 		VectorCopy(pm->ps->velocity, endVelocity);
+#if defined(__linux__)
+		/* ELF averages with the held result, then reloads its float snapshot. */
+		fallingVelocity = (long double)endVelocity[2] -
+		                  (long double)pm->ps->gravity * pml.frametime;
+		endVelocity[2] = (float)fallingVelocity;
+		pm->ps->velocity[2] = (float)((fallingVelocity + pm->ps->velocity[2]) * 0.5);
+#else
 		endVelocity[2] = (float)((long double)endVelocity[2] -
 		                         (long double)pm->ps->gravity * pml.frametime);
 		pm->ps->velocity[2] = (float)(((long double)endVelocity[2] + pm->ps->velocity[2]) * 0.5);
+#endif
 		primalVelocity[2]   = endVelocity[2];
 		if (gravity && pml.groundPlane)
 		{
@@ -93,9 +114,13 @@ qboolean PM_SlideMove(qboolean gravity)
 		}
 		for (i = 0; i < numplanes; ++i)
 		{
+#if defined(__linux__)
+			dot = PM_SlideDotProductYXZ(trace.plane.normal, planes[i]);
+#else
 			dot  = (long double)trace.plane.normal[2] * planes[i][2];
 			dot += (long double)trace.plane.normal[0] * planes[i][0];
 			dot += (long double)trace.plane.normal[1] * planes[i][1];
+#endif
 			if (dot > (long double)0.99)
 			{
 				for (axis = 0; axis < 3; ++axis)
@@ -113,9 +138,13 @@ qboolean PM_SlideMove(qboolean gravity)
 		++numplanes;
 		for (i = 0; i < numplanes; ++i)
 		{
+#if defined(__linux__)
+			into = PM_SlideDotProductYXZ(planes[i], pm->ps->velocity);
+#else
 			into  = (long double)planes[i][0] * pm->ps->velocity[0];
 			into += (long double)planes[i][2] * pm->ps->velocity[2];
 			into += (long double)planes[i][1] * pm->ps->velocity[1];
+#endif
 			if (into >= (long double)0.1)
 			{
 				continue;
@@ -132,34 +161,52 @@ qboolean PM_SlideMove(qboolean gravity)
 				{
 					continue;
 				}
+#if defined(__linux__)
+				dot = PM_SlideDotProductYXZ(clipVelocity, planes[j]);
+#else
 				dot  = (long double)clipVelocity[2] * planes[j][2];
 				dot += (long double)clipVelocity[1] * planes[j][1];
 				dot += (long double)clipVelocity[0] * planes[j][0];
+#endif
 				if (dot >= (long double)0.1)
 				{
 					continue;
 				}
 				PM_ClipVelocity(clipVelocity, planes[j], clipVelocity, OVERCLIP);
 				PM_ClipVelocity(endClipVelocity, planes[j], endClipVelocity, OVERCLIP);
+#if defined(__linux__)
+				dot = PM_SlideDotProductYXZ(clipVelocity, planes[i]);
+#else
 				dot  = (long double)clipVelocity[2] * planes[i][2];
 				dot += (long double)clipVelocity[1] * planes[i][1];
 				dot += (long double)clipVelocity[0] * planes[i][0];
+#endif
 				if (dot >= 0.0L)
 				{
 					continue;
 				}
 				CrossProduct(planes[i], planes[j], direction);
 				(void)TCE_VectorNormalizeValue(direction);
+#if defined(__linux__)
+				distance = PM_SlideDotProductYXZ(direction, pm->ps->velocity);
+#else
 				distance  = (long double)direction[2] * pm->ps->velocity[2];
 				distance += (long double)direction[1] * pm->ps->velocity[1];
 				distance += (long double)direction[0] * pm->ps->velocity[0];
+#endif
 				for (axis = 0; axis < 3; ++axis)
 					clipVelocity[axis] = (float)((long double)direction[axis] * distance);
 				CrossProduct(planes[i], planes[j], direction);
 				(void)TCE_VectorNormalizeValue(direction);
+#if defined(__linux__)
+				distance  = (long double)direction[0] * endVelocity[0];
+				distance += (long double)direction[1] * endVelocity[1];
+				distance += (long double)direction[2] * endVelocity[2];
+#else
 				distance  = (long double)direction[2] * endVelocity[2];
 				distance += (long double)direction[1] * endVelocity[1];
 				distance += (long double)direction[0] * endVelocity[0];
+#endif
 				for (axis = 0; axis < 3; ++axis)
 					endClipVelocity[axis] = (float)((long double)direction[axis] * distance);
 				for (k = 0; k < numplanes; ++k)
@@ -168,9 +215,13 @@ qboolean PM_SlideMove(qboolean gravity)
 					{
 						continue;
 					}
+#if defined(__linux__)
+					dot = PM_SlideDotProductYXZ(clipVelocity, planes[k]);
+#else
 					dot  = (long double)clipVelocity[2] * planes[k][2];
 					dot += (long double)clipVelocity[0] * planes[k][0];
 					dot += (long double)clipVelocity[1] * planes[k][1];
+#endif
 					if (dot >= (long double)0.1)
 					{
 						continue;
@@ -786,7 +837,7 @@ void PM_StepSlideMove(qboolean gravity)
 
 #endif
 
-#if !defined(_MSC_VER) || !defined(_M_IX86)
+#if (!defined(_MSC_VER) || !defined(_M_IX86)) && !(defined(__linux__) && !defined(Q3_VM))
 /* TC:E300141c0: body trace plus independent rear-leg support probe.
  * Original repeats this probe on a fraction==1 move; do not coalesce it. */
 static qboolean PM_TCEProneProbe(const vec3_t bodyEnd, qboolean firstProbe,
@@ -827,16 +878,16 @@ static qboolean PM_TCEProneProbe(const vec3_t bodyEnd, qboolean firstProbe,
 	return qtrue;
 }
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
-/* Windows prone solver. Keep the existing defined no-gravity end velocity;
- * the original reads uninitialized stack data on that path, so this remains
- * an explicit fidelity limit rather than a claim of complete native parity. */
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+/* Native prone solver. Keep a defined no-gravity auxiliary end velocity;
+ * the original leaves it unset. Its final restore is guarded by gravity,
+ * and no collision decision depends on this auxiliary projection. */
 typedef char slideTraceLayout829[(sizeof(trace_t) == 56 && offsetof(trace_t, allsolid) == 0 &&
                                   offsetof(trace_t, startsolid) == 4 && offsetof(trace_t, fraction) == 8 &&
                                   offsetof(trace_t, endpos) == 12 && offsetof(trace_t, plane) + offsetof(cplane_t, normal) == 24 &&
                                   offsetof(trace_t, entityNum) == 52) ? 1 : -1];
 
-static qboolean PM_ProneLegProbeWindows(const vec3_t bodyEnd, qboolean advance,
+static qboolean PM_ProneLegProbeNative(const vec3_t bodyEnd, qboolean advance,
                                         const vec3_t mins, const vec3_t maxs, float scale)
 {
 	vec3_t   start, end;
@@ -844,12 +895,23 @@ static qboolean PM_ProneLegProbeWindows(const vec3_t bodyEnd, qboolean advance,
 	unsigned timeBits;
 	int      reversedTime;
 
+#if defined(__linux__)
+	long double raisedZ = (long double)bodyEnd[2] + 24.0f;
+
+	start[0] = (float)((long double)pml.forward[0] * scale * -32.0f + bodyEnd[0]);
+	start[1] = (float)((long double)pml.forward[1] * scale * -32.0f + bodyEnd[1]);
+	start[2] = (float)raisedZ;
+	end[0] = start[0];
+	end[1] = start[1];
+	end[2] = (float)(raisedZ - 21.6f - 24.0f);
+#else
 	start[0] = (float)((long double)bodyEnd[0] - (long double)pml.forward[0] * scale * 32.0f);
 	start[1] = (float)((long double)bodyEnd[1] - (long double)pml.forward[1] * scale * 32.0f);
 	start[2] = (float)((long double)bodyEnd[2] + 24.0f);
 	end[0]   = start[0];
 	end[1]   = start[1];
 	end[2]   = (float)((long double)start[2] - 21.6f - 24.0f);
+#endif
 	pm->trace(&trace, start, mins, maxs, end, pm->ps->clientNum, pm->tracemask);
 	if (trace.startsolid)
 	{
@@ -891,8 +953,7 @@ static qboolean PM_ProneLegProbeWindows(const vec3_t bodyEnd, qboolean advance,
 
 qboolean PM_SlideMoveProne(qboolean gravity)
 {
-	vec3_t         legsMins = { -13.5f, -13.5f, -24.0f };
-	vec3_t         legsMaxs = { 13.5f, 13.5f, -14.4f };
+	vec3_t         legsMins, legsMaxs;
 	vec3_t         primalVelocity, endVelocity = { 0.0f, 0.0f, 0.0f };
 	vec3_t         planes[MAX_CLIP_PLANES], end, clipVelocity, endClipVelocity, direction;
 	trace_t        trace;
@@ -901,6 +962,8 @@ qboolean PM_SlideMoveProne(qboolean gravity)
 	long double    dot, into, distance;
 	int            bumpcount, numplanes, i, j, k, axis;
 
+	VectorCopy(playerlegsProneMins, legsMins);
+	VectorCopy(playerlegsProneMaxs, legsMaxs);
 	if (pm->ps->stats[STAT_TCE_FLAGS] & 0x200)
 	{
 		legsScale = 1.25f;
@@ -916,10 +979,21 @@ qboolean PM_SlideMoveProne(qboolean gravity)
 	VectorCopy(pm->ps->velocity, primalVelocity);
 	if (gravity)
 	{
+#if defined(__linux__)
+		long double fallingVelocity;
+#endif
 		VectorCopy(pm->ps->velocity, endVelocity);
+#if defined(__linux__)
+		/* ELF averages with the held result, then reloads its float snapshot. */
+		fallingVelocity = (long double)endVelocity[2] -
+		                  (long double)pm->ps->gravity * pml.frametime;
+		endVelocity[2] = (float)fallingVelocity;
+		pm->ps->velocity[2] = (float)((fallingVelocity + pm->ps->velocity[2]) * 0.5);
+#else
 		endVelocity[2] = (float)((long double)endVelocity[2] -
 		                         (long double)pm->ps->gravity * pml.frametime);
 		pm->ps->velocity[2] = (float)(((long double)endVelocity[2] + pm->ps->velocity[2]) * 0.5);
+#endif
 		primalVelocity[2]   = endVelocity[2];
 		if (pml.groundPlane)
 		{
@@ -949,15 +1023,20 @@ qboolean PM_SlideMoveProne(qboolean gravity)
 			pm->pmext->proneGroundTime = pm->cmd.serverTime;
 			return qtrue;
 		}
+#if defined(__linux__)
+		/* ELF compares zero against the fraction: unordered also probes. */
+		if (!(trace.fraction <= 0.0f) &&
+#else
 		if (trace.fraction > 0.0f &&
-		    !PM_ProneLegProbeWindows(trace.endpos, qtrue, legsMins, legsMaxs, legsScale))
+#endif
+		    !PM_ProneLegProbeNative(trace.endpos, qtrue, legsMins, legsMaxs, legsScale))
 		{
 			return qtrue;
 		}
 		/* Native C3 repeats the leg probe for equality or unordered fraction. */
 		if (trace.fraction == 1.0f || trace.fraction != trace.fraction)
 		{
-			if (!PM_ProneLegProbeWindows(trace.endpos, qfalse, legsMins, legsMaxs, legsScale))
+			if (!PM_ProneLegProbeNative(trace.endpos, qfalse, legsMins, legsMaxs, legsScale))
 			{
 				return qtrue;
 			}
@@ -975,9 +1054,13 @@ qboolean PM_SlideMoveProne(qboolean gravity)
 		}
 		for (i = 0; i < numplanes; ++i)
 		{
+#if defined(__linux__)
+			dot = PM_SlideDotProductYXZ(trace.plane.normal, planes[i]);
+#else
 			dot  = (long double)trace.plane.normal[2] * planes[i][2];
 			dot += (long double)trace.plane.normal[0] * planes[i][0];
 			dot += (long double)trace.plane.normal[1] * planes[i][1];
+#endif
 			if (dot > (long double)0.99)
 			{
 				for (axis = 0; axis < 3; ++axis)
@@ -995,9 +1078,13 @@ qboolean PM_SlideMoveProne(qboolean gravity)
 		++numplanes;
 		for (i = 0; i < numplanes; ++i)
 		{
+#if defined(__linux__)
+			into = PM_SlideDotProductYXZ(planes[i], pm->ps->velocity);
+#else
 			into  = (long double)planes[i][0] * pm->ps->velocity[0];
 			into += (long double)planes[i][2] * pm->ps->velocity[2];
 			into += (long double)planes[i][1] * pm->ps->velocity[1];
+#endif
 			if (into >= (long double)0.1)
 			{
 				continue;
@@ -1014,34 +1101,52 @@ qboolean PM_SlideMoveProne(qboolean gravity)
 				{
 					continue;
 				}
+#if defined(__linux__)
+				dot = PM_SlideDotProductYXZ(clipVelocity, planes[j]);
+#else
 				dot  = (long double)clipVelocity[2] * planes[j][2];
 				dot += (long double)clipVelocity[1] * planes[j][1];
 				dot += (long double)clipVelocity[0] * planes[j][0];
+#endif
 				if (dot >= (long double)0.1)
 				{
 					continue;
 				}
 				PM_ClipVelocity(clipVelocity, planes[j], clipVelocity, OVERCLIP);
 				PM_ClipVelocity(endClipVelocity, planes[j], endClipVelocity, OVERCLIP);
+#if defined(__linux__)
+				dot = PM_SlideDotProductYXZ(clipVelocity, planes[i]);
+#else
 				dot  = (long double)clipVelocity[2] * planes[i][2];
 				dot += (long double)clipVelocity[1] * planes[i][1];
 				dot += (long double)clipVelocity[0] * planes[i][0];
+#endif
 				if (dot >= 0.0L)
 				{
 					continue;
 				}
 				CrossProduct(planes[i], planes[j], direction);
 				(void)TCE_VectorNormalizeValue(direction);
+#if defined(__linux__)
+				distance = PM_SlideDotProductYXZ(direction, pm->ps->velocity);
+#else
 				distance  = (long double)direction[2] * pm->ps->velocity[2];
 				distance += (long double)direction[1] * pm->ps->velocity[1];
 				distance += (long double)direction[0] * pm->ps->velocity[0];
+#endif
 				for (axis = 0; axis < 3; ++axis)
 					clipVelocity[axis] = (float)((long double)direction[axis] * distance);
 				CrossProduct(planes[i], planes[j], direction);
 				(void)TCE_VectorNormalizeValue(direction);
+#if defined(__linux__)
+				distance  = (long double)direction[0] * endVelocity[0];
+				distance += (long double)direction[1] * endVelocity[1];
+				distance += (long double)direction[2] * endVelocity[2];
+#else
 				distance  = (long double)direction[2] * endVelocity[2];
 				distance += (long double)direction[1] * endVelocity[1];
 				distance += (long double)direction[0] * endVelocity[0];
+#endif
 				for (axis = 0; axis < 3; ++axis)
 					endClipVelocity[axis] = (float)((long double)direction[axis] * distance);
 				for (k = 0; k < numplanes; ++k)
@@ -1050,9 +1155,13 @@ qboolean PM_SlideMoveProne(qboolean gravity)
 					{
 						continue;
 					}
+#if defined(__linux__)
+					dot = PM_SlideDotProductYXZ(clipVelocity, planes[k]);
+#else
 					dot  = (long double)clipVelocity[2] * planes[k][2];
 					dot += (long double)clipVelocity[0] * planes[k][0];
 					dot += (long double)clipVelocity[1] * planes[k][1];
+#endif
 					if (dot >= (long double)0.1)
 					{
 						continue;
