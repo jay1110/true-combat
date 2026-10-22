@@ -2,6 +2,7 @@
 // cg_particles.c
 
 #include "cg_local.h"
+#include "../game/tce_numeric.h"
 
 #define MUSTARD     1
 #define BLOODRED    2
@@ -1477,7 +1478,17 @@ void CG_ParticleSmoke(qhandle_t pshader, centity_t *cent)
 		p->vel[2] *= -1;
 	}
 
+#ifdef _WIN32
 	p->roll = 8 + (crandom() * 4);
+#else
+	/* Linux 92845..92888 keeps both doublings until signed truncation. */
+	{
+		long double randomValue = (long double)(rand() & 32767) * (1.0f / 32767.0f) - 0.5L;
+		randomValue += randomValue;
+		randomValue += randomValue;
+		p->roll = TCE_TruncateNativeInteger(randomValue + 4.0L);
+	}
+#endif
 }
 
 
