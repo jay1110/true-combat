@@ -3248,7 +3248,12 @@ static long double TCE_SliderThumbValue(itemDef_t *item)
 	{
 		value = minimum;
 	}
+#if defined(__linux__)
+	/* ELF keeps the value only for an ordered maximum >= value. */
+	else if (!(value <= (long double)editDef->maxVal))
+#else
 	else if (value > (long double)editDef->maxVal)
+#endif
 	{
 		value = (long double)editDef->maxVal;
 	}
@@ -3275,10 +3280,18 @@ static long double TCE_SliderThumbValue(itemDef_t *item)
 #endif
 }
 
+#if defined(__linux__)
+long double Item_Slider_ThumbPosition(itemDef_t *item)
+{
+	/* The original returns the final x87 sum without a Float spill. */
+	return TCE_SliderThumbValue(item);
+}
+#else
 float Item_Slider_ThumbPosition(itemDef_t *item)
 {
 	return (float)TCE_SliderThumbValue(item);
 }
+#endif
 #else
 float Item_Slider_ThumbPosition(itemDef_t *item)
 {

@@ -4420,6 +4420,37 @@ FireWeapon
  * this path but is not the loop bound. Client event161 renders wall impacts. */
 void ShotgunPattern(vec3_t origin, vec3_t direction, int seed, gentity_t *ent)
 {
+#if defined(__linux__)
+	vec3_t axis, side, vertical, end;
+	int i, j, damage;
+	VectorNormalize2(direction, axis);
+	PerpendicularVector(side, axis);
+	CrossProduct(axis, side, vertical);
+	damage = TCE_TruncateNativeInteger(
+	    (long double)weaponDef[ent->client->ps.weapon].unknown_12c * (1.0f / 9.0f));
+	if (g_antilag.integer && ent->client && !(ent->r.svFlags & SVF_BOT))
+	{
+		G_TimeShiftAllClients(ent, qtrue);
+	}
+	for (i = 0; i < 9; ++i)
+	{
+		float radius = (float)sqrtl((long double)Q_random(&seed));
+		float angle = (float)((long double)Q_crandom(&seed) * 3.141);
+		float horizontal = (float)(cosl((long double)angle) * radius * 115.0f);
+		float elevation = (float)((long double)radius * sinl((long double)angle) * 115.0f);
+		for (j = 0; j < 3; ++j)
+		{
+			end[j] = (float)((((long double)axis[j] * 8192.0f + origin[j]) +
+			                  (long double)side[j] * horizontal) + (long double)vertical[j] * elevation);
+		}
+		Bullet_Fire_Extended(ent, ent, muzzleTrace, end, 0, damage,
+		                     weaponDef[ent->client->ps.weapon].unknown_134, 0, 0, 1, 1, 8, seed, 1);
+	}
+	if (g_antilag.integer && ent->client && !(ent->r.svFlags & SVF_BOT))
+	{
+		G_UnTimeShiftAllClients(ent);
+	}
+#else
 	vec3_t axis, side, vertical, end;
 	int    i;
 	int    damage = (int)(weaponDef[ent->client->ps.weapon].unknown_12c * (double)(1.0f / 9.0f));
@@ -4449,6 +4480,7 @@ void ShotgunPattern(vec3_t origin, vec3_t direction, int seed, gentity_t *ent)
 	{
 		G_UnTimeShiftAllClients(ent);
 	}
+#endif
 }
 
 /* Windows 2009f070. The event transports the snapped direction and low seed
@@ -4458,8 +4490,19 @@ void Weapon_Shotgun_Fire(gentity_t *ent)
 	gentity_t *event = G_TempEntity(muzzleTrace, EV_TCE_SHOTGUN);
 	vec3_t    end;
 	Bullet_Endpos(ent, 0, &end);
+#if defined(__linux__)
+	{
+		int axis;
+		for (axis = 0; axis < 3; ++axis)
+		{
+			event->s.origin2[axis] = (float)TCE_TruncateNativeInteger(
+			    (long double)end[axis] - muzzleTrace[axis]);
+		}
+	}
+#else
 	VectorSubtract(end, muzzleTrace, event->s.origin2);
 	SnapVector(event->s.origin2);
+#endif
 	event->s.eventParm      = ent->client->ps.stats[STAT_TCE_SHOT_SEED] & 255;
 	event->s.otherEntityNum = ent->s.number;
 	ShotgunPattern(event->s.pos.trBase, event->s.origin2, event->s.eventParm, ent);
