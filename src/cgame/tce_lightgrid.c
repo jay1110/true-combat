@@ -155,21 +155,42 @@ void TCE_CG_LightForPoint(const tce_lightGrid_t *grid, const vec3_t point,
 	VectorNormalize2(normalFloat, direction);
 }
 
-/* Windows 30068160; deliberately only an upper clamp. */
+/* Windows 30068160 / Linux 000b4b96; deliberately only an upper clamp. */
 void TCE_CG_LightForParticleSimple(const tce_lightGrid_t *grid,
                                    const vec3_t point, vec3_t color)
 {
-	vec3_t directed, direction;
-	int    i;
+	vec3_t      directed, direction;
+	const float lightUnit = 1.0f / 255.0f;
+	long double red, green, blue;
+
 	TCE_CG_LightForPoint(grid, point, color, directed, direction);
-	for (i = 0; i < 3; ++i)
-	{
-		color[i] = (float)(((double)color[i] + directed[i]) * (1.0f / 255.0f));
-		if (color[i] >= 1.0f)
-		{
-			color[i] = 1.0f;
-		}
-	}
+#if defined(_WIN32)
+	red      = ((long double)directed[0] + color[0]) * lightUnit;
+	color[0] = (float)red;
+	green    = ((long double)directed[1] + color[1]) * lightUnit;
+	color[1] = (float)green;
+	blue     = ((long double)directed[2] + color[2]) * lightUnit;
+	color[2] = (float)blue;
+	/* Windows reloads red/blue for the clamp, but retains green. */
+	red  = (float)red;
+	blue = (float)blue;
+#else
+	green    = ((long double)directed[1] + color[1]) * lightUnit;
+	red      = ((long double)directed[0] + color[0]) * lightUnit;
+	blue     = ((long double)directed[2] + color[2]) * lightUnit;
+	color[1] = (float)green;
+	color[0] = (float)red;
+	color[2] = (float)blue;
+	/* Linux retains red, then compares the stored green/blue values. */
+	green = (float)green;
+	blue  = (float)blue;
+#endif
+	if (red >= 1.0L)
+		color[0] = 1.0f;
+	if (green >= 1.0L)
+		color[1] = 1.0f;
+	if (blue >= 1.0L)
+		color[2] = 1.0f;
 }
 
 /* Own directed-light consumer: Windows 30068200 / Linux 000b4c36.

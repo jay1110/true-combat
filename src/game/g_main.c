@@ -2650,6 +2650,7 @@ and team change.
 */
 /* The original Windows CRT partition order matters for tied players:
  * their position decides the armament rating. Modern qsort changes it. */
+#if !defined(__linux__) || defined(Q3_VM)
 static void TCE_SortClientRanks(int *clients, int count)
 {
 	int lo, hi, i, largest, tmp;
@@ -2695,6 +2696,7 @@ static void TCE_SortClientRanks(int *clients, int count)
 	TCE_SortClientRanks(clients, hi);
 	TCE_SortClientRanks(clients + lo, count - lo);
 }
+#endif
 
 void CalculateRanks(void)
 {
@@ -2800,7 +2802,12 @@ void CalculateRanks(void)
 		}
 	}
 
+#if defined(__linux__) && !defined(Q3_VM)
+	/* The Linux original uses its CRT sort; Windows tie order is different. */
+	qsort(level.sortedClients, level.numConnectedClients, sizeof(int), SortRanks);
+#else
 	TCE_SortClientRanks(level.sortedClients, level.numConnectedClients);
+#endif
 
 	// set the rank value for all clients that are connected and not spectators
 	// in team games, rank is just the order of the teams, 0=red, 1=blue, 2=tied

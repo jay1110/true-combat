@@ -8,6 +8,7 @@
 
 #include "g_local.h"
 #include "tce_numeric.h"
+#include "tce_x87_sum.h"
 
 /* TC keeps 51 string slots, including three trailing null pointers. */
 enum { TCE_HINT_STRING_COUNT = 51 };
@@ -1193,7 +1194,7 @@ Reached_BinaryMover
 static int G_TCEReachedDelay(int moverTime, float moverWait)
 {
 #if defined(_MSC_VER) && defined(_M_IX86)
-	return TCE_TruncateNativeInteger((long double)moverTime + (long double)moverWait);
+	return TCE_IntFloatSumLow32(moverTime, moverWait);
 #else
 	return (int)(moverTime + moverWait);
 #endif
@@ -1857,7 +1858,11 @@ void Use_BinaryMover(gentity_t *ent, gentity_t *other, gentity_t *activator)
 
 		if (ent->wait != -1000)
 		{
+#if defined(_MSC_VER) && defined(_M_IX86)
+			ent->nextthink = G_TCEReachedDelay(level.time, ent->wait);
+#else
 			ent->nextthink = level.time + ent->wait;
+#endif
 		}
 		return;
 	}
@@ -1872,7 +1877,11 @@ void Use_BinaryMover(gentity_t *ent, gentity_t *other, gentity_t *activator)
 		}
 		else
 		{
+#if defined(_MSC_VER) && defined(_M_IX86)
+			ent->nextthink = G_TCEReachedDelay(level.time, ent->wait);
+#else
 			ent->nextthink = level.time + ent->wait;
+#endif
 		}
 		return;
 	}
@@ -3289,7 +3298,9 @@ void Reached_Train(gentity_t *ent)
 	gentity_t *next;
 	float     speed;
 	vec3_t    move;
-#if !defined(_MSC_VER) || !defined(_M_IX86)
+#if defined(__linux__) && !defined(Q3_VM)
+	long double trainLength;
+#elif !defined(_MSC_VER) || !defined(_M_IX86)
 	float trainLength;
 #endif
 	int          trainHasWait;
@@ -3354,6 +3365,12 @@ void Reached_Train(gentity_t *ent)
 #if defined(_MSC_VER) && defined(_M_IX86)
 	ent->s.pos.trDuration = TCE_TruncateNativeInteger(
 	    (long double)VectorLength(move) * 1000.0L / speed);
+#elif defined(__linux__) && !defined(Q3_VM)
+	/* The ELF consumes the retained length and multiplies by reciprocal speed
+	 * before its signed32 conversion; there is no intermediate float store. */
+	trainLength = (long double)VectorLength(move);
+	ent->s.pos.trDuration = TCE_TruncateNativeInteger(
+	    trainLength * 1000.0L * (1.0L / speed));
 #else
 	trainLength           = VectorLength(move);
 	ent->s.pos.trDuration = trainLength * 1000 / speed;
@@ -3376,6 +3393,9 @@ void Reached_Train(gentity_t *ent)
 	if (trainHasWait)
 	{
 #if defined(_MSC_VER) && defined(_M_IX86)
+		ent->nextthink = TCE_TruncateNativeInteger(
+		    (long double)next->wait * 1000.0L + level.time);
+#elif defined(__linux__) && !defined(Q3_VM)
 		ent->nextthink = TCE_TruncateNativeInteger(
 		    (long double)next->wait * 1000.0L + level.time);
 #else
@@ -3732,6 +3752,9 @@ void Reached_Train_rotating(gentity_t *ent)
 	int       trainHasWait;
 #if defined(_MSC_VER) && defined(_M_IX86)
 	long double frames;
+#elif defined(__linux__) && !defined(Q3_VM)
+	long double trainLength;
+	float frames;
 #else
 	float trainLength;
 	float frames;
@@ -3788,6 +3811,13 @@ void Reached_Train_rotating(gentity_t *ent)
 		                     : (long double)next->duration * 1000.0L;
 		ent->s.pos.trDuration = TCE_TruncateNativeInteger(duration);
 	}
+#elif defined(__linux__) && !defined(Q3_VM)
+	/* Retain the length provider result until the native signed32 conversion. */
+	trainLength = (long double)VectorLength(move);
+	ent->s.pos.trDuration = TCE_TruncateNativeInteger(
+	    next->duration < 0.0f || next->duration > 0.0f
+	        ? (long double)next->duration * 1000.0L
+	        : trainLength * 1000.0L * (1.0L / speed));
 #else
 	trainLength           = VectorLength(move);
 	ent->s.pos.trDuration = next->duration ? next->duration * 1000 : trainLength * 1000 / speed;
@@ -3838,7 +3868,11 @@ void Reached_Train_rotating(gentity_t *ent)
 	// X
 	if (ent->rotate[2])
 	{
+		#if defined(__linux__) && !defined(Q3_VM)
+		ent->s.apos.trDelta[2] = (float)((1.0L / frames) * ent->rotate[2] * 10.0L);
+#else
 		ent->s.apos.trDelta[2] = (ent->rotate[2] / frames) * 10;
+#endif
 	}
 	else
 	{
@@ -3847,7 +3881,11 @@ void Reached_Train_rotating(gentity_t *ent)
 	// Y
 	if (ent->rotate[0])
 	{
+		#if defined(__linux__) && !defined(Q3_VM)
+		ent->s.apos.trDelta[0] = (float)((1.0L / frames) * ent->rotate[0] * 10.0L);
+#else
 		ent->s.apos.trDelta[0] = (ent->rotate[0] / frames) * 10;
+#endif
 	}
 	else
 	{
@@ -3856,7 +3894,11 @@ void Reached_Train_rotating(gentity_t *ent)
 	// Z
 	if (ent->rotate[1])
 	{
+		#if defined(__linux__) && !defined(Q3_VM)
+		ent->s.apos.trDelta[1] = (float)((1.0L / frames) * ent->rotate[1] * 10.0L);
+#else
 		ent->s.apos.trDelta[1] = (ent->rotate[1] / frames) * 10;
+#endif
 	}
 	else
 	{
@@ -3887,13 +3929,17 @@ void Reached_Train_rotating(gentity_t *ent)
 #endif
 	if (trainHasWait)
 	{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 		ent->nextthink = TCE_TruncateNativeInteger(
 		    (long double)next->wait * 1000.0L + level.time);
 #else
 		ent->nextthink = level.time + next->wait * 1000;
 #endif
-		ent->think        = Think_BeginMoving;
+#if defined(__linux__) && !defined(Q3_VM)
+		ent->think = Think_BeginMoving_rotating;
+#else
+		ent->think = Think_BeginMoving;
+#endif
 		ent->s.pos.trType = TR_STATIONARY;
 	}
 }

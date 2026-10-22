@@ -157,22 +157,22 @@ ammotable_t ammoTableMP[MAX_WEAPONS] =
 	//	MAX				USES	MAX		START	START  RELOAD	FIRE			NEXT	HEAT,	COOL,	MOD,	...
 	//	AMMO			AMT.	CLIP	AMMO	CLIP	TIME	DELAY			SHOT
 	{ 0,   0, 0,   0,  0,   0,    50,           0,    0,    0,   0                        },                                        // WP_NONE					// 0
-	{ 999, 0, 999, 0,  0,   0,    50,           200,  0,    0,   MOD_KNIFE                },                                        // WP_KNIFE					// 1
-	{ 24,  1, 8,   24, 8,   1500, DELAY_PISTOL, 400,  0,    0,   MOD_LUGER                },                                        // WP_LUGER					// 2	// NOTE: also 32 round 'snail' magazine
-	{ 90,  1, 30,  30, 30,  2400, DELAY_LOW,    150,  0,    0,   MOD_MP40                 },                                        // WP_MP40					// 3
-	{ 45,  1, 15,  0,  4,   1000, DELAY_THROW,  1600, 0,    0,   MOD_GRENADE_LAUNCHER     },                                        // WP_GRENADE_LAUNCHER		// 4
+	{ 999, 0, 999, 0,  0,   0,    50,           500,  0,    0,   MOD_KNIFE                },                                        // WP_KNIFE					// 1
+	{ 24,  1, 8,   24, 8,   1500,           50, 150,  0,    0,   MOD_LUGER                },                                        // WP_LUGER					// 2	// NOTE: also 32 round 'snail' magazine
+	{ 90,  1, 30,  30, 30,  2400,        50,     50,  0,    0,   MOD_MP40                 },                                        // WP_MP40					// 3
+	{ 45,  1, 15,  0,  4,   1000,         100,  1600, 0,    0,   MOD_GRENADE_LAUNCHER     },                                        // WP_GRENADE_LAUNCHER		// 4
 	{ 4,   1, 1,   0,  4,   1000, 750,          2000, 0,    0,   MOD_PANZERFAUST          },                                        // WP_PANZERFAUST			// 5	// DHM - Nerve :: updated delay so prediction is correct
-	{ 200, 1, 200, 0,  200, 1000, DELAY_LOW,    50,   0,    0,   MOD_FLAMETHROWER         },                                        // WP_FLAMETHROWER			// 6
-	{ 24,  1, 8,   24, 8,   1500, DELAY_PISTOL, 400,  0,    0,   MOD_COLT                 },                                        // WP_COLT					// 7
-	{ 90,  1, 30,  30, 30,  2400, DELAY_LOW,    150,  0,    0,   MOD_THOMPSON             },                                        // WP_THOMPSON				// 8
-	{ 45,  1, 15,  0,  4,   1000, DELAY_THROW,  1600, 0,    0,   MOD_GRENADE_PINEAPPLE    },                                        // WP_GRENADE_PINEAPPLE		// 9
+	{ 200, 1, 200, 0,  200, 1000,        50,    50,   0,    0,   MOD_FLAMETHROWER         },                                        // WP_FLAMETHROWER			// 6
+	{ 24,  1, 8,   24, 8,   1500,           50, 400,  0,    0,   MOD_COLT                 },                                        // WP_COLT					// 7
+	{ 90,  1, 30,  30, 30,  2400,        50,     75,  0,    0,   MOD_THOMPSON             },                                        // WP_THOMPSON				// 8
+	{ 45,  1, 15,  0,  4,   1000,         100,  1600, 0,    0,   MOD_GRENADE_PINEAPPLE    },                                        // WP_GRENADE_PINEAPPLE		// 9
 
-	{ 96,  1, 32,  32, 32,  3100, DELAY_LOW,    150,  0,    0,   MOD_STEN                 },                                    // WP_STEN					// 10
+	{ 96,  1, 32,  32, 32,  3100,        50,     50,  0,    0,   MOD_STEN                 },                                    // WP_STEN					// 10
 	{ 10,  1, 1,   0,  10,  1500, 50,           1000, 0,    0,   MOD_SYRINGE              },                                        // WP_MEDIC_SYRINGE			// 11
 	{ 1,   0, 1,   0,  0,   3000, 50,           1000, 0,    0,   MOD_AMMO,                },                                        // WP_AMMO					// 12
 	{ 1,   0, 1,   0,  1,   3000, 50,           1000, 0,    0,   MOD_ARTY,                },                                        // WP_ARTY					// 13
-	{ 24,  1, 8,   24, 8,   1500, DELAY_PISTOL, 400,  0,    0,   MOD_SILENCER             },                                        // WP_SILENCER				// 14
-	{ 1,   0, 10,  0,  0,   1000, DELAY_THROW,  1600, 0,    0,   MOD_DYNAMITE             },                                        // WP_DYNAMITE				// 15
+	{ 24,  1, 8,   24, 8,   1500,           50, 400,  0,    0,   MOD_SILENCER             },                                        // WP_SILENCER				// 14
+	{ 1,   0, 10,  0,  0,   1000,         100,  1600, 0,    0,   MOD_DYNAMITE             },                                        // WP_DYNAMITE				// 15
 	{ 999, 0, 999, 0,  0,   0,    50,           0,    0,    0,   0                        },                                        // WP_SMOKETRAIL			// 16
 	{ 999, 0, 999, 0,  0,   0,    50,           0,    0,    0,   0                        },                                        // WP_MAPMORTAR				// 17
 	{ 999, 0, 999, 0,  0,   0,    50,           0,    0,    0,   0                        },                                        // VERYBIGEXPLOSION			// 18
@@ -181,37 +181,37 @@ ammotable_t ammoTableMP[MAX_WEAPONS] =
 	{ 999, 0, 999, 0,  0,   0,    50,           0,    0,    0,   0                        },                                        // WP_BINOCULARS			// 20
 	{ 999, 0, 999, 0,  0,   0,    50,           0,    0,    0,   0                        },                                        // WP_PLIERS				// 21
 	{ 999, 0, 999, 0,  1,   0,    50,           0,    0,    0,   MOD_AIRSTRIKE            },                                        // WP_SMOKE_MARKER			// 22
-	{ 30,  1, 10,  20, 10,  2500, DELAY_LOW,    400,  0,    0,   MOD_KAR98                },                                        // WP_KAR98					// 23		K43
-	{ 24,  1, 8,   16, 8,   1500, DELAY_LOW,    400,  0,    0,   MOD_CARBINE              },                                        // WP_CARBINE				// 24		GARAND
-	{ 24,  1, 8,   16, 8,   1500, DELAY_LOW,    400,  0,    0,   MOD_GARAND               },                                        // WP_GARAND				// 25		GARAND
-	{ 1,   0, 1,   0,  1,   100,  DELAY_LOW,    100,  0,    0,   MOD_LANDMINE             },                                        // WP_LANDMINE				// 26
-	{ 1,   0, 1,   0,  0,   3000, DELAY_LOW,    2000, 0,    0,   MOD_SATCHEL              },                                        // WP_SATCHEL				// 27
+	{ 30,  1, 10,  20, 10,  2500,        50,    400,  0,    0,   MOD_KAR98                },                                        // WP_KAR98					// 23		K43
+	{ 24,  1, 8,   16, 8,   1500,        50,    400,  0,    0,   MOD_CARBINE              },                                        // WP_CARBINE				// 24		GARAND
+	{ 24,  1, 8,   16, 8,   1500,        50,    400,  0,    0,   MOD_GARAND               },                                        // WP_GARAND				// 25		GARAND
+	{ 1,   0, 1,   0,  1,   100,         50,    100,  0,    0,   MOD_LANDMINE             },                                        // WP_LANDMINE				// 26
+	{ 1,   0, 1,   0,  0,   3000,        50,    2000, 0,    0,   MOD_SATCHEL              },                                        // WP_SATCHEL				// 27
 	{ 1,   0, 1,   0,  0,   3000, 722,          2000, 0,    0,   0,                       },                                        // WP_SATCHEL_DET			// 28
 	{ 6,   1, 1,   0,  0,   2000, DELAY_HIGH,   2000, 0,    0,   MOD_TRIPMINE             },                                        // WP_TRIPMINE				// 29
 
-	{ 1,   1, 10,  0,  1,   1000, DELAY_THROW,  1600, 0,    0,   MOD_SMOKEBOMB            },                                        // WP_SMOKE_BOMB			// 30
-	{ 450, 1, 150, 0,  150, 3000, DELAY_LOW,    66,   1500, 300, MOD_MOBILE_MG42          },                                        // WP_MOBILE_MG42			// 31
-	{ 30,  1, 10,  20, 10,  2500, DELAY_LOW,    400,  0,    0,   MOD_K43                  },                                        // WP_K43					// 32		K43
-	{ 60,  1, 20,  40, 20,  2000, DELAY_LOW,    100,  0,    0,   MOD_FG42                 },                                        // WP_FG42					// 33
+	{ 1,   1, 10,  0,  1,   1000,         100,  1600, 0,    0,   MOD_SMOKEBOMB            },                                        // WP_SMOKE_BOMB			// 30
+	{ 450, 1, 150, 0,  150, 3000,        50,    50,   1500, 300, MOD_MOBILE_MG42          },                                        // WP_MOBILE_MG42			// 31
+	{ 30,  1, 10,  20, 10,  2500,        50,    400,  0,    0,   MOD_K43                  },                                        // WP_K43					// 32		K43
+	{ 60,  1, 20,  40, 20,  2000,        50,     75,  0,    0,   MOD_FG42                 },                                        // WP_FG42					// 33
 	{ 0,   0, 0,   0,  0,   0,    0,            0,    1500, 300, 0                        },                                        // WP_DUMMY_MG42			// 34
 	{ 15,  1, 1,   0,  0,   0,    750,          1600, 0,    0,   MOD_MORTAR               },                                        // WP_MORTAR				// 35
 	{ 999, 0, 1,   0,  0,   1000, 750,          1600, 0,    0,   0                        },                                        // WP_LOCKPICK				// 36
-	{ 48,  1, 8,   48, 8,   2700, DELAY_PISTOL, 200,  0,    0,   MOD_AKIMBO_COLT          },                                        // WP_AKIMBO_COLT			// 37
-	{ 48,  1, 8,   48, 8,   2700, DELAY_PISTOL, 200,  0,    0,   MOD_AKIMBO_LUGER         },                                        // WP_AKIMBO_LUGER			// 38
-	{ 4,   1, 1,   4,  1,   3000, DELAY_LOW,    400,  0,    0,   MOD_GPG40                },                                        // WP_GPG40					// 39
+	{ 48,  1, 8,   48, 8,   2700,           50, 100,  0,    0,   MOD_AKIMBO_COLT          },                                        // WP_AKIMBO_COLT			// 37
+	{ 48,  1, 8,   48, 8,   2700,           50, 100,  0,    0,   MOD_AKIMBO_LUGER         },                                        // WP_AKIMBO_LUGER			// 38
+	{ 4,   1, 1,   4,  1,   3000,        50,    150,  0,    0,   MOD_GPG40                },                                        // WP_GPG40					// 39
 
-	{ 4,   1, 1,   4,  1,   3000, DELAY_LOW,    400,  0,    0,   MOD_M7                   },                                        // WP_M7					// 40
-	{ 24,  1, 8,   24, 8,   1500, DELAY_PISTOL, 400,  0,    0,   MOD_SILENCED_COLT        },                                        // WP_SILENCED_COLT			// 41
-	{ 24,  1, 8,   16, 8,   1500, 0,            400,  0,    0,   MOD_GARAND_SCOPE         },                                        // WP_GARAND_SCOPE			// 42		GARAND
-	{ 30,  1, 10,  20, 10,  2500, 0,            400,  0,    0,   MOD_K43_SCOPE            },                                        // WP_K43_SCOPE				// 43		K43
-	{ 60,  1, 20,  40, 20,  2000, DELAY_LOW,    400,  0,    0,   MOD_FG42SCOPE            },                                        // WP_FG42SCOPE				// 44
-	{ 16,  1, 1,   12, 0,   0,    750,          1400, 0,    0,   MOD_MORTAR               },                                        // WP_MORTAR_SET			// 45
-	{ 10,  1, 1,   0,  10,  1500, 50,           1000, 0,    0,   MOD_SYRINGE              },                                        // WP_MEDIC_ADRENALINE		// 46
-	{ 48,  1, 8,   48, 8,   2700, DELAY_PISTOL, 200,  0,    0,   MOD_AKIMBO_SILENCEDCOLT  },                                        // WP_AKIMBO_SILENCEDCOLT	// 47
-	{ 48,  1, 8,   48, 8,   2700, DELAY_PISTOL, 200,  0,    0,   MOD_AKIMBO_SILENCEDLUGER },                                        // WP_AKIMBO_SILENCEDLUGER	// 48
-	{ 450, 1, 150, 0,  150, 3000, DELAY_LOW,    66,   0,    0,   MOD_MOBILE_MG42          },                                    // WP_MOBILE_MG42_SET		// 49
-	{ 0, 1 }, /* TC:E slot 50: required ammo; other projected fields remain zero. */
-	{ 0, 1 }, /* TC:E slot 51: required ammo; other projected fields remain zero. */
+	{ 4,   1, 1,   4,  1,   3000,        50,    350,  0,    0,   MOD_M7                   },                                        // WP_M7					// 40
+	{ 24,  1, 8,   24, 8,   1500,           50,  75,  0,    0,   MOD_SILENCED_COLT        },                                        // WP_SILENCED_COLT			// 41
+	{ 24,  1, 8,   16, 8,   1500, 50,            100,  0,    0,   MOD_GARAND_SCOPE         },                                        // WP_GARAND_SCOPE			// 42		GARAND
+	{ 30,  1, 10,  20, 10,  2500, 50,            100,  0,    0,   MOD_K43_SCOPE            },                                        // WP_K43_SCOPE				// 43		K43
+	{ 60,  1, 20,  40, 20,  2000,        50,     80,  0,    0,   MOD_FG42SCOPE            },                                        // WP_FG42SCOPE				// 44
+	{ 16,  1, 1,   12, 0,   0,     50,            75, 0,    0,   MOD_MORTAR               },                                        // WP_MORTAR_SET			// 45
+	{ 10,  1, 1,   0,  10,  1500, 50,            500, 0,    0,   MOD_SYRINGE              },                                        // WP_MEDIC_ADRENALINE		// 46
+	{ 48,  1, 8,   48, 8,   2700,           50, 700,  0,    0,   MOD_AKIMBO_SILENCEDCOLT  },                                        // WP_AKIMBO_SILENCEDCOLT	// 47
+	{ 48,  1, 8,   48, 8,   2700,           50, 200,  0,    0,   MOD_AKIMBO_SILENCEDLUGER },                                        // WP_AKIMBO_SILENCEDLUGER	// 48
+	{ 450, 1, 150, 0,  150, 3000,        50,    350,   0,    0,   MOD_MOBILE_MG42          },                                    // WP_MOBILE_MG42_SET		// 49
+	{ 0, 1, 0, 0, 0, 0, 50, 120, 0, 0, 0 }, /* TC:E slot 50: required ammo and original MP timing. */
+	{ 0, 1, 0, 0, 0, 0, 50, 700, 0, 0, 0 }, /* TC:E slot 51: required ammo and original MP timing. */
 };
 
 //----(SA)	moved in here so both games can get to it

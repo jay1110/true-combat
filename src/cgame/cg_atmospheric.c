@@ -589,7 +589,41 @@ static qboolean CG_RainParticleCheckVisible(cg_atmosphericParticle_t *particle)
 	}
 	return qtrue;
 }
+#elif defined(__linux__) && !defined(Q3_VM)
+static qboolean CG_RainParticleCheckVisible(cg_atmosphericParticle_t *particle)
+{
+	volatile float moved, bottom, distanceX, distanceY;
+	long double factor, productY, productZ, positionY, positionZ, ground;
 
+	if (!particle || particle->active == ACT_NOT)
+	{
+		return qfalse;
+	}
+	moved = (float)((long double)TCE_SubInt32(cg.time, cg_atmFx.lastRainTime) *
+	                (long double)0.001);
+	factor = (long double)moved;
+	particle->pos[0] = (float)((long double)particle->delta[0] * factor + particle->pos[0]);
+	productY = (long double)particle->delta[1] * factor;
+	productZ = factor * (long double)particle->delta[2];
+	positionY = productY + (long double)particle->pos[1];
+	positionZ = productZ + (long double)particle->pos[2];
+	particle->pos[1] = (float)positionY;
+	particle->pos[2] = (float)positionZ;
+	/* The rain bottom uses held Z before its separate float store. */
+	bottom = (float)(positionZ + (long double)particle->height);
+	ground = (long double)BG_GetSkyGroundHeightAtPoint(particle->pos);
+	if (!((long double)bottom >= ground))
+	{
+		return CG_SetParticleActive(particle, ACT_NOT);
+	}
+	distanceX = (float)((long double)particle->pos[0] - cg.refdef_current->vieworg[0]);
+	distanceY = (float)((long double)particle->pos[1] - cg.refdef_current->vieworg[1]);
+	if ((long double)distanceX * distanceX + (long double)distanceY * distanceY > 1000000.0L)
+	{
+		return CG_SetParticleActive(particle, ACT_NOT);
+	}
+	return qtrue;
+}
 #else
 
 static qboolean CG_RainParticleCheckVisible(cg_atmosphericParticle_t *particle)
@@ -980,7 +1014,39 @@ static qboolean CG_SnowParticleCheckVisible(cg_atmosphericParticle_t *particle)
 	}
 	return qtrue;
 }
+#elif defined(__linux__) && !defined(Q3_VM)
+static qboolean CG_SnowParticleCheckVisible(cg_atmosphericParticle_t *particle)
+{
+	volatile float moved, distanceX, distanceY;
+	long double factor, productY, productZ, positionY, positionZ, ground;
 
+	if (!particle || particle->active == ACT_NOT)
+	{
+		return qfalse;
+	}
+	moved = (float)((long double)TCE_SubInt32(cg.time, cg_atmFx.lastRainTime) *
+	                (long double)0.001);
+	factor = (long double)moved;
+	particle->pos[0] = (float)((long double)particle->delta[0] * factor + particle->pos[0]);
+	productY = (long double)particle->delta[1] * factor;
+	productZ = factor * (long double)particle->delta[2];
+	positionY = productY + (long double)particle->pos[1];
+	positionZ = productZ + (long double)particle->pos[2];
+	particle->pos[1] = (float)positionY;
+	particle->pos[2] = (float)positionZ;
+	ground = (long double)BG_GetSkyGroundHeightAtPoint(particle->pos);
+	if (!((long double)particle->pos[2] >= ground))
+	{
+		return CG_SetParticleActive(particle, ACT_NOT);
+	}
+	distanceX = (float)((long double)particle->pos[0] - cg.refdef_current->vieworg[0]);
+	distanceY = (float)((long double)particle->pos[1] - cg.refdef_current->vieworg[1]);
+	if ((long double)distanceX * distanceX + (long double)distanceY * distanceY > 1000000.0L)
+	{
+		return CG_SetParticleActive(particle, ACT_NOT);
+	}
+	return qtrue;
+}
 #else
 
 static qboolean CG_SnowParticleCheckVisible(cg_atmosphericParticle_t *particle)
@@ -1040,237 +1106,90 @@ static qboolean CG_SnowParticleCheckVisible(cg_atmosphericParticle_t *particle)
 #endif
 
 #if defined(_MSC_VER) && defined(_M_IX86)
-/* TC30017c30: complete Windows snow renderer; stack vertices are native polyVert_t. */
-enum
-{
-	SnowAxis10 = offsetof(refdef_t, viewaxis) + 3 * sizeof(float),
-	SnowAxis11 = offsetof(refdef_t, viewaxis) + 4 * sizeof(float),
-	SnowAxis12 = offsetof(refdef_t, viewaxis) + 5 * sizeof(float),
-	SnowAxis20 = offsetof(refdef_t, viewaxis) + 6 * sizeof(float),
-	SnowAxis21 = offsetof(refdef_t, viewaxis) + 7 * sizeof(float),
-	SnowAxis22 = offsetof(refdef_t, viewaxis) + 8 * sizeof(float)
-};
+/* TC30017c30: retain the original intermediate stores and triangle layout. */
 typedef char SnowRenderVertexLayoutGuard[(sizeof(polyVert_t) == 24 &&
                                           offsetof(polyVert_t, xyz) == 0 && offsetof(polyVert_t, st) == 12 &&
                                           offsetof(polyVert_t, modulate) == 20)?1:-1];
-static const float snowRenderHalf = 0.5f, snowRenderOne = 1.0f;
-static const float snowRenderPhase = 0.03125f, snowRenderAmplitude = 24.0f;
-static const float snowRenderZero = 0.0f;
-static __declspec(naked) void CG_SnowParticleRender(cg_atmosphericParticle_t *particle)
+static void CG_SnowParticleRender(cg_atmosphericParticle_t *particle)
 {
-	__asm {
-		SUB ESP, 0x80
-		PUSH ESI
-		MOV ESI, dword ptr[ESP + 0x88]
-		MOV EAX, dword ptr[ESI + WeatherActive]
-		TEST EAX, EAX
-		JZ snow_render_30017f24
-		PUSH ESI
-		CALL CG_CullPoint
-		ADD ESP, 0x4
-		TEST EAX, EAX
-		JNZ snow_render_30017f24
-		FLD dword ptr[ESI + GenPosX]
-		FLD dword ptr[ESI + GenWeight]
-		FMUL dword ptr[snowRenderHalf]
-		MOV EAX, dword ptr[ESI + GenPosY]
-		MOV ECX, dword ptr[ESI + GenPosZ]
-		MOV dword ptr[ESP + 0x10], EAX
-		LEA EDX, [ESP + 0xc]
-		PUSH EDX
-		MOV dword ptr[ESP + 0x18], ECX
-		FSTP dword ptr[ESP + 0x8]
-		FLD dword ptr[snowRenderOne]
-		FSUB dword ptr[ESI + GenNormalizedZ]
-		FSTP dword ptr[ESP + 0xc]
-		FLD dword ptr[ESP + 0x8]
-		FMUL dword ptr[ESI + GenPosZ]
-		FMUL dword ptr[snowRenderPhase]
-		FSIN
-		FMUL dword ptr[ESP + 0xc]
-		FMUL dword ptr[snowRenderAmplitude]
-		FADD ST(0), ST(1)
-		FSTP dword ptr[ESP + 0x10]
-		FSTP ST(0)
-		FLD dword ptr[ESI + GenPosY]
-		FADD dword ptr[ESI + GenPosZ]
-		FMUL dword ptr[ESP + 0x8]
-		FMUL dword ptr[snowRenderPhase]
-		FCOS
-		FMUL dword ptr[ESP + 0xc]
-		FMUL dword ptr[snowRenderAmplitude]
-		FADD dword ptr[ESP + 0x14]
-		FSTP dword ptr[ESP + 0x14]
-		CALL BG_GetSkyGroundHeightAtPoint
-		FLD dword ptr[ESP + 0x18]
-		MOV EAX, dword ptr[ESI + GenHeight]
-		ADD ESP, 0x4
-		FCOMP ST(1)
-		MOV dword ptr[ESP + 0x4], EAX
-		FNSTSW AX
-		TEST AH, 0x41
-		JZ snow_render_30017d27
-		FLD dword ptr[ESI + GenHeight]
-		FSUB ST(0), ST(1)
-		FADD dword ptr[ESP + 0x14]
-		FSTP dword ptr[ESP + 0x4]
-		FSTP ST(0)
-		FLD dword ptr[ESP + 0x4]
-		FSUB dword ptr[ESI + GenHeight]
-		FLD ST(0)
-		FMUL dword ptr[ESI + GenNormalizedX]
-		FADD dword ptr[ESP + 0xc]
-		FSTP dword ptr[ESP + 0xc]
-		FLD ST(0)
-		FMUL dword ptr[ESI + GenNormalizedY]
-		FADD dword ptr[ESP + 0x10]
-		FSTP dword ptr[ESP + 0x10]
-		FMUL dword ptr[ESI + GenNormalizedZ]
-		FADD dword ptr[ESP + 0x14]
-		FSTP dword ptr[ESP + 0x14]
-		JMP snow_render_30017d29
-snow_render_30017d27:
-		FSTP ST(0)
-		snow_render_30017d29 :
-		FLD dword ptr[ESP + 0x4]
-		FCOMP dword ptr[snowRenderZero]
-		FNSTSW AX
-		TEST AH, 0x41
-		JNZ snow_render_30017f24
-		MOV ECX, dword ptr[cg + WeatherRefdef]
-		ADD ECX, GenViewX
-		PUSH ECX
-		PUSH ESI
-		CALL DistanceSquared
-		MOV EDX, dword ptr[ESI + GenNormalizedX]
-		MOV EAX, dword ptr[ESI + GenNormalizedY]
-		FSTP ST(0)
-		FLD dword ptr[ESP + 0xc]
-		FCHS
-		FLD ST(0)
-		MOV dword ptr[ESP + 0x2c], EDX
-		MOV dword ptr[ESP + 0x30], EAX
-		FMUL dword ptr[ESP + 0x2c]
-		MOV ECX, dword ptr[ESI + GenNormalizedZ]
-		MOV EAX, [cg + WeatherRefdef]
-		MOV dword ptr[ESP + 0x34], ECX
-		LEA EDX, [ESP + 0x20]
-		FADD dword ptr[ESP + 0x14]
-		PUSH EDX
-		FSTP dword ptr[ESP + 0x3c]
-		FLD ST(0)
-		FMUL dword ptr[ESP + 0x34]
-		FADD dword ptr[ESP + 0x1c]
-		FSTP dword ptr[ESP + 0x40]
-		FMUL dword ptr[ESP + 0x38]
-		FADD dword ptr[ESP + 0x20]
-		FSTP dword ptr[ESP + 0x44]
-		FLD dword ptr[ESP + 0x30]
-		FMUL dword ptr[EAX + SnowAxis10]
-		FLD dword ptr[ESP + 0x38]
-		FMUL dword ptr[EAX + SnowAxis12]
-		FADDP ST(1), ST(0)
-		FLD dword ptr[ESP + 0x34]
-		FMUL dword ptr[EAX + SnowAxis11]
-		FADDP ST(1), ST(0)
-		FLD dword ptr[ESP + 0x30]
-		FMUL dword ptr[EAX + SnowAxis20]
-		FLD dword ptr[ESP + 0x38]
-		FMUL dword ptr[EAX + SnowAxis22]
-		FADDP ST(1), ST(0)
-		FLD dword ptr[ESP + 0x34]
-		FMUL dword ptr[EAX + SnowAxis21]
-		FADDP ST(1), ST(0)
-		FLD ST(0)
-		FMUL dword ptr[EAX + SnowAxis10]
-		FSTP dword ptr[ESP + 0x24]
-		FLD ST(0)
-		FMUL dword ptr[EAX + SnowAxis11]
-		FSTP dword ptr[ESP + 0x28]
-		FMUL dword ptr[EAX + SnowAxis12]
-		FSTP dword ptr[ESP + 0x2c]
-		FCHS
-		FLD ST(0)
-		FMUL dword ptr[EAX + SnowAxis20]
-		FADD dword ptr[ESP + 0x24]
-		FSTP dword ptr[ESP + 0x24]
-		FLD ST(0)
-		FMUL dword ptr[EAX + SnowAxis21]
-		FADD dword ptr[ESP + 0x28]
-		FSTP dword ptr[ESP + 0x28]
-		FMUL dword ptr[EAX + SnowAxis22]
-		FADD dword ptr[ESP + 0x2c]
-		FSTP dword ptr[ESP + 0x2c]
-		CALL VectorNormalize
-		FSTP ST(0)
-		FLD dword ptr[ESI + GenWeight]
-		FLD ST(0)
-		FCHS
-		FLD ST(0)
-		FMUL dword ptr[ESP + 0x24]
-		FST dword ptr[ESP + 0x14]
-		FADD dword ptr[ESP + 0x3c]
-		FSTP dword ptr[ESP + 0x48]
-		FLD ST(0)
-		FMUL dword ptr[ESP + 0x28]
-		FST dword ptr[ESP + 0x10]
-		FADD dword ptr[ESP + 0x40]
-		FSTP dword ptr[ESP + 0x4c]
-		MOV ECX, dword ptr[ESI + GenShader]
-		MOV AL, 0xff
-		FMUL dword ptr[ESP + 0x2c]
-		MOV byte ptr[ESP + 0x5c], AL
-		MOV byte ptr[ESP + 0x5d], AL
-		MOV byte ptr[ESP + 0x5e], AL
-		MOV byte ptr[ESP + 0x5f], AL
-		FLD ST(0)
-		FADD dword ptr[ESP + 0x44]
-		MOV byte ptr[ESP + 0x74], AL
-		MOV byte ptr[ESP + 0x75], AL
-		MOV byte ptr[ESP + 0x76], AL
-		MOV byte ptr[ESP + 0x77], AL
-		MOV byte ptr[ESP + 0x8c], AL
-		MOV byte ptr[ESP + 0x8d], AL
-		FSTP dword ptr[ESP + 0x50]
-		FLD dword ptr[ESP + 0x14]
-		FADD dword ptr[ESP + 0x18]
-		MOV byte ptr[ESP + 0x8e], AL
-		MOV byte ptr[ESP + 0x8f], AL
-		MOV dword ptr[ESP + 0x54], 0x0
-		MOV dword ptr[ESP + 0x58], 0x0
-		MOV dword ptr[ESP + 0x6c], 0x0
-		MOV dword ptr[ESP + 0x70], 0x3f800000
-		FSTP dword ptr[ESP + 0x60]
-		FLD dword ptr[ESP + 0x10]
-		FADD dword ptr[ESP + 0x1c]
-		MOV dword ptr[ESP + 0x84], 0x3f800000
-		MOV dword ptr[ESP + 0x88], 0x3f800000
-		LEA EAX, [ESP + 0x48]
-		PUSH EAX
-		FSTP dword ptr[ESP + 0x68]
-		FADD dword ptr[ESP + 0x24]
-		FSTP dword ptr[ESP + 0x6c]
-		FLD ST(0)
-		FMUL dword ptr[ESP + 0x28]
-		FADD dword ptr[ESP + 0x1c]
-		FSTP dword ptr[ESP + 0x7c]
-		FLD ST(0)
-		FMUL dword ptr[ESP + 0x2c]
-		FADD dword ptr[ESP + 0x20]
-		FSTP dword ptr[ESP + 0x80]
-		FMUL dword ptr[ESP + 0x30]
-		FADD dword ptr[ESP + 0x24]
-		FSTP dword ptr[ESP + 0x84]
-		MOV EDX, dword ptr[ECX]
-		PUSH EDX
-		CALL CG_AddPolyToPool
-		ADD ESP, 0x14
-snow_render_30017f24:
-		POP ESI
-		ADD ESP, 0x80
-		RET
+	vec3_t start, finish, forward, right;
+	polyVert_t verts[3];
+	float halfWeight, attenuation, length, negativeX, negativeY;
+	long double ground, offset, alongRight, alongUp, phase;
+	long double negative[3];
+	int i;
+
+	if (particle->active == ACT_NOT || CG_CullPoint(particle->pos))
+	{
+		return;
 	}
+	VectorCopy(particle->pos, start);
+	halfWeight = (float)((long double)particle->weight * 0.5L);
+	attenuation = (float)(1.0L - particle->deltaNormalized[2]);
+	phase = (long double)halfWeight * particle->pos[2] * 0.03125L;
+	start[0] = (float)(sinl(phase) * attenuation * 24.0L + start[0]);
+	phase = ((long double)particle->pos[1] + particle->pos[2]) * halfWeight * 0.03125L;
+	start[1] = (float)(cosl(phase) * attenuation * 24.0L + start[1]);
+
+	ground = BG_GetSkyGroundHeightAtPoint(start);
+	length = particle->height;
+	/* The native unordered comparison follows the clipping path too. */
+	if (!((long double)start[2] > ground))
+	{
+		length = (float)((long double)particle->height - ground + start[2]);
+		offset = (long double)length - particle->height;
+		for (i = 0; i < 3; ++i)
+		{
+			start[i] = (float)(offset * particle->deltaNormalized[i] + start[i]);
+		}
+	}
+	if (!(length > 0.0f))
+	{
+		return;
+	}
+	(void)DistanceSquared(particle->pos, cg.refdef_current->vieworg);
+	VectorCopy(particle->deltaNormalized, forward);
+	for (i = 0; i < 3; ++i)
+	{
+		finish[i] = (float)(-(long double)length * forward[i] + start[i]);
+	}
+
+	/* Both native dot products add X, Z, then Y without a float spill. */
+	alongRight = ((long double)forward[0] * cg.refdef_current->viewaxis[1][0] +
+	              (long double)forward[2] * cg.refdef_current->viewaxis[1][2]) +
+	             (long double)forward[1] * cg.refdef_current->viewaxis[1][1];
+	alongUp = ((long double)forward[0] * cg.refdef_current->viewaxis[2][0] +
+	           (long double)forward[2] * cg.refdef_current->viewaxis[2][2]) +
+	          (long double)forward[1] * cg.refdef_current->viewaxis[2][1];
+	for (i = 0; i < 3; ++i)
+	{
+		right[i] = (float)(alongUp * cg.refdef_current->viewaxis[1][i]);
+	}
+	for (i = 0; i < 3; ++i)
+	{
+		right[i] = (float)(-alongRight * cg.refdef_current->viewaxis[2][i] + right[i]);
+	}
+	VectorNormalize(right);
+
+	for (i = 0; i < 3; ++i)
+	{
+		negative[i] = -(long double)particle->weight * right[i];
+		verts[0].xyz[i] = (float)(negative[i] + finish[i]);
+		verts[2].xyz[i] = (float)((long double)particle->weight * right[i] + start[i]);
+		memset(verts[i].modulate, 255, sizeof(verts[i].modulate));
+	}
+	/* The second corner reloads rounded X/Y products, while Z stays held. */
+	negativeX = (float)negative[0];
+	negativeY = (float)negative[1];
+	verts[1].xyz[0] = (float)((long double)negativeX + start[0]);
+	verts[1].xyz[1] = (float)((long double)negativeY + start[1]);
+	verts[1].xyz[2] = (float)(negative[2] + start[2]);
+	verts[0].st[0] = 0; verts[0].st[1] = 0;
+	verts[1].st[0] = 0; verts[1].st[1] = 1;
+	verts[2].st[0] = 1; verts[2].st[1] = 1;
+	CG_AddPolyToPool(*particle->effectshader, verts);
 }
+
 #else
 static void CG_SnowParticleRender(cg_atmosphericParticle_t *particle)
 {
@@ -1282,6 +1201,10 @@ static void CG_SnowParticleRender(cg_atmosphericParticle_t *particle)
 	float      len, frac, sinTumbling, cosTumbling, particleWidth, dist;
 	vec3_t     start, finish;
 	float      groundHeight;
+#if defined(__linux__) && !defined(Q3_VM)
+	long double phase, attenuation, visibleLength;
+	volatile float sine, cosine;
+#endif
 //	int			msec = trap_Milliseconds();
 
 //	n_rendertime++;
@@ -1299,14 +1222,49 @@ static void CG_SnowParticleRender(cg_atmosphericParticle_t *particle)
 
 	VectorCopy(particle->pos, start);
 
+#if defined(__linux__) && !defined(Q3_VM)
+	phase = (long double)particle->pos[2] * (long double)particle->weight;
+	phase *= 0.015625L;
+	sine = (float)sinl(phase);
+	phase = (long double)particle->pos[2] + (long double)particle->pos[1];
+	phase = 0.015625L * ((long double)particle->weight * phase);
+	cosine = (float)cosl(phase);
+	attenuation = 1.0L - (long double)particle->deltaNormalized[2];
+	start[0] = (float)((long double)start[0] + ((long double)sine * attenuation) * 24.0L);
+	start[1] = (float)(24.0L * ((long double)cosine * attenuation) + (long double)start[1]);
+#else
 	sinTumbling = sin(particle->pos[2] * 0.03125f * (0.5f * particle->weight));
 	cosTumbling = cos((particle->pos[2] + particle->pos[1]) * 0.03125f * (0.5f * particle->weight));
 	start[0]   += 24 * (1 - particle->deltaNormalized[2]) * sinTumbling;
 	start[1]   += 24 * (1 - particle->deltaNormalized[2]) * cosTumbling;
+#endif
 
 	// Make sure it doesn't clip through surfaces
 	groundHeight = BG_GetSkyGroundHeightAtPoint(start);
 	len          = particle->height;
+#if defined(__linux__) && !defined(Q3_VM)
+	visibleLength = (long double)len;
+	if (!((long double)start[2] > (long double)groundHeight))
+	{
+		long double clippedLength = (visibleLength - (long double)groundHeight) + start[2];
+		long double offset = clippedLength - visibleLength;
+		int axis;
+
+		for (axis = 0; axis < 3; ++axis)
+		{
+			long double product = axis == 2 ? offset * (long double)particle->deltaNormalized[axis] :
+			                      (long double)particle->deltaNormalized[axis] * offset;
+			start[axis] = (float)(product + (long double)start[axis]);
+		}
+		visibleLength = clippedLength;
+	}
+	if (visibleLength <= 0.0L)
+	{
+		return;
+	}
+	/* Native length is rounded only after the visibility decision. */
+	len = (float)visibleLength;
+#else
 	if (start[2] <= groundHeight)
 	{
 		// Stop snow going through surfaces.
@@ -1320,6 +1278,7 @@ static void CG_SnowParticleRender(cg_atmosphericParticle_t *particle)
 //		rendertime += trap_Milliseconds() - msec;
 		return;
 	}
+#endif
 
 	line[0] = particle->pos[0] - cg.refdef_current->vieworg[0];
 	line[1] = particle->pos[1] - cg.refdef_current->vieworg[1];
@@ -1331,6 +1290,65 @@ static void CG_SnowParticleRender(cg_atmosphericParticle_t *particle)
 	len *= dist;
 
 	VectorCopy(particle->deltaNormalized, forward);
+#if defined(__linux__) && !defined(Q3_VM)
+	{
+		long double negativeLength = -(long double)len;
+		finish[0] = (float)((long double)forward[0] * negativeLength + start[0]);
+		finish[1] = (float)((long double)forward[1] * negativeLength + start[1]);
+		finish[2] = (float)(negativeLength * (long double)forward[2] + start[2]);
+	}
+	{
+		long double firstProjection, secondProjection, negativeFirst;
+		long double initialRight[3], negative[3], positive[3], width;
+		volatile float projectionCopy[2];
+		volatile float *storedRight = right;
+		int axis;
+
+		firstProjection = (long double)forward[1] * cg.refdef_current->viewaxis[1][1] +
+		                  (long double)forward[0] * cg.refdef_current->viewaxis[1][0];
+		firstProjection += (long double)forward[2] * cg.refdef_current->viewaxis[1][2];
+		projectionCopy[0] = (float)firstProjection;
+		secondProjection = (long double)forward[1] * cg.refdef_current->viewaxis[2][1] +
+		                   (long double)forward[0] * cg.refdef_current->viewaxis[2][0];
+		negativeFirst = -firstProjection;
+		secondProjection += (long double)forward[2] * cg.refdef_current->viewaxis[2][2];
+		initialRight[0] = (long double)cg.refdef_current->viewaxis[1][0] * secondProjection;
+		projectionCopy[1] = (float)secondProjection;
+		storedRight[0] = (float)initialRight[0];
+		initialRight[1] = secondProjection * cg.refdef_current->viewaxis[1][1];
+		storedRight[1] = (float)initialRight[1];
+		initialRight[2] = (long double)projectionCopy[1] * cg.refdef_current->viewaxis[1][2];
+		storedRight[2] = (float)initialRight[2];
+		storedRight[0] = (float)(initialRight[0] +
+		                        (long double)cg.refdef_current->viewaxis[2][0] * negativeFirst);
+		storedRight[1] = (float)(initialRight[1] +
+		                        (long double)cg.refdef_current->viewaxis[2][1] * negativeFirst);
+		storedRight[2] = (float)(initialRight[2] +
+		                        negativeFirst * cg.refdef_current->viewaxis[2][2]);
+		VectorNormalize(right);
+
+		width = 1.0L * (long double)particle->weight;
+		negative[0] = (long double)right[0] * -width;
+		negative[1] = (long double)right[1] * -width;
+		negative[2] = -width * (long double)right[2];
+		positive[0] = (long double)right[0] * width;
+		positive[1] = (long double)right[1] * width;
+		positive[2] = width * (long double)right[2];
+		for (axis = 0; axis < 3; ++axis)
+		{
+			verts[0].xyz[axis] = (float)((long double)finish[axis] + negative[axis]);
+			memset(verts[axis].modulate, 255, sizeof(verts[axis].modulate));
+		}
+		for (axis = 0; axis < 3; ++axis)
+		{
+			verts[1].xyz[axis] = (float)(negative[axis] + (long double)start[axis]);
+			verts[2].xyz[axis] = (float)(positive[axis] + (long double)start[axis]);
+		}
+		verts[0].st[0] = 0; verts[0].st[1] = 0;
+		verts[1].st[0] = 0; verts[1].st[1] = 1;
+		verts[2].st[0] = 1; verts[2].st[1] = 1;
+	}
+#else
 	VectorMA(start, -(len /** sinTumbling*/), forward, finish);
 
 	line[0] = DotProduct(forward, cg.refdef_current->viewaxis[1]);
@@ -1365,6 +1383,7 @@ static void CG_SnowParticleRender(cg_atmosphericParticle_t *particle)
 	verts[2].modulate[1] = 255;
 	verts[2].modulate[2] = 255;
 	verts[2].modulate[3] = 255;
+#endif
 
 	CG_AddPolyToPool(*particle->effectshader, verts);
 

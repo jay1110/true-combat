@@ -8,6 +8,10 @@
 // active (after loading) gameplay
 
 #include "cg_local.h"
+#include "tce_camera_wave.h"
+#if defined(_MSC_VER) && defined(_M_IX86)
+#include "../game/tce_x87_sum.h"
+#endif
 #if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 #include "../game/tce_numeric.h"
 #endif
@@ -553,7 +557,11 @@ static void CG_DrawFPSContents(float y)
 static float CG_DrawFPS(float y)
 {
 	CG_DrawFPSContents(y);
+#if defined(__linux__) && !defined(Q3_VM)
+	return y + 12 + 4;
+#else
 	return y + 16.f;
+#endif
 }
 
 
@@ -577,7 +585,13 @@ static float CG_DrawTimer(float y)
 	rt = "";
 
 	/* Original30023090 keeps the product/subtraction extended until __ftol. */
+#if defined(__linux__) && !defined(Q3_VM)
+	/* Linux converts the retained product/difference directly to signed32. */
+	msec = TCE_TruncateNativeInteger((long double)cgs.timelimit * 60000.f -
+	                                TCE_SubInt32(cg.time, cgs.levelStartTime));
+#else
 	msec = (int)((double)cgs.timelimit * 60000.f - (cg.time - cgs.levelStartTime));
+#endif
 
 	seconds  = msec / 1000;
 	mins     = seconds / 60;
@@ -593,7 +607,11 @@ static float CG_DrawTimer(float y)
 	}
 	else if (msec < 0 && cgs.timelimit > 0.0f)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		s        = va("^*0:00");
+#else
 		s        = va("^N0:00");
+#endif
 		color[3] = fabs(sin(cg.time * 0.002));
 	}
 	else
@@ -4934,7 +4952,11 @@ void CG_StartShakeCamera(float p)
 	double length = (double)p * p * 1000.0;
 	cg.cameraShakeScale  = p;
 	cg.cameraShakeLength = (float)length;
+#if defined(_MSC_VER) && defined(_M_IX86)
+	cg.cameraShakeTime = TCE_IntFloatSumLow32(cg.time, cg.cameraShakeLength);
+#else
 	cg.cameraShakeTime   = (int)((double)cg.time + cg.cameraShakeLength);
+#endif
 	phase                = (double)(rand() & 0x7fff) * (double)3.0518509447574615e-05f - .5;
 	cg.cameraShakePhase  = (float)((phase + phase) * 3.1415927410125732);
 #endif
@@ -4944,7 +4966,7 @@ void CG_ShakeCamera(void)
 {
 #if defined(__linux__) && !defined(Q3_VM)
 	long double fraction;
-	float displacement;
+	volatile float displacement;
 
 	if (cg.cameraShakeTime < cg.time)
 	{
@@ -4954,15 +4976,39 @@ void CG_ShakeCamera(void)
 	fraction = (long double)TCE_SubInt32(cg.cameraShakeTime, cg.time) *
 	           (1.0L / cg.cameraShakeLength);
 	/* Each Linux contribution is stored as float before adding the old origin. */
-	displacement = (float)(sinl(fraction * (long double)21.991148575128552 + cg.cameraShakePhase) *
+	displacement = (float)(TCE_CameraShakeWave(fraction * (long double)21.991148575128552 + cg.cameraShakePhase, 0) *
 	                       fraction * cg.cameraShakeScale * 4.0L);
-	cg.refdef.vieworg[2] += displacement;
-	displacement = (float)(sinl(fraction * (long double)40.840704496667314 + cg.cameraShakePhase) *
+	cg.refdef.vieworg[2] = (float)((long double)displacement + cg.refdef.vieworg[2]);
+	displacement = (float)(TCE_CameraShakeWave(fraction * (long double)40.840704496667314 + cg.cameraShakePhase, 0) *
 	                       fraction * cg.cameraShakeScale * 4.0L);
-	cg.refdef.vieworg[1] += displacement;
-	displacement = (float)(cosl(fraction * (long double)53.40707511102649 + cg.cameraShakePhase) *
+	cg.refdef.vieworg[1] = (float)((long double)displacement + cg.refdef.vieworg[1]);
+	displacement = (float)(TCE_CameraShakeWave(fraction * (long double)53.40707511102649 + cg.cameraShakePhase, 1) *
 	                       fraction * cg.cameraShakeScale * 4.0L);
-	cg.refdef.vieworg[0] += displacement;
+	cg.refdef.vieworg[0] = (float)((long double)displacement + cg.refdef.vieworg[0]);
+	AnglesToAxis(cg.refdefViewAngles, cg.refdef.viewaxis);
+#elif defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	static const float frequency[3] =
+	{
+		53.40707778930664f, 40.84070587158203f, 21.99114990234375f
+	};
+	long double fraction, wave, displacement;
+	int axis;
+
+	if (cg.cameraShakeTime < cg.time)
+	{
+		cg.cameraShakeScale = 0;
+		return;
+	}
+	fraction = (long double)TCE_SubInt32(cg.cameraShakeTime, cg.time) /
+	           cg.cameraShakeLength;
+	for (axis = 2; axis >= 0; --axis)
+	{
+		wave = TCE_CameraShakeWave(fraction * frequency[axis] + cg.cameraShakePhase, axis == 0);
+		displacement = wave * cg.cameraShakeScale;
+		displacement = axis == 0 ? fraction * displacement : displacement * fraction;
+		displacement *= 4.0;
+		cg.refdef.vieworg[axis] = (float)(displacement + cg.refdef.vieworg[axis]);
+	}
 	AnglesToAxis(cg.refdefViewAngles, cg.refdef.viewaxis);
 #else
 	double fraction, amplitude;
@@ -5009,6 +5055,19 @@ void CG_SetupEliteLighting(void)
 	}
 }
 
+#if defined(__linux__) && !defined(Q3_VM)
+/* The original ELF stores the low byte of a truncating signed16 conversion.
+ * Masked invalid conversions produce 0x8000, whose low byte is zero. */
+static byte CG_TCELinuxSpriteByte(long double value)
+{
+	if (!(value >= -32768.0L && value < 32768.0L))
+	{
+		return 0;
+	}
+	return (byte)(int)value;
+}
+#endif
+
 /* TC30022020: vertical sprites face the viewer around their world Z axis. */
 static void CG_DrawMiscClientsprites(void)
 {
@@ -5018,22 +5077,47 @@ static void CG_DrawMiscClientsprites(void)
 		cg_clientsprite_t *s = &cgs.miscClientSprites[i];
 		vec3_t forward, right;
 		polyVert_t verts[4];
+#if defined(__linux__) && !defined(Q3_VM)
+		long double distance, facing;
+		float alpha = 1;
+#else
 		float distance, alpha = 1;
+#endif
 		VectorSubtract(s->org, cg.refdef_current->vieworg, forward);
 		distance = VectorNormalize(forward);
+#if defined(__linux__) && !defined(Q3_VM)
+		facing = (long double)cg.refdef_current->viewaxis[0][1] * forward[1] +
+		         (long double)cg.refdef_current->viewaxis[0][0] * forward[0];
+		facing += (long double)cg.refdef_current->viewaxis[0][2] * forward[2];
+		if (facing < .5L ||
+#else
 		if (DotProduct(forward, cg.refdef_current->viewaxis[0]) < .5f ||
+#endif
 		    distance > s->drawDistance || !s->shader)
 		{
 			continue;
 		}
 		if (s->drawDistance > s->fadeDistance && distance > s->fadeDistance)
 		{
+#if defined(__linux__) && !defined(Q3_VM)
+			alpha = (float)(1.0L - (1.0L / TCE_SubInt32(s->drawDistance, s->fadeDistance)) *
+			                       (distance - s->fadeDistance));
+#else
 			alpha = (float)(1.0 - ((double)distance - s->fadeDistance) / (s->drawDistance - s->fadeDistance));
+#endif
 		}
 		forward[2] = 0; VectorNormalize(forward);
 		VectorSet(right, forward[1], -forward[0], 0);
 		for (j = 0; j < 4; j++)
 		{
+#if defined(__linux__) && !defined(Q3_VM)
+			/* ELF4a8b7..4ab0e stores each complete corner, with no
+			 * Windows-only reload of a rounded side product. */
+			long double side = (j == 0 || j == 3) ? s->halfWidth : -(long double)s->halfWidth;
+			verts[j].xyz[0] = (float)((long double)s->org[0] + side * right[0]);
+			verts[j].xyz[1] = (float)((long double)s->org[1] + side * right[1]);
+			verts[j].xyz[2] = (float)((long double)s->org[2] + ((j < 2) ? s->top : s->bottom));
+#else
 			/* Original3002217d..3002232b keeps the top-edge products in
 			 * x87, but reloads stored X products and bottom-right Y. */
 			double side = (j == 0 || j == 3)?s->halfWidth:-s->halfWidth;
@@ -5041,10 +5125,16 @@ static void CG_DrawMiscClientsprites(void)
 			verts[j].xyz[0] = (float)(s->org[0] + (j < 2?dx:(double)(float)dx));
 			verts[j].xyz[1] = (float)(s->org[1] + (j == 3?(double)(float)dy:dy));
 			verts[j].xyz[2] = s->org[2] + ((j < 2)?s->top:s->bottom);
+#endif
 			verts[j].st[0]  = (j == 0 || j == 3)?1:0; verts[j].st[1] = j < 2?0:1;
 			for (k = 0; k < 3; k++)
+#if defined(__linux__) && !defined(Q3_VM)
+				verts[j].modulate[k] = CG_TCELinuxSpriteByte((long double)s->color[k] * 255.0L);
+			verts[j].modulate[3] = CG_TCELinuxSpriteByte((long double)alpha * 255.0L);
+#else
 				verts[j].modulate[k] = (byte)(int)((double)s->color[k] * 255);
 			verts[j].modulate[3] = (byte)(int)((double)alpha * 255);
+#endif
 		}
 		trap_R_AddPolyToScene(s->shader, 4, verts);
 	}
@@ -5076,7 +5166,11 @@ void CG_DrawMiscGamemodels(void)
 		else
 		{
 			vec3_t forward, left;
+#if defined(__linux__) && !defined(Q3_VM)
+			long double distance;
+#else
 			float distance;
+#endif
 			VectorSubtract(model->org, cg.refdef_current->vieworg, forward);
 			distance = VectorNormalize(forward);
 			if (distance > model->drawDistance)
@@ -5084,15 +5178,25 @@ void CG_DrawMiscGamemodels(void)
 				continue;
 			}
 			for (j = 0; j < 3; j++)
+#if defined(__linux__) && !defined(Q3_VM)
+				ent.shaderRGBA[j] = CG_TCELinuxSpriteByte((long double)model->color[j] * 255.0L);
+#else
 				ent.shaderRGBA[j] = (byte)(int)((double)model->color[j] * 255.0);
+#endif
 			if (model->drawDistance <= model->fadeDistance || distance <= model->fadeDistance)
 			{
 				ent.shaderRGBA[3] = 255;
 			}
 			else
 			{
+#if defined(__linux__) && !defined(Q3_VM)
+				ent.shaderRGBA[3] = CG_TCELinuxSpriteByte(255.0L * (1.0L -
+				    (1.0L / TCE_SubInt32(model->drawDistance, model->fadeDistance)) *
+				    (distance - model->fadeDistance)));
+#else
 				ent.shaderRGBA[3] = (byte)(int)(255.0 * (1.0 -
 				                                         ((double)distance - model->fadeDistance) / (model->drawDistance - model->fadeDistance)));
+#endif
 			}
 			forward[2] = 0; VectorNormalize(forward);
 			VectorSet(left, -forward[1], forward[0], 0);

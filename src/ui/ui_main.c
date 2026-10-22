@@ -419,8 +419,12 @@ void Text_SetActiveFont(int font)
 int Text_Width_Ext(const char *text, float scale, int limit, fontInfo_t *font)
 {
 	int count, len;
-	// Original FIADD retains the integer glyph advances in x87 until conversion.
+	// Original FIADD retains the integer glyph advances until conversion.
+#if defined(__linux__) && !defined(Q3_VM)
+	long double out = 0;
+#else
 	double      out = 0;
+#endif
 	glyphInfo_t *glyph;
 	const char  *s = text;
 
@@ -448,7 +452,11 @@ int Text_Width_Ext(const char *text, float scale, int limit, fontInfo_t *font)
 			}
 		}
 	}
+#if defined(__linux__) && !defined(Q3_VM)
+	return TCE_TruncateNativeInteger(out * (long double)scale * (long double)font->glyphScale);
+#else
 	return (int)(out * (double)font->glyphScale * (double)scale);
+#endif
 }
 
 int Text_Width(const char *text, float scale, int limit)

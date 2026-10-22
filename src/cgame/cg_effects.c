@@ -2,7 +2,18 @@
 // of event processing
 
 #include "cg_local.h"
+#include "tce_camera_wave.h"
 #include "../game/tce_float_integer.h"
+#if defined(_MSC_VER) && defined(_M_IX86)
+#if _MSC_VER < 1920
+#error CG_RumbleEfx requires the MSVC 2019 _div64 intrinsic or newer.
+#endif
+#include <immintrin.h>
+#pragma intrinsic(_div64)
+#endif
+#if defined(__linux__) && !defined(Q3_VM)
+#include "../game/tce_numeric.h"
+#endif
 #include "tce_smoke_grenade.h"
 
 
@@ -1252,6 +1263,63 @@ CG_RumbleEfx
 */
 void CG_RumbleEfx(float pitch, float yaw)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	{
+		const float unit = 0.000030518509447574615f;
+		long double value, chance, yawValue, pitchValue, rollValue, recoilValue;
+		double powerBase, power;
+		volatile float recoilStore, differenceStore, pitchStore, yawHalf, yawStore;
+		int sample, randomPitch, divisor, negative;
+
+		if (!(pitch >= 1.0f))
+		{
+			pitch = 1.0f;
+		}
+		sample = rand() & 32767;
+		powerBase = (double)((long double)sample * unit);
+		power = pow(powerBase, 8.0);
+		value = TCE_VectorLengthValue(cg.snap->ps.velocity);
+		value = value * 0.20000000298023224f + 10.0f;
+		recoilStore = (float)(value * power);
+		randomPitch = rand();
+		divisor = TCE_TruncateNativeInteger(pitch);
+		differenceStore = (float)((long double)(randomPitch % divisor) - .5f * (long double)pitch);
+		recoilStore = (float)(.5f * (long double)recoilStore);
+		pitchStore = (float)(.5f * (long double)differenceStore);
+		yawHalf = (float)(.5f * (long double)yaw);
+
+		if (cg.kickAVel[YAW] > 0.0f)
+		{
+			sample = rand() & 32767;
+			chance = (long double)sample * unit;
+			negative = chance < (long double)0.05;
+		}
+		else if (!(cg.kickAVel[YAW] >= 0.0f))
+		{
+			sample = rand() & 32767;
+			chance = (long double)sample * unit;
+			negative = !(chance < (long double)0.05);
+		}
+		else
+		{
+			sample = rand() & 32767;
+			chance = (long double)sample * unit;
+			negative = !(chance < .5f);
+		}
+		sample = rand() & 32767;
+		yawValue = negative ? -((long double)sample * unit) * yawHalf
+		                    : ((long double)sample * yawHalf) * unit;
+		yawStore = (float)yawValue;
+		pitchValue = (long double)(-pitchStore) * 30.0f;
+		yawValue = (long double)yawStore * 30.0f;
+		rollValue = (-(long double)yawStore) * 30.0f;
+		cg.kickAVel[YAW] = (float)yawValue;
+		recoilValue = (long double)cg.recoilPitch - recoilStore;
+		cg.kickAVel[PITCH] = (float)pitchValue;
+		cg.kickAVel[ROLL] = (float)rollValue;
+		cg.recoilPitch = (float)recoilValue;
+	}
+#else
 	float pitchRecoilAdd, pitchAdd;
 	float yawRandom;
 #if !defined(_MSC_VER) || !defined(_M_IX86)
@@ -1292,7 +1360,8 @@ void CG_RumbleEfx(float pitch, float yaw)
 		pitchRecoilAdd = (float)recoilValue;
 		randomPitch    = rand();
 		divisor        = TCE_FloatToInt64Low(pitch);
-		remainder = randomPitch % divisor;
+		/* Use the hardware division intrinsic, including the zero-divisor path. */
+		(void)_div64((__int64)randomPitch, divisor, &remainder);
 		pitchAdd = (float)(((long double)remainder - (long double)pitch * halfRecoil) * halfRecoil);
 		yawRandom = (float)((long double)yaw * halfRecoil);
 	}
@@ -1380,7 +1449,11 @@ void CG_RumbleEfx(float pitch, float yaw)
 			recoil[YAW] = random() * yawRandom;
 		}
 	}
+#if defined(__linux__) && !defined(Q3_VM)
+	else if (!(cg.kickAVel[YAW] >= 0.0f))
+#else
 	else if (cg.kickAVel[YAW] < 0)
+#endif
 	{
 		if (random() < 0.05)
 		{
@@ -1411,6 +1484,7 @@ void CG_RumbleEfx(float pitch, float yaw)
 	VectorCopy(recoil, cg.kickAVel);
 	// set the recoil
 	cg.recoilPitch -= pitchRecoilAdd;
+#endif
 #endif
 }
 
@@ -1598,7 +1672,7 @@ void CG_ApplyCameraShakeToVec(vec3_t origin)
 			volatile float storedDisplacement;
 			angle              = fraction * (long double)frequency[axis];
 			angle              = angle + (long double)cg.cameraShakePhase;
-			wave               = axis == 0 ? cosl(angle) : sinl(angle);
+			wave               = TCE_CameraShakeWave(angle, axis == 0);
 			displacement       = wave * fraction;
 			displacement       = displacement * (long double)cg.cameraShakeScale;
 			displacement       = displacement * 4.0L;
@@ -1622,7 +1696,7 @@ void CG_ApplyCameraShakeToVec(vec3_t origin)
 		{
 			angle        = fraction * (long double)frequency[axis];
 			angle        = angle + (long double)cg.cameraShakePhase;
-			wave         = axis == 0 ? cosl(angle) : sinl(angle);
+			wave         = TCE_CameraShakeWave(angle, axis == 0);
 			displacement = wave * (long double)cg.cameraShakeScale;
 			displacement = axis == 0 ? fraction * displacement
 			                         : displacement * fraction;

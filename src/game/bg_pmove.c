@@ -1835,12 +1835,15 @@ static qboolean PM_TCECheckProne(void)
 
 /* TC qagame posture/footstep controllers 20034cf0 and 20037720.
  * Operand-level Windows x87 / integer schedule, mapped to native structures. */
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 typedef char posture832TraceLayout[(sizeof(trace_t) == 56 && offsetof(trace_t, allsolid) == 0 && offsetof(trace_t, startsolid) == 4 && offsetof(trace_t, fraction) == 8 && offsetof(trace_t, endpos) == 12 && offsetof(trace_t, entityNum) == 52) ? 1 : -1];
 static qboolean PM_CheckProne(void)
 {
 	trace_t     trace;
-	vec3_t      mins = { -13.5f, -13.5f, -24.0f }, maxs = { 13.5f, 13.5f, -14.4f };
+	vec3_t      mins, maxs;
+#if defined(__linux__)
+	long double entryHeight;
+#endif
 	vec3_t      start, end;
 	float       scale = 1.0f;
 	long double speed, maxZ;
@@ -1903,6 +1906,8 @@ static qboolean PM_CheckProne(void)
 		     (pm->cmd.wbuttons & WBUTTON_PRONE)) &&
 		    PM_ProneTimeValue((unsigned)pm->pmext->proneTime + (unsigned)pm->cmd.serverTime) > 750)
 		{
+			VectorCopy(playerlegsProneMins, mins);
+			VectorCopy(playerlegsProneMaxs, maxs);
 			if (pm->ps->stats[STAT_TCE_FLAGS] & 0x200)
 			{
 				for (axis = 0; axis < 3; ++axis)
@@ -1913,10 +1918,19 @@ static qboolean PM_CheckProne(void)
 			}
 			start[0] = (float)((long double)pm->ps->origin[0] - (long double)pml.forward[0] * scale * 32.0f);
 			start[1] = (float)((long double)pm->ps->origin[1] - (long double)scale * pml.forward[1] * 32.0f);
+#if defined(__linux__)
+			entryHeight = (long double)pm->ps->origin[2] + 24.0f;
+			start[2] = (float)entryHeight;
+#else
 			start[2] = (float)((long double)pm->ps->origin[2] + 24.0f);
+#endif
 			end[0]   = start[0];
 			end[1]   = start[1];
-			end[2]   = (float)((long double)start[2] - 21.6f - 24.0f);
+#if defined(__linux__)
+			end[2] = (float)(entryHeight - 21.6f - 24.0f);
+#else
+			end[2] = (float)((long double)start[2] - 21.6f - 24.0f);
+#endif
 			pm->trace(&trace, start, mins, maxs, end, pm->ps->clientNum, pm->tracemask);
 			if (trace.startsolid && trace.entityNum >= MAX_CLIENTS)
 			{
@@ -1993,12 +2007,20 @@ static qboolean PM_CheckProne(void)
 	movement = abs((int)pm->cmd.rightmove) + abs((int)pm->cmd.forwardmove);
 	if (movement < 11)
 	{
+#if defined(__linux__)
+		if (speed < 20.0L && (pm->ps->eFlags & EF_PRONE_MOVING))
+#else
 		if ((speed < 20.0L || speed != speed) && (pm->ps->eFlags & EF_PRONE_MOVING))
+#endif
 		{
 			pm->ps->eFlags &= ~EF_PRONE_MOVING;
 		}
 	}
+#if defined(__linux__)
+	else if (!(speed <= 20.0L) && !(pm->ps->eFlags & EF_PRONE_MOVING))
+#else
 	else if (speed > 20.0L && !(pm->ps->eFlags & EF_PRONE_MOVING))
+#endif
 	{
 		pm->ps->eFlags |= EF_PRONE_MOVING;
 		weapon          = pm->ps->weapon;
@@ -6166,27 +6188,8 @@ static qboolean PM_TCEWeaponEligibilityLinux856(qboolean delayed)
 
 #endif
 
-/* TC:E firing pipeline shared by prediction and the server. These are TC gear
- * IDs, not the ET SDK weapon_t aliases. The two legacy columns are the original
- * initial MP ammo values; mutable 84-byte ammo-table loader parity is still open.
- */
-typedef struct
-{
-	int fireDelay;
-	int nextShot;
-} tceLegacyWeaponTiming_t;
-
-static const tceLegacyWeaponTiming_t pm_tceLegacyTiming[TCE_WEAPON_CAPACITY] =
-{
-	{ 50, 0   }, { 50,  500  }, { 50, 150 }, { 50,  50   }, { 100, 1600 }, { 750, 2000 }, { 50,  50   }, { 50,  400  },
-	{ 50, 75  }, { 100, 1600 }, { 50, 50  }, { 50,  1000 }, { 50,  1000 }, { 50,  1000 }, { 50,  400  }, { 100, 1600 },
-	{ 50, 0   }, { 50,  0    }, { 50, 0   }, { 50,  0    }, { 50,  0    }, { 50,  0    }, { 50,  0    }, { 50,  400  },
-	{ 50, 400 }, { 50,  400  }, { 50, 100 }, { 50,  2000 }, { 722, 2000 }, { 100, 2000 }, { 100, 1600 }, { 50,  50   },
-	{ 50, 400 }, { 50,  75   }, { 0,  0   }, { 750, 1600 }, { 750, 1600 }, { 50,  100  }, { 50,  100  }, { 50,  150  },
-	{ 50, 350 }, { 50,  75   }, { 50, 100 }, { 50,  100  }, { 50,  80   }, { 50,  75   }, { 50,  500  }, { 50,  700  },
-	{ 50, 200 }, { 50,  350  }, { 50, 120 }, { 50,  700  }, { 0,   0    }, { 0,   0    }, { 0,   0    }, { 0,   0    },
-	{ 0,  0   }, { 0,   0    }, { 0,  0   }, { 0,   0    }, { 0,   0    }, { 0,   0    }, { 0,   0    }, { 0,   0    }
-};
+/* TC:E firing pipeline shared by prediction and the server. Legacy timing
+ * reads use the shared mutable MP ammo table, not a private initial snapshot. */
 
 /* Timers and recoil accumulators in the protocol wrap at 32 bits. */
 static int PM_TCEAddWeaponCounter(int value, int change)
@@ -7288,7 +7291,7 @@ static void PM_TCEStartAttack(qboolean delayedFire, qboolean akimboFire)
 				                   (pm->ps->eFlags & EF_PRONE) ? ANIM_ET_FIREWEAPON2PRONE :
 				                   ANIM_ET_FIREWEAPON, qfalse, qtrue);
 			}
-			pm->ps->weaponDelay = pm_tceLegacyTiming[pm->ps->weapon].fireDelay;
+			pm->ps->weaponDelay = GetAmmoTableData(pm->ps->weapon)->fireDelayTime;
 		}
 		break;
 	case TCE_ITEM_WEAPON_SATCHEL: case TCE_ITEM_WEAPON_TRIPMINE:
@@ -7298,14 +7301,14 @@ static void PM_TCEStartAttack(qboolean delayedFire, qboolean akimboFire)
 			{
 				PM_StartWeaponAnim(PM_AttackAnimForWeapon(pm->ps->weapon));
 			}
-			pm->ps->weaponDelay = pm_tceLegacyTiming[pm->ps->weapon].fireDelay;
+			pm->ps->weaponDelay = GetAmmoTableData(pm->ps->weapon)->fireDelayTime;
 		}
 		break;
 	case TCE_ITEM_WEAPON_SATCHELDETONATOR:
 		if (!firing)
 		{
 			PM_AddEvent(EV_SPINUP);
-			pm->ps->weaponDelay = pm_tceLegacyTiming[pm->ps->weapon].fireDelay;
+			pm->ps->weaponDelay = GetAmmoTableData(pm->ps->weapon)->fireDelayTime;
 			PM_ContinueWeaponAnim(PM_AttackAnimForWeapon(weapon));
 		}
 		else
@@ -7319,7 +7322,7 @@ static void PM_TCEStartAttack(qboolean delayedFire, qboolean akimboFire)
 		{
 			PM_AddEvent(EV_SPINUP);
 			PM_StartWeaponAnim(PM_AttackAnimForWeapon(weapon));
-			pm->ps->weaponDelay = pm_tceLegacyTiming[pm->ps->weapon].fireDelay;
+			pm->ps->weaponDelay = GetAmmoTableData(pm->ps->weapon)->fireDelayTime;
 		}
 		else
 		{
@@ -7572,7 +7575,7 @@ static int PM_TCEShotCadence(qboolean akimboFire, int attackAnimation, int *spre
 		interval = weaponDef[weapon].nextShotTime;
 		break;
 	case 11: case 12: case 36: case 61:
-		interval = pm_tceLegacyTiming[weapon].nextShot;
+		interval = GetAmmoTableData(weapon)->nextShotTime;
 		break;
 	case 19: case 22:
 		interval = 1000;
@@ -7581,7 +7584,7 @@ static int PM_TCEShotCadence(qboolean akimboFire, int attackAnimation, int *spre
 		interval = 50;
 		break;
 	case 31: case 62:
-		interval = attackAnimation == WEAP_ATTACK_LASTSHOT ? 2000 : pm_tceLegacyTiming[weapon].nextShot;
+		interval = attackAnimation == WEAP_ATTACK_LASTSHOT ? 2000 : GetAmmoTableData(weapon)->nextShotTime;
 		*spread  = 20;
 		break;
 	case 37: case 53: case 38: case 54:
@@ -8204,7 +8207,15 @@ typedef char postureElementSize832[sizeof(int) == 4 && sizeof(float) == 4 ? 1 : 
 void PM_UpdateLean(playerState_t *ps, usercmd_t *cmd, pmove_t *tpm)
 {
 	int     direction = 0, i;
+#if defined(__linux__) && !defined(Q3_VM)
+	long double lean = ps->leanf, target;
+#elif defined(_MSC_VER) && defined(_M_IX86)
+	long double lean = ps->leanf;
+	long double collisionZ;
+	float target;
+#else
 	float   lean = ps->leanf, target;
+#endif
 	vec3_t  start, end, angles, forward, right, up, mins = { -8, -8, -8 }, maxs = { 8, 8, 8 };
 	trace_t trace;
 	if ((cmd->wbuttons & (WBUTTON_LEANLEFT | WBUTTON_LEANRIGHT)) && cmd->upmove <= 0)
@@ -8226,17 +8237,41 @@ void PM_UpdateLean(playerState_t *ps, usercmd_t *cmd, pmove_t *tpm)
 	}
 	if (!direction)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		long double step = (long double)pml.msec * 0.0933333337306976318359375f;
+#elif defined(_MSC_VER) && defined(_M_IX86)
+		long double step = (long double)pml.msec * (1.0f / 300.0f) * 28.0f;
+#else
 		double step = (double)pml.msec * (double)(1.0f / 300.0f) * 28.0;
+#endif
 		if (lean > 0)
 		{
-			lean = (float)(lean - step); if (lean < 0)
+#if (defined(__linux__) && !defined(Q3_VM)) || (defined(_MSC_VER) && defined(_M_IX86))
+			lean -= step;
+#else
+			lean = (float)(lean - step);
+#endif
+#if (defined(__linux__) && !defined(Q3_VM)) || (defined(_MSC_VER) && defined(_M_IX86))
+			if (!(lean >= 0))
+#else
+			if (lean < 0)
+#endif
 			{
 				lean = 0;
 			}
 		}
+#if (defined(__linux__) && !defined(Q3_VM)) || (defined(_MSC_VER) && defined(_M_IX86))
+		else if (!(lean >= 0))
+#else
 		else if (lean < 0)
+#endif
 		{
-			lean = (float)(lean + step); if (lean > 0)
+#if (defined(__linux__) && !defined(Q3_VM)) || (defined(_MSC_VER) && defined(_M_IX86))
+			lean += step;
+#else
+			lean = (float)(lean + step);
+#endif
+			if (lean > 0)
 			{
 				lean = 0;
 			}
@@ -8247,13 +8282,58 @@ void PM_UpdateLean(playerState_t *ps, usercmd_t *cmd, pmove_t *tpm)
 		VectorCopy(ps->origin, start); start[2]          += ps->viewheight;
 		VectorCopy(ps->viewangles, angles); angles[ROLL] += direction * 14.0f;
 		AngleVectors(angles, forward, right, up);
+#if defined(__linux__) && !defined(Q3_VM)
+		for (i = 0; i < 3; ++i)
+			end[i] = (float)((long double)right[i] * (direction * 28.0f) + start[i]);
+#elif defined(_MSC_VER) && defined(_M_IX86)
+		for (i = 0; i < 3; ++i)
+		{
+			long double position = (long double)right[i] * 28.0f;
+			position = direction > 0 ? start[i] + position : start[i] - position;
+			if (i == 2)
+			{
+				collisionZ = position;
+			}
+			else
+			{
+				end[i] = (float)position;
+			}
+		}
+#else
 		for (i = 0; i < 3; ++i)
 			end[i] = (float)(start[i] + (double)right[i] * (direction * 28.0));
+#endif
+#if defined(__linux__) && !defined(Q3_VM)
+		for (i = 0; i < 3; ++i)
+		{
+			long double position = end[i];
+			if (i == 2)
+			{
+				position -= 8.0f;
+			}
+			position += (long double)forward[i] * 4.0f;
+			position += (long double)up[i] * 8.0f;
+			end[i] = (float)position;
+		}
+#elif defined(_MSC_VER) && defined(_M_IX86)
+		collisionZ -= 8.0f;
+		for (i = 0; i < 2; ++i)
+			end[i] = (float)((long double)forward[i] * 4.0f + end[i]);
+		collisionZ += (long double)forward[2] * 4.0f;
+		for (i = 0; i < 2; ++i)
+			end[i] = (float)((long double)up[i] * 8.0f + end[i]);
+		end[2] = (float)((long double)up[2] * 8.0f + collisionZ);
+#else
 		end[2] -= 8;
 		for (i = 0; i < 3; ++i)
 			end[i] = (float)(end[i] + (double)forward[i] * 4.0 + (double)up[i] * 8.0);
+#endif
 		(pm ? pm : tpm)->trace(&trace, start, mins, maxs, end, ps->clientNum, 0x2010001);
+#if defined(__linux__) && !defined(Q3_VM)
+		target = (long double)trace.fraction * 28.0f;
+#else
 		target = trace.fraction * 28.0f;
+#endif
 		if (direction < 0)
 		{
 			target = -target;
@@ -8263,17 +8343,39 @@ void PM_UpdateLean(playerState_t *ps, usercmd_t *cmd, pmove_t *tpm)
 #else
 			if (target < lean)
 #endif
-			{ lean = (float)(lean - (double)pml.msec * (double).005f * 28.0); }
+			{
+#if defined(__linux__) && !defined(Q3_VM)
+				lean -= (long double)pml.msec * 0.14000000059604644775390625f;
+#elif defined(_MSC_VER) && defined(_M_IX86)
+				lean -= (long double)pml.msec * .005f * 28.0f;
+#else
+				lean = (float)(lean - (double)pml.msec * (double).005f * 28.0);
+#endif
+			}
+#if defined(_MSC_VER) && defined(_M_IX86)
+			if (!(lean >= target))
+#else
 			if (lean < target)
+#endif
 			{
 				lean = target;
 			}
 		}
 		else
 		{
+#if defined(_MSC_VER) && defined(_M_IX86)
+			if (!(lean >= target))
+#else
 			if (lean < target)
+#endif
 			{
+#if defined(__linux__) && !defined(Q3_VM)
+				lean += (long double)pml.msec * 0.14000000059604644775390625f;
+#elif defined(_MSC_VER) && defined(_M_IX86)
+				lean += (long double)pml.msec * .005f * 28.0f;
+#else
 				lean = (float)(lean + (double)pml.msec * (double).005f * 28.0);
+#endif
 			}
 #if defined(__linux__)
 			/* The original retains target when the comparison is unordered. */
@@ -8329,7 +8431,7 @@ static void PM_TCETetheredView(playerState_t *ps, pmoveExt_t *ext,
 	{
 		yaw -= 360.0f;
 	}
-	if (yaw - oldYaw < -180.0f || yaw != yaw)
+	if (!(yaw - oldYaw >= -180.0f))
 	{
 		yaw += 360.0f;
 	}
@@ -8376,8 +8478,7 @@ static void PM_TCEProneView(playerState_t *ps, pmoveExt_t *ext, usercmd_t *cmd, 
 	float       step, limit = 40.0f, scale = 1.0f;
 	int         delta = ps->delta_angles[YAW], weapon = ps->weapon, i;
 	vec3_t      forward, start, end;
-	vec3_t      mins = { -13.5f, -13.5f, -24.0f };
-	vec3_t      maxs = { 13.5f, 13.5f, -14.4f };
+	vec3_t      mins, maxs;
 	trace_t     tr;
 	pmove_t     *move;
 
@@ -8385,7 +8486,7 @@ static void PM_TCEProneView(playerState_t *ps, pmoveExt_t *ext, usercmd_t *cmd, 
 	{
 		yaw -= 360.0f;
 	}
-	if (yaw - oldYaw < -180.0f || yaw != yaw)
+	if (!(yaw - oldYaw >= -180.0f))
 	{
 		yaw += 360.0f;
 	}
@@ -8455,6 +8556,8 @@ static void PM_TCEProneView(playerState_t *ps, pmoveExt_t *ext, usercmd_t *cmd, 
 		return;
 	}
 
+	VectorCopy(playerlegsProneMins, mins);
+	VectorCopy(playerlegsProneMaxs, maxs);
 	if (ps->stats[STAT_TCE_FLAGS] & 0x200)
 	{
 		scale = 1.25f;
@@ -8502,13 +8605,15 @@ static void PM_TCEProneViewCollision(playerState_t *ps, pmoveExt_t *ext,
                                      usercmd_t *cmd, float oldYaw, int delta)
 {
 	vec3_t      forward, start, end;
-	vec3_t      mins = { -13.5f, -13.5f, -24.0f }, maxs = { 13.5f, 13.5f, -14.4f };
+	vec3_t      mins, maxs;
 	long double startHeight;
 	float       scale = 1.0f;
 	int         i;
 	trace_t     result;
 	pmove_t     *move;
 
+	VectorCopy(playerlegsProneMins, mins);
+	VectorCopy(playerlegsProneMaxs, maxs);
 	if (ps->stats[STAT_TCE_FLAGS] & 0x200)
 	{
 		scale = 1.25f;
