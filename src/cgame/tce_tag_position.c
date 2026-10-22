@@ -7,12 +7,6 @@ static void TCE_TagMatrixMultiply(const vec3_t a[3], const vec3_t b[3], vec3_t o
 	/* MatrixMultiply retains its SDK signature but only reads its inputs. */
 	MatrixMultiply((float (*)[3]) a, (float (*)[3]) b, out);
 }
-static void TCE_TagOriginStep(vec3_t origin, float distance, const vec3_t axis)
-{
-	int i;
-	for (i = 0; i < 3; ++i)
-		origin[i] = (float)((double)distance * axis[i] + origin[i]);
-}
 
 /*
 ======================
@@ -40,7 +34,7 @@ void CG_PositionEntityOnTag(refEntity_t *entity, const refEntity_t *parent, cons
 
 	for ( i = 0 ; i < 3 ; i++ )
 	{
-		TCE_TagOriginStep(entity->origin, lerped.origin[i], parent->axis[i]);
+		VectorMA(entity->origin, lerped.origin[i], parent->axis[i], entity->origin);
 	}
 
 	TCE_TagMatrixMultiply(lerped.axis, parent->axis, entity->axis);
@@ -69,7 +63,7 @@ void CG_PositionRotatedEntityOnTag(refEntity_t *entity, const refEntity_t *paren
 	VectorCopy(parent->origin, entity->origin);
 	for ( i = 0 ; i < 3 ; i++ )
 	{
-		TCE_TagOriginStep(entity->origin, lerped.origin[i], parent->axis[i]);
+		VectorMA(entity->origin, lerped.origin[i], parent->axis[i], entity->origin);
 	}
 
 	TCE_TagMatrixMultiply(entity->axis, lerped.axis, tempAxis);

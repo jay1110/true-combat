@@ -1,4 +1,7 @@
 #include "cg_local.h"
+#if defined(__linux__) && !defined(Q3_VM)
+#include "../game/tce_numeric.h"
+#endif
 
 static mapEntityData_t mapEntities[MAX_GENTITIES];
 static int             mapEntityCount = 0;
@@ -136,6 +139,27 @@ void CG_AdjustAutomapZoom(int zoomIn)
 			automapZoom = 1.0f;
 		}
 	}
+#elif defined(__linux__) && !defined(Q3_VM)
+	volatile float value;
+
+	if (zoomIn)
+	{
+		value = (float)((long double)1.2 * (long double)automapZoom);
+		automapZoom = value;
+		if ((long double)value > (long double)7.43)
+		{
+			automapZoom = 7.43f;
+		}
+	}
+	else
+	{
+		value = (float)((long double)0.8333333333333334 * (long double)automapZoom);
+		automapZoom = value;
+		if (!(value >= 1.0f))
+		{
+			automapZoom = 1.0f;
+		}
+	}
 #else
 	if (zoomIn)
 	{
@@ -265,6 +289,31 @@ static void CG_DrawGrid(float x, float y, float w, float h, mapScissor_t *scisso
 
 	if (!gridInitDone)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		long double stepX = 1200.0L, stepY = 1200.0L;
+		long double width = (long double)cg.mapcoordsMaxs[0] - cg.mapcoordsMins[0];
+		long double height, ratioX, ratioY;
+
+		gridStep[0] = (float)stepX;
+		gridStep[1] = (float)stepY;
+		while (!((1.0L / stepX) * width >= 7.0L))
+		{
+			stepX -= 50.0L;
+		}
+		gridStep[0] = (float)stepX;
+		height = (long double)cg.mapcoordsMins[1] - cg.mapcoordsMaxs[1];
+		while (!((1.0L / stepY) * height >= 7.0L))
+		{
+			stepY -= 50.0L;
+		}
+		gridStep[1] = (float)stepY;
+		ratioX = ((long double)cg.mapcoordsMaxs[0] - cg.mapcoordsMins[0]) *
+		         (1.0L / gridStep[0]);
+		ratioY = ((long double)cg.mapcoordsMins[1] - cg.mapcoordsMaxs[1]) *
+		         (1.0L / stepY);
+		gridStartCoord[0] = (float)(((ratioX - TCE_TruncateNativeInteger(ratioX)) * gridStep[0]) * .5f);
+		gridStartCoord[1] = (float)(((ratioY - TCE_TruncateNativeInteger(ratioY)) * stepY) * .5f);
+#else
 		gridStep[0] = 1200.f;
 		gridStep[1] = 1200.f;
 
@@ -277,6 +326,7 @@ static void CG_DrawGrid(float x, float y, float w, float h, mapScissor_t *scisso
 		gridStartCoord[0] = .5f * ((((cg.mapcoordsMaxs[0] - cg.mapcoordsMins[0]) / gridStep[0]) - ((int)((cg.mapcoordsMaxs[0] - cg.mapcoordsMins[0]) / gridStep[0]))) * gridStep[0]);
 		gridStartCoord[1] = .5f * ((((cg.mapcoordsMins[1] - cg.mapcoordsMaxs[1]) / gridStep[1]) - ((int)((cg.mapcoordsMins[1] - cg.mapcoordsMaxs[1]) / gridStep[1]))) * gridStep[1]);
 
+#endif
 		gridInitDone = qtrue;
 	}
 
@@ -328,15 +378,26 @@ static void CG_DrawGrid(float x, float y, float w, float h, mapScissor_t *scisso
 			if (scissor->circular)
 			{
 				// clip line against circle
+#if defined(__linux__) && !defined(Q3_VM)
+				long double xc, yc;
+				long double coordinate = (long double)x + grid_x;
+				long double centre = (long double)w * .5f + x;
+
+				line[0] = (float)coordinate;
+				xc = !(centre > coordinate) ? coordinate - centre : centre - coordinate;
+#elif defined(__linux__)
 				float xc;
-#if defined(__linux__)
 				long double yc;
-#else
-				float yc;
-#endif
 
 				line[0] = x + grid_x;
-				xc      = line[0] >= x + .5f * w ? line[0] - (x + .5f * w) : (x + .5f * w) - line[0];
+				xc = line[0] >= x + .5f * w ? line[0] - (x + .5f * w) : (x + .5f * w) - line[0];
+#else
+				float xc;
+				float yc;
+
+				line[0] = x + grid_x;
+				xc = line[0] >= x + .5f * w ? line[0] - (x + .5f * w) : (x + .5f * w) - line[0];
+#endif
 #if defined(__linux__)
 				yc = 1.0L / TCE_ReciprocalSquareRootValue(
 					(float)((long double)circleWidthSquared - (long double)xc * xc));
@@ -363,14 +424,30 @@ static void CG_DrawGrid(float x, float y, float w, float h, mapScissor_t *scisso
 		}
 
 #if defined(__linux__)
+#if !defined(Q3_VM)
+		if (!(grid_y >= dim_y[1]))
+#else
 		if (grid_y < dim_y[1])
+#endif
 		{
 			circleHeightSquared = (float)((long double)h * h * .25f);
 		}
 #endif
-		for ( ; grid_y < dim_y[1]; grid_y += step[1] )
+		for ( ;
+#if defined(__linux__) && !defined(Q3_VM)
+		      !(grid_y >= dim_y[1]);
+#else
+		      grid_y < dim_y[1];
+#endif
+		      grid_y += step[1] )
 		{
-			if (grid_y < dim_y[0])
+			if (
+#if defined(__linux__) && !defined(Q3_VM)
+			    !(grid_y >= dim_y[0])
+#else
+			    grid_y < dim_y[0]
+#endif
+			   )
 			{
 				continue;
 			}
@@ -383,15 +460,26 @@ static void CG_DrawGrid(float x, float y, float w, float h, mapScissor_t *scisso
 			if (scissor->circular)
 			{
 				// clip line against circle
+#if defined(__linux__) && !defined(Q3_VM)
+				long double xc, yc;
+				long double coordinate = (long double)y + grid_y;
+				long double centre = (long double)h * .5f + y;
+
+				line[1] = (float)coordinate;
+				yc = !(centre > coordinate) ? coordinate - centre : centre - coordinate;
+#elif defined(__linux__)
 				float yc;
-#if defined(__linux__)
 				long double xc;
-#else
-				float xc;
-#endif
 
 				line[1] = y + grid_y;
-				yc      = line[1] >= y + .5f * h ? line[1] - (y + .5f * h) : (y + .5f * h) - line[1];
+				yc = line[1] >= y + .5f * h ? line[1] - (y + .5f * h) : (y + .5f * h) - line[1];
+#else
+				float yc;
+				float xc;
+
+				line[1] = y + grid_y;
+				yc = line[1] >= y + .5f * h ? line[1] - (y + .5f * h) : (y + .5f * h) - line[1];
+#endif
 #if defined(__linux__)
 				xc = 1.0L / TCE_ReciprocalSquareRootValue(
 					(float)((long double)circleHeightSquared - (long double)yc * yc));
@@ -470,7 +558,13 @@ static void CG_DrawGrid(float x, float y, float w, float h, mapScissor_t *scisso
 			trap_R_DrawStretchPic(line[0], line[1], line[2], line[3], 0, 0, 0, 1, cgs.media.whiteShader);
 		}
 
-		for ( coord_int = -1; grid_y < dim_y[1]; grid_y += step[1], coord_int++ )
+		for ( coord_int = -1;
+#if defined(__linux__) && !defined(Q3_VM)
+		      !(grid_y >= dim_y[1]);
+#else
+		      grid_y < dim_y[1];
+#endif
+		      grid_y += step[1], coord_int++ )
 		{
 			if (coord_int >= 0)
 			{
@@ -1776,6 +1870,36 @@ void CG_DrawMortarMarker(int px, int py, int pw, int ph, qboolean draw, mapSciss
 
 mapEntityData_t * CG_ScanForCommandCentreEntity(void)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	float rangeSquared = 1000000.0f;
+	int ent = 0;
+	int i;
+
+	if (mapEntityCount <= 0)
+	{
+		return NULL;
+	}
+	for (i = 0; i < mapEntityCount; ++i)
+	{
+		mapEntityData_t *mEnt = &mapEntities[i];
+		long double dx, dy, candidate;
+
+		if (cgs.ccLayers && CG_CurLayerForZ(mEnt->z) != cgs.ccSelectedLayer)
+		{
+			continue;
+		}
+		dx = ((long double)mEnt->transformed[0] + 64.0f) - cgDC.cursorx;
+		dy = ((long double)mEnt->transformed[1] + 23.0f) - cgDC.cursory;
+		candidate = dx * dx + dy * dy;
+		/* Native carry accepts an unordered candidate as well as a nearer one. */
+		if (i == 0 || !(candidate >= (long double)rangeSquared))
+		{
+			rangeSquared = (float)candidate;
+			ent = i;
+		}
+	}
+	return !(rangeSquared >= 64.0f) ? &mapEntities[ent] : NULL;
+#else
 	vec_t           rangeSquared = Square(1000);
 	int             ent          = 0;
 	mapEntityData_t *mEnt        = &mapEntities[0];
@@ -1812,6 +1936,7 @@ mapEntityData_t * CG_ScanForCommandCentreEntity(void)
 		return &mapEntities[ent];
 	}
 	return NULL;
+#endif
 }
 
 typedef enum
