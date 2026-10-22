@@ -1534,7 +1534,7 @@ static void TCE_SvcmdLoadNodes(void)
 {
 	char name[256], path[256];
 	trap_Argv(1, name, sizeof(name));
-	Com_sprintf(path, sizeof(path), "botroutes/%s.wps", name);
+	Com_sprintf(path, sizeof(path), "%s%s.wps", va("botroutes/"), name);
 	TCE_LoadNodes(path);
 }
 
@@ -1543,7 +1543,7 @@ static void TCE_SvcmdSaveNodes(void)
 {
 	char name[256], path[256];
 	trap_Argv(1, name, sizeof(name));
-	Com_sprintf(path, sizeof(path), "botroutes/%s.wps", name);
+	Com_sprintf(path, sizeof(path), "%s%s.wps", va("botroutes/"), name);
 	TCE_SaveNodes(path);
 }
 

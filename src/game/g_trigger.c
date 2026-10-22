@@ -92,7 +92,7 @@ static void func_obj_touch_touch(gentity_t *self, gentity_t *other, trace_t *tra
 		G_Script_ScriptEvent(self, "touched", "specops");
 	}
 	G_UseTargets(self, other);
-	self->eventTime = level.time + 1000;
+	self->eventTime = TCE_AddInt32(level.time, 1000);
 }
 
 void SP_func_obj_touch(gentity_t *ent)

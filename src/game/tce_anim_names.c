@@ -2,7 +2,7 @@
 #include "bg_public.h"
 
 /* TC scans the current item table for each of the64 original weapon slots.
- * Extra native slot64 remains the existing zero-initialized lookup sentinel. */
+ * Extra source slot64 remains the existing zero-initialized lookup sentinel. */
 animStringItem_t weaponStrings[65];
 
 long BG_StringHashValue(const char *fname)

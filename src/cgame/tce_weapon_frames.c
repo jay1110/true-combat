@@ -2,6 +2,7 @@
 #include "cg_local.h"
 #include "tce_weapon_frames.h"
 #include "tce_weapon_media.h"
+#include "../game/tce_numeric.h"
 
 /* Native C uses members; original pointer-bearing offsets apply to x86 only. */
 #if UINTPTR_MAX == UINT32_MAX
@@ -67,7 +68,11 @@ void TCE_CG_SetWeapLerpFrameAnimation(animation_t *animations, lerpFrame_t *lf, 
 		return; /* Engine errors do not return; avoid unsafe reads if an adapter does. */
 	}
 	lf->animation     = &animations[number];
+#if defined(_WIN32)
 	lf->animationTime = lf->frameTime + lf->animation->initialLerp;
+#else
+	lf->animationTime = TCE_AddInt32(lf->frameTime, lf->animation->initialLerp);
+#endif
 	if (cg_debugAnim.integer & 2)
 	{
 		CG_Printf("Weap Anim: %d\n", number);
@@ -129,7 +134,7 @@ void CG_ClearWeapLerpFrame(weaponInfo_t *wi, lerpFrame_t *lf, int number)
 
 /* CG_RunWeapLerpFrame:300730d0. raiseAnimation explicitly projects the
  * PM_RaiseAnimForWeapon result; the clientInfo argument is unused originally.
- * Use double intermediates to preserve original x87 truncation/interpolation.
+ * Preserve each platform's interpolation order.
  */
 void TCE_CG_RunWeapLerpFrame(animation_t *animations, lerpFrame_t *lf, int newAnimation, float speedScale, int raiseAnimation)
 {
@@ -180,26 +185,51 @@ void TCE_CG_RunWeapLerpFrame(animation_t *animations, lerpFrame_t *lf, int newAn
 		}
 		else
 		{
+#if defined(_WIN32)
 			lf->frameTime = lf->oldFrameTime + anim->frameLerp;
+#else
+			lf->frameTime = TCE_AddInt32(lf->oldFrameTime, anim->frameLerp);
+#endif
 		}
+#if defined(_WIN32)
 		f = (lf->frameTime - lf->animationTime) / anim->frameLerp;
 		f = (int)((double)f * (double)speedScale);
+#else
+		f = TCE_SubInt32(lf->frameTime, lf->animationTime) / anim->frameLerp;
+		f = TCE_TruncateNativeInteger((long double)f * speedScale);
+#endif
 		if (f >= anim->numFrames)
 		{
+#if defined(_WIN32)
 			f -= anim->numFrames;
+#else
+			f = TCE_SubInt32(f, anim->numFrames);
+#endif
 			if (anim->loopFrames)
 			{
 				f %= anim->loopFrames;
+#if defined(_WIN32)
 				f += anim->numFrames - anim->loopFrames;
+#else
+				f = TCE_AddInt32(f, TCE_SubInt32(anim->numFrames, anim->loopFrames));
+#endif
 			}
 			else
 			{
+#if defined(_WIN32)
 				f = anim->numFrames - 1;
+#else
+				f = TCE_SubInt32(anim->numFrames, 1);
+#endif
 
 				lf->frameTime = cg.time;
 			}
 		}
+#if defined(_WIN32)
 		lf->frame      = anim->firstFrame + f;
+#else
+		lf->frame      = TCE_AddInt32(anim->firstFrame, f);
+#endif
 		lf->frameModel = anim->mdxFile;
 		if (cg.time > lf->frameTime)
 		{
@@ -211,7 +241,11 @@ void TCE_CG_RunWeapLerpFrame(animation_t *animations, lerpFrame_t *lf, int newAn
 		}
 	}
 
+#if defined(_WIN32)
 	if (lf->frameTime > cg.time + 200)
+#else
+	if (lf->frameTime > TCE_AddInt32(cg.time, 200))
+#endif
 	{
 		lf->frameTime = cg.time;
 	}
@@ -227,6 +261,13 @@ void TCE_CG_RunWeapLerpFrame(animation_t *animations, lerpFrame_t *lf, int newAn
 	}
 	else
 	{
+#if defined(_WIN32)
 		lf->backlerp = (float)(1.0 - (double)(cg.time - lf->oldFrameTime) / (lf->frameTime - lf->oldFrameTime));
+#else
+		/* Linux retains the reciprocal before multiplying by elapsed time. */
+		lf->backlerp = (float)(1.0L -
+		    (1.0L / TCE_SubInt32(lf->frameTime, lf->oldFrameTime)) *
+		    TCE_SubInt32(cg.time, lf->oldFrameTime));
+#endif
 	}
 }

@@ -9,6 +9,7 @@
 #include "cg_local.h"
 #include "../game/tce_trajectory.h"
 #include "../game/tce_bg.h"
+#include "../game/tce_numeric.h"
 #include "tce_smoke_grenade.h"
 #include "tce_weapon_media.h"
 #include "tce_fragment_sound.h"
@@ -2376,7 +2377,7 @@ qboolean CG_AddLinkedEntity(centity_t *cent, qboolean ignoreframe, int atTime)
 				return qfalse;
 			}
 
-			cent->backdelta = sParent->pos.trDuration ? (atTime - sParent->pos.trTime) / ((float)sParent->pos.trDuration) : 0;
+			cent->backdelta = sParent->pos.trDuration ? TCE_SubInt32(atTime, sParent->pos.trTime) / ((float)sParent->pos.trDuration) : 0;
 
 			if (cent->backdelta < 0.f)
 			{
