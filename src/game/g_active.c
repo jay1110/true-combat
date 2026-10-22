@@ -1,6 +1,7 @@
 
 #include "g_local.h"
 #include "tce_numeric.h"
+#include "tce_trigger_precision.h"
 #ifdef FEATURE_OMNIBOT
 #include "g_etbot_interface.h"
 #endif
@@ -575,13 +576,55 @@ void    G_TouchTriggers(gentity_t *ent)
 			if (hit->s.teamNum != ent->client->sess.sessionTeam)
 			{
 				vec3_t eye, direction, facing;
+#if defined(__linux__) && !defined(Q3_VM)
+				long double distance, eyeHeight, facingDot;
+#elif defined(_WIN32) && !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86)
+				int withinDefuseDistance;
+#else
+				long double distance, facingDot;
+#endif
+#else
 				float  distance;
+#endif
 				AngleVectors(ent->client->ps.viewangles, facing, NULL, NULL);
 				VectorCopy(ent->client->ps.origin, eye);
+#if defined(__linux__) && !defined(Q3_VM)
+				/* The ELF stores eye Z without popping it, then uses the retained
+				 * sum for direction Z. Normalize's return also stays in ST0. */
+				eyeHeight = (long double)eye[2] + ent->client->ps.viewheight;
+				direction[0] = hit->r.currentOrigin[0] - eye[0];
+				direction[1] = hit->r.currentOrigin[1] - eye[1];
+				direction[2] = (float)((long double)hit->r.currentOrigin[2] - eyeHeight);
+				distance = (long double)VectorNormalize(direction);
+				facingDot = ((long double)facing[0] * direction[0] +
+				             (long double)facing[1] * direction[1]) +
+				            (long double)facing[2] * direction[2];
+				if (facingDot > (long double)0.707 && distance < 72.0L)
+#else
 				eye[2] += ent->client->ps.viewheight;
 				VectorSubtract(hit->r.currentOrigin, eye, direction);
+#if defined(_WIN32) && !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86)
+				withinDefuseDistance = TCE_TriggerDistanceBelow72(direction);
+				(void)TCE_VectorNormalizeValue(direction);
+#else
+				distance = TCE_VectorNormalizeValue(direction);
+#endif
+				/* Windows stores eye Z, unlike ELF, and adds products Z,Y,X. */
+#if defined(_MSC_VER) && defined(_M_IX86)
+				if (TCE_TriggerDotAboveDefuse(facing, direction) && withinDefuseDistance)
+#else
+				facingDot = ((long double)facing[2] * direction[2] +
+				             (long double)facing[1] * direction[1]) +
+				            (long double)facing[0] * direction[0];
+				if (facingDot > (long double)0.707 && distance < 72.0L)
+#endif
+#else
 				distance = VectorNormalize(direction);
 				if (DotProduct(facing, direction) > 0.707 && distance < 72.0f)
+#endif
+#endif
 				{
 					ent->client->ps.serverCursorHint    = HINT_DISARM;
 					ent->client->ps.serverCursorHintVal = 0;
@@ -594,8 +637,16 @@ void    G_TouchTriggers(gentity_t *ent)
 		if ((hit->r.contents & CONTENTS_TRIGGER) &&
 		    !strcmp(hit->classname, "trigger_objective_info") &&
 		    (hit->spawnflags & (AXIS_OBJECTIVE | ALLIED_OBJECTIVE)) &&
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		    TCE_TriggerObjectiveBelow(ent->client->ps.mins[2], ent->client->ps.origin[2],
+		                              hit->r.maxs[2], hit->s.pos.trBase[2]))
+#elif (defined(__linux__) || defined(_WIN32)) && !defined(Q3_VM)
+		    ((long double)ent->client->ps.mins[2] + ent->client->ps.origin[2]) + 4.0L <
+		    (long double)hit->r.maxs[2] + hit->s.pos.trBase[2])
+#else
 		    ent->client->ps.origin[2] + ent->client->ps.mins[2] + 4.0f <
 		    hit->r.maxs[2] + hit->s.pos.trBase[2])
+#endif
 		{
 			ent->client->tceObjectiveContact = qtrue;
 		}

@@ -1554,8 +1554,14 @@ void explosive_indicator_think(gentity_t *ent)
 	{
 		if (parent->target_ent->entstate == 4)
 		{
+#if defined(__linux__) && !defined(Q3_VM)
+			/* The original clears this static entity slot, then still updates
+			 * its team/deadline/effect fields. neverFree also continues here. */
+			G_FreeEntity(ent);
+#else
 			G_FreeObjectiveIndicator(ent);
 			return;
+#endif
 		}
 		else if (parent->target_ent->entstate == 3)
 		{
@@ -2024,8 +2030,15 @@ void SP_trigger_objective_info(gentity_t *ent)
 	trap_SetConfigstring(CS_OID_TRIGGERS + level.numOidTriggers, ent->track);
 
 	/* Legacy CTF objective B was relocated in both original binaries. */
+#if defined(__linux__) && !defined(Q3_VM)
+	/* The ELF checks the map names before the objective number. */
+	if (g_gametype.integer == 2 &&
+	    (!Q_stricmp(level.rawmapname, "dem_northport") || !Q_stricmp(level.rawmapname, "dem_railhouse")) &&
+	    ent->count2 == 2)
+#else
 	if (g_gametype.integer == 2 && ent->count2 == 2 &&
 	    (!Q_stricmp(level.rawmapname, "dem_northport") || !Q_stricmp(level.rawmapname, "dem_railhouse")))
+#endif
 	{
 		vec3_t shift;
 		if (!Q_stricmp(level.rawmapname, "dem_northport"))

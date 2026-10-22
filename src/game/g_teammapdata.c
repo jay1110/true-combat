@@ -249,7 +249,9 @@ void G_SetupFrustum_ForBinoculars(gentity_t *ent)
 	vec3_t axis[3];
 	vec3_t vieworg;
 	float  baseAngle;
+#if !defined(__linux__) || defined(Q3_VM)
 	double horizontalAngle;
+#endif
 
 	if (ent->r.svFlags & SVF_BOT)
 	{
@@ -260,6 +262,13 @@ void G_SetupFrustum_ForBinoculars(gentity_t *ent)
 		baseAngle = BINOCULAR_ANGLE;
 	}
 
+#if defined(__linux__) && !defined(Q3_VM)
+	/* ELF uses the stored double pi/2 and reloads float ang for both pairs. */
+	ang = (float)((long double)baseAngle * (long double)0.0055555556900799274f *
+	              (long double)(double)1.5707963267948966);
+	xs = sin(ang);
+	xc = cos(ang);
+#else
 	// TC Windows 200904f0 multiplies two stored float constants and keeps
 	// the first trig argument unrounded; the vertical pair reloads float ang.
 	horizontalAngle = (double)baseAngle * (double)0.0055555556900799274f *
@@ -267,6 +276,7 @@ void G_SetupFrustum_ForBinoculars(gentity_t *ent)
 	ang = (float)horizontalAngle;
 	xs  = sin(horizontalAngle);
 	xc  = cos(horizontalAngle);
+#endif
 
 	AnglesToAxis(ent->client->ps.viewangles, axis);
 
