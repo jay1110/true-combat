@@ -280,14 +280,30 @@ PM_ClipVelocity
 Slide off of the impacting surface
 ==================
 */
-#if defined(_MSC_VER) && defined(_M_IX86)
-/* Windows retains the dot product until the sequential output stores.
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+/* Native paths retain the dot product until the sequential output stores.
  * Compiler precision and floating-point exceptions remain unverified. */
 void PM_ClipVelocity(vec3_t in, vec3_t normal, vec3_t out, float overbounce)
 {
+#if defined(__linux__)
+	long double backoff = (long double)normal[1] * in[1];
+	long double factor  = (long double)overbounce;
+#else
 	long double backoff = (long double)in[2] * normal[2];
+#endif
 	int         i;
 
+#if defined(__linux__)
+	backoff += (long double)normal[0] * in[0];
+	backoff += (long double)normal[2] * in[2];
+	/* ELF retains the reciprocal before multiplying the complete dot product.
+	 * Negative and unordered values use overbounce directly. */
+	if (backoff >= 0.0L)
+	{
+		factor = 1.0L / factor;
+	}
+	backoff = factor * backoff;
+#else
 	backoff += (long double)in[1] * normal[1];
 	backoff += (long double)in[0] * normal[0];
 	/* Native C0 selects multiplication for negative or unordered values. */
@@ -299,6 +315,7 @@ void PM_ClipVelocity(vec3_t in, vec3_t normal, vec3_t out, float overbounce)
 	{
 		backoff /= overbounce;
 	}
+#endif
 	for (i = 0; i < 3; ++i)
 	{
 		long double change = backoff * normal[i];
@@ -344,7 +361,10 @@ void PM_TraceLegs(trace_t *trace, float *legsOffset, vec3_t start, vec3_t end, t
 	trace_t steptrace;
 	vec3_t  ofs, org, point;
 
-#if !defined(_MSC_VER) || !defined(_M_IX86)
+#if defined(__linux__) && !defined(Q3_VM)
+	long double initialOffset[3];
+	int         axis;
+#elif !defined(_MSC_VER) || !defined(_M_IX86)
 	vec3_t flatforward;
 	float  angle;
 #endif
@@ -383,6 +403,22 @@ void PM_TraceLegs(trace_t *trace, float *legsOffset, vec3_t start, vec3_t end, t
 		ofs[1]   = (float)(distance * traceSin);
 		ofs[2]   = 0.0f;
 	}
+#elif defined(__linux__) && !defined(Q3_VM)
+	{
+		volatile float angleValue, traceCos, traceSin;
+
+		/* ELF stores radians and both trig results before scaling. */
+		angleValue = (float)((long double)0.017453292519943295 * viewangles[YAW]);
+		traceCos = (float)cosl((long double)angleValue);
+		traceSin = (float)sinl((long double)angleValue);
+		initialOffset[0] = (long double)traceCos * sizeScale * -32.0f;
+		initialOffset[1] = (long double)traceSin * sizeScale * -32.0f;
+		initialOffset[2] = -32.0L * 0.0L * sizeScale;
+		for (axis = 0; axis < 3; ++axis)
+		{
+			ofs[axis] = (float)initialOffset[axis];
+		}
+	}
 #else
 	angle          = DEG2RAD(viewangles[YAW]);
 	flatforward[0] = cos(angle);
@@ -392,14 +428,23 @@ void PM_TraceLegs(trace_t *trace, float *legsOffset, vec3_t start, vec3_t end, t
 	VectorScale(flatforward, sizeScale * -32.0f, ofs);
 #endif
 
+#if defined(__linux__) && !defined(Q3_VM)
+	/* The first trace uses held products; later traces reload stored offsets. */
+	for (axis = 0; axis < 3; ++axis)
+	{
+		org[axis] = (float)((long double)start[axis] + initialOffset[axis]);
+		point[axis] = (float)(initialOffset[axis] + end[axis]);
+	}
+#else
 	VectorAdd(ofs, start, org);
 	VectorAdd(ofs, end, point);
+#endif
 	tracefunc(trace, org, legMins, legMaxs, point, ignoreent, tracemask);
 	tryStep = !bodytrace;
 	if (bodytrace)
 	{
-#if defined(_MSC_VER) && defined(_M_IX86)
-		/* Native C0 also accepts an unordered comparison. */
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+		/* Both native binaries accept an unordered fraction comparison. */
 		tryStep = trace->fraction < bodytrace->fraction ||
 		          TCE_FloatIsNaN(trace->fraction) || TCE_FloatIsNaN(bodytrace->fraction);
 #else
@@ -443,7 +488,7 @@ void PM_TraceLegs(trace_t *trace, float *legsOffset, vec3_t start, vec3_t end, t
 				tracefunc(&steptrace, org, legMins, legMaxs, point, ignoreent, tracemask);
 				if (!steptrace.allsolid)
 				{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 					*legsOffset = (float)((long double)ofs[2] -
 					                      ((long double)org[2] - steptrace.endpos[2]));
 #else
@@ -468,6 +513,9 @@ void PM_TraceAllLegs(trace_t *trace, float *legsOffset, vec3_t start, vec3_t end
 		PM_TraceLegs(&legtrace, legsOffset, start, end, trace, pm->ps->viewangles, pm->trace, pm->ps->clientNum, pm->tracemask);
 
 		if (legtrace.fraction < trace->fraction ||
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+		    TCE_FloatIsNaN(legtrace.fraction) || TCE_FloatIsNaN(trace->fraction) ||
+#endif
 		    legtrace.startsolid ||
 		    legtrace.allsolid)
 		{
