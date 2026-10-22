@@ -997,7 +997,7 @@ void Just_Got_Thrown(gentity_t *self)
 			VectorCopy(self->r.currentOrigin, end);
 			end[2] += 1;
 
-			trap_Trace(&trace, self->r.currentOrigin, self->r.mins, self->r.maxs, end, self->s.number, MASK_SHOT);
+			trap_Trace(&trace, self->r.currentOrigin, self->r.mins, self->r.maxs, end, self->s.number, MASK_MISSILESHOT);
 
 			traceEnt = &g_entities[trace.entityNum];
 

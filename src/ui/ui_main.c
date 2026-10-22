@@ -373,7 +373,11 @@ void _UI_DrawSides(float x, float y, float w, float h, float size)
 	size *= uiInfo.uiDC.xscale;
 	trap_R_DrawStretchPic(x, y, size, h, 0, 0, 0, 0, uiInfo.uiDC.whiteShader);
 	// Original x87 retains the sum until after subtracting the rounded thickness.
+#if defined(__linux__)
+	trap_R_DrawStretchPic((float)((long double)w + (long double)x - (long double)size), y, size, h, 0, 0, 0, 0, uiInfo.uiDC.whiteShader);
+#else
 	trap_R_DrawStretchPic((float)((double)x + (double)w - (double)size), y, size, h, 0, 0, 0, 0, uiInfo.uiDC.whiteShader);
+#endif
 }
 
 void _UI_DrawTopBottom(float x, float y, float w, float h, float size)
@@ -381,7 +385,11 @@ void _UI_DrawTopBottom(float x, float y, float w, float h, float size)
 	UI_AdjustFrom640(&x, &y, &w, &h);
 	size *= uiInfo.uiDC.yscale;
 	trap_R_DrawStretchPic(x, y, w, size, 0, 0, 0, 0, uiInfo.uiDC.whiteShader);
+#if defined(__linux__)
+	trap_R_DrawStretchPic(x, (float)((long double)h + (long double)y - (long double)size), w, size, 0, 0, 0, 0, uiInfo.uiDC.whiteShader);
+#else
 	trap_R_DrawStretchPic(x, (float)((double)y + (double)h - (double)size), w, size, 0, 0, 0, 0, uiInfo.uiDC.whiteShader);
+#endif
 }
 /*
 ================

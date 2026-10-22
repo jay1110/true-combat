@@ -1540,81 +1540,65 @@ static __declspec(naked) void CG_WeatherTruncateST0(void)
 		ret
 	}
 }
-static __declspec(naked) void CG_EffectGust(void)
+/* Keep native 32-bit time wrapping and the field reads around rand(). */
+static void CG_EffectGust(void)
 {
-	__asm {
-		PUSH ESI
-		PUSH EDI
-		CALL rand
-		MOV ESI, dword ptr[cg_atmFx + GustField11]
-		MOV ECX, dword ptr[cg_atmFx + GustField10]
-		CDQ
-		SUB ESI, ECX
-		MOV EDI, dword ptr[cg_atmFx + GustField9]
-		IDIV ESI
-		MOV ESI, EDI
-		MOV EAX, EDX
-		MOV EDX, dword ptr[cg + WeatherTime]
-		ADD EAX, ECX
-		MOV ECX, dword ptr[cg_atmFx + GustField8]
-		ADD EAX, EDX
-		SUB ESI, ECX
-		    MOV[cg_atmFx + GustField5], EAX
-		JZ gust_30017f80
-		CALL rand
-		MOV EDI, dword ptr[cg_atmFx + GustField9]
-		CDQ
-		IDIV ESI
-		MOV EAX, [cg_atmFx + GustField5]
-		JMP gust_30017f82
-gust_30017f80:
-		XOR EDX, EDX
-gust_30017f82:
-		MOV ECX, dword ptr[cg_atmFx + GustField8]
-		MOV ESI, dword ptr[cg_atmFx + GustField7]
-		ADD ECX, EDX
-		ADD ECX, EAX
-		MOV EAX, [cg_atmFx + GustField6]
-		SUB ESI, EAX
-		MOV dword ptr[cg_atmFx + GustField2], ECX
-		JZ gust_30017fb7
-		CALL rand
-		MOV ECX, dword ptr[cg_atmFx + GustField2]
-		MOV EDI, dword ptr[cg_atmFx + GustField9]
-		CDQ
-		IDIV ESI
-		JMP gust_30017fb9
-gust_30017fb7:
-		XOR EDX, EDX
-gust_30017fb9:
-		MOV EAX, [cg_atmFx + GustField6]
-		ADD EAX, EDX
-		ADD EAX, ECX
-		MOV ECX, dword ptr[cg_atmFx + GustField8]
-		SUB EDI, ECX
-		    MOV[cg_atmFx + GustField3], EAX
-		JZ gust_30017ff0
-		CALL rand
-		CDQ
-		IDIV EDI
-		MOV EAX, [cg_atmFx + GustField3]
-		POP EDI
-		POP ESI
-		ADD EDX, EAX
-		MOV EAX, [cg_atmFx + GustField8]
-		ADD EDX, EAX
-		MOV dword ptr[cg_atmFx + GustField4], EDX
-		RET
-gust_30017ff0:
-		XOR EDX, EDX
-		POP EDI
-		MOV EDX, EAX
-		MOV EAX, [cg_atmFx + GustField8]
-		ADD EDX, EAX
-		POP ESI
-		MOV dword ptr[cg_atmFx + GustField4], EDX
-		    RET
+	volatile cg_atmosphericEffect_t *effect = &cg_atmFx;
+	int randomValue, baseMin, baseMax, changeMin, changeMax;
+	int gustMin, gustMax, range, offset, baseEnd, gustStart, gustEnd, time;
+
+	randomValue = rand();
+	baseMax = effect->baseMaxTime;
+	baseMin = effect->baseMinTime;
+	range = TCE_SubInt32(baseMax, baseMin);
+	changeMax = effect->changeMaxTime;
+	/* The original requires a nonzero base interval; this draw is unconditional. */
+	offset = randomValue % range;
+	time = ((volatile cg_t *)&cg)->time;
+	baseEnd = TCE_AddInt32(TCE_AddInt32(offset, baseMin), time);
+	changeMin = effect->changeMinTime;
+	range = TCE_SubInt32(changeMax, changeMin);
+	effect->baseEndTime = baseEnd;
+
+	offset = 0;
+	if (range)
+	{
+		randomValue = rand();
+		changeMax = effect->changeMaxTime;
+		offset = randomValue % range;
+		baseEnd = effect->baseEndTime;
 	}
+	changeMin = effect->changeMinTime;
+	gustMax = effect->gustMaxTime;
+	gustStart = TCE_AddInt32(TCE_AddInt32(changeMin, offset), baseEnd);
+	gustMin = effect->gustMinTime;
+	range = TCE_SubInt32(gustMax, gustMin);
+	effect->gustStartTime = gustStart;
+
+	offset = 0;
+	if (range)
+	{
+		randomValue = rand();
+		gustStart = effect->gustStartTime;
+		changeMax = effect->changeMaxTime;
+		offset = randomValue % range;
+	}
+	gustMin = effect->gustMinTime;
+	gustEnd = TCE_AddInt32(TCE_AddInt32(gustMin, offset), gustStart);
+	changeMin = effect->changeMinTime;
+	range = TCE_SubInt32(changeMax, changeMin);
+	effect->gustEndTime = gustEnd;
+
+	offset = 0;
+	if (range)
+	{
+		randomValue = rand();
+		offset = randomValue % range;
+		gustEnd = effect->gustEndTime;
+	}
+	baseEnd = TCE_AddInt32(offset, gustEnd);
+	changeMin = effect->changeMinTime;
+	effect->baseStartTime = TCE_AddInt32(baseEnd, changeMin);
 }
 
 static __declspec(naked) qboolean CG_EffectGustCurrent(vec3_t curr, float *weight, int *num)
@@ -2093,95 +2077,65 @@ void CG_EffectParse(const char *effectstr)
 */
 
 #if defined(_MSC_VER) && defined(_M_IX86)
-__declspec(naked) void CG_AddAtmosphericEffects(void)
+void CG_AddAtmosphericEffects(void)
 {
-	__asm {
-		SUB ESP, 0x14
-		PUSH ESI
-		PUSH EDI
-		MOV EDI, dword ptr[cg_atmFx + GustField1]
-		XOR ESI, ESI
-		CMP EDI, ESI
-		JLE gust_3001822e
-		CMP dword ptr[cg_atmFx + GustField17], ESI
-		JZ gust_3001822e
-		FLD dword ptr[cg_atmosphericEffects + GustCvarValue]
-		FCOMP dword ptr[gustZero]
-		FNSTSW AX
-		TEST AH, 0x41
-		JZ gust_30018160
-		CMP dword ptr[developer + GustCvarInteger], ESI
-		JNZ gust_3001822e
-gust_30018160:
-		LEA EAX, [ESP + 0xc]
-		LEA ECX, [ESP + 0x8]
-		PUSH EAX
-		LEA EDX, [ESP + 0x14]
-		PUSH ECX
-		PUSH EDX
-		CALL CG_EffectGustCurrent
-		ADD ESP, 0xc
-		TEST EAX, EAX
-		JZ gust_30018180
-		CALL CG_EffectGust
-gust_30018180:
-		MOV EAX, [cg_atmFx + GustField30]
-		MOV dword ptr[cg_atmFx + GustField30], ESI
-		    MOV[cg_atmFx + GustField31], EAX
-		MOV EAX, [cg + WeatherRefdef]
-		MOV dword ptr[cg_atmFx + GustField34], ESI
-		MOV dword ptr[cg_atmFx + GustField33], ESI
-		MOV dword ptr[cg_atmFx + GustField32], ESI
-		CMP EDI, ESI
-		FLD dword ptr[EAX + GustViewX]
-		FSTP dword ptr[cg_atmFx + GustField24]
-		FLD dword ptr[EAX + GustViewY]
-		FSTP dword ptr[cg_atmFx + GustField25]
-		MOV dword ptr[cg_atmFx + GustField26], 0x0
-		JLE gust_30018222
-		LEA ESI, cg_atmFx.particles
-gust_300181cc:
-		PUSH ESI
-		CALL dword ptr[cg_atmFx + GustField27]
-		ADD ESP, 0x4
-		TEST EAX, EAX
-		JNZ gust_30018207
-		MOV ECX, dword ptr[ESP + 0x8]
-		LEA EDX, [ESP + 0x10]
-		PUSH ECX
-		PUSH EDX
-		PUSH ESI
-		CALL dword ptr[cg_atmFx + GustField28]
-		ADD ESP, 0xc
-		TEST EAX, EAX
-		JNZ gust_30018201
-		MOV EAX, [cg + WeatherTime]
-		ADD EAX, 0x3e8
-		MOV dword ptr[ESI + GustNextDrop], EAX
-		JMP gust_3001821c
-gust_30018201:
-		INC dword ptr[cg_atmFx + GustField33]
-gust_30018207:
-		PUSH ESI
-		CALL dword ptr[cg_atmFx + GustField29]
-		MOV EAX, [cg_atmFx + GustField30]
-		ADD ESP, 0x4
-		INC EAX
-		    MOV[cg_atmFx + GustField30], EAX
-gust_3001821c:
-		ADD ESI, GustParticleSize
-		DEC EDI
-		JNZ gust_300181cc
-gust_30018222:
-		MOV ECX, dword ptr[cg + WeatherTime]
-		MOV dword ptr[cg_atmFx + GustField0], ECX
-gust_3001822e:
-		POP EDI
-		POP ESI
-		ADD ESP, 0x14
-		RET
+	volatile cg_atmosphericEffect_t *effect = &cg_atmFx;
+	volatile cg_t *client = &cg;
+	volatile refdef_t *view;
+	cg_atmosphericParticle_t *particle;
+	vec3_t currentVector;
+	float currentWeight;
+	int currentCount, remaining, oldActive;
+
+	remaining = effect->numDrops;
+	if (remaining <= 0 || effect->numEffectShaders == 0)
+	{
+		return;
 	}
+	if (!(((volatile vmCvar_t *)&cg_atmosphericEffects)->value > 0.f) &&
+	    ((volatile vmCvar_t *)&developer)->integer != 0)
+	{
+		return;
+	}
+
+	if (CG_EffectGustCurrent(currentVector, &currentWeight, &currentCount))
+	{
+		CG_EffectGust();
+	}
+	oldActive = effect->dropsActive;
+	effect->dropsActive = 0;
+	effect->oldDropsActive = oldActive;
+	view = client->refdef_current;
+	effect->dropsSkipped = 0;
+	effect->dropsCreated = 0;
+	effect->dropsRendered = 0;
+	effect->viewDir[0] = view->viewaxis[0][0];
+	effect->viewDir[1] = view->viewaxis[0][1];
+	effect->viewDir[2] = 0.f;
+
+	/* The native loop keeps the entry count across every particle callback. */
+	particle = cg_atmFx.particles;
+	do
+	{
+		if (!effect->ParticleCheckVisible(particle))
+		{
+			if (!effect->ParticleGenerate(particle, currentVector, currentWeight))
+			{
+				particle->nextDropTime = TCE_AddInt32(client->time, 1000);
+				++particle;
+				--remaining;
+				continue;
+			}
+			effect->dropsCreated = TCE_AddInt32(effect->dropsCreated, 1);
+		}
+		effect->ParticleRender(particle);
+		effect->dropsActive = TCE_AddInt32(effect->dropsActive, 1);
+		++particle;
+		--remaining;
+	} while (remaining);
+	effect->lastRainTime = client->time;
 }
+
 #else
 void CG_AddAtmosphericEffects()
 {

@@ -4919,6 +4919,17 @@ static void CG_Draw2D(void)
    rounding the shake displacement before adding it to the camera origin. */
 void CG_StartShakeCamera(float p)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	long double length, phase;
+
+	cg.cameraShakeScale = p;
+	length = (long double)p * p * 1000.0L;
+	cg.cameraShakeLength = (float)length;
+	/* Linux adds the unrounded duration before truncating the deadline. */
+	cg.cameraShakeTime = (int)((long double)cg.time + length);
+	phase = (long double)(rand() & 0x7fff) * 3.0518509447574615e-05f - .5L;
+	cg.cameraShakePhase = (float)((phase + phase) * (long double)3.141592653589793);
+#else
 	double phase;
 	double length = (double)p * p * 1000.0;
 	cg.cameraShakeScale  = p;
@@ -4926,10 +4937,34 @@ void CG_StartShakeCamera(float p)
 	cg.cameraShakeTime   = (int)((double)cg.time + cg.cameraShakeLength);
 	phase                = (double)(rand() & 0x7fff) * (double)3.0518509447574615e-05f - .5;
 	cg.cameraShakePhase  = (float)((phase + phase) * 3.1415927410125732);
+#endif
 }
 
 void CG_ShakeCamera(void)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	long double fraction;
+	float displacement;
+
+	if (cg.cameraShakeTime < cg.time)
+	{
+		cg.cameraShakeScale = 0;
+		return;
+	}
+	fraction = (long double)(cg.cameraShakeTime - cg.time) *
+	           (1.0L / cg.cameraShakeLength);
+	/* Each Linux contribution is stored as float before adding the old origin. */
+	displacement = (float)(sinl(fraction * (long double)21.991148575128552 + cg.cameraShakePhase) *
+	                       fraction * cg.cameraShakeScale * 4.0L);
+	cg.refdef.vieworg[2] += displacement;
+	displacement = (float)(sinl(fraction * (long double)40.840704496667314 + cg.cameraShakePhase) *
+	                       fraction * cg.cameraShakeScale * 4.0L);
+	cg.refdef.vieworg[1] += displacement;
+	displacement = (float)(cosl(fraction * (long double)53.40707511102649 + cg.cameraShakePhase) *
+	                       fraction * cg.cameraShakeScale * 4.0L);
+	cg.refdef.vieworg[0] += displacement;
+	AnglesToAxis(cg.refdefViewAngles, cg.refdef.viewaxis);
+#else
 	double fraction, amplitude;
 	if (cg.cameraShakeTime < cg.time)
 	{
@@ -4945,6 +4980,7 @@ void CG_ShakeCamera(void)
 	cg.refdef.vieworg[0] = (float)(cg.refdef.vieworg[0] + amplitude *
 	                               cos(fraction * 53.40707778930664f + cg.cameraShakePhase));
 	AnglesToAxis(cg.refdefViewAngles, cg.refdef.viewaxis);
+#endif
 }
 // -NERVE - SMF
 

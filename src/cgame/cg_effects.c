@@ -968,7 +968,7 @@ void CG_Spotlight(centity_t *cent, float *color, vec3_t realstart, vec3_t lightD
 		}
 		else
 		{
-			CG_Trace(&tr, start, NULL, NULL, traceEnd, -1, MASK_SHOT);
+			CG_Trace(&tr, start, NULL, NULL, traceEnd, -1, MASK_MISSILESHOT);
 		}
 //		CG_Trace( &tr, start, NULL, NULL, traceEnd, -1, MASK_ALL &~(CONTENTS_MONSTERCLIP|CONTENTS_AREAPORTAL|CONTENTS_CLUSTERPORTAL));
 	}

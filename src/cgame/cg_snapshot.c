@@ -283,11 +283,12 @@ static void CG_TransitionSnapshot(void)
 
 	if (cg.snap->ps.clientNum == cg.clientNum)
 	{
-		if (cg.xp < cg.snap->ps.stats[STAT_XP])
+		/* TC reads ps+0xe8 (stats[6]); the SDK uses STAT_XP at ps+0xf0. */
+		if (cg.xp < cg.snap->ps.stats[STAT_CAPTUREHOLD_RED])
 		{
 			cg.xpChangeTime = cg.time;
 		}
-		cg.xp = cg.snap->ps.stats[STAT_XP];
+		cg.xp = cg.snap->ps.stats[STAT_CAPTUREHOLD_RED];
 	}
 
 	BG_PlayerStateToEntityState(&cg.snap->ps, &cg_entities[cg.snap->ps.clientNum].currentState, qfalse);

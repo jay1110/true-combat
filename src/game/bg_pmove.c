@@ -575,14 +575,18 @@ PM_Friction
 Handles both ground friction and water friction
 ==================
 */
-/* Whole TC:E3000b950 / Linux000dee7e. */
-#if defined(_MSC_VER) && defined(_M_IX86)
+/* Native TCE friction; saved-Z handling is defined for airborne extensions. */
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 static void PM_Friction(void)
 {
 	float          *velocity = pm->ps->velocity;
 	vec3_t         vec;
 	float          preservedZ = 0.0f;
+#if defined(__linux__)
+	long double    speed, ratio;
+#else
 	volatile float speed, ratio;
+#endif
 	long double    heldSpeed, drop = 0.0L, control, remaining;
 	unsigned       elapsedBits;
 	int            elapsed, type;
@@ -609,47 +613,81 @@ static void PM_Friction(void)
 	memcpy(&elapsed, &elapsedBits, sizeof(elapsed));
 	if (elapsed > 250 && elapsed < 350)
 	{
+#if defined(__linux__)
+		drop += speed * pml.frametime * 20.0f;
+#else
 		drop  = (long double)pml.frametime * speed;
 		drop *= 20.0f;
+#endif
 	}
 	if (pm->waterlevel < 2 && pml.walking &&
 	    !(pml.groundTrace.surfaceFlags & SURF_SLICK) &&
 	    !(pm->ps->pm_flags & PMF_TIME_KNOCKBACK))
 	{
 		control = (long double)pm_stopspeed * 0.5f;
+#if defined(__linux__)
+		if (!(control > speed))
+#else
 		if (speed >= control)
+#endif
 		{
 			control = speed;
 		}
+#if defined(__linux__)
+		drop += control * pm_friction * pml.frametime;
+#else
 		drop += (long double)pm_friction * pml.frametime * control;
+#endif
 	}
 	if (pm->waterlevel)
 	{
 		long double waterDrop = pm->waterlevel;
+#if defined(__linux__)
+		waterDrop = speed * (pm->watertype == CONTENTS_SLIME ? pm_slagfriction : pm_waterfriction);
+		waterDrop *= pm->waterlevel;
+		waterDrop *= pml.frametime;
+#else
 		waterDrop *= pm->watertype == CONTENTS_SLIME ? pm_slagfriction : pm_waterfriction;
 		waterDrop *= pml.frametime;
 		waterDrop *= speed;
+#endif
 		drop      += waterDrop;
 	}
 	type = pm->ps->pm_type;
 	if (type == PM_SPECTATOR)
 	{
+#if defined(__linux__)
+		drop += speed * pm_spectatorfriction * pml.frametime;
+#else
 		drop += (long double)pm_spectatorfriction * pml.frametime * speed;
+#endif
 	}
 	if (pm->ps->eFlags & 0x01000000)
 	{
+#if defined(__linux__)
+		drop += speed * pm_VC100friction * pml.frametime;
+#else
 		drop += (long double)pm_VC100friction * pml.frametime * speed;
+#endif
 	}
 	if (pml.ladder)
 	{
+#if defined(__linux__)
+		drop += speed * pm_ladderfriction * pml.frametime;
+#else
 		drop += (long double)pm_ladderfriction * pml.frametime * speed;
+#endif
 	}
 	remaining = (long double)speed - drop;
 	if (remaining < 0.0L || remaining != remaining)
 	{
 		remaining = 0.0L;
 	}
+#if defined(__linux__)
+	ratio = (1.0L / speed) * remaining;
+#else
 	ratio = (float)(remaining / speed);
+#endif
 	if ((type == PM_SPECTATOR || type == PM_NOCLIP) &&
 	    (drop < 1.0L || drop != drop) && (speed < 3.0f || speed != speed))
 	{
@@ -658,7 +696,8 @@ static void PM_Friction(void)
 	velocity[0] = (float)((long double)ratio * velocity[0]);
 	velocity[1] = (float)((long double)ratio * velocity[1]);
 	velocity[2] = (float)((long double)ratio * velocity[2]);
-	/* Keep the prior defined fallback; native saved-Z reachability is unresolved. */
+	/* Original reads an unwritten stack slot when extension is set while airborne.
+	 * Retain the defined zero fallback for that state rather than read indeterminate C. */
 	if (pml.tceGroundExtension && (preservedZ < 0.0f || preservedZ != preservedZ))
 	{
 		velocity[2] = preservedZ;
@@ -2122,12 +2161,44 @@ PM_WaterMove
 
 ===================
 */
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(__linux__) && !defined(Q3_VM)
+/* The ELF callers inline acceleration before narrowing the desired speed. */
+static void PM_AccelerateHeld(const vec3_t wishdir, long double wishspeed, float accelerate)
+{
+	vec3_t push;
+	long double length, amount;
+	volatile float storedSpeed;
+	int i;
+
+	for (i = 0; i < 3; ++i)
+	{
+		push[i] = (float)((long double)wishdir[i] * wishspeed - pm->ps->velocity[i]);
+	}
+	storedSpeed = (float)wishspeed;
+	length = TCE_VectorNormalizeValue(push);
+	amount = (long double)accelerate * pml.frametime * storedSpeed;
+	if (amount > length)
+	{
+		amount = length;
+	}
+	for (i = 0; i < 3; ++i)
+	{
+		pm->ps->velocity[i] = (float)((long double)push[i] * amount + pm->ps->velocity[i]);
+	}
+}
+#endif
+
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 static void PM_WaterMove(void)
 {
 	vec3_t         wishvel, wishdir;
 	long double    scale, limit, dot;
+#if defined(__linux__)
+	long double    wishspeed;
+	volatile float speed;
+#else
 	volatile float wishspeed, speed;
+#endif
 	int            forwardMove, rightMove, i;
 
 	if (PM_CheckWaterJump())
@@ -2149,37 +2220,77 @@ static void PM_WaterMove(void)
 		rightMove   = pm->cmd.rightmove;
 		for (i = 0; i < 3; ++i)
 		{
+#if defined(__linux__)
+			long double right = (long double)rightMove * scale * pml.right[i];
+			long double forward = scale * pml.forward[i] * forwardMove;
+			wishvel[i] = (float)(right + forward);
+#else
 			long double right   = (long double)rightMove * pml.right[i];
 			long double forward = (long double)forwardMove * pml.forward[i];
 			wishvel[i] = (float)((right + forward) * scale);
+#endif
 		}
 		wishvel[2] = (float)(scale * pm->cmd.upmove + wishvel[2]);
 	}
 	VectorCopy(wishvel, wishdir);
+#if defined(__linux__)
+	wishspeed = TCE_VectorNormalizeValue(wishdir);
+#else
 	wishspeed = (float)TCE_VectorNormalizeValue(wishdir);
+#endif
 	if (pm->watertype == CONTENTS_SLIME)
 	{
 		limit = (long double)pm->ps->speed * pm_slagSwimScale;
+#if defined(__linux__)
+		if (!(limit >= wishspeed))
+#else
 		if ((long double)wishspeed > limit)
+#endif
 		{
+#if defined(__linux__)
+			wishspeed = limit;
+#else
 			wishspeed = (float)limit;
+#endif
 		}
+#if defined(__linux__)
+		PM_AccelerateHeld(wishdir, wishspeed, pm_slagaccelerate);
+#else
 		PM_Accelerate(wishdir, wishspeed, pm_slagaccelerate);
+#endif
 	}
 	else
 	{
 		limit = (long double)pm->ps->speed * pm_waterSwimScale;
+#if defined(__linux__)
+		if (!(limit >= wishspeed))
+#else
 		if ((long double)wishspeed > limit)
+#endif
 		{
+#if defined(__linux__)
+			wishspeed = limit;
+#else
 			wishspeed = (float)limit;
+#endif
 		}
+#if defined(__linux__)
+		PM_AccelerateHeld(wishdir, wishspeed, pm_wateraccelerate);
+#else
 		PM_Accelerate(wishdir, wishspeed, pm_wateraccelerate);
+#endif
 	}
 	if (pml.groundPlane)
 	{
+#if defined(__linux__)
+		dot  = (long double)pml.groundTrace.plane.normal[1] * pm->ps->velocity[1];
+		dot += (long double)pml.groundTrace.plane.normal[0] * pm->ps->velocity[0];
+		dot += (long double)pml.groundTrace.plane.normal[2] * pm->ps->velocity[2];
+#else
 		dot  = (long double)pml.groundTrace.plane.normal[2] * pm->ps->velocity[2];
 		dot += (long double)pml.groundTrace.plane.normal[1] * pm->ps->velocity[1];
 		dot += (long double)pml.groundTrace.plane.normal[0] * pm->ps->velocity[0];
+#endif
 		/* Native C0 enters the slope adjustment for negative or unordered dot. */
 		if (dot < 0.0L || dot != dot)
 		{
@@ -2450,13 +2561,18 @@ PM_AirMove
 
 ===================
 */
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 static void PM_AirMove(void)
 {
 	vec3_t         wishvel, wishdir;
 	usercmd_t      cmd;
 	float          forwardMove, rightMove;
+#if defined(__linux__)
+	long double    wishspeed;
+	volatile float scale;
+#else
 	volatile float scale, wishspeed;
+#endif
 	unsigned       elapsedBits;
 	int            elapsed, i;
 
@@ -2491,8 +2607,13 @@ static void PM_AirMove(void)
 	wishdir[0] = wishvel[0];
 	wishdir[1] = wishvel[1];
 	wishdir[2] = 0.0f;
+#if defined(__linux__)
+	wishspeed = TCE_VectorNormalizeValue(wishdir) * scale;
+	PM_AccelerateHeld(wishdir, wishspeed, pm_airaccelerate);
+#else
 	wishspeed  = (float)(TCE_VectorNormalizeValue(wishdir) * scale);
 	PM_Accelerate(wishdir, wishspeed, pm_airaccelerate);
+#endif
 	if (pml.groundPlane)
 	{
 		PM_ClipVelocity(pm->ps->velocity, pml.groundTrace.plane.normal,
@@ -2613,26 +2734,37 @@ PM_WalkMove
 
 ===================
 */
-/* Windows original WalkMove: TCE ground restrictions and jump stamina.
+/* Native WalkMove: TCE ground restrictions and jump stamina.
  * Explicit float stores retain native rounding boundaries; FPU flags and
  * compiler extended precision remain separately tracked reconstruction work. */
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 typedef char walkCommandLayout[(sizeof(usercmd_t) == 28 && offsetof(usercmd_t, serverTime) == 0) ? 1 : -1];
 static void PM_WalkMove(void)
 {
 	vec3_t         wishvel, wishdir;
 	usercmd_t      cmd;
 	float          forwardMove, rightMove, accelerate;
+#if defined(__linux__)
+	long double    wishspeed;
+	volatile float scale, speed, stored;
+#else
 	volatile float scale, wishspeed, speed;
+#endif
 	long double    groundDot, limit;
 	unsigned       elapsedBits;
 	int            elapsed, i;
 
 	if (pm->waterlevel > 2)
 	{
+#if defined(__linux__)
+		groundDot  = (long double)pml.groundTrace.plane.normal[1] * pml.forward[1];
+		groundDot += (long double)pml.groundTrace.plane.normal[0] * pml.forward[0];
+		groundDot += (long double)pml.groundTrace.plane.normal[2] * pml.forward[2];
+#else
 		groundDot  = (long double)pml.groundTrace.plane.normal[2] * pml.forward[2];
 		groundDot += (long double)pml.groundTrace.plane.normal[1] * pml.forward[1];
 		groundDot += (long double)pml.groundTrace.plane.normal[0] * pml.forward[0];
+#endif
 		if (groundDot > 0.0L)
 		{
 			PM_WaterMove();
@@ -2673,11 +2805,13 @@ static void PM_WalkMove(void)
 		pm->ps->jumpTime = pm->cmd.serverTime;
 		return;
 	}
+#if !defined(__linux__)
 	if (pm->waterlevel <= 1 && PM_CheckDodge())
 	{
 		PM_AirMove();
 		return;
 	}
+#endif
 	PM_Friction();
 	forwardMove = pm->cmd.forwardmove;
 	rightMove   = pm->cmd.rightmove;
@@ -2721,35 +2855,73 @@ static void PM_WalkMove(void)
 			factor      = 0.2425418347120285f;
 			horizontal *= -4.0L;
 		}
+#if defined(__linux__)
+		stored = (float)horizontal;
+		wishdir[2] = (float)((long double)stored * factor);
+		wishdir[1] = (float)((long double)wishvel[1] * factor);
+		wishdir[0] = (float)((long double)wishvel[0] * factor);
+#else
 		wishdir[0] = (float)((long double)wishvel[0] * factor);
 		wishdir[1] = (float)((long double)wishvel[1] * factor);
 		wishdir[2] = (float)(horizontal * factor);
+#endif
 	}
+#if defined(__linux__)
+	wishspeed = TCE_VectorNormalizeValue(wishdir) * scale;
+#else
 	wishspeed = (float)(TCE_VectorNormalizeValue(wishdir) * scale);
+#endif
 	if (pm->ps->eFlags & (EF_PRONE | EF_PRONE_MOVING))
 	{
 		limit = (long double)pm->ps->speed * pm_proneSpeedScale;
+#if defined(__linux__)
+		if (!(limit >= wishspeed))
+#else
 		if ((long double)wishspeed > limit)
+#endif
 		{
+#if defined(__linux__)
+			wishspeed = limit;
+#else
 			wishspeed = (float)limit;
+#endif
 		}
 	}
 	else if (pm->ps->pm_flags & PMF_DUCKED)
 	{
 		limit = (long double)pm->ps->speed * pm->ps->crouchSpeedScale;
+#if defined(__linux__)
+		if (!(limit >= wishspeed))
+#else
 		if ((long double)wishspeed > limit)
+#endif
 		{
+#if defined(__linux__)
+			wishspeed = limit;
+#else
 			wishspeed = (float)limit;
+#endif
 		}
 	}
 	if (pm->waterlevel)
 	{
 		long double depth     = (long double)pm->waterlevel * (long double)0.33333333333333331;
 		float       swimScale = pm->watertype == CONTENTS_SLIME ? pm_slagSwimScale : pm_waterSwimScale;
+#if defined(__linux__)
+		stored = (float)depth;
+		stored = (float)(1.0L - (long double)stored * (1.0L - swimScale));
+		limit = (long double)stored * pm->ps->speed;
+		if (!(limit >= wishspeed))
+#else
 		limit = (1.0L - depth * (1.0L - swimScale)) * pm->ps->speed;
 		if ((long double)wishspeed > limit)
+#endif
 		{
+#if defined(__linux__)
+			wishspeed = limit;
+#else
 			wishspeed = (float)limit;
+#endif
 		}
 	}
 	if (pml.tceContentRestriction)
@@ -2759,14 +2931,26 @@ static void PM_WalkMove(void)
 		               (pm->ps->leanf == 0.0f || TCE_FloatIsNaN(pm->ps->leanf)) &&
 		               !(pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) ? 0.5f : 0.25f;
 		limit = (long double)pm->ps->speed * factor;
+#if defined(__linux__)
+		if (!(limit >= wishspeed))
+#else
 		if ((long double)wishspeed > limit)
+#endif
 		{
+#if defined(__linux__)
+			wishspeed = limit;
+#else
 			wishspeed = (float)limit;
+#endif
 		}
 	}
 	accelerate = (pml.groundTrace.surfaceFlags & SURF_SLICK) ||
 	             (pm->ps->pm_flags & PMF_TIME_KNOCKBACK) ? pm_airaccelerate : pm_accelerate;
+#if defined(__linux__)
+	PM_AccelerateHeld(wishdir, wishspeed, accelerate);
+#else
 	PM_Accelerate(wishdir, wishspeed, accelerate);
+#endif
 	if ((pml.groundTrace.surfaceFlags & SURF_SLICK) ||
 	    (pm->ps->pm_flags & PMF_TIME_KNOCKBACK))
 	{
@@ -3133,11 +3317,16 @@ static void PM_DeadMove(void)
 PM_NoclipMove
 ===============
 */
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 static void PM_NoclipMove(void)
 {
 	long double    speed, control, friction, drop, remaining, ratio;
+#if defined(__linux__)
+	long double    wishspeed;
+	volatile float scale, storedFriction;
+#else
 	volatile float scale, wishspeed;
+#endif
 	vec3_t         wishvel, wishdir;
 	int            forwardMove, rightMove, i;
 
@@ -3151,21 +3340,36 @@ static void PM_NoclipMove(void)
 	}
 	else
 	{
+#if defined(__linux__)
+		storedFriction = (float)((long double)pm_friction * 1.5f);
+		friction = storedFriction;
+#else
 		friction = (long double)pm_friction * 1.5;
+#endif
 		control  = pm_stopspeed;
 		/* Native C0 keeps stop speed when either operand is unordered. */
 		if (speed >= control)
 		{
 			control = speed;
 		}
+#if defined(__linux__)
+		drop = control * friction;
+		drop *= pml.frametime;
+		drop += 0.0L;
+#else
 		drop      = (long double)pml.frametime * control;
 		drop     *= friction;
+#endif
 		remaining = speed - drop;
 		if (remaining < 0.0L || remaining != remaining)
 		{
 			remaining = 0.0L;
 		}
-		ratio               = remaining / speed;
+#if defined(__linux__)
+		ratio = remaining * (1.0L / speed);
+#else
+		ratio = remaining / speed;
+#endif
 		pm->ps->velocity[0] = (float)(ratio * pm->ps->velocity[0]);
 		pm->ps->velocity[1] = (float)(ratio * pm->ps->velocity[1]);
 		pm->ps->velocity[2] = (float)(ratio * pm->ps->velocity[2]);
@@ -3182,8 +3386,13 @@ static void PM_NoclipMove(void)
 	wishdir[0] = wishvel[0];
 	wishdir[1] = wishvel[1];
 	wishdir[2] = (float)((long double)pm->cmd.upmove + wishvel[2]);
+#if defined(__linux__)
+	wishspeed = TCE_VectorNormalizeValue(wishdir) * scale;
+	PM_AccelerateHeld(wishdir, wishspeed, pm_accelerate);
+#else
 	wishspeed  = (float)(TCE_VectorNormalizeValue(wishdir) * scale);
 	PM_Accelerate(wishdir, wishspeed, pm_accelerate);
+#endif
 	for (i = 0; i < 3; ++i)
 	{
 		long double movement = (long double)pml.frametime * pm->ps->velocity[i];
@@ -9628,8 +9837,134 @@ void PM_CheckLadderMove(void)
 PM_LadderMove
 ============
 */
-/* SDK ladder controller: native TCE flow matches this routine.
- * Original FPU predicates/schedules and lower-level ABI remain separately open. */
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+/* TCE ladder controller; ELF inlines vector-push acceleration. */
+void PM_LadderMove(void)
+{
+	vec3_t wishvel, wishdir;
+	long double scale, value, dot;
+	volatile float upscale, storedScale;
+	int i;
+
+	if (ladderforward)
+	{
+		VectorScale(laddervec, -200.0f, wishvel);
+		pm->ps->velocity[0] = wishvel[0];
+		pm->ps->velocity[1] = wishvel[1];
+	}
+
+#if defined(__linux__)
+	upscale = (float)(((long double)pml.forward[2] + 0.5f) * 2.5f);
+	if (!(upscale <= 1.0f))
+#else
+	value = ((long double)pml.forward[2] + 0.5f) * 2.5f;
+	upscale = (float)value;
+	if (value > 1.0L)
+#endif
+	{
+		upscale = 1.0f;
+	}
+#if defined(__linux__)
+	else if (upscale < -1.0f)
+#else
+	else if (!(upscale >= -1.0f))
+#endif
+	{
+		upscale = -1.0f;
+	}
+	pml.forward[2] = 0.0f;
+	pml.right[2] = 0.0f;
+	VectorNormalize(pml.forward);
+	VectorNormalize(pml.right);
+
+	scale = PM_CmdScale(&pm->cmd);
+	storedScale = (float)scale;
+	VectorClear(wishvel);
+	if (pm->cmd.forwardmove)
+	{
+#if defined(__linux__)
+		value = scale * upscale;
+		value *= pm->cmd.forwardmove;
+#else
+		value = (long double)pm->cmd.forwardmove * storedScale;
+		value *= upscale;
+#endif
+		wishvel[2] = (float)(value * (long double)0.9);
+	}
+	if (pm->cmd.rightmove)
+	{
+		vec3_t ladder_right, ang;
+
+		vectoangles(laddervec, ang);
+		AngleVectors(ang, NULL, ladder_right, NULL);
+		dot = (long double)pml.forward[1] * laddervec[1];
+#if defined(__linux__)
+		dot += (long double)pml.forward[0] * laddervec[0];
+		dot += (long double)pml.forward[2] * laddervec[2];
+		if (dot < 0.0L)
+#else
+		dot += (long double)pml.forward[2] * laddervec[2];
+		dot += (long double)pml.forward[0] * laddervec[0];
+		if (!(dot >= 0.0L))
+#endif
+		{
+			VectorInverse(ladder_right);
+		}
+		for (i = 0; i < 3; ++i)
+		{
+			value = (long double)pm->cmd.rightmove * storedScale;
+#if defined(__linux__)
+			value *= ladder_right[i];
+			value *= 0.5f;
+#else
+			value *= 0.5L;
+			value *= ladder_right[i];
+#endif
+			wishvel[i] = (float)(value + wishvel[i]);
+		}
+	}
+
+	PM_Friction();
+	for (i = 0; i < 2; ++i)
+	{
+		if (pm->ps->velocity[i] < 1.0f && pm->ps->velocity[i] > -1.0f)
+		{
+			pm->ps->velocity[i] = 0.0f;
+		}
+	}
+	value = VectorNormalize2(wishvel, wishdir);
+#if defined(__linux__)
+	PM_AccelerateHeld(wishdir, value, pm_accelerate);
+#else
+	PM_Accelerate(wishdir, (float)value, pm_accelerate);
+#endif
+	/* The native equality predicate also takes the unordered path. */
+	if (wishvel[2] == 0.0f || wishvel[2] != wishvel[2])
+	{
+		if (pm->ps->velocity[2] > 0.0f)
+		{
+			pm->ps->velocity[2] = (float)((long double)pm->ps->velocity[2] -
+			                            (long double)pm->ps->gravity * pml.frametime);
+			if (!(pm->ps->velocity[2] >= 0.0f))
+			{
+				pm->ps->velocity[2] = 0.0f;
+			}
+		}
+		else
+		{
+			pm->ps->velocity[2] = (float)((long double)pm->ps->gravity * pml.frametime +
+			                            pm->ps->velocity[2]);
+			if (pm->ps->velocity[2] > 0.0f)
+			{
+				pm->ps->velocity[2] = 0.0f;
+			}
+		}
+	}
+	PM_StepSlideMove(qfalse);
+	pm->ps->movementDir = 0;
+}
+#else
+/* Retained SDK controller for generic targets. */
 void PM_LadderMove(void)
 {
 	float  wishspeed, scale;
@@ -9731,6 +10066,7 @@ void PM_LadderMove(void)
 	// always point legs forward
 	pm->ps->movementDir = 0;
 }
+#endif
 
 /*
 ==============
