@@ -6483,7 +6483,7 @@ qboolean Item_Bind_HandleKey(itemDef_t *item, int key, qboolean down)
 
 
 #include "tce_ui_coordinates.h"
-#if !defined(UIDLL) && defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_WIN32) && !defined(Q3_VM)
 void AdjustFrom640(float *x, float *y, float *w, float *h)
 {
 	int         width = DC->glconfig.vidWidth, height = DC->glconfig.vidHeight;
@@ -6496,7 +6496,7 @@ void AdjustFrom640(float *x, float *y, float *w, float *h)
 		        0.00117187504656612873077392578125f;
 		*x      = (float)((long double)DC->xscale * *x * horizontal);
 		shifted = (1.0f / scale - 1.0f) * 240.0f + *y;
-		*y      = (float)shifted;
+		*(volatile float *)y = (float)shifted;
 		*y      = (float)(shifted * DC->yscale * scale);
 		*w      = (float)((long double)DC->xscale * *w * horizontal);
 		*h      = (float)((long double)DC->yscale * *h * scale);
@@ -6505,7 +6505,7 @@ void AdjustFrom640(float *x, float *y, float *w, float *h)
 	{
 		*x      = (float)((long double)DC->xscale * *x * horizontal);
 		shifted = (long double)*y + 80.0f;
-		*y      = (float)shifted;
+		*(volatile float *)y = (float)shifted;
 		*y      = (float)(shifted * DC->yscale * horizontal);
 		*w      = (float)((long double)DC->xscale * *w * horizontal);
 		*h      = (float)((long double)DC->yscale * *h * horizontal);
@@ -6547,7 +6547,7 @@ void AdjustFrom640(float *x, float *y, float *w, float *h)
 }
 #endif
 
-#if !defined(UIDLL) && defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_WIN32) && !defined(Q3_VM)
 /* Use the shared numeric model for native signed64 truncation's low word. */
 static int TCE_ModelViewportInteger782(float value)
 {
@@ -6593,7 +6593,7 @@ void Item_Model_Paint(itemDef_t *item)
 
 	AdjustFrom640(&x, &y, &w, &h);
 
-#if !defined(UIDLL) && defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_WIN32) && !defined(Q3_VM)
 	refdef.x      = TCE_ModelViewportInteger782(x);
 	refdef.y      = TCE_ModelViewportInteger782(y);
 	refdef.width  = TCE_ModelViewportInteger782(w);
@@ -6607,7 +6607,7 @@ void Item_Model_Paint(itemDef_t *item)
 
 	DC->modelBounds(hModel, mins, maxs);
 
-#if !defined(UIDLL) && defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_WIN32) && !defined(Q3_VM)
 	origin[2] = (float)(((long double)maxs[2] + mins[2]) * -0.5);
 	origin[1] = (float)(((long double)maxs[1] + mins[1]) * 0.5);
 	origin[0] = (float)(((long double)maxs[2] - mins[2]) * 0.5 * 3.731343283582089);
@@ -6630,7 +6630,7 @@ void Item_Model_Paint(itemDef_t *item)
 
 #define NEWWAY
 #ifdef NEWWAY
-#if (defined(__linux__) && !defined(Q3_VM)) || (!defined(UIDLL) && defined(_MSC_VER) && defined(_M_IX86))
+#if (defined(__linux__) && !defined(Q3_VM)) || (defined(_WIN32) && !defined(Q3_VM))
 	refdef.fov_x = TCE_FloatIsZeroOrNaN(modelPtr->fov_x) ? w : modelPtr->fov_x;
 	refdef.fov_y = TCE_FloatIsZeroOrNaN(modelPtr->fov_y) ? h : modelPtr->fov_y;
 #else
@@ -6660,7 +6660,7 @@ void Item_Model_Paint(itemDef_t *item)
 	{
 		if (DC->realTime > item->window.nextTime)
 		{
-#if !defined(UIDLL) && defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_WIN32) && !defined(Q3_VM)
 			unsigned next      = (unsigned)DC->realTime + (unsigned)modelPtr->rotationSpeed;
 			unsigned angleBits = (unsigned)modelPtr->angle + 1u;
 			int      angle;
@@ -6681,7 +6681,7 @@ void Item_Model_Paint(itemDef_t *item)
 
 	if (modelPtr->frameTime)
 	{
-#if !defined(UIDLL) && defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_WIN32) && !defined(Q3_VM)
 		unsigned deltaBits = (unsigned)DC->realTime - (unsigned)modelPtr->frameTime;
 		int      delta;
 		memcpy(&delta, &deltaBits, sizeof(delta));
@@ -6694,7 +6694,7 @@ void Item_Model_Paint(itemDef_t *item)
 
 	if (modelPtr->backlerp > 1)
 	{
-#if !defined(UIDLL) && defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_WIN32) && !defined(Q3_VM)
 		int      start = modelPtr->startframe, count = modelPtr->numframes, difference;
 		unsigned bits;
 		backLerpWhole = TCE_ModelFloorInteger782(modelPtr->backlerp);
@@ -6740,7 +6740,7 @@ void Item_Model_Paint(itemDef_t *item)
 
 	ent.frame    = modelPtr->frame;
 	ent.oldframe = modelPtr->oldframe;
-#if !defined(UIDLL) && defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_WIN32) && !defined(Q3_VM)
 	ent.backlerp = (float)(1.0f - (long double)modelPtr->backlerp);
 	memcpy(ent.origin, origin, sizeof(origin));
 	memcpy(ent.lightingOrigin, origin, sizeof(origin));
@@ -7634,7 +7634,12 @@ void Menu_Paint(menuDef_t *menu, qboolean forcePaint)
 	}
 
 	// OSP draw tooltip data if we have it
-	if (DC->getCVarValue("ui_showtooltips") &&
+	if (
+#if defined(_WIN32) && !defined(Q3_VM)
+	    !TCE_FloatIsZeroOrNaN(DC->getCVarValue("ui_showtooltips")) &&
+#else
+	    DC->getCVarValue("ui_showtooltips") &&
+#endif
 	    item != NULL &&
 	    item->toolTipData != NULL &&
 	    item->toolTipData->text != NULL &&
@@ -7650,7 +7655,11 @@ void Menu_Paint(menuDef_t *menu, qboolean forcePaint)
 	}
 	else if (menu->window.flags & WINDOW_VISIBLE &&
 	         menu->timeout > 0 && menu->onTimeout != NULL &&
+#if defined(_WIN32) && !defined(Q3_VM)
+	         TCE_AddInt32(menu->openTime, menu->timeout) <= DC->realTime)
+#else
 	         menu->openTime + menu->timeout <= DC->realTime)
+#endif
 	{
 		itemDef_t it;
 		it.parent = menu;
