@@ -36,7 +36,12 @@ G_BounceMissile
 void G_BounceMissile(gentity_t *ent, trace_t *trace)
 {
 	vec3_t    velocity;
+#if defined(__linux__)
+	long double impactDot;
+	long double impactOrigin[3];
+#else
 	double    reflectedScale;
+#endif
 	int       hitTime, i;
 	gentity_t *ground;
 	if (ent->s.weapon == 55 || ent->s.weapon == 56)
@@ -47,14 +52,28 @@ void G_BounceMissile(gentity_t *ent, trace_t *trace)
 			G_ExplodeMissile(ent); return;
 		}
 	}
+#if defined(__linux__)
+	hitTime = TCE_TruncateNativeInteger((long double)level.previousTime +
+	          (long double)(level.time - level.previousTime) * trace->fraction);
+#else
 	/* Windows2006a443/446 retain fractional time until __ftol. */
 	hitTime = (int)((double)level.previousTime + (double)(level.time - level.previousTime) * trace->fraction);
+#endif
 	TCE_MissileVelocity(ent, hitTime, velocity);
+#if defined(__linux__)
+	/* ELF holds the X+Y+Z dot product and reflects each component before storing. */
+	impactDot = (long double)velocity[0] * trace->plane.normal[0] +
+	            (long double)velocity[1] * trace->plane.normal[1] +
+	            (long double)velocity[2] * trace->plane.normal[2];
+	for (i = 0; i < 3; i++)
+		ent->s.pos.trDelta[i] = (float)((long double)trace->plane.normal[i] * impactDot * -2.0L + velocity[i]);
+#else
 	/* Original x87 order is X+Z+Y, with no float spill of the reflection scale. */
 	reflectedScale = -2.0 * ((double)velocity[0] * trace->plane.normal[0] +
 	                         (double)velocity[2] * trace->plane.normal[2] + (double)velocity[1] * trace->plane.normal[1]);
 	for (i = 0; i < 3; i++)
 		ent->s.pos.trDelta[i] = (float)(velocity[i] + reflectedScale * trace->plane.normal[i]);
+#endif
 	if (trace->plane.normal[2] > .2)
 	{
 		ent->s.groundEntityNum = trace->entityNum;
@@ -63,7 +82,11 @@ void G_BounceMissile(gentity_t *ent, trace_t *trace)
 	if (ent->s.groundEntityNum != ENTITYNUM_WORLD && ground)
 	{
 		for (i = 0; i < 3; i++)
+#if defined(__linux__)
+			ent->s.pos.trDelta[i] = (float)((long double)ground->instantVelocity[i] * .85f + ent->s.pos.trDelta[i]);
+#else
 			ent->s.pos.trDelta[i] = (float)((double)ent->s.pos.trDelta[i] + (double).85f * ground->instantVelocity[i]);
+#endif
 	}
 	if (ent->s.eFlags & EF_BOUNCE_HALF)
 	{
@@ -74,9 +97,13 @@ void G_BounceMissile(gentity_t *ent, trace_t *trace)
 			VectorScale(ent->s.pos.trDelta, .5f, ent->s.pos.trDelta);
 		}
 		if (trace->plane.normal[2] > .2 &&
+#if defined(__linux__)
+		    !(TCE_VectorLengthSquaredValue(ent->s.pos.trDelta) >= 1600.0L))
+#else
 		    (double)ent->s.pos.trDelta[0] * ent->s.pos.trDelta[0] +
 		    (double)ent->s.pos.trDelta[1] * ent->s.pos.trDelta[1] +
 		    (double)ent->s.pos.trDelta[2] * ent->s.pos.trDelta[2] < 1600)
+#endif
 		{
 			if (ent->s.weapon == 15 || ent->s.weapon == 26 || ent->s.weapon == 27 || ent->s.weapon == 29 || ent->s.weapon == 30)
 			{
@@ -95,10 +122,24 @@ void G_BounceMissile(gentity_t *ent, trace_t *trace)
 			return;
 		}
 	}
+#if defined(__linux__)
+	for (i = 0; i < 3; i++)
+		ent->s.pos.trDelta[i] = (float)TCE_TruncateNativeInteger(ent->s.pos.trDelta[i]);
+	/* The base uses the held sum, before currentOrigin is rounded to float. */
+	for (i = 0; i < 3; i++)
+	{
+		impactOrigin[i] = (long double)trace->plane.normal[i] + ent->r.currentOrigin[i];
+		ent->r.currentOrigin[i] = (float)impactOrigin[i];
+	}
+	for (i = 0; i < 3; i++)
+		ent->s.pos.trBase[i] = (float)TCE_TruncateNativeInteger(impactOrigin[i]);
+	ent->s.pos.trTime = level.time;
+#else
 	SnapVector(ent->s.pos.trDelta);
 	VectorAdd(ent->r.currentOrigin, trace->plane.normal, ent->r.currentOrigin);
 	VectorCopy(ent->r.currentOrigin, ent->s.pos.trBase);
 	SnapVector(ent->s.pos.trBase); ent->s.pos.trTime = level.time;
+#endif
 }
 
 /*
@@ -759,7 +800,12 @@ G_PredictBounceMissile
 void G_PredictBounceMissile(gentity_t *ent, trajectory_t *pos, trace_t *trace, int time)
 {
 	vec3_t velocity, origin;
+#if defined(__linux__)
+	long double dot, reflected[3];
+	int axis;
+#else
 	float  dot;
+#endif
 	int    hitTime;
 
 	TCE_BG_EvaluateTrajectory(pos, time, origin, qfalse, ent->s.effect2Time, 1.0f);
@@ -767,11 +813,28 @@ void G_PredictBounceMissile(gentity_t *ent, trajectory_t *pos, trace_t *trace, i
 	// reflect the velocity on the trace plane
 	hitTime = time;
 	TCE_BG_EvaluateTrajectoryDelta(pos, hitTime, velocity, qfalse, ent->s.effect2Time, 1.0f);
+#if defined(__linux__)
+	dot = (long double)velocity[0] * trace->plane.normal[0] +
+	      (long double)velocity[1] * trace->plane.normal[1] +
+	      (long double)velocity[2] * trace->plane.normal[2];
+	for (axis = 0; axis < 3; axis++)
+	{
+		reflected[axis] = (long double)trace->plane.normal[axis] * dot * -2.0L + velocity[axis];
+		pos->trDelta[axis] = (float)reflected[axis];
+	}
+#else
 	dot = DotProduct(velocity, trace->plane.normal);
 	VectorMA(velocity, -2 * dot, trace->plane.normal, pos->trDelta);
+#endif
 
 	if (ent->s.eFlags & EF_BOUNCE_HALF)
 	{
+#if defined(__linux__)
+		/* ELF scales the retained reflection, not its preceding float stores. */
+		long double factor = (ent->s.eFlags & EF_BOUNCE) ? .25L : .5L;
+		for (axis = 0; axis < 3; axis++)
+			pos->trDelta[axis] = (float)(reflected[axis] * factor);
+#else
 		if (ent->s.eFlags & EF_BOUNCE)       // both flags marked, do a third type of bounce
 		{
 			VectorScale(pos->trDelta, 0.25f, pos->trDelta);
@@ -780,9 +843,14 @@ void G_PredictBounceMissile(gentity_t *ent, trajectory_t *pos, trace_t *trace, i
 		{
 			VectorScale(pos->trDelta, 0.5f, pos->trDelta);
 		}
+#endif
 
 		// check for stop
+#if defined(__linux__)
+		if (trace->plane.normal[2] > .2 && !(TCE_VectorLengthSquaredValue(pos->trDelta) >= 1600.0L))
+#else
 		if (trace->plane.normal[2] > 0.2f && VectorLengthSquared(pos->trDelta) < SQR(40))
+#endif
 		{
 			VectorCopy(trace->endpos, pos->trBase);
 			return;
@@ -846,7 +914,12 @@ int G_PredictMissile(gentity_t *ent, int duration, vec3_t endPos, qboolean allow
 
 			if (allowBounce && (ent->s.eFlags & (EF_BOUNCE | EF_BOUNCE_HALF)))
 			{
+#if defined(__linux__)
+				G_PredictBounceMissile(ent, &pos, &tr, time - FRAMETIME +
+				                      TCE_TruncateNativeInteger((long double)FRAMETIME * tr.fraction));
+#else
 				G_PredictBounceMissile(ent, &pos, &tr, time - FRAMETIME + (int)((float)FRAMETIME * tr.fraction));
+#endif
 				pos.trTime = time;
 				continue;
 			}
@@ -2039,6 +2112,19 @@ gentity_t *fire_rocket(gentity_t *self, vec3_t start, vec3_t dir)
 	bolt->s.pos.trTime = level.time - MISSILE_PRESTEP_TIME;     // move a bit on the very first frame
 	VectorCopy(start, bolt->s.pos.trBase);
 // JPW NERVE
+#if defined(__linux__)
+	{
+		long double rocketVelocity[3];
+		int rocketAxis;
+		for (rocketAxis = 0; rocketAxis < 3; ++rocketAxis)
+			rocketVelocity[rocketAxis] = (long double)dir[rocketAxis] * 2500.0L;
+		/* The first two stores do not discard the held products. */
+		bolt->s.pos.trDelta[0] = (float)rocketVelocity[0];
+		bolt->s.pos.trDelta[1] = (float)rocketVelocity[1];
+		for (rocketAxis = 0; rocketAxis < 3; ++rocketAxis)
+			bolt->s.pos.trDelta[rocketAxis] = (float)TCE_TruncateNativeInteger(rocketVelocity[rocketAxis]);
+	}
+#else
 	VectorScale(dir, 2500, bolt->s.pos.trDelta);
 // jpw
 	/* Windows2006d821: reload stored32, __ftol64, consume lowEAX. */
@@ -2053,6 +2139,7 @@ gentity_t *fire_rocket(gentity_t *self, vec3_t start, vec3_t dir)
 	}
 #else
 	SnapVector(bolt->s.pos.trDelta);            // save net bandwidth
+#endif
 #endif
 	VectorCopy(start, bolt->r.currentOrigin);
 
