@@ -3940,7 +3940,7 @@ static int CG_PlayerAmmoValue(int *ammo, int *clips, int *akimboammo)
 	}
 	else if (weap == 35 || weap == 60 || weap == 65)
 	{
-		*ammo += *clips;
+		*ammo = TCE_AddInt32(*ammo, *clips);
 	}
 
 	if (skipammo)
@@ -4926,7 +4926,7 @@ void CG_StartShakeCamera(float p)
 	length = (long double)p * p * 1000.0L;
 	cg.cameraShakeLength = (float)length;
 	/* Linux adds the unrounded duration before truncating the deadline. */
-	cg.cameraShakeTime = (int)((long double)cg.time + length);
+	cg.cameraShakeTime = TCE_TruncateNativeInteger((long double)cg.time + length);
 	phase = (long double)(rand() & 0x7fff) * 3.0518509447574615e-05f - .5L;
 	cg.cameraShakePhase = (float)((phase + phase) * (long double)3.141592653589793);
 #else
@@ -4951,7 +4951,7 @@ void CG_ShakeCamera(void)
 		cg.cameraShakeScale = 0;
 		return;
 	}
-	fraction = (long double)(cg.cameraShakeTime - cg.time) *
+	fraction = (long double)TCE_SubInt32(cg.cameraShakeTime, cg.time) *
 	           (1.0L / cg.cameraShakeLength);
 	/* Each Linux contribution is stored as float before adding the old origin. */
 	displacement = (float)(sinl(fraction * (long double)21.991148575128552 + cg.cameraShakePhase) *

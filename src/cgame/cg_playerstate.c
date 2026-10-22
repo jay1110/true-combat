@@ -20,7 +20,8 @@ Update the original TC low-ammo state without the SDK warning sound.
 void CG_CheckAmmo(void)
 {
 	unsigned int weapons = (unsigned int)cg.snap->ps.weapons[0];
-	int          weapon, total = 0;
+	unsigned int total = 0;
+	int          weapon;
 	if (!weapons && !cg.snap->ps.weapons[1])
 	{
 		return;
@@ -31,8 +32,9 @@ void CG_CheckAmmo(void)
 		{
 			continue;
 		}
-		total += cg.snap->ps.ammo[BG_FindAmmoForWeapon(weapon)] * 1000;
-		if (total >= 5000)
+		/* Native IMUL/ADD wrap before the signed threshold comparison. */
+		total += (unsigned int)cg.snap->ps.ammo[BG_FindAmmoForWeapon(weapon)] * 1000u;
+		if (total >= 5000u && total < 0x80000000u)
 		{
 			cg.lowAmmoWarning = 0; return;
 		}

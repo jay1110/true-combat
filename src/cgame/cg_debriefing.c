@@ -1097,6 +1097,34 @@ panel_button_t chatPanelText =
 	NULL,
 };
 
+qboolean CG_Debriefing_DeployMenuButton_KeyDown(panel_button_t *button, int key)
+{
+	if (key != K_MOUSE1)
+	{
+		return qfalse;
+	}
+	CG_LimboMenu_f();
+	return qtrue;
+}
+
+void CG_Debriefing_DeployMenuButton_Draw(panel_button_t *button)
+{
+	CG_PanelButtonsRender_Button(button);
+}
+
+panel_button_t chatPanelDeployMenuButton =
+{
+	NULL,
+	"DEPLOY MENU",
+	{ 536, 450, 90, 16 },
+	{ 0, 0, 0, 0, 0, 0, 0, 0 },
+	NULL,
+	CG_Debriefing_DeployMenuButton_KeyDown,
+	NULL,
+	CG_Debriefing_DeployMenuButton_Draw,
+	NULL,
+};
+
 panel_button_t chatPanelNextButton =
 {
 	NULL,
@@ -1317,7 +1345,7 @@ panel_button_t *chatPanelButtons[] =
 {
 	&chatPanelWindow,       &chatPanelText,
 
-	&chatPanelNextButton,   &chatPanelQCButton,&chatTypeButton,  &chatPanelReadyButton,
+	&chatPanelDeployMenuButton, &chatPanelQCButton, &chatTypeButton, &chatPanelReadyButton,
 
 	&charPanelEditSurround, &charPanelEdit,
 
@@ -1957,40 +1985,49 @@ void CG_Debriefing_MouseEvent(int x, int y)
 			cnt = CG_Debriefing_ScrollGetCount(button);
 			CG_Debriefing_ScrollGetBarRect(button, &r);
 
-			button->data[1] = (int)((unsigned)button->data[1] + (unsigned)y);
+			button->data[1] = TCE_AddInt32(button->data[1], y);
 
-				#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 			{
-				int product = (int)((unsigned)cnt * (unsigned)button->data[1]);
+				unsigned productBits = (unsigned)cnt * (unsigned)button->data[1];
+				int product;
+				memcpy(&product, &productBits, sizeof(product));
+#if defined(__linux__)
+				count = TCE_TruncateNativeInteger((long double)product * 0.5L * (1.0L / r.h));
+#else
 				count = TCE_TruncateNativeInteger((long double)product * 0.5L / r.h);
+#endif
 			}
-				#else
+#else
 			count = (cnt * button->data[1] * 0.5f) / (float)(r.h);
-				#endif
+#endif
 			if (count)
 			{
 				int ofs = CG_Debriefing_ScrollGetOffset(button);
-				CG_Debriefing_ScrollSetOffset(button, (int)((unsigned)ofs + (unsigned)count));
+				CG_Debriefing_ScrollSetOffset(button, TCE_AddInt32(ofs, count));
 				CG_Debriefing_ScrollCheckOffset(button);
-				ofs = (int)((unsigned)CG_Debriefing_ScrollGetOffset(button) - (unsigned)ofs);
+				ofs = TCE_SubInt32(CG_Debriefing_ScrollGetOffset(button), ofs);
 
 				if (ofs == count)
 				{
-						#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_MSC_VER) && defined(_M_IX86)
 					button->data[1] = TCE_TruncateNativeInteger(
 					    (long double)button->data[1] - (long double)r.h / cnt * ofs);
-						#else
+#elif defined(__linux__) && !defined(Q3_VM)
+					button->data[1] = TCE_TruncateNativeInteger(
+					    (long double)button->data[1] - (1.0L / cnt) * r.h * ofs);
+#else
 					button->data[1] -= ofs * (r.h / (float)cnt);
-						#endif
+#endif
 				}
 			}
 
 			CG_Debriefing_ScrollGetBarRect(button, &r);
-				#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 			cgs.cursorY = TCE_TruncateNativeInteger((long double)button->data[2] + r.y);
-				#else
+#else
 			cgs.cursorY = r.y + button->data[2];
-				#endif
+#endif
 
 			return;
 		}
@@ -2000,7 +2037,7 @@ void CG_Debriefing_MouseEvent(int x, int y)
 	}
 
 
-	cgs.cursorX = (int)((unsigned)cgs.cursorX + (unsigned)x);
+	cgs.cursorX = TCE_AddInt32(cgs.cursorX, x);
 	if (cgs.cursorX < 0)
 	{
 		cgs.cursorX = 0;
@@ -2010,7 +2047,7 @@ void CG_Debriefing_MouseEvent(int x, int y)
 		cgs.cursorX = 852;
 	}
 
-	cgs.cursorY = (int)((unsigned)cgs.cursorY + (unsigned)y);
+	cgs.cursorY = TCE_AddInt32(cgs.cursorY, y);
 	if (cgs.cursorY < 0)
 	{
 		cgs.cursorY = 0;

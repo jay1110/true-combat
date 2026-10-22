@@ -232,8 +232,6 @@ enum
 	WeatherViewX    = offsetof(refdef_t, vieworg),
 	WeatherViewY    = offsetof(refdef_t, vieworg) + sizeof(float)
 };
-static const double weatherSeconds         = 0.001;
-static const float  weatherDistanceSquared = 1000000.0f;
 #endif
 
 
@@ -562,81 +560,36 @@ static qboolean CG_RainParticleGenerate(cg_atmosphericParticle_t *particle, vec3
 #endif
 
 #if defined(_MSC_VER) && defined(_M_IX86)
-static __declspec(naked) qboolean CG_RainParticleCheckVisible(cg_atmosphericParticle_t *particle)
+static qboolean CG_RainParticleCheckVisible(cg_atmosphericParticle_t *particle)
 {
-	__asm {
-		PUSH ESI
-		MOV ESI, dword ptr[ESP + 0x8]
-		TEST ESI, ESI
-		JZ weather_300175b7
-		MOV EAX, dword ptr[ESI + WeatherActive]
-		TEST EAX, EAX
-		JZ weather_300175b7
-		MOV EAX, dword ptr[cg + WeatherTime]
-		MOV EDX, dword ptr[cg_atmFx + WeatherLastTime]
-		SUB EAX, EDX
-		PUSH ESI
-		MOV dword ptr[ESP + 0xc], EAX
-		FILD dword ptr[ESP + 0xc]
-		FMUL qword ptr[weatherSeconds]
-		FLD ST(0)
-		FMUL dword ptr[ESI + WeatherDeltaX]
-		FADD dword ptr[ESI + WeatherPosX]
-		FSTP dword ptr[ESI + WeatherPosX]
-		FLD ST(0)
-		FMUL dword ptr[ESI + WeatherDeltaY]
-		FADD dword ptr[ESI + WeatherPosY]
-		FSTP dword ptr[ESI + WeatherPosY]
-		FMUL dword ptr[ESI + WeatherDeltaZ]
-		FADD dword ptr[ESI + WeatherPosZ]
-		FST dword ptr[ESI + WeatherPosZ]
-		FADD dword ptr[ESI + WeatherHeight]
-		FSTP dword ptr[ESP + 0xc]
-		CALL BG_GetSkyGroundHeightAtPoint
-		FCOMP dword ptr[ESP + 0xc]
-		ADD ESP, 0x4
-		FNSTSW AX
-		TEST AH, 0x41
-		JNZ weather_30017578
-		    PUSH 0x0
-		PUSH ESI
-		CALL CG_SetParticleActive
-		ADD ESP, 0x8
-		POP ESI
-		RET
-weather_30017578:
-		MOV EAX, dword ptr[cg + WeatherRefdef]
-		FLD dword ptr[ESI + WeatherPosX]
-		FSUB dword ptr[EAX + WeatherViewX]
-		FLD dword ptr[ESI + WeatherPosY]
-		FSUB dword ptr[EAX + WeatherViewY]
-		FLD ST(0)
-		FMUL ST(0), ST(1)
-		FLD ST(2)
-		FMUL ST(0), ST(3)
-		FADDP ST(1), ST(0)
-		FCOMP dword ptr[weatherDistanceSquared]
-		FNSTSW AX
-		FSTP ST(0)
-		TEST AH, 0x41
-		FSTP ST(0)
-		JNZ weather_300175b0
-		PUSH 0x0
-		PUSH ESI
-		CALL CG_SetParticleActive
-		ADD ESP, 0x8
-		POP ESI
-		RET
-weather_300175b0:
-		MOV EAX, 0x1
-		POP ESI
-		RET
-weather_300175b7:
-		XOR EAX, EAX
-		POP ESI
-		    RET
+	long double elapsed, z, dx, dy;
+	float bottom;
+
+	if (!particle || particle->active == ACT_NOT)
+	{
+		return qfalse;
 	}
+	elapsed = (long double)TCE_SubInt32(cg.time, cg_atmFx.lastRainTime) * (long double)(double)0.001;
+	particle->pos[0] = (float)(elapsed * particle->delta[0] + particle->pos[0]);
+	particle->pos[1] = (float)(elapsed * particle->delta[1] + particle->pos[1]);
+	z = elapsed * particle->delta[2] + particle->pos[2];
+	particle->pos[2] = (float)z;
+	/* The ground test uses a separate float store of the held Z plus height. */
+	bottom = (float)(z + particle->height);
+	if (bottom < BG_GetSkyGroundHeightAtPoint(particle->pos))
+	{
+		return CG_SetParticleActive(particle, ACT_NOT);
+	}
+
+	dx = (long double)particle->pos[0] - cg.refdef_current->vieworg[0];
+	dy = (long double)particle->pos[1] - cg.refdef_current->vieworg[1];
+	if (dy * dy + dx * dx > 1000000.0L)
+	{
+		return CG_SetParticleActive(particle, ACT_NOT);
+	}
+	return qtrue;
 }
+
 #else
 
 static qboolean CG_RainParticleCheckVisible(cg_atmosphericParticle_t *particle)
@@ -1002,79 +955,32 @@ static qboolean CG_SnowParticleGenerate(cg_atmosphericParticle_t *particle, vec3
 #endif
 
 #if defined(_MSC_VER) && defined(_M_IX86)
-static __declspec(naked) qboolean CG_SnowParticleCheckVisible(cg_atmosphericParticle_t *particle)
+static qboolean CG_SnowParticleCheckVisible(cg_atmosphericParticle_t *particle)
 {
-	__asm {
-		PUSH ESI
-		MOV ESI, dword ptr[ESP + 0x8]
-		TEST ESI, ESI
-		JZ weather_30017c1f
-		MOV EAX, dword ptr[ESI + WeatherActive]
-		TEST EAX, EAX
-		JZ weather_30017c1f
-		MOV EAX, dword ptr[cg + WeatherTime]
-		MOV EDX, dword ptr[cg_atmFx + WeatherLastTime]
-		SUB EAX, EDX
-		PUSH ESI
-		MOV dword ptr[ESP + 0xc], EAX
-		FILD dword ptr[ESP + 0xc]
-		FMUL qword ptr[weatherSeconds]
-		FLD ST(0)
-		FMUL dword ptr[ESI + WeatherDeltaX]
-		FADD dword ptr[ESI + WeatherPosX]
-		FSTP dword ptr[ESI + WeatherPosX]
-		FLD ST(0)
-		FMUL dword ptr[ESI + WeatherDeltaY]
-		FADD dword ptr[ESI + WeatherPosY]
-		FSTP dword ptr[ESI + WeatherPosY]
-		FMUL dword ptr[ESI + WeatherDeltaZ]
-		FADD dword ptr[ESI + WeatherPosZ]
-		FSTP dword ptr[ESI + WeatherPosZ]
-		CALL BG_GetSkyGroundHeightAtPoint
-		FCOMP dword ptr[ESI + WeatherPosZ]
-		ADD ESP, 0x4
-		FNSTSW AX
-		TEST AH, 0x41
-		JNZ weather_30017be0
-		    PUSH 0x0
-		PUSH ESI
-		CALL CG_SetParticleActive
-		ADD ESP, 0x8
-		POP ESI
-		RET
-weather_30017be0:
-		MOV EAX, dword ptr[cg + WeatherRefdef]
-		FLD dword ptr[ESI + WeatherPosX]
-		FSUB dword ptr[EAX + WeatherViewX]
-		FLD dword ptr[ESI + WeatherPosY]
-		FSUB dword ptr[EAX + WeatherViewY]
-		FLD ST(0)
-		FMUL ST(0), ST(1)
-		FLD ST(2)
-		FMUL ST(0), ST(3)
-		FADDP ST(1), ST(0)
-		FCOMP dword ptr[weatherDistanceSquared]
-		FNSTSW AX
-		FSTP ST(0)
-		TEST AH, 0x41
-		FSTP ST(0)
-		JNZ weather_30017c18
-		PUSH 0x0
-		PUSH ESI
-		CALL CG_SetParticleActive
-		ADD ESP, 0x8
-		POP ESI
-		RET
-weather_30017c18:
-		MOV EAX, 0x1
-		POP ESI
-		RET
-weather_30017c1f:
-		XOR EAX, EAX
-		POP ESI
-		    RET
+	long double elapsed, dx, dy;
+
+	if (!particle || particle->active == ACT_NOT)
+	{
+		return qfalse;
 	}
+	elapsed = (long double)TCE_SubInt32(cg.time, cg_atmFx.lastRainTime) * (long double)(double)0.001;
+	particle->pos[0] = (float)(elapsed * particle->delta[0] + particle->pos[0]);
+	particle->pos[1] = (float)(elapsed * particle->delta[1] + particle->pos[1]);
+	particle->pos[2] = (float)(elapsed * particle->delta[2] + particle->pos[2]);
+	if (particle->pos[2] < BG_GetSkyGroundHeightAtPoint(particle->pos))
+	{
+		return CG_SetParticleActive(particle, ACT_NOT);
+	}
+
+	dx = (long double)particle->pos[0] - cg.refdef_current->vieworg[0];
+	dy = (long double)particle->pos[1] - cg.refdef_current->vieworg[1];
+	if (dy * dy + dx * dx > 1000000.0L)
+	{
+		return CG_SetParticleActive(particle, ACT_NOT);
+	}
+	return qtrue;
 }
+
 #else
 
 static qboolean CG_SnowParticleCheckVisible(cg_atmosphericParticle_t *particle)
@@ -1518,28 +1424,6 @@ enum
 	GustParticleSize = sizeof(cg_atmosphericParticle_t)
 };
 static const float  gustZero = 0.0f;
-static const double gustOne  = 1.0;
-static __declspec(naked) void CG_WeatherTruncateST0(void)
-{
-	__asm {
-		push ebp
-		mov ebp, esp
-		add esp, -12
-		fwait
-		fnstcw word ptr[ebp - 2]
-		fwait
-		mov ax, word ptr[ebp - 2]
-		or ah, 0ch
-		mov word ptr[ebp - 4], ax
-		fldcw word ptr[ebp - 4]
-		fistp qword ptr[ebp - 12]
-		fldcw word ptr[ebp - 2]
-		mov eax, dword ptr[ebp - 12]
-		mov edx, dword ptr[ebp - 8]
-		leave
-		ret
-	}
-}
 /* Keep native 32-bit time wrapping and the field reads around rand(). */
 static void CG_EffectGust(void)
 {
@@ -1601,151 +1485,58 @@ static void CG_EffectGust(void)
 	effect->baseStartTime = TCE_AddInt32(baseEnd, changeMin);
 }
 
-static __declspec(naked) qboolean CG_EffectGustCurrent(vec3_t curr, float *weight, int *num)
+static qboolean CG_EffectGustCurrent(vec3_t curr, float *weight, int *num)
 {
-	__asm {
-		MOV EAX, [cg + WeatherTime]
-		MOV EDX, dword ptr[cg_atmFx + GustField5]
-		SUB ESP, 0x10
-		CMP EAX, EDX
-		JGE gust_3001828e
-		FLD dword ptr[cg_atmFx + GustField18]
-		MOV EAX, dword ptr[ESP + 0x14]
-		FSTP dword ptr[EAX]
-		MOV ECX, dword ptr[cg_atmFx + GustField19]
-		MOV dword ptr[EAX + 0x4], ECX
-		MOV EDX, dword ptr[cg_atmFx + GustField20]
-		MOV ECX, dword ptr[ESP + 0x1c]
-		MOV dword ptr[EAX + 0x8], EDX
-		FLD dword ptr[cg_atmFx + GustField12]
-		MOV EAX, dword ptr[ESP + 0x18]
-		FSTP dword ptr[EAX]
-		MOV EDX, dword ptr[cg_atmFx + GustField14]
-		MOV dword ptr[ECX], EDX
-gust_30018288:
-		XOR EAX, EAX
-		ADD ESP, 0x10
-		RET
-gust_3001828e:
-		FLD dword ptr[cg_atmFx + GustField21]
-		FSUB dword ptr[cg_atmFx + GustField18]
-		MOV ECX, dword ptr[cg_atmFx + GustField2]
-		CMP EAX, ECX
-		FSTP dword ptr[ESP + 0x4]
-		FLD dword ptr[cg_atmFx + GustField22]
-		FSUB dword ptr[cg_atmFx + GustField19]
-		FSTP dword ptr[ESP + 0x8]
-		FLD dword ptr[cg_atmFx + GustField23]
-		FSUB dword ptr[cg_atmFx + GustField20]
-		FSTP dword ptr[ESP + 0xc]
-		JGE gust_3001835c
-		SUB EAX, EDX
-		SUB ECX, EDX
-		MOV dword ptr[ESP], EAX
-		MOV EAX, dword ptr[ESP + 0x14]
-		FILD dword ptr[ESP]
-		MOV dword ptr[ESP], ECX
-		FILD dword ptr[ESP]
-		FDIVP ST(1), ST(0)
-		FLD ST(0)
-		FMUL dword ptr[ESP + 0x4]
-		FADD dword ptr[cg_atmFx + GustField18]
-		FSTP dword ptr[EAX]
-		FLD ST(0)
-		FMUL dword ptr[ESP + 0x8]
-		FADD dword ptr[cg_atmFx + GustField19]
-		FSTP dword ptr[EAX + 0x4]
-		FLD ST(0)
-		FMUL dword ptr[ESP + 0xc]
-		FADD dword ptr[cg_atmFx + GustField20]
-		FSTP dword ptr[EAX + 0x8]
-		FLD dword ptr[cg_atmFx + GustField13]
-		FSUB dword ptr[cg_atmFx + GustField12]
-		MOV EAX, dword ptr[ESP + 0x18]
-		FMUL ST(0), ST(1)
-		FADD dword ptr[cg_atmFx + GustField12]
-		FSTP dword ptr[EAX]
-		MOV ECX, dword ptr[cg_atmFx + GustField15]
-		MOV EAX, [cg_atmFx + GustField14]
-		SUB ECX, EAX
-		MOV dword ptr[ESP + 0x14], ECX
-		FILD dword ptr[ESP + 0x14]
-		FMUL ST(0), ST(1)
-		FIADD dword ptr[cg_atmFx + GustField14]
-		CALL CG_WeatherTruncateST0
-		MOV EDX, dword ptr[ESP + 0x1c]
-		FSTP ST(0)
-		MOV dword ptr[EDX], EAX
-		XOR EAX, EAX
-		ADD ESP, 0x10
-		RET
-gust_3001835c:
-		MOV ECX, dword ptr[cg_atmFx + GustField3]
-		CMP EAX, ECX
-		JGE gust_300183a2
-		FLD dword ptr[cg_atmFx + GustField21]
-		MOV EAX, dword ptr[ESP + 0x14]
-		FSTP dword ptr[EAX]
-		MOV ECX, dword ptr[cg_atmFx + GustField22]
-		MOV dword ptr[EAX + 0x4], ECX
-		MOV EDX, dword ptr[cg_atmFx + GustField23]
-		MOV ECX, dword ptr[ESP + 0x1c]
-		MOV dword ptr[EAX + 0x8], EDX
-		FLD dword ptr[cg_atmFx + GustField13]
-		MOV EAX, dword ptr[ESP + 0x18]
-		FSTP dword ptr[EAX]
-		MOV EDX, dword ptr[cg_atmFx + GustField15]
-		XOR EAX, EAX
-		MOV dword ptr[ECX], EDX
-		ADD ESP, 0x10
-		RET
-gust_300183a2:
-		SUB EAX, ECX
-		MOV dword ptr[ESP], EAX
-		MOV EAX, [cg_atmFx + GustField4]
-		FILD dword ptr[ESP]
-		SUB EAX, ECX
-		MOV ECX, dword ptr[ESP + 0x18]
-		MOV dword ptr[ESP], EAX
-		MOV EAX, dword ptr[ESP + 0x14]
-		FILD dword ptr[ESP]
-		FDIVP ST(1), ST(0)
-		FSUBR qword ptr[gustOne]
-		FLD ST(0)
-		FMUL dword ptr[ESP + 0x4]
-		FADD dword ptr[cg_atmFx + GustField18]
-		FSTP dword ptr[EAX]
-		FLD ST(0)
-		FMUL dword ptr[ESP + 0x8]
-		FADD dword ptr[cg_atmFx + GustField19]
-		FSTP dword ptr[EAX + 0x4]
-		FLD ST(0)
-		FMUL dword ptr[ESP + 0xc]
-		FADD dword ptr[cg_atmFx + GustField20]
-		FSTP dword ptr[EAX + 0x8]
-		FLD dword ptr[cg_atmFx + GustField13]
-		FSUB dword ptr[cg_atmFx + GustField12]
-		FMUL ST(0), ST(1)
-		FADD dword ptr[cg_atmFx + GustField12]
-		FSTP dword ptr[ECX]
-		MOV EDX, dword ptr[cg_atmFx + GustField15]
-		MOV ECX, dword ptr[cg_atmFx + GustField14]
-		SUB EDX, ECX
-		MOV dword ptr[ESP + 0x14], EDX
-		FILD dword ptr[ESP + 0x14]
-		FMUL ST(0), ST(1)
-		FIADD dword ptr[cg_atmFx + GustField14]
-		CALL CG_WeatherTruncateST0
-		MOV ECX, dword ptr[ESP + 0x1c]
-		FSTP ST(0)
-		MOV dword ptr[ECX], EAX
-		MOV EDX, dword ptr[cg + WeatherTime]
-		CMP EDX, dword ptr[cg_atmFx + GustField4]
-		JL gust_30018288
-		MOV EAX, 0x1
-		ADD ESP, 0x10
-		RET
+	vec3_t delta;
+	long double fraction, count;
+	int time = cg.time;
+	int i, start, end, drops;
+	qboolean fading = qfalse;
+
+	if (time < cg_atmFx.baseEndTime)
+	{
+		VectorCopy(cg_atmFx.baseVec, curr);
+		*weight = cg_atmFx.baseWeight;
+		*num = cg_atmFx.baseDrops;
+		return qfalse;
 	}
+
+	/* The original rounds all three vector differences before interpolation. */
+	for (i = 0; i < 3; ++i)
+	{
+		delta[i] = (float)((long double)cg_atmFx.gustVec[i] - cg_atmFx.baseVec[i]);
+	}
+	start = cg_atmFx.baseEndTime;
+	end = cg_atmFx.gustStartTime;
+	if (time < end)
+	{
+		fraction = (long double)TCE_SubInt32(time, start) / TCE_SubInt32(end, start);
+	}
+	else if (time < cg_atmFx.gustEndTime)
+	{
+		VectorCopy(cg_atmFx.gustVec, curr);
+		*weight = cg_atmFx.gustWeight;
+		*num = cg_atmFx.gustDrops;
+		return qfalse;
+	}
+	else
+	{
+		fading = qtrue;
+		start = cg_atmFx.gustEndTime;
+		end = cg_atmFx.baseStartTime;
+		fraction = 1.0L - (long double)TCE_SubInt32(time, start) / TCE_SubInt32(end, start);
+	}
+
+	for (i = 0; i < 3; ++i)
+	{
+		curr[i] = (float)(fraction * delta[i] + cg_atmFx.baseVec[i]);
+	}
+	*weight = (float)(((long double)cg_atmFx.gustWeight - cg_atmFx.baseWeight) *
+	                  fraction + cg_atmFx.baseWeight);
+	drops = TCE_SubInt32(cg_atmFx.gustDrops, cg_atmFx.baseDrops);
+	count = (long double)drops * fraction + cg_atmFx.baseDrops;
+	*num = TCE_TruncateNativeInteger(count);
+	return fading && cg.time >= cg_atmFx.baseStartTime ? qtrue : qfalse;
 }
 
 #else
