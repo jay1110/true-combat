@@ -1,10 +1,17 @@
 #include "tce_shotgun_prediction.h"
+#include "../game/tce_numeric.h"
 
 static void SnapTowards(vec3_t point, const vec3_t toward)
 {
 	int i;
 	for (i = 0; i < 3; ++i)
+	{
+#ifdef _WIN32
 		point[i] = (float)(point[i] < toward[i]?ceil(point[i]):floor(point[i]));
+#else
+		point[i] = (float)(toward[i] <= point[i]?floor(point[i]):ceil(point[i]));
+#endif
+	}
 }
 
 /* Windows30075ba0. Client mask, exit tolerance, stored vertical deflection
@@ -17,9 +24,17 @@ void TCE_CG_BulletFireExtended(const tce_shotgunPrediction_t *ctx, int source, i
 	const tce_pierceMaterial_t *material;
 	int                        entryMaterial, exitMaterial, i, randomSeed;
 	float                      radius, horizontal, vertical, retained, storedEnergy = (float)energy;
+#ifdef _WIN32
 	double                     fraction, angle, thickness;
+#else
+	long double                fraction, angle, thickness;
+#endif
 	ctx->trace(&tr, start, NULL, NULL, end, source, 0x81);
+#ifdef _WIN32
 	if (!(tr.fraction <= 1.0f) || tr.entityNum < ctx->maxClients || tr.entityNum == ENTITYNUM_NONE)
+#else
+	if (tr.fraction > 1.0f || tr.entityNum < ctx->maxClients || tr.entityNum == ENTITYNUM_NONE)
+#endif
 	{
 		return;
 	}
@@ -41,7 +56,13 @@ void TCE_CG_BulletFireExtended(const tce_shotgunPrediction_t *ctx, int source, i
 	VectorCopy(tr.endpos, entry);
 	VectorCopy(tr.plane.normal, normal);
 	for (i = 0; i < 3; ++i)
+	{
+#ifdef _WIN32
 		from[i] = (entry[i] - normal[i]) + direction[i];
+#else
+		from[i] = (float)(((long double)entry[i] - normal[i]) + direction[i]);
+#endif
+	}
 	ctx->trace(&tr, from, NULL, NULL, end, source, 0x81);
 	if (!(tr.fraction < 1))
 	{
@@ -50,9 +71,19 @@ void TCE_CG_BulletFireExtended(const tce_shotgunPrediction_t *ctx, int source, i
 	if (Distance(tr.endpos, entry) < 4)
 	{
 		for (i = 0; i < 3; ++i)
+		{
+#ifdef _WIN32
 			from[i] = (float)(((double)entry[i] - normal[i]) + direction[i] * 4.0);
+#else
+			from[i] = (float)(((long double)entry[i] - normal[i]) + (long double)direction[i] * 4.0L);
+#endif
+		}
 		ctx->trace(&tr, from, NULL, NULL, end, source, 0x81);
+#ifdef _WIN32
 		if (tr.fraction >= 1)
+#else
+		if (!(tr.fraction < 1))
+#endif
 		{
 			return;
 		}
@@ -75,26 +106,59 @@ void TCE_CG_BulletFireExtended(const tce_shotgunPrediction_t *ctx, int source, i
 	{
 		thickness = 0;
 	}
+#ifdef _WIN32
 	fraction = (storedEnergy - (thickness / material->thicknessScale + 1) * material->resistance) / storedEnergy;
+#else
+	/* The native Linux energy gates use the held fraction, not its float copy. */
+	fraction = (storedEnergy - ((1.0L / (float)material->thicknessScale) * thickness + 1.0L) *
+	            (float)material->resistance) * (1.0L / storedEnergy);
+#endif
 	retained = (float)fraction;
+#ifdef _WIN32
 	if (!(fraction > 0) || (double)retained * storedEnergy < 5)
+#else
+	if (!(fraction > 0) || !(fraction * storedEnergy >= 5.0L))
+#endif
 	{
 		return;
 	}
 	ctx->wall(3, 1, tr.endpos, tr.plane.normal, tr.plane.normal, exitMaterial, tr.entityNum == ENTITYNUM_WORLD, 1);
-	randomSeed = (seed + walls * 11) & 65535;
+	randomSeed = ((unsigned)seed + (unsigned)walls * 11u) & 65535u;
+#ifdef _WIN32
 	radius     = (float)sqrt(Q_random(&randomSeed));
 	angle      = Q_crandom(&randomSeed) * 3.141;
 	horizontal = (float)(cos(angle) * radius * (1.0 - retained) * 2539.9999618530273);
 	vertical   = (float)(sin(angle) * radius * (1.0 - retained) * 2539.9999618530273);
+#else
+	radius = (float)sqrtl((long double)Q_random(&randomSeed));
+	angle = (float)((long double)Q_crandom(&randomSeed) * (double)3.141);
+	{
+		long double deflection = 1.0L - retained;
+		long double x = cosl(angle) * radius * deflection * (double)1269.9999809265137;
+		long double y = (long double)radius * sinl(angle) * deflection * (double)1269.9999809265137;
+		horizontal = (float)(x + x);
+		vertical = (float)(y + y);
+	}
+#endif
 	VectorSubtract(end, start, direction);
 	VectorNormalize(direction);
 	PerpendicularVector(right, direction);
 	CrossProduct(direction, right, up);
 	for (i = 0; i < 3; ++i)
+	{
+#ifdef _WIN32
 		end[i] = (float)((double)right[i] * horizontal + (double)up[i] * vertical + end[i]);
+#else
+		end[i] = (float)(((long double)right[i] * horizontal + end[i]) + (long double)up[i] * vertical);
+#endif
+	}
 	/* Original reloads the stored INPUT energy, not the retained product. */
+#ifdef _WIN32
 	TCE_CG_BulletFireExtended(ctx, source, weapon, tr.endpos, end, (int)storedEnergy, walls - 1, seed);
+#else
+	TCE_CG_BulletFireExtended(ctx, source, weapon, tr.endpos, end,
+	                         TCE_TruncateNativeInteger(storedEnergy), TCE_SubInt32(walls, 1), seed);
+#endif
 }
 
 /* Windows3007b1c0: nine visual pellets,200 spread,weapon48 energy. Server
@@ -113,6 +177,21 @@ void TCE_CG_ShotgunPattern(const tce_shotgunPrediction_t *ctx, vec3_t start, vec
 	CrossProduct(forward, right, up);
 	for (i = 0; i < 9; ++i)
 	{
+#ifndef _WIN32
+		/* Linux c91ec spills radius, angle and both offsets to float, then
+		 * holds each endpoint sum until the final vector store. */
+		float radius = (float)sqrtl((long double)Q_random(&seed));
+		float angle = (float)((long double)Q_crandom(&seed) * (double)3.141);
+		float horizontal = (float)(cosl((long double)angle) * radius * 200.0L);
+		float vertical = (float)((long double)radius * sinl((long double)angle) * 200.0L);
+		int axis;
+		for (axis = 0; axis < 3; ++axis)
+		{
+			long double base = (long double)forward[axis] * 8192.0L + start[axis];
+			base += (long double)right[axis] * horizontal;
+			end[axis] = (float)(base + (long double)up[axis] * vertical);
+		}
+#else
 		float  radius     = (float)sqrt(Q_random(&seed));
 		double angle      = Q_crandom(&seed) * 3.141;
 		float  horizontal = (float)(cos(angle) * radius * 200.0);
@@ -120,6 +199,7 @@ void TCE_CG_ShotgunPattern(const tce_shotgunPrediction_t *ctx, vec3_t start, vec
 		end[0] = (float)((double)up[0] * vertical + (double)right[0] * horizontal + (double)forward[0] * 8192.0 + start[0]);
 		end[1] = (float)((double)up[1] * vertical + (float)((double)right[1] * horizontal + (double)forward[1] * 8192.0 + start[1]));
 		end[2] = (float)((double)up[2] * vertical + (float)((double)right[2] * horizontal + (double)forward[2] * 8192.0 + start[2]));
+#endif
 		TCE_CG_BulletFireExtended(ctx, source, 48, start, end, ctx->weapons[48].unknown_134, 1, seed);
 	}
 }
