@@ -2513,7 +2513,7 @@ qboolean FileExists(char *filename)
 {
 	fileHandle_t handle;
 	int          length;
-	/* Both Windows originals reuse the filename slot as the handle output.
+	/* TC:E's Windows code reuses the filename slot as the handle output.
 	 * Preserve its initial representation if the provider leaves it alone. */
 	memcpy(&handle, &filename, sizeof(handle));
 	length = trap_FS_FOpenFile(filename, &handle, FS_READ);
@@ -3280,18 +3280,11 @@ static long double TCE_SliderThumbValue(itemDef_t *item)
 #endif
 }
 
-#if defined(__linux__)
 long double Item_Slider_ThumbPosition(itemDef_t *item)
 {
 	/* The original returns the final x87 sum without a Float spill. */
 	return TCE_SliderThumbValue(item);
 }
-#else
-float Item_Slider_ThumbPosition(itemDef_t *item)
-{
-	return (float)TCE_SliderThumbValue(item);
-}
-#endif
 #else
 float Item_Slider_ThumbPosition(itemDef_t *item)
 {
