@@ -1262,15 +1262,19 @@ static void PM_SetMovementDir(void)
 PM_CheckJump
 =============
 */
-/* TC:E CheckJump: native Windows gates, float stores and event ordering.
- * Linux retains its existing fallback; FPU/ABI parity is tracked separately. */
-#if defined(_MSC_VER) && defined(_M_IX86)
+/* TC:E jump gates and event ordering, with each native platform's float spills. */
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 typedef char movementScalarLayout833[(sizeof(float) == 4 && sizeof(int) == 4 &&
                                       sizeof(vec3_t) == 12 && EV_JUMP == 24 && ANIM_ET_JUMP == 4 && ANIM_ET_JUMPBK == 5) ? 1 : -1];
 static qboolean PM_CheckJump(void)
 {
 	playerState_t  *ps = pm->ps;
+#if defined(__linux__)
+	long double    scale = 1.0L;
+	volatile float storedScale, horizontal;
+#else
 	volatile float scale = 1.0f, horizontal;
+#endif
 	long double    value, length;
 	vec3_t         direction;
 	int            seed;
@@ -1331,22 +1335,34 @@ static qboolean PM_CheckJump(void)
 				return qfalse;
 			}
 			value = 1.0L - (long double)ps->pm_time * 0.001f;
+#if defined(__linux__)
+			scale = value < 0.0L ? 0.0L : value;
+#else
 			scale = (float)value;
 			/* Compare the held value; C0 also selects zero for unordered. */
 			if (value < 0.0L || value != value)
 			{
 				scale = 0.0f;
 			}
+#endif
 		}
 	}
 	value      = (long double)ps->velocity[0] * ps->velocity[0];
 	value     += (long double)ps->velocity[1] * ps->velocity[1];
 	horizontal = (float)sqrtl(value);
+#if defined(__linux__)
+	storedScale = (float)scale;
+	scale = storedScale;
+#endif
 	length     = TCE_VectorLengthValue(ps->velocity);
 	if ((length >= 50.0L || !pm->cmd.forwardmove) &&
 	    !(pm->ps->stats[STAT_TCE_FLAGS] & 0x40))
 	{
+#if defined(__linux__)
+		scale *= 0.707f;
+#else
 		scale = (float)((long double)scale * 0.707f);
+#endif
 		if (pm->pmext->sprintTime < 750)
 		{
 			pm->cmd.upmove = 0;
@@ -1358,21 +1374,46 @@ static qboolean PM_CheckJump(void)
 		direction[0] = (float)((long double)pm->cmd.forwardmove * 0.007874015718698502f);
 		direction[1] = (float)((long double)pm->cmd.rightmove * 0.007874015718698502f);
 		direction[2] = 0.0f;
+#if defined(__linux__)
+		storedScale = (float)scale;
+		scale = storedScale;
+#endif
 		(void)TCE_VectorNormalizeValue(direction);
+#if defined(__linux__)
+		/* The Linux binary retains all three products of the forward-basis dot. */
+		value = (long double)direction[0] * 1.0f;
+		value += (long double)direction[1] * 0.0f;
+		value += (long double)direction[2] * 0.0f;
+		value = (value + 1.0f) * 0.5f;
+#else
 		value = ((long double)direction[0] + 1.0f) * 0.5f;
+#endif
 		if (value < 0.5L || value != value)
 		{
 			value = 0.5L;
 		}
+#if defined(__linux__)
+		scale *= value;
+#else
 		scale = (float)(value * scale);
+#endif
 	}
 	pm->ps->stats[STAT_TCE_WEAPON_FLAGS]        |= 0x1000;
 	pm->ps->stats[STAT_TCE_MOVEMENT_INSTABILITY] = 1000;
 	if (pm->ps->weaponstate != WEAPON_FIRING)
 	{
+#if defined(__linux__)
+		playerState_t *phasePlayer = pm->ps;
+		seed = pm->ps->stats[STAT_TCE_SHOT_SEED];
+		storedScale = (float)scale;
+		value = (long double)Q_random(&seed) * 1000.0f;
+		phasePlayer->stats[STAT_TCE_AIM_PHASE] = TCE_TruncateNativeInteger(value);
+		scale = storedScale;
+#else
 		seed                              = pm->ps->stats[STAT_TCE_SHOT_SEED];
 		value                             = (long double)Q_random(&seed) * 1000.0f;
 		pm->ps->stats[STAT_TCE_AIM_PHASE] = TCE_TruncateNativeInteger(value);
+#endif
 		if (pm->ps->stats[STAT_TCE_AIM_PHASE] > 1000)
 		{
 			pm->ps->stats[STAT_TCE_AIM_PHASE] -= 1000;
@@ -1380,7 +1421,11 @@ static qboolean PM_CheckJump(void)
 	}
 	if (pm->ps->stats[STAT_TCE_FLAGS] & 0x200)
 	{
+#if defined(__linux__)
+		scale *= 1.25f;
+#else
 		scale = (float)((long double)scale * 1.25f);
+#endif
 	}
 	pml.groundPlane         = qfalse;
 	pml.walking             = qfalse;
@@ -3975,7 +4020,7 @@ PM_SetWaterLevel	FIXME: avoid this twice?  certainly if not moving
 =============
 */
 /* TC:E posture trace layout requirements. */
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 typedef char posture831PsAtZero[(offsetof(pmove_t, ps) == 0) ? 1 : -1];
 typedef char posture831TraceLayout[(sizeof(trace_t) == 56 && offsetof(trace_t, allsolid) == 0) ? 1 : -1];
 static void PM_SetWaterLevel(void)
@@ -3995,7 +4040,12 @@ static void PM_SetWaterLevel(void)
 		pm->watertype  = contents;
 		pm->waterlevel = 1;
 		middleHeight   = sampleHeight / 2;
+#if defined(__linux__)
+		/* ELF adds the integer midpoint to the held lower-bound position. */
+		point[2] = (float)((long double)pm->ps->mins[2] + pm->ps->origin[2] + middleHeight);
+#else
 		point[2]       = (float)((long double)middleHeight + pm->ps->mins[2] + pm->ps->origin[2]);
+#endif
 		contents       = pm->pointcontents(point, pm->ps->clientNum);
 		if (contents & MASK_WATER)
 		{
