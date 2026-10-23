@@ -2448,8 +2448,13 @@ void ClientEndFrame(gentity_t *ent)
 	for (i = 0; i < 7; ++i)
 		/* 20047662..2004766b: FILD integer, FADD binary32 skill, then
 		 * truncate directly; no intervening binary32 rounding. */
+#if defined(__linux__) && !defined(Q3_VM)
+		client->ps.stats[6] = TCE_TruncateNativeInteger(
+			(long double)client->ps.stats[6] + (long double)client->sess.skillpoints[i]);
+#else
 		client->ps.stats[6] = TCE_TruncateNativeInteger(
 			(double)client->ps.stats[6] + (double)client->sess.skillpoints[i]);
+#endif
 	if (level.match_pause != PAUSE_NONE)
 	{
 		int delta = TCE_SubInt32(level.time, level.previousTime);
@@ -2458,9 +2463,18 @@ void ClientEndFrame(gentity_t *ent)
 		client->lastBurnTime                       = TCE_AddInt32(client->lastBurnTime, delta);
 		client->pers.connectTime                   = TCE_AddInt32(client->pers.connectTime, delta);
 		client->pers.enterTime                     = TCE_AddInt32(client->pers.enterTime, delta);
+#if defined(__linux__) && !defined(Q3_VM)
+		client->pers.teamState.lastreturnedflag = (float)(
+			(long double)client->pers.teamState.lastreturnedflag + delta);
+		client->pers.teamState.lasthurtcarrier = (float)(
+			(long double)client->pers.teamState.lasthurtcarrier + delta);
+		client->pers.teamState.lastfraggedcarrier = (float)(
+			(long double)delta + client->pers.teamState.lastfraggedcarrier);
+#else
 		client->pers.teamState.lastreturnedflag   += (float)delta;
 		client->pers.teamState.lasthurtcarrier    += (float)delta;
 		client->pers.teamState.lastfraggedcarrier += (float)delta;
+#endif
 		client->ps.classWeaponTime                 = TCE_AddInt32(client->ps.classWeaponTime, delta);
 		ent->lastHintCheckTime                     = TCE_AddInt32(ent->lastHintCheckTime, delta);
 		ent->pain_debounce_time                    = TCE_AddInt32(ent->pain_debounce_time, delta);
