@@ -10,6 +10,8 @@
 #include "../game/g_local.h"
 #if defined(__linux__)
 #include "../game/tce_weapon_ids.h"
+
+static long double BotDistanceSquaredValue(const vec3_t first, const vec3_t second);
 #endif
 #include "../game/botlib.h"
 #include "../game/be_aas.h"
@@ -134,6 +136,10 @@ int AINode_MP_Stand(bot_state_t *bs)
 {
 	bot_goal_t goal;
 	vec3_t     pos;
+#if defined(__linux__)
+	long double checkTime;
+	Com_Printf("ELITE DEBUG: AINODEMP\n");
+#endif
 
 
 	// Gordon: pow, so just stand around till scripted
@@ -160,7 +166,12 @@ int AINode_MP_Stand(bot_state_t *bs)
 		return qfalse;
 	}
 
+#if defined(__linux__)
+	checkTime = (long double)trap_AAS_Time();
+	if (!(bs->standfindenemy_time >= checkTime))
+#else
 	if (bs->standfindenemy_time < trap_AAS_Time())
+#endif
 	{
 		if (BotFindEnemyMP(bs, -1, qfalse))
 		{
@@ -174,7 +185,12 @@ int AINode_MP_Stand(bot_state_t *bs)
 	{
 		return qfalse;
 	}
+#if defined(__linux__)
+	checkTime = (long double)trap_AAS_Time();
+	if (!(bs->stand_time >= checkTime))
+#else
 	if (bs->stand_time < trap_AAS_Time())
+#endif
 	{
 		//trap_BotEnterChat(bs->cs, bs->client, bs->chatto);
 		//bs->ignore_specialgoal_time = 0;
@@ -187,12 +203,30 @@ int AINode_MP_Stand(bot_state_t *bs)
 		{
 			// jump randomly?
 			trap_EA_Jump(bs->client);
+#if defined(__linux__)
+			{
+				float speed = (float)((long double)(rand() & 32767) * (long double)(float)(200.0 / 32767.0) + 100.0L);
+				float moveZ = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+				float moveY = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+				float moveX = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+				trap_EA_Move(bs->client, tv(moveX, moveY, moveZ), speed);
+			}
+#else
 			trap_EA_Move(bs->client, tv(crandom(), crandom(), crandom()), 100 + random() * 200);
+#endif
 		}
 		else
 		{
 			// stand for a bit longer
+#if defined(__linux__)
+			{
+				double standBase = (double)((long double)trap_AAS_Time() + (long double)(double)0.4);
+				long double delay = (long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0);
+				bs->stand_time = (float)(delay * (long double)(double)0.4 + standBase);
+			}
+#else
 			bs->stand_time = trap_AAS_Time() + 0.4 + 0.4 * random();
+#endif
 		}
 	}
 	else
@@ -217,14 +251,23 @@ int AINode_MP_Stand(bot_state_t *bs)
 	if (BotGetMovementAutonomyPos(bs, pos))
 	{
 		float halfDist = 0.5 * BotGetMovementAutonomyRange(bs, NULL);
+#if defined(__linux__)
+		if (!((long double)halfDist * halfDist >= BotDistanceSquaredValue(bs->origin, pos)))
+#else
 		if (VectorDistanceSquared(bs->origin, pos) > (halfDist * halfDist))
+#endif
 		{
 			AIEnter_MP_MoveToAutonomyRange(bs);
 			return qfalse;
 		}
 	}
 	// if we have been standing for too long
+#if defined(__linux__)
+	checkTime = (long double)trap_AAS_Time();
+	if (!(bs->respawn_time >= checkTime))
+#else
 	if (bs->respawn_time < trap_AAS_Time())
+#endif
 	{
 		Cmd_Kill_f(&g_entities[bs->client], MOD_SUICIDE);
 	}
@@ -273,6 +316,9 @@ int AINode_MP_Respawn(bot_state_t *bs)
 	qboolean  do_respawn = qfalse;
 	gentity_t *ent;
 	int       testtime;
+#if defined(__linux__)
+	long double checkTime;
+#endif
 	// RF, only hit jump if reinforcement time is about to run out
 	ent = BotGetEntity(bs->entitynum);
 // disabled, if medic has troubles finding us, we'll be waiting forever
@@ -305,7 +351,11 @@ int AINode_MP_Respawn(bot_state_t *bs)
 		}
 		bs->lastClassCheck = level.time + rand() % 1000;
 		// sometimes when we die, we should re-evaluate our weapon selection
+#if defined(__linux__)
+		if ((bs->flags & BFL_MISCFLAG) || ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) < (long double)(double)0.3))
+#else
 		if ((bs->flags & BFL_MISCFLAG) || (random() < 0.3))
+#endif
 		{
 			bs->mpWeapon                        = BotSuggestWeapon(bs, bs->sess.sessionTeam);
 			ent->client->sess.latchPlayerWeapon = bs->mpWeapon;
@@ -359,7 +409,11 @@ int AINode_MP_Respawn(bot_state_t *bs)
 			}
 		}
 	}
+#if defined(__linux__)
+	else if ((checkTime = (long double)trap_AAS_Time()), !(bs->respawn_time >= checkTime))
+#else
 	else if (bs->respawn_time < trap_AAS_Time())
+#endif
 	{
 		//wait until respawned
 		bs->respawn_wait = qtrue;
@@ -371,16 +425,31 @@ int AINode_MP_Respawn(bot_state_t *bs)
 			trap_EA_Jump(bs->client);
 		}
 		//
+#if defined(__linux__)
+		if (bs->respawnchat_time < 0.0f || bs->respawnchat_time > 0.0f)
+#else
 		if (bs->respawnchat_time)
+#endif
 		{
 			//trap_BotEnterChat(bs->cs, bs->client, bs->chatto);
 			bs->enemy = -1;
 		}
 	}
+#if defined(__linux__)
+	{
+		long double chatTime = bs->respawnchat_time;
+		if ((chatTime < 0.0L || chatTime > 0.0L)
+		    && !(chatTime >= (long double)trap_AAS_Time() - 0.5L))
+		{
+			trap_EA_Talk(bs->client);
+		}
+	}
+#else
 	if (bs->respawnchat_time && bs->respawnchat_time < trap_AAS_Time() - 0.5)
 	{
 		trap_EA_Talk(bs->client);
 	}
+#endif
 	//
 	return qtrue;
 }
