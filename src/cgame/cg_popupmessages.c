@@ -410,7 +410,7 @@ void CG_DrawPMItems(void)
 {
 	extern qboolean      tce_uiCoordinates;
 	qboolean             previous = tce_uiCoordinates;
-	tce_popup_draw_api_t api      = { trap_R_SetColor, CG_DrawPic, CG_PopupPaint, CG_PopupDuration, &cgs.media.limboFont1 };
+	tce_popup_draw_api_t api      = { trap_R_SetColor, CG_DrawPic, CG_PopupPaint, CG_PopupDuration, &cgs.media.limboFont2 };
 	tce_uiCoordinates = qtrue;
 	TCE_DrawPMItems(cg_aspectMode.integer, cg.snap->ps.persistant[PERS_RESPAWNS_LEFT], cg.time, cg_pmWaitingList, cg_pmOldList, &api);
 	tce_uiCoordinates = previous;
@@ -424,7 +424,7 @@ void CG_DrawPMItemsBig(void)
 {
 	extern qboolean      tce_uiCoordinates;
 	qboolean             previous = tce_uiCoordinates;
-	tce_popup_draw_api_t api      = { trap_R_SetColor, CG_DrawPic, CG_PopupPaint, CG_PopupBigDuration, &cgs.media.limboFont1 };
+	tce_popup_draw_api_t api      = { trap_R_SetColor, CG_DrawPic, CG_PopupPaint, CG_PopupBigDuration, &cgs.media.limboFont2 };
 	tce_uiCoordinates = qtrue;
 	TCE_DrawPMItemsBig(cg_aspectMode.integer, cg.time, cg_pmWaitingListBig, &api);
 	tce_uiCoordinates = previous;

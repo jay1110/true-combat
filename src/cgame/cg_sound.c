@@ -146,13 +146,21 @@ int CG_SoundPickOldestRandomSound(soundScript_t *sound, vec3_t org, int entnum)
 			/* TC30060790: script sounds share the flashbang hearing attenuation. */
 			trap_S_StartSoundVControl(org, entnum, sound->channel,
 			                          oldestSound->sounds[pos].sfxHandle,
+#if defined(__linux__)
+			                          (int)((1.0L - (long double)tceFlash.deafness) * 127.0L));
+#else
 			                          (int)((1.0 - (double)tceFlash.deafness) * 127.0));
+#endif
 			return trap_S_GetSoundLength(oldestSound->sounds[pos].sfxHandle);
 		}
 		else
 		{
 			return trap_S_StartStreamingSound(oldestSound->sounds[pos].filename, sound->looping ? oldestSound->sounds[pos].filename : NULL, entnum, sound->channel,
+#if defined(__linux__)
+			                                  (int)((1.0L - (long double)tceFlash.deafness) * sound->attenuation));
+#else
 			                                  (int)((1.0 - (double)tceFlash.deafness) * sound->attenuation));
+#endif
 		}
 		oldestSound->lastPlayed = cg.time;
 	}

@@ -2043,7 +2043,11 @@ void CG_parseWeaponStatsGS_cmd(void)
 				if (nShots > 0 || nHits > 0)
 				{
 					Q_strcat(strName, sizeof(strName), va("%5.1f %4d/%-4d ",
+#if defined(__linux__)
+					                                      ((nShots == 0) ? 0.0 : (float)(nHits * 100.0 / (float)nShots)),
+#else
 					                                      ((nShots == 0) ? 0.0 : (double)nHits * 100.0 / (double)nShots),
+#endif
 					                                      nHits, nShots));
 				}
 				else
@@ -2174,7 +2178,11 @@ void CG_parseWeaponStats_cmd(void(txt_dump)(char *))
 				{
 					fHasStats = qtrue;
 					Q_strcat(strName, sizeof(strName), va("^7%5.1f ^5%4d/%-4d ",
+#if defined(__linux__)
+					                                      ((atts == 0) ? 0.0 : (float)(hits * 100.0 / (float)atts)),
+#else
 					                                      ((atts == 0) ? 0.0 : (double)hits * 100.0 / (double)atts),
+#endif
 					                                      hits, atts));
 				}
 				else
