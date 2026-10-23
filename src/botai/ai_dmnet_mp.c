@@ -3985,7 +3985,11 @@ int AINode_MP_ScanForLandmines(bot_state_t *bs)
 	}
 
 	// is this spot disabled now?
+#if defined(__linux__)
+	if (((unsigned)ent->aiInactive >> ((unsigned)bs->sess.sessionTeam & 31u)) & 1u)
+#else
 	if (ent->aiInactive & (1 << bs->sess.sessionTeam))
+#endif
 	{
 		if (BotFindSpecialGoals(bs))
 		{
@@ -4011,7 +4015,11 @@ int AINode_MP_ScanForLandmines(bot_state_t *bs)
 		dir[2] = 0;
 	}
 
+#if defined(__linux__)
+	if (TCE_VectorLengthSquaredValue(dir) > SQR(32))
+#else
 	if (VectorLengthSquared(dir) > SQR(32))
+#endif
 	{
 		//choose the best weapon to fight with
 		BotChooseWeapon(bs);
@@ -4039,7 +4047,18 @@ int AINode_MP_ScanForLandmines(bot_state_t *bs)
 			}
 			// jump randomly?
 			trap_EA_Jump(bs->client);
+#if defined(__linux__)
+			{
+				/* Native argument evaluation consumes speed, Z, Y, then X. */
+				float speed = (float)((long double)(rand() & 32767) * (long double)(float)(200.0 / 32767.0) + 100.0L);
+				float moveZ = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+				float moveY = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+				float moveX = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+				trap_EA_Move(bs->client, tv(moveX, moveY, moveZ), speed);
+			}
+#else
 			trap_EA_Move(bs->client, tv(crandom(), crandom(), crandom()), 100 + random() * 200);
+#endif
 			// fail
 			bs->ainode     = NULL;
 			bs->ainodeText = "NULL";
@@ -4055,7 +4074,11 @@ int AINode_MP_ScanForLandmines(bot_state_t *bs)
 		}
 		else if (moveresult.flags & MOVERESULT_WAITING)     //if waiting for something
 		{
+#if defined(__linux__)
+			if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) < (long double)(double)0.8 * bs->thinktime)
+#else
 			if (random() < bs->thinktime * 0.8)
+#endif
 			{
 				BotRoamGoal(bs, target);
 				VectorSubtract(target, bs->origin, dir);
@@ -4065,7 +4088,11 @@ int AINode_MP_ScanForLandmines(bot_state_t *bs)
 		}
 		else
 		{
+#if defined(__linux__)
+			if (BotDistanceSquaredValue(bs->origin, goal.origin) > SQR(32))
+#else
 			if (VectorDistanceSquared(bs->origin, goal.origin) > SQR(32))
+#endif
 			{
 				// check for enemies
 				if (bs->enemy < 0)
@@ -4078,9 +4105,18 @@ int AINode_MP_ScanForLandmines(bot_state_t *bs)
 					aas_entityinfo_t entinfo;
 					BotEntityInfo(bs->enemy, &entinfo);
 					//if the enemy is dead
+#if defined(__linux__)
+					if (bs->enemydeath_time < 0.0f || bs->enemydeath_time > 0.0f)
+#else
 					if (bs->enemydeath_time)
+#endif
 					{
+#if defined(__linux__)
+						long double deathTime = bs->enemydeath_time;
+						if (!(deathTime >= (long double)trap_AAS_Time() - (long double)(double)0.3))
+#else
 						if (bs->enemydeath_time < trap_AAS_Time() - 0.3)
+#endif
 						{
 							bs->enemydeath_time    = 0;
 							bs->enemy              = -1;
@@ -4098,7 +4134,11 @@ int AINode_MP_ScanForLandmines(bot_state_t *bs)
 					if (bs->enemy >= 0)
 					{
 						// attack and keep moving
+#if defined(__linux__)
+						if (fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL)) > 0.0L)
+#else
 						if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL))
+#endif
 						{
 							//choose the best weapon to fight with
 							BotChooseWeapon(bs);
@@ -4129,11 +4169,19 @@ int AINode_MP_ScanForLandmines(bot_state_t *bs)
 						VectorSubtract(target, bs->origin, dir);
 						vectoangles(dir, bs->ideal_viewangles);
 					}
+#if defined(__linux__)
+					else if (fabsl(TCE_VectorLengthSquaredValue(moveresult.movedir)) > 0.0L)
+#else
 					else if (VectorLengthSquared(moveresult.movedir))     //FIXME: look at cluster portals?
+#endif
 					{
 						vectoangles(moveresult.movedir, bs->ideal_viewangles);
 					}
+#if defined(__linux__)
+					else if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) < (long double)(double)0.8 * bs->thinktime)
+#else
 					else if (random() < bs->thinktime * 0.8)
+#endif
 					{
 						BotRoamGoal(bs, target);
 						VectorSubtract(target, bs->origin, dir);
@@ -4146,7 +4194,11 @@ int AINode_MP_ScanForLandmines(bot_state_t *bs)
 		}
 	}
 
+#if defined(__linux__)
+	if (!(TCE_VectorLengthSquaredValue(dir) >= SQR(32)))
+#else
 	if (VectorLengthSquared(dir) < SQR(32))
+#endif
 	{
 		// start zooming if we aren't already
 		bs->weaponnum = WP_BINOCULARS;
@@ -4187,10 +4239,35 @@ int AINode_MP_ScanForLandmines(bot_state_t *bs)
 			VectorNormalize(dir);
 			vectoangles(dir, bs->ideal_viewangles);
 
+#if defined(__linux__)
+			{
+				vec3_t delta;
+				long double distance;
+				double tangent;
+				int axis;
+				for (axis = 0; axis < 3; ++axis)
+				{
+					delta[axis] = (float)((long double)target[axis] - bs->eye[axis]);
+				}
+				distance = TCE_VectorLengthValue(delta);
+				/* The original spills FPTAN to double before doubling it. */
+				tangent = (double)tanl((1.0L / distance) * (long double)DETECT_RADIUS);
+				bs->altenemy = TCE_TruncateNativeInteger((long double)AngleNormalize360(
+				    (float)(((long double)tangent + (long double)tangent) * (long double)(double)(180.0 / 3.14159265358979323846))));
+			}
+#else
 			bs->altenemy = AngleNormalize360(RAD2DEG(2 * tan(DETECT_RADIUS / VectorDistance(bs->eye, target))));
+#endif
 
 			// set the time of our next view update
+#if defined(__linux__)
+			{
+				int delay = rand() % 150;
+				bs->viewchangetime = TCE_AddInt32(TCE_AddInt32(level.time, delay), 100);
+			}
+#else
 			bs->viewchangetime = level.time + 100 + rand() % 150;
+#endif
 
 			// next target!
 			bs->target_goal.number++;
@@ -4213,7 +4290,14 @@ int AINode_MP_ScanForLandmines(bot_state_t *bs)
 			bs->altenemy--;
 
 			// set the time of our next view update
+#if defined(__linux__)
+			{
+				int delay = rand() % 150;
+				bs->viewchangetime = TCE_AddInt32(TCE_AddInt32(level.time, delay), 100);
+			}
+#else
 			bs->viewchangetime = level.time + 100 + rand() % 150;
+#endif
 		}
 	}
 
