@@ -2162,6 +2162,38 @@ extern vec3_t playerMins, playerMaxs, playerMinsNew, playerMaxsNew;
 
 void WolfRevivePushEnt(gentity_t *self, gentity_t *other)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	vec3_t dir;
+	long double x, y, z;
+	float storedY, storedZ;
+	dir[0] = self->r.currentOrigin[0] - other->r.currentOrigin[0];
+	dir[1] = self->r.currentOrigin[1] - other->r.currentOrigin[1];
+	dir[2] = 0.0f;
+	VectorNormalizeFast(dir);
+	x = (long double)dir[0] * 25.0f;
+	y = (long double)dir[1] * 25.0f;
+	z = (long double)dir[2] * 25.0f;
+	storedY = (float)y;
+	storedZ = (float)z;
+	if (self->client)
+	{
+		self->s.pos.trDelta[1] = (float)(y + self->s.pos.trDelta[1]);
+		self->s.pos.trDelta[0] = (float)((long double)self->s.pos.trDelta[0] + x);
+		self->s.pos.trDelta[2] = (float)(z + self->s.pos.trDelta[2]);
+		self->client->ps.velocity[0] = (float)(x + self->client->ps.velocity[0]);
+		self->client->ps.velocity[1] = storedY + self->client->ps.velocity[1];
+		self->client->ps.velocity[2] = storedZ + self->client->ps.velocity[2];
+	}
+	x = (long double)dir[0] * -25.0f;
+	y = (long double)dir[1] * -25.0f;
+	storedY = (float)y;
+	other->s.pos.trDelta[1] = (float)(y + other->s.pos.trDelta[1]);
+	other->s.pos.trDelta[0] = (float)((long double)other->s.pos.trDelta[0] + x);
+	other->s.pos.trDelta[2] = 12.0f + other->s.pos.trDelta[2];
+	other->client->ps.velocity[0] = (float)(x + other->client->ps.velocity[0]);
+	other->client->ps.velocity[1] = storedY + other->client->ps.velocity[1];
+	other->client->ps.velocity[2] = 12.0f + other->client->ps.velocity[2];
+#else
 	vec3_t dir, push;
 
 	VectorSubtract(self->r.currentOrigin, other->r.currentOrigin, dir);
@@ -2181,6 +2213,7 @@ void WolfRevivePushEnt(gentity_t *self, gentity_t *other)
 
 	VectorAdd(other->s.pos.trDelta, push, other->s.pos.trDelta);
 	VectorAdd(other->client->ps.velocity, push, other->client->ps.velocity);
+#endif
 }
 
 // Arnout: completely revived for capsules
