@@ -10,6 +10,7 @@
 #include "../game/g_local.h"
 #if defined(__linux__)
 #include "../game/tce_weapon_ids.h"
+#include "../game/tce_numeric.h"
 
 static long double BotDistanceSquaredValue(const vec3_t first, const vec3_t second);
 static long double BotHealthScaleValue(int entnum);
@@ -978,7 +979,11 @@ int AINode_MP_AvoidDanger(bot_state_t *bs)
 	}
 	// if the thing we're avoiding is a landmine, then we don't really need to run away from it, just take a few steps
 	// don't need to move, is this a landmine?
+#if defined(__linux__)
+	if ((trav->methodOfDeath == MOD_LANDMINE) && BotDistanceSquaredValue(bs->origin, trav->r.currentOrigin) > SQR(256))
+#else
 	if ((trav->methodOfDeath == MOD_LANDMINE) && VectorDistanceSquared(bs->origin, trav->r.currentOrigin) > SQR(256))
+#endif
 	{
 		// we're done running
 		bs->ignore_specialgoal_time = 0;
@@ -991,7 +996,11 @@ int AINode_MP_AvoidDanger(bot_state_t *bs)
 	if (trav->client)
 	{
 		// is this player dangerous?
+#if defined(__linux__)
+		if (!(trav->client->ps.weapon == TCE_ITEM_WEAPON_PANZERFAUST && trav->client->ps.weaponDelay))
+#else
 		if (!(trav->client->ps.weapon == WP_PANZERFAUST && trav->client->ps.weaponDelay))
+#endif
 		{
 			// not dangerous
 			bs->ignore_specialgoal_time = 0;
@@ -1019,10 +1028,21 @@ int AINode_MP_AvoidDanger(bot_state_t *bs)
 				return qfalse;
 			}
 		}
+#if defined(__linux__)
+		int dangerRadius = TCE_AddInt32(trav->splashRadius, 100);
+		int dangerRadiusSquared = TCE_Int32FromUnsigned((unsigned)dangerRadius * (unsigned)dangerRadius);
+		if ((bs->last_avoiddangerarea < level.time - 200)
+		    && (BotDistanceSquaredValue(target, goal.origin) < (long double)dangerRadiusSquared))
+#else
 		if ((bs->last_avoiddangerarea < level.time - 200) && (VectorDistanceSquared(target, goal.origin) < (SQR(trav->splashRadius + 100))))
+#endif
 		{
 			bs->last_avoiddangerarea = level.time + rand() % 200;
+#if defined(__linux__)
+			if (!(bestarea = trap_AAS_AvoidDangerArea(bs->origin, bs->areanum, target, BotPointAreaNum(-1, target), TCE_AddInt32(trav->splashRadius, 100), bs->tfl)))
+#else
 			if (!(bestarea = trap_AAS_AvoidDangerArea(bs->origin, bs->areanum, target, BotPointAreaNum(-1, target), trav->splashRadius + 100, bs->tfl)))
+#endif
 			{
 				// move away from the danger
 				bs->flags |= BFL_MISCFLAG;
@@ -1063,7 +1083,11 @@ int AINode_MP_AvoidDanger(bot_state_t *bs)
 	else
 	{
 		// are we close enough to the goal?
+#if defined(__linux__)
+		if (BotDistanceSquaredValue(bs->origin, goal.origin) > (24 * 24))
+#else
 		if (VectorDistanceSquared(bs->origin, goal.origin) > (24 * 24))
+#endif
 		{
 			// MOVEMENT REQUIRED
 			//
@@ -1087,7 +1111,17 @@ int AINode_MP_AvoidDanger(bot_state_t *bs)
 
 				// jump randomly?
 				trap_EA_Jump(bs->client);
+#if defined(__linux__)
+				{
+					float speed = (float)((long double)(rand() & 32767) * (long double)(float)(200.0 / 32767.0) + 100.0L);
+					float moveZ = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+					float moveY = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+					float moveX = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+					trap_EA_Move(bs->client, tv(moveX, moveY, moveZ), speed);
+				}
+#else
 				trap_EA_Move(bs->client, tv(crandom(), crandom(), crandom()), 100 + random() * 200);
+#endif
 			}
 			//
 			BotAIBlocked(bs, &moveresult, qtrue);
@@ -1102,7 +1136,12 @@ int AINode_MP_AvoidDanger(bot_state_t *bs)
 	//if waiting for something
 	else if (moveresult.flags & MOVERESULT_WAITING)
 	{
+#if defined(__linux__)
+		if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0)
+		    < (long double)(double)0.8 * bs->thinktime)
+#else
 		if (random() < bs->thinktime * 0.8)
+#endif
 		{
 			BotRoamGoal(bs, target);
 			VectorSubtract(target, bs->origin, dir);
@@ -1122,9 +1161,18 @@ int AINode_MP_AvoidDanger(bot_state_t *bs)
 			aas_entityinfo_t entinfo;
 			BotEntityInfo(bs->enemy, &entinfo);
 			//if the enemy is dead
+#if defined(__linux__)
+			if (bs->enemydeath_time < 0.0f || bs->enemydeath_time > 0.0f)
+#else
 			if (bs->enemydeath_time)
+#endif
 			{
+#if defined(__linux__)
+				long double deathTime = bs->enemydeath_time;
+				if (!(deathTime >= (long double)trap_AAS_Time() - (long double)(double)0.3))
+#else
 				if (bs->enemydeath_time < trap_AAS_Time() - 0.3)
+#endif
 				{
 					bs->enemydeath_time = 0;
 
@@ -1142,7 +1190,11 @@ int AINode_MP_AvoidDanger(bot_state_t *bs)
 			if (bs->enemy >= 0)
 			{
 				// attack and keep moving
+#if defined(__linux__)
+				if (fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL)) > 0.0L)
+#else
 				if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL))
+#endif
 				{
 					//choose the best weapon to fight with
 					BotChooseWeapon(bs);
@@ -1179,11 +1231,20 @@ int AINode_MP_AvoidDanger(bot_state_t *bs)
 				vectoangles(dir, bs->ideal_viewangles);
 			}
 			//FIXME: look at cluster portals?
+#if defined(__linux__)
+			else if (fabsl(TCE_VectorLengthSquaredValue(moveresult.movedir)) > 0.0L)
+#else
 			else if (VectorLengthSquared(moveresult.movedir))
+#endif
 			{
 				vectoangles(moveresult.movedir, bs->ideal_viewangles);
 			}
+#if defined(__linux__)
+			else if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0)
+			    < (long double)(double)0.8 * bs->thinktime)
+#else
 			else if (random() < bs->thinktime * 0.8)
+#endif
 			{
 				BotRoamGoal(bs, target);
 				VectorSubtract(target, bs->origin, dir);
