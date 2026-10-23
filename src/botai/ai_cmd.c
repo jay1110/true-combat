@@ -168,7 +168,11 @@ int BotGetMessageTeamGoal(bot_state_t *bs, char *goalname, bot_goal_t *goal)
 BotGetTime
 ==================
 */
+#if defined(__linux__)
+long double BotGetTime(bot_match_t *match)
+#else
 float BotGetTime(bot_match_t *match)
+#endif
 {
 	bot_match_t timematch;
 	char        timestring[MAX_MESSAGE_SIZE];
@@ -191,7 +195,11 @@ float BotGetTime(bot_match_t *match)
 				trap_BotMatchVariable(&timematch, TIME, timestring, MAX_MESSAGE_SIZE);
 				if (timematch.type == MSG_MINUTES)
 				{
+#if defined(__linux__)
+					t = (float)((long double)atof(timestring) * 60.0L);
+#else
 					t = atof(timestring) * 60;
+#endif
 				}
 				else if (timematch.type == MSG_SECONDS)
 				{
@@ -203,9 +211,17 @@ float BotGetTime(bot_match_t *match)
 				}
 			}
 			//if there's a valid time
+#if defined(__linux__)
+			if (!(t <= 0.0f))
+#else
 			if (t > 0)
+#endif
 			{
+#if defined(__linux__)
+				return (long double)trap_AAS_Time() + (long double)t;
+#else
 				return trap_AAS_Time() + t;
+#endif
 			}
 		}
 	}
