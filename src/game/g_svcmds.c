@@ -1356,6 +1356,38 @@ ConsoleCommand
 
 =================
 */
+/* Original diagnostic helper; ConsoleCommand does not dispatch it. */
+void Svcmd_Entnum_f(void)
+{
+	vec3_t start, end, forward;
+	trace_t trace;
+	int entities[10] = { 0 };
+	int i;
+	gentity_t *entity;
+
+	AngleVectors(g_entities[0].client->ps.viewangles, forward, NULL, NULL);
+	VectorCopy(g_entities[0].client->ps.origin, start);
+	start[2] += g_entities[0].client->ps.viewheight;
+	for (i = 0; i < 3; ++i)
+	{
+		end[i] = (float)((double)forward[i] * 8192.0 + start[i]);
+	}
+	trap_Trace(&trace, start, NULL, NULL, end, g_entities[0].s.number,
+	           CONTENTS_SOLID | CONTENTS_BODY | CONTENTS_CORPSE | CONTENTS_TRIGGER | CONTENTS_PLAYERCLIP);
+	entity = &g_entities[trace.entityNum];
+	G_Printf("%d %s\n", trace.entityNum, entity->classname);
+	trap_EntitiesInBox(entity->r.absmin, entity->r.absmax, entities, 10);
+	for (i = 0; i < 10; ++i)
+	{
+		entity = &g_entities[entities[i]];
+		if (entity->inuse && !Q_stricmp(entity->classname, "func_explosive"))
+		{
+			G_Printf("%d\n", entity->s.number);
+			return;
+		}
+	}
+}
+
 /* The editor addresses entity zero, not the command sender. A missing local
  * client/no selected node is undefined in TC; reject it before array access. */
 static int TCE_EditorAimNode(void)
