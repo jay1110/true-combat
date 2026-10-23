@@ -3161,7 +3161,11 @@ qboolean Do_Activate_f(gentity_t *ent, gentity_t *traceEnt, float traceFraction)
 			G_UseTargets(traceEnt, ent);    //----(SA)	added for Mike so mounting an MG42 can be a trigger event (let me know if there's any issues with this)
 			found = qtrue;
 		}
+#if defined(__linux__) && !defined(Q3_VM)
+		else if (!(traceFraction > 0.4f) && !(traceEnt->spawnflags & 1) &&
+#else
 		else if (traceFraction <= 0.4f && !(traceEnt->spawnflags & 1) &&
+#endif
 		         (Q_stricmp(traceEnt->classname, "func_door") == 0 ||
 		          Q_stricmp(traceEnt->classname, "func_door_rotating") == 0))
 		{
