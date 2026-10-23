@@ -2000,9 +2000,15 @@ int AINode_MP_PanzerTarget(bot_state_t *bs)
 	VectorNormalize(vec);
 	vectoangles(vec, bs->ideal_viewangles);
 	//
+#if defined(__linux__)
+	if ((bs->cur_ps.weapon == bs->weaponnum)
+	    && !(TCE_BotAngleDifferenceValue(bs->ideal_viewangles[YAW], bs->viewangles[YAW]) >= .5L)
+	    && !(TCE_BotAngleDifferenceValue(bs->ideal_viewangles[PITCH], bs->viewangles[PITCH]) >= .5L))
+#else
 	if ((bs->cur_ps.weapon == bs->weaponnum)
 	    &&  (AngleDifference(bs->ideal_viewangles[YAW], bs->viewangles[YAW]) < 0.5)
 	    &&  (AngleDifference(bs->ideal_viewangles[PITCH], bs->viewangles[PITCH]) < 0.5))
+#endif
 	{
 		trap_EA_Attack(bs->client);
 	}
@@ -2085,9 +2091,15 @@ int AINode_MP_AttackTarget(bot_state_t *bs)
 	VectorNormalize(vec);
 	vectoangles(vec, bs->ideal_viewangles);
 	//
+#if defined(__linux__)
+	if ((bs->cur_ps.weapon == bs->weaponnum)
+	    && !(TCE_BotAngleDifferenceValue(bs->ideal_viewangles[YAW], bs->viewangles[YAW]) >= .5L)
+	    && !(TCE_BotAngleDifferenceValue(bs->ideal_viewangles[PITCH], bs->viewangles[PITCH]) >= .5L))
+#else
 	if ((bs->cur_ps.weapon == bs->weaponnum)
 	    &&  (AngleDifference(bs->ideal_viewangles[YAW], bs->viewangles[YAW]) < 0.5)
 	    &&  (AngleDifference(bs->ideal_viewangles[PITCH], bs->viewangles[PITCH]) < 0.5))
+#endif
 	{
 		if (bs->cur_ps.weapon == WP_GRENADE_LAUNCHER || bs->cur_ps.weapon == WP_GRENADE_PINEAPPLE)
 		{
@@ -2520,7 +2532,12 @@ int AINode_MP_Battle_MobileMG42(bot_state_t *bs)
 
 	BotAimAtEnemy(bs);
 	// wait until we are facing them correctly before going prone
+#if defined(__linux__)
+	if (!(bs->cur_ps.eFlags & EF_PRONE) &&
+	    !(5.0L >= fabsl(TCE_BotAngleDifferenceValue(bs->ideal_viewangles[YAW], bs->viewangles[YAW]))))
+#else
 	if (!(bs->cur_ps.eFlags & EF_PRONE) && (fabs(AngleDifference(bs->ideal_viewangles[YAW], bs->viewangles[YAW])) > 5.0f))
+#endif
 	{
 		return qtrue;
 	}
@@ -2836,8 +2853,13 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 			if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 120, bs->enemy, NULL))
 			{
 
+#if defined(__linux__)
+				if (!(mg42->varc > fabsl(TCE_BotAngleDifferenceValue(ang[PITCH], mg42->s.angles[PITCH])))
+				    || !(mg42->harc > fabsl(TCE_BotAngleDifferenceValue(ang[YAW], mg42->s.angles[YAW]))))
+#else
 				if ((fabs(AngleDifference(ang[PITCH], mg42->s.angles[PITCH])) >= mg42->varc)
 				    ||  (fabs(AngleDifference(ang[YAW], mg42->s.angles[YAW])) >= mg42->harc))
+#endif
 				{
 					ent->botIgnoreTime = level.time + 5000;
 					AIEnter_MP_Battle_Fight(bs);
@@ -6732,7 +6754,11 @@ int AINode_MP_Battle_Fight(bot_state_t *bs)
 				AxisToAngles(axis, mountedWeaponAngles);
 
 				// make sure these angles are within view limits towards the enemy
+#if defined(__linux__)
+				if (fabsl(TCE_BotAngleDifferenceValue(mountedWeaponAngles[PITCH], ang[PITCH])) < 15.0L)
+#else
 				if (fabs(AngleDifference(mountedWeaponAngles[PITCH], ang[PITCH])) < 15.f)
+#endif
 				{
 					int oldviewheight;
 					// check for obstruction at feet

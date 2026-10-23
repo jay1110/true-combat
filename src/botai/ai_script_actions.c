@@ -2441,7 +2441,20 @@ qboolean Bot_ScriptAction_FireAtTarget(bot_state_t *bs, char *params)
 	{
 		for (i = 0; i < 2; i++)
 		{
+#if defined(__linux__)
+			{
+				int difference = TCE_TruncateNativeInteger(TCE_BotAngleDifferenceValue(
+				    bs->cur_ps.viewangles[i], bs->ideal_viewangles[i]));
+				/* Native integer abs retains signed32 wrap for INT_MIN. */
+				if (difference < 0)
+				{
+					difference = TCE_SubInt32(0, difference);
+				}
+				diff = (float)difference;
+			}
+#else
 			diff = fabsf(AngleDifference(bs->cur_ps.viewangles[i], bs->ideal_viewangles[i]));
+#endif
 			if (VectorCompare(vec3_origin, ent->s.pos.trDelta))
 			{
 				if (diff)
