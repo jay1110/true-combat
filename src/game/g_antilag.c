@@ -214,8 +214,14 @@ static void G_AdjustSingleClientPosition(gentity_t *ent, int time)
 
 	if (i != ent->client->tcePositionHistoryIndex)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		float numerator = (float)TCE_SubInt32(time, ent->client->tcePositionHistory[i].time);
+		float frac = (float)((1.0L / TCE_SubInt32(ent->client->tcePositionHistory[j].time,
+		                                         ent->client->tcePositionHistory[i].time)) * numerator);
+#else
 		float frac = (float)(time - ent->client->tcePositionHistory[i].time) /
 		             (float)(ent->client->tcePositionHistory[j].time - ent->client->tcePositionHistory[i].time);
+#endif
 
 		LerpPosition(ent->client->tcePositionHistory[i].origin, ent->client->tcePositionHistory[j].origin, frac, ent->r.currentOrigin);
 		LerpPosition(ent->client->tcePositionHistory[i].mins, ent->client->tcePositionHistory[j].mins, frac, ent->r.mins);
