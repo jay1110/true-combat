@@ -1324,7 +1324,11 @@ void WolfFindMedic(gentity_t *self)
 	self->client->ps.stats[STAT_DEAD_YAW] = 999;
 
 	VectorCopy(self->s.pos.trBase, start);
+#if defined(__linux__) && !defined(Q3_VM)
+	start[2] = (float)((long double)self->s.pos.trBase[2] + self->client->ps.viewheight);
+#else
 	start[2] += self->client->ps.viewheight;
+#endif
 
 	for ( i = 0; i < level.numConnectedClients; i++ )
 	{
@@ -1364,10 +1368,18 @@ void WolfFindMedic(gentity_t *self)
 		}
 
 		VectorCopy(g_entities[level.sortedClients[i]].s.pos.trBase, end);
+#if defined(__linux__) && !defined(Q3_VM)
+		end[2] = (float)((long double)end[2] + cl->ps.viewheight);
+#else
 		end[2] += cl->ps.viewheight;
+#endif
 
 		trap_Trace(&tr, start, NULL, NULL, end, self->s.number, CONTENTS_SOLID);
+#if defined(__linux__) && !defined(Q3_VM)
+		if (!((long double)tr.fraction >= (long double)0.95))
+#else
 		if (tr.fraction < 0.95)
+#endif
 		{
 			continue;
 		}
@@ -1375,7 +1387,11 @@ void WolfFindMedic(gentity_t *self)
 		VectorSubtract(end, start, end);
 		dist = VectorNormalize(end);
 
+#if defined(__linux__) && !defined(Q3_VM)
+		if (!((long double)dist >= (long double)bestdist))
+#else
 		if (dist < bestdist)
+#endif
 		{
 			medic = cl->ps.clientNum;
 #if 0 // rain - not sure what the point of this is
