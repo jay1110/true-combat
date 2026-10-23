@@ -871,6 +871,7 @@ typedef struct
 	/* TC aim controller, Windows 340a496c..340a497c and 340a49fc. */
 	int tceAimActive, tceAimComplete, tceAimRequested;
 	int tceAimSyncTime, tceAimRetryTime, tceAimWeaponLatch;
+	int tceSecondaryAimTime; /* TC340a4a00 / Linux cg+0x6f760; initially zero. */
 	int tceActionTransitionTime; /* TC340a4954, stats[8] bit0x20 transition. */
 	int tceShotHoldUntil; /* TC340a495c. */
 	int tceHeartbeatNext, tceHeartbeatUntil; /* TC340a4960/340a4964. */

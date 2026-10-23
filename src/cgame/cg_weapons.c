@@ -1850,6 +1850,7 @@ void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 			memset(&state, 0, sizeof(state)); state.time = cg.time; state.aimTime = cg.zoomTime;
 			state.aiming                                 = cg.tceAimActive;
 			state.secondaryAiming                        = cg.tceAimWeaponLatch;
+			state.secondaryAimTime                       = cg.tceSecondaryAimTime;
 			state.gunPosition                            = cg_gunPosition.integer;
 			state.developer                              = developer.integer;
 			state.developerOffset[0]                     = cg_tacX.value;

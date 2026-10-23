@@ -6534,7 +6534,7 @@ void AdjustFrom640(float *x, float *y, float *w, float *h)
 
 	if ((unsigned)width * 480u != (unsigned)height * 640u)
 	{
-		scale = ((long double)width * 480.f / height) *
+		scale = ((1.0L / height) * ((long double)width * 480.f)) *
 		        0.00117187504656612873077392578125f;
 		*x = (float)((long double)DC->xscale * *x * horizontal);
 		shifted = (1.f / scale - 1.f) * 240.f + *y;
