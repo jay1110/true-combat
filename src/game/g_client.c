@@ -2230,7 +2230,13 @@ void ClientSpawn(gentity_t *ent, qboolean revived, qboolean hostage)
 		trap_GetUserinfo((int)(ent - g_entities), options, sizeof(options));
 		G_TCEUserinfoOptions(&client->ps, options);
 	}
+#if defined(__linux__)
+	/* Linux a4c41..a4c59 keeps both subtractions until the final store. */
+	client->ps.crouchMaxZ = (float)((long double)client->ps.maxs[2] -
+	                              ((long double)client->ps.standViewHeight - client->ps.crouchViewHeight));
+#else
 	client->ps.crouchMaxZ = client->ps.maxs[2] - (client->ps.standViewHeight - client->ps.crouchViewHeight);
+#endif
 
 	client->ps.runSpeedScale    = 0.8;
 	client->ps.sprintSpeedScale = 1.1;
@@ -2395,8 +2401,6 @@ void ClientSpawn(gentity_t *ent, qboolean revived, qboolean hostage)
 
 	/* Original ClientSpawn2004cd90: client[0x4cd] = level.time. */
 	client->tceDamageSpawnTime = level.time;
-	/* TC ClientSpawn2004d5e6: five seconds until objective activity refresh. */
-	client->tceObjectiveActivityUntil = level.time + 5000;
 	client->respawnTime               = level.timeCurrent;
 	client->tceRespawnNotBefore       = level.timeCurrent;
 	client->inactivityTime            = level.time + g_inactivity.integer * 1000;
