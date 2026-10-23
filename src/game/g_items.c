@@ -426,14 +426,23 @@ int Pickup_Ammo(gentity_t *ent, gentity_t *other)
 		{
 			cl->ps.stats[STAT_TCE_WEAPON_FLAGS] |= 0x100;
 			level.tceBombCarrier                 = cl->ps.clientNum;
+#if defined(__linux__) && !defined(Q3_VM)
+			cl->tceBombPossessionOrder = TCE_AddInt32(level.tceBombCarrierCount, 1);
+			level.tceBombCarrierCount = TCE_AddInt32(level.tceBombCarrierCount, 1);
+#else
 			cl->tceBombPossessionOrder           = ++level.tceBombCarrierCount;
+#endif
 			popup                                = G_PopupMessage(PM_MESSAGE);
 			cl                                   = other->client;
 			popup->s.effect2Time                 = cl->ps.persistant[PERS_TEAM];
 			popup->s.effect3Time                 = cl->ps.clientNum; popup->s.density = 2;
 			if (cl->ps.persistant[PERS_TEAM] != level.tceDemolitionTeam)
 			{
+#if defined(__linux__) && !defined(Q3_VM)
+				level.tceExitRulesNotBefore = TCE_AddInt32(level.time, 1000);
+#else
 				level.tceExitRulesNotBefore = level.time + 1000;
+#endif
 				G_Script_ScriptEvent(level.gameManager, "trigger", "bomb_secured");
 			}
 		}
@@ -535,7 +544,11 @@ void G_TCEDropHealth(gentity_t *ent)
 		return;
 	}
 	VectorCopy(ent->client->ps.viewangles, angles);
+#if defined(__linux__) && !defined(Q3_VM)
+	if (!(angles[PITCH] >= -30.0f))
+#else
 	if (angles[PITCH] < -30)
+#endif
 	{
 		angles[PITCH] = -30;
 	}
@@ -545,9 +558,20 @@ void G_TCEDropHealth(gentity_t *ent)
 	}
 	angles[YAW] -= 45;
 	AngleVectors(angles, velocity, NULL, NULL);
-	VectorScale(velocity, 64, offset); offset[2] += ent->client->ps.viewheight * .5f;
+	VectorScale(velocity, 64, offset);
+#if defined(__linux__) && !defined(Q3_VM)
+	offset[2] = (float)((long double)velocity[2] * 64.0L +
+	                    (long double)ent->client->ps.viewheight * .5L);
+#else
+	offset[2] += ent->client->ps.viewheight * .5f;
+#endif
 	VectorScale(velocity, 75, velocity);
+#if defined(__linux__) && !defined(Q3_VM)
+	velocity[2] = (float)(((long double)(rand() & 0x7fff) *
+	                       (long double)0.0010681478306651115f + 50.0L) + velocity[2]);
+#else
 	velocity[2] += (rand() & 0x7fff) * (1.0f / 32767.0f) * 35 + 50;
+#endif
 	VectorAdd(ent->client->ps.origin, offset, origin);
 	trap_Trace(&tr, ent->client->ps.origin, mins, maxs, origin, ent->s.number, CONTENTS_SOLID);
 	drop                    = LaunchItem(item, tr.endpos, velocity, ent->client->ps.clientNum);
