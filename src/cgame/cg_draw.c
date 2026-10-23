@@ -4555,6 +4555,141 @@ static void CG_TCEDrawObjectiveProgress(const playerState_t *ps)
 
 static void CG_DrawPlayerStatus(void)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	extern qboolean tce_uiCoordinates;
+	qboolean previous = tce_uiCoordinates;
+	playerState_t *ps = &cg.snap->ps;
+	float bottom = cg_aspectMode.integer == 1 ? 506.67f : cg_aspectMode.integer == 2 ? 560.f : 480.f;
+	float rect[4], fractions[2], x, y;
+	vec4_t fg = { .7f, .7f, .7f, .7f }, bg = { 0, 0, 0, .3f };
+	char buffer[32];
+	int ammo, reserve, akimbo, weap, width, i, damage[3], shaders[4];
+	rectDef_t weaponRect = { 770, bottom, 60, 32 };
+	tce_uiCoordinates = qtrue;
+	CG_DrawPlayerWeaponIcon(&weaponRect, qtrue, 2, &colorWhite);
+	CG_DrawPlayerWeaponBar(&weaponRect, qtrue, 2, &colorWhite);
+	y = bottom - 10;
+	if (TCE_SubInt32(cg.time, cg.weaponSelectTime) > 500)
+	{
+		weap = CG_PlayerAmmoValue(&ammo, &reserve, &akimbo);
+		if (akimbo >= 0 || reserve >= 0)
+		{
+			long double reciprocal = 1.0L / (long double)weaponDef[weap].maxclip;
+			fractions[0] = (float)((long double)(float)ammo * reciprocal);
+			if (akimbo >= 0)
+			{
+				fractions[1] = (float)((long double)akimbo * reciprocal);
+			}
+			Com_sprintf(buffer, sizeof(buffer), "/%i", reserve);
+			width = CG_Text_Width_Ext(buffer, .25f, 0, &cgs.media.limboFont1);
+			CG_Text_Paint_Ext(840 - width, y, .25f, .25f, colorWhite, buffer, 0, 0, 3, &cgs.media.limboFont1);
+			for (i = 0; i < (akimbo >= 0 ? 2 : 1); ++i)
+			{
+				x = 830 - width - 8 * i;
+				CG_FilledBar(x, bottom - 19, 6, 9, fg, NULL, bg, fractions[i], 0x55);
+				CG_DrawPic(x, bottom - 19, 6, 9, cgs.media.tceAmmoFrame);
+			}
+			if (ammo == 0 && akimbo <= 0 && reserve > 0)
+			{
+				long double phase = (long double)cg.time * .001f;
+				vec4_t reload = { 1, 1, 1, 1 };
+				phase += phase;
+				phase *= (long double)3.141592653589793;
+				reload[3] = (float)((sinl(phase) + 1.0L) * .5L);
+				if ((long double)reload[3] > (long double).7)
+				{
+					Com_sprintf(buffer, sizeof(buffer), "%s", "Reload");
+					width = CG_Text_Width_Ext(buffer, .25f, 0, &cgs.media.limboFont1);
+					CG_Text_Paint_Ext(840 - width, y - 12, .25f, .25f, reload, buffer, 0, 0, 3, &cgs.media.limboFont1);
+				}
+			}
+		}
+		else if (ammo >= 0)
+		{
+			Com_sprintf(buffer, sizeof(buffer), "%i", ammo);
+			width = CG_Text_Width_Ext(buffer, .25f, 0, &cgs.media.limboFont1);
+			CG_Text_Paint_Ext(840 - width, y, .25f, .25f, colorWhite, buffer, 0, 0, 3, &cgs.media.limboFont1);
+		}
+		if (BG_FiremodeWeapon(cg.predictedPlayerState.weapon))
+		{
+			const char *label;
+			int shift, firemode = ps->persistant[10];
+			if (weaponDef[cg.predictedPlayerState.weapon].pump)
+			{
+				label = firemode > 0 ? "Semi" : "Pump";
+				shift = firemode > 0 ? 0 : 4;
+			}
+			else
+			{
+				label = firemode == 2 ? "Single" : firemode == 1 ? "Burst" : "Auto";
+				shift = firemode == 2 ? 0 : firemode == 1 ? 2 : 4;
+			}
+			Com_sprintf(buffer, sizeof(buffer), "%s", label);
+			width = CG_Text_Width_Ext(buffer, .15f, 0, &cgs.media.limboFont1);
+			CG_Text_Paint_Ext(798 - width, y - shift, .15f, .15f, colorWhite, buffer, 0, 0, 3, &cgs.media.limboFont1);
+		}
+		else if ((ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) &&
+		         (cg.predictedPlayerState.weapon == 30 || cg.predictedPlayerState.weapon == 9 || cg.predictedPlayerState.weapon == 4))
+		{
+			Com_sprintf(buffer, sizeof(buffer), "%s", "Short throw");
+			width = CG_Text_Width_Ext(buffer, .15f, 0, &cgs.media.limboFont1);
+			CG_Text_Paint_Ext(798 - width, y, .15f, .15f, colorWhite, buffer, 0, 0, 3, &cgs.media.limboFont1);
+		}
+	}
+	if (ps->stats[STAT_TCE_WEAPON_FLAGS] & 0x100)
+	{
+		CG_DrawPic(742, bottom - 42, 36, 36, cgs.media.tcePlayerCarrierIcons[0]);
+	}
+	if (ps->stats[9] & 0x100)
+	{
+		CG_DrawPic(737, bottom - 35, 36, 36, cgs.media.tcePlayerCarrierIcons[2]);
+	}
+	if (ps->stats[9] & 0x400)
+	{
+		CG_DrawPic(737, bottom - 35, 36, 36, cgs.media.tcePlayerCarrierIcons[3]);
+	}
+	if (ps->powerups[PW_REDFLAG] || ps->powerups[PW_BLUEFLAG])
+	{
+		CG_DrawPic(742, bottom - 42, 36, 36, cgs.media.tcePlayerCarrierIcons[1]);
+	}
+	for (i = 0; i < 4; ++i)
+	{
+		shaders[i] = cgs.media.tceHealthMan[i];
+	}
+	for (i = 0; i < 3; ++i)
+	{
+		damage[i] = cg.snap->ps.holdable[2 + i];
+	}
+	rect[0] = 24; rect[1] = bottom - 54; rect[2] = 20; rect[3] = 48;
+	TCE_DrawPlayerHealthMan(rect, damage, shaders, trap_R_SetColor, CG_DrawPic);
+	rect[0] = 12; rect[1] = bottom - 57; rect[2] = 8; rect[3] = 37;
+	TCE_DrawStaminaBar(rect, cg.pmext.sprintTime, cgs.media.hudSprintIcon,
+	                   cgs.media.tceStaminaFrame, trap_R_SetColor, CG_DrawPic, CG_FilledBar);
+	trap_R_SetColor(NULL);
+	CG_DrawPic(47, bottom - 38, 32, 32, cgs.media.tceMoveType[
+	               cg.snap->ps.eFlags & EF_PRONE ? 0 : cg.snap->ps.pm_flags & PMF_DUCKED ? 1 : 2]);
+	if ((cg.snap->ps.pm_flags & PMF_TCE_OBJECTIVE_ACTION) &&
+	    (cg.snap->ps.serverCursorHint == 39 || cg.snap->ps.serverCursorHint == 10 || cg.snap->ps.serverCursorHint == 3))
+	{
+		float duration = cg.snap->ps.stats[STAT_TCE_FLAGS] & 2 ? 2000.f : 4000.f;
+		long double fraction;
+		if (cg.snap->ps.serverCursorHint == 39)
+		{
+			duration = cg.snap->ps.stats[STAT_TCE_FLAGS] & 2 ? 6000.f : 10000.f;
+		}
+		trap_R_SetColor(NULL);
+		fraction = ((long double)duration - cg.snap->ps.weaponTime) * (1.0L / duration);
+		if (fraction < 0)
+		{
+			fraction = 0;
+		}
+		if (fraction < 1)
+		{
+			CG_HorizontalPercentBar(376, 310, 100, 10, (float)fraction);
+		}
+	}
+	tce_uiCoordinates = previous;
+#else
 	extern qboolean tce_uiCoordinates;
 	qboolean previous = tce_uiCoordinates;
 	playerState_t *ps = &cg.snap->ps;
@@ -4637,6 +4772,7 @@ static void CG_DrawPlayerStatus(void)
 				   ps->eFlags & EF_PRONE?0:ps->pm_flags & PMF_DUCKED?1:2]);
 	CG_TCEDrawObjectiveProgress(ps);
 	tce_uiCoordinates = previous;
+#endif
 }
 
 static void CG_DrawSkillBar(float x, float y, float w, float h, int skill)

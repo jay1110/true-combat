@@ -4120,6 +4120,110 @@ static void CG_TCECycleFinish(int oldWeapon, int newWeapon)
 {
 	tceCycleFinishOld = oldWeapon; tceCycleFinishNew = newWeapon;
 }
+#if defined(__linux__) && !defined(Q3_VM)
+void CG_DrawPlayerWeaponBar(rectDef_t *rect, qboolean drawHighlighted, int align, vec4_t *refcolor)
+{
+	int slots[6] = { -1, -1, -1, -1, -1, -1 };
+	int bank, col, count = 0, index = 0, drawn = 0;
+	int current = cg.snap->ps.weapon;
+	vec4_t shadow = { 0, 0, 0, cg.tceWeaponBarAlpha };
+	vec4_t ink;
+	(void)drawHighlighted;
+	(void)align;
+	VectorCopy(*refcolor, ink);
+	ink[3] = cg.tceWeaponBarAlpha;
+	if (TCE_SubInt32(cg.time, cg.tceCycleTime) > 2000 ||
+	    (cg.snap->ps.pm_flags & PMF_FOLLOW) ||
+	    TCE_SubInt32(cg.time, cg.weaponSelectTime) <= 1599 ||
+	    cg.snap->ps.weaponstate != WEAPON_READY || cg.predictedPlayerState.weaponstate != WEAPON_READY ||
+	    current != cg.predictedPlayerState.weapon)
+	{
+		if (cg.weaponSelect == 56)
+		{
+			cg.weaponSelect = cg.predictedPlayerState.weapon;
+		}
+		return;
+	}
+	for (col = 0; col < 22; ++col)
+	{
+		for (bank = 0; bank < 6; ++bank)
+		{
+			int weapon = weapBanksMultiPlayer[bank + 1][col];
+			if (CG_WeaponSelectable(weapon))
+			{
+				slots[bank] = weapBanksMultiPlayer[bank + 1][col];
+				++count;
+				if (current == slots[bank])
+				{
+					index = bank;
+				}
+			}
+		}
+	}
+	/* The original has undefined state for an empty or unmatched loadout.
+	 * Keep the existing safe fallback outside the normal equipped-bank case. */
+	index = TCE_AddInt32(index, cg.tceCycleOffset);
+	if (count)
+	{
+		long double reciprocal = 1.0L / (long double)count;
+		if (index < 0)
+		{
+			int quotient = TCE_TruncateNativeInteger((long double)~index * reciprocal);
+			unsigned bits = ((unsigned)quotient + 1u) * (unsigned)count;
+			int delta;
+			memcpy(&delta, &bits, sizeof(delta));
+			index = TCE_AddInt32(index, delta);
+		}
+		else
+		{
+			int quotient = TCE_TruncateNativeInteger((long double)index * reciprocal);
+			unsigned bits = (unsigned)quotient * (unsigned)count;
+			int delta;
+			memcpy(&delta, &bits, sizeof(delta));
+			index = TCE_SubInt32(index, delta);
+		}
+	}
+	for (bank = 0; bank < 6; ++bank)
+	{
+		int weapon = slots[bank];
+		const char *name;
+		float width, x, y;
+		if (weapon <= 0 || weapon >= 64)
+		{
+			continue;
+		}
+		name = tce_cg_weapons[weapon].deployMenuShortName;
+		width = (float)CG_Text_Width_Ext(name, .2f, 0, &cgs.media.limboFont1);
+		x = (float)((long double)rect->x + 82.0L - 12.0L - width);
+		y = (float)((long double)rect->y - 18.0L + 12.0L - 4.0L - 12.0L - 12.0L - (5 - bank) * 16);
+		if (index == drawn)
+		{
+			ink[3] = 1;
+			cg.tceCycleSelected = weapon;
+			CG_DrawRect_FixedBorder(x - 2 + 1, y - 26, width + 6, 14, 1, shadow);
+			CG_DrawRect_FixedBorder(x - 2, y - 27, width + 6, 14, 1, ink);
+		}
+		else
+		{
+			ink[3] = .5f;
+		}
+		CG_Text_Paint_Ext(x, y - 16, .2f, .2f, ink, name, 0, 0, 3, &cgs.media.limboFont1);
+		++drawn;
+	}
+	if ((cg_pmove.cmd.buttons & 1) &&
+	    cg_weaponCycleDelay.integer < TCE_SubInt32(cg.time, cg.weaponSelectTime))
+	{
+		cg.weaponSelectTime = cg.time;
+		cg.tceCycleTime = 0;
+		cg.weaponSelect = cg.predictedPlayerState.weapon;
+		if (current != cg.tceCycleSelected)
+		{
+			CG_FinishWeaponChange(current, cg.tceCycleSelected);
+		}
+	}
+}
+#endif
+
 void CG_TCEDrawWeaponCycle(float bottom)
 {
 	tce_weaponCycle_t         s; usercmd_t cmd;

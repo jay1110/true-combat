@@ -1264,6 +1264,7 @@ typedef struct
 	int waterundertime;
 #if defined(__linux__)
 	int tceWatchdogTime; /* Original Linux cg+0x6f96c. */
+	float tceWeaponBarAlpha; /* Original Linux cg+0x52ab4. */
 #endif
 } cg_t;
 
@@ -2556,6 +2557,9 @@ void CG_DrawCursorhint(rectDef_t *rect);
 void CG_DrawWeapStability(rectDef_t *rect);
 void CG_DrawWeapHeat(rectDef_t *rect, int align);
 void CG_DrawPlayerWeaponIcon(rectDef_t *rect, qboolean drawHighlighted, int align, vec4_t *refcolor);
+#if defined(__linux__) && !defined(Q3_VM)
+void CG_DrawPlayerWeaponBar(rectDef_t *rect, qboolean drawHighlighted, int align, vec4_t *refcolor);
+#endif
 int CG_CalculateReinfTime(qboolean menu);
 float CG_CalculateReinfTime_Float(qboolean menu);
 void CG_Fade(int r, int g, int b, int a, int time, int duration);
