@@ -471,7 +471,7 @@ static gentity_t *G_TCELaunchObjective(gentity_t *ent, qboolean vip)
 		return NULL;      /* Invalid catalog guard; original assumes entry. */
 	}
 	VectorCopy(ent->client->ps.viewangles, angles);
-#if defined(__linux__) && defined(__i386__)
+#if defined(__linux__) && !defined(Q3_VM)
 	/* The native lower-bound comparison also clamps an unordered pitch. */
 	if (!(angles[PITCH] >= -30.0f))
 	{
@@ -494,7 +494,7 @@ static gentity_t *G_TCELaunchObjective(gentity_t *ent, qboolean vip)
 	angles[YAW] -= 45;
 	AngleVectors(angles, velocity, NULL, NULL);
 	VectorScale(velocity, 64, offset);
-#if defined(__linux__) && defined(__i386__)
+#if defined(__linux__) && !defined(Q3_VM)
 	/* FST keeps the scaled Z in x87 for the following height addition. */
 	offset[2] = (float)((long double)velocity[2] * 64.0L +
 	                    (long double)ent->client->ps.viewheight * 0.5L);
@@ -502,7 +502,7 @@ static gentity_t *G_TCELaunchObjective(gentity_t *ent, qboolean vip)
 	offset[2] += ent->client->ps.viewheight * .5f;
 #endif
 	VectorScale(velocity, 75, velocity);
-#if defined(__linux__) && defined(__i386__)
+#if defined(__linux__) && !defined(Q3_VM)
 	/* The original stores 35/32767 as one binary32 factor. */
 	velocity[2] = (float)(((long double)(rand() & 0x7fff) *
 	                       (long double)0.0010681478306651115f + 50.0L) +
@@ -519,7 +519,11 @@ static gentity_t *G_TCELaunchObjective(gentity_t *ent, qboolean vip)
 	drop->s.effect2Time     = level.time; drop->r.svFlags = SVF_BROADCAST;
 	if (!vip)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		level.tceBombDropCount = TCE_AddInt32(level.tceBombDropCount, 1);
+#else
 		level.tceBombDropCount++;
+#endif
 	}
 	return drop;
 }

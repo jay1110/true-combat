@@ -121,7 +121,30 @@ void TossClientItems(gentity_t *self)
 	{
 		G_TCEDropHealth(self);
 	}
+#if defined(__linux__) && !defined(Q3_VM)
+	if (g_gametype.integer == 5 &&
+	    (self->client->ps.stats[STAT_TCE_WEAPON_FLAGS] & 0x100) &&
+	    level.tceBombAssigned && !level.tceBombPlanted &&
+	    level.tceBombCarrier == self->client->ps.clientNum &&
+	    level.tceBombDropCount < 2)
+	{
+		gentity_t *popup;
+		gclient_t *client;
+
+		G_TCEDropBomb(self);
+		self->client->ps.stats[STAT_TCE_WEAPON_FLAGS] &= ~0x100;
+		level.tceBombCarrier = -1;
+		level.tceBombCarrierCount = TCE_AddInt32(level.tceBombCarrierCount, -1);
+		self->client->tceBombPossessionOrder = 0;
+		popup = G_PopupMessage(PM_MESSAGE);
+		client = self->client;
+		popup->s.effect2Time = client->ps.persistant[PERS_TEAM];
+		popup->s.density = 1;
+		popup->s.effect3Time = client->ps.clientNum;
+	}
+#else
 	G_TCEReleaseObjectives(self, qfalse, qfalse);
+#endif
 }
 
 /*
