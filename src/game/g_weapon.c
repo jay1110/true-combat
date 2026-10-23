@@ -2310,6 +2310,35 @@ qboolean G_AvailableAirstrikes(gentity_t *ent)
 
 void G_AddAirstrikeToCounters(gentity_t *ent)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	int product, max;
+	double rounded;
+	long double increment;
+
+	product = TCE_Int32FromUnsigned((unsigned)g_heavyWeaponRestriction.integer *
+	                               (unsigned)G_TeamCount(ent, -1));
+	rounded = (double)ceill((long double)product * 0.01f);
+	if (rounded + rounded > 6.0)
+	{
+		max = 6;
+	}
+	else
+	{
+		product = TCE_Int32FromUnsigned((unsigned)g_heavyWeaponRestriction.integer *
+		                               (unsigned)G_TeamCount(ent, -1));
+		rounded = (double)ceill((long double)product * 0.01f);
+		max = TCE_TruncateNativeInteger((long double)rounded + rounded);
+	}
+	increment = (1.0L / max) * 60000.0f;
+	if (ent->client->sess.sessionTeam == TEAM_AXIS)
+	{
+		level.axisBombCounter = TCE_TruncateNativeInteger(increment + level.axisBombCounter);
+	}
+	else
+	{
+		level.alliedBombCounter = TCE_TruncateNativeInteger(increment + level.alliedBombCounter);
+	}
+#else
 	int    product, max;
 	double capacity;
 
@@ -2336,6 +2365,7 @@ void G_AddAirstrikeToCounters(gentity_t *ent)
 	{
 		level.alliedBombCounter = (int)(60000.0 / (double)max + level.alliedBombCounter);
 	}
+#endif
 }
 
 #define NUMBOMBS 10
