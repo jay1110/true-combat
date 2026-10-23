@@ -3437,7 +3437,11 @@ qboolean BotDangerousGoal(bot_state_t *bs, bot_goal_t *goal)
 			if (trav->client)
 			{
 				// is this player dangerous?
+#if defined(__linux__)
+				if (!(trav->client->ps.weapon == TCE_ITEM_WEAPON_PANZERFAUST && trav->client->ps.weaponDelay))
+#else
 				if (!(trav->client->ps.weapon == WP_PANZERFAUST && trav->client->ps.weaponDelay))
+#endif
 				{
 					continue;
 				}
