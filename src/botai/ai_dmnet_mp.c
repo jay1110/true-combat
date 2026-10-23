@@ -7739,7 +7739,11 @@ int AINode_MP_Script_MoveToMarker(bot_state_t *bs)
 	}
 	//
 	VectorCopy(goal.origin, target);
+#if defined(__linux__)
+	if (!(fabsl((long double)target[2] - bs->origin[2]) >= 80.0L))
+#else
 	if (fabs(target[2] - bs->origin[2]) < 80)
+#endif
 	{
 		target[2] = bs->origin[2];
 	}
@@ -7755,7 +7759,11 @@ int AINode_MP_Script_MoveToMarker(bot_state_t *bs)
 	//
 	memset(&moveresult, 0, sizeof(moveresult));
 	//
+#if defined(__linux__)
+	if (BotDistanceSquaredValue(bs->origin, target) >= SQR(12))
+#else
 	if (VectorDistanceSquared(bs->origin, target) >= SQR(12))
+#endif
 	{
 		//try a direct movement
 		if (!BotDirectMoveToGoal(bs, &goal, &moveresult))
@@ -7813,7 +7821,12 @@ int AINode_MP_Script_MoveToMarker(bot_state_t *bs)
 	//if waiting for something
 	else if (moveresult.flags & MOVERESULT_WAITING)
 	{
+#if defined(__linux__)
+		if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0)
+		    < (long double)(double)0.8 * bs->thinktime)
+#else
 		if (random() < bs->thinktime * 0.8)
+#endif
 		{
 			BotRoamGoal(bs, target);
 			VectorSubtract(target, bs->origin, dir);
@@ -7833,9 +7846,18 @@ int AINode_MP_Script_MoveToMarker(bot_state_t *bs)
 			aas_entityinfo_t entinfo;
 			BotEntityInfo(bs->enemy, &entinfo);
 			//if the enemy is dead
+#if defined(__linux__)
+			if (bs->enemydeath_time < 0.0f || bs->enemydeath_time > 0.0f)
+#else
 			if (bs->enemydeath_time)
+#endif
 			{
+#if defined(__linux__)
+				long double deathTime = bs->enemydeath_time;
+				if (!(deathTime >= (long double)trap_AAS_Time() - (long double)(double)0.3))
+#else
 				if (bs->enemydeath_time < trap_AAS_Time() - 0.3)
+#endif
 				{
 					bs->enemydeath_time = 0;
 
@@ -7853,7 +7875,11 @@ int AINode_MP_Script_MoveToMarker(bot_state_t *bs)
 			if (bs->enemy >= 0)
 			{
 				// attack and keep moving
+#if defined(__linux__)
+				if (fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL)) > 0.0L)
+#else
 				if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL))
+#endif
 				{
 					//choose the best weapon to fight with
 					BotChooseWeapon(bs);
@@ -7885,11 +7911,20 @@ int AINode_MP_Script_MoveToMarker(bot_state_t *bs)
 				vectoangles(dir, bs->ideal_viewangles);
 			}
 			//FIXME: look at cluster portals?
+#if defined(__linux__)
+			else if (fabsl(TCE_VectorLengthSquaredValue(moveresult.movedir)) > 0.0L)
+#else
 			else if (VectorLengthSquared(moveresult.movedir))
+#endif
 			{
 				vectoangles(moveresult.movedir, bs->ideal_viewangles);
 			}
+#if defined(__linux__)
+			else if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0)
+			    < (long double)(double)0.8 * bs->thinktime)
+#else
 			else if (random() < bs->thinktime * 0.8)
+#endif
 			{
 				BotRoamGoal(bs, target);
 				VectorSubtract(target, bs->origin, dir);
@@ -7909,7 +7944,11 @@ int AINode_MP_Script_MoveToMarker(bot_state_t *bs)
 				}
 			}
 			// check for giving ourselves some health
+#if defined(__linux__)
+			if (bs->sess.playerType == PC_MEDIC && BotHealthScaleValue(bs->client) < 1.0L)
+#else
 			if (bs->sess.playerType == PC_MEDIC && BotHealthScale(bs->client) < 1.0)
+#endif
 			{
 				// switch to regen and pump away
 				bs->weaponnum = WP_MEDKIT;
