@@ -512,6 +512,47 @@ CG_AddDebrisElements
 /* Whole Windows30046670 / Linux00080200, original 50ms trail stepping. */
 void CG_AddDebrisElements(localEntity_t *le)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	vec3_t endpoint;
+	trace_t trace;
+	int time;
+	for (time = TCE_AddInt32(le->lastTrailTime, 50); time < cg.time; time = TCE_AddInt32(time, 50))
+	{
+		long double fraction;
+		TCE_BG_EvaluateTrajectory(&le->pos, time, endpoint, qfalse, -1, 1.0f);
+		CG_Trace(&trace, le->refEntity.origin, NULL, NULL, endpoint, -1, 0x6000081);
+		if (trace.startsolid)
+		{
+			VectorCopy(endpoint, trace.endpos);
+			trace.fraction = 1.0f;
+		}
+		VectorCopy(trace.endpos, le->refEntity.origin);
+		fraction = (1.0L / TCE_SubInt32(le->endTime, le->startTime))
+		           * TCE_SubInt32(time, le->startTime);
+		if (le->effectFlags & 1)
+		{
+			long double fade = (1.0L - fraction) * 0.5f + 0.5f;
+			float width = (float)TCE_TruncateNativeInteger(fade * 60.0f);
+			float alpha = trace.fraction == 1.0f || TCE_FloatIsNaN(trace.fraction)
+			    ? (float)fade : 0.0f;
+			le->headJuncIndex2 = CG_AddSmokeJunc(le->headJuncIndex2, le,
+			                                     cgs.media.smokeTrailShader, le->refEntity.origin,
+			                                     TCE_TruncateNativeInteger(fade * 2000.0f),
+			                                     alpha, 1, width);
+		}
+		if (trace.fraction < 1.0f)
+		{
+			CG_ReflectVelocity(le, &trace);
+			if (!(TCE_VectorLengthSquaredValue(le->pos.trDelta) >= 1.0L))
+			{
+				CG_FreeLocalEntity(le);
+				return;
+			}
+			le->pos.trTime = time;
+		}
+		le->lastTrailTime = time;
+	}
+#else
 	vec3_t endpoint; trace_t trace;
 	int    time;
 	double fraction, fade;
@@ -544,6 +585,7 @@ void CG_AddDebrisElements(localEntity_t *le)
 		}
 		le->lastTrailTime = time;
 	}
+#endif
 }
 
 // Rafael Shrapnel
@@ -554,6 +596,53 @@ CG_AddShrapnel
 */
 void CG_AddShrapnel(localEntity_t *le)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	vec3_t newOrigin;
+	trace_t trace;
+	if (le->pos.trType == TR_STATIONARY)
+	{
+		int remaining = TCE_SubInt32(le->endTime, cg.time);
+		if (remaining < SINK_TIME)
+		{
+			float oldZ = le->refEntity.origin[2];
+			le->refEntity.renderfx |= RF_LIGHTING_ORIGIN;
+			VectorCopy(le->refEntity.origin, le->refEntity.lightingOrigin);
+			le->refEntity.origin[2] = (float)((long double)oldZ
+			    - (1.0L - (long double)remaining * 0.001f) * 16.0f);
+			trap_R_AddRefEntityToScene(&le->refEntity);
+			le->refEntity.origin[2] = oldZ;
+			return;
+		}
+	}
+	else
+	{
+		TCE_BG_EvaluateTrajectory(&le->pos, cg.time, newOrigin, qfalse, -1, 1.0f);
+		CG_Trace(&trace, le->refEntity.origin, NULL, NULL, newOrigin, -1, CONTENTS_SOLID);
+		if (trace.fraction == 1.0f || TCE_FloatIsNaN(trace.fraction))
+		{
+			VectorCopy(newOrigin, le->refEntity.origin);
+			if (le->leFlags & LEF_TUMBLE)
+			{
+				vec3_t angles;
+				TCE_BG_EvaluateTrajectory(&le->angles, cg.time, angles, qtrue, -1, 1.0f);
+				AnglesToAxis(angles, le->refEntity.axis);
+			}
+		}
+		else
+		{
+			if (CG_PointContents(trace.endpos, 0) & CONTENTS_NODROP)
+			{
+				CG_FreeLocalEntity(le);
+				return;
+			}
+			CG_FragmentBounceMark(le, &trace);
+			CG_FragmentBounceSound(le, &trace);
+			CG_ReflectVelocity(le, &trace);
+		}
+	}
+	trap_R_AddRefEntityToScene(&le->refEntity);
+	CG_AddParticleShrapnel(le);
+#else
 	vec3_t  newOrigin;
 	trace_t trace;
 
@@ -628,6 +717,7 @@ void CG_AddShrapnel(localEntity_t *le)
 
 	trap_R_AddRefEntityToScene(&le->refEntity);
 	CG_AddParticleShrapnel(le);
+#endif
 }
 // done.
 
@@ -647,6 +737,16 @@ CG_AddFadeRGB
 */
 void CG_AddFadeRGB(localEntity_t *le)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	long double scale = (long double)TCE_SubInt32(le->endTime, cg.time) * le->lifeRate * 255.0f;
+	int i;
+	for (i = 0; i < 4; ++i)
+	{
+		long double value = (long double)le->color[i] * scale;
+		le->refEntity.shaderRGBA[i] = value > -32769.0L && value < 32768.0L ? (byte)(int)value : 0;
+	}
+	trap_R_AddRefEntityToScene(&le->refEntity);
+#else
 	refEntity_t *re;
 	double      c;
 
@@ -661,6 +761,7 @@ void CG_AddFadeRGB(localEntity_t *le)
 	re->shaderRGBA[3] = le->color[3] * c;
 
 	trap_R_AddRefEntityToScene(re);
+#endif
 }
 
 /*
