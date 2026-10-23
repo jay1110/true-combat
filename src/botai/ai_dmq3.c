@@ -2648,7 +2648,11 @@ float BotEntityVisible(int viewer, vec3_t eye, vec3_t viewangles, float fov, int
 	for (i = 0; i < checkCount; i++)
 	{
 		//
+#if defined(__linux__)
+		contents_mask = (MASK_SHOT | CONTENTS_MISSILECLIP) & ~CONTENTS_CORPSE;
+#else
 		contents_mask = MASK_SHOT & ~(CONTENTS_CORPSE);//CONTENTS_SOLID|CONTENTS_PLAYERCLIP;
+#endif
 		passent       = viewer;
 		hitent        = ent;
 		VectorCopy(eye, start);
@@ -4903,7 +4907,11 @@ qboolean BotCheckAttack(bot_state_t *bs)
 	}
 
 	// Gordon: limit teh fire rate of the bots on these weapons
+#if defined(__linux__)
+	if ((bs->weaponnum == TCE_ITEM_WEAPON_GARANDRIFLESCOPE || bs->weaponnum == TCE_ITEM_WEAPON_KAR43_SCOPE) && (level.time - bs->last_fire) < 800)
+#else
 	if ((bs->weaponnum == WP_GARAND_SCOPE || bs->weaponnum == WP_K43_SCOPE) && (level.time - bs->last_fire) < 800)
+#endif
 	{
 		// pause for a bit
 		return qtrue;
@@ -5014,7 +5022,11 @@ qboolean BotCheckAttack(bot_state_t *bs)
 	}
 
 	// set mask based on weapon
+#if defined(__linux__)
+	mask = MASK_SHOT | CONTENTS_MISSILECLIP;
+#else
 	mask = MASK_SHOT;
+#endif
 	switch (bs->cur_ps.weapon)
 	{
 	case WP_PANZERFAUST:
@@ -5045,7 +5057,11 @@ qboolean BotCheckAttack(bot_state_t *bs)
 	VectorMA(start, BotWeaponRange(bs, bs->weaponnum), forward, end);
 	//a little back to make sure not inside a very close enemy
 	VectorMA(start, -12, forward, start);
+#if defined(__linux__)
+	BotAI_Trace(&trace, start, mins, maxs, end, bs->entitynum, MASK_SHOT | CONTENTS_MISSILECLIP);
+#else
 	BotAI_Trace(&trace, start, mins, maxs, end, bs->entitynum, MASK_SHOT);  //----(SA) should this maybe check the weapon type and adjust the clipflag?  it seems like this is probably fine as-is, but I thought I'd note it.
+#endif
 	//if won't hit the enemy
 	if (trace.ent != bs->enemy)
 	{
@@ -5178,8 +5194,13 @@ passed:
 	{
 	case WP_K43:
 	case WP_GARAND:
+#if defined(__linux__)
+	case TCE_ITEM_WEAPON_KAR43_SCOPE:
+	case TCE_ITEM_WEAPON_GARANDRIFLESCOPE:
+#else
 	case WP_K43_SCOPE:
 	case WP_GARAND_SCOPE:
+#endif
 		bs->teleport_time = trap_AAS_Time() + 0.5 + random() * 0.4;
 		break;
 	}
