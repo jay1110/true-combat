@@ -240,6 +240,79 @@ SelectSpawnPoint
 Chooses a player start, deathmatch start, etc
 ============
 */
+#if defined(__linux__) && !defined(Q3_VM)
+gentity_t *SelectNearestBodycountSpawnPoint(int spawnflags, vec3_t from)
+{
+	gentity_t *spot = NULL, *nearest = NULL;
+	float nearestDistance = 999999.0f;
+	vec3_t delta;
+
+	while ((spot = G_Find(spot, FOFS(classname), "info_player_deathmatch")) != NULL)
+	{
+		long double distance;
+		if (!(spot->spawnflags & spawnflags))
+		{
+			continue;
+		}
+		VectorSubtract(spot->r.currentOrigin, from, delta);
+		distance = TCE_VectorLengthValue(delta);
+		if (!(distance >= (long double)nearestDistance))
+		{
+			nearestDistance = (float)distance;
+			nearest = spot;
+		}
+	}
+	return nearest ? nearest : SelectNearestDeathmatchSpawnPoint(from);
+}
+
+gentity_t *SelectRandomBodycountSpawnPoint(int spawnflags)
+{
+	gentity_t *spot = NULL, *spots[MAX_SPAWN_POINTS];
+	int count = 0;
+
+	while ((spot = G_Find(spot, FOFS(classname), "info_player_deathmatch")) != NULL)
+	{
+		if (SpotWouldTelefrag(spot) || !(spot->spawnflags & spawnflags))
+		{
+			continue;
+		}
+		if (count < MAX_SPAWN_POINTS)
+		{
+			spots[count++] = spot;
+		}
+	}
+	if (!count)
+	{
+		return G_Find(NULL, FOFS(classname), "info_player_deathmatch");
+	}
+	return spots[rand() % count];
+}
+
+gentity_t *SelectBodycountSpawnPoint(int spawnflags, vec3_t avoidPoint,
+                                    vec3_t origin, vec3_t angles)
+{
+	gentity_t *nearest = SelectNearestBodycountSpawnPoint(spawnflags, avoidPoint);
+	gentity_t *spot = SelectRandomBodycountSpawnPoint(spawnflags);
+	if (spot == nearest)
+	{
+		spot = SelectRandomBodycountSpawnPoint(spawnflags);
+		if (spot == nearest)
+		{
+			spot = SelectRandomBodycountSpawnPoint(spawnflags);
+		}
+	}
+	if (!spot)
+	{
+		/* The original calls this fallback but then dereferences NULL. */
+		return SelectSpawnPoint(avoidPoint, origin, angles);
+	}
+	VectorCopy(spot->r.currentOrigin, origin);
+	origin[2] += 9.0f;
+	VectorCopy(spot->s.angles, angles);
+	return spot;
+}
+#endif
+
 gentity_t *SelectSpawnPoint(vec3_t avoidPoint, vec3_t origin, vec3_t angles)
 {
 	gentity_t *spot;

@@ -1429,6 +1429,11 @@ team_t TeamCount(int ignoreClientNum, int team);            // NERVE - SMF - mer
 team_t PickTeam(int ignoreClientNum);
 void SetClientViewAngle(gentity_t *ent, vec3_t angle);
 gentity_t *SelectSpawnPoint(vec3_t avoidPoint, vec3_t origin, vec3_t angles);
+#if defined(__linux__) && !defined(Q3_VM)
+gentity_t *SelectNearestBodycountSpawnPoint(int spawnflags, vec3_t from);
+gentity_t *SelectRandomBodycountSpawnPoint(int spawnflags);
+gentity_t *SelectBodycountSpawnPoint(int spawnflags, vec3_t avoidPoint, vec3_t origin, vec3_t angles);
+#endif
 gentity_t *SelectIntermissionSpawnPoint(vec3_t origin, vec3_t angles);
 void respawn(gentity_t *ent, qboolean hostage);
 void BeginIntermission(void);
