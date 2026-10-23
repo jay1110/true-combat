@@ -418,6 +418,17 @@ CG_DrawKeyModel
 */
 void CG_DrawKeyModel(int keynum, float x, float y, float w, float h, int fadetime)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	vec3_t mins, maxs, origin, angles = { 0, 0, 0 };
+	float len;
+	trap_R_ModelBounds(cg_items[keynum].models[0], mins, maxs);
+	origin[2] = (float)(((long double)mins[2] + maxs[2]) * -0.5f);
+	origin[1] = (float)(((long double)mins[1] + maxs[1]) * 0.5f);
+	len = (float)(((long double)maxs[2] - mins[2]) * 0.75f);
+	origin[0] = (float)((long double)len * (double)3.731343283582089);
+	angles[YAW] = (float)(sinl((long double)cg.time * (double)0.0005) * 30.0f);
+	CG_Draw3DModel(x, y, w, h, cg_items[keynum].models[0], 0, origin, angles);
+#else
 	qhandle_t cm;
 	float     len;
 	vec3_t    origin, angles;
@@ -440,6 +451,7 @@ void CG_DrawKeyModel(int keynum, float x, float y, float w, float h, int fadetim
 	angles[YAW] = 30 * sin(cg.time / 2000.0);;
 
 	CG_Draw3DModel(x, y, w, h, cg_items[keynum].models[0], 0, origin, angles);
+#endif
 }
 
 /*

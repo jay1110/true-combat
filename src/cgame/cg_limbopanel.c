@@ -1672,7 +1672,11 @@ void CG_LimboPanel_RenderLight(panel_button_t *button)
 
 void CG_DrawPlayerHead(rectDef_t *rect, bg_character_t *character, bg_character_t *headcharacter, float yaw, float pitch, qboolean drawHat, hudHeadAnimNumber_t animation, qhandle_t painSkin, int rank, qboolean spectator)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	long double len;
+#else
 	float       len;
+#endif
 	vec3_t      origin;
 	vec3_t      mins, maxs, angles;
 	float       x, y, w, h;
@@ -1701,10 +1705,17 @@ void CG_DrawPlayerHead(rectDef_t *rect, bg_character_t *character, bg_character_
 	refdef.fov_x = 8;
 	refdef.fov_y = 10;
 
+#if defined(__linux__) && !defined(Q3_VM)
+	refdef.x = TCE_TruncateNativeInteger(x);
+	refdef.y = TCE_TruncateNativeInteger(y);
+	refdef.width = TCE_TruncateNativeInteger(w);
+	refdef.height = TCE_TruncateNativeInteger(h);
+#else
 	refdef.x      = x;
 	refdef.y      = y;
 	refdef.width  = w;
 	refdef.height = h;
+#endif
 
 	refdef.time = cg.time;
 
@@ -1713,6 +1724,17 @@ void CG_DrawPlayerHead(rectDef_t *rect, bg_character_t *character, bg_character_
 	// offset the origin y and z to center the head
 	trap_R_ModelBounds(character->hudhead, mins, maxs);
 
+#if defined(__linux__) && !defined(Q3_VM)
+	{
+		double tangent;
+		origin[2] = (float)(((long double)mins[2] + maxs[2]) * (double)-0.7);
+		origin[1] = (float)(((long double)mins[1] + maxs[1]) * 0.5f
+		    - ((long double)maxs[1] - mins[1]) * (double)0.08);
+		len = ((long double)maxs[2] - mins[2]) * 3.5f;
+		tangent = (double)tanl(10.0L);
+		origin[0] = (float)((1.0L / tangent) * len);
+	}
+#else
 	origin[2] = -0.7 * (mins[2] + maxs[2]);
 	/* Original 30041270: lateral framing includes eight percent of width. */
 	origin[1] = 0.5 * (mins[1] + maxs[1]) - 0.08 * (maxs[1] - mins[1]);
@@ -1721,6 +1743,8 @@ void CG_DrawPlayerHead(rectDef_t *rect, bg_character_t *character, bg_character_
 	// assume heads are taller than wide
 	len       = 3.5f * (maxs[2] - mins[2]);
 	origin[0] = len / tan(20 / 2);   // 0.268;	// len / tan( fov/2 )
+
+#endif
 
 	angles[PITCH] = pitch;
 	angles[YAW]   = yaw;
