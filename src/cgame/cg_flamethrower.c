@@ -7,6 +7,7 @@
 // NOTE: some AI's are treated different, mostly for aesthetical reasons.
 
 #include "cg_local.h"
+#include "../game/tce_numeric.h"
 
 // a flameChunk is a ball or section of fuel which goes from fuel->blue ignition->flame ball
 // optimization is necessary, since lots of these will be spawned, but as they grow, they can be
@@ -290,7 +291,11 @@ void CG_FireFlameChunks(centity_t *cent, vec3_t origin, vec3_t angles, float spe
 			// spawn a new chunk
 			CG_FlameLerpVec(lastOrg, thisOrg, backLerp, org);
 
+#if defined(__linux__) && !defined(Q3_VM)
+			CG_Trace(&trace, org, flameChunkMins, flameChunkMaxs, org, cent->currentState.number, MASK_MISSILESHOT | MASK_WATER);   // JPW NERVE water fixes
+#else
 			CG_Trace(&trace, org, flameChunkMins, flameChunkMaxs, org, cent->currentState.number, MASK_SHOT | MASK_WATER);   // JPW NERVE water fixes
+#endif
 			if (trace.startsolid)
 			{
 				return;     // don't spawn inside a wall
@@ -986,7 +991,11 @@ flameSizeDone:
 		CG_FlameCalcOrg(f, cg.time, newOrigin);
 
 		// trace a line from previous position to new position
+#if defined(__linux__) && !defined(Q3_VM)
+		CG_Trace(&trace, sOrg, flameChunkMins, flameChunkMaxs, newOrigin, f->ownerCent, MASK_MISSILESHOT | MASK_WATER);   // JPW NERVE water fixes
+#else
 		CG_Trace(&trace, sOrg, flameChunkMins, flameChunkMaxs, newOrigin, f->ownerCent, MASK_SHOT | MASK_WATER);   // JPW NERVE water fixes
+#endif
 
 		if (trace.startsolid)
 		{
@@ -2388,7 +2397,11 @@ void CG_AddFlameToScene(flameChunk_t *fHead)
 			{
 				if ((Distance(f->org, fNext->org) < ((0.1 + 0.9 * f->lifeFrac) * f->size * 0.35))
 				    &&  (fabs(f->size - fNext->size) < (40.0))
+#if defined(__linux__) && !defined(Q3_VM)
+				    &&  (fabs((double)TCE_SubInt32(f->timeStart, fNext->timeStart)) < 100)
+#else
 				    &&  (fabs((double)f->timeStart - fNext->timeStart) < 100)
+#endif
 				    &&  (DotProduct(f->velDir, fNext->velDir) > 0.99)
 				    )
 				{
