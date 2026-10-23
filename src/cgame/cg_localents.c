@@ -141,6 +141,65 @@ CG_FragmentBounceSound
 /* Original TC bounce controller, all native fragment producers. */
 void CG_FragmentBounceSound(localEntity_t *le, trace_t *trace)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	int volume, type, rnd, bank;
+	unsigned material;
+	sfxHandle_t sound;
+	if (cg.tcePortalScopeRendering)
+	{
+		return;
+	}
+	volume = CG_SoundVolume(trace->endpos, 127.0f, 800.0f, 0);
+	if (!volume)
+	{
+		le->leBounceSoundType = LEBS_NONE;
+		return;
+	}
+	type = le->leBounceSoundType;
+	material = (unsigned)trace->surfaceFlags >> 24;
+	if (type != 0 && type != 2 && type != 12)
+	{
+		switch (material)
+		{
+		case 30: case 29: case 9: case 32: case 18: case 23:
+		case 8: case 21: case 7: case 13: case 16: case 10:
+			return;
+		default:
+			break;
+		}
+	}
+	switch (type)
+	{
+	case 2:
+		rnd = rand() % 3;
+		sound = cgs.media.sfx_rubbleBounce[rnd];
+		break;
+	case 4:
+		rnd = rand() % 3;
+		bank = material == 3 ? BRASSSOUND_METAL : material == 5 ? BRASSSOUND_WOOD :
+		       (material == 7 || material == 13 || material == 16 || material == 10)
+		       ? BRASSSOUND_SOFT : BRASSSOUND_STONE;
+		sound = cgs.media.sfx_brassSound[bank][rnd];
+		break;
+	case 6:
+		rnd = rand() % 3;
+		sound = cgs.media.tceGlassFallSounds[rnd];
+		break;
+	case 7: case 8: case 9: case 10: case 11:
+		rnd = rand() % 4;
+		bank = cg.tceSoundEnvironment == 2;
+		sound = cgs.media.tceCasingSounds[type - 7][bank][rnd];
+		break;
+	case 12:
+		/* The TC sound registrar leaves this native handle zero. */
+		sound = 0;
+		break;
+	default:
+		return;
+	}
+	trap_S_StartSoundVControl(trace->endpos, -1, CHAN_AUTO, sound, volume);
+	le->leBounceSoundType = LEBS_NONE;
+#else
 	tce_fragmentSoundContext_t context;
 	memset(&context, 0, sizeof(context));
 	VectorCopy(cg.refdef_current->vieworg, context.listener);
@@ -156,6 +215,7 @@ void CG_FragmentBounceSound(localEntity_t *le, trace_t *trace)
 	context.distanceVariant = tceSmokeNewBBox;
 	context.disabled        = cg.tcePortalScopeRendering;
 	TCE_CG_FragmentBounceSound(le, trace, &context);
+#endif
 }
 
 /*

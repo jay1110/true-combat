@@ -1,4 +1,7 @@
 #include "cg_local.h"
+#if defined(__linux__) && !defined(Q3_VM)
+#include "../game/tce_numeric.h"
+#endif
 
 void CG_BloodTrail(localEntity_t *le)
 {
@@ -38,6 +41,26 @@ void CG_BloodTrail(localEntity_t *le)
 /* Explicit state permits deterministic replay of the global rate limiter. */
 void TCE_CG_FragmentBounceMark(localEntity_t *le, trace_t *trace, int *lastBloodMark)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	if (le->leMarkType == LEMT_BLOOD && *lastBloodMark <= cg.time &&
+	    *lastBloodMark <= TCE_SubInt32(cg.time, 100))
+	{
+		vec4_t projection, color;
+		int choice, life, fade;
+		unsigned lifeBits;
+		VectorSet(projection, 0, 0, -1);
+		projection[3] = 16 + (rand() & 31);
+		Vector4Set(color, 1, 1, 1, 1);
+		choice = rand() % 5;
+		lifeBits = (unsigned)cg_bloodTime.integer * 1000u;
+		memcpy(&life, &lifeBits, sizeof(life));
+		fade = life >= 0 ? life / 16 : -1 - (int)((~lifeBits) >> 4);
+		trap_R_ProjectDecal(cgs.media.bloodDotShaders[choice], 1,
+		                    (vec3_t *)trace->endpos, projection, color, life, fade);
+		*lastBloodMark = cg.time;
+	}
+	le->leMarkType = LEMT_NONE;
+#else
 	vec4_t projection, color;
 	int    life;
 	if (le->leMarkType == LEMT_BLOOD && *lastBloodMark <= cg.time &&
@@ -52,6 +75,7 @@ void TCE_CG_FragmentBounceMark(localEntity_t *le, trace_t *trace, int *lastBlood
 		*lastBloodMark = cg.time;
 	}
 	le->leMarkType = LEMT_NONE;
+#endif
 }
 
 void CG_FragmentBounceMark(localEntity_t *le, trace_t *trace)
