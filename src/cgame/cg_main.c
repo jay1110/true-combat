@@ -3347,3 +3347,31 @@ qboolean CG_CheckExecKey(int key)
 
 	return CG_FireteamCheckExecKey(key, qfalse);
 }
+
+void CG_AddToDecalCue(qhandle_t shader, int numPoints, const vec3_t *points,
+                      const vec4_t projection, const vec4_t color, int lifeTime, int fadeTime)
+{
+	int i;
+	cg.tceDecalCue.shader = shader;
+	cg.tceDecalCue.numPoints = numPoints;
+	for (i = 0; i < 4; ++i)
+	{
+		VectorCopy(points[i], cg.tceDecalCue.points[i]);
+	}
+	Vector4Copy(projection, cg.tceDecalCue.projection);
+	Vector4Copy(color, cg.tceDecalCue.color);
+	cg.tceDecalCue.lifeTime = lifeTime;
+	cg.tceDecalCue.fadeTime = fadeTime;
+}
+
+void CG_ProjectDecalCue(void)
+{
+	if (cg.tceDecalCue.shader)
+	{
+		CG_Printf("ELITE DEBUG: Project decal\n");
+		trap_R_ProjectDecal(cg.tceDecalCue.shader, cg.tceDecalCue.numPoints,
+		                    cg.tceDecalCue.points, cg.tceDecalCue.projection,
+		                    cg.tceDecalCue.color, cg.tceDecalCue.lifeTime, cg.tceDecalCue.fadeTime);
+		cg.tceDecalCue.shader = 0;
+	}
+}

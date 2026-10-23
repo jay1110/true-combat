@@ -1252,6 +1252,15 @@ typedef struct
 	char objDescription_Axis[MAX_OBJECTIVES][256];
 	char objDescription_Allied[MAX_OBJECTIVES][256];
 
+	struct
+	{
+		qhandle_t shader;
+		int numPoints;
+		vec3_t points[4];
+		vec4_t projection, color;
+		int lifeTime, fadeTime;
+	} tceDecalCue;
+
 	int waterundertime;
 #if defined(__linux__)
 	int tceWatchdogTime; /* Original Linux cg+0x6f96c. */
@@ -2396,6 +2405,9 @@ void CG_printConsoleString(char *str);
 void CG_LoadObjectiveData(void);
 
 void QDECL CG_Printf(const char *msg, ...);
+void CG_AddToDecalCue(qhandle_t shader, int numPoints, const vec3_t *points,
+                      const vec4_t projection, const vec4_t color, int lifeTime, int fadeTime);
+void CG_ProjectDecalCue(void);
 void QDECL CG_Error(const char *msg, ...);
 
 void CG_StartMusic(void);
