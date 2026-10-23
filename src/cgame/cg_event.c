@@ -1704,7 +1704,9 @@ void CG_MortarMiss(centity_t *cent, vec3_t origin)
 // a convenience function for all footstep sound playing
 static void CG_StartFootStepSound(bg_playerclass_t *classInfo, entityState_t *es, sfxHandle_t sfx)
 {
+#if !defined(__linux__) || defined(Q3_VM)
 	tce_fragmentSoundContext_t context;
+#endif
 	int                        event, volume;
 	float                      range;
 	/* TC:E 3003b1e0 / Linux0006f338. classInfo is unused in both originals. */
@@ -1730,11 +1732,15 @@ static void CG_StartFootStepSound(bg_playerclass_t *classInfo, entityState_t *es
 	{
 		volume = 127; range = 1800.f;
 	}
+#if defined(__linux__) && !defined(Q3_VM)
+	volume = CG_SoundVolume(es->pos.trBase, (float)volume, range, 0);
+#else
 	memset(&context, 0, sizeof(context));
 	VectorCopy(cg.refdef_current->vieworg, context.listener);
 	context.attenuation     = tceFlash.deafness;
 	context.distanceVariant = tceSmokeNewBBox;
 	volume                  = TCE_CG_SoundVolume(es->pos.trBase, (float)volume, range, 0, &context);
+#endif
 	if (volume)
 	{
 		trap_S_StartSoundVControl(NULL, es->number, CHAN_BODY, sfx, volume);
