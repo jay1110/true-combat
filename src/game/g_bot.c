@@ -923,8 +923,14 @@ static void G_AddBot(const char *name, int skill, const char *team, const char *
 	SetTeam(bot, (char *)team, qtrue, -1, -1, -1, qfalse);
 	/* Windows20049243: FILD rand15, FMUL float reciprocal, FMUL float3.99,
 	 * then truncation, with no intermediate float store. */
+#if defined(__linux__) && !defined(Q3_VM)
+	/* ELF uses one binary32 constant (0x38ff5e28), not two products. */
+	bot->client->sess.playerType = bot->client->sess.latchPlayerType =
+		(int)((long double)(rand() & 0x7fff) * (long double)0.00012176885502412915f);
+#else
 	bot->client->sess.playerType = bot->client->sess.latchPlayerType =
 		(int)((double)(rand() & 0x7fff) * (double)(1.0f / 32767.0f) * (double)3.99f);
+#endif
 
 /*	if( skills ) {
 		int i;
