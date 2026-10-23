@@ -1436,6 +1436,9 @@ gentity_t *SelectBodycountSpawnPoint(int spawnflags, vec3_t avoidPoint, vec3_t o
 #endif
 gentity_t *SelectIntermissionSpawnPoint(vec3_t origin, vec3_t angles);
 void respawn(gentity_t *ent, qboolean hostage);
+#if defined(__linux__) && !defined(Q3_VM)
+void CalculateHonor(void);
+#endif
 void BeginIntermission(void);
 void InitClientPersistant(gclient_t *client);
 void InitClientResp(gclient_t *client);

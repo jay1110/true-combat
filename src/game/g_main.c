@@ -1861,7 +1861,7 @@ void bani_clearmapxp(void)
 /* TC20060a78/20060b92 consumes low EAX from __ftol64. */
 static int G_TCEMapXPInteger(float mapXPValue)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(__linux__) && !defined(Q3_VM)) || (defined(_MSC_VER) && defined(_M_IX86))
 	return TCE_TruncateNativeInteger((long double)mapXPValue);
 #else
 	return (int)mapXPValue;
@@ -2998,6 +2998,13 @@ FindIntermissionPoint
 This is also used for spectator spawns
 ==================
 */
+#if defined(__linux__) && !defined(Q3_VM)
+/* The original Linux export has no observable body. */
+void CalculateHonor(void)
+{
+}
+#endif
+
 void FindIntermissionPoint(void)
 {
 	gentity_t *ent = NULL, *target;
@@ -3052,7 +3059,11 @@ void FindIntermissionPoint(void)
 
 	if (!ent)       // the map creator forgot to put in an intermission point...
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		SelectSpawnPoint(vec3_origin, level.intermission_origin, level.intermission_angle);
+#else
 		SelectIntermissionSpawnPoint(level.intermission_origin, level.intermission_angle);
+#endif
 	}
 	else
 	{
@@ -4280,11 +4291,19 @@ void CheckCvars(void)
 	/* TC2006399f: official mode also owns the friendly-fire setting. */
 	if (sv_official.integer == 1 && g_friendlyFire.integer != 1)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		trap_Cvar_Set("g_friendlyfire", va("%i", 1));
+#else
 		trap_Cvar_Set("g_friendlyfire", "1");
+#endif
 	}
 	else if (sv_official.integer == 0 && g_friendlyFire.integer != 0)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		trap_Cvar_Set("g_friendlyfire", va("%i", 0));
+#else
 		trap_Cvar_Set("g_friendlyfire", "0");
+#endif
 	}
 }
 
