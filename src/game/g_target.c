@@ -960,7 +960,11 @@ void Use_target_fog(gentity_t *ent, gentity_t *other, gentity_t *activator)
 //		r,g,b
 //		time to complete
 //		map fog (0 selects server fog)
+#if defined(__linux__) && !defined(Q3_VM)
+	trap_SetConfigstring(CS_FOGVARS, va("%f %f %f %f %f %f %i %i", 1.0f, (double)ent->s.density, 1.0f, (float)ent->dl_color[0], (float)ent->dl_color[1], (float)ent->dl_color[2], ent->s.time, 0));
+#else
 	trap_SetConfigstring(CS_FOGVARS, va("%f %f %f %f %f %f %i %i", 1.0f, (float)ent->s.density, 1.0f, (float)ent->dl_color[0], (float)ent->dl_color[1], (float)ent->dl_color[2], ent->s.time, 0));
+#endif
 }
 
 /*QUAKED target_fog (1 1 0) (-8 -8 -8) (8 8 8)
