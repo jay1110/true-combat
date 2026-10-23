@@ -103,6 +103,9 @@ void Tooltip_ComputePosition(itemDef_t *item)
 #endif
 	Rectangle *itemRect = &item->window.rectClient;
 	Rectangle *tipRect  = &item->toolTipData->window.rectClient;
+#if defined(__linux__)
+	long double width;
+#endif
 
 	DC->textFont(item->toolTipData->font);
 
@@ -112,12 +115,23 @@ void Tooltip_ComputePosition(itemDef_t *item)
 	tipRect->y = (float)((tooltipCoord_t)itemRect->h + itemRect->y + 8.0);
 	//tipRect->h = 14.0f;
 	//tipRect->w = DC->textWidth( item->toolTipData->text, item->toolTipData->textscale, 0 ) + 6.0f;
+#if defined(__linux__)
+	tipRect->h = (float)((long double)DC->multiLineTextHeight(item->toolTipData->text, item->toolTipData->textscale, 0) + 9.0f);
+	width = (long double)DC->multiLineTextWidth(item->toolTipData->text, item->toolTipData->textscale, 0) + 6.0f;
+	tipRect->w = (float)width;
+	/* Native FST publishes width without discarding the retained value. */
+	if (width + tipRect->x > 635.0L)
+	{
+		tipRect->x = (float)((long double)tipRect->x - (width + tipRect->x - 635.0L));
+	}
+#else
 	tipRect->h = DC->multiLineTextHeight(item->toolTipData->text, item->toolTipData->textscale, 0) + 9.f;
 	tipRect->w = DC->multiLineTextWidth(item->toolTipData->text, item->toolTipData->textscale, 0) + 6.f;
 	if ((tooltipCoord_t)tipRect->w + tipRect->x > 635.0)
 	{
 		tipRect->x = (float)((tooltipCoord_t)tipRect->x - ((tooltipCoord_t)tipRect->w + tipRect->x - 635.0));
 	}
+#endif
 
 	item->toolTipData->parent        = item->parent;
 	item->toolTipData->type          = ITEM_TYPE_TEXT;
