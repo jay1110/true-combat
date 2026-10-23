@@ -1849,6 +1849,10 @@ gentity_t *SelectSpawnPointFromList(char *list, vec3_t spawn_origin, vec3_t spaw
 			}
 			if (!SpotWouldTelefrag(trav))
 			{
+				if (numValid >= MAX_SPAWNPOINTFROMLIST_POINTS)
+				{
+					break;
+				}
 				valid[numValid++] = trav->s.number;
 				if (numValid >= MAX_SPAWNPOINTFROMLIST_POINTS)
 				{
