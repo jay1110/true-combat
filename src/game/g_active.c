@@ -55,12 +55,20 @@ void P_DamageFeedback(gentity_t *player)
 	else
 	{
 		vectoangles(client->damage_from, angles);
+#if defined(__linux__) && !defined(Q3_VM)
+		/* ELF keeps the double constant times float angle in x87 precision. */
+		client->ps.damagePitch = TCE_TruncateNativeInteger(
+			(long double)(256.0 / 360.0) * (long double)angles[PITCH]);
+		client->ps.damageYaw = TCE_TruncateNativeInteger(
+			(long double)(256.0 / 360.0) * (long double)angles[YAW]);
+#else
 		/* Windows20044849/20044861 multiply the stored double256/360
 		 * before truncation; do not introduce an intermediate division. */
 		client->ps.damagePitch = TCE_TruncateNativeInteger(
 			(double)angles[PITCH] * (256.0 / 360.0));
 		client->ps.damageYaw = TCE_TruncateNativeInteger(
 			(double)angles[YAW] * (256.0 / 360.0));
+#endif
 	}
 
 	// play an apropriate pain sound
