@@ -1581,8 +1581,13 @@ void ClientThink_real(gentity_t *ent)
 	 * collision-hull scale. These authoritative values also feed prediction. */
 	if (g_developer.integer)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		client->ps.speed   = TCE_TruncateNativeInteger((long double)g_speed.value);
+		client->ps.gravity = TCE_TruncateNativeInteger((long double)g_gravity.value);
+#else
 		client->ps.speed   = (int)g_speed.value;
 		client->ps.gravity = (int)g_gravity.value;
+#endif
 	}
 	else
 	{
@@ -1591,19 +1596,34 @@ void ClientThink_real(gentity_t *ent)
 	}
 	if (g_newbbox.integer)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		client->ps.speed   = TCE_TruncateNativeInteger((long double)client->ps.speed * 1.25L);
+		client->ps.gravity = TCE_TruncateNativeInteger((long double)client->ps.gravity * 1.25L);
+#else
 		client->ps.speed   = (int)((double)client->ps.speed * 1.25);
 		client->ps.gravity = (int)((double)client->ps.gravity * 1.25);
+#endif
 	}
 	if (client->speedScale) /* Goalitem modifier follows hull scaling. */
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		client->ps.speed = TCE_TruncateNativeInteger(
+			((long double)client->ps.speed * client->speedScale) * (long double)0.01);
+#else
 		client->ps.speed = (int)(((double)client->speedScale * 0.01) * client->ps.speed);
+#endif
 	}
 
 	// set up for pmove
 	oldEventSequence = client->ps.eventSequence;
 
 	/* Original20046276: integer -> double reciprocal -> one float store. */
+#if defined(__linux__) && !defined(Q3_VM)
+	client->currentAimSpreadScale = (float)(
+		(long double)0.00392156862745098 * client->ps.aimSpreadScale);
+#else
 	client->currentAimSpreadScale = (float)((double)client->ps.aimSpreadScale * 0.00392156862745098);
+#endif
 
 	memset(&pm, 0, sizeof(pm));
 
@@ -1655,7 +1675,11 @@ void ClientThink_real(gentity_t *ent)
 
 	pm.skill = client->sess.skill;
 	/* TC ps+0x3c0 publishes the truncated battle-sense skillpoints. */
+#if defined(__linux__) && !defined(Q3_VM)
+	client->ps.holdable[12] = TCE_TruncateNativeInteger((long double)ent->client->sess.skillpoints[0]);
+#else
 	client->ps.holdable[12] = (int)ent->client->sess.skillpoints[0];
+#endif
 
 	client->pmext.airleft = ent->client->airOutTime - level.time;
 
@@ -1730,7 +1754,18 @@ void ClientThink_real(gentity_t *ent)
 	// Gordon: thx to bani for this
 	// ikkyo - fix leaning players bug
 	VectorCopy(client->ps.velocity, ent->s.pos.trDelta);
+#if defined(__linux__) && !defined(Q3_VM)
+	{
+		int axis;
+		for (axis = 0; axis < 3; ++axis)
+		{
+			ent->s.pos.trDelta[axis] = (float)TCE_TruncateNativeInteger(
+				(long double)ent->s.pos.trDelta[axis]);
+		}
+	}
+#else
 	SnapVector(ent->s.pos.trDelta);
+#endif
 	// end
 
 	// server cursor hints
