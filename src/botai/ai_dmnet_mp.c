@@ -7133,17 +7133,36 @@ int AINode_MP_Battle_Chase(bot_state_t *bs)
 	//if the enemy is visible
 	BotEntityInfo(bs->enemy, &entinfo);
 	VectorCopy(entinfo.origin, bs->lastenemyorigin);
+#if defined(__linux__)
+	enemydist = (float)BotDistanceSquaredValue(bs->origin, bs->lastenemyorigin);
+#else
 	enemydist = VectorDistanceSquared(bs->origin, bs->lastenemyorigin);
+#endif
+#if defined(__linux__)
+	if (fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL)) > 0.0L)
+#else
 	if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL))
+#endif
 	{
 		// update chase org
 		bs->lastenemyareanum = BotPointAreaNum(bs->enemy, entinfo.origin);
+#if defined(__linux__)
+		bs->chase_time = (float)((long double)trap_AAS_Time() + 5.0L);
+#else
 		bs->chase_time       = trap_AAS_Time() + 5.0;
+#endif
 		// RF, if we are in the air, wait until we land (we may be climbing a ladder)
 		if (bs->cur_ps.groundEntityNum != ENTITYNUM_NONE || bs->cur_ps.velocity[2] < 0)
 		{
 			// get real close to flag carrier
+#if defined(__linux__)
+			if ((bs->weaponnum != WP_KNIFE)
+			    && ((!BotCarryingFlag(bs->enemy)
+			         && !((long double)enemydist >= (long double)BotWeaponRange(bs, bs->weaponnum) * BotWeaponRange(bs, bs->weaponnum)))
+			        || !(enemydist >= SQR(64))))
+#else
 			if ((bs->weaponnum != WP_KNIFE) && ((!BotCarryingFlag(bs->enemy) && (enemydist < SQR(BotWeaponRange(bs, bs->weaponnum)))) || (enemydist < SQR(64))))
+#endif
 			{
 				// make sure it is safe to attack
 				if (BotCheckAttack(bs))
@@ -7225,7 +7244,17 @@ int AINode_MP_Battle_Chase(bot_state_t *bs)
 		bs->chase_time = 0;
 	}
 	//if there's no chase time left
+#if defined(__linux__)
+	qboolean chaseExpired = !(bs->chase_time < 0.0f || bs->chase_time > 0.0f);
+	if (!chaseExpired)
+	{
+		long double chaseDeadline = (long double)trap_AAS_Time() - 10.0L;
+		chaseExpired = chaseDeadline > bs->chase_time;
+	}
+	if (chaseExpired)
+#else
 	if (!bs->chase_time || bs->chase_time < trap_AAS_Time() - 10)
+#endif
 	{
 		bs->ignore_specialgoal_time = 0;
 		BotDefaultNode(bs);
@@ -7281,7 +7310,11 @@ int AINode_MP_Battle_Chase(bot_state_t *bs)
 			{
 				bs->altenemy = bs->enemy;
 				// attack and keep moving
+#if defined(__linux__)
+				if (fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL)) > 0.0L)
+#else
 				if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL))
+#endif
 				{
 					//choose the best weapon to fight with
 					BotChooseWeapon(bs);
@@ -7317,11 +7350,20 @@ int AINode_MP_Battle_Chase(bot_state_t *bs)
 				vectoangles(dir, bs->ideal_viewangles);
 			}
 			//FIXME: look at cluster portals?
+#if defined(__linux__)
+			else if (fabsl(TCE_VectorLengthSquaredValue(moveresult.movedir)) > 0.0L)
+#else
 			else if (VectorLengthSquared(moveresult.movedir))
+#endif
 			{
 				vectoangles(moveresult.movedir, bs->ideal_viewangles);
 			}
+#if defined(__linux__)
+			else if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0)
+			         < (long double)(double)0.8 * bs->thinktime)
+#else
 			else if (random() < bs->thinktime * 0.8)
+#endif
 			{
 				BotRoamGoal(bs, target);
 				VectorSubtract(target, bs->origin, dir);
