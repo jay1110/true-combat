@@ -6836,7 +6836,11 @@ int AINode_MP_Battle_Fight(bot_state_t *bs)
 	// if using MOBILE MG42, conditionally go into special prone mode
 	if (bs->weaponnum == WP_MOBILE_MG42)
 	{
+#if defined(__linux__)
+		if (BotDistanceSquaredValue(bs->origin, BotGetOrigin(bs->enemy)) > SQR(700))
+#else
 		if (VectorDistanceSquared(bs->origin, BotGetOrigin(bs->enemy)) > SQR(700))
+#endif
 		{
 			vec3_t  dir, ang, mountedWeaponAngles;
 			trace_t tr;
@@ -6849,7 +6853,11 @@ int AINode_MP_Battle_Fight(bot_state_t *bs)
 			VectorCopy(bs->origin, end);
 			end[2] -= 40;
 			trap_Trace(&tr, bs->origin, vec3_origin, vec3_origin, end, bs->client, MASK_PLAYERSOLID);
+#if defined(__linux__)
+			if (!(tr.fraction >= 1.0f))
+#else
 			if (tr.fraction < 1.f)
+#endif
 			{
 				vec3_t axis[3], forward, right;
 
@@ -6898,11 +6906,24 @@ int AINode_MP_Battle_Fight(bot_state_t *bs)
 	}
 	//
 	BotEntityInfo(bs->enemy, &entinfo);
+#if defined(__linux__)
+	enemydist = (float)BotDistanceSquaredValue(bs->origin, entinfo.origin);
+#else
 	enemydist = VectorDistanceSquared(bs->origin, entinfo.origin);
+#endif
 	//if the enemy is dead
+#if defined(__linux__)
+	if (bs->enemydeath_time < 0.0f || bs->enemydeath_time > 0.0f)
+#else
 	if (bs->enemydeath_time)
+#endif
 	{
+#if defined(__linux__)
+		long double deathTime = bs->enemydeath_time;
+		if (!(deathTime >= (long double)trap_AAS_Time() - (long double)(double)0.3))
+#else
 		if (bs->enemydeath_time < trap_AAS_Time() - 0.3)
+#endif
 		{
 			bs->ignore_specialgoal_time = 0;
 			bs->enemydeath_time         = 0;
@@ -6922,7 +6943,11 @@ int AINode_MP_Battle_Fight(bot_state_t *bs)
 	//if the enemy is invisible and not shooting the bot looses track easily
 	if (EntityIsInvisible(&entinfo) && !EntityIsShooting(&entinfo))
 	{
+#if defined(__linux__)
+		if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) < (long double)(double)0.2)
+#else
 		if (random() < 0.2)
+#endif
 		{
 			BotDefaultNode(bs);
 			return qfalse;
@@ -6938,7 +6963,11 @@ int AINode_MP_Battle_Fight(bot_state_t *bs)
 	//update the attack inventory values
 	BotUpdateBattleInventory(bs, bs->enemy);
 	// get in real close to enemy flag carriers
+#if defined(__linux__)
+	if (BotCarryingFlag(bs->enemy) && BotDistanceSquaredValue(bs->origin, bs->lastenemyorigin) > SQR(72))
+#else
 	if (BotCarryingFlag(bs->enemy) && VectorDistanceSquared(bs->origin, bs->lastenemyorigin) > SQR(72))
+#endif
 	{
 		if (trap_AAS_AreaTravelTimeToGoalArea(bs->areanum, bs->origin, bs->lastenemyareanum, bs->tfl))
 		{
@@ -6947,7 +6976,18 @@ int AINode_MP_Battle_Fight(bot_state_t *bs)
 		}
 	}
 	//if the enemy is not visible, or is too far away
+#if defined(__linux__)
+	long double weaponRangeSquared = 0.0L;
+	if (bs->weaponnum != WP_KNIFE)
+	{
+		float firstRange = BotWeaponRange(bs, bs->weaponnum);
+		weaponRangeSquared = (long double)BotWeaponRange(bs, bs->weaponnum) * firstRange;
+	}
+	if ((bs->weaponnum == WP_KNIFE) || ((long double)enemydist > weaponRangeSquared)
+	    || !(fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL)) > 0.0L))
+#else
 	if ((bs->weaponnum == WP_KNIFE) || (enemydist > SQR(BotWeaponRange(bs, bs->weaponnum))) || !BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL))
+#endif
 	{
 		if (BotWantsToChase(bs))
 		{
