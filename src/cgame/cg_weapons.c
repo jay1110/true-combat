@@ -4746,90 +4746,53 @@ void CG_MortarEFX(centity_t *cent)
 CG_WeaponFireRecoil
 ==============
 */
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__GNUC__) && defined(__i386__) && defined(__linux__))
-static void CG_TCEWeaponFireRecoil857(int weapon);
-#endif
 void CG_WeaponFireRecoil(int weapon)
 {
-//	const	vec3_t maxKickAngles = {25, 30, 25};
-	float  pitchRecoilAdd, pitchAdd;
-	float  yawRandom;
-	vec3_t recoil;
-	if (gearDef.parsed)
-	{
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__GNUC__) && defined(__i386__) && defined(__linux__))
-		CG_TCEWeaponFireRecoil857(weapon);
+	float       pitch = 0.0f, yawScale = 0.0f;
+	long double yaw;
+#if defined(_WIN32)
+	float negativeYaw;
 #else
-		TCE_CG_WeaponFireRecoil(weapon, cg.kickAVel);
+	float storedYaw;
 #endif
-		return;
-	}
-	//
-	pitchRecoilAdd = 0;
-	pitchAdd       = 0;
-	yawRandom      = 0;
-	//
+
 	switch (weapon)
 	{
-	case WP_LUGER:
-	case WP_SILENCER:
-	case WP_AKIMBO_LUGER:
-	case WP_AKIMBO_SILENCEDLUGER:
-	case WP_COLT:
-	case WP_SILENCED_COLT:
-	case WP_AKIMBO_COLT:
-	case WP_AKIMBO_SILENCEDCOLT:
-		//pitchAdd = 2+rand()%3;
-		//yawRandom = 2;
+	case 2: case 7: case 14: case 37: case 38:
+	case 52: case 53: case 54: case 65:
 		break;
-	case WP_GARAND:
-	case WP_KAR98:
-	case WP_CARBINE:
-	case WP_K43:
-		//pitchAdd = 4+rand()%3;
-		//yawRandom = 4;
-		pitchAdd  = 2;  //----(SA)	for DM
-		yawRandom = 1;  //----(SA)	for DM
+	case 3: case 8: case 10: case 31: case 33: case 41: case 59: case 62:
+		pitch    = (float)((long double)(rand() % 3 + 1) * (long double)0.3);
+		yawScale = 0.6f;
 		break;
-	case WP_GARAND_SCOPE:
-	case WP_K43_SCOPE:
-		pitchAdd = 0.3;
+	case 23: case 24: case 25: case 32:
+		pitch    = 2.0f;
+		yawScale = 1.0f;
 		break;
-	case WP_FG42SCOPE:
-	case WP_FG42:
-	case WP_MOBILE_MG42:
-	case WP_MOBILE_MG42_SET:
-	case WP_MP40:
-	case WP_THOMPSON:
-	case WP_STEN:
-		//pitchRecoilAdd = 1;
-		pitchAdd  = 1 + rand() % 3;
-		yawRandom = 2;
-
-
-		pitchAdd  *= 0.3;
-		yawRandom *= 0.3;
-		break;
-	case WP_PANZERFAUST:
-		//pitchAdd = 12+rand()%3;
-		//yawRandom = 6;
-
-		// push the player back instead
+	case 57: case 58:
+		pitch = 0.3f;
 		break;
 	default:
 		return;
 	}
-	// calc the recoil
-	recoil[YAW]   = crandom() * yawRandom;
-	recoil[ROLL]  = -recoil[YAW];   // why not
-	recoil[PITCH] = -pitchAdd;
-	// scale it up a bit (easier to modify this while tweaking)
-	VectorScale(recoil, 30, recoil);
 
-	// set the recoil
-	VectorCopy(recoil, cg.kickAVel);
-	// set the recoil
-	cg.recoilPitch -= pitchRecoilAdd;
+	yaw = (long double)(rand() & 0x7fff) *
+	      (long double)3.0518509447574615e-05f - 0.5L;
+	yaw = (yaw + yaw) * (long double)yawScale;
+#if defined(_WIN32)
+	/* Windows rounds the negative lane before scaling, but retains yaw. */
+	negativeYaw        = (float)-yaw;
+	cg.kickAVel[YAW]   = (float)(yaw * 30.0L);
+	cg.kickAVel[PITCH] = (float)(-(long double)pitch * 30.0L);
+	cg.kickAVel[ROLL]  = (float)((long double)negativeYaw * 30.0L);
+#else
+	/* Linux spills yaw before producing both signed lanes. */
+	storedYaw          = (float)yaw;
+	cg.kickAVel[PITCH] = (float)(-(long double)pitch * 30.0L);
+	cg.kickAVel[YAW]   = (float)((long double)storedYaw * 30.0L);
+	cg.kickAVel[ROLL]  = (float)(-(long double)storedYaw * 30.0L);
+	cg.recoilPitch     = (float)((long double)cg.recoilPitch - 0.0L);
+#endif
 }
 
 
@@ -5199,56 +5162,7 @@ void CG_EliteEffectSound(centity_t *cent, int volume)
  * structures and immutable media remain distinct from live entity re-reads.
  * Other targets keep the established SDK/numeric fallback. */
 
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__GNUC__) && defined(__i386__) && defined(__linux__))
-static void CG_TCEWeaponFireRecoil857(int weapon)
-{
-	float       pitch = 0.0f, yawScale = 0.0f;
-	long double yaw;
-#if defined(_WIN32)
-	float negativeYaw;
-#else
-	float storedYaw;
-#endif
 
-	switch (weapon)
-	{
-	case 2: case 7: case 14: case 37: case 38:
-	case 52: case 53: case 54: case 65:
-		break;
-	case 3: case 8: case 10: case 31: case 33: case 41: case 59: case 62:
-		pitch    = (float)((long double)(rand() % 3 + 1) * (long double)0.3);
-		yawScale = 0.6f;
-		break;
-	case 23: case 24: case 25: case 32:
-		pitch    = 2.0f;
-		yawScale = 1.0f;
-		break;
-	case 57: case 58:
-		pitch = 0.3f;
-		break;
-	default:
-		return;
-	}
-
-	yaw = (long double)(rand() & 0x7fff) *
-	      (long double)3.0518509447574615e-05f - 0.5L;
-	yaw = (yaw + yaw) * (long double)yawScale;
-#if defined(_WIN32)
-	/* Windows rounds the negative lane before scaling, but retains yaw. */
-	negativeYaw        = (float)-yaw;
-	cg.kickAVel[YAW]   = (float)(yaw * 30.0L);
-	cg.kickAVel[PITCH] = (float)(-(long double)pitch * 30.0L);
-	cg.kickAVel[ROLL]  = (float)((long double)negativeYaw * 30.0L);
-#else
-	/* Linux spills yaw before producing both signed lanes. */
-	storedYaw          = (float)yaw;
-	cg.kickAVel[PITCH] = (float)(-(long double)pitch * 30.0L);
-	cg.kickAVel[YAW]   = (float)((long double)storedYaw * 30.0L);
-	cg.kickAVel[ROLL]  = (float)(-(long double)storedYaw * 30.0L);
-	cg.recoilPitch     = (float)((long double)cg.recoilPitch - 0.0L);
-#endif
-}
-#endif
 
 #if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__GNUC__) && defined(__i386__) && defined(__linux__))
 void CG_FireWeapon(centity_t *cent)
