@@ -8007,6 +8007,11 @@ BotDirectMoveToGoal
 */
 qboolean BotDirectMoveToGoal(bot_state_t *bs, bot_goal_t *goal, bot_moveresult_t *moveresult)
 {
+#if defined(__linux__)
+	const int shotMask = MASK_SHOT | CONTENTS_MISSILECLIP;
+#else
+	const int shotMask = MASK_SHOT;
+#endif
 	vec3_t           dir;
 	aas_clientmove_t move;
 	trace_t          tr;
@@ -8058,7 +8063,7 @@ qboolean BotDirectMoveToGoal(bot_state_t *bs, bot_goal_t *goal, bot_moveresult_t
 			}
 			// check against other players/bots
 			//		TAT 2/3/2003 - you can be blocked by stuff that isn't a player - changing trace mask to include other stuff
-			trap_Trace(&tr, bs->origin, bs->cur_ps.mins, bs->cur_ps.maxs, goal->origin, bs->client, MASK_SHOT /*CONTENTS_BODY*/);
+			trap_Trace(&tr, bs->origin, bs->cur_ps.mins, bs->cur_ps.maxs, goal->origin, bs->client, shotMask /*CONTENTS_BODY*/);
 			if (tr.fraction < .99f && VectorDistanceSquared(bs->origin, tr.endpos) < SQR(30) && tr.entityNum != ENTITYNUM_WORLD) // best not be worldspawn
 			{
 				// blocked, avoid them
