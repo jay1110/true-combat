@@ -2758,11 +2758,10 @@ void G_GlobalClientEvent(int event, int param, int client)
 Weapon_Artillery
 ==================
 */
-/* Extracted TC artillery arithmetic; original parent remains under audit.
- * Broad C stages model retained values, not exact x87 precision/flags. */
+/* Native artillery arithmetic stages; C does not reproduce x87 exception flags. */
 static int G_TCEArtilleryChargeTime(int artilleryTime, int artilleryCharge)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 	const float artilleryFraction = 0.66f;
 	long double value             = (long double)artilleryCharge * (long double)artilleryFraction;
 	value = value + (long double)artilleryTime;
@@ -2774,12 +2773,20 @@ static int G_TCEArtilleryChargeTime(int artilleryTime, int artilleryCharge)
 
 static int G_TCEArtilleryShellTime(int artilleryIndex)
 {
-	int          artilleryRandom = rand() & 0x7fff;
+#if defined(__linux__) && !defined(Q3_VM)
+	int artilleryRandom;
+#else
+	int artilleryRandom = rand() & 0x7fff;
+#endif
 	unsigned int baseBits        = (unsigned int)level.time + 8950u
 	                               + 2000u * (unsigned int)artilleryIndex;
 	int artilleryBase;
 	memcpy(&artilleryBase, &baseBits, sizeof(artilleryBase));
-#if defined(_MSC_VER) && defined(_M_IX86)
+
+#if defined(__linux__) && !defined(Q3_VM)
+	artilleryRandom = rand() & 0x7fff;
+#endif
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 	{
 		const float artilleryReciprocal = 3.0518509447574615e-05f;
 		long double value               = (long double)artilleryRandom * (long double)artilleryReciprocal;
@@ -2797,7 +2804,7 @@ static int G_TCEArtilleryShellTime(int artilleryIndex)
 static void G_TCEArtilleryOffset(float *artilleryDestination, double artilleryRadius)
 {
 	int artilleryRandom = rand() & 0x7fff;
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 	const float artilleryReciprocal = 3.0518509447574615e-05f;
 	long double value               = (long double)artilleryRandom * (long double)artilleryReciprocal;
 	value                                   = value - 0.5L;
@@ -2812,7 +2819,17 @@ static void G_TCEArtilleryOffset(float *artilleryDestination, double artilleryRa
 static void G_TCEArtilleryAim(vec3_t artilleryMuzzle, int artilleryHeight,
                               const vec3_t artilleryForward, vec3_t artilleryEnd)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(__linux__) && !defined(Q3_VM)
+	int axis;
+	long double height = (long double)artilleryMuzzle[2] + artilleryHeight;
+	((volatile float *)artilleryMuzzle)[2] = (float)height;
+	for (axis = 0; axis < 3; ++axis)
+	{
+		long double origin = axis == 2 ? height : (long double)artilleryMuzzle[axis];
+		long double value = (long double)artilleryForward[axis] * 8192.0L;
+		((volatile float *)artilleryEnd)[axis] = (float)(value + origin);
+	}
+#elif defined(_MSC_VER) && defined(_M_IX86)
 	int         axis;
 	long double value = (long double)artilleryHeight + (long double)artilleryMuzzle[2];
 	((volatile float *)artilleryMuzzle)[2] = (float)value;
