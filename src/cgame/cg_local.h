@@ -2852,6 +2852,9 @@ void CG_RumbleEfx(float pitch, float yaw);
 void CG_ApplyCameraShakeToVec(vec3_t origin);
 
 void InitSmokeSprites(void);
+#if defined(__linux__) && !defined(Q3_VM)
+qboolean CG_SpawnSmokeSprite(centity_t *cent, float dist);
+#endif
 void CG_AddSmokeSprites(void);
 
 //

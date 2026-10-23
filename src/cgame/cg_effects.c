@@ -1640,6 +1640,76 @@ static smokesprite_t *DeAllocSmokeSprite(smokesprite_t *dealloc)
 	return(ret_smokesprite);
 }
 
+#if defined(__linux__) && !defined(Q3_VM)
+qboolean CG_SpawnSmokeSprite(centity_t *cent, float dist)
+{
+	smokesprite_t *sprite;
+	long double scale, scaledDist, size, limit;
+	int axis;
+
+	if (SmokeSpriteCount >= MAX_SMOKESPRITES)
+	{
+		return qtrue;
+	}
+	sprite = firstfreesmokesprite;
+	firstfreesmokesprite = sprite->next;
+	if (lastusedsmokesprite)
+	{
+		lastusedsmokesprite->next = sprite;
+	}
+	sprite->next = NULL;
+	sprite->prev = lastusedsmokesprite;
+	++SmokeSpriteCount;
+	lastusedsmokesprite = sprite;
+
+	sprite->smokebomb = cent;
+	VectorCopy(cent->origin2, sprite->pos);
+	/* Each component consumes its own random direction, as in the SDK. */
+	for (axis = 0; axis < 3; ++axis)
+	{
+		sprite->dir[axis] = bytedirs[rand() % NUMVERTEXNORMALS][axis];
+	}
+	sprite->colour[3] = .8f;
+	sprite->colour[0] = .7f;
+	sprite->size = 8.0f;
+	sprite->colour[1] = .7f;
+	sprite->colour[2] = .7f;
+	sprite->birthTime = cg.time;
+	for (axis = 0; axis < 3; ++axis)
+	{
+		sprite->pos[axis] = (float)((long double)dist * sprite->dir[axis]
+		                           + sprite->pos[axis]);
+	}
+
+	/* TC removes the SDK solid trace and retains the expansion operands
+	 * through both stores and the size comparison. */
+	scale = tceSmokeNewBBox == 1 ? 1.25L : 1.0L;
+	scaledDist = (long double)dist * scale;
+	sprite->dist = (float)((long double)sprite->dist + scaledDist);
+	limit = scale * 100.0L;
+	size = scaledDist * 1.25L + sprite->size;
+	sprite->size = (float)size;
+	if (size > limit)
+	{
+		sprite->size = (float)limit;
+	}
+	cent->miscTime = (int)((unsigned int)cent->miscTime + 1u);
+	if (sprite->dir[2] > .9f)
+	{
+		sprite->directionClass = 2;
+	}
+	else if (sprite->dir[2] > .8f)
+	{
+		sprite->directionClass = 1;
+	}
+	else
+	{
+		sprite->directionClass = sprite->dir[2] > .5f ? 3 : 0;
+	}
+	return qtrue;
+}
+#endif
+
 /* TC3002dc70: free expansion, no SDK solid trace. */
 static qboolean CG_SmokeSpritePhysics(smokesprite_t *smokesprite, const float dist)
 {
