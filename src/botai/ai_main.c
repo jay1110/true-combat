@@ -1640,11 +1640,13 @@ int BotAISetupClient(int client, struct bot_settings_s *settings)
 		return qfalse;
 	}
 
+#if !defined(__linux__)
 	if (!trap_AAS_Initialized())
 	{
 		BotAI_Print(PRT_FATAL, "AAS not initialized\n");
 		//	return qfalse;
 	}
+#endif
 
 	//load the bot character
 	bs->character = trap_BotLoadCharacter(settings->characterfile, settings->skill);
