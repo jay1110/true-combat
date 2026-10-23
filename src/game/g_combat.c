@@ -591,7 +591,11 @@ void player_die(gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int 
 	if (attacker)
 	{
 		killer     = attacker->s.number;
+#if defined(__linux__)
+		killerName = (attacker->client) ? attacker->client->pers.netname : "<non-client>";
+#else
 		killerName = (attacker->client) ? attacker->client->pers.netname : "<non_client>";
+#endif
 	}
 
 	if (attacker == 0 || killer < 0 || killer >= MAX_CLIENTS)
@@ -606,7 +610,11 @@ void player_die(gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int 
 
 		if (meansOfDeath < 0 || meansOfDeath >= sizeof(modNames) / sizeof(modNames[0]))
 		{
+#if defined(__linux__)
+			obit = "<bad obituary>";
+#else
 			obit = "<bad_obituary>";
+#endif
 		}
 		else
 		{
@@ -663,14 +671,31 @@ void player_die(gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int 
 				continue;
 			}
 			VectorCopy(client->ps.origin, eye);
+#if defined(__linux__)
+			eye[2] = (float)((long double)eye[2] + client->ps.viewheight);
+#else
 			eye[2] += client->ps.viewheight;
+#endif
 			AngleVectors(client->ps.viewangles, forward, NULL, NULL);
 			VectorSubtract(self->r.currentOrigin, eye, direction);
 			distance = VectorNormalize(direction);
-			if (DotProduct(forward, direction) > .71f)
+			if (
+#if defined(__linux__)
+			    ((long double)forward[0] * direction[0] + (long double)forward[1] * direction[1]) +
+			    (long double)forward[2] * direction[2] > (long double).71f
+#else
+			    DotProduct(forward, direction) > .71f
+#endif
+			    )
 			{
 				trap_Trace(&tr, eye, NULL, NULL, self->r.currentOrigin, client->ps.clientNum, CONTENTS_SOLID);
-				if (tr.fraction >= 1.f && distance < nearestDistance)
+				if (tr.fraction >= 1.f &&
+#if defined(__linux__)
+				    !(nearestDistance <= distance)
+#else
+				    distance < nearestDistance
+#endif
+				    )
 				{
 					nearestDistance = distance;
 					nearest         = i;
@@ -687,11 +712,22 @@ void player_die(gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int 
 		vec3_t  eye, direction, forward;
 		trace_t tr;
 		VectorCopy(attacker->client->ps.origin, eye);
+#if defined(__linux__)
+		eye[2] = (float)((long double)eye[2] + attacker->client->ps.viewheight);
+#else
 		eye[2] += attacker->client->ps.viewheight;
+#endif
 		AngleVectors(attacker->client->ps.viewangles, forward, NULL, NULL);
 		VectorSubtract(self->r.currentOrigin, eye, direction);
 		VectorNormalize(direction);
-		if (DotProduct(forward, direction) >= .71f)
+		if (
+#if defined(__linux__)
+		    ((long double)forward[0] * direction[0] + (long double)forward[1] * direction[1]) +
+		    (long double)forward[2] * direction[2] >= (long double).71f
+#else
+		    DotProduct(forward, direction) >= .71f
+#endif
+		    )
 		{
 			trap_Trace(&tr, eye, NULL, NULL, self->r.currentOrigin, attacker->client->ps.clientNum, CONTENTS_SOLID);
 			if (tr.fraction >= 1.f)
@@ -710,12 +746,21 @@ void player_die(gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int 
 	{
 		vec3_t launchvel, launchspot;
 
+#if defined(__linux__)
+		/* Linux stores the doubled XY components, but retains Z through scaling. */
+		launchvel[0] = (float)(((long double)(rand() & 0x7fff) * 3.0518509447574615e-05f - .5L) * 2.0L);
+		launchvel[1] = (float)(((long double)(rand() & 0x7fff) * 3.0518509447574615e-05f - .5L) * 2.0L);
+		launchvel[2] = (float)((long double)(rand() & 0x7fff) * 3.0518509447574615e-05f * 160.0L);
+		launchvel[0] *= 160.f;
+		launchvel[1] *= 160.f;
+#else
 		launchvel[0]  = (float)(rand() & 0x7fff) * 3.0518509447574615e-05f - .5f;
 		launchvel[0] += launchvel[0];
 		launchvel[1]  = (float)(rand() & 0x7fff) * 3.0518509447574615e-05f - .5f;
 		launchvel[1] += launchvel[1];
 		launchvel[2]  = (float)(rand() & 0x7fff) * 3.0518509447574615e-05f;
 		VectorScale(launchvel, 160, launchvel);
+#endif
 		VectorCopy(self->r.currentOrigin, launchspot);
 		launchspot[2] += 40;
 
@@ -854,7 +899,13 @@ void player_die(gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int 
 		trace_t   tr;
 		gentity_t *flag;
 		VectorCopy(self->client->ps.viewangles, angles);
-		if (angles[PITCH] < -30.f)
+		if (
+#if defined(__linux__)
+		    !(angles[PITCH] >= -30.f)
+#else
+		    angles[PITCH] < -30.f
+#endif
+		    )
 		{
 			angles[PITCH] = -30.f;
 		}
@@ -865,9 +916,17 @@ void player_die(gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int 
 		angles[YAW] -= 135.f;
 		AngleVectors(angles, forward, NULL, NULL);
 		VectorScale(forward, 16.f, offset);
+#if defined(__linux__)
+		offset[2] = (float)((long double)forward[2] * 16.0L + (long double)self->client->ps.viewheight * .5L);
+#else
 		offset[2] += self->client->ps.viewheight * .5f;
+#endif
 		VectorScale(forward, 64.f, velocity);
+#if defined(__linux__)
+		velocity[2] = (float)(((long double)(rand() & 0x7fff) * 0.0010681478306651115f + 50.0L) + velocity[2]);
+#else
 		velocity[2] = (float)(rand() & 0x7fff) * 3.0518509447574615e-05f * 35.f + velocity[2] + 50.f;
+#endif
 		VectorAdd(self->client->ps.origin, offset, origin);
 		trap_Trace(&tr, self->client->ps.origin, mins, maxs, origin, self->s.number, CONTENTS_SOLID);
 		flag                    = LaunchItem(item, tr.endpos, velocity, self->s.number);
