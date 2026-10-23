@@ -1001,9 +1001,23 @@ void ClientTimerActions(gentity_t *ent, int msec)
 				int     axis;
 				AngleVectors(player->client->ps.viewangles, forward, NULL, NULL);
 				VectorCopy(player->r.currentOrigin, start);
+#if defined(__linux__) && !defined(Q3_VM)
+				{
+					/* ELF stores start Z but keeps the unrounded sum for end Z. */
+					long double eyeHeight = (long double)player->r.currentOrigin[2]
+					                        + (long double)player->client->ps.viewheight;
+					start[2] = (float)eyeHeight;
+					for (axis = 0; axis < 3; axis++)
+					{
+						long double origin = axis == 2 ? eyeHeight : (long double)start[axis];
+						end[axis] = (float)((long double)forward[axis] * 8192.0L + origin);
+					}
+				}
+#else
 				start[2] = (float)((double)player->client->ps.viewheight + player->r.currentOrigin[2]);
 				for (axis = 0; axis < 3; axis++)
 					end[axis] = (float)((double)forward[axis] * 8192.0 + start[axis]);
+#endif
 				trap_Trace(&tr, start, NULL, NULL, end, player->s.number, 1);
 				node = TCE_FindClosestNodeToPoint(player, tr.endpos);
 				TCE_ShowNode((int)node, 1);
