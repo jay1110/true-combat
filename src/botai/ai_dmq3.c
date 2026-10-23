@@ -4151,6 +4151,11 @@ Find a new target for bots in multiplayer
 */
 int BotFindEnemyMP(bot_state_t *bs, int curenemy, qboolean ignoreViewRestrictions)
 {
+#if defined(__linux__)
+	const int panzerWeapon = TCE_ITEM_WEAPON_PANZERFAUST;
+#else
+	const int panzerWeapon = WP_PANZERFAUST;
+#endif
 	int              i, healthdecrease, j;
 	float            fov, dist, curdist, alertness, easyfragger, vis;
 	aas_entityinfo_t entinfo, curenemyinfo;
@@ -4209,7 +4214,7 @@ int BotFindEnemyMP(bot_state_t *bs, int curenemy, qboolean ignoreViewRestriction
 //	if (BotFindLeadersEnemy( bs, curenemy, &entinfo))
 //		return qtrue;
 
-	BotSortClientsByDistance(bs->origin, distanceSorted, COM_BitCheck(bs->cur_ps.weapons, WP_PANZERFAUST));
+	BotSortClientsByDistance(bs->origin, distanceSorted, COM_BitCheck(bs->cur_ps.weapons, panzerWeapon));
 
 	//
 	heardShooting  = qfalse;
@@ -4290,7 +4295,7 @@ int BotFindEnemyMP(bot_state_t *bs, int curenemy, qboolean ignoreViewRestriction
 		vectoangles(dir, ang);
 
 		// Gordon: if using panzerfaust, attack guys on mg42s more readily
-		if (COM_BitCheck(bs->cur_ps.weapons, WP_PANZERFAUST) && (g_entities[j].client->ps.eFlags & EF_MG42_ACTIVE))
+		if (COM_BitCheck(bs->cur_ps.weapons, panzerWeapon) && (g_entities[j].client->ps.eFlags & EF_MG42_ACTIVE))
 		{
 			dist /= 3;
 		}
@@ -4326,7 +4331,11 @@ int BotFindEnemyMP(bot_state_t *bs, int curenemy, qboolean ignoreViewRestriction
 		}
 		else
 		{
+#if defined(__linux__)
+			fov = 90 + 270 - ((dist <= 810 ? dist : 810) / 3);
+#else
 			fov = 90 + 270 - ((dist > 810 ? 810 : dist) / 3);
+#endif
 		}
 
 		// RF, smaller fov with sniperrifle
@@ -4365,7 +4374,11 @@ int BotFindEnemyMP(bot_state_t *bs, int curenemy, qboolean ignoreViewRestriction
 		vis = BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, fov, j, NULL);
 
 		// If we're not visible, and we're not heard, skip out
+#if defined(__linux__)
+		if (!(vis > 0) && !heardShooting && !heardFootSteps)
+#else
 		if ((vis <= 0) && !heardShooting && !heardFootSteps)
+#endif
 		{
 			continue;
 		}
