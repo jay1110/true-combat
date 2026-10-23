@@ -1080,7 +1080,11 @@ void CG_SpecHelpDraw()
 
 		int  i, x, y = 480, w, h;
 		int  len, maxlen = 0;
+#if defined(__linux__) && !defined(Q3_VM)
+		char format[256], buf[256];
+#else
 		char format[MAX_STRING_TOKENS], buf[MAX_STRING_TOKENS];
+#endif
 		char *lines[16];
 
 		vec4_t bgColor     = COLOR_BG;              // window
@@ -1103,7 +1107,12 @@ void CG_SpecHelpDraw()
 		fontInfo_t *tFont   = FONT_TEXT;
 		vec4_t     tColor   = COLOR_TEXT;   // text
 
+#if defined(__linux__) && !defined(Q3_VM)
+		int now = trap_Milliseconds();
+		float diff = (float)TCE_SubInt32(cg.fadeTime, now);
+#else
 		float diff = cg.fadeTime - trap_Milliseconds();
+#endif
 
 
 		// FIXME: Should compute all this stuff beforehand
@@ -1149,7 +1158,11 @@ void CG_SpecHelpDraw()
 		// Fade-in effects
 		if (diff > 0.0f)
 		{
+#if defined(__linux__) && !defined(Q3_VM)
+			long double scale = (long double)diff * 0.005f;
+#else
 			float scale = (diff / STATS_FADE_TIME);
+#endif
 
 			if (cg.spechelpWindow == SHOW_ON)
 			{
@@ -1163,7 +1176,11 @@ void CG_SpecHelpDraw()
 			hdrColor2[3]        *= scale;
 			tColor[3]           *= scale;
 
+#if defined(__linux__) && !defined(Q3_VM)
+			x = TCE_TruncateNativeInteger(2.0L - (float)w * (1.0L - scale));
+#else
 			x -= w * (1.0f - scale);
+#endif
 
 		}
 		else if (cg.spechelpWindow == SHOW_SHUTDOWN)
