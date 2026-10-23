@@ -320,6 +320,12 @@ static int G_TCECameraQuantize(int cameraValue, unsigned int cameraFactorBits,
                                int cameraDivisor, qboolean cameraAddOne, qboolean cameraDivide)
 {
 	float cameraFactor;
+#if defined(__linux__) && !defined(Q3_VM)
+	if (cameraFactorBits == 0x3d70f0f1u)
+	{
+		cameraFactorBits = 0x3d70f0f2u;
+	}
+#endif
 	memcpy(&cameraFactor, &cameraFactorBits, sizeof(cameraFactor));
 #if defined(_MSC_VER) && defined(_M_IX86)
 	long double value = (long double)cameraValue * cameraFactor;
@@ -333,6 +339,22 @@ static int G_TCECameraQuantize(int cameraValue, unsigned int cameraFactorBits,
 		value += 1.0L;
 	}
 	return TCE_TruncateNativeInteger(value);
+#elif defined(__linux__) && !defined(Q3_VM)
+	long double value = (long double)cameraValue * cameraFactor;
+	double rounded;
+
+	if (cameraDivide)
+	{
+		/* Linux x87 computes the reciprocal before multiplying the value. */
+		value *= 1.0L / (long double)cameraDivisor;
+	}
+	rounded = (double)floorl(value);
+	value = (long double)rounded;
+	if (cameraAddOne)
+	{
+		value += 1.0L;
+	}
+	return TCE_TruncateNativeInteger(value);
 #else
 	return (int)(floor((double)cameraValue * cameraFactor /
 	                   (cameraDivide ? cameraDivisor : 1)) + (cameraAddOne ? 1.0 : 0.0));
@@ -341,7 +363,7 @@ static int G_TCECameraQuantize(int cameraValue, unsigned int cameraFactorBits,
 
 static int G_TCECameraCharge(float cameraChargeValue)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 	return TCE_TruncateNativeInteger((long double)cameraChargeValue);
 #else
 	return (int)cameraChargeValue;

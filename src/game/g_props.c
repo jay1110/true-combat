@@ -55,18 +55,34 @@ void DropToFloor(gentity_t *ent)
 
 void moveit(gentity_t *ent, float yaw, float dist)
 {
+#if !defined(__linux__) || defined(Q3_VM)
 	double  radians;
 	float   xMove;
+#endif
 	vec3_t  origin;
 	trace_t tr;
 	vec3_t  mins, maxs;
 
+#if defined(__linux__) && !defined(Q3_VM)
+	{
+		vec3_t move;
+
+		/* The Linux SDK path rounds yaw and both displacements to float. */
+		yaw = yaw * M_PI * 2 / 360;
+		move[0] = cos(yaw) * dist;
+		move[1] = sin(yaw) * dist;
+		move[2] = 0;
+		VectorAdd(ent->r.currentOrigin, move, origin);
+	}
+#else
 	/* TC 20076400: binary32 degree factor, with an X-only displacement spill. */
 	radians   = (double)yaw * (double)0.01745329238474369f;
 	xMove     = (float)(cos(radians) * (double)dist);
 	origin[0] = (float)((double)xMove + ent->r.currentOrigin[0]);
 	origin[1] = (float)(sin(radians) * (double)dist + ent->r.currentOrigin[1]);
 	origin[2] = ent->r.currentOrigin[2];
+
+#endif
 
 	mins[0] = ent->r.mins[0];
 	mins[1] = ent->r.mins[1];
@@ -555,7 +571,11 @@ void propExplosionLarge(gentity_t *ent)
 	bolt->splashRadius        = ent->health * 1.5;
 	bolt->methodOfDeath       = MOD_GRENADE;
 	bolt->splashMethodOfDeath = MOD_GRENADE;
+#if defined(__linux__) && !defined(Q3_VM)
+	bolt->clipmask            = MASK_MISSILESHOT;
+#else
 	bolt->clipmask            = MASK_SHOT;
+#endif
 
 	VectorCopy(ent->r.currentOrigin, bolt->s.pos.trBase);
 	VectorCopy(ent->r.currentOrigin, bolt->r.currentOrigin);
@@ -1079,12 +1099,28 @@ void Props_Activated(gentity_t *self)
 		G_AddEvent(owner, EV_GENERAL_SOUND, snd_chairthrow);
 
 		AngleVectors(owner->client->ps.viewangles, velocity, NULL, NULL);
+#if defined(__linux__) && !defined(Q3_VM)
+		{
+			double vertical = (double)velocity[2] * 250.0;
+			long double impulse;
+
+			velocity[0] = (float)((double)velocity[0] * 250.0);
+			velocity[1] = (float)((double)velocity[1] * 250.0);
+			velocity[2] = (float)vertical;
+			impulse = (long double)(rand() & 0x7fff) *
+			          (long double)0.000030518509447574615f - 0.5L;
+			impulse += impulse;
+			velocity[2] = (float)((impulse * 25.0L + 100.0L) +
+			                      (long double)vertical);
+		}
+#else
 		VectorScale(velocity, 250, velocity);
 		/* TC 20077651..20077673 keeps the masked RNG reciprocal product
 		 * through the ordered additions before storing the vertical speed. */
 		velocity[2] = (float)((((double)(rand() & 0x7fff) *
 		                        (double)0.000030518509447574615f - 0.5) * 2.0 * 25.0 +
 		                       (double)velocity[2]) + 100.0);
+#endif
 		VectorCopy(velocity, self->s.pos.trDelta);
 
 		self->think     = NULL;
@@ -1292,7 +1328,12 @@ qboolean Prop_Touch(gentity_t *self, gentity_t *other, vec3_t v)
 	vectoangles(v, angle);
 	angle[0] = 0;
 	AngleVectors(angle, forward, NULL, NULL);
+#if defined(__linux__) && !defined(Q3_VM)
+	VectorClear(dest);
+	VectorMA(dest, 128, forward, dest);
+#else
 	VectorScale(forward, 128, dest);
+#endif
 	/* TC stores each endpoint once; Z includes the lift before its store. */
 	end[0] = (float)((double)forward[0] * 32.0 + self->r.currentOrigin[0]);
 	end[1] = (float)((double)forward[1] * 32.0 + self->r.currentOrigin[1]);
@@ -2175,7 +2216,11 @@ qboolean validOilSlickSpawnPoint(vec3_t point, gentity_t *ent)
 	VectorCopy(point, end);
 	end[2] -= 9999;
 
+#if defined(__linux__) && !defined(Q3_VM)
+	trap_Trace(&tr, point, NULL, NULL, end, ent->s.number, MASK_MISSILESHOT);
+#else
 	trap_Trace(&tr, point, NULL, NULL, end, ent->s.number, MASK_SHOT);
+#endif
 
 	traceEnt = &g_entities[tr.entityNum];
 
@@ -3589,6 +3634,9 @@ void SP_props_decoration(gentity_t *ent)
 		G_SpawnString("high", "0", &high);
 		parsedDimension = atof(high);
 		height          = (float)parsedDimension;
+#if defined(__linux__) && !defined(Q3_VM)
+		parsedDimension = (double)height;
+#endif
 
 		/* TC tests the atof result before its binary32 height store. */
 		if (parsedDimension == 0.0 || parsedDimension != parsedDimension)
@@ -3598,6 +3646,9 @@ void SP_props_decoration(gentity_t *ent)
 
 		G_SpawnString("wide", "0", &wide);
 		parsedDimension = atof(wide);
+#if defined(__linux__) && !defined(Q3_VM)
+		parsedDimension = (double)(float)parsedDimension;
+#endif
 
 		if (parsedDimension == 0.0 || parsedDimension != parsedDimension)
 		{
@@ -3618,6 +3669,9 @@ void SP_props_decoration(gentity_t *ent)
 
 		G_SpawnString("frames", "0", &frames);
 		num_frames = atof(frames);
+#if defined(__linux__) && !defined(Q3_VM)
+		num_frames = (double)(float)num_frames;
+#endif
 
 		ent->count2 = num_frames;
 
@@ -3633,6 +3687,9 @@ void SP_props_decoration(gentity_t *ent)
 	{
 		G_SpawnString("frames", "0", &frames);
 		num_frames = atof(frames);
+#if defined(__linux__) && !defined(Q3_VM)
+		num_frames = (double)(float)num_frames;
+#endif
 
 		ent->count2 = num_frames;
 		ent->use    = Use_props_decoration;
@@ -4594,6 +4651,9 @@ void SP_props_flamethrower(gentity_t *ent)
 
 	G_SpawnString("size", "0", &size);
 	dsize = atof(size);
+#if defined(__linux__) && !defined(Q3_VM)
+	dsize = (double)(float)dsize;
+#endif
 	if (dsize == 0.0 || dsize != dsize)
 	{
 		dsize = 1;
