@@ -3012,9 +3012,56 @@ static void CG_MessageState(tce_hud_messages_t *s, tce_hud_messages_api_t *a)
 }
 static void CG_DrawLimboMessage(void)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	extern qboolean tce_uiCoordinates;
+	qboolean previous;
+	playerState_t *ps = &cg.snap->ps;
+	vec4_t white = { 1, 1, 1, 1 };
+	const char *key, *text, *format;
+	if (ps->stats[STAT_HEALTH] > 0 || (ps->pm_flags & PMF_LIMBO) ||
+	    cgs.clientinfo[cg.clientNum].team == TEAM_SPECTATOR ||
+	    !cg_descriptiveText.integer || cgs.gametype == 5)
+	{
+		return;
+	}
+	previous = tce_uiCoordinates;
+	tce_uiCoordinates = qtrue;
+	if (cgs.gametype == 7 || cgs.gametype == 2)
+	{
+		key = BindingFromName("openlimbomenu");
+		if (!Q_stricmp(key, "(openlimbomenu)"))
+		{
+			key = "ESCAPE";
+		}
+		format = CG_TranslateString("Press %s to open Deploment Menu");
+		text = va(format, key);
+		CG_Text_Paint_Ext(8, 154, .2f, .2f, colorWhite, text, 0, 0, 3, &cgs.media.limboFont1);
+		key = BindingFromName("+moveup");
+		format = CG_TranslateString("Press %s to go into reinforcement queue");
+		text = va(format, key);
+		CG_Text_Paint_Ext(8, 168, .2f, .2f, colorWhite, text, 0, 0, 3, &cgs.media.limboFont1);
+	}
+	else
+	{
+		if (!ps->persistant[PERS_RESPAWNS_LEFT])
+		{
+			text = CG_TranslateString("No more reinforcements this round.");
+		}
+		else
+		{
+			int seconds = CG_CalculateReinfTime(qfalse);
+			format = CG_TranslateString("Reinforcements deploy in %d seconds.");
+			text = va(format, seconds);
+		}
+		CG_DrawSmallStringColor(8, 118, text, white);
+	}
+	trap_R_SetColor(NULL);
+	tce_uiCoordinates = previous;
+#else
 	extern qboolean    tce_uiCoordinates; qboolean previous = tce_uiCoordinates;
 	tce_hud_messages_t s; tce_hud_messages_api_t a; CG_MessageState(&s, &a);
 	tce_uiCoordinates = qtrue; TCE_DrawLimboMessage(&s, &a); tce_uiCoordinates = previous;
+#endif
 }
 static qboolean CG_DrawFollow(void)
 {
@@ -4635,12 +4682,48 @@ CG_Draw2D
 */
 static void CG_DrawLevelshotFade(void)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	extern qboolean tce_uiCoordinates;
+	qboolean previous;
+	vec4_t black = { 0, 0, 0, 0 }, white = { 1, 1, 1, 0 };
+	long double alpha;
+	int elapsed;
+	if (!cg.snap)
+	{
+		return;
+	}
+	elapsed = TCE_SubInt32(cg.time, cg.levelshotFadeStart);
+	if (elapsed > 2000)
+	{
+		return;
+	}
+	alpha = 1.0L - (1.0L / 2000) * elapsed;
+	black[3] = (float)alpha;
+	if (alpha < 0.0L)
+	{
+		black[3] = 0.0f;
+	}
+	if (black[3] > 1.0f)
+	{
+		black[3] = 1.0f;
+	}
+	white[3] = black[3];
+	previous = tce_uiCoordinates;
+	tce_uiCoordinates = qtrue;
+	trap_R_SetColor(white);
+	CG_DrawPic(0, 58, 854, 364, cgs.media.levelshotShader);
+	trap_R_SetColor(NULL);
+	CG_FillRect(-5, -85, 862, 143, black);
+	CG_FillRect(-5, 422, 862, 143, black);
+	tce_uiCoordinates = previous;
+#else
 	extern qboolean tce_uiCoordinates;
 	qboolean previous = tce_uiCoordinates;
 	tce_uiCoordinates = qtrue;
 	TCE_DrawLevelshotFade(cg.snap != NULL, cg.time, cg.levelshotFadeStart,
 	                      cgs.media.levelshotShader, trap_R_SetColor, CG_DrawPic, CG_FillRect);
 	tce_uiCoordinates = previous;
+#endif
 }
 
 /* Complete TC300217d0 / Linux000499e4. The description is team objective0,
