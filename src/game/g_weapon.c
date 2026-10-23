@@ -1990,11 +1990,32 @@ void Weapon_Engineer(gentity_t *ent)
 	}
 	AngleVectors(ent->client->ps.viewangles, forward, right, up);
 	VectorCopy(ent->client->ps.origin, muzzleTrace);
+#if defined(__linux__) && !defined(Q3_VM)
+	{
+		int axis;
+		long double height = (long double)muzzleTrace[2] + ent->client->ps.viewheight;
+		((volatile float *)muzzleTrace)[2] = (float)height;
+		for (axis = 0; axis < 3; ++axis)
+		{
+			long double base = axis == 2 ? height : (long double)muzzleTrace[axis];
+			((volatile float *)end)[axis] = (float)(base + (long double)forward[axis] * 64.0L);
+		}
+	}
+#else
 	muzzleTrace[2] += ent->client->ps.viewheight;
 	VectorMA(muzzleTrace, 64, forward, end);
+#endif
 	if (!ent->client->tceDefuseActive)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		trap_EngineerTrace(&tr, muzzleTrace, NULL, NULL, end, ent->s.number, MASK_MISSILESHOT);
+		if (TCE_FloatIsNaN(tr.fraction))
+		{
+			return;
+		}
+#else
 		trap_EngineerTrace(&tr, muzzleTrace, NULL, NULL, end, ent->s.number, MASK_SHOT);
+#endif
 		if ((tr.surfaceFlags & SURF_NOIMPACT) || tr.fraction == 1.0f ||
 		    tr.entityNum == ENTITYNUM_NONE || tr.entityNum == ENTITYNUM_WORLD)
 		{
@@ -2017,9 +2038,17 @@ void Weapon_Engineer(gentity_t *ent)
 				trap_SendServerCommand((int)(ent - g_entities), "cp \"Your team has too many landmines placed...\" 1");
 				G_FreeEntity(traceEnt);
 				Add_Ammo(ent, WP_LANDMINE, 1, qfalse);
+#if defined(__linux__) && !defined(Q3_VM)
+				{
+					float fraction = ent->client->sess.skill[SK_EXPLOSIVES_AND_CONSTRUCTION] >= 3 ? .33f : .5f;
+					long double refund = (long double)level.engineerChargeTime[ent->client->sess.sessionTeam - 1] * fraction;
+					ent->client->ps.classWeaponTime = TCE_TruncateNativeInteger((long double)ent->client->ps.classWeaponTime - refund);
+				}
+#else
 				ent->client->ps.classWeaponTime -=
 					(ent->client->sess.skill[SK_EXPLOSIVES_AND_CONSTRUCTION] >= 3 ? .33f : .5f) *
 					level.engineerChargeTime[ent->client->sess.sessionTeam - 1];
+#endif
 				ent->client->sess.aWeaponStats[WS_LANDMINE].atts--;
 				return;
 			}
@@ -2125,7 +2154,11 @@ void Weapon_Engineer(gentity_t *ent)
 			}
 		}
 		VectorCopy(traceEnt->r.currentOrigin, origin);
+#if defined(__linux__) && !defined(Q3_VM)
+		G_TCEConstructionSnap(origin);
+#else
 		SnapVector(origin);
+#endif
 		VectorAdd(origin, traceEnt->r.mins, mins);
 		VectorAdd(origin, traceEnt->r.maxs, maxs);
 		num = trap_EntitiesInBox(mins, maxs, touch, MAX_GENTITIES);
@@ -2166,7 +2199,11 @@ void Weapon_Engineer(gentity_t *ent)
 		traceEnt->nextthink     = level.time + 30000;
 		traceEnt->think         = G_ExplodeMissile;
 		VectorCopy(traceEnt->r.currentOrigin, origin);
+#if defined(__linux__) && !defined(Q3_VM)
+		G_TCEConstructionSnap(origin);
+#else
 		SnapVector(origin);
+#endif
 		VectorAdd(origin, traceEnt->r.mins, mins);
 		VectorAdd(origin, traceEnt->r.maxs, maxs);
 		num = trap_EntitiesInBox(mins, maxs, touch, MAX_GENTITIES);
@@ -2268,7 +2305,11 @@ void Weapon_Engineer(gentity_t *ent)
 	traceEnt->think     = G_FreeEntity;
 	traceEnt->nextthink = level.time + FRAMETIME;
 	VectorCopy(traceEnt->r.currentOrigin, origin);
+#if defined(__linux__) && !defined(Q3_VM)
+	G_TCEConstructionSnap(origin);
+#else
 	SnapVector(origin);
+#endif
 	VectorAdd(origin, traceEnt->r.mins, mins);
 	VectorAdd(origin, traceEnt->r.maxs, maxs);
 	num = trap_EntitiesInBox(mins, maxs, touch, MAX_GENTITIES);
