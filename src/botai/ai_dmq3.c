@@ -8741,6 +8741,13 @@ BotEntityWithinView
 */
 qboolean BotEntityWithinView(bot_state_t *bs, int viewEnt)
 {
+#if defined(__linux__)
+	const int mortarSetWeapon = TCE_ITEM_WEAPON_MORTAR_SET;
+	const int mg42SetWeapon   = TCE_ITEM_WEAPON_MOBILE_MG42_SET;
+#else
+	const int mortarSetWeapon = WP_MORTAR_SET;
+	const int mg42SetWeapon   = WP_MOBILE_MG42_SET;
+#endif
 	vec3_t     dir, ang;
 	pmoveExt_t *pmExt;
 	float      arcMin, arcMax, arcDiff, yawDiff, pitchDiff;
@@ -8809,7 +8816,7 @@ qboolean BotEntityWithinView(bot_state_t *bs, int viewEnt)
 			}
 		}
 	}
-	else if (bs->cur_ps.weapon == WP_MORTAR_SET)
+	else if (bs->cur_ps.weapon == mortarSetWeapon)
 	{
 		// yaw
 		yawDiff = ang[YAW] - pmExt->mountedWeaponAngles[YAW];
@@ -8857,7 +8864,7 @@ qboolean BotEntityWithinView(bot_state_t *bs, int viewEnt)
 	{
 
 		// Check if we are allowed to rotate to there
-		if (bs->cur_ps.weapon == WP_MOBILE_MG42_SET)
+		if (bs->cur_ps.weapon == mg42SetWeapon)
 		{
 			pitchMax = 20.f;
 
