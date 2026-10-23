@@ -244,7 +244,15 @@ void AIEnter_MP_Respawn(bot_state_t *bs)
 	trap_BotResetGoalState(bs->gs);
 	trap_BotResetAvoidGoals(bs->gs);
 	trap_BotResetAvoidReach(bs->ms);
+#if defined(__linux__)
+	{
+		float respawnBase = (float)((long double)trap_AAS_Time() + 1.0L);
+		long double randomDelay = (long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0);
+		bs->respawn_time = (float)((long double)respawnBase + randomDelay);
+	}
+#else
 	bs->respawn_time     = trap_AAS_Time() + 1 + random();
+#endif
 	bs->respawnchat_time = 0;
 	//
 	bs->flags         &= ~BFL_MISCFLAG;
