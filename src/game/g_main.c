@@ -4345,7 +4345,11 @@ qboolean G_PositionEntityOnTag(gentity_t *entity, gentity_t *parent, char *tagNa
 	int           i;
 	orientation_t tag;
 	vec3_t        axis[3];
+#if defined(__linux__) && !defined(Q3_VM)
+	long double   tagOrigin[3];
+#else
 	double        tagOrigin[3];
+#endif
 	AnglesToAxis(parent->r.currentAngles, axis);
 
 	VectorCopy(parent->r.currentOrigin, entity->r.currentOrigin);
@@ -4355,6 +4359,21 @@ qboolean G_PositionEntityOnTag(gentity_t *entity, gentity_t *parent, char *tagNa
 		return qfalse;
 	}
 
+#if defined(__linux__) && !defined(Q3_VM)
+	/* Linux retains X/Y throughout, but stores Z after each axis. */
+	tagOrigin[0] = entity->r.currentOrigin[0];
+	tagOrigin[1] = entity->r.currentOrigin[1];
+	for (i = 0; i < 3; ++i)
+	{
+		tagOrigin[0] += (long double)tag.origin[i] * axis[i][0];
+		tagOrigin[1] += (long double)tag.origin[i] * axis[i][1];
+		tagOrigin[2] = (long double)tag.origin[i] * axis[i][2] +
+		               entity->r.currentOrigin[2];
+		entity->r.currentOrigin[2] = (float)tagOrigin[2];
+	}
+	entity->r.currentOrigin[1] = (float)tagOrigin[1];
+	entity->r.currentOrigin[0] = (float)tagOrigin[0];
+#else
 	/* TC 20063ce6 retains the three sums until all tag axes are applied. */
 	for ( i = 0; i < 3; ++i )
 	{
@@ -4371,6 +4390,8 @@ qboolean G_PositionEntityOnTag(gentity_t *entity, gentity_t *parent, char *tagNa
 		entity->r.currentOrigin[i] = (float)tagOrigin[i];
 	}
 
+#endif
+
 	if (entity->client && entity->s.eFlags & EF_MOUNTEDTANK)
 	{
 		// zinx - moved tank hack to here
@@ -4382,9 +4403,16 @@ qboolean G_PositionEntityOnTag(gentity_t *entity, gentity_t *parent, char *tagNa
 		// player attaches to tag_playerpo[mg42upper] at:
 		// 3.265625, -1.359375, 2.96875
 		// this is a hack, by the way.
+#if defined(__linux__) && !defined(Q3_VM)
+		/* The final held values survive the preceding float stores. */
+		entity->r.currentOrigin[0] = (float)(tagOrigin[0] + 3.296875L);
+		entity->r.currentOrigin[1] = (float)(tagOrigin[1] - 2.53125L);
+		entity->r.currentOrigin[2] = (float)(tagOrigin[2] + 30.953125L);
+#else
 		entity->r.currentOrigin[0] += 0.03125 + 3.265625;
 		entity->r.currentOrigin[1] += -1.171875 + -1.359375;
 		entity->r.currentOrigin[2] += 27.984375 + 2.96875;
+#endif
 	}
 
 	G_SetOrigin(entity, entity->r.currentOrigin);
