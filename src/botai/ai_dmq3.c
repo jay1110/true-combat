@@ -3769,6 +3769,7 @@ float BotGetEntitySurfaceSoundCoefficient(int clientNum)
 	{
 		return 0;
 	}
+#if defined(_WIN32)
 	if (g_entities[clientNum].surfaceFlags & SURF_METAL)
 	{
 		return 2.0f;
@@ -3803,6 +3804,7 @@ float BotGetEntitySurfaceSoundCoefficient(int clientNum)
 	{
 		return 0.9f;
 	}
+#endif
 	return 1.0f;
 }
 
