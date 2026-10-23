@@ -740,10 +740,17 @@ go to a random point that doesn't telefrag
 #define MAX_TEAM_SPAWN_POINTS   256
 /* Windows200a0c00 returns its FSQRT value in x87 without a float spill.
  * The selector loop compares that value with a stored float threshold. */
+#if defined(__linux__) && !defined(Q3_VM)
+static long double TCE_SpawnDistance(const vec3_t delta)
+{
+	return TCE_VectorLengthValue(delta);
+}
+#else
 static double TCE_SpawnDistance(const vec3_t delta)
 {
 	return sqrt((double)delta[0] * delta[0] + (double)delta[1] * delta[1] + (double)delta[2] * delta[2]);
 }
+#endif
 /* TC Windows2008df60: preferred entity, hostage and reinforcement-group selection. */
 gentity_t *SelectRandomTeamSpawnPoint(int teamstate, team_t team, int spawnObjective, int preferredEntity, qboolean hostage)
 {
@@ -751,7 +758,11 @@ gentity_t *SelectRandomTeamSpawnPoint(int teamstate, team_t team, int spawnObjec
 	char      *classname;
 	int       count = 0, pass, i, closest = 0, delta;
 	float     shortest;
-	double    distance, group;
+#if defined(__linux__) && !defined(Q3_VM)
+	long double distance, group;
+#else
+	double distance, group;
+#endif
 	vec3_t    target, offset;
 	if (!hostage && g_gametype.integer == 7 && level.tceCustomDMSpawns)
 	{
@@ -857,6 +868,24 @@ gentity_t *SelectRandomTeamSpawnPoint(int teamstate, team_t team, int spawnObjec
 	}
 	VectorCopy(level.spawntargets[spawnObjective - 1], target);
 	VectorSubtract(target, spots[0]->s.origin, offset);
+#if defined(__linux__) && !defined(Q3_VM)
+	distance = TCE_SpawnDistance(offset);
+	if ((g_gametype.integer == 2 || g_gametype.integer == 7) && !spots[0]->tceObjectiveScore && level.tceSpawnPhase > 0)
+	{
+		distance += 16000.0L;
+	}
+	delta = TCE_SubInt32(spots[0]->tceObjectiveScore, level.tceSpawnPhase);
+	if (spots[0]->tceObjectiveScore && delta)
+	{
+		group = delta;
+		if (group < 0)
+		{
+			group = .5 - group;
+		}
+		distance = distance + group * 2048.0L;
+	}
+	shortest = (float)distance;
+#else
 	shortest = (float)TCE_SpawnDistance(offset);
 	if ((g_gametype.integer == 2 || g_gametype.integer == 7) && !spots[0]->tceObjectiveScore && level.tceSpawnPhase > 0)
 	{
@@ -872,6 +901,7 @@ gentity_t *SelectRandomTeamSpawnPoint(int teamstate, team_t team, int spawnObjec
 		}
 		shortest = (float)(shortest + group * 2048.f);
 	}
+#endif
 	for (i = 0; i < count; ++i)
 	{
 		VectorSubtract(target, spots[i]->s.origin, offset);
