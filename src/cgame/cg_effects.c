@@ -316,6 +316,50 @@ CG_AddBloodTrails
 void CG_AddBloodTrails(vec3_t origin, vec3_t dir, int speed, int duration,
                        int count, float randScale, vec3_t color)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	int i, j;
+	float speedValue;
+	if (count <= 0)
+	{
+		return;
+	}
+	speedValue = (float)speed;
+	for (i = 0; i < count; ++i)
+	{
+		localEntity_t *le = CG_AllocLocalEntity();
+		vec3_t velocity;
+		for (j = 0; j < 3; ++j)
+		{
+			long double direction = dir[j];
+			long double noise = (long double)(rand() & 32767) * (1.0f / 32767.0f);
+			noise -= .5L;
+			noise += noise;
+			velocity[j] = (float)(noise * (long double)randScale + direction);
+		}
+		for (j = 0; j < 3; ++j)
+		{
+			velocity[j] = (float)((long double)speedValue * velocity[j]);
+		}
+		le->leType = LE_BLOOD;
+		le->startTime = cg.time;
+		le->endTime = TCE_AddInt32(cg.time, duration);
+		le->lastTrailTime = cg.time;
+		VectorCopy(origin, le->refEntity.origin);
+		AxisCopy(axisDefault, le->refEntity.axis);
+		le->pos.trType = TR_GRAVITY_LOW;
+		VectorCopy(origin, le->pos.trBase);
+		for (j = 0; j < 3; ++j)
+		{
+			long double spread = (long double)(rand() & 32767) * (4.0f / 32767.0f);
+			spread += 2.0L;
+			le->pos.trBase[j] = (float)(spread * dir[j] + le->pos.trBase[j]);
+		}
+		VectorCopy(velocity, le->pos.trDelta);
+		le->bounceFactor = .9f;
+		le->pos.trTime = cg.time;
+		VectorCopy(color, le->color);
+	}
+#else
 	int i, j;
 	for (i = 0; i < count; ++i)
 	{
@@ -338,6 +382,7 @@ void CG_AddBloodTrails(vec3_t origin, vec3_t dir, int speed, int duration,
 		le->pos.trTime   = cg.time;
 		VectorCopy(color, le->color);
 	}
+#endif
 }
 
 /* Windows3002be80: one two/three-particle spurt, not four SDK spurts. */
