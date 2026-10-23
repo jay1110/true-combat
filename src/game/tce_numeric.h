@@ -10,6 +10,16 @@ typedef char tceNumericLayout_t[(sizeof(int) == 4 && sizeof(unsigned) == 4 &&
                                  INT_MAX == 2147483647 && INT_MIN == (-2147483647 - 1) &&
                                  FLT_RADIX == 2 && FLT_MANT_DIG == 24 && FLT_MAX_EXP == 128) ? 1 : -1];
 
+/* Interpret a native counter's low 32 bits as a signed value. */
+static __inline int TCE_Int32FromUnsigned(unsigned value)
+{
+	if (value <= (unsigned)INT_MAX)
+	{
+		return (int)value;
+	}
+	return -1 - (int)(UINT_MAX - value);
+}
+
 /* Model a native 32-bit ADD without signed overflow or out-of-range casts. */
 static __inline int TCE_AddInt32(int left, int right)
 {

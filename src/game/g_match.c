@@ -239,7 +239,13 @@ void G_addStats(gentity_t *targ, gentity_t *attacker, int dmg_ref, int mod)
 	{
 		if (mod < MOD_CROSS && attacker && attacker->client)
 		{
+#if defined(__linux__) && !defined(Q3_VM)
+			unsigned *attempts = &attacker->client->sess.aWeaponStats[G_weapStatIndex_MOD(mod)].atts;
+			int x = TCE_Int32FromUnsigned(*attempts);
+			--*attempts;
+#else
 			int x = attacker->client->sess.aWeaponStats[G_weapStatIndex_MOD(mod)].atts--;
+#endif
 			if (x < 1)
 			{
 				attacker->client->sess.aWeaponStats[G_weapStatIndex_MOD(mod)].atts = 1;
@@ -263,7 +269,11 @@ void G_addStats(gentity_t *targ, gentity_t *attacker, int dmg_ref, int mod)
 	{
 		if (targ->health <= 0)
 		{
+#if defined(__linux__) && !defined(Q3_VM)
+			targ->client->sess.suicides = TCE_AddInt32(targ->client->sess.suicides, 1);
+#else
 			targ->client->sess.suicides++;
+#endif
 		}
 #ifdef DEBUG_STATS
 		if (!attacker || !attacker->client)
@@ -285,10 +295,18 @@ void G_addStats(gentity_t *targ, gentity_t *attacker, int dmg_ref, int mod)
 	if (g_gametype.integer >= GT_WOLF &&
 	    targ->client->sess.sessionTeam == attacker->client->sess.sessionTeam)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		attacker->client->sess.team_damage = TCE_AddInt32(attacker->client->sess.team_damage, dmg);
+#else
 		attacker->client->sess.team_damage += dmg;
+#endif
 		if (targ->health <= 0)
 		{
+#if defined(__linux__) && !defined(Q3_VM)
+			attacker->client->sess.team_kills = TCE_AddInt32(attacker->client->sess.team_kills, 1);
+#else
 			attacker->client->sess.team_kills++;
+#endif
 		}
 #ifndef DEBUG_STATS
 		return;
@@ -298,12 +316,28 @@ void G_addStats(gentity_t *targ, gentity_t *attacker, int dmg_ref, int mod)
 	// General player stats
 	if (mod != MOD_SYRINGE)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		attacker->client->sess.damage_given = TCE_AddInt32(attacker->client->sess.damage_given, dmg);
+#else
 		attacker->client->sess.damage_given += dmg;
+#endif
+#if defined(__linux__) && !defined(Q3_VM)
+		targ->client->sess.damage_received = TCE_AddInt32(targ->client->sess.damage_received, dmg);
+#else
 		targ->client->sess.damage_received  += dmg;
+#endif
 		if (targ->health <= 0)
 		{
+#if defined(__linux__) && !defined(Q3_VM)
+			attacker->client->sess.kills = TCE_AddInt32(attacker->client->sess.kills, 1);
+#else
 			attacker->client->sess.kills++;
+#endif
+#if defined(__linux__) && !defined(Q3_VM)
+			targ->client->sess.deaths = TCE_AddInt32(targ->client->sess.deaths, 1);
+#else
 			targ->client->sess.deaths++;
+#endif
 		}
 	}
 
@@ -457,10 +491,19 @@ char *G_createStats(gentity_t *refEnt)
 		    refEnt->client->sess.aWeaponStats[i].deaths)
 		{
 			dwWeaponMask |= (1 << i);
+#if defined(__linux__) && !defined(Q3_VM)
+			Q_strcat(strWeapInfo, sizeof(strWeapInfo), va(" %d %d %d %d %d",
+			             TCE_Int32FromUnsigned(refEnt->client->sess.aWeaponStats[i].hits),
+			             TCE_Int32FromUnsigned(refEnt->client->sess.aWeaponStats[i].atts),
+			             TCE_Int32FromUnsigned(refEnt->client->sess.aWeaponStats[i].kills),
+			             TCE_Int32FromUnsigned(refEnt->client->sess.aWeaponStats[i].deaths),
+			             TCE_Int32FromUnsigned(refEnt->client->sess.aWeaponStats[i].headshots)));
+#else
 			Q_strcat(strWeapInfo, sizeof(strWeapInfo), va(" %d %d %d %d %d",
 			                                              refEnt->client->sess.aWeaponStats[i].hits, refEnt->client->sess.aWeaponStats[i].atts,
 			                                              refEnt->client->sess.aWeaponStats[i].kills, refEnt->client->sess.aWeaponStats[i].deaths,
 			                                              refEnt->client->sess.aWeaponStats[i].headshots));
+#endif
 		}
 	}
 
@@ -476,7 +519,12 @@ char *G_createStats(gentity_t *refEnt)
 		if (refEnt->client->sess.skillpoints[i] > 0)
 		{
 			dwSkillPointMask |= (1 << i);
+#if defined(__linux__) && !defined(Q3_VM)
+			Q_strcat(strSkillInfo, sizeof(strSkillInfo),
+			         va(" %d", TCE_TruncateNativeInteger((long double)refEnt->client->sess.skillpoints[i])));
+#else
 			Q_strcat(strSkillInfo, sizeof(strSkillInfo), va(" %d", (int)refEnt->client->sess.skillpoints[i]));
+#endif
 		}
 	}
 
@@ -591,16 +639,56 @@ void G_printMatchInfo(gentity_t *ent)
 			n2[15] = 0;
 
 			ref         = "^7";
+#if defined(__linux__) && !defined(Q3_VM)
+			tot_kills = TCE_AddInt32(tot_kills, cl->sess.kills);
+#else
 			tot_kills  += cl->sess.kills;
+#endif
+#if defined(__linux__) && !defined(Q3_VM)
+			tot_deaths = TCE_AddInt32(tot_deaths, cl->sess.deaths);
+#else
 			tot_deaths += cl->sess.deaths;
+#endif
+#if defined(__linux__) && !defined(Q3_VM)
+			tot_sui = TCE_AddInt32(tot_sui, cl->sess.suicides);
+#else
 			tot_sui    += cl->sess.suicides;
+#endif
+#if defined(__linux__) && !defined(Q3_VM)
+			tot_tk = TCE_AddInt32(tot_tk, cl->sess.team_kills);
+#else
 			tot_tk     += cl->sess.team_kills;
+#endif
+#if defined(__linux__) && !defined(Q3_VM)
+			tot_dg = TCE_AddInt32(tot_dg, cl->sess.damage_given);
+#else
 			tot_dg     += cl->sess.damage_given;
+#endif
+#if defined(__linux__) && !defined(Q3_VM)
+			tot_dr = TCE_AddInt32(tot_dr, cl->sess.damage_received);
+#else
 			tot_dr     += cl->sess.damage_received;
+#endif
+#if defined(__linux__) && !defined(Q3_VM)
+			tot_td = TCE_AddInt32(tot_td, cl->sess.team_damage);
+#else
 			tot_td     += cl->sess.team_damage;
+#endif
+#if defined(__linux__) && !defined(Q3_VM)
+			tot_gp = TCE_AddInt32(tot_gp, cl->sess.game_points);
+#else
 			tot_gp     += cl->sess.game_points;
+#endif
 
+#if defined(__linux__) && !defined(Q3_VM)
+			{
+				int total = TCE_AddInt32(cl->sess.deaths, cl->sess.kills);
+				int product = TCE_Int32FromUnsigned(100u * (unsigned)cl->sess.kills);
+				eff = total ? product / total : 0;
+			}
+#else
 			eff = (cl->sess.deaths + cl->sess.kills == 0) ? 0 : 100 * cl->sess.kills / (cl->sess.deaths + cl->sess.kills);
+#endif
 			if (eff < 0)
 			{
 				eff = 0;
@@ -625,14 +713,27 @@ void G_printMatchInfo(gentity_t *ent)
 			      cl->sess.team_kills,
 			      ref,
 			      eff,
+#if defined(__linux__) && !defined(Q3_VM)
+			      TCE_AddInt32(TCE_TruncateNativeInteger((long double)
+			          cl->sess.skillpoints[BG_WolfClassToTCE(cl->ps.stats[STAT_PLAYER_CLASS])]), 1),
+#else
 			      (int)cl->sess.skillpoints[BG_WolfClassToTCE(cl->ps.stats[STAT_PLAYER_CLASS])] + 1,
+#endif
 			      cl->sess.damage_given,
 			      cl->sess.damage_received,
 			      cl->sess.team_damage,
 			      cl->ps.persistant[PERS_SCORE]));
 		}
 
+#if defined(__linux__) && !defined(Q3_VM)
+		{
+			int total = TCE_AddInt32(tot_kills, tot_deaths);
+			int product = TCE_Int32FromUnsigned(100u * (unsigned)tot_kills);
+			eff = total ? product / total : 0;
+		}
+#else
 		eff = (tot_kills + tot_deaths == 0) ? 0 : 100 * tot_kills / (tot_kills + tot_deaths);
+#endif
 		if (eff < 0)
 		{
 			eff = 0;
@@ -647,7 +748,11 @@ void G_printMatchInfo(gentity_t *ent)
 		      tot_sui,
 		      tot_tk,
 		      eff,
+#if defined(__linux__) && !defined(Q3_VM)
+		      TCE_SubInt32(tot_gp, TCE_Int32FromUnsigned((unsigned)tot_kills * WOLF_FRAG_BONUS)),
+#else
 		      tot_gp - (tot_kills * WOLF_FRAG_BONUS),
+#endif
 		      tot_dg,
 		      tot_dr,
 		      tot_td,
@@ -658,7 +763,7 @@ void G_printMatchInfo(gentity_t *ent)
 }
 
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(__linux__) && !defined(Q3_VM)) || (defined(_MSC_VER) && defined(_M_IX86))
 /* Windows20065f91..200660c3 keeps stopwatch arithmetic in x87 registers.
  * This adapter only supplies the original printf values to G_matchInfoDump. */
 static qboolean G_TCEStopwatchValues(int elapsed, float limitValue, int limitWhole,
@@ -675,9 +780,18 @@ static qboolean G_TCEStopwatchValues(int elapsed, float limitValue, int limitWho
 		return qfalse;
 	}
 
+#if defined(__linux__) && !defined(Q3_VM)
+	/* Linux stores and reloads binary32 minutes before the comparison. */
+	elapsedMinutes = (float)((long double)elapsed * minuteScale);
+#else
 	elapsedMinutes = (long double)elapsed * minuteScale;
-	/* Native C0 includes unordered in the branch that computes the values. */
+#endif
+	/* Windows includes unordered; Linux requires an ordered comparison. */
+#if defined(__linux__) && !defined(Q3_VM)
+	reached = elapsedMinutes < (long double)limitValue;
+#else
 	reached = !(elapsedMinutes >= (long double)limitValue);
+#endif
 	if (reached)
 	{
 		whole = TCE_TruncateNativeInteger(elapsedMinutes);
@@ -758,13 +872,18 @@ void G_matchInfoDump(unsigned int dwDumpType)
 			}
 			if (g_gametype.integer == GT_WOLF_STOPWATCH)
 			{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(__linux__) && !defined(Q3_VM)) || (defined(_MSC_VER) && defined(_M_IX86))
 				int      minutes, seconds, limitSeconds;
 				qboolean firstRound = g_currentRound.integer == 1;
 				int      limitWhole = firstRound ? g_nextTimeLimit.integer : g_timelimit.integer;
 				float    limitValue = firstRound ? g_nextTimeLimit.value : g_timelimit.value;
+#if defined(__linux__) && !defined(Q3_VM)
+				int elapsed = TCE_SubInt32(level.timeCurrent,
+				              TCE_SubInt32(TCE_AddInt32(level.startTime, level.time), level.intermissiontime));
+#else
 				int      elapsed    = (int)((unsigned int)level.timeCurrent - (unsigned int)level.startTime
 				                            - (unsigned int)level.time + (unsigned int)level.intermissiontime);
+#endif
 				qboolean reached = G_TCEStopwatchValues(elapsed, limitValue, limitWhole,
 				                                        !firstRound, &minutes, &seconds, &limitSeconds);
 				if (firstRound)
