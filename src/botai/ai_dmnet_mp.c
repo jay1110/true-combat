@@ -2776,7 +2776,11 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 	ent->botIgnoreTime = 0;     // set this now, only reset it to ignore if we want to ignore it
 	//
 	// if it's the wrong one
+#if defined(__linux__)
+	if (BotDistanceSquaredValue(bs->origin, ent->r.currentOrigin) > SQR(64))
+#else
 	if (VectorDistanceSquared(bs->origin, ent->r.currentOrigin) > SQR(64))
+#endif
 	{
 		trap_EA_Activate(bs->client);
 		return qfalse;
@@ -2881,9 +2885,18 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 		aas_entityinfo_t entinfo;
 		BotEntityInfo(bs->enemy, &entinfo);
 		//if the enemy is dead
+#if defined(__linux__)
+		if (bs->enemydeath_time < 0.0f || bs->enemydeath_time > 0.0f)
+#else
 		if (bs->enemydeath_time)
+#endif
 		{
+#if defined(__linux__)
+			long double deathTime = bs->enemydeath_time;
+			if (!(deathTime >= (long double)trap_AAS_Time() - (long double)(double)0.3))
+#else
 			if (bs->enemydeath_time < trap_AAS_Time() - 0.3)
+#endif
 			{
 				bs->enemydeath_time = 0;
 
@@ -2904,7 +2917,11 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 			VectorSubtract(entinfo.origin, mg42->r.currentOrigin, dir);
 			VectorNormalize(dir);
 			vectoangles(dir, ang);
+#if defined(__linux__)
+			if (fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 120, bs->enemy, NULL)) > 0.0L)
+#else
 			if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 120, bs->enemy, NULL))
+#endif
 			{
 
 #if defined(__linux__)
@@ -2921,7 +2938,11 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 				}
 
 				// if they are real close, abort mg42 mode
+#if defined(__linux__)
+				if (!(BotDistanceSquaredValue(bs->origin, g_entities[bs->enemy].r.currentOrigin) >= SQR(512)))
+#else
 				if (VectorDistanceSquared(bs->origin, g_entities[bs->enemy].r.currentOrigin) < SQR(512))
+#endif
 				{
 					ent->botIgnoreTime = level.time + 5000;
 					AIEnter_MP_Battle_Fight(bs);
@@ -2947,7 +2968,12 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 		//
 		// TODO: cycle through visible enemy sniper spots
 		// NOTE: remember last visible enemy positions, so we can stay on them longer than usual
+#if defined(__linux__)
+		long double positionTime = bs->enemyposition_time;
+		if (positionTime > (long double)trap_AAS_Time() - 5.0L)
+#else
 		if (bs->enemyposition_time > trap_AAS_Time() - 5.0)
+#endif
 		{
 			VectorSubtract(bs->enemyorigin, bs->origin, dir);
 			VectorNormalize(dir);
@@ -2971,20 +2997,54 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 			// use mg42 angles
 			VectorCopy(mg42->s.angles, bs->ideal_viewangles);
 			// add some random angle
+#if defined(__linux__)
+			bs->ideal_viewangles[YAW] = (float)((long double)bs->ideal_viewangles[YAW]
+			    + (((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L)
+			    * mg42->harc * (long double)(double)0.45);
+			bs->ideal_viewangles[PITCH] = (float)((long double)bs->ideal_viewangles[PITCH]
+			    + (((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L)
+			    * mg42->varc * (long double)(double)0.15);
+#else
 			bs->ideal_viewangles[YAW]   += crandom() * mg42->harc * 0.45;
 			bs->ideal_viewangles[PITCH] += crandom() * mg42->varc * 0.15;
+#endif
 			//
 			// trace out to get the ground
 			AngleVectors(bs->ideal_viewangles, dir, NULL, NULL);
+#if defined(__linux__)
+			{
+				int axis;
+				// The native trace end uses the start before its float store.
+				for (axis = 0; axis < 3; ++axis)
+				{
+					long double traceStart = (long double)dir[axis] * 48.0L + mg42->r.currentOrigin[axis];
+					start[axis] = (float)traceStart;
+					end[axis] = (float)(traceStart + (long double)dir[axis] * 4096.0L);
+				}
+			}
+#else
 			VectorMA(mg42->r.currentOrigin, 48, dir, start);
 			VectorMA(start, 4096, dir, end);
+#endif
+#if defined(__linux__)
+			trap_Trace(&tr, start, NULL, NULL, end, bs->client, MASK_MISSILESHOT);
+#else
 			trap_Trace(&tr, start, NULL, NULL, end, bs->client, MASK_SHOT);
+#endif
 			if (tr.fraction > 0.2)
 			{
 				VectorCopy(tr.endpos, start);
 				VectorCopy(tr.endpos, end);
+#if defined(__linux__)
+				end[2] = (float)((long double)end[2] - 1024.0L * tr.fraction);
+#else
 				end[2] -= 1024 * tr.fraction;
+#endif
+#if defined(__linux__)
+				trap_Trace(&tr, start, NULL, NULL, end, bs->client, MASK_MISSILESHOT);
+#else
 				trap_Trace(&tr, start, NULL, NULL, end, bs->client, MASK_SHOT);
+#endif
 				VectorSubtract(tr.endpos, bs->eye, dir);
 				VectorNormalize(dir);
 				vectoangles(dir, bs->ideal_viewangles);
