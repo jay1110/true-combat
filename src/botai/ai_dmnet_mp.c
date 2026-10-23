@@ -4399,7 +4399,11 @@ int AINode_MP_SniperSpot(bot_state_t *bs)
 	}
 
 	// is this spot disabled now?
+#if defined(__linux__)
+	if (((unsigned)ent->aiInactive >> ((unsigned)bs->sess.sessionTeam & 31u)) & 1u)
+#else
 	if (ent->aiInactive & (1 << bs->sess.sessionTeam))
+#endif
 	{
 		if (BotFindSpecialGoals(bs))
 		{
@@ -4427,7 +4431,11 @@ int AINode_MP_SniperSpot(bot_state_t *bs)
 		dir[2] = 0;
 	}
 
+#if defined(__linux__)
+	if (TCE_VectorLengthSquaredValue(dir) > SQR(32))
+#else
 	if (VectorLengthSquared(dir) > SQR(32))
+#endif
 	{
 		//choose the best weapon to fight with
 		BotChooseWeapon(bs);
@@ -4455,7 +4463,18 @@ int AINode_MP_SniperSpot(bot_state_t *bs)
 			}
 			// jump randomly?
 			trap_EA_Jump(bs->client);
+#if defined(__linux__)
+			{
+				/* Native argument evaluation consumes speed, Z, Y, then X. */
+				float speed = (float)((long double)(rand() & 32767) * (long double)(float)(200.0 / 32767.0) + 100.0L);
+				float moveZ = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+				float moveY = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+				float moveX = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+				trap_EA_Move(bs->client, tv(moveX, moveY, moveZ), speed);
+			}
+#else
 			trap_EA_Move(bs->client, tv(crandom(), crandom(), crandom()), 100 + random() * 200);
+#endif
 			// fail
 			bs->ainode     = NULL;
 			bs->ainodeText = "NULL";
@@ -4471,7 +4490,11 @@ int AINode_MP_SniperSpot(bot_state_t *bs)
 		}
 		else if (moveresult.flags & MOVERESULT_WAITING)     //if waiting for something
 		{
+#if defined(__linux__)
+			if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) < (long double)(double)0.8 * bs->thinktime)
+#else
 			if (random() < bs->thinktime * 0.8)
+#endif
 			{
 				BotRoamGoal(bs, target);
 				VectorSubtract(target, bs->origin, dir);
@@ -4481,7 +4504,11 @@ int AINode_MP_SniperSpot(bot_state_t *bs)
 		}
 		else
 		{
+#if defined(__linux__)
+			if (BotDistanceSquaredValue(bs->origin, goal.origin) > SQR(32))
+#else
 			if (VectorDistanceSquared(bs->origin, goal.origin) > SQR(32))
+#endif
 			{
 				// check for enemies
 				if (bs->enemy < 0)
@@ -4494,9 +4521,18 @@ int AINode_MP_SniperSpot(bot_state_t *bs)
 					aas_entityinfo_t entinfo;
 					BotEntityInfo(bs->enemy, &entinfo);
 					//if the enemy is dead
+#if defined(__linux__)
+					if (bs->enemydeath_time < 0.0f || bs->enemydeath_time > 0.0f)
+#else
 					if (bs->enemydeath_time)
+#endif
 					{
+#if defined(__linux__)
+						long double deathTime = bs->enemydeath_time;
+						if (!(deathTime >= (long double)trap_AAS_Time() - (long double)(double)0.3))
+#else
 						if (bs->enemydeath_time < trap_AAS_Time() - 0.3)
+#endif
 						{
 							bs->enemydeath_time    = 0;
 							bs->enemy              = -1;
@@ -4514,7 +4550,11 @@ int AINode_MP_SniperSpot(bot_state_t *bs)
 					if (bs->enemy >= 0)
 					{
 						// attack and keep moving
+#if defined(__linux__)
+						if (fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL)) > 0.0L)
+#else
 						if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL))
+#endif
 						{
 							//choose the best weapon to fight with
 							BotChooseWeapon(bs);
@@ -4545,11 +4585,19 @@ int AINode_MP_SniperSpot(bot_state_t *bs)
 						VectorSubtract(target, bs->origin, dir);
 						vectoangles(dir, bs->ideal_viewangles);
 					}
+#if defined(__linux__)
+					else if (fabsl(TCE_VectorLengthSquaredValue(moveresult.movedir)) > 0.0L)
+#else
 					else if (VectorLengthSquared(moveresult.movedir))     //FIXME: look at cluster portals?
+#endif
 					{
 						vectoangles(moveresult.movedir, bs->ideal_viewangles);
 					}
+#if defined(__linux__)
+					else if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) < (long double)(double)0.8 * bs->thinktime)
+#else
 					else if (random() < bs->thinktime * 0.8)
+#endif
 					{
 						BotRoamGoal(bs, target);
 						VectorSubtract(target, bs->origin, dir);
@@ -4562,7 +4610,11 @@ int AINode_MP_SniperSpot(bot_state_t *bs)
 		}
 	}
 
+#if defined(__linux__)
+	if (!(TCE_VectorLengthSquaredValue(dir) >= SQR(32)))
+#else
 	if (VectorLengthSquared(dir) < SQR(32))
+#endif
 	{
 		// have we been waiting here for too long?
 		if (bs->arrive_time < level.time - 40000)
@@ -4604,10 +4656,18 @@ int AINode_MP_SniperSpot(bot_state_t *bs)
 
 			if (bs->enemy >= 0)
 			{
+#if defined(__linux__)
+				if (fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 50, bs->enemy, NULL)) > 0.0L)
+#else
 				if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 50, bs->enemy, NULL))
+#endif
 				{
 					// if they are real close, abort sniper mode
+#if defined(__linux__)
+					if (!(BotDistanceSquaredValue(bs->origin, g_entities[bs->enemy].r.currentOrigin) >= SQR(512)))
+#else
 					if (VectorDistanceSquared(bs->origin, g_entities[bs->enemy].r.currentOrigin) < SQR(512))
+#endif
 					{
 						AIEnter_MP_Battle_Fight(bs);
 						return qfalse;
@@ -4623,7 +4683,11 @@ int AINode_MP_SniperSpot(bot_state_t *bs)
 					BotAimAtEnemy(bs);
 
 					//attack the enemy if possible
+#if defined(__linux__)
+					if (bs->weaponnum == bs->cur_ps.weapon && fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 5, bs->enemy, NULL)) > 0.0L)
+#else
 					if (bs->weaponnum == bs->cur_ps.weapon && BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 5, bs->enemy, NULL))
+#endif
 					{
 						BotCheckAttack(bs);
 					}
@@ -4636,7 +4700,13 @@ int AINode_MP_SniperSpot(bot_state_t *bs)
 		}
 		else
 		{
+#if defined(__linux__)
 			int spotNum;
+			int selectionRandom;
+			long double enemyPositionTime;
+#else
+			int spotNum;
+#endif
 
 			if (bs->arrive_time < level.time - 20000)
 			{
@@ -4651,7 +4721,12 @@ int AINode_MP_SniperSpot(bot_state_t *bs)
 			}
 
 			// NOTE: remember last visible enemy positions, so we can stay on them longer than usual
+#if defined(__linux__)
+			enemyPositionTime = bs->enemyposition_time;
+			if (enemyPositionTime > (long double)trap_AAS_Time() - 5.0L)
+#else
 			if (bs->enemyposition_time > trap_AAS_Time() - 5.0)
+#endif
 			{
 				VectorSubtract(bs->enemyorigin, bs->origin, dir);
 				VectorNormalize(dir);
@@ -4663,24 +4738,49 @@ int AINode_MP_SniperSpot(bot_state_t *bs)
 				// use same angles
 				//
 			}
+#if defined(__linux__)
+			else if ((selectionRandom = rand(), !(selectionRandom % (1 + BotGetNumVisibleSniperSpots(bs)))) && (spotNum = BotGetRandomVisibleSniperSpot(bs)) > -1)
+#else
 			else if (!(rand() % (1 + BotGetNumVisibleSniperSpots(bs))) && (spotNum = BotGetRandomVisibleSniperSpot(bs)) > -1)
+#endif
 			{
 				// look at new spot
 				VectorSubtract(g_entities[spotNum].s.origin, bs->origin, dir);
 				VectorNormalize(dir);
 				vectoangles(dir, bs->ideal_viewangles);
 				//
+#if defined(__linux__)
+				{
+					int delay = rand() % 3000;
+					bs->viewchangetime = TCE_AddInt32(TCE_AddInt32(level.time, delay), 1500);
+				}
+#else
 				bs->viewchangetime = level.time + 1500 + rand() % 3000;
+#endif
 			}
+#if defined(__linux__)
+			else if ((rand() & 1) && (enemyPositionTime = bs->enemyposition_time,
+			         (enemyPositionTime < 0.0L || enemyPositionTime > 0.0L) &&
+			         enemyPositionTime > (long double)trap_AAS_Time() - 60.0L))
+#else
 			else if (rand() % 2 && bs->enemyposition_time && (bs->enemyposition_time > trap_AAS_Time() - 60.0))
+#endif
 			{
 				// look at last enemy pos
 				VectorSubtract(bs->enemyorigin, bs->origin, dir);
 				// if it's not too far away, use non-zoomed view
+#if defined(__linux__)
+				if (!(TCE_VectorNormalizeValue(dir) >= 3000.0L))
+#else
 				if (VectorNormalize(dir) < 3000)
+#endif
 				{
 					// switch to non-zoomed view
+#if defined(__linux__)
+					if ((unsigned)bs->weaponnum - TCE_ITEM_WEAPON_GPG40 <= TCE_ITEM_WEAPON_FG42SCOPE - TCE_ITEM_WEAPON_GPG40)
+#else
 					if (bs->weaponnum >= WP_BEGINSECONDARY && bs->weaponnum <= WP_LASTSECONDARY)
+#endif
 					{
 						bs->weaponnum = weapAlts[bs->weaponnum];
 					}
@@ -4688,20 +4788,38 @@ int AINode_MP_SniperSpot(bot_state_t *bs)
 				}
 				vectoangles(dir, bs->ideal_viewangles);
 
+#if defined(__linux__)
+				{
+					int delay = rand() % 2000;
+					bs->viewchangetime = TCE_AddInt32(TCE_AddInt32(level.time, delay), 2000);
+				}
+#else
 				bs->viewchangetime = level.time + 2000 + rand() % 2000;
+#endif
 			}
 			else if (!VectorCompare(ent->s.angles, vec3_origin))
 			{
 				// just face direction of sniper spot
 				// switch to non-zoomed view
+#if defined(__linux__)
+				if ((unsigned)bs->weaponnum - TCE_ITEM_WEAPON_GPG40 <= TCE_ITEM_WEAPON_FG42SCOPE - TCE_ITEM_WEAPON_GPG40)
+#else
 				if (bs->weaponnum >= WP_BEGINSECONDARY && bs->weaponnum <= WP_LASTSECONDARY)
+#endif
 				{
 					bs->weaponnum = weapAlts[bs->weaponnum];
 				}
 				trap_EA_SelectWeapon(bs->client, bs->weaponnum);
 				VectorCopy(ent->s.angles, bs->ideal_viewangles);
 				//
+#if defined(__linux__)
+				{
+					int delay = rand() % 3000;
+					bs->viewchangetime = TCE_AddInt32(TCE_AddInt32(level.time, delay), 2500);
+				}
+#else
 				bs->viewchangetime = level.time + 2500 + rand() % 3000;
+#endif
 			}
 		}
 	}
