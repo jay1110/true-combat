@@ -383,7 +383,11 @@ static void CG_StepOffset(void)
 	int timeDelta;
 
 	// smooth out stair climbing
+#if defined(__linux__)
+	timeDelta = TCE_SubInt32(cg.time, cg.stepTime);
+#else
 	timeDelta = cg.time - cg.stepTime;
+#endif
 	// Ridah
 	if (timeDelta < 0)
 	{
@@ -391,7 +395,12 @@ static void CG_StepOffset(void)
 	}
 	if (timeDelta < STEP_TIME)
 	{
+#if defined(__linux__)
+		long double change = (long double)TCE_SubInt32(STEP_TIME, timeDelta) * cg.stepChange * .005f;
+		cg.refdef_current->vieworg[2] = (float)((long double)cg.refdef_current->vieworg[2] - change);
+#else
 		cg.refdef_current->vieworg[2] -= (float)(STEP_TIME - timeDelta) * cg.stepChange * 0.005f;
+#endif
 	}
 }
 
@@ -611,7 +620,12 @@ CG_OffsetFirstPersonView
 static void CG_OffsetFirstPersonView(void)
 {
 	float  *origin = cg.refdef_current->vieworg, *angles = cg.refdefViewAngles;
+#if defined(__linux__)
+	long double delta;
+	float amplitude, lateral, vertical, lean;
+#else
 	float  ratio, delta, amplitude, lateral, vertical, lean, scale;
+#endif
 	vec3_t forward, right, up, point, shotForward;
 	int    duration, elapsed, weapon = cg.snap->ps.weapon;
 	if (cg.snap->ps.pm_type == PM_INTERMISSION)
@@ -633,7 +647,46 @@ static void CG_OffsetFirstPersonView(void)
 		origin[2]   += cg.predictedPlayerState.viewheight; return;
 	}
 	VectorAdd(angles, cg.kick_angles, angles);
-	CG_KickAngles(); VectorAdd(angles, cg.kickAngles, angles);
+	CG_KickAngles();
+#if defined(__linux__)
+	{
+		long double pitch = (long double)cg.kickAngles[PITCH] + angles[PITCH];
+		long double roll = (long double)cg.kickAngles[ROLL] + angles[ROLL];
+		angles[PITCH] = (float)pitch;
+		angles[YAW] = (float)((long double)cg.kickAngles[YAW] + angles[YAW]);
+		angles[ROLL] = (float)roll;
+		if (cg.damageTime != 0)
+		{
+			long double damageElapsed = (long double)cg.time - cg.damageTime;
+			if (damageElapsed < 100.0f)
+			{
+				long double ratio = damageElapsed * .01f;
+				angles[PITCH] = (float)(ratio * cg.v_dmg_pitch + pitch);
+				angles[ROLL] = (float)(ratio * cg.v_dmg_roll + roll);
+			}
+			else
+			{
+				float ratio = (float)(1.0L - (damageElapsed - 100.0f) * .0025f);
+				if (ratio > 0)
+				{
+					angles[PITCH] = (float)((long double)ratio * cg.v_dmg_pitch + angles[PITCH]);
+					angles[ROLL] = (float)((long double)ratio * cg.v_dmg_roll + angles[ROLL]);
+				}
+			}
+		}
+	}
+	{
+		long double pitchSpeed = (long double)cg.predictedPlayerState.velocity[0] * cg.refdef_current->viewaxis[0][0] +
+		                         (long double)cg.predictedPlayerState.velocity[1] * cg.refdef_current->viewaxis[0][1];
+		long double rollSpeed = (long double)cg.predictedPlayerState.velocity[0] * cg.refdef_current->viewaxis[1][0] +
+		                        (long double)cg.predictedPlayerState.velocity[1] * cg.refdef_current->viewaxis[1][1];
+		pitchSpeed += (long double)cg.predictedPlayerState.velocity[2] * cg.refdef_current->viewaxis[0][2];
+		rollSpeed += (long double)cg.predictedPlayerState.velocity[2] * cg.refdef_current->viewaxis[1][2];
+		angles[PITCH] = (float)(pitchSpeed * .002f + angles[PITCH]);
+		angles[ROLL] = (float)((long double)angles[ROLL] - rollSpeed * .005f);
+	}
+#else
+	VectorAdd(angles, cg.kickAngles, angles);
 	if (cg.damageTime)
 	{
 		ratio = (float)cg.time - cg.damageTime;
@@ -653,22 +706,80 @@ static void CG_OffsetFirstPersonView(void)
 	}
 	angles[PITCH] += DotProduct(cg.predictedPlayerState.velocity, cg.refdef_current->viewaxis[0]) * .002f;
 	angles[ROLL]  -= DotProduct(cg.predictedPlayerState.velocity, cg.refdef_current->viewaxis[1]) * .005f;
+#endif
 	AngleVectors(angles, shotForward, right, NULL);
 	if (cg.bobfracsin == 0 && cg.lastvalidBobfracsin > 0)
 	{
+#if defined(__linux__)
+		cg.lastvalidBobfracsin = (float)((long double)cg.lastvalidBobfracsin -
+		                               (long double)cg.frametime * (long double)0.005);
+#else
 		cg.lastvalidBobfracsin -= (float)cg.frametime * .005f;
+#endif
 	}
 	origin[2] += cg.predictedPlayerState.viewheight;
+#if defined(__linux__)
+	elapsed = TCE_SubInt32(cg.time, cg.duckTime);
+	duration = ((cg.predictedPlayerState.eFlags & EF_PRONE) ||
+	            TCE_AddInt32(cg.tceProneTime, cg.time) < 750) ? 750 : 250;
+#else
 	elapsed    = cg.time - cg.duckTime;
 	duration   = ((cg.predictedPlayerState.eFlags & EF_PRONE) || cg.tceProneTime + cg.time < 750)?750:250;
+#endif
 	if (elapsed < 0)
 	{
+#if defined(__linux__)
+		cg.duckTime = TCE_SubInt32(cg.time, duration);
+#else
 		cg.duckTime = cg.time - duration;
+#endif
 	}
 	if (elapsed < duration)
 	{
+#if defined(__linux__)
+		long double change = (long double)TCE_SubInt32(duration, elapsed) * cg.duckChange *
+		                     (duration == 750 ? .0013333333190530539f : .004f);
+		origin[2] = (float)((long double)origin[2] - change);
+#else
 		origin[2] -= (float)(duration - elapsed) * cg.duckChange * (duration == 750?.0013333333190530539f:.004f);
+#endif
 	}
+#if defined(__linux__)
+	{
+		long double stride, strideScale;
+		if (cg.snap->ps.stats[STAT_TCE_WEAPON_FLAGS] & 0x4000)
+		{
+			stride = (long double).06666667014360428f * cg.xyspeed; strideScale = .15f;
+		}
+		else if (cg.predictedPlayerState.eFlags & EF_PRONE)
+		{
+			stride = (long double).03333333507180214f * cg.xyspeed; strideScale = .6f;
+		}
+		else if (cg.predictedPlayerState.pm_flags & PMF_DUCKED)
+		{
+			stride = (long double).03333333507180214f * cg.xyspeed; strideScale = .4f;
+		}
+		else
+		{
+			stride = (long double).0031250000465661287f * cg.xyspeed;
+			stride += stride; strideScale = .1f;
+		}
+		if (stride > 4)
+		{
+			stride = 4;
+		}
+		vertical = (float)(1.0L - (long double)cg.bobfracsin * cg.bobfracsin);
+		lateral = (float)((cg.bobcycle & 1 ? -1.0L : 1.0L) *
+		                  ((long double)cg.bobfracsin * stride * strideScale));
+		amplitude = (float)stride;
+	}
+	right[2] = 0; VectorNormalize(right);
+	origin[0] = (float)((long double)right[0] * lateral + origin[0]);
+	origin[1] = (float)((long double)right[1] * lateral + origin[1]);
+	origin[2] = (float)((long double)lateral * right[2] + origin[2] +
+	                    ((long double)vertical - .2f) * amplitude);
+	delta = TCE_SubInt32(cg.time, cg.landTime);
+#else
 	if (cg.snap->ps.stats[STAT_TCE_WEAPON_FLAGS] & 0x4000)
 	{
 		amplitude = cg.xyspeed * .06666667014360428f; scale = .15f;
@@ -699,22 +810,53 @@ static void CG_OffsetFirstPersonView(void)
 	VectorMA(origin, lateral, right, origin);
 	origin[2] += (vertical - .2f) * amplitude;
 	delta      = (float)(cg.time - cg.landTime);
+#endif
 	if (delta < 0)
 	{
+#if defined(__linux__)
+		cg.landTime = TCE_SubInt32(cg.time, 450);
+#else
 		cg.landTime = cg.time - 450;
+#endif
 	}
 	if (delta < 150)
 	{
+#if defined(__linux__)
+		origin[2] = (float)(delta * .006666666828095913f * cg.landChange + origin[2]);
+#else
 		origin[2] += delta * .006666666828095913f * cg.landChange;
+#endif
 	}
 	else if (delta < 450)
 	{
+#if defined(__linux__)
+		float recovery = (float)(1.0L - (delta - 150.0f) * .0033333334140479565f);
+		origin[2] = (float)((long double)recovery * cg.landChange + origin[2]);
+#else
 		origin[2] += (1 - (delta - 150) * .0033333334140479565f) * cg.landChange;
+#endif
 	}
 	CG_StepOffset();
 	lean = cg.predictedPlayerState.leanf;
 	if (lean != 0)
 	{
+#if defined(__linux__)
+		float multiplier = 1;
+		if (cgs.tceLeanMode < 1)
+		{
+			angles[ROLL] = (float)((long double).5f * lean + angles[ROLL]);
+		}
+		else
+		{
+			long double reciprocal = 1.0L / (lean < 0 ? 3.3f : 1.8f);
+			angles[ROLL] = (float)((long double)lean * reciprocal + angles[ROLL]);
+			multiplier = (float)reciprocal;
+		}
+		AngleVectors(angles, NULL, right, NULL);
+		origin[0] = (float)((long double)cg.predictedPlayerState.leanf * multiplier * right[0] + origin[0]);
+		origin[1] = (float)((long double)cg.predictedPlayerState.leanf * multiplier * right[1] + origin[1]);
+		origin[2] = (float)((long double)cg.predictedPlayerState.leanf * multiplier * right[2] + origin[2]);
+#else
 		scale = lean < 0?3.3f:1.8f;
 		if (cgs.tceLeanMode < 1)
 		{
@@ -726,16 +868,35 @@ static void CG_OffsetFirstPersonView(void)
 		}
 		AngleVectors(angles, NULL, right, NULL);
 		VectorMA(origin, lean, right, origin);
+#endif
 	}
 	VectorAdd(origin, cg.kick_origin, origin);
 	origin[2] -= 8;
 	AngleVectors(angles, forward, NULL, up);
+#if defined(__linux__)
+	{
+		int axis;
+		for (axis = 0; axis < 3; ++axis)
+			origin[axis] = (float)((long double)forward[axis] * 4.0f + origin[axis]);
+		for (axis = 0; axis < 3; ++axis)
+			origin[axis] = (float)((long double)up[axis] * 8.0f + origin[axis]);
+	}
+#else
 	VectorMA(origin, 4, forward, origin); VectorMA(origin, 8, up, origin);
+#endif
 	if (cg.time < cg.tceShotHoldUntil && weapon >= 0 && weapon < TCE_MAX_WEAPONS)
 	{
+#if defined(__linux__)
+		long double kick = (long double)TCE_SubInt32(cg.tceShotHoldUntil, cg.time) *
+		                   weaponDef[weapon].unknown_0f8[cg.tceAimActive ? 8 : 7] * .01f * .01f;
+		int axis;
+		for (axis = 0; axis < 3; ++axis)
+			cg.refdef.vieworg[axis] = (float)(kick * shotForward[axis] * -.5f + cg.refdef.vieworg[axis]);
+#else
 		float kick = (cg.tceShotHoldUntil - cg.time) * .01f *
 		             weaponDef[weapon].unknown_0f8[cg.tceAimActive?8:7] * .01f * -.5f;
 		VectorMA(cg.refdef.vieworg, kick, shotForward, cg.refdef.vieworg);
+#endif
 	}
 }
 
@@ -2399,7 +2560,11 @@ void CG_DrawActiveFrame(int serverTime, stereoFrame_t stereoView, qboolean demoP
 	}
 
 	// this counter will be bumped for every valid scene we generate
+#if defined(__linux__)
+	cg.clientFrame = TCE_AddInt32(cg.clientFrame, 1);
+#else
 	cg.clientFrame++;
+#endif
 
 	// update cg.predictedPlayerState
 	CG_PredictPlayerState();
@@ -2412,7 +2577,11 @@ void CG_DrawActiveFrame(int serverTime, stereoFrame_t stereoView, qboolean demoP
 	{
 		CG_mvDraw(cg.mvCurrentMainview);
 		// FIXME: not valid for demo playback
+#if defined(__linux__)
+		cg.zoomSensitivity = (float)((1.0L / int_sensitivity.value) * mv_sensitivity.value);
+#else
 		cg.zoomSensitivity = mv_sensitivity.value / int_sensitivity.value;
+#endif
 	}
 	else
 	{
@@ -2494,7 +2663,11 @@ void CG_DrawActiveFrame(int serverTime, stereoFrame_t stereoView, qboolean demoP
 			}
 			else
 			{
+#if defined(__linux__)
+				if (TCE_SubInt32(cg.time, cg.predictedPlayerEntity.overheatTime) < 3000)
+#else
 				if (cg.time - cg.predictedPlayerEntity.overheatTime < 3000)
+#endif
 				{
 					vec3_t muzzle;
 
@@ -2505,8 +2678,13 @@ void CG_DrawActiveFrame(int serverTime, stereoFrame_t stereoView, qboolean demoP
 					if (!(rand() % 3))
 					{
 						float alpha;
+#if defined(__linux__)
+						alpha = (float)((1.0L - (long double)TCE_SubInt32(cg.time, cg.predictedPlayerEntity.overheatTime) *
+						                 (1.0f / 3000.0f)) * .25f);
+#else
 						alpha  = 1.0f - ((float)(cg.time - cg.predictedPlayerEntity.overheatTime) / 3000.0f);
 						alpha *= 0.25f;     // .25 max alpha
+#endif
 						CG_ParticleImpactSmokePuffExtended(cgs.media.smokeParticleShader, muzzle, 1000, 8, 20, 30, alpha, 8.f);
 					}
 				}
@@ -2543,7 +2721,11 @@ void CG_DrawActiveFrame(int serverTime, stereoFrame_t stereoView, qboolean demoP
 		// make sure the lagometerSample and frame timing isn't done twice when in stereo
 		if (stereoView != STEREO_RIGHT)
 		{
+#if defined(__linux__)
+			cg.frametime = TCE_SubInt32(cg.time, cg.oldTime);
+#else
 			cg.frametime = cg.time - cg.oldTime;
+#endif
 			if (cg.frametime < 0)
 			{
 				cg.frametime = 0;
