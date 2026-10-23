@@ -1439,11 +1439,19 @@ float BotNearestVisibleItem(bot_state_t *bs, char *itemname, bot_goal_t *goal)
 		}
 		VectorSubtract(tmpgoal.origin, bs->origin, dir);
 		dist = VectorLength(dir);
+#if defined(__linux__)
+		if (!(dist >= bestdist))
+#else
 		if (dist < bestdist)
+#endif
 		{
 			//trace from start to end
 			BotAI_Trace(&trace, bs->eye, NULL, NULL, tmpgoal.origin, bs->client, CONTENTS_SOLID | CONTENTS_PLAYERCLIP);
+#if defined(__linux__)
+			if (!(trace.fraction < 1.0f))
+#else
 			if (trace.fraction >= 1.0)
+#endif
 			{
 				bestdist = dist;
 				memcpy(goal, &tmpgoal, sizeof(bot_goal_t));
@@ -1501,7 +1509,11 @@ void BotMatch_WhereAreYou(bot_state_t *bs, bot_match_t *match)
 	for (i = 0; nearbyitems[i]; i++)
 	{
 		dist = BotNearestVisibleItem(bs, nearbyitems[i], &goal);
+#if defined(__linux__)
+		if (!(dist >= bestdist))
+#else
 		if (dist < bestdist)
+#endif
 		{
 			bestdist = dist;
 			bestitem = i;
@@ -1636,11 +1648,23 @@ void BotMatch_Kill(bot_state_t *bs, bot_match_t *match)
 	}
 	bs->teamgoal.entitynum = client;
 	//set the time to send a message to the team mates
+#if defined(__linux__)
+	{
+		float time = trap_AAS_Time();
+		long double offset = (long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0);
+		bs->teammessage_time = (float)((offset + offset) + (long double)time);
+	}
+#else
 	bs->teammessage_time = trap_AAS_Time() + 2 * random();
+#endif
 	//set the ltg type
 	bs->ltgtype = LTG_KILL;
 	//set the team goal time
+#if defined(__linux__)
+	bs->teamgoal_time = (float)((long double)trap_AAS_Time() + TEAM_KILL_SOMEONE);
+#else
 	bs->teamgoal_time = trap_AAS_Time() + TEAM_KILL_SOMEONE;
+#endif
 #ifdef DEBUG
 	BotPrintTeamGoal(bs);
 #endif //DEBUG
