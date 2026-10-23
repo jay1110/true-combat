@@ -6744,7 +6744,12 @@ int AINode_MP_DynamiteTarget(bot_state_t *bs)
 	bot_moveresult_t moveresult;
 	gentity_t        *trav;
 	int              list[10], numList, i;
+#if defined(__linux__)
 	float            goalDist;
+	long double      closeDistance;
+#else
+	float            goalDist;
+#endif
 	aas_entityinfo_t entinfo;
 
 	goal = bs->target_goal;
@@ -6773,7 +6778,11 @@ int AINode_MP_DynamiteTarget(bot_state_t *bs)
 		return qfalse;
 	}
 	//if there are 2 bots going for this goal, then we should abort if we are further away
+#if defined(__linux__)
+	goalDist = (float)BotDistanceSquaredValue(bs->origin, goal.origin);
+#else
 	goalDist = VectorDistanceSquared(bs->origin, goal.origin);
+#endif
 	if ((numList = BotNumTeamMatesWithTargetByClass(bs, goal.entitynum, list, 10, PC_ENGINEER)))
 	{
 		if (goalDist > SQR(256))
@@ -6788,7 +6797,11 @@ int AINode_MP_DynamiteTarget(bot_state_t *bs)
 			}
 			if (botstates[list[i]].ainode == AINode_MP_DynamiteTarget)
 			{
+#if defined(__linux__)
+				if (!(BotDistanceSquaredValue(botstates[list[i]].origin, goal.origin) >= (long double)goalDist))
+#else
 				if (VectorDistanceSquared(botstates[list[i]].origin, goal.origin) < goalDist)
+#endif
 				{
 					// make sure other bots dont head for this target also
 					g_entities[goal.entitynum].lastHintCheckTime = level.time + 5000;
@@ -6807,9 +6820,18 @@ int AINode_MP_DynamiteTarget(bot_state_t *bs)
 	{
 		dir[2] = 0;
 	}
+#if defined(__linux__)
+	closeDistance = TCE_VectorLengthSquaredValue(dir);
+	goalDist = (float)closeDistance;
+#else
 	goalDist = VectorLengthSquared(dir);
+#endif
 	// are we close enough to the goal?
+#if defined(__linux__)
+	if (!(closeDistance >= SQR(32)))
+#else
 	if (goalDist < SQR(32))
+#endif
 	{
 		// have we recently dropped some dynamite?
 		for ( trav = G_FindDynamite(NULL); trav; trav = G_FindDynamite(trav))
@@ -6818,7 +6840,11 @@ int AINode_MP_DynamiteTarget(bot_state_t *bs)
 			{
 				continue;
 			}
+#if defined(__linux__)
+			if (BotDistanceSquaredValue(bs->origin, trav->r.currentOrigin) > SQR(100))
+#else
 			if (VectorDistanceSquared(bs->origin, trav->r.currentOrigin) > SQR(100))
+#endif
 			{
 				continue;
 			}
@@ -6858,7 +6884,11 @@ int AINode_MP_DynamiteTarget(bot_state_t *bs)
 				bs->weaponnum = WP_DYNAMITE;
 				trap_EA_SelectWeapon(bs->client, bs->weaponnum);
 				// hold fire
+#if defined(__linux__)
+				if ((rand() & 1) && !(fabsl(TCE_VectorLengthSquaredValue(bs->velocity)) > 0.0L) && fabsl((long double)bs->viewangles[PITCH] - bs->ideal_viewangles[PITCH]) < 2.0L && bs->cur_ps.weapon == WP_DYNAMITE && !bs->cur_ps.grenadeTimeLeft)
+#else
 				if (rand() % 2 && !VectorLengthSquared(bs->velocity) && fabs(bs->viewangles[PITCH] - bs->ideal_viewangles[PITCH]) < 2 && bs->cur_ps.weapon == WP_DYNAMITE && !bs->cur_ps.grenadeTimeLeft)
+#endif
 				{
 					trap_EA_Attack(bs->client);
 				}
@@ -6873,7 +6903,13 @@ int AINode_MP_DynamiteTarget(bot_state_t *bs)
 			// aim directly at the dynamite
 			VectorCopy(bs->origin, target);
 			target[2] += bs->cur_ps.viewheight;
+#if defined(__linux__)
+			dir[0] = (float)((long double)trav->r.currentOrigin[0] - bs->origin[0]);
+			dir[1] = (float)((long double)trav->r.currentOrigin[1] - bs->origin[1]);
+			dir[2] = (float)((long double)trav->r.currentOrigin[2] - ((long double)bs->origin[2] + bs->cur_ps.viewheight));
+#else
 			VectorSubtract(trav->r.currentOrigin, target, dir);
+#endif
 			VectorNormalize(dir);
 			vectoangles(dir, bs->ideal_viewangles);
 			// hold fire
@@ -6949,7 +6985,18 @@ int AINode_MP_DynamiteTarget(bot_state_t *bs)
 
 			// jump randomly?
 			trap_EA_Jump(bs->client);
+#if defined(__linux__)
+			{
+				/* Native argument evaluation consumes speed, Z, Y, then X. */
+				float speed = (float)((long double)(rand() & 32767) * (long double)(float)(200.0 / 32767.0) + 100.0L);
+				float moveZ = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+				float moveY = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+				float moveX = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+				trap_EA_Move(bs->client, tv(moveX, moveY, moveZ), speed);
+			}
+#else
 			trap_EA_Move(bs->client, tv(crandom(), crandom(), crandom()), 100 + random() * 200);
+#endif
 		}
 		//
 		BotAIBlocked(bs, &moveresult, qtrue);
@@ -6961,7 +7008,11 @@ int AINode_MP_DynamiteTarget(bot_state_t *bs)
 		//if waiting for something
 		else if (moveresult.flags & MOVERESULT_WAITING)
 		{
+#if defined(__linux__)
+			if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) < (long double)(double)0.8 * bs->thinktime)
+#else
 			if (random() < bs->thinktime * 0.8)
+#endif
 			{
 				BotRoamGoal(bs, target);
 				VectorSubtract(target, bs->origin, dir);
@@ -6980,9 +7031,18 @@ int AINode_MP_DynamiteTarget(bot_state_t *bs)
 			{
 				BotEntityInfo(bs->enemy, &entinfo);
 				//if the enemy is dead
+#if defined(__linux__)
+				if (bs->enemydeath_time < 0.0f || bs->enemydeath_time > 0.0f)
+#else
 				if (bs->enemydeath_time)
+#endif
 				{
+#if defined(__linux__)
+					long double deathTime = bs->enemydeath_time;
+					if (!(deathTime >= (long double)trap_AAS_Time() - (long double)(double)0.3))
+#else
 					if (bs->enemydeath_time < trap_AAS_Time() - 0.3)
+#endif
 					{
 						bs->enemydeath_time = 0;
 
@@ -7000,7 +7060,11 @@ int AINode_MP_DynamiteTarget(bot_state_t *bs)
 				if (bs->enemy >= 0)
 				{
 					// attack and keep moving
+#if defined(__linux__)
+					if (fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL)) > 0.0L)
+#else
 					if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL))
+#endif
 					{
 						//choose the best weapon to fight with
 						BotChooseWeapon(bs);
@@ -7032,11 +7096,19 @@ int AINode_MP_DynamiteTarget(bot_state_t *bs)
 					vectoangles(dir, bs->ideal_viewangles);
 				}
 				//FIXME: look at cluster portals?
+#if defined(__linux__)
+				else if (fabsl(TCE_VectorLengthSquaredValue(moveresult.movedir)) > 0.0L)
+#else
 				else if (VectorLengthSquared(moveresult.movedir))
+#endif
 				{
 					vectoangles(moveresult.movedir, bs->ideal_viewangles);
 				}
+#if defined(__linux__)
+				else if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) < (long double)(double)0.8 * bs->thinktime)
+#else
 				else if (random() < bs->thinktime * 0.8)
+#endif
 				{
 					BotRoamGoal(bs, target);
 					VectorSubtract(target, bs->origin, dir);
@@ -7058,9 +7130,18 @@ int AINode_MP_DynamiteTarget(bot_state_t *bs)
 		{
 			BotEntityInfo(bs->enemy, &entinfo);
 			//if the enemy is dead
+#if defined(__linux__)
+			if (bs->enemydeath_time < 0.0f || bs->enemydeath_time > 0.0f)
+#else
 			if (bs->enemydeath_time)
+#endif
 			{
+#if defined(__linux__)
+				long double deathTime = bs->enemydeath_time;
+				if (!(deathTime >= (long double)trap_AAS_Time() - (long double)(double)0.3))
+#else
 				if (bs->enemydeath_time < trap_AAS_Time() - 0.3)
+#endif
 				{
 					bs->enemydeath_time = 0;
 					bs->enemy           = -1;
@@ -7077,7 +7158,11 @@ int AINode_MP_DynamiteTarget(bot_state_t *bs)
 			if (bs->enemy >= 0)
 			{
 				// attack and keep moving
+#if defined(__linux__)
+				if (fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL)) > 0.0L)
+#else
 				if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL))
+#endif
 				{
 					//choose the best weapon to fight with
 					BotChooseWeapon(bs);
