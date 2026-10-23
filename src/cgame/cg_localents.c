@@ -278,6 +278,19 @@ CG_AddMovingTracer
 /* Whole TC30045a80 / Linux0007f16e. */
 void CG_AddMovingTracer(localEntity_t *le)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	vec3_t start, end, direction;
+	float length;
+	int axis;
+	TCE_BG_EvaluateTrajectory(&le->pos, cg.time, start, qfalse, -1, 1.0f);
+	VectorNormalize2(le->pos.trDelta, direction);
+	length = cg_tracerLength.value;
+	for (axis = 0; axis < 3; ++axis)
+	{
+		end[axis] = (float)((long double)direction[axis] * length + start[axis]);
+	}
+	CG_DrawTracer(start, end);
+#else
 	vec3_t start, end, direction;
 	int    axis;
 	TCE_BG_EvaluateTrajectory(&le->pos, cg.time, start, qfalse, -1, 1.0f);
@@ -286,6 +299,7 @@ void CG_AddMovingTracer(localEntity_t *le)
 	for (axis = 0; axis < 3; axis++)
 		end[axis] = (float)((double)cg_tracerLength.value * direction[axis] + start[axis]);
 	CG_DrawTracer(start, end);
+#endif
 }
 
 /*
@@ -296,6 +310,46 @@ CG_AddSparkElements
 /* Whole Windows30045b10 / Linux0007f226. */
 void CG_AddSparkElements(localEntity_t *le)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	vec3_t endpoint;
+	trace_t trace;
+	float time = (float)TCE_SubInt32(cg.time, cg.frametime);
+	do
+	{
+		long double fraction, width;
+		int duration;
+		TCE_BG_EvaluateTrajectory(&le->pos, cg.time, endpoint, qfalse, -1, 1.0f);
+		CG_Trace(&trace, le->refEntity.origin, NULL, NULL, endpoint, -1, 0x6000081);
+		if (trace.startsolid)
+		{
+			VectorCopy(endpoint, trace.endpos);
+			trace.fraction = 1.0f;
+		}
+		VectorCopy(trace.endpos, le->refEntity.origin);
+		time = (float)((long double)cg.frametime * trace.fraction + time);
+		duration = TCE_SubInt32(le->endTime, le->startTime);
+		fraction = (1.0L / duration) * TCE_SubInt32(cg.time, le->startTime);
+		width = fraction + fraction;
+		if (duration > 400)
+		{
+			width += width;
+		}
+		width *= 1.5f;
+		le->headJuncIndex = CG_AddSparkJunc(le->headJuncIndex, le, le->refEntity.customShader,
+		                                    le->refEntity.origin, 200, (float)(1.0L - fraction),
+		                                    0, (float)width, (float)width);
+		if (!(trace.fraction >= 1.0f))
+		{
+			CG_FreeLocalEntity(le);
+			return;
+		}
+		if (trace.fraction == 1.0f)
+		{
+			return;
+		}
+	}
+	while ((long double)time < cg.time);
+#else
 	vec3_t endpoint; trace_t trace;
 	float  time = (float)(cg.time - cg.frametime), width;
 	double fraction;
@@ -325,6 +379,7 @@ void CG_AddSparkElements(localEntity_t *le)
 		}
 	}
 	while (time < (float)cg.time);
+#endif
 }
 
 /*
@@ -335,6 +390,29 @@ CG_AddFuseSparkElements
 /* Whole TC30045c90 / Linux0007f458: retain the original float clock. */
 void CG_AddFuseSparkElements(localEntity_t *le)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	static vec3_t white = { 1, 1, 1 };
+	float time = (float)le->lastTrailTime;
+	int stamp = TCE_TruncateNativeInteger(time);
+	while ((long double)time < cg.time)
+	{
+		long double duration, life, next;
+		float width;
+		TCE_BG_EvaluateTrajectory(&le->pos, stamp, le->refEntity.origin, qfalse, -1, 1.0f);
+		duration = TCE_SubInt32(le->endTime, le->startTime);
+		life = (1.0L / duration) * ((long double)time - le->startTime);
+		width = (float)(1.0L - life);
+		le->headJuncIndex = CG_AddTrailJunc(le->headJuncIndex, le,
+		                                    cgs.media.sparkParticleShader, stamp, STYPE_STRETCH,
+		                                    le->refEntity.origin,
+		                                    TCE_TruncateNativeInteger((life * duration) * 0.5f),
+		                                    1, 0, width, width, TJFL_SPARKHEADFLARE, white, white, 0, 0);
+		next = 10.0f + (long double)time;
+		stamp = TCE_TruncateNativeInteger(next);
+		time = (float)next;
+		le->lastTrailTime = stamp;
+	}
+#else
 	static vec3_t white = { 1, 1, 1 };
 	float         time  = (float)le->lastTrailTime;
 	while (time < (float)cg.time)
@@ -350,6 +428,7 @@ void CG_AddFuseSparkElements(localEntity_t *le)
 		time             += 10.0f;
 		le->lastTrailTime = (int)time;
 	}
+#endif
 }
 
 /*
@@ -360,6 +439,41 @@ CG_AddBloodElements
 /* Whole TC300464d0 / Linux0007ff7a, including original five-bounce cap. */
 void CG_AddBloodElements(localEntity_t *le)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	vec3_t endpoint;
+	trace_t trace;
+	float time = (float)TCE_SubInt32(cg.time, cg.frametime);
+	int bounce;
+	for (bounce = 0; bounce < 5; ++bounce)
+	{
+		float alpha;
+		TCE_BG_EvaluateTrajectory(&le->pos, cg.time, endpoint, qfalse, -1, 1.0f);
+		CG_Trace(&trace, le->refEntity.origin, NULL, NULL, endpoint, -1, 0x6000081);
+		if (trace.startsolid)
+		{
+			VectorCopy(endpoint, trace.endpos);
+			trace.fraction = 1.0f;
+		}
+		VectorCopy(trace.endpos, le->refEntity.origin);
+		time = (float)((long double)cg.frametime * trace.fraction + time);
+		alpha = (float)(1.0L - (1.0L / TCE_SubInt32(le->endTime, le->startTime))
+		                       * TCE_SubInt32(cg.time, le->startTime));
+		le->headJuncIndex = CG_AddTrailJunc(le->headJuncIndex, le, cgs.media.bloodTrailShader,
+		                                    cg.time, STYPE_STRETCH, le->refEntity.origin,
+		                                    200, alpha, alpha, 3, 5, TJFL_NOCULL,
+		                                    le->color, le->color, 0, 0);
+		if (!(trace.fraction >= 1.0f))
+		{
+			CG_ReflectVelocity(le, &trace);
+			le->pos.trTime = TCE_TruncateNativeInteger(time);
+		}
+		if (trace.fraction == 1.0f || trace.fraction != trace.fraction ||
+		    !((long double)time < cg.time))
+		{
+			return;
+		}
+	}
+#else
 	vec3_t  endpoint;
 	trace_t trace;
 	float   time = (float)(cg.time - cg.frametime), alpha;
@@ -387,6 +501,7 @@ void CG_AddBloodElements(localEntity_t *le)
 			return;
 		}
 	}
+#endif
 }
 
 /*

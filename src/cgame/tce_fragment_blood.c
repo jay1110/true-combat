@@ -1,10 +1,44 @@
 #include "cg_local.h"
 #if defined(__linux__) && !defined(Q3_VM)
 #include "../game/tce_numeric.h"
+#include "../game/tce_trajectory.h"
 #endif
 
 void CG_BloodTrail(localEntity_t *le)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	long double speed;
+	int step, time, end;
+	unsigned bits;
+	vec3_t origin;
+	static vec3_t color = { 1, 1, 1 };
+	if (!cg_blood.integer)
+	{
+		return;
+	}
+	speed = TCE_VectorLengthValue(le->pos.trDelta);
+	if (!(speed >= FLT_EPSILON))
+	{
+		return;
+	}
+	step = TCE_TruncateNativeInteger((1.0L / speed) * 3000.0f);
+	if (step <= 0)
+	{
+		return;
+	}
+	time = TCE_AddInt32(TCE_SubInt32(cg.time, cg.frametime), step);
+	bits = (unsigned)(time / step) * (unsigned)step;
+	memcpy(&time, &bits, sizeof(time));
+	bits = (unsigned)(cg.time / step) * (unsigned)step;
+	memcpy(&end, &bits, sizeof(end));
+	for (; time <= end; time = TCE_AddInt32(time, step))
+	{
+		TCE_BG_EvaluateTrajectory(&le->pos, time, origin, qfalse, -1, 1.0f);
+		le->headJuncIndex = CG_AddTrailJunc(le->headJuncIndex, le,
+		                                    cgs.media.bloodTrailShader, time, STYPE_STRETCH, origin,
+		                                    180, 1, 0, 12, 12, TJFL_NOCULL, color, color, 0, 0);
+	}
+#else
 	double        speed;
 	int           step, t, end;
 	vec3_t        origin;
@@ -36,6 +70,7 @@ void CG_BloodTrail(localEntity_t *le)
 		                                    cgs.media.bloodTrailShader, t, STYPE_STRETCH, origin, 180,
 		                                    1, 0, 12, 12, TJFL_NOCULL, color, color, 0, 0);
 	}
+#endif
 }
 
 /* Explicit state permits deterministic replay of the global rate limiter. */
