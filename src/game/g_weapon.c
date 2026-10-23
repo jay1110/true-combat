@@ -4126,6 +4126,19 @@ LIGHTNING GUN
 ======================================================================
 */
 
+#if defined(__linux__) && !defined(Q3_VM)
+void serandom(float *horizontal, float *vertical)
+{
+	const float scale = 3.0518509447574615e-05f;
+	float radius = (float)((long double)(rand() & 0x7fff) * scale);
+	long double turn = (long double)(rand() & 0x7fff) * scale;
+	float angle = (float)((turn + turn) * 3.141592653589793);
+
+	*horizontal = (float)(cosl((long double)angle) * radius);
+	*vertical = (float)(sinl((long double)angle) * radius);
+}
+#endif
+
 void G_BurnMeGood(gentity_t *self, gentity_t *body)
 {
 	// add the new damage
@@ -4178,7 +4191,11 @@ void Weapon_FlamethrowerFire(gentity_t *ent)
 	// prevent flame thrower cheat, run & fire while aiming at the ground, don't get hurt
 	// 72 total box height, 18 xy -> 77 trace radius (from view point towards the ground) is enough to cover the area around the feet
 	VectorMA(trace_start, 77.0, forward, trace_end);
+#if defined(__linux__) && !defined(Q3_VM)
+	trap_Trace(&trace, trace_start, flameChunkMins, flameChunkMaxs, trace_end, ent->s.number, MASK_MISSILESHOT | MASK_WATER);
+#else
 	trap_Trace(&trace, trace_start, flameChunkMins, flameChunkMaxs, trace_end, ent->s.number, MASK_SHOT | MASK_WATER);
+#endif
 	if (trace.fraction != 1.0)
 	{
 		// additional checks to filter out false positives
