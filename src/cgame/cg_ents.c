@@ -621,6 +621,44 @@ static void CG_Speaker(centity_t *cent)
 
 qboolean CG_PlayerSeesItem(playerState_t *ps, entityState_t *item, int atTime, int itemType)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	vec3_t vorigin, eorigin, viewa, dir;
+	long double eyeZ, distance, dot, threshold;
+	float dist;
+	trace_t tr;
+
+	BG_EvaluateTrajectory(&item->pos, atTime, eorigin, qfalse, item->effect2Time);
+	vorigin[0] = ps->origin[0];
+	vorigin[1] = ps->origin[1];
+	eyeZ = (long double)ps->viewheight + ps->origin[2];
+	vorigin[2] = (float)eyeZ;
+	dir[0] = (float)((long double)vorigin[0] - eorigin[0]);
+	dir[1] = (float)((long double)vorigin[1] - eorigin[1]);
+	dir[2] = (float)(eyeZ - eorigin[2]);
+	distance = VectorNormalize(dir);
+	if (distance > 255.0L)
+	{
+		return qfalse;
+	}
+	dist = (float)distance;
+	AngleVectors(ps->viewangles, viewa, NULL, NULL);
+	dot = (long double)dir[0] * viewa[0] + (long double)dir[1] * viewa[1];
+	dot += (long double)dir[2] * viewa[2];
+	threshold = (long double)-.94f - (long double)dist * 0.00022352942323777825f;
+	if (!(threshold >= dot))
+	{
+		return qfalse;
+	}
+	if (itemType == IT_TREASURE)
+	{
+		CG_Trace(&tr, vorigin, NULL, NULL, eorigin, -1, MASK_SOLID);
+		if (tr.fraction < 1.0f || tr.fraction > 1.0f)
+		{
+			return qfalse;
+		}
+	}
+	return qtrue;
+#else
 	vec3_t vorigin, eorigin, viewa, dir;
 	float  dist;
 #if !defined(_MSC_VER) || !defined(_M_IX86)
@@ -703,6 +741,7 @@ qboolean CG_PlayerSeesItem(playerState_t *ps, entityState_t *item, int atTime, i
 
 	return qtrue;
 
+#endif
 }
 
 
