@@ -2403,7 +2403,11 @@ gentity_t *fire_flamebarrel(gentity_t *self, vec3_t start, vec3_t dir)
 	bolt->accuracy = 3;
 
 	bolt->classname    = "flamebarrel";
+#if defined(__linux__) && !defined(Q3_VM)
+	bolt->nextthink    = TCE_AddInt32(level.time, 3000);
+#else
 	bolt->nextthink    = level.time + 3000;
+#endif
 	bolt->think        = G_ExplodeMissile;
 	bolt->s.eType      = ET_FLAMEBARREL;
 	bolt->s.eFlags     = EF_BOUNCE_HALF;
@@ -2421,9 +2425,13 @@ gentity_t *fire_flamebarrel(gentity_t *self, vec3_t start, vec3_t dir)
 	bolt->clipmask = MASK_MISSILESHOT;
 
 	bolt->s.pos.trType = TR_GRAVITY;
+#if defined(__linux__) && !defined(Q3_VM)
+	bolt->s.pos.trTime = TCE_SubInt32(level.time, MISSILE_PRESTEP_TIME);
+#else
 	bolt->s.pos.trTime = level.time - MISSILE_PRESTEP_TIME;     // move a bit on the very first frame
+#endif
 	VectorCopy(start, bolt->s.pos.trBase);
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 	{
 		int          flameAxis;
 		const float  flameReciprocal = 3.0518509447574615e-05f;
@@ -2472,17 +2480,38 @@ void fire_lead(gentity_t *self, vec3_t start, vec3_t dir, int damage)
 	float     r, u;
 //	qboolean anti_tank_enable = qfalse;
 
+#if defined(__linux__) && !defined(Q3_VM)
+	{
+		long double spread = (long double)(rand() & 0x7fff) * 3.0518509447574615e-05f - 0.5f;
+		r = (float)((spread + spread) * self->random);
+		spread = (long double)(rand() & 0x7fff) * 3.0518509447574615e-05f - 0.5f;
+		u = (float)((spread + spread) * self->random);
+	}
+#else
 	r = crandom() * self->random;
 	u = crandom() * self->random;
+#endif
 
 	vectoangles(dir, angles);
 	AngleVectors(angles, forward, right, up);
 
+#if defined(__linux__) && !defined(Q3_VM)
+	{
+		int axis;
+		for (axis = 0; axis < 3; ++axis)
+		{
+			end[axis] = (float)(((long double)forward[axis] * 8192.0f + start[axis]) +
+			    (long double)r * right[axis] + (long double)u * up[axis]);
+		}
+	}
+	trap_Trace(&tr, start, NULL, NULL, end, self->s.number, MASK_MISSILESHOT);
+#else
 	VectorMA(start, 8192, forward, end);
 	VectorMA(end, r, right, end);
 	VectorMA(end, u, up, end);
 
 	trap_Trace(&tr, start, NULL, NULL, end, self->s.number, MASK_SHOT);
+#endif
 	if (tr.surfaceFlags & SURF_NOIMPACT)
 	{
 		return;
@@ -2507,8 +2536,22 @@ void fire_lead(gentity_t *self, vec3_t start, vec3_t dir, int damage)
 
 		tent = G_TempEntity(tr.endpos, EV_BULLET_HIT_WALL);
 
+#if defined(__linux__) && !defined(Q3_VM)
+		{
+			long double reflectionDot = (long double)forward[0] * tr.plane.normal[0] +
+			    (long double)forward[1] * tr.plane.normal[1] +
+			    (long double)forward[2] * tr.plane.normal[2];
+			int axis;
+			for (axis = 0; axis < 3; ++axis)
+			{
+				reflect[axis] = (float)(forward[axis] +
+				    ((long double)tr.plane.normal[axis] * reflectionDot) * -2.0f);
+			}
+		}
+#else
 		dot = DotProduct(forward, tr.plane.normal);
 		VectorMA(forward, -2 * dot, tr.plane.normal, reflect);
+#endif
 		VectorNormalize(reflect);
 
 		tent->s.eventParm = DirToByte(reflect);
@@ -2539,7 +2582,11 @@ qboolean visible(gentity_t *self, gentity_t *other)
 	trace_t   tr;
 	gentity_t *traceEnt;
 
+#if defined(__linux__) && !defined(Q3_VM)
+	trap_Trace(&tr, self->r.currentOrigin, NULL, NULL, other->r.currentOrigin, self->s.number, MASK_MISSILESHOT);
+#else
 	trap_Trace(&tr, self->r.currentOrigin, NULL, NULL, other->r.currentOrigin, self->s.number, MASK_SHOT);
+#endif
 
 	traceEnt = &g_entities[tr.entityNum];
 
@@ -2577,7 +2624,11 @@ gentity_t *fire_mortar(gentity_t *self, vec3_t start, vec3_t dir)
 
 	bolt            = G_Spawn();
 	bolt->classname = "mortar";
+#if defined(__linux__) && !defined(Q3_VM)
+	bolt->nextthink = TCE_AddInt32(level.time, 20000);
+#else
 	bolt->nextthink = level.time + 20000;   // push it out a little
+#endif
 	bolt->think     = G_ExplodeMissile;
 
 	// Gordon: for explosion type
@@ -2597,11 +2648,26 @@ gentity_t *fire_mortar(gentity_t *self, vec3_t start, vec3_t dir)
 	bolt->clipmask            = MASK_MISSILESHOT;
 
 	bolt->s.pos.trType = TR_GRAVITY;
+#if defined(__linux__) && !defined(Q3_VM)
+	bolt->s.pos.trTime = TCE_SubInt32(level.time, MISSILE_PRESTEP_TIME);
+#else
 	bolt->s.pos.trTime = level.time - MISSILE_PRESTEP_TIME;     // move a bit on the very first frame
+#endif
 	VectorCopy(start, bolt->s.pos.trBase);
 //	VectorScale( dir, 900, bolt->s.pos.trDelta );
 	VectorCopy(dir, bolt->s.pos.trDelta);
+#if defined(__linux__) && !defined(Q3_VM)
+	{
+		int axis;
+		for (axis = 0; axis < 3; ++axis)
+		{
+			bolt->s.pos.trDelta[axis] = (float)TCE_TruncateNativeInteger(
+			    (long double)bolt->s.pos.trDelta[axis]);
+		}
+	}
+#else
 	SnapVector(bolt->s.pos.trDelta);            // save net bandwidth
+#endif
 	VectorCopy(start, bolt->r.currentOrigin);
 
 	return bolt;

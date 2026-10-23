@@ -151,6 +151,17 @@ gentity_t *G_TestEntityPosition(gentity_t *ent)
 			flatforward[2] = 0;
 			VectorNormalizeFast(flatforward);
 
+#if defined(__linux__) && !defined(Q3_VM)
+			org[0] = (float)(((long double)legScale * flatforward[0]) * -32.0f +
+			                 ent->client->ps.origin[0]);
+			org[1] = (float)(((long double)legScale * flatforward[1]) * -32.0f +
+			                 ent->client->ps.origin[1]);
+			{
+				long double height = (long double)ent->client->ps.origin[2] + 24.0f;
+				org[2] = (float)height;
+				VectorSet(point, org[0], org[1], (float)((height - 21.6f) - 24.0f));
+			}
+#else
 			org[0] = (float)((double)ent->client->ps.origin[0] - (double)flatforward[0] * legScale * 32.0);
 			org[1] = (float)((double)ent->client->ps.origin[1] - (double)flatforward[1] * legScale * 32.0);
 			//org[2] = ent->client->ps.origin[2] + 12;	// 12 units to play with
@@ -158,6 +169,7 @@ gentity_t *G_TestEntityPosition(gentity_t *ent)
 
 			//VectorSet( point, org[0], org[1], org[2] - 9.6f - 24.f );	// diff between playerlegsMins and playerlegsMaxs z + 24 units to play with
 			VectorSet(point, org[0], org[1], (float)((double)org[2] - (double)21.6f - 24.0));   // TC200ac71c is the stored float21.6
+#endif
 
 			trap_TraceCapsule(&tr, org, legMins, legMaxs, point, ent->s.number, mask);
 
@@ -4826,9 +4838,23 @@ void func_explosive_explode(gentity_t *self, gentity_t *inflictor, gentity_t *at
 	self->takedamage = qfalse;          // don't allow anything try to hurt me now that i'm exploding
 
 	self->think     = BecomeExplosion;
+#if defined(__linux__) && !defined(Q3_VM)
+	self->nextthink = TCE_AddInt32(level.time, FRAMETIME);
+#else
 	self->nextthink = level.time + FRAMETIME;
+#endif
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(__linux__) && !defined(Q3_VM)
+	{
+		int axis;
+		for (axis = 0; axis < 3; ++axis)
+		{
+			float halfSize = (float)(((long double)self->r.absmax[axis] -
+			                           self->r.absmin[axis]) * 0.5f);
+			self->s.pos.trBase[axis] = (float)((long double)self->r.absmin[axis] + halfSize);
+		}
+	}
+#elif defined(_MSC_VER) && defined(_M_IX86)
 	{
 		long double centerX = ((long double)self->r.absmax[0] - self->r.absmin[0]) * 0.5L
 		                    + self->r.absmin[0];
@@ -4855,7 +4881,7 @@ void func_explosive_explode(gentity_t *self, gentity_t *inflictor, gentity_t *at
 	G_UseTargets(self, attacker);
 
 	self->s.density = self->count;      // pass the "mass" to the client
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 	self->s.weapon = TCE_TruncateNativeInteger((long double)self->duration);
 #else
 	self->s.weapon = self->duration;    // pass the "force lowgrav" to client
@@ -4865,7 +4891,12 @@ void func_explosive_explode(gentity_t *self, gentity_t *inflictor, gentity_t *at
 	if (self->damage)
 	{
 //		G_RadiusDamage(self->s.origin, self, self->damage, self->damage+40, self, MOD_EXPLOSIVE);
+#if defined(__linux__) && !defined(Q3_VM)
+		G_RadiusDamage(self->s.pos.trBase, NULL, self, self->damage,
+		               TCE_AddInt32(self->damage, 40), self, MOD_EXPLOSIVE);
+#else
 		G_RadiusDamage(self->s.pos.trBase, NULL, self, self->damage, self->damage + 40, self, MOD_EXPLOSIVE);
+#endif
 	}
 
 	// find target, aim at that
@@ -4898,7 +4929,7 @@ void func_explosive_explode(gentity_t *self, gentity_t *inflictor, gentity_t *at
 	// if a valid target entity was not found, check for a specified 'angle' for the explosion direction
 	if (!tent)
 	{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 		if (!TCE_FloatIsZeroOrNaN(self->s.angles[1]))
 		{
 #else
@@ -5178,7 +5209,36 @@ void SP_func_explosive(gentity_t *ent)
 	char *cursorhint;
 
 	trap_SetBrushModel(ent, ent->model);
+#if defined(__linux__) && !defined(Q3_VM)
+	if (g_gametype.integer == 2 &&
+	    (!Q_stricmp(level.rawmapname, "dem_northport") ||
+	     !Q_stricmp(level.rawmapname, "dem_railhouse")) &&
+	    !Q_stricmp(ent->scriptName, "bombsiteB_crate"))
+	{
+		vec3_t offset;
+		if (!Q_stricmp(level.rawmapname, "dem_northport"))
+		{
+			VectorSet(offset, -2272.0f, -868.0f, 0.0f);
+		}
+		else
+		{
+			VectorSet(offset, -1240.0f, -1288.0f, -56.0f);
+		}
+		VectorAdd(ent->s.pos.trBase, offset, ent->s.pos.trBase);
+		InitExplosive(ent);
+		ent->r.contents |= CONTENTS_SOLID | CONTENTS_PLAYERCLIP;
+		VectorCopy(ent->s.pos.trBase, ent->r.currentOrigin);
+		VectorCopy(ent->s.pos.trBase, ent->s.origin);
+		trap_UnlinkEntity(ent);
+		trap_LinkEntity(ent);
+	}
+	else
+	{
+		InitExplosive(ent);
+	}
+#else
 	InitExplosive(ent);
+#endif
 
 	if (ent->spawnflags & EXPLOSIVE_START_INVIS)    // start invis
 	{
@@ -5213,7 +5273,11 @@ void SP_func_explosive(gentity_t *ent)
 
 	memset(&ent->constructibleStats, 0, sizeof(ent->constructibleStats));
 	G_SpawnInt("constructible_class", "0", &i);
+#if defined(__linux__) && !defined(Q3_VM)
+	i = TCE_SubInt32(i, 1);
+#else
 	i--;    // non-coder friendlyness. Aren't we nice?
+#endif
 	if (i > 0 && i <= NUM_CONSTRUCTIBLE_CLASSES)
 	{
 		ent->constructibleStats = g_constructible_classes[i];
@@ -5228,7 +5292,11 @@ void SP_func_explosive(gentity_t *ent)
 		G_SpawnInt("constructible_health", "-1", &ent->constructibleStats.health);
 		G_SpawnInt("constructible_weaponclass", "0", &ent->constructibleStats.weaponclass);
 	}
+#if defined(__linux__) && !defined(Q3_VM)
+	ent->constructibleStats.weaponclass = TCE_SubInt32(ent->constructibleStats.weaponclass, 1);
+#else
 	ent->constructibleStats.weaponclass--;
+#endif
 	ent->health = ent->constructibleStats.health;
 
 	G_SpawnInt("health", "100", &health);
@@ -5703,7 +5771,7 @@ func_constructible_explode
 /* TC200744ff/20074528: C3, not C truthiness (unordered follows zero). */
 static qboolean G_TCEConstructibleDeathGate(gentity_t *self, qboolean resetProgress)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 	qboolean completed = !TCE_FloatIsZeroOrNaN(self->s.angles2[1]);
 	if (resetProgress)
 	{
@@ -5767,7 +5835,11 @@ void func_constructible_explode(gentity_t *self, gentity_t *inflictor, gentity_t
 				}
 			}
 
+#if defined(__linux__) && !defined(Q3_VM)
+			self->grenadeFired = TCE_SubInt32(self->grenadeFired, 1);
+#else
 			self->grenadeFired = (int)((unsigned int)self->grenadeFired - 1u);
+#endif
 
 			// backup...
 			{
@@ -5988,7 +6060,11 @@ func_constructible_underconstructionthink
 #define CONSTRUCT_PREDECAY_TIME 30000   // if not under construction for this duration, start decaying
 void func_constructible_underconstructionthink(gentity_t *ent)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	if (TCE_SubInt32(level.time, ent->lastHintCheckTime) >= CONSTRUCT_PREDECAY_TIME)
+#else
 	if ((int)((unsigned int)level.time - (unsigned int)ent->lastHintCheckTime) >= CONSTRUCT_PREDECAY_TIME)
+#endif
 	{
 		//ent->s.angles2[0] -= 0.5f*(255.f/(ent->wait/(float)FRAMETIME));
 		ent->s.angles2[0] = 0;  // insta-decay
@@ -6028,7 +6104,11 @@ void func_constructible_underconstructionthink(gentity_t *ent)
 				}
 
 				ent->s.modelindex2 = 0;
+#if defined(__linux__) && !defined(Q3_VM)
+				ent->grenadeFired  = TCE_SubInt32(ent->grenadeFired, 1);
+#else
 				ent->grenadeFired  = (int)((unsigned int)ent->grenadeFired - 1u);
+#endif
 				//trap_SetBrushModel( ent, va( "*%i", ent->conbmodels[ent->grenadeFired-1] ) );
 			}
 			else
@@ -6076,7 +6156,11 @@ void func_constructible_underconstructionthink(gentity_t *ent)
 		}
 	}
 
+#if defined(__linux__) && !defined(Q3_VM)
+	ent->nextthink = TCE_AddInt32(level.time, FRAMETIME);
+#else
 	ent->nextthink = (int)((unsigned int)level.time + (unsigned int)FRAMETIME);
+#endif
 }
 
 extern void explosive_indicator_think(gentity_t *ent);
@@ -6084,7 +6168,7 @@ extern void explosive_indicator_think(gentity_t *ent);
 /* TC200750b4..200750ea: __ftol64 low EAX, then signed FILD32. */
 static void G_TCEConstructibleMarkerSnap(vec3_t markerPosition)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 	int markerAxis;
 	for (markerAxis = 0; markerAxis < 3; ++markerAxis)
 	{
@@ -6323,7 +6407,11 @@ void func_constructiblespawn(gentity_t *ent)
 				e->s.modelindex2 = ent->parent->s.teamNum;
 				e->r.ownerNum    = ent->s.number;
 				e->think         = explosive_indicator_think;
+#if defined(__linux__) && !defined(Q3_VM)
+				e->nextthink     = TCE_AddInt32(level.time, FRAMETIME);
+#else
 				e->nextthink     = (int)((unsigned int)level.time + (unsigned int)FRAMETIME);
+#endif
 
 				e->s.effect1Time = ent->constructibleStats.weaponclass;
 
@@ -6334,9 +6422,17 @@ void func_constructiblespawn(gentity_t *ent)
 				}
 				else
 				{
+#if defined(__linux__) && !defined(Q3_VM)
+					e->s.pos.trBase[0] = (float)(((long double)ent->r.absmax[0] + ent->r.absmin[0]) * 0.5f);
+					e->s.pos.trBase[1] = ent->r.absmax[1] + ent->r.absmin[1];
+					e->s.pos.trBase[2] = ent->r.absmax[2] + ent->r.absmin[2];
+					e->s.pos.trBase[1] *= 0.5f;
+					e->s.pos.trBase[2] *= 0.5f;
+#else
 					VectorCopy(ent->r.absmin, e->s.pos.trBase);
 					VectorAdd(ent->r.absmax, e->s.pos.trBase, e->s.pos.trBase);
 					VectorScale(e->s.pos.trBase, 0.5, e->s.pos.trBase);
+#endif
 				}
 
 				G_TCEConstructibleMarkerSnap(e->s.pos.trBase);
@@ -6421,7 +6517,11 @@ void SP_func_constructible(gentity_t *ent)
 
 	memset(&ent->constructibleStats, 0, sizeof(ent->constructibleStats));
 	G_SpawnInt("constructible_class", "0", &i);
+#if defined(__linux__) && !defined(Q3_VM)
+	i = TCE_SubInt32(i, 1);
+#else
 	i = (int)((unsigned int)i - 1u);    // Original register decrement.
+#endif
 	if (i > 0 && i <= NUM_CONSTRUCTIBLE_CLASSES)
 	{
 		ent->constructibleStats = g_constructible_classes[i];
@@ -6442,14 +6542,23 @@ void SP_func_constructible(gentity_t *ent)
 		G_SpawnInt("constructible_weaponclass", "0", &ent->constructibleStats.weaponclass);
 		G_SpawnInt("constructible_duration", "5000", &ent->constructibleStats.duration);
 	}
+#if defined(__linux__) && !defined(Q3_VM)
+	ent->constructibleStats.weaponclass = TCE_SubInt32(ent->constructibleStats.weaponclass, 1);
+	ent->health = ent->constructibleStats.health;
+#else
 	/* Windows20075130 stores health before decrementing weaponclass. */
 	ent->health                         = ent->constructibleStats.health;
 	ent->constructibleStats.weaponclass = (int)((unsigned int)ent->constructibleStats.weaponclass - 1u);
+#endif
 
 	ent->s.dmgFlags = 0;
 
 	ent->think     = func_constructiblespawn;
+#if defined(__linux__) && !defined(Q3_VM)
+	ent->nextthink = TCE_AddInt32(level.time, 2 * FRAMETIME);
+#else
 	ent->nextthink = (int)((unsigned int)level.time + (2u * FRAMETIME));
+#endif
 }
 
 /*QUAKED func_brushmodel (.9 .50 .50) ?
