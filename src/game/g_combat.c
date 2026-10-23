@@ -1615,7 +1615,11 @@ qboolean G_RadiusDamage(vec3_t origin, gentity_t *inflictor, gentity_t *attacker
 	vec3_t    dir;
 	int       i, e;
 	qboolean  hitClient = qfalse;
+#if defined(__linux__)
+	float     boxradius;
+#else
 	double    boxradius;
+#endif
 	vec3_t    dest;
 	trace_t   tr;
 	vec3_t    midpoint;
@@ -1631,12 +1635,22 @@ qboolean G_RadiusDamage(vec3_t origin, gentity_t *inflictor, gentity_t *attacker
 		radius *= 1.25f;
 	}
 
-	if (radius < 1)
+	if (
+#if defined(__linux__)
+	    !(radius >= 1.f)
+#else
+	    radius < 1
+#endif
+	    )
 	{
 		radius = 1;
 	}
 
+#if defined(__linux__)
+	boxradius = (float)((long double)(double)1.41421356 * radius);
+#else
 	boxradius = 1.41421356 * (double)radius; // radius * sqrt(2) for bounding box enlargement --
+#endif
 	// bounding box was checking against radius / sqrt(2) if collision is along box plane
 	for ( i = 0 ; i < 3 ; i++ )
 	{
@@ -1666,13 +1680,22 @@ qboolean G_RadiusDamage(vec3_t origin, gentity_t *inflictor, gentity_t *attacker
 
 		G_AdjustedDamageVec(ent, origin, v);
 
-		dist = sqrt((double)v[0] * v[0] + (double)v[1] * v[1] + (double)v[2] * v[2]);
+		dist =
+#if defined(__linux__)
+		    TCE_VectorLengthValue(v);
+#else
+		    sqrt((double)v[0] * v[0] + (double)v[1] * v[1] + (double)v[2] * v[2]);
+#endif
 		if (dist >= radius)
 		{
 			continue;
 		}
 
+#if defined(__linux__)
+		points = (float)((1.0L - (1.0L / radius) * (long double)dist) * damage);
+#else
 		points = damage * (1.0 - dist / radius);
+#endif
 
 		if (CanDamage(ent, origin))
 		{
@@ -1693,22 +1716,38 @@ qboolean G_RadiusDamage(vec3_t origin, gentity_t *inflictor, gentity_t *attacker
 			VectorSubtract(ent->r.currentOrigin, origin, dir);
 			// push the center of mass higher than the origin so players
 			// get knocked into the air more
+#if defined(__linux__)
+			dir[2] = (float)((long double)ent->r.currentOrigin[2] - origin[2] + 24.0L);
+#else
 			dir[2] += 24;
+#endif
 
 
 			G_Damage(ent, inflictor, mod == 26 ? ent : attacker, dir, origin, (int)points, flags, mod);
 		}
 		else
 		{
+#if defined(__linux__)
+			for (i = 0; i < 3; ++i)
+			{
+				midpoint[i] = (float)(((long double)ent->r.absmin[i] + ent->r.absmax[i]) * .5L);
+			}
+#else
 			VectorAdd(ent->r.absmin, ent->r.absmax, midpoint);
 			VectorScale(midpoint, 0.5, midpoint);
+#endif
 			VectorCopy(midpoint, dest);
 
 			trap_Trace(&tr, origin, vec3_origin, vec3_origin, dest, ENTITYNUM_NONE, MASK_SOLID);
 			if (tr.fraction < 1.0)
 			{
 				VectorSubtract(dest, origin, dest);
-				dist = sqrt((double)dest[0] * dest[0] + (double)dest[1] * dest[1] + (double)dest[2] * dest[2]);
+				dist =
+#if defined(__linux__)
+				    TCE_VectorLengthValue(dest);
+#else
+				    sqrt((double)dest[0] * dest[0] + (double)dest[1] * dest[1] + (double)dest[2] * dest[2]);
+#endif
 				if (dist < (double)radius * (double)0.2f)    // closer than 1/4 dist
 				{
 					if (ent->dmgparent)
@@ -1726,7 +1765,11 @@ qboolean G_RadiusDamage(vec3_t origin, gentity_t *inflictor, gentity_t *attacker
 						hitClient = qtrue;
 					}
 					VectorSubtract(ent->r.currentOrigin, origin, dir);
+#if defined(__linux__)
+					dir[2] = (float)((long double)ent->r.currentOrigin[2] - origin[2] + 24.0L);
+#else
 					dir[2] += 24;
+#endif
 					G_Damage(ent, inflictor, mod == 26 ? ent : attacker, dir, origin, (int)((double)points * (double)0.1f), flags, mod);
 				}
 			}
@@ -1753,7 +1796,11 @@ qboolean etpro_RadiusDamage(vec3_t origin, gentity_t *inflictor, gentity_t *atta
 	vec3_t    dir;
 	int       i, e;
 	qboolean  hitClient = qfalse;
+#if defined(__linux__)
+	float     boxradius;
+#else
 	double    boxradius;
+#endif
 	vec3_t    dest;
 	trace_t   tr;
 	vec3_t    midpoint;
@@ -1764,12 +1811,22 @@ qboolean etpro_RadiusDamage(vec3_t origin, gentity_t *inflictor, gentity_t *atta
 		flags |= DAMAGE_HALF_KNOCKBACK;
 	}
 
-	if (radius < 1)
+	if (
+#if defined(__linux__)
+	    !(radius >= 1.f)
+#else
+	    radius < 1
+#endif
+	    )
 	{
 		radius = 1;
 	}
 
+#if defined(__linux__)
+	boxradius = (float)((long double)(double)1.41421356 * radius);
+#else
 	boxradius = 1.41421356 * (double)radius; // Windows2005bbf6 keeps the double multiplier through bounds
+#endif
 	// bounding box was checking against radius / sqrt(2) if collision is along box plane
 	for ( i = 0 ; i < 3 ; i++ )
 	{
@@ -1808,13 +1865,22 @@ qboolean etpro_RadiusDamage(vec3_t origin, gentity_t *inflictor, gentity_t *atta
 
 		G_AdjustedDamageVec(ent, origin, v);
 
-		dist = sqrt((double)v[0] * v[0] + (double)v[1] * v[1] + (double)v[2] * v[2]);
+		dist =
+#if defined(__linux__)
+		    TCE_VectorLengthValue(v);
+#else
+		    sqrt((double)v[0] * v[0] + (double)v[1] * v[1] + (double)v[2] * v[2]);
+#endif
 		if (dist >= radius)
 		{
 			continue;
 		}
 
+#if defined(__linux__)
+		points = (float)((1.0L - (1.0L / radius) * (long double)dist) * damage);
+#else
 		points = damage * (1.0 - dist / radius);
+#endif
 
 		if (CanDamage(ent, origin))
 		{
@@ -1835,21 +1901,37 @@ qboolean etpro_RadiusDamage(vec3_t origin, gentity_t *inflictor, gentity_t *atta
 			VectorSubtract(ent->r.currentOrigin, origin, dir);
 			// push the center of mass higher than the origin so players
 			// get knocked into the air more
+#if defined(__linux__)
+			dir[2] = (float)((long double)ent->r.currentOrigin[2] - origin[2] + 24.0L);
+#else
 			dir[2] += 24;
+#endif
 
 			G_Damage(ent, inflictor, attacker, dir, origin, (int)points, flags, mod);
 		}
 		else
 		{
+#if defined(__linux__)
+			for (i = 0; i < 3; ++i)
+			{
+				midpoint[i] = (float)(((long double)ent->r.absmin[i] + ent->r.absmax[i]) * .5L);
+			}
+#else
 			VectorAdd(ent->r.absmin, ent->r.absmax, midpoint);
 			VectorScale(midpoint, 0.5, midpoint);
+#endif
 			VectorCopy(midpoint, dest);
 
 			trap_Trace(&tr, origin, vec3_origin, vec3_origin, dest, ENTITYNUM_NONE, MASK_SOLID);
 			if (tr.fraction < 1.0)
 			{
 				VectorSubtract(dest, origin, dest);
-				dist = sqrt((double)dest[0] * dest[0] + (double)dest[1] * dest[1] + (double)dest[2] * dest[2]);
+				dist =
+#if defined(__linux__)
+				    TCE_VectorLengthValue(dest);
+#else
+				    sqrt((double)dest[0] * dest[0] + (double)dest[1] * dest[1] + (double)dest[2] * dest[2]);
+#endif
 				if (dist < (double)radius * (double)0.2f)    // closer than 1/4 dist
 				{
 					if (ent->dmgparent)
@@ -1867,7 +1949,11 @@ qboolean etpro_RadiusDamage(vec3_t origin, gentity_t *inflictor, gentity_t *atta
 						hitClient = qtrue;
 					}
 					VectorSubtract(ent->r.currentOrigin, origin, dir);
+#if defined(__linux__)
+					dir[2] = (float)((long double)ent->r.currentOrigin[2] - origin[2] + 24.0L);
+#else
 					dir[2] += 24;
+#endif
 					G_Damage(ent, inflictor, attacker, dir, origin, (int)((double)points * (double)0.1f), flags, mod);
 				}
 			}
