@@ -2399,13 +2399,28 @@ qboolean Bot_ScriptAction_FireAtTarget(bot_state_t *bs, char *params)
 	// set the view angle manually
 	BG_EvaluateTrajectory(&ent->s.pos, level.time, org, qfalse, -1);
 	VectorCopy(bs->origin, src);
+#if defined(__linux__)
+	{
+		long double eyeHeight = (long double)bs->origin[2] + bs->cur_ps.viewheight;
+		src[2] = (float)eyeHeight;
+		vec[0] = (float)((long double)org[0] - src[0]);
+		vec[1] = (float)((long double)org[1] - src[1]);
+		vec[2] = (float)((long double)org[2] - eyeHeight);
+	}
+#else
 	src[2] += bs->cur_ps.viewheight;
 
 	VectorSubtract(org, src, vec);
+#endif
 	VectorNormalize(vec);
 	vectoangles(vec, bs->ideal_viewangles);
 
+#if defined(__linux__)
+	// Original TC:E script weapon ID; the SDK enum uses a different value.
+	if (bs->weaponnum == 60)
+#else
 	if (bs->weaponnum == WP_MORTAR_SET)
+#endif
 	{
 /*		vec_t x, y, u, d, b, g, a;
 		vec3_t diff;
@@ -2428,6 +2443,16 @@ qboolean Bot_ScriptAction_FireAtTarget(bot_state_t *bs, char *params)
 		a = (vec_t)atan((-x - b) / (-2 * d));
 		bs->ideal_viewangles[PITCH] = (AngleMod(RAD2DEG(a)- 180) + 60);*/
 
+#if defined(__linux__)
+		long double gravity = -(long double)g_gravity.value;
+		float uz = (float)sqrtl(gravity * -6144.0L);
+		long double flightTime = -(long double)uz * (1.0L / gravity);
+		long double inverseTime = 1.0L / (flightTime + flightTime);
+
+		g_entities[bs->entitynum].gDelta[0] = (float)(((long double)org[0] - src[0]) * inverseTime);
+		g_entities[bs->entitynum].gDelta[1] = (float)(((long double)org[1] - src[1]) * inverseTime);
+		g_entities[bs->entitynum].gDelta[2] = uz;
+#else
 		float g = -g_gravity.value;
 
 		float uz = sqrt(-2 * 3072 * g);
@@ -2436,6 +2461,7 @@ qboolean Bot_ScriptAction_FireAtTarget(bot_state_t *bs, char *params)
 		float uy = (org[1] - src[1]) / t;
 
 		VectorSet(g_entities[bs->entitynum].gDelta, ux, uy, uz);
+#endif
 	}
 	else //if (bs->weaponnum != WP_MORTAR_SET)
 	{
@@ -2499,7 +2525,11 @@ qboolean Bot_ScriptAction_FireAtTarget(bot_state_t *bs, char *params)
 	//		so can't just move this up to the top
 	//		plus, if we don't pass in a duration, that means fire once, which that check above for no token will handle,
 	//		but we WILL fire once at least
+#if defined(__linux__)
+	return TCE_AddInt32(bs->script.status.stackChangeTime, atoi(token)) < level.time;
+#else
 	return ((bs->script.status.stackChangeTime + atoi(token)) < level.time);
+#endif
 }
 
 /*
