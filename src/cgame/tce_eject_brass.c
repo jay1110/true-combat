@@ -1,6 +1,7 @@
 #include "cg_local.h"
 #include "../game/tce_bg.h"
 #include "tce_eject_brass.h"
+#include "../game/tce_numeric.h"
 
 static double ejectRandom(void)
 {
@@ -20,18 +21,33 @@ localEntity_t *TCE_CG_AddEjectBrass(const refEntity_t *parent, const centity_t *
 	vec3_t        velocity, axis[3];
 	const float   *inheritedVelocity;
 	float         waterScale = 1.0f, bounce = .4f;
+#if defined(__linux__)
+	int           category, i;
+	long double   worldVelocity;
+	(void)context;
+#else
 	int           category, i, base;
 	double        worldVelocity;
+#endif
 	if (cg_brassTime.integer <= 0)
 	{
 		return NULL;
 	}
+#if defined(__linux__)
+	category = weaponDef[cent->currentState.weapon].weaponCategory;
+#else
 	category = weaponDef[context->weapon].weaponCategory;
+#endif
 	if (category <= 0)
 	{
 		return NULL;
 	}
+#if defined(__linux__)
 	le = CG_AllocLocalEntity();
+	category = weaponDef[cent->currentState.weapon].weaponCategory;
+#else
+	le = CG_AllocLocalEntity();
+#endif
 	switch (category)
 	{
 	case 1:
@@ -73,10 +89,27 @@ localEntity_t *TCE_CG_AddEjectBrass(const refEntity_t *parent, const centity_t *
 	}
 	le->leType     = LE_FRAGMENT;
 	le->startTime  = cg.time;
+#if defined(__linux__)
+	{
+		float baseTime = (float)TCE_AddInt32(cg.time, cg_brassTime.integer);
+		float quarter = (float)(cg_brassTime.integer / 4);
+		int randomValue = rand() & 0x7fff;
+		le->endTime = TCE_TruncateNativeInteger((long double)quarter * randomValue
+		                                      * (1.0f / 32767.0f) + baseTime);
+	}
+#else
 	base           = (int)((unsigned)cg.time + (unsigned)cg_brassTime.integer);
 	le->endTime    = (int)(base + (cg_brassTime.integer / 4) * ejectRandom());
+#endif
 	le->pos.trType = TR_GRAVITY;
+#if defined(__linux__)
+	{
+		int jitter = rand() & 15;
+		le->pos.trTime = TCE_SubInt32(cg.time, jitter);
+	}
+#else
 	le->pos.trTime = (int)((unsigned)cg.time - (unsigned)(rand() & 15));
+#endif
 	AnglesToAxis(cent->lerpAngles, axis);
 	if (cachedOrigin)
 	{
@@ -92,9 +125,19 @@ localEntity_t *TCE_CG_AddEjectBrass(const refEntity_t *parent, const centity_t *
 	{
 		waterScale = .1f;
 	}
+#if defined(__linux__)
+	inheritedVelocity = localPlayer ? cg.snap->ps.velocity : cent->tceEntityMotion;
+#else
 	inheritedVelocity = localPlayer?cg.snap->ps.velocity:context->entityVelocity;
+#endif
 	for (i = 0; i < 3; ++i)
 	{
+#if defined(__linux__)
+		worldVelocity = (long double)velocity[0] * axis[0][i]
+		                + (long double)velocity[1] * axis[1][i]
+		                + (long double)velocity[2] * axis[2][i] + inheritedVelocity[i];
+		worldVelocity = (float)worldVelocity;
+#else
 		worldVelocity = (double)axis[2][i] * velocity[2] + (double)axis[1][i] * velocity[1] +
 		                (double)axis[0][i] * velocity[0] + inheritedVelocity[i];
 		/* Y/Z are stored to temporaries before scaling in the original. */
@@ -102,6 +145,7 @@ localEntity_t *TCE_CG_AddEjectBrass(const refEntity_t *parent, const centity_t *
 		{
 			worldVelocity = (float)worldVelocity;
 		}
+#endif
 		le->pos.trDelta[i] = (float)(worldVelocity * waterScale);
 	}
 	AxisCopy(axisDefault, le->refEntity.axis);
@@ -109,8 +153,21 @@ localEntity_t *TCE_CG_AddEjectBrass(const refEntity_t *parent, const centity_t *
 	le->bounceFactor     = bounce * waterScale;
 	le->angles.trTime    = cg.time;
 	le->angles.trBase[0] = 90;
+#if defined(__linux__)
+	{
+		float angle = cent->lerpAngles[1];
+		double randomValue = ejectRandom();
+		le->angles.trBase[1] = (float)(((long double)randomValue - 0.5) * 60.0 + angle);
+	}
+	{
+		float angle = cent->lerpAngles[2];
+		double randomValue = ejectRandom();
+		le->angles.trBase[2] = (float)(((long double)randomValue - 0.5) * 60.0 + angle);
+	}
+#else
 	le->angles.trBase[1] = (float)((ejectRandom() - .5) * 60 + cent->lerpAngles[1]);
 	le->angles.trBase[2] = (float)((ejectRandom() - .5) * 60 + cent->lerpAngles[2]);
+#endif
 	VectorSet(le->angles.trDelta, 2, 1, 0);
 	le->leFlags    = LEF_TUMBLE;
 	le->leMarkType = LEMT_NONE;
@@ -118,11 +175,19 @@ localEntity_t *TCE_CG_AddEjectBrass(const refEntity_t *parent, const centity_t *
 	{
 		le->leFlags = 0x202;
 		/* Original TC fragment renderer interprets this storage with0x200. */
+#if defined(__linux__)
+		le->onFireEnd = TCE_AddInt32(le->startTime, 500);
+#else
 		le->onFireEnd = (int)((unsigned)le->startTime + 500u);
+#endif
 	}
 	else
 	{
+#if defined(__linux__)
+		le->sizeScale = tceSmokeNewBBox ? .75f : .6f;
+#else
 		le->sizeScale = context->sizeVariant?.75f:.6f;
+#endif
 	}
 	return le;
 }
