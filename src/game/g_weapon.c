@@ -672,7 +672,7 @@ void Weapon_AdrenalineSyringe(gentity_t *ent)
 void G_ExplodeMissile(gentity_t *ent);
 void DynaSink(gentity_t *self);
 
-/* Radius candidate value paths; x87/compiler precision and flags remain open. */
+/* Native radius value stages; exception flags remain compiler-dependent. */
 static void G_TCERadiusCandidateBounds(const vec3_t radiusOrigin, float *candidateRadius,
                                        vec3_t candidateMins, vec3_t candidateMaxs)
 {
@@ -693,12 +693,20 @@ static void G_TCERadiusCandidateBounds(const vec3_t radiusOrigin, float *candida
 	}
 #else
 	int   radiusAxis;
-	float expandedRadius;
+	volatile float expandedRadius;
+#if defined(__linux__) && !defined(Q3_VM)
+	if (!(*candidateRadius >= 1.0f))
+#else
 	if (*candidateRadius < 1.0f)
+#endif
 	{
 		*candidateRadius = 1.0f;
 	}
+#if defined(__linux__) && !defined(Q3_VM)
+	expandedRadius = (float)((long double)1.41421356 * *candidateRadius);
+#else
 	expandedRadius = 1.41421356 * *candidateRadius;
+#endif
 	for ( radiusAxis = 0; radiusAxis < 3; ++radiusAxis )
 	{
 		candidateMins[radiusAxis] = radiusOrigin[radiusAxis] - expandedRadius;
@@ -709,7 +717,21 @@ static void G_TCERadiusCandidateBounds(const vec3_t radiusOrigin, float *candida
 
 static void G_TCERadiusAxisDistance(float axisOrigin, float axisMin, float axisMax, float *axisDistance)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(__linux__) && !defined(Q3_VM)
+	volatile float *stored = axisDistance;
+	if (axisMin > axisOrigin)
+	{
+		*stored = (float)((long double)axisMin - axisOrigin);
+	}
+	else if (!(axisMax >= axisOrigin))
+	{
+		*stored = (float)((long double)axisOrigin - axisMax);
+	}
+	else
+	{
+		*stored = 0.0f;
+	}
+#elif defined(_MSC_VER) && defined(_M_IX86)
 	volatile float *stored = axisDistance;
 	if (!(axisOrigin >= axisMin))
 	{
@@ -731,7 +753,7 @@ static void G_TCERadiusAxisDistance(float axisOrigin, float axisMin, float axisM
 
 static qboolean G_TCERadiusLengthGate(const vec3_t radiusDelta, float radiusLimit, qboolean closeGate)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 	long double distance = TCE_VectorLengthValue(radiusDelta);
 	if (closeGate)
 	{
@@ -747,7 +769,15 @@ static qboolean G_TCERadiusLengthGate(const vec3_t radiusDelta, float radiusLimi
 
 static void G_TCERadiusMidpoint(const vec3_t radiusMin, const vec3_t radiusMax, vec3_t radiusMidpoint)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(__linux__) && !defined(Q3_VM)
+	int axis;
+	volatile float *stored = radiusMidpoint;
+	for (axis = 0; axis < 3; ++axis)
+	{
+		long double sum = (long double)radiusMax[axis] + radiusMin[axis];
+		stored[axis] = (float)(sum * 0.5L);
+	}
+#elif defined(_MSC_VER) && defined(_M_IX86)
 	volatile float y, z;
 	volatile float *stored = radiusMidpoint;
 	long double    x, zProduct;
