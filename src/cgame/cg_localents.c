@@ -772,6 +772,38 @@ CG_AddMoveScaleFade
 /* Original local-entity type 16, emitted by CG_ParticleTest. */
 void CG_AddMoveGravityFade(localEntity_t *le)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	refEntity_t *re = &le->refEntity;
+	long double remainingTime = TCE_SubInt32(le->endTime, cg.time);
+	long double remaining = remainingTime * le->lifeRate;
+	long double movement = 1.0L - remaining, elapsed;
+	vec3_t delta;
+	int i;
+	if (le->fadeInTime < cg.time)
+	{
+		long double alpha = (1.0L / TCE_SubInt32(le->endTime, le->fadeInTime))
+		                    * remainingTime * le->color[3] * 255.0f;
+		re->shaderRGBA[3] = alpha > -32769.0L && alpha < 32768.0L ? (byte)(int)alpha : 0;
+	}
+	for (i = 0; i < 3; ++i)
+	{
+		re->origin[i] = (float)(movement * le->pos.trDelta[i] + le->pos.trBase[i]);
+	}
+	elapsed = TCE_SubInt32(cg.time, le->startTime);
+	re->origin[2] = (float)((long double)re->origin[2]
+	    - ((long double)le->tceGravity * elapsed) * elapsed * 0.0004f);
+	if (le->leFlags & LEF_TUMBLE)
+	{
+		re->rotation = (float)(remaining * le->angles.trDelta[0] + le->angles.trBase[0]);
+	}
+	VectorSubtract(re->origin, cg.refdef.vieworg, delta);
+	if (!(TCE_VectorLengthValue(delta) >= le->radius))
+	{
+		CG_FreeLocalEntity(le);
+		return;
+	}
+	trap_R_AddRefEntityToScene(re);
+#else
 	refEntity_t *re = &le->refEntity; vec3_t delta; int i;
 	float       remaining = (float)((double)(le->endTime - cg.time) * le->lifeRate);
 	double      progress = 1.0 - remaining, elapsed = (float)(cg.time - le->startTime), length;
@@ -793,6 +825,7 @@ void CG_AddMoveGravityFade(localEntity_t *le)
 		CG_FreeLocalEntity(le); return;
 	}
 	trap_R_AddRefEntityToScene(re);
+#endif
 }
 
 
@@ -1529,6 +1562,47 @@ CG_AddSpriteExplosion
 */
 static void CG_AddSpriteExplosion(localEntity_t *le)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	refEntity_t re = le->refEntity;
+	long double fraction = (1.0L / TCE_SubInt32(le->endTime, le->startTime))
+	                       * TCE_SubInt32(le->endTime, cg.time);
+	long double movement, alpha, phase;
+	float light;
+	int i;
+	if (fraction > 1.0L)
+	{
+		fraction = 1.0L;
+	}
+	alpha = (fraction * 255.0f) * (double)0.33;
+	re.shaderRGBA[0] = 255;
+	re.shaderRGBA[1] = 255;
+	re.shaderRGBA[2] = 255;
+	re.shaderRGBA[3] = alpha > -32769.0L && alpha < 32768.0L ? (byte)(int)alpha : 0;
+	re.reType = RT_SPRITE;
+	movement = 1.0L - fraction;
+	re.radius = (float)(movement * 42.0f + 30.0f);
+	for (i = 0; i < 3; ++i)
+	{
+		re.origin[i] = (float)(movement * le->pos.trDelta[i] + le->pos.trBase[i]);
+	}
+	if (re.customShader >= 0)
+	{
+		trap_R_AddRefEntityToScene(&re);
+	}
+	phase = (1.0L / TCE_SubInt32(le->endTime, le->startTime))
+	        * TCE_SubInt32(cg.time, le->startTime);
+	if (phase < 0.5f)
+	{
+		light = 1.0f;
+	}
+	else
+	{
+		long double faded = phase - 0.5f;
+		light = (float)(1.0L - (faded + faded));
+	}
+	trap_R_AddLightToScene(re.origin, 320, light, le->lightColor[0], le->lightColor[1],
+	                       le->lightColor[2], 0, 0);
+#else
 	refEntity_t re;
 	double      c;
 
@@ -1587,6 +1661,7 @@ static void CG_AddSpriteExplosion(localEntity_t *le)
 		trap_R_AddLightToScene(re.origin, 320, light, le->lightColor[0], le->lightColor[1], le->lightColor[2], 0, 0);
 		// done.
 	}
+#endif
 }
 
 
