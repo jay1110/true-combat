@@ -1067,7 +1067,13 @@ void trap_BotSaveGoalFuzzyLogic(int goalstate, char *filename)
 
 void trap_BotMutateGoalFuzzyLogic(int goalstate, float range)
 {
+#if (defined(__i386__) || defined(_M_IX86)) && !defined(__EMSCRIPTEN__)
+	/* The original native call promotes range to a variadic double. */
+	syscall((intptr_t)BOTLIB_AI_MUTATE_GOAL_FUZZY_LOGIC, (intptr_t)goalstate,
+	        (double)range, TCE_VM_CALL_END);
+#else
 	TCE_SYSCALL_2(BOTLIB_AI_MUTATE_GOAL_FUZZY_LOGIC, goalstate, range);
+#endif
 }
 
 int trap_BotAllocGoalState(int state)
