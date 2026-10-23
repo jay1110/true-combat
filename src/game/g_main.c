@@ -4797,7 +4797,11 @@ void G_TagLinkEntity(gentity_t *ent, int msec)
 void G_RunEntity(gentity_t *ent, int msec)
 {
 	int    axis;
+#if defined(__linux__) && !defined(Q3_VM)
+	long double velocityScale;
+#else
 	double velocityScale;
+#endif
 	if (ent->runthisframe)
 	{
 		return;
@@ -4858,7 +4862,11 @@ void G_RunEntity(gentity_t *ent, int msec)
 
 
 	// clear events that are too old
+#if defined(__linux__) && !defined(Q3_VM)
+	if (TCE_SubInt32(level.time, ent->eventTime) > EVENT_VALID_MSEC)
+#else
 	if (level.time - ent->eventTime > EVENT_VALID_MSEC)
+#endif
 	{
 		if (ent->s.event)
 		{
@@ -4918,11 +4926,21 @@ void G_RunEntity(gentity_t *ent, int msec)
 		else
 		{
 			// During a pause, gotta keep track of stuff in the air
+#if defined(__linux__) && !defined(Q3_VM)
+			ent->s.pos.trTime = TCE_AddInt32(ent->s.pos.trTime,
+			                       TCE_SubInt32(level.time, level.previousTime));
+#else
 			ent->s.pos.trTime += level.time - level.previousTime;
+#endif
 			// Keep pulsing right for dynmamite
 			if (ent->methodOfDeath == MOD_DYNAMITE)
 			{
+#if defined(__linux__) && !defined(Q3_VM)
+				ent->s.effect1Time = TCE_AddInt32(ent->s.effect1Time,
+				                         TCE_SubInt32(level.time, level.previousTime));
+#else
 				ent->s.effect1Time += level.time - level.previousTime;
+#endif
 			}
 			G_RunThink(ent);
 		}
@@ -4995,12 +5013,22 @@ void G_RunEntity(gentity_t *ent, int msec)
 updateVelocity:
 	/* TC20064597..200645db keeps division and subtraction on the x87
 	 * stack until each final component store; do not spill either to float. */
+#if defined(__linux__) && !defined(Q3_VM)
+	velocityScale = (1.0L / (long double)msec) * 1000.0L;
+#else
 	velocityScale = 1000.0 / (double)msec;
+#endif
 	for (axis = 0; axis < 3; ++axis)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		ent->instantVelocity[axis] = (float)(
+			((long double)ent->r.currentOrigin[axis] - (long double)ent->oldOrigin[axis])
+			* velocityScale);
+#else
 		ent->instantVelocity[axis] = (float)(
 			((double)ent->r.currentOrigin[axis] - (double)ent->oldOrigin[axis])
 			* velocityScale);
+#endif
 	}
 }
 
@@ -5158,9 +5186,15 @@ static void G_TCEAssignObjective(qboolean vip)
 	int       selected = -1, start, i, index;
 	gentity_t *ent, *popup;
 	char      serverinfo[MAX_INFO_STRING];
+#if defined(__linux__) && !defined(Q3_VM)
+	if (!team || level.warmupTime || g_gamestate.integer != GS_PLAYING || g_gametype.integer != 5 ||
+	    TCE_SubInt32(level.time, level.startTime) <= 500 || TCE_SubInt32(level.time, level.startTime) >= 3000 ||
+	    (vip?level.tceVipAssigned:level.tceBombAssigned))
+#else
 	if (!team || level.warmupTime || g_gamestate.integer != GS_PLAYING || g_gametype.integer != 5 ||
 	    level.time - level.startTime <= 500 || level.time - level.startTime >= 3000 ||
 	    (vip?level.tceVipAssigned:level.tceBombAssigned))
+#endif
 	{
 		return;
 	}
@@ -5171,6 +5205,9 @@ static void G_TCEAssignObjective(qboolean vip)
 	if (!vip)
 	{
 		trap_GetConfigstring(CS_MULTI_MAPWINNER, serverinfo, sizeof(serverinfo));
+#if defined(__linux__) && !defined(Q3_VM)
+		team = level.tceDemolitionTeam;
+#endif
 	}
 	if (team > 2)
 	{
@@ -5218,7 +5255,12 @@ static void G_TCEAssignObjective(qboolean vip)
 	{
 		level.tceBombAssigned               = qtrue; ent->client->ps.stats[STAT_TCE_WEAPON_FLAGS] |= 0x100;
 		level.tceBombCarrier                = ent->client->ps.clientNum;
+#if defined(__linux__) && !defined(Q3_VM)
+		level.tceBombCarrierCount = TCE_AddInt32(level.tceBombCarrierCount, 1);
+		ent->client->tceBombPossessionOrder = level.tceBombCarrierCount;
+#else
 		ent->client->tceBombPossessionOrder = ++level.tceBombCarrierCount;
+#endif
 	}
 	popup                = G_PopupMessage(PM_MESSAGE); popup->s.effect2Time = team;
 	popup->s.effect3Time = selected; popup->s.density = vip?3:0;
@@ -5226,8 +5268,15 @@ static void G_TCEAssignObjective(qboolean vip)
 static void G_TCEObjectiveFrame(void)
 {
 	int i, best = 0, selected = -1;
+#if defined(__linux__) && !defined(Q3_VM)
+	int demolitionTeam = level.tceDemolitionTeam;
+#endif
 	G_TCEAssignObjective(qfalse);
+#if defined(__linux__) && !defined(Q3_VM)
+	if (demolitionTeam && level.tceBombCarrierCount > 1)
+#else
 	if (level.tceDemolitionTeam && level.tceBombCarrierCount > 1)
+#endif
 	{
 		for (i = 0; i < level.maxclients; i++)
 			if (g_entities[i].client && g_entities[i].client->tceBombPossessionOrder > best)
@@ -5237,7 +5286,12 @@ static void G_TCEObjectiveFrame(void)
 		if (selected >= 0)
 		{
 			g_entities[selected].client->ps.stats[STAT_TCE_WEAPON_FLAGS] &= ~0x100;
+#if defined(__linux__) && !defined(Q3_VM)
+			level.tceBombCarrierCount = TCE_AddInt32(level.tceBombCarrierCount, -1);
+			g_entities[selected].client->tceBombPossessionOrder = 0;
+#else
 			g_entities[selected].client->tceBombPossessionOrder           = 0; level.tceBombCarrierCount--;
+#endif
 			G_Printf("ELITE DEBUG: removed additional bombcarrier\n");
 		}
 	}
@@ -5259,29 +5313,54 @@ void G_RunFrame(int levelTime)
 	// Handling of pause offsets
 	if (level.match_pause == PAUSE_NONE)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		level.timeCurrent = TCE_SubInt32(levelTime, level.timeDelta);
+#else
 		level.timeCurrent = levelTime - level.timeDelta;
+#endif
 	}
 	else
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		level.timeDelta = TCE_SubInt32(levelTime, level.timeCurrent);
+#else
 		level.timeDelta = levelTime - level.timeCurrent;
+#endif
 		if ((level.time % 500) == 0)
 		{
 			// FIXME: set a PAUSE cs and let the client adjust their local starttimes
 			//        instead of this spam
+#if defined(__linux__) && !defined(Q3_VM)
+			trap_SetConfigstring(CS_LEVEL_START_TIME, va("%i", TCE_AddInt32(level.startTime, level.timeDelta)));
+#else
 			trap_SetConfigstring(CS_LEVEL_START_TIME, va("%i", level.startTime + level.timeDelta));
+#endif
 		}
 	}
 
 	level.frameTime = trap_Milliseconds();
 
+#if defined(__linux__) && !defined(Q3_VM)
+	level.framenum = TCE_AddInt32(level.framenum, 1);
+#else
 	level.framenum++;
+#endif
 	level.previousTime = level.time;
 	level.time         = levelTime;
 
+#if defined(__linux__) && !defined(Q3_VM)
+	msec = TCE_SubInt32(level.time, level.previousTime);
+#else
 	msec = level.time - level.previousTime;
+#endif
 
+#if defined(__linux__) && !defined(Q3_VM)
+	level.axisBombCounter = TCE_SubInt32(level.axisBombCounter, msec);
+	level.alliedBombCounter = TCE_SubInt32(level.alliedBombCounter, msec);
+#else
 	level.axisBombCounter   -= msec;
 	level.alliedBombCounter -= msec;
+#endif
 
 	if (level.axisBombCounter < 0)
 	{
@@ -5344,11 +5423,22 @@ uebrgpiebrpgibqeripgubeqrpigubqifejbgipegbrtibgurepqgbn%i", level.time)
 
 	// NERVE - SMF
 	/* TC20064c78: reinforcement spawn-group producer, original -2.98f factor. */
+#if defined(__linux__) && !defined(Q3_VM)
+	if (g_redlimbotime.integer && (g_gametype.integer == 2 || g_gametype.integer == 7) &&
+	    TCE_SubInt32(level.timeCurrent, level.startTime) > TCE_AddInt32(level.tceSpawnPhaseTime, 5000))
+#else
 	if (g_redlimbotime.integer && (g_gametype.integer == 2 || g_gametype.integer == 7) &&
 	    level.timeCurrent - level.startTime > level.tceSpawnPhaseTime + 5000)
+#endif
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		level.tceSpawnPhaseTime = TCE_AddInt32(level.tceSpawnPhaseTime, g_redlimbotime.integer);
+		level.tceSpawnPhase = TCE_AddInt32(TCE_TruncateNativeInteger(
+		    (long double)(rand() & 0x7fff) * (long double)0.00009094515553442761f), 1);
+#else
 		level.tceSpawnPhaseTime += g_redlimbotime.integer;
 		level.tceSpawnPhase      = 1 - (int)((double)(rand() & 0x7fff) * (1.f / 32767.f) * -2.98f);
+#endif
 	}
 
 	CheckWolfMP();
@@ -5369,8 +5459,17 @@ uebrgpiebrpgibqeripgubeqrpigubqifejbgipegbrtibgurepqgbn%i", level.time)
 
 	if (level.gameManager)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		gentity_t *manager = level.gameManager;
+		int mines = G_CountTeamLandmines(TEAM_AXIS);
+		manager->s.otherEntityNum = TCE_SubInt32(MAX_TEAM_LANDMINES, mines);
+		manager = level.gameManager;
+		mines = G_CountTeamLandmines(TEAM_ALLIES);
+		manager->s.otherEntityNum2 = TCE_SubInt32(MAX_TEAM_LANDMINES, mines);
+#else
 		level.gameManager->s.otherEntityNum  = MAX_TEAM_LANDMINES - G_CountTeamLandmines(TEAM_AXIS);
 		level.gameManager->s.otherEntityNum2 = MAX_TEAM_LANDMINES - G_CountTeamLandmines(TEAM_ALLIES);
+#endif
 	}
 
 #ifdef SAVEGAME_SUPPORT
