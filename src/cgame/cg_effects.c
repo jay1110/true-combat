@@ -1708,6 +1708,97 @@ qboolean CG_SpawnSmokeSprite(centity_t *cent, float dist)
 	}
 	return qtrue;
 }
+
+void CG_RenderM83Smoke(centity_t *cent)
+{
+	int age = TCE_SubInt32(cg.time, cent->currentState.time);
+	int spritesNeeded;
+	long double accumulated, interval, remaining;
+	volatile float storedRemaining;
+	float spawnScale = 1.0f;
+	trace_t tr;
+	smokesprite_t *sprite;
+
+	if (age < 100)
+	{
+		cent->miscTime = 0;
+		cent->lastFuseSparkTime = 0;
+		cent->muzzleFlashTime = 0;
+		cent->dl_atten = 0;
+		return;
+	}
+	if ((unsigned int)age - 100u > 19899u)
+	{
+		if (cent->currentState.effect1Time == -1 && cent->miscTime > 0)
+		{
+			for (sprite = lastusedsmokesprite; sprite; sprite = sprite->prev)
+			{
+				if (sprite->smokebomb == cent)
+				{
+					sprite->smokebomb = NULL;
+					cent->miscTime = TCE_SubInt32(cent->miscTime, 1);
+				}
+			}
+		}
+		return;
+	}
+	if (!cent->dl_atten || cent->currentState.pos.trType != TR_STATIONARY ||
+	    (cent->currentState.groundEntityNum != ENTITYNUM_WORLD &&
+	     !VectorCompare(cent->lastLerpOrigin, cent->lerpOrigin)))
+	{
+		cent->origin2[0] = cent->lerpOrigin[0];
+		cent->origin2[1] = cent->lerpOrigin[1];
+		cent->origin2[2] = (float)((long double)cent->lerpOrigin[2] + 4.0L);
+		CG_Trace(&tr, cent->currentState.pos.trBase, NULL, NULL,
+		         cent->origin2, -1, CONTENTS_SOLID);
+		if (tr.startsolid)
+		{
+			cent->dl_atten = 2;
+		}
+		else
+		{
+			VectorCopy(tr.endpos, cent->origin2);
+			cent->dl_atten = 1;
+		}
+	}
+	if (cent->dl_atten == 2 || !cg.oldTime || cent->lastFuseSparkTime == cg.time)
+	{
+		return;
+	}
+
+	/* Keep the integer sum and reciprocal product in extended precision.
+	 * The native controller truncates both the count and remainder. */
+	accumulated = (long double)TCE_AddInt32(cg.frametime, cent->muzzleFlashTime);
+	spritesNeeded = TCE_TruncateNativeInteger((1.0L / 100.0L) * accumulated);
+	interval = (long double)spritesNeeded * 100.0L;
+	cent->muzzleFlashTime = TCE_TruncateNativeInteger(accumulated - interval);
+	cent->lastFuseSparkTime = cg.time;
+	if (!spritesNeeded)
+	{
+		return;
+	}
+	if (spritesNeeded == 1)
+	{
+		if (!CG_SpawnSmokeSprite(cent, 0.0f))
+		{
+			CG_SpawnSmokeSprite(cent, 0.0f);
+		}
+		return;
+	}
+	storedRemaining = (float)interval;
+	remaining = interval;
+	while (remaining > 0.0L)
+	{
+		float dist = (float)((long double)cg.frametime * spawnScale * .032f);
+		if (!CG_SpawnSmokeSprite(cent, dist))
+		{
+			dist = (float)((long double)cg.frametime * spawnScale * .032f);
+			CG_SpawnSmokeSprite(cent, dist);
+		}
+		remaining = (long double)storedRemaining - 100.0L;
+		storedRemaining = (float)remaining;
+	}
+}
 #endif
 
 /* TC3002dc70: free expansion, no SDK solid trace. */

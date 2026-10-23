@@ -2854,6 +2854,7 @@ void CG_ApplyCameraShakeToVec(vec3_t origin);
 void InitSmokeSprites(void);
 #if defined(__linux__) && !defined(Q3_VM)
 qboolean CG_SpawnSmokeSprite(centity_t *cent, float dist);
+void CG_RenderM83Smoke(centity_t *cent);
 #endif
 void CG_AddSmokeSprites(void);
 
