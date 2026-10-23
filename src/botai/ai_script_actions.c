@@ -8,6 +8,9 @@
 
 #include "../game/g_local.h"
 #include "../game/q_shared.h"
+#if defined(__linux__)
+#include "../game/tce_numeric.h"
+#endif
 #include "../game/botlib.h"     //bot lib interface
 #include "../game/be_aas.h"
 #include "../game/be_ea.h"
