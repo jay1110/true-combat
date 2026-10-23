@@ -3848,7 +3848,9 @@ void props_statue_blocked(gentity_t *ent)
 	trace_t   trace;
 	vec3_t    start, end, mins, maxs;
 	vec3_t    forward;
+#if !defined(__linux__) || defined(Q3_VM)
 	double    dist;
+#endif
 	gentity_t *traceEnt;
 	float     grav = 128;
 	vec3_t    kvel;
@@ -3868,12 +3870,25 @@ void props_statue_blocked(gentity_t *ent)
 
 	VectorCopy(start, end);
 
+#if defined(__linux__) && !defined(Q3_VM)
+	{
+		long double distance = 1.0L / (long double)ent->count2;
+
+		distance *= (long double)ent->r.maxs[2] + 16.0L;
+		distance *= (long double)ent->s.frame;
+		end[0] = (float)((long double)forward[0] * distance + start[0]);
+		end[1] = (float)((long double)forward[1] * distance + start[1]);
+		end[2] = (float)((long double)forward[2] * distance + start[2]);
+	}
+#else
 	/* TC keeps the distance through all three endpoint stores. */
 	dist = (((double)ent->r.maxs[2] + 16.0) / (double)ent->count2) * (double)ent->s.frame;
 
 	end[0] = (float)((double)forward[0] * dist + start[0]);
 	end[1] = (float)((double)forward[1] * dist + start[1]);
 	end[2] = (float)((double)forward[2] * dist + start[2]);
+
+#endif
 
 	trap_Trace(&trace, start, mins, maxs, end, ent->s.number, MASK_MISSILESHOT);
 
@@ -4078,6 +4093,9 @@ void SP_props_statue(gentity_t *ent)
 	G_SpawnString("high", "0", &high);
 	parsedDimension = atof(high);
 	height          = (float)parsedDimension;
+#if defined(__linux__) && !defined(Q3_VM)
+	parsedDimension = (double)height;
+#endif
 	/* TC compares the retained atof value, including unordered, before defaulting. */
 	if (parsedDimension == 0.0 || parsedDimension != parsedDimension)
 	{
@@ -4086,6 +4104,9 @@ void SP_props_statue(gentity_t *ent)
 
 	G_SpawnString("wide", "0", &wide);
 	parsedDimension = atof(wide);
+#if defined(__linux__) && !defined(Q3_VM)
+	parsedDimension = (double)(float)parsedDimension;
+#endif
 
 	if (parsedDimension == 0.0 || parsedDimension != parsedDimension)
 	{
@@ -4106,6 +4127,9 @@ void SP_props_statue(gentity_t *ent)
 
 	G_SpawnString("frames", "0", &frames);
 	num_frames = atof(frames);
+#if defined(__linux__) && !defined(Q3_VM)
+	num_frames = (double)(float)num_frames;
+#endif
 
 	ent->count2 = num_frames;
 

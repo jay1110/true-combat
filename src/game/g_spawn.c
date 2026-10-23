@@ -215,7 +215,7 @@ static qboolean TCE_ScannerContactActive(const gclient_t *client)
 	       !(client->ps.stats[STAT_TCE_AIM_PHASE] & 2);
 }
 
-static void Think_UpdateScanner(gentity_t *self)
+static void TCE_ThinkRecipientScanner(gentity_t *self)
 {
 	int       index = self->s.clientNum, scanned, found = 0;
 	int       team       = self->s.eFlags == 0 ? TEAM_AXIS : TEAM_ALLIES;
@@ -275,11 +275,70 @@ static void Think_UpdateScanner(gentity_t *self)
 	self->nextthink = level.time + 50;
 }
 
+/* TC:E scanner baseline. The recipient-filtered compass remains a separate mode. */
+static vmCvar_t tce_scannerRecipientPackets;
+
+static void Think_UpdateScanner(gentity_t *self)
+{
+	int index = self->s.clientNum;
+	int scanned, found = 0;
+	int team = self->s.eFlags == 0 ? TEAM_AXIS : TEAM_ALLIES;
+
+	self->s.otherEntityNum = 255;
+	self->s.otherEntityNum2 = 255;
+	self->s.groundEntityNum = 255;
+	for (scanned = 0; scanned < 64; ++scanned)
+	{
+		gentity_t *player;
+		gclient_t *client;
+
+		if (++index >= 64)
+		{
+			index = 0;
+		}
+		player = &g_entities[index];
+		if (!player->inuse)
+		{
+			continue;
+		}
+		client = player->client;
+		if (client->sess.sessionTeam != team ||
+		    client->pers.connected != CON_CONNECTED ||
+		    g_gametype.integer != GT_WOLF_LMS ||
+		    !(client->ps.stats[STAT_TCE_WEAPON_FLAGS] & 0x100) ||
+		    level.tceBombCarrier != client->ps.clientNum ||
+		    client->ps.stats[STAT_HEALTH] <= 0)
+		{
+			continue;
+		}
+		switch (++found)
+		{
+		case 1:
+			VectorCopy(client->ps.origin, self->s.origin2);
+			self->s.groundEntityNum = index;
+			break;
+		case 2:
+			VectorCopy(client->ps.origin, self->s.origin);
+			self->s.otherEntityNum = index;
+			break;
+		case 3:
+			VectorCopy(client->ps.origin, self->s.pos.trBase);
+			self->s.otherEntityNum2 = index;
+			break;
+		default:
+			self->nextthink = level.time + 50;
+			return;
+		}
+		self->s.clientNum = index;
+	}
+	self->nextthink = level.time + 50;
+}
+
 /* TC qagame20069ef0 / Linux000cacae. Preserve link-before-origin ordering. */
 static void SP_info_scanner(gentity_t *ent)
 {
 	/* Old map-created broadcast scanners are replaced by recipient packets. */
-	if (!(ent->r.svFlags & SVF_SINGLECLIENT))
+	if (tce_scannerRecipientPackets.integer && !(ent->r.svFlags & SVF_SINGLECLIENT))
 	{
 		G_FreeEntity(ent);
 		return;
@@ -288,7 +347,7 @@ static void SP_info_scanner(gentity_t *ent)
 	ent->s.clientNum = 0;
 	trap_LinkEntity(ent);
 	G_SetOrigin(ent, ent->s.origin);
-	ent->think      = Think_UpdateScanner;
+	ent->think      = tce_scannerRecipientPackets.integer ? TCE_ThinkRecipientScanner : Think_UpdateScanner;
 	ent->r.svFlags |= SVF_BROADCAST;
 	ent->nextthink  = level.time + 1000;
 }
@@ -1244,6 +1303,10 @@ void G_SpawnEntitiesFromString(void)
 {
 	gentity_t *start, *scanner;
 	int       i;
+	/* Keep the existing compass extension enabled unless explicitly opted out. */
+	trap_Cvar_Register(&tce_scannerRecipientPackets, "tce_scannerRecipientPackets",
+	                   "1", CVAR_LATCH | CVAR_SERVERINFO);
+
 	// allow calls to G_Spawn*()
 	G_Printf("Enable spawning!\n");
 	level.spawning     = qtrue;
@@ -1264,24 +1327,45 @@ void G_SpawnEntitiesFromString(void)
 		G_SpawnGEntityFromSpawnVars();
 	}
 
-	/* CQB compass feeds for both teams in every team gametype. SINGLECLIENT
-	 * works with both ET2.60 and Legacy; no engine-specific team mask needed. */
-	start = G_Find(NULL, FOFS(classname), "info_player_deathmatch");
+	if (tce_scannerRecipientPackets.integer)
 	{
-		for (i = 0; i < level.maxclients * 2; ++i)
+		/* CQB compass feeds for both teams in every team gametype. SINGLECLIENT
+		 * works with both ET2.60 and Legacy; no engine-specific team mask needed. */
+		start = G_Find(NULL, FOFS(classname), "info_player_deathmatch");
 		{
-			scanner                 = G_Spawn();
-			scanner->classname      = "info_scanner";
-			scanner->s.eFlags       = i & 1;
-			scanner->r.svFlags      = SVF_SINGLECLIENT;
-			scanner->r.singleClient = i / 2;
-			if (start)
+			for (i = 0; i < level.maxclients * 2; ++i)
 			{
-				VectorCopy(start->r.currentOrigin, scanner->s.origin);
+				scanner                 = G_Spawn();
+				scanner->classname      = "info_scanner";
+				scanner->s.eFlags       = i & 1;
+				scanner->r.svFlags      = SVF_SINGLECLIENT;
+				scanner->r.singleClient = i / 2;
+				if (start)
+				{
+					VectorCopy(start->r.currentOrigin, scanner->s.origin);
+				}
+				if (!G_CallSpawn(scanner))
+				{
+					G_FreeEntity(scanner);
+				}
 			}
-			if (!G_CallSpawn(scanner))
+		}
+	}
+	else if (g_gametype.integer == GT_WOLF_LMS)
+	{
+		start = G_Find(NULL, FOFS(classname), "info_player_deathmatch");
+		if (start)
+		{
+			for (i = 0; i < 2; ++i)
 			{
-				G_FreeEntity(scanner);
+				scanner = G_Spawn();
+				scanner->classname = "info_scanner";
+				scanner->s.eFlags = 0;
+				VectorCopy(start->r.currentOrigin, scanner->s.origin);
+				if (!G_CallSpawn(scanner))
+				{
+					G_FreeEntity(scanner);
+				}
 			}
 		}
 	}

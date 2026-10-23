@@ -2061,7 +2061,21 @@ qboolean G_ScriptAction_PlayAnim(gentity_t *ent, char *params)
 	/* TC20081005..20081020 loads both integer operands directly on x87,
 	 * then stores a double for floor. A float cast loses elapsed milliseconds
 	 * above 2^24 before the frame calculation. */
+#if defined(__linux__) && !defined(Q3_VM)
+	{
+		int elapsed = TCE_SubInt32(level.time, ent->scriptStatus.scriptStackChangeTime);
+		long double frame = 1.0L / 1000.0L;
+		double rounded;
+
+		frame *= (long double)elapsed;
+		frame *= (long double)rate;
+		rounded = (double)floorl(frame);
+		idealframe = TCE_AddInt32(startframe,
+		                         TCE_TruncateNativeInteger((long double)rounded));
+	}
+#else
 	idealframe = startframe + (int)floor((double)(level.time - ent->scriptStatus.scriptStackChangeTime) / (1000.0 / (double)rate));
+#endif
 	if (looping)
 	{
 		ent->s.frame = startframe + (idealframe - startframe) % (endframe - startframe);

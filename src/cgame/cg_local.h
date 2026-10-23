@@ -2615,6 +2615,13 @@ void CG_AddCEntity(centity_t *cent);
 qboolean CG_AddCEntity_Filter(centity_t *cent);
 qboolean CG_AddLinkedEntity(centity_t *cent, qboolean ignoreframe, int atTime);
 void CG_PositionEntityOnTag(refEntity_t *entity, const refEntity_t *parent, const char *tagName, int startIndex, vec3_t *offset);
+#if defined(__linux__)
+void CG_PositionRotatedEntityOnTagOffset(refEntity_t *entity, const refEntity_t *parent,
+                                        const char *tagName, const vec3_t offset[3]);
+void CG_PositionEntityOnMixedTag(refEntity_t *entity, const refEntity_t *parent,
+                                 const char *firstTag, const char *secondTag,
+                                 int startIndex, const vec3_t *offset);
+#endif
 void CG_PositionRotatedEntityOnTag(refEntity_t *entity, const refEntity_t *parent, const char *tagName);
 
 

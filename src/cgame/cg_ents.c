@@ -2135,7 +2135,7 @@ CG_ProcessEntity
 */
 /* CQB CG_ProcessEntity case61, Linux0006e248 onward: own-team positions
  * expire after750ms; a flagged opposing contact remains for3000ms. */
-static void CG_RadarPositions(centity_t *cent)
+static void CG_RecipientRadarPositions(centity_t *cent)
 {
 	entityState_t *es = &cent->currentState;
 	int           group = es->eFlags, i, index[3], team = cg.snap->ps.persistant[PERS_TEAM];
@@ -2204,6 +2204,86 @@ static void CG_RadarPositions(centity_t *cent)
 			cg.tceRadarYaw[group][i]   = cg_entities[i].lerpAngles[YAW];
 			cg.tceRadarTimes[group][i] = cg.time;
 		}
+	}
+}
+
+/* Original TC:E three-contact scanner protocol, separate from CQB packets. */
+static void CG_Scanner(const entityState_t *es)
+{
+	int group = es->eFlags;
+	int index[3], i;
+	const float *positions[3];
+
+	if (group != 0 && group != 1)
+	{
+		return;
+	}
+	index[0] = es->groundEntityNum;
+	index[1] = es->otherEntityNum;
+	index[2] = es->otherEntityNum2;
+	positions[0] = es->origin2;
+	positions[1] = es->origin;
+	positions[2] = es->pos.trBase;
+	for (i = 0; i < 3; ++i)
+	{
+		if (index[i] >= 0 && index[i] < 64)
+		{
+			VectorCopy(positions[i], cg.tceRadarPositions[group][index[i]]);
+			cg.tceRadarTimes[group][index[i]] = cg.time;
+		}
+	}
+	for (i = 0; i < 64; ++i)
+	{
+		if ((cg.tceRadarTimes[group][i] &&
+		     cg.time - cg.tceRadarTimes[group][i] > 750) ||
+		    i == cg.snap->ps.clientNum ||
+		    (cg_entities[i].currentState.eFlags & EF_DEAD))
+		{
+			VectorClear(cg.tceRadarPositions[group][i]);
+			cg.tceRadarTimes[group][i] = 0;
+		}
+		if (group == 1)
+		{
+			float length = VectorLength(cg.tceRadarPositions[group][i]);
+			int j;
+
+			if (length == 0.0f || length != length)
+			{
+				continue;
+			}
+			for (j = 0; j < cg.snap->numEntities; ++j)
+			{
+				entityState_t *state = &cg.snap->entities[j];
+				if (state->number != i)
+				{
+					continue;
+				}
+				/* The original indexes clientinfo by snapshot position here. */
+				if (state->clientNum == i && cgs.clientinfo[j].infoValid)
+				{
+					VectorCopy(cg_entities[i].lerpOrigin, cg.tceRadarPositions[group][i]);
+					cg.tceRadarTimes[group][i] = cg.time;
+				}
+				break;
+			}
+		}
+	}
+}
+
+static void CG_RadarPositions(centity_t *cent)
+{
+	const char *mode = Info_ValueForKey(CG_ConfigString(CS_SERVERINFO),
+	                                  "tce_scannerRecipientPackets");
+	if (atoi(mode))
+	{
+		CG_RecipientRadarPositions(cent);
+	}
+	else
+	{
+		CG_Scanner(&cent->currentState);
+		/* Supply the existing HUD with its display context only. */
+		cg.tceRadarViewerTeam = cg.snap->ps.persistant[PERS_TEAM];
+		cg.tceRadarTeamTimeout = 750;
 	}
 }
 
