@@ -778,6 +778,20 @@ qboolean G_EmplacedGunIsRepairable(gentity_t *ent, gentity_t *other)
 	return qtrue;
 }
 
+#if defined(__linux__)
+/* The native helper stores each difference, then returns the held squared sum. */
+static long double G_CursorHintDistanceSquared(const vec3_t from, const vec3_t to)
+{
+	vec3_t delta;
+	int axis;
+	for (axis = 0; axis < 3; ++axis)
+	{
+		delta[axis] = (float)((long double)to[axis] - from[axis]);
+	}
+	return TCE_VectorLengthSquaredValue(delta);
+}
+#endif
+
 void G_CheckForCursorHints(gentity_t *ent)
 {
 	vec3_t        forward, right, up, offset, end;
@@ -805,7 +819,27 @@ void G_CheckForCursorHints(gentity_t *ent)
 	zooming = (qboolean)(ps->eFlags & EF_ZOOMING);
 
 	AngleVectors(ps->viewangles, forward, right, up);
-
+#if defined(__linux__)
+	{
+		long double eyeZ = (long double)ps->origin[2] + ps->viewheight;
+		int axis;
+		VectorCopy(ps->origin, offset);
+		offset[2] = (float)eyeZ;
+		/* Native zero comparison also skips unordered lean values. */
+		if (ps->leanf < 0.f || ps->leanf > 0.f)
+		{
+			for (axis = 0; axis < 3; ++axis)
+			{
+				long double base = axis == 2 ? eyeZ : (long double)ps->origin[axis];
+				offset[axis] = (float)((long double)ps->leanf * right[axis] + base);
+			}
+		}
+		for (axis = 0; axis < 3; ++axis)
+		{
+			end[axis] = (float)((long double)(zooming ? CH_MAX_DIST_ZOOM : chMaxDist) * forward[axis] + offset[axis]);
+		}
+	}
+#else
 	VectorCopy(ps->origin, offset);
 	offset[2] += ps->viewheight;
 
@@ -824,6 +858,7 @@ void G_CheckForCursorHints(gentity_t *ent)
 		VectorMA(offset, chMaxDist, forward, end);
 	}
 
+#endif
 	tr = &ps->serverCursorHintTrace;
 
 	trace_contents = (CONTENTS_TRIGGER | CONTENTS_SOLID | CONTENTS_MISSILECLIP | CONTENTS_BODY | CONTENTS_CORPSE);
@@ -832,8 +867,11 @@ void G_CheckForCursorHints(gentity_t *ent)
 	// reset all
 	hintType = ps->serverCursorHint = HINT_NONE;
 	hintVal  = ps->serverCursorHintVal = 0;
-
+#if defined(__linux__)
+	dist = (float)G_CursorHintDistanceSquared(offset, tr->endpos);
+#else
 	dist = VectorDistanceSquared(offset, tr->endpos);
+#endif
 
 	if (zooming)
 	{
@@ -851,7 +889,11 @@ void G_CheckForCursorHints(gentity_t *ent)
 		if ((constructible = G_IsConstructible(ent->client->sess.sessionTeam, ent->client->touchingTOI)))
 		{
 			ps->serverCursorHint    = HINT_CONSTRUCTIBLE;
+#if defined(__linux__)
+			ps->serverCursorHintVal = TCE_TruncateNativeInteger(constructible->s.angles2[0]);
+#else
 			ps->serverCursorHintVal = (int)constructible->s.angles2[0];
+#endif
 			return;
 		}
 	}
@@ -879,13 +921,27 @@ void G_CheckForCursorHints(gentity_t *ent)
 		numOfIgnoredEnts++;
 
 		// xkan, 1/8/2003 - advance offset (start point) past the entity to ignore
+#if defined(__linux__)
+		{
+			int axis;
+			for (axis = 0; axis < 3; ++axis)
+			{
+				offset[axis] = (float)((long double)(double)0.1 * forward[axis] + tr->endpos[axis]);
+			}
+		}
+#else
 		VectorMA(tr->endpos, 0.1, forward, offset);
+#endif
 
 		trap_Trace(tr, offset, NULL, NULL, end, traceEnt->s.number, trace_contents);
 
 		// xkan, 1/8/2003 - (hintDist - dist) is the actual distance in the above
 		// trap_Trace call. update dist accordingly.
+#if defined(__linux__)
+		dist = (float)(G_CursorHintDistanceSquared(offset, tr->endpos) + (long double)dist);
+#else
 		dist += VectorDistanceSquared(offset, tr->endpos);
+#endif
 		if (tr->fraction == 1)
 		{
 			return;
