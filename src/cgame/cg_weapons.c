@@ -5653,10 +5653,10 @@ CG_MissileHitWallSmall
 /* Entire original3007b010; unused weapon/client arguments remain ABI-compatible. */
 void CG_MissileHitWallSmall(int weapon, int clientNum, vec3_t origin, vec3_t dir)
 {
-	vec3_t position, velocity, decalPoints[1];
+	vec3_t position, velocity;
 	vec4_t projection = { 0, 0, -1, 80 }, color = { 1, 1, 1, 1 };
-	int    sound = trap_S_RegisterSound("sound/weapons/rocket/rocket_expl.wav", qfalse);
-	int    mark  = trap_R_RegisterShaderNoMip("gfx/damage/grenade_mrk");
+	int    sound = cgs.media.sfx_rockexp;
+	int    mark  = cgs.media.burnMarkShader;
 	(void)weapon; (void)clientNum;
 	VectorMA(origin, 16, dir, position); VectorScale(dir, 64, velocity);
 	CG_ParticleExplosion("explode1", position, velocity, 600, 6, 50, qtrue);
@@ -5665,8 +5665,7 @@ void CG_MissileHitWallSmall(int weapon, int clientNum, vec3_t origin, vec3_t dir
 	{
 		trap_S_StartSound(origin, -1, CHAN_AUTO, sound);
 	}
-	VectorCopy(origin, decalPoints[0]);
-	trap_R_ProjectDecal(mark, 1, decalPoints, projection, color, cg_markTime.integer, cg_markTime.integer >> 4);
+	trap_R_ProjectDecal(mark, 1, (vec3_t *)origin, projection, color, cg_markTime.integer, cg_markTime.integer >> 4);
 }
 
 /*
@@ -5677,9 +5676,8 @@ CG_MissileHitPlayer
 /* Entire original3007b150 / Linux000c9116: white blood-light input. */
 void CG_MissileHitPlayer(centity_t *cent, int weapon, vec3_t origin, vec3_t dir, int entityNum)
 {
-	vec3_t color = { 1, 1, 1 };
 	(void)cent;
-	CG_Bleed(origin, entityNum, color);
+	CG_Bleed(origin, entityNum, tv(1.0f, 1.0f, 1.0f));
 	if (weapon == 1)
 	{
 		CG_TCEMissileHitWall(1, 0, origin, dir, dir, 16, 0, 0);
@@ -5836,6 +5834,36 @@ CG_Tracer
 */
 void CG_Tracer(vec3_t source, vec3_t dest, int sparks)
 {
+#if defined(__linux__)
+	vec3_t forward, start, finish, midpoint;
+	float len;
+	long double begin, end;
+	int component;
+
+	VectorSubtract(dest, source, forward);
+	len = VectorNormalize(forward);
+	if (!(len >= 100.0f) && !sparks)
+	{
+		return;
+	}
+	begin = ((long double)len - 60.0f) * (rand() & 0x7fff);
+	begin = begin * (1.0f / 32767.0f) + 50.0f;
+	end = begin + cg_tracerLength.value;
+	if (end > (long double)len)
+	{
+		end = len;
+	}
+	for (component = 0; component < 3; ++component)
+	{
+		start[component] = (float)((long double)forward[component] * begin + source[component]);
+		finish[component] = (float)((long double)forward[component] * end + source[component]);
+	}
+	CG_DrawTracer(start, finish);
+	for (component = 0; component < 3; ++component)
+	{
+		midpoint[component] = (float)(((long double)start[component] + finish[component]) * 0.5f);
+	}
+#else
 	float  len, begin, end;
 	vec3_t start, finish;
 	vec3_t midpoint;
@@ -5865,6 +5893,7 @@ void CG_Tracer(vec3_t source, vec3_t dest, int sparks)
 	midpoint[0] = (start[0] + finish[0]) * 0.5;
 	midpoint[1] = (start[1] + finish[1]) * 0.5;
 	midpoint[2] = (start[2] + finish[2]) * 0.5;
+#endif
 }
 
 
