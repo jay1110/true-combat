@@ -2366,7 +2366,11 @@ void G_InitGame(int levelTime, int randomSeed, int restart)
 
 	// Reinstate any MV views for clients -- need to do this after all init is complete
 	// --- maybe not the best place to do this... seems to be some race conditions on map_restart
+#if defined(__linux__) && !defined(Q3_VM)
+	G_spawnPrintf(DP_MVSPAWN, TCE_AddInt32(level.time, 2000), NULL);
+#else
 	G_spawnPrintf(DP_MVSPAWN, level.time + 2000, NULL);
+#endif
 	/* Original20061748..20061779: listen-server TC state initialization. */
 	if (bot_enable.integer && !g_dedicated.integer)
 	{

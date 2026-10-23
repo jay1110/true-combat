@@ -1457,8 +1457,16 @@ qboolean G_SweepForLandmines(vec3_t origin, float radius, int team)
 		if (e->s.teamNum % 4 != team && e->s.teamNum < 4)
 		{
 			VectorSubtract(origin, e->r.currentOrigin, dist);
+#if defined(__linux__) && !defined(Q3_VM)
+			/* Linux keeps the vector helper's result in x87 and uses an
+			 * ordered radius >= distance comparison. */
+			if (!((long double)dist[0] * dist[0] +
+			      (long double)dist[1] * dist[1] +
+			      (long double)dist[2] * dist[2] <= (long double)radius))
+#else
 			if ((double)dist[0] * dist[0] + (double)dist[1] * dist[1] +
 			    (double)dist[2] * dist[2] > (double)radius)
+#endif
 			{
 				continue;
 			}
@@ -1589,8 +1597,13 @@ qboolean G_ExplodeSatchels(gentity_t *ent)
 		VectorSubtract(e->r.currentOrigin, ent->r.currentOrigin, dist);
 		/* TC2006c601 compares the x87 VectorLengthSquared return directly,
 		 * without rounding it through a float result first. */
+#if defined(__linux__) && !defined(Q3_VM)
+		if ((long double)dist[0] * dist[0] + (long double)dist[1] * dist[1] +
+		    (long double)dist[2] * dist[2] > SQR(2000))
+#else
 		if ((double)dist[0] * dist[0] + (double)dist[1] * dist[1] +
 		    (double)dist[2] * dist[2] > SQR(2000))
+#endif
 		{
 			continue;
 		}
@@ -1650,16 +1663,26 @@ void LandMineTrigger(gentity_t *self)
 {
 	self->r.contents = CONTENTS_CORPSE;
 	trap_LinkEntity(self);
+#if defined(__linux__) && !defined(Q3_VM)
+	self->nextthink  = TCE_AddInt32(level.time, FRAMETIME);
+	self->think      = LandminePostThink;
+	self->s.teamNum  = TCE_AddInt32(self->s.teamNum, 8);
+#else
 	self->nextthink  = level.time + FRAMETIME;
 	self->think      = LandminePostThink;
 	self->s.teamNum += 8;
+#endif
 	// rain - communicate trigger time to client
 	self->s.time = level.time;
 }
 
 void LandMinePostTrigger(gentity_t *self)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	self->nextthink = TCE_AddInt32(level.time, 300);
+#else
 	self->nextthink = level.time + 300;
+#endif
 	self->think     = G_ExplodeMissile;
 }
 
