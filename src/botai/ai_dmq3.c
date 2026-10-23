@@ -4440,6 +4440,17 @@ BotAimAtEnemy
 */
 void BotAimAtEnemy(bot_state_t *bs)
 {
+#if defined(__linux__)
+	const int rocketWeapon    = TCE_ITEM_WEAPON_PANZERFAUST;
+	const int mortarSetWeapon = TCE_ITEM_WEAPON_MORTAR_SET;
+	const int flameWeapon     = TCE_ITEM_WEAPON_FLAMETHROWER;
+	const int shotMask        = MASK_SHOT | CONTENTS_MISSILECLIP;
+#else
+	const int rocketWeapon    = WP_PANZERFAUST;
+	const int mortarSetWeapon = WP_MORTAR_SET;
+	const int flameWeapon     = WP_FLAMETHROWER;
+	const int shotMask        = MASK_SHOT;
+#endif
 	int /*i, */      enemyvisible;
 	float            dist, f, aim_skill, aim_accuracy, speed, reactiontime;
 	vec3_t           dir, bestorigin, end, start, groundtarget, cmdmove, enemyvelocity;
@@ -4491,12 +4502,12 @@ void BotAimAtEnemy(bot_state_t *bs)
 			aim_accuracy = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_ACCURACY_GRENADELAUNCHER, 0, 1);
 			aim_skill    = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_SKILL_GRENADELAUNCHER, 0, 1);
 		}
-		if (bs->weaponnum == WP_PANZERFAUST || bs->weaponnum == WP_MORTAR_SET)
+		if (bs->weaponnum == rocketWeapon || bs->weaponnum == mortarSetWeapon)
 		{
 			aim_accuracy = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_ACCURACY_ROCKETLAUNCHER, 0, 1);
 			aim_skill    = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_SKILL_ROCKETLAUNCHER, 0, 1);
 		}
-		if (bs->weaponnum == WP_FLAMETHROWER)
+		if (bs->weaponnum == flameWeapon)
 		{
 			aim_accuracy = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_ACCURACY_FLAMETHROWER, 0, 1);
 		}
@@ -4583,7 +4594,7 @@ void BotAimAtEnemy(bot_state_t *bs)
 		start[2] += bs->cur_ps.viewheight;
 		//start[2] += wi.offset[2];
 		//
-		BotAI_Trace(&trace, start, mins, maxs, bestorigin, bs->entitynum, MASK_SHOT);
+		BotAI_Trace(&trace, start, mins, maxs, bestorigin, bs->entitynum, shotMask);
 		//if the enemy is NOT hit
 		if (trace.fraction <= 1 && trace.ent != entinfo.number)
 		{
@@ -4647,7 +4658,7 @@ void BotAimAtEnemy(bot_state_t *bs)
 		} // if (wi.speed) ...
 
 		//if the projectile does radial damage
-		if ((bs->weaponnum != WP_FLAMETHROWER) && (wi.proj.damagetype & DAMAGETYPE_RADIAL))
+		if ((bs->weaponnum != flameWeapon) && (wi.proj.damagetype & DAMAGETYPE_RADIAL))
 		{
 			//if the enemy isn't standing significantly higher than the bot
 			if (entinfo.origin[2] < bs->origin[2] + 16)
@@ -4655,7 +4666,7 @@ void BotAimAtEnemy(bot_state_t *bs)
 				//try to aim at the ground in front of the enemy
 				VectorCopy(entinfo.origin, end);
 				end[2] -= 64;
-				BotAI_Trace(&trace, bestorigin, NULL, NULL, end, entinfo.number, MASK_SHOT);
+				BotAI_Trace(&trace, bestorigin, NULL, NULL, end, entinfo.number, shotMask);
 				//
 				VectorCopy(bestorigin, groundtarget);
 				if (trace.startsolid)
@@ -4667,7 +4678,7 @@ void BotAimAtEnemy(bot_state_t *bs)
 					groundtarget[2] = trace.endpos[2];
 				}
 				//trace a line from projectile start to ground target
-				BotAI_Trace(&trace, start, NULL, NULL, groundtarget, bs->entitynum, MASK_SHOT);
+				BotAI_Trace(&trace, start, NULL, NULL, groundtarget, bs->entitynum, shotMask);
 				//if hitpoint is not vertically too far from the ground target
 				if (fabs(trace.endpos[2] - groundtarget[2]) < 50)
 				{
@@ -4681,7 +4692,7 @@ void BotAimAtEnemy(bot_state_t *bs)
 						{
 							//check if the bot is visible from the ground target
 							trace.endpos[2] += 1;
-							BotAI_Trace(&trace, trace.endpos, NULL, NULL, entinfo.origin, entinfo.number, MASK_SHOT);
+							BotAI_Trace(&trace, trace.endpos, NULL, NULL, entinfo.origin, entinfo.number, shotMask);
 							if (trace.fraction >= .99f)
 							{
 								//botimport.Print(PRT_MESSAGE, "%1.1f aiming at ground\n", AAS_Time());
@@ -4709,7 +4720,7 @@ void BotAimAtEnemy(bot_state_t *bs)
 		{
 			//do prediction shots around corners
 //			if (wi.number == WP_BFG ||	//----(SA)	removing old weapon references
-			if (wi.number == WP_PANZERFAUST ||
+			if (wi.number == rocketWeapon ||
 			    wi.number == WP_GRENADE_LAUNCHER ||
 			    wi.number == WP_GRENADE_PINEAPPLE)
 			{
@@ -4732,7 +4743,7 @@ void BotAimAtEnemy(bot_state_t *bs)
 	//
 	if (enemyvisible)
 	{
-		BotAI_Trace(&trace, bs->eye, NULL, NULL, bestorigin, bs->entitynum, MASK_SHOT);
+		BotAI_Trace(&trace, bs->eye, NULL, NULL, bestorigin, bs->entitynum, shotMask);
 		VectorCopy(trace.endpos, bs->aimtarget);
 	}
 	else
