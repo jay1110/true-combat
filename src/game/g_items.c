@@ -872,7 +872,12 @@ int Pickup_Weapon(gentity_t *ent, gentity_t *other)
 						G_LogPrintf("Ammo_Pack: %d %d\n", (int)(ent->parent - g_entities), (int)(other - g_entities));  // OSP
 					}
 				}
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+				ent->parent->client->PCSpecialPickedUpCount =
+					TCE_AddInt32(ent->parent->client->PCSpecialPickedUpCount, 1);
+#else
 				ent->parent->client->PCSpecialPickedUpCount++;
+#endif
 				G_AddSkillPoints(ent->parent, SK_SIGNALS, 1.f);
 				G_DebugAddSkillPoints(ent->parent, SK_SIGNALS, 1.f, "ammo pack picked up");
 
@@ -903,7 +908,11 @@ int Pickup_Weapon(gentity_t *ent, gentity_t *other)
 	{
 		int weapon = ent->item->giTag;
 		int primary;
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+		if (TCE_SubInt32(level.time, other->client->dropWeaponTime) < 1000 ||
+#else
 		if (level.time - other->client->dropWeaponTime < 1000 ||
+#endif
 		    other->client->ps.weapon == 60 || other->client->ps.weapon == 62)
 		{
 			return 0;
@@ -922,6 +931,10 @@ int Pickup_Weapon(gentity_t *ent, gentity_t *other)
 			{
 				G_DropWeapon(other, primary);
 			}
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+			/* DropWeapon can run entity callbacks; reload the pickup item. */
+			weapon = ent->item->giTag;
+#endif
 			other->client->dropWeaponTime = level.time;
 			COM_BitSet(other->client->ps.weapons, weapon);
 			other->client->ps.holdable[10] = BG_WeapToWeaponOnBack(weapon);
