@@ -3352,7 +3352,12 @@ void LogExit(const char *string)
 			else
 			{
 				// use remaining time as next timer
+#if defined(__linux__) && !defined(Q3_VM)
+				double nextTime = (double)((long double)TCE_SubInt32(level.timeCurrent, level.startTime) *
+				                           (long double)(1.0f / 60000.0f));
+#else
 				float nextTime = (level.timeCurrent - level.startTime) * (1.0f / 60000.0f);
+#endif
 				trap_Cvar_Set("g_nextTimeLimit", va("%f", nextTime));
 			}
 		}
@@ -3380,13 +3385,23 @@ void LogExit(const char *string)
 
 		if (winner == 0)
 		{
+#if defined(__linux__) && !defined(Q3_VM)
+			unsigned shift = (unsigned)g_campaigns[level.currentCampaign].current & 31u;
+			g_axiswins.integer |= shift == 31u ? INT_MIN : (1 << shift);
+#else
 			g_axiswins.integer |= (1 << g_campaigns[level.currentCampaign].current);
+#endif
 			trap_Cvar_Set("g_axiswins", va("%i", g_axiswins.integer));
 			trap_Cvar_Update(&g_axiswins);
 		}
 		else if (winner == 1)
 		{
+#if defined(__linux__) && !defined(Q3_VM)
+			unsigned shift = (unsigned)g_campaigns[level.currentCampaign].current & 31u;
+			g_alliedwins.integer |= shift == 31u ? INT_MIN : (1 << shift);
+#else
 			g_alliedwins.integer |= (1 << g_campaigns[level.currentCampaign].current);
+#endif
 			trap_Cvar_Set("g_alliedwins", va("%i", g_alliedwins.integer));
 			trap_Cvar_Update(&g_alliedwins);
 		}
@@ -3413,9 +3428,17 @@ void LogExit(const char *string)
 						continue;
 					}
 
+#if defined(__linux__) && !defined(Q3_VM)
+					if ((long double)cl->sess.skillpoints[i] > (long double)highestskillpoints)
+#else
 					if (cl->sess.skillpoints[i] > highestskillpoints)
+#endif
 					{
+#if defined(__linux__) && !defined(Q3_VM)
+						highestskillpoints       = TCE_TruncateNativeInteger((long double)cl->sess.skillpoints[i]);
+#else
 						highestskillpoints       = cl->sess.skillpoints[i];
+#endif
 						highestskillpointsclient = j;
 					}
 				}
@@ -3434,9 +3457,18 @@ void LogExit(const char *string)
 							continue;
 						}
 
+#if defined(__linux__) && !defined(Q3_VM)
+						if (TCE_FloatIsNaN(cl->sess.skillpoints[i]) ||
+						    cl->sess.skillpoints[i] == (float)highestskillpoints)
+#else
 						if (cl->sess.skillpoints[i] == highestskillpoints)
+#endif
 						{
+#if defined(__linux__) && !defined(Q3_VM)
+							cl->sess.medals[i] = TCE_AddInt32(cl->sess.medals[i], 1);
+#else
 							cl->sess.medals[i]++;
+#endif
 
 							ClientUserinfoChanged(level.sortedClients[j]);
 						}
@@ -3483,9 +3515,17 @@ void LogExit(const char *string)
 				G_Script_ScriptEvent(level.gameManager, "trigger", "specops_win");
 			}
 		}
+#if defined(__linux__) && !defined(Q3_VM)
+		trap_Cvar_Set("g_axiswins", va("%i", TCE_AddInt32(g_axiswins.integer, level.teamScores[TEAM_AXIS])));
+#else
 		trap_Cvar_Set("g_axiswins", va("%i", g_axiswins.integer + level.teamScores[TEAM_AXIS]));
+#endif
 		trap_Cvar_Update(&g_axiswins);
+#if defined(__linux__) && !defined(Q3_VM)
+		trap_Cvar_Set("g_alliedwins", va("%i", TCE_AddInt32(g_alliedwins.integer, level.teamScores[TEAM_ALLIES])));
+#else
 		trap_Cvar_Set("g_alliedwins", va("%i", g_alliedwins.integer + level.teamScores[TEAM_ALLIES]));
+#endif
 		trap_Cvar_Update(&g_alliedwins);
 		trap_SetConfigstring(CS_ROUNDSCORES1, va("%i", g_axiswins.integer));
 		trap_SetConfigstring(CS_ROUNDSCORES2, va("%i", g_alliedwins.integer));
@@ -3493,14 +3533,22 @@ void LogExit(const char *string)
 		if (g_currentRound.integer >= roundLimit - 1)
 		{
 			trap_Cvar_Set("g_currentRound", "0");
+#if defined(__linux__) && !defined(Q3_VM)
+			if (TCE_AddInt32(g_lms_currentMatch.integer, 1) >= g_lms_matchlimit.integer)
+#else
 			if (g_lms_currentMatch.integer + 1 >= g_lms_matchlimit.integer)
+#endif
 			{
 				trap_Cvar_Set("g_lms_currentMatch", "0");
 				level.lmsDoNextMap = qtrue;
 			}
 			else
 			{
+#if defined(__linux__) && !defined(Q3_VM)
+				trap_Cvar_Set("g_lms_currentMatch", va("%i", TCE_AddInt32(g_lms_currentMatch.integer, 1)));
+#else
 				trap_Cvar_Set("g_lms_currentMatch", va("%i", g_lms_currentMatch.integer + 1));
+#endif
 				level.lmsDoNextMap = qfalse;
 			}
 			if (level.gameManager)
@@ -3517,7 +3565,11 @@ void LogExit(const char *string)
 		}
 		else
 		{
+#if defined(__linux__) && !defined(Q3_VM)
+			trap_Cvar_Set("g_currentRound", va("%i", TCE_AddInt32(g_currentRound.integer, 1)));
+#else
 			trap_Cvar_Set("g_currentRound", va("%i", g_currentRound.integer + 1));
+#endif
 			trap_Cvar_Update(&g_currentRound);
 		}
 	}
@@ -3548,12 +3600,20 @@ void CheckIntermissionExit(void)
 
 	// OSP - end-of-level auto-actions
 	//		  maybe make the weapon stats dump available to single player?
+#if defined(__linux__) && !defined(Q3_VM)
+	if (!(fActions & EOM_WEAPONSTATS) && TCE_SubInt32(level.time, level.intermissiontime) > 300)
+#else
 	if (!(fActions & EOM_WEAPONSTATS) && level.time - level.intermissiontime > 300)
+#endif
 	{
 		G_matchInfoDump(EOM_WEAPONSTATS);
 		fActions |= EOM_WEAPONSTATS;
 	}
+#if defined(__linux__) && !defined(Q3_VM)
+	if (!(fActions & EOM_MATCHINFO) && TCE_SubInt32(level.time, level.intermissiontime) > 800)
+#else
 	if (!(fActions & EOM_MATCHINFO) && level.time - level.intermissiontime > 800)
+#endif
 	{
 		G_matchInfoDump(EOM_MATCHINFO);
 		fActions |= EOM_MATCHINFO;
@@ -3597,8 +3657,13 @@ void CheckIntermissionExit(void)
 
 	/* TC Windows: normal deployment after 5 seconds; final round after 8.
 	 * Ready percentage/referee override can finish either delay early. */
+#if defined(__linux__) && !defined(Q3_VM)
+	if (!exit && level.time < TCE_AddInt32(level.intermissiontime,
+	              g_currentRound.integer < roundLimit - 1 ? 5000 : 8000))
+#else
 	if (!exit && (level.time < level.intermissiontime +
 	              (g_currentRound.integer < roundLimit - 1 ? 5000 : 8000)))
+#endif
 	{
 		return;
 	}
@@ -3659,7 +3724,11 @@ void CheckExitRules(void)
 	}
 	if (level.tceEndRoundTime)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		if (level.time > TCE_AddInt32(level.tceEndRoundTime, 3000) && g_gamestate.integer == GS_PLAYING)
+#else
 		if (level.time > level.tceEndRoundTime + 3000 && g_gamestate.integer == GS_PLAYING)
+#endif
 		{
 			LogExit("Wolf EndRound.");
 		}
@@ -3680,11 +3749,19 @@ void CheckExitRules(void)
 			LogExit("Specops hit the fraglimit."); return;
 		}
 	}
+#if defined(__linux__) && !defined(Q3_VM)
+	if (!TCE_FloatIsZeroOrNaN(g_timelimit.value) && !level.warmupTime)
+#else
 	if (g_timelimit.value && !level.warmupTime)
+#endif
 	{
 		if (level.tceTimelimitHitTime)
 		{
+#if defined(__linux__) && !defined(Q3_VM)
+			if (level.time > TCE_AddInt32(level.tceTimelimitHitTime, 1000) && g_gamestate.integer == GS_PLAYING)
+#else
 			if (level.time > level.tceTimelimitHitTime + 1000 && g_gamestate.integer == GS_PLAYING)
+#endif
 			{
 				trap_SendServerCommand(-1, "print \"Timelimit hit.\n\""); LogExit("Timelimit hit.");
 			}
@@ -3692,7 +3769,12 @@ void CheckExitRules(void)
 		}
 		/* Windows200630cb FILD compares the exact integer delta against an
 		 * unspilled x87 product; a float cast rounds timer boundaries early. */
+#if defined(__linux__) && !defined(Q3_VM)
+		if ((long double)TCE_SubInt32(level.timeCurrent, level.startTime) >=
+		    (long double)g_timelimit.value * 60000.0L)
+#else
 		if (!((double)(level.timeCurrent - level.startTime) < (double)g_timelimit.value * 60000.0))
+#endif
 		{
 			if (g_gametype.integer != 5)
 			{
@@ -3706,9 +3788,16 @@ void CheckExitRules(void)
 					{
 						return;
 					}
+#if defined(__linux__) && !defined(Q3_VM)
+					winner = level.teamScores[TEAM_AXIS] > level.teamScores[TEAM_ALLIES] ? 0 : 1;
+					trap_GetConfigstring(CS_MULTI_MAPWINNER, cs, sizeof(cs));
+					Info_SetValueForKey(cs, "winner", winner == 0 ? "0" : "1");
+					trap_SetConfigstring(CS_MULTI_MAPWINNER, cs);
+#else
 					trap_GetConfigstring(CS_MULTI_MAPWINNER, cs, sizeof(cs));
 					Info_SetValueForKey(cs, "winner", level.teamScores[TEAM_AXIS] > level.teamScores[TEAM_ALLIES] ? "0" : "1");
 					trap_SetConfigstring(CS_MULTI_MAPWINNER, cs);
+#endif
 				}
 				goto timelimit;
 			}
@@ -3725,6 +3814,17 @@ void CheckExitRules(void)
 						LogExit(terrorists > specops ? "Terrorists have the most survivors." : "Specops have the most survivors.");
 						trap_SendServerCommand(-1, terrorists > specops ? "print \"Terrorists have the most survivors.\n\"" : "print \"Specops have the most survivors.\n\""); return;
 					}
+#if defined(__linux__) && !defined(Q3_VM)
+					winner = level.firstbloodTeam;
+					if (winner != TEAM_AXIS && winner != TEAM_ALLIES)
+					{
+						return;
+					}
+					trap_GetConfigstring(CS_MULTI_MAPWINNER, cs, sizeof(cs));
+					Info_SetValueForKey(cs, "winner", winner == TEAM_AXIS ? "0" : "1"); trap_SetConfigstring(CS_MULTI_MAPWINNER, cs);
+					LogExit(winner == TEAM_AXIS ? "Terrorists win by drawing First Blood." : "Specops team win by drawing First Blood.");
+					trap_SendServerCommand(-1, winner == TEAM_AXIS ? "print \"Terrorists win by drawing First Blood.\n\"" : "print \"Specops win by drawing First Blood.\n\"");
+#else
 					if (level.firstbloodTeam != TEAM_AXIS && level.firstbloodTeam != TEAM_ALLIES)
 					{
 						return;
@@ -3733,6 +3833,7 @@ void CheckExitRules(void)
 					Info_SetValueForKey(cs, "winner", level.firstbloodTeam == TEAM_AXIS ? "0" : "1"); trap_SetConfigstring(CS_MULTI_MAPWINNER, cs);
 					LogExit(level.firstbloodTeam == TEAM_AXIS ? "Terrorists win by drawing First Blood." : "Specops team win by drawing First Blood.");
 					trap_SendServerCommand(-1, level.firstbloodTeam == TEAM_AXIS ? "print \"Terrorists win by drawing First Blood.\n\"" : "print \"Specops win by drawing First Blood.\n\"");
+#endif
 				}
 				goto timelimit;
 			}
@@ -3789,7 +3890,11 @@ void CheckExitRules(void)
 		}
 		return;
 	}
+#if defined(__linux__) && !defined(Q3_VM)
+	if (level.time <= TCE_AddInt32(level.teamEliminateTime, 3000))
+#else
 	if (level.time <= level.teamEliminateTime + 3000)
+#endif
 	{
 		return;
 	}
