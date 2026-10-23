@@ -1137,10 +1137,17 @@ static void HandleEntsThatBlockConstructible(gentity_t *constructor, gentity_t *
 // !! NOTE !!: if the conditions here of a buildable constructible change, then BotIsConstructible() must reflect those changes
 
 // returns qfalse when it couldn't build
-/* Extracted construction value stages. Exact x87 precision/flags remain open. */
+/* Native construction value stages; exception flags remain compiler-dependent. */
 static qboolean G_TCEAdvanceConstruction(int constructionDuration, float *constructionProgress)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(__linux__) && !defined(Q3_VM)
+	long double value = (long double)constructionDuration * (long double)0.01f;
+	value = 1.0L / value;
+	value = value * 255.0L;
+	value = value + (long double)*constructionProgress;
+	*(volatile float *)constructionProgress = (float)value;
+	return value >= 250.0L;
+#elif defined(_MSC_VER) && defined(_M_IX86)
 	const float scale = 0.01f;
 	long double value = (long double)constructionDuration * (long double)scale;
 	value                                   = (long double)255.0f / value;
@@ -1156,7 +1163,7 @@ static qboolean G_TCEAdvanceConstruction(int constructionDuration, float *constr
 
 static int G_TCEConstructionScore(float constructionScore)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 	return TCE_TruncateNativeInteger((long double)constructionScore);
 #else
 	return (int)constructionScore;
@@ -1165,7 +1172,15 @@ static int G_TCEConstructionScore(float constructionScore)
 
 static void G_TCEConstructionSoundCenter(const vec3_t centerMins, const vec3_t centerMaxs, vec3_t centerResult)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(__linux__) && !defined(Q3_VM)
+	int axis;
+	volatile float *stored = centerResult;
+	for (axis = 0; axis < 3; ++axis)
+	{
+		long double sum = (long double)centerMaxs[axis] + centerMins[axis];
+		stored[axis] = (float)(sum * 0.5L);
+	}
+#elif defined(_MSC_VER) && defined(_M_IX86)
 	volatile float *stored = centerResult;
 	long double    z;
 	stored[0] = (float)((long double)centerMaxs[0] + (long double)centerMins[0]);
@@ -1182,7 +1197,7 @@ static void G_TCEConstructionSoundCenter(const vec3_t centerMins, const vec3_t c
 
 static void G_TCEConstructionSnap(vec3_t snapPosition)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 	volatile float *stored = snapPosition;
 	int            axis;
 	for (axis = 0; axis < 3; ++axis)
@@ -1197,7 +1212,16 @@ static void G_TCEConstructionSnap(vec3_t snapPosition)
 
 static void G_TCEConstructionUpdateCenter(const vec3_t markerMins, const vec3_t markerMaxs, vec3_t markerPosition)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(__linux__) && !defined(Q3_VM)
+	volatile float y = (float)((long double)markerMaxs[1] + markerMins[1]);
+	long double x = (long double)markerMaxs[0] + markerMins[0];
+	long double z = (long double)markerMaxs[2] + markerMins[2];
+	volatile float *stored = markerPosition;
+	stored[0] = (float)(x * 0.5L);
+	stored[1] = (float)((long double)y * 0.5L);
+	stored[2] = (float)(z * 0.5L);
+	G_TCEConstructionSnap(markerPosition);
+#elif defined(_MSC_VER) && defined(_M_IX86)
 	volatile float *stored = markerPosition;
 	long double    z;
 	int            value;
@@ -1587,9 +1611,19 @@ static qboolean TryConstructing(gentity_t *ent)
 				}
 				else
 				{
+#if defined(__linux__) && !defined(Q3_VM)
+					volatile float y = (float)((long double)constructible->r.absmax[1] + constructible->r.absmin[1]);
+					volatile float z = (float)((long double)constructible->r.absmax[2] + constructible->r.absmin[2]);
+					long double x = (long double)constructible->r.absmax[0] + constructible->r.absmin[0];
+					volatile float *stored = e->s.pos.trBase;
+					stored[0] = (float)(x * 0.5L);
+					stored[1] = (float)((long double)y * 0.5L);
+					stored[2] = (float)((long double)z * 0.5L);
+#else
 					VectorCopy(constructible->r.absmin, e->s.pos.trBase);
 					VectorAdd(constructible->r.absmax, e->s.pos.trBase, e->s.pos.trBase);
 					VectorScale(e->s.pos.trBase, 0.5, e->s.pos.trBase);
+#endif
 				}
 
 				G_TCEConstructionSnap(e->s.pos.trBase);
