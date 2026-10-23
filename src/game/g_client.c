@@ -975,7 +975,11 @@ static void TCE_SetSpawnWeapons(gclient_t *client)
 		return;
 	}
 	AddWeaponToPlayer(client, 1, 1, 0, qtrue);
+#if defined(__linux__)
+	skill = TCE_AddInt32(TCE_TruncateNativeInteger(client->sess.skillpoints[tcClass]), 1);
+#else
 	skill = (int)client->sess.skillpoints[tcClass] + 1;
+#endif
 	if ((flags & SVF_BOT)
 #ifdef FEATURE_OMNIBOT
 	    && !Bot_Interface_IsOmnibot(client->ps.clientNum)
@@ -990,9 +994,16 @@ static void TCE_SetSpawnWeapons(gclient_t *client)
 			}
 		if (count)
 		{
+			int index;
+#if defined(__linux__)
+			/* Linux a325c: integer product, then one binary32 factor. */
+			index = TCE_TruncateNativeInteger((long double)count * (rand() & 0x7fff) *
+			                                 (long double)0.000030213324862415902f);
+#else
 			/* Preserve2004bc01..2004bc26: x87 product, negative truncation. */
-			int index = -(int)((double)(rand() & 0x7fff) *
+			index = -(int)((double)(rand() & 0x7fff) *
 			                   (double)(1.0f / 32767.0f) * count * (double)-0.99f);
+#endif
 			client->sess.playerWeapon = choices[index];
 		}
 	}
