@@ -3065,9 +3065,73 @@ static void CG_DrawLimboMessage(void)
 }
 static qboolean CG_DrawFollow(void)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	extern qboolean tce_uiCoordinates;
+	qboolean previous = tce_uiCoordinates, result = qtrue;
+	const char *format, *text;
+	char buffer[128];
+	tce_uiCoordinates = qtrue;
+	if (CG_ViewingDraw())
+	{
+		goto done;
+	}
+	if (!(cg.snap->ps.pm_flags & PMF_FOLLOW))
+	{
+		result = qfalse;
+		goto done;
+	}
+	if (!(cg.snap->ps.pm_flags & PMF_LIMBO))
+	{
+		text = CG_TranslateString("Following");
+		CG_Text_Paint_Ext(8, 118, .25f, .25f, colorWhite, text, 0, 0, 3, &cgs.media.limboFont1);
+		text = va("%s", cgs.clientinfo[cg.snap->ps.clientNum].name);
+		CG_Text_Paint_Ext(84, 118, .25f, .25f, colorWhite, text, 0, 0, 3, &cgs.media.limboFont1);
+		goto done;
+	}
+	if (cgs.gametype != 5)
+	{
+		if (!cg.snap->ps.persistant[PERS_RESPAWNS_LEFT])
+		{
+			if (cg.snap->ps.persistant[PERS_RESPAWNS_PENALTY] >= 0)
+			{
+				int milliseconds = cgs.clientinfo[cg.snap->ps.clientNum].team == TEAM_AXIS
+				    ? cg_redlimbotime.integer : cg_bluelimbotime.integer;
+				int period = TCE_TruncateNativeInteger((long double)milliseconds * .001f);
+				int seconds = CG_CalculateReinfTime(qfalse);
+				unsigned bits = (unsigned)cg.snap->ps.persistant[PERS_RESPAWNS_PENALTY]
+				                * (unsigned)period + (unsigned)seconds;
+				memcpy(&seconds, &bits, sizeof(seconds));
+				format = CG_TranslateString("Bonus Life! Deploying in %d seconds");
+				sprintf(buffer, format, seconds);
+			}
+			else
+			{
+				text = CG_TranslateString("No more deployments this round");
+				sprintf(buffer, "%s", text);
+			}
+		}
+		else
+		{
+			int seconds = CG_CalculateReinfTime(qfalse);
+			format = CG_TranslateString("Deploying in %d seconds");
+			sprintf(buffer, format, seconds);
+		}
+		CG_Text_Paint_Ext(8, 118, .25f, .25f, colorWhite, buffer, 0, 0, 3, &cgs.media.limboFont1);
+	}
+	if (cg.snap->ps.clientNum != cg.clientNum)
+	{
+		format = CG_TranslateString("Following");
+		sprintf(buffer, "(%s %s)", format, cgs.clientinfo[cg.snap->ps.clientNum].name);
+		CG_Text_Paint_Ext(8, 136, .25f, .25f, colorWhite, buffer, 0, 0, 3, &cgs.media.limboFont1);
+	}
+ done:
+	tce_uiCoordinates = previous;
+	return result;
+#else
 	extern qboolean    tce_uiCoordinates; qboolean previous = tce_uiCoordinates; int result;
 	tce_hud_messages_t s; tce_hud_messages_api_t a; CG_MessageState(&s, &a);
 	tce_uiCoordinates = qtrue; result = TCE_DrawFollow(&s, &a); tce_uiCoordinates = previous; return result;
+#endif
 }
 
 /*
