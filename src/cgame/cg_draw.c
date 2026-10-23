@@ -3167,8 +3167,108 @@ static void CG_WarmupPaint(float x, float y, float sx, float sy, const float *co
 {
 	CG_Text_Paint_Ext(x, y, sx, sy, (float *)color, text, adjust, limit, style, (fontInfo_t *)font);
 }
+#if defined(__linux__) && !defined(Q3_VM)
+static void CG_WarmupLineLinux(const char *text, float y)
+{
+	fontInfo_t *font = &cgs.media.limboFont1;
+	int width = CG_Text_Width_Ext(text, .2f, 0, font);
+	CG_Text_Paint_Ext((float)(426 - width / 2), y, .2f, .2f,
+	                  colorWhite, text, 0, 0, 3, font);
+}
+#endif
+
 static void CG_DrawWarmup(void)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	extern qboolean tce_uiCoordinates;
+	qboolean previous = tce_uiCoordinates;
+	const char *text, *format, *roundText, *first = "", *second = "";
+	char key[32];
+	int sec, defender;
+	tce_uiCoordinates = qtrue;
+	if (!cg.warmup)
+	{
+		if (cgs.gamestate != 2 && cgs.gamestate != 4)
+		{
+			goto done;
+		}
+		format = CG_TranslateString("^3WARMUP:^7 Waiting on ^2%i^7 %s");
+		text = va(format, cgs.minclients, cgs.minclients == 1 ? "player" : "players");
+		CG_WarmupLineLinux(text, 194);
+		if (cg.demoPlayback || cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR ||
+		    (cg.snap->ps.pm_flags & 0x5000) == 0x1000)
+		{
+			goto done;
+		}
+		Q_strncpyz(key, BindingFromName("ready"), sizeof(key));
+		if (!Q_stricmp(key, "(???" ")"))
+		{
+			text = "Type ^3\\ready^* in the console to start";
+		}
+		else
+		{
+			text = va("Press ^3%s^* to start", key);
+		}
+		text = CG_TranslateString(text);
+		CG_WarmupLineLinux(text, 208);
+		goto done;
+	}
+	sec = TCE_SubInt32(cg.warmup, cg.time) / 1000;
+	if (sec < 0)
+	{
+		sec = 0;
+	}
+	format = CG_TranslateString("(WARMUP) Match begins in:");
+	text = va("%s %i", format, sec + 1);
+	CG_WarmupLineLinux(text, 120);
+	if (sec != cg.warmupCount)
+	{
+		cg.warmupCount = sec;
+		if (TCE_SubInt32(TCE_SubInt32(cg.warmup, cg.time), sec * 1000) > -100 && sec <= 2)
+		{
+			trap_S_StartLocalSound(cgs.media.tceCountBeep, 7);
+		}
+	}
+	if (cgs.gametype != 3)
+	{
+		goto done;
+	}
+	format = CG_TranslateString("Stopwatch Round");
+	roundText = va("%s %i", format, TCE_AddInt32(cgs.currentRound, 1));
+	defender = atoi(Info_ValueForKey(CG_ConfigString(CS_MULTI_INFO), "defender"));
+	if (cg.snap->ps.persistant[PERS_TEAM] == TEAM_AXIS)
+	{
+		first = "You are on the Terrorist team";
+		if (cgs.currentRound == 1)
+		{
+			first = "You have been switched to the Terrorist team";
+			second = defender ? "Try to beat the clock!" : "Keep the Specops from beating the clock!";
+		}
+	}
+	else if (cg.snap->ps.persistant[PERS_TEAM] == TEAM_ALLIES)
+	{
+		first = "You are on the Specops team";
+		if (cgs.currentRound == 1)
+		{
+			first = "You have been switched to the Specops team";
+			second = defender ? "Keep the Axis from beating the clock!" : "Try to beat the clock!";
+		}
+	}
+	if (*first)
+	{
+		first = CG_TranslateString(first);
+	}
+	if (*second)
+	{
+		second = CG_TranslateString(second);
+	}
+	/* The original draws all three stopwatch lines at this same height. */
+	CG_WarmupLineLinux(roundText, 120);
+	CG_WarmupLineLinux(first, 120);
+	CG_WarmupLineLinux(second, 120);
+done:
+	tce_uiCoordinates = previous;
+#else
 	extern qboolean  tce_uiCoordinates;
 	tce_warmup_t     state;
 	tce_warmup_api_t api;
@@ -3184,6 +3284,7 @@ static void CG_DrawWarmup(void)
 	api.font          = &cgs.media.limboFont1; api.beep = trap_S_RegisterSound("sound/feedback/count_beep.wav", qfalse);
 	tce_uiCoordinates = qtrue; TCE_DrawWarmup(&state, &api); tce_uiCoordinates = previous;
 	cg.warmupCount    = state.count;
+#endif
 }
 
 //==================================================================================
