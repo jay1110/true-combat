@@ -1599,16 +1599,28 @@ void BotDropToFloor(gentity_t *ent)
 	vec3_t  dest;
 	trace_t tr;
 	vec3_t  checkMins, checkMaxs;
+#if !defined(__linux__) || defined(Q3_VM)
 	/* TC PE200bd794/200bd7a0; native shared player hull still differs. */
 	static const vec3_t markerPlayerMins = { -14, -14, -24 };
 	static const vec3_t markerPlayerMaxs = { 14, 14, 46 };
 	double              raisedZ;
+#else
+	float               raisedZ;
+#endif
 
 	//----(SA)	move the bounding box for the check in 1 unit on each side so they can butt up against a wall and not startsolid
+#if defined(__linux__) && !defined(Q3_VM)
+	VectorCopy(playerMins, checkMins);
+#else
 	VectorCopy(markerPlayerMins, checkMins);
+#endif
 	checkMins[0] += 1;
 	checkMins[1] += 1;
+#if defined(__linux__) && !defined(Q3_VM)
+	VectorCopy(playerMaxs, checkMaxs);
+#else
 	VectorCopy(markerPlayerMaxs, checkMaxs);
+#endif
 	checkMaxs[0] -= 1;
 	checkMaxs[1] -= 1;
 
@@ -1616,7 +1628,11 @@ void BotDropToFloor(gentity_t *ent)
 	checkMaxs[2] = 0;
 
 	// drop to floor
+#if defined(__linux__) && !defined(Q3_VM)
+	raisedZ = (float)(1.0L + (long double)ent->r.currentOrigin[2]);
+#else
 	raisedZ                 = (double)ent->r.currentOrigin[2] + 1.0;
+#endif
 	ent->r.currentOrigin[2] = (float)raisedZ;
 	VectorSet(dest, ent->r.currentOrigin[0], ent->r.currentOrigin[1], (float)(raisedZ - 4096.0));
 	trap_Trace(&tr, ent->r.currentOrigin, checkMins, checkMaxs, dest, ent->s.number, MASK_PLAYERSOLID);
@@ -1624,7 +1640,11 @@ void BotDropToFloor(gentity_t *ent)
 	if (tr.startsolid)
 	{
 		// try raising us up some
+#if defined(__linux__) && !defined(Q3_VM)
+		if (fabsl((long double)ent->r.currentOrigin[2] - ent->s.origin[2]) < 48.0L)
+#else
 		if (!(fabs((double)ent->r.currentOrigin[2] - (double)ent->s.origin[2]) >= 48.0))
+#endif
 		{
 			ent->r.currentOrigin[2] += 4;
 			BotDropToFloor(ent);
