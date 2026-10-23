@@ -496,7 +496,11 @@ void Landmine_Check_Ground(gentity_t *self)
 
 	trap_Trace(&tr, start, mins, maxs, end, self->s.number, MASK_MISSILESHOT);
 
+#if defined(__linux__) && !defined(Q3_VM)
+	if (!(tr.fraction < 1.f || tr.fraction > 1.f))
+#else
 	if (tr.fraction == 1)
+#endif
 	{
 		self->s.groundEntityNum = -1;
 	}
@@ -991,7 +995,11 @@ void G_BurnTarget(gentity_t *self, gentity_t *body, qboolean directhit)
 		if (body->client->ps.powerups[PW_INVULNERABLE] >= level.time)
 		{
 			body->flameQuota  = 0;
+#if defined(__linux__) && !defined(Q3_VM)
+			body->s.onFireEnd = TCE_SubInt32(level.time, 1);
+#else
 			body->s.onFireEnd = level.time - 1;
+#endif
 			return;
 		}
 
@@ -1005,7 +1013,11 @@ void G_BurnTarget(gentity_t *self, gentity_t *body, qboolean directhit)
 	if (body->waterlevel >= 3)
 	{
 		body->flameQuota  = 0;
+#if defined(__linux__) && !defined(Q3_VM)
+		body->s.onFireEnd = TCE_SubInt32(level.time, 1);
+#else
 		body->s.onFireEnd = level.time - 1;
+#endif
 		return;
 	}
 // jpw
@@ -1015,7 +1027,11 @@ void G_BurnTarget(gentity_t *self, gentity_t *body, qboolean directhit)
 		VectorCopy(body->r.currentOrigin, point);
 		if (body->client)
 		{
+#if defined(__linux__) && !defined(Q3_VM)
+			point[2] = (float)((long double)point[2] + body->client->ps.viewheight);
+#else
 			point[2] += body->client->ps.viewheight;
+#endif
 		}
 		VectorSubtract(point, self->r.currentOrigin, v);
 	}
@@ -1027,7 +1043,11 @@ void G_BurnTarget(gentity_t *self, gentity_t *body, qboolean directhit)
 			{
 				v[i] = body->r.absmin[i] - self->r.currentOrigin[i];
 			}
+#if defined(__linux__) && !defined(Q3_VM)
+			else if (!(body->r.absmax[i] >= self->r.currentOrigin[i]))
+#else
 			else if (self->r.currentOrigin[i] > body->r.absmax[i])
+#endif
 			{
 				v[i] = self->r.currentOrigin[i] - body->r.absmax[i];
 			}
@@ -1043,7 +1063,12 @@ void G_BurnTarget(gentity_t *self, gentity_t *body, qboolean directhit)
 	dist = VectorLength(v);
 
 	// The person who shot the flame only burns when within 1/2 the radius
+#if defined(__linux__) && !defined(Q3_VM)
+	if (body->s.number == self->r.ownerNum &&
+	    !(0.5f * (long double)radius > (long double)dist))
+#else
 	if (body->s.number == self->r.ownerNum && dist >= (radius * 0.5))
+#endif
 	{
 		return;
 	}
@@ -1063,7 +1088,11 @@ void G_BurnTarget(gentity_t *self, gentity_t *body, qboolean directhit)
 	}
 
 	// JPW NERVE -- do a trace to see if there's a wall btwn. body & flame centroid -- prevents damage through walls
+#if defined(__linux__) && !defined(Q3_VM)
+	trap_Trace(&tr, self->r.currentOrigin, NULL, NULL, point, body->s.number, MASK_MISSILESHOT);
+#else
 	trap_Trace(&tr, self->r.currentOrigin, NULL, NULL, point, body->s.number, MASK_SHOT);
+#endif
 	if (tr.fraction < 1.0)
 	{
 		return;
@@ -1074,7 +1103,13 @@ void G_BurnTarget(gentity_t *self, gentity_t *body, qboolean directhit)
 	// first reduce the current damageQuota with time
 	if (body->flameQuotaTime && body->flameQuota > 0)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		body->flameQuota = TCE_SubInt32(body->flameQuota,
+		    TCE_TruncateNativeInteger((long double)TCE_SubInt32(level.time, body->flameQuotaTime) *
+		                              0.002500000176951289f));
+#else
 		body->flameQuota -= (int)((double)(level.time - body->flameQuotaTime) * (double)0.001f * 2.5);
+#endif
 		if (body->flameQuota < 0)
 		{
 			body->flameQuota = 0;
@@ -1090,11 +1125,19 @@ void G_FlameDamage(gentity_t *self, gentity_t *ignoreent)
 	int       entityList[MAX_GENTITIES];
 	int       i, e, numListedEntities;
 	float     radius;
+#if defined(__linux__) && !defined(Q3_VM)
+	float     boxradius;
+#else
 	double    boxradius;   /* Windows2006bc74..: no float spill before bounds. */
+#endif
 	vec3_t    mins, maxs;
 
 	radius    = self->speed;
+#if defined(__linux__) && !defined(Q3_VM)
+	boxradius = (float)((long double)1.41421356 * radius);
+#else
 	boxradius = 1.41421356 * radius; // radius * sqrt(2) for bounding box enlargement
+#endif
 
 	for ( i = 0 ; i < 3 ; i++ )
 	{
@@ -1120,6 +1163,10 @@ void G_FlameDamage(gentity_t *self, gentity_t *ignoreent)
 void G_RunFlamechunk(gentity_t *ent)
 {
 	vec3_t    vel, add;
+#if defined(__linux__) && !defined(Q3_VM)
+	long double motion[3];
+	int axis;
+#endif
 	vec3_t    neworg;
 	trace_t   tr;
 	float     speed, dot;
@@ -1130,20 +1177,46 @@ void G_RunFlamechunk(gentity_t *ent)
 	//		However, below, it was being used when we hit something and it was
 	//		uninitialized
 	VectorCopy(ent->s.pos.trDelta, vel);
+#if defined(__linux__) && !defined(Q3_VM)
+	for (axis = 0; axis < 3; ++axis)
+	{
+		motion[axis] = vel[axis];
+	}
+#endif
 
 	// Adust the current speed of the chunk
+#if defined(__linux__) && !defined(Q3_VM)
+	if (TCE_SubInt32(level.time, ent->timestamp) > 50)
+#else
 	if (level.time - ent->timestamp > 50)
+#endif
 	{
 		speed = VectorNormalize(vel);
+#if defined(__linux__) && !defined(Q3_VM)
+		speed = (float)((long double)speed - 120.00000178813934);
+#else
 		/* Original folds the fixed 50ms friction step to exactly 120. */
 		speed -= 120.0;
+#endif
 
+#if defined(__linux__) && !defined(Q3_VM)
+		if (!(speed >= FLAME_MIN_SPEED))
+#else
 		if (speed < FLAME_MIN_SPEED)
+#endif
 		{
 			speed = FLAME_MIN_SPEED;
 		}
 
+#if defined(__linux__) && !defined(Q3_VM)
+		for (axis = 0; axis < 3; ++axis)
+		{
+			motion[axis] = (long double)vel[axis] * speed;
+			ent->s.pos.trDelta[axis] = (float)motion[axis];
+		}
+#else
 		VectorScale(vel, speed, ent->s.pos.trDelta);
+#endif
 	}
 	else
 	{
@@ -1151,24 +1224,59 @@ void G_RunFlamechunk(gentity_t *ent)
 	}
 
 	// Move the chunk
+#if defined(__linux__) && !defined(Q3_VM)
+	for (axis = 0; axis < 3; ++axis)
+	{
+		neworg[axis] = (float)(ent->r.currentOrigin[axis] + motion[axis] * 0.05f);
+	}
+	trap_Trace(&tr, ent->r.currentOrigin, ent->r.mins, ent->r.maxs, neworg,
+	           ent->r.ownerNum, MASK_MISSILESHOT | MASK_WATER);
+#else
 	VectorScale(ent->s.pos.trDelta, 50.f / 1000.f, add);
 	VectorAdd(ent->r.currentOrigin, add, neworg);
 
 	trap_Trace(&tr, ent->r.currentOrigin, ent->r.mins, ent->r.maxs, neworg, ent->r.ownerNum, MASK_SHOT | MASK_WATER);  // JPW NERVE
+#endif
 
 	if (tr.startsolid)
 	{
 		VectorClear(ent->s.pos.trDelta);
+#if defined(__linux__) && !defined(Q3_VM)
+		ent->count2 = TCE_AddInt32(ent->count2, 1);
+#else
 		ent->count2++;
+#endif
 	}
+#if defined(__linux__) && !defined(Q3_VM)
+	else if ((tr.fraction < 1.0f || tr.fraction > 1.0f) && !(tr.surfaceFlags & SURF_NOIMPACT))
+#else
 	else if (tr.fraction != 1.0f && !(tr.surfaceFlags & SURF_NOIMPACT))
+#endif
 	{
 		VectorCopy(tr.endpos, ent->r.currentOrigin);
 
+#if defined(__linux__) && !defined(Q3_VM)
+		{
+			long double reflectionDot = (long double)vel[0] * tr.plane.normal[0] +
+			    (long double)vel[1] * tr.plane.normal[1] +
+			    (long double)vel[2] * tr.plane.normal[2];
+			dot = (float)reflectionDot;
+			for (axis = 0; axis < 3; ++axis)
+			{
+				vel[axis] = (float)(vel[axis] +
+				    ((long double)tr.plane.normal[axis] * reflectionDot) * -2.0f);
+			}
+		}
+#else
 		dot = DotProduct(vel, tr.plane.normal);
 		VectorMA(vel, -2 * dot, tr.plane.normal, vel);
+#endif
 		VectorNormalize(vel);
+#if defined(__linux__) && !defined(Q3_VM)
+		speed = (float)((((long double)dot + 1.0f) * 0.375f + 0.25f) * speed * 0.5f);
+#else
 		speed = ((dot + 1.0) * 0.5 * 0.75 + 0.25) * speed * 0.5;
+#endif
 		VectorScale(vel, speed, ent->s.pos.trDelta);
 
 		if (tr.entityNum != ENTITYNUM_WORLD && tr.entityNum != ENTITYNUM_NONE)
@@ -1177,7 +1285,11 @@ void G_RunFlamechunk(gentity_t *ent)
 			G_BurnTarget(ent, ignoreent, qtrue);
 		}
 
+#if defined(__linux__) && !defined(Q3_VM)
+		ent->count2 = TCE_AddInt32(ent->count2, 1);
+#else
 		ent->count2++;
+#endif
 	}
 	else
 	{
@@ -1187,7 +1299,11 @@ void G_RunFlamechunk(gentity_t *ent)
 	// Do damage to nearby entities, every 100ms
 	if (ent->flameQuotaTime <= level.time)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		ent->flameQuotaTime = TCE_AddInt32(level.time, 100);
+#else
 		ent->flameQuotaTime = level.time + 100;
+#endif
 		G_FlameDamage(ent, ignoreent);
 	}
 
@@ -1195,22 +1311,38 @@ void G_RunFlamechunk(gentity_t *ent)
 	if (g_debugBullets.integer > 3)
 	{
 		gentity_t *bboxEnt;
+#if defined(__linux__) && !defined(Q3_VM)
+		long double size = (long double)ent->speed * 0.5f;
+#else
 		float     size = ent->speed / 2;
+#endif
 		vec3_t    b1, b2;
 		vec3_t    temp;
+#if defined(__linux__) && !defined(Q3_VM)
+		for (axis = 0; axis < 3; ++axis)
+		{
+			b1[axis] = (float)(ent->r.currentOrigin[axis] - size);
+			b2[axis] = (float)(ent->r.currentOrigin[axis] + size);
+		}
+#else
 		VectorSet(temp, -size, -size, -size);
 		VectorCopy(ent->r.currentOrigin, b1);
 		VectorCopy(ent->r.currentOrigin, b2);
 		VectorAdd(b1, temp, b1);
 		VectorSet(temp, size, size, size);
 		VectorAdd(b2, temp, b2);
+#endif
 		bboxEnt = G_TempEntity(b1, EV_RAILTRAIL);
 		VectorCopy(b2, bboxEnt->s.origin2);
 		bboxEnt->s.dmgFlags = 1;    // ("type")
 	}
 
 	// Adjust the size
+#if defined(__linux__) && !defined(Q3_VM)
+	if (!(ent->speed >= FLAME_START_MAX_SIZE))
+#else
 	if (ent->speed < FLAME_START_MAX_SIZE)
+#endif
 	{
 		ent->speed += 10.f;
 
@@ -1221,7 +1353,11 @@ void G_RunFlamechunk(gentity_t *ent)
 	}
 
 	// Remove after 2 seconds
+#if defined(__linux__) && !defined(Q3_VM)
+	if (TCE_SubInt32(level.time, ent->timestamp) > (FLAME_LIFETIME - 150))
+#else
 	if (level.time - ent->timestamp > (FLAME_LIFETIME - 150))   // JPW NERVE increased to 350 from 250 to match visuals better
+#endif
 	{
 		G_FreeEntity(ent);
 		return;
@@ -1242,7 +1378,11 @@ gentity_t *fire_flamechunk(gentity_t *self, vec3_t start, vec3_t dir)
 	// Only spawn every other frame
 	if (self->count2)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		self->count2 = TCE_SubInt32(self->count2, 1);
+#else
 		self->count2--;
+#endif
 		return NULL;
 	}
 
@@ -1253,7 +1393,11 @@ gentity_t *fire_flamechunk(gentity_t *self, vec3_t start, vec3_t dir)
 	bolt->classname = "flamechunk";
 
 	bolt->timestamp      = level.time;
+#if defined(__linux__) && !defined(Q3_VM)
+	bolt->flameQuotaTime = TCE_AddInt32(level.time, 50);
+#else
 	bolt->flameQuotaTime = level.time + 50;
+#endif
 	bolt->s.eType        = ET_FLAMETHROWER_CHUNK;
 	bolt->r.svFlags      = SVF_NOCLIENT;
 	bolt->s.weapon       = self->s.weapon;
@@ -1264,7 +1408,11 @@ gentity_t *fire_flamechunk(gentity_t *self, vec3_t start, vec3_t dir)
 	bolt->count2         = 0; // how often it bounced off of something
 
 	bolt->s.pos.trType     = TR_DECCELERATE;
+#if defined(__linux__) && !defined(Q3_VM)
+	bolt->s.pos.trTime     = TCE_SubInt32(level.time, MISSILE_PRESTEP_TIME);
+#else
 	bolt->s.pos.trTime     = level.time - MISSILE_PRESTEP_TIME; // move a bit on the very first frame
+#endif
 	bolt->s.pos.trDuration = 800;
 
 	// 'speed' will be the current size radius of the chunk
@@ -1274,7 +1422,18 @@ gentity_t *fire_flamechunk(gentity_t *self, vec3_t start, vec3_t dir)
 	VectorCopy(start, bolt->s.pos.trBase);
 	VectorScale(dir, FLAME_START_SPEED, bolt->s.pos.trDelta);
 
+#if defined(__linux__) && !defined(Q3_VM)
+	{
+		int axis;
+		for (axis = 0; axis < 3; ++axis)
+		{
+			bolt->s.pos.trDelta[axis] = (float)TCE_TruncateNativeInteger(
+			    (long double)bolt->s.pos.trDelta[axis]);
+		}
+	}
+#else
 	SnapVector(bolt->s.pos.trDelta);            // save net bandwidth
+#endif
 	VectorCopy(start, bolt->r.currentOrigin);
 
 	return bolt;
@@ -1295,12 +1454,20 @@ void DynaSink(gentity_t *self)
 	if (self->timestamp < level.time)
 	{
 		self->think     = G_FreeEntity;
+#if defined(__linux__) && !defined(Q3_VM)
+		self->nextthink = TCE_AddInt32(level.time, FRAMETIME);
+#else
 		self->nextthink = level.time + FRAMETIME;
+#endif
 		return;
 	}
 
 	self->s.pos.trBase[2] -= 0.5f;
+#if defined(__linux__) && !defined(Q3_VM)
+	self->nextthink        = TCE_AddInt32(level.time, 50);
+#else
 	self->nextthink        = level.time + 50;
+#endif
 }
 
 void DynaFree(gentity_t *self)
@@ -1699,13 +1866,30 @@ void G_TripMineThink(gentity_t *ent)
 	vec3_t    start, end;
 	gentity_t *traceEnt;
 
+#if defined(__linux__) && !defined(Q3_VM)
+	{
+		int axis;
+		for (axis = 0; axis < 3; ++axis)
+		{
+			long double direction = ent->s.origin2[axis];
+			long double beamStart = direction + direction + ent->r.currentOrigin[axis];
+			start[axis] = (float)beamStart;
+			end[axis] = (float)(beamStart + direction * 2048.0f);
+		}
+	}
+#else
 	VectorMA(ent->r.currentOrigin, 2, ent->s.origin2, start);
 	VectorMA(start, 2048, ent->s.origin2, end);
+#endif
 
 	/* TC 2006c768: keep the placement/beam collision masks identical. */
 	trap_Trace(&trace, start, NULL, NULL, end, ent->s.number, MASK_MISSILESHOT);
 
+#if defined(__linux__) && !defined(Q3_VM)
+	ent->nextthink = TCE_AddInt32(level.time, FRAMETIME);
+#else
 	ent->nextthink = level.time + FRAMETIME;
+#endif
 
 	if (!(trace.fraction < 1.f || trace.fraction > 1.f))  /* TC x87 C3: equal or unordered. */
 /*		ent->nextthink = level.time;
@@ -1738,7 +1922,11 @@ G_TripMinePrime
 void G_TripMinePrime(gentity_t *ent)
 {
 	ent->think     = G_TripMineThink;
+#if defined(__linux__) && !defined(Q3_VM)
+	ent->nextthink = TCE_AddInt32(level.time, 500);
+#else
 	ent->nextthink = level.time + 500;
+#endif
 }
 
 /*107     11      20      0       0       0       0       //fire gren
@@ -1762,8 +1950,14 @@ qboolean sEntWillTriggerMine(gentity_t *ent, gentity_t *mine)
 		// have to be within the trigger distance AND on the ground -- if we jump over a mine, we don't set it off
 		//		(or if we fly by after setting one off)
 		/* TC2006c890 retains the squared-length result in x87 until comparison. */
+#if defined(__linux__) && !defined(Q3_VM)
+		if (!((long double)dist[0] * dist[0] + (long double)dist[1] * dist[1] +
+		      (long double)dist[2] * dist[2] > SQR(LANDMINE_TRIGGER_DIST)) &&
+		    !(fabs(dist[2]) >= 45.f))
+#else
 		if (((double)dist[0] * dist[0] + (double)dist[1] * dist[1] +
 		     (double)dist[2] * dist[2] <= SQR(LANDMINE_TRIGGER_DIST)) && (fabs(dist[2]) < 45.f))
+#endif
 		{
 			return qtrue;
 		}
@@ -1782,9 +1976,15 @@ void G_LandmineThink(gentity_t *self)
 	qboolean  trigger = qfalse;
 	gentity_t *ent;
 
+#if defined(__linux__) && !defined(Q3_VM)
+	self->nextthink = TCE_AddInt32(level.time, FRAMETIME);
+
+	if (TCE_SubInt32(level.time, self->missionLevel) > 200)
+#else
 	self->nextthink = level.time + FRAMETIME;
 
 	if (level.time - self->missionLevel > 200)
+#endif
 	{
 		self->s.density = 0; // Gordon: time out the covert ops visibile thing, or we could get other clients being able to see mine later, etc
 	}
@@ -1830,9 +2030,15 @@ void LandminePostThink(gentity_t *self)
 	qboolean  trigger = qfalse;
 	gentity_t *ent;
 
+#if defined(__linux__) && !defined(Q3_VM)
+	self->nextthink = TCE_AddInt32(level.time, FRAMETIME);
+
+	if (TCE_SubInt32(level.time, self->missionLevel) > 5000)
+#else
 	self->nextthink = level.time + FRAMETIME;
 
 	if (level.time - self->missionLevel > 5000)
+#endif
 	{
 		self->s.density = 0; // Gordon: time out the covert ops visibile thing, or we could get other clients being able to see mine later, etc
 	}
@@ -1868,7 +2074,11 @@ G_LandminePrime
 
 void G_LandminePrime(gentity_t *self)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	self->nextthink = TCE_AddInt32(level.time, FRAMETIME);
+#else
 	self->nextthink = level.time + FRAMETIME;
+#endif
 	self->think     = G_LandmineThink;
 }
 
