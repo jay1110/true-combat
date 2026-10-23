@@ -28,6 +28,55 @@ static double CG_BloodNormalize(vec3_t v);
 
 void CG_BubbleTrail(vec3_t start, vec3_t end, float size, float spacing)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	vec3_t move, direction;
+	float length, progress;
+	int index, j;
+
+	VectorCopy(start, move);
+	VectorSubtract(end, start, direction);
+	length = VectorNormalize(direction);
+	index = rand() % TCE_TruncateNativeInteger(spacing);
+	for (j = 0; j < 3; ++j)
+	{
+		move[j] = (float)((long double)direction[j] * index + move[j]);
+		direction[j] = (float)((long double)direction[j] * spacing);
+	}
+	while ((long double)index < length || TCE_FloatIsNaN(length))
+	{
+		localEntity_t *le;
+		refEntity_t *re;
+		float baseTime;
+
+		progress = (float)index;
+		le = CG_AllocLocalEntity();
+		re = &le->refEntity;
+		le->leFlags = LEF_PUFF_DONT_SCALE;
+		le->leType = LE_MOVE_SCALE_FADE;
+		le->startTime = cg.time;
+		baseTime = (float)TCE_AddInt32(cg.time, 1000);
+		le->endTime = TCE_TruncateNativeInteger((long double)(rand() & 32767)
+		                                      * 0.00762962736189365386962890625f + baseTime);
+		le->lifeRate = (float)(1.0L / TCE_SubInt32(le->endTime, le->startTime));
+		re->shaderTime = (float)((long double)cg.time * 0.001f);
+		re->reType = RT_SPRITE;
+		re->rotation = 0.0f;
+		re->radius = size;
+		re->customShader = cgs.media.waterBubbleShader;
+		memset(re->shaderRGBA, 255, 4);
+		le->color[3] = 1.0f;
+		le->pos.trType = TR_LINEAR;
+		le->pos.trTime = cg.time;
+		VectorCopy(move, le->pos.trBase);
+		for (j = 0; j < 3; ++j)
+		{
+			double random = ((rand() & 32767) * (double)(1.0f / 32767.0f) - 0.5) * 2.0;
+			le->pos.trDelta[j] = (float)(random * (j == 2 ? 5.0 : 3.0) + (j == 2 ? 20.0 : 0.0));
+		}
+		VectorAdd(move, direction, move);
+		index = TCE_TruncateNativeInteger((long double)progress + spacing);
+	}
+#else
 	vec3_t move, direction; float length; int i, j;
 	VectorCopy(start, move); VectorSubtract(end, start, direction);
 	length = (float)CG_BloodNormalize(direction);
@@ -53,6 +102,7 @@ void CG_BubbleTrail(vec3_t start, vec3_t end, float size, float spacing)
 		}
 		VectorAdd(move, direction, move);
 	}
+#endif
 }
 
 /*
@@ -69,6 +119,19 @@ Adds a smoke puff or blood trail localEntity.
 */
 
 //----(SA)	modified
+#if defined(__linux__) && !defined(Q3_VM)
+/* Linux FISTP word followed by a byte store; indefinite converts to byte zero. */
+static byte CG_PuffColorByte(float color)
+{
+	long double value = (long double)color * 255.0f;
+	if (!(value > -32769.0L && value < 32768.0L))
+	{
+		return 0;
+	}
+	return (byte)(int)value;
+}
+#endif
+
 localEntity_t *CG_SmokePuff(const vec3_t origin, const vec3_t velocity,
                             float radius, float red, float green, float blue, float alpha, float duration,
                             int startTime, int fadeInTime, int flags, qhandle_t shader)
@@ -76,10 +139,21 @@ localEntity_t *CG_SmokePuff(const vec3_t origin, const vec3_t velocity,
 	static int    seed = 0x92;
 	localEntity_t *le = CG_AllocLocalEntity(); refEntity_t *re = &le->refEntity;
 	le->leFlags                                          = flags; le->radius = radius;
-	re->rotation                                         = Q_random(&seed) * 360; re->radius = radius; re->shaderTime = startTime * .001f;
+	re->rotation                                         = Q_random(&seed) * 360; re->radius = radius;
+#if defined(__linux__) && !defined(Q3_VM)
+	re->shaderTime = (float)((long double)startTime * 0.001f);
+#else
+	re->shaderTime = startTime * .001f;
+#endif
 	le->leType                                           = LE_MOVE_SCALE_FADE; le->startTime = startTime;
+#if defined(__linux__) && !defined(Q3_VM)
+	le->endTime = TCE_TruncateNativeInteger((long double)startTime + duration);
+	le->fadeInTime = fadeInTime;
+	le->lifeRate = (float)(1.0L / TCE_SubInt32(le->endTime, fadeInTime > startTime ? fadeInTime : startTime));
+#else
 	le->endTime                                          = (int)((double)startTime + duration); le->fadeInTime = fadeInTime;
 	le->lifeRate                                         = 1.0f / (le->endTime - (fadeInTime > startTime?fadeInTime:startTime));
+#endif
 	VectorSet(le->color, red, green, blue); le->color[3] = alpha;
 	le->pos.trType                                       = TR_LINEAR; le->pos.trTime = startTime;
 	VectorCopy(velocity, le->pos.trDelta); VectorCopy(origin, le->pos.trBase);
@@ -90,9 +164,15 @@ localEntity_t *CG_SmokePuff(const vec3_t origin, const vec3_t velocity,
 	}
 	else
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		re->shaderRGBA[0] = CG_PuffColorByte(le->color[0]);
+		re->shaderRGBA[1] = CG_PuffColorByte(le->color[1]);
+		re->shaderRGBA[2] = CG_PuffColorByte(le->color[2]); re->shaderRGBA[3] = 255;
+#else
 		re->shaderRGBA[0] = (byte)(int)((double)red * 255);
 		re->shaderRGBA[1] = (byte)(int)((double)green * 255);
 		re->shaderRGBA[2] = (byte)(int)((double)blue * 255); re->shaderRGBA[3] = 255;
+#endif
 	}
 	if (cg_fxflags & 1)
 	{

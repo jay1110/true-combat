@@ -1079,6 +1079,26 @@ There are often many of these, so it needs to be simple.
 */
 static void CG_AddScaleFade(localEntity_t *le)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	refEntity_t *re = &le->refEntity;
+	vec3_t delta;
+	long double remaining = (long double)TCE_SubInt32(le->endTime, cg.time) * le->lifeRate;
+	long double alpha = remaining * le->color[3] * 255.0f;
+
+	/* Native FISTP word, then only the low byte reaches shaderRGBA. */
+	re->shaderRGBA[3] = alpha > -32769.0L && alpha < 32768.0L ? (byte)(int)alpha : 0;
+	if (!(le->leFlags & LEF_PUFF_DONT_SCALE))
+	{
+		re->radius = (float)((1.0L - remaining) * le->radius + 8.0f);
+	}
+	VectorSubtract(re->origin, cg.refdef_current->vieworg, delta);
+	if (!(TCE_VectorLengthValue(delta) >= le->radius))
+	{
+		CG_FreeLocalEntity(le);
+		return;
+	}
+	trap_R_AddRefEntityToScene(re);
+#else
 	refEntity_t *re;
 	double      c;
 	vec3_t      delta;
@@ -1106,6 +1126,7 @@ static void CG_AddScaleFade(localEntity_t *le)
 	}
 
 	trap_R_AddRefEntityToScene(re);
+#endif
 }
 
 
@@ -1121,6 +1142,24 @@ There are often 100+ of these, so it needs to be simple.
 */
 static void CG_AddFallScaleFade(localEntity_t *le)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	refEntity_t *re = &le->refEntity;
+	vec3_t delta;
+	long double remaining = (long double)TCE_SubInt32(le->endTime, cg.time) * le->lifeRate;
+	long double growth = 1.0L - remaining;
+	long double alpha = remaining * le->color[3] * 255.0f;
+
+	re->shaderRGBA[3] = alpha > -32769.0L && alpha < 32768.0L ? (byte)(int)alpha : 0;
+	re->origin[2] = (float)((long double)le->pos.trBase[2] - growth * le->pos.trDelta[2]);
+	re->radius = (float)(growth * le->radius + 16.0f);
+	VectorSubtract(re->origin, cg.refdef_current->vieworg, delta);
+	if (!(TCE_VectorLengthValue(delta) >= le->radius))
+	{
+		CG_FreeLocalEntity(le);
+		return;
+	}
+	trap_R_AddRefEntityToScene(re);
+#else
 	refEntity_t *re;
 	double      c;
 	vec3_t      delta;
@@ -1148,6 +1187,7 @@ static void CG_AddFallScaleFade(localEntity_t *le)
 	}
 
 	trap_R_AddRefEntityToScene(re);
+#endif
 }
 
 
@@ -1159,6 +1199,21 @@ CG_AddExplosion
 */
 static void CG_AddExplosion(localEntity_t *ex)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	refEntity_t *ent = &ex->refEntity;
+	long double phase;
+	float light;
+
+	if (ent->customShader >= 0)
+	{
+		trap_R_AddRefEntityToScene(ent);
+	}
+	phase = (1.0L / TCE_SubInt32(ex->endTime, ex->startTime))
+	        * TCE_SubInt32(cg.time, ex->startTime);
+	light = phase < 0.5L ? 1.0f : (float)(1.0L - (phase - 0.5L) * 2.0L);
+	light = (float)((long double)light * ex->light);
+	trap_R_AddLightToScene(ent->origin, 512, light, ex->lightColor[0], ex->lightColor[1], ex->lightColor[2], 0, 0);
+#else
 	refEntity_t *ent;
 
 	ent = &ex->refEntity;
@@ -1188,6 +1243,7 @@ static void CG_AddExplosion(localEntity_t *ex)
 		//%	trap_R_AddLightToScene(ent->origin, light, ex->lightColor[0], ex->lightColor[1], ex->lightColor[2], 0 );
 		trap_R_AddLightToScene(ent->origin, 512, light, ex->lightColor[0], ex->lightColor[1], ex->lightColor[2], 0, 0);
 	}
+#endif
 }
 
 /*
