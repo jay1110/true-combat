@@ -1424,6 +1424,18 @@ void Script_SetMenuItemColor(itemDef_t *item, qboolean *bAbort, char **args)
 		int       j;
 		int       count;
 
+#if defined(CGAMEDLL) && defined(__linux__) && !defined(Q3_VM)
+		/* The original client leaves color tokens unread for a missing menu. */
+		if (!menu)
+		{
+			return;
+		}
+		count = Menu_ItemsMatchingGroup(menu, itemname);
+		if (!Color_Parse(args, &color))
+		{
+			return;
+		}
+#else
 		if (!Color_Parse(args, &color))
 		{
 			return;
@@ -1435,6 +1447,8 @@ void Script_SetMenuItemColor(itemDef_t *item, qboolean *bAbort, char **args)
 			return;
 		}
 		count = Menu_ItemsMatchingGroup(menu, itemname);
+
+#endif
 
 		for (j = 0; j < count; j++)
 		{
