@@ -6,7 +6,11 @@ void TCE_CG_DynamiteTrail(centity_t *ent, const weaponInfo_t *wi)
 	vec3_t  origin, direction;
 	trace_t trace;
 	int     phase;
+#if defined(__linux__) && !defined(Q3_VM)
+	long double facing;
+#else
 	double  facing;
+#endif
 	(void)wi;
 
 	/* The original's extra trajectory multiplier is 1.0 here; the SDK
@@ -14,13 +18,30 @@ void TCE_CG_DynamiteTrail(centity_t *ent, const weaponInfo_t *wi)
 	 */
 	BG_EvaluateTrajectory(&ent->currentState.pos, cg.time, origin, qfalse,
 	                      ent->currentState.effect2Time);
+#if defined(__linux__) && !defined(Q3_VM)
+	{
+		long double raised = (long double)origin[2] + 6.0L;
+
+		origin[2] = (float)raised;
+		direction[0] = origin[0] - cg.refdef.vieworg[0];
+		direction[1] = origin[1] - cg.refdef.vieworg[1];
+		direction[2] = (float)(raised - cg.refdef.vieworg[2]);
+	}
+#else
 	origin[2] += 6.0f;
 	VectorSubtract(origin, cg.refdef.vieworg, direction);
+#endif
 	VectorNormalize(direction);
+#if defined(__linux__) && !defined(Q3_VM)
+	facing = (long double)cg.refdef.viewaxis[0][1] * direction[1] +
+	         (long double)cg.refdef.viewaxis[0][0] * direction[0];
+	facing += (long double)cg.refdef.viewaxis[0][2] * direction[2];
+#else
 	/* Original x87 sums z,y,x before comparing with double 0.5. */
 	facing = (double)cg.refdef.viewaxis[0][2] * direction[2] +
 	         (double)cg.refdef.viewaxis[0][1] * direction[1] +
 	         (double)cg.refdef.viewaxis[0][0] * direction[0];
+#endif
 	if (facing < 0.5)
 	{
 		return;
