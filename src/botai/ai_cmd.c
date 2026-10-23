@@ -494,7 +494,13 @@ int BotAddressedToBot(bot_state_t *bs, bot_match_t *match)
 	else
 	{
 		//make sure not everyone reacts to this message
+#if defined(__linux__)
+		float chance = (float)((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0));
+		int players = NumPlayersOnSameTeam(bs);
+		if ((long double)chance > 1.0L / (long double)players)
+#else
 		if (random() > 1.f / (float)NumPlayersOnSameTeam(bs))
+#endif
 		{
 			return qfalse;
 		}
