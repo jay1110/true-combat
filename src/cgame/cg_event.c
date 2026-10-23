@@ -583,6 +583,9 @@ void CG_RubbleFx(vec3_t origin, vec3_t dir, int mass, int type, sfxHandle_t soun
 
 	if (sound && !cg.tcePortalScopeRendering)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		int volume = CG_SoundVolume(origin, 127.0f, 1200.0f, 0);
+#else
 		tce_fragmentSoundContext_t context;
 		int                        volume;
 		memset(&context, 0, sizeof(context));
@@ -590,6 +593,7 @@ void CG_RubbleFx(vec3_t origin, vec3_t dir, int mass, int type, sfxHandle_t soun
 		context.attenuation     = tceFlash.deafness;
 		context.distanceVariant = tceSmokeNewBBox;
 		volume                  = TCE_CG_SoundVolume(origin, 127.0f, 1200.0f, 0, &context);
+#endif
 		trap_S_StartSoundVControl(origin, -1, CHAN_AUTO, sound, volume);
 	}
 
@@ -959,6 +963,9 @@ void CG_Explodef(vec3_t origin, vec3_t dir, int mass, int type, qhandle_t sound,
 	total = pieces[0] + pieces[1] + pieces[2] + pieces[3] + pieces[4] + pieces[5];
 	if (sound && !cg.tcePortalScopeRendering)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		int volume = CG_SoundVolume(origin, 127.0f, 1200.0f, 0);
+#else
 		tce_fragmentSoundContext_t context;
 		int                        volume;
 		memset(&context, 0, sizeof(context));
@@ -967,6 +974,7 @@ void CG_Explodef(vec3_t origin, vec3_t dir, int mass, int type, qhandle_t sound,
 		context.distanceVariant = tceSmokeNewBBox;
 		context.disabled        = cg.tcePortalScopeRendering;
 		volume                  = TCE_CG_SoundVolume(origin, 127.0f, 1200.0f, 0, &context);
+#endif
 		trap_S_StartSoundVControl(origin, -1, CHAN_AUTO, sound, volume);
 	}
 	for (i = 0; i < 6; i++)
