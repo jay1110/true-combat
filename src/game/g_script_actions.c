@@ -1238,6 +1238,24 @@ G_ScriptAction_GotoMarker
   transitions
 ===============
 */
+#if defined(__linux__)
+/* Original mover loops round between upper and lower normalization. */
+static float G_ScriptAngleDifference(float first, float second)
+{
+	long double difference = AngleDifference(first, second);
+	while (difference > 180.0L)
+	{
+		difference -= 360.0L;
+	}
+	difference = (float)difference;
+	while (difference < -180.0L)
+	{
+		difference += 360.0L;
+	}
+	return (float)difference;
+}
+#endif
+
 qboolean G_ScriptAction_GotoMarker(gentity_t *ent, char *params)
 {
 	char      *pString, *token;
@@ -1403,11 +1421,15 @@ qboolean G_ScriptAction_GotoMarker(gentity_t *ent, char *params)
 
 				for (i = 0; i < 3; i++)
 				{
+#if defined(__linux__)
+					diff[i] = G_ScriptAngleDifference(angles[i], ent->s.angles[i]);
+#else
 					diff[i] = AngleDifference(angles[i], ent->s.angles[i]);
 					while (diff[i] > 180)
 						diff[i] -= 360;
 					while (diff[i] < -180)
 						diff[i] += 360;
+#endif
 				}
 				VectorCopy(ent->s.angles, ent->s.apos.trBase);
 				if (duration)
@@ -1446,11 +1468,15 @@ qboolean G_ScriptAction_GotoMarker(gentity_t *ent, char *params)
 
 				for (i = 0; i < 3; i++)
 				{
+#if defined(__linux__)
+					diff[i] = G_ScriptAngleDifference(angles[i], ent->s.angles[i]);
+#else
 					diff[i] = AngleDifference(angles[i], ent->s.angles[i]);
 					while (diff[i] > 180)
 						diff[i] -= 360;
 					while (diff[i] < -180)
 						diff[i] += 360;
+#endif
 				}
 				VectorCopy(ent->s.angles, ent->s.apos.trBase);
 				if (duration)
@@ -2898,11 +2924,15 @@ qboolean G_ScriptAction_FaceAngles(gentity_t *ent, char *params)
 
 		for (i = 0; i < 3; i++)
 		{
+#if defined(__linux__)
+			diff[i] = G_ScriptAngleDifference(angles[i], ent->s.angles[i]);
+#else
 			diff[i] = AngleDifference(angles[i], ent->s.angles[i]);
 			while (diff[i] > 180)
 				diff[i] -= 360;
 			while (diff[i] < -180)
 				diff[i] += 360;
+#endif
 		}
 
 		VectorCopy(ent->s.angles, ent->s.apos.trBase);

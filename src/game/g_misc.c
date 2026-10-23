@@ -10,7 +10,11 @@
 #include "tce_numeric.h"
 
 extern void AimAtTarget(gentity_t *self);
+#if defined(__linux__)
+extern long double AngleDifference(float ang1, float ang2);
+#else
 extern float AngleDifference(float ang1, float ang2);
+#endif
 
 /*QUAKED func_group (0 0 0) ?
 Used to group brushes together just for editor convenience.  They are turned into normal brushes by the utilities.

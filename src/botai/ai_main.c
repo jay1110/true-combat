@@ -335,7 +335,12 @@ long double TCE_BotAngleDifferenceValue(long double first, long double second)
 }
 #endif
 
-#if defined(_WIN32) || defined(__linux__)
+#if defined(__linux__)
+long double AngleDifference(float ang1, float ang2)
+{
+	return TCE_BotAngleDifferenceValue(ang1, ang2);
+}
+#elif defined(_WIN32)
 float AngleDifference(float ang1, float ang2)
 {
 	return (float)TCE_BotAngleDifferenceValue(ang1, ang2);

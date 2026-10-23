@@ -1680,7 +1680,11 @@ void mountedmg42_fire(gentity_t *other);
 void script_mover_use(gentity_t *ent, gentity_t *other, gentity_t *activator);
 void script_mover_blocked(gentity_t *ent, gentity_t *other);
 
+#if defined(__linux__)
+long double AngleDifference(float ang1, float ang2);
+#else
 float AngleDifference(float ang1, float ang2);
+#endif
 #if defined(_WIN32) || defined(__linux__)
 long double TCE_BotAngleDifferenceValue(long double first, long double second);
 #endif
