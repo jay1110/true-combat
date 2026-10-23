@@ -8,6 +8,9 @@
  *****************************************************************************/
 
 #include "../game/g_local.h"
+#if defined(__linux__)
+#include "../game/tce_numeric.h"
+#endif
 #include "../game/botlib.h"
 #include "../game/be_aas.h"
 #include "../game/be_ea.h"
@@ -527,7 +530,11 @@ int BotGPSToPosition(char *buf, vec3_t position)
 		{
 			if (buf[j] >= '0' && buf[j] <= '9')
 			{
+#if defined(__linux__)
+				num = TCE_Int32FromUnsigned((unsigned)num * 10u + (unsigned)(buf[j] - '0'));
+#else
 				num = num * 10 + buf[j] - '0';
+#endif
 				j++;
 			}
 			else
@@ -536,7 +543,11 @@ int BotGPSToPosition(char *buf, vec3_t position)
 				break;
 			}
 		}
+#if defined(__linux__)
+		BotAI_Print(PRT_MESSAGE, "%d\n", sign < 0 ? TCE_SubInt32(0, num) : num);
+#else
 		BotAI_Print(PRT_MESSAGE, "%d\n", sign * num);
+#endif
 		position[i] = (float) sign * num;
 	}
 	return qtrue;
@@ -683,10 +694,28 @@ void BotMatch_DefendKeyArea(bot_state_t *bs, bot_match_t *match)
 		return;
 	}
 	//set the time to send a message to the team mates
+#if defined(__linux__)
+	{
+		float time = trap_AAS_Time();
+		long double offset = (long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0);
+		bs->teammessage_time = (float)((offset + offset) + (long double)time);
+	}
+#else
 	bs->teammessage_time = trap_AAS_Time() + 2 * random();
+#endif
 	//set the ltg type
 	bs->ltgtype = LTG_DEFENDKEYAREA;
 	//get the team goal time
+#if defined(__linux__)
+	{
+		long double goalTime = BotGetTime(match);
+		bs->teamgoal_time = (float)goalTime;
+		if (!(fabsl(goalTime) > 0.0L))
+		{
+			bs->teamgoal_time = (float)((long double)trap_AAS_Time() + (long double)TEAM_DEFENDKEYAREA_TIME);
+		}
+	}
+#else
 	bs->teamgoal_time = BotGetTime(match);
 	//set the team goal time
 	if (!bs->teamgoal_time)
@@ -694,6 +723,7 @@ void BotMatch_DefendKeyArea(bot_state_t *bs, bot_match_t *match)
 		bs->teamgoal_time = trap_AAS_Time() + TEAM_DEFENDKEYAREA_TIME;
 	}
 	//away from defending
+#endif
 #ifdef DEBUG
 	BotPrintTeamGoal(bs);
 #endif //DEBUG
@@ -727,11 +757,23 @@ void BotMatch_GetItem(bot_state_t *bs, bot_match_t *match)
 		return;
 	}
 	//set the time to send a message to the team mates
+#if defined(__linux__)
+	{
+		float time = trap_AAS_Time();
+		long double offset = (long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0);
+		bs->teammessage_time = (float)((offset + offset) + (long double)time);
+	}
+#else
 	bs->teammessage_time = trap_AAS_Time() + 2 * random();
+#endif
 	//set the ltg type
 	bs->ltgtype = LTG_GETITEM;
 	//set the team goal time
+#if defined(__linux__)
+	bs->teamgoal_time = (float)((long double)trap_AAS_Time() + (long double)TEAM_GETITEM_TIME);
+#else
 	bs->teamgoal_time = trap_AAS_Time() + TEAM_GETITEM_TIME;
+#endif
 #ifdef DEBUG
 	BotPrintTeamGoal(bs);
 #endif //DEBUG
@@ -847,10 +889,28 @@ void BotMatch_Patrol(bot_state_t *bs, bot_match_t *match)
 		return;
 	}
 	//set the time to send a message to the team mates
+#if defined(__linux__)
+	{
+		float time = trap_AAS_Time();
+		long double offset = (long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0);
+		bs->teammessage_time = (float)((offset + offset) + (long double)time);
+	}
+#else
 	bs->teammessage_time = trap_AAS_Time() + 2 * random();
+#endif
 	//set the ltg type
 	bs->ltgtype = LTG_PATROL;
 	//get the team goal time
+#if defined(__linux__)
+	{
+		long double goalTime = BotGetTime(match);
+		bs->teamgoal_time = (float)goalTime;
+		if (!(fabsl(goalTime) > 0.0L))
+		{
+			bs->teamgoal_time = (float)((long double)trap_AAS_Time() + (long double)TEAM_PATROL_TIME);
+		}
+	}
+#else
 	bs->teamgoal_time = BotGetTime(match);
 	//set the team goal time if not set already
 	if (!bs->teamgoal_time)
@@ -858,6 +918,7 @@ void BotMatch_Patrol(bot_state_t *bs, bot_match_t *match)
 		bs->teamgoal_time = trap_AAS_Time() + TEAM_PATROL_TIME;
 	}
 	//
+#endif
 #ifdef DEBUG
 	BotPrintTeamGoal(bs);
 #endif //DEBUG
