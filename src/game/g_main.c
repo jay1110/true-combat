@@ -1576,6 +1576,16 @@ G_UpdateCvars
 =================
 */
 
+/* Linux charge products remain in x87 precision until signed integer conversion. */
+static int G_ScaledChargeTime(int base, float modifier)
+{
+#if defined(__linux__)
+	return TCE_TruncateNativeInteger((long double)base * modifier);
+#else
+	return (double)base * modifier;
+#endif
+}
+
 void G_UpdateCvars(void)
 {
 	int         i;
@@ -1613,32 +1623,32 @@ void G_UpdateCvars(void)
 				/* TC20060270: FILD/FMUL retains the product until integer conversion. */
 				if (cv->vmCvar == &g_soldierChargeTime)
 				{
-					level.soldierChargeTime[0] = (double)g_soldierChargeTime.integer * level.soldierChargeTimeModifier[0];
-					level.soldierChargeTime[1] = (double)g_soldierChargeTime.integer * level.soldierChargeTimeModifier[1];
+					level.soldierChargeTime[0] = G_ScaledChargeTime(g_soldierChargeTime.integer, level.soldierChargeTimeModifier[0]);
+					level.soldierChargeTime[1] = G_ScaledChargeTime(g_soldierChargeTime.integer, level.soldierChargeTimeModifier[1]);
 					chargetimechanged          = qtrue;
 				}
 				else if (cv->vmCvar == &g_medicChargeTime)
 				{
-					level.medicChargeTime[0] = (double)g_medicChargeTime.integer * level.medicChargeTimeModifier[0];
-					level.medicChargeTime[1] = (double)g_medicChargeTime.integer * level.medicChargeTimeModifier[1];
+					level.medicChargeTime[0] = G_ScaledChargeTime(g_medicChargeTime.integer, level.medicChargeTimeModifier[0]);
+					level.medicChargeTime[1] = G_ScaledChargeTime(g_medicChargeTime.integer, level.medicChargeTimeModifier[1]);
 					chargetimechanged        = qtrue;
 				}
 				else if (cv->vmCvar == &g_engineerChargeTime)
 				{
-					level.engineerChargeTime[0] = (double)g_engineerChargeTime.integer * level.engineerChargeTimeModifier[0];
-					level.engineerChargeTime[1] = (double)g_engineerChargeTime.integer * level.engineerChargeTimeModifier[1];
+					level.engineerChargeTime[0] = G_ScaledChargeTime(g_engineerChargeTime.integer, level.engineerChargeTimeModifier[0]);
+					level.engineerChargeTime[1] = G_ScaledChargeTime(g_engineerChargeTime.integer, level.engineerChargeTimeModifier[1]);
 					chargetimechanged           = qtrue;
 				}
 				else if (cv->vmCvar == &g_LTChargeTime)
 				{
-					level.lieutenantChargeTime[0] = (double)g_LTChargeTime.integer * level.lieutenantChargeTimeModifier[0];
-					level.lieutenantChargeTime[1] = (double)g_LTChargeTime.integer * level.lieutenantChargeTimeModifier[1];
+					level.lieutenantChargeTime[0] = G_ScaledChargeTime(g_LTChargeTime.integer, level.lieutenantChargeTimeModifier[0]);
+					level.lieutenantChargeTime[1] = G_ScaledChargeTime(g_LTChargeTime.integer, level.lieutenantChargeTimeModifier[1]);
 					chargetimechanged             = qtrue;
 				}
 				else if (cv->vmCvar == &g_covertopsChargeTime)
 				{
-					level.covertopsChargeTime[0] = (double)g_covertopsChargeTime.integer * level.covertopsChargeTimeModifier[0];
-					level.covertopsChargeTime[1] = (double)g_covertopsChargeTime.integer * level.covertopsChargeTimeModifier[1];
+					level.covertopsChargeTime[0] = G_ScaledChargeTime(g_covertopsChargeTime.integer, level.covertopsChargeTimeModifier[0]);
+					level.covertopsChargeTime[1] = G_ScaledChargeTime(g_covertopsChargeTime.integer, level.covertopsChargeTimeModifier[1]);
 					chargetimechanged            = qtrue;
 				}
 				else if (cv->vmCvar == &match_readypercent)
