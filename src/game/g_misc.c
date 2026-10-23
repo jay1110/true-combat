@@ -1600,6 +1600,16 @@ void clamp_playerbehindgun(gentity_t *self, gentity_t *other, vec3_t dang)
 
 
 	AngleVectors(self->s.apos.trBase, forward, right, up);
+#if defined(__linux__) && !defined(Q3_VM)
+	if (self->s.eType == ET_AAGUN)
+	{
+		VectorMA(self->r.currentOrigin, -40, forward, point);
+	}
+	else
+	{
+		VectorMA(self->r.currentOrigin, -36, forward, point);
+	}
+#else
 	if (self->s.eType == ET_AAGUN)
 	{
 		point[0] = (float)((double)self->r.currentOrigin[0] - 40.0 * (double)forward[0]);
@@ -1610,6 +1620,8 @@ void clamp_playerbehindgun(gentity_t *self, gentity_t *other, vec3_t dang)
 		point[0] = (float)((double)self->r.currentOrigin[0] - 36.0 * (double)forward[0]);
 		point[1] = (float)((double)self->r.currentOrigin[1] - 36.0 * (double)forward[1]);
 	}
+
+#endif
 
 	point[2] = other->r.currentOrigin[2];
 	trap_UnlinkEntity(other);
