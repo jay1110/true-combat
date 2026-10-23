@@ -1252,6 +1252,9 @@ typedef struct
 	char objDescription_Allied[MAX_OBJECTIVES][256];
 
 	int waterundertime;
+#if defined(__linux__)
+	int tceWatchdogTime; /* Original Linux cg+0x6f96c. */
+#endif
 } cg_t;
 
 #define NUM_FUNNEL_SPRITES  21
@@ -2428,6 +2431,9 @@ qboolean CG_CullPoint(vec3_t pt);
 qboolean CG_CullPointAndRadius(const vec3_t pt, vec_t radius);
 
 void CG_DrawActiveFrame(int serverTime, stereoFrame_t stereoView, qboolean demoPlayback);
+#if defined(__linux__)
+void CG_Watchdog(void);
+#endif
 void CG_DrawSkyBoxPortal(qboolean fLocalView);
 void CG_Concussive(centity_t *cent);
 

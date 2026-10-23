@@ -395,6 +395,16 @@ static void CG_StepOffset(void)
 	}
 }
 
+#if defined(__linux__)
+void CG_Watchdog(void)
+{
+	if (TCE_SubInt32(cg.tceWatchdogTime, cg.time) <= 0)
+	{
+		cg.tceWatchdogTime = TCE_AddInt32(cg.time, 1000);
+	}
+}
+#endif
+
 /*
 ================
 CG_KickAngles
@@ -894,13 +904,23 @@ Fixed fov at intermissions, otherwise account for fov variable and zooms.
 static int CG_CalcFov(void)
 {
 	static float lastfov = 90.0f;
+#if defined(__linux__)
+	long double  base, fov_x, zoomFov, f;
+	float        fov_y, x, v;
+#else
 	float        base, fov_x, fov_y, zoomFov, f, x, v;
+#endif
 	int          contents, inwater;
 	if (cg.tceAimRetryTime && cg.time >= cg.tceAimRetryTime && cg.tceAimRequested)
 	{
 		if (cg.tceAimActive)
 		{
-			cg.tceAimActive = 0; cg.tceAimRetryTime = cg.time + 1300;
+			cg.tceAimActive = 0;
+#if defined(__linux__)
+			cg.tceAimRetryTime = TCE_AddInt32(cg.time, 1300);
+#else
+			cg.tceAimRetryTime = cg.time + 1300;
+#endif
 		}
 		else
 		{
@@ -908,7 +928,11 @@ static int CG_CalcFov(void)
 		}
 		cg.tceAimComplete = 0; cg.zoomTime = cg.time; cg.tceAimSyncTime = cg.time;
 	}
+#if defined(__linux__)
+	if (TCE_SubInt32(cg.time, cg.tceAimSyncTime) > 750)
+#else
 	if (cg.time - cg.tceAimSyncTime > 750)
+#endif
 	{
 		if ((cg.snap->ps.stats[STAT_TCE_WEAPON_FLAGS] & 4) && !cg.tceAimRequested)
 		{
@@ -948,7 +972,11 @@ static int CG_CalcFov(void)
 					zoomFov = 160;
 				}
 			}
+#if defined(__linux__)
+			f = (long double)TCE_SubInt32(cg.time, cg.zoomTime) * 0.005f;
+#else
 			f = (cg.time - cg.zoomTime) * 0.005f;
+#endif
 			if (cg.zoomedBinoc)
 			{
 				fov_x = f <= 1?(zoomFov - base) * f + base:zoomFov; lastfov = fov_x;
@@ -1009,14 +1037,32 @@ static int CG_CalcFov(void)
 			fov_x *= 1.1547f;
 		}
 	}
+#if defined(__linux__)
+	{
+		double tangent = (double)tanl(fov_x * (1.0f / 360.0f) * (long double)M_PI);
+		double angle;
+		cg.tceNameTanHalfFov = (float)tangent;
+		x = (float)((1.0L / tangent) * cg.refdef_current->width);
+		angle = (double)atan2l(cg.refdef_current->height, x);
+		fov_y = (float)((long double)(float)angle * 360.0f * (long double)(1.0 / M_PI));
+		fov_x = (float)fov_x;
+	}
+#else
 	cg.tceNameTanHalfFov = (float)tan(fov_x / 360 * M_PI);
 	x                    = cg.refdef_current->width / tan(fov_x / 360 * M_PI);
 	fov_y                = atan2(cg.refdef_current->height, x) * 360 / M_PI;
+#endif
 	contents             = CG_PointContents(cg.refdef.vieworg, -1);
 	inwater              = (contents & (CONTENTS_WATER | CONTENTS_SLIME | CONTENTS_LAVA)) != 0;
 	if (inwater)
 	{
-		v = sin(cg.time / 1000.0 * 0.4 * M_PI * 2); fov_x += v; fov_y -= v; cg.refdef_current->rdflags |= RDF_UNDERWATER;
+#if defined(__linux__)
+		float angle = (float)((long double)cg.time * (long double)0.0012566370614359172 * 2.0L);
+		v = (float)sinl(angle);
+#else
+		v = sin(cg.time / 1000.0 * 0.4 * M_PI * 2);
+#endif
+		fov_x += v; fov_y -= v; cg.refdef_current->rdflags |= RDF_UNDERWATER;
 	}
 	else
 	{
@@ -1029,7 +1075,11 @@ static int CG_CalcFov(void)
 	}
 	else if (cg.zoomedBinoc)
 	{
+#if defined(__linux__)
+		cg.zoomSensitivity = (float)((long double)(1.0 / 75.0) * cg.refdef_current->fov_y);
+#else
 		cg.zoomSensitivity = cg.refdef_current->fov_y / 75.0f;
+#endif
 	}
 	else if (cg.zoomval == 0)
 	{
@@ -1081,13 +1131,19 @@ static void CG_DamageBlendBlob(void)
 		viewDamage_t *vd = &cg.viewDamage[i];
 		refEntity_t  ent;
 		int          elapsed, duration;
+#if !defined(__linux__)
 		double       right, up;
+#endif
 		float        alpha;
 		if (!vd->damageValue)
 		{
 			continue;
 		}
+#if defined(__linux__)
+		elapsed = TCE_SubInt32(cg.time, vd->damageTime);
+#else
 		elapsed  = cg.time - vd->damageTime;
+#endif
 		duration = vd->damageDuration;
 		if (elapsed <= 0 || elapsed >= duration)
 		{
@@ -1101,6 +1157,23 @@ static void CG_DamageBlendBlob(void)
 		memset(&ent, 0, sizeof(ent));
 		ent.reType   = RT_SPRITE;
 		ent.renderfx = RF_FIRST_PERSON;
+#if defined(__linux__)
+		for (axis = 0; axis < 3; ++axis)
+		{
+			long double position = (long double)cg.refdef_current->viewaxis[0][axis] * 8.0f +
+			                       cg.refdef_current->vieworg[axis];
+			position += (long double)vd->damageX * cg.refdef_current->viewaxis[1][axis] * -8.0f;
+			position += (long double)vd->damageY * cg.refdef_current->viewaxis[2][axis] * 8.0f;
+			ent.origin[axis] = (float)position;
+		}
+		{
+			long double inverseDuration = 1.0L / duration;
+			long double radius = (0.5L * elapsed * inverseDuration + 0.5L) * vd->damageValue;
+			radius *= fabsl(sinl((long double)vd->damageTime)) * 0.5L + 0.75L;
+			ent.radius = (float)(radius * (long double)0.4);
+			ent.customShader = cgs.media.viewBloodAni[(int)floorl((long double)elapsed * inverseDuration * (long double)4.9)];
+		}
+#else
 		right        = (double)vd->damageX * -8.f;
 		up           = (double)vd->damageY * 8.f;
 		for (axis = 0; axis < 3; ++axis)
@@ -1114,6 +1187,7 @@ static void CG_DamageBlendBlob(void)
 		                     (fabs(sin((double)vd->damageTime)) * .5 + .75) *
 		                     vd->damageValue * .4);
 		ent.customShader  = cgs.media.viewBloodAni[(int)floor((double)elapsed / duration * 4.9)];
+#endif
 		ent.shaderRGBA[0] = ent.shaderRGBA[1] = ent.shaderRGBA[2] = 255;
 		alpha             = cg_bloodDamageBlend.value;
 		if (alpha > 1.f)
@@ -1521,13 +1595,21 @@ void CG_DrawScreenFade(void)
 	float       elapsed, target, surface, decay, strength;
 	refEntity_t ent;
 	int         oldTime = cg.tceEyeTime;
+#if defined(__linux__)
+	if (!(cg_dynamicEye.value > 0) || !(cg.tceEyeScale > 0))
+#else
 	if (cg_dynamicEye.value <= 0 || cg.tceEyeScale <= 0)
+#endif
 	{
 		cg.tceScopeLightBoost = 0;
 		return;
 	}
 	cg.tceEyeTime = cg.time;
+#if defined(__linux__)
+	elapsed = (float)TCE_SubInt32(cg.time, oldTime);
+#else
 	elapsed       = (float)(cg.time - oldTime);
+#endif
 	surface       = (cg.tceEyeSurfaceSamples * .1111111119389534f - .15f) * 1.1764700412750244f;
 	if (surface < 0)
 	{
@@ -1575,7 +1657,11 @@ void CG_DrawScreenFade(void)
 		strength = 1;
 	}
 	cg.tceScopeLightBoost = strength * (1 - (cg.tceEyeSmooth + cg.tceEyeLinear) * .5f);
+#if defined(__linux__)
+	if (!(cg.tceScopeLightBoost > 0))
+#else
 	if (cg.tceScopeLightBoost <= 0)
+#endif
 	{
 		return;
 	}
