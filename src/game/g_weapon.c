@@ -2428,8 +2428,17 @@ qboolean weapon_checkAirStrike(gentity_t *ent)
 		ent->splashDamage = 0;  // no damage
 		ent->think        = G_ExplodeMissile;
 		/* TC2009bbbc..2009bbd6 retains RNG arithmetic until integer conversion. */
+#if defined(__linux__) && !defined(Q3_VM)
+		{
+			double now = level.time;
+			long double random = (long double)(rand() & 0x7fff) *
+			                     0.000030518509447574615f - 0.5f;
+			ent->nextthink = TCE_TruncateNativeInteger((random + random) * 50.0f + now);
+		}
+#else
 		ent->nextthink = (int)((((double)(rand() & 0x7fff) *
 		                         (double)0.000030518509447574615f - 0.5) * 2.0) * 50.0 + level.time);
+#endif
 
 		ent->active = qfalse;
 		if (ent->s.teamNum == TEAM_AXIS)
@@ -2527,7 +2536,11 @@ void weapon_callAirStrike(gentity_t *ent)
 		te->r.svFlags  |= SVF_BROADCAST;
 	}
 
+#if defined(__linux__) && !defined(Q3_VM)
+	trap_Trace(&tr, ent->s.pos.trBase, NULL, NULL, bomboffset, ent->s.number, MASK_MISSILESHOT);
+#else
 	trap_Trace(&tr, ent->s.pos.trBase, NULL, NULL, bomboffset, ent->s.number, MASK_SHOT);
+#endif
 	if ((tr.fraction < 1.0) && (!(tr.surfaceFlags & SURF_NOIMPACT)))    //SURF_SKY)) ) { // JPW NERVE changed for trenchtoast foggie prollem
 	{
 		G_SayTo(ent->parent, ent->parent, 2, COLOR_YELLOW, "Pilot: ", "Aborting, can't see target.", qtrue);
