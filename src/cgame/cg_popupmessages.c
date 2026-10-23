@@ -1,4 +1,3 @@
-#include "tce_popup_text.h"
 #include "tce_popup_draw.h"
 #include "cg_local.h"
 
@@ -410,12 +409,10 @@ static int CG_PopupDuration(int type)
 void CG_DrawPMItems(void)
 {
 	extern qboolean      tce_uiCoordinates;
-	char                 aspectMode[16];
 	qboolean             previous = tce_uiCoordinates;
 	tce_popup_draw_api_t api      = { trap_R_SetColor, CG_DrawPic, CG_PopupPaint, CG_PopupDuration, &cgs.media.limboFont1 };
 	tce_uiCoordinates = qtrue;
-	trap_Cvar_VariableStringBuffer("cg_aspectMode", aspectMode, sizeof(aspectMode));
-	TCE_DrawPMItems(atoi(aspectMode), cg.snap->ps.persistant[PERS_RESPAWNS_LEFT], cg.time, cg_pmWaitingList, cg_pmOldList, &api);
+	TCE_DrawPMItems(cg_aspectMode.integer, cg.snap->ps.persistant[PERS_RESPAWNS_LEFT], cg.time, cg_pmWaitingList, cg_pmOldList, &api);
 	tce_uiCoordinates = previous;
 }
 
@@ -426,33 +423,97 @@ static int CG_PopupBigDuration(int type)
 void CG_DrawPMItemsBig(void)
 {
 	extern qboolean      tce_uiCoordinates;
-	char                 aspectMode[16];
 	qboolean             previous = tce_uiCoordinates;
 	tce_popup_draw_api_t api      = { trap_R_SetColor, CG_DrawPic, CG_PopupPaint, CG_PopupBigDuration, &cgs.media.limboFont1 };
-	trap_Cvar_VariableStringBuffer("cg_aspectMode", aspectMode, sizeof(aspectMode));
 	tce_uiCoordinates = qtrue;
-	TCE_DrawPMItemsBig(atoi(aspectMode), cg.time, cg_pmWaitingListBig, &api);
+	TCE_DrawPMItemsBig(cg_aspectMode.integer, cg.time, cg_pmWaitingListBig, &api);
 	tce_uiCoordinates = previous;
 }
 
-static const char *CG_PopupName(int client)
-{
-	return cgs.clientinfo[client].name;
-}
-static const char *CG_PopupLocation(const float *origin)
-{
-	return BG_GetLocationString((float *)origin);
-}
 const char * CG_GetPMItemText(centity_t *cent)
 {
-	static char          text[1024];
-	tce_popup_text_t     state;
-	tce_popup_text_api_t api = { CG_ConfigString, CG_PopupName, CG_PopupLocation };
-	state.kind         = cent->currentState.effect1Time; state.action = cent->currentState.effect2Time;
-	state.client       = cent->currentState.effect3Time; state.density = cent->currentState.density;
-	state.localTeam    = cgs.clientinfo[cg.clientNum].team;
-	state.snapshotTeam = cg.snap->ps.persistant[PERS_TEAM]; VectorCopy(cent->currentState.origin, state.origin);
-	return TCE_GetPMItemText(&state, &api, text, sizeof(text));
+	switch (cent->currentState.effect1Time)
+	{
+	case PM_DYNAMITE:
+		switch (cent->currentState.effect2Time)
+		{
+		case 0:
+			return va("Planted at %s.", CG_ConfigString(CS_OID_TRIGGERS + cent->currentState.effect3Time));
+		case 1:
+			return va("Defused at %s.", CG_ConfigString(CS_OID_TRIGGERS + cent->currentState.effect3Time));
+		}
+		break;
+	case PM_CONSTRUCTION:
+		switch (cent->currentState.effect2Time)
+		{
+		case -1:
+			return CG_ConfigString(CS_STRINGS + cent->currentState.effect3Time);
+		case 0:
+			return va("%s has been constructed.", CG_ConfigString(CS_OID_TRIGGERS + cent->currentState.effect3Time));
+		}
+		break;
+	case PM_DESTRUCTION:
+		switch (cent->currentState.effect2Time)
+		{
+		case 0:
+			return va("%s has been damaged.", CG_ConfigString(CS_OID_TRIGGERS + cent->currentState.effect3Time));
+		case 1:
+			return va("%s has been destroyed.", CG_ConfigString(CS_OID_TRIGGERS + cent->currentState.effect3Time));
+		}
+		break;
+	case PM_MINES:
+		if (cgs.clientinfo[cg.clientNum].team == cent->currentState.effect2Time)
+		{
+			return NULL;
+		}
+		return va("Spotted by %s^7 at %s", cgs.clientinfo[cent->currentState.effect3Time].name, BG_GetLocationString(cent->currentState.origin));
+	case PM_MESSAGE:
+		if (cg.snap->ps.persistant[PERS_TEAM] != cent->currentState.effect2Time)
+		{
+			return NULL;
+		}
+		switch (cent->currentState.density)
+		{
+		case 0:
+			return va("%s^7 has received the bomb^7!", cgs.clientinfo[cent->currentState.effect3Time].name);
+		case 1:
+			return va("%s^7 has dropped the bomb^7!", cgs.clientinfo[cent->currentState.effect3Time].name);
+		case 2:
+			return va("%s^7 has picked up the bomb^7!", cgs.clientinfo[cent->currentState.effect3Time].name);
+		case 3:
+			return va("%s^7 is the VIP^7!", cgs.clientinfo[cent->currentState.effect3Time].name);
+		case 4:
+			return va("%s^7 has dropped the VIP's files^7!", cgs.clientinfo[cent->currentState.effect3Time].name);
+		}
+		break;
+	case PM_OBJECTIVE:
+		switch (cent->currentState.density)
+		{
+		case 0:
+			return va("%s have stolen %s!", cent->currentState.effect2Time == TEAM_ALLIES ? "Specops" : "Terrorist", CG_ConfigString(CS_STRINGS + cent->currentState.effect3Time));
+		case 1:
+			return va("%s have returned %s!", cent->currentState.effect2Time == TEAM_ALLIES ? "Specops" : "Terrorist", CG_ConfigString(CS_STRINGS + cent->currentState.effect3Time));
+		}
+		break;
+	case PM_TEAM:
+		switch (cent->currentState.density)
+		{
+		case 0:
+		{
+			const char *teamstr;
+			switch (cent->currentState.effect2Time)
+			{
+			case TEAM_AXIS: teamstr = "Terrorists"; break;
+			case TEAM_ALLIES: teamstr = "Specops"; break;
+			default: teamstr = "Spectators"; break;
+			}
+			return va("%s^7 has joined the %s^7!", cgs.clientinfo[cent->currentState.effect3Time].name, teamstr);
+		}
+		case 1:
+			return va("%s^7 disconnected", cgs.clientinfo[cent->currentState.effect3Time].name);
+		}
+	}
+	return NULL;
 }
 
 void CG_PlayPMItemSound(centity_t *cent)

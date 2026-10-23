@@ -274,7 +274,11 @@ static void CG_ClipMoveToEntities_FT(const vec3_t start, const vec3_t mins, cons
 			                            mins, maxs, cmodel, mask, origin, angles);
 		}
 
+		#if defined(__linux__) && !defined(Q3_VM)
+		if (trace.allsolid || CG_TraceFractionBefore(trace.fraction, tr->fraction))
+		#else
 		if (trace.allsolid || trace.fraction < tr->fraction)
+		#endif
 		{
 			trace.entityNum = ent->number;
 			*tr             = trace;
@@ -330,7 +334,11 @@ void    CG_Trace_World(trace_t *result, const vec3_t start, const vec3_t mins, c
 	trace_t t;
 
 	trap_CM_BoxTrace(&t, start, end, mins, maxs, 0, mask);
+	#if defined(__linux__) && !defined(Q3_VM)
+	t.entityNum = CG_TraceEntityNumber(t.fraction);
+	#else
 	t.entityNum = t.fraction != 1.0 ? ENTITYNUM_WORLD : ENTITYNUM_NONE;
+	#endif
 
 	*result = t;
 }
@@ -341,7 +349,11 @@ void    CG_FTTrace(trace_t *result, const vec3_t start, const vec3_t mins, const
 
 
 	trap_CM_BoxTrace(&t, start, end, mins, maxs, 0, mask);
+	#if defined(__linux__) && !defined(Q3_VM)
+	t.entityNum = CG_TraceEntityNumber(t.fraction);
+	#else
 	t.entityNum = t.fraction != 1.0 ? ENTITYNUM_WORLD : ENTITYNUM_NONE;
+	#endif
 	// check all other solid models
 
 	CG_ClipMoveToEntities_FT(start, mins, maxs, end, skipNumber, mask, qfalse, &t);
@@ -1361,6 +1373,26 @@ void CG_PredictPlayerState(void)
 	}
 	else
 	{
+		#if defined(__linux__) && !defined(Q3_VM)
+		long double x;
+
+		/* Linux 9e03f..9e0da retains the reciprocal-product time factor
+		 * and uses double frequency constants, unlike the Windows port. */
+		x = (long double)TCE_SubInt32(cg.cameraShakeTime, cg.time) *
+		    (1.0L / (long double)cg.cameraShakeLength);
+		cg.predictedPlayerState.origin[2] = (float)(
+		    sinl((long double)326.7256359733385 + (long double)cg.cameraShakePhase) *
+		    x * (long double)cg.cameraShakeScale * 6.0L +
+		    (long double)cg.predictedPlayerState.origin[2]);
+		cg.predictedPlayerState.origin[1] = (float)(
+		    sinl(x * (long double)53.40707511102649 + (long double)cg.cameraShakePhase) *
+		    x * (long double)cg.cameraShakeScale * 6.0L +
+		    (long double)cg.predictedPlayerState.origin[1]);
+		cg.predictedPlayerState.origin[0] = (float)(
+		    (long double)cg.predictedPlayerState.origin[0] +
+		    cosl(x * (long double)21.991148575128552 + (long double)cg.cameraShakePhase) *
+		    x * (long double)cg.cameraShakeScale * 6.0L);
+		#else
 		double x;
 
 
@@ -1376,5 +1408,6 @@ void CG_PredictPlayerState(void)
 
 		cg.predictedPlayerState.origin[0] = (float)(cg.predictedPlayerState.origin[0] +
 		                                            x * cos(x * 21.99114990234375 + cg.cameraShakePhase) * cg.cameraShakeScale * 6.0);
+		#endif
 	}
 }
