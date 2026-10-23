@@ -4816,10 +4816,25 @@ static int CG_TCEFireWarningVolume853(void)
 	return TCE_TruncateNativeInteger((1.0L - (long double)tceFlash.deafness) * 127.0L);
 }
 
+#if defined(_WIN32)
+/* Distance spills its three differences, but its native x87 result stays wide
+ * until the sound attenuation calculation consumes it. */
+static long double CG_TCESoundDistanceValue(const vec3_t origin)
+{
+	vec3_t delta;
+	VectorSubtract(cg.refdef.vieworg, origin, delta);
+	return TCE_VectorLengthValue(delta);
+}
+#endif
+
 /* TC sound attenuation, including the platform-specific range clamp. */
 int CG_SoundVolume(vec3_t origin, float amount, float range, int linear)
 {
+#if defined(_WIN32)
+	long double distance = CG_TCESoundDistanceValue(origin);
+#else
 	long double distance     = Distance(origin, cg.refdef.vieworg);
+#endif
 	long double nearDistance = (long double)range * (linear ? 0.01f : 0.1f);
 	long double gain, result;
 	float       deafness;
