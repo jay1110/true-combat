@@ -4833,10 +4833,44 @@ Advances the non-player objects in the world
 */
 /* TC200646b0 objective-assignment branches. The containing frame controller
  * retains its separate reconstruction status. Script action supplies teams. */
-/* TC200639e0 / Linux G_LoadOfficialDat: decode the 32 fixed-width numbers.
- * Keep the original 15-byte read and initialized sixteenth character. */
+/* Decode 32 fixed-width numbers: Windows reads 15 bytes into an initialized
+ * field; Linux reads 16 bytes through its formatted va buffer. */
 static qboolean G_LoadOfficialDat(const char *filename, char *checksums)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	fileHandle_t file;
+	double values[32];
+	int i, seed;
+	trap_FS_FOpenFile(filename, &file, FS_READ);
+	if (!file)
+	{
+		G_Printf("^1WARNING: Server failed to load %s\n", filename);
+		return qfalse;
+	}
+	for (i = 0; i < 32; i++)
+	{
+		char *field = va("%16.2lf\n", 100000000.0);
+		trap_FS_Read(field, Q_strlenInt(field) - 1, file);
+		values[i] = atof(field);
+		trap_FS_Read(field, 1, file);
+	}
+	seed = (int)((long double)values[21] * (long double)0.001 - 5.0L);
+	for (i = 0; i < 16; i++)
+	{
+		values[i] = (double)((long double)values[i] -
+		                    ((long double)Q_crandom(&seed) * 100000000.0L + values[i + 16]));
+	}
+	for (i = 0; i < 16; i++)
+	{
+		if (abs((int)values[i]) > 0.1)
+		{
+			values[i] = (double)floorl((long double)values[i] + (long double)0.1);
+			Q_strcat(checksums, MAX_INFO_STRING, va("%.0lf ", values[i]));
+		}
+	}
+	trap_FS_FCloseFile(file);
+	return qtrue;
+#else
 	fileHandle_t file;
 	double       values[32];
 	char         field[17], separator;
@@ -4868,12 +4902,46 @@ static qboolean G_LoadOfficialDat(const char *filename, char *checksums)
 	}
 	trap_FS_FCloseFile(file);
 	return qtrue;
+#endif
 }
 
 /* TC20064d50 / Linux G_CheckOfficial. The cached cvar is deliberately not
  * refreshed after setting it: the original observes it on the next frame. */
 static void G_CheckOfficial(void)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	char pakNames[MAX_INFO_STRING], paks[MAX_INFO_STRING], checksums[MAX_INFO_STRING];
+	char filename[256];
+	if (sv_official.integer != 1 || level.tceOfficialChecked)
+	{
+		return;
+	}
+	if (!trap_Cvar_VariableIntegerValue("sv_pure"))
+	{
+		G_Printf("Unpure server detected, setting sv_offical to zero.\n");
+		trap_Cvar_Set("sv_official", va("%i", 0));
+	}
+	trap_Cvar_VariableStringBuffer("sv_pakNames", pakNames, sizeof(pakNames));
+	if (Q_stricmp(pakNames, ""))
+	{
+		trap_Cvar_VariableStringBuffer("sv_paks", paks, sizeof(paks));
+		level.tceOfficialChecked = qtrue;
+	}
+	if (level.tceOfficialChecked && sv_official.integer == 1)
+	{
+		memset(checksums, 0, sizeof(checksums));
+		strcpy(filename, va("official.dat"));
+		if (!G_LoadOfficialDat(filename, checksums))
+		{
+			G_Error("Official file not found or corrupted, can not run official server.\n");
+		}
+		else if (Q_stricmp(paks, checksums))
+		{
+			G_Printf("Referenced paks: %s\n", pakNames);
+			G_Error("Invalid or modified paks referenced, can not run official server.\n");
+		}
+	}
+#else
 	char pakNames[MAX_INFO_STRING], paks[MAX_INFO_STRING], checksums[MAX_INFO_STRING];
 	if (sv_official.integer != 1 || level.tceOfficialChecked)
 	{
@@ -4901,6 +4969,7 @@ static void G_CheckOfficial(void)
 		G_Printf("Referenced paks: %s\n", pakNames);
 		G_Error("Invalid or modified paks referenced, can not run official server");
 	}
+#endif
 }
 
 static void G_TCEAssignObjective(qboolean vip)
