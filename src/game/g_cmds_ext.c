@@ -861,6 +861,19 @@ void G_weaponStatsLeaders_cmd(gentity_t *ent, qboolean doTop, qboolean doWindow)
 				{
 					cPlaces++;
 				}
+#elif defined(__linux__)
+				/* Linux b0c95 spills hits*100, then retains reciprocal*product. */
+				long double accuracy;
+				int replace;
+				acc = (float)((long double)(unsigned int)cl->sess.aWeaponStats[iWeap].hits * 100.0L);
+				accuracy = (1.0L / shots) * (long double)acc;
+				aClients[cClients++] = level.sortedClients[i];
+				replace = doTop ? accuracy > wBestAcc : accuracy < wBestAcc;
+				if (replace)
+				{
+					wBestAcc = TCE_TruncateNativeInteger(accuracy);
+					cPlaces++;
+				}
 #else
 				acc                  = (float)((cl->sess.aWeaponStats[iWeap].hits) * 100.0) / (float)shots;
 				aClients[cClients++] = level.sortedClients[i];
@@ -888,6 +901,15 @@ void G_weaponStatsLeaders_cmd(gentity_t *ent, qboolean doTop, qboolean doWindow)
 				acc = (float)((long double)(unsigned int)cl->sess.aWeaponStats[iWeap].hits * 100.0L / attempts);
 				selected = doTop ? (long double)acc >= wBestAcc
 				                 : (long double)wBestAcc + bottomSlack >= (long double)acc;
+			}
+#elif defined(__linux__)
+			{
+				long double accuracy;
+				acc = (float)((long double)(unsigned int)cl->sess.aWeaponStats[iWeap].hits * 100.0L);
+				accuracy = (1.0L / (unsigned int)cl->sess.aWeaponStats[iWeap].atts) * (long double)acc;
+				/* Native JA rejects only ordered greater; unordered is included. */
+				selected = doTop ? !((long double)wBestAcc > accuracy)
+				                 : !(accuracy > (long double)wBestAcc + (long double)(double)0.999);
 			}
 #else
 			acc      = (float)(cl->sess.aWeaponStats[iWeap].hits * 100.0) / (float)(cl->sess.aWeaponStats[iWeap].atts);
