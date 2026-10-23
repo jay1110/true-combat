@@ -3635,7 +3635,7 @@ void CG_NextWeap(qboolean switchBanks)
 			}
 			else
 			{
-#if defined(__linux__)
+#if defined(__linux__) || defined(_WIN32)
 				int remembered = TCE_CG_RememberedBankWord(bank + i + 1);
 				if (remembered)
 				{
@@ -4813,32 +4813,7 @@ void CG_EliteEffectSound(centity_t *cent, int volume);
  * and conversion. Windows consumes __ftol's low32; Linux uses FISTP32. */
 static int CG_TCEFireWarningVolume853(void)
 {
-	static const float tceWarningOne = 1.0f, tceWarningMaximum = 127.0f;
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__GNUC__) && defined(__i386__) && defined(__linux__))
 	return TCE_TruncateNativeInteger((1.0L - (long double)tceFlash.deafness) * 127.0L);
-#else
-	/* Other targets retain the established numeric compatibility path. */
-	double tceWarningValue = ((double)tceWarningOne - tceFlash.deafness) * tceWarningMaximum;
-#if defined(_WIN32)
-	unsigned int tceWarningBits;
-	int          tceWarningAmount;
-	if (!(tceWarningValue >= -9223372036854775808.0 &&
-	      tceWarningValue < 9223372036854775808.0))
-	{
-		return 0;
-	}
-	tceWarningBits = (unsigned int)(long long)tceWarningValue;
-	memcpy(&tceWarningAmount, &tceWarningBits, sizeof(tceWarningAmount));
-	return tceWarningAmount;
-#else
-	if (!(tceWarningValue >= -2147483648.0 &&
-	      tceWarningValue < 2147483648.0))
-	{
-		return (-2147483647 - 1);
-	}
-	return (int)tceWarningValue;
-#endif
-#endif
 }
 
 /* TC sound attenuation, including the platform-specific range clamp. */
@@ -4905,7 +4880,6 @@ int CG_SoundVolume(vec3_t origin, float amount, float range, int linear)
  * mutable cgame fields and cached media. Extraction frames and direct
  * sound/vector/reverb dependencies remain separately tracked. */
 
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__GNUC__) && defined(__i386__) && defined(__linux__))
 static void CG_TCEFireSway855(void)
 {
 	unsigned int holdBits = (unsigned int)cg.time + 100u;
@@ -4923,15 +4897,13 @@ static void CG_TCEFireSway855(void)
 #else
 	angle *= (long double)6.283185307179586;
 #endif
-	cg.tceSwayVertical = (float)((long double)sin((double)angle) * instability *
+	cg.tceSwayVertical = (float)(sinl(angle) * instability *
 	                             1.5L + (long double)cg.tceSwayVertical);
-	cg.tceSwayHorizontal = (float)((long double)cos((double)angle) * instability *
+	cg.tceSwayHorizontal = (float)(cosl(angle) * instability *
 	                               1.5L + (long double)cg.tceSwayHorizontal);
 }
-#endif
 
 
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__GNUC__) && defined(__i386__) && defined(__linux__))
 static void CG_TCEFireSound855(centity_t *cent, tce_weaponInfo_t *weap, int *sounds)
 {
 	int         count, index, volume, reverb, weapon;
@@ -5010,24 +4982,9 @@ static void CG_TCEFireSound855(centity_t *cent, tce_weaponInfo_t *weap, int *sou
 	trap_S_StartSoundExVControl(position, cent->currentState.number, CHAN_WEAPON,
 	                            echo[index], SND_NOCUT, volume);
 }
-#else
-/* Defined numeric compatibility on other architectures; native x87 order
- * is represented only in the two original-platform implementations above. */
-static void CG_TCEFireSway855(void)
-{
-	unsigned int holdBits = (unsigned int)cg.time + 100u;
-	double       angle;
-	memcpy(&cg.tceShotHoldUntil, &holdBits, sizeof(cg.tceShotHoldUntil));
-	angle                = (rand() & 32767) * (double)(1.f / 32767.f) * (double)6.2831854820251465f;
-	cg.tceSwayVertical   = (float)(cg.tceSwayVertical + sin(angle) * ((float)cg.predictedPlayerState.stats[STAT_TCE_SHOT_INSTABILITY] * .001f) * 1.5);
-	cg.tceSwayHorizontal = (float)(cg.tceSwayHorizontal + cos(angle) * ((float)cg.predictedPlayerState.stats[STAT_TCE_SHOT_INSTABILITY] * .001f) * 1.5);
-}
-#endif
 
-/* TCE room response with live room lookups and native rounding points.
- * Other targets retain the established portable body below. */
+/* TCE room response with live room lookups and native rounding points. */
 
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__GNUC__) && defined(__i386__) && defined(__linux__))
 static void CG_TCESoundZonePosition856(float distance, vec3_t position)
 {
 	refdef_t *view = cg.refdef_current;
@@ -5118,53 +5075,11 @@ void CG_EliteEffectSound(centity_t *cent, int volume)
 		                            cgs.gameSounds[cg.tceSoundZoneEffects[1 - cg.tceSoundZoneActive][0]], SND_NOCUT, amount);
 	}
 }
-#else
-void CG_EliteEffectSound(centity_t *cent, int volume)
-{
-	int    weapon = cent->currentState.weapon, active = cg.tceSoundZoneActive, side, v;
-	float  blend = 1, scale = (float)cg_snd_reverb.integer * (1.0f / 255.0f), distance;
-	vec3_t direction, position;
-	if (!volume || weapon == 1 || weapon == 4 || weapon == 9 || weapon == 30 || weapon == 12 || weapon == 21 || weapon == 11 ||
-	    weaponDef[weapon].subsonic || weaponDef[weapon].suppressed)
-	{
-		return;
-	}
-	if (!cg.tceSoundZoneSounds[0][0] && !cg.tceSoundZoneSounds[1][0])
-	{
-		return;
-	}
-	VectorSubtract(cent->currentState.pos.trBase, cg.refdef_current->vieworg, direction);
-	distance = VectorNormalize(direction); if (distance < 64)
-	{
-		distance = 64;
-	}
-	if (cg.time - cg.tceSoundZoneTransitionTime < 1000)
-	{
-		blend = (cg.time - cg.tceSoundZoneTransitionTime) * .001f;
-	}
-	for (side = 0; side < 2; ++side)
-	{
-		int bank = side?1 - active:active;
-		if (!cg.tceSoundZoneSounds[bank][0] || (side && blend >= 1))
-		{
-			continue;
-		}
-		v = (int)((double)volume * scale * (side?1.0f - blend:blend));
-		VectorMA(cg.refdef_current->vieworg, distance, cg.refdef_current->viewaxis[1], position);
-		trap_S_StartSoundExVControl(position, -1, CHAN_WEAPON, cgs.gameSounds[cg.tceSoundZoneEffects[bank][0]], SND_NOCUT, v);
-		VectorMA(cg.refdef_current->vieworg, -distance, cg.refdef_current->viewaxis[1], position);
-		trap_S_StartSoundExVControl(position, -1, CHAN_WEAPON, cgs.gameSounds[cg.tceSoundZoneEffects[bank][side?0:1]], SND_NOCUT, v);
-	}
-}
-#endif
 
-/* Complete original Fire/Recoil857 platform controllers. Actual source
- * structures and immutable media remain distinct from live entity re-reads.
- * Other targets keep the established SDK/numeric fallback. */
+/* Original fire controller: retain initial media but reread live entity state. */
 
 
 
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__GNUC__) && defined(__i386__) && defined(__linux__))
 void CG_FireWeapon(centity_t *cent)
 {
 	entityState_t    *ent = &cent->currentState;
@@ -5226,16 +5141,21 @@ void CG_FireWeapon(centity_t *cent)
 	{
 		unsigned int zoomBits = (unsigned int)cg.time - 300u;
 		cg.tceAimRequested = 0;
-		memcpy(&cg.zoomTime, &zoomBits, sizeof(cg.zoomTime));
 		cg.tceAimActive    = 0;
+		memcpy(&cg.zoomTime, &zoomBits, sizeof(cg.zoomTime));
 		cg.tceAimSyncTime  = cg.zoomTime;
 		cg.tceAimRetryTime = 0;
 	}
 	if (ent->weapon == 60 && ent->clientNum == cg.snap->ps.clientNum)
 	{
 		cg.mortarImpactTime        = -1;
-		cg.mortarFireAngles[PITCH] = cg.predictedPlayerState.viewangles[PITCH];
-		cg.mortarFireAngles[YAW]   = cg.predictedPlayerState.viewangles[YAW];
+#if defined(__linux__)
+		memcpy(&cg.mortarFireAngles[YAW], &cg.predictedPlayerState.viewangles[YAW], sizeof(float));
+		memcpy(&cg.mortarFireAngles[PITCH], &cg.predictedPlayerState.viewangles[PITCH], sizeof(float));
+#else
+		memcpy(&cg.mortarFireAngles[PITCH], &cg.predictedPlayerState.viewangles[PITCH], sizeof(float));
+		memcpy(&cg.mortarFireAngles[YAW], &cg.predictedPlayerState.viewangles[YAW], sizeof(float));
+#endif
 	}
 	weapon = ent->weapon;
 	if (weapon == 66)
@@ -5321,184 +5241,6 @@ void CG_FireWeapon(centity_t *cent)
 	}
 	cent->tceEjectPending = 1;
 }
-#else
-void CG_FireWeapon(centity_t *cent)
-{
-	entityState_t    *ent = &cent->currentState;
-	tce_weaponInfo_t *weap;
-	int              count, index, volume, reverb, weapon = ent->weapon;
-	int              *sound;
-	vec3_t           direction, position;
-	float            distance;
-	if (cg.tcePortalScopeRendering)
-	{
-		CG_Printf("ELITE PORTAL: CG_FireWeapon\n");
-	}
-	if (ent->eFlags & 0x8000)
-	{
-		int tank = cg_entities[cg_entities[cg_entities[ent->number].tagParent].tankparent].currentState.density & 8;
-		trap_S_StartSound(NULL, ent->number, CHAN_WEAPON, tank?cgs.media.hWeaponSnd_2:cgs.media.hWeaponSnd);
-		cent->muzzleFlashTime = cg.time; return;
-	}
-	if (ent->eFlags & (0x20 | 0x400000))
-	{
-		if (!(ent->eFlags & 0x400000))
-		{
-			trap_S_StartSound(NULL, ent->number, CHAN_WEAPON, cgs.media.hWeaponSnd);
-		}
-		if (cg_brassTime.integer > 0)
-		{
-			CG_MachineGunEjectBrass(cent);
-		}
-		cent->muzzleFlashTime = cg.time; return;
-	}
-	if (!weapon)
-	{
-		return;
-	}
-	if (weapon >= 64)
-	{
-		CG_Error("CG_FireWeapon: ent->weapon >= WP_NUM_WEAPONS"); return;
-	}
-	weap = &tce_cg_weapons[weapon];
-	if (ent->clientNum == cg.snap->ps.clientNum)
-	{
-		cg.lastFiredWeapon = weapon;
-	}
-	cent->muzzleFlashTime = cg.time;
-	if (ent->number == cg.snap->ps.clientNum)
-	{
-		CG_WeaponFireRecoil(ent->weapon);
-		CG_TCEFireSway855();
-	}
-	if (ent->number == cg.snap->ps.clientNum && cg_predictBullets.integer > 0)
-	{
-		CG_PredictedFire(cent);
-	}
-	if (ent->number == cg.snap->ps.clientNum && weapon == 46 && cg.tceAimRequested)
-	{
-		cg.tceAimRequested = 0; cg.tceAimActive = 0; cg.tceAimRetryTime = 0;
-		cg.zoomTime        = cg.time - 300; cg.tceAimSyncTime = cg.zoomTime;
-	}
-	if (weapon == 60 && ent->clientNum == cg.snap->ps.clientNum)
-	{
-		cg.mortarImpactTime      = -1; cg.mortarFireAngles[PITCH] = cg.predictedPlayerState.viewangles[PITCH];
-		cg.mortarFireAngles[YAW] = cg.predictedPlayerState.viewangles[YAW];
-	}
-	if (weapon == 66)
-	{
-		if (cent->pe.lightningFiring)
-		{
-			return;
-		}
-	}
-	else if (weapon == 4 || weapon == 9 || weapon == 15 || weapon == 22 || weapon == 26 || weapon == 27 || weapon == 29 || weapon == 30)
-	{
-		if (weapon == 9 && cgs.clientinfo[ent->number].infoValid && cgs.clientinfo[ent->number].team == cg.snap->ps.persistant[PERS_TEAM])
-		{
-			int team = cgs.clientinfo[ent->number].team;
-			if (team == 1 || team == 2)
-			{
-				/* Native Linux calls rand before reading attenuation;
-				 * Windows converts first. Both read the cached team bank. */
-#if defined(__linux__)
-				index  = rand() % 2;
-				volume = CG_TCEFireWarningVolume853();
-#else
-				volume = CG_TCEFireWarningVolume853();
-				index  = rand() % 2;
-#endif
-				trap_S_StartSoundVControl(NULL, ent->number, CHAN_WEAPON,
-				                          cgs.media.tceRoundWarning[team - 1][index], volume);
-			}
-		}
-		if (ent->apos.trBase[0] > 0)
-		{
-			return;
-		}
-	}
-	if (ent->clientNum == cg.snap->ps.clientNum)
-	{
-		if (weapon == 55)
-		{
-			cg.weaponSelect = 23;
-		}
-		else if (weapon == 56)
-		{
-			cg.weaponSelect = 24;
-		}
-	}
-	sound = weap->flashSound;
-	if ((ent->event & ~EV_EVENT_BITS) == EV_FIRE_WEAPON_LASTSHOT)
-	{
-		for (count = 0; count < 4 && weap->lastShotSound[count]; ++count)
-		{
-		}
-		if (count)
-		{
-			sound = weap->lastShotSound;
-		}
-	}
-	if (ent->eFlags & 0x40000)
-	{
-		return;
-	}
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__GNUC__) && defined(__i386__) && defined(__linux__))
-	CG_TCEFireSound855(cent, weap, sound);
-#else
-	for (count = 0; count < 4 && sound[count]; ++count)
-	{
-	}
-	if (count > 0)
-	{
-		index = rand() % count;
-		if (sound[index] && tceFlash.deafness != 1.f)
-		{
-			centity_t *source = &cg_entities[ent->number];
-			if (!weaponDef[weapon].suppressed && !weaponDef[weapon].subsonic)
-			{
-				volume = (int)((1.f - tceFlash.deafness) * 127.f);
-			}
-			else
-			{
-				volume = CG_SoundVolume(source->currentState.pos.trBase, 127, 1800, 0);
-			}
-			trap_S_StartSoundExVControl(NULL, ent->number, CHAN_WEAPON, sound[index], SND_NOCUT, volume);
-			reverb = weap->flashReverbVolume?(int)((double)volume * weap->flashReverbVolume * (double)(1.f / 255.f)):volume;
-			CG_EliteEffectSound(source, reverb);
-			if (weap->flashEchoSound[index])
-			{
-				VectorSubtract(source->currentState.pos.trBase, cg.refdef_current->vieworg, direction);
-				distance = VectorNormalize(direction);
-				if (distance > 512 && distance < 4096)
-				{
-					VectorMA(cg.refdef_current->vieworg, 64, direction, position);
-					trap_S_StartSoundExVControl(position, ent->number, CHAN_WEAPON, weap->flashEchoSound[index], SND_NOCUT, (int)(volume * .5f));
-				}
-			}
-		}
-	}
-#endif
-	if (BG_CheckUTWeapon(weapon) && weapon != 4 && weapon != 9 && weapon != 15 && weapon != 22 && weapon != 26 && weapon != 27 && weapon != 1 && weapon != 30)
-	{
-		cent->tceFireEffectPending = 1;
-	}
-	if (weaponDef[weapon].bolt)
-	{
-		return;
-	}
-	if (weaponDef[weapon].singleReload && !ent->eventParm)
-	{
-		return;
-	}
-	if (!weap->ejectBrass || cg_brassTime.integer < 1)
-	{
-		return;
-	}
-	cent->tceEjectPending = 1;
-}
-
-#endif
 
 
 
