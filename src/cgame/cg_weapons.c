@@ -3487,6 +3487,38 @@ CG_NextWeap
   switchBanks - curweap is the last in a bank, 'qtrue' means go to the next available bank, 'qfalse' means loop to the head of the bank
 ==============
 */
+#if defined(__linux__) || defined(_WIN32)
+/* The native exhausted-bank scan continues into the following cg words.
+ * Read their object representations without indexing beyond the bank array. */
+static int TCE_CG_RememberedBankWord(int index)
+{
+	int value;
+	typedef char contiguousBankWords[
+		(offsetof(cg_t, v_dmg_roll) == offsetof(cg_t, lastWeapSelInBank)
+		                              + 19 * sizeof(int)) ? 1 : -1];
+	(void)sizeof(contiguousBankWords);
+	memcpy(&value, (const unsigned char *)&cg
+	               + offsetof(cg_t, lastWeapSelInBank) + index * sizeof(int),
+	       sizeof(value));
+	return value;
+}
+
+/* Bank 10 reaches reloadableWeapons in the original data image, after four
+ * padding words on Linux. Do not overrun the declared C bank array. */
+static int TCE_CG_BankWeaponWord(int bank, int cycle)
+{
+	if (bank == MAX_WEAP_BANKS_MP)
+	{
+#if defined(__linux__)
+		return cycle < 4 ? 0 : reloadableWeapons[cycle - 4];
+#else
+		return reloadableWeapons[cycle];
+#endif
+	}
+	return weapBanksMultiPlayer[bank][cycle];
+}
+#endif
+
 void CG_NextWeap(qboolean switchBanks)
 {
 	int      bank = 0, cycle = 0, newbank = 0, newcycle = 0;
@@ -3603,12 +3635,20 @@ void CG_NextWeap(qboolean switchBanks)
 			}
 			else
 			{
+#if defined(__linux__)
+				int remembered = TCE_CG_RememberedBankWord(bank + i + 1);
+				if (remembered)
+				{
+					num = remembered;
+				}
+#else
 				/* The original reads past this array on an exhausted bank scan.
 				 * Ignore nonexistent remembered banks instead of reading other cg fields. */
 				if (bank + i + 1 < MAX_WEAP_BANKS_MP && cg.lastWeapSelInBank[bank + i + 1])
 				{
 					num = cg.lastWeapSelInBank[bank + i + 1];
 				}
+#endif
 				else
 				{
 					num = getNextBankWeap(bank + i, cycle, qtrue);
@@ -4211,7 +4251,11 @@ void CG_WeaponBank_f(void)
 
 	bank = atoi(CG_Argv(1));
 
+#if defined(__linux__) || defined(_WIN32)
+	if (bank <= 0 || bank > MAX_WEAP_BANKS_MP)
+#else
 	if (bank <= 0 || bank >= MAX_WEAP_BANKS_MP)
+#endif
 	{
 		return;
 	}
@@ -4219,6 +4263,23 @@ void CG_WeaponBank_f(void)
 	curweap = cg.weaponSelect;
 	CG_WeaponIndex(curweap, &curbank, &curcycle);       // get bank/cycle of current weapon
 
+#if defined(__linux__) || defined(_WIN32)
+	{
+		int remembered = TCE_CG_RememberedBankWord(bank);
+		if (!remembered)
+		{
+			cycle -= 1;
+		}
+		else
+		{
+			CG_WeaponIndex(remembered, &bank, &cycle);
+			if (bank != curbank)
+			{
+				cycle -= 1;
+			}
+		}
+	}
+#else
 	if (!cg.lastWeapSelInBank[bank])
 	{
 		num    = weapBanksMultiPlayer[bank][0];
@@ -4234,9 +4295,19 @@ void CG_WeaponBank_f(void)
 		}
 	}
 
+#endif
+
 	for (i = 0; i < MAX_WEAPS_IN_BANK_MP; i++)
 	{
+#if defined(__linux__) || defined(_WIN32)
+		num = TCE_CG_BankWeaponWord(bank, (cycle + i + 1) % MAX_WEAPS_IN_BANK_MP);
+		if (!num)
+		{
+			num = TCE_CG_BankWeaponWord(bank, 0);
+		}
+#else
 		num = getNextWeapInBank(bank, cycle + i);
+#endif
 
 		if (CG_WeaponSelectable(num))
 		{
