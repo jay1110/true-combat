@@ -2616,7 +2616,11 @@ void ClientDisconnect(int clientNum)
 			vec3_t  angles, offset, origin, mins = { -10, -10, 0 }, maxs = { 10, 10, 20 };
 			trace_t tr;
 			VectorCopy(ent->client->ps.viewangles, angles);
+#if defined(__linux__) && !defined(Q3_VM)
+			if (!(angles[PITCH] >= -30.0f))
+#else
 			if (angles[PITCH] < -30)
+#endif
 			{
 				angles[PITCH] = -30;
 			}
@@ -2627,12 +2631,23 @@ void ClientDisconnect(int clientNum)
 			angles[YAW] -= 135;
 			AngleVectors(angles, launchvel, NULL, NULL);
 			VectorScale(launchvel, 16, offset);
+#if defined(__linux__) && !defined(Q3_VM)
+			offset[2] = (float)((long double)launchvel[2] * 16.0L +
+			                    (long double)ent->client->ps.viewheight * 0.5L);
+#else
 			offset[2] += ent->client->ps.viewheight * .5f;
+#endif
 			VectorScale(launchvel, 64, launchvel);
 			/* 2004e1be..2004e1e2: x87 keeps random products and both
 			     * additions extended, storing only the final velocity. */
+#if defined(__linux__) && !defined(Q3_VM)
+			launchvel[2] = (float)(((long double)(rand() & 0x7fff) *
+			                       (long double)0.0010681478306651115f + 50.0L) +
+			                      (long double)launchvel[2]);
+#else
 			launchvel[2] = (float)((double)(rand() & 0x7fff) *
 			                       (double)(1.f / 32767.f) * 35.0 + (double)launchvel[2] + 50.0);
+#endif
 			VectorAdd(ent->client->ps.origin, offset, origin);
 			trap_Trace(&tr, ent->client->ps.origin, mins, maxs, origin, ent->s.number, CONTENTS_SOLID);
 			flag = LaunchItem(item, tr.endpos, launchvel, (int)(ent - g_entities));
