@@ -4954,8 +4954,13 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 					AIEnter_MP_MedicRevive(bs);
 					return qfalse;
 				}
+#if defined(__linux__)
+				else if (!(BotHealthScaleValue(bs->leader) > (long double)(double)0.7) && trap_AAS_PointAreaNum(g_entities[bs->leader].r.currentOrigin) &&
+				         BotGoalForEntity(bs, bs->leader, &bs->target_goal, BGU_MEDIUM))
+#else
 				else if (BotHealthScale(bs->leader) <= 0.7 && trap_AAS_PointAreaNum(g_entities[bs->leader].r.currentOrigin) &&
 				         BotGoalForEntity(bs, bs->leader, &bs->target_goal, BGU_MEDIUM)) // health stock?
+#endif
 				// make this our goal
 				{
 					g_entities[bs->target_goal.entitynum].missionLevel = level.time + 3000;
@@ -4963,7 +4968,11 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 					return qfalse;
 				}
 			}
+#if defined(__linux__)
+			else if (!(TCE_VectorLengthSquaredValue(g_entities[bs->leader].client->ps.velocity) >= SQR(10)) && !(TCE_VectorLengthSquaredValue(bs->cur_ps.velocity) >= SQR(10)))
+#else
 			else if ((VectorLengthSquared(g_entities[bs->leader].client->ps.velocity) < SQR(10)) && (VectorLengthSquared(bs->cur_ps.velocity) < SQR(10)))
+#endif
 			{
 				if (!(g_entities[bs->leader].r.svFlags & SVF_BOT))
 				{
@@ -4973,7 +4982,11 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 			//
 			if (!g_entities[bs->leader].inuse ||
 			    g_entities[bs->leader].health <= 0 ||
+#if defined(__linux__)
+			    BotDistanceSquaredValue(g_entities[bs->leader].r.currentOrigin, bs->origin) > SQR(MAX_BOTLEADER_DIST))
+#else
 			    VectorDistanceSquared(g_entities[bs->leader].r.currentOrigin, bs->origin) > SQR(MAX_BOTLEADER_DIST))
+#endif
 			{
 				bs->leader = -1;
 			}
@@ -4996,7 +5009,11 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 		// if we made it to the destination, let us roam to fight people
 		if (BotCarryingFlag(bs->enemy) || (!(goal.flags & GFL_LEADER) && (bs->flags & BFL_MISCFLAG)))
 		{
+#if defined(__linux__)
+			if (!BotCarryingFlag(bs->enemy) && fabsl(TCE_VectorLengthSquaredValue(bs->cur_ps.velocity)) > 0.0L && BotWantsToRetreat(bs))
+#else
 			if (!BotCarryingFlag(bs->enemy) && VectorLengthSquared(bs->cur_ps.velocity) && BotWantsToRetreat(bs))
+#endif
 			{
 				//keep the current long term goal and retreat
 			}
@@ -5097,7 +5114,11 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 		// if we are within range, stop here
 		if (bs->arrive_time < level.time - 5000)
 		{
+#if defined(__linux__)
+			if (!(BotDistanceSquaredValue(bs->origin, BotGetOrigin(ent->s.number)) >= SQR(600))
+#else
 			if ((VectorDistanceSquared(bs->origin, BotGetOrigin(ent->s.number)) < SQR(600))
+#endif
 			    && trap_InPVS(bs->origin, BotGetOrigin(ent->s.number)))
 			{
 				// check the trace
@@ -5137,13 +5158,21 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 		{
 			if ((numList = BotNumTeamMatesWithTarget(bs, goal.entitynum, list, MAX_CLIENTS)) > BOT_FLAG_CARRIER_DEFENDERS)
 			{
+#if defined(__linux__)
+				ourDist = (float)BotDistanceSquaredValue(bs->origin, g_entities[goal.entitynum].r.currentOrigin);
+#else
 				ourDist = VectorDistanceSquared(bs->origin, g_entities[goal.entitynum].r.currentOrigin);
+#endif
 				if (!trap_InPVS(bs->origin, g_entities[goal.entitynum].r.currentOrigin))
 				{
 					ourDist += 2048 * 2048;
 				}
 				distances = BotSortPlayersByDistance(g_entities[goal.entitynum].r.currentOrigin, list, numList);
+#if defined(__linux__)
+				if (!(distances[numList - 1] >= ourDist))
+#else
 				if (distances[numList - 1] < ourDist)
+#endif
 				{
 					// we are the furthest
 					bs->ignore_specialgoal_time = 0;
@@ -5159,7 +5188,14 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 		bs->target_goal.areanum = BotPointAreaNum(ent->s.number, ent->r.currentOrigin);
 //		BotFindSparseDefendArea( bs, &bs->target_goal, qtrue );
 		VectorCopy(ent->r.currentOrigin, bs->defendgoal_origin);
+#if defined(__linux__)
+		{
+			int delay = rand() % 100;
+			bs->target_goal.number = TCE_AddInt32(level.time, delay);
+		}
+#else
 		bs->target_goal.number = level.time + rand() % 100;
+#endif
 		goal                   = bs->target_goal;
 		bs->defendgoal         = bs->target_goal;
 	}
@@ -5177,7 +5213,11 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 	move = qfalse;
 	if (!(bs->target_goal.flags & GFL_DEFEND_CLOSE))
 	{
+#if defined(__linux__)
+		if (!move && BotDistanceSquaredValue(bs->origin, goal.origin) > SQR(384))
+#else
 		if (!move && VectorDistanceSquared(bs->origin, goal.origin) > SQR(384))
+#endif
 		{
 			move = qtrue;
 		}
@@ -5193,7 +5233,11 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 	}
 	else
 	{
+#if defined(__linux__)
+		if (!move && BotDistanceSquaredValue(bs->origin, goal.origin) > ((goal.flags & GFL_LEADER) ? SQR(80) : SQR(32)))
+#else
 		if (!move && VectorDistanceSquared(bs->origin, goal.origin) > ((goal.flags & GFL_LEADER) ? SQR(80) : SQR(32)))
+#endif
 		{
 			move = qtrue;
 		}
@@ -5236,7 +5280,11 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 			if (goal.flags & GFL_LEADER)
 			{
 				if ((BotPointWithinMovementAutonomy(bs, &goal, bs->origin))
+#if defined(__linux__)
+				    && !(BotDistanceSquaredValue(bs->origin, g_entities[bs->leader].r.currentOrigin) >= SQR(512)))
+#else
 				    && (VectorDistanceSquared(bs->origin, g_entities[bs->leader].r.currentOrigin) < SQR(512)))
+#endif
 				{
 					VectorCopy(bs->origin, bs->target_goal.origin);
 					bs->target_goal.areanum = bs->areanum;
@@ -5252,7 +5300,11 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 		}
 		else if (moveresult.flags & MOVERESULT_WAITING)     //if waiting for something
 		{
+#if defined(__linux__)
+			if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) < (long double)(double)0.8 * bs->thinktime)
+#else
 			if (random() < bs->thinktime * 0.8)
+#endif
 			{
 				BotRoamGoal(bs, target);
 				VectorSubtract(target, bs->origin, dir);
@@ -5272,9 +5324,18 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 				aas_entityinfo_t entinfo;
 				BotEntityInfo(bs->enemy, &entinfo);
 				//if the enemy is dead
+#if defined(__linux__)
+				if (bs->enemydeath_time < 0.0f || bs->enemydeath_time > 0.0f)
+#else
 				if (bs->enemydeath_time)
+#endif
 				{
+#if defined(__linux__)
+					long double deathTime = bs->enemydeath_time;
+					if (!(deathTime >= (long double)trap_AAS_Time() - (long double)(double)0.3))
+#else
 					if (bs->enemydeath_time < trap_AAS_Time() - 0.3)
+#endif
 					{
 						bs->enemydeath_time = 0;
 
@@ -5292,7 +5353,11 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 				if (bs->enemy >= 0)
 				{
 					// attack and keep moving
+#if defined(__linux__)
+					if (fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL)) > 0.0L)
+#else
 					if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL))
+#endif
 					{
 						// under special circumstances, we should go into battle mode
 						if (!BotCarryingFlag(bs->target_goal.entitynum) &&
@@ -5333,11 +5398,19 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 					VectorSubtract(target, bs->origin, dir);
 					vectoangles(dir, bs->ideal_viewangles);
 				}
+#if defined(__linux__)
+				else if (fabsl(TCE_VectorLengthSquaredValue(moveresult.movedir)) > 0.0L)
+#else
 				else if (VectorLengthSquared(moveresult.movedir))     //FIXME: look at cluster portals?
+#endif
 				{
 					vectoangles(moveresult.movedir, bs->ideal_viewangles);
 				}
+#if defined(__linux__)
+				else if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) < (long double)(double)0.8 * bs->thinktime)
+#else
 				else if (random() < bs->thinktime * 0.8)
+#endif
 				{
 					BotRoamGoal(bs, target);
 					VectorSubtract(target, bs->origin, dir);
@@ -5357,7 +5430,11 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 					}
 				}
 				// check for giving ourselves some health
+#if defined(__linux__)
+				if (bs->sess.playerType == PC_MEDIC && BotHealthScaleValue(bs->client) < 1.0L)
+#else
 				if (bs->sess.playerType == PC_MEDIC && BotHealthScale(bs->client) < 1.0)
+#endif
 				{
 					// switch to regen and pump away
 					bs->weaponnum = WP_MEDKIT;
@@ -5382,7 +5459,11 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 		{
 			if (objtarg->spawnflags & 64)
 			{
+#if defined(__linux__)
+				if (ent->lastHintCheckTime < level.time && (rand() & 1))
+#else
 				if (ent->lastHintCheckTime < level.time && rand() % 2)
+#endif
 				{
 					// if there is no dynamite planted here
 					int list[10], numList, i;
@@ -5398,18 +5479,34 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 					// if this objective doesn ont have armed dynamite
 					if (numList && i < numList)
 					{
+#if defined(__linux__)
+						{
+							int idleTime = 5000 + rand() % 5000;
+							int delay = 500 + rand() % 4000;
+							BotVoiceChatAfterIdleTime(bs->client, "NeedEngineer", SAY_TEAM, delay, qfalse, idleTime, qfalse);
+						}
+#else
 						BotVoiceChatAfterIdleTime(bs->client, "NeedEngineer", SAY_TEAM, 500 + rand() % 4000, qfalse, 5000 + rand() % 5000, qfalse);
+#endif
 					}
 				}
 				// if we are an engineer, throw out an air-strike
+#if defined(__linux__)
+				if (bs->sess.playerType == PC_FIELDOPS && ((long double)TCE_SubInt32(level.time, bs->cur_ps.classWeaponTime) > (long double)level.lieutenantChargeTime[bs->sess.sessionTeam - 1] * 0.5L))
+#else
 				if (bs->sess.playerType == PC_FIELDOPS && (level.time - bs->cur_ps.classWeaponTime > (level.lieutenantChargeTime[bs->sess.sessionTeam - 1] * 0.5f)))
+#endif
 				{
 					// select smoke grenade
 					bs->weaponnum = WP_SMOKE_MARKER;
 					trap_EA_SelectWeapon(bs->client, bs->weaponnum);
 					// look upwards
 					bs->ideal_viewangles[PITCH] = -70;
+#if defined(__linux__)
+					if (bs->cur_ps.weapon == bs->weaponnum && !(bs->viewangles[PITCH] >= -60.0f))
+#else
 					if (bs->cur_ps.weapon == bs->weaponnum && bs->viewangles[PITCH] < -60)
+#endif
 					{
 						trap_EA_Attack(bs->client);
 					}
@@ -5427,7 +5524,11 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 		}
 		if (bs->enemy >= 0)
 		{
+#if defined(__linux__)
+			if (fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL)) > 0.0L)
+#else
 			if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL))
+#endif
 			{
 				//aim at the enemy
 				BotAimAtEnemy(bs);
@@ -5447,7 +5548,11 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 			if (bs->viewchangetime < level.time)
 			{
 				// look for a better pos
+#if defined(__linux__)
+				if (!bs->arrive_time && (long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) < (long double)(double)0.1)
+#else
 				if (!bs->arrive_time && random() < 0.1)
+#endif
 				{
 					if (bs->target_goal.entitynum)
 					{
@@ -5458,7 +5563,14 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 				{
 					bs->viewtype = 0;
 				}
+#if defined(__linux__)
+				{
+					int delay = rand() % 3000;
+					bs->viewchangetime = TCE_AddInt32(TCE_AddInt32(level.time, delay), 500);
+				}
+#else
 				bs->viewchangetime = level.time + 500 + rand() % 3000;
+#endif
 			}
 			// if guarding a carrier, look towards the flag goal
 			if (goal.entitynum > -1 && goal.entitynum < level.maxclients && BotCarryingFlag(goal.entitynum))
@@ -5488,8 +5600,19 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 				if (!setdir)
 				{
 					// look away from the defense object
+#if defined(__linux__)
+					{
+						int axis;
+						for (axis = 0; axis < 3; ++axis)
+						{
+							target[axis] = (float)(((long double)g_entities[bs->target_goal.entitynum].r.absmax[axis]
+							                       + g_entities[bs->target_goal.entitynum].r.absmin[axis]) * 0.5L);
+						}
+					}
+#else
 					VectorAdd(g_entities[bs->target_goal.entitynum].r.absmax, g_entities[bs->target_goal.entitynum].r.absmin, target);
 					VectorScale(target, 0.5, target);
+#endif
 					VectorSubtract(target, bs->origin, dir);
 					VectorNormalize(dir);
 					VectorInverse(dir);
@@ -5502,9 +5625,17 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 			{
 				// face the current aimtarget
 				VectorSubtract(bs->aimtarget, bs->origin, dir);
+#if defined(__linux__)
+				if (fabsl(TCE_VectorNormalizeValue(dir)) > 0.0L)
+#else
 				if (VectorNormalize(dir))
+#endif
 				{
+#if defined(__linux__)
+					if (!(fabsl((long double)dir[2]) >= (long double)(double)0.8))
+#else
 					if (fabs(dir[2]) < 0.8)
+#endif
 					{
 						vectoangles(dir, bs->ideal_viewangles);
 					}
@@ -5514,8 +5645,19 @@ int AINode_MP_DefendTarget(bot_state_t *bs)
 			else if (bs->target_goal.entitynum > 0)
 			{
 				// look at the defense object
+#if defined(__linux__)
+				{
+					int axis;
+					for (axis = 0; axis < 3; ++axis)
+					{
+						target[axis] = (float)(((long double)g_entities[bs->target_goal.entitynum].r.absmax[axis]
+						                       + g_entities[bs->target_goal.entitynum].r.absmin[axis]) * 0.5L);
+					}
+				}
+#else
 				VectorAdd(g_entities[bs->target_goal.entitynum].r.absmax, g_entities[bs->target_goal.entitynum].r.absmin, target);
 				VectorScale(target, 0.5, target);
+#endif
 				VectorSubtract(target, bs->origin, dir);
 				VectorNormalize(dir);
 				vectoangles(dir, bs->ideal_viewangles);
