@@ -2172,8 +2172,10 @@ void SpectatorClientEndFrame(gentity_t *ent)
 qboolean StuckInClient(gentity_t *self)
 {
 	int       i;
+#if !defined(__linux__) || defined(Q3_VM)
 	vec3_t    hitmin, hitmax;
 	vec3_t    selfmin, selfmax;
+#endif
 	gentity_t *hit;
 
 	for (i = 0; i < level.numConnectedClients; i++)
@@ -2186,6 +2188,29 @@ qboolean StuckInClient(gentity_t *self)
 			continue;
 		}
 
+#if defined(__linux__) && !defined(Q3_VM)
+		{
+			/* ELF spills selected minima but retains the other sums for comparisons. */
+			float hitMinX = (float)((long double)hit->r.mins[0] + hit->r.currentOrigin[0]);
+			long double hitMinY = (long double)hit->r.mins[1] + hit->r.currentOrigin[1];
+			float hitMinZ = (float)((long double)hit->r.mins[2] + hit->r.currentOrigin[2]);
+			long double hitMaxX = (long double)hit->r.maxs[0] + hit->r.currentOrigin[0];
+			long double hitMaxY = (long double)hit->r.maxs[1] + hit->r.currentOrigin[1];
+			long double hitMaxZ = (long double)hit->r.maxs[2] + hit->r.currentOrigin[2];
+			float selfMinX = (float)((long double)self->r.currentOrigin[0] + self->r.mins[0]);
+			float selfMinY = (float)((long double)self->r.currentOrigin[1] + self->r.mins[1]);
+			float selfMinZ = (float)((long double)self->r.currentOrigin[2] + self->r.mins[2]);
+			long double selfMaxX = (long double)self->r.currentOrigin[0] + self->r.maxs[0];
+			long double selfMaxY = (long double)self->r.currentOrigin[1] + self->r.maxs[1];
+			long double selfMaxZ = (long double)self->r.currentOrigin[2] + self->r.maxs[2];
+			if (hitMinX > selfMaxX || !(hitMaxX >= selfMinX) ||
+			    !(selfMaxY >= hitMinY) || !(hitMaxY >= selfMinY) ||
+			    hitMinZ > selfMaxZ || !(hitMaxZ >= selfMinZ))
+			{
+				continue;
+			}
+		}
+#else
 		VectorAdd(hit->r.currentOrigin, hit->r.mins, hitmin);
 		VectorAdd(hit->r.currentOrigin, hit->r.maxs, hitmax);
 		VectorAdd(self->r.currentOrigin, self->r.mins, selfmin);
@@ -2219,6 +2244,7 @@ qboolean StuckInClient(gentity_t *self)
 			continue;
 		}
 
+#endif
 		return(qtrue);
 	}
 
