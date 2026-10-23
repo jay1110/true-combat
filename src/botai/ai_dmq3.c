@@ -6648,6 +6648,11 @@ BotGetAimAccuracySkill
 */
 void BotGetAimAccuracySkill(bot_state_t *bs, float *outAimAccuracy, float *outAimSkill)
 {
+#if defined(__linux__)
+	const int rocketWeapon = TCE_ITEM_WEAPON_PANZERFAUST;
+#else
+	const int rocketWeapon = WP_PANZERFAUST;
+#endif
 	float aim_accuracy, aim_skill;
 	//weaponinfo_t wi;
 	gclient_t *client = g_entities[bs->client].client;
@@ -6667,7 +6672,7 @@ void BotGetAimAccuracySkill(bot_state_t *bs, float *outAimAccuracy, float *outAi
 		//aim_accuracy = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_ACCURACY_GRENADELAUNCHER, 0, 1);
 		aim_skill = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_SKILL_GRENADELAUNCHER, 0, 1);
 	}
-	if (bs->weaponnum == WP_PANZERFAUST)
+	if (bs->weaponnum == rocketWeapon)
 	{
 		//aim_accuracy = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_ACCURACY_ROCKETLAUNCHER, 0, 1);
 		aim_skill = trap_Characteristic_BFloat(bs->character, CHARACTERISTIC_AIM_SKILL_ROCKETLAUNCHER, 0, 1);
