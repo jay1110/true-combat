@@ -7489,7 +7489,11 @@ int AINode_MP_Battle_Retreat(bot_state_t *bs)
 		return qfalse;
 	}
 	//update the last time the enemy was visible
+#if defined(__linux__)
+	if (fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL)) > 0.0L)
+#else
 	if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL))
+#endif
 	{
 		bs->enemyvisible_time = trap_AAS_Time();
 		//update the reachability area and origin if possible
@@ -7501,14 +7505,24 @@ int AINode_MP_Battle_Retreat(bot_state_t *bs)
 		}
 	}
 	//if the enemy is NOT visible for 4 seconds
+#if defined(__linux__)
+	long double visibleCheckTime = (long double)trap_AAS_Time() - 4.0L;
+	if (visibleCheckTime > bs->enemyvisible_time)
+#else
 	if (bs->enemyvisible_time < trap_AAS_Time() - 4)
+#endif
 	{
 		bs->ignore_specialgoal_time = 0;
 		BotDefaultNode(bs);
 		return qfalse;
 	}
 	//else if the enemy is NOT visible
+#if defined(__linux__)
+	else if ((visibleCheckTime = (long double)trap_AAS_Time()),
+	         !(bs->enemyvisible_time >= visibleCheckTime))
+#else
 	else if (bs->enemyvisible_time < trap_AAS_Time())
+#endif
 	{
 		//if there is another enemy
 		if (BotFindEnemyMP(bs, -1, qfalse))
