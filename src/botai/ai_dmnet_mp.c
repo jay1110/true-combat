@@ -2469,6 +2469,20 @@ void AIEnter_MP_Battle_MobileMG42(bot_state_t *bs)
 AINode_MP_Battle_MobileMG42()
 ==================
 */
+#if defined(__linux__)
+/* Native distance stores coordinate differences before returning a held sum. */
+static long double BotDistanceSquaredValue(const vec3_t first, const vec3_t second)
+{
+	vec3_t delta;
+	int axis;
+	for (axis = 0; axis < 3; ++axis)
+	{
+		delta[axis] = (float)((long double)second[axis] - first[axis]);
+	}
+	return TCE_VectorLengthSquaredValue(delta);
+}
+#endif
+
 int AINode_MP_Battle_MobileMG42(bot_state_t *bs)
 {
 	bot_goal_t goal;
@@ -2610,9 +2624,18 @@ int AINode_MP_Battle_MobileMG42(bot_state_t *bs)
 		aas_entityinfo_t entinfo;
 		BotEntityInfo(bs->enemy, &entinfo);
 		//if the enemy is dead
+#if defined(__linux__)
+		if (bs->enemydeath_time < 0.f || bs->enemydeath_time > 0.f)
+#else
 		if (bs->enemydeath_time)
+#endif
 		{
+#if defined(__linux__)
+			long double deathTime = bs->enemydeath_time;
+			if (!(deathTime >= (long double)trap_AAS_Time() - (long double)(double)0.3))
+#else
 			if (bs->enemydeath_time < trap_AAS_Time() - 0.3)
+#endif
 			{
 				bs->enemydeath_time    = 0;
 				bs->enemy              = -1;
@@ -2632,10 +2655,18 @@ int AINode_MP_Battle_MobileMG42(bot_state_t *bs)
 			VectorSubtract(entinfo.origin, bs->eye, dir);
 			VectorNormalize(dir);
 			vectoangles(dir, ang);
+#if defined(__linux__)
+			if (fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 120, bs->enemy, NULL)) > 0.0L)
+#else
 			if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 120, bs->enemy, NULL))
+#endif
 			{
 				// if they are real close, abort mg42 mode
+#if defined(__linux__)
+				if (!(BotDistanceSquaredValue(bs->origin, g_entities[bs->enemy].r.currentOrigin) >= SQR(400)))
+#else
 				if (VectorDistanceSquared(bs->origin, g_entities[bs->enemy].r.currentOrigin) < SQR(400))
+#endif
 				{
 					AIEnter_MP_Battle_Fight(bs);
 					return qfalse;
@@ -2659,7 +2690,12 @@ int AINode_MP_Battle_MobileMG42(bot_state_t *bs)
 		//
 		// TODO: cycle through visible enemy sniper spots
 		// NOTE: remember last visible enemy positions, so we can stay on them longer than usual
+#if defined(__linux__)
+		long double positionTime = bs->enemyposition_time;
+		if (positionTime > (long double)trap_AAS_Time() - 5.0L)
+#else
 		if (bs->enemyposition_time > trap_AAS_Time() - 5.0)
+#endif
 		{
 			VectorSubtract(bs->enemyorigin, bs->origin, dir);
 			VectorNormalize(dir);
@@ -2681,8 +2717,15 @@ int AINode_MP_Battle_MobileMG42(bot_state_t *bs)
 			// use mg42 angles
 			VectorCopy(level.clients[bs->client].pmext.mountedWeaponAngles, bs->ideal_viewangles);
 			// add some random angle
+#if defined(__linux__)
+			bs->ideal_viewangles[YAW] = (float)((((long double)(rand() & 0x7fff) *
+			    3.0518509447574615e-05f - .5L) * 2.0L) * 9.0L + bs->ideal_viewangles[YAW]);
+			bs->ideal_viewangles[PITCH] = (float)((((long double)(rand() & 0x7fff) *
+			    3.0518509447574615e-05f - .5L) * 2.0L) * 3.0L + bs->ideal_viewangles[PITCH]);
+#else
 			bs->ideal_viewangles[YAW]   += crandom() * 20.f * 0.45;
 			bs->ideal_viewangles[PITCH] += crandom() * 20.f * 0.15;
+#endif
 			//
 			bs->viewchangetime = level.time + 1000 + rand() % 1500;
 		}
