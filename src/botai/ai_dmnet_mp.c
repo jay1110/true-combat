@@ -3573,7 +3573,11 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 	if (g_entities[bs->client].s.eFlags & EF_MG42_ACTIVE)
 	{
 		// if it's the wrong one
+#if defined(__linux__)
+		if (BotDistanceSquaredValue(bs->origin, ent->r.currentOrigin) > SQR(64))
+#else
 		if (VectorDistanceSquared(bs->origin, ent->r.currentOrigin) > SQR(64))
+#endif
 		{
 			trap_EA_Activate(bs->client);
 			return qfalse;
@@ -3628,7 +3632,11 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 		dir[2] = 0;
 	}
 	// is the destination blocked?
+#if defined(__linux__)
+	if (!(TCE_VectorLengthSquaredValue(dir) >= SQR(64)))
+#else
 	if (VectorLengthSquared(dir) < SQR(64))
+#endif
 	{
 		trap_Trace(&tr, ent->r.currentOrigin, NULL, NULL, ent->r.currentOrigin, bs->client, MASK_PLAYERSOLID);
 		if (tr.startsolid || tr.allsolid)
@@ -3639,7 +3647,11 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 			}
 		}
 	}
+#if defined(__linux__)
+	if (TCE_VectorLengthSquaredValue(dir) > SQR(8))
+#else
 	if (VectorLengthSquared(dir) > SQR(8))
+#endif
 	{
 		//choose the best weapon to fight with
 		BotChooseWeapon(bs);
@@ -3668,7 +3680,18 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 
 			// jump randomly?
 			trap_EA_Jump(bs->client);
+#if defined(__linux__)
+			{
+				/* Native argument evaluation consumes speed, Z, Y, then X. */
+				float speed = (float)((long double)(rand() & 32767) * (long double)(float)(200.0 / 32767.0) + 100.0L);
+				float moveZ = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+				float moveY = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+				float moveX = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+				trap_EA_Move(bs->client, tv(moveX, moveY, moveZ), speed);
+			}
+#else
 			trap_EA_Move(bs->client, tv(crandom(), crandom(), crandom()), 100 + random() * 200);
+#endif
 			// fail
 			bs->ainode     = NULL;
 			bs->ainodeText = "NULL";
@@ -3684,7 +3707,11 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 		//if waiting for something
 		else if (moveresult.flags & MOVERESULT_WAITING)
 		{
+#if defined(__linux__)
+			if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) < (long double)(double)0.8 * bs->thinktime)
+#else
 			if (random() < bs->thinktime * 0.8)
+#endif
 			{
 				BotRoamGoal(bs, target);
 				VectorSubtract(target, bs->origin, dir);
@@ -3694,7 +3721,11 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 		}
 		else
 		{
+#if defined(__linux__)
+			if (BotDistanceSquaredValue(bs->origin, goal.origin) > SQR(32))
+#else
 			if (VectorDistanceSquared(bs->origin, goal.origin) > SQR(32))
+#endif
 			{
 				// check for enemies
 				if (bs->enemy < 0)
@@ -3706,9 +3737,18 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 					aas_entityinfo_t entinfo;
 					BotEntityInfo(bs->enemy, &entinfo);
 					//if the enemy is dead
+#if defined(__linux__)
+					if (bs->enemydeath_time < 0.0f || bs->enemydeath_time > 0.0f)
+#else
 					if (bs->enemydeath_time)
+#endif
 					{
+#if defined(__linux__)
+						long double deathTime = bs->enemydeath_time;
+						if (!(deathTime >= (long double)trap_AAS_Time() - (long double)(double)0.3))
+#else
 						if (bs->enemydeath_time < trap_AAS_Time() - 0.3)
+#endif
 						{
 							bs->enemydeath_time = 0;
 
@@ -3727,10 +3767,19 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 					if (bs->enemy >= 0)
 					{
 						// attack and keep moving
+#if defined(__linux__)
+						if (fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL)) > 0.0L)
+#else
 						if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL))
+#endif
 						{
+#if defined(__linux__)
+							if (BotDistanceSquaredValue(bs->origin, goal.origin) > SQR(128) ||
+							    BotDistanceSquaredValue(bs->origin, g_entities[bs->enemy].r.currentOrigin) > SQR(256))
+#else
 							if (VectorDistanceSquared(bs->origin, goal.origin) > SQR(128) ||
 							    VectorDistanceSquared(bs->origin, g_entities[bs->enemy].r.currentOrigin) > SQR(256))
+#endif
 							{
 								//choose the best weapon to fight with
 								BotChooseWeapon(bs);
@@ -3768,11 +3817,19 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 						vectoangles(dir, bs->ideal_viewangles);
 					}
 					//FIXME: look at cluster portals?
+#if defined(__linux__)
+					else if (fabsl(TCE_VectorLengthSquaredValue(moveresult.movedir)) > 0.0L)
+#else
 					else if (VectorLengthSquared(moveresult.movedir))
+#endif
 					{
 						vectoangles(moveresult.movedir, bs->ideal_viewangles);
 					}
+#if defined(__linux__)
+					else if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) < (long double)(double)0.8 * bs->thinktime)
+#else
 					else if (random() < bs->thinktime * 0.8)
+#endif
 					{
 						BotRoamGoal(bs, target);
 						VectorSubtract(target, bs->origin, dir);
@@ -3786,7 +3843,11 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 
 	}
 	//
+#if defined(__linux__)
+	if (!(BotDistanceSquaredValue(bs->origin, goal.origin) >= SQR(64)))
+#else
 	if (VectorDistanceSquared(bs->origin, goal.origin) < SQR(64))
+#endif
 	{
 		vec3_t forward, right, up, offset;
 		// look at the gun
@@ -3798,10 +3859,30 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 		if (bs->arrive_time < level.time - 500)
 		{
 			// randomize the angles a bit to solve some times when a direct sight isn't "enough"
+#if defined(__linux__)
+			if ((rand() & 3) == 0)
+#else
 			if (rand() % 4 == 0)
+#endif
 			{
+#if defined(__linux__)
+				{
+					long double angle = bs->ideal_viewangles[YAW];
+					long double offset = ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L;
+					bs->ideal_viewangles[YAW] = (float)(angle + offset * (long double)(double)10.0);
+				}
+#else
 				bs->ideal_viewangles[YAW]   += crandom() * 10.0;
+#endif
+#if defined(__linux__)
+				{
+					long double angle = bs->ideal_viewangles[PITCH];
+					long double offset = ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L;
+					bs->ideal_viewangles[PITCH] = (float)(angle + offset * (long double)(double)10.0);
+				}
+#else
 				bs->ideal_viewangles[PITCH] += crandom() * 10.0;
+#endif
 			}
 			// if we have been waiting longer, move backwards slowly
 			if (bs->arrive_time < level.time - 2000)
@@ -3813,7 +3894,11 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 			}
 		}
 		// hit activate so we mount it
+#if defined(__linux__)
+		if (rand() & 1)
+#else
 		if (rand() % 2)
+#endif
 		{
 			trap_EA_Activate(bs->client);
 		}
