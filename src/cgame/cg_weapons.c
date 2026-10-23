@@ -134,10 +134,16 @@ void CG_RailTrail2(clientInfo_t *ci, vec3_t start, vec3_t end, int highlighted)
 
 	le->leType    = LE_FADE_RGB;
 	le->startTime = cg.time;
+#if defined(__linux__)
+	le->endTime = TCE_TruncateNativeInteger((long double)cg.time + cg_railTrailTime.value);
+	le->lifeRate = (float)(1.0L / TCE_SubInt32(le->endTime, le->startTime));
+	re->shaderTime = (float)((long double)cg.time * .001f);
+#else
 	le->endTime   = (int)((double)cg.time + cg_railTrailTime.value);
 	le->lifeRate  = 1.0 / (le->endTime - le->startTime);
 
 	re->shaderTime   = (float)((double)(float)cg.time * 0.001f);
+#endif
 	re->reType       = RT_RAIL_CORE;
 	re->customShader = cgs.media.railCoreShader;
 
@@ -162,6 +168,9 @@ CG_RailTrail
 void CG_RailTrail(clientInfo_t *ci, vec3_t start, vec3_t end, int type, int highlighted)    //----(SA)	added 'type'
 {
 	vec3_t diff, v1, v2, v3, v4, v5, v6;
+#if defined(__linux__)
+	long double heldDiff[3];
+#endif
 
 	if (!type)  // just a line
 	{
@@ -171,14 +180,31 @@ void CG_RailTrail(clientInfo_t *ci, vec3_t start, vec3_t end, int type, int high
 
 	// type '1' (box)
 
+#if defined(__linux__)
+	{
+		int axis;
+		for (axis = 0; axis < 3; ++axis)
+		{
+			heldDiff[axis] = (long double)start[axis] - end[axis];
+			diff[axis] = (float)heldDiff[axis];
+		}
+	}
+#else
 	VectorSubtract(start, end, diff);
+#endif
 
 	VectorCopy(start, v1);
 	VectorCopy(start, v2);
 	VectorCopy(start, v3);
+#if defined(__linux__)
+	v1[0] = (float)((long double)v1[0] - heldDiff[0]);
+	v2[1] = (float)((long double)v2[1] - heldDiff[1]);
+	v3[2] = (float)((long double)v3[2] - heldDiff[2]);
+#else
 	v1[0] -= diff[0];
 	v2[1] -= diff[1];
 	v3[2] -= diff[2];
+#endif
 	CG_RailTrail2(ci, start, v1, highlighted);
 	CG_RailTrail2(ci, start, v2, highlighted);
 	CG_RailTrail2(ci, start, v3, highlighted);
@@ -2574,11 +2600,22 @@ void CG_AddViewWeapon(playerState_t *ps)
 		if (cg.predictedPlayerState.eFlags & EF_FIRING && !(cg.predictedPlayerState.eFlags & (EF_MG42_ACTIVE | EF_MOUNTEDTANK)))
 		{
 			// special hack for flamethrower...
+#if defined(__linux__)
+			int component;
+			for (component = 0; component < 3; ++component)
+			{
+				origin[component] = (float)(((long double)cg.refdef_current->viewaxis[0][component] * 18.f
+				                                  + cg.refdef_current->vieworg[component])
+				                                 + (long double)cg.refdef_current->viewaxis[1][component] * -7.f
+				                                 + (long double)cg.refdef_current->viewaxis[2][component] * -4.f);
+			}
+#else
 			VectorCopy(cg.refdef_current->vieworg, origin);
 
 			VectorMA(origin, 18, cg.refdef_current->viewaxis[0], origin);
 			VectorMA(origin, -7, cg.refdef_current->viewaxis[1], origin);
 			VectorMA(origin, -4, cg.refdef_current->viewaxis[2], origin);
+#endif
 
 			// Ridah, Flamethrower effect
 			CG_FlamethrowerFlame(&cg.predictedPlayerEntity, origin);
@@ -2588,14 +2625,22 @@ void CG_AddViewWeapon(playerState_t *ps)
 		{
 			if (cg.binocZoomTime < 0)
 			{
+#if defined(__linux__)
+				if (TCE_SubInt32(700, cg.binocZoomTime) < cg.time)
+#else
 				if (-cg.binocZoomTime + 500 + 200 < cg.time)
+#endif
 				{
 					cg.binocZoomTime = 0;
 				}
 			}
 			else
 			{
+#if defined(__linux__)
+				if (TCE_AddInt32(cg.binocZoomTime, 500) < cg.time)
+#else
 				if (cg.binocZoomTime + 500 < cg.time)
+#endif
 				{
 					trap_SendConsoleCommand("+zoom\n");
 					cg.binocZoomTime = 0;
@@ -2645,27 +2690,53 @@ void CG_AddViewWeapon(playerState_t *ps)
 		//gunoff[2] = cg_gun_z.value;
 
 		gunoff[0] = 20;
+
+#if defined(__linux__)
+		if (TCE_SubInt32(cg.time, cg.predictedPlayerEntity.muzzleFlashTime) < MUZZLE_FLASH_TIME)
+#else
 		if (cg.time - cg.predictedPlayerEntity.muzzleFlashTime < MUZZLE_FLASH_TIME)
+#endif
 		{
+#if defined(__linux__)
+			long double jitter = (long double)(rand() & 0x7fff) * (1.f / 32767.f);
+			gunoff[0] = (float)(20.f + (jitter + jitter));
+#else
 			gunoff[0] += random() * 2.f;
+#endif
 		}
 		{
 			int component;
 			for (component = 0; component < 3; ++component)
+#if defined(__linux__)
+				hand.origin[component] = (float)(((long double)gunoff[0] * cg.refdef_current->viewaxis[0][component]
+				                                  + hand.origin[component]) + (long double)cg.refdef_current->viewaxis[1][component] * -10.f
+				                                 + (long double)cg.refdef_current->viewaxis[2][component] * -8.f);
+#else
 				hand.origin[component] = (float)(((double)gunoff[0] * cg.refdef_current->viewaxis[0][component]
 				                                  + hand.origin[component]) - (double)cg.refdef_current->viewaxis[1][component] * 10.0
 				                                 - (double)cg.refdef_current->viewaxis[2][component] * 8.0);
+#endif
 		}
 
 		CG_AddWeaponWithPowerups(&hand, cg.predictedPlayerEntity.currentState.powerups, ps, &cg.predictedPlayerEntity);
 
+
+#if defined(__linux__)
+		if (TCE_SubInt32(cg.time, cg.predictedPlayerEntity.overheatTime) < 3000)
+#else
 		if (cg.time - cg.predictedPlayerEntity.overheatTime < 3000)
+#endif
 		{
 			if (!(rand() % 3))
 			{
 				float alpha;
+#if defined(__linux__)
+				alpha = (float)((1.f - (long double)TCE_SubInt32(cg.time, cg.predictedPlayerEntity.overheatTime)
+				                       * (1.f / 3000.f)) * 0.25f);
+#else
 				alpha  = 1.0f - ((float)(cg.time - cg.predictedPlayerEntity.overheatTime) / 3000.0f);
 				alpha *= 0.25f;     // .25 max alpha
+#endif
 				CG_ParticleImpactSmokePuffExtended(cgs.media.smokeParticleShader, cg.tankflashorg, 1000, 8, 20, 30, alpha, 8.f);
 			}
 		}
@@ -2677,7 +2748,14 @@ void CG_AddViewWeapon(playerState_t *ps)
 
 			angles[YAW]   = 0;
 			angles[PITCH] = 0;
+#if defined(__linux__)
+			{
+				long double roll = (long double)(rand() & 0x7fff) * (1.f / 32767.f) - 0.5f;
+				angles[ROLL] = (float)((roll + roll) * 10.f);
+			}
+#else
 			angles[ROLL]  = crandom() * 10;
+#endif
 			AnglesToAxis(angles, flash.axis);
 
 			CG_PositionRotatedEntityOnTag(&flash, &hand, "tag_flash");
@@ -2686,7 +2764,12 @@ void CG_AddViewWeapon(playerState_t *ps)
 
 			VectorCopy(flash.origin, cg.tankflashorg);
 
-			if (cg.time - cg.predictedPlayerEntity.muzzleFlashTime < MUZZLE_FLASH_TIME)
+
+#if defined(__linux__)
+		if (TCE_SubInt32(cg.time, cg.predictedPlayerEntity.muzzleFlashTime) < MUZZLE_FLASH_TIME)
+#else
+		if (cg.time - cg.predictedPlayerEntity.muzzleFlashTime < MUZZLE_FLASH_TIME)
+#endif
 			{
 				trap_R_AddRefEntityToScene(&flash);
 			}
@@ -2713,9 +2796,15 @@ void CG_AddViewWeapon(playerState_t *ps)
 		{
 			int component;
 			for (component = 0; component < 3; ++component)
+#if defined(__linux__)
+				hand.origin[component] = (float)(((long double)gunoff[0] * hand.axis[0][component]
+				                                  + hand.origin[component]) + (long double)gunoff[1] * hand.axis[1][component]
+				                                 + (0.0L + gunoff[2]) * hand.axis[2][component]);
+#else
 				hand.origin[component] = (float)((double)gunoff[2] * hand.axis[2][component]
 				                                 + (double)gunoff[1] * hand.axis[1][component]
 				                                 + (double)gunoff[0] * hand.axis[0][component] + hand.origin[component]);
+#endif
 		}
 
 		if (cg_gun_frame.integer)
@@ -2729,13 +2818,21 @@ void CG_AddViewWeapon(playerState_t *ps)
 			{
 				if (cg.binocZoomTime < 0)
 				{
+#if defined(__linux__)
+					if (TCE_SubInt32(700, cg.binocZoomTime) < cg.time)
+#else
 					if (-cg.binocZoomTime + 500 + 200 < cg.time)
+#endif
 					{
 						cg.binocZoomTime = 0;
 					}
 					else
 					{
+#if defined(__linux__)
+						if (TCE_SubInt32(200, cg.binocZoomTime) < cg.time)
+#else
 						if (-cg.binocZoomTime + 200 < cg.time)
+#endif
 						{
 							CG_ContinueWeaponAnim(WEAP_ALTSWITCHFROM);
 						}
@@ -2747,7 +2844,11 @@ void CG_AddViewWeapon(playerState_t *ps)
 				}
 				else
 				{
+#if defined(__linux__)
+					if (TCE_AddInt32(cg.binocZoomTime, 500) < cg.time)
+#else
 					if (cg.binocZoomTime + 500 < cg.time)
+#endif
 					{
 						trap_SendConsoleCommand("+zoom\n");
 						cg.binocZoomTime = 0;
@@ -2766,7 +2867,11 @@ void CG_AddViewWeapon(playerState_t *ps)
 		if (!BG_CheckUTWeapon(ps->weapon))
 		{
 			tce_weaponInfo_t *media  = &tce_cg_weapons[ps->weapon];
+#if defined(__linux__)
+			float shorten = TCE_FloatIsZeroOrNaN(media->foreShorten) ? 1.f : media->foreShorten;
+#else
 			float            shorten = media->foreShorten != 0?media->foreShorten:1.f;
+#endif
 			if (cg_gun_foreshorten.value > 0.f)
 			{
 				shorten = cg_gun_foreshorten.value;
