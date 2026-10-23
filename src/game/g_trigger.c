@@ -1266,7 +1266,7 @@ void trigger_aidoor_stayopen(gentity_t *ent, gentity_t *other, trace_t *trace)
 
 		if ((door->moverState == MOVER_POS2ROTATE) || (door->moverState == MOVER_POS2))
 		{   // door is in open state waiting to close keep it open
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 			door->nextthink = TCE_TruncateNativeInteger(
 			    (long double)level.time + door->wait + 3000.0L);
 #else
