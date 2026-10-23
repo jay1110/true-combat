@@ -12,6 +12,7 @@
 #include "../game/tce_weapon_ids.h"
 
 static long double BotDistanceSquaredValue(const vec3_t first, const vec3_t second);
+static long double BotHealthScaleValue(int entnum);
 #endif
 #include "../game/botlib.h"
 #include "../game/be_aas.h"
@@ -690,7 +691,11 @@ int AINode_MP_Seek_NBG(bot_state_t *bs)
 	}
 	else if (ent->s.eType == ET_HEALER)
 	{
+#if defined(__linux__)
+		if (!(BotHealthScaleValue(bs->client) < 1.0L))
+#else
 		if (BotHealthScale(bs->client) >= 1.0)
+#endif
 		{
 			bs->ignore_specialgoal_time = 0;
 			BotDefaultNode(bs);
@@ -725,7 +730,17 @@ int AINode_MP_Seek_NBG(bot_state_t *bs)
 		//BotAI_Print(PRT_MESSAGE, "movement failure %d\n", moveresult.traveltype);
 		// jump randomly
 		trap_EA_Jump(bs->client);
+#if defined(__linux__)
+		{
+			float speed = (float)((long double)(rand() & 32767) * (long double)(float)(200.0 / 32767.0) + 100.0L);
+			float moveZ = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+			float moveY = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+			float moveX = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+			trap_EA_Move(bs->client, tv(moveX, moveY, moveZ), speed);
+		}
+#else
 		trap_EA_Move(bs->client, tv(crandom(), crandom(), crandom()), 100 + random() * 200);
+#endif
 		// fail
 		bs->ainode     = NULL;
 		bs->ainodeText = "NULL";
@@ -741,7 +756,12 @@ int AINode_MP_Seek_NBG(bot_state_t *bs)
 	//if waiting for something
 	else if (moveresult.flags & MOVERESULT_WAITING)
 	{
+#if defined(__linux__)
+		if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0)
+		    < (long double)(double)0.8 * bs->thinktime)
+#else
 		if (random() < bs->thinktime * 0.8)
+#endif
 		{
 			BotRoamGoal(bs, target);
 			VectorSubtract(target, bs->origin, dir);
@@ -761,9 +781,18 @@ int AINode_MP_Seek_NBG(bot_state_t *bs)
 			aas_entityinfo_t entinfo;
 			BotEntityInfo(bs->enemy, &entinfo);
 			//if the enemy is dead
+#if defined(__linux__)
+			if (bs->enemydeath_time < 0.0f || bs->enemydeath_time > 0.0f)
+#else
 			if (bs->enemydeath_time)
+#endif
 			{
+#if defined(__linux__)
+				long double deathTime = bs->enemydeath_time;
+				if (!(deathTime >= (long double)trap_AAS_Time() - (long double)(double)0.3))
+#else
 				if (bs->enemydeath_time < trap_AAS_Time() - 0.3)
+#endif
 				{
 					bs->enemydeath_time = 0;
 
@@ -781,7 +810,11 @@ int AINode_MP_Seek_NBG(bot_state_t *bs)
 			if (bs->enemy >= 0)
 			{
 				// attack and keep moving
+#if defined(__linux__)
+				if (fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL)) > 0.0L)
+#else
 				if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL))
+#endif
 				{
 					//choose the best weapon to fight with
 					BotChooseWeapon(bs);
@@ -814,11 +847,20 @@ int AINode_MP_Seek_NBG(bot_state_t *bs)
 				vectoangles(dir, bs->ideal_viewangles);
 			}
 			//FIXME: look at cluster portals?
+#if defined(__linux__)
+			else if (fabsl(TCE_VectorLengthSquaredValue(moveresult.movedir)) > 0.0L)
+#else
 			else if (VectorLengthSquared(moveresult.movedir))
+#endif
 			{
 				vectoangles(moveresult.movedir, bs->ideal_viewangles);
 			}
+#if defined(__linux__)
+			else if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0)
+			    < (long double)(double)0.8 * bs->thinktime)
+#else
 			else if (random() < bs->thinktime * 0.8)
+#endif
 			{
 				BotRoamGoal(bs, target);
 				VectorSubtract(target, bs->origin, dir);
