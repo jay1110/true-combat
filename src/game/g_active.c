@@ -2055,8 +2055,13 @@ void SpectatorClientEndFrame(gentity_t *ent)
 						level.tceHostageSecured = qtrue;
 					}
 					else if (ent->client->sess.sessionTeam == level.tceHostageTeam &&
+#if defined(__linux__) && !defined(Q3_VM)
+					         (long double)(rand() & 0x7fff) * (long double)3.0518509447574615e-05f <
+					         1.0L / (long double)level.numFinalDead[teamIndex])
+#else
 					         (float)(rand() & 0x7fff) * 3.0518509447574615e-05f <
 					         1.f / (float)level.numFinalDead[teamIndex])
+#endif
 					{
 						reinforce(ent, qtrue);
 						return;
@@ -2159,8 +2164,13 @@ void SpectatorClientEndFrame(gentity_t *ent)
 	//	 --> Can we use something besides a powerup slot?
 	if (ent->client->pers.mvCount < 1)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		int axisBlockout   = G_blockoutTeam(ent, TEAM_AXIS);
+		int alliedBlockout = G_blockoutTeam(ent, TEAM_ALLIES);
+#else
 		int alliedBlockout = G_blockoutTeam(ent, TEAM_ALLIES);
 		int axisBlockout   = G_blockoutTeam(ent, TEAM_AXIS);
+#endif
 		ent->client->ps.powerups[PW_BLACKOUT] = (alliedBlockout << 1) | axisBlockout;
 	}
 }
