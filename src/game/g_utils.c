@@ -1555,9 +1555,12 @@ void G_ParseCampaigns(void)
 				G_Error("Usage 'map <mapname>\n'");
 			}
 
-			// no campaign found, fallback to GT_WOLF
-			// and reload the map
+			/* Reload using the original platform's fallback gametype. */
+#if defined(__linux__) && !defined(Q3_VM)
+			trap_Cvar_Set("g_gametype", "5");
+#else
 			trap_Cvar_Set("g_gametype", "2");
+#endif
 			trap_SendConsoleCommand(EXEC_APPEND, va("%s %s", buf, level.rawmapname));
 		}
 	}
