@@ -1,5 +1,8 @@
 /* TC:E Windows CG_RocketTrail @ 3006ca10. */
 #include "cg_local.h"
+#if defined(__linux__)
+#include "../game/tce_numeric.h"
+#endif
 
 void CG_RocketTrail(centity_t *ent, const weaponInfo_t *wi)
 {
@@ -8,7 +11,11 @@ void CG_RocketTrail(centity_t *ent, const weaponInfo_t *wi)
 	int           step, time, contents, lastContents;
 	(void)wi;
 	step = es->eType == ET_FLAMEBARREL ? 30 : es->eType == ET_FP_PARTS ? 50 : 10;
+#if defined(__linux__)
+	time = (TCE_AddInt32(ent->trailTime, step) / step) * step;
+#else
 	time = ((int)((unsigned int)ent->trailTime + step) / step) * step;
+#endif
 	BG_EvaluateTrajectory(&es->pos, cg.time, origin, qfalse, es->effect2Time);
 	contents = CG_PointContents(origin, -1);
 	if (es->eType != ET_RAMJET && es->pos.trType == TR_STATIONARY)
@@ -28,7 +35,11 @@ void CG_RocketTrail(centity_t *ent, const weaponInfo_t *wi)
 		return;
 	}
 
+#if defined(__linux__)
+	for (; time <= ent->trailTime; time = TCE_AddInt32(time, step))
+#else
 	for (; time <= ent->trailTime; time = (int)((unsigned int)time + step))
+#endif
 	{
 		float randomSize;
 		BG_EvaluateTrajectory(&es->pos, time, lastPos, qfalse, es->effect2Time);
@@ -64,11 +75,25 @@ void CG_RocketTrail(centity_t *ent, const weaponInfo_t *wi)
 				VectorCopy(es->apos.trBase, angles);
 				angles[ROLL] += cg.time % 360;
 				AngleVectors(angles, NULL, right, NULL);
+#if defined(__linux__)
+				{
+					int axis;
+					for (axis = 0; axis < 3; ++axis)
+						lastPos[axis] = (float)((long double)es->density * right[axis] + lastPos[axis]);
+				}
+#else
 				VectorMA(lastPos, es->density, right, lastPos);
+#endif
 			}
+#if defined(__linux__)
+			duration = TCE_TruncateNativeInteger(es->angles[0]);
+			sizeStart = TCE_TruncateNativeInteger(es->angles[1]);
+			sizeEnd = TCE_TruncateNativeInteger(es->angles[2]);
+#else
 			duration  = (int)es->angles[0];
 			sizeStart = (int)es->angles[1];
 			sizeEnd   = (int)es->angles[2];
+#endif
 			if (!duration)
 			{
 				duration = 100;
@@ -82,8 +107,13 @@ void CG_RocketTrail(centity_t *ent, const weaponInfo_t *wi)
 				sizeEnd = 7;
 			}
 			CG_ParticleExplosion("twiltb2", lastPos, vec3_origin,
+#if defined(__linux__)
+			                     TCE_AddInt32(duration, (int)((double)randomSize * 400)), sizeStart,
+			                     TCE_AddInt32(sizeEnd, (int)((double)randomSize * 10)), qfalse);
+#else
 			                     duration + (int)((double)randomSize * 400), sizeStart,
 			                     sizeEnd + (int)((double)randomSize * 10), qfalse);
+#endif
 			if (es->eType != ET_FIRE_COLUMN_SMOKE || rand() % 100 <= 50)
 			{
 				continue;
