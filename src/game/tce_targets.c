@@ -1,4 +1,14 @@
 #include "g_local.h"
+#include "tce_numeric.h"
+
+static int TCE_EnvironmentExposure(float exposure)
+{
+#if defined(__linux__) && !defined(Q3_VM)
+	return TCE_TruncateNativeInteger((long double)exposure * 255.0f);
+#else
+	return (int)((double)exposure * 255.0);
+#endif
+}
 
 /* TC:E encodes environment parameters in existing network-state fields.
  * Client environment rendering is a separate reconstruction task. */
@@ -26,16 +36,16 @@ void SP_target_environment(gentity_t *ent)
 		ent->r.svFlags        |= SVF_BROADCAST;
 		ent->s.otherEntityNum2 = 1;
 		G_SpawnFloat("eyeadaptation_outdoor", "0.0", &exposure);
-		ent->s.frame = (int)((double)exposure * 255.0);
+		ent->s.frame = TCE_EnvironmentExposure(exposure);
 		G_SpawnFloat("eyeadaptation_default", "0.0", &exposure);
-		ent->s.effect2Time = (int)((double)exposure * 255.0);
+		ent->s.effect2Time = TCE_EnvironmentExposure(exposure);
 		G_SpawnFloat("eyeadaptation_sun", "0.0", &exposure);
-		ent->s.nextWeapon = (int)((double)exposure * 255.0);
+		ent->s.nextWeapon = TCE_EnvironmentExposure(exposure);
 	}
 	else
 	{
 		G_SpawnFloat("eyeadaptation", "0.0", &exposure);
-		ent->s.effect2Time = (int)((double)exposure * 255.0);
+		ent->s.effect2Time = TCE_EnvironmentExposure(exposure);
 	}
 	G_SpawnInt("volume", "255", &ent->s.onFireStart);
 	if (!ent->s.onFireStart)

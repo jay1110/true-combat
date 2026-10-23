@@ -401,7 +401,11 @@ void misc_beam_think(gentity_t *self)
 		for ( i = 0; i < 3; i++ )
 		{
 			/* TC2008c5bf tests C0, including unordered comparisons. */
+#if defined(__linux__) && !defined(Q3_VM)
+			if (self->r.mins[i] > self->r.maxs[i])
+#else
 			if (!(self->r.maxs[i] >= self->r.mins[i]))
+#endif
 			{
 				float bleh = self->r.mins[i];
 				self->r.mins[i] = self->r.maxs[i];
@@ -413,8 +417,19 @@ void misc_beam_think(gentity_t *self)
 		/* TC2008c5e8..2008c677: pad and subtract origin before the float store. */
 		for ( i = 0; i < 3; i++ )
 		{
+#if defined(__linux__) && !defined(Q3_VM)
+			long double paddedMax = (long double)self->r.maxs[i] + 4.0f;
+			if (i == 1)
+			{
+				volatile float storedMax = (float)paddedMax;
+				paddedMax = storedMax;
+			}
+			self->r.mins[i] = (float)(((long double)self->r.mins[i] - 4.0f) - self->r.currentOrigin[i]);
+			self->r.maxs[i] = (float)(paddedMax - self->r.currentOrigin[i]);
+#else
 			self->r.mins[i] = (float)(((double)self->r.mins[i] - 4.0) - (double)self->r.currentOrigin[i]);
 			self->r.maxs[i] = (float)(((double)self->r.maxs[i] + 4.0) - (double)self->r.currentOrigin[i]);
+#endif
 		}
 
 		trap_LinkEntity(self);
@@ -505,6 +520,18 @@ void target_laser_think(gentity_t *self)
 	// if pointed at another entity, set movedir to point at it
 	if (self->enemy)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		int i;
+		for (i = 0; i < 3; ++i)
+		{
+			point[i] = (float)(0.5f * (long double)self->enemy->r.mins[i] + self->enemy->s.origin[i]);
+		}
+		for (i = 0; i < 3; ++i)
+		{
+			point[i] = (float)(0.5f * (long double)self->enemy->r.maxs[i] + point[i]);
+		}
+		VectorSubtract(point, self->s.origin, self->movedir);
+#else
 		double pointX;
 		/* TC2008c897..2008c924 keeps X in x87 until movedir, but stores
 		 * Y/Z after each center calculation. Preserve those float boundaries. */
@@ -517,6 +544,7 @@ void target_laser_think(gentity_t *self)
 		self->movedir[0] = (float)(pointX - (double)self->s.origin[0]);
 		self->movedir[1] = point[1] - self->s.origin[1];
 		self->movedir[2] = point[2] - self->s.origin[2];
+#endif
 		VectorNormalize(self->movedir);
 	}
 
