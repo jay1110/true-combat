@@ -883,7 +883,7 @@ void CG_GenerateTracemap(void)
 #undef CG_TRACEMAP_PROGRESS
 #endif // CGAMEDLL
 
-#if (defined(CGAMEDLL) || defined(GAMEDLL)) && defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(CGAMEDLL) || defined(GAMEDLL)) && ((defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM)))
 /* Extended TGA metadata is signed little-endian, assembled without signed shifts. */
 static int BG_TraceMapReadInteger(const byte *data)
 {
@@ -981,7 +981,11 @@ qboolean BG_LoadTraceMap(char *rawmapname, vec2_t world_mins, vec2_t world_maxs)
 		else
 		{
 			// rain - scalefactor 254 to compensate for broken etmain behavior
+#if defined(__linux__)
+			scalefactor = (1.0L / (long double)delta) * 254.0L;
+#else
 			scalefactor = 254.0L / (long double)delta;
+#endif
 		}
 
 		// scale properly
@@ -991,7 +995,12 @@ qboolean BG_LoadTraceMap(char *rawmapname, vec2_t world_mins, vec2_t world_maxs)
 			{
 				if (tracemap.ground[i][j] != MIN_WORLD_HEIGHT)
 				{
+#if defined(__linux__)
+					/* ELF retains the reciprocal before multiplying the sample. */
+					tracemap.ground[i][j] = (float)((1.0L / scalefactor) * (long double)tracemap.ground[i][j] + ground_min);
+#else
 					tracemap.ground[i][j] = (float)((long double)tracemap.ground[i][j] / scalefactor + ground_min);
+#endif
 				}
 			}
 		}
@@ -1006,7 +1015,11 @@ qboolean BG_LoadTraceMap(char *rawmapname, vec2_t world_mins, vec2_t world_maxs)
 		else
 		{
 			// rain - scalefactor 254 to compensate for broken etmain behavior
+#if defined(__linux__)
+			scalefactor = (1.0L / (long double)delta) * 254.0L;
+#else
 			scalefactor = 254.0L / (long double)delta;
+#endif
 		}
 
 		// scale properly
@@ -1016,7 +1029,12 @@ qboolean BG_LoadTraceMap(char *rawmapname, vec2_t world_mins, vec2_t world_maxs)
 			{
 				if (tracemap.skyground[i][j] != MAX_WORLD_HEIGHT)
 				{
+#if defined(__linux__)
+					/* ELF retains the reciprocal before multiplying the sample. */
+					tracemap.skyground[i][j] = (float)((1.0L / scalefactor) * (long double)tracemap.skyground[i][j] + skyground_min);
+#else
 					tracemap.skyground[i][j] = (float)((long double)tracemap.skyground[i][j] / scalefactor + skyground_min);
+#endif
 				}
 			}
 		}
@@ -1031,7 +1049,11 @@ qboolean BG_LoadTraceMap(char *rawmapname, vec2_t world_mins, vec2_t world_maxs)
 		else
 		{
 			// rain - scalefactor 254 to compensate for broken etmain behavior
+#if defined(__linux__)
+			scalefactor = (1.0L / (long double)delta) * 254.0L;
+#else
 			scalefactor = 254.0L / (long double)delta;
+#endif
 		}
 
 		// scale properly
@@ -1041,7 +1063,12 @@ qboolean BG_LoadTraceMap(char *rawmapname, vec2_t world_mins, vec2_t world_maxs)
 			{
 				if (tracemap.sky[i][j] != MAX_WORLD_HEIGHT)
 				{
+#if defined(__linux__)
+					/* ELF retains the reciprocal before multiplying the sample. */
+					tracemap.sky[i][j] = (float)((1.0L / scalefactor) * (long double)tracemap.sky[i][j] + sky_min);
+#else
 					tracemap.sky[i][j] = (float)((long double)tracemap.sky[i][j] / scalefactor + sky_min);
+#endif
 				}
 			}
 		}
