@@ -3060,7 +3060,12 @@ static void dynamite_setup(gentity_t *ent)
 	VectorCopy(ent->s.origin, end);
 	end[2] -= 64;
 	trap_Trace(&tr, ent->s.origin, NULL, NULL, end, ent->s.number, ent->clipmask);
+#if defined(__linux__) && !defined(Q3_VM)
+	if (tr.startsolid || tr.fraction == 1.f || TCE_FloatIsNaN(tr.fraction) ||
+	    tr.entityNum != ENTITYNUM_WORLD)
+#else
 	if (tr.startsolid || tr.fraction == 1.f || tr.entityNum != ENTITYNUM_WORLD)
+#endif
 	{
 		G_Printf("^3WARNING: 'misc_dynamite' entity at %.2f %.2f %.2f doesn't have a surface to settle on\n",
 		         ent->s.origin[0], ent->s.origin[1], ent->s.origin[2]);
@@ -3084,17 +3089,31 @@ static void dynamite_setup(gentity_t *ent)
 	ent->health        = 0;
 	ent->s.modelindex2 = 0;
 	ent->accuracy      = 0.f;
+#if defined(__linux__) && !defined(Q3_VM)
+	ent->timestamp = TCE_AddInt32(level.time, 1000);
+#else
 	ent->timestamp     = level.time + 1000;
+#endif
 	ent->s.effect1Time = level.time;
+#if defined(__linux__) && !defined(Q3_VM)
+	limit = TCE_Int32FromUnsigned((unsigned)g_timelimit.integer * 60000u - 10000u);
+	delay = TCE_FloatIsZeroOrNaN(ent->wait) ? limit :
+	        TCE_TruncateNativeInteger((long double)ent->wait * 1000.0f);
+#else
 	limit              = g_timelimit.integer * 60000 - 10000;
 	/* Original2006a135..141 retains wait*1000 in x87 until __ftol. */
 	delay = ent->wait == 0.f ? limit : (int)((double)ent->wait * 1000.0);
+#endif
 	if (delay > limit)
 	{
 		delay = limit;
 	}
 	ent->think            = G_ExplodeMissile;
+#if defined(__linux__) && !defined(Q3_VM)
+	ent->nextthink = TCE_AddInt32(level.time, delay);
+#else
 	ent->nextthink        = level.time + delay;
+#endif
 	ent->s.effect3Time    = ent->nextthink;
 	ent->awaitingHelpTime = level.time;
 	ent->damage           = 0;
@@ -3140,7 +3159,11 @@ void SP_misc_dynamite(gentity_t *ent)
 		G_Error("ERROR: misc_demolitionpack without a team\n");
 	}
 	ent->think     = dynamite_setup;
+#if defined(__linux__) && !defined(Q3_VM)
+	ent->nextthink = TCE_AddInt32(level.time, 500);
+#else
 	ent->nextthink = level.time + 500;
+#endif
 }
 
 /*QUAKED misc_landmine (.35 0.85 .35) (-16 -16 0) (16 16 16) AXIS ALLIED
