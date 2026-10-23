@@ -8,6 +8,9 @@
  *****************************************************************************/
 
 #include "../game/g_local.h"
+#if defined(__linux__)
+#include "../game/tce_weapon_ids.h"
+#endif
 #include "../game/botlib.h"
 #include "../game/be_aas.h"
 #include "../game/be_ea.h"
@@ -1974,7 +1977,11 @@ int AINode_MP_PanzerTarget(bot_state_t *bs)
 		return qfalse;
 	}
 	//
+#if defined(__linux__)
+	if (!(fabsl((long double)BotWeaponWantScale(bs, (weapon_t)TCE_ITEM_WEAPON_PANZERFAUST)) > 0.0L))
+#else
 	if (!BotWeaponWantScale(bs, WP_PANZERFAUST))
+#endif
 	{
 		bs->enemy                   = -1;
 		bs->ignore_specialgoal_time = 0;
@@ -1982,7 +1989,11 @@ int AINode_MP_PanzerTarget(bot_state_t *bs)
 		return qfalse;
 	}
 
+#if defined(__linux__)
+	bs->weaponnum = TCE_ITEM_WEAPON_PANZERFAUST;
+#else
 	bs->weaponnum = WP_PANZERFAUST;
+#endif
 	trap_EA_SelectWeapon(bs->client, bs->weaponnum);
 
 	//
