@@ -409,6 +409,54 @@ static void CG_BloodProject(vec3_t point, vec3_t start, vec3_t end, vec3_t resul
 }
 void CG_Bleed(vec3_t origin, int entityNum, vec3_t color)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	vec3_t head, body, bloodOrigin, direction, axis, offset, noisy;
+	int j, count, duration;
+	long double jitter;
+	if (!cg_blood.integer || entityNum == cg.snap->ps.clientNum)
+	{
+		return;
+	}
+	CG_GetBleedOrigin(head, body, entityNum);
+	ProjectPointOntoVector(origin, body, head, bloodOrigin);
+	VectorSubtract(head, body, axis);
+	VectorSubtract(bloodOrigin, body, offset);
+	if (DotProduct(offset, axis) < 0)
+	{
+		VectorCopy(body, bloodOrigin);
+	}
+	else
+	{
+		VectorSubtract(bloodOrigin, head, offset);
+		if (DotProduct(offset, axis) > 0)
+		{
+			VectorCopy(head, bloodOrigin);
+		}
+	}
+	VectorSubtract(origin, bloodOrigin, direction);
+	VectorNormalize(direction);
+	VectorSubtract(bloodOrigin, head, offset);
+	if (VectorLength(offset) > 8)
+	{
+		VectorMA(bloodOrigin, 8, direction, bloodOrigin);
+	}
+	/* TCE emits one spurt, retaining the SDK geometry providers and RGB. */
+	for (j = 0; j < 3; ++j)
+	{
+		long double component = direction[j];
+		jitter = (long double)(rand() & 32767) * (1.0f / 32767.0f);
+		jitter -= .5L;
+		jitter += jitter;
+		noisy[j] = (float)(jitter * (long double).3 + component);
+	}
+	VectorNormalize(noisy);
+	count = 2 + rand() % 2;
+	jitter = (long double)(rand() & 32767) * (1.0f / 32767.0f);
+	jitter -= .5L;
+	jitter += jitter;
+	duration = TCE_AddInt32(TCE_TruncateNativeInteger(jitter * 50.0L), 450);
+	CG_AddBloodTrails(bloodOrigin, noisy, 100, duration, count, .1f, color);
+#else
 	vec3_t head, body, bloodOrigin, direction, axis, offset, noisy;
 	int    j, count, duration;
 	if (!cg_blood.integer || entityNum == cg.snap->ps.clientNum)
@@ -444,6 +492,7 @@ void CG_Bleed(vec3_t origin, int entityNum, vec3_t color)
 	count    = 2 + rand() % 2;
 	duration = 450 - (int)(((double)(rand() & 32767) * (float)(1.0 / 32767.0) - 0.5) * 2.0 * -50.0);
 	CG_AddBloodTrails(bloodOrigin, noisy, 100, duration, count, 0.1f, color);
+#endif
 }
 
 /*
