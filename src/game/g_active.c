@@ -363,12 +363,21 @@ qboolean ReadyToCallArtillery(gentity_t *ent)
 	if (ent->client->sess.skill[SK_SIGNALS] >= 2)
 	{
 		/* TC 20044ddd: integer loads remain wide through the comparison. */
+#if defined(__linux__) && !defined(Q3_VM)
+		if ((long double)TCE_SubInt32(level.time, ent->client->ps.classWeaponTime) <=
+		    (long double)level.lieutenantChargeTime[ent->client->sess.sessionTeam - 1] * (long double)0.66f)
+#else
 		if ((double)(level.time - ent->client->ps.classWeaponTime) <= (double)level.lieutenantChargeTime[ent->client->sess.sessionTeam - 1] * (double)0.66f)
+#endif
 		{
 			return qfalse;
 		}
 	}
+#if defined(__linux__) && !defined(Q3_VM)
+	else if (TCE_SubInt32(level.time, ent->client->ps.classWeaponTime) <= level.lieutenantChargeTime[ent->client->sess.sessionTeam - 1])
+#else
 	else if (level.time - ent->client->ps.classWeaponTime <= level.lieutenantChargeTime[ent->client->sess.sessionTeam - 1])
+#endif
 	{
 		return qfalse;
 	}
@@ -381,18 +390,35 @@ qboolean ReadyToCallArtillery(gentity_t *ent)
 qboolean ReadyToConstruct(gentity_t *ent, gentity_t *constructible, qboolean updateState)
 {
 	int    weaponTime = ent->client->ps.classWeaponTime;
+#if defined(__linux__) && !defined(Q3_VM)
+	long double charge;
+#else
 	double charge;
+#endif
 
 	// "Ammo" for this weapon is time based
+#if defined(__linux__) && !defined(Q3_VM)
+	if (TCE_Int32FromUnsigned((unsigned int)weaponTime + (unsigned int)level.engineerChargeTime[ent->client->sess.sessionTeam - 1]) < level.time)
+#else
 	if (weaponTime + level.engineerChargeTime[ent->client->sess.sessionTeam - 1] < level.time)
+#endif
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		weaponTime = TCE_SubInt32(level.time, level.engineerChargeTime[ent->client->sess.sessionTeam - 1]);
+#else
 		weaponTime = level.time - level.engineerChargeTime[ent->client->sess.sessionTeam - 1];
+#endif
 	}
 
 	/* TC 20044e69..20044eb4: retain the original float reciprocal and
 	 * multiplication order, adding the integer timestamp before conversion. */
+#if defined(__linux__) && !defined(Q3_VM)
+	charge = 1.0L / ((long double)constructible->constructibleStats.duration * (long double)0.01f);
+	charge = charge * (long double)level.engineerChargeTime[ent->client->sess.sessionTeam - 1];
+#else
 	charge = (double)level.engineerChargeTime[ent->client->sess.sessionTeam - 1] /
 	         ((double)constructible->constructibleStats.duration * (double)0.01f);
+#endif
 	if (g_debugConstruct.integer)
 	{
 		charge *= (double)0.5f;
@@ -405,7 +431,11 @@ qboolean ReadyToConstruct(gentity_t *ent, gentity_t *constructible, qboolean upd
 			charge *= (double)0.66f;
 		}
 	}
+#if defined(__linux__) && !defined(Q3_VM)
+	weaponTime = TCE_TruncateNativeInteger(charge + (long double)weaponTime);
+#else
 	weaponTime = (int)(charge + (double)weaponTime);
+#endif
 
 	// if the time is in the future, we have NO energy left
 	if (weaponTime > level.time)
