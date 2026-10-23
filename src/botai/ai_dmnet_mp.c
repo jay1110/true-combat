@@ -527,7 +527,12 @@ int AINode_MP_Seek_ActivateEntity(bot_state_t *bs)
 		bs->activate_time = 0;
 	}
 	//
+#if defined(__linux__)
+	long double activationTime = (long double)trap_AAS_Time();
+	if (!(bs->activate_time >= activationTime))
+#else
 	if (bs->activate_time < trap_AAS_Time())
+#endif
 	{
 		AIEnter_MP_Seek_NBG(bs);
 		return qfalse;
@@ -557,7 +562,12 @@ int AINode_MP_Seek_ActivateEntity(bot_state_t *bs)
 	//if waiting for something
 	else if (moveresult.flags & MOVERESULT_WAITING)
 	{
+#if defined(__linux__)
+		if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0)
+		    < (long double)(double)0.8 * bs->thinktime)
+#else
 		if (random() < bs->thinktime * 0.8)
+#endif
 		{
 			BotRoamGoal(bs, target);
 			VectorSubtract(target, bs->origin, dir);
