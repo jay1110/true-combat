@@ -1422,7 +1422,11 @@ void BotCycleWeapon(bot_state_t *bs)
 	for (i = curWeapon + 1; i != curWeapon; i++)
 	{
 		// if we went off the end, start at the beginning
+#if defined(__linux__)
+		if (i >= TCE_WEAPON_CAPACITY)
+#else
 		if (i >= WP_NUM_WEAPONS)
+#endif
 		{
 			i = 0;
 			// we have an endless loop here, when we have no weapons, our current weapon is 0, and we never hit the ending condition in the loop
