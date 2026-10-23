@@ -3544,10 +3544,88 @@ void CG_ObjectivePrint(const char *str, int charWidth)
 
 static void CG_DrawObjectiveInfo(void)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	extern qboolean tce_uiCoordinates;
+	qboolean previous;
+	char firstLine[1024], line[1024];
+	const char *start;
+	float *color;
+	int left = 425, right = 427, y, n, width, extent;
+	if (!cg.oidPrintTime)
+	{
+		return;
+	}
+	previous = tce_uiCoordinates;
+	tce_uiCoordinates = qtrue;
+	color = CG_FadeColor(cg.oidPrintTime, 250);
+	if (!color)
+	{
+		cg.oidPrintTime = 0;
+		goto done;
+	}
+	trap_R_SetColor(color);
+	start = cg.oidPrint;
+	for (;;)
+	{
+		for (n = 0; n < 56 && start[n] && start[n] != '\n'; ++n)
+		{
+			firstLine[n] = start[n];
+		}
+		firstLine[n] = 0;
+		extent = (CG_DrawStrlen(firstLine) * cg.oidPrintCharWidth + 10) / 2;
+		if (426 - extent < left)
+		{
+			left = 426 - extent;
+			right = 426 + extent;
+		}
+		while (*start && *start != '\n')
+		{
+			++start;
+		}
+		if (!*start)
+		{
+			break;
+		}
+		++start;
+	}
+	right += 4;
+	start = cg.oidPrint;
+	y = 410 - cg.oidPrintLines * 8;
+	for (;;)
+	{
+		for (n = 0; n < 56 && start[n] && start[n] != '\n'; ++n)
+		{
+			line[n] = start[n];
+		}
+		line[n] = 0;
+		extent = left + cg.oidPrintCharWidth * CG_DrawStrlen(line);
+		if (extent > right)
+		{
+			right = extent;
+		}
+		width = CG_Text_Width_Ext(line, .2f, 0, &cgs.media.limboFont1);
+		CG_Text_Paint_Ext((float)(426 - width / 2), (float)y, .2f, .2f,
+		                   color, line, 0, 0, 3, &cgs.media.limboFont1);
+		y = TCE_TruncateNativeInteger((long double)cg.oidPrintCharWidth * 1.5f + y);
+		while (*start && *start != '\n')
+		{
+			++start;
+		}
+		if (!*start)
+		{
+			break;
+		}
+		++start;
+	}
+	trap_R_SetColor(NULL);
+ done:
+	tce_uiCoordinates = previous;
+#else
 	extern qboolean    tce_uiCoordinates; qboolean previous = tce_uiCoordinates;
 	tce_hud_messages_t s; tce_hud_messages_api_t a; CG_MessageState(&s, &a);
 	tce_uiCoordinates = qtrue; TCE_DrawObjectiveInfo(&s, &a); tce_uiCoordinates = previous;
 	cg.oidPrintTime   = s.objectiveTime;
+#endif
 }
 
 void CG_DrawTimedMenus()
