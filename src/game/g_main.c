@@ -4049,9 +4049,15 @@ void CheckWolfMP()
 		// check warmup latch
 		if (g_gamestate.integer == GS_WARMUP)
 		{
+#if defined(__linux__) && !defined(Q3_VM)
+			if (!g_doWarmup.integer ||
+			    (level.numPlayingClients >= match_minplayers.integer &&
+			     (unsigned)level.lastRestartTime + 1000u < (unsigned)level.time && G_readyMatchState()))
+#else
 			if (!g_doWarmup.integer ||
 			    (level.numPlayingClients >= match_minplayers.integer &&
 			     level.lastRestartTime + 1000 < level.time && G_readyMatchState()))
+#endif
 			{
 				int delay;
 				/* TC caps later Objective/Bodycount rounds; first rounds retain
@@ -4059,11 +4065,19 @@ void CheckWolfMP()
 				if ((g_gametype.integer == 5 || g_gametype.integer == 7) &&
 				    g_currentRound.integer > 0)
 				{
+#if defined(__linux__) && !defined(Q3_VM)
+					delay = g_warmup.integer < 11 ? TCE_AddInt32(g_warmup.integer, 1) : 11;
+#else
 					delay = g_warmup.integer < 11 ? g_warmup.integer + 1 : 11;
+#endif
 				}
 				else
 				{
+#if defined(__linux__) && !defined(Q3_VM)
+					delay = g_warmup.integer < 10 ? 11 : TCE_AddInt32(g_warmup.integer, 1);
+#else
 					delay = g_warmup.integer < 10 ? 11 : g_warmup.integer + 1;
+#endif
 				}
 
 				// Why scale these at all?  Minimum would mean 22s on Campaign and 44 on LMS....
@@ -4074,7 +4088,17 @@ void CheckWolfMP()
 					delay *= 4;
 */
 
+#if defined(__linux__) && !defined(Q3_VM)
+				{
+					unsigned warmupBits = (unsigned)level.time + (unsigned)delay * 1000u;
+					int warmupTime;
+
+					memcpy(&warmupTime, &warmupBits, sizeof(warmupTime));
+					level.warmupTime = warmupTime;
+				}
+#else
 				level.warmupTime = level.time + (delay * 1000);
+#endif
 				trap_Cvar_Set("gamestate", va("%i", GS_WARMUP_COUNTDOWN));
 				trap_Cvar_Update(&g_gamestate);
 				trap_SetConfigstring(CS_WARMUP, va("%i", level.warmupTime));
@@ -4086,7 +4110,11 @@ void CheckWolfMP()
 		{
 			if (level.time > level.warmupTime)
 			{
+#if defined(__linux__) && !defined(Q3_VM)
+				level.warmupTime = TCE_AddInt32(level.warmupTime, 10000);
+#else
 				level.warmupTime += 10000;
+#endif
 				trap_Cvar_Set("g_restarted", "1");
 				trap_SendConsoleCommand(EXEC_APPEND, "map_restart 0\n");
 				level.restarted = qtrue;
