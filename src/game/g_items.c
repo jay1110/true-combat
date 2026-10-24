@@ -426,7 +426,7 @@ int Pickup_Ammo(gentity_t *ent, gentity_t *other)
 		{
 			cl->ps.stats[STAT_TCE_WEAPON_FLAGS] |= 0x100;
 			level.tceBombCarrier                 = cl->ps.clientNum;
-#if defined(__linux__) && !defined(Q3_VM)
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 			cl->tceBombPossessionOrder = TCE_AddInt32(level.tceBombCarrierCount, 1);
 			level.tceBombCarrierCount = TCE_AddInt32(level.tceBombCarrierCount, 1);
 #else
@@ -438,7 +438,7 @@ int Pickup_Ammo(gentity_t *ent, gentity_t *other)
 			popup->s.effect3Time                 = cl->ps.clientNum; popup->s.density = 2;
 			if (cl->ps.persistant[PERS_TEAM] != level.tceDemolitionTeam)
 			{
-#if defined(__linux__) && !defined(Q3_VM)
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 				level.tceExitRulesNotBefore = TCE_AddInt32(level.time, 1000);
 #else
 				level.tceExitRulesNotBefore = level.time + 1000;
