@@ -6,6 +6,7 @@
 #include "tce_bg.h"
 #include "tce_numeric.h"
 #include "tce_maxlives_precision.h"
+#include "tce_length_precision.h"
 #include "../ui/menudef.h"
 
 // g_client.c -- client functions that don't happen every frame
@@ -161,7 +162,36 @@ gentity_t *SelectNearestDeathmatchSpawnPoint(vec3_t from)
 	while ((spot = G_Find(spot, FOFS(classname), "info_player_deathmatch")) != NULL)
 	{
 
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		{
+			int axis;
+			/* The original stores each rounded difference before VectorLength. */
+			for (axis = 0; axis < 3; ++axis)
+			{
+				if (!TCE_FiniteDifferenceStore(spot->r.currentOrigin[axis],
+				                               from[axis], &delta[axis]))
+				{
+					delta[axis] = spot->r.currentOrigin[axis] - from[axis];
+				}
+			}
+		}
+#else
 		VectorSubtract(spot->r.currentOrigin, from, delta);
+#endif
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		{
+			int closer;
+			if (TCE_NearestFiniteLength(delta, nearestDist, &closer, &dist))
+			{
+				if (closer)
+				{
+					nearestDist = dist;
+					nearestSpot = spot;
+				}
+				continue;
+			}
+		}
+#endif
 #if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
 		{
 			long double length = TCE_VectorLengthValue(delta);
