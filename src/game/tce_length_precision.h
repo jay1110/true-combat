@@ -136,6 +136,10 @@ static __inline int TCE_NearestFiniteLength(const float *delta, float threshold,
 	int axis;
 
 	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
 	if (!TCE_TriggerProduct(&boundary, threshold, 1.0f, control) ||
 	    !TCE_TriggerProduct(&squared, delta[0], delta[0], control))
 	{

@@ -28,6 +28,10 @@ static __inline int TCE_FiniteAngleScale(float angle, float *result)
 	TCE_TriggerPlace(&value, (unsigned)low, shift);
 	TCE_TriggerPlace(&value, high, shift + 32);
 	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
 	TCE_TriggerRound(&value, control);
 	shortAngle = (unsigned)TCE_FixedSigned64Low32(&value) & 65535u;
 	/* Both the integer conversion and this dyadic product are exact. */

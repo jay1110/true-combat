@@ -57,6 +57,10 @@ static __inline int TCE_FiniteSmokeDistance(const float *start, const float *end
 	int axis;
 
 	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
 	for (axis = 0; axis < 3; ++axis)
 	{
 		if (!TCE_TriggerProduct(&difference[axis], end[axis], 1.0f, control) ||

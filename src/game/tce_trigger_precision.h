@@ -17,6 +17,14 @@ typedef struct
 	unsigned negative;
 } tceTriggerSum_t;
 
+/* Software arithmetic does not raise x87 traps. Preserve each caller's
+ * existing floating-point fallback when an exception is unmasked.
+ * Masked exception status flags still require separate reconstruction. */
+static __inline int TCE_FiniteExceptionsMasked(unsigned control)
+{
+	return (control & _MCW_EM) == _MCW_EM;
+}
+
 static __inline unsigned TCE_TriggerBit(const tceTriggerSum_t *value, int bit)
 {
 	return (value->word[bit / 32] >> (bit % 32)) & 1u;

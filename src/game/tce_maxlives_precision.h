@@ -23,6 +23,10 @@ static __inline int TCE_MaxLivesFinite(int elapsed, int remaining, float limit,
 		return 0;
 	}
 	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
 	TCE_TriggerProduct(&denominator, limit, 60000.0f, control);
 	/* A nonzero Float times 60000 cannot underflow the extended format.
 	 * Its rounded significand needs at most 35 bits (40 raw product bits). */

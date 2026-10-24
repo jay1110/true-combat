@@ -122,6 +122,10 @@ static __inline int TCE_FiniteProductStore(float left, float right, float *resul
 	unsigned control;
 
 	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
 	if (!TCE_TriggerProduct(&product, left, right, control))
 	{
 		return 0;
@@ -137,6 +141,10 @@ static __inline int TCE_FiniteDifferenceStore(float left, float right,
 	unsigned control;
 
 	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
 	if (!TCE_TriggerProduct(&sum, left, 1.0f, control) ||
 	    !TCE_TriggerProduct(&subtrahend, right, 1.0f, control))
 	{
@@ -155,6 +163,10 @@ static __inline int TCE_RotateFiniteRow(float x, float y, float z,
 	unsigned control;
 
 	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
 	if (!TCE_TriggerProduct(&sum, z, row[2], control) ||
 	    !TCE_TriggerProduct(&product, y, row[1], control))
 	{
@@ -178,6 +190,10 @@ static __inline int TCE_MuzzleFiniteComponent(float direction, float factor,
 	unsigned control;
 
 	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
 	if (!TCE_TriggerProduct(&product, direction, factor, control) ||
 	    !TCE_TriggerProduct(&position, origin, 1.0f, control))
 	{

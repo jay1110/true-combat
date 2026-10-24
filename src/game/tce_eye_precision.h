@@ -15,6 +15,10 @@ static __inline int TCE_FiniteEyeDirection(const float *origin, int height,
 	int axis;
 
 	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
 	if (!TCE_TriggerProduct(&eye, origin[2], 1.0f, control))
 	{
 		return 0;

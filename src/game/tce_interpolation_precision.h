@@ -76,6 +76,10 @@ static __inline int TCE_InterpolateFiniteFloat(float from, float to,
 		return 0;
 	}
 	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
 	if (!TCE_TriggerProduct(&value, to, 1.0f, control) ||
 	    !TCE_TriggerProduct(&start, from, 1.0f, control))
 	{
@@ -105,6 +109,10 @@ static __inline int TCE_InterpolateFiniteAngle(float from, float to,
 		return 0;
 	}
 	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
 	if (!TCE_TriggerProduct(&endpoint, to, 1.0f, control) ||
 	    !TCE_TriggerProduct(&start, from, 1.0f, control))
 	{

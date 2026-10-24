@@ -34,6 +34,11 @@ static __inline int TCE_FiniteCameraQuantize(int input, unsigned factorBits,
 	shift = (int)(exponent ? exponent - 1 : 0) + 149;
 	TCE_TriggerPlace(&value, (unsigned long long)magnitude * mantissa, shift);
 	__control87_2(0, 0, &control, NULL);
+	/* The CRT floor path can invoke error handlers for unmasked exceptions. */
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
 	TCE_TriggerRound(&value, control);
 	if (divide)
 	{

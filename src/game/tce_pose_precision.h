@@ -35,6 +35,10 @@ static __inline int TCE_FinitePose(float fraction, const float *newer,
 		}
 	}
 	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
 	TCE_TriggerPlace(&inverse, 1u, 298);
 	TCE_TriggerProduct(&value, fraction, 1.0f, control);
 	value.negative ^= 1u;

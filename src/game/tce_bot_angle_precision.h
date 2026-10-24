@@ -13,6 +13,10 @@ static __inline int TCE_FiniteBotAngleValue(float first, float second,
 {
 	tceTriggerSum_t left, right, difference, boundary, correction;
 
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
 	if (!TCE_TriggerProduct(&left, first, 1.0f, control) ||
 	    !TCE_TriggerProduct(&right, second, 1.0f, control))
 	{

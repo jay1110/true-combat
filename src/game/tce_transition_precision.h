@@ -30,6 +30,10 @@ static __inline int TCE_TransitionDivide32(int numerator, float denominator,
 	negative = (numerator < 0) ^ (bits >> 31);
 	magnitude = numerator < 0 ? 0u - (unsigned)numerator : (unsigned)numerator;
 	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
 	*result = TCE_RatioFloat32(magnitude, mantissa, scale, negative, control);
 	return 1;
 }
