@@ -9,8 +9,8 @@
  * contain every such product, including three maximal products added.
  * Round each native arithmetic step to the current x87 precision/mode.
  * No dependency on MSVC's binary64 long double; exception flags are not
- * reproduced. Used by the trigger comparisons below and the finite rotation
- * store helper in tce_rotate_precision.h. */
+ * reproduced. Also used by the finite geometry and reinforcement arithmetic
+ * in tce_rotate_precision.h and tce_reinforcement_precision.h. */
 typedef struct
 {
 	unsigned word[18];

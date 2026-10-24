@@ -11,6 +11,7 @@
 #include "tce_camera_wave.h"
 #if defined(_MSC_VER) && defined(_M_IX86)
 #include "../game/tce_x87_sum.h"
+#include "../game/tce_reinforcement_precision.h"
 #endif
 #if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 #include "../game/tce_numeric.h"
@@ -3224,7 +3225,11 @@ float CG_CalculateReinfTime_Float(qboolean menu)
 
 int CG_CalculateReinfTime(qboolean menu)
 {
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	return TCE_ReinforcementSecondsLow32(CG_ReinforcementMilliseconds(menu));
+#else
 	return((int)CG_CalculateReinfTime_Float(menu));
+#endif
 }
 
 

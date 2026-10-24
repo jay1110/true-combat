@@ -2325,7 +2325,11 @@ int CG_LimboPanel_RenderCounter_ValueForButton(panel_button_t *button)
 	case 2:     // xp
 		return cg.xp;
 	case 3:     // respawn time
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		return CG_CalculateReinfTime(qtrue);
+#else
 		return CG_CalculateReinfTime_Float(qtrue);
+#endif
 	case 4:     // skills
 		switch (button->data[1])
 		{
