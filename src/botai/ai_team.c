@@ -8,6 +8,9 @@
  *****************************************************************************/
 
 #include "../game/g_local.h"
+#if defined(__linux__)
+#include "../game/tce_weapon_ids.h"
+#endif
 #include "../game/botlib.h"
 #include "../game/be_aas.h"
 #include "../game/be_ea.h"
@@ -1891,7 +1894,11 @@ int BotSuggestWeapon(bot_state_t *bs, team_t team)
 		if ((bs->mpClass == PC_SOLDIER) && (rand() % 3) && (level.time < level.startTime + 30000) && (bs->mpTeam == level.attackingTeam))
 		{
 			//return 4; // panzer
+#if defined(__linux__)
+			return TCE_ITEM_WEAPON_PANZERFAUST;
+#else
 			return WP_PANZERFAUST;
+#endif
 		}
 		// if GT_WOLF, and checkpoint is owned by opposition, then no point in having snipers
 		trav = NULL;
@@ -1960,8 +1967,13 @@ int BotSuggestWeapon(bot_state_t *bs, team_t team)
 		}
 		switch (r)
 		{
+#if defined(__linux__)
+		default:    return TCE_ITEM_WEAPON_PANZERFAUST;
+		case 1:     return TCE_ITEM_WEAPON_FLAMETHROWER;
+#else
 		default:        return WP_PANZERFAUST;
 		case 1:     return WP_FLAMETHROWER;
+#endif
 		case 2:     return WP_MOBILE_MG42;
 		//case 3:	return WP_MORTAR;		// they dont understand this yet
 		case 0:
