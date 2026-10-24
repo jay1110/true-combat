@@ -8,6 +8,7 @@
 #include "ui_local.h"   // For CS settings/retrieval
 #if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 #include "../game/tce_numeric.h"
+#include "../game/tce_transition_precision.h"
 #endif
 
 
@@ -2158,12 +2159,29 @@ static int TCE_TransitionMagnitude(long double difference)
 	return magnitude;
 }
 
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+static int TCE_TransitionMagnitudePrecise(const tceTransitionDifference_t *difference)
+{
+	int converted;
+	if (!difference->finite)
+	{
+		return TCE_TransitionMagnitude(difference->fallback);
+	}
+	converted = TCE_TransitionValueLow32(&difference->value);
+	return converted < 0 ? TCE_Int32FromUnsigned(0u - (unsigned)converted) : converted;
+}
+#endif
+
 void Menu_TransitionItemByName(menuDef_t *menu, const char *name,
                                rectDef_t from, rectDef_t to, int time, float amount)
 {
 	int         index, magnitude;
 	int         count = Menu_ItemsMatchingGroup(menu, name);
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	tceTransitionDifference_t difference;
+#else
 	long double difference;
+#endif
 #if defined(__linux__)
 	long double reciprocal;
 #endif
@@ -2179,7 +2197,11 @@ void Menu_TransitionItemByName(menuDef_t *menu, const char *name,
 		item->window.offsetTime = time;
 #else
 		/* Windows computes X difference before the rectangle copies. */
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		difference = TCE_TransitionDifferenceValue(to.x, from.x);
+#else
 		difference = (long double)to.x - (long double)from.x;
+#endif
 #endif
 		memcpy(&item->window.rectClient.x, &from.x, sizeof(from.x));
 		memcpy(&item->window.rectClient.y, &from.y, sizeof(from.y));
@@ -2199,28 +2221,56 @@ void Menu_TransitionItemByName(menuDef_t *menu, const char *name,
 		reciprocal                  = 1.0L / (long double)amount;
 		item->window.rectEffects2.x = (float)((long double)magnitude * reciprocal);
 #else
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		magnitude = TCE_TransitionMagnitudePrecise(&difference);
+#else
 		magnitude                   = TCE_TransitionMagnitude(difference);
+#endif
 		item->window.rectEffects2.x =
 			(float)((long double)magnitude / (long double)amount);
 #endif
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		difference = TCE_TransitionDifferenceValue(to.y, from.y);
+#else
 		difference = (long double)to.y - (long double)from.y;
+#endif
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		magnitude = TCE_TransitionMagnitudePrecise(&difference);
+#else
 		magnitude  = TCE_TransitionMagnitude(difference);
+#endif
 #if defined(__linux__)
 		item->window.rectEffects2.y = (float)((long double)magnitude * reciprocal);
 #else
 		item->window.rectEffects2.y =
 			(float)((long double)magnitude / (long double)amount);
 #endif
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		difference = TCE_TransitionDifferenceValue(to.w, from.w);
+#else
 		difference = (long double)to.w - (long double)from.w;
+#endif
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		magnitude = TCE_TransitionMagnitudePrecise(&difference);
+#else
 		magnitude  = TCE_TransitionMagnitude(difference);
+#endif
 #if defined(__linux__)
 		item->window.rectEffects2.w = (float)((long double)magnitude * reciprocal);
 #else
 		item->window.rectEffects2.w =
 			(float)((long double)magnitude / (long double)amount);
 #endif
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		difference = TCE_TransitionDifferenceValue(to.h, from.h);
+#else
 		difference = (long double)to.h - (long double)from.h;
+#endif
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		magnitude = TCE_TransitionMagnitudePrecise(&difference);
+#else
 		magnitude  = TCE_TransitionMagnitude(difference);
+#endif
 #if defined(__linux__)
 		item->window.rectEffects2.h = (float)(reciprocal * (long double)magnitude);
 #else
