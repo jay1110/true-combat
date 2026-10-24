@@ -94,6 +94,127 @@ static __inline float TCE_InterpolationFactor32(int elapsed, int duration)
 	return TCE_RotateStore(value, control);
 }
 
+/* A rounded difference of two binary32 inputs is a multiple of 2^-149.
+ * Multiplying its integer magnitude by a Float factor therefore loses no
+ * bits when shifting right at most 149 places in the 2^-298 representation. */
+static __inline void TCE_InterpolationMultiply(tceTriggerSum_t *value,
+                                              unsigned factorBits,
+                                              unsigned control)
+{
+	unsigned exponent = (factorBits >> 23) & 255u;
+	unsigned mantissa = (factorBits & 0x7fffffu) | (exponent ? 0x800000u : 0u);
+	unsigned long long wide, carry = 0;
+	unsigned part, adjacent;
+	int shift = exponent ? (int)exponent - 150 : -149;
+	int word, words, bits;
+
+	for (word = 0; word < 18; ++word)
+	{
+		wide = (unsigned long long)value->word[word] * mantissa + carry;
+		value->word[word] = (unsigned)wide;
+		carry = wide >> 32;
+	}
+	if (shift >= 0)
+	{
+		words = shift / 32;
+		bits = shift % 32;
+		for (word = 17; word >= 0; --word)
+		{
+			part = word >= words ? value->word[word - words] : 0;
+			adjacent = bits && word > words ?
+			           value->word[word - words - 1] >> (32 - bits) : 0;
+			value->word[word] = (part << bits) | adjacent;
+		}
+	}
+	else
+	{
+		words = -shift / 32;
+		bits = -shift % 32;
+		for (word = 0; word < 18; ++word)
+		{
+			part = word + words < 18 ? value->word[word + words] : 0;
+			adjacent = bits && word + words + 1 < 18 ?
+			           value->word[word + words + 1] << (32 - bits) : 0;
+			value->word[word] = (part >> bits) | adjacent;
+		}
+	}
+	value->negative ^= factorBits >> 31;
+	TCE_TriggerRound(value, control);
+}
+
+static __inline int TCE_InterpolateFiniteFloat(float from, float to,
+                                              float factor, float *result)
+{
+	tceTriggerSum_t value, start;
+	unsigned control, factorBits;
+
+	memcpy(&factorBits, &factor, sizeof(factorBits));
+	if (((factorBits >> 23) & 255u) == 255u)
+	{
+		return 0;
+	}
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_TriggerProduct(&value, to, 1.0f, control) ||
+	    !TCE_TriggerProduct(&start, from, 1.0f, control))
+	{
+		return 0;
+	}
+	start.negative ^= 1u;
+	TCE_RotateAdd(&value, &start, control);
+	start.negative ^= 1u;
+	TCE_InterpolationMultiply(&value, factorBits, control);
+	TCE_RotateAdd(&value, &start, control);
+	*result = TCE_RotateStore(value, control);
+	return 1;
+}
+
+/* Windows LerpAngle retains the adjusted endpoint between its comparisons.
+ * Its caller stores the returned value directly as binary32. */
+static __inline int TCE_InterpolateFiniteAngle(float from, float to,
+                                              float factor, float *result)
+{
+	tceTriggerSum_t endpoint, start, negativeStart, value;
+	tceTriggerSum_t limit = { { 0 }, 0 }, turn = { { 0 }, 0 };
+	unsigned control, factorBits;
+
+	memcpy(&factorBits, &factor, sizeof(factorBits));
+	if (((factorBits >> 23) & 255u) == 255u)
+	{
+		return 0;
+	}
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_TriggerProduct(&endpoint, to, 1.0f, control) ||
+	    !TCE_TriggerProduct(&start, from, 1.0f, control))
+	{
+		return 0;
+	}
+	negativeStart = start;
+	negativeStart.negative ^= 1u;
+	TCE_TriggerPlace(&limit, 180u, 298);
+	TCE_TriggerPlace(&turn, 360u, 298);
+	value = endpoint;
+	TCE_RotateAdd(&value, &negativeStart, control);
+	if (TCE_TriggerCompare(&value, &limit) > 0)
+	{
+		turn.negative = 1;
+		TCE_RotateAdd(&endpoint, &turn, control);
+	}
+	value = endpoint;
+	TCE_RotateAdd(&value, &negativeStart, control);
+	limit.negative = 1;
+	if (TCE_TriggerCompare(&value, &limit) < 0)
+	{
+		turn.negative = 0;
+		TCE_RotateAdd(&endpoint, &turn, control);
+	}
+	value = endpoint;
+	TCE_RotateAdd(&value, &negativeStart, control);
+	TCE_InterpolationMultiply(&value, factorBits, control);
+	TCE_RotateAdd(&value, &start, control);
+	*result = TCE_RotateStore(value, control);
+	return 1;
+}
+
 /* FILD difference; FMUL stored Float factor; FIADD previous; __ftol.
  * Keep arithmetic rounding separate from the final truncation to signed64.
  * Exception flags and unmasked traps are not reproduced. */

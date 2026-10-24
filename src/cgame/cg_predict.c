@@ -455,6 +455,13 @@ static int CG_InterpolationDifference(int value, int previous)
 static float CG_InterpolateSnapshotValue(float from, float to, long double factor)
 {
 	long double difference, product;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	float stored;
+	if (TCE_InterpolateFiniteFloat(from, to, (float)factor, &stored))
+	{
+		return stored;
+	}
+#endif
 #if defined(_WIN32)
 	difference = (long double)to - (long double)from;
 	product    = difference * factor;
@@ -559,7 +566,15 @@ static void CG_InterpolatePlayerState(qboolean grabAngles)
 				/* Linux retains the wide factor through the first position,
 				 * then spills/reloads it around each angle call. */
 				storedFactor       = (float)factor;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+				if (!TCE_InterpolateFiniteAngle(prev->ps.viewangles[i], next->ps.viewangles[i],
+				                                storedFactor, &out->viewangles[i]))
+				{
+					out->viewangles[i] = LerpAngle(prev->ps.viewangles[i], next->ps.viewangles[i], storedFactor);
+				}
+#else
 				out->viewangles[i] = LerpAngle(prev->ps.viewangles[i], next->ps.viewangles[i], storedFactor);
+#endif
 				factor             = (long double)storedFactor;
 			}
 			out->velocity[i] = CG_InterpolateSnapshotValue(prev->ps.velocity[i], next->ps.velocity[i], factor);
