@@ -39,7 +39,12 @@ void TCE_AttackEnemy(gentity_t *ent, usercmd_t *command);
 qboolean TCE_MyVisible(gentity_t *ent, gentity_t *target);
 int TCE_CanMove(gentity_t *ent, int direction);
 void TCE_HandleAttackState(gentity_t *ent, int *state, usercmd_t *command);
+#if defined(__linux__)
+long double TCE_BotViewProb(gentity_t *ent, gentity_t *target);
+qboolean TCE_MyInfront(gentity_t *ent, gentity_t *target);
+#else
 double TCE_BotViewProb(gentity_t *ent, gentity_t *target);
+#endif
 qboolean TCE_LocateEnemy(gentity_t *ent);
 short TCE_BotFindClosestNode(gentity_t *ent);
 qboolean TCE_BotMoveNearerNode(gentity_t *ent, usercmd_t *command);

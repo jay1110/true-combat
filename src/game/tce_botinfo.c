@@ -923,8 +923,50 @@ void TCE_HandleAttackState(gentity_t *ent, int *state, usercmd_t *command)
 	*state                                    = 0;
 }
 
-/* G_BotViewProb200441c0 / Linux0007d114. Original x87 return is retained
- * through the caller's probability multiplication, so expose double here. */
+/* Keep the platform-specific original probability arithmetic. */
+#if defined(__linux__)
+long double TCE_BotViewProb(gentity_t *ent, gentity_t *target)
+{
+	vec3_t      forward, delta;
+	long double distance, product;
+	AngleVectors(ent->s.angles, forward, NULL, NULL);
+	VectorSubtract(target->r.currentOrigin, ent->r.currentOrigin, delta);
+	distance = VectorNormalize(delta);
+	product  = ((long double)forward[1] * delta[1] +
+	            (long double)forward[0] * delta[0]) +
+	           (long double)forward[2] * delta[2];
+	if (product < 0.0L)
+	{
+		product = 0.0L;
+	}
+	if (distance < 1024.0L)
+	{
+		distance = 1024.0L;
+	}
+	return ((1.0L / distance) * 1024.0L) * product;
+}
+
+/* Linux0007d1de: the original export has no internal call sites. */
+qboolean TCE_MyInfront(gentity_t *ent, gentity_t *target)
+{
+	vec3_t      forward, delta;
+	float       threshold = 0.0f;
+	long double product;
+	switch (TCE_BotReadShort((byte *)&tceBotInfo[ent->s.number], 6))
+	{
+	case 0: threshold = 0.174f; break;
+	case 2: threshold = -0.087f; break;
+	case 3: threshold = -0.216f; break;
+	}
+	AngleVectors(ent->s.angles, forward, NULL, NULL);
+	VectorSubtract(target->r.currentOrigin, ent->r.currentOrigin, delta);
+	VectorNormalize(delta);
+	product = ((long double)forward[1] * delta[1] +
+	           (long double)forward[0] * delta[0]) +
+	          (long double)forward[2] * delta[2];
+	return product > threshold;
+}
+#else
 double TCE_BotViewProb(gentity_t *ent, gentity_t *target)
 {
 	vec3_t forward, delta;
@@ -949,6 +991,7 @@ double TCE_BotViewProb(gentity_t *ent, gentity_t *target)
 	}
 	return (1024.0 / distance) * dot;
 }
+#endif
 
 /* LocateEnemy2003e280 / Linux000759e8. Retaliation delay and probabilistic
  * visible-nearest selection are distinct paths in the original controller. */
