@@ -1,5 +1,5 @@
-/* TC:E .weap parser. Effect selectors are stored as semantic IDs until the
- * effect implementations are recovered and the TC:E renderer is integrated. */
+/* TC:E .weap parser. Semantic effect IDs preserve the original callback choices;
+ * missile rendering and weapon registration dispatch them to their callbacks. */
 #include "cg_local.h"
 #include "tce_weapon_media.h"
 

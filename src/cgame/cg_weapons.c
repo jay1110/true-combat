@@ -1143,6 +1143,7 @@ CG_RegisterWeapon
 void CG_RegisterWeapon(int weaponNum, qboolean force)
 {
 	weaponInfo_t *w; tce_weaponInfo_t *t; int v, p;
+	TCE_CG_RegisterWeapon(weaponNum, force);
 	if (weaponNum <= 0 || weaponNum >= TCE_MAX_WEAPONS)
 	{
 		return;
@@ -1151,7 +1152,7 @@ void CG_RegisterWeapon(int weaponNum, qboolean force)
 	{
 		return;
 	}
-	TCE_CG_RegisterWeapon(weaponNum, force); t = &tce_cg_weapons[weaponNum];
+	t = &tce_cg_weapons[weaponNum];
 	memset(w, 0, sizeof(*w)); w->registered    = qtrue;
 	memcpy(w->weapAnimations, t->animations, sizeof(t->animations));
 	w->handsModel = t->handsModel; w->standModel = t->standModel; w->droppedAnglesHack = t->droppedAnglesHack;
