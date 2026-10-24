@@ -1,5 +1,6 @@
 #include "g_local.h"
 #include "tce_numeric.h"
+#include "tce_pose_precision.h"
 
 /* Windows TC:E records an 80-byte pose, not the SDK's bounds/origin only. */
 static void G_CaptureClientMarker(gentity_t *ent, clientMarker_t *marker, int time)
@@ -50,21 +51,29 @@ void G_StoreClientPosition(gentity_t *ent)
 /* Windows2004eba0 deliberately weights the newer sample by frac. */
 static void G_TCELerpPose(float frac, const vec3_t newer, const vec3_t older, vec3_t poseOutput)
 {
-#if defined(_WIN32) && !defined(Q3_VM)
-	long double inverse = 1.0L - (long double)frac;
-
-	poseOutput[0] = (float)((long double)frac * (long double)newer[0] +
-	                        inverse * (long double)older[0]);
-	poseOutput[1] = (float)(inverse * (long double)older[1] +
-	                        (long double)frac * (long double)newer[1]);
-	poseOutput[2] = (float)(inverse * (long double)older[2] +
-	                        (long double)frac * (long double)newer[2]);
-#else
-	float inverse = 1.0f - frac;
-	poseOutput[0] = inverse * older[0] + frac * newer[0];
-	poseOutput[1] = frac * newer[1] + inverse * older[1];
-	poseOutput[2] = frac * newer[2] + inverse * older[2];
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	if (TCE_FinitePose(frac, newer, older, poseOutput))
+	{
+		return;
+	}
 #endif
+	{
+#if defined(_WIN32) && !defined(Q3_VM)
+		long double inverse = 1.0L - (long double)frac;
+
+		poseOutput[0] = (float)((long double)frac * (long double)newer[0] +
+		                        inverse * (long double)older[0]);
+		poseOutput[1] = (float)(inverse * (long double)older[1] +
+		                        (long double)frac * (long double)newer[1]);
+		poseOutput[2] = (float)(inverse * (long double)older[2] +
+		                        (long double)frac * (long double)newer[2]);
+#else
+		float inverse = 1.0f - frac;
+		poseOutput[0] = inverse * older[0] + frac * newer[0];
+		poseOutput[1] = frac * newer[1] + inverse * older[1];
+		poseOutput[2] = frac * newer[2] + inverse * older[2];
+#endif
+	}
 }
 #endif
 
@@ -143,8 +152,14 @@ void G_TimeShiftClient(gentity_t *ent, int time)
 #else
 		float frac;
 		older = &client->clientMarkers[i];
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		/* The search found older->time <= time < newer->time. */
+		frac = TCE_InterpolationFactor32(TCE_SubInt32(newer->time, time),
+		                                  TCE_SubInt32(newer->time, older->time));
+#else
 		frac  = (float)((long double)TCE_SubInt32(newer->time, time) /
 		                (long double)TCE_SubInt32(newer->time, older->time));
+#endif
 		G_TCELerpPose(frac, newer->origin, older->origin, ent->r.currentOrigin);
 		G_TCELerpPose(frac, newer->angles, older->angles, ent->r.currentAngles);
 		G_TCELerpPose(frac, newer->viewangles, older->viewangles, client->ps.viewangles);
