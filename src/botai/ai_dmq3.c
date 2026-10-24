@@ -2648,7 +2648,7 @@ float BotEntityVisible(int viewer, vec3_t eye, vec3_t viewangles, float fov, int
 	for (i = 0; i < checkCount; i++)
 	{
 		//
-#if defined(__linux__)
+#if defined(_WIN32) || defined(__linux__)
 		contents_mask = (MASK_SHOT | CONTENTS_MISSILECLIP) & ~CONTENTS_CORPSE;
 #else
 		contents_mask = MASK_SHOT & ~(CONTENTS_CORPSE);//CONTENTS_SOLID|CONTENTS_PLAYERCLIP;
