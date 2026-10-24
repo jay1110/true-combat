@@ -5,7 +5,7 @@
 #include "tce_rotate_precision.h"
 
 /* Round (n/d)*2^binaryScale to x87 PC/RC without a Float spill.
- * Callers supply n <= 2^31, 0 < d < 2^40 and a scaled exponent in
+ * Callers supply n < 2^40, 0 < d < 2^40 and a scaled exponent in
  * [-144,180]. Exception flags and unmasked traps are not reproduced. */
 static __inline tceTriggerSum_t TCE_RatioValue(unsigned long long n,
                                               unsigned long long d, int binaryScale,

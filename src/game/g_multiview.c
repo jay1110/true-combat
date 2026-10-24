@@ -3,6 +3,7 @@
 //
 #include "g_local.h"
 #include "tce_numeric.h"
+#include "tce_camera_precision.h"
 
 
 qboolean G_smvCommands(gentity_t *ent, char *cmd)
@@ -320,6 +321,14 @@ static int G_TCECameraQuantize(int cameraValue, unsigned int cameraFactorBits,
                                int cameraDivisor, qboolean cameraAddOne, qboolean cameraDivide)
 {
 	float cameraFactor;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	int quantized;
+	if (TCE_FiniteCameraQuantize(cameraValue, cameraFactorBits, cameraDivisor,
+	                            cameraAddOne, cameraDivide, &quantized))
+	{
+		return quantized;
+	}
+#endif
 #if defined(__linux__) && !defined(Q3_VM)
 	if (cameraFactorBits == 0x3d70f0f1u)
 	{
