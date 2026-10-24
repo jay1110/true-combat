@@ -8,8 +8,10 @@
  *****************************************************************************/
 
 #include "../game/g_local.h"
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 #include "../game/tce_weapon_ids.h"
+#endif
+#if defined(__linux__)
 #include "../game/tce_numeric.h"
 
 static long double BotDistanceSquaredValue(const vec3_t first, const vec3_t second);
@@ -998,7 +1000,7 @@ int AINode_MP_AvoidDanger(bot_state_t *bs)
 	if (trav->client)
 	{
 		// is this player dangerous?
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 		if (!(trav->client->ps.weapon == TCE_ITEM_WEAPON_PANZERFAUST && trav->client->ps.weaponDelay))
 #else
 		if (!(trav->client->ps.weapon == WP_PANZERFAUST && trav->client->ps.weaponDelay))
