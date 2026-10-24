@@ -50,7 +50,7 @@ void G_StoreClientPosition(gentity_t *ent)
 /* Windows2004eba0 deliberately weights the newer sample by frac. */
 static void G_TCELerpPose(float frac, const vec3_t newer, const vec3_t older, vec3_t poseOutput)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_WIN32) && !defined(Q3_VM)
 	long double inverse = 1.0L - (long double)frac;
 
 	poseOutput[0] = (float)((long double)frac * (long double)newer[0] +

@@ -146,41 +146,9 @@ CG_FlameLerpVec
 */
 void CG_FlameLerpVec(const vec3_t oldV, const vec3_t newV, float backLerp, vec3_t outV)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
-	static const double one = 1.0;
-	__asm {
-		fld backLerp
-		mov ecx, newV
-		mov eax, outV
-		fsubr one
-		fld dword ptr[ecx]
-		fmul st(0), st(1)
-		fstp dword ptr[eax]
-		fld dword ptr[ecx + 4]
-		fmul st(0), st(1)
-		fstp dword ptr[eax + 4]
-		fld dword ptr[ecx + 8]
-		fmul st(0), st(1)
-		mov ecx, oldV
-		fstp dword ptr[eax + 8]
-		fstp st(0)
-		fld backLerp
-		fmul dword ptr[ecx]
-		fadd dword ptr[eax]
-		fstp dword ptr[eax]
-		fld backLerp
-		fmul dword ptr[ecx + 4]
-		fadd dword ptr[eax + 4]
-		fstp dword ptr[eax + 4]
-		fld backLerp
-		fmul dword ptr[ecx + 8]
-		fadd dword ptr[eax + 8]
-		fstp dword ptr[eax + 8]
-	}
-#else
 	VectorScale(newV, (1.0 - backLerp), outV);
 	VectorMA(outV, backLerp, oldV, outV);
-#endif
+
 }
 
 /*
@@ -191,31 +159,17 @@ CG_FlameAdjustSpeed
 void CG_FlameAdjustSpeed(flameChunk_t *f, float change)
 {
 #if defined(_MSC_VER) && defined(_M_IX86)
-	float               *speed  = &f->velSpeed;
-	static const float  zero    = 0.f;
-	static const double minimum = 60.0;
-	__asm {
-		mov ecx, speed
-		fld dword ptr[ecx]
-		fcomp zero
-		fnstsw ax
-		test ah, 40h
-		jz flame_speed_add
-		fld change
-		fcomp zero
-		fnstsw ax
-		test ah, 40h
-		jnz flame_speed_done
-flame_speed_add:
-		fld change
-		fadd dword ptr[ecx]
-		fst dword ptr[ecx]
-		fcomp minimum
-		fnstsw ax
-		test ah, 1
-		jz flame_speed_done
-		mov dword ptr[ecx], 42700000h
-flame_speed_done:
+	long double speed;
+
+	if (TCE_FloatIsZeroOrNaN(f->velSpeed) && TCE_FloatIsZeroOrNaN(change))
+	{
+		return;
+	}
+	speed = (long double)change + f->velSpeed;
+	f->velSpeed = (float)speed;
+	if (speed < 60.0L || speed != speed)
+	{
+		f->velSpeed = 60.0f;
 	}
 #else
 	if (!f->velSpeed && !change)
@@ -672,31 +626,8 @@ CG_FlameCalcOrg
 */
 void CG_FlameCalcOrg(flameChunk_t *f, int time, vec3_t outOrg)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
-	static const float seconds = 0.001f;
-	int                i;
-	for (i = 0; i < 3; ++i)
-	{
-		int   elapsed = (int)((unsigned)time - (unsigned)f->baseOrgTime);
-		float *speed = &f->velSpeed, *direction = &f->velDir[i];
-		float *base = &f->baseOrg[i], *resultPosition = &outOrg[i];
-		/* Original re-reads the time/speed after each output store. */
-		__asm {
-			fild elapsed
-			fmul seconds
-			mov eax, speed
-			fmul dword ptr[eax]
-			mov eax, direction
-			fmul dword ptr[eax]
-			mov eax, base
-			fadd dword ptr[eax]
-			mov eax, resultPosition
-			fstp dword ptr[eax]
-		}
-	}
-#else
 	VectorMA(f->baseOrg, f->velSpeed * ((float)(time - f->baseOrgTime) / 1000), f->velDir, outOrg);
-#endif
+
 }
 
 /*
