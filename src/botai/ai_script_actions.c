@@ -2097,6 +2097,9 @@ qboolean Bot_ScriptAction_SetFireRate(bot_state_t *bs, char *params)
 {
 	char  *pString, *token;
 	float fireRate;
+#if defined(_WIN32) && !defined(Q3_VM)
+	double parsedFireRate;
+#endif
 
 	if (!params || !params[0])
 	{
@@ -2109,8 +2112,15 @@ qboolean Bot_ScriptAction_SetFireRate(bot_state_t *bs, char *params)
 	{
 		G_Error("Bot_ScriptAction_SetFireRate: syntax: SetFireRate <0-1>\n");
 	}
+#if defined(_WIN32) && !defined(Q3_VM)
+	/* Check the parsed value before narrowing, as in the original x87 path. */
+	parsedFireRate = atof(token);
+	fireRate = (float)parsedFireRate;
+	if (!(parsedFireRate >= 0.0) || fireRate > 1.0)
+#else
 	fireRate = atof(token);
 	if (fireRate < 0.0 || fireRate > 1.0)
+#endif
 	{
 		G_Error("Bot_ScriptAction_SetFireRate: syntax: SetFireRate <0-1>\n");
 	}
