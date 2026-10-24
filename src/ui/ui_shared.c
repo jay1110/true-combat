@@ -5726,6 +5726,7 @@ void Item_TextField_Paint(itemDef_t *item)
 	int            text_len = 0; // screen length of the editfield text that will be printed
 	int            field_offset; // character offset in the editfield string
 	int            screen_offset; // offset on screen for precise placement
+	qboolean       endOfText;
 	menuDef_t      *parent  = (menuDef_t *)item->parent;
 	editFieldDef_t *editPtr = (editFieldDef_t *)item->typeData;
 
@@ -5767,11 +5768,13 @@ void Item_TextField_Paint(itemDef_t *item)
 	do
 	{
 		field_offset++;
-		if (buff[editPtr->paintOffset + field_offset] == '\0')
-		{
-			break; // keep it safe
-		}
+		endOfText = buff[editPtr->paintOffset + field_offset] == '\0';
 		text_len = DC->textWidth(buff + editPtr->paintOffset + field_offset, item->textscale, 0);
+		if (endOfText)
+		{
+			/* Match the native empty-suffix width query before stopping. */
+			break;
+		}
 	}
 	while (text_len + item->textRect.x + item->textRect.w + offset > item->window.rect.x + item->window.rect.w);
 
