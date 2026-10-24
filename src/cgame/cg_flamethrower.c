@@ -638,111 +638,51 @@ CG_MoveFlameChunk
 void CG_MoveFlameChunk(flameChunk_t *f)
 {
 #if defined(_MSC_VER) && defined(_M_IX86)
-	/* TC 3003d860: retain x87 intermediates through the original comparisons. */
-	vec3_t         newOrigin, sOrg;
-	trace_t        trace;
-	float          flameDelta, flameDot;
-	float          *flameSpeed = &f->velSpeed, *flameSize = &f->size;
-	float          *flameMaximum = &f->sizeMax, *flameRate = &f->sizeRate;
-	float          *flameDirection = f->velDir, *flameNormal = trace.plane.normal;
-	float          *flameFraction = &trace.fraction;
-	float          *flameParent = f->parentFwd, *flameBase = f->baseOrg;
-	const float    flameOne = 1.0f, flameNegTwo = -2.0f, flameNear = 32.0f;
-	const float    flameGrowth = 0.00047058824566192925f;
-	const double   flameMillis = 0.001, flameFriction = -2400.0;
-	const double   flameGrowthScale = 3.3333333333333335;
-	const double   flameOneD = 1.0, flameHalf = 0.5, flameQuarter = 0.25, flameThreeQuarter = 0.75;
-	int            flameElapsed, flameGate, flameStep;
-	unsigned short flameCW, flameTruncCW;
-	__int64        flameInteger;
-	const float    *flameEye;
-	__asm {
-		mov ecx, flameSpeed
-		fld dword ptr[ecx]
-		fcomp flameOne
-		fnstsw ax
-		test ah, 41h
-		setz al
-		movzx eax, al
-		mov flameGate, eax
-	}
-	if (flameGate && f->lastFrictionTake < (int)((unsigned int)cg.time - 50u))
+	vec3_t newOrigin, sOrg;
+	trace_t trace;
+	long double value, dot, factor;
+	float storedDot;
+	int elapsed, step, axis;
+	qboolean moving;
+
+	if (f->velSpeed > 1.0f && f->lastFrictionTake < TCE_SubInt32(cg.time, 50))
 	{
-		flameElapsed = (int)((unsigned int)cg.time - (unsigned int)f->lastFrictionTake);
-		__asm {
-			fild flameElapsed
-			fmul flameMillis
-			fmul flameFriction
-			fstp flameDelta
-		}
-		CG_FlameAdjustSpeed(f, flameDelta);
+		float delta;
+		elapsed = TCE_SubInt32(cg.time, f->lastFrictionTake);
+		value = (long double)elapsed * 0.001;
+		delta = (float)(value * -2400.0);
+		CG_FlameAdjustSpeed(f, delta);
 		f->lastFrictionTake = cg.time;
 	}
-	__asm {
-		mov ecx, flameSize
-		mov edx, flameMaximum
-		fld dword ptr[ecx]
-		fcomp dword ptr[edx]
-		fnstsw ax
-		and ah, 1
-		movzx eax, ah
-		mov flameGate, eax
-	}
-	if (flameGate)
+	if (!(f->size >= f->sizeMax))
 	{
-		if ((int)((unsigned int)cg.time - (unsigned int)f->timeStart) < f->blueLife)
+		if (TCE_SubInt32(cg.time, f->timeStart) < f->blueLife)
 		{
-			__asm { mov ecx, flameRate
-				    mov dword ptr[ecx], 03d86ed54h }
+			f->sizeRate = 0.0658823549747467f;
 		}
 		else
 		{
-			__asm {
-				mov ecx, flameMaximum
-				mov edx, flameRate
-				fld dword ptr[ecx]
-				fmul flameGrowth
-				fmul flameGrowthScale
-				fstp dword ptr[edx]
-			}
+			value = (long double)f->sizeMax * 0.00047058824566192925f;
+			f->sizeRate = (float)(value * 3.3333333333333335);
 		}
-		flameElapsed = (int)((unsigned int)cg.time - (unsigned int)f->baseOrgTime);
-		__asm {
-			mov ecx, flameSize
-			mov edx, flameRate
-			fild flameElapsed
-			fmul dword ptr[edx]
-			fadd dword ptr[ecx]
-			fst dword ptr[ecx]
-			mov edx, flameMaximum
-			fcomp dword ptr[edx]
-			fnstsw ax
-			test ah, 41h
-			jnz flameSizeDone
-			mov eax, dword ptr[edx]
-			mov dword ptr[ecx], eax
-flameSizeDone:
+		elapsed = TCE_SubInt32(cg.time, f->baseOrgTime);
+		value = (long double)elapsed * f->sizeRate + f->size;
+		f->size = (float)value;
+		if (value > f->sizeMax)
+		{
+			f->size = f->sizeMax;
 		}
 	}
 	VectorCopy(f->baseOrg, sOrg);
-	__asm {
-		mov ecx, flameSpeed
-		fld dword ptr[ecx]
-		fcomp flameOne
-		fnstsw ax
-		test ah, 41h
-		setz al
-		movzx eax, al
-		mov flameGate, eax
-	}
-	while (flameGate && f->baseOrgTime != cg.time)
+	moving = f->velSpeed > 1.0f;
+	while (moving && f->baseOrgTime != cg.time)
 	{
 		CG_FlameCalcOrg(f, cg.time, newOrigin);
 		CG_Trace(&trace, sOrg, flameChunkMins, flameChunkMaxs, newOrigin, f->ownerCent, 0x60000b9);
 		if (trace.startsolid)
 		{
 			f->velSpeed = 0.0f;
-			f->dead     = 1;
+			f->dead = 1;
 			break;
 		}
 		if (trace.surfaceFlags & 0x10)
@@ -750,132 +690,52 @@ flameSizeDone:
 			break;
 		}
 		VectorCopy(trace.endpos, f->baseOrg);
-		flameElapsed = (int)((unsigned int)cg.time - (unsigned int)f->baseOrgTime);
-		__asm {
-			fild flameElapsed
-			mov ecx, flameFraction
-			fmul dword ptr[ecx]
-			/* Original __ftol: truncate to signed64, then consume low32. */
-			fwait
-			fnstcw flameCW
-			fwait
-			mov ax, flameCW
-			or ah, 0ch
-			mov flameTruncCW, ax
-			fldcw flameTruncCW
-			fistp flameInteger
-			fldcw flameCW
-			mov eax, dword ptr flameInteger
-			mov flameStep, eax
-			fld dword ptr[ecx]
-			fcomp flameOneD
-			fnstsw ax
-			and ah, 40h
-			movzx eax, ah
-			mov flameGate, eax
-		}
-		f->baseOrgTime = (int)((unsigned int)f->baseOrgTime + (unsigned int)flameStep);
-		if (flameGate)
+		elapsed = TCE_SubInt32(cg.time, f->baseOrgTime);
+		step = TCE_TruncateNativeInteger((long double)elapsed * trace.fraction);
+		f->baseOrgTime = TCE_AddInt32(f->baseOrgTime, step);
+		if (trace.fraction == 1.0f || TCE_FloatIsNaN(trace.fraction))
 		{
+			vec3_t distanceVector;
 			if (f->ownerCent == cg.snap->ps.clientNum || (cg.snap->ps.eFlags & 1))
 			{
 				break;
 			}
-			flameEye = cg.snap->ps.origin;
-			__asm {
-				push flameEye
-				lea eax, newOrigin
-				push eax
-				call Distance
-				fcomp flameNear
-				add esp, 8
-				fnstsw ax
-				and ah, 1
-				movzx eax, ah
-				mov flameGate, eax
+			/* Distance stores the three differences before taking its root. */
+			for (axis = 0; axis < 3; ++axis)
+			{
+				distanceVector[axis] = (float)((long double)cg.snap->ps.origin[axis] - newOrigin[axis]);
 			}
-			if (!flameGate)
+			value = TCE_VectorLengthValue(distanceVector);
+			if (!(value < 32.0L || value != value))
 			{
 				break;
 			}
-			__asm {
-				mov ecx, flameDirection
-				mov edx, flameNormal
-				fld dword ptr[ecx]
-				fchs
-				fstp dword ptr[edx]
-				fld dword ptr[ecx + 4]
-				fchs
-				fstp dword ptr[edx + 4]
-				fld dword ptr[ecx + 8]
-				fchs
-				fstp dword ptr[edx + 8]
-			}
+			VectorNegate(f->velDir, trace.plane.normal);
 		}
-		__asm {
-			mov ecx, flameDirection
-			mov edx, flameNormal
-			fld dword ptr[edx + 8]
-			fmul dword ptr[ecx + 8]
-			fld dword ptr[edx + 4]
-			fmul dword ptr[ecx + 4]
-			faddp st(1), st(0)
-			fld dword ptr[edx]
-			fmul dword ptr[ecx]
-			faddp st(1), st(0)
-			fst flameDot
-			fmul flameNegTwo
-			fld st(0)
-			fmul dword ptr[edx]
-			fadd dword ptr[ecx]
-			fstp dword ptr[ecx]
-			fld st(0)
-			fmul dword ptr[edx + 4]
-			fadd dword ptr[ecx + 4]
-			fstp dword ptr[ecx + 4]
-			fmul dword ptr[edx + 8]
-			fadd dword ptr[ecx + 8]
-			fstp dword ptr[ecx + 8]
-			push ecx
-			call VectorNormalize
-			fstp st(0)
-			add esp, 4
+		dot = (long double)trace.plane.normal[2] * f->velDir[2];
+		dot += (long double)trace.plane.normal[1] * f->velDir[1];
+		dot += (long double)trace.plane.normal[0] * f->velDir[0];
+		storedDot = (float)dot;
+		factor = dot * -2.0f;
+		for (axis = 0; axis < 3; ++axis)
+		{
+			f->velDir[axis] = (float)(factor * trace.plane.normal[axis] + f->velDir[axis]);
 		}
-		__asm {
-			fld flameDot
-			fadd flameOneD
-			mov ecx, flameDirection
-			mov edx, flameParent
-			mov eax, dword ptr[ecx]
-			mov dword ptr[edx], eax
-			fmul flameHalf
-			mov eax, dword ptr[ecx + 4]
-			mov dword ptr[edx + 4], eax
-			mov ecx, flameBase
-			mov eax, dword ptr[ecx]
-			mov dword ptr sOrg, eax
-			fmul flameThreeQuarter
-			mov ecx, flameDirection
-			mov eax, dword ptr[ecx + 8]
-			mov dword ptr[edx + 8], eax
-			mov ecx, flameBase
-			mov eax, dword ptr[ecx + 4]
-			mov dword ptr sOrg[4], eax
-			fadd flameQuarter
-			mov edx, flameSpeed
-			fmul dword ptr[edx]
-			mov eax, dword ptr[ecx + 8]
-			mov dword ptr sOrg[8], eax
-			mov ecx, edx
-			fmul flameHalf
-			fst dword ptr[ecx]
-			fcomp flameOne
-			fnstsw ax
-			test ah, 41h
-			setz al
-			movzx eax, al
-			mov flameGate, eax
-		}
+		VectorNormalize(f->velDir);
+		value = (long double)storedDot + 1.0;
+		f->parentFwd[0] = f->velDir[0];
+		value *= 0.5;
+		f->parentFwd[1] = f->velDir[1];
+		sOrg[0] = f->baseOrg[0];
+		value *= 0.75;
+		f->parentFwd[2] = f->velDir[2];
+		sOrg[1] = f->baseOrg[1];
+		value += 0.25;
+		value *= f->velSpeed;
+		sOrg[2] = f->baseOrg[2];
+		value *= 0.5;
+		f->velSpeed = (float)value;
+		moving = value > 1.0L;
 	}
 	CG_FlameCalcOrg(f, cg.time, f->org);
 	f->baseOrgTime = cg.time;
