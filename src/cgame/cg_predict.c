@@ -8,6 +8,7 @@
 #include "cg_local.h"
 #if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 #include "../game/tce_numeric.h"
+#include "../game/tce_interpolation_precision.h"
 #endif
 
 /*static*/ pmove_t cg_pmove;
@@ -516,9 +517,15 @@ static void CG_InterpolatePlayerState(qboolean grabAngles)
 		int            duration = CG_InterpolationDifference(next->serverTime, prev->serverTime);
 		int            elapsed  = CG_InterpolationDifference(cg.time, prev->serverTime);
 		int            cycleDifference;
-		long double    factor, cycleProduct;
+		long double    factor;
+#if !(defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM))
+		long double    cycleProduct;
+#endif
 		volatile float storedFactor;
-#if defined(_WIN32)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		storedFactor = TCE_InterpolationFactor32(elapsed, duration);
+		factor       = (long double)storedFactor;
+#elif defined(_WIN32)
 		storedFactor = (float)((long double)elapsed / (long double)duration);
 		factor       = (long double)storedFactor;
 #else
@@ -532,11 +539,16 @@ static void CG_InterpolatePlayerState(qboolean grabAngles)
 			i = CG_InterpolationDifference(i, -256);
 		}
 		cycleDifference = CG_InterpolationDifference(i, prev->ps.bobCycle);
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		out->bobCycle = TCE_InterpolateCycleLow32(cycleDifference, storedFactor,
+		                                        prev->ps.bobCycle);
+#else
 		cycleProduct    = (long double)cycleDifference * factor;
 #if defined(_WIN32)
 		out->bobCycle = TCE_TruncateNativeInteger(cycleProduct + (long double)prev->ps.bobCycle);
 #else
 		out->bobCycle = TCE_TruncateNativeInteger((long double)prev->ps.bobCycle + cycleProduct);
+#endif
 #endif
 
 		for (i = 0; i < 3; ++i)
