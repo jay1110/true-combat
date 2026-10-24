@@ -4095,23 +4095,25 @@ else
 CG_DrawRadar
 =================
 */
-/* TC radar base; objective/team marker projection remains to be ported. */
-/* Originals Windows300215a0 / Linux000496fc; geometry/render fidelity remains open.
- * origin-target is intentional. */
+/* Originals Windows300215a0 / Linux000496fc; origin-target is intentional. */
 static void CG_DrawRadarIcon(int x, int y, int w, int h, const vec3_t origin, const vec3_t target,
                              qhandle_t shader, qhandle_t above, qhandle_t below)
 {
 	vec3_t delta, angles;
 	float distance, z;
 #if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
-	long double radians;
+	long double radians, fraction, size;
 #else
 	double radians;
-#endif
 	double fraction, size;
+#endif
 	int radius, px, py;
 	VectorSubtract(origin, target, delta); z = delta[2];
-	distance                                 = (float)sqrt((double)delta[0] * delta[0] + (double)delta[1] * delta[1] + (double)delta[2] * delta[2]);
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+	distance = VectorLength(delta);
+#else
+	distance = (float)sqrt((double)delta[0] * delta[0] + (double)delta[1] * delta[1] + (double)delta[2] * delta[2]);
+#endif
 	VectorNormalize(delta); vectoangles(delta, angles);
 	if (delta[0] == 0 && delta[1] == 0 && delta[2] == 0)
 	{
@@ -4131,15 +4133,26 @@ static void CG_DrawRadarIcon(int x, int y, int w, int h, const vec3_t origin, co
 #else
 	radians = (((double)AngleSubtract(cg.predictedPlayerState.viewangles[YAW], angles[YAW]) + 180.f) * .0027777778450399637f - .25) * 6.2831854820251465;
 #endif
-	fraction = (double)distance * .0005f; if (fraction > 1)
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+	fraction = (long double)distance * .0005f;
+#else
+	fraction = (double)distance * .0005f;
+#endif
+	if (fraction > 1)
 	{
 		fraction = 1;
 	}
-	radius = (int)((w / 2) * fraction);
 #if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
-	px = TCE_TruncateNativeInteger((long double)(x + w / 2) + cosl(radians) * (long double)radius);
-	py = TCE_TruncateNativeInteger((long double)(y + h / 2) + sinl(radians) * (long double)radius);
+#if defined(__linux__)
+	/* ELF reloads the radial fraction from float before converting the radius. */
+	radius = TCE_TruncateNativeInteger((long double)(w / 2) * (float)fraction);
 #else
+	radius = TCE_TruncateNativeInteger((long double)(w / 2) * fraction);
+#endif
+	px = TCE_TruncateNativeInteger((long double)TCE_AddInt32(x, w / 2) + cosl(radians) * radius);
+	py = TCE_TruncateNativeInteger((long double)TCE_AddInt32(y, h / 2) + sinl(radians) * radius);
+#else
+	radius = (int)((w / 2) * fraction);
 	px = (int)(x + w / 2 + cos(radians) * radius); py = (int)(y + h / 2 + sin(radians) * radius);
 #endif
 	if (z < -72 && above)
@@ -4150,7 +4163,15 @@ static void CG_DrawRadarIcon(int x, int y, int w, int h, const vec3_t origin, co
 	{
 		shader = below;
 	}
+#if defined(__linux__) && !defined(Q3_VM)
+	/* The size uses a separately recomputed fraction and stored shrinking term. */
+	{
+		float shrink = (float)(1.0L - fraction);
+		size = (long double)shrink * 8.f + 8.f;
+	}
+#else
 	size = ((1 - fraction) + 1) * 8;
+#endif
 	CG_DrawPic(px - size * .5f, py - size * .5f, size, size, shader);
 }
 
