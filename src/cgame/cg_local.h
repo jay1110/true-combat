@@ -2840,6 +2840,10 @@ void CG_Bleed(vec3_t origin, int entityNum, vec3_t color);
 localEntity_t *CG_MakeExplosion(vec3_t origin, vec3_t dir,
                                 qhandle_t hModel, qhandle_t shader, int msec,
                                 qboolean isSprite);
+#if defined(__linux__) && !defined(Q3_VM)
+void CG_MakeFadeRGB(vec3_t origin, vec3_t dir, qhandle_t model, qhandle_t shader,
+                    float red, float green, float blue, int duration);
+#endif
 // Ridah
 void CG_SparklerSparks(vec3_t origin, int count);
 void CG_ClearFlameChunks(void);

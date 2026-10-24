@@ -307,6 +307,40 @@ localEntity_t *CG_MakeExplosion(vec3_t origin, vec3_t dir,
 	return ex;
 }
 
+#if defined(__linux__) && !defined(Q3_VM)
+/* Linux 00058f42: model entity with independent RGB and an unskewed lifetime. */
+void CG_MakeFadeRGB(vec3_t origin, vec3_t dir, qhandle_t model, qhandle_t shader,
+                    float red, float green, float blue, int duration)
+{
+	localEntity_t *le = CG_AllocLocalEntity();
+	refEntity_t *re = &le->refEntity;
+
+	le->leFlags = 0;
+	le->leType = LE_FADE_RGB;
+	le->startTime = cg.time;
+	le->endTime = TCE_AddInt32(cg.time, duration);
+	le->lifeRate = (float)(1.0L / TCE_SubInt32(le->endTime, le->startTime));
+	VectorSet(le->color, red, green, blue);
+	le->color[3] = 1.f;
+	re->reType = RT_MODEL;
+	re->shaderTime = (float)((long double)cg.time * .001f);
+	re->customShader = shader;
+	re->hModel = model;
+	if (dir)
+	{
+		float angle = rand() % 360;
+		VectorCopy(dir, re->axis[0]);
+		RotateAroundDirection(re->axis, angle);
+	}
+	else
+	{
+		AxisClear(re->axis);
+	}
+	VectorCopy(origin, re->origin);
+	VectorCopy(origin, re->oldorigin);
+}
+#endif
+
 /*
 =================
 CG_AddBloodTrails

@@ -1,6 +1,10 @@
 #include "cg_local.h"
 #include "tce_smoke_grenade.h"
 
+#if defined(__linux__) && !defined(Q3_VM)
+#include "tce_smoke_grenade_linux.inc"
+#else
+
 static void SmokeLight(const tce_lightGrid_t *grid, const vec3_t point,
                        const vec3_t cached, vec3_t color, vec3_t sum, int *count)
 {
@@ -148,3 +152,4 @@ void TCE_CG_SmokeGrenadeExtended(const tce_lightGrid_t *grid, int now, int start
 		}
 	}
 }
+#endif
