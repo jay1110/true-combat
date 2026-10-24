@@ -600,7 +600,9 @@ qboolean Bot_ScriptAction_MoveToMarker(bot_state_t *bs, char *params)
 {
 	char             *pString, *token;
 	g_serverEntity_t *target;
+#if !defined(_WIN32) || defined(Q3_VM)
 	vec3_t           vec;
+#endif
 
 	// Gordon: 24/10/02
 	float radius = 24;
@@ -699,6 +701,26 @@ qboolean Bot_ScriptAction_MoveToMarker(bot_state_t *bs, char *params)
 	// The check was too constrictive and failed too often.  I may have made it too loose, but it seems to work.
 	// if we have passed or are close enough to the marker, then return qtrue
 	// Gordon: added custom radius ability, default is 24 as Ian had set here
+#if defined(_WIN32) && !defined(Q3_VM)
+	if (TCE_DistanceSquaredValue(bs->origin, target->origin) < (long double)radius * radius)
+	{
+		return qtrue;
+	}
+	if (bs->script.status.stackChangeTime < TCE_SubInt32(level.time, 500)
+	    && !(TCE_DistanceSquaredValue(bs->origin, target->origin) >= 2304.0L))
+	{
+		long double x = (long double)target->origin[0] - bs->origin[0];
+		long double y = (long double)target->origin[1] - bs->origin[1];
+		long double z = (long double)target->origin[2] - bs->origin[2];
+		long double dot = z * bs->cur_ps.velocity[2] + y * bs->cur_ps.velocity[1];
+
+		dot += x * bs->cur_ps.velocity[0];
+		if (!(dot >= 0.0L))
+		{
+			return qtrue;
+		}
+	}
+#else
 	if (VectorDistanceSquared(bs->origin, target->origin) < SQR(radius))
 	{
 //	if (VectorDistanceSquared( bs->origin, target->s.origin ) < SQR(12)) {
@@ -713,6 +735,7 @@ qboolean Bot_ScriptAction_MoveToMarker(bot_state_t *bs, char *params)
 			return qtrue;
 		}
 	}
+#endif
 	//
 	return qfalse;
 }
