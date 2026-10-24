@@ -1,6 +1,61 @@
 // cg_marks.c -- wall marks
 
 #include "cg_local.h"
+#if defined(__linux__) && !defined(Q3_VM)
+#include "../game/tce_numeric.h"
+
+/* The original Linux marks use full up-vector dot products, including their
+ * zero components, before deciding which vertical alignment to try next. */
+static long double CG_LinuxMarkUpDot(const vec3_t value)
+{
+	long double horizontal = (long double)value[1] * 0.f + (long double)value[0] * 0.f;
+	return horizontal + (long double)value[2] * 1.f;
+}
+
+static void CG_LinuxMarkRotateAxes(vec3_t axis[3], float orientation)
+{
+	float rotation = 90.f;
+	/* The first two native JB gates also take unordered comparisons. */
+	if (!(fabsl(CG_LinuxMarkUpDot(axis[0])) >= .707f))
+	{
+		RotatePointAroundVector(axis[2], axis[0], axis[1], rotation);
+		if (!(CG_LinuxMarkUpDot(axis[2]) <= -.7f))
+		{
+			rotation = 270.f;
+			RotatePointAroundVector(axis[2], axis[0], axis[1], rotation);
+		}
+		if (CG_LinuxMarkUpDot(axis[2]) > -.7f)
+		{
+			rotation = 0.f;
+			RotatePointAroundVector(axis[2], axis[0], axis[1], rotation);
+		}
+		if (CG_LinuxMarkUpDot(axis[2]) > -.7f)
+		{
+			rotation = 180.f;
+		}
+	}
+	RotatePointAroundVector(axis[2], axis[0], axis[1], (float)((long double)rotation + orientation));
+}
+
+static byte CG_LinuxMarkColor(float channel)
+{
+	long double value = (long double)channel * 255.f;
+	/* FISTP word: integer-indefinite has a zero low byte. */
+	return value > -32769.L && value < 32768.L ? (byte)(int)value : 0;
+}
+
+static float CG_LinuxMarkTexcoord(float value, qboolean negative)
+{
+	unsigned bits;
+	memcpy(&bits, &value, sizeof(bits));
+	if (negative)
+	{
+		bits ^= 0x80000000u;
+	}
+	memcpy(&value, &bits, sizeof(value));
+	return value;
+}
+#endif
 
 /*
 ===================================================================
@@ -133,7 +188,9 @@ void CG_ImpactMark(qhandle_t markShader, vec3_t origin, vec4_t projection, float
 	vec4_t color;
 	int    fadeTime;
 	vec3_t points[4];
+#if !defined(__linux__) || defined(Q3_VM)
 	float  baseRotation = 90;
+#endif
 
 
 	/* early out */
@@ -151,6 +208,9 @@ void CG_ImpactMark(qhandle_t markShader, vec3_t origin, vec4_t projection, float
 	VectorNormalize2(projection, axis[0]);
 	PerpendicularVector(axis[1], axis[0]);
 	/* TC:E aligns wall marks vertically before applying the shot rotation. */
+#if defined(__linux__) && !defined(Q3_VM)
+	CG_LinuxMarkRotateAxes(axis, orientation);
+#else
 	if (fabs(axis[0][2]) < (double)0.707f)
 	{
 		RotatePointAroundVector(axis[2], axis[0], axis[1], 90);
@@ -170,6 +230,7 @@ void CG_ImpactMark(qhandle_t markShader, vec3_t origin, vec4_t projection, float
 		}
 	}
 	RotatePointAroundVector(axis[2], axis[0], axis[1], baseRotation + orientation);
+#endif
 	CrossProduct(axis[0], axis[2], axis[1]);
 
 	/* push the origin out a bit */
@@ -186,12 +247,23 @@ void CG_ImpactMark(qhandle_t markShader, vec3_t origin, vec4_t projection, float
 
 		/* new */
 		{
+#if defined(__linux__) && !defined(Q3_VM)
+			long double side = (long double)radius * axis[1][i];
+			long double other = (long double)radius * axis[2][i];
+			long double low = (long double)pushedOrigin[i] - side;
+			long double high = side + pushedOrigin[i];
+			points[0][i] = (float)(low - other);
+			points[1][i] = (float)(low + other);
+			points[2][i] = (float)(high + other);
+			points[3][i] = (float)(high - other);
+#else
 			double side = (double)radius * axis[1][i], other = (double)radius * axis[2][i];
 			double low = pushedOrigin[i] - side;
 			points[0][i] = (float)(low - other);
 			points[1][i] = (float)(low + other);
 			points[2][i] = (float)(((double)axis[1][i] + axis[2][i]) * radius + pushedOrigin[i]);
 			points[3][i] = (float)(side + pushedOrigin[i] - other);
+#endif
 		}
 	}
 
@@ -374,14 +446,23 @@ void CG_EliteImpactMark(qhandle_t shader, vec3_t origin, vec3_t dir,
 	markFragment_t fragments[MAX_MARK_FRAGMENTS];
 	polyVert_t     verts[MAX_VERTS_ON_POLY];
 	byte           colors[4];
+#if defined(__linux__) && !defined(Q3_VM)
+	float          scale;
+	int            fragmentOrientation;
+#else
 	float          rotation = 90, scale;
+#endif
 	int            i, j, count, multiplier = 1;
 	qboolean       fallback = qfalse;
 	if (!cg_markTime.integer)
 	{
 		return;
 	}
+#if defined(__linux__) && !defined(Q3_VM)
+	if (!(radius > 0))
+#else
 	if (radius <= 0)
+#endif
 	{
 		CG_Error("CG_ImpactMark called with <= 0 radius");
 	}
@@ -395,6 +476,9 @@ void CG_EliteImpactMark(qhandle_t shader, vec3_t origin, vec3_t dir,
 	}
 	VectorNormalize2(dir, axis[0]);
 	PerpendicularVector(axis[1], axis[0]);
+#if defined(__linux__) && !defined(Q3_VM)
+	CG_LinuxMarkRotateAxes(axis, orientation);
+#else
 	if (fabs(axis[0][2]) < (double)0.707f)
 	{
 		RotatePointAroundVector(axis[2], axis[0], axis[1], 90);
@@ -414,10 +498,27 @@ void CG_EliteImpactMark(qhandle_t shader, vec3_t origin, vec3_t dir,
 		}
 	}
 	RotatePointAroundVector(axis[2], axis[0], axis[1], rotation + orientation);
+#endif
 	CrossProduct(axis[0], axis[2], axis[1]);
+#if defined(__linux__) && !defined(Q3_VM)
+	scale = (float)((1.L / radius) * .5f);
+#else
 	scale = (float)(0.5 / radius);
+#endif
 	for (i = 0; i < 3; ++i)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		long double side = (long double)radius * axis[1][i];
+		long double other = (long double)radius * axis[2][i];
+		long double low = (long double)origin[i] - side;
+		long double high = side + origin[i];
+		long double depth = temporary ? 4.5f : (long double)radius * .25f + 2.f;
+		points[0][i] = (float)(low - other);
+		points[1][i] = (float)(high - other);
+		points[2][i] = (float)(high + other);
+		points[3][i] = (float)(low + other);
+		projection[i] = (float)((long double)dir[i] * depth);
+#else
 		float low  = (float)((double)origin[i] - (double)radius * axis[1][i]);
 		float side = radius * axis[2][i];
 		points[0][i]  = low - side;
@@ -425,13 +526,29 @@ void CG_EliteImpactMark(qhandle_t shader, vec3_t origin, vec3_t dir,
 		points[2][i]  = (float)(((double)axis[1][i] + axis[2][i]) * radius + origin[i]);
 		points[3][i]  = side + low;
 		projection[i] = (float)((double)dir[i] * (temporary ? 4.5 : (double)radius * .25 + 2.0));
+#endif
 	}
-	count = trap_CM_MarkFragments((int)orientation, points, projection,
+#if defined(__linux__) && !defined(Q3_VM)
+	fragmentOrientation = TCE_TruncateNativeInteger(orientation);
+#endif
+	count = trap_CM_MarkFragments(
+#if defined(__linux__) && !defined(Q3_VM)
+	                              fragmentOrientation,
+#else
+	                              (int)orientation,
+#endif
+	                              points, projection,
 	                              MAX_MARK_POINTS, (float *)markPoints, MAX_MARK_FRAGMENTS * multiplier, fragments);
 	if (!count && !temporary)
 	{
 		VectorScale(dir, -20, projection);
-		count = trap_CM_MarkFragments((int)orientation, points, projection,
+		count = trap_CM_MarkFragments(
+#if defined(__linux__) && !defined(Q3_VM)
+		                              fragmentOrientation,
+#else
+		                              (int)orientation,
+#endif
+		                              points, projection,
 		                              MAX_MARK_POINTS, (float *)markPoints, MAX_MARK_FRAGMENTS * multiplier, fragments);
 		fallback = qtrue;
 	}
@@ -439,10 +556,17 @@ void CG_EliteImpactMark(qhandle_t shader, vec3_t origin, vec3_t dir,
 	{
 		return;
 	}
+#if defined(__linux__) && !defined(Q3_VM)
+	colors[0] = CG_LinuxMarkColor(red);
+	colors[1] = CG_LinuxMarkColor(green);
+	colors[2] = CG_LinuxMarkColor(blue);
+	colors[3] = CG_LinuxMarkColor(alpha);
+#else
 	colors[0] = (byte)(int)((double)red * 255);
 	colors[1] = (byte)(int)((double)green * 255);
 	colors[2] = (byte)(int)((double)blue * 255);
 	colors[3] = (byte)(int)((double)alpha * 255);
+#endif
 	for (i = 0; i < count; ++i)
 	{
 		markFragment_t *mf = &fragments[i];
@@ -476,15 +600,33 @@ void CG_EliteImpactMark(qhandle_t shader, vec3_t origin, vec3_t dir,
 			VectorCopy(p, verts[j].xyz);
 			if (!hasST || fallback)
 			{
+#if defined(__linux__) && !defined(Q3_VM)
+				long double x = (long double)p[0] - origin[0];
+				long double y = (long double)p[1] - origin[1];
+				long double z = (long double)p[2] - origin[2];
+				float storedX = (float)x, storedY = (float)y, storedZ = (float)z;
+				long double dot = z * axis[1][2] + (y * axis[1][1] + x * axis[1][0]);
+				verts[j].st[0] = (float)(.5f + dot * scale);
+				dot = ((long double)axis[2][1] * storedY + (long double)axis[2][0] * storedX)
+				      + (long double)axis[2][2] * storedZ;
+				verts[j].st[1] = (float)(.5f + dot * scale);
+#else
 				double x = (double)p[0] - origin[0], y = (double)p[1] - origin[1], z = (double)p[2] - origin[2];
 				verts[j].st[0] = (float)((axis[1][0] * x + axis[1][1] * y + axis[1][2] * z) * scale + .5);
 				verts[j].st[1] = (float)((axis[2][0] * x + axis[2][1] * y + axis[2][2] * z) * scale + .5);
+#endif
 			}
 			else
 			{
+#if defined(__linux__) && !defined(Q3_VM)
+				qboolean negative = dir[0] > 0.f || !(dir[1] >= 0.f);
+				verts[j].st[0] = CG_LinuxMarkTexcoord(p[4], negative);
+				verts[j].st[1] = CG_LinuxMarkTexcoord(p[3], negative);
+#else
 				float sign = dir[0] > 0 || dir[1] < 0 ? -1.f : 1.f;
 				verts[j].st[0] = sign * p[4];
 				verts[j].st[1] = sign * p[3];
+#endif
 			}
 			memcpy(verts[j].modulate, colors, 4);
 		}
@@ -493,7 +635,11 @@ void CG_EliteImpactMark(qhandle_t shader, vec3_t origin, vec3_t dir,
 			trap_R_AddPolyToScene(shader, mf->numPoints, verts);
 			continue;
 		}
+#if defined(__linux__) && !defined(Q3_VM)
+		mark                = CG_AllocMark(TCE_AddInt32(cg.time, duration));
+#else
 		mark                = CG_AllocMark(cg.time + duration);
+#endif
 		mark->time          = cg.time; mark->alphaFade = alphaFade; mark->markShader = shader;
 		mark->poly.numVerts = mf->numPoints; mark->duration = duration;
 		mark->color[0]      = red; mark->color[1] = green; mark->color[2] = blue; mark->color[3] = alpha;
