@@ -10,6 +10,7 @@
 #include "../game/q_shared.h"
 #if defined(__linux__)
 #include "../game/tce_numeric.h"
+#include "../game/tce_weapon_ids.h"
 #endif
 #include "../game/botlib.h"     //bot lib interface
 #include "../game/be_aas.h"
@@ -2612,9 +2613,17 @@ qboolean Bot_ScriptAction_SetAmmoAmount(bot_state_t *bs, char *params)
 	case WP_MEDIC_SYRINGE:
 	case WP_GRENADE_LAUNCHER:
 	case WP_GRENADE_PINEAPPLE:
+#if defined(__linux__)
+	case TCE_ITEM_WEAPON_FLAMETHROWER:
+#else
 	case WP_FLAMETHROWER:
+#endif
 	case WP_MORTAR:
+#if defined(__linux__)
+	case TCE_ITEM_WEAPON_MORTAR_SET:
+#else
 	case WP_MORTAR_SET:
+#endif
 	case WP_DYNAMITE:
 		clipOnly = qtrue;
 		break;
