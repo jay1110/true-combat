@@ -2172,6 +2172,20 @@ static int TCE_TransitionMagnitudePrecise(const tceTransitionDifference_t *diffe
 }
 #endif
 
+#if defined(_WIN32)
+static float TCE_TransitionStep(int magnitude, float amount)
+{
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	float result;
+	if (TCE_TransitionDivide32(magnitude, amount, &result))
+	{
+		return result;
+	}
+#endif
+	return (float)((long double)magnitude / (long double)amount);
+}
+#endif
+
 void Menu_TransitionItemByName(menuDef_t *menu, const char *name,
                                rectDef_t from, rectDef_t to, int time, float amount)
 {
@@ -2226,8 +2240,7 @@ void Menu_TransitionItemByName(menuDef_t *menu, const char *name,
 #else
 		magnitude                   = TCE_TransitionMagnitude(difference);
 #endif
-		item->window.rectEffects2.x =
-			(float)((long double)magnitude / (long double)amount);
+		item->window.rectEffects2.x = TCE_TransitionStep(magnitude, amount);
 #endif
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 		difference = TCE_TransitionDifferenceValue(to.y, from.y);
@@ -2242,8 +2255,7 @@ void Menu_TransitionItemByName(menuDef_t *menu, const char *name,
 #if defined(__linux__)
 		item->window.rectEffects2.y = (float)((long double)magnitude * reciprocal);
 #else
-		item->window.rectEffects2.y =
-			(float)((long double)magnitude / (long double)amount);
+		item->window.rectEffects2.y = TCE_TransitionStep(magnitude, amount);
 #endif
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 		difference = TCE_TransitionDifferenceValue(to.w, from.w);
@@ -2258,8 +2270,7 @@ void Menu_TransitionItemByName(menuDef_t *menu, const char *name,
 #if defined(__linux__)
 		item->window.rectEffects2.w = (float)((long double)magnitude * reciprocal);
 #else
-		item->window.rectEffects2.w =
-			(float)((long double)magnitude / (long double)amount);
+		item->window.rectEffects2.w = TCE_TransitionStep(magnitude, amount);
 #endif
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 		difference = TCE_TransitionDifferenceValue(to.h, from.h);
@@ -2274,8 +2285,7 @@ void Menu_TransitionItemByName(menuDef_t *menu, const char *name,
 #if defined(__linux__)
 		item->window.rectEffects2.h = (float)(reciprocal * (long double)magnitude);
 #else
-		item->window.rectEffects2.h =
-			(float)((long double)magnitude / (long double)amount);
+		item->window.rectEffects2.h = TCE_TransitionStep(magnitude, amount);
 #endif
 		Item_UpdatePosition(item);
 	}

@@ -2,7 +2,7 @@
 #define TCE_TRANSITION_PRECISION_H
 
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
-#include "tce_rotate_precision.h"
+#include "tce_ratio_precision.h"
 
 typedef struct
 {
@@ -10,6 +10,29 @@ typedef struct
 	long double fallback;
 	int finite;
 } tceTransitionDifference_t;
+
+/* Divide the signed result of native ABS by a finite, nonzero Float.
+ * Preserve division precision before rounding the destination Float. */
+static __inline int TCE_TransitionDivide32(int numerator, float denominator,
+                                          float *result)
+{
+	unsigned bits, exponent, mantissa, magnitude, negative, control;
+	int scale;
+
+	memcpy(&bits, &denominator, sizeof(bits));
+	exponent = (bits >> 23) & 255u;
+	if (exponent == 255u || !(bits & 0x7fffffffu))
+	{
+		return 0;
+	}
+	mantissa = (bits & 0x7fffffu) | (exponent ? 0x800000u : 0u);
+	scale = exponent ? 150 - (int)exponent : 149;
+	negative = (numerator < 0) ^ (bits >> 31);
+	magnitude = numerator < 0 ? 0u - (unsigned)numerator : (unsigned)numerator;
+	__control87_2(0, 0, &control, NULL);
+	*result = TCE_RatioFloat32(magnitude, mantissa, scale, negative, control);
+	return 1;
+}
 
 /* Hold the rounded subtraction across the original rectangle copies.
  * Only nonfinite inputs evaluate the previous floating-point fallback.

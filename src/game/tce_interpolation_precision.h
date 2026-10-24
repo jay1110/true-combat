@@ -2,96 +2,18 @@
 #define TCE_INTERPOLATION_PRECISION_H
 
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
-#include "tce_rotate_precision.h"
+#include "tce_ratio_precision.h"
 
-/* The caller establishes a nonzero wrapped duration before dividing.
- * Generate the normalized rational significand, round to x87 PC/RC, then
- * round the original FSTP binary32 store separately. */
+/* The caller establishes a nonzero wrapped duration before dividing. */
 static __inline float TCE_InterpolationFactor32(int elapsed, int duration)
 {
-	tceTriggerSum_t value = { { 0 }, 0 };
-	unsigned n, d, probe, control, precision, rounding, increment = 0;
-	unsigned long long numerator, denominator, remainder, significand = 1;
-	int numeratorBit = 0, denominatorBit = 0, exponent, bit;
+	unsigned n, d, negative, control;
 
-	value.negative = (elapsed < 0) ^ (duration < 0);
+	negative = (elapsed < 0) ^ (duration < 0);
 	n = elapsed < 0 ? 0u - (unsigned)elapsed : (unsigned)elapsed;
 	d = duration < 0 ? 0u - (unsigned)duration : (unsigned)duration;
 	__control87_2(0, 0, &control, NULL);
-	if (!n)
-	{
-		return TCE_RotateStore(value, control);
-	}
-	for (probe = n; probe >> 1; probe >>= 1)
-	{
-		++numeratorBit;
-	}
-	for (probe = d; probe >> 1; probe >>= 1)
-	{
-		++denominatorBit;
-	}
-	exponent = numeratorBit - denominatorBit;
-	numerator = n;
-	denominator = d;
-	if (exponent >= 0)
-	{
-		denominator <<= exponent;
-	}
-	else
-	{
-		numerator <<= -exponent;
-	}
-	if (numerator < denominator)
-	{
-		numerator <<= 1;
-		--exponent;
-	}
-	remainder = numerator - denominator;
-	precision = (control & _MCW_PC) == _PC_24 ? 24u :
-	            (control & _MCW_PC) == _PC_53 ? 53u : 64u;
-	for (bit = 1; bit < (int)precision; ++bit)
-	{
-		remainder <<= 1;
-		significand <<= 1;
-		if (remainder >= denominator)
-		{
-			remainder -= denominator;
-			significand |= 1;
-		}
-	}
-	rounding = control & _MCW_RC;
-	if (rounding == _RC_NEAR)
-	{
-		increment = (remainder << 1) > denominator ||
-		            ((remainder << 1) == denominator && (significand & 1));
-	}
-	else if (rounding == _RC_UP)
-	{
-		increment = remainder && !value.negative;
-	}
-	else if (rounding == _RC_DOWN)
-	{
-		increment = remainder && value.negative;
-	}
-	if (increment)
-	{
-		if (significand == ~0ULL)
-		{
-			significand = 1ULL << 63;
-			++exponent;
-		}
-		else
-		{
-			++significand;
-			if (precision < 64 && (significand >> precision))
-			{
-				significand >>= 1;
-				++exponent;
-			}
-		}
-	}
-	TCE_TriggerPlace(&value, significand, 298 + exponent - ((int)precision - 1));
-	return TCE_RotateStore(value, control);
+	return TCE_RatioFloat32(n, d, 0, negative, control);
 }
 
 /* A rounded difference of two binary32 inputs is a multiple of 2^-149.
