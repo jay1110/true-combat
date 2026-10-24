@@ -2419,7 +2419,7 @@ qboolean Bot_ScriptAction_FireAtTarget(bot_state_t *bs, char *params)
 	// set the view angle manually
 	BG_EvaluateTrajectory(&ent->s.pos, level.time, org, qfalse, -1);
 	VectorCopy(bs->origin, src);
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 	{
 		long double eyeHeight = (long double)bs->origin[2] + bs->cur_ps.viewheight;
 		src[2] = (float)eyeHeight;
@@ -2472,6 +2472,15 @@ qboolean Bot_ScriptAction_FireAtTarget(bot_state_t *bs, char *params)
 		g_entities[bs->entitynum].gDelta[0] = (float)(((long double)org[0] - src[0]) * inverseTime);
 		g_entities[bs->entitynum].gDelta[1] = (float)(((long double)org[1] - src[1]) * inverseTime);
 		g_entities[bs->entitynum].gDelta[2] = uz;
+#elif defined(_WIN32) && !defined(Q3_VM)
+		float gravity = -g_gravity.value;
+		long double verticalSpeed = sqrtl((long double)gravity * -6144.0L);
+		long double flightTime = -verticalSpeed / (long double)gravity;
+
+		flightTime += flightTime;
+		g_entities[bs->entitynum].gDelta[0] = (float)(((long double)org[0] - src[0]) / flightTime);
+		g_entities[bs->entitynum].gDelta[1] = (float)(((long double)org[1] - src[1]) / flightTime);
+		g_entities[bs->entitynum].gDelta[2] = (float)verticalSpeed;
 #else
 		float g = -g_gravity.value;
 
@@ -2487,21 +2496,11 @@ qboolean Bot_ScriptAction_FireAtTarget(bot_state_t *bs, char *params)
 	{
 		for (i = 0; i < 2; i++)
 		{
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 			{
 				int difference = TCE_TruncateNativeInteger(TCE_BotAngleDifferenceValue(
 				    bs->cur_ps.viewangles[i], bs->ideal_viewangles[i]));
 				/* Native integer abs retains signed32 wrap for INT_MIN. */
-				if (difference < 0)
-				{
-					difference = TCE_SubInt32(0, difference);
-				}
-				diff = (float)difference;
-			}
-#elif defined(_WIN32) && !defined(Q3_VM)
-			{
-				int difference = TCE_TruncateNativeInteger((long double)AngleDifference(
-				    bs->cur_ps.viewangles[i], bs->ideal_viewangles[i]));
 				if (difference < 0)
 				{
 					difference = TCE_SubInt32(0, difference);
