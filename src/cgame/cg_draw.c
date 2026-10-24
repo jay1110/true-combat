@@ -2681,16 +2681,121 @@ void CG_CheckForCursorHints(void)
 CG_DrawCrosshairNames
 =====================
 */
-/* Keep crosshair identification for server-supplied teammate information.
- * CQB no longer paints the SDK center-screen crosshair name. */
-static void CG_UpdateCrosshairTarget(void)
+static void TCE_DrawCrosshairNamesContents(void)
 {
-	float    zChange;
-	qboolean hitClient;
-	if (cg_drawCrosshair.integer >= 0)
+	float       *color, distance, zChange, width;
+	qboolean    hitClient = qfalse, isTank = qfalse, disguised = qfalse;
+	const char  *text, *letter, *rank;
+	int         target, viewer;
+
+	if (cg_drawCrosshair.integer < 0)
 	{
-		CG_ScanForCrosshairEntity(&zChange, &hitClient);
+		return;
 	}
+	distance = CG_ScanForCrosshairEntity(&zChange, &hitClient);
+	if (cg.renderingThirdPerson)
+	{
+		return;
+	}
+	color = CG_FadeColor(cg.crosshairClientTime, 1000);
+	if (!color)
+	{
+		trap_R_SetColor(NULL);
+		return;
+	}
+	target = cg.crosshairClientNum;
+	viewer = cg.snap->ps.clientNum;
+	if (target > MAX_CLIENTS)
+	{
+		if (!cg_drawCrosshairNames.integer || cgs.clientinfo[viewer].team == TEAM_SPECTATOR)
+		{
+			return;
+		}
+		if (cg_entities[target].currentState.eType == ET_MOVER && cg_entities[target].currentState.effect1Time)
+		{
+			isTank = qtrue;
+			text = Info_ValueForKey(CG_ConfigString(CS_SCRIPT_MOVER_NAMES), va("%i", target));
+			if (!*text)
+			{
+				return;
+			}
+			width = CG_DrawStrlen(text) * SMALLCHAR_WIDTH;
+			CG_DrawSmallStringColor((int)(426 - width * .5f), 170, text, color);
+		}
+		else
+		{
+			if (cg_entities[target].currentState.eType != ET_CONSTRUCTIBLE_MARKER)
+			{
+				return;
+			}
+			text = Info_ValueForKey(CG_ConfigString(CS_CONSTRUCTION_NAMES), va("%i", target));
+			if (!*text)
+			{
+				return;
+			}
+			width = CG_DrawStrlen(text) * SMALLCHAR_WIDTH;
+			CG_DrawSmallStringColor((int)(426 - width * .5f), 170, text, color);
+			return;
+		}
+	}
+	else if (cgs.clientinfo[target].team != cgs.clientinfo[viewer].team)
+	{
+		if (!(cg_entities[target].currentState.powerups & (1 << PW_OPS_DISGUISED)) ||
+		    cgs.clientinfo[viewer].team == TEAM_SPECTATOR)
+		{
+			return;
+		}
+		if (cgs.clientinfo[viewer].skill[SK_SIGNALS] >= 4 && cgs.clientinfo[viewer].cls == PC_FIELDOPS)
+		{
+			text = CG_TranslateString("Disguised Enemy!");
+			width = CG_DrawStrlen(text) * SMALLCHAR_WIDTH;
+			CG_DrawSmallStringColor((int)(426 - width * .5f), 170, text, color);
+			return;
+		}
+		if (distance <= 512 || !cg_drawCrosshairNames.integer)
+		{
+			return;
+		}
+		disguised = qtrue;
+		letter = BG_ClassLetterForNumber((cg_entities[target].currentState.powerups >> PW_OPS_CLASS_1) & 6);
+		rank = cgs.clientinfo[target].team == TEAM_AXIS ?
+		       rankNames_Allies[cgs.clientinfo[target].disguiseRank] : rankNames_Axis[cgs.clientinfo[target].disguiseRank];
+		text = va("[%s] %s %s", CG_TranslateString(letter), rank, cgs.clientinfo[target].disguiseName);
+		width = CG_DrawStrlen(text) * SMALLCHAR_WIDTH;
+		CG_DrawSmallStringColor((int)(426 - width * .5f), 170, text, color);
+	}
+	if (!cg_drawCrosshairNames.integer || isTank)
+	{
+		return;
+	}
+	if (cgs.clientinfo[viewer].team == TEAM_SPECTATOR ||
+	    cgs.clientinfo[target].team == cgs.clientinfo[viewer].team ||
+	    cg.time - cg.tceCrosshairTargetTime > 1500)
+	{
+		BG_ClassLetterForNumber(cg_entities[target].currentState.teamNum);
+		text = va(cgs.clientinfo[target].team == cgs.clientinfo[viewer].team ? "%s" : "Enemy: %s",
+		          cgs.clientinfo[target].name);
+		color[0] = cgs.clientinfo[target].team == TEAM_ALLIES ? 0 : .7f;
+		color[1] = 0;
+		color[2] = cgs.clientinfo[target].team == TEAM_ALLIES ? .7f : 0;
+		width = CG_Text_Width_Ext(text, .2f, 0, &cgs.media.limboFont1);
+		CG_Text_Paint_Ext(426 - (int)width * .5f, 378, .2f, .2f, color, text, 0, 0, 3, &cgs.media.limboFont1);
+		trap_R_SetColor(NULL);
+	}
+	else if (disguised)
+	{
+		trap_R_SetColor(NULL);
+	}
+}
+
+static void CG_DrawCrosshairNames(void)
+{
+	extern qboolean tce_uiCoordinates;
+	qboolean previous = tce_uiCoordinates;
+
+	tce_uiCoordinates = qtrue;
+	TCE_DrawCrosshairNamesContents();
+	tce_uiCoordinates = previous;
 }
 
 /* CQB CG_Draw2D 0005a5c0 overhead labels, adapted to native TC structures.
@@ -5283,7 +5388,7 @@ static void CG_Draw2D(void)
 		if (cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR)
 		{
 			CG_DrawSpectator();
-			CG_UpdateCrosshairTarget();
+			CG_DrawCrosshairNames();
 
 			// NERVE - SMF - we need to do this for spectators as well
 			CG_DrawTeamInfo();
@@ -5294,7 +5399,7 @@ static void CG_Draw2D(void)
 			if (cg.snap->ps.stats[STAT_HEALTH] > 0 || (cg.snap->ps.pm_flags & PMF_FOLLOW))
 			{
 
-				CG_UpdateCrosshairTarget();
+				CG_DrawCrosshairNames();
 
 				CG_DrawNoShootIcon();
 
