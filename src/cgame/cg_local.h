@@ -2820,6 +2820,9 @@ void    CG_AddLocalEntities(void);
 // cg_effects.c
 //
 int CG_GetOriginForTag(centity_t *cent, refEntity_t *parent, char *tagName, int startIndex, vec3_t org, vec3_t axis[3]);
+localEntity_t *CG_ImpactDebrisModel(const vec3_t origin, const vec3_t velocity,
+                                  float radius, float red, float green, float blue, float alpha, float duration,
+                                  int startTime, int fadeInTime, int flags, qhandle_t shader);
 localEntity_t *CG_SmokePuff(const vec3_t p,
                             const vec3_t vel,
                             float radius,

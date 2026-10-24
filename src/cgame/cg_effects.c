@@ -132,6 +132,72 @@ static byte CG_PuffColorByte(float color)
 }
 #endif
 
+localEntity_t *CG_ImpactDebrisModel(const vec3_t origin, const vec3_t velocity,
+                                  float radius, float red, float green, float blue, float alpha, float duration,
+                                  int startTime, int fadeInTime, int flags, qhandle_t shader)
+{
+	static int    seed = 0x92;
+	localEntity_t *le = CG_AllocLocalEntity();
+	refEntity_t   *re = &le->refEntity;
+	long double   rotation;
+
+	/* The original keeps the puff signature but leaves velocity unused. */
+	(void)velocity;
+	le->radius = radius;
+	le->leFlags = flags;
+	rotation = (long double)Q_random(&seed) * 360.0f;
+	re->radius = radius;
+	re->rotation = (float)rotation;
+	re->shaderTime = (float)((long double)startTime * 0.001f);
+	le->leType = LE_TCE_SHRINK_WIDEN;
+	le->startTime = startTime;
+#if defined(__linux__) && !defined(Q3_VM)
+	le->endTime = TCE_TruncateNativeInteger((long double)startTime + duration);
+	le->fadeInTime = fadeInTime;
+	le->lifeRate = (float)(1.0L / TCE_SubInt32(le->endTime, fadeInTime > startTime ? fadeInTime : startTime));
+#else
+	le->endTime = (int)((double)startTime + duration);
+	le->fadeInTime = fadeInTime;
+	le->lifeRate = 1.0f / (le->endTime - (fadeInTime > startTime ? fadeInTime : startTime));
+#endif
+	VectorSet(le->color, red, green, blue);
+	le->color[3] = alpha;
+	le->pos.trType = TR_STATIONARY;
+	le->pos.trTime = startTime;
+	VectorCopy(origin, le->pos.trBase);
+	VectorCopy(origin, re->origin);
+	re->customShader = shader;
+	if (cgs.glconfig.hardwareType == GLHW_RAGEPRO)
+	{
+		re->shaderRGBA[0] = re->shaderRGBA[1] = re->shaderRGBA[2] = 255;
+		re->customShader = cgs.media.smokePuffRageProShader;
+	}
+	else
+	{
+#if defined(__linux__) && !defined(Q3_VM)
+		re->shaderRGBA[0] = CG_PuffColorByte(le->color[0]);
+		re->shaderRGBA[1] = CG_PuffColorByte(le->color[1]);
+		re->shaderRGBA[2] = CG_PuffColorByte(le->color[2]);
+#else
+		re->shaderRGBA[0] = (byte)(int)((double)le->color[0] * 255);
+		re->shaderRGBA[1] = (byte)(int)((double)le->color[1] * 255);
+		re->shaderRGBA[2] = (byte)(int)((double)le->color[2] * 255);
+#endif
+	}
+	re->shaderRGBA[3] = 255;
+	if (cg_fxflags & 1)
+	{
+		re->customShader = getTestShader();
+		re->rotation = 180;
+	}
+	re->radius = le->radius;
+	re->reType = RT_MODEL;
+	re->hModel = cgs.media.tceSplinterModel;
+	le->leFlags |= 0x400;
+	re->customShader = 0;
+	return le;
+}
+
 localEntity_t *CG_SmokePuff(const vec3_t origin, const vec3_t velocity,
                             float radius, float red, float green, float blue, float alpha, float duration,
                             int startTime, int fadeInTime, int flags, qhandle_t shader)
