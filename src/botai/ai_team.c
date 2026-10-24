@@ -3577,7 +3577,11 @@ int BotGetLeader(bot_state_t *bs, qboolean onlyRequested)
 	gentity_t  *trav;
 	bot_goal_t goal;
 
+#if defined(__linux__)
+	int heavyWeapons[] = { TCE_ITEM_WEAPON_PANZERFAUST, WP_MOBILE_MG42, -1 };
+#else
 	int heavyWeapons[] = { WP_PANZERFAUST, WP_MOBILE_MG42, -1 };
+#endif
 
 	qboolean    requested, bestRequested = qfalse;
 	int         list[MAX_CLIENTS], numList;
