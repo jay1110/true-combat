@@ -3407,7 +3407,7 @@ qboolean BotDangerousGoal(bot_state_t *bs, bot_goal_t *goal)
 	int       dangerEnts[MAX_DANGER_ENTS];
 	int       dangerEntsCount = 0;
 
-#if defined(__linux__) && !defined(Q3_VM)
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 	if (bs->last_dangerousgoal > TCE_SubInt32(level.time, 300))
 #else
 	if (bs->last_dangerousgoal > level.time - 300)
@@ -3415,7 +3415,7 @@ qboolean BotDangerousGoal(bot_state_t *bs, bot_goal_t *goal)
 	{
 		return qfalse;
 	}
-#if defined(__linux__) && !defined(Q3_VM)
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 	bs->last_dangerousgoal = TCE_AddInt32(level.time, rand() % 100);
 #else
 	bs->last_dangerousgoal = level.time + rand() % 100;
@@ -3423,7 +3423,7 @@ qboolean BotDangerousGoal(bot_state_t *bs, bot_goal_t *goal)
 
 	if (dangerEntsCount < MAX_DANGER_ENTS)
 	{
-#if defined(__linux__) && !defined(Q3_VM)
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 		if (TCE_SubInt32(level.time, level.clients[bs->client].lastConstructibleBlockingWarnTime) < 5000)
 #else
 		if (level.time - level.clients[bs->client].lastConstructibleBlockingWarnTime < 5000)
@@ -3523,7 +3523,7 @@ qboolean BotDangerousGoal(bot_state_t *bs, bot_goal_t *goal)
 			case MOD_PANZERFAUST:
 			case MOD_GRENADE:
 			case MOD_GRENADE_LAUNCHER:
-#if defined(__linux__) && !defined(Q3_VM)
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 				if (trav->nextthink > TCE_AddInt32(TCE_AddInt32(level.time, 2000), TCE_MulInt32(8, trav->splashRadius)))
 #else
 				if (trav->nextthink > level.time + (2000 + 8 * trav->splashRadius))
@@ -3531,7 +3531,7 @@ qboolean BotDangerousGoal(bot_state_t *bs, bot_goal_t *goal)
 				{
 					continue;
 				}
-#if defined(__linux__) && !defined(Q3_VM)
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 				if (!G_PredictMissile(trav, TCE_SubInt32(trav->nextthink, level.time), bangPos, trav->methodOfDeath == MOD_PANZERFAUST ? qfalse : qtrue))
 #else
 				if (!G_PredictMissile(trav, trav->nextthink - level.time, bangPos, trav->methodOfDeath == MOD_PANZERFAUST ? qfalse : qtrue))
@@ -3620,7 +3620,7 @@ qboolean BotDangerousGoal(bot_state_t *bs, bot_goal_t *goal)
 			bs->avoid_goal.number    = radius;
 			if (trav->s.eType == ET_MISSILE && trav->methodOfDeath == MOD_ARTY)
 			{
-#if defined(__linux__) && !defined(Q3_VM)
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 				bs->avoid_goal.goalEndTime = TCE_AddInt32(level.time, 15000);
 #else
 				bs->avoid_goal.goalEndTime = level.time + 15000;
@@ -3628,7 +3628,7 @@ qboolean BotDangerousGoal(bot_state_t *bs, bot_goal_t *goal)
 			}
 			else
 			{
-#if defined(__linux__) && !defined(Q3_VM)
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 				bs->avoid_goal.goalEndTime = TCE_AddInt32(level.time, 100);
 #else
 				bs->avoid_goal.goalEndTime = level.time + 100;
