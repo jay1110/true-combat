@@ -27,12 +27,24 @@
 #include "ai_main.h"
 #include "ai_dmq3.h"
 
+/* x86 masks a variable bit position to its low five bits. */
+static int BotScriptBitMask(int bit)
+{
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
+	return TCE_Int32FromUnsigned(1u << ((unsigned)bit & 31u));
+#else
+	return 1 << bit;
+#endif
+}
+
+
 /*
 Contains the code to handle the various commands available with an event script.
 
 These functions will return true if the action has been performed, and the script
 should proceed to the next item on the list.
 */
+
 
 qboolean Bot_ScriptAction_SetSpeed(bot_state_t *bs, char *params)
 {
@@ -423,7 +435,11 @@ qboolean Bot_ScriptAction_Accum(bot_state_t *bs, char *params)
 		{
 			Bot_ScriptError(bs, "accum:: %s requires a parameter", lastToken);
 		}
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
+		bs->script.accumBuffer[bufferIndex] = TCE_AddInt32(bs->script.accumBuffer[bufferIndex], atoi(token));
+#else
 		bs->script.accumBuffer[bufferIndex] += atoi(token);
+#endif
 	}
 	else if (!Q_stricmp(lastToken, "abort_if_less_than"))
 	{
@@ -479,7 +495,7 @@ qboolean Bot_ScriptAction_Accum(bot_state_t *bs, char *params)
 		{
 			Bot_ScriptError(bs, "accum: %s requires a parameter", lastToken);
 		}
-		bs->script.accumBuffer[bufferIndex] |= (1 << atoi(token));
+		bs->script.accumBuffer[bufferIndex] |= BotScriptBitMask(atoi(token));
 	}
 	else if (!Q_stricmp(lastToken, "bitclear"))
 	{
@@ -487,7 +503,7 @@ qboolean Bot_ScriptAction_Accum(bot_state_t *bs, char *params)
 		{
 			Bot_ScriptError(bs, "accum: %s requires a parameter", lastToken);
 		}
-		bs->script.accumBuffer[bufferIndex] &= ~(1 << atoi(token));
+		bs->script.accumBuffer[bufferIndex] &= ~BotScriptBitMask(atoi(token));
 	}
 	else if (!Q_stricmp(lastToken, "abort_if_bitset"))
 	{
@@ -495,7 +511,7 @@ qboolean Bot_ScriptAction_Accum(bot_state_t *bs, char *params)
 		{
 			Bot_ScriptError(bs, "accum: %s requires a parameter", lastToken);
 		}
-		if (bs->script.accumBuffer[bufferIndex] & (1 << atoi(token)))
+		if (bs->script.accumBuffer[bufferIndex] & BotScriptBitMask(atoi(token)))
 		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
@@ -507,7 +523,7 @@ qboolean Bot_ScriptAction_Accum(bot_state_t *bs, char *params)
 		{
 			Bot_ScriptError(bs, "accum: %s requires a parameter", lastToken);
 		}
-		if (!(bs->script.accumBuffer[bufferIndex] & (1 << atoi(token))))
+		if (!(bs->script.accumBuffer[bufferIndex] & BotScriptBitMask(atoi(token))))
 		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
@@ -527,7 +543,14 @@ qboolean Bot_ScriptAction_Accum(bot_state_t *bs, char *params)
 		{
 			Bot_ScriptError(bs, "accum: %s requires a parameter", lastToken);
 		}
+#if defined(_WIN32) && !defined(Q3_VM)
+		{
+			int divisor = atoi(token);
+			bs->script.accumBuffer[bufferIndex] = rand() % divisor;
+		}
+#else
 		bs->script.accumBuffer[bufferIndex] = rand() % atoi(token);
+#endif
 	}
 	else if (!Q_stricmp(lastToken, "trigger_if_equal"))
 	{
@@ -1233,7 +1256,11 @@ qboolean Bot_ScriptAction_GlobalAccum(bot_state_t *bs, char *params)
 		{
 			Bot_ScriptError(bs, "globalAccum:: %s requires a parameter", lastToken);
 		}
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
+		level.globalAccumBuffer[bufferIndex] = TCE_AddInt32(level.globalAccumBuffer[bufferIndex], atoi(token));
+#else
 		level.globalAccumBuffer[bufferIndex] += atoi(token);
+#endif
 	}
 	else if (!Q_stricmp(lastToken, "abort_if_less_than"))
 	{
@@ -1289,7 +1316,7 @@ qboolean Bot_ScriptAction_GlobalAccum(bot_state_t *bs, char *params)
 		{
 			Bot_ScriptError(bs, "globalAccum: %s requires a parameter", lastToken);
 		}
-		level.globalAccumBuffer[bufferIndex] |= (1 << atoi(token));
+		level.globalAccumBuffer[bufferIndex] |= BotScriptBitMask(atoi(token));
 	}
 	else if (!Q_stricmp(lastToken, "bitclear"))
 	{
@@ -1297,7 +1324,7 @@ qboolean Bot_ScriptAction_GlobalAccum(bot_state_t *bs, char *params)
 		{
 			Bot_ScriptError(bs, "globalAccum: %s requires a parameter", lastToken);
 		}
-		level.globalAccumBuffer[bufferIndex] &= ~(1 << atoi(token));
+		level.globalAccumBuffer[bufferIndex] &= ~BotScriptBitMask(atoi(token));
 	}
 	else if (!Q_stricmp(lastToken, "abort_if_bitset"))
 	{
@@ -1305,7 +1332,7 @@ qboolean Bot_ScriptAction_GlobalAccum(bot_state_t *bs, char *params)
 		{
 			Bot_ScriptError(bs, "globalAccum: %s requires a parameter", lastToken);
 		}
-		if (level.globalAccumBuffer[bufferIndex] & (1 << atoi(token)))
+		if (level.globalAccumBuffer[bufferIndex] & BotScriptBitMask(atoi(token)))
 		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
@@ -1317,7 +1344,7 @@ qboolean Bot_ScriptAction_GlobalAccum(bot_state_t *bs, char *params)
 		{
 			Bot_ScriptError(bs, "globalAccum: %s requires a parameter", lastToken);
 		}
-		if (!(level.globalAccumBuffer[bufferIndex] & (1 << atoi(token))))
+		if (!(level.globalAccumBuffer[bufferIndex] & BotScriptBitMask(atoi(token))))
 		{
 			// abort the current script
 			bs->script.status.stackHead = bs->script.data->events[bs->script.status.eventIndex].stack.numItems;
@@ -1337,7 +1364,14 @@ qboolean Bot_ScriptAction_GlobalAccum(bot_state_t *bs, char *params)
 		{
 			Bot_ScriptError(bs, "globalAccum: %s requires a parameter", lastToken);
 		}
+#if defined(_WIN32) && !defined(Q3_VM)
+		{
+			int divisor = atoi(token);
+			level.globalAccumBuffer[bufferIndex] = rand() % divisor;
+		}
+#else
 		level.globalAccumBuffer[bufferIndex] = rand() % atoi(token);
+#endif
 	}
 	else
 	{
