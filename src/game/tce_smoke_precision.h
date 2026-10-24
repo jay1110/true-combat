@@ -93,6 +93,10 @@ static __inline double TCE_SmokeSquaredRadius(float radius)
 	double result;
 
 	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return (double)((long double)radius * (long double)radius);
+	}
 	TCE_TriggerProduct(&squared, radius, radius, control);
 	for (highest = 575; highest >= 0; --highest)
 	{
@@ -135,6 +139,19 @@ static __inline float TCE_SmokeRadius32(int elapsed)
 	TCE_TriggerPlace(&value, (unsigned)low, 232);
 	TCE_TriggerPlace(&value, high, 264);
 	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		long double radius = (long double)elapsed * (long double)0.0001;
+		volatile float stored;
+
+		radius *= (long double)320.0;
+		stored = (float)radius;
+		if (radius > (long double)320.0)
+		{
+			stored = 320.0f;
+		}
+		return stored;
+	}
 	TCE_TriggerRound(&value, control);
 	TCE_InterpolationMultiply(&value, 0x43a00000u, control);
 	result = TCE_RotateStore(value, control);

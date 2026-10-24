@@ -3,6 +3,7 @@
 
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 #include "tce_ratio_precision.h"
+#include "tce_numeric.h"
 
 /* The caller establishes a nonzero wrapped duration before dividing. */
 static __inline float TCE_InterpolationFactor32(int elapsed, int duration)
@@ -13,6 +14,10 @@ static __inline float TCE_InterpolationFactor32(int elapsed, int duration)
 	n = elapsed < 0 ? 0u - (unsigned)elapsed : (unsigned)elapsed;
 	d = duration < 0 ? 0u - (unsigned)duration : (unsigned)duration;
 	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return (float)((long double)elapsed / (long double)duration);
+	}
 	return TCE_RatioFloat32(n, d, 0, negative, control);
 }
 
@@ -155,6 +160,12 @@ static __inline int TCE_InterpolateCycleLow32(int difference, float factor,
 	unsigned bits, exponent, mantissa, magnitude, control, low = 0, high = 0;
 	int bit, result;
 
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return TCE_TruncateNativeInteger((long double)difference * (long double)factor +
+		                                  (long double)previous);
+	}
 	memcpy(&bits, &factor, sizeof(bits));
 	exponent = (bits >> 23) & 255u;
 	if (exponent == 255u)
@@ -166,7 +177,6 @@ static __inline int TCE_InterpolateCycleLow32(int difference, float factor,
 	magnitude = difference < 0 ? 0u - (unsigned)difference : (unsigned)difference;
 	TCE_TriggerPlace(&value, (unsigned long long)magnitude * mantissa,
 	                 (exponent ? (int)exponent - 1 : 0) + 149);
-	__control87_2(0, 0, &control, NULL);
 	TCE_TriggerRound(&value, control);
 	start.negative = previous < 0;
 	magnitude = previous < 0 ? 0u - (unsigned)previous : (unsigned)previous;

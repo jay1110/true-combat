@@ -3,6 +3,7 @@
 
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 #include "tce_trigger_precision.h"
+#include "tce_numeric.h"
 
 /* FILD milliseconds; FMUL binary32 .001; FADD one; __ftol, with no
  * binary32 store between the arithmetic and integer conversion.
@@ -19,6 +20,11 @@ static __inline int TCE_ReinforcementSecondsLow32(int milliseconds)
 	/* .001f is exactly 0x83126f * 2^-33. */
 	TCE_TriggerPlace(&value, (unsigned long long)magnitude * 0x83126fu, 265);
 	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return TCE_TruncateNativeInteger((long double)milliseconds * (long double)0.001f +
+		                                  1.0L);
+	}
 	TCE_TriggerRound(&value, control);
 	TCE_TriggerPlace(&one, 1u, 298);
 	TCE_TriggerAdd(&value, &one, control);

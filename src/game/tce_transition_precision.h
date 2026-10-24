@@ -39,8 +39,8 @@ static __inline int TCE_TransitionDivide32(int numerator, float denominator,
 }
 
 /* Hold the rounded subtraction across the original rectangle copies.
- * Only nonfinite inputs evaluate the previous floating-point fallback.
- * Exception flags and unmasked traps are not reproduced. */
+ * Nonfinite inputs and unmasked exceptions use the floating-point fallback.
+ * Full exception status and native trap timing remain separate. */
 static __inline tceTransitionDifference_t TCE_TransitionDifferenceValue(float to,
                                                                        float from)
 {
@@ -49,7 +49,8 @@ static __inline tceTransitionDifference_t TCE_TransitionDifferenceValue(float to
 	unsigned control;
 
 	__control87_2(0, 0, &control, NULL);
-	if (!TCE_TriggerProduct(&result.value, to, 1.0f, control) ||
+	if (!TCE_FiniteExceptionsMasked(control) ||
+	    !TCE_TriggerProduct(&result.value, to, 1.0f, control) ||
 	    !TCE_TriggerProduct(&start, from, 1.0f, control))
 	{
 		result.fallback = (long double)to - (long double)from;
