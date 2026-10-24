@@ -13,6 +13,7 @@
 #include "cg_local.h"
 #include <stddef.h>
 #include "../game/tce_numeric.h"
+#include "../game/tce_gust_precision.h"
 
 #define MAX_ATMOSPHERIC_HEIGHT          MAX_MAP_SIZE    // maximum world height
 #define MIN_ATMOSPHERIC_HEIGHT          -MAX_MAP_SIZE   // minimum world height
@@ -1143,6 +1144,15 @@ static qboolean CG_EffectGustCurrent(vec3_t curr, float *weight, int *num)
 	end = cg_atmFx.gustStartTime;
 	if (time < end)
 	{
+#if !defined(Q3_VM)
+		if (TCE_FiniteGust(TCE_SubInt32(time, start), TCE_SubInt32(end, start), 0,
+		                   cg_atmFx.baseVec, cg_atmFx.gustVec,
+		                   cg_atmFx.baseWeight, cg_atmFx.gustWeight,
+		                   cg_atmFx.baseDrops, cg_atmFx.gustDrops, curr, weight, num))
+		{
+			return qfalse;
+		}
+#endif
 		fraction = (long double)TCE_SubInt32(time, start) / TCE_SubInt32(end, start);
 	}
 	else if (time < cg_atmFx.gustEndTime)
@@ -1157,6 +1167,15 @@ static qboolean CG_EffectGustCurrent(vec3_t curr, float *weight, int *num)
 		fading = qtrue;
 		start = cg_atmFx.gustEndTime;
 		end = cg_atmFx.baseStartTime;
+#if !defined(Q3_VM)
+		if (TCE_FiniteGust(TCE_SubInt32(time, start), TCE_SubInt32(end, start), 1,
+		                   cg_atmFx.baseVec, cg_atmFx.gustVec,
+		                   cg_atmFx.baseWeight, cg_atmFx.gustWeight,
+		                   cg_atmFx.baseDrops, cg_atmFx.gustDrops, curr, weight, num))
+		{
+			return cg.time >= cg_atmFx.baseStartTime ? qtrue : qfalse;
+		}
+#endif
 		fraction = 1.0L - (long double)TCE_SubInt32(time, start) / TCE_SubInt32(end, start);
 	}
 
