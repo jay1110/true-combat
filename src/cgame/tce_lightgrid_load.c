@@ -39,12 +39,19 @@ static void TCE_LightGridCount(const float *gridBounds, double *guardCount)
 }
 #endif
 
-/* CG_Init Windows30048d37..30048d6e, before sound/graphics registration. */
+/* CG_Init fills this table before sound/graphics registration. */
 void TCE_CG_InitLightSine(void)
 {
 	int i;
 	for (i = 0; i < 1024; ++i)
+	{
+#if defined(__linux__) && !defined(Q3_VM)
+		/* Linux keeps the binary32 step and binary64 radians factor in x87. */
+		mapSine[i] = (float)sinl((long double)i * 0.3519061505794525f * 0.017453292519943295);
+#else
 		mapSine[i] = (float)sin((double)i * 0.3519061505794525f * 3.1415927410125732f * 0.0055555556900799274f);
+#endif
+	}
 }
 
 const tce_lightGrid_t *TCE_CG_MapLightGrid(void)

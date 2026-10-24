@@ -576,7 +576,7 @@ Handles both ground friction and water friction
 ==================
 */
 /* Native TCE friction; saved-Z handling is defined for airborne extensions. */
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 static void PM_Friction(void)
 {
 	float          *velocity = pm->ps->velocity;
