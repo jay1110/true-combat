@@ -1,10 +1,10 @@
 #include "cg_local.h"
 #include "tce_impact_particles.h"
 #include "tce_lightgrid.h"
-/* Windows 3002a870. Original mutates the caller's direction by normalization. */
+/* Windows 3002a870 / Linux 000579a4. Both normalize the caller's direction. */
 
 
-/* Float output boundaries for impact arithmetic; native FPU parity remains open. */
+/* Stored-float boundaries and platform arithmetic order from the originals. */
 static float impactMultiply(float first, float second)
 {
 	float result;
@@ -38,6 +38,29 @@ static float impactRandomOutput(int mode)
 		value *= mode == 3 ? (long double)chipSpin : (long double)smokeSpin;
 	}
 	result = (float)value;
+#elif defined(__linux__)
+	long double value;
+	if (mode == 2)
+	{
+		/* Linux folds the angle coefficient to binary32 before the sample. */
+		const float angleUnit = angleCircle * randomUnit;
+		value = (long double)sample * angleUnit;
+	}
+	else
+	{
+		value = (long double)sample * randomUnit;
+		if (mode == 1)
+		{
+			value += randomHalf;
+		}
+		else if (mode != 0)
+		{
+			value -= centeredHalf;
+			value += value;
+			value *= mode == 3 ? chipSpin : smokeSpin;
+		}
+	}
+	result = (float)value;
 #else
 	{ double r = sample * (double)randomUnit;
 	  result = (float)(mode == 0?r:mode == 1?r + .5:mode == 2?r * 360:(r - .5) * 2 * (mode == 3?720:90)); }
@@ -51,14 +74,29 @@ static int impactChipLifetime(void)
 #if defined(_MSC_VER) && defined(_M_IX86)
 	result = (int)(((long double)sample * (long double)randomUnit +
 	                (long double)lifeOne) * (long double)lifeBase);
+#elif defined(__linux__)
+	long double value = (long double)sample * lifeBase;
+	value *= randomUnit;
+	value += lifeBase;
+	result = (int)value;
 #else
 	result = (int)((sample * (double)randomUnit + 1) * 500);
 #endif
 	return result;
 }
+#if defined(__linux__)
+static long double impactSmokeSpeed(float randomScale, float speedScale)
+#else
 static float impactSmokeSpeed(float randomScale, float speedScale)
+#endif
 {
 	const float geomRange = 16.0f, geomBase = 26.0f;
+#if defined(__linux__)
+	/* Keep the speed until all three normalized components have been scaled. */
+	long double speed = (long double)randomScale * geomRange;
+	speed += geomBase;
+	return speed * speedScale;
+#else
 	float       result;
 #if defined(_MSC_VER) && defined(_M_IX86)
 	result = (float)(((long double)randomScale * (long double)geomRange +
@@ -67,6 +105,7 @@ static float impactSmokeSpeed(float randomScale, float speedScale)
 	result = (float)((randomScale * 16.0 + 26.0) * speedScale);
 #endif
 	return result;
+#endif
 }
 static void impactSmokeGeometry(int index, float spread,
                                 const vec3_t origin, const vec3_t direction,
@@ -74,7 +113,7 @@ static void impactSmokeGeometry(int index, float spread,
 {
 	int         factorIndex = index + 2;
 	const float geomOne = 1.0f, geomThird = 1.0f / 3.0f;
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
 	float       indexFloat = (float)((long double)index + (long double)geomOne);
 	long double distance   = (long double)spread * (long double)indexFloat;
 	int         j;
@@ -101,6 +140,13 @@ static float impactSmokeLifetime(float factor, float life, float lifeScale)
 	value *= (long double)lifeJitter;
 	value += (long double)factor * (long double)life;
 	result = (float)(value * (long double)lifeScale);
+#elif defined(__linux__)
+	const float lifeJitterUnit = lifeJitter * randomUnit;
+	const float baseLife = (float)((long double)factor * life);
+	long double value = (long double)sample * life;
+	value *= lifeJitterUnit;
+	value += baseLife;
+	result = (float)(value * lifeScale);
 #else
 	result = (float)((factor * (double)life + sample * (double)randomUnit * life * lifeJitter) * lifeScale);
 #endif
@@ -110,7 +156,7 @@ static void impactSmokeTrajectory(int index, float life, float gravity, int *dur
 {
 	const float timeOne = 1.0f, timeHalf = .5f;
 	float       indexFloat = (float)(index + 1);
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
 	long double factor = (long double)indexFloat * (long double)timeHalf +
 	                     (long double)timeOne;
 	/* Only the bounded material lifetimes and indices from the producer enter here. */
@@ -128,7 +174,7 @@ static float impactDirectionComponent(float base, qboolean dust)
 	const float  randomUnit = 1.0f / 32767.0f;
 	const double randomHalf = 0.5, dustSpread = 0.25;
 	float        component;
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
 	long double value = (long double)sample * (long double)randomUnit;
 	value -= (long double)randomHalf;
 	value += value;
@@ -156,11 +202,29 @@ static float impactChipSpeed(float component, float scale)
 	value *= (long double)scale;
 	value *= (long double)speedFraction;
 	result = (float)(value * (long double)component);
+#elif defined(__linux__)
+	long double value = (long double)sample * speedRange;
+	value *= randomUnit;
+	value += speedBase;
+	value *= scale;
+	value *= component;
+	result = (float)(value * speedFraction);
 #else
 	result = (float)((sample * (double)randomUnit * speedRange + speedBase) *
 	                 scale * speedFraction * component);
 #endif
 	return result;
+}
+
+static float impactChipGravity(float radius)
+{
+#if defined(__linux__)
+	long double fraction = 1.0L / 1.5L;
+	long double gravity = (long double)radius * fraction;
+	return (float)(gravity * .4f);
+#else
+	return impactMultiply(radius, .26666668f);
+#endif
 }
 void TCE_CG_ParticleTest(vec3_t origin, vec3_t direction, int count, int material, float alpha, const tce_impactParticleMedia_t *media)
 {
@@ -213,7 +277,7 @@ dustCommon: color[3] = impactMultiply(alpha, .6f); count = 0; life = 200; trajec
 		duration   = impactChipLifetime();
 		radius     = impactRandomOutput(1);
 		le         = CG_SmokePuff(origin, velocity, radius, chipColor[0], chipColor[1], chipColor[2], chipColor[3], duration, cg.time, 0, 0, media->blood);
-		le->leType = (leType_t)16; le->tceGravity = impactMultiply(radius, .26666668f); le->fadeInTime = (int)((unsigned)cg.time - 250u + (unsigned)duration);
+		le->leType = (leType_t)16; le->tceGravity = impactChipGravity(radius); le->fadeInTime = (int)((unsigned)cg.time - 250u + (unsigned)duration);
 		if (le->leFlags == 2)
 		{
 			le->angles.trBase[0] = impactRandomOutput(2); le->angles.trDelta[0] = impactRandomOutput(3);
@@ -221,15 +285,27 @@ dustCommon: color[3] = impactMultiply(alpha, .6f); count = 0; life = 200; trajec
 	}
 	if (puffCount)
 	{
+#if !defined(__linux__)
 		float speed = impactSmokeSpeed(randomScale, speedScale);
+#endif
 		for (i = 0; i < puffCount; ++i)
 		{
 			float factor, size, duration, g; int trDuration;
 			for (j = 0; j < 3; ++j)
 				velocity[j] = impactDirectionComponent(originalDirection[j], qtrue);
 			VectorNormalize(velocity);
+#if defined(__linux__)
+			{
+				long double speed = impactSmokeSpeed(randomScale, speedScale);
+				for (j = 0; j < 3; ++j)
+				{
+					velocity[j] = (float)(speed * velocity[j]);
+				}
+			}
+#else
 			for (j = 0; j < 3; ++j)
 				velocity[j] = impactMultiply(speed, velocity[j]);
+#endif
 			impactSmokeGeometry(i, spread, origin, direction, position, &factor);
 			duration              = impactSmokeLifetime(factor, life, lifeScale);
 			size                  = impactMultiply(factor, spread);
