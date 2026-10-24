@@ -1065,17 +1065,18 @@ void ClientEvents(gentity_t *ent, int oldEventSequence)
 {
 	int       i;
 	int       event;
+	int       weaponStat;
 	gclient_t *client;
 	int       damage;
 	gentity_t *objective;
 
 	client = ent->client;
 
-	if (oldEventSequence < client->ps.eventSequence - MAX_EVENTS)
+	if (oldEventSequence < TCE_SubInt32(client->ps.eventSequence, MAX_EVENTS))
 	{
-		oldEventSequence = client->ps.eventSequence - MAX_EVENTS;
+		oldEventSequence = TCE_SubInt32(client->ps.eventSequence, MAX_EVENTS);
 	}
-	for ( i = oldEventSequence ; i < client->ps.eventSequence ; i++ )
+	for ( i = oldEventSequence ; i < client->ps.eventSequence ; i = TCE_AddInt32(i, 1) )
 	{
 		event = client->ps.events[i & (MAX_EVENTS - 1)];
 
@@ -1125,7 +1126,7 @@ void ClientEvents(gentity_t *ent, int oldEventSequence)
 			{
 				damage = 5; // never used
 			}
-			ent->pain_debounce_time = level.time + 200; // no normal pain sound
+			ent->pain_debounce_time = TCE_AddInt32(level.time, 200); // no normal pain sound
 			G_Damage(ent, NULL, NULL, NULL, NULL, damage, 0, MOD_FALLING);
 			break;
 
@@ -1139,7 +1140,9 @@ void ClientEvents(gentity_t *ent, int oldEventSequence)
 			// Only 1 stats bin for mg42
 			if (g_gamestate.integer == GS_PLAYING)
 			{
-				ent->client->sess.aWeaponStats[BG_WeapStatForWeapon(WP_MOBILE_MG42)].atts++;
+				weaponStat = BG_WeapStatForWeapon(WP_MOBILE_MG42);
+				ent->client->sess.aWeaponStats[weaponStat].atts =
+				    TCE_AddInt32(ent->client->sess.aWeaponStats[weaponStat].atts, 1);
 			}
 
 			break;
@@ -1151,7 +1154,9 @@ void ClientEvents(gentity_t *ent, int oldEventSequence)
 			// Only 1 stats bin for mg42
 			if (g_gamestate.integer == GS_PLAYING)
 			{
-				ent->client->sess.aWeaponStats[BG_WeapStatForWeapon(WP_MOBILE_MG42)].atts++;
+				weaponStat = BG_WeapStatForWeapon(WP_MOBILE_MG42);
+				ent->client->sess.aWeaponStats[weaponStat].atts =
+				    TCE_AddInt32(ent->client->sess.aWeaponStats[weaponStat].atts, 1);
 			}
 
 			break;
