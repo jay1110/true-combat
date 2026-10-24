@@ -6021,6 +6021,31 @@ static void CG_TCELinuxScopeProject(const vec3_t forward, const vec3_t right,
 
 #endif
 
+#if defined(_MSC_VER) && defined(_M_IX86)
+/* The original ST0 asin entry classifies a double copy but retains its input
+ * and the square-root chain for the angle. */
+static long double CG_TCEWindowsScopeAsin(long double value)
+{
+	const long double halfPi = 1.57079632679489661923132169163975144L;
+	double classified = (double)value;
+	long double plus, minus, product, root;
+
+	if (classified == 1.0)
+	{
+		return halfPi;
+	}
+	if (classified == -1.0)
+	{
+		return -halfPi;
+	}
+	plus = 1.L + value;
+	minus = 1.L - value;
+	product = plus * minus;
+	root = sqrtl(product);
+	return atan2l(value, root);
+}
+#endif
+
 static void CG_DrawTCEScopeScene(void)
 {
 	extern qboolean tce_uiCoordinates;
@@ -6111,21 +6136,20 @@ static void CG_DrawTCEScopeScene(void)
 	AngleVectors(cg.predictedPlayerState.viewangles, NULL, right, up);
 #if defined(_MSC_VER) && defined(_M_IX86)
 	{
-		long double dot, displacement;
-		double angle;
+		long double dot, displacement, angle;
 
 		radians = (float)((long double)cg.refdef.fov_x * 0.01745329238474369f);
 		dot     = (long double)right[2] * forward[2]
 		          + (long double)right[1] * forward[1];
 		dot         += (long double)right[0] * forward[0];
-		angle        = asin((double)dot);
+		angle        = CG_TCEWindowsScopeAsin(dot);
 		displacement = ((long double)angle / radians) * 852.0L;
 		x            = (float)(displacement + x);
 
 		dot = (long double)up[2] * forward[2]
 		      + (long double)up[1] * forward[1];
 		dot         += (long double)up[0] * forward[0];
-		angle        = asin((double)dot);
+		angle        = CG_TCEWindowsScopeAsin(dot);
 		displacement = ((long double)angle / radians) * 852.0L;
 		y            = (float)((long double)y - displacement);
 	}
