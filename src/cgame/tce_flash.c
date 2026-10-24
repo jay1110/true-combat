@@ -14,6 +14,152 @@ void TCE_CG_ResetFlash(void)
  * updates hearing only. Seven short offset traces allow exposure around edges. */
 void TCE_CG_FlashBang(const vec3_t origin, int concussionOnly)
 {
+#if defined(__linux__)
+	vec3_t viewOrigin, target, delta, start;
+	trace_t trace;
+	float scale = tceSmokeNewBBox ? 1.25f : 1.0f;
+	float cap = concussionOnly ? 8000.0f : 16000.0f;
+	float blind = 0.0f, strength = 0.0f, hearing = 0.0f;
+	float exposure = 0.0f, range, distance, shortfall;
+	long double raisedZ, facing, term, adjustedDistance;
+	int i, remaining;
+	qboolean visible = qfalse;
+
+	if (!cg.snap)
+	{
+		return;
+	}
+	if (cgs.gametype == 5 && cg.snap->ps.powerups[PW_INVULNERABLE] > 0)
+	{
+		return;
+	}
+	VectorCopy(cg.refdef.vieworg, viewOrigin);
+	target[0] = origin[0];
+	target[1] = origin[1];
+	raisedZ = (long double)origin[2] + 2.0f;
+	target[2] = (float)raisedZ;
+	delta[0] = target[0] - viewOrigin[0];
+	delta[1] = target[1] - viewOrigin[1];
+	delta[2] = (float)(raisedZ - viewOrigin[2]);
+	distance = VectorLength(delta);
+	if ((long double)scale * 500.0f > distance)
+	{
+		for (i = 0; i < 7; ++i)
+		{
+			VectorCopy(viewOrigin, start);
+			if (i)
+			{
+				start[(i - 1) / 2] += (i & 1) ? -15.0f : 15.0f;
+			}
+			CG_Trace(&trace, start, vec3_origin, vec3_origin, target,
+			         cg.snap->ps.clientNum, CONTENTS_SOLID | CONTENTS_BODY);
+			if (trace.fraction == 1.0f || TCE_FloatIsNaN(trace.fraction))
+			{
+				visible = qtrue;
+				break;
+			}
+		}
+		if (visible)
+		{
+			range = scale * 500.0f;
+			shortfall = (float)((long double)range - VectorLength(delta));
+			term = (1.0L / range) * shortfall;
+			term += term;
+			exposure = (float)term;
+			if (term > 1.0L)
+			{
+				exposure = 1.0f;
+			}
+			blind = exposure * 5000.0f;
+			strength = exposure;
+		}
+		/* Native all-blocked traces read an unset stack word here. Keep the
+		 * existing zero fallback; that original path remains unclosed. */
+		range = scale * 300.0f;
+		term = (1.0L / range) * ((long double)range - VectorLength(delta)) + exposure;
+		exposure = (float)term;
+		if (term > 1.0L)
+		{
+			exposure = 1.0f;
+		}
+		hearing = cap * exposure;
+	}
+	facing = (long double)cg.refdef.viewaxis[0][0] * delta[0]
+	         + (long double)cg.refdef.viewaxis[0][1] * delta[1]
+	         + (long double)cg.refdef.viewaxis[0][2] * delta[2];
+	if (!concussionOnly && facing > 0.0L)
+	{
+		CG_Trace(&trace, viewOrigin, vec3_origin, vec3_origin, target,
+		         cg.snap->ps.clientNum, CONTENTS_SOLID | CONTENTS_BODY);
+		if (trace.fraction >= 1.0f)
+		{
+			distance = VectorLength(delta);
+			VectorNormalize2(delta, delta);
+			adjustedDistance = distance;
+			facing = (long double)cg.refdef.viewaxis[0][0] * delta[0]
+			         + (long double)cg.refdef.viewaxis[0][1] * delta[1]
+			         + (long double)cg.refdef.viewaxis[0][2] * delta[2];
+			if (cg.tceAimActive && (cg.refdef.fov_x < 30.0f || TCE_FloatIsNaN(cg.refdef.fov_x)))
+			{
+				long double fov = cg.refdef.fov_x;
+				long double angle = (fov * (1.0f / 180.0f)) * (long double)3.141592653589793;
+				long double cosine = cosl(angle);
+				adjustedDistance = adjustedDistance * fov * (1.0f / 90.0f);
+				if (cosine >= facing)
+				{
+					facing = 0.0L;
+				}
+				else
+				{
+					shortfall = (float)(facing - cosl(angle));
+					cosine = cosl(((long double)3.141592653589793 * (1.0f / 180.0f))
+					              * cg.refdef.fov_x);
+					facing = (float)((1.0L / (1.0L - cosine)) * shortfall);
+					facing += facing;
+				}
+			}
+			if (adjustedDistance < 1000.0L)
+			{
+				term = facing * (1000.0L - adjustedDistance) * 0.001f;
+				strength = (float)((long double)strength + (float)term);
+				blind = (float)(term * 5000.0f + blind);
+			}
+			CG_SmokePuff(target, vec3_origin, 256, 1, 1, 1, 1, 250,
+			             cg.time, 0, 0x101, cgs.media.tceImpactFlare);
+		}
+	}
+	remaining = TCE_SubInt32(tceFlash.deafUntil, cg.time);
+	if (remaining > 0)
+	{
+		hearing = (float)((long double)remaining + hearing);
+	}
+	if (hearing > cap)
+	{
+		hearing = cap;
+	}
+	tceFlash.deafUntil = TCE_AddInt32(TCE_TruncateNativeInteger(hearing), cg.time);
+	if (!concussionOnly)
+	{
+		remaining = TCE_SubInt32(tceFlash.blindUntil, cg.time);
+		if (remaining > 0)
+		{
+			blind = (float)((long double)remaining + blind);
+		}
+		if (blind > 10000.0f)
+		{
+			blind = 10000.0f;
+		}
+		tceFlash.blindUntil = TCE_AddInt32(TCE_TruncateNativeInteger(blind), cg.time);
+		if (strength > 0.0f)
+		{
+			tceFlash.blindActive = TCE_TruncateNativeInteger((long double)strength + tceFlash.blindActive);
+		}
+		if (tceFlash.blindActive > 1)
+		{
+			tceFlash.blindActive = 1;
+		}
+	}
+#else
 	vec3_t  target, delta, start;
 	trace_t tr;
 	float   scale = tceSmokeNewBBox?1.25f:1.0f;
@@ -126,6 +272,7 @@ void TCE_CG_FlashBang(const vec3_t origin, int concussionOnly)
 			tceFlash.blindActive = 1;
 		}
 	}
+#endif
 }
 
 static qboolean FlashCanRender(void)

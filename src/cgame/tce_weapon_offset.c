@@ -1,5 +1,6 @@
 #include "../game/tce_bg.h"
 #include "tce_weapon_offset.h"
+#include "../game/tce_numeric.h"
 
 /* CG_EliteFPWeaponOffset30072360. Double intermediates reproduce x87 math
  * until the explicit float stores identified in the original assembly. */
@@ -10,7 +11,9 @@ void TCE_CG_EliteFPWeaponOffset(int weapon, const tce_weaponOffset_t *s,
 	const tce_weaponDef_t *definition = &weaponDef[weapon];
 	float                 aim[3] = { 9, 13, 3 }, hip[3], legacy[3];
 	float                 side = 0, height = -5, secondaryBase = 0, secondaryAim = 0;
+#if !defined(__linux__)
 	double                blend = 0, verticalBlend = 0, secondaryBlend = 0, amount;
+#endif
 	int                   adjustable = 0, delta, i;
 
 	switch (weapon)
@@ -35,6 +38,21 @@ void TCE_CG_EliteFPWeaponOffset(int weapon, const tce_weaponOffset_t *s,
 	{
 		aim[0] -= 2;
 	}
+#if defined(__linux__)
+	{
+		long double forward = (long double)aim[0] - 5.0f;
+		aim[0] = (float)forward;
+		if (definition->unknown_1ac == 75)
+		{
+			aim[0] = (float)(forward - 3.0f);
+		}
+		else if (definition->unknown_1ac == 85)
+		{
+			aim[0] = (float)(forward - 6.0f);
+		}
+	}
+	aim[1] -= 2; aim[2] += 7;
+#else
 	aim[0] -= 5; aim[1] -= 2; aim[2] += 7;
 	if (definition->unknown_1ac == 75)
 	{
@@ -44,6 +62,7 @@ void TCE_CG_EliteFPWeaponOffset(int weapon, const tce_weaponOffset_t *s,
 	{
 		aim[0] -= 6;
 	}
+#endif
 	if (s->developer)
 	{
 		for (i = 0; i < 3; ++i)
@@ -70,6 +89,59 @@ void TCE_CG_EliteFPWeaponOffset(int weapon, const tce_weaponOffset_t *s,
 	for (i = 0; i < 3; ++i)
 		aim[i] += s->gunAimOffset[i];
 
+#if defined(__linux__)
+	{
+		long double aimBlend = 0.0L, secondary = 0.0L, projected[3];
+		long double distance;
+		float vertical = 0.0f;
+
+		delta = TCE_SubInt32(s->time, s->aimTime);
+		if (s->aiming)
+		{
+			aimBlend = delta < 200 ? (long double)delta * 0.005f : 1.0L;
+			vertical = (float)(aimBlend * aimBlend);
+			delta = TCE_SubInt32(s->time, s->secondaryAimTime);
+			if (s->secondaryAiming)
+			{
+				secondary = delta < 100 ? (long double)delta * 0.01f : 1.0L;
+			}
+			else if (delta < 100)
+			{
+				secondary = 1.0L - (long double)delta * 0.01f;
+			}
+		}
+		else if (delta < 200)
+		{
+			aimBlend = 1.0L - (long double)delta * 0.005f;
+			vertical = (float)(aimBlend * aimBlend);
+		}
+
+		offset[0] = offset[1] = offset[2] = 0.0f;
+		distance = (aimBlend * aim[0] + hip[0]) + secondary * legacy[0];
+		for (i = 0; i < 3; ++i)
+		{
+			projected[i] = (long double)axis[0][i] * distance + 0.0L;
+			offset[i] = (float)projected[i];
+		}
+		distance = (aimBlend * aim[1] + hip[1]) + secondary * legacy[1];
+		for (i = 0; i < 3; ++i)
+		{
+			projected[i] += (long double)axis[1][i] * distance;
+			offset[i] = (float)projected[i];
+		}
+		distance = ((long double)vertical * aim[2] + hip[2]) + secondary * legacy[2];
+		for (i = 0; i < 3; ++i)
+		{
+			offset[i] = (float)(projected[i] + (long double)axis[2][i] * distance);
+		}
+		distance = -(secondaryAim * aimBlend) - secondaryBase;
+		for (i = 0; i < 3; ++i)
+		{
+			secondaryOffset[i] = (float)((long double)axis[1][i] * distance);
+		}
+		*tacticalScale = (float)aimBlend;
+	}
+#else
 	delta = s->time - s->aimTime;
 	if (s->aiming)
 	{
@@ -105,4 +177,5 @@ void TCE_CG_EliteFPWeaponOffset(int weapon, const tce_weaponOffset_t *s,
 	for (i = 0; i < 3; ++i)
 		secondaryOffset[i] = (float)(amount * axis[1][i]);
 	*tacticalScale = (float)blend;
+#endif
 }

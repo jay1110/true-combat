@@ -2279,24 +2279,57 @@ void CG_Player(centity_t *cent)
 		vec3_t angles, motion;
 		vec3_t axis[3];
 		float  clock, dx, dy, speed, tilt;
-		double phase, wave, dz;
+		double phase;
 		VectorCopy(cent->lerpAngles, angles);
 		angles[YAW] = AngleMod(angles[YAW]);
 		VectorCopy(cent->tceEntityMotion, motion);
 		/* Win30054513 FILDs the original clientInfo pointer. Preserve that
 		 * 32-bit numeric phase, not the new module's host/layout address. */
 		phase            = (double)(0x32580a10 + clientNum * 0x1c0);
-		clock            = (float)((double)cg.time * (double)0.0062831854447722435f);
-		wave             = (double)clock * 0.1875;
-		dx               = (float)(sin(phase * (double)1.492537260055542f + wave + 4.277999925613403) * 1.8600000000000003);
-		dy               = (float)(sin((double)clock * 0.3625 + 1.3739999532699585 - phase * (double)1.1235954761505127f + 0.4) * 0.82);
-		dz               = sin(phase * (double)0.9009009003639221f + wave + 7.456999778747559 - 0.8) * 1.3800000000000001;
-		playerOrigin[0] += dx;
-		playerOrigin[1] += dy;
-		playerOrigin[2]  = (float)((double)playerOrigin[2] + dz);
-		angles[ROLL]    += dx;
-		angles[PITCH]   += dy;
-		angles[YAW]      = (float)((double)angles[YAW] + dz);
+		#ifdef _WIN32
+		{
+			double wave, dz;
+			clock            = (float)((double)cg.time * (double)0.0062831854447722435f);
+			wave             = (double)clock * 0.1875;
+			dx               = (float)(sin(phase * (double)1.492537260055542f + wave + 4.277999925613403) * 1.8600000000000003);
+			dy               = (float)(sin((double)clock * 0.3625 + 1.3739999532699585 - phase * (double)1.1235954761505127f + 0.4) * 0.82);
+			dz               = sin(phase * (double)0.9009009003639221f + wave + 7.456999778747559 - 0.8) * 1.3800000000000001;
+			playerOrigin[0] += dx;
+			playerOrigin[1] += dy;
+			playerOrigin[2]  = (float)((double)playerOrigin[2] + dz);
+			angles[ROLL]    += dx;
+			angles[PITCH]   += dy;
+			angles[YAW]      = (float)((double)angles[YAW] + dz);
+		}
+		#else
+		{
+			long double seconds, wave;
+			float dz;
+			/* Linux 97bcb..97cfb keeps the time conversion separate and
+			 * spills each displacement before adding it to the pose.
+			 * Its indeterminate phase stack input is not reconstructed by
+			 * the Windows phase above; that remaining gap is tracked. */
+			seconds = (long double)cg.time * (long double)0.001f;
+			clock = (float)((seconds + seconds) * (long double)3.141592653589793);
+			wave = (long double)clock * (long double)0.1875f;
+			dx = (float)(sinl((long double)phase * (long double)1.492537260055542f +
+			                 (wave + (long double)3.978f) + (long double)0.3) *
+			             (long double)1.8600000000000003);
+			dy = (float)(sinl(((long double)clock * (long double)0.3625 +
+			                  (long double)1.374f) -
+			                 (long double)phase * (long double)1.1235954761505127f +
+			                 (long double)0.4) * (long double)0.82);
+			dz = (float)(sinl((long double)phase * (long double)0.9009009003639221f +
+			                 (wave + (long double)7.457f) - (long double)0.8) *
+			             (long double)1.3800000000000001);
+			playerOrigin[0] += dx;
+			playerOrigin[1] += dy;
+			playerOrigin[2] += dz;
+			angles[ROLL] += dx;
+			angles[PITCH] += dy;
+			angles[YAW] += dz;
+		}
+		#endif
 		speed            = VectorNormalize(motion);
 		if (speed != 0.0f)
 		{
