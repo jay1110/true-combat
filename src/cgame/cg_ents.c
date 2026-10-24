@@ -324,7 +324,11 @@ static void CG_EntityEffects(centity_t *cent)
 // jpw
 			duration = 1500 + rand() % 500;
 			radius   = 15.f + random() * 10.f;
+#if defined(__linux__) && !defined(Q3_VM)
+			color    = .3 + rnd;
+#else
 			color    = .3f + rnd;
+#endif
 			CG_SmokePuff(cent->lerpOrigin, dir, radius,
 			             color, color, color, 0.4f, duration,
 			             cg.time, cg.time + 500, 0, cgs.media.smokePuffShader);
@@ -350,7 +354,11 @@ static void CG_EntityEffects(centity_t *cent)
 				dir[2] += 50;
 			}
 
+#if defined(__linux__) && !defined(Q3_VM)
+			color    = rnd * .1;
+#else
 			color    = rnd * .1f;
+#endif
 			duration = 2800 + rand() % 4000;
 			radius   = 40.f + random() * 70.f;
 			CG_SmokePuff(cent->lerpOrigin, dir, radius,
