@@ -2363,7 +2363,7 @@ int AINode_MP_PanzerTarget(bot_state_t *bs)
 		return qfalse;
 	}
 	//
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 	if (!(fabsl((long double)BotWeaponWantScale(bs, (weapon_t)TCE_ITEM_WEAPON_PANZERFAUST)) > 0.0L))
 #else
 	if (!BotWeaponWantScale(bs, WP_PANZERFAUST))
@@ -2375,7 +2375,7 @@ int AINode_MP_PanzerTarget(bot_state_t *bs)
 		return qfalse;
 	}
 
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 	bs->weaponnum = TCE_ITEM_WEAPON_PANZERFAUST;
 #else
 	bs->weaponnum = WP_PANZERFAUST;
@@ -4780,7 +4780,7 @@ int AINode_MP_SniperSpot(bot_state_t *bs)
 #endif
 				{
 					// switch to non-zoomed view
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 					if ((unsigned)bs->weaponnum - TCE_ITEM_WEAPON_GPG40 <= TCE_ITEM_WEAPON_FG42SCOPE - TCE_ITEM_WEAPON_GPG40)
 #else
 					if (bs->weaponnum >= WP_BEGINSECONDARY && bs->weaponnum <= WP_LASTSECONDARY)
@@ -4805,7 +4805,7 @@ int AINode_MP_SniperSpot(bot_state_t *bs)
 			{
 				// just face direction of sniper spot
 				// switch to non-zoomed view
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 				if ((unsigned)bs->weaponnum - TCE_ITEM_WEAPON_GPG40 <= TCE_ITEM_WEAPON_FG42SCOPE - TCE_ITEM_WEAPON_GPG40)
 #else
 				if (bs->weaponnum >= WP_BEGINSECONDARY && bs->weaponnum <= WP_LASTSECONDARY)
