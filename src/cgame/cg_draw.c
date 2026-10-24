@@ -537,18 +537,30 @@ static void CG_DrawFPSContents(float y)
 	// don't use serverTime, because that will be drifting to
 	// correct for internet lag changes, timescales, timedemos, etc
 	t         = trap_Milliseconds();
+	#if defined(_WIN32) && !defined(Q3_VM)
+	frameTime = TCE_SubInt32(t, previous);
+#else
 	frameTime = t - previous;
+#endif
 	previous  = t;
 
 	previousTimes[index % FPS_FRAMES] = frameTime;
+#if defined(_WIN32) && !defined(Q3_VM)
+	index = TCE_AddInt32(index, 1);
+#else
 	index++;
+#endif
 	if (index > FPS_FRAMES)
 	{
 		// average multiple frames together to smooth changes out a bit
 		total = 0;
 		for ( i = 0 ; i < FPS_FRAMES ; i++ )
 		{
+#if defined(_WIN32) && !defined(Q3_VM)
+			total = TCE_AddInt32(total, previousTimes[i]);
+#else
 			total += previousTimes[i];
+#endif
 		}
 		if (!total)
 		{
@@ -3194,7 +3206,15 @@ static int CG_ReinforcementMilliseconds(qboolean menu)
 	}
 
 	dwDeployTime = (team == TEAM_AXIS) ? cg_redlimbotime.integer : cg_bluelimbotime.integer;
+#if defined(_WIN32) && !defined(Q3_VM)
+	{
+		int elapsed = TCE_SubInt32(cgs.aReinfOffset[team], cgs.levelStartTime);
+		elapsed = TCE_AddInt32(elapsed, cg.time);
+		return TCE_SubInt32(dwDeployTime, elapsed % dwDeployTime);
+	}
+#else
 	return dwDeployTime - ((cgs.aReinfOffset[team] + cg.time - cgs.levelStartTime) % dwDeployTime);
+#endif
 }
 
 float CG_CalculateReinfTime_Float(qboolean menu)
