@@ -6,6 +6,7 @@
 #include "cg_local.h"
 #include "../ui/ui_shared.h"
 #include "../game/bg_local.h"
+#include "../game/tce_numeric.h"
 
 void CG_CalcVrect(void);
 void CG_DrawPlayerWeaponIcon(rectDef_t *rect, qboolean drawHighlighted, int align, vec4_t *refcolor);
@@ -341,7 +342,7 @@ cg_window_t *CG_mvFindNonMainview(void)
 void CG_mvUpdateClientInfo(int pID)
 {
 
-	if (pID >= 0 && pID < MAX_MVCLIENTS && (cg.mvClientList & (1 << pID)))
+	if (pID >= 0 && pID < MAX_MVCLIENTS && (cg.mvClientList & (1u << pID)))
 	{
 		int           weap = cg_entities[pID].currentState.weapon;
 		int           id   = MAX_WEAPONS - 1 - (pID * 2);
@@ -361,11 +362,19 @@ void CG_mvUpdateClientInfo(int pID)
 		ci->chargeTime = (ps->ammoclip[id - 1] >> 9)  & 0x0F;
 		ci->sprintTime = (ps->ammoclip[id - 1] >> 13) & 0x07;
 
+#if defined(__linux__) && !defined(Q3_VM)
+		// Keep the SDK expressions for Linux packed percentages.
+		ci->weapHeat   = (int)(100.0f * (float)ci->weapHeat / 15.0f);
+		ci->chargeTime = (ci->chargeTime == 0) ? -1 : (int)(100.0f * (float)(ci->chargeTime-1) / 15.0f);
+		ci->hintTime   = (ci->hintTime == 0)   ? -1 : (int)(100.0f * (float)(ci->hintTime-1) / 15.0f);
+		ci->sprintTime = (ci->sprintTime == 0) ? -1 : (int)(100.0f * (float)(ci->sprintTime-1) / 7.0f);
+#else
 		// Original packed percentages multiply stored binary32 factors before truncation.
 		ci->weapHeat   = (int)((double)ci->weapHeat * (100.0f / 15.0f));
 		ci->chargeTime = (ci->chargeTime == 0) ? -1 : (int)((double)(ci->chargeTime - 1) * (100.0f / 15.0f));
 		ci->hintTime   = (ci->hintTime == 0)   ? -1 : (int)((double)(ci->hintTime - 1) * (100.0f / 15.0f));
 		ci->sprintTime = (ci->sprintTime == 0) ? -1 : (int)((double)(ci->sprintTime - 1) * (100.0f / 7.0f));
+#endif
 
 		if (ci->health == 0)
 		{
@@ -376,12 +385,12 @@ void CG_mvUpdateClientInfo(int pID)
 		if (ci->weaponState != ci->weaponState_last)
 		{
 			ci->weaponState_last = ci->weaponState;
-			ci->grenadeTimeStart = (ci->weaponState == WSTATE_FIRE && (weap == WP_GRENADE_LAUNCHER || weap == WP_GRENADE_PINEAPPLE)) ? 4000 + cg.time : 0;
+			ci->grenadeTimeStart = (ci->weaponState == WSTATE_FIRE && (weap == WP_GRENADE_LAUNCHER || weap == WP_GRENADE_PINEAPPLE)) ? TCE_AddInt32(cg.time, 4000) : 0;
 		}
 
 		if (ci->weaponState == WSTATE_FIRE && (weap == WP_GRENADE_LAUNCHER || weap == WP_GRENADE_PINEAPPLE))
 		{
-			ci->grenadeTimeLeft = ci->grenadeTimeStart - cg.time;
+			ci->grenadeTimeLeft = TCE_SubInt32(ci->grenadeTimeStart, cg.time);
 			if (ci->grenadeTimeLeft < 0)
 			{
 				ci->grenadeTimeLeft = 0;

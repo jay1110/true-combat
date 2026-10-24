@@ -12,6 +12,7 @@
 //
 
 #include "../game/g_local.h"
+#include "../game/tce_numeric.h"
 #include "../game/botlib.h"
 #include "../game/be_aas.h"
 #include "../game/be_ea.h"
@@ -1809,11 +1810,19 @@ qboolean BotMP_FindGoal(bot_state_t *bs)
 	float              ourDist, *distances;
 	int                targetPriority = 0, bestPriority = 0, bestGoalPriority = 0;
 
+#if defined(_WIN32) && !defined(Q3_VM)
+	if (bs->last_findspecialgoals > TCE_SubInt32(level.time, 1600))
+#else
 	if (bs->last_findspecialgoals > level.time - 1600)
+#endif
 	{
 		return qfalse;
 	}
+#if defined(_WIN32) && !defined(Q3_VM)
+	bs->last_findspecialgoals = TCE_AddInt32(level.time, rand() % 400);
+#else
 	bs->last_findspecialgoals = level.time + rand() % 400;
+#endif
 
 	if (bs->ignore_specialgoal_time > level.time)
 	{
@@ -1983,7 +1992,11 @@ qboolean BotMP_FindGoal(bot_state_t *bs)
 				continue;
 			}
 			// is it active?
+#if defined(_WIN32) && !defined(Q3_VM)
+			if (!trav->r.linked || (trav->nextthink > TCE_AddInt32(level.time, 1000)))
+#else
 			if (!trav->r.linked || (trav->nextthink > level.time + 1000))
+#endif
 			{
 				continue;                                                           // if it's thinking, then it's not active (doesnt respond to touch)
 			}
@@ -2273,7 +2286,11 @@ qboolean BotMP_FindGoal(bot_state_t *bs)
 							t = trap_AAS_AreaTravelTimeToGoalArea(bs->areanum, bs->origin, oldest, bs->tfl);
 							if (t && (closestTime < 0 || closestTime > t))
 							{
+#if defined(_WIN32) && !defined(Q3_VM)
+								ent->lastHintCheckTime = TCE_AddInt32(level.time, 5000);
+#else
 								ent->lastHintCheckTime = level.time + 5000;
+#endif
 								// use this as the goal origin
 								VectorCopy(center, target.origin);
 								VectorCopy(bs->cur_ps.mins, target.mins);
@@ -2348,7 +2365,11 @@ qboolean BotMP_FindGoal(bot_state_t *bs)
 							t = trap_AAS_AreaTravelTimeToGoalArea(bs->areanum, bs->origin, oldest, bs->tfl);
 							if (t && (closestTime < 0 || closestTime > t))
 							{
+#if defined(_WIN32) && !defined(Q3_VM)
+								ent->lastHintCheckTime = TCE_AddInt32(level.time, 5000);
+#else
 								ent->lastHintCheckTime = level.time + 5000;
+#endif
 								// use this as the goal origin
 								VectorCopy(center, target.origin);
 								VectorCopy(bs->cur_ps.mins, target.mins);
@@ -2518,7 +2539,11 @@ qboolean BotMP_FindGoal(bot_state_t *bs)
 				continue;
 			}
 			// is it active?
+#if defined(_WIN32) && !defined(Q3_VM)
+			if (!trav->r.linked || (trav->nextthink > TCE_AddInt32(level.time, 1000)))
+#else
 			if (!trav->r.linked || (trav->nextthink > level.time + 1000))
+#endif
 			{
 				continue;                                                           // if it's thinking, then it's not active (doesnt respond to touch)
 			}
