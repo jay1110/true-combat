@@ -4231,14 +4231,13 @@ static void CG_DrawRadar(void)
 	extern qboolean tce_uiCoordinates;
 	qboolean previous = tce_uiCoordinates;
 	snapshot_t *snap  = (cg.nextSnap && !cg.nextFrameTeleport && !cg.thisFrameTeleport)?cg.nextSnap:cg.snap;
-	char mode[16]; float y;
+	float y;
 	static float lastangle, anglespeed;
 	if (snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR || cg.mvTotalClients > 0)
 	{
 		return;
 	}
-	trap_Cvar_VariableStringBuffer("cg_aspectMode", mode, sizeof(mode));
-	y                 = atoi(mode) == 1?23.33f:atoi(mode) == 2?-30.f:50.f;
+	y = cg_aspectMode.integer == 1 ? 23.33f : cg_aspectMode.integer == 2 ? -30.f : 50.f;
 	tce_uiCoordinates = qtrue; trap_R_SetColor(colorWhite);
 #if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 	CG_UpdateRadarHeading(cg.predictedPlayerState.viewangles[YAW], &lastangle, &anglespeed);
@@ -4260,10 +4259,12 @@ static void CG_DrawRadar(void)
 	trap_R_SetColor(NULL);
 	{
 		int i, kind, enemy, team = cg.snap->ps.persistant[PERS_TEAM];
+		qboolean recipientContacts = atoi(Info_ValueForKey(CG_ConfigString(CS_SERVERINFO),
+		                                                    "tce_scannerRecipientPackets")) != 0;
 		qhandle_t shader = 0, above = 0, below = 0;
 		centity_t *cent;
 		entityState_t *es;
-		if (cg.tceRadarViewerTeam == team)
+		if (recipientContacts && cg.tceRadarViewerTeam == team)
 		{
 			for (i = 0; i < 64; i++)
 			{
@@ -4282,6 +4283,28 @@ static void CG_DrawRadar(void)
 					}
 					CG_DrawCompassContact(y, cg.tceRadarPositions[group][i],
 					                      cg.tceRadarYaw[group][i], group != team - 1);
+				}
+			}
+		}
+		else if (!recipientContacts)
+		{
+			/* TC:E draws the first scanner group for Axis only. The unused
+			 * second-group length call is also present in both originals. */
+			for (i = 0; i < 64; ++i)
+			{
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+				long double length = TCE_VectorLengthValue(cg.tceRadarPositions[0][i]);
+#else
+				float length = VectorLength(cg.tceRadarPositions[0][i]);
+#endif
+				if (length == 0.f || length != length || snap->ps.persistant[PERS_TEAM] != TEAM_AXIS)
+				{
+					(void)VectorLength(cg.tceRadarPositions[1][i]);
+				}
+				else
+				{
+					CG_DrawRadarIcon(762, (int)(y - 30), 60, 60, cg.predictedPlayerState.origin,
+					                 cg.tceRadarPositions[0][i], cgs.media.tceRadarCarrier, 0, 0);
 				}
 			}
 		}
