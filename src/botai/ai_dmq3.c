@@ -9,6 +9,7 @@
 
 
 #include "../game/g_local.h"
+#include "../game/tce_smoke_precision.h"
 #include "../game/tce_weapon_ids.h"
 #include "../game/tce_numeric.h"
 #include "../game/botlib.h"
@@ -2482,9 +2483,20 @@ returns whether smoke from smoke bombs blocks vision from start to end
 qboolean BotEntInvisibleBySmokeBomb(vec3_t start, vec3_t end)
 {
 	gentity_t *ent = NULL;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	int farEnough;
+	if (!TCE_FiniteSmokeDistance(start, end, &farEnough))
+	{
+		farEnough = TCE_DistanceSquaredValue(start, end) >= UNAFFECTED_BY_SMOKE_DIST;
+	}
+#endif
 
 	/* The native ordered gate rejects unordered distances as well. */
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	if (!farEnough)
+#else
 	if (!(TCE_DistanceSquaredValue(start, end) >= UNAFFECTED_BY_SMOKE_DIST))
+#endif
 	{
 		return qfalse;
 	}
@@ -2494,7 +2506,10 @@ qboolean BotEntInvisibleBySmokeBomb(vec3_t start, vec3_t end)
 		vec3_t         smokeCenter;
 		uint32_t       elapsedBits;
 		int32_t        elapsed;
-		long double    radius, distance, radiusSquared;
+		long double    distance, radiusSquared;
+#if !defined(_MSC_VER) || !defined(_M_IX86) || defined(Q3_VM)
+		long double    radius;
+#endif
 		volatile float storedRadius;
 
 		if (ent->s.effect1Time == 16)
@@ -2502,11 +2517,18 @@ qboolean BotEntInvisibleBySmokeBomb(vec3_t start, vec3_t end)
 			continue;
 		}
 		memcpy(smokeCenter, ent->s.pos.trBase, sizeof(smokeCenter));
-		smokeCenter[2] = (float)((long double)smokeCenter[2] + 32.0f);
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		if (!TCE_FiniteDifferenceStore(smokeCenter[2], -32.0f, &smokeCenter[2]))
+#endif
+		{
+			smokeCenter[2] = (float)((long double)smokeCenter[2] + 32.0f);
+		}
 		/* Engine millisecond subtraction wraps as a signed 32-bit word. */
 		elapsedBits = (uint32_t)level.time - (uint32_t)ent->grenadeExplodeTime;
 		memcpy(&elapsed, &elapsedBits, sizeof(elapsed));
-#if defined(_WIN32)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		storedRadius = TCE_SmokeRadius32(elapsed);
+#elif defined(_WIN32)
 		/* Windows keeps two double-constant multiplications before storing. */
 		radius       = (long double)elapsed * (long double)0.0001;
 		radius      *= (long double)320.0;
@@ -2525,7 +2547,11 @@ qboolean BotEntInvisibleBySmokeBomb(vec3_t start, vec3_t end)
 		}
 #endif
 		distance      = TCE_DistanceFromLineSquaredValue(smokeCenter, start, end);
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		radiusSquared = (long double)TCE_SmokeSquaredRadius(storedRadius);
+#else
 		radiusSquared = (long double)storedRadius * (long double)storedRadius;
+#endif
 		if (radiusSquared > distance)
 		{
 			return qtrue;
