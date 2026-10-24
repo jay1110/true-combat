@@ -3,6 +3,7 @@
 // q_math.c -- stateless support routines that are included in each code module
 #include "q_shared.h"
 #include "tce_numeric.h"
+#include "tce_angle_scale_precision.h"
 #include <float.h>
 
 
@@ -1270,16 +1271,25 @@ void AnglesSubtract(vec3_t v1, vec3_t v2, vec3_t v3)
 
 float AngleMod(float angle)
 {
-#if defined(_WIN32) || defined(__linux__)
-	/* Match the original double scale and platform integer conversion.
-	 * Do not narrow the product to float before truncation. */
-	long double scaled     = (long double)angle * (long double)(65536.0 / 360.0);
-	unsigned    shortAngle = (unsigned)TCE_TruncateNativeInteger(scaled) & 65535u;
-	/* 45 * shortAngle fits in 22 bits, so the final float is exact. */
-	return (float)((long double)shortAngle * (long double)(360.0 / 65536.0));
-#else
-	return (360.0 / 65536) * ((int)(angle * (65536 / 360.0)) & 65535);
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	float normalized;
+	if (TCE_FiniteAngleScale(angle, &normalized))
+	{
+		return normalized;
+	}
 #endif
+	{
+#if defined(_WIN32) || defined(__linux__)
+		/* Match the original double scale and platform integer conversion.
+		 * Do not narrow the product to float before truncation. */
+		long double scaled     = (long double)angle * (long double)(65536.0 / 360.0);
+		unsigned    shortAngle = (unsigned)TCE_TruncateNativeInteger(scaled) & 65535u;
+		/* 45 * shortAngle fits in 22 bits, so the final float is exact. */
+		return (float)((long double)shortAngle * (long double)(360.0 / 65536.0));
+#else
+		return (360.0 / 65536) * ((int)(angle * (65536 / 360.0)) & 65535);
+#endif
+	}
 }
 
 /*
@@ -1303,18 +1313,27 @@ returns angle normalized to the range [0 <= angle < 360]
 */
 float AngleNormalize360(float angle)
 {
-#if defined(_WIN32) || defined(__linux__)
-	/* The original multiplies by a double constant before truncation:
-	 * Windows __ftol consumes signed64, Linux FISTP consumes signed32.
-	 * Keep the product wide until the platform conversion, not in float. */
-	long double scaled     = (long double)angle * (long double)(65536.0 / 360.0);
-	unsigned    shortAngle = (unsigned)TCE_TruncateNativeInteger(scaled) & 65535u;
-	/* 45 * shortAngle fits in 22 bits. This dyadic product is already
-	 * exactly representable as float, including the native wide return. */
-	return (float)((long double)shortAngle * (long double)(360.0 / 65536.0));
-#else
-	return (360.0 / 65536) * ((int)(angle * (65536 / 360.0)) & 65535);
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	float normalized;
+	if (TCE_FiniteAngleScale(angle, &normalized))
+	{
+		return normalized;
+	}
 #endif
+	{
+#if defined(_WIN32) || defined(__linux__)
+		/* The original multiplies by a double constant before truncation:
+		 * Windows __ftol consumes signed64, Linux FISTP consumes signed32.
+		 * Keep the product wide until the platform conversion, not in float. */
+		long double scaled     = (long double)angle * (long double)(65536.0 / 360.0);
+		unsigned    shortAngle = (unsigned)TCE_TruncateNativeInteger(scaled) & 65535u;
+		/* 45 * shortAngle fits in 22 bits. This dyadic product is already
+		 * exactly representable as float, including the native wide return. */
+		return (float)((long double)shortAngle * (long double)(360.0 / 65536.0));
+#else
+		return (360.0 / 65536) * ((int)(angle * (65536 / 360.0)) & 65535);
+#endif
+	}
 }
 
 

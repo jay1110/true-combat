@@ -380,6 +380,9 @@ float BotChangeViewAngle(float angle, float ideal_angle, float speed)
 {
 	volatile float current, argument;
 	long double    ideal, move;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	float finiteArgument;
+#endif
 #if defined(_WIN32)
 	volatile float storedIdeal;
 #endif
@@ -396,6 +399,13 @@ float BotChangeViewAngle(float angle, float ideal_angle, float speed)
 	{
 		return current;
 	}
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	/* Both AngleMod results lie on an exactly representable binary32 grid. */
+	if (TCE_FiniteBotViewArgument(current, (float)ideal, speed, &finiteArgument))
+	{
+		return AngleMod(finiteArgument);
+	}
+#endif
 	move = TCE_BotAngleDifferenceValue(ideal, current);
 	if (move > 0.0L)
 	{

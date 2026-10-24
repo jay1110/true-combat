@@ -58,6 +58,41 @@ static __inline int TCE_FiniteBotAngleLow32(float first, float second, int *resu
 	return 1;
 }
 
+/* Clamp the retained movement, then round its sum with the current angle
+ * before the final normalization call. Negative speeds are not sanitized. */
+static __inline int TCE_FiniteBotViewArgument(float current, float ideal,
+                                              float speed, float *result)
+{
+	tceTriggerSum_t move, boundary, start, zero = { { 0 }, 0 };
+	unsigned control;
+
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_TriggerProduct(&boundary, speed, 1.0f, control) ||
+	    !TCE_TriggerProduct(&start, current, 1.0f, control) ||
+	    !TCE_FiniteBotAngleValue(ideal, current, &move, control))
+	{
+		return 0;
+	}
+	if (TCE_TriggerCompare(&move, &zero) > 0)
+	{
+		if (TCE_TriggerCompare(&move, &boundary) > 0)
+		{
+			move = boundary;
+		}
+	}
+	else
+	{
+		boundary.negative ^= 1u;
+		if (TCE_TriggerCompare(&move, &boundary) < 0)
+		{
+			move = boundary;
+		}
+	}
+	TCE_RotateAdd(&move, &start, control);
+	*result = TCE_RotateStore(move, control);
+	return 1;
+}
+
 /* The original stores the candidate speed before comparing the retained
  * product to the Float maximum. This helper preserves both value stages. */
 static __inline int TCE_FiniteBotAngleSpeed(float first, float second,
