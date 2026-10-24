@@ -1522,12 +1522,124 @@ static void CG_TCELinuxReticlePortal851(int type, const float *x, const float *y
 }
 #endif
 
+#if defined(_MSC_VER) && defined(_M_IX86)
+static long double CG_TCEWindowsScopeAsin(long double value);
+
+/* Windows stores the type2 width before drawing, and compares the held blue
+ * lighting product after comparing the stored red and green channels. */
+static void CG_TCEWindowsReticlePortal(int type, float centerX, float centerY,
+                                      const vec4_t black, const vec4_t red)
+{
+	int configuredWidth = tce_cg_weapons[0].portalScopeWidth;
+	float width, halfWidth, left, top;
+
+	if (type == 2)
+	{
+		long double scaledWidth = (long double)configuredWidth * .88f;
+		if (!(scaledWidth > 0.L))
+		{
+			scaledWidth = 220.L;
+		}
+		width = (float)(scaledWidth * 1.2f);
+		if (cgs.media.tceM76ReticleShader)
+		{
+			halfWidth = (float)((long double)width * .5L);
+			top = (float)((long double)centerY - (long double)width * .03181818127632141f);
+			left = (float)((long double)centerX - halfWidth);
+			CG_DrawPic(left, top, width, halfWidth, cgs.media.tceM76ReticleShader);
+		}
+		top = (float)((long double)centerY - 1.L);
+		left = (float)((long double)centerX - 1.L);
+		CG_FillRect(left, top, 2, 2, red);
+	}
+	else if (type == 1)
+	{
+		long double scaledWidth = configuredWidth > 0 ? (long double)configuredWidth : 250.L;
+		long double threeQuarters;
+		double cachedThreeQuarters;
+		float quarterWidth, tickX, tickY;
+
+		scaledWidth *= 1.2f;
+		width = (float)scaledWidth;
+		halfWidth = (float)(scaledWidth * .5L);
+		left = (float)((long double)centerX - halfWidth);
+		CG_FillRect(left, centerY, width, 1, black);
+		top = (float)((long double)centerY - halfWidth);
+		CG_FillRect(centerX, top, 1, width, black);
+
+		quarterWidth = (float)((long double)width * .25f);
+		tickY = (float)((long double)centerY - 1.L);
+		CG_FillRect(left, tickY, quarterWidth, 3, black);
+		threeQuarters = (long double)width * .75;
+		cachedThreeQuarters = (double)threeQuarters;
+		tickX = (float)(threeQuarters + left);
+		CG_FillRect(tickX, tickY, quarterWidth, 3, black);
+		tickX = (float)((long double)centerX - 1.L);
+		CG_FillRect(tickX, top, 3, quarterWidth, black);
+		tickY = (float)((long double)top + cachedThreeQuarters);
+		CG_FillRect(tickX, tickY, 3, quarterWidth, black);
+		CG_FillRect(centerX, centerY, 1, 1, red);
+	}
+	else
+	{
+		width = configuredWidth > 0 ? (float)configuredWidth : 250.f;
+		halfWidth = (float)((long double)width * .5L);
+		left = (float)((long double)centerX - halfWidth);
+		CG_FillRect(left, centerY, width, 1, black);
+		top = (float)((long double)centerY - halfWidth);
+		CG_FillRect(centerX, top, 1, width, black);
+		CG_FillRect(centerX, centerY, 1, 1, red);
+	}
+	if (cgs.media.tcePortalScopeShader)
+	{
+		vec3_t lighting;
+		vec4_t color;
+		long double boost, blueLight;
+		qhandle_t shader;
+
+		TCE_CG_LightForParticleSimple(TCE_CG_MapLightGrid(), cg.refdef.vieworg, lighting);
+		boost = (long double)cg.tceScopeLightBoost + 1.L;
+		color[0] = (float)((long double)lighting[0] * boost);
+		color[1] = (float)((long double)lighting[1] * boost);
+		blueLight = boost * lighting[2];
+		color[2] = (float)blueLight;
+		color[3] = 1.f;
+		if (color[0] >= 1.f)
+		{
+			color[0] = 1.f;
+		}
+		if (color[1] >= 1.f)
+		{
+			color[1] = 1.f;
+		}
+		if (blueLight >= 1.L)
+		{
+			color[2] = 1.f;
+		}
+		trap_R_SetColor(color);
+		shader = cgs.media.tcePortalScopeShader;
+		top = (float)(((long double)centerY - 288.f) + 54.000003814697266f);
+		left = (float)((long double)centerX - 288.f);
+		CG_DrawPic(left, top, 576, 576, shader);
+		trap_R_SetColor(NULL);
+	}
+}
+#endif
+
 /* Native TC scope projection used by CG_DrawWeapReticle. */
 static void CG_TCEScopeCenter(float *x, float *y, vec3_t angles)
 {
 	vec3_t forward, right, up;
 #if defined(__GNUC__) && defined(__i386__) && defined(__linux__)
 	CG_TCELinuxReticleAngles(x, y, angles);
+#elif defined(_MSC_VER) && defined(_M_IX86)
+	float radians;
+	long double pitch, yaw;
+	memcpy(angles, cg.predictedPlayerState.viewangles, sizeof(vec3_t));
+	pitch = ((long double)cg.predictedPlayerState.holdable[5] - 2000.f) * .01f;
+	yaw = ((long double)cg.predictedPlayerState.holdable[6] - 2000.f) * .01f;
+	angles[0] = (float)(pitch + cg.predictedPlayerState.viewangles[0]);
+	angles[1] = (float)(yaw + cg.predictedPlayerState.viewangles[1]);
 #else
 	float radians;
 	VectorCopy(cg.predictedPlayerState.viewangles, angles);
@@ -1538,6 +1650,19 @@ static void CG_TCEScopeCenter(float *x, float *y, vec3_t angles)
 	AngleVectors(cg.predictedPlayerState.viewangles, NULL, right, up);
 #if defined(__GNUC__) && defined(__i386__) && defined(__linux__)
 	CG_TCELinuxReticleProject(forward, right, up, x, y);
+#elif defined(_MSC_VER) && defined(_M_IX86)
+	{
+		long double dot, angle;
+		radians = (float)((long double)cg.refdef.fov_x * .01745329238474369f);
+		dot = (long double)right[2] * forward[2] + (long double)right[1] * forward[1];
+		dot += (long double)right[0] * forward[0];
+		angle = CG_TCEWindowsScopeAsin(dot);
+		*x = (float)((angle / radians) * 852.0 + 426.f);
+		dot = (long double)up[2] * forward[2] + (long double)up[1] * forward[1];
+		dot += (long double)up[0] * forward[0];
+		angle = CG_TCEWindowsScopeAsin(dot);
+		*y = (float)(240.f - (angle / radians) * 852.0);
+	}
 #else
 	radians = cg.refdef.fov_x * 0.01745329238474369f;
 	*x      = (float)((asin(DotProduct(forward, right)) / radians) * 852.0 + 426.0);
@@ -1606,6 +1731,8 @@ static void CG_DrawWeapReticle(void)
 		CG_TCEScopeCenter(&x, &y, angles);
 #if defined(__GNUC__) && defined(__i386__) && defined(__linux__)
 		CG_TCELinuxReticlePortal851(type, &x, &y, black, red);
+#elif defined(_MSC_VER) && defined(_M_IX86)
+		CG_TCEWindowsReticlePortal(type, x, y, black, red);
 #else
 		/* Original reticle reads slot-zero width, unlike the scene viewport. */
 		size = (float)tce_cg_weapons[0].portalScopeWidth;
