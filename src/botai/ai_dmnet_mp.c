@@ -140,6 +140,8 @@ int AINode_MP_Stand(bot_state_t *bs)
 	vec3_t     pos;
 #if defined(__linux__)
 	long double checkTime;
+#endif
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 	Com_Printf("ELITE DEBUG: AINODEMP\n");
 #endif
 
