@@ -1051,9 +1051,13 @@ short TCE_BotFindClosestNode(gentity_t *ent)
 			continue;
 		}
 		VectorSubtract(tceNodes[i].origin, ent->r.currentOrigin, delta);
+#if defined(__linux__)
+		distance = VectorNormalize(delta);
+#else
 		distance = sqrt(((double)delta[0] * delta[0] +
 		                 (double)delta[1] * delta[1]) + (double)delta[2] * delta[2]);
 		VectorNormalize(delta);
+#endif
 		if (distance <= 16.0)
 		{
 			continue;
@@ -1185,7 +1189,11 @@ short TCE_BotGetNextNode(gentity_t *ent, int *state)
 	int       current, target, i, total = 0, selection;
 	tceNode_t *node, *next;
 	vec3_t    delta, forward;
+#if defined(__linux__)
+	long double dot;
+#else
 	double    dot;
+#endif
 	if (*state == 3)
 	{
 		current = TCE_BotReadShort(info, 0x16);
@@ -1212,8 +1220,14 @@ short TCE_BotGetNextNode(gentity_t *ent, int *state)
 					}
 					VectorSubtract(next->origin, ent->r.currentOrigin, delta);
 					AngleVectors(ent->s.angles, forward, NULL, NULL);
+#if defined(__linux__)
+					dot = ((long double)forward[1] * delta[1] +
+					       (long double)forward[0] * delta[0]) +
+					      (long double)forward[2] * delta[2];
+#else
 					dot = ((double)forward[2] * delta[2] + (double)forward[1] * delta[1]) +
 					      (double)forward[0] * delta[0];
+#endif
 					if (dot > 0.0)
 					{
 						candidates[total++] = next->number;
@@ -1221,10 +1235,16 @@ short TCE_BotGetNextNode(gentity_t *ent, int *state)
 				}
 				if (total > 0)
 				{
+#if defined(__linux__)
+					/* ELF000787a1..d4 combines the reciprocal and 0.99. */
+					selection = (int)((double)total * (rand() & 0x7fff) *
+					                  (double)3.0213324862415902e-05f);
+#else
 					/* Windows20040624..43: reciprocal float, count, then
 					 * -0.99f before ftol; negate index, no rand()%count. */
 					selection = -(int)(((double)(rand() & 0x7fff) *
 					                    (double)3.0518509447574615e-05f) * total * (double)-0.99f);
+#endif
 					return candidates[selection];
 				}
 			}
