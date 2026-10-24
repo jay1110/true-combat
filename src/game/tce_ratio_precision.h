@@ -4,21 +4,22 @@
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 #include "tce_rotate_precision.h"
 
-/* Round (n/d)*2^binaryScale first to x87 PC/RC, then to binary32.
- * Callers supply magnitudes <= 2^31, nonzero d and a scaled exponent in
- * [-128,180]. Exception flags and unmasked traps are not reproduced. */
-static __inline float TCE_RatioFloat32(unsigned n, unsigned d, int binaryScale,
-                                        unsigned negative, unsigned control)
+/* Round (n/d)*2^binaryScale to x87 PC/RC without a Float spill.
+ * Callers supply n <= 2^31, 0 < d < 2^40 and a scaled exponent in
+ * [-144,180]. Exception flags and unmasked traps are not reproduced. */
+static __inline tceTriggerSum_t TCE_RatioValue(unsigned long long n,
+                                              unsigned long long d, int binaryScale,
+                                              unsigned negative, unsigned control)
 {
 	tceTriggerSum_t value = { { 0 }, 0 };
-	unsigned probe, precision, rounding, increment = 0;
-	unsigned long long numerator, denominator, remainder, significand = 1;
+	unsigned precision, rounding, increment = 0;
+	unsigned long long probe, numerator, denominator, remainder, significand = 1;
 	int numeratorBit = 0, denominatorBit = 0, exponent, bit;
 
 	value.negative = negative;
 	if (!n)
 	{
-		return TCE_RotateStore(value, control);
+		return value;
 	}
 	for (probe = n; probe >> 1; probe >>= 1)
 	{
@@ -89,6 +90,13 @@ static __inline float TCE_RatioFloat32(unsigned n, unsigned d, int binaryScale,
 		}
 	}
 	TCE_TriggerPlace(&value, significand, 298 + exponent + binaryScale - ((int)precision - 1));
+	return value;
+}
+
+static __inline float TCE_RatioFloat32(unsigned n, unsigned d, int binaryScale,
+                                        unsigned negative, unsigned control)
+{
+	tceTriggerSum_t value = TCE_RatioValue(n, d, binaryScale, negative, control);
 	return TCE_RotateStore(value, control);
 }
 #endif

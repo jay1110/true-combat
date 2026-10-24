@@ -60,32 +60,7 @@ static __inline tceTransitionDifference_t TCE_TransitionDifferenceValue(float to
 /* The original __ftol conversion occurs after the rectangle copies. */
 static __inline int TCE_TransitionValueLow32(const tceTriggerSum_t *value)
 {
-	unsigned low = 0, high = 0;
-	int bit, result;
-
-	for (bit = 362; bit < 576; ++bit)
-	{
-		if (TCE_TriggerBit(value, bit))
-		{
-			return 0;
-		}
-	}
-	for (bit = 0; bit < 32; ++bit)
-	{
-		low |= TCE_TriggerBit(value, 298 + bit) << bit;
-		high |= TCE_TriggerBit(value, 330 + bit) << bit;
-	}
-	if (high > 0x80000000u ||
-	    (high == 0x80000000u && (!value->negative || low)))
-	{
-		return 0;
-	}
-	if (value->negative)
-	{
-		low = 0u - low;
-	}
-	memcpy(&result, &low, sizeof(result));
-	return result;
+	return TCE_FixedSigned64Low32(value);
 }
 #endif
 #endif

@@ -5,6 +5,7 @@
 #endif
 #include "tce_bg.h"
 #include "tce_numeric.h"
+#include "tce_maxlives_precision.h"
 #include "../ui/menudef.h"
 
 // g_client.c -- client functions that don't happen every frame
@@ -1693,6 +1694,12 @@ int G_ComputeMaxLives(gclient_t *cl, int maxRespawns)
 	memcpy(&elapsed, &bits, sizeof(elapsed));
 	bits = (unsigned int)maxRespawns - 1u;
 	memcpy(&remaining, &bits, sizeof(remaining));
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	if (TCE_MaxLivesFinite(elapsed, remaining, g_timelimit.value, &val))
+	{
+		return val;
+	}
+#endif
 #if defined(__linux__)
 	denominator = (long double)60000.0f * (long double)g_timelimit.value;
 	ratio       = 1.0L / denominator;
