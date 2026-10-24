@@ -1930,16 +1930,30 @@ void CG_RenderM83Smoke(centity_t *cent)
 #endif
 
 /* TC3002dc70: free expansion, no SDK solid trace. */
+#if defined(__linux__) && !defined(Q3_VM)
+static qboolean CG_SmokeSpritePhysics(smokesprite_t *smokesprite, long double dist)
+#else
 static qboolean CG_SmokeSpritePhysics(smokesprite_t *smokesprite, const float dist)
+#endif
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	long double scale      = tceSmokeNewBBox == 1 ? 1.25L : 1.0L;
+	long double scaledDist = scale * dist;
+	long double size;
+#else
 	float  scale      = tceSmokeNewBBox == 1 ? 1.25f : 1.0f;
 	double scaledDist = (double)scale * dist;
 	double size;
+#endif
 	int    i;
 	/* TC x87 retains each product through the addition, and retains the
 	   unrounded size for its cap comparison (3002dc70..3002dd0f). */
 	for ( i = 0; i < 3; ++i )
+#if defined(__linux__) && !defined(Q3_VM)
+		smokesprite->pos[i] = (float)(dist * smokesprite->dir[i] + smokesprite->pos[i]);
+#else
 		smokesprite->pos[i] = (float)((double)dist * smokesprite->dir[i] + smokesprite->pos[i]);
+#endif
 	smokesprite->dist = (float)(scaledDist + smokesprite->dist);
 	size              = scaledDist * 1.25 + smokesprite->size;
 	smokesprite->size = (float)size;
@@ -1958,7 +1972,11 @@ void CG_AddSmokeSprites(void)
 	{
 		int          age;
 		unsigned int ageBits;
+#if defined(__linux__) && !defined(Q3_VM)
+		long double  dist, smokeAge;
+#else
 		float        dist, smokeAge;
+#endif
 		vec3_t       direction;
 		if (sprite->smokebomb && !sprite->smokebomb->currentValid)
 		{
@@ -1988,6 +2006,15 @@ void CG_AddSmokeSprites(void)
 				dist = 0.0f;
 			}
 		}
+#elif defined(__linux__) && !defined(Q3_VM)
+		/* The ELF controller inlines physics and retains age and distance. */
+		smokeAge = (long double)age;
+		dist     = (long double)cg.frametime * 0.032f;
+		dist    *= 1.0L - smokeAge * 6.666666740784422e-05f;
+		if (dist < 0.0L)
+		{
+			dist = 0.0L;
+		}
 #else
 		smokeAge = (float)age;
 		dist     = (float)cg.frametime * 0.032f * (1.0f - (float)age * 6.666666740784422e-05f);
@@ -1998,8 +2025,8 @@ void CG_AddSmokeSprites(void)
 #endif
 		if (CG_SmokeSpritePhysics(sprite, dist) && smokeAge <= 15000.0f)
 		{
-			/* Retained repair for ownerless state: the original diagnostic
-			 * dereferences NULL. The producer invariant is not yet proven. */
+			/* RenderM83Smoke can detach the owner. Keep its sprites alive
+			 * without the original diagnostic dereferencing NULL. */
 			if (sprite->smokebomb)
 			{
 				CG_Printf("Num smoke sprite: %i\n", sprite->smokebomb->miscTime);
