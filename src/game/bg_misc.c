@@ -12,6 +12,7 @@
 #include "tce_trajectory.h"
 #include "tce_numeric.h"
 #include "tce_bg.h"
+#include "tce_rotate_precision.h"
 
 #include "../ui/menudef.h"
 
@@ -3333,6 +3334,13 @@ void BG_RotatePoint(vec3_t point, const vec3_t matrix[3])
 	for (row = 0; row < 3; ++row)
 	{
 		long double productX, productY, productZ, sum;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		if (TCE_RotateFiniteRow((float)x, (float)y, (float)z,
+		                        matrix[row], &point[row]))
+		{
+			continue;
+		}
+#endif
 #if defined(_WIN32)
 		/* Both Windows modules add Z, then Y, then X without float spills. */
 		productZ = z * (long double)matrix[row][2];
