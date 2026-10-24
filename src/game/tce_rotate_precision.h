@@ -137,5 +137,24 @@ static __inline int TCE_RotateFiniteRow(float x, float y, float z,
 	*result = TCE_RotateStore(sum, control);
 	return 1;
 }
+
+static __inline int TCE_MuzzleFiniteComponent(float direction, float factor,
+                                             float origin, int subtract,
+                                             float *result)
+{
+	tceTriggerSum_t product, position;
+	unsigned control;
+
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_TriggerProduct(&product, direction, factor, control) ||
+	    !TCE_TriggerProduct(&position, origin, 1.0f, control))
+	{
+		return 0;
+	}
+	product.negative ^= subtract != 0;
+	TCE_RotateAdd(&product, &position, control);
+	*result = TCE_RotateStore(product, control);
+	return 1;
+}
 #endif
 #endif

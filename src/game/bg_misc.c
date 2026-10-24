@@ -3411,11 +3411,29 @@ void BG_AdjustAAGunMuzzleForBarrel(vec_t *origin, vec_t *forward, vec_t *right, 
 	/* Windows reloads the rounded position at each of the three stages. */
 	for (component = 0; component < 3; ++component)
 	{
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		float rounded;
+		if (TCE_MuzzleFiniteComponent(forward[component], 64.0f,
+		                              origin[component], 0, &rounded))
+		{
+			storedOrigin[component] = rounded;
+			continue;
+		}
+#endif
 		product                 = (long double)forward[component] * 64.0L;
 		storedOrigin[component] = (float)(product + (long double)origin[component]);
 	}
 	for (component = 0; component < 3; ++component)
 	{
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		float rounded;
+		if (TCE_MuzzleFiniteComponent(right[component], 20.0f,
+		                              origin[component], barrel >= 2, &rounded))
+		{
+			storedOrigin[component] = rounded;
+			continue;
+		}
+#endif
 		product = (long double)right[component] * 20.0L;
 		if (barrel >= 2)
 		{
@@ -3428,6 +3446,15 @@ void BG_AdjustAAGunMuzzleForBarrel(vec_t *origin, vec_t *forward, vec_t *right, 
 	}
 	for (component = 0; component < 3; ++component)
 	{
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		float rounded;
+		if (TCE_MuzzleFiniteComponent(up[component], (float)height,
+		                              origin[component], 0, &rounded))
+		{
+			storedOrigin[component] = rounded;
+			continue;
+		}
+#endif
 		product                 = (long double)up[component] * height;
 		storedOrigin[component] = (float)(product + (long double)origin[component]);
 	}
