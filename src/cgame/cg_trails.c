@@ -169,7 +169,7 @@ CG_AddTrailJunc
 ===============
 */
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_WIN32) && !defined(Q3_VM)
 int CG_AddTrailJunc(int headJuncIndex, void *usedby, qhandle_t shader, int spawnTime, int sType, vec3_t pos, int trailLife, float alphaStart, float alphaEnd, float startWidth, float endWidth, int flags, vec3_t colorStart, vec3_t colorEnd, float sRatio, float animSpeed)
 {
 	trailJunc_t *j, *headJunc;
