@@ -700,7 +700,12 @@ static void CG_DrawUpperRight(void)
 
 
 	if (!(cg.snap->ps.pm_flags & PMF_LIMBO) && (cg.snap->ps.persistant[PERS_TEAM] != TEAM_SPECTATOR) &&
-	    (cgs.autoMapExpanded || (!cgs.autoMapExpanded && (cg.time - cgs.autoMapExpandTime < 250.f))))
+	    (cgs.autoMapExpanded || (!cgs.autoMapExpanded &&
+#if defined(__linux__) && !defined(Q3_VM)
+	                            TCE_SubInt32(cg.time, cgs.autoMapExpandTime) < 250.f)))
+#else
+	                            (cg.time - cgs.autoMapExpandTime < 250.f))))
+#endif
 	{
 		return;
 	}
@@ -3534,10 +3539,18 @@ static void CG_DrawFlashZoomTransition(void)
 	{
 		return;
 	}
+#if defined(__linux__) && !defined(Q3_VM)
+	elapsed = TCE_SubInt32(cg.time, cg.zoomTime);
+#else
 	elapsed = cg.time - cg.zoomTime;
+#endif
 	if ((float)elapsed < 400.0f)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		color[3] = (float)(1.L - (1.L / 400) * elapsed);
+#else
 		color[3] = 1.0f - (float)elapsed * 0.0025f;
+#endif
 		previous = tce_uiCoordinates; tce_uiCoordinates = qtrue;
 		CG_FillRect(-5, -85, 862, 650, color);
 		tce_uiCoordinates = previous;
@@ -3554,12 +3567,40 @@ static void CG_DrawFlashDamage(void)
 {
 	extern qboolean tce_uiCoordinates;
 	vec4_t          col = { 0.2f, 0, 0, 0 };
+#if defined(__linux__) && !defined(Q3_VM)
+	long double     redFlash, blood;
+#else
 	double          redFlash, blood;
+#endif
 	qboolean        previous;
-	if (!cg.snap || !(cg.v_dmg_time > cg.time))
+	if (!cg.snap || !(cg.v_dmg_time >
+#if defined(__linux__) && !defined(Q3_VM)
+	                 (long double)cg.time))
+#else
+	                 cg.time))
+#endif
 	{
 		return;
 	}
+#if defined(__linux__) && !defined(Q3_VM)
+	/* Linux inlines this in Draw2D: pitch precedes the lifetime scale. */
+	redFlash = fabsl(((long double)cg.v_dmg_time - cg.time) * cg.v_dmg_pitch * .002f);
+	if (redFlash > 5.L)
+	{
+		redFlash = 5.L;
+	}
+	redFlash *= 0.13999999999999999;
+	blood = cg_bloodFlash.value;
+	if (!(blood > 1.L))
+	{
+		if (blood < 0.L)
+		{
+			blood = 0.L;
+		}
+		redFlash *= blood;
+	}
+	col[3] = (float)redFlash;
+#else
 	/* Windows30027989 keeps the lifetime product extended until final alpha. */
 	redFlash = fabs(((double)cg.v_dmg_time - cg.time) * (double)0.002f * cg.v_dmg_pitch);
 	if (redFlash > 5.0)
@@ -3569,6 +3610,7 @@ static void CG_DrawFlashDamage(void)
 	blood = cg_bloodFlash.value > 1.0 ? 1.0 :
 	        cg_bloodFlash.value < 0.0 ? 0.0 : cg_bloodFlash.value;
 	col[3]            = (float)(((redFlash * 0.2) * blood) * 0.7);
+#endif
 	previous          = tce_uiCoordinates;
 	tce_uiCoordinates = qtrue;
 	CG_FillRect(-5, -85, 862, 650, col);
@@ -5331,8 +5373,13 @@ static void CG_TCEPlayAdsBreath(void)
 	{
 		return;
 	}
+#if defined(__linux__) && !defined(Q3_VM)
+	phase = (float)((long double)cg.predictedPlayerState.stats[14] * .001f);
+	if (TCE_AddInt32(cg.tceAdsBreathTime, 2000) >= cg.time)
+#else
 	phase = (float)((double)cg.predictedPlayerState.stats[14] * (double).001f);
 	if (cg.tceAdsBreathTime + 2000 >= cg.time)
+#endif
 	{
 		return;
 	}
@@ -5367,7 +5414,11 @@ static void CG_TCEDrawAspectMatte(void)
 		return;
 	}
 	if (cg_aspectMode.integer == 2 &&
+#if defined(__linux__) && !defined(Q3_VM)
+	    !((1.L / ((long double)screenHeight * 4.f)) * width * 3.f < 1.L))
+#else
 	    ((double)width * 3.0) / ((double)screenHeight * 4.0) >= 1.0)
+#endif
 	{
 		return;
 	}
@@ -5376,7 +5427,12 @@ static void CG_TCEDrawAspectMatte(void)
 	{
 		return;
 	}
+#if defined(__linux__) && !defined(Q3_VM)
+	/* Original Linux Draw2D stores the aspect-mode height as float 0x44055556. */
+	height = cg_aspectMode.integer == 1 ? 533.3333740234375f :
+#else
 	height = cg_aspectMode.integer == 1 ? 533.3333f :
+#endif
 	         cg_aspectMode.integer == 2 ? 640.0f : 480.0f;
 	border            = (640.0f - height) * .5f + 35.0f;
 	previous          = tce_uiCoordinates;
@@ -5561,9 +5617,27 @@ static void CG_Draw2D(void)
 	/* Original Draw2D30022a40: injury heartbeat slows during its last six seconds. */
 	if (!(cg.predictedPlayerState.pm_flags & PMF_FOLLOW) &&
 	    !(cg.predictedPlayerState.pm_type & 2) &&
-	    cg.tceHeartbeatUntil > cg.time && cg.snap->ps.stats[STAT_HEALTH] > 0 &&
+#if defined(__linux__) && !defined(Q3_VM)
+	    TCE_SubInt32(cg.tceHeartbeatUntil, cg.time) > 0 &&
+#else
+	    cg.tceHeartbeatUntil > cg.time &&
+#endif
+	    cg.snap->ps.stats[STAT_HEALTH] > 0 &&
 	    cg.tceHeartbeatNext < cg.time)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		int remaining;
+		trap_S_StartSound(NULL, cg.snap->ps.clientNum, CHAN_LOCAL, cgs.media.tceHeartbeat);
+		remaining = TCE_SubInt32(cg.tceHeartbeatUntil, cg.time);
+		if (remaining > 6000)
+		{
+			cg.tceHeartbeatNext = TCE_AddInt32(cg.time, 600);
+		}
+		else if (remaining > 0)
+		{
+			cg.tceHeartbeatNext = TCE_AddInt32(cg.time, 600 + (6000 - remaining) / 15);
+		}
+#else
 		int remaining = cg.tceHeartbeatUntil - cg.time;
 		trap_S_StartSound(NULL, cg.snap->ps.clientNum, CHAN_LOCAL, cgs.media.tceHeartbeat);
 		cg.tceHeartbeatNext = cg.time + 600;
@@ -5571,6 +5645,7 @@ static void CG_Draw2D(void)
 		{
 			cg.tceHeartbeatNext += (6000 - remaining) / 15;
 		}
+#endif
 	}
 	CG_TCEPlayAdsBreath();
 	TCE_CG_UpdateFlashRinging();
