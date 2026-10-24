@@ -1821,7 +1821,12 @@ static double TCE_BotRandomUnit(void)
 }
 static int TCE_BotRandomIndex(int count)
 {
+#if defined(__linux__)
+	/* ELF000797cc..d8 and000798b4..c5 use the combined factor. */
+	return (int)((double)count * (rand() & 0x7fff) * (double)3.0213324862415902e-05f);
+#else
 	return -(int)(TCE_BotRandomUnit() * count * (double)-0.99f);
+#endif
 }
 
 /* BotFindLongTermGoal20040ba0 / Linux00079414. Original flag roles, class
