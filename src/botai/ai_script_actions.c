@@ -8,6 +8,8 @@
 
 #include "../game/g_local.h"
 #include "../game/q_shared.h"
+#include "../game/tce_eye_precision.h"
+#include "../game/tce_bot_angle_precision.h"
 #if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 #include "../game/tce_numeric.h"
 #endif
@@ -2476,6 +2478,9 @@ qboolean Bot_ScriptAction_FireAtTarget(bot_state_t *bs, char *params)
 	// set the view angle manually
 	BG_EvaluateTrajectory(&ent->s.pos, level.time, org, qfalse, -1);
 	VectorCopy(bs->origin, src);
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	if (!TCE_FiniteEyeDirection(bs->origin, bs->cur_ps.viewheight, org, vec))
+#endif
 #if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 	{
 		long double eyeHeight = (long double)bs->origin[2] + bs->cur_ps.viewheight;
@@ -2555,8 +2560,15 @@ qboolean Bot_ScriptAction_FireAtTarget(bot_state_t *bs, char *params)
 		{
 #if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 			{
-				int difference = TCE_TruncateNativeInteger(TCE_BotAngleDifferenceValue(
-				    bs->cur_ps.viewangles[i], bs->ideal_viewangles[i]));
+				int difference;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+				if (!TCE_FiniteBotAngleLow32(bs->cur_ps.viewangles[i],
+				                             bs->ideal_viewangles[i], &difference))
+#endif
+				{
+					difference = TCE_TruncateNativeInteger(TCE_BotAngleDifferenceValue(
+					    bs->cur_ps.viewangles[i], bs->ideal_viewangles[i]));
+				}
 				/* Native integer abs retains signed32 wrap for INT_MIN. */
 				if (difference < 0)
 				{
