@@ -648,7 +648,9 @@ void player_die(gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int 
 	ent->s.otherEntityNum2 = killer;
 	if (self->client)
 	{
-		ent->s.density = self->client->tceLastKillingWeapon;
+		ent->s.modelindex2 = self->client->tceLastKillingWeapon;
+		/* Compatibility payload for older TCE2 clients. */
+		ent->s.density = ent->s.modelindex2;
 	}
 	ent->r.svFlags = SVF_BROADCAST; // send to everyone
 

@@ -88,11 +88,29 @@ static int CG_EventFiveSoundChoice(void)
 CG_Obituary
 =============
 */
-/* Windows 3003aa50: event density carries the TC weapon media slot. */
+/* TC:E carries the weapon media slot in modelindex2. Message formatting
+ * reads existing media only; it must not register weapons while reporting a death. */
+static void CG_ObituaryWeaponText(int mod, int weapon, char *text, int textSize)
+{
+	text[0] = '\0';
+	if (mod == 18 || mod == 20)
+	{
+		Q_strncpyz(text, "(GRENADE)", textSize);
+	}
+	else if (mod == 26)
+	{
+		Q_strncpyz(text, "(C4)", textSize);
+	}
+	else if (weapon > 0 && weapon < (int)(sizeof(tce_cg_weapons) / sizeof(tce_cg_weapons[0])))
+	{
+		Com_sprintf(text, textSize, "(%s)", tce_cg_weapons[weapon].deployMenuShortName);
+	}
+}
+
 static void CG_Obituary(entityState_t *ent)
 {
 	int          target = ent->otherEntityNum, attacker = ent->otherEntityNum2;
-	int          mod = ent->eventParm, weapon = ent->density;
+	int          mod = ent->eventParm, weapon = ent->modelindex2;
 	char         targetName[32], attackerName[32], weaponLabel[80];
 	const char   *message = NULL, *weaponText = "";
 	clientInfo_t *ci, *ca;
@@ -115,30 +133,6 @@ static void CG_Obituary(entityState_t *ent)
 	{
 		return;
 	}
-	/* TC3003aa50/CQB3003d160 both transmit the media slot in density.
-	 * Resolve it before the local kill confirmation too. Keep a private
-	 * buffer: subsequent translated messages use the rotating va buffers. */
-	weaponLabel[0] = '\0';
-	if (mod == 18 || mod == 20)
-	{
-		Q_strncpyz(weaponLabel, "(GRENADE)", sizeof(weaponLabel));
-	}
-	else if (mod == 26)
-	{
-		Q_strncpyz(weaponLabel, "(C4)", sizeof(weaponLabel));
-	}
-	else if (weapon > 0 && weapon < (int)(sizeof(tce_cg_weapons) / sizeof(tce_cg_weapons[0])))
-	{
-		if (!tce_cg_weapons[weapon].registered)
-		{
-			TCE_CG_RegisterWeapon(weapon, 0);
-		}
-		if (tce_cg_weapons[weapon].deployMenuShortName[0])
-		{
-			Com_sprintf(weaponLabel, sizeof(weaponLabel), "(%s)", tce_cg_weapons[weapon].deployMenuShortName);
-		}
-	}
-	weaponText = weaponLabel;
 	Q_strncpyz(targetName, ci->name, 30);
 	Q_strncpyz(targetName, va("%c%c%s", '^', ci->team == 2?'4':ci->team == 1?'1':'7', targetName), 32);
 	publicMessage = cgs.gametype == 7 || cgs.gametype == 2 || (cgs.gametype == 5 && cgs.tceKillMessage > 0);
@@ -185,8 +179,9 @@ static void CG_Obituary(entityState_t *ent)
 		if (attacker == cg.snap->ps.clientNum && target != cg.snap->ps.clientNum)
 		{
 			message = ci->team == ca->team ? (mod == 63?"You swapped places with":"You killed TEAMMATE") : "You killed";
-			CG_AddPMItemBig((popupMessageBigType_t)PM_DEATH, va("%s %s%s%s", CG_TranslateString(message), targetName,
-			                                                    mod != 63 && weaponText[0]?" ":"", mod != 63?weaponText:""), shader);
+			CG_AddPMItemBig((popupMessageBigType_t)PM_DEATH,
+			                va("%s %s", CG_TranslateString(message), targetName),
+			                cgs.media.pmImages[PM_DEATH]);
 		}
 	}
 	if (!ca)
@@ -204,18 +199,19 @@ static void CG_Obituary(entityState_t *ent)
 	Q_strncpyz(attackerName, va("%c%c%s", '^', ca?(ca->team == 2?'4':ca->team == 1?'1':'7'):'7', attackerName), 32);
 	if (publicMessage && ca && target != cg.snap->ps.clientNum)
 	{
+		CG_ObituaryWeaponText(mod, weapon, weaponLabel, sizeof(weaponLabel));
+		weaponText = weaponLabel;
 		message = "<<<";
 		if (ci->team == ca->team)
 		{
-			message = mod == 63 ? "swapped places with" : "was killed by TEAMMATE";
-			if (mod == 63)
-			{
-				weaponText = "";
-			}
+			message = "was killed by TEAMMATE";
+			weaponText = "";
 		}
 		CG_AddPMItem(PM_DEATH, va("%s %s %s %s", targetName, message, attackerName, weaponText), shader);
 		return;
 	}
+	CG_ObituaryWeaponText(mod, weapon, weaponLabel, sizeof(weaponLabel));
+	weaponText = weaponLabel;
 	message = ca && ci->team == ca->team?"You were killed by TEAMMATE":"You were killed by";
 	if (mod == 65)
 	{

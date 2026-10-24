@@ -30,6 +30,22 @@ void CG_AddRefEntityWithPowerups(refEntity_t *ent, int powerups, int team,
 			start = es->onFireStart;
 			end   = es->onFireEnd;
 		}
+#if defined(__linux__) && !defined(Q3_VM)
+		{
+			float storedAlpha = (float)(((long double)cg.time - start) *
+			                            (long double)(1.0 / 1500.0));
+			if (storedAlpha > 1.f)
+			{
+				storedAlpha = (float)(((long double)end - cg.time) *
+				                      (long double)(1.0 / 1500.0));
+				if (storedAlpha > 1.f)
+				{
+					storedAlpha = 1.f;
+				}
+			}
+			alpha = storedAlpha;
+		}
+#else
 		alpha = ((double)cg.time - start) * (1.0 / 1500.0);
 		if (alpha > 1.0)
 		{
@@ -39,6 +55,7 @@ void CG_AddRefEntityWithPowerups(refEntity_t *ent, int powerups, int team,
 				alpha = 1.0;
 			}
 		}
+#endif
 		if (alpha < 0.0)
 		{
 			alpha = 0.0;
