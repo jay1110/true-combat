@@ -72,7 +72,14 @@ void TCE_CG_Missile(centity_t *cent)
 				if (flytime > 300)
 				{
 					vec3_t velocity;
-					int    volume = flytime > 375 ? 255 : (int)(float)(75.0 / (flytime - 300) * 255.0);
+					int    volume;
+
+#if defined(__linux__) && !defined(Q3_VM)
+					/* Linux converts the quotient directly, without a float spill. */
+					volume = flytime > 375 ? 255 : (75.f / ((float)flytime - 300.f)) * 255;
+#else
+					volume = flytime > 375 ? 255 : (int)(float)(75.0 / (flytime - 300) * 255.0);
+#endif
 
 					TCE_BG_EvaluateTrajectoryDelta(&cent->currentState.pos, cg.time, velocity, qfalse, -1, 1.f);
 					trap_S_AddLoopingSound(cent->lerpOrigin, velocity, weapon->missileSound, volume, 0);

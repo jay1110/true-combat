@@ -978,7 +978,11 @@ static void CG_Trap(centity_t *cent)
 CG_Corona
 ==============
 */
+#if defined(__linux__) && !defined(Q3_VM)
+#include "tce_corona_linux.inc"
+#else
 #include "tce_corona.inc"
+#endif
 
 /*
 ==============
