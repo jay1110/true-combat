@@ -685,7 +685,12 @@ qboolean Bot_ScriptInitBot(int entnum)
 	bot_script_global_data_t *bsgd;
 	char                     *token, *p, *pBackup;
 	int                      i, val = 0;
+#if defined(_WIN32) || defined(__linux__)
+	/* TC weapon tags 65/66 need a third scratch word; matching stays two-word. */
+	int                      weapons[3];
+#else
 	int                      weapons[2];
+#endif
 	gitem_t                  *item = NULL;
 	char                     *name;
 	//
