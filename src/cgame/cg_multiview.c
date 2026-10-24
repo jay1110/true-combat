@@ -502,7 +502,7 @@ void CG_mvDraw(cg_window_t *sw)
 	// Cool zoomin/out effect
 	if (sw->state != WSTATE_COMPLETE)
 	{
-		int tmp = trap_Milliseconds() - sw->time;
+		int tmp = TCE_SubInt32(trap_Milliseconds(), sw->time);
 
 		if (sw->state == WSTATE_START)
 		{
@@ -596,9 +596,18 @@ void CG_mvDraw(cg_window_t *sw)
 	               (cgs.clientinfo[pID].fCrewgun) ?
 	               55 : cg_fov.integer;
 
-	// Original projection uses a binary32 radians factor and a binary64 degrees factor.
+#if defined(__linux__) && !defined(Q3_VM)
+	{
+		const double mvPi = 3.14159265358979323846;
+
+		x            = refdef.width / tan(refdef.fov_x / 360 * mvPi);
+		refdef.fov_y = atan2(refdef.height, x) * 360 / mvPi;
+	}
+#else
+	// Windows uses a binary32 radians factor and a binary64 degrees factor.
 	x            = refdef.width / tan((double)refdef.fov_x * 0.008726646192371845f);
 	refdef.fov_y = atan2(refdef.height, x) * 114.59155583736408;
+#endif
 
 	refdef.rdflags = cg.refdef.rdflags;
 	refdef.time    = cg.time;
