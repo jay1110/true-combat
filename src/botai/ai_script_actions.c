@@ -8,7 +8,7 @@
 
 #include "../game/g_local.h"
 #include "../game/q_shared.h"
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 #include "../game/tce_numeric.h"
 #endif
 #if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
@@ -1422,7 +1422,11 @@ qboolean Bot_ScriptAction_FollowLeader(bot_state_t *bs, char *params)
 		}
 	}
 	//
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
+	return bs->script.status.stackChangeTime < TCE_SubInt32(level.time, duration);
+#else
 	return (bs->script.status.stackChangeTime < level.time - duration);
+#endif
 }
 
 /*
@@ -2431,9 +2435,9 @@ qboolean Bot_ScriptAction_FireAtTarget(bot_state_t *bs, char *params)
 	VectorNormalize(vec);
 	vectoangles(vec, bs->ideal_viewangles);
 
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 	// Original TC:E script weapon ID; the SDK enum uses a different value.
-	if (bs->weaponnum == 60)
+	if (bs->weaponnum == TCE_ITEM_WEAPON_MORTAR_SET)
 #else
 	if (bs->weaponnum == WP_MORTAR_SET)
 #endif
@@ -2494,6 +2498,16 @@ qboolean Bot_ScriptAction_FireAtTarget(bot_state_t *bs, char *params)
 				}
 				diff = (float)difference;
 			}
+#elif defined(_WIN32) && !defined(Q3_VM)
+			{
+				int difference = TCE_TruncateNativeInteger((long double)AngleDifference(
+				    bs->cur_ps.viewangles[i], bs->ideal_viewangles[i]));
+				if (difference < 0)
+				{
+					difference = TCE_SubInt32(0, difference);
+				}
+				diff = (float)difference;
+			}
 #else
 			diff = fabsf(AngleDifference(bs->cur_ps.viewangles[i], bs->ideal_viewangles[i]));
 #endif
@@ -2541,7 +2555,7 @@ qboolean Bot_ScriptAction_FireAtTarget(bot_state_t *bs, char *params)
 	//		so can't just move this up to the top
 	//		plus, if we don't pass in a duration, that means fire once, which that check above for no token will handle,
 	//		but we WILL fire once at least
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 	return TCE_AddInt32(bs->script.status.stackChangeTime, atoi(token)) < level.time;
 #else
 	return ((bs->script.status.stackChangeTime + atoi(token)) < level.time);
