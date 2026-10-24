@@ -4440,7 +4440,7 @@ BotAimAtEnemy
 */
 void BotAimAtEnemy(bot_state_t *bs)
 {
-#if defined(__linux__)
+#if defined(_WIN32) || defined(__linux__)
 	const int rocketWeapon    = TCE_ITEM_WEAPON_PANZERFAUST;
 	const int mortarSetWeapon = TCE_ITEM_WEAPON_MORTAR_SET;
 	const int flameWeapon     = TCE_ITEM_WEAPON_FLAMETHROWER;
