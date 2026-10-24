@@ -502,7 +502,8 @@ void BG_ParseConditionBits(char **text_pp, animStringItem_t *stringTable, int co
 
 	//indexBits = 0;
 	currentString[0] = '\0';
-	memset(result, 0, 2 * sizeof(*result));
+	/* The original parser clears only the low word; keep the high word. */
+	result[0] = 0;
 	memset(tempBits, 0, sizeof(tempBits));
 
 	while (!endFlag)
