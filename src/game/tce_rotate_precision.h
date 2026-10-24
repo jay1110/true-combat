@@ -116,6 +116,20 @@ static __inline float TCE_RotateStore(tceTriggerSum_t value, unsigned control)
 	return result;
 }
 
+static __inline int TCE_FiniteProductStore(float left, float right, float *result)
+{
+	tceTriggerSum_t product;
+	unsigned control;
+
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_TriggerProduct(&product, left, right, control))
+	{
+		return 0;
+	}
+	*result = TCE_RotateStore(product, control);
+	return 1;
+}
+
 static __inline int TCE_FiniteDifferenceStore(float left, float right,
                                              float *result)
 {

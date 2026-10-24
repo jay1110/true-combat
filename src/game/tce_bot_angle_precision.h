@@ -2,17 +2,17 @@
 #define TCE_BOT_ANGLE_PRECISION_H
 
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
-#include "tce_rotate_precision.h"
+#include "tce_interpolation_precision.h"
 
 /* Windows AngleDifference returns its rounded difference in ST0 directly to
  * signed64 truncation. Only a single +/-360 correction is performed.
  * Exception flags and nonfinite operands retain separate caller handling. */
-static __inline int TCE_FiniteBotAngleLow32(float first, float second, int *result)
+static __inline int TCE_FiniteBotAngleValue(float first, float second,
+                                            tceTriggerSum_t *result,
+                                            unsigned control)
 {
 	tceTriggerSum_t left, right, difference, boundary, correction;
-	unsigned control;
 
-	__control87_2(0, 0, &control, NULL);
 	if (!TCE_TriggerProduct(&left, first, 1.0f, control) ||
 	    !TCE_TriggerProduct(&right, second, 1.0f, control))
 	{
@@ -40,7 +40,51 @@ static __inline int TCE_FiniteBotAngleLow32(float first, float second, int *resu
 			TCE_RotateAdd(&difference, &correction, control);
 		}
 	}
+	*result = difference;
+	return 1;
+}
+
+static __inline int TCE_FiniteBotAngleLow32(float first, float second, int *result)
+{
+	tceTriggerSum_t difference;
+	unsigned control;
+
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteBotAngleValue(first, second, &difference, control))
+	{
+		return 0;
+	}
 	*result = TCE_FixedSigned64Low32(&difference);
+	return 1;
+}
+
+/* The original stores the candidate speed before comparing the retained
+ * product to the Float maximum. This helper preserves both value stages. */
+static __inline int TCE_FiniteBotAngleSpeed(float first, float second,
+                                            float factor, float maximum,
+                                            float *result)
+{
+	tceTriggerSum_t value, boundary;
+	unsigned control, factorBits;
+
+	memcpy(&factorBits, &factor, sizeof(factorBits));
+	if (((factorBits >> 23) & 255u) == 255u)
+	{
+		return 0;
+	}
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_TriggerProduct(&boundary, maximum, 1.0f, control) ||
+	    !TCE_FiniteBotAngleValue(first, second, &value, control))
+	{
+		return 0;
+	}
+	value.negative = 0;
+	TCE_InterpolationMultiply(&value, factorBits, control);
+	*result = TCE_RotateStore(value, control);
+	if (TCE_TriggerCompare(&value, &boundary) > 0)
+	{
+		*result = maximum;
+	}
 	return 1;
 }
 #endif

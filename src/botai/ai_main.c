@@ -8,6 +8,7 @@
  *****************************************************************************/
 
 #include "../game/g_local.h"
+#include "../game/tce_bot_angle_precision.h"
 #include "../game/q_shared.h"
 #include "../game/botlib.h"     //bot lib interface
 #include "../game/be_aas.h"
@@ -481,10 +482,19 @@ void BotChangeViewAngles(bot_state_t *bs, float thinktime)
 	volatile float factor, maxchange;
 	long double    maximum;
 	int            i;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	float finiteMaximum;
+#endif
 
 	if (bs->ideal_viewangles[PITCH] > 180.0f)
 	{
-		bs->ideal_viewangles[PITCH] = (float)((long double)bs->ideal_viewangles[PITCH] - 360.0f);
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		if (!TCE_FiniteDifferenceStore(bs->ideal_viewangles[PITCH], 360.0f,
+		                               &bs->ideal_viewangles[PITCH]))
+#endif
+		{
+			bs->ideal_viewangles[PITCH] = (float)((long double)bs->ideal_viewangles[PITCH] - 360.0f);
+		}
 	}
 	if (bs->enemy >= 0)
 	{
@@ -504,12 +514,33 @@ void BotChangeViewAngles(bot_state_t *bs, float thinktime)
 		factor  = 0.15f;
 		maximum = 240.0f;
 	}
-	maxchange = (float)(maximum * (long double)thinktime);
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	/* The characteristic wrapper returns an exact binary32 value. */
+	if (TCE_FiniteProductStore((float)maximum, thinktime, &finiteMaximum))
+	{
+		maxchange = finiteMaximum;
+	}
+	else
+#endif
+	{
+		maxchange = (float)(maximum * (long double)thinktime);
+	}
 	for (i = 0; i < 2; ++i)
 	{
-		long double    difference = TCE_BotAngleDifferenceValue(bs->viewangles[i], bs->ideal_viewangles[i]);
-		long double    scaled     = fabsl(difference) * (long double)factor;
+		long double    difference, scaled;
 		volatile float anglespeed;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		float finiteSpeed;
+		if (TCE_FiniteBotAngleSpeed(bs->viewangles[i], bs->ideal_viewangles[i],
+		                            factor, maxchange, &finiteSpeed))
+		{
+			bs->viewangles[i] = BotChangeViewAngle(bs->viewangles[i],
+			                                       bs->ideal_viewangles[i], finiteSpeed);
+			continue;
+		}
+#endif
+		difference = TCE_BotAngleDifferenceValue(bs->viewangles[i], bs->ideal_viewangles[i]);
+		scaled     = fabsl(difference) * (long double)factor;
 
 #if defined(_WIN32)
 		/* Windows stores first, then compares the still-held product. */
@@ -529,7 +560,13 @@ void BotChangeViewAngles(bot_state_t *bs, float thinktime)
 	}
 	if (bs->viewangles[PITCH] > 180.0f)
 	{
-		bs->viewangles[PITCH] = (float)((long double)bs->viewangles[PITCH] - 360.0f);
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		if (!TCE_FiniteDifferenceStore(bs->viewangles[PITCH], 360.0f,
+		                               &bs->viewangles[PITCH]))
+#endif
+		{
+			bs->viewangles[PITCH] = (float)((long double)bs->viewangles[PITCH] - 360.0f);
+		}
 	}
 	trap_EA_View(bs->client, bs->viewangles);
 }
