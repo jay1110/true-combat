@@ -2893,6 +2893,59 @@ static void TCE_LimboKeyContents(int key, qboolean down)
 
 void CG_LimboPanel_GetWeaponCardIconData(weapon_t weap, qhandle_t *shader, float *w, float *h, float *s0, float *t0, float *s1, float *t1)
 {
+#if defined(__linux__) && !defined(Q3_VM)
+	/* Original TC:E atlas IDs differ from the SDK weapon enum. This only maps
+	 * card coordinates; it does not define or enable additional weapons. */
+	switch ((int)weap)
+	{
+	case 3: case 8: case 10: case 31: case 33: case 35:
+	case 41: case 42: case 43: case 44: case 45: case 46: case 47:
+	case 51: case 65: case 66:
+		*shader = cgs.media.limboWeaponCard1;
+		break;
+	case 2: case 7: case 14: case 23: case 24: case 25: case 32:
+	case 37: case 38: case 39: case 40: case 52: case 53: case 54:
+		*shader = cgs.media.limboWeaponCard2;
+		break;
+	default:
+		*shader = 0;
+		break;
+	}
+	*s0 = 0.0f;
+	*s1 = weap == 2 || weap == 7 || weap == 14 || weap == 52 ? 0.5f : 1.0f;
+	switch ((int)weap)
+	{
+	case 14: case 35: case 54:
+		*t0 = 0.0f; *t1 = 0.125f;
+		break;
+	case 52: case 53: case 65:
+		*t0 = 0.125f; *t1 = 0.25f;
+		break;
+	case 2: case 38: case 66:
+		*t0 = 0.25f; *t1 = 0.375f;
+		break;
+	case 7: case 33: case 37:
+		*t0 = 0.375f; *t1 = 0.5f;
+		break;
+	case 24: case 31:
+		*t0 = 0.5f; *t1 = 0.625f;
+		break;
+	case 3: case 23: case 51:
+		*t0 = 0.625f; *t1 = 0.75f;
+		break;
+	case 10: case 32:
+		*t0 = 0.75f; *t1 = 0.875f;
+		break;
+	case 8: case 25:
+		*t0 = 0.875f; *t1 = 1.0f;
+		break;
+	default:
+		*t0 = 0.0f; *t1 = 1.0f;
+		break;
+	}
+	*h = 1.0f;
+	*w = weap == 2 || weap == 7 || weap == 14 || weap == 52 ? 0.5f : 1.0f;
+#else
 	// setup the shader
 	switch (weap)
 	{
@@ -3008,6 +3061,7 @@ void CG_LimboPanel_GetWeaponCardIconData(weapon_t weap, qhandle_t *shader, float
 		*w = 1.f;
 		break;
 	}
+#endif
 }
 
 // Gordon: Utility funcs
