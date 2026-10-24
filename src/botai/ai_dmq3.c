@@ -3437,7 +3437,7 @@ qboolean BotDangerousGoal(bot_state_t *bs, bot_goal_t *goal)
 			if (trav->client)
 			{
 				// is this player dangerous?
-#if defined(__linux__)
+#if defined(_WIN32) || defined(__linux__)
 				if (!(trav->client->ps.weapon == TCE_ITEM_WEAPON_PANZERFAUST && trav->client->ps.weaponDelay))
 #else
 				if (!(trav->client->ps.weapon == WP_PANZERFAUST && trav->client->ps.weaponDelay))
@@ -4151,7 +4151,7 @@ Find a new target for bots in multiplayer
 */
 int BotFindEnemyMP(bot_state_t *bs, int curenemy, qboolean ignoreViewRestrictions)
 {
-#if defined(__linux__)
+#if defined(_WIN32) || defined(__linux__)
 	const int panzerWeapon = TCE_ITEM_WEAPON_PANZERFAUST;
 #else
 	const int panzerWeapon = WP_PANZERFAUST;
@@ -4374,7 +4374,7 @@ int BotFindEnemyMP(bot_state_t *bs, int curenemy, qboolean ignoreViewRestriction
 		vis = BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, fov, j, NULL);
 
 		// If we're not visible, and we're not heard, skip out
-#if defined(__linux__)
+#if defined(_WIN32) || defined(__linux__)
 		if (!(vis > 0) && !heardShooting && !heardFootSteps)
 #else
 		if ((vis <= 0) && !heardShooting && !heardFootSteps)
