@@ -1536,6 +1536,14 @@ void CG_ShardJunk(centity_t *cent, vec3_t origin, vec3_t dir)
 	value       = value * (long double)lifetime;
 	value       = value + (long double)baseTime;
 	le->endTime = TCE_TruncateNativeInteger(value);
+#elif defined(__linux__) && !defined(Q3_VM)
+	{
+		/* Linux publishes the wrapped integer base as float before rand(). */
+		volatile float baseTime = (float)TCE_AddInt32(le->startTime, 5000);
+		int sample = rand() & 32767;
+		le->endTime = TCE_TruncateNativeInteger(
+		    (long double)sample * 0.15259253978729248f + baseTime);
+	}
 #else
 	le->endTime = le->startTime + 5000 + random() * 5000;
 #endif
@@ -1548,6 +1556,8 @@ void CG_ShardJunk(centity_t *cent, vec3_t origin, vec3_t dir)
 	timeBits = (unsigned int)le->endTime - (unsigned int)le->startTime;
 	memcpy(&duration, &timeBits, sizeof(duration));
 	le->lifeRate = (float)(1.0L / (long double)duration);
+#elif defined(__linux__) && !defined(Q3_VM)
+	le->lifeRate = (float)(1.L / TCE_SubInt32(le->endTime, le->startTime));
 #else
 	le->lifeRate = 1.0 / (le->endTime - le->startTime);
 #endif
@@ -1585,13 +1595,28 @@ void CG_ShardJunk(centity_t *cent, vec3_t origin, vec3_t dir)
 	value              = (long double)sample * (long double)randomUnit;
 	value              = value * (long double)spread;
 	le->pos.trDelta[2] = (float)(value + (long double)bias);
+#elif defined(__linux__) && !defined(Q3_VM)
+	{
+		int axis, sample;
+		/* The Linux originals use one stored scale for all three samples. */
+		const float randomSpread = 0.0030518509447574615f;
+		for (axis = 0; axis < 2; ++axis)
+		{
+			sample = rand() & 32767;
+			le->pos.trDelta[axis] = (float)((long double)sample * randomSpread - 50.f
+			                                 + le->pos.trDelta[axis]);
+		}
+		sample = rand() & 32767;
+		le->angles.trType = TR_LINEAR;
+		le->pos.trDelta[2] = (float)((long double)sample * randomSpread + 50.f);
+	}
 #else
 	le->pos.trDelta[0] += ((random() * 100) - 50);
 	le->pos.trDelta[1] += ((random() * 100) - 50);
 	le->pos.trDelta[2]  = (random() * 100) + 50;
 #endif
 	// rotation
-#if !defined(_MSC_VER) || !defined(_M_IX86)
+#if (!defined(_MSC_VER) || !defined(_M_IX86)) && !(defined(__linux__) && !defined(Q3_VM))
 	le->angles.trType = TR_LINEAR;
 #endif
 	le->angles.trTime = cg.time;
