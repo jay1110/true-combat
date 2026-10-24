@@ -7111,7 +7111,12 @@ void Item_Paint(itemDef_t *item)
 		{
 			float rx, ry, a, c, s, w, h;
 
+
+#if defined(__linux__) && !defined(Q3_VM)
+			item->window.nextTime = TCE_AddInt32(DC->realTime, item->window.offsetTime);
+#else
 			item->window.nextTime = DC->realTime + item->window.offsetTime;
+#endif
 			// translate
 			w                         = item->window.rectClient.w / 2;
 			h                         = item->window.rectClient.h / 2;
@@ -7133,7 +7138,12 @@ void Item_Paint(itemDef_t *item)
 		if (DC->realTime > item->window.nextTime)
 		{
 			int done = 0;
+
+#if defined(__linux__) && !defined(Q3_VM)
+			item->window.nextTime = TCE_AddInt32(DC->realTime, item->window.offsetTime);
+#else
 			item->window.nextTime = DC->realTime + item->window.offsetTime;
+#endif
 			// transition the x,y
 			if (item->window.rectClient.x == item->window.rectEffects.x)
 			{
@@ -7666,7 +7676,7 @@ void Menu_Paint(menuDef_t *menu, qboolean forcePaint)
 
 	// OSP draw tooltip data if we have it
 	if (
-#if defined(_WIN32) && !defined(Q3_VM)
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 	    !TCE_FloatIsZeroOrNaN(DC->getCVarValue("ui_showtooltips")) &&
 #else
 	    DC->getCVarValue("ui_showtooltips") &&
@@ -7686,7 +7696,7 @@ void Menu_Paint(menuDef_t *menu, qboolean forcePaint)
 	}
 	else if (menu->window.flags & WINDOW_VISIBLE &&
 	         menu->timeout > 0 && menu->onTimeout != NULL &&
-#if defined(_WIN32) && !defined(Q3_VM)
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 	         TCE_AddInt32(menu->openTime, menu->timeout) <= DC->realTime)
 #else
 	         menu->openTime + menu->timeout <= DC->realTime)
