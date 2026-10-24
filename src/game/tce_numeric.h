@@ -42,6 +42,18 @@ static __inline int TCE_SubInt32(int left, int right)
 	return -1 - (int)(UINT_MAX - difference);
 }
 
+/* Model the low 32 bits of a native integer multiply. */
+static __inline int TCE_MulInt32(int left, int right)
+{
+	return TCE_Int32FromUnsigned((unsigned)left * (unsigned)right);
+}
+
+/* Truncate int32 * the native binary32 value of 0.01f without a double spill. */
+static __inline int TCE_Int32TimesFloatHundredth(int value)
+{
+	return (int)(((long long)value * 5368709LL) / 536870912LL);
+}
+
 /* Preserve the original branch decisions without relying on FPU status bits. */
 static __inline int TCE_FloatIsNaN(float value)
 {

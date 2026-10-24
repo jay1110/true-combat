@@ -446,7 +446,8 @@ void CG_mvTransitionPlayerState(playerState_t *ps)
 	}
 
 	ps->curWeapHeat     = (int)((double)ci->weapHeat * 2.55f);
-	ps->classWeaponTime = (ci->chargeTime < 0) ? -1 : cg.time - (int)((double)(mult * ci->chargeTime) * 0.01f);
+	ps->classWeaponTime = (ci->chargeTime < 0) ? -1 :
+	                      TCE_SubInt32(cg.time, TCE_Int32TimesFloatHundredth(TCE_MulInt32(mult, ci->chargeTime)));
 
 	// FIXME: moved to pmext
 //	ps->sprintTime = (ci->sprintTime < 0) ? 20000 : (int)((float)ci->sprintTime / 100.0f * 20000.0f);
