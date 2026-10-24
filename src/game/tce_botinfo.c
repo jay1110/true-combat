@@ -1710,7 +1710,12 @@ int TCE_WPCalcPath(gentity_t *ent, int start, int goal, short *path)
 	tceNode_t    *node, *neighbor;
 	vec3_t       delta;
 	int          loops = 0, i, next, currentIndex, edge;
+#if defined(__linux__)
+	float        distance;
+	double       factor;
+#else
 	float        factor;
+#endif
 	if (start < 0 || goal < 0 || start >= TCE_MAX_NODES || goal >= TCE_MAX_NODES || start == goal)
 	{
 		return -1;
@@ -1760,14 +1765,27 @@ int TCE_WPCalcPath(gentity_t *ent, int start, int goal, short *path)
 			    (neighbor->number == TCE_BotReadShort(info, 0x14) ||
 			     neighbor->number == TCE_BotReadShort(info, 0x12)))
 			{
-				/* Windows2004467b multiplies -10, then SUBTRACTS ftol. */
+#if defined(__linux__)
+				/* ELF0007e1dc uses +10, then0007e13e adds the edge. */
+				edge         = (int)(TCE_BotRouteLength(delta) * 10.0);
+				target->cost = (int)((unsigned int)current->cost + edge);
+#else
+				/* Windows2004467b multiplies -10, then subtracts ftol. */
 				edge         = (int)(TCE_BotRouteLength(delta) * -10.0);
 				target->cost = (int)((unsigned int)current->cost - edge);
+#endif
 			}
 			else
 			{
+#if defined(__linux__)
+				/* ELF0007e0f3 spills the distance before drawing rand(). */
+				distance     = (float)TCE_BotRouteLength(delta);
+				factor       = (double)(rand() & 0x7fff) * (double)3.0518509447574615e-05f + 0.5;
+				edge         = (int)(distance * factor);
+#else
 				factor       = (float)((double)(rand() & 0x7fff) * (double)3.0518509447574615e-05f + 0.5);
 				edge         = (int)(TCE_BotRouteLength(delta) * factor);
+#endif
 				target->cost = (int)((unsigned int)current->cost + edge);
 			}
 			if (neighbor->flags & 0x400)
@@ -1775,8 +1793,15 @@ int TCE_WPCalcPath(gentity_t *ent, int start, int goal, short *path)
 				target->cost = (int)((unsigned int)target->cost + 384u);
 			}
 			VectorSubtract(tceNodes[goal].origin, neighbor->origin, delta);
+#if defined(__linux__)
+			/* The heuristic has the same distance spill at ELF0007e17c. */
+			distance         = (float)TCE_BotRouteLength(delta);
+			factor           = (double)(rand() & 0x7fff) * (double)3.0518509447574615e-05f + 0.5;
+			target->estimate = (int)(distance * factor);
+#else
 			factor           = (float)((double)(rand() & 0x7fff) * (double)3.0518509447574615e-05f + 0.5);
 			target->estimate = (int)(TCE_BotRouteLength(delta) * factor);
+#endif
 			TCE_WPAddToOpenList(target);
 		}
 		last = current;
