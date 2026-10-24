@@ -1492,6 +1492,231 @@ int TCE_GetFCost(int goal, int node, int parent, float *costs)
 	factor       = (long double)(rand() & 0x7fff) * 3.0518509447574615e-05f + 0.5L;
 	return TCE_TruncateNativeInteger(factor * distance + weightedCost);
 }
+
+static qboolean TCE_AStarRaise(int *heap, const int *costs, int position,
+                              int *steps, qboolean decrease)
+{
+	int iterations = 0;
+	if (position == 1 || *steps >= 5000)
+	{
+		return qtrue;
+	}
+	for (;;)
+	{
+		int node, parent, parentNode;
+		++iterations;
+		++*steps;
+		if (position < 1 || position >= TCE_MAX_NODES)
+		{
+			return qfalse;
+		}
+		node       = heap[position];
+		parent     = position / 2;
+		parentNode = heap[parent];
+		if (node < 0 || node >= TCE_MAX_NODES || parentNode < 0 || parentNode >= TCE_MAX_NODES)
+		{
+			return qfalse;
+		}
+		if (decrease ? costs[parentNode] <= costs[node] : costs[parentNode] < costs[node])
+		{
+			return qtrue;
+		}
+		heap[parent]   = node;
+		heap[position] = parentNode;
+		position       = parent;
+		if (parent == 1 || iterations > 9 || *steps >= 5000)
+		{
+			return qtrue;
+		}
+	}
+}
+
+/* CreatePathAStar0007d3cc is independent of the WP linked-list algorithm. */
+int TCE_CreatePathAStar(gentity_t *ent, int start, int goal, short *path)
+{
+	int   heap[TCE_MAX_NODES + 1], costs[TCE_MAX_NODES];
+	int   states[TCE_MAX_NODES], parents[TCE_MAX_NODES];
+	float distances[TCE_MAX_NODES];
+	int   openCount = 1, steps = 0, searches = 0;
+	memset(heap, 0, sizeof(heap));
+	memset(costs, 0, sizeof(costs));
+	memset(states, 0, sizeof(states));
+	memset(parents, 0, sizeof(parents));
+	/* All-one float bits are NaNs, not the numeric value -1. */
+	memset(distances, 0xff, sizeof(distances));
+	if (start < 0 || goal < 0 || start >= TCE_MAX_NODES || goal >= TCE_MAX_NODES || start == goal)
+	{
+		return -1;
+	}
+	heap[1]          = start;
+	distances[start] = 0.0f;
+	costs[start]     = 0;
+	for (;;)
+	{
+		int current, position = 1, iterations = 0, slot;
+		++searches;
+		++steps;
+		if (!openCount)
+		{
+			return -1;
+		}
+		current = heap[1];
+		if (current < 0 || current >= TCE_MAX_NODES || openCount >= TCE_MAX_NODES)
+		{
+			return -1;
+		}
+		states[current] = 2;
+		heap[1]         = heap[openCount--];
+		while (steps < 5000)
+		{
+			int selected = position, left = position * 2, right = left + 1, node, other;
+			++steps;
+			++iterations;
+			if (right < openCount)
+			{
+				if (position >= TCE_MAX_NODES || right >= TCE_MAX_NODES)
+				{
+					return -1;
+				}
+				node = heap[position];
+				other = heap[left];
+				if (node < 0 || node >= TCE_MAX_NODES || other < 0 || other >= TCE_MAX_NODES)
+				{
+					return -1;
+				}
+				if (costs[other] <= costs[node])
+				{
+					node = other;
+					selected = left;
+				}
+				other = heap[right];
+				if (other < 0 || other >= TCE_MAX_NODES)
+				{
+					return -1;
+				}
+				if (costs[other] <= costs[node])
+				{
+					selected = right;
+				}
+			}
+			else if (left < openCount)
+			{
+				if (position >= TCE_MAX_NODES || right >= TCE_MAX_NODES)
+				{
+					return -1;
+				}
+				node = heap[position];
+				other = heap[left];
+				if (node < 0 || node >= TCE_MAX_NODES || other < 0 || other >= TCE_MAX_NODES)
+				{
+					return -1;
+				}
+				/* Original7daba..faf compares LEFT, but selects RIGHT. */
+				if (costs[other] <= costs[node])
+				{
+					selected = right;
+				}
+			}
+			if (selected == position)
+			{
+				break;
+			}
+			node           = heap[position];
+			heap[position] = heap[selected];
+			heap[selected] = node;
+			position       = selected;
+			if (iterations > 9)
+			{
+				break;
+			}
+		}
+		/* The original examines exactly three slots, not numLinks. */
+		for (slot = 0; slot < 3; ++slot)
+		{
+			int next = tceNodes[current].links[slot].target;
+			if (next == -1)
+			{
+				continue;
+			}
+			if (next < 0 || next >= TCE_MAX_NODES)
+			{
+				return -1;
+			}
+			if ((tceNodes[current].links[slot].flags & 0x10) ||
+			    ((tceNodes[next].flags & 0x20) && ent->client->sess.sessionTeam == TEAM_ALLIES) ||
+			    ((tceNodes[next].flags & 0x10) && ent->client->sess.sessionTeam == TEAM_AXIS) ||
+			    states[next] == 2)
+			{
+				continue;
+			}
+			if (states[next] == 1)
+			{
+				vec3_t delta;
+				long double distance;
+				VectorSubtract(tceNodes[next].origin, tceNodes[current].origin, delta);
+				distance = (long double)distances[current] + TCE_BotRouteLength(delta);
+				/* FCOM/JNC accepts unordered, as well as a shorter path. */
+				if (!(distance >= distances[next]))
+				{
+					distances[next] = (float)distance;
+					parents[next] = current;
+					if (openCount >= TCE_MAX_NODES)
+					{
+						return -1;
+					}
+					/* Native EBP is both heap-search and outer-link index. */
+					for (slot = 1; slot < openCount; ++slot)
+					{
+						if (heap[slot] == next)
+						{
+							costs[next] = TCE_GetFCost(goal, next, parents[next], distances);
+							if (!TCE_AStarRaise(heap, costs, slot, &steps, qtrue))
+							{
+								return -1;
+							}
+							break;
+						}
+					}
+				}
+			}
+			else
+			{
+				++openCount;
+				states[next] = 1;
+				heap[openCount] = next;
+				parents[next] = current;
+				if (next == goal)
+				{
+					break;
+				}
+				costs[next] = TCE_GetFCost(goal, next, current, distances);
+				if (!TCE_AStarRaise(heap, costs, openCount, &steps, qfalse))
+				{
+					return -1;
+				}
+			}
+		}
+		if (states[goal] == 1)
+		{
+			int count = 0, node = goal;
+			while (node != start)
+			{
+				if (count > 1021)
+				{
+					return -1;
+				}
+				path[count++] = (short)node;
+				node = parents[node];
+			}
+			path[count++] = (short)start;
+			return count;
+		}
+		if (searches > 999 || steps > 4999)
+		{
+			return -1;
+		}
+	}
+}
 #endif
 
 static void TCE_BotAdvanceRoute(gentity_t *ent, int *state)
