@@ -56,6 +56,10 @@ qboolean TCE_BotDoFlag(gentity_t *ent, usercmd_t *command);
 qboolean TCE_PerformNodeActions(gentity_t *ent, usercmd_t *command);
 void TCE_HandleWanderState(gentity_t *ent, int *state, usercmd_t *command);
 void TCE_HandleMoveState(gentity_t *ent, int *state, usercmd_t *command);
+#if defined(__linux__)
+int TCE_GetCost(void);
+int TCE_GetFCost(int goal, int node, int parent, float *costs);
+#endif
 int TCE_WPCalcPath(gentity_t *ent, int start, int goal, short *path);
 void TCE_BotFindLongTermGoal(gentity_t *ent);
 void TCE_HandleIdleState(gentity_t *ent, int *state);

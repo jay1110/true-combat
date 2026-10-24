@@ -1,10 +1,59 @@
 #include "g_local.h"
 #include "tce_nodes.h"
+#if defined(__linux__)
+#include "tce_numeric.h"
+#endif
 extern vmCvar_t g_developer;
 
 tceNode_t tceNodes[TCE_MAX_NODES];
 short     tceNumNodes;
 int       tceLastNode = -1;
+
+#if defined(__linux__)
+/* G_SavePoints00079044: text export, separate from the binary .wps stream. */
+void TCE_SavePoints(void)
+{
+	fileHandle_t file;
+	vmCvar_t     map;
+	char         filename[128], text[1024];
+	int          i, j;
+	trap_Cvar_Register(&map, "mapname", "", 0x44);
+	Com_sprintf(filename, sizeof(filename), "botroutes/%s.wpt", map.string);
+	trap_FS_FOpenFile(filename, &file, FS_WRITE);
+	if (!file)
+	{
+		Com_Printf("^1ERROR: Could not open file \"%s\"to write point data\n", filename);
+		return;
+	}
+	/* The original writes an empty string before reopening in append mode. */
+	Com_sprintf(text, sizeof(text), "");
+	trap_FS_Write(text, strlen(text), file);
+	trap_FS_FCloseFile(file);
+	trap_FS_FOpenFile(filename, &file, FS_APPEND);
+	Com_sprintf(text, sizeof(text), "truecombat waypoints\n{\n%i\n", (int)tceNumNodes);
+	trap_FS_Write(text, strlen(text), file);
+	for (i = 0; i < tceNumNodes; i++)
+	{
+		tceNode_t *node = &tceNodes[i];
+		Com_sprintf(text, sizeof(text), "%i %i %i %i %i %i\n", (int)node->number,
+		            TCE_TruncateNativeInteger(node->origin[0]),
+		            TCE_TruncateNativeInteger(node->origin[1]),
+		            TCE_TruncateNativeInteger(node->origin[2]),
+		            (int)node->flags, (int)node->numLinks);
+		trap_FS_Write(text, strlen(text), file);
+		for (j = 0; j < node->numLinks; j++)
+		{
+			Com_sprintf(text, sizeof(text), "%i %i\n", (int)node->links[j].target,
+			            (int)(short)node->links[j].flags);
+			trap_FS_Write(text, strlen(text), file);
+		}
+	}
+	Com_sprintf(text, sizeof(text), "}\n");
+	trap_FS_Write(text, strlen(text), file);
+	trap_FS_FCloseFile(file);
+	Com_Printf("^3Point data has been saved\n");
+}
+#endif
 
 /* SaveNodes200409a0 / Linux00078cde: version2 field stream, not a struct dump. */
 void TCE_SaveNodes(const char *filename)

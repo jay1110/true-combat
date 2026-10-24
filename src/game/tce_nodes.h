@@ -22,6 +22,9 @@ qboolean TCE_AddNode(const vec3_t origin, short flags, const short entities[3], 
 qboolean TCE_ConnectNodes(int from, int to, short flags);
 qboolean TCE_LoadNodes(const char *filename);
 void TCE_SaveNodes(const char *filename);
+#if defined(__linux__)
+void TCE_SavePoints(void);
+#endif
 void TCE_ConnectClosestNodes(int maxLinks);
 void TCE_InitNodes(void);
 void TCE_UpdateNodes(void);

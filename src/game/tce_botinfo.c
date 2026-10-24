@@ -4,6 +4,9 @@
 #include "tce_node_editor.h"
 #include <ctype.h>
 #include <stdio.h>
+#if defined(__linux__)
+#include "tce_numeric.h"
+#endif
 
 tceBotInfo_t tceBotInfo[64];
 int          tceNumBots;
@@ -1457,6 +1460,39 @@ static double TCE_BotRouteLength(const vec3_t v)
 {
 	return sqrt(((double)v[0] * v[0] + (double)v[1] * v[1]) + (double)v[2] * v[2]);
 }
+
+#if defined(__linux__)
+/* GetCost0007d3c6 is an original constant-return export. */
+int TCE_GetCost(void)
+{
+	return -1;
+}
+
+/* GetFCost0007db0c: cached path cost and two independent random draws. */
+int TCE_GetFCost(int goal, int node, int parent, float *costs)
+{
+	vec3_t      delta;
+	float       cost = costs[node], distance, weightedCost;
+	long double factor;
+	/* Native FCOM/JNZ also enters this branch for an unordered comparison. */
+	if (cost == -1.0f || TCE_FloatIsNaN(cost))
+	{
+		cost = 0.0f;
+		if (parent != -1)
+		{
+			VectorSubtract(tceNodes[node].origin, tceNodes[parent].origin, delta);
+			cost = (float)((long double)TCE_BotRouteLength(delta) + costs[parent]);
+		}
+		costs[node] = cost;
+	}
+	VectorSubtract(tceNodes[goal].origin, tceNodes[node].origin, delta);
+	distance     = (float)TCE_BotRouteLength(delta);
+	factor       = (long double)(rand() & 0x7fff) * 3.0518509447574615e-05f + 0.5L;
+	weightedCost = (float)(factor * cost);
+	factor       = (long double)(rand() & 0x7fff) * 3.0518509447574615e-05f + 0.5L;
+	return TCE_TruncateNativeInteger(factor * distance + weightedCost);
+}
+#endif
 
 static void TCE_BotAdvanceRoute(gentity_t *ent, int *state)
 {
