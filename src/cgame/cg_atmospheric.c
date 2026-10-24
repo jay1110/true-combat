@@ -14,6 +14,7 @@
 #include <stddef.h>
 #include "../game/tce_numeric.h"
 #include "../game/tce_gust_precision.h"
+#include "../game/tce_weather_precision.h"
 
 #define MAX_ATMOSPHERIC_HEIGHT          MAX_MAP_SIZE    // maximum world height
 #define MIN_ATMOSPHERIC_HEIGHT          -MAX_MAP_SIZE   // minimum world height
@@ -326,26 +327,39 @@ static qboolean CG_RainParticleCheckVisible(cg_atmosphericParticle_t *particle)
 {
 	long double elapsed, z, dx, dy;
 	float bottom;
+	int outside;
 
 	if (!particle || particle->active == ACT_NOT)
 	{
 		return qfalse;
 	}
-	elapsed = (long double)TCE_SubInt32(cg.time, cg_atmFx.lastRainTime) * (long double)(double)0.001;
-	particle->pos[0] = (float)(elapsed * particle->delta[0] + particle->pos[0]);
-	particle->pos[1] = (float)(elapsed * particle->delta[1] + particle->pos[1]);
-	z = elapsed * particle->delta[2] + particle->pos[2];
-	particle->pos[2] = (float)z;
-	/* The ground test uses a separate float store of the held Z plus height. */
-	bottom = (float)(z + particle->height);
+#if !defined(Q3_VM)
+	if (!TCE_FiniteWeatherMove(TCE_SubInt32(cg.time, cg_atmFx.lastRainTime),
+	                          particle->pos, particle->delta, &particle->height, &bottom))
+#endif
+	{
+		elapsed = (long double)TCE_SubInt32(cg.time, cg_atmFx.lastRainTime) * (long double)(double)0.001;
+		particle->pos[0] = (float)(elapsed * particle->delta[0] + particle->pos[0]);
+		particle->pos[1] = (float)(elapsed * particle->delta[1] + particle->pos[1]);
+		z = elapsed * particle->delta[2] + particle->pos[2];
+		particle->pos[2] = (float)z;
+		/* The ground test uses a separate float store of the held Z plus height. */
+		bottom = (float)(z + particle->height);
+	}
 	if (bottom < BG_GetSkyGroundHeightAtPoint(particle->pos))
 	{
 		return CG_SetParticleActive(particle, ACT_NOT);
 	}
 
-	dx = (long double)particle->pos[0] - cg.refdef_current->vieworg[0];
-	dy = (long double)particle->pos[1] - cg.refdef_current->vieworg[1];
-	if (dy * dy + dx * dx > 1000000.0L)
+#if !defined(Q3_VM)
+	if (!TCE_FiniteWeatherOutside(particle->pos, cg.refdef_current->vieworg, &outside))
+#endif
+	{
+		dx = (long double)particle->pos[0] - cg.refdef_current->vieworg[0];
+		dy = (long double)particle->pos[1] - cg.refdef_current->vieworg[1];
+		outside = dy * dy + dx * dx > 1000000.0L;
+	}
+	if (outside)
 	{
 		return CG_SetParticleActive(particle, ACT_NOT);
 	}
@@ -607,23 +621,36 @@ static qboolean CG_SnowParticleGenerate(cg_atmosphericParticle_t *particle, vec3
 static qboolean CG_SnowParticleCheckVisible(cg_atmosphericParticle_t *particle)
 {
 	long double elapsed, dx, dy;
+	int outside;
 
 	if (!particle || particle->active == ACT_NOT)
 	{
 		return qfalse;
 	}
-	elapsed = (long double)TCE_SubInt32(cg.time, cg_atmFx.lastRainTime) * (long double)(double)0.001;
-	particle->pos[0] = (float)(elapsed * particle->delta[0] + particle->pos[0]);
-	particle->pos[1] = (float)(elapsed * particle->delta[1] + particle->pos[1]);
-	particle->pos[2] = (float)(elapsed * particle->delta[2] + particle->pos[2]);
+#if !defined(Q3_VM)
+	if (!TCE_FiniteWeatherMove(TCE_SubInt32(cg.time, cg_atmFx.lastRainTime),
+	                          particle->pos, particle->delta, NULL, NULL))
+#endif
+	{
+		elapsed = (long double)TCE_SubInt32(cg.time, cg_atmFx.lastRainTime) * (long double)(double)0.001;
+		particle->pos[0] = (float)(elapsed * particle->delta[0] + particle->pos[0]);
+		particle->pos[1] = (float)(elapsed * particle->delta[1] + particle->pos[1]);
+		particle->pos[2] = (float)(elapsed * particle->delta[2] + particle->pos[2]);
+	}
 	if (particle->pos[2] < BG_GetSkyGroundHeightAtPoint(particle->pos))
 	{
 		return CG_SetParticleActive(particle, ACT_NOT);
 	}
 
-	dx = (long double)particle->pos[0] - cg.refdef_current->vieworg[0];
-	dy = (long double)particle->pos[1] - cg.refdef_current->vieworg[1];
-	if (dy * dy + dx * dx > 1000000.0L)
+#if !defined(Q3_VM)
+	if (!TCE_FiniteWeatherOutside(particle->pos, cg.refdef_current->vieworg, &outside))
+#endif
+	{
+		dx = (long double)particle->pos[0] - cg.refdef_current->vieworg[0];
+		dy = (long double)particle->pos[1] - cg.refdef_current->vieworg[1];
+		outside = dy * dy + dx * dx > 1000000.0L;
+	}
+	if (outside)
 	{
 		return CG_SetParticleActive(particle, ACT_NOT);
 	}
