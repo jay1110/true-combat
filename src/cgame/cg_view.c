@@ -594,6 +594,32 @@ void CG_Concussive(centity_t *cent)
 			}
 		}
 	}
+#elif defined(__linux__) && !defined(Q3_VM)
+	{
+		long double distance = TCE_VectorLengthValue(vec);
+		/* TC admits unordered distances; the SDK's Linux gate does not. */
+		if (!(distance > 1024.f))
+		{
+			float       amplitude = (float)(((1.L / distance) * 32.f) * 64.f);
+			float       yaw = amplitude;
+			long double pitch, roll, recoil;
+			if (rand() % 100 > 50)
+			{
+				unsigned bits;
+				memcpy(&bits, &yaw, sizeof(bits));
+				bits ^= 0x80000000u;
+				memcpy(&yaw, &bits, sizeof(yaw));
+			}
+			pitch = -(long double)amplitude * 30.f;
+			roll  = -(long double)yaw * 30.f;
+			/* The original subtracts zero in the FPU and publishes this last. */
+			recoil = (long double)cg.recoilPitch - 0.f;
+			cg.kickAVel[YAW]   = (float)((long double)yaw * 30.f);
+			cg.kickAVel[PITCH] = (float)pitch;
+			cg.kickAVel[ROLL]  = (float)roll;
+			cg.recoilPitch    = (float)recoil;
+		}
+	}
 #else
 	{
 		float length = VectorLength(vec), amplitude, yaw;
