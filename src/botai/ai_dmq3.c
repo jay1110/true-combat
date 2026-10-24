@@ -8007,7 +8007,7 @@ BotDirectMoveToGoal
 */
 qboolean BotDirectMoveToGoal(bot_state_t *bs, bot_goal_t *goal, bot_moveresult_t *moveresult)
 {
-#if defined(__linux__)
+#if defined(_WIN32) || defined(__linux__)
 	const int shotMask = MASK_SHOT | CONTENTS_MISSILECLIP;
 #else
 	const int shotMask = MASK_SHOT;
