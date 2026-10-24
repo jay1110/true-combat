@@ -8,7 +8,7 @@
  *****************************************************************************/
 
 #include "../game/g_local.h"
-#if defined(__linux__)
+#if defined(_WIN32) || defined(__linux__)
 #include "../game/tce_weapon_ids.h"
 #endif
 #include "../game/botlib.h"
@@ -1894,7 +1894,7 @@ int BotSuggestWeapon(bot_state_t *bs, team_t team)
 		if ((bs->mpClass == PC_SOLDIER) && (rand() % 3) && (level.time < level.startTime + 30000) && (bs->mpTeam == level.attackingTeam))
 		{
 			//return 4; // panzer
-#if defined(__linux__)
+#if defined(_WIN32) || defined(__linux__)
 			return TCE_ITEM_WEAPON_PANZERFAUST;
 #else
 			return WP_PANZERFAUST;
@@ -1967,7 +1967,7 @@ int BotSuggestWeapon(bot_state_t *bs, team_t team)
 		}
 		switch (r)
 		{
-#if defined(__linux__)
+#if defined(_WIN32) || defined(__linux__)
 		default:    return TCE_ITEM_WEAPON_PANZERFAUST;
 		case 1:     return TCE_ITEM_WEAPON_FLAMETHROWER;
 #else
@@ -3577,7 +3577,7 @@ int BotGetLeader(bot_state_t *bs, qboolean onlyRequested)
 	gentity_t  *trav;
 	bot_goal_t goal;
 
-#if defined(__linux__)
+#if defined(_WIN32) || defined(__linux__)
 	int heavyWeapons[] = { TCE_ITEM_WEAPON_PANZERFAUST, WP_MOBILE_MG42, -1 };
 #else
 	int heavyWeapons[] = { WP_PANZERFAUST, WP_MOBILE_MG42, -1 };
