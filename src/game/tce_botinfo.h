@@ -9,6 +9,12 @@ extern int          tceNumBots;
 void TCE_ClearBotInfo(int clientNum);
 void TCE_InitBotInfo(void);
 void TCE_UpdateBotInfo(void);
+#if defined(__linux__)
+void TCE_BotSaveInfo(int clientNum, int index);
+void TCE_BotLoadInfo(void);
+qboolean TCE_AddBot(const char *name, char *team, const char *skill,
+                   int playerClass, int playerWeapon, qboolean restoring);
+#endif
 int TCE_ClientNumberFromNameMatch(const char *name, int *matches);
 void TCE_SvcmdKickBot(void);
 /* Original Botthink owns a frame-local command at TC offset8. Pass it

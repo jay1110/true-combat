@@ -52,6 +52,96 @@ void TCE_UpdateBotInfo(void)
 			TCE_ClearBotInfo(i); tceNumBots--;
 		}
 }
+#if defined(__linux__)
+/* Linux00076318 stores the original unquoted, whitespace-separated cvar. */
+void TCE_BotSaveInfo(int clientNum, int index)
+{
+	gclient_t *client = &level.clients[clientNum];
+	char userinfo[MAX_INFO_STRING], skill[MAX_INFO_STRING], name[MAX_INFO_STRING];
+	char *value, *key;
+
+	trap_GetUserinfo(clientNum, userinfo, sizeof(userinfo));
+	Q_strncpyz(skill, Info_ValueForKey(userinfo, "skill"), sizeof(skill));
+	Q_strncpyz(name, client->pers.netname, sizeof(name));
+	value = va("%s %i %i %i %s", name, client->sess.sessionTeam,
+	           client->sess.playerType, client->sess.playerWeapon, skill);
+	key = va("botinfo%i", index);
+	trap_Cvar_Set(key, value);
+}
+
+/* Linux000765fe is distinct from the SDK-derived G_AddBot entry. */
+qboolean TCE_AddBot(const char *name, char *team, const char *skill,
+                   int playerClass, int playerWeapon, qboolean restoring)
+{
+	char userinfo[MAX_INFO_STRING];
+	int clientNum = trap_BotAllocateClient(0);
+	gentity_t *bot;
+
+	if (clientNum == -1)
+	{
+		G_Printf("%sUnable to add bot, all client spaces full\n", S_COLOR_RED);
+		return qfalse;
+	}
+	userinfo[0] = '\0';
+	Info_SetValueForKey(userinfo, "name", name);
+	Info_SetValueForKey(userinfo, "rate", "25000");
+	Info_SetValueForKey(userinfo, "snaps", "20");
+	Info_SetValueForKey(userinfo, "skill", skill);
+	Info_SetValueForKey(userinfo, "team", team);
+	Info_SetValueForKey(userinfo, "cg_autoactivate", "1");
+	Info_SetValueForKey(userinfo, "cg_autoreload", "1");
+	trap_SetUserinfo(clientNum, userinfo);
+	if (ClientConnect(clientNum, qtrue, qfalse))
+	{
+		return qfalse;
+	}
+	bot = &g_entities[clientNum];
+	bot->inuse = qtrue;
+	bot->r.svFlags |= SVF_BOT;
+	bot->scriptStatus.scriptEventIndex = -1;
+	bot->r.ownerNum = ENTITYNUM_NONE;
+	bot->s.number = (int)(bot - g_entities);
+	tceBotInfo[bot->s.number].active = qtrue;
+	tceBotInfo[bot->s.number].skill = (short)atoi(skill);
+	bot->client->ps.stats[STAT_PLAYER_CLASS] = playerClass;
+	bot->client->sess.latchPlayerType = playerClass;
+	bot->client->sess.playerType = playerClass;
+	bot->client->sess.latchPlayerWeapon = playerWeapon;
+	bot->client->sess.playerWeapon = playerWeapon;
+	SetTeam(bot, team, qtrue, -1, -1, -1, qfalse);
+	if (!restoring)
+	{
+		tceNumBots++;
+	}
+	return qtrue;
+}
+
+/* Linux00076414 restores the saved count without incrementing it. */
+void TCE_BotLoadInfo(void)
+{
+	char value[MAX_INFO_STRING], name[MAX_INFO_STRING], skill[MAX_INFO_STRING];
+	char team[5];
+	int i, teamNum, playerClass, playerWeapon;
+
+	for (i = 0; i < tceNumBots; ++i)
+	{
+		trap_Cvar_VariableStringBuffer(va("botinfo%i", i), value, sizeof(value));
+		/* The original assumes all five fields; reject malformed input
+		 * rather than passing uninitialized locals or overflowing a buffer. */
+		if (sscanf(value, "%1023s %i %i %i %1023s", name, &teamNum,
+		           &playerClass, &playerWeapon, skill) != 5)
+		{
+			continue;
+		}
+		Q_strncpyz(team, teamNum == TEAM_AXIS ? "red" : "blue", sizeof(team));
+		TCE_AddBot(name, team, skill, playerClass, playerWeapon, qtrue);
+		/* Original G_Printf's format is only "^3": its success/error
+		 * message and bot-name arguments are ignored by the formatter. */
+		G_Printf(S_COLOR_YELLOW);
+	}
+}
+#endif
+
 /* ClientNumberFromNameMatch20054d00 / Linux000ae9cc. Empty queries do not match. */
 int TCE_ClientNumberFromNameMatch(const char *name, int *matches)
 {
