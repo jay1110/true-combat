@@ -1490,12 +1490,74 @@ static void CG_TCEReflectRoomRay(vec3_t direction, const vec3_t normal)
 #endif
 }
 
-static void CG_TCECollectRoomTrace(const trace_t *tr, const vec3_t corner,
-                                   vec3_t low, vec3_t high, float *distance, float *hardness, int *sky)
+static qboolean CG_TCERoomLess(float left, float right)
 {
+#if defined(_WIN32) && !defined(Q3_VM)
+	/* The original Windows C0 test includes unordered comparisons. */
+	return !(left >= right);
+#else
+	return left < right;
+#endif
+}
+
+#if defined(_WIN32) && !defined(Q3_VM)
+static void CG_TCECollectRoomMaterial(const trace_t *tr, float *hardness, int *sky)
+{
+	if (CG_TCERoomLess(tr->fraction, 1.0f))
+	{
+		unsigned flags = (unsigned)tr->surfaceFlags;
+		unsigned material = flags & 0xff000000u;
+		if (flags & SURF_SKY)
+		{
+			++*sky;
+		}
+		else if (material != 0x05000000u && material != 0x07000000u &&
+		         material != 0x0a000000u && material != 0x0d000000u)
+		{
+			*hardness += 1.0f;
+		}
+	}
+}
+#endif
+
+static void CG_TCECollectRoomTrace(const trace_t *tr, const vec3_t corner,
+                                   vec3_t low, vec3_t high, float *distance,
+                                   float *hardness, int *sky, qboolean secondTrace)
+{
+#if defined(_WIN32) && !defined(Q3_VM)
+	vec3_t span;
+	int j;
+
+	/* The second hit is classified before its span and length are evaluated. */
+	if (secondTrace)
+	{
+		CG_TCECollectRoomMaterial(tr, hardness, sky);
+	}
+	VectorSubtract(tr->endpos, corner, span);
+	for (j = 0; j < 3; ++j)
+	{
+		if (CG_TCERoomLess(span[j], 0.0f))
+		{
+			if (CG_TCERoomLess(span[j], low[j]))
+			{
+				memcpy(&low[j], &span[j], sizeof(float));
+			}
+		}
+		else if (span[j] > high[j])
+		{
+			high[j] = span[j];
+		}
+	}
+	*distance += VectorLength(span);
+	if (!secondTrace)
+	{
+		CG_TCECollectRoomMaterial(tr, hardness, sky);
+	}
+#else
 	vec3_t   span;
 	unsigned material = (unsigned)tr->surfaceFlags & 0xff000000;
 	int      j;
+	(void)secondTrace;
 	VectorSubtract(tr->endpos, corner, span);
 	for (j = 0; j < 3; j++)
 	{
@@ -1524,6 +1586,7 @@ static void CG_TCECollectRoomTrace(const trace_t *tr, const vec3_t corner,
 			*hardness += 1;
 		}
 	}
+#endif
 }
 
 static void CG_TCESetSoundZone(const entityState_t *es)
@@ -1590,7 +1653,7 @@ static void CG_EliteSndEffects(void)
 			CG_TCERoomRay(dir, signs, axis);
 			VectorMA(corner, 2048, dir, end);
 			CG_Trace(&tr, corner, NULL, NULL, end, cg.snap->ps.clientNum, CONTENTS_SOLID);
-			CG_TCECollectRoomTrace(&tr, corner, low, high, &distance, &hardness, &sky);
+			CG_TCECollectRoomTrace(&tr, corner, low, high, &distance, &hardness, &sky, qfalse);
 			if (tr.fraction >= 1 || (tr.surfaceFlags & SURF_SKY))
 			{
 				VectorCopy(corner, start);
@@ -1603,7 +1666,7 @@ static void CG_EliteSndEffects(void)
 			}
 			VectorMA(start, 2048, dir, end);
 			CG_Trace(&tr, start, NULL, NULL, end, cg.snap->ps.clientNum, CONTENTS_SOLID);
-			CG_TCECollectRoomTrace(&tr, corner, low, high, &distance, &hardness, &sky);
+			CG_TCECollectRoomTrace(&tr, corner, low, high, &distance, &hardness, &sky, qtrue);
 		}
 	}
 	for (j = 0; j < 3; j++)
@@ -1625,7 +1688,7 @@ static void CG_EliteSndEffects(void)
 		cg.tceRoomSky      = cg.tceRoomSky * .6667f + sky * .3333f;
 		for (j = 0; j < 4; j++)
 			cg.tceRoomWeights[j] *= .6667f;
-		if (cg.tceRoomDistance < 200 && cg.tceRoomHardness > .8f)
+		if (CG_TCERoomLess(cg.tceRoomDistance, 200.0f) && cg.tceRoomHardness > .8f)
 		{
 			kind = 1;
 		}
@@ -1633,7 +1696,7 @@ static void CG_EliteSndEffects(void)
 		{
 			kind = 3;
 		}
-		else if (cg.tceRoomExtent[2] < 150 && cg.tceRoomExtent[0] + cg.tceRoomExtent[1] > 600 && cg.tceRoomHardness > .8f)
+		else if (CG_TCERoomLess(cg.tceRoomExtent[2], 150.0f) && cg.tceRoomExtent[0] + cg.tceRoomExtent[1] > 600 && cg.tceRoomHardness > .8f)
 		{
 			kind = 2;
 		}
@@ -1682,11 +1745,11 @@ static void CG_EliteSndEffects(void)
 		}
 		else
 		{
-			if (dist < nearest && !es->density)
+			if (CG_TCERoomLess(dist, nearest) && !es->density)
 			{
 				nearest = dist; closest = i;
 			}
-			if (dist < inRadius && (long double)dist <= (long double)es->dmgFlags)
+			if (CG_TCERoomLess(dist, inRadius) && (long double)dist <= (long double)es->dmgFlags)
 			{
 				inRadius = dist; bounded = i;
 			}
