@@ -8,7 +8,8 @@
 #include "../game/tce_ambient_precision.h"
 #include <float.h>
 
-#if defined(__linux__) && defined(__i386__) && !defined(Q3_VM) && \
+/* Select by the retained arithmetic format, independently of pointer width. */
+#if defined(__linux__) && !defined(Q3_VM) && \
     LDBL_MANT_DIG == 64 && LDBL_MAX_EXP == 16384
 #define TCE_LINUX_ROOM_X87
 #endif
