@@ -1048,7 +1048,7 @@ void TeamplayInfoMessage(team_t team)
  * rather than the signed-int32 conversion used by Linux. */
 static int G_TCETeamLocationInteger(float locationValue)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_WIN32) || (defined(_MSC_VER) && defined(_M_IX86))
 	return TCE_FloatToInt64Low(locationValue);
 #elif defined(__linux__)
 	return TCE_TruncateNativeInteger((long double)locationValue);
@@ -1062,7 +1062,7 @@ void CheckTeamStatus(void)
 	int       i;
 	gentity_t *ent;
 
-#if defined(__linux__)
+#if defined(_WIN32) || defined(__linux__)
 	if (TCE_SubInt32(level.time, level.lastTeamLocationTime) > TEAM_LOCATION_UPDATE_TIME)
 #else
 	if ((int)((unsigned int)level.time - (unsigned int)level.lastTeamLocationTime) > TEAM_LOCATION_UPDATE_TIME)

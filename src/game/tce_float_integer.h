@@ -1,7 +1,7 @@
 #ifndef TCE_FLOAT_INTEGER_H
 #define TCE_FLOAT_INTEGER_H
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_WIN32) || (defined(_MSC_VER) && defined(_M_IX86))
 #include <string.h>
 
 /* Numeric low word of the original masked x87 float-to-int64 conversion.
