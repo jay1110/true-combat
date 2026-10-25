@@ -136,6 +136,159 @@ static __inline int TCE_WeaponPositionLeanPitch(int magnitude, float fraction,
 	return 1;
 }
 
+/* Reciprocal of the rounded, nonzero 200/elapsed posture denominator.
+ * Its at most 64 significant bits are exact in the fixed representation.
+ * Restoring division keeps the extra remainder bit explicitly. */
+static __inline tceTriggerSum_t TCE_WeaponPositionPostureReciprocal(
+    const tceTriggerSum_t *denominator, unsigned control)
+{
+	tceTriggerSum_t value = { { 0 }, 0 };
+	unsigned long long divisor = 0, remainder, significand = 1;
+	unsigned precision, rounding, carry, increment;
+	int highest, bit, exponent;
+
+	for (highest = 575; !TCE_TriggerBit(denominator, highest); --highest)
+	{
+	}
+	for (bit = 0; bit < 64; ++bit)
+	{
+		divisor = (divisor << 1) | TCE_TriggerBit(denominator, highest - bit);
+	}
+	value.negative = denominator->negative;
+	exponent = 298 - highest;
+	if (divisor == (1ULL << 63))
+	{
+		remainder = 0;
+	}
+	else
+	{
+		/* The normalized numerator is 2^64, so its remainder is -divisor
+		 * modulo 2^64. It is strictly smaller than divisor. */
+		remainder = 0ULL - divisor;
+		--exponent;
+	}
+	precision = (control & _MCW_PC) == _PC_24 ? 24u :
+	            (control & _MCW_PC) == _PC_53 ? 53u : 64u;
+	for (bit = 1; bit < (int)precision; ++bit)
+	{
+		carry = (unsigned)(remainder >> 63);
+		remainder <<= 1;
+		significand <<= 1;
+		if (carry || remainder >= divisor)
+		{
+			remainder -= divisor;
+			significand |= 1;
+		}
+	}
+	rounding = control & _MCW_RC;
+	increment = rounding == _RC_NEAR ?
+	    (remainder > divisor - remainder ||
+	     (remainder == divisor - remainder && (significand & 1))) :
+	    (remainder && ((rounding == _RC_UP && !value.negative) ||
+	                   (rounding == _RC_DOWN && value.negative)));
+	if (increment)
+	{
+		if (significand == ~0ULL)
+		{
+			significand = 1ULL << 63;
+			++exponent;
+		}
+		else
+		{
+			++significand;
+			if (precision < 64 && (significand >> precision))
+			{
+				significand >>= 1;
+				++exponent;
+			}
+		}
+	}
+	TCE_TriggerPlace(&value, significand, 298 + exponent - ((int)precision - 1));
+	return value;
+}
+
+/* Posture kind: prone, stance, duck. Retain the two native divisions and
+ * each scaled direction until its addition to the stored Float origin.
+ * Publish only after all bounded, finite calculations have succeeded. */
+static __inline int TCE_WeaponPositionPosture(int elapsed, int active, int kind,
+                                             const float axis[3][3],
+                                             float origin[3], float angles[3])
+{
+	tceTriggerSum_t fraction = { { 0 }, 0 }, denominator, one = { { 0 }, 0 };
+	tceTriggerSum_t scale, amount, direction, start, value;
+	float positions[3], rotations[3], coefficient;
+	unsigned control, magnitude, bits;
+	int stage, stages, component, directionIndex, rotationIndex;
+
+	if ((active && elapsed <= 0) || (!active && elapsed >= 200))
+	{
+		return 0;
+	}
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
+	TCE_TriggerPlace(&fraction, 1, 298);
+	if (elapsed && (!active || elapsed <= 200))
+	{
+		magnitude = elapsed < 0 ? 0u - (unsigned)elapsed : (unsigned)elapsed;
+		denominator = TCE_RatioValue(200, magnitude, 0, elapsed < 0, control);
+		fraction = TCE_WeaponPositionPostureReciprocal(&denominator, control);
+		if (!active)
+		{
+			TCE_TriggerPlace(&one, 1, 298);
+			fraction.negative ^= 1u;
+			TCE_RotateAdd(&one, &fraction, control);
+			fraction = one;
+		}
+	}
+	memcpy(positions, origin, sizeof(positions));
+	memcpy(rotations, angles, sizeof(rotations));
+	stages = kind == 0 ? 3 : kind == 2 ? 2 : 1;
+	for (stage = 0; stage < stages; ++stage)
+	{
+		directionIndex = kind == 0 ? stage : kind == 2 && !stage ? 0 : 2;
+		coefficient = kind == 0 ? (stage == 0 ? -25.0f : stage == 1 ? 5.0f : -5.0f) :
+		              kind == 2 && stage ? -20.0f : -5.0f;
+		TCE_TriggerProduct(&scale, coefficient, 1.0f, control);
+		amount = fraction;
+		TCE_GustMultiply(&amount, &scale, control);
+		for (component = 0; component < 3; ++component)
+		{
+			memcpy(&bits, &axis[directionIndex][component], sizeof(bits));
+			bits &= 0x7fffffffu;
+			if ((bits && (bits < 0x2f800000u || bits > 0x4b800000u)) ||
+			    !TCE_TriggerProduct(&direction, axis[directionIndex][component], 1.0f, control) ||
+			    !TCE_TriggerProduct(&start, positions[component], 1.0f, control))
+			{
+				return 0;
+			}
+			value = amount;
+			TCE_GustMultiply(&value, &direction, control);
+			TCE_RotateAdd(&value, &start, control);
+			positions[component] = TCE_RotateStore(value, control);
+		}
+	}
+	for (stage = 0; stage < (kind == 0 ? 1 : 2); ++stage)
+	{
+		rotationIndex = stage ? 0 : 1;
+		coefficient = kind == 0 ? 60.0f : stage ? 30.0f : 10.0f;
+		if (!TCE_TriggerProduct(&start, rotations[rotationIndex], 1.0f, control))
+		{
+			return 0;
+		}
+		TCE_TriggerProduct(&scale, coefficient, 1.0f, control);
+		value = fraction;
+		TCE_GustMultiply(&value, &scale, control);
+		TCE_RotateAdd(&value, &start, control);
+		rotations[rotationIndex] = TCE_RotateStore(value, control);
+	}
+	memcpy(origin, positions, sizeof(positions));
+	memcpy(angles, rotations, sizeof(rotations));
+	return 1;
+}
+
 /* FILD32, multiply by the stored Float 0.005, optionally subtract from
  * one, then FSTP32. The integer import is exact even with PC24 selected. */
 static __inline int TCE_WeaponPositionLeanFraction(int elapsed, int fading,

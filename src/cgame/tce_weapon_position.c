@@ -42,6 +42,14 @@ static void TCE_WeaponPositionProne(tce_weaponPosition_t *s, float *origin,
 	    ? (unsigned int)s->time - (unsigned int)s->proneMovingTime
 	    : (unsigned int)s->proneMovingTime + (unsigned int)s->time;
 	memcpy(&delta, &elapsed, sizeof(delta));
+#if !defined(Q3_VM)
+	if (TCE_WeaponPositionPosture(delta, s->eFlags & 0x100000, 0,
+	                            s->viewAxis, origin, angles))
+	{
+		s->postureModified = 1;
+		return;
+	}
+#endif
 	if (s->eFlags & 0x100000)
 	{
 		if (delta <= 0)
@@ -87,6 +95,14 @@ static void TCE_WeaponPositionStance(tce_weaponPosition_t *s, float *origin,
 	long double fraction = 1.0L, amount;
 
 	memcpy(&delta, &elapsed, sizeof(delta));
+#if !defined(Q3_VM)
+	if (TCE_WeaponPositionPosture(delta, active, duck ? 2 : 1,
+	                            s->viewAxis, origin, angles))
+	{
+		s->postureModified = 1;
+		return;
+	}
+#endif
 	if (active)
 	{
 		if (delta <= 0)
