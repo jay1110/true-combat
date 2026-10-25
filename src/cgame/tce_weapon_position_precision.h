@@ -415,6 +415,55 @@ static __inline int TCE_WeaponPositionTacticalAngle(int input, float scale,
 	return 1;
 }
 
+/* Apply the two stored sway values after their filter/clamp stages.
+ * Moving the exact quarter factor into a bounded normal Float axis
+ * preserves both retained product roundings without an extra Float spill. */
+static __inline int TCE_WeaponPositionSwayOffsets(float horizontal, float vertical,
+                                                 float strength, const float axis[3][3],
+                                                 float origin[3], float angles[3])
+{
+	float positions[3], rotations[3], quarterAxis, sway;
+	unsigned control, bits;
+	int stage, component;
+
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
+	memcpy(positions, origin, sizeof(positions));
+	memcpy(rotations, angles, sizeof(rotations));
+	for (stage = 0; stage < 2; ++stage)
+	{
+		sway = stage ? vertical : horizontal;
+		for (component = 0; component < 3; ++component)
+		{
+			memcpy(&bits, &axis[stage + 1][component], sizeof(bits));
+			bits &= 0x7fffffffu;
+			if (bits && (bits < 0x30800000u || bits > 0x4b800000u))
+			{
+				return 0;
+			}
+			quarterAxis = axis[stage + 1][component] * 0.25f;
+			if (!TCE_WeaponPositionLeanOffset(sway, strength, quarterAxis,
+			                                positions[component], &positions[component]))
+			{
+				return 0;
+			}
+		}
+	}
+	if (!TCE_WeaponPositionLeanOffset(horizontal, strength, -1.0f,
+	                                rotations[1], &rotations[1]) ||
+	    !TCE_WeaponPositionLeanOffset(vertical, strength, 1.0f,
+	                                rotations[0], &rotations[0]))
+	{
+		return 0;
+	}
+	memcpy(origin, positions, sizeof(positions));
+	memcpy(angles, rotations, sizeof(rotations));
+	return 1;
+}
+
 /* FILD32, multiply by the stored Float 0.005, optionally subtract from
  * one, then FSTP32. The integer import is exact even with PC24 selected. */
 static __inline int TCE_WeaponPositionLeanFraction(int elapsed, int fading,

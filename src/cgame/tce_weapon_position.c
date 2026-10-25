@@ -542,6 +542,13 @@ static void TCE_WeaponPositionSway(tce_weaponPosition_t *s, float *origin, float
 	{
 		s->swayHorizontal = (float)-limit;
 	}
+#if !defined(Q3_VM)
+	if (TCE_WeaponPositionSwayOffsets(s->swayHorizontal, s->swayVertical,
+	                                strength, s->viewAxis, origin, angles))
+	{
+		return;
+	}
+#endif
 	for (i = 0; i < 3; ++i)
 	{
 		amount    = (long double)s->swayHorizontal * strength * 0.25L;
