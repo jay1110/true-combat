@@ -670,10 +670,10 @@ qboolean CG_PlayerSeesItem(playerState_t *ps, entityState_t *item, int atTime, i
 #else
 	vec3_t vorigin, eorigin, viewa, dir;
 	float  dist;
-#if !defined(_MSC_VER) || !defined(_M_IX86)
+#if !((defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(Q3_VM)))
 	float dot, foo;
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(Q3_VM))
 	static const float maxDistance = 255.f, coneBase = -0.94f;
 	static const float coneScale = 1.f / 255.f, coneSlope = 0.057f;
 	long double distance, dotProduct, threshold;
@@ -694,7 +694,7 @@ qboolean CG_PlayerSeesItem(playerState_t *ps, entityState_t *item, int atTime, i
 		VectorSubtract(vorigin, eorigin, dir);
 	}
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(Q3_VM))
 #if !defined(Q3_VM)
 	/* Keep the normalize result wide for the native pre-store distance gate. */
 	distance = TCE_VectorNormalizeValue(dir);
@@ -721,8 +721,8 @@ qboolean CG_PlayerSeesItem(playerState_t *ps, entityState_t *item, int atTime, i
 	//		for the current frame please let me know so I don't
 	//		have to do redundant calcs)
 	AngleVectors(ps->viewangles, viewa, 0, 0);
-#if defined(_MSC_VER) && defined(_M_IX86)
-#if !defined(Q3_VM)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(Q3_VM))
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 	{
 		int visible;
 		if (TCE_ItemVisibilityCone(viewa, dir, dist, &visible))
@@ -744,7 +744,7 @@ qboolean CG_PlayerSeesItem(playerState_t *ps, entityState_t *item, int atTime, i
 				return qfalse;
 			}
 		}
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 	}
 #endif
 #else
@@ -761,7 +761,7 @@ qboolean CG_PlayerSeesItem(playerState_t *ps, entityState_t *item, int atTime, i
 	{
 		CG_Trace(&tr, vorigin, NULL, NULL, eorigin, -1, MASK_SOLID);
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(Q3_VM))
 		/* Native C3 accepts either equality or an unordered trace fraction. */
 		if (tr.fraction < 1.0f || tr.fraction > 1.0f)
 		{
