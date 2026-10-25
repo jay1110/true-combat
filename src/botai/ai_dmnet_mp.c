@@ -8,6 +8,7 @@
  *****************************************************************************/
 
 #include "../game/g_local.h"
+#include "../game/tce_bot_mount_precision.h"
 #if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 #include "../game/tce_weapon_ids.h"
 #endif
@@ -3513,6 +3514,31 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 			bs->ideal_viewangles[PITCH] = (float)((long double)bs->ideal_viewangles[PITCH]
 			    + (((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L)
 			    * mg42->varc * (long double)(double)0.15);
+#elif defined(_WIN32) && !defined(Q3_VM)
+			{
+				unsigned sample = rand() & 32767;
+#if defined(_MSC_VER) && defined(_M_IX86)
+				if (!TCE_BotMountRandomAngle(sample, bs->ideal_viewangles[YAW],
+				                             mg42->harc, TCE_BOT_SCAN_YAW, &bs->ideal_viewangles[YAW]))
+#endif
+				{
+					bs->ideal_viewangles[YAW] = (float)((((long double)sample
+					    * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L)
+					    * mg42->harc * (long double)(double)0.45 + bs->ideal_viewangles[YAW]);
+				}
+			}
+			{
+				unsigned sample = rand() & 32767;
+#if defined(_MSC_VER) && defined(_M_IX86)
+				if (!TCE_BotMountRandomAngle(sample, bs->ideal_viewangles[PITCH],
+				                             mg42->varc, TCE_BOT_SCAN_PITCH, &bs->ideal_viewangles[PITCH]))
+#endif
+				{
+					bs->ideal_viewangles[PITCH] = (float)((((long double)sample
+					    * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L)
+					    * mg42->varc * (long double)(double)0.15 + bs->ideal_viewangles[PITCH]);
+				}
+			}
 #else
 			bs->ideal_viewangles[YAW]   += crandom() * mg42->harc * 0.45;
 			bs->ideal_viewangles[PITCH] += crandom() * mg42->varc * 0.15;
@@ -3967,6 +3993,19 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 					long double offset = ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L;
 					bs->ideal_viewangles[YAW] = (float)(angle + offset * (long double)(double)10.0);
 				}
+#elif defined(_WIN32) && !defined(Q3_VM)
+				{
+					unsigned sample = rand() & 32767;
+#if defined(_MSC_VER) && defined(_M_IX86)
+					if (!TCE_BotMountRandomAngle(sample, bs->ideal_viewangles[YAW],
+					                             1.0f, TCE_BOT_MOUNT_JITTER, &bs->ideal_viewangles[YAW]))
+#endif
+					{
+						bs->ideal_viewangles[YAW] = (float)((((long double)sample
+						    * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L)
+						    * 10.0L + bs->ideal_viewangles[YAW]);
+					}
+				}
 #else
 				bs->ideal_viewangles[YAW]   += crandom() * 10.0;
 #endif
@@ -3975,6 +4014,19 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 					long double angle = bs->ideal_viewangles[PITCH];
 					long double offset = ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L;
 					bs->ideal_viewangles[PITCH] = (float)(angle + offset * (long double)(double)10.0);
+				}
+#elif defined(_WIN32) && !defined(Q3_VM)
+				{
+					unsigned sample = rand() & 32767;
+#if defined(_MSC_VER) && defined(_M_IX86)
+					if (!TCE_BotMountRandomAngle(sample, bs->ideal_viewangles[PITCH],
+					                             1.0f, TCE_BOT_MOUNT_JITTER, &bs->ideal_viewangles[PITCH]))
+#endif
+					{
+						bs->ideal_viewangles[PITCH] = (float)((((long double)sample
+						    * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L)
+						    * 10.0L + bs->ideal_viewangles[PITCH]);
+					}
 				}
 #else
 				bs->ideal_viewangles[PITCH] += crandom() * 10.0;
