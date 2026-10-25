@@ -1112,9 +1112,29 @@ void TCE_CG_CalculateWeaponPosition(tce_weaponPosition_t *s, float *origin, floa
 		angles[0] = (float)(angles[0] + s->swayVertical * (double)strength);
 #endif
 	}
+#if defined(__linux__) && !defined(Q3_VM)
+	{
+		volatile long double bobMotion;
+
+		/* ELF retains each product until the individual angle Float store. */
+		bobMotion = (long double)signedSpeed * (long double)s->bobSin;
+		bobMotion = bobMotion * (long double)bobScale;
+		bobMotion = bobMotion * (long double)0.005;
+		angles[2] = (float)(bobMotion + (long double)angles[2]);
+		bobMotion = (long double)signedSpeed * (long double)s->bobSin;
+		bobMotion = bobMotion * (long double)bobScale;
+		bobMotion = bobMotion * (long double)0.01;
+		angles[1] = (float)(bobMotion + (long double)angles[1]);
+		bobMotion = (long double)s->bobSin * (long double)s->speed;
+		bobMotion = bobMotion * (long double)bobScale;
+		bobMotion = bobMotion * (long double)0.005;
+		angles[0] = (float)(bobMotion + (long double)angles[0]);
+	}
+#else
 	angles[2] = (float)(angles[2] + s->bobSin * (double)signedSpeed * bobScale * .005);
 	angles[1] = (float)(angles[1] + s->bobSin * (double)signedSpeed * bobScale * .01);
 	angles[0] = (float)(angles[0] + s->bobSin * (double)s->speed * bobScale * .005);
+#endif
 #if defined(__linux__) && !defined(Q3_VM)
 	delta = nativePositionTime((unsigned int)s->time - (unsigned int)s->landTime);
 	if (bobScale > 0.0f && delta <= 449)
