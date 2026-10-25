@@ -921,7 +921,12 @@ gentity_t *SelectRandomTeamSpawnPoint(int teamstate, team_t team, int spawnObjec
 			}
 			distance += group * 2048.f;
 		}
+#if defined(_WIN32) && !defined(Q3_VM)
+		/* Native FCOM/FNSTSW tests C0: less than or unordered. */
+		if (!(distance >= shortest))
+#else
 		if (distance < shortest)
+#endif
 		{
 			shortest = (float)distance; closest = i;
 		}
