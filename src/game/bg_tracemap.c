@@ -883,7 +883,7 @@ void CG_GenerateTracemap(void)
 #undef CG_TRACEMAP_PROGRESS
 #endif // CGAMEDLL
 
-#if (defined(CGAMEDLL) || defined(GAMEDLL)) && ((defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM)))
+#if (defined(CGAMEDLL) || defined(GAMEDLL)) && ((defined(_MSC_VER) && defined(_M_IX86)) || ((defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)))
 /* Extended TGA metadata is signed little-endian, assembled without signed shifts. */
 static int BG_TraceMapReadInteger(const byte *data)
 {
