@@ -1552,10 +1552,10 @@ static qboolean CG_TCERoomLess(float left, float right)
 #endif
 }
 
-#if defined(_WIN32) && !defined(Q3_VM)
+#if (defined(_WIN32) && !defined(Q3_VM)) || defined(TCE_LINUX_ROOM_X87)
 static void CG_TCECollectRoomMaterial(const trace_t *tr, float *hardness, int *sky)
 {
-	if (CG_TCERoomLess(tr->fraction, 1.0f))
+	if (!(tr->fraction >= 1.0f))
 	{
 		unsigned flags = (unsigned)tr->surfaceFlags;
 		unsigned material = flags & 0xff000000u;
@@ -1576,7 +1576,7 @@ static void CG_TCECollectRoomTrace(const trace_t *tr, const vec3_t corner,
                                    vec3_t low, vec3_t high, float *distance,
                                    float *hardness, int *sky, qboolean secondTrace)
 {
-#if defined(_WIN32) && !defined(Q3_VM)
+#if (defined(_WIN32) && !defined(Q3_VM)) || defined(TCE_LINUX_ROOM_X87)
 	vec3_t span;
 	int j;
 
@@ -1588,9 +1588,9 @@ static void CG_TCECollectRoomTrace(const trace_t *tr, const vec3_t corner,
 	VectorSubtract(tr->endpos, corner, span);
 	for (j = 0; j < 3; ++j)
 	{
-		if (CG_TCERoomLess(span[j], 0.0f))
+		if (!(span[j] >= 0.0f))
 		{
-			if (CG_TCERoomLess(span[j], low[j]))
+			if (!(span[j] >= low[j]))
 			{
 				memcpy(&low[j], &span[j], sizeof(float));
 			}
