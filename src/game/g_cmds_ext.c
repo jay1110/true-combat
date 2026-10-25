@@ -3,6 +3,7 @@
 //
 #include "g_local.h"
 #include "tce_numeric.h"
+#include "tce_weapon_stats_precision.h"
 #include "../ui/menudef.h"
 
 int iWeap = WS_MAX;
@@ -850,11 +851,26 @@ void G_weaponStatsLeaders_cmd(gentity_t *ent, qboolean doTop, qboolean doWindow)
 			if (shots >= cQualifyingShots[iWeap])
 			{
 #if defined(_MSC_VER) && defined(_M_IX86)
-				long double accuracy = (long double)(unsigned int)cl->sess.aWeaponStats[iWeap].hits * 100.0L / shots;
-				int replace = doTop ? accuracy > (long double)wBestAcc : accuracy < (long double)wBestAcc;
-				if (replace)
+				int replace;
+#if !defined(Q3_VM)
+				int nextBest;
+				if (TCE_WeaponStatsReplacement(cl->sess.aWeaponStats[iWeap].hits,
+				                               shots, wBestAcc, doTop, &replace, &nextBest))
 				{
-					wBestAcc = TCE_TruncateNativeInteger(accuracy);
+					if (replace)
+					{
+						wBestAcc = nextBest;
+					}
+				}
+				else
+#endif
+				{
+					long double accuracy = (long double)(unsigned int)cl->sess.aWeaponStats[iWeap].hits * 100.0L / shots;
+					replace = doTop ? accuracy > (long double)wBestAcc : accuracy < (long double)wBestAcc;
+					if (replace)
+					{
+						wBestAcc = TCE_TruncateNativeInteger(accuracy);
+					}
 				}
 				aClients[cClients++] = level.sortedClients[i];
 				if (replace)
@@ -898,9 +914,15 @@ void G_weaponStatsLeaders_cmd(gentity_t *ent, qboolean doTop, qboolean doWindow)
 			{
 				static const double bottomSlack = 0.999;
 				int attempts = (int)cl->sess.aWeaponStats[iWeap].atts;
-				acc = (float)((long double)(unsigned int)cl->sess.aWeaponStats[iWeap].hits * 100.0L / attempts);
-				selected = doTop ? (long double)acc >= wBestAcc
-				                 : (long double)wBestAcc + bottomSlack >= (long double)acc;
+#if !defined(Q3_VM)
+				if (!TCE_WeaponStatsSelection(cl->sess.aWeaponStats[iWeap].hits,
+				                             attempts, wBestAcc, doTop, &selected))
+#endif
+				{
+					acc = (float)((long double)(unsigned int)cl->sess.aWeaponStats[iWeap].hits * 100.0L / attempts);
+					selected = doTop ? (long double)acc >= wBestAcc
+					                 : (long double)wBestAcc + bottomSlack >= (long double)acc;
+				}
 			}
 #elif defined(__linux__)
 			{
