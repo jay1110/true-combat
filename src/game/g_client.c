@@ -192,7 +192,8 @@ gentity_t *SelectNearestDeathmatchSpawnPoint(vec3_t from)
 			}
 		}
 #endif
-#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__) || \
+    (defined(_WIN32) && !defined(Q3_VM))
 		{
 			long double length = TCE_VectorLengthValue(delta);
 			/* C0 includes unordered; store Float only for a winning spot. */

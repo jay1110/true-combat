@@ -680,7 +680,8 @@ static qboolean G_TCEAwardAccuracyBetter(float candidateAccuracy, float bestAccu
 static qboolean G_TCEAwardSkillBetter(float candidatePoints, float candidateStart,
                                       float bestPoints, float bestStart)
 {
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_MSC_VER) && defined(_M_IX86)) || \
+    ((defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM))
 	long double candidate, best;
 #endif
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
@@ -690,7 +691,8 @@ static qboolean G_TCEAwardSkillBetter(float candidatePoints, float candidateStar
 		return better;
 	}
 #endif
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_MSC_VER) && defined(_M_IX86)) || \
+    ((defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM))
 	candidate = (long double)candidatePoints - candidateStart;
 	best = (long double)bestPoints - bestStart;
 	return !(best >= candidate);
@@ -702,7 +704,8 @@ static qboolean G_TCEAwardSkillBetter(float candidatePoints, float candidateStar
 static qboolean G_TCEAwardRateBetter(int candidateScore, int candidateElapsed,
                                      int bestScore, int bestElapsed)
 {
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_MSC_VER) && defined(_M_IX86)) || \
+    ((defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM))
 	long double candidate, best;
 #endif
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
@@ -716,7 +719,7 @@ static qboolean G_TCEAwardRateBetter(int candidateScore, int candidateElapsed,
 	candidate = (1.0L / candidateElapsed) * candidateScore;
 	best = (1.0L / bestElapsed) * bestScore;
 	return !(best >= candidate);
-#elif defined(_MSC_VER) && defined(_M_IX86)
+#elif (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(Q3_VM))
 	candidate = (long double)candidateScore / candidateElapsed;
 	best = (long double)bestScore / bestElapsed;
 	return !(best >= candidate);
@@ -734,7 +737,8 @@ static qboolean G_TCEAwardLossAllows(float awardStartXP, int awardScore)
 		return allows;
 	}
 #endif
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_MSC_VER) && defined(_M_IX86)) || \
+    ((defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM))
 	return !((long double)awardStartXP - awardScore >= 100.0L);
 #else
 	return !(awardStartXP - awardScore >= 100);
