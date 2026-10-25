@@ -14,6 +14,7 @@
 #include "bg_local.h"
 #include "tce_bg.h"
 #include "tce_numeric.h"
+#include "tce_friction_precision.h"
 #include "tce_weapon_ammo.h"
 #include "tce_reload.h"
 #include "tce_movement.h"
@@ -589,7 +590,7 @@ static void PM_Friction(void)
 #endif
 	long double    heldSpeed, drop = 0.0L, control, remaining;
 	unsigned       elapsedBits;
-	int            elapsed, type;
+	int            elapsed, type, lowSpeed;
 
 	VectorCopy(velocity, vec);
 	if (pml.walking)
@@ -600,10 +601,16 @@ static void PM_Friction(void)
 		}
 		vec[2] = 0.0f;
 	}
-	heldSpeed = TCE_VectorLengthValue(vec);
-	speed     = (float)heldSpeed;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	if (!TCE_FrictionFiniteSpeed(vec, &speed, &lowSpeed))
+#endif
+	{
+		heldSpeed = TCE_VectorLengthValue(vec);
+		speed     = (float)heldSpeed;
+		lowSpeed  = heldSpeed < 1.0L || heldSpeed != heldSpeed;
+	}
 	/* Native C0 also takes the low-speed branch for unordered values. */
-	if ((heldSpeed < 1.0L || heldSpeed != heldSpeed) &&
+	if (lowSpeed &&
 	    pm->ps->pm_type != PM_SPECTATOR && pm->ps->pm_type != PM_NOCLIP)
 	{
 		velocity[0] = velocity[1] = 0.0f;
