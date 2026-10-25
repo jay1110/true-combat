@@ -5,6 +5,7 @@
 #include "tce_lightgrid.h"
 #include "tce_flash.h"
 #include "../game/tce_numeric.h"
+#include "../game/tce_ambient_precision.h"
 extern vmCvar_t cg_portalScopes;
 extern vmCvar_t cg_aspectMode;
 
@@ -1689,22 +1690,44 @@ static void CG_AmbientLoopOrigin(vec3_t point, qboolean rightEar)
 
 	for (axis = 0; axis < 3; ++axis)
 	{
-#if defined(_WIN32)
-		long double offset = (long double)view->viewaxis[1][axis] * 64.0f;
-		point[axis] = rightEar ? (float)((long double)view->vieworg[axis] - offset)
-		                       : (float)(offset + view->vieworg[axis]);
-#else
-		long double offset = (long double)view->viewaxis[1][axis] * (rightEar ? -64.0f : 64.0f);
-		point[axis] = (float)(offset + view->vieworg[axis]);
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		if (TCE_AmbientOrigin(view->vieworg[axis], view->viewaxis[1][axis],
+		                      rightEar, &point[axis]))
+		{
+			continue;
+		}
 #endif
+		{
+#if defined(_WIN32)
+			long double offset = (long double)view->viewaxis[1][axis] * 64.0f;
+			point[axis] = rightEar ? (float)((long double)view->vieworg[axis] - offset)
+			                       : (float)(offset + view->vieworg[axis]);
+#else
+			long double offset = (long double)view->viewaxis[1][axis] * (rightEar ? -64.0f : 64.0f);
+			point[axis] = (float)(offset + view->vieworg[axis]);
+#endif
+		}
 	}
 }
 
 static int CG_AmbientLoopVolume(int bank, long double gain)
 {
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	int amount = cg.tceSoundZoneVolume[bank];
+	float deafness = tceFlash.deafness;
+	int result;
+
+	if (TCE_AmbientVolume(amount, deafness, (float)gain, &result))
+	{
+		return result;
+	}
+	return TCE_TruncateNativeInteger(((long double)amount *
+	                                 (1.0L - (long double)deafness)) * gain);
+#else
 	long double amount  = (long double)cg.tceSoundZoneVolume[bank];
 	long double hearing = 1.0L - tceFlash.deafness;
 	return TCE_TruncateNativeInteger((amount * hearing) * gain);
+#endif
 }
 
 static void CG_EliteSndEnvironment(void)
@@ -1726,10 +1749,20 @@ static void CG_EliteSndEnvironment(void)
 	memcpy(&elapsed, &elapsedBits, sizeof(elapsed));
 	if (elapsed < 1000)
 	{
-		blend = (long double)elapsed * 0.001f;
-#if defined(_WIN32)
-		blend = (float)blend;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		float storedBlend;
+		if (TCE_AmbientBlend(elapsed, &storedBlend))
+		{
+			blend = storedBlend;
+		}
+		else
 #endif
+		{
+			blend = (long double)elapsed * 0.001f;
+#if defined(_WIN32)
+			blend = (float)blend;
+#endif
+		}
 	}
 
 	bank  = cg.tceSoundZoneActive;
@@ -1759,9 +1792,23 @@ static void CG_EliteSndEnvironment(void)
 		return;
 	}
 
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	{
+		float storedGain;
+		if (TCE_FiniteDifferenceStore(1.0f, (float)blend, &storedGain))
+		{
+			previousGain = storedGain;
+		}
+		else
+		{
+			previousGain = (float)(1.0L - blend);
+		}
+	}
+#else
 	previousGain = 1.0L - blend;
 #if defined(_WIN32)
 	previousGain = (float)previousGain;
+#endif
 #endif
 	previousRightGain = (float)previousGain;
 	CG_AmbientLoopOrigin(point, qfalse);
