@@ -174,7 +174,8 @@ static __inline int TCE_BotMountReloadValue(int maxClip, int *result)
 }
 
 /* The native height gate consumes the held subtraction, not its Float spill. */
-static __inline int TCE_BotMountHeightInside(float origin, float goal, int *inside)
+static __inline int TCE_BotMountHeightInside(float origin, float goal,
+                                             float threshold, int *inside)
 {
 	tceTriggerSum_t difference, other, bound;
 	unsigned control;
@@ -182,14 +183,14 @@ static __inline int TCE_BotMountHeightInside(float origin, float goal, int *insi
 	__control87_2(0, 0, &control, NULL);
 	if (!TCE_FiniteExceptionsMasked(control) ||
 	    !TCE_TriggerProduct(&difference, origin, 1.0f, control) ||
-	    !TCE_TriggerProduct(&other, goal, 1.0f, control))
+	    !TCE_TriggerProduct(&other, goal, 1.0f, control) ||
+	    !TCE_TriggerProduct(&bound, threshold, 1.0f, control))
 	{
 		return 0;
 	}
 	other.negative ^= 1u;
 	TCE_RotateAdd(&difference, &other, control);
 	difference.negative = 0;
-	TCE_TriggerProduct(&bound, 100.0f, 1.0f, control);
 	*inside = TCE_TriggerCompare(&difference, &bound) < 0;
 	return 1;
 }
