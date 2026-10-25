@@ -11,9 +11,11 @@
 #if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 #include "../game/tce_weapon_ids.h"
 #endif
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 #include "../game/tce_numeric.h"
+#endif
 
+#if defined(__linux__)
 static long double BotDistanceSquaredValue(const vec3_t first, const vec3_t second);
 static long double BotHealthScaleValue(int entnum);
 #endif
@@ -3250,9 +3252,17 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 	// return to this sniper spot if we go off temporarily
 	ent->botIgnoreTime = 0;
 	// if our health has dropped, abort
+#if defined(_WIN32) && !defined(Q3_VM)
+	if (bs->lasthealth > TCE_AddInt32(g_entities[bs->client].health, 40))
+#else
 	if (bs->lasthealth > g_entities[bs->client].health + 40)
+#endif
 	{
+#if defined(_WIN32) && !defined(Q3_VM)
+		ent->botIgnoreTime = TCE_AddInt32(level.time, 5000);
+#else
 		ent->botIgnoreTime = level.time + 5000;
+#endif
 		bs->ainode         = NULL;
 		bs->ainodeText     = "NULL";
 		return qtrue;
@@ -3313,10 +3323,18 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 		}
 	}
 	// have we been waiting here for too long?
+#if defined(_WIN32) && !defined(Q3_VM)
+	if (bs->arrive_time < TCE_SubInt32(level.time, 40000))
+#else
 	if (bs->arrive_time < level.time - 40000)
+#endif
 	{
 		ent->missionLevel  = level.time; // other bots should avoid this spot
+#if defined(_WIN32) && !defined(Q3_VM)
+		ent->botIgnoreTime = TCE_AddInt32(level.time, 20000);    // we should ignore it for a while now
+#else
 		ent->botIgnoreTime = level.time + 20000;    // we should ignore it for a while now
+#endif
 		if (BotFindSpecialGoals(bs))
 		{
 			return qfalse;
@@ -3332,9 +3350,17 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 	}
 	//
 	// other bots should avoid this spot
+#if defined(_WIN32) && !defined(Q3_VM)
+	if (ent->botIgnoreTime < TCE_AddInt32(level.time, 5000))
+#else
 	if (ent->botIgnoreTime < level.time + 5000)
+#endif
 	{
+#if defined(_WIN32) && !defined(Q3_VM)
+		ent->botIgnoreTime = TCE_AddInt32(level.time, 5000);
+#else
 		ent->botIgnoreTime = level.time + 5000;
+#endif
 	}
 	//
 	// look for enemies
@@ -3347,7 +3373,7 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 		aas_entityinfo_t entinfo;
 		BotEntityInfo(bs->enemy, &entinfo);
 		//if the enemy is dead
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 		if (bs->enemydeath_time < 0.0f || bs->enemydeath_time > 0.0f)
 #else
 		if (bs->enemydeath_time)
@@ -3356,6 +3382,9 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 #if defined(__linux__)
 			long double deathTime = bs->enemydeath_time;
 			if (!(deathTime >= (long double)trap_AAS_Time() - (long double)(double)0.3))
+#elif defined(_WIN32) && !defined(Q3_VM)
+			double deathTime = bs->enemydeath_time;
+			if (deathTime < (long double)trap_AAS_Time() - (long double)(double)0.3)
 #else
 			if (bs->enemydeath_time < trap_AAS_Time() - 0.3)
 #endif
@@ -3381,6 +3410,8 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 			vectoangles(dir, ang);
 #if defined(__linux__)
 			if (fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 120, bs->enemy, NULL)) > 0.0L)
+#elif defined(_WIN32) && !defined(Q3_VM)
+			if (fabs((double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 120, bs->enemy, NULL)) > 0.0)
 #else
 			if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 120, bs->enemy, NULL))
 #endif
@@ -3389,12 +3420,19 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 #if defined(__linux__)
 				if (!(mg42->varc > fabsl(TCE_BotAngleDifferenceValue(ang[PITCH], mg42->s.angles[PITCH])))
 				    || !(mg42->harc > fabsl(TCE_BotAngleDifferenceValue(ang[YAW], mg42->s.angles[YAW]))))
+#elif defined(_WIN32) && !defined(Q3_VM)
+				if (!(mg42->varc > fabs(AngleDifference(ang[PITCH], mg42->s.angles[PITCH])))
+				    || !(mg42->harc > fabs(AngleDifference(ang[YAW], mg42->s.angles[YAW]))))
 #else
 				if ((fabs(AngleDifference(ang[PITCH], mg42->s.angles[PITCH])) >= mg42->varc)
 				    ||  (fabs(AngleDifference(ang[YAW], mg42->s.angles[YAW])) >= mg42->harc))
 #endif
 				{
+#if defined(_WIN32) && !defined(Q3_VM)
+					ent->botIgnoreTime = TCE_AddInt32(level.time, 5000);
+#else
 					ent->botIgnoreTime = level.time + 5000;
+#endif
 					AIEnter_MP_Battle_Fight(bs);
 					return qfalse;
 				}
@@ -3402,11 +3440,17 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 				// if they are real close, abort mg42 mode
 #if defined(__linux__)
 				if (!(BotDistanceSquaredValue(bs->origin, g_entities[bs->enemy].r.currentOrigin) >= SQR(512)))
+#elif defined(_WIN32) && !defined(Q3_VM)
+				if (!(VectorDistanceSquared(bs->origin, g_entities[bs->enemy].r.currentOrigin) >= SQR(512)))
 #else
 				if (VectorDistanceSquared(bs->origin, g_entities[bs->enemy].r.currentOrigin) < SQR(512))
 #endif
 				{
+#if defined(_WIN32) && !defined(Q3_VM)
+					ent->botIgnoreTime = TCE_AddInt32(level.time, 5000);
+#else
 					ent->botIgnoreTime = level.time + 5000;
+#endif
 					AIEnter_MP_Battle_Fight(bs);
 					return qfalse;
 				}
@@ -3433,6 +3477,9 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 #if defined(__linux__)
 		long double positionTime = bs->enemyposition_time;
 		if (positionTime > (long double)trap_AAS_Time() - 5.0L)
+#elif defined(_WIN32) && !defined(Q3_VM)
+		double positionTime = bs->enemyposition_time;
+		if (!(positionTime <= (long double)trap_AAS_Time() - 5.0L))
 #else
 		if (bs->enemyposition_time > trap_AAS_Time() - 5.0)
 #endif
@@ -3488,7 +3535,7 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 			VectorMA(mg42->r.currentOrigin, 48, dir, start);
 			VectorMA(start, 4096, dir, end);
 #endif
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 			trap_Trace(&tr, start, NULL, NULL, end, bs->client, MASK_MISSILESHOT);
 #else
 			trap_Trace(&tr, start, NULL, NULL, end, bs->client, MASK_SHOT);
@@ -3502,7 +3549,7 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 #else
 				end[2] -= 1024 * tr.fraction;
 #endif
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 				trap_Trace(&tr, start, NULL, NULL, end, bs->client, MASK_MISSILESHOT);
 #else
 				trap_Trace(&tr, start, NULL, NULL, end, bs->client, MASK_SHOT);
@@ -3512,7 +3559,11 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 				vectoangles(dir, bs->ideal_viewangles);
 			}
 			//
+#if defined(_WIN32) && !defined(Q3_VM)
+			bs->viewchangetime = TCE_AddInt32(TCE_AddInt32(level.time, 1000), rand() % 1500);
+#else
 			bs->viewchangetime = level.time + 1000 + rand() % 1500;
+#endif
 		}
 	}
 	//
@@ -3618,9 +3669,17 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 		return qfalse;
 	}
 	// have we been waiting here for too long?
+#if defined(_WIN32) && !defined(Q3_VM)
+	if (bs->arrive_time < TCE_SubInt32(level.time, 40000))
+#else
 	if (bs->arrive_time < level.time - 40000)
+#endif
 	{
+#if defined(_WIN32) && !defined(Q3_VM)
+		ent->botIgnoreTime = TCE_AddInt32(level.time, 15000);    // other bots should avoid this spot
+#else
 		ent->botIgnoreTime = level.time + 15000;    // other bots should avoid this spot
+#endif
 		if (BotFindSpecialGoals(bs))
 		{
 			return qfalse;
@@ -3628,7 +3687,11 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 	}
 	//
 	// other bots should avoid this spot
+#if defined(_WIN32) && !defined(Q3_VM)
+	ent->botIgnoreTime = TCE_AddInt32(level.time, 5000);
+#else
 	ent->botIgnoreTime = level.time + 5000;
+#endif
 	//
 	VectorSubtract(bs->origin, goal.origin, dir);
 	if (fabs(dir[2]) < 100)
@@ -3638,6 +3701,8 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 	// is the destination blocked?
 #if defined(__linux__)
 	if (!(TCE_VectorLengthSquaredValue(dir) >= SQR(64)))
+#elif defined(_WIN32) && !defined(Q3_VM)
+	if (!(VectorLengthSquared(dir) >= SQR(64)))
 #else
 	if (VectorLengthSquared(dir) < SQR(64))
 #endif
@@ -3693,6 +3758,20 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 				float moveX = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
 				trap_EA_Move(bs->client, tv(moveX, moveY, moveZ), speed);
 			}
+#elif defined(_WIN32) && !defined(Q3_VM)
+			{
+				/* Windows retains the reciprocal product before multiplying by 200.
+				 * Argument evaluation consumes speed, Z, Y, then X. */
+				float speed = (float)((long double)(rand() & 32767)
+				    * (long double)(float)(1.0 / 32767.0) * 200.0L + 100.0L);
+				float moveZ = (float)(((long double)(rand() & 32767)
+				    * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+				float moveY = (float)(((long double)(rand() & 32767)
+				    * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+				float moveX = (float)(((long double)(rand() & 32767)
+				    * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+				trap_EA_Move(bs->client, tv(moveX, moveY, moveZ), speed);
+			}
 #else
 			trap_EA_Move(bs->client, tv(crandom(), crandom(), crandom()), 100 + random() * 200);
 #endif
@@ -3741,7 +3820,7 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 					aas_entityinfo_t entinfo;
 					BotEntityInfo(bs->enemy, &entinfo);
 					//if the enemy is dead
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 					if (bs->enemydeath_time < 0.0f || bs->enemydeath_time > 0.0f)
 #else
 					if (bs->enemydeath_time)
@@ -3750,6 +3829,9 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 #if defined(__linux__)
 						long double deathTime = bs->enemydeath_time;
 						if (!(deathTime >= (long double)trap_AAS_Time() - (long double)(double)0.3))
+#elif defined(_WIN32) && !defined(Q3_VM)
+						double deathTime = bs->enemydeath_time;
+						if (deathTime < (long double)trap_AAS_Time() - (long double)(double)0.3)
 #else
 						if (bs->enemydeath_time < trap_AAS_Time() - 0.3)
 #endif
@@ -3773,6 +3855,8 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 						// attack and keep moving
 #if defined(__linux__)
 						if (fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL)) > 0.0L)
+#elif defined(_WIN32) && !defined(Q3_VM)
+						if (fabs((double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL)) > 0.0)
 #else
 						if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL))
 #endif
@@ -3823,6 +3907,8 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 					//FIXME: look at cluster portals?
 #if defined(__linux__)
 					else if (fabsl(TCE_VectorLengthSquaredValue(moveresult.movedir)) > 0.0L)
+#elif defined(_WIN32) && !defined(Q3_VM)
+					else if (fabs((double)VectorLengthSquared(moveresult.movedir)) > 0.0)
 #else
 					else if (VectorLengthSquared(moveresult.movedir))
 #endif
@@ -3849,6 +3935,8 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 	//
 #if defined(__linux__)
 	if (!(BotDistanceSquaredValue(bs->origin, goal.origin) >= SQR(64)))
+#elif defined(_WIN32) && !defined(Q3_VM)
+	if (!(VectorDistanceSquared(bs->origin, goal.origin) >= SQR(64)))
 #else
 	if (VectorDistanceSquared(bs->origin, goal.origin) < SQR(64))
 #endif
@@ -3860,7 +3948,11 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 		VectorSubtract(ent->melee->r.currentOrigin, offset, dir);
 		VectorNormalize(dir);
 		vectoangles(dir, bs->ideal_viewangles);
+#if defined(_WIN32) && !defined(Q3_VM)
+		if (bs->arrive_time < TCE_SubInt32(level.time, 500))
+#else
 		if (bs->arrive_time < level.time - 500)
+#endif
 		{
 			// randomize the angles a bit to solve some times when a direct sight isn't "enough"
 #if defined(__linux__)
@@ -3889,7 +3981,11 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 #endif
 			}
 			// if we have been waiting longer, move backwards slowly
+#if defined(_WIN32) && !defined(Q3_VM)
+			if (bs->arrive_time < TCE_SubInt32(level.time, 2000))
+#else
 			if (bs->arrive_time < level.time - 2000)
+#endif
 			{
 				VectorInverse(dir);
 				dir[2] = 0;
