@@ -382,6 +382,12 @@ static void TCE_WeaponPositionLanding(const tce_weaponPosition_t *s, float *orig
 	}
 	elapsed = (unsigned int)s->time - (unsigned int)s->landTime;
 	memcpy(&delta, &elapsed, sizeof(delta));
+#if !defined(Q3_VM)
+	if (TCE_WeaponPositionLandingFinite(delta, s->landChange, origin[2], &origin[2]))
+	{
+		return;
+	}
+#endif
 	if (delta < 150)
 	{
 		amount = (long double)s->landChange * delta * (long double)(1.0 / 600.0);
@@ -415,6 +421,13 @@ static void TCE_WeaponPositionBob(const tce_weaponPosition_t *s, float *angles)
 			scale = 0.0f;
 		}
 	}
+#if !defined(Q3_VM)
+	if (TCE_WeaponPositionBobFinite(s->bobSin, s->speed, scale,
+	                              s->bobCycle & 1, angles))
+	{
+		return;
+	}
+#endif
 	amount    = (long double)s->bobSin * signedSpeed * scale * (long double)0.005;
 	angles[2] = (float)(amount + angles[2]);
 	amount    = (long double)s->bobSin * signedSpeed * scale * (long double)0.01;

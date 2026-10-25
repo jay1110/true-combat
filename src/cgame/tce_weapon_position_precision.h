@@ -289,6 +289,98 @@ static __inline int TCE_WeaponPositionPosture(int elapsed, int active, int kind,
 	return 1;
 }
 
+/* Native bob uses three Float factors, then a stored Double coefficient.
+ * The bounded factors give a product quantum no smaller than 2^-225. */
+static __inline int TCE_WeaponPositionBobFinite(float bob, float speed, float scale,
+                                               int reverse, float angles[3])
+{
+	tceTriggerSum_t value, speedValue, signedSpeed, scaleValue, coefficient = { { 0 }, 0 }, start;
+	float factors[3], result[3];
+	unsigned bits, control;
+	int i, component;
+
+	factors[0] = bob;
+	factors[1] = speed;
+	factors[2] = scale;
+	for (i = 0; i < 3; ++i)
+	{
+		memcpy(&bits, &factors[i], sizeof(bits));
+		bits &= 0x7fffffffu;
+		if (bits && (bits < 0x2f800000u || bits > 0x4b800000u))
+		{
+			return 0;
+		}
+	}
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control) ||
+	    !TCE_TriggerProduct(&speedValue, speed, 1.0f, control) ||
+	    !TCE_TriggerProduct(&scaleValue, scale, 1.0f, control))
+	{
+		return 0;
+	}
+	for (i = 0; i < 3; ++i)
+	{
+		component = 2 - i;
+		if (!TCE_TriggerProduct(&value, bob, 1.0f, control) ||
+		    !TCE_TriggerProduct(&start, angles[component], 1.0f, control))
+		{
+			return 0;
+		}
+		/* Roll/yaw use the signed speed; pitch uses the original speed. */
+		signedSpeed = speedValue;
+		if (reverse && component)
+		{
+			signedSpeed.negative ^= 1u;
+		}
+		TCE_GustMultiply(&value, &signedSpeed, control);
+		TCE_GustMultiply(&value, &scaleValue, control);
+		memset(&coefficient, 0, sizeof(coefficient));
+		TCE_TriggerPlace(&coefficient, 0x147ae147ae147bULL, component == 1 ? 239 : 238);
+		TCE_GustMultiply(&value, &coefficient, control);
+		TCE_RotateAdd(&value, &start, control);
+		result[component] = TCE_RotateStore(value, control);
+	}
+	memcpy(angles, result, sizeof(result));
+	return 1;
+}
+
+/* Landing uses an exact signed integer import, then a Float product and
+ * the native Double reciprocal. No Float spill occurs before adding Z. */
+static __inline int TCE_WeaponPositionLandingFinite(int elapsed, float change,
+                                                   float origin, float *result)
+{
+	tceTriggerSum_t value = { { 0 }, 0 }, factor, coefficient = { { 0 }, 0 }, start;
+	unsigned bits, control, magnitude;
+	int time = elapsed < 150 ? elapsed : 450 - elapsed;
+
+	if (elapsed >= 450)
+	{
+		return 0;
+	}
+	memcpy(&bits, &change, sizeof(bits));
+	bits &= 0x7fffffffu;
+	if (bits && (bits < 0x2f800000u || bits > 0x4b800000u))
+	{
+		return 0;
+	}
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control) ||
+	    !TCE_TriggerProduct(&factor, change, 1.0f, control) ||
+	    !TCE_TriggerProduct(&start, origin, 1.0f, control))
+	{
+		return 0;
+	}
+	value.negative = time < 0;
+	magnitude = time < 0 ? 0u - (unsigned)time : (unsigned)time;
+	TCE_TriggerPlace(&value, magnitude, 298);
+	TCE_GustMultiply(&value, &factor, control);
+	TCE_TriggerPlace(&coefficient, 0x1b4e81b4e81b4fULL, elapsed < 150 ? 236 : 235);
+	TCE_GustMultiply(&value, &coefficient, control);
+	TCE_RotateAdd(&value, &start, control);
+	*result = TCE_RotateStore(value, control);
+	return 1;
+}
+
 /* FILD32, multiply by the stored Float 0.005, optionally subtract from
  * one, then FSTP32. The integer import is exact even with PC24 selected. */
 static __inline int TCE_WeaponPositionLeanFraction(int elapsed, int fading,
