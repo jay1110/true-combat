@@ -493,6 +493,15 @@ static void TCE_WeaponPositionSway(tce_weaponPosition_t *s, float *origin, float
 		target[1] = (float)((long double)s->stepChange + target[1]);
 	}
 
+#if !defined(Q3_VM)
+	if (TCE_WeaponPositionSwayState(target, w->unknown_0f8[3], s->aiming,
+	                              s->scale_3407dfbc, s->scale_3407dfc0,
+	                              s->swayHorizontal, s->swayVertical, &strength,
+	                              &s->swayHorizontal, &s->swayVertical))
+	{
+		goto sway_offsets;
+	}
+#endif
 	limit = s->aiming ? (long double)w->unknown_0f8[3] *
 	        (long double)(1.0f / 600.0f) : 3.0L;
 	shotScale = s->aiming ? 0.5L : 1.0L;
@@ -543,6 +552,7 @@ static void TCE_WeaponPositionSway(tce_weaponPosition_t *s, float *origin, float
 		s->swayHorizontal = (float)-limit;
 	}
 #if !defined(Q3_VM)
+sway_offsets:
 	if (TCE_WeaponPositionSwayOffsets(s->swayHorizontal, s->swayVertical,
 	                                strength, s->viewAxis, origin, angles))
 	{

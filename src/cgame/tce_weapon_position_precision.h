@@ -464,6 +464,127 @@ static __inline int TCE_WeaponPositionSwayOffsets(float horizontal, float vertic
 	return 1;
 }
 
+/* Consume the stored derivative targets. The vertical upper clamp tests
+ * the retained filtered value; the horizontal clamp tests its Float store. */
+static __inline int TCE_WeaponPositionSwayState(const float target[2], int limitInput,
+                                               int aiming, int movement, int shot,
+                                               float horizontal, float vertical,
+                                               float *strengthResult,
+                                               float *horizontalResult, float *verticalResult)
+{
+	tceTriggerSum_t limit = { { 0 }, 0 }, lower, factor, weight, current;
+	tceTriggerSum_t previous[2], targets[2], products[2], filtered[2];
+	float stored[2], strength;
+	unsigned control, magnitude, bits;
+	int input, i;
+
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control) ||
+	    !TCE_TriggerProduct(&previous[0], horizontal, 1.0f, control) ||
+	    !TCE_TriggerProduct(&previous[1], vertical, 1.0f, control))
+	{
+		return 0;
+	}
+	for (i = 0; i < 2; ++i)
+	{
+		if (!TCE_TriggerProduct(&targets[i], target[i], 1.0f, control))
+		{
+			return 0;
+		}
+	}
+	if (aiming)
+	{
+		limit.negative = limitInput < 0;
+		magnitude = limitInput < 0 ? 0u - (unsigned)limitInput : (unsigned)limitInput;
+		TCE_TriggerPlace(&limit, magnitude, 298);
+		TCE_TriggerProduct(&factor, 1.0f / 600.0f, 1.0f, control);
+		TCE_GustMultiply(&limit, &factor, control);
+	}
+	else
+	{
+		TCE_TriggerPlace(&limit, 3, 298);
+	}
+	lower = limit;
+	lower.negative ^= 1u;
+	TCE_TriggerProduct(&factor, 0.001f, 1.0f, control);
+	for (i = 0; i < 2; ++i)
+	{
+		memset(&products[i], 0, sizeof(products[i]));
+		input = i ? shot : movement;
+		products[i].negative = input < 0;
+		magnitude = input < 0 ? 0u - (unsigned)input : (unsigned)input;
+		TCE_TriggerPlace(&products[i], magnitude, i && aiming ? 297 : 298);
+		if (i)
+		{
+			/* Native shot input first multiplies by half or one. */
+			TCE_TriggerRound(&products[i], control);
+		}
+		TCE_GustMultiply(&products[i], &factor, control);
+	}
+	TCE_RotateAdd(&products[0], &products[1], control);
+	strength = TCE_RotateStore(products[0], control);
+	if (strength > 1.0f)
+	{
+		strength = 1.0f;
+	}
+	if (!aiming && !(strength >= 0.5f))
+	{
+		strength = 0.5f;
+	}
+	TCE_TriggerProduct(&factor, 0.1f, 1.0f, control);
+	TCE_TriggerProduct(&weight, 0.9090908765792847f, 1.0f, control);
+	for (i = 0; i < 2; ++i)
+	{
+		memcpy(&bits, &target[i], sizeof(bits));
+		/* For a finite Float, this is exactly abs(target) < Double(0.2). */
+		if ((bits & 0x7fffffffu) < 0x3e4ccccdu)
+		{
+			TCE_TriggerProduct(&targets[i], 0.0f, 1.0f, control);
+		}
+		else if (TCE_TriggerCompare(&limit, &targets[i]) < 0)
+		{
+			stored[i] = TCE_RotateStore(limit, control);
+			TCE_TriggerProduct(&targets[i], stored[i], 1.0f, control);
+		}
+		else if (TCE_TriggerCompare(&lower, &targets[i]) > 0)
+		{
+			stored[i] = TCE_RotateStore(lower, control);
+			TCE_TriggerProduct(&targets[i], stored[i], 1.0f, control);
+		}
+		filtered[i] = targets[i];
+		TCE_GustMultiply(&filtered[i], &factor, control);
+		TCE_RotateAdd(&filtered[i], &previous[i], control);
+		TCE_GustMultiply(&filtered[i], &weight, control);
+		stored[i] = TCE_RotateStore(filtered[i], control);
+	}
+	/* Vertical is compared before reloading its Float store. */
+	if (TCE_TriggerCompare(&filtered[1], &limit) > 0)
+	{
+		stored[1] = TCE_RotateStore(limit, control);
+	}
+	else
+	{
+		TCE_TriggerProduct(&current, stored[1], 1.0f, control);
+		if (TCE_TriggerCompare(&current, &lower) < 0)
+		{
+			stored[1] = TCE_RotateStore(lower, control);
+		}
+	}
+	TCE_TriggerProduct(&current, stored[0], 1.0f, control);
+	if (TCE_TriggerCompare(&current, &limit) > 0)
+	{
+		stored[0] = TCE_RotateStore(limit, control);
+	}
+	else if (TCE_TriggerCompare(&current, &lower) < 0)
+	{
+		stored[0] = TCE_RotateStore(lower, control);
+	}
+	*strengthResult = strength;
+	*horizontalResult = stored[0];
+	*verticalResult = stored[1];
+	return 1;
+}
+
 /* FILD32, multiply by the stored Float 0.005, optionally subtract from
  * one, then FSTP32. The integer import is exact even with PC24 selected. */
 static __inline int TCE_WeaponPositionLeanFraction(int elapsed, int fading,
