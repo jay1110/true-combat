@@ -67,7 +67,7 @@ static __inline int TCE_RadiusFiniteMidpoint(const float *mins, const float *max
 	tceTriggerSum_t sums[3], other, half = { { 0 }, 0 };
 	float spilled[3], halfY, halfZ;
 	unsigned control;
-	int axis;
+	int axis, spilledInfinity[3] = { 0, 0, 0 };
 
 	__control87_2(0, 0, &control, NULL);
 	if (!TCE_FiniteExceptionsMasked(control))
@@ -87,8 +87,10 @@ static __inline int TCE_RadiusFiniteMidpoint(const float *mins, const float *max
 			spilled[axis] = TCE_RotateStore(sums[axis], control);
 			if (!TCE_TriggerProduct(&sums[axis], spilled[axis], 1.0f, control))
 			{
-				/* Preserve the prior FP path for an overflowing Y/Z sum. */
-				return 0;
+				/* Finite inputs can only produce signed infinity here.
+				 * Its later multiplication by one-half preserves the bits;
+				 * retain the other axes' exact arithmetic instead of falling back. */
+				spilledInfinity[axis] = 1;
 			}
 		}
 	}
@@ -96,11 +98,22 @@ static __inline int TCE_RadiusFiniteMidpoint(const float *mins, const float *max
  * Halving changes the lowest possible bit to 2^-150, within the grid. */
 	TCE_TriggerPlace(&half, 1, 297);
 	TCE_GustMultiply(&sums[0], &half, control);
-	TCE_GustMultiply(&sums[1], &half, control);
-	halfY = TCE_RotateStore(sums[1], control);
-	TCE_GustMultiply(&sums[2], &half, control);
+	halfY = spilled[1];
+	if (!spilledInfinity[1])
+	{
+		TCE_GustMultiply(&sums[1], &half, control);
+		halfY = TCE_RotateStore(sums[1], control);
+	}
+	if (!spilledInfinity[2])
+	{
+		TCE_GustMultiply(&sums[2], &half, control);
+	}
 	midpoint[1] = halfY;
-	halfZ = TCE_RotateStore(sums[2], control);
+	halfZ = spilled[2];
+	if (!spilledInfinity[2])
+	{
+		halfZ = TCE_RotateStore(sums[2], control);
+	}
 	midpoint[0] = TCE_RotateStore(sums[0], control);
 	midpoint[2] = halfZ;
 	return 1;
