@@ -26,6 +26,79 @@ static __inline int TCE_AmbientRoomRandom(unsigned sample, float *result)
 	return 1;
 }
 
+/* The retained multiplier shifts an exact product right by 298 bits. Check
+ * that this discards only zeros and leaves room for the following addition. */
+static __inline int TCE_AmbientProductFits(const tceTriggerSum_t *a,
+                                         const tceTriggerSum_t *b)
+{
+	int lowA, lowB, highA, highB;
+
+	for (lowA = 0; lowA < 576 && !TCE_TriggerBit(a, lowA); ++lowA)
+	{
+	}
+	for (lowB = 0; lowB < 576 && !TCE_TriggerBit(b, lowB); ++lowB)
+	{
+	}
+	if (lowA == 576 || lowB == 576)
+	{
+		return 1;
+	}
+	for (highA = 575; !TCE_TriggerBit(a, highA); --highA)
+	{
+	}
+	for (highB = 575; !TCE_TriggerBit(b, highB); --highB)
+	{
+	}
+	return lowA + lowB >= 298 && highA + highB <= 870;
+}
+
+static __inline int TCE_AmbientReflect(float *direction, const float *normal)
+{
+	tceTriggerSum_t dot, term, doubled, value;
+	tceTriggerSum_t normals[3], starts[3];
+	float reflected[3];
+	unsigned control;
+	int axis;
+
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
+	for (axis = 0; axis < 3; ++axis)
+	{
+		if (!TCE_TriggerProduct(&normals[axis], normal[axis], 1.0f, control) ||
+		    !TCE_TriggerProduct(&starts[axis], direction[axis], 1.0f, control))
+		{
+			return 0;
+		}
+	}
+	TCE_TriggerProduct(&dot, normal[2], direction[2], control);
+	TCE_TriggerProduct(&term, normal[1], direction[1], control);
+	TCE_RotateAdd(&dot, &term, control);
+	TCE_TriggerProduct(&term, normal[0], direction[0], control);
+	TCE_RotateAdd(&dot, &term, control);
+	doubled = dot;
+	TCE_RotateAdd(&dot, &doubled, control);
+	dot.negative ^= 1u;
+	for (axis = 0; axis < 3; ++axis)
+	{
+		if (!TCE_AmbientProductFits(&dot, &normals[axis]))
+		{
+			return 0;
+		}
+		value = dot;
+		TCE_GustMultiply(&value, &normals[axis], control);
+		TCE_RotateAdd(&value, &starts[axis], control);
+		reflected[axis] = TCE_RotateStore(value, control);
+	}
+	for (axis = 0; axis < 3; ++axis)
+	{
+		direction[axis] = reflected[axis];
+	}
+	return 1;
+}
+
 static __inline int TCE_AmbientOrigin(float origin, float axis, int subtract,
                                      float *result)
 {

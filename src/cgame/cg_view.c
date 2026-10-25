@@ -1465,6 +1465,12 @@ static void CG_TCERoomRay(vec3_t direction, const vec3_t signs, int axis)
 
 static void CG_TCEReflectRoomRay(vec3_t direction, const vec3_t normal)
 {
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	if (TCE_AmbientReflect(direction, normal))
+	{
+		return;
+	}
+#endif
 #if defined(_WIN32)
 	/* Windows adds z+y before x and retains the reflection scale until
 	 * the three new direction components have each been stored. */
