@@ -1452,7 +1452,12 @@ void Fire_Lead_Ext(gentity_t *ent, gentity_t *activator, float spread, int damag
 	gentity_t *traceEnt;
 	int       seed = rand() & 255;
 
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	float horizontalRandom = Q_crandom(&seed);
+	r = (float)((double)horizontalRandom * (double)spread);
+#else
 	r = (float)((double)Q_crandom(&seed) * (double)spread);
+#endif
 	u = Q_crandom(&seed);
 #if defined(_WIN32) || defined(__linux__)
 	verticalSpread = (long double)u * (long double)spread;
@@ -1464,15 +1469,21 @@ void Fire_Lead_Ext(gentity_t *ent, gentity_t *activator, float spread, int damag
 #if defined(_WIN32) || defined(__linux__)
 	{
 #if defined(_WIN32)
-		long double horizontalX = (long double)forward[0] * 8192.0f + (long double)muzzle[0];
-		end[1]       = (float)((long double)forward[1] * 8192.0f + (long double)muzzle[1]);
-		end[2]       = (float)((long double)forward[2] * 8192.0f + (long double)muzzle[2]);
-		horizontalX += (long double)r * (long double)right[0];
-		end[1]       = (float)((long double)r * (long double)right[1] + (long double)end[1]);
-		end[2]       = (float)((long double)r * (long double)right[2] + (long double)end[2]);
-		end[0]       = (float)(verticalSpread * (long double)up[0] + horizontalX);
-		end[1]       = (float)(verticalSpread * (long double)up[1] + (long double)end[1]);
-		end[2]       = (float)(verticalSpread * (long double)up[2] + (long double)end[2]);
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		if (!TCE_FiniteLeadEndpoint(horizontalRandom, u, spread, muzzle,
+		                            forward, right, up, end))
+#endif
+		{
+			long double horizontalX = (long double)forward[0] * 8192.0f + (long double)muzzle[0];
+			end[1]       = (float)((long double)forward[1] * 8192.0f + (long double)muzzle[1]);
+			end[2]       = (float)((long double)forward[2] * 8192.0f + (long double)muzzle[2]);
+			horizontalX += (long double)r * (long double)right[0];
+			end[1]       = (float)((long double)r * (long double)right[1] + (long double)end[1]);
+			end[2]       = (float)((long double)r * (long double)right[2] + (long double)end[2]);
+			end[0]       = (float)(verticalSpread * (long double)up[0] + horizontalX);
+			end[1]       = (float)(verticalSpread * (long double)up[1] + (long double)end[1]);
+			end[2]       = (float)(verticalSpread * (long double)up[2] + (long double)end[2]);
+		}
 #else
 		/* Linux keeps all three base/right sums until the final stores. */
 		long double baseX       = (long double)forward[0] * 8192.0f + (long double)muzzle[0];
