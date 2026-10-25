@@ -10,6 +10,7 @@
 #include "../game/tce_trajectory.h"
 #include "../game/tce_bg.h"
 #include "../game/tce_numeric.h"
+#include "../game/tce_item_visibility_precision.h"
 #include "tce_smoke_grenade.h"
 #include "tce_weapon_media.h"
 #include "tce_fragment_sound.h"
@@ -711,14 +712,31 @@ qboolean CG_PlayerSeesItem(playerState_t *ps, entityState_t *item, int atTime, i
 	//		have to do redundant calcs)
 	AngleVectors(ps->viewangles, viewa, 0, 0);
 #if defined(_MSC_VER) && defined(_M_IX86)
-	dotProduct = (long double)viewa[2] * dir[2] + (long double)viewa[1] * dir[1];
-	dotProduct += (long double)viewa[0] * dir[0];
-	threshold = (long double)coneBase - (long double)dist * coneScale * coneSlope;
-	/* Native C0 rejects both dot>threshold and unordered comparisons. */
-	if (!(threshold >= dotProduct))
+#if !defined(Q3_VM)
 	{
-		return qfalse;
+		int visible;
+		if (TCE_ItemVisibilityCone(viewa, dir, dist, &visible))
+		{
+			if (!visible)
+			{
+				return qfalse;
+			}
+		}
+		else
+#endif
+		{
+			dotProduct = (long double)viewa[2] * dir[2] + (long double)viewa[1] * dir[1];
+			dotProduct += (long double)viewa[0] * dir[0];
+			threshold = (long double)coneBase - (long double)dist * coneScale * coneSlope;
+			/* Native C0 rejects both dot>threshold and unordered comparisons. */
+			if (!(threshold >= dotProduct))
+			{
+				return qfalse;
+			}
+		}
+#if !defined(Q3_VM)
 	}
+#endif
 #else
 	dot = DotProduct(viewa, dir);
 	foo = -0.94f - (dist * (1.0f / 255.0f)) * 0.057f;
