@@ -3,6 +3,7 @@
 
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 #include "tce_gust_precision.h"
+#include "tce_length_precision.h"
 
 /* The native search bounds retain radius * binary64(1.41421356) between
  * all six binary32 stores. MSVC long double cannot hold the PC64 result.
@@ -102,6 +103,41 @@ static __inline int TCE_RadiusFiniteMidpoint(const float *mins, const float *max
 	halfZ = TCE_RotateStore(sums[2], control);
 	midpoint[0] = TCE_RotateStore(sums[0], control);
 	midpoint[2] = halfZ;
+	return 1;
+}
+
+/* VectorLength retains sqrt((X*X + Y*Y) + Z*Z) in ST0. The close gate
+ * compares against a separately rounded radius * binary32(0.2), also held. */
+static __inline int TCE_RadiusFiniteLengthGate(const float *delta, float radius,
+                                              int closeGate, int *accepted)
+{
+	tceTriggerSum_t squared, product, root, boundary;
+	unsigned control;
+	int axis;
+
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
+	if (!TCE_TriggerProduct(&squared, delta[0], delta[0], control))
+	{
+		return 0;
+	}
+	for (axis = 1; axis < 3; ++axis)
+	{
+		if (!TCE_TriggerProduct(&product, delta[axis], delta[axis], control))
+		{
+			return 0;
+		}
+		TCE_RotateAdd(&squared, &product, control);
+	}
+	if (!TCE_TriggerProduct(&boundary, radius, closeGate ? 0.2f : 1.0f, control))
+	{
+		return 0;
+	}
+	root = TCE_LengthRoot(&squared, control);
+	*accepted = TCE_TriggerCompare(&root, &boundary) < 0;
 	return 1;
 }
 #endif

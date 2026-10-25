@@ -784,7 +784,19 @@ static void G_TCERadiusAxisDistance(float axisOrigin, float axisMin, float axisM
 static qboolean G_TCERadiusLengthGate(const vec3_t radiusDelta, float radiusLimit, qboolean closeGate)
 {
 #if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
-	long double distance = TCE_VectorLengthValue(radiusDelta);
+	long double distance;
+#else
+	float radiusDistance;
+#endif
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	int accepted;
+	if (TCE_RadiusFiniteLengthGate(radiusDelta, radiusLimit, closeGate, &accepted))
+	{
+		return accepted;
+	}
+#endif
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+	distance = TCE_VectorLengthValue(radiusDelta);
 	if (closeGate)
 	{
 		long double threshold = (long double)radiusLimit * (long double)0.2f;
@@ -792,7 +804,7 @@ static qboolean G_TCERadiusLengthGate(const vec3_t radiusDelta, float radiusLimi
 	}
 	return !(distance >= (long double)radiusLimit); /* C0 includes unordered. */
 #else
-	float radiusDistance = VectorLength(radiusDelta);
+	radiusDistance = VectorLength(radiusDelta);
 	return closeGate ? radiusDistance < radiusLimit * 0.2f : !(radiusDistance >= radiusLimit);
 #endif
 }
