@@ -2542,6 +2542,28 @@ void AIEnter_MP_FixMG42(bot_state_t *bs)
 	bs->ainodeText = "AINode_MP_FixMG42";
 }
 
+#if defined(_WIN32) && !defined(Q3_VM)
+static qboolean BotMountedFlattenHeight(float origin, float goal)
+{
+#if defined(_MSC_VER) && defined(_M_IX86)
+	int inside;
+
+	if (TCE_BotMountHeightInside(origin, goal, &inside))
+	{
+		return inside;
+	}
+#endif
+	return !(fabsl((long double)origin - (long double)goal) >= 100.0L);
+}
+
+static qboolean BotMountedTimeGate(double recorded, qboolean recent);
+static int BotMountedDistanceOrder(vec3_t from, vec3_t to, float threshold);
+static int BotMountedLengthOrder(vec3_t vector, float threshold);
+static float BotMountRandomMoveValue(int centered);
+static qboolean BotMountShouldRoam(bot_state_t *bs);
+static int BotMountReloadThreshold(int maxClip);
+#endif
+
 /*
 ==================
 AINode_MP_FixMG42()
@@ -2580,7 +2602,11 @@ int AINode_MP_FixMG42(bot_state_t *bs)
 	//respawn if dead
 	if (BotIsDead(bs))
 	{
+#if defined(_WIN32) && !defined(Q3_VM)
+		ent->botIgnoreTime = TCE_AddInt32(level.time, 5000); // other bots should avoid this spot
+#else
 		ent->botIgnoreTime = level.time + 5000; // other bots should avoid this spot
+#endif
 		AIEnter_MP_Respawn(bs);
 		return qfalse;
 	}
@@ -2601,9 +2627,17 @@ int AINode_MP_FixMG42(bot_state_t *bs)
 	}
 
 	// have we been waiting here for too long?
+#if defined(_WIN32) && !defined(Q3_VM)
+	if (bs->arrive_time < TCE_SubInt32(level.time, 40000))
+#else
 	if (bs->arrive_time < level.time - 40000)
+#endif
 	{
+#if defined(_WIN32) && !defined(Q3_VM)
+		ent->botIgnoreTime = TCE_AddInt32(level.time, 5000); // other bots should avoid this spot
+#else
 		ent->botIgnoreTime = level.time + 5000; // other bots should avoid this spot
+#endif
 		if (BotFindSpecialGoals(bs))
 		{
 			return qfalse;
@@ -2612,10 +2646,18 @@ int AINode_MP_FixMG42(bot_state_t *bs)
 
 	//
 	// other bots should avoid this spot
+#if defined(_WIN32) && !defined(Q3_VM)
+	ent->botIgnoreTime = TCE_AddInt32(level.time, 5000);
+#else
 	ent->botIgnoreTime = level.time + 5000;
+#endif
 
 	VectorSubtract(bs->origin, goal.origin, dir);
+#if defined(_WIN32) && !defined(Q3_VM)
+	if (BotMountedFlattenHeight(bs->origin[2], goal.origin[2]))
+#else
 	if (fabs(dir[2]) < 100)
+#endif
 	{
 		dir[2] = 0;
 	}
@@ -2623,6 +2665,8 @@ int AINode_MP_FixMG42(bot_state_t *bs)
 	// is the destination blocked?
 #if defined(__linux__)
 	if (!(TCE_VectorLengthSquaredValue(dir) >= SQR(64)))
+#elif defined(_WIN32) && !defined(Q3_VM)
+	if (BotMountedLengthOrder(dir, SQR(64)) < 0)
 #else
 	if (VectorLengthSquared(dir) < SQR(64))
 #endif
@@ -2639,6 +2683,8 @@ int AINode_MP_FixMG42(bot_state_t *bs)
 
 #if defined(__linux__)
 	if (TCE_VectorLengthSquaredValue(dir) > SQR(8))
+#elif defined(_WIN32) && !defined(Q3_VM)
+	if (BotMountedLengthOrder(dir, SQR(8)) == 1)
 #else
 	if (VectorLengthSquared(dir) > SQR(8))
 #endif
@@ -2678,6 +2724,15 @@ int AINode_MP_FixMG42(bot_state_t *bs)
 				float moveX = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
 				trap_EA_Move(bs->client, tv(moveX, moveY, moveZ), speed);
 			}
+#elif defined(_WIN32) && !defined(Q3_VM)
+			{
+				/* Native argument evaluation consumes speed, Z, Y, then X. */
+				float speed = BotMountRandomMoveValue(qfalse);
+				float moveZ = BotMountRandomMoveValue(qtrue);
+				float moveY = BotMountRandomMoveValue(qtrue);
+				float moveX = BotMountRandomMoveValue(qtrue);
+				trap_EA_Move(bs->client, tv(moveX, moveY, moveZ), speed);
+			}
 #else
 			trap_EA_Move(bs->client, tv(crandom(), crandom(), crandom()), 100 + random() * 200);
 #endif
@@ -2698,6 +2753,8 @@ int AINode_MP_FixMG42(bot_state_t *bs)
 		{
 #if defined(__linux__)
 			if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) < (long double)(double)0.8 * bs->thinktime)
+#elif defined(_WIN32) && !defined(Q3_VM)
+			if (BotMountShouldRoam(bs))
 #else
 			if (random() < bs->thinktime * 0.8)
 #endif
@@ -2712,6 +2769,8 @@ int AINode_MP_FixMG42(bot_state_t *bs)
 		{
 #if defined(__linux__)
 			if (BotDistanceSquaredValue(bs->origin, goal.origin) > SQR(32))
+#elif defined(_WIN32) && !defined(Q3_VM)
+			if (BotMountedDistanceOrder(bs->origin, goal.origin, SQR(32)) == 1)
 #else
 			if (VectorDistanceSquared(bs->origin, goal.origin) > SQR(32))
 #endif
@@ -2726,7 +2785,7 @@ int AINode_MP_FixMG42(bot_state_t *bs)
 					aas_entityinfo_t entinfo;
 					BotEntityInfo(bs->enemy, &entinfo);
 					//if the enemy is dead
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 					if (bs->enemydeath_time < 0.0f || bs->enemydeath_time > 0.0f)
 #else
 					if (bs->enemydeath_time)
@@ -2735,6 +2794,9 @@ int AINode_MP_FixMG42(bot_state_t *bs)
 #if defined(__linux__)
 						long double deathTime = bs->enemydeath_time;
 						if (!(deathTime >= (long double)trap_AAS_Time() - (long double)(double)0.3))
+#elif defined(_WIN32) && !defined(Q3_VM)
+						double deathTime = bs->enemydeath_time;
+						if (BotMountedTimeGate(deathTime, qfalse))
 #else
 						if (bs->enemydeath_time < trap_AAS_Time() - 0.3)
 #endif
@@ -2757,6 +2819,8 @@ int AINode_MP_FixMG42(bot_state_t *bs)
 						// attack and keep moving
 #if defined(__linux__)
 						if (fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL)) > 0.0L)
+#elif defined(_WIN32) && !defined(Q3_VM)
+						if (fabs((double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL)) > 0.0)
 #else
 						if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL))
 #endif
@@ -2792,6 +2856,8 @@ int AINode_MP_FixMG42(bot_state_t *bs)
 					}
 #if defined(__linux__)
 					else if (fabsl(TCE_VectorLengthSquaredValue(moveresult.movedir)) > 0.0L)
+#elif defined(_WIN32) && !defined(Q3_VM)
+					else if (BotMountedLengthOrder(moveresult.movedir, 0.0f) == 1)
 #else
 					else if (VectorLengthSquared(moveresult.movedir))     //FIXME: look at cluster portals?
 #endif
@@ -2800,6 +2866,8 @@ int AINode_MP_FixMG42(bot_state_t *bs)
 					}
 #if defined(__linux__)
 					else if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) < (long double)(double)0.8 * bs->thinktime)
+#elif defined(_WIN32) && !defined(Q3_VM)
+					else if (BotMountShouldRoam(bs))
 #else
 					else if (random() < bs->thinktime * 0.8)
 #endif
@@ -2817,6 +2885,8 @@ int AINode_MP_FixMG42(bot_state_t *bs)
 
 #if defined(__linux__)
 	if (!(BotDistanceSquaredValue(bs->origin, goal.origin) >= SQR(16)))
+#elif defined(_WIN32) && !defined(Q3_VM)
+	if (BotMountedDistanceOrder(bs->origin, goal.origin, SQR(16)) < 0)
 #else
 	if (VectorDistanceSquared(bs->origin, goal.origin) < SQR(16))
 #endif
@@ -2835,7 +2905,7 @@ int AINode_MP_FixMG42(bot_state_t *bs)
 			aas_entityinfo_t entinfo;
 			BotEntityInfo(bs->enemy, &entinfo);
 			//if the enemy is dead
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 			if (bs->enemydeath_time < 0.0f || bs->enemydeath_time > 0.0f)
 #else
 			if (bs->enemydeath_time)
@@ -2844,6 +2914,9 @@ int AINode_MP_FixMG42(bot_state_t *bs)
 #if defined(__linux__)
 				long double deathTime = bs->enemydeath_time;
 				if (!(deathTime >= (long double)trap_AAS_Time() - (long double)(double)0.3))
+#elif defined(_WIN32) && !defined(Q3_VM)
+				double deathTime = bs->enemydeath_time;
+				if (BotMountedTimeGate(deathTime, qfalse))
 #else
 				if (bs->enemydeath_time < trap_AAS_Time() - 0.3)
 #endif
@@ -2865,6 +2938,8 @@ int AINode_MP_FixMG42(bot_state_t *bs)
 			{
 #if defined(__linux__)
 				if (!(BotDistanceSquaredValue(bs->origin, bs->enemyorigin) >= SQR(512)))
+#elif defined(_WIN32) && !defined(Q3_VM)
+				if (BotMountedDistanceOrder(bs->origin, bs->enemyorigin, SQR(512)) < 0)
 #else
 				if (VectorDistanceSquared(bs->origin, bs->enemyorigin) < SQR(512))
 #endif
@@ -2872,6 +2947,8 @@ int AINode_MP_FixMG42(bot_state_t *bs)
 					// if they are real close, abort sniper mode
 #if defined(__linux__)
 					if (!(BotDistanceSquaredValue(bs->origin, g_entities[bs->enemy].r.currentOrigin) >= SQR(1024)))
+#elif defined(_WIN32) && !defined(Q3_VM)
+					if (BotMountedDistanceOrder(bs->origin, g_entities[bs->enemy].r.currentOrigin, SQR(1024)) < 0)
 #else
 					if (VectorDistanceSquared(bs->origin, g_entities[bs->enemy].r.currentOrigin) < SQR(1024))
 #endif
@@ -2898,10 +2975,24 @@ int AINode_MP_FixMG42(bot_state_t *bs)
 			bs->arrive_time = level.time;
 		}
 	}
+#if defined(_WIN32) && !defined(Q3_VM)
+	else if (bs->last_fire != level.time)
+	{
+		int weapon = bs->cur_ps.weapon;
+		int clip = BG_FindClipForWeapon(weapon);
+		int threshold = BotMountReloadThreshold(GetAmmoTableData(weapon)->maxclip);
+
+		if (bs->cur_ps.ammoclip[clip] < threshold && bs->cur_ps.ammo[BG_FindAmmoForWeapon(weapon)])
+		{
+			trap_EA_Reload(bs->client);
+		}
+	}
+#else
 	else if ((bs->last_fire != level.time) && (bs->cur_ps.ammoclip[BG_FindClipForWeapon(bs->cur_ps.weapon)] < (int)(0.8 * GetAmmoTableData(bs->cur_ps.weapon)->maxclip)) && bs->cur_ps.ammo[BG_FindAmmoForWeapon(bs->cur_ps.weapon)])     // reload?
 	{
 		trap_EA_Reload(bs->client);
 	}
+#endif
 
 	return qtrue;
 }
@@ -3879,7 +3970,11 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 #endif
 	//
 	VectorSubtract(bs->origin, goal.origin, dir);
+#if defined(_WIN32) && !defined(Q3_VM)
+	if (BotMountedFlattenHeight(bs->origin[2], goal.origin[2]))
+#else
 	if (fabs(dir[2]) < 100)
+#endif
 	{
 		dir[2] = 0;
 	}
