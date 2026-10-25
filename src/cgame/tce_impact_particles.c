@@ -34,50 +34,52 @@ static float impactRandomOutput(int mode)
 		return result;
 	}
 #endif
+	{
 #if defined(_MSC_VER) && defined(_M_IX86)
-	long double value = (long double)sample * (long double)randomUnit;
-	if (mode == 1)
-	{
-		value += (long double)randomHalf;
-	}
-	else if (mode == 2)
-	{
-		value *= (long double)angleCircle;
-	}
-	else if (mode != 0)
-	{
-		value -= (long double)centeredHalf;
-		value += value;
-		value *= mode == 3 ? (long double)chipSpin : (long double)smokeSpin;
-	}
-	result = (float)value;
-#elif defined(__linux__)
-	long double value;
-	if (mode == 2)
-	{
-		/* Linux folds the angle coefficient to binary32 before the sample. */
-		const float angleUnit = angleCircle * randomUnit;
-		value = (long double)sample * angleUnit;
-	}
-	else
-	{
-		value = (long double)sample * randomUnit;
+		long double value = (long double)sample * (long double)randomUnit;
 		if (mode == 1)
 		{
-			value += randomHalf;
+			value += (long double)randomHalf;
+		}
+		else if (mode == 2)
+		{
+			value *= (long double)angleCircle;
 		}
 		else if (mode != 0)
 		{
-			value -= centeredHalf;
+			value -= (long double)centeredHalf;
 			value += value;
-			value *= mode == 3 ? chipSpin : smokeSpin;
+			value *= mode == 3 ? (long double)chipSpin : (long double)smokeSpin;
 		}
-	}
-	result = (float)value;
+		result = (float)value;
+#elif defined(__linux__)
+		long double value;
+		if (mode == 2)
+		{
+			/* Linux folds the angle coefficient to binary32 before the sample. */
+			const float angleUnit = angleCircle * randomUnit;
+			value = (long double)sample * angleUnit;
+		}
+		else
+		{
+			value = (long double)sample * randomUnit;
+			if (mode == 1)
+			{
+				value += randomHalf;
+			}
+			else if (mode != 0)
+			{
+				value -= centeredHalf;
+				value += value;
+				value *= mode == 3 ? chipSpin : smokeSpin;
+			}
+		}
+		result = (float)value;
 #else
-	{ double r = sample * (double)randomUnit;
-	  result = (float)(mode == 0?r:mode == 1?r + .5:mode == 2?r * 360:(r - .5) * 2 * (mode == 3?720:90)); }
+		{ double r = sample * (double)randomUnit;
+		  result = (float)(mode == 0?r:mode == 1?r + .5:mode == 2?r * 360:(r - .5) * 2 * (mode == 3?720:90)); }
 #endif
+	}
 	return result;
 }
 static int impactChipLifetime(void)
@@ -117,6 +119,12 @@ static float impactSmokeSpeed(float randomScale, float speedScale)
 	return speed * speedScale;
 #else
 	float       result;
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	if (TCE_ImpactFiniteSmokeSpeed(randomScale, speedScale, &result))
+	{
+		return result;
+	}
+#endif
 #if defined(_MSC_VER) && defined(_M_IX86)
 	result = (float)(((long double)randomScale * (long double)geomRange +
 	                  (long double)geomBase) * (long double)speedScale);
@@ -132,59 +140,83 @@ static void impactSmokeGeometry(int index, float spread,
 {
 	int         factorIndex = index + 2;
 	const float geomOne = 1.0f, geomThird = 1.0f / 3.0f;
-#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
-	float       indexFloat = (float)((long double)index + (long double)geomOne);
-	long double distance   = (long double)spread * (long double)indexFloat;
-	int         j;
-	for (j = 0; j < 3; ++j)
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	if (TCE_ImpactFiniteGeometry(index, spread, origin, direction, position, factor))
 	{
-		position[j] = (float)(distance * (long double)direction[j] + (long double)origin[j]);
+		return;
 	}
-	*factor = (float)((long double)factorIndex * (long double)geomThird + (long double)geomOne);
-#else
-	{ int j;
-	  for (j = 0; j < 3; ++j)
-		  position[j] = (float)(spread * (index + 1.0) * direction[j] + origin[j]);
-	  *factor = (float)((index + 2) * (double)geomThird + 1); }
 #endif
+	{
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
+		float       indexFloat = (float)((long double)index + (long double)geomOne);
+		long double distance   = (long double)spread * (long double)indexFloat;
+		int         j;
+		for (j = 0; j < 3; ++j)
+		{
+			position[j] = (float)(distance * (long double)direction[j] + (long double)origin[j]);
+		}
+		*factor = (float)((long double)factorIndex * (long double)geomThird + (long double)geomOne);
+#else
+		{ int j;
+		  for (j = 0; j < 3; ++j)
+			  position[j] = (float)(spread * (index + 1.0) * direction[j] + origin[j]);
+		  *factor = (float)((index + 2) * (double)geomThird + 1); }
+#endif
+	}
 }
 static float impactSmokeLifetime(float factor, float life, float lifeScale)
 {
 	int         sample = rand() & 32767;
 	const float randomUnit = 1.0f / 32767.0f, lifeJitter = 1.2f;
 	float       result;
-#if defined(_MSC_VER) && defined(_M_IX86)
-	long double value = (long double)sample * (long double)randomUnit;
-	value *= (long double)life;
-	value *= (long double)lifeJitter;
-	value += (long double)factor * (long double)life;
-	result = (float)(value * (long double)lifeScale);
-#elif defined(__linux__)
-	const float lifeJitterUnit = lifeJitter * randomUnit;
-	const float baseLife = (float)((long double)factor * life);
-	long double value = (long double)sample * life;
-	value *= lifeJitterUnit;
-	value += baseLife;
-	result = (float)(value * lifeScale);
-#else
-	result = (float)((factor * (double)life + sample * (double)randomUnit * life * lifeJitter) * lifeScale);
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	if (TCE_ImpactFiniteSmokeLife(sample, factor, life, lifeScale, &result))
+	{
+		return result;
+	}
 #endif
+	{
+#if defined(_MSC_VER) && defined(_M_IX86)
+		long double value = (long double)sample * (long double)randomUnit;
+		value *= (long double)life;
+		value *= (long double)lifeJitter;
+		value += (long double)factor * (long double)life;
+		result = (float)(value * (long double)lifeScale);
+#elif defined(__linux__)
+		const float lifeJitterUnit = lifeJitter * randomUnit;
+		const float baseLife = (float)((long double)factor * life);
+		long double value = (long double)sample * life;
+		value *= lifeJitterUnit;
+		value += baseLife;
+		result = (float)(value * lifeScale);
+#else
+		result = (float)((factor * (double)life + sample * (double)randomUnit * life * lifeJitter) * lifeScale);
+#endif
+	}
 	return result;
 }
 static void impactSmokeTrajectory(int index, float life, float gravity, int *duration, float *scaledGravity)
 {
 	const float timeOne = 1.0f, timeHalf = .5f;
 	float       indexFloat = (float)(index + 1);
-#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
-	long double factor = (long double)indexFloat * (long double)timeHalf +
-	                     (long double)timeOne;
-	/* Only the bounded material lifetimes and indices from the producer enter here. */
-	*duration      = (int)(factor * (long double)life);
-	*scaledGravity = (float)(factor * (long double)gravity);
-#else
-	*duration      = (int)((indexFloat * .5 + 1) * life);
-	*scaledGravity = (float)((indexFloat * .5 + 1) * gravity);
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	if (TCE_ImpactFiniteTrajectory(index, life, gravity, duration, scaledGravity))
+	{
+		return;
+	}
 #endif
+	{
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
+		long double factor = (long double)indexFloat * (long double)timeHalf +
+		                     (long double)timeOne;
+		/* Only the bounded material lifetimes and indices from the producer enter here. */
+		*duration      = (int)(factor * (long double)life);
+		*scaledGravity = (float)(factor * (long double)gravity);
+#else
+		*duration      = (int)((indexFloat * .5 + 1) * life);
+		*scaledGravity = (float)((indexFloat * .5 + 1) * gravity);
+#endif
+	}
 }
 /* Randomize each component before normalizing the complete direction vector. */
 static float impactDirectionComponent(float base, qboolean dust)
@@ -199,19 +231,21 @@ static float impactDirectionComponent(float base, qboolean dust)
 		return component;
 	}
 #endif
-#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
-	long double value = (long double)sample * (long double)randomUnit;
-	value -= (long double)randomHalf;
-	value += value;
-	if (dust)
 	{
-		value *= (long double)dustSpread;
-	}
-	component = (float)(value + (long double)base);
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
+		long double value = (long double)sample * (long double)randomUnit;
+		value -= (long double)randomHalf;
+		value += value;
+		if (dust)
+		{
+			value *= (long double)dustSpread;
+		}
+		component = (float)(value + (long double)base);
 #else
-	component = (float)(((sample * (double)randomUnit - randomHalf) * 2.0) *
-	                    (dust ? dustSpread : 1.0) + base);
+		component = (float)(((sample * (double)randomUnit - randomHalf) * 2.0) *
+		                    (dust ? dustSpread : 1.0) + base);
 #endif
+	}
 	return component;
 }
 static float impactChipSpeed(float component, float scale)
@@ -220,24 +254,32 @@ static float impactChipSpeed(float component, float scale)
 	const float randomUnit = 1.0f / 32767.0f;
 	const float speedRange = 24.0f, speedBase = 12.0f, speedFraction = 2.0f / 3.0f;
 	float       result;
-#if defined(_MSC_VER) && defined(_M_IX86)
-	long double value = (long double)sample * (long double)randomUnit;
-	value *= (long double)speedRange;
-	value += (long double)speedBase;
-	value *= (long double)scale;
-	value *= (long double)speedFraction;
-	result = (float)(value * (long double)component);
-#elif defined(__linux__)
-	long double value = (long double)sample * speedRange;
-	value *= randomUnit;
-	value += speedBase;
-	value *= scale;
-	value *= component;
-	result = (float)(value * speedFraction);
-#else
-	result = (float)((sample * (double)randomUnit * speedRange + speedBase) *
-	                 scale * speedFraction * component);
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	if (TCE_ImpactFiniteChipSpeed(sample, component, scale, &result))
+	{
+		return result;
+	}
 #endif
+	{
+#if defined(_MSC_VER) && defined(_M_IX86)
+		long double value = (long double)sample * (long double)randomUnit;
+		value *= (long double)speedRange;
+		value += (long double)speedBase;
+		value *= (long double)scale;
+		value *= (long double)speedFraction;
+		result = (float)(value * (long double)component);
+#elif defined(__linux__)
+		long double value = (long double)sample * speedRange;
+		value *= randomUnit;
+		value += speedBase;
+		value *= scale;
+		value *= component;
+		result = (float)(value * speedFraction);
+#else
+		result = (float)((sample * (double)randomUnit * speedRange + speedBase) *
+		                 scale * speedFraction * component);
+#endif
+	}
 	return result;
 }
 
