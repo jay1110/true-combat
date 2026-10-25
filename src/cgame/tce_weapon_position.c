@@ -165,11 +165,26 @@ static void TCE_WeaponPositionLean(const tce_weaponPosition_t *s, float *origin,
 	{
 		return;
 	}
-	amount    = (long double)s->lean * 0.5L * fraction;
-	angles[2] = (float)((long double)angles[2] - amount);
+#if !defined(Q3_VM)
+	if (!TCE_WeaponPositionLeanScaledOffset(s->lean, fraction, 1.0f,
+	                                      angles[2], 0, &angles[2]))
+#endif
+	{
+		amount    = (long double)s->lean * 0.5L * fraction;
+		angles[2] = (float)((long double)angles[2] - amount);
+	}
 	AngleVectors(angles, NULL, right, up);
 	for (i = 0; i < 3; ++i)
+	{
+#if !defined(Q3_VM)
+		if (TCE_WeaponPositionLeanOffset(fraction, angles[2], right[i],
+		                               origin[i], &origin[i]))
+		{
+			continue;
+		}
+#endif
 		origin[i] = (float)(((long double)fraction * angles[2]) * right[i] + origin[i]);
+	}
 
 	magnitudeBits = 0;
 	if ((double)s->lean >= -9223372036854775808.0 &&
@@ -183,11 +198,23 @@ static void TCE_WeaponPositionLean(const tce_weaponPosition_t *s, float *origin,
 		magnitudeBits = 0u - magnitudeBits;
 	}
 	memcpy(&magnitude, &magnitudeBits, sizeof(magnitude));
-	amount    = (long double)magnitude * 0.5L * fraction;
-	angles[0] = (float)(amount + angles[0]);
+#if !defined(Q3_VM)
+	if (!TCE_WeaponPositionLeanPitch(magnitude, fraction, angles[0], &angles[0]))
+#endif
+	{
+		amount    = (long double)magnitude * 0.5L * fraction;
+		angles[0] = (float)(amount + angles[0]);
+	}
 	AngleVectors(s->viewAngles, NULL, right, NULL);
 	for (i = 0; i < 3; ++i)
 	{
+#if !defined(Q3_VM)
+		if (TCE_WeaponPositionLeanScaledOffset(s->lean, fraction, right[i],
+		                                      origin[i], 1, &origin[i]))
+		{
+			continue;
+		}
+#endif
 		amount    = -((long double)s->lean * 0.25L * fraction);
 		origin[i] = (float)(amount * right[i] + origin[i]);
 	}
