@@ -1451,6 +1451,14 @@ static void CG_TCERoomRay(vec3_t direction, const vec3_t signs, int axis)
 	for (j = 0; j < 3; j++)
 	{
 		int sample = rand() & 32767;
+#if defined(TCE_LINUX_ROOM_X87)
+		/* Linux keeps the product and centered sample until the Float store. */
+		volatile long double product = (long double)sample * (1.0f / 32767.0f);
+		volatile long double centered = product - .5L;
+		volatile long double doubled = centered + centered;
+		direction[j] = (float)doubled;
+		continue;
+#endif
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 		if (TCE_AmbientRoomRandom((unsigned)sample, &direction[j]))
 		{
@@ -1641,7 +1649,7 @@ static void CG_TCECollectRoomTrace(const trace_t *tr, const vec3_t corner,
 #endif
 }
 
-#if defined(_WIN32) && !defined(Q3_VM)
+#if (defined(_WIN32) && !defined(Q3_VM)) || defined(TCE_LINUX_ROOM_X87)
 typedef struct
 {
 	int sounds[2];
@@ -1653,11 +1661,31 @@ static void CG_TCECaptureSoundZone(const entityState_t *es, tceRoomZoneSnapshot_
 {
 	value->sounds[0] = es->onFireEnd;
 	value->sounds[1] = es->modelindex2;
+#if defined(TCE_LINUX_ROOM_X87)
+	value->volume = es->onFireStart;
+#endif
 	value->effects[0] = es->otherEntityNum;
 	value->effects[1] = es->effect3Time;
+#if !defined(TCE_LINUX_ROOM_X87)
 	value->volume = es->onFireStart;
+#endif
 }
 
+#if defined(TCE_LINUX_ROOM_X87)
+static void CG_TCEPublishGlobalSoundZone(const tceRoomZoneSnapshot_t *value)
+{
+	int bank = 1 - cg.tceSoundZoneActive;
+
+	/* Linux publishes the cached global zone, then its bank and timestamp. */
+	cg.tceSoundZoneSounds[bank][1] = value->sounds[1];
+	cg.tceSoundZoneSounds[bank][0] = value->sounds[0];
+	cg.tceSoundZoneEffects[bank][0] = value->effects[0];
+	cg.tceSoundZoneEffects[bank][1] = value->effects[1];
+	cg.tceSoundZoneVolume[bank] = value->volume;
+	cg.tceSoundZoneActive = bank;
+	cg.tceSoundZoneTransitionTime = cg.time;
+}
+#else
 static void CG_TCEPublishSoundZone(const tceRoomZoneSnapshot_t *value)
 {
 	int bank = 1 - cg.tceSoundZoneActive;
@@ -1670,6 +1698,7 @@ static void CG_TCEPublishSoundZone(const tceRoomZoneSnapshot_t *value)
 	cg.tceSoundZoneTransitionTime = cg.time;
 	cg.tceSoundZoneActive = bank;
 }
+#endif
 #endif
 
 static void CG_TCESetSoundZone(const entityState_t *es)
@@ -1730,7 +1759,7 @@ static void CG_EliteSndEffects(void)
 	unsigned            sampleBits;
 	const entityState_t *global = NULL, *selected;
 	trace_t             tr;
-#if defined(_WIN32) && !defined(Q3_VM)
+#if (defined(_WIN32) && !defined(Q3_VM)) || defined(TCE_LINUX_ROOM_X87)
 	tceRoomZoneSnapshot_t globalZone = { { 0, 0 }, { 0, 0 }, 0 };
 #endif
 	/* The native clock subtraction and addition wrap in 32 bits. */
@@ -1845,7 +1874,7 @@ static void CG_EliteSndEffects(void)
 		if (es->otherEntityNum2 == 1)
 		{
 			global                   = es;
-#if defined(_WIN32) && !defined(Q3_VM)
+#if (defined(_WIN32) && !defined(Q3_VM)) || defined(TCE_LINUX_ROOM_X87)
 			CG_TCECaptureSoundZone(es, &globalZone);
 #endif
 			cg.tceEnvironmentOutdoor = es->frame * (1.0f / 255.0f);
@@ -1878,12 +1907,16 @@ static void CG_EliteSndEffects(void)
 		closest = bounded;
 	}
 	bank = cg.tceSoundZoneActive;
-#if defined(_WIN32) && !defined(Q3_VM)
+#if (defined(_WIN32) && !defined(Q3_VM)) || defined(TCE_LINUX_ROOM_X87)
 	if (cg.tceSoundEnvironment == 3 && global && globalZone.sounds[0] >= 0 && bounded == -1)
 	{
 		if (cg.tceSoundZoneSounds[bank][0] != globalZone.sounds[0] || cg.tceSoundZoneVolume[bank] != globalZone.volume)
 		{
+#if defined(TCE_LINUX_ROOM_X87)
+			CG_TCEPublishGlobalSoundZone(&globalZone);
+#else
 			CG_TCEPublishSoundZone(&globalZone);
+#endif
 		}
 	}
 #else
@@ -1898,7 +1931,7 @@ static void CG_EliteSndEffects(void)
 	else if (closest < 0)
 	{
 		/* The original compares with the global sound index (or -1), not zero. */
-#if defined(_WIN32) && !defined(Q3_VM)
+#if (defined(_WIN32) && !defined(Q3_VM)) || defined(TCE_LINUX_ROOM_X87)
 		if (cg.tceSoundZoneSounds[bank][0] == (global ? globalZone.sounds[0] : -1))
 #else
 		if (cg.tceSoundZoneSounds[bank][0] == (global?global->onFireEnd:-1))
