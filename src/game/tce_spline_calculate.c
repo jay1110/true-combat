@@ -1,5 +1,6 @@
 #include "q_shared.h"
 #include "bg_public.h"
+#include "tce_spline_precision.h"
 
 #if defined(_WIN32) || defined(__linux__)
 /* Reduce the control polygon to its last two De Casteljau points. */
@@ -27,19 +28,24 @@ void BG_CalculateSpline_r(splinePath_t *spline, vec3_t out1, vec3_t out2, float 
 			volatile vec_t *current = points[i];
 			const vec_t    *next    = points[i + 1];
 #if defined(_WIN32)
-			long double    dx     = (long double)next[0] - current[0];
-			volatile float dy     = (float)((long double)next[1] - current[1]);
-			volatile float dz     = (float)((long double)next[2] - current[2]);
-			long double    scaled = dx * tension;
-			long double    result = scaled + current[0];
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+			if (!TCE_SplineFinitePoint(current, next, tension))
+#endif
+			{
+				long double    dx     = (long double)next[0] - current[0];
+				volatile float dy     = (float)((long double)next[1] - current[1]);
+				volatile float dz     = (float)((long double)next[2] - current[2]);
+				long double    scaled = dx * tension;
+				long double    result = scaled + current[0];
 
-			current[0] = (float)result;
-			scaled     = (long double)dy * tension;
-			result     = scaled + current[1];
-			current[1] = (float)result;
-			scaled     = (long double)dz * tension;
-			result     = scaled + current[2];
-			current[2] = (float)result;
+				current[0] = (float)result;
+				scaled     = (long double)dy * tension;
+				result     = scaled + current[1];
+				current[1] = (float)result;
+				scaled     = (long double)dz * tension;
+				result     = scaled + current[2];
+				current[2] = (float)result;
+			}
 #else
 			long double x = current[0], nextX = next[0];
 			long double y = current[1], nextY = next[1];
