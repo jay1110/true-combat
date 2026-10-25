@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "tce_award_precision.h"
 
 void G_LogDeath(gentity_t *ent, weapon_t weap)
 {
@@ -680,8 +681,18 @@ static qboolean G_TCEAwardSkillBetter(float candidatePoints, float candidateStar
                                       float bestPoints, float bestStart)
 {
 #if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
-	long double candidate = (long double)candidatePoints - candidateStart;
-	long double best = (long double)bestPoints - bestStart;
+	long double candidate, best;
+#endif
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	int better;
+	if (TCE_AwardFiniteSkillBetter(candidatePoints, candidateStart, bestPoints, bestStart, &better))
+	{
+		return better;
+	}
+#endif
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+	candidate = (long double)candidatePoints - candidateStart;
+	best = (long double)bestPoints - bestStart;
 	return !(best >= candidate);
 #else
 	return candidatePoints - candidateStart > bestPoints - bestStart;
@@ -691,13 +702,23 @@ static qboolean G_TCEAwardSkillBetter(float candidatePoints, float candidateStar
 static qboolean G_TCEAwardRateBetter(int candidateScore, int candidateElapsed,
                                      int bestScore, int bestElapsed)
 {
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+	long double candidate, best;
+#endif
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	int better;
+	if (TCE_AwardFiniteRateBetter(candidateScore, candidateElapsed, bestScore, bestElapsed, &better))
+	{
+		return better;
+	}
+#endif
 #if defined(__linux__) && !defined(Q3_VM)
-	long double candidate = (1.0L / candidateElapsed) * candidateScore;
-	long double best = (1.0L / bestElapsed) * bestScore;
+	candidate = (1.0L / candidateElapsed) * candidateScore;
+	best = (1.0L / bestElapsed) * bestScore;
 	return !(best >= candidate);
 #elif defined(_MSC_VER) && defined(_M_IX86)
-	long double candidate = (long double)candidateScore / candidateElapsed;
-	long double best = (long double)bestScore / bestElapsed;
+	candidate = (long double)candidateScore / candidateElapsed;
+	best = (long double)bestScore / bestElapsed;
 	return !(best >= candidate);
 #else
 	return candidateScore / (float)candidateElapsed > bestScore / (float)bestElapsed;
@@ -706,6 +727,13 @@ static qboolean G_TCEAwardRateBetter(int candidateScore, int candidateElapsed,
 
 static qboolean G_TCEAwardLossAllows(float awardStartXP, int awardScore)
 {
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	int allows;
+	if (TCE_AwardFiniteLossAllows(awardStartXP, awardScore, &allows))
+	{
+		return allows;
+	}
+#endif
 #if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 	return !((long double)awardStartXP - awardScore >= 100.0L);
 #else
