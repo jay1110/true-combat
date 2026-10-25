@@ -1589,8 +1589,47 @@ static void CG_TCECollectRoomTrace(const trace_t *tr, const vec3_t corner,
 #endif
 }
 
+#if defined(_WIN32) && !defined(Q3_VM)
+typedef struct
+{
+	int sounds[2];
+	int effects[2];
+	int volume;
+} tceRoomZoneSnapshot_t;
+
+static void CG_TCECaptureSoundZone(const entityState_t *es, tceRoomZoneSnapshot_t *value)
+{
+	value->sounds[0] = es->onFireEnd;
+	value->sounds[1] = es->modelindex2;
+	value->effects[0] = es->otherEntityNum;
+	value->effects[1] = es->effect3Time;
+	value->volume = es->onFireStart;
+}
+
+static void CG_TCEPublishSoundZone(const tceRoomZoneSnapshot_t *value)
+{
+	int bank = 1 - cg.tceSoundZoneActive;
+
+	cg.tceSoundZoneSounds[bank][0] = value->sounds[0];
+	cg.tceSoundZoneSounds[bank][1] = value->sounds[1];
+	cg.tceSoundZoneEffects[bank][0] = value->effects[0];
+	cg.tceSoundZoneEffects[bank][1] = value->effects[1];
+	cg.tceSoundZoneVolume[bank] = value->volume;
+	cg.tceSoundZoneTransitionTime = cg.time;
+	cg.tceSoundZoneActive = bank;
+}
+#endif
+
 static void CG_TCESetSoundZone(const entityState_t *es)
 {
+#if defined(_WIN32) && !defined(Q3_VM)
+	tceRoomZoneSnapshot_t value = { { 0, 0 }, { 0, 0 }, 0 };
+	if (es)
+	{
+		CG_TCECaptureSoundZone(es, &value);
+	}
+	CG_TCEPublishSoundZone(&value);
+#else
 	int bank = 1 - cg.tceSoundZoneActive;
 	cg.tceSoundZoneSounds[bank][0]  = es?es->onFireEnd:0;
 	cg.tceSoundZoneSounds[bank][1]  = es?es->modelindex2:0;
@@ -1599,6 +1638,7 @@ static void CG_TCESetSoundZone(const entityState_t *es)
 	cg.tceSoundZoneVolume[bank]     = es?es->onFireStart:0;
 	cg.tceSoundZoneActive           = bank;
 	cg.tceSoundZoneTransitionTime   = cg.time;
+#endif
 }
 
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
@@ -1632,6 +1672,9 @@ static void CG_EliteSndEffects(void)
 	unsigned            sampleBits;
 	const entityState_t *global = NULL, *selected;
 	trace_t             tr;
+#if defined(_WIN32) && !defined(Q3_VM)
+	tceRoomZoneSnapshot_t globalZone = { { 0, 0 }, { 0, 0 }, 0 };
+#endif
 	/* The native clock subtraction and addition wrap in 32 bits. */
 	sampleBits = (unsigned)cg.tceSoundSampleTime - (unsigned)sampleTime;
 	memcpy(&timeUntilSample, &sampleBits, sizeof(timeUntilSample));
@@ -1739,6 +1782,9 @@ static void CG_EliteSndEffects(void)
 		if (es->otherEntityNum2 == 1)
 		{
 			global                   = es;
+#if defined(_WIN32) && !defined(Q3_VM)
+			CG_TCECaptureSoundZone(es, &globalZone);
+#endif
 			cg.tceEnvironmentOutdoor = es->frame * (1.0f / 255.0f);
 			cg.tceEnvironmentDefault = es->effect2Time * (1.0f / 255.0f);
 			cg.tceEnvironmentSun     = es->nextWeapon * (1.0f / 255.0f);
@@ -1760,6 +1806,15 @@ static void CG_EliteSndEffects(void)
 		closest = bounded;
 	}
 	bank = cg.tceSoundZoneActive;
+#if defined(_WIN32) && !defined(Q3_VM)
+	if (cg.tceSoundEnvironment == 3 && global && globalZone.sounds[0] >= 0 && bounded == -1)
+	{
+		if (cg.tceSoundZoneSounds[bank][0] != globalZone.sounds[0] || cg.tceSoundZoneVolume[bank] != globalZone.volume)
+		{
+			CG_TCEPublishSoundZone(&globalZone);
+		}
+	}
+#else
 	if (cg.tceSoundEnvironment == 3 && global && global->onFireEnd >= 0 && bounded == -1)
 	{
 		if (cg.tceSoundZoneSounds[bank][0] != global->onFireEnd || cg.tceSoundZoneVolume[bank] != global->onFireStart)
@@ -1767,10 +1822,15 @@ static void CG_EliteSndEffects(void)
 			CG_TCESetSoundZone(global);
 		}
 	}
+#endif
 	else if (closest < 0)
 	{
 		/* The original compares with the global sound index (or -1), not zero. */
+#if defined(_WIN32) && !defined(Q3_VM)
+		if (cg.tceSoundZoneSounds[bank][0] == (global ? globalZone.sounds[0] : -1))
+#else
 		if (cg.tceSoundZoneSounds[bank][0] == (global?global->onFireEnd:-1))
+#endif
 		{
 			CG_TCESetSoundZone(NULL);
 		}
