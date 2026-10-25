@@ -1,4 +1,5 @@
 #include "cg_local.h"
+#include "tce_mortar_map.h"
 #include "../game/tce_weapon_ids.h"
 #if defined(__linux__) && !defined(Q3_VM)
 #include "../game/tce_numeric.h"
@@ -1733,6 +1734,9 @@ void CG_DrawMortarMarker(int px, int py, int pw, int ph, qboolean draw, mapSciss
 			vec3_t point;
 //			int fadeTime = 0; // cg.time - (cg.predictedPlayerEntity.muzzleFlashTime + 5000);
 
+#if defined(__linux__) && !defined(Q3_VM)
+			TCE_MortarMapProject(cg.mortarImpactPos, px, py, pw, ph, scissor, point);
+#else
 			if (scissor)
 			{
 				point[0] = ((cg.mortarImpactPos[0] - cg.mapcoordsMins[0]) * cg.mapcoordsScale[0]) * pw * scissor->zoomFactor;
@@ -1743,15 +1747,24 @@ void CG_DrawMortarMarker(int px, int py, int pw, int ph, qboolean draw, mapSciss
 				point[0] = px + (((cg.mortarImpactPos[0] - cg.mapcoordsMins[0]) * cg.mapcoordsScale[0]) * pw);
 				point[1] = py + (((cg.mortarImpactPos[1] - cg.mapcoordsMins[1]) * cg.mapcoordsScale[1]) * ph);
 			}
+#endif
 
 			// rain - don't return if the marker is culled, just don't
 			// draw it.
+#if defined(__linux__) && !defined(Q3_VM)
+			if (!(scissor && TCE_MortarMapCulled(point, scissor)))
+#else
 			if (!(scissor && CG_ScissorPointIsCulled(point, scissor)))
+#endif
 			{
 				if (scissor)
 				{
+#if defined(__linux__) && !defined(Q3_VM)
+					TCE_MortarMapOffset(point, px, py, scissor);
+#else
 					point[0] += px - scissor->tl[0];
 					point[1] += py - scissor->tl[1];
+#endif
 				}
 
 				if (cg.mortarImpactOutOfMap)
@@ -1833,6 +1846,9 @@ void CG_DrawMortarMarker(int px, int py, int pw, int ph, qboolean draw, mapSciss
 #endif
 				}
 
+#if defined(__linux__) && !defined(Q3_VM)
+				TCE_MortarMapProject(cg.artilleryRequestPos[i], px, py, pw, ph, scissor, point);
+#else
 				if (scissor)
 				{
 					point[0] = ((cg.artilleryRequestPos[i][0] - cg.mapcoordsMins[0]) * cg.mapcoordsScale[0]) * pw * scissor->zoomFactor;
@@ -1843,18 +1859,27 @@ void CG_DrawMortarMarker(int px, int py, int pw, int ph, qboolean draw, mapSciss
 					point[0] = px + (((cg.artilleryRequestPos[i][0] - cg.mapcoordsMins[0]) * cg.mapcoordsScale[0]) * pw);
 					point[1] = py + (((cg.artilleryRequestPos[i][1] - cg.mapcoordsMins[1]) * cg.mapcoordsScale[1]) * ph);
 				}
+#endif
 
 				// rain - don't return if the marker is culled, just skip
 				// it (so we draw the rest, if any)
+#if defined(__linux__) && !defined(Q3_VM)
+				if (scissor && TCE_MortarMapCulled(point, scissor))
+#else
 				if (scissor && CG_ScissorPointIsCulled(point, scissor))
+#endif
 				{
 					continue;
 				}
 
 				if (scissor)
 				{
+#if defined(__linux__) && !defined(Q3_VM)
+					TCE_MortarMapOffset(point, px, py, scissor);
+#else
 					point[0] += px - scissor->tl[0];
 					point[1] += py - scissor->tl[1];
+#endif
 				}
 
 				trap_R_SetColor(colour);
