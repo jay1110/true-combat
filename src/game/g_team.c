@@ -4,6 +4,7 @@
 
 #include "g_local.h"
 #include "tce_numeric.h"
+#include "tce_team_spawn_precision.h"
 
 typedef struct teamgame_s
 {
@@ -868,43 +869,73 @@ gentity_t *SelectRandomTeamSpawnPoint(int teamstate, team_t team, int spawnObjec
 	}
 	VectorCopy(level.spawntargets[spawnObjective - 1], target);
 	VectorSubtract(target, spots[0]->s.origin, offset);
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	{
+		int selected;
+		delta = TCE_SubInt32(spots[0]->tceObjectiveScore, level.tceSpawnPhase);
+		if (!TCE_TeamSpawnFiniteScore(offset, delta, spots[0]->tceObjectiveScore != 0,
+		        (g_gametype.integer == 2 || g_gametype.integer == 7) &&
+		        !spots[0]->tceObjectiveScore && level.tceSpawnPhase > 0,
+		        1, 0.0f, &selected, &shortest))
+#endif
+	{
 #if defined(__linux__) && !defined(Q3_VM)
-	distance = TCE_SpawnDistance(offset);
-	if ((g_gametype.integer == 2 || g_gametype.integer == 7) && !spots[0]->tceObjectiveScore && level.tceSpawnPhase > 0)
-	{
-		distance += 16000.0L;
-	}
-	delta = TCE_SubInt32(spots[0]->tceObjectiveScore, level.tceSpawnPhase);
-	if (spots[0]->tceObjectiveScore && delta)
-	{
-		group = delta;
-		if (group < 0)
+		distance = TCE_SpawnDistance(offset);
+		if ((g_gametype.integer == 2 || g_gametype.integer == 7) && !spots[0]->tceObjectiveScore && level.tceSpawnPhase > 0)
 		{
-			group = .5 - group;
+			distance += 16000.0L;
 		}
-		distance = distance + group * 2048.0L;
-	}
-	shortest = (float)distance;
+		delta = TCE_SubInt32(spots[0]->tceObjectiveScore, level.tceSpawnPhase);
+		if (spots[0]->tceObjectiveScore && delta)
+		{
+			group = delta;
+			if (group < 0)
+			{
+				group = .5 - group;
+			}
+			distance = distance + group * 2048.0L;
+		}
+		shortest = (float)distance;
 #else
-	shortest = (float)TCE_SpawnDistance(offset);
-	if ((g_gametype.integer == 2 || g_gametype.integer == 7) && !spots[0]->tceObjectiveScore && level.tceSpawnPhase > 0)
-	{
-		shortest += 16000.f;
-	}
-	delta = TCE_SubInt32(spots[0]->tceObjectiveScore, level.tceSpawnPhase);
-	if (spots[0]->tceObjectiveScore && delta)
-	{
-		group = delta;
-		if (group < 0)
+		shortest = (float)TCE_SpawnDistance(offset);
+		if ((g_gametype.integer == 2 || g_gametype.integer == 7) && !spots[0]->tceObjectiveScore && level.tceSpawnPhase > 0)
 		{
-			group = .5 - group;
+			shortest += 16000.f;
 		}
-		shortest = (float)(shortest + group * 2048.f);
+		delta = TCE_SubInt32(spots[0]->tceObjectiveScore, level.tceSpawnPhase);
+		if (spots[0]->tceObjectiveScore && delta)
+		{
+			group = delta;
+			if (group < 0)
+			{
+				group = .5 - group;
+			}
+			shortest = (float)(shortest + group * 2048.f);
+		}
+#endif
+	}
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 	}
 #endif
 	for (i = 0; i < count; ++i)
 	{
 		VectorSubtract(target, spots[i]->s.origin, offset);
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		{
+			int selected;
+			delta = TCE_SubInt32(spots[i]->tceObjectiveScore, level.tceSpawnPhase);
+			if (TCE_TeamSpawnFiniteScore(offset, delta, spots[i]->tceObjectiveScore != 0,
+			        g_gametype.integer == 2 && !spots[i]->tceObjectiveScore &&
+			        level.tceSpawnPhase > 0, 0, shortest, &selected, &shortest))
+			{
+				if (selected)
+				{
+					closest = i;
+				}
+				continue;
+			}
+		}
+#endif
 		distance = TCE_SpawnDistance(offset);
 		/* Original loop intentionally differs from initial score for gametype7. */
 		if (g_gametype.integer == 2 && !spots[i]->tceObjectiveScore && level.tceSpawnPhase > 0)
