@@ -99,6 +99,71 @@ static __inline int TCE_AmbientReflect(float *direction, const float *normal)
 	return 1;
 }
 
+/* X retains high-low through scaling; Y/Z first store that difference.
+ * Both scaled terms are stored separately before their final Float sum. */
+static __inline int TCE_AmbientRoomExtent(float previous, float high, float low,
+                                         int axis, float *result)
+{
+	tceTriggerSum_t difference, start, term;
+	unsigned control;
+	float stored;
+
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control) ||
+	    !TCE_TriggerProduct(&difference, high, 1.0f, control) ||
+	    !TCE_TriggerProduct(&term, low, -1.0f, control) ||
+	    !TCE_TriggerProduct(&start, previous, .6667f, control))
+	{
+		return 0;
+	}
+	TCE_RotateAdd(&difference, &term, control);
+	if (axis != 0)
+	{
+		stored = TCE_RotateStore(difference, control);
+		if (!TCE_TriggerProduct(&difference, stored, 1.0f, control))
+		{
+			return 0;
+		}
+	}
+	TCE_TriggerProduct(&term, .3333f, 1.0f, control);
+	TCE_GustMultiply(&difference, &term, control);
+	stored = TCE_RotateStore(difference, control);
+	if (!TCE_TriggerProduct(&difference, stored, 1.0f, control))
+	{
+		return 0;
+	}
+	stored = TCE_RotateStore(start, control);
+	TCE_TriggerProduct(&start, stored, 1.0f, control);
+	TCE_RotateAdd(&start, &difference, control);
+	*result = TCE_RotateStore(start, control);
+	return 1;
+}
+
+/* Distance and hardness keep both scaled products until their final sum. */
+static __inline int TCE_AmbientRoomBlend(float previous, float sample,
+                                        float scale, float *result)
+{
+	tceTriggerSum_t incoming, start, coefficient;
+	unsigned control;
+
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control) ||
+	    !TCE_TriggerProduct(&incoming, sample, scale, control) ||
+	    !TCE_TriggerProduct(&start, previous, .6667f, control))
+	{
+		return 0;
+	}
+	TCE_TriggerProduct(&coefficient, .3333f, 1.0f, control);
+	if (!TCE_AmbientProductFits(&incoming, &coefficient))
+	{
+		return 0;
+	}
+	TCE_GustMultiply(&incoming, &coefficient, control);
+	TCE_RotateAdd(&incoming, &start, control);
+	*result = TCE_RotateStore(incoming, control);
+	return 1;
+}
+
 static __inline int TCE_AmbientOrigin(float origin, float axis, int subtract,
                                      float *result)
 {

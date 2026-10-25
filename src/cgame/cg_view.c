@@ -1538,6 +1538,28 @@ static void CG_TCESetSoundZone(const entityState_t *es)
 	cg.tceSoundZoneTransitionTime   = cg.time;
 }
 
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+static float CG_TCERoomExtent(float previous, float high, float low, int axis)
+{
+	float result;
+	if (TCE_AmbientRoomExtent(previous, high, low, axis, &result))
+	{
+		return result;
+	}
+	return previous * .6667f + (high - low) * .3333f;
+}
+
+static float CG_TCERoomBlend(float previous, float sample, float scale)
+{
+	float result;
+	if (TCE_AmbientRoomBlend(previous, sample, scale, &result))
+	{
+		return result;
+	}
+	return previous * .6667f + sample * scale * .3333f;
+}
+#endif
+
 static void CG_EliteSndEffects(void)
 {
 	vec3_t              low = { 0, 0, 0 }, high = { 0, 0, 0 }, corner, signs, dir, end, start;
@@ -1585,9 +1607,15 @@ static void CG_EliteSndEffects(void)
 		}
 	}
 	for (j = 0; j < 3; j++)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		cg.tceRoomExtent[j] = CG_TCERoomExtent(cg.tceRoomExtent[j], high[j], low[j], j);
+	cg.tceRoomDistance = CG_TCERoomBlend(cg.tceRoomDistance, distance, .125f);
+	cg.tceRoomHardness = CG_TCERoomBlend(cg.tceRoomHardness, hardness, .0625f);
+#else
 		cg.tceRoomExtent[j] = cg.tceRoomExtent[j] * .6667f + (high[j] - low[j]) * .3333f;
 	cg.tceRoomDistance = cg.tceRoomDistance * .6667f + distance * .125f * .3333f;
 	cg.tceRoomHardness = cg.tceRoomHardness * .6667f + hardness * .0625f * .3333f;
+#endif
 	cg.tceRoomSky      = cg.tceRoomSky * .6667f + sky * .3333f;
 	for (j = 0; j < 4; j++)
 		cg.tceRoomWeights[j] *= .6667f;
