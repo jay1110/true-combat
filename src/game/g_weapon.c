@@ -783,7 +783,8 @@ static void G_TCERadiusAxisDistance(float axisOrigin, float axisMin, float axisM
 
 static qboolean G_TCERadiusLengthGate(const vec3_t radiusDelta, float radiusLimit, qboolean closeGate)
 {
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_MSC_VER) && defined(_M_IX86)) || \
+    ((defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM))
 	long double distance;
 #else
 	float radiusDistance;
@@ -795,7 +796,8 @@ static qboolean G_TCERadiusLengthGate(const vec3_t radiusDelta, float radiusLimi
 		return accepted;
 	}
 #endif
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_MSC_VER) && defined(_M_IX86)) || \
+    ((defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM))
 	distance = TCE_VectorLengthValue(radiusDelta);
 	if (closeGate)
 	{
@@ -1201,7 +1203,7 @@ static qboolean G_TCEAdvanceConstruction(int constructionDuration, float *constr
 	value = value + (long double)*constructionProgress;
 	*(volatile float *)constructionProgress = (float)value;
 	return value >= 250.0L;
-#elif defined(_MSC_VER) && defined(_M_IX86)
+#elif (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(Q3_VM))
 	const float scale = 0.01f;
 	long double value = (long double)constructionDuration * (long double)scale;
 	value                                   = (long double)255.0f / value;
@@ -1217,7 +1219,8 @@ static qboolean G_TCEAdvanceConstruction(int constructionDuration, float *constr
 
 static int G_TCEConstructionScore(float constructionScore)
 {
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_MSC_VER) && defined(_M_IX86)) || \
+    ((defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM))
 	return TCE_TruncateNativeInteger((long double)constructionScore);
 #else
 	return (int)constructionScore;
@@ -1234,7 +1237,7 @@ static void G_TCEConstructionSoundCenter(const vec3_t centerMins, const vec3_t c
 		long double sum = (long double)centerMaxs[axis] + centerMins[axis];
 		stored[axis] = (float)(sum * 0.5L);
 	}
-#elif defined(_MSC_VER) && defined(_M_IX86)
+#elif (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(Q3_VM))
 	volatile float *stored = centerResult;
 	long double    z;
 	stored[0] = (float)((long double)centerMaxs[0] + (long double)centerMins[0]);
@@ -1251,7 +1254,8 @@ static void G_TCEConstructionSoundCenter(const vec3_t centerMins, const vec3_t c
 
 static void G_TCEConstructionSnap(vec3_t snapPosition)
 {
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_MSC_VER) && defined(_M_IX86)) || \
+    ((defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM))
 	volatile float *stored = snapPosition;
 	int            axis;
 	for (axis = 0; axis < 3; ++axis)
@@ -1275,7 +1279,7 @@ static void G_TCEConstructionUpdateCenter(const vec3_t markerMins, const vec3_t 
 	stored[1] = (float)((long double)y * 0.5L);
 	stored[2] = (float)(z * 0.5L);
 	G_TCEConstructionSnap(markerPosition);
-#elif defined(_MSC_VER) && defined(_M_IX86)
+#elif (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(Q3_VM))
 	volatile float *stored = markerPosition;
 	long double    z;
 	int            value;
