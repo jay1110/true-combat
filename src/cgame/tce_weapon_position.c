@@ -908,7 +908,12 @@ void TCE_CG_CalculateWeaponPosition(tce_weaponPosition_t *s, float *origin, floa
 	VectorCopy(s->viewOrigin, origin); VectorCopy(s->viewAngles, angles);
 	if (s->eFlags & 0x8000)
 	{
+#if defined(__linux__) && !defined(Q3_VM)
+		angles[0] = (float)((long double)0.8333333333333334 *
+		                    (long double)s->viewAngles[0]);
+#else
 		angles[0] = (float)(angles[0] * (5.0 / 6.0));
+#endif
 	}
 	if (!s->thirdPerson && (s->weapon == 60 || s->weapon == 62) && s->weaponState != 1)
 	{
@@ -1250,6 +1255,10 @@ void TCE_CG_CalculateWeaponPosition(tce_weaponPosition_t *s, float *origin, floa
 #endif
 	}
 	for (i = 0; i < 3; ++i)
+#if defined(__linux__) && !defined(Q3_VM)
+		angles[i] = (float)((long double)angles[i] - (long double)s->kickAngles[i]);
+#else
 		angles[i] -= s->kickAngles[i];
+#endif
 #endif
 }
