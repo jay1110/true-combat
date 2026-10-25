@@ -99,6 +99,61 @@ static __inline tceTriggerSum_t TCE_RatioValue(unsigned long long n,
 	return value;
 }
 
+/* Divide a PC-rounded fixed value by a finite nonzero Float without an
+ * intermediate Double store. Reject results outside the fixed grid. */
+static __inline int TCE_FixedDivideFloat(const tceTriggerSum_t *value,
+                                          float divisor, unsigned control,
+                                          tceTriggerSum_t *result)
+{
+	unsigned bits, exponent, mantissa, negative;
+	unsigned long long significand = 0, probe;
+	int highest, drop, bit, numeratorBit = 0, denominatorBit = 0, scale, power;
+
+	memcpy(&bits, &divisor, sizeof(bits));
+	exponent = (bits >> 23) & 255u;
+	if (exponent == 255u || !(bits & 0x7fffffffu))
+	{
+		return 0;
+	}
+	mantissa = (bits & 0x7fffffu) | (exponent ? 0x800000u : 0u);
+	negative = value->negative ^ (bits >> 31);
+	for (highest = 575; highest >= 0 && !TCE_TriggerBit(value, highest); --highest)
+	{
+	}
+	drop = highest > 63 ? highest - 63 : 0;
+	for (bit = 0; bit < 64; ++bit)
+	{
+		significand |= (unsigned long long)TCE_TriggerBit(value, drop + bit) << bit;
+	}
+	scale = drop - 298 + (exponent ? 150 - (int)exponent : 149);
+	if (significand)
+	{
+		for (probe = significand; probe >> 1; probe >>= 1)
+		{
+			++numeratorBit;
+		}
+		for (probe = mantissa; probe >> 1; probe >>= 1)
+		{
+			++denominatorBit;
+		}
+		power = numeratorBit - denominatorBit;
+		if ((power >= 0 && significand < ((unsigned long long)mantissa << power)) ||
+		    (power < 0 && (significand << -power) < mantissa))
+		{
+			--power;
+		}
+		power += scale;
+		/* PC64 needs at most 63 fractional significand bits. Keep one
+		 * high bit available for a rounding carry. */
+		if (power < -235 || power > 276)
+		{
+			return 0;
+		}
+	}
+	*result = TCE_RatioValue(significand, mantissa, scale, negative, control);
+	return 1;
+}
+
 static __inline float TCE_RatioFloat32(unsigned n, unsigned d, int binaryScale,
                                         unsigned negative, unsigned control)
 {

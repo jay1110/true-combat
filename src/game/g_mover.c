@@ -3375,7 +3375,20 @@ void Reached_Train(gentity_t *ent)
 
 	// calculate duration
 	VectorSubtract(ent->pos2, ent->pos1, move);
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	{
+		int finiteDuration;
+		if (TCE_TrainDurationFinite(move, speed, 0.0f, &finiteDuration))
+		{
+			ent->s.pos.trDuration = finiteDuration;
+		}
+		else
+		{
+			ent->s.pos.trDuration = TCE_TruncateNativeInteger(
+			    (long double)VectorLength(move) * 1000.0L / speed);
+		}
+	}
+#elif defined(_MSC_VER) && defined(_M_IX86)
 	ent->s.pos.trDuration = TCE_TruncateNativeInteger(
 	    (long double)VectorLength(move) * 1000.0L / speed);
 #elif defined(__linux__) && !defined(Q3_VM)
@@ -3818,7 +3831,23 @@ void Reached_Train_rotating(gentity_t *ent)
 
 	// calculate duration
 	VectorSubtract(ent->pos2, ent->pos1, move);
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	{
+		int finiteDuration;
+		if (TCE_TrainDurationFinite(move, speed, next->duration, &finiteDuration))
+		{
+			ent->s.pos.trDuration = finiteDuration;
+		}
+		else
+		{
+			long double length = VectorLength(move);
+			long double duration = TCE_FloatIsZeroOrNaN(next->duration)
+			                     ? length * 1000.0L / speed
+			                     : (long double)next->duration * 1000.0L;
+			ent->s.pos.trDuration = TCE_TruncateNativeInteger(duration);
+		}
+	}
+#elif defined(_MSC_VER) && defined(_M_IX86)
 	{
 		long double length = VectorLength(move);
 		long double duration = TCE_FloatIsZeroOrNaN(next->duration)
