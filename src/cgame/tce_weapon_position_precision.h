@@ -659,7 +659,7 @@ static __inline tceTriggerSum_t TCE_WeaponPositionDot(
 	return value;
 }
 
-/* All direction/history/velocity factors are zero or in 2^-64..2^24.
+/* All direction/history/velocity factors are zero or in 2^-64..2^48.
  * Dot products have quantum >=2^-174; the clamped time factor is positive.
  * Horizontal derivative is stored before adding velocity, vertical is not. */
 static __inline int TCE_WeaponPositionSwayTargets(int elapsed,
@@ -686,7 +686,7 @@ static __inline int TCE_WeaponPositionSwayTargets(int elapsed,
 			        row == 3 ? prior[component] : velocity[component];
 			memcpy(&bits, &input, sizeof(bits));
 			bits &= 0x7fffffffu;
-			if (bits && (bits < 0x1f800000u || bits > 0x4b800000u))
+			if (bits && (bits < 0x1f800000u || bits > 0x57800000u))
 			{
 				return 0;
 			}
