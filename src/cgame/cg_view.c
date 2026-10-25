@@ -6,6 +6,13 @@
 #include "tce_flash.h"
 #include "../game/tce_numeric.h"
 #include "../game/tce_ambient_precision.h"
+#include <float.h>
+
+#if defined(__linux__) && defined(__i386__) && !defined(Q3_VM) && \
+    LDBL_MANT_DIG == 64 && LDBL_MAX_EXP == 16384
+#define TCE_LINUX_ROOM_X87
+#endif
+
 extern vmCvar_t cg_portalScopes;
 extern vmCvar_t cg_aspectMode;
 
@@ -1463,6 +1470,50 @@ static void CG_TCERoomRay(vec3_t direction, const vec3_t signs, int axis)
 	VectorNormalize(direction);
 }
 
+#if defined(TCE_LINUX_ROOM_X87)
+static void CG_TCEReflectRoomRayEndpoint(vec3_t direction, const vec3_t normal,
+                                        const vec3_t start, vec3_t end)
+{
+	volatile long double xProduct = (long double)direction[0] * normal[0];
+	volatile long double yProduct = (long double)direction[1] * normal[1];
+	volatile long double xy = yProduct + xProduct;
+	volatile long double zProduct = (long double)direction[2] * normal[2];
+	volatile long double dot = xy + zProduct;
+	volatile long double scaled[3], reflected[3], endpoint[3];
+	int axis;
+
+	/* Linux multiplies each normal by the retained dot before applying -2. */
+	for (axis = 0; axis < 2; ++axis)
+	{
+		scaled[axis] = (long double)normal[axis] * dot;
+	}
+	scaled[2] = dot * (long double)normal[2];
+	for (axis = 0; axis < 2; ++axis)
+	{
+		scaled[axis] = scaled[axis] * -2.0L;
+	}
+	scaled[2] = -2.0L * scaled[2];
+	for (axis = 0; axis < 3; ++axis)
+	{
+		reflected[axis] = (long double)direction[axis] + scaled[axis];
+	}
+	/* Nonpop Float stores do not narrow the values used by the endpoint. */
+	direction[0] = (float)reflected[0];
+	endpoint[0] = reflected[0] * 2048.0L;
+	direction[1] = (float)reflected[1];
+	direction[2] = (float)reflected[2];
+	endpoint[1] = reflected[1] * 2048.0L;
+	endpoint[2] = reflected[2] * 2048.0L;
+	for (axis = 0; axis < 3; ++axis)
+	{
+		endpoint[axis] = endpoint[axis] + (long double)start[axis];
+	}
+	for (axis = 0; axis < 3; ++axis)
+	{
+		end[axis] = (float)endpoint[axis];
+	}
+}
+#else
 static void CG_TCEReflectRoomRay(vec3_t direction, const vec3_t normal)
 {
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
@@ -1489,6 +1540,7 @@ static void CG_TCEReflectRoomRay(vec3_t direction, const vec3_t normal)
 	VectorMA(direction, reflection, normal, direction);
 #endif
 }
+#endif
 
 static qboolean CG_TCERoomLess(float left, float right)
 {
@@ -1701,13 +1753,18 @@ static void CG_EliteSndEffects(void)
 			{
 				VectorCopy(corner, start);
 				CG_TCERoomRay(dir, signs, axis);
+				VectorMA(start, 2048, dir, end);
 			}
 			else
 			{
 				VectorCopy(tr.endpos, start);
+#if defined(TCE_LINUX_ROOM_X87)
+				CG_TCEReflectRoomRayEndpoint(dir, tr.plane.normal, start, end);
+#else
 				CG_TCEReflectRoomRay(dir, tr.plane.normal);
+				VectorMA(start, 2048, dir, end);
+#endif
 			}
-			VectorMA(start, 2048, dir, end);
 			CG_Trace(&tr, start, NULL, NULL, end, cg.snap->ps.clientNum, CONTENTS_SOLID);
 			CG_TCECollectRoomTrace(&tr, corner, low, high, &distance, &hardness, &sky, qtrue);
 		}
