@@ -3621,6 +3621,25 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 					end[axis] = (float)(traceStart + (long double)dir[axis] * 4096.0L);
 				}
 			}
+#elif defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+			{
+				int axis;
+
+				for (axis = 0; axis < 3; ++axis)
+				{
+					if (!TCE_MuzzleFiniteComponent(dir[axis], 48.0f, mg42->r.currentOrigin[axis], 0, &start[axis]))
+					{
+						start[axis] = (float)((long double)dir[axis] * 48.0L + mg42->r.currentOrigin[axis]);
+					}
+				}
+				for (axis = 0; axis < 3; ++axis)
+				{
+					if (!TCE_MuzzleFiniteComponent(dir[axis], 4096.0f, start[axis], 0, &end[axis]))
+					{
+						end[axis] = (float)((long double)dir[axis] * 4096.0L + start[axis]);
+					}
+				}
+			}
 #else
 			VectorMA(mg42->r.currentOrigin, 48, dir, start);
 			VectorMA(start, 4096, dir, end);
@@ -3636,6 +3655,11 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 				VectorCopy(tr.endpos, end);
 #if defined(__linux__)
 				end[2] = (float)((long double)end[2] - 1024.0L * tr.fraction);
+#elif defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+				if (!TCE_MuzzleFiniteComponent(tr.fraction, 1024.0f, end[2], 1, &end[2]))
+				{
+					end[2] = (float)((long double)end[2] - 1024.0L * tr.fraction);
+				}
 #else
 				end[2] -= 1024 * tr.fraction;
 #endif
