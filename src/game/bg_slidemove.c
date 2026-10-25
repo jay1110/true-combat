@@ -34,7 +34,7 @@ static long double PM_SlideDotProductYXZ(const vec3_t left, const vec3_t right)
 	return value;
 }
 #endif
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_MSC_VER) && defined(_M_IX86)) || ((defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM))
 typedef char slide834TraceLayout[(sizeof(trace_t) == 56 && offsetof(trace_t, allsolid) == 0 &&
                                   offsetof(trace_t, startsolid) == 4 && offsetof(trace_t, fraction) == 8 &&
                                   offsetof(trace_t, endpos) == 12 && offsetof(trace_t, plane) + offsetof(cplane_t, normal) == 24 &&
@@ -471,7 +471,7 @@ PM_StepSlideMove
 /* Native TCE step entry: Windows and Linux use the two-height controller.
  * Keep their comparison/rounding differences explicit; the portable
  * SDK/gear-dependent path remains separate below. */
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_MSC_VER) && defined(_M_IX86)) || ((defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM))
 void PM_StepSlideMove(qboolean gravity)
 {
 	vec3_t  startOrigin, startVelocity, up, down, forward;
@@ -837,7 +837,7 @@ void PM_StepSlideMove(qboolean gravity)
 
 #endif
 
-#if (!defined(_MSC_VER) || !defined(_M_IX86)) && !(defined(__linux__) && !defined(Q3_VM))
+#if (!defined(_MSC_VER) || !defined(_M_IX86)) && !((defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM))
 /* TC:E300141c0: body trace plus independent rear-leg support probe.
  * Original repeats this probe on a fraction==1 move; do not coalesce it. */
 static qboolean PM_TCEProneProbe(const vec3_t bodyEnd, qboolean firstProbe,
@@ -878,7 +878,7 @@ static qboolean PM_TCEProneProbe(const vec3_t bodyEnd, qboolean firstProbe,
 	return qtrue;
 }
 #endif
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_MSC_VER) && defined(_M_IX86)) || ((defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM))
 /* Native prone solver. Keep a defined no-gravity auxiliary end velocity;
  * the original leaves it unset. Its final restore is guarded by gravity,
  * and no collision decision depends on this auxiliary projection. */
@@ -1431,7 +1431,7 @@ qboolean PM_SlideMoveProne(qboolean gravity)
 /* TC:E prone step controller: direct trace callbacks retain aliased endpoints.
  * Platform comparison gates and height rounding follow the original listings;
  * FPU exception/control state and compiled engine ABI remain separately open. */
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_MSC_VER) && defined(_M_IX86)) || ((defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM))
 typedef char stepTraceLayout828[(sizeof(trace_t) == 56 && offsetof(trace_t, allsolid) == 0 &&
                                  offsetof(trace_t, fraction) == 8 && offsetof(trace_t, endpos) == 12 &&
                                  offsetof(trace_t, plane) + offsetof(cplane_t, normal) == 24) ? 1 : -1];
