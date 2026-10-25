@@ -4,6 +4,9 @@
 #include "cg_local.h"
 #include "tce_weapon_media.h"
 #include "tce_weapon_fps_precision.h"
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+#include "../game/tce_numeric.h"
+#endif
 
 int TCE_CG_ParseWeaponConfig(const char *filename, tce_weaponInfo_t *info)
 {
@@ -60,6 +63,7 @@ int TCE_CG_ParseWeaponConfig(const char *filename, tce_weaponInfo_t *info)
 			volatile float storedFps = (float)fps;
 			long double    nativeFps = (long double)storedFps;
 			long double    duration;
+			volatile long double reciprocal;
 			int            frameLerp;
 
 			/* FCOM's equal flag is also set for an unordered comparison. */
@@ -67,7 +71,8 @@ int TCE_CG_ParseWeaponConfig(const char *filename, tce_weaponInfo_t *info)
 			{
 				nativeFps = 1.0L;
 			}
-			duration = (1.0L / nativeFps) * 1000.0L;
+			reciprocal = 1.0L / nativeFps;
+			duration = reciprocal * 1000.0L;
 			/* Masked FISTP returns INT_MIN if truncation is out of range. */
 			if (duration <= -2147483649.0L || duration >= 2147483648.0L)
 			{
@@ -114,7 +119,12 @@ int TCE_CG_ParseWeaponConfig(const char *filename, tce_weaponInfo_t *info)
 			{
 				animation->moveSpeed |= 0x80;
 			}
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+			animation->moveSpeed = TCE_Int32FromUnsigned((unsigned)animation->moveSpeed |
+			                                           ((unsigned)atoi(COM_Parse(&cursor)) << 8));
+#else
 			animation->moveSpeed |= (unsigned int)atoi(COM_Parse(&cursor)) << 8;
+#endif
 		}
 	}
 	return 1;
