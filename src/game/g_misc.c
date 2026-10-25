@@ -9,6 +9,7 @@
 #include "g_local.h"
 #include "tce_numeric.h"
 #include "tce_bot_angle_precision.h"
+#include "tce_lead_precision.h"
 
 extern void AimAtTarget(gentity_t *self);
 #if defined(__linux__)
@@ -1549,13 +1550,18 @@ void Fire_Lead_Ext(gentity_t *ent, gentity_t *activator, float spread, int damag
 #if defined(_WIN32) || defined(__linux__)
 		{
 #if defined(_WIN32)
-			long double dot = (long double)tr.plane.normal[0] * (long double)forward[0];
-			dot       += (long double)tr.plane.normal[2] * (long double)forward[2];
-			dot       += (long double)tr.plane.normal[1] * (long double)forward[1];
-			dot       *= -2.0f;
-			reflect[0] = (float)(dot * (long double)tr.plane.normal[0] + (long double)forward[0]);
-			reflect[1] = (float)(dot * (long double)tr.plane.normal[1] + (long double)forward[1]);
-			reflect[2] = (float)(dot * (long double)tr.plane.normal[2] + (long double)forward[2]);
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+			if (!TCE_FiniteLeadReflection(tr.plane.normal, forward, reflect))
+#endif
+			{
+				long double dot = (long double)tr.plane.normal[0] * (long double)forward[0];
+				dot       += (long double)tr.plane.normal[2] * (long double)forward[2];
+				dot       += (long double)tr.plane.normal[1] * (long double)forward[1];
+				dot       *= -2.0f;
+				reflect[0] = (float)(dot * (long double)tr.plane.normal[0] + (long double)forward[0]);
+				reflect[1] = (float)(dot * (long double)tr.plane.normal[1] + (long double)forward[1]);
+				reflect[2] = (float)(dot * (long double)tr.plane.normal[2] + (long double)forward[2]);
+			}
 #else
 			long double nx = tr.plane.normal[0], ny = tr.plane.normal[1], nz = tr.plane.normal[2];
 			long double fx = forward[0], fy = forward[1], fz = forward[2];
