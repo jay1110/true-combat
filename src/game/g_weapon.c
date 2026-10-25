@@ -13,6 +13,7 @@
 #endif
 #include "tce_bullet.h"
 #include "tce_numeric.h"
+#include "tce_radius_precision.h"
 
 
 vec3_t forward, right, up;
@@ -681,6 +682,12 @@ static void G_TCERadiusCandidateBounds(const vec3_t radiusOrigin, float *candida
 	volatile float *mins = candidateMins, *maxs = candidateMaxs;
 	long double    expanded;
 	int            axis;
+#if !defined(Q3_VM)
+	if (TCE_RadiusFiniteBounds(radiusOrigin, candidateRadius, candidateMins, candidateMaxs))
+	{
+		return;
+	}
+#endif
 	if (!(*candidateRadius >= 1.0f))
 	{
 		*(volatile float *)candidateRadius = 1.0f;
