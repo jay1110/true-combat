@@ -1302,8 +1302,8 @@ static void CG_EP_ParseFloats(char *floatstr, float *f1, float *f2)
 	}
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-/* The original consumes the low 32 bits of signed 64-bit truncation. */
+#if (defined(_WIN32) && !defined(Q3_VM)) || (defined(_MSC_VER) && defined(_M_IX86))
+/* The Windows original consumes the low 32 bits of signed 64-bit truncation. */
 static void CG_EP_ParseInts(char *intstr, int *i1, int *i2)
 {
 	char *middleptr;
