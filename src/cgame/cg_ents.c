@@ -695,7 +695,12 @@ qboolean CG_PlayerSeesItem(playerState_t *ps, entityState_t *item, int atTime, i
 	}
 
 #if defined(_MSC_VER) && defined(_M_IX86)
+#if !defined(Q3_VM)
+	/* Keep the normalize result wide for the native pre-store distance gate. */
+	distance = TCE_VectorNormalizeValue(dir);
+#else
 	distance = VectorNormalize(dir);
+#endif
 	dist = (float)distance;
 	if (distance > (long double)maxDistance)
 	{
