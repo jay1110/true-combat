@@ -1562,7 +1562,7 @@ void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 			return;
 		}
 
-		if (cg.time - cent->muzzleFlashTime < MUZZLE_FLASH_TIME)
+		if (TCE_SubInt32(cg.time, cent->muzzleFlashTime) < MUZZLE_FLASH_TIME)
 		{
 			memset(&flash, 0, sizeof(flash));
 			flash.renderfx = RF_LIGHTING_ORIGIN;
@@ -1582,7 +1582,7 @@ void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 	if (cent->currentState.eFlags & EF_MG42_ACTIVE || cent->currentState.eFlags & EF_AAGUN_ACTIVE)
 	{
 		// Arnout: MG42 Muzzle Flash
-		if (cg.time - cent->muzzleFlashTime < MUZZLE_FLASH_TIME)
+		if (TCE_SubInt32(cg.time, cent->muzzleFlashTime) < MUZZLE_FLASH_TIME)
 		{
 			CG_MG42EFX(cent);
 		}
@@ -2401,12 +2401,12 @@ void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 			if (weaponNum == 10 || weaponNum == 31 || weaponNum == 62)
 			{
 				// hot smoking gun
-				if (cg.time - cent->overheatTime < 3000)
+				if (TCE_SubInt32(cg.time, cent->overheatTime) < 3000)
 				{
 					if (!(rand() % 3))
 					{
 						float alpha;
-						alpha  = 1.0f - ((float)(cg.time - cent->overheatTime) / 3000.0f);
+						alpha  = 1.0f - ((float)(TCE_SubInt32(cg.time, cent->overheatTime)) / 3000.0f);
 						alpha *= 0.25f;     // .25 max alpha
 						CG_ParticleImpactSmokePuffExtended(cgs.media.smokeParticleShader, flash.origin, 1000, 8, 20, 30, alpha, 8.f);
 					}
@@ -2415,12 +2415,12 @@ void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 			}
 			else if (weaponNum == 65 || weaponNum == 46)
 			{
-				if (cg.time - cent->muzzleFlashTime < BARREL_SMOKE_TIME)
+				if (TCE_SubInt32(cg.time, cent->muzzleFlashTime) < BARREL_SMOKE_TIME)
 				{
 					if (!(rand() % 5))
 					{
 						float alpha;
-						alpha  = 1.0f - ((float)(cg.time - cent->muzzleFlashTime) / (float)BARREL_SMOKE_TIME); // what fraction of BARREL_SMOKE_TIME are we at
+						alpha  = 1.0f - ((float)(TCE_SubInt32(cg.time, cent->muzzleFlashTime)) / (float)BARREL_SMOKE_TIME); // what fraction of BARREL_SMOKE_TIME are we at
 						alpha *= 0.25f;     // .25 max alpha
 						CG_ParticleImpactSmokePuffExtended(cgs.media.smokeParticleShader, flash.origin, 1000, 8, 20, 30, alpha, 8.f);
 					}
@@ -2437,7 +2437,7 @@ void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 		}
 
 		// Original non-continuous flash expires even for a stopped flamer.
-		if (cg.time - cent->muzzleFlashTime > 30)
+		if (TCE_SubInt32(cg.time, cent->muzzleFlashTime) > 30)
 		{
 			return;
 		}
@@ -2468,11 +2468,11 @@ void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 	if (flash.hModel && weaponNum != 66)
 	{
 		int lifetime = ps && !cg.renderingThirdPerson && weaponNum == 46 &&
-		               cg.time - cg.zoomTime < 600 ? 50 : 30;
+		               TCE_SubInt32(cg.time, cg.zoomTime) < 600 ? 50 : 30;
 		int color = (int)((double)cg.tceSparkIntensity * 255.0);
 		flash.shaderRGBA[0] = flash.shaderRGBA[1] = flash.shaderRGBA[2] = (byte)color;
 		flash.shaderRGBA[3] = 255;
-		if (cg.time - cent->muzzleFlashTime < lifetime)
+		if (TCE_SubInt32(cg.time, cent->muzzleFlashTime) < lifetime)
 		{
 			trap_R_AddRefEntityToScene(&flash);
 		}
