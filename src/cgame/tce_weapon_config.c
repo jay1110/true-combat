@@ -4,8 +4,33 @@
 #include "cg_local.h"
 #include "tce_weapon_media.h"
 #include "tce_weapon_fps_precision.h"
+#include <float.h>
 #if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 #include "../game/tce_numeric.h"
+#endif
+
+#if defined(__linux__) && !defined(Q3_VM)
+#include <errno.h>
+
+/* The original ELF inlines atoi as 32-bit strtol(base10, grouping0).
+ * Keep saturation and errno even when the host long is wider than int. */
+static int TCE_WeaponConfigInteger(const char *token)
+{
+	long value = strtol(token, NULL, 10);
+	if (value > INT_MAX)
+	{
+		errno = ERANGE;
+		return INT_MAX;
+	}
+	if (value < INT_MIN)
+	{
+		errno = ERANGE;
+		return INT_MIN;
+	}
+	return (int)value;
+}
+#else
+#define TCE_WeaponConfigInteger atoi
 #endif
 
 int TCE_CG_ParseWeaponConfig(const char *filename, tce_weaponInfo_t *info)
@@ -54,10 +79,11 @@ int TCE_CG_ParseWeaponConfig(const char *filename, tce_weaponInfo_t *info)
 	{
 		tce_weaponAnimation_t *animation = &info->animations[i];
 		double                fps;
-		animation->firstFrame = atoi(COM_Parse(&cursor));
-		animation->numFrames  = atoi(COM_Parse(&cursor));
+		animation->firstFrame = TCE_WeaponConfigInteger(COM_Parse(&cursor));
+		animation->numFrames  = TCE_WeaponConfigInteger(COM_Parse(&cursor));
 		fps                   = atof(COM_Parse(&cursor));
-#if defined(__linux__) && defined(__i386__)
+#if defined(__linux__) && (defined(__i386__) || \
+    (!defined(Q3_VM) && LDBL_MANT_DIG == 64 && LDBL_MAX_EXP == 16384))
 		{
 			/* The original stores FPS as binary32 before x87 arithmetic. */
 			volatile float storedFps = (float)fps;
@@ -102,7 +128,7 @@ int TCE_CG_ParseWeaponConfig(const char *filename, tce_weaponInfo_t *info)
 		/* Windows keeps atof's double in x87; no intermediate float cast. */
 		animation->frameLerp = animation->initialLerp = (int)(1000.0 / fps);
 #endif
-		animation->loopFrames = atoi(COM_Parse(&cursor));
+		animation->loopFrames = TCE_WeaponConfigInteger(COM_Parse(&cursor));
 		if (animation->loopFrames > animation->numFrames)
 		{
 			animation->loopFrames = animation->numFrames;
@@ -114,16 +140,16 @@ int TCE_CG_ParseWeaponConfig(const char *filename, tce_weaponInfo_t *info)
 		animation->moveSpeed = 0;
 		if (newFormat)
 		{
-			animation->moveSpeed = atoi(COM_Parse(&cursor));
-			if (atoi(COM_Parse(&cursor)))
+			animation->moveSpeed = TCE_WeaponConfigInteger(COM_Parse(&cursor));
+			if (TCE_WeaponConfigInteger(COM_Parse(&cursor)))
 			{
 				animation->moveSpeed |= 0x80;
 			}
 #if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 			animation->moveSpeed = TCE_Int32FromUnsigned((unsigned)animation->moveSpeed |
-			                                           ((unsigned)atoi(COM_Parse(&cursor)) << 8));
+			                                           ((unsigned)TCE_WeaponConfigInteger(COM_Parse(&cursor)) << 8));
 #else
-			animation->moveSpeed |= (unsigned int)atoi(COM_Parse(&cursor)) << 8;
+			animation->moveSpeed |= (unsigned int)TCE_WeaponConfigInteger(COM_Parse(&cursor)) << 8;
 #endif
 		}
 	}
