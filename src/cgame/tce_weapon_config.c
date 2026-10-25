@@ -3,6 +3,7 @@
  */
 #include "cg_local.h"
 #include "tce_weapon_media.h"
+#include "tce_weapon_fps_precision.h"
 
 int TCE_CG_ParseWeaponConfig(const char *filename, tce_weaponInfo_t *info)
 {
@@ -78,6 +79,16 @@ int TCE_CG_ParseWeaponConfig(const char *filename, tce_weaponInfo_t *info)
 			}
 			animation->frameLerp = animation->initialLerp = frameLerp;
 		}
+#elif defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		if (fps == 0 || fps != fps)
+		{
+			fps = 1;
+		}
+		if (!TCE_WeaponFrameLerp(fps, &animation->frameLerp))
+		{
+			animation->frameLerp = (int)(1000.0 / fps);
+		}
+		animation->initialLerp = animation->frameLerp;
 #else
 		if (fps == 0 || fps != fps)
 		{
