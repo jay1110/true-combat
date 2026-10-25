@@ -1718,7 +1718,13 @@ static float CG_TCERoomBlend(float previous, float sample, float scale)
 static void CG_EliteSndEffects(void)
 {
 	vec3_t              low = { 0, 0, 0 }, high = { 0, 0, 0 }, corner, signs, dir, end, start;
-	float               distance = 0, hardness = 0, weight, nearest = 1e8f, inRadius = 1e8f, dist;
+	float               distance = 0, hardness = 0, weight;
+#if defined(TCE_LINUX_ROOM_X87)
+	volatile float nearest = 1e8f, inRadius = 1e8f;
+	volatile long double dist;
+#else
+	float nearest = 1e8f, inRadius = 1e8f, dist;
+#endif
 	int                 sky = 0, i, j, axis, kind, closest = -1, bounded = -1, bank;
 	int                 sampleTime = cg.time, timeUntilSample;
 	unsigned            sampleBits;
@@ -1848,11 +1854,20 @@ static void CG_EliteSndEffects(void)
 		}
 		else
 		{
+#if defined(TCE_LINUX_ROOM_X87)
+			/* The candidate stays held; only an accepted best distance is stored. */
+			if (!(dist >= (long double)nearest) && !es->density)
+#else
 			if (CG_TCERoomLess(dist, nearest) && !es->density)
+#endif
 			{
 				nearest = dist; closest = i;
 			}
+#if defined(TCE_LINUX_ROOM_X87)
+			if (!(dist >= (long double)inRadius) && dist <= (long double)es->dmgFlags)
+#else
 			if (CG_TCERoomLess(dist, inRadius) && (long double)dist <= (long double)es->dmgFlags)
+#endif
 			{
 				inRadius = dist; bounded = i;
 			}
