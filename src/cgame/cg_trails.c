@@ -304,7 +304,12 @@ int CG_AddTrailJunc(int headJuncIndex, void *usedby, qhandle_t shader, int spawn
 	{
 		alphaEnd = 1.0;
 	}
+#if defined(__linux__) && !defined(Q3_VM)
+	/* TC preserves a NaN start alpha, but clamps a NaN end alpha to zero. */
+	if (!(alphaEnd >= 0.0f))
+#else
 	if (alphaEnd < 0.0)
+#endif
 	{
 		alphaEnd = 0.0;
 	}
@@ -331,12 +336,29 @@ int CG_AddTrailJunc(int headJuncIndex, void *usedby, qhandle_t shader, int spawn
 	{
 		if (headJunc)
 		{
+#if defined(__linux__) && !defined(Q3_VM)
+			long double distance = Distance(headJunc->pos, pos);
+			long double denominator = (long double)sRatio * j->widthEnd;
+			volatile float discardedDenominator = (float)denominator;
+			long double reciprocal = 1.0L / denominator;
+			(void)&discardedDenominator;
+			j->sTex = (float)(distance * reciprocal + (long double)headJunc->sTex);
+#else
 			j->sTex = headJunc->sTex + ((Distance(headJunc->pos, pos) / sRatio) / j->widthEnd);
+#endif
 		}
 		else
 		{
 			// FIXME: need a way to specify offset timing
+#if defined(__linux__) && !defined(Q3_VM)
+			long double phase = (long double)(cg.time % 1000) * (double)0.001;
+			long double reciprocal = 1.0L / (long double)sRatio;
+			long double remaining = 1.0L - phase;
+			long double animated = remaining * (long double)animSpeed;
+			j->sTex = (float)(animated * reciprocal);
+#else
 			j->sTex = (animSpeed * (1.0 - ((float)(cg.time % 1000) / 1000.0))) / (sRatio);
+#endif
 //			j->sTex = 0;
 		}
 	}
