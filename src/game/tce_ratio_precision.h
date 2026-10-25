@@ -5,14 +5,15 @@
 #include "tce_rotate_precision.h"
 
 /* Round (n/d)*2^binaryScale to x87 PC/RC without a Float spill.
- * Callers supply n < 2^40, 0 < d < 2^40 and a scaled exponent in
- * [-144,180]. Exception flags and unmasked traps are not reproduced. */
+ * Callers supply unsigned64 n, nonzero unsigned64 d and a scaled result
+ * whose significant bits fit the fixed grid. Exception flags and unmasked
+ * traps are not reproduced. */
 static __inline tceTriggerSum_t TCE_RatioValue(unsigned long long n,
                                               unsigned long long d, int binaryScale,
                                               unsigned negative, unsigned control)
 {
 	tceTriggerSum_t value = { { 0 }, 0 };
-	unsigned precision, rounding, increment = 0;
+	unsigned precision, rounding, increment = 0, carry;
 	unsigned long long probe, numerator, denominator, remainder, significand = 1;
 	int numeratorBit = 0, denominatorBit = 0, exponent, bit;
 
@@ -42,17 +43,22 @@ static __inline tceTriggerSum_t TCE_RatioValue(unsigned long long n,
 	}
 	if (numerator < denominator)
 	{
-		numerator <<= 1;
+		/* 2*n can need 65 bits, but 0 <= 2*n-d < d fits unsigned64. */
+		remainder = numerator - denominator + numerator;
 		--exponent;
 	}
-	remainder = numerator - denominator;
+	else
+	{
+		remainder = numerator - denominator;
+	}
 	precision = (control & _MCW_PC) == _PC_24 ? 24u :
 	            (control & _MCW_PC) == _PC_53 ? 53u : 64u;
 	for (bit = 1; bit < (int)precision; ++bit)
 	{
+		carry = (unsigned)(remainder >> 63);
 		remainder <<= 1;
 		significand <<= 1;
-		if (remainder >= denominator)
+		if (carry || remainder >= denominator)
 		{
 			remainder -= denominator;
 			significand |= 1;
@@ -61,7 +67,7 @@ static __inline tceTriggerSum_t TCE_RatioValue(unsigned long long n,
 	rounding = control & _MCW_RC;
 	if (rounding == _RC_NEAR)
 	{
-		increment = (remainder << 1) > denominator ||
+		increment = (remainder >> 63) || (remainder << 1) > denominator ||
 		            ((remainder << 1) == denominator && (significand & 1));
 	}
 	else if (rounding == _RC_UP)

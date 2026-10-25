@@ -1,5 +1,6 @@
 #include "q_shared.h"
 #include "bg_public.h"
+#include "tce_spline_traverse_precision.h"
 
 #if defined(_WIN32) || defined(__linux__)
 #include "tce_numeric.h"
@@ -7,8 +8,17 @@
 qboolean BG_TraverseSpline(float *deltaTime, splinePath_t **pSpline)
 {
 	volatile float *storedFraction = deltaTime;
-	long double    fraction        = *storedFraction;
+	long double    fraction;
 	qboolean       traverseBackwards;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	int accepted;
+	if (TCE_TraverseSplineFinite(deltaTime, pSpline, &accepted))
+	{
+		return accepted;
+	}
+#endif
+
+	fraction = *storedFraction;
 
 	while (fraction > 1.0L)
 	{
