@@ -591,6 +591,9 @@ static void PM_Friction(void)
 	long double    heldSpeed, drop = 0.0L, control, remaining;
 	unsigned       elapsedBits;
 	int            elapsed, type, lowSpeed;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	tceFrictionArithmetic_t exact;
+#endif
 
 	VectorCopy(velocity, vec);
 	if (pml.walking)
@@ -616,6 +619,9 @@ static void PM_Friction(void)
 		velocity[0] = velocity[1] = 0.0f;
 		return;
 	}
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	TCE_FrictionBegin(&exact);
+#endif
 	elapsedBits = (unsigned)pm->cmd.serverTime - (unsigned)pm->pmext->dodgeTime;
 	memcpy(&elapsed, &elapsedBits, sizeof(elapsed));
 	if (elapsed > 250 && elapsed < 350)
@@ -625,6 +631,9 @@ static void PM_Friction(void)
 #else
 		drop  = (long double)pml.frametime * speed;
 		drop *= 20.0f;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		TCE_FrictionTerm(&exact, pml.frametime, speed, 20.0f, 1);
+#endif
 #endif
 	}
 	if (pm->waterlevel < 2 && pml.walking &&
@@ -644,6 +653,9 @@ static void PM_Friction(void)
 		drop += control * pm_friction * pml.frametime;
 #else
 		drop += (long double)pm_friction * pml.frametime * control;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		TCE_FrictionGround(&exact, pm_friction, pml.frametime, pm_stopspeed, speed);
+#endif
 #endif
 	}
 	if (pm->waterlevel)
@@ -657,6 +669,11 @@ static void PM_Friction(void)
 		waterDrop *= pm->watertype == CONTENTS_SLIME ? pm_slagfriction : pm_waterfriction;
 		waterDrop *= pml.frametime;
 		waterDrop *= speed;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		TCE_FrictionWater(&exact, pm->waterlevel,
+		                  pm->watertype == CONTENTS_SLIME ? pm_slagfriction : pm_waterfriction,
+		                  pml.frametime, speed);
+#endif
 #endif
 		drop      += waterDrop;
 	}
@@ -667,6 +684,9 @@ static void PM_Friction(void)
 		drop += speed * pm_spectatorfriction * pml.frametime;
 #else
 		drop += (long double)pm_spectatorfriction * pml.frametime * speed;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		TCE_FrictionTerm(&exact, pm_spectatorfriction, pml.frametime, speed, 0);
+#endif
 #endif
 	}
 	if (pm->ps->eFlags & 0x01000000)
@@ -675,6 +695,9 @@ static void PM_Friction(void)
 		drop += speed * pm_VC100friction * pml.frametime;
 #else
 		drop += (long double)pm_VC100friction * pml.frametime * speed;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		TCE_FrictionTerm(&exact, pm_VC100friction, pml.frametime, speed, 0);
+#endif
 #endif
 	}
 	if (pml.ladder)
@@ -683,6 +706,9 @@ static void PM_Friction(void)
 		drop += speed * pm_ladderfriction * pml.frametime;
 #else
 		drop += (long double)pm_ladderfriction * pml.frametime * speed;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		TCE_FrictionTerm(&exact, pm_ladderfriction, pml.frametime, speed, 0);
+#endif
 #endif
 	}
 	remaining = (long double)speed - drop;
@@ -700,9 +726,17 @@ static void PM_Friction(void)
 	{
 		ratio = 0.0f;
 	}
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	/* Failure leaves the already computed fallback ratio untouched. */
+	TCE_FrictionFinish(&exact, speed, type == PM_SPECTATOR || type == PM_NOCLIP, &ratio);
+	velocity[0] = TCE_FrictionScale(ratio, velocity[0]);
+	velocity[1] = TCE_FrictionScale(ratio, velocity[1]);
+	velocity[2] = TCE_FrictionScale(ratio, velocity[2]);
+#else
 	velocity[0] = (float)((long double)ratio * velocity[0]);
 	velocity[1] = (float)((long double)ratio * velocity[1]);
 	velocity[2] = (float)((long double)ratio * velocity[2]);
+#endif
 	/* Original reads an unwritten stack slot when extension is set while airborne.
 	 * Retain the defined zero fallback for that state rather than read indeterminate C. */
 	if (pml.tceGroundExtension && (preservedZ < 0.0f || preservedZ != preservedZ))
