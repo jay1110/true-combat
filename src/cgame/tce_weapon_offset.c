@@ -142,12 +142,12 @@ void TCE_CG_EliteFPWeaponOffset(int weapon, const tce_weaponOffset_t *s,
 		*tacticalScale = (float)aimBlend;
 	}
 #else
-	delta = s->time - s->aimTime;
+	delta = TCE_SubInt32(s->time, s->aimTime);
 	if (s->aiming)
 	{
 		blend         = delta < 200 ? delta * (double).005f : 1.0;
 		verticalBlend = blend * blend;
-		delta         = s->time - s->secondaryAimTime;
+		delta         = TCE_SubInt32(s->time, s->secondaryAimTime);
 		if (s->secondaryAiming)
 		{
 			secondaryBlend = delta < 100 ? delta * (double).01f : 1.0;
