@@ -2191,15 +2191,29 @@ void ClientSpawn(gentity_t *ent, qboolean revived, qboolean hostage)
 	}
 
 	// increment the spawncount so the client will detect the respawn
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+	client->ps.persistant[PERS_SPAWN_COUNT] =
+	    TCE_AddInt32(client->ps.persistant[PERS_SPAWN_COUNT], 1);
+#else
 	client->ps.persistant[PERS_SPAWN_COUNT]++;
+#endif
 	if (revived)
 	{
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+		client->ps.persistant[PERS_REVIVE_COUNT] =
+		    TCE_AddInt32(client->ps.persistant[PERS_REVIVE_COUNT], 1);
+#else
 		client->ps.persistant[PERS_REVIVE_COUNT]++;
+#endif
 	}
 	client->ps.persistant[PERS_TEAM]        = client->sess.sessionTeam;
 	client->ps.persistant[PERS_HWEAPON_USE] = 0;
 
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+	client->airOutTime = TCE_AddInt32(level.time, 12000);
+#else
 	client->airOutTime = level.time + 12000;
+#endif
 
 	// clear entity values
 	client->ps.stats[STAT_MAX_HEALTH] = client->pers.maxHealth;
@@ -2353,11 +2367,19 @@ void ClientSpawn(gentity_t *ent, qboolean revived, qboolean hostage)
 		// Xian - Moved the invul. stuff out of SetWolfSpawnWeapons and put it here for clarity
 		if (g_fastres.integer == 1 && revived)
 		{
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+			client->ps.powerups[PW_INVULNERABLE] = TCE_AddInt32(level.time, 1000);
+#else
 			client->ps.powerups[PW_INVULNERABLE] = level.time + 1000;
+#endif
 		}
 		else
 		{
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+			client->ps.powerups[PW_INVULNERABLE] = TCE_AddInt32(level.time, 3000);
+#else
 			client->ps.powerups[PW_INVULNERABLE] = level.time + 3000;
+#endif
 		}
 	}
 	// End Xian
@@ -2399,7 +2421,11 @@ void ClientSpawn(gentity_t *ent, qboolean revived, qboolean hostage)
 
 	client->ps.holdable[11]              = 0; /* TC ps+0x3bc. */
 	client->ps.stats[STAT_TCE_SHOT_SEED] = rand() & 0xffff;
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+	client->tceObjectiveActivityUntil = TCE_AddInt32(level.time, 5000);
+#else
 	client->tceObjectiveActivityUntil    = level.time + 5000;
+#endif
 	client->ps.persistant[PERS_BLEH_2]   = 0;
 	G_SetOrigin(ent, spawn_origin);
 	VectorCopy(spawn_origin, client->ps.origin);
@@ -2440,7 +2466,11 @@ void ClientSpawn(gentity_t *ent, qboolean revived, qboolean hostage)
 	client->tceDamageSpawnTime = level.time;
 	client->respawnTime               = level.timeCurrent;
 	client->tceRespawnNotBefore       = level.timeCurrent;
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+	client->inactivityTime = TCE_AddInt32(level.time, TCE_MulInt32(g_inactivity.integer, 1000));
+#else
 	client->inactivityTime            = level.time + g_inactivity.integer * 1000;
+#endif
 	client->latched_buttons           = 0;
 	client->latched_wbuttons          = 0; //----(SA)	added
 
@@ -2462,7 +2492,11 @@ void ClientSpawn(gentity_t *ent, qboolean revived, qboolean hostage)
 
 	// run a client frame to drop exactly to the floor,
 	// initialize animations and other things
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+	client->ps.commandTime = TCE_SubInt32(level.time, 100);
+#else
 	client->ps.commandTime           = level.time - 100;
+#endif
 	ent->client->pers.cmd.serverTime = level.time;
 	ClientThink((int)(ent - g_entities));
 
