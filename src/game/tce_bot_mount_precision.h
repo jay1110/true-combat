@@ -174,7 +174,7 @@ static __inline int TCE_BotMountReloadValue(int maxClip, int *result)
 }
 
 /* The native height gate consumes the held subtraction, not its Float spill. */
-static __inline int TCE_BotMountHeightInside(float origin, float goal,
+static __inline int TCE_BotMountDifferenceInside(float origin, float goal,
                                              float threshold, int *inside)
 {
 	tceTriggerSum_t difference, other, bound;
@@ -192,6 +192,43 @@ static __inline int TCE_BotMountHeightInside(float origin, float goal,
 	TCE_RotateAdd(&difference, &other, control);
 	difference.negative = 0;
 	*inside = TCE_TriggerCompare(&difference, &bound) < 0;
+	return 1;
+}
+
+/* These objective nodes spill origin Z plus signed32 view height before
+ * subtracting it from the target; the Linux nodes keep that height held. */
+static __inline int TCE_BotObjectiveDirection(const float *origin, int height,
+                                               const float *target, float *direction)
+{
+	tceTriggerSum_t eye, integer = { { 0 }, 0 }, value;
+	float storedEye[3], delta[3];
+	unsigned control, magnitude;
+	int axis;
+
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control) ||
+	    !TCE_TriggerProduct(&eye, origin[2], 1.0f, control))
+	{
+		return 0;
+	}
+	integer.negative = height < 0;
+	magnitude = height < 0 ? 0u - (unsigned)height : (unsigned)height;
+	TCE_TriggerPlace(&integer, magnitude, 298);
+	TCE_RotateAdd(&eye, &integer, control);
+	storedEye[0] = origin[0];
+	storedEye[1] = origin[1];
+	storedEye[2] = TCE_RotateStore(eye, control);
+	for (axis = 0; axis < 3; ++axis)
+	{
+		if (!TCE_TriggerProduct(&value, target[axis], 1.0f, control) ||
+		    !TCE_TriggerProduct(&eye, storedEye[axis], -1.0f, control))
+		{
+			return 0;
+		}
+		TCE_RotateAdd(&value, &eye, control);
+		delta[axis] = TCE_RotateStore(value, control);
+	}
+	memcpy(direction, delta, sizeof(delta));
 	return 1;
 }
 

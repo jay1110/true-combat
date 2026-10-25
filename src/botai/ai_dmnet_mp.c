@@ -2543,12 +2543,12 @@ void AIEnter_MP_FixMG42(bot_state_t *bs)
 }
 
 #if defined(_WIN32) && !defined(Q3_VM)
-static qboolean BotMountedFlattenHeight(float origin, float goal, float threshold)
+static qboolean BotMountedDifferenceInside(float origin, float goal, float threshold)
 {
 #if defined(_MSC_VER) && defined(_M_IX86)
 	int inside;
 
-	if (TCE_BotMountHeightInside(origin, goal, threshold, &inside))
+	if (TCE_BotMountDifferenceInside(origin, goal, threshold, &inside))
 	{
 		return inside;
 	}
@@ -2654,7 +2654,7 @@ int AINode_MP_FixMG42(bot_state_t *bs)
 
 	VectorSubtract(bs->origin, goal.origin, dir);
 #if defined(_WIN32) && !defined(Q3_VM)
-	if (BotMountedFlattenHeight(bs->origin[2], goal.origin[2], 100.0f))
+	if (BotMountedDifferenceInside(bs->origin[2], goal.origin[2], 100.0f))
 #else
 	if (fabs(dir[2]) < 100)
 #endif
@@ -4043,7 +4043,7 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 	//
 	VectorSubtract(bs->origin, goal.origin, dir);
 #if defined(_WIN32) && !defined(Q3_VM)
-	if (BotMountedFlattenHeight(bs->origin[2], goal.origin[2], 100.0f))
+	if (BotMountedDifferenceInside(bs->origin[2], goal.origin[2], 100.0f))
 #else
 	if (fabs(dir[2]) < 100)
 #endif
@@ -4510,7 +4510,7 @@ int AINode_MP_ScanForLandmines(bot_state_t *bs)
 
 	VectorSubtract(bs->origin, goal.origin, dir);
 #if defined(_WIN32) && !defined(Q3_VM)
-	if (BotMountedFlattenHeight(bs->origin[2], goal.origin[2], 16.0f))
+	if (BotMountedDifferenceInside(bs->origin[2], goal.origin[2], 16.0f))
 #else
 	if (fabs(dir[2]) < 16)
 #endif
@@ -8094,6 +8094,28 @@ void AIEnter_MP_PlantMine(bot_state_t *bs)
 	bs->ainodeText = "AINode_MP_PlantMine";
 }
 
+#if defined(_WIN32) && !defined(Q3_VM)
+static void BotObjectiveDirection(bot_state_t *bs, vec3_t target, vec3_t direction)
+{
+	float eye[3];
+	int axis;
+
+#if defined(_MSC_VER) && defined(_M_IX86)
+	if (TCE_BotObjectiveDirection(bs->origin, bs->cur_ps.viewheight, target, direction))
+	{
+		return;
+	}
+#endif
+	eye[0] = bs->origin[0];
+	eye[1] = bs->origin[1];
+	eye[2] = (float)((long double)bs->origin[2] + (long double)bs->cur_ps.viewheight);
+	for (axis = 0; axis < 3; ++axis)
+	{
+		direction[axis] = (float)((long double)target[axis] - eye[axis]);
+	}
+}
+#endif
+
 /*
 ==================
 AINode_MP_PlantMine()
@@ -8153,6 +8175,8 @@ int AINode_MP_PlantMine(bot_state_t *bs)
 	// are we close enough to the goal?
 #if defined(__linux__)
 	if (!(BotDistanceSquaredValue(bs->origin, goal.origin) >= SQR(32)))
+#elif defined(_WIN32) && !defined(Q3_VM)
+	if (BotMountedDistanceOrder(bs->origin, goal.origin, SQR(32)) < 0)
 #else
 	if (VectorDistanceSquared(bs->origin, goal.origin) < SQR(32))
 #endif
@@ -8173,13 +8197,19 @@ int AINode_MP_PlantMine(bot_state_t *bs)
 			}
 #if defined(__linux__)
 			if (BotDistanceSquaredValue(bs->target_goal.origin, trav->r.currentOrigin) > SQR(100))
+#elif defined(_WIN32) && !defined(Q3_VM)
+			if (BotMountedDistanceOrder(bs->target_goal.origin, trav->r.currentOrigin, SQR(100)) == 1)
 #else
 			if (VectorDistanceSquared(bs->target_goal.origin, trav->r.currentOrigin) > SQR(100))
 #endif
 			{
 				continue;
 			}
+#if defined(_WIN32) && !defined(Q3_VM)
+			if (trav->awaitingHelpTime < TCE_SubInt32(level.time, 5000))
+#else
 			if (trav->awaitingHelpTime < level.time - 5000)
+#endif
 			{
 				continue;
 			}
@@ -8206,6 +8236,10 @@ int AINode_MP_PlantMine(bot_state_t *bs)
 			// hold fire
 #if defined(__linux__)
 			if (!(fabsl(TCE_VectorLengthSquaredValue(bs->velocity)) > 0.0L) && fabsl((long double)bs->viewangles[PITCH] - bs->ideal_viewangles[PITCH]) < 2.0L && bs->cur_ps.weapon == bs->weaponnum && !bs->cur_ps.grenadeTimeLeft)
+#elif defined(_WIN32) && !defined(Q3_VM)
+			if (BotMountedLengthOrder(bs->velocity, 0.0f) <= 0 &&
+			    BotMountedDifferenceInside(bs->viewangles[PITCH], bs->ideal_viewangles[PITCH], 2.0f) &&
+			    bs->cur_ps.weapon == bs->weaponnum && !bs->cur_ps.grenadeTimeLeft)
 #else
 			if (!VectorLengthSquared(bs->velocity) && fabs(bs->viewangles[PITCH] - bs->ideal_viewangles[PITCH]) < 2 && bs->cur_ps.weapon == bs->weaponnum && !bs->cur_ps.grenadeTimeLeft)
 #endif
@@ -8219,12 +8253,16 @@ int AINode_MP_PlantMine(bot_state_t *bs)
 			bs->weaponnum = WP_PLIERS;
 			trap_EA_SelectWeapon(bs->client, bs->weaponnum);
 			// aim directly at the dynamite
+#if !defined(_WIN32) || defined(Q3_VM)
 			VectorCopy(bs->origin, target);
 			target[2] += bs->cur_ps.viewheight;
+#endif
 #if defined(__linux__)
 			dir[0] = (float)((long double)trav->r.currentOrigin[0] - bs->origin[0]);
 			dir[1] = (float)((long double)trav->r.currentOrigin[1] - bs->origin[1]);
 			dir[2] = (float)((long double)trav->r.currentOrigin[2] - ((long double)bs->origin[2] + bs->cur_ps.viewheight));
+#elif defined(_WIN32) && !defined(Q3_VM)
+			BotObjectiveDirection(bs, trav->r.currentOrigin, dir);
 #else
 			VectorSubtract(trav->r.currentOrigin, target, dir);
 #endif
@@ -8278,6 +8316,8 @@ int AINode_MP_PlantMine(bot_state_t *bs)
 	{
 #if defined(__linux__)
 		if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) < (long double)(double)0.8 * bs->thinktime)
+#elif defined(_WIN32) && !defined(Q3_VM)
+		if (BotMountShouldRoam(bs))
 #else
 		if (random() < bs->thinktime * 0.8)
 #endif
@@ -8366,7 +8406,11 @@ int AINode_MP_DisarmDynamite(bot_state_t *bs)
 				if (VectorDistanceSquared( botstates[list[i]].origin, goal.origin ) < goalDist) {
 					// make sure other bots dont head for this target also
 					bs->ignore_specialgoal_time = 0;
+#if defined(_WIN32) && !defined(Q3_VM)
+					g_entities[goal.entitynum].missionLevel = TCE_AddInt32(level.time, 5000);
+#else
 					g_entities[goal.entitynum].missionLevel = level.time + 5000;
+#endif
 					BotDefaultNode( bs );
 					return qfalse;
 				}
@@ -8395,19 +8439,27 @@ int AINode_MP_DisarmDynamite(bot_state_t *bs)
 	// make sure other bots dont head for this target also
 	{
 		bs->ignore_specialgoal_time             = 0;
+#if defined(_WIN32) && !defined(Q3_VM)
+		g_entities[goal.entitynum].missionLevel = TCE_AddInt32(level.time, 5000);
+#else
 		g_entities[goal.entitynum].missionLevel = level.time + 5000;
+#endif
 		BotDefaultNode(bs);
 		return qfalse;
 	}
 	// make sure other bots dont head for this target also
+#if defined(_WIN32) && !defined(Q3_VM)
+	trav->missionLevel = TCE_AddInt32(level.time, 1000);
+#else
 	trav->missionLevel = level.time + 1000;
+#endif
 	//
 
 	//map specific code
 	BotMapScripts(bs);
 	//
 	// are we close enough to the goal?
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 	if (!(goalDist >= SQR(32)))
 #else
 	if (goalDist < SQR(32))
@@ -8420,12 +8472,16 @@ int AINode_MP_DisarmDynamite(bot_state_t *bs)
 		bs->weaponnum = WP_PLIERS;
 		trap_EA_SelectWeapon(bs->client, bs->weaponnum);
 		// aim directly at the dynamite
+#if !defined(_WIN32) || defined(Q3_VM)
 		VectorCopy(bs->origin, target);
 		target[2] += bs->cur_ps.viewheight;
+#endif
 #if defined(__linux__)
 		dir[0] = (float)((long double)trav->r.currentOrigin[0] - bs->origin[0]);
 		dir[1] = (float)((long double)trav->r.currentOrigin[1] - bs->origin[1]);
 		dir[2] = (float)((long double)trav->r.currentOrigin[2] - ((long double)bs->origin[2] + bs->cur_ps.viewheight));
+#elif defined(_WIN32) && !defined(Q3_VM)
+		BotObjectiveDirection(bs, trav->r.currentOrigin, dir);
 #else
 		VectorSubtract(trav->r.currentOrigin, target, dir);
 #endif
@@ -8482,6 +8538,15 @@ int AINode_MP_DisarmDynamite(bot_state_t *bs)
 			float moveX = (float)(((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
 			trap_EA_Move(bs->client, tv(moveX, moveY, moveZ), speed);
 		}
+#elif defined(_WIN32) && !defined(Q3_VM)
+		{
+			/* Native argument evaluation consumes speed, Z, Y, then X. */
+			float speed = BotMountRandomMoveValue(qfalse);
+			float moveZ = BotMountRandomMoveValue(qtrue);
+			float moveY = BotMountRandomMoveValue(qtrue);
+			float moveX = BotMountRandomMoveValue(qtrue);
+			trap_EA_Move(bs->client, tv(moveX, moveY, moveZ), speed);
+		}
 #else
 		trap_EA_Move(bs->client, tv(crandom(), crandom(), crandom()), 100 + random() * 200);
 #endif
@@ -8498,6 +8563,8 @@ int AINode_MP_DisarmDynamite(bot_state_t *bs)
 	{
 #if defined(__linux__)
 		if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) < (long double)(double)0.8 * bs->thinktime)
+#elif defined(_WIN32) && !defined(Q3_VM)
+		if (BotMountShouldRoam(bs))
 #else
 		if (random() < bs->thinktime * 0.8)
 #endif
@@ -8520,7 +8587,7 @@ int AINode_MP_DisarmDynamite(bot_state_t *bs)
 			aas_entityinfo_t entinfo;
 			BotEntityInfo(bs->enemy, &entinfo);
 			//if the enemy is dead
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 			if (bs->enemydeath_time < 0.0f || bs->enemydeath_time > 0.0f)
 #else
 			if (bs->enemydeath_time)
@@ -8529,6 +8596,9 @@ int AINode_MP_DisarmDynamite(bot_state_t *bs)
 #if defined(__linux__)
 				long double deathTime = bs->enemydeath_time;
 				if (!(deathTime >= (long double)trap_AAS_Time() - (long double)(double)0.3))
+#elif defined(_WIN32) && !defined(Q3_VM)
+				double deathTime = bs->enemydeath_time;
+				if (BotMountedTimeGate(deathTime, qfalse))
 #else
 				if (bs->enemydeath_time < trap_AAS_Time() - 0.3)
 #endif
@@ -8551,6 +8621,8 @@ int AINode_MP_DisarmDynamite(bot_state_t *bs)
 				// attack and keep moving
 #if defined(__linux__)
 				if (fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL)) > 0.0L)
+#elif defined(_WIN32) && !defined(Q3_VM)
+				if (fabs((double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL)) > 0.0)
 #else
 				if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 360, bs->enemy, NULL))
 #endif
@@ -8587,6 +8659,8 @@ int AINode_MP_DisarmDynamite(bot_state_t *bs)
 			//FIXME: look at cluster portals?
 #if defined(__linux__)
 			else if (fabsl(TCE_VectorLengthSquaredValue(moveresult.movedir)) > 0.0L)
+#elif defined(_WIN32) && !defined(Q3_VM)
+			else if (BotMountedLengthOrder(moveresult.movedir, 0.0f) == 1)
 #else
 			else if (VectorLengthSquared(moveresult.movedir))
 #endif
@@ -8595,6 +8669,8 @@ int AINode_MP_DisarmDynamite(bot_state_t *bs)
 			}
 #if defined(__linux__)
 			else if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) < (long double)(double)0.8 * bs->thinktime)
+#elif defined(_WIN32) && !defined(Q3_VM)
+			else if (BotMountShouldRoam(bs))
 #else
 			else if (random() < bs->thinktime * 0.8)
 #endif
@@ -8608,10 +8684,24 @@ int AINode_MP_DisarmDynamite(bot_state_t *bs)
 		}
 	}
 	// reload?
+#if defined(_WIN32) && !defined(Q3_VM)
+	if (bs->last_fire != level.time)
+	{
+		int weapon = bs->cur_ps.weapon;
+		int clip = BG_FindClipForWeapon(weapon);
+		int threshold = BotMountReloadThreshold(GetAmmoTableData(weapon)->maxclip);
+
+		if (bs->cur_ps.ammoclip[clip] < threshold && bs->cur_ps.ammo[BG_FindAmmoForWeapon(weapon)])
+		{
+			trap_EA_Reload(bs->client);
+		}
+	}
+#else
 	if ((bs->last_fire != level.time) && (bs->cur_ps.ammoclip[BG_FindClipForWeapon(bs->cur_ps.weapon)] < (int)(0.8 * GetAmmoTableData(bs->cur_ps.weapon)->maxclip)) && bs->cur_ps.ammo[BG_FindAmmoForWeapon(bs->cur_ps.weapon)])
 	{
 		trap_EA_Reload(bs->client);
 	}
+#endif
 	//
 	return qtrue;
 }
