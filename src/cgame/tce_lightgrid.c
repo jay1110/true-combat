@@ -198,9 +198,12 @@ void TCE_CG_LightForParticleSimple(const tce_lightGrid_t *grid,
 void TCE_CG_LightForParticleDirected(const tce_lightGrid_t *grid,
                                      const vec3_t point, const vec3_t normal, vec3_t color)
 {
-	vec3_t      directed, direction;
+	vec3_t      directed, direction = { 0, 0, 0 };
 	const float lightUnit = 1.0f / 255.0f;
 	long double incidence, red, green, blue;
+#if !defined(_WIN32)
+	int redAtLimit;
+#endif
 
 	TCE_CG_LightForPoint(grid, point, color, directed, direction);
 #if defined(_WIN32)
@@ -244,12 +247,18 @@ void TCE_CG_LightForParticleDirected(const tce_lightGrid_t *grid,
 	blue     = (long double)color[2] * lightUnit;
 	color[1] = (float)green;
 	color[0] = (float)red;
+	/* Native Linux compares retained red before publishing stored blue. */
+	redAtLimit = red >= 1.0L;
 	color[2] = (float)blue;
 	/* Linux retains red for its clamp, then reloads stored green/blue. */
 	green = (float)green;
 	blue  = (float)blue;
 #endif
+#if defined(_WIN32)
 	if (red >= 1.0L)
+#else
+	if (redAtLimit)
+#endif
 	{
 		color[0] = 1.0f;
 	}
