@@ -694,23 +694,41 @@ qboolean CG_PlayerSeesItem(playerState_t *ps, entityState_t *item, int atTime, i
 		VectorSubtract(vorigin, eorigin, dir);
 	}
 
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	{
+		int tooFar;
+		if (TCE_ItemVisibilityNormalize(dir, &dist, &tooFar))
+		{
+			if (tooFar)
+			{
+				return qfalse;
+			}
+		}
+		else
+#endif
+	{
 #if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(Q3_VM))
 #if !defined(Q3_VM)
-	/* Keep the normalize result wide for the native pre-store distance gate. */
-	distance = TCE_VectorNormalizeValue(dir);
+		/* Keep the normalize result wide for the native pre-store distance gate. */
+		distance = TCE_VectorNormalizeValue(dir);
 #else
-	distance = VectorNormalize(dir);
+		distance = VectorNormalize(dir);
 #endif
-	dist = (float)distance;
-	if (distance > (long double)maxDistance)
-	{
-		return qfalse;
-	}
+		dist = (float)distance;
+		if (distance > (long double)maxDistance)
+		{
+			return qfalse;
+		}
 #else
-	dist = VectorNormalize(dir);
-	if (dist > 255)
-	{
-		return qfalse;
+		dist = VectorNormalize(dir);
+		if (dist > 255)
+		{
+			return qfalse;
+		}
+#endif
+
+	}
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 	}
 #endif
 
