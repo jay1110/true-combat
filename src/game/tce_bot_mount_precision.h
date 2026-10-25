@@ -9,7 +9,9 @@ typedef enum
 {
 	TCE_BOT_SCAN_YAW,
 	TCE_BOT_SCAN_PITCH,
-	TCE_BOT_MOUNT_JITTER
+	TCE_BOT_MOUNT_JITTER,
+	TCE_BOT_MOBILE_YAW,
+	TCE_BOT_MOBILE_PITCH
 } tceBotMountAngle_t;
 
 static __inline void TCE_BotMountMultiplyWord(tceTriggerSum_t *value, unsigned factor)
@@ -74,8 +76,8 @@ static __inline int TCE_BotMountRandomAngle(unsigned sample, float base, float a
 	__control87_2(0, 0, &control, NULL);
 	memcpy(&arcBits, &arc, sizeof(arcBits));
 	if (sample > 32767u || !TCE_FiniteExceptionsMasked(control) ||
-	    mode < TCE_BOT_SCAN_YAW || mode > TCE_BOT_MOUNT_JITTER ||
-	    (mode != TCE_BOT_MOUNT_JITTER && (arcBits & 0x7f800000u) == 0x7f800000u) ||
+	    mode < TCE_BOT_SCAN_YAW || mode > TCE_BOT_MOBILE_PITCH ||
+	    (mode <= TCE_BOT_SCAN_PITCH && (arcBits & 0x7f800000u) == 0x7f800000u) ||
 	    !TCE_TriggerProduct(&start, base, 1.0f, control))
 	{
 		return 0;
@@ -85,9 +87,11 @@ static __inline int TCE_BotMountRandomAngle(unsigned sample, float base, float a
 	TCE_RotateAdd(&value, &half, control);
 	doubled = value;
 	TCE_RotateAdd(&value, &doubled, control);
-	if (mode == TCE_BOT_MOUNT_JITTER)
+	if (mode >= TCE_BOT_MOUNT_JITTER)
 	{
-		TCE_InterpolationMultiply(&value, 0x41200000u, control); /* 10 */
+		unsigned factor = mode == TCE_BOT_MOUNT_JITTER ? 0x41200000u :
+		                  mode == TCE_BOT_MOBILE_YAW ? 0x41100000u : 0x40400000u;
+		TCE_InterpolationMultiply(&value, factor, control); /* 10, 9 or 3 */
 	}
 	else
 	{
@@ -262,6 +266,22 @@ static __inline int TCE_BotMountArcInside(float first, float second, float arc,
 	}
 	difference.negative = 0;
 	*inside = TCE_TriggerCompare(&bound, &difference) > 0;
+	return 1;
+}
+
+static __inline int TCE_BotMountYawOutside(float ideal, float current, int *outside)
+{
+	tceTriggerSum_t difference, bound;
+	unsigned control;
+
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteBotAngleValue(ideal, current, &difference, control))
+	{
+		return 0;
+	}
+	difference.negative = 0;
+	TCE_TriggerProduct(&bound, 5.0f, 1.0f, control);
+	*outside = TCE_TriggerCompare(&difference, &bound) > 0;
 	return 1;
 }
 

@@ -3039,6 +3039,21 @@ static long double BotDistanceSquaredValue(const vec3_t first, const vec3_t seco
 }
 #endif
 
+#if defined(_WIN32) && !defined(Q3_VM)
+static qboolean BotMountedYawOutside(float ideal, float current)
+{
+#if defined(_MSC_VER) && defined(_M_IX86)
+	int outside;
+
+	if (TCE_BotMountYawOutside(ideal, current, &outside))
+	{
+		return outside;
+	}
+#endif
+	return fabs((double)AngleDifference(ideal, current)) > 5.0;
+}
+#endif
+
 int AINode_MP_Battle_MobileMG42(bot_state_t *bs)
 {
 	bot_goal_t goal;
@@ -3050,7 +3065,11 @@ int AINode_MP_Battle_MobileMG42(bot_state_t *bs)
 	bs->mobileMG42ProneTime = level.time;
 
 	// if our health has dropped, abort
+#if defined(_WIN32) && !defined(Q3_VM)
+	tookDamage = TCE_SubInt32(bs->lasthealth, g_entities[bs->client].health);
+#else
 	tookDamage = bs->lasthealth - g_entities[bs->client].health;
+#endif
 //	bs->lasthealth = g_entities[bs->client].health;
 
 	if (BotIsObserver(bs))
@@ -3103,7 +3122,11 @@ int AINode_MP_Battle_MobileMG42(bot_state_t *bs)
 	}
 
 	// have we been waiting here for too long? or been hit too much?
+#if defined(_WIN32) && !defined(Q3_VM)
+	if (tookDamage > 20 || g_entities[bs->client].health < 40 || bs->arrive_time < TCE_SubInt32(level.time, 5000))
+#else
 	if (tookDamage > 20 || g_entities[bs->client].health < 40 || bs->arrive_time < level.time - 5000)
+#endif
 	{
 		if (BotFindSpecialGoals(bs))
 		{
@@ -3116,6 +3139,9 @@ int AINode_MP_Battle_MobileMG42(bot_state_t *bs)
 #if defined(__linux__)
 	if (!(bs->cur_ps.eFlags & EF_PRONE) &&
 	    !(5.0L >= fabsl(TCE_BotAngleDifferenceValue(bs->ideal_viewangles[YAW], bs->viewangles[YAW]))))
+#elif defined(_WIN32) && !defined(Q3_VM)
+	if (!(bs->cur_ps.eFlags & EF_PRONE) &&
+	    BotMountedYawOutside(bs->ideal_viewangles[YAW], bs->viewangles[YAW]))
 #else
 	if (!(bs->cur_ps.eFlags & EF_PRONE) && (fabs(AngleDifference(bs->ideal_viewangles[YAW], bs->viewangles[YAW])) > 5.0f))
 #endif
@@ -3145,7 +3171,11 @@ int AINode_MP_Battle_MobileMG42(bot_state_t *bs)
 	{
 		// if we still have no enemy, then after a slight pause, allow us to escape prone mode if we find an
 		//	enemy outside our view
+#if defined(_WIN32) && !defined(Q3_VM)
+		if (bs->arrive_time < TCE_SubInt32(level.time, 1500))
+#else
 		if (bs->arrive_time < level.time - 1500)
+#endif
 		{
 			BotFindEnemyMP(bs, -1, qtrue);
 			// if we found one this time, escape prone mode
@@ -3180,7 +3210,7 @@ int AINode_MP_Battle_MobileMG42(bot_state_t *bs)
 		aas_entityinfo_t entinfo;
 		BotEntityInfo(bs->enemy, &entinfo);
 		//if the enemy is dead
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 		if (bs->enemydeath_time < 0.f || bs->enemydeath_time > 0.f)
 #else
 		if (bs->enemydeath_time)
@@ -3189,6 +3219,9 @@ int AINode_MP_Battle_MobileMG42(bot_state_t *bs)
 #if defined(__linux__)
 			long double deathTime = bs->enemydeath_time;
 			if (!(deathTime >= (long double)trap_AAS_Time() - (long double)(double)0.3))
+#elif defined(_WIN32) && !defined(Q3_VM)
+			double deathTime = bs->enemydeath_time;
+			if (BotMountedTimeGate(deathTime, qfalse))
 #else
 			if (bs->enemydeath_time < trap_AAS_Time() - 0.3)
 #endif
@@ -3213,6 +3246,8 @@ int AINode_MP_Battle_MobileMG42(bot_state_t *bs)
 			vectoangles(dir, ang);
 #if defined(__linux__)
 			if (fabsl((long double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 120, bs->enemy, NULL)) > 0.0L)
+#elif defined(_WIN32) && !defined(Q3_VM)
+			if (fabs((double)BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 120, bs->enemy, NULL)) > 0.0)
 #else
 			if (BotEntityVisible(bs->entitynum, bs->eye, bs->viewangles, 120, bs->enemy, NULL))
 #endif
@@ -3220,6 +3255,8 @@ int AINode_MP_Battle_MobileMG42(bot_state_t *bs)
 				// if they are real close, abort mg42 mode
 #if defined(__linux__)
 				if (!(BotDistanceSquaredValue(bs->origin, g_entities[bs->enemy].r.currentOrigin) >= SQR(400)))
+#elif defined(_WIN32) && !defined(Q3_VM)
+				if (BotMountedDistanceOrder(bs->origin, g_entities[bs->enemy].r.currentOrigin, SQR(400)) < 0)
 #else
 				if (VectorDistanceSquared(bs->origin, g_entities[bs->enemy].r.currentOrigin) < SQR(400))
 #endif
@@ -3249,6 +3286,9 @@ int AINode_MP_Battle_MobileMG42(bot_state_t *bs)
 #if defined(__linux__)
 		long double positionTime = bs->enemyposition_time;
 		if (positionTime > (long double)trap_AAS_Time() - 5.0L)
+#elif defined(_WIN32) && !defined(Q3_VM)
+		double positionTime = bs->enemyposition_time;
+		if (BotMountedTimeGate(positionTime, qtrue))
 #else
 		if (bs->enemyposition_time > trap_AAS_Time() - 5.0)
 #endif
@@ -3278,12 +3318,44 @@ int AINode_MP_Battle_MobileMG42(bot_state_t *bs)
 			    3.0518509447574615e-05f - .5L) * 2.0L) * 9.0L + bs->ideal_viewangles[YAW]);
 			bs->ideal_viewangles[PITCH] = (float)((((long double)(rand() & 0x7fff) *
 			    3.0518509447574615e-05f - .5L) * 2.0L) * 3.0L + bs->ideal_viewangles[PITCH]);
+#elif defined(_WIN32) && !defined(Q3_VM)
+			{
+				unsigned sample = rand() & 32767;
+#if defined(_MSC_VER) && defined(_M_IX86)
+				if (!TCE_BotMountRandomAngle(sample, bs->ideal_viewangles[YAW],
+				                             1.0f, TCE_BOT_MOBILE_YAW, &bs->ideal_viewangles[YAW]))
+#endif
+				{
+					bs->ideal_viewangles[YAW] = (float)((((long double)sample
+					    * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L)
+					    * 9.0L + bs->ideal_viewangles[YAW]);
+				}
+			}
+			{
+				unsigned sample = rand() & 32767;
+#if defined(_MSC_VER) && defined(_M_IX86)
+				if (!TCE_BotMountRandomAngle(sample, bs->ideal_viewangles[PITCH],
+				                             1.0f, TCE_BOT_MOBILE_PITCH, &bs->ideal_viewangles[PITCH]))
+#endif
+				{
+					bs->ideal_viewangles[PITCH] = (float)((((long double)sample
+					    * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L)
+					    * 3.0L + bs->ideal_viewangles[PITCH]);
+				}
+			}
 #else
 			bs->ideal_viewangles[YAW]   += crandom() * 20.f * 0.45;
 			bs->ideal_viewangles[PITCH] += crandom() * 20.f * 0.15;
 #endif
 			//
+#if defined(_WIN32) && !defined(Q3_VM)
+			{
+				int sample = rand();
+				bs->viewchangetime = TCE_AddInt32(TCE_AddInt32(level.time, 1000), sample % 1500);
+			}
+#else
 			bs->viewchangetime = level.time + 1000 + rand() % 1500;
+#endif
 		}
 	}
 
