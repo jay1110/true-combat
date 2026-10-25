@@ -344,14 +344,20 @@ static void TCE_WeaponPositionFinalAngles(const tce_weaponPosition_t *s, float *
 	if (!weaponDef[s->weapon].noTacMode &&
 	    (s->tacticalScale < 0.0f || s->tacticalScale > 0.0f))
 	{
-		amount    = (long double)s->tacticalPitch - 2000.0L;
-		amount   *= (long double)s->tacticalScale;
-		amount   *= (long double)0.01f;
-		angles[0] = (float)(amount + angles[0]);
-		amount    = (long double)s->tacticalYaw - 2000.0L;
-		amount   *= (long double)s->tacticalScale;
-		amount   *= (long double)0.01f;
-		angles[1] = (float)(amount + angles[1]);
+		for (i = 0; i < 2; ++i)
+		{
+#if !defined(Q3_VM)
+			if (TCE_WeaponPositionTacticalAngle(i ? s->tacticalYaw : s->tacticalPitch,
+			                                   s->tacticalScale, angles[i], &angles[i]))
+			{
+				continue;
+			}
+#endif
+			amount    = (long double)(i ? s->tacticalYaw : s->tacticalPitch) - 2000.0L;
+			amount   *= (long double)s->tacticalScale;
+			amount   *= (long double)0.01f;
+			angles[i] = (float)(amount + angles[i]);
+		}
 	}
 	if ((s->eFlags & 0x8000) || s->weapon == 60 || s->weapon == 62)
 	{

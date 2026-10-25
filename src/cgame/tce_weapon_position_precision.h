@@ -381,6 +381,40 @@ static __inline int TCE_WeaponPositionLandingFinite(int elapsed, float change,
 	return 1;
 }
 
+/* Tactical offsets retain FILD32, subtraction of 2000, two Float products,
+ * and angle addition until the final Float store. */
+static __inline int TCE_WeaponPositionTacticalAngle(int input, float scale,
+                                                   float angle, float *result)
+{
+	tceTriggerSum_t value = { { 0 }, 0 }, center, factor, coefficient, start;
+	unsigned bits, control, magnitude;
+
+	memcpy(&bits, &scale, sizeof(bits));
+	bits &= 0x7fffffffu;
+	if (bits && (bits < 0x2f800000u || bits > 0x4b800000u))
+	{
+		return 0;
+	}
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control) ||
+	    !TCE_TriggerProduct(&factor, scale, 1.0f, control) ||
+	    !TCE_TriggerProduct(&start, angle, 1.0f, control))
+	{
+		return 0;
+	}
+	value.negative = input < 0;
+	magnitude = input < 0 ? 0u - (unsigned)input : (unsigned)input;
+	TCE_TriggerPlace(&value, magnitude, 298);
+	TCE_TriggerProduct(&center, -2000.0f, 1.0f, control);
+	TCE_RotateAdd(&value, &center, control);
+	TCE_GustMultiply(&value, &factor, control);
+	TCE_TriggerProduct(&coefficient, 0.01f, 1.0f, control);
+	TCE_GustMultiply(&value, &coefficient, control);
+	TCE_RotateAdd(&value, &start, control);
+	*result = TCE_RotateStore(value, control);
+	return 1;
+}
+
 /* FILD32, multiply by the stored Float 0.005, optionally subtract from
  * one, then FSTP32. The integer import is exact even with PC24 selected. */
 static __inline int TCE_WeaponPositionLeanFraction(int elapsed, int fading,
