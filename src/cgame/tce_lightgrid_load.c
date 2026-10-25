@@ -13,11 +13,39 @@ static tce_lightGrid_t mapGrid;
 static qboolean        gridReady;
 vec3_t                 tce_lightGridSpacing = { 64, 64, 128 };
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-/* Original registration uses double CRT arguments and Float grid outputs. */
+#if defined(__linux__) && !defined(Q3_VM) && \
+    LDBL_MANT_DIG == 64 && LDBL_MAX_EXP == 16384
+#define TCE_LINUX_LIGHTGRID_X87
+#endif
+
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(TCE_LINUX_LIGHTGRID_X87)
+/* Preserve platform-specific integral rounding and stored grid boundaries. */
 static void TCE_LightGridAxis(float gridMin, float gridMax,
                               float gridStep, float *gridOrigin, float *gridBound, double *guardDimension)
 {
+#if defined(TCE_LINUX_LIGHTGRID_X87)
+	volatile long double reciprocal, quotient, origin, span, scaledSpan, dimension;
+	volatile double rounded;
+	volatile float high;
+
+	/* ELF rounds the retained quotient, then spills the integer to Double. */
+	reciprocal = 1.0L / (long double)gridStep;
+	quotient = reciprocal * (long double)gridMin;
+	rounded = (double)ceill(quotient);
+	origin = (long double)rounded * (long double)gridStep;
+	*gridOrigin = (float)origin;
+
+	reciprocal = 1.0L / (long double)gridStep;
+	quotient = reciprocal * (long double)gridMax;
+	rounded = (double)floorl(quotient);
+	high = (float)((long double)rounded * (long double)gridStep);
+	reciprocal = 1.0L / (long double)gridStep;
+	span = (long double)high - (long double)*gridOrigin;
+	scaledSpan = span * reciprocal;
+	dimension = scaledSpan + 1.0L;
+	*guardDimension = (double)dimension;
+	*gridBound = (float)dimension;
+#else
 	double      quotient;
 	long double high, dimension;
 
@@ -28,8 +56,17 @@ static void TCE_LightGridAxis(float gridMin, float gridMax,
 	dimension       = (high - (long double)*gridOrigin) / (long double)gridStep + 1.0L;
 	*guardDimension = (double)dimension;
 	*gridBound      = (float)dimension;
+#endif
 }
 
+#if defined(TCE_LINUX_LIGHTGRID_X87)
+static long double TCE_LightGridCountValue(const float *gridBounds)
+{
+	volatile long double count = (long double)gridBounds[1] * (long double)gridBounds[0];
+	count = count * (long double)gridBounds[2];
+	return count;
+}
+#else
 static void TCE_LightGridCount(const float *gridBounds, double *guardCount)
 {
 	long double count = (long double)gridBounds[2] * (long double)gridBounds[1];
@@ -37,6 +74,7 @@ static void TCE_LightGridCount(const float *gridBounds, double *guardCount)
 	count      *= (long double)gridBounds[0];
 	*guardCount = (double)count;
 }
+#endif
 #endif
 
 /* CG_Init fills this table before sound/graphics registration. */
@@ -89,7 +127,10 @@ qboolean TCE_CG_LoadLightGrid(const char *mapname)
 	fileHandle_t file = 0;
 	float        block[256];
 	double       dimension, count;
-#if !defined(_MSC_VER) || !defined(_M_IX86)
+#if defined(TCE_LINUX_LIGHTGRID_X87)
+	long double retainedCount;
+#endif
+#if (!defined(_MSC_VER) || !defined(_M_IX86)) && !defined(TCE_LINUX_LIGHTGRID_X87)
 	double high;
 #endif
 	tce_lightGrid_t grid;
@@ -128,7 +169,7 @@ qboolean TCE_CG_LoadLightGrid(const char *mapname)
 		{
 			goto invalid;
 		}
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(TCE_LINUX_LIGHTGRID_X87)
 		TCE_LightGridAxis(block[i], block[i + 3], grid.spacing[i],
 		                  &grid.origin[i], &grid.bounds[i], &dimension);
 #else
@@ -143,8 +184,11 @@ qboolean TCE_CG_LoadLightGrid(const char *mapname)
 			goto invalid;
 		}
 	}
-	/* Original x87 product order is Z * Y * X before truncation. */
-#if defined(_MSC_VER) && defined(_M_IX86)
+	/* Each platform keeps its original product order before truncation. */
+#if defined(TCE_LINUX_LIGHTGRID_X87)
+	retainedCount = TCE_LightGridCountValue(grid.bounds);
+	count = (double)retainedCount;
+#elif defined(_MSC_VER) && defined(_M_IX86)
 	TCE_LightGridCount(grid.bounds, &count);
 #else
 	count = (double)grid.bounds[2] * grid.bounds[1] * grid.bounds[0];
@@ -154,7 +198,11 @@ qboolean TCE_CG_LoadLightGrid(const char *mapname)
 		goto invalid;
 	}
 	/* The capacity guard makes this conversion defined on every target. */
+#if defined(TCE_LINUX_LIGHTGRID_X87)
+	sampleCount = (int)retainedCount;
+#else
 	sampleCount = (int)count;
+#endif
 	if (!SkipGridBytes(file, length, &position,
 	                   lightOffset > models && lightOffset - models > 1024?lightOffset - models - 1024:0))
 	{
