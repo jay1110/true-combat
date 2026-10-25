@@ -1,6 +1,7 @@
 #include "../game/q_shared.h"
 #include "../game/tce_bg.h"
 #include "tce_weapon_position.h"
+#include "tce_weapon_position_precision.h"
 #if defined(__linux__) && !defined(Q3_VM)
 #include "../game/tce_numeric.h"
 #endif
@@ -14,8 +15,13 @@ static void TCE_WeaponPositionInitialView(const tce_weaponPosition_t *s,
 	memcpy(angles, s->viewAngles, sizeof(vec3_t));
 	if (s->eFlags & 0x8000)
 	{
-		angles[0] = (float)((long double)s->viewAngles[0] *
-		                    (long double)0.8333333333333334);
+#if !defined(Q3_VM)
+		if (!TCE_WeaponPositionTankPitch(s->viewAngles[0], &angles[0]))
+#endif
+		{
+			angles[0] = (float)((long double)s->viewAngles[0] *
+			                    (long double)0.8333333333333334);
+		}
 	}
 	if (!s->thirdPerson && (s->weapon == 60 || s->weapon == 62) &&
 	    s->weaponState != 1)
@@ -139,11 +145,21 @@ static void TCE_WeaponPositionLean(const tce_weaponPosition_t *s, float *origin,
 		{
 			return;
 		}
-		fraction = (float)(1.0L - (long double)delta * (long double)0.005f);
+#if !defined(Q3_VM)
+		if (!TCE_WeaponPositionLeanFraction(delta, 1, &fraction))
+#endif
+		{
+			fraction = (float)(1.0L - (long double)delta * (long double)0.005f);
+		}
 	}
 	else if (delta < 200)
 	{
-		fraction = (float)((long double)delta * (long double)0.005f);
+#if !defined(Q3_VM)
+		if (!TCE_WeaponPositionLeanFraction(delta, 0, &fraction))
+#endif
+		{
+			fraction = (float)((long double)delta * (long double)0.005f);
+		}
 	}
 	if (!(fraction > 0.0f))
 	{
