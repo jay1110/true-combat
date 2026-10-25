@@ -457,6 +457,15 @@ static void TCE_WeaponPositionSway(tce_weaponPosition_t *s, float *origin, float
 	}
 	elapsed = (unsigned int)s->swayTime - (unsigned int)s->time;
 	memcpy(&delta, &elapsed, sizeof(delta));
+#if !defined(Q3_VM)
+	if (TCE_WeaponPositionSwayTargets(delta, s->viewAxis, s->priorForward,
+	                                s->velocity, target))
+	{
+		s->swayTime = s->time;
+		memcpy(s->priorForward, s->viewAxis[0], sizeof(vec3_t));
+		goto sway_step;
+	}
+#endif
 	dt = (long double)delta * (long double)0.001f;
 	if (!(dt >= (long double)0.005f))
 	{
@@ -484,6 +493,9 @@ static void TCE_WeaponPositionSway(tce_weaponPosition_t *s, float *origin, float
 	forwardVelocity += (long double)s->velocity[1] * s->viewAxis[0][1];
 	target[1]        = (float)(forwardVelocity * (long double)0.1f + upDelta);
 
+#if !defined(Q3_VM)
+sway_step:
+#endif
 	elapsed = (unsigned int)s->time - (unsigned int)s->stepTime;
 	memcpy(&stepDelta, &elapsed, sizeof(stepDelta));
 	elapsed = (unsigned int)s->proneTime + (unsigned int)s->time;

@@ -585,6 +585,182 @@ static __inline int TCE_WeaponPositionSwayState(const float target[2], int limit
 	return 1;
 }
 
+/* Divide already PC-rounded, at most 64-bit significands. Sway supplies
+ * a nonzero denominator >= Float(0.005); the quotient fits the fixed grid. */
+static __inline tceTriggerSum_t TCE_WeaponPositionQuotient(
+    const tceTriggerSum_t *numerator, const tceTriggerSum_t *denominator,
+    unsigned control)
+{
+	tceTriggerSum_t value = { { 0 }, 0 };
+	unsigned long long n = 0, d = 0, remainder, significand = 1;
+	unsigned precision, rounding, carry, increment;
+	int topN, topD, bit, exponent;
+
+	value.negative = numerator->negative ^ denominator->negative;
+	for (topN = 575; topN >= 0 && !TCE_TriggerBit(numerator, topN); --topN)
+	{
+	}
+	if (topN < 0)
+	{
+		return value;
+	}
+	for (topD = 575; !TCE_TriggerBit(denominator, topD); --topD)
+	{
+	}
+	for (bit = 0; bit < 64; ++bit)
+	{
+		n = (n << 1) | (topN >= bit ? TCE_TriggerBit(numerator, topN - bit) : 0);
+		d = (d << 1) | (topD >= bit ? TCE_TriggerBit(denominator, topD - bit) : 0);
+	}
+	exponent = topN - topD;
+	if (n >= d)
+	{
+		remainder = n - d;
+	}
+	else
+	{
+		/* Here 2*n has a carry bit and 0 <= 2*n-d < d. */
+		remainder = (n << 1) - d;
+		--exponent;
+	}
+	precision = (control & _MCW_PC) == _PC_24 ? 24u :
+	            (control & _MCW_PC) == _PC_53 ? 53u : 64u;
+	for (bit = 1; bit < (int)precision; ++bit)
+	{
+		carry = (unsigned)(remainder >> 63);
+		remainder <<= 1;
+		significand <<= 1;
+		if (carry || remainder >= d)
+		{
+			remainder -= d;
+			significand |= 1;
+		}
+	}
+	rounding = control & _MCW_RC;
+	increment = rounding == _RC_NEAR ?
+	    (remainder > d - remainder ||
+	     (remainder == d - remainder && (significand & 1))) :
+	    (remainder && ((rounding == _RC_UP && !value.negative) ||
+	                   (rounding == _RC_DOWN && value.negative)));
+	if (increment)
+	{
+		if (significand == ~0ULL)
+		{
+			significand = 1ULL << 63;
+			++exponent;
+		}
+		else
+		{
+			++significand;
+			if (precision < 64 && (significand >> precision))
+			{
+				significand >>= 1;
+				++exponent;
+			}
+		}
+	}
+	TCE_TriggerPlace(&value, significand, 298 + exponent - ((int)precision - 1));
+	return value;
+}
+
+static __inline tceTriggerSum_t TCE_WeaponPositionDot(
+    const tceTriggerSum_t a[3], const tceTriggerSum_t b[3],
+    int first, int second, int third, unsigned control)
+{
+	tceTriggerSum_t value = a[first], term;
+
+	TCE_GustMultiply(&value, &b[first], control);
+	term = a[second];
+	TCE_GustMultiply(&term, &b[second], control);
+	TCE_RotateAdd(&value, &term, control);
+	term = a[third];
+	TCE_GustMultiply(&term, &b[third], control);
+	TCE_RotateAdd(&value, &term, control);
+	return value;
+}
+
+/* All direction/history/velocity factors are zero or in 2^-64..2^24.
+ * Dot products have quantum >=2^-174; the clamped time factor is positive.
+ * Horizontal derivative is stored before adding velocity, vertical is not. */
+static __inline int TCE_WeaponPositionSwayTargets(int elapsed,
+                                                 const float axis[3][3],
+                                                 const float prior[3], const float velocity[3],
+                                                 float target[2])
+{
+	tceTriggerSum_t axes[3][3], history[3], speeds[3], difference[3];
+	tceTriggerSum_t time = { { 0 }, 0 }, minimum, coefficient, value, derivative;
+	float input, result[2];
+	unsigned control, bits, magnitude;
+	int row, component;
+
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
+	for (row = 0; row < 5; ++row)
+	{
+		for (component = 0; component < 3; ++component)
+		{
+			input = row < 3 ? axis[row][component] :
+			        row == 3 ? prior[component] : velocity[component];
+			memcpy(&bits, &input, sizeof(bits));
+			bits &= 0x7fffffffu;
+			if (bits && (bits < 0x1f800000u || bits > 0x4b800000u))
+			{
+				return 0;
+			}
+			if (row < 3)
+			{
+				TCE_TriggerProduct(&axes[row][component], input, 1.0f, control);
+			}
+			else if (row == 3)
+			{
+				TCE_TriggerProduct(&history[component], input, 1.0f, control);
+			}
+			else
+			{
+				TCE_TriggerProduct(&speeds[component], input, 1.0f, control);
+			}
+		}
+	}
+	time.negative = elapsed < 0;
+	magnitude = elapsed < 0 ? 0u - (unsigned)elapsed : (unsigned)elapsed;
+	TCE_TriggerPlace(&time, magnitude, 298);
+	TCE_TriggerProduct(&coefficient, 0.001f, 1.0f, control);
+	TCE_GustMultiply(&time, &coefficient, control);
+	TCE_TriggerProduct(&minimum, 0.005f, 1.0f, control);
+	if (TCE_TriggerCompare(&time, &minimum) < 0)
+	{
+		time = minimum;
+	}
+	for (component = 0; component < 3; ++component)
+	{
+		difference[component] = axes[0][component];
+		history[component].negative ^= 1u;
+		TCE_RotateAdd(&difference[component], &history[component], control);
+	}
+	value = TCE_WeaponPositionDot(difference, axes[1], 0, 2, 1, control);
+	derivative = TCE_WeaponPositionQuotient(&value, &time, control);
+	derivative.negative ^= 1u;
+	result[0] = TCE_RotateStore(derivative, control);
+	TCE_TriggerProduct(&derivative, result[0], 1.0f, control);
+	value = TCE_WeaponPositionDot(speeds, axes[1], 1, 0, 2, control);
+	TCE_TriggerProduct(&coefficient, 0.1f, 1.0f, control);
+	TCE_GustMultiply(&value, &coefficient, control);
+	TCE_RotateAdd(&value, &derivative, control);
+	result[0] = TCE_RotateStore(value, control);
+	value = TCE_WeaponPositionDot(difference, axes[2], 2, 1, 0, control);
+	derivative = TCE_WeaponPositionQuotient(&value, &time, control);
+	derivative.negative ^= 1u;
+	value = TCE_WeaponPositionDot(speeds, axes[0], 2, 0, 1, control);
+	TCE_GustMultiply(&value, &coefficient, control);
+	TCE_RotateAdd(&value, &derivative, control);
+	result[1] = TCE_RotateStore(value, control);
+	memcpy(target, result, sizeof(result));
+	return 1;
+}
+
 /* FILD32, multiply by the stored Float 0.005, optionally subtract from
  * one, then FSTP32. The integer import is exact even with PC24 selected. */
 static __inline int TCE_WeaponPositionLeanFraction(int elapsed, int fading,
