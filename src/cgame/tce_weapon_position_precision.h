@@ -38,8 +38,8 @@ static __inline int TCE_WeaponPositionTankPitch(float pitch, float *result)
 	return 1;
 }
 
-/* Each of the three movement factors is zero or within 2^-32..2^24.
- * Their exact product has no bits below 2^-165 and magnitude at most 2^72;
+/* Each of the three movement factors is zero or within 2^-64..2^24.
+ * Their exact product has no bits below 2^-261 and magnitude at most 2^72;
  * this leaves room for a finite Float origin in the fixed representation. */
 static __inline int TCE_WeaponPositionLeanOffset(float fraction, float roll,
                                                 float axis, float origin,
@@ -57,7 +57,7 @@ static __inline int TCE_WeaponPositionLeanOffset(float fraction, float roll,
 	{
 		memcpy(&bits, &factors[i], sizeof(bits));
 		bits &= 0x7fffffffu;
-		if (bits && (bits < 0x2f800000u || bits > 0x4b800000u))
+		if (bits && (bits < 0x1f800000u || bits > 0x4b800000u))
 		{
 			return 0;
 		}
@@ -88,7 +88,7 @@ static __inline int TCE_WeaponPositionLeanScaledOffset(float lean, float fractio
 
 	memcpy(&bits, &lean, sizeof(bits));
 	bits &= 0x7fffffffu;
-	if (bits && (bits < 0x30800000u || bits > 0x4b800000u))
+	if (bits && (bits < 0x20800000u || bits > 0x4b800000u))
 	{
 		return 0;
 	}
@@ -106,19 +106,13 @@ static __inline int TCE_WeaponPositionLeanScaledOffset(float lean, float fractio
 }
 
 /* The wrapped integer magnitude is imported by FILD32 before FMUL half.
- * Its product with the bounded fraction is a multiple of 2^-56 at worst. */
+ * Any finite Float fraction gives a product quantum of at least 2^-150. */
 static __inline int TCE_WeaponPositionLeanPitch(int magnitude, float fraction,
                                                float pitch, float *result)
 {
 	tceTriggerSum_t value = { { 0 }, 0 }, factor, start;
-	unsigned bits, control, absolute;
+	unsigned control, absolute;
 
-	memcpy(&bits, &fraction, sizeof(bits));
-	bits &= 0x7fffffffu;
-	if (bits && (bits < 0x2f800000u || bits > 0x4b800000u))
-	{
-		return 0;
-	}
 	__control87_2(0, 0, &control, NULL);
 	if (!TCE_FiniteExceptionsMasked(control) ||
 	    !TCE_TriggerProduct(&factor, fraction, 1.0f, control) ||
@@ -209,7 +203,7 @@ static __inline tceTriggerSum_t TCE_WeaponPositionPostureReciprocal(
 
 /* Posture kind: prone, stance, duck. Retain the two native divisions and
  * each scaled direction until its addition to the stored Float origin.
- * Publish only after all bounded, finite calculations have succeeded. */
+ * Every finite Float axis fits; publish only after all stages succeed. */
 static __inline int TCE_WeaponPositionPosture(int elapsed, int active, int kind,
                                              const float axis[3][3],
                                              float origin[3], float angles[3])
@@ -217,7 +211,7 @@ static __inline int TCE_WeaponPositionPosture(int elapsed, int active, int kind,
 	tceTriggerSum_t fraction = { { 0 }, 0 }, denominator, one = { { 0 }, 0 };
 	tceTriggerSum_t scale, amount, direction, start, value;
 	float positions[3], rotations[3], coefficient;
-	unsigned control, magnitude, bits;
+	unsigned control, magnitude;
 	int stage, stages, component, directionIndex, rotationIndex;
 
 	if ((active && elapsed <= 0) || (!active && elapsed >= 200))
@@ -256,10 +250,7 @@ static __inline int TCE_WeaponPositionPosture(int elapsed, int active, int kind,
 		TCE_GustMultiply(&amount, &scale, control);
 		for (component = 0; component < 3; ++component)
 		{
-			memcpy(&bits, &axis[directionIndex][component], sizeof(bits));
-			bits &= 0x7fffffffu;
-			if ((bits && (bits < 0x2f800000u || bits > 0x4b800000u)) ||
-			    !TCE_TriggerProduct(&direction, axis[directionIndex][component], 1.0f, control) ||
+			if (!TCE_TriggerProduct(&direction, axis[directionIndex][component], 1.0f, control) ||
 			    !TCE_TriggerProduct(&start, positions[component], 1.0f, control))
 			{
 				return 0;
@@ -290,7 +281,7 @@ static __inline int TCE_WeaponPositionPosture(int elapsed, int active, int kind,
 }
 
 /* Native bob uses three Float factors, then a stored Double coefficient.
- * The bounded factors give a product quantum no smaller than 2^-225. */
+ * Factors in 2^-56..2^24 give a product quantum no smaller than 2^-297. */
 static __inline int TCE_WeaponPositionBobFinite(float bob, float speed, float scale,
                                                int reverse, float angles[3])
 {
@@ -306,7 +297,7 @@ static __inline int TCE_WeaponPositionBobFinite(float bob, float speed, float sc
 	{
 		memcpy(&bits, &factors[i], sizeof(bits));
 		bits &= 0x7fffffffu;
-		if (bits && (bits < 0x2f800000u || bits > 0x4b800000u))
+		if (bits && (bits < 0x23800000u || bits > 0x4b800000u))
 		{
 			return 0;
 		}
@@ -345,21 +336,16 @@ static __inline int TCE_WeaponPositionBobFinite(float bob, float speed, float sc
 }
 
 /* Landing uses an exact signed integer import, then a Float product and
- * the native Double reciprocal. No Float spill occurs before adding Z. */
+ * the native Double reciprocal. Any finite Float change fits; no Float
+ * spill occurs before adding Z. */
 static __inline int TCE_WeaponPositionLandingFinite(int elapsed, float change,
                                                    float origin, float *result)
 {
 	tceTriggerSum_t value = { { 0 }, 0 }, factor, coefficient = { { 0 }, 0 }, start;
-	unsigned bits, control, magnitude;
+	unsigned control, magnitude;
 	int time = elapsed < 150 ? elapsed : 450 - elapsed;
 
 	if (elapsed >= 450)
-	{
-		return 0;
-	}
-	memcpy(&bits, &change, sizeof(bits));
-	bits &= 0x7fffffffu;
-	if (bits && (bits < 0x2f800000u || bits > 0x4b800000u))
 	{
 		return 0;
 	}
@@ -382,19 +368,13 @@ static __inline int TCE_WeaponPositionLandingFinite(int elapsed, float change,
 }
 
 /* Tactical offsets retain FILD32, subtraction of 2000, two Float products,
- * and angle addition until the final Float store. */
+ * and angle addition until the final Float store. Any finite scale fits. */
 static __inline int TCE_WeaponPositionTacticalAngle(int input, float scale,
                                                    float angle, float *result)
 {
 	tceTriggerSum_t value = { { 0 }, 0 }, center, factor, coefficient, start;
-	unsigned bits, control, magnitude;
+	unsigned control, magnitude;
 
-	memcpy(&bits, &scale, sizeof(bits));
-	bits &= 0x7fffffffu;
-	if (bits && (bits < 0x2f800000u || bits > 0x4b800000u))
-	{
-		return 0;
-	}
 	__control87_2(0, 0, &control, NULL);
 	if (!TCE_FiniteExceptionsMasked(control) ||
 	    !TCE_TriggerProduct(&factor, scale, 1.0f, control) ||
@@ -440,7 +420,7 @@ static __inline int TCE_WeaponPositionSwayOffsets(float horizontal, float vertic
 		{
 			memcpy(&bits, &axis[stage + 1][component], sizeof(bits));
 			bits &= 0x7fffffffu;
-			if (bits && (bits < 0x30800000u || bits > 0x4b800000u))
+			if (bits && (bits < 0x20800000u || bits > 0x4b800000u))
 			{
 				return 0;
 			}
