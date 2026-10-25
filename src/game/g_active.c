@@ -2,6 +2,7 @@
 #include "g_local.h"
 #include "tce_numeric.h"
 #include "tce_trigger_precision.h"
+#include "tce_endframe_precision.h"
 #ifdef FEATURE_OMNIBOT
 #include "g_etbot_interface.h"
 #endif
@@ -2486,15 +2487,20 @@ void ClientEndFrame(gentity_t *ent)
 	/* TC +e8: stats6 stores the skill total; stats8 remains weapon flags. */
 	client->ps.stats[6] = 0;
 	for (i = 0; i < 7; ++i)
+	{
 		/* 20047662..2004766b: FILD integer, FADD binary32 skill, then
 		 * truncate directly; no intervening binary32 rounding. */
-#if defined(__linux__) && !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		client->ps.stats[6] = TCE_EndFrameSkillTotal(client->ps.stats[6],
+		                                             client->sess.skillpoints[i]);
+#elif defined(__linux__) && !defined(Q3_VM)
 		client->ps.stats[6] = TCE_TruncateNativeInteger(
 			(long double)client->ps.stats[6] + (long double)client->sess.skillpoints[i]);
 #else
 		client->ps.stats[6] = TCE_TruncateNativeInteger(
 			(double)client->ps.stats[6] + (double)client->sess.skillpoints[i]);
 #endif
+	}
 	if (level.match_pause != PAUSE_NONE)
 	{
 		int delta = TCE_SubInt32(level.time, level.previousTime);
@@ -2503,7 +2509,14 @@ void ClientEndFrame(gentity_t *ent)
 		client->lastBurnTime                       = TCE_AddInt32(client->lastBurnTime, delta);
 		client->pers.connectTime                   = TCE_AddInt32(client->pers.connectTime, delta);
 		client->pers.enterTime                     = TCE_AddInt32(client->pers.enterTime, delta);
-#if defined(__linux__) && !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		client->pers.teamState.lastreturnedflag = TCE_EndFramePausedClock(
+			delta, client->pers.teamState.lastreturnedflag);
+		client->pers.teamState.lasthurtcarrier = TCE_EndFramePausedClock(
+			delta, client->pers.teamState.lasthurtcarrier);
+		client->pers.teamState.lastfraggedcarrier = TCE_EndFramePausedClock(
+			delta, client->pers.teamState.lastfraggedcarrier);
+#elif defined(__linux__) && !defined(Q3_VM)
 		client->pers.teamState.lastreturnedflag = (float)(
 			(long double)client->pers.teamState.lastreturnedflag + delta);
 		client->pers.teamState.lasthurtcarrier = (float)(
