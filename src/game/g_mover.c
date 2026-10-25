@@ -10,6 +10,7 @@
 #include "tce_numeric.h"
 #include "tce_x87_sum.h"
 #include "tce_train_precision.h"
+#include "tce_explosive_precision.h"
 
 /* TC keeps 51 string slots, including three trailing null pointers. */
 enum { TCE_HINT_STRING_COUNT = 51 };
@@ -4884,7 +4885,7 @@ func_explosive_explode
 */
 void func_explosive_explode(gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int damage, int mod)
 {
-#if !defined(_MSC_VER) || !defined(_M_IX86)
+#if (!defined(_MSC_VER) || !defined(_M_IX86)) && !(defined(_WIN32) && !defined(Q3_VM))
 	vec3_t origin;
 	vec3_t size;
 #endif
@@ -4900,7 +4901,7 @@ void func_explosive_explode(gentity_t *self, gentity_t *inflictor, gentity_t *at
 	self->takedamage = qfalse;          // don't allow anything try to hurt me now that i'm exploding
 
 	self->think     = BecomeExplosion;
-#if defined(__linux__) && !defined(Q3_VM)
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 	self->nextthink = TCE_AddInt32(level.time, FRAMETIME);
 #else
 	self->nextthink = level.time + FRAMETIME;
@@ -4916,7 +4917,10 @@ void func_explosive_explode(gentity_t *self, gentity_t *inflictor, gentity_t *at
 			self->s.pos.trBase[axis] = (float)((long double)self->r.absmin[axis] + halfSize);
 		}
 	}
-#elif defined(_MSC_VER) && defined(_M_IX86)
+#elif (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(Q3_VM))
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	if (!TCE_ExplosiveCenterFinite(self->r.absmin, self->r.absmax, self->s.pos.trBase))
+#endif
 	{
 		long double centerX = ((long double)self->r.absmax[0] - self->r.absmin[0]) * 0.5L
 		                    + self->r.absmin[0];
@@ -4943,7 +4947,7 @@ void func_explosive_explode(gentity_t *self, gentity_t *inflictor, gentity_t *at
 	G_UseTargets(self, attacker);
 
 	self->s.density = self->count;      // pass the "mass" to the client
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_MSC_VER) && defined(_M_IX86)) || ((defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM))
 	self->s.weapon = TCE_TruncateNativeInteger((long double)self->duration);
 #else
 	self->s.weapon = self->duration;    // pass the "force lowgrav" to client
@@ -4953,7 +4957,12 @@ void func_explosive_explode(gentity_t *self, gentity_t *inflictor, gentity_t *at
 	if (self->damage)
 	{
 //		G_RadiusDamage(self->s.origin, self, self->damage, self->damage+40, self, MOD_EXPLOSIVE);
-#if defined(__linux__) && !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		G_RadiusDamage(self->s.pos.trBase, NULL, self,
+		               TCE_ExplosiveIntegerArgument(self->damage),
+		               TCE_ExplosiveIntegerArgument(TCE_AddInt32(self->damage, 40)),
+		               self, MOD_EXPLOSIVE);
+#elif (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 		G_RadiusDamage(self->s.pos.trBase, NULL, self, self->damage,
 		               TCE_AddInt32(self->damage, 40), self, MOD_EXPLOSIVE);
 #else
@@ -4991,7 +5000,7 @@ void func_explosive_explode(gentity_t *self, gentity_t *inflictor, gentity_t *at
 	// if a valid target entity was not found, check for a specified 'angle' for the explosion direction
 	if (!tent)
 	{
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_MSC_VER) && defined(_M_IX86)) || ((defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM))
 		if (!TCE_FloatIsZeroOrNaN(self->s.angles[1]))
 		{
 #else
