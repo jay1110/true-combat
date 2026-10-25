@@ -5,6 +5,24 @@
 /* Windows 3002a870 / Linux 000579a4. Both normalize the caller's direction. */
 
 
+/* The producer discards the native normalize return, but retains its vector. */
+static void impactNormalize(vec3_t direction)
+{
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	tceTriggerSum_t length;
+	float normalized[3];
+	unsigned control;
+
+	__control87_2(0, 0, &control, NULL);
+	if (TCE_FiniteNormalizeVector(direction, normalized, &length, control))
+	{
+		VectorCopy(normalized, direction);
+		return;
+	}
+#endif
+	VectorNormalize(direction);
+}
+
 /* Stored-float boundaries and platform arithmetic order from the originals. */
 static float impactMultiply(float first, float second)
 {
@@ -331,14 +349,14 @@ dustCommon: color[3] = impactMultiply(alpha, .6f); count = 0; life = 200; trajec
 	{
 		color[j] = impactMultiply(color[j], light[j]); chipColor[j] = impactMultiply(chipColor[j], light[j]);
 	}
-	VectorNormalize(direction);
+	impactNormalize(direction);
 	for (i = 0; i < count; ++i)
 	{
 		float radius; int duration; float scale;
 		scale = randomScale + 1.0f;
 		for (j = 0; j < 3; ++j)
 			velocity[j] = impactDirectionComponent(direction[j], qfalse);
-		VectorNormalize(velocity);
+		impactNormalize(velocity);
 		for (j = 0; j < 3; ++j)
 			velocity[j] = impactChipSpeed(velocity[j], scale);
 		duration   = impactChipLifetime();
@@ -360,7 +378,7 @@ dustCommon: color[3] = impactMultiply(alpha, .6f); count = 0; life = 200; trajec
 			float factor, size, duration, g; int trDuration;
 			for (j = 0; j < 3; ++j)
 				velocity[j] = impactDirectionComponent(originalDirection[j], qtrue);
-			VectorNormalize(velocity);
+			impactNormalize(velocity);
 #if defined(__linux__)
 			{
 				long double speed = impactSmokeSpeed(randomScale, speedScale);

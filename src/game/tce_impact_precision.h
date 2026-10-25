@@ -3,6 +3,7 @@
 
 #if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 #include "tce_gust_precision.h"
+#include "tce_normalize_precision.h"
 
 /* The caller has already consumed its one masked CRT random sample. These
  * bounded chains stay above the fixed grid's 2^-298 quantum throughout. */
