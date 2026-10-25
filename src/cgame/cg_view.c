@@ -1671,6 +1671,22 @@ static void CG_TCECaptureSoundZone(const entityState_t *es, tceRoomZoneSnapshot_
 #endif
 }
 
+static float CG_TCEEnvironmentFraction(int value)
+{
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	float result;
+	if (TCE_AmbientEnvironmentFraction(value, &result))
+	{
+		return result;
+	}
+#elif defined(TCE_LINUX_ROOM_X87)
+	/* FILD32 is exact; only the scaled value is stored as Float. */
+	volatile long double scaled = (long double)value * (long double)(1.0f / 255.0f);
+	return (float)scaled;
+#endif
+	return value * (1.0f / 255.0f);
+}
+
 #if defined(TCE_LINUX_ROOM_X87)
 static void CG_TCEPublishGlobalSoundZone(const tceRoomZoneSnapshot_t *value)
 {
@@ -1744,17 +1760,114 @@ static float CG_TCERoomBlend(float previous, float sample, float scale)
 }
 #endif
 
+#if defined(TCE_LINUX_ROOM_X87)
+static void CG_TCEFilterRoom(const vec3_t low, const vec3_t high,
+                             float distance, float hardness, int sky)
+{
+	volatile long double decay = (long double).6667f;
+	volatile long double fresh = 1.0L - decay;
+	volatile float scaledDistance = .125L * (long double)distance;
+	volatile float scaledHardness = .0625L * (long double)hardness;
+	volatile long double span, contribution, previous, extent[3];
+	volatile long double filteredDistance, filteredHardness, filteredSky;
+	volatile long double decayedWeight[4], boosted;
+	float weight;
+	int axis, kind;
+
+	for (axis = 0; axis < 3; ++axis)
+	{
+		span = (long double)high[axis] - (long double)low[axis];
+		contribution = span * fresh;
+		previous = decay * (long double)cg.tceRoomExtent[axis];
+		extent[axis] = previous + contribution;
+	}
+	contribution = (long double)scaledDistance * fresh;
+	previous = decay * (long double)cg.tceRoomDistance;
+	filteredDistance = contribution + previous;
+	for (axis = 0; axis < 3; ++axis)
+	{
+		cg.tceRoomExtent[axis] = (float)extent[axis];
+	}
+	cg.tceRoomDistance = (float)filteredDistance;
+	previous = decay * (long double)cg.tceRoomHardness;
+	contribution = (long double)scaledHardness * fresh;
+	filteredHardness = previous + contribution;
+	cg.tceRoomHardness = (float)filteredHardness;
+	previous = decay * (long double)cg.tceRoomSky;
+	contribution = (long double)sky * fresh;
+	filteredSky = previous + contribution;
+	cg.tceRoomSky = (float)filteredSky;
+	for (kind = 0; kind < 4; ++kind)
+	{
+		decayedWeight[kind] = decay * (long double)cg.tceRoomWeights[kind];
+		cg.tceRoomWeights[kind] = (float)decayedWeight[kind];
+	}
+	/* The first decision uses the held distance and hardness, not their stores. */
+	if (!(filteredDistance >= 200.0L) && filteredHardness > (long double).8f)
+	{
+		boosted = decayedWeight[1] + fresh;
+		cg.tceRoomWeights[1] = (float)boosted;
+	}
+	else
+	{
+		if (cg.tceRoomSky >= 1.0f && cg.tceRoomDistance > 400.0f)
+		{
+			kind = 3;
+		}
+		else if (!(cg.tceRoomExtent[2] >= 150.0f))
+		{
+			volatile long double horizontal = (long double)cg.tceRoomExtent[1] +
+			                                  (long double)cg.tceRoomExtent[0];
+			if (horizontal > 600.0L && cg.tceRoomHardness > .8f)
+			{
+				kind = 2;
+			}
+			else
+			{
+				kind = 0;
+			}
+		}
+		else
+		{
+			kind = 0;
+		}
+		boosted = fresh + (long double)cg.tceRoomWeights[kind];
+		cg.tceRoomWeights[kind] = (float)boosted;
+	}
+	weight = cg.tceRoomWeights[0];
+	cg.tceSoundEnvironment = 0;
+	if (cg.tceRoomWeights[1] > weight)
+	{
+		weight = cg.tceRoomWeights[1];
+		cg.tceSoundEnvironment = 1;
+	}
+	if (cg.tceRoomWeights[2] > weight)
+	{
+		weight = cg.tceRoomWeights[2];
+		cg.tceSoundEnvironment = 0;
+	}
+	if (cg.tceRoomWeights[3] > weight)
+	{
+		cg.tceSoundEnvironment = 3;
+	}
+}
+#endif
+
 static void CG_EliteSndEffects(void)
 {
 	vec3_t              low = { 0, 0, 0 }, high = { 0, 0, 0 }, corner, signs, dir, end, start;
-	float               distance = 0, hardness = 0, weight;
+	float               distance = 0, hardness = 0;
+#if !defined(TCE_LINUX_ROOM_X87)
+	float weight;
+	int j, kind;
+#endif
 #if defined(TCE_LINUX_ROOM_X87)
 	volatile float nearest = 1e8f, inRadius = 1e8f;
 	volatile long double dist;
 #else
 	float nearest = 1e8f, inRadius = 1e8f, dist;
 #endif
-	int                 sky = 0, i, j, axis, kind, closest = -1, bounded = -1, bank;
+	int                 sky = 0, i, axis, closest = -1, bounded = -1, bank;
 	int                 sampleTime = cg.time, timeUntilSample;
 	unsigned            sampleBits;
 	const entityState_t *global = NULL, *selected;
@@ -1804,6 +1917,9 @@ static void CG_EliteSndEffects(void)
 			CG_TCECollectRoomTrace(&tr, corner, low, high, &distance, &hardness, &sky, qtrue);
 		}
 	}
+#if defined(TCE_LINUX_ROOM_X87)
+	CG_TCEFilterRoom(low, high, distance, hardness, sky);
+#else
 	for (j = 0; j < 3; j++)
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 		cg.tceRoomExtent[j] = CG_TCERoomExtent(cg.tceRoomExtent[j], high[j], low[j], j);
@@ -1854,6 +1970,7 @@ static void CG_EliteSndEffects(void)
 			cg.tceSoundEnvironment = 3;
 		}
 	}
+#endif
 	if (trap_CM_PointContents(cg.snap->ps.origin, 0) & 0x2000)
 	{
 		cg.tceSoundEnvironment = 0;
@@ -1877,9 +1994,15 @@ static void CG_EliteSndEffects(void)
 #if (defined(_WIN32) && !defined(Q3_VM)) || defined(TCE_LINUX_ROOM_X87)
 			CG_TCECaptureSoundZone(es, &globalZone);
 #endif
+#if (defined(_WIN32) && !defined(Q3_VM)) || defined(TCE_LINUX_ROOM_X87)
+			cg.tceEnvironmentOutdoor = CG_TCEEnvironmentFraction(es->frame);
+			cg.tceEnvironmentDefault = CG_TCEEnvironmentFraction(es->effect2Time);
+			cg.tceEnvironmentSun     = CG_TCEEnvironmentFraction(es->nextWeapon);
+#else
 			cg.tceEnvironmentOutdoor = es->frame * (1.0f / 255.0f);
 			cg.tceEnvironmentDefault = es->effect2Time * (1.0f / 255.0f);
 			cg.tceEnvironmentSun     = es->nextWeapon * (1.0f / 255.0f);
+#endif
 		}
 		else
 		{

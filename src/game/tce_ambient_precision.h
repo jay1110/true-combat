@@ -5,6 +5,28 @@
 #include "tce_gust_precision.h"
 #include "tce_interpolation_precision.h"
 
+/* Signed FILD32 followed by a reciprocal product and a Float store.
+ * The product is a multiple of 2^-31 with magnitude below 2^24, so the
+ * fixed multiplier discards no low bits and cannot clip the high end. */
+static __inline int TCE_AmbientEnvironmentFraction(int input, float *result)
+{
+	tceTriggerSum_t value = { { 0 }, 0 }, scale;
+	unsigned control, magnitude;
+
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
+	value.negative = input < 0;
+	magnitude = input < 0 ? 0u - (unsigned)input : (unsigned)input;
+	TCE_TriggerPlace(&value, magnitude, 298);
+	TCE_TriggerProduct(&scale, 1.0f / 255.0f, 1.0f, control);
+	TCE_GustMultiply(&value, &scale, control);
+	*result = TCE_RotateStore(value, control);
+	return 1;
+}
+
 /* The native ray sampler stores only after scaling, subtracting one half,
  * and doubling. The masked random integer is exactly representable in Float. */
 static __inline int TCE_AmbientRoomRandom(unsigned sample, float *result)
