@@ -1,6 +1,7 @@
 #include "cg_local.h"
 #include "tce_impact_particles.h"
 #include "tce_lightgrid.h"
+#include "tce_impact_precision.h"
 /* Windows 3002a870 / Linux 000579a4. Both normalize the caller's direction. */
 
 
@@ -8,6 +9,12 @@
 static float impactMultiply(float first, float second)
 {
 	float result;
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	if (TCE_FiniteProductStore(first, second, &result))
+	{
+		return result;
+	}
+#endif
 #if defined(_MSC_VER) && defined(_M_IX86)
 	result = first * second;
 #else
@@ -21,6 +28,12 @@ static float impactRandomOutput(int mode)
 	const float  randomUnit = 1.0f / 32767.0f, randomHalf = .5f, angleCircle = 360.0f;
 	const double centeredHalf = .5, chipSpin = 720.0, smokeSpin = 90.0;
 	float        result;
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	if (TCE_ImpactFiniteRandom(sample, mode, &result))
+	{
+		return result;
+	}
+#endif
 #if defined(_MSC_VER) && defined(_M_IX86)
 	long double value = (long double)sample * (long double)randomUnit;
 	if (mode == 1)
@@ -71,6 +84,12 @@ static int impactChipLifetime(void)
 {
 	int         sample = rand() & 32767, result;
 	const float randomUnit = 1.0f / 32767.0f, lifeOne = 1.0f, lifeBase = 500.0f;
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	if (TCE_ImpactFiniteLifetime(sample, &result))
+	{
+		return result;
+	}
+#endif
 #if defined(_MSC_VER) && defined(_M_IX86)
 	result = (int)(((long double)sample * (long double)randomUnit +
 	                (long double)lifeOne) * (long double)lifeBase);
@@ -174,6 +193,12 @@ static float impactDirectionComponent(float base, qboolean dust)
 	const float  randomUnit = 1.0f / 32767.0f;
 	const double randomHalf = 0.5, dustSpread = 0.25;
 	float        component;
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	if (TCE_ImpactFiniteDirection(sample, base, dust, &component))
+	{
+		return component;
+	}
+#endif
 #if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
 	long double value = (long double)sample * (long double)randomUnit;
 	value -= (long double)randomHalf;
