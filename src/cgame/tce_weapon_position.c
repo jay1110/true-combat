@@ -624,6 +624,60 @@ static int nativeLeanMagnitude(float lean)
 	memcpy(&value, &bits, sizeof(value));
 	return value;
 }
+static void nativeLeanPosition(const tce_weaponPosition_t *s, float origin[3],
+                                float angles[3])
+{
+	int delta, i;
+	long double fraction = 1.0L;
+	volatile long double amount;
+	volatile float storedFraction;
+	vec3_t right, up;
+
+	if (TCE_FloatIsZeroOrNaN(s->lean))
+	{
+		return;
+	}
+	delta = nativePositionTime((unsigned int)s->time - (unsigned int)s->leanTime);
+	if (s->aiming)
+	{
+		fraction = delta < 200 ? 1.0L - (long double)delta * (long double)0.005f : 0.0L;
+	}
+	else if (delta < 200)
+	{
+		fraction = (long double)delta * (long double)0.005f;
+	}
+	if (!(fraction > 0.0L))
+	{
+		return;
+	}
+
+	/* The first roll uses the held factor; AngleVectors follows its Float spill. */
+	amount = 0.5L * (long double)s->lean;
+	amount = amount * fraction;
+	angles[2] = (float)((long double)angles[2] - amount);
+	storedFraction = (float)fraction;
+	AngleVectors(angles, NULL, right, up);
+	for (i = 0; i < 3; ++i)
+	{
+		amount = (long double)angles[2] * (long double)storedFraction;
+		amount = amount * (long double)right[i];
+		origin[i] = (float)(amount + (long double)origin[i]);
+	}
+	amount = (long double)nativeLeanMagnitude(s->lean) * (long double)storedFraction;
+	amount = amount * 0.5L;
+	angles[0] = (float)(amount + (long double)angles[0]);
+
+	AngleVectors(s->viewAngles, NULL, right, NULL);
+	for (i = 0; i < 3; ++i)
+	{
+		amount = (long double)s->lean * 0.25L;
+		amount = -amount;
+		amount = amount * (long double)storedFraction;
+		amount = amount * (long double)right[i];
+		origin[i] = (float)(amount + (long double)origin[i]);
+	}
+}
+
 static void nativeRecoilPosition(tce_weaponPosition_t *s, float origin[3],
                                  float angles[3], int scoped)
 {
@@ -865,32 +919,21 @@ void TCE_CG_CalculateWeaponPosition(tce_weaponPosition_t *s, float *origin, floa
 	posture(s, origin, angles, s->flags_3407dfb0 & 0x4000, s->stanceTime, 1);
 	posture(s, origin, angles, s->pmFlags & 4, s->duckTime, 2);
 #if defined(__linux__) && !defined(Q3_VM)
-	delta = nativePositionTime((unsigned int)s->time - (unsigned int)s->leanTime);
+	nativeLeanPosition(s, origin, angles);
 #else
 	delta = s->time - s->leanTime;
-#endif
 	f = s->aiming?(delta < 200?(float)(1.0 - delta * (double).005f):0.0f):
 	    (delta < 200?(float)(delta * (double).005f):1.0f);
-	if (
-#if defined(__linux__) && !defined(Q3_VM)
-		!TCE_FloatIsZeroOrNaN(s->lean)
-#else
-		s->lean != 0
-#endif
-		&& f > 0)
+	if (s->lean != 0 && f > 0)
 	{
 		angles[2] = (float)(angles[2] - s->lean * .5 * f);
 		AngleVectors(angles, NULL, right, up);
 		translate(origin, right, (double)f * angles[2]);
-#if defined(__linux__) && !defined(Q3_VM)
-		angles[0] = (float)((long double)angles[0] +
-		                    (long double)nativeLeanMagnitude(s->lean) * (long double)f * 0.5L);
-#else
 		angles[0] = (float)(angles[0] + abs((int)s->lean) * .5 * f);
-#endif
 		AngleVectors(s->viewAngles, NULL, right, NULL);
 		translate(origin, right, -s->lean * .25 * f);
 	}
+#endif
 #if defined(__linux__) && !defined(Q3_VM)
 	nativeRecoilPosition(s, origin, angles, scoped);
 #else
