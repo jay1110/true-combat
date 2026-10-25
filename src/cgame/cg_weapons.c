@@ -11,6 +11,7 @@
 #include "tce_weapon_media.h"
 #include "tce_weapon_offset.h"
 #include "tce_weapon_position.h"
+#include "tce_weapon_flash_color.h"
 #include "tce_flash.h"
 #include "../game/tce_numeric.h"
 #include "tce_fragment_sound.h"
@@ -2469,8 +2470,8 @@ void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 	{
 		int lifetime = ps && !cg.renderingThirdPerson && weaponNum == 46 &&
 		               TCE_SubInt32(cg.time, cg.zoomTime) < 600 ? 50 : 30;
-		int color = (int)((double)cg.tceSparkIntensity * 255.0);
-		flash.shaderRGBA[0] = flash.shaderRGBA[1] = flash.shaderRGBA[2] = (byte)color;
+		byte color = TCE_WeaponFlashColor(cg.tceSparkIntensity);
+		flash.shaderRGBA[0] = flash.shaderRGBA[1] = flash.shaderRGBA[2] = color;
 		flash.shaderRGBA[3] = 255;
 		if (TCE_SubInt32(cg.time, cent->muzzleFlashTime) < lifetime)
 		{
