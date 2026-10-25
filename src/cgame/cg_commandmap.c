@@ -1773,7 +1773,7 @@ void CG_DrawMortarMarker(int px, int py, int pw, int ph, qboolean draw, mapSciss
 					{
 						// near the edge of the map, fit into it
 #if defined(__linux__) && !defined(Q3_VM)
-						if ((long double)point[0] + 8.0L > (long double)TCE_AddInt32(px, pw))
+						if (!((long double)TCE_AddInt32(px, pw) >= (long double)point[0] + 8.0L))
 #else
 						if (point[0] + 8.f > (px + pw))
 #endif
@@ -1781,7 +1781,7 @@ void CG_DrawMortarMarker(int px, int py, int pw, int ph, qboolean draw, mapSciss
 							point[0] -= 8.f;
 						}
 #if defined(__linux__) && !defined(Q3_VM)
-						else if ((long double)point[0] - 8.0L < (long double)px)
+						else if (!((long double)point[0] - 8.0L >= (long double)px))
 #else
 						else if (point[0] - 8.f < px)
 #endif
@@ -1790,7 +1790,7 @@ void CG_DrawMortarMarker(int px, int py, int pw, int ph, qboolean draw, mapSciss
 						}
 
 #if defined(__linux__) && !defined(Q3_VM)
-						if ((long double)point[1] + 8.0L > (long double)TCE_AddInt32(py, ph))
+						if (!((long double)TCE_AddInt32(py, ph) >= (long double)point[1] + 8.0L))
 #else
 						if (point[1] + 8.f > (py + ph))
 #endif
@@ -1798,7 +1798,7 @@ void CG_DrawMortarMarker(int px, int py, int pw, int ph, qboolean draw, mapSciss
 							point[1] -= 8.f;
 						}
 #if defined(__linux__) && !defined(Q3_VM)
-						else if ((long double)point[1] - 8.0L < (long double)py)
+						else if (!((long double)point[1] - 8.0L >= (long double)py))
 #else
 						else if (point[1] - 8.f < py)
 #endif
@@ -1811,7 +1811,7 @@ void CG_DrawMortarMarker(int px, int py, int pw, int ph, qboolean draw, mapSciss
 
 				trap_R_SetColor(colour);
 #if defined(__linux__) && !defined(Q3_VM)
-				CG_DrawRotatedPic(point[0] - 8.f, point[1] - 8.f, 16, 16, cgs.media.ccMortarHit, .5f - (cg.mortarFireAngles[YAW] + 45.f) * 0.0027777778f);
+				CG_DrawRotatedPic(point[0] - 8.f, point[1] - 8.f, 16, 16, cgs.media.ccMortarHit, TCE_MortarMapAngle(cg.mortarFireAngles[YAW]));
 #else
 				CG_DrawRotatedPic(point[0] - 8.f, point[1] - 8.f, 16, 16, cgs.media.ccMortarHit, .5f - (cg.mortarFireAngles[YAW] /*- 180.f */ + 45.f) / 360.f);
 #endif

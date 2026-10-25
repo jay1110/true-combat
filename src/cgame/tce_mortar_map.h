@@ -61,5 +61,10 @@ static __inline void TCE_MortarMapOffset(float *point, int px, int py,
 	point[0] = (float)((long double)point[0] + ((long double)px - scissor->tl[0]));
 	point[1] = (float)(((long double)py - scissor->tl[1]) + point[1]);
 }
+
+static __inline float TCE_MortarMapAngle(float yaw)
+{
+	return (float)(0.5L - ((long double)yaw + 45.0L) * (long double)0.0027777778f);
+}
 #endif
 #endif
