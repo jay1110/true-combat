@@ -23,6 +23,7 @@
 #include "tce_weapon_recoil.h"
 #include "tce_weapon_cycle.h"
 #include "tce_impact_particles.h"
+#include "tce_mortar_precision.h"
 #include "../game/bg_classes.h"
 
 vec3_t ejectBrassCasingOrigin;
@@ -4818,15 +4819,11 @@ void CG_MortarEFX(centity_t *cent)
 	if (cent->currentState.density & 2)
 	{
 		float intensity;
-#if defined(_MSC_VER) && defined(_M_IX86)
-		int                 sample = rand() & 31;
-		static const double lightNumerator = 8.0, lightOffset = 0.75;
-		/* TC3007597c: one final float store, including original sample-zero case. */
-		__asm {
-			fild sample
-			fdivr lightNumerator
-			fadd lightOffset
-			fstp intensity
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		int sample = rand() & 31;
+		if (!TCE_MortarLightFinite(sample, &intensity))
+		{
+			intensity = 0.75 + 8.0 / sample;
 		}
 #else
 		intensity = 0.75 + 8.0 / (rand() & 31);
