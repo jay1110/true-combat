@@ -1,4 +1,5 @@
 #include "cg_local.h"
+#include "../game/tce_weapon_ids.h"
 #if defined(__linux__) && !defined(Q3_VM)
 #include "../game/tce_numeric.h"
 #endif
@@ -1718,9 +1719,9 @@ int CG_DrawSpawnPointInfo(int px, int py, int pw, int ph, qboolean draw, mapScis
 
 void CG_DrawMortarMarker(int px, int py, int pw, int ph, qboolean draw, mapScissor_t *scissor, int expand)
 {
-	if (cg.lastFiredWeapon == WP_MORTAR_SET && cg.mortarImpactTime >= 0)
+	if (cg.lastFiredWeapon == TCE_ITEM_WEAPON_MORTAR_SET && cg.mortarImpactTime >= 0)
 	{
-		if (cg.snap->ps.weapon != WP_MORTAR_SET)
+		if (cg.snap->ps.weapon != TCE_ITEM_WEAPON_MORTAR_SET)
 		{
 			cg.mortarImpactTime = 0;
 		}
@@ -1786,7 +1787,7 @@ void CG_DrawMortarMarker(int px, int py, int pw, int ph, qboolean draw, mapSciss
 		}
 	}
 
-	if (COM_BitCheck(cg.snap->ps.weapons, WP_MORTAR_SET))
+	if (COM_BitCheck(cg.snap->ps.weapons, TCE_ITEM_WEAPON_MORTAR_SET))
 	{
 		int i;
 
