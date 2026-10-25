@@ -9685,7 +9685,7 @@ static qboolean PM_FreeClimbActorAllowed(void)
 typedef char move832TraceLayout[(sizeof(trace_t) == 56 && offsetof(trace_t, fraction) == 8 && offsetof(trace_t, plane) == 24 && offsetof(trace_t, surfaceFlags) == 44 && offsetof(trace_t, contents) == 48 && offsetof(trace_t, entityNum) == 52) ? 1 : -1];
 typedef char move832Protocol[(offsetof(pmove_t, ps) == 0 && SK_BATTLE_SENSE == 0 && offsetof(cplane_t, normal) == 0 && PMF_LADDER == 4 && PMF_DUCKED == 1 && EF_PRONE == 0x80000 && EF_PRONE_MOVING == 0x100000 && EV_FOOTSTEP == 1 && ANIM_ET_CLIMB_MOUNT == 9 && ANIM_ET_CLIMB_DISMOUNT == 10 && sizeof(tce_weaponDef_t) == 460) ? 1 : -1];
 #endif
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 void PM_CheckLadderMove(void)
 {
 	vec3_t      spot, flatforward, mins;
