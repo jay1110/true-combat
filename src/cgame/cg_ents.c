@@ -682,12 +682,17 @@ qboolean CG_PlayerSeesItem(playerState_t *ps, entityState_t *item, int atTime, i
 
 	BG_EvaluateTrajectory(&item->pos, atTime, eorigin, qfalse, item->effect2Time);
 
-	VectorCopy(ps->origin, vorigin);
-	vorigin[2] = (float)((double)ps->viewheight + ps->origin[2]);           // get the view loc up to the viewheight
-//	eorigin[2] += 8;						// and subtract the item's offset (that is used to place it on the ground)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	if (!TCE_ItemVisibilityOrigin(ps->origin, ps->viewheight, eorigin, vorigin, dir))
+#endif
+	{
+		VectorCopy(ps->origin, vorigin);
+		vorigin[2] = (float)((double)ps->viewheight + ps->origin[2]);           // get the view loc up to the viewheight
+//		eorigin[2] += 8;						// and subtract the item's offset (that is used to place it on the ground)
 
 
-	VectorSubtract(vorigin, eorigin, dir);
+		VectorSubtract(vorigin, eorigin, dir);
+	}
 
 #if defined(_MSC_VER) && defined(_M_IX86)
 	distance = VectorNormalize(dir);

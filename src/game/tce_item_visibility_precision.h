@@ -4,6 +4,45 @@
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 #include "tce_gust_precision.h"
 
+/* FILD keeps the signed view height exact until FADD; only the eye Z and
+ * the three coordinate differences are stored as Float before normalize. */
+static __inline int TCE_ItemVisibilityOrigin(const float *origin, int viewHeight,
+                                            const float *target, float *eye,
+                                            float *direction)
+{
+	tceTriggerSum_t height = { { 0 }, 0 }, value, term;
+	float storedEye[3], storedDirection[3];
+	unsigned control, magnitude;
+	int axis;
+
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control) ||
+	    !TCE_TriggerProduct(&value, origin[2], 1.0f, control))
+	{
+		return 0;
+	}
+	height.negative = viewHeight < 0;
+	magnitude = viewHeight < 0 ? 0u - (unsigned)viewHeight : (unsigned)viewHeight;
+	TCE_TriggerPlace(&height, magnitude, 298);
+	TCE_RotateAdd(&height, &value, control);
+	storedEye[0] = origin[0];
+	storedEye[1] = origin[1];
+	storedEye[2] = TCE_RotateStore(height, control);
+	for (axis = 0; axis < 3; ++axis)
+	{
+		if (!TCE_TriggerProduct(&value, storedEye[axis], 1.0f, control) ||
+		    !TCE_TriggerProduct(&term, target[axis], -1.0f, control))
+		{
+			return 0;
+		}
+		TCE_RotateAdd(&value, &term, control);
+		storedDirection[axis] = TCE_RotateStore(value, control);
+	}
+	memcpy(eye, storedEye, sizeof(storedEye));
+	memcpy(direction, storedDirection, sizeof(storedDirection));
+	return 1;
+}
+
 /* The native item cone compares retained Z+Y+X products against
  * -0.94f - (distance * (1.0f / 255.0f)) * 0.057f, without Float spills.
  * Nonfinite operands and unmasked exceptions keep the caller's fallback.
