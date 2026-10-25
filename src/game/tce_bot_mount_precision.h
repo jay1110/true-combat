@@ -243,5 +243,36 @@ static __inline int TCE_BotMountArcInside(float first, float second, float arc,
 	*inside = TCE_TriggerCompare(&bound, &difference) > 0;
 	return 1;
 }
+
+/* The engine time is returned as Float bits; subtract the original Double
+ * offset at PC before comparing with the snapshotted Float timestamp. */
+static __inline int TCE_BotMountTimeGate(float recorded, float now, int recent,
+                                         int *result)
+{
+	tceTriggerSum_t value, threshold, offset = { { 0 }, 0 };
+	unsigned control;
+	int order;
+
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control) ||
+	    !TCE_TriggerProduct(&value, recorded, 1.0f, control) ||
+	    !TCE_TriggerProduct(&threshold, now, 1.0f, control))
+	{
+		return 0;
+	}
+	offset.negative = 1;
+	if (recent)
+	{
+		TCE_TriggerPlace(&offset, 5u, 298);
+	}
+	else
+	{
+		TCE_TriggerPlace(&offset, 0x13333333333333ULL, 244); /* Double .3 */
+	}
+	TCE_RotateAdd(&threshold, &offset, control);
+	order = TCE_TriggerCompare(&value, &threshold);
+	*result = recent ? order > 0 : order < 0;
+	return 1;
+}
 #endif
 #endif

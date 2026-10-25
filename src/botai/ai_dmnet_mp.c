@@ -3221,6 +3221,26 @@ void AIEnter_MP_MG42Scan(bot_state_t *bs)
 }
 
 #if defined(_WIN32) && !defined(Q3_VM)
+static qboolean BotMountedTimeGate(double recorded, qboolean recent)
+{
+	float now = trap_AAS_Time();
+#if defined(_MSC_VER) && defined(_M_IX86)
+	int result;
+
+	if (TCE_BotMountTimeGate((float)recorded, now, recent, &result))
+	{
+		return (qboolean)result;
+	}
+#endif
+	if (recent)
+	{
+		return !(recorded <= (long double)now - 5.0L);
+	}
+	return recorded < (long double)now - (long double)(double)0.3;
+}
+#endif
+
+#if defined(_WIN32) && !defined(Q3_VM)
 /* -2 is unordered; -1/0/1 retain the ordered comparison result. */
 static int BotMountedDistanceOrder(vec3_t from, vec3_t to, float threshold)
 {
@@ -3449,7 +3469,7 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 			if (!(deathTime >= (long double)trap_AAS_Time() - (long double)(double)0.3))
 #elif defined(_WIN32) && !defined(Q3_VM)
 			double deathTime = bs->enemydeath_time;
-			if (deathTime < (long double)trap_AAS_Time() - (long double)(double)0.3)
+			if (BotMountedTimeGate(deathTime, qfalse))
 #else
 			if (bs->enemydeath_time < trap_AAS_Time() - 0.3)
 #endif
@@ -3544,7 +3564,7 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 		if (positionTime > (long double)trap_AAS_Time() - 5.0L)
 #elif defined(_WIN32) && !defined(Q3_VM)
 		double positionTime = bs->enemyposition_time;
-		if (!(positionTime <= (long double)trap_AAS_Time() - 5.0L))
+		if (BotMountedTimeGate(positionTime, qtrue))
 #else
 		if (bs->enemyposition_time > trap_AAS_Time() - 5.0)
 #endif
@@ -3998,7 +4018,7 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 						if (!(deathTime >= (long double)trap_AAS_Time() - (long double)(double)0.3))
 #elif defined(_WIN32) && !defined(Q3_VM)
 						double deathTime = bs->enemydeath_time;
-						if (deathTime < (long double)trap_AAS_Time() - (long double)(double)0.3)
+						if (BotMountedTimeGate(deathTime, qfalse))
 #else
 						if (bs->enemydeath_time < trap_AAS_Time() - 0.3)
 #endif
