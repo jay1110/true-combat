@@ -740,7 +740,7 @@ go to a random point that doesn't telefrag
 #define MAX_TEAM_SPAWN_POINTS   256
 /* Windows200a0c00 returns its FSQRT value in x87 without a float spill.
  * The selector loop compares that value with a stored float threshold. */
-#if defined(__linux__) && !defined(Q3_VM)
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 static long double TCE_SpawnDistance(const vec3_t delta)
 {
 	return TCE_VectorLengthValue(delta);
@@ -758,7 +758,7 @@ gentity_t *SelectRandomTeamSpawnPoint(int teamstate, team_t team, int spawnObjec
 	char      *classname;
 	int       count = 0, pass, i, closest = 0, delta;
 	float     shortest;
-#if defined(__linux__) && !defined(Q3_VM)
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 	long double distance, group;
 #else
 	double distance, group;
