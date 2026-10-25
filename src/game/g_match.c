@@ -3,6 +3,7 @@
 //
 #include "g_local.h"
 #include "tce_numeric.h"
+#include "tce_stopwatch_precision.h"
 #include "tce_bg.h"
 #include "../ui/menudef.h"
 
@@ -773,6 +774,15 @@ static qboolean G_TCEStopwatchValues(int elapsed, float limitValue, int limitWho
 	long double elapsedMinutes;
 	int whole = 0, fraction = 0;
 	qboolean reached;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	int finiteReached;
+
+	if (TCE_StopwatchFiniteValues(elapsed, limitValue, limitWhole, calculateElapsed,
+	                             minutes, seconds, limitSeconds, &finiteReached))
+	{
+		return (qboolean)finiteReached;
+	}
+#endif
 
 	*limitSeconds = TCE_TruncateNativeInteger(((long double)limitValue - limitWhole) * 60.0L);
 	if (!calculateElapsed)
