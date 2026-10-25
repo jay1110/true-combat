@@ -57,6 +57,53 @@ static __inline int TCE_RadiusFiniteBounds(const float *origin, float *radius,
 	}
 	return 1;
 }
+
+/* X keeps its sum in the register; Y and Z store/reload binary32 sums
+ * before all three axes multiply by the original binary64 one-half. */
+static __inline int TCE_RadiusFiniteMidpoint(const float *mins, const float *maxs,
+                                            float *midpoint)
+{
+	tceTriggerSum_t sums[3], other, half = { { 0 }, 0 };
+	float spilled[3], halfY, halfZ;
+	unsigned control;
+	int axis;
+
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
+	for (axis = 0; axis < 3; ++axis)
+	{
+		if (!TCE_TriggerProduct(&sums[axis], maxs[axis], 1.0f, control) ||
+		    !TCE_TriggerProduct(&other, mins[axis], 1.0f, control))
+		{
+			return 0;
+		}
+		TCE_RotateAdd(&sums[axis], &other, control);
+		if (axis)
+		{
+			spilled[axis] = TCE_RotateStore(sums[axis], control);
+			if (!TCE_TriggerProduct(&sums[axis], spilled[axis], 1.0f, control))
+			{
+				/* Preserve the prior FP path for an overflowing Y/Z sum. */
+				return 0;
+			}
+		}
+	}
+	/* Finite Float sums have quantum >= 2^-149 and magnitude < 2^129.
+ * Halving changes the lowest possible bit to 2^-150, within the grid. */
+	TCE_TriggerPlace(&half, 1, 297);
+	TCE_GustMultiply(&sums[0], &half, control);
+	TCE_GustMultiply(&sums[1], &half, control);
+	halfY = TCE_RotateStore(sums[1], control);
+	TCE_GustMultiply(&sums[2], &half, control);
+	midpoint[1] = halfY;
+	halfZ = TCE_RotateStore(sums[2], control);
+	midpoint[0] = TCE_RotateStore(sums[0], control);
+	midpoint[2] = halfZ;
+	return 1;
+}
 #endif
 
 #endif

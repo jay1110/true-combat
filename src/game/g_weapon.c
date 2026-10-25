@@ -722,6 +722,17 @@ static void G_TCERadiusCandidateBounds(const vec3_t radiusOrigin, float *candida
 #endif
 }
 
+static void G_TCERadiusDifference(float left, float right, float *result)
+{
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	if (TCE_FiniteDifferenceStore(left, right, result))
+	{
+		return;
+	}
+#endif
+	*result = left - right;
+}
+
 static void G_TCERadiusAxisDistance(float axisOrigin, float axisMin, float axisMax, float *axisDistance)
 {
 #if defined(__linux__) && !defined(Q3_VM)
@@ -742,10 +753,22 @@ static void G_TCERadiusAxisDistance(float axisOrigin, float axisMin, float axisM
 	volatile float *stored = axisDistance;
 	if (!(axisOrigin >= axisMin))
 	{
+#if !defined(Q3_VM)
+		if (TCE_FiniteDifferenceStore(axisMin, axisOrigin, axisDistance))
+		{
+			return;
+		}
+#endif
 		*stored = (float)((long double)axisMin - (long double)axisOrigin);
 	}
 	else if (axisOrigin > axisMax)
 	{
+#if !defined(Q3_VM)
+		if (TCE_FiniteDifferenceStore(axisOrigin, axisMax, axisDistance))
+		{
+			return;
+		}
+#endif
 		*stored = (float)((long double)axisOrigin - (long double)axisMax);
 	}
 	else
@@ -788,6 +811,12 @@ static void G_TCERadiusMidpoint(const vec3_t radiusMin, const vec3_t radiusMax, 
 	volatile float y, z;
 	volatile float *stored = radiusMidpoint;
 	long double    x, zProduct;
+#if !defined(Q3_VM)
+	if (TCE_RadiusFiniteMidpoint(radiusMin, radiusMax, radiusMidpoint))
+	{
+		return;
+	}
+#endif
 	x         = (long double)radiusMax[0] + (long double)radiusMin[0];
 	y         = (float)((long double)radiusMax[1] + (long double)radiusMin[1]);
 	z         = (float)((long double)radiusMax[2] + (long double)radiusMin[2]);
@@ -836,7 +865,10 @@ int EntsThatRadiusCanDamage(vec3_t origin, float radius, int *damagedList)
 
 		if (!ent->r.bmodel)
 		{
-			VectorSubtract(ent->r.currentOrigin, origin, v);
+			for (i = 0; i < 3; ++i)
+			{
+				G_TCERadiusDifference(ent->r.currentOrigin[i], origin[i], &v[i]);
+			}
 		}
 		else
 		{
@@ -862,7 +894,10 @@ int EntsThatRadiusCanDamage(vec3_t origin, float radius, int *damagedList)
 			trap_Trace(&tr, origin, vec3_origin, vec3_origin, dest, ENTITYNUM_NONE, MASK_SOLID);
 			if (G_TCERadiusTraceBlocked(tr.fraction))
 			{
-				VectorSubtract(dest, origin, dest);
+				for (i = 0; i < 3; ++i)
+				{
+					G_TCERadiusDifference(dest[i], origin[i], &dest[i]);
+				}
 				if (G_TCERadiusLengthGate(dest, radius, qtrue))     // closer than 1/4 dist
 				{
 					damagedList[numDamaged++] = entityList[e];
