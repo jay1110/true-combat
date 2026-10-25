@@ -3615,6 +3615,55 @@ void AIEnter_MP_MG42Mount(bot_state_t *bs)
 	bs->ainodeText = "AINode_MP_MG42Mount";
 }
 
+#if defined(_WIN32) && !defined(Q3_VM)
+/* Keep each native random draw before reading the state used with it. */
+static float BotMountRandomMoveValue(int centered)
+{
+	unsigned sample = rand() & 32767;
+#if defined(_MSC_VER) && defined(_M_IX86)
+	float result;
+
+	if (TCE_BotMountMoveValue(sample, centered, &result))
+	{
+		return result;
+	}
+#endif
+	if (centered)
+	{
+		return (float)(((long double)sample * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+	}
+	return (float)((long double)sample * (long double)(float)(1.0 / 32767.0) * 200.0L + 100.0L);
+}
+
+static qboolean BotMountShouldRoam(bot_state_t *bs)
+{
+	unsigned sample = rand() & 32767;
+#if defined(_MSC_VER) && defined(_M_IX86)
+	int result;
+
+	if (TCE_BotMountWait(sample, bs->thinktime, &result))
+	{
+		return (qboolean)result;
+	}
+#endif
+	return (long double)sample * (long double)(float)(1.0 / 32767.0)
+	       < (long double)bs->thinktime * (long double)(double)0.8;
+}
+
+static int BotMountReloadThreshold(int maxClip)
+{
+#if defined(_MSC_VER) && defined(_M_IX86)
+	int result;
+
+	if (TCE_BotMountReloadValue(maxClip, &result))
+	{
+		return result;
+	}
+#endif
+	return TCE_TruncateNativeInteger((long double)maxClip * (long double)(double)0.8);
+}
+#endif
+
 /*
 ==================
 AINode_MP_MG42Mount()
@@ -3788,14 +3837,10 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 			{
 				/* Windows retains the reciprocal product before multiplying by 200.
 				 * Argument evaluation consumes speed, Z, Y, then X. */
-				float speed = (float)((long double)(rand() & 32767)
-				    * (long double)(float)(1.0 / 32767.0) * 200.0L + 100.0L);
-				float moveZ = (float)(((long double)(rand() & 32767)
-				    * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
-				float moveY = (float)(((long double)(rand() & 32767)
-				    * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
-				float moveX = (float)(((long double)(rand() & 32767)
-				    * (long double)(float)(1.0 / 32767.0) - 0.5L) * 2.0L);
+				float speed = BotMountRandomMoveValue(qfalse);
+				float moveZ = BotMountRandomMoveValue(qtrue);
+				float moveY = BotMountRandomMoveValue(qtrue);
+				float moveX = BotMountRandomMoveValue(qtrue);
 				trap_EA_Move(bs->client, tv(moveX, moveY, moveZ), speed);
 			}
 #else
@@ -3818,6 +3863,8 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 		{
 #if defined(__linux__)
 			if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) < (long double)(double)0.8 * bs->thinktime)
+#elif defined(_WIN32) && !defined(Q3_VM)
+			if (BotMountShouldRoam(bs))
 #else
 			if (random() < bs->thinktime * 0.8)
 #endif
@@ -3943,6 +3990,8 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 					}
 #if defined(__linux__)
 					else if ((long double)(rand() & 32767) * (long double)(float)(1.0 / 32767.0) < (long double)(double)0.8 * bs->thinktime)
+#elif defined(_WIN32) && !defined(Q3_VM)
+					else if (BotMountShouldRoam(bs))
 #else
 					else if (random() < bs->thinktime * 0.8)
 #endif
@@ -4056,10 +4105,24 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 		}
 	}
 	// reload?
+#if defined(_WIN32) && !defined(Q3_VM)
+	if (bs->last_fire != level.time)
+	{
+		int weapon = bs->cur_ps.weapon;
+		int clip = BG_FindClipForWeapon(weapon);
+		int threshold = BotMountReloadThreshold(GetAmmoTableData(weapon)->maxclip);
+
+		if (bs->cur_ps.ammoclip[clip] < threshold && bs->cur_ps.ammo[BG_FindAmmoForWeapon(weapon)])
+		{
+			trap_EA_Reload(bs->client);
+		}
+	}
+#else
 	if ((bs->last_fire != level.time) && (bs->cur_ps.ammoclip[BG_FindClipForWeapon(bs->cur_ps.weapon)] < (int)(0.8 * GetAmmoTableData(bs->cur_ps.weapon)->maxclip)) && bs->cur_ps.ammo[BG_FindAmmoForWeapon(bs->cur_ps.weapon)])
 	{
 		trap_EA_Reload(bs->client);
 	}
+#endif
 	//
 	return qtrue;
 }
