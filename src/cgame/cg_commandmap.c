@@ -1759,20 +1759,36 @@ void CG_DrawMortarMarker(int px, int py, int pw, int ph, qboolean draw, mapSciss
 					if (!scissor)
 					{
 						// near the edge of the map, fit into it
+#if defined(__linux__) && !defined(Q3_VM)
+						if ((long double)point[0] + 8.0L > (long double)TCE_AddInt32(px, pw))
+#else
 						if (point[0] + 8.f > (px + pw))
+#endif
 						{
 							point[0] -= 8.f;
 						}
+#if defined(__linux__) && !defined(Q3_VM)
+						else if ((long double)point[0] - 8.0L < (long double)px)
+#else
 						else if (point[0] - 8.f < px)
+#endif
 						{
 							point[0] += 8.f;
 						}
 
+#if defined(__linux__) && !defined(Q3_VM)
+						if ((long double)point[1] + 8.0L > (long double)TCE_AddInt32(py, ph))
+#else
 						if (point[1] + 8.f > (py + ph))
+#endif
 						{
 							point[1] -= 8.f;
 						}
+#if defined(__linux__) && !defined(Q3_VM)
+						else if ((long double)point[1] - 8.0L < (long double)py)
+#else
 						else if (point[1] - 8.f < py)
+#endif
 						{
 							point[1] += 8.f;
 						}
@@ -1781,7 +1797,11 @@ void CG_DrawMortarMarker(int px, int py, int pw, int ph, qboolean draw, mapSciss
 				}
 
 				trap_R_SetColor(colour);
+#if defined(__linux__) && !defined(Q3_VM)
+				CG_DrawRotatedPic(point[0] - 8.f, point[1] - 8.f, 16, 16, cgs.media.ccMortarHit, .5f - (cg.mortarFireAngles[YAW] + 45.f) * 0.0027777778f);
+#else
 				CG_DrawRotatedPic(point[0] - 8.f, point[1] - 8.f, 16, 16, cgs.media.ccMortarHit, .5f - (cg.mortarFireAngles[YAW] /*- 180.f */ + 45.f) / 360.f);
+#endif
 				trap_R_SetColor(NULL);
 			}
 		}
@@ -1796,13 +1816,21 @@ void CG_DrawMortarMarker(int px, int py, int pw, int ph, qboolean draw, mapSciss
 			//vec4_t colour = { .23f, 1.f, .23f, 1.f };
 			vec4_t colour = { 1.f, 1.f, 1.f, 1.f };
 			vec3_t point;
+#if defined(__linux__) && !defined(Q3_VM)
+			int    fadeTime = TCE_SubInt32(TCE_SubInt32(cg.time, cg.artilleryRequestTime[i]), 25000);
+#else
 			int    fadeTime = cg.time - (cg.artilleryRequestTime[i] + 25000);
+#endif
 
 			if (fadeTime < 5000)
 			{
 				if (fadeTime > 0)
 				{
+#if defined(__linux__) && !defined(Q3_VM)
+					colour[3] = 1.f - fadeTime * 0.0002f;
+#else
 					colour[3] = 1.f - (fadeTime / 5000.f);
+#endif
 				}
 
 				if (scissor)
