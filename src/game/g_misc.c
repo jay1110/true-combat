@@ -8,6 +8,7 @@
 
 #include "g_local.h"
 #include "tce_numeric.h"
+#include "tce_bot_angle_precision.h"
 
 extern void AimAtTarget(gentity_t *self);
 #if defined(__linux__)
@@ -1697,6 +1698,22 @@ void clamp_hweapontofirearc(gentity_t *self, vec3_t dang)
 			dang[PITCH] = (float)halfArc;
 		}
 	}
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	{
+		float finiteArgument;
+		int outside;
+
+		if (TCE_FiniteFirearcArgument(self->s.angles[YAW], dang[YAW],
+		                              self->harc, &outside, &finiteArgument))
+		{
+			if (outside)
+			{
+				dang[YAW] = AngleMod(finiteArgument);
+			}
+			return;
+		}
+	}
+#endif
 	difference = TCE_BotAngleDifferenceValue(self->s.angles[YAW], dang[YAW]);
 	if (!((long double)self->harc >= fabsl(difference)))
 	{

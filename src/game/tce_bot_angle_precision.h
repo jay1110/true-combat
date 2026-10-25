@@ -48,6 +48,41 @@ static __inline int TCE_FiniteBotAngleValue(float first, float second,
 	return 1;
 }
 
+/* Keep the difference through the absolute-value and sign gates. The chosen
+ * boundary is rounded at the active precision before its Float argument store. */
+static __inline int TCE_FiniteFirearcArgument(float first, float second,
+                                             float arc, int *outside,
+                                             float *argument)
+{
+	tceTriggerSum_t difference, magnitude, boundary, start;
+	tceTriggerSum_t zero = { { 0 }, 0 };
+	unsigned control;
+
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control) ||
+	    !TCE_FiniteBotAngleValue(first, second, &difference, control) ||
+	    !TCE_TriggerProduct(&boundary, arc, 1.0f, control) ||
+	    !TCE_TriggerProduct(&start, first, 1.0f, control))
+	{
+		return 0;
+	}
+	magnitude = difference;
+	magnitude.negative = 0;
+	if (TCE_TriggerCompare(&boundary, &magnitude) >= 0)
+	{
+		*outside = 0;
+		return 1;
+	}
+	if (TCE_TriggerCompare(&difference, &zero) > 0)
+	{
+		boundary.negative ^= 1u;
+	}
+	TCE_RotateAdd(&start, &boundary, control);
+	*argument = TCE_RotateStore(start, control);
+	*outside = 1;
+	return 1;
+}
+
 static __inline int TCE_FiniteBotAngleLow32(float first, float second, int *result)
 {
 	tceTriggerSum_t difference;
