@@ -3564,6 +3564,7 @@ static void G_TCESendPortalCamera(gentity_t *ent, int i, int val)
 	int cameraInts[6];
 	int component;
 	int cameraTarget;
+	int cameraIndex;
 	VectorCopy(level.limboCams[i].origin, ent->s.origin2);
 	ent->r.svFlags |= SVF_SELF_PORTAL_EXCLUSIVE;
 	cameraTarget    = level.limboCams[i].hasEnt ? level.limboCams[i].targetEnt : -1;
@@ -3580,7 +3581,12 @@ static void G_TCESendPortalCamera(gentity_t *ent, int i, int val)
 		cameraInts[component] = (int)*cameraValue;
 #endif
 	}
-	trap_SendServerCommand((int)(ent - g_entities), va("portalcampos %i %i %i %i %i %i %i %i", (int)((unsigned int)val - 1u), cameraInts[0], cameraInts[1], cameraInts[2], cameraInts[3], cameraInts[4], cameraInts[5], cameraTarget));
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+	cameraIndex = TCE_SubInt32(val, 1);
+#else
+	cameraIndex = (int)((unsigned int)val - 1u);
+#endif
+	trap_SendServerCommand((int)(ent - g_entities), va("portalcampos %i %i %i %i %i %i %i %i", cameraIndex, cameraInts[0], cameraInts[1], cameraInts[2], cameraInts[3], cameraInts[4], cameraInts[5], cameraTarget));
 }
 
 void Cmd_SetSpawnPoint_f(gentity_t *ent)
@@ -3901,7 +3907,11 @@ void Cmd_SelectedObjective_f(gentity_t *ent)
 		return;
 	}
 	trap_Argv(1, buffer, 16);
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+	val = TCE_AddInt32(atoi(buffer), 1);
+#else
 	val = (int)((unsigned int)atoi(buffer) + 1u);
+#endif
 
 
 	for ( i = 0; i < level.numLimboCams; i++ )
