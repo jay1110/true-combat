@@ -1,5 +1,6 @@
 #include "g_local.h"
 #include "tce_float_integer.h"
+#include "tce_objective_precision.h"
 #include "tce_numeric.h"
 #include "tce_lua.h"
 #include "tce_bg.h"
@@ -3917,14 +3918,31 @@ void Cmd_SelectedObjective_f(gentity_t *ent)
 			{
 				/* TC 20054721: compare before storing the selected float distance. */
 #if defined(_MSC_VER) && defined(_M_IX86)
-				long double distance = VectorDistanceSquared(
-				    level.limboCams[i].origin,
-				    g_entities[level.limboCams[i].targetEnt].r.currentOrigin);
-				/* Native C0 also selects an unordered distance. */
-				if (nearest == -1 || !(distance >= (long double)neardist))
+#if !defined(Q3_VM)
+				int accepted;
+				float storedDistance;
+				if (TCE_ObjectiveDistance(level.limboCams[i].origin,
+				                          g_entities[level.limboCams[i].targetEnt].r.currentOrigin,
+				                          nearest == -1, neardist, &accepted, &storedDistance))
 				{
-					neardist = (float)distance;
-					nearest = i;
+					if (accepted)
+					{
+						neardist = storedDistance;
+						nearest = i;
+					}
+				}
+				else
+#endif
+				{
+					long double distance = VectorDistanceSquared(
+					    level.limboCams[i].origin,
+					    g_entities[level.limboCams[i].targetEnt].r.currentOrigin);
+					/* Native C0 also selects an unordered distance. */
+					if (nearest == -1 || !(distance >= (long double)neardist))
+					{
+						neardist = (float)distance;
+						nearest = i;
+					}
 				}
 #elif defined(__linux__)
 				vec3_t delta;
