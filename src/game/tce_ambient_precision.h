@@ -5,6 +5,27 @@
 #include "tce_gust_precision.h"
 #include "tce_interpolation_precision.h"
 
+/* The native ray sampler stores only after scaling, subtracting one half,
+ * and doubling. The masked random integer is exactly representable in Float. */
+static __inline int TCE_AmbientRoomRandom(unsigned sample, float *result)
+{
+	tceTriggerSum_t value, half, doubled;
+	unsigned control;
+
+	__control87_2(0, 0, &control, NULL);
+	if (sample > 32767u || !TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
+	TCE_TriggerProduct(&value, (float)sample, 1.0f / 32767.0f, control);
+	TCE_TriggerProduct(&half, -0.5f, 1.0f, control);
+	TCE_RotateAdd(&value, &half, control);
+	doubled = value;
+	TCE_RotateAdd(&value, &doubled, control);
+	*result = TCE_RotateStore(value, control);
+	return 1;
+}
+
 static __inline int TCE_AmbientOrigin(float origin, float axis, int subtract,
                                      float *result)
 {

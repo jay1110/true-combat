@@ -1442,7 +1442,16 @@ static void CG_TCERoomRay(vec3_t direction, const vec3_t signs, int axis)
 {
 	int j;
 	for (j = 0; j < 3; j++)
-		direction[j] = 2.0f * ((rand() & 32767) * (1.0f / 32767.0f) - .5f);
+	{
+		int sample = rand() & 32767;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		if (TCE_AmbientRoomRandom((unsigned)sample, &direction[j]))
+		{
+			continue;
+		}
+#endif
+		direction[j] = 2.0f * (sample * (1.0f / 32767.0f) - .5f);
+	}
 	if (axis < 3)
 	{
 		direction[axis] += signs[axis];
