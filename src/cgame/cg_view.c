@@ -1616,38 +1616,45 @@ static void CG_EliteSndEffects(void)
 	cg.tceRoomDistance = cg.tceRoomDistance * .6667f + distance * .125f * .3333f;
 	cg.tceRoomHardness = cg.tceRoomHardness * .6667f + hardness * .0625f * .3333f;
 #endif
-	cg.tceRoomSky      = cg.tceRoomSky * .6667f + sky * .3333f;
-	for (j = 0; j < 4; j++)
-		cg.tceRoomWeights[j] *= .6667f;
-	if (cg.tceRoomDistance < 200 && cg.tceRoomHardness > .8f)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	if (!TCE_AmbientRoomClassify(cg.tceRoomDistance, cg.tceRoomHardness,
+	                            cg.tceRoomExtent, sky, &cg.tceRoomSky,
+	                            cg.tceRoomWeights, &cg.tceSoundEnvironment))
+#endif
 	{
-		kind = 1;
-	}
-	else if (cg.tceRoomSky >= 1 && cg.tceRoomDistance > 400)
-	{
-		kind = 3;
-	}
-	else if (cg.tceRoomExtent[2] < 150 && cg.tceRoomExtent[0] + cg.tceRoomExtent[1] > 600 && cg.tceRoomHardness > .8f)
-	{
-		kind = 2;
-	}
-	else
-	{
-		kind = 0;
-	}
-	cg.tceRoomWeights[kind] += .3333f;
-	weight                   = cg.tceRoomWeights[0]; cg.tceSoundEnvironment = 0;
-	if (weight < cg.tceRoomWeights[1])
-	{
-		weight = cg.tceRoomWeights[1]; cg.tceSoundEnvironment = 1;
-	}
-	if (weight < cg.tceRoomWeights[2])
-	{
-		weight = cg.tceRoomWeights[2]; cg.tceSoundEnvironment = 0;
-	}
-	if (weight < cg.tceRoomWeights[3])
-	{
-		cg.tceSoundEnvironment = 3;
+		cg.tceRoomSky      = cg.tceRoomSky * .6667f + sky * .3333f;
+		for (j = 0; j < 4; j++)
+			cg.tceRoomWeights[j] *= .6667f;
+		if (cg.tceRoomDistance < 200 && cg.tceRoomHardness > .8f)
+		{
+			kind = 1;
+		}
+		else if (cg.tceRoomSky >= 1 && cg.tceRoomDistance > 400)
+		{
+			kind = 3;
+		}
+		else if (cg.tceRoomExtent[2] < 150 && cg.tceRoomExtent[0] + cg.tceRoomExtent[1] > 600 && cg.tceRoomHardness > .8f)
+		{
+			kind = 2;
+		}
+		else
+		{
+			kind = 0;
+		}
+		cg.tceRoomWeights[kind] += .3333f;
+		weight                   = cg.tceRoomWeights[0]; cg.tceSoundEnvironment = 0;
+		if (weight < cg.tceRoomWeights[1])
+		{
+			weight = cg.tceRoomWeights[1]; cg.tceSoundEnvironment = 1;
+		}
+		if (weight < cg.tceRoomWeights[2])
+		{
+			weight = cg.tceRoomWeights[2]; cg.tceSoundEnvironment = 0;
+		}
+		if (weight < cg.tceRoomWeights[3])
+		{
+			cg.tceSoundEnvironment = 3;
+		}
 	}
 	if (trap_CM_PointContents(cg.snap->ps.origin, 0) & 0x2000)
 	{

@@ -164,6 +164,101 @@ static __inline int TCE_AmbientRoomBlend(float previous, float sample,
 	return 1;
 }
 
+/* Weight zero remains held after its Float store, including the default-room
+ * increment. Other weights are reloaded from Float for the winner comparisons. */
+static __inline int TCE_AmbientRoomClassify(float distance, float hardness,
+                                          const float *extent, int sky,
+                                          float *skyState, float *weights,
+                                          int *environment)
+{
+	tceTriggerSum_t incoming = { { 0 }, 0 }, start, coefficient, term;
+	tceTriggerSum_t extentSum, limit, firstWeight, winner;
+	float storedWeights[4], storedSky;
+	unsigned control, magnitude;
+	int axis, kind, selected = 0;
+
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control) ||
+	    !TCE_TriggerProduct(&extentSum, extent[0], 1.0f, control) ||
+	    !TCE_TriggerProduct(&term, extent[1], 1.0f, control))
+	{
+		return 0;
+	}
+	TCE_RotateAdd(&extentSum, &term, control);
+	if (!TCE_TriggerProduct(&term, extent[2], 1.0f, control) ||
+	    !TCE_TriggerProduct(&term, distance, 1.0f, control) ||
+	    !TCE_TriggerProduct(&term, hardness, 1.0f, control) ||
+	    !TCE_TriggerProduct(&start, *skyState, .6667f, control))
+	{
+		return 0;
+	}
+	TCE_TriggerProduct(&coefficient, .3333f, 1.0f, control);
+	incoming.negative = sky < 0;
+	magnitude = sky < 0 ? 0u - (unsigned)sky : (unsigned)sky;
+	TCE_TriggerPlace(&incoming, magnitude, 298);
+	TCE_GustMultiply(&incoming, &coefficient, control);
+	TCE_RotateAdd(&incoming, &start, control);
+	storedSky = TCE_RotateStore(incoming, control);
+	for (axis = 0; axis < 4; ++axis)
+	{
+		if (!TCE_TriggerProduct(&term, weights[axis], .6667f, control))
+		{
+			return 0;
+		}
+		if (axis == 0)
+		{
+			firstWeight = term;
+		}
+		storedWeights[axis] = TCE_RotateStore(term, control);
+	}
+	TCE_TriggerProduct(&limit, 600.0f, 1.0f, control);
+	if (distance < 200.0f && hardness > .8f)
+	{
+		kind = 1;
+	}
+	else if (storedSky >= 1.0f && distance > 400.0f)
+	{
+		kind = 3;
+	}
+	else if (extent[2] < 150.0f &&
+	         TCE_TriggerCompare(&extentSum, &limit) > 0 && hardness > .8f)
+	{
+		kind = 2;
+	}
+	else
+	{
+		kind = 0;
+	}
+	if (kind == 0)
+	{
+		TCE_RotateAdd(&firstWeight, &coefficient, control);
+		storedWeights[0] = TCE_RotateStore(firstWeight, control);
+	}
+	else
+	{
+		TCE_TriggerProduct(&term, storedWeights[kind], 1.0f, control);
+		TCE_RotateAdd(&term, &coefficient, control);
+		storedWeights[kind] = TCE_RotateStore(term, control);
+	}
+	winner = firstWeight;
+	for (axis = 1; axis < 4; ++axis)
+	{
+		TCE_TriggerProduct(&term, storedWeights[axis], 1.0f, control);
+		if (TCE_TriggerCompare(&term, &winner) > 0)
+		{
+			winner = term;
+			selected = axis == 2 ? 0 : axis;
+		}
+	}
+	*skyState = storedSky;
+	for (axis = 0; axis < 4; ++axis)
+	{
+		weights[axis] = storedWeights[axis];
+	}
+	*environment = selected;
+	return 1;
+}
+
 static __inline int TCE_AmbientOrigin(float origin, float axis, int subtract,
                                      float *result)
 {
