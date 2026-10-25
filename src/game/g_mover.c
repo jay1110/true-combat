@@ -3374,7 +3374,13 @@ void Reached_Train(gentity_t *ent)
 #endif
 
 	// calculate duration
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	move[0] = TCE_TrainMoveComponent(ent->pos2[0], ent->pos1[0]);
+	move[1] = TCE_TrainMoveComponent(ent->pos2[1], ent->pos1[1]);
+	move[2] = TCE_TrainMoveComponent(ent->pos2[2], ent->pos1[2]);
+#else
 	VectorSubtract(ent->pos2, ent->pos1, move);
+#endif
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 	{
 		int finiteDuration;
@@ -3830,7 +3836,13 @@ void Reached_Train_rotating(gentity_t *ent)
 	ent->rotate[2] = next->rotate[1];
 
 	// calculate duration
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	move[0] = TCE_TrainMoveComponent(ent->pos2[0], ent->pos1[0]);
+	move[1] = TCE_TrainMoveComponent(ent->pos2[1], ent->pos1[1]);
+	move[2] = TCE_TrainMoveComponent(ent->pos2[2], ent->pos1[2]);
+#else
 	VectorSubtract(ent->pos2, ent->pos1, move);
+#endif
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 	{
 		int finiteDuration;
@@ -3903,6 +3915,16 @@ void Reached_Train_rotating(gentity_t *ent)
 		for (index = 0; index < 3; ++index)
 		{
 			int axis = (index + 2) % 3;
+#if !defined(Q3_VM)
+			float finiteVelocity;
+			if (!TCE_FloatIsZeroOrNaN(ent->rotate[axis]) &&
+			    TCE_TrainAngularVelocityFinite(ent->rotate[axis], (double)frames,
+			                                   &finiteVelocity))
+			{
+				ent->s.apos.trDelta[axis] = finiteVelocity;
+				continue;
+			}
+#endif
 			ent->s.apos.trDelta[axis] = TCE_FloatIsZeroOrNaN(ent->rotate[axis])
 			                             ? 0.0f
 			                             : (float)((long double)ent->rotate[axis] / frames * 10.0L);
@@ -3954,12 +3976,18 @@ void Reached_Train_rotating(gentity_t *ent)
 	ent->s.loopSound = next->soundLoop;
 
 	ent->TargetFlag      = 1;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	ent->TargetAngles[0] = TCE_TrainTargetAngle(ent->r.currentAngles[0], ent->rotate[0]);
+	ent->TargetAngles[1] = TCE_TrainTargetAngle(ent->r.currentAngles[1], ent->rotate[1]);
+	ent->TargetAngles[2] = TCE_TrainTargetAngle(ent->r.currentAngles[2], ent->rotate[2]);
+#else
 	ent->TargetAngles[0] = ent->r.currentAngles[0] + ent->rotate[0];
 	//ent->TargetAngles[0] = AngleNormalize360 (ent->TargetAngles[0]);
 	ent->TargetAngles[1] = ent->r.currentAngles[1] + ent->rotate[1];
 	//ent->TargetAngles[1] = AngleNormalize360 (ent->TargetAngles[1]);
 	ent->TargetAngles[2] = ent->r.currentAngles[2] + ent->rotate[2];
 	//ent->TargetAngles[2] = AngleNormalize360 (ent->TargetAngles[2]);
+#endif
 
 	// start it going
 	SetMoverState(ent, MOVER_1TO2, level.time);
