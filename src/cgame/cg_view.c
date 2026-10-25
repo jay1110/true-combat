@@ -1403,6 +1403,40 @@ static void CG_DamageBlendBlob(void)
 CG_DrawScreenFade
 ===============
 */
+#if defined(TCE_LINUX_ROOM_X87)
+static void CG_TCEEyeRayEndpoint(const refdef_t *view, float side, float up,
+                                vec3_t end)
+{
+	volatile long double sideProduct[3], upProduct[3], forward[3];
+	volatile long double direction[3], scaled[3], endpoint[3];
+	int axis;
+
+	for (axis = 0; axis < 2; ++axis)
+	{
+		sideProduct[axis] = (long double)view->viewaxis[1][axis] * (long double)side;
+		upProduct[axis] = (long double)view->viewaxis[2][axis] * (long double)up;
+	}
+	sideProduct[2] = (long double)side * (long double)view->viewaxis[1][2];
+	upProduct[2] = (long double)up * (long double)view->viewaxis[2][2];
+	for (axis = 0; axis < 3; ++axis)
+	{
+		forward[axis] = sideProduct[axis] + (long double)view->viewaxis[0][axis];
+	}
+	direction[0] = forward[0] + upProduct[0];
+	direction[1] = upProduct[1] + forward[1];
+	direction[2] = upProduct[2] + forward[2];
+	scaled[0] = direction[0] * 8192.0L;
+	scaled[1] = direction[1] * 8192.0L;
+	scaled[2] = 8192.0L * direction[2];
+	for (axis = 0; axis < 3; ++axis)
+	{
+		/* Native nonpop direction stores do not narrow the endpoint inputs. */
+		endpoint[axis] = scaled[axis] + (long double)view->vieworg[axis];
+		end[axis] = (float)endpoint[axis];
+	}
+}
+#endif
+
 static void CG_SampleEyeLighting(void)
 {
 	static const float side[9] = { 0, -.25f, .25f, -.25f, .25f, -.5f, .5f, 0, 0 };
@@ -1410,16 +1444,29 @@ static void CG_SampleEyeLighting(void)
 	vec3_t             eyeStart, end, point, light;
 	trace_t            trace;
 	float              strongest;
-	int                i, j;
+	int                i;
+#if !defined(TCE_LINUX_ROOM_X87)
+	int j;
+#endif
 	cg.tceEyeSkySamples = cg.tceEyeSurfaceSamples = 0;
 	/* Each ray keeps the start sampled before the first engine callback.
 	 * Its endpoint still uses the current view for that particular ray. */
 	VectorCopy(cg.refdef.vieworg, eyeStart);
 	for (i = 0; i < 9; i++)
 	{
-		for (j = 0; j < 3; j++)
-			end[j] = cg.refdef.vieworg[j] + 8192.0f *
-			         (up[i] * cg.refdef.viewaxis[2][j] + side[i] * cg.refdef.viewaxis[1][j] + cg.refdef.viewaxis[0][j]);
+#if defined(TCE_LINUX_ROOM_X87)
+		CG_TCEEyeRayEndpoint(&cg.refdef, side[i], up[i], end);
+#else
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		if (!TCE_AmbientEyeRayEndpoint(cg.refdef.vieworg, cg.refdef.viewaxis,
+		                              side[i], up[i], end))
+#endif
+		{
+			for (j = 0; j < 3; j++)
+				end[j] = cg.refdef.vieworg[j] + 8192.0f *
+				         (up[i] * cg.refdef.viewaxis[2][j] + side[i] * cg.refdef.viewaxis[1][j] + cg.refdef.viewaxis[0][j]);
+		}
+#endif
 		CG_Trace(&trace, eyeStart, NULL, NULL, end, cg.snap->ps.clientNum, CONTENTS_SOLID);
 		if (trace.surfaceFlags & SURF_SKY)
 		{

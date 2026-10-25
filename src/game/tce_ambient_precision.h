@@ -121,6 +121,63 @@ static __inline int TCE_AmbientReflect(float *direction, const float *normal)
 	return 1;
 }
 
+/* Windows retains X through both direction additions. Y/Z store after
+ * side+forward and again after adding up, before endpoint scaling. */
+static __inline int TCE_AmbientEyeRayEndpoint(const float *origin,
+                                             const float axis[3][3],
+                                             float side, float up, float *end)
+{
+	tceTriggerSum_t direction, forward, rise, scale, position;
+	float stored, result[3];
+	unsigned control;
+	int component;
+
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control))
+	{
+		return 0;
+	}
+	TCE_TriggerProduct(&scale, 8192.0f, 1.0f, control);
+	for (component = 0; component < 3; ++component)
+	{
+		if (!TCE_TriggerProduct(&direction, side, axis[1][component], control) ||
+		    !TCE_TriggerProduct(&forward, axis[0][component], 1.0f, control) ||
+		    !TCE_TriggerProduct(&rise, up, axis[2][component], control) ||
+		    !TCE_TriggerProduct(&position, origin[component], 1.0f, control))
+		{
+			return 0;
+		}
+		TCE_RotateAdd(&direction, &forward, control);
+		if (component != 0)
+		{
+			stored = TCE_RotateStore(direction, control);
+			if (!TCE_TriggerProduct(&direction, stored, 1.0f, control))
+			{
+				return 0;
+			}
+			TCE_RotateAdd(&rise, &direction, control);
+			stored = TCE_RotateStore(rise, control);
+			if (!TCE_TriggerProduct(&direction, stored, 1.0f, control))
+			{
+				return 0;
+			}
+		}
+		else
+		{
+			TCE_RotateAdd(&direction, &rise, control);
+		}
+		if (!TCE_AmbientProductFits(&direction, &scale))
+		{
+			return 0;
+		}
+		TCE_GustMultiply(&direction, &scale, control);
+		TCE_RotateAdd(&direction, &position, control);
+		result[component] = TCE_RotateStore(direction, control);
+	}
+	memcpy(end, result, sizeof(result));
+	return 1;
+}
+
 /* X retains high-low through scaling; Y/Z first store that difference.
  * Both scaled terms are stored separately before their final Float sum. */
 static __inline int TCE_AmbientRoomExtent(float previous, float high, float low,
