@@ -1,5 +1,6 @@
 #include "g_local.h"
 #include "tce_numeric.h"
+#include "tce_flamebarrel_precision.h"
 #ifdef FEATURE_OMNIBOT
 #include "g_etbot_interface.h"
 #endif
@@ -2403,7 +2404,7 @@ gentity_t *fire_flamebarrel(gentity_t *self, vec3_t start, vec3_t dir)
 	bolt->accuracy = 3;
 
 	bolt->classname    = "flamebarrel";
-#if defined(__linux__) && !defined(Q3_VM)
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 	bolt->nextthink    = TCE_AddInt32(level.time, 3000);
 #else
 	bolt->nextthink    = level.time + 3000;
@@ -2425,13 +2426,13 @@ gentity_t *fire_flamebarrel(gentity_t *self, vec3_t start, vec3_t dir)
 	bolt->clipmask = MASK_MISSILESHOT;
 
 	bolt->s.pos.trType = TR_GRAVITY;
-#if defined(__linux__) && !defined(Q3_VM)
+#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 	bolt->s.pos.trTime = TCE_SubInt32(level.time, MISSILE_PRESTEP_TIME);
 #else
 	bolt->s.pos.trTime = level.time - MISSILE_PRESTEP_TIME;     // move a bit on the very first frame
 #endif
 	VectorCopy(start, bolt->s.pos.trBase);
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_MSC_VER) && defined(_M_IX86)) || ((defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM))
 	{
 		int          flameAxis;
 		const float  flameReciprocal = 3.0518509447574615e-05f;
@@ -2439,8 +2440,17 @@ gentity_t *fire_flamebarrel(gentity_t *self, vec3_t start, vec3_t dir)
 		/* Three independent draws and stores, then three conversions. */
 		for (flameAxis = 0; flameAxis < 3; ++flameAxis)
 		{
-			int   flameRandom     = rand() & 0x7fff;
-			long double randomScale = (long double)flameRandom * flameReciprocal - flameHalf;
+			int flameRandom = rand() & 0x7fff;
+			long double randomScale;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+			float finiteVelocity;
+			if (TCE_FlameBarrelVelocityFinite(flameRandom, dir[flameAxis], &finiteVelocity))
+			{
+				bolt->s.pos.trDelta[flameAxis] = finiteVelocity;
+				continue;
+			}
+#endif
+			randomScale = (long double)flameRandom * flameReciprocal - flameHalf;
 			randomScale += randomScale;
 			randomScale *= flameRange;
 			randomScale += flameSpeed;
@@ -2448,8 +2458,12 @@ gentity_t *fire_flamebarrel(gentity_t *self, vec3_t start, vec3_t dir)
 		}
 		for (flameAxis = 0; flameAxis < 3; ++flameAxis)
 		{
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+			bolt->s.pos.trDelta[flameAxis] = TCE_FlameBarrelSnap(bolt->s.pos.trDelta[flameAxis]);
+#else
 			int flameLow = TCE_TruncateNativeInteger((long double)bolt->s.pos.trDelta[flameAxis]);
 			bolt->s.pos.trDelta[flameAxis] = (float)flameLow;
+#endif
 		}
 	}
 #else
