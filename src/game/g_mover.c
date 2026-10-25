@@ -9,6 +9,7 @@
 #include "g_local.h"
 #include "tce_numeric.h"
 #include "tce_x87_sum.h"
+#include "tce_train_precision.h"
 
 /* TC keeps 51 string slots, including three trailing null pointers. */
 enum { TCE_HINT_STRING_COUNT = 51 };
@@ -3404,7 +3405,9 @@ void Reached_Train(gentity_t *ent)
 #endif
 	if (trainHasWait)
 	{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		ent->nextthink = TCE_TrainWaitDeadline(next->wait, level.time);
+#elif defined(_MSC_VER) && defined(_M_IX86)
 		ent->nextthink = TCE_TruncateNativeInteger(
 		    (long double)next->wait * 1000.0L + level.time);
 #elif defined(__linux__) && !defined(Q3_VM)
@@ -3941,7 +3944,9 @@ void Reached_Train_rotating(gentity_t *ent)
 #endif
 	if (trainHasWait)
 	{
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		ent->nextthink = TCE_TrainWaitDeadline(next->wait, level.time);
+#elif (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 		ent->nextthink = TCE_TruncateNativeInteger(
 		    (long double)next->wait * 1000.0L + level.time);
 #else
