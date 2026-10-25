@@ -3220,6 +3220,68 @@ void AIEnter_MP_MG42Scan(bot_state_t *bs)
 	bs->ainodeText = "AINode_MP_MG42Scan";
 }
 
+#if defined(_WIN32) && !defined(Q3_VM)
+/* -2 is unordered; -1/0/1 retain the ordered comparison result. */
+static int BotMountedDistanceOrder(vec3_t from, vec3_t to, float threshold)
+{
+	long double value;
+#if defined(_MSC_VER) && defined(_M_IX86)
+	int order;
+
+	if (TCE_BotMountSquaredOrder(from, to, threshold, &order))
+	{
+		return order;
+	}
+#endif
+	value = VectorDistanceSquared(from, to);
+	if (value < threshold)
+	{
+		return -1;
+	}
+	if (value > threshold)
+	{
+		return 1;
+	}
+	return value == threshold ? 0 : -2;
+}
+
+static int BotMountedLengthOrder(vec3_t vector, float threshold)
+{
+	long double value;
+#if defined(_MSC_VER) && defined(_M_IX86)
+	int order;
+
+	if (TCE_BotMountSquaredOrder(vector, NULL, threshold, &order))
+	{
+		return order;
+	}
+#endif
+	value = VectorLengthSquared(vector);
+	if (value < threshold)
+	{
+		return -1;
+	}
+	if (value > threshold)
+	{
+		return 1;
+	}
+	return value == threshold ? 0 : -2;
+}
+
+static qboolean BotMountedArcInside(float first, float second, float arc)
+{
+#if defined(_MSC_VER) && defined(_M_IX86)
+	int inside;
+
+	if (TCE_BotMountArcInside(first, second, arc, &inside))
+	{
+		return (qboolean)inside;
+	}
+#endif
+	return arc > fabs(AngleDifference(first, second));
+}
+#endif
+
 /*
 ==================
 AINode_MP_MG42Scan()
@@ -3243,6 +3305,8 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 	// if it's the wrong one
 #if defined(__linux__)
 	if (BotDistanceSquaredValue(bs->origin, ent->r.currentOrigin) > SQR(64))
+#elif defined(_WIN32) && !defined(Q3_VM)
+	if (BotMountedDistanceOrder(bs->origin, ent->r.currentOrigin, SQR(64)) == 1)
 #else
 	if (VectorDistanceSquared(bs->origin, ent->r.currentOrigin) > SQR(64))
 #endif
@@ -3422,8 +3486,8 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 				if (!(mg42->varc > fabsl(TCE_BotAngleDifferenceValue(ang[PITCH], mg42->s.angles[PITCH])))
 				    || !(mg42->harc > fabsl(TCE_BotAngleDifferenceValue(ang[YAW], mg42->s.angles[YAW]))))
 #elif defined(_WIN32) && !defined(Q3_VM)
-				if (!(mg42->varc > fabs(AngleDifference(ang[PITCH], mg42->s.angles[PITCH])))
-				    || !(mg42->harc > fabs(AngleDifference(ang[YAW], mg42->s.angles[YAW]))))
+				if (!BotMountedArcInside(ang[PITCH], mg42->s.angles[PITCH], mg42->varc)
+				    || !BotMountedArcInside(ang[YAW], mg42->s.angles[YAW], mg42->harc))
 #else
 				if ((fabs(AngleDifference(ang[PITCH], mg42->s.angles[PITCH])) >= mg42->varc)
 				    ||  (fabs(AngleDifference(ang[YAW], mg42->s.angles[YAW])) >= mg42->harc))
@@ -3442,7 +3506,7 @@ int AINode_MP_MG42Scan(bot_state_t *bs)
 #if defined(__linux__)
 				if (!(BotDistanceSquaredValue(bs->origin, g_entities[bs->enemy].r.currentOrigin) >= SQR(512)))
 #elif defined(_WIN32) && !defined(Q3_VM)
-				if (!(VectorDistanceSquared(bs->origin, g_entities[bs->enemy].r.currentOrigin) >= SQR(512)))
+				if (BotMountedDistanceOrder(bs->origin, g_entities[bs->enemy].r.currentOrigin, SQR(512)) < 0)
 #else
 				if (VectorDistanceSquared(bs->origin, g_entities[bs->enemy].r.currentOrigin) < SQR(512))
 #endif
@@ -3705,6 +3769,8 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 		// if it's the wrong one
 #if defined(__linux__)
 		if (BotDistanceSquaredValue(bs->origin, ent->r.currentOrigin) > SQR(64))
+#elif defined(_WIN32) && !defined(Q3_VM)
+		if (BotMountedDistanceOrder(bs->origin, ent->r.currentOrigin, SQR(64)) == 1)
 #else
 		if (VectorDistanceSquared(bs->origin, ent->r.currentOrigin) > SQR(64))
 #endif
@@ -3777,7 +3843,7 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 #if defined(__linux__)
 	if (!(TCE_VectorLengthSquaredValue(dir) >= SQR(64)))
 #elif defined(_WIN32) && !defined(Q3_VM)
-	if (!(VectorLengthSquared(dir) >= SQR(64)))
+	if (BotMountedLengthOrder(dir, SQR(64)) < 0)
 #else
 	if (VectorLengthSquared(dir) < SQR(64))
 #endif
@@ -3793,6 +3859,8 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 	}
 #if defined(__linux__)
 	if (TCE_VectorLengthSquaredValue(dir) > SQR(8))
+#elif defined(_WIN32) && !defined(Q3_VM)
+	if (BotMountedLengthOrder(dir, SQR(8)) == 1)
 #else
 	if (VectorLengthSquared(dir) > SQR(8))
 #endif
@@ -3879,6 +3947,8 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 		{
 #if defined(__linux__)
 			if (BotDistanceSquaredValue(bs->origin, goal.origin) > SQR(32))
+#elif defined(_WIN32) && !defined(Q3_VM)
+			if (BotMountedDistanceOrder(bs->origin, goal.origin, SQR(32)) == 1)
 #else
 			if (VectorDistanceSquared(bs->origin, goal.origin) > SQR(32))
 #endif
@@ -3937,6 +4007,9 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 #if defined(__linux__)
 							if (BotDistanceSquaredValue(bs->origin, goal.origin) > SQR(128) ||
 							    BotDistanceSquaredValue(bs->origin, g_entities[bs->enemy].r.currentOrigin) > SQR(256))
+#elif defined(_WIN32) && !defined(Q3_VM)
+							if (BotMountedDistanceOrder(bs->origin, goal.origin, SQR(128)) == 1 ||
+							    BotMountedDistanceOrder(bs->origin, g_entities[bs->enemy].r.currentOrigin, SQR(256)) == 1)
 #else
 							if (VectorDistanceSquared(bs->origin, goal.origin) > SQR(128) ||
 							    VectorDistanceSquared(bs->origin, g_entities[bs->enemy].r.currentOrigin) > SQR(256))
@@ -3981,7 +4054,7 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 #if defined(__linux__)
 					else if (fabsl(TCE_VectorLengthSquaredValue(moveresult.movedir)) > 0.0L)
 #elif defined(_WIN32) && !defined(Q3_VM)
-					else if (fabs((double)VectorLengthSquared(moveresult.movedir)) > 0.0)
+					else if (BotMountedLengthOrder(moveresult.movedir, 0.0f) == 1)
 #else
 					else if (VectorLengthSquared(moveresult.movedir))
 #endif
@@ -4011,7 +4084,7 @@ int AINode_MP_MG42Mount(bot_state_t *bs)
 #if defined(__linux__)
 	if (!(BotDistanceSquaredValue(bs->origin, goal.origin) >= SQR(64)))
 #elif defined(_WIN32) && !defined(Q3_VM)
-	if (!(VectorDistanceSquared(bs->origin, goal.origin) >= SQR(64)))
+	if (BotMountedDistanceOrder(bs->origin, goal.origin, SQR(64)) < 0)
 #else
 	if (VectorDistanceSquared(bs->origin, goal.origin) < SQR(64))
 #endif
