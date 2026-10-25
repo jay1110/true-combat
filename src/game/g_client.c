@@ -1715,7 +1715,8 @@ char *ClientConnect(int clientNum, qboolean firstTime, qboolean isBot)
 //
 int G_ComputeMaxLives(gclient_t *cl, int maxRespawns)
 {
-#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__) || \
+    (defined(_WIN32) && !defined(Q3_VM))
 	unsigned int bits;
 	int          elapsed, remaining, val;
 	long double  denominator, ratio, scaled, fraction;
