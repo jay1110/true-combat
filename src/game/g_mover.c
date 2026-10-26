@@ -6595,7 +6595,8 @@ void SP_func_constructible(gentity_t *ent)
 #else
 	i = (int)((unsigned int)i - 1u);    // Original register decrement.
 #endif
-	if (i > 0 && i <= NUM_CONSTRUCTIBLE_CLASSES)
+	/* Keep the original class mapping, but reject the out-of-table class 4. */
+	if (i > 0 && i < NUM_CONSTRUCTIBLE_CLASSES)
 	{
 		ent->constructibleStats = g_constructible_classes[i];
 
