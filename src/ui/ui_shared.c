@@ -2209,15 +2209,16 @@ void Menu_TransitionItemByName(menuDef_t *menu, const char *name,
 		item->window.flags |= WINDOW_INTRANSITION | WINDOW_VISIBLE;
 #if defined(__linux__)
 		item->window.offsetTime = time;
-#else
-		/* Windows computes X difference before the rectangle copies. */
+#endif
+		memcpy(&item->window.rectClient.x, &from.x, sizeof(from.x));
+#if !defined(__linux__)
+		/* Windows subtracts after the X copy, retaining it across later copies. */
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 		difference = TCE_TransitionDifferenceValue(to.x, from.x);
 #else
 		difference = (long double)to.x - (long double)from.x;
 #endif
 #endif
-		memcpy(&item->window.rectClient.x, &from.x, sizeof(from.x));
 		memcpy(&item->window.rectClient.y, &from.y, sizeof(from.y));
 #if defined(_WIN32)
 		item->window.offsetTime = time;
