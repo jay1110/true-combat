@@ -44,7 +44,10 @@ typedef char TraceLoadLayoutGuard[
 void etpro_FinalizeTracemapClamp(int *x, int *y);
 
 #ifdef CGAMEDLL
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(Q3_VM))
+#define TCE_WINDOWS_TRACEMAP_GENERATION
+#endif
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 static unsigned int CG_TraceMapBits(const float *traceValue)
 {
 	unsigned int traceBits;
@@ -192,7 +195,7 @@ static void CG_TraceMapNormalizePlane(float *plane, int planeMin, int planeMax, 
 }
 #endif
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 #define CG_TRACEMAP_PROGRESS(points) CG_TraceMapProgress(points)
 #else
 #define CG_TRACEMAP_PROGRESS(points) (((points) / (float)(TRACEMAP_SIZE * TRACEMAP_SIZE)) * 100.f)
@@ -207,7 +210,7 @@ void CG_GenerateTracemap(void)
 	int     skygroundmin, skygroundmax;
 	int     min, max;
 
-#if !defined(_MSC_VER) || !defined(_M_IX86)
+#if !defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 	float scalefactor;
 #endif
 	fileHandle_t f;
@@ -215,7 +218,7 @@ void CG_GenerateTracemap(void)
 	static int   lastDraw   = 0;
 	static int   tracecount = 0;
 	int          ms;
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 	long double        traceWidth, traceHeight;
 	unsigned int       traceZFlags;
 	const float        *traceMins = cg.mapcoordsMins, *traceMaxs = cg.mapcoordsMaxs;
@@ -233,7 +236,7 @@ void CG_GenerateTracemap(void)
 		CG_Printf("Need valid mapcoords in the worldspawn to be able to generate a tracemap.\n");
 		return;
 	}
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 	/* The native C3 test accepts both equality and unordered differences. */
 	traceWidth = (long double)traceMaxs[0] - traceMins[0];
 	traceHeight = (long double)traceMins[1] - traceMaxs[1];
@@ -250,7 +253,7 @@ void CG_GenerateTracemap(void)
 	// Topdown tracing
 	CG_Printf("Generating level heightmap and level mask...\n");
 
-#if !defined(_MSC_VER) || !defined(_M_IX86)
+#if !defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 	memset(&tracemap, 0, sizeof(tracemap));
 #endif
 
@@ -259,7 +262,7 @@ void CG_GenerateTracemap(void)
 
 	// calculate the size of the level
 	// ok, i'm lazy. Hijack commandmap extends for now and default to a TRACEMAP_SIZE by TRACEMAP_SIZE datablock
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 	traceWidth = ((long double)traceMaxs[0] - traceMins[0]) * traceGridScale;
 	memset(&tracemap, 0, sizeof(tracemap));
 	x_step = (float)traceWidth;
@@ -271,14 +274,14 @@ void CG_GenerateTracemap(void)
 
 	for ( i = 0; i < TRACEMAP_SIZE; i++ )
 	{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 		CG_TraceMapGridCoordinate(i, x_step, cg.mapcoordsMins[0], &start[0], &end[0]);
 #else
 		start[0] = end[0] = cg.mapcoordsMins[0] + i * x_step;
 #endif
 		for ( j = 0; j < TRACEMAP_SIZE; j++ )
 		{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 			CG_TraceMapGridCoordinate(j, y_step, cg.mapcoordsMins[1], &start[1], &end[1]);
 #else
 			start[1] = end[1] = cg.mapcoordsMins[1] + j * y_step;
@@ -288,7 +291,7 @@ void CG_GenerateTracemap(void)
 
 			// Find the ceiling
 			CG_Trace(&tr, start, NULL, NULL, end, ENTITYNUM_NONE, MASK_SOLID | MASK_WATER);
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 			traceZFlags = CG_TraceMapUpdateZ(tr.endpos[2], 1.0f, &start[2], MIN_WORLD_HEIGHT, 1);
 #else
 			start[2] = tr.endpos[2] - 1;
@@ -301,7 +304,7 @@ void CG_GenerateTracemap(void)
 				// Perform traces up to the sky, repeating at a higher start height if we start
 				// inside a solid.
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 				if (traceZFlags & 0x4100)
 				{
 #else
@@ -311,7 +314,7 @@ void CG_GenerateTracemap(void)
 					tracemap.ground[j][i] = MIN_WORLD_HEIGHT;
 					break;
 				}
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 				if (CG_TraceMapCompare(end[2], MIN_WORLD_HEIGHT) & 0x4100)
 #else
 				if (end[2] <= MIN_WORLD_HEIGHT)
@@ -321,12 +324,12 @@ void CG_GenerateTracemap(void)
 				tracecount = (int)((unsigned int)tracecount + 1u);
 				if (tr.startsolid)              // Stuck in something, skip over it.
 				{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 					traceZFlags = CG_TraceMapUpdateZ(start[2], 64.0f, &start[2], MIN_WORLD_HEIGHT, 1);
 #else
 					start[2] -= 64;
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 				}
 				else if (CG_TraceMapCompare(tr.fraction, 1.0f) & 0x4000)
 				{
@@ -340,29 +343,29 @@ void CG_GenerateTracemap(void)
 				}
 				else
 				{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 					CG_TraceMapStoreHeight(&tracemap.ground[j][i], &tr.endpos[2]);
 #else
 					tracemap.ground[j][i] = tr.endpos[2];
 #endif
 					if (!(tr.surfaceFlags & SURF_NODRAW))
 					{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 						if (CG_TraceMapCompareInteger(topdownmax, tracemap.ground[j][i]) & 0x100)
 #else
 						if (tracemap.ground[j][i] > topdownmax)
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 						{ topdownmax = CG_TraceMapInteger(tracemap.ground[j][i]); }
 #else
 						{ topdownmax = tracemap.ground[j][i]; }
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 						if (!(CG_TraceMapCompareInteger(topdownmin, tracemap.ground[j][i]) & 0x4100))
 #else
 						if (tracemap.ground[j][i] < topdownmin)
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 						{ topdownmin = CG_TraceMapInteger(tracemap.ground[j][i]); }
 #else
 						{ topdownmin = tracemap.ground[j][i]; }
@@ -394,14 +397,14 @@ void CG_GenerateTracemap(void)
 
 	for ( i = 0; i < TRACEMAP_SIZE; i++ )
 	{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 		CG_TraceMapGridCoordinate(i, x_step, cg.mapcoordsMins[0], &start[0], &end[0]);
 #else
 		start[0] = end[0] = cg.mapcoordsMins[0] + i * x_step;
 #endif
 		for ( j = 0; j < TRACEMAP_SIZE; j++ )
 		{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 			CG_TraceMapGridCoordinate(j, y_step, cg.mapcoordsMins[1], &start[1], &end[1]);
 #else
 			start[1] = end[1] = cg.mapcoordsMins[1] + j * y_step;
@@ -410,7 +413,7 @@ void CG_GenerateTracemap(void)
 			start[2] = tracemap.ground[j][i];
 			end[2]   = MAX_WORLD_HEIGHT;
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 			if (CG_TraceMapCompare(start[2], MIN_WORLD_HEIGHT) & 0x4000)
 			{
 #else
@@ -423,7 +426,7 @@ void CG_GenerateTracemap(void)
 			else
 			{
 				// Find sky
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 				traceZFlags = CG_TraceMapCompare(start[2], MAX_WORLD_HEIGHT);
 #endif
 				while (1)
@@ -431,7 +434,7 @@ void CG_GenerateTracemap(void)
 					// Perform traces up to the sky, repeating at a higher start height if we start
 					// inside a solid.
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 					if (!(traceZFlags & 0x100))
 					{
 #else
@@ -441,7 +444,7 @@ void CG_GenerateTracemap(void)
 						tracemap.sky[j][i] = MAX_WORLD_HEIGHT;
 						break;
 					}
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 					if (!(CG_TraceMapCompare(end[2], MAX_WORLD_HEIGHT) & 0x100))
 #else
 					if (end[2] >= MAX_WORLD_HEIGHT)
@@ -457,27 +460,27 @@ void CG_GenerateTracemap(void)
 							// are we in a solid?
 							if (!(CG_PointContents(tr.endpos, ENTITYNUM_NONE) & (MASK_SOLID | MASK_WATER)))
 							{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 								CG_TraceMapStoreHeight(&tracemap.sky[j][i], &tr.endpos[2]);
 #else
 								tracemap.sky[j][i] = tr.endpos[2];
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 								if (CG_TraceMapCompareInteger(max, tracemap.sky[j][i]) & 0x100)
 #else
 								if (tracemap.sky[j][i] > max)
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 								{ max = CG_TraceMapInteger(tracemap.sky[j][i]); }
 #else
 								{ max = tracemap.sky[j][i]; }
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 								if (!(CG_TraceMapCompareInteger(min, tracemap.sky[j][i]) & 0x4100))
 #else
 								if (tracemap.sky[j][i] < min)
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 								{ min = CG_TraceMapInteger(tracemap.sky[j][i]); }
 #else
 								{ min = tracemap.sky[j][i]; }
@@ -487,7 +490,7 @@ void CG_GenerateTracemap(void)
 							else
 							{
 								// skip over it
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 								traceZFlags = CG_TraceMapUpdateZ(tr.endpos[2], 1.0f, &start[2], MAX_WORLD_HEIGHT, 0);
 #else
 								start[2] = tr.endpos[2] + 1;
@@ -496,13 +499,13 @@ void CG_GenerateTracemap(void)
 						}
 						else
 						{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 							traceZFlags = CG_TraceMapUpdateZ(tr.endpos[2], 1.0f, &start[2], MAX_WORLD_HEIGHT, 0);
 #else
 							start[2] = tr.endpos[2] + 1;
 #endif
 						}
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 					}
 					else if (CG_TraceMapCompare(tr.fraction, 1.0f) & 0x4000)
 					{
@@ -516,27 +519,27 @@ void CG_GenerateTracemap(void)
 					}
 					else if (tr.surfaceFlags & SURF_SKY)        // Hit sky, this is where we start.
 					{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 						CG_TraceMapStoreHeight(&tracemap.sky[j][i], &tr.endpos[2]);
 #else
 						tracemap.sky[j][i] = tr.endpos[2];
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 						if (CG_TraceMapCompareInteger(max, tracemap.sky[j][i]) & 0x100)
 #else
 						if (tracemap.sky[j][i] > max)
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 						{ max = CG_TraceMapInteger(tracemap.sky[j][i]); }
 #else
 						{ max = tracemap.sky[j][i]; }
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 						if (!(CG_TraceMapCompareInteger(min, tracemap.sky[j][i]) & 0x4100))
 #else
 						if (tracemap.sky[j][i] < min)
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 						{ min = CG_TraceMapInteger(tracemap.sky[j][i]); }
 #else
 						{ min = tracemap.sky[j][i]; }
@@ -546,7 +549,7 @@ void CG_GenerateTracemap(void)
 					else
 					{
 						// hit something else, skip over it
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 						traceZFlags = CG_TraceMapUpdateZ(tr.endpos[2], 64.0f, &start[2], MAX_WORLD_HEIGHT, 0);
 #else
 						start[2] = tr.endpos[2] + 64;
@@ -577,14 +580,14 @@ void CG_GenerateTracemap(void)
 
 	for ( i = 0; i < TRACEMAP_SIZE; i++ )
 	{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 		CG_TraceMapGridCoordinate(i, x_step, cg.mapcoordsMins[0], &start[0], &end[0]);
 #else
 		start[0] = end[0] = cg.mapcoordsMins[0] + i * x_step;
 #endif
 		for ( j = 0; j < TRACEMAP_SIZE; j++ )
 		{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 			CG_TraceMapGridCoordinate(j, y_step, cg.mapcoordsMins[1], &start[1], &end[1]);
 #else
 			start[1] = end[1] = cg.mapcoordsMins[1] + j * y_step;
@@ -592,7 +595,7 @@ void CG_GenerateTracemap(void)
 			start[2] = MAX_WORLD_HEIGHT;
 			end[2]   = MIN_WORLD_HEIGHT;
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 			if (CG_TraceMapBits(&tracemap.sky[j][i]) == 0x47800000u && CG_TraceMapBits(&tracemap.ground[j][i]) != 0xc7800000u)
 			{
 #else
@@ -602,7 +605,7 @@ void CG_GenerateTracemap(void)
 				// Find the ceiling
 				CG_Trace(&tr, start, NULL, NULL, end, ENTITYNUM_NONE, MASK_SOLID | MASK_WATER);
 				tracecount = (int)((unsigned int)tracecount + 1u);
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 				if (CG_TraceMapCompare(tr.fraction, 1.0f) & 0x4000)
 				{
 #else
@@ -614,7 +617,7 @@ void CG_GenerateTracemap(void)
 				else
 				{
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 					memcpy(&tracemap.skyground[j][i], &tr.endpos[2], sizeof(float));
 #else
 					tracemap.skyground[j][i] = tr.endpos[2];
@@ -624,36 +627,36 @@ void CG_GenerateTracemap(void)
 			else
 			{
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 				memcpy(&tracemap.skyground[j][i], &tracemap.ground[j][i], sizeof(float));
 #else
 				tracemap.skyground[j][i] = tracemap.ground[j][i];
 #endif
 			}
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 			if (CG_TraceMapBits(&tracemap.skyground[j][i]) != 0xc7800000u)
 			{
 #else
 			if (tracemap.skyground[j][i] != MIN_WORLD_HEIGHT)
 			{
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 				if (CG_TraceMapCompareInteger(skygroundmax, tracemap.skyground[j][i]) & 0x100)
 #else
 				if (tracemap.skyground[j][i] > skygroundmax)
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 				{ skygroundmax = CG_TraceMapInteger(tracemap.skyground[j][i]); }
 #else
 				{ skygroundmax = tracemap.skyground[j][i]; }
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 				if (!(CG_TraceMapCompareInteger(skygroundmin, tracemap.skyground[j][i]) & 0x4100))
 #else
 				if (tracemap.skyground[j][i] < skygroundmin)
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 				{ skygroundmin = CG_TraceMapInteger(tracemap.skyground[j][i]); }
 #else
 				{ skygroundmin = tracemap.skyground[j][i]; }
@@ -686,7 +689,7 @@ void CG_GenerateTracemap(void)
 	// rain - etmain REALLY expects 1 to 255, so I'm changing this to
 	// generate that instead, so that etpro tracemaps can be used with
 	// etmain
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 	CG_TraceMapNormalizePlane(&tracemap.ground[0][0], topdownmin, topdownmax, 0);
 	CG_TraceMapNormalizePlane(&tracemap.skyground[0][0], skygroundmin, skygroundmax, 0);
 	CG_TraceMapNormalizePlane(&tracemap.sky[0][0], min, max, 1);
@@ -827,14 +830,14 @@ void CG_GenerateTracemap(void)
 				}
 				continue;
 			}
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 
 			data = CG_TraceMapInteger(tracemap.sky[TRACEMAP_SIZE - 1 - i][j]); trap_FS_Write(&data, sizeof(data), f);       // b
 #else
 
 			data = tracemap.sky[TRACEMAP_SIZE - 1 - i][j]; trap_FS_Write(&data, sizeof(data), f);   // b
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 			if (CG_TraceMapBits(&tracemap.skyground[TRACEMAP_SIZE - 1 - i][j]) == 0xc7800000u)
 			{
 #else
@@ -845,13 +848,13 @@ void CG_GenerateTracemap(void)
 			}
 			else
 			{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 				data = CG_TraceMapInteger(tracemap.skyground[TRACEMAP_SIZE - 1 - i][j]); trap_FS_Write(&data, sizeof(data), f);     // g
 #else
 				data = tracemap.skyground[TRACEMAP_SIZE - 1 - i][j]; trap_FS_Write(&data, sizeof(data), f);     // g
 #endif
 			}
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 			if (CG_TraceMapBits(&tracemap.ground[TRACEMAP_SIZE - 1 - i][j]) == 0xc7800000u)
 			{
 #else
@@ -863,7 +866,7 @@ void CG_GenerateTracemap(void)
 			}
 			else
 			{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(TCE_WINDOWS_TRACEMAP_GENERATION)
 				data = CG_TraceMapInteger(tracemap.ground[TRACEMAP_SIZE - 1 - i][j]); trap_FS_Write(&data, sizeof(data), f);        // r
 #else
 				data = tracemap.ground[TRACEMAP_SIZE - 1 - i][j]; trap_FS_Write(&data, sizeof(data), f);    // r
@@ -882,6 +885,7 @@ void CG_GenerateTracemap(void)
 }
 
 #undef CG_TRACEMAP_PROGRESS
+#undef TCE_WINDOWS_TRACEMAP_GENERATION
 #endif // CGAMEDLL
 
 #if (defined(CGAMEDLL) || defined(GAMEDLL)) && ((defined(_MSC_VER) && defined(_M_IX86)) || ((defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)))
