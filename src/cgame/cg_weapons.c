@@ -2120,6 +2120,20 @@ void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 						 * part. Do not hoist this cumulative displacement. */
 						for (component = 0; component < 3; ++component)
 						{
+#if defined(__linux__)
+							/* Keep the native x87 product until the origin store.
+							 * Its Y/Z lower clamps also select -1 for NaN. */
+							long double drift = (long double)cg.predictedPlayerState.velocity[component] * 0.0033333334140479565f;
+							if (drift > 1.0L)
+							{
+								drift = 1.0L;
+							}
+							if (component == 0 ? drift < -1.0L : !(drift >= -1.0L))
+							{
+								drift = -1.0L;
+							}
+							gun.origin[component] = (float)((component == 2 ? drift + drift : drift * 4.0f) + gun.origin[component]);
+#else
 							float drift = cg.predictedPlayerState.velocity[component] * 0.0033333334140479565f;
 							if (drift > 1.0f)
 							{
@@ -2130,6 +2144,7 @@ void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 								drift = -1.0f;
 							}
 							gun.origin[component] += drift * (component == 2 ? 2.0f : 4.0f);
+#endif
 						}
 					}
 					if (!BG_CheckUTWeapon(weaponNum) && (weaponNum == 37 || weaponNum == 38) && i > 1 && tceRestoreDualFrames)
