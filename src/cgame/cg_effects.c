@@ -2051,7 +2051,7 @@ void CG_AddSmokeSprites(void)
 		}
 		ageBits = (unsigned int)cg.time - (unsigned int)sprite->birthTime;
 		memcpy(&age, &ageBits, sizeof(age));
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 		{
 			static const float smokeDecay  = 6.666666740784422e-05f;
 			static const float smokeStep   = .032f;
