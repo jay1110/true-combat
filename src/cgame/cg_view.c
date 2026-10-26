@@ -1464,8 +1464,26 @@ static void CG_SampleEyeLighting(void)
 #endif
 		{
 			for (j = 0; j < 3; j++)
+			{
+#if defined(_WIN32) && !defined(Q3_VM)
+				long double direction = (long double)side[i] * cg.refdef.viewaxis[1][j] +
+				                        cg.refdef.viewaxis[0][j];
+				long double rise = (long double)up[i] * cg.refdef.viewaxis[2][j];
+				if (j != 0)
+				{
+					direction = (float)direction;
+					direction = (float)(rise + direction);
+				}
+				else
+				{
+					direction += rise;
+				}
+				end[j] = (float)(direction * 8192.0L + cg.refdef.vieworg[j]);
+#else
 				end[j] = cg.refdef.vieworg[j] + 8192.0f *
 				         (up[i] * cg.refdef.viewaxis[2][j] + side[i] * cg.refdef.viewaxis[1][j] + cg.refdef.viewaxis[0][j]);
+#endif
+			}
 		}
 #endif
 		CG_Trace(&trace, eyeStart, NULL, NULL, end, cg.snap->ps.clientNum, CONTENTS_SOLID);
@@ -1513,7 +1531,14 @@ static void CG_TCERoomRay(vec3_t direction, const vec3_t signs, int axis)
 			continue;
 		}
 #endif
+#if defined(_WIN32) && !defined(Q3_VM)
+		{
+			long double centered = (long double)sample * (1.0f / 32767.0f) - .5L;
+			direction[j] = (float)(centered + centered);
+		}
+#else
 		direction[j] = 2.0f * (sample * (1.0f / 32767.0f) - .5f);
+#endif
 	}
 	if (axis < 3)
 	{
@@ -1732,10 +1757,13 @@ static float CG_TCEEnvironmentFraction(int value)
 	{
 		return result;
 	}
-#elif defined(TCE_LINUX_ROOM_X87)
-	/* FILD32 is exact; only the scaled value is stored as Float. */
-	volatile long double scaled = (long double)value * (long double)(1.0f / 255.0f);
-	return (float)scaled;
+#endif
+#if (defined(_WIN32) && !defined(Q3_VM)) || defined(TCE_LINUX_ROOM_X87)
+	{
+		/* FILD32 is exact; only the scaled value is stored as Float. */
+		volatile long double scaled = (long double)value * (long double)(1.0f / 255.0f);
+		return (float)scaled;
+	}
 #endif
 	return value * (1.0f / 255.0f);
 }
