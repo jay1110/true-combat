@@ -268,7 +268,6 @@ void TCE_CG_MissileHitWall(int weapon, int effectType, vec3_t origin, vec3_t nor
 	double distance;
 #endif
 	vec3_t  position, velocity, particleDir, traceStart, traceEnd, farOrigin, farDir, projectOrigin;
-	vec3_t  up = { 0, 0, 1 };
 	vec4_t  projection, color;
 	trace_t trace;
 	float   radius, farRange;
@@ -734,7 +733,7 @@ LAB_30079255:
 			value1     = 1000;
 			value0     = 0x20;
 			markShader = 0;
-			component  = up;
+			component  = tv(0.0f, 0.0f, 1.0f);
 			ctx->ripple(TCE_WallHandle(ctx->media.waterRipple), origin, component, value0, value1);
 			ctx->dirtParticles(origin, normal, 0xbe, 900, 5, 0.5, 80.0, 16.0, 0.125, TCE_WallHandle(ctx->media.water));
 		}
