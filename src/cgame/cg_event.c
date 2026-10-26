@@ -13,6 +13,14 @@ extern void CG_ToggleAiming(void);
 extern void CG_Tracer(vec3_t source, vec3_t dest, int sparks);
 extern void CG_AddBulletParticles(vec3_t origin, vec3_t dir, int speed, int duration, int count, float randScale);
 
+#if defined(__linux__)
+static int CG_EventSoundVolumeForAmount(int amount)
+{
+	long double volume = 1.0L - (long double)tceFlash.deafness;
+	return TCE_TruncateNativeInteger(volume * (long double)amount);
+}
+#endif
+
 #if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
 /* Shared held event expression; native helper, not an original body. */
 static int CG_EventGlobalSoundVolume(void)
@@ -2755,7 +2763,14 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 				sound          = fxSounds[es->eventParm].sound[sound];
 				trap_S_StartSoundVControl(NULL, es->number, CHAN_VOICE, sound, fxVolume);
 			}
-			#else
+			#elif defined(__linux__)
+			{
+				int fxVolume;
+				sound = fxSounds[es->eventParm].sound[sound];
+				fxVolume = CG_EventSoundVolumeForAmount(255);
+				trap_S_StartSoundVControl(NULL, es->number, CHAN_VOICE, sound, fxVolume);
+			}
+#else
 			sound = fxSounds[es->eventParm].sound[sound];
 			trap_S_StartSoundVControl(NULL, es->number, CHAN_VOICE, sound, (int)((1.0 - (double)tceFlash.deafness) * 255.0));
 			#endif
@@ -2770,7 +2785,7 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 			int sound       = es->eventParm;
 			int eventVolume = es->onFireStart;
 			int volume;
-#if !defined(_MSC_VER) || !defined(_M_IX86)
+#if (!defined(_MSC_VER) || !defined(_M_IX86)) && !defined(__linux__)
 			volume = (int)((1.0 - (double)tceFlash.deafness) * eventVolume);
 #endif
 
@@ -2798,7 +2813,11 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 				eventScaledVolume = eventScaledVolume * (long double)eventVolume;
 				volume            = TCE_TruncateNativeInteger(eventScaledVolume);
 				trap_S_StartSoundVControl(NULL, es->number, CHAN_VOICE, registeredSound, volume);
-				#else
+				#elif defined(__linux__)
+				int registeredSound = cgs.gameSounds[sound];
+				volume = CG_EventSoundVolumeForAmount(eventVolume);
+				trap_S_StartSoundVControl(NULL, es->number, CHAN_VOICE, registeredSound, volume);
+#else
 				trap_S_StartSoundVControl(NULL, es->number, CHAN_VOICE, cgs.gameSounds[sound], volume);
 				#endif
 			}
@@ -2813,7 +2832,15 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 					volume            = TCE_TruncateNativeInteger(eventScaledVolume);
 				}
 				#endif
+#if defined(__linux__)
+				{
+					int customSound = CG_CustomSound(es->number, s);
+					volume = CG_EventSoundVolumeForAmount(eventVolume);
+					trap_S_StartSoundVControl(NULL, es->number, CHAN_VOICE, customSound, volume);
+				}
+#else
 				trap_S_StartSoundVControl(NULL, es->number, CHAN_VOICE, CG_CustomSound(es->number, s), volume);
+#endif
 			}
 		}
 		break;
