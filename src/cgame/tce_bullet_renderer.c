@@ -87,16 +87,35 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 	VectorCopy(suppliedStart, start);
 	if (cgs.antilag && other == cg.snap->ps.clientNum && (cg_entities[other].currentState.eFlags & 0x20))
 	{
-		vec3_t forward, right, up, muzzle; float horizontal; double vertical; int j;
+		vec3_t forward, right, up, muzzle; float horizontal;
+#if defined(_WIN32)
+		long double vertical;
+#else
+		double vertical;
+#endif
+		int j;
 		AngleVectors(cg.predictedPlayerState.viewangles, forward, right, up);
 		VectorCopy(cg_entities[cg.snap->ps.viewlocked_entNum].currentState.pos.trBase, muzzle);
 		if (cg_entities[cg.snap->ps.viewlocked_entNum].currentState.onFireStart)
 		{
 			VectorMA(muzzle, 16, up, muzzle);
 		}
-		horizontal = Q_crandom(&seed) * 100; vertical = Q_crandom(&seed) * 100.0;
+		horizontal = Q_crandom(&seed) * 100;
+#if defined(_WIN32)
+		vertical = (long double)Q_crandom(&seed) * 100.0L;
+#else
+		vertical = Q_crandom(&seed) * 100.0;
+#endif
 		for (j = 0; j < 3; ++j)
+		{
+#if defined(_WIN32)
+			long double spread = (long double)right[j] * horizontal + vertical * up[j];
+			long double distance = (long double)forward[j] * 8192.0L;
+			end[j] = (float)((spread + distance) + muzzle[j]);
+#else
 			end[j] = (float)((double)forward[j] * 8192 + vertical * up[j] + (double)right[j] * horizontal + muzzle[j]);
+#endif
+		}
 		CG_Trace(&solid, muzzle, NULL, NULL, end, other, 0x6000081);
 		SnapVectorTowards(solid.endpos, muzzle); VectorCopy(solid.endpos, end);
 	}
@@ -179,9 +198,19 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 	VectorSubtract(end, start, direction); bulletNormalize(direction);
 	VectorSubtract(target->currentState.pos.trBase, end, offset); offset[2] = 0;
 	{ long double distance = bulletLength(offset); int j; for (j = 0; j < 3; ++j)
-		  offset[j] = (float)(distance * direction[j]);
+		{
+#if defined(__linux__)
+			long double product = distance * direction[j];
+			offset[j] = (float)product;
+			projected[j] = (float)(product + end[j]);
+#else
+			offset[j] = (float)(distance * direction[j]);
+#endif
+		}
 	}
+#if !defined(__linux__)
 	VectorAdd(offset, end, projected);
+#endif
 	CG_GetOriginForTag(target, &target->pe.headRefEnt, "tag_mouth", 0, tag, NULL); tag[2] += 5;
 	VectorSubtract(tag, projected, offset); headshot                                       = bulletLength(offset) < 10;
 	VectorNegate(direction, opposite);
