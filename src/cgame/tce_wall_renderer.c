@@ -35,8 +35,8 @@ static float TCE_WallParticleAlpha(unsigned sample)
 #endif
 }
 
-/* The five call profiles use scale 3, 4 or 8 and bounded integer counts. */
-static int TCE_WallSparkCount(unsigned sample, float scale, float base, int addBeforeScale)
+/* Masked random profiles produce bounded spark counts and explosion timing. */
+static int TCE_WallCount(unsigned sample, float scale, float base, int addBeforeScale)
 {
 #if defined(__linux__)
 	/* GCC folded the reciprocal/scale and the constant offset. */
@@ -47,7 +47,7 @@ static int TCE_WallSparkCount(unsigned sample, float scale, float base, int addB
 	unsigned control;
 
 	__control87_2(0, 0, &control, NULL);
-	/* Counts stay normal or zero and at most 18. Only inexact arithmetic
+	/* These profiles stay normal or zero and at most 8000. Only inexact arithmetic
 	 * or truncation can raise an exception for these masked samples. */
 	if ((control & _EM_INEXACT) != 0)
 	{
@@ -420,7 +420,7 @@ void TCE_CG_MissileHitWall(int weapon, int effectType, vec3_t origin, vec3_t nor
 						if (materialIsType == 0)
 						{
 							randomValue = rand();
-							value0      = TCE_WallSparkCount(randomValue & 32767, 8.0f, 10.0f, 0);
+							value0      = TCE_WallCount(randomValue & 32767, 8.0f, 10.0f, 0);
 							ctx->flatSparks(origin, normal, value0);
 							randomBits = rand();
 							if ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f <= 0.5f)
@@ -433,7 +433,7 @@ void TCE_CG_MissileHitWall(int weapon, int effectType, vec3_t origin, vec3_t nor
 						{
 							randomValue = rand();
 						}
-						value0 = TCE_WallSparkCount(randomValue & 32767, 4.0f, 4.0f, 1);
+						value0 = TCE_WallCount(randomValue & 32767, 4.0f, 4.0f, 1);
 						ctx->sparks(origin, normal, value0);
 LAB_30078e49:
 						valueFloat0 = 1.0;
@@ -452,14 +452,14 @@ LAB_30078e49:
 						{
 							VectorInverse(normal);
 							randomValue = rand();
-							value0      = TCE_WallSparkCount(randomValue & 32767, 4.0f, 6.0f, 0);
+							value0      = TCE_WallCount(randomValue & 32767, 4.0f, 6.0f, 0);
 							ctx->flatSparks(origin, normal, value0);
 							randomBits = rand();
 							if (0.75f < (float)(randomBits & 0x7fff) * 3.0518509447574615e-05f)
 							{
 								randomValue = rand();
 								/* 3007872d uses 3, unlike the metal path's shared ftol (4). */
-								value0 = TCE_WallSparkCount(randomValue & 32767, 3.0f, 3.0f, 1);
+								value0 = TCE_WallCount(randomValue & 32767, 3.0f, 3.0f, 1);
 								ctx->sparks(origin, normal, value0);
 							}
 							goto LAB_30078e49;
@@ -614,13 +614,13 @@ LAB_300787e6:
 					if (0.5f < (float)(randomBits & 0x7fff) * 3.0518509447574615e-05f)
 					{
 						randomValue = rand();
-						value0      = TCE_WallSparkCount(randomValue & 32767, 4.0f, 4.0f, 1);
+						value0      = TCE_WallCount(randomValue & 32767, 4.0f, 4.0f, 1);
 						ctx->sparks(origin, normal, value0);
 					}
 					if (((bits == 0x3000000) || (bits == 0x4000000)) || (bits == 0x1f000000))
 					{
 						randomValue = rand();
-						value0      = TCE_WallSparkCount(randomValue & 32767, 8.0f, 10.0f, 0);
+						value0      = TCE_WallCount(randomValue & 32767, 8.0f, 10.0f, 0);
 						ctx->flatSparks(origin, normal, value0);
 					}
 				}
@@ -785,7 +785,7 @@ LAB_30079255:
 		ctx->particle(origin, normal, 0, 0,
 		              TCE_WallParticleAlpha(bits & 0x7fff));
 		randomValue = rand();
-		value0      = TCE_WallSparkCount(randomValue & 32767, 8.0f, 8.0f, 1);
+		value0      = TCE_WallCount(randomValue & 32767, 8.0f, 8.0f, 1);
 		ctx->sparks(origin, normal, value0);
 		valueFloat0 = 1.0;
 		value0      = rand();
@@ -897,7 +897,7 @@ LAB_30079255:
 			ctx->particle(origin, particleDir, 0, 0x27,
 			              TCE_WallParticleAlpha(bits & 0x7fff));
 			randomValue = rand();
-			value0      = TCE_WallSparkCount(randomValue & 32767, 8.0f, 8.0f, 1);
+			value0      = TCE_WallCount(randomValue & 32767, 8.0f, 8.0f, 1);
 			ctx->sparks(origin, normal, value0);
 			valueFloat0 = 1.0;
 			value0      = rand();
@@ -957,7 +957,7 @@ LAB_30079255:
 				value0      = TCE_WallHandle(ctx->media.dirt);
 				randomValue = rand();
 LAB_3007996e:
-				value3 = (int)(((double)(randomValue & 32767) * 0.000030518509447574615) * 200 + 400);
+				value3 = TCE_WallCount(randomValue & 32767, 200.0f, 400.0f, 0);
 				ctx->dirtParticles(origin, normal, value3, value1, value2, valueFloat0, valueFloat1, valueFloat2, valueFloat3, value0);
 			}
 			else
@@ -1023,10 +1023,10 @@ LAB_3007996e:
 				velocity[1] = (trace.plane.normal[1] + velocity[1]) * 130.0f;
 				velocity[2] = (trace.plane.normal[2] + velocity[2]) * 130.0f;
 				randomValue = rand();
-				value0      = (int)(((double)(randomValue & 32767) * 0.000030518509447574615) * 200 + 400);
+				value0      = TCE_WallCount(randomValue & 32767, 200.0f, 400.0f, 0);
 				value2      = 0x28;
 				randomValue = rand();
-				value1      = (int)(((double)(randomValue & 32767) * 0.000030518509447574615) * 2000 + 6000);
+				value1      = TCE_WallCount(randomValue & 32767, 2000.0f, 6000.0f, 0);
 				ctx->particleExplosion
 				    ("blacksmokeanim", position, velocity, value1, value2, value0, value3);
 				particleIndex = particleIndex + -1;
@@ -1068,7 +1068,7 @@ LAB_3007996e:
 					((float)(bits & 0x7fff) * 3.0518509447574615e-05f * 100.0f + 300.0f) *
 					velocity[2];
 				randomValue = rand();
-				value0      = (int)(((double)(randomValue & 32767) * 0.000030518509447574615) * 200 + 400);
+				value0      = TCE_WallCount(randomValue & 32767, 200.0f, 400.0f, 0);
 				value2      = 0x28;
 				value1      = rand();
 				ctx->particleExplosion
@@ -1082,7 +1082,7 @@ LAB_3007996e:
 			value0      = rand();
 			value2      = value0 % 2000 + 0x578;
 			randomValue = rand();
-			value0      = (int)(((double)(randomValue & 32767) * 0.000030518509447574615) * 200 + 400);
+			value0      = TCE_WallCount(randomValue & 32767, 200.0f, 400.0f, 0);
 			ctx->debris(origin, normal, value0, value2, value1);
 		}
 		else
@@ -1100,7 +1100,7 @@ LAB_3007996e:
 			value2      = 900;
 			value0      = TCE_WallHandle(ctx->media.water);
 			randomValue = rand();
-			value1      = (int)(((double)(randomValue & 32767) * 0.000030518509447574615) * 200 + 400);
+			value1      = TCE_WallCount(randomValue & 32767, 200.0f, 400.0f, 0);
 			ctx->dirtParticles(trace.endpos, normal, value1, value2, value3, valueFloat0, valueFloat1, valueFloat2, valueFloat3, value0);
 			valueFloat3 = 0.125;
 			valueFloat2 = 512.0;
@@ -1110,7 +1110,7 @@ LAB_3007996e:
 			value2      = 0x578;
 			value0      = TCE_WallHandle(ctx->media.water);
 			randomValue = rand();
-			value1      = (int)(((double)(randomValue & 32767) * 0.000030518509447574615) * 600 + 400);
+			value1      = TCE_WallCount(randomValue & 32767, 600.0f, 400.0f, 0);
 			ctx->dirtParticles(trace.endpos, normal, value1, value2, value3, valueFloat0, valueFloat1, valueFloat2, valueFloat3, value0);
 		}
 LAB_300796c2:
@@ -1400,7 +1400,7 @@ LAB_3007abb7:
 		ctx->particle(origin, normal, 0, 0,
 		              TCE_WallParticleAlpha(bits & 0x7fff));
 		randomValue = rand();
-		value0      = TCE_WallSparkCount(randomValue & 32767, 8.0f, 8.0f, 1);
+		value0      = TCE_WallCount(randomValue & 32767, 8.0f, 8.0f, 1);
 		ctx->sparks(origin, normal, value0);
 		valueFloat0 = 1.0;
 		value0      = rand();
