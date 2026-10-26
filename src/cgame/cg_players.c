@@ -8,6 +8,7 @@
 #include "cg_local.h"
 #include "../game/bg_classes.h"
 #include "../game/tce_trajectory.h"
+#include "../game/tce_numeric.h"
 #include "tce_smoke_grenade.h"
 #include "tce_weapon_media.h"
 
@@ -2278,7 +2279,10 @@ void CG_Player(centity_t *cent)
 	{
 		vec3_t angles, motion;
 		vec3_t axis[3];
-		float  clock, dx, dy, speed, tilt;
+		float  clock, dx, dy, speed;
+#if !defined(__linux__)
+		float tilt;
+#endif
 		double phase;
 		VectorCopy(cent->lerpAngles, angles);
 		angles[YAW] = AngleMod(angles[YAW]);
@@ -2307,8 +2311,8 @@ void CG_Player(centity_t *cent)
 			float dz;
 			/* Linux 97bcb..97cfb keeps the time conversion separate and
 			 * spills each displacement before adding it to the pose.
-			 * Its indeterminate phase stack input is not reconstructed by
-			 * the Windows phase above; that remaining gap is tracked. */
+			 * Accepted safety deviation: the native phase is an unset signed32
+			 * stack value. Retain the existing stable per-client phase above. */
 			seconds = (long double)cg.time * (long double)0.001f;
 			clock = (float)((seconds + seconds) * (long double)3.141592653589793);
 			wave = (long double)clock * (long double)0.1875f;
@@ -2331,6 +2335,44 @@ void CG_Player(centity_t *cent)
 		}
 		#endif
 		speed            = VectorNormalize(motion);
+#if defined(__linux__)
+		/* Native JNE skips zero and unordered lengths. Tilt remains held
+		 * through clamping and the final angle store. */
+		if (speed != 0.0f && !TCE_FloatIsNaN(speed))
+		{
+			long double jetTilt;
+
+			speed += speed;
+			AnglesToAxis(angles, axis);
+			jetTilt = (long double)motion[1] * axis[1][1] +
+			          (long double)motion[0] * axis[1][0];
+			jetTilt += (long double)motion[2] * axis[1][2];
+			jetTilt *= speed;
+			if (jetTilt > 10.0L)
+			{
+				jetTilt = 10.0L;
+			}
+			if (jetTilt < -10.0L)
+			{
+				jetTilt = -10.0L;
+			}
+			angles[ROLL] = (float)((long double)angles[ROLL] - jetTilt);
+			jetTilt = (long double)motion[1] * axis[0][1] +
+			          (long double)motion[0] * axis[0][0];
+			jetTilt = (long double)motion[2] * axis[0][2] + jetTilt;
+			jetTilt = (long double)speed * jetTilt;
+			if (jetTilt > 10.0L)
+			{
+				jetTilt = 10.0L;
+			}
+			/* The second lower clamp selects -10 for unordered as well. */
+			if (!(jetTilt >= -10.0L))
+			{
+				jetTilt = -10.0L;
+			}
+			angles[PITCH] = (float)(jetTilt + ((long double)angles[PITCH] + jetTilt));
+		}
+#else
 		if (speed != 0.0f)
 		{
 			speed += speed;
@@ -2356,6 +2398,7 @@ void CG_Player(centity_t *cent)
 			}
 			angles[PITCH] = tilt + angles[PITCH] + tilt;
 		}
+#endif
 		AnglesToAxis(angles, body.axis);
 	}
 
@@ -2646,7 +2689,11 @@ void CG_Player(centity_t *cent)
 	if (cent->currentState.eFlags & EF_FIRING)
 	{
 		cent->pe.lastFiredWeaponTime = 0;
+#if defined(__linux__)
+		cent->pe.weaponFireTime = TCE_AddInt32(cent->pe.weaponFireTime, cg.frametime);
+#else
 		cent->pe.weaponFireTime     += cg.frametime;
+#endif
 	}
 	else
 	{
@@ -2666,7 +2713,11 @@ void CG_Player(centity_t *cent)
 		{
 			anim = HD_ATTACK;
 		}
+#if defined(__linux__)
+		else if (TCE_SubInt32(cg.time, cent->pe.lastFiredWeaponTime) < 500)
+#else
 		else if (cg.time - cent->pe.lastFiredWeaponTime < 500)
+#endif
 		{
 			anim = HD_ATTACK_END;
 		}
