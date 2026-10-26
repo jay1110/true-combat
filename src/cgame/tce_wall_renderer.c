@@ -75,6 +75,54 @@ static int TCE_WallCount(unsigned sample, float scale, float base, int addBefore
 #endif
 }
 
+/* DC1 profiles: position spread 150/100, velocity spread binary64 .35/.65. */
+static float TCE_WallDC1Spread(unsigned sample, int profile, float origin)
+{
+	long double scale = profile == 0 ? 150.0L : profile == 1 ? 100.0L :
+	                    profile == 2 ? (long double)0.35 : (long double)0.65;
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	tceTriggerSum_t value, term, twice;
+	unsigned control;
+
+	__control87_2(0, 0, &control, NULL);
+	if (TCE_FiniteExceptionsMasked(control) &&
+	    TCE_TriggerProduct(&value, (float)sample, 3.0518509447574615e-05f, control) &&
+	    TCE_TriggerProduct(&term, -0.5f, 1.0f, control))
+	{
+		TCE_RotateAdd(&value, &term, control);
+		twice = value;
+		TCE_RotateAdd(&value, &twice, control);
+		if (profile < 2)
+		{
+			TCE_TriggerProduct(&term, profile == 0 ? 150.0f : 100.0f, 1.0f, control);
+		}
+		else
+		{
+			/* FLD binary64 is exact; do not round its significand to PC. */
+			memset(&term, 0, sizeof(term));
+			TCE_TriggerPlace(&term, profile == 2 ? 0x16666666666666ULL :
+			                 0x14cccccccccccdULL, profile == 2 ? 244 : 245);
+		}
+		TCE_GustMultiply(&value, &term, control);
+		if (profile < 2)
+		{
+			if (!TCE_TriggerProduct(&term, origin, 1.0f, control))
+			{
+				goto fallback;
+			}
+			TCE_RotateAdd(&value, &term, control);
+		}
+		return TCE_RotateStore(value, control);
+	}
+fallback:
+#endif
+	{
+		long double value = (long double)sample * 3.0518509447574615e-05f - 0.5;
+		value = (value + value) * scale;
+		return (float)(profile < 2 ? value + origin : value);
+	}
+}
+
 /* Both callers pass a masked random sample and an exact base of 1 or 1.5. */
 static float TCE_WallRadius(unsigned sample, float base)
 {
@@ -1007,14 +1055,10 @@ LAB_3007996e:
 				do
 				{
 					bits                 = rand();
-					valueFloat0          = (float)(bits & 0x7fff) * 3.0518509447574615e-05f - (float)0.5;
-					position[value0 / 4] =
-						(valueFloat0 + valueFloat0) * (float)150.0 +
-						origin[value0 / 4];
+					position[value0 / 4] = TCE_WallDC1Spread(bits & 0x7fff, 0, origin[value0 / 4]);
 					bits                 = rand();
 					value1               = value0 + 4;
-					valueFloat0          = (float)(bits & 0x7fff) * 3.0518509447574615e-05f - (float)0.5;
-					velocity[value0 / 4] = (valueFloat0 + valueFloat0) * (float)0.35;
+					velocity[value0 / 4] = TCE_WallDC1Spread(bits & 0x7fff, 2, 0.0f);
 					value0               = value1;
 				}
 				while (value1 < 0xc);
@@ -1040,14 +1084,10 @@ LAB_3007996e:
 				do
 				{
 					bits                 = rand();
-					valueFloat0          = (float)(bits & 0x7fff) * 3.0518509447574615e-05f - (float)0.5;
-					position[value0 / 4] =
-						(valueFloat0 + valueFloat0) * (float)100.0 +
-						origin[value0 / 4];
+					position[value0 / 4] = TCE_WallDC1Spread(bits & 0x7fff, 1, origin[value0 / 4]);
 					bits                 = rand();
 					value1               = value0 + 4;
-					valueFloat0          = (float)(bits & 0x7fff) * 3.0518509447574615e-05f - (float)0.5;
-					velocity[value0 / 4] = (valueFloat0 + valueFloat0) * (float)0.65;
+					velocity[value0 / 4] = TCE_WallDC1Spread(bits & 0x7fff, 3, 0.0f);
 					value0               = value1;
 				}
 				while (value1 < 0xc);
