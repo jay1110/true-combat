@@ -1,5 +1,54 @@
 #include "tce_wall_renderer.h"
-#include "../game/tce_rotate_precision.h"
+#include "../game/tce_length_precision.h"
+
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+/* The Windows normalizer leaves its root on ST0 through both range gates. */
+static int TCE_WallEchoGate(const float *delta, int *audible)
+{
+	tceTriggerSum_t squared, term, root, nearLimit, farLimit;
+	unsigned control;
+	int axis;
+
+	__control87_2(0, 0, &control, NULL);
+	if (!TCE_FiniteExceptionsMasked(control) ||
+	    !TCE_TriggerProduct(&squared, delta[0], delta[0], control))
+	{
+		return 0;
+	}
+	for (axis = 1; axis < 3; ++axis)
+	{
+		if (!TCE_TriggerProduct(&term, delta[axis], delta[axis], control))
+		{
+			return 0;
+		}
+		TCE_RotateAdd(&squared, &term, control);
+	}
+	root = TCE_LengthRoot(&squared, control);
+	TCE_TriggerProduct(&nearLimit, 1200.0f, 1.0f, control);
+	TCE_TriggerProduct(&farLimit, 8000.0f, 1.0f, control);
+	*audible = TCE_TriggerCompare(&root, &nearLimit) > 0 &&
+	           TCE_TriggerCompare(&root, &farLimit) < 0;
+	return 1;
+}
+#endif
+
+static float TCE_WallEchoCoordinate(float direction, float range, float listener)
+{
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	tceTriggerSum_t offset, origin;
+	unsigned control;
+
+	__control87_2(0, 0, &control, NULL);
+	if (TCE_FiniteExceptionsMasked(control) &&
+	    TCE_TriggerProduct(&offset, direction, range, control) &&
+	    TCE_TriggerProduct(&origin, listener, 1.0f, control))
+	{
+		TCE_RotateAdd(&offset, &origin, control);
+		return TCE_RotateStore(offset, control);
+	}
+#endif
+	return (float)((long double)direction * range + listener);
+}
 
 /* Native visibility compares the retained dot product, without a Float store. */
 static int TCE_WallFacing(const float *facing, const float *normal)
@@ -57,7 +106,11 @@ void TCE_CG_MissileHitWall(int weapon, int effectType, vec3_t origin, vec3_t nor
 	(void)direction;
 	int     value0, value1, value2, value3, particleIndex, impactSound, markShader, farSound, markDuration, soundVolume, materialType, visible, randomValue;
 	float   *component, valueFloat0, valueFloat1, valueFloat2, valueFloat3, markAlpha, viewY, viewZ;
-	double  distance;
+#if defined(_WIN32)
+	long double distance;
+#else
+	double distance;
+#endif
 	vec3_t  position, velocity, particleDir, traceStart, traceEnd, farOrigin, farDir, projectOrigin;
 	vec3_t  zero = { 0, 0, 0 }, up = { 0, 0, 1 };
 	vec4_t  projection, color;
@@ -1228,6 +1281,10 @@ LAB_3007abb7:
 	value0 = farSound;
 	if (farSound != 0)
 	{
+		int echoAudible;
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		vec3_t delta;
+#endif
 		farOrigin[0] = *origin;
 		farOrigin[1] = origin[1];
 		farOrigin[2] = origin[2];
@@ -1236,12 +1293,28 @@ LAB_3007abb7:
 		farDir[0]    = farOrigin[0] - (*ctx->view)->vieworg[0];
 		farDir[1]    = farOrigin[1] - viewY;
 		farDir[2]    = farOrigin[2] - viewZ;
-		distance     = (double)VectorNormalize(farDir);
-		if (((double)1200.0f < distance) && (distance < (double)8000.0f))
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		VectorCopy(farDir, delta);
+#endif
+#if defined(_WIN32)
+		distance = TCE_VectorNormalizeValue(farDir);
+#else
+		distance = (double)VectorNormalize(farDir);
+#endif
+		echoAudible = distance > 1200.0L && distance < 8000.0L;
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		/* Preserve the held root comparison even when MSVC long double is
+		 * binary64. Normalized components still come from the shared provider. */
+		(void)TCE_WallEchoGate(delta, &echoAudible);
+#endif
+		if (echoAudible)
 		{
-			farOrigin[0] = farDir[0] * farRange + (*ctx->view)->vieworg[0];
-			farOrigin[1] = farDir[1] * farRange + (*ctx->view)->vieworg[1];
-			farOrigin[2] = farDir[2] * farRange + (*ctx->view)->vieworg[2];
+			const float *listener = (*ctx->view)->vieworg;
+			int axis;
+			for (axis = 0; axis < 3; ++axis)
+			{
+				farOrigin[axis] = TCE_WallEchoCoordinate(farDir[axis], farRange, listener[axis]);
+			}
 			ctx->soundEx(farOrigin, -1, 2, value0, 0x10, soundVolume);
 		}
 	}
