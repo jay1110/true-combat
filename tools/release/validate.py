@@ -10,7 +10,8 @@ import zipfile
 from package import ROOT, version
 from runtime_payload import command_spans, prepare_runtime, sha256
 from verify_omnibot_boundary import (AUTHORING_COMMANDS, RUNTIME_BINDINGS,
-                                    NATIVE_PUBLIC_COMMANDS, NATIVE_AUTHORING_COMMANDS)
+                                    NATIVE_PUBLIC_COMMANDS, NATIVE_AUTHORING_COMMANDS,
+                                    validate_symbol_evidence)
 
 
 def workflows(repo):
@@ -143,15 +144,16 @@ def archive(path):
         if manifest['gameplay_bot_runtime']:
             boundary = manifest['bot_core_boundary']
             data = outer.read('tce2/omni-bot/' + boundary['library'])
-            for marker in AUTHORING_COMMANDS:
-                # MSVC may construct short Editor std::string keys from code
-                # immediates, without an adjacent NUL byte in the file.
-                if (marker.encode() + (b'' if editor else b'\0') in data) != editor:
-                    raise ValueError('Wrong compiled core authoring boundary')
-            if set(boundary.get('authoring_commands', {})) != set(AUTHORING_COMMANDS):
-                raise ValueError('Incomplete native command boundary inventory')
-            if not all(marker.encode() in data for marker in NATIVE_PUBLIC_COMMANDS):
-                raise ValueError('Missing native gameplay/administration commands')
+            if boundary.get('variant') != manifest['variant']:
+                raise ValueError('Wrong compiled core variant')
+            # Revalidate exact method sets and defined-function proof for every
+            # architecture, bound to these core bytes. Optimized SSO constants
+            # need not remain contiguous strings in a compiled module.
+            validate_symbol_evidence(boundary, data)
+            if not editor and any(marker.encode() + b'\0' in data for marker in AUTHORING_COMMANDS):
+                raise ValueError('Editor command lookup literal in Game core')
+            if (b'ExportClientFunctionsFromDLL\0' in data) != editor:
+                raise ValueError('Wrong client drawing export lookup boundary')
             diagnostics = boundary.get('navigation_diagnostic_formats')
             if not diagnostics:
                 raise ValueError('Missing navigation diagnostic boundary inventory')

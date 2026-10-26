@@ -27,6 +27,7 @@ concurrency:
 jobs:
   plan:
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
       version: ${{ steps.plan.outputs.version }}
@@ -54,9 +55,11 @@ jobs:
           path: out/source/*
           if-no-files-found: error
           retention-days: 14
+          overwrite: true
   binaries:
     needs: plan
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
@@ -65,20 +68,37 @@ jobs:
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
         with:
           python-version: '3.12'
+      - name: Use the official Ubuntu archive for package downloads
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo python3 - <<'PY'
+          from pathlib import Path
+          import re
+          for path in (Path('/etc/apt/sources.list'), Path('/etc/apt/sources.list.d/ubuntu.sources')):
+              if not path.is_file():
+                  continue
+              source = path.read_text(encoding='utf-8')
+              updated = re.sub(r'https?://azure\.archive\.ubuntu\.com/ubuntu/?(?=\s|$)',
+                               'https://archive.ubuntu.com/ubuntu', source)
+              if updated != source:
+                  path.write_text(updated, encoding='utf-8')
+                  print('Replaced Azure Ubuntu archive in', path)
+          PY
       - name: Install Linux compiler families
         if: runner.os == 'Linux'
         run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build gcc g++
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y ninja-build gcc g++
       - name: Install i386 multilib compiler
         if: matrix.target == 'linux-i386'
-        run: sudo apt-get install -y gcc-multilib g++-multilib
+        run: sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y gcc-multilib g++-multilib
       - name: Install ARMv7 cross compiler
         if: matrix.target == 'linux-armv7'
-        run: sudo apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+        run: sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
       - name: Install AArch64 cross compiler
         if: matrix.target == 'linux-aarch64'
-        run: sudo apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+        run: sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
       - name: Ensure macOS Ninja is available
         if: runner.os == 'macOS'
         run: command -v ninja || brew install ninja
@@ -117,10 +137,12 @@ jobs:
             out/release/*.log
           if-no-files-found: error
           retention-days: 14
+          overwrite: true
   navstudio-desktop:
     needs: plan
     if: inputs.include_desktop
     runs-on: windows-2022
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -143,10 +165,12 @@ jobs:
           path: out/desktop/*
           if-no-files-found: error
           retention-days: 14
+          overwrite: true
   aggregate:
     needs: [plan, binaries, navstudio-desktop]
     if: always() && needs.plan.result == 'success'
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
@@ -171,10 +195,12 @@ jobs:
             out/complete/*.md
           if-no-files-found: error
           retention-days: 14
+          overwrite: true
   publish:
     needs: [plan, aggregate]
     if: inputs.publish_release && needs.aggregate.result == 'success'
     runs-on: ubuntu-24.04
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:

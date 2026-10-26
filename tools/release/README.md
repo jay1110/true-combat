@@ -40,8 +40,13 @@ a lexer preserves every retained gameplay/admin statement byte-for-byte. Exact
 Studio diagnostic calls are disabled separately, including navigation spam and
 the Studio-only map-loaded handshake. Recovery, routes and mission logic remain.
 Raw
-imports and per-file provenance stay under `vendor/omni-bot/runtime`. Native core
-markers and available Windows link maps additionally verify the compiled split.
+imports and per-file provenance stay under `vendor/omni-bot/runtime`. CMake's
+`TARGET_FILE` manifests locate every module and bot core. Compiled function sets
+are checked through MSVC/LLD link maps or native `nm` output, separately for each
+universal-binary slice. Symbol records are bound to the core's SHA256 and the
+reviewed source registry. Optimized short command strings can be split into code
+immediates, so their literal presence is recorded separately. The Game build
+also rejects editor lookup literals and navigation diagnostic formats.
 
 The standalone Windows x64 NavStudio app is frozen separately with pinned Python
 dependencies and pinned Recast source. `package_preflight.py` checks its complete

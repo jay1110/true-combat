@@ -56,7 +56,7 @@
       ],
       "snapshot": {
         "files": 861,
-        "sha256": "78143b1f608e841b29e09e100f05341b18b5c82eab5bf449916953f3fe1a8d82",
+        "sha256": "7d2390defd07452a14c05ffc7987824cbf1b3894e09cb10c5270a3ed66401453",
         "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
       },
       "snapshot_history": [
@@ -86,6 +86,15 @@
           },
           "superseded": "2026-10-26",
           "reviewed_change": "Public gameplay keeps native bot administration; native authoring/debug console entries and real visualization callbacks excluded, TCE navigation diagnostic calls omit arguments and format strings, public debug/remote attach and script hot-reload routes disabled. Mission APIs and AI state transitions preserved; internal legacy visual aliases use inert compatibility callbacks."
+        },
+        {
+          "snapshot": {
+            "files": 861,
+            "sha256": "78143b1f608e841b29e09e100f05341b18b5c82eab5bf449916953f3fe1a8d82",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-10-26",
+          "reviewed_change": "Generate non-Apple linker maps to validate defined local and exported functions without compiler-dependent string-literal assumptions. Link diagnostics only; actual WASM relink with and without -Map produces byte-identical modules."
         }
       ]
     },
