@@ -764,7 +764,7 @@ void G_printMatchInfo(gentity_t *ent)
 }
 
 
-#if (defined(__linux__) && !defined(Q3_VM)) || (defined(_MSC_VER) && defined(_M_IX86))
+#if (defined(__linux__) && !defined(Q3_VM)) || (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 /* Windows20065f91..200660c3 keeps stopwatch arithmetic in x87 registers.
  * This adapter only supplies the original printf values to G_matchInfoDump. */
 static qboolean G_TCEStopwatchValues(int elapsed, float limitValue, int limitWhole,
@@ -882,7 +882,7 @@ void G_matchInfoDump(unsigned int dwDumpType)
 			}
 			if (g_gametype.integer == GT_WOLF_STOPWATCH)
 			{
-#if (defined(__linux__) && !defined(Q3_VM)) || (defined(_MSC_VER) && defined(_M_IX86))
+#if (defined(__linux__) && !defined(Q3_VM)) || (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 				int      minutes, seconds, limitSeconds;
 				qboolean firstRound = g_currentRound.integer == 1;
 				int      limitWhole = firstRound ? g_nextTimeLimit.integer : g_timelimit.integer;
