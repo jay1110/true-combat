@@ -75,10 +75,12 @@ static int TCE_WallCount(unsigned sample, float scale, float base, int addBefore
 #endif
 }
 
-/* DC1 profiles: position spread 150/100, velocity spread binary64 .35/.65. */
-static float TCE_WallDC1Spread(unsigned sample, int profile, float origin)
+/* Position spread profiles 150/100/50; velocity uses binary64 .35/.65. */
+static float TCE_WallExplosionSpread(unsigned sample, int profile, float origin)
 {
-	long double scale = profile == 0 ? 150.0L : profile == 1 ? 100.0L :
+	int positionProfile = profile < 2 || profile == 4;
+	float positionScale = profile == 0 ? 150.0f : profile == 1 ? 100.0f : 50.0f;
+	long double scale = positionProfile ? (long double)positionScale :
 	                    profile == 2 ? (long double)0.35 : (long double)0.65;
 #if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 	tceTriggerSum_t value, term, twice;
@@ -92,9 +94,9 @@ static float TCE_WallDC1Spread(unsigned sample, int profile, float origin)
 		TCE_RotateAdd(&value, &term, control);
 		twice = value;
 		TCE_RotateAdd(&value, &twice, control);
-		if (profile < 2)
+		if (positionProfile)
 		{
-			TCE_TriggerProduct(&term, profile == 0 ? 150.0f : 100.0f, 1.0f, control);
+			TCE_TriggerProduct(&term, positionScale, 1.0f, control);
 		}
 		else
 		{
@@ -104,7 +106,7 @@ static float TCE_WallDC1Spread(unsigned sample, int profile, float origin)
 			                 0x14cccccccccccdULL, profile == 2 ? 244 : 245);
 		}
 		TCE_GustMultiply(&value, &term, control);
-		if (profile < 2)
+		if (positionProfile)
 		{
 			if (!TCE_TriggerProduct(&term, origin, 1.0f, control))
 			{
@@ -119,11 +121,11 @@ fallback:
 	{
 		long double value = (long double)sample * 3.0518509447574615e-05f - 0.5;
 		value = (value + value) * scale;
-		return (float)(profile < 2 ? value + origin : value);
+		return (float)(positionProfile ? value + origin : value);
 	}
 }
 
-static float TCE_WallDC1SmokeVelocity(float normal, float spread, int axis)
+static float TCE_WallSmokeVelocity(float normal, float spread, int axis, float factor)
 {
 #if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 	tceTriggerSum_t value, term;
@@ -143,7 +145,7 @@ static float TCE_WallDC1SmokeVelocity(float normal, float spread, int axis)
 				goto fallback;
 			}
 		}
-		TCE_TriggerProduct(&term, 130.0f, 1.0f, control);
+		TCE_TriggerProduct(&term, factor, 1.0f, control);
 		TCE_GustMultiply(&value, &term, control);
 		return TCE_RotateStore(value, control);
 	}
@@ -153,12 +155,12 @@ fallback:
 	if (axis != 0)
 	{
 		volatile float stored = normal + spread;
-		return stored * 130.0f;
+		return stored * factor;
 	}
 #else
 	(void)axis;
 #endif
-	return (float)(((long double)normal + spread) * 130.0f);
+	return (float)(((long double)normal + spread) * factor);
 }
 
 static float TCE_WallDC1Speed(unsigned sample, float velocity)
@@ -1120,17 +1122,17 @@ LAB_3007996e:
 				do
 				{
 					bits                 = rand();
-					position[value0 / 4] = TCE_WallDC1Spread(bits & 0x7fff, 0, origin[value0 / 4]);
+					position[value0 / 4] = TCE_WallExplosionSpread(bits & 0x7fff, 0, origin[value0 / 4]);
 					bits                 = rand();
 					value1               = value0 + 4;
-					velocity[value0 / 4] = TCE_WallDC1Spread(bits & 0x7fff, 2, 0.0f);
+					velocity[value0 / 4] = TCE_WallExplosionSpread(bits & 0x7fff, 2, 0.0f);
 					value0               = value1;
 				}
 				while (value1 < 0xc);
 				value3      = 0;
-				velocity[0] = TCE_WallDC1SmokeVelocity(trace.plane.normal[0], velocity[0], 0);
-				velocity[1] = TCE_WallDC1SmokeVelocity(trace.plane.normal[1], velocity[1], 1);
-				velocity[2] = TCE_WallDC1SmokeVelocity(trace.plane.normal[2], velocity[2], 2);
+				velocity[0] = TCE_WallSmokeVelocity(trace.plane.normal[0], velocity[0], 0, 130.0f);
+				velocity[1] = TCE_WallSmokeVelocity(trace.plane.normal[1], velocity[1], 1, 130.0f);
+				velocity[2] = TCE_WallSmokeVelocity(trace.plane.normal[2], velocity[2], 2, 130.0f);
 				randomValue = rand();
 				value0      = TCE_WallCount(randomValue & 32767, 200.0f, 400.0f, 0);
 				value2      = 0x28;
@@ -1149,10 +1151,10 @@ LAB_3007996e:
 				do
 				{
 					bits                 = rand();
-					position[value0 / 4] = TCE_WallDC1Spread(bits & 0x7fff, 1, origin[value0 / 4]);
+					position[value0 / 4] = TCE_WallExplosionSpread(bits & 0x7fff, 1, origin[value0 / 4]);
 					bits                 = rand();
 					value1               = value0 + 4;
-					velocity[value0 / 4] = TCE_WallDC1Spread(bits & 0x7fff, 3, 0.0f);
+					velocity[value0 / 4] = TCE_WallExplosionSpread(bits & 0x7fff, 3, 0.0f);
 					value0               = value1;
 				}
 				while (value1 < 0xc);
@@ -1396,21 +1398,17 @@ LAB_3007abb7:
 				do
 				{
 					bits                 = rand();
-					valueFloat0          = (float)(bits & 0x7fff) * 3.0518509447574615e-05f - (float)0.5;
-					position[value0 / 4] =
-						(valueFloat0 + valueFloat0) * (float)50.0 +
-						origin[value0 / 4];
+					position[value0 / 4] = TCE_WallExplosionSpread(bits & 0x7fff, 4, origin[value0 / 4]);
 					bits                 = rand();
 					value1               = value0 + 4;
-					valueFloat0          = (float)(bits & 0x7fff) * 3.0518509447574615e-05f - (float)0.5;
-					velocity[value0 / 4] = (valueFloat0 + valueFloat0) * (float)0.35;
+					velocity[value0 / 4] = TCE_WallExplosionSpread(bits & 0x7fff, 2, 0.0f);
 					value0               = value1;
 				}
 				while (value1 < 0xc);
 				value1      = 0;
-				velocity[0] = (trace.plane.normal[0] + velocity[0]) * 300.0f;
-				velocity[1] = (trace.plane.normal[1] + velocity[1]) * 300.0f;
-				velocity[2] = (trace.plane.normal[2] + velocity[2]) * 300.0f;
+				velocity[0] = TCE_WallSmokeVelocity(trace.plane.normal[0], velocity[0], 0, 300.0f);
+				velocity[1] = TCE_WallSmokeVelocity(trace.plane.normal[1], velocity[1], 1, 300.0f);
+				velocity[2] = TCE_WallSmokeVelocity(trace.plane.normal[2], velocity[2], 2, 300.0f);
 				value0      = rand();
 				ctx->particleExplosion
 				    ("explode1", position, velocity, 0x640, 0x28, value0 % 0x78 + 0x104, value1);
