@@ -2612,7 +2612,9 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 
 
 	case EV_TCE_BULLET_NEAR_MISS: {
+#if defined(Q3_VM) || (!defined(__linux__) && !defined(_WIN32))
 		tce_fragmentSoundContext_t context;
+#endif
 		int                        volume, choice;
 #if (!defined(_MSC_VER) || !defined(_M_IX86)) && !defined(__linux__)
 		float sample;
@@ -2622,12 +2624,16 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 		{
 			break;
 		}
+#if (defined(__linux__) || defined(_WIN32)) && !defined(Q3_VM)
+		volume = CG_SoundVolume(es->pos.trBase, 127.f, 300.f, 0);
+#else
 		memset(&context, 0, sizeof(context));
 		VectorCopy(cg.refdef_current->vieworg, context.listener);
 		context.attenuation     = tceFlash.deafness;
 		context.distanceVariant = tceSmokeNewBBox;
 		context.disabled        = cg.tcePortalScopeRendering;
 		volume                  = TCE_CG_SoundVolume(es->pos.trBase, 127.f, 300.f, 0, &context);
+#endif
 		if (!volume)
 		{
 			break;
