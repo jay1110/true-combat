@@ -1,5 +1,31 @@
 #include "tce_wall_renderer.h"
 #include "../game/tce_length_precision.h"
+#include "../game/tce_gust_precision.h"
+
+static float TCE_WallMarkRotation(unsigned sample)
+{
+#if defined(__linux__)
+	return (float)(20.0L - (long double)sample * 0.0012207403779029846f);
+#else
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	tceTriggerSum_t angle, factor, base;
+	unsigned control;
+
+	__control87_2(0, 0, &control, NULL);
+	if (TCE_FiniteExceptionsMasked(control))
+	{
+		TCE_TriggerProduct(&angle, (float)sample, 3.0518509447574615e-05f, control);
+		TCE_TriggerProduct(&factor, 40.0f, 1.0f, control);
+		TCE_GustMultiply(&angle, &factor, control);
+		angle.negative ^= 1u;
+		TCE_TriggerProduct(&base, 20.0f, 1.0f, control);
+		TCE_RotateAdd(&base, &angle, control);
+		return TCE_RotateStore(base, control);
+	}
+#endif
+	return (float)(20.0L - (long double)sample * 3.0518509447574615e-05f * 40.0f);
+#endif
+}
 
 #if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 /* The Windows normalizer leaves its root on ST0 through both range gates. */
@@ -48,6 +74,37 @@ static float TCE_WallEchoCoordinate(float direction, float range, float listener
 	}
 #endif
 	return (float)((long double)direction * range + listener);
+}
+
+static void TCE_WallProjection(const float *origin, const float *normal, float radius,
+                               float *projection, float *projectOrigin)
+{
+	int axis;
+#if defined(__linux__)
+	long double difference[3];
+
+	projection[3] = radius * 32.0f;
+	for (axis = 0; axis < 3; ++axis)
+	{
+		difference[axis] = (long double)vec3_origin[axis] - normal[axis];
+		/* Native FST32 does not discard the retained difference. */
+		projection[axis] = (float)difference[axis];
+	}
+	for (axis = 0; axis < 3; ++axis)
+	{
+		projectOrigin[axis] = (float)(difference[axis] * -16.0f + origin[axis]);
+	}
+#else
+	for (axis = 0; axis < 3; ++axis)
+	{
+		projection[axis] = vec3_origin[axis] - normal[axis];
+	}
+	projection[3] = radius * 32.0f;
+	for (axis = 0; axis < 3; ++axis)
+	{
+		projectOrigin[axis] = TCE_WallEchoCoordinate(projection[axis], -16.0f, origin[axis]);
+	}
+#endif
 }
 
 /* Native visibility compares the retained dot product, without a Float store. */
@@ -1346,25 +1403,19 @@ LAB_3007ad98:
 			value0      = markDuration;
 			bits        = rand();
 			ctx->eliteMark(markShader, origin, normal,
-			               20.0f - (float)(bits & 0x7fff) * 3.0518509447574615e-05f * 40.0f,
+			               TCE_WallMarkRotation(bits & 0x7fff),
 			               valueFloat1, valueFloat2, valueFloat3, markAlpha, value1, valueFloat0, value2, value0);
 			return;
 		}
-		projection[0]    = 0.0f - *normal;
 		valueFloat3      = 1.0;
 		valueFloat2      = 1.0;
 		valueFloat1      = 1.0;
-		projection[1]    = 0.0f - normal[1];
 		valueFloat0      = 1.0;
-		projection[2]    = 0.0f - normal[2];
-		projection[3]    = radius * 32.0f;
-		projectOrigin[0] = *origin - projection[0] * 16.0f;
-		projectOrigin[1] = origin[1] - projection[1] * 16.0f;
-		projectOrigin[2] = origin[2] - projection[2] * 16.0f;
+		TCE_WallProjection(origin, normal, radius, projection, projectOrigin);
 		value0           = markDuration;
 		bits             = rand();
 		ctx->impactMark(markShader, projectOrigin, projection, radius,
-		                20.0f - (float)(bits & 0x7fff) * 3.0518509447574615e-05f * 40.0f, valueFloat0,
+		                TCE_WallMarkRotation(bits & 0x7fff), valueFloat0,
 		                valueFloat1, valueFloat2, valueFloat3, value0);
 	}
 switchD_3007838b_caseD_5:
