@@ -2924,7 +2924,7 @@ Weapon_Artillery
 /* Native artillery arithmetic stages; C does not reproduce x87 exception flags. */
 static int G_TCEArtilleryChargeTime(int artilleryTime, int artilleryCharge)
 {
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM)) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 	const float artilleryFraction = 0.66f;
 	long double value             = (long double)artilleryCharge * (long double)artilleryFraction;
 	value = value + (long double)artilleryTime;
@@ -2949,7 +2949,7 @@ static int G_TCEArtilleryShellTime(int artilleryIndex)
 #if defined(__linux__) && !defined(Q3_VM)
 	artilleryRandom = rand() & 0x7fff;
 #endif
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM)) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 	{
 		const float artilleryReciprocal = 3.0518509447574615e-05f;
 		long double value               = (long double)artilleryRandom * (long double)artilleryReciprocal;
@@ -2967,7 +2967,7 @@ static int G_TCEArtilleryShellTime(int artilleryIndex)
 static void G_TCEArtilleryOffset(float *artilleryDestination, double artilleryRadius)
 {
 	int artilleryRandom = rand() & 0x7fff;
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM)) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 	const float artilleryReciprocal = 3.0518509447574615e-05f;
 	long double value               = (long double)artilleryRandom * (long double)artilleryReciprocal;
 	value                                   = value - 0.5L;
@@ -2992,7 +2992,7 @@ static void G_TCEArtilleryAim(vec3_t artilleryMuzzle, int artilleryHeight,
 		long double value = (long double)artilleryForward[axis] * 8192.0L;
 		((volatile float *)artilleryEnd)[axis] = (float)(value + origin);
 	}
-#elif defined(_MSC_VER) && defined(_M_IX86)
+#elif (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 	int         axis;
 	long double value = (long double)artilleryHeight + (long double)artilleryMuzzle[2];
 	((volatile float *)artilleryMuzzle)[2] = (float)value;
