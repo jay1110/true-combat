@@ -2068,7 +2068,7 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 			float              *stepOutput = &cg.stepChange;
 			static const float stepDecay = 0.005f, stepMaximum = 32.0f;
 			int                stepRemaining;
-#else
+#elif !defined(__linux__)
 			float oldStep;
 #endif
 
@@ -2104,6 +2104,26 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 				if (*stepOutput > stepMaximum)
 				{
 					*stepOutput = stepMaximum;
+				}
+			}
+#elif defined(__linux__)
+			{
+				long double previousStep = 0.0L, accumulated;
+				step = 4 * (event - EV_STEP_4 + 1);
+				if (delta < 200)
+				{
+					int remaining;
+					stepBits = 200u - (unsigned int)delta;
+					memcpy(&remaining, &stepBits, sizeof(remaining));
+					previousStep = (long double)remaining * cg.stepChange;
+					previousStep *= 0.005f;
+				}
+				accumulated = (long double)step + previousStep;
+				cg.stepChange = (float)accumulated;
+				/* Native compares the held sum; unordered also clamps. */
+				if (!(accumulated <= 32.0L))
+				{
+					cg.stepChange = 32.0f;
 				}
 			}
 #else
