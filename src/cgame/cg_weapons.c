@@ -1494,6 +1494,14 @@ static void TCE_CG_WeaponSwitchPose(refEntity_t *entity, int animation)
 	AnglesToAxis(angles, entity->axis);
 }
 
+#if defined(__linux__)
+/* Linux FILD32/FMUL reciprocal/1-minus/FMUL quarter, then one Float store. */
+static float CG_WeaponSmokeAlpha(int elapsed, float reciprocal)
+{
+	return (float)((1.0L - (long double)elapsed * reciprocal) * 0.25f);
+}
+#endif
+
 void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 {
 	refEntity_t tceBrassParent;
@@ -2427,8 +2435,13 @@ void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 					if (!(rand() % 3))
 					{
 						float alpha;
+#if defined(__linux__)
+						alpha = CG_WeaponSmokeAlpha(TCE_SubInt32(cg.time, cent->overheatTime),
+						                            0.00033333332976326346f);
+#else
 						alpha  = 1.0f - ((float)(TCE_SubInt32(cg.time, cent->overheatTime)) / 3000.0f);
 						alpha *= 0.25f;     // .25 max alpha
+#endif
 						CG_ParticleImpactSmokePuffExtended(cgs.media.smokeParticleShader, flash.origin, 1000, 8, 20, 30, alpha, 8.f);
 					}
 				}
@@ -2441,8 +2454,13 @@ void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 					if (!(rand() % 5))
 					{
 						float alpha;
+#if defined(__linux__)
+						alpha = CG_WeaponSmokeAlpha(TCE_SubInt32(cg.time, cent->muzzleFlashTime),
+						                            0.0010000000474974513f);
+#else
 						alpha  = 1.0f - ((float)(TCE_SubInt32(cg.time, cent->muzzleFlashTime)) / (float)BARREL_SMOKE_TIME); // what fraction of BARREL_SMOKE_TIME are we at
 						alpha *= 0.25f;     // .25 max alpha
+#endif
 						CG_ParticleImpactSmokePuffExtended(cgs.media.smokeParticleShader, flash.origin, 1000, 8, 20, 30, alpha, 8.f);
 					}
 				}
