@@ -145,6 +145,7 @@ void CG_TCEBullet(vec3_t end, int source, vec3_t normal, int flesh, int victim, 
 	tce_bulletRendererContext_t c;
 	memset(&c, 0, sizeof(c)); c.wall = CG_TCEMissileHitWall; c.particle = particle;
 	c.mark                           = mark; c.soundVolume = CG_SoundVolume; c.attenuation = tceFlash.deafness;
+	c.liveAttenuation                = &tceFlash.deafness;
 	c.portal                         = cg.tcePortalScopeRendering; c.lastBloodSpat = &lastBloodSpat;
 	/* The delegated original consumer reads the flesh/water handles already
 	 * populated by CG_RegisterSounds. Do not reload them for every bullet. */

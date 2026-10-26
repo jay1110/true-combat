@@ -59,6 +59,11 @@ static void bulletNormalize(vec3_t v)
 #endif
 	VectorNormalize(v);
 }
+static int bulletLocalVolume(const tce_bulletRendererContext_t *context)
+{
+	float attenuation = context->liveAttenuation ? *context->liveAttenuation : context->attenuation;
+	return TCE_TruncateNativeInteger((1.0L - attenuation) * 127.0L);
+}
 void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim, int other,
                    float water, int seed, int damage, vec3_t suppliedStart, int predicted, const tce_bulletRendererContext_t *context)
 {
@@ -193,10 +198,10 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 #if defined(__linux__)
 			/* Linux selects the sound before evaluating the current deafness. */
 			int soundIndex = rand() % 5;
-			volume = TCE_TruncateNativeInteger((1.0L - context->attenuation) * 127.0L);
+			volume = bulletLocalVolume(context);
 			trap_S_StartSoundVControl(NULL, victim, 5, cgs.media.sfx_bullet_fleshhit[soundIndex], volume);
 #else
-			volume = TCE_TruncateNativeInteger((1.0L - context->attenuation) * 127.0L);
+			volume = bulletLocalVolume(context);
 			trap_S_StartSoundVControl(NULL, victim, 5, cgs.media.sfx_bullet_fleshhit[rand() % 5], volume);
 #endif
 		}

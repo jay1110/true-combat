@@ -11,6 +11,8 @@ typedef struct
 	float attenuation;
 	int portal;
 	int *lastBloodSpat;
+	/* Production binds the live value read after preceding effect callbacks. */
+	const float *liveAttenuation;
 } tce_bulletRendererContext_t;
 void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim, int other,
                    float water, int seed, int damage, vec3_t start, int predicted, const tce_bulletRendererContext_t *context);
