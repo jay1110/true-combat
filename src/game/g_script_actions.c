@@ -8,7 +8,7 @@
 
 #include "../game/g_local.h"
 #include "../game/q_shared.h"
-#include "tce_navgen.h"
+#include "tce_nav_runtime.h"
 #include "tce_numeric.h"
 #ifdef FEATURE_OMNIBOT
 #include "g_etbot_interface.h"
@@ -5313,7 +5313,7 @@ qboolean G_ScriptAction_TCEDMSpawn(gentity_t *ent, char *params)
 		return qtrue;
 	}
 	VectorSet(origin, values[0], values[1], values[2]);
-	why = TCE_NavgenValidateSpawn(origin, feet, NULL);
+	why = TCE_NavValidateSpawn(origin, feet, NULL);
 	if (why)
 	{
 		G_Printf("Rejected GT7 spawn %s: %s\n", vtos(origin), why); return qtrue;

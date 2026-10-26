@@ -31,6 +31,7 @@ short TCE_FindClosestNodeToPoint(gentity_t *ent, const vec3_t point)
 	return closest;
 }
 
+#ifdef FEATURE_NAVSTUDIO
 static void nodeBox(int index, float radius, int highlighted)
 {
 	vec3_t    mins, maxs;
@@ -107,3 +108,4 @@ void TCE_ShowNode(int index, int highlighted)
 		}
 	}
 }
+#endif

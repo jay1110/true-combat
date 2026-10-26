@@ -1,7 +1,7 @@
 #include "cg_local.h"
 #include "tce_impact_particles.h"
 #include "tce_lightgrid.h"
-#include "tce_impact_precision.h"
+#include "../game/tce_impact_precision.h"
 /* Windows 3002a870 / Linux 000579a4. Both normalize the caller's direction. */
 
 

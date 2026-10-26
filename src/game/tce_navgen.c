@@ -152,63 +152,7 @@ static qboolean NG_Read(const char *path) {
  }
  return ngOffset==ngLength;
 }
-static qboolean NG_Trace(trace_t *tr,const vec3_t a,const vec3_t b,float height) {
- vec3_t mins,maxs;
- if(ngTraces>=NG_TRACE_BUDGET)return qfalse;
- VectorSet(mins,-ngWidth,-ngWidth,0);VectorSet(maxs,ngWidth,ngWidth,height);
- /* Match ClientThink/Pmove's capsule for actual body movement; the thin
-  * supporting-foot probe remains a box and must not become a tiny capsule. */
- if(height>2.f*ngWidth&&VectorCompare(a,b)) {
-  vec3_t up,down;trace_t reverse;
-  /* The classic engine's stationary capsule path can report ALLSOLID with
-   * contents0 on an otherwise clear stair. Both real sweeps must be clear:
-   * retain the entire original capsule and include its start in each sweep.
-   * This adds .01u vertically rather than shrinking the player or accepting
-   * a single direction. Reserve/count both calls before touching the engine. */
-  if(ngTraces>NG_TRACE_BUDGET-2)return qfalse;
-  VectorCopy(a,up);VectorCopy(a,down);up[2]+=.01f;down[2]-=.01f;
-  trap_TraceCapsule(tr,a,mins,maxs,up,ENTITYNUM_NONE,NG_MASK);
-  trap_TraceCapsule(&reverse,a,mins,maxs,down,ENTITYNUM_NONE,NG_MASK);ngTraces+=2;
-  if(!tr->startsolid&&!tr->allsolid&&tr->fraction==1.f) {
-   if(!reverse.startsolid&&!reverse.allsolid&&reverse.fraction==1.f){VectorCopy(a,tr->endpos);return qtrue;}
-   *tr=reverse;
-  }
-  /* Callers use stationary occupancy flags, not sweep fractions. Preserve
-   * the blocking entity/contents, but make any hit an occupied query. */
-  tr->startsolid=tr->allsolid=qtrue;tr->fraction=0.f;VectorCopy(a,tr->endpos);return qtrue;
- }
- if(height>2.f*ngWidth)trap_TraceCapsule(tr,a,mins,maxs,b,ENTITYNUM_NONE,NG_MASK);
- else trap_Trace(tr,a,mins,maxs,b,ENTITYNUM_NONE,NG_MASK);
- ngTraces++;return qtrue;
-}
-static qboolean NG_Hurt(const vec3_t feet,float height) {
- int list[MAX_GENTITIES],count,i;vec3_t mins,maxs;
- VectorSet(mins,feet[0]-ngWidth,feet[1]-ngWidth,feet[2]);
- VectorSet(maxs,feet[0]+ngWidth,feet[1]+ngWidth,feet[2]+height);
- count=trap_EntitiesInBox(mins,maxs,list,MAX_GENTITIES);
- for(i=0;i<count;i++){gentity_t *ent=&g_entities[list[i]];
-  if(ent->inuse&&ent->classname&&!Q_stricmp(ent->classname,"trigger_hurt"))return qtrue;
- }
- return qfalse;
-}
-/* A stationary func_static is implemented as ET_MOVER in the SDK, although
- * its collision is a fixed map surface. Do not extend this exception to
- * doors, trains, lifts, or scripted moving entities. Destructible stationary
- * floors use the separate conditional-lifetime branch below. */
-int TCE_NavGroundKind(int entityNum) {
- gentity_t *ent;
- if(entityNum==ENTITYNUM_WORLD)return 1;
- if(entityNum<MAX_CLIENTS||entityNum>=level.num_entities)return 0;
- ent=&g_entities[entityNum];
- if(!ent->inuse||!ent->r.linked||!ent->r.bmodel||!(ent->r.contents&NG_MASK)||
-    ent->s.pos.trType!=TR_STATIONARY||ent->s.apos.trType!=TR_STATIONARY||!ent->classname)return 0;
- if(!ent->takedamage&&(!Q_stricmp(ent->classname,"func_static")||!Q_stricmp(ent->classname,"func_wall")))return 1;
- /* A destructible floor is physically walkable until destruction. Its
-  * lifetime is conditional, not an immutable-world proof. Runtime support
-  * traces call this same predicate again after every short movement step. */
- if(!Q_stricmp(ent->classname,"func_explosive")&&(!ent->takedamage||ent->health>0))return 2;
- return 0;
-}
+static qboolean NG_Trace(trace_t *tr,const vec3_t a,const vec3_t b,float height);
 static qboolean NG_StaticGround(int entityNum) {
  int kind=TCE_NavGroundKind(entityNum);
  if(kind==2)ngConditionalGroundHits[entityNum]++;
@@ -236,48 +180,8 @@ static void NG_ProbeBodyRepresentations(const vec3_t feet,float height) {
    start[0],start[1],start[2]-origin,tr.endpos[0],tr.endpos[1],tr.endpos[2]-origin,tr.plane.normal[0],tr.plane.normal[1],tr.plane.normal[2]);
  }
 }
-static qboolean NG_OrdinarySurface(int surfaceFlags,float normalZ) {
- return normalZ>=.7f&&(!(surfaceFlags&SURF_SLICK)||normalZ>=.9999f);
-}
-static const char *NG_Ground(const vec3_t from,vec3_t feet,float height) {
- trace_t tr;vec3_t a,b; int contents;
- /* Find the highest supporting step with a short foot hull. Raising a
-  * full player hull here invents headroom requirements under low ceilings;
-  * probing only at current height can instead find a floor below a step. */
- VectorCopy(from,a);VectorCopy(from,b);a[2]+=18.f;b[2]-=18.5f;
- if(!NG_Trace(&tr,a,b,.25f))return "trace_budget";
- if(tr.startsolid||tr.allsolid){
-  if(ngProbe)G_Printf("navgen ground stage=foot solid=%d/%d entity=%d start=(%.4f %.4f %.4f) end=(%.4f %.4f %.4f)\n",tr.startsolid,tr.allsolid,tr.entityNum,a[0],a[1],a[2],b[0],b[1],b[2]);
-  return "blocked_clearance";
- }
- if(tr.fraction==1.f)return "gap_or_drop";
- if(!NG_StaticGround(tr.entityNum))return "dynamic_ground";
- if(tr.plane.normal[2]<.7f)return "steep_ground";
- /* PM_WalkMove retains grounded movement on horizontal ice. Its reduced
-  * acceleration changes live steering, not the existence of this floor.
-  * Sloped slick still requires a dedicated sliding recipe. */
- if(!NG_OrdinarySurface(tr.surfaceFlags,tr.plane.normal[2]))return "slippery_ground";
- VectorCopy(tr.endpos,feet);feet[2]+=.125f;
- /* Check actual standing/crouching clearance at the discovered floor,
-  * independently of the elevated support probe. */
- if(!NG_Trace(&tr,feet,feet,height))return "trace_budget";
- if(tr.startsolid||tr.allsolid){
-  if(ngProbe)G_Printf("navgen ground stage=body solid=%d/%d entity=%d height=%.2f start=end=(%.4f %.4f %.4f)\n",tr.startsolid,tr.allsolid,tr.entityNum,height,feet[0],feet[1],feet[2]);
-  NG_ProbeBodyRepresentations(feet,height);
-  return "blocked_clearance";
- }
- contents=trap_PointContents(feet,ENTITYNUM_NONE);
- if(contents&(CONTENTS_LAVA|CONTENTS_SLIME))return "water_or_hazard";
- if(contents&CONTENTS_WATER) {
-  /* PM_SetWaterLevel stays at level1 while the posture-specific middle
-   * sample is dry. The previous hardcoded18 rejected legitimate shallow
-   * rivers, even though the actual standing player remains grounded. */
-  VectorCopy(feet,a);a[2]+=TCE_NavWaterMiddleSample(ngOrigin==30.f,height<=ngDuck);
-  if(trap_PointContents(a,ENTITYNUM_NONE)&(CONTENTS_LAVA|CONTENTS_SLIME|CONTENTS_WATER))return "water_or_hazard";
- }
- if(NG_Hurt(feet,height))return "hurt_trigger";
- return NULL;
-}
+#include "tce_nav_collision.inc"
+
 static void NG_Node(ngNode *n) {
  vec3_t a,b,feet;trace_t tr;const char *why;int j;
  n->reason="deleted";if(n->id<0||n->flags==-1)return;
@@ -1241,20 +1145,6 @@ static qboolean NG_Report(const char *path,const char *source,const char *map,qb
 }
 #include "tce_navgen_external.inc"
 
-const char *TCE_NavgenValidateSpawn(const vec3_t origin,vec3_t feet,int *traces) {
- int n,savedTraces=ngTraces,savedBudget=ngTraceBudget;vec3_t from;const char *why;
- float savedWidth=ngWidth,savedOrigin=ngOrigin,savedStand=ngStand;qboolean savedProbe=ngProbe;
- for(n=0;n<3;n++)if(!NG_Finite(origin[n])||fabsf(origin[n])>131072.f)return "invalid_coordinates";
- ngWidth=g_newbbox.integer?16.f:14.f;ngOrigin=g_newbbox.integer?30.f:24.f;ngStand=g_newbbox.integer?87.f:70.f;
- ngTraces=0;ngTraceBudget=NG_TRACE_BASE_BUDGET;ngProbe=qfalse;
- VectorCopy(origin,from);from[2]-=ngOrigin;VectorCopy(from,feet);
- why=NG_Ground(from,feet,ngStand);
- /* Authoring may not silently project a spawn onto another step/storey. */
- if(!why&&fabsf(feet[2]-from[2])>1.f)why="spawn_not_on_selected_floor";
- if(traces)*traces=ngTraces;
- ngTraces=savedTraces;ngTraceBudget=savedBudget;ngWidth=savedWidth;ngOrigin=savedOrigin;ngStand=savedStand;ngProbe=savedProbe;
- return why;
-}
 
 /* Read-only identity/physics receipt in the same response as the probe.
  * Clients need no separate map/gametype RCON round trips per body query. */
@@ -1308,7 +1198,7 @@ qboolean TCE_NavgenCommand(void) {
   if(trap_Argc()!=4){G_Printf("usage: tce_navgen_spawncheck <x y z> (player origin)\n");return qtrue;}
   for(n=0;n<3;n++){trap_Argv(1+n,arg,sizeof(arg));origin[n]=(float)atof(arg);}
   for(n=0;n<3;n++)if(!NG_Finite(origin[n])||fabsf(origin[n])>131072.f){G_Printf("navgen spawncheck: {\"accepted\":false,\"reason\":\"invalid_coordinates\"}\n");return qtrue;}
-  why=TCE_NavgenValidateSpawn(origin,feet,&traces);
+  why=TCE_NavValidateSpawn(origin,feet,&traces);
   G_Printf("navgen spawncheck: {\"accepted\":%s,\"reason\":\"%s\",\"map\":\"%s\",\"origin\":[%.5f,%.5f,%.5f],\"feet\":[%.5f,%.5f,%.5f],\"origin_above_feet\":%.0f,\"traces\":%d}\n",
    why?"false":"true",why?why:"native_standing_floor_validated",level.rawmapname,origin[0],origin[1],origin[2],feet[0],feet[1],feet[2],g_newbbox.integer?30.f:24.f,traces);return qtrue;
  }

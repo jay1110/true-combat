@@ -2196,6 +2196,7 @@ extern vmCvar_t cg_draw2D;
 extern vmCvar_t cg_drawFPS;
 extern vmCvar_t cg_drawSnapshot;
 extern vmCvar_t cg_drawCrosshair;
+extern vmCvar_t cg_drawCrosshairNames;
 extern vmCvar_t cg_drawTeamNames;
 extern vmCvar_t cg_drawCrosshairPickups;
 extern vmCvar_t cg_useWeapsForZoom;

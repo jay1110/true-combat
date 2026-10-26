@@ -13,7 +13,7 @@ if (-not $localTestInputs) {
     Write-Host 'Local comparison tests/reference DLLs absent: building production modules only.'
 }
 $testOption = if ($SkipTests) { '-DBUILD_TESTING=OFF' } else { '-DBUILD_TESTING=ON' }
-& cmake -S $PSScriptRoot -B $buildDirectory -A Win32 $testOption
+& cmake -S $PSScriptRoot -B $buildDirectory -A Win32 $testOption -DFEATURE_NAVSTUDIO=OFF
 if ($LASTEXITCODE -ne 0) { throw 'CMake configuration failed.' }
 & cmake --build $buildDirectory --config $Configuration --parallel
 if ($LASTEXITCODE -ne 0) { throw 'Compilation failed.' }

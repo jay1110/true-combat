@@ -110,9 +110,29 @@ cmake --build build/sdk-win32 --config Release --parallel
 ctest --test-dir build/sdk-win32 -C Release --output-on-failure
 ```
 
+NavStudio und Wegpunktbearbeitung sind standardmaessig aus den Spielmodulen
+ausgeschlossen (`FEATURE_NAVSTUDIO=OFF`). Die normale Omni-bot-Spielanbindung
+bleibt enthalten. Lokale Editor-DLLs werden separat mit
+`FEATURE_NAVSTUDIO=ON` gebaut und duerfen nicht auf oeffentliche Server.
+
+Beide Windows-Varianten ohne Installation oder Spielstart erstellen:
+
+```powershell
+python src/build_windows_variants.py --variant both
+```
+
+Die getrennten Pakete liegen unter `dist/TCE2-Windows-x86/Game/` und
+`dist/TCE2-Windows-x86/NavStudio/`, dazu je eine ZIP und ein SHA256-Manifest.
+Mit `--architecture x64` werden stattdessen die 64-Bit-Module erstellt.
+Jede Variante hat einen eigenen Buildcache. Das Editor-UI-PK3 wird nur dem
+NavStudio-Paket beigelegt. Vor einem Variantenwechsel alte DLL-PK3-Overrides
+und das Editor-UI-PK3 aus dem Mod-Suchpfad nehmen. Vorhandene Spielassets,
+Maps und der Omni-bot-Kern werden nicht dupliziert.
+
 Ausgabe: `build/sdk-win32/bin/Release/` mit `cgame_mp_x86.dll`,
 `qagame_mp_x86.dll` und `ui_mp_x86.dll`. Die Dateien in `tcetest/` werden beim
-Build nicht ueberschrieben. x64 wird bewusst abgelehnt: ET benoetigt x86-DLLs.
+Build nicht ueberschrieben. Das originale ET benoetigt x86-DLLs;
+x64-Module sind fuer passende 64-Bit-ETLegacy-Engines vorgesehen.
 
 Die alten `wolf.sln`/`.vcproj`-Dateien sind historische SDK-Dateien. Fuer den
 neuen Build CMake verwenden; die alten Projekte enthalten die neuen Quellen nicht.

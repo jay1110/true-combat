@@ -990,6 +990,7 @@ void ClientTimerActions(gentity_t *ent, int msec)
 			vec3_t direction = { 1, 0, 0 };
 			G_Damage(ent, ent, ent, direction, ent->client->ps.origin, 1, 0, MOD_MP40);
 		}
+#ifdef FEATURE_NAVSTUDIO
 		if (bot_editWaypoints.integer > 1 && client->ps.clientNum == 0)
 		{
 			gentity_t *player = &g_entities[0];
@@ -1024,6 +1025,7 @@ void ClientTimerActions(gentity_t *ent, int msec)
 				TCE_ShowNode((int)node, 1);
 			}
 		}
+#endif
 		location                     = Team_GetLocation(ent);
 		ent->client->ps.holdable[13] = location?location->health:0;
 	}

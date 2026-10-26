@@ -1,5 +1,7 @@
 #include "g_local.h"
+#ifdef FEATURE_NAVSTUDIO
 #include "tce_navgen.h"
+#endif
 #include "tce_lua.h"
 #include "tce_numeric.h"
 #ifdef FEATURE_OMNIBOT
@@ -3776,10 +3778,12 @@ void CheckExitRules(void)
 {
 	char cs[MAX_STRING_CHARS];
 	int  terrorists, specops, winner;
+#ifdef FEATURE_NAVSTUDIO
 	if (TCE_NavgenAuthoringActive())
 	{
 		return;
 	}
+#endif
 	if (g_gamestate.integer == GS_INTERMISSION)
 	{
 		CheckIntermissionExit(); return;
@@ -4099,10 +4103,12 @@ void CheckWolfMP() {
 */
 void CheckWolfMP()
 {
+#ifdef FEATURE_NAVSTUDIO
 	if (TCE_NavgenAuthoringActive())
 	{
 		return;
 	}
+#endif
 	// check because we run 6 game frames before calling Connect and/or ClientBegin
 	// for clients on a map_restart
 	if (g_gametype.integer >= GT_WOLF)

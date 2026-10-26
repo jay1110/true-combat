@@ -2,37 +2,20 @@
  * Only collision poses are scoped here. Never call use/think, run scripts,
  * move clients, advance time, adjust area portals, or change mover state.
  * The real runtime must activate and recheck a door before traversing it. */
+static int ngDoorProofTraces;
+#include "tce_nav_door_collision.inc"
 #define NG_DOOR_FLAG (1u<<7)
-#define NG_DOOR_GROUP 32
 #define NG_DOOR_CASES 128
 #define NG_DOOR_TRACES 120000
-typedef struct {int entity;entityShared_t shared;} ngDoorSaved;
-typedef struct {int count,master;ngDoorSaved part[NG_DOOR_GROUP];} ngDoorPose;
 typedef struct {int entity,useEntity,from,to,team;const char *reason;} ngDoorCase;
 static ngDoorCase ngDoorCases[NG_DOOR_CASES];
 static int ngDoorCaseCount,ngDoorCandidates,ngDoorLinks,ngDoorTraceStart;
-static int ngDoorProofTraces;
 static qboolean ngDoorRepairExisting,ngDoorRepairRun;
 static int ngDoorMinimumId;
 static const char *ngDoorStop;
 static void NG_Text(const char *text);
 static void NG_DoorLink(int from,int to,const char *reason);
 static qboolean NG_DoorAnchorWalk(ngDoorPose *pose,ngNode *point,ngNode *anchor);
-void target_relay_use(gentity_t *self,gentity_t *other,gentity_t *activator);
-void use_invisible_user(gentity_t *ent,gentity_t *other,gentity_t *activator);
-static qboolean NG_DoorClass(const gentity_t *ent) {
- return ent->classname&&(!Q_stricmp(ent->classname,"func_door")||!Q_stricmp(ent->classname,"func_door_rotating"));
-}
-static int NG_DoorMaster(int number) {
- gentity_t *ent;if(number<MAX_CLIENTS||number>=level.num_entities)return -1;
- ent=&g_entities[number];if(!ent->inuse||!NG_DoorClass(ent))return -1;
- if(ent->teammaster){int master=(int)(ent->teammaster-g_entities);if(master<MAX_CLIENTS||master>=level.num_entities)return -1;return master;}
- return number;
-}
-static int NG_DoorTeam(const gentity_t *ent) {
- /* Disguised access is conditional on a client, never a permanent team gate. */
- return ent->allowteams?(ent->allowteams&3):3;
-}
 static const char *NG_DoorGroup(int number,ngDoorPose *pose,int *team) {
  int master=NG_DoorMaster(number),n;gentity_t *ent;
  memset(pose,0,sizeof(*pose));*team=3;
@@ -69,90 +52,9 @@ static const char *NG_DoorGroup(int number,ngDoorPose *pose,int *team) {
 static qboolean NG_DoorContains(const ngDoorPose *pose,int entity) {
  int i;for(i=0;i<pose->count;i++)if(pose->part[i].entity==entity)return qtrue;return qfalse;
 }
-static qboolean NG_DoorFixedRotation(const ngDoorPose *pose) {
- const gentity_t *master=&g_entities[pose->master];
- /* Use_BinaryMover asks IsBinaryMoverBlocked only on the master. FORCE
-  * skips its angle reversal; a slave's flag cannot fix the master's sign. */
- return !Q_stricmp(master->classname,"func_door_rotating")&&(master->spawnflags&32)?qtrue:qfalse;
-}
-static void NG_DoorPoseSet(const ngDoorPose *pose,float fraction,int rotationSign) {
- int i;for(i=0;i<pose->count;i++){
-  gentity_t *ent=&g_entities[pose->part[i].entity];vec3_t delta;
-  trap_UnlinkEntity(ent);
-  if(!Q_stricmp(ent->classname,"func_door_rotating")){
-   /* SP_func_door_rotating restores the pivot from s.origin after InitMover;
-    * its pos1 is not the rotation origin and can remain zero. */
-   VectorCopy(pose->part[i].shared.currentOrigin,ent->r.currentOrigin);VectorScale(ent->rotate,ent->angle*fraction*rotationSign,ent->r.currentAngles);
-  }else{
-   VectorSubtract(ent->pos2,ent->pos1,delta);VectorMA(ent->pos1,fraction,delta,ent->r.currentOrigin);
-   VectorCopy(pose->part[i].shared.currentAngles,ent->r.currentAngles);
-  }
-  trap_LinkEntity(ent);
- }
-}
-static void NG_DoorPoseRestore(const ngDoorPose *pose) {
- int i;for(i=0;i<pose->count;i++){
-  gentity_t *ent=&g_entities[pose->part[i].entity];
-  trap_UnlinkEntity(ent);ent->r=pose->part[i].shared;
-  if(ent->r.linked)trap_LinkEntity(ent);
-  /* Link recomputes engine bounds and increments linkcount. Restore all
-   * shared bookkeeping too; engine's spatial link now has the original pose. */
-  ent->r=pose->part[i].shared;
- }
-}
 static void NG_DoorCaseAdd(int entity,int useEntity,int from,int to,int team,const char *reason) {
  ngDoorCase *c;if(ngDoorCaseCount>=NG_DOOR_CASES)return;
  c=&ngDoorCases[ngDoorCaseCount++];c->entity=entity;c->useEntity=useEntity;c->from=from;c->to=to;c->team=team;c->reason=reason;
-}
-static const char *NG_DoorRelay(int useNumber,int doorNumber,int *team) {
- int current=useNumber,depth,seen[9],count;gentity_t *ent;
- *team=3;
- if(current<MAX_CLIENTS||current>=level.num_entities)return "unknown_use_entity";
- ent=&g_entities[current];
- if(!ent->inuse||!ent->r.linked||!ent->classname||!ent->use||ent->takedamage)return "unusable_button";
- if(Q_stricmp(ent->classname,"func_button")&&Q_stricmp(ent->classname,"func_invisible_user"))return "unsupported_use_class";
- if(!Q_stricmp(ent->classname,"func_button")&&ent->use!=Use_BinaryMover)return "unknown_button_callback";
- if(!Q_stricmp(ent->classname,"func_invisible_user")&&ent->use!=use_invisible_user)return "unknown_button_callback";
- if(ent->scriptName&&*ent->scriptName)return "scripted_button_requires_review";
- if(!Q_stricmp(ent->classname,"func_invisible_user")&&(ent->spawnflags&1))return "button_disabled";
- *team&=NG_DoorTeam(ent);
- for(depth=0;depth<8;depth++){
-  int i,next=-1;qboolean allDoors=qtrue;
-  seen[depth]=current;ent=&g_entities[current];
-  if(!ent->target||!*ent->target)return "button_has_no_target";
-  count=0;for(i=MAX_CLIENTS;i<level.num_entities;i++){
-   gentity_t *candidate=&g_entities[i];
-   if(candidate->inuse&&candidate->targetname&&!Q_stricmp(candidate->targetname,ent->target)) {
-    next=i;count++;if(NG_DoorMaster(i)!=NG_DoorMaster(doorNumber))allDoors=qfalse;
-   }
-  }
-  /* A fan-out can execute arbitrary script effects. Do not infer its
-   * result from one matching door among several activated entities. */
-  if(count&&allDoors)return *team?NULL:"button_team_disallows_all";
-  if(count!=1)return "ambiguous_or_missing_button_target";
-  ent=&g_entities[next];
-  if(!ent->classname||Q_stricmp(ent->classname,"target_relay")||ent->use!=target_relay_use||
-     ent->key||ent->spawnflags&~3||ent->scriptName&&*ent->scriptName)return "unsupported_relay_action";
-  if(ent->spawnflags&1)*team&=1;if(ent->spawnflags&2)*team&=2;
-  if(!*team)return "relay_team_disallows_all";
-  for(i=0;i<=depth;i++)if(seen[i]==next)return "relay_cycle";
-  current=next;
- }
- return "relay_depth_budget";
-}
-qboolean TCE_NavDoorUseMatches(int useNumber,int doorNumber,int model) {
- int master=NG_DoorMaster(doorNumber),team,count=0;gentity_t *part;
- if(master<0||g_entities[doorNumber].s.modelindex!=model||g_entities[doorNumber].key!=0)return qfalse;
- for(part=&g_entities[master];part;part=part->teamchain){
-  if(++count>NG_DOOR_GROUP||part<g_entities+MAX_CLIENTS||part>=g_entities+level.num_entities||
-     !part->inuse||!NG_DoorClass(part)||part->key!=0||part->use!=Use_BinaryMover)return qfalse;
- }
- /* FORCE changes the opening sign, not Cmd_Activate_f eligibility. The
-  * generator and runtime separately prove the actual waiting body safe. */
- if(NG_DoorMaster(useNumber)==master)return !(g_entities[useNumber].spawnflags&(1|128));
- /* Target resolution has no use/think side effects and rejects scripts,
-  * random fan-outs, locked/unknown relays and retargeted button chains. */
- return NG_DoorRelay(useNumber,doorNumber,&team)==NULL;
 }
 static float NG_DoorEye(const ngNode *node) {
  return ngOrigin+(g_newbbox.integer?(node->crouch?26.f:52.f):(node->crouch?21.f:42.f));
@@ -280,55 +182,6 @@ static const char *NG_DoorPassage(ngDoorPose *pose,ngNode *a,ngNode *b) {
  }
  why=NULL;
 done:NG_DoorPoseRestore(pose);ngDoorProofTraces+=ngTraces-begin;return why;
-}
-#define NG_DOOR_SWEEP_STEPS 180
-static qboolean NG_DoorSweepFootClear(ngDoorPose *pose,const vec3_t feet,float width,float height,float tolerance) {
- int i,k,sign,sample,steps=1,rotation=0,begin=ngTraces;float motion=0.f,pad;vec3_t mins,maxs;
- qboolean clear=qfalse;
- for(i=0;i<pose->count;i++){
-  gentity_t *part=&g_entities[pose->part[i].entity];vec3_t local,delta;float travel;int needed;
-  if(!Q_stricmp(part->classname,"func_door_rotating")){
-   for(k=0;k<3;k++)local[k]=fabs(part->r.mins[k])>fabs(part->r.maxs[k])?fabs(part->r.mins[k]):fabs(part->r.maxs[k]);
-   travel=VectorLength(local)*fabs(part->angle)*(float)M_PI/180.f;needed=(int)ceil(fabs(part->angle)/2.f);rotation=1;
-  }else{VectorSubtract(part->pos2,part->pos1,delta);travel=VectorLength(delta);needed=(int)ceil(travel/4.f);}
-  if(needed>steps)steps=needed;if(travel>motion)motion=travel;
- }
- if(steps>NG_DOOR_SWEEP_STEPS)return qfalse;
- /* Every point of a rigid leaf moves at most R*dAngle (or dTranslation).
-  * With both bracketing samples checked, the nearest sample is at most
-  * half a step away. Inflate the entire real actor capsule by that bound
-  * plus its arrival tolerance. This covers intermediate poses, not only
-  * a visually sampled start/end or an overbroad circular exclusion. */
- pad=motion/(2.f*steps)+tolerance+.125f;
- VectorSet(mins,feet[0]-width-pad,feet[1]-width-pad,feet[2]-pad);
- VectorSet(maxs,feet[0]+width+pad,feet[1]+width+pad,feet[2]+height+pad);
- for(sign=1;sign>=(rotation&&!NG_DoorFixedRotation(pose)?-1:1);sign-=2)for(sample=0;sample<=steps;sample++){
-  NG_DoorPoseSet(pose,(float)sample/steps,sign);
-  for(i=0;i<pose->count;i++){
-   if(ngTraces>=NG_TRACE_BUDGET)goto done;
-   ngTraces++;if(trap_EntityContactCapsule(mins,maxs,&g_entities[pose->part[i].entity]))goto done;
-  }
- }
- clear=qtrue;
-done:NG_DoorPoseRestore(pose);ngDoorProofTraces+=ngTraces-begin;return clear;
-}
-qboolean TCE_NavDoorSweepSafe(int number,const vec3_t feet,float width,float height,float tolerance) {
- ngDoorPose pose;gentity_t *part;int master=NG_DoorMaster(number),i,savedTraces=ngTraces,savedBudget=ngTraceBudget,savedProof=ngDoorProofTraces;qboolean clear;
- if(master<0||!NG_Finite(width)||width<1.f||width>32.f||!NG_Finite(height)||height<2.f*width||height>128.f||
-    !NG_Finite(tolerance)||tolerance<0.f||tolerance>16.f)return qfalse;
- for(i=0;i<3;i++)if(!NG_Finite(feet[i]))return qfalse;
- memset(&pose,0,sizeof(pose));pose.master=master;
- for(part=&g_entities[master];part;part=part->teamchain){
-  if(pose.count>=NG_DOOR_GROUP||part<g_entities+MAX_CLIENTS||part>=g_entities+level.num_entities||
-     !part->inuse||!NG_DoorClass(part)||!part->r.bmodel||!part->r.linked||!(part->r.contents&NG_MASK))return qfalse;
-  for(i=0;i<pose.count;i++)if(pose.part[i].entity==(int)(part-g_entities))return qfalse;
-  if(!Q_stricmp(part->classname,"func_door_rotating")&&(!NG_Finite(part->angle)||fabs(part->angle)>180.f||part->s.pos.trType!=TR_STATIONARY))return qfalse;
-  pose.part[pose.count].entity=(int)(part-g_entities);pose.part[pose.count++].shared=part->r;
- }
- /* Runtime queries preserve the generation accounting as well as every
-  * collision link. No game time, mover trajectory or actor is advanced. */
- ngTraces=0;ngTraceBudget=8000;clear=NG_DoorSweepFootClear(&pose,feet,width,height,tolerance);
- ngTraces=savedTraces;ngTraceBudget=savedBudget;ngDoorProofTraces=savedProof;return clear;
 }
 static qboolean NG_DoorSafeExit(ngDoorPose *pose,ngNode *entry,ngNode *near,const ngNode *networkAnchor,ngNode *exit,int limit) {
  vec3_t direction,tangent;float best=1e20f;int forward,side;

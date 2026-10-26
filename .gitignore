@@ -14,6 +14,7 @@
 !/src/cmake/
 !/src/CMakeLists.txt
 !/src/build.ps1
+!/src/build_windows_variants.py
 !/src/BUILDING.md
 !/src/SConstruct
 !/src/SConscript.*

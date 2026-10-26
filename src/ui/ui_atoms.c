@@ -162,6 +162,7 @@ static void UI_CalcPostGameStats()
 }
 
 
+#ifdef FEATURE_NAVSTUDIO
 /* Typed fields in the optional local DMS menu never interpolate arbitrary
  * console text. The console aliases are also used by older OB_DMS dialogs. */
 static qboolean UI_OmniNumericProperty(void)
@@ -204,6 +205,7 @@ static qboolean UI_OmniNumericProperty(void)
 	trap_Cmd_ExecuteText(EXEC_APPEND, va("bot goal_setproperty %s %s\n", property, value));
 	return qtrue;
 }
+#endif
 
 /*
 =================
@@ -222,6 +224,7 @@ qboolean UI_ConsoleCommand(int realTime)
 	uiInfo.uiDC.realTime  = realTime;
 
 	cmd = UI_Argv(0);
+#ifdef FEATURE_NAVSTUDIO
 	/* The optional editor belongs to a local authoring game, never a remote client. */
 	if ((!Q_stricmp(cmd, "omnibot_menu") || !Q_stricmp(cmd, "omnibot_goalname") ||
 	     !Q_stricmp(cmd, "omnibot_goalgroup") || !Q_stricmp(cmd, "omnibot_waypointname") ||
@@ -304,6 +307,7 @@ qboolean UI_ConsoleCommand(int realTime)
 		}
 		return qtrue;
 	}
+#endif
 	if (!Q_stricmp(cmd, "tce_mode"))
 	{
 		char arg[32], *end; long mode;

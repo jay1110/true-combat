@@ -9,6 +9,7 @@
 #include "cg_local.h"
 #include "../game/tce_bg.h"
 
+#ifdef FEATURE_NAVSTUDIO
 /* OB_DMS name dialogs use cg_genericText. Forward only to the typed UI
  * handlers, which validate the value before building the local bot command. */
 static void CG_OmniTextCommand(const char *command)
@@ -46,6 +47,7 @@ static qboolean CG_NavStudioVoiceEditor(void)
 	trap_Cvar_VariableStringBuffer("sv_cheats", cheats, sizeof(cheats));
 	return atoi(local) != 0 && atoi(editor) != 0 && atoi(cheats) != 0;
 }
+#endif
 
 /* Windows 3001bd70 / 3001be10; cmd.weapon55 is a request, not a gear slot. */
 static qboolean CG_FiremodeDelayPassed(int now, int then, int delay)
@@ -482,7 +484,11 @@ static void CG_Fade_f(void)
 
 void CG_QuickMessage_f(void)
 {
+#ifdef FEATURE_NAVSTUDIO
 	if (cgs.clientinfo[cg.clientNum].team == TEAM_SPECTATOR && !CG_NavStudioVoiceEditor())
+#else
+	if (cgs.clientinfo[cg.clientNum].team == TEAM_SPECTATOR)
+#endif
 	{
 		return;
 	}
@@ -501,7 +507,11 @@ void CG_QuickMessage_f(void)
 
 void CG_QuickFireteamMessage_f(void)
 {
+#ifdef FEATURE_NAVSTUDIO
 	if (cgs.clientinfo[cg.clientNum].team == TEAM_SPECTATOR && !CG_NavStudioVoiceEditor())
+#else
+	if (cgs.clientinfo[cg.clientNum].team == TEAM_SPECTATOR)
+#endif
 	{
 		return;
 	}
@@ -542,11 +552,13 @@ void CG_QuickFireteamAdmin_f(void)
 
 static void CG_QuickFireteams_f(void)
 {
+#ifdef FEATURE_NAVSTUDIO
 	if (cgs.clientinfo[cg.clientNum].team == TEAM_SPECTATOR && CG_NavStudioVoiceEditor())
 	{
 		CG_QuickFireteamMessage_f();
 		return;
 	}
+#endif
 	if (cg.showFireteamMenu)
 	{
 		if (cgs.ftMenuMode == 0)
@@ -1290,9 +1302,11 @@ static void CG_FreeLookUp_f(void)
 
 static consoleCommand_t commands[] =
 {
+#ifdef FEATURE_NAVSTUDIO
 	{ "setGoalName",         CG_SetGoalName_f            },
 	{ "setGroupName",        CG_SetGroupName_f           },
 	{ "setWaypointName",     CG_SetWaypointName_f        },
+#endif
 	{ "+freelook",           CG_FreeLookDown_f           },
 	{ "-freelook",           CG_FreeLookUp_f             },
 	{ "testgun",             CG_TestGun_f                },

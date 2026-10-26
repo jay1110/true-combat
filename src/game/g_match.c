@@ -601,6 +601,7 @@ void G_parseStats(char *pszStatsInfo)
 void G_printMatchInfo(gentity_t *ent)
 {
 	int       i, j, cnt, eff;
+	int       skillLevel, earnedScore;
 	int       tot_kills, tot_deaths, tot_gp, tot_sui, tot_tk, tot_dg, tot_dr, tot_td;
 	gclient_t *cl;
 	char      *ref;
@@ -704,6 +705,12 @@ void G_printMatchInfo(gentity_t *ent)
 			}
 
 			cnt++;
+#if defined(__linux__) && !defined(Q3_VM)
+			skillLevel = TCE_AddInt32(TCE_TruncateNativeInteger((long double)
+			    cl->sess.skillpoints[BG_WolfClassToTCE(cl->ps.stats[STAT_PLAYER_CLASS])]), 1);
+#else
+			skillLevel = (int)cl->sess.skillpoints[BG_WolfClassToTCE(cl->ps.stats[STAT_PLAYER_CLASS])] + 1;
+#endif
 			CP(va("sc \"%-10s %s%-15s^3%4d%4d%4d%3d%s%4d^3%4d^2%6d^1%6d^6%5d^3%7d\n\"",
 			      aTeams[i],
 			      ref,
@@ -714,12 +721,7 @@ void G_printMatchInfo(gentity_t *ent)
 			      cl->sess.team_kills,
 			      ref,
 			      eff,
-#if defined(__linux__) && !defined(Q3_VM)
-			      TCE_AddInt32(TCE_TruncateNativeInteger((long double)
-			          cl->sess.skillpoints[BG_WolfClassToTCE(cl->ps.stats[STAT_PLAYER_CLASS])]), 1),
-#else
-			      (int)cl->sess.skillpoints[BG_WolfClassToTCE(cl->ps.stats[STAT_PLAYER_CLASS])] + 1,
-#endif
+			      skillLevel,
 			      cl->sess.damage_given,
 			      cl->sess.damage_received,
 			      cl->sess.team_damage,
@@ -740,6 +742,11 @@ void G_printMatchInfo(gentity_t *ent)
 			eff = 0;
 		}
 
+#if defined(__linux__) && !defined(Q3_VM)
+		earnedScore = TCE_SubInt32(tot_gp, TCE_Int32FromUnsigned((unsigned)tot_kills * WOLF_FRAG_BONUS));
+#else
+		earnedScore = tot_gp - (tot_kills * WOLF_FRAG_BONUS);
+#endif
 		CP(va("sc \"^7---------------------------------------------------------------------\n"
 		      "%-10s ^5%-15s%4d%4d%4d%3d^5%4d^3%4d^2%6d^1%6d^6%5d^3%7d\n\"",
 		      aTeams[i],
@@ -749,11 +756,7 @@ void G_printMatchInfo(gentity_t *ent)
 		      tot_sui,
 		      tot_tk,
 		      eff,
-#if defined(__linux__) && !defined(Q3_VM)
-		      TCE_SubInt32(tot_gp, TCE_Int32FromUnsigned((unsigned)tot_kills * WOLF_FRAG_BONUS)),
-#else
-		      tot_gp - (tot_kills * WOLF_FRAG_BONUS),
-#endif
+		      earnedScore,
 		      tot_dg,
 		      tot_dr,
 		      tot_td,

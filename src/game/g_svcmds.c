@@ -1388,6 +1388,7 @@ void Svcmd_Entnum_f(void)
 	}
 }
 
+#ifdef FEATURE_NAVSTUDIO
 /* The editor addresses entity zero, not the command sender. A missing local
  * client/no selected node is undefined in TC; reject it before array access. */
 static int TCE_EditorAimNode(void)
@@ -1618,15 +1619,21 @@ static void TCE_SvcmdConnectNodes(void)
 	}
 }
 
+#endif
+
+#ifdef FEATURE_NAVSTUDIO
 #include "tce_navgen.h"
+#endif
 
 qboolean    ConsoleCommand(void)
 {
 	char cmd[MAX_TOKEN_CHARS];
+#ifdef FEATURE_NAVSTUDIO
 	if (TCE_NavgenCommand())
 	{
 		return qtrue;
 	}
+#endif
 	if (TCE_LuaCommand(-1, qtrue))
 	{
 		return qtrue;
@@ -1683,6 +1690,7 @@ qboolean    ConsoleCommand(void)
 	{
 		TCE_SvcmdKickBot(); return qtrue;
 	}
+#ifdef FEATURE_NAVSTUDIO
 	/* Original editor gate is independent of the listen-server bot gate. */
 	if (bot_editWaypoints.integer && bot_enable.integer && g_developer.integer)
 	{
@@ -1737,6 +1745,7 @@ qboolean    ConsoleCommand(void)
 			TCE_SvcmdLoadNodes(); return qtrue;
 		}
 	}
+#endif
 	/*if (Q_stricmp (cmd, "addbot") == 0) {
 		Svcmd_AddBot_f();
 		return qtrue;
