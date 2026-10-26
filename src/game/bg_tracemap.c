@@ -1,5 +1,6 @@
 #include <stddef.h>
 #include "tce_numeric.h"
+#include "tce_tracemap_precision.h"
 #ifdef CGAMEDLL
 #include "../cgame/cg_local.h"
 #else
@@ -904,6 +905,10 @@ qboolean BG_LoadTraceMap(char *rawmapname, vec2_t world_mins, vec2_t world_maxs)
 	int          skyground_min, skyground_max;
 	long double  scalefactor;
 	int          delta;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	tceTraceMapScale_t nativeScale;
+	int nativeScaleReady;
+#endif
 
 	ground_min    = ground_max = MIN_WORLD_HEIGHT;
 	skyground_min = skyground_max = MAX_WORLD_HEIGHT;
@@ -974,6 +979,9 @@ qboolean BG_LoadTraceMap(char *rawmapname, vec2_t world_mins, vec2_t world_maxs)
 		// Ground
 		// calculate scalefactor
 		delta = TCE_SubInt32(ground_max, ground_min);
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		nativeScaleReady = TCE_TraceMapPrepareScale(delta, ground_min, &nativeScale);
+#endif
 		if (delta == 0)
 		{
 			scalefactor = 1.f;
@@ -999,6 +1007,12 @@ qboolean BG_LoadTraceMap(char *rawmapname, vec2_t world_mins, vec2_t world_maxs)
 					/* ELF retains the reciprocal before multiplying the sample. */
 					tracemap.ground[i][j] = (float)((1.0L / scalefactor) * (long double)tracemap.ground[i][j] + ground_min);
 #else
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+					if (nativeScaleReady && TCE_TraceMapFiniteHeight(&nativeScale, tracemap.ground[i][j], &tracemap.ground[i][j]))
+					{
+						continue;
+					}
+#endif
 					tracemap.ground[i][j] = (float)((long double)tracemap.ground[i][j] / scalefactor + ground_min);
 #endif
 				}
@@ -1008,6 +1022,9 @@ qboolean BG_LoadTraceMap(char *rawmapname, vec2_t world_mins, vec2_t world_maxs)
 		// SkyGround
 		// calculate scalefactor
 		delta = TCE_SubInt32(skyground_max, skyground_min);
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		nativeScaleReady = TCE_TraceMapPrepareScale(delta, skyground_min, &nativeScale);
+#endif
 		if (delta == 0)
 		{
 			scalefactor = 1.f;
@@ -1033,6 +1050,12 @@ qboolean BG_LoadTraceMap(char *rawmapname, vec2_t world_mins, vec2_t world_maxs)
 					/* ELF retains the reciprocal before multiplying the sample. */
 					tracemap.skyground[i][j] = (float)((1.0L / scalefactor) * (long double)tracemap.skyground[i][j] + skyground_min);
 #else
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+					if (nativeScaleReady && TCE_TraceMapFiniteHeight(&nativeScale, tracemap.skyground[i][j], &tracemap.skyground[i][j]))
+					{
+						continue;
+					}
+#endif
 					tracemap.skyground[i][j] = (float)((long double)tracemap.skyground[i][j] / scalefactor + skyground_min);
 #endif
 				}
@@ -1042,6 +1065,9 @@ qboolean BG_LoadTraceMap(char *rawmapname, vec2_t world_mins, vec2_t world_maxs)
 		// Sky
 		// calculate scalefactor
 		delta = TCE_SubInt32(sky_max, sky_min);
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		nativeScaleReady = TCE_TraceMapPrepareScale(delta, sky_min, &nativeScale);
+#endif
 		if (delta == 0)
 		{
 			scalefactor = 1.f;
@@ -1067,6 +1093,12 @@ qboolean BG_LoadTraceMap(char *rawmapname, vec2_t world_mins, vec2_t world_maxs)
 					/* ELF retains the reciprocal before multiplying the sample. */
 					tracemap.sky[i][j] = (float)((1.0L / scalefactor) * (long double)tracemap.sky[i][j] + sky_min);
 #else
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+					if (nativeScaleReady && TCE_TraceMapFiniteHeight(&nativeScale, tracemap.sky[i][j], &tracemap.sky[i][j]))
+					{
+						continue;
+					}
+#endif
 					tracemap.sky[i][j] = (float)((long double)tracemap.sky[i][j] / scalefactor + sky_min);
 #endif
 				}
@@ -1086,7 +1118,13 @@ qboolean BG_LoadTraceMap(char *rawmapname, vec2_t world_mins, vec2_t world_maxs)
 	tracemap.groundfloor = ground_min;
 	tracemap.groundceil = ground_max;
 	tracemap.loaded = qtrue;
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	if (!TCE_TraceMapFiniteGrid(tracemap.world_maxs[0], tracemap.world_mins[0], &one_over_mapgrid_factor[0]))
+#endif
 	one_over_mapgrid_factor[0] = (float)(1.0L / (((long double)tracemap.world_maxs[0] - tracemap.world_mins[0]) * 0.00390625L));
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	if (!TCE_TraceMapFiniteGrid(tracemap.world_maxs[1], tracemap.world_mins[1], &one_over_mapgrid_factor[1]))
+#endif
 	one_over_mapgrid_factor[1] = (float)(1.0L / (((long double)tracemap.world_maxs[1] - tracemap.world_mins[1]) * 0.00390625L));
 
 
