@@ -1,6 +1,13 @@
 #include "tce_wall_renderer.h"
 #include "../game/tce_length_precision.h"
 #include "../game/tce_gust_precision.h"
+#include "../game/tce_numeric.h"
+
+/* Native SAR32 by four, including negative wrapped mark lifetimes. */
+static int TCE_WallMarkFade(int duration)
+{
+	return duration >= 0 ? duration / 16 : -1 - (int)((unsigned)(-1 - duration) / 16u);
+}
 
 static float TCE_WallMarkRotation(unsigned sample)
 {
@@ -169,7 +176,7 @@ void TCE_CG_MissileHitWall(int weapon, int effectType, vec3_t origin, vec3_t nor
 	double distance;
 #endif
 	vec3_t  position, velocity, particleDir, traceStart, traceEnd, farOrigin, farDir, projectOrigin;
-	vec3_t  zero = { 0, 0, 0 }, up = { 0, 0, 1 };
+	vec3_t  up = { 0, 0, 1 };
 	vec4_t  projection, color;
 	trace_t trace;
 	float   radius, farRange;
@@ -713,7 +720,7 @@ LAB_30079255:
 		valueFloat0 = 1.0;
 		value0      = rand();
 		ctx->debrisParticles(origin, normal, 0x3c, 500, value0 % 0xc + 0x18, valueFloat0);
-		ctx->smokePuff(position, zero, 256.0, 1.0, 1.0, 1.0, 1.0, 250.0, (*ctx->time), 0, 1, TCE_WallHandle(ctx->media.explosionFlash))
+		ctx->smokePuff(position, vec3_origin, 256.0, 1.0, 1.0, 1.0, 1.0, 250.0, (*ctx->time), 0, 1, TCE_WallHandle(ctx->media.explosionFlash))
 		;
 		goto LAB_300796c2;
 	default:
@@ -749,7 +756,7 @@ LAB_30079255:
 			impactSound = TCE_WallHandle(ctx->media.explosion);
 			farSound    = TCE_WallHandle(ctx->media.explosionFar);
 		}
-		markDuration = (*ctx->markTime) * 3;
+		markDuration = TCE_MulInt32(*ctx->markTime, 3);
 		farRange     = 400.0;
 		markShader   = TCE_WallHandle(ctx->media.burn);
 		radius       = 48.0;
@@ -833,9 +840,9 @@ LAB_30079255:
 				bits = (bits - 1 | 0xfffffff8) + 1;
 			}
 			ctx->debrisParticles(origin, normal, 0x28, 100, bits + 0x10, valueFloat0);
-			ctx->smokePuff(position, zero, 64.0, 1.0, 0.8, 0.1, 1.0, 250.0, (*ctx->time), 0, 1, TCE_WallHandle(ctx->media.explosionFlash)
+			ctx->smokePuff(position, vec3_origin, 64.0, 1.0, 0.8, 0.1, 1.0, 250.0, (*ctx->time), 0, 1, TCE_WallHandle(ctx->media.explosionFlash)
 			               );
-			ctx->smokePuff(position, zero, 32.0, 1.0, 1.0, 0.9, 1.0, 250.0, (*ctx->time), 0, 1, TCE_WallHandle(ctx->media.explosionFlash)
+			ctx->smokePuff(position, vec3_origin, 32.0, 1.0, 1.0, 0.9, 1.0, 250.0, (*ctx->time), 0, 1, TCE_WallHandle(ctx->media.explosionFlash)
 			               );
 		}
 		else
@@ -853,7 +860,7 @@ LAB_30079255:
 	case 0x1d:
 		impactSound  = TCE_WallHandle(ctx->media.artillery);
 		farSound     = TCE_WallHandle(ctx->media.artilleryFar);
-		markDuration = (*ctx->markTime) * 3;
+		markDuration = TCE_MulInt32(*ctx->markTime, 3);
 		farRange     = 400.0;
 		markShader   = TCE_WallHandle(ctx->media.burn);
 		radius       = 128.0;
@@ -1043,7 +1050,7 @@ LAB_300796c2:
 		velocity[0]  = *normal * 16.0f;
 		impactSound  = TCE_WallHandle(ctx->media.explosion);
 		velocity[1]  = normal[1] * 16.0f;
-		markDuration = (*ctx->markTime) * 3;
+		markDuration = TCE_MulInt32(*ctx->markTime, 3);
 		farSound     = TCE_WallHandle(ctx->media.explosionFar);
 		farRange     = 1200.0;
 		markShader   = TCE_WallHandle(ctx->media.burn);
@@ -1131,7 +1138,7 @@ LAB_300796c2:
 			farSound    = ctx->media.mortarFar;
 		}
 		position[0]  = *normal * 24.0f + *origin;
-		markDuration = (*ctx->markTime) * 3;
+		markDuration = TCE_MulInt32(*ctx->markTime, 3);
 		farRange     = 800.0;
 		markShader   = TCE_WallHandle(ctx->media.burn);
 		radius       = 128.0;
@@ -1328,7 +1335,7 @@ LAB_3007abb7:
 		valueFloat0 = 1.0;
 		value0      = rand();
 		ctx->debrisParticles(origin, normal, 0x3c, 500, value0 % 0xc + 0x18, valueFloat0);
-		ctx->smokePuff(position, zero, 32.0, 1.0, 0.8, 0.1, 1.0, 250.0, (*ctx->time), 0, 1, TCE_WallHandle(ctx->media.explosionFlash));
+		ctx->smokePuff(position, vec3_origin, 32.0, 1.0, 0.8, 0.1, 1.0, 250.0, (*ctx->time), 0, 1, TCE_WallHandle(ctx->media.explosionFlash));
 		soundVolume = 0x7f;
 	}
 	if (impactSound != 0)
@@ -1386,7 +1393,7 @@ LAB_3007ad98:
 		color[1]      = 1.0;
 		color[2]      = 1.0;
 		color[3]      = 1.0;
-		ctx->projectDecal(markShader, 1, origin, projection, color, markDuration, markDuration >> 4);
+		ctx->projectDecal(markShader, 1, origin, projection, color, markDuration, TCE_WallMarkFade(markDuration));
 		return;
 	}
 	if (markShader != 0)
