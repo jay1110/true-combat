@@ -9,6 +9,32 @@ static int TCE_WallMarkFade(int duration)
 	return duration >= 0 ? duration / 16 : -1 - (int)((unsigned)(-1 - duration) / 16u);
 }
 
+static float TCE_WallParticleAlpha(unsigned sample)
+{
+#if defined(__linux__)
+	return (float)((long double)sample * 2.288888208568096e-05f + 0.75f);
+#else
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	tceTriggerSum_t alpha, one, factor;
+	unsigned control;
+
+	__control87_2(0, 0, &control, NULL);
+	/* Masked samples and these constants stay normal or exact zero; only
+	 * arithmetic/store inexactness can trap in this fixed formula. */
+	if ((control & _EM_INEXACT) != 0)
+	{
+		TCE_TriggerProduct(&alpha, (float)sample, 3.0518509447574615e-05f, control);
+		TCE_TriggerProduct(&one, 1.0f, 1.0f, control);
+		TCE_RotateAdd(&alpha, &one, control);
+		TCE_TriggerProduct(&factor, 0.75f, 1.0f, control);
+		TCE_GustMultiply(&alpha, &factor, control);
+		return TCE_RotateStore(alpha, control);
+	}
+#endif
+	return (float)(((long double)sample * 3.0518509447574615e-05f + 1.0f) * 0.75f);
+#endif
+}
+
 static float TCE_WallMarkRotation(unsigned sample)
 {
 #if defined(__linux__)
@@ -325,8 +351,7 @@ void TCE_CG_MissileHitWall(int weapon, int effectType, vec3_t origin, vec3_t nor
 					{
 						randomBits = rand();
 						ctx->particle(origin, normal, 0, 0,
-						              ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) *
-						              0.75f);
+						              TCE_WallParticleAlpha(randomBits & 0x7fff));
 						if (materialIsType == 0)
 						{
 							randomValue = rand();
@@ -378,8 +403,7 @@ LAB_30078e49:
 						{
 							randomBits = rand();
 							ctx->particle(origin, normal, 0, 10,
-							              ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) *
-							              0.75f);
+							              TCE_WallParticleAlpha(randomBits & 0x7fff));
 							value0 = ctx->registerShader("models/debris/straw1");
 							ctx->explode(origin, normal, 0x28, 7, 0, 1, value0);
 							goto LAB_30078cfb;
@@ -388,13 +412,11 @@ LAB_30078e49:
 						{
 							randomBits = rand();
 							ctx->particle(origin, normal, 0, 0,
-							              ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) *
-							              0.75f);
+							              TCE_WallParticleAlpha(randomBits & 0x7fff));
 							randomBits = rand();
 LAB_300787e6:
 							ctx->particle(origin, normal, 0, 5,
-							              ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) *
-							              0.75f);
+							              TCE_WallParticleAlpha(randomBits & 0x7fff));
 							value0 = ctx->registerShader("models/debris/wood1");
 							ctx->explode(origin, normal, 0x19, 8, 0, 1, value0);
 							goto LAB_30078cfb;
@@ -403,8 +425,7 @@ LAB_300787e6:
 						{
 							randomBits = rand();
 							ctx->particle(origin, normal, 0, 0,
-							              ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) *
-							              0.75f);
+							              TCE_WallParticleAlpha(randomBits & 0x7fff));
 							randomBits = rand();
 							goto LAB_300787e6;
 						}
@@ -412,56 +433,47 @@ LAB_300787e6:
 						{
 							randomBits = rand();
 							ctx->particle(origin, normal, 0, 0x10,
-							              ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) *
-							              0.75f);
+							              TCE_WallParticleAlpha(randomBits & 0x7fff));
 							goto LAB_30078cfb;
 						}
 						if (bits == 0x2000000)
 						{
 							randomBits = rand();
 							ctx->particle(origin, normal, 0, 0,
-							              ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) *
-							              0.75f);
+							              TCE_WallParticleAlpha(randomBits & 0x7fff));
 							randomBits = rand();
 							ctx->particle(origin, normal, 0, 2,
-							              ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) *
-							              0.75f);
+							              TCE_WallParticleAlpha(randomBits & 0x7fff));
 							goto LAB_30078cfb;
 						}
 						if (bits == 0x18000000)
 						{
 							randomBits = rand();
 							ctx->particle(origin, normal, 0, 0,
-							              ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) *
-							              0.75f);
+							              TCE_WallParticleAlpha(randomBits & 0x7fff));
 							randomBits = rand();
 							ctx->particle(origin, normal, 0, 0x1a,
-							              ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) *
-							              0.75f);
+							              TCE_WallParticleAlpha(randomBits & 0x7fff));
 							goto LAB_30078cfb;
 						}
 						if (bits == 0x19000000)
 						{
 							randomBits = rand();
 							ctx->particle(origin, normal, 0, 0,
-							              ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) *
-							              0.75f);
+							              TCE_WallParticleAlpha(randomBits & 0x7fff));
 							randomBits = rand();
 							ctx->particle(origin, normal, 0, 0x1b,
-							              ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) *
-							              0.75f);
+							              TCE_WallParticleAlpha(randomBits & 0x7fff));
 							goto LAB_30078cfb;
 						}
 						if (bits == 0x1a000000)
 						{
 							randomBits = rand();
 							ctx->particle(origin, normal, 0, 0,
-							              ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) *
-							              0.75f);
+							              TCE_WallParticleAlpha(randomBits & 0x7fff));
 							randomBits = rand();
 							ctx->particle(origin, normal, 0, 0x1c,
-							              ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) *
-							              0.75f);
+							              TCE_WallParticleAlpha(randomBits & 0x7fff));
 							goto LAB_30078cfb;
 						}
 						if (bits == 0x1000000)
@@ -471,12 +483,10 @@ LAB_300787e6:
 							ctx->debrisParticles(origin, normal, 0x14, 0x32, value0 % 5, valueFloat0);
 							randomBits = rand();
 							ctx->particle(origin, normal, 0, 0,
-							              ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) *
-							              0.75f);
+							              TCE_WallParticleAlpha(randomBits & 0x7fff));
 							randomBits = rand();
 							ctx->particle(origin, normal, 0, 0x16,
-							              ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) *
-							              0.75f);
+							              TCE_WallParticleAlpha(randomBits & 0x7fff));
 							goto LAB_30078cfb;
 						}
 						if (bits == 0x1b000000)
@@ -486,12 +496,10 @@ LAB_300787e6:
 							ctx->debrisParticles(origin, normal, 0x14, 0x32, value0 % 5, valueFloat0);
 							randomBits = rand();
 							ctx->particle(origin, normal, 0, 0,
-							              ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) *
-							              0.75f);
+							              TCE_WallParticleAlpha(randomBits & 0x7fff));
 							randomBits = rand();
 							ctx->particle(origin, normal, 0, 0x1d,
-							              ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) *
-							              0.75f);
+							              TCE_WallParticleAlpha(randomBits & 0x7fff));
 							goto LAB_30078cfb;
 						}
 						if (bits == 0x1c000000)
@@ -501,18 +509,15 @@ LAB_300787e6:
 							ctx->debrisParticles(origin, normal, 0x14, 0x32, value0 % 5, valueFloat0);
 							randomBits = rand();
 							ctx->particle(origin, normal, 0, 0,
-							              ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) *
-							              0.75f);
+							              TCE_WallParticleAlpha(randomBits & 0x7fff));
 							randomBits = rand();
 							ctx->particle(origin, normal, 0, 0x1e,
-							              ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) *
-							              0.75f);
+							              TCE_WallParticleAlpha(randomBits & 0x7fff));
 							goto LAB_30078cfb;
 						}
 						randomBits = rand();
 						ctx->particle(origin, normal, 0, 0,
-						              ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) *
-						              0.75f);
+						              TCE_WallParticleAlpha(randomBits & 0x7fff));
 						if ((((bits == 0xc000000) || (bits == 0x21000000)) ||
 						     ((bits == 0xf000000 || ((bits == 0x20000000 || (bits == 0x12000000)))))) ||
 						    (bits == 0x10000000))
@@ -530,7 +535,7 @@ LAB_300787e6:
 				{
 					randomBits = rand();
 					ctx->particle(origin, normal, 0, 0,
-					              ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) * 0.75f)
+					              TCE_WallParticleAlpha(randomBits & 0x7fff))
 					;
 					valueFloat0 = 1.0;
 					randomBits  = rand();
@@ -713,7 +718,7 @@ LAB_30079255:
 		}
 		bits = rand();
 		ctx->particle(origin, normal, 0, 0,
-		              ((float)(bits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) * 0.75f);
+		              TCE_WallParticleAlpha(bits & 0x7fff));
 		randomValue = rand();
 		value0      = (int)((((double)(randomValue & 32767) * 0.000030518509447574615) + 1) * 8);
 		ctx->sparks(origin, normal, value0);
@@ -792,40 +797,40 @@ LAB_30079255:
 			particleDir[0] = 1.0;
 			bits           = rand();
 			ctx->particle(origin, particleDir, 0, 0x27,
-			              ((float)(bits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) * 0.75f);
+			              TCE_WallParticleAlpha(bits & 0x7fff));
 			particleDir[0] = -1.0;
 			bits           = rand();
 			ctx->particle(origin, particleDir, 0, 0x27,
-			              ((float)(bits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) * 0.75f);
+			              TCE_WallParticleAlpha(bits & 0x7fff));
 			particleDir[0] = 0.71;
 			particleDir[1] = 0.71;
 			bits           = rand();
 			ctx->particle(origin, particleDir, 0, 0x27,
-			              ((float)(bits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) * 0.75f);
+			              TCE_WallParticleAlpha(bits & 0x7fff));
 			particleDir[0] = 0.71;
 			particleDir[1] = -0.71;
 			bits           = rand();
 			ctx->particle(origin, particleDir, 0, 0x27,
-			              ((float)(bits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) * 0.75f);
+			              TCE_WallParticleAlpha(bits & 0x7fff));
 			particleDir[0] = -0.71;
 			particleDir[1] = 0.71;
 			bits           = rand();
 			ctx->particle(origin, particleDir, 0, 0x27,
-			              ((float)(bits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) * 0.75f);
+			              TCE_WallParticleAlpha(bits & 0x7fff));
 			particleDir[0] = -0.71;
 			particleDir[1] = -0.71;
 			bits           = rand();
 			ctx->particle(origin, particleDir, 0, 0x27,
-			              ((float)(bits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) * 0.75f);
+			              TCE_WallParticleAlpha(bits & 0x7fff));
 			particleDir[0] = 0.0;
 			particleDir[1] = 1.0;
 			bits           = rand();
 			ctx->particle(origin, particleDir, 0, 0x27,
-			              ((float)(bits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) * 0.75f);
+			              TCE_WallParticleAlpha(bits & 0x7fff));
 			particleDir[1] = -1.0;
 			bits           = rand();
 			ctx->particle(origin, particleDir, 0, 0x27,
-			              ((float)(bits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) * 0.75f);
+			              TCE_WallParticleAlpha(bits & 0x7fff));
 			randomValue = rand();
 			value0      = (int)((((double)(randomValue & 32767) * 0.000030518509447574615) + 1) * 8);
 			ctx->sparks(origin, normal, value0);
@@ -1328,7 +1333,7 @@ LAB_3007abb7:
 		}
 		bits = rand();
 		ctx->particle(origin, normal, 0, 0,
-		              ((float)(bits & 0x7fff) * 3.0518509447574615e-05f + 1.0f) * 0.75f);
+		              TCE_WallParticleAlpha(bits & 0x7fff));
 		randomValue = rand();
 		value0      = (int)((((double)(randomValue & 32767) * 0.000030518509447574615) + 1) * 8);
 		ctx->sparks(origin, normal, value0);
