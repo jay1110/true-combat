@@ -1,22 +1,36 @@
 #include "tce_bullet_renderer.h"
 #include "tce_lightgrid.h"
+#include "../game/tce_numeric.h"
+#include "../game/tce_normalize_precision.h"
 extern qboolean CG_CalcMuzzlePoint(int, vec3_t);
 extern void SnapVectorTowards(vec3_t, vec3_t);
 static double bulletRandom(void)
 {
 	return (rand() & 32767) * (double)(1.f / 32767.f);
 }
-static double bulletLength(const vec3_t v)
+static long double bulletLength(const vec3_t v)
 {
+#if defined(_WIN32) || defined(__linux__)
+	return TCE_VectorLengthValue(v);
+#else
 	return sqrt((double)v[0] * v[0] + (double)v[1] * v[1] + (double)v[2] * v[2]);
+#endif
 }
 static void bulletNormalize(vec3_t v)
 {
-	double n = bulletLength(v); int j; if (n)
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	tceTriggerSum_t length;
+	float normalized[3];
+	unsigned control;
+
+	__control87_2(0, 0, &control, NULL);
+	if (TCE_FiniteNormalizeVector(v, normalized, &length, control))
 	{
-		for (j = 0; j < 3; ++j)
-			v[j] = (float)(v[j] / n);
+		VectorCopy(normalized, v);
+		return;
 	}
+#endif
+	VectorNormalize(v);
 }
 void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim, int other,
                    float water, int seed, int damage, vec3_t suppliedStart, int predicted, const tce_bulletRendererContext_t *context)
@@ -132,7 +146,7 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 	}
 	VectorSubtract(end, start, direction); bulletNormalize(direction);
 	VectorSubtract(target->currentState.pos.trBase, end, offset); offset[2] = 0;
-	{ double distance = bulletLength(offset); int j; for (j = 0; j < 3; ++j)
+	{ long double distance = bulletLength(offset); int j; for (j = 0; j < 3; ++j)
 		  offset[j] = (float)(distance * direction[j]);
 	}
 	VectorAdd(offset, end, projected);
@@ -149,7 +163,7 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 	{
 		if (victim == cg.snap->ps.clientNum)
 		{
-			volume = (int)((1.0 - context->attenuation) * 127);
+			volume = TCE_TruncateNativeInteger((1.0L - context->attenuation) * 127.0L);
 			trap_S_StartSoundVControl(NULL, victim, 5, cgs.media.sfx_bullet_fleshhit[rand() % 5], volume);
 		}
 		else
@@ -182,6 +196,6 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 	}
 	TCE_CG_LightForParticleDirected(TCE_CG_MapLightGrid(), solid.endpos, solid.plane.normal, light);
 	{ float radius = (float)((bulletRandom() + 1) * 8), rotation = (float)(bulletRandom() * 360); int shader = rand() % 5;
-	  context->mark(cgs.media.bloodDotShaders[shader], solid.endpos, solid.plane.normal, rotation, light[0], light[1], light[2], 1, 1, radius, 0, cg_bloodTime.integer * 1000); }
+	  context->mark(cgs.media.bloodDotShaders[shader], solid.endpos, solid.plane.normal, rotation, light[0], light[1], light[2], 1, 1, radius, 0, TCE_MulInt32(cg_bloodTime.integer, 1000)); }
 	*context->lastBloodSpat = cg.time;
 }
