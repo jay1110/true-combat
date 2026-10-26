@@ -5,6 +5,38 @@
 #include "../game/tce_length_precision.h"
 #include "../game/tce_ambient_precision.h"
 
+/* The masked integer is exact Float. Preserve each native random factor,
+ * optional addition and scaling stage before the final Float argument. */
+static __inline int TCE_BulletRandomEffect(unsigned sample, float addition,
+                                           float scale, float *result)
+{
+	tceTriggerSum_t value, addend, factor;
+	unsigned control;
+
+	__control87_2(0, 0, &control, NULL);
+	if (sample > 32767u || !TCE_FiniteExceptionsMasked(control) ||
+	    !TCE_TriggerProduct(&value, (float)sample, 1.0f / 32767.0f, control) ||
+	    !TCE_TriggerProduct(&factor, scale, 1.0f, control))
+	{
+		return 0;
+	}
+	if (addition != 0.0f)
+	{
+		if (!TCE_TriggerProduct(&addend, addition, 1.0f, control))
+		{
+			return 0;
+		}
+		TCE_RotateAdd(&value, &addend, control);
+	}
+	if (!TCE_AmbientProductFits(&value, &factor))
+	{
+		return 0;
+	}
+	TCE_GustMultiply(&value, &factor, control);
+	*result = TCE_RotateStore(value, control);
+	return 1;
+}
+
 /* Q_crandom(seed)*100 has at most 20 significant bits. Both spread inputs
  * are therefore exact Float values even though the second native result
  * stays on the x87 stack. Round each subsequent operation at current PC/RC. */

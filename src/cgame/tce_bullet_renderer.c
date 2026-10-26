@@ -6,17 +6,49 @@
 #include "../game/tce_ambient_precision.h"
 extern qboolean CG_CalcMuzzlePoint(int, vec3_t);
 extern void SnapVectorTowards(vec3_t, vec3_t);
+static double bulletRandomValue(unsigned sample)
+{
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	unsigned control;
+
+	__control87_2(0, 0, &control, NULL);
+	if (TCE_FiniteExceptionsMasked(control) && (control & _MCW_PC) == _PC_24)
+	{
+		tceTriggerSum_t value;
+
+		TCE_TriggerProduct(&value, (float)sample, 1.0f / 32767.0f, control);
+		return TCE_RotateStore(value, control);
+	}
+#endif
+	/* At PC53/64 this product has at most 39 bits and is exact Double. */
+	return sample * (double)(1.f / 32767.f);
+}
 static double bulletRandom(void)
 {
-	return (rand() & 32767) * (double)(1.f / 32767.f);
+	return bulletRandomValue((unsigned)rand() & 32767u);
 }
+#if !defined(__linux__)
+static float bulletRandomEffect(float addition, float scale)
+{
+	unsigned sample = (unsigned)rand() & 32767u;
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	float result;
+
+	if (TCE_BulletRandomEffect(sample, addition, scale, &result))
+	{
+		return result;
+	}
+#endif
+	return (float)((bulletRandomValue(sample) + addition) * scale);
+}
+#endif
 static float bulletParticleAlpha(void)
 {
 #if defined(__linux__)
 	const float coefficient = .75f * (1.0f / 32767.0f);
 	return (float)((long double)(rand() & 32767) * coefficient + .75f);
 #else
-	return (float)((bulletRandom() + 1) * .75f);
+	return bulletRandomEffect(1.0f, .75f);
 #endif
 }
 static float bulletMarkRadius(void)
@@ -25,7 +57,7 @@ static float bulletMarkRadius(void)
 	const float coefficient = 8.0f * (1.0f / 32767.0f);
 	return (float)((long double)(rand() & 32767) * coefficient + 8.0f);
 #else
-	return (float)((bulletRandom() + 1) * 8);
+	return bulletRandomEffect(1.0f, 8.0f);
 #endif
 }
 static float bulletMarkRotation(void)
@@ -34,7 +66,7 @@ static float bulletMarkRotation(void)
 	const float coefficient = 360.0f * (1.0f / 32767.0f);
 	return (float)((long double)(rand() & 32767) * coefficient);
 #else
-	return (float)(bulletRandom() * 360);
+	return bulletRandomEffect(0.0f, 360.0f);
 #endif
 }
 static long double bulletLength(const vec3_t v)
