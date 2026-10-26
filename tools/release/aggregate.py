@@ -21,6 +21,8 @@ def main():
     stage.mkdir(parents=True, exist_ok=False)
     records, target_pairs = [], set()
     for path in sorted(args.input.rglob('*')):
+        if path.relative_to(args.input).parts[0] == f'TCE2-{version()}-Complete-Release':
+            continue  # A job rerun must not collect its previous aggregate.
         if not path.is_file() or path.suffix not in ('.zip', '.sha256', '.json', '.log'):
             continue
         relative = Path('archives') / path.name if path.suffix in ('.zip', '.sha256') else Path('reports') / path.relative_to(args.input)
