@@ -88,7 +88,7 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 	if (cgs.antilag && other == cg.snap->ps.clientNum && (cg_entities[other].currentState.eFlags & 0x20))
 	{
 		vec3_t forward, right, up, muzzle; float horizontal;
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(__linux__)
 		long double vertical;
 #else
 		double vertical;
@@ -101,7 +101,7 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 			VectorMA(muzzle, 16, up, muzzle);
 		}
 		horizontal = Q_crandom(&seed) * 100;
-#if defined(_WIN32)
+#if defined(_WIN32) || defined(__linux__)
 		vertical = (long double)Q_crandom(&seed) * 100.0L;
 #else
 		vertical = Q_crandom(&seed) * 100.0;
@@ -112,6 +112,11 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 			long double spread = (long double)right[j] * horizontal + vertical * up[j];
 			long double distance = (long double)forward[j] * 8192.0L;
 			end[j] = (float)((spread + distance) + muzzle[j]);
+#elif defined(__linux__)
+			long double base = (long double)forward[j] * 8192.0L + muzzle[j];
+			long double lateral = (long double)right[j] * horizontal;
+			long double rise = j == 2 ? vertical * up[j] : (long double)up[j] * vertical;
+			end[j] = (float)((base + lateral) + rise);
 #else
 			end[j] = (float)((double)forward[j] * 8192 + vertical * up[j] + (double)right[j] * horizontal + muzzle[j]);
 #endif
@@ -263,7 +268,19 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 		}
 	}
 	TCE_CG_LightForParticleDirected(TCE_CG_MapLightGrid(), solid.endpos, solid.plane.normal, light);
-	{ float radius = bulletMarkRadius(), rotation = bulletMarkRotation(); int shader = rand() % 5;
-	  context->mark(cgs.media.bloodDotShaders[shader], solid.endpos, solid.plane.normal, rotation, light[0], light[1], light[2], 1, 1, radius, 0, TCE_MulInt32(cg_bloodTime.integer, 1000)); }
+	{
+#if defined(_WIN32)
+		int markDuration = TCE_MulInt32(cg_bloodTime.integer, 1000);
+#else
+		int markDuration;
+#endif
+		float radius = bulletMarkRadius(), rotation = bulletMarkRotation();
+		int shader = rand() % 5;
+#if !defined(_WIN32)
+		markDuration = TCE_MulInt32(cg_bloodTime.integer, 1000);
+#endif
+		context->mark(cgs.media.bloodDotShaders[shader], solid.endpos, solid.plane.normal, rotation,
+		              light[0], light[1], light[2], 1, 1, radius, 0, markDuration);
+	}
 	*context->lastBloodSpat = cg.time;
 }
