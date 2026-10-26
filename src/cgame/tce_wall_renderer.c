@@ -1309,13 +1309,13 @@ LAB_300796c2:
 			impactSound = ctx->media.mortar[(value0 % 3)];
 			farSound    = ctx->media.mortarFar;
 		}
-		position[0]  = *normal * 24.0f + *origin;
+		position[0]  = TCE_WallCoordinate(*normal, 24.0f, *origin);
 		markDuration = TCE_MulInt32(*ctx->markTime, 3);
 		farRange     = 800.0;
 		markShader   = TCE_WallHandle(ctx->media.burn);
 		radius       = 128.0;
-		position[1]  = normal[1] * 24.0f + origin[1];
-		position[2]  = normal[2] * 24.0f + origin[2];
+		position[1]  = TCE_WallCoordinate(normal[1], 24.0f, origin[1]);
+		position[2]  = TCE_WallCoordinate(normal[2], 24.0f, origin[2]);
 		velocity[0]  = *normal * 64.0f;
 		velocity[1]  = normal[1] * 64.0f;
 		velocity[2]  = normal[2] * 64.0f;
@@ -1342,7 +1342,7 @@ LAB_300796c2:
 				value0      = TCE_WallHandle(ctx->media.dirt);
 				randomValue = rand();
 LAB_3007abb7:
-				value3 = (int)(((double)(randomValue & 32767) * 0.000030518509447574615) * 200 + 400);
+				value3 = TCE_WallCount(randomValue & 32767, 200.0f, 400.0f, 0);
 				ctx->dirtParticles(origin, normal, value3, value1, value2, valueFloat0, valueFloat1, valueFloat2, valueFloat3, value0);
 			}
 			else
@@ -1386,7 +1386,7 @@ LAB_3007abb7:
 			}
 			value1      = 1;
 			randomValue = rand();
-			value0      = (int)(((double)(randomValue & 32767) * 0.000030518509447574615) * 400 + 200);
+			value0      = TCE_WallCount(randomValue & 32767, 400.0f, 200.0f, 0);
 			ctx->particleExplosion("explode1", position, velocity, 0x640, 0x14, value0, value1);
 			particleIndex = 4;
 			do
@@ -1422,7 +1422,7 @@ LAB_3007abb7:
 			value0      = rand();
 			value2      = value0 % 2000 + 1000;
 			randomValue = rand();
-			value0      = (int)(((double)(randomValue & 32767) * 0.000030518509447574615) * 200 + 400);
+			value0      = TCE_WallCount(randomValue & 32767, 200.0f, 400.0f, 0);
 			ctx->debris(origin, normal, value0, value2, value1);
 			soundVolume = 0x7f;
 		}
@@ -1441,7 +1441,7 @@ LAB_3007abb7:
 			value2      = 900;
 			value0      = TCE_WallHandle(ctx->media.water);
 			randomValue = rand();
-			value1      = (int)(((double)(randomValue & 32767) * 0.000030518509447574615) * 200 + 400);
+			value1      = TCE_WallCount(randomValue & 32767, 200.0f, 400.0f, 0);
 			ctx->dirtParticles(trace.endpos, normal, value1, value2, value3, valueFloat0, valueFloat1, valueFloat2, valueFloat3, value0);
 			valueFloat3 = 0.125;
 			valueFloat2 = 512.0;
@@ -1451,7 +1451,7 @@ LAB_3007abb7:
 			value2      = 0x578;
 			value0      = TCE_WallHandle(ctx->media.water);
 			randomValue = rand();
-			value1      = (int)(((double)(randomValue & 32767) * 0.000030518509447574615) * 600 + 400);
+			value1      = TCE_WallCount(randomValue & 32767, 600.0f, 400.0f, 0);
 			ctx->dirtParticles(trace.endpos, normal, value1, value2, value3, valueFloat0, valueFloat1, valueFloat2, valueFloat3, value0);
 			soundVolume = 0x7f;
 		}
