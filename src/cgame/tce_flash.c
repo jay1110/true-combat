@@ -2,6 +2,20 @@
 #include "tce_smoke_grenade.h"
 #include "tce_flash.h"
 #include "../game/tce_numeric.h"
+#include <float.h>
+
+#if defined(__linux__)
+/* Native FCOS leaves finite operands outside its reduction range intact. */
+static long double flashCos(long double angle)
+{
+	if ((angle >= 9223372036854775808.0L || angle <= -9223372036854775808.0L) &&
+	    angle <= LDBL_MAX && angle >= -LDBL_MAX)
+	{
+		return angle;
+	}
+	return cosl(angle);
+}
+#endif
 
 tceFlashState_t tceFlash;
 
@@ -73,8 +87,8 @@ void TCE_CG_FlashBang(const vec3_t origin, int concussionOnly)
 			blind = exposure * 5000.0f;
 			strength = exposure;
 		}
-		/* Native all-blocked traces read an unset stack word here. Keep the
-		 * existing zero fallback; that original path remains unclosed. */
+		/* Accepted safety deviation: all-blocked traces leave the original
+		 * exposure unset. Retain the defined zero initialized above. */
 		range = scale * 300.0f;
 		term = (1.0L / range) * ((long double)range - VectorLength(delta)) + exposure;
 		exposure = (float)term;
@@ -103,7 +117,7 @@ void TCE_CG_FlashBang(const vec3_t origin, int concussionOnly)
 			{
 				long double fov = cg.refdef.fov_x;
 				long double angle = (fov * (1.0f / 180.0f)) * (long double)3.141592653589793;
-				long double cosine = cosl(angle);
+				long double cosine = flashCos(angle);
 				adjustedDistance = adjustedDistance * fov * (1.0f / 90.0f);
 				if (cosine >= facing)
 				{
@@ -111,8 +125,8 @@ void TCE_CG_FlashBang(const vec3_t origin, int concussionOnly)
 				}
 				else
 				{
-					shortfall = (float)(facing - cosl(angle));
-					cosine = cosl(((long double)3.141592653589793 * (1.0f / 180.0f))
+					shortfall = (float)(facing - flashCos(angle));
+					cosine = flashCos(((long double)3.141592653589793 * (1.0f / 180.0f))
 					              * cg.refdef.fov_x);
 					facing = (float)((1.0L / (1.0L - cosine)) * shortfall);
 					facing += facing;
