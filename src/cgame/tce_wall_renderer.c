@@ -1,4 +1,45 @@
 #include "tce_wall_renderer.h"
+#include "../game/tce_rotate_precision.h"
+
+/* Native visibility compares the retained dot product, without a Float store. */
+static int TCE_WallFacing(const float *facing, const float *normal)
+{
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	tceTriggerSum_t dot, term, zero = { { 0 }, 0 };
+	unsigned control;
+	int axis, valid = 1;
+
+	__control87_2(0, 0, &control, NULL);
+	if (TCE_FiniteExceptionsMasked(control) &&
+	    TCE_TriggerProduct(&dot, facing[2], normal[2], control))
+	{
+		for (axis = 1; axis >= 0; --axis)
+		{
+			if (!TCE_TriggerProduct(&term, facing[axis], normal[axis], control))
+			{
+				valid = 0;
+				break;
+			}
+			TCE_RotateAdd(&dot, &term, control);
+		}
+		if (valid)
+		{
+			return !dot.negative && TCE_TriggerMagnitude(&dot, &zero) > 0;
+		}
+	}
+#endif
+	{
+#if defined(__linux__)
+		long double dot = (long double)facing[1] * normal[1] + (long double)facing[0] * normal[0];
+		dot += (long double)facing[2] * normal[2];
+#else
+		long double dot = (long double)facing[2] * normal[2] + (long double)facing[1] * normal[1];
+		dot += (long double)facing[0] * normal[0];
+#endif
+		return dot > 0.0L;
+	}
+}
+
 /* Keep cached media live across effect callbacks. Unbound compatibility
  * slots retain the previous zero-initialized context value. */
 static int TCE_WallHandle(const int *handle)
@@ -29,10 +70,8 @@ void TCE_CG_MissileHitWall(int weapon, int effectType, vec3_t origin, vec3_t nor
 	particleDir[2] = 0.0;
 	visible        = 0;
 	if ((((forceEffect != 0) || ((*ctx->forceMarks) != 0)) ||
-	     (0.0f <
-	      (*ctx->view)->viewaxis[0][0] * *normal +
-	      (*ctx->view)->viewaxis[0][1] * normal[1] + (*ctx->view)->viewaxis[0][2] * normal[2])) ||
-	    ((*ctx->view)->fov_x < 30.0f))
+	     TCE_WallFacing((*ctx->view)->viewaxis[0], normal)) ||
+	    !((*ctx->view)->fov_x >= 30.0f))
 	{
 		visible = 1;
 	}
