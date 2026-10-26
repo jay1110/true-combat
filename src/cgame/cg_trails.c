@@ -244,7 +244,17 @@ int CG_AddTrailJunc(int headJuncIndex, void *usedby, qhandle_t shader, int spawn
 	{
 		if (headJunc)
 		{
-			j->sTex = (float)((long double)Distance(headJunc->pos, pos) / sRatio / j->widthEnd + headJunc->sTex);
+			vec3_t difference;
+			long double distance;
+			int axis;
+
+			/* Native Distance stores the differences, then returns a held root. */
+			for (axis = 0; axis < 3; ++axis)
+			{
+				difference[axis] = (float)((long double)pos[axis] - headJunc->pos[axis]);
+			}
+			distance = TCE_VectorLengthValue(difference);
+			j->sTex = (float)(distance / sRatio / j->widthEnd + headJunc->sTex);
 		}
 		else
 		{
