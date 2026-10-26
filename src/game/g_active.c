@@ -2493,7 +2493,7 @@ void ClientEndFrame(gentity_t *ent)
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 		client->ps.stats[6] = TCE_EndFrameSkillTotal(client->ps.stats[6],
 		                                             client->sess.skillpoints[i]);
-#elif defined(__linux__) && !defined(Q3_VM)
+#elif (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 		client->ps.stats[6] = TCE_TruncateNativeInteger(
 			(long double)client->ps.stats[6] + (long double)client->sess.skillpoints[i]);
 #else
@@ -2516,6 +2516,13 @@ void ClientEndFrame(gentity_t *ent)
 			delta, client->pers.teamState.lasthurtcarrier);
 		client->pers.teamState.lastfraggedcarrier = TCE_EndFramePausedClock(
 			delta, client->pers.teamState.lastfraggedcarrier);
+#elif defined(_WIN32) && !defined(Q3_VM)
+		client->pers.teamState.lastreturnedflag = (float)(
+			(long double)delta + client->pers.teamState.lastreturnedflag);
+		client->pers.teamState.lasthurtcarrier = (float)(
+			(long double)delta + client->pers.teamState.lasthurtcarrier);
+		client->pers.teamState.lastfraggedcarrier = (float)(
+			(long double)delta + client->pers.teamState.lastfraggedcarrier);
 #elif defined(__linux__) && !defined(Q3_VM)
 		client->pers.teamState.lastreturnedflag = (float)(
 			(long double)client->pers.teamState.lastreturnedflag + delta);
