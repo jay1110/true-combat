@@ -64,10 +64,11 @@ def main():
             raise ValueError('Core build did not generate TARGET_FILE discovery manifest')
     archive = None
     if code == 0:
-        modules = mod_build / 'bin/Release'
-        if not modules.is_dir():
-            modules = mod_build / 'bin'
-        archive = package_modules(modules, output, args.target, args.variant, core_manifest)
+        module_manifest = mod_build / 'tce-modules-Release.json'
+        if not module_manifest.is_file():
+            raise ValueError('Module build did not generate TARGET_FILE discovery manifest')
+        archive = package_modules(None, output, args.target, args.variant, core_manifest,
+                                  module_manifest=module_manifest)
     complete = code == 0 and core_manifest is not None
     report = {'schema': 1, 'target': args.target, 'variant': args.variant,
               'complete_gameplay_runtime': complete, 'steps': steps,

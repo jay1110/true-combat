@@ -131,7 +131,7 @@ jobs:
       - name: Build pinned Recast geometry worker
         run: |
           cmake -S . -B build/desktop -A x64 -DBUILD_TESTING=OFF -DFEATURE_OMNIBOT=OFF -DTCE_BUILD_OMNIBOT_CORE=OFF -DTCE_BUILD_NAVMESH_TOOL=ON
-          cmake --build build/desktop --config Release --target tce_navmesh_preview --parallel 4
+          cmake --build build/desktop/navmesh --config Release --target tce_navmesh_preview --parallel 4
       - name: Freeze standalone NavStudio and validate resource closure
         shell: pwsh
         run: |

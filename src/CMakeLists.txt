@@ -2396,6 +2396,10 @@ endif()
 
 # Public and editor builds deliberately share no installation directory by default.
 add_custom_target(tce_modules DEPENDS cgame ui qagame)
+# Artifact discovery must use target paths. Single-config generators still
+# create bin/Release for the variant marker while emitting libraries in bin/.
+file(GENERATE OUTPUT "${CMAKE_BINARY_DIR}/tce-modules-$<CONFIG>.json"
+  CONTENT "{\n  \"schema\": 1,\n  \"variant\": \"${tce_build_variant}\",\n  \"modules\": {\n    \"cgame\": \"$<TARGET_FILE:cgame>\",\n    \"ui\": \"$<TARGET_FILE:ui>\",\n    \"qagame\": \"$<TARGET_FILE:qagame>\"\n  }\n}\n")
 if(FEATURE_NAVSTUDIO)
   add_custom_target(tce_editor DEPENDS cgame ui qagame)
   set(tce_install_variant NavStudio)

@@ -1,7 +1,7 @@
 // Offline polygon-mesh experiment. Never emits/install Omni-bot WAY files.
 #include <Recast.h>
 #include <RecastAlloc.h>
-#include "../../game/surfaceflags.h"
+#include "../../src/game/surfaceflags.h"
 #include <algorithm>
 #include <cmath>
 #include <fstream>

@@ -43,10 +43,33 @@ def zip_folder(folder, output):
         digest(output) + '  ' + output.name + '\n', encoding='ascii')
 
 
-def package_modules(modules, output, target, variant, core_manifest=None, geoip=None, repo=ROOT):
+def module_inputs(modules, config, variant, module_manifest=None):
+    """Resolve the exact CMake target outputs, never a guessed directory glob."""
+    prefix, suffix = config.get('prefix', ''), config['suffix']
+    if module_manifest is not None:
+        metadata = json.loads(Path(module_manifest).read_text(encoding='utf-8'))
+        if (metadata.get('schema') != 1 or metadata.get('variant') != variant or
+                set(metadata.get('modules', {})) != {'cgame', 'ui', 'qagame'}):
+            raise ValueError('Invalid module TARGET_FILE discovery manifest')
+        paths = {name: Path(path).resolve() for name, path in metadata['modules'].items()}
+    elif modules is not None:
+        paths = {name: Path(modules) / (prefix + name + suffix)
+                 for name in ('cgame', 'ui', 'qagame')}
+    else:
+        raise ValueError('Supply a CMake module manifest or an explicit module directory')
+    for name, path in paths.items():
+        expected = prefix + name + suffix
+        if path.name != expected or not path.is_file():
+            raise ValueError('Missing/wrong module target output: ' + name + ': ' + str(path))
+    return paths
+
+
+def package_modules(modules, output, target, variant, core_manifest=None, geoip=None,
+                    repo=ROOT, module_manifest=None):
     release_version = version(repo)
     targets = json.loads((repo / 'tools/release/targets.json').read_text())['targets']
     config = next(t for t in targets if t['id'] == target)
+    module_paths = module_inputs(modules, config, variant, module_manifest)
     name = f'TCE2-{release_version}-{target}-{variant}'
     if core_manifest is None:
         name += '-Modules-Only'
@@ -55,10 +78,8 @@ def package_modules(modules, output, target, variant, core_manifest=None, geoip=
         raise ValueError('Refusing to mix release outputs: ' + str(stage))
     mod = stage / 'tce2'
     mod.mkdir(parents=True)
-    prefix, suffix = config.get('prefix', ''), config['suffix']
-    for module in ('cgame', 'ui', 'qagame'):
-        filename = prefix + module + suffix
-        copy_file(modules / filename, mod / filename)
+    for path in module_paths.values():
+        copy_file(path, mod / path.name)
     (mod / 'tce-build-variant.txt').write_text(variant + '\n', encoding='ascii')
     subprocess.run(['cmake', f'-DMODULE_DIRECTORY={mod}', f'-DBUILD_VARIANT={variant}',
                     '-P', str(repo / 'src/cmake/package_modules.cmake')], check=True)
@@ -127,15 +148,19 @@ def package_modules(modules, output, target, variant, core_manifest=None, geoip=
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--modules', type=Path, required=True)
+    inputs = parser.add_mutually_exclusive_group(required=True)
+    inputs.add_argument('--modules', type=Path)
+    inputs.add_argument('--module-manifest', type=Path)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--target', required=True)
     parser.add_argument('--variant', choices=('game', 'navstudio'), required=True)
     parser.add_argument('--core-manifest', type=Path)
     parser.add_argument('--geoip-database', type=Path)
     args = parser.parse_args()
-    print(package_modules(args.modules.resolve(), args.output.resolve(), args.target,
-                          args.variant, args.core_manifest, args.geoip_database))
+    print(package_modules(args.modules.resolve() if args.modules else None,
+                          args.output.resolve(), args.target, args.variant,
+                          args.core_manifest, args.geoip_database,
+                          module_manifest=args.module_manifest))
 
 
 if __name__ == '__main__':
