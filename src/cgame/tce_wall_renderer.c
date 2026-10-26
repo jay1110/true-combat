@@ -123,6 +123,71 @@ fallback:
 	}
 }
 
+static float TCE_WallDC1SmokeVelocity(float normal, float spread, int axis)
+{
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	tceTriggerSum_t value, term;
+	unsigned control;
+	__control87_2(0, 0, &control, NULL);
+	if (TCE_FiniteExceptionsMasked(control) &&
+	    TCE_TriggerProduct(&value, normal, 1.0f, control) &&
+	    TCE_TriggerProduct(&term, spread, 1.0f, control))
+	{
+		TCE_RotateAdd(&value, &term, control);
+		/* Windows spills the Y/Z sums, retaining only X through scaling. */
+		if (axis != 0)
+		{
+			float stored = TCE_RotateStore(value, control);
+			if (!TCE_TriggerProduct(&value, stored, 1.0f, control))
+			{
+				goto fallback;
+			}
+		}
+		TCE_TriggerProduct(&term, 130.0f, 1.0f, control);
+		TCE_GustMultiply(&value, &term, control);
+		return TCE_RotateStore(value, control);
+	}
+fallback:
+#endif
+#if defined(_WIN32)
+	if (axis != 0)
+	{
+		volatile float stored = normal + spread;
+		return stored * 130.0f;
+	}
+#else
+	(void)axis;
+#endif
+	return (float)(((long double)normal + spread) * 130.0f);
+}
+
+static float TCE_WallDC1Speed(unsigned sample, float velocity)
+{
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	tceTriggerSum_t value, term;
+	unsigned control;
+	__control87_2(0, 0, &control, NULL);
+	if (TCE_FiniteExceptionsMasked(control) &&
+	    TCE_TriggerProduct(&value, (float)sample, 3.0518509447574615e-05f, control) &&
+	    TCE_TriggerProduct(&term, 100.0f, 1.0f, control))
+	{
+		TCE_GustMultiply(&value, &term, control);
+		TCE_TriggerProduct(&term, 300.0f, 1.0f, control);
+		TCE_RotateAdd(&value, &term, control);
+		if (TCE_TriggerProduct(&term, velocity, 1.0f, control))
+		{
+			TCE_GustMultiply(&value, &term, control);
+			return TCE_RotateStore(value, control);
+		}
+	}
+#endif
+#if defined(__linux__)
+	return (float)(((long double)sample * 0.0030518509447574615f + 300.0f) * velocity);
+#else
+	return (float)(((long double)sample * 3.0518509447574615e-05f * 100.0f + 300.0f) * velocity);
+#endif
+}
+
 /* Both callers pass a masked random sample and an exact base of 1 or 1.5. */
 static float TCE_WallRadius(unsigned sample, float base)
 {
@@ -1063,9 +1128,9 @@ LAB_3007996e:
 				}
 				while (value1 < 0xc);
 				value3      = 0;
-				velocity[0] = (trace.plane.normal[0] + velocity[0]) * 130.0f;
-				velocity[1] = (trace.plane.normal[1] + velocity[1]) * 130.0f;
-				velocity[2] = (trace.plane.normal[2] + velocity[2]) * 130.0f;
+				velocity[0] = TCE_WallDC1SmokeVelocity(trace.plane.normal[0], velocity[0], 0);
+				velocity[1] = TCE_WallDC1SmokeVelocity(trace.plane.normal[1], velocity[1], 1);
+				velocity[2] = TCE_WallDC1SmokeVelocity(trace.plane.normal[2], velocity[2], 2);
 				randomValue = rand();
 				value0      = TCE_WallCount(randomValue & 32767, 200.0f, 400.0f, 0);
 				value2      = 0x28;
@@ -1096,17 +1161,14 @@ LAB_3007996e:
 				velocity[2] = trace.plane.normal[2] + velocity[2];
 				bits        = rand();
 				velocity[0] =
-					((float)(bits & 0x7fff) * 3.0518509447574615e-05f * 100.0f + 300.0f) *
-					velocity[0];
+					TCE_WallDC1Speed(bits & 0x7fff, velocity[0]);
 				bits        = rand();
 				velocity[1] =
-					((float)(bits & 0x7fff) * 3.0518509447574615e-05f * 100.0f + 300.0f) *
-					velocity[1];
+					TCE_WallDC1Speed(bits & 0x7fff, velocity[1]);
 				bits        = rand();
 				randomBits  = (unsigned)(particleIndex == 0);
 				velocity[2] =
-					((float)(bits & 0x7fff) * 3.0518509447574615e-05f * 100.0f + 300.0f) *
-					velocity[2];
+					TCE_WallDC1Speed(bits & 0x7fff, velocity[2]);
 				randomValue = rand();
 				value0      = TCE_WallCount(randomValue & 32767, 200.0f, 400.0f, 0);
 				value2      = 0x28;
