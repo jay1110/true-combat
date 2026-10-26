@@ -336,7 +336,7 @@ static int G_TCECameraQuantize(int cameraValue, unsigned int cameraFactorBits,
 	}
 #endif
 	memcpy(&cameraFactor, &cameraFactorBits, sizeof(cameraFactor));
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 	long double value = (long double)cameraValue * cameraFactor;
 	if (cameraDivide)
 	{
@@ -372,7 +372,7 @@ static int G_TCECameraQuantize(int cameraValue, unsigned int cameraFactorBits,
 
 static int G_TCECameraCharge(float cameraChargeValue)
 {
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM)) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 	return TCE_TruncateNativeInteger((long double)cameraChargeValue);
 #else
 	return (int)cameraChargeValue;
