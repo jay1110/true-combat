@@ -336,7 +336,7 @@ long double TCE_BotAngleDifferenceValue(long double first, long double second)
 }
 #endif
 
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 long double AngleDifference(float ang1, float ang2)
 {
 	return TCE_BotAngleDifferenceValue(ang1, ang2);

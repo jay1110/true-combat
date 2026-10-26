@@ -12,7 +12,7 @@
 #include "tce_lead_precision.h"
 
 extern void AimAtTarget(gentity_t *self);
-#if defined(__linux__)
+#if defined(__linux__) || (defined(_WIN32) && !defined(Q3_VM))
 extern long double AngleDifference(float ang1, float ang2);
 #else
 extern float AngleDifference(float ang1, float ang2);
