@@ -40,13 +40,62 @@ static __inline int TCE_BulletAntilagEnd(const float *forward, const float *righ
 	return 1;
 }
 
+/* A retained length has at most 64 significand bits, a Float factor 24.
+ * If their low product bits fall below the fixed grid, scale the root by
+ * 2^64 before multiplication. This is exact and preserves PC/RC rounding.
+ * After scaling back, retain a sticky bit below the Float subnormal quantum. */
+static __inline int TCE_BulletLengthProduct(const tceTriggerSum_t *root,
+                                           const tceTriggerSum_t *factor,
+                                           unsigned control, float *result)
+{
+	tceTriggerSum_t product = *root;
+	int word;
+
+	if (TCE_AmbientProductFits(root, factor))
+	{
+		TCE_GustMultiply(&product, factor, control);
+	}
+	else
+	{
+		tceTriggerSum_t scaled = { { 0 }, 0 };
+
+		scaled.negative = root->negative;
+
+		if (root->word[16] || root->word[17])
+		{
+			return 0;
+		}
+		for (word = 0; word < 16; ++word)
+		{
+			scaled.word[word + 2] = root->word[word];
+		}
+		if (!TCE_AmbientProductFits(&scaled, factor))
+		{
+			return 0;
+		}
+		TCE_GustMultiply(&scaled, factor, control);
+		memset(&product, 0, sizeof(product));
+		product.negative = scaled.negative;
+		for (word = 0; word < 16; ++word)
+		{
+			product.word[word] = scaled.word[word + 2];
+		}
+		if (scaled.word[0] || scaled.word[1])
+		{
+			product.word[0] |= 1u;
+		}
+	}
+	*result = TCE_RotateStore(product, control);
+	return 1;
+}
+
 /* Windows stores each root*direction product before adding the impact point.
  * Keep the root in the existing integer representation instead of narrowing
  * it through MSVC's binary64 long double return. Commit only complete output. */
 static __inline int TCE_BulletProjectedOffset(const float *delta,
                                              const float *direction, float *offset)
 {
-	tceTriggerSum_t squared, term, root, factor, product;
+	tceTriggerSum_t squared, term, root, factor;
 	float result[3];
 	unsigned control;
 	int axis;
@@ -69,13 +118,10 @@ static __inline int TCE_BulletProjectedOffset(const float *delta,
 	for (axis = 0; axis < 3; ++axis)
 	{
 		if (!TCE_TriggerProduct(&factor, direction[axis], 1.0f, control) ||
-		    !TCE_AmbientProductFits(&root, &factor))
+		    !TCE_BulletLengthProduct(&root, &factor, control, &result[axis]))
 		{
 			return 0;
 		}
-		product = root;
-		TCE_GustMultiply(&product, &factor, control);
-		result[axis] = TCE_RotateStore(product, control);
 	}
 	memcpy(offset, result, sizeof(result));
 	return 1;
