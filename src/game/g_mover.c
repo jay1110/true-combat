@@ -5842,7 +5842,8 @@ func_constructible_explode
 /* TC200744ff/20074528: C3, not C truthiness (unordered follows zero). */
 static qboolean G_TCEConstructibleDeathGate(gentity_t *self, qboolean resetProgress)
 {
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_MSC_VER) && defined(_M_IX86)) || \
+    ((defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM))
 	qboolean completed = !TCE_FloatIsZeroOrNaN(self->s.angles2[1]);
 	if (resetProgress)
 	{
@@ -6239,7 +6240,8 @@ extern void explosive_indicator_think(gentity_t *ent);
 /* TC200750b4..200750ea: __ftol64 low EAX, then signed FILD32. */
 static void G_TCEConstructibleMarkerSnap(vec3_t markerPosition)
 {
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if (defined(_MSC_VER) && defined(_M_IX86)) || \
+    ((defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM))
 	int markerAxis;
 	for (markerAxis = 0; markerAxis < 3; ++markerAxis)
 	{
