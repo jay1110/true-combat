@@ -1375,7 +1375,7 @@ static qboolean TryConstructing(gentity_t *ent)
 		if (G_TCEConstructionCompare(constructible->s.angles2[0], 0.0f) & 0x4100u)
 		{
 			// wait a bit, this prevents network spam
-			if ((int)((unsigned int)level.time - (unsigned int)constructible->lastHintCheckTime) < CONSTRUCT_POSTDECAY_TIME)
+			if (TCE_SubInt32(level.time, constructible->lastHintCheckTime) < CONSTRUCT_POSTDECAY_TIME)
 			{
 				return(qtrue);      // likely will come back soon - so override other plier bits anyway
 
@@ -1396,7 +1396,7 @@ static qboolean TryConstructing(gentity_t *ent)
 			// swap brushmodels if staged
 			if (constructible->count2)
 			{
-				constructible->grenadeFired++;
+				constructible->grenadeFired = TCE_AddInt32(constructible->grenadeFired, 1);
 				constructible->s.modelindex2 = constructible->conbmodels[constructible->grenadeFired - 1];
 				//trap_SetBrushModel( constructible, va( "*%i", constructible->conbmodels[constructible->grenadeFired-1] ) );
 			}
@@ -1470,7 +1470,7 @@ static qboolean TryConstructing(gentity_t *ent)
 
 			// setup our think function for decaying
 			constructible->think     = func_constructible_underconstructionthink;
-			constructible->nextthink = level.time + FRAMETIME;
+			constructible->nextthink = TCE_AddInt32(level.time, FRAMETIME);
 
 			G_PrintClientSpammyCenterPrint((int)(ent - g_entities), "Constructing...");
 		}
@@ -1658,7 +1658,7 @@ static qboolean TryConstructing(gentity_t *ent)
 				e->s.modelindex2 = ent->client->touchingTOI->s.teamNum;
 				e->r.ownerNum    = constructible->s.number;
 				e->think         = explosive_indicator_think;
-				e->nextthink     = level.time + FRAMETIME;
+				e->nextthink     = TCE_AddInt32(level.time, FRAMETIME);
 
 				e->s.effect1Time = constructible->constructibleStats.weaponclass;
 
