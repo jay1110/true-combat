@@ -677,12 +677,12 @@ void DynaSink(gentity_t *self);
 static void G_TCERadiusCandidateBounds(const vec3_t radiusOrigin, float *candidateRadius,
                                        vec3_t candidateMins, vec3_t candidateMaxs)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(Q3_VM))
 	const double   expansion = 1.41421356;
 	volatile float *mins = candidateMins, *maxs = candidateMaxs;
 	long double    expanded;
 	int            axis;
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 	if (TCE_RadiusFiniteBounds(radiusOrigin, candidateRadius, candidateMins, candidateMaxs))
 	{
 		return;
@@ -749,11 +749,11 @@ static void G_TCERadiusAxisDistance(float axisOrigin, float axisMin, float axisM
 	{
 		*stored = 0.0f;
 	}
-#elif defined(_MSC_VER) && defined(_M_IX86)
+#elif (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(Q3_VM))
 	volatile float *stored = axisDistance;
 	if (!(axisOrigin >= axisMin))
 	{
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 		if (TCE_FiniteDifferenceStore(axisMin, axisOrigin, axisDistance))
 		{
 			return;
@@ -763,7 +763,7 @@ static void G_TCERadiusAxisDistance(float axisOrigin, float axisMin, float axisM
 	}
 	else if (axisOrigin > axisMax)
 	{
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 		if (TCE_FiniteDifferenceStore(axisOrigin, axisMax, axisDistance))
 		{
 			return;
@@ -821,11 +821,11 @@ static void G_TCERadiusMidpoint(const vec3_t radiusMin, const vec3_t radiusMax, 
 		long double sum = (long double)radiusMax[axis] + radiusMin[axis];
 		stored[axis] = (float)(sum * 0.5L);
 	}
-#elif defined(_MSC_VER) && defined(_M_IX86)
+#elif (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(Q3_VM))
 	volatile float y, z;
 	volatile float *stored = radiusMidpoint;
 	long double    x, zProduct;
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 	if (TCE_RadiusFiniteMidpoint(radiusMin, radiusMax, radiusMidpoint))
 	{
 		return;
@@ -849,7 +849,7 @@ static void G_TCERadiusMidpoint(const vec3_t radiusMin, const vec3_t radiusMax, 
 
 static qboolean G_TCERadiusTraceBlocked(float radiusFraction)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(Q3_VM))
 	return !(radiusFraction >= 1.0f); /* less or unordered as original C0. */
 #else
 	return radiusFraction < 1.0f;
