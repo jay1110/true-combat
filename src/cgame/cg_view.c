@@ -1819,25 +1819,40 @@ static void CG_TCESetSoundZone(const entityState_t *es)
 #endif
 }
 
-#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+#if defined(_WIN32) && !defined(Q3_VM)
 static float CG_TCERoomExtent(float previous, float high, float low, int axis)
 {
+#if defined(_MSC_VER) && defined(_M_IX86)
 	float result;
 	if (TCE_AmbientRoomExtent(previous, high, low, axis, &result))
 	{
 		return result;
 	}
-	return previous * .6667f + (high - low) * .3333f;
+#endif
+	{
+		long double difference = (long double)high - low;
+		float start = (float)((long double)previous * .6667f);
+		float incoming;
+		if (axis != 0)
+		{
+			difference = (float)difference;
+		}
+		incoming = (float)(difference * .3333f);
+		return (float)((long double)start + incoming);
+	}
 }
 
 static float CG_TCERoomBlend(float previous, float sample, float scale)
 {
+#if defined(_MSC_VER) && defined(_M_IX86)
 	float result;
 	if (TCE_AmbientRoomBlend(previous, sample, scale, &result))
 	{
 		return result;
 	}
-	return previous * .6667f + sample * scale * .3333f;
+#endif
+	return (float)(((long double)sample * scale) * .3333f +
+	               (long double)previous * .6667f);
 }
 #endif
 
@@ -1939,7 +1954,11 @@ static void CG_EliteSndEffects(void)
 	vec3_t              low = { 0, 0, 0 }, high = { 0, 0, 0 }, corner, signs, dir, end, start;
 	float               distance = 0, hardness = 0;
 #if !defined(TCE_LINUX_ROOM_X87)
+#if defined(_WIN32) && !defined(Q3_VM)
+	long double weight, firstWeight;
+#else
 	float weight;
+#endif
 	int j, kind;
 #endif
 #if defined(TCE_LINUX_ROOM_X87)
@@ -2002,7 +2021,7 @@ static void CG_EliteSndEffects(void)
 	CG_TCEFilterRoom(low, high, distance, hardness, sky);
 #else
 	for (j = 0; j < 3; j++)
-#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+#if defined(_WIN32) && !defined(Q3_VM)
 		cg.tceRoomExtent[j] = CG_TCERoomExtent(cg.tceRoomExtent[j], high[j], low[j], j);
 	cg.tceRoomDistance = CG_TCERoomBlend(cg.tceRoomDistance, distance, .125f);
 	cg.tceRoomHardness = CG_TCERoomBlend(cg.tceRoomHardness, hardness, .0625f);
@@ -2017,9 +2036,18 @@ static void CG_EliteSndEffects(void)
 	                            cg.tceRoomWeights, &cg.tceSoundEnvironment))
 #endif
 	{
+#if defined(_WIN32) && !defined(Q3_VM)
+		cg.tceRoomSky = (float)((long double)sky * .3333f +
+		                        (long double)cg.tceRoomSky * .6667f);
+		firstWeight = (long double)cg.tceRoomWeights[0] * .6667f;
+		cg.tceRoomWeights[0] = (float)firstWeight;
+		for (j = 1; j < 4; j++)
+			cg.tceRoomWeights[j] = (float)((long double)cg.tceRoomWeights[j] * .6667f);
+#else
 		cg.tceRoomSky      = cg.tceRoomSky * .6667f + sky * .3333f;
 		for (j = 0; j < 4; j++)
 			cg.tceRoomWeights[j] *= .6667f;
+#endif
 		if (CG_TCERoomLess(cg.tceRoomDistance, 200.0f) && cg.tceRoomHardness > .8f)
 		{
 			kind = 1;
@@ -2028,7 +2056,13 @@ static void CG_EliteSndEffects(void)
 		{
 			kind = 3;
 		}
-		else if (CG_TCERoomLess(cg.tceRoomExtent[2], 150.0f) && cg.tceRoomExtent[0] + cg.tceRoomExtent[1] > 600 && cg.tceRoomHardness > .8f)
+		else if (CG_TCERoomLess(cg.tceRoomExtent[2], 150.0f) &&
+#if defined(_WIN32) && !defined(Q3_VM)
+		         (long double)cg.tceRoomExtent[1] + cg.tceRoomExtent[0] > 600.0L &&
+#else
+		         cg.tceRoomExtent[0] + cg.tceRoomExtent[1] > 600 &&
+#endif
+		         cg.tceRoomHardness > .8f)
 		{
 			kind = 2;
 		}
@@ -2036,8 +2070,22 @@ static void CG_EliteSndEffects(void)
 		{
 			kind = 0;
 		}
+#if defined(_WIN32) && !defined(Q3_VM)
+		if (kind == 0)
+		{
+			firstWeight += .3333f;
+			cg.tceRoomWeights[0] = (float)firstWeight;
+		}
+		else
+		{
+			cg.tceRoomWeights[kind] = (float)((long double)cg.tceRoomWeights[kind] + .3333f);
+		}
+		weight = firstWeight;
+#else
 		cg.tceRoomWeights[kind] += .3333f;
-		weight                   = cg.tceRoomWeights[0]; cg.tceSoundEnvironment = 0;
+		weight = cg.tceRoomWeights[0];
+#endif
+		cg.tceSoundEnvironment = 0;
 		if (weight < cg.tceRoomWeights[1])
 		{
 			weight = cg.tceRoomWeights[1]; cg.tceSoundEnvironment = 1;
