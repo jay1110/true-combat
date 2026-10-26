@@ -44,6 +44,15 @@ static long double bulletLength(const vec3_t v)
 	return sqrt((double)v[0] * v[0] + (double)v[1] * v[1] + (double)v[2] * v[2]);
 #endif
 }
+/* The native x87 C0 branch also accepts unordered comparisons. */
+static qboolean bulletBelow(long double value, long double limit)
+{
+#if defined(_WIN32) || defined(__linux__)
+	return !(value >= limit);
+#else
+	return value < limit;
+#endif
+}
 static void bulletNormalize(vec3_t v)
 {
 #if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
@@ -147,7 +156,7 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 		else if (destContents & CONTENTS_WATER)
 		{
 			VectorSubtract(cg.snap->ps.origin, end, offset);
-			if (bulletLength(offset) < 1024)
+			if (bulletBelow(bulletLength(offset), 1024))
 			{
 				trap_CM_BoxTrace(&liquid, start, end, NULL, NULL, 0, CONTENTS_WATER); CG_BubbleTrail(end, liquid.endpos, .5f, 8);
 			}
@@ -162,7 +171,11 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 		VectorCopy(suppliedStart, start); VectorSubtract(end, start, direction); VectorNormalizeFast(direction);
 		VectorMA(end, 4, direction, end);
 		CG_Trace(&solid, start, NULL, NULL, end, 0, 0x81); CG_Trace(&liquid, start, NULL, NULL, end, -1, 0x38);
+#if defined(_WIN32) || defined(__linux__)
+		if (!(solid.fraction > liquid.fraction))
+#else
 		if (solid.fraction <= liquid.fraction)
+#endif
 		{
 			if (bulletRandom() < .25f)
 			{
@@ -226,7 +239,7 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 	VectorAdd(offset, end, projected);
 #endif
 	CG_GetOriginForTag(target, &target->pe.headRefEnt, "tag_mouth", 0, tag, NULL); tag[2] += 5;
-	VectorSubtract(tag, projected, offset); headshot                                       = bulletLength(offset) < 10;
+	VectorSubtract(tag, projected, offset); headshot = bulletBelow(bulletLength(offset), 10);
 	VectorNegate(direction, opposite);
 	context->particle(projected, opposite, particles, 16, bulletParticleAlpha());
 	context->particle(projected, direction, 0, 16, bulletParticleAlpha());
@@ -271,7 +284,12 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 	if (solid.fraction >= 1.0f || (bulletRandom() <= .5f && !headshot))
 	{
 		VectorCopy(end, markEnd); markEnd[2] -= 64; trap_CM_BoxTrace(&solid, end, markEnd, NULL, NULL, 0, 0x4000081);
+#if defined(__linux__)
+		/* Linux compares 1 against the fraction and returns on C0 or C3. */
+		if (!(solid.fraction < 1.0f))
+#else
 		if (solid.fraction >= 1.0f)
+#endif
 		{
 			return;
 		}
