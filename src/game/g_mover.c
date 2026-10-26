@@ -3314,7 +3314,7 @@ void Reached_Train(gentity_t *ent)
 	vec3_t    move;
 #if defined(__linux__) && !defined(Q3_VM)
 	long double trainLength;
-#elif !defined(_MSC_VER) || !defined(_M_IX86)
+#elif !((defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM)))
 	float trainLength;
 #endif
 	int          trainHasWait;
@@ -3350,7 +3350,7 @@ void Reached_Train(gentity_t *ent)
 	VectorCopy(next->nextTrain->s.origin, ent->pos2);
 
 	// if the path_corner has a speed, use that
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 	/* Native C3 selects the base speed for zero or unordered corner speed. */
 	speed = TCE_FloatIsZeroOrNaN(next->speed) ? ent->speed : next->speed;
 	/* Native C0 also clamps an unordered selected speed to one. */
@@ -3395,6 +3395,9 @@ void Reached_Train(gentity_t *ent)
 			    (long double)VectorLength(move) * 1000.0L / speed);
 		}
 	}
+#elif defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM)
+	ent->s.pos.trDuration = TCE_TruncateNativeInteger(
+	    TCE_VectorLengthValue(move) * 1000.0L / speed);
 #elif defined(_MSC_VER) && defined(_M_IX86)
 	ent->s.pos.trDuration = TCE_TruncateNativeInteger(
 	    (long double)VectorLength(move) * 1000.0L / speed);
@@ -3418,7 +3421,7 @@ void Reached_Train(gentity_t *ent)
 
 	// if there is a "wait" value on the target, don't start moving yet
 	/* Original C3-only zero gate excludes unordered waits as well. */
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 	trainHasWait = !TCE_FloatIsZeroOrNaN(next->wait);
 #else
 	trainHasWait = next->wait < 0.0f || next->wait > 0.0f;
@@ -3427,6 +3430,9 @@ void Reached_Train(gentity_t *ent)
 	{
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 		ent->nextthink = TCE_TrainWaitDeadline(next->wait, level.time);
+#elif defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM)
+		ent->nextthink = TCE_TruncateNativeInteger(
+		    (long double)next->wait * 1000.0L + level.time);
 #elif defined(_MSC_VER) && defined(_M_IX86)
 		ent->nextthink = TCE_TruncateNativeInteger(
 		    (long double)next->wait * 1000.0L + level.time);
@@ -3785,7 +3791,7 @@ void Reached_Train_rotating(gentity_t *ent)
 	float     speed;
 	vec3_t    move;
 	int       trainHasWait;
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 	long double frames;
 #elif defined(__linux__) && !defined(Q3_VM)
 	long double trainLength;
@@ -3810,7 +3816,7 @@ void Reached_Train_rotating(gentity_t *ent)
 	VectorCopy(next->s.origin, ent->pos1);
 	VectorCopy(next->nextTrain->s.origin, ent->pos2);
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 	speed = TCE_FloatIsZeroOrNaN(next->speed) ? ent->speed : next->speed;
 	if (!(speed >= 1.0f))
 	{
@@ -3860,6 +3866,14 @@ void Reached_Train_rotating(gentity_t *ent)
 			ent->s.pos.trDuration = TCE_TruncateNativeInteger(duration);
 		}
 	}
+#elif defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM)
+	{
+		long double length = TCE_VectorLengthValue(move);
+		long double duration = TCE_FloatIsZeroOrNaN(next->duration)
+		                     ? length * 1000.0L / speed
+		                     : (long double)next->duration * 1000.0L;
+		ent->s.pos.trDuration = TCE_TruncateNativeInteger(duration);
+	}
 #elif defined(_MSC_VER) && defined(_M_IX86)
 	{
 		long double length = VectorLength(move);
@@ -3880,7 +3894,7 @@ void Reached_Train_rotating(gentity_t *ent)
 	ent->s.pos.trDuration = next->duration ? next->duration * 1000 : trainLength * 1000 / speed;
 #endif
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 	frames = floor((double)(ent->s.pos.trDuration / 100));
 	if (frames == 0.0L)
 	{
@@ -3910,13 +3924,13 @@ void Reached_Train_rotating(gentity_t *ent)
 	//G_Printf( "Add  X  Y  X %s\n",
 	//			vtos(ent->rotate) );
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 	{
 		int index;
 		for (index = 0; index < 3; ++index)
 		{
 			int axis = (index + 2) % 3;
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 			float finiteVelocity;
 			if (!TCE_FloatIsZeroOrNaN(ent->rotate[axis]) &&
 			    TCE_TrainAngularVelocityFinite(ent->rotate[axis], (double)frames,
@@ -3995,7 +4009,7 @@ void Reached_Train_rotating(gentity_t *ent)
 
 	// if there is a "wait" value on the target, don't start moving yet
 	/* Original C3-only zero gate excludes unordered waits as well. */
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 	trainHasWait = !TCE_FloatIsZeroOrNaN(next->wait);
 #else
 	trainHasWait = next->wait < 0.0f || next->wait > 0.0f;
@@ -4004,6 +4018,9 @@ void Reached_Train_rotating(gentity_t *ent)
 	{
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 		ent->nextthink = TCE_TrainWaitDeadline(next->wait, level.time);
+#elif defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM)
+		ent->nextthink = TCE_TruncateNativeInteger(
+		    (long double)next->wait * 1000.0L + level.time);
 #elif (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
 		ent->nextthink = TCE_TruncateNativeInteger(
 		    (long double)next->wait * 1000.0L + level.time);
