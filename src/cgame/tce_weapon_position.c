@@ -6,7 +6,7 @@
 #include "../game/tce_numeric.h"
 #endif
 
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_MSC_VER) && defined(_M_IX86) || (defined(_WIN32) && !defined(Q3_VM))
 /* Initial view state, before posture and weapon-motion adjustments. */
 static void TCE_WeaponPositionInitialView(const tce_weaponPosition_t *s,
                                           float *origin, float *angles)
@@ -15,7 +15,7 @@ static void TCE_WeaponPositionInitialView(const tce_weaponPosition_t *s,
 	memcpy(angles, s->viewAngles, sizeof(vec3_t));
 	if (s->eFlags & 0x8000)
 	{
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 		if (!TCE_WeaponPositionTankPitch(s->viewAngles[0], &angles[0]))
 #endif
 		{
@@ -42,7 +42,7 @@ static void TCE_WeaponPositionProne(tce_weaponPosition_t *s, float *origin,
 	    ? (unsigned int)s->time - (unsigned int)s->proneMovingTime
 	    : (unsigned int)s->proneMovingTime + (unsigned int)s->time;
 	memcpy(&delta, &elapsed, sizeof(delta));
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 	if (TCE_WeaponPositionPosture(delta, s->eFlags & 0x100000, 0,
 	                            s->viewAxis, origin, angles))
 	{
@@ -95,7 +95,7 @@ static void TCE_WeaponPositionStance(tce_weaponPosition_t *s, float *origin,
 	long double fraction = 1.0L, amount;
 
 	memcpy(&delta, &elapsed, sizeof(delta));
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 	if (TCE_WeaponPositionPosture(delta, active, duck ? 2 : 1,
 	                            s->viewAxis, origin, angles))
 	{
@@ -161,7 +161,7 @@ static void TCE_WeaponPositionLean(const tce_weaponPosition_t *s, float *origin,
 		{
 			return;
 		}
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 		if (!TCE_WeaponPositionLeanFraction(delta, 1, &fraction))
 #endif
 		{
@@ -170,7 +170,7 @@ static void TCE_WeaponPositionLean(const tce_weaponPosition_t *s, float *origin,
 	}
 	else if (delta < 200)
 	{
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 		if (!TCE_WeaponPositionLeanFraction(delta, 0, &fraction))
 #endif
 		{
@@ -181,7 +181,7 @@ static void TCE_WeaponPositionLean(const tce_weaponPosition_t *s, float *origin,
 	{
 		return;
 	}
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 	if (!TCE_WeaponPositionLeanScaledOffset(s->lean, fraction, 1.0f,
 	                                      angles[2], 0, &angles[2]))
 #endif
@@ -192,7 +192,7 @@ static void TCE_WeaponPositionLean(const tce_weaponPosition_t *s, float *origin,
 	AngleVectors(angles, NULL, right, up);
 	for (i = 0; i < 3; ++i)
 	{
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 		if (TCE_WeaponPositionLeanOffset(fraction, angles[2], right[i],
 		                               origin[i], &origin[i]))
 		{
@@ -214,7 +214,7 @@ static void TCE_WeaponPositionLean(const tce_weaponPosition_t *s, float *origin,
 		magnitudeBits = 0u - magnitudeBits;
 	}
 	memcpy(&magnitude, &magnitudeBits, sizeof(magnitude));
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 	if (!TCE_WeaponPositionLeanPitch(magnitude, fraction, angles[0], &angles[0]))
 #endif
 	{
@@ -224,7 +224,7 @@ static void TCE_WeaponPositionLean(const tce_weaponPosition_t *s, float *origin,
 	AngleVectors(s->viewAngles, NULL, right, NULL);
 	for (i = 0; i < 3; ++i)
 	{
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 		if (TCE_WeaponPositionLeanScaledOffset(s->lean, fraction, right[i],
 		                                      origin[i], 1, &origin[i]))
 		{
@@ -346,7 +346,7 @@ static void TCE_WeaponPositionFinalAngles(const tce_weaponPosition_t *s, float *
 	{
 		for (i = 0; i < 2; ++i)
 		{
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 			if (TCE_WeaponPositionTacticalAngle(i ? s->tacticalYaw : s->tacticalPitch,
 			                                   s->tacticalScale, angles[i], &angles[i]))
 			{
@@ -388,7 +388,7 @@ static void TCE_WeaponPositionLanding(const tce_weaponPosition_t *s, float *orig
 	}
 	elapsed = (unsigned int)s->time - (unsigned int)s->landTime;
 	memcpy(&delta, &elapsed, sizeof(delta));
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 	if (TCE_WeaponPositionLandingFinite(delta, s->landChange, origin[2], &origin[2]))
 	{
 		return;
@@ -427,7 +427,7 @@ static void TCE_WeaponPositionBob(const tce_weaponPosition_t *s, float *angles)
 			scale = 0.0f;
 		}
 	}
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 	if (TCE_WeaponPositionBobFinite(s->bobSin, s->speed, scale,
 	                              s->bobCycle & 1, angles))
 	{
@@ -457,7 +457,7 @@ static void TCE_WeaponPositionSway(tce_weaponPosition_t *s, float *origin, float
 	}
 	elapsed = (unsigned int)s->swayTime - (unsigned int)s->time;
 	memcpy(&delta, &elapsed, sizeof(delta));
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 	if (TCE_WeaponPositionSwayTargets(delta, s->viewAxis, s->priorForward,
 	                                s->velocity, target))
 	{
@@ -493,7 +493,7 @@ static void TCE_WeaponPositionSway(tce_weaponPosition_t *s, float *origin, float
 	forwardVelocity += (long double)s->velocity[1] * s->viewAxis[0][1];
 	target[1]        = (float)(forwardVelocity * (long double)0.1f + upDelta);
 
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 sway_step:
 #endif
 	elapsed = (unsigned int)s->time - (unsigned int)s->stepTime;
@@ -505,7 +505,7 @@ sway_step:
 		target[1] = (float)((long double)s->stepChange + target[1]);
 	}
 
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 	if (TCE_WeaponPositionSwayState(target, w->unknown_0f8[3], s->aiming,
 	                              s->scale_3407dfbc, s->scale_3407dfc0,
 	                              s->swayHorizontal, s->swayVertical, &strength,
@@ -563,7 +563,7 @@ sway_step:
 	{
 		s->swayHorizontal = (float)-limit;
 	}
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 sway_offsets:
 	if (TCE_WeaponPositionSwayOffsets(s->swayHorizontal, s->swayVertical,
 	                                strength, s->viewAxis, origin, angles))
@@ -881,7 +881,7 @@ static void posture(tce_weaponPosition_t *s, float *origin, float *angles, int a
 }
 void TCE_CG_CalculateWeaponPosition(tce_weaponPosition_t *s, float *origin, float *angles)
 {
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if defined(_MSC_VER) && defined(_M_IX86) || (defined(_WIN32) && !defined(Q3_VM))
 	TCE_WeaponPositionInitialView(s, origin, angles);
 	TCE_WeaponPositionProne(s, origin, angles);
 	TCE_WeaponPositionStance(s, origin, angles, s->flags_3407dfb0 & 0x4000,
