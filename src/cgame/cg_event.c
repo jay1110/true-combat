@@ -13,14 +13,14 @@ extern void CG_ToggleAiming(void);
 extern void CG_Tracer(vec3_t source, vec3_t dest, int sparks);
 extern void CG_AddBulletParticles(vec3_t origin, vec3_t dir, int speed, int duration, int count, float randScale);
 
-#if defined(_MSC_VER) && defined(_M_IX86)
-/* Extracted Windows event expression; native helper, not an original body. */
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
+/* Shared held event expression; native helper, not an original body. */
 static int CG_EventGlobalSoundVolume(void)
 {
 	long double volume = 1.0L - (long double)tceFlash.deafness;
 	volume = volume * (long double)127.0f;
-	/* Original __ftol truncates to signed64 and consumers use its low32.
-	 * This models result bits, not x87 precision or exception side effects. */
+	/* Use the platform's native integer conversion width. This models result
+	 * bits, not generated x87 precision or exception side effects. */
 	return TCE_TruncateNativeInteger(volume);
 }
 
@@ -2848,7 +2848,7 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 
 		if (cgs.gameSounds[es->eventParm])
 		{
-			#if defined(_MSC_VER) && defined(_M_IX86)
+			#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
 			int globalSoundHandle = cgs.gameSounds[es->eventParm];
 			int globalSoundVolume = CG_EventGlobalSoundVolume();
 			trap_S_StartSoundVControl(NULL, cg.snap->ps.clientNum, CHAN_AUTO, globalSoundHandle, globalSoundVolume);
@@ -2864,6 +2864,13 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 				int globalSoundVolume = CG_EventGlobalSoundVolume();
 				int globalSoundHandle = CG_CustomSound(es->number, s);
 				trap_S_StartSoundVControl(NULL, cg.snap->ps.clientNum, CHAN_AUTO, globalSoundHandle, globalSoundVolume);
+			}
+			#elif defined(__linux__)
+			{
+				int globalSoundHandle = CG_CustomSound(es->number, s);
+				int globalSoundVolume = CG_EventGlobalSoundVolume();
+				trap_S_StartSoundVControl(NULL, cg.snap->ps.clientNum, CHAN_AUTO,
+				                          globalSoundHandle, globalSoundVolume);
 			}
 			#else
 			trap_S_StartSoundVControl(NULL, cg.snap->ps.clientNum, CHAN_AUTO, CG_CustomSound(es->number, s), (int)((1.0 - (double)tceFlash.deafness) * 127.0));
@@ -2896,7 +2903,7 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 			// done.
 			if (cgs.gameSounds[es->eventParm])
 			{
-				#if defined(_MSC_VER) && defined(_M_IX86)
+				#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
 				int globalSoundHandle = cgs.gameSounds[es->eventParm];
 				int globalSoundVolume = CG_EventGlobalSoundVolume();
 				trap_S_StartSoundVControl(NULL, cg.snap->ps.clientNum, CHAN_AUTO, globalSoundHandle, globalSoundVolume);
@@ -2912,6 +2919,13 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 					int globalSoundVolume = CG_EventGlobalSoundVolume();
 					int globalSoundHandle = CG_CustomSound(es->number, s);
 					trap_S_StartSoundVControl(NULL, cg.snap->ps.clientNum, CHAN_AUTO, globalSoundHandle, globalSoundVolume);
+				}
+				#elif defined(__linux__)
+				{
+					int globalSoundHandle = CG_CustomSound(es->number, s);
+					int globalSoundVolume = CG_EventGlobalSoundVolume();
+					trap_S_StartSoundVControl(NULL, cg.snap->ps.clientNum, CHAN_AUTO,
+					                          globalSoundHandle, globalSoundVolume);
 				}
 				#else
 				trap_S_StartSoundVControl(NULL, cg.snap->ps.clientNum, CHAN_AUTO, CG_CustomSound(es->number, s), (int)((1.0 - (double)tceFlash.deafness) * 127.0));
