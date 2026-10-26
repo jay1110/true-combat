@@ -2,6 +2,7 @@
 #include "tce_lightgrid.h"
 #include "../game/tce_numeric.h"
 #include "../game/tce_normalize_precision.h"
+#include "../game/tce_ambient_precision.h"
 extern qboolean CG_CalcMuzzlePoint(int, vec3_t);
 extern void SnapVectorTowards(vec3_t, vec3_t);
 static double bulletRandom(void)
@@ -62,6 +63,13 @@ static void bulletNormalize(vec3_t v)
 static int bulletLocalVolume(const tce_bulletRendererContext_t *context)
 {
 	float attenuation = context->liveAttenuation ? *context->liveAttenuation : context->attenuation;
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	int result;
+	if (TCE_AmbientVolume(127, attenuation, 1.0f, &result))
+	{
+		return result;
+	}
+#endif
 	return TCE_TruncateNativeInteger((1.0L - attenuation) * 127.0L);
 }
 void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim, int other,
