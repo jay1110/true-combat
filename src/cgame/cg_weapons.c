@@ -1800,10 +1800,30 @@ void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 			{
 				/* Original3006f4b0: bolt cycle translates along view-up;
 				 * it deliberately does not reset the switch/bolt timestamp. */
-				double shift = (1.0 - cos((double)(cg.time - cg.weaponAnimationTime)
+#if defined(__linux__)
+				/* Linux keeps the two Float factors, doubling and Double PI
+				 * separate, then stores the displacement before applying it. */
+				const float frameScale = 0.010000000707805157f;
+				const float cycleScale = 0.0714285746216774f;
+				long double phase = (long double)TCE_SubInt32(cg.time, cg.weaponAnimationTime) * frameScale;
+				float shift;
+
+				phase *= cycleScale;
+				phase += phase;
+				phase *= (long double)3.141592653589793;
+				shift = (float)((1.0L - cosl(phase)) * -12.5f);
+				for (i = 0; i < 3; ++i)
+				{
+					long double offset = i == 2 ? (long double)shift * cg.refdef.viewaxis[2][i]
+					                               : (long double)cg.refdef.viewaxis[2][i] * shift;
+					gun.origin[i] = (float)(offset + gun.origin[i]);
+				}
+#else
+				double shift = (1.0 - cos((double)TCE_SubInt32(cg.time, cg.weaponAnimationTime)
 				                          * (double)0.01f * (double)0.4487989544868469f)) * -12.5;
 				for (i = 0; i < 3; ++i)
 					gun.origin[i] = (float)(shift * (double)cg.refdef.viewaxis[2][i] + (double)gun.origin[i]);
+#endif
 			}
 			/* UT idle animations use the first frame, not a stale interpolated
 			 * hand frame. Developer cg_gun_frame still has precedence. */
