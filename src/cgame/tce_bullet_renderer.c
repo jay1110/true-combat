@@ -8,6 +8,33 @@ static double bulletRandom(void)
 {
 	return (rand() & 32767) * (double)(1.f / 32767.f);
 }
+static float bulletParticleAlpha(void)
+{
+#if defined(__linux__)
+	const float coefficient = .75f * (1.0f / 32767.0f);
+	return (float)((long double)(rand() & 32767) * coefficient + .75f);
+#else
+	return (float)((bulletRandom() + 1) * .75f);
+#endif
+}
+static float bulletMarkRadius(void)
+{
+#if defined(__linux__)
+	const float coefficient = 8.0f * (1.0f / 32767.0f);
+	return (float)((long double)(rand() & 32767) * coefficient + 8.0f);
+#else
+	return (float)((bulletRandom() + 1) * 8);
+#endif
+}
+static float bulletMarkRotation(void)
+{
+#if defined(__linux__)
+	const float coefficient = 360.0f * (1.0f / 32767.0f);
+	return (float)((long double)(rand() & 32767) * coefficient);
+#else
+	return (float)(bulletRandom() * 360);
+#endif
+}
 static long double bulletLength(const vec3_t v)
 {
 #if defined(_WIN32) || defined(__linux__)
@@ -153,18 +180,25 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 	CG_GetOriginForTag(target, &target->pe.headRefEnt, "tag_mouth", 0, tag, NULL); tag[2] += 5;
 	VectorSubtract(tag, projected, offset); headshot                                       = bulletLength(offset) < 10;
 	VectorNegate(direction, opposite);
-	context->particle(projected, opposite, particles, 16, (float)((bulletRandom() + 1) * .75f));
-	context->particle(projected, direction, 0, 16, (float)((bulletRandom() + 1) * .75f));
+	context->particle(projected, opposite, particles, 16, bulletParticleAlpha());
+	context->particle(projected, direction, 0, 16, bulletParticleAlpha());
 	if (particles > 4)
 	{
-		context->particle(projected, opposite, 0, 16, (float)((bulletRandom() + 1) * .75f));
+		context->particle(projected, opposite, 0, 16, bulletParticleAlpha());
 	}
 	if (level)
 	{
 		if (victim == cg.snap->ps.clientNum)
 		{
+#if defined(__linux__)
+			/* Linux selects the sound before evaluating the current deafness. */
+			int soundIndex = rand() % 5;
+			volume = TCE_TruncateNativeInteger((1.0L - context->attenuation) * 127.0L);
+			trap_S_StartSoundVControl(NULL, victim, 5, cgs.media.sfx_bullet_fleshhit[soundIndex], volume);
+#else
 			volume = TCE_TruncateNativeInteger((1.0L - context->attenuation) * 127.0L);
 			trap_S_StartSoundVControl(NULL, victim, 5, cgs.media.sfx_bullet_fleshhit[rand() % 5], volume);
+#endif
 		}
 		else
 		{
@@ -195,7 +229,7 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 		}
 	}
 	TCE_CG_LightForParticleDirected(TCE_CG_MapLightGrid(), solid.endpos, solid.plane.normal, light);
-	{ float radius = (float)((bulletRandom() + 1) * 8), rotation = (float)(bulletRandom() * 360); int shader = rand() % 5;
+	{ float radius = bulletMarkRadius(), rotation = bulletMarkRotation(); int shader = rand() % 5;
 	  context->mark(cgs.media.bloodDotShaders[shader], solid.endpos, solid.plane.normal, rotation, light[0], light[1], light[2], 1, 1, radius, 0, TCE_MulInt32(cg_bloodTime.integer, 1000)); }
 	*context->lastBloodSpat = cg.time;
 }
