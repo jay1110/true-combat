@@ -157,7 +157,7 @@ static int TCE_WallEchoGate(const float *delta, int *audible)
 }
 #endif
 
-static float TCE_WallEchoCoordinate(float direction, float range, float listener)
+static float TCE_WallCoordinate(float direction, float range, float listener)
 {
 #if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 	tceTriggerSum_t offset, origin;
@@ -201,7 +201,7 @@ static void TCE_WallProjection(const float *origin, const float *normal, float r
 	projection[3] = radius * 32.0f;
 	for (axis = 0; axis < 3; ++axis)
 	{
-		projectOrigin[axis] = TCE_WallEchoCoordinate(projection[axis], -16.0f, origin[axis]);
+		projectOrigin[axis] = TCE_WallCoordinate(projection[axis], -16.0f, origin[axis]);
 	}
 #endif
 }
@@ -741,13 +741,13 @@ LAB_30079255:
 		goto LAB_3007ad98;
 	case 4:
 		ctx->concussion(origin, 0);
-		position[0]  = *normal * 16.0f + *origin;
+		position[0]  = TCE_WallCoordinate(*normal, 16.0f, *origin);
 		impactSound  = TCE_WallHandle(ctx->media.explosive4);
 		markShader   = TCE_WallHandle(ctx->media.burn);
 		markDuration = 60000;
 		radius       = 32.0;
-		position[1]  = normal[1] * 16.0f + origin[1];
-		position[2]  = normal[2] * 16.0f + origin[2];
+		position[1]  = TCE_WallCoordinate(normal[1], 16.0f, origin[1]);
+		position[2]  = TCE_WallCoordinate(normal[2], 16.0f, origin[2]);
 		velocity[0]  = *normal * 100.0f;
 		velocity[1]  = normal[1] * 100.0f;
 		velocity[2]  = normal[2] * 100.0f;
@@ -832,9 +832,9 @@ LAB_30079255:
 		markShader   = TCE_WallHandle(ctx->media.burn);
 		radius       = 48.0;
 		ctx->concussion(origin, 1);
-		position[0] = *normal * 16.0f + *origin;
-		position[1] = normal[1] * 16.0f + origin[1];
-		position[2] = normal[2] * 16.0f + origin[2];
+		position[0] = TCE_WallCoordinate(*normal, 16.0f, *origin);
+		position[1] = TCE_WallCoordinate(normal[1], 16.0f, origin[1]);
+		position[2] = TCE_WallCoordinate(normal[2], 16.0f, origin[2]);
 		velocity[0] = *normal * 50.0f;
 		velocity[1] = normal[1] * 50.0f;
 		velocity[2] = normal[2] * 50.0f;
@@ -1356,13 +1356,13 @@ LAB_3007abb7:
 		}
 		break;
 	case 0x1e:
-		position[0]  = *normal * 4.0f + *origin;
+		position[0]  = TCE_WallCoordinate(*normal, 4.0f, *origin);
 		impactSound  = TCE_WallHandle(ctx->media.explosive30);
 		markShader   = TCE_WallHandle(ctx->media.burn);
 		markDuration = 60000;
 		radius       = 32.0;
-		position[1]  = normal[1] * 4.0f + origin[1];
-		position[2]  = normal[2] * 4.0f + origin[2];
+		position[1]  = TCE_WallCoordinate(normal[1], 4.0f, origin[1]);
+		position[2]  = TCE_WallCoordinate(normal[2], 4.0f, origin[2]);
 		velocity[0]  = *normal * 100.0f;
 		velocity[1]  = normal[1] * 100.0f;
 		velocity[2]  = normal[2] * 100.0f;
@@ -1448,7 +1448,7 @@ LAB_3007abb7:
 			int axis;
 			for (axis = 0; axis < 3; ++axis)
 			{
-				farOrigin[axis] = TCE_WallEchoCoordinate(farDir[axis], farRange, listener[axis]);
+				farOrigin[axis] = TCE_WallCoordinate(farDir[axis], farRange, listener[axis]);
 			}
 			ctx->soundEx(farOrigin, -1, 2, value0, 0x10, soundVolume);
 		}
