@@ -35,6 +35,32 @@ static float TCE_WallParticleAlpha(unsigned sample)
 #endif
 }
 
+/* Both callers pass a masked random sample and an exact base of 1 or 1.5. */
+static float TCE_WallRadius(unsigned sample, float base)
+{
+#if defined(__linux__)
+	return (float)((long double)sample * 1.5259254723787308e-05f + base);
+#else
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	tceTriggerSum_t radius, factor, offset;
+	unsigned control;
+
+	__control87_2(0, 0, &control, NULL);
+	/* This bounded formula can raise only inexact arithmetic/store. */
+	if ((control & _EM_INEXACT) != 0)
+	{
+		TCE_TriggerProduct(&radius, (float)sample, 3.0518509447574615e-05f, control);
+		TCE_TriggerProduct(&factor, 0.5f, 1.0f, control);
+		TCE_GustMultiply(&radius, &factor, control);
+		TCE_TriggerProduct(&offset, base, 1.0f, control);
+		TCE_RotateAdd(&radius, &offset, control);
+		return TCE_RotateStore(radius, control);
+	}
+#endif
+	return (float)((long double)sample * 3.0518509447574615e-05f * 0.5f + base);
+#endif
+}
+
 static float TCE_WallMarkRotation(unsigned sample)
 {
 #if defined(__linux__)
@@ -262,7 +288,7 @@ void TCE_CG_MissileHitWall(int weapon, int effectType, vec3_t origin, vec3_t nor
 				markShader  = TCE_WallHandle(ctx->media.knife);
 				bits        = rand();
 				visible     = 1;
-				radius      = (float)(bits & 0x7fff) * 3.0518509447574615e-05f * 0.5f + 1.5f;
+				radius      = TCE_WallRadius(bits & 0x7fff, 1.5f);
 			}
 			markDuration = (*ctx->markTime);
 		}
@@ -562,7 +588,7 @@ LAB_300787e6:
 LAB_30078cfb:
 				markShader = TCE_WallHandle(ctx->media.bulletDefault);
 				randomBits = rand();
-				radius     = (float)(randomBits & 0x7fff) * 3.0518509447574615e-05f * 0.5f + 1.0f;
+				radius     = TCE_WallRadius(randomBits & 0x7fff, 1.0f);
 				if (bits == 0x14000000)
 				{
 					value0       = rand();
