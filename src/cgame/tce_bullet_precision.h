@@ -5,6 +5,55 @@
 #include "../game/tce_length_precision.h"
 #include "../game/tce_ambient_precision.h"
 
+/* Finite geometry cannot generate invalid or zero-divide: squared roots
+ * are nonnegative and normalization skips a zero root. This descriptor is
+ * for integer helpers only; it never changes the hardware control word.
+ * Denormal, overflow, underflow and inexact masks remain required. */
+static __inline unsigned TCE_BulletGeometryControl(unsigned control)
+{
+	return control | _EM_INVALID | _EM_ZERODIVIDE;
+}
+
+static __inline int TCE_BulletFiniteRoot(const float *delta, unsigned control,
+                                        tceTriggerSum_t *root)
+{
+	tceTriggerSum_t squared, term;
+	int axis;
+
+	if (!TCE_FiniteExceptionsMasked(control) ||
+	    !TCE_TriggerProduct(&squared, delta[0], delta[0], control))
+	{
+		return 0;
+	}
+	for (axis = 1; axis < 3; ++axis)
+	{
+		if (!TCE_TriggerProduct(&term, delta[axis], delta[axis], control))
+		{
+			return 0;
+		}
+		TCE_RotateAdd(&squared, &term, control);
+	}
+	*root = TCE_LengthRoot(&squared, control);
+	return 1;
+}
+
+static __inline int TCE_BulletLengthBelow(const float *delta, float limit,
+                                         int *closer)
+{
+	tceTriggerSum_t root, boundary;
+	unsigned control;
+
+	__control87_2(0, 0, &control, NULL);
+	control = TCE_BulletGeometryControl(control);
+	if (!TCE_TriggerProduct(&boundary, limit, 1.0f, control) ||
+	    !TCE_BulletFiniteRoot(delta, control, &root))
+	{
+		return 0;
+	}
+	*closer = TCE_TriggerCompare(&root, &boundary) < 0;
+	return 1;
+}
+
 /* The masked integer is exact Float. Preserve each native random factor,
  * optional addition and scaling stage before the final Float argument. */
 static __inline int TCE_BulletRandomEffect(unsigned sample, float addition,
@@ -61,6 +110,7 @@ static __inline int TCE_BulletAntilagEnd(const float *forward, const float *righ
 	int axis;
 
 	__control87_2(0, 0, &control, NULL);
+	control = TCE_BulletGeometryControl(control);
 	if (!TCE_FiniteExceptionsMasked(control))
 	{
 		return 0;
@@ -138,26 +188,17 @@ static __inline int TCE_BulletLengthProduct(const tceTriggerSum_t *root,
 static __inline int TCE_BulletProjectedOffset(const float *delta,
                                              const float *direction, float *offset)
 {
-	tceTriggerSum_t squared, term, root, factor;
+	tceTriggerSum_t root, factor;
 	float result[3];
 	unsigned control;
 	int axis;
 
 	__control87_2(0, 0, &control, NULL);
-	if (!TCE_FiniteExceptionsMasked(control) ||
-	    !TCE_TriggerProduct(&squared, delta[0], delta[0], control))
+	control = TCE_BulletGeometryControl(control);
+	if (!TCE_BulletFiniteRoot(delta, control, &root))
 	{
 		return 0;
 	}
-	for (axis = 1; axis < 3; ++axis)
-	{
-		if (!TCE_TriggerProduct(&term, delta[axis], delta[axis], control))
-		{
-			return 0;
-		}
-		TCE_RotateAdd(&squared, &term, control);
-	}
-	root = TCE_LengthRoot(&squared, control);
 	for (axis = 0; axis < 3; ++axis)
 	{
 		if (!TCE_TriggerProduct(&factor, direction[axis], 1.0f, control) ||

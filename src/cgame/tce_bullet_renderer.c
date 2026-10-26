@@ -91,9 +91,8 @@ static qboolean bulletDistanceBelow(const vec3_t delta, float limit)
 {
 #if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 	int closer;
-	float stored;
 
-	if (TCE_NearestFiniteLength(delta, limit, &closer, &stored))
+	if (TCE_BulletLengthBelow(delta, limit, &closer))
 	{
 		return closer;
 	}
@@ -108,7 +107,7 @@ static void bulletNormalize(vec3_t v)
 	unsigned control;
 
 	__control87_2(0, 0, &control, NULL);
-	if (TCE_FiniteNormalizeVector(v, normalized, &length, control))
+	if (TCE_FiniteNormalizeVector(v, normalized, &length, TCE_BulletGeometryControl(control)))
 	{
 		VectorCopy(normalized, v);
 		return;
