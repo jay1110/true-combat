@@ -53,7 +53,7 @@ static float impactRandomOutput(int mode)
 	}
 #endif
 	{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(Q3_VM))
 		long double value = (long double)sample * (long double)randomUnit;
 		if (mode == 1)
 		{
@@ -110,7 +110,7 @@ static int impactChipLifetime(void)
 		return result;
 	}
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(Q3_VM))
 	result = (int)(((long double)sample * (long double)randomUnit +
 	                (long double)lifeOne) * (long double)lifeBase);
 #elif defined(__linux__)
@@ -143,7 +143,7 @@ static float impactSmokeSpeed(float randomScale, float speedScale)
 		return result;
 	}
 #endif
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(Q3_VM))
 	result = (float)(((long double)randomScale * (long double)geomRange +
 	                  (long double)geomBase) * (long double)speedScale);
 #else
@@ -165,7 +165,8 @@ static void impactSmokeGeometry(int index, float spread,
 	}
 #endif
 	{
-#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__) || \
+    (defined(_WIN32) && !defined(Q3_VM))
 		float       indexFloat = (float)((long double)index + (long double)geomOne);
 		long double distance   = (long double)spread * (long double)indexFloat;
 		int         j;
@@ -194,7 +195,7 @@ static float impactSmokeLifetime(float factor, float life, float lifeScale)
 	}
 #endif
 	{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(Q3_VM))
 		long double value = (long double)sample * (long double)randomUnit;
 		value *= (long double)life;
 		value *= (long double)lifeJitter;
@@ -224,7 +225,8 @@ static void impactSmokeTrajectory(int index, float life, float gravity, int *dur
 	}
 #endif
 	{
-#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__) || \
+    (defined(_WIN32) && !defined(Q3_VM))
 		long double factor = (long double)indexFloat * (long double)timeHalf +
 		                     (long double)timeOne;
 		/* Only the bounded material lifetimes and indices from the producer enter here. */
@@ -250,7 +252,8 @@ static float impactDirectionComponent(float base, qboolean dust)
 	}
 #endif
 	{
-#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__) || \
+    (defined(_WIN32) && !defined(Q3_VM))
 		long double value = (long double)sample * (long double)randomUnit;
 		value -= (long double)randomHalf;
 		value += value;
@@ -279,7 +282,7 @@ static float impactChipSpeed(float component, float scale)
 	}
 #endif
 	{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(Q3_VM))
 		long double value = (long double)sample * (long double)randomUnit;
 		value *= (long double)speedRange;
 		value += (long double)speedBase;
