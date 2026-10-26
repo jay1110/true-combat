@@ -687,7 +687,11 @@ qboolean CG_PlayerSeesItem(playerState_t *ps, entityState_t *item, int atTime, i
 #endif
 	{
 		VectorCopy(ps->origin, vorigin);
+#if defined(_WIN32) && !defined(Q3_VM)
+		vorigin[2] = (float)((long double)ps->viewheight + ps->origin[2]);
+#else
 		vorigin[2] = (float)((double)ps->viewheight + ps->origin[2]);           // get the view loc up to the viewheight
+#endif
 //		eorigin[2] += 8;						// and subtract the item's offset (that is used to place it on the ground)
 
 
