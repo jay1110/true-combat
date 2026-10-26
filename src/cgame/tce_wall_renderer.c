@@ -35,6 +35,46 @@ static float TCE_WallParticleAlpha(unsigned sample)
 #endif
 }
 
+/* The five call profiles use scale 3, 4 or 8 and bounded integer counts. */
+static int TCE_WallSparkCount(unsigned sample, float scale, float base, int addBeforeScale)
+{
+#if defined(__linux__)
+	/* GCC folded the reciprocal/scale and the constant offset. */
+	return (int)((long double)sample * (3.0518509447574615e-05f * scale) + base);
+#else
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	tceTriggerSum_t count, term;
+	unsigned control;
+
+	__control87_2(0, 0, &control, NULL);
+	/* Counts stay normal or zero and at most 18. Only inexact arithmetic
+	 * or truncation can raise an exception for these masked samples. */
+	if ((control & _EM_INEXACT) != 0)
+	{
+		TCE_TriggerProduct(&count, (float)sample, 3.0518509447574615e-05f, control);
+		if (addBeforeScale)
+		{
+			TCE_TriggerProduct(&term, 1.0f, 1.0f, control);
+			TCE_RotateAdd(&count, &term, control);
+		}
+		TCE_TriggerProduct(&term, scale, 1.0f, control);
+		TCE_GustMultiply(&count, &term, control);
+		if (!addBeforeScale)
+		{
+			TCE_TriggerProduct(&term, base, 1.0f, control);
+			TCE_RotateAdd(&count, &term, control);
+		}
+		return TCE_FixedSigned64Low32(&count);
+	}
+#endif
+	if (addBeforeScale)
+	{
+		return (int)(((long double)sample * 3.0518509447574615e-05f + 1.0f) * scale);
+	}
+	return (int)((long double)sample * 3.0518509447574615e-05f * scale + base);
+#endif
+}
+
 /* Both callers pass a masked random sample and an exact base of 1 or 1.5. */
 static float TCE_WallRadius(unsigned sample, float base)
 {
@@ -381,7 +421,7 @@ void TCE_CG_MissileHitWall(int weapon, int effectType, vec3_t origin, vec3_t nor
 						if (materialIsType == 0)
 						{
 							randomValue = rand();
-							value0      = (int)(((double)(randomValue & 32767) * 0.000030518509447574615) * 8 + 10);
+							value0      = TCE_WallSparkCount(randomValue & 32767, 8.0f, 10.0f, 0);
 							ctx->flatSparks(origin, normal, value0);
 							randomBits = rand();
 							if ((float)(randomBits & 0x7fff) * 3.0518509447574615e-05f <= 0.5f)
@@ -394,7 +434,7 @@ void TCE_CG_MissileHitWall(int weapon, int effectType, vec3_t origin, vec3_t nor
 						{
 							randomValue = rand();
 						}
-						value0 = (int)((((double)(randomValue & 32767) * 0.000030518509447574615) + 1) * 4);
+						value0 = TCE_WallSparkCount(randomValue & 32767, 4.0f, 4.0f, 1);
 						ctx->sparks(origin, normal, value0);
 LAB_30078e49:
 						valueFloat0 = 1.0;
@@ -413,14 +453,14 @@ LAB_30078e49:
 						{
 							VectorInverse(normal);
 							randomValue = rand();
-							value0      = (int)(((double)(randomValue & 32767) * 0.000030518509447574615) * 4 + 6);
+							value0      = TCE_WallSparkCount(randomValue & 32767, 4.0f, 6.0f, 0);
 							ctx->flatSparks(origin, normal, value0);
 							randomBits = rand();
 							if (0.75f < (float)(randomBits & 0x7fff) * 3.0518509447574615e-05f)
 							{
 								randomValue = rand();
 								/* 3007872d uses 3, unlike the metal path's shared ftol (4). */
-								value0 = (int)(((double)(randomValue & 32767) * 0.000030518509447574615 + 1) * 3);
+								value0 = TCE_WallSparkCount(randomValue & 32767, 3.0f, 3.0f, 1);
 								ctx->sparks(origin, normal, value0);
 							}
 							goto LAB_30078e49;
@@ -575,13 +615,13 @@ LAB_300787e6:
 					if (0.5f < (float)(randomBits & 0x7fff) * 3.0518509447574615e-05f)
 					{
 						randomValue = rand();
-						value0      = (int)((((double)(randomValue & 32767) * 0.000030518509447574615) + 1) * 4);
+						value0      = TCE_WallSparkCount(randomValue & 32767, 4.0f, 4.0f, 1);
 						ctx->sparks(origin, normal, value0);
 					}
 					if (((bits == 0x3000000) || (bits == 0x4000000)) || (bits == 0x1f000000))
 					{
 						randomValue = rand();
-						value0      = (int)(((double)(randomValue & 32767) * 0.000030518509447574615) * 8 + 10);
+						value0      = TCE_WallSparkCount(randomValue & 32767, 8.0f, 10.0f, 0);
 						ctx->flatSparks(origin, normal, value0);
 					}
 				}
@@ -746,7 +786,7 @@ LAB_30079255:
 		ctx->particle(origin, normal, 0, 0,
 		              TCE_WallParticleAlpha(bits & 0x7fff));
 		randomValue = rand();
-		value0      = (int)((((double)(randomValue & 32767) * 0.000030518509447574615) + 1) * 8);
+		value0      = TCE_WallSparkCount(randomValue & 32767, 8.0f, 8.0f, 1);
 		ctx->sparks(origin, normal, value0);
 		valueFloat0 = 1.0;
 		value0      = rand();
@@ -858,7 +898,7 @@ LAB_30079255:
 			ctx->particle(origin, particleDir, 0, 0x27,
 			              TCE_WallParticleAlpha(bits & 0x7fff));
 			randomValue = rand();
-			value0      = (int)((((double)(randomValue & 32767) * 0.000030518509447574615) + 1) * 8);
+			value0      = TCE_WallSparkCount(randomValue & 32767, 8.0f, 8.0f, 1);
 			ctx->sparks(origin, normal, value0);
 			valueFloat0 = 1.0;
 			value0      = rand();
@@ -1361,7 +1401,7 @@ LAB_3007abb7:
 		ctx->particle(origin, normal, 0, 0,
 		              TCE_WallParticleAlpha(bits & 0x7fff));
 		randomValue = rand();
-		value0      = (int)((((double)(randomValue & 32767) * 0.000030518509447574615) + 1) * 8);
+		value0      = TCE_WallSparkCount(randomValue & 32767, 8.0f, 8.0f, 1);
 		ctx->sparks(origin, normal, value0);
 		valueFloat0 = 1.0;
 		value0      = rand();
