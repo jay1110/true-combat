@@ -2967,6 +2967,11 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 			const char *deathName  = va("*death%i.wav", event - EV_DEATH1 + 1);
 			int        deathSound  = CG_CustomSound(es->number, deathName);
 			trap_S_StartSoundVControl(NULL, es->number, CHAN_VOICE, deathSound, deathVolume);
+#elif defined(__linux__)
+			const char *deathName = va("*death%i.wav", event - EV_DEATH1 + 1);
+			int deathSound = CG_CustomSound(es->number, deathName);
+			int deathVolume = CG_EventGlobalSoundVolume();
+			trap_S_StartSoundVControl(NULL, es->number, CHAN_VOICE, deathSound, deathVolume);
 #else
 			trap_S_StartSoundVControl(NULL, es->number, CHAN_VOICE,
 			                          CG_CustomSound(es->number, va("*death%i.wav", event - EV_DEATH1 + 1)),
@@ -2985,7 +2990,7 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 		DEBUGNAME("EV_STOPLOOPINGSOUND");
 		if (!cg.tcePortalScopeRendering)
 		{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
 			int stopVolume = CG_EventGlobalSoundVolume();
 			trap_S_StartSoundExVControl(NULL, es->number, CHAN_WEAPON, 0, 8, stopVolume);
 #else
@@ -3002,7 +3007,7 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 		DEBUGNAME("EV_GIB_PLAYER");
 		if (!cg.tcePortalScopeRendering)
 		{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(__linux__)
 			int gibVolume = CG_EventGlobalSoundVolume();
 			trap_S_StartSoundVControl(es->pos.trBase, -1, CHAN_AUTO, cgs.media.gibSound, gibVolume);
 #else
