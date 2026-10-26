@@ -12,7 +12,8 @@ static double bulletRandomValue(unsigned sample)
 	unsigned control;
 
 	__control87_2(0, 0, &control, NULL);
-	if (TCE_FiniteExceptionsMasked(control) && (control & _MCW_PC) == _PC_24)
+	/* This bounded product can raise only inexact, not other exceptions. */
+	if ((control & _EM_INEXACT) && (control & _MCW_PC) == _PC_24)
 	{
 		tceTriggerSum_t value;
 

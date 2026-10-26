@@ -11,10 +11,21 @@ static __inline int TCE_BulletRandomEffect(unsigned sample, float addition,
                                            float scale, float *result)
 {
 	tceTriggerSum_t value, addend, factor;
-	unsigned control;
+	unsigned control, additionBits, scaleBits;
 
+	memcpy(&additionBits, &addition, sizeof(additionBits));
+	memcpy(&scaleBits, &scale, sizeof(scaleBits));
+	/* Only these three production chains are covered by the range proof.
+	 * All operands/results are normal or zero and at most 32767; only
+	 * inexact can occur. Other exception masks need not force a fallback. */
+	if (!((additionBits == 0x3f800000u &&
+	       (scaleBits == 0x3f400000u || scaleBits == 0x41000000u)) ||
+	      (additionBits == 0u && scaleBits == 0x43b40000u)))
+	{
+		return 0;
+	}
 	__control87_2(0, 0, &control, NULL);
-	if (sample > 32767u || !TCE_FiniteExceptionsMasked(control) ||
+	if (sample > 32767u || !(control & _EM_INEXACT) ||
 	    !TCE_TriggerProduct(&value, (float)sample, 1.0f / 32767.0f, control) ||
 	    !TCE_TriggerProduct(&factor, scale, 1.0f, control))
 	{
