@@ -3041,6 +3041,9 @@ AxisToAngles
 void AxisToAngles(vec3_t axis[3], vec3_t angles)
 {
 	vec3_t right, roll_angles, tvec;
+#if defined(_WIN32) && !defined(Q3_VM)
+	long double dot;
+#endif
 
 	// first get the pitch and yaw from the forward vector
 	vectoangles(axis[0], angles);
@@ -3054,9 +3057,22 @@ void AxisToAngles(vec3_t axis[3], vec3_t angles)
 	vectoangles(right, roll_angles);
 	roll_angles[PITCH] = AngleNormalize180(roll_angles[PITCH]);
 	// if the yaw is more than 90 degrees difference, we should adjust the pitch
+#if defined(_WIN32) && !defined(Q3_VM)
+	/* TC:E tests x87 C0 alone; unlike the SDK, unordered also adjusts roll.
+	 * Preserve the native Z+Y+X dot order through the comparison. */
+	dot = (long double)axisDefault[1][2] * right[2] +
+	      (long double)axisDefault[1][1] * right[1];
+	dot += (long double)axisDefault[1][0] * right[0];
+	if (!(dot >= 0.0L))
+#else
 	if (DotProduct(right, axisDefault[1]) < 0)
+#endif
 	{
+#if defined(_WIN32) && !defined(Q3_VM)
+		if (!(roll_angles[PITCH] >= 0.0f))
+#else
 		if (roll_angles[PITCH] < 0)
+#endif
 		{
 			roll_angles[PITCH] = -90 + (-90 - roll_angles[PITCH]);
 		}
