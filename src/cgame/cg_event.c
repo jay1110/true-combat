@@ -2743,7 +2743,15 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 				fxChoice = fxChoice * (long double)*fxMaximum;
 				sound    = TCE_TruncateNativeInteger(fxChoice);
 			}
-			#else
+			#elif defined(__linux__)
+			{
+				int fxRandomBits = rand() & 0x7fff;
+				int fxBank = es->eventParm;
+				long double fxChoice = (long double)fxSounds[fxBank].max * fxRandomBits;
+				fxChoice *= 3.0518509447574615e-05f;
+				sound = TCE_TruncateNativeInteger(fxChoice);
+			}
+#else
 			sound = random() * fxSounds[es->eventParm].max;
 			#endif
 
