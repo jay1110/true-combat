@@ -74,7 +74,7 @@ void CG_TCEMissileHitWall(int weapon, int effect, vec3_t origin, vec3_t normal, 
 	s.flatSparks  = CG_FlatSparks; s.explode = CG_Explodef; s.registerShader = trap_R_RegisterShader;
 	/* Original weaponDef base34c1df20, field34c1e068 = pelletCount(+148). */
 	for (i = 0; i < 64; ++i)
-		s.weaponMaterialMode[i] = weaponDef[i].pelletCount;
+		s.weaponMaterialMode[i] = &weaponDef[i].pelletCount;
 	s.soundVolume          = CG_SoundVolume; s.print = printMessage; s.particle = particle;
 	s.concussion           = flash; s.sparks = CG_GlowSparks;
 	s.debrisParticles      = CG_EliteAddBulletParticles; s.smokePuff = puff;
@@ -83,50 +83,50 @@ void CG_TCEMissileHitWall(int weapon, int effect, vec3_t origin, vec3_t normal, 
 	s.eliteMark            = mark; s.impactMark = CG_ImpactMark;
 	s.sound                = impactSound; s.soundEx = farSound; s.projectDecal = projectImpactDecal;
 	s.pointContents        = CG_PointContents; s.particleExplosion = explosion; s.debris = CG_AddDebris;
-	s.media.burn           = cgs.media.burnMarkShader;
-	s.media.explosionFlash = cgs.media.tceImpactFlare;
-	s.media.waterRipple    = cgs.media.wakeMarkShaderAnim;
+	s.media.burn           = &cgs.media.burnMarkShader;
+	s.media.explosionFlash = &cgs.media.tceImpactFlare;
+	s.media.waterRipple    = &cgs.media.wakeMarkShaderAnim;
 	/* Preserve original handles despite historical misleading field names. */
-	s.media.dirt  = cgs.media.dirtParticle1Shader;
-	s.media.water = cgs.media.tceImpactSnow;
-	s.media.snow  = cgs.media.tceImpactSand;
-	s.media.grass = cgs.media.tceImpactGravel;
-	s.media.mud   = cgs.media.tceImpactSoil;
+	s.media.dirt  = &cgs.media.dirtParticle1Shader;
+	s.media.water = &cgs.media.tceImpactSnow;
+	s.media.snow  = &cgs.media.tceImpactSand;
+	s.media.grass = &cgs.media.tceImpactGravel;
+	s.media.mud   = &cgs.media.tceImpactSoil;
 	/* Original impacts read the handles populated by CG_RegisterSounds;
 	 * registering here adds loading/formatter callbacks to every impact. */
-	s.media.explosive4  = cgs.media.tceGrenadeBoost[1];
-	s.media.explosive30 = cgs.media.tceGrenadeBoost[2];
+	s.media.explosive4  = &cgs.media.tceGrenadeBoost[1];
+	s.media.explosive30 = &cgs.media.tceGrenadeBoost[2];
 	{
-		s.media.bulletDefault = cgs.media.bulletMarkShader;
-		s.media.bulletStone   = cgs.media.tceBulletStoneMark;
-		s.media.exitStone     = cgs.media.tceBulletStoneExit;
-		s.media.bulletMetal   = cgs.media.bulletMarkShaderMetal;
-		s.media.exitMetal     = cgs.media.tceBulletMetalExit;
-		s.media.bulletWood    = cgs.media.bulletMarkShaderWood;
-		s.media.exitWood      = cgs.media.tceBulletWoodExit;
-		s.media.bulletGlass   = cgs.media.bulletMarkShaderGlass;
+		s.media.bulletDefault = &cgs.media.bulletMarkShader;
+		s.media.bulletStone   = &cgs.media.tceBulletStoneMark;
+		s.media.exitStone     = &cgs.media.tceBulletStoneExit;
+		s.media.bulletMetal   = &cgs.media.bulletMarkShaderMetal;
+		s.media.exitMetal     = &cgs.media.tceBulletMetalExit;
+		s.media.bulletWood    = &cgs.media.bulletMarkShaderWood;
+		s.media.exitWood      = &cgs.media.tceBulletWoodExit;
+		s.media.bulletGlass   = &cgs.media.bulletMarkShaderGlass;
 		for (i = 0; i < 5; ++i)
 		{
-			s.media.fabricHit[i] = cgs.media.tceBulletFence[i];
-			s.media.metal2Hit[i] = cgs.media.tceBulletTin[i];
-			s.media.strawHit[i]  = cgs.media.tceBulletFoliage[i];
-			s.media.metalHit[i]  = cgs.media.sfx_bullet_metalhit[i];
-			s.media.woodHit[i]   = cgs.media.sfx_bullet_woodhit[i];
-			s.media.glassHit[i]  = cgs.media.sfx_bullet_glasshit[i];
-			s.media.stoneHit[i]  = cgs.media.sfx_bullet_stonehit[i];
+			s.media.fabricHit[i] = &cgs.media.tceBulletFence[i];
+			s.media.metal2Hit[i] = &cgs.media.tceBulletTin[i];
+			s.media.strawHit[i]  = &cgs.media.tceBulletFoliage[i];
+			s.media.metalHit[i]  = &cgs.media.sfx_bullet_metalhit[i];
+			s.media.woodHit[i]   = &cgs.media.sfx_bullet_woodhit[i];
+			s.media.glassHit[i]  = &cgs.media.sfx_bullet_glasshit[i];
+			s.media.stoneHit[i]  = &cgs.media.sfx_bullet_stonehit[i];
 		}
 	}
-	s.media.knife = cgs.media.tceKnifeMark;
+	s.media.knife = &cgs.media.tceKnifeMark;
 	for (i = 0; i < 4; ++i)
-		s.media.knifeFlesh[i] = cgs.media.sfx_knifehit[i];
-	s.media.knifeWall      = cgs.media.sfx_knifehit[4];
-	s.media.explosion      = cgs.media.sfx_rockexp;
-	s.media.explosionFar   = cgs.media.sfx_rockexpDist;
-	s.media.explosionWater = cgs.media.sfx_rockexpWater;
-	s.media.grenade        = cgs.media.tceGrenadeBoost[0];
-	s.media.grenadeFar     = cgs.media.sfx_grenexpDist;
-	s.media.artillery      = cgs.media.sfx_dynamiteexp;
-	s.media.artilleryFar   = cgs.media.sfx_dynamiteexpDist;
+		s.media.knifeFlesh[i] = &cgs.media.sfx_knifehit[i];
+	s.media.knifeWall      = &cgs.media.sfx_knifehit[4];
+	s.media.explosion      = &cgs.media.sfx_rockexp;
+	s.media.explosionFar   = &cgs.media.sfx_rockexpDist;
+	s.media.explosionWater = &cgs.media.sfx_rockexpWater;
+	s.media.grenade        = &cgs.media.tceGrenadeBoost[0];
+	s.media.grenadeFar     = &cgs.media.sfx_grenexpDist;
+	s.media.artillery      = &cgs.media.sfx_dynamiteexp;
+	s.media.artilleryFar   = &cgs.media.sfx_dynamiteexpDist;
 	/* CG_RegisterSounds30048e80 explicitly clears rocket[3]/mortar[3], their
 	 * far handles, dynamite and satchel handles. Preserve zero, not SDK sounds. */
 	TCE_CG_MissileHitWall(weapon, effect, origin, normal, direction, flags, forceEffect, materialIsType, &s);

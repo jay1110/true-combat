@@ -1,4 +1,11 @@
 #include "tce_wall_renderer.h"
+/* Keep cached media live across effect callbacks. Unbound compatibility
+ * slots retain the previous zero-initialized context value. */
+static int TCE_WallHandle(const int *handle)
+{
+	return handle ? *handle : 0;
+}
+
 /* Entire Windows 30078260 controller. See wall_full_abi_windows.c.txt and
  * its x87 conversion listing. Dependencies retain their original ABIs. */
 void TCE_CG_MissileHitWall(int weapon, int effectType, vec3_t origin, vec3_t normal, vec3_t direction,
@@ -60,7 +67,7 @@ void TCE_CG_MissileHitWall(int weapon, int effectType, vec3_t origin, vec3_t nor
 			{
 				bits = (bits - 1 | 0xfffffffc) + 1;
 			}
-			impactSound  = ctx->media.knifeFlesh[bits];
+			impactSound  = TCE_WallHandle(ctx->media.knifeFlesh[bits]);
 			markDuration = (*ctx->markTime);
 		}
 		else
@@ -69,8 +76,8 @@ void TCE_CG_MissileHitWall(int weapon, int effectType, vec3_t origin, vec3_t nor
 			    ((((bits != 0x9000000 && ((bits != 0xa000000 && (bits != 0x7000000)))) &&
 			       (bits != 0xd000000)) && ((bits != 0x8000000 && (bits != 0x15000000))))))
 			{
-				impactSound = ctx->media.knifeWall;
-				markShader  = ctx->media.knife;
+				impactSound = TCE_WallHandle(ctx->media.knifeWall);
+				markShader  = TCE_WallHandle(ctx->media.knife);
 				bits        = rand();
 				visible     = 1;
 				radius      = (float)(bits & 0x7fff) * 3.0518509447574615e-05f * 0.5f + 1.5f;
@@ -125,7 +132,7 @@ void TCE_CG_MissileHitWall(int weapon, int effectType, vec3_t origin, vec3_t nor
 				    (bits == 0x15000000))
 				{
 					value0 = 5;
-					if (ctx->weaponMaterialMode[weapon] != 0)
+					if (TCE_WallHandle(ctx->weaponMaterialMode[weapon]) != 0)
 					{
 						value0 = 2;
 					}
@@ -133,13 +140,13 @@ void TCE_CG_MissileHitWall(int weapon, int effectType, vec3_t origin, vec3_t nor
 					{
 						valueFloat1 = 0.2;
 						valueFloat0 = 0.25;
-						value1      = ctx->media.water;
+						value1      = TCE_WallHandle(ctx->media.water);
 					}
 					else
 					{
-						value1 = ctx->media.snow;
-						if (((bits == 0x8000000) || (value1 = ctx->media.grass, bits == 0x7000000)) ||
-						    (value1 = ctx->media.dirt, bits != 0x1e000000))
+						value1 = TCE_WallHandle(ctx->media.snow);
+						if (((bits == 0x8000000) || (value1 = TCE_WallHandle(ctx->media.grass), bits == 0x7000000)) ||
+						    (value1 = TCE_WallHandle(ctx->media.dirt), bits != 0x1e000000))
 						{
 							valueFloat1 = 0.33;
 							valueFloat0 = 0.5;
@@ -148,7 +155,7 @@ void TCE_CG_MissileHitWall(int weapon, int effectType, vec3_t origin, vec3_t nor
 						{
 							valueFloat1 = 0.33;
 							valueFloat0 = 0.5;
-							value1      = ctx->media.mud;
+							value1      = TCE_WallHandle(ctx->media.mud);
 						}
 					}
 					ctx->dirtParticles(origin, normal, 0xbe, 900, value0, valueFloat0, 40.0, 8.0, valueFloat1, value1);
@@ -156,7 +163,7 @@ void TCE_CG_MissileHitWall(int weapon, int effectType, vec3_t origin, vec3_t nor
 				else if ((((((bits == 0x9000000) || (bits == 0x12000000)) || (bits == 0x17000000)) ||
 				           ((bits == 0x14000000 || (bits == 0x5000000)))) ||
 				          ((bits == 0x6000000 || ((bits == 0xc000000 || (bits == 0x10000000)))))) ||
-				         (ctx->weaponMaterialMode[weapon] == 0))
+				         (TCE_WallHandle(ctx->weaponMaterialMode[weapon]) == 0))
 				{
 					if (((bits == 0x3000000) || (bits == 0x4000000)) || (bits == 0x1f000000))
 					{
@@ -392,62 +399,62 @@ LAB_300787e6:
 					}
 				}
 LAB_30078cfb:
-				markShader = ctx->media.bulletDefault;
+				markShader = TCE_WallHandle(ctx->media.bulletDefault);
 				randomBits = rand();
 				radius     = (float)(randomBits & 0x7fff) * 3.0518509447574615e-05f * 0.5f + 1.0f;
 				if (bits == 0x14000000)
 				{
 					value0       = rand();
 					markShader   = 0;
-					impactSound  = ctx->media.fabricHit[value0 % 5];
+					impactSound  = TCE_WallHandle(ctx->media.fabricHit[value0 % 5]);
 					markDuration = (*ctx->markTime);
 				}
 				else if (((bits == 0x3000000) || (bits == 0x13000000)) || (bits == 0x1f000000))
 				{
 					value0      = rand();
-					impactSound = ctx->media.metalHit[value0 % 5];
+					impactSound = TCE_WallHandle(ctx->media.metalHit[value0 % 5]);
 					if (materialIsType == 0)
 					{
 LAB_3007924b:
-						markShader = ctx->media.bulletMetal;
+						markShader = TCE_WallHandle(ctx->media.bulletMetal);
 						goto LAB_30079255;
 					}
-					markShader   = ctx->media.exitMetal;
+					markShader   = TCE_WallHandle(ctx->media.exitMetal);
 					markDuration = (*ctx->markTime);
 				}
 				else if (bits == 0x4000000)
 				{
 					value0      = rand();
-					impactSound = ctx->media.metal2Hit[value0 % 5];
+					impactSound = TCE_WallHandle(ctx->media.metal2Hit[value0 % 5]);
 					if (materialIsType == 0)
 					{
 						goto LAB_3007924b;
 					}
-					markShader   = ctx->media.exitMetal;
+					markShader   = TCE_WallHandle(ctx->media.exitMetal);
 					markDuration = (*ctx->markTime);
 				}
 				else if ((bits == 0x5000000) || (bits == 0x6000000))
 				{
 					value0      = rand();
-					impactSound = ctx->media.woodHit[value0 % 5];
+					impactSound = TCE_WallHandle(ctx->media.woodHit[value0 % 5]);
 					if (materialIsType == 0)
 					{
 						radius       = radius + 0.4000000059604645f;
-						markShader   = ctx->media.bulletWood;
+						markShader   = TCE_WallHandle(ctx->media.bulletWood);
 						markDuration = (*ctx->markTime);
 					}
 					else
 					{
 						radius       = radius + 0.4000000059604645f;
-						markShader   = ctx->media.exitWood;
+						markShader   = TCE_WallHandle(ctx->media.exitWood);
 						markDuration = (*ctx->markTime);
 					}
 				}
 				else if (bits == 0xc000000)
 				{
 					value0       = rand();
-					markShader   = ctx->media.bulletGlass;
-					impactSound  = ctx->media.glassHit[value0 % 5];
+					markShader   = TCE_WallHandle(ctx->media.bulletGlass);
+					impactSound  = TCE_WallHandle(ctx->media.glassHit[value0 % 5]);
 					markDuration = (*ctx->markTime);
 				}
 				else if (bits == 0xa000000)
@@ -460,12 +467,12 @@ LAB_30079255:
 					if (bits == 0xb000000)
 					{
 						value0      = rand();
-						impactSound = ctx->media.strawHit[value0 % 5];
-						markShader  = ctx->media.bulletWood;
+						impactSound = TCE_WallHandle(ctx->media.strawHit[value0 % 5]);
+						markShader  = TCE_WallHandle(ctx->media.bulletWood);
 						if (materialIsType != 0)
 						{
 							radius       = radius + 0.6000000238418579f;
-							markShader   = ctx->media.exitWood;
+							markShader   = TCE_WallHandle(ctx->media.exitWood);
 							markDuration = (*ctx->markTime);
 							break;
 						}
@@ -481,11 +488,11 @@ LAB_30079255:
 							goto LAB_30079255;
 						}
 						value0      = rand();
-						impactSound = ctx->media.stoneHit[value0 % 5];
-						markShader  = ctx->media.bulletStone;
+						impactSound = TCE_WallHandle(ctx->media.stoneHit[value0 % 5]);
+						markShader  = TCE_WallHandle(ctx->media.bulletStone);
 						if (materialIsType != 0)
 						{
-							markShader = ctx->media.exitStone;
+							markShader = TCE_WallHandle(ctx->media.exitStone);
 						}
 					}
 					radius       = radius + 0.6000000238418579f;
@@ -501,15 +508,15 @@ LAB_30079255:
 			value0     = 0x20;
 			markShader = 0;
 			component  = up;
-			ctx->ripple(ctx->media.waterRipple, origin, component, value0, value1);
-			ctx->dirtParticles(origin, normal, 0xbe, 900, 5, 0.5, 80.0, 16.0, 0.125, ctx->media.water);
+			ctx->ripple(TCE_WallHandle(ctx->media.waterRipple), origin, component, value0, value1);
+			ctx->dirtParticles(origin, normal, 0xbe, 900, 5, 0.5, 80.0, 16.0, 0.125, TCE_WallHandle(ctx->media.water));
 		}
 		goto LAB_3007ad98;
 	case 4:
 		ctx->concussion(origin, 0);
 		position[0]  = *normal * 16.0f + *origin;
-		impactSound  = ctx->media.explosive4;
-		markShader   = ctx->media.burn;
+		impactSound  = TCE_WallHandle(ctx->media.explosive4);
+		markShader   = TCE_WallHandle(ctx->media.burn);
 		markDuration = 60000;
 		radius       = 32.0;
 		position[1]  = normal[1] * 16.0f + origin[1];
@@ -529,12 +536,12 @@ LAB_30079255:
 			ctx->boxTrace(&trace, traceStart, traceEnd, (float *)0x0, (float *)0x0, 0,
 			              0x6000081);
 			trace.surfaceFlags = trace.surfaceFlags & 0xff000000;
-			value0             = ctx->media.dirt;
+			value0             = TCE_WallHandle(ctx->media.dirt);
 			if (((trace.surfaceFlags == 0xa000000) || (trace.surfaceFlags == 0x1d000000)) ||
 			    (((trace.surfaceFlags == 0x15000000 ||
-			       ((value0 = ctx->media.snow, trace.surfaceFlags == 0x8000000 ||
-			         (value0 = ctx->media.grass, trace.surfaceFlags == 0x7000000)))) ||
-			      (value0 = ctx->media.mud, trace.surfaceFlags == 0x1e000000))))
+			       ((value0 = TCE_WallHandle(ctx->media.snow), trace.surfaceFlags == 0x8000000 ||
+			         (value0 = TCE_WallHandle(ctx->media.grass), trace.surfaceFlags == 0x7000000)))) ||
+			      (value0 = TCE_WallHandle(ctx->media.mud), trace.surfaceFlags == 0x1e000000))))
 			{
 				ctx->dirtParticles(origin, normal, 0xfa, 900, 10, 0.5, 48.0, 24.0, 0.25, value0);
 			}
@@ -545,8 +552,8 @@ LAB_30079255:
 			traceStart[1] = origin[1];
 			traceStart[2] = origin[2] + 10000.0f;
 			ctx->boxTrace(&trace, traceStart, origin, (float *)0x0, (float *)0x0, 0, 0x38);
-			ctx->ripple(ctx->media.waterRipple, trace.endpos, normal, 0x96, 1000);
-			ctx->dirtParticles(trace.endpos, normal, 0xfa, 900, 0xf, 0.5, 64.0, 32.0, 0.125, ctx->media.water);
+			ctx->ripple(TCE_WallHandle(ctx->media.waterRipple), trace.endpos, normal, 0x96, 1000);
+			ctx->dirtParticles(trace.endpos, normal, 0xfa, 900, 0xf, 0.5, 64.0, 32.0, 0.125, TCE_WallHandle(ctx->media.water));
 		}
 		bits = rand();
 		ctx->particle(origin, normal, 0, 0,
@@ -557,7 +564,7 @@ LAB_30079255:
 		valueFloat0 = 1.0;
 		value0      = rand();
 		ctx->debrisParticles(origin, normal, 0x3c, 500, value0 % 0xc + 0x18, valueFloat0);
-		ctx->smokePuff(position, zero, 256.0, 1.0, 1.0, 1.0, 1.0, 250.0, (*ctx->time), 0, 1, ctx->media.explosionFlash)
+		ctx->smokePuff(position, zero, 256.0, 1.0, 1.0, 1.0, 1.0, 250.0, (*ctx->time), 0, 1, TCE_WallHandle(ctx->media.explosionFlash))
 		;
 		goto LAB_300796c2;
 	default:
@@ -585,17 +592,17 @@ LAB_30079255:
 		}
 		else if (((weapon == 4) || (weapon == 9)) || ((weapon == 0x37 || (weapon == 0x38))))
 		{
-			impactSound = ctx->media.grenade;
-			farSound    = ctx->media.grenadeFar;
+			impactSound = TCE_WallHandle(ctx->media.grenade);
+			farSound    = TCE_WallHandle(ctx->media.grenadeFar);
 		}
 		else
 		{
-			impactSound = ctx->media.explosion;
-			farSound    = ctx->media.explosionFar;
+			impactSound = TCE_WallHandle(ctx->media.explosion);
+			farSound    = TCE_WallHandle(ctx->media.explosionFar);
 		}
 		markDuration = (*ctx->markTime) * 3;
 		farRange     = 400.0;
-		markShader   = ctx->media.burn;
+		markShader   = TCE_WallHandle(ctx->media.burn);
 		radius       = 48.0;
 		ctx->concussion(origin, 1);
 		position[0] = *normal * 16.0f + *origin;
@@ -616,12 +623,12 @@ LAB_30079255:
 			ctx->boxTrace(&trace, traceStart, traceEnd, (float *)0x0, (float *)0x0, 0,
 			              0x6000081);
 			trace.surfaceFlags = trace.surfaceFlags & 0xff000000;
-			value0             = ctx->media.dirt;
+			value0             = TCE_WallHandle(ctx->media.dirt);
 			if (((trace.surfaceFlags == 0xa000000) || (trace.surfaceFlags == 0x15000000)) ||
 			    ((trace.surfaceFlags == 0x1d000000 ||
-			      (((value0 = ctx->media.snow, trace.surfaceFlags == 0x8000000 ||
-			         (value0 = ctx->media.grass, trace.surfaceFlags == 0x7000000)) ||
-			        (value0 = ctx->media.mud, trace.surfaceFlags == 0x1e000000))))))
+			      (((value0 = TCE_WallHandle(ctx->media.snow), trace.surfaceFlags == 0x8000000 ||
+			         (value0 = TCE_WallHandle(ctx->media.grass), trace.surfaceFlags == 0x7000000)) ||
+			        (value0 = TCE_WallHandle(ctx->media.mud), trace.surfaceFlags == 0x1e000000))))))
 			{
 				ctx->dirtParticles(origin, normal, 400, 2000, 10, 0.5, 200.0, 75.0, 0.25, value0);
 			}
@@ -677,9 +684,9 @@ LAB_30079255:
 				bits = (bits - 1 | 0xfffffff8) + 1;
 			}
 			ctx->debrisParticles(origin, normal, 0x28, 100, bits + 0x10, valueFloat0);
-			ctx->smokePuff(position, zero, 64.0, 1.0, 0.8, 0.1, 1.0, 250.0, (*ctx->time), 0, 1, ctx->media.explosionFlash
+			ctx->smokePuff(position, zero, 64.0, 1.0, 0.8, 0.1, 1.0, 250.0, (*ctx->time), 0, 1, TCE_WallHandle(ctx->media.explosionFlash)
 			               );
-			ctx->smokePuff(position, zero, 32.0, 1.0, 1.0, 0.9, 1.0, 250.0, (*ctx->time), 0, 1, ctx->media.explosionFlash
+			ctx->smokePuff(position, zero, 32.0, 1.0, 1.0, 0.9, 1.0, 250.0, (*ctx->time), 0, 1, TCE_WallHandle(ctx->media.explosionFlash)
 			               );
 		}
 		else
@@ -687,19 +694,19 @@ LAB_30079255:
 			traceStart[0] = *origin;
 			traceStart[1] = origin[1];
 			traceStart[2] = origin[2] + 10000.0f;
-			impactSound   = ctx->media.explosionWater;
+			impactSound   = TCE_WallHandle(ctx->media.explosionWater);
 			ctx->boxTrace(&trace, traceStart, origin, (float *)0x0, (float *)0x0, 0, 0x38);
-			ctx->ripple(ctx->media.waterRipple, trace.endpos, normal, 0x96, 1000);
-			ctx->dirtParticles(trace.endpos, normal, 400, 900, 0xf, 0.5, 256.0, 128.0, 0.125, ctx->media.water);
+			ctx->ripple(TCE_WallHandle(ctx->media.waterRipple), trace.endpos, normal, 0x96, 1000);
+			ctx->dirtParticles(trace.endpos, normal, 400, 900, 0xf, 0.5, 256.0, 128.0, 0.125, TCE_WallHandle(ctx->media.water));
 		}
 		goto LAB_300796c2;
 	case 0xf:
 	case 0x1d:
-		impactSound  = ctx->media.artillery;
-		farSound     = ctx->media.artilleryFar;
+		impactSound  = TCE_WallHandle(ctx->media.artillery);
+		farSound     = TCE_WallHandle(ctx->media.artilleryFar);
 		markDuration = (*ctx->markTime) * 3;
 		farRange     = 400.0;
-		markShader   = ctx->media.burn;
+		markShader   = TCE_WallHandle(ctx->media.burn);
 		radius       = 128.0;
 		bits         = ctx->pointContents(origin, 0);
 		if ((bits & 0x20) == 0)
@@ -721,7 +728,7 @@ LAB_30079255:
 				valueFloat0 = 0.5;
 				value2      = 10;
 				value1      = 3000;
-				value0      = ctx->media.dirt;
+				value0      = TCE_WallHandle(ctx->media.dirt);
 				randomValue = rand();
 LAB_3007996e:
 				value3 = (int)(((double)(randomValue & 32767) * 0.000030518509447574615) * 200 + 400);
@@ -737,7 +744,7 @@ LAB_3007996e:
 					valueFloat0 = 0.5;
 					value2      = 10;
 					value1      = 3000;
-					value0      = ctx->media.snow;
+					value0      = TCE_WallHandle(ctx->media.snow);
 					randomValue = rand();
 					goto LAB_3007996e;
 				}
@@ -749,7 +756,7 @@ LAB_3007996e:
 					valueFloat0 = 0.5;
 					value2      = 10;
 					value1      = 3000;
-					value0      = ctx->media.grass;
+					value0      = TCE_WallHandle(ctx->media.grass);
 					randomValue = rand();
 					goto LAB_3007996e;
 				}
@@ -761,7 +768,7 @@ LAB_3007996e:
 					valueFloat0 = 0.5;
 					value2      = 10;
 					value1      = 3000;
-					value0      = ctx->media.mud;
+					value0      = TCE_WallHandle(ctx->media.mud);
 					randomValue = rand();
 					goto LAB_3007996e;
 				}
@@ -858,14 +865,14 @@ LAB_3007996e:
 			traceStart[1] = origin[1];
 			traceStart[2] = origin[2] + 10000.0f;
 			ctx->boxTrace(&trace, traceStart, origin, (float *)0x0, (float *)0x0, 0, 0x38);
-			ctx->ripple(ctx->media.waterRipple, trace.endpos, normal, 300, 2000);
+			ctx->ripple(TCE_WallHandle(ctx->media.waterRipple), trace.endpos, normal, 300, 2000);
 			valueFloat3 = 0.125;
 			valueFloat2 = 128.0;
 			valueFloat1 = 512.0;
 			valueFloat0 = 0.5;
 			value3      = 0xf;
 			value2      = 900;
-			value0      = ctx->media.water;
+			value0      = TCE_WallHandle(ctx->media.water);
 			randomValue = rand();
 			value1      = (int)(((double)(randomValue & 32767) * 0.000030518509447574615) * 200 + 400);
 			ctx->dirtParticles(trace.endpos, normal, value1, value2, value3, valueFloat0, valueFloat1, valueFloat2, valueFloat3, value0);
@@ -875,7 +882,7 @@ LAB_3007996e:
 			valueFloat0 = 0.5;
 			value3      = 0xf;
 			value2      = 0x578;
-			value0      = ctx->media.water;
+			value0      = TCE_WallHandle(ctx->media.water);
 			randomValue = rand();
 			value1      = (int)(((double)(randomValue & 32767) * 0.000030518509447574615) * 600 + 400);
 			ctx->dirtParticles(trace.endpos, normal, value1, value2, value3, valueFloat0, valueFloat1, valueFloat2, valueFloat3, value0);
@@ -885,12 +892,12 @@ LAB_300796c2:
 		break;
 	case 0x11:
 		velocity[0]  = *normal * 16.0f;
-		impactSound  = ctx->media.explosion;
+		impactSound  = TCE_WallHandle(ctx->media.explosion);
 		velocity[1]  = normal[1] * 16.0f;
 		markDuration = (*ctx->markTime) * 3;
-		farSound     = ctx->media.explosionFar;
+		farSound     = TCE_WallHandle(ctx->media.explosionFar);
 		farRange     = 1200.0;
-		markShader   = ctx->media.burn;
+		markShader   = TCE_WallHandle(ctx->media.burn);
 		velocity[2]  = normal[2] * 16.0f;
 		radius       = 96.0;
 		bits         = ctx->pointContents(origin, 0);
@@ -906,7 +913,7 @@ LAB_300796c2:
 			              0x6000081);
 			if (((trace.surfaceFlags & 0xff000000) == 0xa000000) || ((trace.surfaceFlags & 0xff000000) == 0x7000000))
 			{
-				ctx->dirtParticles(origin, normal, 600, 2000, 10, 0.5, 275.0, 125.0, 0.25, ctx->media.dirt);
+				ctx->dirtParticles(origin, normal, 600, 2000, 10, 0.5, 275.0, 125.0, 0.25, TCE_WallHandle(ctx->media.dirt));
 			}
 			particleIndex = 5;
 			do
@@ -952,16 +959,16 @@ LAB_300796c2:
 			traceStart[1] = origin[1];
 			traceStart[2] = origin[2] + 10000.0f;
 			ctx->boxTrace(&trace, traceStart, origin, (float *)0x0, (float *)0x0, 0, 0x38);
-			ctx->ripple(ctx->media.waterRipple, trace.endpos, normal, 0x96, 1000);
-			ctx->dirtParticles(trace.endpos, normal, 900, 0x708, 0xf, 0.5, 350.0, 128.0, 0.125, ctx->media.water);
+			ctx->ripple(TCE_WallHandle(ctx->media.waterRipple), trace.endpos, normal, 0x96, 1000);
+			ctx->dirtParticles(trace.endpos, normal, 900, 0x708, 0xf, 0.5, 350.0, 128.0, 0.125, TCE_WallHandle(ctx->media.water));
 		}
 		break;
 	case 0x12:
 	case 0x16:
 	case 0x3f:
 	case 0x41:
-		impactSound = ctx->media.explosion;
-		farSound    = ctx->media.explosionFar;
+		impactSound = TCE_WallHandle(ctx->media.explosion);
+		farSound    = TCE_WallHandle(ctx->media.explosionFar);
 		if ((weapon == 0x12) || (weapon == 0x3f))
 		{
 			value0      = rand();
@@ -977,7 +984,7 @@ LAB_300796c2:
 		position[0]  = *normal * 24.0f + *origin;
 		markDuration = (*ctx->markTime) * 3;
 		farRange     = 800.0;
-		markShader   = ctx->media.burn;
+		markShader   = TCE_WallHandle(ctx->media.burn);
 		radius       = 128.0;
 		position[1]  = normal[1] * 24.0f + origin[1];
 		position[2]  = normal[2] * 24.0f + origin[2];
@@ -1004,7 +1011,7 @@ LAB_300796c2:
 				valueFloat0 = 0.5;
 				value2      = 10;
 				value1      = 3000;
-				value0      = ctx->media.dirt;
+				value0      = TCE_WallHandle(ctx->media.dirt);
 				randomValue = rand();
 LAB_3007abb7:
 				value3 = (int)(((double)(randomValue & 32767) * 0.000030518509447574615) * 200 + 400);
@@ -1020,7 +1027,7 @@ LAB_3007abb7:
 					valueFloat0 = 0.5;
 					value2      = 10;
 					value1      = 3000;
-					value0      = ctx->media.snow;
+					value0      = TCE_WallHandle(ctx->media.snow);
 					randomValue = rand();
 					goto LAB_3007abb7;
 				}
@@ -1032,7 +1039,7 @@ LAB_3007abb7:
 					valueFloat0 = 0.5;
 					value2      = 10;
 					value1      = 3000;
-					value0      = ctx->media.grass;
+					value0      = TCE_WallHandle(ctx->media.grass);
 					randomValue = rand();
 					goto LAB_3007abb7;
 				}
@@ -1044,7 +1051,7 @@ LAB_3007abb7:
 					valueFloat0 = 0.5;
 					value2      = 10;
 					value1      = 3000;
-					value0      = ctx->media.mud;
+					value0      = TCE_WallHandle(ctx->media.mud);
 					randomValue = rand();
 					goto LAB_3007abb7;
 				}
@@ -1097,14 +1104,14 @@ LAB_3007abb7:
 			traceStart[1] = origin[1];
 			traceStart[2] = origin[2] + 10000.0f;
 			ctx->boxTrace(&trace, traceStart, origin, (float *)0x0, (float *)0x0, 0, 0x38);
-			ctx->ripple(ctx->media.waterRipple, trace.endpos, normal, 300, 2000);
+			ctx->ripple(TCE_WallHandle(ctx->media.waterRipple), trace.endpos, normal, 300, 2000);
 			valueFloat3 = 0.125;
 			valueFloat2 = 128.0;
 			valueFloat1 = 512.0;
 			valueFloat0 = 0.5;
 			value3      = 0xf;
 			value2      = 900;
-			value0      = ctx->media.water;
+			value0      = TCE_WallHandle(ctx->media.water);
 			randomValue = rand();
 			value1      = (int)(((double)(randomValue & 32767) * 0.000030518509447574615) * 200 + 400);
 			ctx->dirtParticles(trace.endpos, normal, value1, value2, value3, valueFloat0, valueFloat1, valueFloat2, valueFloat3, value0);
@@ -1114,7 +1121,7 @@ LAB_3007abb7:
 			valueFloat0 = 0.5;
 			value3      = 0xf;
 			value2      = 0x578;
-			value0      = ctx->media.water;
+			value0      = TCE_WallHandle(ctx->media.water);
 			randomValue = rand();
 			value1      = (int)(((double)(randomValue & 32767) * 0.000030518509447574615) * 600 + 400);
 			ctx->dirtParticles(trace.endpos, normal, value1, value2, value3, valueFloat0, valueFloat1, valueFloat2, valueFloat3, value0);
@@ -1123,8 +1130,8 @@ LAB_3007abb7:
 		break;
 	case 0x1e:
 		position[0]  = *normal * 4.0f + *origin;
-		impactSound  = ctx->media.explosive30;
-		markShader   = ctx->media.burn;
+		impactSound  = TCE_WallHandle(ctx->media.explosive30);
+		markShader   = TCE_WallHandle(ctx->media.burn);
 		markDuration = 60000;
 		radius       = 32.0;
 		position[1]  = normal[1] * 4.0f + origin[1];
@@ -1144,12 +1151,12 @@ LAB_3007abb7:
 			ctx->boxTrace(&trace, traceStart, traceEnd, (float *)0x0, (float *)0x0, 0,
 			              0x6000081);
 			trace.surfaceFlags = trace.surfaceFlags & 0xff000000;
-			value0             = ctx->media.dirt;
+			value0             = TCE_WallHandle(ctx->media.dirt);
 			if (((trace.surfaceFlags == 0xa000000) || (trace.surfaceFlags == 0x1d000000)) ||
 			    ((trace.surfaceFlags == 0x15000000 ||
-			      (((value0 = ctx->media.snow, trace.surfaceFlags == 0x8000000 ||
-			         (value0 = ctx->media.grass, trace.surfaceFlags == 0x1e000000)) ||
-			        (value0 = ctx->media.mud, trace.surfaceFlags == 0x7000000))))))
+			      (((value0 = TCE_WallHandle(ctx->media.snow), trace.surfaceFlags == 0x8000000 ||
+			         (value0 = TCE_WallHandle(ctx->media.grass), trace.surfaceFlags == 0x1e000000)) ||
+			        (value0 = TCE_WallHandle(ctx->media.mud), trace.surfaceFlags == 0x7000000))))))
 			{
 				ctx->dirtParticles(origin, normal, 0xfa, 900, 10, 0.5, 48.0, 24.0, 0.25, value0);
 			}
@@ -1160,8 +1167,8 @@ LAB_3007abb7:
 			traceStart[1] = origin[1];
 			traceStart[2] = origin[2] + 10000.0f;
 			ctx->boxTrace(&trace, traceStart, origin, (float *)0x0, (float *)0x0, 0, 0x38);
-			ctx->ripple(ctx->media.waterRipple, trace.endpos, normal, 0x96, 1000);
-			ctx->dirtParticles(trace.endpos, normal, 0xfa, 900, 0xf, 0.5, 64.0, 32.0, 0.125, ctx->media.water);
+			ctx->ripple(TCE_WallHandle(ctx->media.waterRipple), trace.endpos, normal, 0x96, 1000);
+			ctx->dirtParticles(trace.endpos, normal, 0xfa, 900, 0xf, 0.5, 64.0, 32.0, 0.125, TCE_WallHandle(ctx->media.water));
 		}
 		bits = rand();
 		ctx->particle(origin, normal, 0, 0,
@@ -1172,7 +1179,7 @@ LAB_3007abb7:
 		valueFloat0 = 1.0;
 		value0      = rand();
 		ctx->debrisParticles(origin, normal, 0x3c, 500, value0 % 0xc + 0x18, valueFloat0);
-		ctx->smokePuff(position, zero, 32.0, 1.0, 0.8, 0.1, 1.0, 250.0, (*ctx->time), 0, 1, ctx->media.explosionFlash);
+		ctx->smokePuff(position, zero, 32.0, 1.0, 0.8, 0.1, 1.0, 250.0, (*ctx->time), 0, 1, TCE_WallHandle(ctx->media.explosionFlash));
 		soundVolume = 0x7f;
 	}
 	if (impactSound != 0)
@@ -1200,7 +1207,7 @@ LAB_3007abb7:
 		}
 	}
 LAB_3007ad98:
-	if ((markShader == ctx->media.burn) && ((*ctx->forceMarks) == 0))
+	if ((markShader == TCE_WallHandle(ctx->media.burn)) && ((*ctx->forceMarks) == 0))
 	{
 		projection[3] = radius;
 		projection[0] = 0.0;
