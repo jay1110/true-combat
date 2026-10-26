@@ -18,7 +18,7 @@ vec3_t                 tce_lightGridSpacing = { 64, 64, 128 };
 #define TCE_LINUX_LIGHTGRID_X87
 #endif
 
-#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(TCE_LINUX_LIGHTGRID_X87)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(TCE_LINUX_LIGHTGRID_X87) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 /* Preserve platform-specific integral rounding and stored grid boundaries. */
 static void TCE_LightGridAxis(float gridMin, float gridMax,
                               float gridStep, float *gridOrigin, float *gridBound, double *guardDimension)
@@ -67,12 +67,11 @@ static long double TCE_LightGridCountValue(const float *gridBounds)
 	return count;
 }
 #else
-static void TCE_LightGridCount(const float *gridBounds, double *guardCount)
+static long double TCE_LightGridCountValue(const float *gridBounds)
 {
 	long double count = (long double)gridBounds[2] * (long double)gridBounds[1];
 
-	count      *= (long double)gridBounds[0];
-	*guardCount = (double)count;
+	return count * (long double)gridBounds[0];
 }
 #endif
 #endif
@@ -127,10 +126,10 @@ qboolean TCE_CG_LoadLightGrid(const char *mapname)
 	fileHandle_t file = 0;
 	float        block[256];
 	double       dimension, count;
-#if defined(TCE_LINUX_LIGHTGRID_X87)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(TCE_LINUX_LIGHTGRID_X87) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 	long double retainedCount;
 #endif
-#if (!defined(_MSC_VER) || !defined(_M_IX86)) && !defined(TCE_LINUX_LIGHTGRID_X87)
+#if !((defined(_MSC_VER) && defined(_M_IX86)) || defined(TCE_LINUX_LIGHTGRID_X87) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM)))
 	double high;
 #endif
 	tce_lightGrid_t grid;
@@ -169,7 +168,7 @@ qboolean TCE_CG_LoadLightGrid(const char *mapname)
 		{
 			goto invalid;
 		}
-#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(TCE_LINUX_LIGHTGRID_X87)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(TCE_LINUX_LIGHTGRID_X87) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 		TCE_LightGridAxis(block[i], block[i + 3], grid.spacing[i],
 		                  &grid.origin[i], &grid.bounds[i], &dimension);
 #else
@@ -185,11 +184,9 @@ qboolean TCE_CG_LoadLightGrid(const char *mapname)
 		}
 	}
 	/* Each platform keeps its original product order before truncation. */
-#if defined(TCE_LINUX_LIGHTGRID_X87)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(TCE_LINUX_LIGHTGRID_X87) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 	retainedCount = TCE_LightGridCountValue(grid.bounds);
 	count = (double)retainedCount;
-#elif defined(_MSC_VER) && defined(_M_IX86)
-	TCE_LightGridCount(grid.bounds, &count);
 #else
 	count = (double)grid.bounds[2] * grid.bounds[1] * grid.bounds[0];
 #endif
@@ -198,7 +195,7 @@ qboolean TCE_CG_LoadLightGrid(const char *mapname)
 		goto invalid;
 	}
 	/* The capacity guard makes this conversion defined on every target. */
-#if defined(TCE_LINUX_LIGHTGRID_X87)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || defined(TCE_LINUX_LIGHTGRID_X87) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 	sampleCount = (int)retainedCount;
 #else
 	sampleCount = (int)count;
