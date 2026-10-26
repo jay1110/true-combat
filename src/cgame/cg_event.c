@@ -2182,7 +2182,7 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 		}
 		if (cg.clientNum == es->number)
 		{
-			cg.waterundertime = cg.time + 12000;
+			cg.waterundertime = TCE_AddInt32(cg.time, 12000);
 		}
 		break;
 	case EV_WATER_CLEAR:
