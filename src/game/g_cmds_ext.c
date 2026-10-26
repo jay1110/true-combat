@@ -850,9 +850,9 @@ void G_weaponStatsLeaders_cmd(gentity_t *ent, qboolean doTop, qboolean doWindow)
 			shots = cl->sess.aWeaponStats[iWeap].atts;
 			if (shots >= cQualifyingShots[iWeap])
 			{
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 				int replace;
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 				int nextBest;
 				if (TCE_WeaponStatsReplacement(cl->sess.aWeaponStats[iWeap].hits,
 				                               shots, wBestAcc, doTop, &replace, &nextBest))
@@ -910,11 +910,11 @@ void G_weaponStatsLeaders_cmd(gentity_t *ent, qboolean doTop, qboolean doWindow)
 		for (i = 0; i < cClients; i++)
 		{
 			cl = &level.clients[aClients[i]];
-#if defined(_MSC_VER) && defined(_M_IX86)
+#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(_WIN32) && !defined(__linux__) && !defined(Q3_VM))
 			{
 				static const double bottomSlack = 0.999;
 				int attempts = (int)cl->sess.aWeaponStats[iWeap].atts;
-#if !defined(Q3_VM)
+#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 				if (!TCE_WeaponStatsSelection(cl->sess.aWeaponStats[iWeap].hits,
 				                             attempts, wBestAcc, doTop, &selected))
 #endif
