@@ -120,7 +120,7 @@ static int bulletLocalVolume(const tce_bulletRendererContext_t *context)
 	float attenuation = context->liveAttenuation ? *context->liveAttenuation : context->attenuation;
 #if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 	int result;
-	if (TCE_AmbientVolume(127, attenuation, 1.0f, &result))
+	if (TCE_BulletLocalVolume(attenuation, &result))
 	{
 		return result;
 	}

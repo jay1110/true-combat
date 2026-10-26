@@ -5,6 +5,31 @@
 #include "../game/tce_length_precision.h"
 #include "../game/tce_ambient_precision.h"
 
+/* The original local hit sound uses (1-deafness)*127 then signed64
+ * truncation, consuming the low32 word. Finite arithmetic cannot overflow
+ * or underflow the extended exponent range and contains no division.
+ * The conversion can be invalid or inexact, so those masks remain required. */
+static __inline int TCE_BulletLocalVolume(float deafness, int *result)
+{
+	tceTriggerSum_t hearing, attenuation, amount;
+	unsigned control;
+	unsigned required = _EM_INVALID | _EM_DENORMAL | _EM_INEXACT;
+
+	__control87_2(0, 0, &control, NULL);
+	if ((control & required) != required ||
+	    !TCE_TriggerProduct(&hearing, 1.0f, 1.0f, control) ||
+	    !TCE_TriggerProduct(&attenuation, deafness, 1.0f, control) ||
+	    !TCE_TriggerProduct(&amount, 127.0f, 1.0f, control))
+	{
+		return 0;
+	}
+	attenuation.negative ^= 1u;
+	TCE_RotateAdd(&hearing, &attenuation, control);
+	TCE_GustMultiply(&hearing, &amount, control);
+	*result = TCE_FixedSigned64Low32(&hearing);
+	return 1;
+}
+
 /* Finite geometry cannot generate invalid or zero-divide: squared roots
  * are nonnegative and normalization skips a zero root. This descriptor is
  * for integer helpers only; it never changes the hardware control word.
