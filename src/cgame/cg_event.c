@@ -1802,7 +1802,7 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 	bg_playerclass_t           *classInfo;
 	bg_character_t             *character;
 	int                        tceEventVolume;
-#if !defined(__linux__) || defined(Q3_VM)
+#if defined(Q3_VM) || (!defined(__linux__) && !defined(_WIN32))
 	tce_fragmentSoundContext_t tceEventSound;
 #endif
 
@@ -1841,7 +1841,7 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 	character = CG_CharacterForClientinfo(ci, cent);
 
 	/* Original common event-volume producer, before dispatch. */
-#if defined(__linux__) && !defined(Q3_VM)
+#if (defined(__linux__) || defined(_WIN32)) && !defined(Q3_VM)
 	tceEventVolume = CG_SoundVolume(es->pos.trBase, 127.f, 1200.f, 0);
 #else
 	memset(&tceEventSound, 0, sizeof(tceEventSound));
