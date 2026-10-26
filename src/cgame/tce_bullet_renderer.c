@@ -238,8 +238,24 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 #if !defined(__linux__)
 	VectorAdd(offset, end, projected);
 #endif
-	CG_GetOriginForTag(target, &target->pe.headRefEnt, "tag_mouth", 0, tag, NULL); tag[2] += 5;
-	VectorSubtract(tag, projected, offset); headshot = bulletBelow(bulletLength(offset), 10);
+	/* The original reuses the scaled offset as the tag output. A failed
+	 * tag lookup leaves that value intact. */
+	VectorCopy(offset, tag);
+	CG_GetOriginForTag(target, &target->pe.headRefEnt, "tag_mouth", 0, tag, NULL);
+#if defined(__linux__)
+	{
+		/* Linux stores tag Z without popping the value used by subtraction. */
+		long double height = (long double)tag[2] + 5.0L;
+		tag[2] = (float)height;
+		offset[0] = tag[0] - projected[0];
+		offset[1] = tag[1] - projected[1];
+		offset[2] = (float)(height - projected[2]);
+	}
+#else
+	tag[2] += 5;
+	VectorSubtract(tag, projected, offset);
+#endif
+	headshot = bulletBelow(bulletLength(offset), 10);
 	VectorNegate(direction, opposite);
 	context->particle(projected, opposite, particles, 16, bulletParticleAlpha());
 	context->particle(projected, direction, 0, 16, bulletParticleAlpha());
