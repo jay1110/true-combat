@@ -49,8 +49,10 @@ typedef struct
 } tce_wallMedia_t;
 typedef struct
 {
-	const refdef_t *view;
-	int time, markTime, forceMarks, portal;
+	/* Original globals are read at the consuming branch, after callbacks. */
+	refdef_t *const *view;
+	const int *time, *markTime, *portal;
+	const qboolean *forceMarks;
 	int weaponMaterialMode[66];
 	tce_wallMedia_t media;
 	int (*surfaceType)(int);

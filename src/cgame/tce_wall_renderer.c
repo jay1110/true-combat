@@ -21,11 +21,11 @@ void TCE_CG_MissileHitWall(int weapon, int effectType, vec3_t origin, vec3_t nor
 	particleDir[1] = 0.0;
 	particleDir[2] = 0.0;
 	visible        = 0;
-	if ((((forceEffect != 0) || (ctx->forceMarks != 0)) ||
+	if ((((forceEffect != 0) || ((*ctx->forceMarks) != 0)) ||
 	     (0.0f <
-	      ctx->view->viewaxis[0][0] * *normal +
-	      ctx->view->viewaxis[0][1] * normal[1] + ctx->view->viewaxis[0][2] * normal[2])) ||
-	    (ctx->view->fov_x < 30.0f))
+	      (*ctx->view)->viewaxis[0][0] * *normal +
+	      (*ctx->view)->viewaxis[0][1] * normal[1] + (*ctx->view)->viewaxis[0][2] * normal[2])) ||
+	    ((*ctx->view)->fov_x < 30.0f))
 	{
 		visible = 1;
 	}
@@ -34,7 +34,7 @@ void TCE_CG_MissileHitWall(int weapon, int effectType, vec3_t origin, vec3_t nor
 	impactSound = 0;
 	farSound    = 0;
 	soundVolume = ctx->soundVolume(origin, 127.0, 1800.0, 0);
-	if (ctx->portal != 0)
+	if ((*ctx->portal) != 0)
 	{
 		ctx->print("ELITE PORTAL: CG_MissileHitWall\n");
 	}
@@ -61,7 +61,7 @@ void TCE_CG_MissileHitWall(int weapon, int effectType, vec3_t origin, vec3_t nor
 				bits = (bits - 1 | 0xfffffffc) + 1;
 			}
 			impactSound  = ctx->media.knifeFlesh[bits];
-			markDuration = ctx->markTime;
+			markDuration = (*ctx->markTime);
 		}
 		else
 		{
@@ -75,7 +75,7 @@ void TCE_CG_MissileHitWall(int weapon, int effectType, vec3_t origin, vec3_t nor
 				visible     = 1;
 				radius      = (float)(bits & 0x7fff) * 3.0518509447574615e-05f * 0.5f + 1.5f;
 			}
-			markDuration = ctx->markTime;
+			markDuration = (*ctx->markTime);
 		}
 		break;
 	case 2:
@@ -400,7 +400,7 @@ LAB_30078cfb:
 					value0       = rand();
 					markShader   = 0;
 					impactSound  = ctx->media.fabricHit[value0 % 5];
-					markDuration = ctx->markTime;
+					markDuration = (*ctx->markTime);
 				}
 				else if (((bits == 0x3000000) || (bits == 0x13000000)) || (bits == 0x1f000000))
 				{
@@ -413,7 +413,7 @@ LAB_3007924b:
 						goto LAB_30079255;
 					}
 					markShader   = ctx->media.exitMetal;
-					markDuration = ctx->markTime;
+					markDuration = (*ctx->markTime);
 				}
 				else if (bits == 0x4000000)
 				{
@@ -424,7 +424,7 @@ LAB_3007924b:
 						goto LAB_3007924b;
 					}
 					markShader   = ctx->media.exitMetal;
-					markDuration = ctx->markTime;
+					markDuration = (*ctx->markTime);
 				}
 				else if ((bits == 0x5000000) || (bits == 0x6000000))
 				{
@@ -434,13 +434,13 @@ LAB_3007924b:
 					{
 						radius       = radius + 0.4000000059604645f;
 						markShader   = ctx->media.bulletWood;
-						markDuration = ctx->markTime;
+						markDuration = (*ctx->markTime);
 					}
 					else
 					{
 						radius       = radius + 0.4000000059604645f;
 						markShader   = ctx->media.exitWood;
-						markDuration = ctx->markTime;
+						markDuration = (*ctx->markTime);
 					}
 				}
 				else if (bits == 0xc000000)
@@ -448,12 +448,12 @@ LAB_3007924b:
 					value0       = rand();
 					markShader   = ctx->media.bulletGlass;
 					impactSound  = ctx->media.glassHit[value0 % 5];
-					markDuration = ctx->markTime;
+					markDuration = (*ctx->markTime);
 				}
 				else if (bits == 0xa000000)
 				{
 LAB_30079255:
-					markDuration = ctx->markTime;
+					markDuration = (*ctx->markTime);
 				}
 				else
 				{
@@ -466,7 +466,7 @@ LAB_30079255:
 						{
 							radius       = radius + 0.6000000238418579f;
 							markShader   = ctx->media.exitWood;
-							markDuration = ctx->markTime;
+							markDuration = (*ctx->markTime);
 							break;
 						}
 					}
@@ -489,7 +489,7 @@ LAB_30079255:
 						}
 					}
 					radius       = radius + 0.6000000238418579f;
-					markDuration = ctx->markTime;
+					markDuration = (*ctx->markTime);
 				}
 				break;
 			}
@@ -557,7 +557,7 @@ LAB_30079255:
 		valueFloat0 = 1.0;
 		value0      = rand();
 		ctx->debrisParticles(origin, normal, 0x3c, 500, value0 % 0xc + 0x18, valueFloat0);
-		ctx->smokePuff(position, zero, 256.0, 1.0, 1.0, 1.0, 1.0, 250.0, ctx->time, 0, 1, ctx->media.explosionFlash)
+		ctx->smokePuff(position, zero, 256.0, 1.0, 1.0, 1.0, 1.0, 250.0, (*ctx->time), 0, 1, ctx->media.explosionFlash)
 		;
 		goto LAB_300796c2;
 	default:
@@ -593,7 +593,7 @@ LAB_30079255:
 			impactSound = ctx->media.explosion;
 			farSound    = ctx->media.explosionFar;
 		}
-		markDuration = ctx->markTime * 3;
+		markDuration = (*ctx->markTime) * 3;
 		farRange     = 400.0;
 		markShader   = ctx->media.burn;
 		radius       = 48.0;
@@ -677,9 +677,9 @@ LAB_30079255:
 				bits = (bits - 1 | 0xfffffff8) + 1;
 			}
 			ctx->debrisParticles(origin, normal, 0x28, 100, bits + 0x10, valueFloat0);
-			ctx->smokePuff(position, zero, 64.0, 1.0, 0.8, 0.1, 1.0, 250.0, ctx->time, 0, 1, ctx->media.explosionFlash
+			ctx->smokePuff(position, zero, 64.0, 1.0, 0.8, 0.1, 1.0, 250.0, (*ctx->time), 0, 1, ctx->media.explosionFlash
 			               );
-			ctx->smokePuff(position, zero, 32.0, 1.0, 1.0, 0.9, 1.0, 250.0, ctx->time, 0, 1, ctx->media.explosionFlash
+			ctx->smokePuff(position, zero, 32.0, 1.0, 1.0, 0.9, 1.0, 250.0, (*ctx->time), 0, 1, ctx->media.explosionFlash
 			               );
 		}
 		else
@@ -697,7 +697,7 @@ LAB_30079255:
 	case 0x1d:
 		impactSound  = ctx->media.artillery;
 		farSound     = ctx->media.artilleryFar;
-		markDuration = ctx->markTime * 3;
+		markDuration = (*ctx->markTime) * 3;
 		farRange     = 400.0;
 		markShader   = ctx->media.burn;
 		radius       = 128.0;
@@ -887,7 +887,7 @@ LAB_300796c2:
 		velocity[0]  = *normal * 16.0f;
 		impactSound  = ctx->media.explosion;
 		velocity[1]  = normal[1] * 16.0f;
-		markDuration = ctx->markTime * 3;
+		markDuration = (*ctx->markTime) * 3;
 		farSound     = ctx->media.explosionFar;
 		farRange     = 1200.0;
 		markShader   = ctx->media.burn;
@@ -975,7 +975,7 @@ LAB_300796c2:
 			farSound    = ctx->media.mortarFar;
 		}
 		position[0]  = *normal * 24.0f + *origin;
-		markDuration = ctx->markTime * 3;
+		markDuration = (*ctx->markTime) * 3;
 		farRange     = 800.0;
 		markShader   = ctx->media.burn;
 		radius       = 128.0;
@@ -1172,7 +1172,7 @@ LAB_3007abb7:
 		valueFloat0 = 1.0;
 		value0      = rand();
 		ctx->debrisParticles(origin, normal, 0x3c, 500, value0 % 0xc + 0x18, valueFloat0);
-		ctx->smokePuff(position, zero, 32.0, 1.0, 0.8, 0.1, 1.0, 250.0, ctx->time, 0, 1, ctx->media.explosionFlash);
+		ctx->smokePuff(position, zero, 32.0, 1.0, 0.8, 0.1, 1.0, 250.0, (*ctx->time), 0, 1, ctx->media.explosionFlash);
 		soundVolume = 0x7f;
 	}
 	if (impactSound != 0)
@@ -1185,22 +1185,22 @@ LAB_3007abb7:
 		farOrigin[0] = *origin;
 		farOrigin[1] = origin[1];
 		farOrigin[2] = origin[2];
-		viewY        = ctx->view->vieworg[1];
-		viewZ        = ctx->view->vieworg[2];
-		farDir[0]    = farOrigin[0] - ctx->view->vieworg[0];
+		viewY        = (*ctx->view)->vieworg[1];
+		viewZ        = (*ctx->view)->vieworg[2];
+		farDir[0]    = farOrigin[0] - (*ctx->view)->vieworg[0];
 		farDir[1]    = farOrigin[1] - viewY;
 		farDir[2]    = farOrigin[2] - viewZ;
 		distance     = (double)VectorNormalize(farDir);
 		if (((double)1200.0f < distance) && (distance < (double)8000.0f))
 		{
-			farOrigin[0] = farDir[0] * farRange + ctx->view->vieworg[0];
-			farOrigin[1] = farDir[1] * farRange + ctx->view->vieworg[1];
-			farOrigin[2] = farDir[2] * farRange + ctx->view->vieworg[2];
+			farOrigin[0] = farDir[0] * farRange + (*ctx->view)->vieworg[0];
+			farOrigin[1] = farDir[1] * farRange + (*ctx->view)->vieworg[1];
+			farOrigin[2] = farDir[2] * farRange + (*ctx->view)->vieworg[2];
 			ctx->soundEx(farOrigin, -1, 2, value0, 0x10, soundVolume);
 		}
 	}
 LAB_3007ad98:
-	if ((markShader == ctx->media.burn) && (ctx->forceMarks == 0))
+	if ((markShader == ctx->media.burn) && ((*ctx->forceMarks) == 0))
 	{
 		projection[3] = radius;
 		projection[0] = 0.0;

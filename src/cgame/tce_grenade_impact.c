@@ -66,10 +66,10 @@ void CG_TCEMissileHitWall(int weapon, int effect, vec3_t origin, vec3_t normal, 
 	tce_wallRendererContext_t s;
 	int                       i;
 
-	memset(&s, 0, sizeof(s)); s.view = cg.refdef_current; s.time = cg.time;
-	s.markTime                       = cg_markTime.integer; s.portal = cg.tcePortalScopeRendering;
+	memset(&s, 0, sizeof(s)); s.view = &cg.refdef_current; s.time = &cg.time;
+	s.markTime                       = &cg_markTime.integer; s.portal = &cg.tcePortalScopeRendering;
 	/* Original 340a2424 is set by CG_ParseSkyBox (3006aff0). */
-	s.forceMarks  = cg.skyboxEnabled;
+	s.forceMarks  = &cg.skyboxEnabled;
 	s.surfaceType = surfaceType; s.bulletParticles = CG_TCEAddLocalBulletSparks;
 	s.flatSparks  = CG_FlatSparks; s.explode = CG_Explodef; s.registerShader = trap_R_RegisterShader;
 	/* Original weaponDef base34c1df20, field34c1e068 = pelletCount(+148). */
