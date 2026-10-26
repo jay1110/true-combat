@@ -205,8 +205,9 @@ qboolean TCE_CG_LoadLightGrid(const char *mapname)
 	{
 		goto invalid;
 	}
-	/* Original requests the fixed eight-million-byte sample array. Bound the
-	 * native read by remaining file bytes; zero tail corresponds to fresh cg. */
+	/* Safety deviation: the original requests eight million bytes unchecked.
+	 * Bound the read to the file; unavailable tail bytes remain zero rather
+	 * than retaining stale samples from a previous map load. */
 	sampleBytes = length - position;
 	if (sampleBytes > TCE_GRID_BYTES)
 	{
