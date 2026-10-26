@@ -113,10 +113,11 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 			long double distance = (long double)forward[j] * 8192.0L;
 			end[j] = (float)((spread + distance) + muzzle[j]);
 #elif defined(__linux__)
-			long double base = (long double)forward[j] * 8192.0L + muzzle[j];
-			long double lateral = (long double)right[j] * horizontal;
+			long double forwardPart = j == 2 ? 8192.0L * forward[j] : (long double)forward[j] * 8192.0L;
+			long double base = forwardPart + muzzle[j];
+			long double lateral = j == 2 ? (long double)horizontal * right[j] : (long double)right[j] * horizontal;
 			long double rise = j == 2 ? vertical * up[j] : (long double)up[j] * vertical;
-			end[j] = (float)((base + lateral) + rise);
+			end[j] = (float)((lateral + base) + rise);
 #else
 			end[j] = (float)((double)forward[j] * 8192 + vertical * up[j] + (double)right[j] * horizontal + muzzle[j]);
 #endif
