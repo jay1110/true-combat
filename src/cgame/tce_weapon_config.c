@@ -29,6 +29,37 @@ static int TCE_WeaponConfigInteger(const char *token)
 	}
 	return (int)value;
 }
+#elif defined(_WIN32) && !defined(Q3_VM)
+#include <ctype.h>
+
+/* The bundled Windows atoi/atol accumulates in 32-bit registers.
+ * Overflow wraps; it neither saturates nor sets errno. */
+static int TCE_WeaponConfigInteger(const char *token)
+{
+	const unsigned char *cursor = (const unsigned char *)token;
+	unsigned value = 0;
+	int negative;
+
+	while (isspace(*cursor))
+	{
+		++cursor;
+	}
+	negative = *cursor == '-';
+	if (*cursor == '-' || *cursor == '+')
+	{
+		++cursor;
+	}
+	while (isdigit(*cursor))
+	{
+		value = value * 10u + (unsigned)*cursor - (unsigned)'0';
+		++cursor;
+	}
+	if (negative)
+	{
+		value = 0u - value;
+	}
+	return TCE_Int32FromUnsigned(value);
+}
 #else
 #define TCE_WeaponConfigInteger atoi
 #endif
@@ -126,7 +157,12 @@ int TCE_CG_ParseWeaponConfig(const char *filename, tce_weaponInfo_t *info)
 			fps = 1;
 		}
 		/* Windows keeps atof's double in x87; no intermediate float cast. */
+#if defined(_WIN32) && !defined(Q3_VM)
+		animation->frameLerp = TCE_TruncateNativeInteger(1000.0L / (long double)fps);
+		animation->initialLerp = animation->frameLerp;
+#else
 		animation->frameLerp = animation->initialLerp = (int)(1000.0 / fps);
+#endif
 #endif
 		animation->loopFrames = TCE_WeaponConfigInteger(COM_Parse(&cursor));
 		if (animation->loopFrames > animation->numFrames)
