@@ -1,0 +1,8 @@
+if(NOT TCE_EMSDK)
+  set(TCE_EMSDK "$ENV{EMSDK}" CACHE PATH "Emscripten SDK installation")
+endif()
+if(NOT EXISTS "${TCE_EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake")
+  message(FATAL_ERROR "Set TCE_EMSDK or EMSDK to an installed Emscripten SDK")
+endif()
+set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES TCE_EMSDK)
+include("${TCE_EMSDK}/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake")

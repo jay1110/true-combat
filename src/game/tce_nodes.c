@@ -1,6 +1,6 @@
 #include "g_local.h"
 #include "tce_nodes.h"
-#if defined(__linux__)
+#if defined(__linux__) && defined(FEATURE_NAVSTUDIO)
 #include "tce_numeric.h"
 #endif
 extern vmCvar_t g_developer;
@@ -9,6 +9,7 @@ tceNode_t tceNodes[TCE_MAX_NODES];
 short     tceNumNodes;
 int       tceLastNode = -1;
 
+#ifdef FEATURE_NAVSTUDIO
 #if defined(__linux__)
 /* G_SavePoints00079044: text export, separate from the binary .wps stream. */
 void TCE_SavePoints(void)
@@ -150,6 +151,8 @@ void TCE_ConnectClosestNodes(int maxLinks)
 		}
 	}
 }
+
+#endif /* FEATURE_NAVSTUDIO */
 
 /* ClearNodes20040190 / Linux0007829c. Preserve original unwritten padding. */
 void TCE_ClearNodes(void)

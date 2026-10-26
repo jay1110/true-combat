@@ -1393,41 +1393,7 @@ void CG_LimboPanel_ClassBar_Draw(panel_button_t *button)
 	CG_Text_Paint_Ext(button->rect.x + (button->rect.w - w) * 0.5f, button->rect.y, button->font->scalex, button->font->scaley, button->font->colour, buffer, 0, 0, button->font->style, button->font->font);
 }
 
-static void TCE_LimboText(float x, float y, float sx, float sy, const float *color, const char *text)
-{
-	CG_Text_Paint_Ext(x, y, sx, sy, (float *)color, text, 0, 0, 0, &cgs.media.limboFont1);
-}
-static int TCE_LimboTeam(void)
-{
-	return CG_LimboPanel_GetTeam();
-}
-static int TCE_LimboClassIndex(void)
-{
-	return CG_LimboPanel_GetClass();
-}
 int CG_LimboPanel_RenderCounter_ValueForButton(panel_button_t *button);
-static const panel_button_t *tce_counterButton;
-static int TCE_LimboCounterValue(const tce_limboButton_t *button)
-{
-	return CG_LimboPanel_RenderCounter_ValueForButton((panel_button_t *)tce_counterButton);
-}
-static void TCE_LimboBorderCall(float x, float y, float w, float h, int fill, int hover)
-{
-	CG_DrawBorder(x, y, w, h, fill, hover);
-}
-static void TCE_LimboWidget(panel_button_t *button, void (*draw)(const tce_limboButton_t *, const tce_limboWidgets_t *))
-{
-	tce_limboButton_t  b;
-	tce_limboWidgets_t ctx;
-	b.x = button->rect.x; b.y = button->rect.y; b.w = button->rect.w; b.h = button->rect.h;
-	memcpy(b.data, button->data, sizeof(b.data));
-	ctx.classOff      = cgs.media.limboClassButton2Back_off; ctx.classOn = cgs.media.limboClassButton2Back_on;
-	ctx.weaponOff     = cgs.media.limboWeaponNumber_off; ctx.weaponOn = cgs.media.limboWeaponNumber_on;
-	ctx.selectedSlot  = cgs.ccSelectedWeaponNumber; ctx.team = TCE_LimboTeam; ctx.playerClass = TCE_LimboClassIndex;
-	ctx.counter       = TCE_LimboCounterValue; ctx.teamOrder = (const int *)teamOrder;
-	ctx.pic           = CG_DrawPic; ctx.border = TCE_LimboBorderCall; ctx.text = TCE_LimboText;
-	tce_counterButton = button; draw(&b, &ctx); tce_counterButton = NULL;
-}
 static void CG_LimboPanel_RenderTeamCounter(panel_button_t *button)
 {
 	vec4_t on = { .99f, .99f, .99f, 1 };

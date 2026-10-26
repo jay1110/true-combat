@@ -1,0 +1,45 @@
+name: Mod build and compatibility smoke
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [clang, gcc]
+        type: [Debug, Release]
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build clang gcc g++ libboost-dev
+      - name: Configure public mod only
+        run: cmake -S . -B build/ci -G Ninja -DCMAKE_C_COMPILER=${{ matrix.compiler }} -DCMAKE_BUILD_TYPE=${{ matrix.type }} -DBUILD_TESTING=ON -DTCE_BUILD_OMNIBOT_CORE=OFF -DTCE_BUILD_REFERENCE_TESTS=OFF
+      - run: cmake --build build/ci --parallel 2
+      - run: ctest --test-dir build/ci --output-on-failure
+  sanitizer:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y ninja-build clang
+      - run: cmake --preset linux-clang-asan -DTCE_BUILD_OMNIBOT_CORE=OFF
+      - run: cmake --build build/modern/linux-clang-asan --parallel 2
+      - run: ctest --preset linux-clang-asan
+  windows:
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        architecture: [Win32, x64]
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -S . -B build/ci -A ${{ matrix.architecture }} -DBUILD_TESTING=ON -DTCE_BUILD_OMNIBOT_CORE=OFF -DTCE_BUILD_REFERENCE_TESTS=OFF
+      - run: cmake --build build/ci --config Release --parallel 2
+      - run: ctest --test-dir build/ci -C Release --output-on-failure
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - run: cmake -S . -B build/ci -DCMAKE_BUILD_TYPE=Release '-DCMAKE_OSX_ARCHITECTURES=x86_64;arm64' -DBUILD_TESTING=OFF -DTCE_BUILD_OMNIBOT_CORE=OFF
+      - run: cmake --build build/ci --parallel 2

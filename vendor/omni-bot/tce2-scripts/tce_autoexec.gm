@@ -1,0 +1,28 @@
+// TC:E classes and gear are owned by the TC server, not stock ET utility rules.
+global Util = import("utilities");
+global ETUtil = import("et_utilities");
+ExecScript("et_navconfig.gm");
+ExecScript("commands.gm");
+ExecScript("et_commands.gm");
+ExecScript("tce_commands.gm");
+ExecScript("server_manager.gm");
+ExecScript("tce_weapontables.gm");
+global RegionTrigger = import("et_regiontriggers");
+global ClassManager = import("et_classmanager");
+ExecScript("et_botnames_ext.gm");
+global DEBUG_MAP_SCRIPTS = false;
+global DEBUG_GOAL_AVAILABILITY = false;
+global DEBUG_SCRIPT_GOALS = false;
+global DEBUG_SCRIPT_GOALS_FILTER = {};
+global MAP_TALK = true;
+global DisableClassManager = 0;
+Util.InitializeClassTables();
+foreach (team in { TEAM.AXIS, TEAM.ALLIES }) {
+ foreach (class in Util.PlayerClassTable) { Server.MinClassCount[team][class] = 1; }
+}
+global PostMapLoad = function() {
+ ETUtil.MapStartTime = GetTime() - 1.75;
+ Util.ProcessMovers();
+ // TC gametype 5 is Objective, not ET LMS: keep its map goals available.
+};
+print("TC:E Omni-bot classes and native weapon profiles initialized.");

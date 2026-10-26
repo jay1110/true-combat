@@ -1,0 +1,223 @@
+game_manager
+{
+	spawn
+	{
+		// Camo: not defined = woodland, 1 = desert, 2 = snow, 3 = commando (black)
+		wm_camo 3
+		
+		// Game rules
+		wm_axis_respawntime	30
+		wm_allied_respawntime	30
+		wm_number_of_objectives 1
+		wm_set_round_timelimit	5
+		
+		// new 0.483
+		wm_set_demolition_team 0
+		
+		// Objectives
+		// 1: Destroy either bomb site
+		
+		// Current objectives for each team (0=Terrorists, 1=Specops)
+		wm_objective_status 1 0 0
+		wm_objective_status 1 1 0
+
+		// Stopwatch mode defending team (0=Terrorists, 1=Specops)
+		wm_set_defending_team	1
+
+		// Winner on expiration of round timer (0=Terrorists, 1=Specops)
+		wm_setwinner	1
+
+		wait 500
+		
+		accum 1 set 0 	// have the terrorists planted the bomb?
+		accum 2 set 0 	// detonated score given?
+		
+	}
+
+	trigger bomb_detonated
+	{
+		wm_setwinner	0
+		wm_announce "Terrorists blow the crate!"
+
+		wm_objective_status 1 0 1
+		wm_objective_status 1 1 0
+
+		accum 2 trigger_if_equal 0 game_manager detonated_score 
+		
+		wm_endround
+	}
+	
+	trigger bomb_planted
+	{
+		accum 1 set 1
+	}
+	
+	trigger bomb_defused
+	{
+		wm_setwinner	1
+		wm_announce "Bomb defused!"
+		
+		wm_endround
+	}
+	
+	trigger timelimit_hit
+	{
+		wm_addscore	1 20
+	}
+	
+	trigger terrorists_eliminated
+	{
+		wm_setwinner	1
+		wm_addscore	1 20
+	}
+	
+	trigger specops_eliminated
+	{
+	
+		// not planted, terrorists win and get score for planted and exploded
+		wm_setwinner	0
+	
+		accum 2 trigger_if_equal 0 game_manager detonated_score 	// not detonated yet, give score
+		accum 1 trigger_if_equal 0 game_manager planted_score 	// not planted yet, give score
+		
+	}
+	
+	trigger detonated_score
+	{
+		wm_addscore	0 10	// detonated score
+		accum 2 set 1		// mark detonated score as given
+	}
+	
+	trigger planted_score
+	{
+		wm_addscore	0 10	// detonated score
+	}
+	
+	// TCE round/match end announcements TEMPORARY TCE TEST
+	trigger specops_matchwin
+	{
+		wm_teamvoiceannounce 0 "hq_specops_win_the_match"
+		wm_teamvoiceannounce 1 "hq_specops_win_the_match"
+	}
+	
+	trigger terrorists_matchwin
+	{
+		wm_teamvoiceannounce 0 "hq_terrorists_win_the_match"
+		wm_teamvoiceannounce 1 "hq_terrorists_win_the_match"
+	}
+	
+	trigger specops_win
+	{
+		wm_teamvoiceannounce 0 "hq_specops_win"
+		wm_teamvoiceannounce 1 "hq_specops_win"
+	}
+	
+	trigger terrorists_win
+	{
+		wm_teamvoiceannounce 0 "hq_terrorists_win"
+		wm_teamvoiceannounce 1 "hq_terrorists_win"
+	}
+	
+}
+
+bombsiteA_crate
+{
+	spawn
+	{
+		score	10
+		constructible_class 3
+	}
+
+	death
+	{
+		trigger game_manager bomb_detonated
+	}
+	
+	defused
+	{
+		trigger game_manager bomb_defused
+	}
+	
+	dynamited
+	{
+		setstate bombsiteA_crate dynamited
+		setstate bombsiteB_crate inactive
+		trigger game_manager bomb_planted
+	}
+}
+
+bombsiteB_crate
+{
+	spawn
+	{
+		score	10
+		constructible_class 3
+	}
+
+	death
+	{
+		trigger game_manager bomb_detonated
+	}
+	
+	defused
+	{
+		trigger game_manager bomb_defused
+	}
+	
+	dynamited
+	{
+		setstate bombsiteB_crate dynamited
+		setstate bombsiteA_crate inactive
+		trigger game_manager bomb_planted
+	}
+}
+
+// remove CTF entities
+flagonlyA
+{
+	spawn
+	{
+		remove
+	}
+}
+
+flagspecops
+{
+	spawn
+	{
+		remove
+	}
+}
+
+flagpostspecops
+{
+	spawn
+	{
+		remove
+	}
+}
+
+flagonlyB
+{
+	spawn
+	{
+		remove
+	}
+}
+
+flagterrorists
+{
+	spawn
+	{
+		remove
+	}
+}
+
+flagpostterrorists
+{
+	spawn
+	{
+		remove
+	}
+}
+

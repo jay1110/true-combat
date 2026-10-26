@@ -1,0 +1,1390 @@
+{
+  "schema": 1,
+  "origin": "Supplied Omni-bot data already present in build/navgen-overkill/omnibot; exact upstream commit/archive identity unavailable.",
+  "role": "Byte-preserved base runtime GM scripts; project TC overlays remain in ../tce2-scripts and ../tce2-global-scripts.",
+  "excluded": [
+    "Native binaries and PK3s",
+    "Engine/user profiles and servercache.dat",
+    "Maps/navigation, logs, screenshots, user settings and test-install configuration"
+  ],
+  "licensing": "Original notices remain in imported script text. See ../IMPORT-NOTICE.txt for unresolved original upstream license provenance; this manifest does not infer additional rights.",
+  "files": [
+    {
+      "path": "global_scripts/autowaypoint.gm",
+      "bytes": 15761,
+      "sha256": "a0f0a377ad0a7485bbd3ed21688a90a923a021e972ec6800b5f86bbd97fae5f9"
+    },
+    {
+      "path": "global_scripts/commands.gm",
+      "bytes": 49358,
+      "sha256": "891206fb73b7a6a5729a2e8e301ae8df389bb7f996f55bbb37d93d970796293a"
+    },
+    {
+      "path": "global_scripts/goals/goal_meatshield.gm",
+      "bytes": 2238,
+      "sha256": "3a95a9d94cab4f573a916360b0cc6e9a0991c8ddbd1851c860af1954896251ca"
+    },
+    {
+      "path": "global_scripts/goals/goal_paththrough_mover.gm",
+      "bytes": 3236,
+      "sha256": "318db17b77c1c9207150a3bde4bed0eacd6a41b9c7983a47ebaa53cf85e2b687"
+    },
+    {
+      "path": "global_scripts/goals/goal_paththrough_navigation.gm",
+      "bytes": 1246,
+      "sha256": "009fce99a79216c1523f8aba5fdd9701b2486ddd2ee7e1baf76eb4068b6ff9f6"
+    },
+    {
+      "path": "global_scripts/goals/goal_paththrough_useswitch.gm",
+      "bytes": 3158,
+      "sha256": "0029220e609e08dd19fbe8c531a655a23b8f13c850736bbad7e7a8c734c933d9"
+    },
+    {
+      "path": "global_scripts/goals/goal_switch.gm",
+      "bytes": 1236,
+      "sha256": "26762be12ede3fa074003ca64cf22e7f7c612b143f5280772c537fa5024c0b58"
+    },
+    {
+      "path": "global_scripts/goals/goal_testbot.gm",
+      "bytes": 10484,
+      "sha256": "f9fe79c90b2032b5ab6833f3703c8a37bd6bf262884d2245d51b45341bd5b019"
+    },
+    {
+      "path": "global_scripts/makegm.gm",
+      "bytes": 47015,
+      "sha256": "bc444ef6556824fae754070dfa110a514b17966d38888685370676ad84c7e8ff"
+    },
+    {
+      "path": "global_scripts/mapgoals/mapgoal_attack.gm",
+      "bytes": 1841,
+      "sha256": "529b52b372c48d50ad8a5bafcb3340c72768c0c6ca3ada9b7ad0bfab9fc9223c"
+    },
+    {
+      "path": "global_scripts/mapgoals/mapgoal_capturehold.gm",
+      "bytes": 1082,
+      "sha256": "537527a9016c02866b575b39724a050d3d17134837142616b207711512cda4ba"
+    },
+    {
+      "path": "global_scripts/mapgoals/mapgoal_capturepoint.gm",
+      "bytes": 1040,
+      "sha256": "87ec1811f42f3108c99d0e17750fea547eb6941f30fcfe125b443e3af99228f5"
+    },
+    {
+      "path": "global_scripts/mapgoals/mapgoal_defend.gm",
+      "bytes": 1858,
+      "sha256": "2a6e8e33f3b27f6af87a3095e45c7ea59dd126206636a7e61d2bb0f0375ccce9"
+    },
+    {
+      "path": "global_scripts/mapgoals/mapgoal_flag.gm",
+      "bytes": 240,
+      "sha256": "98a56b8ff944550090b61c94a7f515420a8b2a9d5188613e7b61d698d41fc2ec"
+    },
+    {
+      "path": "global_scripts/mapgoals/mapgoal_returnflag.gm",
+      "bytes": 244,
+      "sha256": "9bd1524df86438b9af7e900cd6dfaec4dce16f0afb28ef62aff6bee3323d8063"
+    },
+    {
+      "path": "global_scripts/mapgoals/mapgoal_route.gm",
+      "bytes": 1917,
+      "sha256": "ac2b4aa106b3b68766f7690df44c70338c65c530e67708676431823ce0661b96"
+    },
+    {
+      "path": "global_scripts/mapgoals/mapgoal_switch.gm",
+      "bytes": 5636,
+      "sha256": "c5b32c390445d12b93f02062f3a4f2815f69be81ea07259803c2f2dabe9d98bf"
+    },
+    {
+      "path": "global_scripts/server_manager.gm",
+      "bytes": 11697,
+      "sha256": "9e823aa619ca080e13ef284585b8a6ab92bf5e7bc16594b0af097fa98b2145b5"
+    },
+    {
+      "path": "global_scripts/testbot.gm",
+      "bytes": 1537,
+      "sha256": "f3fbf6f54c25490a498e81536673fdfdeb1d83e379f4d06799f49ae837e3b3d0"
+    },
+    {
+      "path": "global_scripts/testdebugwindows.gm",
+      "bytes": 638,
+      "sha256": "cb4ea633447ba7f9b6b79b09c3652f5c50dba18809f90ac8bf04169334b08fbf"
+    },
+    {
+      "path": "global_scripts/testfilesystem.gm",
+      "bytes": 4556,
+      "sha256": "c4122fac1ad7ccc100a27b2e324fc5b1fc64d650e27a22424ac88425e475213b"
+    },
+    {
+      "path": "global_scripts/testmap.gm",
+      "bytes": 15114,
+      "sha256": "17ed7c204d71c094a711d2c7e3ffc03cd74a088a2bd376cd0e8ac3201f3358e5"
+    },
+    {
+      "path": "global_scripts/testmath.gm",
+      "bytes": 3226,
+      "sha256": "fdbe42e56038fa83401821d0ab2bc029dc4b4ab385574e7392a9cd1dfb596044"
+    },
+    {
+      "path": "global_scripts/testmisc.gm",
+      "bytes": 862,
+      "sha256": "c00c2882d1ca0936db53cbcbb5996b210274f7de721e3f21a2b2b8d54d654bda"
+    },
+    {
+      "path": "global_scripts/utilities.gm",
+      "bytes": 71353,
+      "sha256": "f3aac6929a4e5ac9aae31917eb7fd38fbc4f931e18fe99c6d69f4ff94cf88006"
+    },
+    {
+      "path": "et/scripts/def_bot.gm",
+      "bytes": 4183,
+      "sha256": "a6d04a946eca046e7ddc3ba3a73db8f063e762bbf512e4790b327e99a8e203c4"
+    },
+    {
+      "path": "et/scripts/et_autoexec.gm",
+      "bytes": 3159,
+      "sha256": "0ad13ca8d32b0b7fde7e1cc506cd0b15c2742da700ff4454dc306ac3f99c6844"
+    },
+    {
+      "path": "et/scripts/et_botnames_ext.gm",
+      "bytes": 6470,
+      "sha256": "a37949866366190389cd355faf674d8d718f02c4334e1652023ec5eb81366f3f"
+    },
+    {
+      "path": "et/scripts/et_classmanager.gm",
+      "bytes": 2242,
+      "sha256": "55dc190e1700517f3e77a1f08158679f2e547ecd8004394539192097a2ea7a8d"
+    },
+    {
+      "path": "et/scripts/et_commands.gm",
+      "bytes": 6869,
+      "sha256": "20bb71a5badb2c53389d87cb5fb98d55dc39edb5e0c99ae4d6f4b0e142b5f29f"
+    },
+    {
+      "path": "et/scripts/et_navconfig.gm",
+      "bytes": 336,
+      "sha256": "04986e2d658b351b733d030be7b057e7ec5b2a0541d50c63b466831b9b89fa0d"
+    },
+    {
+      "path": "et/scripts/et_regiontriggers.gm",
+      "bytes": 8779,
+      "sha256": "ab26adb191284247e661e3b02ecffb892a8c0a8bbd626909c1ee859e1febaa5d"
+    },
+    {
+      "path": "et/scripts/et_sounds.gm",
+      "bytes": 687,
+      "sha256": "afc35fbcaa453acd87a7f50750bfb054391bea3fbe1c585a65c418a4b8ab479a"
+    },
+    {
+      "path": "et/scripts/et_utilities.gm",
+      "bytes": 21960,
+      "sha256": "cbba21fb8ed9612abd44a3e2dd79ea8a719f4ab81f198443eb46f25cd597546a"
+    },
+    {
+      "path": "et/scripts/et_weapontables.gm",
+      "bytes": 10047,
+      "sha256": "e2b31f36fc79d4dc75d626aef632f5581ed054d39e6797eec1ae6b16887541c8"
+    },
+    {
+      "path": "et/scripts/goals/goal_airstrike.gm",
+      "bytes": 994,
+      "sha256": "c646f0d185b61a25f229f7983ad445fd5c1d157cb038003f0675d8dbbc26d158"
+    },
+    {
+      "path": "et/scripts/goals/goal_askforammo.gm",
+      "bytes": 4461,
+      "sha256": "a29fdf8f6b54d47e24b4deb788a790b55b680af547e618d3c4c3a86b40519d11"
+    },
+    {
+      "path": "et/scripts/goals/goal_askforhealth.gm",
+      "bytes": 2349,
+      "sha256": "1ce7459d1d79648c76504b170ce77369b811e2a582211d2559e524e43aa43d5b"
+    },
+    {
+      "path": "et/scripts/goals/goal_build.gm",
+      "bytes": 6423,
+      "sha256": "348f54938c1badc7b87557711f44a4e5e8ca684674fba8d46eb863422dc00db0"
+    },
+    {
+      "path": "et/scripts/goals/goal_callartillery.gm",
+      "bytes": 3660,
+      "sha256": "2a4d18246d387ccdf9af56f8826cb171f482cf0b51e8ffde19129dad22ba3516"
+    },
+    {
+      "path": "et/scripts/goals/goal_camp.gm",
+      "bytes": 3974,
+      "sha256": "c0cf53e729d4c990732f5933ee433e5a02729d34fc31cc7e7a610507f10109e8"
+    },
+    {
+      "path": "et/scripts/goals/goal_checkdisguise.gm",
+      "bytes": 2871,
+      "sha256": "6ecce76cf226edfab8dd8c75998e71b7453e291f2c1b3c046b8f848e14aa90fc"
+    },
+    {
+      "path": "et/scripts/goals/goal_checkpoint.gm",
+      "bytes": 770,
+      "sha256": "a2102d72772800f1c079850c9ffa4e0ecdf25a6c43302c829b3bfd148ed600cf"
+    },
+    {
+      "path": "et/scripts/goals/goal_checkstuck.gm",
+      "bytes": 3767,
+      "sha256": "243b88b6e12a889e28345491c64e5896bacc2b1f3289ef1b19d3c8f958c770e7"
+    },
+    {
+      "path": "et/scripts/goals/goal_classmanager.gm",
+      "bytes": 1990,
+      "sha256": "e0ffdf5b731a35f26579273e904b2ccb91ee564c98284f29bd172ba2d09ab4a0"
+    },
+    {
+      "path": "et/scripts/goals/goal_combatmovement.gm",
+      "bytes": 6272,
+      "sha256": "a0307135f71f57dee34b6e32fd54b1a320721a6432b6e299102bcd3e3116b2cf"
+    },
+    {
+      "path": "et/scripts/goals/goal_covertops.gm",
+      "bytes": 11101,
+      "sha256": "d3a1ffac53c9733fd2d18dd5ce5af6769d5da0527c15c085d5fe6c4416a1c83e"
+    },
+    {
+      "path": "et/scripts/goals/goal_defuse.gm",
+      "bytes": 3172,
+      "sha256": "c6c0b0a64539d32effd08ffd0f31a39f819f5f64ffedd5c901cbcbbc19e7eada"
+    },
+    {
+      "path": "et/scripts/goals/goal_deliversupplies.gm",
+      "bytes": 14406,
+      "sha256": "70dbb425da7c30703f0ec2a179714a45c8c856dd46b77ef5e92c1a2a00789cfd"
+    },
+    {
+      "path": "et/scripts/goals/goal_demo.gm",
+      "bytes": 11907,
+      "sha256": "1ca4a7eb0d140c0774a2bdca799bc558ce2984be05c000fa34c9d46d386e32c5"
+    },
+    {
+      "path": "et/scripts/goals/goal_difficulty.gm",
+      "bytes": 7783,
+      "sha256": "51ac2d7c7306fda90f178ed6e5c56998c382ba7f91705fce199346505054c1ce"
+    },
+    {
+      "path": "et/scripts/goals/goal_dispenseammo.gm",
+      "bytes": 1983,
+      "sha256": "f67857ec5687ca94b19bad777602c92793dfe538383c8458b77de0796d5d2065"
+    },
+    {
+      "path": "et/scripts/goals/goal_dispensehealth.gm",
+      "bytes": 1807,
+      "sha256": "a77c0a2042fe657eb6865680dc6948ad7263c8672ab745bc5af2cb082f6376c0"
+    },
+    {
+      "path": "et/scripts/goals/goal_escort.gm",
+      "bytes": 6852,
+      "sha256": "e9c0a98ec8adac2584c36990674b8de1d24e95218aa3ea534eae0a71d4ddf0a7"
+    },
+    {
+      "path": "et/scripts/goals/goal_fireteam.gm",
+      "bytes": 12540,
+      "sha256": "e66df78afc1f794eafd2b0a573f1b0a831484e0ddae830c5120924687af6a2f7"
+    },
+    {
+      "path": "et/scripts/goals/goal_flag.gm",
+      "bytes": 2250,
+      "sha256": "e7f7941c849fa78316e030f5c9ae1e1cfba6e1aa969583cbb3852924c320bbd1"
+    },
+    {
+      "path": "et/scripts/goals/goal_flagreturn.gm",
+      "bytes": 1156,
+      "sha256": "089af6f409a8cfb3539bcaf01a98a5b6de4df281e23688b8ed134f542bdee8fb"
+    },
+    {
+      "path": "et/scripts/goals/goal_grenade.gm",
+      "bytes": 3513,
+      "sha256": "07aea06982d9e25eee9e27ff1f1dff030257854470d013b7accbe508c58b579a"
+    },
+    {
+      "path": "et/scripts/goals/goal_healself.gm",
+      "bytes": 1247,
+      "sha256": "8d946bd191b39efb10ce391fcd59b97ff2dd4c61f6f447562666a82929ab7caf"
+    },
+    {
+      "path": "et/scripts/goals/goal_hunt.gm",
+      "bytes": 965,
+      "sha256": "95fba95b103bec732154d38a34d327745d592526856febc08df4df48ae92e930"
+    },
+    {
+      "path": "et/scripts/goals/goal_indisguise.gm",
+      "bytes": 1610,
+      "sha256": "c9a218ed71923b714aba01e124ab7edad29b60a13b23934222bb3708455b7f7f"
+    },
+    {
+      "path": "et/scripts/goals/goal_mobilemg42.gm",
+      "bytes": 3442,
+      "sha256": "4af7890083aa9985416a0fbca799dcb06de054f9683409b7fcfd3da12c4a3c47"
+    },
+    {
+      "path": "et/scripts/goals/goal_mobilemortar.gm",
+      "bytes": 2703,
+      "sha256": "be9a7f0315e1e5d124d5e48ed5eb3c764b1b891842e1f5db9ea48bf6cdacea3f"
+    },
+    {
+      "path": "et/scripts/goals/goal_mount.gm",
+      "bytes": 7990,
+      "sha256": "790710282330750dc7d705176b47b65276cfd2c5eda129ac3a9c0b60c60483b2"
+    },
+    {
+      "path": "et/scripts/goals/goal_mountmg42.gm",
+      "bytes": 4349,
+      "sha256": "465057d40ca9f63fac6225f8cc3baa7baeef02cfab3d3ed71c2fec5e7b583ee5"
+    },
+    {
+      "path": "et/scripts/goals/goal_paththrough_airstrike.gm",
+      "bytes": 2139,
+      "sha256": "f9b14dfdedce0b7c2bd2f3f4a3e48cb0a6aa05b355d068760b03db2cd8f52894"
+    },
+    {
+      "path": "et/scripts/goals/goal_paththrough_artillery.gm",
+      "bytes": 4682,
+      "sha256": "e9cd0b8e2d5c33999ee545a83233631b5787b65206e53de823de2a563e471a1f"
+    },
+    {
+      "path": "et/scripts/goals/goal_pickupitems.gm",
+      "bytes": 2948,
+      "sha256": "a26848eab5ce154e6d2f6beff1f8544ac07d178c665776c2183b1c75b8c77d79"
+    },
+    {
+      "path": "et/scripts/goals/goal_plant.gm",
+      "bytes": 13088,
+      "sha256": "338395a19cfa14f370856f0c18ce77b35f3a601e638b436e4864d67833ae1a33"
+    },
+    {
+      "path": "et/scripts/goals/goal_plantmine.gm",
+      "bytes": 2334,
+      "sha256": "d99c23df0ca7bf3bbc8e78f6cf0695582a4cca551b92c12cbf887bf477668a1e"
+    },
+    {
+      "path": "et/scripts/goals/goal_repairmg42.gm",
+      "bytes": 1812,
+      "sha256": "40865e2df2f2713653c2afebe6896afdeb6d4e937ecd09f98eda1ba7da54d6ac"
+    },
+    {
+      "path": "et/scripts/goals/goal_resetxp.gm",
+      "bytes": 1003,
+      "sha256": "5b1ffb885b8fd11dab9bb1a6e040c666729f280c80436239ae20869515ef6057"
+    },
+    {
+      "path": "et/scripts/goals/goal_respawn.gm",
+      "bytes": 406,
+      "sha256": "79a03b0dd1e15f6d6d7b9455d9f55be05470468163bca51f201566e406a0d95b"
+    },
+    {
+      "path": "et/scripts/goals/goal_revive.gm",
+      "bytes": 4713,
+      "sha256": "7251b0baefd76c39710b6bf5f7943c5f5e737a9cb62fb65515f6dcdc5e7b10f4"
+    },
+    {
+      "path": "et/scripts/goals/goal_ride.gm",
+      "bytes": 6607,
+      "sha256": "714337ba3cbd355e71910f70391da880436555a09ff0b5620995dd42cb0c2414"
+    },
+    {
+      "path": "et/scripts/goals/goal_ridetram.gm",
+      "bytes": 4598,
+      "sha256": "957299a9ccec212f4bd094e91e9b3b386c3514e705913fc57bd4054591db1f48"
+    },
+    {
+      "path": "et/scripts/goals/goal_roaming.gm",
+      "bytes": 2249,
+      "sha256": "ef73e6ce687c19f77dfa54f15ae03e73267c2021596a8f9411a99ba7682ed8d8"
+    },
+    {
+      "path": "et/scripts/goals/goal_rolemanager.gm",
+      "bytes": 4506,
+      "sha256": "b16e59a8f9df94d8d140d9a2371f48abe8cf4722cc6c39896fa801c8c7d411ce"
+    },
+    {
+      "path": "et/scripts/goals/goal_secondaryweapon.gm",
+      "bytes": 1178,
+      "sha256": "133c1c8f4db271fad0332de85dfbc752b2aa64da8fdbad2f205917a893b3da8f"
+    },
+    {
+      "path": "et/scripts/goals/goal_selectweapons.gm",
+      "bytes": 7312,
+      "sha256": "f84c7f5ec194c2ac863be2da49f819c99be148492a0d50be07efd13fd2bca22f"
+    },
+    {
+      "path": "et/scripts/goals/goal_smokebomb.gm",
+      "bytes": 975,
+      "sha256": "e995d42c77f150c9eae6a9e5a7cbc6eaab6415f806e1464e550c3bf796b2b3e1"
+    },
+    {
+      "path": "et/scripts/goals/goal_supplyself.gm",
+      "bytes": 1248,
+      "sha256": "227b8a23840b53eb1a23ee60da73c0b02baf0769c1fb5575cf344a15f97bf0a0"
+    },
+    {
+      "path": "et/scripts/goals/goal_testevents.gm",
+      "bytes": 7281,
+      "sha256": "37574dd08f00985fd8c789fd2ec99ce52fa37b0b312e8a2a2d9543b474deb11c"
+    },
+    {
+      "path": "et/scripts/goals/goal_tripmine.gm",
+      "bytes": 2717,
+      "sha256": "515aa2c243e51634278786026af7ce9bf31f82634587c805d4196dfb96b49d3d"
+    },
+    {
+      "path": "et/scripts/goals/goal_usecabinet.gm",
+      "bytes": 2782,
+      "sha256": "473ef45cf93be8d895fbf51c50d0d7ed97db14b633cd1dfd4da31f639de8cc62"
+    },
+    {
+      "path": "et/scripts/goals/goal_useswitch.gm",
+      "bytes": 5421,
+      "sha256": "6d8e7d108331193405ba58921545aa9091b5dc05be9c6a8079061c7861baa167"
+    },
+    {
+      "path": "et/scripts/goals/goal_voicechat.gm",
+      "bytes": 9244,
+      "sha256": "eaf482d2170c4ffc8ee41b6a16316287d54f4d4839abc1b973e94b286ea8aa26"
+    },
+    {
+      "path": "et/scripts/goals/goal_watchforprojectile.gm",
+      "bytes": 3163,
+      "sha256": "81da33697bc4bfd2ca467777cbc1ad99fa60227e002e9dfe88ebfcbd001cc53e"
+    },
+    {
+      "path": "et/scripts/goals/goal_zooming.gm",
+      "bytes": 561,
+      "sha256": "66de7436643a758eafceeaeb1a22772fc366653112de1bf37ea437ed96a1e67b"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_airstrike.gm",
+      "bytes": 4332,
+      "sha256": "aad5a99771932c3b86234305c01c81fb57010471a906bbb0ce7a88e41162999e"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_ammocabinet.gm",
+      "bytes": 2004,
+      "sha256": "6601b1ea795a126b6a7bb8d8d89b687e2180c3bddfbee55f57f66c1078f703f0"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_artillery.gm",
+      "bytes": 4218,
+      "sha256": "586b6d4392b144bb3fbee1f8bdd37b4447fea59f13f3c7736319b7ce4a46d4de"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_artillery_d.gm",
+      "bytes": 1121,
+      "sha256": "cf1dd718595e8b43149324a5dbe6fe5129c9ec06985b047765b931e1342a7f6b"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_artillery_s.gm",
+      "bytes": 1120,
+      "sha256": "3425dd628308673e7ef67ab158a6bc39d16b76b6748e1ad173bcf6bd35fbc7b6"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_blowuptarget.gm",
+      "bytes": 12507,
+      "sha256": "e24531b844ff7cde5ac5e5321b219cbb5f1a0c1d7dd006c3ad586e87ff368cf3"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_camp.gm",
+      "bytes": 9209,
+      "sha256": "261d5de87db9ad5c203f3134623e1a45e8b79794b76dbae6d7506ba642b01180"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_checkpoint.gm",
+      "bytes": 591,
+      "sha256": "c6d311bc92d912da206166a0cfcf5c3df782cda9d545fedf6b97624fd0e614d1"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_construction.gm",
+      "bytes": 10009,
+      "sha256": "5270ad6f124d7dbd43183ea8f2c9a3aacf7f5059c77730ae896c7aba60c5bdb3"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_defuse.gm",
+      "bytes": 612,
+      "sha256": "6af609faa3912f676a58cdb628baed0be80e7e61319dd81841016c6d85727f74"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_dynamite.gm",
+      "bytes": 2167,
+      "sha256": "6eb2232ab142525dcf6fb38cdb9ab4c94068e5a8b1d95cb60b8aacc697a3c228"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_escort.gm",
+      "bytes": 5985,
+      "sha256": "67db412ce457d189fb3b610874b96325c398549fdfab4df6ddbc0bbcda09c54b"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_explosive.gm",
+      "bytes": 515,
+      "sha256": "a35c864390f561158321492bbcf2393a14eb926a46073a68e071fd98300ba854"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_grenade.gm",
+      "bytes": 8503,
+      "sha256": "66cd6859124d19f53c869aea20e457f82b73669eaf0ddd16267240a098e80eae"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_healthcabinet.gm",
+      "bytes": 2006,
+      "sha256": "ec9252b9c6a93f34bd3237c57c62f1925f684ae5feb1517adbb2f6bdb7eeb311"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_mobilemg42.gm",
+      "bytes": 5233,
+      "sha256": "727d324bd95981df0f46a090ee8bf1a1bf93d6bd4a0240246826ac6afdb3d155"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_mobilemortar.gm",
+      "bytes": 5252,
+      "sha256": "23c7aa2431669e04236eecc35a77ce6eab1cf4d0616b03f529ad7bf562aa56ae"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_mount.gm",
+      "bytes": 6320,
+      "sha256": "64ba441ff503bb8ab8d1620492e0e8b5df8072e59f88e99bdb7b24f644435106"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_mountmg42.gm",
+      "bytes": 4789,
+      "sha256": "57ee7a4cc97e0b576efbdc569963ce5c58c739c23b821f7f6eb820f16362c1d4"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_mover.gm",
+      "bytes": 604,
+      "sha256": "0b75a99a9242dc2ed125599b6fcbb6ecd3c29c9b57e7482d7219eed1cacd9b76"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_plantmine.gm",
+      "bytes": 1840,
+      "sha256": "bacc78b7c51ecb05c76702fbce1b88e6411fee64a52f6210e8d648cf52c3c826"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_repairmg42.gm",
+      "bytes": 2209,
+      "sha256": "7f6aa3bf600fd7eb5759b004d507f9d154c6ca8472b294d36a477045955ca453"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_revive.gm",
+      "bytes": 1741,
+      "sha256": "9e4843bc2e009d03a26e683458df2e29446dc5f0689f86bb51b965b9d225da93"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_ride.gm",
+      "bytes": 7504,
+      "sha256": "466c91b7d1cf73e38901e1122a76a5c1127f56f181cc7ca38f5959d87f48f247"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_smokebomb.gm",
+      "bytes": 4279,
+      "sha256": "20410cf65f5bad5e973729f4d32f9a789f9a3acb01d3dd736b950cfe15a41edc"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_snipe.gm",
+      "bytes": 1430,
+      "sha256": "6d9a9f75e28181e7317bb94322c0e046ef4a9160b3dba340b0942795ad4eb8a3"
+    },
+    {
+      "path": "et/scripts/mapgoals/mapgoal_tripmine.gm",
+      "bytes": 3914,
+      "sha256": "f73fc466c7832acb5024ddc5e69fed765a758ccacd251481999d853a641d9c96"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_adrenaline.gm",
+      "bytes": 141,
+      "sha256": "4c3fc82ad4d547bc834a6ac4465fc0e806499dc22ab05931ee3be5bc174de12f"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_akimbo_colt.gm",
+      "bytes": 212,
+      "sha256": "d789e4f42c23b39eecfeae6f7e7426d364809406a21d8822fd9a3073f0acc587"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_akimbo_luger.gm",
+      "bytes": 214,
+      "sha256": "1fb6fca0dae7380bdc43338cc4cdeedff5d08d608db5c6553b72f9f91efcf01c"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_akimbo_silenced_colt.gm",
+      "bytes": 230,
+      "sha256": "626f7f4ea8a68f97217b068afb00a58b491f65091a20f97f2908656354cb5bbe"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_akimbo_silenced_luger.gm",
+      "bytes": 232,
+      "sha256": "571196e834e7ed7b4e1f07689f10058c1048d3e19d3b237a10bb3ff69825d975"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_ammopack.gm",
+      "bytes": 248,
+      "sha256": "22b1ded7399d471ad804dd17fa5b8850ecf0a3125ee3ffef8f5006f30650f244"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_bastardmod_bastard_bomb.gm",
+      "bytes": 515,
+      "sha256": "89e94a6dd0532b344193c654d167613c9cd941317bd0545a7e0bf5470aa3c629"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_bastardmod_bat.gm",
+      "bytes": 393,
+      "sha256": "94d4f630e48146916a055d883c1b7911bd11b4066acb4b3b9c956b325c6014c9"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_bastardmod_fg42.gm",
+      "bytes": 268,
+      "sha256": "bfb999eda9431afce2c2d4fa7cf921f161acee70094c939e32a9330d0e6487a2"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_bastardmod_fg42_scoped.gm",
+      "bytes": 619,
+      "sha256": "2f4ca9d60961f9f4030a5f6514a29e7832913f0d8c8679d7fe0971638c58194c"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_bastardmod_madsen.gm",
+      "bytes": 250,
+      "sha256": "08d2531b1098f93e100d32f9b85c6cf93c7fa66f0e481e65cec9f118f5f967a2"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_bastardmod_minigun.gm",
+      "bytes": 362,
+      "sha256": "2aa44b07be03bc816e206c3fee6616e8487229f9eca43ee8dff59901aeabea06"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_bastardmod_mountain_falcon.gm",
+      "bytes": 316,
+      "sha256": "06fbeefc964c4a2921fdbf784fecdf42274d6974018732c99ef64eb5f5f84fbf"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_bastardmod_mp28.gm",
+      "bytes": 244,
+      "sha256": "405a4c4e49a968b462ec697f13dc7738d6c366d536351fca42105efbfac509fd"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_bastardmod_scrooge.gm",
+      "bytes": 303,
+      "sha256": "be00a86618915dac2ca476111248b53cbd0ff6b5eb299958e7e0a4e17c1b852a"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_binoculars.gm",
+      "bytes": 500,
+      "sha256": "74411e1cd4856d7f709aecfd79352aa52a29fccd19cb6bb7fcb56a43b1130b4e"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_carbine.gm",
+      "bytes": 419,
+      "sha256": "8bbb5f58c5cff8e2dc7881fbae939f8801639d3147a5bdf05a95d506fa0760dc"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_colt.gm",
+      "bytes": 198,
+      "sha256": "5dc5341f4dc0c2f1203113d5c5e1d1940debb374b3118c23daf97f9b6016edf8"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_defaults.gm",
+      "bytes": 5052,
+      "sha256": "dd1bcefdd7f4222dbf8fd268b1d1bb23cd863117988e199decc358ce0495ea75"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_dynamite.gm",
+      "bytes": 283,
+      "sha256": "5d64721324cc6b4e19c4d4ad5f59ac5e1d15423619c84da880d045f9d891edc3"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etblight_chainsaw.gm",
+      "bytes": 339,
+      "sha256": "e9da22cc5f3b23ca10d2687cf184f57d24e85247a82181a23d6601709753eee0"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etblight_destroyer.gm",
+      "bytes": 354,
+      "sha256": "010174c60a935841972568b9e6ccfb36fc9cf24143810c0fe5a33f6fa16fa45f"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etblight_destroyer_set.gm",
+      "bytes": 264,
+      "sha256": "0df91f567703203e1cc639a016acf28265b5ac5cc2161a8e05fe0ff9c9c0a0af"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etblight_madsen.gm",
+      "bytes": 249,
+      "sha256": "382ec388339b709cff3ceb0c1754f2119f605fb2a59983bfdde3f6db3aa93fa4"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etblight_mp34.gm",
+      "bytes": 246,
+      "sha256": "3e27c1235e8060ca7fb1588e3bb3ff61d672dbe995e026b3818cc0c7aa2d730a"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etblight_mp40ss.gm",
+      "bytes": 289,
+      "sha256": "19f326ea6a1f312da30d92af1f65bea1c863c54899d48fdaa80ca115c10876e4"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etblight_mp40ss_scoped.gm",
+      "bytes": 603,
+      "sha256": "5f973b98813fa04350add68bdd5336a1d818e927ce1552bcc11fcad28f605a14"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etblight_mp41.gm",
+      "bytes": 243,
+      "sha256": "5af002614b720a738b54e3b83e4eeab9c38bb2b81c02f7395ef08c765f01a7d5"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etblight_ppsh.gm",
+      "bytes": 289,
+      "sha256": "c734f439ba010ce52ac109c688510bee6430dd6607a1f1e38371183ff2a35e46"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etblight_proto.gm",
+      "bytes": 293,
+      "sha256": "e0c318b441b9bf8802cf7306deba84f379e90d0bbbb4db74c09ffd9a075d4df1"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etblight_proto_scoped.gm",
+      "bytes": 645,
+      "sha256": "6ef3a8c44f540b719f5272994b5ccc4c36b395f152a682c5f7905b413ef522b6"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etblight_q3x1.gm",
+      "bytes": 243,
+      "sha256": "ab243b6d0d068d0765fc7a3f48b678ecabcd4947bc0f412d5aedd5f5fe02b788"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etblight_supersmg.gm",
+      "bytes": 309,
+      "sha256": "48194b5536aaef2d410c85c8b8a1222b7abe80945b958c0d68a63a90cd64c036"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etnam_akimbo_mac10.gm",
+      "bytes": 357,
+      "sha256": "12d3cf381d02671682f1a87ae59cd4d0a8a45191d73c116dc759f4fef827395d"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etnam_gps.gm",
+      "bytes": 217,
+      "sha256": "1471a5e3891b8325c0384f79aa24a8760928b3a4a8df8c73ac3275bb351faeb2"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etnam_ithaca.gm",
+      "bytes": 453,
+      "sha256": "52152f01cff496040780a81a2aec468028c09e46e77f438ab4520d9df17e5f46"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etnam_law.gm",
+      "bytes": 686,
+      "sha256": "a37b43bfef974a012f56bdf357e47f08e5779889d61ed0a9728bd4d4fab21496"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etnam_m3a1.gm",
+      "bytes": 270,
+      "sha256": "73eaf85bb0cbb0d98764f8acdb62cc384628ace3565ab1b41e3e4de4c763b73b"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etnam_m79.gm",
+      "bytes": 644,
+      "sha256": "86e5f6458390732340cb262f72baab25f677d52440b4c257e6996dc630ee6b29"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etnam_napalm.gm",
+      "bytes": 583,
+      "sha256": "e702d35be954816c380fdec52599eb7376deb067fef0002bf5641bab24d10ce2"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etnam_revolver.gm",
+      "bytes": 256,
+      "sha256": "77cf6fa55fbc78b5264bd5deaceda367e0bd596ffbf2ac85c63adfefc9ce692a"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etnam_rpd.gm",
+      "bytes": 267,
+      "sha256": "7da7f7aeaf8182829c5da84afda462d46ab6b00c4ed2f00c073a4b23fe62176d"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etnam_s_ak47.gm",
+      "bytes": 273,
+      "sha256": "c4e1d459e5e1fe40087b714b2971a553435f185facd4ab85e0f04fe06e1a61cf"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_etnam_s_ak47_scoped.gm",
+      "bytes": 625,
+      "sha256": "65a128391654bbba00ce8d4ea350dcbe937f3512797aace8e5e0a16d748168e6"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_fg42.gm",
+      "bytes": 224,
+      "sha256": "d164dadd05335df47ce346bd69e9bca205727b90453c5a46205f7ede98e2ccbc"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_fg42_scoped.gm",
+      "bytes": 530,
+      "sha256": "bcabe85dbe8d2bae05ec679839096911d723b91a3e142cab8fbd91f7314f8e8c"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_flamethrower.gm",
+      "bytes": 330,
+      "sha256": "45bcd21956fe9f6b175a6d5bd75568fe538ed294565144a125dfe6591d69076d"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_garand.gm",
+      "bytes": 362,
+      "sha256": "afae506de868a7906b798e5208d54f72846e2e1fa30796cb5646fccf31881258"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_garand_scope.gm",
+      "bytes": 572,
+      "sha256": "104d3f3335c00559c1da55e2ba8343ae5f621d79e0c4d7b13a6f778e31a20dd9"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_gpg40.gm",
+      "bytes": 547,
+      "sha256": "c105b7044f7d17ed43324d056cbb33b2510cafdf1b575c63dec51c18b0f2a05d"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_grenade_allies.gm",
+      "bytes": 495,
+      "sha256": "c712f531690c6dc3aefe6ca5c5847c53e2e42662e3c366cd08b5f961ed3be762"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_grenade_axis.gm",
+      "bytes": 495,
+      "sha256": "39e6bd1bc48911a2dcf13ab97740a0a5ba0475f8641e16062f53117587746f38"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_jaymod_adrenalineshare.gm",
+      "bytes": 225,
+      "sha256": "a5a4476c2c633527d4c1dd1a577ae4f89b27034f8c5b8ccc8bd1eb51b9db1c60"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_jaymod_landmine_bbetty.gm",
+      "bytes": 234,
+      "sha256": "48d4c5f5bdf4925a540ad131b464a00b6c1cd69966850a27dfeb3738c71597a1"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_jaymod_landmine_poisongas.gm",
+      "bytes": 217,
+      "sha256": "248062d3ed13812887586166422bdd0e47c19616dd8c7d6d234fca57ceb5fad2"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_jaymod_m97shotgun.gm",
+      "bytes": 378,
+      "sha256": "45ae81165f8972730ad6cd00c21d08a828b82292212b9fd1748ca520db12dcad"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_jaymod_poisongas.gm",
+      "bytes": 312,
+      "sha256": "6d4f8728bdba54345f47bd19c5d61f8bb0ba80416f34dbc42d3656ade99f19c2"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_jaymod_poisonsyringe.gm",
+      "bytes": 313,
+      "sha256": "9fd1fb4e9f7ad0d8707164b7db9ff655c37ef92800c673d4a25b09589cfda400"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_k43.gm",
+      "bytes": 222,
+      "sha256": "60ade80167d8b1a67173ec33cbbbeec2e5ef06768b4d84a9f58069668e054a3e"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_k43_scoped.gm",
+      "bytes": 610,
+      "sha256": "90a389295543068749740c3d015e016d2e2d7bc722a97085987a76f55aa39f0d"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_kar98.gm",
+      "bytes": 256,
+      "sha256": "415556c83e9bcbdf8cf7f27fd077da14608cb12eb93139415c4731a95e77dfc0"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_knife.gm",
+      "bytes": 1637,
+      "sha256": "b681fb032b84f8aded492e81d36be858d001b8f710a0e51c65ac2978082521fe"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_landmine.gm",
+      "bytes": 177,
+      "sha256": "db621bee4c9778254fd53ec383631be0201eab3f3fed43d57b09658ebd9423ee"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_luger.gm",
+      "bytes": 200,
+      "sha256": "0edb3fd6da247bc7055f400eb549d9ac272644807cc2da4e8f8656d9ea940d12"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_m7.gm",
+      "bytes": 554,
+      "sha256": "f5ddade98b2f3081da58bfe256a36cc1ecd82eb06a27af339f8f96886a43fab3"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_medkit.gm",
+      "bytes": 246,
+      "sha256": "a2c5967ae10041d1a4ad73c89eb3cbb62f5577972422191a4d0548695279c210"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_mobile_mg42.gm",
+      "bytes": 386,
+      "sha256": "a71580d188d0cf9d6043cadfc2e3d6d7e81be1c393b02aeb4ed0400bb24b5b5f"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_mobile_mg42_set.gm",
+      "bytes": 230,
+      "sha256": "017e78adb56669428be5fa8a7c474892cd3c3c0dfdfb88c43249c29fd5be6e23"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_mortar.gm",
+      "bytes": 609,
+      "sha256": "8f348e39ed56243458cfe7a1a89e32dcbd4c0a64ad8e8b8e0d8b0bf7591754c1"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_mortar_set.gm",
+      "bytes": 617,
+      "sha256": "8c588418328a5eb5991471dcacb5bfd9b148fd5380403f356625172d20c475c7"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_mountable_mg42.gm",
+      "bytes": 205,
+      "sha256": "855b4e97e5b4cd182b785e801935e33d70dcbad829824e03b5f54eebfc45d95d"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_mp40.gm",
+      "bytes": 224,
+      "sha256": "81b21aa196d2a4eebe75aea275acb7b6943f748a34a52bbac9bbbbec5d766e05"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_noquarter_bar.gm",
+      "bytes": 241,
+      "sha256": "cf4e3551710f73770bd5a7c09be06af23dd4dfb10063adb3b8478c71d5f546a9"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_noquarter_bar_set.gm",
+      "bytes": 375,
+      "sha256": "8d6897c977c55c67e05bdb00b3d2e7340ffe76372a6a9e860579fa44f8b10e4e"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_noquarter_bazooka.gm",
+      "bytes": 721,
+      "sha256": "cf0e6b34c52a1c13c183108a4753f7a1c50a0258efb4e9e171ba46cd7cb89ac9"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_noquarter_footkick.gm",
+      "bytes": 305,
+      "sha256": "a5da9625485b6e411d8063c2ffc0ce15ce15f8d4b3c8ffe9da9a51446929bfdf"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_noquarter_johnson.gm",
+      "bytes": 254,
+      "sha256": "9679c0ec7e96dd434e5e1f2f02379135e8a3c4e3d7cf0041fd1bd9c7ce100781"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_noquarter_johnson_scoped.gm",
+      "bytes": 610,
+      "sha256": "a66be6c61681e06c6c6ed091665368e6e1ea5a710915999e96c0d15c4b563d56"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_noquarter_mp34.gm",
+      "bytes": 301,
+      "sha256": "d504055aa05a4708682a3dbd1fc4257845ada702fdab9704e68c5b45611a7d37"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_noquarter_poisonsyringe.gm",
+      "bytes": 314,
+      "sha256": "da63c79f53c1fae95d5555d1cd5e4dc4b428d4f6323a0a39245ab7d3550f0cdf"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_noquarter_shotgun.gm",
+      "bytes": 348,
+      "sha256": "f166888842428f46711539ab6b5a6dcb72c8c3edfe943afee9406b0b274a47ac"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_noquarter_stenmk2.gm",
+      "bytes": 257,
+      "sha256": "5efcf8cf873c2e601ed55fa689069150ca74cfc450946463968e819906ae89cc"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_noquarter_stg44.gm",
+      "bytes": 247,
+      "sha256": "6ff5ddbaaa8dbb5a7f11537d58e073a1594871277869d3e1eafb40b432ce2367"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_noquarter_venom.gm",
+      "bytes": 588,
+      "sha256": "b2f3b5ca76dafd5aa421016810a66d7df5ef6203082f070bd471139c7413b585"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_panzerfaust.gm",
+      "bytes": 570,
+      "sha256": "dc9666371627f0766098e0aae55020e3e09581f33bc228b25c74905d88029d3e"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_pliers.gm",
+      "bytes": 254,
+      "sha256": "035aa2fcaad78bff021fd2fb2e23565e23815fe652368d85834923ca94119611"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_satchel.gm",
+      "bytes": 287,
+      "sha256": "bfec01fbfcce729b8ec4f2ac6ec8e7c3578a1d07d40527f52e9d721e69741f8a"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_satchel_det.gm",
+      "bytes": 261,
+      "sha256": "bd81d58d0f179a1d81f7f0a8685a33554ec2dc1e9cfde20751b298fd93726304"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_silenced_colt.gm",
+      "bytes": 216,
+      "sha256": "9a6725885b0f90a3f150bd04a73330bd8494f94ccb78dd057ec13cfadea86a24"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_silenced_luger.gm",
+      "bytes": 218,
+      "sha256": "2123282fb7b19ae3ea2c13dc7e52cd4aed5b24d47f68b4a4962314eb05575264"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_silent_ppsh.gm",
+      "bytes": 302,
+      "sha256": "6758e3a46e2d708e1afb6dd3bcae63ad5d557028083058d2961f5822cfb0b50c"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_silent_tripmine.gm",
+      "bytes": 238,
+      "sha256": "1cb8bc9e2833d1446fdc6f57e4185190d834bc1c48cd34161138108e0470511f"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_smoke_grenade.gm",
+      "bytes": 303,
+      "sha256": "fe6819d94cdd8ff3b55eb1910952eab77dc43101e322ee4ee963bb2c8746cccd"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_smoke_marker.gm",
+      "bytes": 1150,
+      "sha256": "bd394d4f3b320b589514eb1335a14ed933411a446081da469c561c35c5a64195"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_sten.gm",
+      "bytes": 179,
+      "sha256": "e58e534c8aca5888a3cc482e9d7bded79c1724d13e4d3a6d00e1d99e2740943f"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_syringe.gm",
+      "bytes": 209,
+      "sha256": "ecd7b971b78078ee3e3f0ea09ba2354d93e23bc5caee1862aa912a575f3f69b0"
+    },
+    {
+      "path": "et/scripts/weapons/weapon_thompson.gm",
+      "bytes": 232,
+      "sha256": "b39374fc0a3881b107fb05e6cddfefae091df2fe28a2a93e85bb9ca5c868a0c8"
+    },
+    {
+      "path": "et/nav/obj_delta.way",
+      "bytes": 18691,
+      "sha256": "81141b1f5b03ba258703529658772cbc8a756b330c170aca194b5bb6a8616945",
+      "source": "tce2/omni-bot/et/nav/obj_delta.way",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_delta.way"
+    },
+    {
+      "path": "et/nav/obj_delta_gt2.gm",
+      "bytes": 2649,
+      "sha256": "6830fb9abe002a1d089a6484fa687c3f0a4750c5fa7d083c92e13832269d0295",
+      "source": "tce2/omni-bot/et/nav/obj_delta_gt2.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_delta_gt2.gm"
+    },
+    {
+      "path": "et/nav/obj_delta_gt2_goals.gm",
+      "bytes": 10543,
+      "sha256": "f2616b63b21a9e1d6fb85a1a027607686773f97298bd7edf4a80fbc39f13e070",
+      "source": "tce2/omni-bot/et/nav/obj_delta_gt2_goals.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_delta_gt2_goals.gm"
+    },
+    {
+      "path": "et/nav/obj_delta_gt5.gm",
+      "bytes": 2593,
+      "sha256": "a2cec657ef15fa50abd801149d84d7303a4f695874bee5f3db728e62ea139122",
+      "source": "tce2/omni-bot/et/nav/obj_delta_gt5.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_delta_gt5.gm"
+    },
+    {
+      "path": "et/nav/obj_delta_gt5_goals.gm",
+      "bytes": 10011,
+      "sha256": "cde06d8ee2018c5ca1303492507b44a9cfe8af3b1754604111f2413837147018",
+      "source": "tce2/omni-bot/et/nav/obj_delta_gt5_goals.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_delta_gt5_goals.gm"
+    },
+    {
+      "path": "et/nav/obj_northport.way",
+      "bytes": 27198,
+      "sha256": "0fc465c275a40994d064ac598d7983c212f310dc19b5704a113d7635ef90e128",
+      "source": "tce2/omni-bot/et/nav/obj_northport.way",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_northport.way"
+    },
+    {
+      "path": "et/nav/obj_northport_gt2.gm",
+      "bytes": 2719,
+      "sha256": "129e0d95c4caf350a1d5b8335e050286fedb3c5a56b8e4f757f993c00343e9d9",
+      "source": "tce2/omni-bot/et/nav/obj_northport_gt2.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_northport_gt2.gm"
+    },
+    {
+      "path": "et/nav/obj_northport_gt2_goals.gm",
+      "bytes": 10647,
+      "sha256": "608c3daf36751c5f6b8c4546fda216ebd2458f6ce83e21e5817f27b63d59080f",
+      "source": "tce2/omni-bot/et/nav/obj_northport_gt2_goals.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_northport_gt2_goals.gm"
+    },
+    {
+      "path": "et/nav/obj_northport_gt5.gm",
+      "bytes": 2658,
+      "sha256": "b869443329867022ef8eaf1bee1561155d7cc9cb12cb7d2a16aab6b8ffa8d382",
+      "source": "tce2/omni-bot/et/nav/obj_northport_gt5.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_northport_gt5.gm"
+    },
+    {
+      "path": "et/nav/obj_northport_gt5_goals.gm",
+      "bytes": 10098,
+      "sha256": "450b90d734b0688e6f4e24d298ea75b4a38871c590f058caca7344bf9b86e9ac",
+      "source": "tce2/omni-bot/et/nav/obj_northport_gt5_goals.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_northport_gt5_goals.gm"
+    },
+    {
+      "path": "et/nav/obj_railhouse.way",
+      "bytes": 25156,
+      "sha256": "fcc00eeb759ce9ce2d3cacc43e5fbc474dc509b6329b6853603afe68d95f4d4d",
+      "source": "tce2/omni-bot/et/nav/obj_railhouse.way",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_railhouse.way"
+    },
+    {
+      "path": "et/nav/obj_railhouse_gt2.gm",
+      "bytes": 2671,
+      "sha256": "d43c083df27961bd4e1244a131b1797fc53810365c14bc94fd198c596b6857d3",
+      "source": "tce2/omni-bot/et/nav/obj_railhouse_gt2.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_railhouse_gt2.gm"
+    },
+    {
+      "path": "et/nav/obj_railhouse_gt2_goals.gm",
+      "bytes": 10589,
+      "sha256": "c73f26f398d85e5b7fa89186c00937d815b415a6e8c81a5dc4da0f2d2c78dcb3",
+      "source": "tce2/omni-bot/et/nav/obj_railhouse_gt2_goals.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_railhouse_gt2_goals.gm"
+    },
+    {
+      "path": "et/nav/obj_railhouse_gt5.gm",
+      "bytes": 2583,
+      "sha256": "c3684037edb8ea1d24fa2b33a195559169a96508b54a1246762fffdea7feb547",
+      "source": "tce2/omni-bot/et/nav/obj_railhouse_gt5.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_railhouse_gt5.gm"
+    },
+    {
+      "path": "et/nav/obj_railhouse_gt5_goals.gm",
+      "bytes": 10027,
+      "sha256": "6764ec6225d81340679caefc97d06c44a8ab7d995bc687d6436061be8237503f",
+      "source": "tce2/omni-bot/et/nav/obj_railhouse_gt5_goals.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_railhouse_gt5_goals.gm"
+    },
+    {
+      "path": "et/nav/obj_snow.way",
+      "bytes": 25182,
+      "sha256": "26cba8f6e261da63cb84d78e44a62abc5d75d8934a40428dc8ded0ce4786f87e",
+      "source": "tce2/omni-bot/et/nav/obj_snow.way",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_snow.way"
+    },
+    {
+      "path": "et/nav/obj_snow_gt2.gm",
+      "bytes": 2709,
+      "sha256": "b0e5241303819a1a156f58822da15190805b84fb8da243bc7af117734cc9ba40",
+      "source": "tce2/omni-bot/et/nav/obj_snow_gt2.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_snow_gt2.gm"
+    },
+    {
+      "path": "et/nav/obj_snow_gt2_goals.gm",
+      "bytes": 10612,
+      "sha256": "6f34d2c52b1104fbd592645ccb6019e36ab049ec6c3c6f51c03785a6608adad0",
+      "source": "tce2/omni-bot/et/nav/obj_snow_gt2_goals.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_snow_gt2_goals.gm"
+    },
+    {
+      "path": "et/nav/obj_snow_gt5.gm",
+      "bytes": 2649,
+      "sha256": "81bd44ba8059ee0d265c85559ead2fb6421da1a2f0e1b0b4d345e26d0852f6fe",
+      "source": "tce2/omni-bot/et/nav/obj_snow_gt5.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_snow_gt5.gm"
+    },
+    {
+      "path": "et/nav/obj_snow_gt5_goals.gm",
+      "bytes": 10082,
+      "sha256": "e79fcde1e1e8b916becf6609033a9fc9aa350d2dc7f849196f491aedb4010752",
+      "source": "tce2/omni-bot/et/nav/obj_snow_gt5_goals.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_snow_gt5_goals.gm"
+    },
+    {
+      "path": "et/nav/obj_stadtrand.way",
+      "bytes": 23672,
+      "sha256": "1c8a1cdcb4f6034245b699d56b13b26e3a9c9ec83b364d08888a216e6ae18bd0",
+      "source": "tce2/omni-bot/et/nav/obj_stadtrand.way",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_stadtrand.way"
+    },
+    {
+      "path": "et/nav/obj_stadtrand_gt2.gm",
+      "bytes": 2642,
+      "sha256": "329fb05a65f8e84321e3dab753c8944f225c0afa6165821b36f903d76adb790e",
+      "source": "tce2/omni-bot/et/nav/obj_stadtrand_gt2.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_stadtrand_gt2.gm"
+    },
+    {
+      "path": "et/nav/obj_stadtrand_gt2_goals.gm",
+      "bytes": 10575,
+      "sha256": "493f4679ad6cdb3aaa4c320130a5283e029c1a1f45c1b1d21119852f9754dca1",
+      "source": "tce2/omni-bot/et/nav/obj_stadtrand_gt2_goals.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_stadtrand_gt2_goals.gm"
+    },
+    {
+      "path": "et/nav/obj_stadtrand_gt5.gm",
+      "bytes": 2617,
+      "sha256": "7aa5b9172c85cb59e1dca62c4490685179566a8572b1b2586d8fe3d81e3917e6",
+      "source": "tce2/omni-bot/et/nav/obj_stadtrand_gt5.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_stadtrand_gt5.gm"
+    },
+    {
+      "path": "et/nav/obj_stadtrand_gt5_goals.gm",
+      "bytes": 10087,
+      "sha256": "0961110ca9c4135dd716921bf5175e9e8dcba20f70dd914b23698d34bbdab3bf",
+      "source": "tce2/omni-bot/et/nav/obj_stadtrand_gt5_goals.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_stadtrand_gt5_goals.gm"
+    },
+    {
+      "path": "et/nav/obj_village.way",
+      "bytes": 32628,
+      "sha256": "d705414f5971f78ab771d0e542708e7322dcd3fe5b05ee20699640ce538f8389",
+      "source": "tce2/omni-bot/et/nav/obj_village.way",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_village.way"
+    },
+    {
+      "path": "et/nav/obj_village_gt2.gm",
+      "bytes": 2693,
+      "sha256": "a4f09b72366c9a1ba0d79149706a11f3f017e2fc3cb0647083968b56e564f74c",
+      "source": "tce2/omni-bot/et/nav/obj_village_gt2.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_village_gt2.gm"
+    },
+    {
+      "path": "et/nav/obj_village_gt2_goals.gm",
+      "bytes": 10626,
+      "sha256": "8bdcb5bf313189304c1913b5fafd2ec922843e209d16c93af23e28b19c1ae200",
+      "source": "tce2/omni-bot/et/nav/obj_village_gt2_goals.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_village_gt2_goals.gm"
+    },
+    {
+      "path": "et/nav/obj_village_gt5.gm",
+      "bytes": 2665,
+      "sha256": "ee30d39b79499f5610fc8a8c23a13396d587be597a6726d57ee8b894e6ac2006",
+      "source": "tce2/omni-bot/et/nav/obj_village_gt5.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_village_gt5.gm"
+    },
+    {
+      "path": "et/nav/obj_village_gt5_goals.gm",
+      "bytes": 10109,
+      "sha256": "f8a388a582ad0218315047893e5b176f520c333d1799b3effc874adeb7cacb6e",
+      "source": "tce2/omni-bot/et/nav/obj_village_gt5_goals.gm",
+      "verified_identical": "dist/TCE2-TCE-Standard-Waypoints-GT2-GT5-20261014/nav/obj_village_gt5_goals.gm"
+    },
+    {
+      "path": "release_mapscripts/obj_delta_gt2.script",
+      "bytes": 3092,
+      "sha256": "c9cfa718531a3bbf49ac9e0ff75156eebc4dfd6b765171717c3d0a3c5782ae7d",
+      "source": "tce2/pak4.pk3",
+      "source_entry": "maps/obj_delta_gt2.script"
+    },
+    {
+      "path": "release_mapscripts/obj_delta_gt5.script",
+      "bytes": 3424,
+      "sha256": "d596fc097a4ac98aaf7c69c3eea97800bb484cd32cda98c15b7eb5129c1c1442",
+      "source": "tce2/pak3.pk3",
+      "source_entry": "maps/obj_delta_gt5.script"
+    },
+    {
+      "path": "release_mapscripts/obj_northport_gt2.script",
+      "bytes": 3094,
+      "sha256": "68c59c5eb8835b39bf9823e1409de43bc76cedd0b7a10c75e3090d4ea60d174e",
+      "source": "tce2/pak4.pk3",
+      "source_entry": "maps/obj_northport_gt2.script"
+    },
+    {
+      "path": "release_mapscripts/obj_northport_gt5.script",
+      "bytes": 3424,
+      "sha256": "d596fc097a4ac98aaf7c69c3eea97800bb484cd32cda98c15b7eb5129c1c1442",
+      "source": "tce2/pak3.pk3",
+      "source_entry": "maps/obj_northport_gt5.script"
+    },
+    {
+      "path": "release_mapscripts/obj_railhouse_gt2.script",
+      "bytes": 3094,
+      "sha256": "68c59c5eb8835b39bf9823e1409de43bc76cedd0b7a10c75e3090d4ea60d174e",
+      "source": "tce2/pak4.pk3",
+      "source_entry": "maps/obj_railhouse_gt2.script"
+    },
+    {
+      "path": "release_mapscripts/obj_railhouse_gt5.script",
+      "bytes": 3388,
+      "sha256": "ef875400da282202c9a147781ae888ff2b8de7604f6e7e16aadac8e87952ed41",
+      "source": "tce2/pak4.pk3",
+      "source_entry": "maps/obj_railhouse_gt5.script"
+    },
+    {
+      "path": "release_mapscripts/obj_snow_gt2.script",
+      "bytes": 3094,
+      "sha256": "132ee499e6cfad3c54d018894e55c0b6539a9b5de9bf8f6ca0bcde7960ba92e8",
+      "source": "tce2/pak4.pk3",
+      "source_entry": "maps/obj_snow_gt2.script"
+    },
+    {
+      "path": "release_mapscripts/obj_snow_gt5.script",
+      "bytes": 3424,
+      "sha256": "49bee714984da9f27dc1300eb5509a6824047d86d6ceb19e42fed629f7808289",
+      "source": "tce2/pak3.pk3",
+      "source_entry": "maps/obj_snow_gt5.script"
+    },
+    {
+      "path": "release_mapscripts/obj_stadtrand_gt2.script",
+      "bytes": 3092,
+      "sha256": "c9cfa718531a3bbf49ac9e0ff75156eebc4dfd6b765171717c3d0a3c5782ae7d",
+      "source": "tce2/pak4.pk3",
+      "source_entry": "maps/obj_stadtrand_gt2.script"
+    },
+    {
+      "path": "release_mapscripts/obj_stadtrand_gt5.script",
+      "bytes": 3424,
+      "sha256": "d596fc097a4ac98aaf7c69c3eea97800bb484cd32cda98c15b7eb5129c1c1442",
+      "source": "tce2/pak3.pk3",
+      "source_entry": "maps/obj_stadtrand_gt5.script"
+    },
+    {
+      "path": "release_mapscripts/obj_village_gt2.script",
+      "bytes": 3101,
+      "sha256": "574b62aa37df2caaf04bcf7c4cf9e41de276bf21e09b1a0294e667ea66987151",
+      "source": "tce2/pak4.pk3",
+      "source_entry": "maps/obj_village_gt2.script"
+    },
+    {
+      "path": "release_mapscripts/obj_village_gt5.script",
+      "bytes": 3427,
+      "sha256": "b5e62cbf1e7a983145386e7fb77831fc81185a54cc967c53a1852ec6492f5ac6",
+      "source": "tce2/pak3.pk3",
+      "source_entry": "maps/obj_village_gt5.script"
+    }
+  ],
+  "navigation_scope": {
+    "maps": [
+      "obj_delta",
+      "obj_northport",
+      "obj_railhouse",
+      "obj_snow",
+      "obj_stadtrand",
+      "obj_village"
+    ],
+    "gametypes": [
+      2,
+      5
+    ],
+    "generated_now": false,
+    "full_map_verified": false,
+    "mission_behavior_complete": false,
+    "note": "Existing30-file gameplay bundle was previously audited; no new navigation generation or live mission certification is implied."
+  }
+}

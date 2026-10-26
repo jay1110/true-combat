@@ -1,0 +1,11 @@
+#define WIN32_LEAN_AND_MEAN
+#define NOGDI
+#include "../ui/ui_shared.c"
+#include <windows.h>
+#include <stdio.h>
+#include <assert.h>
+static int prints;static void printer(const char*fmt,...){assert(!strcmp(fmt,"UI_Alloc: Failure. Out of memory!\n"));++prints;}
+int main(int argc,char**argv){HMODULE h;unsigned char*b;displayContextDef_t dc;int cb,p,s,i,cases=0,contract,delta=0,referenceSize=1536*1024;int points[]={0,1,15,16,1023,MEM_POOL_SIZE-17,MEM_POOL_SIZE-16,MEM_POOL_SIZE-1,MEM_POOL_SIZE};int sizes[]={0,1,2,15,16,17,31,32,33,1024,MEM_POOL_SIZE};assert(argc==2||argc==3);contract=argc==3&&!strcmp(argv[2],"--capacity-contract");assert(argc==2||contract);if(contract){points[5]=referenceSize-17;points[6]=referenceSize-16;points[7]=referenceSize-1;points[8]=referenceSize;sizes[10]=referenceSize;delta=MEM_POOL_SIZE-referenceSize;}h=LoadLibraryA(argv[1]);assert(h);b=(unsigned char*)h;memset(&dc,0,sizeof(dc));Init_Display(&dc);*(void**)(b+0x245fa4)=&dc;
+for(cb=0;cb<2;++cb)for(p=0;p<9;++p)for(s=0;s<11;++s){void*a,*c;int ap,om,np;dc.Print=cb?printer:NULL;*(int*)(b+0x65f74)=points[p];allocPoint=points[p]+delta;*(int*)(b+0x63f70)=outOfMemory=s%2;prints=0;a=((void*(__cdecl*)(int))(b+0x148a0))(sizes[s]);ap=*(int*)(b+0x65f74);om=*(int*)(b+0x63f70);np=prints;prints=0;c=UI_Alloc(sizes[s]);assert((a==NULL)==(c==NULL));if(a)assert((unsigned char*)a-(b+0xc5f78)==(char*)c-memoryPool-delta);assert(ap+delta==allocPoint&&om==outOfMemory&&np==prints);++cases;}
+for(i=0;i<20;++i){*(int*)(b+0x65f74)=allocPoint=i*137;*(int*)(b+0x63f70)=outOfMemory=i;memoryPool[0]=(char)i;b[0xc5f78]=(unsigned char)i;((void(__cdecl*)(void))(b+0x148f0))();UI_InitMemory();assert(allocPoint==*(int*)(b+0x65f74)&&outOfMemory==*(int*)(b+0x63f70));assert(memoryPool[0]==(char)b[0xc5f78]&&memoryPool[0]==(char)i);++cases;}
+if(contract){void*a,*c;dc.Print=printer;prints=0;*(int*)(b+0x65f74)=allocPoint=referenceSize;*(int*)(b+0x63f70)=outOfMemory=0;a=((void*(__cdecl*)(int))(b+0x148a0))(16);assert(a==NULL&&prints==1);prints=0;c=UI_Alloc(16);assert(c==memoryPool+referenceSize&&allocPoint==referenceSize+16&&!outOfMemory&&!prints);++cases;printf("%d UI allocation compatibility checks passed: normalized native capacity boundaries plus explicit extension beyond1536KiB; not strict capacity parity.\n",cases);}else printf("%d original UI pool comparisons passed\n",cases);FreeLibrary(h);return 0;}

@@ -1,0 +1,12 @@
+// TC gear slot; actual asset and ammunition are supplied by the server.
+this.Name = "TC G3";
+this.WeaponId = WEAPON.G3;
+this.PrimaryFire.WeaponType = "grenade";
+this.PrimaryFire.HasClip = false;
+this.PrimaryFire.IgnoreReload = true;
+this.PrimaryFire.ProjectileSpeed = 900;
+this.PrimaryFire.ProjectileGravity = 1.0;
+this.PrimaryFire.FireOnRelease = true;
+this.PrimaryFire.FuseTime = 4.0;
+// Tactical flash/smoke: available for explicit requests; not lethal bullet AI.
+this.PrimaryFire.DefaultDesirability = 0.0;

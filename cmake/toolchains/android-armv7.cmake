@@ -1,0 +1,6 @@
+set(ANDROID_ABI armeabi-v7a CACHE STRING "Android ABI" FORCE)
+if(NOT TCE_ANDROID_API)
+  set(TCE_ANDROID_API 23 CACHE STRING "Android API")
+endif()
+set(ANDROID_PLATFORM "android-${TCE_ANDROID_API}" CACHE STRING "Android API")
+include("${CMAKE_CURRENT_LIST_DIR}/android-ndk.cmake")

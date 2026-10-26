@@ -1,0 +1,167 @@
+{
+  "pk3_sha256": "a13b87fb7ff5a75fa9cf24f19afb5665f3fae37c5030a5c5a9548388a17ffccd",
+  "entities": [
+    {
+      "bsp_entity": 1,
+      "properties": {
+        "model": "*1",
+        "type": "5",
+        "lip": "0",
+        "wait": "4",
+        "speed": "160",
+        "angle": "90",
+        "key": "0",
+        "targetname": "navstudio_sliding",
+        "classname": "func_door"
+      },
+      "model_mins": [
+        504.0,
+        -64.0,
+        0.0
+      ],
+      "model_maxs": [
+        520.0,
+        64.0,
+        128.0
+      ],
+      "world_center": [
+        512.0,
+        0.0,
+        64.0
+      ]
+    },
+    {
+      "bsp_entity": 2,
+      "properties": {
+        "model": "*2",
+        "origin": "768.000000 -64.000000 64.000000",
+        "type": "5",
+        "wait": "4",
+        "speed": "160",
+        "degrees": "90",
+        "angles": "0 0 0",
+        "spawnflags": "0",
+        "key": "0",
+        "targetname": "navstudio_rotating",
+        "classname": "func_door_rotating"
+      },
+      "model_mins": [
+        -8.0,
+        0.0,
+        -64.0
+      ],
+      "model_maxs": [
+        8.0,
+        128.0,
+        64.0
+      ],
+      "world_center": [
+        768.0,
+        0.0,
+        64.0
+      ]
+    },
+    {
+      "bsp_entity": 3,
+      "properties": {
+        "model": "*3",
+        "origin": "1184.000000 -64.000000 64.000000",
+        "type": "5",
+        "wait": "4",
+        "speed": "160",
+        "degrees": "90",
+        "angles": "0 0 0",
+        "spawnflags": "1",
+        "key": "0",
+        "targetname": "navstudio_remote",
+        "classname": "func_door_rotating"
+      },
+      "model_mins": [
+        -8.0,
+        0.0,
+        -64.0
+      ],
+      "model_maxs": [
+        8.0,
+        128.0,
+        64.0
+      ],
+      "world_center": [
+        1184.0,
+        0.0,
+        64.0
+      ]
+    },
+    {
+      "bsp_entity": 4,
+      "properties": {
+        "model": "*4",
+        "lip": "8",
+        "wait": "1",
+        "speed": "40",
+        "angle": "0",
+        "spawnflags": "0",
+        "target": "navstudio_relay",
+        "targetname": "navstudio_button",
+        "classname": "func_button"
+      },
+      "model_mins": [
+        1028.0,
+        248.0,
+        40.0
+      ],
+      "model_maxs": [
+        1040.0,
+        280.0,
+        72.0
+      ],
+      "world_center": [
+        1034.0,
+        264.0,
+        56.0
+      ]
+    },
+    {
+      "bsp_entity": 5,
+      "properties": {
+        "key": "0",
+        "spawnflags": "0",
+        "origin": "1016 264 64",
+        "target": "navstudio_remote",
+        "targetname": "navstudio_relay",
+        "classname": "target_relay"
+      }
+    },
+    {
+      "bsp_entity": 6,
+      "properties": {
+        "model": "*5",
+        "origin": "1360.000000 -136.000000 64.000000",
+        "type": "5",
+        "wait": "4",
+        "speed": "160",
+        "degrees": "90",
+        "angles": "0 0 0",
+        "spawnflags": "0",
+        "key": "-1",
+        "targetname": "navstudio_locked",
+        "classname": "func_door_rotating"
+      },
+      "model_mins": [
+        0.0,
+        -8.0,
+        -64.0
+      ],
+      "model_maxs": [
+        96.0,
+        8.0,
+        64.0
+      ],
+      "world_center": [
+        1408.0,
+        -136.0,
+        64.0
+      ]
+    }
+  ]
+}

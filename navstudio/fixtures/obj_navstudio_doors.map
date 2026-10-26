@@ -1,0 +1,625 @@
+// navstudio_doors: local deterministic activation fixture, not a playable mission.
+
+// Three colored chambers, ordinary U-detour and locked negative alcove
+{
+"classname" "worldspawn"
+"message" "NavStudio Doors - isolated activation fixture"
+"spawnflags" "0"
+"mapcoordsmins" "0 496"
+"mapcoordsmaxs" "1552 -320"
+"_minlight" "96"
+"_ambient" "32"
+{
+( 0 -128 -24 ) ( 0 128 -24 ) ( 0 128 0 ) navstudio_doors/red 0 0 0 0.5 0.5 0 0 0
+( 512 128 -24 ) ( 512 -128 -24 ) ( 512 -128 0 ) navstudio_doors/red 0 0 0 0.5 0.5 0 0 0
+( 512 -128 -24 ) ( 0 -128 -24 ) ( 0 -128 0 ) navstudio_doors/red 0 0 0 0.5 0.5 0 0 0
+( 0 128 -24 ) ( 512 128 -24 ) ( 512 128 0 ) navstudio_doors/red 0 0 0 0.5 0.5 0 0 0
+( 0 -128 -24 ) ( 512 -128 -24 ) ( 512 128 -24 ) navstudio_doors/red 0 0 0 0.5 0.5 0 0 0
+( 512 -128 0 ) ( 0 -128 0 ) ( 0 128 0 ) navstudio_doors/red 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 512 -128 -24 ) ( 512 128 -24 ) ( 512 128 0 ) navstudio_doors/green 0 0 0 0.5 0.5 0 0 0
+( 1024 128 -24 ) ( 1024 -128 -24 ) ( 1024 -128 0 ) navstudio_doors/green 0 0 0 0.5 0.5 0 0 0
+( 1024 -128 -24 ) ( 512 -128 -24 ) ( 512 -128 0 ) navstudio_doors/green 0 0 0 0.5 0.5 0 0 0
+( 512 128 -24 ) ( 1024 128 -24 ) ( 1024 128 0 ) navstudio_doors/green 0 0 0 0.5 0.5 0 0 0
+( 512 -128 -24 ) ( 1024 -128 -24 ) ( 1024 128 -24 ) navstudio_doors/green 0 0 0 0.5 0.5 0 0 0
+( 1024 -128 0 ) ( 512 -128 0 ) ( 512 128 0 ) navstudio_doors/green 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 1024 -128 -24 ) ( 1024 128 -24 ) ( 1024 128 0 ) navstudio_doors/blue 0 0 0 0.5 0.5 0 0 0
+( 1536 128 -24 ) ( 1536 -128 -24 ) ( 1536 -128 0 ) navstudio_doors/blue 0 0 0 0.5 0.5 0 0 0
+( 1536 -128 -24 ) ( 1024 -128 -24 ) ( 1024 -128 0 ) navstudio_doors/blue 0 0 0 0.5 0.5 0 0 0
+( 1024 128 -24 ) ( 1536 128 -24 ) ( 1536 128 0 ) navstudio_doors/blue 0 0 0 0.5 0.5 0 0 0
+( 1024 -128 -24 ) ( 1536 -128 -24 ) ( 1536 128 -24 ) navstudio_doors/blue 0 0 0 0.5 0.5 0 0 0
+( 1536 -128 0 ) ( 1024 -128 0 ) ( 1024 128 0 ) navstudio_doors/blue 0 0 0 0.5 0.5 0 0 0
+}
+{
+( -16 -144 -24 ) ( -16 144 -24 ) ( -16 144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 0 144 -24 ) ( 0 -144 -24 ) ( 0 -144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 0 -144 -24 ) ( -16 -144 -24 ) ( -16 -144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( -16 144 -24 ) ( 0 144 -24 ) ( 0 144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( -16 -144 -24 ) ( 0 -144 -24 ) ( 0 144 -24 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 0 -144 208 ) ( -16 -144 208 ) ( -16 144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 1536 -144 -24 ) ( 1536 144 -24 ) ( 1536 144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1552 144 -24 ) ( 1552 -144 -24 ) ( 1552 -144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1552 -144 -24 ) ( 1536 -144 -24 ) ( 1536 -144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1536 144 -24 ) ( 1552 144 -24 ) ( 1552 144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1536 -144 -24 ) ( 1552 -144 -24 ) ( 1552 144 -24 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1552 -144 208 ) ( 1536 -144 208 ) ( 1536 144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 0 -128 192 ) ( 0 128 192 ) ( 0 128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1536 128 192 ) ( 1536 -128 192 ) ( 1536 -128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1536 -128 192 ) ( 0 -128 192 ) ( 0 -128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 0 128 192 ) ( 1536 128 192 ) ( 1536 128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 0 -128 192 ) ( 1536 -128 192 ) ( 1536 128 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1536 -128 208 ) ( 0 -128 208 ) ( 0 128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 0 128 0 ) ( 0 144 0 ) ( 0 144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 880 144 0 ) ( 880 128 0 ) ( 880 128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 880 128 0 ) ( 0 128 0 ) ( 0 128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 0 144 0 ) ( 880 144 0 ) ( 880 144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 0 128 0 ) ( 880 128 0 ) ( 880 144 0 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 880 128 208 ) ( 0 128 208 ) ( 0 144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 976 128 0 ) ( 976 144 0 ) ( 976 144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1376 144 0 ) ( 1376 128 0 ) ( 1376 128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1376 128 0 ) ( 976 128 0 ) ( 976 128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 976 144 0 ) ( 1376 144 0 ) ( 1376 144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 976 128 0 ) ( 1376 128 0 ) ( 1376 144 0 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1376 128 208 ) ( 976 128 208 ) ( 976 144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 1472 128 0 ) ( 1472 144 0 ) ( 1472 144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1536 144 0 ) ( 1536 128 0 ) ( 1536 128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1536 128 0 ) ( 1472 128 0 ) ( 1472 128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1472 144 0 ) ( 1536 144 0 ) ( 1536 144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1472 128 0 ) ( 1536 128 0 ) ( 1536 144 0 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1536 128 208 ) ( 1472 128 208 ) ( 1472 144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 864 128 -24 ) ( 864 352 -24 ) ( 864 352 0 ) navstudio_doors/green 0 0 0 0.5 0.5 0 0 0
+( 1040 352 -24 ) ( 1040 128 -24 ) ( 1040 128 0 ) navstudio_doors/green 0 0 0 0.5 0.5 0 0 0
+( 1040 128 -24 ) ( 864 128 -24 ) ( 864 128 0 ) navstudio_doors/green 0 0 0 0.5 0.5 0 0 0
+( 864 352 -24 ) ( 1040 352 -24 ) ( 1040 352 0 ) navstudio_doors/green 0 0 0 0.5 0.5 0 0 0
+( 864 128 -24 ) ( 1040 128 -24 ) ( 1040 352 -24 ) navstudio_doors/green 0 0 0 0.5 0.5 0 0 0
+( 1040 128 0 ) ( 864 128 0 ) ( 864 352 0 ) navstudio_doors/green 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 864 352 -24 ) ( 864 480 -24 ) ( 864 480 0 ) navstudio_doors/green 0 0 0 0.5 0.5 0 0 0
+( 1472 480 -24 ) ( 1472 352 -24 ) ( 1472 352 0 ) navstudio_doors/green 0 0 0 0.5 0.5 0 0 0
+( 1472 352 -24 ) ( 864 352 -24 ) ( 864 352 0 ) navstudio_doors/green 0 0 0 0.5 0.5 0 0 0
+( 864 480 -24 ) ( 1472 480 -24 ) ( 1472 480 0 ) navstudio_doors/green 0 0 0 0.5 0.5 0 0 0
+( 864 352 -24 ) ( 1472 352 -24 ) ( 1472 480 -24 ) navstudio_doors/green 0 0 0 0.5 0.5 0 0 0
+( 1472 352 0 ) ( 864 352 0 ) ( 864 480 0 ) navstudio_doors/green 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 1376 128 -24 ) ( 1376 352 -24 ) ( 1376 352 0 ) navstudio_doors/blue 0 0 0 0.5 0.5 0 0 0
+( 1472 352 -24 ) ( 1472 128 -24 ) ( 1472 128 0 ) navstudio_doors/blue 0 0 0 0.5 0.5 0 0 0
+( 1472 128 -24 ) ( 1376 128 -24 ) ( 1376 128 0 ) navstudio_doors/blue 0 0 0 0.5 0.5 0 0 0
+( 1376 352 -24 ) ( 1472 352 -24 ) ( 1472 352 0 ) navstudio_doors/blue 0 0 0 0.5 0.5 0 0 0
+( 1376 128 -24 ) ( 1472 128 -24 ) ( 1472 352 -24 ) navstudio_doors/blue 0 0 0 0.5 0.5 0 0 0
+( 1472 128 0 ) ( 1376 128 0 ) ( 1376 352 0 ) navstudio_doors/blue 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 864 128 192 ) ( 864 352 192 ) ( 864 352 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1040 352 192 ) ( 1040 128 192 ) ( 1040 128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1040 128 192 ) ( 864 128 192 ) ( 864 128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 864 352 192 ) ( 1040 352 192 ) ( 1040 352 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 864 128 192 ) ( 1040 128 192 ) ( 1040 352 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1040 128 208 ) ( 864 128 208 ) ( 864 352 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 864 352 192 ) ( 864 480 192 ) ( 864 480 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1472 480 192 ) ( 1472 352 192 ) ( 1472 352 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1472 352 192 ) ( 864 352 192 ) ( 864 352 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 864 480 192 ) ( 1472 480 192 ) ( 1472 480 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 864 352 192 ) ( 1472 352 192 ) ( 1472 480 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1472 352 208 ) ( 864 352 208 ) ( 864 480 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 1376 128 192 ) ( 1376 352 192 ) ( 1376 352 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1472 352 192 ) ( 1472 128 192 ) ( 1472 128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1472 128 192 ) ( 1376 128 192 ) ( 1376 128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1376 352 192 ) ( 1472 352 192 ) ( 1472 352 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1376 128 192 ) ( 1472 128 192 ) ( 1472 352 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1472 128 208 ) ( 1376 128 208 ) ( 1376 352 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 848 128 0 ) ( 848 496 0 ) ( 848 496 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 864 496 0 ) ( 864 128 0 ) ( 864 128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 864 128 0 ) ( 848 128 0 ) ( 848 128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 848 496 0 ) ( 864 496 0 ) ( 864 496 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 848 128 0 ) ( 864 128 0 ) ( 864 496 0 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 864 128 208 ) ( 848 128 208 ) ( 848 496 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 1040 128 0 ) ( 1040 352 0 ) ( 1040 352 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1056 352 0 ) ( 1056 128 0 ) ( 1056 128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1056 128 0 ) ( 1040 128 0 ) ( 1040 128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1040 352 0 ) ( 1056 352 0 ) ( 1056 352 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1040 128 0 ) ( 1056 128 0 ) ( 1056 352 0 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1056 128 208 ) ( 1040 128 208 ) ( 1040 352 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 864 480 0 ) ( 864 496 0 ) ( 864 496 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1488 496 0 ) ( 1488 480 0 ) ( 1488 480 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1488 480 0 ) ( 864 480 0 ) ( 864 480 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 864 496 0 ) ( 1488 496 0 ) ( 1488 496 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 864 480 0 ) ( 1488 480 0 ) ( 1488 496 0 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1488 480 208 ) ( 864 480 208 ) ( 864 496 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 1472 128 0 ) ( 1472 480 0 ) ( 1472 480 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1488 480 0 ) ( 1488 128 0 ) ( 1488 128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1488 128 0 ) ( 1472 128 0 ) ( 1472 128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1472 480 0 ) ( 1488 480 0 ) ( 1488 480 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1472 128 0 ) ( 1488 128 0 ) ( 1488 480 0 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1488 128 208 ) ( 1472 128 208 ) ( 1472 480 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 1360 144 0 ) ( 1360 352 0 ) ( 1360 352 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1376 352 0 ) ( 1376 144 0 ) ( 1376 144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1376 144 0 ) ( 1360 144 0 ) ( 1360 144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1360 352 0 ) ( 1376 352 0 ) ( 1376 352 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1360 144 0 ) ( 1376 144 0 ) ( 1376 352 0 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1376 144 208 ) ( 1360 144 208 ) ( 1360 352 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 1056 336 0 ) ( 1056 352 0 ) ( 1056 352 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1376 352 0 ) ( 1376 336 0 ) ( 1376 336 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1376 336 0 ) ( 1056 336 0 ) ( 1056 336 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1056 352 0 ) ( 1376 352 0 ) ( 1376 352 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1056 336 0 ) ( 1376 336 0 ) ( 1376 352 0 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1376 336 208 ) ( 1056 336 208 ) ( 1056 352 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 504 -128 0 ) ( 504 -64 0 ) ( 504 -64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 520 -64 0 ) ( 520 -128 0 ) ( 520 -128 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 520 -128 0 ) ( 504 -128 0 ) ( 504 -128 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 504 -64 0 ) ( 520 -64 0 ) ( 520 -64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 504 -128 0 ) ( 520 -128 0 ) ( 520 -64 0 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 520 -128 192 ) ( 504 -128 192 ) ( 504 -64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 504 64 0 ) ( 504 128 0 ) ( 504 128 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 520 128 0 ) ( 520 64 0 ) ( 520 64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 520 64 0 ) ( 504 64 0 ) ( 504 64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 504 128 0 ) ( 520 128 0 ) ( 520 128 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 504 64 0 ) ( 520 64 0 ) ( 520 128 0 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 520 64 192 ) ( 504 64 192 ) ( 504 128 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 504 -64 128 ) ( 504 64 128 ) ( 504 64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 520 64 128 ) ( 520 -64 128 ) ( 520 -64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 520 -64 128 ) ( 504 -64 128 ) ( 504 -64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 504 64 128 ) ( 520 64 128 ) ( 520 64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 504 -64 128 ) ( 520 -64 128 ) ( 520 64 128 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 520 -64 192 ) ( 504 -64 192 ) ( 504 64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 760 -128 0 ) ( 760 -64 0 ) ( 760 -64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 776 -64 0 ) ( 776 -128 0 ) ( 776 -128 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 776 -128 0 ) ( 760 -128 0 ) ( 760 -128 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 760 -64 0 ) ( 776 -64 0 ) ( 776 -64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 760 -128 0 ) ( 776 -128 0 ) ( 776 -64 0 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 776 -128 192 ) ( 760 -128 192 ) ( 760 -64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 760 64 0 ) ( 760 128 0 ) ( 760 128 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 776 128 0 ) ( 776 64 0 ) ( 776 64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 776 64 0 ) ( 760 64 0 ) ( 760 64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 760 128 0 ) ( 776 128 0 ) ( 776 128 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 760 64 0 ) ( 776 64 0 ) ( 776 128 0 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 776 64 192 ) ( 760 64 192 ) ( 760 128 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 760 -64 128 ) ( 760 64 128 ) ( 760 64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 776 64 128 ) ( 776 -64 128 ) ( 776 -64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 776 -64 128 ) ( 760 -64 128 ) ( 760 -64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 760 64 128 ) ( 776 64 128 ) ( 776 64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 760 -64 128 ) ( 776 -64 128 ) ( 776 64 128 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 776 -64 192 ) ( 760 -64 192 ) ( 760 64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 1176 -128 0 ) ( 1176 -64 0 ) ( 1176 -64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1192 -64 0 ) ( 1192 -128 0 ) ( 1192 -128 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1192 -128 0 ) ( 1176 -128 0 ) ( 1176 -128 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1176 -64 0 ) ( 1192 -64 0 ) ( 1192 -64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1176 -128 0 ) ( 1192 -128 0 ) ( 1192 -64 0 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1192 -128 192 ) ( 1176 -128 192 ) ( 1176 -64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 1176 64 0 ) ( 1176 128 0 ) ( 1176 128 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1192 128 0 ) ( 1192 64 0 ) ( 1192 64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1192 64 0 ) ( 1176 64 0 ) ( 1176 64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1176 128 0 ) ( 1192 128 0 ) ( 1192 128 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1176 64 0 ) ( 1192 64 0 ) ( 1192 128 0 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1192 64 192 ) ( 1176 64 192 ) ( 1176 128 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 1176 -64 128 ) ( 1176 64 128 ) ( 1176 64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1192 64 128 ) ( 1192 -64 128 ) ( 1192 -64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1192 -64 128 ) ( 1176 -64 128 ) ( 1176 -64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1176 64 128 ) ( 1192 64 128 ) ( 1192 64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1176 -64 128 ) ( 1192 -64 128 ) ( 1192 64 128 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1192 -64 192 ) ( 1176 -64 192 ) ( 1176 64 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 0 -144 0 ) ( 0 -128 0 ) ( 0 -128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1360 -128 0 ) ( 1360 -144 0 ) ( 1360 -144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1360 -144 0 ) ( 0 -144 0 ) ( 0 -144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 0 -128 0 ) ( 1360 -128 0 ) ( 1360 -128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 0 -144 0 ) ( 1360 -144 0 ) ( 1360 -128 0 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1360 -144 208 ) ( 0 -144 208 ) ( 0 -128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 1456 -144 0 ) ( 1456 -128 0 ) ( 1456 -128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1536 -128 0 ) ( 1536 -144 0 ) ( 1536 -144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1536 -144 0 ) ( 1456 -144 0 ) ( 1456 -144 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1456 -128 0 ) ( 1536 -128 0 ) ( 1536 -128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1456 -144 0 ) ( 1536 -144 0 ) ( 1536 -128 0 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1536 -144 208 ) ( 1456 -144 208 ) ( 1456 -128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 1344 -320 -24 ) ( 1344 -304 -24 ) ( 1344 -304 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1472 -304 -24 ) ( 1472 -320 -24 ) ( 1472 -320 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1472 -320 -24 ) ( 1344 -320 -24 ) ( 1344 -320 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1344 -304 -24 ) ( 1472 -304 -24 ) ( 1472 -304 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1344 -320 -24 ) ( 1472 -320 -24 ) ( 1472 -304 -24 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1472 -320 208 ) ( 1344 -320 208 ) ( 1344 -304 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 1344 -304 -24 ) ( 1344 -128 -24 ) ( 1344 -128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1360 -128 -24 ) ( 1360 -304 -24 ) ( 1360 -304 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1360 -304 -24 ) ( 1344 -304 -24 ) ( 1344 -304 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1344 -128 -24 ) ( 1360 -128 -24 ) ( 1360 -128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1344 -304 -24 ) ( 1360 -304 -24 ) ( 1360 -128 -24 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1360 -304 208 ) ( 1344 -304 208 ) ( 1344 -128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 1456 -304 -24 ) ( 1456 -128 -24 ) ( 1456 -128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1472 -128 -24 ) ( 1472 -304 -24 ) ( 1472 -304 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1472 -304 -24 ) ( 1456 -304 -24 ) ( 1456 -304 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1456 -128 -24 ) ( 1472 -128 -24 ) ( 1472 -128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1456 -304 -24 ) ( 1472 -304 -24 ) ( 1472 -128 -24 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1472 -304 208 ) ( 1456 -304 208 ) ( 1456 -128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 1360 -304 -24 ) ( 1360 -128 -24 ) ( 1360 -128 0 ) navstudio_doors/locked 0 0 0 0.5 0.5 0 0 0
+( 1456 -128 -24 ) ( 1456 -304 -24 ) ( 1456 -304 0 ) navstudio_doors/locked 0 0 0 0.5 0.5 0 0 0
+( 1456 -304 -24 ) ( 1360 -304 -24 ) ( 1360 -304 0 ) navstudio_doors/locked 0 0 0 0.5 0.5 0 0 0
+( 1360 -128 -24 ) ( 1456 -128 -24 ) ( 1456 -128 0 ) navstudio_doors/locked 0 0 0 0.5 0.5 0 0 0
+( 1360 -304 -24 ) ( 1456 -304 -24 ) ( 1456 -128 -24 ) navstudio_doors/locked 0 0 0 0.5 0.5 0 0 0
+( 1456 -304 0 ) ( 1360 -304 0 ) ( 1360 -128 0 ) navstudio_doors/locked 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 1360 -304 192 ) ( 1360 -128 192 ) ( 1360 -128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1456 -128 192 ) ( 1456 -304 192 ) ( 1456 -304 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1456 -304 192 ) ( 1360 -304 192 ) ( 1360 -304 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1360 -128 192 ) ( 1456 -128 192 ) ( 1456 -128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1360 -304 192 ) ( 1456 -304 192 ) ( 1456 -128 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1456 -304 208 ) ( 1360 -304 208 ) ( 1360 -128 208 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 1360 -144 128 ) ( 1360 -128 128 ) ( 1360 -128 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1456 -128 128 ) ( 1456 -144 128 ) ( 1456 -144 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1456 -144 128 ) ( 1360 -144 128 ) ( 1360 -144 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1360 -128 128 ) ( 1456 -128 128 ) ( 1456 -128 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1360 -144 128 ) ( 1456 -144 128 ) ( 1456 -128 128 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+( 1456 -144 192 ) ( 1360 -144 192 ) ( 1360 -128 192 ) navstudio_doors/wall 0 0 0 0.5 0.5 0 0 0
+}
+}
+
+// Case 1: direct USE sliding door, starts closed; no remote activator
+{
+"classname" "func_door"
+"targetname" "navstudio_sliding"
+"key" "0"
+"angle" "90"
+"speed" "160"
+"wait" "4"
+"lip" "0"
+"type" "5"
+{
+( 504 -64 0 ) ( 504 64 0 ) ( 504 64 128 ) navstudio_doors/door 0 0 0 0.5 0.5 0 0 0
+( 520 64 0 ) ( 520 -64 0 ) ( 520 -64 128 ) navstudio_doors/door 0 0 0 0.5 0.5 0 0 0
+( 520 -64 0 ) ( 504 -64 0 ) ( 504 -64 128 ) navstudio_doors/door 0 0 0 0.5 0.5 0 0 0
+( 504 64 0 ) ( 520 64 0 ) ( 520 64 128 ) navstudio_doors/door 0 0 0 0.5 0.5 0 0 0
+( 504 -64 0 ) ( 520 -64 0 ) ( 520 64 0 ) navstudio_doors/door 0 0 0 0.5 0.5 0 0 0
+( 520 -64 128 ) ( 504 -64 128 ) ( 504 64 128 ) navstudio_doors/door 0 0 0 0.5 0.5 0 0 0
+}
+}
+
+// Case 2: direct USE rotating door
+{
+"classname" "func_door_rotating"
+"targetname" "navstudio_rotating"
+"key" "0"
+"spawnflags" "0"
+"angles" "0 0 0"
+"degrees" "90"
+"speed" "160"
+"wait" "4"
+"type" "5"
+{
+( 760 -64 0 ) ( 760 64 0 ) ( 760 64 128 ) navstudio_doors/door 0 0 0 0.5 0.5 0 0 0
+( 776 64 0 ) ( 776 -64 0 ) ( 776 -64 128 ) navstudio_doors/door 0 0 0 0.5 0.5 0 0 0
+( 776 -64 0 ) ( 760 -64 0 ) ( 760 -64 128 ) navstudio_doors/door 0 0 0 0.5 0.5 0 0 0
+( 760 64 0 ) ( 776 64 0 ) ( 776 64 128 ) navstudio_doors/door 0 0 0 0.5 0.5 0 0 0
+( 760 -64 0 ) ( 776 -64 0 ) ( 776 64 0 ) navstudio_doors/door 0 0 0 0.5 0.5 0 0 0
+( 776 -64 128 ) ( 760 -64 128 ) ( 760 64 128 ) navstudio_doors/door 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 760 -72 56 ) ( 760 -56 56 ) ( 760 -56 72 ) navstudio_doors/origin 0 0 0 0.5 0.5 0 0 0
+( 776 -56 56 ) ( 776 -72 56 ) ( 776 -72 72 ) navstudio_doors/origin 0 0 0 0.5 0.5 0 0 0
+( 776 -72 56 ) ( 760 -72 56 ) ( 760 -72 72 ) navstudio_doors/origin 0 0 0 0.5 0.5 0 0 0
+( 760 -56 56 ) ( 776 -56 56 ) ( 776 -56 72 ) navstudio_doors/origin 0 0 0 0.5 0.5 0 0 0
+( 760 -72 56 ) ( 776 -72 56 ) ( 776 -56 56 ) navstudio_doors/origin 0 0 0 0.5 0.5 0 0 0
+( 776 -72 72 ) ( 760 -72 72 ) ( 760 -56 72 ) navstudio_doors/origin 0 0 0 0.5 0.5 0 0 0
+}
+}
+
+// Case 3: remote-only rotating door; bit1 prevents direct activation, key0 allows relay
+{
+"classname" "func_door_rotating"
+"targetname" "navstudio_remote"
+"key" "0"
+"spawnflags" "1"
+"angles" "0 0 0"
+"degrees" "90"
+"speed" "160"
+"wait" "4"
+"type" "5"
+{
+( 1176 -64 0 ) ( 1176 64 0 ) ( 1176 64 128 ) navstudio_doors/door 0 0 0 0.5 0.5 0 0 0
+( 1192 64 0 ) ( 1192 -64 0 ) ( 1192 -64 128 ) navstudio_doors/door 0 0 0 0.5 0.5 0 0 0
+( 1192 -64 0 ) ( 1176 -64 0 ) ( 1176 -64 128 ) navstudio_doors/door 0 0 0 0.5 0.5 0 0 0
+( 1176 64 0 ) ( 1192 64 0 ) ( 1192 64 128 ) navstudio_doors/door 0 0 0 0.5 0.5 0 0 0
+( 1176 -64 0 ) ( 1192 -64 0 ) ( 1192 64 0 ) navstudio_doors/door 0 0 0 0.5 0.5 0 0 0
+( 1192 -64 128 ) ( 1176 -64 128 ) ( 1176 64 128 ) navstudio_doors/door 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 1176 -72 56 ) ( 1176 -56 56 ) ( 1176 -56 72 ) navstudio_doors/origin 0 0 0 0.5 0.5 0 0 0
+( 1192 -56 56 ) ( 1192 -72 56 ) ( 1192 -72 72 ) navstudio_doors/origin 0 0 0 0.5 0.5 0 0 0
+( 1192 -72 56 ) ( 1176 -72 56 ) ( 1176 -72 72 ) navstudio_doors/origin 0 0 0 0.5 0.5 0 0 0
+( 1176 -56 56 ) ( 1192 -56 56 ) ( 1192 -56 72 ) navstudio_doors/origin 0 0 0 0.5 0.5 0 0 0
+( 1176 -72 56 ) ( 1192 -72 56 ) ( 1192 -56 56 ) navstudio_doors/origin 0 0 0 0.5 0.5 0 0 0
+( 1192 -72 72 ) ( 1176 -72 72 ) ( 1176 -56 72 ) navstudio_doors/origin 0 0 0 0.5 0.5 0 0 0
+}
+}
+
+// Side-room button reachable from both remote-door entries via the U-detour
+{
+"classname" "func_button"
+"targetname" "navstudio_button"
+"target" "navstudio_relay"
+"spawnflags" "0"
+"angle" "0"
+"speed" "40"
+"wait" "1"
+"lip" "8"
+{
+( 1028 248 40 ) ( 1028 280 40 ) ( 1028 280 72 ) navstudio_doors/button 0 0 0 0.5 0.5 0 0 0
+( 1040 280 40 ) ( 1040 248 40 ) ( 1040 248 72 ) navstudio_doors/button 0 0 0 0.5 0.5 0 0 0
+( 1040 248 40 ) ( 1028 248 40 ) ( 1028 248 72 ) navstudio_doors/button 0 0 0 0.5 0.5 0 0 0
+( 1028 280 40 ) ( 1040 280 40 ) ( 1040 280 72 ) navstudio_doors/button 0 0 0 0.5 0.5 0 0 0
+( 1028 248 40 ) ( 1040 248 40 ) ( 1040 280 40 ) navstudio_doors/button 0 0 0 0.5 0.5 0 0 0
+( 1040 248 72 ) ( 1028 248 72 ) ( 1028 280 72 ) navstudio_doors/button 0 0 0 0.5 0.5 0 0 0
+}
+}
+
+// One unambiguous button -> relay -> remote-door chain
+{
+"classname" "target_relay"
+"targetname" "navstudio_relay"
+"target" "navstudio_remote"
+"origin" "1016 264 64"
+"spawnflags" "0"
+"key" "0"
+}
+
+// Negative case: permanent locked alcove, no activator, no spawn/goal behind it
+{
+"classname" "func_door_rotating"
+"targetname" "navstudio_locked"
+"key" "-1"
+"spawnflags" "0"
+"angles" "0 0 0"
+"degrees" "90"
+"speed" "160"
+"wait" "4"
+"type" "5"
+{
+( 1360 -144 0 ) ( 1360 -128 0 ) ( 1360 -128 128 ) navstudio_doors/locked 0 0 0 0.5 0.5 0 0 0
+( 1456 -128 0 ) ( 1456 -144 0 ) ( 1456 -144 128 ) navstudio_doors/locked 0 0 0 0.5 0.5 0 0 0
+( 1456 -144 0 ) ( 1360 -144 0 ) ( 1360 -144 128 ) navstudio_doors/locked 0 0 0 0.5 0.5 0 0 0
+( 1360 -128 0 ) ( 1456 -128 0 ) ( 1456 -128 128 ) navstudio_doors/locked 0 0 0 0.5 0.5 0 0 0
+( 1360 -144 0 ) ( 1456 -144 0 ) ( 1456 -128 0 ) navstudio_doors/locked 0 0 0 0.5 0.5 0 0 0
+( 1456 -144 128 ) ( 1360 -144 128 ) ( 1360 -128 128 ) navstudio_doors/locked 0 0 0 0.5 0.5 0 0 0
+}
+{
+( 1352 -144 56 ) ( 1352 -128 56 ) ( 1352 -128 72 ) navstudio_doors/origin 0 0 0 0.5 0.5 0 0 0
+( 1368 -128 56 ) ( 1368 -144 56 ) ( 1368 -144 72 ) navstudio_doors/origin 0 0 0 0.5 0.5 0 0 0
+( 1368 -144 56 ) ( 1352 -144 56 ) ( 1352 -144 72 ) navstudio_doors/origin 0 0 0 0.5 0.5 0 0 0
+( 1352 -128 56 ) ( 1368 -128 56 ) ( 1368 -128 72 ) navstudio_doors/origin 0 0 0 0.5 0.5 0 0 0
+( 1352 -144 56 ) ( 1368 -144 56 ) ( 1368 -128 56 ) navstudio_doors/origin 0 0 0 0.5 0.5 0 0 0
+( 1368 -144 72 ) ( 1352 -144 72 ) ( 1352 -128 72 ) navstudio_doors/origin 0 0 0 0.5 0.5 0 0 0
+}
+}
+
+// GT7 physical spawn on left side 0
+{
+"classname" "info_player_deathmatch"
+"origin" "96 -64 32"
+"angle" "0"
+}
+
+// GT7 physical spawn on left side 1
+{
+"classname" "info_player_deathmatch"
+"origin" "96 0 32"
+"angle" "0"
+}
+
+// GT7 physical spawn on left side 2
+{
+"classname" "info_player_deathmatch"
+"origin" "96 64 32"
+"angle" "0"
+}
+
+// GT7 physical spawn on left side 3
+{
+"classname" "info_player_deathmatch"
+"origin" "160 -64 32"
+"angle" "0"
+}
+
+// GT7 physical spawn on left side 4
+{
+"classname" "info_player_deathmatch"
+"origin" "160 0 32"
+"angle" "0"
+}
+
+// GT7 physical spawn on left side 5
+{
+"classname" "info_player_deathmatch"
+"origin" "160 64 32"
+"angle" "0"
+}
+
+// GT7 physical spawn on left side 6
+{
+"classname" "info_player_deathmatch"
+"origin" "224 -64 32"
+"angle" "0"
+}
+
+// GT7 physical spawn on left side 7
+{
+"classname" "info_player_deathmatch"
+"origin" "224 64 32"
+"angle" "0"
+}
+
+{
+"classname" "team_CTF_redspawn"
+"origin" "128 -64 32"
+"angle" "0"
+"spawnflags" "1"
+}
+
+{
+"classname" "team_CTF_bluespawn"
+"origin" "128 64 32"
+"angle" "0"
+"spawnflags" "1"
+}
+
+{
+"classname" "info_player_intermission"
+"origin" "256 0 112"
+"angle" "0"
+}
+
+{
+"classname" "script_multiplayer"
+"scriptname" "game_manager"
+"targetname" "game_manager"
+"origin" "32 0 32"
+}
+
+// Right-side traversal goal marker, not a mission objective
+{
+"classname" "target_position"
+"targetname" "navstudio_goal_right"
+"origin" "1488 0 32"
+}
+
+{
+"classname" "light"
+"origin" "256 0 160"
+"light" "320"
+"_color" "1 1 1"
+}
+
+{
+"classname" "light"
+"origin" "640 0 160"
+"light" "320"
+"_color" "1 1 1"
+}
+
+{
+"classname" "light"
+"origin" "1024 0 160"
+"light" "320"
+"_color" "1 1 1"
+}
+
+{
+"classname" "light"
+"origin" "1408 0 160"
+"light" "320"
+"_color" "1 1 1"
+}
+
+{
+"classname" "light"
+"origin" "944 256 160"
+"light" "320"
+"_color" "1 1 1"
+}
+
+{
+"classname" "light"
+"origin" "1184 416 160"
+"light" "320"
+"_color" "1 1 1"
+}
+
+// Positive explicit-USE activator on left closed side; existing entities precede this addition.
+{
+"classname" "func_button"
+"targetname" "navstudio_button_near_left"
+"target" "navstudio_relay"
+"spawnflags" "0"
+"angle" "90"
+"speed" "40"
+"wait" "1"
+"lip" "8"
+{
+( 1104 116 40 ) ( 1104 128 40 ) ( 1104 128 72 ) navstudio_doors/button 0 0 0 0.5 0.5 0 0 0
+( 1136 128 40 ) ( 1136 116 40 ) ( 1136 116 72 ) navstudio_doors/button 0 0 0 0.5 0.5 0 0 0
+( 1136 116 40 ) ( 1104 116 40 ) ( 1104 116 72 ) navstudio_doors/button 0 0 0 0.5 0.5 0 0 0
+( 1104 128 40 ) ( 1136 128 40 ) ( 1136 128 72 ) navstudio_doors/button 0 0 0 0.5 0.5 0 0 0
+( 1104 116 40 ) ( 1136 116 40 ) ( 1136 128 40 ) navstudio_doors/button 0 0 0 0.5 0.5 0 0 0
+( 1136 116 72 ) ( 1104 116 72 ) ( 1104 128 72 ) navstudio_doors/button 0 0 0 0.5 0.5 0 0 0
+}
+}
+
+// Positive explicit-USE activator on right closed side; existing entities precede this addition.
+{
+"classname" "func_button"
+"targetname" "navstudio_button_near_right"
+"target" "navstudio_relay"
+"spawnflags" "0"
+"angle" "90"
+"speed" "40"
+"wait" "1"
+"lip" "8"
+{
+( 1232 116 40 ) ( 1232 128 40 ) ( 1232 128 72 ) navstudio_doors/button 0 0 0 0.5 0.5 0 0 0
+( 1264 128 40 ) ( 1264 116 40 ) ( 1264 116 72 ) navstudio_doors/button 0 0 0 0.5 0.5 0 0 0
+( 1264 116 40 ) ( 1232 116 40 ) ( 1232 116 72 ) navstudio_doors/button 0 0 0 0.5 0.5 0 0 0
+( 1232 128 40 ) ( 1264 128 40 ) ( 1264 128 72 ) navstudio_doors/button 0 0 0 0.5 0.5 0 0 0
+( 1232 116 40 ) ( 1264 116 40 ) ( 1264 128 40 ) navstudio_doors/button 0 0 0 0.5 0.5 0 0 0
+( 1264 116 72 ) ( 1232 116 72 ) ( 1232 128 72 ) navstudio_doors/button 0 0 0 0.5 0.5 0 0 0
+}
+}

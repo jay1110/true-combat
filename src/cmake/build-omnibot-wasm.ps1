@@ -14,9 +14,9 @@ if (-not (Test-Path -LiteralPath $toolchain)) { throw "Missing Emscripten toolch
 if (-not (Test-Path -LiteralPath (Join-Path $BoostIncludeDir 'boost/version.hpp'))) {
     throw 'BoostIncludeDir must contain boost/version.hpp (headers only are required).'
 }
-& cmake -S (Join-Path $sourceRoot 'vendor/omni-bot/source/Omnibot') -B $BuildDir -G Ninja `
+& cmake -S (Join-Path $repoRoot 'vendor/omni-bot/source/Omnibot') -B $BuildDir -G Ninja `
     "-DCMAKE_TOOLCHAIN_FILE=$toolchain" -DCMAKE_BUILD_TYPE=Release `
-    -DOMNIBOT_ET=ON -DOMNIBOT_RTCW=OFF -DOMNIBOT_STD_FILESYSTEM=ON `
+    -DOMNIBOT_ET=ON -DOMNIBOT_RTCW=OFF -DOMNIBOT_STD_FILESYSTEM=ON -DFEATURE_NAVSTUDIO=OFF `
     "-DOMNIBOT_BOOST_INCLUDEDIR=$BoostIncludeDir"
 if ($LASTEXITCODE -ne 0) { throw "Omni-bot WASM configure failed: $LASTEXITCODE" }
 & cmake --build $BuildDir --parallel $Jobs

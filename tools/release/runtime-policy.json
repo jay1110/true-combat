@@ -1,0 +1,212 @@
+{
+  "schema": 2,
+  "editor_files": [
+    "global_scripts/autowaypoint.gm",
+    "global_scripts/makegm.gm",
+    "global_scripts/testbot.gm",
+    "global_scripts/testdebugwindows.gm",
+    "global_scripts/testfilesystem.gm",
+    "global_scripts/testmap.gm",
+    "global_scripts/testmath.gm",
+    "global_scripts/testmisc.gm",
+    "global_scripts/goals/goal_testbot.gm"
+  ],
+  "editor_commands": {
+    "global_scripts/commands.gm": [
+      "aim_pos",
+      "autosave",
+      "botgoal",
+      "cg",
+      "cleargoalflags",
+      "cwn",
+      "dbg_goalavailability",
+      "dbg_mapscripts",
+      "dbg_scriptgoals",
+      "dg",
+      "dist",
+      "draw_goalrange",
+      "draw_oids",
+      "draw_paththrough",
+      "draw_spawns",
+      "dump_autocomplete",
+      "dumpglobals",
+      "dwoff",
+      "dwon",
+      "eob",
+      "fgp",
+      "fgs",
+      "fix_waterwps",
+      "goal_echo",
+      "goal_exp",
+      "kg",
+      "makegm",
+      "makemapgm",
+      "makemapgoallist",
+      "maketestmapgm",
+      "mypos",
+      "mywpmode",
+      "sag",
+      "saveplayerpos",
+      "saveusepoint",
+      "sei",
+      "sendtrigger",
+      "sg",
+      "sgi",
+      "sgn",
+      "sgo",
+      "showactive",
+      "showentityinfo",
+      "showevents",
+      "showgroup",
+      "skip",
+      "skipreset",
+      "spp",
+      "stresstest",
+      "stucknext",
+      "stuckstart",
+      "sup",
+      "sysusage",
+      "table_members",
+      "test_priorities",
+      "testbot",
+      "testbotroles",
+      "testmap",
+      "testme",
+      "testvoice",
+      "testwin",
+      "trace_pos",
+      "tracebox",
+      "tracetrajectory",
+      "trigger_aimpos",
+      "trigger_bounds",
+      "wab",
+      "warpanybot",
+      "warpbot",
+      "warpto",
+      "warptogoaloffset",
+      "waypoint_startover",
+      "wb",
+      "wiki_commands",
+      "wp_check",
+      "wpa",
+      "wt",
+      "wtgo"
+    ],
+    "global_scripts/server_manager.gm": [],
+    "et/scripts/et_commands.gm": [
+      "aim_debug_reload",
+      "bvp",
+      "campnext",
+      "campstart",
+      "cvp",
+      "plantnext",
+      "plantstart",
+      "tracearty"
+    ],
+    "et/scripts/goals/goal_difficulty.gm": [],
+    "et/scripts/goals/goal_fireteam.gm": [],
+    "et/scripts/goals/goal_resetxp.gm": [],
+    "et/scripts/goals/goal_selectweapons.gm": [],
+    "et/scripts/tce_commands.gm": [
+      "tceobjectives"
+    ]
+  },
+  "required_files": [
+    "global_scripts/commands.gm",
+    "global_scripts/utilities.gm",
+    "global_scripts/server_manager.gm",
+    "global_scripts/goals/goal_paththrough_mover.gm",
+    "global_scripts/goals/goal_paththrough_useswitch.gm",
+    "et/scripts/def_bot.gm",
+    "et/scripts/et_autoexec.gm",
+    "et/scripts/et_navconfig.gm",
+    "et/scripts/et_classmanager.gm",
+    "et/scripts/et_regiontriggers.gm",
+    "et/scripts/et_botnames_ext.gm",
+    "et/scripts/et_utilities.gm",
+    "et/scripts/tce_autoexec.gm",
+    "et/scripts/tce_commands.gm",
+    "et/scripts/tce_weapontables.gm",
+    "et/scripts/goals/goal_tceobjective.gm"
+  ],
+  "public_commands": {
+    "global_scripts/commands.gm": [
+      "showweapons",
+      "numthreads",
+      "kt",
+      "ip",
+      "ab",
+      "keepbot",
+      "time",
+      "rollcall",
+      "moveskill"
+    ],
+    "global_scripts/server_manager.gm": [
+      "minbots",
+      "maxbots",
+      "balanceteams",
+      "initialdelaytime",
+      "idt",
+      "botwar",
+      "botteam",
+      "humanteam",
+      "botsperhuman"
+    ],
+    "et/scripts/et_commands.gm": [
+      "difficulty",
+      "resetxp",
+      "maxxp",
+      "ft_controls"
+    ],
+    "et/scripts/goals/goal_difficulty.gm": [
+      "difficulty"
+    ],
+    "et/scripts/goals/goal_fireteam.gm": [
+      "ft_controls"
+    ],
+    "et/scripts/goals/goal_resetxp.gm": [
+      "resetxp",
+      "maxxp"
+    ],
+    "et/scripts/goals/goal_selectweapons.gm": [
+      "minformortar",
+      "minformobilemg"
+    ],
+    "et/scripts/tce_commands.gm": [
+      "tceweapon",
+      "tceclass"
+    ]
+  },
+  "diagnostic_cvars": [
+    "omnibot_tce_objective_debug",
+    "omnibot_tce_explore_debug",
+    "omnibot_tce_roamcamp_debug"
+  ],
+  "editor_status_cvar": "omnibot_navstudio_goal_token",
+  "editor_print_prefix": "NAVSTUDIO_GOALS ",
+  "diagnostic_prints": {
+    "et/scripts/goals/goal_checkstuck.gm": [
+      "TCE2TRAFFIC BLOCKED",
+      "TCE2TRAFFIC YIELD",
+      "TCE2STUCK RECOVERY",
+      "TCE2STUCK TERMINAL"
+    ],
+    "et/scripts/goals/goal_tce2_explore.gm": [
+      "TCE2EXPLORE",
+      "TCE2EXPLORE ROUTE_BUDGET",
+      "TCE2EXPLORE EXIT_REASON",
+      "TCE2EXPLORE ROUTE",
+      "TCE2EXPLORE FAILURE_DETAIL",
+      "TCE2EXPLORE PATH_RESULT"
+    ],
+    "et/scripts/goals/goal_tce2_roamcamp.gm": [
+      "TCE2CAMP"
+    ],
+    "et/scripts/goals/goal_pickupitems.gm": [
+      "TCE2ITEM"
+    ],
+    "et/scripts/goals/goal_camp.gm": [
+      "TCE2TACTIC"
+    ]
+  }
+}

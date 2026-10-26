@@ -1,0 +1,242 @@
+{
+  "schema": 2,
+  "purpose": "Golden hashes of unmodified custom compatibility helper implementations before root isolation. SDK source is not included.",
+  "files": [
+    {
+      "original": "src/cgame/tce_bullet_precision.h",
+      "implementation": "compat/legacy/cgame/tce_bullet_precision.h",
+      "baseline_sha256": "7d0d61a41e354ff7081e4467da6ad13d027394be3e6fbd38d2718fcd11968a7a"
+    },
+    {
+      "original": "src/cgame/tce_mortar_precision.h",
+      "implementation": "compat/legacy/cgame/tce_mortar_precision.h",
+      "baseline_sha256": "8b52b29561dd63710a82ffc3f17808102185ca4a2c42099dfeff16f7d4fee460"
+    },
+    {
+      "original": "src/cgame/tce_weapon_fps_precision.h",
+      "implementation": "compat/legacy/cgame/tce_weapon_fps_precision.h",
+      "baseline_sha256": "296788d5acef65e34f0f1615096f177b3a88222a234821d9f19bef24efa491a3"
+    },
+    {
+      "original": "src/cgame/tce_weapon_position_precision.h",
+      "implementation": "compat/legacy/cgame/tce_weapon_position_precision.h",
+      "baseline_sha256": "d2818dfa8ef478ef93db07d57cc87b61ca4b923fdb617edc23b6c18c5e91ee83"
+    },
+    {
+      "original": "src/game/tce_ambient_precision.h",
+      "implementation": "compat/legacy/game/tce_ambient_precision.h",
+      "baseline_sha256": "c64bd8870f46623fc9d999a7fc4924de3676f87cb45d8643e7e79d06dbd5461a"
+    },
+    {
+      "original": "src/game/tce_angle_scale_precision.h",
+      "implementation": "compat/legacy/game/tce_angle_scale_precision.h",
+      "baseline_sha256": "00eaa84cd15de52c78dcbfc13e34e36754a7402c85712301b08570dd20f1e7c0"
+    },
+    {
+      "original": "src/game/tce_award_precision.h",
+      "implementation": "compat/legacy/game/tce_award_precision.h",
+      "baseline_sha256": "635d6c364e09bb31e5554c597c5bb53d29227e8994b405290ff843adf4089a6a"
+    },
+    {
+      "original": "src/game/tce_bot_angle_precision.h",
+      "implementation": "compat/legacy/game/tce_bot_angle_precision.h",
+      "baseline_sha256": "467aa25feedc43ef4da06e5adeae9259a0c484390e52e587163418b5cbbad472"
+    },
+    {
+      "original": "src/game/tce_bot_mount_precision.h",
+      "implementation": "compat/legacy/game/tce_bot_mount_precision.h",
+      "baseline_sha256": "5a4f9f7f7d4de2cabfceea5dde24b572eacdefbec3dd5313f77b1587c256457f"
+    },
+    {
+      "original": "src/game/tce_camera_precision.h",
+      "implementation": "compat/legacy/game/tce_camera_precision.h",
+      "baseline_sha256": "ff8c24e2083b957df1d321dd2abd3e60ac9d4cf3af57f2be69b01e4ce3ec22e2"
+    },
+    {
+      "original": "src/game/tce_endframe_precision.h",
+      "implementation": "compat/legacy/game/tce_endframe_precision.h",
+      "baseline_sha256": "f41277ef82d5b7de6996f48ecbf961491eb2039bd57bed36f419db306a58d599"
+    },
+    {
+      "original": "src/game/tce_explosive_precision.h",
+      "implementation": "compat/legacy/game/tce_explosive_precision.h",
+      "baseline_sha256": "4acdfe350cc7cdd6cce94765c8ec3e1e10747ee5511d5954e7d49503e180c061"
+    },
+    {
+      "original": "src/game/tce_eye_precision.h",
+      "implementation": "compat/legacy/game/tce_eye_precision.h",
+      "baseline_sha256": "aa90a249970f74cebff7b51ed443abd8219bdc2866051e1b4d7b257d5d0dc02b"
+    },
+    {
+      "original": "src/game/tce_flamebarrel_precision.h",
+      "implementation": "compat/legacy/game/tce_flamebarrel_precision.h",
+      "baseline_sha256": "669e5c93131c9c6a5508ded0cb30078bb46dc0de34495bc3c92994432be4b848"
+    },
+    {
+      "original": "src/game/tce_float_integer.h",
+      "implementation": "compat/legacy/game/tce_float_integer.h",
+      "baseline_sha256": "925c0cd0bd22431ed645082f29728342dc7824396d1646d2a49f487e2b3e48a2"
+    },
+    {
+      "original": "src/game/tce_friction_precision.h",
+      "implementation": "compat/legacy/game/tce_friction_precision.h",
+      "baseline_sha256": "482b7daa6473151856792de332b51fb00ffa45385d8878871d240800f331b644"
+    },
+    {
+      "original": "src/game/tce_gust_precision.h",
+      "implementation": "compat/legacy/game/tce_gust_precision.h",
+      "baseline_sha256": "897fdb40d1af02adb87c6c8e38453f38234295e04305ad029bdff228005e29a4"
+    },
+    {
+      "original": "src/game/tce_impact_precision.h",
+      "implementation": "compat/legacy/game/tce_impact_precision.h",
+      "baseline_sha256": "b496fe00e12935a48f098f711aabb6da7c69a710c4c739270aa9b59b0f9398bc"
+    },
+    {
+      "original": "src/game/tce_interpolation_precision.h",
+      "implementation": "compat/legacy/game/tce_interpolation_precision.h",
+      "baseline_sha256": "a3b1f984e991fa9745d89fa7334eccab16f790a3eb166b5f69577d330e79c579"
+    },
+    {
+      "original": "src/game/tce_item_visibility_precision.h",
+      "implementation": "compat/legacy/game/tce_item_visibility_precision.h",
+      "baseline_sha256": "03674356049d97942232b458d2325b0627b22f7ae734840c711e0021c7522c41"
+    },
+    {
+      "original": "src/game/tce_lead_precision.h",
+      "implementation": "compat/legacy/game/tce_lead_precision.h",
+      "baseline_sha256": "1b2c97f48158065a4f844135475ad59991b64ca698d4e8b03fe18624c37e77d0"
+    },
+    {
+      "original": "src/game/tce_length_precision.h",
+      "implementation": "compat/legacy/game/tce_length_precision.h",
+      "baseline_sha256": "b3aca8bb4f939f53841d91f7c380065083e1b464ebc3acdefae670d9ba7b7e6f"
+    },
+    {
+      "original": "src/game/tce_maxlives_precision.h",
+      "implementation": "compat/legacy/game/tce_maxlives_precision.h",
+      "baseline_sha256": "5a9622ab159953be93559dcf14a8f92d715213127cb76b01dc4039c4679d06d4"
+    },
+    {
+      "original": "src/game/tce_native_syscall.h",
+      "implementation": "compat/legacy/game/tce_native_syscall.h",
+      "baseline_sha256": "cbc4ed690a212b48a2be11f5eb573674470873969b675148177159bfa506bf56"
+    },
+    {
+      "original": "src/game/tce_normalize_precision.h",
+      "implementation": "compat/legacy/game/tce_normalize_precision.h",
+      "baseline_sha256": "d6d83de1cd40d3556a0270e3e3b19d0871064de97370aa95d0f98aaacb693bad"
+    },
+    {
+      "original": "src/game/tce_numeric.h",
+      "implementation": "compat/legacy/game/tce_numeric.h",
+      "baseline_sha256": "6e3201c942d38c699d0de77ee12fa72fa52122ac8f10c46a480f2ceb071450fd"
+    },
+    {
+      "original": "src/game/tce_objective_precision.h",
+      "implementation": "compat/legacy/game/tce_objective_precision.h",
+      "baseline_sha256": "c640a5cf685e2789fb075dcc6f1bb6380245086b002f822062819aeac0866835"
+    },
+    {
+      "original": "src/game/tce_pose_precision.h",
+      "implementation": "compat/legacy/game/tce_pose_precision.h",
+      "baseline_sha256": "b5d348ba37d6639cbb64a2417867b5f0c44928f38da9a8a3457e20a610db7be5"
+    },
+    {
+      "original": "src/game/tce_radius_precision.h",
+      "implementation": "compat/legacy/game/tce_radius_precision.h",
+      "baseline_sha256": "c235931fc182b7ac65329d8c22f4d01e7ee01d12522dec90a267447154ed6ad8"
+    },
+    {
+      "original": "src/game/tce_ratio_precision.h",
+      "implementation": "compat/legacy/game/tce_ratio_precision.h",
+      "baseline_sha256": "f06c5e3f87cebc2f5ae1759a84a48503713bece3b0de992f4591e6e6ce1dc3ba",
+      "reviewed_change": {
+        "sha256": "ee16278756383f2144a567cc837721f240be313b0a8c84abbd746780beb1a7e1",
+        "reason": "Fix MSVC x86 optimized uint64 highest-bit scan: incorrect exponent erased movement velocity and produced zero weapon animation durations. Count high/low uint32 words explicitly; preserve original baseline hash.",
+        "regression_commands": [
+          "python tools/modernize/compat_validate.py --msvc-version 14.39 --configuration both",
+          "python tools/runtime_parity/compare_pmove.py --build-dir build/modernization-validation/windows-x86 --config Release --out build/runtime-parity-verified --msvc-version 14.39"
+        ],
+        "evidence": "Original DLL versus fixed cgame/qagame: 432 full movement streams each, including jump/stairs/collision; all 15 original weapon.cfg files yield byte-identical animation records. No SDK gameplay body changed."
+      }
+    },
+    {
+      "original": "src/game/tce_reinforcement_precision.h",
+      "implementation": "compat/legacy/game/tce_reinforcement_precision.h",
+      "baseline_sha256": "72bc36fd24cfc0510ef91ea19d29a1fdc8f4abab883903099526e8c14a250be8"
+    },
+    {
+      "original": "src/game/tce_rotate_precision.h",
+      "implementation": "compat/legacy/game/tce_rotate_precision.h",
+      "baseline_sha256": "926ef877d4e342e5c9d265f21a303ca6f8129c8d2d15b0b28cc3365f3513d0f4",
+      "reviewed_change": {
+        "sha256": "58bcd09b9888f9a3358ea0b2a6a98146d7611881aa3d1982248180a645e1756a",
+        "reason": "Replace per-bit fixed-grid storage scans with equivalent word operations to reduce verified per-frame weapon-position overhead. Preserve precision and rounding decisions.",
+        "regression_commands": ["python tools/modernize/compat_word_probe.py", "python tools/modernize/compat_validate.py --msvc-version 14.39"],
+        "evidence": "534848 exact frozen-body comparisons per Debug/Release build across all 12 PC/RC modes; actual original-DLL weapon-position histories validated separately. Original baseline retained."
+      }
+    },
+    {
+      "original": "src/game/tce_smoke_precision.h",
+      "implementation": "compat/legacy/game/tce_smoke_precision.h",
+      "baseline_sha256": "ac71a5862c267843712a937e2cabc16022d59625419061152817a7baa3cd5c58"
+    },
+    {
+      "original": "src/game/tce_spline_precision.h",
+      "implementation": "compat/legacy/game/tce_spline_precision.h",
+      "baseline_sha256": "7b364ad0f82fc2321f5317de3973fc6c45a5756fc7208584036a9ae9bcc0d86a"
+    },
+    {
+      "original": "src/game/tce_spline_traverse_precision.h",
+      "implementation": "compat/legacy/game/tce_spline_traverse_precision.h",
+      "baseline_sha256": "8890d2670287e830fda03102d096cb407790ba88cd856ccac47df9830ac1433d"
+    },
+    {
+      "original": "src/game/tce_stopwatch_precision.h",
+      "implementation": "compat/legacy/game/tce_stopwatch_precision.h",
+      "baseline_sha256": "3fa8392a1092e1dd8a208b793b76510bce034d1a89af0bfdf303e32f58de1f12"
+    },
+    {
+      "original": "src/game/tce_team_spawn_precision.h",
+      "implementation": "compat/legacy/game/tce_team_spawn_precision.h",
+      "baseline_sha256": "e418b321011923c20aa5a65ae62e820f2d483f197659962e3ab5c33bb4dac87c"
+    },
+    {
+      "original": "src/game/tce_tracemap_precision.h",
+      "implementation": "compat/legacy/game/tce_tracemap_precision.h",
+      "baseline_sha256": "6b62364f3238549721811e24758da4ce6851c63852354f8cc427ef7a20e3865b"
+    },
+    {
+      "original": "src/game/tce_train_precision.h",
+      "implementation": "compat/legacy/game/tce_train_precision.h",
+      "baseline_sha256": "402959f8401ed838ea0796f90a8b0a61d9e1f2bf7b1b1daf832f931f0a0ef653"
+    },
+    {
+      "original": "src/game/tce_transition_precision.h",
+      "implementation": "compat/legacy/game/tce_transition_precision.h",
+      "baseline_sha256": "db495b7d3829f705b7209b1614d87b4ba091abbf49ffa370ec03fe3cb6dd6b2f"
+    },
+    {
+      "original": "src/game/tce_trigger_precision.h",
+      "implementation": "compat/legacy/game/tce_trigger_precision.h",
+      "baseline_sha256": "64b8bc16bd4dfc36931cd1125dd9c5ca57fd9bc0862507822dfa125d024ce8a7",
+      "reviewed_change": {
+        "sha256": "db0573c0a9f452b02c702cc4e794efec1a45db978e8e219b3bda8efe7f2b915f",
+        "reason": "Replace per-bit fixed-grid placement/rounding scans with equivalent word operations; preserve the original numerical behavior while reducing render-path cost.",
+        "regression_commands": ["python tools/modernize/compat_word_probe.py", "python tools/modernize/compat_validate.py --msvc-version 14.39"],
+        "evidence": "534848 exact frozen-body comparisons per Debug/Release build across all 12 PC/RC modes, random full 576-bit states and valid bit placements; original baseline retained."
+      }
+    },
+    {
+      "original": "src/game/tce_weapon_stats_precision.h",
+      "implementation": "compat/legacy/game/tce_weapon_stats_precision.h",
+      "baseline_sha256": "aec65d5e4318418d84b1e7765a7b59561234725f00b7f786dc4820044afc3859"
+    },
+    {
+      "original": "src/game/tce_weather_precision.h",
+      "implementation": "compat/legacy/game/tce_weather_precision.h",
+      "baseline_sha256": "5e3dac5f7b7be569aa5e5e0c735d6878f3f1422403d74c037547f54dcc6459e3"
+    }
+  ]
+}

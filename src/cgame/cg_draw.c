@@ -9,12 +9,10 @@
 
 #include "cg_local.h"
 #include "tce_camera_wave.h"
+#include "../game/tce_numeric.h"
 #if defined(_MSC_VER) && defined(_M_IX86)
 #include "../game/tce_x87_sum.h"
 #include "../game/tce_reinforcement_precision.h"
-#endif
-#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
-#include "../game/tce_numeric.h"
 #endif
 #include "tce_levelshot_fade.h"
 #include "tce_weapon_media.h"
@@ -4303,7 +4301,10 @@ static void CG_DrawRadarIcon(int x, int y, int w, int h, const vec3_t origin, co
 #endif
 	int radius, px, py;
 	VectorSubtract(origin, target, delta); z = delta[2];
-#if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
+#if defined(_WIN32) && !defined(Q3_VM)
+	/*300215e4 stores the retained PC53 length once, after the square root. */
+	distance = (float)TCE_VectorLengthValue(delta);
+#elif defined(__linux__) && !defined(Q3_VM)
 	distance = VectorLength(delta);
 #else
 	distance = (float)sqrt((double)delta[0] * delta[0] + (double)delta[1] * delta[1] + (double)delta[2] * delta[2]);
@@ -6493,7 +6494,7 @@ void CG_DrawActive(stereoFrame_t stereoView)
 	{
 		// draw status bar and other floating elements
 		CG_Draw2D();
-#ifdef FEATURE_OMNIBOT
+#if defined(FEATURE_OMNIBOT) && defined(FEATURE_NAVSTUDIO)
 		OmnibotRenderDebugText();
 #endif
 	}

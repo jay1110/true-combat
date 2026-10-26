@@ -11,6 +11,7 @@
 #include "../game/tce_numeric.h"
 #include "tce_smoke_grenade.h"
 #include "tce_weapon_media.h"
+#include "tce_player_animation_precision.h"
 
 #define SWING_RIGHT 1
 #define SWING_LEFT  2
@@ -568,7 +569,7 @@ void CG_RunLerpFrame(centity_t *cent, clientInfo_t *ci, lerpFrame_t *lf, int new
 	}
 	else
 	{
-		lf->backlerp = 1.0 - (float)(cg.time - lf->oldFrameTime) / (lf->frameTime - lf->oldFrameTime);
+		lf->backlerp = TCE_PlayerAnimationBacklerp(cg.time - lf->oldFrameTime, lf->frameTime - lf->oldFrameTime);
 	}
 }
 
@@ -744,8 +745,6 @@ void CG_RunLerpFrameRate(clientInfo_t *ci, lerpFrame_t *lf, int newAnimation, ce
 
 	if (anim->moveSpeed && lf->oldFrameSnapshotTime)
 	{
-		float moveSpeed;
-
 		// calculate the speed at which we moved over the last frame
 		if (cg.latestSnapshotTime != lf->oldFrameSnapshotTime && cg.nextSnap)
 		{
@@ -760,7 +759,6 @@ void CG_RunLerpFrameRate(clientInfo_t *ci, lerpFrame_t *lf, int newAnimation, ce
 				{
 					lf->oldFramePos[2] = cent->lerpOrigin[2];
 				}
-				moveSpeed = Distance(cent->lerpOrigin, lf->oldFramePos) / ((float)(cg.time - lf->oldFrameTime) / 1000.0);
 			}
 			else
 			{
@@ -769,11 +767,11 @@ void CG_RunLerpFrameRate(clientInfo_t *ci, lerpFrame_t *lf, int newAnimation, ce
 					lf->oldFramePos[0] = cent->currentState.pos.trBase[0];
 					lf->oldFramePos[1] = cent->currentState.pos.trBase[1];
 				}
-				moveSpeed = Distance(cent->lerpOrigin, lf->oldFramePos) / ((float)(cg.time - lf->oldFrameTime) / 1000.0);
 			}
 			//
 			// convert it to a factor of this animation's movespeed
-			lf->animSpeedScale       = moveSpeed / (float)anim->moveSpeed;
+			lf->animSpeedScale       = TCE_PlayerAnimationSpeedScale(cent->lerpOrigin, lf->oldFramePos,
+			                                                            cg.time - lf->oldFrameTime, anim->moveSpeed);
 			lf->oldFrameSnapshotTime = cg.latestSnapshotTime;
 		}
 	}
@@ -992,7 +990,7 @@ void CG_RunLerpFrameRate(clientInfo_t *ci, lerpFrame_t *lf, int newAnimation, ce
 	}
 	else
 	{
-		lf->backlerp = 1.0 - (float)(cg.time - lf->oldFrameTime) / (lf->frameTime - lf->oldFrameTime);
+		lf->backlerp = TCE_PlayerAnimationBacklerp(cg.time - lf->oldFrameTime, lf->frameTime - lf->oldFrameTime);
 	}
 }
 

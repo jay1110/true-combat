@@ -1,0 +1,448 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 21,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/modern/${presetName}",
+      "cacheVariables": {
+        "BUILD_TESTING": "ON",
+        "FEATURE_OMNIBOT": "ON",
+        "FEATURE_NAVSTUDIO": "OFF",
+        "TCE_BUILD_REFERENCE_TESTS": "OFF",
+        "TCE_BUILD_OMNIBOT_CORE": "ON"
+      }
+    },
+    {
+      "name": "linux-clang-debug",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    },
+    {
+      "name": "linux-clang-release",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "clang",
+        "CMAKE_CXX_COMPILER": "clang++"
+      }
+    },
+    {
+      "name": "linux-gcc-debug",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      }
+    },
+    {
+      "name": "linux-gcc-release",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_C_COMPILER": "gcc",
+        "CMAKE_CXX_COMPILER": "g++"
+      }
+    },
+    {
+      "name": "linux-clang-asan",
+      "inherits": "linux-clang-debug",
+      "cacheVariables": {
+        "TCE_ENABLE_SANITIZERS": "ON",
+        "TCE_SANITIZERS": "address,undefined"
+      }
+    },
+    {
+      "name": "windows-msvc-win32",
+      "inherits": "base",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "Win32",
+      "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": "Debug;Release"
+      }
+    },
+    {
+      "name": "windows-msvc-x64",
+      "inherits": "base",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "cacheVariables": {
+        "CMAKE_CONFIGURATION_TYPES": "Debug;Release"
+      }
+    },
+    {
+      "name": "windows-msvc-asan",
+      "inherits": "windows-msvc-x64",
+      "cacheVariables": {
+        "TCE_ENABLE_SANITIZERS": "ON",
+        "TCE_SANITIZERS": "address"
+      }
+    },
+    {
+      "name": "windows-clang-debug",
+      "inherits": "base",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "CMAKE_C_COMPILER": "clang-cl",
+        "CMAKE_CXX_COMPILER": "clang-cl"
+      }
+    },
+    {
+      "name": "linux-i386-zig",
+      "inherits": "base",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/linux-i386-zig.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "OFF"
+      }
+    },
+    {
+      "name": "linux-x86_64-zig",
+      "inherits": "base",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/linux-x86_64-zig.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "OFF"
+      }
+    },
+    {
+      "name": "linux-armv7",
+      "inherits": "base",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/linux-armv7.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "OFF"
+      }
+    },
+    {
+      "name": "linux-aarch64",
+      "inherits": "base",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/linux-aarch64.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "OFF"
+      }
+    },
+    {
+      "name": "android-armv7",
+      "inherits": "base",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/android-armv7.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "OFF"
+      }
+    },
+    {
+      "name": "android-arm64",
+      "inherits": "base",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/android-arm64.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "OFF"
+      }
+    },
+    {
+      "name": "wasm32",
+      "inherits": "base",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/wasm32.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "OFF"
+      }
+    },
+    {
+      "name": "macos-universal",
+      "inherits": "base",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/macos-universal.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "OFF"
+      }
+    },
+    {
+      "name": "navstudio-windows",
+      "inherits": "windows-msvc-win32",
+      "cacheVariables": {
+        "FEATURE_NAVSTUDIO": "ON",
+        "FEATURE_OMNIBOT": "ON",
+        "TCE_BUILD_NAVSTUDIO": "ON",
+        "TCE_BUILD_OMNIBOT_CORE": "ON"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "linux-clang-debug",
+      "configurePreset": "linux-clang-debug",
+      "targets": [
+        "tce_modules",
+        "tce_compat_golden",
+        "tce_compat_wasm_vector_golden",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "linux-clang-release",
+      "configurePreset": "linux-clang-release",
+      "targets": [
+        "tce_modules",
+        "tce_compat_golden",
+        "tce_compat_wasm_vector_golden",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "linux-gcc-debug",
+      "configurePreset": "linux-gcc-debug",
+      "targets": [
+        "tce_modules",
+        "tce_compat_golden",
+        "tce_compat_wasm_vector_golden",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "linux-gcc-release",
+      "configurePreset": "linux-gcc-release",
+      "targets": [
+        "tce_modules",
+        "tce_compat_golden",
+        "tce_compat_wasm_vector_golden",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "linux-clang-asan",
+      "configurePreset": "linux-clang-asan",
+      "targets": [
+        "tce_modules",
+        "tce_compat_golden",
+        "tce_compat_wasm_vector_golden",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "windows-msvc-win32-debug",
+      "configurePreset": "windows-msvc-win32",
+      "configuration": "Debug",
+      "targets": [
+        "tce_modules",
+        "tce_compat_golden",
+        "tce_compat_wasm_vector_golden",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "windows-msvc-win32-release",
+      "configurePreset": "windows-msvc-win32",
+      "configuration": "Release",
+      "targets": [
+        "tce_modules",
+        "tce_compat_golden",
+        "tce_compat_wasm_vector_golden",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "windows-msvc-x64-debug",
+      "configurePreset": "windows-msvc-x64",
+      "configuration": "Debug",
+      "targets": [
+        "tce_modules",
+        "tce_compat_golden",
+        "tce_compat_wasm_vector_golden",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "windows-msvc-x64-release",
+      "configurePreset": "windows-msvc-x64",
+      "configuration": "Release",
+      "targets": [
+        "tce_modules",
+        "tce_compat_golden",
+        "tce_compat_wasm_vector_golden",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "windows-msvc-asan-debug",
+      "configurePreset": "windows-msvc-asan",
+      "configuration": "Debug",
+      "targets": [
+        "tce_modules",
+        "tce_compat_golden",
+        "tce_compat_wasm_vector_golden",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "windows-msvc-asan-release",
+      "configurePreset": "windows-msvc-asan",
+      "configuration": "Release",
+      "targets": [
+        "tce_modules",
+        "tce_compat_golden",
+        "tce_compat_wasm_vector_golden",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "windows-clang-debug",
+      "configurePreset": "windows-clang-debug",
+      "targets": [
+        "tce_modules",
+        "tce_compat_golden",
+        "tce_compat_wasm_vector_golden",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "linux-i386-zig",
+      "configurePreset": "linux-i386-zig",
+      "targets": [
+        "tce_modules",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "linux-x86_64-zig",
+      "configurePreset": "linux-x86_64-zig",
+      "targets": [
+        "tce_modules",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "linux-armv7",
+      "configurePreset": "linux-armv7",
+      "targets": [
+        "tce_modules",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "linux-aarch64",
+      "configurePreset": "linux-aarch64",
+      "targets": [
+        "tce_modules",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "android-armv7",
+      "configurePreset": "android-armv7",
+      "targets": [
+        "tce_modules",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "android-arm64",
+      "configurePreset": "android-arm64",
+      "targets": [
+        "tce_modules",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "wasm32",
+      "configurePreset": "wasm32",
+      "targets": [
+        "tce_modules",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "macos-universal",
+      "configurePreset": "macos-universal",
+      "targets": [
+        "tce_modules",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "navstudio-windows-debug",
+      "configurePreset": "navstudio-windows",
+      "configuration": "Debug",
+      "targets": [
+        "tce_modules",
+        "tce_compat_golden",
+        "tce_compat_wasm_vector_golden",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "navstudio-windows-release",
+      "configurePreset": "navstudio-windows",
+      "configuration": "Release",
+      "targets": [
+        "tce_modules",
+        "tce_compat_golden",
+        "tce_compat_wasm_vector_golden",
+        "omnibot-et"
+      ]
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "linux-clang-debug",
+      "configurePreset": "linux-clang-debug",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-gcc-debug",
+      "configurePreset": "linux-gcc-debug",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "linux-clang-asan",
+      "configurePreset": "linux-clang-asan",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "windows-msvc-win32",
+      "configurePreset": "windows-msvc-win32",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "windows-msvc-x64",
+      "configurePreset": "windows-msvc-x64",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "windows-msvc-asan",
+      "configurePreset": "windows-msvc-asan",
+      "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

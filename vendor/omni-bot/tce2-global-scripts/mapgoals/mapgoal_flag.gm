@@ -1,0 +1,35 @@
+// Standard dynamic flag behavior plus optional checked TCE ground anchors.
+this.GoalType = "Flag";
+this.Version = 1;
+this.DynamicPosition = true;
+this.DefaultPriority = 0.8;
+this.RemoveWithEntity = true;
+this.GoalStateFunction = InternalGoalState.FlagState;
+this.CreateOnLoad = false;
+this.RolePriorityBonus = 0.1;
+this.Schema = Schema();
+this.Schema.TCECheckedUse = Validate.NumRange(0,1).Default(0);
+this.Schema.UsePosition = Validate.Type("vector3").Default(Vector3(0,0,0));
+this.Schema.FlagBasePosition = Validate.Type("vector3").Default(Vector3(0,0,0));
+this.Schema.ActivationRadius = Validate.NumRange(1,2).Default(2);
+this.Schema.Check(this);
+this.UpgradeVersion = function(Props)
+{
+    Props.Version = 1;
+    this.Schema.Check(Props);
+    this.TCECheckedUse = Props.TCECheckedUse;
+    this.UsePosition = Props.UsePosition;
+    this.FlagBasePosition = Props.FlagBasePosition;
+    this.ActivationRadius = Props.ActivationRadius;
+    if(!this.Schema.Check(this)) { this.DisableGoal(true); }
+};
+this.SaveToTable = function(Props)
+{
+    if(this.TCECheckedUse == 1)
+    {
+        Props.TCECheckedUse = this.TCECheckedUse;
+        Props.UsePosition = this.UsePosition;
+        Props.FlagBasePosition = this.FlagBasePosition;
+        Props.ActivationRadius = this.ActivationRadius;
+    }
+};

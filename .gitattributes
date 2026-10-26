@@ -1,0 +1,13 @@
+* text=auto eol=lf
+
+# Vendor snapshots are content-pinned imports. Do not silently rewrite their
+# bytes on another host. Project-owned changes inside these snapshots are
+# deliberate updates to vendor/dependencies.lock.json.
+/vendor/** -text
+/compat/legacy/** -text
+/tce/launch-legacy.sh -text
+
+# Imported license notices retain their exact supplied bytes on every host.
+/LICENSE -text
+/EULA_TrueCombat_Elite.txt -text
+/src/assets/gfx/flags/LICENSE.xmod.txt -text

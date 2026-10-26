@@ -1,0 +1,11 @@
+// Fixture-only server setup; no door unlock or trigger script.
+game_manager
+{
+ spawn
+ {
+  wm_axis_respawntime 1
+  wm_allied_respawntime 1
+  wm_set_round_timelimit 999
+  tce_dmspawns 1
+ }
+}

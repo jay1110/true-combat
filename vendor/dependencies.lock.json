@@ -1,0 +1,137 @@
+{
+  "schema": 1,
+  "scope": "Explicit vendored dependency inputs for the mod and opt-in tools; no engine import.",
+  "packages": [
+    {
+      "path": "vendor/lua",
+      "name": "Lua",
+      "version": "5.4.9",
+      "source": "https://www.lua.org/ftp/lua-5.4.9.tar.gz",
+      "archive_sha256": "2335b6c582a52654f94612bf10d2f4672805d05329aa6568b1d8cd9e5c6fb8e6",
+      "license": "MIT in lua.h",
+      "notice": "vendor/lua/IMPORT-NOTICE.txt",
+      "snapshot": {
+        "files": 62,
+        "sha256": "6da7201e33c7fd90504667387d2414f366ad641ad5500036c789894a8656b628",
+        "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+      }
+    },
+    {
+      "path": "vendor/sqlite",
+      "name": "SQLite",
+      "version": "3.53.4",
+      "source_record": "vendor/sqlite/SOURCE.json",
+      "notice": "vendor/sqlite/IMPORT-NOTICE.txt",
+      "snapshot": {
+        "files": 4,
+        "sha256": "2a47572b4fac5e6c04ff26a0526e0e98338b31c5ad7cd53ffdd9bca9d308ef72",
+        "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+      }
+    },
+    {
+      "path": "vendor/luasql",
+      "name": "LuaSQL SQLite3 driver",
+      "source_commit": "41d68f45e2410bef664efffaa977851cecbfa299",
+      "source_record": "vendor/luasql/SOURCE.json",
+      "license": "MIT in license.html",
+      "project_modification": "TCE_LuaSqlOpen host policy hook; preserve during layout migration.",
+      "snapshot": {
+        "files": 6,
+        "sha256": "f1c5b1ffe98e8b02b080feafe0c6bd7526d6f3ebc82eb86a40f6eba9fc11eb5c",
+        "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+      }
+    },
+    {
+      "path": "vendor/omni-bot",
+      "name": "Omni-bot compatibility core and project behavior scripts",
+      "version": "0.93 compatibility import",
+      "notice": "vendor/omni-bot/IMPORT-NOTICE.txt",
+      "upstream_revision": "Exact upstream source revision was not present in the supplied import. The content snapshot pins the current project input, not an invented upstream commit.",
+      "public_default": true,
+      "authoring_default": false,
+      "unresolved_license_texts": [
+        "Omni-bot top-level license",
+        "iprof standalone license",
+        "WildMagic3License.pdf"
+      ],
+      "snapshot": {
+        "files": 861,
+        "sha256": "78143b1f608e841b29e09e100f05341b18b5c82eab5bf449916953f3fe1a8d82",
+        "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+      },
+      "snapshot_history": [
+        {
+          "snapshot": {
+            "files": 603,
+            "sha256": "2b155ab805be3d8bbcabc961266b68de64cfed42e3f4528f8638d383a14eaf21",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-10-26",
+          "reviewed_change": "Public Game includes gameplay runtime; native authoring gates retained; architecture-specific core/loader build names and authenticated existing runtime/script/navigation payload imported. No upstream revision inferred."
+        },
+        {
+          "snapshot": {
+            "files": 860,
+            "sha256": "4b394e2421a03454db7d8d9eb5540ae932c894526567b7d50fb2e4cf3b0f9605",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-10-26",
+          "reviewed_change": "Public core omits NavStudio debug-client drawing/export lookup; gameplay navigation and bot administration ABI unchanged. Separate editor keeps the original drawing transport."
+        },
+        {
+          "snapshot": {
+            "files": 860,
+            "sha256": "9503f84bb771c2f9a9acb8ae19dad5c4ccc71882700a7d589703ddd85c52da93",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-10-26",
+          "reviewed_change": "Public gameplay keeps native bot administration; native authoring/debug console entries and real visualization callbacks excluded, TCE navigation diagnostic calls omit arguments and format strings, public debug/remote attach and script hot-reload routes disabled. Mission APIs and AI state transitions preserved; internal legacy visual aliases use inert compatibility callbacks."
+        }
+      ]
+    },
+    {
+      "path": "vendor/omnibot",
+      "name": "Omni-bot mod bridge ABI copy",
+      "notice": "vendor/omnibot/IMPORT-NOTICE.txt",
+      "role": "Compatible bridge subset, preserved independently from core until equivalence checks justify consolidation.",
+      "snapshot": {
+        "files": 15,
+        "sha256": "143641a48ca28a612018ea9e39f2b00c8d0dd19f6e1d40b204670e6fe9a8f4e4",
+        "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+      },
+      "snapshot_history": [
+        {
+          "snapshot": {
+            "files": 15,
+            "sha256": "5a54b3603f3ea574190821f29657f83cd86b7043f335fc498d193f9e360666bc",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-10-26",
+          "reviewed_change": "Public Game includes gameplay runtime; native authoring gates retained; architecture-specific core/loader build names and authenticated existing runtime/script/navigation payload imported. No upstream revision inferred."
+        }
+      ]
+    }
+  ],
+  "optional_fetched_dependencies": [
+    {
+      "name": "RecastNavigation",
+      "source": "https://github.com/recastnavigation/recastnavigation.git",
+      "commit": "b4554541b658630816dba41466eb1cefb624519e",
+      "version": "1.6.0",
+      "declared_in": "navstudio/navmesh/CMakeLists.txt",
+      "public_default": false
+    }
+  ],
+  "external_configuration": [
+    {
+      "name": "Boost headers",
+      "selection": "OMNIBOT_BOOST_INCLUDEDIR or CMake find_path for Boost headers in std::filesystem mode; legacy compiled-filesystem mode retains find_package(Boost).",
+      "binary_libraries_required_with_std_filesystem": false
+    },
+    {
+      "name": "Desktop Python dependencies",
+      "requirements": "navstudio/requirements-desktop.txt",
+      "scope": "Opt-in desktop package only; no Python dependency in public mod modules."
+    }
+  ]
+}

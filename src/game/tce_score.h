@@ -17,4 +17,8 @@ typedef struct
 } tce_scoreParseContext_t;
 /* Caller validates packet size and destination capacity before entering. */
 void TCE_CG_ParseScore(int part, const tce_scoreParseContext_t *ctx);
+/* Engine boundary: bounded 7/14-field packets, strict client IDs and unique
+ * rows across continuation packets. A rejected packet leaves all state intact. */
+int TCE_CG_AcceptScorePacket(int part, int argc, const tce_scoreParseContext_t *ctx,
+                           int extendedRows[64]);
 #endif

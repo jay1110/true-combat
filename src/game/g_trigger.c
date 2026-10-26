@@ -1547,10 +1547,10 @@ void explosive_indicator_think(gentity_t *ent)
 		return;
 	}
 
-	/* TC objective markers follow their trigger's target. Standard ET also
+	/* TC objective markers follow any valid owner's target. Standard ET also
 	 * creates markers owned directly by a constructible, with no target_ent;
 	 * their state/team is already set by the constructible spawn/build code. */
-	if (ent->s.eType == ET_EXPLOSIVE_INDICATOR && parent->s.eType == ET_OID_TRIGGER)
+	if (ent->s.eType == ET_EXPLOSIVE_INDICATOR && G_IndicatorEntityIsLive(parent->target_ent))
 	{
 		if (parent->target_ent->entstate == 4)
 		{

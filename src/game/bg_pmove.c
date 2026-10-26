@@ -10221,7 +10221,7 @@ PM_Sprint
 */
 /* Native TCE sprint controller. Held arithmetic models native values;
  * compiler x87 precision, exceptions and conversion ABI remain open. */
-#if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
+#if defined(_MSC_VER) || (defined(__linux__) && !defined(Q3_VM))
 void PM_Sprint(void)
 {
 	long double cost, carriedCost, speed, value;

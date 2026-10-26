@@ -1,0 +1,35 @@
+{
+  "schema": 1,
+  "scope": "Mod compatibility and genuine OS API boundaries; no engine import",
+  "classes": {
+    "A": "Actual OS/API behavior; platform/platform_io.h isolates Windows/POSIX bounded native directory enumeration and native-only path separation. Engine filesystem/time/render services remain traps.",
+    "B": "Original numerical, floating-point and ABI compatibility; compat/legacy holds unchanged implementations.",
+    "C": "Compiler, architecture and engine ABI capability guards; existing predicates are retained until separately validated.",
+    "D": "Optional developer, authoring and editor capabilities; never enabled by compatibility headers."
+  },
+  "facades": {
+    "compat/compat_wrap.h": "Defined int32 arithmetic",
+    "compat/compat_float.h": "Float classification and original conversion profiles",
+    "compat/compat_math.h": "Finite fixed-grid arithmetic core",
+    "compat/compat_abi.h": "Native/WASM syscall packing contract",
+    "platform/platform_io.h": "Native directory enumeration callback and path separator, distinct from engine VFS",
+    "compat/compat_vector.h": "Class C: targets without the existing Windows/Linux wide-return provider use unchanged SDK Float normalization and widen the result; no new x87 parity claim"
+  },
+  "preservation": [
+    "43 custom helper bodies relocated byte-for-byte from src/game and src/cgame",
+    "Original include paths remain as thin relative forwarding headers",
+    "Original guard predicates, arithmetic order, fallback paths and function signatures preserved",
+    "SDK public headers and SDK-identical implementations not edited",
+    "No new assembly, FPU flags, traps, compiler switches or profile selection"
+  ],
+  "limitations": [
+    "Existing Linux guards do not prove ARM or non-x87 numeric parity",
+    "MSVC long double remains binary64; existing x86 fixed-grid support is not automatically enabled elsewhere",
+    "Finite helper numerical results do not reproduce floating exception flags or unmasked traps",
+    "Private long-double helpers and existing platform-specific AngleDifference declarations require further ABI review",
+    "WASM ABI1 requires a matching engine host; compiling the module does not provide that host",
+    "Gameplay call-site precision branches remain classified migration work; this relocation does not claim complete elimination"
+  ],
+  "validation_inputs": "tools/modernize/compat_golden.c",
+  "validation_runner": "tools/modernize/compat_validate.py"
+}

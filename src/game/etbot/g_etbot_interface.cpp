@@ -1579,6 +1579,7 @@ public:
 				}
 			}
 
+#ifdef FEATURE_NAVSTUDIO
 			// Opt-in isolated navigation diagnosis; never changes bot input.
 			// Keep polling/logging bounded even with many bots in a live server.
 			{
@@ -1613,6 +1614,7 @@ public:
 						trace.surfaceFlags, trace.plane.normal[0], trace.plane.normal[1], trace.plane.normal[2]);
 				}
 			}
+#endif
 		}
 		trap_BotUserCommand(_client, &cmd);
 	}
@@ -3838,6 +3840,7 @@ public:
 				}*/
 				break;
 			}
+#ifdef FEATURE_NAVSTUDIO
 		case GEN_MSG_GOTOWAYPOINT:
 			{
 				OB_GETMSG(Msg_GotoWaypoint);
@@ -3849,6 +3852,7 @@ public:
 				}
 				break;
 			}
+#endif
 			//////////////////////////////////////////////////////////////////////////
 		case ET_MSG_GOTOLIMBO:
 			{
@@ -4601,6 +4605,7 @@ public:
 
 	int GetAutoNavFeatures(AutoNavFeature *_feature, int _max)
 	{
+#ifdef FEATURE_NAVSTUDIO
 		int iNumFeatures = 0;
 		for (int i = MAX_CLIENTS; i < level.num_entities; ++i)
 		{
@@ -4682,6 +4687,12 @@ public:
 			}
 		}
 		return iNumFeatures;
+#else
+		// Preserve the engine interface ABI without linking entity-import code.
+		(void)_feature;
+		(void)_max;
+		return 0;
+#endif
 	}
 
 	const char *GetGameName()

@@ -1,0 +1,139 @@
+// menu defs
+// 
+{	
+	loadMenu { "ui_obj/global.menu" }	
+	loadMenu { "ui_obj/main.menu" }
+	loadMenu { "ui/profile.menu" }
+	loadMenu { "ui/profile_sub.menu" }
+	loadMenu { "ui/profile_create.menu" }
+	loadMenu { "ui/profile_create_initial.menu" }
+	loadMenu { "ui/profile_rename.menu" }
+	loadMenu { "ui/profile_delete.menu" }
+	loadMenu { "ui/profile_delete_error.menu" }
+	loadMenu { "ui/profile_create_error.menu" }
+	loadMenu { "ui/playonline.menu" }
+	loadMenu { "ui/playonline_sub.menu" }
+	loadMenu { "ui/playonline_connecttoip.menu" }
+	loadMenu { "ui/playonline_serverinfo.menu" }
+	loadMenu { "ui/playonline_disablepb.menu" }
+	loadMenu { "ui/playonline_enablepb.menu" }
+	loadMenu { "ui/hostgame.menu" }
+	loadMenu { "ui/hostgame_sub.menu" }
+	loadMenu { "ui/hostgame_advanced.menu" }
+	loadMenu { "ui/hostgame_advanced_default.menu" }
+	loadMenu { "ui/hostgame_dedicated_warning.menu" }
+	loadMenu { "ui/viewreplay.menu" }
+	loadMenu { "ui/viewreplay_delete.menu" }
+	loadMenu { "ui/options.menu" }
+	loadMenu { "ui/options_sub.menu" }
+	loadMenu { "ui/options_customise_game.menu" }
+	loadMenu { "ui/options_customise_hud.menu" }
+	loadMenu { "ui/options_controls.menu" }
+	loadMenu { "ui/options_controls_default.menu" }
+	loadMenu { "ui/options_system.menu" }
+	loadMenu { "ui/options_system_gamma.menu" }
+	loadMenu { "ui/credits_groovesix.menu" }
+	loadMenu { "ui/credits_groovesix_sub.menu" }
+	loadMenu { "ui/credits_splashdamage.menu" }
+	loadMenu { "ui/credits_idsoftware.menu" }
+	loadMenu { "ui/credits_activision.menu" }
+	loadMenu { "ui/credits_additional.menu" }
+	loadMenu { "ui/credits_quit.menu" }
+	loadMenu { "ui/quit.menu" }
+
+	// popups
+	loadMenu { "ui/popup_errormessage.menu" }
+	loadMenu { "ui/popup_errormessage_pb.menu" }	
+	loadMenu { "ui/popup_hostgameerrormessage.menu" }
+	loadMenu { "ui/popup_autoupdate.menu" }
+	loadMenu { "ui/popup_password.menu" }
+
+	// video confirmation
+	loadMenu { "ui/vid_restart.menu" }
+	loadMenu { "ui/vid_confirm.menu" }
+	loadMenu { "ui/rec_restart.menu" }
+
+	// quickchats
+	loadMenu { "ui/wm_quickmessage.menu" }
+	loadMenu { "ui/wm_quickmessageAlt.menu" }
+	loadMenu { "ui/wm_ftquickmessage.menu" }
+	loadMenu { "ui/wm_ftquickmessageAlt.menu" }
+
+	// ingame
+	loadMenu { "ui/ingame_main.menu" }
+	loadMenu { "ui/ingame_main_sub.menu" }
+	loadMenu { "ui/ingame_vote.menu" }
+	loadMenu { "ui/ingame_vote_disabled.menu" }
+	loadMenu { "ui/ingame_vote_misc.menu" }
+	loadMenu { "ui/ingame_vote_misc_refrcon.menu" }
+	loadMenu { "ui/ingame_vote_map.menu" }
+	loadMenu { "ui/ingame_vote_players.menu" }
+	loadMenu { "ui/ingame_vote_players_warn.menu" }
+	loadMenu { "ui/ingame_serverinfo.menu" }
+	loadMenu { "ui/ingame_disconnect.menu" }
+	loadMenu { "ui/ingame_messagemode.menu" }
+	loadMenu { "ui/ingame_tapout.menu" }
+	loadMenu { "ui/ingame_tapoutlms.menu" }
+	
+	// tce mods
+	loadMenu { "ui/tcemods.menu" }
+
+	// Optional local voice DMS; never part of the public mod.
+	loadMenu { "ui/tce_ob_0_0.menu" }
+	loadMenu { "ui/tce_ob_0_1.menu" }
+	loadMenu { "ui/tce_ob_0_1_8_confirm.menu" }
+	loadMenu { "ui/tce_ob_10_0.menu" }
+	loadMenu { "ui/tce_ob_11_0.menu" }
+	loadMenu { "ui/tce_ob_12_0.menu" }
+	loadMenu { "ui/tce_ob_13_0.menu" }
+	loadMenu { "ui/tce_ob_14_0.menu" }
+	loadMenu { "ui/tce_ob_14_1.menu" }
+	loadMenu { "ui/tce_ob_15_0.menu" }
+	loadMenu { "ui/tce_ob_16_0.menu" }
+	loadMenu { "ui/tce_ob_17_0.menu" }
+	loadMenu { "ui/tce_ob_18_0.menu" }
+	loadMenu { "ui/tce_ob_19_0.menu" }
+	loadMenu { "ui/tce_ob_1_0.menu" }
+	loadMenu { "ui/tce_ob_20_0.menu" }
+	loadMenu { "ui/tce_ob_20_1.menu" }
+	loadMenu { "ui/tce_ob_20_2.menu" }
+	loadMenu { "ui/tce_ob_20_3.menu" }
+	loadMenu { "ui/tce_ob_20_3_0_confirm.menu" }
+	loadMenu { "ui/tce_ob_20_3_1_confirm.menu" }
+	loadMenu { "ui/tce_ob_20_3_3_confirm.menu" }
+	loadMenu { "ui/tce_ob_21_0.menu" }
+	loadMenu { "ui/tce_ob_22_0.menu" }
+	loadMenu { "ui/tce_ob_22_1.menu" }
+	loadMenu { "ui/tce_ob_23_0.menu" }
+	loadMenu { "ui/tce_ob_23_1.menu" }
+	loadMenu { "ui/tce_ob_23_1_5_confirm.menu" }
+	loadMenu { "ui/tce_ob_2_0.menu" }
+	loadMenu { "ui/tce_ob_2_1.menu" }
+	loadMenu { "ui/tce_ob_2_2.menu" }
+	loadMenu { "ui/tce_ob_2_2_1_confirm.menu" }
+	loadMenu { "ui/tce_ob_3_0.menu" }
+	loadMenu { "ui/tce_ob_3_1.menu" }
+	loadMenu { "ui/tce_ob_3_2.menu" }
+	loadMenu { "ui/tce_ob_3_3.menu" }
+	loadMenu { "ui/tce_ob_3_4.menu" }
+	loadMenu { "ui/tce_ob_4_0.menu" }
+	loadMenu { "ui/tce_ob_4_1.menu" }
+	loadMenu { "ui/tce_ob_5_0.menu" }
+	loadMenu { "ui/tce_ob_5_1.menu" }
+	loadMenu { "ui/tce_ob_6_0.menu" }
+	loadMenu { "ui/tce_ob_7_0.menu" }
+	loadMenu { "ui/tce_ob_8_0.menu" }
+	loadMenu { "ui/tce_ob_8_1.menu" }
+	loadMenu { "ui/tce_ob_8_2.menu" }
+	loadMenu { "ui/tce_ob_9_0.menu" }
+	loadMenu { "ui/tce_ob_9_1.menu" }
+	loadMenu { "ui/tce_ob_9_2.menu" }
+	loadMenu { "ui/tce_ob_goalname.menu" }
+	loadMenu { "ui/tce_ob_groupname.menu" }
+	loadMenu { "ui/tce_ob_names.menu" }
+	loadMenu { "ui/tce_ob_root_1.menu" }
+	loadMenu { "ui/tce_ob_root_2.menu" }
+	loadMenu { "ui/tce_ob_value.menu" }
+	loadMenu { "ui/tce_ob_waypointname.menu" }
+	loadMenu { "ui/tce_omnibot.menu" }
+}

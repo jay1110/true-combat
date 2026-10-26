@@ -1,0 +1,43 @@
+// TCE2_NAVSTUDIO_GENERATED_GOALS_V1
+// Map-bound TC native actions; no ET engineer weapon substitution.
+global Map = {};
+global OnMapLoad = function()
+{
+    SetAvailableMapGoals(TEAM.AXIS, false, "PLANT_.*|DEFUSE_.*|BUILD_.*", true);
+    SetAvailableMapGoals(TEAM.ALLIES, false, "PLANT_.*|DEFUSE_.*|BUILD_.*", true);
+    SetGoalPriority("TCEOBJECTIVE_.*|FLAG_.*|CAPPOINT_.*", 1.2);
+    Map.NavStudioTactics = { MapName = "obj_village", Gametype = 5, Goals = { ATTACK_to_the_bomb_place_B = "Attack", DEFEND_to_the_bomb_place_B = "Defend", ATTACK_to_the_bomb_place_A = "Attack", DEFEND_to_the_bomb_place_A = "Defend", CAMP_NavStudio_163 = "CAMP", CAMP_NavStudio_681 = "CAMP", CAMP_NavStudio_517 = "CAMP", CAMP_NavStudio_290 = "CAMP", CAMP_NavStudio_371 = "CAMP", CAMP_NavStudio_675 = "CAMP", CAMP_NavStudio_1618 = "CAMP", CAMP_NavStudio_1362 = "CAMP", CAMP_NavStudio_1989 = "CAMP", CAMP_NavStudio_439 = "CAMP", CAMP_NavStudio_679 = "CAMP", CAMP_NavStudio_386 = "CAMP", CAMP_NavStudio_2387 = "CAMP", CAMP_NavStudio_1610 = "CAMP", CAMP_NavStudio_2195 = "CAMP", CAMP_NavStudio_179 = "CAMP", CAMP_NavStudio_2108 = "CAMP", CAMP_NavStudio_1356 = "CAMP", CAMP_NavStudio_1901 = "CAMP", CAMP_NavStudio_320 = "CAMP", } };
+    SetGoalPriority("^ATTACK_to_the_bomb_place_B$", 0.35);
+    SetGoalPriority("^DEFEND_to_the_bomb_place_B$", 1.3);
+    SetGoalPriority("^ATTACK_to_the_bomb_place_A$", 0.35);
+    SetGoalPriority("^DEFEND_to_the_bomb_place_A$", 1.3);
+    SetGoalPriority("^CAMP_NavStudio_163$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_681$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_517$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_290$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_371$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_675$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_1618$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_1362$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_1989$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_439$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_679$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_386$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_2387$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_1610$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_2195$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_179$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_2108$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_1356$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_1901$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_320$", 0.3);
+    SetCvar("omnibot_navstudio_goal_token", 260716682);
+    print("NAVSTUDIO_GOALS obj_village GT5 loaded");
+};
+global InitializeRoutes = function()
+{
+    MapRoutes =
+    {
+    };
+    Util.Routes(MapRoutes);
+};

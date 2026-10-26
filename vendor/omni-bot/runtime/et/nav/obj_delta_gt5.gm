@@ -1,0 +1,43 @@
+// TCE2_NAVSTUDIO_GENERATED_GOALS_V1
+// Map-bound TC native actions; no ET engineer weapon substitution.
+global Map = {};
+global OnMapLoad = function()
+{
+    SetAvailableMapGoals(TEAM.AXIS, false, "PLANT_.*|DEFUSE_.*|BUILD_.*", true);
+    SetAvailableMapGoals(TEAM.ALLIES, false, "PLANT_.*|DEFUSE_.*|BUILD_.*", true);
+    SetGoalPriority("TCEOBJECTIVE_.*|FLAG_.*|CAPPOINT_.*", 1.2);
+    Map.NavStudioTactics = { MapName = "obj_delta", Gametype = 5, Goals = { ATTACK_Container_A = "Attack", DEFEND_Container_A = "Defend", ATTACK_Container_B = "Attack", DEFEND_Container_B = "Defend", CAMP_NavStudio_215 = "CAMP", CAMP_NavStudio_1149 = "CAMP", CAMP_NavStudio_217 = "CAMP", CAMP_NavStudio_979 = "CAMP", CAMP_NavStudio_1174 = "CAMP", CAMP_NavStudio_1208 = "CAMP", CAMP_NavStudio_1181 = "CAMP", CAMP_NavStudio_429 = "CAMP", CAMP_NavStudio_1211 = "CAMP", CAMP_NavStudio_242 = "CAMP", CAMP_NavStudio_941 = "CAMP", CAMP_NavStudio_1187 = "CAMP", CAMP_NavStudio_278 = "CAMP", CAMP_NavStudio_932 = "CAMP", CAMP_NavStudio_395 = "CAMP", CAMP_NavStudio_1185 = "CAMP", CAMP_NavStudio_905 = "CAMP", CAMP_NavStudio_412 = "CAMP", CAMP_NavStudio_272 = "CAMP", CAMP_NavStudio_597 = "CAMP", } };
+    SetGoalPriority("^ATTACK_Container_A$", 0.35);
+    SetGoalPriority("^DEFEND_Container_A$", 1.3);
+    SetGoalPriority("^ATTACK_Container_B$", 0.35);
+    SetGoalPriority("^DEFEND_Container_B$", 1.3);
+    SetGoalPriority("^CAMP_NavStudio_215$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_1149$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_217$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_979$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_1174$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_1208$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_1181$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_429$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_1211$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_242$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_941$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_1187$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_278$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_932$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_395$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_1185$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_905$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_412$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_272$", 0.3);
+    SetGoalPriority("^CAMP_NavStudio_597$", 0.3);
+    SetCvar("omnibot_navstudio_goal_token", 215877336);
+    print("NAVSTUDIO_GOALS obj_delta GT5 loaded");
+};
+global InitializeRoutes = function()
+{
+    MapRoutes =
+    {
+    };
+    Util.Routes(MapRoutes);
+};

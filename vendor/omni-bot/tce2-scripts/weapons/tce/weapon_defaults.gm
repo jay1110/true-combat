@@ -1,0 +1,13 @@
+// Native IDs are not ET weapon aliases. Values are AI heuristics, not game balance.
+this.Name = "TC slot";
+this.WeaponId = 0;
+this.MinUseTime = 1.0;
+this.PrimaryFire.WeaponType = "instant";
+this.PrimaryFire.ShootButton = BTN.ATTACK1;
+this.PrimaryFire.RequiresAmmo = true;
+this.PrimaryFire.HasClip = true;
+this.PrimaryFire.IgnoreReload = false;
+this.PrimaryFire.DefaultDesirability = 0.0;
+this.PrimaryFire.LowAmmoThreshold = 2;
+this.PrimaryFire.LowAmmoPriority = 0.5;
+this.PrimaryFire.SetTargetBias(CLASS.VEHICLE_HVY, 0);

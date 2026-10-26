@@ -1,6 +1,7 @@
 #include "cg_local.h"
 #include "../game/tce_bg.h"
 #include "tce_eject_brass.h"
+#include "tce_smoke_grenade.h"
 #include "../game/tce_numeric.h"
 
 static double ejectRandom(void)

@@ -86,7 +86,19 @@ static void TCE_DrawClientScore(int x, int y, const tce_score_t *s,
 			tx += 18; offset += 18;
 		}
 	}
-	c->text(tx, fy, .2f, white, c->name);
+	if (c->namePrefix)
+	{
+		c->namePrefix(tx, fy, s->client, fade);
+		tx += 18; offset += 18;
+	}
+	if (c->nameText)
+	{
+		c->nameText(tx, fy, (float)x + 132 - tx, white, c->name);
+	}
+	else
+	{
+		c->text(tx, fy, .2f, white, c->name);
+	}
 	c->drawStrlen(c->name);
 	tx += (float)(140 - offset);
 	if (c->team == 3)

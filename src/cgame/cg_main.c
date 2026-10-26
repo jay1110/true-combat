@@ -107,6 +107,8 @@ vmCvar_t cg_drawFPS;
 vmCvar_t cg_drawSnapshot;
 vmCvar_t cg_drawCrosshair;
 vmCvar_t cg_drawCrosshairNames;
+vmCvar_t cg_countryflags;
+qhandle_t tce_countryFlagsShader;
 vmCvar_t cg_drawTeamNames;
 vmCvar_t cg_drawCrosshairPickups;
 vmCvar_t cg_weaponCycleDelay;       //----(SA)	added
@@ -333,12 +335,12 @@ vmCvar_t cg_aspectFovMode;
 vmCvar_t cg_freeAim;
 vmCvar_t cg_recording_showstatusline;
 
-#ifdef FEATURE_OMNIBOT
+#if defined(FEATURE_OMNIBOT) && defined(FEATURE_NAVSTUDIO)
 vmCvar_t cg_omnibotdrawing, cg_omnibot_render_distance;
 #endif
 cvarTable_t cvarTable[] =
 {
-#ifdef FEATURE_OMNIBOT
+#if defined(FEATURE_OMNIBOT) && defined(FEATURE_NAVSTUDIO)
 	{ &cg_omnibotdrawing,           "cg_omnibotdrawing",           "1",     CVAR_ARCHIVE                 },
 	{ &cg_omnibot_render_distance,  "cg_omnibot_render_distance",  "800",   CVAR_ARCHIVE                 },
 #endif
@@ -370,6 +372,7 @@ cvarTable_t cvarTable[] =
 	{ &cg_drawSnapshot,             "cg_drawSnapshot",             "0",     CVAR_ARCHIVE                 },
 	{ &cg_drawCrosshair,            "cg_drawCrosshair",            "0",     CVAR_CHEAT                   },
 	{ &cg_drawCrosshairNames,       "cg_drawCrosshairNames",       "1",     CVAR_ARCHIVE                 },
+	{ &cg_countryflags,            "cg_countryflags",            "1",     CVAR_ARCHIVE                 },
 	{ &cg_drawTeamNames,            "cg_drawTeamNames",            "1",     CVAR_ARCHIVE                 },
 	{ &cg_drawCrosshairPickups,     "cg_drawCrosshairPickups",     "1",     CVAR_ARCHIVE                 },
 	{ &cg_useWeapsForZoom,          "cg_useWeapsForZoom",          "1",     CVAR_ARCHIVE                 },
@@ -1597,6 +1600,7 @@ static void CG_RegisterGraphics(void)
 	cgs.media.tceFlatSparkShader       = trap_R_RegisterShader("sprites/flatspark.tga");
 	cgs.media.tceGlowSparkShader       = trap_R_RegisterShader("sprites/glowspark.tga");
 	cgs.media.tceLedgeHint             = trap_R_RegisterShader("gfx/2d/ledgeHint");
+	tce_countryFlagsShader            = cg_countryflags.integer ? trap_R_RegisterShaderNoMip("gfx/flags/world_flags") : 0;
 	cgs.media.tceObjectiveLockedHint   = trap_R_RegisterShader("gfx/2d/objLockedHint");
 
 	// Arnout: these were never used in default wolf
@@ -3077,7 +3081,7 @@ Will perform callbacks to make the loading info screen update.
 #endif // _DEBUG
 void CG_Init(int serverMessageNum, int serverCommandSequence, int clientNum, qboolean demoPlayback)
 {
-#ifdef FEATURE_OMNIBOT
+#if defined(FEATURE_OMNIBOT) && defined(FEATURE_NAVSTUDIO)
 	OmnibotResetClient();
 #endif
 	const char *s;
@@ -3315,7 +3319,7 @@ Called before every level change or subsystem restart
 */
 void CG_Shutdown(void)
 {
-#ifdef FEATURE_OMNIBOT
+#if defined(FEATURE_OMNIBOT) && defined(FEATURE_NAVSTUDIO)
 	OmnibotResetClient();
 #endif
 	// some mods may need to do cleanup work here,

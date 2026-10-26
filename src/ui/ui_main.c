@@ -14,6 +14,7 @@ USER INTERFACE MAIN
 #include "ui_local.h"
 #include "../game/tce_numeric.h"
 #include "../game/tce_guid.h"
+#include "tce_ui_text_precision.h"
 
 // NERVE - SMF
 #define AXIS_TEAM       0
@@ -2437,19 +2438,22 @@ void UI_DrawGametypeDescription(rectDef_t *rect, float scale, vec4_t color, floa
 			{
 				if (align == ITEM_ALIGN_LEFT)
 				{
-					textRect.x = text_x;
+					textRect.x = TCE_UiDescriptionX(text_x, 0, rect->x);
 				}
 				else if (align == ITEM_ALIGN_RIGHT)
 				{
-					textRect.x = text_x - newLineWidth;
+					textRect.x = TCE_UiDescriptionX(text_x, newLineWidth, rect->x);
 				}
 				else if (align == ITEM_ALIGN_CENTER)
 				{
-					textRect.x = text_x - newLineWidth / 2;
+					textRect.x = TCE_UiDescriptionX(text_x, newLineWidth / 2, rect->x);
+				}
+				else
+				{
+					textRect.x += rect->x;
 				}
 				textRect.y = y;
 
-				textRect.x += rect->x;
 				textRect.y += rect->y;
 				//
 				buff[newLine] = '\0';
@@ -10486,7 +10490,7 @@ cvarTable_t cvarTable[] =
 
 	{ &ui_brassTime,                    "cg_brassTime",                    "2500",                       CVAR_ARCHIVE                   }, // JPW NERVE
 	{ &ui_drawCrosshair,                "cg_drawCrosshair",                "4",                          CVAR_ARCHIVE                   },
-	{ &ui_drawTeamNames,                "cg_drawTeamNames",                "1",                          CVAR_ARCHIVE                   },
+	{ &ui_drawTeamNames,                "cg_drawCrosshairNames",                "1",                          CVAR_ARCHIVE                   },
 	{ &ui_drawCrosshairPickups,         "cg_drawCrosshairPickups",         "1",                          CVAR_ARCHIVE                   }, //----(SA) added
 	{ &ui_marks,                        "cg_marktime",                     "20000",                      CVAR_ARCHIVE                   },
 	// JOSEPH 12-2-99
@@ -10587,7 +10591,7 @@ cvarTable_t cvarTable[] =
 	{ NULL,                             "cg_drawReinforcementTime",        "1",                          CVAR_ARCHIVE                   },
 	{ NULL,                             "cg_cursorHints",                  "1",                          CVAR_ARCHIVE                   },
 	{ NULL,                             "cg_crosshairPulse",               "1",                          CVAR_ARCHIVE                   },
-	{ NULL,                             "cg_drawTeamNames",                "1",                          CVAR_ARCHIVE                   },
+	{ NULL,                             "cg_drawCrosshairNames",                "1",                          CVAR_ARCHIVE                   },
 	{ NULL,                             "cg_crosshairColor",               "White",                      CVAR_ARCHIVE                   },
 	{ NULL,                             "cg_crosshairAlpha",               "1.0",                        CVAR_ARCHIVE                   },
 	{ NULL,                             "cg_crosshairColorAlt",            "White",                      CVAR_ARCHIVE                   },

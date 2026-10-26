@@ -3252,7 +3252,7 @@ void CG_DrawActiveFrame(int serverTime, stereoFrame_t stereoView, qboolean demoP
 			DEBUGTIME
 
 			CG_AddAtmosphericEffects();
-#ifdef FEATURE_OMNIBOT
+#if defined(FEATURE_OMNIBOT) && defined(FEATURE_NAVSTUDIO)
 			OmnibotRenderDebugLines();
 #endif
 		}

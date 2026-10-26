@@ -629,13 +629,67 @@ static const char *TCE_ScoreTranslate(const char *text)
 {
 	return CG_TranslateString(text);
 }
+static int TCE_ScoreCountry(int client)
+{
+	const char *value;
+	char *end;
+	long country;
+	if (!cg_countryflags.integer || client < 0 || client >= MAX_CLIENTS)
+	{
+		return -1;
+	}
+	value = Info_ValueForKey(CG_ConfigString(CS_PLAYERS + client), "u");
+	if (!*value)
+	{
+		return -1;
+	}
+	country = strtol(value, &end, 10);
+	if (*end || country <= 0 || country >= 255)
+	{
+		return -1;
+	}
+	if (!tce_countryFlagsShader)
+	{
+		/* Allow toggling flags on without a renderer restart. */
+		tce_countryFlagsShader = trap_R_RegisterShaderNoMip("gfx/flags/world_flags");
+	}
+	return tce_countryFlagsShader ? (int)country : -1;
+}
+static void TCE_ScoreCountryFlag(float x, float y, int client, float fade)
+{
+	int country = TCE_ScoreCountry(client);
+	vec4_t color = { 1, 1, 1, 0 };
+	float s, t;
+	if (country < 0)
+	{
+		return;
+	}
+	s = (float)(country & 15) / 16; t = (float)(country >> 4) / 16;
+	color[3] = fade;
+	trap_R_SetColor(color);
+	CG_DrawPicST(x, y - 12, 14, 11, s, t, s + 1.f / 16, t + 1.f / 16, tce_countryFlagsShader);
+	trap_R_SetColor(NULL);
+}
+static void TCE_ScoreName(float x, float y, float width, const float *color, const char *text)
+{
+	char name[MAX_NAME_LENGTH];
+	size_t length;
+	Q_strncpyz(name, text, sizeof(name));
+	while ((length = strlen(name)) > 0 && CG_Text_Width_Ext(name, .2f, 0, &cgs.media.limboFont1) > width)
+	{
+		name[length - 1] = 0;
+	}
+	length = strlen(name);
+	if (length && name[length - 1] == '^') { name[length - 1] = 0; }
+	TCE_ScoreText(x, y, .2f, color, name);
+}
 /* Seven-field SDK servers do not provide the TC statistics used below. */
 static void TCE_ScoreLegacyClientRow(int x, int y, int index, const float *color, float fade)
 {
 	score_t      *score    = &cg.scores[index];
 	clientInfo_t *ci       = &cgs.clientinfo[score->client];
 	vec4_t       highlight = { .75f, .5f, 0, 0 };
-	char         name[MAX_NAME_LENGTH];
+	float        nameX = (float)x;
 	int          i; float tx = (float)x + 140;
 	if (y + 16 > 469)
 	{
@@ -645,10 +699,11 @@ static void TCE_ScoreLegacyClientRow(int x, int y, int index, const float *color
 	{
 		highlight[3] = fade * .3f; TCE_ScoreFill((float)x, (float)(y - 13), 394, 15, highlight);
 	}
-	Q_strncpyz(name, ci->name, sizeof(name));
-	while (name[0] && CG_Text_Width_Ext(name, .2f, 0, &cgs.media.limboFont1) > 132)
-		name[strlen(name) - 1] = 0;
-	TCE_ScoreText((float)x, (float)y, .2f, color, name);
+	if (TCE_ScoreCountry(score->client) >= 0)
+	{
+		TCE_ScoreCountryFlag(nameX, (float)y, score->client, fade); nameX += 18;
+	}
+	TCE_ScoreName(nameX, (float)y, (float)x + 132 - nameX, color, ci->name);
 	if (ci->team == TEAM_SPECTATOR)
 	{
 		TCE_ScoreText(tx + 36, (float)y, .2f, color, CG_TranslateString("Spectator")); return;
@@ -698,6 +753,8 @@ static void TCE_ScoreClientRow(int x, int y, int index, const float *color, floa
 	ctx.fill               = TCE_ScoreFill; ctx.pic = TCE_ScorePic; ctx.text = TCE_ScoreText;
 	ctx.drawStrlen         = CG_DrawStrlen; ctx.translate = TCE_ScoreTranslate;
 	ctx.locateMergedClient = TCE_ScoreLocateMerged;
+	ctx.namePrefix         = TCE_ScoreCountry(score->client) >= 0 ? TCE_ScoreCountryFlag : NULL;
+	ctx.nameText           = TCE_ScoreName;
 	TCE_WM_DrawClientScoreWithFormat(x, y, score, color, fade, &ctx, va);
 }
 static int TCE_ObjectivesReinforce(int menu)

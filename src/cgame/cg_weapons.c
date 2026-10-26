@@ -6,6 +6,7 @@
 */
 
 #include "cg_local.h"
+#include "../../compat/compat_vector.h"
 #include "tce_lightgrid.h"
 #include "tce_weapon_frames.h"
 #include "tce_weapon_media.h"

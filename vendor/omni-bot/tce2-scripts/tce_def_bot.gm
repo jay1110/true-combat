@@ -1,0 +1,20 @@
+// Native TC loadout is selected by the server using team/class/map restrictions.
+if (this.TCEProfileInitialized) { return; }
+this.TCEProfileInitialized = true;
+this.FieldOfView = 90.0;
+this.ReactionTime = 1.0;
+this.MemorySpan = 2.0;
+this.AimPersistance = 2.0;
+this.MaxViewDistance = 4000.0;
+this.MaxTurnSpeed = 720.0;
+this.AimStiffness = 75.0;
+this.AimDamping = 10.0;
+this.SelectTeam = function() { return null; };
+this.SelectClass = function() { return Util.GetRandomTableValue(Util.PlayerClassTable); };
+this.ClassPrimaryWeaponChoice = function(excludeweapons) { return 0; };
+this.ClassSecondaryWeaponChoice = function(excludeweapons) { return 0; };
+this.SelectWeapons = function() {
+ if (_PreferredWeapon && _PreferredWeapon[this.Name]) {
+  this.ChangePrimaryWeapon(_PreferredWeapon[this.Name]);
+ }
+};

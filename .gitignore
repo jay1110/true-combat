@@ -1,73 +1,60 @@
-# Only source and this repository policy belong in future commits.
+# Publish the complete mod, bot runtime, authoring tools and build inputs.
+# The game installation, original binaries, research and build products stay local.
 /*
 !/.gitignore
+!/.gitattributes
+!/CMakeLists.txt
+!/CMakePresets.json
+!/BUILDING.md
+!/README.md
+!/LICENSE
+!/EULA_TrueCombat_Elite.txt
+!/.github/
+!/.github/**
+!/cmake/
+!/cmake/**
+!/compat/
+!/compat/**
+!/platform/
+!/platform/**
 !/src/
+!/src/**
+!/vendor/
+!/vendor/**
+!/omnibot/
+!/omnibot/**
+!/navstudio/
+!/navstudio/**
+!/tce/
+!/tce/**
+!/tools/
+!/tools/**
+!/Docs/
+/Docs/*
+!/Docs/*.md
+!/Docs/*.json
 
-# Publish production sources and build inputs only. Local research is retained.
-/src/*
-!/src/uncrustify.cfg
-!/src/botai/
-!/src/cgame/
-!/src/game/
-!/src/server/
-!/src/ui/
-!/src/cmake/
-!/src/CMakeLists.txt
-!/src/build.ps1
-!/src/build_windows_variants.py
-!/src/BUILDING.md
-!/src/SConstruct
-!/src/SConscript.*
-!/src/scons_utils.py
-!/src/cross-scons.sh
-!/src/makebundle.sh
-!/src/wolf.sln
-/src/botai/**
-/src/cgame/**
-/src/game/**
-/src/server/**
-/src/ui/**
-!/src/**/
-!/src/**/*.c
-!/src/**/*.cpp
-!/src/**/*.h
-!/src/**/*.inc
-!/src/**/*.def
-!/src/**/*.vcproj
-!/src/**/*.dsp
-
-# Vendored Omni-bot production sources, build inputs and attribution only.
-!/src/vendor/
-/src/vendor/**
-!/src/vendor/**/
-!/src/vendor/**/*.c
-!/src/vendor/**/*.cpp
-!/src/vendor/**/*.h
-!/src/vendor/**/*.inl
-!/src/vendor/**/*.mcr
-!/src/vendor/**/*.rc
-!/src/vendor/**/CMakeLists.txt
-!/src/vendor/**/*.cmake
-!/src/vendor/**/*.in
-!/src/vendor/**/IMPORT-NOTICE.txt
-!/src/vendor/**/LICENSE*
-!/src/vendor/luasql/license.html
-!/src/vendor/**/COPYING*
-!/src/vendor/**/COPYRIGHT*
-!/src/vendor/**/LGPL.txt
-!/src/vendor/**/CREDITS.txt
-!/src/vendor/**/README*
-/src/cmake/*
-!/src/cmake/*.cmake
-# Overrides the source-extension exceptions above for local-only work.
-/src/tests/
-/src/tools/
-/src/reconstruction/
+# Local instructions, reverse-engineering evidence and external engine checkouts.
+/AGENTS.md
 /src/AGENTS.md
+/src/reconstruction/
+/src/vendor/
+/src/tools/
+/reference/
+/build/
+/dist/
+/state/
+/decompiled/
+/ET_SDK/
 
-# Generated files stay local even when building inside src.
+# Generated/compiled files, local environments and editor state.
 **/__pycache__/
 **/*.py[cod]
+**/.pytest_cache/
+**/.mypy_cache/
+**/.venv/
+**/venv/
+**/node_modules/
 **/build/
 **/Debug/
 **/Release/
@@ -77,71 +64,34 @@
 **/.vs/
 **/*.obj
 **/*.o
+**/*.a
 **/*.dll
 **/*.so
+**/*.so.*
+**/*.dylib
 **/*.exe
+**/*.wasm
 **/*.pdb
 **/*.ilk
 **/*.exp
 **/*.lib
 **/*.suo
 **/*.user
+**/*.log
+**/*.dmp
+**/*.zip
+**/*.pk3
+**/.DS_Store
 
-# Production Omni-bot TCE behavior scripts. Runtime assets stay local.
-!/src/vendor/omni-bot/tce2-scripts/**/*.gm
+# Local credentials and per-developer configuration never belong in source ZIPs.
+**/.env
+**/.env.*
+CMakeUserPresets.json
 
-# Production Lua example and public API documentation.
-!/src/lua/
-/src/lua/*
-!/src/lua/*.lua
-!/src/lua/README.md
-
-# WolfAdmin production Lua/configuration/schema and upstream attribution.
-!/src/lua/wolfadmin/
-!/src/lua/wolfadmin/**/
-!/src/lua/wolfadmin/**/*.lua
-!/src/lua/wolfadmin/**/*.toml
-!/src/lua/wolfadmin/**/*.sql
-!/src/lua/wolfadmin/**/*.md
-!/src/lua/wolfadmin/**/COPYING.txt
-
-!/src/lua/wolfadmin/**/*.cfg
-
-# Required compass resources included by the production client packager.
-!/src/assets/
-/src/assets/**
-!/src/assets/gfx/
-!/src/assets/gfx/misc/
-!/src/assets/gfx/misc/radar_arrow.tga
-!/src/assets/gfx/misc/radar_dot.tga
-!/src/assets/ui/
-!/src/assets/ui/*.menu
-!/src/assets/ui/menus*.txt
-!/src/cmake/build-omnibot-wasm.ps1
-!/src/cmake/build-wasm.ps1
-
-# Production waypoint generation/validation command-line companion.
-!/src/tools/
-/src/tools/*
-!/src/tools/tce_navgen.py
-# Offline BSP collision and navmesh preview tools (generated data stays in build/).
-!/src/tools/tce_bsp_navmesh.py
-!/src/tools/tce_bsp_patch.py
-!/src/tools/navmesh/
-/src/tools/navmesh/*
-!/src/tools/navmesh/CMakeLists.txt
-!/src/tools/navmesh/preview.cpp
-!/src/tools/navmesh/report.py
-!/src/tools/navmesh/README.md
-!/src/tools/navmesh/waygraph.py
-
-# Local BSP/Recast application: source, launcher and build inputs only.
-!/src/tools/navstudio/
-/src/tools/navstudio/*
-!/src/tools/navstudio/*.py
-!/src/tools/navstudio/*.js
-!/src/tools/navstudio/*.html
-!/src/tools/navstudio/*.css
-!/src/tools/navstudio/*.cmd
-!/src/tools/navstudio/*.ps1
-!/src/tools/navstudio/*.md
+# Windows Git treats Release/release directory names alike. These are source
+# scripts, not a generated Release directory; retain only explicit inputs.
+!/tools/release/
+!/tools/release/*.py
+!/tools/release/*.json
+!/tools/release/*.cfg
+!/tools/release/*.md

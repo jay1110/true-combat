@@ -1,0 +1,8 @@
+if(NOT TCE_ANDROID_NDK)
+  set(TCE_ANDROID_NDK "$ENV{ANDROID_NDK_HOME}" CACHE PATH "Android NDK installation")
+endif()
+if(NOT EXISTS "${TCE_ANDROID_NDK}/build/cmake/android.toolchain.cmake")
+  message(FATAL_ERROR "Set TCE_ANDROID_NDK or ANDROID_NDK_HOME to an installed Android NDK")
+endif()
+set(CMAKE_TRY_COMPILE_PLATFORM_VARIABLES TCE_ANDROID_NDK ANDROID_ABI ANDROID_PLATFORM)
+include("${TCE_ANDROID_NDK}/build/cmake/android.toolchain.cmake")

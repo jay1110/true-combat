@@ -1,5 +1,6 @@
 #include "g_local.h"
 #include "tce_lua.h"
+#include "tce_geoip.h"
 #ifdef FEATURE_OMNIBOT
 #include "g_etbot_interface.h"
 #endif
@@ -1296,6 +1297,7 @@ void ClientUserinfoChanged(int clientNum)
 	char      *s;
 	char      oldname[MAX_STRING_CHARS];
 	char      userinfo[MAX_INFO_STRING];
+	char      countryInfo[MAX_INFO_STRING];
 	gclient_t *client;
 	int       i;
 	char      skillStr[16] = "";
@@ -1460,6 +1462,15 @@ void ClientUserinfoChanged(int clientNum)
 		       );
 	}
 
+	{
+		int country = G_GeoIPCountry(Info_ValueForKey(userinfo, "ip"), ent->r.svFlags & SVF_BOT);
+		if (country >= 0)
+		{
+			Q_strncpyz(countryInfo, s, sizeof(countryInfo));
+			Info_SetValueForKey(countryInfo, "u", va("%d", country));
+			s = countryInfo;
+		}
+	}
 	trap_GetConfigstring(CS_PLAYERS + clientNum, oldname, sizeof(oldname));
 
 	trap_SetConfigstring(CS_PLAYERS + clientNum, s);

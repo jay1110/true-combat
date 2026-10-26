@@ -1,0 +1,46 @@
+{
+  "schema": 1,
+  "reference_family": "supplied TC:E originals, not SDK replacements",
+  "required_windows": {
+    "tcetest/cgame_mp_x86.dll": "d85a8e94da7c94956eff560e4cc406b4116f5a6ffd820b59accd9ad7e1e2414c",
+    "tcetest/qagame_mp_x86.dll": "f4f17855f568fcd9be760047943d50cfcb2e3bcf8691471172fe7771c2ae04c7",
+    "tcetest/ui_mp_x86.dll": "785ee90d00952e8d86a5a7c8f8688e1bed868a3b00d93321604590cf93282781"
+  },
+  "linux_inventory_only": {
+    "tcetest/cgame.mp.i386.so": "ba7a63795887c1e33cd07623db40aea7eec4b4b4266758af69f5cbf4d8b1f355",
+    "tcetest/qagame.mp.i386.so": "343aaf52c9b97874c66956415e2a3d649f523a58d115f93379cbf20d323956f2",
+    "tcetest/ui.mp.i386.so": "4a5e28b8c53e185b92141aadae69ebd16f9967dea2acc7d86c972735fcd17c79"
+  },
+  "approved_wrappers": {
+    "tce_shared_binary_comparison": {
+      "script": "src/tools/verify_recovery.py",
+      "sha256": "ff9e343a4cba341e74cfaf0fdeccb350aa06f35a96ba3df55c9450a0aedc8e6e",
+      "native_target": "tce_shared_test",
+      "boundary": "Extracts original weapon/media/animation/gear fixtures into a temporary directory, then invokes only the configured native differential executable. No engine starts."
+    }
+  },
+  "default_tests": [
+    "tce_character_pool_comparison",
+    "tce_class_equipment_comparison",
+    "tce_trajectory_binary_comparison",
+    "tce_weapon_ammo_binary_comparison",
+    "tce_reload_binary_comparison",
+    "tce_aim_binary_comparison",
+    "tce_attack_runtime_comparison",
+    "tce_objectives_comparison",
+    "tce_ui_coordinates_binary_comparison",
+    "tce_client_score_binary_comparison",
+    "tce_fragment_sound_binary_comparison",
+    "tce_missile_binary_comparison",
+    "tce_weapon_frames_binary_comparison",
+    "tce_tag_position_binary_comparison",
+    "tce_movement_binary_comparison",
+    "tce_wall_renderer_binary_comparison"
+  ],
+  "limits": [
+    "Win32 differential function harnesses use their documented controlled callbacks/mocks.",
+    "A successful helper or function test is not whole-module, engine, visual, sound, mission or cross-platform parity.",
+    "Linux original binaries are fingerprinted but not executed by this Windows harness.",
+    "Live A/B uses the separately controlled single existing test installation; this runner never starts a game."
+  ]
+}

@@ -2197,6 +2197,8 @@ extern vmCvar_t cg_drawFPS;
 extern vmCvar_t cg_drawSnapshot;
 extern vmCvar_t cg_drawCrosshair;
 extern vmCvar_t cg_drawCrosshairNames;
+extern vmCvar_t cg_countryflags;
+extern qhandle_t tce_countryFlagsShader;
 extern vmCvar_t cg_drawTeamNames;
 extern vmCvar_t cg_drawCrosshairPickups;
 extern vmCvar_t cg_useWeapsForZoom;
@@ -3754,7 +3756,7 @@ extern vmCvar_t cg_recording_showstatusline;
 
 #endif /* TCE_CG_LOCAL_H */
 
-#ifdef FEATURE_OMNIBOT
+#if defined(FEATURE_OMNIBOT) && defined(FEATURE_NAVSTUDIO)
 void OmnibotRenderDebugLines(void);
 void OmnibotRenderDebugText(void);
 void OmnibotResetClient(void);

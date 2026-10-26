@@ -1,0 +1,338 @@
+global _MG = 
+{
+	ATTACK_to_capture_point_A = 
+	{
+		AimVectors = 
+		{
+			Vec3(0.736, 0.676, 0.039),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(-2816.000, -1551.917, 28.250),
+		Radius = 60,
+		TeamAvailability = 2,
+	},
+	ATTACK_to_capture_point_B = 
+	{
+		AimVectors = 
+		{
+			Vec3(-0.282, 0.959, 0.024),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(-192.000, 554.256, 28.250),
+		Radius = 35,
+		TeamAvailability = 4,
+	},
+	CAMP_NavStudio_1006 = 
+	{
+		AimVectors = 
+		{
+			Vec3(0.257, 0.965, 0.047),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(-1962.237, 285.033, 31.532),
+		Radius = 35,
+		TeamAvailability = 6,
+	},
+	CAMP_NavStudio_1042 = 
+	{
+		AimVectors = 
+		{
+			Vec3(-0.840, -0.542, 0.000),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(-2510.237, -1145.968, 32.250),
+		Radius = 35,
+		TeamAvailability = 6,
+	},
+	CAMP_NavStudio_116 = 
+	{
+		AimVectors = 
+		{
+			Vec3(0.497, -0.861, 0.111),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(-2112.000, -1662.769, 8.250),
+		Radius = 20,
+		TeamAvailability = 6,
+	},
+	CAMP_NavStudio_120 = 
+	{
+		AimVectors = 
+		{
+			Vec3(-1.000, 0.000, 0.000),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(-2112.000, -332.554, 48.250),
+		Radius = 35,
+		Stance = "crouch",
+		TeamAvailability = 6,
+	},
+	CAMP_NavStudio_209 = 
+	{
+		AimVectors = 
+		{
+			Vec3(-1.000, 0.000, 0.000),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(-1472.000, -2106.174, 56.250),
+		Radius = 35,
+		TeamAvailability = 6,
+	},
+	CAMP_NavStudio_234 = 
+	{
+		AimVectors = 
+		{
+			Vec3(-0.500, -0.866, 0.000),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(-1344.000, -332.554, -119.750),
+		Radius = 35,
+		TeamAvailability = 6,
+	},
+	CAMP_NavStudio_254 = 
+	{
+		AimVectors = 
+		{
+			Vec3(-0.500, -0.866, 0.000),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(-1216.000, 1219.364, 48.250),
+		Radius = 35,
+		TeamAvailability = 6,
+	},
+	CAMP_NavStudio_304 = 
+	{
+		AimVectors = 
+		{
+			Vec3(-0.500, -0.866, 0.000),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(-832.000, -997.661, 256.250),
+		Radius = 35,
+		TeamAvailability = 6,
+	},
+	CAMP_NavStudio_313 = 
+	{
+		AimVectors = 
+		{
+			Vec3(-1.000, 0.000, 0.000),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(-768.000, -1773.620, 48.250),
+		Radius = 35,
+		TeamAvailability = 6,
+	},
+	CAMP_NavStudio_346 = 
+	{
+		AimVectors = 
+		{
+			Vec3(-1.000, 0.000, 0.008),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(-576.000, -110.851, 32.250),
+		Radius = 35,
+		TeamAvailability = 6,
+	},
+	CAMP_NavStudio_349 = 
+	{
+		AimVectors = 
+		{
+			Vec3(0.500, -0.866, 0.000),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(-576.000, 1219.364, 32.250),
+		Radius = 35,
+		TeamAvailability = 6,
+	},
+	CAMP_NavStudio_383 = 
+	{
+		AimVectors = 
+		{
+			Vec3(-0.499, -0.864, 0.071),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(-320.000, 554.256, 28.250),
+		Radius = 20,
+		TeamAvailability = 6,
+	},
+	CAMP_NavStudio_416 = 
+	{
+		AimVectors = 
+		{
+			Vec3(-0.500, -0.866, 0.000),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(-128.000, -1551.917, 32.250),
+		Radius = 35,
+		TeamAvailability = 6,
+	},
+	CAMP_NavStudio_438 = 
+	{
+		AimVectors = 
+		{
+			Vec3(-1.000, 0.000, 0.000),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(64.000, -775.959, 32.250),
+		Radius = 35,
+		TeamAvailability = 6,
+	},
+	CAMP_NavStudio_442 = 
+	{
+		AimVectors = 
+		{
+			Vec3(-1.000, 0.000, 0.000),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(64.000, 1219.364, 32.250),
+		Radius = 35,
+		TeamAvailability = 6,
+	},
+	CAMP_NavStudio_456 = 
+	{
+		AimVectors = 
+		{
+			Vec3(-1.000, 0.000, 0.000),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(384.000, 0.000, 32.250),
+		Radius = 35,
+		TeamAvailability = 6,
+	},
+	CAMP_NavStudio_60 = 
+	{
+		AimVectors = 
+		{
+			Vec3(0.500, -0.866, 0.000),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(-2880.000, -1662.769, 28.250),
+		Radius = 35,
+		TeamAvailability = 6,
+	},
+	CAMP_NavStudio_71 = 
+	{
+		AimVectors = 
+		{
+			Vec3(0.500, -0.866, 0.017),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(-2752.000, -554.256, 14.487),
+		Radius = 35,
+		TeamAvailability = 6,
+	},
+	CAMP_NavStudio_865 = 
+	{
+		AimVectors = 
+		{
+			Vec3(-0.189, -0.982, 0.013),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(-1888.000, -942.236, 32.250),
+		Radius = 20,
+		TeamAvailability = 6,
+	},
+	CAMP_NavStudio_900 = 
+	{
+		AimVectors = 
+		{
+			Vec3(0.992, -0.120, -0.042),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(-1114.237, 305.033, 39.788),
+		Radius = 35,
+		TeamAvailability = 6,
+	},
+	CAPPOINT_to_capture_point_A = 
+	{
+		Position = Vec3(-2668.000, -1448.000, 32.250),
+		Radius = 2,
+		TeamAvailability = 4,
+	},
+	CAPPOINT_to_capture_point_B = 
+	{
+		Position = Vec3(-208.000, 704.000, 30.250),
+		Radius = 2,
+		TeamAvailability = 2,
+	},
+	DEFEND_to_capture_point_A = 
+	{
+		AimVectors = 
+		{
+			Vec3(0.736, 0.676, 0.039),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(-2816.000, -1551.917, 28.250),
+		Radius = 60,
+		TeamAvailability = 4,
+	},
+	DEFEND_to_capture_point_B = 
+	{
+		AimVectors = 
+		{
+			Vec3(-0.282, 0.959, 0.024),
+		},
+		MaxCampTime = 6,
+		MinCampTime = 2,
+		Position = Vec3(-192.000, 554.256, 28.250),
+		Radius = 35,
+		TeamAvailability = 2,
+	},
+	FLAG_flagspecops = 
+	{
+		ActivationRadius = 2,
+		CreateOnLoad = 0,
+		FlagBasePosition = Vec3(-2668.000, -1432.000, 16.177),
+		Position = Vec3(-2668.000, -1432.000, 16.177),
+		Radius = 2,
+		TCECheckedUse = 1,
+		TeamAvailability = 2,
+		UsePosition = Vec3(-2668.000, -1448.000, 32.250),
+	},
+	FLAG_flagterrorists = 
+	{
+		ActivationRadius = 2,
+		CreateOnLoad = 0,
+		FlagBasePosition = Vec3(-232.000, 728.000, 11.125),
+		Position = Vec3(-232.000, 728.000, 11.125),
+		Radius = 2,
+		TCECheckedUse = 1,
+		TeamAvailability = 4,
+		UsePosition = Vec3(-236.000, 736.000, 28.250),
+	},
+	SWITCH_NavStudio_EditorProof_20261014 = 
+	{
+		AimPosition = Vec3(0.000, 0.000, 0.000),
+		Facing = Vec3(0.000, 0.000, 0.000),
+		Position = Vec3(-2071.237, 912.032, 46.250),
+		Radius = 35,
+		Stance = "crouch",
+		TeamAvailability = 0,
+		Timeout = 2500,
+		Use = 0,
+	},
+	Version = 1,
+};

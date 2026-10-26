@@ -1,0 +1,252 @@
+// Distributed fallback exploration. Native combat/objective goals retain priority.
+// Server defaults: omnibot_tce_explore 1, omnibot_tce_explore_debug 0.
+// Generated/loaded graph connectivity is evidence of a route, not live proof.
+if(TCE2ExploreShared == null)
+{ global TCE2ExploreShared = {points={}, refresh=0, teams={}}; }
+this.Name = "TCE2Explore";
+this.Parent = "HighLevel";
+this.AutoAdd = true;
+this.SkipGetPriorityWhenActive = false;
+this.NextTry = 0;
+this.Deadline = 0;
+this.Destination = null;
+this.TeamState = null;
+this.ExitReason = "higher_priority";
+this.PathStarted = false;
+this.Completed = false;
+this.Trace = function(event)
+{
+ if(GetCvar("omnibot_tce_explore_debug") != 0 && this.Destination)
+ { print("TCE2EXPLORE", event, this.Bot.GetGameId(), this.Destination.guid, GetTime()); }
+};
+this.Initialize = function()
+{
+ this.NextTry = GetTime()+RandFloat(1,5);
+ this.LocalFailed = {}; this.LocalMap = GetMapName(); this.LastEnter = GetTime();
+};
+this.GetPriority = function()
+{
+ this.Priority = 0.0;
+ this.ExitReason = "higher_priority";
+ if(GetCvar("omnibot_tce_explore") == 0) { this.ExitReason = "disabled"; return; }
+ if(this.Bot.HasTarget()) { this.ExitReason = "combat_target"; return; }
+ if(this.Bot.HasAnyEntityFlag(ENTFLAG.DEAD, ENTFLAG.LIMBO, ENTFLAG.CARRYINGGOAL, ENTFLAG.ON_LADDER))
+ { this.ExitReason = "entity_state"; return; }
+ if(GetTime() < this.NextTry) { return; }
+ if(this.Deadline > 0 && GetTime() >= this.Deadline) { this.ExitReason = "deadline"; return; }
+ // Replace generic ROAMING=0.1. Once a destination is reserved, keep the
+ // short trip ahead of optional generated camps=0.11 to avoid route churn.
+ // Native map-goal defaults start at0.3 (objectives0.7..1.1), above both.
+ // Combat/carrying/death guards above still abort immediately; custom map
+ // scripts retain their explicit goal priorities without modification.
+ this.Priority = 0.105;
+ if(this.Destination && !this.Completed && this.Deadline > GetTime())
+ { this.Priority = 0.115; }
+};
+this.Enter = function()
+{
+ now = GetTime();
+ // Local cooldowns belong to this bot instance, never to another client slot.
+ if(this.LocalMap != GetMapName() || now < this.LastEnter)
+ { this.LocalFailed = {}; }
+ if(TCE2ExploreShared.map != GetMapName() ||
+  (TCE2ExploreShared.lastTime != null && now < TCE2ExploreShared.lastTime))
+ { TCE2ExploreShared.points = {}; TCE2ExploreShared.teams = {}; TCE2ExploreShared.refresh = 0; }
+ TCE2ExploreShared.map = GetMapName(); TCE2ExploreShared.lastTime = now;
+ this.LocalMap = GetMapName(); this.LastEnter = now;
+ this.PathStarted = false; this.Completed = false;
+ if(now >= TCE2ExploreShared.refresh || TCE2ExploreShared.refresh > now+35)
+ {
+  all = {}; Wp.GetAllWaypoints(all); TCE2ExploreShared.points = {};
+  foreach(point in all)
+  {
+   // Validated ladder/jump guides are transit nodes, so rooms accessible only
+   // through an action remain part of the search. Never camp on a midair guide.
+   // Team-only, teleporter, scripted and other unknown actions stay excluded.
+   allowed = true;
+   foreach(flag and value in point.flags)
+   {
+    // GetNavFlagMap canonicalizes keys to lowercase before GM export.
+    if(flag != "crouch" && flag != "climb" && flag != "jump" &&
+       flag != "jumplow" && flag != "jumpgap") { allowed = false; break; }
+   }
+   if(allowed && tableCount(point.connections) > 0)
+   { TCE2ExploreShared.points[point.guid] = point; }
+  }
+  TCE2ExploreShared.refresh = now+30;
+ }
+ team = this.Bot.GetTeam();
+ if(!TCE2ExploreShared.teams[team])
+ { TCE2ExploreShared.teams[team] = {reserved={}, visited={}, failed={}}; }
+ this.TeamState = TCE2ExploreShared.teams[team];
+ start = Wp.GetClosestWaypoint(this.Bot.GetPosition());
+ this.Destination = null;
+ if(!start || !TCE2ExploreShared.points[start.guid] || (this.Bot.GetPosition()-start.position).Length() > 96)
+ { this.Finished(); return; }
+ // Only destinations connected from the bot's actual graph component.
+ queue = {}; queue[0] = start.guid; seen = {}; seen[start.guid] = 1;
+ // Accumulate a real graph route on the existing first-visit BFS tree. This
+ // is a traversable route upper bound, not a shortest-path estimate based on
+ // straight-line distance through walls. Keep one linear graph traversal.
+ routeDistance = {}; routeDistance[start.guid] =
+  (this.Bot.GetPosition()-start.position).Length();
+ head = 0; tail = 1; best = -1.0; selectedRouteLength = 0.0;
+ while(head < tail && head < 4096)
+ {
+  point = TCE2ExploreShared.points[queue[head]]; head += 1;
+  if(!point) { continue; }
+  foreach(guid in point.connections)
+  {
+   if(!seen[guid] && TCE2ExploreShared.points[guid])
+   {
+    seen[guid] = 1; queue[tail] = guid; tail += 1;
+    routeDistance[guid] = routeDistance[point.guid] +
+     (point.position-TCE2ExploreShared.points[guid].position).Length();
+   }
+  }
+  if(point.flags.climb || point.flags.jump || point.flags.jumplow || point.flags.jumpgap)
+  { continue; }
+  distance = (this.Bot.GetPosition()-point.position).Length();
+  reservation = this.TeamState.reserved[point.guid];
+  failed = this.LocalFailed[point.guid];
+  if(distance < 256 || distance > 2400 || (reservation && reservation.expires > now)
+   || (failed && failed > now)) { continue; }
+  // Reservations also protect a neighborhood, preventing adjacent targets
+  // from sending several teammates into the same small room at once.
+  crowded = false;
+  foreach(other in this.TeamState.reserved)
+  {
+   if(other && other.expires > now && DistanceBetween(other.position,point.position) < 320)
+   { crowded = true; break; }
+  }
+  if(crowded) { continue; }
+  visited = this.TeamState.visited[point.guid];
+  age = 90.0; if(visited) { age = now-visited; if(age > 90) { age = 90; } }
+  score = age + RandFloat(0,30) + distance/160;
+  if(score > best)
+  { best = score; this.Destination = point; selectedRouteLength = routeDistance[point.guid]; }
+ }
+ if(!this.Destination) { this.Finished(); return; }
+ // Bound each attempt once. A valid multi-room detour can exceed 25 seconds even
+ // while the bot keeps moving; genuine stalls still have native detection.
+ // 120 units/s leaves room for turns/crouching, plus 10 seconds for local delays.
+ travelBudget = 10.0 + selectedRouteLength / 120.0;
+ if(travelBudget < 25.0) { travelBudget = 25.0; }
+ if(travelBudget > 90.0) { travelBudget = 90.0; }
+ this.Deadline = now+travelBudget;
+ this.Priority = 0.115;
+ this.TeamState.reserved[this.Destination.guid] =
+  {owner=this.Bot.GetGameId(), expires=this.Deadline+2, position=this.Destination.position};
+ this.Trace("BEGIN");
+ if(GetCvar("omnibot_tce_explore_debug") != 0)
+ { print("TCE2EXPLORE ROUTE_BUDGET", this.Bot.GetGameId(), this.Destination.guid,
+     "length", selectedRouteLength, "seconds", travelBudget); }
+ this.AddAimRequest(Priority.Low, "movedirection");
+};
+this.Exit = function()
+{
+ if(this.Destination && !this.Completed)
+ {
+  this.Trace("INTERRUPTED");
+  if(GetCvar("omnibot_tce_explore_debug") != 0)
+  { print("TCE2EXPLORE EXIT_REASON", this.Bot.GetGameId(), this.ExitReason, "goto_started", this.PathStarted); }
+ }
+ this.Stop(); this.ReleaseAimRequest();
+ if(this.Destination && this.TeamState)
+ {
+  if(!this.Completed && this.Deadline > 0 && GetTime() >= this.Deadline)
+  { this.LocalFailed[this.Destination.guid] = GetTime()+10; this.Trace("TIMEOUT"); this.TracePositions("TIMEOUT"); }
+  reservation = this.TeamState.reserved[this.Destination.guid];
+  if(reservation && reservation.owner == this.Bot.GetGameId())
+  { this.TeamState.reserved[this.Destination.guid] = null; }
+ }
+ this.Destination = null; this.Deadline = 0;
+ this.NextTry = GetTime()+RandFloat(1,4);
+};
+this.TracePositions = function(reason)
+{
+ if(GetCvar("omnibot_tce_explore_debug") != 0 && this.Destination)
+ { print("TCE2EXPLORE ROUTE", reason, this.Bot.GetGameId(), this.Destination.guid,
+     "from", this.Bot.GetPosition(), "to", this.Destination.position); }
+};
+this.Update = function()
+{
+ if(!this.Destination) { this.Finished(); return; }
+ retries = 0;
+ while(GetTime() < this.Deadline)
+ {
+  attemptStarted = GetTime();
+  this.PathStarted = true; this.Trace("GOTO");
+  result = this.Goto(this.Destination.position, 24.0);
+  now = GetTime();
+  failure = {}; this.GetPathFailureDetails(failure);
+  traffic = null;
+  if(TCE2TrafficShared != null)
+  { traffic = TCE2TrafficShared.yields[this.Bot.GetGameId()]; }
+  interrupted = result == EVENT.PATH_FAILED && traffic &&
+   traffic.entity == this.Bot.GetGameEntity() && traffic.map == GetMapName() &&
+   traffic.started >= attemptStarted && traffic.started <= now &&
+   traffic.expires > now && traffic.expires <= now+1.0;
+  if(interrupted)
+  {
+   if(traffic.kind == "blocked_traffic")
+   {
+    this.ExitReason = "blocked_traffic";
+    this.LocalFailed[this.Destination.guid] = now+30;
+    this.Trace("BLOCKED_TRAFFIC");
+    this.Finished(); return;
+   }
+   this.Trace("TRAFFIC_INTERRUPTED");
+   // The yield issues Stop repeatedly for 0.35s. Restart only after it ends,
+   // preserving this destination's reservation and normal priority guards.
+   if(retries < 2 && now+0.75 < this.Deadline)
+   {
+    retries += 1; sleep(0.65);
+    if(this.Bot.HasTarget() || GetCvar("omnibot_tce_explore") == 0 ||
+     this.Bot.HasAnyEntityFlag(ENTFLAG.DEAD, ENTFLAG.LIMBO, ENTFLAG.CARRYINGGOAL, ENTFLAG.ON_LADDER))
+    { this.Finished(); return; }
+    this.Trace("TRAFFIC_RETRY"); continue;
+   }
+   this.Completed = true; this.Finished(); return;
+  }
+  if(result == EVENT.PATH_FAILED)
+  {
+   // Capture the native reason before another goal or Stop() changes state.
+   // Do not label deliberate interruptions as failed map geometry.
+   if(GetCvar("omnibot_tce_explore_debug") != 0)
+   { print("TCE2EXPLORE FAILURE_DETAIL", this.Bot.GetGameId(), failure.reason,
+       "waypoint", failure.waypoint, "from", failure.position, "toward", failure.target,
+       "destination", this.Destination.guid, "time", failure.time); }
+   if((failure.reason == "blocked" || failure.reason == "no_path") && retries < 2 &&
+      now+2.2 < this.Deadline && TCE2TrafficShared != null && TCE2TrafficShared.recoveries != null)
+   {
+    request = {entity=this.Bot.GetGameEntity(), map=GetMapName(), expires=now+2.0,
+      target=failure.target, waypoint=failure.waypoint, done=false, moved=false};
+    TCE2TrafficShared.recoveries[this.Bot.GetGameId()] = request;
+    retries += 1; sleep(2.0);
+    if(this.Bot.HasTarget() || this.Bot.HasAnyEntityFlag(ENTFLAG.DEAD, ENTFLAG.LIMBO, ENTFLAG.CARRYINGGOAL))
+    { this.Finished(); return; }
+    if(request.done && request.moved)
+    { this.Trace("RECOVERY_RETRY"); continue; }
+   }
+  }
+  this.Completed = true;
+  // Native walking completion is two-dimensional; verify actual height too.
+  if(result == EVENT.PATH_SUCCESS && (this.Bot.GetPosition()-this.Destination.position).Length() < 48)
+  { this.TeamState.visited[this.Destination.guid] = now; this.Trace("ARRIVE"); }
+  else
+  {
+   // Keep only a per-bot cooldown. A blocked route is useful evidence, not
+   // proof that the destination itself is broken for every teammate.
+   this.LocalFailed[this.Destination.guid] = now+30;
+   this.TracePositions("PATH_RESULT");
+   if(result == EVENT.PATH_SUCCESS) { this.Trace("ARRIVAL_MISMATCH"); }
+   else { this.Trace("PATH_FAILED_" + failure.reason); }
+   if(GetCvar("omnibot_tce_explore_debug") != 0)
+   { print("TCE2EXPLORE PATH_RESULT", this.Bot.GetGameId(), result,
+       (this.Bot.GetPosition()-this.Destination.position).Length()); }
+  }
+  this.Finished(); return;
+ }
+ this.Finished();
+};

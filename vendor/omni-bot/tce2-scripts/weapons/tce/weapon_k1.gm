@@ -1,0 +1,8 @@
+// TC gear slot; actual asset and ammunition are supplied by the server.
+this.Name = "TC K1";
+this.WeaponId = WEAPON.K1;
+this.PrimaryFire.WeaponType = "melee";
+this.PrimaryFire.RequiresAmmo = false;
+this.PrimaryFire.HasClip = false;
+this.PrimaryFire.DefaultDesirability = 0.01;
+this.PrimaryFire.SetDesirabilityRange(0, 48, 0.9);

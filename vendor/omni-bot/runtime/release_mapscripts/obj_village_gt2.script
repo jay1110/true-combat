@@ -1,0 +1,199 @@
+game_manager
+{
+	spawn
+	{
+		// Camo: not defined = woodland, 1 = desert, 2 = snow, 3 = commando (black)
+		// wm_camo 3
+		
+		// Game rules
+		wm_axis_respawntime	30
+		wm_allied_respawntime	30
+		wm_set_round_timelimit	20
+
+		// Increase AA base level all x minutes
+		wm_set_round_AAbasetime	 5
+		
+		wait 500
+		
+		accum 1 set 0
+		accum 2 set 0
+		
+	}
+	
+	trigger specops_captured
+	{
+		accum 2 inc 1
+		trigger game_manager check_specops_completed 
+	}
+	
+	trigger terrorists_captured
+	{
+		accum 1 inc 1
+		trigger game_manager check_terrorists_completed 
+	}
+	
+	trigger check_specops_completed
+	{
+		accum 2 abort_if_not_equal 3
+		
+		wm_setwinner	1
+		
+		wm_announce "The Specops have completed the objective!"
+
+		wm_endround
+	}
+	
+	trigger check_terrorists_completed
+	{
+		accum 1 abort_if_not_equal 3
+		
+		wm_setwinner	0
+		
+		wm_announce "The Terrorists have completed the objective!"
+
+		wm_endround
+	}
+	
+	
+
+	
+	// TCE round/match end announcements
+	trigger specops_matchwin
+	{
+		wm_teamvoiceannounce 0 "hq_specops_win_the_match"
+		wm_teamvoiceannounce 1 "hq_specops_win_the_match"
+	}
+	
+	trigger terrorists_matchwin
+	{
+		wm_teamvoiceannounce 0 "hq_terrorists_win_the_match"
+		wm_teamvoiceannounce 1 "hq_terrorists_win_the_match"
+	}
+	
+	trigger specops_win
+	{
+		wm_teamvoiceannounce 0 "hq_specops_win"
+		wm_teamvoiceannounce 1 "hq_specops_win"
+	}
+	
+	trigger terrorists_win
+	{
+		wm_teamvoiceannounce 0 "hq_terrorists_win"
+		wm_teamvoiceannounce 1 "hq_terrorists_win"
+	}
+
+}
+
+// CTF entities
+flagspecops
+{
+	spawn
+	{
+		
+	}
+	
+	trigger stolen
+	{
+		wm_teamvoiceannounce 0 "hq_ctf_wehaveenemyflag"
+		wm_teamvoiceannounce 1 "hq_ctf_stolen"
+		trigger flagonlyA set_inactive
+	}
+	
+	trigger returned
+	{
+		wm_teamvoiceannounce 0 "hq_ctf_enemyflagreturned"
+		wm_teamvoiceannounce 1 "hq_ctf_flagreturned"
+		trigger flagonlyA set_default
+	}
+	
+	trigger captured
+	{
+		wm_teamvoiceannounce 0 "hq_ctf_captured"
+		wm_teamvoiceannounce 1 "hq_ctf_enemycaptured"
+		trigger flagonlyA set_default
+		trigger game_manager terrorists_captured
+	}
+}
+
+flagpostspecops
+{
+	spawn
+	{
+		
+	}
+}
+
+flagonlyA
+{
+	spawn
+	{
+		
+	}
+	
+	trigger set_inactive
+	{
+		setstate flagonlyA locked
+	}
+	
+	trigger set_default
+	{
+		setstate flagonlyA default
+	}
+}
+
+
+flagterrorists
+{
+	spawn
+	{
+		
+	}
+	
+	trigger stolen
+	{
+		wm_teamvoiceannounce 1 "hq_ctf_wehaveenemyflag"
+		wm_teamvoiceannounce 0 "hq_ctf_stolen"
+		trigger flagonlyB set_inactive
+	}
+	
+	trigger returned
+	{
+		wm_teamvoiceannounce 1 "hq_ctf_enemyflagreturned"
+		wm_teamvoiceannounce 0 "hq_ctf_flagreturned"
+		trigger flagonlyB set_default
+	}
+	
+	trigger captured
+	{
+		wm_teamvoiceannounce 1 "hq_ctf_captured"
+		wm_teamvoiceannounce 0 "hq_ctf_enemycaptured"
+		trigger flagonlyB set_default
+		trigger game_manager specops_captured
+	}
+}
+
+flagpostterrorists
+{
+	spawn
+	{
+		
+	}
+}
+
+flagonlyB
+{
+	spawn
+	{
+		
+	}
+	
+	trigger set_inactive
+	{
+		setstate flagonlyB locked
+	}
+	
+	trigger set_default
+	{
+		setstate flagonlyB default
+	}
+}

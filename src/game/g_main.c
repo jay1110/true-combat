@@ -11,6 +11,7 @@
 #include "tce_bg.h"
 #include "tce_nodes.h"
 #include "tce_botinfo.h"
+#include "tce_geoip.h"
 
 // Include the "External"/"Public" components of AI_Team
 #include "../botai/ai_teamX.h"
@@ -41,6 +42,7 @@ vmCvar_t g_gametype;
 vmCvar_t g_fraglimit;
 vmCvar_t g_timelimit;
 vmCvar_t g_friendlyFire;
+vmCvar_t g_countryflags;
 vmCvar_t g_password;
 vmCvar_t sv_privatepassword;
 vmCvar_t g_maxclients;
@@ -238,7 +240,9 @@ cvarTable_t gameCvarTable[] =
 {
 #ifdef FEATURE_OMNIBOT
 	{ NULL,                       "omnibot_tce_explore",       "1",                          CVAR_ARCHIVE                   },
+#ifdef FEATURE_NAVSTUDIO
 	{ NULL,                       "omnibot_tce_explore_debug", "0",                          0                              },
+#endif
 	{ &g_OmniBotEnable,           "omnibot_enable",            "0",                          CVAR_ARCHIVE | CVAR_LATCH      },
 	{ &g_OmniBotPath,             "omnibot_path",              "",                           CVAR_ARCHIVE | CVAR_LATCH      },
 	{ &g_OmniBotFlags,            "omnibot_flags",             "0",                          CVAR_ARCHIVE                   },
@@ -284,6 +288,7 @@ cvarTable_t gameCvarTable[] =
 #endif // ALLOW_GSYNC
 
 	{ &g_friendlyFire,            "g_friendlyFire",            "1",                          516, 0, 0, 0, 0                },
+	{ &g_countryflags,            "g_countryflags",            "1",                          CVAR_ARCHIVE | CVAR_LATCH, 0, qfalse },
 
 	{ &g_teamForceBalance,        "g_teamForceBalance",        "0",                          CVAR_ARCHIVE                   }, // NERVE - SMF - merge from team arena
 
@@ -2070,6 +2075,8 @@ void G_InitGame(int levelTime, int randomSeed, int restart)
 
 	BG_InitializeGametypeDef();
 	G_RegisterCvars();
+	G_GeoIPShutdown();
+	G_GeoIPInit();
 
 	// Xian enforcemaxlives stuff
 	/*
@@ -2508,6 +2515,7 @@ void G_ShutdownGame(int restart)
 		BotAIShutdown(restart);
 	}
 #endif // NO_BOT_SUPPORT
+	G_GeoIPShutdown();
 }
 
 

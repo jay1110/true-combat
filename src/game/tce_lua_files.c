@@ -5,12 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
-#ifdef _WIN32
-#include <io.h>
-#else
-#include <dirent.h>
-#include <sys/stat.h>
-#endif
+#include "../../platform/platform_io.h"
 
 static qboolean LocalDirectory(const char *rootName, const char *path, char *full, int capacity)
 {
@@ -57,53 +52,31 @@ static void AddListedFile(lua_State *L, const char *name, const char *extension,
 	lua_pushstring(L, name); lua_rawseti(L, -2, count + 1); *bytes += n + 1;
 }
 
+typedef struct
+{
+	lua_State *L;
+	const char *extension;
+	size_t *bytes;
+} tceLuaListContext_t;
+
+static void ListLocalEntry(void *context, const char *name, int directory)
+{
+	tceLuaListContext_t *list = (tceLuaListContext_t *)context;
+	AddListedFile(list->L, name, list->extension, directory, list->bytes);
+}
+
 static void ListLocal(lua_State *L, const char *path, const char *extension, size_t *bytes)
 {
 	const char *roots[] = { "fs_homepath", "fs_basepath" };
-	char       full[MAX_OSPATH * 2]; int i;
+	char       full[MAX_OSPATH * 2], scratch[MAX_OSPATH * 2]; int i;
+	tceLuaListContext_t list = { L, extension, bytes };
 	for (i = 0; i < 2; i++)
 	{
 		if (!LocalDirectory(roots[i], path, full, sizeof(full) - 3))
 		{
 			continue;
 		}
-#ifdef _WIN32
-		{
-			struct _finddata_t entry; intptr_t search;
-			Q_strcat(full, sizeof(full), "/*"); search = _findfirst(full, &entry);
-			if (search == -1)
-			{
-				continue;
-			}
-			do
-			{
-				AddListedFile(L, entry.name, extension, (entry.attrib & _A_SUBDIR) != 0, bytes);
-			}
-			while (!_findnext(search, &entry));
-			_findclose(search);
-		}
-#else
-		{
-			DIR *dir = opendir(full); struct dirent *entry; char child[MAX_OSPATH * 2]; struct stat st;
-			if (!dir)
-			{
-				continue;
-			}
-			while ((entry = readdir(dir)) != NULL)
-			{
-				if (strlen(full) + strlen(entry->d_name) + 2 > sizeof(child))
-				{
-					continue;
-				}
-				Com_sprintf(child, sizeof(child), "%s/%s", full, entry->d_name);
-				if (!stat(child, &st))
-				{
-					AddListedFile(L, entry->d_name, extension, S_ISDIR(st.st_mode), bytes);
-				}
-			}
-			closedir(dir);
-		}
-#endif
+		TCE_PlatformListDirectory(full, scratch, sizeof(scratch), ListLocalEntry, &list);
 	}
 }
 

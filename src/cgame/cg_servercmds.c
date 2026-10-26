@@ -20,109 +20,34 @@ CG_ParseScores
 =================
 */
 // Gordon: NOTE: team doesnt actually signify team, think i was on drugs that day.....
-static void CG_ParseScoreLegacy(team_t team)
-{
-	int i, j, powerups;
-	int numScores;
-	int offset;
-
-	if (team == TEAM_AXIS)
-	{
-		cg.numScores = 0;
-
-		cg.teamScores[0] = atoi(CG_Argv(1));
-		cg.teamScores[1] = atoi(CG_Argv(2));
-
-		offset = 4;
-	}
-	else
-	{
-		offset = 2;
-	}
-
-
-	numScores = atoi(CG_Argv(offset - 1));
-
-	for (j = 0; j < numScores; j++)
-	{
-		i = cg.numScores;
-
-		cg.scores[i].client       = atoi(CG_Argv(offset + 0 + (j * 7)));
-		cg.scores[i].score        = atoi(CG_Argv(offset + 1 + (j * 7)));
-		cg.scores[i].ping         = atoi(CG_Argv(offset + 2 + (j * 7)));
-		cg.scores[i].time         = atoi(CG_Argv(offset + 3 + (j * 7)));
-		powerups                  = atoi(CG_Argv(offset + 4 + (j * 7)));
-		cg.scores[i].playerClass  = atoi(CG_Argv(offset + 5 + (j * 7)));
-		cg.scores[i].respawnsLeft = atoi(CG_Argv(offset + 6 + (j * 7)));
-
-		if (cg.scores[i].client < 0 || cg.scores[i].client >= MAX_CLIENTS)
-		{
-			cg.scores[i].client = 0;
-		}
-
-		cgs.clientinfo[cg.scores[i].client].score    = cg.scores[i].score;
-		cgs.clientinfo[cg.scores[i].client].powerups = powerups;
-
-		cg.scores[i].team = cgs.clientinfo[cg.scores[i].client].team;
-
-		cg.numScores++;
-	}
-}
-
 qboolean tce_scoreExtended[MAX_CLIENTS];
 static void CG_ParseScore(team_t team)
 {
-	tce_scoreClient_t       clients[MAX_CLIENTS];
+	tce_scoreClient_t clients[MAX_CLIENTS];
 	tce_scoreParseContext_t ctx;
-	int                     offset = team == TEAM_AXIS?4:2;
-	int                     count  = atoi(CG_Argv(offset - 1));
-	int                     start  = team == TEAM_AXIS?0:cg.numScores;
-	int                     words = trap_Argc() - offset, i;
-	/* The original core trusts its packet. Validate at the engine boundary. */
-	if (count < 0 || start < 0 || start > MAX_CLIENTS || count > MAX_CLIENTS - start ||
-	    (words != count * 14 && words != count * 7))
-	{
-		CG_Printf("Rejected malformed scoreboard packet\n"); return;
-	}
-	if (team == TEAM_AXIS)
-	{
-		memset(tce_scoreExtended, 0, sizeof(tce_scoreExtended));
-	}
-	if (count > 0 && words == count * 7)
-	{
-		CG_ParseScoreLegacy(team);
-		for (i = start; i < cg.numScores; ++i)
-		{
-			tce_scoreExtended[i] = qfalse;
-			memset(&cg.scores[i].classRating, 0, 7 * sizeof(int));
-		}
-		return;
-	}
+	int formats[MAX_CLIENTS], i;
 	memset(clients, 0, sizeof(clients));
 	for (i = 0; i < MAX_CLIENTS; ++i)
 	{
 		clientInfo_t *ci = &cgs.clientinfo[i];
-		clients[i].team                = ci->team;
-		clients[i].score               = ci->score;
-		clients[i].powerups            = ci->powerups;
-		clients[i].classRating         = ci->tceClassRating;
-		clients[i].previousClassRating = ci->tcePreviousClassRating;
-		clients[i].playerClass         = ci->tceScorePlayerClass;
+		clients[i].team = ci->team; clients[i].score = ci->score; clients[i].powerups = ci->powerups;
+		clients[i].classRating = ci->tceClassRating; clients[i].previousClassRating = ci->tcePreviousClassRating;
+		clients[i].playerClass = ci->tceScorePlayerClass; formats[i] = tce_scoreExtended[i];
 	}
 	ctx.numScores = &cg.numScores; ctx.teamScores = cg.teamScores; ctx.scores = cg.scores;
-	ctx.clients   = clients; ctx.argv = CG_Argv;
-	TCE_CG_ParseScore(team, &ctx);
+	ctx.clients = clients; ctx.argv = CG_Argv;
+	if (!TCE_CG_AcceptScorePacket(team == TEAM_AXIS ? 1 : 2, trap_Argc(), &ctx, formats))
+	{
+		CG_Printf("Rejected malformed scoreboard packet\n");
+		return;
+	}
 	for (i = 0; i < MAX_CLIENTS; ++i)
 	{
 		clientInfo_t *ci = &cgs.clientinfo[i];
-		ci->score                  = clients[i].score;
-		ci->powerups               = clients[i].powerups;
-		ci->tceClassRating         = clients[i].classRating;
-		ci->tcePreviousClassRating = clients[i].previousClassRating;
-		ci->tceScorePlayerClass    = clients[i].playerClass;
+		ci->score = clients[i].score; ci->powerups = clients[i].powerups;
+		ci->tceClassRating = clients[i].classRating; ci->tcePreviousClassRating = clients[i].previousClassRating;
+		ci->tceScorePlayerClass = clients[i].playerClass; tce_scoreExtended[i] = (qboolean)formats[i];
 	}
-	for (i = start; i < cg.numScores; ++i)
-		tce_scoreExtended[i] = qtrue;
 }
 
 /*

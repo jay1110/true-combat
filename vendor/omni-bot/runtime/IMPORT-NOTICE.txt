@@ -1,0 +1,17 @@
+Omni-bot runtime script data import
+
+Source: supplied existing build/navgen-overkill/omnibot data, imported 2026-10-26.
+Base import: global_scripts/*.gm and et/scripts/**/*.gm copied byte-for-byte.
+No engine/user profiles, passwords, caches, binaries, maps, navigation, screenshots
+or live test configuration were imported. Exact upstream revision is unknown.
+SOURCE.json pins every imported byte stream; TC overlays are kept separate.
+The release stager removes explicitly named authoring/test registrations and
+standalone helper files for public packages; editor packages retain the raw data.
+See ../IMPORT-NOTICE.txt for the original license/provenance limitations.
+
+Navigation supplement: existing30-file WAY/GT2/GT5 gameplay bundle from
+tce2/omni-bot/et/nav, byte-identical to dist standard-map release dated2026-10-14.
+Twelve matching GT2/GT5 mapscripts were read from tce2/pak3.pk3 or pak4.pk3.
+Per-file origins and hashes are in SOURCE.json. No BSPs/maps, generated test
+navigation or temporary goal-disabling scripts were imported. Full-map and
+mission behavior verification are explicitly not claimed.

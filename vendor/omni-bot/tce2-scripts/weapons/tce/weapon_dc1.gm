@@ -1,0 +1,7 @@
+// TC gear slot; actual asset and ammunition are supplied by the server.
+this.Name = "TC DC1";
+this.WeaponId = WEAPON.DC1;
+// Objective-controlled explosive; never aim/fire it as a rifle.
+this.PrimaryFire.DefaultDesirability = 0.0;
+this.PrimaryFire.HasClip = false;
+this.PrimaryFire.IgnoreReload = true;

@@ -1,0 +1,21 @@
+{
+  "schema": 1,
+  "scope": "Three frozen pre-optimization integer helper bodies; oracle only, not a production implementation",
+  "functions": [
+    {
+      "source": "compat/legacy/game/tce_trigger_precision.h",
+      "function": "TCE_TriggerPlace",
+      "sha256": "ace71b3ef72ee5a559daa2e9b50bbff314759a732789ff9cbc6a11180fba4158"
+    },
+    {
+      "source": "compat/legacy/game/tce_trigger_precision.h",
+      "function": "TCE_TriggerRound",
+      "sha256": "719c18712e5bd15a214ed55dd88c271c225c5d075b7ad9e230784813cdc0728f"
+    },
+    {
+      "source": "compat/legacy/game/tce_rotate_precision.h",
+      "function": "TCE_RotateStore",
+      "sha256": "b2129355a40e6252819a3da07613bcb672a69fdbc807ecf44662d700f3d7078d"
+    }
+  ]
+}
