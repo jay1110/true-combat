@@ -1802,7 +1802,9 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 	bg_playerclass_t           *classInfo;
 	bg_character_t             *character;
 	int                        tceEventVolume;
+#if !defined(__linux__) || defined(Q3_VM)
 	tce_fragmentSoundContext_t tceEventSound;
+#endif
 
 // JPW NERVE copied here for mg42 SFX event
 	vec3_t gorg, norm;              // player/gun origin
@@ -1838,12 +1840,16 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 	classInfo = CG_PlayerClassForClientinfo(ci, cent);
 	character = CG_CharacterForClientinfo(ci, cent);
 
-	/* Original common event-volume producer (30037d40), before dispatch. */
+	/* Original common event-volume producer, before dispatch. */
+#if defined(__linux__) && !defined(Q3_VM)
+	tceEventVolume = CG_SoundVolume(es->pos.trBase, 127.f, 1200.f, 0);
+#else
 	memset(&tceEventSound, 0, sizeof(tceEventSound));
 	VectorCopy(cg.refdef_current->vieworg, tceEventSound.listener);
 	tceEventSound.attenuation     = tceFlash.deafness;
 	tceEventSound.distanceVariant = tceSmokeNewBBox;
 	tceEventVolume                = TCE_CG_SoundVolume(es->pos.trBase, 127.f, 1200.f, 0, &tceEventSound);
+#endif
 	if (cg.tcePortalScopeRendering)
 	{
 		tceEventVolume = 0;
