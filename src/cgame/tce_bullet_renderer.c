@@ -1,5 +1,6 @@
 #include "tce_bullet_renderer.h"
 #include "tce_lightgrid.h"
+#include "tce_bullet_precision.h"
 #include "../game/tce_numeric.h"
 #include "../game/tce_normalize_precision.h"
 #include "../game/tce_ambient_precision.h"
@@ -52,6 +53,19 @@ static qboolean bulletBelow(long double value, long double limit)
 #else
 	return value < limit;
 #endif
+}
+static qboolean bulletDistanceBelow(const vec3_t delta, float limit)
+{
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	int closer;
+	float stored;
+
+	if (TCE_NearestFiniteLength(delta, limit, &closer, &stored))
+	{
+		return closer;
+	}
+#endif
+	return bulletBelow(bulletLength(delta), limit);
 }
 static void bulletNormalize(vec3_t v)
 {
@@ -123,6 +137,9 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 #else
 		vertical = Q_crandom(&seed) * 100.0;
 #endif
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+		if (!TCE_BulletAntilagEnd(forward, right, up, muzzle, horizontal, (float)vertical, end))
+#endif
 		for (j = 0; j < 3; ++j)
 		{
 #if defined(_WIN32)
@@ -156,7 +173,7 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 		else if (destContents & CONTENTS_WATER)
 		{
 			VectorSubtract(cg.snap->ps.origin, end, offset);
-			if (bulletBelow(bulletLength(offset), 1024))
+			if (bulletDistanceBelow(offset, 1024))
 			{
 				trap_CM_BoxTrace(&liquid, start, end, NULL, NULL, 0, CONTENTS_WATER); CG_BubbleTrail(end, liquid.endpos, .5f, 8);
 			}
@@ -223,6 +240,9 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 	}
 	VectorSubtract(end, start, direction); bulletNormalize(direction);
 	VectorSubtract(target->currentState.pos.trBase, end, offset); offset[2] = 0;
+#if defined(_WIN32) && defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
+	if (!TCE_BulletProjectedOffset(offset, direction, offset))
+#endif
 	{ long double distance = bulletLength(offset); int j; for (j = 0; j < 3; ++j)
 		{
 #if defined(__linux__)
@@ -254,7 +274,7 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 	tag[2] += 5;
 	VectorSubtract(tag, projected, offset);
 #endif
-	headshot = bulletBelow(bulletLength(offset), 10);
+	headshot = bulletDistanceBelow(offset, 10);
 	VectorSubtract(vec3_origin, direction, opposite);
 	context->particle(projected, opposite, particles, 16, bulletParticleAlpha());
 	context->particle(projected, direction, 0, 16, bulletParticleAlpha());
