@@ -1456,9 +1456,50 @@ static qboolean debuggingweapon = qfalse;
 
 /* CG_AddPlayerWeapon:3006fa..300701: procedural drop/raise is separate
  * from MD3 frames. The timestamp persists across the old/new weapon pair.
- * This is a recovered branch; the whole renderer remains under reconstruction. */
+ * Linux retains the native fraction and translations until the final stores. */
 static void TCE_CG_WeaponSwitchPose(refEntity_t *entity, int animation)
 {
+#if defined(__linux__)
+	int         elapsed, i;
+	long double fraction;
+	vec3_t      angles;
+
+	if (animation == 6)
+	{
+		elapsed = TCE_AddInt32(TCE_SubInt32(cg.weaponAnimationTime, cg.time), 400);
+		if (elapsed <= 0)
+		{
+			return;
+		}
+	}
+	else if (animation == 5)
+	{
+		elapsed = TCE_SubInt32(cg.time, cg.weaponAnimationTime);
+		if (elapsed > 200)
+		{
+			cg.weaponAnimationTime = TCE_SubInt32(cg.time, 200);
+			elapsed = 200;
+		}
+	}
+	else
+	{
+		cg.weaponAnimationTime = cg.time;
+		return;
+	}
+	/* Both native paths retain the FILD32/FMUL fraction and the first
+	 * translation through the second translation, even across FST32. */
+	fraction = (long double)elapsed * 0.004999999888241291f;
+	for (i = 0; i < 3; ++i)
+	{
+		long double forward = (long double)cg.refdef.viewaxis[0][i] * fraction * -5.0f;
+		long double up      = (long double)cg.refdef.viewaxis[2][i] * fraction * -20.0f;
+		entity->origin[i] = (float)((forward + entity->origin[i]) + up);
+	}
+	VectorCopy(cg.refdefViewAngles, angles);
+	angles[PITCH] = (float)(fraction * 30.0f + angles[PITCH]);
+	angles[YAW]   = (float)(fraction * 10.0f + angles[YAW]);
+	AnglesToAxis(angles, entity->axis);
+#else
 	float  fraction;
 	vec3_t angles;
 	int    i;
@@ -1492,6 +1533,7 @@ static void TCE_CG_WeaponSwitchPose(refEntity_t *entity, int animation)
 	angles[PITCH] += fraction * 30.f;
 	angles[YAW]   += fraction * 10.f;
 	AnglesToAxis(angles, entity->axis);
+#endif
 }
 
 #if defined(__linux__)
@@ -1894,7 +1936,12 @@ void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 			cg.tceTacticalScale = tactical;
 			if (BG_CheckUTWeapon(weaponNum))
 			{
+#if defined(__linux__)
+				/* Native FCOM/JE retains the default for zero and NaN. */
+				float shorten = media->foreShorten > 0.f || media->foreShorten < 0.f ? media->foreShorten : 1.f;
+#else
 				float shorten = media->foreShorten != 0?media->foreShorten:1.f;
+#endif
 				if (cg_gun_foreshorten.value > 0.f)
 				{
 					shorten = cg_gun_foreshorten.value;
@@ -1916,13 +1963,39 @@ void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 	{
 		vec3_t adjustment;
 		float  scale = weaponDef[weaponNum].maxammo > 2 ? 1.075f : 1.0f;
+#if defined(__linux__)
+		long double shifted[3];
+		int component;
+		for (component = 0; component < 3; ++component)
+		{
+			shifted[component] = gun.origin[component];
+		}
+		VectorSet(adjustment, cg_gun_x.value + 0.f, cg_gun_y.value + 0.f,
+		          cg_gun_z.value + (weaponDef[weaponNum].maxammo > 2 ? -1.0f : 0.0f));
+#else
 		VectorSet(adjustment, cg_gun_x.value, cg_gun_y.value,
 		          cg_gun_z.value + (weaponDef[weaponNum].maxammo > 2 ? -1.0f : 0.0f));
+#endif
 		for (i = 0; i < 3; ++i)
 		{
+#if defined(__linux__)
+			/* Original keeps all three sums across the axis-scaling loop. */
+			for (component = 0; component < 3; ++component)
+			{
+				shifted[component] += component == 2 ? (long double)adjustment[i] * gun.axis[i][component]
+				                                   : (long double)gun.axis[i][component] * adjustment[i];
+			}
+#else
 			VectorMA(gun.origin, adjustment[i], gun.axis[i], gun.origin);
+#endif
 			VectorScale(gun.axis[i], scale, gun.axis[i]);
 		}
+#if defined(__linux__)
+		for (component = 0; component < 3; ++component)
+		{
+			gun.origin[component] = (float)shifted[component];
+		}
+#endif
 	}
 	/* Non-portal scopes hide the model but still consume the shot's casing
 	 * at its original tag before returning. */
@@ -2235,7 +2308,16 @@ void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 						{
 							if (part->portalScope)
 							{
-								cg.tcePortalScopeEntity = barrel;
+								/* The native capture updates these fields only; frame,
+								 * interpolation and remaining renderer state persist. */
+								VectorCopy(barrel.lightingOrigin, cg.tcePortalScopeEntity.lightingOrigin);
+								cg.tcePortalScopeEntity.shadowPlane = barrel.shadowPlane;
+								cg.tcePortalScopeEntity.renderfx = barrel.renderfx;
+								cg.tcePortalScopeEntity.hModel = barrel.hModel;
+								AxisCopy(barrel.axis, cg.tcePortalScopeEntity.axis);
+								VectorCopy(barrel.origin, cg.tcePortalScopeEntity.origin);
+								cg.tcePortalScopeEntity.customShader = barrel.customShader;
+								cg.tcePortalScopeEntity.customSkin = barrel.customSkin;
 							}
 							else if (!part->noPortalScope)
 							{
