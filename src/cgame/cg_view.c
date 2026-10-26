@@ -1656,7 +1656,12 @@ static void CG_TCECollectRoomTrace(const trace_t *tr, const vec3_t corner,
 			high[j] = span[j];
 		}
 	}
+#if defined(_WIN32) && !defined(Q3_VM)
+	/* Windows adds the held root before storing the accumulated Float. */
+	*distance = (float)(TCE_VectorLengthValue(span) + (long double)*distance);
+#else
 	*distance += VectorLength(span);
+#endif
 	if (!secondTrace)
 	{
 		CG_TCECollectRoomMaterial(tr, hardness, sky);
