@@ -1392,11 +1392,17 @@ int BG_PlayAnim(playerState_t *ps, animModelInfo_t *animModelInfo, int animNum, 
 		{
 			if (!isContinue || !((ps->legsAnim & ~ANIM_TOGGLEBIT) == animNum))
 			{
+				int previousAnimation = ps->legsAnim;
 				wasSet       = qtrue;
 				ps->legsAnim = ((ps->legsAnim & ANIM_TOGGLEBIT) ^ ANIM_TOGGLEBIT) | animNum;
 				if (setTimer)
 				{
 					ps->legsTimer = duration;
+				}
+				if (globalScriptData && globalScriptData->animationAssigned)
+				{
+					globalScriptData->animationAssigned(ps, animModelInfo, ANIM_BP_LEGS,
+					                                    previousAnimation, ps->legsAnim);
 				}
 			}
 			else if (setTimer && animModelInfo->animations[animNum]->loopFrames)
@@ -1416,10 +1422,16 @@ int BG_PlayAnim(playerState_t *ps, animModelInfo_t *animModelInfo, int animNum, 
 		{
 			if (!isContinue || !((ps->torsoAnim & ~ANIM_TOGGLEBIT) == animNum))
 			{
+				int previousAnimation = ps->torsoAnim;
 				ps->torsoAnim = ((ps->torsoAnim & ANIM_TOGGLEBIT) ^ ANIM_TOGGLEBIT) | animNum;
 				if (setTimer)
 				{
 					ps->torsoTimer = duration;
+				}
+				if (globalScriptData && globalScriptData->animationAssigned)
+				{
+					globalScriptData->animationAssigned(ps, animModelInfo, ANIM_BP_TORSO,
+					                                    previousAnimation, ps->torsoAnim);
 				}
 			}
 			else if (setTimer && animModelInfo->animations[animNum]->loopFrames)

@@ -1100,6 +1100,10 @@ Fixed fov at intermissions, otherwise account for fov variable and zooms.
 static int CG_CalcFov(void)
 {
 	static float lastfov = 90.0f;
+	/* The latest received snapshot can predate the aiming input by a full
+	 * round trip. Reconcile local presentation with the same predicted state
+	 * that positions the weapon; followers/demos use snapshot prediction. */
+	const playerState_t *aimState = &cg.predictedPlayerState;
 #if defined(__linux__)
 	long double  base, fov_x, zoomFov, f;
 	float        fov_y, x, v;
@@ -1130,15 +1134,13 @@ static int CG_CalcFov(void)
 	if (cg.time - cg.tceAimSyncTime > 750)
 #endif
 	{
-		if ((cg.snap->ps.stats[STAT_TCE_WEAPON_FLAGS] & 4) && !cg.tceAimRequested)
+		if ((aimState->stats[STAT_TCE_WEAPON_FLAGS] & 4) && !cg.tceAimRequested)
 		{
-			CG_Printf("force aimed\n");
 			cg.tceAimRequested = cg.tceAimComplete = cg.tceAimActive = 1;
 		}
-		else if (!(cg.snap->ps.stats[STAT_TCE_WEAPON_FLAGS] & 4) && cg.tceAimRequested)
+		else if (!(aimState->stats[STAT_TCE_WEAPON_FLAGS] & 4) && cg.tceAimRequested)
 		{
 			cg.tceAimRequested = cg.tceAimComplete = cg.tceAimActive = 0;
-			CG_Printf("force unaimed\n");
 		}
 	}
 	CG_Zoom();

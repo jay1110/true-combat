@@ -243,6 +243,17 @@ static qboolean CG_SetParticleActive(cg_atmosphericParticle_t *particle, active_
 	return active ? qtrue : qfalse;
 }
 
+/* Only failed/inactive particles wait. A restarted map must not inherit a
+ * deadline from the old clock; ordinary timer wrap keeps the signed delta. */
+static qboolean CG_AtmosphericRetryReady(const cg_atmosphericParticle_t *particle)
+{
+	int remaining = TCE_SubInt32(particle->nextDropTime, cg.time);
+	/* Initial stagger is below 2 seconds, retry delay is 1 second. A much
+	 * older deadline must not become a long future wait after clock wrap. */
+	return TCE_SubInt32(cg.time, cg_atmFx.lastRainTime) < 0 ||
+	       remaining <= 0 || remaining > 2 * ATMOSPHERIC_DROPDELAY;
+}
+
 
 /*
 **	Raindrop management functions
@@ -1537,7 +1548,8 @@ void CG_EffectParse(const char *effectstr)
 
 	// Initialise atmospheric effect to prevent all particles falling at the start
 	for ( count = 0; count < cg_atmFx.numDrops; count++ )
-		cg_atmFx.particles[count].nextDropTime = ATMOSPHERIC_DROPDELAY + (rand() % ATMOSPHERIC_DROPDELAY);
+		cg_atmFx.particles[count].nextDropTime = TCE_AddInt32(cg.time,
+		    ATMOSPHERIC_DROPDELAY + (rand() % ATMOSPHERIC_DROPDELAY));
 
 	CG_EffectGust();
 }
@@ -1589,6 +1601,12 @@ void CG_AddAtmosphericEffects(void)
 	{
 		if (!effect->ParticleCheckVisible(particle))
 		{
+			if (!CG_AtmosphericRetryReady(particle))
+			{
+				++particle;
+				--remaining;
+				continue;
+			}
 			if (!effect->ParticleGenerate(particle, currentVector, currentWeight))
 			{
 				particle->nextDropTime = TCE_AddInt32(client->time, 1000);
@@ -1648,6 +1666,10 @@ void CG_AddAtmosphericEffects()
 		//%	if( !CG_SnowParticleCheckVisible( particle ) )
 		if (!cg_atmFx.ParticleCheckVisible(particle))
 		{
+			if (!CG_AtmosphericRetryReady(particle))
+			{
+				continue;
+			}
 			// Effect has terminated / fallen from screen view
 			/*
 			if( !particle->nextDropTime )
@@ -1665,7 +1687,7 @@ void CG_AddAtmosphericEffects()
 			{
 				// Ensure it doesn't attempt to generate every frame, to prevent
 				// 'clumping' when there's only a small sky area available.
-				particle->nextDropTime = cg.time + ATMOSPHERIC_DROPDELAY;
+				particle->nextDropTime = TCE_AddInt32(cg.time, ATMOSPHERIC_DROPDELAY);
 				continue;
 			}
 			else

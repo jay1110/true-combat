@@ -260,7 +260,7 @@ void G_ReadSessionData(gclient_t *client)
 	// OSP -- pull and parse weapon stats
 	*s = 0;
 	trap_Cvar_VariableStringBuffer(va("wstats%i", (int)(client - level.clients)), s, sizeof(s));
-	if (*s)
+	if (!level.fResetStats && *s)
 	{
 		G_parseStats(s);
 		if (g_gamestate.integer == GS_PLAYING)
@@ -271,7 +271,7 @@ void G_ReadSessionData(gclient_t *client)
 	// OSP
 
 	// Arnout: likely there are more cases in which we don't want this
-	if (g_gametype.integer != GT_SINGLE_PLAYER &&
+	if (!level.fResetStats && g_gametype.integer != GT_SINGLE_PLAYER &&
 	    g_gametype.integer != GT_COOP &&
 	    g_gametype.integer != GT_WOLF &&
 	    g_gametype.integer != GT_WOLF_STOPWATCH &&
@@ -301,6 +301,15 @@ void G_ReadSessionData(gclient_t *client)
 
 	}
 
+	if (level.fResetStats)
+	{
+		/* The session cvar also contains kills/deaths independently of
+		 * wstats. Clear both after restoring equipment/team preferences. */
+		G_deleteStats((int)(client - level.clients));
+		client->ps.persistant[PERS_SCORE] = 0;
+		memset(client->sess.skillpoints, 0, sizeof(client->sess.skillpoints));
+		memset(client->sess.medals, 0, sizeof(client->sess.medals));
+	}
 	G_CalcRank(client);
 
 	test = (g_altStopwatchMode.integer != 0 || g_currentRound.integer == 1);

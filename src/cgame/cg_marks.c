@@ -133,7 +133,8 @@ markPoly_t *CG_AllocMark(int endTime)
 		// no free entities, so free the one at the end of the chain
 		// remove the oldest active entity
 		time = cg_activeMarkPolys.prevMark->time;
-		while (cg_activeMarkPolys.prevMark && time == cg_activeMarkPolys.prevMark->time)
+		while (cg_activeMarkPolys.prevMark != &cg_activeMarkPolys &&
+		       time == cg_activeMarkPolys.prevMark->time)
 		{
 			CG_FreeMarkPoly(cg_activeMarkPolys.prevMark);
 		}

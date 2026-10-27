@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 VERSION = re.search(r'^#define TCE_VERSION "([0-9]+\.[0-9]+\.[0-9]+)"$',
                     (ROOT / "src/game/tce_version.h").read_text(), re.M).group(1)
 MODULES = ("cgame", "ui", "qagame")
+SHARED_UI_ASSETS = ("options_customise_hud.menu", "options_controls.menu")
 UI_ASSETS = ("ingame_main.menu", "menus.txt", "menus_gt2.txt",
              "menus_gt5.txt", "menus_gt7.txt")
 
@@ -129,12 +130,14 @@ def build(arch, configuration, variant, output, with_omnibot=True, geoip_databas
         archive.writestr(f"tce2/{VERSION}/client.manifest", VERSION)
         # The editor addon supplies its own menu lists. A later-sorting client
         # PK3 must not replace them with the public lists that omit the editor.
-        for asset in (UI_ASSETS if variant == "game" else ()):
+        for asset in SHARED_UI_ASSETS + (UI_ASSETS if variant == "game" else ()):
             archive.write(ROOT / "src/assets/ui" / asset, "ui/" + asset)
         for asset in ("radar_arrow.tga", "radar_dot.tga"):
             archive.write(ROOT / "src/assets/gfx/misc" / asset, "gfx/misc/" + asset)
         for asset in ("world_flags.tga", "LICENSE.xmod.txt", "SOURCE.json"):
             archive.write(ROOT / "src/assets/gfx/flags" / asset, "gfx/flags/" + asset)
+        for asset in ("obj_delta_cc.tga", "obj_delta_cc_blueprint.tga", "SOURCE.json"):
+            archive.write(ROOT / "src/assets/levelshots" / asset, "levelshots/" + asset)
     if variant == "navstudio":
         editor_output = cache / "editor-addon"
         run(["cmake", f"-DOUTPUT_DIRECTORY={editor_output}", "-P",
@@ -166,7 +169,7 @@ def build(arch, configuration, variant, output, with_omnibot=True, geoip_databas
     (package / "README.txt").write_text(
         note + "Use the existing ET installation. Copy the tce2 contents into its tce2 folder.\n"
         "Move obsolete client-DLL PK3 overrides outside the mod search path first.\n"
-        "Country flags: cg_countryflags 0/1 on clients; g_countryflags 0/1 on servers (restart map).\n"
+        "Country flags: cg_countryflags 0/1 on clients; g_countryflags 0=off/1=server location/2=random bots on servers (restart map).\n"
         + ("The supplied IPv4 GeoIP.dat is included as server-only loose data.\n"
            "This product includes GeoLite2 data created by MaxMind, available from https://www.maxmind.com/.\n"
            if geoip_database else

@@ -1400,7 +1400,7 @@ static qboolean PM_CheckJump(void)
 		pm->cmd.upmove = 0;
 		return qfalse;
 	}
-	if (!(ps->stats[STAT_TCE_FLAGS] & 0x40))
+	/* Low-ledge assistance changes jump height, not landing recovery. */
 	{
 		if (ps->pm_time > 500)
 		{
@@ -1435,14 +1435,17 @@ static qboolean PM_CheckJump(void)
 	scale = storedScale;
 #endif
 	length     = TCE_VectorLengthValue(ps->velocity);
-	if ((length >= 50.0L || !pm->cmd.forwardmove) &&
-	    !(pm->ps->stats[STAT_TCE_FLAGS] & 0x40))
+	if (length >= 50.0L || !pm->cmd.forwardmove)
 	{
+		/* Keep the full-height ledge assist without bypassing its cost. */
+		if (!(ps->stats[STAT_TCE_FLAGS] & 0x40))
+		{
 #if defined(__linux__)
-		scale *= 0.707f;
+			scale *= 0.707f;
 #else
-		scale = (float)((long double)scale * 0.707f);
+			scale = (float)((long double)scale * 0.707f);
 #endif
+		}
 		if (pm->pmext->sprintTime < 750)
 		{
 			pm->cmd.upmove = 0;
@@ -1552,7 +1555,7 @@ static qboolean PM_CheckJump(void)
 	{
 		pm->cmd.upmove = 0; return qfalse;
 	}
-	if (!(ps->stats[STAT_TCE_FLAGS] & 0x40))
+	/* Low-ledge assistance changes jump height, not landing recovery. */
 	{
 		if (ps->pm_time > 500)
 		{
@@ -1572,10 +1575,12 @@ static qboolean PM_CheckJump(void)
 		}
 	}
 	horizontal = sqrt(ps->velocity[1] * ps->velocity[1] + ps->velocity[0] * ps->velocity[0]);
-	if ((VectorLength(ps->velocity) >= 50.0f || !pm->cmd.forwardmove) &&
-	    !(ps->stats[STAT_TCE_FLAGS] & 0x40))
+	if (VectorLength(ps->velocity) >= 50.0f || !pm->cmd.forwardmove)
 	{
-		scale *= 0.707f;
+		if (!(ps->stats[STAT_TCE_FLAGS] & 0x40))
+		{
+			scale *= 0.707f;
+		}
 		if (pm->pmext->sprintTime < 750)
 		{
 			pm->cmd.upmove = 0; return qfalse;
@@ -2814,8 +2819,7 @@ static void PM_WalkMove(void)
 	volatile float scale, wishspeed, speed;
 #endif
 	long double    groundDot, limit;
-	unsigned       elapsedBits;
-	int            elapsed, i;
+	int            i;
 
 	if (pm->waterlevel > 2)
 	{
@@ -2844,9 +2848,8 @@ static void PM_WalkMove(void)
 		{
 			PM_AirMove();
 		}
-		elapsedBits = (unsigned)pm->cmd.serverTime - (unsigned)pm->pmext->jumpTime;
-		memcpy(&elapsed, &elapsedBits, sizeof(elapsed));
-		if (elapsed >= 850)
+		/* Every accepted jump costs stamina. Landing rewrites jumpTime;
+		 * it must not create a second free-jump window at a low ledge. */
 		{
 			if (pm->pmext->sprintTime < 1500)
 			{
@@ -3101,7 +3104,7 @@ static void PM_WalkMove(void)
 			PM_AirMove();
 		}
 
-		if (!(pm->cmd.serverTime - pm->pmext->jumpTime < 850))
+		/* Every accepted jump costs stamina, including low-ledge assists. */
 		{
 
 			if (pm->pmext->sprintTime < 1500)
@@ -4530,6 +4533,19 @@ static int PM_TCELadderFootstepForSurface(void)
 	return 1 + ((flags & 0xff000000) == 0x05000000);
 }
 
+/* Lean/tactical movement may be quiet at ordinary speeds, but cannot hide
+ * the gait of an actual standing sprint (including a primed grenade). */
+static qboolean PM_TCEFootstepQuiet(qboolean quiet)
+{
+	if ((pm->cmd.buttons & BUTTON_SPRINT) && pm->xyspeed > 220.0f &&
+	    !(pm->ps->pm_flags & PMF_DUCKED) &&
+	    !(pm->ps->eFlags & (EF_PRONE | EF_PRONE_MOVING)))
+	{
+		return qfalse;
+	}
+	return quiet;
+}
+
 /* TCE animation, bob cycle and step-sound controller.
  * Native value paths/callback reads are explicit; compiled FPU and ABI remain open. */
 #if (defined(_MSC_VER) && defined(_M_IX86)) || (defined(__linux__) && !defined(Q3_VM))
@@ -4681,8 +4697,8 @@ static void PM_Footsteps(void)
 		}
 		else
 		{
-			quiet = (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) ||
-			        !TCE_FloatIsZeroOrNaN(pm->ps->leanf);
+			quiet = PM_TCEFootstepQuiet((pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) ||
+			                            !TCE_FloatIsZeroOrNaN(pm->ps->leanf));
 			if (quiet)
 			{
 				bobmove = 0.28f; soundClass = 1;
@@ -4716,8 +4732,8 @@ static void PM_Footsteps(void)
 		else
 		{
 			/* Native branches re-read tactical/lean state after a failed strafe animation. */
-			quiet = (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) ||
-			        !TCE_FloatIsZeroOrNaN(pm->ps->leanf);
+			quiet = PM_TCEFootstepQuiet((pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) ||
+			                            !TCE_FloatIsZeroOrNaN(pm->ps->leanf));
 			moveType = quiet ? (backwards ? ANIM_MT_WALKBK : ANIM_MT_WALK) :
 			           (backwards ? ANIM_MT_RUNBK : ANIM_MT_RUN);
 		}
@@ -4873,7 +4889,7 @@ static void PM_Footsteps(void)
 		goto idle;
 	}
 	pm->ps->stats[STAT_TCE_WEAPON_FLAGS] |= 2;
-	quiet                                 = (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) || pm->ps->leanf != 0;
+	quiet                                 = PM_TCEFootstepQuiet((pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4) || pm->ps->leanf != 0);
 	if (pm->ps->eFlags & EF_PRONE)
 	{
 		bobmove    = 0.2f;
@@ -5117,6 +5133,14 @@ void PM_BeginWeaponChange(int oldweapon, int newweapon, qboolean reload)
 	if (pm->ps->weaponDelay || pm->ps->grenadeTimeLeft > 0)
 	{
 		return;
+	}
+	/* Cancelling a reload does not transfer its remaining time or refill the
+	 * magazine. Only PM_FinishWeaponReload/PM_ReloadSingleRound commit ammo. */
+	if (pm->ps->weaponstate == WEAPON_RELOADING ||
+	    pm->ps->weaponstate == WEAPON_TCE_RELOAD_START ||
+	    pm->ps->weaponstate == WEAPON_TCE_RELOAD_END)
+	{
+		pm->ps->weaponTime = 0;
 	}
 	pm->ps->nextWeapon = newweapon;
 	switch (newweapon)
@@ -6170,8 +6194,6 @@ static qboolean PM_TCEWeaponEligibility837(qboolean delayedFire)
 
 	grenade = weapon == 4 || weapon == 9 || weapon == 30;
 	if ((!(pm->cmd.buttons & BUTTON_ATTACK) && !delayedFire) ||
-	    (!TCE_FloatIsZeroOrNaN(pm->ps->leanf) && !grenade &&
-	     !(pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4)) ||
 	    ((pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 0x4000) && !(delayedFire && grenade)))
 	{
 		pm->ps->weaponTime  = 0;
@@ -6933,13 +6955,19 @@ static qboolean PM_TCEUpdateAimInput(qboolean delayedFire)
 	return qfalse;
 }
 
-static void PM_TCEUpdateObjectiveAction(void)
+/* Cancellation must also run after a weapon-cycle early exit (for example
+ * crawling away while +activate stays held). This helper cannot start or
+ * complete an action, and the normal action path retains its timer order. */
+static qboolean PM_TCECancelInterruptedObjective(void)
 {
 	int      hint   = pm->ps->serverCursorHint;
 	qboolean target = hint == HINT_DISARM ||
 	                  hint == HINT_BREAKABLE_DYNAMITE || hint == HINT_ACTIVATE;
 
-	if (!(pm->cmd.buttons & BUTTON_ACTIVATE))
+	if (!(pm->cmd.buttons & BUTTON_ACTIVATE) || !target || pml.ladder ||
+	    ((pm->cmd.buttons & BUTTON_SPRINT) &&
+	     (pm->cmd.forwardmove || pm->cmd.rightmove) &&
+	     !(pm->ps->pm_flags & PMF_DUCKED) && !(pm->ps->eFlags & EF_PRONE)))
 	{
 		if (pm->ps->pm_flags & PMF_TCE_OBJECTIVE_ACTION)
 		{
@@ -6947,6 +6975,19 @@ static void PM_TCEUpdateObjectiveAction(void)
 			pm->ps->weaponTime = 100;
 			PM_AddEvent(EV_TCE_OBJECTIVE_STOP);
 		}
+		return qtrue;
+	}
+	return qfalse;
+}
+
+static void PM_TCEUpdateObjectiveAction(void)
+{
+	int      hint   = pm->ps->serverCursorHint;
+	qboolean target = hint == HINT_DISARM ||
+	                  hint == HINT_BREAKABLE_DYNAMITE || hint == HINT_ACTIVATE;
+
+	if (PM_TCECancelInterruptedObjective())
+	{
 		return;
 	}
 	if (target && pm->ps->weaponTime <= 0 && pm->ps->weaponDelay <= 0 &&
@@ -6996,6 +7037,7 @@ static void PM_TCEUpdateObjectiveAction(void)
 
 static qboolean PM_TCEUpdateWeaponActions(qboolean delayedFire)
 {
+	PM_TCEUpdateObjectiveAction();
 	if ((unsigned)pm->ps->weapon < TCE_WEAPON_CAPACITY && PM_TCEUpdateAimInput(delayedFire))
 	{
 		return qtrue;
@@ -7034,7 +7076,6 @@ static qboolean PM_TCEUpdateWeaponActions(qboolean delayedFire)
 		pm->ps->stats[STAT_TCE_WEAPON_FLAGS] &= ~tceSprintLatched;
 		pm->ps->weaponTime                    = 250;
 	}
-	PM_TCEUpdateObjectiveAction();
 	if (pm->ps->weaponDelay > 0)
 	{
 		return qtrue;
@@ -7201,6 +7242,20 @@ static qboolean PM_TCEUpdateWeaponTrigger(qboolean delayedFire)
 {
 	playerState_t *timerPlayer;
 
+	/* Finish raising before inspecting a held trigger. Semi-auto/empty-clip
+	 * trigger exits must not leave the weapon in its lowered animation. */
+	if (pm->ps->weaponstate == WEAPON_RAISING)
+	{
+		pm->ps->weaponstate = WEAPON_READY;
+		PM_StartWeaponAnim(PM_IdleAnimForWeapon(pm->ps->weapon));
+		return qtrue;
+	}
+	if (pm->ps->weaponstate == WEAPON_RAISING_TORELOAD)
+	{
+		pm->ps->weaponstate = WEAPON_READY;
+		PM_BeginWeaponReload(pm->ps->weapon);
+		return qtrue;
+	}
 	if ((unsigned)pm->ps->weapon < TCE_WEAPON_CAPACITY)
 	{
 		if (!delayedFire)
@@ -7237,20 +7292,6 @@ static qboolean PM_TCEUpdateWeaponTrigger(qboolean delayedFire)
 	    pm->ps->weaponstate == WEAPON_TCE_CYCLE)
 	{
 		PM_FinishWeaponReload();
-	}
-	if (pm->ps->weaponstate == WEAPON_RAISING)
-	{
-		int animation;
-		pm->ps->weaponstate = WEAPON_READY;
-		animation           = PM_IdleAnimForWeapon(pm->ps->weapon);
-		PM_StartWeaponAnim(animation);
-		return qtrue;
-	}
-	if (pm->ps->weaponstate == WEAPON_RAISING_TORELOAD)
-	{
-		pm->ps->weaponstate = WEAPON_READY;
-		PM_BeginWeaponReload(pm->ps->weapon);
-		return qtrue;
 	}
 	return qfalse;
 }
@@ -7949,6 +7990,7 @@ static void PM_Weapon(void)
 
 	if (PM_TCEUpdateWeaponCycle(akimboFire, &delayedFire))
 	{
+		PM_TCECancelInterruptedObjective();
 		return;
 	}
 
@@ -8094,12 +8136,9 @@ static void PM_Weapon(void)
 			}
 		}
 
-		/* Original300113..300114: release/lean/action eligibility. A pending
-		 * grenade4/9/30 is the sole delayed exception to flag0x4000. Tactical
-		 * aiming permits leaning; unrelated secondary-button bits do not fire. */
+		/* A pending grenade4/9/30 is the sole delayed exception to flag0x4000.
+		 * Leaning uses the same shooting rules in hip and ironsight modes. */
 		if ((!(pm->cmd.buttons & BUTTON_ATTACK) && !delayedFire) ||
-		    (pm->ps->leanf != 0 && pm->ps->weapon != 4 && pm->ps->weapon != 9 &&
-		     pm->ps->weapon != 30 && !(pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4)) ||
 		    ((pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 0x4000) &&
 		     (!delayedFire || (pm->ps->weapon != 4 && pm->ps->weapon != 9 && pm->ps->weapon != 30))))
 		{
@@ -10492,7 +10531,6 @@ void PmoveSingle(pmove_t *pmove)
 	    PM_WeaponAmmoAvailable(pm->ps->weapon))
 	{
 		if (!(pm->ps->eFlags & EF_ZOOMING) &&
-		    (TCE_FloatIsZeroOrNaN(pm->ps->leanf) || (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4)) &&
 		    (pm->ps->weaponstate == WEAPON_READY || pm->ps->weaponstate == WEAPON_FIRING) &&
 		    (pm->cmd.buttons & BUTTON_ATTACK) && !(pm->cmd.buttons & BUTTON_TALK))
 		{
@@ -10728,7 +10766,7 @@ void PmoveSingle(pmove_t *pmove)
 			// DHM - Nerve :: Let's use the same flag we just checked above, Ok?
 			if (!(pm->ps->eFlags & EF_ZOOMING))
 			{
-				if (!pm->ps->leanf || (pm->ps->stats[STAT_TCE_WEAPON_FLAGS] & 4))
+				/* Leaning does not disable hip fire. */
 				{
 					if (pm->ps->weaponstate == WEAPON_READY || pm->ps->weaponstate == WEAPON_FIRING)
 					{

@@ -1,0 +1,157 @@
+name: Manual TCE2 Game loose binaries
+on:
+  workflow_dispatch:
+    inputs:
+      expected_version:
+        description: Version required in src/game/tce_version.h
+        type: string
+        default: '1.0.2'
+        required: true
+permissions:
+  contents: read
+concurrency:
+  group: manual-loose-binaries-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      version: ${{ steps.plan.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Validate version and exclusively manual workflows
+        env:
+          EXPECTED_VERSION: ${{ inputs.expected_version }}
+        run: python tools/release/validate.py source --expect-version "$EXPECTED_VERSION"
+      - name: Plan the full normal Game matrix
+        id: plan
+        env:
+          INCLUDE_EDITOR: 'false'
+        run: python tools/release/plan.py
+      - name: Check binary-only flat archive regressions
+        run: python -m unittest discover -s tools/release -p "test_loose_binaries.py"
+  binaries:
+    needs: plan
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - name: Use the official Ubuntu archive for package downloads
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo python3 - <<'PY'
+          from pathlib import Path
+          import re
+          for path in (Path('/etc/apt/sources.list'), Path('/etc/apt/sources.list.d/ubuntu.sources')):
+              if not path.is_file():
+                  continue
+              source = path.read_text(encoding='utf-8')
+              updated = re.sub(r'https?://azure\.archive\.ubuntu\.com/ubuntu/?(?=\s|$)',
+                               'https://archive.ubuntu.com/ubuntu', source)
+              if updated != source:
+                  path.write_text(updated, encoding='utf-8')
+          PY
+      - name: Install Linux compiler families
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+          sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y ninja-build gcc g++
+      - name: Install i386 multilib compiler
+        if: matrix.target == 'linux-i386'
+        run: sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y gcc-multilib g++-multilib
+      - name: Install ARMv7 cross compiler
+        if: matrix.target == 'linux-armv7'
+        run: sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf
+      - name: Install AArch64 cross compiler
+        if: matrix.target == 'linux-aarch64'
+        run: sudo apt-get -o Acquire::Retries=3 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+      - name: Ensure macOS Ninja is available
+        if: runner.os == 'macOS'
+        run: command -v ninja || brew install ninja
+      - name: Install pinned Android NDK
+        if: startsWith(matrix.target, 'android-')
+        shell: bash
+        run: |
+          android_root="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
+          "$android_root/cmdline-tools/latest/bin/sdkmanager" 'ndk;27.3.13750724' >/dev/null
+          echo "ANDROID_NDK_HOME=$android_root/ndk/27.3.13750724" >> "$GITHUB_ENV"
+      - name: Install pinned Emscripten SDK
+        if: matrix.target == 'wasm32'
+        shell: bash
+        run: |
+          git clone https://github.com/emscripten-core/emsdk.git build/emsdk
+          git -C build/emsdk checkout d7b4130688bfa348392b921ab04015aa15c4f154
+          build/emsdk/emsdk install 3.1.74
+          build/emsdk/emsdk activate 3.1.74
+          echo "EMSDK=$GITHUB_WORKSPACE/build/emsdk" >> "$GITHUB_ENV"
+          echo "EM_CONFIG=$GITHUB_WORKSPACE/build/emsdk/.emscripten" >> "$GITHUB_ENV"
+      - name: Fetch checksum-pinned Boost headers
+        run: python tools/release/bootstrap.py --destination build/dependencies
+      - name: Build only Game modules and matched gameplay bot core
+        run: python tools/release/build_loose.py --target ${{ matrix.target }} --build build/loose --out out/target --boost build/dependencies/boost_1_85_0 --parallel 4
+      - name: Transfer verified target binaries for the final flat ZIP
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: loose-input-${{ needs.plan.outputs.version }}-${{ matrix.target }}
+          path: out/target/
+          if-no-files-found: error
+          retention-days: 1
+          overwrite: true
+  flat-zip:
+    needs: [plan, binaries]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
+        with:
+          pattern: loose-input-${{ needs.plan.outputs.version }}-*
+          path: collected
+      - name: Require every target and validate one flat binary-only ZIP
+        run: python tools/release/loose_binaries.py collect --input collected --out out/loose
+      # GitHub zips the artifact itself. Upload the verified flat payload, not
+      # the local ZIP/report/checksum, to avoid a ZIP containing another ZIP.
+      - name: Downloadable flat ZIP containing only normal binaries
+        id: flat
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: TCE2-${{ needs.plan.outputs.version }}-Game-Loose-Binaries
+          path: out/loose/binaries/*
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+      - name: Validate exact uploaded flat forty-binary ZIP and source provenance
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FLAT_ARTIFACT_ID: ${{ steps.flat.outputs.artifact-id }}
+        run: python tools/release/closure_report.py loose --input collected --directory out/loose --artifact-id "$FLAT_ARTIFACT_ID" --out out/closure/loose-closure.json
+      - name: Small source-bound normal binary closure evidence
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: TCE2-${{ needs.plan.outputs.version }}-Loose-Closure
+          path: out/closure/loose-closure.json
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
+      - name: Remove temporary target binary artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python tools/release/loose_binaries.py cleanup-intermediates

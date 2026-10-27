@@ -9,7 +9,7 @@ void TCE_CG_Item(centity_t *cent)
 	entityState_t *es = &cent->currentState;
 	gitem_t       *item;
 	int           i;
-	if (es->modelindex >= bg_numItems)
+	if (es->modelindex < 0 || es->modelindex >= bg_numItems)
 	{
 		CG_Error("Bad item index %i on entity", es->modelindex);
 	}
@@ -111,15 +111,20 @@ void TCE_CG_Item(centity_t *cent)
 	}
 	else
 	{
-		if (item->giType == IT_AMMO && es->otherEntityNum2 != cg.snap->ps.clientNum)
+		if (item->giType == IT_AMMO && es->otherEntityNum2 != cg.snap->ps.persistant[PERS_TEAM])
 		{
 			return;
 		}
-		if (item->giType == IT_HEALTH && es->otherEntityNum2 == cg.snap->ps.clientNum)
+		if (item->giType == IT_HEALTH && es->otherEntityNum2 == cg.snap->ps.persistant[PERS_TEAM])
 		{
 			return;
 		}
 		ent.hModel = cg_items[es->modelindex].models[0];
+	}
+	/* A zero model draws the engine's missing-model placeholder. */
+	if (!ent.hModel)
+	{
+		return;
 	}
 	if (!cent->usehighlightOrigin)
 	{

@@ -62,7 +62,7 @@ class SymbolEvidence(unittest.TestCase):
     def test_missing_runtime_handler_in_second_architecture_is_rejected(self):
         # This logical fixture exercises adjudication across slices. It does
         # not claim that the minimal carrier is an executable Mach-O binary.
-        data = b'MZ\0ExportBotFunctionsFromDLL\0' + b'\0'.join(
+        data = b'MZ\0ExportBotFunctionsFromDLL\0TCE2_OmnibotBuild\0' + b'\0'.join(
             name.encode() for name in boundary.RUNTIME_BINDINGS) + b'\0'
         symbols = [{'symbol': '?' + name + '@Fixture@@QEAAXXZ',
                     'type': 'T', 'address': format(index + 16, 'x')}

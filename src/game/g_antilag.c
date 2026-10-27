@@ -1,8 +1,10 @@
 #include "g_local.h"
 #include "tce_numeric.h"
 #include "tce_pose_precision.h"
+#include "g_tce_pose.h"
 
-/* Windows TC:E records an 80-byte pose, not the SDK's bounds/origin only. */
+/* Private TC pose history, extended with the active damage-volume inputs.
+ * Engine-facing player/entity structures are unchanged. */
 static void G_CaptureClientMarker(gentity_t *ent, clientMarker_t *marker, int time)
 {
 	VectorCopy(ent->r.mins, marker->mins);
@@ -15,6 +17,8 @@ static void G_CaptureClientMarker(gentity_t *ent, clientMarker_t *marker, int ti
 	marker->pm_flags    = ent->client->ps.pm_flags;
 	marker->weaponFlags = ent->client->ps.stats[STAT_TCE_WEAPON_FLAGS];
 	marker->eFlags      = ent->client->ps.eFlags;
+	marker->lean        = ent->client->ps.leanf;
+	marker->weapon      = ent->client->ps.weapon;
 }
 
 void G_StoreClientPosition(gentity_t *ent)
@@ -45,10 +49,28 @@ void G_StoreClientPosition(gentity_t *ent)
 		}
 	}
 	G_CaptureClientMarker(ent, marker, time);
+	G_TCEPoseCapture(ent);
+}
+
+static void G_BackupClientRewind(gentity_t *ent)
+{
+	gclient_t *client = ent->client;
+	if (client->tceRewind.active)
+	{
+		return;
+	}
+	G_CaptureClientMarker(ent, &client->backupMarker, level.time);
+	client->tceRewind.active = qtrue;
+	client->tceRewind.boundsScaled = qfalse;
+	client->tceRewind.receiptCeiling = level.time;
+	client->tceRewind.svFlags = ent->r.svFlags;
+	client->tceRewind.lean = client->ps.leanf;
+	client->tceRewind.weapon = client->ps.weapon;
+	client->tceRewind.traceMaxZ = ent->r.maxs[2];
 }
 
 #if !defined(__linux__)
-/* Windows2004eba0 deliberately weights the newer sample by frac. */
+/* frac is the elapsed fraction from the older sample toward the newer. */
 static void G_TCELerpPose(float frac, const vec3_t newer, const vec3_t older, vec3_t poseOutput)
 {
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
@@ -79,14 +101,22 @@ static void G_TCELerpPose(float frac, const vec3_t newer, const vec3_t older, ve
 
 static void G_ApplyClientMarker(gentity_t *ent, const clientMarker_t *marker)
 {
+	const int proneFlags = EF_PRONE | EF_PRONE_MOVING;
 	VectorCopy(marker->mins, ent->r.mins);
 	VectorCopy(marker->maxs, ent->r.maxs);
 	VectorCopy(marker->origin, ent->r.currentOrigin);
 	VectorCopy(marker->angles, ent->r.currentAngles);
 	VectorCopy(marker->viewangles, ent->client->ps.viewangles);
-	ent->client->ps.pm_flags                     = marker->pm_flags;
-	ent->client->ps.stats[STAT_TCE_WEAPON_FLAGS] = marker->weaponFlags;
-	ent->client->ps.eFlags                       = marker->eFlags;
+	/* Only pose bits are rewound: damage/death/knockback state stays live. */
+	ent->client->ps.pm_flags = (ent->client->ps.pm_flags & ~PMF_DUCKED) | (marker->pm_flags & PMF_DUCKED);
+	ent->client->ps.stats[STAT_TCE_WEAPON_FLAGS] =
+	    (ent->client->ps.stats[STAT_TCE_WEAPON_FLAGS] & ~0x20) | (marker->weaponFlags & 0x20);
+	ent->client->ps.eFlags = (ent->client->ps.eFlags & ~proneFlags) | (marker->eFlags & proneFlags);
+	/* The narrow phase consumes historical inputs without changing the live
+	 * weapon or lean used by death callbacks and other gameplay code. */
+	ent->client->tceRewind.lean = marker->lean;
+	ent->client->tceRewind.weapon = marker->weapon;
+	ent->client->tceRewind.traceMaxZ = ent->r.maxs[2];
 }
 
 #if defined(__linux__)
@@ -107,13 +137,15 @@ static void G_TCELerpLinuxPose(long double fraction, const vec3_t newer,
 /* Windows2004e790: pose rewind, including discrete bounds and pose flags. */
 void G_TimeShiftClient(gentity_t *ent, int time)
 {
-	gclient_t      *client = ent->client;
+	gclient_t *client = ent->client;
 	clientMarker_t *newer, *older;
-	int            i, j;
+	int i, j, span;
+	G_BackupClientRewind(ent);
 	if (time > level.time)
 	{
 		time = level.time;
 	}
+	client->tceRewind.requestedTime = time;
 	i = j = client->topMarker;
 	do
 	{
@@ -132,43 +164,39 @@ void G_TimeShiftClient(gentity_t *ent, int time)
 	{
 		return;
 	}
-	if (client->backupMarker.serverTime != level.time)
-	{
-		/* Backup uses offset0x40/serverTime as its restore guard; the
-		 * ordinary sample-time field at0x3c is left untouched. */
-		G_CaptureClientMarker(ent, &client->backupMarker, client->backupMarker.time);
-	}
 	newer = &client->clientMarkers[j];
 	if (i != client->topMarker)
 	{
+		older = &client->clientMarkers[i];
+		span = TCE_SubInt32(newer->time, older->time);
+		/* Bounds, posture and weapon change at the newer sample, not before. */
+		G_ApplyClientMarker(ent, older);
+		if (span <= 0)
+		{
+			return;
+		}
 #if defined(__linux__)
-		long double fraction;
-		older = &client->clientMarkers[i];
-		fraction = (1.0L / (long double)TCE_SubInt32(newer->time, older->time)) *
-		           (long double)TCE_SubInt32(newer->time, time);
-		G_TCELerpLinuxPose(fraction, newer->origin, older->origin, ent->r.currentOrigin);
-		G_TCELerpLinuxPose(fraction, newer->angles, older->angles, ent->r.currentAngles);
-		G_TCELerpLinuxPose(fraction, newer->viewangles, older->viewangles, client->ps.viewangles);
+		{
+			long double fraction = (1.0L / span) * TCE_SubInt32(time, older->time);
+			G_TCELerpLinuxPose(fraction, newer->origin, older->origin, ent->r.currentOrigin);
+			G_TCELerpLinuxPose(fraction, newer->angles, older->angles, ent->r.currentAngles);
+			G_TCELerpLinuxPose(fraction, newer->viewangles, older->viewangles, client->ps.viewangles);
+			client->tceRewind.lean = (float)((1.0L - fraction) * older->lean + fraction * newer->lean);
+		}
 #else
-		float frac;
-		older = &client->clientMarkers[i];
+		{
+			float fraction;
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
-		/* The search found older->time <= time < newer->time. */
-		frac = TCE_InterpolationFactor32(TCE_SubInt32(newer->time, time),
-		                                  TCE_SubInt32(newer->time, older->time));
+			fraction = TCE_InterpolationFactor32(TCE_SubInt32(time, older->time), span);
 #else
-		frac  = (float)((long double)TCE_SubInt32(newer->time, time) /
-		                (long double)TCE_SubInt32(newer->time, older->time));
+			fraction = (float)((long double)TCE_SubInt32(time, older->time) / span);
 #endif
-		G_TCELerpPose(frac, newer->origin, older->origin, ent->r.currentOrigin);
-		G_TCELerpPose(frac, newer->angles, older->angles, ent->r.currentAngles);
-		G_TCELerpPose(frac, newer->viewangles, older->viewangles, client->ps.viewangles);
+			G_TCELerpPose(fraction, newer->origin, older->origin, ent->r.currentOrigin);
+			G_TCELerpPose(fraction, newer->angles, older->angles, ent->r.currentAngles);
+			G_TCELerpPose(fraction, newer->viewangles, older->viewangles, client->ps.viewangles);
+			client->tceRewind.lean = (float)((1.0L - fraction) * older->lean + (long double)fraction * newer->lean);
+		}
 #endif
-		VectorCopy(newer->mins, ent->r.mins);
-		VectorCopy(newer->maxs, ent->r.maxs);
-		client->ps.pm_flags = newer->pm_flags;
-		client->ps.stats[STAT_TCE_WEAPON_FLAGS] = newer->weaponFlags;
-		client->ps.eFlags = newer->eFlags;
 	}
 	else
 	{
@@ -179,11 +207,33 @@ void G_TimeShiftClient(gentity_t *ent, int time)
 /* Windows2004ed40: restoring a pose does not itself link the entity. */
 void G_UnTimeShiftClient(gentity_t *ent)
 {
-	if (ent->client->backupMarker.serverTime == level.time)
+	gclient_t *client = ent->client;
+	if (!client->tceRewind.active)
 	{
-		G_ApplyClientMarker(ent, &ent->client->backupMarker);
-		ent->client->backupMarker.serverTime = 0;
+		return;
 	}
+	if (ent->health <= 0 || client->ps.pm_type == PM_DEAD || (client->ps.pm_flags & PMF_LIMBO))
+	{
+		/* player_die sets a corpse height and death angles during the trace.
+		 * Restore physical placement and XY hull without restoring an alive PS. */
+		float corpseMaxZ = ent->r.maxs[2];
+		qboolean corpseHeightChanged = corpseMaxZ != client->tceRewind.traceMaxZ;
+		VectorCopy(client->backupMarker.origin, ent->r.currentOrigin);
+		VectorCopy(client->backupMarker.angles, ent->r.currentAngles);
+		VectorCopy(client->backupMarker.mins, ent->r.mins);
+		VectorCopy(client->backupMarker.maxs, ent->r.maxs);
+		if (corpseHeightChanged)
+		{
+			ent->r.maxs[2] = corpseMaxZ;
+		}
+	}
+	else
+	{
+		G_ApplyClientMarker(ent, &client->backupMarker);
+	}
+	ent->r.svFlags = (ent->r.svFlags & ~0x60000) | (client->tceRewind.svFlags & 0x60000);
+	client->tceRewind.active = client->tceRewind.boundsScaled = qfalse;
+	client->backupMarker.serverTime = 0;
 }
 
 static void G_AdjustSingleClientPosition(gentity_t *ent, int time)
@@ -344,6 +394,7 @@ void G_ResetMarkers(gentity_t *ent)
 		G_CaptureClientMarker(ent, &ent->client->clientMarkers[i], time);
 		ent->client->clientMarkers[i].serverTime = time;
 	}
+	G_TCEPoseResetHistory(ent);
 }
 
 void G_AttachBodyParts(gentity_t *ent)
@@ -458,16 +509,23 @@ void G_TimeShiftAllClients(gentity_t *ent, qboolean scaleBounds)
 	{
 		time = level.time;
 	}
+	/* Capture once before any target rewind or damage callback. Recursive
+	 * bullet segments copy these values into their own stack context. */
+	ent->client->tceRewind.shotQueryActive = qtrue;
+	ent->client->tceRewind.requestedTime = time;
+	ent->client->tceRewind.receiptCeiling = level.time;
 	for (i = 0; i < MAX_CLIENTS; ++i)
 	{
 		gentity_t *target = &g_entities[i];
-		if (target->client && target->inuse && (unsigned)target->client->sess.sessionTeam < TEAM_SPECTATOR &&
+		if (target->client && !target->client->tceRewind.active && target->inuse &&
+		    (unsigned)target->client->sess.sessionTeam < TEAM_SPECTATOR &&
 		    target != ent && target->health > 0)
 		{
 			G_TimeShiftClient(target, time);
-			if (scaleBounds)
+			if (scaleBounds && !target->client->tceRewind.boundsScaled)
 			{
 				float xy, z;
+				target->client->tceRewind.boundsScaled = qtrue;
 				if (target->client->ps.eFlags & EF_PRONE)
 				{
 					target->r.svFlags |= 0x40000;
@@ -481,6 +539,7 @@ void G_TimeShiftAllClients(gentity_t *ent, qboolean scaleBounds)
 				target->r.maxs[0] *= xy; target->r.maxs[1] *= xy;
 				target->r.maxs[2] *= z;
 				target->r.mins[0] *= xy; target->r.mins[1] *= xy;
+				target->client->tceRewind.traceMaxZ = target->r.maxs[2];
 			}
 			trap_LinkEntity(target);
 		}
@@ -493,30 +552,18 @@ void G_UnTimeShiftAllClients(gentity_t *ent)
 	for (i = 0; i < MAX_CLIENTS; ++i)
 	{
 		gentity_t *target = &g_entities[i];
-		if (target->client && target->inuse && (unsigned)target->client->sess.sessionTeam < TEAM_SPECTATOR &&
-		    target != ent && target->health > 0)
+		/* Cleanup follows transaction ownership even if damage killed a player
+		 * or changed their team. Do not filter by the post-shot health state. */
+		if (target->client && target != ent && target->client->tceRewind.active)
 		{
-			if (target->r.svFlags & 0x60000)
-			{
-				float xy, z;
-				if (target->r.svFlags & 0x40000)
-				{
-					target->r.svFlags &= ~0x40000;
-					xy                 = 0.4f; z = 2.0f;
-				}
-				else
-				{
-					target->r.svFlags &= ~0x20000;
-					xy                 = 2.0f / 3.0f; z = 0.8f;
-				}
-				target->r.maxs[0] *= xy; target->r.maxs[1] *= xy;
-				target->r.maxs[2] *= z;
-				target->r.mins[0] *= xy; target->r.mins[1] *= xy;
-			}
 			G_UnTimeShiftClient(target);
-			trap_LinkEntity(target);
+			if (target->inuse)
+			{
+				trap_LinkEntity(target);
+			}
 		}
 	}
+	ent->client->tceRewind.shotQueryActive = qfalse;
 }
 
 void G_HistoricalTraceBegin(gentity_t *ent)

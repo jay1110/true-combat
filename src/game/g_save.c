@@ -6,6 +6,7 @@
 #ifdef SAVEGAME_SUPPORT
 
 #include "../game/g_local.h"
+#include "g_tce_pose_presentation.h"
 #include "../game/q_shared.h"
 #include "../game/botlib.h"     //bot lib interface
 #include "../game/be_aas.h"
@@ -895,6 +896,8 @@ void ReadClient(fileHandle_t f, gclient_t *client, int size)
 	//}
 
 	ent = &g_entities[client->ps.clientNum];
+	client->ps.holdable[TCE_POSE_COMPACT_LEGS_SLOT] = client->ps.holdable[TCE_POSE_COMPACT_TORSO_SLOT] = 0;
+	G_TCEPresentationResetClient(ent);
 
 	if (ent->r.svFlags & SVF_BOT)
 	{

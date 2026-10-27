@@ -14,6 +14,8 @@
 #include "tce_bullet.h"
 #include "tce_numeric.h"
 #include "tce_radius_precision.h"
+#include "tce_damage_trace.h"
+#include "g_tce_bullet_damage.h"
 
 
 vec3_t forward, right, up;
@@ -3705,6 +3707,162 @@ Bullet_Fire_Extended
 	uses for this include shooting through entities (windows, doors, other players, etc.) and reflecting bullets
 ==============
 */
+typedef struct
+{
+	qboolean hit[MAX_CLIENTS];
+	uint32_t shotTime, receiptCeiling;
+	qboolean hasSelection;
+	g_tceBulletDamageSelection_t selection;
+} tceBulletTraceContext_t;
+
+/* Order the active TC volumes, not enlarged movement hulls. The engine still
+ * chooses all solid/missile-clip cover and unvisited corpse collisions. */
+static void G_TCETraceBullet(trace_t *result, gentity_t *source,
+                             const vec3_t start, const vec3_t end,
+                             tceBulletTraceContext_t *context)
+{
+	gentity_t *unlinked[MAX_CLIENTS], *nearest = NULL;
+	g_tcePresentationQuery_t corpseQuery[MAX_CLIENTS];
+	int corpsePolicy[MAX_CLIENTS];
+	qboolean corpseQueried[MAX_CLIENTS] = { qfalse };
+	double nearestFraction;
+	float length, legacyFraction, worldFraction;
+	vec3_t ray;
+	int i, part, unlinkedCount = 0;
+	context->hasSelection = qfalse;
+	/* A player killed earlier in this shot is now a corpse. Its old BODY bit
+	 * no longer excludes it from the world trace; keep the shot's ignore set.
+	 * Living players also temporarily use CORPSE while overlapping another
+	 * player. Their movement hull must not bypass the analytic policy below.
+	 * Unvisited real dead corpses remain in the engine world trace. */
+	for (i = 0; i < MAX_CLIENTS; ++i)
+	{
+		gentity_t *target = &g_entities[i];
+		if (target != source && target->r.linked &&
+		    (target->r.contents & CONTENTS_CORPSE))
+		{
+			qboolean remove = context->hit[i];
+			if (!remove && target->client && target->inuse && target->health > 0 &&
+			    (target->client->sess.sessionTeam == TEAM_AXIS || target->client->sess.sessionTeam == TEAM_ALLIES))
+			{
+				/* Keep ordinary living-corpse hull behavior. Query only once per
+				 * candidate/segment; affected and unknown hulls cannot occlude
+				 * skin selection or turn an unavailable skin into legacy damage. */
+				corpseQueried[i] = qtrue;
+				corpsePolicy[i] = G_TCEPresentationQuery(i, context->shotTime,
+				    context->receiptCeiling, &corpseQuery[i]);
+				remove = corpsePolicy[i] != G_TCE_PRESENTATION_LEGACY;
+			}
+			if (remove)
+			{
+				unlinked[unlinkedCount++] = target;
+				trap_UnlinkEntity(target);
+			}
+		}
+	}
+	trap_Trace(result, start, NULL, NULL, end, source->s.number,
+	           MASK_MISSILESHOT & ~CONTENTS_BODY);
+	for (i = 0; i < unlinkedCount; ++i)
+	{
+		trap_LinkEntity(unlinked[i]);
+	}
+	worldFraction = result->fraction;
+	nearestFraction = worldFraction;
+	for (i = 0; i < MAX_CLIENTS; ++i)
+	{
+		gentity_t *target = &g_entities[i];
+		tceDamagePose_t pose;
+		tceDamageVolume_t volumes[3];
+		if (context->hit[i] || target == source || !target->client || !target->inuse ||
+		    !target->r.linked || !(target->r.contents & (CONTENTS_BODY | CONTENTS_CORPSE)) || target->health <= 0 ||
+		    (target->client->sess.sessionTeam != TEAM_AXIS && target->client->sess.sessionTeam != TEAM_ALLIES))
+		{
+			continue;
+		}
+		{
+			g_tcePresentationQuery_t query;
+			g_tcePoseTraceResult_t skin;
+			int policy;
+			if (corpseQueried[i])
+			{
+				policy = corpsePolicy[i];
+				if (policy == G_TCE_PRESENTATION_LEGACY && !(target->r.contents & CONTENTS_BODY))
+				{
+					continue;
+				}
+				query = corpseQuery[i];
+			}
+			else
+			{
+				policy = G_TCEPresentationQuery(i, context->shotTime,
+				    context->receiptCeiling, &query);
+			}
+			if (policy == G_TCE_PRESENTATION_AFFECTED)
+			{
+				if (G_TCEPosePresentationTrace(&query, start, end, nearestFraction,
+				                               &skin) == G_TCE_POSE_TRACE_HIT &&
+				    skin.surface.fraction < nearestFraction &&
+				    (float)skin.surface.fraction < worldFraction)
+				{
+					nearest = target;
+					nearestFraction = skin.surface.fraction;
+					context->hasSelection = qtrue;
+					context->selection.query = query;
+					context->selection.trace = skin;
+					VectorCopy(start, context->selection.start);
+					VectorCopy(end, context->selection.end);
+					context->selection.maxFraction = skin.key.maxFraction;
+				}
+				/* Available skin misses and unavailable affected geometry never
+				 * turn into a hit on unrelated legacy boxes. */
+				continue;
+			}
+			if (policy != G_TCE_PRESENTATION_LEGACY)
+			{
+				continue;
+			}
+		}
+		TCE_ClientDamagePose(target, &pose);
+		TCE_DamageVolumes(&pose, volumes);
+		for (part = 0; part < 3; ++part)
+		{
+			float fraction;
+			if (TCE_DamageVolumeFraction(&volumes[part], start, end, &fraction) &&
+			    fraction < nearestFraction)
+			{
+				nearest = target;
+				nearestFraction = fraction;
+				context->hasSelection = qfalse;
+			}
+		}
+	}
+	if (!nearest)
+	{
+		return;
+	}
+	memset(result, 0, sizeof(*result));
+	result->entityNum = nearest->s.number;
+	if (context->hasSelection)
+	{
+		result->fraction = (float)nearestFraction;
+		VectorCopy(context->selection.trace.surface.point, result->endpos);
+		VectorCopy(context->selection.trace.surface.normal, result->plane.normal);
+		return;
+	}
+	VectorSubtract(end, start, ray);
+	length = VectorLength(ray);
+	/* Leave the incoming damage probe just outside the volume. Starting on
+	 * its brush plane can be startsolid in the engine instead of an entry. */
+	legacyFraction = (float)nearestFraction;
+	if (length > 0)
+	{
+		legacyFraction -= 0.125f / length;
+		if (legacyFraction < 0) legacyFraction = 0;
+	}
+	result->fraction = legacyFraction;
+	VectorMA(start, legacyFraction, ray, result->endpos);
+}
+
 #if defined(__linux__)
 static int G_TCEBulletExplosiveDamage(const tce_weaponDef_t *def, int damage,
                                      int distance, float bboxScale)
@@ -3726,10 +3884,11 @@ static int G_TCEBulletExplosiveDamage(const tce_weaponDef_t *def, int damage,
 
 /* Windows 2009d500 / Linux 0010eae8. TC's fourteen-argument trace
  * controller. Counters independently bound wall, flesh and bounding-box passes. */
-qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker,
+static qboolean G_TCEBulletFireExtended(gentity_t *source, gentity_t *attacker,
                               vec3_t start, vec3_t end, float spread, int damage, int penetration,
                               int maxDistance, int totalDistance, int wallsRemaining, int bodiesRemaining,
-                              int passesRemaining, int seed, int suppressWallEvents)
+                              int passesRemaining, int seed, int suppressWallEvents,
+                              tceBulletTraceContext_t *context)
 {
 	trace_t                    tr, next;
 	gentity_t                  *hit, *event;
@@ -3750,11 +3909,7 @@ qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker,
 	double                     thickness, retained;
 #endif
 
-#if defined(__linux__)
-	trap_Trace(&tr, start, NULL, NULL, end, source->s.number, MASK_MISSILESHOT);
-#else
-	trap_Trace(&tr, start, NULL, NULL, end, source->s.number, MASK_SHOT);
-#endif
+	G_TCETraceBullet(&tr, source, start, end, context);
 #if defined(__linux__)
 	if (maxDistance && !((long double)maxDistance >= (long double)tr.fraction * 8192.0f))
 #else
@@ -3791,15 +3946,27 @@ qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker,
 	}
 	if (hit->takedamage && hit->client)
 	{
+		if ((unsigned)hit->s.number < MAX_CLIENTS)
+		{
+			context->hit[hit->s.number] = qtrue;
+		}
+		VectorSubtract(end, start, direction);
+		VectorNormalize(direction);
 		def     = &weaponDef[attacker->client->ps.weapon];
 		applied = TCE_BulletClientDamage(def, damage, totalDistance, g_newbbox.integer);
 #if defined(__linux__)
-		damageResult = G_Damage(hit, attacker, attacker, forward, tr.endpos, applied,
-		                        0, weaponDef[attacker->s.weapon].mod);
+		damageResult = (context->hasSelection ?
+		    G_TCEPresentationDamage(hit, attacker, attacker, direction, tr.endpos,
+		        applied, 0, weaponDef[attacker->s.weapon].mod, &context->selection) :
+		    G_Damage(hit, attacker, attacker, direction, tr.endpos, applied,
+		        0, weaponDef[attacker->s.weapon].mod));
 		result = (float)damageResult;
 #else
-		result  = G_Damage(hit, attacker, attacker, forward, tr.endpos, applied,
-		                   0, weaponDef[attacker->s.weapon].mod);
+		result  = (context->hasSelection ?
+		    G_TCEPresentationDamage(hit, attacker, attacker, direction, tr.endpos,
+		        applied, 0, weaponDef[attacker->s.weapon].mod, &context->selection) :
+		    G_Damage(hit, attacker, attacker, direction, tr.endpos, applied,
+		        0, weaponDef[attacker->s.weapon].mod));
 #endif
 #if defined(__linux__)
 		if (damageResult == 1.0L || TCE_FloatIsNaN(result))
@@ -3853,9 +4020,9 @@ qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker,
 			if (--passesRemaining > 0)
 #endif
 			{
-				return Bullet_Fire_Extended(hit, attacker, tr.endpos, end, 0, damage,
+				return G_TCEBulletFireExtended(hit, attacker, tr.endpos, end, 0, damage,
 				                            penetration, 0, totalDistance, wallsRemaining, bodiesRemaining,
-				                            passesRemaining, seed, suppressWallEvents);
+				                            passesRemaining, seed, suppressWallEvents, context);
 			}
 		}
 		else if (hit->client)
@@ -3899,10 +4066,10 @@ qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker,
 					    (float)damage);
 					if (bodiesRemaining > 0)
 					{
-						return Bullet_Fire_Extended(hit, attacker, tr.endpos, end, 0,
+						return G_TCEBulletFireExtended(hit, attacker, tr.endpos, end, 0,
 						                            nextDamage, nextPenetration, 0,
 						                            totalDistance, wallsRemaining, bodiesRemaining,
-						                            passesRemaining, seed, suppressWallEvents);
+						                            passesRemaining, seed, suppressWallEvents, context);
 					}
 				}
 #else
@@ -3913,10 +4080,10 @@ qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker,
 				energy = fraction * penetration;
 				if (fraction > 0.0f && energy >= 5.0f && --bodiesRemaining > 0)
 				{
-					return Bullet_Fire_Extended(hit, attacker, tr.endpos, end, 0,
+					return G_TCEBulletFireExtended(hit, attacker, tr.endpos, end, 0,
 					                            (int)(energy / def->unknown_134 * damage), (int)energy, 0,
 					                            totalDistance, wallsRemaining, bodiesRemaining, passesRemaining,
-					                            seed, suppressWallEvents);
+					                            seed, suppressWallEvents, context);
 				}
 #endif
 			}
@@ -3955,17 +4122,20 @@ qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker,
 			probe[i] = (entry[i] - tr.plane.normal[i]) + direction[i];
 #endif
 		trap_Trace(&next, probe, NULL, NULL, end, source->s.number, CONTENTS_SOLID);
-		if (next.fraction >= 1.0f)
+		/* Starting inside a penetrable brush and leaving it normally returns
+		 * startsolid with fraction 1. The endpoint is still a valid reverse
+		 * trace origin when no second obstacle lies behind this wall. */
+		if (next.allsolid)
 		{
 			goto damageExplosive;
 		}
-		if (Distance(next.endpos, entry) < 4.0f)
+		if (next.fraction < 1.0f && Distance(next.endpos, entry) < 4.0f)
 		{
 			for (i = 0; i < 3; ++i)
 				probe[i] = (float)(((double)entry[i] - tr.plane.normal[i]) +
 				                   direction[i] * 4.0);
 			trap_Trace(&next, probe, NULL, NULL, end, source->s.number, CONTENTS_SOLID);
-			if (next.fraction >= 1.0f)
+			if (next.allsolid)
 			{
 				goto damageExplosive;
 			}
@@ -4048,18 +4218,18 @@ qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker,
 			}
 			TCE_BulletDeflect(start, end, fraction, seed, wallsRemaining);
 #if defined(__linux__)
-			return Bullet_Fire_Extended(source, attacker, next.endpos, end, 0,
+			return G_TCEBulletFireExtended(source, attacker, next.endpos, end, 0,
 			                            TCE_TruncateNativeInteger((1.0L /
 				                                weaponDef[source->client->ps.weapon].unknown_134) *
 				                                energy * damage),
 			                            TCE_TruncateNativeInteger(energy), 0,
 			                            totalDistance, TCE_SubInt32(wallsRemaining, 1),
-			                            bodiesRemaining, passesRemaining, seed, suppressWallEvents);
+			                            bodiesRemaining, passesRemaining, seed, suppressWallEvents, context);
 #else
-			return Bullet_Fire_Extended(source, attacker, next.endpos, end, 0,
+			return G_TCEBulletFireExtended(source, attacker, next.endpos, end, 0,
 			                            (int)(energy / def->unknown_134 * damage), (int)energy, 0,
 			                            totalDistance, wallsRemaining - 1, bodiesRemaining, passesRemaining,
-			                            seed, suppressWallEvents);
+			                            seed, suppressWallEvents, context);
 #endif
 		}
 		return qfalse;
@@ -4091,6 +4261,35 @@ damageExplosive:
 	return qfalse;
 }
 
+
+/* Keep the mod-facing entry point; recursive segments share one bounded set
+ * of visited players, so overlapping volumes cannot damage A/B/A again. */
+qboolean Bullet_Fire_Extended(gentity_t *source, gentity_t *attacker,
+                              vec3_t start, vec3_t end, float spread, int damage, int penetration,
+                              int maxDistance, int totalDistance, int wallsRemaining, int bodiesRemaining,
+                              int passesRemaining, int seed, int suppressWallEvents)
+{
+	tceBulletTraceContext_t context;
+	memset(&context, 0, sizeof(context));
+	if (attacker->client && attacker->client->tceRewind.shotQueryActive)
+	{
+		context.shotTime = (uint32_t)attacker->client->tceRewind.requestedTime;
+		context.receiptCeiling = (uint32_t)attacker->client->tceRewind.receiptCeiling;
+	}
+	else
+	{
+		/* Bot/no-antilag traces use current, unrewound server geometry. */
+		context.shotTime = context.receiptCeiling = (uint32_t)level.time;
+	}
+	if (source->client && (unsigned)source->s.number < MAX_CLIENTS)
+	{
+		context.hit[source->s.number] = qtrue;
+	}
+	return G_TCEBulletFireExtended(source, attacker, start, end, spread, damage,
+	                              penetration, maxDistance, totalDistance, wallsRemaining,
+	                              bodiesRemaining, passesRemaining, seed, suppressWallEvents,
+	                              &context);
+}
 
 
 /*

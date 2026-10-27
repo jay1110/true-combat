@@ -8,10 +8,12 @@ import re
 import zipfile
 
 from package import ROOT, version
+from client_packages import (check_canonical, check_target_payload, module_names,
+                             read_target, sha as client_sha, levelshot_assets, validate_levelshots)
 from runtime_payload import command_spans, prepare_runtime, sha256
 from verify_omnibot_boundary import (AUTHORING_COMMANDS, RUNTIME_BINDINGS,
                                     NATIVE_PUBLIC_COMMANDS, NATIVE_AUTHORING_COMMANDS,
-                                    validate_symbol_evidence)
+                                    validate_symbol_evidence, verify_module_bytes)
 
 
 def workflows(repo):
@@ -42,6 +44,7 @@ def source_inputs(repo, expected):
             raise ValueError('Missing clean-checkout release input: ' + relative)
     game, _, registry, _, diagnostics = prepare_runtime(repo, 'game')
     prepare_runtime(repo, 'navstudio')
+    levelshot_assets(repo)
     return {'version': expected, 'manual_only': True, 'runtime_inputs': len(source['files']),
             'classified_gm_registrations': sum(len(v['registrations']) for v in registry.values()),
             'public_gm_registrations': sum(len(command_spans(v.decode('latin-1')))
@@ -125,22 +128,35 @@ def archive(path):
             if hashlib.sha256(outer.read(item['path'])).hexdigest() != item['sha256']:
                 raise ValueError('Release input fingerprint mismatch: ' + item['path'])
         editor = manifest['variant'] == 'navstudio'
+        for entry in outer.namelist():
+            for role in ('cgame', 'ui', 'qagame'):
+                if re.fullmatch(r'tce2/(?:lib)?' + role + r'(?:_mp_.*[.]dll|[.]mp[.].*[.]so|_mac)', entry):
+                    verify_module_bytes(role, outer.read(entry), manifest['variant'])
         addon = 'tce2/zz_tce2_navstudio_editor.pk3'
         if (addon in names) != editor:
             raise ValueError('Wrong editor addon boundary')
         client = 'tce2/tce2-' + manifest['version'] + '.pk3'
-        with zipfile.ZipFile(io.BytesIO(outer.read(client))) as pk3:
-            client_names = safe_names(pk3)
-            if pk3.read('tce2/' + manifest['version'] + '/client.manifest').decode() != manifest['version']:
-                raise ValueError('Wrong client manifest version')
-            flags = json.loads(pk3.read('gfx/flags/SOURCE.json'))
-            if hashlib.sha256(pk3.read('gfx/flags/world_flags.tga')).hexdigest() != flags['sha256']:
-                raise ValueError('Flag atlas provenance mismatch')
-            pk3.read('gfx/flags/LICENSE.xmod.txt')
-            if any('geoip' in name.lower() or 'qagame' in name.lower() for name in client_names):
-                raise ValueError('Server-only file leaked into client PK3')
-            if any(name.startswith('ui/') for name in client_names) == editor:
-                raise ValueError('Public menu overrides replaced the editor menu list')
+        client_scope = manifest.get('client_package', {}).get('scope')
+        if client_scope == 'target-input':
+            read_target(path, manifest['version'])
+        elif client_scope not in ('shared', 'local-test'):
+            raise ValueError('Unclassified/partial client download package')
+        if client_scope != 'target-input':
+            client_data = outer.read(client)
+            if client_scope == 'shared':
+                canonical = check_canonical(client_data, manifest['version'], manifest['variant'])
+                if (manifest['client_package'].get('sha256') != client_sha(client_data) or
+                        manifest['client_package'].get('targets') != canonical['targets']):
+                    raise ValueError('Shared client package fingerprint/ABI manifest mismatch')
+            with zipfile.ZipFile(io.BytesIO(client_data)) as pk3:
+                for name in module_names(manifest['target']).values():
+                    if pk3.read(name) != outer.read('tce2/' + name):
+                        raise ValueError('Loose/download client module disagreement')
+                if client_scope == 'local-test':
+                    check_target_payload({name: pk3.read(name) for name in pk3.namelist()},
+                                         manifest['target'], manifest['variant'], manifest['version'])
+            with zipfile.ZipFile(io.BytesIO(client_data)) as pk3:
+                validate_client_resources(pk3, manifest, editor)
         if manifest['gameplay_bot_runtime']:
             boundary = manifest['bot_core_boundary']
             data = outer.read('tce2/omni-bot/' + boundary['library'])
@@ -192,8 +208,28 @@ def archive(path):
                     raise ValueError('Mod map-script/config mismatch: ' + row['path'])
     return {'archive': path.name, 'version': manifest['version'], 'target': manifest['target'],
             'variant': manifest['variant'], 'complete_runtime': manifest['gameplay_bot_runtime'],
-            'files': len(names), 'passed': True}
+            'client_package_scope': client_scope, 'files': len(names), 'passed': True}
 
+
+def validate_client_resources(pk3, manifest, editor):
+    client_names = safe_names(pk3)
+    validate_levelshots({name: pk3.read(name) for name in client_names if name.startswith('levelshots/')})
+    if pk3.read('tce2/' + manifest['version'] + '/client.manifest').decode() != manifest['version']:
+        raise ValueError('Wrong client manifest version')
+    flags = json.loads(pk3.read('gfx/flags/SOURCE.json'))
+    if hashlib.sha256(pk3.read('gfx/flags/world_flags.tga')).hexdigest() != flags['sha256']:
+        raise ValueError('Flag atlas provenance mismatch')
+    pk3.read('gfx/flags/LICENSE.xmod.txt')
+    if any('geoip' in name.lower() or 'qagame' in name.lower() for name in client_names):
+        raise ValueError('Server-only file leaked into client PK3')
+    public_ui = {'ui/ingame_main.menu', 'ui/menus.txt', 'ui/menus_gt2.txt',
+                 'ui/menus_gt5.txt', 'ui/menus_gt7.txt'}
+    if (bool(client_names & public_ui) == editor or
+            (not editor and not public_ui <= client_names)):
+        raise ValueError('Public menu overrides replaced the editor menu list')
+    shared_ui = {'ui/options_customise_hud.menu', 'ui/options_controls.menu'}
+    if not shared_ui <= client_names:
+        raise ValueError('Missing shared HUD/control menu overrides')
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)

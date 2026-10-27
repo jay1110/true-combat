@@ -1969,6 +1969,11 @@ typedef struct
 	// TTimo: constify the arg
 	int (*soundIndex)(const char *name);
 	void (*playSound)(int soundIndex, vec3_t org, int clientNum);
+	/* Optional module-private observer; timers are locks, not animation phase.
+	 * Called after each accepted channel assignment, including same-clip restarts.
+	 * The owner supplies timeline/generation context and must not mutate ps. */
+	void (*animationAssigned)(const playerState_t *ps, const animModelInfo_t *modelInfo,
+	                          animBodyPart_t part, int previousAnimation, int animation);
 } animScriptData_t;
 
 //------------------------------------------------------------------

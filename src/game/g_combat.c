@@ -125,8 +125,7 @@ void TossClientItems(gentity_t *self)
 	if (g_gametype.integer == 5 &&
 	    (self->client->ps.stats[STAT_TCE_WEAPON_FLAGS] & 0x100) &&
 	    level.tceBombAssigned && !level.tceBombPlanted &&
-	    level.tceBombCarrier == self->client->ps.clientNum &&
-	    level.tceBombDropCount < 2)
+	    level.tceBombCarrier == self->client->ps.clientNum)
 	{
 		gentity_t *popup;
 		gclient_t *client;
@@ -1561,7 +1560,7 @@ qboolean CanDamage(gentity_t *targ, vec3_t origin)
 
 	VectorCopy(midpoint, dest);
 	dest[0] += offsetmins[0];
-	dest[1] += offsetmins[2];
+	dest[1] += offsetmins[1];
 	dest[2] += offsetmins[2];
 	trap_Trace(&tr, origin, vec3_origin, vec3_origin, dest, ENTITYNUM_NONE, MASK_CAN_DAMAGE);
 	if (tr.fraction == 1 || &g_entities[tr.entityNum] == targ)
@@ -1727,7 +1726,9 @@ qboolean G_RadiusDamage(vec3_t origin, gentity_t *inflictor, gentity_t *attacker
 
 			G_Damage(ent, inflictor, mod == 26 ? ent : attacker, dir, origin, (int)points, flags, mod);
 		}
-		else
+		/* An occluded client must not take the legacy close-range 10% blast
+		 * fallback through solid cover. Preserve that behavior for map props. */
+		else if (!ent->client && (!ent->dmgparent || !ent->dmgparent->client))
 		{
 #if defined(__linux__)
 			for (i = 0; i < 3; ++i)
@@ -1911,7 +1912,9 @@ qboolean etpro_RadiusDamage(vec3_t origin, gentity_t *inflictor, gentity_t *atta
 
 			G_Damage(ent, inflictor, attacker, dir, origin, (int)points, flags, mod);
 		}
-		else
+		/* Match G_RadiusDamage: solid cover protects clients, including a
+		 * damage-parent client reached through a proxy entity. */
+		else if (!ent->client && (!ent->dmgparent || !ent->dmgparent->client))
 		{
 #if defined(__linux__)
 			for (i = 0; i < 3; ++i)

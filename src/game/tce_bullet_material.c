@@ -63,16 +63,16 @@ int TCE_BulletWallExit(const trace_t *entry, const vec3_t start, const vec3_t en
 	for (i = 0; i < 3; ++i)
 		from[i] = (entry->endpos[i] - entry->plane.normal[i]) + direction[i];
 	trace(exit, from, NULL, NULL, end, passEntity, 1);
-	if (exit->fraction >= 1)
+	if (exit->allsolid)
 	{
 		return 0;
 	}
-	if (Distance(exit->endpos, entry->endpos) < 4)
+	if (exit->fraction < 1 && Distance(exit->endpos, entry->endpos) < 4)
 	{
 		for (i = 0; i < 3; ++i)
 			from[i] = (float)(((double)entry->endpos[i] - entry->plane.normal[i]) + direction[i] * 4.0);
 		trace(exit, from, NULL, NULL, end, passEntity, 1);
-		if (exit->fraction >= 1)
+		if (exit->allsolid)
 		{
 			return 0;
 		}

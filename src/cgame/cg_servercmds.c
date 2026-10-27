@@ -3,6 +3,7 @@
 // be a valid snapshot this frame
 
 #include "cg_local.h"
+#include "cg_tce_pose_presentation.h"
 #include "tce_smoke_grenade.h"
 #include "tce_flash.h"
 #include "tce_fragment_sound.h"
@@ -652,6 +653,7 @@ static void CG_ConfigStringModified(void)
 
 	// look up the individual string that was modified
 	str = CG_ConfigString(num);
+    if(num==TCE_POSE_PRESENTATION_CS||num==CS_PLAYERS+cg.clientNum)CG_TCEPresentationManifestChanged();
 
 	// do something with it if necessary
 	if (num == CS_MUSIC)
@@ -1019,6 +1021,18 @@ require a reload of all the media
 */
 static void CG_MapRestart(void)
 {
+	int i;
+	CG_TCEPresentationRestart();
+	/* Score and health packets belong to the previous round until refreshed. */
+	cg.numScores = 0;
+	cg.scoresRequestTime = 0;
+	memset(tce_scoreExtended, 0, sizeof(tce_scoreExtended));
+	for (i = 0; i < MAX_CLIENTS; ++i)
+	{
+		cgs.clientinfo[i].health = 1;
+		cgs.clientinfo[i].powerups = 0;
+	}
+
 	if (cg_showmiss.integer)
 	{
 		CG_Printf("CG_MapRestart\n");

@@ -3,6 +3,7 @@
 */
 
 #include "cg_local.h"
+#include "cg_tce_pose_presentation.h"
 #include "../game/tce_bg.h"
 
 char bigTextBuffer[100000];
@@ -261,6 +262,7 @@ static qboolean CG_ParseAnimationFiles(bg_character_t *character, const char *an
 	BG_R_RegisterAnimationGroup(animationGroup, character->animModelInfo);
 
 	// calc movespeed values if required
+	CG_TCEPresentationRememberModel(character->animModelInfo);
 	CG_CalcMoveSpeeds(character);
 
 	// load the script file
@@ -591,6 +593,7 @@ qboolean CG_RegisterCharacter(const char *characterFile, bg_character_t *charact
 	}
 
 	// STILL MISSING: GIB MODELS (OPTIONAL?)
+	CG_TCEPresentationRegister(character, &characterDef);
 
 	return qtrue;
 }

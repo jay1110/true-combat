@@ -1357,9 +1357,6 @@ static void CG_CalculateWeaponPosition(vec3_t origin, vec3_t angles)
 		AngleVectors(angles, NULL, right, up);
 		VectorMA(origin, angles[ROLL], right, origin);
 
-		// pitch the gun down a bit to show that firing is not allowed when leaning
-		angles[PITCH] += (fabs(cg.predictedPlayerState.leanf) / 2.0f);
-
 		// this gives you some impression that the weapon stays in relatively the same
 		// position while you lean, so you appear to 'peek' over the weapon
 		AngleVectors(cg.refdefViewAngles, NULL, right, NULL);
@@ -4132,12 +4129,6 @@ void CG_LastWeaponUsed_f(void)
 
 	cg.weaponSelectTime = cg.time;  // flash the current weapon icon
 
-	// don't switchback if reloading (it nullifies the reload)
-	if (cg.snap->ps.weaponstate == 9)
-	{
-		return;
-	}
-
 	if (!cg.switchbackWeapon)
 	{
 		cg.switchbackWeapon = cg.weaponSelect;
@@ -4404,10 +4395,7 @@ void CG_NextWeapon_f(void)
 		return;
 	}
 	cg.weaponSelectTime = cg.time;
-	if (cg.snap->ps.weaponstate != WEAPON_RELOADING)
-	{
-		CG_NextWeap(qtrue);
-	}
+	CG_NextWeap(qtrue);
 }
 
 
@@ -4434,10 +4422,7 @@ void CG_PrevWeapon_f(void)
 		return;
 	}
 	cg.weaponSelectTime = cg.time;
-	if (cg.snap->ps.weaponstate != WEAPON_RELOADING)
-	{
-		CG_PrevWeap(qtrue);
-	}
+	CG_PrevWeap(qtrue);
 }
 
 
@@ -4486,12 +4471,6 @@ void CG_WeaponBank_f(void)
 	}
 
 	cg.weaponSelectTime = cg.time;  // flash the current weapon icon
-
-	// Don't try to switch when in the middle of reloading.
-	if (cg.snap->ps.weaponstate == WEAPON_RELOADING)
-	{
-		return;
-	}
 
 	bank = atoi(CG_Argv(1));
 
@@ -4721,6 +4700,35 @@ void CG_OutOfAmmoChange(qboolean allowforceswitch)
 	if (cg.snap->ps.eFlags & 0x01000000)
 	{
 		return;
+	}
+
+	/* A bank command can already request a firearm while the depleted grenade
+	 * remains active in prediction/the event snapshot. Do not reinterpret that
+	 * request as the exhausted weapon and overwrite it with the knife bank. */
+	if (allowforceswitch &&
+	    (cg.weaponSelect == 4 || cg.weaponSelect == 9 || cg.weaponSelect == 30 ||
+	     cg.predictedPlayerState.weapon == 4 || cg.predictedPlayerState.weapon == 9 || cg.predictedPlayerState.weapon == 30 ||
+	     cg.snap->ps.weapon == 4 || cg.snap->ps.weapon == 9 || cg.snap->ps.weapon == 30))
+	{
+		int firearmBank;
+		if (CG_WeaponIndex(cg.weaponSelect, &bank, &cycle) && (bank == 1 || bank == 2) &&
+		    CG_WeaponSelectable(cg.weaponSelect) && CG_WeaponHasAmmo(cg.weaponSelect))
+		{
+			return;
+		}
+		/* TC bank 1 is primary, bank 2 secondary; SDK bank 3 is the knife. */
+		for (firearmBank = 1; firearmBank <= 2; ++firearmBank)
+		{
+			for (i = 0; i < MAX_WEAPS_IN_BANK_MP; ++i)
+			{
+				int candidate = weapBanksMultiPlayer[firearmBank][i];
+				if (candidate && CG_WeaponSelectable(candidate) && CG_WeaponHasAmmo(candidate))
+				{
+					CG_FinishWeaponChange(cg.predictedPlayerState.weapon, candidate);
+					return;
+				}
+			}
+		}
 	}
 
 	if (allowforceswitch)

@@ -1318,8 +1318,6 @@ screen.
 DEFAULT_AXIS - This spawn region belongs to the Axis at the start of the map
 DEFAULT_ALLIES - This spawn region belongs to the Alles at the start of the map
 */
-static int numobjectives = 0; // TTimo
-
 // swaps the team
 void team_wolf_objective_use(gentity_t *self, gentity_t *other, gentity_t *activator)
 {
@@ -1349,6 +1347,9 @@ void objective_Register(gentity_t *self)
 
 	char numspawntargets[128];
 	int  cs_obj = CS_MULTI_SPAWNTARGETS;
+	/* Map-owned state is reset by G_InitGame, including native DLL reloads
+	 * where module-static storage can survive the next map initialization. */
+	int  numobjectives = level.numspawntargets;
 	char cs[MAX_STRING_CHARS];
 
 	if (numobjectives == MAX_MULTI_SPAWNTARGETS)

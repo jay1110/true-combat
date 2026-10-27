@@ -1,6 +1,7 @@
 /* Recovered TC damage controller. Internal decomposition of Windows200589c0;
  * no original-function completion is implied by the helpers below. */
-#include "tce_damage.h"
+#include "tce_damage_trace.h"
+#include "g_tce_bullet_damage.h"
 extern void G_Voice(gentity_t *, gentity_t *, int, const char *, qboolean);
 
 static void TCE_DamageDebugBox(gentity_t *part, const vec3_t start, const vec3_t end, float fraction
@@ -33,7 +34,8 @@ static void TCE_DamageDebugBox(gentity_t *part, const vec3_t start, const vec3_t
 	event = G_TempEntity((float *)start, EV_RAILTRAIL); VectorCopy(hit, event->s.origin2); event->s.dmgFlags = 0;
 }
 
-static int TCE_ApplyBodyDamage(gentity_t *targ, const vec3_t dir, const vec3_t point, int damage
+static int TCE_ApplyBodyDamage(gentity_t *targ, gentity_t *attacker, int mod,
+                               const vec3_t dir, const vec3_t point, int damage
 #if defined(__linux__)
                                , int *bodyStatus
 #endif
@@ -56,7 +58,6 @@ static int TCE_ApplyBodyDamage(gentity_t *targ, const vec3_t dir, const vec3_t p
 		TCE_DamageDebugBox(targ, point, end, 1);
 #endif
 	}
-	part = G_Spawn(); G_SetOrigin(part, targ->r.currentOrigin);
 	if (targ->client->sess.sessionTeam != TEAM_AXIS && targ->client->sess.sessionTeam != TEAM_ALLIES)
 	{
 #if defined(__linux__)
@@ -64,11 +65,8 @@ static int TCE_ApplyBodyDamage(gentity_t *targ, const vec3_t dir, const vec3_t p
 #endif
 		return -1;
 	}
-	VectorCopy(targ->r.currentOrigin, pose.origin); VectorCopy(targ->client->ps.viewangles, pose.angles);
-	pose.lean     = targ->client->ps.leanf; pose.weapon = targ->client->ps.weapon;
-	pose.prone    = !!(targ->client->ps.eFlags & EF_PRONE); pose.ducked = !!(targ->client->ps.pm_flags & PMF_DUCKED);
-	pose.aiming   = !!(targ->client->ps.stats[STAT_TCE_WEAPON_FLAGS] & 0x20);
-	pose.enlarged = !!(targ->client->ps.stats[STAT_TCE_FLAGS] & 0x200);
+	part = G_Spawn(); G_SetOrigin(part, targ->r.currentOrigin);
+	TCE_ClientDamagePose(targ, &pose);
 	if (g_debugDamage.integer)
 	{
 		if (pose.prone)
@@ -118,7 +116,10 @@ static int TCE_ApplyBodyDamage(gentity_t *targ, const vec3_t dir, const vec3_t p
 		VectorCopy(targ->r.currentAngles, part->s.apos.trBase); VectorCopy(targ->r.currentAngles, part->s.apos.trDelta);
 		VectorCopy(volumes[i].mins, part->r.mins); VectorCopy(volumes[i].maxs, part->r.maxs);
 		part->clipmask = 1; part->r.contents = 1; trap_LinkEntity(part);
-		trap_Trace(&tr, point, NULL, NULL, end, targ->s.number, MASK_MISSILESHOT);
+		/* The broad player/corpse hulls are candidate selectors, not cover
+		 * for another player's narrow volumes. Keep all solid/missile cover. */
+		trap_Trace(&tr, point, NULL, NULL, end, targ->s.number,
+		           MASK_MISSILESHOT & ~(CONTENTS_BODY | CONTENTS_CORPSE));
 		if (&g_entities[tr.entityNum] == part)
 		{
 			fractions[i] = tr.fraction;
@@ -148,6 +149,14 @@ static int TCE_ApplyBodyDamage(gentity_t *targ, const vec3_t dir, const vec3_t p
 		return -2;
 	}
 	take = TCE_DamageWeights(volumes, fractions, point, dir, pose.enlarged?1.25f:1.0f, damage, amounts, scales);
+	/* A confirmed nearest head volume counts once; reuse the three existing
+	 * probes instead of the unrelated SDK head helper and another trace. */
+	if (take > 0 && amounts[0] > 0 && fractions[0] < fractions[1] && fractions[0] < fractions[2] &&
+	    attacker && attacker->client && attacker != targ && !OnSameTeam(targ, attacker))
+	{
+		G_LogRegionHit(attacker, HR_HEAD);
+		G_addStatsHeadShot(attacker, mod);
+	}
 	for (i = 0; i < 3; ++i)
 		if (amounts[i] > 0)
 		{
@@ -164,8 +173,61 @@ static int TCE_ApplyBodyDamage(gentity_t *targ, const vec3_t dir, const vec3_t p
 	return take;
 }
 
-tce_damageResult_t G_Damage(gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
-               vec3_t dir, vec3_t point, int damage, int dflags, int mod)
+/* H3 uses the exact immutable anatomical selection, never a second pose or
+ * legacy-box probe. Ordinary and radial callers retain the original path. */
+static qboolean TCE_PresentationSelectionValid(const gentity_t *targ,
+    const g_tceBulletDamageSelection_t *selection)
+{
+	return targ && targ->client && targ->health > 0 && selection &&
+	    selection->trace.state == G_TCE_POSE_TRACE_HIT &&
+	    selection->query.clientNum == targ->s.number &&
+	    selection->trace.key.clientNum == targ->s.number &&
+	    selection->trace.surface.region >= TCE_POSE_REGION_HEAD &&
+	    selection->trace.surface.region <= TCE_POSE_REGION_LEGS &&
+	    selection->trace.surface.fraction >= 0.0 &&
+	    selection->trace.surface.fraction < selection->maxFraction &&
+	    G_TCEPosePresentationTraceMatches(&selection->trace, &selection->query,
+	        selection->start, selection->end, selection->maxFraction);
+}
+
+static int TCE_ApplyPresentationDamage(gentity_t *targ, gentity_t *attacker,
+    int mod, int damage, const g_tceBulletDamageSelection_t *selection)
+{
+	int region, take;
+	long long weighted;
+	/* A Lua callback may have changed this life after wrapper prevalidation. */
+	if (!TCE_PresentationSelectionValid(targ, selection))
+	{
+		return -2;
+	}
+	if (targ->client->sess.sessionTeam != TEAM_AXIS &&
+	    targ->client->sess.sessionTeam != TEAM_ALLIES)
+	{
+		return -1;
+	}
+	region = selection->trace.surface.region;
+	/* Nominal coefficients are HEAD 2, BODY 1, LEGS .5. No radial bridge
+	 * weights from an unrelated standing pose contribute to these injuries. */
+	weighted = region == TCE_POSE_REGION_HEAD ? (long long)damage * 2 :
+	           region == TCE_POSE_REGION_LEGS ? damage / 2 : damage;
+	take = weighted > INT_MAX ? INT_MAX : (int)weighted;
+	if (take > 0)
+	{
+		targ->client->ps.holdable[region + 2] =
+		    TCE_AddInt32(targ->client->ps.holdable[region + 2], take);
+		if (region == TCE_POSE_REGION_HEAD && attacker && attacker->client &&
+		    attacker != targ && !OnSameTeam(targ, attacker))
+		{
+			G_LogRegionHit(attacker, HR_HEAD);
+			G_addStatsHeadShot(attacker, mod);
+		}
+	}
+	return take;
+}
+
+static tce_damageResult_t TCE_DamageController(gentity_t *targ, gentity_t *inflictor,
+    gentity_t *attacker, vec3_t dir, vec3_t point, int damage, int dflags, int mod,
+    const g_tceBulletDamageSelection_t *selection)
 {
 	gclient_t *client; int take, wasAlive, i; mapEntityData_t *mapEnt;
 	if (!targ->takedamage || level.intermissionQueued || g_gamestate.integer != GS_PLAYING)
@@ -278,14 +340,24 @@ tce_damageResult_t G_Damage(gentity_t *targ, gentity_t *inflictor, gentity_t *at
 		damage = 1;
 	}
 	take = damage;
-	if (IsHeadShotWeapon(mod) && client && wasAlive)
+	if ((selection || IsHeadShotWeapon(mod)) && client && wasAlive)
 	{
 #if defined(__linux__)
 		int bodyStatus;
-		take = TCE_ApplyBodyDamage(targ, dir, point, damage, &bodyStatus);
+		if (selection)
+		{
+			take = TCE_ApplyPresentationDamage(targ, attacker, mod, damage, selection);
+			bodyStatus = take < 0 ? take : 0;
+		}
+		else
+		{
+			take = TCE_ApplyBodyDamage(targ, attacker, mod, dir, point, damage, &bodyStatus);
+		}
 		if (bodyStatus == -2)
 #else
-		take = TCE_ApplyBodyDamage(targ, dir, point, damage); if (take == -2)
+		take = selection ? TCE_ApplyPresentationDamage(targ, attacker, mod, damage, selection) :
+		       TCE_ApplyBodyDamage(targ, attacker, mod, dir, point, damage);
+		if (take == -2)
 #endif
 		{
 			return 1;
@@ -572,4 +644,25 @@ tce_damageResult_t G_Damage(gentity_t *targ, gentity_t *inflictor, gentity_t *at
 #endif
 	}
 	return 0;
+}
+
+/* Existing mod-facing ABI and ordinary/radial behavior remain unchanged. */
+tce_damageResult_t G_Damage(gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
+    vec3_t dir, vec3_t point, int damage, int dflags, int mod)
+{
+	return TCE_DamageController(targ, inflictor, attacker, dir, point, damage,
+	                            dflags, mod, NULL);
+}
+
+tce_damageResult_t G_TCEPresentationDamage(gentity_t *targ, gentity_t *inflictor,
+    gentity_t *attacker, vec3_t dir, vec3_t point, int damage, int dflags, int mod,
+    const g_tceBulletDamageSelection_t *selection)
+{
+	/* Reject stale/mismatched selections before combat flags or Lua hooks. */
+	if ((dflags & DAMAGE_RADIUS) || !TCE_PresentationSelectionValid(targ, selection))
+	{
+		return 1;
+	}
+	return TCE_DamageController(targ, inflictor, attacker, dir, point, damage,
+	                            dflags, mod, selection);
 }

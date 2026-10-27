@@ -8,6 +8,9 @@ extern displayContextDef_t *DC;
 static char events[65536];
 static int scenario, ordinal;
 static void keys(const char *command,int *first,int *second){
+ /* The new action is an accepted extension, tested separately through the
+  * real capture/save path. Preserve comparison of all 61 original commands. */
+ if(!Q_stricmp(command,"+freelook")){*first=*second=-1;return;}
  int row=ordinal++;
  *first=(scenario&1)?-1:(scenario&2)?0:(scenario&4)?300:row+1;
  *second=(scenario&8)?-1:(scenario&16)?*first:127-row;
@@ -37,5 +40,6 @@ int main(int argc,char **argv){
  if(BindingIDFromName(NULL)!=((int(__cdecl *)(const char *))(b+0x1bc50))(NULL))return 7;++cases;
  if(BindingIDFromName("")!=((int(__cdecl *)(const char *))(b+0x1bc50))(""))return 8;++cases;
  if(BindingIDFromName("+firemode")!=60 || BindingIDFromName("toggleobjectivedesc")!=59 || BindingIDFromName("+mapexpand")!=-1)return 9;
- printf("%d complete UI binding load/apply/lookup comparisons passed;61 original commands\n",cases);return 0;
+ if(BindingIDFromName("+freelook")!=61)return 10;
+ printf("%d UI binding comparisons passed for 61 original commands; +freelook extension checked separately\n",cases);return 0;
 }

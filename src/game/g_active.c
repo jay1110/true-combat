@@ -3,6 +3,8 @@
 #include "tce_numeric.h"
 #include "tce_trigger_precision.h"
 #include "tce_endframe_precision.h"
+#include "g_tce_pose.h"
+#include "g_tce_pose_presentation.h"
 #ifdef FEATURE_OMNIBOT
 #include "g_etbot_interface.h"
 #endif
@@ -824,7 +826,9 @@ void SpectatorThink(gentity_t *ent, usercmd_t *ucmd)
 		}
 #endif // SAVEGAME_SUPPORT
 
+		G_TCEPoseBeginCommand(ent);
 		Pmove(&pm);   // JPW NERVE
+		G_TCEPoseEndCommand(ent);
 
 		// Rafael - Activate
 		// Ridah, made it a latched event (occurs on keydown only)
@@ -1276,6 +1280,7 @@ void SendPendingPredictableEvents(playerState_t *ps)
 		t = G_TempEntity( ps->origin, event );
 		number = t->s.number;
 		BG_PlayerStateToEntityState( ps, &t->s, qtrue );
+		t->s.time = t->s.time2 = 0; // Temporary events never carry player pose.
 		t->s.number = number;
 		t->s.eType = ET_EVENTS + event;
 		t->s.eFlags |= EF_PLAYER_EVENT;
@@ -1757,7 +1762,9 @@ void ClientThink_real(gentity_t *ent)
 		pm.cmd.weapon = client->ps.weapon;
 	}
 
+	G_TCEPoseBeginCommand(ent);
 	monsterslick = Pmove(&pm);
+	G_TCEPoseEndCommand(ent);
 
 	// Gordon: thx to bani for this
 	// ikkyo - fix leaning players bug
@@ -2456,6 +2463,7 @@ void ClientEndFrame(gentity_t *ent)
 	int       i;
 	gentity_t *popup;
 	gclient_t *client = ent->client;
+	G_TCEPresentationClear(ent);
 
 	if (ent->health <= 0 && ent->health > -175 && client->ps.pm_time <= 0 &&
 	    ((ent->r.svFlags & SVF_BOT) || g_gametype.integer != 7) &&
@@ -2561,8 +2569,7 @@ void ClientEndFrame(gentity_t *ent)
 
 	if (g_gametype.integer == 5 && (client->ps.stats[STAT_TCE_WEAPON_FLAGS] & 0x100) &&
 	    level.tceBombAssigned && !level.tceBombPlanted && level.tceBombCarrier == client->ps.clientNum &&
-	    (TCE_SubInt32(level.time, client->lastCmdTime) > 5000 || client->tceObjectiveActivityUntil < level.time) &&
-	    level.tceBombDropCount < 2)
+	    (TCE_SubInt32(level.time, client->lastCmdTime) > 5000 || client->tceObjectiveActivityUntil < level.time))
 	{
 		G_TCEDropBomb(ent);
 		client                                   = ent->client;
@@ -2640,4 +2647,5 @@ void ClientEndFrame(gentity_t *ent)
 	G_TouchTriggers(ent);
 	G_Script_ScriptRun(ent);
 	G_TCEStoreFramePosition(ent);
+	G_TCEPresentationPublish(ent);
 }

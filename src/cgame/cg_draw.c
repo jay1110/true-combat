@@ -8,6 +8,7 @@
 // active (after loading) gameplay
 
 #include "cg_local.h"
+#include "tce_compass_map.h"
 #include "tce_camera_wave.h"
 #include "../game/tce_numeric.h"
 #if defined(_MSC_VER) && defined(_M_IX86)
@@ -4370,6 +4371,69 @@ static void CG_DrawRadarIcon(int x, int y, int w, int h, const vec3_t origin, co
 	CG_DrawPic(px - size * .5f, py - size * .5f, size, size, shader);
 }
 
+/* The map uses the same heading and 2000-unit radius as radar contacts.
+ * File checks avoid registering the engine's missing-image fallback. */
+static qboolean tceRadarMapVisible;
+static qboolean CG_DrawCompassMap(float y)
+{
+	static char registeredMap[MAX_QPATH];
+	static qhandle_t shaders[2];
+	static qboolean attempted[2];
+	char path[MAX_QPATH];
+	fileHandle_t file = 0;
+	polyVert_t verts[32];
+	int i, mode = cg_drawCompass.integer - 1;
+	if (mode < 0 || mode > 1 || !cg.mapcoordsValid)
+	{
+		return qfalse;
+	}
+	if (Q_stricmp(registeredMap, cgs.rawmapname))
+	{
+		Q_strncpyz(registeredMap, cgs.rawmapname, sizeof(registeredMap));
+		memset(shaders, 0, sizeof(shaders));
+		memset(attempted, 0, sizeof(attempted));
+	}
+	if (!attempted[mode])
+	{
+		attempted[mode] = qtrue;
+		if (TCE_CompassMapPath(mode + 1, cgs.rawmapname, path, sizeof(path)))
+		{
+			int length = trap_FS_FOpenFile(path, &file, FS_READ);
+			if (file)
+			{
+				trap_FS_FCloseFile(file);
+				if (length > 0)
+				{
+					shaders[mode] = trap_R_RegisterShaderNoMip(path);
+				}
+			}
+		}
+	}
+	if (!shaders[mode])
+	{
+		return qfalse;
+	}
+	memset(verts, 0, sizeof(verts));
+	for (i = 0; i < 32; ++i)
+	{
+		float phase = i * (2.0f * M_PI / 32.0f);
+		float dx = (float)cos(phase), dy = (float)sin(phase);
+		float width = 0, height = 0;
+		verts[i].xyz[0] = 792.0f + 30.0f * dx;
+		verts[i].xyz[1] = y + 30.0f * dy;
+		if (!TCE_CompassMapTexCoord(cg.predictedPlayerState.origin, cg.mapcoordsMins,
+		                           cg.mapcoordsMaxs, cg.predictedPlayerState.viewangles[YAW],
+		                           dx, dy, verts[i].st))
+		{
+			return qfalse;
+		}
+		CG_AdjustFrom640(&verts[i].xyz[0], &verts[i].xyz[1], &width, &height);
+		memset(verts[i].modulate, 255, sizeof(verts[i].modulate));
+	}
+	trap_R_Add2dPolys(verts, 32, shaders[mode]);
+	return qtrue;
+}
+
 /* CQB00053300: fixed-size, heading-aware contacts; sine range compression
  * retains detail near the player and clamps distant contacts to the rim. */
 static void CG_DrawCompassContact(float y, const vec3_t target, float heading,
@@ -4390,7 +4454,10 @@ static void CG_DrawCompassContact(float y, const vec3_t target, float heading,
 	{
 		fraction = 1;
 	}
-	fraction = (float)sin(fraction * M_PI * .5);
+	if (!tceRadarMapVisible)
+	{
+		fraction = (float)sin(fraction * M_PI * .5);
+	}
 	radians  = (AngleSubtract(cg.predictedPlayerState.viewangles[YAW], angles[YAW]) + 180.f) / 360.f - .25f;
 	radians *= 2.f * M_PI;
 	px       = 792.f + (float)cos(radians) * 30.f * fraction;
@@ -4451,6 +4518,7 @@ static void CG_DrawRadar(void)
 #endif
 	CG_DrawRotatedPic(752, y - 40, 80, 80, trap_R_RegisterShader("gfx/misc/radarcompass2.tga"), lastangle);
 	CG_DrawPic(742, y - 50, 100, 100, trap_R_RegisterShader("gfx/misc/radarbg.tga"));
+	tceRadarMapVisible = CG_DrawCompassMap(y);
 	trap_R_SetColor(NULL);
 	{
 		int i, kind, enemy, team = cg.snap->ps.persistant[PERS_TEAM];

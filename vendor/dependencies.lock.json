@@ -55,11 +55,20 @@
         "WildMagic3License.pdf"
       ],
       "snapshot": {
-        "files": 861,
-        "sha256": "7d2390defd07452a14c05ffc7987824cbf1b3894e09cb10c5270a3ed66401453",
+        "files": 862,
+        "sha256": "e7ba7111f6bc8f5a1b74d30d3d6e63912af8666799241deb93c034f3a63e0cd1",
         "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
       },
       "snapshot_history": [
+        {
+          "snapshot": {
+            "files": 862,
+            "sha256": "31e30081f259cf22b704cceb11204977a45c57fde36638010f426b598c0fed3c",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-10-26",
+          "reviewed_change": "Skip the optional linker map only for Zig, whose compiler driver rejects -Map; retain native defined-symbol verification and native Linux core build. GCC/Clang and WASM map generation unchanged. Normalize this modified CMake input to LF."
+        },
         {
           "snapshot": {
             "files": 603,
@@ -95,6 +104,15 @@
           },
           "superseded": "2026-10-26",
           "reviewed_change": "Generate non-Apple linker maps to validate defined local and exported functions without compiler-dependent string-literal assumptions. Link diagnostics only; actual WASM relink with and without -Map produces byte-identical modules."
+        },
+        {
+          "snapshot": {
+            "files": 861,
+            "sha256": "7d2390defd07452a14c05ffc7987824cbf1b3894e09cb10c5270a3ed66401453",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-10-26",
+          "reviewed_change": "Add a Game/Editor core handshake before initialization and enforce compiled public console dispatch/help policy even with stale unfiltered GM scripts. Historical Omni-bot function-table ABI unchanged. Normalize only the modified vendor source files to LF."
         }
       ]
     },
@@ -105,7 +123,7 @@
       "role": "Compatible bridge subset, preserved independently from core until equivalence checks justify consolidation.",
       "snapshot": {
         "files": 15,
-        "sha256": "143641a48ca28a612018ea9e39f2b00c8d0dd19f6e1d40b204670e6fe9a8f4e4",
+        "sha256": "30f9fe6344e6d23b5aa0626e0e8b78d92ac1454390a19b8d4dcbedc7ddffc27a",
         "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
       },
       "snapshot_history": [
@@ -117,6 +135,15 @@
           },
           "superseded": "2026-10-26",
           "reviewed_change": "Public Game includes gameplay runtime; native authoring gates retained; architecture-specific core/loader build names and authenticated existing runtime/script/navigation payload imported. No upstream revision inferred."
+        },
+        {
+          "snapshot": {
+            "files": 15,
+            "sha256": "143641a48ca28a612018ea9e39f2b00c8d0dd19f6e1d40b204670e6fe9a8f4e4",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-10-26",
+          "reviewed_change": "Add a Game/Editor core handshake before initialization and enforce compiled public console dispatch/help policy even with stale unfiltered GM scripts. Historical Omni-bot function-table ABI unchanged. Normalize only the modified vendor source files to LF."
         }
       ]
     }

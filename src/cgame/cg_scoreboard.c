@@ -1,5 +1,6 @@
 // cg_scoreboard -- draw the scoreboard on top of the game screen
 #include "cg_local.h"
+#include "../game/tce_countryflags.h"
 
 
 #define SCOREBOARD_WIDTH    (31 * BIGCHAR_WIDTH)
@@ -644,7 +645,7 @@ static int TCE_ScoreCountry(int client)
 		return -1;
 	}
 	country = strtol(value, &end, 10);
-	if (*end || country <= 0 || country >= 255)
+	if (end == value || *end || country < 0 || country > 255)
 	{
 		return -1;
 	}
@@ -653,7 +654,7 @@ static int TCE_ScoreCountry(int client)
 		/* Allow toggling flags on without a renderer restart. */
 		tce_countryFlagsShader = trap_R_RegisterShaderNoMip("gfx/flags/world_flags");
 	}
-	return tce_countryFlagsShader ? (int)country : -1;
+	return tce_countryFlagsShader ? TCE_CountryFlagAtlasIndex((int)country) : -1;
 }
 static void TCE_ScoreCountryFlag(float x, float y, int client, float fade)
 {
@@ -699,7 +700,7 @@ static void TCE_ScoreLegacyClientRow(int x, int y, int index, const float *color
 	{
 		highlight[3] = fade * .3f; TCE_ScoreFill((float)x, (float)(y - 13), 394, 15, highlight);
 	}
-	if (TCE_ScoreCountry(score->client) >= 0)
+	if (score->ping != -1 && score->ping != 999 && TCE_ScoreCountry(score->client) >= 0)
 	{
 		TCE_ScoreCountryFlag(nameX, (float)y, score->client, fade); nameX += 18;
 	}
@@ -753,7 +754,7 @@ static void TCE_ScoreClientRow(int x, int y, int index, const float *color, floa
 	ctx.fill               = TCE_ScoreFill; ctx.pic = TCE_ScorePic; ctx.text = TCE_ScoreText;
 	ctx.drawStrlen         = CG_DrawStrlen; ctx.translate = TCE_ScoreTranslate;
 	ctx.locateMergedClient = TCE_ScoreLocateMerged;
-	ctx.namePrefix         = TCE_ScoreCountry(score->client) >= 0 ? TCE_ScoreCountryFlag : NULL;
+	ctx.namePrefix         = score->ping != -1 && score->ping != 999 && TCE_ScoreCountry(score->client) >= 0 ? TCE_ScoreCountryFlag : NULL;
 	ctx.nameText           = TCE_ScoreName;
 	TCE_WM_DrawClientScoreWithFormat(x, y, score, color, fade, &ctx, va);
 }

@@ -1,4 +1,6 @@
 #include "g_local.h"
+#include "g_tce_pose.h"
+#include "g_tce_pose_presentation.h"
 #include "tce_lua.h"
 #include "tce_geoip.h"
 #ifdef FEATURE_OMNIBOT
@@ -556,6 +558,7 @@ void CopyToBodyQue(gentity_t *ent)
 //	trap_UnlinkEntity (body);
 
 	body->s        = ent->s;
+	body->s.time = body->s.time2 = 0; /* Preserve corpse-only time2 semantics. */
 	body->s.eFlags = EF_DEAD;       // clear EF_TALK, etc
 
 	if (ent->client->ps.eFlags & EF_HEADSHOT)
@@ -955,9 +958,15 @@ SetWolfSpawnWeapons
 ===========
 */
 /* TC qagame 2004b9c0; all14 original team/class tables have these24 entries. */
-static qboolean TCE_SpawnWeaponAvailable(int weapon, int tcClass, int skill, int team)
+static qboolean TCE_SpawnWeaponAvailable(int weapon, int tcClass, int skill, int team, int slot)
 {
-	if (weapon < 0 || weapon >= TCE_MAX_WEAPONS)
+	/* A client team command must obey the same gear slots as the loadout
+	 * menu. Utility weapons are equipped separately below; the historical
+	 * gear parser folds slot "none" into primary, so exclude them explicitly. */
+	if (weapon <= 0 || weapon >= TCE_MAX_WEAPONS || tcClass < 0 || tcClass >= 3 ||
+	    (slot != 1 && slot != 2) || gearDef.slot[weapon] != slot ||
+	    weapon == TCE_WP_K1 || weapon == TCE_WP_G1 || weapon == TCE_WP_G2 ||
+	    weapon == TCE_WP_G3 || weapon == TCE_WP_DC1)
 	{
 		return qfalse;
 	}
@@ -1021,7 +1030,7 @@ static void TCE_SetSpawnWeapons(gclient_t *client)
 	{
 		int choices[24], count = 0, i;
 		for (i = 0; i < 24; ++i)
-			if (TCE_SpawnWeaponAvailable(botWeapons[i], tcClass, skill, team))
+			if (TCE_SpawnWeaponAvailable(botWeapons[i], tcClass, skill, team, 1))
 			{
 				choices[count++] = botWeapons[i];
 			}
@@ -1045,19 +1054,19 @@ static void TCE_SetSpawnWeapons(gclient_t *client)
 		return;
 	}
 	primary = client->sess.playerWeapon;
-	if (!TCE_SpawnWeaponAvailable(primary, tcClass, skill, team))
+	if (!TCE_SpawnWeaponAvailable(primary, tcClass, skill, team, 1))
 	{
 		primary = primary >= 0 && primary < TCE_MAX_WEAPONS ? gearDef.equivalentWeapon[primary] : 0;
-		if (!TCE_SpawnWeaponAvailable(primary, tcClass, skill, team))
+		if (!TCE_SpawnWeaponAvailable(primary, tcClass, skill, team, 1))
 		{
 			primary = BG_DefaultWeaponForClass(team, pc);
 		}
 	}
 	secondary = client->sess.playerWeapon2;
-	if (!TCE_SpawnWeaponAvailable(secondary, tcClass, skill, team))
+	if (!TCE_SpawnWeaponAvailable(secondary, tcClass, skill, team, 2))
 	{
 		secondary = secondary >= 0 && secondary < TCE_MAX_WEAPONS ? gearDef.equivalentWeapon[secondary] : 0;
-		if (!TCE_SpawnWeaponAvailable(secondary, tcClass, skill, team))
+		if (!TCE_SpawnWeaponAvailable(secondary, tcClass, skill, team, 2))
 		{
 			secondary = team == TEAM_ALLIES ? 2 : 39;
 		}
@@ -1323,6 +1332,7 @@ void ClientUserinfoChanged(int clientNum)
 	{
 		Q_strncpyz(userinfo, "\\name\\badinfo", sizeof(userinfo));
 	}
+    G_TCEPresentationUserinfo(clientNum,userinfo);
 
 	if (g_developer.integer || *g_log.string || g_dedicated.integer)
 	{
@@ -1393,16 +1403,10 @@ void ClientUserinfoChanged(int clientNum)
 
 	client->ps.stats[STAT_MAX_HEALTH] = client->pers.maxHealth;
 
-	// check for custom character
-	s = Info_ValueForKey(userinfo, "ch");
-	if (*s)
-	{
-		characterIndex = atoi(s);
-	}
-	else
-	{
-		characterIndex = -1;
-	}
+	/* Publish only the character accepted by the server. Userinfo is not
+	 * authority to index configstrings or select another team's skin. */
+	G_UpdateCharacter(client);
+	characterIndex = client->pers.characterIndex;
 
 	G_TCEUserinfoOptions(&client->ps, userinfo);
 	// To communicate it to cgame
@@ -1471,6 +1475,12 @@ void ClientUserinfoChanged(int clientNum)
 			s = countryInfo;
 		}
 	}
+	if (s != countryInfo)
+	{
+		Q_strncpyz(countryInfo, s, sizeof(countryInfo));
+	}
+	Info_SetValueForKey(countryInfo, "tcep", va("%08x", (unsigned)G_TCEPresentationChallenge(clientNum)));
+	s = countryInfo;
 	trap_GetConfigstring(CS_PLAYERS + clientNum, oldname, sizeof(oldname));
 
 	trap_SetConfigstring(CS_PLAYERS + clientNum, s);
@@ -1600,6 +1610,7 @@ char *ClientConnect(int clientNum, qboolean firstTime, qboolean isBot)
 
 	client->pers.connected   = CON_CONNECTING;
 	client->pers.connectTime = level.time;          // DHM - Nerve
+	G_TCEPresentationConnect(clientNum);
 
 	if (firstTime)
 	{
@@ -1831,6 +1842,7 @@ void ClientBegin(int clientNum)
 	client->pers.complaintEndTime = -1;
 
 	// locate ent at a spawn point
+	G_TCEPoseResetClient(ent);
 	ClientSpawn(ent, qfalse, qfalse);
 	G_ResetMarkers(ent);
 	client->backupMarker.serverTime = 0;
@@ -1954,6 +1966,11 @@ void ClientBegin(int clientNum)
 	G_smvUpdateClientCSList(ent);
 	// OSP
 	TCE_LuaClientEvent("et_ClientBegin", clientNum);
+	/* A team snapshot can be cached while this recipient is connecting.
+	 * Its health values may then remain identical after ClientBegin, so
+	 * invalidate the shared cache to send this client a complete snapshot. */
+	level.tinfoAxis[0] = '\0';
+	level.tinfoAllies[0] = '\0';
 }
 
 gentity_t *SelectSpawnPointFromList(char *list, vec3_t spawn_origin, vec3_t spawn_angles)
@@ -2062,6 +2079,7 @@ void ClientSpawn(gentity_t *ent, qboolean revived, qboolean hostage)
 	gentity_t          *savedTCSpawn;
 	index  = (int)(ent - g_entities);
 	client = ent->client;
+	G_TCEPresentationResetClient(ent);
 	G_UpdateSpawnCounts();
 	savedTCSpawn = client->tceLastSpawnPoint;
 
@@ -2600,11 +2618,13 @@ void ClientDisconnect(int clientNum)
 	int       i;
 
 	ent = g_entities + clientNum;
+    G_TCEPresentationUserinfo(clientNum,"");
 	if (!ent->client)
 	{
 		return;
 	}
 	TCE_LuaClientEvent("et_ClientDisconnect", clientNum);
+	G_TCEPresentationResetClient(ent);
 
 
 

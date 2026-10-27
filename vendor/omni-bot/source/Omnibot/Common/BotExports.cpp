@@ -21,6 +21,15 @@ BOOL APIENTRY DllMain( HANDLE , DWORD ul_reason_for_call, LPVOID )
 }
 #endif
 
+OMNIBOT_API unsigned int TCE2_OmnibotBuild()
+{
+#ifdef FEATURE_NAVSTUDIO
+	return 0x54434501u;
+#else
+	return 0x54434500u;
+#endif
+}
+
 OMNIBOT_API eomnibot_error ExportBotFunctionsFromDLL(Bot_EngineFuncs_t *_pBotFuncs, int _size)
 {
 	if(sizeof(Bot_EngineFuncs_t) == _size)

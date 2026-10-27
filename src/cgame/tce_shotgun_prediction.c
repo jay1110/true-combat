@@ -64,11 +64,13 @@ void TCE_CG_BulletFireExtended(const tce_shotgunPrediction_t *ctx, int source, i
 #endif
 	}
 	ctx->trace(&tr, from, NULL, NULL, end, source, 0x81);
-	if (!(tr.fraction < 1))
+	/* A probe that leaves the brush into open space has fraction 1; use
+	 * its endpoint for the reverse exit search instead of discarding it. */
+	if (tr.allsolid)
 	{
 		return;
 	}
-	if (Distance(tr.endpos, entry) < 4)
+	if (tr.fraction < 1 && Distance(tr.endpos, entry) < 4)
 	{
 		for (i = 0; i < 3; ++i)
 		{
@@ -79,11 +81,7 @@ void TCE_CG_BulletFireExtended(const tce_shotgunPrediction_t *ctx, int source, i
 #endif
 		}
 		ctx->trace(&tr, from, NULL, NULL, end, source, 0x81);
-#ifdef _WIN32
-		if (tr.fraction >= 1)
-#else
-		if (!(tr.fraction < 1))
-#endif
+		if (tr.allsolid)
 		{
 			return;
 		}

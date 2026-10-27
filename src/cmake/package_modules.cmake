@@ -86,10 +86,17 @@ foreach(asset world_flags.tga LICENSE.xmod.txt SOURCE.json)
   list(APPEND module_files "gfx/flags/${asset}")
 endforeach()
 
+# User-provided Delta overview and blueprint; other maps retain their fallback.
+foreach(asset obj_delta_cc.tga obj_delta_cc_blueprint.tga SOURCE.json)
+  file(MAKE_DIRECTORY "${stage}/levelshots")
+  file(COPY "${CMAKE_CURRENT_LIST_DIR}/../assets/levelshots/${asset}" DESTINATION "${stage}/levelshots")
+  list(APPEND module_files "levelshots/${asset}")
+endforeach()
+
 # Production UI overrides remove editor entry points even with older base assets.
-set(ui_assets)
+set(ui_assets options_customise_hud.menu options_controls.menu)
 if(BUILD_VARIANT STREQUAL game)
-  set(ui_assets ingame_main.menu menus.txt menus_gt2.txt menus_gt5.txt menus_gt7.txt)
+  list(APPEND ui_assets ingame_main.menu menus.txt menus_gt2.txt menus_gt5.txt menus_gt7.txt)
 endif()
 file(MAKE_DIRECTORY "${stage}/ui")
 foreach(asset_name IN LISTS ui_assets)

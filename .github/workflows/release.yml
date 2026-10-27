@@ -123,13 +123,13 @@ jobs:
         run: python tools/release/bootstrap.py --destination build/dependencies
       - name: Build modules and matched gameplay/editor bot core
         run: python tools/release/build.py --target ${{ matrix.target }} --variant ${{ matrix.variant }} --build build/release --out out/release --boost build/dependencies/boost_1_85_0 --parallel 4
-      - name: Validate release ZIP closure
+      - name: Validate target client inputs and runtime closure
         run: python tools/release/validate.py archives out/release
-      - name: Upload built archives and concrete build logs
+      - name: Upload ABI inputs and concrete build logs for aggregation
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: TCE2-${{ needs.plan.outputs.version }}-${{ matrix.target }}-${{ matrix.variant }}
+          name: TCE2-${{ needs.plan.outputs.version }}-${{ matrix.target }}-${{ matrix.variant }}-Client-Inputs
           path: |
             out/release/*.zip
             out/release/*.sha256
@@ -180,10 +180,22 @@ jobs:
         with:
           pattern: TCE2-${{ needs.plan.outputs.version }}-*
           path: collected
-      - name: Collect every binary, desktop and source ZIP with build status
+      - name: Assemble canonical clients and installable target ZIPs with build status
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
         run: python tools/release/aggregate.py --input collected --out out/complete
+      - name: Validate actual complete Game and Editor archives and shared client provenance
+        if: inputs.include_editor
+        run: python tools/release/closure_report.py release --directory out/complete --out out/closure/release-closure.json
+      - name: Small source-bound release closure evidence
+        if: inputs.include_editor
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: TCE2-${{ needs.plan.outputs.version }}-Release-Closure
+          path: out/closure/release-closure.json
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:

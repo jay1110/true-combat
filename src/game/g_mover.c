@@ -864,15 +864,107 @@ Pos1 is "at rest", pos2 is "activated"
 SetMoverState
 ===============
 */
+/* Construct the original rotational rates without linking an entity. This is
+ * also used to preview a blocked door's opposite trajectory. In particular,
+ * kicked odd durations retain their original rate and truncated duration. */
+static void G_TCERotationTrajectory(const gentity_t *ent, moverState_t state,
+                                    trajectory_t *trajectory)
+{
+	float f;
+
+	if (state == MOVER_1TO2ROTATE)
+	{
+		VectorClear(trajectory->trBase);
+		if (ent->flags & FL_KICKACTIVATE)
+		{
+			f = 2000.0 / ent->gDuration;
+			trajectory->trDuration = ent->gDuration / 2.0;
+		}
+		else if (ent->flags & FL_SOFTACTIVATE)
+		{
+			f = 500.0 / ent->gDuration;
+			trajectory->trDuration = TCE_MulInt32(ent->gDuration, 2);
+		}
+		else
+		{
+			f = 1000.0 / ent->gDuration;
+			trajectory->trDuration = ent->gDuration;
+		}
+		VectorScale(ent->rotate, f * ent->angle, trajectory->trDelta);
+	}
+	else
+	{
+		VectorScale(ent->rotate, ent->angle, trajectory->trBase);
+		f = 1000.0 / ent->gDuration;
+		trajectory->trDuration = ent->gDuration;
+		if (ent->flags & FL_SOFTACTIVATE)
+		{
+			trajectory->trDuration = TCE_MulInt32(trajectory->trDuration, 2);
+			f *= 0.5f;
+		}
+		VectorScale(trajectory->trBase, -f, trajectory->trDelta);
+	}
+	trajectory->trType = TR_LINEAR_STOP;
+}
+
+/* G_MoverTeam has already paused a failed move and restored its logical
+ * angle. Map that actual angle onto the opposite trajectory's stored rate,
+ * rather than treating different (or truncated kicked) durations as equal.
+ * An integer clock can only select the nearest representable millisecond. */
+static int G_TCEReverseRotationTime(const gentity_t *ent, moverState_t state,
+                                   int now)
+{
+	trajectory_t target = ent->s.apos;
+	vec3_t before, lowerAngle, upperAngle;
+	double elapsed, rate;
+	int axis = 0, i, lower, upper;
+
+	G_TCERotationTrajectory(ent, state, &target);
+	if (target.trDuration <= 0 || ent->s.apos.trDuration < 0)
+	{
+		return now;
+	}
+	for (i = 1; i < 3; ++i)
+	{
+		if (fabs(target.trDelta[i]) > fabs(target.trDelta[axis]))
+		{
+			axis = i;
+		}
+	}
+	rate = target.trDelta[axis];
+	if (!(rate >= -FLT_MAX && rate <= FLT_MAX) || rate == 0.0)
+	{
+		return now;
+	}
+	BG_EvaluateTrajectory(&ent->s.apos, now, before, qtrue, ent->s.effect2Time);
+	elapsed = ((double)before[axis] - target.trBase[axis]) * 1000.0 / rate;
+	if (!(elapsed >= 0.0))
+	{
+		elapsed = 0.0;
+	}
+	else if (elapsed > target.trDuration)
+	{
+		elapsed = target.trDuration;
+	}
+	lower = (int)elapsed;
+	upper = lower < target.trDuration ? lower + 1 : lower;
+	/* Evaluate locally from time zero to avoid overflowing an intermediate
+	 * deadline while choosing between the two adjacent clock positions. */
+	target.trTime = 0;
+	BG_EvaluateTrajectory(&target, lower, lowerAngle, qtrue, ent->s.effect2Time);
+	BG_EvaluateTrajectory(&target, upper, upperAngle, qtrue, ent->s.effect2Time);
+	if (fabs((double)upperAngle[axis] - before[axis]) <
+	    fabs((double)lowerAngle[axis] - before[axis]))
+	{
+		lower = upper;
+	}
+	return TCE_SubInt32(now, lower);
+}
+
 void SetMoverState(gentity_t *ent, moverState_t moverState, int time)
 {
 	vec3_t   delta;
 	float    f;
-	qboolean kicked = qfalse, soft = qfalse;
-
-	kicked = (qboolean)(ent->flags & FL_KICKACTIVATE);
-	soft   = (qboolean)(ent->flags & FL_SOFTACTIVATE);  //----(SA)	added
-
 	ent->moverState    = moverState;
 	ent->s.pos.trTime  = time;
 	ent->s.apos.trTime = time;
@@ -946,45 +1038,15 @@ void SetMoverState(gentity_t *ent, moverState_t moverState, int time)
 		ent->s.apos.trType = TR_STATIONARY;
 		break;
 	case MOVER_1TO2ROTATE:      // opening
-		VectorClear(ent->s.apos.trBase);                // set base to start position {0,0,0}
-
-		if (kicked)
-		{
-			f                      = 2000.0 / ent->gDuration; // double speed when kicked open
-			ent->s.apos.trDuration = ent->gDuration / 2.0;
-		}
-		else if (soft)
-		{
-			f                      = 500.0 / ent->gDuration; // 1/2 speed when soft opened
-			ent->s.apos.trDuration = ent->gDuration * 2;
-		}
-		else
-		{
-			f = 1000.0 / ent->gDuration;
-//				ent->s.apos.trDuration = ent->gDurationBack;	// (SA) durationback?
-			ent->s.apos.trDuration = ent->gDuration;
-		}
-		VectorScale(ent->rotate, f * ent->angle, ent->s.apos.trDelta);
-		ent->s.apos.trType = TR_LINEAR_STOP;
+		G_TCERotationTrajectory(ent, moverState, &ent->s.apos);
 		if (ent->flags & FL_TOGGLE)
 		{
 			ent->active = qfalse;
 		}
 		break;
 	case MOVER_2TO1ROTATE:      // closing
-		VectorScale(ent->rotate, ent->angle, ent->s.apos.trBase);       // set base to end position
-		// (kicked closes same as normally opened)
-		// (soft closes at 1/2 speed)
-		f                      = 1000.0 / ent->gDuration;
-		ent->s.apos.trDuration = ent->gDuration;
-		if (soft)
-		{
-			ent->s.apos.trDuration *= 2;
-			f                      *= 0.5f;
-		}
-		VectorScale(ent->s.apos.trBase, -f, ent->s.apos.trDelta);
-		ent->s.apos.trType = TR_LINEAR_STOP;
-		ent->active        = qfalse;
+		G_TCERotationTrajectory(ent, moverState, &ent->s.apos);
+		ent->active = qfalse;
 		break;
 	}
 	BG_EvaluateTrajectory(&ent->s.pos, level.time, ent->r.currentOrigin, qfalse, ent->s.effect2Time);
@@ -2289,6 +2351,7 @@ void Blocked_DoorRotate(gentity_t *ent, gentity_t *other)
 
 	gentity_t *slave;
 	int       time;
+	moverState_t state;
 
 	// remove anything other than a client
 	if (other)
@@ -2318,18 +2381,10 @@ void Blocked_DoorRotate(gentity_t *ent, gentity_t *other)
 
 	for ( slave = ent ; slave ; slave = slave->teamchain )
 	{
-		// RF, trying to fix "stuck in door" bug
-		time = level.time - (slave->s.apos.trDuration - (level.time - slave->s.apos.trTime));
-		//time = level.time - slave->s.apos.trTime;
-
-		if (slave->moverState == MOVER_1TO2ROTATE)
-		{
-			SetMoverState(slave, MOVER_2TO1ROTATE, time);
-		}
-		else
-		{
-			SetMoverState(slave, MOVER_1TO2ROTATE, time);
-		}
+		state = slave->moverState == MOVER_1TO2ROTATE ?
+		        MOVER_2TO1ROTATE : MOVER_1TO2ROTATE;
+		time = G_TCEReverseRotationTime(slave, state, level.time);
+		SetMoverState(slave, state, time);
 		trap_LinkEntity(slave);
 	}
 

@@ -734,6 +734,9 @@ typedef struct
 	int pm_flags;
 	int weaponFlags;
 	int eFlags;
+	/* Internal rewind inputs; these are not engine playerState fields. */
+	float lean;
+	int weapon;
 } clientMarker_t;
 
 
@@ -867,6 +870,17 @@ struct gclient_s
 	int topMarker;
 	clientMarker_t clientMarkers[MAX_CLIENT_MARKERS];
 	clientMarker_t backupMarker;
+	/* A trace transaction can outlive an alive -> corpse transition. */
+	struct
+	{
+		qboolean active, boundsScaled;
+		/* Private immutable clock pair for the owning bullet transaction. */
+		qboolean shotQueryActive;
+		int requestedTime, receiptCeiling;
+		int svFlags;
+		float lean, traceMaxZ;
+		int weapon;
+	} tceRewind;
 	/* TC20047e30: separate end-frame position ring, not the antialag trail.
 	 * Original client+1034 index; ten44-byte records at+1038. */
 	int tcePositionHistoryIndex;
@@ -1230,6 +1244,7 @@ void UseHoldableItem(gentity_t *ent, int item);
 void PrecacheItem(gitem_t *it);
 gentity_t *Drop_Item(gentity_t *ent, gitem_t *item, float angle, qboolean novelocity);
 void G_TCEDropBomb(gentity_t *ent);
+qboolean G_TCEManualDropBomb(gentity_t *ent);
 void G_TCEDropHealth(gentity_t *ent);
 void G_TCEDropVip(gentity_t *ent);
 void G_TCEReleaseObjectives(gentity_t *ent, qboolean disconnect, qboolean vip);
@@ -2636,4 +2651,6 @@ extern vmCvar_t g_killmessage;
 extern vmCvar_t g_starthonor;
 extern vmCvar_t g_aabasetime;
 extern vmCvar_t g_botvar;
+#ifdef FEATURE_NAVSTUDIO
 extern vmCvar_t bot_editWaypoints;
+#endif

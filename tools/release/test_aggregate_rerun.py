@@ -10,6 +10,8 @@ import zipfile
 
 from aggregate import main
 from package import version
+from client_packages import target_table
+from test_shared_clients import input_archive
 
 
 class AggregateRerun(unittest.TestCase):
@@ -17,13 +19,8 @@ class AggregateRerun(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             inputs, output = root / 'collected', root / 'output'
-            for variant in ('game', 'navstudio'):
-                name = f'TCE2-{version()}-windows-x86-{variant}'
-                folder = inputs / name
-                folder.mkdir(parents=True)
-                with zipfile.ZipFile(folder / (name + '.zip'), 'w') as archive:
-                    archive.writestr('manifest.json', json.dumps({
-                        'target': 'windows-x86', 'variant': variant, 'gameplay_bot_runtime': True}))
+            for target in target_table():
+                input_archive(inputs / target, target)
             source = inputs / f'TCE2-{version()}-Source'
             source.mkdir()
             with zipfile.ZipFile(source / f'TCE2-{version()}-Source.zip', 'w') as archive:
@@ -33,7 +30,7 @@ class AggregateRerun(unittest.TestCase):
             with zipfile.ZipFile(previous / f'TCE2-{version()}-INCOMPLETE-Build-Artifacts.zip', 'w') as archive:
                 archive.writestr('old.txt', 'Previous cancelled attempt')
             needs = {'plan': {'result': 'success', 'outputs': {'matrix': json.dumps({'include': [
-                {'target': 'windows-x86', 'variant': v} for v in ('game', 'navstudio')]})}},
+                {'target': target, 'variant': 'game'} for target in target_table()]})}},
                 'binaries': {'result': 'success'}, 'navstudio-desktop': {'result': 'skipped'}}
             with patch.object(sys, 'argv', ['aggregate', '--input', str(inputs), '--out', str(output)]), \
                     patch.dict(os.environ, {'NEEDS_JSON': json.dumps(needs), 'GITHUB_SHA': 'selection-test'}):
@@ -41,9 +38,9 @@ class AggregateRerun(unittest.TestCase):
             manifest = json.loads((output / 'release-manifest.json').read_text())
             self.assertIs(manifest['complete'], True)
             archives = [r['path'] for r in manifest['files'] if r['path'].endswith('.zip')]
-            self.assertEqual(len(archives), 3)
+            self.assertEqual(len(archives), len(target_table()) + 2)
             self.assertFalse(any('INCOMPLETE' in p or 'Complete-Release' in p for p in archives))
-            self.assertEqual(len(manifest['collected_targets']), 2)
+            self.assertEqual(len(manifest['collected_targets']), len(target_table()))
 
 
 if __name__ == '__main__':

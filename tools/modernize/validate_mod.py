@@ -3,6 +3,9 @@
 Run from a clean output directory. Unsupported SDK/toolchains are reported as
 unavailable, never successful builds. Native game smoke remains an explicit
 separate invocation against the one existing installation.
+
+Final source-bound acceptance is opt-in: --strict-release --help. Its explicit
+existing-tree build map preserves normal Omni-bot gameplay in Game builds.
 """
 
 import argparse
@@ -18,6 +21,15 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 def main():
+    # Preserve the historical command/output contract. Final acceptance uses an
+    # explicit strict mode with existing-tree maps and fail-closed required gates.
+    if '--strict-release' in sys.argv[1:]:
+        from validation_bundle import main as strict_main
+        try:
+            raise SystemExit(strict_main([arg for arg in sys.argv[1:] if arg != '--strict-release']))
+        except (OSError, ValueError, KeyError) as error:
+            print(str(error), file=sys.stderr)
+            raise SystemExit(2)
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--out', type=Path, default=ROOT / 'build/modernization-validation')
     parser.add_argument('--cross', action='store_true', help='Also build available Zig Linux and Emscripten targets')

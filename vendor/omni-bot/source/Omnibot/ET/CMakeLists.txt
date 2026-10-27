@@ -4,7 +4,7 @@ add_library(omnibot-et MODULE ${CMAKE_CURRENT_SOURCE_DIR}/ET_BatchBuild.cpp)
 target_link_libraries(omnibot-et omni-shared omnibot-common)
 if(MSVC)
     target_link_options(omnibot-et PRIVATE "/MAP:$<TARGET_FILE_DIR:omnibot-et>/$<TARGET_FILE_BASE_NAME:omnibot-et>.map")
-elseif(NOT APPLE)
+elseif(NOT APPLE AND NOT TCE_ZIG_EXECUTABLE)
     # Keep defined local callbacks observable as well as exported C++ methods.
     # Final WASM exports alone do not name internal GM drawing callbacks.
     target_link_options(omnibot-et PRIVATE

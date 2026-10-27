@@ -143,8 +143,8 @@ static void TCE_WeaponPositionStance(tce_weaponPosition_t *s, float *origin,
 static void TCE_WeaponPositionLean(const tce_weaponPosition_t *s, float *origin,
                                    float *angles)
 {
-	unsigned int elapsed, magnitudeBits;
-	int          delta, magnitude, i;
+	unsigned int elapsed;
+	int          delta, i;
 	float        fraction = 1.0f;
 	vec3_t       right, up;
 	long double  amount;
@@ -202,25 +202,7 @@ static void TCE_WeaponPositionLean(const tce_weaponPosition_t *s, float *origin,
 		origin[i] = (float)(((long double)fraction * angles[2]) * right[i] + origin[i]);
 	}
 
-	magnitudeBits = 0;
-	if ((double)s->lean >= -9223372036854775808.0 &&
-	    (double)s->lean < 9223372036854775808.0)
-	{
-		magnitudeBits = (unsigned int)(long long)s->lean;
-	}
-	memcpy(&magnitude, &magnitudeBits, sizeof(magnitude));
-	if (magnitude < 0)
-	{
-		magnitudeBits = 0u - magnitudeBits;
-	}
-	memcpy(&magnitude, &magnitudeBits, sizeof(magnitude));
-#if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
-	if (!TCE_WeaponPositionLeanPitch(magnitude, fraction, angles[0], &angles[0]))
-#endif
-	{
-		amount    = (long double)magnitude * 0.5L * fraction;
-		angles[0] = (float)(amount + angles[0]);
-	}
+	/* Hip fire remains available while leaning; keep the muzzle level. */
 	AngleVectors(s->viewAngles, NULL, right, NULL);
 	for (i = 0; i < 3; ++i)
 	{
@@ -613,17 +595,6 @@ static int nativePositionTime(unsigned int bits)
 	return value;
 }
 
-static int nativeLeanMagnitude(float lean)
-{
-	int          value = TCE_TruncateNativeInteger((long double)lean);
-	unsigned int bits  = (unsigned int)value;
-	if (value < 0)
-	{
-		bits = 0u - bits;
-	}
-	memcpy(&value, &bits, sizeof(value));
-	return value;
-}
 static void nativeLeanPosition(const tce_weaponPosition_t *s, float origin[3],
                                 float angles[3])
 {
@@ -663,10 +634,6 @@ static void nativeLeanPosition(const tce_weaponPosition_t *s, float origin[3],
 		amount = amount * (long double)right[i];
 		origin[i] = (float)(amount + (long double)origin[i]);
 	}
-	amount = (long double)nativeLeanMagnitude(s->lean) * (long double)storedFraction;
-	amount = amount * 0.5L;
-	angles[0] = (float)(amount + (long double)angles[0]);
-
 	AngleVectors(s->viewAngles, NULL, right, NULL);
 	for (i = 0; i < 3; ++i)
 	{
@@ -934,7 +901,6 @@ void TCE_CG_CalculateWeaponPosition(tce_weaponPosition_t *s, float *origin, floa
 		angles[2] = (float)(angles[2] - s->lean * .5 * f);
 		AngleVectors(angles, NULL, right, up);
 		translate(origin, right, (double)f * angles[2]);
-		angles[0] = (float)(angles[0] + abs((int)s->lean) * .5 * f);
 		AngleVectors(s->viewAngles, NULL, right, NULL);
 		translate(origin, right, -s->lean * .25 * f);
 	}

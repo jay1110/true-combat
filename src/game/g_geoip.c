@@ -56,13 +56,19 @@ int G_GeoIPCountry(const char *address, int isBot)
 	{
 		return -1;
 	}
+	if (isBot && g_countryflags.integer == 2)
+	{
+		/* National cells in the imported atlas; omit region/unknown icons. */
+		return 3 + rand() % 241;
+	}
 	if (isBot)
 	{
-		/* Bots inherit the server location, never a fabricated nationality. */
+		/* Mode 1 uses the configured server address, not a guessed public IP. */
 		trap_Cvar_VariableStringBuffer("net_ip", serverAddress, sizeof(serverAddress));
 		address = serverAddress;
 	}
-	if (address && !Q_stricmp(address, "localhost"))
+	if (address && (!Q_stricmp(address, "localhost") || !Q_stricmp(address, "::1") ||
+	                !Q_stricmp(address, "[::1]")))
 	{
 		return TCE_COUNTRY_LOCAL;
 	}

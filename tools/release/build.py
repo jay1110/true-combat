@@ -72,6 +72,7 @@ def main():
     complete = code == 0 and core_manifest is not None
     report = {'schema': 1, 'target': args.target, 'variant': args.variant,
               'complete_gameplay_runtime': complete, 'steps': steps,
+              'client_package_scope': 'target-input', 'installable_target_archive': False,
               'archive': str(archive) if archive else None,
               'github_sha': os.environ.get('GITHUB_SHA'), 'engine_started': False}
     (output / 'build-report.json').write_text(json.dumps(report, indent=2) + '\n', encoding='utf-8', newline='\n')

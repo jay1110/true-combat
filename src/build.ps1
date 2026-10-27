@@ -106,10 +106,12 @@ try {
     $versionEntry = $archive.CreateEntry("tce2/$modVersion/client.manifest")
     $versionStream = [IO.StreamWriter]::new($versionEntry.Open(), [Text.UTF8Encoding]::new($false))
     try { $versionStream.Write($modVersion) } finally { $versionStream.Dispose() }
-    foreach ($asset in @('ui/ingame_main.menu', 'ui/menus.txt', 'ui/menus_gt2.txt',
+    foreach ($asset in @('ui/options_customise_hud.menu', 'ui/options_controls.menu', 'ui/ingame_main.menu', 'ui/menus.txt', 'ui/menus_gt2.txt',
                          'ui/menus_gt5.txt', 'ui/menus_gt7.txt',
                          'gfx/misc/radar_arrow.tga', 'gfx/misc/radar_dot.tga',
-                         'gfx/flags/world_flags.tga', 'gfx/flags/LICENSE.xmod.txt', 'gfx/flags/SOURCE.json')) {
+                         'gfx/flags/world_flags.tga', 'gfx/flags/LICENSE.xmod.txt', 'gfx/flags/SOURCE.json',
+                         'levelshots/obj_delta_cc.tga', 'levelshots/obj_delta_cc_blueprint.tga',
+                         'levelshots/SOURCE.json')) {
         [IO.Compression.ZipFileExtensions]::CreateEntryFromFile($archive,
             (Join-Path $PSScriptRoot ('assets/' + $asset)), $asset,
             [IO.Compression.CompressionLevel]::Optimal) | Out-Null

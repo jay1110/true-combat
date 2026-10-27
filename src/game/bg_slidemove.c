@@ -21,6 +21,13 @@ Returns qtrue if the velocity was clipped in some way
 ==================
 */
 #define MAX_CLIP_PLANES 5
+/* Landing recovery is not an impulse. Restoring its pre-collision velocity
+ * makes a crouched/leaning player keep pushing into an edge after clipping. */
+static qboolean PM_PreserveTimedVelocity(void)
+{
+	return pm->ps->pm_time &&
+	       (pm->ps->pm_flags & (PMF_TIME_KNOCKBACK | PMF_TIME_WATERJUMP));
+}
 /* TC:E normal collision solver: four bumps, ground-extension handling and
  * direct body traces. Explicit held values/float stores follow each native
  * original; engine ABI and compiler FPU state remain separately tracked. */
@@ -241,7 +248,7 @@ qboolean PM_SlideMove(qboolean gravity)
 	{
 		VectorCopy(endVelocity, pm->ps->velocity);
 	}
-	if (pm->ps->pm_time)
+	if (PM_PreserveTimedVelocity())
 	{
 		VectorCopy(primalVelocity, pm->ps->velocity);
 	}
@@ -452,8 +459,8 @@ qboolean    PM_SlideMove(qboolean gravity)
 		VectorCopy(endVelocity, pm->ps->velocity);
 	}
 
-	// don't change velocity if in a timer (FIXME: is this correct?)
-	if (pm->ps->pm_time)
+	// Preserve explicit impulses, not an unrelated landing recovery timer.
+	if (PM_PreserveTimedVelocity())
 	{
 		VectorCopy(primal_velocity, pm->ps->velocity);
 	}
@@ -468,21 +475,41 @@ PM_StepSlideMove
 
 ==================
 */
-/* Native TCE step entry: Windows and Linux use the two-height controller.
- * Keep their comparison/rounding differences explicit; the portable
- * SDK/gear-dependent path remains separate below. */
+/* A raised trial may replace a valid ordinary slide only if it lands safely
+ * and makes more horizontal progress. Rejected trials also discard contacts
+ * and impact speed collected by that trial. */
+static qboolean PM_TCEStepImprovesMove(const vec3_t start, const vec3_t ordinary,
+                                      const trace_t *landing)
+{
+	long double oldX, oldY, newX, newY;
+	if (landing->allsolid || landing->startsolid ||
+	    !(landing->fraction >= 0.0f && landing->fraction <= 1.0f) ||
+	    (landing->fraction < 1.0f && !(landing->plane.normal[2] >= MIN_WALK_NORMAL)))
+	{
+		return qfalse;
+	}
+	oldX = (long double)ordinary[0] - start[0];
+	oldY = (long double)ordinary[1] - start[1];
+	newX = (long double)pm->ps->origin[0] - start[0];
+	newY = (long double)pm->ps->origin[1] - start[1];
+	return newX * newX + newY * newY > oldX * oldX + oldY * oldY;
+}
+
+/* Native TCE two-height controller. Try the low step first, then the full
+ * height when the low trial cannot improve the ordinary route. A stationary
+ * four-unit probe did not detect higher stairs farther along this frame. */
 #if (defined(_MSC_VER) && defined(_M_IX86)) || ((defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM))
 void PM_StepSlideMove(qboolean gravity)
 {
-	vec3_t  startOrigin, startVelocity, up, down, forward;
+	vec3_t  startOrigin, startVelocity, ordinaryOrigin, ordinaryVelocity, up, down;
 	trace_t trace;
-	float   stepHeight = 9.0f;
+	float   stepHeight, ordinaryImpact;
 #if !defined(__linux__)
 	volatile float delta;
 #endif
 	long double height;
 	qboolean    ascending, clip;
-	int         axis;
+	int         ordinaryTouches;
 
 	VectorCopy(pm->ps->origin, startOrigin);
 	VectorCopy(pm->ps->velocity, startVelocity);
@@ -490,6 +517,10 @@ void PM_StepSlideMove(qboolean gravity)
 	{
 		return;
 	}
+	VectorCopy(pm->ps->origin, ordinaryOrigin);
+	VectorCopy(pm->ps->velocity, ordinaryVelocity);
+	ordinaryImpact = pml.impactSpeed;
+	ordinaryTouches = pm->numtouch;
 	VectorCopy(startOrigin, down);
 	down[2] = (float)((long double)startOrigin[2] - 18.0f);
 	pm->trace(&trace, startOrigin, pm->mins, pm->maxs, down,
@@ -509,54 +540,39 @@ void PM_StepSlideMove(qboolean gravity)
 			return;
 		}
 	}
-	VectorCopy(startOrigin, up);
-	up[2] = (float)((long double)startOrigin[2] + 9.0f);
-	pm->trace(&trace, up, pm->mins, pm->maxs, up,
-	          pm->ps->clientNum, pm->tracemask);
-	if (trace.allsolid)
+	for (stepHeight = 9.0f; stepHeight <= 18.0f; stepHeight += 9.0f)
 	{
-		if (pm->debugLevel)
-		{
-			Com_Printf("%i:bend can't step small\n", c_pmove);
-		}
-		return;
-	}
-	forward[0] = startVelocity[0];
-	forward[1] = startVelocity[1];
-	forward[2] = 0.0f;
-	(void)TCE_VectorNormalizeValue(forward);
-	for (axis = 0; axis < 3; ++axis)
-	{
-		forward[axis] = (float)((long double)forward[axis] * 4.0f + up[axis]);
-	}
-	pm->trace(&trace, forward, pm->mins, pm->maxs, forward,
-	          pm->ps->clientNum, pm->tracemask);
-	if (trace.allsolid)
-	{
-		stepHeight = 18.0f;
 		VectorCopy(startOrigin, up);
-		up[2] = (float)((long double)startOrigin[2] + 18.0f);
-		pm->trace(&trace, up, pm->mins, pm->maxs, up,
+		up[2] = (float)((long double)startOrigin[2] + stepHeight);
+		pm->trace(&trace, startOrigin, pm->mins, pm->maxs, up,
 		          pm->ps->clientNum, pm->tracemask);
-		if (trace.allsolid)
+		if (trace.allsolid || !(trace.fraction >= 1.0f))
 		{
-			if (pm->debugLevel)
-			{
-				Com_Printf("%i:bend can't step\n", c_pmove);
-			}
 			return;
 		}
+		VectorCopy(up, pm->ps->origin);
+		VectorCopy(startVelocity, pm->ps->velocity);
+		PM_SlideMove(gravity);
+		VectorCopy(pm->ps->origin, down);
+		down[2] = (float)((long double)down[2] - stepHeight);
+		pm->trace(&trace, pm->ps->origin, pm->mins, pm->maxs, down,
+		          pm->ps->clientNum, pm->tracemask);
+		if (!trace.allsolid)
+		{
+			VectorCopy(trace.endpos, pm->ps->origin);
+		}
+		if (PM_TCEStepImprovesMove(startOrigin, ordinaryOrigin, &trace))
+		{
+			break;
+		}
+		VectorCopy(ordinaryOrigin, pm->ps->origin);
+		VectorCopy(ordinaryVelocity, pm->ps->velocity);
+		pml.impactSpeed = ordinaryImpact;
+		pm->numtouch = ordinaryTouches;
 	}
-	VectorCopy(up, pm->ps->origin);
-	VectorCopy(startVelocity, pm->ps->velocity);
-	PM_SlideMove(gravity);
-	VectorCopy(pm->ps->origin, down);
-	down[2] = (float)((long double)down[2] - stepHeight);
-	pm->trace(&trace, pm->ps->origin, pm->mins, pm->maxs, down,
-	          pm->ps->clientNum, pm->tracemask);
-	if (!trace.allsolid)
+	if (stepHeight > 18.0f)
 	{
-		VectorCopy(trace.endpos, pm->ps->origin);
+		return;
 	}
 #if defined(__linux__)
 	/* ELF uses ordered 1 > fraction; unordered skips the final clip. */
@@ -594,15 +610,20 @@ void PM_StepSlideMove(qboolean gravity)
  * trying the full 18-unit step. Shared by prediction and the server. */
 static void PM_TCEStepSlideMove(qboolean gravity)
 {
-	vec3_t  start, velocity, up, down, forward;
+	vec3_t  start, velocity, ordinary, ordinaryVelocity, up, down;
 	trace_t trace;
-	float   height = 9.0f, delta;
+	float   height, delta, ordinaryImpact;
+	int     ordinaryTouches;
 	VectorCopy(pm->ps->origin, start);
 	VectorCopy(pm->ps->velocity, velocity);
 	if (!PM_SlideMove(gravity))
 	{
 		return;
 	}
+	VectorCopy(pm->ps->origin, ordinary);
+	VectorCopy(pm->ps->velocity, ordinaryVelocity);
+	ordinaryImpact = pml.impactSpeed;
+	ordinaryTouches = pm->numtouch;
 	VectorCopy(start, down);
 	down[2] -= 18.0f;
 	pm->trace(&trace, start, pm->mins, pm->maxs, down, pm->ps->clientNum, pm->tracemask);
@@ -610,45 +631,37 @@ static void PM_TCEStepSlideMove(qboolean gravity)
 	{
 		return;
 	}
-	VectorCopy(start, up);
-	up[2] += height;
-	pm->trace(&trace, up, pm->mins, pm->maxs, up, pm->ps->clientNum, pm->tracemask);
-	if (trace.allsolid)
+	for (height = 9.0f; height <= 18.0f; height += 9.0f)
 	{
-		if (pm->debugLevel)
-		{
-			Com_Printf("%i:bend can't step small\n", c_pmove);
-		}
-		return;
-	}
-	VectorSet(forward, velocity[0], velocity[1], 0);
-	VectorNormalize(forward);
-	VectorMA(up, 4.0f, forward, forward);
-	pm->trace(&trace, forward, pm->mins, pm->maxs, forward, pm->ps->clientNum, pm->tracemask);
-	if (trace.allsolid)
-	{
-		height = 18.0f;
 		VectorCopy(start, up);
 		up[2] += height;
-		pm->trace(&trace, up, pm->mins, pm->maxs, up, pm->ps->clientNum, pm->tracemask);
-		if (trace.allsolid)
+		pm->trace(&trace, start, pm->mins, pm->maxs, up, pm->ps->clientNum, pm->tracemask);
+		if (trace.allsolid || !(trace.fraction >= 1.0f))
 		{
-			if (pm->debugLevel)
-			{
-				Com_Printf("%i:bend can't step\n", c_pmove);
-			}
 			return;
 		}
+		VectorCopy(up, pm->ps->origin);
+		VectorCopy(velocity, pm->ps->velocity);
+		PM_SlideMove(gravity);
+		VectorCopy(pm->ps->origin, down);
+		down[2] -= height;
+		pm->trace(&trace, pm->ps->origin, pm->mins, pm->maxs, down, pm->ps->clientNum, pm->tracemask);
+		if (!trace.allsolid)
+		{
+			VectorCopy(trace.endpos, pm->ps->origin);
+		}
+		if (PM_TCEStepImprovesMove(start, ordinary, &trace))
+		{
+			break;
+		}
+		VectorCopy(ordinary, pm->ps->origin);
+		VectorCopy(ordinaryVelocity, pm->ps->velocity);
+		pml.impactSpeed = ordinaryImpact;
+		pm->numtouch = ordinaryTouches;
 	}
-	VectorCopy(up, pm->ps->origin);
-	VectorCopy(velocity, pm->ps->velocity);
-	PM_SlideMove(gravity);
-	VectorCopy(pm->ps->origin, down);
-	down[2] -= height;
-	pm->trace(&trace, pm->ps->origin, pm->mins, pm->maxs, down, pm->ps->clientNum, pm->tracemask);
-	if (!trace.allsolid)
+	if (height > 18.0f)
 	{
-		VectorCopy(trace.endpos, pm->ps->origin);
+		return;
 	}
 	if (trace.fraction < 1.0f)
 	{
@@ -1182,7 +1195,7 @@ qboolean PM_SlideMoveProne(qboolean gravity)
 	{
 		VectorCopy(endVelocity, pm->ps->velocity);
 	}
-	if (pm->ps->pm_time)
+	if (PM_PreserveTimedVelocity())
 	{
 		VectorCopy(primalVelocity, pm->ps->velocity);
 	}
@@ -1414,7 +1427,7 @@ qboolean PM_SlideMoveProne(qboolean gravity)
 	}
 
 	// don't change velocity if in a timer (FIXME: is this correct?)
-	if (pm->ps->pm_time)
+	if (PM_PreserveTimedVelocity())
 	{
 		VectorCopy(primal_velocity, pm->ps->velocity);
 	}

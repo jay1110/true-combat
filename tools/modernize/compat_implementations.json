@@ -236,7 +236,13 @@
     {
       "original": "src/game/tce_weather_precision.h",
       "implementation": "compat/legacy/game/tce_weather_precision.h",
-      "baseline_sha256": "5e3dac5f7b7be569aa5e5e0c735d6878f3f1422403d74c037547f54dcc6459e3"
+      "baseline_sha256": "5e3dac5f7b7be569aa5e5e0c735d6878f3f1422403d74c037547f54dcc6459e3",
+      "reviewed_change": {
+        "sha256": "28b5adee0735c15c2d2322d265a566cb1f82c761c42d85e68f2b014f77df8753",
+        "reason": "Certify common weather distance decisions with conservative integer bounds before the existing exact software calculation. Preserve all PC/RC decisions, exception-mask decline and prior software-helper FP status/control behavior; no change to weather movement.",
+        "regression_commands": ["python tools/modernize/weather_precision_probe.py", "python tools/modernize/weather_precision_probe.py --configuration Debug", "python tools/modernize/weather_precision_probe.py --sanitize", "python tools/modernize/weather_retry_regression.py --arch x86", "python tools/modernize/compat_validate.py --msvc-version 14.44"],
+        "evidence": "220962 frozen-body checks per Win32 Debug/Release/ASan build across all 12 PC/RC modes, threshold/cancellation/full-bit cases and FP status/control; exact slow fallback retained. Actual 4000-particle Snow fixture retains final particle-state hash, next RNG, generation and render counts while reducing measured CPU time; game FPS validation remains separate."
+      }
     }
   ]
 }

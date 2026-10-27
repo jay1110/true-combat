@@ -1,5 +1,8 @@
 #include "PrecompCommon.h"
 #include "CommandReciever.h"
+#ifndef FEATURE_NAVSTUDIO
+#include "PublicBotCommands.h"
+#endif
 #include "ScriptManager.h"
 
 //////////////////////////////////////////////////////////////////////////
@@ -74,7 +77,7 @@ bool ScriptCommandExecutor::Exec(const StringVector &_args, const gmVariable &_t
 			{
 				// Add all the params
 				gmTableObject *pParamTable = m_Machine->AllocTableObject();
-				for(obuint32 i = 1; i < _args.size(); ++i) 
+				for(obuint32 i = 1; i < _args.size(); ++i)
 				{
 					int iNum;
 					float dNum;
@@ -130,6 +133,14 @@ CommandReciever::~CommandReciever()
 
 bool CommandReciever::DispatchCommand(const StringVector &_args)
 {
+	if (_args.empty()) return false;
+#ifndef FEATURE_NAVSTUDIO
+	if (!Omnibot_IsPublicCommand(_args[0].c_str()))
+	{
+		EngineFuncs::ConsoleError("Command unavailable in the Game build.");
+		return false;
+	}
+#endif
 	const bool bPrintUsage = _args.size() > 1 && _args[1] == "?";
 
 	// Look for default commands first.
@@ -236,6 +247,9 @@ void CommandReciever::cmdHelp(const StringVector &_args)
 	{
 		if(it->first == "help")
 			continue;
+#ifndef FEATURE_NAVSTUDIO
+		if (!Omnibot_IsPublicCommand(it->first.c_str())) continue;
+#endif
 		EngineFuncs::ConsoleMessage(va("%s : %s", it->first.c_str(), it->second.first.c_str()));
 	}
 
@@ -251,7 +265,11 @@ void CommandReciever::cmdHelp(const StringVector &_args)
 		while(pNode)
 		{
 			const char *pCommandName = pNode->m_key.GetCStringSafe();
-			if(pCommandName)
+			if(pCommandName
+#ifndef FEATURE_NAVSTUDIO
+				&& Omnibot_IsPublicCommand(pCommandName)
+#endif
+			)
 			{
 				gmTableObject *pTbl = pNode->m_value.GetTableObjectSafe();
 				if(pTbl)

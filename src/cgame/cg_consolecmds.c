@@ -1318,6 +1318,8 @@ static consoleCommand_t commands[] =
 	{ "viewpos",             CG_Viewpos_f                },
 	{ "+scores",             CG_ScoresDown_f             },
 	{ "-scores",             CG_ScoresUp_f               },
+	{ "+wstats",             CG_wStatsDown_f             },
+	{ "-wstats",             CG_wStatsUp_f               },
 	{ "zoomin",              CG_ZoomIn_f                 },
 	{ "zoomout",             CG_ZoomOut_f                },
 	{ "weaplastused",        CG_LastWeaponUsed_f         },
@@ -1436,7 +1438,9 @@ void CG_InitConsoleCommands(void)
 	trap_AddCommand("say");
 	trap_AddCommand("say_limbo");
 	trap_AddCommand("tell");
+#ifdef FEATURE_NAVSTUDIO
 	trap_AddCommand("listbotgoals");
+#endif
 	trap_AddCommand("give");
 	trap_AddCommand("god");
 	trap_AddCommand("notarget");
@@ -1494,6 +1498,7 @@ void CG_InitConsoleCommands(void)
 	trap_AddCommand("setweapons");
 	trap_AddCommand("setclass");
 	trap_AddCommand("kickbot");
+#ifdef FEATURE_NAVSTUDIO
 	trap_AddCommand("wp_add");
 	trap_AddCommand("wp_connect");
 	trap_AddCommand("wp_clear");
@@ -1506,4 +1511,5 @@ void CG_InitConsoleCommands(void)
 	trap_AddCommand("wp_setlinkflags");
 	trap_AddCommand("wp_autoconnect");
 	trap_AddCommand("wp_terminatepath");
+#endif
 }

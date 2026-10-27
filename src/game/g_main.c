@@ -12,6 +12,7 @@
 #include "tce_nodes.h"
 #include "tce_botinfo.h"
 #include "tce_geoip.h"
+#include "g_tce_pose.h"
 
 // Include the "External"/"Public" components of AI_Team
 #include "../botai/ai_teamX.h"
@@ -234,7 +235,9 @@ vmCvar_t        g_killmessage;
 vmCvar_t        g_starthonor;
 vmCvar_t        g_aabasetime;
 vmCvar_t        g_botvar;
+#ifdef FEATURE_NAVSTUDIO
 vmCvar_t        bot_editWaypoints;
+#endif
 
 cvarTable_t gameCvarTable[] =
 {
@@ -319,7 +322,9 @@ cvarTable_t gameCvarTable[] =
 	{ &g_realism,                 "g_realism",                 "1",                          CVAR_SERVERINFO | CVAR_LATCH, 0, qtrue, qtrue},
 	{ &g_aabasetime,              "g_aabasetime",              "5",                          64, 0, 0, 1, 0                 },
 	{ &g_botvar,                  "g_botvar",                  "1.0",                        0, 0, 0, 1, 0                  },
+#ifdef FEATURE_NAVSTUDIO
 	{ &bot_editWaypoints,         "bot_editWaypoints",         "0",                          256, 0, 0, 0, 0                },
+#endif
 	// -NERVE - SMF
 
 	{ &g_log,                     "g_log",                     "",                           CVAR_ARCHIVE, 0, qfalse        },
@@ -2132,6 +2137,7 @@ void G_InitGame(int levelTime, int randomSeed, int restart)
 	}
 	level.time      = levelTime;
 	level.startTime = levelTime;
+	G_TCEPoseInit();
 	/* The zeroed carrier indices are not ownership flags. Original assignment
 	 * and drop producers set -1; do not enable objective pickups prematurely. */
 #ifndef _WIN32
@@ -2146,6 +2152,7 @@ void G_InitGame(int levelTime, int randomSeed, int restart)
 	// RF, init the anim scripting
 	level.animScriptData.soundIndex = G_SoundIndex;
 	level.animScriptData.playSound  = G_AnimScriptSound;
+	level.animScriptData.animationAssigned = G_TCEPoseAnimationAssigned;
 
 	level.warmupModificationCount = g_warmup.modificationCount;
 
@@ -2424,6 +2431,7 @@ void G_InitGame(int levelTime, int randomSeed, int restart)
 
 	G_RemapTeamShaders();
 
+	G_TCEPoseResetCharacters();
 	BG_ClearAnimationPool();
 
 	BG_ClearCharacterPool();
@@ -2516,6 +2524,7 @@ void G_ShutdownGame(int restart)
 	}
 #endif // NO_BOT_SUPPORT
 	G_GeoIPShutdown();
+	G_TCEPoseShutdown();
 }
 
 

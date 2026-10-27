@@ -594,7 +594,7 @@ void G_TCEReleaseObjectives(gentity_t *ent, qboolean disconnect, qboolean vip)
 	}
 	if ((cl->ps.stats[STAT_TCE_WEAPON_FLAGS] & 0x100) && level.tceBombAssigned &&
 	    !level.tceBombPlanted && level.tceBombCarrier == cl->ps.clientNum &&
-	    (!disconnect || level.tceBombCarrier == (int)((int)(ent - g_entities))) && level.tceBombDropCount < 2)
+	    (!disconnect || level.tceBombCarrier == (int)((int)(ent - g_entities))))
 	{
 		drop = G_TCELaunchObjective(ent, qfalse);
 		if (disconnect && drop)
@@ -625,6 +625,25 @@ void G_TCEReleaseObjectives(gentity_t *ent, qboolean disconnect, qboolean vip)
 		popup                = G_PopupMessage(PM_MESSAGE); popup->s.effect2Time = cl->ps.persistant[PERS_TEAM];
 		popup->s.effect3Time = cl->ps.clientNum; popup->s.density = 4;
 	}
+}
+
+/* Explicit player command; death/disconnect continue to share the same drop
+ * bookkeeping. A command cannot drop a planted bomb or another player's bomb. */
+qboolean G_TCEManualDropBomb(gentity_t *ent)
+{
+	gclient_t *client;
+	if (!ent || !(client = ent->client) || g_gametype.integer != 5 ||
+	    g_gamestate.integer != GS_PLAYING || client->sess.sessionTeam == TEAM_SPECTATOR ||
+	    client->ps.stats[STAT_HEALTH] <= 0 || client->ps.pm_type != PM_NORMAL ||
+	    (client->ps.pm_flags & (PMF_LIMBO | PMF_TCE_OBJECTIVE_ACTION)) ||
+	    !(client->ps.stats[STAT_TCE_WEAPON_FLAGS] & 0x100) ||
+	    !level.tceBombAssigned || level.tceBombPlanted ||
+	    level.tceBombCarrier != client->ps.clientNum)
+	{
+		return qfalse;
+	}
+	G_TCEReleaseObjectives(ent, qfalse, qfalse);
+	return !(client->ps.stats[STAT_TCE_WEAPON_FLAGS] & 0x100);
 }
 
 
@@ -1332,6 +1351,7 @@ gentity_t *LaunchItem(gitem_t *item, vec3_t origin, vec3_t velocity, int ownerNu
 	{
 		gentity_t *flag = &g_entities[g_entities[ownerNum].client->flagParent];
 
+		dropped->s.modelindex2 = flag->s.modelindex2;
 		dropped->s.otherEntityNum = g_entities[ownerNum].client->flagParent;    // store the entitynum of our original flag spawner
 		dropped->s.density        = 1;
 		dropped->think            = Team_DroppedFlagThink;

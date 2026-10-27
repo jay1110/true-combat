@@ -78,6 +78,26 @@ RUNTIME_METHODS = ('cmdHelp', 'cmdAddbot', 'cmdKickbot', 'cmdKickAll',
                    'cmdBotDontShoot', 'cmdReloadWeaponDatabase', 'cmdVersion',
                    'PlanPathToGoal', 'LoadFromFile')
 RUNTIME_BINDINGS = ('GetClosestWaypoint', 'SetWaypointFlag', 'SetAvailableMapGoals')
+MODULE_EDITOR_LITERALS = {
+    'cgame': ('wp_add', 'wp_connect', 'wp_clear', 'wp_save', 'wp_load',
+              'wp_relocate', 'wp_link', 'wp_addtopath', 'wp_setflags',
+              'wp_setlinkflags', 'wp_autoconnect', 'wp_terminatepath',
+              'listbotgoals', 'cg_omnibotdrawing', 'cg_omnibot_render_distance',
+              'ExportClientFunctionsFromDLL'),
+    'qagame': ('wp_add', 'wp_connect', 'wp_clear', 'wp_save', 'wp_load',
+               'wp_relocate', 'wp_link', 'wp_addtopath', 'wp_setflags',
+               'wp_setlinkflags', 'wp_autoconnect', 'wp_terminatepath',
+               'listbotgoals', 'setsniperspot', 'bot_editWaypoints'),
+    'ui': ('navstudio_bot_menu',),
+}
+
+
+def verify_module_bytes(name, data, variant):
+    """The module-side boundary is independent of which bot core is loaded."""
+    found = {text: text.encode() + b'\0' in data for text in MODULE_EDITOR_LITERALS[name]}
+    if variant == 'game' and any(found.values()):
+        raise ValueError('Editor entry point in public ' + name + ': ' + repr(found))
+    return {'sha256': hashlib.sha256(data).hexdigest(), 'editor_literals': found}
 
 
 def method_matches(symbol, method):
@@ -205,6 +225,8 @@ def verify_core(core, variant, symbol_map=None, nm=None):
                             b'\xca\xfe\xba\xbe', b'\xbe\xba\xfe\xca',
                             b'\xca\xfe\xba\xbf', b'\xbf\xba\xfe\xca')):
         raise ValueError('Bot runtime is not a native/wasm module: ' + str(core))
+    if b'TCE2_OmnibotBuild' not in data:
+        raise ValueError('Missing compiled Game/Editor build handshake: ' + str(core))
     if b'ExportBotFunctionsFromDLL' not in data:
         raise ValueError('Missing Omni-bot ABI entry: ' + str(core))
     if not editor and any(result['authoring_command_literals'].values()):
@@ -252,6 +274,8 @@ def validate_symbol_evidence(report, data):
     needs the complete, exact method inventory and matching defined-function
     records, bound to the inspected module's bytes and the registry source.
     """
+    if b'TCE2_OmnibotBuild' not in data:
+        raise ValueError('Missing compiled Game/Editor build handshake')
     digest = hashlib.sha256(data).hexdigest()
     evidence = report.get('symbol_evidence', {})
     if report.get('sha256') != digest or evidence.get('core_sha256') != digest:

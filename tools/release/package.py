@@ -9,7 +9,9 @@ import subprocess
 import zipfile
 
 from runtime_payload import stage_runtime
-from verify_omnibot_boundary import verify_core
+from verify_omnibot_boundary import verify_core, verify_module_bytes
+from client_packages import (INPUT_PREFIX, check_canonical, check_target_payload,
+                             zip_contents, sha)
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -65,14 +67,31 @@ def module_inputs(modules, config, variant, module_manifest=None):
 
 
 def package_modules(modules, output, target, variant, core_manifest=None, geoip=None,
-                    repo=ROOT, module_manifest=None):
+                    repo=ROOT, module_manifest=None, shared_client_pk3=None,
+                    local_client_pk3=False, configuration='Release'):
     release_version = version(repo)
     targets = json.loads((repo / 'tools/release/targets.json').read_text())['targets']
     config = next(t for t in targets if t['id'] == target)
     module_paths = module_inputs(modules, config, variant, module_manifest)
+    if shared_client_pk3 is not None and local_client_pk3:
+        raise ValueError('Select a shared client package or explicit local test packaging')
+    if module_manifest is not None:
+        discovered = json.loads(Path(module_manifest).read_text(encoding='utf-8'))
+        actual_configuration = discovered.get('configuration')
+        if ((actual_configuration is None and not local_client_pk3) or
+                (actual_configuration is not None and actual_configuration != configuration)):
+            raise ValueError('Missing/mismatched module build configuration provenance')
+    elif not local_client_pk3:
+        raise ValueError('Release inputs require the generated module/configuration manifest')
+    module_boundary = {name: verify_module_bytes(name, path.read_bytes(), variant)
+                       for name, path in module_paths.items()}
     name = f'TCE2-{release_version}-{target}-{variant}'
     if core_manifest is None:
         name += '-Modules-Only'
+    if local_client_pk3:
+        name += '-Local-Test'
+    elif shared_client_pk3 is None:
+        name += '-Client-Inputs'
     stage = output / name
     if stage.exists():
         raise ValueError('Refusing to mix release outputs: ' + str(stage))
@@ -84,6 +103,30 @@ def package_modules(modules, output, target, variant, core_manifest=None, geoip=
     subprocess.run(['cmake', f'-DMODULE_DIRECTORY={mod}', f'-DBUILD_VARIANT={variant}',
                     '-P', str(repo / 'src/cmake/package_modules.cmake')], check=True)
     (mod / 'tce-build-variant.txt').unlink()
+    client_path = mod / f'tce2-{release_version}.pk3'
+    payload = zip_contents(client_path.read_bytes())
+    check_target_payload(payload, target, variant, release_version, repo)
+    if shared_client_pk3 is not None:
+        if configuration != 'Release':
+            raise ValueError('Shared release clients cannot mix Debug/Release builds')
+        client_data = Path(shared_client_pk3).read_bytes()
+        client_metadata = check_canonical(client_data, release_version, variant, repo=repo)
+        shared_payload = zip_contents(client_data)
+        for role in ('cgame', 'ui'):
+            if shared_payload[module_paths[role].name] != module_paths[role].read_bytes():
+                raise ValueError('Shared client package differs from target module: ' + role)
+        client_path.write_bytes(client_data)
+        client_package = {'scope': 'shared', 'targets': client_metadata['targets'],
+                          'sha256': sha(client_data), 'configuration': configuration}
+    elif local_client_pk3:
+        client_package = {'scope': 'local-test', 'targets': [target], 'configuration': configuration}
+    else:
+        for relative, data in payload.items():
+            destination = stage / INPUT_PREFIX / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(data)
+        client_path.unlink()
+        client_package = {'scope': 'target-input', 'targets': [target], 'configuration': configuration}
     if variant == 'navstudio':
         addon = stage / 'editor-addon'
         subprocess.run(['cmake', f'-DOUTPUT_DIRECTORY={addon}', '-P',
@@ -123,7 +166,12 @@ def package_modules(modules, output, target, variant, core_manifest=None, geoip=
         copy_file(repo / relative, stage / 'licenses' / relative)
     (stage / 'README.txt').write_text(
         f'TCE2 {release_version}: {target}, {variant}.\n'
-        'Install into an existing matching ET/ETLegacy installation; no engine or maps are bundled.\n'
+        + ('CLIENT INPUTS ONLY: use the aggregate release for installation and server downloads.\n'
+           if client_package['scope'] == 'target-input' else
+           'LOCAL TEST ONLY: client download ABI coverage is limited to this target.\n'
+           if local_client_pk3 else
+           'Install into an existing matching ET/ETLegacy installation; canonical clients cover the release matrix.\n')
+        + 'No engine or maps are bundled.\n'
         + ('Gameplay Omni-bot core and scripts are included. Execute tce2/omnibot-release.cfg before map startup.\n'
            'Standard-map navigation is listed in the runtime manifest; other maps need their own WAY/goals.\n' if runtime else
            'MODULES ONLY: a matching bot core was not supplied. This archive is not a complete bot runtime.\n')
@@ -136,8 +184,10 @@ def package_modules(modules, output, target, variant, core_manifest=None, geoip=
              for p in sorted(stage.rglob('*')) if p.is_file()]
     (stage / 'manifest.json').write_text(json.dumps({
         'schema': 1, 'version': release_version, 'target': target, 'variant': variant,
+        'configuration': configuration, 'client_package': client_package,
         'gameplay_bot_runtime': runtime is not None, 'authoring': variant == 'navstudio',
         'bot_core_boundary': core_checks if runtime else None,
+        'module_boundary': module_boundary,
         'geoip_database_included': geoip is not None, 'files': files,
     }, indent=2) + '\n', encoding='utf-8', newline='\n')
     output.mkdir(parents=True, exist_ok=True)
@@ -156,11 +206,18 @@ def main():
     parser.add_argument('--variant', choices=('game', 'navstudio'), required=True)
     parser.add_argument('--core-manifest', type=Path)
     parser.add_argument('--geoip-database', type=Path)
+    clients = parser.add_mutually_exclusive_group()
+    clients.add_argument('--shared-client-pk3', type=Path,
+                         help='Canonical aggregate PK3 containing every supported client ABI')
+    clients.add_argument('--local-client-pk3', action='store_true',
+                         help='Explicit native smoke package; not a complete server-download release')
+    parser.add_argument('--configuration', choices=('Release', 'Debug'), default='Release')
     args = parser.parse_args()
     print(package_modules(args.modules.resolve() if args.modules else None,
                           args.output.resolve(), args.target, args.variant,
                           args.core_manifest, args.geoip_database,
-                          module_manifest=args.module_manifest))
+                          module_manifest=args.module_manifest, shared_client_pk3=args.shared_client_pk3,
+                          local_client_pk3=args.local_client_pk3, configuration=args.configuration))
 
 
 if __name__ == '__main__':

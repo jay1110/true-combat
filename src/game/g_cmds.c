@@ -333,6 +333,7 @@ Cmd_ListBotGoals_f
 =================
 */
 
+#ifdef FEATURE_NAVSTUDIO
 void Cmd_ListBotGoals_f(gentity_t *ent)
 {
 	int    i;
@@ -371,6 +372,8 @@ void Cmd_ListBotGoals_f(gentity_t *ent)
 		}
 	}
 }
+#endif
+
 
 /*
 ==================
@@ -3632,6 +3635,7 @@ void Cmd_SetSpawnPoint_f(gentity_t *ent)
 Cmd_SetSniperSpot_f
 ============
 */
+#ifdef FEATURE_NAVSTUDIO
 void Cmd_SetSniperSpot_f(gentity_t *clent)
 {
 	gentity_t *spot;
@@ -3679,6 +3683,8 @@ void Cmd_SetSniperSpot_f(gentity_t *clent)
 
 	return;
 }
+#endif
+
 
 void G_PrintAccuracyLog(gentity_t *ent);
 
@@ -4333,10 +4339,12 @@ void ClientCommand(int clientNum)
 	{
 		Cmd_Give_f(ent);
 	}
+#ifdef FEATURE_NAVSTUDIO
 	else if (Q_stricmp(cmd, "listbotgoals") == 0)
 	{
 		Cmd_ListBotGoals_f(ent);
 	}
+#endif
 	else if (Q_stricmp(cmd, "god") == 0)
 	{
 		Cmd_God_f(ent);
@@ -4352,6 +4360,10 @@ void ClientCommand(int clientNum)
 	else if (Q_stricmp(cmd, "noclip") == 0)
 	{
 		Cmd_Noclip_f(ent);
+	}
+	else if (Q_stricmp(cmd, "dropbomb") == 0)
+	{
+		G_TCEManualDropBomb(ent);
 	}
 	else if (Q_stricmp(cmd, "kill") == 0)
 	{
@@ -4391,6 +4403,7 @@ void ClientCommand(int clientNum)
 	{
 		Cmd_SetSpawnPoint_f(ent);
 	}
+#ifdef FEATURE_NAVSTUDIO
 	else if (Q_stricmp(cmd, "setsniperspot") == 0)
 	{
 		Cmd_SetSniperSpot_f(ent);
@@ -4400,6 +4413,7 @@ void ClientCommand(int clientNum)
 //		Cmd_ClearWayPoint_f( ent );
 		// OSP
 	}
+#endif
 	else if (G_commandCheck(ent, cmd, qfalse))
 	{
 		return;

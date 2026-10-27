@@ -6090,7 +6090,8 @@ static bind_t g_bindings[] =
 	 * Windows binding order40037a08: objective59, firemode60. */
 	{ "toggleobjectivedesc", K_F5,            -1,  K_F5,            -1,  -1, -1 },
 	{ "+firemode",           'g',             -1,  '#',             -1,  -1, -1 },
-	{ "+freelook",           -1,              -1,  -1,              -1,  -1, -1 },
+	/* New action has no default key; initialize every slot explicitly. */
+	{ "+freelook",           -1,              -1,  -1,              -1,  -1, -1, -1 },
 
 /*	{"+scores", 		-1,				-1, -1, -1},
 	{"+speed",			K_SHIFT,		-1, -1, -1},
@@ -6488,16 +6489,9 @@ qboolean Item_Bind_HandleKey(itemDef_t *item, int key, qboolean down)
 			return qtrue;
 
 		case K_BACKSPACE:
-			id = BindingIDFromName(item->cvar);
-			if (id != -1)
-			{
-				g_bindings[id].bind1 = -1;
-				g_bindings[id].bind2 = -1;
-			}
-			Controls_SetConfig(qtrue);
-			g_waitingForKey = qfalse;
-			g_bindItem      = NULL;
-			return qtrue;
+			/* Use the common clear path so the engine keys are unbound too. */
+			key = -1;
+			break;
 
 		case '`':
 			return qtrue;

@@ -7,6 +7,7 @@
 
 
 #include "cg_local.h"
+#include "cg_tce_pose_presentation.h"
 #include "tce_smoke_grenade.h"
 #include "tce_lightgrid.h"
 #include "../game/tce_bg.h"
@@ -3098,6 +3099,7 @@ void CG_Init(int serverMessageNum, int serverCommandSequence, int clientNum, qbo
 	memset(cg_entities, 0, sizeof(cg_entities));
 	memset(cg_weapons, 0, sizeof(cg_weapons));
 	memset(cg_items, 0, sizeof(cg_items));
+	CG_TCEPresentationInit();
 
 	cgs.initing = qtrue;
 

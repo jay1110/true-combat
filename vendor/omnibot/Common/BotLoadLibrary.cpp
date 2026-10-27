@@ -17,7 +17,7 @@
 
 void Omnibot_strncpy(char *dest, const char *source, int count)
 {
-	// Only doing this because some engines(HL2), think it a good idea to fuck up the 
+	// Only doing this because some engines(HL2), think it a good idea to fuck up the
 	// defines of all basic string functions throughout the entire project.
 	while (count && (*dest++ = *source++)!=0) /* copy string */
 		count--;
@@ -72,7 +72,7 @@ const char *Omnibot_GetLibraryPath()
 
 //////////////////////////////////////////////////////////////////////////
 
-static const char *BOTERRORS[BOT_NUM_ERRORS] = 
+static const char *BOTERRORS[BOT_NUM_ERRORS] =
 {
 	"None",
 	"Bot Library not found",
@@ -160,7 +160,7 @@ const char *OB_VA( const char* _msg, ...)
 	return pNextBuffer;
 }
 
-//////////////////////////////////////////////////////////////////////////	
+//////////////////////////////////////////////////////////////////////////
 HINSTANCE g_BotLibrary = 0;
 
 void OB_ShowLastError(const char *context)
@@ -247,7 +247,7 @@ eomnibot_error Omnibot_LoadLibrary(int version, const char *lib, const char *pat
 #define SUFFIX ".aarch64"
 #elif defined(__arm__)
 #define SUFFIX ".armv7"
-#else	
+#else
 #define SUFFIX
 #endif
 #endif
@@ -271,7 +271,21 @@ eomnibot_error Omnibot_LoadLibrary(int version, const char *lib, const char *pat
 	}
 	else
 	{
-		//Omnibot_Load_PrintMsg(OB_VA("Found Omni-bot: %s, Attempting to Initialize", g_OmnibotLibPath.c_str()));
+		// Reject an old or opposite-variant core before it can register commands,
+		// start scripts or emit authoring diagnostics through the game bridge.
+		typedef unsigned int (*BuildVariantFunction)();
+		BuildVariantFunction buildVariant = (BuildVariantFunction)GetProcAddress(g_BotLibrary, "TCE2_OmnibotBuild");
+#ifdef FEATURE_NAVSTUDIO
+		const unsigned int expectedBuild = 0x54434501u;
+#else
+		const unsigned int expectedBuild = 0x54434500u;
+#endif
+		if (!buildVariant || buildVariant() != expectedBuild)
+		{
+			Omnibot_Load_PrintErr("Omni-bot build mismatch: install the matching runtime from the selected TCE2 Game/Editor package.");
+			Omnibot_FreeLibrary();
+			return BOT_ERROR_WRONGVERSION;
+		}
 		pfnGetFunctionsFromDLL pfnGetBotFuncs = 0;
 		memset(&g_BotFunctions, 0, sizeof(g_BotFunctions));
 		pfnGetBotFuncs = (pfnGetFunctionsFromDLL)GetProcAddress(g_BotLibrary, "ExportBotFunctionsFromDLL");
@@ -279,7 +293,7 @@ eomnibot_error Omnibot_LoadLibrary(int version, const char *lib, const char *pat
 		{
 			r = BOT_ERROR_CANTGETBOTFUNCTIONS;
 			OB_ShowLastError("GetProcAddress");
-		} 
+		}
 		else
 		{
 			r = pfnGetBotFuncs(&g_BotFunctions, sizeof(g_BotFunctions));
@@ -331,25 +345,25 @@ void KeyVals::Reset()
 	memset(m_String,0,sizeof(m_String));
 	memset(m_Value,0,sizeof(m_Value));
 }
-bool KeyVals::SetInt(const char *_key, int _val) 
-{
-	return SetKeyVal(_key,obUserData(_val)); 
-}
-bool KeyVals::SetFloat(const char *_key, float _val)
-{
-	return SetKeyVal(_key,obUserData(_val)); 
-}
-bool KeyVals::SetEntity(const char *_key, GameEntity _val) 
+bool KeyVals::SetInt(const char *_key, int _val)
 {
 	return SetKeyVal(_key,obUserData(_val));
 }
-bool KeyVals::SetVector(const char *_key, float _x,float _y,float _z) 
+bool KeyVals::SetFloat(const char *_key, float _val)
 {
-	return SetKeyVal(_key,obUserData(_x,_y,_z)); 
+	return SetKeyVal(_key,obUserData(_val));
+}
+bool KeyVals::SetEntity(const char *_key, GameEntity _val)
+{
+	return SetKeyVal(_key,obUserData(_val));
+}
+bool KeyVals::SetVector(const char *_key, float _x,float _y,float _z)
+{
+	return SetKeyVal(_key,obUserData(_x,_y,_z));
 }
 bool KeyVals::SetVector(const char *_key, const float *_v)
 {
-	return SetKeyVal(_key,obUserData(_v[0],_v[1],_v[2])); 
+	return SetKeyVal(_key,obUserData(_v[0],_v[1],_v[2]));
 }
 bool KeyVals::SetString(const char *_key, const char *_value)
 {

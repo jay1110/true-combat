@@ -23,6 +23,7 @@ static void TCE_MissileVelocity(gentity_t *ent, int time, vec3_t out)
 extern void gas_think(gentity_t *gas);
 extern void gas_touch(gentity_t *gas, gentity_t *other, trace_t *trace);
 extern void SP_target_smoke(gentity_t *ent);
+extern void BecomeExplosion(gentity_t *ent);
 
 void M_think(gentity_t *ent);
 void G_ExplodeMissile(gentity_t *ent);
@@ -156,6 +157,14 @@ void G_MissileImpact(gentity_t *ent, trace_t *trace, int impactDamage)
 	gentity_t *other = &g_entities[trace->entityNum], *temp;
 	vec3_t    velocity;
 	int       event, parm, othernum = 0;
+	/* A destroyed breakable remains linked until BecomeExplosion runs on the
+	 * next server frame. An exact-zero-health window must not bounce the
+	 * grenade on that intervening contact after already breaking it. */
+	if (other->classname && !Q_stricmp(other->classname, "func_explosive") &&
+	    !other->takedamage && other->think == BecomeExplosion)
+	{
+		return;
+	}
 	if (other->classname && !Q_stricmp(other->classname, "func_explosive") &&
 	    other->health && other->health <= impactDamage)
 	{
@@ -547,6 +556,25 @@ void Landmine_Check_Ground(gentity_t *self)
 G_RunMissile
 ================
 */
+/* A TC material/playerclip hit supplements the missile mask; it must never
+ * replace a nearer solid wall or body. Otherwise a fence behind a wall can
+ * make a grenade skip the wall entirely. */
+static void G_TCEMissileTrace(gentity_t *ent, const vec3_t end, trace_t *result)
+{
+	trace_t material;
+	trap_Trace(&material, ent->r.currentOrigin, ent->r.mins, ent->r.maxs, end,
+	           ent->r.ownerNum, CONTENTS_PLAYERCLIP);
+	trap_Trace(result, ent->r.currentOrigin, ent->r.mins, ent->r.maxs, end,
+	           ent->r.ownerNum, ent->clipmask);
+	if (!result->startsolid && !result->allsolid && material.fraction < 1.0f &&
+	    material.fraction <= result->fraction &&
+	    (material.surfaceFlags & 0xff000000) == 0x14000000)
+	{
+		*result = material;
+		result->surfaceFlags &= ~SURF_NOIMPACT;
+	}
+}
+
 /* TC Windows2006b060 / Linux000cc406: full controller with TC slot IDs. */
 void G_RunMissile(gentity_t *ent)
 {
@@ -664,16 +692,7 @@ void G_RunMissile(gentity_t *ent)
 
 	// trace a line from the previous position to the current position,
 	// ignoring interactions with the missile owner
-	/* TC glass surfaces are traced through their playerclip material first. */
-	trap_Trace(&tr, ent->r.currentOrigin, ent->r.mins, ent->r.maxs, origin, ent->r.ownerNum, 0x10000);
-	if (tr.fraction == 1 || (tr.surfaceFlags & 0xff000000) != 0x14000000)
-	{
-		trap_Trace(&tr, ent->r.currentOrigin, ent->r.mins, ent->r.maxs, origin, ent->r.ownerNum, ent->clipmask);
-	}
-	else
-	{
-		tr.surfaceFlags &= ~SURF_NOIMPACT;
-	}
+	G_TCEMissileTrace(ent, origin, &tr);
 
 	if (ent->s.weapon == 60 && ent->count2 == 1)
 	{

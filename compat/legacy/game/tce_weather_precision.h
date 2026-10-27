@@ -4,6 +4,64 @@
 #if defined(_MSC_VER) && defined(_M_IX86) && !defined(Q3_VM)
 #include "tce_smoke_precision.h"
 
+/* Integer-only bounds keep the common world-coordinate test off the wide
+ * arithmetic path without adding floating-point status effects. */
+static __inline int TCE_WeatherCoordinateQ4(const float *coordinate, int *value)
+{
+	unsigned bits, magnitude, exponent, integer;
+	memcpy(&bits, coordinate, sizeof(bits));
+	magnitude = bits & 0x7fffffffu;
+	if (magnitude > 0x47800000u) /* finite |coordinate| <= 65536 */
+	{
+		return 0;
+	}
+	exponent = magnitude >> 23;
+	/* Values below 1/16, including subnormals, truncate to zero. */
+	integer = exponent <= 122u ? 0u :
+	          ((magnitude & 0x7fffffu) | 0x800000u) >> (146u - exponent);
+	*value = (bits >> 31) ? -(int)integer : (int)integer;
+	return 1;
+}
+
+static __inline int TCE_WeatherOutsideFast(const float *position,
+                                           const float *view, int *outside)
+{
+	unsigned long long lower = 0, upper = 0;
+	int axis;
+	for (axis = 0; axis < 2; ++axis)
+	{
+		int p, v, difference;
+		unsigned magnitude, low, high;
+		if (!TCE_WeatherCoordinateQ4(&position[axis], &p) ||
+		    !TCE_WeatherCoordinateQ4(&view[axis], &v))
+		{
+			return 0;
+		}
+		difference = p - v;
+		magnitude = difference < 0 ? (unsigned)-difference : (unsigned)difference;
+		/* Q4 truncation loses <2 units across the subtraction; worst PC24
+		 * directed rounding adds <=1/4 unit. Three units enclose both. */
+		low = magnitude > 3u ? magnitude - 3u : 0u;
+		high = magnitude + 3u;
+		lower += (unsigned long long)low * low;
+		upper += (unsigned long long)high * high;
+	}
+	/* |delta| <= 131072. At PC24 each squared value loses <=2048 world
+	 * units squared, and their sum <=4096; finer PC modes lose less.
+	 * Total 8192 becomes 2^21 in Q4 squared. Padded sums fit 44 bits. */
+	if (upper + 2097152ull <= 256000000ull)
+	{
+		*outside = 0;
+		return 1;
+	}
+	if (lower > 256000000ull + 2097152ull)
+	{
+		*outside = 1;
+		return 1;
+	}
+	return 0;
+}
+
 /* Optional height retains the new Z across its Float store, as rain does.
  * Snow uses the stored Z instead and supplies no height/bottom arguments. */
 static __inline int TCE_FiniteWeatherMove(int milliseconds, float *position,
@@ -69,6 +127,10 @@ static __inline int TCE_FiniteWeatherOutside(const float *position,
 	if (!TCE_FiniteExceptionsMasked(control))
 	{
 		return 0;
+	}
+	if (TCE_WeatherOutsideFast(position, view, outside))
+	{
+		return 1;
 	}
 	for (i = 0; i < 2; ++i)
 	{

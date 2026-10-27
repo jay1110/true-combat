@@ -4,6 +4,7 @@
 
 #include "g_local.h"
 #include "tce_numeric.h"
+#include "g_tce_pose.h"
 
 static char text[100000];           // <- was causing callstacks >64k
 
@@ -121,6 +122,11 @@ qboolean G_RegisterCharacter(const char *characterFile, bg_character_t *characte
 		}
 	}
 
+	/* Missing/unsupported pose assets retain the existing gameplay fallback. */
+	if (!G_TCEPoseRegisterCharacter(character, &characterDef))
+	{
+		G_Printf("Pose cache: unavailable for '%s'; existing damage volumes retained.\n", characterFile);
+	}
 	return qtrue;
 }
 
@@ -157,58 +163,56 @@ void G_RegisterPlayerClasses(void)
 G_UpdateCharacter
 =================
 */
-/* TC Windows2004a870 / Linux000a1466. Register failure is fatal; silently
- * switching to a default character leaves server/client animation state split. */
+/* Userinfo may request a character, but cannot authorize a configstring read
+ * outside the character table or a different multiplayer team uniform. */
 void G_UpdateCharacter(gclient_t *client)
 {
 	char           infostring[MAX_INFO_STRING];
 	char           *s;
-	int            characterIndex;
+	char           *end;
+	long           requested;
+	int            characterIndex = -1;
+	int            clientNum = (int)(client - level.clients);
 	bg_character_t *character;
 
-	trap_GetUserinfo(client->ps.clientNum, infostring, sizeof(infostring));
+	character = BG_GetCharacter(client->sess.sessionTeam, client->sess.playerType);
+	trap_GetUserinfo(clientNum, infostring, sizeof(infostring));
 	s = Info_ValueForKey(infostring, "ch");
-	if (*s)
+	if (*s && ((g_entities[clientNum].r.svFlags & SVF_BOT) ||
+	           (g_gametype.integer != 2 && g_gametype.integer != 5 &&
+	            g_gametype.integer != 6 && g_gametype.integer != 7)))
 	{
-		characterIndex = atoi(s);
-		if (client->pers.characterIndex == characterIndex)
+		requested = strtol(s, &end, 10);
+		if (s[0] >= '0' && s[0] <= '9' && !*end && requested >= 0 && requested < MAX_CHARACTERS)
 		{
-			return;
-		}
-		client->pers.characterIndex = characterIndex;
-		trap_GetConfigstring(TCE_AddInt32(CS_CHARACTERS, characterIndex), infostring, sizeof(infostring));
-		client->pers.character = BG_FindCharacter(infostring);
-		if (!client->pers.character)
-		{
-			client->pers.character = BG_FindFreeCharacter(infostring);
-			/* Original dereferences a full cache. Keep the same fatal outcome
-			 * without an uncontrolled null dereference on malformed input. */
-			if (!client->pers.character)
+			trap_GetConfigstring(CS_CHARACTERS + (int)requested, infostring, sizeof(infostring));
+			if (*infostring)
 			{
-				G_Error("ERROR: G_UpdateCharacter: no free character slot for '%s'\n", infostring);
-				return;
-			}
-			Q_strncpyz(client->pers.character->characterFile, infostring,
-			           sizeof(client->pers.character->characterFile));
-			if (!G_RegisterCharacter(infostring, client->pers.character))
-			{
-				G_Error("ERROR: G_UpdateCharacter: failed to load character file '%s' for %s\n",
-				        infostring, client->pers.netname);
+				characterIndex = (int)requested;
+				character = BG_FindCharacter(infostring);
+				if (!character)
+				{
+					/* These filenames are server-published map/bot assets, not
+					 * client paths. Keep their registration failure explicit. */
+					character = BG_FindFreeCharacter(infostring);
+					if (!character || !G_RegisterCharacter(infostring, character))
+					{
+						G_Error("ERROR: G_UpdateCharacter: invalid server character '%s'\n", infostring);
+						return;
+					}
+				}
 			}
 		}
 	}
-	else
+	if (client->pers.character == character && client->pers.characterIndex == characterIndex)
 	{
-		character = BG_GetCharacter(client->sess.sessionTeam, client->sess.playerType);
-		if (client->pers.character == character)
-		{
-			return;
-		}
-		client->pers.characterIndex = -1;
-		client->pers.character      = character;
+		return;
 	}
+	client->pers.characterIndex = characterIndex;
+	client->pers.character      = character;
 	client->ps.legsAnim   = 0;
 	client->ps.torsoAnim  = 0;
 	client->ps.legsTimer  = 0;
 	client->ps.torsoTimer = 0;
+	G_TCEPoseCharacterChanged(client);
 }

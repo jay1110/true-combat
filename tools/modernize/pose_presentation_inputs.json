@@ -1,0 +1,1657 @@
+{
+  "schema": 1,
+  "policy": "new snapshot-only pose1 axes; no legacy renderer-phase parity claim",
+  "capture_hashes": {
+    "pose-readonly-ladder-coherent.json": "bc0e10adf45363d0c49e5f5e55a8074ffd05ec7aacaae9c6b76e3afafb9f1268",
+    "pose-control-prone-aim.jsonl": "6d0804f0d4f21f5642dff9e7c88bf0b598a09bcea5a90347f63008cfa101ae1a"
+  },
+  "cases": [
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "before-ladder",
+      "index": 0,
+      "server_command": 559733,
+      "predicted_command": 559744,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 0
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "before-ladder",
+      "index": 1,
+      "server_command": 559783,
+      "predicted_command": 559792,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 0
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "before-ladder",
+      "index": 2,
+      "server_command": 559823,
+      "predicted_command": 559832,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 0
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "before-ladder",
+      "index": 3,
+      "server_command": 559865,
+      "predicted_command": 559874,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 0
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "before-ladder",
+      "index": 4,
+      "server_command": 559907,
+      "predicted_command": 559913,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 0
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "before-ladder",
+      "index": 5,
+      "server_command": 559949,
+      "predicted_command": 559955,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 0
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "before-ladder",
+      "index": 6,
+      "server_command": 559988,
+      "predicted_command": 559997,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 0
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "before-ladder",
+      "index": 7,
+      "server_command": 560028,
+      "predicted_command": 560038,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 0
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "before-ladder",
+      "index": 8,
+      "server_command": 560070,
+      "predicted_command": 560079,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 0
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "before-ladder",
+      "index": 9,
+      "server_command": 560105,
+      "predicted_command": 560114,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 0
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "before-ladder",
+      "index": 10,
+      "server_command": 560151,
+      "predicted_command": 560157,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 0
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "before-ladder",
+      "index": 11,
+      "server_command": 560178,
+      "predicted_command": 560189,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 0
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "before-ladder",
+      "index": 12,
+      "server_command": 560229,
+      "predicted_command": 560238,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 0
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 0,
+      "server_command": 560531,
+      "predicted_command": 560541,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        118.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 435
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 1,
+      "server_command": 560578,
+      "predicted_command": 560588,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 605
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 2,
+      "server_command": 560618,
+      "predicted_command": 560627,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 443
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 3,
+      "server_command": 560657,
+      "predicted_command": 560664,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 295
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 4,
+      "server_command": 560701,
+      "predicted_command": 560707,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 241
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 5,
+      "server_command": 560742,
+      "predicted_command": 560751,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 241
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 6,
+      "server_command": 560773,
+      "predicted_command": 560786,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 474
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 7,
+      "server_command": 560812,
+      "predicted_command": 560823,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 362
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 8,
+      "server_command": 560852,
+      "predicted_command": 560862,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 285
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 9,
+      "server_command": 560902,
+      "predicted_command": 560910,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 308
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 10,
+      "server_command": 560949,
+      "predicted_command": 560955,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 590
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 11,
+      "server_command": 560982,
+      "predicted_command": 560992,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 590
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 12,
+      "server_command": 561028,
+      "predicted_command": 561038,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 483
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 13,
+      "server_command": 561069,
+      "predicted_command": 561078,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 221
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 14,
+      "server_command": 561109,
+      "predicted_command": 561118,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 332
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 15,
+      "server_command": 561151,
+      "predicted_command": 561157,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 332
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 16,
+      "server_command": 561182,
+      "predicted_command": 561193,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 332
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 17,
+      "server_command": 561230,
+      "predicted_command": 561239,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 489
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 18,
+      "server_command": 561263,
+      "predicted_command": 561275,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 221
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 19,
+      "server_command": 561306,
+      "predicted_command": 561315,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 366
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 20,
+      "server_command": 561354,
+      "predicted_command": 561361,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 887
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 21,
+      "server_command": 561401,
+      "predicted_command": 561408,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 238
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 22,
+      "server_command": 561442,
+      "predicted_command": 561451,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 238
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 23,
+      "server_command": 561472,
+      "predicted_command": 561482,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 366
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 24,
+      "server_command": 561522,
+      "predicted_command": 561531,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 349
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 25,
+      "server_command": 561555,
+      "predicted_command": 561561,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 474
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 26,
+      "server_command": 561598,
+      "predicted_command": 561604,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 295
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 27,
+      "server_command": 561634,
+      "predicted_command": 561645,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 295
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 28,
+      "server_command": 561672,
+      "predicted_command": 561683,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 366
+    },
+    {
+      "capture": "pose-readonly-ladder-coherent.json",
+      "phase": "ladder-up",
+      "index": 29,
+      "server_command": 561712,
+      "predicted_command": 561725,
+      "mode": 1,
+      "aim": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "movementYaw": 0,
+      "movementYaw_source": "explicit zero movement-yaw control; PS movementDir was not captured",
+      "velocity": [
+        0.0,
+        0.0,
+        119.0
+      ],
+      "lean": 0.0,
+      "freelook": [
+        0,
+        0
+      ],
+      "freelook_source": "explicit zero freelook policy input",
+      "scale": 1.25,
+      "leanMode": 1,
+      "rateQ8": 490
+    },
+    {
+      "capture": "pose-control-prone-aim.jsonl",
+      "sample": 180,
+      "server_command": 1001806,
+      "mode": 3,
+      "aim": [
+        1.84027982,
+        -40.6383362,
+        0
+      ],
+      "movementYaw": 0,
+      "velocity": [
+        0,
+        0,
+        0
+      ],
+      "lean": 0,
+      "freelook": [
+        0,
+        0
+      ],
+      "scale": 1.0,
+      "leanMode": 1,
+      "rateQ8": 256
+    },
+    {
+      "capture": "pose-control-prone-aim.jsonl",
+      "sample": 181,
+      "server_command": 1001860,
+      "mode": 3,
+      "aim": [
+        1.8402555,
+        -40.6217537,
+        0
+      ],
+      "movementYaw": 0,
+      "velocity": [
+        0,
+        0,
+        0
+      ],
+      "lean": 0,
+      "freelook": [
+        0,
+        0
+      ],
+      "scale": 1.0,
+      "leanMode": 1,
+      "rateQ8": 256
+    },
+    {
+      "capture": "pose-control-prone-aim.jsonl",
+      "sample": 182,
+      "server_command": 1001917,
+      "mode": 3,
+      "aim": [
+        1.84023583,
+        -40.605175,
+        0
+      ],
+      "movementYaw": 0,
+      "velocity": [
+        0,
+        0,
+        0
+      ],
+      "lean": 0,
+      "freelook": [
+        0,
+        0
+      ],
+      "scale": 1.0,
+      "leanMode": 1,
+      "rateQ8": 256
+    },
+    {
+      "capture": "pose-control-prone-aim.jsonl",
+      "sample": 183,
+      "server_command": 1001958,
+      "mode": 3,
+      "aim": [
+        1.84022164,
+        -40.5831032,
+        0
+      ],
+      "movementYaw": 0,
+      "velocity": [
+        0,
+        0,
+        0
+      ],
+      "lean": 0,
+      "freelook": [
+        0,
+        0
+      ],
+      "scale": 1.0,
+      "leanMode": 1,
+      "rateQ8": 256
+    },
+    {
+      "capture": "pose-control-prone-aim.jsonl",
+      "sample": 184,
+      "server_command": 1002073,
+      "mode": 3,
+      "aim": [
+        1.84021401,
+        -40.5610504,
+        0
+      ],
+      "movementYaw": 0,
+      "velocity": [
+        0,
+        0,
+        0
+      ],
+      "lean": 0,
+      "freelook": [
+        0,
+        0
+      ],
+      "scale": 1.0,
+      "leanMode": 1,
+      "rateQ8": 256
+    },
+    {
+      "capture": "pose-control-prone-aim.jsonl",
+      "sample": 185,
+      "server_command": 1002126,
+      "mode": 3,
+      "aim": [
+        1.84021103,
+        -40.5390205,
+        0
+      ],
+      "movementYaw": 0,
+      "velocity": [
+        0,
+        0,
+        0
+      ],
+      "lean": 0,
+      "freelook": [
+        0,
+        0
+      ],
+      "scale": 1.0,
+      "leanMode": 1,
+      "rateQ8": 256
+    },
+    {
+      "capture": "pose-control-prone-aim.jsonl",
+      "sample": 186,
+      "server_command": 1002179,
+      "mode": 3,
+      "aim": [
+        1.84021008,
+        -40.5170059,
+        0
+      ],
+      "movementYaw": 0,
+      "velocity": [
+        0,
+        0,
+        0
+      ],
+      "lean": 0,
+      "freelook": [
+        0,
+        0
+      ],
+      "scale": 1.0,
+      "leanMode": 1,
+      "rateQ8": 256
+    },
+    {
+      "capture": "pose-control-prone-aim.jsonl",
+      "sample": 187,
+      "server_command": 1002232,
+      "mode": 3,
+      "aim": [
+        1.84020996,
+        -40.4954872,
+        0
+      ],
+      "movementYaw": 0,
+      "velocity": [
+        0,
+        0,
+        0
+      ],
+      "lean": 0,
+      "freelook": [
+        0,
+        0
+      ],
+      "scale": 1.0,
+      "leanMode": 1,
+      "rateQ8": 256
+    },
+    {
+      "capture": "pose-control-prone-aim.jsonl",
+      "sample": 188,
+      "server_command": 1002258,
+      "mode": 3,
+      "aim": [
+        1.84020984,
+        -40.4789886,
+        0
+      ],
+      "movementYaw": 0,
+      "velocity": [
+        0,
+        0,
+        0
+      ],
+      "lean": 0,
+      "freelook": [
+        0,
+        0
+      ],
+      "scale": 1.0,
+      "leanMode": 1,
+      "rateQ8": 256
+    },
+    {
+      "capture": "pose-control-prone-aim.jsonl",
+      "sample": 189,
+      "server_command": 1002309,
+      "mode": 3,
+      "aim": [
+        1.82372904,
+        -40.4624825,
+        0
+      ],
+      "movementYaw": 0,
+      "velocity": [
+        0,
+        0,
+        0
+      ],
+      "lean": 0,
+      "freelook": [
+        0,
+        0
+      ],
+      "scale": 1.0,
+      "leanMode": 1,
+      "rateQ8": 256
+    },
+    {
+      "capture": "pose-control-prone-aim.jsonl",
+      "sample": 190,
+      "server_command": 1002360,
+      "mode": 3,
+      "aim": [
+        1.80724633,
+        -40.4459839,
+        0
+      ],
+      "movementYaw": 0,
+      "velocity": [
+        0,
+        0,
+        0
+      ],
+      "lean": 0,
+      "freelook": [
+        0,
+        0
+      ],
+      "scale": 1.0,
+      "leanMode": 1,
+      "rateQ8": 256
+    },
+    {
+      "capture": "pose-control-prone-aim.jsonl",
+      "sample": 191,
+      "server_command": 1002414,
+      "mode": 3,
+      "aim": [
+        1.78526473,
+        -40.4239922,
+        0
+      ],
+      "movementYaw": 0,
+      "velocity": [
+        0,
+        0,
+        0
+      ],
+      "lean": 0,
+      "freelook": [
+        0,
+        0
+      ],
+      "scale": 1.0,
+      "leanMode": 1,
+      "rateQ8": 256
+    },
+    {
+      "capture": "pose-control-prone-aim.jsonl",
+      "sample": 192,
+      "server_command": 1002474,
+      "mode": 3,
+      "aim": [
+        1.7632798,
+        -40.4020081,
+        0
+      ],
+      "movementYaw": 0,
+      "velocity": [
+        0,
+        0,
+        0
+      ],
+      "lean": 0,
+      "freelook": [
+        0,
+        0
+      ],
+      "scale": 1.0,
+      "leanMode": 1,
+      "rateQ8": 256
+    },
+    {
+      "capture": "pose-control-prone-aim.jsonl",
+      "sample": 193,
+      "server_command": 1002528,
+      "mode": 3,
+      "aim": [
+        1.74129069,
+        -40.3800278,
+        0
+      ],
+      "movementYaw": 0,
+      "velocity": [
+        0,
+        0,
+        0
+      ],
+      "lean": 0,
+      "freelook": [
+        0,
+        0
+      ],
+      "scale": 1.0,
+      "leanMode": 1,
+      "rateQ8": 256
+    },
+    {
+      "capture": "pose-control-prone-aim.jsonl",
+      "sample": 194,
+      "server_command": 1002581,
+      "mode": 3,
+      "aim": [
+        1.71929741,
+        -40.3580513,
+        0
+      ],
+      "movementYaw": 0,
+      "velocity": [
+        0,
+        0,
+        0
+      ],
+      "lean": 0,
+      "freelook": [
+        0,
+        0
+      ],
+      "scale": 1.0,
+      "leanMode": 1,
+      "rateQ8": 256
+    },
+    {
+      "capture": "pose-control-prone-aim.jsonl",
+      "sample": 195,
+      "server_command": 1002632,
+      "mode": 3,
+      "aim": [
+        1.69729996,
+        -40.3360748,
+        0
+      ],
+      "movementYaw": 0,
+      "velocity": [
+        0,
+        0,
+        0
+      ],
+      "lean": 0,
+      "freelook": [
+        0,
+        0
+      ],
+      "scale": 1.0,
+      "leanMode": 1,
+      "rateQ8": 256
+    }
+  ]
+}

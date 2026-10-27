@@ -525,15 +525,21 @@ int G_Map_v(gentity_t *ent, unsigned int dwVoteIndex, char *arg, char *arg2, qbo
 	{
 		char serverinfo[MAX_INFO_STRING];
 		char mapinfo[MAX_INFO_STRING];
+		int source;
 		trap_GetServerinfo(serverinfo, sizeof(serverinfo));
 
 		Com_sprintf(mapinfo, sizeof(mapinfo), "scripts/%s.mapinfo", arg2);
-		if (!trap_PC_LoadSource(mapinfo))
+		source = trap_PC_LoadSource(mapinfo);
+		if (!source)
 		{
 			G_refPrintf(ent, "[lof]^3%s^7 [lon]is not a valid tce map", arg2);
 			G_voteCurrentSetting(ent, arg, Info_ValueForKey(serverinfo, "mapname"));
 			return G_INVALID;
 		}
+		/* The existence check owns this engine parser handle even when the
+		 * vote is subsequently denied. Otherwise repeated mapvotes exhaust
+		 * the parser source table across map restarts. */
+		trap_PC_FreeSource(source);
 		if (sv_official.integer && !BG_MapIsOfficial(arg2))
 		{
 			G_refPrintf(ent, "[lof]^3%s^7 [lon]is not an official tce map", arg2);

@@ -19,11 +19,23 @@ settings or publish on push.
 Android ARMv7/ARM64, WASM32 and macOS universal. Every target attempts both mod
 modules and a matching Omni-bot core. The default builds public gameplay and
 separate authoring variants. No target is silently excluded: a concrete compiler
-failure keeps its logs and, where available, a clearly named **Modules-Only** ZIP,
+failure keeps its logs and, where available, a clearly named **Modules-Only-Client-Inputs** ZIP,
 then fails that job. Such an archive is not a complete bot runtime. Successful
 compilation does not establish cross-target engine compatibility or parity.
 
-The public ZIP contains three mod libraries, `tce2-1.0.2.pk3`, its client version
+Matrix jobs produce **Client-Inputs** ZIPs for aggregation, without a provisional
+download PK3. Only the full collection of all ten target ABIs is promoted to
+installable target ZIPs. Aggregation creates one deterministic `tce2-1.0.2.pk3`
+per variant containing all twenty native cgame/UI modules and matched resources.
+The two user-provided Delta overview/blueprint images and their source hashes are
+included in both variants; maps without a supplied overview keep the map fallback.
+Every target ZIP of that variant receives the exact same PK3 bytes, so a Linux
+server serves the current Windows client pair as well. Version, variant, Release
+configuration, native ABI headers, resource equality and module editor boundaries
+are checked before promotion. Shared client download ZIPs are included separately
+in the aggregate. Game and Editor PK3s remain in separate variant packages.
+
+The final public ZIP contains three target mod libraries, `tce2-1.0.2.pk3`, its client version
 manifest, gameplay Omni-bot core/scripts/config, six existing standard-map WAY
 files with GT2/GT5 goals and mapscripts, Lua examples/WolfAdmin and notices.
 Execute `tce2/omnibot-release.cfg` before starting a map; automatic core discovery
@@ -53,8 +65,8 @@ dependencies and pinned Recast source. `package_preflight.py` checks its complet
 resource closure. Other target ZIPs contain mod/core libraries, not an untested
 desktop application for those operating systems. No desktop app is started in CI.
 
-Each target produces versioned ZIPs, SHA256 files, a file manifest and build logs.
-The final aggregate includes every target archive, selected desktop package and
+Each target produces versioned input ZIPs, SHA256 files, a file manifest and build logs.
+The final aggregate includes every promoted target archive, selected desktop package and
 tracked build-source ZIP. Partial runs are labeled **INCOMPLETE-Build-Artifacts**
 and cannot reach the publish job. Artifacts remain downloadable from the manual
 run; explicitly published GitHub releases are independent of artifact retention.
@@ -85,3 +97,11 @@ checked as individual commands. Use `--variant navstudio` for the separate edito
 used in CI. Source ZIPs include only tracked build/production inputs and relevant
 documentation. Local reconstruction reports, AGENTS instructions, credentials,
 original DLLs, engines, build caches and generated packages are excluded.
+
+For an explicit single-target smoke package, `package.py --local-client-pk3`
+preserves native client packaging with a **Local-Test** name and metadata; release
+aggregation rejects it. Supply `--configuration Debug` for a Debug smoke build.
+For independently packaging an installable target, `--shared-client-pk3` accepts
+only a validated canonical PK3 spanning the full release matrix and matching the
+target's exact cgame/UI bytes. Normal release inputs require CMake's generated
+module manifest, including its actual configuration.

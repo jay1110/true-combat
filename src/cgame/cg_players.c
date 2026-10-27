@@ -6,6 +6,7 @@
 */
 
 #include "cg_local.h"
+#include "cg_tce_pose_presentation.h"
 #include "../game/bg_classes.h"
 #include "../game/tce_trajectory.h"
 #include "../game/tce_numeric.h"
@@ -2096,12 +2097,57 @@ void CG_AnimPlayerConditions(bg_character_t *character, centity_t *cent)
 CG_Player
 ===============
 */
+/* Legacy alpha glass uses SURF_GLASS even when its brush inherits SOLID
+ * from a caulk side (Delta). TC's generic glass material also covers opaque
+ * windows, so that class still requires translucent brush contents. */
+static qboolean CG_TCETransparentGlass(const trace_t *trace)
+{
+	return trace->fraction < 1.0f && !trace->startsolid && !trace->allsolid &&
+	       ((trace->surfaceFlags & SURF_GLASS) ||
+	        ((trace->surfaceFlags & 0xff000000) == 0x0c000000 &&
+	         (trace->contents & CONTENTS_TRANSLUCENT))) &&
+	       (unsigned)trace->entityNum < ENTITYNUM_WORLD &&
+	       cg_entities[trace->entityNum].currentState.solid == SOLID_BMODEL;
+}
+
+static qboolean CG_TCEVisibilityTrace(const vec3_t point)
+{
+	trace_t trace, reverse;
+	int pane;
+	CG_Trace(&trace, cg.refdef.vieworg, vec3_origin, vec3_origin,
+	         point, cg.snap->ps.clientNum, CONTENTS_SOLID);
+	if (trace.startsolid || trace.allsolid)
+	{
+		return qfalse;
+	}
+	if (trace.fraction >= 1.0f)
+	{
+		return qtrue;
+	}
+	if (!CG_TCETransparentGlass(&trace))
+	{
+		return qfalse;
+	}
+	pane = trace.entityNum;
+	/* Skipping a transparent pane must not skip the world or a wall behind
+	 * it. Multiple panes remain conservative instead of ignoring all solids. */
+	CG_Trace(&trace, cg.refdef.vieworg, vec3_origin, vec3_origin,
+	         point, pane, CONTENTS_SOLID);
+	if (trace.startsolid || trace.allsolid || !(trace.fraction >= 1.0f))
+	{
+		return qfalse;
+	}
+	/* Also reject an opaque rear face belonging to this same brush model. */
+	CG_Trace(&reverse, point, vec3_origin, vec3_origin,
+	         cg.refdef.vieworg, cg.snap->ps.clientNum, CONTENTS_SOLID);
+	return CG_TCETransparentGlass(&reverse) && reverse.entityNum == pane;
+}
+
 /* Windows30034780 / Linux00065e2c. Cache only a positive result: an
  * occluded player is reconsidered every frame, a visible one after 1000ms. */
 void CG_CalcEntityVisibility(centity_t *cent)
 {
 	vec3_t  direction, point;
-	trace_t trace;
 	float   radius, top, bottom, sample;
 	int     pose = cent->currentState.otherEntityNum2;
 	int     corner;
@@ -2142,10 +2188,7 @@ void CG_CalcEntityVisibility(centity_t *cent)
 	VectorNormalize2(direction, direction);
 	if (DotProduct(cg.refdef.viewaxis[0], direction) > 0.0f)
 	{
-		CG_Trace(&trace, cg.refdef.vieworg, vec3_origin, vec3_origin,
-		         cent->lerpOrigin, cg.snap->ps.clientNum, CONTENTS_SOLID);
-		if (trace.fraction >= 1.0f ||
-		    (trace.surfaceFlags & 0xff000000) == 0x0c000000)
+		if (CG_TCEVisibilityTrace(cent->lerpOrigin))
 		{
 			return;
 		}
@@ -2155,10 +2198,7 @@ void CG_CalcEntityVisibility(centity_t *cent)
 			point[0] = cent->lerpOrigin[0] + ((corner & 1) ? -radius : radius);
 			point[1] = cent->lerpOrigin[1] + ((corner & 2) ? -radius : radius);
 			point[2] = cent->lerpOrigin[2] + ((corner & 4) ? -bottom : top);
-			CG_Trace(&trace, cg.refdef.vieworg, vec3_origin, vec3_origin,
-			         point, cg.snap->ps.clientNum, CONTENTS_SOLID);
-			if (trace.fraction >= 1.0f ||
-			    (trace.surfaceFlags & 0xff000000) == 0x0c000000)
+			if (CG_TCEVisibilityTrace(point))
 			{
 				return;
 			}
@@ -2169,10 +2209,7 @@ void CG_CalcEntityVisibility(centity_t *cent)
 		point[1] = (sample + sample) * radius + cent->lerpOrigin[1];
 		point[2] = ((bottom + top) * (rand() & 32767) *
 		            (1.0f / 32767.0f) - bottom) + cent->lerpOrigin[2];
-		CG_Trace(&trace, cg.refdef.vieworg, vec3_origin, vec3_origin,
-		         point, cg.snap->ps.clientNum, CONTENTS_SOLID);
-		if (trace.fraction >= 1.0f ||
-		    (trace.surfaceFlags & 0xff000000) == 0x0c000000)
+		if (CG_TCEVisibilityTrace(point))
 		{
 			return;
 		}
@@ -2197,6 +2234,8 @@ void CG_Player(centity_t *cent)
 	centity_t      *cgsnap;
 	bg_character_t *character;
 	float          hilightIntensity = 0.f;
+	int            tcePresentation;
+	tcePresentationOriginScope_t presentationOrigin = { { 0, 0, 0 }, 0, 0, 0 };
 
 	cgsnap = &cg_entities[cg.snap->ps.clientNum];
 
@@ -2270,9 +2309,18 @@ void CG_Player(centity_t *cent)
 	memset(&body, 0, sizeof(body));
 	memset(&head, 0, sizeof(head));
 	memset(&acc, 0, sizeof(acc));
+	tcePresentation = CG_TCEPresentationPrepare(cent, character, &body, &head);
+	if (tcePresentation)
+	{
+		VectorCopy(body.origin, playerOrigin);
+		CG_TCEPresentationBeginOrigin(cent, playerOrigin, &presentationOrigin);
+	}
 
 	// get the rotation information
-	CG_PlayerAngles(cent, body.axis, body.torsoAxis, head.axis);
+	if (!tcePresentation)
+	{
+		CG_PlayerAngles(cent, body.axis, body.torsoAxis, head.axis);
+	}
 	if (cent->currentState.eFlags & 0x01000000)
 	{
 		vec3_t angles, motion;
@@ -2401,7 +2449,7 @@ void CG_Player(centity_t *cent)
 	}
 
 	// FIXME: move this into CG_PlayerAngles
-	if (cgsnap == cent && (cg.snap->ps.pm_flags & PMF_LADDER))
+	if (!tcePresentation && cgsnap == cent && (cg.snap->ps.pm_flags & PMF_LADDER))
 	{
 		memcpy(body.torsoAxis, body.axis, sizeof(body.torsoAxis));
 	}
@@ -2410,8 +2458,11 @@ void CG_Player(centity_t *cent)
 	AxisCopy(body.torsoAxis, acc.axis);
 	if (tceSmokeNewBBox)
 	{
-		for (i = 0; i < 3; ++i)
-			VectorScale(body.axis[i], 1.25f, body.axis[i]);
+		if (!tcePresentation)
+		{
+			for (i = 0; i < 3; ++i)
+				VectorScale(body.axis[i], 1.25f, body.axis[i]);
+		}
 		body.nonNormalizedAxes = head.nonNormalizedAxes = acc.nonNormalizedAxes = qtrue;
 	}
 
@@ -2419,7 +2470,10 @@ void CG_Player(centity_t *cent)
 	CG_AnimPlayerConditions(character, cent);
 
 	// get the animation state (after rotation, to allow feet shuffle)
-	CG_PlayerAnimation(cent, &body);
+	if (!tcePresentation)
+	{
+		CG_PlayerAnimation(cent, &body);
+	}
 
 	// forcibly set binoc animation
 	if (cent->currentState.eFlags & EF_ZOOMING)
@@ -2473,6 +2527,7 @@ void CG_Player(centity_t *cent)
 	{
 		cent->tceEjectPending      = 0;
 		cent->tceFireEffectPending = 0;
+		CG_TCEPresentationEndOrigin(cent, &presentationOrigin);
 		return;
 	}
 
@@ -2531,6 +2586,7 @@ void CG_Player(centity_t *cent)
 	// Gordon: whoever wrote that comment sucks
 	if (!body.hModel)
 	{
+		CG_TCEPresentationEndOrigin(cent, &presentationOrigin);
 		return;
 	}
 
@@ -2544,6 +2600,7 @@ void CG_Player(centity_t *cent)
 		{
 			CG_AddPlayerWeapon(&body, NULL, cent);
 		}
+		CG_TCEPresentationEndOrigin(cent, &presentationOrigin);
 		return;
 	}
 
@@ -2665,6 +2722,7 @@ void CG_Player(centity_t *cent)
 
 	if (!(head.hModel = character->hudhead))
 	{
+		CG_TCEPresentationEndOrigin(cent, &presentationOrigin);
 		return;
 	}
 	head.customSkin = character->hudheadskin;
@@ -2703,7 +2761,13 @@ void CG_Player(centity_t *cent)
 		cent->pe.weaponFireTime = 0;
 	}
 
-	if (cent->currentState.eType != ET_CORPSE && !(cent->currentState.eFlags & EF_DEAD))
+	if (tcePresentation)
+	{
+		/* Protocol2 head geometry is the canonical attached rest pose. */
+		head.frame = head.oldframe = 0;
+		head.backlerp = 0.f;
+	}
+	else if (cent->currentState.eType != ET_CORPSE && !(cent->currentState.eFlags & EF_DEAD))
 	{
 		hudHeadAnimNumber_t anim;
 
@@ -2835,6 +2899,7 @@ void CG_Player(centity_t *cent)
 		CG_PositionEntityOnTag(&acc, i == 6 ? &head : &body, tags[i], 0, NULL);
 		CG_AddRefEntityWithPowerups(&acc, cent->currentState.powerups, ci->team, &cent->currentState, cent->fireRiseDir);
 	}
+	CG_TCEPresentationEndOrigin(cent, &presentationOrigin);
 }
 
 //=====================================================================

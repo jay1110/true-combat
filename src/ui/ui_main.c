@@ -1551,7 +1551,7 @@ void UI_LoadMenus(const char *menuFile, qboolean reset)
 
 void UI_Load()
 {
-	char      lastName[1024];
+	char      lastName[1024] = "";
 	menuDef_t *menu    = Menu_GetFocused();
 	char      *menuSet = UI_Cvar_VariableString("ui_menuFiles");
 	if (menu && menu->window.name)
@@ -1570,7 +1570,10 @@ void UI_Load()
 
 	UI_LoadMenus(menuSet, qtrue);
 	Menus_CloseAll();
-	Menus_ActivateByName(lastName, qtrue);
+	if (lastName[0])
+	{
+		Menus_ActivateByName(lastName, qtrue);
+	}
 }
 
 static const char *handicapValues[] = { "None", "95", "90", "85", "80", "75", "70", "65", "60", "55", "50", "45", "40", "35", "30", "25", "20", "15", "10", "5", NULL };
@@ -10586,6 +10589,7 @@ cvarTable_t cvarTable[] =
 	{ NULL,                             "cg_printObjectiveInfo",           "1",                          CVAR_ARCHIVE                   },
 	{ NULL,                             "cg_useScreenshotJPEG",            "1",                          CVAR_ARCHIVE                   },
 	{ NULL,                             "cg_drawGun",                      "1",                          CVAR_ARCHIVE                   },
+	{ NULL,                             "cg_countryflags",                 "1",                          CVAR_ARCHIVE                   },
 	{ NULL,                             "cg_drawCompass",                  "1",                          CVAR_ARCHIVE                   },
 	{ NULL,                             "cg_drawRoundTimer",               "1",                          CVAR_ARCHIVE                   },
 	{ NULL,                             "cg_drawReinforcementTime",        "1",                          CVAR_ARCHIVE                   },
