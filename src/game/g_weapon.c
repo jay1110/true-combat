@@ -17,6 +17,7 @@
 #include "tce_damage_trace.h"
 #include "g_tce_bullet_damage.h"
 #include "g_tce_weapon_stats.h"
+#include "g_tce_hit_debug.h"
 
 
 vec3_t forward, right, up;
@@ -3674,7 +3675,8 @@ void Bullet_Fire(gentity_t *ent, float spread, int damage, qboolean distance_fal
 	vec3_t                end;
 	const tce_weaponDef_t *def;
 	int                   seed;
-	if (g_antilag.integer && ent->client && !(ent->r.svFlags & SVF_BOT))
+	G_TCEHitDebugShot(ent, TCE_HIT_DEBUG_SHOT);
+	if ((g_antilag.integer & TCE_ANTILAG_ENABLE) && ent->client && !(ent->r.svFlags & SVF_BOT))
 	{
 		G_TimeShiftAllClients(ent, qtrue);
 	}
@@ -3692,7 +3694,7 @@ void Bullet_Fire(gentity_t *ent, float spread, int damage, qboolean distance_fal
 	}
 	Bullet_Fire_Extended(ent, ent, muzzleTrace, end, spread, damage,
 	                     def->unknown_134, 0, 0, 4, 4, 8, seed, 0);
-	if (g_antilag.integer && ent->client && !(ent->r.svFlags & SVF_BOT))
+	if ((g_antilag.integer & TCE_ANTILAG_ENABLE) && ent->client && !(ent->r.svFlags & SVF_BOT))
 	{
 		G_UnTimeShiftAllClients(ent);
 	}
@@ -3763,6 +3765,7 @@ static void G_TCETraceBullet(trace_t *result, gentity_t *source,
 	}
 	trap_Trace(result, start, NULL, NULL, end, source->s.number,
 	           MASK_MISSILESHOT & ~CONTENTS_BODY);
+	G_TCEHitDebugTrace("world", source->s.number, -1, -1, result, start, end);
 	for (i = 0; i < unlinkedCount; ++i)
 	{
 		trap_LinkEntity(unlinked[i]);
@@ -3800,8 +3803,15 @@ static void G_TCETraceBullet(trace_t *result, gentity_t *source,
 			}
 			if (policy == G_TCE_PRESENTATION_AFFECTED)
 			{
-				if (G_TCEPosePresentationTrace(&query, start, end, nearestFraction,
-				                               &skin) == G_TCE_POSE_TRACE_HIT &&
+				g_tcePoseTraceState_t state = G_TCEPosePresentationTrace(&query, start, end, nearestFraction, &skin);
+				if (G_TCEHitDebugTarget(i) && G_TCEHitDebugLogAllowed())
+					G_Printf("TCEHIT mesh shooter=%d target=%d query=%u ceiling=%u source=%u state=%d region=%d fraction=%.17g world=%.9g limit=%.17g surfaces=%u triangles=%u triangle=%u hitmask=%u reason=%s\n",
+					    source->s.number, i, context->shotTime, context->receiptCeiling, query.sourceTime,
+					    state, skin.surface.region, skin.surface.fraction, worldFraction, nearestFraction,
+					    skin.surface.surfacesTested, skin.surface.trianglesTested, skin.surface.triangle, skin.surface.hitMask,
+					    state == G_TCE_POSE_TRACE_UNSUPPORTED ? "unavailable-geometry" : state == G_TCE_POSE_TRACE_MISS ? "no-triangle-before-cover" :
+					    (float)skin.surface.fraction >= worldFraction ? "world-first-or-float-tie" : skin.surface.fraction >= nearestFraction ? "nearer-target-first" : "contact");
+				if (state == G_TCE_POSE_TRACE_HIT &&
 				    skin.surface.fraction < nearestFraction &&
 				    (float)skin.surface.fraction < worldFraction)
 				{
@@ -3820,6 +3830,8 @@ static void G_TCETraceBullet(trace_t *result, gentity_t *source,
 			}
 			if (policy != G_TCE_PRESENTATION_LEGACY)
 			{
+				if (G_TCEHitDebugTarget(i) && G_TCEHitDebugLogAllowed())
+					G_Printf("TCEHIT reject shooter=%d target=%d query=%u ceiling=%u reason=UNKNOWN-presentation-history\n", source->s.number, i, context->shotTime, context->receiptCeiling);
 				continue;
 			}
 		}
@@ -3827,8 +3839,15 @@ static void G_TCETraceBullet(trace_t *result, gentity_t *source,
 		TCE_DamageVolumes(&pose, volumes);
 		for (part = 0; part < 3; ++part)
 		{
-			float fraction;
-			if (TCE_DamageVolumeFraction(&volumes[part], start, end, &fraction) &&
+			float fraction = 1;
+			int intersects = TCE_DamageVolumeFraction(&volumes[part], start, end, &fraction);
+			if (G_TCEHitDebugTarget(i) && G_TCEHitDebugLogAllowed())
+				G_Printf("TCEHIT legacy target=%d region=%d query=%u rewind=%d low=(%.9g %.9g %.9g) high=(%.9g %.9g %.9g) fraction=%.9g world=%.9g reason=%s\n",
+				    i, part, context->shotTime, target->client->tceRewind.active,
+				    volumes[part].origin[0]+volumes[part].mins[0], volumes[part].origin[1]+volumes[part].mins[1], volumes[part].origin[2]+volumes[part].mins[2],
+				    volumes[part].origin[0]+volumes[part].maxs[0], volumes[part].origin[1]+volumes[part].maxs[1], volumes[part].origin[2]+volumes[part].maxs[2],
+				    fraction, worldFraction, !intersects ? "ray-outside-region" : fraction >= worldFraction ? "world-first" : fraction >= nearestFraction ? "nearer-target-first" : "contact");
+			if (intersects &&
 			    fraction < nearestFraction)
 			{
 				nearest = target;
@@ -3841,6 +3860,9 @@ static void G_TCETraceBullet(trace_t *result, gentity_t *source,
 	{
 		return;
 	}
+	if (G_TCEHitDebugTarget(nearest->s.number) && G_TCEHitDebugLogAllowed())
+		G_Printf("TCEHIT select target=%d geometry=%s fraction=%.17g query=%u ceiling=%u\n", nearest->s.number,
+		    context->hasSelection ? "triangles" : "legacy-AABB", nearestFraction, context->shotTime, context->receiptCeiling);
 	memset(result, 0, sizeof(*result));
 	result->entityNum = nearest->s.number;
 	if (context->hasSelection)
@@ -3928,10 +3950,11 @@ static qboolean G_TCEBulletFireExtended(gentity_t *source, gentity_t *attacker,
 	}
 	RubbleFlagCheck(attacker, tr);
 	hit = &g_entities[tr.entityNum];
-	EmitterCheck(hit, attacker, &tr);
-	/* Network/effect rounding must not move the damage probe off the ray
-	 * that selected this target, or into another overlapping body volume. */
+	/* EmitterCheck already snaps tr.endpos for network effects. Preserve the
+	 * selected ray contact BEFORE that call: its rounding can otherwise put
+	 * a legitimate entry probe inside the temporary regional collision box. */
 	VectorCopy(tr.endpos, damagePoint);
+	EmitterCheck(hit, attacker, &tr);
 	SnapVectorTowards(tr.endpos, start);
 #if defined(__linux__)
 	totalDistance = TCE_TruncateNativeInteger((long double)Distance(tr.endpos, start) +
@@ -3940,7 +3963,7 @@ static qboolean G_TCEBulletFireExtended(gentity_t *source, gentity_t *attacker,
 	totalDistance = (int)(Distance(tr.endpos, start) + (float)totalDistance);
 #endif
 
-	if ((hit->takedamage && hit->client && g_debugBullets.integer > 1) ||
+	if ((hit->takedamage && hit->client && g_debugBullets.integer > 0 && (g_debugBullets.integer & 2)) ||
 	    (!(hit->takedamage && hit->client) && g_debugBullets.integer < -1))
 	{
 		VectorAdd(hit->r.currentOrigin, hit->r.mins, low);
@@ -3973,6 +3996,9 @@ static qboolean G_TCEBulletFireExtended(gentity_t *source, gentity_t *attacker,
 		    G_Damage(hit, attacker, attacker, direction, damagePoint, applied,
 		        0, weaponDef[attacker->s.weapon].mod));
 #endif
+		if (G_TCEHitDebugTarget(hit->s.number) && G_TCEHitDebugLogAllowed())
+			G_Printf("TCEHIT damage shooter=%d target=%d result=%.9g applied=%d health=%d\n", attacker->s.number, hit->s.number,
+			    result, hit->client->tceLastAppliedDamage, hit->health);
 #if defined(__linux__)
 		if (damageResult == 1.0L || TCE_FloatIsNaN(result))
 #else
@@ -4868,6 +4894,7 @@ FireWeapon
  * this path but is not the loop bound. Client event161 renders wall impacts. */
 void ShotgunPattern(vec3_t origin, vec3_t direction, int seed, gentity_t *ent)
 {
+	G_TCEHitDebugShot(ent, TCE_HIT_DEBUG_SHOT);
 #if defined(__linux__)
 	vec3_t axis, side, vertical, end;
 	int i, j, damage;
@@ -4876,7 +4903,7 @@ void ShotgunPattern(vec3_t origin, vec3_t direction, int seed, gentity_t *ent)
 	CrossProduct(axis, side, vertical);
 	damage = TCE_TruncateNativeInteger(
 	    (long double)weaponDef[ent->client->ps.weapon].unknown_12c * (1.0f / 9.0f));
-	if (g_antilag.integer && ent->client && !(ent->r.svFlags & SVF_BOT))
+	if ((g_antilag.integer & TCE_ANTILAG_ENABLE) && ent->client && !(ent->r.svFlags & SVF_BOT))
 	{
 		G_TimeShiftAllClients(ent, qtrue);
 	}
@@ -4894,7 +4921,7 @@ void ShotgunPattern(vec3_t origin, vec3_t direction, int seed, gentity_t *ent)
 		Bullet_Fire_Extended(ent, ent, muzzleTrace, end, 0, damage,
 		                     weaponDef[ent->client->ps.weapon].unknown_134, 0, 0, 1, 1, 8, seed, 1);
 	}
-	if (g_antilag.integer && ent->client && !(ent->r.svFlags & SVF_BOT))
+	if ((g_antilag.integer & TCE_ANTILAG_ENABLE) && ent->client && !(ent->r.svFlags & SVF_BOT))
 	{
 		G_UnTimeShiftAllClients(ent);
 	}
@@ -4905,7 +4932,7 @@ void ShotgunPattern(vec3_t origin, vec3_t direction, int seed, gentity_t *ent)
 	VectorNormalize2(direction, axis);
 	PerpendicularVector(side, axis);
 	CrossProduct(axis, side, vertical);
-	if (g_antilag.integer && !(ent->r.svFlags & SVF_BOT))
+	if ((g_antilag.integer & TCE_ANTILAG_ENABLE) && !(ent->r.svFlags & SVF_BOT))
 	{
 		G_TimeShiftAllClients(ent, qtrue);
 	}
@@ -4924,7 +4951,7 @@ void ShotgunPattern(vec3_t origin, vec3_t direction, int seed, gentity_t *ent)
 		Bullet_Fire_Extended(ent, ent, muzzleTrace, end, 0, damage,
 		                     weaponDef[ent->client->ps.weapon].unknown_134, 0, 0, 1, 1, 8, seed, 1);
 	}
-	if (g_antilag.integer && !(ent->r.svFlags & SVF_BOT))
+	if ((g_antilag.integer & TCE_ANTILAG_ENABLE) && !(ent->r.svFlags & SVF_BOT))
 	{
 		G_UnTimeShiftAllClients(ent);
 	}

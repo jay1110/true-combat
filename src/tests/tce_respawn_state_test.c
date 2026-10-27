@@ -18,7 +18,7 @@ int main(int argc,char**argv){HMODULE dll;byte*b,raw[0x600];snapshot_t snap;void
  accepted=argc==3&&!strcmp(argv[2],"--accepted-extensions");
  if((argc!=2&&!accepted)||!(dll=LoadLibraryA(argv[1])))return 2;
  if(!accepted&&sizeof(cg.pmext)!=112){printf("STRICT_BASELINE_DIFFERENCE CG_Respawn pmext=%u original=112; freelook tail requires separate accepted-extension test\n",(unsigned)sizeof(cg.pmext));return 1;}
- if(accepted&&(sizeof(cg.pmext)!=120||offsetof(pmoveExt_t,tceFreelookRecoil)!=112||sizeof(cg.pmext.tceFreelookRecoil)!=8)){puts("Accepted extension layout contract changed");return 2;}
+ if(accepted&&(sizeof(cg.pmext)!=128||offsetof(pmoveExt_t,tceFreelookRecoil)!=112||sizeof(cg.pmext.tceFreelookRecoil)!=8||offsetof(pmoveExt_t,tceReloadWeapon)!=120||offsetof(pmoveExt_t,tceReloadRequestedAt)!=124)){puts("Accepted mod extension layout contract changed");return 2;}
 b=(byte*)dll;original=(void*)(b+0x56cb0);
  hook(b+0x64d60,command);hook(trap_SendConsoleCommand,command);hook(b+0x64c10,cvar);hook(trap_Cvar_Set,cvar);hook(b+0x65380,fog);hook(trap_R_SetFog,fog);
  /* A real connected TC game has parsed gear. Without this fixture state the
@@ -28,7 +28,7 @@ b=(byte*)dll;original=(void*)(b+0x56cb0);
   for(i=0;i<sizeof(map)/sizeof(map[0]);i++){int seed=0x3f000000+c+i;memcpy((byte*)&cg+map[i].offset,&seed,4);memcpy(b+map[i].original,&seed,4);}memset(&cg.pmext,0xa7,sizeof(cg.pmext));memset(b+0x4087ee8,0xa7,112);tceFlash.blindUntil=*(int*)(b+0x40a49c0)=71;tceFlash.blindActive=*(int*)(b+0x40a49c4)=72;tceFlash.deafUntil=*(int*)(b+0x40a49c8)=73;tceFlash.deafness=*(float*)(b+0x40a49cc)=.74f;events[0]=0;original(c%2);strcpy(expected,events);events[0]=0;CG_Respawn(c%2);
   for(i=0;i<sizeof(map)/sizeof(map[0]);i++)if(memcmp((byte*)&cg+map[i].offset,b+map[i].original,4)){printf("respawn case%d offset%x\n",c,map[i].original);return 1;}
   if(memcmp(&cg.pmext,b+0x4087ee8,112) || memcmp(&tceFlash,b+0x40a49c0,16) || strcmp(events,expected)||cgs.limboLoadoutSelected!=*(int*)(b+0x3fdecb4)||cg.pmext.bAutoReload!=*(int*)(b+0x4087ee8)||cg.pmext.sprintTime!=*(int*)(b+0x4087ef8)){printf("respawn calls/pmext case%d\n",c);return 1;}
-  if(accepted){const byte zero[8]={0};if(memcmp(cg.pmext.tceFreelookRecoil,zero,8)){printf("Freelook suffix not reset case%d\n",c);return 1;}}
- }printf(accepted?"ACCEPTED_EXTENSION CG_Respawn 1200 cases: original112-byte prefix+state/calls equal; separate8-byte freelook suffix zeroed\n":"1200 whole CG_Respawn state and engine-call comparisons passed\n");return 0;
+  if(accepted){const byte zero[8]={0};if(memcmp(cg.pmext.tceFreelookRecoil,zero,8)||cg.pmext.tceReloadWeapon||cg.pmext.tceReloadRequestedAt){printf("Freelook/reload suffix not reset case%d\n",c);return 1;}}
+ }printf(accepted?"ACCEPTED_EXTENSION CG_Respawn 1200 cases: original112-byte prefix+state/calls equal; separate16-byte freelook/reload suffix zeroed\n":"1200 whole CG_Respawn state and engine-call comparisons passed\n");return 0;
 }
 

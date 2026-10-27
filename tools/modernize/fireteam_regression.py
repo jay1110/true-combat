@@ -10,7 +10,8 @@ def main():
     parser.add_argument('--optimized',action='store_true')
     parser.add_argument('--sanitize',action='store_true')
     args=parser.parse_args();out=args.out.resolve();out.mkdir(parents=True,exist_ok=True)
-    source_paths=['src/cgame/cg_tce_fireteam.c','src/cgame/cg_fireteamoverlay.c','src/cgame/cg_draw.c','src/cgame/cg_drawtools.c','src/cgame/cg_popupmessages.c','src/cgame/tce_popup_draw.c','src/cgame/tce_popup_draw.h','src/game/g_fireteams.c','src/game/g_cmds.c','src/cgame/cg_local.h','src/game/g_local.h','src/game/q_shared.c','src/game/q_shared.h','src/game/bg_public.h','tools/modernize/fireteam_regression.py']
+    source_paths=['src/cgame/cg_tce_fireteam.c','src/cgame/cg_fireteamoverlay.c','src/cgame/cg_draw.c','src/cgame/cg_drawtools.c','src/cgame/cg_popupmessages.c','src/cgame/tce_popup_draw.c','src/cgame/tce_popup_draw.h','src/cgame/cg_hud_viewport.c','src/cgame/cg_hud_viewport.h','src/ui/tce_viewport.c','src/ui/tce_viewport.h','src/game/g_fireteams.c','src/game/g_cmds.c','src/cgame/cg_servercmds.c','src/cgame/cg_local.h','src/game/g_local.h','src/game/q_shared.c','src/game/q_shared.h','src/game/bg_public.h','tools/modernize/fireteam_regression.py']
+    assert 'CG_TCEFireteamInvalidate();' in function((ROOT/'src/cgame/cg_servercmds.c').read_text(),'CG_MapRestart')
     digest=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
     report={'source_hashes':{p:digest(ROOT/p) for p in source_paths},'results':{},'limits':['Actual production functions; instrumented engine transport, clock and renderer, not live game or pixel acceptance.','Command fixture executes the actual ClientCommand prefix through fireteam dispatch; later unrelated commands are outside this fixture.']}
     env=None
@@ -21,6 +22,8 @@ def main():
         template=Path(__file__).with_name('fireteam_'+mode+'_fixture.c')
         text=template.read_text()
         if mode=='client':
+            viewport=re.sub(r'^#include[^\n]*\n','',(ROOT/'src/cgame/cg_hud_viewport.c').read_text(),flags=re.M)
+            text=text.replace('/* ACTUAL_VIEWPORT_CONTEXT */',viewport)
             source=(ROOT/'src/cgame/cg_fireteamoverlay.c').read_text()
             names=('CG_IsOnSameFireteam','CG_IsFireTeamLeader','CG_SortFireTeam','CG_SortClientFireteam','CG_SortedFireTeamPlayerForPosition','CG_ParseFireteams')
             units=[]
@@ -35,10 +38,13 @@ def main():
             assert 'if (!cg_paused.integer)\n\t\t{\n\t\t\tCG_DrawFireteamHUD();' in frame
             for name in ('CG_DrawFollow','CG_DrawSpectatorMessage','CG_DrawLimboMessage'):
                 assert 'if (!cg.showFireteamMenu) '+name+'();' in frame
+            for name in ('CG_DrawPMItems','CG_DrawFireteamHUD'):
+                before=frame[:frame.index(name+'();')]
+                assert list(re.finditer(r'CG_HudViewportAnchor\(([^)]*)\)',before))[-1].group(1)=='0, 0'
             for name in ('CG_DrawFollow','CG_DrawLimboMessage'):
                 assert 'a.paint = CG_FireteamMessagePaint; a.small = CG_FireteamMessageSmall;' in function(draw,name)
             hud=[function((ROOT/'src/cgame/cg_drawtools.c').read_text(),name) for name in ('CG_TCAdjustFrom640','CG_AdjustFrom640')]
-            hud += [function(draw,name) for name in ('CG_TCEFireteamTextY','CG_TCEFireteamStatusOffset','CG_MessagePaint','CG_MessageSmall','CG_FireteamMessagePaint','CG_FireteamMessageSmall','CG_DrawFireteamHUD')]
+            hud += [function(draw,name) for name in ('CG_TCEFireteamTextY','CG_TCEFireteamStatusOffset','CG_MessagePaint','CG_MessageSmall','CG_FireteamMessagePaint','CG_FireteamMessageSmall','CG_DrawFireteamHUD','CG_DrawTeamNames')]
             text=text.replace('/* ACTUAL_HUD_FUNCTION */','\n\n'.join(hud))
             popup=(ROOT/'src/cgame/cg_popupmessages.c').read_text()
             names=('CG_PopupPaint','CG_PopupMessageBottom','CG_PopupCompactPic','CG_PopupCompactPaint','CG_PopupDuration','CG_DrawPMItems')
@@ -60,6 +66,7 @@ def main():
         else:
             command=[compiler,'-O2' if args.optimized else '-O0','-I'+str(ROOT),'-I'+str(ROOT/'src/game'),str(generated),str(ROOT/'src/game/q_shared.c'),'-lm','-o',str(exe)]
             if args.sanitize:command+=['-fsanitize=address,undefined','-g']
+        if mode=='client':command.insert(command.index(str(generated))+1,str(ROOT/'src/ui/tce_viewport.c'))
         run=subprocess.run(command,cwd=directory,env=env,capture_output=True,text=True)
         (directory/'compile.log').write_text(run.stdout+run.stderr)
         row={'command':command,'compile_exit':run.returncode,'template_sha256':digest(template),'generated_sha256':digest(generated)}

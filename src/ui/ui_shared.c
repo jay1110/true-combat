@@ -6,6 +6,10 @@
 
 #include "ui_shared.h"
 #include "ui_local.h"   // For CS settings/retrieval
+#include "tce_viewport.h"
+#ifdef CGAMEDLL
+#include "../cgame/cg_hud_viewport.h"
+#endif
 #if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 #include "../game/tce_numeric.h"
 #include "../game/tce_transition_precision.h"
@@ -6095,6 +6099,7 @@ static bind_t g_bindings[] =
 	{ "+wstats",             -1,              -1,  -1,              -1,  -1, -1, -1 },
 	{ "commandmap",          -1,              -1,  -1,              -1,  -1, -1, -1 },
 	{ "+mapexpand",          -1,              -1,  -1,              -1,  -1, -1, -1 },
+	{ "dropobj",             -1,              -1,  -1,              -1,  -1, -1, -1 },
 
 /*	{"+scores", 		-1,				-1, -1, -1},
 	{"+speed",			K_SHIFT,		-1, -1, -1},
@@ -6565,9 +6570,23 @@ qboolean Item_Bind_HandleKey(itemDef_t *item, int key, qboolean down)
 
 
 #include "tce_ui_coordinates.h"
+static qboolean TCE_UISharedViewportAdjust(float *x, float *y, float *w, float *h)
+{
+	tce_viewport_t view;
+#ifdef CGAMEDLL
+	if (CG_HudViewportAdjust(x, y, w, h, 1)) return qtrue;
+#endif
+	if (!DC || !DC->getCVarValue || DC->getCVarValue("cg_wideScreen") == 0.f) return qfalse;
+	if (!TCE_ViewportFit(&view, DC->glconfig.vidWidth, DC->glconfig.vidHeight,
+	                     TCE_VIEWPORT_CANVAS_WIDTH, TCE_VIEWPORT_CANVAS_HEIGHT,
+	                     (float)DC->getCVarValue("ui_menuMaxHeight"), (float)DC->getCVarValue("ui_menuScale"), .5f, .5f)) return qtrue;
+	TCE_ViewportProject(&view, x, y, w, h);
+	return qtrue;
+}
 #if defined(_WIN32) && !defined(Q3_VM)
 void AdjustFrom640(float *x, float *y, float *w, float *h)
 {
+	if (TCE_UISharedViewportAdjust(x, y, w, h)) return;
 	int         width = DC->glconfig.vidWidth, height = DC->glconfig.vidHeight;
 	long double scale, shifted;
 	const float horizontal = 0.750000059604644775390625f;
@@ -6596,6 +6615,7 @@ void AdjustFrom640(float *x, float *y, float *w, float *h)
 #elif defined(__linux__)
 void AdjustFrom640(float *x, float *y, float *w, float *h)
 {
+	if (TCE_UISharedViewportAdjust(x, y, w, h)) return;
 	int width = DC->glconfig.vidWidth, height = DC->glconfig.vidHeight;
 	const float horizontal = 0.750000059604644775390625f;
 	long double scale, shifted;
@@ -6624,6 +6644,7 @@ void AdjustFrom640(float *x, float *y, float *w, float *h)
 #else
 void AdjustFrom640(float *x, float *y, float *w, float *h)
 {
+	if (TCE_UISharedViewportAdjust(x, y, w, h)) return;
 	TCE_UI_AdjustCoordinates(x, y, w, h, DC->glconfig.vidWidth,
 	                         DC->glconfig.vidHeight, DC->xscale, DC->yscale);
 }

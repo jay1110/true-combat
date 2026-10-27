@@ -510,6 +510,18 @@ static void surfaceAdapter(void) {
             CHECK((int)G_TCEPosePresentationTrace(&query,r->start,r->end,r->limit,&result)==r->state);
             CHECK((int)result.surface.region==r->region && fabs(result.surface.fraction-r->fraction)<.00002);
             CHECK(G_TCEPosePresentationTraceMatches(&result,&query,r->start,r->end,r->limit));
+            /* Diagnostic bounds use the real registered MDX/MDM/MD3 assets,
+             * enclose an actual regional contact, and cannot load assets or
+             * invalidate the immutable damage selection already returned. */
+            {
+                float low[3][3],high[3][3];unsigned int beforeOpens=opens,axis,region;
+                CHECK(G_TCEPosePresentationBounds(&query,low,high));CHECK(opens==beforeOpens);
+                for(region=0;region<3;++region)for(axis=0;axis<3;++axis)CHECK(low[region][axis]<=high[region][axis]);
+                if(result.state==G_TCE_POSE_TRACE_HIT)for(axis=0;axis<3;++axis)
+                    CHECK(result.surface.point[axis]>=low[result.surface.region][axis]-.001f&&
+                          result.surface.point[axis]<=high[result.surface.region][axis]+.001f);
+                CHECK(G_TCEPosePresentationTraceMatches(&result,&query,r->start,r->end,r->limit));
+            }
             if(result.state==G_TCE_POSE_TRACE_HIT) {
                 ++positive[result.surface.region];
                 for(i=0;i<3;++i)CHECK(result.nominal[i]==(i==(unsigned int)r->region?(i==0?2.f:i==1?1.f:.5f):0.f));

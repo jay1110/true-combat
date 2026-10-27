@@ -3,6 +3,7 @@
 //
 #include "g_local.h"
 #include "tce_bg.h"
+#include "tce_hit_debug.h"
 #include "../ui/menudef.h"  // For vote options
 
 
@@ -999,7 +1000,7 @@ int G_AntiLag_v(gentity_t *ent, unsigned int dwVoteIndex, char *arg, char *arg2,
 	if (arg)
 	{
 		return(G_voteProcessOnOff(ent, arg, arg2, fRefereeCmd,
-		                          !!(g_antilag.integer),
+		                          !!(g_antilag.integer & TCE_ANTILAG_ENABLE),
 		                          vote_allow_antilag.integer,
 		                          dwVoteIndex));
 

@@ -1,6 +1,7 @@
 #define CGAMEDLL
 #include "src/cgame/cg_local.h"
 #include "src/cgame/tce_popup_draw.h"
+#include "src/ui/tce_viewport.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -9,7 +10,13 @@
 cg_t cg;
 cgs_t cgs;
 const char *bg_fireteamNames[MAX_FIRETEAMS / 2] = { "Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot" };
-vmCvar_t cg_drawFireteamOverlay,cg_paused,cg_aspectMode;
+vmCvar_t cg_drawFireteamOverlay,cg_paused,cg_aspectMode,cg_drawTeamNames;
+centity_t cg_entities[MAX_GENTITIES];
+int tceSmokeNewBBox;
+static int traceCalls, traceBlocked;
+static int modernHud;
+static float hudUserScale=.85f,hudHeightCap=1080;
+static vmCvar_t *hudCvars[3];
 qboolean tce_uiCoordinates;
 static snapshot_t snapshot;
 static int checks, failures, argumentCount, draws, fills;
@@ -21,7 +28,7 @@ static float lastBarWidth;
 static float panelHeight,lastTextY;
 static int paintCount,picCount;
 static struct { float x,y,w,h; } pictures[8];
-static struct { float x,y,scale;char text[256]; } paints[64];
+static struct { float x,y,scale,color[4];char text[256]; } paints[64];
 static int sortedFireTeamClients[MAX_CLIENTS];
 #define CHECK(c) do { ++checks; if (!(c)) { ++failures; printf("FAIL %d: %s\n",__LINE__,#c); } } while (0)
 
@@ -29,7 +36,20 @@ void QDECL Com_Printf(const char *format, ...) { (void)format; }
 void QDECL Com_Error(int level, const char *format, ...) { (void)level;(void)format;abort(); }
 int Q_vsnprintf(char *dest,int size,const char *format,va_list args) { return vsnprintf(dest,(size_t)size,format,args); }
 void trap_Cvar_Register(vmCvar_t *cvar,const char *name,const char *value,int flags)
-{ (void)cvar;CHECK(!strcmp(name,"tceft")&&!strcmp(value,"1")&&(flags&CVAR_USERINFO)); }
+{
+    int id;
+    if(!strcmp(name,"tceft")){CHECK(!strcmp(value,"1")&&(flags&CVAR_USERINFO));return;}
+    id=!strcmp(name,"cg_wideScreen")?0:!strcmp(name,"cg_hudScale")?1:!strcmp(name,"cg_hudMaxHeight")?2:-1;
+    CHECK(id>=0&&flags==CVAR_ARCHIVE);if(id<0)return;
+    CHECK(!strcmp(value,id==0?"1":id==1?"0.85":"1080"));hudCvars[id]=cvar;
+    cvar->value=id==0?(float)modernHud:id==1?hudUserScale:hudHeightCap;cvar->integer=(int)cvar->value;
+}
+void trap_Cvar_Update(vmCvar_t *cvar)
+{
+    int id;
+    for(id=0;id<3;++id)if(hudCvars[id]==cvar){cvar->value=id==0?(float)modernHud:id==1?hudUserScale:hudHeightCap;cvar->integer=(int)cvar->value;return;}
+    CHECK(0);
+}
 const char *CG_Argv(int index) { return index>=0&&index<argumentCount?arguments[index]:""; }
 int trap_Argc(void) { return argumentCount; }
 const char *CG_ConfigString(int index)
@@ -47,19 +67,28 @@ void CG_Text_Paint_Ext(float x,float y,float sx,float sy,vec4_t color,const char
     CHECK(strlen(rendered)+strlen(text)+2<sizeof(rendered));
     strcat(rendered,text);strcat(rendered,"\n");++draws;
     lastTextY=y;
-    if(paintCount<64){paints[paintCount].x=x;paints[paintCount].y=y;paints[paintCount].scale=sx;Q_strncpyz(paints[paintCount++].text,text,256);}
+    if(paintCount<64){paints[paintCount].x=x;paints[paintCount].y=y;paints[paintCount].scale=sx;memcpy(paints[paintCount].color,color,sizeof(vec4_t));Q_strncpyz(paints[paintCount++].text,text,256);}
 }
 void CG_FillRect(float x,float y,float w,float h,const float *color)
-{ (void)x;(void)y;(void)color;CHECK(w>=0&&h>=0);if(!fills)panelHeight=h;if(h==3)lastBarWidth=w;++fills; }
+{ (void)x;(void)y;(void)color;CHECK(w>=0&&h>=0);if(!fills)panelHeight=h;if(h==4)lastBarWidth=w;++fills; }
+qhandle_t trap_R_RegisterShaderNoMip(const char *name) { CHECK(strstr(name,"sprites/")||strstr(name,"gfx/tce2/nav/"));return 42; }
+void CG_Trace(trace_t *out,const vec3_t start,const vec3_t mins,const vec3_t maxs,const vec3_t end,int skip,int mask)
+{ (void)start;(void)mins;(void)maxs;(void)end;CHECK(skip==snapshot.ps.clientNum&&mask==(CONTENTS_SOLID|CONTENTS_BODY));memset(out,0,sizeof(*out));out->fraction=traceBlocked?.5f:1.f;out->entityNum=ENTITYNUM_WORLD;++traceCalls; }
+vec_t VectorNormalize(vec3_t vector)
+{ float n=sqrtf(DotProduct(vector,vector));if(n){vector[0]/=n;vector[1]/=n;vector[2]/=n;}return n; }
 void CG_DrawRect(float x,float y,float w,float h,float size,const float *color)
 { (void)x;(void)y;(void)color;CHECK(w>0&&h>0&&size>0); }
 char *BG_GetLocationString(vec2_t pos) { static char grid[32];sprintf(grid,"B3[%i,%i]",(int)pos[0],(int)pos[1]);return grid; }
 void trap_R_SetColor(const float *color) {(void)color;}
+void trap_R_DrawStretchPic(float x,float y,float w,float h,float s1,float t1,float s2,float t2,qhandle_t shader)
+{ (void)x;(void)y;(void)s1;(void)t1;(void)s2;(void)t2;(void)shader;CHECK(w>=0&&h>=0); }
 void CG_DrawPic(float x,float y,float w,float h,qhandle_t shader)
 { (void)shader;if(picCount<8){pictures[picCount].x=x;pictures[picCount].y=y;pictures[picCount].w=w;pictures[picCount++].h=h;} }
 void CG_DrawSmallStringColor(int x,int y,const char *text,vec4_t color)
 { (void)x;(void)text;(void)color;lastTextY=(float)y; }
 int CG_TimeForPopup(popupMessageType_t type) {(void)type;return 10000;}
+
+/* ACTUAL_VIEWPORT_CONTEXT */
 
 /* ACTUAL_SORT_FUNCTIONS */
 #include "src/cgame/cg_tce_fireteam.c"
@@ -83,7 +112,7 @@ static void packet(const char *text)
 }
 static void render(void)
 {
-    rectDef_t rect={8,8,220,0};draws=fills=paintCount=0;lastBarWidth=-1;rendered[0]=0;CG_DrawTCEFireteamOverlay(&rect);
+    rectDef_t rect={8,8,220,0};draws=fills=paintCount=picCount=0;lastBarWidth=-1;rendered[0]=0;CG_DrawTCEFireteamOverlay(&rect);
 }
 static void setup(void)
 {
@@ -92,8 +121,10 @@ static void setup(void)
     memset(fireteamConfig,0,sizeof(fireteamConfig));
     cg.snap=&snapshot;cg.clientNum=0;cg.time=10000;snapshot.ps.clientNum=0;snapshot.ps.stats[STAT_HEALTH]=100;
     cg_paused.integer=0;cg_aspectMode.integer=0;tce_uiCoordinates=qfalse;
+    modernHud=0;hudUserScale=.85f;hudHeightCap=1080;CG_HudViewportInit();
     cgs.glconfig.vidWidth=1280;cgs.glconfig.vidHeight=720;cgs.screenXScale=2.f;cgs.screenYScale=1.5f;
     cg_pmWaitingList=cg_pmOldList=NULL;popupBottom=0;picCount=paintCount=0;
+    rendered[0]=0;draws=fills=0;
     cg_drawFireteamOverlay.integer=1;cg.fireTeams[0].inuse=qtrue;cg.fireTeams[0].leader=0;
     for(i=0;i<2;++i){cgs.clientinfo[i].infoValid=qtrue;cgs.clientinfo[i].team=TEAM_AXIS;cgs.clientinfo[i].fireteamData=&cg.fireTeams[0];}
     Q_strncpyz(cgs.clientinfo[0].name,"Leader",sizeof(cgs.clientinfo[0].name));
@@ -110,8 +141,8 @@ static void protocolAndPresentation(void)
     int kind;
     tce_fireteamInfo_t before[MAX_CLIENTS];
     setup();parseGood();CHECK(fireteamInfo[1].valid&&fireteamInfo[1].health==75&&fireteamInfo[1].area==2);
-    render();CHECK(strstr(rendered,"Partner")&&strstr(rendered,"75")&&strstr(rendered,"South Tower"));
-    CHECK(lastBarWidth==18.75f&&panelHeight==42.f);
+    render();CHECK(strstr(rendered,"Partner")&&!strstr(rendered,"75")&&strstr(rendered,"South Tower"));
+    CHECK(lastBarWidth==18.75f&&panelHeight==32.f);
     memcpy(before,fireteamInfo,sizeof(before));
     for(kind=0;kind<12;++kind){
         parseGood();
@@ -134,7 +165,7 @@ static void protocolAndPresentation(void)
     cg.time+=2501;render();CHECK(strstr(rendered,"...")&&!strstr(rendered,"75")&&!strstr(rendered,"South Tower"));
     parseGood();strcpy(arguments[10],"0");CG_ParseTCEFireteamInfo();render();CHECK(strstr(rendered,"DEAD")&&!strstr(rendered,"Killed in action"));
     strcpy(arguments[10],"-1");CG_ParseTCEFireteamInfo();render();CHECK(strstr(rendered,"WAIT")&&!strstr(rendered,"Waiting to respawn"));
-    parseGood();render();CHECK(strstr(rendered,"75")&&!strstr(rendered,"DEAD")&&!strstr(rendered,"WAIT"));
+    parseGood();render();CHECK(fireteamInfo[1].health==75&&!strstr(rendered,"DEAD")&&!strstr(rendered,"WAIT"));
     snapshot.ps.stats[STAT_HEALTH]=-1;render();CHECK(strstr(rendered,"DEAD")&&!strstr(rendered,"WAIT"));
     snapshot.ps.pm_flags=PMF_LIMBO;render();CHECK(strstr(rendered,"WAIT"));
     snapshot.ps.pm_flags=0;snapshot.ps.stats[STAT_HEALTH]=100;
@@ -183,7 +214,7 @@ static void fullFireteam(void)
         Q_strcat(text,sizeof(text),entry);
     }
     packet(text);CG_ParseTCEFireteamInfo();render();
-    CHECK(strstr(rendered,"FIRETEAM Alpha  6/6")!=NULL);
+    CHECK(strstr(rendered,"FIRETEAM")==NULL);
     for(i=0;i<6;++i){
         const char *found;
         Com_sprintf(name,sizeof(name),"Member%02i",ids[i]);found=strstr(rendered,name);
@@ -192,7 +223,7 @@ static void fullFireteam(void)
         CHECK(CG_SortedFireTeamPlayerForPosition(i,6)==&cgs.clientinfo[ids[i]]);
     }
     CHECK(CG_SortedFireTeamPlayerForPosition(6,6)==NULL);
-    CHECK(draws==20); /* Heading + leader mark + six name/health/location rows. */
+    CHECK(draws==13); /* Leader mark + six name/location rows; HP uses bars. */
 }
 static void membershipAndSlotReuse(void)
 {
@@ -212,7 +243,7 @@ static void membershipAndSlotReuse(void)
     CHECK(CG_IsOnFireteam(1)==&cg.fireTeams[0]&&!fireteamInfo[1].valid);
     CHECK(strstr(rendered,"Rejoined")&&strstr(rendered,"...")&&!strstr(rendered,"75"));
     packet("tceftinfo 0 2 0 100 1 120 220 30 1 22 1 900 901 40");CG_ParseTCEFireteamInfo();render();
-    CHECK(strstr(rendered,"22")&&strstr(rendered,"North Ware")&&!strstr(rendered,"B3[900,901]"));
+    CHECK(fireteamInfo[1].health==22&&strstr(rendered,"North Ware")&&!strstr(rendered,"B3[900,901]"));
     CHECK(!strstr(rendered,"75")&&!strstr(rendered,"South Tower"));
     strcpy(fireteamConfig[0],"\\id\\-1");CG_ParseFireteams();render();
     CHECK(!fireteamInfo[1].valid&&CG_IsOnFireteam(0)==NULL&&CG_IsOnFireteam(1)==NULL&&draws==0);
@@ -224,7 +255,7 @@ static void following(void)
     snapshot.ps.clientNum=1;snapshot.ps.pm_flags=PMF_FOLLOW|PMF_LIMBO;
     snapshot.ps.stats[STAT_HEALTH]=12;snapshot.ps.holdable[13]=1;
     VectorSet(snapshot.ps.origin,-900,-901,30);render();
-    CHECK(strstr(rendered,"WAIT")&&strstr(rendered,"75")&&strstr(rendered,"South Tower"));
+    CHECK(strstr(rendered,"WAIT")&&fireteamInfo[1].health==75&&strstr(rendered,"South Tower"));
     CHECK(!strstr(rendered,"12")&&!strstr(rendered,"B3[-900,-901]"));
     packet("tceftinfo 0 2 0 -1 1 120 220 30 1 0 2 200 300 40");CG_ParseTCEFireteamInfo();
     snapshot.ps.stats[STAT_HEALTH]=100;render();
@@ -266,30 +297,69 @@ static void compactLayout(void)
             sprintf(cgs.clientinfo[i].name,"^1Player%02i",i);
         }
         CG_SortClientFireteam();render();
-        CHECK(panelHeight==14+14*count&&CG_TCEFireteamHeight()==panelHeight);
-        CHECK(paintCount==2+3*count); /* header, leader, three cells per player */
+        CHECK(panelHeight==4+14*count&&CG_TCEFireteamHeight()==panelHeight);
+        CHECK(paintCount==1+2*count); /* leader, name/location per player */
         for(row=0;row<count;++row){
             seen=0;
-            for(i=1;i<paintCount;++i)if(paints[i].y==8+14+row*14+10){
+            for(i=0;i<paintCount;++i)if(paints[i].y==8+2+row*14+10){
                 ++seen;CHECK(paints[i].x>=8&&paints[i].x<228);
                 CHECK(!strchr(paints[i].text,'^'));
-                if(paints[i].x==21)CHECK(CG_Text_Width_Ext(paints[i].text,.15f,0,NULL)<=83);
-                if(paints[i].x==163)CHECK(CG_Text_Width_Ext(paints[i].text,.13f,0,NULL)<=61);
+                if(paints[i].x==32)CHECK(strlen(paints[i].text)<=13);
+                if(paints[i].x==136)CHECK(CG_Text_Width_Ext(paints[i].text,.13f,0,NULL)<=78);
             }
-            CHECK(seen==(row==0?4:3));
+            CHECK(seen==(row==0?3:2));
         }
     }
     strcpy(name,"^1WWWWWW^^WWWWWW^^1WWWWWWWWWWWWWWWW");CG_TCEFireteamFit(name,61,.13f);
     CHECK(!strchr(name,'^')&&strstr(name,"...")&&CG_Text_Width_Ext(name,.13f,0,NULL)<=61);
-    cgs.clientinfo[1].fireteamData=NULL;CG_SortClientFireteam();CHECK(CG_TCEFireteamHeight()==84);
+    cgs.clientinfo[1].fireteamData=NULL;CG_SortClientFireteam();CHECK(CG_TCEFireteamHeight()==74);
     cg.showFireteamMenu=qtrue;CHECK(CG_TCEFireteamHeight()==0);
     cg.showFireteamMenu=qfalse;cg_paused.integer=1;CHECK(CG_TCEFireteamHeight()==0);
     cg_paused.integer=0;cg_drawFireteamOverlay.integer=0;CHECK(CG_TCEFireteamHeight()==0);
+}
+static void objectiveAndNames(void)
+{
+    int objective;char text[256],name[256];tce_fireteamInfo_t before[MAX_CLIENTS];
+    setup();
+    for(objective=0;objective<=4;++objective){
+        sprintf(text,"tceftinfo 0 2 0 100 1 120 220 30 0 1 75 2 200 300 40 %i",objective);
+        packet(text);CG_ParseTCEFireteamInfo();render();
+        CHECK(fireteamInfo[1].objective==objective&&picCount==(objective?1:0));
+    }
+    memcpy(before,fireteamInfo,sizeof(before));strcpy(arguments[16],"5");CG_ParseTCEFireteamInfo();CHECK(!memcmp(before,fireteamInfo,sizeof(before)));
+    strcpy(arguments[16],"-1");CG_ParseTCEFireteamInfo();CHECK(!memcmp(before,fireteamInfo,sizeof(before)));
+    strcpy(arguments[16],"1");strcpy(arguments[11],"0");CG_ParseTCEFireteamInfo();CHECK(!memcmp(before,fireteamInfo,sizeof(before)));
+    cg.time+=2501;render();CHECK(picCount==0);
+    parseGood();CHECK(fireteamInfo[1].objective==0); /* Legacy packet clears carrier. */
+    strcpy(name,"^1ABCDEFGHIJKL");CG_TCEFireteamName(name);CHECK(!strcmp(name,"ABCDEFGHIJ..."));
+    strcpy(name,"^1ABCDEFGHIJ");CG_TCEFireteamName(name);CHECK(!strcmp(name,"ABCDEFGHIJ"));
+    snapshot.ps.stats[STAT_TCE_WEAPON_FLAGS]=0x100;render();CHECK(picCount==1);
+    CG_TCEFireteamInvalidate();snapshot.ps.stats[STAT_TCE_WEAPON_FLAGS]=0;render();CHECK(!picCount);
+    cg_drawTeamNames.integer=1;cg.predictedPlayerState.persistant[PERS_TEAM]=TEAM_AXIS;
+    cg.predictedPlayerState.clientNum=0;cg.tceNameTanHalfFov=1;
+    VectorSet(cg.refdef.viewaxis[0],1,0,0);VectorSet(cg.refdef.viewaxis[1],0,1,0);VectorSet(cg.refdef.viewaxis[2],0,0,1);
+    memset(cg_entities,0,sizeof(cg_entities));cg_entities[1].currentValid=qtrue;cg_entities[1].tceVisible=qtrue;cg_entities[1].currentState.eType=ET_PLAYER;
+    VectorSet(cg_entities[1].lerpOrigin,200,0,0);strcpy(cgs.clientinfo[1].name,"^1Partner");
+    traceBlocked=0;traceCalls=0;paintCount=0;rendered[0]=0;CG_DrawTeamNames();
+    CHECK(paintCount==1&&traceCalls==1&&!strcmp(paints[0].text,"Partner"));
+    CHECK(paints[0].color[1]>.7f&&paints[0].color[0]<.6f);
+    traceBlocked=1;paintCount=0;CG_DrawTeamNames();CHECK(paintCount==0);
+    traceBlocked=0;cg_entities[1].currentValid=qfalse;paintCount=0;CG_DrawTeamNames();CHECK(paintCount==0);
+    cg_entities[1].currentValid=qtrue;cg_entities[1].tceVisible=qfalse;CG_DrawTeamNames();CHECK(paintCount==0);
+    cg_entities[1].tceVisible=qtrue;cgs.clientinfo[1].fireteamData=NULL;CG_DrawTeamNames();CHECK(paintCount==0);
+    cgs.clientinfo[1].fireteamData=&cg.fireTeams[0];cgs.clientinfo[1].team=TEAM_ALLIES;CG_DrawTeamNames();CHECK(paintCount==0);
+    cgs.clientinfo[1].team=TEAM_AXIS;cg_entities[1].currentState.eFlags=EF_DEAD;CG_DrawTeamNames();CHECK(paintCount==0);
+    cg_entities[1].currentState.eFlags=0;cg_drawTeamNames.integer=0;CG_DrawTeamNames();CHECK(paintCount==0);
 }
 static float screenY(float y)
 {
     float x=0,w=0,h=1; qboolean before=tce_uiCoordinates;
     tce_uiCoordinates=qtrue;CG_AdjustFrom640(&x,&y,&w,&h);tce_uiCoordinates=before;return y;
+}
+static float sdkScreenY(float y)
+{
+    float x=0,w=0,h=1;qboolean before=tce_uiCoordinates;
+    tce_uiCoordinates=qfalse;CG_AdjustFrom640(&x,&y,&w,&h);tce_uiCoordinates=before;return y;
 }
 static void textBelowFireteam(void)
 {
@@ -316,16 +386,16 @@ static void textBelowFireteam(void)
         }
         cg_pmWaitingList=messages[n]?popupItems:NULL;cg_pmOldList=messages[n]>1?&popupItems[1]:NULL;
         CG_DrawPMItems();CHECK(!tce_uiCoordinates);CHECK(picCount==messages[n]);
-        bottom=(8+CG_TCEFireteamHeight())*cgs.screenYScale;
-        start=screenY(CG_TCEFireteamTextY(-480));CHECK(start>=bottom+7.9f*cgs.screenYScale);
+        bottom=sdkScreenY(8+CG_TCEFireteamHeight()+8);
+        start=screenY(CG_TCEFireteamTextY(-480));CHECK(start>=bottom-.01f);
         for(i=0;i<picCount;++i){
-            CHECK(screenY(pictures[i].y)>=bottom+7.9f*cgs.screenYScale);
+            CHECK(screenY(pictures[i].y)>=bottom-.01f);
             if(i)CHECK(fabsf(pictures[i].y-pictures[i-1].y-14)<.001f);
             CHECK(fabsf(paints[i].y-pictures[i].y-12)<.001f);
         }
         offset=CG_TCEFireteamStatusOffset();
         CG_FireteamMessagePaint(8,118,.25f,.25f,white,"Following",0,0,0,NULL);
-        CHECK(screenY(lastTextY-14)>=bottom+7.9f*cgs.screenYScale);
+        CHECK(screenY(lastTextY-14)>=bottom-.01f);
         if(picCount)CHECK(lastTextY-14>=CG_PopupMessageBottom()+5.9f);
         CG_FireteamMessageSmall(8,118,"Waiting",white);CHECK(lastTextY==118+ceilf(offset));
         CG_MessagePaint(8,118,.2f,.2f,white,"Unrelated objective",0,0,0,NULL);CHECK(lastTextY==118);
@@ -335,8 +405,36 @@ static void textBelowFireteam(void)
         CHECK(CG_TCEFireteamTextY(10)==10); /* no reservation while admin is open */
     }
 }
+static void modernTextBelowFireteam(void)
+{
+    const int widths[]={1024,1280,1280,3440,3840},heights[]={768,720,800,1440,2160};
+    const float scales[]={.5f,.85f,1.f,1.5f};
+    const int counts[]={1,3,6};int screen,scale,n,c,i;
+    vec4_t white={1,1,1,1};
+    for(c=0;c<3;++c)for(screen=0;screen<5;++screen)for(scale=0;scale<4;++scale)for(n=0;n<3;++n){
+        float minimum,physical,baseline;
+        setup();for(i=0;i<6;++i){cgs.clientinfo[i].infoValid=i<counts[c];cgs.clientinfo[i].team=TEAM_AXIS;cgs.clientinfo[i].fireteamData=i<counts[c]?&cg.fireTeams[0]:NULL;}
+        CG_SortClientFireteam();cgs.glconfig.vidWidth=widths[screen];cgs.glconfig.vidHeight=heights[screen];
+        cgs.screenXScale=widths[screen]/640.f;cgs.screenYScale=heights[screen]/480.f;
+        modernHud=1;hudUserScale=scales[scale];CG_HudViewportUpdate();CG_HudViewportBegin(0,0);
+        minimum=sdkScreenY(8+CG_TCEFireteamHeight()+8);physical=screenY(CG_TCEFireteamTextY(-480));
+        CHECK(fabsf(physical-minimum)<.02f);CHECK(!tce_uiCoordinates);
+        /* All real popup records use the TC canvas, while FT uses SDK640.
+         * Verify their physical top instead of assuming equal native scales. */
+        memset(popupItems,0,sizeof(popupItems));
+        for(i=0;i<n+1;++i){strcpy(popupItems[i].message,"Kill / Death notification");popupItems[i].time=cg.time;popupItems[i].next=i<n?&popupItems[i+1]:NULL;}
+        cg_pmWaitingList=popupItems;cg_pmOldList=n?&popupItems[1]:NULL;CG_DrawPMItems();
+        CHECK(picCount==n+1);
+        for(i=0;i<picCount;++i){CHECK(screenY(pictures[i].y)>=minimum-.02f);if(i)CHECK(pictures[i].y>=pictures[i-1].y+13.99f);}
+        CG_FireteamMessagePaint(8,118,.25f,.25f,white,"Following",0,0,0,NULL);
+        baseline=screenY(lastTextY-14);CHECK(baseline>=minimum-.02f);
+        CHECK(lastTextY-14>=CG_PopupMessageBottom()+5.99f);
+        cg.showFireteamMenu=qtrue;CHECK(CG_TCEFireteamTextY(10)==10);cg.showFireteamMenu=qfalse;
+        CG_HudViewportEnd();CHECK(!tce_uiCoordinates);
+    }
+}
 int main(void)
 {
-    protocolAndPresentation();sorting();fullFireteam();membershipAndSlotReuse();following();hudIntegration();compactLayout();textBelowFireteam();
+    protocolAndPresentation();sorting();fullFireteam();membershipAndSlotReuse();following();hudIntegration();compactLayout();textBelowFireteam();modernTextBelowFireteam();objectiveAndNames();
     printf("Fireteam client: %i checks, %i failures\n",checks,failures);return failures?1:0;
 }

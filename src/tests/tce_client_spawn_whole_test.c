@@ -64,7 +64,7 @@ static int acceptedResultEqual(const result_t *original,const result_t *source){
  const byte zero[8]={0};
  if(original->ps.holdable[TCE_FREELOOK_PITCH]!=0||original->ps.holdable[TCE_FREELOOK_YAW]!=0||
     source->ps.holdable[TCE_FREELOOK_PITCH]!=TCE_FREELOOK_CENTER||source->ps.holdable[TCE_FREELOOK_YAW]!=TCE_FREELOOK_CENTER||
-    memcmp(clients[number].pmext.tceFreelookRecoil,zero,8))return 0;
+    memcmp(clients[number].pmext.tceFreelookRecoil,zero,8)||clients[number].pmext.tceReloadWeapon||clients[number].pmext.tceReloadRequestedAt)return 0;
  return !memcmp(original,source,offset)&&
         !memcmp((const byte*)original+offset+8,(const byte*)source+offset+8,sizeof(*original)-offset-8);
 }

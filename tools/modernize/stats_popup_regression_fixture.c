@@ -28,6 +28,7 @@ static snapshot_t snapshot;
 /* Map-restart services are unrelated engine/asset boundaries. The actual
  * CG_MapRestart body and stats cleanup/request functions execute below. */
 void CG_TCEPresentationRestart(void) {}
+void CG_TCEFireteamInvalidate(void) {}
 void CG_LimboPanel_RequestObjective(void) {}
 void CG_ParseWolfinfo(void) {}
 void CG_ParseEntitiesFromString(void) {}
@@ -167,17 +168,18 @@ static void tceReply(int offset,int total)
 static void tceStats(void)
 {
     int kind,i,j;float right[6]={0};int header[6];
-    const char *columns[]={"^7Weapon","Acc %","Hits/Attacks","Kills","Deaths","HS"};
+    const char *columns[]={"Weapon","Acc %","Hits/Att.","Kills","Deaths","HS"};
     reset();CHECK(dispatch("+wstats"));CHECK(requestFor(7));
     strcpy(tce_cg_weapons[1].deployMenuShortName,"Wide WWW");strcpy(tce_cg_weapons[2].deployMenuShortName,"Beretta 92");
     tceReply(0,9);CG_TCEWeaponStatsParse();CHECK(cg.statsWindow==NULL);
     tceReply(8,9);CG_TCEWeaponStatsParse();CHECK(cg.statsWindow!=NULL);
-    CHECK(cg.statsWindow->fontScaleX==.16f);now+=111;clearDraw();CG_windowDraw();
+    CHECK(cg.statsWindow->fontScaleX==.14f);now+=111;clearDraw();CG_windowDraw();
     CHECK(strstr(drawn,"Beretta 92")&&strstr(drawn,"Wide WWW"));CHECK(!strstr(drawn,"Luger")&&!strstr(drawn,"MP-40"));
-    CHECK(strstr(drawn,"^53/4")==NULL);CHECK(strstr(drawn,"^56/10")!=NULL);
-    for(i=0;i<6;++i){header[i]=-1;for(j=0;j<paintCount;++j)if(!strcmp(painted[j].text,columns[i])){header[i]=j;right[i]=painted[j].x+CG_Text_Width_Ext(painted[j].text,.16f,0,NULL);break;}CHECK(header[i]>=0);}
-    for(i=1;i<6;++i)CHECK(painted[header[i]].x>=right[i-1]+11);
-    for(i=0;i<paintCount;++i)if(!strcmp(painted[i].text,"^56/10"))CHECK(painted[i].x+CG_Text_Width_Ext(painted[i].text,.16f,0,NULL)==right[2]);
+    CHECK(strstr(drawn,"6/10")!=NULL&&!strstr(drawn,"^3Wide WWW"));
+    CHECK(cg.statsWindow->colorBackground[0]==.035f&&cg.statsWindow->colorBorder[0]==.44f);
+    for(i=0;i<6;++i){header[i]=-1;for(j=0;j<paintCount;++j)if(!strcmp(painted[j].text,columns[i])){header[i]=j;right[i]=painted[j].x+CG_Text_Width_Ext(painted[j].text,.14f,0,NULL);break;}CHECK(header[i]>=0);}
+    for(i=1;i<6;++i)CHECK(painted[header[i]].x>=right[i-1]+7);
+    for(i=0;i<paintCount;++i)if(!strcmp(painted[i].text,"6/10"))CHECK(painted[i].x+CG_Text_Width_Ext(painted[i].text,.14f,0,NULL)==right[2]);
     CHECK(cg.statsWindow->w<640&&cg.statsWindow->x+cg.statsWindow->w<=640);
     CHECK(cg.statsWindow->y>=0&&cg.statsWindow->y+cg.statsWindow->h<=480);
     /* New malformed/stale/partial packets must never replace the last complete
@@ -232,7 +234,7 @@ static void statsQuickReopen(void)
     cg.time=1500;CG_windowDraw();CHECK(requestCount==before);
     cg.time=1501;CG_windowDraw();CHECK(requestCount==before+1); /* waits for the real server-rate interval */
     tceReply(0,1);strcpy(words[11],"8");CG_TCEWeaponStatsParse();
-    now+=112;clearDraw();CG_windowDraw();CHECK(strstr(drawn,"^78")!=NULL); /* 80.0 accuracy, new transaction */
+    now+=112;clearDraw();CG_windowDraw();CHECK(strstr(drawn,"80.0")!=NULL); /* New transaction accuracy. */
 
     reset();CHECK(dispatch("+wstats"));tceReply(0,1);strcpy(oldSequence,words[1]);
     CHECK(dispatch("-wstats"));cg.time=1100;CHECK(dispatch("+wstats"));
@@ -270,7 +272,7 @@ static void statsCacheIdentity(void)
         cg.time=1501;CG_windowDraw();CHECK(requestCount==2&&requestFor(1));
         tceReply(0,1);strcpy(words[11],"8");CG_TCEWeaponStatsParse();
         CHECK(cg.statsWindow->lineCount>1);now+=112;clearDraw();CG_windowDraw();
-        CHECK(strstr(drawn,kind?"Player A":"Player B")!=NULL);CHECK(strstr(drawn,"^78")!=NULL);
+        CHECK(strstr(drawn,kind?"Player A":"Player B")!=NULL);CHECK(strstr(drawn,"80.0")!=NULL);
     }
 }
 int main(void)

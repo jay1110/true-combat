@@ -1,6 +1,7 @@
 // cg_drawtools.c -- helper functions called by cg_draw, cg_scoreboard, cg_info, etc
 #include "cg_local.h"
 #include "../ui/tce_ui_coordinates.h"
+#include "cg_hud_viewport.h"
 extern qboolean tce_uiCoordinates;
 
 /* TC coordinate conversion: Windows 30029760 / Linux 00055570.
@@ -73,6 +74,7 @@ Adjusted for resolution and screen aspect ratio
 */
 void CG_AdjustFrom640(float *x, float *y, float *w, float *h)
 {
+	if (CG_HudViewportAdjust(x, y, w, h, tce_uiCoordinates)) return;
 	if (tce_uiCoordinates)
 	{
 		CG_TCAdjustFrom640(x, y, w, h);
@@ -413,16 +415,20 @@ Coords are virtual 640x480
 */
 void CG_DrawSides(float x, float y, float w, float h, float size)
 {
+	float unitX = 1, unitY = 1;
 	CG_AdjustFrom640(&x, &y, &w, &h);
-	size *= cgs.screenXScale;
+	if (CG_HudViewportDimensions(&unitX, &unitY, tce_uiCoordinates)) size *= unitX;
+	else size *= cgs.screenXScale;
 	trap_R_DrawStretchPic(x, y, size, h, 0, 0, 0, 0, cgs.media.whiteShader);
 	trap_R_DrawStretchPic(x + w - size, y, size, h, 0, 0, 0, 0, cgs.media.whiteShader);
 }
 
 void CG_DrawTopBottom(float x, float y, float w, float h, float size)
 {
+	float unitX = 1, unitY = 1;
 	CG_AdjustFrom640(&x, &y, &w, &h);
-	size *= cgs.screenYScale;
+	if (CG_HudViewportDimensions(&unitX, &unitY, tce_uiCoordinates)) size *= unitY;
+	else size *= cgs.screenYScale;
 	trap_R_DrawStretchPic(x, y, w, size, 0, 0, 0, 0, cgs.media.whiteShader);
 	trap_R_DrawStretchPic(x, y + h - size, w, size, 0, 0, 0, 0, cgs.media.whiteShader);
 }

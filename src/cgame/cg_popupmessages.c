@@ -1,5 +1,6 @@
 #include "tce_popup_draw.h"
 #include "cg_local.h"
+#include "cg_hud_viewport.h"
 
 #define NUM_PM_STACK_ITEMS  32
 #define MAX_VISIBLE_ITEMS   5
@@ -430,7 +431,7 @@ void CG_DrawPMItems(void)
 	tce_popup_draw_api_t api      = { trap_R_SetColor, CG_PopupCompactPic, CG_PopupCompactPaint, CG_PopupDuration, &cgs.media.limboFont2 };
 	popupOffset = popupBottom = 0.f; popupOffsetReady = qfalse;
 	tce_uiCoordinates = qtrue;
-	TCE_DrawPMItems(cg_aspectMode.integer, cg.snap->ps.persistant[PERS_RESPAWNS_LEFT], cg.time, cg_pmWaitingList, cg_pmOldList, &api);
+	TCE_DrawPMItems(CG_HudAspectMode(), cg.snap->ps.persistant[PERS_RESPAWNS_LEFT], cg.time, cg_pmWaitingList, cg_pmOldList, &api);
 	tce_uiCoordinates = previous;
 }
 
@@ -444,7 +445,7 @@ void CG_DrawPMItemsBig(void)
 	qboolean             previous = tce_uiCoordinates;
 	tce_popup_draw_api_t api      = { trap_R_SetColor, CG_DrawPic, CG_PopupPaint, CG_PopupBigDuration, &cgs.media.limboFont2 };
 	tce_uiCoordinates = qtrue;
-	TCE_DrawPMItemsBig(cg_aspectMode.integer, cg.time, cg_pmWaitingListBig, &api);
+	TCE_DrawPMItemsBig(CG_HudAspectMode(), cg.time, cg_pmWaitingListBig, &api);
 	tce_uiCoordinates = previous;
 }
 

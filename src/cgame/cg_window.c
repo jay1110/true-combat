@@ -19,6 +19,7 @@ vec4_t colorGreen2 = { 0.305f, 0.475f, 0.305f, 0.48f }; // Slightly off from def
 
 void CG_createStatsWindow(void)
 {
+	vec4_t background = { .035f, .045f, .04f, .92f }, border = { .44f, .49f, .42f, .7f };
 	cg_window_t *sw = CG_windowAlloc(WFX_TEXTSIZING | WFX_FADEIN | /*WFX_SCROLLUP|*/ WFX_TRUETYPE, 110);
 
 	cg.statsWindow = sw;
@@ -29,8 +30,10 @@ void CG_createStatsWindow(void)
 
 	// Window specific
 	sw->id         = WID_STATS;
-	sw->fontScaleX = cf_wstats.value * 0.16f;
-	sw->fontScaleY = cf_wstats.value * 0.16f;
+	sw->fontScaleX = cf_wstats.value * 0.14f;
+	sw->fontScaleY = cf_wstats.value * 0.14f;
+	memcpy(sw->colorBackground, background, sizeof(background));
+	memcpy(sw->colorBorder, border, sizeof(border));
 //	sw->x = (cg.snap->ps.pm_type == PM_INTERMISSION) ?  10 : 160;
 //	sw->y = (cg.snap->ps.pm_type == PM_INTERMISSION) ? -20 : -7;	// Align from bottom minus offset and height
 	sw->x = (cg.snap->ps.pm_type == PM_INTERMISSION) ?  10 : 4;
@@ -485,7 +488,7 @@ static int CG_StatsColumns(const cg_window_t *w, int widths[6])
 		}
 	}
 	for (column = 0; column < 6; ++column) total += widths[column];
-	return total + 5 * 12;
+	return total + 5 * 8;
 }
 static void CG_DrawStatsRow(const cg_window_t *w, int x, int y, vec4_t color,
     const char *text, const int widths[6])
@@ -496,7 +499,7 @@ static void CG_DrawStatsRow(const cg_window_t *w, int x, int y, vec4_t color,
 		int width = CG_Text_Width_Ext(cell, w->fontScaleX, 0, &cgs.media.limboFont2);
 		CG_Text_Paint_Ext(x + offset + (column ? widths[column] - width : 0), y,
 		    w->fontScaleX, w->fontScaleY, color, cell, 0.0f, 0, 0, &cgs.media.limboFont2);
-		offset += widths[column] + 12;
+		offset += widths[column] + 8;
 	}
 }
 
@@ -565,6 +568,9 @@ void CG_windowDraw(void)
 		y            = w->y;
 		t_offset     = milli - w->time;
 		textColor[3] = 1.0f;
+		textColor[0] = w->id == WID_STATS ? .92f : 1.f;
+		textColor[1] = w->id == WID_STATS ? .94f : 1.f;
+		textColor[2] = w->id == WID_STATS ? .88f : 1.f;
 		memcpy(&borderColor, w->colorBorder, sizeof(vec4_t));
 		memcpy(&bgColor, bg, sizeof(vec4_t));
 
@@ -639,6 +645,12 @@ void CG_windowDraw(void)
 
 		for (j = w->lineCount - 1; j >= 0; j--)
 		{
+			if (w->id == WID_STATS && (j == 0 || j == 1))
+			{
+				vec4_t heading = { .18f, .22f, .17f, .95f };
+				heading[3] *= textColor[3];
+				CG_FillRect(x - 4, y + h - w->lineHeight[j], w->w - 2, w->lineHeight[j] + 2, heading);
+			}
 			if (w->effects & WFX_TRUETYPE)
 			{
 				if (w->id == WID_STATS && strchr(w->lineText[j], '\t'))
@@ -653,7 +665,7 @@ void CG_windowDraw(void)
 				}
 			}
 
-			h -= (w->lineHeight[j] + 3);
+			h -= (w->lineHeight[j] + (w->id == WID_STATS ? 2 : 3));
 
 			if (!(w->effects & WFX_TRUETYPE))
 			{
@@ -736,7 +748,7 @@ void CG_windowNormalizeOnText(cg_window_t *w)
 			w->lineHeight[i] = w->fontHeight;
 		}
 
-		w->h += w->lineHeight[i] + 3;
+		w->h += w->lineHeight[i] + (w->id == WID_STATS ? 2 : 3);
 	}
 
 	// Border + margins

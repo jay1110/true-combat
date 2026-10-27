@@ -62,11 +62,11 @@ H(0x48990,CG_SetupEliteLighting,light);
 H(0x47b10,CG_Printf,print);H(0x65380,trap_R_SetFog,fog);H(0x64c10,trap_Cvar_Set,cvar);H(0x650a0,trap_S_ClearSounds,clears);H(0x481a0,CG_ConfigString,cfg);
 if(sizeof(cg.lastWeapSelInBank)!=40){puts("restart weapon-bank ABI mismatch");return 2;}
 if(!accepted&&sizeof(cg.pmext)!=112){printf("STRICT_BASELINE_DIFFERENCE CG_MapRestart pmext=%u original=112; freelook tail requires separate accepted-extension test\n",(unsigned)sizeof(cg.pmext));return 1;}
-if(accepted&&(sizeof(cg.pmext)!=120||offsetof(pmoveExt_t,tceFreelookRecoil)!=112||sizeof(cg.pmext.tceFreelookRecoil)!=8)){puts("Accepted extension layout contract changed");return 2;}
+if(accepted&&(sizeof(cg.pmext)!=128||offsetof(pmoveExt_t,tceFreelookRecoil)!=112||sizeof(cg.pmext.tceFreelookRecoil)!=8||offsetof(pmoveExt_t,tceReloadWeapon)!=120||offsetof(pmoveExt_t,tceReloadRequestedAt)!=124)){puts("Accepted mod extension layout contract changed");return 2;}
 for(k=0;k<1120;k++){config=values[k%7];for(pass=0;pass<2;pass++){originalRun=!pass;count=0;for(i=0;i<46;i++){int seed=0x3e800000+k*17+i;memcpy(fields[i].p,&seed,4);memcpy(base+fields[i].offset,&seed,4);}
 memset(&cg.pmext,0x55,sizeof(cg.pmext));memset(base+0x4087ee8,0x55,112);memset(cg.lastWeapSelInBank,0x33,40);memset(base+0x4080f28,0x33,40);cg_fxflags=*(base+0x18531a0)=71;cg_showmiss.integer=*(int*)(base+0x400faac)=(k/7)%3-1;cg_autoReload.integer=*(int*)(base+0x40143cc)=(k/21)%5-2;
 if(originalRun)original();else CG_MapRestart();
-if(!originalRun&&accepted){const byte zero[8]={0};if(memcmp(cg.pmext.tceFreelookRecoil,zero,8)){printf("Freelook suffix not reset case%d\n",k);return 1;}}
+if(!originalRun&&accepted){const byte zero[8]={0};if(memcmp(cg.pmext.tceFreelookRecoil,zero,8)||cg.pmext.tceReloadWeapon||cg.pmext.tceReloadRequestedAt){printf("Freelook/reload suffix not reset case%d\n",k);return 1;}}
 record(40);if(!pass){n=count;memcpy(expected,events,sizeof(expected));}else if(n!=count||memcmp(expected,events,n*sizeof(event_t))){for(i=0;i<n&&i<count;i++)if(memcmp(&expected[i],&events[i],sizeof(event_t)))break;printf("maprestart case%d event%d id%d/%d\n",k,i,expected[i].id,events[i].id);return 1;}}}
-puts(accepted?"ACCEPTED_EXTENSION CG_MapRestart 1120 cases: original112-byte prefix+ordered calls equal; separate8-byte freelook suffix zeroed":"1120 whole CG_MapRestart state and ordered-call comparisons passed");return 0;}
+puts(accepted?"ACCEPTED_EXTENSION CG_MapRestart 1120 cases: original112-byte prefix+ordered calls equal; separate16-byte freelook/reload suffix zeroed":"1120 whole CG_MapRestart state and ordered-call comparisons passed");return 0;}
 

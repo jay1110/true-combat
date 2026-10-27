@@ -145,7 +145,7 @@ static void fullFireteam(void)
         clients[id].pers.connected=CON_CONNECTED;clients[id].sess.sessionTeam=TEAM_AXIS;
         VectorSet(p->r.currentOrigin,100+id,200+id,40);g_entities[100+id].health=2;
         strcpy(userinfo[id],"\\tceft\\1");level.fireTeams[0].joinOrder[i]=(char)id;
-        Com_sprintf(entry,sizeof(entry)," %i %i 2 %i %i 40",id,80+i,100+id,200+id);Q_strcat(expected,sizeof(expected),entry);
+        Com_sprintf(entry,sizeof(entry)," %i %i 2 %i %i 40 0",id,80+i,100+id,200+id);Q_strcat(expected,sizeof(expected),entry);
     }
     G_UpdateFireteamConfigString(&level.fireTeams[0]);
     CHECK(!strcmp(fireteamConfig[0],"\\id\\0\\l\\0\\c\\8000000180000083"));
@@ -161,7 +161,7 @@ int main(void)
 {
     int kind;
     setup();G_TCEFireteamInfoMessage(TEAM_AXIS);CHECK(sends==2&&to[0]==0&&to[1]==1);
-    CHECK(strstr(commands[0],"tceftinfo 0 2 0 100 1 100 200 300 1 100 2 101 201 301")!=NULL);
+    CHECK(strstr(commands[0],"tceftinfo 0 2 0 100 1 100 200 300 0 1 100 2 101 201 301 0")!=NULL);
     CHECK(!strcmp(commands[0],commands[1]));
     for(kind=0;kind<5;++kind){
         setup();
@@ -178,6 +178,15 @@ int main(void)
     setup();g_entities[101].health=TCE_MAX_LOCATIONS;G_TCEFireteamInfoMessage(TEAM_AXIS);CHECK(strstr(commands[0]," 1 100 0 ")!=NULL);
     setup();G_TCEFireteamInfoMessage(TEAM_SPECTATOR);CHECK(sends==0);
     setup();level.fireTeams[0].joinOrder[0]=127;G_TCEFireteamInfoMessage(TEAM_AXIS);CHECK(sends==0);
+    for(kind=1;kind<=4;++kind){
+        char suffix[96];setup();
+        if(kind==1)clients[1].ps.stats[STAT_TCE_WEAPON_FLAGS]=0x100;
+        if(kind==2)clients[1].ps.stats[STAT_TCE_FLAGS]=0x100;
+        if(kind==3)clients[1].ps.powerups[PW_REDFLAG]=INT_MAX;
+        if(kind==4)clients[1].ps.powerups[PW_BLUEFLAG]=INT_MAX;
+        G_TCEFireteamInfoMessage(TEAM_AXIS);sprintf(suffix," 1 100 2 101 201 301 %i",kind);CHECK(strstr(commands[0],suffix)!=NULL);
+        sends=0;g_entities[1].health=0;G_TCEFireteamInfoMessage(TEAM_AXIS);CHECK(strstr(commands[0]," 1 0 2 101 201 301 0")!=NULL);
+    }
     fullFireteam();
     lifecycleAndCommands();
     printf("Fireteam server: %i checks, %i failures\n",checks,failures);return failures?1:0;

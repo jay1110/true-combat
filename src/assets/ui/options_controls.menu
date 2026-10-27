@@ -94,6 +94,7 @@ menuDef {
 	BIND( 8, 366+16-6, .5*((SUBWINDOW_WIDTH)-6), 10, "Hold Map:", .2, 8, "+mapexpand", "Hold to show the command map" )
 	BIND( 8+(.5*((SUBWINDOW_WIDTH)-6))+2, 366+16-6, .5*((SUBWINDOW_WIDTH)-6), 10, "Map Zoom In:", .2, 8, "mapzoomin", "" )
 	BIND( 8, 378+16-6, .5*((SUBWINDOW_WIDTH)-6), 10, "Map Zoom Out:", .2, 8, "mapzoomout", "" )
+	BIND( 8+(.5*((SUBWINDOW_WIDTH)-6))+2, 378+16-6, .5*((SUBWINDOW_WIDTH)-6), 10, "Drop Objective:", .2, 8, "dropobj", "Drop the carried objective or demolition bomb" )
 //	BIND( 8, 366-6, (SUBWINDOW_WIDTH)-4, 10, "Compass Map Zoom In:", .2, 8, "MapZoomIn", "" )
 //	BIND( 8, 378-6, (SUBWINDOW_WIDTH)-4, 10, "Compass Map Zoom Out:", .2, 8, "MapZoomOut", "" )
 //	BIND( 8, 390-6, (SUBWINDOW_WIDTH)-4, 10, "Player Stats:", .2, 8, "+stats", "" )

@@ -8,14 +8,22 @@
 #include "src/game/tce_lua.h"
 #include "src/game/g_tce_bullet_damage.h"
 #include "src/game/g_tce_weapon_stats.h"
+#include "src/game/g_tce_hit_debug.h"
 #include <stdio.h>
 #include <math.h>
 #include <float.h>
 
 gentity_t g_entities[MAX_GENTITIES];
 level_locals_t level;
-vmCvar_t g_gamestate, g_debugDamage, g_debugBullets, g_newbbox, g_gametype;
-tce_weaponDef_t weaponDef[TCE_MAX_WEAPONS]; vec3_t forward;
+vmCvar_t g_gamestate, g_debugDamage, g_debugBullets, g_newbbox, g_gametype, g_antilag;
+tce_weaponDef_t weaponDef[TCE_MAX_WEAPONS]; vec3_t forward, muzzleTrace;
+static vec3_t fireTestEnd;
+void Bullet_Endpos(gentity_t *ent,float spread,vec3_t *end) {(void)ent;(void)spread;VectorCopy(fireTestEnd,*end);}
+void G_TCEHitDebugShot(gentity_t *shooter,int layer) {(void)shooter;(void)layer;}
+int G_TCEHitDebugLogAllowed(void) {return 0;}
+int G_TCEHitDebugTarget(int client) {(void)client;return 1;}
+void G_TCEHitDebugTrace(const char *stage,int shooter,int target,int region,const trace_t *tr,const vec3_t start,const vec3_t end)
+{(void)stage;(void)shooter;(void)target;(void)region;(void)tr;(void)start;(void)end;}
 const char *modNames[MOD_NUM_MODS];
 mapEntityData_Team_t mapEntityData[2];
 static int hitOrder[16], hitAmount[16], hitCount, eventCount;
@@ -108,13 +116,13 @@ void QDECL Com_Printf(const char *format, ...) { (void)format; }
 void QDECL Com_Error(int code,const char *format, ...) { (void)code;(void)format;abort(); }
 char *QDECL va(const char *format, ...) { static char text[256];va_list args;va_start(args,format);vsprintf(text,format,args);va_end(args);return text; }
 vec_t Distance(const vec3_t a,const vec3_t b) { vec3_t d;VectorSubtract(a,b,d);return VectorLength(d); }
-int DirToByte(vec3_t dir) { (void)dir;abort();return 0; }
+/* Effect-only normal encoding; real Bullet_Fire intentionally emits walls. */
+int DirToByte(vec3_t dir) { (void)dir;return 0; }
 void AddScore(gentity_t *e,int score) { (void)e;(void)score;abort(); }
 void G_ExplodeMissile(gentity_t *e) { (void)e;abort(); }
 mapEntityData_t *G_FindMapEntityData(mapEntityData_Team_t *data,int number) { (void)data;(void)number;abort();return NULL; }
 mapEntityData_t *G_FreeMapEntityData(mapEntityData_Team_t *data,mapEntityData_t *e) { (void)data;(void)e;abort();return NULL; }
 void RubbleFlagCheck(gentity_t *e,trace_t tr) { (void)e;(void)tr; }
-void EmitterCheck(gentity_t *e,gentity_t *a,trace_t *tr) { (void)e;(void)a;(void)tr; }
 qboolean AccuracyHit(gentity_t *t,gentity_t *a) { (void)t;(void)a;return qtrue; }
 void G_addStats(gentity_t *t,gentity_t *a,int take,int mod) { (void)a;(void)mod;if(hitCount>=16)abort();hitOrder[hitCount]=t->s.number;hitAmount[hitCount++]=take; }
 void G_Voice(gentity_t *e,gentity_t *o,int mode,const char *id,qboolean voiceonly) { (void)e;(void)o;(void)mode;(void)id;(void)voiceonly; }
@@ -195,7 +203,7 @@ static void actor(int id,float x,int weapon,int prone,int yaw)
 static void resetWorld(void)
 {
     memset(g_entities,0,sizeof(g_entities));memset(testClients,0,sizeof(testClients));memset(&level,0,sizeof(level));memset(weaponDef,0,sizeof(weaponDef));
-    g_gamestate.integer=GS_PLAYING;g_gametype.integer=0;g_newbbox.integer=0;level.time=10000;level.maxclients=MAX_CLIENTS;
+    g_gamestate.integer=GS_PLAYING;g_gametype.integer=0;g_newbbox.integer=0;g_antilag.integer=0;level.time=10000;level.maxclients=MAX_CLIENTS;
     memset(presentationPolicy,0,sizeof(presentationPolicy));memset(presentationRegion,0,sizeof(presentationRegion));
     memset(presentationFraction,0,sizeof(presentationFraction));memset(queryPoseOrigin,0,sizeof(queryPoseOrigin));VectorClear(seenPoseOrigin);queryCalls=skinCalls=matchCalls=0;invalidateMatch=0;
     seenShotTime=seenReceiptCeiling=0;nestedDamage=nestedGuard=nestedSecond=luaDamageCalls=0;
@@ -546,6 +554,9 @@ int main(void)
     ordering();penetrationAndCover();presentationAvailability();
     spawnProtectionROE();
     regionalGrid();regionalCoverAndCompatibility();regionalIntegerAndFractionBoundaries();
+    movingLegDoorAndAntiLagBits();
+    regionalDebugMasks();
+    railhouseLiveLegEmitterSnap();
 #ifdef HAS_TCE_PRESENTATION_DAMAGE
     livingCorpseEligibility();presentationRegionsAndClock();presentationOrderingAndCover();selectedValidationAndReentrancy();
 #endif

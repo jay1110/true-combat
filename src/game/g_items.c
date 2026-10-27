@@ -646,6 +646,51 @@ qboolean G_TCEManualDropBomb(gentity_t *ent)
 	return !(client->ps.stats[STAT_TCE_WEAPON_FLAGS] & 0x100);
 }
 
+/* Voluntary GT2 objective drop uses the same item/script/return path as a
+ * normal dropped flag. The carried powerup, not stale flagParent, proves ownership. */
+qboolean G_TCEManualDropObjective(gentity_t *ent)
+{
+	gclient_t *client;
+	gentity_t *base, *drop;
+	int number, powerup, held, speed, since, model;
+	char *message;
+	if (!ent || !(client = ent->client)) return qfalse;
+	number = client->ps.clientNum;
+	if (number < 0 || number >= MAX_CLIENTS || ent != &g_entities[number] ||
+	    !ent->inuse || client->pers.connected != CON_CONNECTED ||
+	    (client->sess.sessionTeam != TEAM_AXIS && client->sess.sessionTeam != TEAM_ALLIES) ||
+	    g_gamestate.integer != GS_PLAYING || level.intermissiontime || ent->health <= 0 ||
+	    client->ps.stats[STAT_HEALTH] <= 0 || client->ps.pm_type != PM_NORMAL ||
+	    (client->ps.pm_flags & (PMF_LIMBO | PMF_FOLLOW | PMF_TCE_OBJECTIVE_ACTION))) return qfalse;
+	if (g_gametype.integer == 5) return G_TCEManualDropBomb(ent);
+	if (g_gametype.integer != 2) return qfalse;
+	powerup = client->sess.sessionTeam == TEAM_AXIS ? PW_BLUEFLAG : PW_REDFLAG;
+	if (!client->ps.powerups[powerup] ||
+	    client->ps.powerups[powerup == PW_REDFLAG ? PW_BLUEFLAG : PW_REDFLAG] ||
+	    client->flagParent < MAX_CLIENTS || client->flagParent >= level.num_entities ||
+	    client->flagParent >= MAX_GENTITIES) return qfalse;
+	base = &g_entities[client->flagParent];
+	if (!base->inuse || base->s.eType != ET_ITEM || (base->flags & FL_DROPPED_ITEM) ||
+	    !base->item || base->item->giType != IT_TEAM || base->item->giTag != powerup ||
+	    !base->classname || Q_stricmp(base->classname, powerup == PW_REDFLAG ?
+	                                "team_CTF_redflag" : "team_CTF_blueflag")) return qfalse;
+	held = client->ps.powerups[powerup]; speed = client->speedScale;
+	since = client->pers.teamState.flagsince; message = ent->message; model = ent->s.otherEntityNum2;
+	/* Script callbacks must see the carrier released. Keep flagParent until
+	 * LaunchItem has copied the validated base model/return reference. */
+	client->ps.powerups[powerup] = 0; client->speedScale = 0; client->pers.teamState.flagsince = 0;
+	drop = Drop_Item(ent, base->item, 0.f, qfalse);
+	if (!drop)
+	{
+		client->ps.powerups[powerup] = held; client->speedScale = speed; client->pers.teamState.flagsince = since;
+		return qfalse;
+	}
+	drop->message = message;
+	if (model) drop->s.modelindex2 = model;
+	client->flagParent = -1; ent->message = NULL; ent->s.otherEntityNum2 = 0;
+	return qtrue;
+}
+
 
 // xkan, 9/18/2002 - Extracted AddMagicAmmo from Pickup_Weapon()
 /*

@@ -10452,6 +10452,11 @@ vmCvar_t ui_autoredirect;
 
 cvarTable_t cvarTable[] =
 {
+	{ NULL, "cg_wideScreen", "1", CVAR_ARCHIVE },
+	{ NULL, "ui_menuScale", "1", CVAR_ARCHIVE },
+	{ NULL, "ui_menuMaxHeight", "1080", CVAR_ARCHIVE },
+	{ NULL, "cg_hudScale", ".85", CVAR_ARCHIVE },
+	{ NULL, "cg_hudMaxHeight", "1080", CVAR_ARCHIVE },
 
 	{ &ui_glCustom,                     "ui_glCustom",                     "4",                          CVAR_ARCHIVE                   }, // JPW NERVE missing from q3ta
 	{ &ui_ffa_fraglimit,                "ui_ffa_fraglimit",                "20",                         CVAR_ARCHIVE                   },
@@ -10493,7 +10498,7 @@ cvarTable_t cvarTable[] =
 
 	{ &ui_brassTime,                    "cg_brassTime",                    "2500",                       CVAR_ARCHIVE                   }, // JPW NERVE
 	{ &ui_drawCrosshair,                "cg_drawCrosshair",                "4",                          CVAR_ARCHIVE                   },
-	{ &ui_drawTeamNames,                "cg_drawCrosshairNames",                "1",                          CVAR_ARCHIVE                   },
+	{ &ui_drawTeamNames,                "cg_drawCrosshairNames",                "0",                          CVAR_ARCHIVE                   },
 	{ &ui_drawCrosshairPickups,         "cg_drawCrosshairPickups",         "1",                          CVAR_ARCHIVE                   }, //----(SA) added
 	{ &ui_marks,                        "cg_marktime",                     "20000",                      CVAR_ARCHIVE                   },
 	// JOSEPH 12-2-99
@@ -10595,7 +10600,7 @@ cvarTable_t cvarTable[] =
 	{ NULL,                             "cg_drawReinforcementTime",        "1",                          CVAR_ARCHIVE                   },
 	{ NULL,                             "cg_cursorHints",                  "1",                          CVAR_ARCHIVE                   },
 	{ NULL,                             "cg_crosshairPulse",               "1",                          CVAR_ARCHIVE                   },
-	{ NULL,                             "cg_drawCrosshairNames",                "1",                          CVAR_ARCHIVE                   },
+	{ NULL,                             "cg_drawCrosshairNames",                "0",                          CVAR_ARCHIVE                   },
 	{ NULL,                             "cg_crosshairColor",               "White",                      CVAR_ARCHIVE                   },
 	{ NULL,                             "cg_crosshairAlpha",               "1.0",                        CVAR_ARCHIVE                   },
 	{ NULL,                             "cg_crosshairColorAlt",            "White",                      CVAR_ARCHIVE                   },

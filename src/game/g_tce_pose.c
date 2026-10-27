@@ -790,3 +790,38 @@ int G_TCEPosePresentationTraceMatches(const g_tcePoseTraceResult_t *result,const
     return result && (result->state==G_TCE_POSE_TRACE_MISS || result->state==G_TCE_POSE_TRACE_HIT) &&
         PoseTraceCharacter(query,NULL) && PoseTraceKey(query,start,end,maxFraction,&key) && !memcmp(&key,&result->key,sizeof(key));
 }
+int G_TCEPosePresentationBounds(const g_tcePresentationQuery_t *query,float mins[3][3],float maxs[3][3]) {
+    const g_tcePoseCharacter_t *entry,*animationEntry=NULL;
+    tcePoseInput_t input;tcePoseHeadInput_t head;tcePoseAttachment_t attachment;tcePoseResult_t anchors;
+    unsigned int triangle,vertex,index;int row,column,i,axis,region,seen[3]={0,0,0};
+    if(!mins||!maxs)return 0;
+    memset(mins,0,sizeof(float)*9);memset(maxs,0,sizeof(float)*9);
+    entry=PoseTraceCharacter(query,&animationEntry);
+    if(!entry||!animationEntry||!PoseTraceInput(entry,animationEntry,query,&input)||
+       TCE_PosePrepareAttachment(&attachment,entry->mesh,input.legs.currentModel)!=TCE_POSE_OK||
+       TCE_PoseEvaluate(&poseMath,&attachment,&input,&anchors)!=TCE_POSE_OK)return 0;
+    memset(&head,0,sizeof(head));memcpy(head.origin,anchors.world[TCE_POSE_HEAD].origin,sizeof(head.origin));
+    for(row=0;row<3;++row)for(column=0;column<3;++column) {
+        double value=0;for(i=0;i<3;++i)value+=(double)query->axes.head[row][i]*anchors.world[TCE_POSE_HEAD].axis[i][column];
+        head.axis[row][column]=(float)value;
+    }
+    if(TCE_PoseSkinEvaluate(&poseMath,entry->skin,entry->head,&input,&head,&poseSurfaceScratch)!=TCE_POSE_OK)return 0;
+    for(triangle=0;triangle<entry->skin->triangleCount+entry->head->triangleCount;++triangle) {
+        int isHead=triangle>=entry->skin->triangleCount;
+        unsigned int at=isHead?triangle-entry->skin->triangleCount:triangle;
+        region=isHead?TCE_POSE_REGION_HEAD:entry->skin->region[at];
+        if(region<0||region>2)return 0;
+        for(vertex=0;vertex<3;++vertex) {
+            index=isHead?entry->skin->vertexCount+entry->head->triangle[at][vertex]:entry->skin->triangle[at][vertex];
+            if(index>=poseSurfaceScratch.vertexCount)return 0;
+            for(axis=0;axis<3;++axis) {
+                float value=poseSurfaceScratch.vertices[index][axis];
+                if(!(value>=-FLT_MAX&&value<=FLT_MAX))return 0;
+                if(!seen[region]||value<mins[region][axis])mins[region][axis]=value;
+                if(!seen[region]||value>maxs[region][axis])maxs[region][axis]=value;
+            }
+            seen[region]=1;
+        }
+    }
+    return seen[0]&&seen[1]&&seen[2];
+}

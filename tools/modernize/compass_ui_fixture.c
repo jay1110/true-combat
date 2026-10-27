@@ -6,12 +6,16 @@
 #include <stdarg.h>
 #include <math.h>
 #include "src/cgame/tce_compass_map.h"
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 typedef int qboolean;
 typedef int qhandle_t;
 typedef int fileHandle_t;
 typedef float vec3_t[3];
 typedef float vec4_t[4];
+typedef struct { float xyz[3], st[2]; unsigned char modulate[4]; } polyVert_t;
 #define qtrue 1
 #define qfalse 0
 #define MAX_QPATH 64
@@ -31,6 +35,7 @@ typedef float vec4_t[4];
 #define PW_BLUEFLAG 7
 #define CC_2D_W 352
 #define CC_2D_H 352
+#define ITEM_TEXTSTYLE_SHADOWED 1
 typedef struct { int integer; } vmCvar_t;
 typedef struct { int team; } clientInfo_t;
 typedef struct { int icon, arrow; } bg_playerclass_t;
@@ -58,10 +63,12 @@ static struct {
 static struct {
  char rawmapname[MAX_QPATH]; int ccLayers, ccSelectedLayer, autoMapOff, autoMapExpanded, autoMapExpandTime;
  float screenXScale, screenYScale;
+ struct { int vidWidth, vidHeight; } glconfig;
  int ccLayerCeils[8];
  clientInfo_t clientinfo[64];
- struct { int tceRadarMarkers[2][3][8]; } media;
+ struct { int tceRadarMarkers[2][3][8], whiteShader, limboFont2; } media;
 } cgs;
+static qboolean tce_uiCoordinates = qtrue, wideScreen;
 static centity_t cg_entities[64];
 static vmCvar_t cg_drawCompass, cg_gameType;
 static const float colorWhite[4] = { 1, 1, 1, 1 };
@@ -70,6 +77,9 @@ static float lastX, lastY, lastRotation, lastBackAlpha, lastWidth, lastHeight, l
 static int lastPic, lastArrow;
 static int drawnPics[32];
 static char lastText[64], allowedPath[128], lastPath[128];
+static struct { int count, shader; polyVert_t verts[32]; } polys[40];
+static struct { float x, y, sx, sy, color[4]; char text[4]; } labels[4];
+static int polyCalls, labelCalls, legacyShaderCalls;
 static bg_playerclass_t classes[2] = { {101, 111}, {102, 112} };
 #define CHECK(x) do { ++checks; if (!(x)) { ++failures; fprintf(stderr, "line %d: %s\n", __LINE__, #x); } } while (0)
 static int near(float a, float b) { return fabsf(a-b) < .0002f; }
@@ -77,6 +87,10 @@ static int Q_stricmp(const char *a, const char *b) { return strcmp(a,b); }
 static void Q_strncpyz(char *a, const char *b, size_t n) { snprintf(a,n,"%s",b); }
 static void Com_sprintf(char *p, size_t n, const char *fmt, ...) { va_list v; va_start(v,fmt); vsnprintf(p,n,fmt,v); va_end(v); }
 static void CG_Printf(const char *fmt, ...) { (void)fmt; }
+static qboolean CG_WideScreenEnabled(void) { return wideScreen; }
+/* This suite exercises the production legacy TC conversion. The new viewport
+ * adapter has its own fixture; it must not silently mask conversion here. */
+static int CG_HudViewportAdjust(float *x,float *y,float *w,float *h,int tc) { (void)x;(void)y;(void)w;(void)h;(void)tc;return 0; }
 static int trap_FS_FOpenFile(const char *p, fileHandle_t *h, int mode) { (void)mode; ++fsCalls; snprintf(lastPath,sizeof(lastPath),"%s",p); *h=!strcmp(p,allowedPath); return *h?128:-1; }
 static void trap_FS_FCloseFile(fileHandle_t f) { (void)f; ++closeCalls; }
 static int trap_R_RegisterShaderNoMip(const char *p) {
@@ -85,24 +99,129 @@ static int trap_R_RegisterShaderNoMip(const char *p) {
  for(i=0;i<7;i++){snprintf(expected,sizeof(expected),"gfx/tce2/nav/%s.tga",paths[i]);if(!strcmp(p,expected))return 201+i;}
  return 77;
 }
+static int trap_R_RegisterShader(const char *p) {
+ ++legacyShaderCalls;
+ if(!strcmp(p,"gfx/misc/radarcompass2.tga")) return 301;
+ if(!strcmp(p,"gfx/misc/radarbg.tga")) return 302;
+ CHECK(0);return 0;
+}
+static void trap_R_Add2dPolys(const polyVert_t *v,int n,int shader) {
+ CHECK(polyCalls<40 && n>0 && n<=32);
+ if(polyCalls>=40 || n<=0 || n>32)return;
+ polys[polyCalls].count=n;polys[polyCalls].shader=shader;
+ memcpy(polys[polyCalls++].verts,v,n*sizeof(*v));
+}
+static float CG_Text_Width_Ext(const char *s,float scale,int limit,const int *font) { (void)limit;(void)font;return (float)strlen(s)*40.f*scale; }
+static void CG_Text_Paint_Ext(float x,float y,float sx,float sy,const float *color,const char *s,float adjust,int limit,int style,const int *font) {
+ (void)adjust;(void)limit;(void)font;CHECK(labelCalls<4 && style==ITEM_TEXTSTYLE_SHADOWED);
+ if(labelCalls>=4)return;
+ labels[labelCalls].x=x;labels[labelCalls].y=y;labels[labelCalls].sx=sx;labels[labelCalls].sy=sy;
+ memcpy(labels[labelCalls].color,color,sizeof(labels[labelCalls].color));
+ snprintf(labels[labelCalls++].text,4,"%s",s);
+}
 static void trap_R_SetColor(const float *c) { if(c)memcpy(lastColor,c,sizeof(lastColor)); }
 static float AngleSubtract(float a, float b) { float d=a-b; while(d>180)d-=360; while(d<-180)d+=360; return d; }
 static bg_playerclass_t *CG_PlayerClassForClientinfo(clientInfo_t *ci, centity_t *e) { (void)e; return &classes[ci->team==2]; }
 static void CG_DrawPic(float x,float y,float w,float h,int p) { drawnPics[picCalls++%32]=p;lastX=x;lastY=y;lastWidth=w;lastHeight=h;lastPic=p; }
 static void CG_DrawRotatedPic(float x,float y,float w,float h,int p,float a) { lastX=x;lastY=y;lastWidth=w;lastHeight=h;++rotationCalls;lastArrow=p;lastRotation=a; }
-static void CG_DrawRadarIcon(int x,int y,int w,int h,const float *origin,const float *target,int s,int a,int b) { (void)x;(void)y;(void)w;(void)h;(void)origin;(void)target;(void)s;(void)a;(void)b;++radarCalls; }
+static void CG_DrawRadarIcon(int x,int y,int w,int h,const float *origin,const float *target,int s,int a,int b) { lastX=(float)x;lastY=(float)y;lastWidth=(float)w;lastHeight=(float)h;(void)origin;(void)target;(void)s;(void)a;(void)b;++radarCalls; }
 static void CG_FillRect(float x,float y,float w,float h,const float *c) { (void)x;(void)y;(void)w;(void)h;++fillCalls;lastBackAlpha=c[3]; }
 static void CG_DrawRect(float x,float y,float w,float h,float n,const float *c) { (void)x;(void)y;(void)w;(void)h;(void)n;CHECK(c[0]>.9f && c[1]>.5f); }
 static void CG_DrawStringExt(float x,float y,const char *t,const float *c,int force,int shadow,int cw,int ch,int max) { (void)x;(void)y;(void)force;(void)shadow;(void)cw;(void)ch;(void)max;++textCalls;snprintf(lastText,sizeof(lastText),"%s",t);CHECK(c[0]==1 && c[1]==1 && c[2]==1); }
 
 /* ACTUAL_FUNCTIONS */
 
-static void reset_draw(void) { picCalls=rotationCalls=textCalls=fillCalls=radarCalls=0; }
+static void reset_draw(void) { picCalls=rotationCalls=textCalls=fillCalls=radarCalls=polyCalls=labelCalls=legacyShaderCalls=0; }
+static void check_compass_render(void)
+{
+ const int widths[]={640,1024,1280,1920,3440}, heights[]={480,768,720,1080,1440};
+ const float directions[4][2]={{0,1},{1,0},{0,-1},{-1,0}};
+ const char *names[]={"N","E","S","W"};
+ int resolution,mode,missing,heading,i,j;
+ float cx,cy,w,h,physicalRadius;
+ cgs.ccLayers=0;cgs.media.whiteShader=303;
+ automapZoom=5.159f;cg.predictedPlayerState.origin[0]=137;cg.predictedPlayerState.origin[1]=-89;
+ cg.mapcoordsValid=1;tce_uiCoordinates=qtrue;
+ cg_drawCompass.integer=0;i=fsCalls;
+ CHECK(CG_CompassMapShader()==0 && fsCalls==i);
+ cg_drawCompass.integer=1;CHECK(near(CG_CompassRadius(),30));
+ CHECK(CG_CompassMapShader()==0 && fsCalls==i);
+ reset_draw();tceRadarMapVisible=1;CG_DrawCompassBackdrop(50,.37f);
+ CHECK(!tceRadarMapVisible && rotationCalls==1 && picCalls==1);
+ CHECK(legacyShaderCalls==2 && lastArrow==301 && lastPic==302 && near(lastRotation,.37f));
+ CHECK(near(lastX,742) && near(lastY,0) && near(lastWidth,100) && near(lastHeight,100));
+ CHECK(polyCalls==0 && labelCalls==0 && fillCalls==0);
+ for(resolution=0;resolution<5;++resolution) {
+  cgs.glconfig.vidWidth=widths[resolution];cgs.glconfig.vidHeight=heights[resolution];
+  cgs.screenXScale=widths[resolution]/640.f;cgs.screenYScale=heights[resolution]/480.f;
+  for(mode=2;mode<=3;++mode)for(missing=0;missing<=1;++missing)for(heading=0;heading<360;heading+=90) {
+   cg_drawCompass.integer=mode;cg.predictedPlayerState.viewangles[YAW]=(float)heading;
+   CHECK(near(CG_CompassRadius(),40));
+   snprintf(cgs.rawmapname,sizeof(cgs.rawmapname),"render_%d_%d_%d_%d",resolution,mode,missing,heading);
+   snprintf(allowedPath,sizeof(allowedPath),"levelshots/%s_cc%s.tga",cgs.rawmapname,mode==3?"_blueprint":"");
+   if(missing)allowedPath[0]=0;
+   reset_draw();CG_DrawCompassBackdrop(50,.37f);
+   CHECK(tceRadarMapVisible==!missing);
+   CHECK(polyCalls==33 && polys[0].count==32 && labelCalls==4);
+   CHECK(picCalls==0 && rotationCalls==0 && legacyShaderCalls==0 && fillCalls==0);
+   CHECK(polys[0].shader==(missing?303:77));
+   cx=792;cy=50;w=h=0;CG_AdjustFrom640(&cx,&cy,&w,&h);
+   /* The actual native TC conversion must preserve a physical circle at
+    * 4:3, 16:9 and ultrawide resolutions, rather than testing raw HUD units. */
+   physicalRadius=40.f*cgs.screenXScale*.7500000596046448f;
+   for(i=0;i<32;++i) {
+    const polyVert_t *v=&polys[0].verts[i];
+    float dx=v->xyz[0]-cx,dy=v->xyz[1]-cy;
+    CHECK(isfinite(dx) && isfinite(dy) && fabsf(sqrtf(dx*dx+dy*dy)-physicalRadius)<.002f);
+    CHECK(v->xyz[2]==0);
+    if(missing) {
+     CHECK(v->modulate[0]==14 && v->modulate[1]==21 && v->modulate[2]==20 && v->modulate[3]==220);
+    } else {
+     CHECK(v->modulate[0]==255 && v->modulate[1]==255 && v->modulate[2]==255 && v->modulate[3]==255);
+     /* Recover the represented world point from the independent full-map
+      * mapping and compare it with the actual mesh UV at every perimeter vertex. */
+     float phase=i*(2.f*(float)M_PI/32.f),angle=(float)heading*(float)M_PI/180.f;
+     float world[2]={cg.predictedPlayerState.origin[0]+2000.f*(sinf(angle)*cosf(phase)-cosf(angle)*sinf(phase)),
+                     cg.predictedPlayerState.origin[1]+2000.f*(-cosf(angle)*cosf(phase)-sinf(angle)*sinf(phase))};
+     float uv[2];CHECK(TCE_CommandMapPoint(world,cg.mapcoordsMins,cg.mapcoordsMaxs,uv));
+     CHECK(near(v->st[0],uv[0]) && near(v->st[1],uv[1]));
+    }
+    CHECK(polys[i+1].count==4 && polys[i+1].shader==303);
+    for(j=0;j<4;++j) {
+     const polyVert_t *edge=&polys[i+1].verts[j];
+     float ex=edge->xyz[0]-cx,ey=edge->xyz[1]-cy;
+     float edgeRadius=(j<2?40.f:39.5f)*cgs.screenXScale*.7500000596046448f;
+     CHECK(fabsf(sqrtf(ex*ex+ey*ey)-edgeRadius)<.002f);
+     CHECK(edge->modulate[0]==180 && edge->modulate[1]==180 && edge->modulate[2]==180 && edge->modulate[3]==100);
+    }
+    /* Adjacent quads must join; a broken strip can still have correct radii. */
+    CHECK(fabsf(polys[i+1].verts[1].xyz[0]-polys[(i+1)%32+1].verts[0].xyz[0])<.002f);
+    CHECK(fabsf(polys[i+1].verts[1].xyz[1]-polys[(i+1)%32+1].verts[0].xyz[1])<.002f);
+   }
+   for(i=0;i<4;++i) {
+    float angle=(float)heading*(float)M_PI/180.f;
+    float px=directions[i][0]*sinf(angle)-directions[i][1]*cosf(angle);
+    float py=-directions[i][0]*cosf(angle)-directions[i][1]*sinf(angle);
+    CHECK(!strcmp(labels[i].text,names[i]));
+    CHECK(near(labels[i].x+2.2f,792.f+px*35.f) && near(labels[i].y-2.f,50.f+py*35.f));
+    CHECK(near(labels[i].sx,.11f) && near(labels[i].sy,.11f));
+    CHECK(near(labels[i].color[0],.8f) && near(labels[i].color[1],.84f) && near(labels[i].color[3],.65f));
+   }
+  }
+ }
+ /* Missing map metadata also draws the quiet circle, never a missing-image
+  * shader or the unrelated classic ring. */
+ cg.mapcoordsValid=0;cg_drawCompass.integer=2;reset_draw();i=fsCalls;
+ CG_DrawCompassBackdrop(50,0);
+ CHECK(!tceRadarMapVisible && fsCalls==i && polys[0].shader==303 && polyCalls==33);
+ CHECK(legacyShaderCalls==0 && labelCalls==4);
+ cg.mapcoordsValid=1;
+}
 int main(void)
 {
  int yaw, zoom;
  float point[2], st[2], expected[2], radius, mapWidth, mapHeight;
- float target[2]={800,400};
+ float target[2]={800,400};char path[128];
  snapshot_t snap;
  memset(&snap,0,sizeof(snap)); cg.snap=&snap; cg.mapcoordsValid=1;
  cg.mapcoordsMins[0]=-20000;cg.mapcoordsMins[1]=20000;
@@ -122,6 +241,8 @@ int main(void)
   CHECK(near(mapEntities[0].transformed[0],50) && near(mapEntities[0].transformed[1],100));
  }
  mapEntityCount=0;
+ wideScreen=qtrue;CG_ExpandedMapSize(&mapWidth,&mapHeight);
+ CHECK(near(mapWidth,CC_2D_W) && near(mapHeight,CC_2D_H));wideScreen=qfalse;
  CHECK(near(CG_CompassRange(),2000));
  cgs.autoMapOff=1; CG_AutomapZoomIn_f(); CHECK(CG_CompassRange()<2000);
  CG_AutomapZoomOut_f(); CHECK(near(CG_CompassRange(),2000));
@@ -152,7 +273,10 @@ int main(void)
  CG_CommandMap_f(); CHECK(cgs.autoMapExpanded);
  CG_CommandMap_f(); CHECK(!cgs.autoMapExpanded);
  /* The FS cache loads real images only and tries blueprint/layer/overview. */
- snprintf(cgs.rawmapname,sizeof(cgs.rawmapname),"obj_delta");cg_drawCompass.integer=2;
+ CHECK(TCE_CompassMapPath(1,"obj_delta",path,sizeof(path)) && !strcmp(path,"levelshots/obj_delta_cc.tga"));
+ CHECK(TCE_CompassMapPath(2,"obj_delta",path,sizeof(path)) && !strcmp(path,"levelshots/obj_delta_cc_blueprint.tga"));
+ CHECK(!TCE_CompassMapPath(3,"obj_delta",path,sizeof(path)) && !path[0]);
+ snprintf(cgs.rawmapname,sizeof(cgs.rawmapname),"obj_delta");cg_drawCompass.integer=3;
  snprintf(allowedPath,sizeof(allowedPath),"levelshots/obj_delta_cc_blueprint.tga");
  CHECK(CG_CommandMapShader()==77 && closeCalls==1 && shaderCalls==1);
  yaw=fsCalls; CHECK(CG_CommandMapShader()==77 && fsCalls==yaw);
@@ -161,7 +285,7 @@ int main(void)
  CHECK(CG_CommandMapShader()==77 && !strcmp(lastPath,allowedPath));
  /* Radar changes layer with player altitude, with global image fallback. */
  cgs.ccLayers=2;cgs.ccLayerCeils[0]=100;cgs.ccLayerCeils[1]=1000;
- cg_drawCompass.integer=1;snprintf(cgs.rawmapname,sizeof(cgs.rawmapname),"radarlayers");
+ cg_drawCompass.integer=2;snprintf(cgs.rawmapname,sizeof(cgs.rawmapname),"radarlayers");
  cg.predictedPlayerState.origin[2]=50;
  snprintf(allowedPath,sizeof(allowedPath),"levelshots/radarlayers_0_cc.tga");
  CHECK(CG_CompassMapShader()==77 && !strcmp(lastPath,allowedPath));
@@ -172,7 +296,7 @@ int main(void)
  cg.predictedPlayerState.origin[2]=50;
  snprintf(allowedPath,sizeof(allowedPath),"levelshots/radarlayers_cc.tga");
  CHECK(CG_CompassMapShader()==77 && !strcmp(lastPath,allowedPath));
- cg_drawCompass.integer=2;
+ cg_drawCompass.integer=3;
  snprintf(allowedPath,sizeof(allowedPath),"levelshots/radarlayers_0_cc_blueprint.tga");
  CHECK(CG_CompassMapShader()==77 && !strcmp(lastPath,allowedPath));
  cg.predictedPlayerState.origin[2]=200;
@@ -180,11 +304,11 @@ int main(void)
  CHECK(CG_CompassMapShader()==77 && !strcmp(lastPath,allowedPath));
  cg.predictedPlayerState.origin[2]=50;allowedPath[0]=0;
  CHECK(CG_CompassMapShader()==0);
- cg_drawCompass.integer=3;CHECK(CG_CompassMapShader()==0);
+ cg_drawCompass.integer=2;CHECK(CG_CompassMapShader()==0);
  cg.predictedPlayerState.origin[2]=0;
  snprintf(cgs.rawmapname,sizeof(cgs.rawmapname),"missing");
  CHECK(CG_CommandMapShader()==0);
- cgs.ccLayers=2;cgs.ccSelectedLayer=1;cg_drawCompass.integer=1;
+ cgs.ccLayers=2;cgs.ccSelectedLayer=1;cg_drawCompass.integer=2;
  snprintf(cgs.rawmapname,sizeof(cgs.rawmapname),"layered");
  snprintf(allowedPath,sizeof(allowedPath),"levelshots/layered_1_cc.tga");
  CHECK(CG_CommandMapShader()==77);
@@ -196,12 +320,17 @@ int main(void)
  CHECK(tceNavigationPlayers[0]==201 && tceNavigationPlayers[1]==202 && tceNavigationPlayers[2]==203);
  CHECK(tceNavigationObjectives[0]==204 && tceNavigationObjectives[1]==205);
  CHECK(tceNavigationFlags[0]==206 && tceNavigationFlags[1]==207);
- automapZoom=5.159f;tceRadarMapVisible=1;cgs.clientinfo[1].team=2;target[0]=1000;target[1]=0;
+ automapZoom=5.159f;tceRadarMapVisible=1;cg_drawCompass.integer=1;cgs.clientinfo[1].team=2;target[0]=1000;target[1]=0;
  snap.ps.persistant[PERS_TEAM]=2;snap.ps.stats[STAT_HEALTH]=100;
  reset_draw();CG_DrawCompassContact(50,(const float[3]){1000,0,900},0,1);
  CHECK(picCalls==0 && rotationCalls==1 && lastArrow==201);
  CHECK(near(lastX,787) && near(lastY,30) && near(lastRotation,.625f));
  CHECK(lastColor[1]==1 && lastColor[0]<1);
+ for(zoom=2;zoom<=3;zoom++) {
+  cg_drawCompass.integer=zoom;reset_draw();CG_DrawCompassContact(50,(const float[3]){1000,0,900},0,1);
+  CHECK(rotationCalls==1 && near(lastX,787) && near(lastY,25));
+ }
+ cg_drawCompass.integer=1;
  reset_draw();CG_DrawCompassContact(50,(const float[3]){0,0,0},90,1);CHECK(rotationCalls==1 && near(lastY,45) && near(lastRotation,.375f));
  reset_draw();CG_DrawCompassContact(50,(const float[3]){0,0,0},0,0);CHECK(rotationCalls==1 && lastArrow==202 && lastColor[0]==1 && lastColor[1]==1);
  cgs.clientinfo[1].team=1;reset_draw();CG_DrawCompassContact(50,(const float[3]){0,0,0},0,1);CHECK(lastColor[0]==1 && lastColor[1]<.5f);
@@ -224,16 +353,23 @@ int main(void)
  for(yaw=0;yaw<3;yaw++){snap.entities[yaw].number=yaw;cg_entities[yaw].currentState.eType=13;cg_entities[yaw].currentState.onFireStart=yaw;}
  cg_entities[0].currentState.onFireStart=-1;
  reset_draw();CG_DrawTCECommandMapObjectives(10,10,352,352);CHECK(picCalls==2 && drawnPics[0]==204 && drawnPics[1]==205 && textCalls==0);
- for(zoom=1;zoom<=2;zoom++) {
+ for(zoom=1;zoom<=3;zoom++) {
   cg_drawCompass.integer=zoom;
+  cg_entities[1].lerpOrigin[0]=1000;
   reset_draw();CG_DrawTCECompassObjective(50,&cg_entities[1],1,0,0,0);CHECK(picCalls==1 && lastPic==204 && radarCalls==0);
+  CHECK(near(lastX,784.5f) && near(lastY,50.f-(zoom==1?30.f:40.f)*.5f-7.5f));
+  cg_entities[1].lerpOrigin[0]=0;
   reset_draw();CG_DrawTCECompassObjective(50,&cg_entities[2],2,0,0,0);CHECK(picCalls==1 && lastPic==205 && radarCalls==0);
+  reset_draw();CG_DrawTCECompassObjective(50,&cg_entities[2],0,71,72,73);
+  radius=zoom==1?30.f:40.f;
+  CHECK(radarCalls==1 && !picCalls && near(lastX,792-radius) && near(lastY,50-radius));
+  CHECK(near(lastWidth,radius*2) && near(lastHeight,radius*2));
  }
  /* Actual broadcast GT2 capture/home TOIs carry the delivered flag team:
   * Delta's red-flag capture TOI sits at the Specops blue home, and vice versa. */
  cg_gameType.integer=2;cg_entities[1].currentState.teamNum=TEAM_AXIS;cg_entities[2].currentState.teamNum=TEAM_ALLIES;
  CHECK(CG_TCEFlagMapShader(&cg_entities[1].currentState)==207 && CG_TCEFlagMapShader(&cg_entities[2].currentState)==206);
- for(zoom=1;zoom<=2;zoom++) {
+ for(zoom=1;zoom<=3;zoom++) {
   cg_drawCompass.integer=zoom;
   reset_draw();CG_DrawTCECommandMapObjectives(10,10,352,352);CHECK(picCalls==2 && drawnPics[0]==207 && drawnPics[1]==206 && textCalls==0);
   reset_draw();CG_DrawTCECompassObjective(50,&cg_entities[1],1,0,0,0);CHECK(picCalls==1 && lastPic==207 && radarCalls==0);
@@ -259,5 +395,6 @@ int main(void)
  cg_entities[3].currentState.modelindex=1;cg_entities[3].currentState.density=0;CHECK(!CG_TCEFlagMapShader(&cg_entities[3].currentState));
  cg_gameType.integer=5;CHECK(!CG_TCEFlagMapShader(&cg_entities[1].currentState));
  cg_gameType.integer=7;reset_draw();CG_DrawTCECommandMapObjectives(10,10,352,352);CHECK(picCalls==0 && textCalls==0);
+ check_compass_render();
  printf("compass checks=%d failures=%d\n",checks,failures);return failures?1:0;
 }

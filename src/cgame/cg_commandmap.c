@@ -1,4 +1,5 @@
 #include "cg_local.h"
+#include "cg_hud_viewport.h"
 #include "tce_mortar_map.h"
 #include "tce_compass_map.h"
 #include "../game/tce_weapon_ids.h"
@@ -27,7 +28,7 @@ static float automapZoom = 5.159;
 static void CG_ExpandedMapSize(float *w, float *h)
 {
 	*h = CC_2D_H;
-	*w = cgs.screenXScale > 0.f && cgs.screenYScale > 0.f ?
+	*w = !CG_WideScreenEnabled() && cgs.screenXScale > 0.f && cgs.screenYScale > 0.f ?
 	     *h * cgs.screenYScale / cgs.screenXScale : CC_2D_W;
 }
 
@@ -57,7 +58,7 @@ static qhandle_t CG_CommandMapShader(void)
 	static int oldMode = -1, oldLayer = -1;
 	char path[MAX_QPATH];
 	fileHandle_t file;
-	int mode = cg_drawCompass.integer == 2 ? 2 : 1;
+	int mode = cg_drawCompass.integer == 3 ? 2 : 1;
 	int layer = cgs.ccLayers ? cgs.ccSelectedLayer : -1;
 	int pass;
 	if (!Q_stricmp(map, cgs.rawmapname) && oldMode == mode && oldLayer == layer)

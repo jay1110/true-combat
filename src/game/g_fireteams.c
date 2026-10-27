@@ -23,7 +23,7 @@ void G_TCEFireteamInfoMessage(team_t team)
 		payload[0] = '\0';
 		for (member = 0; member < 6; ++member)
 		{
-			int id = ft->joinOrder[member], health, area = 0, axis, position[3];
+			int id = ft->joinOrder[member], health, area = 0, axis, position[3], objective;
 			gentity_t *player, *location;
 			if (id < 0 || id >= level.maxclients || id >= MAX_CLIENTS) continue;
 			player = &g_entities[id];
@@ -40,7 +40,10 @@ void G_TCEFireteamInfoMessage(team_t team)
 				/* Reject non-finite/out-of-world values before float-to-int conversion. */
 				position[axis] = value >= -1048576.f && value <= 1048576.f ? (int)value : 0;
 			}
-			Com_sprintf(entry, sizeof(entry), " %i %i %i %i %i %i", id, health, area, position[0], position[1], position[2]);
+			objective = health <= 0 ? 0 : (player->client->ps.stats[STAT_TCE_WEAPON_FLAGS] & 0x100) ? 1 :
+			            (player->client->ps.stats[STAT_TCE_FLAGS] & 0x100) ? 2 :
+			            player->client->ps.powerups[PW_REDFLAG] ? 3 : player->client->ps.powerups[PW_BLUEFLAG] ? 4 : 0;
+			Com_sprintf(entry, sizeof(entry), " %i %i %i %i %i %i %i", id, health, area, position[0], position[1], position[2], objective);
 			Q_strcat(payload, sizeof(payload), entry);
 			recipients[count++] = id;
 		}

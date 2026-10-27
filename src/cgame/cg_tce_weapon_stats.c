@@ -78,8 +78,8 @@ static void CG_TCEWeaponStatsWindow(void)
 	cg.statsWindow->y = cg.snap && cg.snap->ps.pm_type == PM_INTERMISSION ? -20 : -100;
 	cg.windowCurrent = cg.statsWindow;
 	BG_cleanName(cgs.clientinfo[data->client].name, player, sizeof(player), qfalse);
-	CG_printWindow(va("^7Weapon stats: ^3%s\n", player));
-	CG_printWindow("^7Weapon\tAcc %\tHits/Attacks\tKills\tDeaths\tHS\n");
+	CG_printWindow(va("Weapon stats: %s\n", player));
+	CG_printWindow("Weapon\tAcc %\tHits/Att.\tKills\tDeaths\tHS\n");
 	for (i = 0; i < shown; ++i) {
 		int id = data->ids[i];
 		const tce_weaponStatsRow_t *row = &data->rows[id];
@@ -88,15 +88,13 @@ static void CG_TCEWeaponStatsWindow(void)
 		if (!name[0]) Com_sprintf(name, sizeof(name), "Weapon %d", id);
 		if (row->attacks && row->hits <= row->attacks) Com_sprintf(accuracy, sizeof(accuracy), "%.1f", 100.0 * row->hits / row->attacks);
 		else Q_strncpyz(accuracy, "-", sizeof(accuracy));
-		CG_printWindow(va("^3%s\t^7%s\t^5%d/%d\t^2%d\t^1%d\t^3%d\n", name, accuracy,
+		CG_printWindow(va("%s\t%s\t%d/%d\t%d\t%d\t%d\n", name, accuracy,
 		    row->hits, row->attacks, row->kills, row->deaths, row->headshots));
 	}
-	if (!data->total) CG_printWindow("^3No weapon info available.\n");
-	if (shown < data->total) CG_printWindow(va("^7Showing %d of %d weapons.\n", shown, data->total));
-	CG_printWindow(" \n");
-	CG_printWindow(va("^3Damage Given: ^7%d   ^3Team Damage: ^7%d\n", data->damage[0], data->damage[2]));
-	CG_printWindow(va("^3Damage Recvd: ^7%d\n", data->damage[1]));
-	CG_printWindow("^7Hits and HS count each attack once; kills count victims.\n");
+	if (!data->total) CG_printWindow("No weapon info available.\n");
+	if (shown < data->total) CG_printWindow(va("Showing %d of %d weapons.\n", shown, data->total));
+	CG_printWindow(va("Damage given: %d   Received: %d\n", data->damage[0], data->damage[1]));
+	CG_printWindow(va("Team damage: %d\n", data->damage[2]));
 }
 void CG_TCEWeaponStatsParse(void)
 {

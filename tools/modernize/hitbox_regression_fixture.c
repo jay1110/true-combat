@@ -4,6 +4,7 @@
 #include "src/game/tce_pose_precision.h"
 #include "src/game/tce_damage.h"
 #include "src/game/tce_damage_trace.h"
+#include "src/game/g_tce_hit_debug.h"
 #include <stdio.h>
 #include <math.h>
 #include <float.h>
@@ -11,6 +12,11 @@
 gentity_t g_entities[MAX_GENTITIES];
 level_locals_t level;
 vmCvar_t g_gamestate, g_debugDamage, g_debugBullets;
+void G_TCEHitDebugShot(gentity_t *shooter,int layer) {(void)shooter;(void)layer;}
+int G_TCEHitDebugLogAllowed(void) {return 0;}
+int G_TCEHitDebugTarget(int client) {(void)client;return 1;}
+void G_TCEHitDebugTrace(const char *stage,int shooter,int target,int region,const trace_t *tr,const vec3_t start,const vec3_t end)
+{(void)stage;(void)shooter;(void)target;(void)region;(void)tr;(void)start;(void)end;}
 static gclient_t testClients[MAX_CLIENTS];
 static int failures, tests, traceCalls, spawnCalls, links, partLinks;
 static vec3_t firstVolume;

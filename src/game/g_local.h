@@ -1245,6 +1245,7 @@ void PrecacheItem(gitem_t *it);
 gentity_t *Drop_Item(gentity_t *ent, gitem_t *item, float angle, qboolean novelocity);
 void G_TCEDropBomb(gentity_t *ent);
 qboolean G_TCEManualDropBomb(gentity_t *ent);
+qboolean G_TCEManualDropObjective(gentity_t *ent);
 void G_TCEDropHealth(gentity_t *ent);
 void G_TCEDropVip(gentity_t *ent);
 void G_TCEReleaseObjectives(gentity_t *ent, qboolean disconnect, qboolean vip);

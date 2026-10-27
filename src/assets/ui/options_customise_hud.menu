@@ -5,7 +5,7 @@
 #define WINDOW_X		$evalfloat((.5*852)-(WINDOW_WIDTH*.5))
 #define WINDOW_Y		$evalfloat((.5*480)-(WINDOW_HEIGHT*.5))
 #define WINDOW_WIDTH	400
-#define WINDOW_HEIGHT	280
+#define WINDOW_HEIGHT	324
 #define GROUP_NAME		"grpOptionsCustomiseHud"
 
 // Macros //
@@ -47,28 +47,31 @@ menuDef {
 
 // Hud Display //
 
-	SUBWINDOW( 6, 32, (SUBWINDOW_WIDTH), 100, "HUD Display" )
+	SUBWINDOW( 6, 32, (SUBWINDOW_WIDTH), 136, "HUD Display" )
 	YESNO( 8, 48, (SUBWINDOW_WIDTH)-4, 10, "Draw FPS:", .2, 8, "cg_drawFPS", "Show frames per second" )
 	YESNO( 8, 60, (SUBWINDOW_WIDTH)-4, 10, "Show Lagometer:", .2, 8, "cg_lagometer", "Show lagometer" )
-	MULTI( 8, 72, (SUBWINDOW_WIDTH)-4, 10, "Compass:", .2, 8, "cg_drawCompass", cvarFloatList { "Off" 0 "Map" 1 "Blueprint" 2 "Compass only" 3 }, "Select the compass background; unavailable map images are hidden" )
+	MULTI( 8, 72, (SUBWINDOW_WIDTH)-4, 10, "Compass:", .2, 8, "cg_drawCompass", cvarFloatList { "Off" 0 "Classic" 1 "Map" 2 "Blueprint" 3 }, "Map and Blueprint fill the circle with subtle cardinal labels" )
 	MULTI( 8, 84, (SUBWINDOW_WIDTH)-4, 10, "Mission Timer:", .2, 8, "cg_drawRoundTimer", cvarFloatList { "Off" 0 "On" 1 }, "Show mission time" )
 //	MULTI( 8, 96, (SUBWINDOW_WIDTH)-4, 10, "Cursor Hints:", .2, 8, "cg_cursorHints", cvarFloatList { "Off" 0 "Size Pulse" 1 "Strobe Pulse" 2 "Alpha Pulse" 3 "Solid" 4 }, "Icon display format when near an action item" )
 	MULTI( 8, 96, (SUBWINDOW_WIDTH)-4, 10, "Cursor Hints:", .2, 8, "cg_cursorHints", cvarFloatList { "Off" 0 "On" 1 }, "Icon display when near an action item" )
 	MULTI( 8, 108, (SUBWINDOW_WIDTH)-4, 10, "Player Icons:", .2, 8, "cg_drawFriend", cvarFloatList { "Off" 0 "Visible" 1 "Always" 2}, "Show floating icon indicating team mates" )
 	MULTI( 8, 120, (SUBWINDOW_WIDTH)-4, 10, "Country Flags:", .2, 8, "cg_countryflags", cvarFloatList { "Off" 0 "On" 1 }, "Draw country flags beside scoreboard names" )
+	YESNO( 8, 132, (SUBWINDOW_WIDTH)-4, 10, "Fireteam Names:", .2, 8, "cg_drawTeamNames", "Show visible fireteam members' names in green" )
+	YESNO( 8, 144, (SUBWINDOW_WIDTH)-4, 10, "Automatic Widescreen:", .2, 8, "cg_wideScreen", "Use the actual video dimensions with proportional HUD and menu rendering" )
+	SLIDER( 8, 156, (SUBWINDOW_WIDTH)-4, 10, "HUD Size:", .2, 8, "cg_hudScale" 0.85 0.5 1.5, "Scale HUD widgets; high resolution size is capped by cg_hudMaxHeight" )
 
 // In-Game Display //
-	SUBWINDOW( 6, 298-184+24, (SUBWINDOW_WIDTH), 112, "In-Game Display" )
-	MULTI( 8, 314-184+24, (SUBWINDOW_WIDTH)-4, 10, "Ejecting Brass:", .2, 8, "cg_brassTime", cvarFloatList { "High" 15000 "Med" 2500 "Off" 0 }, "" )
-//	YESNO( 8, 326-184+24, (SUBWINDOW_WIDTH)-4, 10, "Low Quality Sky:", .2, 8, "r_fastsky", "" )
-	SLIDER( 8, 326-184+24, (SUBWINDOW_WIDTH)-4, 10, "Dynamic Eye:", .2, 8, "cg_dynamicEye" 0.0 0.0 1.0, "Use the slider to increase or decrease HDR dynamic light adaptation" )
+	SUBWINDOW( 6, 298-184+60, (SUBWINDOW_WIDTH), 112, "In-Game Display" )
+	MULTI( 8, 314-184+60, (SUBWINDOW_WIDTH)-4, 10, "Ejecting Brass:", .2, 8, "cg_brassTime", cvarFloatList { "High" 15000 "Med" 2500 "Off" 0 }, "" )
+//	YESNO( 8, 326-184+60, (SUBWINDOW_WIDTH)-4, 10, "Low Quality Sky:", .2, 8, "r_fastsky", "" )
+	SLIDER( 8, 326-184+60, (SUBWINDOW_WIDTH)-4, 10, "Dynamic Eye:", .2, 8, "cg_dynamicEye" 0.0 0.0 1.0, "Use the slider to increase or decrease HDR dynamic light adaptation" )
 
-	MULTI( 8, 338-184+24, (SUBWINDOW_WIDTH)-4, 10, "Corona Distance:", .2, 8, "cg_coronafardist", cvarFloatList { "Off" 0 "Near" 800 "Normal" 1536 "Far" 4096 "Extreme" 16000 }, "" )
-	YESNO( 8, 350-184+24, (SUBWINDOW_WIDTH)-4, 10, "Particles:", .2, 8, "cg_wolfparticles", "" )
-	MULTI( 8, 362-184+24, (SUBWINDOW_WIDTH)-4, 10, "Wall Mark Lifetime:", .2, 8, "cg_markTime", cvarFloatList { "Long" 30000 "Normal" 20000 "Short" 10000 "Off" 0 }, "" )
-	MULTI( 8, 374-184+24, (SUBWINDOW_WIDTH)-4, 10, "Blood Flash:", .2, 8, "cg_bloodFlash", cvarFloatList { "None" 0.0 "Light" 0.25 "Medium" 0.5 "Heavy" 0.75 "Full" 1.0 }, "Red blood \"flash\" scale when receiving damage" )
-	MULTI( 8, 386-184+24, (SUBWINDOW_WIDTH)-4, 10, "Blood Splatter:", .2, 8, "cg_bloodDamageBlend", cvarFloatList { "None" 0.0 "Light" 0.25 "Medium" 0.5 "Heavy" 0.75 "Full" 1.0 }, "Blood \"splatter\" transparency when taking damage from other players" )
-	MULTI( 8, 398-184+24, (SUBWINDOW_WIDTH)-4, 10, "Gun Position:", .2, 8, "cg_gunPosition", cvarFloatList { "More centered" 0 "Default" 1 "More to right" 2  }, "Horizontal position of view weapon" )
+	MULTI( 8, 338-184+60, (SUBWINDOW_WIDTH)-4, 10, "Corona Distance:", .2, 8, "cg_coronafardist", cvarFloatList { "Off" 0 "Near" 800 "Normal" 1536 "Far" 4096 "Extreme" 16000 }, "" )
+	YESNO( 8, 350-184+60, (SUBWINDOW_WIDTH)-4, 10, "Particles:", .2, 8, "cg_wolfparticles", "" )
+	MULTI( 8, 362-184+60, (SUBWINDOW_WIDTH)-4, 10, "Wall Mark Lifetime:", .2, 8, "cg_markTime", cvarFloatList { "Long" 30000 "Normal" 20000 "Short" 10000 "Off" 0 }, "" )
+	MULTI( 8, 374-184+60, (SUBWINDOW_WIDTH)-4, 10, "Blood Flash:", .2, 8, "cg_bloodFlash", cvarFloatList { "None" 0.0 "Light" 0.25 "Medium" 0.5 "Heavy" 0.75 "Full" 1.0 }, "Red blood \"flash\" scale when receiving damage" )
+	MULTI( 8, 386-184+60, (SUBWINDOW_WIDTH)-4, 10, "Blood Splatter:", .2, 8, "cg_bloodDamageBlend", cvarFloatList { "None" 0.0 "Light" 0.25 "Medium" 0.5 "Heavy" 0.75 "Full" 1.0 }, "Blood \"splatter\" transparency when taking damage from other players" )
+	MULTI( 8, 398-184+60, (SUBWINDOW_WIDTH)-4, 10, "Gun Position:", .2, 8, "cg_gunPosition", cvarFloatList { "More centered" 0 "Default" 1 "More to right" 2  }, "Horizontal position of view weapon" )
 
 // Buttons //
 

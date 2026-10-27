@@ -49,15 +49,20 @@ def main() -> int:
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
     source_root = args.source_root.resolve()
+    compiler_headers = {p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest()
+                        for p in ('src/game/bg_public.h', 'src/game/bg_local.h', 'src/game/g_local.h')}
     sources = {}
     for relative in ("src/game/bg_pmove.c", "src/game/bg_misc.c", "src/game/g_items.c", "src/cgame/cg_weapons.c", "src/cgame/cg_view.c"):
         path = source_root / relative
         if not path.exists():
             path = source_root / Path(relative).name
         sources[relative] = path.read_text(encoding="utf-8-sig")
-    movement_names = ["PM_TCEAddWeaponCounter", "PM_TCEElapsedWeaponCounter", "PM_BeginWeaponChange", "PM_FinishWeaponChange", "PM_SwitchIfEmpty", "PM_TCEWeaponEligibility837",
+    movement_names = ["PM_TCEAddWeaponCounter", "PM_TCEElapsedWeaponCounter", "PM_BeginWeaponReload", "PM_ReloadClip", "PM_FinishWeaponReload", "PM_ReloadSingleRound", "PM_CheckForReload", "PM_BeginWeaponChange", "PM_FinishWeaponChange", "PM_SwitchIfEmpty", "PM_TCEWeaponEligibility837",
                       "PM_TCEUpdateWeaponCycle", "PM_TCEUpdateObjectiveAction",
                       "PM_TCEUpdateWeaponActions", "PM_TCEUpdateWeaponTrigger"]
+    for name in ("PM_TCECaptureReloadRequest", "PM_TCECheckForQueuedReload"):
+        if re.search(r'\b'+name+r'\([^;{}]*\)\s*\{', sources['src/game/bg_pmove.c']):
+            movement_names.insert(movement_names.index('PM_BeginWeaponChange'), name)
     if "static qboolean PM_TCECancelInterruptedObjective(" in sources["src/game/bg_pmove.c"]:
         movement_names.insert(movement_names.index("PM_TCEUpdateObjectiveAction"),
                               "PM_TCECancelInterruptedObjective")
@@ -66,6 +71,8 @@ def main() -> int:
         units.insert(0, "static qboolean PM_TCECancelInterruptedObjective(void) { return qfalse; }")
     # Exercise the actual caller's early-exit hook, including before snapshots.
     main_weapon = function(sources["src/game/bg_pmove.c"], "PM_Weapon")
+    captures_reload = ('PM_TCECaptureReloadRequest();' in main_weapon and
+                       main_weapon.index('PM_TCECaptureReloadRequest();') < main_weapon.index('PM_TCEUpdateMountedWeapon()'))
     cycle_start = main_weapon.index("if (PM_TCEUpdateWeaponCycle(")
     cycle_end = main_weapon.index("if (PM_TCEUpdateWeaponActions(", cycle_start)
     caller_cancels = "PM_TCECancelInterruptedObjective();" in main_weapon[cycle_start:cycle_end]
@@ -86,7 +93,8 @@ def main() -> int:
                  + view[start:end] + "}\n")
     fixture = (ROOT / "tools/modernize/weapon_regression_fixture.c").read_text(encoding="utf-8")
     generated = fixture.replace("/* PRODUCTION_FUNCTIONS */", "\n\n".join(units)).replace("/* ACTUAL_WEAPON_BANKS */",banks)
-    generated = ("#define TCE_CALLER_CANCELS_OBJECTIVE " + str(int(caller_cancels)) + "\n" + generated)
+    generated = ("#define TCE_CALLER_CANCELS_OBJECTIVE " + str(int(caller_cancels)) + "\n" +
+                 "#define TCE_CALLER_CAPTURES_RELOAD " + str(int(captures_reload)) + "\n" + generated)
     source = out / "weapon_regression.c"
     source.write_text(generated, encoding="utf-8", newline="\n")
     if sys.platform == "win32":
@@ -117,6 +125,8 @@ def main() -> int:
               "functions": movement_names + ["G_TCEReleaseObjectives", "G_TCEManualDropBomb"] + cg_names + ["CG_CalcFov aim reconciliation"],
               "source_hashes": {key: hashlib.sha256(value.encode()).hexdigest() for key, value in sources.items()},
               "objective_early_exit_caller_hook": caller_cancels,
+              "reload_request_caller_hook": captures_reload,
+              "compiler_header_hashes": compiler_headers,
               "fixture_sha256": hashlib.sha256(fixture.encode()).hexdigest(),
               "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
               "generated_sha256": hashlib.sha256(generated.encode()).hexdigest(),

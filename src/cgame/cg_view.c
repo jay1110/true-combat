@@ -1,6 +1,8 @@
 // cg_view.c -- setup all the parameters (position, angle, etc)
 // for a 3D rendering
 #include "cg_local.h"
+#include "cg_hud_viewport.h"
+#include "cg_tce_hit_debug.h"
 #include "../game/tce_bg.h"
 #include "tce_lightgrid.h"
 #include "tce_flash.h"
@@ -256,6 +258,11 @@ void CG_Letterbox(float xsize, float ysize, qboolean center)
 }
 void CG_CalcVrect(void)
 {
+	if (CG_WideScreenEnabled())
+	{
+		CG_Letterbox(100, 100, qtrue);
+		return;
+	}
 	if (cg.showGameView)
 	{
 		float x, y, w, h;
@@ -3092,6 +3099,7 @@ void CG_DrawActiveFrame(int serverTime, stereoFrame_t stereoView, qboolean demoP
 
 	// update cvars
 	CG_UpdateCvars();
+	CG_HudViewportUpdate();
 
 	DEBUGTIME
 
@@ -3246,6 +3254,7 @@ void CG_DrawActiveFrame(int serverTime, stereoFrame_t stereoView, qboolean demoP
 			DEBUGTIME
 
 			CG_AddLocalEntities();
+			CG_TCEHitDebugDraw();
 
 			DEBUGTIME
 
@@ -3351,6 +3360,7 @@ void CG_DrawActiveFrame(int serverTime, stereoFrame_t stereoView, qboolean demoP
 
 		// actually issue the rendering calls
 		CG_DrawActive(stereoView);
+		CG_TCEHitDebugOverlay();
 
 		DEBUGTIME
 

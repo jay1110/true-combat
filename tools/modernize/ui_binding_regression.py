@@ -31,7 +31,7 @@ def main() -> int:
     menu_path = ROOT / "src/assets/ui/options_controls.menu"
     menu = re.sub(r'//[^\n]*|/\*.*?\*/', '', menu_path.read_text(encoding="utf-8"), flags=re.S)
     menu_commands = re.findall(r'BIND\([^\n]*,\s*"([^"]+)",\s*"[^"]*"\s*\)', menu)
-    if not {"+wstats", "commandmap", "+mapexpand", "mapzoomin", "mapzoomout"}.issubset(menu_commands):
+    if not {"+wstats", "commandmap", "+mapexpand", "mapzoomin", "mapzoomout", "dropobj"}.issubset(menu_commands):
         raise ValueError("Required stats/map controls are missing from the active menu")
     bindings += "\nstatic const char *menuBindings[] = {" + ",".join(json.dumps(c) for c in menu_commands) + "};\n"
     names = ["Controls_GetConfig", "Controls_SetConfig", "Controls_SetDefaults", "BindingIDFromName", "BindingFromName", "Item_Bind_HandleKey"]

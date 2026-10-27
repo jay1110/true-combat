@@ -39,6 +39,7 @@ def reference_checks(out, env, compiler, dll):
                'void G_TCEPoseCapture(gentity_t *ent) { (void)ent; }',
                'void G_TCEPoseResetClient(gentity_t *ent) { (void)ent; }',
                'void G_TCEPoseResetHistory(gentity_t *ent) { (void)ent; }',
+               'void G_TCEHitDebugShot(gentity_t *ent, int layer) { (void)ent; (void)layer; }',
                'static volatile float referenceTouch;',
                '__declspec(noinline) gentity_t *G_TempEntity(vec3_t p, int e) { referenceTouch = p[0] + p[1] + p[2] + e; return &g_entities[70]; }']
     shared = (ROOT / "src/game/q_shared.c").read_text(encoding="utf-8-sig")
@@ -129,12 +130,14 @@ def main():
         units += [function(sources["tce_bullet_material.c"], "TCE_BulletDeflect")]
         weapons = sources["g_weapon.c"]
         units += [function(weapons, "SnapVectorTowards")]
+        units += [function(weapons, "EmitterCheck")]
         if "static int G_TCEBulletExplosiveDamage(" in weapons:
             units += ["#if defined(__linux__)\n" + function(weapons, "G_TCEBulletExplosiveDamage") + "\n#endif"]
         if "static void G_TCETraceBullet(" in weapons:
             units += [re.search(r"typedef struct\s*\{\s*qboolean hit\[MAX_CLIENTS\];.*?\} tceBulletTraceContext_t;", weapons, re.S)[0],
                       function(weapons, "G_TCETraceBullet"), function(weapons, "G_TCEBulletFireExtended")]
         units += [function(weapons, "Bullet_Fire_Extended")]
+        units += [function(weapons, "Bullet_Fire")]
     fixture = Path(__file__).with_name("hitbox_bullet_fixture.c" if args.bullets else "hitbox_regression_fixture.c").read_text()
     # Use the requested historical volume implementation as well as function bodies.
     fixture = fixture.replace('#include "src/game/tce_damage.h"', sources["tce_damage.h"])

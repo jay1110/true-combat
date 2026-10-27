@@ -5464,6 +5464,67 @@ void PM_CheckForReload(int weapon)
 	}
 }
 
+/* A brief valid reload press must survive ordinary shot/raise/sprint recovery,
+ * not become a permanent held input. This suffix is copied with pmoveExt in
+ * prediction history and cleared by the existing spawn/map reset bodies. */
+static void PM_TCECaptureReloadRequest(void)
+{
+	int weapon = pm->ps->weapon, clip, ammo, maximum;
+	if (!pm->pmext->tceReloadWeapon &&
+	    (!(pm->cmd.wbuttons & WBUTTON_RELOAD) || (pm->oldcmd.wbuttons & WBUTTON_RELOAD))) return;
+	if (weapon <= 0 || weapon >= TCE_MAX_WEAPONS || pm->noWeapClips ||
+	    pm->ps->pm_type != PM_NORMAL || pm->ps->stats[STAT_HEALTH] <= 0 ||
+	    pm->ps->persistant[PERS_TEAM] == TEAM_SPECTATOR ||
+	    (pm->ps->pm_flags & (PMF_RESPAWNED | PMF_LIMBO | PMF_TCE_OBJECTIVE_ACTION)) ||
+	    pm->ps->persistant[PERS_HWEAPON_USE] || (pm->ps->eFlags & EF_MOUNTEDTANK) ||
+	    pml.ladder || weapon == 55 || weapon == 56 || weaponDef[weapon].reloadTime <= 0 ||
+	    !COM_BitCheck(pm->ps->weapons, weapon) ||
+	    ((pm->cmd.weapon > 0 && pm->cmd.weapon < 55) && pm->cmd.weapon != weapon) ||
+	    (pm->ps->weaponstate != WEAPON_READY && pm->ps->weaponstate != WEAPON_FIRING &&
+	     pm->ps->weaponstate != WEAPON_FIRINGALT && pm->ps->weaponstate != WEAPON_RAISING &&
+	     pm->ps->weaponstate != WEAPON_RELAXING && pm->ps->weaponstate != WEAPON_TCE_CYCLE))
+	{
+		pm->pmext->tceReloadWeapon = 0;
+		return;
+	}
+	clip = TCE_BG_FindClipForWeapon(weapon);
+	ammo = TCE_BG_FindAmmoForWeapon(weapon);
+	maximum = weapon >= 57 && weapon <= 59 ? GetAmmoTableData(weapon)->maxclip : weaponDef[weapon].maxclip;
+	if (!pm->ps->ammo[ammo] || maximum <= 0 ||
+	    ((weapon == 31 || weapon == 62) && pm->ps->ammoclip[31]) ||
+	    (pm->ps->ammoclip[clip] >= maximum &&
+	     (!TCE_BG_IsAkimboWeapon(weapon) ||
+	      pm->ps->ammoclip[TCE_BG_FindClipForWeapon(TCE_BG_AkimboSidearm(weapon))] >=
+	      weaponDef[TCE_BG_AkimboSidearm(weapon)].maxclip)))
+	{
+		pm->pmext->tceReloadWeapon = 0;
+		return;
+	}
+	if (pm->pmext->tceReloadWeapon != weapon ||
+	    (unsigned)pm->cmd.serverTime - (unsigned)pm->pmext->tceReloadRequestedAt > 750u)
+	{
+		pm->pmext->tceReloadWeapon = 0;
+	}
+	if ((pm->cmd.wbuttons & WBUTTON_RELOAD) && !(pm->oldcmd.wbuttons & WBUTTON_RELOAD))
+	{
+		pm->pmext->tceReloadWeapon = weapon;
+		pm->pmext->tceReloadRequestedAt = pm->cmd.serverTime;
+	}
+}
+
+static void PM_TCECheckForQueuedReload(int weapon)
+{
+	int original = pm->cmd.wbuttons;
+	if (pm->pmext->tceReloadWeapon == weapon) pm->cmd.wbuttons |= WBUTTON_RELOAD;
+	PM_CheckForReload(weapon);
+	pm->cmd.wbuttons = original;
+	if (pm->ps->weaponstate == WEAPON_RELOADING || pm->ps->weaponstate == WEAPON_TCE_RELOAD_START ||
+	    pm->ps->weaponstate == WEAPON_DROPPING_TORELOAD)
+	{
+		pm->pmext->tceReloadWeapon = 0;
+	}
+}
+
 /*
 ==============
 PM_SwitchIfEmpty
@@ -7080,7 +7141,7 @@ static qboolean PM_TCEUpdateWeaponActions(qboolean delayedFire)
 	{
 		return qtrue;
 	}
-	PM_CheckForReload(pm->ps->weapon);
+	PM_TCECheckForQueuedReload(pm->ps->weapon);
 	if (pm->ps->weaponTime > 0 || pm->ps->weaponDelay > 0)
 	{
 		return qtrue;
@@ -7929,6 +7990,7 @@ static void PM_Weapon(void)
 	static int weaponstate_last = -1;
 #endif
 
+	PM_TCECaptureReloadRequest();
 	if (PM_TCEUpdateMountedWeapon())
 	{
 		return;

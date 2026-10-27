@@ -3,6 +3,7 @@
 // be a valid snapshot this frame
 
 #include "cg_local.h"
+#include "cg_tce_hit_debug.h"
 #include "cg_tce_pose_presentation.h"
 #include "tce_smoke_grenade.h"
 #include "tce_flash.h"
@@ -1033,8 +1034,10 @@ require a reload of all the media
 static void CG_MapRestart(void)
 {
 	int i;
+	CG_TCEHitDebugReset();
 	CG_wStatsUp_f();
 	CG_TCEWeaponStatsReset();
+	CG_TCEFireteamInvalidate();
 	cg.statsRequestTime = 0;
 	CG_TCEPresentationRestart();
 	/* Score and health packets belong to the previous round until refreshed. */

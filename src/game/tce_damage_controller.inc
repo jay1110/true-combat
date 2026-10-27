@@ -3,6 +3,7 @@
 #include "tce_damage_trace.h"
 #include "g_tce_bullet_damage.h"
 #include "g_tce_weapon_stats.h"
+#include "g_tce_hit_debug.h"
 extern void G_Voice(gentity_t *, gentity_t *, int, const char *, qboolean);
 
 static void TCE_DamageDebugBox(gentity_t *part, const vec3_t start, const vec3_t end, float fraction
@@ -12,7 +13,7 @@ static void TCE_DamageDebugBox(gentity_t *part, const vec3_t start, const vec3_t
                                )
 {
 	vec3_t mins, maxs, hit; gentity_t *event; int i;
-	if (g_debugBullets.integer <= 2)
+	if (g_debugBullets.integer <= 0 || !(g_debugBullets.integer & 2))
 	{
 		return;
 	}
@@ -49,7 +50,7 @@ static int TCE_ApplyBodyDamage(gentity_t *targ, gentity_t *attacker, int mod,
 #endif
 	/* Original first diagnostic ray reads uninitialized locals.  Keep its
 	 * surrounding box/ray events, using the defined incoming ray instead. */
-	if (g_debugBullets.integer > 2)
+	if (g_debugBullets.integer > 0 && (g_debugBullets.integer & 2))
 	{
 		for (j = 0; j < 3; ++j)
 			end[j] = point[j] + dir[j] * 64;
@@ -121,6 +122,7 @@ static int TCE_ApplyBodyDamage(gentity_t *targ, gentity_t *attacker, int mod,
 		 * for another player's narrow volumes. Keep all solid/missile cover. */
 		trap_Trace(&tr, point, NULL, NULL, end, targ->s.number,
 		           MASK_MISSILESHOT & ~(CONTENTS_BODY | CONTENTS_CORPSE));
+		G_TCEHitDebugTrace("regional-narrow", attacker ? attacker->s.number : -1, targ->s.number, i, &tr, point, end);
 		if (&g_entities[tr.entityNum] == part)
 		{
 			fractions[i] = tr.fraction;

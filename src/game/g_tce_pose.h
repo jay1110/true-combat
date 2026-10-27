@@ -144,4 +144,8 @@ g_tcePoseTraceState_t G_TCEPosePresentationTrace(const struct g_tcePresentationQ
     const float start[3], const float end[3], double maxFraction, g_tcePoseTraceResult_t *out);
 int G_TCEPosePresentationTraceMatches(const g_tcePoseTraceResult_t *result,
     const struct g_tcePresentationQuery_s *query, const float start[3], const float end[3], double maxFraction);
+/* Diagnostics only: AABBs enclosing the evaluated triangle regions. These
+ * are NOT solid hit volumes and are never consumed by damage selection. */
+int G_TCEPosePresentationBounds(const struct g_tcePresentationQuery_s *query,
+    float mins[3][3], float maxs[3][3]);
 #endif

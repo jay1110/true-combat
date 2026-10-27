@@ -121,6 +121,7 @@ set(cgame_SOURCES
 )
 
 set(ui_SOURCES
+  ui/tce_viewport.c
   game/bg_campaign.c
   game/bg_classes.c
   game/bg_misc.c

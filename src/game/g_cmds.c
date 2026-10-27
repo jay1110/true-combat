@@ -4378,6 +4378,10 @@ void ClientCommand(int clientNum)
 	{
 		G_TCEManualDropBomb(ent);
 	}
+	else if (Q_stricmp(cmd, "dropobj") == 0)
+	{
+		G_TCEManualDropObjective(ent);
+	}
 	else if (Q_stricmp(cmd, "kill") == 0)
 	{
 		Cmd_Kill_f(ent, MOD_SUICIDE);

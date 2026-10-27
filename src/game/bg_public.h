@@ -530,6 +530,8 @@ typedef struct
 	qboolean releasedFire;
 	vec3_t tceShotAngles; /* Original pmext+0x64, captured before shot recoil. */
 	float tceFreelookRecoil[2]; /* Pending pitch/yaw kick, distinct from mouse input. */
+	/* Mod-private prediction history suffix; the existing120-byte prefix stays. */
+	int tceReloadWeapon, tceReloadRequestedAt;
 } pmoveExt_t;   // data used both in client and server - store it here
                 // instead of playerstate to prevent different engine versions of playerstate between XP and MP
 

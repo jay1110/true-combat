@@ -7,6 +7,8 @@
 
 
 #include "cg_local.h"
+#include "cg_hud_viewport.h"
+#include "cg_tce_hit_debug.h"
 #include "cg_tce_weapon_stats.h"
 #include "cg_tce_pose_presentation.h"
 #include "tce_smoke_grenade.h"
@@ -373,7 +375,7 @@ cvarTable_t cvarTable[] =
 	{ &cg_drawFPS,                  "cg_drawFPS",                  "0",     CVAR_ARCHIVE                 },
 	{ &cg_drawSnapshot,             "cg_drawSnapshot",             "0",     CVAR_ARCHIVE                 },
 	{ &cg_drawCrosshair,            "cg_drawCrosshair",            "0",     CVAR_CHEAT                   },
-	{ &cg_drawCrosshairNames,       "cg_drawCrosshairNames",       "1",     CVAR_ARCHIVE                 },
+	{ &cg_drawCrosshairNames,       "cg_drawCrosshairNames",       "0",     CVAR_ARCHIVE                 },
 	{ &cg_countryflags,            "cg_countryflags",            "1",     CVAR_ARCHIVE                 },
 	{ &cg_drawTeamNames,            "cg_drawTeamNames",            "1",     CVAR_ARCHIVE                 },
 	{ &cg_drawCrosshairPickups,     "cg_drawCrosshairPickups",     "1",     CVAR_ARCHIVE                 },
@@ -3103,6 +3105,7 @@ void CG_Init(int serverMessageNum, int serverCommandSequence, int clientNum, qbo
 	memset(cg_items, 0, sizeof(cg_items));
 	CG_TCEFireteamReset();
 	CG_TCEWeaponStatsReset();
+	CG_TCEHitDebugReset();
 	CG_TCEPresentationInit();
 
 	cgs.initing = qtrue;
@@ -3121,6 +3124,7 @@ void CG_Init(int serverMessageNum, int serverCommandSequence, int clientNum, qbo
 
 	// get the rendering configuration from the client system
 	trap_GetGlconfig(&cgs.glconfig);
+	CG_HudViewportInit();
 	cgs.screenXScale = cgs.glconfig.vidWidth / 640.0;
 	cgs.screenYScale = cgs.glconfig.vidHeight / 480.0;
 

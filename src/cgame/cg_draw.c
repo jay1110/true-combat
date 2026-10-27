@@ -8,6 +8,7 @@
 // active (after loading) gameplay
 
 #include "cg_local.h"
+#include "cg_hud_viewport.h"
 #include "tce_compass_map.h"
 #include "tce_camera_wave.h"
 #include "../game/tce_numeric.h"
@@ -761,15 +762,19 @@ float CG_TCEFireteamTextY(float y)
 {
 	extern qboolean tce_uiCoordinates;
 	qboolean previous = tce_uiCoordinates;
-	float height = CG_TCEFireteamHeight(), x = 0, top = 0, w = 0, scale = 1, minimum;
+	float height = CG_TCEFireteamHeight(), x = 0, top = 0, w = 0, scale = 1, minimum, bottom;
 	if (height <= 0.f) return y;
 	/* FT uses the SDK640 canvas; popup/status text uses the aspect-aware TCE
 	 * canvas. Derive its offset/scale through the existing renderer adapter. */
+	tce_uiCoordinates = qfalse;
+	bottom = 8.f + height + 8.f;
+	CG_AdjustFrom640(&x, &bottom, &w, &top);
+	x = top = w = 0;
 	tce_uiCoordinates = qtrue;
 	CG_AdjustFrom640(&x, &top, &w, &scale);
 	tce_uiCoordinates = previous;
 	if (scale <= 0.f) return y;
-	minimum = ((8.f + height + 8.f) * cgs.screenYScale - top) / scale;
+	minimum = (bottom - top) / scale;
 	return y < minimum ? minimum : y;
 }
 
@@ -1728,6 +1733,10 @@ static void CG_DrawWeapReticle(void)
 	tce_uiCoordinates = qtrue;
 	if (!cg_portalScopes.integer)
 	{
+		/* Types0/1 use the SDK640 layout (center320); type2 uses TC854
+		 * (center426). Keep their circles centered on the same world view. */
+		if (CG_WideScreenEnabled() && type != 2) tce_uiCoordinates = qfalse;
+		CG_HudViewportMaskMargins(type == 2);
 		if (type == 2)
 		{
 			if (cgs.media.tceM76ReticleShader)
@@ -2445,9 +2454,13 @@ CG_DrawBinocReticle
 static void CG_DrawBinocReticle(void)
 {
 	// an alternative.  This gives nice sharp lines at the expense of a few extra polys
+	extern qboolean tce_uiCoordinates;
+	qboolean previous = tce_uiCoordinates;
 	vec4_t color;
+	if (CG_WideScreenEnabled()) tce_uiCoordinates = qfalse;
 	color[0] = color[1] = color[2] = 0;
 	color[3] = 1;
+	CG_HudViewportMaskMargins(0);
 
 	if (cgs.media.binocShaderSimple)
 	{
@@ -2463,6 +2476,7 @@ static void CG_DrawBinocReticle(void)
 	CG_FillRect(360, 234, 1, 13, color);    // rl
 	CG_FillRect(406, 226, 1, 29, color);    // r
 	CG_FillRect(452, 234, 1, 13, color);    // rr
+	tce_uiCoordinates = previous;
 }
 
 void CG_FinishWeaponChange(int lastweap, int newweap); // JPW NERVE
@@ -2969,15 +2983,16 @@ static void CG_DrawCrosshairNames(void)
 	tce_uiCoordinates = previous;
 }
 
-/* CQB CG_Draw2D 0005a5c0 overhead labels, adapted to native TC structures.
- * The optional cvar and independent per-name alpha are TCE2 extensions. */
+/* Optional TCE2 fireteam labels. PVS membership and a fresh eye-to-head trace
+ * are required every frame: the model visibility cache cannot authorize text
+ * through an occluder after the player moves behind it. */
 static void CG_DrawTeamNames(void)
 {
 	extern qboolean tce_uiCoordinates;
 	extern int      tceSmokeNewBBox;
 	int             i, team = cg.predictedPlayerState.persistant[PERS_TEAM];
 	qboolean        previous;
-	if (!cg_drawTeamNames.integer || cg.showScores || cg.showGameView ||
+	if (!cg.snap || !cg_drawTeamNames.integer || cg.showScores || cg.showGameView ||
 	    team == TEAM_SPECTATOR || cg.renderingThirdPerson)
 	{
 		return;
@@ -2988,30 +3003,19 @@ static void CG_DrawTeamNames(void)
 	{
 		centity_t    *cent = &cg_entities[i];
 		clientInfo_t *ci   = &cgs.clientinfo[i];
-		vec3_t       direction;
-		vec4_t       color = { 1, 1, 1, .5f };
+		vec3_t       direction, point;
+		vec4_t       color = { .48f, .8f, .38f, .9f };
+		trace_t      trace;
+		char         name[MAX_NAME_LENGTH];
+		char         *nameChar;
 		float        distance, forward, side, up, scale, x, y, height, projection;
 		if (i == cg.predictedPlayerState.clientNum || !ci->infoValid || ci->team != team ||
-		    ci->health <= 0 || cent->currentState.eType != ET_PLAYER ||
+		    !CG_IsOnSameFireteam(cg.clientNum, i) || !cent->currentValid || !cent->tceVisible ||
+		    cent->currentState.eType != ET_PLAYER ||
 		    (cent->currentState.eFlags & (EF_DEAD | EF_NODRAW | EF_CONNECTION)))
 		{
 			cent->tceTeamNameUntil = 0;
 			continue;
-		}
-		/* CQB also gates on its team-position feed. TC's scanner publishes
-		 * only the bomb carrier, so use the real snapshot/visibility state
-		 * instead; importing that CQB wire gate would hide all normal names. */
-		if (cent->currentValid && cent->tceVisible)
-		{
-			cent->tceTeamNameUntil = cg.time + 500;
-		}
-		if (!cent->tceTeamNameUntil || cg.time > cent->tceTeamNameUntil)
-		{
-			continue;
-		}
-		if (!cent->currentValid || !cent->tceVisible)
-		{
-			color[3] *= (cent->tceTeamNameUntil - cg.time) * .002f;
 		}
 		height = (cent->currentState.effect1Time & 4) ? 12.f : 48.f;
 		if (tceSmokeNewBBox)
@@ -3022,8 +3026,18 @@ static void CG_DrawTeamNames(void)
 		{
 			height -= 18.f;
 		}
-		VectorSubtract(cent->lerpOrigin, cg.refdef.vieworg, direction);
-		direction[2] += height;
+		VectorCopy(cent->lerpOrigin, point); point[2] += height;
+		if (cent->pe.headRefEnt.hModel)
+		{
+			VectorSubtract(cent->pe.headRefEnt.origin, cent->lerpOrigin, direction);
+			if (DotProduct(direction, direction) <= 96.f * 96.f)
+				VectorCopy(cent->pe.headRefEnt.origin, point);
+		}
+		CG_Trace(&trace, cg.refdef.vieworg, NULL, NULL, point,
+		         cg.snap->ps.clientNum, CONTENTS_SOLID | CONTENTS_BODY);
+		if (trace.startsolid || trace.allsolid || (trace.fraction < 1.f && trace.entityNum != i)) continue;
+		point[2] += 10.f;
+		VectorSubtract(point, cg.refdef.vieworg, direction);
 		distance      = VectorNormalize(direction);
 		forward       = DotProduct(direction, cg.refdef.viewaxis[0]);
 		if (forward < .5f || distance > 4096.f || cg.tceNameTanHalfFov <= 0)
@@ -3044,9 +3058,11 @@ static void CG_DrawTeamNames(void)
 		{
 			color[3] *= (4096.f - distance) / 512.f;
 		}
-		x = 426.f - side * projection - CG_Text_Width_Ext(ci->name, scale, 0, &cgs.media.limboFont1) * .5f;
+		Q_strncpyz(name, ci->name, sizeof(name)); Q_CleanStr(name);
+		for (nameChar = name; *nameChar; ++nameChar) if (*nameChar == Q_COLOR_ESCAPE) *nameChar = ' ';
+		x = 426.f - side * projection - CG_Text_Width_Ext(name, scale, 0, &cgs.media.limboFont1) * .5f;
 		y = 240.f - up * projection;
-		CG_Text_Paint_Ext(x, y, scale, scale, color, ci->name, 0, 0, 3, &cgs.media.limboFont1);
+		CG_Text_Paint_Ext(x, y, scale, scale, color, name, 0, 0, 3, &cgs.media.limboFont1);
 	}
 	trap_R_SetColor(NULL);
 	tce_uiCoordinates = previous;
@@ -4414,6 +4430,11 @@ static void CG_DrawRadarIcon(int x, int y, int w, int h, const vec3_t origin, co
 /* The map uses the same heading and zoom radius as radar contacts.
  * File checks avoid registering the engine's missing-image fallback. */
 static qboolean tceRadarMapVisible;
+static float CG_CompassRadius(void)
+{
+	return cg_drawCompass.integer == 2 || cg_drawCompass.integer == 3 ? 40.f : 30.f;
+}
+
 static qhandle_t CG_CompassMapShader(void)
 {
 	static char registeredMap[MAX_QPATH];
@@ -4422,7 +4443,7 @@ static qhandle_t CG_CompassMapShader(void)
 	static int registeredLayer = -2;
 	char path[MAX_QPATH];
 	fileHandle_t file = 0;
-	int pass, mode = cg_drawCompass.integer - 1;
+	int pass, mode = cg_drawCompass.integer - 2;
 	int layer = cgs.ccLayers ? CG_CurLayerForZ(cg.predictedPlayerState.origin[2]) : -1;
 	if (mode < 0 || mode > 1 || !cg.mapcoordsValid)
 	{
@@ -4469,10 +4490,12 @@ static qboolean CG_DrawCompassMap(float y)
 {
 	polyVert_t verts[32];
 	qhandle_t shader = CG_CompassMapShader();
+	qboolean hasMap = shader != 0;
+	float radius = CG_CompassRadius();
 	int i;
 	if (!shader)
 	{
-		return qfalse;
+		shader = cgs.media.whiteShader;
 	}
 	memset(verts, 0, sizeof(verts));
 	for (i = 0; i < 32; ++i)
@@ -4480,9 +4503,9 @@ static qboolean CG_DrawCompassMap(float y)
 		float phase = i * (2.0f * M_PI / 32.0f);
 		float dx = (float)cos(phase), dy = (float)sin(phase);
 		float width = 0, height = 0;
-		verts[i].xyz[0] = 792.0f + 30.0f * dx;
-		verts[i].xyz[1] = y + 30.0f * dy;
-		if (!TCE_CompassMapTexCoord(cg.predictedPlayerState.origin, cg.mapcoordsMins,
+		verts[i].xyz[0] = 792.0f + radius * dx;
+		verts[i].xyz[1] = y + radius * dy;
+		if (hasMap && !TCE_CompassMapTexCoord(cg.predictedPlayerState.origin, cg.mapcoordsMins,
 		                           cg.mapcoordsMaxs, cg.predictedPlayerState.viewangles[YAW], CG_CompassRange(),
 		                           dx, dy, verts[i].st))
 		{
@@ -4490,9 +4513,66 @@ static qboolean CG_DrawCompassMap(float y)
 		}
 		CG_AdjustFrom640(&verts[i].xyz[0], &verts[i].xyz[1], &width, &height);
 		memset(verts[i].modulate, 255, sizeof(verts[i].modulate));
+		if (!hasMap)
+		{
+			verts[i].modulate[0] = 14; verts[i].modulate[1] = 21;
+			verts[i].modulate[2] = 20; verts[i].modulate[3] = 220;
+		}
 	}
 	trap_R_Add2dPolys(verts, 32, shader);
-	return qtrue;
+	return hasMap;
+}
+
+/* A fine perimeter and quiet world-relative labels leave the map unobscured. */
+static void CG_DrawCompassCardinals(float y)
+{
+	static const char *labels[4] = { "N", "E", "S", "W" };
+	static const float direction[4][2] = { {0, 1}, {1, 0}, {0, -1}, {-1, 0} };
+	vec4_t color = { .80f, .84f, .80f, .65f };
+	int i, j;
+	for (i = 0; i < 32; ++i)
+	{
+		polyVert_t edge[4];
+		memset(edge, 0, sizeof(edge));
+		for (j = 0; j < 4; ++j)
+		{
+			float angle = (i + (j == 1 || j == 2)) * (2.f * M_PI / 32.f);
+			float radius = j < 2 ? 40.f : 39.5f, w = 0, h = 0;
+			edge[j].xyz[0] = 792.f + (float)cos(angle) * radius;
+			edge[j].xyz[1] = y + (float)sin(angle) * radius;
+			CG_AdjustFrom640(&edge[j].xyz[0], &edge[j].xyz[1], &w, &h);
+			edge[j].modulate[0] = edge[j].modulate[1] = edge[j].modulate[2] = 180;
+			edge[j].modulate[3] = 100;
+		}
+		trap_R_Add2dPolys(edge, 4, cgs.media.whiteShader);
+	}
+	for (i = 0; i < 4; ++i)
+	{
+		float point[2], target[2], width;
+		target[0] = cg.predictedPlayerState.origin[0] + direction[i][0] * CG_CompassRange();
+		target[1] = cg.predictedPlayerState.origin[1] + direction[i][1] * CG_CompassRange();
+		if (!TCE_CompassPoint(cg.predictedPlayerState.origin, target,
+		                      cg.predictedPlayerState.viewangles[YAW], CG_CompassRange(), 1, point)) continue;
+		width = CG_Text_Width_Ext(labels[i], .11f, 0, &cgs.media.limboFont2);
+		CG_Text_Paint_Ext(792.f + point[0] * 35.f - width * .5f,
+		                  y + point[1] * 35.f + 2.f, .11f, .11f, color,
+		                  labels[i], 0, 0, ITEM_TEXTSTYLE_SHADOWED, &cgs.media.limboFont2);
+	}
+}
+
+static void CG_DrawCompassBackdrop(float y, float angle)
+{
+	if (cg_drawCompass.integer == 2 || cg_drawCompass.integer == 3)
+	{
+		tceRadarMapVisible = CG_DrawCompassMap(y);
+		CG_DrawCompassCardinals(y);
+	}
+	else
+	{
+		CG_DrawRotatedPic(752, y - 40, 80, 80, trap_R_RegisterShader("gfx/misc/radarcompass2.tga"), angle);
+		CG_DrawPic(742, y - 50, 100, 100, trap_R_RegisterShader("gfx/misc/radarbg.tga"));
+		tceRadarMapVisible = qfalse;
+	}
 }
 
 /* Private media avoids changing the engine/SDK-facing media structure. */
@@ -4596,7 +4676,7 @@ static void CG_DrawCompassContact(float y, const vec3_t target, float heading,
 	{
 		return;
 	}
-	px = 792.f + point[0] * 30.f; py = y + point[1] * 30.f;
+	px = 792.f + point[0] * CG_CompassRadius(); py = y + point[1] * CG_CompassRadius();
 	CG_DrawTCENavigationPlayer(px - 5, py - 5, 10, 10, clientNum, qfalse,
 	                          AngleSubtract(cg.predictedPlayerState.viewangles[YAW], heading) / 360.f);
 }
@@ -4682,14 +4762,15 @@ static void CG_DrawTCECompassObjective(float y, centity_t *cent, int kind,
 		                      cg.predictedPlayerState.viewangles[YAW], CG_CompassRange(),
 		                      tceRadarMapVisible, point))
 		{
-			float px = 792.f + point[0] * 30.f, py = y + point[1] * 30.f;
+			float px = 792.f + point[0] * CG_CompassRadius(), py = y + point[1] * CG_CompassRadius();
 			if (flag) { CG_DrawPic(px - 7, py - 7, 14, 14, flag); }
 			else { CG_DrawObjectiveLetter(px, py, kind, 15); }
 		}
 	}
 	else
 	{
-		CG_DrawRadarIcon(762, (int)(y - 30), 60, 60, cg.predictedPlayerState.origin,
+		CG_DrawRadarIcon((int)(792 - CG_CompassRadius()), (int)(y - CG_CompassRadius()),
+		                 (int)(CG_CompassRadius() * 2), (int)(CG_CompassRadius() * 2), cg.predictedPlayerState.origin,
 		                 cent->lerpOrigin, shader, above, below);
 	}
 }
@@ -4726,7 +4807,7 @@ static void CG_DrawRadar(void)
 	{
 		return;
 	}
-	y = cg_aspectMode.integer == 1 ? 23.33f : cg_aspectMode.integer == 2 ? -30.f : 50.f;
+	y = CG_HudAspectMode() == 1 ? 23.33f : CG_HudAspectMode() == 2 ? -30.f : 50.f;
 	tce_uiCoordinates = qtrue; trap_R_SetColor(colorWhite);
 #if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 	CG_UpdateRadarHeading(cg.predictedPlayerState.viewangles[YAW], &lastangle, &anglespeed);
@@ -4743,9 +4824,7 @@ static void CG_DrawRadar(void)
 		lastangle += anglespeed;
 	}
 #endif
-	CG_DrawRotatedPic(752, y - 40, 80, 80, trap_R_RegisterShader("gfx/misc/radarcompass2.tga"), lastangle);
-	CG_DrawPic(742, y - 50, 100, 100, trap_R_RegisterShader("gfx/misc/radarbg.tga"));
-	tceRadarMapVisible = CG_DrawCompassMap(y);
+	CG_DrawCompassBackdrop(y, lastangle);
 	trap_R_SetColor(NULL);
 	CG_DrawCompassContact(y, cg.predictedPlayerState.origin,
 	                      cg.predictedPlayerState.viewangles[YAW], snap->ps.clientNum);
@@ -4795,7 +4874,7 @@ static void CG_DrawRadar(void)
 				}
 				else
 				{
-					CG_DrawRadarIcon(762, (int)(y - 30), 60, 60, cg.predictedPlayerState.origin,
+					CG_DrawRadarIcon((int)(792 - CG_CompassRadius()), (int)(y - CG_CompassRadius()), (int)(CG_CompassRadius() * 2), (int)(CG_CompassRadius() * 2), cg.predictedPlayerState.origin,
 					                 cg.tceRadarPositions[0][i], cgs.media.tceRadarCarrier, 0, 0);
 				}
 			}
@@ -5206,13 +5285,14 @@ static void CG_DrawPlayerStatus(void)
 	extern qboolean tce_uiCoordinates;
 	qboolean previous = tce_uiCoordinates;
 	playerState_t *ps = &cg.snap->ps;
-	float bottom = cg_aspectMode.integer == 1 ? 506.67f : cg_aspectMode.integer == 2 ? 560.f : 480.f;
+	float bottom = CG_HudAspectMode() == 1 ? 506.67f : CG_HudAspectMode() == 2 ? 560.f : 480.f;
 	float rect[4], fractions[2], x, y;
 	vec4_t fg = { .7f, .7f, .7f, .7f }, bg = { 0, 0, 0, .3f };
 	char buffer[32];
 	int ammo, reserve, akimbo, weap, width, i, damage[3], shaders[4];
 	rectDef_t weaponRect = { 770, bottom, 60, 32 };
 	tce_uiCoordinates = qtrue;
+	CG_HudViewportAnchor(1, 1);
 	CG_DrawPlayerWeaponIcon(&weaponRect, qtrue, 2, &colorWhite);
 	CG_DrawPlayerWeaponBar(&weaponRect, qtrue, 2, &colorWhite);
 	y = bottom - 10;
@@ -5299,6 +5379,7 @@ static void CG_DrawPlayerStatus(void)
 	{
 		CG_DrawPic(742, bottom - 42, 36, 36, cgs.media.tcePlayerCarrierIcons[1]);
 	}
+	CG_HudViewportAnchor(0, 1);
 	for (i = 0; i < 4; ++i)
 	{
 		shaders[i] = cgs.media.tceHealthMan[i];
@@ -5315,6 +5396,7 @@ static void CG_DrawPlayerStatus(void)
 	trap_R_SetColor(NULL);
 	CG_DrawPic(47, bottom - 38, 32, 32, cgs.media.tceMoveType[
 	               cg.snap->ps.eFlags & EF_PRONE ? 0 : cg.snap->ps.pm_flags & PMF_DUCKED ? 1 : 2]);
+	CG_HudViewportAnchor(.5f, .5f);
 	if ((cg.snap->ps.pm_flags & PMF_TCE_OBJECTIVE_ACTION) &&
 	    (cg.snap->ps.serverCursorHint == 39 || cg.snap->ps.serverCursorHint == 10 || cg.snap->ps.serverCursorHint == 3))
 	{
@@ -5345,8 +5427,9 @@ static void CG_DrawPlayerStatus(void)
 	char mode[16], buffer[32];
 	int damage[3], shaders[4], ammo, reserve, akimbo, weap, maxclip, width, i, hasFiremode = 0;
 	trap_Cvar_VariableStringBuffer("cg_aspectMode", mode, sizeof(mode));
-	bottom            = atoi(mode) == 1?506.67f:atoi(mode) == 2?560.f:480.f;
+	bottom            = CG_HudAspectMode() == 1?506.67f:CG_HudAspectMode() == 2?560.f:480.f;
 	tce_uiCoordinates = qtrue;
+	CG_HudViewportAnchor(1, 1);
 	CG_TCEDrawWeaponCycle(bottom);
 	y = bottom - 10;
 	if (cg.time - cg.weaponSelectTime > 500)
@@ -5405,6 +5488,7 @@ static void CG_DrawPlayerStatus(void)
 		                  .15f, .15f, colorWhite, "Short throw", 0, 0, 3, &cgs.media.limboFont1);
 	}
 	CG_TCEDrawCarrierStatus(ps, bottom);
+	CG_HudViewportAnchor(0, 1);
 	for (i = 0; i < 4; ++i)
 		shaders[i] = cgs.media.tceHealthMan[i];
 	for (i = 0; i < 3; ++i)
@@ -5417,6 +5501,7 @@ static void CG_DrawPlayerStatus(void)
 	trap_R_SetColor(NULL);
 	CG_DrawPic(47, bottom - 38, 32, 32, cgs.media.tceMoveType[
 				   ps->eFlags & EF_PRONE?0:ps->pm_flags & PMF_DUCKED?1:2]);
+	CG_HudViewportAnchor(.5f, .5f);
 	CG_TCEDrawObjectiveProgress(ps);
 	tce_uiCoordinates = previous;
 #endif
@@ -5781,7 +5866,7 @@ static void CG_DrawObjectiveDesc(void)
 	{
 		return;
 	}
-	y                 = cg_aspectMode.integer == 1 ? 84.33f : cg_aspectMode.integer == 2 ? 31.f : 111.f;
+	y                 = CG_HudAspectMode() == 1 ? 84.33f : CG_HudAspectMode() == 2 ? 31.f : 111.f;
 	tce_uiCoordinates = qtrue;
 	if (cg.snap->ps.holdable[13] && (location = CG_ConfigString(CS_LOCATIONS + cg.snap->ps.holdable[13])) != NULL)
 	{
@@ -5865,11 +5950,11 @@ static void CG_TCEDrawAspectMatte(void)
 	float height, border;
 	int width = cgs.glconfig.vidWidth, screenHeight = cgs.glconfig.vidHeight;
 	qboolean previous;
-	if (!cg.snap)
+	if (!cg.snap || CG_WideScreenEnabled())
 	{
 		return;
 	}
-	if (cg_aspectMode.integer == 2 &&
+	if (CG_HudAspectMode() == 2 &&
 #if defined(__linux__) && !defined(Q3_VM)
 	    !((1.L / ((long double)screenHeight * 4.f)) * width * 3.f < 1.L))
 #else
@@ -5879,17 +5964,17 @@ static void CG_TCEDrawAspectMatte(void)
 		return;
 	}
 	if (width * 9 == screenHeight * 16 ||
-	    (cg_aspectMode.integer >= 1 && width * 10 == screenHeight * 16))
+	    (CG_HudAspectMode() >= 1 && width * 10 == screenHeight * 16))
 	{
 		return;
 	}
 #if defined(__linux__) && !defined(Q3_VM)
 	/* Original Linux Draw2D stores the aspect-mode height as float 0x44055556. */
-	height = cg_aspectMode.integer == 1 ? 533.3333740234375f :
+	height = CG_HudAspectMode() == 1 ? 533.3333740234375f :
 #else
-	height = cg_aspectMode.integer == 1 ? 533.3333f :
+	height = CG_HudAspectMode() == 1 ? 533.3333f :
 #endif
-	         cg_aspectMode.integer == 2 ? 640.0f : 480.0f;
+	         CG_HudAspectMode() == 2 ? 640.0f : 480.0f;
 	border            = (640.0f - height) * .5f + 35.0f;
 	previous          = tce_uiCoordinates;
 	tce_uiCoordinates = qtrue;
@@ -5921,7 +6006,9 @@ static void CG_DrawFireteamHUD(void)
 
 static void CG_Draw2D(void)
 {
+	CG_HudViewportFull();
 	CG_ScreenFade();
+	CG_HudViewportAnchor(.5f, .5f);
 
 	// Arnout: no 2d when in esc menu
 	// FIXME: do allow for quickchat (bleh)
@@ -5957,9 +6044,14 @@ static void CG_Draw2D(void)
 
 	if (!cg.cameraMode)
 	{
+		CG_HudViewportWorld();
 		CG_DrawCrosshair();
+		CG_HudViewportBegin(.5f, .5f);
+		CG_HudViewportFull();
 		CG_DrawFlashBlendBehindHUD();
+		CG_HudViewportEnd();
 		CG_DrawTeamNames();
+		CG_HudViewportBegin(.5f, .5f);
 
 		if (cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR)
 		{
@@ -5967,7 +6059,9 @@ static void CG_Draw2D(void)
 			CG_DrawCrosshairNames();
 
 			// NERVE - SMF - we need to do this for spectators as well
+			CG_HudViewportAnchor(0, 1);
 			CG_DrawTeamInfo();
+			CG_HudViewportAnchor(.5f, .5f);
 		}
 		else
 		{
@@ -5982,7 +6076,9 @@ static void CG_Draw2D(void)
 //				CG_DrawPickupItem();
 			}
 
+			CG_HudViewportAnchor(0, 1);
 			CG_DrawTeamInfo();
+			CG_HudViewportAnchor(.5f, .5f);
 
 			if (cg_drawStatus.integer)
 			{
@@ -5994,10 +6090,13 @@ static void CG_Draw2D(void)
 		{
 			extern qboolean tce_uiCoordinates;
 			qboolean previous = tce_uiCoordinates;
+			CG_HudViewportAnchor(0, 0);
 			tce_uiCoordinates = qtrue; CG_DrawVote(); tce_uiCoordinates = previous;
 		}
 
+		CG_HudViewportAnchor(1, 1);
 		CG_DrawLagometer();
+		CG_HudViewportAnchor(.5f, .5f);
 	}
 
 	// don't draw center string if scoreboard is up
@@ -6011,6 +6110,7 @@ static void CG_Draw2D(void)
 			{
 
 				CG_DrawPlayerStatus();
+				CG_HudViewportAnchor(.5f, .5f);
 
 			}
 
@@ -6036,27 +6136,36 @@ static void CG_Draw2D(void)
 
 		if (!cg_paused.integer)
 		{
+			CG_HudViewportAnchor(1, 0);
 			CG_DrawUpperRight();
 		}
 
+		CG_HudViewportAnchor(.5f, .5f);
 		CG_DrawCenterString();
+		CG_HudViewportAnchor(0, 0);
 		CG_DrawPMItems();
 		CG_DrawPMItemsBig();
 
 		if (!cg.showFireteamMenu) CG_DrawFollow();
+		CG_HudViewportAnchor(.5f, .5f);
 		CG_DrawWarmup();
+		CG_HudViewportAnchor(0, 0);
 
 		CG_DrawNotify();
 
 		if (cg_drawCompass.integer)
 		{
+			CG_HudViewportAnchor(1, 0);
 			CG_DrawRadar();
 		}
+		CG_HudViewportAnchor(1, 0);
 		CG_DrawExpandedAutoMap();
 
 		CG_DrawObjectiveDesc();
+		CG_HudViewportAnchor(.5f, .5f);
 		CG_DrawObjectiveInfo();
 
+		CG_HudViewportAnchor(0, 0);
 		if (!cg.showFireteamMenu) CG_DrawSpectatorMessage();
 
 		if (!cg.showFireteamMenu) CG_DrawLimboMessage();
@@ -6081,17 +6190,22 @@ static void CG_Draw2D(void)
 
 
 	// Info overlays
+	CG_HudViewportFull();
 	CG_DrawOverlays();
 
 	// OSP - window updates
+	CG_HudViewportAnchor(0, 1);
 	CG_windowDraw();
 
 	// Ridah, draw flash blends now
+	CG_HudViewportFull();
 	CG_DrawFlashBlend();
 
+	CG_HudViewportAnchor(0, 1);
 	CG_DrawDemoRecording();
 	if (cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR)
 	{
+		CG_HudViewportFull();
 		CG_DrawLevelshotFade();
 	}
 	CG_TCEDrawAspectMatte();
@@ -6821,7 +6935,9 @@ void CG_DrawActive(stereoFrame_t stereoView)
 	if (!cg.showGameView)
 	{
 		// draw status bar and other floating elements
+		CG_HudViewportBegin(.5f, .5f);
 		CG_Draw2D();
+		CG_HudViewportEnd();
 #if defined(FEATURE_OMNIBOT) && defined(FEATURE_NAVSTUDIO)
 		OmnibotRenderDebugText();
 #endif

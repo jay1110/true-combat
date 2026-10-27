@@ -11,6 +11,8 @@ pml_t pml;
 tce_weaponDef_t weaponDef[TCE_MAX_WEAPONS];
 int weapAlts[WP_NUM_WEAPONS];
 int weapBanksMultiPlayer[MAX_WEAP_BANKS_MP][MAX_WEAPS_IN_BANK_MP];
+ammotable_t ammoTableMP[MAX_WEAPONS];
+static gitem_t reloadItems[64];
 /* ACTUAL_WEAPON_BANKS */
 #include "src/game/tce_weapon_ammo.c"
 gentity_t g_entities[MAX_GENTITIES];
@@ -57,10 +59,12 @@ int PM_AltSwitchToForWeapon(int weapon) { return WEAP_RAISE; }
 int PM_RaiseAnimForWeapon(int weapon) { return WEAP_RAISE; }
 void BG_UpdateConditionValue(int clientNum,int condition,int value,qboolean checkConversion) { }
 static void PM_WeaponAddTime(int interval) { pm->ps->weaponTime += interval; }
-static void PM_ReloadClip(int weapon) { ++failures; puts("Unexpected ammo commit"); }
-static void PM_BeginWeaponReload(int weapon) { pm->ps->weaponstate = WEAPON_RELOADING; }
-static void PM_FinishWeaponReload(void) { pm->ps->weaponstate = WEAPON_READY; }
-static void PM_CheckForReload(int weapon) { }
+static void PM_ReloadClip(int weapon);
+int PM_ReloadAnimForWeapon(int weapon) { (void)weapon;return WEAP_RELOAD1; }
+int PM_NonemptyReloadAnimForWeapon(int weapon) { (void)weapon;return WEAP_RELOAD2; }
+gitem_t *BG_FindItemForWeapon(weapon_t weapon) { return weapon>0&&weapon<64?&reloadItems[weapon]:NULL; }
+qboolean BG_IsAkimboWeapon(int weapon) { return TCE_BG_IsAkimboWeapon(weapon); }
+int BG_AkimboSidearm(int weapon) { return TCE_BG_AkimboSidearm(weapon); }
 static qboolean PM_TCEWeaponIsFiring(void) { return pm->ps->weaponstate == WEAPON_FIRING || pm->ps->weaponstate == WEAPON_FIRINGALT; }
 static qboolean PM_WeaponClipEmpty(int weapon) { return pm->ps->ammoclip[weapon] == 0; }
 static void PM_TCEContinueBurst(void) { }
@@ -108,6 +112,114 @@ static void reset(void)
     cg.snap = (void *)&snapshot;
     events = lastEvent = changes = 0; animation = -1;
     plants = defuses = completes = stops = 0;
+    { int i;for(i=0;i<64;++i)reloadItems[i].giAmmoIndex=TCE_BG_FindClipForWeapon(i); }
+}
+static void reload_command(int msec)
+{
+    qboolean delayed=qfalse;
+    pml.msec=msec;move.oldcmd=move.cmd;move.cmd.serverTime+=msec;
+#if TCE_CALLER_CAPTURES_RELOAD
+    PM_TCECaptureReloadRequest();
+#endif
+    if(!PM_TCEUpdateWeaponCycle(qfalse,&delayed)&&!PM_TCEUpdateWeaponActions(delayed))
+        PM_TCEUpdateWeaponTrigger(delayed);
+}
+static void reload_sequences(void)
+{
+    int kind,frame,clip,ammo;
+    for(kind=0;kind<4;++kind){
+        reset();ps.weapons[0]=1u<<8;weaponDef[8].maxclip=30;weaponDef[8].reloadTime=1200;
+        clip=TCE_BG_FindClipForWeapon(8);ammo=TCE_BG_FindAmmoForWeapon(8);ps.ammoclip[clip]=10;ps.ammo[ammo]=90;
+        ps.weaponTime=200;ps.weaponstate=kind==1?WEAPON_RAISING:WEAPON_READY;
+        if(kind==3)ps.weaponstate=WEAPON_TCE_CYCLE;
+        if(kind==2){move.cmd.buttons=BUTTON_SPRINT;move.cmd.forwardmove=127;}
+        /* A true one-command R pulse during a real blocked transition. */
+        move.cmd.wbuttons=WBUTTON_RELOAD;move.oldcmd.wbuttons=0;
+#if TCE_CALLER_CAPTURES_RELOAD
+        PM_TCECaptureReloadRequest();
+#endif
+        pml.msec=50;{qboolean delayed=qfalse;PM_TCEUpdateWeaponCycle(qfalse,&delayed);PM_TCEUpdateWeaponActions(delayed);}
+        move.cmd.wbuttons=0;move.cmd.buttons=0;move.cmd.forwardmove=0;
+        for(frame=0;frame<12&&ps.weaponstate!=WEAPON_RELOADING;++frame)reload_command(50);
+        check(ps.weaponstate==WEAPON_RELOADING,"one R pulse survives cooldown / raise / sprint / mechanical recovery");
+        check(ps.ammoclip[clip]==10&&ps.ammo[ammo]==90,"queued request cannot commit ammunition before actual reload completion");
+        if(ps.weaponstate==WEAPON_RELOADING){
+            int duration=ps.weaponTime;
+            check(duration==1200,"buffer does not shorten the configured reload duration");
+            for(frame=0;frame<30&&ps.weaponstate!=WEAPON_READY;++frame)reload_command(50);
+            check(ps.weaponstate==WEAPON_READY&&ps.ammoclip[clip]==30&&ps.ammo[ammo]==60,"actual finish commits normal magazine and reserve exactly once");
+        }
+    }
+}
+static void reload_request_guards(void)
+{
+#if TCE_CALLER_CAPTURES_RELOAD
+    int kind,clip,ammo,frame,pass,weaponTime;
+    pmoveExt_t savedExt;
+    playerState_t savedPS;
+    usercmd_t savedCommand;
+    check(sizeof(pmoveExt_t)==128&&offsetof(pmoveExt_t,tceReloadWeapon)==120&&
+          offsetof(pmoveExt_t,tceReloadRequestedAt)==124,"private reload suffix preserves the complete prior120-byte layout");
+    for(kind=0;kind<15;++kind){
+        reset();ps.weapons[0]=1u<<8;weaponDef[8].maxclip=30;weaponDef[8].reloadTime=1200;
+        clip=TCE_BG_FindClipForWeapon(8);ammo=TCE_BG_FindAmmoForWeapon(8);ps.ammoclip[clip]=10;ps.ammo[ammo]=90;
+        move.cmd.serverTime=1000;move.cmd.wbuttons=WBUTTON_RELOAD;PM_TCECaptureReloadRequest();
+        check(ext.tceReloadWeapon==8,"valid R edge records only its current weapon");
+        savedPS=ps;savedCommand=move.cmd;move.cmd.wbuttons=0;move.cmd.serverTime=1050;
+        switch(kind){
+        case 0:ps.stats[STAT_HEALTH]=0;break;
+        case 1:ps.pm_flags|=PMF_RESPAWNED;break;
+        case 2:ps.pm_flags|=PMF_LIMBO;break;
+        case 3:ps.pm_flags|=PMF_TCE_OBJECTIVE_ACTION;break;
+        case 4:pml.ladder=qtrue;break;
+        case 5:ps.persistant[PERS_HWEAPON_USE]=1;break;
+        case 6:ps.eFlags|=EF_MOUNTEDTANK;break;
+        case 7:ps.pm_type=PM_DEAD;break;
+        case 8:ps.persistant[PERS_TEAM]=TEAM_SPECTATOR;break;
+        case 9:move.cmd.weapon=2;break;
+        case 10:ps.weaponstate=WEAPON_DROPPING;break;
+        case 11:move.noWeapClips=qtrue;break;
+        case 12:ps.ammo[ammo]=0;break;
+        case 13:ps.ammoclip[clip]=30;break;
+        case 14:COM_BitClear(ps.weapons,8);break;
+        }
+        PM_TCECaptureReloadRequest();check(!ext.tceReloadWeapon,"invalid lifecycle / ownership / weapon state cancels the queued request");
+        ps=savedPS;move.cmd=savedCommand;move.cmd.wbuttons=0;move.cmd.serverTime=1100;
+        pml.ladder=qfalse;move.noWeapClips=qfalse;PM_TCECaptureReloadRequest();PM_TCECheckForQueuedReload(8);
+        check(ps.weaponstate==WEAPON_READY,"recovery cannot reuse a canceled request");
+    }
+    for(kind=0;kind<3;++kind){
+        reset();ps.weapons[0]=1u<<8;weaponDef[8].maxclip=30;weaponDef[8].reloadTime=1200;
+        clip=TCE_BG_FindClipForWeapon(8);ammo=TCE_BG_FindAmmoForWeapon(8);ps.ammoclip[clip]=10;ps.ammo[ammo]=90;
+        move.cmd.serverTime=kind==2?INT_MAX-200:1000;move.cmd.wbuttons=WBUTTON_RELOAD;PM_TCECaptureReloadRequest();
+        move.cmd.serverTime=(int)((unsigned)move.cmd.serverTime+(kind==1?751u:750u));move.cmd.wbuttons=0;
+        PM_TCECaptureReloadRequest();PM_TCECheckForQueuedReload(8);
+        check(ps.weaponstate==(kind==1?WEAPON_READY:WEAPON_RELOADING),"750ms boundary / expiry and command-time wrap are bounded");
+        check(move.cmd.wbuttons==0,"synthetic retry never modifies the actual command buttons");
+    }
+    reset();ps.weapons[0]=1u<<8;weaponDef[8].maxclip=30;weaponDef[8].reloadTime=1200;
+    clip=TCE_BG_FindClipForWeapon(8);ammo=TCE_BG_FindAmmoForWeapon(8);ps.ammoclip[clip]=10;ps.ammo[ammo]=90;
+    ps.weaponTime=200;move.cmd.serverTime=1000;move.cmd.wbuttons=WBUTTON_RELOAD;PM_TCECaptureReloadRequest();
+    savedExt=ext;savedPS=ps;savedCommand=move.cmd;weaponTime=0;
+    for(pass=0;pass<2;++pass){
+        /* The same full pmoveExt copy used by prediction preserves the request. */
+        memcpy(&ext,&savedExt,sizeof(ext));ps=savedPS;move.cmd=savedCommand;move.cmd.wbuttons=0;
+        for(frame=0;frame<8&&ps.weaponstate!=WEAPON_RELOADING;++frame)reload_command(50);
+        check(ps.weaponstate==WEAPON_RELOADING&&!ext.tceReloadWeapon,"prediction replay consumes the saved request exactly once");
+        if(!pass)weaponTime=ps.weaponTime;else check(ps.weaponTime==weaponTime,"replayed command sequence has identical reload timing");
+    }
+    for(frame=0;frame<30;++frame)reload_command(50);
+    ps.ammoclip[clip]=20;reload_command(50);
+    check(ps.weaponstate==WEAPON_READY&&!ext.tceReloadWeapon,"completed request cannot repeatedly reload after a later shot");
+    reset();ps.weapon=move.cmd.weapon=11;ps.weapons[0]=1u<<11;
+    weaponDef[11].maxclip=8;weaponDef[11].reloadTime=100;weaponDef[11].singleReload=1;
+    weaponDef[11].maxHeat=80;weaponDef[11].coolRate=50;
+    clip=TCE_BG_FindClipForWeapon(11);ammo=TCE_BG_FindAmmoForWeapon(11);ps.ammoclip[clip]=3;ps.ammo[ammo]=9;
+    ps.weaponTime=100;move.cmd.serverTime=1000;move.cmd.wbuttons=WBUTTON_RELOAD;PM_TCECaptureReloadRequest();
+    move.cmd.wbuttons=0;for(frame=0;frame<20;++frame)reload_command(50);
+    check(ps.weaponstate==WEAPON_READY&&ps.ammoclip[clip]==4&&ps.ammo[ammo]==8,
+          "buffered single-round reload respects actual insert/end phases and release instead of forcing a loop");
+#endif
 }
 /* The ordinary, unmounted PM_Weapon path calls these real production stages
  * in this order and returns immediately when Cycle does. No timer/action
@@ -345,7 +457,7 @@ int main(void)
     check(!G_TCEManualDropBomb(&g_entities[0]), "planted bomb cannot be manually dropped");
     level.tceBombPlanted = qfalse; client.ps.pm_flags = PMF_TCE_OBJECTIVE_ACTION;
     check(!G_TCEManualDropBomb(&g_entities[0]), "active planting blocks manual drop");
-    objective_sequences();grenade_return_sequences();
+    objective_sequences();grenade_return_sequences();reload_sequences();reload_request_guards();
     printf("%d checks, %d failures\n", checks, failures);
     return failures ? 1 : 0;
 }

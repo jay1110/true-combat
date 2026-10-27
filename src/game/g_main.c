@@ -14,6 +14,7 @@
 #include "tce_geoip.h"
 #include "g_tce_pose.h"
 #include "g_tce_weapon_stats.h"
+#include "g_tce_hit_debug.h"
 
 // Include the "External"/"Public" components of AI_Team
 #include "../botai/ai_teamX.h"
@@ -64,6 +65,7 @@ vmCvar_t g_debugMove;
 vmCvar_t g_debugDamage;
 vmCvar_t g_debugAlloc;
 vmCvar_t g_debugBullets;    //----(SA)	added
+vmCvar_t g_debugBulletsClient;
 vmCvar_t g_motd;
 #ifdef ALLOW_GSYNC
 vmCvar_t g_synchronousClients;
@@ -353,6 +355,7 @@ cvarTable_t gameCvarTable[] =
 	{ &g_debugDamage,             "g_debugDamage",             "0",                          CVAR_CHEAT, 0, qfalse          },
 	{ &g_debugAlloc,              "g_debugAlloc",              "0",                          0, 0, qfalse                   },
 	{ &g_debugBullets,            "g_debugBullets",            "0",                          CVAR_CHEAT, 0, qfalse          }, //----(SA)	added
+	{ &g_debugBulletsClient,      "g_debugBulletsClient",      "-1",                         CVAR_CHEAT, 0, qfalse          },
 	{ &g_motd,                    "g_motd",                    "",                           CVAR_ARCHIVE, 0, qfalse        },
 
 	{ &g_podiumDist,              "g_podiumDist",              "80",                         0, 0, qfalse                   },
@@ -5515,6 +5518,7 @@ uebrgpiebrpgibqeripgubeqrpigubqifejbgipegbrtibgurepqgbn%i", level.time)
 	}
 
 	G_TCEObjectiveFrame();
+	G_TCEHitDebugFrame();
 
 	// NERVE - SMF
 	/* TC20064c78: reinforcement spawn-group producer, original -2.98f factor. */

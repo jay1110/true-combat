@@ -144,6 +144,15 @@ int main(void)
         capture(&item, K_BACKSPACE); CHECK(!engineBindings['j'][0]);
         CHECK(!strcmp(engineBindings[K_ALT], "+zoom")); custom_keys_preserved();
     }
+    id = BindingIDFromName("dropobj");CHECK(id>=0);
+    if(id>=0){
+        CHECK(g_bindings[id].defaultbind1_right==-1&&g_bindings[id].defaultbind2_right==-1);
+        CHECK(g_bindings[id].defaultbind1_left==-1&&g_bindings[id].defaultbind2_left==-1);
+        item.cvar="dropobj";Controls_GetConfig();capture(&item,'h');
+        CHECK(!strcmp(engineBindings['h'],"dropobj"));custom_keys_preserved();
+        Controls_GetConfig();CHECK(g_bindings[id].bind1=='h');
+        capture(&item,K_BACKSPACE);CHECK(!engineBindings['h'][0]);custom_keys_preserved();
+    }
     printf("%d real UI binding checks, %d failures\n", checks, failures);
     return failures != 0;
 }

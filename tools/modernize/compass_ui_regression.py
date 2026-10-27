@@ -14,7 +14,8 @@ ROOT = Path(__file__).resolve().parents[2]
 FUNCTIONS = {
     'src/cgame/cg_commandmap.c': ('CG_ExpandedMapSize', 'CG_TransformCommandMapEntities', 'CG_CompassRange', 'CG_CommandMapShader', 'CG_CurLayerForZ', 'CG_TransformAutomapEntity', 'CG_AdjustAutomapZoom'),
     'src/cgame/cg_consolecmds.c': ('CG_AutomapZoomIn_f', 'CG_AutomapZoomOut_f', 'CG_AutomapExpandDown_f', 'CG_AutomapExpandUp_f', 'CG_CommandMap_f'),
-    'src/cgame/cg_draw.c': ('CG_CompassMapShader', 'CG_RegisterTCENavigationMedia', 'CG_DrawTCENavigationPlayer', 'CG_TCEFlagMapShader', 'CG_TCEFlagItemHasHomeMarker', 'CG_DrawCompassContact', 'CG_DrawObjectiveLetter', 'CG_DrawTCECommandMapObjectives', 'CG_DrawTCECompassObjective'),
+    'src/cgame/cg_drawtools.c': ('CG_TCAdjustFrom640', 'CG_AdjustFrom640'),
+    'src/cgame/cg_draw.c': ('CG_CompassRadius', 'CG_CompassMapShader', 'CG_DrawCompassMap', 'CG_DrawCompassCardinals', 'CG_DrawCompassBackdrop', 'CG_RegisterTCENavigationMedia', 'CG_DrawTCENavigationPlayer', 'CG_TCEFlagMapShader', 'CG_TCEFlagItemHasHomeMarker', 'CG_DrawCompassContact', 'CG_DrawObjectiveLetter', 'CG_DrawTCECommandMapObjectives', 'CG_DrawTCECompassObjective'),
 }
 
 
@@ -29,7 +30,9 @@ def main():
     command_map = (ROOT / 'src/cgame/cg_commandmap.c').read_text(encoding='utf-8-sig')
     map_draw = function(command_map, 'CG_DrawMap')
     player_draw = function(command_map, 'CG_DrawMapEntity')
-    radar_draw = function((ROOT / 'src/cgame/cg_draw.c').read_text(encoding='utf-8-sig'), 'CG_DrawRadar')
+    draw_source = (ROOT / 'src/cgame/cg_draw.c').read_text(encoding='utf-8-sig')
+    radar_draw = function(draw_source, 'CG_DrawRadar')
+    frame_draw = function(draw_source, 'CG_Draw2D')
     registration = function((ROOT / 'src/cgame/cg_main.c').read_text(encoding='utf-8-sig'), 'CG_RegisterGraphics')
     if 'CG_DrawSpawnPointInfo(' in map_draw:
         raise RuntimeError('TCE map still draws unrelated ET reinforcement flags')
@@ -39,6 +42,10 @@ def main():
         raise RuntimeError('Custom navigation renderer is not connected to real map/radar frame paths')
     if 'CG_RegisterTCENavigationMedia();' not in registration:
         raise RuntimeError('Navigation TGAs are not registered during real CGame media initialization')
+    if 'CG_DrawCompassBackdrop(y, lastangle);' not in radar_draw:
+        raise RuntimeError('Real radar does not call the tested compass backdrop')
+    if 'if (cg_drawCompass.integer)' not in frame_draw or 'CG_DrawRadar();' not in frame_draw.split('if (cg_drawCompass.integer)', 1)[1].split('}', 1)[0]:
+        raise RuntimeError('Compass Off is not guarded by the actual HUD frame dispatch')
     units = [function((ROOT / p).read_text(encoding='utf-8-sig'), n) for p, names in FUNCTIONS.items() for n in names]
     generated = out / 'compass.c'
     generated.write_text(template.read_text(encoding='utf-8').replace('/* ACTUAL_FUNCTIONS */', '\n\n'.join(units)), encoding='utf-8', newline='\n')
@@ -58,7 +65,7 @@ def main():
     (out/'compile.log').write_text(built.stdout+built.stderr, encoding='utf-8')
     digest = lambda p: hashlib.sha256(p.read_bytes()).hexdigest()
     report = {'source_sha256': {p: digest(ROOT/p) for p in (*FUNCTIONS, 'src/cgame/cg_main.c')}, 'helper_sha256': digest(production), 'template_sha256': digest(template), 'command': command, 'build_exit': built.returncode,
-              'limits': ['Controlled draw/filesystem services; no real renderer, engine input, server packets or live game.', 'Exact production projection/zoom/command/marker bodies are compiled; frame dispatch is checked separately in live game.']}
+              'limits': ['Controlled draw/filesystem/font services; no real renderer, engine input, server packets or live game.', 'Exact production projection/zoom/command/marker/backdrop/native TC-coordinate bodies are compiled. The new HUD viewport callback is disabled in this fixture; its own suite covers that adapter. Frame calls and the Off guard are source-checked.']}
     if built.returncode: print(built.stdout+built.stderr)
     else:
         run = subprocess.run([str(exe)], cwd=out, env=env, capture_output=True, text=True, timeout=30)

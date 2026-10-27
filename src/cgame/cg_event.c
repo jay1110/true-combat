@@ -1,6 +1,7 @@
 // cg_event.c -- handle entity events at snapshot or playerstate transitions
 
 #include "cg_local.h"
+#include "cg_tce_hit_debug.h"
 #include "../game/tce_bg.h"
 #include "tce_weapon_media.h"
 #include "tce_flash.h"
@@ -2560,6 +2561,7 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 			break;*/
 
 	case EV_RAILTRAIL:
+		if (CG_TCEHitDebugEvent(es)) break;
 		CG_RailTrail(&cgs.clientinfo[es->otherEntityNum2], es->origin2, es->pos.trBase, es->dmgFlags, es->effect3Time);     //----(SA)	added 'type' field
 		break;
 

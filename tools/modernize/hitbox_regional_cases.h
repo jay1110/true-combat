@@ -114,3 +114,96 @@ static void regionalIntegerAndFractionBoundaries(void)
     }
 #endif
 }
+static void movingLegDoorAndAntiLagBits(void)
+{
+    int mask, cover, latency, yaw, lean;
+    /* The actual public Bullet_Fire wrapper decides rewind. Debug bits 2/4
+     * alone must not rewind. A leg crosses a narrow doorway between markers;
+     * solid and missileclip jambs remain authoritative on every path. */
+    for(mask=0;mask<8;++mask)for(cover=0;cover<3;++cover)
+    for(latency=50;latency<=150;latency+=50)for(yaw=0;yaw<=90;yaw+=90)for(lean=-20;lean<=20;lean+=40) {
+        gentity_t *target,*wall;gclient_t *client;int i;
+        resetWorld();actor(1,100,8,0,yaw);target=&g_entities[1];client=target->client;
+        g_antilag.integer=mask;g_entities[0].client->pers.cmd.serverTime=level.time-latency;
+        client->ps.leanf=(float)lean;
+        VectorSet(target->r.currentOrigin,100,100,0);VectorCopy(target->r.currentOrigin,client->ps.origin);
+        client->topMarker=1;G_CaptureClientMarker(target,&client->clientMarkers[1],level.time);
+        G_CaptureClientMarker(target,&client->clientMarkers[0],level.time-latency*2);
+        client->clientMarkers[0].origin[1]=0;
+        for(i=2;i<MAX_CLIENT_MARKERS;++i)client->clientMarkers[i]=client->clientMarkers[0];
+        VectorSet(muzzleTrace,0,50,-10);VectorSet(fireTestEnd,300,50,-10);
+        weaponDef[8].unknown_12c=20;
+        /* Jamb outside the open interval [40,60]. Then move that same
+         * collider across the ray to prove SOLID/MISSILECLIP rejection. */
+        wall=&g_entities[100];wall->inuse=wall->r.linked=qtrue;
+        wall->r.contents=cover==2?CONTENTS_MISSILECLIP:CONTENTS_SOLID;
+        VectorSet(wall->r.currentOrigin,50,cover?50:20,0);
+        VectorSet(wall->r.mins,-2,-15,-24);VectorSet(wall->r.maxs,2,15,70);
+        Bullet_Fire(&g_entities[0],0,999,qfalse);
+        CHECK(hitCount==((mask&1)&&!cover?1:0));
+        CHECK(((mask&1)&&!cover)?client->tceLastAppliedDamage==13:target->health==100);
+        CHECK(seenShotTime==(uint32_t)((mask&1)?level.time-latency:level.time));
+        CHECK(target->r.currentOrigin[1]==100&&!client->tceRewind.active&&!g_entities[0].client->tceRewind.shotQueryActive);
+    }
+    printf("moving legs: 288 actual Bullet_Fire cases, 50/100/150ms, yaw0/90, lean, open/solid/missileclip doorway and all anti-lag bitmasks\n");
+}
+static void regionalDebugMasks(void)
+{
+    static const int masks[]={-4,-3,-2,-1,0,2,3,4,8,12};
+    vec3_t point={80,0,42},dir={1,0,0};unsigned int i;
+    for(i=0;i<sizeof(masks)/sizeof(masks[0]);++i) {
+        resetWorld();actor(1,100,8,0,0);g_debugBullets.integer=masks[i];
+        G_Damage(&g_entities[1],&g_entities[0],&g_entities[0],dir,point,20,0,MOD_MP40);
+        CHECK(g_entities[1].health<100);
+        CHECK((masks[i]>0&&(masks[i]&2))?eventCount>0:eventCount==0);
+    }
+    g_debugBullets.integer=0;
+}
+static void railhouseLiveLegEmitterSnap(void)
+{
+    /* Real opt-in server logs, obj_railhouse Small bridge doorway, frames
+     * 500900/500950/501050. These primary leg contacts preceded the far wall,
+     * but EmitterCheck snapped the later damage probe inside the leg box. */
+    static const float starts[3][3]={
+        {-928.475159f,1811.02429f,225.656784f},
+        {-928.473267f,1811.04419f,225.670181f},
+        {-928.473572f,1811.07568f,225.691132f}};
+    static const float ends[3][3]={
+        {-2129.39624f,-6196.9668f,-1015.4931f},
+        {-2124.63062f,-6200.81934f,-992.914551f},
+        {-2132.71509f,-6205.04834f,-956.760925f}};
+    int ray,cover;
+    for(ray=0;ray<3;++ray)for(cover=0;cover<3;++cover) {
+        gentity_t *target,*wall;vec3_t start,end;int expected=cover?0:13;
+        resetWorld();actor(1,100,49,0,79);target=&g_entities[1];
+        VectorSet(target->r.currentOrigin,-996.125f,1320.1270751953125f,174.12815856933594f);
+        VectorCopy(target->r.currentOrigin,target->client->ps.origin);
+        target->client->ps.stats[STAT_TCE_FLAGS]|=0x200;target->client->ps.stats[STAT_TCE_WEAPON_FLAGS]|=0x20;
+        VectorSet(target->client->ps.viewangles,0.67565918f,79.4366455f,0);
+        wall=&g_entities[100];wall->inuse=wall->r.linked=qtrue;wall->r.contents=cover==2?CONTENTS_MISSILECLIP:CONTENTS_SOLID;
+        VectorClear(wall->r.currentOrigin);VectorSet(wall->r.mins,-1100,cover?1360:1300,100);VectorSet(wall->r.maxs,-900,cover?1364:1304.125f,260);
+        VectorCopy(starts[ray],start);VectorCopy(ends[ray],end);
+        if(!cover) {
+            tceBulletTraceContext_t context;trace_t trace;vec3_t raw,direction;
+            tceDamagePose_t pose;tceDamageVolume_t volumes[3];
+            memset(&context,0,sizeof(context));context.shotTime=context.receiptCeiling=(uint32_t)level.time;
+            G_TCETraceBullet(&trace,&g_entities[0],start,end,&context);CHECK(trace.entityNum==1);
+            VectorCopy(trace.endpos,raw);EmitterCheck(target,&g_entities[0],&trace);
+            TCE_ClientDamagePose(target,&pose);TCE_DamageVolumes(&pose,volumes);
+            CHECK(raw[1]>volumes[2].origin[1]+volumes[2].maxs[1]);
+            CHECK(trace.endpos[0]==-999&&trace.endpos[1]==1335&&trace.endpos[2]==151+ray*2);
+            CHECK(trace.endpos[1]<volumes[2].origin[1]+volumes[2].maxs[1]);
+            VectorSubtract(end,start,direction);VectorNormalize(direction);
+            G_Damage(target,&g_entities[0],&g_entities[0],direction,raw,26,0,MOD_MP40);
+            CHECK(target->client->tceLastAppliedDamage==13&&target->client->ps.holdable[4]==13&&target->health<100);
+            target->health=100;target->client->ps.stats[STAT_HEALTH]=100;target->client->ps.holdable[4]=0;hitCount=0;
+            CHECK(G_Damage(target,&g_entities[0],&g_entities[0],direction,trace.endpos,26,0,MOD_MP40)==1);
+            CHECK(target->health==100&&target->client->tceLastAppliedDamage==0);
+        }
+        Bullet_Fire_Extended(&g_entities[0],&g_entities[0],start,end,0,20,1000,0,0,0,1,8,42,1);
+        CHECK(target->client->tceLastAppliedDamage==expected);CHECK(cover?target->health==100:target->health<100);
+        CHECK(target->client->ps.holdable[4]==expected&&target->client->ps.holdable[2]==0&&target->client->ps.holdable[3]==0);
+        CHECK(hitCount==(cover?0:1));
+    }
+    printf("Railhouse live rays: 3 exact leg contacts with actual EmitterCheck, far-wall and front SOLID/MISSILECLIP controls\n");
+}

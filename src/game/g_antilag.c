@@ -2,6 +2,7 @@
 #include "tce_numeric.h"
 #include "tce_pose_precision.h"
 #include "g_tce_pose.h"
+#include "g_tce_hit_debug.h"
 
 /* Private TC pose history, extended with the active damage-volume inputs.
  * Engine-facing player/entity structures are unchanged. */
@@ -501,7 +502,7 @@ void G_HistoricalTrace(gentity_t *ent, trace_t *results, const vec3_t start, con
 	int    res;
 	vec3_t dir;
 
-	if (!g_antilag.integer || !ent->client)
+	if (!(g_antilag.integer & TCE_ANTILAG_ENABLE) || !ent->client)
 	{
 		G_AttachBodyParts(ent);
 
@@ -572,6 +573,7 @@ void G_TimeShiftAllClients(gentity_t *ent, qboolean scaleBounds)
 			trap_LinkEntity(target);
 		}
 	}
+	G_TCEHitDebugShot(ent, TCE_HIT_DEBUG_HISTORY);
 }
 
 void G_UnTimeShiftAllClients(gentity_t *ent)

@@ -1435,6 +1435,7 @@ void CG_InitConsoleCommands(void)
 
 	/* Original forwarded-command order, including repeated registrations. */
 	trap_AddCommand("kill");
+	trap_AddCommand("dropobj");
 	trap_AddCommand("say");
 	trap_AddCommand("say_limbo");
 	trap_AddCommand("tell");
