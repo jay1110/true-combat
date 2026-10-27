@@ -35,6 +35,7 @@ FIXTURES = (
     ('pose-compact', 'pose_compact_regression', 'optimized', False, []),
     ('pose-presentation', 'pose_presentation_regression', 'optimized', False, []),
     ('pose-runtime', 'pose_presentation_runtime_regression', 'optimized', False, []),
+    ('pose-ordinary', 'pose_ordinary_regression', 'optimized', False, []),
     ('pose-mover-origin', 'pose_mover_origin_regression', 'optimized', False, ['--verify-fixed']),
     ('pose-eval', 'pose_eval_regression', 'optimized', False, []),
     ('pose-skin', 'pose_skin_regression', 'optimized', False, []),

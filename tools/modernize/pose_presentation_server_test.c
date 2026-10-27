@@ -13,6 +13,7 @@ static unsigned int checks,configWrites;
 gentity_t g_entities[MAX_GENTITIES];
 level_locals_t level;
 vmCvar_t g_newbbox,g_leanmode;
+bg_character_t axisClassCharacters[7],alliedClassCharacters[7];
 static gclient_t client;
 static gclient_t joiningClient,botClient;
 static g_tcePosePresentationMetadata_t fixtureMetadata;
@@ -72,6 +73,7 @@ int G_TCEPosePresentationProfiles(uint32_t *out,int cap) {
     if(profileCount<0||profileCount>cap)return -1;
     memcpy(out,fixtureProfiles,(size_t)profileCount*sizeof(*out));return profileCount;
 }
+/* ACTUAL_BG_GET_CHARACTER */
 /* ACTUAL_PRESENTATION */
 static void tick(int time) {
     level.previousTime=level.time;level.time=time;g_entities[0].s.pos.trTime=time;G_TCEPresentationPublish(&g_entities[0]);
@@ -84,6 +86,8 @@ static void setup(void) {
     gentity_t *ent=&g_entities[0];int i,speeds[236];
     memset(g_entities,0,sizeof(g_entities));memset(&client,0,sizeof(client));memset(&fixtureMetadata,0,sizeof(fixtureMetadata));
     memset(&level,0,sizeof(level));PresentationRuntimeModel(&character,&definition,&model,animationTable);
+    carrierCharacter=character;axisClassCharacters[0]=character;
+    client.pers.character=&character;client.sess.sessionTeam=TEAM_ALLIES;
     animations[0]=&animationTable[94];animations[1]=&animationTable[222];
     memset(speeds,0,sizeof(speeds));speeds[94]=speeds[222]=69;
     fixtureProfiles[0]=BG_TCEPosePresentationSpeedProfile(BG_TCEPosePresentationProfile(&character,&definition),speeds,236);
@@ -163,7 +167,7 @@ int main(int argc,char **argv) {
     tick(600);CHECK(G_TCEPresentationQuery(0,600,600,&query)==1&&query.channel[0].elapsedQ16==0);
     strcpy(animations[0]->name,"ordinary");ent->s.effect1Time=0;tick(650);
     CHECK(!ent->s.time&&!ent->s.time2);CHECK(G_TCEPresentationQuery(0,650,650,&query)==0);
-    ready=0;tick(700);CHECK(G_TCEPresentationQuery(0,700,700,&query)==-1);ready=1;
+    ready=0;tick(700);CHECK(G_TCEPresentationQuery(0,700,700,&query)==G_TCE_PRESENTATION_LEGACY);ready=1;
     strcpy(animations[0]->name,"climb_up");fixtureMetadata.moveSpeed[0]=INT_MIN;tick(750);
     CHECK(!ent->s.time&&G_TCEPresentationQuery(0,750,750,&query)==-1);fixtureMetadata.moveSpeed[0]=69;
     fixtureMetadata.generation++;CHECK(G_TCEPresentationQuery(0,600,750,&query)==-1);

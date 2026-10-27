@@ -11,6 +11,7 @@ typedef struct {
     uint32_t step,slotGeneration;
     trajectory_t positionTrajectory;
     int splinePath,groundEntityNum,moverFrame,originValid;
+    int connectTime,spawnCount;
     int legacy,gateOff,position;
 } presentationRecord_t;
 typedef struct {
@@ -137,6 +138,37 @@ static void PresentationClip(const animation_t *animation,tcePosePresentationCli
     clip->loopFrames=animation->loopFrames;clip->frameLerp=animation->frameLerp;
     clip->initialLerp=animation->initialLerp;clip->reversed=!!(animation->flags&ANIMFL_REVERSED);
 }
+/* Ordinary poses use the existing damage volumes, independently of skin
+ * registration and accepted-animation clocks. Classify the published pose
+ * before asking for metadata needed only by the affected-pose evaluator. */
+static int PresentationMode(const gentity_t *ent,int *mode) {
+    const bg_character_t *animationCharacter;
+    const animModelInfo_t *animationModel;
+    const animation_t *animation[2];
+    int team,cls,channel,full,index;
+    if(!ent->inuse||!ent->client||ent->client->pers.connected!=CON_CONNECTED||
+       ent->s.eType!=ET_PLAYER||ent->health<=0||ent->s.eFlags&(EF_SPARE1|EF_NODRAW))return 0;
+    team=ent->client->sess.sessionTeam;
+    if(team!=TEAM_AXIS&&team!=TEAM_ALLIES)return 0;
+    animationCharacter=ent->client->pers.character;
+    if(ent->s.powerups&(1<<PW_OPS_DISGUISED)) {
+        cls=(ent->s.powerups>>PW_OPS_CLASS_1)&7;
+        if(cls>=7)return 0;
+        animationCharacter=BG_GetCharacter(team==TEAM_AXIS?TEAM_ALLIES:TEAM_AXIS,cls);
+    }
+    if(!animationCharacter)return 0;
+    animationModel=animationCharacter->animModelInfo;
+    if(!animationModel||animationModel->numAnimations<1||animationModel->numAnimations>MAX_MODEL_ANIMATIONS)return 0;
+    for(channel=0;channel<2;++channel) {
+        full=channel?ent->s.torsoAnim:ent->s.legsAnim;index=full&~ANIM_TOGGLEBIT;
+        if(full<0||index>=animationModel->numAnimations)return 0;
+        animation[channel]=animationModel->animations[index];
+        if(!animation[channel]||!memchr(animation[channel]->name,0,sizeof(animation[channel]->name)))return 0;
+    }
+    *mode=BG_TCEPosePresentationMode(animation[0]->name,animation[1]->name,
+        !!(ent->s.effect1Time&4),!!(ent->s.effect1Time&0x400));
+    return 1;
+}
 static int PresentationSame(const g_tcePresentationQuery_t *a,const g_tcePresentationQuery_t *b) {
     return a->mode&&a->mode==b->mode&&a->generation==b->generation&&a->mapGeneration==b->mapGeneration&&
         a->profile==b->profile&&!((a->eFlags^b->eFlags)&EF_TELEPORT_BIT)&&
@@ -168,22 +200,22 @@ void G_TCEPresentationPublish(gentity_t *ent) {
     G_TCEPresentationClear(ent);PresentationFrame();slot=&presentationSlots[index];memset(&next,0,sizeof(next));
     next.query.clientNum=index;next.query.sourceTime=next.query.serverTime=time;
     next.slotGeneration=slot->generation;next.query.mapGeneration=presentationMap;
+    next.connectTime=ent->client->pers.connectTime;
+    next.spawnCount=ent->client->ps.persistant[PERS_SPAWN_COUNT];
     if(ent->s.eType==ET_PLAYER&&ent->health>0) {
         next.position=1;VectorCopy(ent->s.pos.trBase,next.query.origin);next.query.eFlags=ent->s.eFlags;
     }
     elapsed=time-(uint32_t)level.previousTime;next.step=elapsed&&elapsed<=TCE_POSE_PRESENTATION_MAX_GAP?elapsed:50u;
     if(slot->count)previous=&slot->records[(slot->head+PRESENT_HISTORY-1)%PRESENT_HISTORY];
     if(!presentationEnabled) {next.legacy=next.gateOff=1;goto store;}
-    if(ent->s.eType!=ET_PLAYER||ent->health<=0||
-       (ent->s.eFlags&(EF_MOUNTEDTANK|EF_MG42_ACTIVE|EF_AAGUN_ACTIVE))||
+    if(!PresentationMode(ent,&mode))goto store;
+    if(!mode) {next.legacy=1;goto store;}
+    if((ent->s.eFlags&(EF_MOUNTEDTANK|EF_MG42_ACTIVE|EF_AAGUN_ACTIVE))||
        !G_TCEPosePresentationMetadata(ent,&metadata))goto store;
     if(metadata.fullAnimation[0]!=ent->s.legsAnim||metadata.fullAnimation[1]!=ent->s.torsoAnim)goto store;
-    mode=BG_TCEPosePresentationMode(metadata.animation[0]->name,metadata.animation[1]->name,
-                                   !!(ent->s.effect1Time&4),!!(ent->s.effect1Time&0x400));
     next.query.mapGeneration=metadata.mapGeneration;next.query.generation=metadata.generation;
     next.query.profile=metadata.profile;next.query.mode=mode;next.query.eFlags=ent->s.eFlags;
     next.query.renderCharacter=metadata.renderCharacter;next.query.animationCharacter=metadata.animationCharacter;
-    if(!mode) {next.legacy=1;goto store;}
     /* The ordinary interpolating converter intentionally leaves trDelta
      * untouched. Affected policy explicitly publishes authoritative velocity
      * for both g_smoothClients modes, matching the own-PS conversion. */
@@ -257,9 +289,16 @@ int G_TCEPresentationQuery(int clientNum,uint32_t serverTime,uint32_t receiptCei
     elapsed=serverTime-base->query.sourceTime;
     if(elapsed>base->step+1u||elapsed>TCE_POSE_PRESENTATION_MAX_GAP)return G_TCE_PRESENTATION_UNKNOWN;
     if(base->gateOff)return G_TCE_PRESENTATION_LEGACY;
+    if(base->legacy) {
+        const gentity_t *ent=&g_entities[clientNum];
+        if(!ent->inuse||!ent->client||ent->client->pers.connected!=CON_CONNECTED||
+           ent->s.eType!=ET_PLAYER||ent->health<=0||
+           base->connectTime!=ent->client->pers.connectTime||
+           base->spawnCount!=ent->client->ps.persistant[PERS_SPAWN_COUNT])return G_TCE_PRESENTATION_UNKNOWN;
+        return G_TCE_PRESENTATION_LEGACY;
+    }
     if(!G_TCEPosePresentationIdentity(&g_entities[clientNum],&mapGeneration,&generation)||
        base->query.mapGeneration!=mapGeneration||base->query.generation!=generation)return G_TCE_PRESENTATION_UNKNOWN;
-    if(base->legacy)return G_TCE_PRESENTATION_LEGACY;
     if(!base->query.mode)return G_TCE_PRESENTATION_UNKNOWN;
     if(!G_TCEPoseAssetInfo(base->query.renderCharacter,&render)||
        !G_TCEPoseAssetInfo(base->query.animationCharacter,&animation))return G_TCE_PRESENTATION_UNKNOWN;

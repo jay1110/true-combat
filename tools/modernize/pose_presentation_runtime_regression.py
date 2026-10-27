@@ -48,6 +48,7 @@ def main():
         folder=out/mode;folder.mkdir(exist_ok=True)
         fixture=(ROOT/f'tools/modernize/pose_presentation_{mode}_test.c').read_text()
         fixture=fixture.replace('/* ACTUAL_PLAYER_CONVERTERS */',converters).replace('/* ACTUAL_CHARACTER_SELECTORS */',selectors)
+        fixture=fixture.replace('/* ACTUAL_BG_GET_CHARACTER */',function((ROOT/'src/game/bg_character.c').read_text(),'BG_GetCharacter'))
         fixture=fixture.replace('/* ACTUAL_POSITION_FUNCTIONS */',positions)
         fixture=fixture.replace('/* ACTUAL_ENTITY_TRAJECTORY */',function(entities,'CG_EntityTrajectory'))
         production=(ROOT/'src/game/g_tce_pose_presentation.c' if mode=='server' else

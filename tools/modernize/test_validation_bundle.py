@@ -250,6 +250,20 @@ class CatalogTests(unittest.TestCase):
         self.assertEqual(actual - registered, set())
         self.assertGreaterEqual(len(registered), 20)
 
+    def test_ordinary_pose_reset_gate_runs_all_profiles_and_blocks_critical_review(self):
+        jobs, _ = make_plan(ROOT, ROOT / 'build/test-plan-only', {'schema': 1}, None, 2)
+        ordinary = [job for job in jobs if job.name.startswith('pose-ordinary-')]
+        self.assertEqual({job.name for job in ordinary},
+                         {'pose-ordinary-debug', 'pose-ordinary-release', 'pose-ordinary-asan'})
+        critical = next(job for job in jobs if job.name == 'critical-ir-review')
+        for job in ordinary:
+            self.assertTrue(job.required)
+            self.assertFalse(job.unavailable)
+            self.assertIn(job.name, critical.needs)
+            self.assertTrue(any(path.endswith('report.json') for path in job.outputs))
+            self.assertEqual('--optimized' in job.command, job.name.endswith('-release'))
+            self.assertEqual('--sanitize' in job.command, job.name.endswith('-asan'))
+
     def test_required_visibility_gate_uses_current_origin_scope_not_baseline(self):
         jobs, _ = make_plan(ROOT, ROOT / 'build/test-plan-only', {'schema': 1}, None, 2)
         visibility = [job for job in jobs if job.name.startswith('visibility-')]
