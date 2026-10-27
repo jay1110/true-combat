@@ -1,6 +1,7 @@
 
 #include "tce_float_integer.h"
 #include <limits.h>
+#include <float.h>
 
 #include "g_local.h"
 #include "tce_numeric.h"
@@ -752,6 +753,61 @@ static double TCE_SpawnDistance(const vec3_t delta)
 	return sqrt((double)delta[0] * delta[0] + (double)delta[1] * delta[1] + (double)delta[2] * delta[2]);
 }
 #endif
+/* Custom GT7 points are map-wide. Prefer the greatest distance to the nearest
+ * living enemy, then the lower CQB-style crowd pressure on an exact distance
+ * tie. CQB uses pressure alone; strict distance priority is intentional here.
+ * Streaming keeps late map points eligible without a fixed candidate cap. */
+static gentity_t *G_TCESelectCustomDMSpawn(team_t team)
+{
+	gentity_t *spot = NULL, *best = NULL;
+	vec3_t enemies[MAX_CLIENTS];
+	double bestDistance = -1.0, bestPressure = 0.0;
+	int enemyCount = 0, ties = 0, i, axis;
+	for (i = 0; i < level.maxclients && i < MAX_CLIENTS; ++i)
+	{
+		const gentity_t *enemy = &g_entities[i];
+		if (!enemy->inuse || !enemy->client || enemy->health <= 0 ||
+		    enemy->client->pers.connected != CON_CONNECTED ||
+		    enemy->client->sess.sessionTeam == team ||
+		    (enemy->client->sess.sessionTeam != TEAM_AXIS && enemy->client->sess.sessionTeam != TEAM_ALLIES) ||
+		    enemy->client->ps.pm_type == PM_DEAD || (enemy->client->ps.pm_flags & PMF_LIMBO))
+		{
+			continue;
+		}
+		VectorCopy(enemy->r.currentOrigin, enemies[enemyCount]);
+		++enemyCount;
+	}
+	while ((spot = G_Find(spot, FOFS(classname), "info_player_deathmatch")) != NULL)
+	{
+		double nearest = DBL_MAX, pressure = 0.0;
+		if (SpotWouldTelefrag(spot) || spot->entstate == STATE_INVISIBLE ||
+		    !G_SpawnOriginWorldClear(spot->s.origin))
+		{
+			continue;
+		}
+		for (i = 0; i < enemyCount; ++i)
+		{
+			double squared = 0.0;
+			for (axis = 0; axis < 3; ++axis)
+			{
+				double delta = (double)spot->s.origin[axis] - enemies[i][axis];
+				squared += delta * delta;
+			}
+			if (squared < nearest) nearest = squared;
+			pressure += 1024.0 / (squared < 1024.0 ? 1024.0 : squared);
+		}
+		if (!best || nearest > bestDistance || (nearest == bestDistance && pressure < bestPressure))
+		{
+			best = spot; bestDistance = nearest; bestPressure = pressure; ties = 1;
+		}
+		else if (nearest == bestDistance && pressure == bestPressure)
+		{
+			++ties;
+			if (rand() % ties == 0) best = spot;
+		}
+	}
+	return best;
+}
 /* TC Windows2008df60: preferred entity, hostage and reinforcement-group selection. */
 gentity_t *SelectRandomTeamSpawnPoint(int teamstate, team_t team, int spawnObjective, int preferredEntity, qboolean hostage)
 {
@@ -767,23 +823,10 @@ gentity_t *SelectRandomTeamSpawnPoint(int teamstate, team_t team, int spawnObjec
 	vec3_t    target, offset;
 	if (!hostage && g_gametype.integer == 7 && level.tceCustomDMSpawns)
 	{
-		spot = NULL;
-		while ((spot = G_Find(spot, FOFS(classname), "info_player_deathmatch")) != NULL)
+		spot = G_TCESelectCustomDMSpawn(team);
+		if (spot)
 		{
-			if (SpotWouldTelefrag(spot) || spot->entstate == STATE_INVISIBLE ||
-			    !G_SpawnOriginWorldClear(spot->s.origin))
-			{
-				continue;
-			}
-			spots[count++] = spot;
-			if (count == MAX_TEAM_SPAWN_POINTS)
-			{
-				break;
-			}
-		}
-		if (count)
-		{
-			return spots[rand() % count];
+			return spot;
 		}
 		/* All occupied or no valid custom points: safe normal team fallback. */
 	}

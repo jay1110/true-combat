@@ -457,10 +457,89 @@ static void penetrationAndCover(void)
     resetWorld();actor(1,100,1,0,0);actor(2,105,30,0,0);g_entities[1].client->ps.stats[STAT_TCE_FLAGS]|=0x200;g_entities[2].client->ps.stats[STAT_TCE_FLAGS]|=0x200;
     shoot(52.5f,20,1000,1,0);CHECK(hitCount==1&&hitOrder[0]==2);CHECK(g_entities[0].client->sess.aWeaponStats[G_weapStatIndex_MOD(MOD_MP40)].headshots==1);
 }
+static void spawnProtectionROE(void)
+{
+    /* Deliberate CQB policy: unlike the original TC:E oracle, GT7 protects
+     * the newly spawned target without MOD65 self-punishment. GT5 retains it.
+     * Run the actual controller with both bullet and non-bullet input. */
+    static const struct {
+        int gametype, sameTeam, elapsed, bypass, damagesTarget, punishesAttacker;
+    } cases[] = {
+        {7,0,0,0,0,0}, {7,0,2999,0,0,0},
+        {7,0,3000,0,1,0}, {7,0,3001,0,1,0},
+        {7,1,2999,0,0,0}, {7,1,3000,0,1,0},
+        {5,1,0,0,0,1}, {5,1,2999,0,0,1},
+        {5,1,3000,0,1,0}, {5,0,2999,0,0,0},
+        {5,0,3000,0,1,0}, {2,0,2999,0,0,0},
+        {2,1,2999,0,0,0}, {2,0,3000,0,1,0},
+        {7,0,2999,1,1,0}, {5,1,2999,1,1,0},
+        {2,0,2999,1,1,0}
+    };
+    vec3_t direction={1,0,0},point={70,0,42};
+    int c,bullet,i,mode;
+    for(bullet=0;bullet<2;++bullet)for(c=0;c<(int)(sizeof(cases)/sizeof(cases[0]));++c)
+    {
+        gentity_t *target,*attacker;
+        tce_damageResult_t result;
+        resetWorld();actor(1,100,8,0,0);target=&g_entities[1];attacker=&g_entities[0];
+        g_gametype.integer=cases[c].gametype;
+        if(cases[c].sameTeam)target->client->sess.sessionTeam=attacker->client->sess.sessionTeam;
+        target->client->tceDamageSpawnTime=10000;level.time=10000+cases[c].elapsed;
+        /* A stale rewind/request clock must not extend or bypass protection. */
+        attacker->client->pers.cmd.serverTime=1;
+        attacker->client->tceRewind.requestedTime=1;
+        regionFractionOverride=1;regionProbeFractions[0]=regionProbeFractions[2]=1;regionProbeFractions[1]=.25f;
+        result=G_Damage(target,attacker,attacker,direction,point,20,
+            cases[c].bypass?DAMAGE_NO_PROTECTION:0,bullet?MOD_MP40:MOD_UNKNOWN);
+        CHECK(cases[c].damagesTarget?target->health<100:target->health==100);
+        CHECK(target->client->tceLastAppliedDamage==(cases[c].damagesTarget?20:0));
+        CHECK(target->client->ps.holdable[2]==0);
+        CHECK(target->client->ps.holdable[3]==(cases[c].damagesTarget?(bullet?20:10):0));
+        CHECK(target->client->ps.holdable[4]==(cases[c].damagesTarget&&!bullet?20:0));
+        CHECK(cases[c].punishesAttacker?attacker->health<=0:attacker->health==100);
+        CHECK(attacker->client->tceLastAppliedDamage==(cases[c].punishesAttacker?1000:0));
+        CHECK(attacker->client->ps.holdable[2]==0);
+        CHECK(attacker->client->ps.holdable[3]==(cases[c].punishesAttacker?500:0));
+        CHECK(attacker->client->ps.holdable[4]==(cases[c].punishesAttacker?1000:0));
+        CHECK(cases[c].punishesAttacker?attacker->deathType==65:attacker->deathType==0);
+        CHECK(luaDamageCalls==(cases[c].damagesTarget||cases[c].punishesAttacker?1:0));
+        CHECK(hitCount==(cases[c].damagesTarget||cases[c].punishesAttacker?1:0));
+        if(hitCount)CHECK(hitOrder[0]==(cases[c].punishesAttacker?0:1)&&hitAmount[0]==(cases[c].punishesAttacker?1000:20));
+        if(!cases[c].damagesTarget)CHECK(result==0);
+        CHECK(spawnCalls==(bullet&&cases[c].damagesTarget?1:0));
+    }
+    /* Self/world attacks bypass the client-versus-other-client timer guard.
+     * NO_PROTECTION continues to respect independent godmode immunity. */
+    for(mode=0;mode<3;++mode)
+    {
+        gentity_t *target;
+        resetWorld();actor(1,100,8,0,0);target=&g_entities[1];
+        g_gametype.integer=7;target->client->tceDamageSpawnTime=level.time;
+        if(mode==2)target->flags|=FL_GODMODE;
+        G_Damage(target,NULL,mode==0?target:NULL,direction,point,20,
+            mode==2?DAMAGE_NO_PROTECTION:0,MOD_UNKNOWN);
+        CHECK(mode==2?target->health==100:target->health<100);
+        CHECK(target->client->tceLastAppliedDamage==(mode==2?0:20));
+        CHECK(g_entities[0].health==100&&luaDamageCalls==(mode==2?0:1));
+    }
+    /* Full bullet traversal must retain immunity, then hit at exactly 3000. */
+    for(i=0;i<2;++i)
+    {
+        resetWorld();actor(1,100,8,0,0);g_gametype.integer=7;
+        g_entities[1].client->tceDamageSpawnTime=level.time-(i?3000:2999);
+        shoot(42,20,1000,1,0);
+        CHECK(g_entities[0].health==100);
+        CHECK(i?g_entities[1].health<100:g_entities[1].health==100);
+        CHECK(g_entities[1].client->tceLastAppliedDamage==(i?52:0));
+        CHECK(hitCount==i&&luaDamageCalls==i);
+    }
+    printf("spawn protection: GT7 immunity without ROE, exact 3000ms boundary, GT5 friendly ROE, GT2 and bypasses\n");
+}
 #include "tools/modernize/hitbox_regional_cases.h"
 int main(void)
 {
     ordering();penetrationAndCover();presentationAvailability();
+    spawnProtectionROE();
     regionalGrid();regionalCoverAndCompatibility();regionalIntegerAndFractionBoundaries();
 #ifdef HAS_TCE_PRESENTATION_DAMAGE
     livingCorpseEligibility();presentationRegionsAndClock();presentationOrderingAndCover();selectedValidationAndReentrancy();

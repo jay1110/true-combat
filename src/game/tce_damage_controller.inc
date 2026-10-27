@@ -351,7 +351,8 @@ static tce_damageResult_t TCE_DamageController(gentity_t *targ, gentity_t *infli
 		if (attacker->client && !(dflags & DAMAGE_NO_PROTECTION) && targ != attacker && level.time < client->tceDamageSpawnTime + 3000)
 #endif
 		{
-			if ((g_gametype.integer == 7 && !OnSameTeam(targ, attacker)) || (g_gametype.integer == 5 && OnSameTeam(targ, attacker)))
+			/* CQB keeps GT7 spawn immunity without punishing the shooter. */
+			if (g_gametype.integer == 5 && OnSameTeam(targ, attacker))
 			{
 				G_Damage(attacker, NULL, attacker, NULL, NULL, 1000, DAMAGE_NO_PROTECTION, 65);
 			}

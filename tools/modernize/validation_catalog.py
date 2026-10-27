@@ -18,6 +18,7 @@ FIXTURES = (
     ('movement', 'movement_regression', 'configuration', False, ['--footsteps']),
     ('objective', 'objective_lifecycle_regression', 'plain', False, []),
     ('bomb-lifecycle', 'bomb_lifecycle_regression', 'configuration', False, []),
+    ('spawn-distance', 'spawn_distance_regression', 'optimized', False, []),
     ('hitbox', 'hitbox_regression', 'optimized', False, []),
     ('hitbox-bullets', 'hitbox_regression', 'optimized', False, ['--bullets']),
     ('door', 'door_reversal_regression', 'configuration', False, []),
