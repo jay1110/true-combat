@@ -7,6 +7,7 @@
 #include "src/game/tce_bullet.h"
 #include "src/game/tce_lua.h"
 #include "src/game/g_tce_bullet_damage.h"
+#include "src/game/g_tce_weapon_stats.h"
 #include <stdio.h>
 #include <math.h>
 #include <float.h>
@@ -22,6 +23,10 @@ static int wallSurface;
 static gentity_t events[128];
 static gclient_t testClients[MAX_CLIENTS];
 static int failures, tests, traceCalls, spawnCalls, links, partLinks;
+/* Statistics are an observed service boundary here; their actual private
+ * counters/protocol run in tce_weapon_stats_regression. */
+void G_TCEWeaponStatsDamage(gentity_t *target,gentity_t *inflictor,gentity_t *attacker,int mod,int take,int alive,int head)
+{ (void)target;(void)inflictor;(void)attacker;(void)mod;(void)take;(void)alive;(void)head; }
 static int regionFractionOverride,regionProbeIndex;
 static float regionProbeFractions[3];
 static vec3_t firstVolume;

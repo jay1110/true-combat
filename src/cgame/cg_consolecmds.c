@@ -8,6 +8,7 @@
 
 #include "cg_local.h"
 #include "../game/tce_bg.h"
+#include "cg_tce_weapon_stats.h"
 
 #ifdef FEATURE_NAVSTUDIO
 /* OB_DMS name dialogs use cg_genericText. Forward only to the typed UI
@@ -916,18 +917,12 @@ extern void CG_AdjustAutomapZoom(int zoomIn);
 
 static void CG_AutomapZoomIn_f(void)
 {
-	if (!cgs.autoMapOff)
-	{
-		CG_AdjustAutomapZoom(qtrue);
-	}
+	CG_AdjustAutomapZoom(qtrue);
 }
 
 static void CG_AutomapZoomOut_f(void)
 {
-	if (!cgs.autoMapOff)
-	{
-		CG_AdjustAutomapZoom(qfalse);
-	}
+	CG_AdjustAutomapZoom(qfalse);
 }
 
 static void CG_AutomapExpandDown_f(void)
@@ -965,6 +960,12 @@ static void CG_AutomapExpandUp_f(void)
 static void CG_ToggleAutomap_f(void)
 {
 	cgs.autoMapOff = !cgs.autoMapOff;
+}
+
+static void CG_CommandMap_f(void)
+{
+	if (cgs.autoMapExpanded) { CG_AutomapExpandUp_f(); }
+	else { CG_AutomapExpandDown_f(); }
 }
 
 // OSP
@@ -1063,17 +1064,13 @@ void CG_wStatsDown_f(void)
 		return;
 	}
 
-	if (cg.statsRequestTime < cg.time)
-	{
-		cg.statsRequestTime = cg.time + 500;
-		trap_SendClientCommand(va("wstats %d", i));
-	}
-
 	cg.showStats = qtrue;
+	CG_TCEWeaponStatsRequest(i);
 }
 
 void CG_wStatsUp_f(void)
 {
+	CG_TCEWeaponStatsCancel();
 	cg.showStats = qfalse;
 	CG_windowFree(cg.statsWindow);
 	cg.statsWindow = NULL;
@@ -1366,6 +1363,9 @@ static consoleCommand_t commands[] =
 	{ "selectbuddy",         CG_SelectBuddy_f            },
 	{ "MapZoomIn",           CG_AutomapZoomIn_f          },
 	{ "MapZoomOut",          CG_AutomapZoomOut_f         },
+	{ "CompassZoomIn",       CG_AutomapZoomIn_f          },
+	{ "CompassZoomOut",      CG_AutomapZoomOut_f         },
+	{ "commandmap",          CG_CommandMap_f            },
 	{ "+mapexpand",          CG_AutomapExpandDown_f      },
 	{ "-mapexpand",          CG_AutomapExpandUp_f        },
 	{ "generateTracemap",    CG_GenerateTracemap         },

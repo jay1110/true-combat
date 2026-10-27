@@ -10,14 +10,31 @@
 #define MAX_CLIENTS 64
 #define MAX_NAME_LENGTH 64
 #define TEAM_SPECTATOR 3
+#define TEAM_AXIS 1
+#define TEAM_ALLIES 2
+#define PM_NORMAL 0
+#define PM_NOCLIP 1
+#define PM_SPECTATOR 2
+#define PM_DEAD 3
+#define PM_FREEZE 4
+#define PM_INTERMISSION 5
+#define PMF_FOLLOW 4096
+#define PMF_LIMBO 16384
+#define EF_DEAD 1
+#define EF_NODRAW 64
+#define ET_PLAYER 1
+#define ET_CORPSE 41
 #define CS_PLAYERS 100
 #define PERS_TEAM 0
 #define STAT_HEALTH 0
 typedef float vec4_t[4];
 typedef tce_score_t score_t;
 typedef struct { char name[MAX_NAME_LENGTH]; int team, powerups, health; } clientInfo_t;
-typedef struct { int clientNum, persistant[1], stats[1], pm_type; } playerState_t;
+typedef struct { int clientNum, persistant[1], stats[1], pm_type, pm_flags; } playerState_t;
 typedef struct { playerState_t ps; } snapshot_t;
+typedef struct { int number, clientNum, eType, eFlags; } entityState_t;
+typedef struct { int currentValid; entityState_t currentState; } centity_t;
+static centity_t cg_entities[MAX_CLIENTS];
 static struct { score_t scores[MAX_CLIENTS]; snapshot_t *snap; int clientNum; } cg;
 static struct {
     clientInfo_t clientinfo[MAX_CLIENTS];
@@ -32,7 +49,7 @@ static int checks, failures, cases, route_failures[3], active_route;
 static const char *case_label;
 typedef struct { float x, y, width, height, s, t, s2, t2; int shader; char text[128]; } event_t;
 static event_t texts[24], flags[4];
-static int text_count, flag_count, pic_count, color_set, color_clear;
+static int text_count, flag_count, pic_count, color_set, color_clear, last_pic_shader;
 static float active_color[4];
 
 static void expect(int condition, const char *message)
@@ -74,7 +91,7 @@ static void CG_Text_Paint_Ext(float x,float y,float sx,float sy,float *color,con
 static void CG_FillRect(float x,float y,float w,float h,const float *color)
 { (void)x;(void)y;(void)w;(void)h;(void)color; }
 static void CG_DrawPic(float x,float y,float w,float h,int shader)
-{ (void)x;(void)y;(void)w;(void)h;(void)shader;++pic_count; }
+{ (void)x;(void)y;(void)w;(void)h;last_pic_shader=shader;++pic_count; }
 static const char *CG_TranslateString(const char *text) { return text; }
 static int CG_DrawStrlen(const char *text) { return (int)strlen(text); }
 static int CG_mvMergedClientLocate(int client) { return client; }
@@ -135,6 +152,51 @@ static void row_case(int route,int ping,int enabled,int country,int name,int sha
         printf("TRACE route=%d ping=%d country=[%s] prefixes=%d name_x=%.0f name=[%s] first_column=%.0f ping_column=%.0f\n",route,ping,countries[country].value,flag_count,text_count?texts[0].x:-1.f,text_count?texts[0].text:"",text_count>1?texts[1].x:-1.f,text_count>8?texts[8].x:-1.f);
     ++cases;
 }
+static void snapshot_health_cases(void)
+{
+    int kind;
+    for(kind=0;kind<21;++kind) {
+        snapshot_t snap;float color[4]={1,1,1,.6f};int client=1,expected=0;char label[80];score_t before;
+        memset(&cg,0,sizeof(cg));memset(&cgs,0,sizeof(cgs));memset(&snap,0,sizeof(snap));memset(cg_entities,0,sizeof(cg_entities));
+        active_route=2;snprintf(label,sizeof(label),"snapshot life transition%d",kind);case_label=label;
+        cg.snap=&snap;cg.clientNum=0;snap.ps.clientNum=0;snap.ps.persistant[PERS_TEAM]=TEAM_AXIS;snap.ps.stats[STAT_HEALTH]=100;
+        cgs.clientinfo[0].team=cgs.clientinfo[1].team=TEAM_AXIS;cgs.clientinfo[1].health=0;
+        cgs.media.scoreEliminatedShader=222;cgs.media.medicIcon=333;
+        cgs.gametype=cg_gameType.integer=7;cgs.tceKillMessage=1;cg_countryflags.integer=0;
+        cg.scores[0].client=1;cg.scores[0].ping=20;cg.scores[0].respawnsLeft=-1;tce_scoreExtended[0]=1;
+        cg_entities[1].currentValid=1;cg_entities[1].currentState.number=cg_entities[1].currentState.clientNum=1;cg_entities[1].currentState.eType=ET_PLAYER;
+        switch(kind) {
+        case 0: client=0;cgs.clientinfo[0].health=0;break;
+        case 1: client=0;cgs.clientinfo[0].health=-1;cg.scores[0].respawnsLeft=-2;break;
+        case 2: client=0;cgs.clientinfo[0].health=100;snap.ps.stats[STAT_HEALTH]=0;snap.ps.pm_type=PM_DEAD;expected=333;break;
+        case 3: client=0;cgs.clientinfo[0].health=100;snap.ps.pm_flags=PMF_LIMBO;expected=222;break;
+        case 4: break; /* Living bot/player snapshot overrides stale tinfo zero. */
+        case 5: cgs.clientinfo[1].health=-1;cg.scores[0].respawnsLeft=-2;break;
+        case 6: cgs.clientinfo[1].health=100;cg_entities[1].currentState.eFlags=EF_DEAD;expected=333;break;
+        case 7: cg_entities[1].currentValid=0;cg_entities[1].currentState.eFlags=EF_DEAD;cgs.clientinfo[1].health=100;break;
+        case 8: cg_entities[1].currentValid=0;expected=333;break;
+        case 9: cgs.clientinfo[1].team=TEAM_ALLIES;cg_entities[1].currentState.eFlags=EF_DEAD;cg.scores[0].respawnsLeft=-2;break;
+        case 10: cgs.clientinfo[0].team=TEAM_SPECTATOR;snap.ps.pm_type=PM_SPECTATOR;cg.scores[0].respawnsLeft=-2;break;
+        case 11: cgs.clientinfo[0].team=TEAM_SPECTATOR;snap.ps.clientNum=1;snap.ps.pm_flags=PMF_FOLLOW|PMF_LIMBO;cg.scores[0].respawnsLeft=-2;break;
+        case 12: snap.ps.clientNum=1;snap.ps.pm_flags=PMF_FOLLOW|PMF_LIMBO;cgs.clientinfo[1].health=-1;cg.scores[0].respawnsLeft=-2;break;
+        case 13: client=0;snap.ps.clientNum=1;snap.ps.pm_flags=PMF_FOLLOW|PMF_LIMBO;cgs.clientinfo[0].health=100;expected=222;break;
+        case 14: snap.ps.clientNum=1;snap.ps.pm_flags=PMF_FOLLOW|PMF_LIMBO;snap.ps.pm_type=PM_DEAD;snap.ps.stats[STAT_HEALTH]=0;cgs.clientinfo[1].health=100;expected=333;break;
+        case 15: cg_entities[1].currentState.number=cg_entities[1].currentState.clientNum=2;expected=333;break;
+        case 16: cg_entities[1].currentState.eType=ET_CORPSE;cg_entities[1].currentState.eFlags=EF_DEAD;cgs.clientinfo[1].health=100;break;
+        case 17: cg_entities[1].currentState.eFlags=EF_NODRAW;expected=333;break;
+        case 18: cg_entities[1].currentValid=0;cgs.clientinfo[1].health=100;cg.scores[0].respawnsLeft=-2;expected=222;break;
+        case 19: cg.scores[0].respawnsLeft=3;break;
+        case 20: client=0;cgs.clientinfo[0].health=-1;cg_entities[0]=cg_entities[1];cg_entities[0].currentState.number=cg_entities[0].currentState.clientNum=0;cg_entities[0].currentState.eFlags=EF_DEAD;break;
+        }
+        cg.scores[0].client=client;Q_strncpyz(cgs.clientinfo[client].name,client?"SnapshotBot":"SnapshotHuman",MAX_NAME_LENGTH);
+        before=cg.scores[0];text_count=flag_count=pic_count=color_set=color_clear=last_pic_shader=0;
+        TCE_ScoreClientRow(20,80,0,color,.6f);
+        expect(pic_count==(expected?1:0),"fresh same-team snapshot determines icon; unknown/enemy/spectator retain policy");
+        if(expected)expect(last_pic_shader==expected,"dead versus eliminated icon");
+        expect(!memcmp(&before,&cg.scores[0],sizeof(before)),"display repair does not mutate stored score packet");
+        ++cases;
+    }
+}
 int main(void)
 {
     int route,ping,enabled,country,name;const int pings[]={-1,999,0,42,1000};
@@ -142,6 +204,7 @@ int main(void)
     for(country=0;country<(int)(sizeof(countries)/sizeof(countries[0]));++country)for(name=0;name<3;++name)
         row_case(route,pings[ping],enabled,country,name,1,80);
     for(route=0;route<3;++route){row_case(route,42,1,0,0,0,80);row_case(route,42,1,0,0,1,453);row_case(route,42,1,0,0,1,454);}
+    snapshot_health_cases();
     printf("scoreboard prefix cases=%d checks=%d failures=%d route_failures=%d,%d,%d\n",cases,checks,failures,route_failures[0],route_failures[1],route_failures[2]);
     return failures?1:0;
 }

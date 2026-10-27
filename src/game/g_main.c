@@ -13,6 +13,7 @@
 #include "tce_botinfo.h"
 #include "tce_geoip.h"
 #include "g_tce_pose.h"
+#include "g_tce_weapon_stats.h"
 
 // Include the "External"/"Public" components of AI_Team
 #include "../botai/ai_teamX.h"
@@ -2138,6 +2139,7 @@ void G_InitGame(int levelTime, int randomSeed, int restart)
 	level.time      = levelTime;
 	level.startTime = levelTime;
 	G_TCEPoseInit();
+	G_TCEWeaponStatsResetAll();
 	/* The zeroed carrier indices are not ownership flags. Original assignment
 	 * and drop producers set -1; do not enable objective pickups prematurely. */
 #ifndef _WIN32

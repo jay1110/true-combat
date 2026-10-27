@@ -2,6 +2,7 @@
 #include "src/game/g_local.h"
 #include "src/game/tce_bg.h"
 #include "src/game/g_tce_pose.h"
+#include "src/game/g_tce_weapon_stats.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -15,11 +16,13 @@ vmCvar_t sv_official, vote_allow_map;
 static int failures, checks, handles, loads, frees, missing, official = 1, description;
 static int parsedStats, deletedStats, configReads, userinfoSlot, sent[MAX_CLIENTS];
 static int poseChanges;
+static int weaponStatsResets;
 static gclient_t *lastPoseClient;
 static char requestedCharacter[256], configCharacter[256], session[1024];
 static bg_character_t defaults[TEAM_NUM_TEAMS][NUM_PLAYER_CLASSES], custom;
 
 #define CHECK(expr) do { ++checks; if (!(expr)) { ++failures; fprintf(stderr,"line %d: %s\n",__LINE__,#expr); } } while (0)
+void G_TCEWeaponStatsReset(int clientNum) { CHECK(clientNum >= 0 && clientNum < MAX_CLIENTS); ++weaponStatsResets; }
 /* This fixture owns the character-selection service boundary. The actual pose
  * reset body runs in pose_server_regression; do not duplicate it here. */
 void G_TCEPoseCharacterChanged(gclient_t *client) {
@@ -82,10 +85,11 @@ static void sessions(void) {
         gclient_t *c=&g_clients[0];memset(c,0,sizeof(*c));
         level.fResetStats=reset;
         g_gametype.integer=modes[mode];g_gamestate.integer=GS_PLAYING;g_currentRound.integer=1;
-        parsedStats=deletedStats=0;G_ReadSessionData(c);
+        parsedStats=deletedStats=weaponStatsResets=0;G_ReadSessionData(c);
         CHECK(c->sess.sessionTeam==TEAM_ALLIES && c->sess.playerWeapon==8 && c->sess.latchPlayerWeapon==8);
         CHECK(c->sess.playerWeapon2==2 && c->sess.playerWeapon3==21);
         CHECK(parsedStats==!reset && deletedStats==reset);
+        CHECK(weaponStatsResets==reset);
         CHECK(c->sess.kills==(reset?0:11) && c->sess.deaths==(reset?0:9));
         CHECK(c->sess.damage_given==(reset?0:455));
         if(reset) { CHECK(c->sess.game_points==0 && c->sess.team_kills==0 && c->sess.suicides==0 && c->sess.rounds==0);CHECK(c->sess.skillpoints[0]==0 && c->sess.medals[0]==0); }

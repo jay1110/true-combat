@@ -2306,6 +2306,7 @@ void G_AddClientToFireteam(int entityNum, int leaderNum);
 void G_InviteToFireTeam(int entityNum, int otherEntityNum);
 void GetBotAmmo(int clientNum, int *weapon, int *ammo, int *ammoclip);
 void G_UpdateFireteamConfigString(fireteamData_t *ft);
+void G_TCEFireteamInfoMessage(team_t team);
 void G_RemoveClientFromFireteams(int entityNum, qboolean update, qboolean print);
 
 void G_PrintClientSpammyCenterPrint(int entityNum, char *text);

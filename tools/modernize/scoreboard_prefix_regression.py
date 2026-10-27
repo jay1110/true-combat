@@ -39,6 +39,8 @@ def main():
     helpers = helper_source.read_text(encoding='utf-8-sig')
     bodies = {name: function(actual, name) for name in WRAPPERS}
     helper_bodies = {name: function(helpers, name) for name in HELPERS}
+    if re.search(r'\bTCE_ScoreSnapshotState\([^;{}]*\)\s*\{', helpers):
+        helper_bodies['TCE_ScoreSnapshotState'] = function(helpers, 'TCE_ScoreSnapshotState')
     fixture = Path(__file__).with_name('scoreboard_prefix_regression_fixture.c')
     generated = out / 'scoreboard_prefix.c'
     generated.write_text(fixture.read_text(encoding='utf-8').replace('/* ACTUAL_HELPERS */', '\n\n'.join(helper_bodies.values()))

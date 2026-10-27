@@ -757,6 +757,33 @@ static void CG_DrawUpperRight(void)
 CG_DrawTeamInfo
 =================
 */
+float CG_TCEFireteamTextY(float y)
+{
+	extern qboolean tce_uiCoordinates;
+	qboolean previous = tce_uiCoordinates;
+	float height = CG_TCEFireteamHeight(), x = 0, top = 0, w = 0, scale = 1, minimum;
+	if (height <= 0.f) return y;
+	/* FT uses the SDK640 canvas; popup/status text uses the aspect-aware TCE
+	 * canvas. Derive its offset/scale through the existing renderer adapter. */
+	tce_uiCoordinates = qtrue;
+	CG_AdjustFrom640(&x, &top, &w, &scale);
+	tce_uiCoordinates = previous;
+	if (scale <= 0.f) return y;
+	minimum = ((8.f + height + 8.f) * cgs.screenYScale - top) / scale;
+	return y < minimum ? minimum : y;
+}
+
+static float CG_TCEFireteamStatusOffset(void)
+{
+	float top, popup;
+	if (CG_TCEFireteamHeight() <= 0.f) return 0.f;
+	top = CG_TCEFireteamTextY(-480.f);
+	popup = CG_PopupMessageBottom();
+	if (popup > 0.f && popup + 6.f > top) top = popup + 6.f;
+	/* The first follow/deployment baseline is118, with14 pixels of glyphs. */
+	return top > 104.f ? top - 104.f : 0.f;
+}
+
 static void CG_DrawTeamInfo(void)
 {
 	extern qboolean tce_uiCoordinates;
@@ -3147,6 +3174,7 @@ static void CG_DrawSpectatorMessage(void)
 	extern qboolean tce_uiCoordinates;
 	qboolean        previous;
 	static int      lastconfigGet = 0;
+	float           offset = CG_TCEFireteamStatusOffset();
 
 	if (!cg_descriptiveText.integer)
 	{
@@ -3174,11 +3202,11 @@ static void CG_DrawSpectatorMessage(void)
 		str2 = "ESCAPE";
 	}
 	str = va(CG_TranslateString("Press %s to open Deploy Menu"), str2);
-	CG_Text_Paint_Ext(8, 154, .2f, .2f, colorWhite, str, 0, 0, 3, &cgs.media.limboFont1);
+	CG_Text_Paint_Ext(8, 154 + offset, .2f, .2f, colorWhite, str, 0, 0, 3, &cgs.media.limboFont1);
 
 	str2 = BindingFromName("+attack");
 	str  = va(CG_TranslateString("Press %s to follow next player"), str2);
-	CG_Text_Paint_Ext(8, 168, .2f, .2f, colorWhite, str, 0, 0, 3, &cgs.media.limboFont1);
+	CG_Text_Paint_Ext(8, 168 + offset, .2f, .2f, colorWhite, str, 0, 0, 3, &cgs.media.limboFont1);
 
 	tce_uiCoordinates = previous;
 }
@@ -3262,6 +3290,14 @@ static void CG_MessageSmall(int x, int y, const char *s, const float *color)
 {
 	CG_DrawSmallStringColor(x, y, s, (float *)color);
 }
+static void CG_FireteamMessagePaint(float x, float y, float sx, float sy, const float *color, const char *text, float adjust, int limit, int style, void *font)
+{
+	CG_MessagePaint(x, y + CG_TCEFireteamStatusOffset(), sx, sy, color, text, adjust, limit, style, font);
+}
+static void CG_FireteamMessageSmall(int x, int y, const char *s, const float *color)
+{
+	CG_MessageSmall(x, y + (int)ceilf(CG_TCEFireteamStatusOffset()), s, color);
+}
 static int CG_MessageViewing(void)
 {
 	return CG_ViewingDraw();
@@ -3291,6 +3327,7 @@ static void CG_DrawLimboMessage(void)
 	playerState_t *ps = &cg.snap->ps;
 	vec4_t white = { 1, 1, 1, 1 };
 	const char *key, *text, *format;
+	float offset = CG_TCEFireteamStatusOffset();
 	if (ps->stats[STAT_HEALTH] > 0 || (ps->pm_flags & PMF_LIMBO) ||
 	    cgs.clientinfo[cg.clientNum].team == TEAM_SPECTATOR ||
 	    !cg_descriptiveText.integer || cgs.gametype == 5)
@@ -3308,11 +3345,11 @@ static void CG_DrawLimboMessage(void)
 		}
 		format = CG_TranslateString("Press %s to open Deploment Menu");
 		text = va(format, key);
-		CG_Text_Paint_Ext(8, 154, .2f, .2f, colorWhite, text, 0, 0, 3, &cgs.media.limboFont1);
+		CG_Text_Paint_Ext(8, 154 + offset, .2f, .2f, colorWhite, text, 0, 0, 3, &cgs.media.limboFont1);
 		key = BindingFromName("+moveup");
 		format = CG_TranslateString("Press %s to go into reinforcement queue");
 		text = va(format, key);
-		CG_Text_Paint_Ext(8, 168, .2f, .2f, colorWhite, text, 0, 0, 3, &cgs.media.limboFont1);
+		CG_Text_Paint_Ext(8, 168 + offset, .2f, .2f, colorWhite, text, 0, 0, 3, &cgs.media.limboFont1);
 	}
 	else
 	{
@@ -3326,13 +3363,14 @@ static void CG_DrawLimboMessage(void)
 			format = CG_TranslateString("Reinforcements deploy in %d seconds.");
 			text = va(format, seconds);
 		}
-		CG_DrawSmallStringColor(8, 118, text, white);
+		CG_DrawSmallStringColor(8, 118 + (int)ceilf(offset), text, white);
 	}
 	trap_R_SetColor(NULL);
 	tce_uiCoordinates = previous;
 #else
 	extern qboolean    tce_uiCoordinates; qboolean previous = tce_uiCoordinates;
 	tce_hud_messages_t s; tce_hud_messages_api_t a; CG_MessageState(&s, &a);
+	a.paint = CG_FireteamMessagePaint; a.small = CG_FireteamMessageSmall;
 	tce_uiCoordinates = qtrue; TCE_DrawLimboMessage(&s, &a); tce_uiCoordinates = previous;
 #endif
 }
@@ -3343,6 +3381,7 @@ static qboolean CG_DrawFollow(void)
 	qboolean previous = tce_uiCoordinates, result = qtrue;
 	const char *format, *text;
 	char buffer[128];
+	float offset = CG_TCEFireteamStatusOffset();
 	tce_uiCoordinates = qtrue;
 	if (CG_ViewingDraw())
 	{
@@ -3356,9 +3395,9 @@ static qboolean CG_DrawFollow(void)
 	if (!(cg.snap->ps.pm_flags & PMF_LIMBO))
 	{
 		text = CG_TranslateString("Following");
-		CG_Text_Paint_Ext(8, 118, .25f, .25f, colorWhite, text, 0, 0, 3, &cgs.media.limboFont1);
+		CG_Text_Paint_Ext(8, 118 + offset, .25f, .25f, colorWhite, text, 0, 0, 3, &cgs.media.limboFont1);
 		text = va("%s", cgs.clientinfo[cg.snap->ps.clientNum].name);
-		CG_Text_Paint_Ext(84, 118, .25f, .25f, colorWhite, text, 0, 0, 3, &cgs.media.limboFont1);
+		CG_Text_Paint_Ext(84, 118 + offset, .25f, .25f, colorWhite, text, 0, 0, 3, &cgs.media.limboFont1);
 		goto done;
 	}
 	if (cgs.gametype != 5)
@@ -3389,13 +3428,13 @@ static qboolean CG_DrawFollow(void)
 			format = CG_TranslateString("Deploying in %d seconds");
 			sprintf(buffer, format, seconds);
 		}
-		CG_Text_Paint_Ext(8, 118, .25f, .25f, colorWhite, buffer, 0, 0, 3, &cgs.media.limboFont1);
+		CG_Text_Paint_Ext(8, 118 + offset, .25f, .25f, colorWhite, buffer, 0, 0, 3, &cgs.media.limboFont1);
 	}
 	if (cg.snap->ps.clientNum != cg.clientNum)
 	{
 		format = CG_TranslateString("Following");
 		sprintf(buffer, "(%s %s)", format, cgs.clientinfo[cg.snap->ps.clientNum].name);
-		CG_Text_Paint_Ext(8, 136, .25f, .25f, colorWhite, buffer, 0, 0, 3, &cgs.media.limboFont1);
+		CG_Text_Paint_Ext(8, 136 + offset, .25f, .25f, colorWhite, buffer, 0, 0, 3, &cgs.media.limboFont1);
 	}
  done:
 	tce_uiCoordinates = previous;
@@ -3403,6 +3442,7 @@ static qboolean CG_DrawFollow(void)
 #else
 	extern qboolean    tce_uiCoordinates; qboolean previous = tce_uiCoordinates; int result;
 	tce_hud_messages_t s; tce_hud_messages_api_t a; CG_MessageState(&s, &a);
+	a.paint = CG_FireteamMessagePaint; a.small = CG_FireteamMessageSmall;
 	tce_uiCoordinates = qtrue; result = TCE_DrawFollow(&s, &a); tce_uiCoordinates = previous; return result;
 #endif
 }
@@ -4330,9 +4370,9 @@ static void CG_DrawRadarIcon(int x, int y, int w, int h, const vec3_t origin, co
 	radians = (((double)AngleSubtract(cg.predictedPlayerState.viewangles[YAW], angles[YAW]) + 180.f) * .0027777778450399637f - .25) * 6.2831854820251465;
 #endif
 #if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
-	fraction = (long double)distance * .0005f;
+	fraction = (long double)distance / CG_CompassRange();
 #else
-	fraction = (double)distance * .0005f;
+	fraction = (double)distance / CG_CompassRange();
 #endif
 	if (fraction > 1)
 	{
@@ -4371,34 +4411,47 @@ static void CG_DrawRadarIcon(int x, int y, int w, int h, const vec3_t origin, co
 	CG_DrawPic(px - size * .5f, py - size * .5f, size, size, shader);
 }
 
-/* The map uses the same heading and 2000-unit radius as radar contacts.
+/* The map uses the same heading and zoom radius as radar contacts.
  * File checks avoid registering the engine's missing-image fallback. */
 static qboolean tceRadarMapVisible;
-static qboolean CG_DrawCompassMap(float y)
+static qhandle_t CG_CompassMapShader(void)
 {
 	static char registeredMap[MAX_QPATH];
 	static qhandle_t shaders[2];
 	static qboolean attempted[2];
+	static int registeredLayer = -2;
 	char path[MAX_QPATH];
 	fileHandle_t file = 0;
-	polyVert_t verts[32];
-	int i, mode = cg_drawCompass.integer - 1;
+	int pass, mode = cg_drawCompass.integer - 1;
+	int layer = cgs.ccLayers ? CG_CurLayerForZ(cg.predictedPlayerState.origin[2]) : -1;
 	if (mode < 0 || mode > 1 || !cg.mapcoordsValid)
 	{
 		return qfalse;
 	}
-	if (Q_stricmp(registeredMap, cgs.rawmapname))
+	if (Q_stricmp(registeredMap, cgs.rawmapname) || registeredLayer != layer)
 	{
 		Q_strncpyz(registeredMap, cgs.rawmapname, sizeof(registeredMap));
+		registeredLayer = layer;
 		memset(shaders, 0, sizeof(shaders));
 		memset(attempted, 0, sizeof(attempted));
 	}
 	if (!attempted[mode])
 	{
 		attempted[mode] = qtrue;
-		if (TCE_CompassMapPath(mode + 1, cgs.rawmapname, path, sizeof(path)))
+		for (pass = 0; pass < 2 && !shaders[mode]; ++pass)
 		{
-			int length = trap_FS_FOpenFile(path, &file, FS_READ);
+			int length;
+			if (layer >= 0 && pass == 0)
+			{
+				Com_sprintf(path, sizeof(path), "levelshots/%s_%d_cc%s.tga",
+				            cgs.rawmapname, layer, mode == 1 ? "_blueprint" : "");
+			}
+			else if (!TCE_CompassMapPath(mode + 1, cgs.rawmapname, path, sizeof(path)))
+			{
+				continue;
+			}
+			file = 0;
+			length = trap_FS_FOpenFile(path, &file, FS_READ);
 			if (file)
 			{
 				trap_FS_FCloseFile(file);
@@ -4409,7 +4462,15 @@ static qboolean CG_DrawCompassMap(float y)
 			}
 		}
 	}
-	if (!shaders[mode])
+	return shaders[mode];
+}
+
+static qboolean CG_DrawCompassMap(float y)
+{
+	polyVert_t verts[32];
+	qhandle_t shader = CG_CompassMapShader();
+	int i;
+	if (!shader)
 	{
 		return qfalse;
 	}
@@ -4422,7 +4483,7 @@ static qboolean CG_DrawCompassMap(float y)
 		verts[i].xyz[0] = 792.0f + 30.0f * dx;
 		verts[i].xyz[1] = y + 30.0f * dy;
 		if (!TCE_CompassMapTexCoord(cg.predictedPlayerState.origin, cg.mapcoordsMins,
-		                           cg.mapcoordsMaxs, cg.predictedPlayerState.viewangles[YAW],
+		                           cg.mapcoordsMaxs, cg.predictedPlayerState.viewangles[YAW], CG_CompassRange(),
 		                           dx, dy, verts[i].st))
 		{
 			return qfalse;
@@ -4430,41 +4491,207 @@ static qboolean CG_DrawCompassMap(float y)
 		CG_AdjustFrom640(&verts[i].xyz[0], &verts[i].xyz[1], &width, &height);
 		memset(verts[i].modulate, 255, sizeof(verts[i].modulate));
 	}
-	trap_R_Add2dPolys(verts, 32, shaders[mode]);
+	trap_R_Add2dPolys(verts, 32, shader);
 	return qtrue;
 }
 
-/* CQB00053300: fixed-size, heading-aware contacts; sine range compression
- * retains detail near the player and clamps distant contacts to the rim. */
-static void CG_DrawCompassContact(float y, const vec3_t target, float heading,
-                                  qboolean enemy)
+/* Private media avoids changing the engine/SDK-facing media structure. */
+static qhandle_t tceNavigationPlayers[3], tceNavigationObjectives[2], tceNavigationFlags[2];
+
+void CG_RegisterTCENavigationMedia(void)
 {
-	vec3_t delta, angles;
-	float distance, fraction, radians, px, py;
+	tceNavigationPlayers[0] = trap_R_RegisterShaderNoMip("gfx/tce2/nav/player.tga");
+	tceNavigationPlayers[1] = trap_R_RegisterShaderNoMip("gfx/tce2/nav/player_self.tga");
+	tceNavigationPlayers[2] = trap_R_RegisterShaderNoMip("gfx/tce2/nav/player_dead.tga");
+	tceNavigationObjectives[0] = trap_R_RegisterShaderNoMip("gfx/tce2/nav/objective_a.tga");
+	tceNavigationObjectives[1] = trap_R_RegisterShaderNoMip("gfx/tce2/nav/objective_b.tga");
+	tceNavigationFlags[0] = trap_R_RegisterShaderNoMip("gfx/tce2/nav/flag_terror.tga");
+	tceNavigationFlags[1] = trap_R_RegisterShaderNoMip("gfx/tce2/nav/flag_specops.tga");
+}
+
+void CG_DrawTCENavigationPlayer(float x, float y, float w, float h,
+                                int clientNum, qboolean dead, float turns)
+{
+	qboolean self = cg.snap && clientNum == cg.snap->ps.clientNum;
 	qhandle_t shader;
-	VectorSubtract(cg.predictedPlayerState.origin, target, delta);
-	distance = VectorLength(delta);
-	if (distance <= 0)
+	vec4_t color = { 1.f, 1.f, 1.f, 1.f };
+	if (clientNum < 0 || clientNum >= MAX_CLIENTS) { return; }
+	if (!dead)
+	{
+		dead = self ? cg.snap->ps.stats[STAT_HEALTH] <= 0 :
+		       cg_entities[clientNum].currentValid && (cg_entities[clientNum].currentState.eFlags & EF_DEAD);
+	}
+	shader = tceNavigationPlayers[dead ? 2 : self ? 1 : 0];
+	if (!shader) { return; }
+	if (!self && !dead && cg.snap)
+	{
+		qboolean friendly = cgs.clientinfo[clientNum].team == cg.snap->ps.persistant[PERS_TEAM];
+		color[0] = friendly ? .65f : 1.f;
+		color[1] = friendly ? 1.f : .30f;
+		color[2] = friendly ? .75f : .22f;
+	}
+	trap_R_SetColor(color);
+	if (dead) { CG_DrawPic(x, y, w, h, shader); }
+	else
+	{
+		/* The ET rotated-pic ABI puts the first texture corner on a radial
+		 * angle. .625 places a normal upward-facing TGA upright. */
+		CG_DrawRotatedPic(x, y, w, h, shader, .625f + turns);
+	}
+	trap_R_SetColor(NULL);
+}
+
+/* CTF TOIs are broadcast capture locations. Their team is the flag being
+ * delivered, so the flag at that home belongs to the opposite faction. */
+static qhandle_t CG_TCEFlagMapShader(const entityState_t *es)
+{
+	if (cg_gameType.integer != 2) { return 0; }
+	if (es->eType == ET_EXPLOSIVE_INDICATOR && es->onFireStart >= 1 && es->onFireStart <= 5)
+	{
+		if (es->teamNum == TEAM_AXIS) { return tceNavigationFlags[1]; }
+		if (es->teamNum == TEAM_ALLIES) { return tceNavigationFlags[0]; }
+	}
+	if (es->eType == ET_ITEM && !(es->eFlags & EF_NODRAW) &&
+	    es->modelindex > 0 && es->modelindex < bg_numItems)
+	{
+		const gitem_t *item = &bg_itemlist[es->modelindex];
+		if (item->giType == IT_TEAM && es->density > 0)
+		{
+			if (item->giTag == PW_REDFLAG) { return tceNavigationFlags[0]; }
+			if (item->giTag == PW_BLUEFLAG) { return tceNavigationFlags[1]; }
+		}
+	}
+	return 0;
+}
+
+static qboolean CG_TCEFlagItemHasHomeMarker(const centity_t *cent, const snapshot_t *snap)
+{
+	int i;
+	qhandle_t flag = CG_TCEFlagMapShader(&cent->currentState);
+	/* LaunchItem stores the original flag entity in otherEntityNum for a
+	 * drop. That marker must remain at its actual position, even near home. */
+	if (!flag || cent->currentState.eType != ET_ITEM ||
+	    cent->currentState.otherEntityNum >= MAX_CLIENTS) { return qfalse; }
+	for (i = 0; i < snap->numEntities; ++i)
+	{
+		const centity_t *home = &cg_entities[snap->entities[i].number];
+		vec3_t delta;
+		if (home->currentState.eType != ET_EXPLOSIVE_INDICATOR ||
+		    CG_TCEFlagMapShader(&home->currentState) != flag) { continue; }
+		VectorSubtract(cent->lerpOrigin, home->lerpOrigin, delta);
+		if (DotProduct(delta, delta) <= 128.f * 128.f) { return qtrue; }
+	}
+	return qfalse;
+}
+
+/* Heading-up projection; mapless compression retains detail near self. */
+static void CG_DrawCompassContact(float y, const vec3_t target, float heading,
+                                  int clientNum)
+{
+	float point[2], px, py;
+	if (clientNum < 0 || clientNum >= MAX_CLIENTS) { return; }
+	if (!TCE_CompassPoint(cg.predictedPlayerState.origin, target,
+	                      cg.predictedPlayerState.viewangles[YAW], CG_CompassRange(),
+	                      tceRadarMapVisible, point))
 	{
 		return;
 	}
-	vectoangles(delta, angles);
-	fraction = distance * .0005f;
-	if (fraction > 1)
+	px = 792.f + point[0] * 30.f; py = y + point[1] * 30.f;
+	CG_DrawTCENavigationPlayer(px - 5, py - 5, 10, 10, clientNum, qfalse,
+	                          AngleSubtract(cg.predictedPlayerState.viewangles[YAW], heading) / 360.f);
+}
+
+static void CG_DrawObjectiveLetter(float x, float y, int kind, float size)
+{
+	vec4_t back = { .015f, .015f, .015f, .95f };
+	vec4_t border = { 1.f, .75f, .18f, 1.f };
+	char label[2];
+	if (kind >= 1 && kind <= 2 && tceNavigationObjectives[kind - 1])
 	{
-		fraction = 1;
+		trap_R_SetColor(colorWhite);
+		CG_DrawPic(x - size * .5f, y - size * .5f, size, size, tceNavigationObjectives[kind - 1]);
+		trap_R_SetColor(NULL);
+		return;
 	}
-	if (!tceRadarMapVisible)
+	label[0] = 'A' + kind - 1; label[1] = 0;
+	CG_FillRect(x - size * .5f, y - size * .5f, size, size, back);
+	CG_DrawRect(x - size * .5f, y - size * .5f, size, size, 1, border);
+	CG_DrawStringExt(x - size * .25f, y - size * .38f, label, colorWhite,
+	                 qtrue, qtrue, size * .5f, size * .75f, 1);
+}
+
+void CG_DrawTCECommandMapObjectives(float x, float y, float w, float h)
+{
+	int i, team;
+	snapshot_t *snap = (cg.nextSnap && !cg.nextFrameTeleport && !cg.thisFrameTeleport) ? cg.nextSnap : cg.snap;
+	if (!snap || !cg.mapcoordsValid || (cg_gameType.integer != 2 && cg_gameType.integer != 5))
 	{
-		fraction = (float)sin(fraction * M_PI * .5);
+		return;
 	}
-	radians  = (AngleSubtract(cg.predictedPlayerState.viewangles[YAW], angles[YAW]) + 180.f) / 360.f - .25f;
-	radians *= 2.f * M_PI;
-	px       = 792.f + (float)cos(radians) * 30.f * fraction;
-	py       = y + (float)sin(radians) * 30.f * fraction;
-	shader   = trap_R_RegisterShaderNoMip(enemy?"gfx/misc/radar_dot.tga":"gfx/misc/radar_arrow.tga");
-	CG_DrawRotatedPic(px - 4, py - 4, 8, 8, shader,
-	                  AngleSubtract(cg.predictedPlayerState.viewangles[YAW], heading) / 360.f + .125f);
+	team = snap->ps.persistant[PERS_TEAM];
+	for (i = 0; i < snap->numEntities; i++)
+	{
+		centity_t *cent = &cg_entities[snap->entities[i].number];
+		entityState_t *es = &cent->currentState;
+		float point[2], px, py;
+		int kind, enemy;
+		qhandle_t shader, flag = CG_TCEFlagMapShader(es);
+		if (flag)
+		{
+			if (CG_TCEFlagItemHasHomeMarker(cent, snap)) { continue; }
+			kind = -1; enemy = 0;
+		}
+		else if (es->eType == ET_EXPLOSIVE_INDICATOR)
+		{
+			kind = es->onFireStart;
+			if (kind < 0 || kind > 5) { continue; }
+			enemy = kind && (es->teamNum == 0 || (es->teamNum == 1 && team == 2) || (es->teamNum == 2 && team == 1));
+		}
+		else if (es->eType == ET_ITEM && es->otherEntityNum2 == team &&
+		         (es->otherEntityNum == 253 || es->otherEntityNum == 254) && es->effect3Time == es->otherEntityNum)
+		{
+			kind = es->otherEntityNum - 247; enemy = 0;
+		}
+		else { continue; }
+		if (!TCE_CommandMapPoint(cent->lerpOrigin, cg.mapcoordsMins, cg.mapcoordsMaxs, point)) { continue; }
+		px = x + point[0] * w; py = y + point[1] * h;
+		if (flag)
+		{
+			CG_DrawPic(px - 10, py - 10, 20, 20, flag);
+		}
+		else if (kind >= 1 && kind <= 5)
+		{
+			CG_DrawObjectiveLetter(px, py, kind, 18);
+		}
+		else
+		{
+			shader = cgs.media.tceRadarMarkers[enemy][0][kind];
+			CG_DrawPic(px - 8, py - 8, 16, 16, shader);
+		}
+	}
+}
+
+static void CG_DrawTCECompassObjective(float y, centity_t *cent, int kind,
+                                       qhandle_t shader, qhandle_t above, qhandle_t below)
+{
+	qhandle_t flag = CG_TCEFlagMapShader(&cent->currentState);
+	if (flag || (cent->currentState.eType == ET_EXPLOSIVE_INDICATOR && kind >= 1 && kind <= 5))
+	{
+		float point[2];
+		if (TCE_CompassPoint(cg.predictedPlayerState.origin, cent->lerpOrigin,
+		                      cg.predictedPlayerState.viewangles[YAW], CG_CompassRange(),
+		                      tceRadarMapVisible, point))
+		{
+			float px = 792.f + point[0] * 30.f, py = y + point[1] * 30.f;
+			if (flag) { CG_DrawPic(px - 7, py - 7, 14, 14, flag); }
+			else { CG_DrawObjectiveLetter(px, py, kind, 15); }
+		}
+	}
+	else
+	{
+		CG_DrawRadarIcon(762, (int)(y - 30), 60, 60, cg.predictedPlayerState.origin,
+		                 cent->lerpOrigin, shader, above, below);
+	}
 }
 
 #if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
@@ -4520,6 +4747,8 @@ static void CG_DrawRadar(void)
 	CG_DrawPic(742, y - 50, 100, 100, trap_R_RegisterShader("gfx/misc/radarbg.tga"));
 	tceRadarMapVisible = CG_DrawCompassMap(y);
 	trap_R_SetColor(NULL);
+	CG_DrawCompassContact(y, cg.predictedPlayerState.origin,
+	                      cg.predictedPlayerState.viewangles[YAW], snap->ps.clientNum);
 	{
 		int i, kind, enemy, team = cg.snap->ps.persistant[PERS_TEAM];
 		qboolean recipientContacts = atoi(Info_ValueForKey(CG_ConfigString(CS_SERVERINFO),
@@ -4545,7 +4774,7 @@ static void CG_DrawRadar(void)
 						continue;
 					}
 					CG_DrawCompassContact(y, cg.tceRadarPositions[group][i],
-					                      cg.tceRadarYaw[group][i], group != team - 1);
+					                      cg.tceRadarYaw[group][i], i);
 				}
 			}
 		}
@@ -4576,12 +4805,17 @@ static void CG_DrawRadar(void)
 			for (i = 0; i < snap->numEntities; i++)
 			{
 				cent = &cg_entities[snap->entities[i].number]; es = &cent->currentState;
-				if (es->eType == 13)
+				if (CG_TCEFlagMapShader(es))
+				{
+					if (CG_TCEFlagItemHasHomeMarker(cent, snap)) { continue; }
+					kind = -1; shader = above = below = 0;
+				}
+				else if (es->eType == ET_EXPLOSIVE_INDICATOR)
 				{
 					kind = es->onFireStart;
 					if (kind == -1)
 					{
-						break;
+						continue;
 					}
 					enemy = (es->teamNum == 0 || (es->teamNum == 1 && team == 2) || (es->teamNum == 2 && team == 1));
 					if (kind >= 0 && kind <= 5)
@@ -4594,6 +4828,7 @@ static void CG_DrawRadar(void)
 						above  = cgs.media.tceRadarMarkers[enemy][1][kind];
 						below  = cgs.media.tceRadarMarkers[enemy][2][kind];
 					}
+					else { continue; }
 				}
 				else if (es->eType == ET_ITEM && es->otherEntityNum2 == team &&
 				         (es->otherEntityNum == 253 || es->otherEntityNum == 254) && es->effect3Time == es->otherEntityNum)
@@ -4606,7 +4841,7 @@ static void CG_DrawRadar(void)
 				{
 					continue;
 				}
-				CG_DrawRadarIcon(762, (int)(y - 30), 60, 60, cg.predictedPlayerState.origin, cent->lerpOrigin, shader, above, below);
+				CG_DrawTCECompassObjective(y, cent, kind, shader, above, below);
 			}
 		}
 	}
@@ -5664,6 +5899,26 @@ static void CG_TCEDrawAspectMatte(void)
 }
 
 
+static void CG_DrawFireteamHUD(void)
+{
+	extern qboolean tce_uiCoordinates;
+	qboolean previous = tce_uiCoordinates;
+	tce_uiCoordinates = qfalse;
+	if (cg.showFireteamMenu)
+	{
+		if (cgs.eventHandling == CGAME_EVENT_FIRETEAMMSG)
+		{
+			CG_Fireteams_Draw();
+		}
+	}
+	else
+	{
+		rectDef_t rect = { 8, 8, 220, 0 };
+		CG_DrawFireTeamOverlay(&rect);
+	}
+	tce_uiCoordinates = previous;
+}
+
 static void CG_Draw2D(void)
 {
 	CG_ScreenFade();
@@ -5788,7 +6043,7 @@ static void CG_Draw2D(void)
 		CG_DrawPMItems();
 		CG_DrawPMItemsBig();
 
-		CG_DrawFollow();
+		if (!cg.showFireteamMenu) CG_DrawFollow();
 		CG_DrawWarmup();
 
 		CG_DrawNotify();
@@ -5797,13 +6052,18 @@ static void CG_Draw2D(void)
 		{
 			CG_DrawRadar();
 		}
+		CG_DrawExpandedAutoMap();
 
 		CG_DrawObjectiveDesc();
 		CG_DrawObjectiveInfo();
 
-		CG_DrawSpectatorMessage();
+		if (!cg.showFireteamMenu) CG_DrawSpectatorMessage();
 
-		CG_DrawLimboMessage();
+		if (!cg.showFireteamMenu) CG_DrawLimboMessage();
+		if (!cg_paused.integer)
+		{
+			CG_DrawFireteamHUD();
+		}
 	}
 	else
 	{

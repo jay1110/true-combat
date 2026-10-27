@@ -1160,6 +1160,8 @@ void CheckTeamStatus(void)
 
 		TeamplayInfoMessage(TEAM_AXIS);
 		TeamplayInfoMessage(TEAM_ALLIES);
+		G_TCEFireteamInfoMessage(TEAM_AXIS);
+		G_TCEFireteamInfoMessage(TEAM_ALLIES);
 	}
 }
 

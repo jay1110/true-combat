@@ -1,5 +1,6 @@
 #include "cg_local.h"
 #include "tce_mortar_map.h"
+#include "tce_compass_map.h"
 #include "../game/tce_weapon_ids.h"
 #if defined(__linux__) && !defined(Q3_VM)
 #include "../game/tce_numeric.h"
@@ -22,6 +23,72 @@ void CG_TransformToCommandMapCoord(float *coord_x, float *coord_y)
 // START	xkan, 9/19/2002
 //static float automapZoom = 3.583;	// apporoximately 1.2^7
 static float automapZoom = 5.159;
+
+static void CG_ExpandedMapSize(float *w, float *h)
+{
+	*h = CC_2D_H;
+	*w = cgs.screenXScale > 0.f && cgs.screenYScale > 0.f ?
+	     *h * cgs.screenYScale / cgs.screenXScale : CC_2D_W;
+}
+
+static void CG_TransformCommandMapEntities(float w, float h)
+{
+	int i;
+	/* entnfo coordinates also need the actual viewport size when a player
+	 * is outside PVS and has no more precise centity position. */
+	for (i = 0; i < mapEntityCount; ++i)
+	{
+		mapEntities[i].transformed[0] = (mapEntities[i].x - cg.mapcoordsMins[0]) * cg.mapcoordsScale[0] * w;
+		mapEntities[i].transformed[1] = (mapEntities[i].y - cg.mapcoordsMins[1]) * cg.mapcoordsScale[1] * h;
+	}
+}
+
+float CG_CompassRange(void)
+{
+	/* Keep the original view at the default zoom; ET's zoom commands now
+	 * adjust the TCE compass and its contacts together. */
+	return 2000.0f * 5.159f / automapZoom;
+}
+
+static qhandle_t CG_CommandMapShader(void)
+{
+	static char map[MAX_QPATH];
+	static qhandle_t shader;
+	static int oldMode = -1, oldLayer = -1;
+	char path[MAX_QPATH];
+	fileHandle_t file;
+	int mode = cg_drawCompass.integer == 2 ? 2 : 1;
+	int layer = cgs.ccLayers ? cgs.ccSelectedLayer : -1;
+	int pass;
+	if (!Q_stricmp(map, cgs.rawmapname) && oldMode == mode && oldLayer == layer)
+	{
+		return shader;
+	}
+	Q_strncpyz(map, cgs.rawmapname, sizeof(map));
+	oldMode = mode; oldLayer = layer; shader = 0;
+	/* Prefer the selected blueprint, then the map's ET overview. Never
+	 * display the renderer's missing-texture checkerboard as terrain. */
+	for (pass = 0; pass < 3 && !shader; pass++)
+	{
+		int length;
+		if (layer >= 0 && ((mode == 1 && pass == 0) || (mode == 2 && pass == 1)))
+		{
+			Com_sprintf(path, sizeof(path), "levelshots/%s_%d_cc.tga", map, layer);
+		}
+		else if (!TCE_CompassMapPath(mode == 2 && pass == 0 ? 2 : 1, map, path, sizeof(path)))
+		{
+			continue;
+		}
+		file = 0;
+		length = trap_FS_FOpenFile(path, &file, FS_READ);
+		if (file)
+		{
+			trap_FS_FCloseFile(file);
+			if (length > 0) { shader = trap_R_RegisterShaderNoMip(path); }
+		}
+	}
+	return shader;
+}
 
 int CG_CurLayerForZ(int z)
 {
@@ -599,7 +666,6 @@ void CG_DrawMapEntity(mapEntityData_t *mEnt, float x, float y, float w, float h,
 	int              j = 1;
 	qhandle_t        pic;
 	clientInfo_t     *ci;
-	bg_playerclass_t *classInfo;
 	centity_t        *cent;
 	const char       *name;
 	vec4_t           c_clr = { 1.f, 1.f, 1.f, 1.f };
@@ -643,8 +709,6 @@ void CG_DrawMapEntity(mapEntityData_t *mEnt, float x, float y, float w, float h,
 		{
 			return;
 		}
-
-		classInfo = CG_PlayerClassForClientinfo(ci, cent);
 
 		// For these, if availaible, ignore the coordinate data and grab the most up to date pvs data
 		if (cent - cg_entities == cg.clientNum)
@@ -724,27 +788,8 @@ void CG_DrawMapEntity(mapEntityData_t *mEnt, float x, float y, float w, float h,
 
 		if (mEnt->type == ME_PLAYER_REVIVE)
 		{
-			float  msec;
-			vec4_t reviveClr = { 1.f, 1.f, 1.f, 1.f };
-
-			if (cgs.clientinfo[cg.snap->ps.clientNum].team == TEAM_AXIS)
-			{
-				msec = (cg_redlimbotime.integer - (cg.time % cg_redlimbotime.integer)) / (float)cg_redlimbotime.integer;
-			}
-			else if (cgs.clientinfo[cg.snap->ps.clientNum].team == TEAM_ALLIES)
-			{
-				msec = (cg_bluelimbotime.integer - (cg.time % cg_bluelimbotime.integer)) / (float)cg_bluelimbotime.integer;
-			}
-			else
-			{
-				msec = 0;
-			}
-
-			reviveClr[3] = .5f + .5f * ((sin(sqrt(msec) * 25 * 2 * M_PI) + 1) * .5f);
-
-			trap_R_SetColor(reviveClr);
-			CG_DrawPic(icon_pos[0] + 3, icon_pos[1] + 3, icon_extends[0] - 3, icon_extends[1] - 3, cgs.media.medicIcon);
-			trap_R_SetColor(NULL);
+			CG_DrawTCENavigationPlayer(icon_pos[0], icon_pos[1], icon_extends[0], icon_extends[1],
+			                          mEnt->data, qtrue, 0);
 		}
 		else
 		{
@@ -812,9 +857,8 @@ void CG_DrawMapEntity(mapEntityData_t *mEnt, float x, float y, float w, float h,
 			c_clr[3] = 1.0f;
 
 			trap_R_SetColor(c_clr);
-			CG_DrawPic(icon_pos[0], icon_pos[1], icon_extends[0], icon_extends[1], classInfo->icon);
-
-			CG_DrawRotatedPic(icon_pos[0] - 1, icon_pos[1] - 1, icon_extends[0] + 2, icon_extends[1] + 2, classInfo->arrow, (0.5 - (mEnt->yaw - 180.f) / 360.f));
+			CG_DrawTCENavigationPlayer(icon_pos[0], icon_pos[1], icon_extends[0], icon_extends[1],
+			                          mEnt->data, qfalse, (90.f - mEnt->yaw) / 360.f);
 			trap_R_SetColor(NULL);
 		}
 		return;
@@ -1163,7 +1207,20 @@ void CG_DrawMap(float x, float y, float w, float h, int mEntFilter, mapScissor_t
 //	vec4_t c_clr = {1.f, 1.f, 1.f, 1.f};
 	mapEntityData_t *mEnt = &mapEntities[0];
 	int             icon_size;
-	int             exspawn;
+	int             exspawn = -1;
+	qhandle_t       mapShader;
+	vec4_t          mapBackground = { .055f, .07f, .08f, .94f };
+
+	if (!cg.mapcoordsValid)
+	{
+		CG_FillRect(x, y, w, h, mapBackground);
+		CG_DrawStringExt(x + 8, y + 8, "Map coordinates unavailable", colorWhite,
+		                 qfalse, qtrue, 6, 10, 0);
+		return;
+	}
+	mapShader = CG_CommandMapShader();
+	if (!scissor) { CG_TransformCommandMapEntities(w, h); }
+	CG_FillRect(x, y, w, h, mapBackground);
 
 	expanded = qfalse;
 
@@ -1199,13 +1256,9 @@ void CG_DrawMap(float x, float y, float w, float h, int mEntFilter, mapScissor_t
 			t1 = (scissor->br[1]) / (h * scissor->zoomFactor);
 
 			CG_AdjustFrom640(&sc_x, &sc_y, &sc_w, &sc_h);
-			if (cgs.ccLayers)
+			if (mapShader)
 			{
-				trap_R_DrawStretchPic(sc_x, sc_y, sc_w, sc_h, s0, t0, s1, t1, cgs.media.commandCentreAutomapShader[cgs.ccSelectedLayer]);
-			}
-			else
-			{
-				trap_R_DrawStretchPic(sc_x, sc_y, sc_w, sc_h, s0, t0, s1, t1, cgs.media.commandCentreAutomapShader[0]);
+				trap_R_DrawStretchPic(sc_x, sc_y, sc_w, sc_h, s0, t0, s1, t1, mapShader);
 			}
 			trap_R_DrawStretchPic(0, 0, 0, 0, 0, 0, 0, 0, cgs.media.whiteShader);   // HACK : the code above seems to do weird things to
 			                                                                        // the next trap_R_DrawStretchPic issued. This works
@@ -1223,13 +1276,9 @@ void CG_DrawMap(float x, float y, float w, float h, int mEntFilter, mapScissor_t
 			vec4_t color;
 			Vector4Set(color, 1.f, 1.f, 1.f, alpha);
 			trap_R_SetColor(color);
-			if (cgs.ccLayers)
+			if (mapShader)
 			{
-				CG_DrawPic(x, y, w, h, cgs.media.commandCentreMapShaderTrans[cgs.ccSelectedLayer]);
-			}
-			else
-			{
-				CG_DrawPic(x, y, w, h, cgs.media.commandCentreMapShaderTrans[0]);
+				CG_DrawPic(x, y, w, h, mapShader);
 			}
 			trap_R_SetColor(NULL);
 		}
@@ -1246,7 +1295,8 @@ void CG_DrawMap(float x, float y, float w, float h, int mEntFilter, mapScissor_t
 		trap_R_SetColor(NULL);
 	}
 
-	exspawn = CG_DrawSpawnPointInfo(x, y, w, h, qfalse, scissor, -1);
+	/* ET reinforcement-selection flags are not TCE capture objectives.
+	 * Real CTF home/drop markers are drawn from the server objective data. */
 
 	for (i = 0, mEnt = &mapEntities[0]; i < mapEntityCount; i++, mEnt++ )
 	{
@@ -1264,8 +1314,6 @@ void CG_DrawMap(float x, float y, float w, float h, int mEntFilter, mapScissor_t
 
 		CG_DrawMapEntity(mEnt, x, y, w, h, mEntFilter, scissor, interactive, snap, icon_size);
 	}
-
-	CG_DrawSpawnPointInfo(x, y, w, h, qtrue, scissor, exspawn);
 
 	CG_DrawMortarMarker(x, y, w, h, qtrue, scissor, exspawn);
 
@@ -1285,6 +1333,15 @@ void CG_DrawMap(float x, float y, float w, float h, int mEntFilter, mapScissor_t
 
 		CG_DrawMapEntity(mEnt, x, y, w, h, mEntFilter, scissor, interactive, snap, icon_size);
 	}
+	if (!scissor)
+	{
+		CG_DrawTCECommandMapObjectives(x, y, w, h);
+		if (!mapShader)
+		{
+			CG_DrawStringExt(x + 6, y + h - 13, "No map image - coordinates only", colorWhite,
+			                 qfalse, qtrue, 5, 8, 0);
+		}
+	}
 }
 
 void CG_DrawExpandedAutoMap(void)
@@ -1297,8 +1354,7 @@ void CG_DrawExpandedAutoMap(void)
 	x = SCREEN_WIDTH + 10.f;
 	y = 20.f;
 
-	w = CC_2D_W;
-	h = CC_2D_H;
+	CG_ExpandedMapSize(&w, &h);
 
 
 	if (cgs.autoMapExpanded)
@@ -1324,6 +1380,10 @@ void CG_DrawExpandedAutoMap(void)
 		}
 	}
 
+	if (cgs.ccLayers)
+	{
+		cgs.ccSelectedLayer = CG_CurLayerForZ(cg.predictedPlayerState.origin[2]);
+	}
 	CG_DrawMap(x, y, w, h, cgs.ccFilter, NULL, qfalse, .7f, qfalse);
 
 	// Draw the border

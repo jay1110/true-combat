@@ -32,14 +32,18 @@ def main():
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
     paths = ('src/cgame/cg_consolecmds.c', 'src/cgame/cg_servercmds.c',
-             'src/cgame/cg_window.c', 'src/game/bg_misc.c')
+             'src/cgame/cg_window.c', 'src/game/bg_misc.c', 'src/cgame/cg_tce_weapon_stats.c',
+             'src/game/tce_weapon_stats.h', 'src/cgame/cg_main.c', 'src/cgame/cg_tce_weapon_stats.h')
     sources = {}
     for relative in paths:
         path = args.source_root / relative
         if not path.exists():
             path = args.source_root / Path(relative).name
+        if not path.exists():
+            path = ROOT / relative
         sources[relative] = path.read_text(encoding='utf-8-sig')
     console = sources[paths[0]]
+    assert 'CG_TCEWeaponStatsReset();' in function(sources['src/cgame/cg_main.c'], 'CG_Init')
     table = re.search(r'static consoleCommand_t commands\[\] =\s*\{.*?\n\};', console, re.S)[0]
     handlers = set(re.findall(r'\{\s*"[^"\n]+",\s*(\w+)\s*\}', table))
     actual = {'CG_wStatsDown_f', 'CG_wStatsUp_f', 'CG_TCEIgnoredConsoleCommand'}
@@ -48,8 +52,9 @@ def main():
     units = [unit(console, name) for name in sorted(actual)]
     units += [table, unit(console, 'CG_ConsoleCommand'), unit(console, 'CG_InitConsoleCommands')]
     units += [unit(sources[paths[1]], name)
-              for name in ('CG_wstatsParse_cmd', 'CG_parseWeaponStats_cmd')]
+              for name in ('CG_wstatsParse_cmd', 'CG_parseWeaponStats_cmd', 'CG_MapRestart')]
     units += [unit(sources[paths[2]], name) for name in (
+        'CG_StatsCell', 'CG_StatsColumns', 'CG_DrawStatsRow',
         'CG_createStatsWindow', 'CG_windowInit', 'CG_windowReset', 'CG_windowAlloc',
         'CG_windowFree', 'CG_windowCleanup', 'CG_windowDraw', 'CG_windowNormalizeOnText',
         'CG_printWindow', 'CG_initStrings', 'CG_addString', 'CG_removeStrings')]
@@ -66,10 +71,13 @@ def main():
     generated = generated.replace('/* PRODUCTION_FUNCTIONS */', '\n\n'.join(units))
     path = out / 'fixture.c'
     path.write_text(generated, encoding='utf-8', newline='\n')
+    stats_path = out / 'cg_tce_weapon_stats.c'
+    stats_path.write_text(sources[paths[4]], encoding='utf-8', newline='\n')
     env, compiler = msvc_environment(out, args.arch, '14.44' if args.sanitize else None)
     exe = out / 'fixture.exe'
     command = [compiler, '/nologo', '/TC', '/O2', '/Gy', '/DWIN32', '/D_CRT_SECURE_NO_WARNINGS',
                '/I' + str(ROOT), str(path), str(ROOT / 'src/game/q_shared.c'),
+               '/I' + str(ROOT / 'src/cgame'), str(stats_path),
                str(ROOT / 'src/game/q_math.c'), '/Fe:' + str(exe)]
     if args.editor:
         command.insert(1, '/DFEATURE_NAVSTUDIO')

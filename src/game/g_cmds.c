@@ -84,7 +84,18 @@ void G_SendScore(gentity_t *ent)
 
 			// NERVE - SMF - number of respawns left
 			respawnsLeft = cl->ps.persistant[PERS_RESPAWNS_LEFT];
-			if (g_gametype.integer == 5)
+			if (g_gametype.integer == GT_TCE_BODYCOUNT &&
+			    (cl->sess.sessionTeam == TEAM_AXIS || cl->sess.sessionTeam == TEAM_ALLIES))
+			{
+				/* Bodycount respawns can retain negative legacy life counters.
+				 * Derive only the score packet's status from current server state. */
+				if (g_entities[level.sortedClients[i]].health <= 0 ||
+				    cl->ps.pm_type == PM_DEAD || (cl->ps.pm_flags & PMF_LIMBO))
+				{
+					respawnsLeft = -2;
+				}
+			}
+			else if (g_gametype.integer == 5)
 			{
 				if (g_entities[level.sortedClients[i]].health <= 0)
 				{
@@ -97,6 +108,15 @@ void G_SendScore(gentity_t *ent)
 				{
 					respawnsLeft = -2;
 				}
+			}
+			/* A stale negative life counter cannot mark a living player dead.
+			 * Normalize the packet only; keep finite lives and gameplay state. */
+			if (respawnsLeft < -1 &&
+			    (cl->sess.sessionTeam == TEAM_AXIS || cl->sess.sessionTeam == TEAM_ALLIES) &&
+			    g_entities[level.sortedClients[i]].health > 0 &&
+			    cl->ps.pm_type != PM_DEAD && !(cl->ps.pm_flags & PMF_LIMBO))
+			{
+				respawnsLeft = -1;
 			}
 
 			if (cl->pers.connected == CON_CONNECTING)
@@ -4149,7 +4169,7 @@ void ClientCommand(int clientNum)
 		return;
 	}
 
-	if (Q_stricmp(cmd, "say_team") == 0)
+	if (Q_stricmp(cmd, "say_team") == 0 || Q_stricmp(cmd, "say_buddy") == 0)
 	{
 		if (ent->client->sess.sessionTeam == TEAM_SPECTATOR || ent->client->sess.sessionTeam == TEAM_FREE)
 		{
@@ -4171,7 +4191,7 @@ void ClientCommand(int clientNum)
 
 		if (!ent->client->sess.muted)
 		{
-			Cmd_Say_f(ent, SAY_TEAM, qfalse);
+			Cmd_Say_f(ent, Q_stricmp(cmd, "say_buddy") == 0 ? SAY_BUDDY : SAY_TEAM, qfalse);
 		}
 		return;
 	}
@@ -4180,7 +4200,7 @@ void ClientCommand(int clientNum)
 		// Global voice is consumed without delivery in both TC originals.
 		return;
 	}
-	else if (Q_stricmp(cmd, "vsay_team") == 0)
+	else if (Q_stricmp(cmd, "vsay_team") == 0 || Q_stricmp(cmd, "vsay_buddy") == 0)
 	{
 		if (ent->client->sess.sessionTeam == TEAM_SPECTATOR || ent->client->sess.sessionTeam == TEAM_FREE)
 		{
@@ -4207,16 +4227,8 @@ void ClientCommand(int clientNum)
 
 		if (!ent->client->sess.muted)
 		{
-			Cmd_Voice_f(ent, SAY_TEAM, qfalse, qfalse);
+			Cmd_Voice_f(ent, Q_stricmp(cmd, "vsay_buddy") == 0 ? SAY_BUDDY : SAY_TEAM, qfalse, qfalse);
 		}
-		return;
-	}
-	else if (Q_stricmp(cmd, "say_buddy") == 0)
-	{
-		return;
-	}
-	else if (Q_stricmp(cmd, "vsay_buddy") == 0)
-	{
 		return;
 	}
 	else if (Q_stricmp(cmd, "score") == 0)
@@ -4231,6 +4243,7 @@ void ClientCommand(int clientNum)
 	}
 	else if (Q_stricmp(cmd, "fireteam") == 0)
 	{
+		Cmd_FireTeam_MP_f(ent);
 		return;
 	}
 	else if (Q_stricmp(cmd, "showstats") == 0)

@@ -16,6 +16,7 @@
 #include "tce_radius_precision.h"
 #include "tce_damage_trace.h"
 #include "g_tce_bullet_damage.h"
+#include "g_tce_weapon_stats.h"
 
 
 vec3_t forward, right, up;
@@ -4960,6 +4961,7 @@ void Weapon_Shotgun_Fire(gentity_t *ent)
 void Weapon_Shotgun_Fire(gentity_t *ent);
 void FireWeapon(gentity_t *ent)
 {
+	g_tceStatsShot_t statsShot;
 	float     aimSpreadScale;
 	int       weapon = ent->s.weapon;
 	int       charge;
@@ -5011,6 +5013,7 @@ void FireWeapon(gentity_t *ent)
 		default: client->ps.powerups[PW_OPS_DISGUISED] = 0; break;
 		}
 	}
+	statsShot = G_TCEWeaponStatsBegin(ent, weapon);
 	switch (weapon)
 	{
 	case 1: Weapon_Knife(ent); break;
@@ -5258,6 +5261,7 @@ void FireWeapon(gentity_t *ent)
 	case 66: Weapon_FlamethrowerFire(ent); break;
 	default: break;
 	}
+	G_TCEWeaponStatsEnd(ent, statsShot);
 	if (g_gamestate.integer == GS_PLAYING)
 	{
 		ent->client->sess.aWeaponStats[BG_WeapStatForWeapon(ent->s.weapon)].atts++;

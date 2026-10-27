@@ -22,7 +22,12 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[2]
 MODULES = ("cgame", "ui", "qagame")
 UI_ASSETS = ("ingame_main.menu", "menus.txt", "menus_gt2.txt", "menus_gt5.txt", "menus_gt7.txt")
+SHARED_UI_ASSETS = ("options_customise_hud.menu", "options_controls.menu")
 ICONS = ("radar_arrow.tga", "radar_dot.tga")
+FLAGS = ("world_flags.tga", "LICENSE.xmod.txt", "SOURCE.json")
+LEVELSHOTS = ("obj_delta_cc.tga", "obj_delta_cc_blueprint.tga", "SOURCE.json")
+NAV_ICONS = ("player.tga", "player_self.tga", "player_dead.tga", "objective_a.tga", "objective_b.tga",
+             "flag_terror.tga", "flag_specops.tga", "SOURCE.json")
 MAX_ENTRY = 256 * 1024 * 1024
 MAX_TOTAL = 512 * 1024 * 1024
 
@@ -144,6 +149,17 @@ def current_version() -> str:
     return match.group(1)
 
 
+def client_assets(variant: str) -> dict[str, Path]:
+    """Exact source resources installed by src/cmake/package_modules.cmake."""
+    assets = {"gfx/misc/" + name: ROOT / "src/assets/gfx/misc" / name for name in ICONS}
+    assets.update({"gfx/tce2/nav/" + name: ROOT / "src/assets/gfx/tce2/nav" / name for name in NAV_ICONS})
+    assets.update({"gfx/flags/" + name: ROOT / "src/assets/gfx/flags" / name for name in FLAGS})
+    assets.update({"levelshots/" + name: ROOT / "src/assets/levelshots" / name for name in LEVELSHOTS})
+    menus = SHARED_UI_ASSETS + (UI_ASSETS if variant == "game" else ())
+    assets.update({"ui/" + name: ROOT / "src/assets/ui" / name for name in menus})
+    return assets
+
+
 def check_contents(files: dict[str, bytes], label: str, version: str) -> dict:
     report = {"package": label, "errors": [], "modules": {}, "markers": {}, "archives": {}}
     errors = report["errors"]
@@ -235,9 +251,8 @@ def check_contents(files: dict[str, bytes], label: str, version: str) -> dict:
             client = archive_files(files[client_name])
             client_manifest = f"tce2/{version}/client.manifest"
             allowed = {f"{m}_mp_{arch}.dll" for m in ("cgame", "ui")} | {client_manifest}
-            allowed |= {"gfx/misc/" + icon for icon in ICONS}
-            if variant == "game":
-                allowed |= {"ui/" + asset for asset in UI_ASSETS}
+            assets = client_assets(variant)
+            allowed |= set(assets)
             exact(client, allowed, "Client PK3 entries")
             if client.get(client_manifest) != version.encode("ascii"):
                 errors.append("Client manifest must contain exactly the mod version")
@@ -245,9 +260,6 @@ def check_contents(files: dict[str, bytes], label: str, version: str) -> dict:
                 name = f"{module}_mp_{arch}.dll"
                 if client.get(name) != files.get("tce2/" + name):
                     errors.append("Client PK3 DLL differs from loose module: " + name)
-            assets = {"gfx/misc/" + icon: ROOT / "src/assets/gfx/misc" / icon for icon in ICONS}
-            if variant == "game":
-                assets.update({"ui/" + asset: ROOT / "src/assets/ui" / asset for asset in UI_ASSETS})
             for name, source in assets.items():
                 if client.get(name) != source.read_bytes():
                     errors.append("Client asset differs from the current public source: " + name)

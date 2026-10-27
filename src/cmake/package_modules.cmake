@@ -79,6 +79,14 @@ foreach(asset radar_arrow.tga radar_dot.tga)
   list(APPEND module_files "gfx/misc/${asset}")
 endforeach()
 
+# Original TCE2 navigation artwork, shared by normal and authoring clients.
+foreach(asset player.tga player_self.tga player_dead.tga objective_a.tga objective_b.tga
+    flag_terror.tga flag_specops.tga SOURCE.json)
+  file(MAKE_DIRECTORY "${stage}/gfx/tce2/nav")
+  file(COPY "${CMAKE_CURRENT_LIST_DIR}/../assets/gfx/tce2/nav/${asset}" DESTINATION "${stage}/gfx/tce2/nav")
+  list(APPEND module_files "gfx/tce2/nav/${asset}")
+endforeach()
+
 # Country flags and their provenance are required client resources.
 foreach(asset world_flags.tga LICENSE.xmod.txt SOURCE.json)
   file(MAKE_DIRECTORY "${stage}/gfx/flags")

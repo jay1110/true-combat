@@ -43,6 +43,25 @@ panel_button_text_t campaignpTxt =
 	&bg_loadscreenfont2,
 };
 
+static panel_button_text_t projectHeaderTxt =
+{
+	0.32f, 0.32f,
+	{ 1.f, 1.f, 1.f, 0.9f },
+	0, ITEM_ALIGN_CENTER,
+	&bg_loadscreenfont1,
+};
+
+static panel_button_t projectHeader =
+{
+	NULL, TCE_PROJECT_TITLE,
+	{ 20, 42, 812, 16 },
+	{ 0, 0, 0, 0, 0, 0, 0, 0 },
+	&projectHeaderTxt,
+	NULL, NULL,
+	BG_PanelButtonsRender_Text,
+	NULL,
+};
+
 panel_button_t loadScreenMap =
 {
 	"levelshots/unknownmap",
@@ -122,6 +141,7 @@ panel_button_t campaignPanelText =
 panel_button_t *loadpanelButtons[] =
 {
 	&loadScreenBack,                                  &loadScreenMap,
+	&projectHeader,
 
 
 	&loadingPanelText,                                /*&loadingPanelHeaderText,*/

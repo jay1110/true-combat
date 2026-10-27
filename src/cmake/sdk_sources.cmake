@@ -86,6 +86,7 @@ set(cgame_SOURCES
   cgame/cg_ents.c
   cgame/cg_event.c
   cgame/cg_fireteamoverlay.c
+  cgame/cg_tce_fireteam.c
   cgame/cg_fireteams.c
   cgame/cg_flamethrower.c
   cgame/cg_info.c

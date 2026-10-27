@@ -288,9 +288,8 @@ void CG_DrawConnectScreen(qboolean interactive, qboolean forcerefresh)
 	}
 
 	BG_PanelButtonsRender(loadpanelMapname);
-	CG_Text_Paint_Centred_Ext(93, 87, .5f, .5f, headerColor, "TCE TEST", 0, 0, 0, &bg_loadscreenfont1);
-	CG_Text_Paint_Centred_Ext(627, 87, .3f, .3f, headerColor,
-	                          cgs.tceVersion, 0, 0, 0, &bg_loadscreenfont1);
+	CG_Text_Paint_Centred_Ext(426, 42, .32f, .32f, headerColor,
+	                          TCE_PROJECT_TITLE, 0, 0, 0, &bg_loadscreenfont1);
 
 	if (forcerefresh)
 	{

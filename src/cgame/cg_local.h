@@ -2917,6 +2917,12 @@ void CG_TransformToCommandMapCoord(float *coord_x, float *coord_y);
 //qboolean CG_DrawCommandMap( void );
 void CG_CommandCentreClick(int key);
 void CG_DrawAutoMap(void);
+void CG_DrawExpandedAutoMap(void);
+float CG_CompassRange(void);
+void CG_DrawTCECommandMapObjectives(float x, float y, float w, float h);
+void CG_RegisterTCENavigationMedia(void);
+void CG_DrawTCENavigationPlayer(float x, float y, float w, float h,
+                                int clientNum, qboolean dead, float turns);
 
 qboolean CG_DrawLimboMenu(void);
 qboolean CG_DrawObjectivePanel(void);
@@ -3419,6 +3425,12 @@ clientInfo_t *   CG_FireTeamPlayerForPosition(int pos, int max);
 void CG_SortClientFireteam();
 
 void CG_DrawFireTeamOverlay(rectDef_t *rect);
+void CG_DrawTCEFireteamOverlay(rectDef_t *rect);
+float CG_TCEFireteamHeight(void);
+float CG_TCEFireteamTextY(float y);
+void CG_TCEFireteamReset(void);
+void CG_TCEFireteamInvalidate(void);
+void CG_ParseTCEFireteamInfo(void);
 clientInfo_t * CG_SortedFireTeamPlayerForPosition(int pos, int max);
 qboolean CG_FireteamHasClass(int classnum, qboolean selectedonly);
 const char * CG_BuildSelectedFirteamString(void);
@@ -3615,6 +3627,7 @@ void CG_UpdatePMLists(void);
 void CG_AddPMItem(popupMessageType_t type, const char *message, qhandle_t shader);
 void CG_AddPMItemBig(popupMessageBigType_t type, const char *message, qhandle_t shader);
 void CG_DrawPMItems(void);
+float CG_PopupMessageBottom(void);
 void CG_DrawPMItemsBig(void);
 const char * CG_GetPMItemText(centity_t *cent);
 void CG_PlayPMItemSound(centity_t *cent);

@@ -76,6 +76,7 @@ int main(void)
     context.getKeysForBinding = keys; context.setBinding = binding;
     context.executeText = execute; context.keynumToStringBuf = keyname;
     context.translateString = translate;
+    for(i=0;i<(int)(sizeof(menuBindings)/sizeof(menuBindings[0]));++i)CHECK(BindingIDFromName(menuBindings[i])>=0);
     id = BindingIDFromName("+freelook");
     CHECK(id == 61); CHECK(BindingIDFromName("+FREELOOK") == id);
     CHECK(BindingIDFromName("-freelook") == -1);
@@ -84,7 +85,7 @@ int main(void)
     CHECK(g_bindings[id].defaultbind1_left == -1 && g_bindings[id].defaultbind2_left == -1);
     strcpy(engineBindings['n'], "noclip"); strcpy(engineBindings['k'], "kill");
     strcpy(engineBindings['w'], "+forward");
-    Controls_GetConfig(); CHECK(keyQueries == 62);
+    Controls_GetConfig(); CHECK(keyQueries == g_bindCount);
     CHECK(!strcmp(BindingFromName("+freelook"), "(?" "?" "?)"));
     CHECK(!Item_Bind_HandleKey(&item, 'p', qfalse)); CHECK(!g_waitingForKey);
 
@@ -129,6 +130,20 @@ int main(void)
     Controls_SetConfig(qfalse); CHECK(writes == 1 && restarts == 0);
     Controls_SetConfig(qtrue); CHECK(writes == 2 && restarts == 1);
     CHECK(!strcmp(engineBindings['p'], "+freelook")); custom_keys_preserved();
+
+    /* The new stats row uses the same actual capture/save/clear path. No
+     * default ALT assignment may overwrite an existing user binding. */
+    id = BindingIDFromName("+wstats"); CHECK(id >= 0);
+    if (id >= 0) {
+        CHECK(g_bindings[id].defaultbind1_right == -1 && g_bindings[id].defaultbind1_left == -1);
+        CHECK(g_bindings[id].bind1 == -1 && g_bindings[id].bind2 == -1);
+        item.cvar = "+wstats"; strcpy(engineBindings[K_ALT], "+zoom");
+        Controls_GetConfig(); capture(&item, 'j');
+        CHECK(!strcmp(engineBindings['j'], "+wstats")); CHECK(!strcmp(engineBindings[K_ALT], "+zoom"));
+        Controls_GetConfig(); CHECK(g_bindings[id].bind1 == 'j');
+        capture(&item, K_BACKSPACE); CHECK(!engineBindings['j'][0]);
+        CHECK(!strcmp(engineBindings[K_ALT], "+zoom")); custom_keys_preserved();
+    }
     printf("%d real UI binding checks, %d failures\n", checks, failures);
     return failures != 0;
 }

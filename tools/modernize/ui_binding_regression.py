@@ -28,6 +28,12 @@ def main() -> int:
     start = shared.index("static bind_t g_bindings[] =")
     end = shared.index(";", shared.index("static const int g_bindCount", start))+1
     bindings = typedef[0] + "\n" + shared[start:end]
+    menu_path = ROOT / "src/assets/ui/options_controls.menu"
+    menu = re.sub(r'//[^\n]*|/\*.*?\*/', '', menu_path.read_text(encoding="utf-8"), flags=re.S)
+    menu_commands = re.findall(r'BIND\([^\n]*,\s*"([^"]+)",\s*"[^"]*"\s*\)', menu)
+    if not {"+wstats", "commandmap", "+mapexpand", "mapzoomin", "mapzoomout"}.issubset(menu_commands):
+        raise ValueError("Required stats/map controls are missing from the active menu")
+    bindings += "\nstatic const char *menuBindings[] = {" + ",".join(json.dumps(c) for c in menu_commands) + "};\n"
     names = ["Controls_GetConfig", "Controls_SetConfig", "Controls_SetDefaults", "BindingIDFromName", "BindingFromName", "Item_Bind_HandleKey"]
     bodies = "\n\n".join(function(shared, name) for name in names)
     fixture = Path(__file__).with_name("ui_binding_regression_fixture.c")

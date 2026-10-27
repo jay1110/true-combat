@@ -18,22 +18,20 @@ int QDECL CG_SortFireTeam(const void *a, const void *b)
 {
 	clientInfo_t *ca, *cb;
 	int          cna, cnb;
+	qboolean     memberA, memberB;
 
 	cna = *(int *)a;
 	cnb = *(int *)b;
+	if (cna == cnb) return 0;
 
 	ca = &cgs.clientinfo[cna];
 	cb = &cgs.clientinfo[cnb];
 
 	// Not on our team, so shove back
-	if (!CG_IsOnSameFireteam(cnb, cg.clientNum))
-	{
-		return -1;
-	}
-	if (!CG_IsOnSameFireteam(cna, cg.clientNum))
-	{
-		return 1;
-	}
+	memberA = ca->infoValid && ca->team == cgs.clientinfo[cg.clientNum].team && CG_IsOnSameFireteam(cna, cg.clientNum) != NULL;
+	memberB = cb->infoValid && cb->team == cgs.clientinfo[cg.clientNum].team && CG_IsOnSameFireteam(cnb, cg.clientNum) != NULL;
+	if (memberA != memberB) return memberA ? -1 : 1;
+	if (!memberA) return cna < cnb ? -1 : 1;
 
 	// Leader comes first
 	if (CG_IsFireTeamLeader(cna))
@@ -63,7 +61,7 @@ int QDECL CG_SortFireTeam(const void *a, const void *b)
 		return 1;
 	}*/// not atm
 
-	return 0;
+	return cna < cnb ? -1 : 1;
 }
 
 // Sorts client's fireteam by leader then rank
@@ -95,6 +93,7 @@ void CG_ParseFireteams()
 
 	qboolean onFireteam2;
 	qboolean isLeader2;
+	CG_TCEFireteamInvalidate();
 
 //	qboolean onFireteam =	CG_IsOnFireteam( cg.clientNum ) ? qtrue : qfalse;
 //	qboolean isLeader =		CG_IsFireTeamLeader( cg.clientNum ) ? qtrue : qfalse;
@@ -108,6 +107,8 @@ void CG_ParseFireteams()
 	{
 		char hexbuffer[11] = "0x00000000";
 		p = CG_ConfigString(CS_FIRETEAMS + i);
+		memset(&cg.fireTeams[i], 0, sizeof(cg.fireTeams[i]));
+		if (!p || !*p || !*Info_ValueForKey(p, "id")) continue;
 
 /*		s = Info_ValueForKey(p, "n");
 		if(!s || !*s) {
@@ -121,7 +122,7 @@ void CG_ParseFireteams()
 //		CG_Printf("Fireteam: %s\n", cg.fireTeams[i].name);
 
 		j = atoi(Info_ValueForKey(p, "id"));
-		if (j == -1)
+		if (j < 0 || j >= MAX_FIRETEAMS / 2)
 		{
 			cg.fireTeams[i].inuse = qfalse;
 			continue;
@@ -134,8 +135,18 @@ void CG_ParseFireteams()
 
 		s                      = Info_ValueForKey(p, "l");
 		cg.fireTeams[i].leader = atoi(s);
+		if (!*s || cg.fireTeams[i].leader < 0 || cg.fireTeams[i].leader >= MAX_CLIENTS)
+		{
+			cg.fireTeams[i].inuse = qfalse;
+			continue;
+		}
 
 		s = Info_ValueForKey(p, "c");
+		if (strlen(s) != 16 || strspn(s, "0123456789abcdefABCDEF") != 16)
+		{
+			cg.fireTeams[i].inuse = qfalse;
+			continue;
+		}
 		Q_strncpyz(hexbuffer + 2, s, 9);
 		sscanf(hexbuffer, "%x", &clnts[1]);
 		Q_strncpyz(hexbuffer + 2, s + 8, 9);
@@ -275,9 +286,10 @@ clientInfo_t * CG_SortedFireTeamPlayerForPosition(int pos, int max)
 
 	for (i = 0; i < MAX_CLIENTS && cnt < max; i++)
 	{
-		if (!(f == CG_IsOnFireteam(sortedFireTeamClients[i])))
+		clientInfo_t *ci = &cgs.clientinfo[sortedFireTeamClients[i]];
+		if (!ci->infoValid || ci->team != cgs.clientinfo[cg.clientNum].team || !(f == CG_IsOnFireteam(sortedFireTeamClients[i])))
 		{
-			return NULL;
+			continue;
 		}
 
 		if (cnt == pos)
@@ -298,123 +310,7 @@ clientInfo_t * CG_SortedFireTeamPlayerForPosition(int pos, int max)
 #define FT_BAR_HEIGHT 10.f
 void CG_DrawFireTeamOverlay(rectDef_t *rect)
 {
-	int            x = rect->x;
-	int            y = rect->y + 1; // +1, jitter it into place in 1024 :)
-	float          h;
-	clientInfo_t   *ci = NULL;
-	char           buffer[64];
-	fireteamData_t *f = NULL;
-	int            i;
-	vec4_t         clr1        = { .16f, .2f, .17f, .8f };
-	vec4_t         clr2        = { 0.f, 0.f, 0.f, .2f };
-	vec4_t         clr3        = { 0.25f, 0.f, 0.f, 153 / 255.f };
-	vec4_t         tclr        = { 0.6f, 0.6f, 0.6f, 1.0f };
-	vec4_t         bgColor     = { 0.0f, 0.0f, 0.0f, 0.6f }; // window
-	vec4_t         borderColor = { 0.5f, 0.5f, 0.5f, 0.5f }; // window
-
-	if (!(f = CG_IsOnFireteam(cg.clientNum)))
-	{
-		return;
-	}
-
-	h = 12 + 2 + 2;
-	for (i = 0; i < 6; i++)
-	{
-		ci = CG_SortedFireTeamPlayerForPosition(i, 6);
-		if (!ci)
-		{
-			break;;
-		}
-
-		h += FT_BAR_HEIGHT + FT_BAR_YSPACING;
-	}
-
-	CG_DrawRect(x, y, 204, h, 1, borderColor);
-	CG_FillRect(x + 1, y + 1, 204 - 2, h - 2, bgColor);
-
-	x += 2;
-	y += 2;
-
-	CG_FillRect(x, y, 204 - 4, 12, clr1);
-
-	sprintf(buffer, "Fireteam: %s", bg_fireteamNames[f->ident]);
-	Q_strupr(buffer);
-	CG_Text_Paint_Ext(x + 3, y + FT_BAR_HEIGHT, .19f, .19f, tclr, buffer, 0, 0, 0, &cgs.media.limboFont1);
-
-	x += 2;
-	//y += 2;
-
-	for (i = 0; i < 6; i++)
-	{
-		y += FT_BAR_HEIGHT + FT_BAR_YSPACING;
-		x  = rect->x + 2;
-
-		ci = CG_SortedFireTeamPlayerForPosition(i, 6);
-		if (!ci)
-		{
-			break;;
-		}
-
-		if (ci->selected)
-		{
-			CG_FillRect(x, y + FT_BAR_YSPACING, 204 - 4, FT_BAR_HEIGHT, clr3);
-		}
-		else
-		{
-			CG_FillRect(x, y + FT_BAR_YSPACING, 204 - 4, FT_BAR_HEIGHT, clr2);
-		}
-
-		x += 4;
-
-		CG_Text_Paint_Ext(x, y + FT_BAR_HEIGHT, .2f, .2f, tclr, BG_ClassLetterForNumber(ci->cls), 0, 0, ITEM_TEXTSTYLE_SHADOWED, &cgs.media.limboFont2);
-		x += 10;
-
-		CG_Text_Paint_Ext(x, y + FT_BAR_HEIGHT, .2f, .2f, tclr, ci->team == TEAM_AXIS ? miniRankNames_Axis[ci->rank] : miniRankNames_Allies[ci->rank], 0, 0, ITEM_TEXTSTYLE_SHADOWED, &cgs.media.limboFont2);
-		x += 22;
-
-		CG_Text_Paint_Ext(x, y + FT_BAR_HEIGHT, .2f, .2f, tclr, ci->name, 0, 17, ITEM_TEXTSTYLE_SHADOWED, &cgs.media.limboFont2);
-		x += 90;
-
-/*		CG_DrawPic(x + 2, y + 2, FT_BAR_HEIGHT - 4, FT_BAR_HEIGHT - 4, cgs.media.movementAutonomyIcons[0]);
-		x += FT_BAR_HEIGHT;
-
-		CG_DrawPic(x + 2, y + 2, FT_BAR_HEIGHT - 4, FT_BAR_HEIGHT - 4, cgs.media.weaponAutonomyIcons[0]);
-		x += FT_BAR_HEIGHT;
-		x += 4;*/
-
-/*		if( isLeader ) {
-			CG_Text_Paint_Ext(x, y + FT_BAR_HEIGHT, .2f, .2f, tclr, va("%i", i+4), 0, 0, ITEM_TEXTSTYLE_SHADOWED, &cgs.media.limboFont2 );
-		}*/
-		x += 20;
-
-		if (ci->health > 80)
-		{
-			CG_Text_Paint_Ext(x, y + FT_BAR_HEIGHT, .2f, .2f, tclr, va("%i", ci->health < 0 ? 0 : ci->health), 0, 0, ITEM_TEXTSTYLE_SHADOWED, &cgs.media.limboFont2);
-		}
-		else if (ci->health > 0)
-		{
-			CG_Text_Paint_Ext(x, y + FT_BAR_HEIGHT, .2f, .2f, colorYellow, va("%i", ci->health < 0 ? 0 : ci->health), 0, 0, ITEM_TEXTSTYLE_SHADOWED, &cgs.media.limboFont2);
-		}
-		else
-		{
-			CG_Text_Paint_Ext(x, y + FT_BAR_HEIGHT, .2f, .2f, colorRed, va("%i", ci->health < 0 ? 0 : ci->health), 0, 0, ITEM_TEXTSTYLE_SHADOWED, &cgs.media.limboFont2);
-		}
-		//x += 20;
-
-		{
-			vec2_t loc;
-			char   *s;
-
-			loc[0] = ci->location[0];
-			loc[1] = ci->location[1];
-
-			s = va("^3(%s)", BG_GetLocationString(loc));
-
-			x = rect->x + (204 - 4 - CG_Text_Width_Ext(s, .2f, 0, &cgs.media.limboFont2));
-
-			CG_Text_Paint_Ext(x, y + FT_BAR_HEIGHT, .2f, .2f, tclr, va("^3(%s)", BG_GetLocationString(loc)), 0, 0, ITEM_TEXTSTYLE_SHADOWED, &cgs.media.limboFont2);
-		}
-	}
+	CG_DrawTCEFireteamOverlay(rect);
 }
 
 qboolean CG_FireteamGetBoxNeedsButtons()

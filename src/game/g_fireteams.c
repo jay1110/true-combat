@@ -1,4 +1,61 @@
 #include "g_local.h"
+#ifdef FEATURE_OMNIBOT
+#include "g_etbot_interface.h"
+#endif
+
+/* Opt-in extension: the legacy tinfo packet remains unchanged. Named regions
+ * and current health are sent only to connected members of this fireteam. */
+void G_TCEFireteamInfoMessage(team_t team)
+{
+	int index, member;
+	if (team != TEAM_AXIS && team != TEAM_ALLIES) return;
+	for (index = 0; index < MAX_FIRETEAMS; ++index)
+	{
+		fireteamData_t *ft = &level.fireTeams[index];
+		char payload[768], command[800], entry[112];
+		int recipients[6], count = 0, leader = ft->joinOrder[0];
+		if (!ft->inuse || leader < 0 || leader >= level.maxclients || leader >= MAX_CLIENTS ||
+		    !g_entities[leader].inuse || !g_entities[leader].client ||
+		    g_entities[leader].client->sess.sessionTeam != team)
+		{
+			continue;
+		}
+		payload[0] = '\0';
+		for (member = 0; member < 6; ++member)
+		{
+			int id = ft->joinOrder[member], health, area = 0, axis, position[3];
+			gentity_t *player, *location;
+			if (id < 0 || id >= level.maxclients || id >= MAX_CLIENTS) continue;
+			player = &g_entities[id];
+			if (!player->inuse || !player->client || player->client->pers.connected != CON_CONNECTED ||
+			    player->client->sess.sessionTeam != team) continue;
+			health = player->client->ps.pm_flags & PMF_LIMBO ? -1 : player->health;
+			if (!(player->client->ps.pm_flags & PMF_LIMBO) && health < 0) health = 0;
+			if (health > 999) health = 999;
+			location = Team_GetLocation(player);
+			if (location && location->health > 0 && location->health < TCE_MAX_LOCATIONS) area = location->health;
+			for (axis = 0; axis < 3; ++axis)
+			{
+				float value = player->r.currentOrigin[axis];
+				/* Reject non-finite/out-of-world values before float-to-int conversion. */
+				position[axis] = value >= -1048576.f && value <= 1048576.f ? (int)value : 0;
+			}
+			Com_sprintf(entry, sizeof(entry), " %i %i %i %i %i %i", id, health, area, position[0], position[1], position[2]);
+			Q_strcat(payload, sizeof(payload), entry);
+			recipients[count++] = id;
+		}
+		Com_sprintf(command, sizeof(command), "tceftinfo %i %i%s", leader, count, payload);
+		for (member = 0; member < count; ++member)
+		{
+			char userinfo[MAX_INFO_STRING];
+			trap_GetUserinfo(recipients[member], userinfo, sizeof(userinfo));
+			if (!strcmp(Info_ValueForKey(userinfo, "tceft"), "1"))
+			{
+				trap_SendServerCommand(recipients[member], command);
+			}
+		}
+	}
+}
 
 // Gordon
 // What we need....
@@ -227,17 +284,99 @@ int G_FindFreeFireteamIdent(team_t team)
 	return -1;
 }
 
-// Should be the only function that ever creates a fireteam
-/* TC Linux000b82f4: registration is deliberately disabled. */
+/* Intentional TCE extension: restore SDK fireteam creation/joining, which the
+ * TC binaries disabled. Keep the legacy 64-slot joinOrder and configstrings. */
 void G_RegisterFireteam(int entityNum)
 {
-	(void)entityNum;
+	gentity_t *leader;
+	fireteamData_t *ft;
+	int ident;
+	if (entityNum < 0 || entityNum >= MAX_CLIENTS || entityNum >= level.maxclients)
+	{
+		return;
+	}
+	leader = &g_entities[entityNum];
+	if (!leader->inuse || !leader->client || leader->client->pers.connected != CON_CONNECTED)
+	{
+		return;
+	}
+	if (leader->client->sess.sessionTeam != TEAM_AXIS && leader->client->sess.sessionTeam != TEAM_ALLIES)
+	{
+		G_ClientPrintAndReturn(entityNum, "Only players on a team can create a fireteam");
+	}
+	if (G_IsOnFireteam(entityNum, NULL))
+	{
+		G_ClientPrintAndReturn(entityNum, "You are already on a fireteam, leave it first");
+	}
+	if (G_CountTeamFireteams(leader->client->sess.sessionTeam) >= MAX_FIRETEAMS / 2 ||
+	    (ft = G_FindFreeFireteam()) == NULL)
+	{
+		G_ClientPrintAndReturn(entityNum, "No free fireteams available");
+	}
+	ident = G_FindFreeFireteamIdent(leader->client->sess.sessionTeam) + 1;
+	if (ident < 1 || ident > MAX_FIRETEAMS / 2)
+	{
+		return;
+	}
+	memset(ft, 0, sizeof(*ft));
+	memset(ft->joinOrder, -1, sizeof(ft->joinOrder));
+	ft->joinOrder[0] = (char)entityNum;
+	ft->leader = entityNum;
+	ft->ident = ident;
+	ft->inuse = qtrue;
+	if (g_autoFireteams.integer == 1)
+	{
+		trap_SendServerCommand(entityNum, "aft -1");
+		leader->client->pers.autofireteamEndTime = level.time + 20500;
+	}
+#ifdef FEATURE_OMNIBOT
+	Bot_Event_FireTeamCreated(entityNum, ident);
+	Bot_Event_JoinedFireTeam(entityNum, leader);
+#endif
+	G_UpdateFireteamConfigString(ft);
 }
-/* TC Linux000b82f6 / folded Windows2001b750: no fireteam joins. */
 void G_AddClientToFireteam(int entityNum, int leaderNum)
 {
-	(void)entityNum;
-	(void)leaderNum;
+	fireteamData_t *ft;
+	gentity_t *player, *leader;
+	int i;
+	if (entityNum < 0 || entityNum >= MAX_CLIENTS || entityNum >= level.maxclients ||
+	    leaderNum < 0 || leaderNum >= MAX_CLIENTS || leaderNum >= level.maxclients)
+	{
+		return;
+	}
+	player = &g_entities[entityNum]; leader = &g_entities[leaderNum];
+	if (!player->inuse || !player->client || player->client->pers.connected != CON_CONNECTED ||
+	    !leader->inuse || !leader->client || leader->client->pers.connected != CON_CONNECTED)
+	{
+		return;
+	}
+	if ((player->client->sess.sessionTeam != TEAM_AXIS && player->client->sess.sessionTeam != TEAM_ALLIES) ||
+	    player->client->sess.sessionTeam != leader->client->sess.sessionTeam)
+	{
+		G_ClientPrintAndReturn(entityNum, "You are not on the same team as that fireteam");
+	}
+	if (!G_IsFireteamLeader(leaderNum, &ft))
+	{
+		G_ClientPrintAndReturn(entityNum, "The leader has now left the fireteam you applied to");
+	}
+	if (G_IsOnFireteam(entityNum, NULL))
+	{
+		G_ClientPrintAndReturn(entityNum, "You are already on a fireteam");
+	}
+	for (i = 0; i < 6; ++i)
+	{
+		if (ft->joinOrder[i] == -1)
+		{
+			ft->joinOrder[i] = (char)entityNum;
+#ifdef FEATURE_OMNIBOT
+			Bot_Event_JoinedFireTeam(entityNum, leader);
+#endif
+			G_UpdateFireteamConfigString(ft);
+			return;
+		}
+	}
+	G_ClientPrintAndReturn(entityNum, "Too many players already on this fireteam");
 }
 
 // The only way a client should be removed from a fireteam
@@ -284,6 +423,9 @@ void G_RemoveClientFromFireteams(int entityNum, qboolean update, qboolean print)
 		return;
 	}
 
+#ifdef FEATURE_OMNIBOT
+	Bot_Event_LeftFireTeam(entityNum);
+#endif
 	if (ft->joinOrder[0] != -1)
 	{
 		if (g_entities[(int)ft->joinOrder[0]].r.svFlags & SVF_BOT)
@@ -353,6 +495,9 @@ void G_InviteToFireTeam(int entityNum, int otherEntityNum)
 		g_entities[otherEntityNum].client->pers.invitationClient  = entityNum;
 		g_entities[otherEntityNum].client->pers.invitationEndTime = level.time + 20500;
 	}
+#ifdef FEATURE_OMNIBOT
+	Bot_Event_InviteFireTeam(entityNum, otherEntityNum);
+#endif
 }
 
 void G_DestroyFireteam(int entityNum)

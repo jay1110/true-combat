@@ -6092,6 +6092,9 @@ static bind_t g_bindings[] =
 	{ "+firemode",           'g',             -1,  '#',             -1,  -1, -1 },
 	/* New action has no default key; initialize every slot explicitly. */
 	{ "+freelook",           -1,              -1,  -1,              -1,  -1, -1, -1 },
+	{ "+wstats",             -1,              -1,  -1,              -1,  -1, -1, -1 },
+	{ "commandmap",          -1,              -1,  -1,              -1,  -1, -1, -1 },
+	{ "+mapexpand",          -1,              -1,  -1,              -1,  -1, -1, -1 },
 
 /*	{"+scores", 		-1,				-1, -1, -1},
 	{"+speed",			K_SHIFT,		-1, -1, -1},

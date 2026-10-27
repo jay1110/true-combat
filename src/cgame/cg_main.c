@@ -7,6 +7,7 @@
 
 
 #include "cg_local.h"
+#include "cg_tce_weapon_stats.h"
 #include "cg_tce_pose_presentation.h"
 #include "tce_smoke_grenade.h"
 #include "tce_lightgrid.h"
@@ -1729,6 +1730,7 @@ static void CG_RegisterGraphics(void)
 	cgs.media.tceMoveType[1] = trap_R_RegisterShaderNoMip("gfx/2d/hudMovetypeCrouch");
 	cgs.media.tceMoveType[2] = trap_R_RegisterShaderNoMip("gfx/2d/hudMovetypeStand");
 	/* Original TC objective radar shader triplets, 3004a5e8 onward. */
+	CG_RegisterTCENavigationMedia();
 	{
 		int        kind, layer, enemy;
 		const char *suffix[3] = { "", "Above", "Below" };
@@ -3099,6 +3101,8 @@ void CG_Init(int serverMessageNum, int serverCommandSequence, int clientNum, qbo
 	memset(cg_entities, 0, sizeof(cg_entities));
 	memset(cg_weapons, 0, sizeof(cg_weapons));
 	memset(cg_items, 0, sizeof(cg_items));
+	CG_TCEFireteamReset();
+	CG_TCEWeaponStatsReset();
 	CG_TCEPresentationInit();
 
 	cgs.initing = qtrue;

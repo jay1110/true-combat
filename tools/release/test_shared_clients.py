@@ -116,7 +116,8 @@ class SharedClients(unittest.TestCase):
         self.assertFalse(any('navstudio' in name or 'tce_waypoint' in name for name in packages['game']))
 
     def test_differing_ui_resource_or_editor_asset_is_rejected(self):
-        for name in ('ui/options_controls.menu', 'gfx/misc/radar_dot.tga', 'levelshots/obj_delta_cc.tga'):
+        for name in ('ui/options_controls.menu', 'gfx/misc/radar_dot.tga', 'levelshots/obj_delta_cc.tga',
+                     'gfx/tce2/nav/player.tga', 'gfx/tce2/nav/SOURCE.json'):
             with self.subTest(name=name), self.assertRaisesRegex(ValueError, 'Different/stale shared'):
                 self.row('windows-x86', overrides={name: b'stale resource'})
         with self.assertRaisesRegex(ValueError, 'Wrong client inputs/assets'):

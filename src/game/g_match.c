@@ -5,6 +5,7 @@
 #include "tce_numeric.h"
 #include "tce_stopwatch_precision.h"
 #include "tce_bg.h"
+#include "g_tce_weapon_stats.h"
 #include "../ui/menudef.h"
 
 
@@ -543,6 +544,7 @@ char *G_createStats(gentity_t *refEnt)
 void G_deleteStats(int nClient)
 {
 	gclient_t *cl = &level.clients[nClient];
+	G_TCEWeaponStatsReset(nClient);
 
 	cl->sess.damage_given    = 0;
 	cl->sess.damage_received = 0;
@@ -1027,6 +1029,7 @@ void G_statsPrint(gentity_t *ent, int nType)
 	int  pid;
 	char *cmd = (nType == 0) ? "ws" : ((nType == 1) ? "wws" : "gstats");    // Yes, not the cleanest
 	char arg[MAX_TOKEN_CHARS];
+	if (nType == 1 && G_TCEWeaponStatsRequest(ent)) return;
 
 	if (!ent || (ent->r.svFlags & SVF_BOT))
 	{

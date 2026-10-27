@@ -402,6 +402,23 @@ static void CG_PopupPaint(float x, float y, float sx, float sy, float *color, co
 {
 	CG_Text_Paint_Ext(x, y, sx, sy, color, text, adjust, limit, style, (fontInfo_t *)font);
 }
+static float popupOffset, popupBottom;
+static qboolean popupOffsetReady;
+float CG_PopupMessageBottom(void) { return popupBottom; }
+static void CG_PopupCompactPic(float x, float y, float w, float h, qhandle_t shader)
+{
+	if (!popupOffsetReady)
+	{
+		popupOffset = CG_TCEFireteamTextY(y) - y;
+		popupOffsetReady = qtrue;
+	}
+	if (y + popupOffset + h > popupBottom) popupBottom = y + popupOffset + h;
+	CG_DrawPic(x, y + popupOffset, w, h, shader);
+}
+static void CG_PopupCompactPaint(float x, float y, float sx, float sy, float *color, const char *text, float adjust, int limit, int style, void *font)
+{
+	CG_PopupPaint(x, y + popupOffset, sx, sy, color, text, adjust, limit, style, font);
+}
 static int CG_PopupDuration(int type)
 {
 	return CG_TimeForPopup((popupMessageType_t)type);
@@ -410,7 +427,8 @@ void CG_DrawPMItems(void)
 {
 	extern qboolean      tce_uiCoordinates;
 	qboolean             previous = tce_uiCoordinates;
-	tce_popup_draw_api_t api      = { trap_R_SetColor, CG_DrawPic, CG_PopupPaint, CG_PopupDuration, &cgs.media.limboFont2 };
+	tce_popup_draw_api_t api      = { trap_R_SetColor, CG_PopupCompactPic, CG_PopupCompactPaint, CG_PopupDuration, &cgs.media.limboFont2 };
+	popupOffset = popupBottom = 0.f; popupOffsetReady = qfalse;
 	tce_uiCoordinates = qtrue;
 	TCE_DrawPMItems(cg_aspectMode.integer, cg.snap->ps.persistant[PERS_RESPAWNS_LEFT], cg.time, cg_pmWaitingList, cg_pmOldList, &api);
 	tce_uiCoordinates = previous;

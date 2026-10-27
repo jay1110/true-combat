@@ -733,17 +733,72 @@ static void TCE_ScoreLocateMerged(int client)
 {
 	(void)CG_mvMergedClientLocate(client);
 }
+/* Team health and score packets can predate a death/respawn. A current player
+ * snapshot is newer evidence for a teammate; unavailable entities retain the
+ * existing packet policy. Never infer enemy/spectator rows from snapshots. */
+static int TCE_ScoreSnapshotState(int client)
+{
+	const centity_t *cent;
+	int localTeam;
+	if (!cg.snap || client < 0 || client >= MAX_CLIENTS || cg.clientNum < 0 || cg.clientNum >= MAX_CLIENTS)
+	{
+		return -1;
+	}
+	localTeam = cgs.clientinfo[cg.clientNum].team;
+	if ((localTeam != TEAM_AXIS && localTeam != TEAM_ALLIES) || cgs.clientinfo[client].team != localTeam)
+	{
+		return -1;
+	}
+	/* A limbo follower carries their own LIMBO bit in the followed player's
+	 * copied PS. It marks the observer's row, never the followed teammate. */
+	if (client == cg.clientNum && (cg.snap->ps.pm_flags & PMF_LIMBO))
+	{
+		return 2;
+	}
+	if (client == cg.snap->ps.clientNum)
+	{
+		if (cg.snap->ps.pm_type == PM_DEAD || cg.snap->ps.stats[STAT_HEALTH] <= 0)
+		{
+			return 0;
+		}
+		if (cg.snap->ps.pm_type == PM_NORMAL || cg.snap->ps.pm_type == PM_NOCLIP || cg.snap->ps.pm_type == PM_FREEZE)
+		{
+			return 1;
+		}
+		return -1;
+	}
+	cent = &cg_entities[client];
+	if (cent->currentValid && cent->currentState.number == client && cent->currentState.clientNum == client &&
+	    cent->currentState.eType == ET_PLAYER && !(cent->currentState.eFlags & EF_NODRAW))
+	{
+		/* Both TC PS converters set/clear EF_DEAD from authoritative health. */
+		return (cent->currentState.eFlags & EF_DEAD) ? 0 : 1;
+	}
+	return -1;
+}
 static void TCE_ScoreClientRow(int x, int y, int index, const float *color, float fade)
 {
 	const score_t            *score = &cg.scores[index];
 	const clientInfo_t       *ci    = &cgs.clientinfo[score->client];
+	score_t                  displayed;
 	tce_clientScoreContext_t ctx;
+	int                      state;
 	if (!tce_scoreExtended[index])
 	{
 		TCE_ScoreLegacyClientRow(x, y, index, color, fade); return;
 	}
 	memset(&ctx, 0, sizeof(ctx));
+	displayed = *score;
 	ctx.name               = ci->name; ctx.team = ci->team; ctx.powerups = ci->powerups; ctx.health = ci->health;
+	state = TCE_ScoreSnapshotState(score->client);
+	if (state >= 0)
+	{
+		ctx.health = state == 2 ? -1 : state;
+		if (state == 1 && displayed.respawnsLeft == -2)
+		{
+			displayed.respawnsLeft = -1;
+		}
+	}
 	ctx.localTeam          = cgs.clientinfo[cg.clientNum].team;
 	ctx.viewedClient       = cg.snap->ps.clientNum;
 	ctx.viewedTeam         = cg.snap->ps.persistant[PERS_TEAM];
@@ -756,7 +811,7 @@ static void TCE_ScoreClientRow(int x, int y, int index, const float *color, floa
 	ctx.locateMergedClient = TCE_ScoreLocateMerged;
 	ctx.namePrefix         = score->ping != -1 && score->ping != 999 && TCE_ScoreCountry(score->client) >= 0 ? TCE_ScoreCountryFlag : NULL;
 	ctx.nameText           = TCE_ScoreName;
-	TCE_WM_DrawClientScoreWithFormat(x, y, score, color, fade, &ctx, va);
+	TCE_WM_DrawClientScoreWithFormat(x, y, &displayed, color, fade, &ctx, va);
 }
 static int TCE_ObjectivesReinforce(int menu)
 {

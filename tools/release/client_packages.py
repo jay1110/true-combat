@@ -13,6 +13,8 @@ INPUT_PREFIX = 'client-inputs/'
 SHARED_UI = ('options_customise_hud.menu', 'options_controls.menu')
 PUBLIC_UI = ('ingame_main.menu', 'menus.txt', 'menus_gt2.txt', 'menus_gt5.txt', 'menus_gt7.txt')
 DELTA_IMAGES = ('obj_delta_cc.tga', 'obj_delta_cc_blueprint.tga')
+NAV_ICONS = ('player.tga', 'player_self.tga', 'player_dead.tga', 'objective_a.tga', 'objective_b.tga',
+             'flag_terror.tga', 'flag_specops.tga', 'SOURCE.json')
 
 
 def sha(data):
@@ -86,6 +88,7 @@ def client_assets(release_version, variant, repo=ROOT):
         raise ValueError('Unknown client variant')
     names = ['ui/' + name for name in SHARED_UI + (PUBLIC_UI if variant == 'game' else ())]
     names += ['gfx/misc/' + name for name in ('radar_arrow.tga', 'radar_dot.tga')]
+    names += ['gfx/tce2/nav/' + name for name in NAV_ICONS]
     names += ['gfx/flags/' + name for name in ('world_flags.tga', 'LICENSE.xmod.txt', 'SOURCE.json')]
     result = {name: (repo / 'src/assets' / name).read_bytes() for name in names}
     result.update(levelshot_assets(repo))

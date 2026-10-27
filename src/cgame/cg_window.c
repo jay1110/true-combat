@@ -5,6 +5,7 @@
 //
 #include "cg_local.h"
 #include "../ui/ui_shared.h"
+#include "cg_tce_weapon_stats.h"
 
 extern pmove_t cg_pmove;        // cg_predict.c
 
@@ -28,8 +29,8 @@ void CG_createStatsWindow(void)
 
 	// Window specific
 	sw->id         = WID_STATS;
-	sw->fontScaleX = cf_wstats.value * 0.2f;
-	sw->fontScaleY = cf_wstats.value * 0.2f;
+	sw->fontScaleX = cf_wstats.value * 0.16f;
+	sw->fontScaleY = cf_wstats.value * 0.16f;
 //	sw->x = (cg.snap->ps.pm_type == PM_INTERMISSION) ?  10 : 160;
 //	sw->y = (cg.snap->ps.pm_type == PM_INTERMISSION) ? -20 : -7;	// Align from bottom minus offset and height
 	sw->x = (cg.snap->ps.pm_type == PM_INTERMISSION) ?  10 : 4;
@@ -457,16 +458,60 @@ void CG_demoTimescaleDraw(void)
 }
 
 
+/* Stats use measured cells: spaces cannot align a proportional font. */
+static int CG_StatsCell(const char **text, char *cell, int size)
+{
+	int used = 0;
+	if (!*text || !**text) return 0;
+	while (**text && **text != '\t') {
+		if (used + 1 < size) cell[used++] = **text;
+		++*text;
+	}
+	cell[used] = 0;
+	if (**text == '\t') ++*text;
+	return 1;
+}
+static int CG_StatsColumns(const cg_window_t *w, int widths[6])
+{
+	int i, column, total = 0;
+	char cell[MAX_STRING_POOL_LENGTH];
+	memset(widths, 0, sizeof(int) * 6);
+	for (i = 0; i < w->lineCount; ++i) {
+		const char *text = w->lineText[i];
+		if (!strchr(text, '\t')) continue;
+		for (column = 0; column < 6 && CG_StatsCell(&text, cell, sizeof(cell)); ++column) {
+			int width = CG_Text_Width_Ext(cell, w->fontScaleX, 0, &cgs.media.limboFont2);
+			if (width > widths[column]) widths[column] = width;
+		}
+	}
+	for (column = 0; column < 6; ++column) total += widths[column];
+	return total + 5 * 12;
+}
+static void CG_DrawStatsRow(const cg_window_t *w, int x, int y, vec4_t color,
+    const char *text, const int widths[6])
+{
+	char cell[MAX_STRING_POOL_LENGTH];
+	int column, offset = 0;
+	for (column = 0; column < 6 && CG_StatsCell(&text, cell, sizeof(cell)); ++column) {
+		int width = CG_Text_Width_Ext(cell, w->fontScaleX, 0, &cgs.media.limboFont2);
+		CG_Text_Paint_Ext(x + offset + (column ? widths[column] - width : 0), y,
+		    w->fontScaleX, w->fontScaleY, color, cell, 0.0f, 0, 0, &cgs.media.limboFont2);
+		offset += widths[column] + 12;
+	}
+}
+
 // Main window-drawing handler
 void CG_windowDraw(void)
 {
 	int         h, x, y, i, j, milli, t_offset, tmp;
+	int         statsWidths[6];
 	cg_window_t *w;
 	qboolean    fCleanup = qfalse;
 	// Gordon: FIXME, the limbomenu var no longer exists
 	qboolean fAllowMV = (cg.snap != NULL && cg.snap->ps.pm_type != PM_INTERMISSION /*&& !cg.limboMenu*/);
 	vec4_t   *bg;
 	vec4_t   textColor, borderColor, bgColor;
+	CG_TCEWeaponStatsUpdate();
 
 	if (cg.winHandler.numActiveWindows == 0)
 	{
@@ -590,14 +635,22 @@ void CG_windowDraw(void)
 
 		x += 5;
 		y -= (w->effects & WFX_TRUETYPE) ? 3 : 0;
+		if (w->id == WID_STATS) CG_StatsColumns(w, statsWidths);
 
 		for (j = w->lineCount - 1; j >= 0; j--)
 		{
 			if (w->effects & WFX_TRUETYPE)
 			{
+				if (w->id == WID_STATS && strchr(w->lineText[j], '\t'))
+				{
+					CG_DrawStatsRow(w, x, y + h, textColor, w->lineText[j], statsWidths);
+				}
+				else
+				{
 //				CG_Text_Paint(x, y + h, w->fontScale, textColor, (char*)w->lineText[j], 0.0f, 0, 0);
 				CG_Text_Paint_Ext(x, y + h, w->fontScaleX, w->fontScaleY, textColor,
 				                  (char *)w->lineText[j], 0.0f, 0, 0, &cgs.media.limboFont2);
+				}
 			}
 
 			h -= (w->lineHeight[j] + 3);
@@ -637,7 +690,7 @@ void CG_windowDraw(void)
 // Set the window width and height based on the windows text/font parameters
 void CG_windowNormalizeOnText(cg_window_t *w)
 {
-	int i, tmp;
+	int i, tmp, statsWidth = 0, statsWidths[6];
 
 	if (w == NULL)
 	{
@@ -646,6 +699,7 @@ void CG_windowNormalizeOnText(cg_window_t *w)
 
 	w->w = 0;
 	w->h = 0;
+	if (w->id == WID_STATS) statsWidth = CG_StatsColumns(w, statsWidths);
 
 	if (!(w->effects & WFX_TRUETYPE))
 	{
@@ -657,7 +711,8 @@ void CG_windowNormalizeOnText(cg_window_t *w)
 	{
 		if (w->effects & WFX_TRUETYPE)
 		{
-			tmp = CG_Text_Width_Ext((char *)w->lineText[i], w->fontScaleX, 0, &cgs.media.limboFont2);
+			tmp = w->id == WID_STATS && strchr(w->lineText[i], '\t') ? statsWidth :
+			    CG_Text_Width_Ext((char *)w->lineText[i], w->fontScaleX, 0, &cgs.media.limboFont2);
 		}
 		else
 		{

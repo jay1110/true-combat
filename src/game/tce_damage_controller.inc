@@ -2,6 +2,7 @@
  * no original-function completion is implied by the helpers below. */
 #include "tce_damage_trace.h"
 #include "g_tce_bullet_damage.h"
+#include "g_tce_weapon_stats.h"
 extern void G_Voice(gentity_t *, gentity_t *, int, const char *, qboolean);
 
 static void TCE_DamageDebugBox(gentity_t *part, const vec3_t start, const vec3_t end, float fraction
@@ -262,7 +263,7 @@ static tce_damageResult_t TCE_DamageController(gentity_t *targ, gentity_t *infli
     gentity_t *attacker, vec3_t dir, vec3_t point, int damage, int dflags, int mod,
     const g_tceBulletDamageSelection_t *selection)
 {
-	gclient_t *client; int take, wasAlive, i; mapEntityData_t *mapEnt;
+	gclient_t *client; int take, wasAlive, i, headBefore; mapEntityData_t *mapEnt;
 	if (!targ->takedamage || level.intermissionQueued || g_gamestate.integer != GS_PLAYING)
 	{
 		return 0;
@@ -373,6 +374,7 @@ static tce_damageResult_t TCE_DamageController(gentity_t *targ, gentity_t *infli
 	{
 		damage = 1;
 	}
+	headBefore = client ? client->ps.holdable[2] : 0;
 	take = damage;
 	if ((selection || IsHeadShotWeapon(mod)) && client && wasAlive)
 	{
@@ -551,6 +553,8 @@ static tce_damageResult_t TCE_DamageController(gentity_t *targ, gentity_t *infli
 			}
 			client->ps.stats[STAT_HEALTH] = targ->health;
 		}
+		G_TCEWeaponStatsDamage(targ, inflictor, attacker, mod, take, wasAlive,
+		    client && client->ps.holdable[2] != headBefore);
 		if (targ->health < 1 && (targ->r.svFlags & SVF_POW))
 		{
 			targ->health = -1;

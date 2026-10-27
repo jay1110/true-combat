@@ -8,6 +8,7 @@
 #include "tce_flash.h"
 #include "tce_fragment_sound.h"
 #include "../game/tce_bg.h"
+#include "cg_tce_weapon_stats.h"
 
 #define SCOREPARSE_COUNT    9
 
@@ -65,6 +66,16 @@ static void CG_ParseTeamInfo(void)
 	int numSortedTeamPlayers;
 
 	numSortedTeamPlayers = atoi(CG_Argv(1));
+	if (numSortedTeamPlayers < 0 || numSortedTeamPlayers > MAX_CLIENTS || trap_Argc() != 2 + numSortedTeamPlayers * NUMARGS)
+	{
+		return;
+	}
+	/* Validate every index before updating any row. */
+	for (i = 0; i < numSortedTeamPlayers; ++i)
+	{
+		client = atoi(CG_Argv(i * NUMARGS + 2));
+		if (client < 0 || client >= MAX_CLIENTS) return;
+	}
 
 	for ( i = 0 ; i < numSortedTeamPlayers ; i++ )
 	{
@@ -1022,6 +1033,9 @@ require a reload of all the media
 static void CG_MapRestart(void)
 {
 	int i;
+	CG_wStatsUp_f();
+	CG_TCEWeaponStatsReset();
+	cg.statsRequestTime = 0;
 	CG_TCEPresentationRestart();
 	/* Score and health packets belong to the previous round until refreshed. */
 	cg.numScores = 0;
@@ -1871,6 +1885,7 @@ void CG_wstatsParse_cmd(void)
 		else
 		{
 			cg.statsWindow->effects  |= WFX_TEXTSIZING;
+			CG_removeStrings(cg.statsWindow);
 			cg.statsWindow->lineCount = 0;
 			cg.windowCurrent          = cg.statsWindow;
 			CG_parseWeaponStats_cmd(CG_printWindow);
@@ -2437,6 +2452,11 @@ static void CG_ServerCommand(void)
 		CG_ParseTeamInfo();
 		return;
 	}
+	if (!strcmp(cmd, "tceftinfo"))
+	{
+		CG_ParseTCEFireteamInfo();
+		return;
+	}
 	if (!strcmp(cmd, "sc0"))
 	{
 		CG_ParseScore(TEAM_AXIS);
@@ -2683,6 +2703,11 @@ static void CG_ServerCommand(void)
 	if (!Q_stricmp(cmd, "wws"))
 	{
 		CG_wstatsParse_cmd();
+		return;
+	}
+	if (!Q_stricmp(cmd, "tws1"))
+	{
+		CG_TCEWeaponStatsParse();
 		return;
 	}
 	if (!Q_stricmp(cmd, "gstats"))

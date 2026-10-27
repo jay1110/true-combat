@@ -134,6 +134,9 @@ def build(arch, configuration, variant, output, with_omnibot=True, geoip_databas
             archive.write(ROOT / "src/assets/ui" / asset, "ui/" + asset)
         for asset in ("radar_arrow.tga", "radar_dot.tga"):
             archive.write(ROOT / "src/assets/gfx/misc" / asset, "gfx/misc/" + asset)
+        for asset in ("player.tga", "player_self.tga", "player_dead.tga", "objective_a.tga", "objective_b.tga",
+                      "flag_terror.tga", "flag_specops.tga", "SOURCE.json"):
+            archive.write(ROOT / "src/assets/gfx/tce2/nav" / asset, "gfx/tce2/nav/" + asset)
         for asset in ("world_flags.tga", "LICENSE.xmod.txt", "SOURCE.json"):
             archive.write(ROOT / "src/assets/gfx/flags" / asset, "gfx/flags/" + asset)
         for asset in ("obj_delta_cc.tga", "obj_delta_cc_blueprint.tga", "SOURCE.json"):
