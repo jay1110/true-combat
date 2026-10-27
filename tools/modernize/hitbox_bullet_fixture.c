@@ -22,6 +22,8 @@ static int wallSurface;
 static gentity_t events[128];
 static gclient_t testClients[MAX_CLIENTS];
 static int failures, tests, traceCalls, spawnCalls, links, partLinks;
+static int regionFractionOverride,regionProbeIndex;
+static float regionProbeFractions[3];
 static vec3_t firstVolume;
 static gentity_t debugEntity;
 #define CHECK(c) do { ++tests; if (!(c)) { ++failures; printf("FAIL line%d: %s\n", __LINE__, #c); } } while (0)
@@ -86,6 +88,9 @@ void trap_Trace(trace_t *tr, const vec3_t start, const vec3_t mins,
             if(startInside){tr->startsolid=qtrue;if(endInside){tr->allsolid=qtrue;tr->fraction=0;tr->entityNum=id;}continue;}
         }
         if (rayBox(start, end, low, high, &fraction) && fraction < tr->fraction) { tr->fraction = fraction; tr->entityNum = id;tr->surfaceFlags=id==100?wallSurface:0; }
+    }
+    if(regionFractionOverride && g_entities[70].r.linked && (mask & CONTENTS_SOLID)) {
+        tr->fraction=regionProbeFractions[regionProbeIndex++ % 3];tr->entityNum=70;
     }
     for (axis = 0; axis < 3; ++axis) { tr->endpos[axis] = start[axis] + tr->fraction * (end[axis] - start[axis]); }
 }
@@ -190,6 +195,7 @@ static void resetWorld(void)
     memset(presentationFraction,0,sizeof(presentationFraction));memset(queryPoseOrigin,0,sizeof(queryPoseOrigin));VectorClear(seenPoseOrigin);queryCalls=skinCalls=matchCalls=0;invalidateMatch=0;
     seenShotTime=seenReceiptCeiling=0;nestedDamage=nestedGuard=nestedSecond=luaDamageCalls=0;
     traceCalls=spawnCalls=links=partLinks=hitCount=eventCount=wallSurface=0;actor(0,-100,8,0,0);g_entities[0].r.linked=qfalse;g_entities[0].s.weapon=8;
+    regionFractionOverride=regionProbeIndex=0;
     weaponDef[8].mod=MOD_MP40;weaponDef[8].unknown_134=1000;weaponDef[8].unknown_130=1000;VectorSet(forward,1,0,0);
 }
 static void shoot(float z,int damage,int penetration,int bodies,int walls)
@@ -451,9 +457,11 @@ static void penetrationAndCover(void)
     resetWorld();actor(1,100,1,0,0);actor(2,105,30,0,0);g_entities[1].client->ps.stats[STAT_TCE_FLAGS]|=0x200;g_entities[2].client->ps.stats[STAT_TCE_FLAGS]|=0x200;
     shoot(52.5f,20,1000,1,0);CHECK(hitCount==1&&hitOrder[0]==2);CHECK(g_entities[0].client->sess.aWeaponStats[G_weapStatIndex_MOD(MOD_MP40)].headshots==1);
 }
+#include "tools/modernize/hitbox_regional_cases.h"
 int main(void)
 {
     ordering();penetrationAndCover();presentationAvailability();
+    regionalGrid();regionalCoverAndCompatibility();regionalIntegerAndFractionBoundaries();
 #ifdef HAS_TCE_PRESENTATION_DAMAGE
     livingCorpseEligibility();presentationRegionsAndClock();presentationOrderingAndCover();selectedValidationAndReentrancy();
 #endif

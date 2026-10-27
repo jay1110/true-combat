@@ -3891,6 +3891,7 @@ static qboolean G_TCEBulletFireExtended(gentity_t *source, gentity_t *attacker,
                               tceBulletTraceContext_t *context)
 {
 	trace_t                    tr, next;
+	vec3_t                     damagePoint;
 	gentity_t                  *hit, *event;
 	vec3_t                     entry, direction, probe, eye, point, low, high;
 	const tce_weaponDef_t      *def;
@@ -3927,6 +3928,9 @@ static qboolean G_TCEBulletFireExtended(gentity_t *source, gentity_t *attacker,
 	RubbleFlagCheck(attacker, tr);
 	hit = &g_entities[tr.entityNum];
 	EmitterCheck(hit, attacker, &tr);
+	/* Network/effect rounding must not move the damage probe off the ray
+	 * that selected this target, or into another overlapping body volume. */
+	VectorCopy(tr.endpos, damagePoint);
 	SnapVectorTowards(tr.endpos, start);
 #if defined(__linux__)
 	totalDistance = TCE_TruncateNativeInteger((long double)Distance(tr.endpos, start) +
@@ -3956,16 +3960,16 @@ static qboolean G_TCEBulletFireExtended(gentity_t *source, gentity_t *attacker,
 		applied = TCE_BulletClientDamage(def, damage, totalDistance, g_newbbox.integer);
 #if defined(__linux__)
 		damageResult = (context->hasSelection ?
-		    G_TCEPresentationDamage(hit, attacker, attacker, direction, tr.endpos,
+		    G_TCEPresentationDamage(hit, attacker, attacker, direction, damagePoint,
 		        applied, 0, weaponDef[attacker->s.weapon].mod, &context->selection) :
-		    G_Damage(hit, attacker, attacker, direction, tr.endpos, applied,
+		    G_Damage(hit, attacker, attacker, direction, damagePoint, applied,
 		        0, weaponDef[attacker->s.weapon].mod));
 		result = (float)damageResult;
 #else
 		result  = (context->hasSelection ?
-		    G_TCEPresentationDamage(hit, attacker, attacker, direction, tr.endpos,
+		    G_TCEPresentationDamage(hit, attacker, attacker, direction, damagePoint,
 		        applied, 0, weaponDef[attacker->s.weapon].mod, &context->selection) :
-		    G_Damage(hit, attacker, attacker, direction, tr.endpos, applied,
+		    G_Damage(hit, attacker, attacker, direction, damagePoint, applied,
 		        0, weaponDef[attacker->s.weapon].mod));
 #endif
 #if defined(__linux__)

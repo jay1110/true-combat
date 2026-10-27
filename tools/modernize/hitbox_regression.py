@@ -102,10 +102,12 @@ def main():
         sources[name] = path.read_text(encoding="utf-8-sig")
     anti = sources["g_antilag.c"]
     units = [function(anti, "G_CaptureClientMarker")]
-    for helper in ("G_BackupClientRewind", "G_LerpClientAngles"):
+    for helper in ("G_BackupClientRewind",):
         if re.search(r"\b" + helper + r"\([^;{}]*\)\s*\{", anti): units.append(function(anti, helper))
     units += ["#if !defined(__linux__)\n" + function(anti, "G_TCELerpPose") +
               "\n#else\n" + function(anti, "G_TCELerpLinuxPose") + "\n#endif"]
+    if re.search(r"\bG_LerpClientAngles\([^;{}]*\)\s*\{", anti):
+        units.append(function(anti, "G_LerpClientAngles"))
     units += [function(anti, name) for name in ("G_ApplyClientMarker", "G_TimeShiftClient", "G_UnTimeShiftClient", "G_TimeShiftAllClients", "G_UnTimeShiftAllClients")]
     damage = sources["tce_damage_controller.inc"]
     units += [function(damage, "TCE_DamageDebugBox"), function(damage, "TCE_ApplyBodyDamage")]
@@ -140,6 +142,8 @@ def main():
     fixture = fixture.replace("/* PRODUCTION_FUNCTIONS */", "\n\n".join(units))
     if "G_addStatsHeadShot" in function(damage, "TCE_ApplyBodyDamage"):
         fixture = "#define HAS_BODY_STATS 1\n" + fixture
+    if "qboolean regionalBullet" in function(damage, "TCE_ApplyBodyDamage"):
+        fixture = "#define HAS_BODY_REGION_POLICY 1\n" + fixture
     if args.bullets and "TCE_DamageController(" in damage:
         fixture = "#define HAS_TCE_PRESENTATION_DAMAGE 1\n" + fixture
     generated = out / "hitbox_regression.c"; generated.write_text(fixture, encoding="utf-8", newline="\n")
@@ -172,6 +176,7 @@ def main():
               "header_sha256": hashlib.sha256((ROOT / "src/game/g_local.h").read_bytes()).hexdigest(),
               "fixture_sha256": hashlib.sha256(Path(__file__).with_name("hitbox_bullet_fixture.c" if args.bullets else "hitbox_regression_fixture.c").read_bytes()).hexdigest(),
               "runner_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+              "regional_fixture_sha256": hashlib.sha256(Path(__file__).with_name("hitbox_regional_cases.h").read_bytes()).hexdigest() if args.bullets else None,
               "generated_sha256": hashlib.sha256(generated.read_bytes()).hexdigest(),
               "command": command, "exit_code": run.returncode, "stdout": run.stdout, "stderr": run.stderr,
               "limits": ["Deterministic ray/AABB collision services, no BSP/capsule or live-engine proof.",

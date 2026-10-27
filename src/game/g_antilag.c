@@ -134,6 +134,34 @@ static void G_TCELerpLinuxPose(long double fraction, const vec3_t newer,
 }
 #endif
 
+/* Snapshots interpolate angles on their shortest arc. Keep the existing
+ * platform lerp arithmetic and its fraction precision after aligning endpoints;
+ * positions and discrete posture still follow their separate policies. */
+static void G_LerpClientAngles(long double fraction, const vec3_t newer,
+                               const vec3_t older, vec3_t output)
+{
+	vec3_t endpoint;
+	int axis;
+	for (axis = 0; axis < 3; ++axis)
+	{
+		long double difference = (long double)newer[axis] - older[axis];
+		endpoint[axis] = newer[axis];
+		if (difference > 180.0L)
+		{
+			endpoint[axis] = (float)((long double)newer[axis] - 360.0L);
+		}
+		else if (difference < -180.0L)
+		{
+			endpoint[axis] = (float)((long double)newer[axis] + 360.0L);
+		}
+	}
+#if defined(__linux__)
+	G_TCELerpLinuxPose(fraction, endpoint, older, output);
+#else
+	G_TCELerpPose((float)fraction, endpoint, older, output);
+#endif
+}
+
 /* Windows2004e790: pose rewind, including discrete bounds and pose flags. */
 void G_TimeShiftClient(gentity_t *ent, int time)
 {
@@ -179,8 +207,8 @@ void G_TimeShiftClient(gentity_t *ent, int time)
 		{
 			long double fraction = (1.0L / span) * TCE_SubInt32(time, older->time);
 			G_TCELerpLinuxPose(fraction, newer->origin, older->origin, ent->r.currentOrigin);
-			G_TCELerpLinuxPose(fraction, newer->angles, older->angles, ent->r.currentAngles);
-			G_TCELerpLinuxPose(fraction, newer->viewangles, older->viewangles, client->ps.viewangles);
+			G_LerpClientAngles(fraction, newer->angles, older->angles, ent->r.currentAngles);
+			G_LerpClientAngles(fraction, newer->viewangles, older->viewangles, client->ps.viewangles);
 			client->tceRewind.lean = (float)((1.0L - fraction) * older->lean + fraction * newer->lean);
 		}
 #else
@@ -192,8 +220,8 @@ void G_TimeShiftClient(gentity_t *ent, int time)
 			fraction = (float)((long double)TCE_SubInt32(time, older->time) / span);
 #endif
 			G_TCELerpPose(fraction, newer->origin, older->origin, ent->r.currentOrigin);
-			G_TCELerpPose(fraction, newer->angles, older->angles, ent->r.currentAngles);
-			G_TCELerpPose(fraction, newer->viewangles, older->viewangles, client->ps.viewangles);
+			G_LerpClientAngles(fraction, newer->angles, older->angles, ent->r.currentAngles);
+			G_LerpClientAngles(fraction, newer->viewangles, older->viewangles, client->ps.viewangles);
 			client->tceRewind.lean = (float)((1.0L - fraction) * older->lean + (long double)fraction * newer->lean);
 		}
 #endif

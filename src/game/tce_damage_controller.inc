@@ -35,7 +35,7 @@ static void TCE_DamageDebugBox(gentity_t *part, const vec3_t start, const vec3_t
 }
 
 static int TCE_ApplyBodyDamage(gentity_t *targ, gentity_t *attacker, int mod,
-                               const vec3_t dir, const vec3_t point, int damage
+                               const vec3_t dir, const vec3_t point, int damage, qboolean regionalBullet
 #if defined(__linux__)
                                , int *bodyStatus
 #endif
@@ -148,10 +148,42 @@ static int TCE_ApplyBodyDamage(gentity_t *targ, gentity_t *attacker, int mod,
 #endif
 		return -2;
 	}
-	take = TCE_DamageWeights(volumes, fractions, point, dir, pose.enlarged?1.25f:1.0f, damage, amounts, scales);
+	if (regionalBullet)
+	{
+		int region = -1;
+		long long weighted;
+		/* A confirmed bullet contact has the region's nominal damage across
+		 * its full volume. Do not attenuate hits a second time by distance
+		 * from the volume center. Equal entry fractions choose the lower
+		 * coefficient: legs before torso before head. Cover was checked above. */
+		for (i = 0; i < 3; ++i)
+		{
+			amounts[i] = 0; scales[i] = 0;
+			if (fractions[i] >= 0 && fractions[i] < 1 &&
+			    (region < 0 || fractions[i] <= fractions[region])) region = i;
+		}
+		if (region < 0)
+		{
+#if defined(__linux__)
+			*bodyStatus = -2;
+#endif
+			return -2;
+		}
+		weighted = region == 0 ? (long long)damage * 2 : region == 2 ? damage / 2 : damage;
+		take = weighted > INT_MAX ? INT_MAX : (int)weighted;
+		if (damage > 0 && take < 1) take = 1;
+		amounts[region] = take;
+		scales[region] = region == 0 ? 2 : region == 2 ? .5 : 1;
+	}
+	else
+	{
+		/* Preserve the historical weighting for radius/non-bullet callers. */
+		take = TCE_DamageWeights(volumes, fractions, point, dir, pose.enlarged?1.25f:1.0f, damage, amounts, scales);
+	}
 	/* A confirmed nearest head volume counts once; reuse the three existing
 	 * probes instead of the unrelated SDK head helper and another trace. */
-	if (take > 0 && amounts[0] > 0 && fractions[0] < fractions[1] && fractions[0] < fractions[2] &&
+	if (take > 0 && amounts[0] > 0 &&
+	    (regionalBullet || (fractions[0] < fractions[1] && fractions[0] < fractions[2])) &&
 	    attacker && attacker->client && attacker != targ && !OnSameTeam(targ, attacker))
 	{
 		G_LogRegionHit(attacker, HR_HEAD);
@@ -174,7 +206,7 @@ static int TCE_ApplyBodyDamage(gentity_t *targ, gentity_t *attacker, int mod,
 }
 
 /* H3 uses the exact immutable anatomical selection, never a second pose or
- * legacy-box probe. Ordinary and radial callers retain the original path. */
+ * box probe. Ordinary bullets use the cover-confirmed regions above. */
 static qboolean TCE_PresentationSelectionValid(const gentity_t *targ,
     const g_tceBulletDamageSelection_t *selection)
 {
@@ -211,6 +243,7 @@ static int TCE_ApplyPresentationDamage(gentity_t *targ, gentity_t *attacker,
 	weighted = region == TCE_POSE_REGION_HEAD ? (long long)damage * 2 :
 	           region == TCE_POSE_REGION_LEGS ? damage / 2 : damage;
 	take = weighted > INT_MAX ? INT_MAX : (int)weighted;
+	if (damage > 0 && take < 1) take = 1;
 	if (take > 0)
 	{
 		targ->client->ps.holdable[region + 2] =
@@ -351,12 +384,12 @@ static tce_damageResult_t TCE_DamageController(gentity_t *targ, gentity_t *infli
 		}
 		else
 		{
-			take = TCE_ApplyBodyDamage(targ, attacker, mod, dir, point, damage, &bodyStatus);
+			take = TCE_ApplyBodyDamage(targ, attacker, mod, dir, point, damage, !(dflags & DAMAGE_RADIUS), &bodyStatus);
 		}
 		if (bodyStatus == -2)
 #else
 		take = selection ? TCE_ApplyPresentationDamage(targ, attacker, mod, damage, selection) :
-		       TCE_ApplyBodyDamage(targ, attacker, mod, dir, point, damage);
+		       TCE_ApplyBodyDamage(targ, attacker, mod, dir, point, damage, !(dflags & DAMAGE_RADIUS));
 		if (take == -2)
 #endif
 		{
@@ -646,7 +679,7 @@ static tce_damageResult_t TCE_DamageController(gentity_t *targ, gentity_t *infli
 	return 0;
 }
 
-/* Existing mod-facing ABI and ordinary/radial behavior remain unchanged. */
+/* Preserve the mod-facing ABI; radius/non-bullet weighting is unchanged. */
 tce_damageResult_t G_Damage(gentity_t *targ, gentity_t *inflictor, gentity_t *attacker,
     vec3_t dir, vec3_t point, int damage, int dflags, int mod)
 {

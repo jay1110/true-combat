@@ -107,13 +107,17 @@ static int applyBodyFrom(gentity_t *target, gentity_t *attacker, const vec3_t po
 {
 #ifdef __linux__
     int status;
-#ifdef HAS_BODY_STATS
+#ifdef HAS_BODY_REGION_POLICY
+    return TCE_ApplyBodyDamage(target, attacker, MOD_MP40, direction, point, 10, qfalse, &status);
+#elif defined(HAS_BODY_STATS)
     return TCE_ApplyBodyDamage(target, attacker, MOD_MP40, direction, point, 10, &status);
 #else
     return TCE_ApplyBodyDamage(target, direction, point, 10, &status);
 #endif
 #else
-#ifdef HAS_BODY_STATS
+#ifdef HAS_BODY_REGION_POLICY
+    return TCE_ApplyBodyDamage(target, attacker, MOD_MP40, direction, point, 10, qfalse);
+#elif defined(HAS_BODY_STATS)
     return TCE_ApplyBodyDamage(target, attacker, MOD_MP40, direction, point, 10);
 #else
     return TCE_ApplyBodyDamage(target, direction, point, 10);
@@ -176,6 +180,65 @@ static void historicalInputs(void)
     target->client->clientMarkers[MAX_CLIENT_MARKERS - 1] = old; target->client->topMarker = 0;
     G_TimeShiftClient(target, 110); CHECK(closeFloat(target->r.currentOrigin[0], 110));
     G_UnTimeShiftClient(target); CHECK(closeFloat(target->r.currentOrigin[0], 200));
+}
+static int sameAngle(float actual, float expected)
+{
+    double difference = fmod((double)actual - expected, 360.0);
+    if (difference > 180) difference -= 360;
+    if (difference < -180) difference += 360;
+    return fabs(difference) < .0003;
+}
+static void movingAngleWrap(void)
+{
+    static const float endpoints[][2] = { { 0, 90 }, { 90, 0 }, { 359, 1 }, { 1, 359 } };
+    static const int latencies[] = { 50, 100, 150 };
+    int pair, axis, latency;
+    for (pair = 0; pair < 4; ++pair) for (axis = 0; axis < 3; ++axis) for (latency = 0; latency < 3; ++latency) {
+        gentity_t *target;
+        clientMarker_t *older, *newer;
+        float delta = endpoints[pair][1] - endpoints[pair][0], expected;
+        int query = 300 - latencies[latency];
+        reset(); level.time = 300; target = &g_entities[1];
+        older = &target->client->clientMarkers[0]; newer = &target->client->clientMarkers[1];
+        older->time = 100; newer->time = 300;
+        VectorSet(older->origin, 100.375f, -19.625f, 7.875f);
+        VectorSet(newer->origin, 172.375f, 16.375f, 7.875f);
+        VectorClear(older->angles); VectorClear(newer->angles);
+        VectorClear(older->viewangles); VectorClear(newer->viewangles);
+        older->angles[axis] = older->viewangles[axis] = endpoints[pair][0];
+        newer->angles[axis] = newer->viewangles[axis] = endpoints[pair][1];
+        older->pm_flags = 0; newer->pm_flags = PMF_DUCKED;
+        if (delta > 180) delta -= 360; else if (delta < -180) delta += 360;
+        expected = endpoints[pair][0] + (query - 100) * .005f * delta;
+        G_TimeShiftClient(target, query);
+        CHECK(sameAngle(target->r.currentAngles[axis], expected));
+        CHECK(sameAngle(target->client->ps.viewangles[axis], expected));
+        CHECK(closeFloat(target->r.currentOrigin[0], 100.375f + (query - 100) * .36f));
+        CHECK(closeFloat(target->r.currentOrigin[1], -19.625f + (query - 100) * .18f));
+        CHECK(!(target->client->ps.pm_flags & PMF_DUCKED));
+        G_UnTimeShiftClient(target);
+        CHECK(closeFloat(target->r.currentOrigin[0], 200) && !target->client->tceRewind.active);
+    }
+    /* A ray aimed at the historical visible head must not see a half-turn
+     * when the two snapshots differ by only two degrees across zero. */
+    for (pair = 2; pair < 4; ++pair) for (latency = -20; latency <= 20; latency += 20) {
+        gentity_t *target; tceDamagePose_t visible; tceDamageVolume_t volumes[3];
+        vec3_t point, direction = { 1, 0, 0 }; int i;
+        reset(); target = &g_entities[1]; target->client->ps.weapon = 8;
+        target->client->clientMarkers[0].lean = target->client->clientMarkers[1].lean = (float)latency;
+        target->client->clientMarkers[0].weapon = target->client->clientMarkers[1].weapon = 8;
+        target->client->clientMarkers[0].viewangles[YAW] = endpoints[pair][0];
+        target->client->clientMarkers[1].viewangles[YAW] = endpoints[pair][1];
+        memset(&visible, 0, sizeof(visible)); VectorSet(visible.origin, 150, 0, 0);
+        visible.weapon = 8; visible.lean = (float)latency; /* Correct midpoint faces zero modulo360. */
+        TCE_DamageVolumes(&visible, volumes);
+        VectorCopy(volumes[0].origin, point); point[0] -= 40;
+        G_TimeShiftClient(target, 150);
+        CHECK(applyBody(target, point, direction) > 0);
+        for (i = 0; i < 3; ++i) CHECK(closeFloat(firstVolume[i], volumes[0].origin[i]));
+        G_UnTimeShiftClient(target);
+        CHECK(closeFloat(target->client->ps.leanf, 25) && target->client->ps.weapon == 8);
+    }
 }
 static void deathCleanup(void)
 {
@@ -262,7 +325,7 @@ static void nonHeadAndUncreditedHits(void)
 }
 int main(void)
 {
-    chronological(); historicalBody(); historicalInputs(); deathCleanup(); overlapAndStats(); nonHeadAndUncreditedHits();
+    chronological(); historicalBody(); historicalInputs(); movingAngleWrap(); deathCleanup(); overlapAndStats(); nonHeadAndUncreditedHits();
     printf("%s: %d checks, %d failures; long double %u bytes/%d mantissa bits; ray/AABB service fixture, no BSP/runtime claim\n",
 #ifdef __linux__
            "Linux source path",
