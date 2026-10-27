@@ -39,7 +39,7 @@ def main():
     weapons = sources['src/game/g_weapon.c']
     units.append(function(weapons, 'SnapVectorTowards'))
     if 'static void G_TCETraceBullet(' in weapons:
-        units += [re.search(r'typedef struct\s*\{\s*qboolean hit\[MAX_CLIENTS\];\s*\} tceBulletTraceContext_t;', weapons)[0],
+        units += [re.search(r'typedef struct\s*\{\s*qboolean hit\[MAX_CLIENTS\];.*?\} tceBulletTraceContext_t;', weapons, re.S)[0],
                   function(weapons, 'G_TCETraceBullet'), function(weapons, 'G_TCEBulletFireExtended')]
     units.append(function(weapons, 'Bullet_Fire_Extended'))
     units += [function(sources['src/game/tce_bullet_material.c'], name) for name in ('TCE_SnapWallPoint', 'TCE_BulletWallExit')]

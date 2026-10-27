@@ -211,6 +211,10 @@ def make_plan(root, out, config, baseline, parallel):
                 flags += ['--debug']
             if mode == 'asan':
                 flags += ['--sanitize']
+                if os.name == 'nt' and name in ('weapon', 'movement', 'bomb-lifecycle'):
+                    flags += ['--msvc-version', '14.44', '--arch', 'x86']
+                elif os.name == 'nt' and name == 'compat-golden':
+                    flags += ['--msvc-version', '14.44', '--msvc-arch', 'x86']
             if name.startswith('hitbox'):
                 flags += ['--path', 'windows' if os.name == 'nt' else 'linux']
             needs, reason = [], ''

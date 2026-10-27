@@ -188,6 +188,22 @@ if mode=='mutate':pathlib.Path(sys.argv[3]).write_text('changed during execution
 
 
 class CatalogTests(unittest.TestCase):
+    def test_windows_asan_selects_validated_toolset_without_changing_x86_branch(self):
+        jobs, _ = make_plan(ROOT, ROOT / 'build/test-plan-only', {'schema': 1}, None, 2)
+        by_name = {job.name: job for job in jobs}
+        for fixture, arch_flag in (('weapon', '--arch'), ('movement', '--arch'),
+                                   ('bomb-lifecycle', '--arch'), ('compat-golden', '--msvc-arch')):
+            command = by_name[fixture + '-asan'].command
+            self.assertIn('--sanitize', command)
+            if sys.platform == 'win32':
+                self.assertIn('--msvc-version', command)
+                self.assertEqual(command[command.index('--msvc-version') + 1], '14.44')
+                self.assertEqual(command[command.index(arch_flag) + 1], 'x86')
+            else:
+                self.assertNotIn('--msvc-version', command)
+            for mode in ('debug', 'release'):
+                self.assertNotIn('--msvc-version', by_name[fixture + '-' + mode].command)
+
     def test_review_manifest_and_ignored_proof_bytes_invalidate_global_freeze(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

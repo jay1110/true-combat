@@ -1,6 +1,7 @@
 #include "src/game/g_local.h"
 #include "src/game/tce_damage_trace.h"
 #include "src/game/tce_bullet.h"
+#include "src/game/g_tce_bullet_damage.h"
 #include "src/cgame/tce_shotgun_prediction.h"
 #include <stdio.h>
 
@@ -76,6 +77,29 @@ void BG_GetMarkDir(const vec3_t dir, const vec3_t normal, vec3_t out) { VectorCo
 static void predictedBullet(float *end, int source, float *normal, int flesh, int victim, int other, float water, int seed, int damage, float *start, int predicted) { }
 static void predictedWall(int weapon, int effect, float *origin, float *normal, float *direction, int flags, int force, int material) { ++predictedExits; }
 #define MASK_CAN_DAMAGE (CONTENTS_SOLID | CONTENTS_BODY)
+
+/* The cover/mark cases contain no eligible linked living player. Full H3
+ * player-selection/damage behavior is exercised by hitbox_regression --bullets.
+ * These external services must remain unreachable in this fixture: a call is
+ * a hard failure, never a legacy/skin fallback that can hide a cover error. */
+int G_TCEPresentationQuery(int clientNum, uint32_t time, uint32_t ceiling,
+                         g_tcePresentationQuery_t *out)
+{
+    fprintf(stderr, "Unexpected H3 query in cover-only fixture\n"); abort();
+    return G_TCE_PRESENTATION_UNKNOWN;
+}
+g_tcePoseTraceState_t G_TCEPosePresentationTrace(const g_tcePresentationQuery_t *query,
+    const float start[3], const float end[3], double maxFraction, g_tcePoseTraceResult_t *out)
+{
+    fprintf(stderr, "Unexpected H3 skin trace in cover-only fixture\n"); abort();
+    return G_TCE_POSE_TRACE_UNSUPPORTED;
+}
+tce_damageResult_t G_TCEPresentationDamage(gentity_t *target, gentity_t *inflictor,
+    gentity_t *attacker, vec3_t direction, vec3_t point, int damage, int flags, int mod,
+    const g_tceBulletDamageSelection_t *selection)
+{
+    fprintf(stderr, "Unexpected H3 damage in cover-only fixture\n"); abort(); return 0;
+}
 
 /* PRODUCTION_FUNCTIONS */
 
