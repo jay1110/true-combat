@@ -1,6 +1,5 @@
 """Synthetic ABI/PK3 closure tests; these carriers are not executable modules."""
 import io
-import importlib.util
 import json
 import os
 from pathlib import Path
@@ -155,105 +154,14 @@ class SharedClients(unittest.TestCase):
             hud.update({'ui/' + name: (clients.ROOT/'src/assets/ui'/name).read_bytes()
                         for name in ('options_system.menu', 'options_quality.menu')})
             self.assertEqual({name: payload[name] for name in hud}, hud)
-            world = clients.world_detail_assets()
-            self.assertEqual({name: payload[name] for name in world}, world)
-            self.assertFalse(any(name.startswith('scripts/') for name in payload))
             row = self.row('windows-x86', variant)
             data, _ = clients.canonical_client([row], ['windows-x86'], VERSION, variant)
             canonical = clients.zip_contents(data)
             self.assertEqual({name: canonical[name] for name in hud}, hud)
-            self.assertEqual({name: canonical[name] for name in world}, world)
             self.assertEqual({name: data for name, data in canonical.items() if name.startswith('levelshots/')}, expected)
             # No images are fabricated for unsupplied maps; their existing
             # CGame fallback remains applicable.
             self.assertNotIn('levelshots/obj_snow_cc.tga', canonical)
-
-    def test_world_details_are_identical_in_both_variants_and_windows_packager(self):
-        expected = clients.world_detail_assets()
-        self.assertEqual(len(expected), 10)
-        self.assertEqual(set(expected), set(clients.WORLD_ASSET_PATHS))
-        for variant in ('game', 'navstudio'):
-            assets = clients.client_assets(VERSION, variant)
-            self.assertEqual({name: assets[name] for name in expected}, expected)
-            self.assertFalse(any(name.startswith('scripts/') for name in assets))
-        # Execute only the real Windows asset-writing helper, never its build.
-        spec = importlib.util.spec_from_file_location('windows_asset_packager', clients.ROOT/'src/build_windows_variants.py')
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        output = io.BytesIO()
-        with zipfile.ZipFile(output, 'w') as archive:
-            module.package_world_details(archive)
-        self.assertEqual(clients.zip_contents(output.getvalue()), expected)
-
-    def test_world_detail_provenance_rejects_every_missing_or_changed_asset(self):
-        original = clients.world_detail_assets()
-        for path in original:
-            for missing in (False, True):
-                with self.subTest(path=path, missing=missing):
-                    files = dict(original)
-                    if missing:
-                        del files[path]
-                    else:
-                        files[path] = b'stale material/detail/provenance'
-                    with self.assertRaises(ValueError):
-                        clients.validate_world_details(files)
-
-    def test_honestly_rehashed_incomplete_or_remapped_world_shader_is_rejected(self):
-        original = clients.world_detail_assets()
-        path = 'materials/tce2/world/wood_hout4.shader'
-        for old, replacement in ((b'textures/liq/hout4\n{', b'tce2/renamed\n{'),
-                                 (b'map $lightmap', b'map $whiteimage'),
-                                 (b'surfaceparm mat_wood', b''),
-                                 (b'blendFunc GL_DST_COLOR GL_ZERO', b'blendFunc GL_ONE GL_ZERO'),
-                                 (b'\n}\n', b'\n')):
-            with self.subTest(old=old):
-                files = dict(original)
-                self.assertIn(old, files[path])
-                files[path] = files[path].replace(old, replacement, 1)
-                source = json.loads(files['textures/tce2/details/SOURCE.json'])
-                row = next(row for row in source['materials'] if row['path'] == path)
-                row.update(sha256=clients.sha(files[path]), bytes=len(files[path]))
-                files['textures/tce2/details/SOURCE.json'] = clients.json_bytes(source)
-                with self.assertRaisesRegex(ValueError, 'Incomplete/changed original-name'):
-                    clients.validate_world_details(files)
-        for field, value in (('path', 'scripts/tce2_materials.shader'), ('bytes', 1),
-                             ('sha256', '0'*64), ('original_name', 'tce2/renamed')):
-            with self.subTest(field=field):
-                files = dict(original)
-                source = json.loads(files['textures/tce2/details/SOURCE.json'])
-                source['materials'][0][field] = value
-                files['textures/tce2/details/SOURCE.json'] = clients.json_bytes(source)
-                with self.assertRaises(ValueError):
-                    clients.validate_world_details(files)
-        files = dict(original)
-        path = 'textures/tce2/details/asphalt.tga'
-        data = bytearray(files[path]); data[12] = 64; files[path] = bytes(data)
-        source = json.loads(files['textures/tce2/details/SOURCE.json'])
-        source['files'][0]['sha256'] = clients.sha(files[path])
-        files['textures/tce2/details/SOURCE.json'] = clients.json_bytes(source)
-        with self.assertRaisesRegex(ValueError, 'invalid world detail texture'):
-            clients.validate_world_details(files)
-
-    def test_release_validator_requires_each_world_detail_in_both_variants(self):
-        for variant in ('game', 'navstudio'):
-            original = clients.client_assets(VERSION, variant)
-            for path in clients.WORLD_ASSET_PATHS:
-                for missing in (False, True):
-                    with self.subTest(variant=variant, path=path, missing=missing):
-                        files = dict(original)
-                        if missing:
-                            del files[path]
-                        else:
-                            files[path] = b'stale world detail resource'
-                        output = io.BytesIO()
-                        with zipfile.ZipFile(output, 'w', zipfile.ZIP_STORED) as archive:
-                            for name, data in files.items():
-                                archive.writestr(name, data)
-                        with zipfile.ZipFile(io.BytesIO(output.getvalue())) as archive:
-                            with self.assertRaises(ValueError):
-                                validate_client_resources(archive, {'version': VERSION}, variant == 'navstudio')
-        with self.assertRaisesRegex(ValueError, 'Wrong client inputs/assets'):
-            self.row('windows-x86', overrides={'scripts/tce2_materials.shader': b'auto-loaded override'})
 
     def test_fireteam_provenance_requires_all_three_correct_rgba_icons(self):
         original = clients.fireteam_assets()

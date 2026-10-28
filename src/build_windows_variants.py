@@ -31,14 +31,6 @@ def run(command, log):
         raise RuntimeError(f"Build failed ({result.returncode}); see {log}")
 
 
-def package_world_details(archive):
-    """Use the same checked explicit material closure as matrix client PK3s."""
-    sys.path.insert(0, str(ROOT / "tools/release"))
-    from client_packages import world_detail_assets
-    for path, data in world_detail_assets(ROOT).items():
-        archive.writestr(path, data)
-
-
 def build(arch, configuration, variant, output, with_omnibot=True, geoip_database=None):
     enable_omnibot = with_omnibot or variant == "navstudio"
     suffix = "x86" if arch == "Win32" else "x64"
@@ -152,7 +144,6 @@ def build(arch, configuration, variant, output, with_omnibot=True, geoip_databas
             archive.write(ROOT / "src/assets/gfx/flags" / asset, "gfx/flags/" + asset)
         for asset in ("obj_delta_cc.tga", "obj_delta_cc_blueprint.tga", "SOURCE.json"):
             archive.write(ROOT / "src/assets/levelshots" / asset, "levelshots/" + asset)
-        package_world_details(archive)
     if variant == "navstudio":
         editor_output = cache / "editor-addon"
         run(["cmake", f"-DOUTPUT_DIRECTORY={editor_output}", "-P",

@@ -94,19 +94,6 @@ foreach(asset assault.tga recon.tga sniper.tga SOURCE.json)
   list(APPEND module_files "gfx/tce2/fireteam/${asset}")
 endforeach()
 
-# Material definitions are installed explicitly by CGame before world loading;
-# keep them outside scripts/ so the legacy path remains a real A/B fallback.
-foreach(asset asphalt_e1 cement_s1 brick_dirt_7 concrete_blue wood_hout4)
-  file(MAKE_DIRECTORY "${stage}/materials/tce2/world")
-  file(COPY "${CMAKE_CURRENT_LIST_DIR}/../assets/materials/tce2/world/${asset}.shader" DESTINATION "${stage}/materials/tce2/world")
-  list(APPEND module_files "materials/tce2/world/${asset}.shader")
-endforeach()
-foreach(asset asphalt.tga concrete.tga brick.tga wood.tga SOURCE.json)
-  file(MAKE_DIRECTORY "${stage}/textures/tce2/details")
-  file(COPY "${CMAKE_CURRENT_LIST_DIR}/../assets/textures/tce2/details/${asset}" DESTINATION "${stage}/textures/tce2/details")
-  list(APPEND module_files "textures/tce2/details/${asset}")
-endforeach()
-
 # Country flags and their provenance are required client resources.
 foreach(asset world_flags.tga LICENSE.xmod.txt SOURCE.json)
   file(MAKE_DIRECTORY "${stage}/gfx/flags")

@@ -11,7 +11,6 @@
 #include "cg_tce_hit_debug.h"
 #include "cg_tce_weapon_stats.h"
 #include "cg_tce_pose_presentation.h"
-#include "cg_tce_materials.h"
 #include "tce_smoke_grenade.h"
 #include "tce_lightgrid.h"
 #include "../game/tce_bg.h"
@@ -336,7 +335,6 @@ vmCvar_t cg_thirdPersonOffset;
 vmCvar_t cg_hudAlpha;
 vmCvar_t cg_r_fastsky;
 vmCvar_t cg_dynamicEye;
-vmCvar_t cg_weaponLight;
 vmCvar_t cg_aspectFovMode;
 vmCvar_t cg_freeAim;
 vmCvar_t cg_recording_showstatusline;
@@ -605,7 +603,6 @@ cvarTable_t cvarTable[] =
 	{ &cg_r_fastsky,                "r_fastsky",                   "0",     512                          },
 
 	{ &cg_dynamicEye,               "cg_dynamicEye",               "0.0",   1                            },
-	{ &cg_weaponLight,              "cg_weaponLight",              "1",     CVAR_ARCHIVE                 },
 
 	{ &cg_aspectFovMode,            "cg_aspectFovMode",            "1",     1                            },
 
@@ -1488,9 +1485,6 @@ static void CG_RegisterGraphics(void)
 
 	CG_LoadingString(cgs.mapname);
 
-	/* Install material text before world shaders are compiled. Runtime shader
-	 * remapping would collapse distinct BSP lightmaps onto one target shader. */
-	CG_TCEInstallMaterials(cgs.mapname);
 	trap_R_LoadWorldMap(cgs.mapname);
 
 	CG_LoadingString("entities");

@@ -62,19 +62,6 @@ def fake_pe(data):
 
 
 class PackageResources(unittest.TestCase):
-    def test_explicit_world_detail_assets_are_required_and_reproducible(self):
-        expected = {'materials/tce2/world/' + name for name in
-                    ('asphalt_e1.shader', 'cement_s1.shader', 'brick_dirt_7.shader',
-                     'concrete_blue.shader', 'wood_hout4.shader')}
-        expected |= {'textures/tce2/details/' + name for name in
-                     ('asphalt.tga', 'concrete.tga', 'brick.tga', 'wood.tga', 'SOURCE.json')}
-        for variant in ('game', 'navstudio'):
-            assets = check.client_assets(variant)
-            self.assertTrue(expected <= assets.keys())
-            self.assertFalse(any(path.startswith('scripts/') for path in assets))
-        subprocess.run([sys.executable, str(check.ROOT/'tools/assets/generate_world_details.py'), '--check'],
-                       check=True, capture_output=True, text=True)
-
     def test_original_fireteam_artwork_and_shared_system_menus_are_required(self):
         required = {'gfx/tce2/fireteam/' + name for name in
                     ('assault.tga', 'recon.tga', 'sniper.tga', 'SOURCE.json')}
