@@ -1,0 +1,14 @@
+{
+  "schema": 1,
+  "method": "Built-in image_gen imagegen tool; no CLI/API-key fallback",
+  "skill": "C:/Users/micha/.codex/skills/.system/imagegen/SKILL.md",
+  "prompt": "Use case: stylized-concept. Asset type: original HD full-screen main-menu background for a modern tactical shooter mod named TCE2, used behind native menu text. Create a polished cinematic realistic industrial service courtyard at blue hour, 16:9 widescreen composition, at least 1920x1080 detail. Architecture is anonymous European maintenance depot: aged charcoal concrete and metal facades, a few warm yellow practical work lights, an open industrial doorway and mist at the far right, restrained wet asphalt reflections and light atmospheric haze. The left 55 percent and central foreground must stay dark, calm and visually uncluttered for menu panels and white type. Rich but restrained navy/charcoal palette with small warm amber highlights. Strong professional photographic composition, authentic material texture, no excessive bloom, no sci-fi holograms. No people, no soldiers, no firearms, no vehicles as main subjects, no insignia, no logos, no text, no letters, no watermarks, no interface elements. This must be wholly original environmental artwork, not a recreation of any existing Counter-Strike or Dirty Bomb image.",
+  "actual_dimensions": [
+    1672,
+    941
+  ],
+  "master": "ui-modern/source/background-industrial-v1.png",
+  "master_sha256": "3ccd94c4f50145c2233ac74bce45bf5d1bae4b26d85bfeef0c1fb35f3803f5e9",
+  "output": "ui-modern/assets/tce2_ui/background.tga",
+  "conversion": "Lossless stdlib PNG decode to native24-bit top-left TGA, no artistic edits or artificial upscaling."
+}

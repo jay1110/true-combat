@@ -1,0 +1,302 @@
+[
+  {
+    "path": "ui/credits_activision.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/credits_additional.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/credits_groovesix.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/credits_groovesix_sub.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/credits_idsoftware.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/credits_quit.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/credits_splashdamage.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/global.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/hostgame.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/hostgame_advanced.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/hostgame_advanced_default.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/hostgame_dedicated_warning.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/hostgame_sub.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/ingame_disconnect.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/ingame_main.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/ingame_serverinfo.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/ingame_tapoutlms.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/ingame_vote.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/ingame_vote_disabled.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/ingame_vote_map.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/ingame_vote_misc.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/ingame_vote_misc_refrcon.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/ingame_vote_players.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/ingame_vote_players_warn.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/main.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/menudef.h",
+    "changed": true
+  },
+  {
+    "path": "ui/menumacros.h",
+    "changed": true
+  },
+  {
+    "path": "ui/menus.txt",
+    "changed": true
+  },
+  {
+    "path": "ui/menus_gt2.txt",
+    "changed": true
+  },
+  {
+    "path": "ui/menus_gt5.txt",
+    "changed": true
+  },
+  {
+    "path": "ui/menus_gt7.txt",
+    "changed": true
+  },
+  {
+    "path": "ui/mods.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/options.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/options_controls.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/options_controls_default.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/options_customise_game.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/options_customise_hud.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/options_system.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/options_system_gamma.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/playonline.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/playonline_connecttoip.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/playonline_disablepb.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/playonline_enablepb.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/playonline_serverinfo.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/playonline_sub.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/popup_autoupdate.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/popup_errormessage.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/popup_errormessage_pb.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/popup_hostgameerrormessage.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/popup_password.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/profile.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/profile_create.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/profile_create_error.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/profile_create_initial.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/profile_delete.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/profile_delete_error.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/profile_rename.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/profile_sub.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/quit.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/rec_restart.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/tce_omnibot.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/tcemods.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/vid_confirm.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/vid_restart.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/viewreplay.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/viewreplay_delete.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/wm_ftquickmessage.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/wm_quickmessage.menu",
+    "changed": true
+  },
+  {
+    "path": "ui/wm_quickmessageAlt.menu",
+    "changed": true
+  },
+  {
+    "path": "ui_obj/global.menu",
+    "changed": true
+  },
+  {
+    "path": "ui_obj/main.menu",
+    "changed": true
+  },
+  {
+    "path": "ui_robj/global.menu",
+    "changed": true
+  },
+  {
+    "path": "ui_robj/main.menu",
+    "changed": true
+  },
+  {
+    "path": "ui_tdm/global.menu",
+    "changed": true
+  },
+  {
+    "path": "ui_tdm/main.menu",
+    "changed": true
+  }
+]

@@ -1,0 +1,59 @@
+#include "ui/menudef.h"
+
+// Defines //
+
+#define WINDOW_X		$evalfloat((.5*852)-(WINDOW_WIDTH*.5))
+#define WINDOW_Y		$evalfloat((.5*480)-(WINDOW_HEIGHT*.5))
+#define WINDOW_WIDTH	252
+#define WINDOW_HEIGHT	100
+#define GROUP_NAME		"grpViewReplay"
+
+// Macros //
+
+#include "ui/menumacros.h"
+		
+// View tcemods Menu //
+	
+menuDef {
+	name		"tcemods"
+	visible		0
+	fullscreen	0
+	rect		WINDOW_X WINDOW_Y WINDOW_WIDTH WINDOW_HEIGHT
+	style		WINDOW_STYLE_FILLED
+	popup
+	
+	fadeClamp	0.55
+	fadeAmount  0.075
+	
+	onOpen {
+		setitemcolor background backcolor 0 0 0 0 ;
+		fadein background
+	}
+	
+	onESC {
+		close tcemods ;
+		open main
+	}
+	
+// Background //
+
+	itemDef {
+		name		"background"
+		rect		-305 -275 862 650
+		style		WINDOW_STYLE_FILLED
+		background	"ui/assets/fadebox.tga"
+		backcolor	0 0 0 0
+		visible		1
+		decoration
+	}
+
+// Window //
+
+WINDOW( "TC:E Mods", 126 )
+MULTIACTION( 6, WINDOW_HEIGHT-56, 8+.5*(WINDOW_WIDTH), 10, "Switch to:", .3, 8, "ui_netGameType", cvarFloatList { "Capture The Flag" 2 "Objective" 5 "Bodycount" 7}, uiScript updateGameType, "Click to specify the type of game to load" )
+
+// Buttons //
+	BUTTON( 6, WINDOW_HEIGHT-24, .5*(WINDOW_WIDTH-18), 18, "BACK", .3, 14, close tcemods; open main; )
+	BUTTON( 12+.5*(WINDOW_WIDTH-18), WINDOW_HEIGHT-24, .5*(WINDOW_WIDTH-18), 18, "OK", .3, 14, close tcemods; uiScript RunTCEMod )
+    itemDef { name "modern_accent" rect 0 0 2 16 style WINDOW_STYLE_FILLED backcolor .94 .75 .27 .8 visible 1 decoration }
+}

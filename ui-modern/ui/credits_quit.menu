@@ -1,0 +1,234 @@
+#include "ui/menudef.h"
+
+// Defines //
+
+#define WINDOW_X		$evalfloat((.5*852)-(WINDOW_WIDTH*.5))
+#define WINDOW_Y		$evalfloat((.5*480)-(WINDOW_HEIGHT*.5))
+#define WINDOW_WIDTH	608
+#define WINDOW_HEIGHT	448
+#define GROUP_NAME		"grpCreditsQuit"
+
+// Macros //
+
+#include "ui/menumacros.h"
+		
+// Quit Credits Menu //
+	
+menuDef {
+	name		"credits_quit"
+	visible		0
+	fullscreen	0
+	rect		WINDOW_X WINDOW_Y WINDOW_WIDTH WINDOW_HEIGHT
+	style		WINDOW_STYLE_FILLED
+	
+	onESC {
+		uiScript Quit;
+	}
+	
+	
+
+	onOpen {
+		playlooped "sound/music/loopIntrotuned.wav"
+	}
+
+// Background //
+
+	itemDef {
+		name		"background"
+		rect		-127 -101 862 650
+		style		WINDOW_STYLE_FILLED
+		background	"ui/assets/fadebox.tga"
+		backcolor	.015 .025 .04 .72
+		visible		1
+		decoration
+	}
+// Window //
+
+	itemDef {
+		name		"window"
+		group		GROUP_NAME
+		rect		0 0 WINDOW_WIDTH WINDOW_HEIGHT
+		style		WINDOW_STYLE_FILLED
+		backcolor	0 0 0 1
+		border		WINDOW_BORDER_FULL
+		bordercolor	.5 .5 .5 .5
+		visible		1
+		decoration
+	}
+	
+// Logo //
+/*
+	itemDef {
+		name		"logoShadow"
+		rect		$evalfloat(.5*(WINDOW_WIDTH-96)+1) $evalfloat(8+1) 96 48
+		style		WINDOW_STYLE_SHADER
+		background	"groovesixstudios.tga"
+		forecolor	0 0 0 1
+		visible		1
+		decoration
+	}
+*/
+	itemDef {
+		name		"logo"
+		rect		$evalfloat(.5*(WINDOW_WIDTH-128)-65) $evalfloat(8-1) 128 64
+		style		WINDOW_STYLE_SHADER
+		background	"ui/assets/logo_gss.tga"
+		forecolor	1 1 1 1
+		visible		1
+		decoration
+	}
+	
+	itemDef {
+		name		"logott"
+		rect		$evalfloat(.5*(WINDOW_WIDTH-128)+78) $evalfloat(8-1+4) 190 56
+		style		WINDOW_STYLE_SHADER
+		background	"ui/assets/logo_tt.tga"
+		forecolor	1 1 1 1
+		visible		1
+		decoration
+	}
+	
+	itemDef {
+		name		"headerLogo"
+		group		GROUP_NAME
+		rect		6 80 $evalfloat(WINDOW_WIDTH-12) 16
+		text		"DEVELOPED BY GROOVESIX STUDIOS AND TEAM TERMINATOR"
+		textfont	UI_FONT_ARIBLK_16
+		textstyle	ITEM_TEXTSTYLE_NORMAL
+		textscale	.3
+		textalign	ITEM_ALIGN_CENTER
+		textalignx	$evalfloat(.5*(WINDOW_WIDTH-12))
+		textaligny	14
+		forecolor	1 1 1 1
+		visible		1
+		decoration
+	}
+	
+// Credits Sections //
+	itemDef {
+		name		"headerGS"
+		group		GROUP_NAME
+		rect		6 108 $evalfloat(WINDOW_WIDTH-12) 12
+		text		"GROOVESIX STUDIOS"
+		textfont	UI_FONT_ARIBLK_16
+		textstyle	ITEM_TEXTSTYLE_NORMAL
+		textscale	.19
+		textalign	ITEM_ALIGN_CENTER
+		textalignx	$evalfloat(.5*(WINDOW_WIDTH-12))
+		textaligny	10
+		forecolor	1 1 1 1
+		visible		1
+		decoration
+	}
+
+#define CREDITS_Y	124
+	
+	LABELWHITE( 6, CREDITS_Y, .5*(WINDOW_WIDTH-24), 10, "Coroner", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
+	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y, .5*(WINDOW_WIDTH-24), 10, "Production, Code, Maps, Textures and Everything", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	LABELWHITE( 6, CREDITS_Y+12, .5*(WINDOW_WIDTH-24), 10, "Tweety", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
+	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+12, .5*(WINDOW_WIDTH-24), 10, "Textures and Maps", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	
+// Art //
+
+	itemDef {
+		name		"headerArt"
+		group		GROUP_NAME
+		rect		6 $evalfloat(CREDITS_Y+30) $evalfloat(WINDOW_WIDTH-12) 12
+		text		"TEAM TERMINATOR"
+		textfont	UI_FONT_ARIBLK_16
+		textstyle	ITEM_TEXTSTYLE_NORMAL
+		textscale	.19
+		textalign	ITEM_ALIGN_CENTER
+		textalignx	$evalfloat(.5*(WINDOW_WIDTH-12))
+		textaligny	10
+		forecolor	1 1 1 1
+		visible		1
+		decoration
+	}
+	
+	LABELWHITE( 6, CREDITS_Y+46, .5*(WINDOW_WIDTH-24), 10, "Airon", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
+	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+46, .5*(WINDOW_WIDTH-24), 10, "Sound", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	
+	LABELWHITE( 6, CREDITS_Y+58, .5*(WINDOW_WIDTH-24), 10, "Bruce", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
+	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+58, .5*(WINDOW_WIDTH-24), 10, "Maps, Textures, Website, Graphics and Design", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	
+	LABELWHITE( 6, CREDITS_Y+70, .5*(WINDOW_WIDTH-24), 10, "BS", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
+	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+70, .5*(WINDOW_WIDTH-24), 10, "Servers and Support", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	
+	LABELWHITE( 6, CREDITS_Y+82, .5*(WINDOW_WIDTH-24), 10, "Diane", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
+	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+82, .5*(WINDOW_WIDTH-24), 10, "Public relations, Website and Community Support", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	
+	LABELWHITE( 6, CREDITS_Y+94, .5*(WINDOW_WIDTH-24), 10, "HellOnStage", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
+	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+94, .5*(WINDOW_WIDTH-24), 10, "Textures", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	
+	LABELWHITE( 6, CREDITS_Y+106, .5*(WINDOW_WIDTH-24), 10, "Liquid", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
+	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+106, .5*(WINDOW_WIDTH-24), 10, "Maps, Textures, Models, Gamedesign", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	
+	LABELWHITE( 6, CREDITS_Y+118, .5*(WINDOW_WIDTH-24), 10, "LordOfKao$", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
+	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+118, .5*(WINDOW_WIDTH-24), 10, "Public relations, Technical and Community Support, Website", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	
+
+// Programming //
+
+	itemDef {
+		name		"headerProgramming"
+		group		GROUP_NAME
+		rect		6 $evalfloat(CREDITS_Y+136) $evalfloat(WINDOW_WIDTH-12) 12
+		text		"O.48 CREW AND INACTIVE MEMBERS"
+		textfont	UI_FONT_ARIBLK_16
+		textstyle	ITEM_TEXTSTYLE_NORMAL
+		textscale	.19
+		textalign	ITEM_ALIGN_CENTER
+		textalignx	$evalfloat(.5*(WINDOW_WIDTH-12))
+		textaligny	10
+		forecolor	1 1 1 1
+		visible		1
+		decoration
+	}
+	
+	LABELWHITE( 6, CREDITS_Y+152, .5*(WINDOW_WIDTH-24), 10, "Dender", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
+	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+152, .5*(WINDOW_WIDTH-24), 10, "Website", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	LABELWHITE( 6, CREDITS_Y+164, .5*(WINDOW_WIDTH-24), 10, "ISM", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
+	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+164, .5*(WINDOW_WIDTH-24), 10, "Models", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	
+	LABELWHITE( 6, CREDITS_Y+176, .5*(WINDOW_WIDTH-24), 10, "Law", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
+	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+176, .5*(WINDOW_WIDTH-24), 10, "Public Relations", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	LABELWHITE( 6, CREDITS_Y+188, .5*(WINDOW_WIDTH-24), 10, "Nazgul", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
+	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+188, .5*(WINDOW_WIDTH-24), 10, "Technical and Community Support", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	
+	LABELWHITE( 6, CREDITS_Y+200, .5*(WINDOW_WIDTH-24), 10, "Race", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
+	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+200, .5*(WINDOW_WIDTH-24), 10, "Models, Maps, Skins and Animation", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	LABELWHITE( 6, CREDITS_Y+212, .5*(WINDOW_WIDTH-24), 10, "Raptor", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
+	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+212, .5*(WINDOW_WIDTH-24), 10, "Models, Skins and Animation", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	LABELWHITE( 6, CREDITS_Y+224, .5*(WINDOW_WIDTH-24), 10, "Traumahawk", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
+	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+224, .5*(WINDOW_WIDTH-24), 10, "Artwork, Models, Skins and Sounds", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	
+	LABELWHITE( 6, CREDITS_Y+246, (WINDOW_WIDTH-24), 10, "Special thanks to Tier for the Mac compile.", .2, ITEM_ALIGN_CENTER, .5*(WINDOW_WIDTH-24), 8 )
+
+	LABELWHITE( 6, CREDITS_Y+262, (WINDOW_WIDTH-24), 10, "Huge thanks to all beta testers and those that supported us during all the years.", .2, ITEM_ALIGN_CENTER, .5*(WINDOW_WIDTH-24), 8 )
+
+	LABELWHITE( 6, CREDITS_Y+280, (WINDOW_WIDTH-24), 10, "Nothing comes from violence. Nothing ever good.", .25, ITEM_ALIGN_CENTER, .5*(WINDOW_WIDTH-24), 8 )
+
+	
+
+// Copyright Notice //
+	LABEL( 48, CREDITS_Y+310-16, WINDOW_WIDTH-96, 10, "TrueCombat: Elite © 2004 - 2006 GrooveSix Studios and Team Terminator. All rights reserved.", .15, ITEM_ALIGN_LEFT, 0, 8 )
+//	LABEL( 48, CREDITS_Y+266-16, WINDOW_WIDTH-96, 10, "Elite 626 © 2004 GrooveSix Studios. All rights reserved.", .15, ITEM_ALIGN_LEFT, 0, 8 )
+//	LABEL( 48, CREDITS_Y+278-16, WINDOW_WIDTH-96, 10, "TrueCombat © 2000 - 2004 Team Terminator. All rights reserved.", .15, ITEM_ALIGN_LEFT, 0, 8 )
+	LABEL( 48, CREDITS_Y+322-16, WINDOW_WIDTH-96, 10, "Wolfenstein: Enemy Territory © 2003 Id Software, Inc. All rights reserved.", .15, ITEM_ALIGN_LEFT, 0, 8 )
+
+// Buttons //
+
+	itemDef {
+		name		"quitButton"
+		group		GROUP_NAME
+		rect		0 0 WINDOW_WIDTH WINDOW_HEIGHT
+		type		ITEM_TYPE_BUTTON
+		style		WINDOW_STYLE_EMPTY
+		visible		1
+
+		action {
+			uiScript quit
+		}
+	}
+}

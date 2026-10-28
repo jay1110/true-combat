@@ -1,0 +1,220 @@
+#include "ui/menudef.h"
+
+// Defines //
+
+#define WINDOW_X 0
+#define WINDOW_Y 0
+#define WINDOW_WIDTH 852
+#define WINDOW_HEIGHT 480
+#define GROUP_NAME		"grpMain"
+
+// Macros //
+
+#include "ui/menumacros.h"
+	
+// Opener //
+
+menuDef {
+	name		"main_opener"
+	visible		0
+	fullscreen	0
+	rect		WINDOW_X WINDOW_Y WINDOW_WIDTH WINDOW_HEIGHT
+	
+	onOpen {
+		open background_1 ;
+		open main ;
+		clearcvar ui_profile_create_error ;
+		close main_opener	
+	}
+}
+
+// Main Menu //
+
+menuDef {
+	name		"main"
+	visible		0
+	fullscreen	0
+	rect		WINDOW_X WINDOW_Y WINDOW_WIDTH WINDOW_HEIGHT
+	style		WINDOW_STYLE_FILLED
+  
+	onOpen {
+//		setitemcolor fadebox backcolor 0 0 0 1 ;
+//		uiScript stopRefresh ;
+//		
+		conditionalscript cl_profile 1
+			( "clearFocus" )
+			( "close main ; open profile_create_initial_opener" )	// do we want an abort here?
+
+		// ydnar
+		conditionalscript ROldModeCheck 2
+			( "clearFocus ; open vid_confirm" )
+			( "clearFocus" )
+
+		conditionalscript cl_autoupdate 1
+			( "checkautoupdate" )
+			( "clearFocus" )
+	}
+	
+	onEsc {
+		clearFocus ;
+		open quit
+	}
+
+itemDef {
+        name "modern_brand"
+        rect 64 20 192 48
+        style WINDOW_STYLE_SHADER
+        background "ui/assets/tce_logo2.tga"
+        forecolor 1 1 1 1
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_navigation_panel"
+        rect 48 116 264 280
+        style WINDOW_STYLE_SHADER
+        background "tce2_ui/panel"
+        forecolor 1 1 1 1
+        visible 1
+        decoration
+    }
+itemDef {
+        name "modern_navigation_icon_0"
+        rect 76 136 15 15
+        style WINDOW_STYLE_SHADER
+        background "tce2_ui/icons/multiplayer"
+        forecolor .94 .75 .27 .9
+        visible 1
+        decoration
+    }
+itemDef {
+        name "modern_navigation_icon_1"
+        rect 76 168 15 15
+        style WINDOW_STYLE_SHADER
+        background "tce2_ui/icons/host"
+        forecolor .94 .75 .27 .9
+        visible 1
+        decoration
+    }
+itemDef {
+        name "modern_navigation_icon_2"
+        rect 76 200 15 15
+        style WINDOW_STYLE_SHADER
+        background "tce2_ui/icons/folder"
+        forecolor .94 .75 .27 .9
+        visible 1
+        decoration
+    }
+itemDef {
+        name "modern_navigation_icon_3"
+        rect 76 232 15 15
+        style WINDOW_STYLE_SHADER
+        background "tce2_ui/icons/replays"
+        forecolor .94 .75 .27 .9
+        visible 1
+        decoration
+    }
+itemDef {
+        name "modern_navigation_icon_4"
+        rect 76 264 15 15
+        style WINDOW_STYLE_SHADER
+        background "tce2_ui/icons/settings"
+        forecolor .94 .75 .27 .9
+        visible 1
+        decoration
+    }
+itemDef {
+        name "modern_navigation_icon_5"
+        rect 76 296 15 15
+        style WINDOW_STYLE_SHADER
+        background "tce2_ui/icons/profile"
+        forecolor .94 .75 .27 .9
+        visible 1
+        decoration
+    }
+itemDef {
+        name "modern_navigation_icon_6"
+        rect 76 328 15 15
+        style WINDOW_STYLE_SHADER
+        background "tce2_ui/icons/info"
+        forecolor .94 .75 .27 .9
+        visible 1
+        decoration
+    }
+itemDef {
+        name "modern_navigation_icon_7"
+        rect 76 360 15 15
+        style WINDOW_STYLE_SHADER
+        background "tce2_ui/icons/exit"
+        forecolor .94 .75 .27 .9
+        visible 1
+        decoration
+    }
+// Company Logos //
+
+	itemDef {
+		name groovesix				// groovesix studios
+		style WINDOW_STYLE_SHADER
+		rect 76 440 56 28
+		background "groovesixstudios.tga"
+		visible 1
+		decoration
+		}
+	itemDef {
+		name teamterminator				// groovesix studios
+		style WINDOW_STYLE_SHADER
+		rect 164 442.293 80 23.4146
+		background "ui/assets/logo_tt_dark.tga"
+		visible 1
+		decoration
+		}
+	
+	itemDef {
+		name		"atvi_logo"
+		rect		264 444 80 20
+		style		WINDOW_STYLE_SHADER
+		background	"ui/assets/logo_atvi_dark"
+		forecolor	1 1 1 1
+		visible		1
+		decoration
+	}
+	
+	itemDef {
+		name		"id_logo"
+		rect		390 440 28 28
+		style		WINDOW_STYLE_SHADER
+		background	"ui/assets/logo_id_dark"
+		forecolor	1 1 1 1
+		visible		1
+		decoration
+	}
+	itemDef {
+		name		"sd_logo"
+		rect		490 440 28 28
+		style		WINDOW_STYLE_SHADER
+		background	"ui/assets/logo_sd_dark"
+		forecolor	1 1 1 1
+		visible		1
+		decoration
+	}
+
+// Window //
+
+	//WINDOW( "MAIN", 50 )
+	
+// Buttons //
+
+	BIGLABEL( 32, 80, 600, 32, "CAPTURE THE FLAG", .60, 25 )
+
+//	BUTTON( BUTTON_X, BUTTON_Y, BUTTON_W, BUTTON_H, BUTTON_TEXT, BUTTON_TEXT_SCALE, BUTTON_TEXT_ALIGN_Y, BUTTON_ACTION )	//
+
+//	BUTTONTEXTONLY( 44+34+WINDOW_X+160, 400-18, 106-20, 15,	"PUSHING INTO", .2, 12, close main ; /*close backgroundmusic ; open backgroundmusic_server ;*/ uiScript UpdateFilter ; uiScript ServerSortDown 4 ; open playonline )
+	BUTTONTEXTONLY( 64, 130, 232, 27, "DEPLOYMENT", .30, 19, close main ; /*close backgroundmusic ; open backgroundmusic_server ;*/ exec "globalservers 0 84 empty full"; uiScript UpdateFilter ; uiScript ServerSortDown 4 ; open playonline )
+	BUTTONTEXTONLY( 64, 162, 232, 27, "HOST A GAME", .30, 19, close main ; /*close backgroundmusic ; open backgroundmusic_server ;*/ uiScript loadArenas ; uiScript initHostGameFeatures ; open hostgame )
+	BUTTONTEXTONLY( 64, 194, 232, 27, "TC:E MODS", .30, 19, close main ; open tcemods )
+	BUTTONTEXTONLY( 64, 226, 232, 27, "REPLAYS", .30, 19, close main ; open viewreplay )
+	BUTTONTEXTONLY( 64, 258, 232, 27, "OPTIONS", .30, 19, close main ; open options )
+	BUTTONTEXTONLY( 64, 290, 232, 27, "PROFILE", .30, 19, close main ; open profile )
+	BUTTONTEXTONLY( 64, 322, 232, 27, "CREDITS", .30, 19, close main ; open credits_groovesix )
+	BUTTONTEXTONLY( 64, 354, 232, 27, "EXIT GAME", .30, 19, clearFocus ; open quit )
+}

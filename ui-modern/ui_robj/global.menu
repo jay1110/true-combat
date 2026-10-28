@@ -1,0 +1,59 @@
+#include "ui/menudef.h"
+
+assetGlobalDef {
+	// font
+	font		UI_FONT_ARIBLK_16 "tce2_ui/BarlowCondensed-SemiBold" 16
+	font		UI_FONT_ARIBLK_27 "tce2_ui/BarlowCondensed-SemiBold" 27
+	font		UI_FONT_COURBD_21 "tce2_ui/Barlow-Regular" 21
+	font		UI_FONT_COURBD_30 "tce2_ui/Barlow-SemiBold" 30
+	
+	cursor		"tce2_ui/cursor"			// cursor	
+	gradientBar "ui/assets/gradientbar1.tga"	// gradient bar
+	
+	itemFocusSound "sound/misc/menu2.wav"		// sound for item getting focus (via keyboard or mouse )
+
+	fadeClamp	1.0							// sets the fadeup alpha
+	fadeCycle	1							// how often fade happens in milliseconds
+	fadeAmount	0.01							// amount to adjust alpha per cycle
+	
+	shadowColor 0.1 0.1 0.1 0.25			// shadow color
+}
+
+menuDef {
+	name		"backgroundmusic"
+	fullScreen	1
+	visible		1
+
+	onOpen {
+		playlooped "sound/music/loopMenu045tuned.wav"
+	}
+}
+
+
+// Backgrounds //
+
+menuDef {
+	name		"background_1"
+	fullScreen	0
+	rect		0 0 852 480
+	visible		0
+						
+	itemDef {
+		name		"colour"
+		rect		-5 -110 862 700
+		style		WINDOW_STYLE_FILLED
+		backcolor	0 0 0 1
+		visible		1
+		decoration
+	}
+		
+	itemDef {
+		name ELITELOGO				// elite626
+		style WINDOW_STYLE_SHADER
+		rect 0 0 852 480
+		background "tce2_ui/background"
+		visible 1
+		decoration
+		forecolor	1 1 1 1
+	}
+}

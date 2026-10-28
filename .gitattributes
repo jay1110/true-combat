@@ -11,3 +11,15 @@
 /LICENSE -text
 /EULA_TrueCombat_Elite.txt -text
 /src/assets/gfx/flags/LICENSE.xmod.txt -text
+
+# The optional theme is a byte-verified native resource mirror (legacy label
+# encoding, pinned font licenses/provenance). Preserve its supplied bytes.
+/ui-modern/** -text
+/ui-modern/**/*.json whitespace=cr-at-eol
+# Retain imported menu layout, including native macro continuations. These
+# exceptions do not apply to the Python build/check tools.
+/ui-modern/ui/** -whitespace
+/ui-modern/ui_obj/** -whitespace
+/ui-modern/ui_robj/** -whitespace
+/ui-modern/ui_tdm/** -whitespace
+/ui-modern/assets/fonts/tce2_ui/LICENSE*.txt -whitespace

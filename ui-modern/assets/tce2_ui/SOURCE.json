@@ -1,0 +1,514 @@
+{
+  "schema": 1,
+  "origin": "Original code-created interface art and original imagegen industrial background. No game/reference artwork copied.",
+  "generator": "tools/ui_modernize/generate_assets.py",
+  "generator_sha256": "a66185c2605849f18bdcd190b835a6e17a51f4a57b2efa3ed570ceecd104c200",
+  "background_source": "ui-modern/source/background-industrial-v1.png",
+  "background_sha256": "3ccd94c4f50145c2233ac74bce45bf5d1bae4b26d85bfeef0c1fb35f3803f5e9",
+  "cursor_hotspot": {
+    "asset": "tce2_ui/cursor.tga",
+    "shader": "tce2_ui/cursor",
+    "x": 0,
+    "y": 0,
+    "native_draw": "32x32 at UI cursor position"
+  },
+  "palette": {
+    "panel": "#0e151d",
+    "hover": "#24313e",
+    "text": "#e4e9ed",
+    "muted": "#96a4b0",
+    "accent": "#efc046"
+  },
+  "files": [
+    {
+      "path": "tce2_ui/background.tga",
+      "shader": "tce2_ui/background",
+      "width": 1672,
+      "height": 941,
+      "channels": 24,
+      "bytes": 4720100,
+      "sha256": "715cee0172cde9ef96b620fd2369dbd5fd701bca093a275a68310ed37a168345"
+    },
+    {
+      "path": "tce2_ui/panel.tga",
+      "shader": "tce2_ui/panel",
+      "width": 512,
+      "height": 256,
+      "channels": 32,
+      "bytes": 524332,
+      "sha256": "baa1fb7a6247a83cd3451f84478844a9d8e2f6787c015907a843e89dd7182c8e"
+    },
+    {
+      "path": "tce2_ui/panel_header.tga",
+      "shader": "tce2_ui/panel_header",
+      "width": 512,
+      "height": 64,
+      "channels": 32,
+      "bytes": 131116,
+      "sha256": "da90f8fefc2c05812ba045d4832835895836ca9e8dca0c6b0cdb6b9e8712adbc"
+    },
+    {
+      "path": "tce2_ui/card.tga",
+      "shader": "tce2_ui/card",
+      "width": 512,
+      "height": 256,
+      "channels": 32,
+      "bytes": 524332,
+      "sha256": "108d360ff14a0f76d476a680f54ea7e0cdb00d7f9ace84d0af9e3bfcf163ec9e"
+    },
+    {
+      "path": "tce2_ui/button.tga",
+      "shader": "tce2_ui/button",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "9f9c77f2aa255dcea78b9d6949db1229d81903f61e3678598bad9a8b8267d1a2"
+    },
+    {
+      "path": "tce2_ui/button_hover.tga",
+      "shader": "tce2_ui/button_hover",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "6a114abc71efe7937702596563f200fccf985d83d7b02d6a886ddb76998e14eb"
+    },
+    {
+      "path": "tce2_ui/button_pressed.tga",
+      "shader": "tce2_ui/button_pressed",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "a30e9c53c407e588acc17497d2d1cf44be417a4416307bba9e512f0df22b40ce"
+    },
+    {
+      "path": "tce2_ui/button_disabled.tga",
+      "shader": "tce2_ui/button_disabled",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "24b53c17f175b1787eef9365f35943ca79dfa42449cbb484e41c20fbd872c422"
+    },
+    {
+      "path": "tce2_ui/tab.tga",
+      "shader": "tce2_ui/tab",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "ee6f0272948bdc047532238bc01712aed5527b6e0881c2f6527fd284aadcd2f4"
+    },
+    {
+      "path": "tce2_ui/tab_hover.tga",
+      "shader": "tce2_ui/tab_hover",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "401cd1066faafbe6b78bcb5b989d6953130074e97c4fff4cf2e092ebc49e6e19"
+    },
+    {
+      "path": "tce2_ui/tab_active.tga",
+      "shader": "tce2_ui/tab_active",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "4a817de5a383dd57d48f784080012c072339f24c7e1c38c9bf0f4d45d811ab10"
+    },
+    {
+      "path": "tce2_ui/selector.tga",
+      "shader": "tce2_ui/selector",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "5f89cd590c74d6218f60c208f4370a4b83dc2d482fef0f00f8c72321fb572175"
+    },
+    {
+      "path": "tce2_ui/selector_focus.tga",
+      "shader": "tce2_ui/selector_focus",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "44c4175896044ad1b32e5523fa101224c9aee2794cb47a8520a8fdd1992494a8"
+    },
+    {
+      "path": "tce2_ui/slider_track.tga",
+      "shader": "tce2_ui/slider_track",
+      "width": 256,
+      "height": 16,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "5c5654fe40ae270f2d34a8feb3a622071aa74826dc20ac44fd42d0812009b7fb"
+    },
+    {
+      "path": "tce2_ui/slider_thumb.tga",
+      "shader": "tce2_ui/slider_thumb",
+      "width": 32,
+      "height": 48,
+      "channels": 32,
+      "bytes": 6188,
+      "sha256": "bce8317cf63457bd82884a64cb3afea70f850bed068851344704a1c7b7fe50bd"
+    },
+    {
+      "path": "tce2_ui/slider_thumb_hover.tga",
+      "shader": "tce2_ui/slider_thumb_hover",
+      "width": 32,
+      "height": 48,
+      "channels": 32,
+      "bytes": 6188,
+      "sha256": "a3df71cc48b020d1f6ca9cad0e9ca8a48c150bb80773502df02cdec217e6cc30"
+    },
+    {
+      "path": "tce2_ui/scroll_track.tga",
+      "shader": "tce2_ui/scroll_track",
+      "width": 32,
+      "height": 256,
+      "channels": 32,
+      "bytes": 32812,
+      "sha256": "06df535b975aa26de59aecfe12db863f2428eee72ac97dd3fd1aea707e9f976c"
+    },
+    {
+      "path": "tce2_ui/scroll_thumb.tga",
+      "shader": "tce2_ui/scroll_thumb",
+      "width": 32,
+      "height": 64,
+      "channels": 32,
+      "bytes": 8236,
+      "sha256": "32c7360b85eccc676605ab689b94f4e8616ee3326e40533595c169ef3b515178"
+    },
+    {
+      "path": "tce2_ui/scroll_thumb_hover.tga",
+      "shader": "tce2_ui/scroll_thumb_hover",
+      "width": 32,
+      "height": 64,
+      "channels": 32,
+      "bytes": 8236,
+      "sha256": "f41accada671e94376b634453d57a395344f792622937a2ad4bc6b7b0cd51769"
+    },
+    {
+      "path": "tce2_ui/check_off.tga",
+      "shader": "tce2_ui/check_off",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "96418350db8a5bdb77a42f2cfd91bf40896dab0a3ef1b44f2d2b890643350f39"
+    },
+    {
+      "path": "tce2_ui/check_on.tga",
+      "shader": "tce2_ui/check_on",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "3b4939b5363e90f573e524e4cac50cf04693b15a02312c46d5d9317d05e874bc"
+    },
+    {
+      "path": "tce2_ui/check_mixed.tga",
+      "shader": "tce2_ui/check_mixed",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "bca3f587434434e69a3c3208cf5af4294c695c2eece0c29a1bd5c4fa39d16972"
+    },
+    {
+      "path": "tce2_ui/radio_off.tga",
+      "shader": "tce2_ui/radio_off",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "7517c8e26b8a2d9c310439196f39663f751286e9d783a5245cac408335cc4f77"
+    },
+    {
+      "path": "tce2_ui/radio_on.tga",
+      "shader": "tce2_ui/radio_on",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "c3140054b351a91db195108fd1051f970c9805a21b00ba6608f7dd6d43c27d30"
+    },
+    {
+      "path": "tce2_ui/separator.tga",
+      "shader": "tce2_ui/separator",
+      "width": 256,
+      "height": 4,
+      "channels": 32,
+      "bytes": 4140,
+      "sha256": "2ac960fe1a67845fe5ef8d99d830065ef34c958b967a67f403c1f3822ed08ab1"
+    },
+    {
+      "path": "tce2_ui/focus.tga",
+      "shader": "tce2_ui/focus",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "227305dc6ed59977a0c8f99ca02e324ef486e2dde3f8c13de5d68969fde5291a"
+    },
+    {
+      "path": "tce2_ui/cursor.tga",
+      "shader": "tce2_ui/cursor",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "e58db8745d543eaa73b41d4d1b6fff88f0fad7c63774c9c1fadb5a6d4c268117"
+    },
+    {
+      "path": "tce2_ui/icons/play.tga",
+      "shader": "tce2_ui/icons/play",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "4e386cab6ae650792cf39a59c003f30902c4821352bd01a5eee197c1d90ac66a"
+    },
+    {
+      "path": "tce2_ui/icons/multiplayer.tga",
+      "shader": "tce2_ui/icons/multiplayer",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "cfbf6afef513ecffac238f28ac8d563eaa8e9f00122e55ca0ccbe5a7a5a3072c"
+    },
+    {
+      "path": "tce2_ui/icons/host.tga",
+      "shader": "tce2_ui/icons/host",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "7495ee0d76099443205e802bd0ef3b357ba303acaf859c579068cdca595447ad"
+    },
+    {
+      "path": "tce2_ui/icons/replays.tga",
+      "shader": "tce2_ui/icons/replays",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f16e8af5930658ac1089039fde811f9a7c01458e9860e4a0e9f282e69b6f33d4"
+    },
+    {
+      "path": "tce2_ui/icons/settings.tga",
+      "shader": "tce2_ui/icons/settings",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "5f953f0204f004654e042f48a1135290f23647ed459df41a098636c9daca2246"
+    },
+    {
+      "path": "tce2_ui/icons/profile.tga",
+      "shader": "tce2_ui/icons/profile",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "65a30fefcc77272fa274bc44e7ae330a1f60c08d6f592899f0af177d14b12c4f"
+    },
+    {
+      "path": "tce2_ui/icons/credits.tga",
+      "shader": "tce2_ui/icons/credits",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "409ef480e0d36bda796f634e319dd76c929ca1db97904d90c22d316281a1c259"
+    },
+    {
+      "path": "tce2_ui/icons/exit.tga",
+      "shader": "tce2_ui/icons/exit",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "12720e69342021c6c05e5ce1063aa46d45a8e155f445db6119946d5215174799"
+    },
+    {
+      "path": "tce2_ui/icons/graphics.tga",
+      "shader": "tce2_ui/icons/graphics",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "b7b280f07e6b641c26c8b92746834db1cdeb639ad1d64d3ce0b0dd5bde13b55c"
+    },
+    {
+      "path": "tce2_ui/icons/audio.tga",
+      "shader": "tce2_ui/icons/audio",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "34a6e9f82aece8fb4243d469ee5803850842d0f16bc869923fbc8aeb05296641"
+    },
+    {
+      "path": "tce2_ui/icons/controls.tga",
+      "shader": "tce2_ui/icons/controls",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "ec71e4d3475b23690ac9722643ea60bc48092f3714885e763e187558aeb7fa28"
+    },
+    {
+      "path": "tce2_ui/icons/network.tga",
+      "shader": "tce2_ui/icons/network",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "6af29de9b435574eb4f39bd2e911e407dbf8284d3a741d79d80f363625467032"
+    },
+    {
+      "path": "tce2_ui/icons/chevron_up.tga",
+      "shader": "tce2_ui/icons/chevron_up",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "4e27fbb061ee8c2fc67f95a89849b76c599640dcb701c8e3c5a45929648b62d5"
+    },
+    {
+      "path": "tce2_ui/icons/chevron_down.tga",
+      "shader": "tce2_ui/icons/chevron_down",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "1b205fcd8cb92b8ac272e08036d94e39f750103866598fed29577a722f00df70"
+    },
+    {
+      "path": "tce2_ui/icons/chevron_left.tga",
+      "shader": "tce2_ui/icons/chevron_left",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "7b3bbb34ce5d870c6fdf75daee3047f87654ce6d02bb71f52ee6efa18d6c9a5e"
+    },
+    {
+      "path": "tce2_ui/icons/chevron_right.tga",
+      "shader": "tce2_ui/icons/chevron_right",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "9ab2ed54fe8cc785e62eda9eac3c8799d5e2294530e0d0cb846af702bf384593"
+    },
+    {
+      "path": "tce2_ui/icons/close.tga",
+      "shader": "tce2_ui/icons/close",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "80c475b57a377b571350b0fc1a62435dccf59eac5ba14674d1c42adeb754289b"
+    },
+    {
+      "path": "tce2_ui/icons/check.tga",
+      "shader": "tce2_ui/icons/check",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "5994311968349977385ce77b6a42d851343e3fec4912068c81479e85ac970107"
+    },
+    {
+      "path": "tce2_ui/icons/search.tga",
+      "shader": "tce2_ui/icons/search",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "ba05eb0fd99618fe88f51a40cb4669cb9971e586b90eb436c1d3dd7b25e25e97"
+    },
+    {
+      "path": "tce2_ui/icons/refresh.tga",
+      "shader": "tce2_ui/icons/refresh",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f402bf60f4c815febcba522edb0cd16166093daf55bcc234acf1dbf6cfaa9b8b"
+    },
+    {
+      "path": "tce2_ui/icons/folder.tga",
+      "shader": "tce2_ui/icons/folder",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "a37bcd9201c7d7bd7155cb71c4d6fb3bd40dbc4b011428389f4822023929ef30"
+    },
+    {
+      "path": "tce2_ui/icons/download.tga",
+      "shader": "tce2_ui/icons/download",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "4f4fb03297d48a6a119b743c4ec68224fe99b0e4e46f5d3ff8b5b026cf64ed2d"
+    },
+    {
+      "path": "tce2_ui/icons/lock.tga",
+      "shader": "tce2_ui/icons/lock",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "c26b59c027ee05ea514bbea16e33f001d20d343b2587b1027ae28bea59a433b0"
+    },
+    {
+      "path": "tce2_ui/icons/warning.tga",
+      "shader": "tce2_ui/icons/warning",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "d53534b971a0293d41bf883325dac3e9dc90e2e11fe2a99449cf5216543eb7d8"
+    },
+    {
+      "path": "tce2_ui/icons/info.tga",
+      "shader": "tce2_ui/icons/info",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "409ef480e0d36bda796f634e319dd76c929ca1db97904d90c22d316281a1c259"
+    },
+    {
+      "path": "tce2_ui/icons/server.tga",
+      "shader": "tce2_ui/icons/server",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "7495ee0d76099443205e802bd0ef3b357ba303acaf859c579068cdca595447ad"
+    }
+  ],
+  "native_aliases": {
+    "ui/assets/scrollbar.tga": "tce2_ui/scroll_track.tga",
+    "ui/assets/scrollbar_arrow_dwn_a.tga": "tce2_ui/icons/chevron_down.tga",
+    "ui/assets/scrollbar_arrow_up_a.tga": "tce2_ui/icons/chevron_up.tga",
+    "ui/assets/scrollbar_arrow_left.tga": "tce2_ui/icons/chevron_left.tga",
+    "ui/assets/scrollbar_arrow_right.tga": "tce2_ui/icons/chevron_right.tga",
+    "ui/assets/scrollbar_thumb.tga": "tce2_ui/scroll_thumb.tga",
+    "ui/assets/slider2.tga": "tce2_ui/slider_track.tga",
+    "ui/assets/sliderbutt_1.tga": "tce2_ui/slider_thumb.tga",
+    "ui/assets/check.tga": "tce2_ui/check_on.tga",
+    "ui/assets/check_not.tga": "tce2_ui/check_mixed.tga",
+    "ui/assets/check_no.tga": "tce2_ui/check_off.tga"
+  }
+}

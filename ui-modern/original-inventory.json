@@ -1,0 +1,1119 @@
+{
+  "schema": 1,
+  "directories": [
+    "ui",
+    "ui_obj",
+    "ui_robj",
+    "ui_tdm"
+  ],
+  "counts": {
+    "ui": {
+      "files": 90,
+      "menus": 63,
+      "bytes": 2204250
+    },
+    "ui_obj": {
+      "files": 4,
+      "menus": 2,
+      "bytes": 1290922
+    },
+    "ui_robj": {
+      "files": 4,
+      "menus": 2,
+      "bytes": 984779
+    },
+    "ui_tdm": {
+      "files": 4,
+      "menus": 2,
+      "bytes": 1322237
+    }
+  },
+  "files": [
+    {
+      "path": "ui/assets/3_cursor3.tga",
+      "bytes": 1184,
+      "sha256": "ba5bc88e4804fa731e3be8a3fe23f91b361054e39c4178d3ca8b617e1293a458",
+      "menu": false
+    },
+    {
+      "path": "ui/assets/3fields.tga",
+      "bytes": 98348,
+      "sha256": "723c3fd4af0e463c24b482de5f4df5d8518ac7a2469376aa482bc0b4232a9ba0",
+      "menu": false
+    },
+    {
+      "path": "ui/assets/elite_logo.jpg",
+      "bytes": 23691,
+      "sha256": "570fa0c0516245944d363650b2988afbb2815e2ecda6117045d1e6dc6528076e",
+      "menu": false
+    },
+    {
+      "path": "ui/assets/elite_logo_dark.jpg",
+      "bytes": 23691,
+      "sha256": "570fa0c0516245944d363650b2988afbb2815e2ecda6117045d1e6dc6528076e",
+      "menu": false
+    },
+    {
+      "path": "ui/assets/filter_os.tga",
+      "bytes": 4140,
+      "sha256": "157d1cb86a66a0c9c8aea8b631571e587df0a955e8b091a71aa8e8a65dd681c1",
+      "menu": false
+    },
+    {
+      "path": "ui/assets/gammabar16.tga",
+      "bytes": 49196,
+      "sha256": "b2438f6c8edbbd9e82af5cf1c818745dfecfc35df7b6b00023f210f4ca179a4c",
+      "menu": false
+    },
+    {
+      "path": "ui/assets/gammabar16de.tga",
+      "bytes": 49196,
+      "sha256": "a5991043a9bd82f6a9f8e55a7f79ec7f5fbf74bf447bc99ecdaa46e7bef492d1",
+      "menu": false
+    },
+    {
+      "path": "ui/assets/groovesixstudios128.tga",
+      "bytes": 131116,
+      "sha256": "00c7a02ea2cc562e2393879e011c836e8f90a3104476e61bdce1cb429a41566c",
+      "menu": false
+    },
+    {
+      "path": "ui/assets/hardlyvisible.tga",
+      "bytes": 98348,
+      "sha256": "f03515d11960a77315dce7b833ec92c19ed9edd3d040b6464e057785c15611f0",
+      "menu": false
+    },
+    {
+      "path": "ui/assets/hardlyvisiblede.tga",
+      "bytes": 98348,
+      "sha256": "7904750032d5ed8b19acafeca707a4d12aeb562be9ba65d332271e98f6d5f78b",
+      "menu": false
+    },
+    {
+      "path": "ui/assets/logo_gss.tga",
+      "bytes": 131116,
+      "sha256": "f820fff86d9cb34bc0c578f33e3ebe14e7ed334dd073b6fb42da1ce973937393",
+      "menu": false
+    },
+    {
+      "path": "ui/assets/logo_tt.jpg",
+      "bytes": 23865,
+      "sha256": "5799f1dab9548fdee243cb0579c415a361b73ee662642378a48a4dcc8291c9f5",
+      "menu": false
+    },
+    {
+      "path": "ui/assets/logo_tt_dark.jpg",
+      "bytes": 21819,
+      "sha256": "be63cc2ac67bbd10ea175aa22abd34a4e602e7fa7e4ca0d1da8e083d968a1ea5",
+      "menu": false
+    },
+    {
+      "path": "ui/assets/mature.jpg",
+      "bytes": 21989,
+      "sha256": "507b6988e3ef19d61e097f221c9dd5cb53119c34da5b8e7470178a5883004f80",
+      "menu": false
+    },
+    {
+      "path": "ui/assets/mature128.jpg",
+      "bytes": 20527,
+      "sha256": "1804d72c78e87e9ad348dd62e25451e06cd97a89fe30dda07a37d9a1ff5605d5",
+      "menu": false
+    },
+    {
+      "path": "ui/assets/portraits/allies_win_flag.jpg",
+      "bytes": 20548,
+      "sha256": "7f494a319576486a984c69aa2eae4217d342c2b7a51c4e6b32d1ef7e08edf57e",
+      "menu": false
+    },
+    {
+      "path": "ui/assets/portraits/axis_win_flag.jpg",
+      "bytes": 25012,
+      "sha256": "c4b7bc9710f72c720656562bdd3d64b1daaf3ca94590a67ee35dea35bfc3452d",
+      "menu": false
+    },
+    {
+      "path": "ui/assets/tc_retro_bg.jpg",
+      "bytes": 403902,
+      "sha256": "819b4d4bf548eeb978ffb9dbff03d12081b4be6305f165283752d427f870a303",
+      "menu": false
+    },
+    {
+      "path": "ui/assets/tce_console.jpg",
+      "bytes": 23721,
+      "sha256": "168583caf4260de552b64aa4fa57254a92cc3b3ba47ab2dad602f05f0d6c7d67",
+      "menu": false
+    },
+    {
+      "path": "ui/assets/tce_gunmen256.tga",
+      "bytes": 262188,
+      "sha256": "5f18601a25dead56e52b4246c162fc75dbe0d0a700ccf2b183078a621f5cf1eb",
+      "menu": false
+    },
+    {
+      "path": "ui/assets/tce_logo2.tga",
+      "bytes": 262188,
+      "sha256": "e538a851dedc871ec30f399f2dfc791d6c74292950300b3e44eb638fcfaf1039",
+      "menu": false
+    },
+    {
+      "path": "ui/credits_activision.menu",
+      "bytes": 8800,
+      "sha256": "e99110a45e6e086124d79baf9052a3f79b4b9478f568a1712c18754c39502585",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "28a99c263d2f0a54d9178837dc9f4e45df53523731045bccbd3eaf7abc21a0f9"
+    },
+    {
+      "path": "ui/credits_additional.menu",
+      "bytes": 7464,
+      "sha256": "fb80c3874e160731131b6f5630046be331fc558f50f72d0057e0b5f7eb7b5e7d",
+      "menu": true,
+      "encoding": "latin-1 byte preservation",
+      "semantic_sha256": "c398bb5b904a74f63d470d7f009a473426a5503b37291afd418b7e6f5e34da2a"
+    },
+    {
+      "path": "ui/credits_groovesix.menu",
+      "bytes": 8660,
+      "sha256": "bf48e3591236d0a2ecd0301b4b8c2b98a5b0ec56f017162ada28127f48bebc1e",
+      "menu": true,
+      "encoding": "latin-1 byte preservation",
+      "semantic_sha256": "298e75122de6784defd3f5eaeeb0e47ef3a10d986d3fba10548f76564a6ea351"
+    },
+    {
+      "path": "ui/credits_groovesix_sub.menu",
+      "bytes": 9006,
+      "sha256": "3228c6b297027cf4c9eae46edee2e68a25c7a727a6b80f68ca8a528cc75383c2",
+      "menu": true,
+      "encoding": "latin-1 byte preservation",
+      "semantic_sha256": "069f30e4bc22454e5e5033b989ff1aceb25796ca92530a35c3e1eae5ba9afe4d"
+    },
+    {
+      "path": "ui/credits_idsoftware.menu",
+      "bytes": 3259,
+      "sha256": "f913038e060ff5077649ac71796a4422c6533612b47fa42b5c2aa29ae72e7dd3",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "c242cd3b476ed05e6396127c9a9aed88482055e61ad60833f8ff7ca54e07df48"
+    },
+    {
+      "path": "ui/credits_quit.menu",
+      "bytes": 8865,
+      "sha256": "6487b0abd02bcebbbac72550d054cc3474a0704b6a8ec475b09f764d67e16ae9",
+      "menu": true,
+      "encoding": "latin-1 byte preservation",
+      "semantic_sha256": "806088b478afd0270d1351b2a33a2b335f89f98846d30d26045e68e3d6146c4e"
+    },
+    {
+      "path": "ui/credits_splashdamage.menu",
+      "bytes": 8967,
+      "sha256": "b69d54e5fb612cf77a12b457de7e2aee2b7290269111e840eeccb79f41667293",
+      "menu": true,
+      "encoding": "latin-1 byte preservation",
+      "semantic_sha256": "62858a5f4382dfea6e6ed008cfd124cfe15848a46a70bfec213a6f0d01f40b61"
+    },
+    {
+      "path": "ui/global.menu",
+      "bytes": 2534,
+      "sha256": "40386372a563c4dcc1e38a11e90b1047a59a44c40dcde7d097839538c2c23e91",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "60a988d41996b099b595a1378fff2642bbc2dc60cb5446c5aa99f8763b78da63"
+    },
+    {
+      "path": "ui/hostgame.menu",
+      "bytes": 9525,
+      "sha256": "8721552d2f66e3c748b03a54b93739c665e5e1d19027691bc149e8c0f1751469",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "7f784c3594038b9bfd1697cb4807cd7e5c5fc1dcb498be3ac2ce224b472eac7a"
+    },
+    {
+      "path": "ui/hostgame_advanced.menu",
+      "bytes": 14270,
+      "sha256": "5a3ebfa25844c83a2e584ea6e6963cab8af9f507c811cb808f6182f46f7ac382",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "f5059125216db753fd24b5ba275c89ad3d8709e995d4608ccdfd4217f2a82a2c"
+    },
+    {
+      "path": "ui/hostgame_advanced_default.menu",
+      "bytes": 4558,
+      "sha256": "e3156caedef5d28bf9f457bd40771552db5a9590a8eda8697a9eed70ede8877d",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "9b50f44d9f6629e1bf70762e4ff2331b3c9d790e2c896bcf21ebc403dac6f6b0"
+    },
+    {
+      "path": "ui/hostgame_dedicated_warning.menu",
+      "bytes": 2221,
+      "sha256": "91b8bbf09b0cbba3050abb881d563ce3d24f3585446f1f6eb9f46c5da6b941db",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "426229dc459b05056cf97ff8dd3a5bbd0f4ca2b7cfde5fdc5fea9c9d06e20602"
+    },
+    {
+      "path": "ui/hostgame_sub.menu",
+      "bytes": 9435,
+      "sha256": "c84f9f2983bfe15489885790d3ca73c77ae9941b474b93793497bc66feee5251",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "e1d28184e945911578c310f25225661afdb89a4f3fb0c9fab0ea414540de1df3"
+    },
+    {
+      "path": "ui/ingame_disconnect.menu",
+      "bytes": 1724,
+      "sha256": "39642a7aaf8dae4736945371330cdb93c1edd73f92b8de605ef4fc572bd250c1",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "bdf6390c87438796719b6e7f7d687beb703d144db95537489f5c87384d358b57"
+    },
+    {
+      "path": "ui/ingame_main.menu",
+      "bytes": 2111,
+      "sha256": "1408024f809f83f83c87ff915d49c0142b74789f1fa4808dfc2ccb186b2d6cae",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "20e8d7d41b1e57aa29806801ecc7905d0aeb9188186a82ea0ef0fc1ad300613e"
+    },
+    {
+      "path": "ui/ingame_serverinfo.menu",
+      "bytes": 2187,
+      "sha256": "c2d4d56018643a849e5a805a8edce777f8ab05a51b4008c6eab2b9484d644cf8",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "e0788d16aa4603898dc9f008d321f7c2960aa00ddb4eac9d4062a56e9eebd22a"
+    },
+    {
+      "path": "ui/ingame_tapoutlms.menu",
+      "bytes": 1500,
+      "sha256": "2b45cdc33901b1192d59179eab5e03e77bb450f46f1ab4897895e9db50335633",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "0827e6dbb3ac6f0577b2b93ffaf84a403f5c8890c227af264f822d41786f5c92"
+    },
+    {
+      "path": "ui/ingame_vote.menu",
+      "bytes": 3102,
+      "sha256": "8cb4ea3b246db029ddc5aa44eb6fbcfad219caadff839ee66dd08b8207e1a53d",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "4c158f490f1b184ac3238fafe4ea1489e4f6da270b24dbaa6cca30671fbb339a"
+    },
+    {
+      "path": "ui/ingame_vote_disabled.menu",
+      "bytes": 1611,
+      "sha256": "7f48e67b6cde986a85f88c4cda641529593d68edfd6f82b9de93cd3ba7bf81f8",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "f955735a68b4baee2f9dbda0010cb40f43318646f7e0f97ad7998ccf634f9690"
+    },
+    {
+      "path": "ui/ingame_vote_map.menu",
+      "bytes": 2879,
+      "sha256": "ccf465652a22035424a3355d24b933911d70ab2365ba629d152e05354b09d45d",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "2846cd85cdc3bbe376f9bbb395d901a8e547d075b80cc91e614a4927876c9679"
+    },
+    {
+      "path": "ui/ingame_vote_misc.menu",
+      "bytes": 6129,
+      "sha256": "6fddbdd4577509326dd1a5c84af7538692f06a02369c07df1620fce82b123f8d",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "ea5aceaa0726e733b03ca0320a614f61f020c9515fdd250a47e60c20429cc95b"
+    },
+    {
+      "path": "ui/ingame_vote_misc_refrcon.menu",
+      "bytes": 7071,
+      "sha256": "3d52df7fb2a274ff6e091baddcacbba5a1be3574a158edc7c67c9de6f1e71b2d",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "34258238fee38260616b2610a5c7e0be122bf73b33050bc5c19655a279d91888"
+    },
+    {
+      "path": "ui/ingame_vote_players.menu",
+      "bytes": 5099,
+      "sha256": "ae7c9c268c91049cdc48bd7f1f4ed6bd6edd50cb886a827fb1722b2e3e9c88ea",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "5f6e4667c9ea2a31248e6d0c01f021eafb5de96081f4c78c4333137e0c5d989e"
+    },
+    {
+      "path": "ui/ingame_vote_players_warn.menu",
+      "bytes": 2026,
+      "sha256": "76249baec3ad93605282071fbe99f284fb599f788592d36755732278509261c5",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "ea0c006203b32561b35d2f2c5b722b9e6041a9018e9536c49a0d64205e74b26d"
+    },
+    {
+      "path": "ui/main.menu",
+      "bytes": 4702,
+      "sha256": "da5d3837b2561ae4e905236b7ffaf6006b0fb3db909f07736501f0be322fac21",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "d97e387208c8f29a3dea67a7ac77de8301499c7f21aad35c985bc9a6f132f159"
+    },
+    {
+      "path": "ui/menudef.h",
+      "bytes": 17092,
+      "sha256": "d59deb3d5bd7432fd9266088de34b7d14e613f059d6ed304ae644b08ce5603b1",
+      "menu": false,
+      "encoding": "utf-8",
+      "semantic_sha256": "90b6d5ff783efc77f30cce248a2bcfa21bdc58ece7286fc8f5f50ac5904dd377"
+    },
+    {
+      "path": "ui/menumacros.h",
+      "bytes": 47674,
+      "sha256": "1e6df4b335e2ba427691e37e32ee96c9db8e450f74941bfc363f0c5cb34da571",
+      "menu": false,
+      "encoding": "utf-8",
+      "semantic_sha256": "d36de5e3f197b0e6168936d42aa88980ad940042a8cdc7ab0b5ddfa458b41009"
+    },
+    {
+      "path": "ui/menus.txt",
+      "bytes": 2937,
+      "sha256": "2637d9fc4e761ccfb37c5a867426dfda06192318f8489e9e27c35915152f31e1",
+      "menu": false,
+      "encoding": "utf-8",
+      "semantic_sha256": "1eed26d6d5d96e52ea06067e0c721890b05583ba2dc52f50cc53bf4f19bcc8cc"
+    },
+    {
+      "path": "ui/menus_gt2.txt",
+      "bytes": 2937,
+      "sha256": "2637d9fc4e761ccfb37c5a867426dfda06192318f8489e9e27c35915152f31e1",
+      "menu": false,
+      "encoding": "utf-8",
+      "semantic_sha256": "1eed26d6d5d96e52ea06067e0c721890b05583ba2dc52f50cc53bf4f19bcc8cc"
+    },
+    {
+      "path": "ui/menus_gt5.txt",
+      "bytes": 2935,
+      "sha256": "434912fdffbc576bf23cb24343ae31d42e87d79a03e91dfc972034f83f2e418d",
+      "menu": false,
+      "encoding": "utf-8",
+      "semantic_sha256": "ee2a287f49a49eefe788302e823871b9966e5d3ce999fc77e3116934afcc6fe0"
+    },
+    {
+      "path": "ui/menus_gt7.txt",
+      "bytes": 2935,
+      "sha256": "784912aa95a9c37b231cdb3c702305a60040f1a99f59c56231a9f3de1211ebf3",
+      "menu": false,
+      "encoding": "utf-8",
+      "semantic_sha256": "3c5cb67357bd97bbea1e8b471bcc55a8080c72504575d94659d95ed3377218e0"
+    },
+    {
+      "path": "ui/mods.menu",
+      "bytes": 1345,
+      "sha256": "b2d5792b7512cc5c38838006067c217ddb3a214a59a6c8b57bc45d34c6de7e9f",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "000c5a99b90d85b04af01f858207af5dd5269cc07b9a5224ecee71009c678887"
+    },
+    {
+      "path": "ui/options.menu",
+      "bytes": 1715,
+      "sha256": "2c2b511f0c579beea41224f18d8b6313a39d59954377101bd3a78959cc5fef30",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "93de2e4ef4fbb4033e682953cfed0d81041149f66cda08e88ad2dd155303d1a1"
+    },
+    {
+      "path": "ui/options_controls.menu",
+      "bytes": 8440,
+      "sha256": "24bb8bf6ef57175fae6665757e1e0c09067c89ab118c59608317e507fb0ffeca",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "a4cf1df5a5dc5b54e2b1b02bed662c49db76131d9eaf70ec17d018b0cde09c5e"
+    },
+    {
+      "path": "ui/options_controls_default.menu",
+      "bytes": 1999,
+      "sha256": "b1117be4594ded906e927a9c5d3d471b1397293fae02f3d4c39edc3f504026d0",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "c29a709eb88509712af0ffcd8cff26eff12e7e189916e71312cc3f6d6f209964"
+    },
+    {
+      "path": "ui/options_customise_game.menu",
+      "bytes": 4982,
+      "sha256": "b266cb40f2ebcd4200acfad150e651ca5070d2d393932286230b069123790115",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "236d76b34b8341d873cada0b5fe3e40d76a1070d31957a034f42a0f3f7c8a541"
+    },
+    {
+      "path": "ui/options_customise_hud.menu",
+      "bytes": 3803,
+      "sha256": "660ad57daddfe54f85cfc0ae0db6ca3826bd7efb331e9fdfd72795e5939d6f1e",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "2598a356aa2da592c839dc6bf366cf7dbe8e23787ef108acd93030051805d7a3"
+    },
+    {
+      "path": "ui/options_system.menu",
+      "bytes": 6347,
+      "sha256": "9fcee28379956289d917e227bb463e4870843005fbf29d353f90d613cb9aff90",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "c235eadd072d51aa7471d968aba27f8e66f2caefaa73869319dd2c90a605b853"
+    },
+    {
+      "path": "ui/options_system_gamma.menu",
+      "bytes": 4118,
+      "sha256": "55f977eeb3dd7ea571cb162a887c9aecda2acddfe9d2621a7873460f1a7fcb31",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "44763d1f9c8888a3dac5040b6b05a1f62c2348585b8230e296254e1784d8f4aa"
+    },
+    {
+      "path": "ui/playonline.menu",
+      "bytes": 21521,
+      "sha256": "c347e7baa29018c91815cdc6b7a988fde12a8c8c378edd3a6f39aa3d05f57451",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "1ea5651318c41da84d581384921a8bc7253c6b5b7068150186068bb433a592b8"
+    },
+    {
+      "path": "ui/playonline_connecttoip.menu",
+      "bytes": 1971,
+      "sha256": "973dbf2896fac355f419d067e7b93847770fe1dbc686021abdfd95eda52c82a4",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "6f5e4542981bb35eab55e7fc721cacbaabaf5e516aea7759a7614d486234f1e9"
+    },
+    {
+      "path": "ui/playonline_disablepb.menu",
+      "bytes": 2458,
+      "sha256": "4b0bc188641422d9bca39483d8f338f8b3267a81564380fdaf6c8e30cf033aed",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "9e244e74be053b7e6925f66ca766289608a7d8051d64db045be34b8aaf3da66e"
+    },
+    {
+      "path": "ui/playonline_enablepb.menu",
+      "bytes": 1528,
+      "sha256": "ce778428ba8f7bbc0d194b746b550ee91bd1e786492c418c52642ec1802dec22",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "d51b994113c4aa50d8598cbdd8349dcc7c209b4fc60ddd117b1c9b1c733eca17"
+    },
+    {
+      "path": "ui/playonline_serverinfo.menu",
+      "bytes": 2182,
+      "sha256": "e85ce63cda818159121229713eefb88dee3a237b9750d6240b01af8e906d9981",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "a78f17aed599d06da4a1fc6d790af429a9cf58db6051e0362dab025c311665a2"
+    },
+    {
+      "path": "ui/playonline_sub.menu",
+      "bytes": 21407,
+      "sha256": "c4e0efcc0fbe74656d99469dd5335e652cbd9d62ed5b8547e8be889ca082fe85",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "6464c9f5a183c3ec29c4b11812a05b5dbaffd6910ae043b3531b65290c723f0e"
+    },
+    {
+      "path": "ui/popup_autoupdate.menu",
+      "bytes": 1571,
+      "sha256": "91f34bb463edee745d0d26a911316e4609c66ca7a0046611e268f980e765a80d",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "fab01219bf14a5240caed685a4fddddf622ba5f79a9747c26c9c5d29bde38e72"
+    },
+    {
+      "path": "ui/popup_errormessage.menu",
+      "bytes": 1972,
+      "sha256": "7c265e61324122d740e7d6aa68da65fede2cbe3f60c4d692c1fd722c82d92a2b",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "ba34392cf140a315907e06760dfe250577702589948ac1b003b4ac93481d5c3c"
+    },
+    {
+      "path": "ui/popup_errormessage_pb.menu",
+      "bytes": 1653,
+      "sha256": "a5a45390ad196017c4d19e7428aada1a19d1f3f5118a752f2c671328a85a62ba",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "5c86b3154f3a8fdedc8eb9a3d96a67431fbec2b47295f483ee2acae31c7124e7"
+    },
+    {
+      "path": "ui/popup_hostgameerrormessage.menu",
+      "bytes": 1457,
+      "sha256": "45b32f0c4f2a14ce373df344d94328a7d37c76b62f5b427c2ebc3f52fd3e063c",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "f316459f87fe3dc6be62caefb8f084815e1a6dca3b761f82d49e0e1708868253"
+    },
+    {
+      "path": "ui/popup_password.menu",
+      "bytes": 2529,
+      "sha256": "379dd5296e7b914f9f959013fb2bd6c2254995cbcb7bf6ce4da0d8b39d0ecfe3",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "fc2746fcacf23177942022122c34c5c18879249a7683a6bbb1450f045d4e7b47"
+    },
+    {
+      "path": "ui/profile.menu",
+      "bytes": 3077,
+      "sha256": "f07ea8580063fc569dd712fb598caaa6da2336b3804724652bef5c6107f46c51",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "4a79a7f0f3e4894e821bb03046e20dd49ccd39e80dea3df0f60fa7a34f79b5af"
+    },
+    {
+      "path": "ui/profile_create.menu",
+      "bytes": 7210,
+      "sha256": "4f9f7dc655a68dbc16b70628e833849b3f5fafe509e564a1ab8961e22f7cbb90",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "c2c4d9db55ef7981b7ba3e7e4e619bddd3ffcbdd58c600c16e21cb94bb7b356d"
+    },
+    {
+      "path": "ui/profile_create_error.menu",
+      "bytes": 1266,
+      "sha256": "f3a49966e06a6c41882f6c30dccd16c9326ec1c3a8a51446af0767f61464ccac",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "52341c1ce1df5d9acecaae4ae58dc244f616899995f12e80ea7bbb7e7276fb59"
+    },
+    {
+      "path": "ui/profile_create_initial.menu",
+      "bytes": 8521,
+      "sha256": "1f70544b2f9af1479aa49ef605bcf0462fbb7f41d638674dcf0d22b8f6a6f613",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "dbfdb4c0c3c42fe4bd7778df91720dedec6a037b3ecbef3432e6706329434fe0"
+    },
+    {
+      "path": "ui/profile_delete.menu",
+      "bytes": 1576,
+      "sha256": "63e12739cded2c8fe68c00869b7e85adaa2176cc9c208fc9c0cf503316958d00",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "606784803102676aba7edad9bdef7e67573638528017afcd963648fb0cfc13e0"
+    },
+    {
+      "path": "ui/profile_delete_error.menu",
+      "bytes": 1418,
+      "sha256": "485ec83a647956ce88028def17bb8b09bcf044ad7064bb6648a0853470977562",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "c92758a8da780f226cd0b995fffe3fd3ce1f0fd9a9224ac2626d7e5b3256fafd"
+    },
+    {
+      "path": "ui/profile_rename.menu",
+      "bytes": 2994,
+      "sha256": "78e96cf8c9dfa0f20e7e47e6c93a21eb3519d6177e1556f4ebc0390bb8b13953",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "3c9869e1659b7a913fbecf80d90fc341216f43c197ac4b6c1002e67a71242155"
+    },
+    {
+      "path": "ui/profile_sub.menu",
+      "bytes": 2999,
+      "sha256": "aa7246065257f6a1a1e03a28681cb6e3a22e1d750cbcdb67a21b7ffaf55fed81",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "dd5f7836ddbd5845207ccd030d04abee29661655aa43afe88edc20f68feacdc5"
+    },
+    {
+      "path": "ui/quit.menu",
+      "bytes": 1933,
+      "sha256": "645f42f14ce92b462466e8fec8dc4e4e8364501f0c018f46531a894758adc076",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "e42c0ec8f4ca5b600e570a64a971dd7a5d1777c1b7f70eb1c8dafe37c674af01"
+    },
+    {
+      "path": "ui/rec_restart.menu",
+      "bytes": 1844,
+      "sha256": "477c62ef419a656f5dc3ae1ed8ac5827a785cb9503d207c0920115f0303b84a5",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "9ac66f51f54c7c310ec43a44efae4c7cb638581a4495a7c0bd367589b4654cd2"
+    },
+    {
+      "path": "ui/tce_omnibot.menu",
+      "bytes": 28666,
+      "sha256": "3254c6cc647d407b114d6b1875f94320f2aab9b72365e2a4718869840424a4b3",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "dc7fd36eb53cc412721416f9077736a3efa2d97f2ac23cd8b0ff5ef96e8cd7a6"
+    },
+    {
+      "path": "ui/tcemods.menu",
+      "bytes": 1389,
+      "sha256": "a8df89aef873c93409ba81d74d5d08c67cdb4993f7c7b4157c41634e991168e6",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "73e9941277b96e07f453425956ebb6ac429f00d0a95547c4be9e6ffd62209b41"
+    },
+    {
+      "path": "ui/vid_confirm.menu",
+      "bytes": 3362,
+      "sha256": "7906657df77ea1481cf1778f685ea274b24046d4eeb62ea9056b0e3423a6e1eb",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "c36cb8c34e0bdc439822990fb2efb1115dc5934c7e61d54cb5de164d68a26d61"
+    },
+    {
+      "path": "ui/vid_restart.menu",
+      "bytes": 1828,
+      "sha256": "ea6ce2c345adc45f6a151f3be8bf9ba6a4d748782cbd4cb2d3f491153cc997f2",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "1c6d1f7e9ef64476e7515496a4932ebffcdb99c006ec3f87612ee0ecc1bc9308"
+    },
+    {
+      "path": "ui/viewreplay.menu",
+      "bytes": 1990,
+      "sha256": "890bb5de8a1a52340ad43fd0de785bd7b2833e7334b4f1214f33b996c69b8b69",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "6962de070ce33d6756e12e0c7c1bde5dee875f70d46e9f2b80d9c3cc6ebfdd27"
+    },
+    {
+      "path": "ui/viewreplay_delete.menu",
+      "bytes": 1587,
+      "sha256": "b98d01ed32b99cbae2c4af8c54c58de958d3bbb6804414837fd222306410b28a",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "4de968aaa839d7df35608a69bab14e6eeb9b3b2999628917f249b76af37e08c0"
+    },
+    {
+      "path": "ui/wm_ftquickmessage.menu",
+      "bytes": 10525,
+      "sha256": "673eeaaf37a0b18ae3e5b83808932dc1cc0809e34f1268b25a45b4120c68617e",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "bf6a3f9fc4878fbd8819991e42a35b97d2e120a9d9b518cccb967cc37d078e99"
+    },
+    {
+      "path": "ui/wm_quickmessage.menu",
+      "bytes": 10202,
+      "sha256": "4e99bbf396faeb47dda5e6f6dc3c122b4ce3d1ec920d66aa544ca6fe2f230f46",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "6d578de308552312f8df2670a139b8359bcd3e04167ee4492f8755f77d59fd65"
+    },
+    {
+      "path": "ui/wm_quickmessageAlt.menu",
+      "bytes": 10517,
+      "sha256": "03ee3619fa33a8c186ed5c3f69222dbd8d82d840e89c9772dbecbf2b31cd38b8",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "caaffe48a84da0ead4c07cbe4e7c3e4f3db834473f508010bda650d95a82f999"
+    },
+    {
+      "path": "ui_obj/assets/.DS_Store",
+      "bytes": 6148,
+      "sha256": "d65165279105ca6773180500688df4bdc69a2c7b771752f0a46ef120b7fd8ec3",
+      "menu": false
+    },
+    {
+      "path": "ui_obj/assets/1.jpg",
+      "bytes": 1279640,
+      "sha256": "db25558332181de43b91857eed1124e501ca034fa0e928670981ca8014bfd620",
+      "menu": false
+    },
+    {
+      "path": "ui_obj/global.menu",
+      "bytes": 1196,
+      "sha256": "bd2f03f78a6c11dbcfa1d053a6691ca1d997d9b3adc3d292cb0c26666310c792",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "8df06befacb84ba49b07ea17de114a99aaf362578cecc1f86b526f9a144ded0a"
+    },
+    {
+      "path": "ui_obj/main.menu",
+      "bytes": 3938,
+      "sha256": "9e590135415701d6795b318014072132ba50f66b260a1085e15b548313843ad5",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "2a5cd35ddcbeccec93e2adf6d31699c01a4f139bb8c240d8d2653f9d5ee75c92"
+    },
+    {
+      "path": "ui_robj/assets/2.jpg",
+      "bytes": 863189,
+      "sha256": "e07a3068d0a5e77952cbeaac0d7d0d952a9d73f02bd5b0a559b9af1bd344463b",
+      "menu": false
+    },
+    {
+      "path": "ui_robj/assets/tc_retro_panavision_bg.jpg",
+      "bytes": 116572,
+      "sha256": "7ed167f47f55f29b7dcb7415570437393343d8169ab4c6e33f9d7768c27ea322",
+      "menu": false
+    },
+    {
+      "path": "ui_robj/global.menu",
+      "bytes": 1198,
+      "sha256": "bdb7a5cb30515f8295232392523cfbca1c02dee75c5eb4b9dc3588504bef86ba",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "427d7e31d4d0bb15e2d42e07ef44781cb7f5ee15210cb11ca4b0d1e6f71fe09b"
+    },
+    {
+      "path": "ui_robj/main.menu",
+      "bytes": 3820,
+      "sha256": "6389538041d3649875b77cb1c1365327b31fe8ca467e579a8ed0b45bb91cd93a",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "e73e09813eb00cb8000c0bdd6ff62cc32b1086d882e33322d2f4dc1a10f27f2e"
+    },
+    {
+      "path": "ui_tdm/assets/3.jpg",
+      "bytes": 1064642,
+      "sha256": "1824d1a6327a7a1e465bb240257a520e027ff1d55a0e33edb58fbe9956a4deaf",
+      "menu": false
+    },
+    {
+      "path": "ui_tdm/assets/uidraft2.jpg",
+      "bytes": 252685,
+      "sha256": "665c4d2d3e349e948100744aa76a3bd056fcb29b7a2529a922fa6023f5dbfc54",
+      "menu": false
+    },
+    {
+      "path": "ui_tdm/global.menu",
+      "bytes": 1203,
+      "sha256": "9720c4d531c8b0dd56e49801f7152ce0aa53fcaba5e9d0774a8cdc451cb0d441",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "06e10756016d993939274d42bc364f521798f0fa44bffb54be4bc2ac8242f4b6"
+    },
+    {
+      "path": "ui_tdm/main.menu",
+      "bytes": 3707,
+      "sha256": "dabe0904dfd5ab877e51bbfc51f90aa8b001ac935d13cf2a8d6a5804657e19e6",
+      "menu": true,
+      "encoding": "utf-8",
+      "semantic_sha256": "c9a86fb6d551bc7a5562b056c0f8ec6d60a800d6dc271288b599959e1e60873a"
+    }
+  ],
+  "menu_count": 69,
+  "file_count": 102,
+  "semantic_file_count": 75,
+  "macro_contracts": {
+    "BIGLABEL": {
+      "arity": 7,
+      "semantic_arguments": [
+        4
+      ]
+    },
+    "BIND": {
+      "arity": 9,
+      "semantic_arguments": [
+        4,
+        7,
+        8
+      ]
+    },
+    "BUTTON": {
+      "arity": 8,
+      "semantic_arguments": [
+        4,
+        7
+      ]
+    },
+    "BUTTONEXT": {
+      "arity": 9,
+      "semantic_arguments": [
+        4,
+        7,
+        8
+      ]
+    },
+    "BUTTONTEXTONLY": {
+      "arity": 8,
+      "semantic_arguments": [
+        4,
+        7
+      ]
+    },
+    "CHECKBOX": {
+      "arity": 9,
+      "semantic_arguments": [
+        4,
+        7,
+        8
+      ]
+    },
+    "CHECKBOXACTION": {
+      "arity": 10,
+      "semantic_arguments": [
+        4,
+        7,
+        8,
+        9
+      ]
+    },
+    "CHECKBOXALIGNX": {
+      "arity": 10,
+      "semantic_arguments": [
+        4,
+        8,
+        9
+      ]
+    },
+    "CHECKBOXALIGNXACTION": {
+      "arity": 11,
+      "semantic_arguments": [
+        4,
+        8,
+        9,
+        10
+      ]
+    },
+    "CHECKBOXNOTEXT": {
+      "arity": 7,
+      "semantic_arguments": [
+        0,
+        5,
+        6
+      ]
+    },
+    "CHECKBOXNOTEXTACTION": {
+      "arity": 8,
+      "semantic_arguments": [
+        0,
+        5,
+        6,
+        7
+      ]
+    },
+    "CVARFLOATLABEL": {
+      "arity": 9,
+      "semantic_arguments": [
+        4
+      ]
+    },
+    "CVARLABEL": {
+      "arity": 9,
+      "semantic_arguments": [
+        4
+      ]
+    },
+    "EDITFIELD": {
+      "arity": 11,
+      "semantic_arguments": [
+        4,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    "EDITFIELDLEFT": {
+      "arity": 11,
+      "semantic_arguments": [
+        4,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    "LABEL": {
+      "arity": 9,
+      "semantic_arguments": [
+        4
+      ]
+    },
+    "LABELWHITE": {
+      "arity": 9,
+      "semantic_arguments": [
+        4
+      ]
+    },
+    "MULTI": {
+      "arity": 10,
+      "semantic_arguments": [
+        4,
+        7,
+        8,
+        9
+      ]
+    },
+    "MULTIACTION": {
+      "arity": 11,
+      "semantic_arguments": [
+        4,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    "MULTIACTIONLEFT": {
+      "arity": 11,
+      "semantic_arguments": [
+        4,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    "MULTILEFT": {
+      "arity": 10,
+      "semantic_arguments": [
+        4,
+        7,
+        8,
+        9
+      ]
+    },
+    "NAMEDBUTTON": {
+      "arity": 9,
+      "semantic_arguments": [
+        0,
+        5,
+        8
+      ]
+    },
+    "NAMEDBUTTONEXT": {
+      "arity": 10,
+      "semantic_arguments": [
+        0,
+        5,
+        8,
+        9
+      ]
+    },
+    "NUMERICFIELD": {
+      "arity": 10,
+      "semantic_arguments": [
+        4,
+        7,
+        8,
+        9
+      ]
+    },
+    "NUMERICFIELDLEFTEXT": {
+      "arity": 11,
+      "semantic_arguments": [
+        4,
+        7,
+        8,
+        9,
+        10
+      ]
+    },
+    "QM_MENU_ITEM": {
+      "arity": 4,
+      "semantic_arguments": [
+        0,
+        1,
+        2
+      ]
+    },
+    "QM_MENU_ITEM_TEAM": {
+      "arity": 4,
+      "semantic_arguments": [
+        0,
+        1,
+        2
+      ]
+    },
+    "QM_MENU_START": {
+      "arity": 1,
+      "semantic_arguments": [
+        0
+      ]
+    },
+    "SLIDER": {
+      "arity": 9,
+      "semantic_arguments": [
+        4,
+        7,
+        8
+      ]
+    },
+    "SUBWINDOW": {
+      "arity": 5,
+      "semantic_arguments": [
+        4
+      ]
+    },
+    "SUBWINDOWBLACK": {
+      "arity": 5,
+      "semantic_arguments": [
+        4
+      ]
+    },
+    "TRICHECKBOXACTION": {
+      "arity": 10,
+      "semantic_arguments": [
+        4,
+        7,
+        8,
+        9
+      ]
+    },
+    "TRICHECKBOXACTIONMULTI": {
+      "arity": 10,
+      "semantic_arguments": [
+        6,
+        7,
+        8,
+        9
+      ]
+    },
+    "WINDOW": {
+      "arity": 2,
+      "semantic_arguments": [
+        0
+      ]
+    },
+    "WINDOW_FUI": {
+      "arity": 2,
+      "semantic_arguments": [
+        0
+      ]
+    },
+    "WINDOW_INGAME": {
+      "arity": 2,
+      "semantic_arguments": [
+        0
+      ]
+    },
+    "YESNO": {
+      "arity": 9,
+      "semantic_arguments": [
+        4,
+        7,
+        8
+      ]
+    },
+    "YESNOACTION": {
+      "arity": 10,
+      "semantic_arguments": [
+        4,
+        7,
+        8,
+        9
+      ]
+    },
+    "YESNOALIGNX": {
+      "arity": 10,
+      "semantic_arguments": [
+        4,
+        8,
+        9
+      ]
+    }
+  },
+  "limits": [
+    "Source semantic projection, not engine/runtime/input validation.",
+    "Exact scripts/lists/conditions/labels except numeric setitemcolor/setmenuitemcolor RGBA; unknown syntax significant.",
+    "Existing menu/item identity/order retained; safe new label/action-free decorations allowed.",
+    "Only declared paint properties, paint-only macro arguments and UI_FONT_* slots0..5 may vary."
+  ],
+  "validator_sha256": {
+    "semantic.py": "5e212aa507086fa9a2b66141edd88fbfd0734cf098c72d5b41427162475e078e",
+    "inventory.py": "15859e50912e60a2951a945c5179a8d6d3242e9f0150c3a82fff5d606b774e22",
+    "check.py": "98f2768fe8b0fcc5294fc1a65228816aad11acf21bd572feaaf3612bec134e28"
+  }
+}

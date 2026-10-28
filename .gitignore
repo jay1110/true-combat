@@ -29,6 +29,8 @@
 !/tce/**
 !/tools/
 !/tools/**
+!/ui-modern/
+!/ui-modern/**
 !/Docs/
 /Docs/*
 !/Docs/*.md
