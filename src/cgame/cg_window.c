@@ -474,6 +474,33 @@ static int CG_StatsCell(const char **text, char *cell, int size)
 	if (**text == '\t') ++*text;
 	return 1;
 }
+/* Height is not ascent: the font painter positions images at baseline-top,
+ * and imageWidth+pitch can exceed xSkip. Round these actual ink bounds out. */
+static int CG_StatsTextMetrics(const char *text, float sx, float sy, int *ascent, int *descent)
+{
+	float pen = 0, right = 0, above = 0, below = 0;
+	fontInfo_t *font = &cgs.media.limboFont2;
+	sx *= font->glyphScale; sy *= font->glyphScale;
+	for (; *text; ++text)
+	{
+		glyphInfo_t *glyph;
+		float edge;
+		if (Q_IsColorString(text)) { ++text; continue; }
+		if (*text == '\t') continue;
+		glyph = &font->glyphs[(unsigned char)*text];
+		edge = pen + (glyph->pitch + glyph->imageWidth) * sx;
+		if (edge > right) right = edge;
+		if (glyph->imageHeight > 0)
+		{
+			if (glyph->top * sy > above) above = glyph->top * sy;
+			if ((glyph->imageHeight - glyph->top) * sy > below) below = (glyph->imageHeight - glyph->top) * sy;
+		}
+		pen += glyph->xSkip * sx;
+	}
+	if (pen > right) right = pen;
+	*ascent = (int)ceil(above); *descent = (int)ceil(below);
+	return (int)ceil(right);
+}
 static int CG_StatsColumns(const cg_window_t *w, int widths[6])
 {
 	int i, column, total = 0;
@@ -483,7 +510,8 @@ static int CG_StatsColumns(const cg_window_t *w, int widths[6])
 		const char *text = w->lineText[i];
 		if (!strchr(text, '\t')) continue;
 		for (column = 0; column < 6 && CG_StatsCell(&text, cell, sizeof(cell)); ++column) {
-			int width = CG_Text_Width_Ext(cell, w->fontScaleX, 0, &cgs.media.limboFont2);
+			int above, below;
+			int width = CG_StatsTextMetrics(cell, w->fontScaleX, w->fontScaleY, &above, &below);
 			if (width > widths[column]) widths[column] = width;
 		}
 	}
@@ -496,10 +524,66 @@ static void CG_DrawStatsRow(const cg_window_t *w, int x, int y, vec4_t color,
 	char cell[MAX_STRING_POOL_LENGTH];
 	int column, offset = 0;
 	for (column = 0; column < 6 && CG_StatsCell(&text, cell, sizeof(cell)); ++column) {
-		int width = CG_Text_Width_Ext(cell, w->fontScaleX, 0, &cgs.media.limboFont2);
+		int above, below;
+		int width = CG_StatsTextMetrics(cell, w->fontScaleX, w->fontScaleY, &above, &below);
 		CG_Text_Paint_Ext(x + offset + (column ? widths[column] - width : 0), y,
 		    w->fontScaleX, w->fontScaleY, color, cell, 0.0f, 0, 0, &cgs.media.limboFont2);
 		offset += widths[column] + 8;
+	}
+}
+
+static void CG_StatsNormalize(cg_window_t *w)
+{
+	int pass, i, widths[6];
+	float requested = cf_wstats.value;
+	float bottom = cg.snap && cg.snap->ps.pm_type == PM_INTERMISSION ? 460.f : 380.f;
+	float maxWidth = 636.f - w->x;
+	if (!(requested > 0.f)) requested = 1.2f;
+	if (requested < .5f) requested = .5f;
+	if (requested > 2.f) requested = 2.f;
+	w->fontScaleX = w->fontScaleY = requested * .14f;
+	/* Start from the user's scale for each replacement, then fit the complete
+	 * snapshot inside the 640x480 canvas, including the minimum resolution. */
+	for (pass = 0; pass < 64; ++pass)
+	{
+		int tableWidth = CG_StatsColumns(w, widths);
+		w->w = 0; w->h = 8;
+		for (i = 0; i < w->lineCount; ++i)
+		{
+			int above, below;
+			int width = CG_StatsTextMetrics(w->lineText[i], w->fontScaleX, w->fontScaleY, &above, &below);
+			if (strchr(w->lineText[i], '\t')) width = tableWidth;
+			if (width > w->w) w->w = width;
+			w->lineHeight[i] = above + below;
+			if (w->lineHeight[i] < 1) w->lineHeight[i] = 1;
+			w->h += w->lineHeight[i] + 2;
+		}
+		w->w += 10;
+		if (w->w <= maxWidth && w->h <= bottom - 8.f) break;
+		w->fontScaleX *= .9f; w->fontScaleY *= .9f;
+	}
+	/* Recompute the bottom anchor, never add it to a previous reply's Y. */
+	w->y = bottom - w->h;
+}
+
+static void CG_DrawStatsWindow(const cg_window_t *w, int x, int y, vec4_t color)
+{
+	int j, widths[6], rowY = y + 4;
+	CG_StatsColumns(w, widths);
+	for (j = 0; j < w->lineCount; ++j)
+	{
+		int above, below;
+		CG_StatsTextMetrics(w->lineText[j], w->fontScaleX, w->fontScaleY, &above, &below);
+		if (j < 2)
+		{
+			vec4_t heading = { .18f, .22f, .17f, .95f };
+			heading[3] *= color[3];
+			CG_FillRect(x + 1, rowY - 1, w->w - 2, w->lineHeight[j] + 2, heading);
+		}
+		if (strchr(w->lineText[j], '\t')) CG_DrawStatsRow(w, x + 5, rowY + above, color, w->lineText[j], widths);
+		else CG_Text_Paint_Ext(x + 5, rowY + above, w->fontScaleX, w->fontScaleY, color,
+		                         w->lineText[j], 0.f, 0, 0, &cgs.media.limboFont2);
+		rowY += w->lineHeight[j] + 2;
 	}
 }
 
@@ -638,6 +722,11 @@ void CG_windowDraw(void)
 
 		CG_FillRect(x, y, w->w, h, bgColor);
 		CG_DrawRect(x, y, w->w, h, 1, borderColor);
+		if (w->id == WID_STATS && (w->effects & WFX_TRUETYPE))
+		{
+			CG_DrawStatsWindow(w, x, y, textColor);
+			continue;
+		}
 
 		x += 5;
 		y -= (w->effects & WFX_TRUETYPE) ? 3 : 0;
@@ -706,6 +795,11 @@ void CG_windowNormalizeOnText(cg_window_t *w)
 
 	if (w == NULL)
 	{
+		return;
+	}
+	if (w->id == WID_STATS && (w->effects & WFX_TRUETYPE))
+	{
+		CG_StatsNormalize(w);
 		return;
 	}
 

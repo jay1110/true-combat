@@ -1,0 +1,92 @@
+#include "ui/menudef.h"
+#define WINDOW_X $evalfloat((.5*852)-(WINDOW_WIDTH*.5))
+#define WINDOW_Y $evalfloat((.5*480)-(WINDOW_HEIGHT*.5))
+#define WINDOW_WIDTH 420
+#define WINDOW_HEIGHT 314
+#define GROUP_NAME "grpOptionsQuality"
+#include "ui/menumacros.h"
+
+menuDef {
+	name "options_quality"
+	visible 0
+	fullscreen 0
+	rect WINDOW_X WINDOW_Y WINDOW_WIDTH WINDOW_HEIGHT
+	style WINDOW_STYLE_FILLED
+	disableColor .35 .35 .3 1
+	onOpen { uiScript tceGraphicsGet }
+	onESC { close options_quality ; open options_system }
+	itemDef {
+		name "background"
+		rect -221 -83 862 650
+		style WINDOW_STYLE_FILLED
+		background "ui/assets/fadebox.tga"
+		backcolor 0 0 0 0.55
+		visible 1
+		decoration
+	}
+	WINDOW( "Enhanced Graphics", 210 )
+	SUBWINDOW( 6, 32, WINDOW_WIDTH-12, 50, "QUALITY PRESETS" )
+	BUTTON( 12, 50, 192, 20, "HIGH (8x MSAA)", .22, 14, uiScript tceGraphicsHigh )
+	BUTTON( 216, 50, 192, 20, "ULTRA (16x MSAA)", .22, 14, uiScript tceGraphicsUltra )
+	SUBWINDOW( 6, 88, WINDOW_WIDTH-12, 96, "TEXTURES AND EDGES" )
+	MULTI( 12, 106, WINDOW_WIDTH-24, 12, "Texture Detail:", .2, 9, "ui_tceGfx_texture", cvarFloatList { "Full" 0 "Half" 1 "Quarter" 2 }, "Full uses each texture's original resolution" )
+	MULTI( 12, 120, WINDOW_WIDTH-24, 12, "Texture Filter:", .2, 9, "ui_tceGfx_filter", cvarStrList { "Bilinear"; "GL_LINEAR_MIPMAP_NEAREST"; "Trilinear"; "GL_LINEAR_MIPMAP_LINEAR" }, "Trilinear removes visible mip transitions" )
+	MULTI( 12, 134, WINDOW_WIDTH-24, 12, "Anisotropic Filter:", .2, 9, "ui_tceGfx_af", cvarFloatList { "Off" 0 "2x" 2 "4x" 4 "8x" 8 "16x" 16 }, "Sharper floors and walls at oblique angles; capped by hardware" )
+	MULTI( 12, 148, WINDOW_WIDTH-24, 12, "Anti-Aliasing:", .2, 9, "ui_tceGfx_aa", cvarFloatList { "Off" 0 "2x" 2 "4x" 4 "8x" 8 "16x" 16 }, "Requires engine multisample support; hardware may lower the sample count" )
+	YESNO( 12, 162, WINDOW_WIDTH-24, 12, "Texture Compression:", .2, 9, "ui_tceGfx_compress", "Off avoids additional texture compression and uses more video memory" )
+	itemDef {
+		name "qualityNote"
+		rect 12 194 396 12
+		text "Apply also enables detailed curves, models and mipmaps."
+		textscale .18
+		textaligny 10
+		forecolor .8 .8 .7 1
+		visible 1
+		decoration
+	}
+	itemDef {
+		name "qualityRestartNote"
+		rect 12 208 396 12
+		text "Video restarts on Apply. Resolution and brightness stay unchanged."
+		textscale .18
+		textaligny 10
+		forecolor .8 .8 .7 1
+		visible 1
+		decoration
+	}
+	itemDef {
+		name "noMSAA"
+		rect 12 225 396 12
+		text "This engine has no MSAA setting; anti-aliasing will be skipped."
+		textscale .18
+		textaligny 10
+		forecolor 1 .8 .45 1
+		cvarTest "ui_tceGfx_hasAA"
+		showCvar { "0" }
+		visible 1
+		decoration
+	}
+	itemDef {
+		name "restoreQuality"
+		group GROUP_NAME
+		rect 12 247 396 18
+		type ITEM_TYPE_BUTTON
+		text "RESTORE PREVIOUS SETTINGS"
+		textfont UI_FONT_ARIBLK_27
+		textscale .25
+		textalign ITEM_ALIGN_CENTER
+		textalignx 198
+		textaligny 13
+		style WINDOW_STYLE_FILLED
+		backcolor .09 .09 .09 .7
+		forecolor .6 .6 .6 1
+		border WINDOW_BORDER_FULL
+		bordercolor .19 .19 .19 1
+		cvarTest "ui_tceGfx_canRestore"
+		enableCvar { "1" }
+		visible 1
+		action { close options_quality ; close options ; close options_system ; uiScript tceGraphicsRestore }
+	}
+	BUTTON( 6, WINDOW_HEIGHT-28, 198, 20, "CANCEL", .26, 14, close options_quality ; open options_system )
+	BUTTON( 216, WINDOW_HEIGHT-28, 198, 20, "APPLY", .26, 14, close options_quality ; close options ; close options_system ; uiScript tceGraphicsApply )
+}

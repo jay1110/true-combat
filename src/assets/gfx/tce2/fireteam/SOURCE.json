@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "origin": "Original geometric TC Assault, Recon and Sniper role badges.",
+  "license": "CC0-1.0",
+  "generator": "tools/assets/generate_fireteam_icons.py",
+  "generator_sha256": "c2f50bd8e9fc63b04aa60408ab1fb4fb35a881cf1e07015febcf8fbfc86a356b",
+  "rasterizer": "tools/assets/generate_nav_icons.py",
+  "files": [
+    {
+      "asset": "assault.tga",
+      "width": 64,
+      "height": 64,
+      "channels": "BGRA8, straight alpha, top-left origin",
+      "sha256": "c11ea4005420bf6b0d7ff5f54cfc90bf0a444687837c04a014f07290c3975d75"
+    },
+    {
+      "asset": "recon.tga",
+      "width": 64,
+      "height": 64,
+      "channels": "BGRA8, straight alpha, top-left origin",
+      "sha256": "c6a69ccf27d5f72dbff3387ca04aa3fbbc2962bb73d6aecf4dc68f03567f60c6"
+    },
+    {
+      "asset": "sniper.tga",
+      "width": 64,
+      "height": 64,
+      "channels": "BGRA8, straight alpha, top-left origin",
+      "sha256": "83c99979061e7f4cfe8f93af39aa82d7d6bb3eead6711cd82267556cd9241985"
+    }
+  ]
+}

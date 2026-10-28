@@ -27,13 +27,15 @@ def main():
     parser.add_argument('--source-root', type=Path, default=ROOT)
     parser.add_argument('--arch', choices=('x86', 'x64'), default='x86')
     parser.add_argument('--sanitize', action='store_true')
+    parser.add_argument('--configuration', choices=('Debug', 'Release'), default='Release')
     parser.add_argument('--editor', action='store_true')
     args = parser.parse_args()
     out = args.out.resolve()
     out.mkdir(parents=True, exist_ok=True)
     paths = ('src/cgame/cg_consolecmds.c', 'src/cgame/cg_servercmds.c',
              'src/cgame/cg_window.c', 'src/game/bg_misc.c', 'src/cgame/cg_tce_weapon_stats.c',
-             'src/game/tce_weapon_stats.h', 'src/cgame/cg_main.c', 'src/cgame/cg_tce_weapon_stats.h')
+             'src/game/tce_weapon_stats.h', 'src/cgame/cg_main.c', 'src/cgame/cg_tce_weapon_stats.h',
+             'src/cgame/cg_draw.c')
     sources = {}
     for relative in paths:
         path = args.source_root / relative
@@ -53,11 +55,23 @@ def main():
     units += [table, unit(console, 'CG_ConsoleCommand'), unit(console, 'CG_InitConsoleCommands')]
     units += [unit(sources[paths[1]], name)
               for name in ('CG_wstatsParse_cmd', 'CG_parseWeaponStats_cmd', 'CG_MapRestart')]
-    units += [unit(sources[paths[2]], name) for name in (
-        'CG_StatsCell', 'CG_StatsColumns', 'CG_DrawStatsRow',
+    window_names = (
+        'CG_StatsCell', 'CG_StatsTextMetrics', 'CG_StatsColumns', 'CG_DrawStatsRow',
+        'CG_StatsNormalize', 'CG_DrawStatsWindow',
         'CG_createStatsWindow', 'CG_windowInit', 'CG_windowReset', 'CG_windowAlloc',
         'CG_windowFree', 'CG_windowCleanup', 'CG_windowDraw', 'CG_windowNormalizeOnText',
-        'CG_printWindow', 'CG_initStrings', 'CG_addString', 'CG_removeStrings')]
+        'CG_printWindow', 'CG_initStrings', 'CG_addString', 'CG_removeStrings')
+    optional_helpers = {'CG_StatsTextMetrics', 'CG_StatsNormalize', 'CG_DrawStatsWindow'}
+    for name in window_names:
+        # Only these new helpers are optional when testing the archived baseline.
+        # All original tested bodies remain required and fail extraction if gone.
+        if name in optional_helpers and not re.search(r'^static [^\n;]*\b'+name+r'\(', sources[paths[2]], re.M):
+            continue
+        units.append(unit(sources[paths[2]], name))
+    text_units = [unit(sources['src/cgame/cg_draw.c'], name) for name in
+                  ('CG_Text_Width_Ext', 'CG_Text_Height_Ext', 'CG_Text_PaintChar_Ext', 'CG_Text_Paint_Ext')]
+    text_units[-1] = text_units[-1].replace('void CG_Text_Paint_Ext(', 'static void CG_Actual_Text_Paint_Ext(', 1)
+    units = text_units + units
     misc = sources[paths[3]]
     units += [unit(misc, 'BG_cleanName')]
     for declaration in ('const weap_ws_t aWeaponInfo[WS_MAX]',
@@ -75,7 +89,7 @@ def main():
     stats_path.write_text(sources[paths[4]], encoding='utf-8', newline='\n')
     env, compiler = msvc_environment(out, args.arch, '14.44' if args.sanitize else None)
     exe = out / 'fixture.exe'
-    command = [compiler, '/nologo', '/TC', '/O2', '/Gy', '/DWIN32', '/D_CRT_SECURE_NO_WARNINGS',
+    command = [compiler, '/nologo', '/TC', '/Od' if args.configuration == 'Debug' else '/O2', '/Gy', '/DWIN32', '/D_CRT_SECURE_NO_WARNINGS',
                '/I' + str(ROOT), str(path), str(ROOT / 'src/game/q_shared.c'),
                '/I' + str(ROOT / 'src/cgame'), str(stats_path),
                str(ROOT / 'src/game/q_math.c'), '/Fe:' + str(exe)]
@@ -88,11 +102,12 @@ def main():
         command.append('/DEBUG')
     built = subprocess.run(command, cwd=out, env=env, capture_output=True, text=True)
     (out / 'compile.log').write_text(built.stdout + built.stderr, encoding='utf-8')
-    report = {'arch': args.arch, 'asan': args.sanitize, 'editor': args.editor,
+    report = {'arch': args.arch, 'asan': args.sanitize, 'editor': args.editor, 'configuration': args.configuration,
               'command': command, 'build_returncode': built.returncode,
               'source_hashes': {name: hashlib.sha256(text.encode()).hexdigest()
                                 for name, text in sources.items()},
               'generated_sha256': hashlib.sha256(generated.encode()).hexdigest(),
+              'font_metrics_sha256': hashlib.sha256((ROOT/'tools/modernize/stats_courbd30_metrics.h').read_bytes()).hexdigest(),
               'limits': ['Actual command table/dispatch, request/debounce, response parser and window lifecycle/draw bodies',
                          'Engine transport and rasterizer callbacks are instrumented services, no live server/game',
                          'Unrelated command callbacks are inert stubs; their table entries and feature guards are unchanged']}

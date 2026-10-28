@@ -31,6 +31,7 @@
 	loadMenu { "ui/options_controls.menu" }
 	loadMenu { "ui/options_controls_default.menu" }
 	loadMenu { "ui/options_system.menu" }
+	loadMenu { "ui/options_quality.menu" }
 	loadMenu { "ui/options_system_gamma.menu" }
 	loadMenu { "ui/credits_groovesix.menu" }
 	loadMenu { "ui/credits_groovesix_sub.menu" }

@@ -10,11 +10,12 @@ from verify_omnibot_boundary import verify_module_bytes, macho_architectures
 
 ROOT = Path(__file__).resolve().parents[2]
 INPUT_PREFIX = 'client-inputs/'
-SHARED_UI = ('options_customise_hud.menu', 'options_controls.menu')
+SHARED_UI = ('options_customise_hud.menu', 'options_controls.menu', 'options_system.menu', 'options_quality.menu')
 PUBLIC_UI = ('ingame_main.menu', 'menus.txt', 'menus_gt2.txt', 'menus_gt5.txt', 'menus_gt7.txt')
 DELTA_IMAGES = ('obj_delta_cc.tga', 'obj_delta_cc_blueprint.tga')
 NAV_ICONS = ('player.tga', 'player_self.tga', 'player_dead.tga', 'objective_a.tga', 'objective_b.tga',
              'flag_terror.tga', 'flag_specops.tga', 'SOURCE.json')
+FIRETEAM_ICONS = ('assault.tga', 'recon.tga', 'sniper.tga', 'SOURCE.json')
 
 
 def sha(data):
@@ -83,6 +84,34 @@ def levelshot_assets(repo=ROOT):
     return files
 
 
+def validate_fireteam_icons(files):
+    try:
+        provenance = json.loads(files['gfx/tce2/fireteam/SOURCE.json'])
+    except (KeyError, ValueError, UnicodeDecodeError) as error:
+        raise ValueError('Missing/invalid Fireteam icon provenance') from error
+    rows = provenance.get('files', []) if isinstance(provenance, dict) else []
+    if (not isinstance(provenance, dict) or provenance.get('schema') != 1 or
+            not isinstance(rows, list) or len(rows) != 3 or
+            any(not isinstance(row, dict) for row in rows) or
+            {row.get('asset') for row in rows} != set(FIRETEAM_ICONS) - {'SOURCE.json'}):
+        raise ValueError('Wrong Fireteam icon provenance')
+    for row in rows:
+        data = files.get('gfx/tce2/fireteam/' + row['asset'])
+        if (data is None or sha(data) != row.get('sha256') or
+                row.get('width') != 64 or row.get('height') != 64 or
+                len(data) < 18 + 64 * 64 * 4 or data[:3] != b'\x00\x00\x02' or
+                struct.unpack_from('<HH', data, 12) != (64, 64) or data[16:18] != b'\x20\x28'):
+            raise ValueError('Missing/changed/invalid Fireteam icon: ' + row['asset'])
+    return provenance
+
+
+def fireteam_assets(repo=ROOT):
+    files = {'gfx/tce2/fireteam/' + name: (repo / 'src/assets/gfx/tce2/fireteam' / name).read_bytes()
+             for name in FIRETEAM_ICONS}
+    validate_fireteam_icons(files)
+    return files
+
+
 def client_assets(release_version, variant, repo=ROOT):
     if variant not in ('game', 'navstudio'):
         raise ValueError('Unknown client variant')
@@ -92,6 +121,7 @@ def client_assets(release_version, variant, repo=ROOT):
     names += ['gfx/flags/' + name for name in ('world_flags.tga', 'LICENSE.xmod.txt', 'SOURCE.json')]
     result = {name: (repo / 'src/assets' / name).read_bytes() for name in names}
     result.update(levelshot_assets(repo))
+    result.update(fireteam_assets(repo))
     result['tce2/' + release_version + '/client.manifest'] = release_version.encode('ascii')
     return result
 

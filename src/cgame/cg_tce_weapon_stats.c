@@ -93,8 +93,8 @@ static void CG_TCEWeaponStatsWindow(void)
 	}
 	if (!data->total) CG_printWindow("No weapon info available.\n");
 	if (shown < data->total) CG_printWindow(va("Showing %d of %d weapons.\n", shown, data->total));
-	CG_printWindow(va("Damage given: %d   Received: %d\n", data->damage[0], data->damage[1]));
-	CG_printWindow(va("Team damage: %d\n", data->damage[2]));
+	CG_printWindow(va("Damage: Given %d | Received %d | Team %d\n",
+	    data->damage[0], data->damage[1], data->damage[2]));
 }
 void CG_TCEWeaponStatsParse(void)
 {

@@ -10,7 +10,7 @@ def main():
     parser.add_argument('--optimized',action='store_true')
     parser.add_argument('--sanitize',action='store_true')
     args=parser.parse_args();out=args.out.resolve();out.mkdir(parents=True,exist_ok=True)
-    source_paths=['src/cgame/cg_tce_fireteam.c','src/cgame/cg_fireteamoverlay.c','src/cgame/cg_draw.c','src/cgame/cg_drawtools.c','src/cgame/cg_popupmessages.c','src/cgame/tce_popup_draw.c','src/cgame/tce_popup_draw.h','src/cgame/cg_hud_viewport.c','src/cgame/cg_hud_viewport.h','src/ui/tce_viewport.c','src/ui/tce_viewport.h','src/game/g_fireteams.c','src/game/g_cmds.c','src/cgame/cg_servercmds.c','src/cgame/cg_local.h','src/game/g_local.h','src/game/q_shared.c','src/game/q_shared.h','src/game/bg_public.h','tools/modernize/fireteam_regression.py']
+    source_paths=['src/cgame/cg_tce_fireteam.c','src/cgame/cg_fireteamoverlay.c','src/cgame/cg_draw.c','src/cgame/cg_drawtools.c','src/cgame/cg_popupmessages.c','src/cgame/tce_popup_draw.c','src/cgame/tce_popup_draw.h','src/cgame/cg_hud_viewport.c','src/cgame/cg_hud_viewport.h','src/ui/tce_viewport.c','src/ui/tce_viewport.h','src/game/tce_bg.c','src/game/tce_bg.h','src/game/g_fireteams.c','src/game/g_cmds.c','src/cgame/cg_servercmds.c','src/cgame/cg_local.h','src/game/g_local.h','src/game/q_shared.c','src/game/q_shared.h','src/game/bg_public.h','tools/modernize/fireteam_regression.py']
     assert 'CG_TCEFireteamInvalidate();' in function((ROOT/'src/cgame/cg_servercmds.c').read_text(),'CG_MapRestart')
     digest=lambda p:hashlib.sha256(p.read_bytes()).hexdigest()
     report={'source_hashes':{p:digest(ROOT/p) for p in source_paths},'results':{},'limits':['Actual production functions; instrumented engine transport, clock and renderer, not live game or pixel acceptance.','Command fixture executes the actual ClientCommand prefix through fireteam dispatch; later unrelated commands are outside this fixture.']}
@@ -32,6 +32,7 @@ def main():
                 if not definition:raise ValueError('Definition missing: '+name)
                 units.append(function(source[definition.start():],name))
             text=text.replace('/* ACTUAL_SORT_FUNCTIONS */','\n\n'.join(units))
+            text=text.replace('/* ACTUAL_TC_CLASS_FUNCTION */',function((ROOT/'src/game/tce_bg.c').read_text(),'BG_WolfClassToTCE'))
             draw=(ROOT/'src/cgame/cg_draw.c').read_text()
             frame=function(draw,'CG_Draw2D')
             assert frame.index('CG_DrawLimboMessage();') < frame.index('CG_DrawFireteamHUD();')

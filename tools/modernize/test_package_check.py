@@ -62,6 +62,24 @@ def fake_pe(data):
 
 
 class PackageResources(unittest.TestCase):
+    def test_original_fireteam_artwork_and_shared_system_menus_are_required(self):
+        required = {'gfx/tce2/fireteam/' + name for name in
+                    ('assault.tga', 'recon.tga', 'sniper.tga', 'SOURCE.json')}
+        required |= {'ui/options_system.menu', 'ui/options_quality.menu'}
+        for variant in ('game', 'navstudio'):
+            self.assertTrue(required <= check.client_assets(variant).keys())
+        folder = check.ROOT / 'src/assets/gfx/tce2/fireteam'
+        source = json.loads((folder/'SOURCE.json').read_text())
+        self.assertEqual({row['asset'] for row in source['files']},
+                         {'assault.tga', 'recon.tga', 'sniper.tga'})
+        for row in source['files']:
+            data = (folder/row['asset']).read_bytes()
+            self.assertEqual((data[2], struct.unpack_from('<HH', data, 12), data[16], data[17]),
+                             (2, (64, 64), 32, 0x28))
+            self.assertEqual(check.sha(data), row['sha256'])
+        subprocess.run([sys.executable, str(check.ROOT/'tools/assets/generate_fireteam_icons.py'), '--check'],
+                       check=True, capture_output=True, text=True)
+
     def test_original_nav_artwork_is_reproducible_rgba_with_transparency(self):
         folder = check.ROOT / "src/assets/gfx/tce2/nav"
         provenance = json.loads((folder / "SOURCE.json").read_text())

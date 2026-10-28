@@ -17,7 +17,8 @@ ROOT = Path(__file__).resolve().parents[1]
 VERSION = re.search(r'^#define TCE_VERSION "([0-9]+\.[0-9]+\.[0-9]+)"$',
                     (ROOT / "src/game/tce_version.h").read_text(), re.M).group(1)
 MODULES = ("cgame", "ui", "qagame")
-SHARED_UI_ASSETS = ("options_customise_hud.menu", "options_controls.menu")
+SHARED_UI_ASSETS = ("options_customise_hud.menu", "options_controls.menu",
+                    "options_system.menu", "options_quality.menu")
 UI_ASSETS = ("ingame_main.menu", "menus.txt", "menus_gt2.txt",
              "menus_gt5.txt", "menus_gt7.txt")
 
@@ -137,6 +138,8 @@ def build(arch, configuration, variant, output, with_omnibot=True, geoip_databas
         for asset in ("player.tga", "player_self.tga", "player_dead.tga", "objective_a.tga", "objective_b.tga",
                       "flag_terror.tga", "flag_specops.tga", "SOURCE.json"):
             archive.write(ROOT / "src/assets/gfx/tce2/nav" / asset, "gfx/tce2/nav/" + asset)
+        for asset in ("assault.tga", "recon.tga", "sniper.tga", "SOURCE.json"):
+            archive.write(ROOT / "src/assets/gfx/tce2/fireteam" / asset, "gfx/tce2/fireteam/" + asset)
         for asset in ("world_flags.tga", "LICENSE.xmod.txt", "SOURCE.json"):
             archive.write(ROOT / "src/assets/gfx/flags" / asset, "gfx/flags/" + asset)
         for asset in ("obj_delta_cc.tga", "obj_delta_cc_blueprint.tga", "SOURCE.json"):

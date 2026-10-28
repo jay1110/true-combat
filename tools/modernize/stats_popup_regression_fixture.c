@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "tools/modernize/stats_courbd30_metrics.h"
 #undef vsnprintf
 
 cg_t cg;
@@ -19,8 +20,12 @@ tce_weaponInfo_t tce_cg_weapons[64];
 
 static int checks, failures, unrelatedCalls, requestCount, warnings, now = 1000;
 static int registeredCount, drawCount, rectCount, wordCount;
-static struct { float x,y,scale; char text[128]; } painted[256];
+static struct { float x,y,scale,left,right,top,bottom; char text[128]; } painted[512];
 static int paintCount;
+static struct { float x,y,w,h; } glyphs[16384];
+static int glyphCount;
+static float inkAlpha;
+static void CG_Actual_Text_Paint_Ext(float,float,float,float,vec4_t,const char*,float,int,int,fontInfo_t*);
 static char registered[256][MAX_QPATH], request[128], commandName[128];
 static char words[64][128], drawn[16384];
 static char playerConfig[MAX_CLIENTS][MAX_INFO_STRING];
@@ -29,6 +34,7 @@ static snapshot_t snapshot;
  * CG_MapRestart body and stats cleanup/request functions execute below. */
 void CG_TCEPresentationRestart(void) {}
 void CG_TCEFireteamInvalidate(void) {}
+void CG_TCEHitDebugReset(void) {}
 void CG_LimboPanel_RequestObjective(void) {}
 void CG_ParseWolfinfo(void) {}
 void CG_ParseEntitiesFromString(void) {}
@@ -94,25 +100,35 @@ void CG_FillRect(float x, float y, float w, float h, const float *color)
 { (void)x; (void)y; (void)w; (void)h; if (color[3] > 0) ++rectCount; }
 void CG_DrawRect(float x, float y, float w, float h, float size, const float *color)
 { (void)x; (void)y; (void)w; (void)h; (void)size; (void)color; }
+void CG_AdjustFrom640(float *x,float *y,float *w,float *h) { (void)x;(void)y;(void)w;(void)h; }
+void trap_R_SetColor(const float *color) { inkAlpha=color?color[3]:1; }
+void trap_R_DrawStretchPic(float x,float y,float w,float h,float s,float t,float s2,float t2,qhandle_t shader)
+{
+    (void)s;(void)t;(void)s2;(void)t2;(void)shader;
+    if(inkAlpha>0&&w>0&&h>0){CHECK(glyphCount<16384);if(glyphCount<16384){glyphs[glyphCount].x=x;glyphs[glyphCount].y=y;glyphs[glyphCount].w=w;glyphs[glyphCount++].h=h;}}
+}
 void CG_Text_Paint_Ext(float x, float y, float sx, float sy, vec4_t color,
                        const char *text, float adjust, int limit, int style, fontInfo_t *font)
 {
-    (void)sy;(void)adjust;(void)limit;(void)style;(void)font;
-    if(color[3]>0&&paintCount<256){painted[paintCount].x=x;painted[paintCount].y=y;painted[paintCount].scale=sx;Q_strncpyz(painted[paintCount++].text,text,128);}
+    int first=glyphCount,i;
+    CG_Actual_Text_Paint_Ext(x,y,sx,sy,color,text,adjust,limit,style,font);
+    if(color[3]>0&&paintCount<512){
+        painted[paintCount].x=x;painted[paintCount].y=y;painted[paintCount].scale=sx;
+        painted[paintCount].left=painted[paintCount].right=x;painted[paintCount].top=painted[paintCount].bottom=y;
+        for(i=first;i<glyphCount;++i){
+            if(glyphs[i].x<painted[paintCount].left)painted[paintCount].left=glyphs[i].x;
+            if(glyphs[i].x+glyphs[i].w>painted[paintCount].right)painted[paintCount].right=glyphs[i].x+glyphs[i].w;
+            if(glyphs[i].y<painted[paintCount].top)painted[paintCount].top=glyphs[i].y;
+            if(glyphs[i].y+glyphs[i].h>painted[paintCount].bottom)painted[paintCount].bottom=glyphs[i].y+glyphs[i].h;
+        }
+        Q_strncpyz(painted[paintCount++].text,text,128);
+    }
     appendDraw(text,color[3]);
 }
 void CG_DrawStringExt2(int x, int y, const char *text, const float *color,
                        qboolean force, qboolean shadow, int w, int h, int max)
 { (void)x; (void)y; (void)force; (void)shadow; (void)w; (void)h; (void)max; appendDraw(text, color[3]); }
 int CG_DrawStrlen(const char *text) { return (int)strlen(text); }
-int CG_Text_Width_Ext(const char *text, float scale, int limit, fontInfo_t *font)
-{
-    int width=0;(void)limit;(void)font;
-    for(;*text;++text){if(Q_IsColorString(text)){++text;continue;}width+=*text=='W'?14:*text=='i'||*text=='l'?4:*text==' '?5:8;}
-    return (int)(width*scale*2);
-}
-int CG_Text_Height_Ext(const char *text, float scale, int limit, fontInfo_t *font)
-{ (void)text; (void)limit; (void)font; return (int)(scale * 16); }
 
 typedef struct { char *cmd; void (*function)(void); } consoleCommand_t;
 /* UNRELATED_COMMAND_STUBS */
@@ -128,13 +144,14 @@ static qboolean dispatch(const char *name)
 {
     Q_strncpyz(commandName, name, sizeof(commandName)); return CG_ConsoleCommand();
 }
-static void clearDraw(void) { drawCount = rectCount = paintCount = 0; drawn[0] = 0; }
+static void clearDraw(void) { drawCount = rectCount = paintCount = glyphCount = 0; drawn[0] = 0; }
 static void reset(void)
 {
     memset(&cg, 0, sizeof(cg)); memset(&cgs, 0, sizeof(cgs));
     memset(&snapshot, 0, sizeof(snapshot)); memset(words, 0, sizeof(words));
     memset(playerConfig, 0, sizeof(playerConfig));
     cg.snap = &snapshot; cg.time = now = 1000; cf_wstats.value = 1;
+    statsActualFont(&cgs.media.limboFont2);
     CG_TCEWeaponStatsReset();wordCount=0;
     cg.snap->ps.clientNum = 7; cg.snap->ps.persistant[PERS_TEAM] = TEAM_AXIS;
     Q_strncpyz(cgs.clientinfo[7].name, "PopupPlayer", sizeof(cgs.clientinfo[7].name));
@@ -177,9 +194,9 @@ static void tceStats(void)
     CHECK(strstr(drawn,"Beretta 92")&&strstr(drawn,"Wide WWW"));CHECK(!strstr(drawn,"Luger")&&!strstr(drawn,"MP-40"));
     CHECK(strstr(drawn,"6/10")!=NULL&&!strstr(drawn,"^3Wide WWW"));
     CHECK(cg.statsWindow->colorBackground[0]==.035f&&cg.statsWindow->colorBorder[0]==.44f);
-    for(i=0;i<6;++i){header[i]=-1;for(j=0;j<paintCount;++j)if(!strcmp(painted[j].text,columns[i])){header[i]=j;right[i]=painted[j].x+CG_Text_Width_Ext(painted[j].text,.14f,0,NULL);break;}CHECK(header[i]>=0);}
+    for(i=0;i<6;++i){header[i]=-1;for(j=0;j<paintCount;++j)if(!strcmp(painted[j].text,columns[i])){header[i]=j;right[i]=painted[j].right;break;}CHECK(header[i]>=0);}
     for(i=1;i<6;++i)CHECK(painted[header[i]].x>=right[i-1]+7);
-    for(i=0;i<paintCount;++i)if(!strcmp(painted[i].text,"6/10"))CHECK(painted[i].x+CG_Text_Width_Ext(painted[i].text,.14f,0,NULL)==right[2]);
+    for(i=0;i<paintCount;++i)if(!strcmp(painted[i].text,"6/10"))CHECK(fabsf(painted[i].right-right[2])<1.01f);
     CHECK(cg.statsWindow->w<640&&cg.statsWindow->x+cg.statsWindow->w<=640);
     CHECK(cg.statsWindow->y>=0&&cg.statsWindow->y+cg.statsWindow->h<=480);
     /* New malformed/stale/partial packets must never replace the last complete
@@ -206,7 +223,7 @@ static void tceStats(void)
         if(!(kind&1)){tceReply(8,9);CG_TCEWeaponStatsParse();}
         for(i=0;i<MAX_STRINGS;++i)active+=cg.aStringPool[i].fActive!=0;
         if(active!=cg.statsWindow->lineCount)printf("pool active%d statsLines%d windows%d\n",active,cg.statsWindow->lineCount,cg.winHandler.numActiveWindows);
-        CHECK(active==cg.statsWindow->lineCount);CHECK(cg.statsWindow->lineCount>4);
+        CHECK(active==cg.statsWindow->lineCount);CHECK(cg.statsWindow->lineCount>3);
     }
     CHECK(dispatch("-wstats"));now+=112;CG_windowDraw();CG_windowDraw();
     for(i=0;i<MAX_STRINGS;++i)CHECK(!cg.aStringPool[i].fActive);
@@ -275,6 +292,63 @@ static void statsCacheIdentity(void)
         CHECK(strstr(drawn,kind?"Player A":"Player B")!=NULL);CHECK(strstr(drawn,"80.0")!=NULL);
     }
 }
+
+/* The real painter submits glyph images above/below a baseline. Assert those
+ * image rectangles, not a second implementation of the layout calculation. */
+static void statsGeometry(void)
+{
+    const float scales[]={.5f,1.f,1.2f,2.f,8.f,-1.f};
+    int mode,scale,offset,i,j,summary;
+    for(mode=0;mode<2;++mode)for(scale=0;scale<6;++scale){
+        reset();cf_wstats.value=scales[scale];
+        cg.snap->ps.pm_type=mode?PM_INTERMISSION:PM_NORMAL;
+        memset(cgs.clientinfo[7].name,'W',sizeof(cgs.clientinfo[7].name)-1);
+        for(i=1;i<64;++i){memset(tce_cg_weapons[i].deployMenuShortName,'W',sizeof(tce_cg_weapons[i].deployMenuShortName)-1);tce_cg_weapons[i].deployMenuShortName[sizeof(tce_cg_weapons[i].deployMenuShortName)-1]=0;}
+        CHECK(dispatch("+wstats"));
+        for(offset=0;offset<63;offset+=8){
+            tceReply(offset,63);
+            for(i=5;i<wordCount;++i)if(i<9||(i-9)%6)strcpy(words[i],"2147483647");
+            CG_TCEWeaponStatsParse();
+        }
+        now+=111;clearDraw();CG_windowDraw();CHECK(cg.statsWindow!=NULL);
+        CHECK(cg.statsWindow->x>=0&&cg.statsWindow->y>=0);
+        CHECK(cg.statsWindow->x+cg.statsWindow->w<=640&&cg.statsWindow->y+cg.statsWindow->h<=480);
+        summary=0;
+        for(i=0;i<paintCount;++i){
+            CHECK(painted[i].left>=cg.statsWindow->x+1.f);
+            CHECK(painted[i].right<=cg.statsWindow->x+cg.statsWindow->w-1.f);
+            CHECK(painted[i].top>=cg.statsWindow->y+1.f);
+            CHECK(painted[i].bottom<=cg.statsWindow->y+cg.statsWindow->h-1.f);
+            if(strstr(painted[i].text,"Damage: Given ")){++summary;CHECK(strstr(painted[i].text," | Received ")&&strstr(painted[i].text," | Team "));}
+            for(j=0;j<i;++j)if(fabsf(painted[i].y-painted[j].y)>.1f)
+                CHECK(painted[i].bottom<=painted[j].top-1.f||painted[j].bottom<=painted[i].top-1.f);
+        }
+        CHECK(summary==1);CHECK(strstr(drawn,"Showing 40 of 63 weapons."));
+        /* A subsequent short reply must restore the requested compact size
+         * and bottom anchor, rather than cumulatively scaling/moving it. */
+        cg.time+=501;CHECK(dispatch("+wstats"));tceReply(0,0);CG_TCEWeaponStatsParse();
+        now+=111;clearDraw();CG_windowDraw();
+        CHECK(cg.statsWindow->y>=0&&cg.statsWindow->y+cg.statsWindow->h<=480);
+        CHECK(painted[0].top>=cg.statsWindow->y+1.f);
+        cg.time+=501;Q_strncpyz(cgs.clientinfo[7].name,"^1W\"'_^7gj",sizeof(cgs.clientinfo[7].name));
+        Q_strncpyz(tce_cg_weapons[1].deployMenuShortName,"gj_\"'",sizeof(tce_cg_weapons[1].deployMenuShortName));
+        CHECK(dispatch("+wstats"));tceReply(0,1);CG_TCEWeaponStatsParse();
+        now+=111;clearDraw();CG_windowDraw();
+        CHECK(strstr(drawn,"Weapon stats: W\"'_gj")!=NULL);
+        for(i=0;i<paintCount;++i){CHECK(painted[i].top>=cg.statsWindow->y+1.f);CHECK(painted[i].bottom<=cg.statsWindow->y+cg.statsWindow->h-1.f);}
+    }
+}
+static char fullDump[16384];
+static void captureFullStats(char *text) { Q_strcat(fullDump,sizeof(fullDump),text); }
+static void statsConsoleCompatibility(void)
+{
+    reset();CHECK(dispatch("+wstats"));reply();fullDump[0]=0;
+    CG_parseWeaponStats_cmd(captureFullStats);
+    CHECK(strstr(fullDump,"Damage Given: ^7123")!=NULL);
+    CHECK(strstr(fullDump,"Team Damage: ^76")!=NULL);
+    CHECK(strstr(fullDump,"Damage Recvd: ^745")!=NULL);
+    CHECK(strstr(fullDump,"Damage: Given ")==NULL);
+}
 int main(void)
 {
     cg_window_t *window;
@@ -313,7 +387,7 @@ int main(void)
     CHECK(strstr(drawn, "Acrcy Hits/Atts Kll Dth HS") != NULL);
     CHECK(strstr(drawn, "60.0") != NULL && strstr(drawn, "6/10") != NULL);
     CHECK(strstr(drawn, "^2  3 ^1  4 ^3 2") != NULL);
-    CHECK(strstr(drawn, "Damage Given: ^7123") != NULL);
+    CHECK(strstr(drawn, "Damage: Given 123 | Received 45 | Team 6") != NULL);
     CHECK(window->w > 10 && window->h > 0);
     CHECK(window->x == 4 && window->y >= 0 && window->y + window->h <= 480);
     before = requestCount; cg.time = 1500;
@@ -344,6 +418,8 @@ int main(void)
     statsRestart();
     statsQuickReopen();
     statsCacheIdentity();
+    statsGeometry();
+    statsConsoleCompatibility();
     printf("stats popup: %d checks, %d failures\n", checks, failures);
     return failures != 0;
 }

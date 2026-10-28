@@ -130,6 +130,28 @@ static void lifecycleAndCommands(void)
     clients[0].sess.sessionTeam=TEAM_AXIS;clients[0].pers.connected=CON_CONNECTING;command("fireteam create");CHECK(created==0);
     clients[0].pers.connected=CON_CONNECTED;g_autoFireteams.integer=1;command("fireteam create");CHECK(created==1&&clients[0].pers.autofireteamEndTime==30500);
 }
+static void gearCapability(void)
+{
+    char expected[800],entry[96];int i;
+    setup();strcpy(userinfo[0],"\\tceft\\1\\tceftgear\\1");clients[1].ps.weapon=43;clients[1].ps.stats[STAT_PLAYER_CLASS]=4;
+    G_TCEFireteamInfoMessage(TEAM_AXIS);CHECK(sends==2&&to[0]==0&&to[1]==1);
+    CHECK(!strcmp(commands[0],"tceftinfo 0 2 0 100 1 100 200 300 0 -1 0 1 100 2 101 201 301 0 43 4"));
+    CHECK(!strcmp(commands[1],"tceftinfo 0 2 0 100 1 100 200 300 0 1 100 2 101 201 301 0")); /* old capability */
+    sends=0;g_entities[1].health=0;G_TCEFireteamInfoMessage(TEAM_AXIS);CHECK(strstr(commands[0]," 1 0 2 101 201 301 0 -1 -1")!=NULL);
+    sends=0;g_entities[1].health=100;clients[1].ps.weapon=64;clients[1].ps.stats[STAT_PLAYER_CLASS]=7;
+    G_TCEFireteamInfoMessage(TEAM_AXIS);CHECK(strstr(commands[0]," 1 100 2 101 201 301 0 -1 -1")!=NULL);
+    setup();level.fireTeams[1].inuse=qfalse;strcpy(expected,"tceftinfo 0 6");
+    for(i=0;i<6;++i){
+        gentity_t *p=&g_entities[i];p->inuse=qtrue;p->client=&clients[i];p->health=100;
+        clients[i].pers.connected=CON_CONNECTED;clients[i].sess.sessionTeam=TEAM_AXIS;
+        clients[i].ps.weapon=i+1;clients[i].ps.stats[STAT_PLAYER_CLASS]=i;
+        VectorSet(p->r.currentOrigin,100+i,200+i,300+i);g_entities[100+i].health=i+1;
+        strcpy(userinfo[i],"\\tceft\\1\\tceftgear\\1");level.fireTeams[0].joinOrder[i]=(char)i;
+        Com_sprintf(entry,sizeof(entry)," %i 100 %i %i %i %i 0 %i %i",i,i+1,100+i,200+i,300+i,i+1,i);Q_strcat(expected,sizeof(expected),entry);
+    }
+    G_TCEFireteamInfoMessage(TEAM_AXIS);CHECK(sends==6);
+    for(i=0;i<6;++i)CHECK(to[i]==i&&!strcmp(commands[i],expected)&&strlen(commands[i])<MAX_STRING_CHARS);
+}
 static void fullFireteam(void)
 {
     const int ids[6]={0,1,7,31,32,63};
@@ -187,7 +209,7 @@ int main(void)
         G_TCEFireteamInfoMessage(TEAM_AXIS);sprintf(suffix," 1 100 2 101 201 301 %i",kind);CHECK(strstr(commands[0],suffix)!=NULL);
         sends=0;g_entities[1].health=0;G_TCEFireteamInfoMessage(TEAM_AXIS);CHECK(strstr(commands[0]," 1 0 2 101 201 301 0")!=NULL);
     }
-    fullFireteam();
+    gearCapability();fullFireteam();
     lifecycleAndCommands();
     printf("Fireteam server: %i checks, %i failures\n",checks,failures);return failures?1:0;
 }

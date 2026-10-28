@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "tce_bg.h"
 #ifdef FEATURE_OMNIBOT
 #include "g_etbot_interface.h"
 #endif
@@ -12,7 +13,7 @@ void G_TCEFireteamInfoMessage(team_t team)
 	for (index = 0; index < MAX_FIRETEAMS; ++index)
 	{
 		fireteamData_t *ft = &level.fireTeams[index];
-		char payload[768], command[800], entry[112];
+		char payload[2][768], command[2][800], entry[112];
 		int recipients[6], count = 0, leader = ft->joinOrder[0];
 		if (!ft->inuse || leader < 0 || leader >= level.maxclients || leader >= MAX_CLIENTS ||
 		    !g_entities[leader].inuse || !g_entities[leader].client ||
@@ -20,10 +21,10 @@ void G_TCEFireteamInfoMessage(team_t team)
 		{
 			continue;
 		}
-		payload[0] = '\0';
+		payload[0][0] = payload[1][0] = '\0';
 		for (member = 0; member < 6; ++member)
 		{
-			int id = ft->joinOrder[member], health, area = 0, axis, position[3], objective;
+			int id = ft->joinOrder[member], health, area = 0, axis, position[3], objective, weapon, playerClass;
 			gentity_t *player, *location;
 			if (id < 0 || id >= level.maxclients || id >= MAX_CLIENTS) continue;
 			player = &g_entities[id];
@@ -44,17 +45,24 @@ void G_TCEFireteamInfoMessage(team_t team)
 			            (player->client->ps.stats[STAT_TCE_FLAGS] & 0x100) ? 2 :
 			            player->client->ps.powerups[PW_REDFLAG] ? 3 : player->client->ps.powerups[PW_BLUEFLAG] ? 4 : 0;
 			Com_sprintf(entry, sizeof(entry), " %i %i %i %i %i %i %i", id, health, area, position[0], position[1], position[2], objective);
-			Q_strcat(payload, sizeof(payload), entry);
+			Q_strcat(payload[0], sizeof(payload[0]), entry);
+			weapon = player->client->ps.weapon; playerClass = player->client->ps.stats[STAT_PLAYER_CLASS];
+			if (health <= 0 || weapon <= 0 || weapon >= TCE_MAX_WEAPONS) weapon = -1;
+			if (health <= 0 || playerClass < 0 || playerClass >= NUM_PLAYER_CLASSES) playerClass = -1;
+			Q_strcat(payload[1], sizeof(payload[1]), entry);
+			Com_sprintf(entry, sizeof(entry), " %i %i", weapon, playerClass);
+			Q_strcat(payload[1], sizeof(payload[1]), entry);
 			recipients[count++] = id;
 		}
-		Com_sprintf(command, sizeof(command), "tceftinfo %i %i%s", leader, count, payload);
+		Com_sprintf(command[0], sizeof(command[0]), "tceftinfo %i %i%s", leader, count, payload[0]);
+		Com_sprintf(command[1], sizeof(command[1]), "tceftinfo %i %i%s", leader, count, payload[1]);
 		for (member = 0; member < count; ++member)
 		{
 			char userinfo[MAX_INFO_STRING];
 			trap_GetUserinfo(recipients[member], userinfo, sizeof(userinfo));
 			if (!strcmp(Info_ValueForKey(userinfo, "tceft"), "1"))
 			{
-				trap_SendServerCommand(recipients[member], command);
+				trap_SendServerCommand(recipients[member], command[!strcmp(Info_ValueForKey(userinfo, "tceftgear"), "1")]);
 			}
 		}
 	}

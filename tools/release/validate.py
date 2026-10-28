@@ -9,7 +9,8 @@ import zipfile
 
 from package import ROOT, version
 from client_packages import (check_canonical, check_target_payload, module_names,
-                             read_target, sha as client_sha, levelshot_assets, validate_levelshots)
+                             read_target, sha as client_sha, levelshot_assets, validate_levelshots,
+                             fireteam_assets, validate_fireteam_icons, SHARED_UI)
 from runtime_payload import command_spans, prepare_runtime, sha256
 from verify_omnibot_boundary import (AUTHORING_COMMANDS, RUNTIME_BINDINGS,
                                     NATIVE_PUBLIC_COMMANDS, NATIVE_AUTHORING_COMMANDS,
@@ -45,6 +46,10 @@ def source_inputs(repo, expected):
     game, _, registry, _, diagnostics = prepare_runtime(repo, 'game')
     prepare_runtime(repo, 'navstudio')
     levelshot_assets(repo)
+    fireteam_assets(repo)
+    for name in SHARED_UI:
+        if not (repo / 'src/assets/ui' / name).is_file():
+            raise ValueError('Missing shared client menu: ' + name)
     return {'version': expected, 'manual_only': True, 'runtime_inputs': len(source['files']),
             'classified_gm_registrations': sum(len(v['registrations']) for v in registry.values()),
             'public_gm_registrations': sum(len(command_spans(v.decode('latin-1')))
@@ -214,6 +219,7 @@ def archive(path):
 def validate_client_resources(pk3, manifest, editor):
     client_names = safe_names(pk3)
     validate_levelshots({name: pk3.read(name) for name in client_names if name.startswith('levelshots/')})
+    validate_fireteam_icons({name: pk3.read(name) for name in client_names if name.startswith('gfx/tce2/fireteam/')})
     if pk3.read('tce2/' + manifest['version'] + '/client.manifest').decode() != manifest['version']:
         raise ValueError('Wrong client manifest version')
     flags = json.loads(pk3.read('gfx/flags/SOURCE.json'))
@@ -227,9 +233,9 @@ def validate_client_resources(pk3, manifest, editor):
     if (bool(client_names & public_ui) == editor or
             (not editor and not public_ui <= client_names)):
         raise ValueError('Public menu overrides replaced the editor menu list')
-    shared_ui = {'ui/options_customise_hud.menu', 'ui/options_controls.menu'}
+    shared_ui = {'ui/' + name for name in SHARED_UI}
     if not shared_ui <= client_names:
-        raise ValueError('Missing shared HUD/control menu overrides')
+        raise ValueError('Missing shared HUD/control/system/quality menu overrides')
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)

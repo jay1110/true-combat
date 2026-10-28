@@ -2173,8 +2173,15 @@ void CG_parseWeaponStats_cmd(void(txt_dump)(char *))
 				txt_dump("\n\n");
 			}
 
-			txt_dump(va("\n^3Damage Given: ^7%-6d  ^3Team Damage: ^7%d\n", dmg_given, team_dmg));
-			txt_dump(va("^3Damage Recvd: ^7%d\n", dmg_rcvd));
+			if (fFull)
+			{
+				txt_dump(va("\n^3Damage Given: ^7%-6d  ^3Team Damage: ^7%d\n", dmg_given, team_dmg));
+				txt_dump(va("^3Damage Recvd: ^7%d\n", dmg_rcvd));
+			}
+			else
+			{
+				txt_dump(va("Damage: Given %d | Received %d | Team %d\n", dmg_given, dmg_rcvd, team_dmg));
+			}
 		}
 	}
 

@@ -225,6 +225,16 @@ qboolean UI_ConsoleCommand(int realTime)
 	uiInfo.uiDC.realTime  = realTime;
 
 	cmd = UI_Argv(0);
+	if (!Q_stricmp(cmd, "tce_graphics"))
+	{
+		Menus_CloseAll();
+		if (Menus_ActivateByName("options_quality", qtrue))
+		{
+			trap_Key_SetCatcher(KEYCATCH_UI);
+		}
+		else trap_Print("Graphics menu missing: install the matching TCE2 client package.\n");
+		return qtrue;
+	}
 #ifdef FEATURE_NAVSTUDIO
 	/* The optional editor belongs to a local authoring game, never a remote client. */
 	if ((!Q_stricmp(cmd, "omnibot_menu") || !Q_stricmp(cmd, "omnibot_goalname") ||

@@ -15,7 +15,7 @@ from aggregate import main as aggregate
 import client_packages as clients
 from package import package_modules, version
 from test_loose_binaries import binary_header
-from validate import archive as validate_archive
+from validate import archive as validate_archive, validate_client_resources
 
 
 VERSION = version()
@@ -111,13 +111,21 @@ class SharedClients(unittest.TestCase):
             packages[variant] = clients.zip_contents(data)
         for name in clients.SHARED_UI:
             self.assertEqual(packages['game']['ui/' + name], packages['navstudio']['ui/' + name])
+        for name in ('ui/options_system.menu', 'ui/options_quality.menu',
+                     'gfx/tce2/fireteam/assault.tga', 'gfx/tce2/fireteam/recon.tga',
+                     'gfx/tce2/fireteam/sniper.tga', 'gfx/tce2/fireteam/SOURCE.json'):
+            self.assertEqual(packages['game'][name], packages['navstudio'][name])
+            self.assertEqual(packages['game'][name], (clients.ROOT/'src/assets'/name).read_bytes())
         self.assertIn('ui/menus.txt', packages['game'])
         self.assertNotIn('ui/menus.txt', packages['navstudio'])
         self.assertFalse(any('navstudio' in name or 'tce_waypoint' in name for name in packages['game']))
 
     def test_differing_ui_resource_or_editor_asset_is_rejected(self):
         for name in ('ui/options_controls.menu', 'gfx/misc/radar_dot.tga', 'levelshots/obj_delta_cc.tga',
-                     'gfx/tce2/nav/player.tga', 'gfx/tce2/nav/SOURCE.json'):
+                     'gfx/tce2/nav/player.tga', 'gfx/tce2/nav/SOURCE.json',
+                     'ui/options_system.menu', 'ui/options_quality.menu',
+                     'gfx/tce2/fireteam/assault.tga', 'gfx/tce2/fireteam/recon.tga',
+                     'gfx/tce2/fireteam/sniper.tga', 'gfx/tce2/fireteam/SOURCE.json'):
             with self.subTest(name=name), self.assertRaisesRegex(ValueError, 'Different/stale shared'):
                 self.row('windows-x86', overrides={name: b'stale resource'})
         with self.assertRaisesRegex(ValueError, 'Wrong client inputs/assets'):
@@ -142,13 +150,56 @@ class SharedClients(unittest.TestCase):
             payload = clients.zip_contents((folder / f'tce2-{VERSION}.pk3').read_bytes())
             self.assertEqual({name: data for name, data in payload.items() if name.startswith('levelshots/')}, expected)
             self.assertEqual(clients.validate_levelshots(payload)['map'], 'obj_delta')
+            hud = clients.fireteam_assets()
+            hud.update({'ui/' + name: (clients.ROOT/'src/assets/ui'/name).read_bytes()
+                        for name in ('options_system.menu', 'options_quality.menu')})
+            self.assertEqual({name: payload[name] for name in hud}, hud)
             row = self.row('windows-x86', variant)
             data, _ = clients.canonical_client([row], ['windows-x86'], VERSION, variant)
             canonical = clients.zip_contents(data)
+            self.assertEqual({name: canonical[name] for name in hud}, hud)
             self.assertEqual({name: data for name, data in canonical.items() if name.startswith('levelshots/')}, expected)
             # No images are fabricated for unsupplied maps; their existing
             # CGame fallback remains applicable.
             self.assertNotIn('levelshots/obj_snow_cc.tga', canonical)
+
+    def test_fireteam_provenance_requires_all_three_correct_rgba_icons(self):
+        original = clients.fireteam_assets()
+        for path in original:
+            for missing in (False, True):
+                with self.subTest(path=path, missing=missing):
+                    files = dict(original)
+                    if missing:
+                        del files[path]
+                    else:
+                        files[path] = b'changed asset/provenance'
+                    with self.assertRaises(ValueError):
+                        clients.validate_fireteam_icons(files)
+        files = dict(original)
+        path = 'gfx/tce2/fireteam/assault.tga'
+        data = bytearray(files[path]); data[12] = 32; files[path] = bytes(data)
+        provenance = json.loads(files['gfx/tce2/fireteam/SOURCE.json'])
+        provenance['files'][0]['sha256'] = clients.sha(files[path])
+        files['gfx/tce2/fireteam/SOURCE.json'] = clients.json_bytes(provenance)
+        # An honestly fingerprinted but wrong-size image still cannot pass.
+        with self.assertRaisesRegex(ValueError, 'invalid Fireteam icon'):
+            clients.validate_fireteam_icons(files)
+
+    def test_release_resource_validator_requires_new_hud_assets_in_both_variants(self):
+        for variant in ('game', 'navstudio'):
+            original = clients.client_assets(VERSION, variant)
+            for missing in (None, 'ui/options_system.menu', 'ui/options_quality.menu',
+                            'gfx/tce2/fireteam/recon.tga', 'gfx/tce2/fireteam/SOURCE.json'):
+                with self.subTest(variant=variant, missing=missing):
+                    files = dict(original)
+                    if missing:
+                        del files[missing]
+                    with zipfile.ZipFile(io.BytesIO(clients.zip_bytes(files))) as pk3:
+                        if missing:
+                            with self.assertRaises(ValueError):
+                                validate_client_resources(pk3, {'version': VERSION}, variant == 'navstudio')
+                        else:
+                            validate_client_resources(pk3, {'version': VERSION}, variant == 'navstudio')
 
     def test_missing_or_corrupt_user_delta_images_and_provenance_are_rejected(self):
         original = clients.levelshot_assets()
