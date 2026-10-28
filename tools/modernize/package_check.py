@@ -29,6 +29,8 @@ LEVELSHOTS = ("obj_delta_cc.tga", "obj_delta_cc_blueprint.tga", "SOURCE.json")
 NAV_ICONS = ("player.tga", "player_self.tga", "player_dead.tga", "objective_a.tga", "objective_b.tga",
              "flag_terror.tga", "flag_specops.tga", "SOURCE.json")
 FIRETEAM_ICONS = ("assault.tga", "recon.tga", "sniper.tga", "SOURCE.json")
+WORLD_MATERIALS = ("asphalt_e1.shader", "cement_s1.shader", "brick_dirt_7.shader", "concrete_blue.shader", "wood_hout4.shader")
+WORLD_DETAILS = ("asphalt.tga", "concrete.tga", "brick.tga", "wood.tga", "SOURCE.json")
 MAX_ENTRY = 256 * 1024 * 1024
 MAX_TOTAL = 512 * 1024 * 1024
 
@@ -152,11 +154,16 @@ def current_version() -> str:
 
 def client_assets(variant: str) -> dict[str, Path]:
     """Exact source resources installed by src/cmake/package_modules.cmake."""
+    sys.path.insert(0, str(ROOT / "tools/release"))
+    from client_packages import world_detail_assets
+    world_detail_assets(ROOT)
     assets = {"gfx/misc/" + name: ROOT / "src/assets/gfx/misc" / name for name in ICONS}
     assets.update({"gfx/tce2/nav/" + name: ROOT / "src/assets/gfx/tce2/nav" / name for name in NAV_ICONS})
     assets.update({"gfx/tce2/fireteam/" + name: ROOT / "src/assets/gfx/tce2/fireteam" / name for name in FIRETEAM_ICONS})
     assets.update({"gfx/flags/" + name: ROOT / "src/assets/gfx/flags" / name for name in FLAGS})
     assets.update({"levelshots/" + name: ROOT / "src/assets/levelshots" / name for name in LEVELSHOTS})
+    assets.update({"materials/tce2/world/" + name: ROOT / "src/assets/materials/tce2/world" / name for name in WORLD_MATERIALS})
+    assets.update({"textures/tce2/details/" + name: ROOT / "src/assets/textures/tce2/details" / name for name in WORLD_DETAILS})
     menus = SHARED_UI_ASSETS + (UI_ASSETS if variant == "game" else ())
     assets.update({"ui/" + name: ROOT / "src/assets/ui" / name for name in menus})
     return assets

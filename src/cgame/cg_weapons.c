@@ -38,6 +38,7 @@ int CG_WeaponIndex(int weapnum, int *bank, int *cycle);
 static qboolean CG_WeaponHasAmmo(int i);
 char       cg_fxflags;
 extern int weapBanksMultiPlayer[MAX_WEAP_BANKS_MP][MAX_WEAPS_IN_BANK_MP]; // JPW NERVE moved to bg_misc.c so I can get a droplist
+extern vmCvar_t cg_weaponLight;
 // jpw
 
 //----(SA)	end
@@ -1542,6 +1543,80 @@ static float CG_WeaponSmokeAlpha(int elapsed, float reciprocal)
 }
 #endif
 
+/* Only the view which owns the visible flash adds this small, unshadowed
+ * native light. The portal-only rebuild does not emit a second light. */
+static void CG_AddWeaponMuzzleLight(const refEntity_t *flash, const weaponInfo_t *weapon,
+                                  const centity_t *cent, qboolean firstPerson)
+{
+	int elapsed, i;
+	float intensity;
+	trace_t trace;
+	if (!cg_weaponLight.integer || !flash->hModel || !cent->muzzleFlashTime ||
+	    cg.tcePortalScopeRendering || cgs.gamestate == GS_INTERMISSION ||
+	    (cent->currentState.eFlags & EF_DEAD) ||
+	    cent->currentState.number < 0 || cent->currentState.number >= MAX_CLIENTS)
+	{
+		return;
+	}
+	if (firstPerson ? cg.renderingThirdPerson :
+	    (!cg.renderingThirdPerson && cent->currentState.number == cg.predictedPlayerState.clientNum))
+	{
+		return;
+	}
+	elapsed = TCE_SubInt32(cg.time, cent->muzzleFlashTime);
+	if (elapsed < 0 || elapsed >= 30)
+	{
+		return;
+	}
+	for (i = 0; i < 3; ++i)
+	{
+		/* Ordered bounds also reject NaN and infinities from malformed media. */
+		if (!(flash->origin[i] >= -MAX_MAP_SIZE && flash->origin[i] <= MAX_MAP_SIZE) ||
+		    !(weapon->flashDlightColor[i] >= 0.f && weapon->flashDlightColor[i] <= 1.f))
+		{
+			return;
+		}
+	}
+	if (weapon->flashDlightColor[0] == 0.f && weapon->flashDlightColor[1] == 0.f &&
+	    weapon->flashDlightColor[2] == 0.f)
+	{
+		return;
+	}
+	/* Do not reveal a hidden remote muzzle or a view weapon clipped through
+	 * solid world/movers. This is source visibility, not shadowed lighting. */
+	CG_Trace(&trace, cg.refdef.vieworg, NULL, NULL, flash->origin,
+	         cg.predictedPlayerState.clientNum, MASK_SOLID);
+	if (trace.startsolid || trace.allsolid || !(trace.fraction >= 1.f && trace.fraction <= 1.f))
+	{
+		return;
+	}
+	intensity = 0.8f * (1.f - elapsed / 30.f);
+	/* ET lights are vertex based: a tiny radius misses even a nearby broad wall.
+	 * Keep this below the usual explosion radius, with the actual 30 ms flash. */
+	trap_R_AddLightToScene(flash->origin, 192.f, intensity, weapon->flashDlightColor[0],
+	                      weapon->flashDlightColor[1], weapon->flashDlightColor[2], 0, 0);
+}
+
+/* Keep the original flash exposure/timing; light is conditional on that exact
+ * model submission, so a suppressed weapon with no flash model stays dark. */
+static void CG_AddWeaponMuzzleFlash(refEntity_t *flash, const weaponInfo_t *weapon,
+                                  const centity_t *cent, qboolean firstPerson, int weaponNum)
+{
+	if (flash->hModel && weaponNum != 66)
+	{
+		int lifetime = firstPerson && !cg.renderingThirdPerson && weaponNum == 46 &&
+		               TCE_SubInt32(cg.time, cg.zoomTime) < 600 ? 50 : 30;
+		byte color = TCE_WeaponFlashColor(cg.tceSparkIntensity);
+		flash->shaderRGBA[0] = flash->shaderRGBA[1] = flash->shaderRGBA[2] = color;
+		flash->shaderRGBA[3] = 255;
+		if (TCE_SubInt32(cg.time, cent->muzzleFlashTime) < lifetime)
+		{
+			trap_R_AddRefEntityToScene(flash);
+			CG_AddWeaponMuzzleLight(flash, weapon, cent, firstPerson);
+		}
+	}
+}
+
 void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 {
 	refEntity_t tceBrassParent;
@@ -2599,18 +2674,7 @@ void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 
 	/* Original world exposure modulates the flash, with a longer recent
 	 * aim-transition window only for weapon46. */
-	if (flash.hModel && weaponNum != 66)
-	{
-		int lifetime = ps && !cg.renderingThirdPerson && weaponNum == 46 &&
-		               TCE_SubInt32(cg.time, cg.zoomTime) < 600 ? 50 : 30;
-		byte color = TCE_WeaponFlashColor(cg.tceSparkIntensity);
-		flash.shaderRGBA[0] = flash.shaderRGBA[1] = flash.shaderRGBA[2] = color;
-		flash.shaderRGBA[3] = 255;
-		if (TCE_SubInt32(cg.time, cent->muzzleFlashTime) < lifetime)
-		{
-			trap_R_AddRefEntityToScene(&flash);
-		}
-	}
+	CG_AddWeaponMuzzleFlash(&flash, weapon, cent, ps != NULL, weaponNum);
 
 	// Ridah, zombie fires from his head
 	//if (CG_MonsterUsingWeapon( cent, AICHAR_ZOMBIE, WP_MONSTER_ATTACK1 )) {

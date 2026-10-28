@@ -3,6 +3,7 @@ import hashlib
 import io
 import json
 from pathlib import Path, PurePosixPath
+import re
 import struct
 import zipfile
 
@@ -16,6 +17,16 @@ DELTA_IMAGES = ('obj_delta_cc.tga', 'obj_delta_cc_blueprint.tga')
 NAV_ICONS = ('player.tga', 'player_self.tga', 'player_dead.tga', 'objective_a.tga', 'objective_b.tga',
              'flag_terror.tga', 'flag_specops.tga', 'SOURCE.json')
 FIRETEAM_ICONS = ('assault.tga', 'recon.tga', 'sniper.tga', 'SOURCE.json')
+WORLD_MATERIALS = (
+    ('asphalt_e1', 'textures/coroner/asphalt_e1', 'textures/coroner/asphalt_e1.jpg', 'asphalt', (8, 8), ''),
+    ('cement_s1', 'textures/coroner/cement_s1', 'textures/coroner/cement_s1.jpg', 'concrete', (8, 4), ''),
+    ('brick_dirt_7', 'textures/twy_brickstiles/brick_dirt_7', 'textures/twy_brickstiles/brick_dirt_7.jpg', 'brick', (8, 8), ''),
+    ('concrete_blue', 'textures/bruce_trim/concrete_blue', 'textures/bruce_crete/concrete_blue.tga', 'concrete', (8, 2), ''),
+    ('wood_hout4', 'textures/liq/hout4', 'textures/liq/hout4.tga', 'wood', (4, 4), 'mat_wood'),
+)
+WORLD_DETAILS = ('asphalt.tga', 'concrete.tga', 'brick.tga', 'wood.tga', 'SOURCE.json')
+WORLD_ASSET_PATHS = tuple('materials/tce2/world/' + row[0] + '.shader' for row in WORLD_MATERIALS) + tuple(
+    'textures/tce2/details/' + name for name in WORLD_DETAILS)
 
 
 def sha(data):
@@ -112,6 +123,63 @@ def fireteam_assets(repo=ROOT):
     return files
 
 
+def validate_world_details(files):
+    """Require complete original-name materials, not auto-loaded scripts/remaps."""
+    try:
+        source = json.loads(files['textures/tce2/details/SOURCE.json'])
+    except (KeyError, ValueError, UnicodeDecodeError) as error:
+        raise ValueError('Missing/invalid world detail provenance') from error
+    if not isinstance(source, dict) or source.get('schema') != 1:
+        raise ValueError('Wrong world detail provenance')
+    textures, materials = source.get('files'), source.get('materials')
+    if (not isinstance(textures, list) or len(textures) != 4 or
+            any(not isinstance(row, dict) or not isinstance(row.get('asset'), str) for row in textures) or
+            {row.get('asset') for row in textures} != set(WORLD_DETAILS) - {'SOURCE.json'} or
+            not isinstance(materials, list) or len(materials) != len(WORLD_MATERIALS) or
+            any(not isinstance(row, dict) or not isinstance(row.get('path'), str) for row in materials) or
+            {row.get('path') for row in materials} != set(WORLD_ASSET_PATHS[:len(WORLD_MATERIALS)])):
+        raise ValueError('Wrong world detail texture/material inventory')
+    for row in textures:
+        path = 'textures/tce2/details/' + row['asset']
+        data = files.get(path)
+        if (data is None or sha(data) != row.get('sha256') or
+                row.get('width') != 128 or row.get('height') != 128 or
+                len(data) != 18 + 128 * 128 * 4 + 26 or data[:3] != b'\x00\x00\x02' or
+                struct.unpack_from('<HH', data, 12) != (128, 128) or data[16:18] != b'\x20\x28'):
+            raise ValueError('Missing/changed/invalid world detail texture: ' + path)
+    expected = {row[0] + '.shader': row for row in WORLD_MATERIALS}
+    for row in materials:
+        path = row['path']
+        _, original, diffuse, detail, scale, surface = expected[PurePosixPath(path).name]
+        data = files.get(path)
+        if (data is None or sha(data) != row.get('sha256') or len(data) != row.get('bytes') or
+                row.get('original_name') != original or row.get('diffuse') != diffuse or
+                row.get('detail') != detail or row.get('scale') != list(scale) or row.get('surfaceparm') != surface):
+            raise ValueError('Missing/changed world detail material: ' + path)
+        # Validate the whole shader block/stages even if a damaged file and its
+        # manifest are rehashed together. Preserve lightmap, diffuse and flags.
+        body = (original + ' { qer_editorimage ' + diffuse +
+                (' surfaceparm ' + surface if surface else '') +
+                ' { map $lightmap rgbGen identity } { map ' + diffuse +
+                ' blendFunc GL_DST_COLOR GL_ZERO rgbGen identity } { map textures/tce2/details/' + detail +
+                '.tga blendFunc GL_DST_COLOR GL_SRC_COLOR rgbGen identity tcMod scale ' +
+                str(scale[0]) + ' ' + str(scale[1]) + ' detail } }')
+        try:
+            actual = re.sub(r'/\*.*?\*/|//[^\n]*', '', data.decode('utf-8'), flags=re.S)
+        except UnicodeDecodeError as error:
+            raise ValueError('Invalid world detail shader encoding: ' + path) from error
+        tokens = lambda text: re.findall(r'[{}]|[^\s{}]+', text)
+        if tokens(actual) != tokens(body):
+            raise ValueError('Incomplete/changed original-name world detail shader: ' + path)
+    return source
+
+
+def world_detail_assets(repo=ROOT):
+    files = {name: (repo / 'src/assets' / name).read_bytes() for name in WORLD_ASSET_PATHS}
+    validate_world_details(files)
+    return files
+
+
 def client_assets(release_version, variant, repo=ROOT):
     if variant not in ('game', 'navstudio'):
         raise ValueError('Unknown client variant')
@@ -122,6 +190,7 @@ def client_assets(release_version, variant, repo=ROOT):
     result = {name: (repo / 'src/assets' / name).read_bytes() for name in names}
     result.update(levelshot_assets(repo))
     result.update(fireteam_assets(repo))
+    result.update(world_detail_assets(repo))
     result['tce2/' + release_version + '/client.manifest'] = release_version.encode('ascii')
     return result
 

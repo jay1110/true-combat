@@ -10,7 +10,8 @@ import zipfile
 from package import ROOT, version
 from client_packages import (check_canonical, check_target_payload, module_names,
                              read_target, sha as client_sha, levelshot_assets, validate_levelshots,
-                             fireteam_assets, validate_fireteam_icons, SHARED_UI)
+                             fireteam_assets, validate_fireteam_icons, world_detail_assets,
+                             validate_world_details, SHARED_UI)
 from runtime_payload import command_spans, prepare_runtime, sha256
 from verify_omnibot_boundary import (AUTHORING_COMMANDS, RUNTIME_BINDINGS,
                                     NATIVE_PUBLIC_COMMANDS, NATIVE_AUTHORING_COMMANDS,
@@ -47,6 +48,7 @@ def source_inputs(repo, expected):
     prepare_runtime(repo, 'navstudio')
     levelshot_assets(repo)
     fireteam_assets(repo)
+    world_detail_assets(repo)
     for name in SHARED_UI:
         if not (repo / 'src/assets/ui' / name).is_file():
             raise ValueError('Missing shared client menu: ' + name)
@@ -220,6 +222,8 @@ def validate_client_resources(pk3, manifest, editor):
     client_names = safe_names(pk3)
     validate_levelshots({name: pk3.read(name) for name in client_names if name.startswith('levelshots/')})
     validate_fireteam_icons({name: pk3.read(name) for name in client_names if name.startswith('gfx/tce2/fireteam/')})
+    validate_world_details({name: pk3.read(name) for name in client_names
+                            if name.startswith(('materials/tce2/world/', 'textures/tce2/details/'))})
     if pk3.read('tce2/' + manifest['version'] + '/client.manifest').decode() != manifest['version']:
         raise ValueError('Wrong client manifest version')
     flags = json.loads(pk3.read('gfx/flags/SOURCE.json'))
