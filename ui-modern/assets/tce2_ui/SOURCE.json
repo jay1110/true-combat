@@ -2,7 +2,7 @@
   "schema": 1,
   "origin": "Original code-created interface art and original imagegen industrial background. No game/reference artwork copied.",
   "generator": "tools/ui_modernize/generate_assets.py",
-  "generator_sha256": "a66185c2605849f18bdcd190b835a6e17a51f4a57b2efa3ed570ceecd104c200",
+  "generator_sha256": "5f3c3f4e0918daf053abd2c49356f14582008c1165c99fbc630c7d2d5ba9515c",
   "background_source": "ui-modern/source/background-industrial-v1.png",
   "background_sha256": "3ccd94c4f50145c2233ac74bce45bf5d1bae4b26d85bfeef0c1fb35f3803f5e9",
   "cursor_hotspot": {
@@ -496,6 +496,924 @@
       "channels": 32,
       "bytes": 16428,
       "sha256": "7495ee0d76099443205e802bd0ef3b357ba303acaf859c579068cdca595447ad"
+    },
+    {
+      "path": "tce2_ui/theme/panel_body.tga",
+      "shader": "tce2_ui/theme/panel_body",
+      "width": 512,
+      "height": 256,
+      "channels": 32,
+      "bytes": 524332,
+      "sha256": "1c2b321e9530df8c40bec16c0d82d099059a0192f3b09d782e44db25d1e81660"
+    },
+    {
+      "path": "tce2_ui/theme/panel_accent.tga",
+      "shader": "tce2_ui/theme/panel_accent",
+      "width": 512,
+      "height": 256,
+      "channels": 32,
+      "bytes": 524332,
+      "sha256": "409bb56a00b6fc85fbea494a242ebea8daf0c91567510c021efd58ebc94fdc39"
+    },
+    {
+      "path": "tce2_ui/theme/panel_header_body.tga",
+      "shader": "tce2_ui/theme/panel_header_body",
+      "width": 512,
+      "height": 64,
+      "channels": 32,
+      "bytes": 131116,
+      "sha256": "95f6028b2716d5574a33ba35dee208f365804f557b90ff8c1e35800752311d97"
+    },
+    {
+      "path": "tce2_ui/theme/panel_header_accent.tga",
+      "shader": "tce2_ui/theme/panel_header_accent",
+      "width": 512,
+      "height": 64,
+      "channels": 32,
+      "bytes": 131116,
+      "sha256": "08306fd56bf9ff8eede5c48c57d00239d827932ffadca16a6c8e86ab3d59a51e"
+    },
+    {
+      "path": "tce2_ui/theme/card_body.tga",
+      "shader": "tce2_ui/theme/card_body",
+      "width": 512,
+      "height": 256,
+      "channels": 32,
+      "bytes": 524332,
+      "sha256": "94e77c49f4268f383da65aea6fb2ad4954b2f706be237f771d1c19d9236109b4"
+    },
+    {
+      "path": "tce2_ui/theme/card_accent.tga",
+      "shader": "tce2_ui/theme/card_accent",
+      "width": 512,
+      "height": 256,
+      "channels": 32,
+      "bytes": 524332,
+      "sha256": "409bb56a00b6fc85fbea494a242ebea8daf0c91567510c021efd58ebc94fdc39"
+    },
+    {
+      "path": "tce2_ui/theme/button_body.tga",
+      "shader": "tce2_ui/theme/button_body",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "d1fec8cc7a32220ca9530ef9937f6bd858e33f559735f798eed0e2d452562e8d"
+    },
+    {
+      "path": "tce2_ui/theme/button_accent.tga",
+      "shader": "tce2_ui/theme/button_accent",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "37e23c8e6dfda079b7e86118de2ea541984e6743f4d2430257f087cbd858825b"
+    },
+    {
+      "path": "tce2_ui/theme/button_hover_body.tga",
+      "shader": "tce2_ui/theme/button_hover_body",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "e5f848d520cd40db5ca9ea98db3395f81027db940f209bb5781c00252c060285"
+    },
+    {
+      "path": "tce2_ui/theme/button_hover_accent.tga",
+      "shader": "tce2_ui/theme/button_hover_accent",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "1cba022204cabfdf25d026bb099ea70bcf144ae7c6a824994cfe320e53c0f059"
+    },
+    {
+      "path": "tce2_ui/theme/button_pressed_body.tga",
+      "shader": "tce2_ui/theme/button_pressed_body",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "2a7359d150a9756f42cbed67ae7f5d8490a0751c691ced2e30265ca15541ea7d"
+    },
+    {
+      "path": "tce2_ui/theme/button_pressed_accent.tga",
+      "shader": "tce2_ui/theme/button_pressed_accent",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "ab140d8ee1d5057d5ebaaf944b11df889ba03e627b5898ce187a7ae711c0d466"
+    },
+    {
+      "path": "tce2_ui/theme/button_disabled_body.tga",
+      "shader": "tce2_ui/theme/button_disabled_body",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "534ad5aab62e2ded31d42a70d3aae2232b5ef76e8a88f3b21a556672ae588c6e"
+    },
+    {
+      "path": "tce2_ui/theme/button_disabled_accent.tga",
+      "shader": "tce2_ui/theme/button_disabled_accent",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "37e23c8e6dfda079b7e86118de2ea541984e6743f4d2430257f087cbd858825b"
+    },
+    {
+      "path": "tce2_ui/theme/tab_body.tga",
+      "shader": "tce2_ui/theme/tab_body",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "9cbdebc848131ba8d070c3e873bf35b3fdebc5ee2d7e76a70ed35f85e992827a"
+    },
+    {
+      "path": "tce2_ui/theme/tab_accent.tga",
+      "shader": "tce2_ui/theme/tab_accent",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "37e23c8e6dfda079b7e86118de2ea541984e6743f4d2430257f087cbd858825b"
+    },
+    {
+      "path": "tce2_ui/theme/tab_hover_body.tga",
+      "shader": "tce2_ui/theme/tab_hover_body",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "b383c34735634e7430cd7aef131cef98c33853e86267c36590eceb6858c428a2"
+    },
+    {
+      "path": "tce2_ui/theme/tab_hover_accent.tga",
+      "shader": "tce2_ui/theme/tab_hover_accent",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "37e23c8e6dfda079b7e86118de2ea541984e6743f4d2430257f087cbd858825b"
+    },
+    {
+      "path": "tce2_ui/theme/tab_active_body.tga",
+      "shader": "tce2_ui/theme/tab_active_body",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "174635f7a2ce705760355e99a787e60ddea20578c69ba9a66566fb994d457a0a"
+    },
+    {
+      "path": "tce2_ui/theme/tab_active_accent.tga",
+      "shader": "tce2_ui/theme/tab_active_accent",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "0c260d05f60b2e1d06eff71dd0928799e4c5ed549873b46ddb37922d22f052da"
+    },
+    {
+      "path": "tce2_ui/theme/selector_body.tga",
+      "shader": "tce2_ui/theme/selector_body",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "4cbdb62a6f56f4a0f159011253e9166bdfa40213b5001e42937745b28867c23b"
+    },
+    {
+      "path": "tce2_ui/theme/selector_accent.tga",
+      "shader": "tce2_ui/theme/selector_accent",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "37e23c8e6dfda079b7e86118de2ea541984e6743f4d2430257f087cbd858825b"
+    },
+    {
+      "path": "tce2_ui/theme/selector_focus_body.tga",
+      "shader": "tce2_ui/theme/selector_focus_body",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "126eaab0344fb271e92bae5b092afee8e3c29143b4f41569a770a80c08ac21a0"
+    },
+    {
+      "path": "tce2_ui/theme/selector_focus_accent.tga",
+      "shader": "tce2_ui/theme/selector_focus_accent",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "c8dfd3e1268d00d4bbeb6ef9f56463581c7808b2bdb5c7e37bf252845fa6982c"
+    },
+    {
+      "path": "tce2_ui/theme/slider_track_body.tga",
+      "shader": "tce2_ui/theme/slider_track_body",
+      "width": 256,
+      "height": 16,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "00eeb2aa390885cb51e2c40b13c8a2750673ca3f290d7c99998397dd890e64e3"
+    },
+    {
+      "path": "tce2_ui/theme/slider_track_accent.tga",
+      "shader": "tce2_ui/theme/slider_track_accent",
+      "width": 256,
+      "height": 16,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "94d61bc59f3fd4f2c4c425fd0fec0df5daf61efb1c217252718a7d84b31b4900"
+    },
+    {
+      "path": "tce2_ui/theme/slider_thumb_body.tga",
+      "shader": "tce2_ui/theme/slider_thumb_body",
+      "width": 32,
+      "height": 48,
+      "channels": 32,
+      "bytes": 6188,
+      "sha256": "b14bdf92cd38eb722e6341b28908e0aae0e0def7292d0dc8c77fb1bb34e6b4ef"
+    },
+    {
+      "path": "tce2_ui/theme/slider_thumb_accent.tga",
+      "shader": "tce2_ui/theme/slider_thumb_accent",
+      "width": 32,
+      "height": 48,
+      "channels": 32,
+      "bytes": 6188,
+      "sha256": "f7dbcec78d9bfeaa1665f939f308922bab816c6abbb67fd597f3a7b10b3abe19"
+    },
+    {
+      "path": "tce2_ui/theme/slider_thumb_hover_body.tga",
+      "shader": "tce2_ui/theme/slider_thumb_hover_body",
+      "width": 32,
+      "height": 48,
+      "channels": 32,
+      "bytes": 6188,
+      "sha256": "794e46ac197b87a5154c72fa50f45bf807cf98ca2bc5f753148bf61a017d9be4"
+    },
+    {
+      "path": "tce2_ui/theme/slider_thumb_hover_accent.tga",
+      "shader": "tce2_ui/theme/slider_thumb_hover_accent",
+      "width": 32,
+      "height": 48,
+      "channels": 32,
+      "bytes": 6188,
+      "sha256": "9586c054e0de9323c72e2839201974c66ea67db474b2e88248ca19bb2a5f0f47"
+    },
+    {
+      "path": "tce2_ui/theme/scroll_track_body.tga",
+      "shader": "tce2_ui/theme/scroll_track_body",
+      "width": 32,
+      "height": 256,
+      "channels": 32,
+      "bytes": 32812,
+      "sha256": "9fd6e65e315fa992b10ff3ef8352ac25d7b8fdcaf9e5e00e560a8a74b097e74a"
+    },
+    {
+      "path": "tce2_ui/theme/scroll_track_accent.tga",
+      "shader": "tce2_ui/theme/scroll_track_accent",
+      "width": 32,
+      "height": 256,
+      "channels": 32,
+      "bytes": 32812,
+      "sha256": "08dc9872a86fb999a72acc485c078ef30dff5faa434bb6f52828d92925a6b612"
+    },
+    {
+      "path": "tce2_ui/theme/scroll_thumb_body.tga",
+      "shader": "tce2_ui/theme/scroll_thumb_body",
+      "width": 32,
+      "height": 64,
+      "channels": 32,
+      "bytes": 8236,
+      "sha256": "194994e61aa0450f3ddb8846bff3a9c97c7487a084af36342e364a39502f3b23"
+    },
+    {
+      "path": "tce2_ui/theme/scroll_thumb_accent.tga",
+      "shader": "tce2_ui/theme/scroll_thumb_accent",
+      "width": 32,
+      "height": 64,
+      "channels": 32,
+      "bytes": 8236,
+      "sha256": "82a6a69ea0e686c38929983e3437f5899d5381a98f4fb90cd76681bb53f215f7"
+    },
+    {
+      "path": "tce2_ui/theme/scroll_thumb_hover_body.tga",
+      "shader": "tce2_ui/theme/scroll_thumb_hover_body",
+      "width": 32,
+      "height": 64,
+      "channels": 32,
+      "bytes": 8236,
+      "sha256": "41c598d01eec3bd3fadcc5a7da60e02efb749b63db44d5f39c2159810dd2d8be"
+    },
+    {
+      "path": "tce2_ui/theme/scroll_thumb_hover_accent.tga",
+      "shader": "tce2_ui/theme/scroll_thumb_hover_accent",
+      "width": 32,
+      "height": 64,
+      "channels": 32,
+      "bytes": 8236,
+      "sha256": "6c0bed5c726b2911b395729cedfbc1706446afd35051ff5055fdd82eca3c6243"
+    },
+    {
+      "path": "tce2_ui/theme/check_off_body.tga",
+      "shader": "tce2_ui/theme/check_off_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "96736ae4283eff36e0286b77c1dff4ca3bf907c001176eea36b04a9ecd7a5ad9"
+    },
+    {
+      "path": "tce2_ui/theme/check_off_accent.tga",
+      "shader": "tce2_ui/theme/check_off_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/check_on_body.tga",
+      "shader": "tce2_ui/theme/check_on_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "09387fbddda7ed23e3eee23edcc7365e5248c8c0d0c42a110291b62dc4b09bd2"
+    },
+    {
+      "path": "tce2_ui/theme/check_on_accent.tga",
+      "shader": "tce2_ui/theme/check_on_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "ffe020ad809e7d9b01b53b03f77a3a79b72fb3aef0a2cc9ec7d603ed1e4342ef"
+    },
+    {
+      "path": "tce2_ui/theme/check_mixed_body.tga",
+      "shader": "tce2_ui/theme/check_mixed_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "ce4db79e39ed142e2d74a28e8b6bd3d209558dae69610cc362fe49ab3b759971"
+    },
+    {
+      "path": "tce2_ui/theme/check_mixed_accent.tga",
+      "shader": "tce2_ui/theme/check_mixed_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/radio_off_body.tga",
+      "shader": "tce2_ui/theme/radio_off_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "2cc00406345df9c0daeff76cb618cce45945f23aee18dbcabff773b692f38cc2"
+    },
+    {
+      "path": "tce2_ui/theme/radio_off_accent.tga",
+      "shader": "tce2_ui/theme/radio_off_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/radio_on_body.tga",
+      "shader": "tce2_ui/theme/radio_on_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "b41c5ae16005ed6d2544fa6e01a573e6a13e7a6d1599bf7b2f71e157bcf9b4f2"
+    },
+    {
+      "path": "tce2_ui/theme/radio_on_accent.tga",
+      "shader": "tce2_ui/theme/radio_on_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "0b98e35b4c40d8acad18b27b85c2cfda60586e4f020e5acd6efbfe0a47ec6217"
+    },
+    {
+      "path": "tce2_ui/theme/separator_body.tga",
+      "shader": "tce2_ui/theme/separator_body",
+      "width": 256,
+      "height": 4,
+      "channels": 32,
+      "bytes": 4140,
+      "sha256": "695b90beabf64ee079e36cf22a2a535854ca50333cda5f924bed7cd96e964086"
+    },
+    {
+      "path": "tce2_ui/theme/separator_accent.tga",
+      "shader": "tce2_ui/theme/separator_accent",
+      "width": 256,
+      "height": 4,
+      "channels": 32,
+      "bytes": 4140,
+      "sha256": "e23e4d60fbd3321b82a614752c24ce41406c232e141550960bdfaf30b3347fc7"
+    },
+    {
+      "path": "tce2_ui/theme/focus_body.tga",
+      "shader": "tce2_ui/theme/focus_body",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "37e23c8e6dfda079b7e86118de2ea541984e6743f4d2430257f087cbd858825b"
+    },
+    {
+      "path": "tce2_ui/theme/focus_accent.tga",
+      "shader": "tce2_ui/theme/focus_accent",
+      "width": 256,
+      "height": 64,
+      "channels": 32,
+      "bytes": 65580,
+      "sha256": "8b2a14a011b66e5f41d9fb5ce72dce4dfbfc8c18e67c15d757b7a7311e366dc1"
+    },
+    {
+      "path": "tce2_ui/theme/icons/play_body.tga",
+      "shader": "tce2_ui/theme/icons/play_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/play_accent.tga",
+      "shader": "tce2_ui/theme/icons/play_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "0811118f6d6489567b1bba1870d6f48c2fa03650099e232f70f2afcf0c6697f4"
+    },
+    {
+      "path": "tce2_ui/theme/icons/multiplayer_body.tga",
+      "shader": "tce2_ui/theme/icons/multiplayer_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/multiplayer_accent.tga",
+      "shader": "tce2_ui/theme/icons/multiplayer_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "38d17ec4a19cd8e8fc55bc07cb94ef12a6f2e0c545fd28185b41e1173881a74b"
+    },
+    {
+      "path": "tce2_ui/theme/icons/host_body.tga",
+      "shader": "tce2_ui/theme/icons/host_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/host_accent.tga",
+      "shader": "tce2_ui/theme/icons/host_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "2fddac626d0d8720182d25aac6c88ba09a47d05308d1dd14739d02dcfcba8be4"
+    },
+    {
+      "path": "tce2_ui/theme/icons/replays_body.tga",
+      "shader": "tce2_ui/theme/icons/replays_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/replays_accent.tga",
+      "shader": "tce2_ui/theme/icons/replays_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "857b3d8ef4956e9df468a79e1102c9019711ed8cb9faefd670a10cdf3ad3ba85"
+    },
+    {
+      "path": "tce2_ui/theme/icons/settings_body.tga",
+      "shader": "tce2_ui/theme/icons/settings_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/settings_accent.tga",
+      "shader": "tce2_ui/theme/icons/settings_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "6ea5d9e3e1536d7bc9cac512db0303b3ab5e4aa65006412229091bd75a2988bb"
+    },
+    {
+      "path": "tce2_ui/theme/icons/profile_body.tga",
+      "shader": "tce2_ui/theme/icons/profile_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/profile_accent.tga",
+      "shader": "tce2_ui/theme/icons/profile_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "7b95598e0b7fc50da49756ac96a57e725b6855fe0cd557187a7ea3f17d365174"
+    },
+    {
+      "path": "tce2_ui/theme/icons/credits_body.tga",
+      "shader": "tce2_ui/theme/icons/credits_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/credits_accent.tga",
+      "shader": "tce2_ui/theme/icons/credits_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "7c9394a51b2ea84512c7537b8d70bb6cd2c8b4b823f78dcf6c397e19cb7b7afe"
+    },
+    {
+      "path": "tce2_ui/theme/icons/exit_body.tga",
+      "shader": "tce2_ui/theme/icons/exit_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/exit_accent.tga",
+      "shader": "tce2_ui/theme/icons/exit_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "fd11fea1f059d236a8cf650157d9d3d1b26ae895bef708ed5770b2d55ef830a9"
+    },
+    {
+      "path": "tce2_ui/theme/icons/graphics_body.tga",
+      "shader": "tce2_ui/theme/icons/graphics_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/graphics_accent.tga",
+      "shader": "tce2_ui/theme/icons/graphics_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "6edbc5fca1dd4b4c90d293d3452da0617a21a312956f8cdef72627bd3d5ed216"
+    },
+    {
+      "path": "tce2_ui/theme/icons/audio_body.tga",
+      "shader": "tce2_ui/theme/icons/audio_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/audio_accent.tga",
+      "shader": "tce2_ui/theme/icons/audio_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f4a945518128d27f18ef226e48cbf877f161119f5a184b0ae91e5c5620e2a143"
+    },
+    {
+      "path": "tce2_ui/theme/icons/controls_body.tga",
+      "shader": "tce2_ui/theme/icons/controls_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/controls_accent.tga",
+      "shader": "tce2_ui/theme/icons/controls_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "c9983330093aa543c06a7377a31af6e8ecf1cda2c362a815c96425900176f541"
+    },
+    {
+      "path": "tce2_ui/theme/icons/network_body.tga",
+      "shader": "tce2_ui/theme/icons/network_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/network_accent.tga",
+      "shader": "tce2_ui/theme/icons/network_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "15867450d7fa1b9c79aa5e6afb50c3f07e8d350a565256a6f5f0d4f429b49d99"
+    },
+    {
+      "path": "tce2_ui/theme/icons/chevron_up_body.tga",
+      "shader": "tce2_ui/theme/icons/chevron_up_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/chevron_up_accent.tga",
+      "shader": "tce2_ui/theme/icons/chevron_up_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "020beb2a32dcde185a7e7bf1515f71394f487f0dd6e241ab1d30536f6a3e7a97"
+    },
+    {
+      "path": "tce2_ui/theme/icons/chevron_down_body.tga",
+      "shader": "tce2_ui/theme/icons/chevron_down_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/chevron_down_accent.tga",
+      "shader": "tce2_ui/theme/icons/chevron_down_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "0700fa8c07cf40daff7dab40826eee8d275f83ba13fd62ff858dcd603e176433"
+    },
+    {
+      "path": "tce2_ui/theme/icons/chevron_left_body.tga",
+      "shader": "tce2_ui/theme/icons/chevron_left_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/chevron_left_accent.tga",
+      "shader": "tce2_ui/theme/icons/chevron_left_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "3ab845b1ee17cac340f741a90f25bb28099de1a23912cdcabe3b80000ef2c800"
+    },
+    {
+      "path": "tce2_ui/theme/icons/chevron_right_body.tga",
+      "shader": "tce2_ui/theme/icons/chevron_right_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/chevron_right_accent.tga",
+      "shader": "tce2_ui/theme/icons/chevron_right_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "2d08fe74affe28bf7131c00ad14157841784ad10bead87d15c326e75b05d0702"
+    },
+    {
+      "path": "tce2_ui/theme/icons/close_body.tga",
+      "shader": "tce2_ui/theme/icons/close_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/close_accent.tga",
+      "shader": "tce2_ui/theme/icons/close_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "14e3e10f1a10388a108cb202a0490a26915366646954a509b5e0f9ff7db202c9"
+    },
+    {
+      "path": "tce2_ui/theme/icons/check_body.tga",
+      "shader": "tce2_ui/theme/icons/check_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/check_accent.tga",
+      "shader": "tce2_ui/theme/icons/check_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "5206941240b5326495471509c63073256d338337b9dcdebbe304b7c2a2256f6d"
+    },
+    {
+      "path": "tce2_ui/theme/icons/search_body.tga",
+      "shader": "tce2_ui/theme/icons/search_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/search_accent.tga",
+      "shader": "tce2_ui/theme/icons/search_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "bee578e2bdd76748e41f4d6288756b9d7f0ba12c4362c6b20cf42f9884391e6d"
+    },
+    {
+      "path": "tce2_ui/theme/icons/refresh_body.tga",
+      "shader": "tce2_ui/theme/icons/refresh_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/refresh_accent.tga",
+      "shader": "tce2_ui/theme/icons/refresh_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "1bd7852cf25394d4c1b1b4bab9eeaee278092f2209bff688702223a8cab5b667"
+    },
+    {
+      "path": "tce2_ui/theme/icons/folder_body.tga",
+      "shader": "tce2_ui/theme/icons/folder_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/folder_accent.tga",
+      "shader": "tce2_ui/theme/icons/folder_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "146498033b19892817a32d6a98690bdc56cd390cba5525b0c3d19782a925e170"
+    },
+    {
+      "path": "tce2_ui/theme/icons/download_body.tga",
+      "shader": "tce2_ui/theme/icons/download_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/download_accent.tga",
+      "shader": "tce2_ui/theme/icons/download_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "6ea66195ac4c512689559f066387c7027844c4bca6fcd9360f0b54a49fcd7a3d"
+    },
+    {
+      "path": "tce2_ui/theme/icons/lock_body.tga",
+      "shader": "tce2_ui/theme/icons/lock_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/lock_accent.tga",
+      "shader": "tce2_ui/theme/icons/lock_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "0c5344726c327b7eb76d88e0577eef85502ebfd91a40940fa271a1a13b47bfeb"
+    },
+    {
+      "path": "tce2_ui/theme/icons/warning_body.tga",
+      "shader": "tce2_ui/theme/icons/warning_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/warning_accent.tga",
+      "shader": "tce2_ui/theme/icons/warning_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "e1a7d09f0275772b164e0807184bd9fcf38a5d019c80ebb74a25890d68bcbea2"
+    },
+    {
+      "path": "tce2_ui/theme/icons/info_body.tga",
+      "shader": "tce2_ui/theme/icons/info_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/info_accent.tga",
+      "shader": "tce2_ui/theme/icons/info_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "7c9394a51b2ea84512c7537b8d70bb6cd2c8b4b823f78dcf6c397e19cb7b7afe"
+    },
+    {
+      "path": "tce2_ui/theme/icons/server_body.tga",
+      "shader": "tce2_ui/theme/icons/server_body",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+    },
+    {
+      "path": "tce2_ui/theme/icons/server_accent.tga",
+      "shader": "tce2_ui/theme/icons/server_accent",
+      "width": 64,
+      "height": 64,
+      "channels": 32,
+      "bytes": 16428,
+      "sha256": "2fddac626d0d8720182d25aac6c88ba09a47d05308d1dd14739d02dcfcba8be4"
     }
   ],
   "native_aliases": {
@@ -510,5 +1428,10 @@
     "ui/assets/check.tga": "tce2_ui/check_on.tga",
     "ui/assets/check_not.tga": "tce2_ui/check_mixed.tga",
     "ui/assets/check_no.tga": "tce2_ui/check_off.tga"
+  },
+  "theme_layers": {
+    "generator": "tools/ui_modernize/theme_assets.py",
+    "generator_sha256": "633e35131876a9f06bc6785509577cbfee98f6c6f0233d7bf9947958b7fcb530",
+    "purpose": "Neutral body/accent layers for live user palettes. Original default artwork is unchanged."
   }
 }

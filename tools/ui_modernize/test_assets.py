@@ -6,6 +6,7 @@ import re
 import struct
 import unittest
 import generate_assets as g
+import theme_assets
 
 
 def u16(data,at):return struct.unpack_from(">H",data,at)[0]
@@ -39,7 +40,10 @@ class NativeUIAssetTests(unittest.TestCase):
     def test_frozen_art_and_native_tga(self):
         self.assertEqual(self.meta["generator_sha256"],hashlib.sha256(Path(g.__file__).read_bytes()).hexdigest())
         self.assertEqual(self.meta["background_sha256"],hashlib.sha256(g.SOURCE.read_bytes()).hexdigest())
-        self.assertEqual(len(self.meta["files"]),53)
+        self.assertEqual(len(self.meta["files"]),155)
+        original=[row for row in self.meta['files'] if not row['path'].startswith('tce2_ui/theme/')]
+        self.assertEqual(len(original),53)
+        self.assertEqual(self.meta['theme_layers']['generator_sha256'],hashlib.sha256(Path(theme_assets.__file__).read_bytes()).hexdigest())
         for row in self.meta["files"]:
             with self.subTest(asset=row["path"]):
                 path=g.DEST/row["path"];data=path.read_bytes()
@@ -53,12 +57,35 @@ class NativeUIAssetTests(unittest.TestCase):
     def test_unique_native_vertex_alpha_shaders(self):
         shader=(g.DEST/"scripts/tce2_ui.shader").read_text()
         names=re.findall(r"(?m)^tce2_ui/[^\s{}]+$",shader)
-        self.assertEqual(len(names),53);self.assertEqual(len(set(names)),53)
-        self.assertEqual(shader.count("blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA"),53)
-        self.assertEqual(shader.count("rgbGen vertex"),53)
-        self.assertEqual(shader.count("alphaGen vertex"),53)
+        self.assertEqual(len(names),155);self.assertEqual(len(set(names)),155)
+        self.assertEqual(shader.count("blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA"),155)
+        self.assertEqual(shader.count("rgbGen vertex"),155)
+        self.assertEqual(shader.count("alphaGen vertex"),155)
         self.assertNotRegex(shader,r"(?im)^\s*(normalMap|specularMap|bumpMap|reflectionMap)\b")
-        self.assertEqual(shader.count("nomipmaps"),53)
+        self.assertEqual(shader.count("nomipmaps"),155)
+
+    def test_palette_layers_are_neutral_and_preserve_every_original_alpha_pixel(self):
+        rows={row['path']:row for row in self.meta['files']}
+        sources=[path for path in rows if not path.startswith('tce2_ui/theme/') and path not in ('tce2_ui/background.tga','tce2_ui/cursor.tga')]
+        self.assertEqual(len(sources),51)
+        for path in sources:
+            with self.subTest(path=path):
+                original=(g.DEST/path).read_bytes();key=path[len('tce2_ui/'):-4]
+                width,height=struct.unpack_from('<HH',original,12);end=18+width*height*4
+                layers=[(g.DEST/('tce2_ui/theme/'+key+'_'+kind+'.tga')).read_bytes() for kind in ('body','accent')]
+                for layer in layers:
+                    self.assertEqual(layer[:18],original[:18])
+                    self.assertEqual(layer[18:end:4],layer[19:end:4])
+                    self.assertEqual(layer[19:end:4],layer[20:end:4])
+                body,accent=layers
+                for before,a,b in zip(original[21:end:4],body[21:end:4],accent[21:end:4]):
+                    self.assertFalse(a and b,'Masks must not double-blend one source pixel')
+                    self.assertEqual(a+b,before,'Opacity mask must preserve source coverage')
+                if key.startswith('icons/'):
+                    self.assertEqual(set(body[21:end:4]),{0})
+                    self.assertEqual(accent[21:end:4],original[21:end:4])
+        for forbidden in ('background','cursor'):
+            self.assertNotIn('tce2_ui/theme/'+forbidden+'_body.tga',rows)
 
     def test_transparent_controls_and_distinct_states(self):
         for key in ("check_off","check_on","radio_off","radio_on","focus"):

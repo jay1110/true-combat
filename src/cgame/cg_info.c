@@ -2,6 +2,7 @@
 
 #include "cg_local.h"
 #include "../game/tce_numeric.h"
+#include "../ui/tce_modern_ui.h"
 
 /*
 ===================
@@ -754,6 +755,26 @@ qboolean CG_ViewingDraw()
 #define GS_Y    10
 #define GS_W    308
 
+/* Optional menu paint only; keep native statistics, fonts and column metrics. */
+static void TCE_InfoFill(float x,float y,float w,float h,const float *color)
+{
+	if (TCE_ModernUIEnabled()) TCE_ModernFill(x,y,w,h,color);
+	else CG_FillRect(x,y,w,h,color);
+}
+static void TCE_InfoBorder(float x,float y,float w,float h,float size,const float *color)
+{
+	vec4_t ink;
+	TCE_ModernThemeColor(color,ink,2);
+	CG_DrawRect(x,y,w,h,size,ink);
+}
+static void TCE_InfoText(float x,float y,float sx,float sy,vec4_t color,const char *text,
+                         float adjust,int limit,int style,fontInfo_t *font)
+{
+	vec4_t ink;
+	TCE_ModernThemeColor(color,ink,0);
+	CG_Text_Paint_Ext(x,y,sx,sy,ink,text,adjust,limit,style,font);
+}
+
 void CG_GameStatsDraw()
 {
 	if (cgs.gamestats.show == SHOW_OFF)
@@ -853,18 +874,18 @@ void CG_GameStatsDraw()
 			return;
 		}
 
-		CG_DrawRect(GS_X, y, GS_W, h, 1, borderColor);
-		CG_FillRect(GS_X, y, GS_W, h, bgColor);
+		TCE_InfoBorder(GS_X, y, GS_W, h, 1, borderColor);
+		TCE_InfoFill(GS_X, y, GS_W, h, bgColor);
 
 
 
 		// Header
-		CG_FillRect(GS_X, y, GS_W, tSpacing + 4, bgColorTitle);
-		CG_DrawRect(GS_X, y, GS_W, tSpacing + 4, 1, borderColorTitle);
+		TCE_InfoFill(GS_X, y, GS_W, tSpacing + 4, bgColorTitle);
+		TCE_InfoBorder(GS_X, y, GS_W, tSpacing + 4, 1, borderColorTitle);
 
 		y += 1;
 		y += tSpacing;
-		CG_Text_Paint_Ext(x, y, hScale, hScaleY, hdrColor, "PLAYER STATS", 0.0f, 0, hStyle, hFont);
+		TCE_InfoText(x, y, hScale, hScaleY, hdrColor, "PLAYER STATS", 0.0f, 0, hStyle, hFont);
 		y += 3;
 
 		y += 2;
@@ -873,21 +894,21 @@ void CG_GameStatsDraw()
 
 		// Weapon stats
 		y += 2;
-		CG_FillRect(GS_X, y, GS_W, tSpacing + 3, bgColorTitle);
-		CG_DrawRect(GS_X, y, GS_W, tSpacing + 3, 1, borderColorTitle);
+		TCE_InfoFill(GS_X, y, GS_W, tSpacing + 3, bgColorTitle);
+		TCE_InfoBorder(GS_X, y, GS_W, tSpacing + 3, 1, borderColorTitle);
 
 		y += 1 + tSpacing;
-		CG_Text_Paint_Ext(x, y, hScale2, hScaleY2, hdrColor, "Weapon", 0.0f, 0, hStyle2, hFont2);
+		TCE_InfoText(x, y, hScale2, hScaleY2, hdrColor, "Weapon", 0.0f, 0, hStyle2, hFont2);
 		x += 66;
-		CG_Text_Paint_Ext(x, y, hScale2, hScaleY2, hdrColor, "Accuracy", 0.0f, 0, hStyle2, hFont2);
+		TCE_InfoText(x, y, hScale2, hScaleY2, hdrColor, "Accuracy", 0.0f, 0, hStyle2, hFont2);
 		x += 53;
-		CG_Text_Paint_Ext(x, y, hScale2, hScaleY2, hdrColor, "Hits / Shots", 0.0f, 0, hStyle2, hFont2);
+		TCE_InfoText(x, y, hScale2, hScaleY2, hdrColor, "Hits / Shots", 0.0f, 0, hStyle2, hFont2);
 		x += 62;
-		CG_Text_Paint_Ext(x, y, hScale2, hScaleY2, hdrColor, "Kills", 0.0f, 0, hStyle2, hFont2);
+		TCE_InfoText(x, y, hScale2, hScaleY2, hdrColor, "Kills", 0.0f, 0, hStyle2, hFont2);
 		x += 29;
-		CG_Text_Paint_Ext(x, y, hScale2, hScaleY2, hdrColor, "Deaths", 0.0f, 0, hStyle2, hFont2);
+		TCE_InfoText(x, y, hScale2, hScaleY2, hdrColor, "Deaths", 0.0f, 0, hStyle2, hFont2);
 		x += 40;
-		CG_Text_Paint_Ext(x, y, hScale2, hScaleY2, hdrColor, "Headshots", 0.0f, 0, hStyle2, hFont2);
+		TCE_InfoText(x, y, hScale2, hScaleY2, hdrColor, "Headshots", 0.0f, 0, hStyle2, hFont2);
 
 		x  = GS_X + 4;
 		y += 2;
@@ -896,14 +917,14 @@ void CG_GameStatsDraw()
 		if (gs->cWeapons == 0)
 		{
 			y += tSpacing;
-			CG_Text_Paint_Ext(x, y, tScale, tScale, tColor, "No weapon info available.", 0.0f, 0, tStyle, tFont);
+			TCE_InfoText(x, y, tScale, tScale, tColor, "No weapon info available.", 0.0f, 0, tStyle, tFont);
 		}
 		else
 		{
 			for (i = 0; i < gs->cWeapons; i++)
 			{
 				y += tSpacing;
-				CG_Text_Paint_Ext(x, y, tScale, tScale, tColor, gs->strWS[i], 0.0f, 0, tStyle, tFont);
+				TCE_InfoText(x, y, tScale, tScale, tColor, gs->strWS[i], 0.0f, 0, tStyle, tFont);
 			}
 
 			if (gs->fHasStats)
@@ -912,7 +933,7 @@ void CG_GameStatsDraw()
 				for (i = 0; i < 2; i++)
 				{
 					y += tSpacing;
-					CG_Text_Paint_Ext(x, y, tScale, tScale, tColor, gs->strExtra[i], 0.0f, 0, tStyle, tFont);
+					TCE_InfoText(x, y, tScale, tScale, tColor, gs->strExtra[i], 0.0f, 0, tStyle, tFont);
 				}
 			}
 		}
@@ -929,38 +950,38 @@ void CG_GameStatsDraw()
 		// Rank/XP info
 		y += tSpacing;
 		y += 2;
-		CG_FillRect(GS_X, y, GS_W, tSpacing + 3, bgColorTitle);
-		CG_DrawRect(GS_X, y, GS_W, tSpacing + 3, 1, borderColorTitle);
+		TCE_InfoFill(GS_X, y, GS_W, tSpacing + 3, bgColorTitle);
+		TCE_InfoBorder(GS_X, y, GS_W, tSpacing + 3, 1, borderColorTitle);
 
 		y += 1 + tSpacing;
-		CG_Text_Paint_Ext(x, y, hScale2, hScaleY2, hdrColor, "Rank", 0.0f, 0, hStyle2, hFont2);
+		TCE_InfoText(x, y, hScale2, hScaleY2, hdrColor, "Rank", 0.0f, 0, hStyle2, hFont2);
 		x += 82;
-		CG_Text_Paint_Ext(x, y, hScale2, hScaleY2, hdrColor, "XP", 0.0f, 0, hStyle2, hFont2);
+		TCE_InfoText(x, y, hScale2, hScaleY2, hdrColor, "XP", 0.0f, 0, hStyle2, hFont2);
 
 		x = GS_X + 4;
 
 		y += 1;
 		y += tSpacing;
-		CG_Text_Paint_Ext(x, y, tScale, tScale, tColor, gs->strRank, 0.0f, 0, tStyle, tFont);
+		TCE_InfoText(x, y, tScale, tScale, tColor, gs->strRank, 0.0f, 0, tStyle, tFont);
 
 
 
 		// Skill info
 		y += tSpacing;
 		y += 2;
-		CG_FillRect(GS_X, y, GS_W, tSpacing + 3, bgColorTitle);
-		CG_DrawRect(GS_X, y, GS_W, tSpacing + 3, 1, borderColorTitle);
+		TCE_InfoFill(GS_X, y, GS_W, tSpacing + 3, bgColorTitle);
+		TCE_InfoBorder(GS_X, y, GS_W, tSpacing + 3, 1, borderColorTitle);
 
 		y += 1 + tSpacing;
-		CG_Text_Paint_Ext(x, y, hScale2, hScaleY2, hdrColor, "Skills", 0.0f, 0, hStyle2, hFont2);
+		TCE_InfoText(x, y, hScale2, hScaleY2, hdrColor, "Skills", 0.0f, 0, hStyle2, hFont2);
 		x += 84;
-		CG_Text_Paint_Ext(x, y, hScale2, hScaleY2, hdrColor, "Level", 0.0f, 0, hStyle2, hFont2);
+		TCE_InfoText(x, y, hScale2, hScaleY2, hdrColor, "Level", 0.0f, 0, hStyle2, hFont2);
 		x += 40;
-		CG_Text_Paint_Ext(x, y, hScale2, hScaleY2, hdrColor, "XP / Next Level", 0.0f, 0, hStyle2, hFont2);
+		TCE_InfoText(x, y, hScale2, hScaleY2, hdrColor, "XP / Next Level", 0.0f, 0, hStyle2, hFont2);
 		if (cgs.gametype == GT_WOLF_CAMPAIGN)
 		{
 			x += 86;
-			CG_Text_Paint_Ext(x, y, hScale2, hScaleY2, hdrColor, "Medals", 0.0f, 0, hStyle2, hFont2);
+			TCE_InfoText(x, y, hScale2, hScaleY2, hdrColor, "Medals", 0.0f, 0, hStyle2, hFont2);
 		}
 
 		x = GS_X + 4;
@@ -969,14 +990,14 @@ void CG_GameStatsDraw()
 		if (gs->cSkills == 0)
 		{
 			y += tSpacing;
-			CG_Text_Paint_Ext(x, y, tScale, tScale, tColor, "No skills acquired!", 0.0f, 0, tStyle, tFont);
+			TCE_InfoText(x, y, tScale, tScale, tColor, "No skills acquired!", 0.0f, 0, tStyle, tFont);
 		}
 		else
 		{
 			for (i = 0; i < gs->cSkills; i++)
 			{
 				y += tSpacing;
-				CG_Text_Paint_Ext(x, y, tScale, tScale, tColor, gs->strSkillz[i], 0.0f, 0, tStyle, tFont);
+				TCE_InfoText(x, y, tScale, tScale, tColor, gs->strSkillz[i], 0.0f, 0, tStyle, tFont);
 			}
 
 		}
@@ -1080,38 +1101,38 @@ void CG_TopShotsDraw()
 			y += TS_Y - h;
 		}
 
-		CG_DrawRect(x, y, TS_W, h, 1, borderColor);
-		CG_FillRect(x, y, TS_W, h, bgColor);
+		TCE_InfoBorder(x, y, TS_W, h, 1, borderColor);
+		TCE_InfoFill(x, y, TS_W, h, bgColor);
 
 
 
 		// Header
-		CG_FillRect(x, y, TS_W, tSpacing + 4, bgColorTitle);
-		CG_DrawRect(x, y, TS_W, tSpacing + 4, 1, borderColorTitle);
+		TCE_InfoFill(x, y, TS_W, tSpacing + 4, bgColorTitle);
+		TCE_InfoBorder(x, y, TS_W, tSpacing + 4, 1, borderColorTitle);
 
 		y += 1;
 		y += tSpacing;
-		CG_Text_Paint_Ext(x + 4, y, hScale, hScaleY, hdrColor, "\"TOPSHOT\" ACCURACIES", 0.0f, 0, hStyle, hFont);
+		TCE_InfoText(x + 4, y, hScale, hScaleY, hdrColor, "\"TOPSHOT\" ACCURACIES", 0.0f, 0, hStyle, hFont);
 		y += 4;
 
 
 
 		// Weapon stats
 		y += 2;
-		CG_FillRect(x, y, TS_W, tSpacing + 3, bgColorTitle);
-		CG_DrawRect(x, y, TS_W, tSpacing + 3, 1, borderColorTitle);
+		TCE_InfoFill(x, y, TS_W, tSpacing + 3, bgColorTitle);
+		TCE_InfoBorder(x, y, TS_W, tSpacing + 3, 1, borderColorTitle);
 
 		x += 4;
 		y += 1 + tSpacing;
-		CG_Text_Paint_Ext(x, y, hScale2, hScaleY2, hdrColor, "Weapon", 0.0f, 0, hStyle2, hFont2);
+		TCE_InfoText(x, y, hScale2, hScaleY2, hdrColor, "Weapon", 0.0f, 0, hStyle2, hFont2);
 		x += 60;
-		CG_Text_Paint_Ext(x, y, hScale2, hScaleY2, hdrColor, "Accuracy", 0.0f, 0, hStyle2, hFont2);
+		TCE_InfoText(x, y, hScale2, hScaleY2, hdrColor, "Accuracy", 0.0f, 0, hStyle2, hFont2);
 		x += 53;
-		CG_Text_Paint_Ext(x, y, hScale2, hScaleY2, hdrColor, "Hits / Shots", 0.0f, 0, hStyle2, hFont2);
+		TCE_InfoText(x, y, hScale2, hScaleY2, hdrColor, "Hits / Shots", 0.0f, 0, hStyle2, hFont2);
 		x += 62;
-		CG_Text_Paint_Ext(x, y, hScale2, hScaleY2, hdrColor, "Kills", 0.0f, 0, hStyle2, hFont2);
+		TCE_InfoText(x, y, hScale2, hScaleY2, hdrColor, "Kills", 0.0f, 0, hStyle2, hFont2);
 		x += 32;
-		CG_Text_Paint_Ext(x, y, hScale2, hScaleY2, hdrColor, "Player", 0.0f, 0, hStyle2, hFont2);
+		TCE_InfoText(x, y, hScale2, hScaleY2, hdrColor, "Player", 0.0f, 0, hStyle2, hFont2);
 
 		x  = 640 + TS_X - TS_W + 4;
 		y += 1;
@@ -1119,14 +1140,14 @@ void CG_TopShotsDraw()
 		if (ts->cWeapons == 0)
 		{
 			y += tSpacing;
-			CG_Text_Paint_Ext(x, y, tScale, tScale, tColor, "No qualifying weapon info available.", 0.0f, 0, tStyle, tFont);
+			TCE_InfoText(x, y, tScale, tScale, tColor, "No qualifying weapon info available.", 0.0f, 0, tStyle, tFont);
 		}
 		else
 		{
 			for (i = 0; i < ts->cWeapons; i++)
 			{
 				y += tSpacing;
-				CG_Text_Paint_Ext(x, y, tScale, tScale, tColor, ts->strWS[i], 0.0f, 0, tStyle, tFont);
+				TCE_InfoText(x, y, tScale, tScale, tColor, ts->strWS[i], 0.0f, 0, tStyle, tFont);
 			}
 		}
 	}
@@ -1250,19 +1271,19 @@ void CG_DemoHelpDraw()
 			y += DH_Y - h;
 		}
 
-		CG_DrawRect(x, y, w, h, 1, borderColor);
-		CG_FillRect(x, y, w, h, bgColor);
+		TCE_InfoBorder(x, y, w, h, 1, borderColor);
+		TCE_InfoFill(x, y, w, h, bgColor);
 
 
 
 		// Header
-		CG_FillRect(x, y, w, tSpacing + 4, bgColorTitle);
-		CG_DrawRect(x, y, w, tSpacing + 4, 1, borderColorTitle);
+		TCE_InfoFill(x, y, w, tSpacing + 4, bgColorTitle);
+		TCE_InfoBorder(x, y, w, tSpacing + 4, 1, borderColorTitle);
 
 		x += 4;
 		y += 1;
 		y += tSpacing;
-		CG_Text_Paint_Ext(x, y, hScale, hScaleY, hdrColor2, "DEMO CONTROLS", 0.0f, 0, hStyle, hFont);
+		TCE_InfoText(x, y, hScale, hScaleY, hdrColor2, "DEMO CONTROLS", 0.0f, 0, hStyle, hFont);
 		y += 3;
 
 
@@ -1273,7 +1294,7 @@ void CG_DemoHelpDraw()
 			y += tSpacing;
 			if (help[i] != NULL)
 			{
-				CG_Text_Paint_Ext(x, y, tScale, tScale, tColor, (char *)help[i], 0.0f, 0, tStyle, tFont);
+				TCE_InfoText(x, y, tScale, tScale, tColor, (char *)help[i], 0.0f, 0, tStyle, tFont);
 			}
 		}
 
@@ -1284,13 +1305,13 @@ void CG_DemoHelpDraw()
 				y += tSpacing;
 				if (mvhelp[i] != NULL)
 				{
-					CG_Text_Paint_Ext(x, y, tScale, tScale, tColor, (char *)mvhelp[i], 0.0f, 0, tStyle, tFont);
+					TCE_InfoText(x, y, tScale, tScale, tColor, (char *)mvhelp[i], 0.0f, 0, tStyle, tFont);
 				}
 			}
 		}
 
 		y += tSpacing * 2;
-		CG_Text_Paint_Ext(x, y, tScale, tScale, tColor, "^nBACKSPACE ^mhelp on/off", 0.0f, 0, tStyle, tFont);
+		TCE_InfoText(x, y, tScale, tScale, tColor, "^nBACKSPACE ^mhelp on/off", 0.0f, 0, tStyle, tFont);
 	}
 }
 

@@ -18,7 +18,7 @@ displayContextDef_t *DC = &cgDC;
 qboolean tce_uiCoordinates;
 panel_button_t *bg_focusButton;
 team_t teamOrder[3] = { TEAM_ALLIES, TEAM_AXIS, TEAM_SPECTATOR };
-static int checks, failures, modern, requests, count = 4, eventType, eventCount;
+static int checks, failures, modern, menuDepth, requests, count = 4, eventType, eventCount;
 static int disabled[64];
 static char commands[8][256], savedName[256], editName[256];
 static int commandCount;
@@ -62,6 +62,13 @@ char *QDECL va(const char *format, ...)
 	return text;
 }
 qboolean TCE_ModernUIEnabled(void) { return modern; }
+/* Palette behavior is source-bound in modern_theme_regression; this fixture
+ * isolates deployment layout/state/input and retains its controlled colors. */
+void TCE_ModernThemeColor(const float *source, float *out, int surface)
+{ (void)surface;memcpy(out,source,sizeof(vec4_t)); }
+/* Actual transform nesting/projection is checked by viewport_regression. */
+void CG_MenuViewportBegin(void) { ++menuDepth; }
+void CG_MenuViewportEnd(void) { expect(menuDepth>0,"Native menu scope is matched");--menuDepth; }
 void trap_SendClientCommand(const char *text)
 {
 	if (commandCount < 8) Com_sprintf(commands[commandCount++], 256, "%s", text);
@@ -451,6 +458,7 @@ int main(void)
 	for (i = 0; i < n; ++i)
 		expect(!memcmp(&limboPanelButtons[i]->rect, &baseline[i].rect, sizeof(rectDef_t)),
 		       "marker-disabled reinitialization restores every original rectangle");
+	expect(menuDepth == 0, "all native input paths leave the menu viewport scope");
 	printf("%d deployment checks, %d failures\n", checks, failures);
 	return failures ? 1 : 0;
 }

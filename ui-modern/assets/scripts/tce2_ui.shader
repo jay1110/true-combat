@@ -688,3 +688,1329 @@ tce2_ui/icons/server
 		alphaGen vertex
 	}
 }
+
+tce2_ui/theme/panel_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/panel_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/panel_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/panel_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/panel_header_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/panel_header_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/panel_header_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/panel_header_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/card_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/card_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/card_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/card_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/button_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/button_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/button_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/button_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/button_hover_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/button_hover_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/button_hover_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/button_hover_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/button_pressed_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/button_pressed_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/button_pressed_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/button_pressed_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/button_disabled_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/button_disabled_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/button_disabled_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/button_disabled_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/tab_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/tab_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/tab_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/tab_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/tab_hover_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/tab_hover_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/tab_hover_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/tab_hover_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/tab_active_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/tab_active_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/tab_active_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/tab_active_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/selector_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/selector_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/selector_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/selector_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/selector_focus_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/selector_focus_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/selector_focus_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/selector_focus_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/slider_track_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/slider_track_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/slider_track_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/slider_track_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/slider_thumb_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/slider_thumb_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/slider_thumb_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/slider_thumb_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/slider_thumb_hover_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/slider_thumb_hover_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/slider_thumb_hover_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/slider_thumb_hover_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/scroll_track_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/scroll_track_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/scroll_track_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/scroll_track_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/scroll_thumb_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/scroll_thumb_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/scroll_thumb_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/scroll_thumb_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/scroll_thumb_hover_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/scroll_thumb_hover_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/scroll_thumb_hover_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/scroll_thumb_hover_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/check_off_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/check_off_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/check_off_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/check_off_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/check_on_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/check_on_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/check_on_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/check_on_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/check_mixed_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/check_mixed_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/check_mixed_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/check_mixed_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/radio_off_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/radio_off_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/radio_off_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/radio_off_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/radio_on_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/radio_on_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/radio_on_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/radio_on_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/separator_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/separator_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/separator_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/separator_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/focus_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/focus_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/focus_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/focus_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/play_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/play_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/play_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/play_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/multiplayer_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/multiplayer_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/multiplayer_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/multiplayer_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/host_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/host_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/host_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/host_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/replays_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/replays_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/replays_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/replays_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/settings_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/settings_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/settings_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/settings_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/profile_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/profile_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/profile_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/profile_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/credits_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/credits_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/credits_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/credits_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/exit_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/exit_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/exit_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/exit_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/graphics_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/graphics_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/graphics_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/graphics_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/audio_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/audio_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/audio_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/audio_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/controls_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/controls_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/controls_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/controls_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/network_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/network_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/network_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/network_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/chevron_up_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/chevron_up_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/chevron_up_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/chevron_up_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/chevron_down_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/chevron_down_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/chevron_down_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/chevron_down_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/chevron_left_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/chevron_left_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/chevron_left_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/chevron_left_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/chevron_right_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/chevron_right_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/chevron_right_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/chevron_right_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/close_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/close_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/close_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/close_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/check_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/check_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/check_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/check_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/search_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/search_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/search_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/search_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/refresh_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/refresh_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/refresh_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/refresh_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/folder_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/folder_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/folder_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/folder_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/download_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/download_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/download_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/download_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/lock_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/lock_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/lock_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/lock_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/warning_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/warning_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/warning_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/warning_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/info_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/info_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/info_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/info_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/server_body
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/server_body.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}
+
+tce2_ui/theme/icons/server_accent
+{
+	nopicmip
+	nomipmaps
+	nocompress
+	{
+		clampmap tce2_ui/theme/icons/server_accent.tga
+		blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA
+		rgbGen vertex
+		alphaGen vertex
+	}
+}

@@ -8,6 +8,7 @@
 **********************************************************************/
 #include "ui_local.h"
 #include "tce_viewport.h"
+#include "tce_modern_ui.h"
 
 uiStatic_t uis;
 qboolean   m_entersound;            // after a frame, so caching won't disrupt the sound
@@ -437,12 +438,12 @@ Adjusted for resolution and screen aspect ratio
 #include "tce_ui_coordinates.h"
 void UI_AdjustFrom640(float *x, float *y, float *w, float *h)
 {
-	if (trap_Cvar_VariableValue("cg_wideScreen") != 0.f)
+	if (trap_Cvar_VariableValue("cg_wideScreen") != 0.f || TCE_ModernUIEnabled())
 	{
 		tce_viewport_t view;
 		if (TCE_ViewportFit(&view, uiInfo.uiDC.glconfig.vidWidth, uiInfo.uiDC.glconfig.vidHeight,
 		                    TCE_VIEWPORT_CANVAS_WIDTH, TCE_VIEWPORT_CANVAS_HEIGHT,
-		                    trap_Cvar_VariableValue("ui_menuMaxHeight"), trap_Cvar_VariableValue("ui_menuScale"), .5f, .5f))
+		                    trap_Cvar_VariableValue("ui_menuMaxHeight"), trap_Cvar_VariableValue("ui_menuScale"), .5f, TCE_MenuViewportAnchorY()))
 		{
 			TCE_ViewportProject(&view, x, y, w, h);
 		}

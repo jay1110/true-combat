@@ -11,7 +11,7 @@ int TCE_ViewportFit(tce_viewport_t *out, int width, int height,
                     float userScale, float anchorX, float anchorY)
 {
 	tce_viewport_t next;
-	double scale, candidate, offsetX, offsetY;
+	double scale, fit, candidate, offsetX, offsetY;
 	if (!out || width <= 0 || height <= 0 ||
 	    !TCE_ViewportFinite(canvasWidth) || !TCE_ViewportFinite(canvasHeight) ||
 	    canvasWidth <= 0.f || canvasHeight <= 0.f) return 0;
@@ -27,12 +27,16 @@ int TCE_ViewportFit(tce_viewport_t *out, int width, int height,
 	scale = (double)width / canvasWidth;
 	candidate = (double)height / canvasHeight;
 	if (candidate < scale) scale = candidate;
+	fit = scale;
 	if (TCE_ViewportFinite(maxHeight) && maxHeight > 0.f)
 	{
 		candidate = (double)maxHeight / canvasHeight;
 		if (candidate < scale) scale = candidate;
 	}
 	scale *= userScale;
+	/* Applying enlargement after fitting used to place menu edges outside
+	 * the frame. A size preference must never make controls unreachable. */
+	if (scale > fit) scale = fit;
 	offsetX = ((double)width - scale * canvasWidth) * anchorX;
 	offsetY = ((double)height - scale * canvasHeight) * anchorY;
 	if (!(scale > 0.0) || !TCE_ViewportFinite(scale) ||

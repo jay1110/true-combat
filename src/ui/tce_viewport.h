@@ -11,11 +11,15 @@ typedef struct
 
 /* Fits one logical canvas uniformly inside a physical viewport. Anchor values
  * choose the remaining margin: 0 left/top, .5 centered, 1 right/bottom.
- * A nonpositive maximum height disables the physical size cap. */
+ * A nonpositive maximum height disables the physical size cap. User scaling
+ * may enlarge a capped canvas, but never beyond the physical viewport. */
 int TCE_ViewportFit(tce_viewport_t *out, int width, int height,
                     float canvasWidth, float canvasHeight, float maxHeight,
                     float userScale, float anchorX, float anchorY);
 void TCE_ViewportProject(const tce_viewport_t *view,
                           float *x, float *y, float *w, float *h);
+/* Header-only modern hubs stay attached to the top edge when reduced. All
+ * full-page menus/dialogs retain the centered canvas. Shared with UI drawing. */
+float TCE_MenuViewportAnchorY(void);
 
 #endif

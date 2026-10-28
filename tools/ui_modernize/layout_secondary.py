@@ -5,6 +5,7 @@ geometry/paint changes and label-free decoration are introduced here.
 """
 from pathlib import Path
 import re
+from layout_common import header_canvas, header_button
 
 
 def _helpers():
@@ -171,19 +172,10 @@ def _credits(text, filename):
 def _vote(text, filename):
     text = _canvas(text)
     if filename == 'ingame_vote.menu':
-        positions = {'"MISC"': (24, 116, 256, 184),
-                     '"MAP"': (298, 116, 256, 184),
-                     '"PLAYERS"': (572, 116, 256, 184),
-                     '"BACK"': (24, 442, 184, 28)}
+        positions = {'"MISC"': 0, '"MAP"': 1, '"PLAYERS"': 2, '"BACK"': 5}
         text = _calls(text, {'BUTTON', 'BUTTONEXT'},
-                      lambda n, a: _button(a, positions[a[4]], scale='.42' if a[4] != '"BACK"' else '.28'))
-        def change_item(name, block):
-            result = _background(name)
-            if name == 'windowtitle':
-                result.update(rect='24 8 804 36', textscale='.44', textalign='ITEM_ALIGN_LEFT',
-                              textalignx='0', textaligny='28')
-            return result
-        return _items(text, change_item)
+                      lambda n, a: header_button(a, positions[a[4]]))
+        return header_canvas(text)
 
     if filename in ('ingame_vote_map.menu', 'ingame_vote_players.menu'):
         players = filename == 'ingame_vote_players.menu'
@@ -357,6 +349,11 @@ def apply(text, relative):
     name = path.name
     if name.startswith('credits_') and name.endswith('.menu'):
         return _credits(text, name)
+    if name == 'ingame_vote_players_warn.menu':
+        # The centered field already derives its X from WINDOW_WIDTH. Move its
+        # parent to the common canvas too: retaining the old 640-wide parent
+        # adds a second 106-unit origin to the full-screen fade decoration.
+        return _canvas(text)
     if name.startswith('ingame_vote') and name.endswith('.menu') and name not in (
             'ingame_vote_players_warn.menu', 'ingame_vote_disabled.menu'):
         return _vote(text, name)

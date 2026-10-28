@@ -11,14 +11,21 @@ def main():
     parser.add_argument('--optimized',action='store_true')
     parser.add_argument('--sanitize',action='store_true')
     args=parser.parse_args();out=args.out.resolve();out.mkdir(parents=True,exist_ok=True)
-    paths=['src/ui/tce_viewport.c','src/ui/tce_viewport.h','src/ui/ui_atoms.c','src/ui/ui_shared.c','src/ui/ui_main.c','src/cgame/cg_hud_viewport.c','src/cgame/cg_hud_viewport.h','src/cgame/cg_drawtools.c','src/cgame/cg_draw.c']
+    paths=['src/ui/tce_viewport.c','src/ui/tce_viewport.h','src/ui/ui_atoms.c','src/ui/ui_shared.c','src/ui/ui_main.c','src/cgame/cg_hud_viewport.c','src/cgame/cg_hud_viewport.h','src/cgame/cg_drawtools.c','src/cgame/cg_draw.c','src/cgame/cg_newDraw.c']
     sources={p:(ROOT/p).read_text(encoding='utf-8-sig') for p in paths}
-    shared=sources['src/ui/ui_shared.c'];units=[function(shared,'TCE_UISharedViewportAdjust')]
+    shared=sources['src/ui/ui_shared.c'];units=[function(shared,'TCE_MenuViewportAnchorY'),function(shared,'TCE_UISharedViewportAdjust')]
     matches=list(re.finditer(r'^void AdjustFrom640\(',shared,re.M))
     assert len(matches)==3
     for match,name in zip(matches,['SharedWindowsAdjust','SharedLinuxAdjust','SharedGenericAdjust']):
         units.append(function(shared[match.start():],'AdjustFrom640').replace('void AdjustFrom640(',f'void {name}(',1))
-    units += [function(sources['src/ui/ui_atoms.c'],'UI_AdjustFrom640'),function(sources['src/ui/ui_main.c'],'_UI_MouseEvent')]
+    units += [function(sources['src/ui/ui_atoms.c'],'UI_AdjustFrom640')]
+    units += [function(sources['src/ui/ui_main.c'],n) for n in ['_UI_MouseEvent','_UI_DrawSides','_UI_DrawTopBottom']]
+    units += [function(sources['src/cgame/cg_newDraw.c'],'CG_MouseEvent')]
+    # The width NaN gate has two preprocessor-selected opening braces; the
+    # raw balanced-C extractor cannot parse that unchanged legacy function.
+    drawtools=sources['src/cgame/cg_drawtools.c'];start=drawtools.index('void CG_DrawPic(')
+    units += [drawtools[start:drawtools.index('\n// NERVE - SMF',start)]]
+    units += [function(sources['src/cgame/cg_draw.c'],n) for n in ['CG_DrawDisconnect','CG_DrawLagometer']]
     assert 'UI_AdjustFrom640(' in function(sources['src/ui/ui_atoms.c'],'UI_DrawHandlePic')
     assert 'UI_DrawHandlePic(uiInfo.uiDC.cursorx, uiInfo.uiDC.cursory,' in sources['src/ui/ui_main.c']
     for name,value in [('cg_wideScreen','1'),('ui_menuScale','1'),('ui_menuMaxHeight','1080'),('cg_hudScale','.85'),('cg_hudMaxHeight','1080')]:
@@ -27,6 +34,12 @@ def main():
     frame=function(sources['src/cgame/cg_draw.c'],'CG_Draw2D')
     assert 'CG_HudViewportWorld();\n\t\tCG_DrawCrosshair();\n\t\tCG_HudViewportBegin(.5f, .5f);' in frame
     assert 'CG_HudViewportAnchor(.5f, .5f);\n\t\tCG_DrawWarmup();\n\t\tCG_HudViewportAnchor(0, 0);' in frame
+    assert 'CG_HudViewportAnchor(0, 0);\n\t\t\tCG_DrawSpectator();\n\t\t\tCG_HudViewportAnchor(.5f, .5f);\n\t\t\tCG_DrawCrosshairNames();' in frame
+    assert 'CG_MenuViewportBegin();\n\t\tCG_DrawOverlays();\n\t\tCG_MenuViewportEnd();' in frame
+    assert re.search(r'else\s*\{\s*CG_HudViewportFull\(\);\s*CG_DrawOverlays\(\);\s*\}',frame)
+    paint=function(shared,'Menu_Paint')
+    assert 'previousViewportMenu = tceMenuViewportPaintMenu;' in paint
+    assert 'tceMenuViewportPaintMenu = menu;' in paint and 'tceMenuViewportPaintMenu = previousViewportMenu;' in paint
     assert 'CG_HudViewportMaskMargins(type == 2);' in function(sources['src/cgame/cg_draw.c'],'CG_DrawWeapReticle')
     assert 'CG_HudViewportMaskMargins(0);' in function(sources['src/cgame/cg_draw.c'],'CG_DrawBinocReticle')
     context=re.sub(r'^#include[^\n]*\n','',sources['src/cgame/cg_hud_viewport.c'],flags=re.M)

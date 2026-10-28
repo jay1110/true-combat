@@ -25,6 +25,7 @@
 	loadMenu { "ui/viewreplay.menu" }
 	loadMenu { "ui/viewreplay_delete.menu" }
 	loadMenu { "ui/options.menu" }
+	loadMenu { "ui/modern_appearance.menu" }
 	loadMenu { "ui/options_sub.menu" }
 	loadMenu { "ui/options_customise_game.menu" }
 	loadMenu { "ui/options_customise_hud.menu" }

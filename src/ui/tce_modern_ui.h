@@ -4,6 +4,10 @@
 /* Optional presentation only. The marker is data, never an executable config. */
 qboolean TCE_ModernUIEnabled(void);
 void TCE_ModernUIReset(void);
+void TCE_ModernThemeRefresh(void);
+/* surface: 0 text, 1 fill, 2 border. Never changes the input paint/state. */
+void TCE_ModernThemeColor(const float *source, float *out, int surface);
+void TCE_ModernThemePicture(float x, float y, float w, float h, qhandle_t shader, const float *color);
 int TCE_ModernMarkerValid(const char *data, int length);
 float TCE_ModernProgress(int used, int expected);
 int TCE_ModernRosterPages(int count, int rows);

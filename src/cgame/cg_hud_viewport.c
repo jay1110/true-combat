@@ -1,9 +1,11 @@
 #include "cg_local.h"
 #include "cg_hud_viewport.h"
 #include "../ui/tce_viewport.h"
+#include "../ui/tce_modern_ui.h"
 
-static vmCvar_t wideScreen, hudScale, hudMaxHeight;
+static vmCvar_t wideScreen, hudScale, hudMaxHeight, menuScale, menuMaxHeight;
 static int hudViewportActive, hudViewportFull, hudViewportWorld;
+static unsigned menuViewportDepth;
 static float hudAnchorX = .5f, hudAnchorY = .5f;
 
 void CG_HudViewportInit(void)
@@ -11,7 +13,10 @@ void CG_HudViewportInit(void)
 	trap_Cvar_Register(&wideScreen, "cg_wideScreen", "1", CVAR_ARCHIVE);
 	trap_Cvar_Register(&hudScale, "cg_hudScale", "0.85", CVAR_ARCHIVE);
 	trap_Cvar_Register(&hudMaxHeight, "cg_hudMaxHeight", "1080", CVAR_ARCHIVE);
+	trap_Cvar_Register(&menuScale, "ui_menuScale", "1", CVAR_ARCHIVE);
+	trap_Cvar_Register(&menuMaxHeight, "ui_menuMaxHeight", "1080", CVAR_ARCHIVE);
 	hudViewportActive = hudViewportFull = hudViewportWorld = 0;
+	menuViewportDepth = 0;
 }
 
 void CG_HudViewportUpdate(void)
@@ -19,6 +24,8 @@ void CG_HudViewportUpdate(void)
 	trap_Cvar_Update(&wideScreen);
 	trap_Cvar_Update(&hudScale);
 	trap_Cvar_Update(&hudMaxHeight);
+	trap_Cvar_Update(&menuScale);
+	trap_Cvar_Update(&menuMaxHeight);
 }
 
 int CG_WideScreenEnabled(void) { return wideScreen.integer != 0; }
@@ -27,6 +34,10 @@ int CG_HudAspectMode(void)
 	extern vmCvar_t cg_aspectMode;
 	return CG_WideScreenEnabled() ? 0 : cg_aspectMode.integer;
 }
+
+void CG_MenuViewportBegin(void) { ++menuViewportDepth; }
+void CG_MenuViewportEnd(void) { if (menuViewportDepth) --menuViewportDepth; }
+int CG_MenuViewportActive(void) { return menuViewportDepth != 0; }
 
 void CG_HudViewportBegin(float anchorX, float anchorY)
 {
@@ -53,6 +64,16 @@ int CG_HudViewportAdjust(float *x, float *y, float *w, float *h, int tceCanvas)
 {
 	tce_viewport_t viewport;
 	float canvasWidth = tceCanvas ? 640.f / .75f : 640.f;
+	if (menuViewportDepth)
+	{
+		/* Modern native menus must fit even when the legacy HUD mode is
+		 * selected. Without the optional theme that legacy path is retained. */
+		if (!CG_WideScreenEnabled() && !TCE_ModernUIEnabled()) return 0;
+		if (TCE_ViewportFit(&viewport, cgs.glconfig.vidWidth, cgs.glconfig.vidHeight,
+		                     canvasWidth, 480.f, menuMaxHeight.value, menuScale.value,
+		                     .5f, .5f)) TCE_ViewportProject(&viewport, x, y, w, h);
+		return 1;
+	}
 	if (!hudViewportActive) return 0;
 	if (hudViewportWorld)
 	{
@@ -110,7 +131,8 @@ int CG_HudViewportDimensions(float *w, float *h, int tceCanvas)
 	extern qboolean tce_uiCoordinates;
 	qboolean previous;
 	float x = 0, y = 0;
-	if (!hudViewportActive) return 0;
+	if (menuViewportDepth && !CG_WideScreenEnabled() && !TCE_ModernUIEnabled()) return 0;
+	if (!hudViewportActive && !menuViewportDepth) return 0;
 	previous = tce_uiCoordinates; tce_uiCoordinates = tceCanvas != 0;
 	CG_AdjustFrom640(&x, &y, w, h); tce_uiCoordinates = previous;
 	return 1;

@@ -128,6 +128,8 @@ def verify(path, variant, baseline, repo=ROOT, transform=styled_override):
     reference = {p:original_files[p] for p in semantic_paths}
     if sem.PRIVATE_WIDGETS in theme:
         expected[sem.PRIVATE_WIDGETS]=theme[sem.PRIVATE_WIDGETS]
+    if sem.APPEARANCE in theme:
+        expected[sem.APPEARANCE]=theme[sem.APPEARANCE]
     exception_rows = manifest.get('normal_game_content_sources')
     game_sources = {}
     if variant == 'game':

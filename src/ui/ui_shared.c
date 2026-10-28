@@ -7,6 +7,7 @@
 #include "ui_shared.h"
 #include "ui_local.h"   // For CS settings/retrieval
 #include "tce_viewport.h"
+#include "tce_modern_ui.h"
 #ifdef CGAMEDLL
 #include "../cgame/cg_hud_viewport.h"
 #endif
@@ -40,6 +41,7 @@ static void      *captureData = NULL;
 static itemDef_t *itemCapture = NULL;   // item that has the mouse captured ( if any )
 
 displayContextDef_t *DC = NULL;
+static menuDef_t *tceMenuViewportPaintMenu;
 
 qboolean g_waitingForKey = qfalse;
 qboolean g_editingField  = qfalse;
@@ -736,10 +738,17 @@ void Fade(int *flags, float *f, float clamp, int *nextTime, int offsetTime, qboo
 #endif
 
 
+static void TCE_MenuAssetPic(float x,float y,float w,float h,qhandle_t shader,const float *color)
+{
+	if (TCE_ModernUIEnabled()) TCE_ModernThemePicture(x,y,w,h,shader,color);
+	else DC->drawHandlePic(x,y,w,h,shader);
+}
+
 void Window_Paint(Window *w, float fadeAmount, float fadeClamp, float fadeCycle)
 {
 	//float bordersize = 0;
 	vec4_t    color;
+	vec4_t    backInk, borderInk, foreInk;
 	rectDef_t fillRect = w->rect;
 
 	if (debugMode)
@@ -752,6 +761,9 @@ void Window_Paint(Window *w, float fadeAmount, float fadeClamp, float fadeCycle)
 	{
 		return;
 	}
+	TCE_ModernThemeColor(w->backColor,backInk,1);
+	TCE_ModernThemeColor(w->borderColor,borderInk,2);
+	TCE_ModernThemeColor(w->foreColor,foreInk,0);
 
 	// FIXME: do right thing for right border type
 	if (w->border != 0)
@@ -768,27 +780,35 @@ void Window_Paint(Window *w, float fadeAmount, float fadeClamp, float fadeCycle)
 		if (w->background)
 		{
 			Fade(&w->flags, &w->backColor[3], fadeClamp, &w->nextTime, fadeCycle, qtrue, fadeAmount);
-			DC->setColor(w->backColor);
-			DC->drawHandlePic(fillRect.x, fillRect.y, fillRect.w, fillRect.h, w->background);
+			if (TCE_ModernUIEnabled())
+				TCE_ModernThemePicture(fillRect.x,fillRect.y,fillRect.w,fillRect.h,w->background,w->backColor);
+			else
+			{
+				DC->setColor(w->backColor);
+				DC->drawHandlePic(fillRect.x, fillRect.y, fillRect.w, fillRect.h, w->background);
+			}
 			DC->setColor(NULL);
 		}
 		else
 		{
-			DC->fillRect(fillRect.x, fillRect.y, fillRect.w, fillRect.h, w->backColor);
+			DC->fillRect(fillRect.x, fillRect.y, fillRect.w, fillRect.h, backInk);
 		}
 	}
 	else if (w->style == WINDOW_STYLE_GRADIENT)
 	{
-		GradientBar_Paint(&fillRect, w->backColor);
+		GradientBar_Paint(&fillRect, backInk);
 		// gradient bar
 	}
 	else if (w->style == WINDOW_STYLE_SHADER)
 	{
 		if (w->flags & WINDOW_FORECOLORSET)
 		{
-			DC->setColor(w->foreColor);
+			DC->setColor(foreInk);
 		}
-		DC->drawHandlePic(fillRect.x, fillRect.y, fillRect.w, fillRect.h, w->background);
+		if (TCE_ModernUIEnabled())
+			TCE_ModernThemePicture(fillRect.x,fillRect.y,fillRect.w,fillRect.h,w->background,
+			                       (w->flags & WINDOW_FORECOLORSET) ? foreInk : NULL);
+		else DC->drawHandlePic(fillRect.x, fillRect.y, fillRect.w, fillRect.h, w->background);
 		DC->setColor(NULL);
 	}
 	else if (w->style == WINDOW_STYLE_TEAMCOLOR)
@@ -839,20 +859,20 @@ void Window_Paint(Window *w, float fadeAmount, float fadeClamp, float fadeCycle)
 		}
 		else
 		{
-			DC->drawRect(w->rect.x, w->rect.y, w->rect.w, w->rect.h, w->borderSize, w->borderColor);
+			DC->drawRect(w->rect.x, w->rect.y, w->rect.w, w->rect.h, w->borderSize, borderInk);
 		}
 	}
 	else if (w->border == WINDOW_BORDER_HORZ)
 	{
 		// top/bottom
-		DC->setColor(w->borderColor);
+		DC->setColor(borderInk);
 		DC->drawTopBottom(w->rect.x, w->rect.y, w->rect.w, w->rect.h, w->borderSize);
 		DC->setColor(NULL);
 	}
 	else if (w->border == WINDOW_BORDER_VERT)
 	{
 		// left right
-		DC->setColor(w->borderColor);
+		DC->setColor(borderInk);
 		DC->drawSides(w->rect.x, w->rect.y, w->rect.w, w->rect.h, w->borderSize);
 		DC->setColor(NULL);
 	}
@@ -861,9 +881,9 @@ void Window_Paint(Window *w, float fadeAmount, float fadeClamp, float fadeCycle)
 		// this is just two gradient bars along each horz edge
 		rectDef_t r = w->rect;
 		r.h = w->borderSize;
-		GradientBar_Paint(&r, w->borderColor);
+		GradientBar_Paint(&r, borderInk);
 		r.y = w->rect.y + w->rect.h - 1;
-		GradientBar_Paint(&r, w->borderColor);
+		GradientBar_Paint(&r, borderInk);
 	}
 
 }
@@ -5891,15 +5911,15 @@ void Item_CheckBox_Paint(itemDef_t *item)
 		Item_Text_Paint(item);
 		if (item->type == ITEM_TYPE_TRICHECKBOX && value == 2)
 		{
-			DC->drawHandlePic(item->textRect.x + item->textRect.w + 8, item->window.rect.y, item->window.rect.h, item->window.rect.h, DC->Assets.checkboxCheckNo);
+			TCE_MenuAssetPic(item->textRect.x + item->textRect.w + 8, item->window.rect.y, item->window.rect.h, item->window.rect.h, DC->Assets.checkboxCheckNo,newColor);
 		}
 		else if (value)
 		{
-			DC->drawHandlePic(item->textRect.x + item->textRect.w + 8, item->window.rect.y, item->window.rect.h, item->window.rect.h, DC->Assets.checkboxCheck);
+			TCE_MenuAssetPic(item->textRect.x + item->textRect.w + 8, item->window.rect.y, item->window.rect.h, item->window.rect.h, DC->Assets.checkboxCheck,newColor);
 		}
 		else
 		{
-			DC->drawHandlePic(item->textRect.x + item->textRect.w + 8, item->window.rect.y, item->window.rect.h, item->window.rect.h, DC->Assets.checkboxCheckNot);
+			TCE_MenuAssetPic(item->textRect.x + item->textRect.w + 8, item->window.rect.y, item->window.rect.h, item->window.rect.h, DC->Assets.checkboxCheckNot,newColor);
 		}
 
 		if (hasMultiText)
@@ -5915,15 +5935,15 @@ void Item_CheckBox_Paint(itemDef_t *item)
 	{
 		if (item->type == ITEM_TYPE_TRICHECKBOX && value == 2)
 		{
-			DC->drawHandlePic(item->window.rect.x, item->window.rect.y, item->window.rect.h, item->window.rect.h, DC->Assets.checkboxCheckNo);
+			TCE_MenuAssetPic(item->window.rect.x, item->window.rect.y, item->window.rect.h, item->window.rect.h, DC->Assets.checkboxCheckNo,newColor);
 		}
 		else if (value)
 		{
-			DC->drawHandlePic(item->window.rect.x, item->window.rect.y, item->window.rect.h, item->window.rect.h, DC->Assets.checkboxCheck);
+			TCE_MenuAssetPic(item->window.rect.x, item->window.rect.y, item->window.rect.h, item->window.rect.h, DC->Assets.checkboxCheck,newColor);
 		}
 		else
 		{
-			DC->drawHandlePic(item->window.rect.x, item->window.rect.y, item->window.rect.h, item->window.rect.h, DC->Assets.checkboxCheckNot);
+			TCE_MenuAssetPic(item->window.rect.x, item->window.rect.y, item->window.rect.h, item->window.rect.h, DC->Assets.checkboxCheckNot,newColor);
 		}
 
 		if (hasMultiText)
@@ -6378,7 +6398,7 @@ void Item_Slider_Paint(itemDef_t *item)
 	}
 	DC->setColor(newColor);
 	//DC->drawHandlePic( x, y, SLIDER_WIDTH, SLIDER_HEIGHT, DC->Assets.sliderBar );
-	DC->drawHandlePic(x, y + 1, SLIDER_WIDTH, SLIDER_HEIGHT, DC->Assets.sliderBar);
+	TCE_MenuAssetPic(x, y + 1, SLIDER_WIDTH, SLIDER_HEIGHT, DC->Assets.sliderBar,newColor);
 
 #if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 	x = (float)(TCE_SliderThumbValue(item) - 6.0L);
@@ -6387,9 +6407,9 @@ void Item_Slider_Paint(itemDef_t *item)
 #endif
 	//DC->drawHandlePic( x - (SLIDER_THUMB_WIDTH / 2), y - 2, SLIDER_THUMB_WIDTH, SLIDER_THUMB_HEIGHT, DC->Assets.sliderThumb );
 #if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
-	DC->drawHandlePic(x, y, SLIDER_THUMB_WIDTH, SLIDER_THUMB_HEIGHT, DC->Assets.sliderThumb);
+	TCE_MenuAssetPic(x, y, SLIDER_THUMB_WIDTH, SLIDER_THUMB_HEIGHT, DC->Assets.sliderThumb,newColor);
 #else
-	DC->drawHandlePic(x - (SLIDER_THUMB_WIDTH / 2), y, SLIDER_THUMB_WIDTH, SLIDER_THUMB_HEIGHT, DC->Assets.sliderThumb);
+	TCE_MenuAssetPic(x - (SLIDER_THUMB_WIDTH / 2), y, SLIDER_THUMB_WIDTH, SLIDER_THUMB_HEIGHT, DC->Assets.sliderThumb,newColor);
 #endif
 }
 
@@ -6570,16 +6590,26 @@ qboolean Item_Bind_HandleKey(itemDef_t *item, int key, qboolean down)
 
 
 #include "tce_ui_coordinates.h"
+float TCE_MenuViewportAnchorY(void)
+{
+	menuDef_t *menu = tceMenuViewportPaintMenu ? tceMenuViewportPaintMenu : Menu_GetFocused();
+	const char *name = menu ? menu->window.name : NULL;
+	if (TCE_ModernUIEnabled() && name &&
+	    (!Q_stricmp(name, "options") || !Q_stricmp(name, "ingame_main") || !Q_stricmp(name, "ingame_vote"))) return 0.f;
+	return .5f;
+}
+
 static qboolean TCE_UISharedViewportAdjust(float *x, float *y, float *w, float *h)
 {
 	tce_viewport_t view;
 #ifdef CGAMEDLL
 	if (CG_HudViewportAdjust(x, y, w, h, 1)) return qtrue;
 #endif
-	if (!DC || !DC->getCVarValue || DC->getCVarValue("cg_wideScreen") == 0.f) return qfalse;
+	if (!DC || !DC->getCVarValue ||
+	    (DC->getCVarValue("cg_wideScreen") == 0.f && !TCE_ModernUIEnabled())) return qfalse;
 	if (!TCE_ViewportFit(&view, DC->glconfig.vidWidth, DC->glconfig.vidHeight,
 	                     TCE_VIEWPORT_CANVAS_WIDTH, TCE_VIEWPORT_CANVAS_HEIGHT,
-	                     (float)DC->getCVarValue("ui_menuMaxHeight"), (float)DC->getCVarValue("ui_menuScale"), .5f, .5f)) return qtrue;
+	                     (float)DC->getCVarValue("ui_menuMaxHeight"), (float)DC->getCVarValue("ui_menuScale"), .5f, TCE_MenuViewportAnchorY())) return qtrue;
 	TCE_ViewportProject(&view, x, y, w, h);
 	return qtrue;
 }
@@ -6901,19 +6931,19 @@ void Item_ListBox_Paint(itemDef_t *item)
 		// bar
 		x = fillRect.x + 1;
 		y = fillRect.y + fillRect.h - SCROLLBAR_SIZE - 1;
-		DC->drawHandlePic(x, y, SCROLLBAR_SIZE, SCROLLBAR_SIZE, DC->Assets.scrollBarArrowLeft);
+		TCE_MenuAssetPic(x, y, SCROLLBAR_SIZE, SCROLLBAR_SIZE, DC->Assets.scrollBarArrowLeft,NULL);
 		x   += SCROLLBAR_SIZE - 1;
 		size = fillRect.w - (SCROLLBAR_SIZE * 2);
-		DC->drawHandlePic(x, y, size + 1, SCROLLBAR_SIZE, DC->Assets.scrollBar);
+		TCE_MenuAssetPic(x, y, size + 1, SCROLLBAR_SIZE, DC->Assets.scrollBar,NULL);
 		x += size - 1;
-		DC->drawHandlePic(x, y, SCROLLBAR_SIZE, SCROLLBAR_SIZE, DC->Assets.scrollBarArrowRight);
+		TCE_MenuAssetPic(x, y, SCROLLBAR_SIZE, SCROLLBAR_SIZE, DC->Assets.scrollBarArrowRight,NULL);
 		// thumb
 		thumb = Item_ListBox_ThumbDrawPosition(item);//Item_ListBox_ThumbPosition(item);
 		if (thumb > x - SCROLLBAR_SIZE - 1)
 		{
 			thumb = x - SCROLLBAR_SIZE - 1;
 		}
-		DC->drawHandlePic(thumb, y, SCROLLBAR_SIZE, SCROLLBAR_SIZE, DC->Assets.scrollBarThumb);
+		TCE_MenuAssetPic(thumb, y, SCROLLBAR_SIZE, SCROLLBAR_SIZE, DC->Assets.scrollBarThumb,NULL);
 		//
 		listPtr->endPos = listPtr->startPos;
 		size            = fillRect.w - 2;
@@ -6960,21 +6990,21 @@ void Item_ListBox_Paint(itemDef_t *item)
 		// draw scrollbar to right side of the window
 		x = fillRect.x + fillRect.w - SCROLLBAR_SIZE - 1;
 		y = fillRect.y + 1;
-		DC->drawHandlePic(x, y, SCROLLBAR_SIZE, SCROLLBAR_SIZE, DC->Assets.scrollBarArrowUp);
+		TCE_MenuAssetPic(x, y, SCROLLBAR_SIZE, SCROLLBAR_SIZE, DC->Assets.scrollBarArrowUp,NULL);
 		y += SCROLLBAR_SIZE - 1;
 
 		listPtr->endPos = listPtr->startPos;
 		size            = fillRect.h - (SCROLLBAR_SIZE * 2);
-		DC->drawHandlePic(x, y, SCROLLBAR_SIZE, size + 1, DC->Assets.scrollBar);
+		TCE_MenuAssetPic(x, y, SCROLLBAR_SIZE, size + 1, DC->Assets.scrollBar,NULL);
 		y += size - 1;
-		DC->drawHandlePic(x, y, SCROLLBAR_SIZE, SCROLLBAR_SIZE, DC->Assets.scrollBarArrowDown);
+		TCE_MenuAssetPic(x, y, SCROLLBAR_SIZE, SCROLLBAR_SIZE, DC->Assets.scrollBarArrowDown,NULL);
 		// thumb
 		thumb = Item_ListBox_ThumbDrawPosition(item);//Item_ListBox_ThumbPosition(item);
 		if (thumb > y - SCROLLBAR_SIZE - 1)
 		{
 			thumb = y - SCROLLBAR_SIZE - 1;
 		}
-		DC->drawHandlePic(x, thumb, SCROLLBAR_SIZE, SCROLLBAR_SIZE, DC->Assets.scrollBarThumb);
+		TCE_MenuAssetPic(x, thumb, SCROLLBAR_SIZE, SCROLLBAR_SIZE, DC->Assets.scrollBarThumb,NULL);
 
 		// adjust size for item painting
 		size = fillRect.h /* - 2*/;
@@ -7699,6 +7729,7 @@ void Menu_Paint(menuDef_t *menu, qboolean forcePaint)
 {
 	int       i;
 	itemDef_t *item = NULL;
+	menuDef_t *previousViewportMenu;
 
 
 	if (menu == NULL)
@@ -7715,6 +7746,11 @@ void Menu_Paint(menuDef_t *menu, qboolean forcePaint)
 	{
 		return;
 	}
+	/* A confirmation may have focus while its header hub is still painted
+	 * underneath. Select the transform for the menu being drawn, then restore
+	 * it so the cursor uses the focused menu's transform after painting. */
+	previousViewportMenu = tceMenuViewportPaintMenu;
+	tceMenuViewportPaintMenu = menu;
 
 	if (forcePaint)
 	{
@@ -7786,6 +7822,7 @@ void Menu_Paint(menuDef_t *menu, qboolean forcePaint)
 		color[1] = 0;
 		DC->drawRect(menu->window.rect.x, menu->window.rect.y, menu->window.rect.w, menu->window.rect.h, 1, color);
 	}
+	tceMenuViewportPaintMenu = previousViewportMenu;
 }
 
 

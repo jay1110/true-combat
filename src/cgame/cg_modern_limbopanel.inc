@@ -185,6 +185,7 @@ static void TCE_ModernLimboRender(void)
         TCE_ModernText(122,177,.20f,100,tceModernAmber,roles[BG_WolfClassToTCE(CG_LimboPanel_GetClass())],0);
     TCE_ModernText(42,222,.17f,176,tceModernMuted,"NAME",1);
     TCE_ModernPanel(36,228,188,28,1);
+    TCE_ModernThemeColor(nameEditFont.colour,modernLimboNameText.colour,0);
     BG_PanelButton_RenderEdit(&nameEdit);
     TCE_ModernFill(36,256,188,1,BG_PanelButtons_GetFocusButton()==&nameEdit?tceModernAmber:tceModernMuted);
     TCE_ModernText(42,287,.17f,176,tceModernMuted,"ARMAMENT AVAILABILITY",1);

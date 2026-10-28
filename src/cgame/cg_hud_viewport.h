@@ -5,6 +5,11 @@ void CG_HudViewportInit(void);
 void CG_HudViewportUpdate(void);
 int CG_WideScreenEnabled(void);
 int CG_HudAspectMode(void);
+/* Native menus use UI size preferences, independent of a surrounding HUD
+ * scope. Nesting preserves that HUD scope and its current anchor. */
+void CG_MenuViewportBegin(void);
+void CG_MenuViewportEnd(void);
+int CG_MenuViewportActive(void);
 void CG_HudViewportBegin(float anchorX, float anchorY);
 void CG_HudViewportAnchor(float anchorX, float anchorY);
 void CG_HudViewportEnd(void);

@@ -5,6 +5,7 @@ shared macro definitions or main-menu resources are introduced here.
 """
 from pathlib import Path
 import re
+from layout_common import header_canvas, header_button, appearance_link
 
 PAGES = frozenset(('options.menu', 'options_system.menu', 'options_controls.menu',
                    'options_customise_game.menu', 'options_customise_hud.menu'))
@@ -162,15 +163,16 @@ def apply(text,relative):
     positions={};rects=[]
     page=relative.name
     if page=='options.menu':
-        category={'game':(24,84),'view':(444,84),'controls':(24,252),'system':(444,252)}
-        for start,end,name,args in calls:
+        category={'game':0,'view':1,'controls':2,'system':3,'back':5}
+        for start,end,name,args in reversed(calls):
             if name!='BUTTON':continue
             label=_label(args)
-            if label in category:
-                x,y=category[label]
-                positions[start]=_geometry(args,x,y,384,128)
-                positions[start][5:7]=['.46','75']
-                rects.append((x,y,384,128))
+            if label not in category:raise ValueError('Unaccounted settings action: '+label)
+            new_args=header_button(args,category[label])
+            text=text[:start]+name+'( '+', '.join(new_args)+' )'+text[end:]
+        text=header_canvas(text)
+        return appearance_link(text).replace('// Options Menu //',
+                       '// Options Menu //\n// modern settings desktop v1')
     else:
         groups=_sections(calls)
         if page=='options_controls.menu':
@@ -235,7 +237,4 @@ def apply(text,relative):
     if len(window)!=1:raise ValueError('Settings WINDOW count changed')
     insert=window[0][1]
     text=text[:insert]+'\n// modern settings desktop v1\n'+_decoration(rects)+text[insert:]
-    if page=='options.menu':
-        from layout_common import add_items
-        text=add_items(text,_landing_icons(),'options')
     return text

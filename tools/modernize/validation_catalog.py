@@ -38,6 +38,7 @@ FIXTURES = (
     ('ui-binding', 'ui_binding_regression', 'plain', True, []),
     ('ui-reload', 'ui_reload_regression', 'plain', True, []),
     ('modern-native-ui', 'modern_native_ui_regression', 'optimized', False, []),
+    ('modern-theme', 'modern_theme_regression', 'optimized', False, []),
     ('modern-deployment', 'modern_deployment_regression', 'optimized', False, []),
     ('scoreboard-prefix', 'scoreboard_prefix_regression', 'configuration', False, []),
     ('score-state', 'score_state_regression', 'configuration', False, []),

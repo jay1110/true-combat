@@ -9,6 +9,7 @@
 
 #include "cg_local.h"
 #include "cg_hud_viewport.h"
+#include "../ui/tce_modern_ui.h"
 #include "tce_compass_map.h"
 #include "tce_camera_wave.h"
 #include "../game/tce_numeric.h"
@@ -1098,7 +1099,9 @@ static void CG_DrawDisconnect(void)
 	tce_uiCoordinates   = qtrue;
 	s                   = CG_TranslateString("Connection Interrupted"); // bk 010215 - FIXME
 	w                   = CG_DrawStrlen(s) * BIGCHAR_WIDTH;
+	CG_HudViewportAnchor(.5f, .5f);
 	CG_DrawBigString(426 - w / 2, 100, s, 1.0F);
+	CG_HudViewportAnchor(1, 1);
 
 	// blink the icon
 	if ((cg.time >> 9) & 1)
@@ -1250,7 +1253,10 @@ static void CG_DrawLagometer(void)
 #endif // ALLOW_GSYNC
 	    )
 	{
-		CG_DrawBigString(ax, ay, "snc", 1.0);
+		/* ax/ay are already physical graph coordinates. Text accepts logical
+		 * coordinates and must be projected exactly once with the graph. */
+		if (CG_WideScreenEnabled()) CG_DrawBigString(x, y, "snc", 1.0);
+		else CG_DrawBigString(ax, ay, "snc", 1.0);
 	}
 
 	tce_uiCoordinates = previousCoordinates;
@@ -6055,7 +6061,11 @@ static void CG_Draw2D(void)
 
 		if (cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR)
 		{
+			/* This heading belongs to the same top-left message group as
+			 * Follow/Deploy hints, rather than the centered crosshair canvas. */
+			CG_HudViewportAnchor(0, 0);
 			CG_DrawSpectator();
+			CG_HudViewportAnchor(.5f, .5f);
 			CG_DrawCrosshairNames();
 
 			// NERVE - SMF - we need to do this for spectators as well
@@ -6190,8 +6200,19 @@ static void CG_Draw2D(void)
 
 
 	// Info overlays
-	CG_HudViewportFull();
-	CG_DrawOverlays();
+	if (TCE_ModernUIEnabled())
+	{
+		/* Stats/help are menu panels. Their rectangles and text use one
+		 * centered, bounded UI canvas instead of the fullscreen mask scale. */
+		CG_MenuViewportBegin();
+		CG_DrawOverlays();
+		CG_MenuViewportEnd();
+	}
+	else
+	{
+		CG_HudViewportFull();
+		CG_DrawOverlays();
+	}
 
 	// OSP - window updates
 	CG_HudViewportAnchor(0, 1);

@@ -1,4 +1,5 @@
 #include "cg_local.h"
+#include "cg_hud_viewport.h"
 #include "../ui/ui_shared.h"
 #include "../ui/tce_modern_ui.h"
 
@@ -237,7 +238,9 @@ void CG_DrawConnectScreen(qboolean interactive, qboolean forcerefresh)
 	if (TCE_ModernUIEnabled())
 	{
 		trap_Cvar_Set("ui_connecting", "0");
+		CG_MenuViewportBegin();
 		CG_DrawModernLoadPanel(interactive);
+		CG_MenuViewportEnd();
 		if (forcerefresh) DC->updateScreen();
 		tce_uiCoordinates = previousCoordinates;
 		inside = qfalse;

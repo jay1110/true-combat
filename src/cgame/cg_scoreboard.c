@@ -1,5 +1,6 @@
 // cg_scoreboard -- draw the scoreboard on top of the game screen
 #include "cg_local.h"
+#include "cg_hud_viewport.h"
 #include "../game/tce_countryflags.h"
 #include "../game/tce_numeric.h"
 #include "../ui/tce_modern_ui.h"
@@ -887,7 +888,9 @@ qboolean CG_DrawScoreboard(void)
 		ctx.teamBoard = TCE_ModernScoreTeam;
 	}
 	tce_uiCoordinates   = qtrue;
+	if (TCE_ModernUIEnabled()) CG_MenuViewportBegin();
 	result              = TCE_CG_DrawScoreboard(&ctx);
+	if (TCE_ModernUIEnabled()) CG_MenuViewportEnd();
 	tce_uiCoordinates   = previousCoordinates;
 	return result;
 }

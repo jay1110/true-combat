@@ -1,7 +1,7 @@
 """New native layouts for pause, dialogs, votes, credits and quick messages."""
 from pathlib import Path
 import re
-from layout_common import set_window, add_items, icon
+from layout_common import set_window, add_items, icon, header_canvas, header_button
 
 
 def calls(text,names,change):
@@ -13,28 +13,16 @@ def calls(text,names,change):
 
 
 def pause(text):
-    text=set_window(text)
-    slots={'Deployment':(0,0),'Vote':(1,0),'Referee':(1,0),'RCON':(1,0),
-           'Server Info':(0,1),'Options':(1,1),'Disconnect':(0,2),
-           'Exit TC:E':(1,2),'Omni-bot Editor':(2,0)}
+    text=header_canvas(text)
+    slots={'Deployment':0,'Vote':1,'Referee':1,'RCON':1,
+           'Server Info':2,'Options':3,'Disconnect':4,
+           'Exit TC:E':5,'Omni-bot Editor':6}
     editor='"Omni-bot Editor"' in text
     def update(n,a):
-        label=a[4].strip('"');col,row=slots[label]
-        if editor:
-            order={'Deployment':0,'Vote':1,'Referee':1,'RCON':1,'Server Info':2,
-                   'Options':3,'Disconnect':4,'Exit TC:E':5,'Omni-bot Editor':6}[label]
-            col,row=order%3,order//3;x=24+col*274;w=256
-        else:x=84+col*350;w=328
-        a[:4]=list(map(str,(x,84+row*108,w,88)))
-        a[5:7]=['.37','57'];return a
-    text=calls(text,{'BUTTON','BUTTONEXT'},update)
-    art=''
-    entries=[('play',0,0),('settings',1,0),('info',0,1),('controls',1,1),('server',0,2),('exit',1,2)]
-    if not editor:
-        for i,(glyph,col,row) in enumerate(entries):
-            art+=icon('modern_pause_'+str(i),glyph,108+col*350,113+row*108,28)
-        text=add_items(text,art,'ingame_main')
-    return text
+        slot=slots[a[4].strip('"')]
+        return header_button(a,slot,106 if editor else 124,
+                             116 if editor else 136,'.245' if editor else '.27')
+    return calls(text,{'BUTTON','BUTTONEXT'},update)
 
 
 def dialog(text):
@@ -115,10 +103,10 @@ def input_dialog(text,error=False):
         block=text[start:end]
         if re.search(r'(?im)^\s*name\s+"(?:background|loadPanel)"',block):
             block=item_prop(block,'rect','0 0 852 480')
-        if re.search(r'(?im)^\s*name\s+"efleftback(?:Password|Server IP):"',block):
+        if re.search(r'(?im)^\s*name\s+"efleftback(?:Password|Server IP|Warning):"',block):
             # The native value starts at label width +8. These two short labels
             # use the actual Barlow .26 advances (~57/53px), with 5px padding.
-            x=288 if 'efleftbackPassword:' in block else 284
+            x=288 if 'efleftbackPassword:' in block else 280 if 'efleftbackWarning:' in block else 284
             block=item_prop(block,'rect',f'{x} {top+66} {624-x} 28')
             block=item_prop(block,'backcolor','.075 .105 .14 .98')
             block=item_prop(block,'border','WINDOW_BORDER_FULL')
@@ -197,11 +185,13 @@ def quick(text):
     # Existing key-bound command hierarchy remains intact, now in a readable rail.
     text=text.replace('rect\t\t0 100 640 380','rect\t\t0 0 852 480')
     text=re.sub(r'(#define ORIGIN_QUICKMESSAGE\s+)10 10',r'\g<1>24 56',text)
-    text=text.replace('0 19 204 136','0 0 300 258')
+    # The longest original objective menu contains ten entries.  Its last row
+    # used to escape the panel after enlarging the old 12px row rhythm.
+    text=text.replace('0 19 204 136','0 0 300 284')
     text=text.replace('$evalfloat((0)+2) $evalfloat((19)+2) $evalfloat((204)-4) 12',
                       '12 12 276 26')
     text=text.replace('6 $evalfloat( 35 + ( 12 * POS )) 128 10',
-                      '16 $evalfloat( 52 + ( 24 * POS )) 268 22')
+                      '16 $evalfloat( 52 + ( 22 * POS )) 268 20')
     text=re.sub(r'(textscale\s+)\.2\b',r'\g<1>.28',text)
     text=re.sub(r'(textscale\s+)\.19\b',r'\g<1>.32',text)
     text=re.sub(r'(textaligny\s+)8\b',r'\g<1>17',text)
@@ -214,7 +204,7 @@ def apply(text,relative):
     if path.parent.name!='ui':return text
     name=path.name
     if name=='ingame_main.menu':return pause(text)
-    if name in ('popup_password.menu','playonline_connecttoip.menu'):
+    if name in ('popup_password.menu','playonline_connecttoip.menu','ingame_vote_players_warn.menu'):
         return input_dialog(text)
     if name=='popup_hostgameerrormessage.menu':return input_dialog(text,error=True)
     if name=='mods.menu':return mod_browser(text,relative)

@@ -19,7 +19,7 @@ menuDef {																										\
 																												\
 	itemDef {																									\
 		name		"window"																					\
-		rect		0 0 300 258																				\
+		rect		0 0 300 284																				\
 		origin		ORIGIN_QUICKMESSAGE																			\
 		style		WINDOW_STYLE_FILLED																			\
 		backcolor	0 0 0 .75																					\
@@ -50,7 +50,7 @@ menuDef {																										\
 	#define QM_MENU_ITEM( WINDOWTEXT, ACTION, KEY, POS )				\
     itemDef {															\
 		name			"menuitem"##WINDOWTEXT							\
-		rect			16 $evalfloat( 52 + ( 24 * POS )) 268 22			\
+		rect			16 $evalfloat( 52 + ( 22 * POS )) 268 20			\
 		origin			ORIGIN_QUICKMESSAGE								\
 		type			ITEM_TYPE_TEXT									\
 		text			WINDOWTEXT										\
@@ -67,7 +67,7 @@ menuDef {																										\
 	#define QM_MENU_ITEM_TEAM( WINDOWTEXT, ACTION, KEY, POS )			\
     itemDef {															\
 		name			"menuitem"##WINDOWTEXT							\
-		rect			16 $evalfloat( 52 + ( 24 * POS )) 268 22			\
+		rect			16 $evalfloat( 52 + ( 22 * POS )) 268 20			\
 		origin			ORIGIN_QUICKMESSAGE								\
 		type			ITEM_TYPE_TEXT									\
 		text			WINDOWTEXT										\

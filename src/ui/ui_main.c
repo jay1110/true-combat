@@ -371,8 +371,14 @@ void AssetCache()
 
 void _UI_DrawSides(float x, float y, float w, float h, float size)
 {
+	float unitX = 1.f, unitY = 1.f, originX = 0.f, originY = 0.f;
 	UI_AdjustFrom640(&x, &y, &w, &h);
-	size *= uiInfo.uiDC.xscale;
+	if (trap_Cvar_VariableValue("cg_wideScreen") != 0.f || TCE_ModernUIEnabled())
+	{
+		UI_AdjustFrom640(&originX, &originY, &unitX, &unitY);
+		size *= unitX;
+	}
+	else size *= uiInfo.uiDC.xscale;
 	trap_R_DrawStretchPic(x, y, size, h, 0, 0, 0, 0, uiInfo.uiDC.whiteShader);
 	// Original x87 retains the sum until after subtracting the rounded thickness.
 #if defined(__linux__)
@@ -384,8 +390,14 @@ void _UI_DrawSides(float x, float y, float w, float h, float size)
 
 void _UI_DrawTopBottom(float x, float y, float w, float h, float size)
 {
+	float unitX = 1.f, unitY = 1.f, originX = 0.f, originY = 0.f;
 	UI_AdjustFrom640(&x, &y, &w, &h);
-	size *= uiInfo.uiDC.yscale;
+	if (trap_Cvar_VariableValue("cg_wideScreen") != 0.f || TCE_ModernUIEnabled())
+	{
+		UI_AdjustFrom640(&originX, &originY, &unitX, &unitY);
+		size *= unitY;
+	}
+	else size *= uiInfo.uiDC.yscale;
 	trap_R_DrawStretchPic(x, y, w, size, 0, 0, 0, 0, uiInfo.uiDC.whiteShader);
 #if defined(__linux__)
 	trap_R_DrawStretchPic(x, (float)((long double)h + (long double)y - (long double)size), w, size, 0, 0, 0, 0, uiInfo.uiDC.whiteShader);
@@ -668,6 +680,12 @@ void Text_Paint_Ext(float x, float y, float scalex, float scaley, vec4_t color, 
 	vec4_t      newColor;
 	glyphInfo_t *glyph;
 	int         index;
+	vec4_t      themeColor;
+	if (TCE_ModernUIEnabled())
+	{
+		TCE_ModernThemeColor(color,themeColor,0);
+		color=themeColor;
+	}
 
 	scalex *= font->glyphScale;
 	scaley *= font->glyphScale;
@@ -762,6 +780,13 @@ char * Text_AutoWrap_Paint_Chunk(float x, float y, int width, float scale, vec4_
 	float wrap_x = x + width;
 
 	useScale = scale * font->glyphScale;
+
+	vec4_t themeColor;
+	if (TCE_ModernUIEnabled())
+	{
+		TCE_ModernThemeColor(color,themeColor,0);
+		color=themeColor;
+	}
 
 	if (text)
 	{
@@ -926,6 +951,13 @@ void Text_PaintWithCursor(float x, float y, float scale, vec4_t color, const cha
 	fontInfo_t  *font = &uiInfo.uiDC.Assets.fonts[uiInfo.activeFont];
 
 	useScale = scale * font->glyphScale;
+
+	vec4_t themeColor;
+	if (TCE_ModernUIEnabled())
+	{
+		TCE_ModernThemeColor(color,themeColor,0);
+		color=themeColor;
+	}
 
 	if (text)
 	{

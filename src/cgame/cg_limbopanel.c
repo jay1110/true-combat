@@ -5,6 +5,7 @@
 #include "tce_weapon_media.h"
 #include "../ui/tce_ui_coordinates.h"
 #include "../ui/tce_modern_ui.h"
+#include "cg_hud_viewport.h"
 
 qboolean tce_uiCoordinates;
 static void CG_LimboPanel_RenderTeamCounter(panel_button_t *button);
@@ -3443,8 +3444,10 @@ qboolean CG_LimboPanel_Draw(void)
 	qboolean result;
 
 	tce_uiCoordinates = qtrue;
+	if (TCE_ModernUIEnabled()) CG_MenuViewportBegin();
 	if (TCE_ModernUIEnabled()) TCE_ModernLimboGeometry();
 	result = TCE_LimboDrawContents();
+	if (TCE_ModernUIEnabled()) CG_MenuViewportEnd();
 	tce_uiCoordinates = previous;
 	return result;
 }
@@ -3453,7 +3456,9 @@ void CG_LimboPanel_KeyHandling(int key, qboolean down)
 	qboolean previous = tce_uiCoordinates;
 
 	tce_uiCoordinates = qtrue;
+	if (TCE_ModernUIEnabled()) CG_MenuViewportBegin();
 	if (TCE_ModernUIEnabled()) TCE_ModernLimboGeometry();
 	TCE_LimboKeyContents(key, down);
+	if (TCE_ModernUIEnabled()) CG_MenuViewportEnd();
 	tce_uiCoordinates = previous;
 }

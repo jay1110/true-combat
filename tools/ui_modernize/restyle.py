@@ -242,6 +242,16 @@ def menu(text, relative):
         text=layout_misc.apply(text,relative)
         text=layout_secondary.apply(text,relative)
         text=settings_navigation(text,relative)
+        # Legacy copies used negative 862x650 fade boxes to bleed across a
+        # 640-wide parent.  All modern pages use one852x480 canvas; retain the
+        # same decoration/script identity without an off-screen painted rect.
+        from layout_common import HEADER_HEIGHT
+        header=relative.name in ('ingame_main.menu','ingame_vote.menu','options.menu')
+        for start,end in reversed(list(blocks(text))):
+            b=text[start:end]
+            if re.search(r'\bname\s+"background"',b):
+                b=item_prop(b,'rect',f'0 0 852 {HEADER_HEIGHT if header else 480}')
+                text=text[:start]+b+text[end:]
         text=text.replace('"ui/menumacros.h"','"ui/modern_widgets.h"')
     return text
 
@@ -258,6 +268,10 @@ def main():
                 s=re.sub(r'(?m)^(#define UI_FONT_ARIBLK_16\s+)0',r'\g<1>2',s)
                 s=re.sub(r'(?m)^(#define UI_FONT_ARIBLK_27\s+)1',r'\g<1>3',s)
             elif p.suffix.lower()=='.menu':s=menu(s,relative)
+            elif p.name in ('menus.txt','menus_gt2.txt','menus_gt5.txt','menus_gt7.txt') and folder=='ui':
+                source_line='loadMenu { "ui/options.menu" }'
+                if s.count(source_line)!=1:raise ValueError('Missing/duplicate Options registry entry: '+p.name)
+                s=s.replace(source_line,source_line+'\n\tloadMenu { "ui/modern_appearance.menu" }',1)
             q=DEST/relative;q.parent.mkdir(parents=True,exist_ok=True);q.write_bytes(s.encode('latin1'))
             rows.append({'path':relative.as_posix(),'changed':p.read_bytes()!=q.read_bytes()})
     from layout_common import widgets

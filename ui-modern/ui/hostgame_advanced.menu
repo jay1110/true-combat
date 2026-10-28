@@ -47,142 +47,142 @@ menuDef {
 
 // General //
 
-	SUBWINDOW( 24, 60, 190, 126, "GENERAL" )
-	NUMERICFIELD( 32, 86, 174, 18, "Minimum Ping:", .19, 13, "sv_minping", 4, "Setting the minimum ping can be used to exclude LPBs (0 = No Minimum)" )
-	NUMERICFIELD( 32, 106, 174, 18, "Maximum Ping:", .19, 13, "sv_maxping", 4, "Setting the maximum ping can be used to exclude HPBs (0 = No Maximum)" )
-	NUMERICFIELD( 32, 126, 174, 18, "Maximum Game Rate:", .19, 13, "sv_maxrate", 6, "Maximum rate to send game data to clients (0 = match client rate settings)" )
-	NUMERICFIELD( 32, 146, 174, 18, "Player Inactivity:", .19, 13, "g_inactivity", 3, "Max time (in sec) a player can remain idle before being kicked from the server (0 = disabled)" )
-	NUMERICFIELD( 32, 166, 174, 18, "Spectator Inactivity:", .19, 13, "g_spectatorInactivity", 3, "Max time (in sec) a spectator can remain idle before being kicked from the server (0 = disabled)" )
+	SUBWINDOW( 24, 60, 224, 126, "GENERAL" )
+	NUMERICFIELD( 28, 86, 216, 18, "Minimum Ping:", .20, 13, "sv_minping", 4, "Setting the minimum ping can be used to exclude LPBs (0 = No Minimum)" )
+	NUMERICFIELD( 28, 106, 216, 18, "Maximum Ping:", .20, 13, "sv_maxping", 4, "Setting the maximum ping can be used to exclude HPBs (0 = No Maximum)" )
+	NUMERICFIELD( 28, 126, 216, 18, "Maximum Game Rate:", .20, 13, "sv_maxrate", 6, "Maximum rate to send game data to clients (0 = match client rate settings)" )
+	NUMERICFIELD( 28, 146, 216, 18, "Player Inactivity:", .20, 13, "g_inactivity", 3, "Max time (in sec) a player can remain idle before being kicked from the server (0 = disabled)" )
+	NUMERICFIELD( 28, 166, 216, 18, "Spectator Inactivity:", .20, 13, "g_spectatorInactivity", 3, "Max time (in sec) a spectator can remain idle before being kicked from the server (0 = disabled)" )
 	
 // Match //
 
-	SUBWINDOW( 226, 60, 194, 372, "MATCH" )
-	YESNO( 234, 86, 178, 18, "Wait for Ready:", .19, 13, "g_doWarmup", "Whether the server should require players to be ready before a match can start" )
-	NUMERICFIELD( 234, 106, 178, 18, "Minimum Players:", .19, 13, "match_minplayers", 2, "Specifies the minimum number of players required before a match can start" )
-	NUMERICFIELD( 234, 126, 178, 18, "Ready percentage:", .19, 13, "match_readypercent", 3, "Specifies the minimum percentage of players that must hit their ready key before a match can start" )
-	YESNO( 234, 146, 178, 18, "Allow Late Joins:", .19, 13, "match_latejoin", "Whether a player can join a team once a match has started" )
-	YESNO( 234, 166, 178, 18, "Mute Spectators:", .19, 13, "match_mutespecs", "Whether spectators are muted" )
-	MULTI( 234, 186, 178, 18, "Warmup Damage:", .19, 13, "match_warmupDamage", cvarFloatList { "Nobody" 0 "Enemies Only" 1 "Everyone" 2 }, "Whether you can damage players during the match's warmup period" )
-	NUMERICFIELD( 234, 206, 178, 18, "Max Players Per Team:", .19, 13, "team_maxplayers", 2, "Specifies the maximum number of players per team" )
-	YESNO( 234, 226, 178, 18, "Disable Team Controls:", .19, 13, "team_nocontrols", "Whether players can issue team commands (lock team/spectators, readyteam, etc.)" )
-	NUMERICFIELD( 234, 246, 178, 18, "Warmup Duration:", .19, 13, "g_warmup", 2, "The length of time the warmup lasts prior to a match starting" )
-	NUMERICFIELD( 234, 266, 178, 18, "Maximum Complaints:", .19, 13, "g_complaintlimit", 2, "The maximum number of complaints a player may receive before being kicked from a server" )
-	MULTI( 234, 286, 178, 18, "Maximum Complainees:", .19, 13, "g_ipcomplaintlimit", cvarFloatList { "Off" 0 "1" 1 "2" 2 "3" 3 "4" 4 "5" 5 "6" 6 }, "The number of unique complaints a player may receive before being kicked from a server" )
-	NUMERICFIELD( 234, 306, 178, 18, "Map Time Limit:", .19, 13, "ui_userTimeLimit", 6, "Override the default time limit" )
-	NUMERICFIELD( 234, 326, 178, 18, "Allied Spawn Time:", .19, 13, "ui_userAlliedRespawnTime", 2, "Override the default Allied spawn time" )
-	NUMERICFIELD( 234, 346, 178, 18, "Axis Spawn Time:", .19, 13, "ui_userAxisRespawnTime", 2, "Override the default Axis spawn time" )
-	NUMERICFIELD( 234, 366, 178, 18, "Allied Max Lives:", .19, 13, "g_alliedmaxlives", 3, "Specify the number of Allied lives in a max lives game" )
-	NUMERICFIELD( 234, 386, 178, 18, "Axis Max Lives:", .19, 13, "g_axismaxlives", 3, "Specify the number of Axis lives in a max lives game" )
-	MULTI( 234, 406, 178, 18, "Stopwatch Round-Type:", .19, 13, "g_altStopwatchMode", cvarFloatList { "ABBA" 0 "ABAB" 1 }, "Determines the type of Stopwatch round (ABBA = swap sides, ABAB = retain sides)" )	
+	SUBWINDOW( 255, 60, 224, 372, "MATCH" )
+	YESNO( 259, 86, 216, 18, "Wait for Ready:", .20, 13, "g_doWarmup", "Whether the server should require players to be ready before a match can start" )
+	NUMERICFIELD( 259, 106, 216, 18, "Minimum Players:", .20, 13, "match_minplayers", 2, "Specifies the minimum number of players required before a match can start" )
+	NUMERICFIELD( 259, 126, 216, 18, "Ready percentage:", .20, 13, "match_readypercent", 3, "Specifies the minimum percentage of players that must hit their ready key before a match can start" )
+	YESNO( 259, 146, 216, 18, "Allow Late Joins:", .20, 13, "match_latejoin", "Whether a player can join a team once a match has started" )
+	YESNO( 259, 166, 216, 18, "Mute Spectators:", .20, 13, "match_mutespecs", "Whether spectators are muted" )
+	MULTI( 259, 186, 216, 18, "Warmup Damage:", .20, 13, "match_warmupDamage", cvarFloatList { "Nobody" 0 "Enemies Only" 1 "Everyone" 2 }, "Whether you can damage players during the match's warmup period" )
+	NUMERICFIELD( 259, 206, 216, 18, "Max Players Per Team:", .20, 13, "team_maxplayers", 2, "Specifies the maximum number of players per team" )
+	YESNO( 259, 226, 216, 18, "Disable Team Controls:", .20, 13, "team_nocontrols", "Whether players can issue team commands (lock team/spectators, readyteam, etc.)" )
+	NUMERICFIELD( 259, 246, 216, 18, "Warmup Duration:", .20, 13, "g_warmup", 2, "The length of time the warmup lasts prior to a match starting" )
+	NUMERICFIELD( 259, 266, 216, 18, "Maximum Complaints:", .20, 13, "g_complaintlimit", 2, "The maximum number of complaints a player may receive before being kicked from a server" )
+	MULTI( 259, 286, 216, 18, "Maximum Complainees:", .20, 13, "g_ipcomplaintlimit", cvarFloatList { "Off" 0 "1" 1 "2" 2 "3" 3 "4" 4 "5" 5 "6" 6 }, "The number of unique complaints a player may receive before being kicked from a server" )
+	NUMERICFIELD( 259, 306, 216, 18, "Map Time Limit:", .20, 13, "ui_userTimeLimit", 6, "Override the default time limit" )
+	NUMERICFIELD( 259, 326, 216, 18, "Allied Spawn Time:", .20, 13, "ui_userAlliedRespawnTime", 2, "Override the default Allied spawn time" )
+	NUMERICFIELD( 259, 346, 216, 18, "Axis Spawn Time:", .20, 13, "ui_userAxisRespawnTime", 2, "Override the default Axis spawn time" )
+	NUMERICFIELD( 259, 366, 216, 18, "Allied Max Lives:", .20, 13, "g_alliedmaxlives", 3, "Specify the number of Allied lives in a max lives game" )
+	NUMERICFIELD( 259, 386, 216, 18, "Axis Max Lives:", .20, 13, "g_axismaxlives", 3, "Specify the number of Axis lives in a max lives game" )
+	MULTI( 259, 406, 216, 18, "Stopwatch Round-Type:", .20, 13, "g_altStopwatchMode", cvarFloatList { "ABBA" 0 "ABAB" 1 }, "Determines the type of Stopwatch round (ABBA = swap sides, ABAB = retain sides)" )	
 	
 // LMS //
 
-	SUBWINDOW( 24, 196, 190, 104, "LAST MAN STANDING" )
+	SUBWINDOW( 24, 196, 224, 104, "LAST MAN STANDING" )
 	
-	NUMERICFIELD( 32, 222, 174, 18, "LMS Rounds Per Match:", .19, 13, "g_lms_roundlimit", 2, "Override the default LMS rounds per match" )	// fixme: range check
-	NUMERICFIELD( 32, 242, 174, 18, "LMS Matches Per Map:", .19, 13, "g_lms_matchlimit", 2, "Override the default LMS matches (comprising of rounds) per map" )	// fixme: range check
-	YESNO( 32, 262, 174, 18, "LMS Spectate Team Only:", .19, 13, "g_lms_followTeamOnly", "Stops players spectating the enemy team" )
-	YESNO( 32, 282, 174, 18, "LMS Locked Teams:", .19, 13, "g_lms_lockTeams", "Stops players being able to switch teams" )
+	NUMERICFIELD( 28, 222, 216, 18, "LMS Rounds Per Match:", .20, 13, "g_lms_roundlimit", 2, "Override the default LMS rounds per match" )	// fixme: range check
+	NUMERICFIELD( 28, 242, 216, 18, "LMS Matches Per Map:", .20, 13, "g_lms_matchlimit", 2, "Override the default LMS matches (comprising of rounds) per map" )	// fixme: range check
+	YESNO( 28, 262, 216, 18, "LMS Spectate Team Only:", .20, 13, "g_lms_followTeamOnly", "Stops players spectating the enemy team" )
+	YESNO( 28, 282, 216, 18, "LMS Locked Teams:", .20, 13, "g_lms_lockTeams", "Stops players being able to switch teams" )
 
 // Admin //
 
-	SUBWINDOW( 432, 60, 190, 106, "ADMIN" )
-	YESNO( 440, 86, 174, 18, "Pure Server:", .19, 13, "sv_pure", "Limits game content to that contained in PK3 files on both the client and server with matching CRCs" )
-	EDITFIELD( 440, 106, 174, 18, "Password:", .19, 13, "g_password", 25, 18, "Sets the password required for players to join the server" )
-	EDITFIELD( 440, 126, 174, 18, "Referee Password:", .19, 13, "refereePassword", 25, 18, "Password to utilize the \"ref\" command for match control and remote game administration" )
-	EDITFIELD( 440, 146, 174, 18, "RCON Password:", .19, 13, "rconPassword", 25, 18, "Password to utilize the remote game server console (very powerful, so keep this password safe)" )
+	SUBWINDOW( 486, 60, 224, 106, "ADMIN" )
+	YESNO( 490, 86, 216, 18, "Pure Server:", .20, 13, "sv_pure", "Limits game content to that contained in PK3 files on both the client and server with matching CRCs" )
+	EDITFIELD( 490, 106, 216, 18, "Password:", .20, 13, "g_password", 25, 18, "Sets the password required for players to join the server" )
+	EDITFIELD( 490, 126, 216, 18, "Referee Password:", .20, 13, "refereePassword", 25, 18, "Password to utilize the \"ref\" command for match control and remote game administration" )
+	EDITFIELD( 490, 146, 216, 18, "RCON Password:", .20, 13, "rconPassword", 25, 18, "Password to utilize the remote game server console (very powerful, so keep this password safe)" )
 
 // Voting //
 
-	SUBWINDOW( 432, 176, 190, 72, "VOTING" )
-	NUMERICFIELD( 440, 202, 174, 18, "Max Votes per Player:", .19, 13, "vote_limit", 2, "Specifies the maximum number of votes per player per match" )
-	MULTI( 440, 222, 174, 18, "Successful voting %:", .19, 13, "vote_percent", cvarFloatList { "25%" 25 "50%" 50 "75%" 75 "100%" 100 }, "Specifies the minimum percentage required for a vote to pass" )
+	SUBWINDOW( 486, 176, 224, 72, "VOTING" )
+	NUMERICFIELD( 490, 202, 216, 18, "Max Votes per Player:", .20, 13, "vote_limit", 2, "Specifies the maximum number of votes per player per match" )
+	MULTI( 490, 222, 216, 18, "Successful voting %:", .20, 13, "vote_percent", cvarFloatList { "25%" 25 "50%" 50 "75%" 75 "100%" 100 }, "Specifies the minimum percentage required for a vote to pass" )
 	
-	SUBWINDOW( 634, 60, 194, 372, "ALLOW VOTES" )
-	CHECKBOXALIGNX( 642, 86, 178, 18, "Comp Settings:", .19, -4, 13, "vote_allow_comp", "Allow players to vote for competition settings" )
-	CHECKBOXALIGNX( 642, 106, 178, 18, "Game Type:", .19, -4, 13, "vote_allow_gametype", "Allow players to vote for a change in game type" )
-	CHECKBOXALIGNX( 642, 126, 178, 18, "Player Kick:", .19, -4, 13, "vote_allow_kick", "Allow players to vote for other players to be kicked" )
-	CHECKBOXALIGNX( 642, 146, 178, 18, "Map:", .19, -4, 13, "vote_allow_map", "Allow players to vote for a different campaign or map" )
-	CHECKBOXALIGNX( 642, 166, 178, 18, "Match Reset:", .19, -4, 13, "vote_allow_matchreset", "Allow players to vote for the match to be reset" )
-	CHECKBOXALIGNX( 642, 186, 178, 18, "Mute Spects:", .19, -4, 13, "vote_allow_mutespecs", "Allow players to vote for spectators to be muted" )
-	CHECKBOXALIGNX( 642, 206, 178, 18, "Next Map:", .19, -4, 13, "vote_allow_nextmap", "Allow players to vote for the next campaign or map" )
-	CHECKBOXALIGNX( 642, 226, 178, 18, "Balanced Teams:", .19, -4, 13, "vote_allow_balancedteams", "Allow players to vote for enforced team balance" )
+	SUBWINDOW( 718, 60, 110, 372, "ALLOW VOTES" )
+	CHECKBOXALIGNX( 722, 86, 102, 18, "Comp Settings:", .20, 25, 13, "vote_allow_comp", "Allow players to vote for competition settings" )
+	CHECKBOXALIGNX( 722, 106, 102, 18, "Game Type:", .20, 25, 13, "vote_allow_gametype", "Allow players to vote for a change in game type" )
+	CHECKBOXALIGNX( 722, 126, 102, 18, "Player Kick:", .20, 25, 13, "vote_allow_kick", "Allow players to vote for other players to be kicked" )
+	CHECKBOXALIGNX( 722, 146, 102, 18, "Map:", .20, 25, 13, "vote_allow_map", "Allow players to vote for a different campaign or map" )
+	CHECKBOXALIGNX( 722, 166, 102, 18, "Match Reset:", .20, 25, 13, "vote_allow_matchreset", "Allow players to vote for the match to be reset" )
+	CHECKBOXALIGNX( 722, 186, 102, 18, "Mute Spects:", .20, 25, 13, "vote_allow_mutespecs", "Allow players to vote for spectators to be muted" )
+	CHECKBOXALIGNX( 722, 206, 102, 18, "Next Map:", .20, 25, 13, "vote_allow_nextmap", "Allow players to vote for the next campaign or map" )
+	CHECKBOXALIGNX( 722, 226, 102, 18, "Balanced Teams:", .20, 25, 13, "vote_allow_balancedteams", "Allow players to vote for enforced team balance" )
 	
-	CHECKBOXALIGNX( 642, 246, 178, 18, "Pub Settings:", .19, -4, 13, "vote_allow_pub", "Allow players to vote for public settings" )
-	CHECKBOXALIGNX( 642, 266, 178, 18, "Referee:", .19, -4, 13, "vote_allow_referee", "Allow players to vote for a referee" )
-	CHECKBOXALIGNX( 642, 286, 178, 18, "XP Shuffle:", .19, -4, 13, "vote_allow_shuffleteamsxp", "Allow players to vote for teams to be shuffled" )
-	CHECKBOXALIGNX( 642, 306, 178, 18, "Swap Teams:", .19, -4, 13, "vote_allow_swapteams", "Allow players to vote for teams to swap sides" )
-	CHECKBOXALIGNX( 642, 326, 178, 18, "Friendly Fire:", .19, -4, 13, "vote_allow_friendlyfire", "Allow players to vote for friendly fire to be enabled or disabled" )
-	CHECKBOXALIGNX( 642, 346, 178, 18, "Timelimit:", .19, -4, 13, "vote_allow_timelimit", "Allow players to vote for a different time limit" )
-	CHECKBOXALIGNX( 642, 366, 178, 18, "Warmup Damage:", .19, -4, 13, "vote_allow_warmupdamage", "Allow players to vote for warmup damage to be enabled or disabled" )
-	CHECKBOXALIGNX( 642, 386, 178, 18, "Anti-Lag:", .19, -4, 13, "vote_allow_antilag", "Allow players to vote for antilag to be enabled or disabled" )
+	CHECKBOXALIGNX( 722, 246, 102, 18, "Pub Settings:", .20, 25, 13, "vote_allow_pub", "Allow players to vote for public settings" )
+	CHECKBOXALIGNX( 722, 266, 102, 18, "Referee:", .20, 25, 13, "vote_allow_referee", "Allow players to vote for a referee" )
+	CHECKBOXALIGNX( 722, 286, 102, 18, "XP Shuffle:", .20, 25, 13, "vote_allow_shuffleteamsxp", "Allow players to vote for teams to be shuffled" )
+	CHECKBOXALIGNX( 722, 306, 102, 18, "Swap Teams:", .20, 25, 13, "vote_allow_swapteams", "Allow players to vote for teams to swap sides" )
+	CHECKBOXALIGNX( 722, 326, 102, 18, "Friendly Fire:", .20, 25, 13, "vote_allow_friendlyfire", "Allow players to vote for friendly fire to be enabled or disabled" )
+	CHECKBOXALIGNX( 722, 346, 102, 18, "Timelimit:", .20, 25, 13, "vote_allow_timelimit", "Allow players to vote for a different time limit" )
+	CHECKBOXALIGNX( 722, 366, 102, 18, "Warmup Damage:", .20, 25, 13, "vote_allow_warmupdamage", "Allow players to vote for warmup damage to be enabled or disabled" )
+	CHECKBOXALIGNX( 722, 386, 102, 18, "Anti-Lag:", .20, 25, 13, "vote_allow_antilag", "Allow players to vote for antilag to be enabled or disabled" )
 	
 // Message of the Day //
 
-	SUBWINDOW( 24, 310, 190, 122, "MESSAGE OF THE DAY" )
+	SUBWINDOW( 24, 310, 224, 122, "MESSAGE OF THE DAY" )
 
 	itemDef {
 		name		"efleftbackLine 1:"
 		group		GROUP_NAME
-		rect		70 336 136 18
+		rect		62 336 182 18
 		style		WINDOW_STYLE_FILLED
 		backcolor	.12 .17 .22 .96
 		visible		1
 		decoration
 	}
-	EDITFIELDLEFT( 32, 336, 174, 18, "Line 1:", .19, 13, "server_motd0", 26, 35, "Specifies the message clients will see when connecting to the server" )
+	EDITFIELDLEFT( 28, 336, 216, 18, "Line 1:", .20, 13, "server_motd0", 26, 35, "Specifies the message clients will see when connecting to the server" )
 	
 	itemDef {
 		name		"efleftbackLine 2:"
 		group		GROUP_NAME
-		rect		70 354 136 18
+		rect		62 354 182 18
 		style		WINDOW_STYLE_FILLED
 		backcolor	.12 .17 .22 .96
 		visible		1
 		decoration
 	}	
-	EDITFIELDLEFT( 32, 354, 174, 18, "Line 2:", .19, 13, "server_motd1", 26, 35, "Specifies the message clients will see when connecting to the server" )
+	EDITFIELDLEFT( 28, 354, 216, 18, "Line 2:", .20, 13, "server_motd1", 26, 35, "Specifies the message clients will see when connecting to the server" )
 
 	itemDef {
 		name		"efleftbackLine 3:"
 		group		GROUP_NAME
-		rect		70 372 136 18
+		rect		62 372 182 18
 		style		WINDOW_STYLE_FILLED
 		backcolor	.12 .17 .22 .96
 		visible		1
 		decoration
 	}	
-	EDITFIELDLEFT( 32, 372, 174, 18, "Line 3:", .19, 13, "server_motd2", 26, 35, "Specifies the message clients will see when connecting to the server" )
+	EDITFIELDLEFT( 28, 372, 216, 18, "Line 3:", .20, 13, "server_motd2", 26, 35, "Specifies the message clients will see when connecting to the server" )
 	
 	itemDef {
 		name		"efleftbackLine 4:"
 		group		GROUP_NAME
-		rect		70 390 136 18
+		rect		62 390 182 18
 		style		WINDOW_STYLE_FILLED
 		backcolor	.12 .17 .22 .96
 		visible		1
 		decoration
 	}	
-	EDITFIELDLEFT( 32, 390, 174, 18, "Line 4:", .19, 13, "server_motd3", 26, 35, "Specifies the message clients will see when connecting to the server" )
+	EDITFIELDLEFT( 28, 390, 216, 18, "Line 4:", .20, 13, "server_motd3", 26, 35, "Specifies the message clients will see when connecting to the server" )
 
 	itemDef {
 		name		"efleftbackLine 5:"
 		group		GROUP_NAME
-		rect		70 408 136 18
+		rect		62 408 182 18
 		style		WINDOW_STYLE_FILLED
 		backcolor	.12 .17 .22 .96
 		visible		1
 		decoration
 	}	
-	EDITFIELDLEFT( 32, 408, 174, 18, "Line 5:", .19, 13, "server_motd4", 26, 35, "Specifies the message clients will see when connecting to the server" )
+	EDITFIELDLEFT( 28, 408, 216, 18, "Line 5:", .20, 13, "server_motd4", 26, 35, "Specifies the message clients will see when connecting to the server" )
 	
 // Download //
 
-	SUBWINDOW( 432, 258, 190, 174, "DOWNLOAD" )
-	YESNO( 440, 286, 174, 18, "Client Downloads:", .19, 13, "sv_allowDownload", "Allows players to download missing files from the server" )
-	NUMERICFIELD( 440, 316, 174, 18, "Maximum Download Rate:", .19, 13, "sv_dl_maxRate", 6, "Specifies the maximum download rate from the server for players with missing files" )
-	YESNO( 440, 346, 174, 18, "FTP/HTTP Redirects:", .19, 13, "sv_wwwDownload", "Redirects players with missing files to another server" )
-	EDITFIELD( 440, 376, 174, 18, "Base URL:", .19, 13, "sv_wwwBaseUrl", 64, 18, "Used to build the URL given to clients for download" )
+	SUBWINDOW( 486, 258, 224, 174, "DOWNLOAD" )
+	YESNO( 490, 286, 216, 18, "Client Downloads:", .20, 13, "sv_allowDownload", "Allows players to download missing files from the server" )
+	NUMERICFIELD( 490, 316, 216, 18, "Maximum Download Rate:", .20, 13, "sv_dl_maxRate", 6, "Specifies the maximum download rate from the server for players with missing files" )
+	YESNO( 490, 346, 216, 18, "FTP/HTTP Redirects:", .20, 13, "sv_wwwDownload", "Redirects players with missing files to another server" )
+	EDITFIELD( 490, 376, 216, 18, "Base URL:", .20, 13, "sv_wwwBaseUrl", 64, 18, "Used to build the URL given to clients for download" )
 //	EDITFIELD( 6+(SUBWINDOW_WIDTH)+6+2, 412-10, (SUBWINDOW_WIDTH)-4, 10, "Check Path:", .2, 8, "sv_wwwCheckPath", 64, 18, "A local path on the server to check for files" )
 
 // Buttons //

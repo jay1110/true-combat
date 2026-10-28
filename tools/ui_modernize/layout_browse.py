@@ -271,31 +271,32 @@ def _host(text):
 
 
 def _advanced(text):
-    # Eight original sections become four columns with a regular row rhythm.
-    # The larger match/vote groups each receive one uninterrupted column.
+    # Numeric/choice controls need wide label/value halves.  Voting checkboxes
+    # need only a label and an 18px mark, so give that rail less width rather
+    # than shrinking every long server-setting label to an unreadable size.
     panels = {
-        '"GENERAL"': (24, 60, 190, 126),
-        '"LAST MAN STANDING"': (24, 196, 190, 104),
-        '"MESSAGE OF THE DAY"': (24, 310, 190, 122),
-        '"MATCH"': (226, 60, 194, 372),
-        '"ADMIN"': (432, 60, 190, 106),
-        '"VOTING"': (432, 176, 190, 72),
-        '"DOWNLOAD"': (432, 258, 190, 174),
-        '"ALLOW VOTES"': (634, 60, 194, 372),
+        '"GENERAL"': (24, 60, 224, 126),
+        '"LAST MAN STANDING"': (24, 196, 224, 104),
+        '"MESSAGE OF THE DAY"': (24, 310, 224, 122),
+        '"MATCH"': (255, 60, 224, 372),
+        '"ADMIN"': (486, 60, 224, 106),
+        '"VOTING"': (486, 176, 224, 72),
+        '"DOWNLOAD"': (486, 258, 224, 174),
+        '"ALLOW VOTES"': (718, 60, 110, 372),
     }
     groups = {
-        'general': (32, 86, 174, 20, ('sv_minping', 'sv_maxping', 'sv_maxrate', 'g_inactivity', 'g_spectatorInactivity')),
-        'lms': (32, 222, 174, 20, ('g_lms_roundlimit', 'g_lms_matchlimit', 'g_lms_followTeamOnly', 'g_lms_lockTeams')),
-        'match': (234, 86, 178, 20, ('g_doWarmup', 'match_minplayers', 'match_readypercent',
+        'general': (28, 86, 216, 20, ('sv_minping', 'sv_maxping', 'sv_maxrate', 'g_inactivity', 'g_spectatorInactivity')),
+        'lms': (28, 222, 216, 20, ('g_lms_roundlimit', 'g_lms_matchlimit', 'g_lms_followTeamOnly', 'g_lms_lockTeams')),
+        'match': (259, 86, 216, 20, ('g_doWarmup', 'match_minplayers', 'match_readypercent',
                     'match_latejoin', 'match_mutespecs', 'match_warmupDamage', 'team_maxplayers',
                     'team_nocontrols', 'g_warmup', 'g_complaintlimit', 'g_ipcomplaintlimit',
                     'ui_userTimeLimit', 'ui_userAlliedRespawnTime', 'ui_userAxisRespawnTime',
                     'g_alliedmaxlives', 'g_axismaxlives', 'g_altStopwatchMode')),
-        'admin': (440, 86, 174, 20, ('sv_pure', 'g_password', 'refereePassword', 'rconPassword')),
-        'voting': (440, 202, 174, 20, ('vote_limit', 'vote_percent')),
-        'download': (440, 286, 174, 30, ('sv_allowDownload', 'sv_dl_maxRate', 'sv_wwwDownload', 'sv_wwwBaseUrl')),
-        'motd': (32, 336, 174, 18, ('server_motd0', 'server_motd1', 'server_motd2', 'server_motd3', 'server_motd4')),
-        'votes': (642, 86, 178, 20, ('vote_allow_comp', 'vote_allow_gametype', 'vote_allow_kick',
+        'admin': (490, 86, 216, 20, ('sv_pure', 'g_password', 'refereePassword', 'rconPassword')),
+        'voting': (490, 202, 216, 20, ('vote_limit', 'vote_percent')),
+        'download': (490, 286, 216, 30, ('sv_allowDownload', 'sv_dl_maxRate', 'sv_wwwDownload', 'sv_wwwBaseUrl')),
+        'motd': (28, 336, 216, 18, ('server_motd0', 'server_motd1', 'server_motd2', 'server_motd3', 'server_motd4')),
+        'votes': (722, 86, 102, 20, ('vote_allow_comp', 'vote_allow_gametype', 'vote_allow_kick',
                     'vote_allow_map', 'vote_allow_matchreset', 'vote_allow_mutespecs', 'vote_allow_nextmap',
                     'vote_allow_balancedteams', 'vote_allow_pub', 'vote_allow_referee',
                     'vote_allow_shuffleteamsxp', 'vote_allow_swapteams', 'vote_allow_friendlyfire',
@@ -317,11 +318,11 @@ def _advanced(text):
         if len(args) > index:
             cvar = args[index].strip('"')
             if cvar in positions:
-                _rect(args, positions[cvar]); args[5] = '.19'
+                _rect(args, positions[cvar]); args[5] = '.20'
                 if name == 'CHECKBOXALIGNX':
                     # Right-aligned text leaves enough room for the original
                     # native checkbox at the beginning of the vote row.
-                    args[6:8] = ['-4', '13']
+                    args[6:8] = ['25', '13']
                 else:
                     args[6] = '13'
                 return args
@@ -334,7 +335,7 @@ def _advanced(text):
         values = _background(name, block)
         match = re.fullmatch(r'efleftbackLine ([1-5]):', name)
         if match:
-            values['rect'] = '70 %d 136 18' % (336 + (int(match[1]) - 1) * 18)
+            values['rect'] = '62 %d 182 18' % (336 + (int(match[1]) - 1) * 18)
         return values
     return _items(text, change_item)
 

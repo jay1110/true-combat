@@ -472,6 +472,27 @@ SETTINGS_NAV={
 }
 NAV_TARGETS={'game':'options_customise_game','view':'options_customise_hud',
              'controls':'options_controls','system':'options_system'}
+APPEARANCE='ui/modern_appearance.menu'
+APPEARANCE_LISTS=tuple('ui/'+name for name in ('menus.txt','menus_gt2.txt','menus_gt5.txt','menus_gt7.txt'))
+# Reviewed against the requested palette, opacity, scale and reset contract.
+# Presentation geometry/colors are projected out; script/list/cvar data is not.
+APPEARANCE_SEMANTIC_SHA256='a95661d9dfd4aa686029da17a8845a7075e623300385d7bd38a9fe4488b77ec3'
+
+
+def appearance_signature(data,reference):
+    units=[parse(p,d) for p,d in reference.items() if Path(p).suffix in SEMANTIC_SUFFIXES and p!=APPEARANCE]
+    _,macro_contracts=signatures(units)
+    unit=parse(APPEARANCE,data)
+    value,_=signatures([unit],macro_contracts)
+    return digest(json.dumps(value[APPEARANCE],ensure_ascii=True).encode())
+
+
+def _appearance_load(ts):
+    pattern=['loadMenu','{','"'+APPEARANCE+'"','}'];result=[];count=0;i=0
+    while i<len(ts):
+        if ts[i:i+4]==pattern:count+=1;i+=4
+        else:result.append(ts[i]);i+=1
+    return result,count
 
 
 def layout_reference(reference,candidate):
@@ -480,6 +501,17 @@ def layout_reference(reference,candidate):
     if PRIVATE_WIDGETS in candidate:
         if ORIGINAL_WIDGETS not in reference:raise ValueError('Private widgets lack original macro reference')
         result[PRIVATE_WIDGETS]=reference[ORIGINAL_WIDGETS]
+    if APPEARANCE in candidate:
+        if appearance_signature(candidate[APPEARANCE],reference)!=APPEARANCE_SEMANTIC_SHA256:
+            raise ValueError('Appearance page differs from reviewed cvar/list/script contract')
+        result[APPEARANCE]=candidate[APPEARANCE].replace(('"'+PRIVATE_WIDGETS+'"').encode(),('"'+ORIGINAL_WIDGETS+'"').encode())
+        for path in APPEARANCE_LISTS:
+            if path in reference and _appearance_load(parse(path,candidate.get(path,b'')).body)[1]!=1:
+                raise ValueError('Appearance page must be loaded exactly once: '+path)
+        if 'ui/options.menu' in candidate:
+            names=parse('ui/options.menu',candidate['ui/options.menu']).body
+            if names.count('"modern_appearance_link"')!=1:
+                raise ValueError('Appearance link must be present exactly once in Options')
     return result
 
 
@@ -518,6 +550,10 @@ def normalize_layout(units,reference_units,contracts):
     result=[]
     for unit in units:
         ts=list(unit.body);seen=set();output=[];i=0
+        if unit.path in APPEARANCE_LISTS:
+            ts,count=_appearance_load(ts)
+            if count and (APPEARANCE not in reference or count!=1):
+                raise ValueError('Unbound/duplicate Appearance load reference: '+unit.path)
         while i<len(ts):
             if ts[i]=='#include' and i+1<len(ts) and ts[i+1]=='"'+PRIVATE_WIDGETS+'"':
                 original=reference.get(unit.path)
@@ -528,6 +564,14 @@ def normalize_layout(units,reference_units,contracts):
             if ts[i].lower()=='itemdef' and i+1<len(ts) and ts[i+1]=='{':
                 end=group(ts,i+1);inner=ts[i+2:end-1]
                 name=next((inner[j+1] for j,t in enumerate(inner[:-1]) if t.lower()=='name'),None)
+                if name=='"modern_appearance_link"':
+                    if unit.path!='ui/options.menu' or APPEARANCE not in reference:
+                        raise ValueError('Unapproved Appearance link location: '+unit.path)
+                    fields=_navigation_fields(inner,contracts)
+                    expected={'name':'"modern_appearance_link"','text':'"APPEARANCE"','visible':'1',
+                              'type':'ITEM_TYPE_BUTTON','action':['close','options',';','open','modern_appearance',';']}
+                    if fields!=expected:raise ValueError('Appearance link differs from exact Options target')
+                    i=end;continue
                 if name and name.strip('"').startswith('modern_nav_'):
                     key=name.strip('"')[len('modern_nav_'):]
                     if unit.path not in SETTINGS_NAV or key not in NAV_TARGETS or key in seen:
@@ -636,7 +680,7 @@ def compare(manifest, original, edited, require_styled=False):
             errors.append(path + ': semantic difference at token ' + str(index) + ': ' + repr(before[path][max(0,index-3):index+5]) + ' -> ' + repr(after[path][max(0,index-3):index+5]))
         compared.append({'path': path, 'same_semantics': same, 'source_sha256': digest(reference_files[path]), 'edited_sha256': digest(candidate_files[path])})
     raw_before = {u.path: u.raw for u in before_units}
-    unstyled = [u.path for u in after_units if u.path.lower().endswith('.menu') and
+    unstyled = [u.path for u in after_units if u.path!=APPEARANCE and u.path.lower().endswith('.menu') and
                 u.path in raw_before and u.raw == raw_before[u.path]]
     if require_styled and unstyled:
         errors.append('Menus without a real non-comment token/style change: ' + str(unstyled))

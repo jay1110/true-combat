@@ -778,6 +778,10 @@ void CG_MouseEvent(int x, int y)
 		{
 			CG_SpeakerEditorMouseMove_Handling(x, y);
 		}
+		/* The vmMain pre-dispatch copy still contains the preceding motion.
+		 * Rendering and panel hit tests must see this event's new position. */
+		cgDC.cursorx = cgs.cursorX;
+		cgDC.cursory = cgs.cursorY;
 
 		break;
 	case CGAME_EVENT_DEMO:
@@ -805,6 +809,8 @@ void CG_MouseEvent(int x, int y)
 		{
 			cgs.cursorUpdate = TCE_AddInt32(cg.time, 5000);
 		}
+		cgDC.cursorx = cgs.cursorX;
+		cgDC.cursory = cgs.cursorY;
 		break;
 
 

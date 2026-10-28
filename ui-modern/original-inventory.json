@@ -1106,7 +1106,7 @@
     }
   },
   "validator_sha256": {
-    "semantic.py": "7eeaecc882d664dff4e9a8a4fee85ae2362b90789b81b7709f09a6e548df487c",
+    "semantic.py": "3113019e16852bca0556f8e47b7576f75d203899f563206bbe7cdd7de06040a0",
     "inventory.py": "15859e50912e60a2951a945c5179a8d6d3242e9f0150c3a82fff5d606b774e22",
     "check.py": "98f2768fe8b0fcc5294fc1a65228816aad11acf21bd572feaaf3612bec134e28"
   },

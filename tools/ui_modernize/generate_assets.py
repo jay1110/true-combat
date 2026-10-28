@@ -11,6 +11,7 @@ import math
 from pathlib import Path
 import struct
 import zlib
+import theme_assets
 
 ROOT = Path(__file__).resolve().parents[2]
 DEST = ROOT / "ui-modern/assets"
@@ -236,6 +237,7 @@ def main():
     for name in ICONS:
         key="cursor" if name=="cursor" else "icons/"+name
         w,h,pixels=icon(name);images[key]=(w,h,pixels);output["tce2_ui/"+key+".tga"]=tga(w,h,pixels)
+    theme_assets.extend(images,output,tga)
     shader="// Original TCE2 UI. Native alpha blending; forecolor/backcolor should be white.\n"
     for name,(w,h,pixels) in images.items():
         asset="tce2_ui/"+name+".tga"
@@ -244,6 +246,9 @@ def main():
         records.append({"path":asset,"shader":shader_name,"width":w,"height":h,"channels":24 if name=="background" else 32,"bytes":len(output[asset]),"sha256":hashlib.sha256(output[asset]).hexdigest()})
     output["scripts/tce2_ui.shader"]=shader.encode()
     source={"schema":1,"origin":"Original code-created interface art and original imagegen industrial background. No game/reference artwork copied.","generator":"tools/ui_modernize/generate_assets.py","generator_sha256":hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),"background_source":"ui-modern/source/background-industrial-v1.png","background_sha256":hashlib.sha256(SOURCE.read_bytes()).hexdigest(),"cursor_hotspot":{"asset":"tce2_ui/cursor.tga","shader":"tce2_ui/cursor","x":0,"y":0,"native_draw":"32x32 at UI cursor position"},"palette":{"panel":"#0e151d","hover":"#24313e","text":"#e4e9ed","muted":"#96a4b0","accent":"#efc046"},"files":records,"native_aliases":ALIASES}
+    source['theme_layers']={'generator':'tools/ui_modernize/theme_assets.py',
+                            'generator_sha256':hashlib.sha256(Path(theme_assets.__file__).read_bytes()).hexdigest(),
+                            'purpose':'Neutral body/accent layers for live user palettes. Original default artwork is unchanged.'}
     output["tce2_ui/SOURCE.json"]=(json.dumps(source,indent=2)+"\n").encode()
     for name,data in output.items():
         path=DEST/name

@@ -11,7 +11,8 @@ from test_layout_settings import semantic_context
 
 ROOT=Path(__file__).resolve().parents[2]
 PAGES=('popup_password.menu','playonline_connecttoip.menu',
-       'popup_hostgameerrormessage.menu','mods.menu','tcemods.menu')
+       'popup_hostgameerrormessage.menu','mods.menu','tcemods.menu',
+       'ingame_vote_players_warn.menu')
 
 
 def source(name):
@@ -110,6 +111,37 @@ class InputDialogTests(unittest.TestCase):
         offset=int(named[1].removeprefix('SUBWINDOW_X+'))
         self.assertEqual(offset+190/2,width/2)
         self.assertEqual(named[2:5],['SUBWINDOW_Y+SUBWINDOW_HEIGHT-42','190','30'])
+
+    def test_player_warning_has_one_centering_origin_for_field_and_background(self):
+        result=restyle.menu(source('ingame_vote_players_warn.menu'),Path('ui/ingame_vote_players_warn.menu'))
+        for name,value in (('WINDOW_X',0),('WINDOW_Y',0),('WINDOW_WIDTH',852),('WINDOW_HEIGHT',480)):
+            self.assertRegex(result,r'#define '+name+' '+str(value)+r'\b')
+        background=next(result[s:e] for s,e in restyle.blocks(result) if 'name\t\t"background"' in result[s:e])
+        self.assertRegex(background,r'\brect\s+0 0 852 480\b')
+        self.assertIn('setEditFocus "efleftWarning:"',result)
+
+    def test_warning_title_input_and_actions_have_separate_nonoverlapping_rows(self):
+        result=restyle.menu(source('ingame_vote_players_warn.menu'),Path('ui/ingame_vote_players_warn.menu'))
+        values={name:int(re.search(r'(?m)^#define '+name+r' (\d+)',result)[1])
+                for name in ('SUBWINDOW_X','SUBWINDOW_Y','SUBWINDOW_WIDTH','SUBWINDOW_HEIGHT')}
+        self.assertEqual(values,{'SUBWINDOW_X':204,'SUBWINDOW_Y':150,
+                                 'SUBWINDOW_WIDTH':444,'SUBWINDOW_HEIGHT':180})
+        field=list(restyle.macro_calls(result,{'EDITFIELDLEFT'}))[0][3]
+        self.assertEqual(field[:7],['228','216','396','28','"Warning:"','.26','20'])
+        self.assertEqual(field[7:10],['"ui_warnreason"','128','32'])
+        # Actual shared SUBWINDOWBLACK title rect starts12px below its parent,
+        # is28px tall and must finish before the editable input begins.
+        title_bottom=values['SUBWINDOW_Y']+12+28
+        field_y,field_h=map(float,(field[1],field[3]))
+        self.assertGreaterEqual(field_y-title_bottom,20)
+        buttons=[args for _,_,_,args in restyle.macro_calls(result,{'BUTTON'})]
+        self.assertEqual({args[4] for args in buttons},{'"BACK"','"WARN"'})
+        for args in buttons:
+            self.assertEqual(args[1:4],['288','190','30'])
+            self.assertGreaterEqual(float(args[1])-(field_y+field_h),24)
+        self.assertEqual(buttons[0][0],'228');self.assertEqual(buttons[1][0],'434')
+        self.assertIn('close ingame_vote_players_warn ; open ingame_vote_players',buttons[0][7])
+        self.assertIn('uiScript refWarning ; uiScript closeingame',buttons[1][7])
 
 
 if __name__=='__main__':

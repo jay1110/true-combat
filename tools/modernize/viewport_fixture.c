@@ -4,52 +4,95 @@
 #include <string.h>
 #include <math.h>
 #include <float.h>
+#include <ctype.h>
 #include "src/ui/tce_viewport.h"
 #include "src/ui/tce_ui_coordinates.h"
 #include "src/cgame/cg_hud_viewport.h"
 typedef int qboolean;
+typedef int qhandle_t;
 typedef float vec4_t[4];
 typedef struct { int integer; float value; } vmCvar_t;
 #define qtrue 1
 #define qfalse 0
 #define SCREEN_HEIGHT 480
 #define CVAR_ARCHIVE 1
-typedef struct { struct { int vidWidth, vidHeight; } glconfig; float xscale,yscale; int cursorx,cursory; float (*getCVarValue)(const char *); } displayContextDef_t;
+typedef struct { struct { int vidWidth, vidHeight; } glconfig; float xscale,yscale; int cursorx,cursory,whiteShader; float (*getCVarValue)(const char *); } displayContextDef_t;
+typedef struct { struct { const char *name; } window; } menuDef_t;
+static menuDef_t *focusedMenu,*tceMenuViewportPaintMenu;
+static menuDef_t *Menu_GetFocused(void) { return focusedMenu; }
+static int Q_stricmp(const char *a,const char *b)
+{ while(*a&&tolower((unsigned char)*a)==tolower((unsigned char)*b)){++a;++b;}return tolower((unsigned char)*a)-tolower((unsigned char)*b); }
 static struct { displayContextDef_t uiDC; } uiInfo;
 static displayContextDef_t *DC=&uiInfo.uiDC;
-static float enabled=1,menuScale=1,maxHeight=1080;
+static float enabled=1,menuScaleSetting=1,menuMaxSetting=1080;
+static int modernEnabled;
+static qboolean TCE_ModernUIEnabled(void) { return modernEnabled; }
 static float hudScaleSetting=.85f,hudMaxSetting=1080;
-static struct { struct { int vidWidth,vidHeight; } glconfig; float screenXScale,screenYScale;struct { int whiteShader; } media; } cgs;
+static struct { struct { int vidWidth,vidHeight; } glconfig; float screenXScale,screenYScale;struct { int whiteShader,disconnectIcon,lagometerShader; } media;int eventHandling,cursorX,cursorY,cursorUpdate,localServer; } cgs;
+static displayContextDef_t cgDC;
+typedef struct { struct { int pm_type,commandTime; } ps; } testSnapshot_t;
+static testSnapshot_t snapshot;
+static struct { int time,showScores,demoPlayback,serverRespawning;struct { int pm_type; } predictedPlayerState;testSnapshot_t *snap; } cg;
+typedef struct { int serverTime; } usercmd_t;
+#define CMD_BACKUP 64
+#define BIGCHAR_WIDTH 16
+#define LAG_SAMPLES 128
+#define MAX_LAGOMETER_PING 900
+#define MAX_LAGOMETER_RANGE 300
+#define SNAPFLAG_RATE_DELAYED 1
+static vmCvar_t cg_timescale,cg_lagometer,cg_nopredict;
+static struct { int frameCount,snapshotCount;float frameSamples[LAG_SAMPLES],snapshotSamples[LAG_SAMPLES];int snapshotFlags[LAG_SAMPLES]; } lagometer;
+static vec4_t colorYellow={1,1,0,1},colorBlue={0,0,1,1},colorGreen={0,1,0,1},colorRed={1,0,0,1};
+static float labelX,labelY,labelW,labelH;
+static char labelText[64];
+static int commandTime;
+enum { CGAME_EVENT_NONE,CGAME_EVENT_SPEAKEREDITOR,CGAME_EVENT_GAMEVIEW,CGAME_EVENT_CAMPAIGNBREIFING,CGAME_EVENT_FIRETEAMMSG,CGAME_EVENT_DEMO };
+enum { PM_NORMAL,PM_SPECTATOR,PM_INTERMISSION };
+#define KEYCATCH_CGAME 4
+static int speakerCalls,debriefCalls,catcher=KEYCATCH_CGAME;
 static qboolean tce_uiCoordinates;
 static struct { float x,y,w,h; } drawnRects[16];
 static int drawnCount;
-static vmCvar_t cg_aspectMode,*bound[3];
+static vmCvar_t cg_aspectMode,*bound[5];
 static int checks,failures,registrations,updates,mouseX,mouseY,mouseCalls;
 #define CHECK(c) do { ++checks;if(!(c)){++failures;printf("FAIL %i: %s\n",__LINE__,#c);} } while(0)
 static int near(float a,float b) { return fabsf(a-b)<.003f; }
 static float trap_Cvar_VariableValue(const char *name)
-{ if(!strcmp(name,"cg_wideScreen"))return enabled;if(!strcmp(name,"ui_menuScale"))return menuScale;if(!strcmp(name,"ui_menuMaxHeight"))return maxHeight;return 0; }
+{ if(!strcmp(name,"cg_wideScreen"))return enabled;if(!strcmp(name,"ui_menuScale"))return menuScaleSetting;if(!strcmp(name,"ui_menuMaxHeight"))return menuMaxSetting;return 0; }
 static void trap_Cvar_Update(vmCvar_t *var)
 {
     if(var==bound[0])var->value=enabled;
     else if(var==bound[1])var->value=hudScaleSetting;
     else if(var==bound[2])var->value=hudMaxSetting;
+    else if(var==bound[3])var->value=menuScaleSetting;
+    else if(var==bound[4])var->value=menuMaxSetting;
     else CHECK(0);
     var->integer=(int)var->value;++updates;
 }
 static void trap_Cvar_Register(vmCvar_t *var,const char *name,const char *value,int flags)
 {
-    int n=!strcmp(name,"cg_wideScreen")?0:!strcmp(name,"cg_hudScale")?1:!strcmp(name,"cg_hudMaxHeight")?2:-1;
+    int n=!strcmp(name,"cg_wideScreen")?0:!strcmp(name,"cg_hudScale")?1:!strcmp(name,"cg_hudMaxHeight")?2:!strcmp(name,"ui_menuScale")?3:!strcmp(name,"ui_menuMaxHeight")?4:-1;
     CHECK(n>=0&&flags==CVAR_ARCHIVE);if(n<0)return;
-    CHECK(!strcmp(value,n==0?"1":n==1?"0.85":"1080"));bound[n]=var;++registrations;trap_Cvar_Update(var);
+    CHECK(!strcmp(value,n==0||n==3?"1":n==1?"0.85":"1080"));bound[n]=var;++registrations;trap_Cvar_Update(var);
 }
 static int TCE_UI_WrapAdd(int a,int b) { return (int)((unsigned)a+(unsigned)b); }
+static int TCE_AddInt32(int a,int b) { return TCE_UI_WrapAdd(a,b); }
+static void CG_SpeakerEditorMouseMove_Handling(int x,int y) { (void)x;(void)y;++speakerCalls; }
+static void CG_Debriefing_MouseEvent(int x,int y) { (void)x;(void)y;++debriefCalls; }
+static int trap_Key_GetCatcher(void) { return catcher; }
+static void trap_Key_SetCatcher(int value) { catcher=value; }
+static int trap_GetCurrentCmdNumber(void) { return 100; }
+static void trap_GetUserCmd(int number,usercmd_t *cmd) { (void)number;cmd->serverTime=commandTime; }
+static const char *CG_TranslateString(const char *s) { return s; }
+static int CG_DrawStrlen(const char *s) { return (int)strlen(s); }
 static int Menu_Count(void) { return 1; }
 static void Display_MouseMove(void *p,int x,int y) { (void)p;mouseX=x;mouseY=y;++mouseCalls; }
 static void trap_R_SetColor(const float *color) { (void)color; }
 static void trap_R_DrawStretchPic(float x,float y,float w,float h,float s1,float t1,float s2,float t2,int shader)
 { (void)s1;(void)t1;(void)s2;(void)t2;(void)shader;CHECK(w>=0&&h>=0);if(drawnCount<16){drawnRects[drawnCount].x=x;drawnRects[drawnCount].y=y;drawnRects[drawnCount].w=w;drawnRects[drawnCount++].h=h;} }
 void CG_AdjustFrom640(float *x,float *y,float *w,float *h);
+static void CG_DrawBigString(int x,int y,const char *s,float alpha)
+{ (void)alpha;labelX=(float)x;labelY=(float)y;labelW=(float)strlen(s)*BIGCHAR_WIDTH;labelH=24;strcpy(labelText,s);CG_AdjustFrom640(&labelX,&labelY,&labelW,&labelH); }
 
 /* ACTUAL_HUD_CONTEXT */
 
@@ -65,7 +108,7 @@ static void wrappers(int width,int height)
     int n;
     uiInfo.uiDC.glconfig.vidWidth=width;uiInfo.uiDC.glconfig.vidHeight=height;
     uiInfo.uiDC.xscale=width/640.f;uiInfo.uiDC.yscale=height/480.f;DC->getCVarValue=trap_Cvar_VariableValue;
-    CHECK(TCE_ViewportFit(&view,width,height,TCE_VIEWPORT_CANVAS_WIDTH,480,maxHeight,menuScale,.5f,.5f));
+    CHECK(TCE_ViewportFit(&view,width,height,TCE_VIEWPORT_CANVAS_WIDTH,480,menuMaxSetting,menuScaleSetting,.5f,.5f));
     for(n=0;n<4;++n){
         x=123;y=87;w=72;h=42;sx=x;sy=y;sw=w;sh=h;
         TCE_ViewportProject(&view,&sx,&sy,&sw,&sh);draws[n](&x,&y,&w,&h);
@@ -85,7 +128,7 @@ static void hudContext(void)
     const float anchors[]={0,.5f,1},scales[]={.5f,.85f,1.f,1.5f};
     int size,anchor,tc,scale,cap;float x,y,w,h,left,top,canvasWidth,fullW,fullH,marginX,marginY;
     enabled=1;hudScaleSetting=.85f;hudMaxSetting=1080;registrations=updates=0;
-    CG_HudViewportInit();CHECK(registrations==3&&updates==3&&CG_WideScreenEnabled());
+    CG_HudViewportInit();CHECK(registrations==5&&updates==5&&CG_WideScreenEnabled());
     CHECK(near(hudScale.value,.85f)&&near(hudMaxHeight.value,1080));
     cg_aspectMode.integer=2;CHECK(CG_HudAspectMode()==0);
     x=1;y=2;w=3;h=4;CHECK(CG_HudViewportAdjust(&x,&y,&w,&h,1)==0&&x==1&&y==2&&w==3&&h==4);
@@ -98,6 +141,7 @@ static void hudContext(void)
         left=x;top=y;fullW=w;fullH=h;marginX=sizes[size][0]-w;marginY=sizes[size][1]-h;
         CHECK(near(left,marginX*anchors[anchor])&&near(top,marginY*anchors[anchor]));
         CHECK(near(w/canvasWidth,h/480));
+        CHECK(left>=-.003f&&top>=-.003f&&left+w<=sizes[size][0]+.003f&&top+h<=sizes[size][1]+.003f);
         if(cap)CHECK(h<=1080*scales[scale]+.01f);
         x=y=0;w=h=20;CHECK(CG_HudViewportAdjust(&x,&y,&w,&h,tc)==1);
         CHECK(near(w,h)&&near(w/20,fullH/480)); /* physical circle remains round */
@@ -169,13 +213,134 @@ static void worldOverlayAndBorders(void)
     x=426;y=194;w=h=0;CG_AdjustFrom640(&x,&y,&w,&h);CHECK(near(x,639.15f)&&near(y,301.35f));
     CG_HudViewportEnd();tce_uiCoordinates=qfalse;
 }
+
+static void nativeMenusAndInput(void)
+{
+    const int sizes[][2]={{640,480},{1024,768},{1280,720},{1920,1080},{2560,1080},{3440,1440},{3840,2160}};
+    const float scales[]={.5f,.65f,.85f,1.f,1.25f,1.5f};
+    const int events[]={CGAME_EVENT_SPEAKEREDITOR,CGAME_EVENT_GAMEVIEW,CGAME_EVENT_CAMPAIGNBREIFING,CGAME_EVENT_FIRETEAMMSG,CGAME_EVENT_DEMO};
+    int size,scale,wide,event;float x,y,w,h,hud[4],expected[4],unitX,unitY;
+    tce_viewport_t view;
+    modernEnabled=1;
+    for(size=0;size<7;++size)for(scale=0;scale<6;++scale)for(wide=0;wide<2;++wide){
+        cgs.glconfig.vidWidth=uiInfo.uiDC.glconfig.vidWidth=sizes[size][0];
+        cgs.glconfig.vidHeight=uiInfo.uiDC.glconfig.vidHeight=sizes[size][1];
+        cgs.screenXScale=uiInfo.uiDC.xscale=sizes[size][0]/640.f;
+        cgs.screenYScale=uiInfo.uiDC.yscale=sizes[size][1]/480.f;
+        enabled=(float)wide;hudScaleSetting=.5f;hudMaxSetting=1080;
+        menuScaleSetting=scales[scale];menuMaxSetting=1080;CG_HudViewportInit();
+        tce_uiCoordinates=qtrue;CG_HudViewportBegin(1,1);
+        hud[0]=7;hud[1]=8;hud[2]=23;hud[3]=29;CG_AdjustFrom640(&hud[0],&hud[1],&hud[2],&hud[3]);
+        CG_MenuViewportBegin();CG_MenuViewportBegin();
+        CHECK(TCE_ViewportFit(&view,sizes[size][0],sizes[size][1],TCE_VIEWPORT_CANVAS_WIDTH,480,1080,scales[scale],.5f,.5f));
+        x=y=0;w=TCE_VIEWPORT_CANVAS_WIDTH;h=480;
+        CHECK(CG_HudViewportAdjust(&x,&y,&w,&h,1));
+        CHECK(x>=-.003f&&y>=-.003f&&x+w<=sizes[size][0]+.003f&&y+h<=sizes[size][1]+.003f);
+        CHECK(near(x,view.offsetX)&&near(y,view.offsetY)&&near(w,TCE_VIEWPORT_CANVAS_WIDTH*view.scale)&&near(h,480*view.scale));
+        /* Menu dimensions are independent of changes to the surrounding HUD,
+         * including a fullscreen HUD override. Its old state survives End. */
+        expected[0]=x;expected[1]=y;expected[2]=w;expected[3]=h;
+        CG_HudViewportFull();hudScaleSetting=1.25f;CG_HudViewportUpdate();
+        x=y=0;w=TCE_VIEWPORT_CANVAS_WIDTH;h=480;CG_AdjustFrom640(&x,&y,&w,&h);
+        CHECK(near(x,expected[0])&&near(y,expected[1])&&near(w,expected[2])&&near(h,expected[3]));
+        CG_MenuViewportEnd();x=y=0;w=TCE_VIEWPORT_CANVAS_WIDTH;h=480;CG_AdjustFrom640(&x,&y,&w,&h);
+        CHECK(near(x,expected[0])&&near(y,expected[1])&&near(w,expected[2])&&near(h,expected[3]));
+        CG_MenuViewportEnd();
+        if(wide){x=y=0;w=TCE_VIEWPORT_CANVAS_WIDTH;h=480;CG_AdjustFrom640(&x,&y,&w,&h);
+            CHECK(x==0&&y==0&&near(w,(float)sizes[size][0])&&near(h,(float)sizes[size][1]));}
+        CG_HudViewportAnchor(1,1);hudScaleSetting=.5f;CG_HudViewportUpdate();
+        x=7;y=8;w=23;h=29;CG_AdjustFrom640(&x,&y,&w,&h);
+        CHECK(near(x,hud[0])&&near(y,hud[1])&&near(w,hud[2])&&near(h,hud[3]));
+        CG_HudViewportEnd();
+        /* Native CGame and UI render the same logical cursor and button in
+         * the same physical place. An inverse of that image lands in its
+         * original hit rectangle, for small and enlarged menu settings. */
+        CG_MenuViewportBegin();x=151;y=109;w=h=0;CG_AdjustFrom640(&x,&y,&w,&h);
+        expected[0]=151;expected[1]=109;expected[2]=expected[3]=0;UI_AdjustFrom640(&expected[0],&expected[1],&expected[2],&expected[3]);
+        CHECK(near(x,expected[0])&&near(y,expected[1]));
+        CHECK(near((x-view.offsetX)/view.scale,151)&&near((y-view.offsetY)/view.scale,109));
+        CHECK((x-view.offsetX)/view.scale>=140&&(x-view.offsetX)/view.scale<=180);
+        unitX=unitY=1;CHECK(CG_HudViewportDimensions(&unitX,&unitY,1)&&near(unitX,view.scale)&&near(unitY,view.scale));
+        CG_MenuViewportEnd();CG_MenuViewportEnd(); /* unmatched End remains safe */
+    }
+    /* Old no-theme/widescreen-off conversion is still selected, rather than
+     * inheriting the active menu preferences or changing border semantics. */
+    modernEnabled=0;enabled=0;CG_HudViewportUpdate();CG_MenuViewportBegin();
+    x=1;y=2;w=3;h=4;CHECK(!CG_HudViewportAdjust(&x,&y,&w,&h,1)&&x==1&&y==2&&w==3&&h==4);
+    CHECK(!CG_HudViewportDimensions(&w,&h,1));CG_MenuViewportEnd();
+    enabled=1;menuScaleSetting=1;menuMaxSetting=1080;
+    uiInfo.uiDC.glconfig.vidWidth=3840;uiInfo.uiDC.glconfig.vidHeight=2160;uiInfo.uiDC.xscale=6;uiInfo.uiDC.yscale=4.5f;
+    drawnCount=0;_UI_DrawSides(0,0,100,50,1);CHECK(drawnCount==2&&near(drawnRects[0].w,2.25f));
+    drawnCount=0;_UI_DrawTopBottom(0,0,100,50,1);CHECK(drawnCount==2&&near(drawnRects[0].h,2.25f));
+    /* One mouse event followed immediately by a key click must see the new
+     * CGame position, not the vmMain pre-event cursor snapshot. */
+    cg.snap=&snapshot;cg.time=1234;
+    for(event=0;event<5;++event){
+        cgs.eventHandling=events[event];cgs.cursorX=140;cgs.cursorY=100;cgDC.cursorx=140;cgDC.cursory=100;
+        CG_MouseEvent(11,9);CHECK(cgs.cursorX==151&&cgs.cursorY==109&&cgDC.cursorx==151&&cgDC.cursory==109);
+        CHECK(cgDC.cursorx>=150&&cgDC.cursorx<=170&&cgDC.cursory>=105&&cgDC.cursory<=125);
+        CG_MouseEvent(9999,9999);CHECK(cgs.cursorX==852&&cgs.cursorY==480&&cgDC.cursorx==852&&cgDC.cursory==480);
+        CG_MouseEvent(-9999,-9999);CHECK(cgs.cursorX==0&&cgs.cursorY==0&&cgDC.cursorx==0&&cgDC.cursory==0);
+    }
+    CHECK(speakerCalls==3&&cgs.cursorUpdate==6234);
+    cgs.eventHandling=CGAME_EVENT_NONE;snapshot.ps.pm_type=PM_INTERMISSION;CG_MouseEvent(5,6);CHECK(debriefCalls==1);
+    snapshot.ps.pm_type=PM_NORMAL;cg.predictedPlayerState.pm_type=PM_NORMAL;cg.showScores=0;CG_MouseEvent(5,6);CHECK(!(catcher&KEYCATCH_CGAME));
+}
+
+static void headerMenusAndHudComposites(void)
+{
+    const char *names[]={"ingame_main","options","ingame_vote","main","quit","modern_appearance","options_system"};
+    menuDef_t menu,underneath;
+    const int sizes[][2]={{1024,768},{1280,720},{1920,1080},{2560,1080},{3440,1440}};
+    const float scales[]={.5f,.65f,.85f,1.f,1.25f};
+    int i,size,scale;float x,y,w,h,expectedY,unit;
+    modernEnabled=1;enabled=1;menuScaleSetting=.65f;menuMaxSetting=1080;CG_HudViewportInit();CG_HudViewportEnd();
+    uiInfo.uiDC.glconfig.vidWidth=1920;uiInfo.uiDC.glconfig.vidHeight=1080;
+    for(i=0;i<7;++i){menu.window.name=names[i];focusedMenu=&menu;
+        CHECK(TCE_MenuViewportAnchorY()==(i<3?0.f:.5f));
+        x=y=0;w=852;h=480;UI_AdjustFrom640(&x,&y,&w,&h);
+        CHECK((i<3&&y==0)||(i>=3&&y>0));
+        /* Paint scope controls an underlying hub independently of a focused
+         * confirmation; afterward the cursor returns to its dialog mapping. */
+        underneath.window.name="ingame_main";tceMenuViewportPaintMenu=&underneath;
+        CHECK(TCE_MenuViewportAnchorY()==0);tceMenuViewportPaintMenu=NULL;
+        CHECK(TCE_MenuViewportAnchorY()==(i<3?0.f:.5f));
+    }
+    modernEnabled=0;menu.window.name="ingame_main";CHECK(TCE_MenuViewportAnchorY()==.5f);
+    focusedMenu=NULL;modernEnabled=1;CHECK(TCE_MenuViewportAnchorY()==.5f);
+    /* Disconnect text belongs to the center group, while the icon/graph keep
+     * their right-bottom anchor. Varying scale must not move the text center. */
+    cg.snap=&snapshot;cg.time=4096;cg_timescale.value=1;commandTime=4000;snapshot.ps.commandTime=100;
+    for(size=0;size<5;++size)for(scale=0;scale<5;++scale){
+        cgs.glconfig.vidWidth=sizes[size][0];cgs.glconfig.vidHeight=sizes[size][1];
+        cgs.screenXScale=sizes[size][0]/640.f;cgs.screenYScale=sizes[size][1]/480.f;
+        hudScaleSetting=scales[scale];hudMaxSetting=1080;CG_HudViewportUpdate();
+        tce_uiCoordinates=qtrue;CG_HudViewportBegin(.5f,.5f);
+        x=426;y=100;w=h=0;CG_AdjustFrom640(&x,&y,&w,&h);expectedY=y;
+        CG_HudViewportAnchor(1,1);drawnCount=0;CG_DrawDisconnect();
+        unit=1;x=y=0;w=h=1;CG_HudViewportDimensions(&w,&h,1);unit=w;
+        CHECK(!strcmp(labelText,"Connection Interrupted")&&near(labelX+labelW*.5f,sizes[size][0]*.5f-unit*(TCE_VIEWPORT_CANVAS_WIDTH*.5f-426))&&near(labelY,expectedY));
+        /* The graph label is already in logical graph coordinates; its new
+         * projection shares the graph origin, including size caps/anchors. */
+        commandTime=0;cg_lagometer.integer=cg_nopredict.integer=1;cgs.localServer=0;
+        x=804;y=280;w=h=48;CG_AdjustFrom640(&x,&y,&w,&h);drawnCount=0;CG_DrawLagometer();
+        CHECK(!strcmp(labelText,"snc")&&near(labelX,x)&&near(labelY,y));commandTime=4000;
+        CG_HudViewportEnd();
+    }
+    /* A reduced spectator heading and its following instructions are in the
+     * same top-left group; crosshair-name drawing returns to center scope. */
+    cgs.glconfig.vidWidth=1920;cgs.glconfig.vidHeight=1080;hudScaleSetting=.5f;CG_HudViewportUpdate();
+    CG_HudViewportBegin(.5f,.5f);CG_HudViewportAnchor(0,0);x=8;y=118;w=h=0;CG_AdjustFrom640(&x,&y,&w,&h);
+    CHECK(near(x,9)&&near(y,132.75f));CG_HudViewportAnchor(.5f,.5f);x=426;y=240;w=h=0;CG_AdjustFrom640(&x,&y,&w,&h);CHECK(near(x,959.25f)&&near(y,540));
+    CG_HudViewportEnd();
+}
 int main(void)
 {
     const int sizes[][2]={{800,600},{1280,800},{1280,720},{1920,1080},{3440,1440},{3840,2160}};
     const float scales[]={.5f,.85f,1.f,1.5f};
     int i,j,k;float x,y,w,h;
     tce_viewport_t view,before;
-    for(i=0;i<6;++i)for(j=0;j<4;++j)for(k=0;k<2;++k){menuScale=scales[j];maxHeight=k?1080:0;wrappers(sizes[i][0],sizes[i][1]);}
+    for(i=0;i<6;++i)for(j=0;j<4;++j)for(k=0;k<2;++k){menuScaleSetting=scales[j];menuMaxSetting=k?1080:0;wrappers(sizes[i][0],sizes[i][1]);}
     for(i=0;i<6;++i){
         CHECK(TCE_ViewportFit(&view,sizes[i][0],sizes[i][1],640,480,0,1,0,0));
         CHECK(near(view.offsetX,0)&&near(view.offsetY,0));
@@ -215,5 +380,7 @@ int main(void)
 #endif
     hudContext();
     worldOverlayAndBorders();
+    nativeMenusAndInput();
+    headerMenusAndHudComposites();
     printf("viewport: %i checks, %i failures\n",checks,failures);return failures?1:0;
 }

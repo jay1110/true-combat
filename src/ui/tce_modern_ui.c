@@ -1,6 +1,7 @@
 /* Shared by the native UI and CGame, not by the engine or QAGame. */
 #ifdef CGAMEDLL
 #include "../cgame/cg_local.h"
+#include "../cgame/cg_hud_viewport.h"
 #else
 #include "ui_local.h"
 extern int Text_Width_Ext(const char *text, float scale, int limit, fontInfo_t *font);
@@ -14,6 +15,8 @@ static int modernImageCount;
 vec4_t tceModernWhite = { .93f, .96f, .98f, 1 };
 vec4_t tceModernMuted = { .55f, .64f, .72f, 1 };
 vec4_t tceModernAmber = { .96f, .73f, .27f, 1 };
+
+#include "tce_modern_theme.inc"
 
 int TCE_ModernMarkerValid(const char *data, int length)
 {
@@ -43,6 +46,7 @@ int TCE_ModernHiddenStats(int gameType, int killMessages, int health, int pmType
 
 void TCE_ModernUIReset(void)
 {
+    TCE_ModernThemeReset();
     modernChecked = modernEnabled = modernFonts = modernImageCount = 0;
     memset(modernImages, 0, sizeof(modernImages));
     memset(&modernRegular, 0, sizeof(modernRegular));
@@ -94,10 +98,12 @@ static float TCE_ModernWidth(const char *text, float scale, fontInfo_t *font)
 
 void TCE_ModernFill(float x, float y, float w, float h, const float *color)
 {
+    vec4_t themed;
+    TCE_ModernThemeColor(color,themed,1);
 #ifdef CGAMEDLL
-    CG_FillRect(x, y, w, h, color);
+    CG_FillRect(x, y, w, h, themed);
 #else
-    UI_FillRect(x, y, w, h, color);
+    UI_FillRect(x, y, w, h, themed);
 #endif
 }
 
@@ -117,12 +123,8 @@ void TCE_ModernImage(const char *name, float x, float y, float w, float h)
         }
     }
     if (!image) return;
+    TCE_ModernThemePicture(x,y,w,h,image,NULL);
     trap_R_SetColor(NULL);
-#ifdef CGAMEDLL
-    CG_DrawPic(x,y,w,h,image);
-#else
-    UI_DrawHandlePic(x,y,w,h,image);
-#endif
 }
 
 void TCE_ModernPanel(float x, float y, float w, float h, float alpha)
@@ -142,7 +144,7 @@ void TCE_ModernText(float x, float y, float scale, float width,
     Q_strncpyz(clipped,text,sizeof(clipped)); length=strlen(clipped);
     while (length && TCE_ModernWidth(clipped,scale,font)>width) clipped[--length]=0;
     if (length && clipped[length-1]=='^') clipped[length-1]=0;
-    memcpy(rgba,color,sizeof(rgba));
+    TCE_ModernThemeColor(color,rgba,0);
 #ifdef CGAMEDLL
     CG_Text_Paint_Ext(x,y,scale,scale,rgba,clipped,0,0,0,font);
 #else

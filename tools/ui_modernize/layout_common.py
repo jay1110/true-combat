@@ -9,6 +9,13 @@ SETTINGS = {
     'system': ('SYSTEM', 'options_system'),
 }
 
+# Navigation hubs are a real overlay: their entire painted/input rectangle is
+# limited to the top rail.  The renderer can then show the running map below
+# it instead of an almost opaque 852x480 decoration covering the whole view.
+HEADER_HEIGHT = 104
+HEADER_BUTTON_Y = 56
+HEADER_BUTTON_HEIGHT = 32
+
 
 def set_window(text, x=0, y=0, width=852, height=480):
     for name, value in zip(('WINDOW_X','WINDOW_Y','WINDOW_WIDTH','WINDOW_HEIGHT'),
@@ -48,6 +55,50 @@ def icon(name,shader,x,y,size=26):
     return f'''itemDef {{ name "{name}" rect {x} {y} {size} {size}
         style WINDOW_STYLE_SHADER background "tce2_ui/icons/{shader}"
         forecolor .94 .75 .27 1 visible 1 decoration }}\n'''
+
+
+def header_canvas(text):
+    from restyle import blocks, item_prop
+    text = set_window(text, height=HEADER_HEIGHT)
+    for start, end in reversed(list(blocks(text))):
+        block = text[start:end]
+        if re.search(r'\bname\s+"background"', block):
+            block = item_prop(block, 'rect', f'0 0 852 {HEADER_HEIGHT}')
+            block = item_prop(block, 'backcolor', '0 0 0 0')
+        elif re.search(r'\bname\s+"windowtitle"', block):
+            # Vote/Referee/RCON have their own privilege-dependent title items.
+            block = item_prop(block, 'rect', '24 8 804 36')
+            block = item_prop(block, 'textscale', '.40')
+            block = item_prop(block, 'textalignx', '0')
+            block = item_prop(block, 'textaligny', '27')
+            block = item_prop(block, 'textalign', 'ITEM_ALIGN_LEFT')
+        text = text[:start] + block + text[end:]
+    return text
+
+
+def header_button(args, slot, width=124, stride=136, scale='.27'):
+    result = list(args)
+    result[:4] = list(map(str, (24 + slot * stride, HEADER_BUTTON_Y,
+                              width, HEADER_BUTTON_HEIGHT)))
+    result[5:7] = [scale, '22']
+    return result
+
+
+def appearance_link(text):
+    return add_items(text, '''itemDef {
+        name "modern_appearance_link"
+        rect 568 56 124 32
+        text "APPEARANCE"
+        textfont UI_FONT_ARIBLK_27
+        textscale .27
+        textalign ITEM_ALIGN_CENTER textalignx 62 textaligny 22
+        type ITEM_TYPE_BUTTON
+        style WINDOW_STYLE_FILLED backcolor .10 .14 .19 .96
+        forecolor .84 .88 .92 1
+        border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
+        visible 1
+        action { close options ; open modern_appearance ; }
+    }''', 'options')
 
 
 def settings_navigation(text, relative):
