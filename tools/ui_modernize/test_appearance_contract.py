@@ -45,6 +45,18 @@ class AppearanceContract(unittest.TestCase):
         candidate[sem.APPEARANCE]=candidate[sem.APPEARANCE].replace(b'rect 0 20 852 424',b'rect 10 30 830 410')
         self.assertEqual(compare_semantics(self.original,candidate),77)
 
+    def test_added_palettes_keep_archived_ids_and_match_native_bounds(self):
+        text=self.page.decode('latin1')
+        calls=list(restyle.macro_calls(text,{'MULTI'}))
+        palette=next(args for _,_,_,args in calls if args[7]=='"ui_themePreset"')
+        values=sem.tokens(palette[8])[2:-1]
+        self.assertEqual(list(zip(values[::2],values[1::2])),[
+            ('"Gold"','0'),('"Arctic"','1'),('"Crimson"','2'),('"Emerald"','3'),('"Custom"','4'),
+            ('"Black / Grey"','5'),('"Grey / Black"','6'),('"Slate"','7'),('"Copper"','8'),('"Violet"','9')])
+        native=(ROOT/'src/ui/tce_modern_theme.inc').read_text(encoding='utf8')
+        self.assertIn('TCE_THEME_CUSTOM = 4, TCE_THEME_PRESET_COUNT = 10',native)
+        self.assertIn('TCE_THEME_PRESET_COUNT-1',native)
+
     def test_slider_labels_align_to_native_fixed_track_without_moving_multi_labels(self):
         text=self.page.decode('latin1')
         sliders=list(restyle.macro_calls(text,{'SLIDER'}))

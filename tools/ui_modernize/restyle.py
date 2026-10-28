@@ -89,7 +89,9 @@ def macro_calls(text, names):
 def main_layout(text, path):
     # Large left navigation, wide scene, original eight actions and mode label.
     compact = path.parent.name == 'ui'
-    dimensions = ('48','92','264','320') if compact else ('0','0','852','480')
+    # Real BarlowCondensed .30 captions max70.41units. Native text offset40
+    # plus16right padding fits128px buttons inside a160px rail with16px sides.
+    dimensions = ('48','92','160','320') if compact else ('0','0','852','480')
     for key, value in zip(('WINDOW_X','WINDOW_Y','WINDOW_WIDTH','WINDOW_HEIGHT'), dimensions):
         text = re.sub(r'(?m)^#define\s+'+key+r'\s+[^\n]+', '#define '+key+' '+value, text)
     calls = list(macro_calls(text, {'BUTTONTEXTONLY', 'BUTTON', 'BIGLABEL', 'LABELWHITE'}))
@@ -97,7 +99,7 @@ def main_layout(text, path):
         if name in ('BUTTONTEXTONLY', 'BUTTON'):
             # Calculate index in source order, not reversed replacement order.
             index = sum(1 for a,b,n,c in calls if a < start and n in ('BUTTONTEXTONLY','BUTTON'))
-            args[:4] = ['16' if compact else '64', str((38 if compact else 130)+index*32), '232', '27']
+            args[:4] = ['16' if compact else '64', str((38 if compact else 130)+index*32), '128', '27']
             args[5:7] = ['.30', '19']
         elif name == 'BIGLABEL':
             # BIGLABEL applies X both to the item and to its text offset.
@@ -134,7 +136,7 @@ def main_layout(text, path):
     }
     itemDef {
         name "modern_navigation_panel"
-        rect 48 116 264 280
+        rect 48 116 160 280
         style WINDOW_STYLE_SHADER
         background "tce2_ui/panel"
         forecolor 1 1 1 1
@@ -236,12 +238,13 @@ def menu(text, relative):
     # byte-identical while the rest of the interface gets desktop layouts.
     if relative.name not in ('main.menu','global.menu'):
         import layout_settings, layout_browse, layout_misc, layout_secondary
-        from layout_common import settings_navigation
+        from layout_common import settings_navigation, vote_navigation
         text=layout_settings.apply(text,relative)
         text=layout_browse.apply(text,relative)
         text=layout_misc.apply(text,relative)
         text=layout_secondary.apply(text,relative)
         text=settings_navigation(text,relative)
+        text=vote_navigation(text,relative)
         # Legacy copies used negative 862x650 fade boxes to bleed across a
         # 640-wide parent.  All modern pages use one852x480 canvas; retain the
         # same decoration/script identity without an off-screen painted rect.

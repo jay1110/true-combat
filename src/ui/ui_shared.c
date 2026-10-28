@@ -6590,6 +6590,13 @@ qboolean Item_Bind_HandleKey(itemDef_t *item, int key, qboolean down)
 
 
 #include "tce_ui_coordinates.h"
+int TCE_MenuViewportBackground(void)
+{
+	const char *name = tceMenuViewportPaintMenu ? tceMenuViewportPaintMenu->window.name : NULL;
+	return TCE_ModernUIEnabled() && name &&
+	       (!Q_stricmp(name,"background_1") || !Q_stricmp(name,"background_black") ||
+	        !Q_stricmp(name,"fadebox_black"));
+}
 float TCE_MenuViewportAnchorY(void)
 {
 	menuDef_t *menu = tceMenuViewportPaintMenu ? tceMenuViewportPaintMenu : Menu_GetFocused();
@@ -6602,6 +6609,14 @@ float TCE_MenuViewportAnchorY(void)
 static qboolean TCE_UISharedViewportAdjust(float *x, float *y, float *w, float *h)
 {
 	tce_viewport_t view;
+	if (DC && TCE_ModernUIEnabled() &&
+	    (TCE_ViewportDrawMode() == TCE_VIEWPORT_BACKDROP || TCE_MenuViewportBackground()))
+	{
+		if (TCE_ViewportCover(&view,DC->glconfig.vidWidth,DC->glconfig.vidHeight,
+		                      TCE_MenuViewportBackground() ? 852.f : TCE_VIEWPORT_CANVAS_WIDTH,TCE_VIEWPORT_CANVAS_HEIGHT))
+			TCE_ViewportProject(&view,x,y,w,h);
+		return qtrue;
+	}
 #ifdef CGAMEDLL
 	if (CG_HudViewportAdjust(x, y, w, h, 1)) return qtrue;
 #endif
@@ -6609,7 +6624,9 @@ static qboolean TCE_UISharedViewportAdjust(float *x, float *y, float *w, float *
 	    (DC->getCVarValue("cg_wideScreen") == 0.f && !TCE_ModernUIEnabled())) return qfalse;
 	if (!TCE_ViewportFit(&view, DC->glconfig.vidWidth, DC->glconfig.vidHeight,
 	                     TCE_VIEWPORT_CANVAS_WIDTH, TCE_VIEWPORT_CANVAS_HEIGHT,
-	                     (float)DC->getCVarValue("ui_menuMaxHeight"), (float)DC->getCVarValue("ui_menuScale"), .5f, TCE_MenuViewportAnchorY())) return qtrue;
+	                     TCE_ViewportDrawMode() == TCE_VIEWPORT_FULLSCREEN ? 0 : (float)DC->getCVarValue("ui_menuMaxHeight"),
+	                     TCE_ViewportDrawMode() == TCE_VIEWPORT_FULLSCREEN ? 1 : (float)DC->getCVarValue("ui_menuScale"),
+	                     .5f, TCE_ViewportDrawMode() == TCE_VIEWPORT_FULLSCREEN ? .5f : TCE_MenuViewportAnchorY())) return qtrue;
 	TCE_ViewportProject(&view, x, y, w, h);
 	return qtrue;
 }

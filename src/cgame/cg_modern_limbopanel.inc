@@ -44,16 +44,31 @@ static void TCE_ModernLimboGeometry(void)
     weaponPanel.rect.h=count>10 ? 284.f/(count-1) : 30.f;
 }
 
-static void TCE_ModernLimboSurface(const rectDef_t *rect, qboolean selected,
-                                   qboolean hover, qboolean enabled)
+static void TCE_ModernLimboSurfacePaint(const rectDef_t *rect, qboolean selected,
+                                      qboolean hover, qboolean enabled, qboolean opaque)
 {
     vec4_t fill={ .055f,.085f,.115f,.97f };
     vec4_t line={ .16f,.23f,.29f,1 };
     if(hover && enabled) { fill[0]=.10f;fill[1]=.16f;fill[2]=.20f; }
     if(selected && enabled) { fill[0]=.14f;fill[1]=.16f;fill[2]=.16f; }
-    TCE_ModernFill(rect->x,rect->y,rect->w,rect->h,fill);
+    if(opaque)
+    {
+        vec4_t themed;
+        /* An open selector covers other controls: retain the selected palette
+         * but keep its text readable even with a transparent global theme. */
+        TCE_ModernThemeColor(fill,themed,1);
+        themed[3]=.98f;
+        CG_FillRect(rect->x,rect->y,rect->w,rect->h,themed);
+    }
+    else TCE_ModernFill(rect->x,rect->y,rect->w,rect->h,fill);
     TCE_ModernFill(rect->x,rect->y+rect->h-1,rect->w,1,
                    selected && enabled ? tceModernAmber : line);
+}
+
+static void TCE_ModernLimboSurface(const rectDef_t *rect, qboolean selected,
+                                  qboolean hover, qboolean enabled)
+{
+    TCE_ModernLimboSurfacePaint(rect,selected,hover,enabled,qfalse);
 }
 
 static void TCE_ModernLimboTeam(panel_button_t *button, panel_button_t *counter)
@@ -119,11 +134,32 @@ static void TCE_ModernLimboWeaponRow(const rectDef_t *rect, weapon_t weapon,
     qboolean hover=BG_CursorInRect(rect);
     float scale=rect->h<20 ? .15f : .22f;
     float baseline=rect->y+rect->h*.68f;
+    float textX=rect->x+12;
+    qhandle_t icon=0;
     char countText[48];
     TCE_ModernLimboWeaponInfo(weapon,&name,&description,&category);
-    TCE_ModernLimboSurface(rect,selected,hover,!disabled);
-    TCE_ModernText(rect->x+12,baseline,scale,rect->w-146,
-                   disabled?tceModernMuted:hover?tceModernAmber:tceModernWhite,name,1);
+    TCE_ModernLimboSurfacePaint(rect,selected,hover,!disabled,expanded);
+    if((int)weapon>=0 && (int)weapon<(int)TCE_MAX_WEAPONS)
+        icon=tce_cg_weapons[weapon].weaponIcon;
+    if(!icon && (int)weapon>=0 && (int)weapon<MAX_WEAPONS)
+        icon=cg_weapons[weapon].weaponIcon[0];
+    /* TC's stock weapon files often define only the selected icon, as used
+     * by the original weapon HUD. Reuse that registered handle in both views. */
+    if(!icon && (int)weapon>=0 && (int)weapon<(int)TCE_MAX_WEAPONS)
+        icon=tce_cg_weapons[weapon].weaponSelectedIcon;
+    if(!icon && (int)weapon>=0 && (int)weapon<MAX_WEAPONS)
+        icon=cg_weapons[weapon].weaponIcon[1];
+    if(icon)
+    {
+        float iconHeight=rect->h-4;
+        if(iconHeight>24) iconHeight=24;
+        trap_R_SetColor(NULL);
+        CG_DrawPic(rect->x+10,rect->y+(rect->h-iconHeight)*.5f,iconHeight*2,iconHeight,icon);
+        textX=rect->x+68;
+    }
+    TCE_ModernTextFit(textX,baseline,scale,rect->x+rect->w-134-textX,
+                      disabled?tceModernMuted:hover?tceModernAmber:tceModernWhite,
+                      description && *description ? description : name,1);
     Com_sprintf(countText,sizeof(countText),disabled?"%d / %d  LOCKED":"%d / %d",number,count);
     TCE_ModernText(rect->x+rect->w-118,baseline,scale*.85f,96,tceModernMuted,countText,0);
     if(!expanded && count>1)

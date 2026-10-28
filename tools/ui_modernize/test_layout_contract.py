@@ -3,6 +3,7 @@ from pathlib import Path
 import unittest
 
 import semantic as sem
+from layout_common import hover_feedback
 from verify_package import compare_semantics
 
 ROOT=Path(__file__).resolve().parents[2]
@@ -31,6 +32,7 @@ class LayoutContract(unittest.TestCase):
         for key,target in sem.NAV_TARGETS.items():
             active=sem.SETTINGS_NAV[path]==key
             body='decoration' if active else 'type ITEM_TYPE_BUTTON action { '+' '.join(back+[';','close','options',';','open',target])+' }'
+            if not active:body+=hover_feedback('modern_nav_'+key)
             blocks.append('itemDef { name "modern_nav_'+key+'" text "'+key.upper()+'" visible 1 group GROUP_NAME '+
                           'rect 280 12 132 30 textfont UI_FONT_ARIBLK_16 textscale .24 '+body+' }')
         data=self.candidate[path];at=data.rfind(b'}')

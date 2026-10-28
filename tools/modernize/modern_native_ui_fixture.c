@@ -56,6 +56,9 @@ void TCE_ModernText(float x,float y,float scale,float width,const float *color,c
 void TCE_ModernParagraph(float x,float y,float scale,float width,float lineHeight,int lines,const float *c,const char *text)
 {(void)lineHeight;(void)lines;TCE_ModernText(x,y,scale,width,c,text?text:"",0);}
 void TCE_ModernImage(const char *path,float x,float y,float w,float h){(void)path;(void)x;(void)y;(void)w;(void)h;}
+void TCE_ModernBackdrop(const char *path){TCE_ModernImage(path,0,0,852,480);}
+void TCE_ModernCursor(float x,float y,qhandle_t shader,int centered)
+{(void)x;(void)y;(void)shader;(void)centered;}
 void TCE_ModernBar(float x,float y,float w,float h,float progress,int milliseconds)
 {(void)x;(void)y;(void)w;(void)h;(void)milliseconds;lastProgress=progress;}
 int trap_Milliseconds(void){return mockTime;}

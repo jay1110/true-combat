@@ -64,6 +64,14 @@ int CG_HudViewportAdjust(float *x, float *y, float *w, float *h, int tceCanvas)
 {
 	tce_viewport_t viewport;
 	float canvasWidth = tceCanvas ? 640.f / .75f : 640.f;
+	if (TCE_ModernUIEnabled() && TCE_ViewportDrawMode() != TCE_VIEWPORT_MENU)
+	{
+		int fitted = TCE_ViewportDrawMode() == TCE_VIEWPORT_BACKDROP ?
+		             TCE_ViewportCover(&viewport,cgs.glconfig.vidWidth,cgs.glconfig.vidHeight,canvasWidth,480.f) :
+		             TCE_ViewportFit(&viewport,cgs.glconfig.vidWidth,cgs.glconfig.vidHeight,canvasWidth,480.f,0,1,.5f,.5f);
+		if (fitted) TCE_ViewportProject(&viewport,x,y,w,h);
+		return 1;
+	}
 	if (menuViewportDepth)
 	{
 		/* Modern native menus must fit even when the legacy HUD mode is

@@ -24,7 +24,7 @@ static void UI_DrawModernLoadPanel(qboolean ownerdraw)
         Q_strncpyz(map,Info_ValueForKey(serverinfo,"mapname"),sizeof(map));
         if(*map)mapTitle=map;
     }
-    TCE_ModernImage("tce2_ui/background",0,0,852,480);
+    TCE_ModernBackdrop("tce2_ui/background");
     TCE_ModernPanel(0,0,852,480,.62f);
     TCE_ModernText(26,42,.23f,800,tceModernAmber,TCE_PROJECT_TITLE,1);
     TCE_ModernText(26,76,.42f,800,tceModernWhite,mapTitle,1);

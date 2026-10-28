@@ -20,7 +20,7 @@ static void CG_DrawModernLoadPanel(qboolean interactive)
         description=DC->descriptionForCampaign();
     else if(cgs.arenaInfoLoaded)
         description=cgs.gametype==GT_WOLF_LMS?cgs.arenaData.lmsdescription:cgs.arenaData.description;
-    TCE_ModernImage("tce2_ui/background",0,0,852,480);
+    TCE_ModernBackdrop("tce2_ui/background");
     TCE_ModernPanel(0,0,852,480,.58f);
     TCE_ModernText(26,42,.23f,800,tceModernAmber,TCE_PROJECT_TITLE,1);
     TCE_ModernText(26,76,.42f,800,tceModernWhite,*title?title:"PREPARING MISSION",1);
@@ -47,5 +47,5 @@ static void CG_DrawModernLoadPanel(qboolean interactive)
     if(progress>=0)Com_sprintf(detail,sizeof(detail),"%d%%   /   ASSET MEMORY",(int)(progress*100));
     else Q_strncpyz(detail,"PREPARING ASSETS / SIZE NOT YET KNOWN",sizeof(detail));
     TCE_ModernText(38,452,.14f,770,tceModernMuted,detail,0);
-    if(interactive)DC->drawHandlePic(DC->cursorx,DC->cursory,24,24,DC->Assets.cursor);
+    if(interactive)TCE_ModernCursor(DC->cursorx,DC->cursory,DC->Assets.cursor,0);
 }

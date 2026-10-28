@@ -74,7 +74,7 @@ itemDef {
     }
     itemDef {
         name "modern_navigation_panel"
-        rect 48 116 264 280
+        rect 48 116 160 280
         style WINDOW_STYLE_SHADER
         background "tce2_ui/panel"
         forecolor 1 1 1 1
@@ -211,12 +211,12 @@ itemDef {
 
 //	BUTTON( BUTTON_X, BUTTON_Y, BUTTON_W, BUTTON_H, BUTTON_TEXT, BUTTON_TEXT_SCALE, BUTTON_TEXT_ALIGN_Y, BUTTON_ACTION )	//
 
-	BUTTONTEXTONLY( 64, 130, 232, 27, "PUSHING INTO", .30, 19, close main ; /*close backgroundmusic ; open backgroundmusic_server ;*/ exec "globalservers 0 84 empty full"; uiScript UpdateFilter ; uiScript ServerSortDown 4 ; open playonline )
-	BUTTONTEXTONLY( 64, 162, 232, 27, "HOST A GAME", .30, 19, close main ; /*close backgroundmusic ; open backgroundmusic_server ;*/ uiScript loadArenas ; uiScript initHostGameFeatures ; open hostgame )
-	BUTTONTEXTONLY( 64, 194, 232, 27, "TC:E MODS", .30, 19, close main ; open tcemods )
-	BUTTONTEXTONLY( 64, 226, 232, 27, "REPLAYS", .30, 19, close main ; open viewreplay )
-	BUTTONTEXTONLY( 64, 258, 232, 27, "OPTIONS", .30, 19, close main ; open options )
-	BUTTONTEXTONLY( 64, 290, 232, 27, "PROFILE", .30, 19, close main ; open profile )
-	BUTTONTEXTONLY( 64, 322, 232, 27, "CREDITS", .30, 19, close main ; open credits_groovesix )
-	BUTTONTEXTONLY( 64, 354, 232, 27, "EXIT GAME", .30, 19, clearFocus ; open quit )
+	BUTTONTEXTONLY( 64, 130, 128, 27, "PUSHING INTO", .30, 19, close main ; /*close backgroundmusic ; open backgroundmusic_server ;*/ exec "globalservers 0 84 empty full"; uiScript UpdateFilter ; uiScript ServerSortDown 4 ; open playonline )
+	BUTTONTEXTONLY( 64, 162, 128, 27, "HOST A GAME", .30, 19, close main ; /*close backgroundmusic ; open backgroundmusic_server ;*/ uiScript loadArenas ; uiScript initHostGameFeatures ; open hostgame )
+	BUTTONTEXTONLY( 64, 194, 128, 27, "TC:E MODS", .30, 19, close main ; open tcemods )
+	BUTTONTEXTONLY( 64, 226, 128, 27, "REPLAYS", .30, 19, close main ; open viewreplay )
+	BUTTONTEXTONLY( 64, 258, 128, 27, "OPTIONS", .30, 19, close main ; open options )
+	BUTTONTEXTONLY( 64, 290, 128, 27, "PROFILE", .30, 19, close main ; open profile )
+	BUTTONTEXTONLY( 64, 322, 128, 27, "CREDITS", .30, 19, close main ; open credits_groovesix )
+	BUTTONTEXTONLY( 64, 354, 128, 27, "EXIT GAME", .30, 19, clearFocus ; open quit )
 }

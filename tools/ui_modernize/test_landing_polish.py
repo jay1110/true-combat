@@ -58,7 +58,9 @@ class LandingPolishTests(unittest.TestCase):
         for literal in ('rect 568 56 124 32','text "APPEARANCE"','type ITEM_TYPE_BUTTON',
                         'action { close options ; open modern_appearance ; }'):
             self.assertIn(literal,item)
-        self.assertNotRegex(item,r'\b(?:cvar|feeder|ownerdraw|mouseEnter|mouseExit)\b')
+        self.assertNotRegex(item,r'\b(?:cvar|feeder|ownerdraw)\b')
+        for event in ('mouseEnter','mouseExit','onFocus','leaveFocus'):
+            self.assertIn(event+' { setitemcolor "modern_appearance_link"',item)
         self.assertEqual(layout_settings.apply(result,Path('ui/options.menu')),result)
 
     def test_advanced_long_labels_and_checkbox_marks_fit_their_actual_rows(self):

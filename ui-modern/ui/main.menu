@@ -4,7 +4,7 @@
 
 #define WINDOW_X 48
 #define WINDOW_Y 92
-#define WINDOW_WIDTH 264
+#define WINDOW_WIDTH 160
 #define WINDOW_HEIGHT 320
 #define GROUP_NAME		"grpMain"
 
@@ -187,12 +187,12 @@ itemDef {
 	
 // Buttons //
 
-	BUTTON( 16, 38, 232, 27, "Play Online", .30, 19, close main ; /*close backgroundmusic ; open backgroundmusic_server ;*/ exec "globalservers 0 84 empty full"; uiScript UpdateFilter ; uiScript ServerSortDown 4 ; open playonline )
-	BUTTON( 16, 70, 232, 27, "Host a Game", .30, 19, close main ; /*close backgroundmusic ; open backgroundmusic_server ;*/ uiScript loadArenas ; uiScript initHostGameFeatures ; open hostgame )
-	BUTTON( 16, 102, 232, 27, "Replays", .30, 19, close main ; open viewreplay )
-	BUTTON( 16, 134, 232, 27, "Options", .30, 19, close main ; open options )
-	BUTTON( 16, 166, 232, 27, "Profile", .30, 19, close main ; open profile )
-	BUTTON( 16, 198, 232, 27, "Credits", .30, 19, close main ; open credits_groovesix )
-	BUTTON( 16, 230, 232, 27, "Exit TC:E", .30, 19, clearFocus ; open quit )
+	BUTTON( 16, 38, 128, 27, "Play Online", .30, 19, close main ; /*close backgroundmusic ; open backgroundmusic_server ;*/ exec "globalservers 0 84 empty full"; uiScript UpdateFilter ; uiScript ServerSortDown 4 ; open playonline )
+	BUTTON( 16, 70, 128, 27, "Host a Game", .30, 19, close main ; /*close backgroundmusic ; open backgroundmusic_server ;*/ uiScript loadArenas ; uiScript initHostGameFeatures ; open hostgame )
+	BUTTON( 16, 102, 128, 27, "Replays", .30, 19, close main ; open viewreplay )
+	BUTTON( 16, 134, 128, 27, "Options", .30, 19, close main ; open options )
+	BUTTON( 16, 166, 128, 27, "Profile", .30, 19, close main ; open profile )
+	BUTTON( 16, 198, 128, 27, "Credits", .30, 19, close main ; open credits_groovesix )
+	BUTTON( 16, 230, 128, 27, "Exit TC:E", .30, 19, clearFocus ; open quit )
 	LABELWHITE( 16, 280, 330, 16, "Unofficial Community Project", .20, ITEM_ALIGN_LEFT, 0, 12 )
 }

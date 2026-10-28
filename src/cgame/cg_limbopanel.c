@@ -2816,7 +2816,9 @@ static qboolean TCE_LimboDrawContents(void)
 
 	trap_R_SetColor(NULL);
 	/* Original display-context cursor fields are integer-valued. */
-	CG_DrawPic((float)(int)cgDC.cursorx, (float)(int)cgDC.cursory, 32, 32, cgs.media.cursorIcon);
+	if (TCE_ModernUIEnabled())
+		TCE_ModernCursor((float)(int)cgDC.cursorx,(float)(int)cgDC.cursory,cgs.media.cursorIcon,0);
+	else CG_DrawPic((float)(int)cgDC.cursorx, (float)(int)cgDC.cursory, 32, 32, cgs.media.cursorIcon);
 
 	if (cgs.ccRequestedObjective != -1)
 	{

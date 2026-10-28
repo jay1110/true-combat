@@ -94,7 +94,7 @@ menuDef {
 	itemDef {
 		name		"nfleftbackTimelimit:"
 		group		GROUP_NAME
-		rect		662 272 72 24
+		rect		644 272 90 24
 		style		WINDOW_STYLE_FILLED
 		backcolor	.12 .17 .22 .96
 		visible		1
@@ -110,4 +110,75 @@ menuDef {
 //	NAMEDBUTTONEXT( "bttnextGameType", 6+.80*(WINDOW_WIDTH-18)+6, 194, .20*(WINDOW_WIDTH-18), 14, "OK", .24, 11, uiScript voteGame; uiScript closeingame, voteflag CV_SVF_GAMETYPE )
 
 	BUTTON( 24, 442, 184, 28, "BACK", .28, 19, close ingame_vote_misc ; open ingame_vote )
+
+itemDef { name "modern_vote_nav_misc" rect 398 12 138 30
+                text "MISC" textfont UI_FONT_ARIBLK_27 textscale .25
+                textalign ITEM_ALIGN_CENTER textalignx 69 textaligny 21
+                style WINDOW_STYLE_FILLED border WINDOW_BORDER_FULL
+                bordercolor .23 .29 .35 .75
+                backcolor .94 .75 .27 1
+                forecolor .025 .035 .05 1
+                visible 1 decoration
+            }
+itemDef { name "modern_vote_nav_map_0" rect 544 12 138 30
+                text "MAP" textfont UI_FONT_ARIBLK_27 textscale .25
+                textalign ITEM_ALIGN_CENTER textalignx 69 textaligny 21
+                style WINDOW_STYLE_FILLED border WINDOW_BORDER_FULL
+                bordercolor .23 .29 .35 .75
+                backcolor .08 .12 .16 1
+                forecolor .84 .89 .94 1
+                visible 1 type ITEM_TYPE_BUTTON
+mouseEnter { setitemcolor "modern_vote_nav_map_0" backcolor .19 .26 .33 1 ; setitemcolor "modern_vote_nav_map_0" forecolor 1 1 1 1 ; setitemcolor "modern_vote_nav_map_0" bordercolor .94 .75 .27 1 ; }
+mouseExit { setitemcolor "modern_vote_nav_map_0" backcolor .08 .12 .16 1 ; setitemcolor "modern_vote_nav_map_0" forecolor .84 .89 .94 1 ; setitemcolor "modern_vote_nav_map_0" bordercolor .23 .29 .35 .75 ; }
+onFocus { setitemcolor "modern_vote_nav_map_0" backcolor .19 .26 .33 1 ; setitemcolor "modern_vote_nav_map_0" forecolor 1 1 1 1 ; setitemcolor "modern_vote_nav_map_0" bordercolor .94 .75 .27 1 ; }
+leaveFocus { setitemcolor "modern_vote_nav_map_0" backcolor .08 .12 .16 1 ; setitemcolor "modern_vote_nav_map_0" forecolor .84 .89 .94 1 ; setitemcolor "modern_vote_nav_map_0" bordercolor .23 .29 .35 .75 ; }
+ action { close ingame_vote_misc ; open ingame_vote ; close ingame_vote ; open ingame_vote_map }
+cvarTest "authLevel" showCVar { RL_NONE } voteflag CV_SVF_MAP
+            }
+itemDef { name "modern_vote_nav_map_1" rect 544 12 138 30
+                text "MAP" textfont UI_FONT_ARIBLK_27 textscale .25
+                textalign ITEM_ALIGN_CENTER textalignx 69 textaligny 21
+                style WINDOW_STYLE_FILLED border WINDOW_BORDER_FULL
+                bordercolor .23 .29 .35 .75
+                backcolor .08 .12 .16 1
+                forecolor .84 .89 .94 1
+                visible 1 type ITEM_TYPE_BUTTON
+mouseEnter { setitemcolor "modern_vote_nav_map_1" backcolor .19 .26 .33 1 ; setitemcolor "modern_vote_nav_map_1" forecolor 1 1 1 1 ; setitemcolor "modern_vote_nav_map_1" bordercolor .94 .75 .27 1 ; }
+mouseExit { setitemcolor "modern_vote_nav_map_1" backcolor .08 .12 .16 1 ; setitemcolor "modern_vote_nav_map_1" forecolor .84 .89 .94 1 ; setitemcolor "modern_vote_nav_map_1" bordercolor .23 .29 .35 .75 ; }
+onFocus { setitemcolor "modern_vote_nav_map_1" backcolor .19 .26 .33 1 ; setitemcolor "modern_vote_nav_map_1" forecolor 1 1 1 1 ; setitemcolor "modern_vote_nav_map_1" bordercolor .94 .75 .27 1 ; }
+leaveFocus { setitemcolor "modern_vote_nav_map_1" backcolor .08 .12 .16 1 ; setitemcolor "modern_vote_nav_map_1" forecolor .84 .89 .94 1 ; setitemcolor "modern_vote_nav_map_1" bordercolor .23 .29 .35 .75 ; }
+ action { close ingame_vote_misc ; open ingame_vote ; close ingame_vote ; open ingame_vote_map }
+cvarTest "authLevel" showCVar { RL_REFEREE RL_RCON }
+            }
+itemDef { name "modern_vote_nav_players_0" rect 690 12 138 30
+                text "PLAYERS" textfont UI_FONT_ARIBLK_27 textscale .25
+                textalign ITEM_ALIGN_CENTER textalignx 69 textaligny 21
+                style WINDOW_STYLE_FILLED border WINDOW_BORDER_FULL
+                bordercolor .23 .29 .35 .75
+                backcolor .08 .12 .16 1
+                forecolor .84 .89 .94 1
+                visible 1 type ITEM_TYPE_BUTTON
+mouseEnter { setitemcolor "modern_vote_nav_players_0" backcolor .19 .26 .33 1 ; setitemcolor "modern_vote_nav_players_0" forecolor 1 1 1 1 ; setitemcolor "modern_vote_nav_players_0" bordercolor .94 .75 .27 1 ; }
+mouseExit { setitemcolor "modern_vote_nav_players_0" backcolor .08 .12 .16 1 ; setitemcolor "modern_vote_nav_players_0" forecolor .84 .89 .94 1 ; setitemcolor "modern_vote_nav_players_0" bordercolor .23 .29 .35 .75 ; }
+onFocus { setitemcolor "modern_vote_nav_players_0" backcolor .19 .26 .33 1 ; setitemcolor "modern_vote_nav_players_0" forecolor 1 1 1 1 ; setitemcolor "modern_vote_nav_players_0" bordercolor .94 .75 .27 1 ; }
+leaveFocus { setitemcolor "modern_vote_nav_players_0" backcolor .08 .12 .16 1 ; setitemcolor "modern_vote_nav_players_0" forecolor .84 .89 .94 1 ; setitemcolor "modern_vote_nav_players_0" bordercolor .23 .29 .35 .75 ; }
+ action { close ingame_vote_misc ; open ingame_vote ; close ingame_vote ; open ingame_vote_players }
+cvarTest "authLevel" showCVar { RL_NONE } voteFlag $evalint(CV_SVF_KICK + CV_SVF_REFEREE + CV_SVF_MUTING)
+            }
+itemDef { name "modern_vote_nav_players_1" rect 690 12 138 30
+                text "PLAYERS" textfont UI_FONT_ARIBLK_27 textscale .25
+                textalign ITEM_ALIGN_CENTER textalignx 69 textaligny 21
+                style WINDOW_STYLE_FILLED border WINDOW_BORDER_FULL
+                bordercolor .23 .29 .35 .75
+                backcolor .08 .12 .16 1
+                forecolor .84 .89 .94 1
+                visible 1 type ITEM_TYPE_BUTTON
+mouseEnter { setitemcolor "modern_vote_nav_players_1" backcolor .19 .26 .33 1 ; setitemcolor "modern_vote_nav_players_1" forecolor 1 1 1 1 ; setitemcolor "modern_vote_nav_players_1" bordercolor .94 .75 .27 1 ; }
+mouseExit { setitemcolor "modern_vote_nav_players_1" backcolor .08 .12 .16 1 ; setitemcolor "modern_vote_nav_players_1" forecolor .84 .89 .94 1 ; setitemcolor "modern_vote_nav_players_1" bordercolor .23 .29 .35 .75 ; }
+onFocus { setitemcolor "modern_vote_nav_players_1" backcolor .19 .26 .33 1 ; setitemcolor "modern_vote_nav_players_1" forecolor 1 1 1 1 ; setitemcolor "modern_vote_nav_players_1" bordercolor .94 .75 .27 1 ; }
+leaveFocus { setitemcolor "modern_vote_nav_players_1" backcolor .08 .12 .16 1 ; setitemcolor "modern_vote_nav_players_1" forecolor .84 .89 .94 1 ; setitemcolor "modern_vote_nav_players_1" bordercolor .23 .29 .35 .75 ; }
+ action { close ingame_vote_misc ; open ingame_vote ; close ingame_vote ; open ingame_vote_players }
+cvarTest "authLevel" showCVar { RL_REFEREE RL_RCON }
+            }
+
 }

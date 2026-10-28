@@ -42,7 +42,7 @@ menuDef {
 // modern settings desktop v1
     itemDef {
         name "modern_settings_card_0"
-        rect 24 60 256 213
+        rect 24 60 256 217
         style WINDOW_STYLE_FILLED
         backcolor .045 .065 .085 .98
         visible 1
@@ -58,7 +58,7 @@ menuDef {
     }
     itemDef {
         name "modern_settings_card_1"
-        rect 24 279 256 63
+        rect 24 283 256 142
         style WINDOW_STYLE_FILLED
         backcolor .045 .065 .085 .98
         visible 1
@@ -66,7 +66,7 @@ menuDef {
     }
     itemDef {
         name "modern_settings_accent_1"
-        rect 24 279 3 16
+        rect 24 283 3 16
         style WINDOW_STYLE_FILLED
         backcolor .94 .75 .27 .95
         visible 1
@@ -74,7 +74,7 @@ menuDef {
     }
     itemDef {
         name "modern_settings_card_2"
-        rect 24 348 256 78
+        rect 298 60 256 112
         style WINDOW_STYLE_FILLED
         backcolor .045 .065 .085 .98
         visible 1
@@ -82,22 +82,6 @@ menuDef {
     }
     itemDef {
         name "modern_settings_accent_2"
-        rect 24 348 3 16
-        style WINDOW_STYLE_FILLED
-        backcolor .94 .75 .27 .95
-        visible 1
-        decoration
-    }
-    itemDef {
-        name "modern_settings_card_3"
-        rect 298 60 256 108
-        style WINDOW_STYLE_FILLED
-        backcolor .045 .065 .085 .98
-        visible 1
-        decoration
-    }
-    itemDef {
-        name "modern_settings_accent_3"
         rect 298 60 3 16
         style WINDOW_STYLE_FILLED
         backcolor .94 .75 .27 .95
@@ -105,8 +89,24 @@ menuDef {
         decoration
     }
     itemDef {
+        name "modern_settings_card_3"
+        rect 298 178 256 157
+        style WINDOW_STYLE_FILLED
+        backcolor .045 .065 .085 .98
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_accent_3"
+        rect 298 178 3 16
+        style WINDOW_STYLE_FILLED
+        backcolor .94 .75 .27 .95
+        visible 1
+        decoration
+    }
+    itemDef {
         name "modern_settings_card_4"
-        rect 298 174 256 138
+        rect 298 341 256 85
         style WINDOW_STYLE_FILLED
         backcolor .045 .065 .085 .98
         visible 1
@@ -114,7 +114,7 @@ menuDef {
     }
     itemDef {
         name "modern_settings_accent_4"
-        rect 298 174 3 16
+        rect 298 341 3 16
         style WINDOW_STYLE_FILLED
         backcolor .94 .75 .27 .95
         visible 1
@@ -122,7 +122,7 @@ menuDef {
     }
     itemDef {
         name "modern_settings_card_5"
-        rect 298 318 256 93
+        rect 572 60 256 67
         style WINDOW_STYLE_FILLED
         backcolor .045 .065 .085 .98
         visible 1
@@ -130,22 +130,6 @@ menuDef {
     }
     itemDef {
         name "modern_settings_accent_5"
-        rect 298 318 3 16
-        style WINDOW_STYLE_FILLED
-        backcolor .94 .75 .27 .95
-        visible 1
-        decoration
-    }
-    itemDef {
-        name "modern_settings_card_6"
-        rect 572 60 256 69
-        style WINDOW_STYLE_FILLED
-        backcolor .045 .065 .085 .98
-        visible 1
-        decoration
-    }
-    itemDef {
-        name "modern_settings_accent_6"
         rect 572 60 3 16
         style WINDOW_STYLE_FILLED
         backcolor .94 .75 .27 .95
@@ -153,8 +137,24 @@ menuDef {
         decoration
     }
     itemDef {
+        name "modern_settings_card_6"
+        rect 572 133 256 97
+        style WINDOW_STYLE_FILLED
+        backcolor .045 .065 .085 .98
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_accent_6"
+        rect 572 133 3 16
+        style WINDOW_STYLE_FILLED
+        backcolor .94 .75 .27 .95
+        visible 1
+        decoration
+    }
+    itemDef {
         name "modern_settings_card_7"
-        rect 572 135 256 171
+        rect 572 236 256 82
         style WINDOW_STYLE_FILLED
         backcolor .045 .065 .085 .98
         visible 1
@@ -162,7 +162,7 @@ menuDef {
     }
     itemDef {
         name "modern_settings_accent_7"
-        rect 572 135 3 16
+        rect 572 236 3 16
         style WINDOW_STYLE_FILLED
         backcolor .94 .75 .27 .95
         visible 1
@@ -176,7 +176,7 @@ menuDef {
 	
 // Move //
 
-	SUBWINDOW( 24, 60, 256, 213, "Movement" )
+	SUBWINDOW( 24, 60, 256, 217, "Movement" )
 	BIND( 32, 78, 240, 15, "Forward:", .22, 13, "+forward", "" )
 	BIND( 32, 93, 240, 15, "Back:", .22, 13, "+back", "" )
 	BIND( 32, 108, 240, 15, "Move Left:", .22, 13, "+moveleft", "" )
@@ -195,29 +195,29 @@ menuDef {
 	
 // Input //
 
-	SUBWINDOW( 24, 279, 256, 63, "Mouse Input" )
+	SUBWINDOW( 298, 341, 256, 85, "Mouse Input" )
 //	YESNOACTION( 8, 214-2, (SUBWINDOW_WIDTH)-4, 10, "Invert Mouse:", .2, 8, "ui_mousePitch", uiScript update ui_mousePitch )
 //	YESNO( 8, 226-2, (SUBWINDOW_WIDTH)-4, 10, "Smooth Mouse:", .2, 8, "m_filter" )
-	CHECKBOXALIGNXACTION( 32, 297, 240, 15, "Invert Mouse:", .22, 8, 13, "ui_mousePitch", uiScript update ui_mousePitch, "Inverts mouse pitch" )
-	CHECKBOXALIGNX( 32, 312, 240, 15, "Smooth Mouse:", .22, 8, 13, "m_filter", "Smooths out the mouse using interpolation" )
-	SLIDER( 32, 327, 240, 15, "Mouse Sensitivity:", .22, 13, "sensitivity" 5 1 30, "Use the slider to increase or decrease mouse sensitivity" )
-	CVARFLOATLABEL( 230, 327, 40, 15, "sensitivity", .20, ITEM_ALIGN_RIGHT, 40, 13 )
+	CHECKBOXALIGNXACTION( 306, 359, 240, 15, "Invert Mouse:", .22, 8, 13, "ui_mousePitch", uiScript update ui_mousePitch, "Inverts mouse pitch" )
+	CHECKBOXALIGNX( 306, 374, 240, 15, "Smooth Mouse:", .22, 8, 13, "m_filter", "Smooths out the mouse using interpolation" )
+	SLIDER( 306, 389, 240, 15, "Mouse Sensitivity:", .22, 13, "sensitivity" 5 1 30, "Use the slider to increase or decrease mouse sensitivity" )
+	CVARFLOATLABEL( 478, 406, 60, 14, "sensitivity", .20, ITEM_ALIGN_RIGHT, 60, 11 )
 	
 // Chat //
 
-	SUBWINDOW( 298, 318, 256, 93, "Chat" )
-	BIND( 306, 336, 240, 15, "Chat:", .22, 13, "messagemode", "" )
-	BIND( 306, 351, 240, 15, "Team Chat:", .22, 13, "messagemode2", "" )
-	BIND( 306, 366, 240, 15, "Fire-Team Chat:", .22, 13, "messagemode3", "" )
-	BIND( 306, 381, 240, 15, "Quick Chat:", .22, 13, "mp_QuickMessage", "" )
-	BIND( 306, 396, 240, 15, "Fire-Team Quick Chat:", .22, 13, "mp_fireteammsg", "" )
+	SUBWINDOW( 572, 133, 256, 97, "Chat" )
+	BIND( 580, 151, 240, 15, "Chat:", .22, 13, "messagemode", "" )
+	BIND( 580, 166, 240, 15, "Team Chat:", .22, 13, "messagemode2", "" )
+	BIND( 580, 181, 240, 15, "Fire-Team Chat:", .22, 13, "messagemode3", "" )
+	BIND( 580, 196, 240, 15, "Quick Chat:", .22, 13, "mp_QuickMessage", "" )
+	BIND( 580, 211, 240, 15, "Fire-Team Quick Chat:", .22, 13, "mp_fireteammsg", "" )
 
 // Pop-Ups //
 
-	SUBWINDOW( 572, 60, 256, 69, "Pop-Ups" )
-	BIND( 580, 78, 240, 17, "Show Scores:", .22, 14, "+scores", "" )
-	BIND( 580, 95, 240, 17, "Show Deploy Menu:", .22, 14, "OpenLimboMenu", "" )
-	BIND( 580, 112, 240, 17, "Objective Description:", .22, 14, "toggleobjectivedesc", "" )
+	SUBWINDOW( 572, 60, 256, 67, "Pop-Ups" )
+	BIND( 580, 78, 240, 15, "Show Scores:", .22, 13, "+scores", "" )
+	BIND( 580, 93, 240, 15, "Show Deploy Menu:", .22, 13, "OpenLimboMenu", "" )
+	BIND( 580, 108, 240, 15, "Objective Description:", .22, 13, "toggleobjectivedesc", "" )
 //	BIND( 8, 354-6, (SUBWINDOW_WIDTH)-4, 10, "Show Command Map:", .2, 8, "+mapexpand", "" )
 //	BIND( 8, 366-6, (SUBWINDOW_WIDTH)-4, 10, "Compass Map Zoom In:", .2, 8, "MapZoomIn", "" )
 //	BIND( 8, 378-6, (SUBWINDOW_WIDTH)-4, 10, "Compass Map Zoom Out:", .2, 8, "MapZoomOut", "" )
@@ -227,7 +227,7 @@ menuDef {
 	
 // Use Weapons //
 
-	SUBWINDOW( 298, 60, 256, 108, "Weapon Use" )
+	SUBWINDOW( 298, 60, 256, 112, "Weapon Use" )
 	BIND( 306, 78, 240, 15, "Attack:", .22, 13, "+attack", "" )
 	BIND( 306, 93, 240, 15, "Aim / Iron Sights:", .22, 13, "+zoom", "" )
 	BIND( 306, 108, 240, 15, "Reload Weapon:", .22, 13, "+reload", "" )
@@ -240,37 +240,37 @@ menuDef {
 	
 // Select Weapons //
 
-	SUBWINDOW( 298, 174, 256, 138, "Weapon Selection" )
-	BIND( 306, 192, 240, 15, "Next Weapon:", .22, 13, "weapnext", "" )
-	BIND( 306, 207, 240, 15, "Previous Weapon:", .22, 13, "weapprev", "" )
-	BIND( 306, 222, 240, 15, "Slot 1 - Primary:", .22, 13, "weaponbank 1", "" )
-	BIND( 306, 237, 240, 15, "Slot 2 - Sidearm:", .22, 13, "weaponbank 2", "" )
-	BIND( 306, 252, 240, 15, "Slot 3 - Knife:", .22, 13, "weaponbank 3", "" )
-	BIND( 306, 267, 240, 15, "Slot 4 - Frag Grenade:", .22, 13, "weaponbank 4", "" )
-	BIND( 306, 282, 240, 15, "Slot 5 - Stun Grenade", .22, 13, "weaponbank 5", "" )
-	BIND( 306, 297, 240, 15, "Slot 6 - Smoke Grenade:", .22, 13, "weaponbank 6", "" )
+	SUBWINDOW( 24, 283, 256, 142, "Weapon Selection" )
+	BIND( 32, 301, 240, 15, "Next Weapon:", .22, 13, "weapnext", "" )
+	BIND( 32, 316, 240, 15, "Previous Weapon:", .22, 13, "weapprev", "" )
+	BIND( 32, 331, 240, 15, "Slot 1 - Primary:", .22, 13, "weaponbank 1", "" )
+	BIND( 32, 346, 240, 15, "Slot 2 - Sidearm:", .22, 13, "weaponbank 2", "" )
+	BIND( 32, 361, 240, 15, "Slot 3 - Knife:", .22, 13, "weaponbank 3", "" )
+	BIND( 32, 376, 240, 15, "Slot 4 - Frag Grenade:", .22, 13, "weaponbank 4", "" )
+	BIND( 32, 391, 240, 15, "Slot 5 - Stun Grenade", .22, 13, "weaponbank 5", "" )
+	BIND( 32, 406, 240, 15, "Slot 6 - Smoke Grenade:", .22, 13, "weaponbank 6", "" )
 //	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 214+14, (SUBWINDOW_WIDTH)-4, 10, "Slot 7 - Special 1:", .2, 8, "weaponbank 7", "" )
 
 // Miscellaneous //
 
-	SUBWINDOW( 24, 348, 256, 78, "Miscellaneous" )
-	BIND( 32, 366, 240, 15, "Vote Yes:", .22, 13, "vote yes", "" )
-	BIND( 32, 381, 240, 15, "Vote No:", .22, 13, "vote no", "" )
-	BIND( 32, 396, 240, 15, "Take Screenshot:", .22, 13, "autoScreenshot", "" )
-	BIND( 32, 411, 240, 15, "Record Replay:", .22, 13, "autoRecord", "" )
+	SUBWINDOW( 572, 236, 256, 82, "Miscellaneous" )
+	BIND( 580, 254, 240, 15, "Vote Yes:", .22, 13, "vote yes", "" )
+	BIND( 580, 269, 240, 15, "Vote No:", .22, 13, "vote no", "" )
+	BIND( 580, 284, 240, 15, "Take Screenshot:", .22, 13, "autoScreenshot", "" )
+	BIND( 580, 299, 240, 15, "Record Replay:", .22, 13, "autoRecord", "" )
 
 // Fire-Teams //
 
-	SUBWINDOW( 572, 135, 256, 171, "Fire-Teams" )
-	BIND( 580, 153, 240, 17, "Select All Members:", .22, 14, "selectbuddy -2", "" )
-	BIND( 580, 170, 240, 17, "Select Member #1:", .22, 14, "selectbuddy 0", "" )
-	BIND( 580, 187, 240, 17, "Select Member #2:", .22, 14, "selectbuddy 1", "" )
-	BIND( 580, 204, 240, 17, "Select Member #3:", .22, 14, "selectbuddy 2", "" )
-	BIND( 580, 221, 240, 17, "Select Member #4:", .22, 14, "selectbuddy 3", "" )
-	BIND( 580, 238, 240, 17, "Select Member #5:", .22, 14, "selectbuddy 4", "" )
-	BIND( 580, 255, 240, 17, "Select Member #6:", .22, 14, "selectbuddy 5", "" )
-	BIND( 580, 272, 240, 17, "Deselect All:", .22, 14, "selectbuddy -1", "" )
-	BIND( 580, 289, 240, 17, "Fire-Team Admin:", .22, 14, "mp_fireteamadmin", "" )
+	SUBWINDOW( 298, 178, 256, 157, "Fire-Teams" )
+	BIND( 306, 196, 240, 15, "Select All Members:", .22, 13, "selectbuddy -2", "" )
+	BIND( 306, 211, 240, 15, "Select Member #1:", .22, 13, "selectbuddy 0", "" )
+	BIND( 306, 226, 240, 15, "Select Member #2:", .22, 13, "selectbuddy 1", "" )
+	BIND( 306, 241, 240, 15, "Select Member #3:", .22, 13, "selectbuddy 2", "" )
+	BIND( 306, 256, 240, 15, "Select Member #4:", .22, 13, "selectbuddy 3", "" )
+	BIND( 306, 271, 240, 15, "Select Member #5:", .22, 13, "selectbuddy 4", "" )
+	BIND( 306, 286, 240, 15, "Select Member #6:", .22, 13, "selectbuddy 5", "" )
+	BIND( 306, 301, 240, 15, "Deselect All:", .22, 13, "selectbuddy -1", "" )
+	BIND( 306, 316, 240, 15, "Fire-Team Admin:", .22, 13, "mp_fireteamadmin", "" )
 
 // Buttons //
 
@@ -278,43 +278,74 @@ menuDef {
 	BUTTON( 624, 442, 204, 26, "Default Settings", .27, 18, open options_controls_default )
 
 itemDef {
-            name "modern_nav_game" rect 280 12 132 30
-            text "GAME" textfont UI_FONT_ARIBLK_27 textscale .27
-            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            name "modern_nav_game" rect 252 12 112 30
+            text "GAME" textfont UI_FONT_ARIBLK_27 textscale .25
+            textalign ITEM_ALIGN_CENTER textalignx 56 textaligny 21
             style WINDOW_STYLE_FILLED
+            border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
             backcolor .08 .12 .16 1
             forecolor .84 .89 .94 1
             visible 1 type ITEM_TYPE_BUTTON
+mouseEnter { setitemcolor "modern_nav_game" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_game" forecolor 1 1 1 1 ; setitemcolor "modern_nav_game" bordercolor .94 .75 .27 1 ; }
+mouseExit { setitemcolor "modern_nav_game" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_game" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_game" bordercolor .23 .29 .35 .75 ; }
+onFocus { setitemcolor "modern_nav_game" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_game" forecolor 1 1 1 1 ; setitemcolor "modern_nav_game" bordercolor .94 .75 .27 1 ; }
+leaveFocus { setitemcolor "modern_nav_game" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_game" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_game" bordercolor .23 .29 .35 .75 ; }
  action { close options_controls ; open options ; close options ; open options_customise_game }
         }
 itemDef {
-            name "modern_nav_view" rect 417 12 132 30
-            text "VIEW" textfont UI_FONT_ARIBLK_27 textscale .27
-            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            name "modern_nav_view" rect 368 12 112 30
+            text "VIEW" textfont UI_FONT_ARIBLK_27 textscale .25
+            textalign ITEM_ALIGN_CENTER textalignx 56 textaligny 21
             style WINDOW_STYLE_FILLED
+            border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
             backcolor .08 .12 .16 1
             forecolor .84 .89 .94 1
             visible 1 type ITEM_TYPE_BUTTON
+mouseEnter { setitemcolor "modern_nav_view" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_view" forecolor 1 1 1 1 ; setitemcolor "modern_nav_view" bordercolor .94 .75 .27 1 ; }
+mouseExit { setitemcolor "modern_nav_view" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_view" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_view" bordercolor .23 .29 .35 .75 ; }
+onFocus { setitemcolor "modern_nav_view" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_view" forecolor 1 1 1 1 ; setitemcolor "modern_nav_view" bordercolor .94 .75 .27 1 ; }
+leaveFocus { setitemcolor "modern_nav_view" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_view" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_view" bordercolor .23 .29 .35 .75 ; }
  action { close options_controls ; open options ; close options ; open options_customise_hud }
         }
 itemDef {
-            name "modern_nav_controls" rect 554 12 132 30
-            text "CONTROLS" textfont UI_FONT_ARIBLK_27 textscale .27
-            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            name "modern_nav_controls" rect 484 12 112 30
+            text "CONTROLS" textfont UI_FONT_ARIBLK_27 textscale .25
+            textalign ITEM_ALIGN_CENTER textalignx 56 textaligny 21
             style WINDOW_STYLE_FILLED
+            border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
             backcolor .94 .75 .27 1
             forecolor .025 .035 .05 1
             visible 1 decoration
         }
 itemDef {
-            name "modern_nav_system" rect 691 12 132 30
-            text "SYSTEM" textfont UI_FONT_ARIBLK_27 textscale .27
-            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            name "modern_nav_system" rect 600 12 112 30
+            text "SYSTEM" textfont UI_FONT_ARIBLK_27 textscale .25
+            textalign ITEM_ALIGN_CENTER textalignx 56 textaligny 21
             style WINDOW_STYLE_FILLED
+            border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
             backcolor .08 .12 .16 1
             forecolor .84 .89 .94 1
             visible 1 type ITEM_TYPE_BUTTON
+mouseEnter { setitemcolor "modern_nav_system" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_system" forecolor 1 1 1 1 ; setitemcolor "modern_nav_system" bordercolor .94 .75 .27 1 ; }
+mouseExit { setitemcolor "modern_nav_system" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_system" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_system" bordercolor .23 .29 .35 .75 ; }
+onFocus { setitemcolor "modern_nav_system" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_system" forecolor 1 1 1 1 ; setitemcolor "modern_nav_system" bordercolor .94 .75 .27 1 ; }
+leaveFocus { setitemcolor "modern_nav_system" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_system" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_system" bordercolor .23 .29 .35 .75 ; }
  action { close options_controls ; open options ; close options ; open options_system }
+        }
+itemDef {
+            name "modern_nav_appearance" rect 716 12 112 30
+            text "APPEARANCE" textfont UI_FONT_ARIBLK_27 textscale .25
+            textalign ITEM_ALIGN_CENTER textalignx 56 textaligny 21
+            style WINDOW_STYLE_FILLED
+            border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
+            backcolor .08 .12 .16 1
+            forecolor .84 .89 .94 1
+            visible 1 type ITEM_TYPE_BUTTON
+mouseEnter { setitemcolor "modern_nav_appearance" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_appearance" forecolor 1 1 1 1 ; setitemcolor "modern_nav_appearance" bordercolor .94 .75 .27 1 ; }
+mouseExit { setitemcolor "modern_nav_appearance" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_appearance" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_appearance" bordercolor .23 .29 .35 .75 ; }
+onFocus { setitemcolor "modern_nav_appearance" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_appearance" forecolor 1 1 1 1 ; setitemcolor "modern_nav_appearance" bordercolor .94 .75 .27 1 ; }
+leaveFocus { setitemcolor "modern_nav_appearance" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_appearance" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_appearance" bordercolor .23 .29 .35 .75 ; }
+ action { close options_controls ; open options ; close options ; open modern_appearance }
         }
 
 }

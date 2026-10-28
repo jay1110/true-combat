@@ -57,8 +57,39 @@ static vmCvar_t cg_aspectMode,*bound[5];
 static int checks,failures,registrations,updates,mouseX,mouseY,mouseCalls;
 #define CHECK(c) do { ++checks;if(!(c)){++failures;printf("FAIL %i: %s\n",__LINE__,#c);} } while(0)
 static int near(float a,float b) { return fabsf(a-b)<.003f; }
+typedef struct { float advance; } fontInfo_t;
+static fontInfo_t regularFont={16},strongFont={18};
+static char paintedText[2048];
+static float paintedScale,paintedX,paintedY;
+static int textPaintCalls,imageMode;
+static fontInfo_t *TCE_ModernFont(int strong) { return strong?&strongFont:&regularFont; }
+static int Text_Width_Ext(const char *text,float scale,int limit,fontInfo_t *font)
+{
+    int count=0;(void)limit;
+    while(*text){if(text[0]=='^'&&text[1])text+=2;else{++count;++text;}}
+    return (int)(count*scale*font->advance);
+}
+static int CG_Text_Width_Ext(const char *text,float scale,int limit,fontInfo_t *font)
+{ return Text_Width_Ext(text,scale,limit,font); }
+static void Q_strncpyz(char *dest,const char *source,int length)
+{ if(length>0){strncpy(dest,source,length-1);dest[length-1]=0;} }
+static void TCE_ModernThemeColor(const float *source,float *out,int surface)
+{ (void)surface;memcpy(out,source,sizeof(vec4_t)); }
+static void Text_Paint_Ext(float x,float y,float sx,float sy,const float *color,const char *text,float adjust,int limit,int style,fontInfo_t *font)
+{
+    (void)color;(void)adjust;(void)limit;(void)style;(void)font;CHECK(sx==sy);
+    paintedX=x;paintedY=y;paintedScale=sx;Q_strncpyz(paintedText,text,sizeof(paintedText));++textPaintCalls;
+}
+static void CG_Text_Paint_Ext(float x,float y,float sx,float sy,const float *color,const char *text,float adjust,int limit,int style,fontInfo_t *font)
+{ Text_Paint_Ext(x,y,sx,sy,color,text,adjust,limit,style,font); }
+static void TCE_ModernImage(const char *name,float x,float y,float w,float h);
 static float trap_Cvar_VariableValue(const char *name)
 { if(!strcmp(name,"cg_wideScreen"))return enabled;if(!strcmp(name,"ui_menuScale"))return menuScaleSetting;if(!strcmp(name,"ui_menuMaxHeight"))return menuMaxSetting;return 0; }
+#if defined(_WIN32) && !defined(Q3_VM)
+static double CG_Cvar_Get(const char *name) { return trap_Cvar_VariableValue(name); }
+#else
+static float CG_Cvar_Get(const char *name) { return trap_Cvar_VariableValue(name); }
+#endif
 static void trap_Cvar_Update(vmCvar_t *var)
 {
     if(var==bound[0])var->value=enabled;
@@ -99,6 +130,17 @@ static void CG_DrawBigString(int x,int y,const char *s,float alpha)
 /* ACTUAL_DRAW_ADAPTERS */
 
 /* ACTUAL_FUNCTIONS */
+
+static void TCE_ModernImage(const char *name,float x,float y,float w,float h)
+{
+    CHECK(name && !strcmp(name,"tce2_ui/background"));imageMode=TCE_ViewportDrawMode();
+#ifdef CGAMEDLL
+    CG_AdjustFrom640(&x,&y,&w,&h);
+#else
+    UI_AdjustFrom640(&x,&y,&w,&h);
+#endif
+    trap_R_DrawStretchPic(x,y,w,h,0,0,1,1,123);
+}
 
 static void wrappers(int width,int height)
 {
@@ -334,6 +376,140 @@ static void headerMenusAndHudComposites(void)
     CHECK(near(x,9)&&near(y,132.75f));CG_HudViewportAnchor(.5f,.5f);x=426;y=240;w=h=0;CG_AdjustFrom640(&x,&y,&w,&h);CHECK(near(x,959.25f)&&near(y,540));
     CG_HudViewportEnd();
 }
+
+static void backgroundAndFullscreenScopes(void)
+{
+    const int sizes[][2]={{1024,768},{1280,720},{1920,1080},{3440,1440},{3840,2160}};
+    const float scales[]={.5f,.85f,1.f,1.25f,1.5f};
+    const char *backgrounds[]={"background_1","background_black","fadebox_black"};
+    void (*adjust[4])(float*,float*,float*,float*)={UI_AdjustFrom640,SharedWindowsAdjust,SharedLinuxAdjust,SharedGenericAdjust};
+    menuDef_t menu,focused;
+    tce_viewport_t covered,saved;
+    float x,y,w,h,expectedScale,expectedX,expectedY;
+    int size,scale,n,name,previous,inner;
+    modernEnabled=1;enabled=1;tce_uiCoordinates=qtrue;focused.window.name="options_system";focusedMenu=&focused;
+    tceMenuViewportPaintMenu=NULL;TCE_ViewportSetDrawMode(TCE_VIEWPORT_MENU);
+    for(size=0;size<5;++size)for(scale=0;scale<5;++scale){
+        cgs.glconfig.vidWidth=uiInfo.uiDC.glconfig.vidWidth=sizes[size][0];
+        cgs.glconfig.vidHeight=uiInfo.uiDC.glconfig.vidHeight=sizes[size][1];
+        cgs.screenXScale=uiInfo.uiDC.xscale=sizes[size][0]/640.f;
+        cgs.screenYScale=uiInfo.uiDC.yscale=sizes[size][1]/480.f;
+        menuScaleSetting=scales[scale];menuMaxSetting=480;hudScaleSetting=1.5f;CG_HudViewportInit();CG_HudViewportEnd();
+        expectedScale=fmaxf(sizes[size][0]/TCE_VIEWPORT_CANVAS_WIDTH,sizes[size][1]/480.f);
+        CHECK(TCE_ViewportCover(&covered,sizes[size][0],sizes[size][1],TCE_VIEWPORT_CANVAS_WIDTH,480));
+        CHECK(near(covered.scale,expectedScale));saved=covered;
+        CHECK(!TCE_ViewportCover(&covered,0,sizes[size][1],852,480)&&!memcmp(&covered,&saved,sizeof(saved)));
+        CHECK(!TCE_ViewportCover(&covered,sizes[size][0],sizes[size][1],NAN,480)&&!memcmp(&covered,&saved,sizeof(saved)));
+        CHECK(!TCE_ViewportCover(&covered,sizes[size][0],sizes[size][1],852,INFINITY)&&!memcmp(&covered,&saved,sizeof(saved)));
+        CHECK(!TCE_ViewportCover(NULL,sizes[size][0],sizes[size][1],852,480));
+        /* A cover scope fills every physical edge without stretching the image
+         * or inheriting the user's reduced menu size/max-height cap. */
+        previous=TCE_ViewportSetDrawMode(TCE_VIEWPORT_BACKDROP);CHECK(previous==TCE_VIEWPORT_MENU);
+        for(n=0;n<4;++n){
+            x=y=0;w=TCE_VIEWPORT_CANVAS_WIDTH;h=480;adjust[n](&x,&y,&w,&h);
+            CHECK(x<=.003f&&y<=.003f&&x+w>=sizes[size][0]-.003f&&y+h>=sizes[size][1]-.003f);
+            CHECK(near(w/TCE_VIEWPORT_CANVAS_WIDTH,h/480)&&near(h/480,expectedScale));
+        }
+        x=y=0;w=TCE_VIEWPORT_CANVAS_WIDTH;h=480;CHECK(CG_HudViewportAdjust(&x,&y,&w,&h,1));
+        CHECK(x<=.003f&&y<=.003f&&x+w>=sizes[size][0]-.003f&&y+h>=sizes[size][1]-.003f);
+        CHECK(TCE_ViewportSetDrawMode(previous)==TCE_VIEWPORT_BACKDROP);
+        /* The same cover applies only while the original global background is
+         * being painted. Its focused menu must not change controls to cover. */
+        for(name=0;name<3;++name){
+            menu.window.name=backgrounds[name];tceMenuViewportPaintMenu=&menu;CHECK(TCE_MenuViewportBackground());
+            for(n=0;n<4;++n){
+                /* These original .menu backdrops are authored852 units wide,
+                 * not the853.333-unit native canvas used by ModernBackdrop.
+                 * Using the latter as their cover denominator left a thin
+                 * unpainted right edge on16:9 displays. */
+                x=y=0;w=852;h=480;adjust[n](&x,&y,&w,&h);
+                CHECK(near(h/480,fmaxf(sizes[size][0]/852.f,sizes[size][1]/480.f)));
+                CHECK(near(w/852,h/480));
+                CHECK(x<=.003f&&y<=.003f&&x+w>=sizes[size][0]-.003f&&y+h>=sizes[size][1]-.003f);
+                /* Containing all four extreme pixel centers contains every
+                 * pixel center in this axis-aligned viewport, without a
+                 * multi-million-pixel loop or hiding subpixel edge gaps. */
+                CHECK(x<=.5f&&y<=.5f&&x+w>sizes[size][0]-.5f&&y+h>sizes[size][1]-.5f);
+            }
+        }
+        tceMenuViewportPaintMenu=NULL;focused.window.name="background_1";CHECK(!TCE_MenuViewportBackground());
+        focused.window.name="options_system";
+        expectedScale=fminf(sizes[size][0]/TCE_VIEWPORT_CANVAS_WIDTH,sizes[size][1]/480.f);
+        expectedX=(sizes[size][0]-TCE_VIEWPORT_CANVAS_WIDTH*expectedScale)*.5f;
+        expectedY=(sizes[size][1]-480*expectedScale)*.5f;
+        previous=TCE_ViewportSetDrawMode(TCE_VIEWPORT_FULLSCREEN);CHECK(previous==TCE_VIEWPORT_MENU);
+        for(n=0;n<4;++n){
+            x=y=0;w=TCE_VIEWPORT_CANVAS_WIDTH;h=480;adjust[n](&x,&y,&w,&h);
+            CHECK(near(x,expectedX)&&near(y,expectedY)&&near(w,TCE_VIEWPORT_CANVAS_WIDTH*expectedScale)&&near(h,480*expectedScale));
+            CHECK(x>=-.003f&&y>=-.003f&&x+w<=sizes[size][0]+.003f&&y+h<=sizes[size][1]+.003f);
+        }
+        /* Actual backdrop helper restores a caller's fullscreen scope. Its
+         * image adapter is controlled; its scope/setter and projection are not. */
+        drawnCount=0;TCE_ModernBackdrop("tce2_ui/background");
+        CHECK(TCE_ViewportDrawMode()==TCE_VIEWPORT_FULLSCREEN&&imageMode==TCE_VIEWPORT_BACKDROP&&drawnCount==1);
+        CHECK(drawnRects[0].x<=.003f&&drawnRects[0].y<=.003f&&drawnRects[0].x+drawnRects[0].w>=sizes[size][0]-.003f&&drawnRects[0].y+drawnRects[0].h>=sizes[size][1]-.003f);
+        inner=TCE_ViewportSetDrawMode(TCE_VIEWPORT_BACKDROP);CHECK(inner==TCE_VIEWPORT_FULLSCREEN);
+        CHECK(TCE_ViewportSetDrawMode(inner)==TCE_VIEWPORT_BACKDROP);
+        CHECK(TCE_ViewportSetDrawMode(previous)==TCE_VIEWPORT_FULLSCREEN);
+        /* Ordinary controls return to the fitted user scale after paint. */
+        for(n=0;n<4;++n){
+            x=y=0;w=TCE_VIEWPORT_CANVAS_WIDTH;h=480;adjust[n](&x,&y,&w,&h);
+            CHECK(x>=-.003f&&y>=-.003f&&x+w<=sizes[size][0]+.003f&&y+h<=sizes[size][1]+.003f);
+            CHECK(h<=480*scales[scale]+.003f&&near(w/TCE_VIEWPORT_CANVAS_WIDTH,h/480));
+        }
+    }
+    modernEnabled=0;menu.window.name="background_1";tceMenuViewportPaintMenu=&menu;CHECK(!TCE_MenuViewportBackground());
+    modernEnabled=1;tceMenuViewportPaintMenu=NULL;focusedMenu=NULL;menuMaxSetting=1080;TCE_ViewportSetDrawMode(TCE_VIEWPORT_MENU);
+}
+
+static void physicalCursorAndFittedText(void)
+{
+    const int sizes[][2]={{1024,768},{1280,720},{1920,1080},{3440,1440},{3840,2160}};
+    const float scales[]={.5f,.65f,.85f,1.f,1.25f,1.5f};
+    const char *names[]={"options","options_system"};
+    const char *texts[]={"Options","Set recommended","^3This complete long menu label must remain readable","WIDE FULL LABEL 0123456789"};
+    const float widths[]={15,40,112,280};
+    menuDef_t menu;
+    float baseSize,fitSize,expectedX,expectedY,fitScale;
+    int size,scale,mode,anchor,centered,cap,i,j,strong;
+    modernEnabled=enabled=1;menuMaxSetting=1080;
+    for(size=0;size<5;++size){
+        cgs.glconfig.vidWidth=uiInfo.uiDC.glconfig.vidWidth=sizes[size][0];
+        cgs.glconfig.vidHeight=uiInfo.uiDC.glconfig.vidHeight=sizes[size][1];
+        baseSize=20*fminf(sizes[size][0]/TCE_VIEWPORT_CANVAS_WIDTH,sizes[size][1]/480.f);
+        CHECK(near(TCE_ViewportCursorSize(sizes[size][0],sizes[size][1]),baseSize));
+        for(scale=0;scale<6;++scale)for(cap=0;cap<2;++cap)for(mode=0;mode<2;++mode)for(anchor=0;anchor<2;++anchor)for(centered=0;centered<2;++centered){
+            menuScaleSetting=scales[scale];menuMaxSetting=cap?1080:480;hudScaleSetting=scale&1?.5f:1.5f;CG_HudViewportInit();
+            menu.window.name=names[anchor];focusedMenu=&menu;tceMenuViewportPaintMenu=NULL;
+            TCE_ViewportSetDrawMode(mode?TCE_VIEWPORT_FULLSCREEN:TCE_VIEWPORT_MENU);
+            fitSize=fminf(sizes[size][0]/TCE_VIEWPORT_CANVAS_WIDTH,sizes[size][1]/480.f);
+            fitScale=mode?fitSize:fminf(fitSize,fminf(fitSize,menuMaxSetting/480)*menuScaleSetting);
+            expectedX=151*fitScale+(sizes[size][0]-TCE_VIEWPORT_CANVAS_WIDTH*fitScale)*.5f;
+            expectedY=109*fitScale+(sizes[size][1]-480*fitScale)*(mode||anchor?.5f:0);
+            if(centered){expectedX-=baseSize*(14.f/32.f);expectedY-=baseSize*(14.f/32.f);}
+            drawnCount=0;TCE_ModernCursor(151,109,99,centered);
+            CHECK(drawnCount==1&&near(drawnRects[0].x,expectedX)&&near(drawnRects[0].y,expectedY));
+            CHECK(near(drawnRects[0].w,baseSize)&&near(drawnRects[0].h,baseSize));
+            /* This single expected physical projection is checked by both
+             * compiled UI and CGame implementations, independently of HUD. */
+        }
+    }
+    drawnCount=0;TCE_ModernCursor(1,2,0,0);CHECK(drawnCount==0);
+    CHECK(TCE_ViewportCursorSize(0,720)==0&&TCE_ViewportCursorSize(1280,-1)==0);
+    cgs.glconfig.vidWidth=uiInfo.uiDC.glconfig.vidWidth=0;TCE_ModernCursor(1,2,99,0);CHECK(drawnCount==0);
+    focusedMenu=NULL;menuScaleSetting=1;menuMaxSetting=1080;TCE_ViewportSetDrawMode(TCE_VIEWPORT_MENU);
+    /* Compile the actual fit+clip helpers. Controlled fixed font advances make
+     * complete-string retention and size bounds deterministic, not font parity. */
+    for(i=0;i<4;++i)for(j=0;j<4;++j)for(strong=0;strong<2;++strong){
+        textPaintCalls=0;TCE_ModernTextFit(31,44,.35f,widths[j],colorYellow,texts[i],strong);
+        CHECK(textPaintCalls==1&&!strcmp(paintedText,texts[i]));
+        CHECK(paintedX==31&&paintedY==44&&paintedScale>0&&paintedScale<=.35f);
+        CHECK(TCE_ModernWidth(paintedText,paintedScale,TCE_ModernFont(strong))<=widths[j]);
+    }
+    textPaintCalls=0;TCE_ModernTextFit(1,2,.3f,0,colorYellow,"Options",0);
+    TCE_ModernTextFit(1,2,0,100,colorYellow,"Options",0);TCE_ModernTextFit(1,2,.3f,100,colorYellow,NULL,0);
+    CHECK(textPaintCalls==0);
+}
 int main(void)
 {
     const int sizes[][2]={{800,600},{1280,800},{1280,720},{1920,1080},{3440,1440},{3840,2160}};
@@ -382,5 +558,7 @@ int main(void)
     worldOverlayAndBorders();
     nativeMenusAndInput();
     headerMenusAndHudComposites();
+    backgroundAndFullscreenScopes();
+    physicalCursorAndFittedText();
     printf("viewport: %i checks, %i failures\n",checks,failures);return failures?1:0;
 }

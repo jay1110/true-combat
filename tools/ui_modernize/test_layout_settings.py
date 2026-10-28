@@ -29,10 +29,10 @@ def semantic_context():
     return contracts,names
 
 
-def font_width(text,scale):
+def font_width(text,scale,face='Barlow-Regular.ttf'):
     # Real local TTF advance widths in the native 48*scale glyph-scale space.
     # This is a metrics-based geometry check, not a rasterizer/screenshots test.
-    data=(ROOT/'ui-modern/assets/fonts/tce2_ui/Barlow-Regular.ttf').read_bytes()
+    data=(ROOT/'ui-modern/assets/fonts/tce2_ui'/face).read_bytes()
     u16=lambda at:struct.unpack_from('>H',data,at)[0]
     u32=lambda at:struct.unpack_from('>I',data,at)[0]
     tables={data[12+i*16:16+i*16]:u32(12+i*16+8) for i in range(u16(4))}

@@ -471,12 +471,15 @@ SETTINGS_NAV={
     'ui/options_system.menu':'system',
 }
 NAV_TARGETS={'game':'options_customise_game','view':'options_customise_hud',
-             'controls':'options_controls','system':'options_system'}
+             'controls':'options_controls','system':'options_system','appearance':'modern_appearance'}
+VOTE_NAV={'ui/ingame_vote_misc.menu':'misc','ui/ingame_vote_misc_refrcon.menu':'misc',
+          'ui/ingame_vote_map.menu':'map','ui/ingame_vote_players.menu':'players'}
+HOVER_FIELDS=frozenset(('mouseenter','mouseexit','onfocus','leavefocus'))
 APPEARANCE='ui/modern_appearance.menu'
 APPEARANCE_LISTS=tuple('ui/'+name for name in ('menus.txt','menus_gt2.txt','menus_gt5.txt','menus_gt7.txt'))
 # Reviewed against the requested palette, opacity, scale and reset contract.
 # Presentation geometry/colors are projected out; script/list/cvar data is not.
-APPEARANCE_SEMANTIC_SHA256='a95661d9dfd4aa686029da17a8845a7075e623300385d7bd38a9fe4488b77ec3'
+APPEARANCE_SEMANTIC_SHA256='e4237949197412614e1cc6fe813a9b426287fe717bb8304d4ff950b878860758'
 
 
 def appearance_signature(data,reference):
@@ -510,7 +513,7 @@ def layout_reference(reference,candidate):
                 raise ValueError('Appearance page must be loaded exactly once: '+path)
         if 'ui/options.menu' in candidate:
             names=parse('ui/options.menu',candidate['ui/options.menu']).body
-            if names.count('"modern_appearance_link"')!=1:
+            if sum(1 for i,t in enumerate(names[:-1]) if t.lower()=='name' and names[i+1]=='"modern_appearance_link"')!=1:
                 raise ValueError('Appearance link must be present exactly once in Options')
     return result
 
@@ -531,6 +534,7 @@ def _back_action(unit):
 
 def _navigation_fields(inner,contracts):
     ts=projection(inner,contracts);result={};i=0
+    identity=next((inner[j+1] for j,t in enumerate(inner[:-1]) if t.lower()=='name'),None)
     while i<len(ts):
         key=ts[i].lower();i+=1
         if key in result:raise ValueError('Duplicate navigation field: '+key)
@@ -539,8 +543,41 @@ def _navigation_fields(inner,contracts):
             result[key]=ts[i];i+=1
         elif key=='action':
             end=group(ts,i);result[key]=ts[i+1:end-1];i=end
+        elif key in HOVER_FIELDS:
+            end=group(ts,i);body=ts[i+1:end-1];at=0;colors=set()
+            while at<len(body):
+                if (body[at].lower()!='setitemcolor' or at+3>=len(body) or body[at+1]!=identity or
+                        body[at+2].lower() not in ('forecolor','backcolor','bordercolor') or
+                        body[at+3]!='@paint-rgba'):
+                    raise ValueError('Navigation hover must paint only its own button')
+                colors.add(body[at+2].lower());at+=4
+                if at<len(body) and body[at]==';':at+=1
+            if colors!={'forecolor','backcolor','bordercolor'}:
+                raise ValueError('Incomplete navigation hover paint')
+            result[key]=True;i=end
+        elif key=='cvartest' and i<len(ts):result[key]=ts[i];i+=1
+        elif key=='showcvar':
+            end=group(ts,i);result[key]=ts[i+1:end-1];i=end
+        elif key=='voteflag':
+            end=atom(ts,i);result[key]=ts[i:end];i=end
         else:raise ValueError('Unapproved navigation behavior: '+key)
     return result
+
+
+def _vote_nav_fields(reference,path,key,case,contracts):
+    hub=reference['ui/ingame_vote.menu'];templates=[];i=0
+    while i<len(hub.body):
+        if hub.body[i]=='BUTTONEXT' and i+1<len(hub.body) and hub.body[i+1]=='(':
+            args,end=arguments(hub.body,i+1)
+            if len(args)==9 and args[4]==['"'+key.upper()+'"']:templates.append(args)
+            i=end
+        else:i+=1
+    if len(templates)!=2 or case not in (0,1):raise ValueError('Original vote privilege routes changed')
+    args=templates[case]
+    expected=_navigation_fields(args[8],contracts)
+    expected.update(type='ITEM_TYPE_BUTTON',action=_back_action(reference[path])+[';']+args[7])
+    expected.update({event:True for event in HOVER_FIELDS})
+    return expected
 
 
 def normalize_layout(units,reference_units,contracts):
@@ -549,7 +586,7 @@ def normalize_layout(units,reference_units,contracts):
     private=PRIVATE_WIDGETS in {unit.path for unit in units}
     result=[]
     for unit in units:
-        ts=list(unit.body);seen=set();output=[];i=0
+        ts=list(unit.body);seen=set();vote_seen=set();output=[];i=0
         if unit.path in APPEARANCE_LISTS:
             ts,count=_appearance_load(ts)
             if count and (APPEARANCE not in reference or count!=1):
@@ -570,9 +607,14 @@ def normalize_layout(units,reference_units,contracts):
                     fields=_navigation_fields(inner,contracts)
                     expected={'name':'"modern_appearance_link"','text':'"APPEARANCE"','visible':'1',
                               'type':'ITEM_TYPE_BUTTON','action':['close','options',';','open','modern_appearance',';']}
+                    expected.update({event:True for event in HOVER_FIELDS})
                     if fields!=expected:raise ValueError('Appearance link differs from exact Options target')
                     i=end;continue
                 if name and name.strip('"').startswith('modern_nav_'):
+                    # The new Appearance page is already protected as a whole
+                    # by its reviewed semantic digest, including all its tabs.
+                    if unit.path==APPEARANCE:
+                        output+=ts[i:end];i=end;continue
                     key=name.strip('"')[len('modern_nav_'):]
                     if unit.path not in SETTINGS_NAV or key not in NAV_TARGETS or key in seen:
                         raise ValueError('Unapproved/duplicate settings navigation: '+unit.path+' '+str(name))
@@ -583,8 +625,31 @@ def normalize_layout(units,reference_units,contracts):
                     else:
                         if 'type' in fields:expected['type']='ITEM_TYPE_BUTTON'
                         expected['action']=_back_action(reference[unit.path])+[';','close','options',';','open',NAV_TARGETS[key]]
+                        expected.update({event:True for event in HOVER_FIELDS})
                     if fields!=expected:raise ValueError('Settings navigation differs from exact original exit/target: '+unit.path+' '+key)
                     seen.add(key);i=end;continue
+                if name and name.strip('"').startswith('modern_vote_nav_'):
+                    suffix=name.strip('"')[len('modern_vote_nav_'):]
+                    match=re.fullmatch(r'(misc|map|players)(?:_([01]))?',suffix)
+                    if unit.path not in VOTE_NAV or match is None or suffix in vote_seen:
+                        raise ValueError('Unapproved/duplicate vote navigation: '+unit.path)
+                    key,case=match.groups();fields=_navigation_fields(inner,contracts)
+                    expected={'name':name,'text':'"'+key.upper()+'"','visible':'1'}
+                    if key==VOTE_NAV[unit.path]:
+                        if case is not None:raise ValueError('Active vote tab must be inert')
+                        expected['decoration']=True
+                    else:
+                        if case is None:raise ValueError('Vote navigation lost privilege variant')
+                        expected.update(_vote_nav_fields(reference,unit.path,key,int(case),contracts))
+                    if fields!=expected:raise ValueError('Vote navigation differs from original privilege/exit/target')
+                    vote_seen.add(suffix);i=end;continue
+                if unit.path=='ui/playonline.menu' and name=='"descriptionFilters"' and 'autowrapped' in inner:
+                    # One original dynamic help field may wrap its unchanged
+                    # cvar text. No global label/control semantics are relaxed.
+                    if inner.count('autowrapped')!=1 or ['cvar','ui_filterdescription'] not in [inner[j:j+2] for j in range(len(inner)-1)]:
+                        raise ValueError('Unbound filter-description wrapping')
+                    inner=inner[:];inner.remove('autowrapped')
+                    output += [ts[i],'{']+inner+['}'];i=end;continue
                 # Items are inside a menuDef; recurse below to reach them.
                 output+=ts[i:end];i=end;continue
             if ts[i].lower() in ('menudef','assetglobaldef') and i+1<len(ts) and ts[i+1]=='{':
@@ -596,6 +661,10 @@ def normalize_layout(units,reference_units,contracts):
                 output += [ts[i],'{']+inside.body+['}'];i=end;continue
             output.append(ts[i]);i+=1
         if seen and seen!=set(NAV_TARGETS):raise ValueError('Incomplete settings category navigation: '+unit.path)
+        if vote_seen:
+            current=VOTE_NAV[unit.path]
+            expected_votes={current}|{key+'_'+str(case) for key in ('misc','map','players') if key!=current for case in (0,1)}
+            if vote_seen!=expected_votes:raise ValueError('Incomplete persistent vote navigation: '+unit.path)
         result.append(Unit(unit.path,output,unit.defines,unit.raw))
     return result
 

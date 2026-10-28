@@ -7,6 +7,7 @@
 extern int Text_Width_Ext(const char *text, float scale, int limit, fontInfo_t *font);
 #endif
 #include "tce_modern_ui.h"
+#include "tce_viewport.h"
 
 static int modernChecked, modernEnabled, modernFonts;
 static fontInfo_t modernRegular, modernStrong;
@@ -125,6 +126,49 @@ void TCE_ModernImage(const char *name, float x, float y, float w, float h)
     if (!image) return;
     TCE_ModernThemePicture(x,y,w,h,image,NULL);
     trap_R_SetColor(NULL);
+}
+
+void TCE_ModernBackdrop(const char *name)
+{
+    int previous = TCE_ViewportSetDrawMode(TCE_VIEWPORT_BACKDROP);
+    TCE_ModernImage(name,0,0,TCE_VIEWPORT_CANVAS_WIDTH,TCE_VIEWPORT_CANVAS_HEIGHT);
+    TCE_ViewportSetDrawMode(previous);
+}
+
+void TCE_ModernCursor(float x, float y, qhandle_t shader, int centered)
+{
+    tce_viewport_t viewport;
+    float size, unused=0, menuMaxHeight, menuScale;
+    int width,height,fullscreen=TCE_ViewportDrawMode()==TCE_VIEWPORT_FULLSCREEN;
+#ifdef CGAMEDLL
+    width=cgs.glconfig.vidWidth; height=cgs.glconfig.vidHeight;
+    menuMaxHeight=(float)CG_Cvar_Get("ui_menuMaxHeight");
+    menuScale=(float)CG_Cvar_Get("ui_menuScale");
+#else
+    width=uiInfo.uiDC.glconfig.vidWidth; height=uiInfo.uiDC.glconfig.vidHeight;
+    menuMaxHeight=trap_Cvar_VariableValue("ui_menuMaxHeight");
+    menuScale=trap_Cvar_VariableValue("ui_menuScale");
+#endif
+    if(shader<=0 || !TCE_ViewportFit(&viewport,width,height,TCE_VIEWPORT_CANVAS_WIDTH,
+        TCE_VIEWPORT_CANVAS_HEIGHT,fullscreen?0:menuMaxHeight,
+        fullscreen?1:menuScale,.5f,
+        fullscreen?.5f:TCE_MenuViewportAnchorY())) return;
+    TCE_ViewportProject(&viewport,&x,&y,&unused,&unused);
+    size=TCE_ViewportCursorSize(width,height);
+    if(centered) { x-=size*(14.f/32.f); y-=size*(14.f/32.f); }
+    trap_R_SetColor(NULL);
+    trap_R_DrawStretchPic(x,y,size,size,0,0,1,1,shader);
+}
+
+void TCE_ModernTextFit(float x, float y, float scale, float width,
+                       const float *color, const char *text, int strong)
+{
+    fontInfo_t *font=TCE_ModernFont(strong);
+    float measured;
+    if(!text || width<=0 || scale<=0) return;
+    measured=TCE_ModernWidth(text,scale,font);
+    if(measured>width) scale*=width/(measured+1.f);
+    TCE_ModernText(x,y,scale,width,color,text,strong);
 }
 
 void TCE_ModernPanel(float x, float y, float w, float h, float alpha)

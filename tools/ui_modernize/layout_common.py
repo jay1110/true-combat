@@ -7,6 +7,7 @@ SETTINGS = {
     'view': ('VIEW', 'options_customise_hud'),
     'controls': ('CONTROLS', 'options_controls'),
     'system': ('SYSTEM', 'options_system'),
+    'appearance': ('APPEARANCE', 'modern_appearance'),
 }
 
 # Navigation hubs are a real overlay: their entire painted/input rectangle is
@@ -97,8 +98,21 @@ def appearance_link(text):
         forecolor .84 .88 .92 1
         border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
         visible 1
+        '''+hover_feedback('modern_appearance_link')+'''
         action { close options ; open modern_appearance ; }
     }''', 'options')
+
+
+def hover_feedback(name):
+    """Native mouse and keyboard focus paint, targeting only this button."""
+    result=''
+    for event,focused in (('mouseEnter',True),('mouseExit',False),
+                          ('onFocus',True),('leaveFocus',False)):
+        result+=event+' { '
+        result+=f'setitemcolor "{name}" backcolor '+('.19 .26 .33 1' if focused else '.08 .12 .16 1')+' ; '
+        result+=f'setitemcolor "{name}" forecolor '+('1 1 1 1' if focused else '.84 .89 .94 1')+' ; '
+        result+=f'setitemcolor "{name}" bordercolor '+('.94 .75 .27 1' if focused else '.23 .29 .35 .75')+' ; }\n'
+    return result
 
 
 def settings_navigation(text, relative):
@@ -112,16 +126,58 @@ def settings_navigation(text, relative):
     items=''
     for i,(key,(label,target)) in enumerate(SETTINGS.items()):
         active=key==current
-        behavior='decoration' if active else 'type ITEM_TYPE_BUTTON\n action { '+exit_action+' ; close options ; open '+target+' }'
+        name='modern_nav_'+key
+        behavior=('decoration' if active else 'type ITEM_TYPE_BUTTON\n'+hover_feedback(name)+
+                  ' action { '+exit_action+' ; close options ; open '+target+' }')
         items+=f'''itemDef {{
-            name "modern_nav_{key}" rect {280+i*137} 12 132 30
-            text "{label}" textfont UI_FONT_ARIBLK_27 textscale .27
-            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            name "{name}" rect {252+i*116} 12 112 30
+            text "{label}" textfont UI_FONT_ARIBLK_27 textscale .25
+            textalign ITEM_ALIGN_CENTER textalignx 56 textaligny 21
             style WINDOW_STYLE_FILLED
+            border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
             backcolor {'.94 .75 .27 1' if active else '.08 .12 .16 1'}
             forecolor {'.025 .035 .05 1' if active else '.84 .89 .94 1'}
             visible 1 {behavior}
         }}\n'''
+    return add_items(text,items,page)
+
+
+VOTE_PAGES={
+    'ingame_vote_misc':'misc','ingame_vote_misc_refrcon':'misc',
+    'ingame_vote_map':'map','ingame_vote_players':'players',
+}
+
+
+def vote_navigation(text,relative):
+    """Persist the original privilege-specific hub routes on each subpage."""
+    from restyle import macro_calls, read, ROOT
+    page=Path(relative).stem
+    current=VOTE_PAGES.get(page)
+    if current is None:return text
+    backs=[a for _,_,_,a in macro_calls(text,{'BUTTON'}) if a[4].strip('"').lower()=='back']
+    if len(backs)!=1:raise ValueError('Vote Back contract is ambiguous: '+page)
+    exit_action=backs[0][7].rstrip().rstrip(';')
+    original=read(ROOT/'pak/ui/ingame_vote.menu')
+    templates=list(macro_calls(original,{'BUTTONEXT'}))
+    items=''
+    for index,key in enumerate(('misc','map','players')):
+        cases=[a for _,_,_,a in templates if a[4].strip('"').lower()==key]
+        if len(cases)!=2:raise ValueError('Vote privilege templates changed: '+key)
+        if current==key:cases=[None]
+        for case,args in enumerate(cases):
+            name='modern_vote_nav_'+key+('' if args is None else '_'+str(case))
+            active=args is None
+            behavior=('decoration' if active else 'type ITEM_TYPE_BUTTON\n'+hover_feedback(name)+
+                      ' action { '+exit_action+' ; '+args[7]+' }\n'+args[8])
+            items+=f'''itemDef {{ name "{name}" rect {398+index*146} 12 138 30
+                text "{key.upper()}" textfont UI_FONT_ARIBLK_27 textscale .25
+                textalign ITEM_ALIGN_CENTER textalignx 69 textaligny 21
+                style WINDOW_STYLE_FILLED border WINDOW_BORDER_FULL
+                bordercolor .23 .29 .35 .75
+                backcolor {'.94 .75 .27 1' if active else '.08 .12 .16 1'}
+                forecolor {'.025 .035 .05 1' if active else '.84 .89 .94 1'}
+                visible 1 {behavior}
+            }}\n'''
     return add_items(text,items,page)
 
 

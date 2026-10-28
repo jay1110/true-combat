@@ -13,6 +13,7 @@
 cg_t cg;
 cgs_t cgs;
 tce_weaponInfo_t tce_cg_weapons[64];
+weaponInfo_t cg_weapons[MAX_WEAPONS];
 displayContextDef_t cgDC;
 displayContextDef_t *DC = &cgDC;
 qboolean tce_uiCoordinates;
@@ -28,6 +29,10 @@ static struct { char value[128]; float x, y; } painted[256];
 static int paintedCount;
 static int fontRegistrations;
 static float registeredFontScale = 1;
+static float surfaceOpacity = 1, lastRawAlpha, lastRawRed;
+static int rawFills, pictureCount, fitCount;
+static qhandle_t lastPicture;
+static weaponType_t specialWeapon;
 
 #define SOUND_SELECT ((void)0)
 #define SOUND_CANCEL ((void)0)
@@ -65,7 +70,7 @@ qboolean TCE_ModernUIEnabled(void) { return modern; }
 /* Palette behavior is source-bound in modern_theme_regression; this fixture
  * isolates deployment layout/state/input and retains its controlled colors. */
 void TCE_ModernThemeColor(const float *source, float *out, int surface)
-{ (void)surface;memcpy(out,source,sizeof(vec4_t)); }
+{ memcpy(out,source,sizeof(vec4_t));if(surface){out[3]*=surfaceOpacity;out[0]=.33f;} }
 /* Actual transform nesting/projection is checked by viewport_regression. */
 void CG_MenuViewportBegin(void) { ++menuDepth; }
 void CG_MenuViewportEnd(void) { expect(menuDepth>0,"Native menu scope is matched");--menuDepth; }
@@ -106,11 +111,14 @@ qboolean CG_CommandCentreSpawnPointClick(void) { return qfalse; }
 static void getKeysForBinding(const char *binding, int *first, int *second)
 { (void)binding; *first = *second = -1; }
 int BG_WolfClassToTCE(int playerClass) { return playerClass / 2; }
-weaponType_t *WM_FindWeaponTypeForWeapon(weapon_t weapon) { (void)weapon; return NULL; }
+weaponType_t *WM_FindWeaponTypeForWeapon(weapon_t weapon)
+{ return weapon==specialWeapon.weapindex && specialWeapon.desc ? &specialWeapon : NULL; }
 int CG_LimboPanel_RenderCounter_ValueForButton(panel_button_t *button) { return button->data[1] + 4; }
 void trap_R_SetColor(const float *color) { (void)color; }
 void CG_DrawPic(float x, float y, float w, float h, qhandle_t shader)
-{ (void)x; (void)y; (void)w; (void)h; (void)shader; }
+{ (void)x; (void)y; (void)w; (void)h;++pictureCount;lastPicture=shader; }
+void CG_FillRect(float x, float y, float w, float h, const float *color)
+{ (void)x;(void)y;(void)w;(void)h;++rawFills;lastRawAlpha=color[3];lastRawRed=color[0]; }
 void TCE_ModernFill(float x, float y, float w, float h, const float *color)
 { (void)x; (void)y; (void)w; (void)h; (void)color; }
 void TCE_ModernPanel(float x, float y, float w, float h, float alpha)
@@ -126,6 +134,11 @@ void TCE_ModernText(float x, float y, float scale, float width, const float *col
 		painted[paintedCount].x = x;
 		painted[paintedCount++].y = y;
 	}
+}
+void TCE_ModernTextFit(float x,float y,float scale,float width,const float *color,const char *text,int strong)
+{
+	++fitCount;
+	TCE_ModernText(x,y,scale,width,color,text,strong);
 }
 int CG_LimboPanel_GetMaxObjectives(void) { return cgs.ccSelectedTeam == 2 ? 0 : 2; }
 bg_playerclass_t *CG_LimboPanel_GetPlayerClass(void)
@@ -389,6 +402,46 @@ int main(void)
 	expect(CG_LimboPanel_GetSelectedWeaponNum() == 0 && !BG_PanelButtons_GetFocusButton(),
 	       "server-restricted loadout remains unselectable");
 	disabled[12] = 0;
+	caseName = "opaque expanded rows and complete weapon metadata";
+	{
+		rectDef_t row = weaponPanel.rect;
+		int savedPictures;
+		const char *full = "Full tactical weapon designation with complete registered name";
+		surfaceOpacity=.25f;rawFills=pictureCount=fitCount=paintedCount=0;
+		Com_sprintf(tce_cg_weapons[10].deployMenuDescription,64,"%s",full);
+		tce_cg_weapons[10].weaponIcon=710;
+		TCE_ModernLimboWeaponRow(&row,(weapon_t)10,1,4,qtrue,qtrue);
+		expect(rawFills==1 && lastRawAlpha>=.97f,"expanded selector retains minimum opacity at lowest theme opacity");
+		expect(lastRawRed==.33f,"opaque selector retains the palette RGB returned by the theme renderer");
+		expect(textExists(full) && !textExists("Weapon10") && fitCount==1,"complete registered designation reaches fitting text renderer without replacing it by short name");
+		expect(pictureCount==1 && lastPicture==710,"registered TC weapon icon is displayed");
+		rawFills=0;
+		TCE_ModernLimboWeaponRow(&row,(weapon_t)10,1,4,qtrue,qfalse);
+		expect(!rawFills,"collapsed selector still uses ordinary global-opacity surfaces");
+		tce_cg_weapons[10].weaponIcon=0;cg_weapons[10].weaponIcon[0]=711;
+		TCE_ModernLimboWeaponRow(&row,(weapon_t)10,1,4,qtrue,qtrue);
+		expect(lastPicture==711,"registered SDK icon is used when the TC icon is absent");
+		cg_weapons[10].weaponIcon[0]=0;tce_cg_weapons[10].weaponSelectedIcon=712;
+		savedPictures=pictureCount;
+		TCE_ModernLimboWeaponRow(&row,(weapon_t)10,1,4,qtrue,qfalse);
+		expect(pictureCount==savedPictures+1 && lastPicture==712,"collapsed row uses registered selected-only TC icon when both primary handles are zero");
+		tce_cg_weapons[10].weaponSelectedIcon=0;cg_weapons[10].weaponIcon[1]=713;
+		savedPictures=pictureCount;
+		TCE_ModernLimboWeaponRow(&row,(weapon_t)10,1,4,qfalse,qtrue);
+		expect(pictureCount==savedPictures+1 && lastPicture==713,"expanded row falls back to registered selected-only SDK icon");
+		cg_weapons[10].weaponIcon[1]=0;savedPictures=pictureCount;
+		TCE_ModernLimboWeaponRow(&row,(weapon_t)10,1,4,qtrue,qtrue);
+		expect(pictureCount==savedPictures,"missing icon zero is never drawn");
+		paintedCount=0;tce_cg_weapons[10].deployMenuDescription[0]=0;
+		TCE_ModernLimboWeaponRow(&row,(weapon_t)10,1,4,qtrue,qtrue);
+		expect(textExists("Weapon10"),"missing full designation falls back to registered short name");
+		specialWeapon.weapindex=(weapon_t)19;specialWeapon.desc="Special short";
+		specialWeapon.description="Full registered special equipment designation";specialWeapon.category="Special";
+		paintedCount=0;
+		TCE_ModernLimboWeaponRow(&row,(weapon_t)19,1,4,qfalse,qtrue);
+		expect(textExists(specialWeapon.description),"special equipment uses the existing WM full description");
+		memset(&specialWeapon,0,sizeof(specialWeapon));surfaceOpacity=1;
+	}
 	click(&weaponPanel);
 	DC->cursorx = 1; DC->cursory = 1;
 	BG_PanelButtonsKeyEvent(K_MOUSE1, qfalse, limboPanelButtons);

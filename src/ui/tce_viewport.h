@@ -18,8 +18,16 @@ int TCE_ViewportFit(tce_viewport_t *out, int width, int height,
                     float userScale, float anchorX, float anchorY);
 void TCE_ViewportProject(const tce_viewport_t *view,
                           float *x, float *y, float *w, float *h);
+/* Temporary paint scopes; callers restore the returned previous mode. */
+enum { TCE_VIEWPORT_MENU, TCE_VIEWPORT_FULLSCREEN, TCE_VIEWPORT_BACKDROP };
+int TCE_ViewportDrawMode(void);
+int TCE_ViewportSetDrawMode(int mode);
+int TCE_ViewportCover(tce_viewport_t *out, int width, int height,
+                       float canvasWidth, float canvasHeight);
+float TCE_ViewportCursorSize(int width, int height);
 /* Header-only modern hubs stay attached to the top edge when reduced. All
  * full-page menus/dialogs retain the centered canvas. Shared with UI drawing. */
 float TCE_MenuViewportAnchorY(void);
+int TCE_MenuViewportBackground(void);
 
 #endif

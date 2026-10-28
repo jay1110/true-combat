@@ -211,14 +211,14 @@ menuDef {
 	itemDef {
 		name			"descriptionFilters"
 		group			GROUP_NAME
-		rect			36 366 160 54
+		rect			36 356 160 68
 		style			WINDOW_STYLE_FILLED
 		type			ITEM_TYPE_TEXT
 		textfont		UI_FONT_COURBD_21
 		textstyle		ITEM_TEXTSTYLE_NORMAL
-		textscale		.16
+		textscale		.20
 		textalignx		4
-		textaligny		13
+		textaligny		14
 		forecolor		.84 .88 .92 1
 		backcolor		.055 .075 .10 .8
 		cvar			ui_filterdescription
@@ -226,7 +226,9 @@ menuDef {
 		bordercolor		.18 .24 .29 .5
 		visible			1
 		decoration
-	}
+	
+        autowrapped
+    }
 
 	SUBWINDOW( 600, 60, 228, 126, "Map Preview" )
 	itemDef {
@@ -618,15 +620,15 @@ menuDef {
 	
 	// Misc Buttons
 	
-	BUTTON( 232, 406, 138, 22, "Refresh List!", .22, 16, exec "globalservers 0 84 empty full";uiScript RefreshFilter )
-	BUTTON( 378, 406, 138, 22, "Connect to IP", .22, 16, close playonline ; open playonline_connecttoip )
-	BUTTON( 524, 406, 138, 22, "Server Info", .22, 16, close playonline ; open playonline_serverinfo )
+	BUTTON( 232, 406, 112, 22, "Refresh List!", .22, 16, exec "globalservers 0 84 empty full";uiScript RefreshFilter )
+	BUTTON( 352, 406, 112, 22, "Connect to IP", .22, 16, close playonline ; open playonline_connecttoip )
+	BUTTON( 472, 406, 112, 22, "Server Info", .22, 16, close playonline ; open playonline_serverinfo )
 	
-	NAMEDBUTTON( "bttn_pbenable", 670, 406, 150, 22, "Enable PB", .22, 16, close playonline ; open playonline_enablepb )
-	NAMEDBUTTON( "bttn_pbdisable", 670, 406, 150, 22, "Disable PB", .22, 16, close playonline ; open playonline_disablepb )
+	NAMEDBUTTON( "bttn_pbenable", 592, 406, 112, 22, "Enable PB", .22, 16, close playonline ; open playonline_enablepb )
+	NAMEDBUTTON( "bttn_pbdisable", 592, 406, 112, 22, "Disable PB", .22, 16, close playonline ; open playonline_disablepb )
 
 // Buttons //
 	
 	BUTTON( 24, 442, 184, 28, "Main Menu", .26, 20, close playonline ; open main )
-	BUTTON( 638, 442, 190, 28, "Join Server", .26, 20, uiScript JoinServer )
+	BUTTON( 712, 406, 112, 22, "Join Server", .22, 16, uiScript JoinServer )
 }

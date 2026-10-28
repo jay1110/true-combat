@@ -21,6 +21,10 @@ void TCE_ModernText(float x, float y, float scale, float width,
 void TCE_ModernParagraph(float x, float y, float scale, float width,
                          float lineHeight, int lines, const float *color, const char *text);
 void TCE_ModernImage(const char *name, float x, float y, float w, float h);
+void TCE_ModernBackdrop(const char *name);
+void TCE_ModernCursor(float x, float y, qhandle_t shader, int centered);
+void TCE_ModernTextFit(float x, float y, float scale, float width,
+                       const float *color, const char *text, int strong);
 void TCE_ModernBar(float x, float y, float w, float h, float progress, int milliseconds);
 
 #endif

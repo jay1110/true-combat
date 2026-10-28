@@ -118,14 +118,14 @@ def _server(text):
         'ui_browserShowTeamBalanced': 326,
     }
     buttons = {
-        '"Refresh List!"': (232, 406, 138, 22),
-        '"Refresh List"': (232, 406, 138, 22),
-        '"Connect to IP"': (378, 406, 138, 22),
-        '"Server Info"': (524, 406, 138, 22),
-        '"Enable PB"': (670, 406, 150, 22),
-        '"Disable PB"': (670, 406, 150, 22),
+        '"Refresh List!"': (232, 406, 112, 22),
+        '"Refresh List"': (232, 406, 112, 22),
+        '"Connect to IP"': (352, 406, 112, 22),
+        '"Server Info"': (472, 406, 112, 22),
+        '"Enable PB"': (592, 406, 112, 22),
+        '"Disable PB"': (592, 406, 112, 22),
         '"Main Menu"': (24, 442, 184, 28),
-        '"Join Server"': (638, 442, 190, 28),
+        '"Join Server"': (712, 406, 112, 22),
     }
 
     def change_macro(name, args):
@@ -167,7 +167,7 @@ def _server(text):
         if name == 'messageOfTheDay':
             values.update(rect='236 88 340 72', textscale='.24', textalignx='0', textaligny='18')
         elif name == 'descriptionFilters':
-            values.update(rect='36 366 160 54', textscale='.16', textalignx='4', textaligny='13',
+            values.update(rect='36 356 160 68', textscale='.20', textalignx='4', textaligny='14',
                           backcolor='.055 .075 .10 .8', bordercolor='.18 .24 .29 .5')
         elif name == 'mapPreview':
             values.update(rect='608 82 212 99', bordercolor='.27 .34 .40 .6')
@@ -197,7 +197,16 @@ def _server(text):
     # Reserve 84px for the six original 14px filter glyphs.  Their native
     # feeder renderer uses fixed icon spacing, so that column is not compressed.
     # Data columns total 588px, leaving the final 16px for the native scrollbar.
-    return _items(text, change_item)
+    text = _items(text, change_item)
+    # Filter descriptions are cvar text: native text items otherwise render
+    # one unbounded line even when a rectangle height is specified.
+    blocks, _, _ = _helpers()
+    for start, end in reversed(list(blocks(text))):
+        block = text[start:end]
+        if re.search(r'\bname\s+"descriptionFilters"', block) and not re.search(r'\bautowrapped\b', block):
+            block = block[:-1] + '\n        autowrapped\n    }'
+            text = text[:start] + block + text[end:]
+    return text
 
 
 def _host(text):

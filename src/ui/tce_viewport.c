@@ -1,9 +1,46 @@
 #include "tce_viewport.h"
 #include <float.h>
 
+static int tceViewportDrawMode;
+int TCE_ViewportDrawMode(void) { return tceViewportDrawMode; }
+int TCE_ViewportSetDrawMode(int mode)
+{
+	int previous = tceViewportDrawMode;
+	tceViewportDrawMode = mode;
+	return previous;
+}
+
 static int TCE_ViewportFinite(double value)
 {
 	return value >= -FLT_MAX && value <= FLT_MAX;
+}
+
+int TCE_ViewportCover(tce_viewport_t *out, int width, int height,
+                       float canvasWidth, float canvasHeight)
+{
+	double scale, vertical, offsetX, offsetY;
+	if (!out || width <= 0 || height <= 0 || !TCE_ViewportFinite(canvasWidth) ||
+	    !TCE_ViewportFinite(canvasHeight) || canvasWidth <= 0 || canvasHeight <= 0) return 0;
+	scale = (double)width / canvasWidth;
+	vertical = (double)height / canvasHeight;
+	if (vertical > scale) scale = vertical;
+	if (!(scale > 0) || !TCE_ViewportFinite(scale)) return 0;
+	offsetX = ((double)width - scale * canvasWidth) * .5;
+	offsetY = ((double)height - scale * canvasHeight) * .5;
+	if (!TCE_ViewportFinite(offsetX) || !TCE_ViewportFinite(offsetY)) return 0;
+	out->scale = (float)scale;
+	out->offsetX = (float)offsetX;
+	out->offsetY = (float)offsetY;
+	return 1;
+}
+
+float TCE_ViewportCursorSize(int width, int height)
+{
+	tce_viewport_t viewport;
+	if (!TCE_ViewportFit(&viewport,width,height,TCE_VIEWPORT_CANVAS_WIDTH,
+	                     TCE_VIEWPORT_CANVAS_HEIGHT,0,1,.5f,.5f)) return 0;
+	/* Resolution dependent, never multiplied by menu/HUD preferences. */
+	return 20.f * viewport.scale;
 }
 
 int TCE_ViewportFit(tce_viewport_t *out, int width, int height,

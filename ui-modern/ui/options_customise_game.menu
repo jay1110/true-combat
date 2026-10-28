@@ -42,7 +42,7 @@ menuDef {
 // modern settings desktop v1
     itemDef {
         name "modern_settings_card_0"
-        rect 24 60 256 52
+        rect 24 60 256 56
         style WINDOW_STYLE_FILLED
         backcolor .045 .065 .085 .98
         visible 1
@@ -58,7 +58,7 @@ menuDef {
     }
     itemDef {
         name "modern_settings_card_1"
-        rect 24 144 256 86
+        rect 24 144 256 90
         style WINDOW_STYLE_FILLED
         backcolor .045 .065 .085 .98
         visible 1
@@ -74,7 +74,7 @@ menuDef {
     }
     itemDef {
         name "modern_settings_card_2"
-        rect 24 262 256 86
+        rect 24 262 256 90
         style WINDOW_STYLE_FILLED
         backcolor .045 .065 .085 .98
         visible 1
@@ -90,7 +90,7 @@ menuDef {
     }
     itemDef {
         name "modern_settings_card_3"
-        rect 312 60 516 120
+        rect 312 60 516 124
         style WINDOW_STYLE_FILLED
         backcolor .045 .065 .085 .98
         visible 1
@@ -106,7 +106,7 @@ menuDef {
     }
     itemDef {
         name "modern_settings_card_4"
-        rect 312 218 516 188
+        rect 312 218 516 192
         style WINDOW_STYLE_FILLED
         backcolor .045 .065 .085 .98
         visible 1
@@ -129,12 +129,12 @@ menuDef {
 	
 // Player //
 
-	SUBWINDOW( 24, 60, 256, 52, "Player" )
+	SUBWINDOW( 24, 60, 256, 56, "Player" )
 	EDITFIELD( 32, 78, 240, 34, "Player Alias:", .22, 14, "name", 36, 18, "Enter the name that you wish to be known by to others on servers" )
 	
 // Physics //
 
-	SUBWINDOW( 24, 144, 256, 86, "Physics" )
+	SUBWINDOW( 24, 144, 256, 90, "Physics" )
 	YESNO( 32, 162, 240, 34, "Always Run:", .22, 14, "cl_run", "" )
 	MULTI( 32, 196, 240, 34, "Double-Tap Prone:", .22, 14, "cl_doubletapdelay", cvarFloatList { "Yes" 350 "No" 0 }, "" )
 	
@@ -154,20 +154,20 @@ menuDef {
 	
 // Chat //
 
-	SUBWINDOW( 24, 262, 256, 86, "Chat" )
+	SUBWINDOW( 24, 262, 256, 90, "Chat" )
 	MULTI( 32, 280, 240, 34, "Quick Chat Mode:", .22, 14, "cg_quickMessageAlt", cvarFloatList { "Alpha" 0 "Numeric" 1 }, "Use alpha or numeric keys to send radio messages" )
 	MULTI( 32, 314, 240, 34, "Chat Icon Time:", .22, 14, "cg_voicespritetime", cvarFloatList { "Short" 3000 "Normal" 6000 "Long" 12000 "Really Long" 24000 }, "Specify how long the chat icon appears above other players' heads" )
 
 // Downloads //
 
-	SUBWINDOW( 312, 60, 516, 120, "Downloads" )
+	SUBWINDOW( 312, 60, 516, 124, "Downloads" )
 	YESNO( 320, 78, 500, 34, "Check for Updates on Start-Up:", .22, 14, "cl_autoupdate", "" )
 	YESNO( 320, 112, 500, 34, "Get Missing Files from Server:", .22, 14, "cl_allowDownload", "" )
 	YESNO( 320, 146, 500, 34, "Use HTTP/FTP Downloads:", .22, 14, "cl_wwwDownload", "" )
 	
 // Miscellaneous //
 
-	SUBWINDOW( 312, 218, 516, 188, "Miscellaneous" )
+	SUBWINDOW( 312, 218, 516, 192, "Miscellaneous" )
 	MULTI( 320, 236, 500, 34, "Complaint PopUp:", .22, 14, "cg_complaintPopUp", cvarFloatList { "Off" 0 "On" 1 }, "Display the option to file complaints about teammates who kill you" )
 //	YESNO( 8, 372, (SUBWINDOW_WIDTH)-4, 10, "Announcer:", .2, 8, "cg_announcer", "Enables or disables the in-game Commander" )
 	YESNO( 320, 270, 500, 34, "Log Important Messages:", .22, 14, "cg_printObjectiveInfo", "Prints important game messages to the console" )
@@ -180,43 +180,74 @@ menuDef {
 	BUTTON( 24, 442, 180, 26, "Back", .27, 18, close options_customise_game ; open options )
 
 itemDef {
-            name "modern_nav_game" rect 280 12 132 30
-            text "GAME" textfont UI_FONT_ARIBLK_27 textscale .27
-            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            name "modern_nav_game" rect 252 12 112 30
+            text "GAME" textfont UI_FONT_ARIBLK_27 textscale .25
+            textalign ITEM_ALIGN_CENTER textalignx 56 textaligny 21
             style WINDOW_STYLE_FILLED
+            border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
             backcolor .94 .75 .27 1
             forecolor .025 .035 .05 1
             visible 1 decoration
         }
 itemDef {
-            name "modern_nav_view" rect 417 12 132 30
-            text "VIEW" textfont UI_FONT_ARIBLK_27 textscale .27
-            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            name "modern_nav_view" rect 368 12 112 30
+            text "VIEW" textfont UI_FONT_ARIBLK_27 textscale .25
+            textalign ITEM_ALIGN_CENTER textalignx 56 textaligny 21
             style WINDOW_STYLE_FILLED
+            border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
             backcolor .08 .12 .16 1
             forecolor .84 .89 .94 1
             visible 1 type ITEM_TYPE_BUTTON
+mouseEnter { setitemcolor "modern_nav_view" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_view" forecolor 1 1 1 1 ; setitemcolor "modern_nav_view" bordercolor .94 .75 .27 1 ; }
+mouseExit { setitemcolor "modern_nav_view" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_view" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_view" bordercolor .23 .29 .35 .75 ; }
+onFocus { setitemcolor "modern_nav_view" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_view" forecolor 1 1 1 1 ; setitemcolor "modern_nav_view" bordercolor .94 .75 .27 1 ; }
+leaveFocus { setitemcolor "modern_nav_view" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_view" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_view" bordercolor .23 .29 .35 .75 ; }
  action { close options_customise_game ; open options ; close options ; open options_customise_hud }
         }
 itemDef {
-            name "modern_nav_controls" rect 554 12 132 30
-            text "CONTROLS" textfont UI_FONT_ARIBLK_27 textscale .27
-            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            name "modern_nav_controls" rect 484 12 112 30
+            text "CONTROLS" textfont UI_FONT_ARIBLK_27 textscale .25
+            textalign ITEM_ALIGN_CENTER textalignx 56 textaligny 21
             style WINDOW_STYLE_FILLED
+            border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
             backcolor .08 .12 .16 1
             forecolor .84 .89 .94 1
             visible 1 type ITEM_TYPE_BUTTON
+mouseEnter { setitemcolor "modern_nav_controls" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_controls" forecolor 1 1 1 1 ; setitemcolor "modern_nav_controls" bordercolor .94 .75 .27 1 ; }
+mouseExit { setitemcolor "modern_nav_controls" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_controls" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_controls" bordercolor .23 .29 .35 .75 ; }
+onFocus { setitemcolor "modern_nav_controls" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_controls" forecolor 1 1 1 1 ; setitemcolor "modern_nav_controls" bordercolor .94 .75 .27 1 ; }
+leaveFocus { setitemcolor "modern_nav_controls" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_controls" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_controls" bordercolor .23 .29 .35 .75 ; }
  action { close options_customise_game ; open options ; close options ; open options_controls }
         }
 itemDef {
-            name "modern_nav_system" rect 691 12 132 30
-            text "SYSTEM" textfont UI_FONT_ARIBLK_27 textscale .27
-            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            name "modern_nav_system" rect 600 12 112 30
+            text "SYSTEM" textfont UI_FONT_ARIBLK_27 textscale .25
+            textalign ITEM_ALIGN_CENTER textalignx 56 textaligny 21
             style WINDOW_STYLE_FILLED
+            border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
             backcolor .08 .12 .16 1
             forecolor .84 .89 .94 1
             visible 1 type ITEM_TYPE_BUTTON
+mouseEnter { setitemcolor "modern_nav_system" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_system" forecolor 1 1 1 1 ; setitemcolor "modern_nav_system" bordercolor .94 .75 .27 1 ; }
+mouseExit { setitemcolor "modern_nav_system" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_system" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_system" bordercolor .23 .29 .35 .75 ; }
+onFocus { setitemcolor "modern_nav_system" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_system" forecolor 1 1 1 1 ; setitemcolor "modern_nav_system" bordercolor .94 .75 .27 1 ; }
+leaveFocus { setitemcolor "modern_nav_system" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_system" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_system" bordercolor .23 .29 .35 .75 ; }
  action { close options_customise_game ; open options ; close options ; open options_system }
+        }
+itemDef {
+            name "modern_nav_appearance" rect 716 12 112 30
+            text "APPEARANCE" textfont UI_FONT_ARIBLK_27 textscale .25
+            textalign ITEM_ALIGN_CENTER textalignx 56 textaligny 21
+            style WINDOW_STYLE_FILLED
+            border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
+            backcolor .08 .12 .16 1
+            forecolor .84 .89 .94 1
+            visible 1 type ITEM_TYPE_BUTTON
+mouseEnter { setitemcolor "modern_nav_appearance" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_appearance" forecolor 1 1 1 1 ; setitemcolor "modern_nav_appearance" bordercolor .94 .75 .27 1 ; }
+mouseExit { setitemcolor "modern_nav_appearance" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_appearance" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_appearance" bordercolor .23 .29 .35 .75 ; }
+onFocus { setitemcolor "modern_nav_appearance" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_appearance" forecolor 1 1 1 1 ; setitemcolor "modern_nav_appearance" bordercolor .94 .75 .27 1 ; }
+leaveFocus { setitemcolor "modern_nav_appearance" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_appearance" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_appearance" bordercolor .23 .29 .35 .75 ; }
+ action { close options_customise_game ; open options ; close options ; open modern_appearance }
         }
 
 }

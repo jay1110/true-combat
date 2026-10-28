@@ -1,4 +1,5 @@
 #include "ui_local.h"
+#include "tce_viewport.h"
 #include "ui_shared.h"
 #include "tce_modern_ui.h"
 
@@ -179,7 +180,9 @@ void UI_DrawLoadPanel(qboolean forcerefresh, qboolean ownerdraw, qboolean uihack
 	inside = qtrue;
 	if (TCE_ModernUIEnabled())
 	{
+		int previousMode = TCE_ViewportSetDrawMode(TCE_VIEWPORT_FULLSCREEN);
 		UI_DrawModernLoadPanel(ownerdraw);
+		TCE_ViewportSetDrawMode(previousMode);
 		if (!uihack && trap_Cvar_VariableValue("ui_connecting")) trap_Cvar_Set("ui_connecting", "0");
 		inside = qfalse;
 		return;

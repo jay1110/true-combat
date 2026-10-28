@@ -1217,7 +1217,9 @@ void _UI_Refresh(int realtime)
 		trap_GetClientState(&cstate);
 		if (cstate.connState <= CA_DISCONNECTED || cstate.connState >= CA_ACTIVE)
 		{
-			UI_DrawHandlePic(uiInfo.uiDC.cursorx, uiInfo.uiDC.cursory, 32, 32, uiInfo.uiDC.Assets.cursor);
+			if (TCE_ModernUIEnabled())
+				TCE_ModernCursor(uiInfo.uiDC.cursorx,uiInfo.uiDC.cursory,uiInfo.uiDC.Assets.cursor,0);
+			else UI_DrawHandlePic(uiInfo.uiDC.cursorx, uiInfo.uiDC.cursory, 32, 32, uiInfo.uiDC.Assets.cursor);
 		}
 	}
 
@@ -7223,6 +7225,14 @@ static void UI_BuildServerDisplayList(qboolean force)
 
 			trap_LAN_GetServerInfo(ui_netSource.integer, i, info, MAX_STRING_CHARS);
 
+			/* Fresh favorites have an address but no reply metadata yet. Keep
+			 * them visible to the engine's ping queue instead of permanently
+			 * rejecting their initially empty game/map as a different mod. */
+			if (ui_netSource.integer == AS_FAVORITES && ping <= 0 &&
+			    (!*Info_ValueForKey(info, "game") || !*Info_ValueForKey(info, "mapname")))
+			{
+				continue;
+			}
 
 			clients                                  = atoi(Info_ValueForKey(info, "clients"));
 			uiInfo.serverStatus.numPlayersOnServers += clients;
@@ -10930,11 +10940,14 @@ static void UI_StartServerRefresh(qboolean full)
 		ptr = UI_Cvar_VariableString("debug_protocol");
 		if (*ptr)
 		{
-			trap_Cmd_ExecuteText(EXEC_APPEND, va("globalservers %d %s\n", 0, ptr));
+			trap_Cmd_ExecuteText(EXEC_APPEND, va("globalservers %d %s empty full\n", 0, ptr));
 		}
 		else
 		{
-			trap_Cmd_ExecuteText(EXEC_APPEND, va("globalservers %d %d\n", 0, (int)trap_Cvar_VariableValue("protocol")));
+			/* Fetch every occupancy class; the user's UI filters are applied
+			 * after pinging. A second refresh without these keywords drops
+			 * empty/full servers requested by the original menu script. */
+			trap_Cmd_ExecuteText(EXEC_APPEND, va("globalservers %d %d empty full\n", 0, (int)trap_Cvar_VariableValue("protocol")));
 		}
 	}
 }

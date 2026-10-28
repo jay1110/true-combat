@@ -61,7 +61,7 @@ def _stack(groups,plan,positions,rects):
     """Plan entries: (section,x,y,w,row_h); no source/control reordering."""
     for section,x,y,w,row_h in plan:
         group=groups[section]
-        h=18+len(group['rows'])*row_h
+        h=18+len(group['rows'])*row_h+4+(18 if group['labels'] else 0)
         positions[group['header'][0]]=_geometry(group['header'][3],x,y,w,h)
         rects.append((x,y,w,h))
         row_positions={}
@@ -70,26 +70,29 @@ def _stack(groups,plan,positions,rects):
             positions[start]=_row(args,name,x+8,ry,w-16,row_h)
             row_positions[args[7] if not name.startswith('CHECKBOXALIGNX') else args[8]]=(ry,row_h)
         for start,end,name,args in group['labels']:
-            # Existing numeric sensitivity readout shares its slider's row.
+            # A native slider track has a fixed96px width, independent of its
+            # declared row width. Give the numeric value its own row beneath
+            # the track instead of painting it across the thumb at high values.
             key=args[4]
             candidates=[value for cvar,value in row_positions.items() if cvar.split()[0]==key]
             if len(candidates)!=1:raise ValueError('Unbound settings readout: '+key)
             ry,rh=candidates[0]
-            result=_geometry(args,x+w-50,ry,40,rh)
-            result[5:]=['.20','ITEM_ALIGN_RIGHT','40',str(min(rh-2,14))]
+            result=_geometry(args,x+w-76,ry+rh+2,60,14)
+            result[5:]=['.20','ITEM_ALIGN_RIGHT','60','11']
             positions[start]=result
 
 
 def _plan_controls(groups):
-    columns=[(('movement','mouse input','miscellaneous'),24,15),
-             (('weapon use','weapon selection','chat'),298,15),
-             (('pop-ups','fire-teams'),572,17)]
+    columns=[(('movement','weapon selection'),24,15),
+             (('weapon use','fire-teams','mouse input'),298,15),
+             (('pop-ups','chat','miscellaneous'),572,15)]
     plan=[]
     for sections,x,rh in columns:
         y=60
         for section in sections:
             plan.append((section,x,y,256,rh))
-            y+=18+len(groups[section]['rows'])*rh+6
+            group=groups[section]
+            y+=18+len(group['rows'])*rh+4+(18 if group['labels'] else 0)+6
         if y-6>432:raise ValueError('Controls column exceeds safe footer boundary')
     return plan
 

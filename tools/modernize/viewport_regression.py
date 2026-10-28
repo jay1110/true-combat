@@ -11,14 +11,16 @@ def main():
     parser.add_argument('--optimized',action='store_true')
     parser.add_argument('--sanitize',action='store_true')
     args=parser.parse_args();out=args.out.resolve();out.mkdir(parents=True,exist_ok=True)
-    paths=['src/ui/tce_viewport.c','src/ui/tce_viewport.h','src/ui/ui_atoms.c','src/ui/ui_shared.c','src/ui/ui_main.c','src/cgame/cg_hud_viewport.c','src/cgame/cg_hud_viewport.h','src/cgame/cg_drawtools.c','src/cgame/cg_draw.c','src/cgame/cg_newDraw.c']
+    paths=['src/ui/tce_viewport.c','src/ui/tce_viewport.h','src/ui/tce_ui_coordinates.c','src/ui/tce_ui_coordinates.h','src/ui/tce_modern_ui.c','src/ui/tce_modern_ui.h','src/ui/ui_atoms.c','src/ui/ui_shared.c','src/ui/ui_main.c','src/cgame/cg_hud_viewport.c','src/cgame/cg_hud_viewport.h','src/cgame/cg_drawtools.c','src/cgame/cg_draw.c','src/cgame/cg_newDraw.c']
     sources={p:(ROOT/p).read_text(encoding='utf-8-sig') for p in paths}
-    shared=sources['src/ui/ui_shared.c'];units=[function(shared,'TCE_MenuViewportAnchorY'),function(shared,'TCE_UISharedViewportAdjust')]
+    shared=sources['src/ui/ui_shared.c'];units=[function(shared,'TCE_MenuViewportBackground'),function(shared,'TCE_MenuViewportAnchorY'),function(shared,'TCE_UISharedViewportAdjust')]
     matches=list(re.finditer(r'^void AdjustFrom640\(',shared,re.M))
     assert len(matches)==3
     for match,name in zip(matches,['SharedWindowsAdjust','SharedLinuxAdjust','SharedGenericAdjust']):
         units.append(function(shared[match.start():],'AdjustFrom640').replace('void AdjustFrom640(',f'void {name}(',1))
     units += [function(sources['src/ui/ui_atoms.c'],'UI_AdjustFrom640')]
+    units += [function(sources['src/ui/tce_modern_ui.c'],n) for n in
+              ['TCE_ModernWidth','TCE_ModernText','TCE_ModernTextFit','TCE_ModernCursor','TCE_ModernBackdrop']]
     units += [function(sources['src/ui/ui_main.c'],n) for n in ['_UI_MouseEvent','_UI_DrawSides','_UI_DrawTopBottom']]
     units += [function(sources['src/cgame/cg_newDraw.c'],'CG_MouseEvent')]
     # The width NaN gate has two preprocessor-selected opening braces; the
@@ -27,7 +29,8 @@ def main():
     units += [drawtools[start:drawtools.index('\n// NERVE - SMF',start)]]
     units += [function(sources['src/cgame/cg_draw.c'],n) for n in ['CG_DrawDisconnect','CG_DrawLagometer']]
     assert 'UI_AdjustFrom640(' in function(sources['src/ui/ui_atoms.c'],'UI_DrawHandlePic')
-    assert 'UI_DrawHandlePic(uiInfo.uiDC.cursorx, uiInfo.uiDC.cursory,' in sources['src/ui/ui_main.c']
+    assert 'TCE_ModernCursor(uiInfo.uiDC.cursorx,uiInfo.uiDC.cursory,' in sources['src/ui/ui_main.c']
+    assert 'else UI_DrawHandlePic(uiInfo.uiDC.cursorx, uiInfo.uiDC.cursory,' in sources['src/ui/ui_main.c']
     for name,value in [('cg_wideScreen','1'),('ui_menuScale','1'),('ui_menuMaxHeight','1080'),('cg_hudScale','.85'),('cg_hudMaxHeight','1080')]:
         assert re.search(r'\{\s*NULL,\s*"'+name+r'",\s*"'+re.escape(value)+r'",\s*CVAR_ARCHIVE\s*\}',sources['src/ui/ui_main.c'])
     assert 'if (CG_HudViewportAdjust(x, y, w, h, tce_uiCoordinates)) return;' in function(sources['src/cgame/cg_drawtools.c'],'CG_AdjustFrom640')
@@ -49,7 +52,7 @@ def main():
     env=os.environ.copy()
     if os.name=='nt':env,compiler=msvc_environment(out,'x64' if args.sanitize else 'x86','14.44' if args.sanitize else '14.39')
     else:compiler=shutil.which('clang') or shutil.which('gcc')
-    report={'source_sha256':{p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in paths},'results':{},'limits':['Instrumented cvar/display services and actual logical mouse dispatch; real OS input/rendering is not simulated.','Exact production CGame private context and shared-wrapper precedence are compiled; real frame scopes/pixel acceptance require a live game.']}
+    report={'source_sha256':{p:hashlib.sha256((ROOT/p).read_bytes()).hexdigest() for p in paths+[str(template.relative_to(ROOT)),str(Path(__file__).relative_to(ROOT))]},'results':{},'limits':['Instrumented cvar/display services and actual logical mouse dispatch; real OS input/rendering is not simulated.','Exact production CGame private context and shared-wrapper precedence are compiled; real frame scopes/pixel acceptance require a live game.','Actual cursor and backdrop scopes are compiled in both UI/CGame. Text fitting uses controlled font advances and paint services, not the actual TTF rasterizer.']}
     for mode in ['ui','cgame-shared']:
         directory=out/mode;directory.mkdir(exist_ok=True);exe=directory/('fixture.exe' if os.name=='nt' else 'fixture')
         if os.name=='nt':

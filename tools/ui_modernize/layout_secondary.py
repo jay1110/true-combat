@@ -229,7 +229,9 @@ def _vote(text, filename):
     def change_item(name, block):
         result = _background(name)
         if name == 'nfleftbackTimelimit:':
-            result['rect'] = '662 %d 72 24' % (time_y + 24)
+            # Value starts at label advance52.7 +native8px spacing =x648.7.
+            # The old x662 background began to the right of the actual value.
+            result['rect'] = '644 %d 90 24' % (time_y + 24)
         return result
     return _items(text, change_item)
 

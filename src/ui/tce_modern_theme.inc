@@ -1,11 +1,12 @@
 /* Optional menu paint preferences. Never used for gameplay rendering/state. */
 typedef struct {
     vmCvar_t preset, opacityPreset, opacity, accent[3], background[3];
-    int initialized, tick, imageCount;
+    int initialized, tick, imageCount, imagesInitialized;
     float alpha, base[3];
 } tce_theme_t;
 static tce_theme_t modernTheme;
-static struct { qhandle_t original, body, accent; } modernThemeImages[80];
+static struct { qhandle_t original, body, accent; int control; } modernThemeImages[80];
+enum { TCE_THEME_CUSTOM = 4, TCE_THEME_PRESET_COUNT = 10 };
 
 static float TCE_ThemeClamp(float value, float fallback, float low, float high)
 {
@@ -13,13 +14,24 @@ static float TCE_ThemeClamp(float value, float fallback, float low, float high)
     return value < low ? low : value > high ? high : value;
 }
 
+static int TCE_ThemePreset(void)
+{
+    return (int)TCE_ThemeClamp(modernTheme.preset.value,0,0,TCE_THEME_PRESET_COUNT-1);
+}
+
 void TCE_ModernThemeRefresh(void)
 {
-    static const float accents[4][3] = {
-        { .96f,.73f,.27f }, { .27f,.76f,.94f }, { .98f,.38f,.36f }, { .32f,.85f,.66f }
+    /* IDs0..4 are archived preferences: never reorder them. Slot4 supplies the
+     * Custom defaults; IDs5+ extend the palette list without migrating cvars. */
+    static const float accents[TCE_THEME_PRESET_COUNT][3] = {
+        { .96f,.73f,.27f }, { .27f,.76f,.94f }, { .98f,.38f,.36f }, { .32f,.85f,.66f },
+        { .96f,.73f,.27f }, { .72f,.76f,.80f }, { .10f,.12f,.14f },
+        { .46f,.64f,.82f }, { .87f,.53f,.33f }, { .71f,.58f,.95f }
     };
-    static const float bases[4][3] = {
-        { .035f,.055f,.075f }, { .025f,.055f,.075f }, { .065f,.030f,.045f }, { .025f,.060f,.050f }
+    static const float bases[TCE_THEME_PRESET_COUNT][3] = {
+        { .035f,.055f,.075f }, { .025f,.055f,.075f }, { .065f,.030f,.045f }, { .025f,.060f,.050f },
+        { .035f,.055f,.075f }, { .012f,.015f,.020f }, { .65f,.68f,.71f },
+        { .055f,.075f,.10f }, { .065f,.043f,.035f }, { .048f,.037f,.075f }
     };
     static const char *channels[] = { "R", "G", "B" };
     static const char *accentDefault[] = { ".96", ".73", ".27" };
@@ -43,13 +55,13 @@ void TCE_ModernThemeRefresh(void)
     modernTheme.tick=tick;
     trap_Cvar_Update(&modernTheme.preset); trap_Cvar_Update(&modernTheme.opacityPreset);
     trap_Cvar_Update(&modernTheme.opacity);
-    preset=(int)TCE_ThemeClamp(modernTheme.preset.value,0,0,4);
+    preset=TCE_ThemePreset();
     opacityPreset=(int)TCE_ThemeClamp(modernTheme.opacityPreset.value,0,0,3);
     for (i=0;i<3;++i)
     {
         trap_Cvar_Update(&modernTheme.accent[i]); trap_Cvar_Update(&modernTheme.background[i]);
-        tceModernAmber[i]=preset==4 ? TCE_ThemeClamp(modernTheme.accent[i].value,accents[0][i],0,1) : accents[preset][i];
-        modernTheme.base[i]=preset==4 ? TCE_ThemeClamp(modernTheme.background[i].value,bases[0][i],0,1) : bases[preset][i];
+        tceModernAmber[i]=preset==TCE_THEME_CUSTOM ? TCE_ThemeClamp(modernTheme.accent[i].value,accents[0][i],0,1) : accents[preset][i];
+        modernTheme.base[i]=preset==TCE_THEME_CUSTOM ? TCE_ThemeClamp(modernTheme.background[i].value,bases[0][i],0,1) : bases[preset][i];
     }
     modernTheme.alpha=opacityPreset==0 ? 1.f : opacityPreset==1 ? .85f : opacityPreset==2 ? .60f :
                       TCE_ThemeClamp(modernTheme.opacity.value,.85f,.25f,1.f);
@@ -72,7 +84,7 @@ void TCE_ModernThemeColor(const float *source, float *out, int surface)
     if (!CG_MenuViewportActive()) return;
 #endif
     TCE_ModernThemeRefresh();
-    preset=(int)TCE_ThemeClamp(modernTheme.preset.value,0,0,4);
+    preset=TCE_ThemePreset();
     highest=source[0]>source[1] ? source[0] : source[1]; if(source[2]>highest) highest=source[2];
     lowest=source[0]<source[1] ? source[0] : source[1]; if(source[2]<lowest) lowest=source[2];
     if (preset && (source==tceModernAmber || (source[0]>.55f && source[1]>.35f && source[2]<.55f && source[0]>source[2]*1.4f)))
@@ -94,8 +106,19 @@ void TCE_ModernThemeColor(const float *source, float *out, int surface)
 
 static void TCE_ThemeRegisterImage(const char *name, const char *target)
 {
-    int i=modernTheme.imageCount++;
-    modernThemeImages[i].original=trap_R_RegisterShaderNoMip(name);
+    int i=modernTheme.imageCount;
+    qhandle_t original;
+    if(i>=(int)(sizeof(modernThemeImages)/sizeof(modernThemeImages[0]))) return;
+    original=trap_R_RegisterShaderNoMip(name);
+    /* Missing images share the engine's handle0; they are not image aliases. */
+    if(original<=0) return;
+    ++modernTheme.imageCount;
+    modernThemeImages[i].original=original;
+    /* Native aliases share these targets. Interactive tracks and handles need
+     * foreground contrast instead of the panel's own surface color. */
+    if(!strncmp(target,"slider_",7) || !strncmp(target,"scroll_",7) ||
+       !strncmp(target,"check_",6) || !strncmp(target,"radio_",6))
+        modernThemeImages[i].control=(!strcmp(target,"slider_track") || !strcmp(target,"scroll_track")) ? 1 : 2;
     modernThemeImages[i].body=trap_R_RegisterShaderNoMip(va("tce2_ui/theme/%s_body",target));
     modernThemeImages[i].accent=trap_R_RegisterShaderNoMip(va("tce2_ui/theme/%s_accent",target));
 }
@@ -112,7 +135,8 @@ static void TCE_ThemeImages(void)
         {"scrollbar_thumb","scroll_thumb"},{"slider2","slider_track"},{"sliderbutt_1","slider_thumb"},
         {"check","check_on"},{"check_not","check_mixed"},{"check_no","check_off"} };
     int i;
-    if(modernTheme.imageCount) return;
+    if(modernTheme.imagesInitialized) return;
+    modernTheme.imagesInitialized=1;
     for(i=0;i<(int)(sizeof(widgets)/sizeof(widgets[0]));++i) TCE_ThemeRegisterImage(va("tce2_ui/%s",widgets[i]),widgets[i]);
     for(i=0;i<(int)(sizeof(icons)/sizeof(icons[0]));++i) TCE_ThemeRegisterImage(va("tce2_ui/icons/%s",icons[i]),va("icons/%s",icons[i]));
     for(i=0;i<(int)(sizeof(aliases)/sizeof(aliases[0]));++i) TCE_ThemeRegisterImage(va("ui/assets/%s.tga",aliases[i][0]),aliases[i][1]);
@@ -137,6 +161,12 @@ void TCE_ModernThemePicture(float x,float y,float w,float h,qhandle_t shader,con
         trap_R_SetColor(source); TCE_ThemeRawPicture(x,y,w,h,shader); return;
     }
 #endif
+    if(TCE_ModernUIEnabled() && shader<=0)
+    {
+        /* WINDOW_STYLE_SHADER with no background is not a default texture.
+         * Rendering handle0 here exposes the engine's missing-image pattern. */
+        trap_R_SetColor(source); return;
+    }
     TCE_ModernThemeRefresh();
     if(TCE_ModernUIEnabled())
     {
@@ -155,9 +185,11 @@ void TCE_ModernThemePicture(float x,float y,float w,float h,qhandle_t shader,con
         return;
     }
     tint[3]*=modernTheme.alpha;
-    preset=(int)TCE_ThemeClamp(modernTheme.preset.value,0,0,4);
-    if(!preset)
+    preset=TCE_ThemePreset();
+    if(!preset || modernThemeImages[found].body<=0 || modernThemeImages[found].accent<=0)
     {
+        /* Keep the valid original when an optional mask is missing. Never draw
+         * either missing layer, and apply the selected opacity only once. */
         trap_R_SetColor(tint); TCE_ThemeRawPicture(x,y,w,h,shader);
     }
     else
@@ -168,7 +200,10 @@ void TCE_ModernThemePicture(float x,float y,float w,float h,qhandle_t shader,con
             (fabsf(tint[0]-tceModernAmber[0])<.001f && fabsf(tint[1]-tceModernAmber[1])<.001f && fabsf(tint[2]-tceModernAmber[2])<.001f) ||
             (tint[0]>.73f && tint[1]>.73f && tint[2]>.73f))
             tint[0]=tint[1]=tint[2]=1.f;
-        for(i=0;i<3;++i) body[i]=TCE_ThemeClamp(modernTheme.base[i]*4.f,0,0,1)*tint[i];
+        for(i=0;i<3;++i)
+            body[i]=(modernThemeImages[found].control ?
+                     (modernThemeImages[found].control==1 ? tceModernMuted[i] : tceModernWhite[i]) :
+                     TCE_ThemeClamp(modernTheme.base[i]*4.f,0,0,1))*tint[i];
         body[3]=tint[3]; trap_R_SetColor(body); TCE_ThemeRawPicture(x,y,w,h,modernThemeImages[found].body);
         for(i=0;i<3;++i) body[i]=tceModernAmber[i]*tint[i];
         trap_R_SetColor(body); TCE_ThemeRawPicture(x,y,w,h,modernThemeImages[found].accent);

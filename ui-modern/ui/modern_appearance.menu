@@ -15,9 +15,9 @@ menuDef {
     popup
     onESC { close modern_appearance ; open options ; }
     WINDOW( "Appearance", 94 )
-    BUTTON( 704, 8, 124, 30, "BACK", .26, 21, close modern_appearance ; open options ; )
+    BUTTON( 24, 390, 186, 30, "BACK", .26, 21, close modern_appearance ; open options ; )
 
-    MULTI( 32, 70, 378, 30, "Palette:", .23, 21, "ui_themePreset", cvarFloatList { "Gold" 0 "Arctic" 1 "Crimson" 2 "Emerald" 3 "Custom" 4 }, "Choose a palette or adjust the custom RGB values." )
+    MULTI( 32, 70, 378, 30, "Palette:", .23, 21, "ui_themePreset", cvarFloatList { "Gold" 0 "Arctic" 1 "Crimson" 2 "Emerald" 3 "Custom" 4 "Black / Grey" 5 "Grey / Black" 6 "Slate" 7 "Copper" 8 "Violet" 9 }, "Choose a palette or adjust the custom RGB values." )
     MULTI( 32, 108, 378, 30, "Transparency:", .23, 21, "ui_themeOpacityPreset", cvarFloatList { "Solid" 0 "Balanced" 1 "Glass" 2 "Custom" 3 }, "Transparency applies to menu surfaces, not text or the gameplay HUD." )
     SLIDER( 32, 146, 378, 30, "Custom opacity:", .23, 14, "ui_themeOpacity" .85 .25 1, "Used with Custom transparency. Higher values are more opaque." )
     SLIDER( 32, 202, 378, 30, "Menu size:", .23, 14, "ui_menuScale" 1 .5 1.25, "Menu size is independent of HUD size and always fits the screen." )
@@ -37,4 +37,76 @@ menuDef {
     SLIDER( 442, 254, 378, 30, "Surface red:", .23, 14, "ui_themeBackgroundR" .035 0 1, "Custom surface red component." )
     SLIDER( 442, 292, 378, 30, "Surface green:", .23, 14, "ui_themeBackgroundG" .055 0 1, "Custom surface green component." )
     SLIDER( 442, 330, 378, 30, "Surface blue:", .23, 14, "ui_themeBackgroundB" .075 0 1, "Custom surface blue component." )
+
+itemDef {
+            name "modern_nav_game" rect 252 12 112 30
+            text "GAME" textfont UI_FONT_ARIBLK_27 textscale .25
+            textalign ITEM_ALIGN_CENTER textalignx 56 textaligny 21
+            style WINDOW_STYLE_FILLED
+            border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
+            backcolor .08 .12 .16 1
+            forecolor .84 .89 .94 1
+            visible 1 type ITEM_TYPE_BUTTON
+mouseEnter { setitemcolor "modern_nav_game" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_game" forecolor 1 1 1 1 ; setitemcolor "modern_nav_game" bordercolor .94 .75 .27 1 ; }
+mouseExit { setitemcolor "modern_nav_game" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_game" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_game" bordercolor .23 .29 .35 .75 ; }
+onFocus { setitemcolor "modern_nav_game" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_game" forecolor 1 1 1 1 ; setitemcolor "modern_nav_game" bordercolor .94 .75 .27 1 ; }
+leaveFocus { setitemcolor "modern_nav_game" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_game" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_game" bordercolor .23 .29 .35 .75 ; }
+ action { close modern_appearance ; open options ; ; close options ; open options_customise_game }
+        }
+itemDef {
+            name "modern_nav_view" rect 368 12 112 30
+            text "VIEW" textfont UI_FONT_ARIBLK_27 textscale .25
+            textalign ITEM_ALIGN_CENTER textalignx 56 textaligny 21
+            style WINDOW_STYLE_FILLED
+            border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
+            backcolor .08 .12 .16 1
+            forecolor .84 .89 .94 1
+            visible 1 type ITEM_TYPE_BUTTON
+mouseEnter { setitemcolor "modern_nav_view" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_view" forecolor 1 1 1 1 ; setitemcolor "modern_nav_view" bordercolor .94 .75 .27 1 ; }
+mouseExit { setitemcolor "modern_nav_view" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_view" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_view" bordercolor .23 .29 .35 .75 ; }
+onFocus { setitemcolor "modern_nav_view" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_view" forecolor 1 1 1 1 ; setitemcolor "modern_nav_view" bordercolor .94 .75 .27 1 ; }
+leaveFocus { setitemcolor "modern_nav_view" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_view" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_view" bordercolor .23 .29 .35 .75 ; }
+ action { close modern_appearance ; open options ; ; close options ; open options_customise_hud }
+        }
+itemDef {
+            name "modern_nav_controls" rect 484 12 112 30
+            text "CONTROLS" textfont UI_FONT_ARIBLK_27 textscale .25
+            textalign ITEM_ALIGN_CENTER textalignx 56 textaligny 21
+            style WINDOW_STYLE_FILLED
+            border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
+            backcolor .08 .12 .16 1
+            forecolor .84 .89 .94 1
+            visible 1 type ITEM_TYPE_BUTTON
+mouseEnter { setitemcolor "modern_nav_controls" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_controls" forecolor 1 1 1 1 ; setitemcolor "modern_nav_controls" bordercolor .94 .75 .27 1 ; }
+mouseExit { setitemcolor "modern_nav_controls" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_controls" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_controls" bordercolor .23 .29 .35 .75 ; }
+onFocus { setitemcolor "modern_nav_controls" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_controls" forecolor 1 1 1 1 ; setitemcolor "modern_nav_controls" bordercolor .94 .75 .27 1 ; }
+leaveFocus { setitemcolor "modern_nav_controls" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_controls" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_controls" bordercolor .23 .29 .35 .75 ; }
+ action { close modern_appearance ; open options ; ; close options ; open options_controls }
+        }
+itemDef {
+            name "modern_nav_system" rect 600 12 112 30
+            text "SYSTEM" textfont UI_FONT_ARIBLK_27 textscale .25
+            textalign ITEM_ALIGN_CENTER textalignx 56 textaligny 21
+            style WINDOW_STYLE_FILLED
+            border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
+            backcolor .08 .12 .16 1
+            forecolor .84 .89 .94 1
+            visible 1 type ITEM_TYPE_BUTTON
+mouseEnter { setitemcolor "modern_nav_system" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_system" forecolor 1 1 1 1 ; setitemcolor "modern_nav_system" bordercolor .94 .75 .27 1 ; }
+mouseExit { setitemcolor "modern_nav_system" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_system" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_system" bordercolor .23 .29 .35 .75 ; }
+onFocus { setitemcolor "modern_nav_system" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_system" forecolor 1 1 1 1 ; setitemcolor "modern_nav_system" bordercolor .94 .75 .27 1 ; }
+leaveFocus { setitemcolor "modern_nav_system" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_system" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_system" bordercolor .23 .29 .35 .75 ; }
+ action { close modern_appearance ; open options ; ; close options ; open options_system }
+        }
+itemDef {
+            name "modern_nav_appearance" rect 716 12 112 30
+            text "APPEARANCE" textfont UI_FONT_ARIBLK_27 textscale .25
+            textalign ITEM_ALIGN_CENTER textalignx 56 textaligny 21
+            style WINDOW_STYLE_FILLED
+            border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
+            backcolor .94 .75 .27 1
+            forecolor .025 .035 .05 1
+            visible 1 decoration
+        }
+
 }

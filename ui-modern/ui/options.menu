@@ -83,6 +83,11 @@ itemDef {
         forecolor .84 .88 .92 1
         border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
         visible 1
+        mouseEnter { setitemcolor "modern_appearance_link" backcolor .19 .26 .33 1 ; setitemcolor "modern_appearance_link" forecolor 1 1 1 1 ; setitemcolor "modern_appearance_link" bordercolor .94 .75 .27 1 ; }
+mouseExit { setitemcolor "modern_appearance_link" backcolor .08 .12 .16 1 ; setitemcolor "modern_appearance_link" forecolor .84 .89 .94 1 ; setitemcolor "modern_appearance_link" bordercolor .23 .29 .35 .75 ; }
+onFocus { setitemcolor "modern_appearance_link" backcolor .19 .26 .33 1 ; setitemcolor "modern_appearance_link" forecolor 1 1 1 1 ; setitemcolor "modern_appearance_link" bordercolor .94 .75 .27 1 ; }
+leaveFocus { setitemcolor "modern_appearance_link" backcolor .08 .12 .16 1 ; setitemcolor "modern_appearance_link" forecolor .84 .89 .94 1 ; setitemcolor "modern_appearance_link" bordercolor .23 .29 .35 .75 ; }
+
         action { close options ; open modern_appearance ; }
     }
 }

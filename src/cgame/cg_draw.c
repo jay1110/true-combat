@@ -6193,7 +6193,8 @@ static void CG_Draw2D(void)
 //			cg.showGameView = qfalse;
 			// draw cursor
 			trap_R_SetColor(NULL);
-			CG_DrawPic(cgDC.cursorx - 14, cgDC.cursory - 14, 32, 32, cgs.media.cursorIcon);
+			if (TCE_ModernUIEnabled()) TCE_ModernCursor(cgDC.cursorx,cgDC.cursory,cgs.media.cursorIcon,1);
+			else CG_DrawPic(cgDC.cursorx - 14, cgDC.cursory - 14, 32, 32, cgs.media.cursorIcon);
 //			cg.showGameView = old;
 		}
 	}

@@ -51,7 +51,7 @@ menuDef {
 // modern settings desktop v1
     itemDef {
         name "modern_settings_card_0"
-        rect 24 60 232 108
+        rect 24 60 232 112
         style WINDOW_STYLE_FILLED
         backcolor .045 .065 .085 .98
         visible 1
@@ -67,7 +67,7 @@ menuDef {
     }
     itemDef {
         name "modern_settings_card_1"
-        rect 24 222 232 52
+        rect 24 222 232 56
         style WINDOW_STYLE_FILLED
         backcolor .045 .065 .085 .98
         visible 1
@@ -106,7 +106,7 @@ menuDef {
 	
 // Audio //
 
-	SUBWINDOW( 24, 60, 232, 108, "AUDIO" )
+	SUBWINDOW( 24, 60, 232, 112, "AUDIO" )
 	SLIDER( 32, 78, 216, 30, "Effects Volume:", .22, 14, "s_volume" .7 0 1, "" )
 	SLIDER( 32, 108, 216, 30, "Music Volume:", .22, 14, "s_musicvolume" .25 0 1, "" )
 	//MULTI( 8, 72, (SUBWINDOW_WIDTH)-4, 10, "Sound Quality:", .2, 8, "ui_s_khz", cvarFloatList { "11 khz (low)" 11 "22 khz (high)" 22 "44 khz (ultra high)" 44 }, "" )
@@ -151,7 +151,7 @@ menuDef {
 
 // Networking //
 
-	SUBWINDOW( 24, 222, 232, 52, "NETWORKING" )
+	SUBWINDOW( 24, 222, 232, 56, "NETWORKING" )
 	MULTIACTION( 32, 240, 216, 34, "Connection:", .22, 14, "ui_rate", cvarFloatList { "Modem" 4000 "ISDN" 5000 "LAN/CABLE/xDSL" 25000 } cvarListUndefined "Unselected", uiScript update "ui_setRate", "" )
 
 // Buttons //
@@ -162,43 +162,74 @@ menuDef {
 		( "uiScript vidReset ; uiScript systemCvarsApply ; close options_system ; open options" ) )
 
 itemDef {
-            name "modern_nav_game" rect 280 12 132 30
-            text "GAME" textfont UI_FONT_ARIBLK_27 textscale .27
-            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            name "modern_nav_game" rect 252 12 112 30
+            text "GAME" textfont UI_FONT_ARIBLK_27 textscale .25
+            textalign ITEM_ALIGN_CENTER textalignx 56 textaligny 21
             style WINDOW_STYLE_FILLED
+            border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
             backcolor .08 .12 .16 1
             forecolor .84 .89 .94 1
             visible 1 type ITEM_TYPE_BUTTON
+mouseEnter { setitemcolor "modern_nav_game" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_game" forecolor 1 1 1 1 ; setitemcolor "modern_nav_game" bordercolor .94 .75 .27 1 ; }
+mouseExit { setitemcolor "modern_nav_game" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_game" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_game" bordercolor .23 .29 .35 .75 ; }
+onFocus { setitemcolor "modern_nav_game" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_game" forecolor 1 1 1 1 ; setitemcolor "modern_nav_game" bordercolor .94 .75 .27 1 ; }
+leaveFocus { setitemcolor "modern_nav_game" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_game" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_game" bordercolor .23 .29 .35 .75 ; }
  action { uiScript vidReset ; close options_system ; open options ; close options ; open options_customise_game }
         }
 itemDef {
-            name "modern_nav_view" rect 417 12 132 30
-            text "VIEW" textfont UI_FONT_ARIBLK_27 textscale .27
-            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            name "modern_nav_view" rect 368 12 112 30
+            text "VIEW" textfont UI_FONT_ARIBLK_27 textscale .25
+            textalign ITEM_ALIGN_CENTER textalignx 56 textaligny 21
             style WINDOW_STYLE_FILLED
+            border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
             backcolor .08 .12 .16 1
             forecolor .84 .89 .94 1
             visible 1 type ITEM_TYPE_BUTTON
+mouseEnter { setitemcolor "modern_nav_view" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_view" forecolor 1 1 1 1 ; setitemcolor "modern_nav_view" bordercolor .94 .75 .27 1 ; }
+mouseExit { setitemcolor "modern_nav_view" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_view" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_view" bordercolor .23 .29 .35 .75 ; }
+onFocus { setitemcolor "modern_nav_view" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_view" forecolor 1 1 1 1 ; setitemcolor "modern_nav_view" bordercolor .94 .75 .27 1 ; }
+leaveFocus { setitemcolor "modern_nav_view" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_view" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_view" bordercolor .23 .29 .35 .75 ; }
  action { uiScript vidReset ; close options_system ; open options ; close options ; open options_customise_hud }
         }
 itemDef {
-            name "modern_nav_controls" rect 554 12 132 30
-            text "CONTROLS" textfont UI_FONT_ARIBLK_27 textscale .27
-            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            name "modern_nav_controls" rect 484 12 112 30
+            text "CONTROLS" textfont UI_FONT_ARIBLK_27 textscale .25
+            textalign ITEM_ALIGN_CENTER textalignx 56 textaligny 21
             style WINDOW_STYLE_FILLED
+            border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
             backcolor .08 .12 .16 1
             forecolor .84 .89 .94 1
             visible 1 type ITEM_TYPE_BUTTON
+mouseEnter { setitemcolor "modern_nav_controls" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_controls" forecolor 1 1 1 1 ; setitemcolor "modern_nav_controls" bordercolor .94 .75 .27 1 ; }
+mouseExit { setitemcolor "modern_nav_controls" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_controls" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_controls" bordercolor .23 .29 .35 .75 ; }
+onFocus { setitemcolor "modern_nav_controls" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_controls" forecolor 1 1 1 1 ; setitemcolor "modern_nav_controls" bordercolor .94 .75 .27 1 ; }
+leaveFocus { setitemcolor "modern_nav_controls" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_controls" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_controls" bordercolor .23 .29 .35 .75 ; }
  action { uiScript vidReset ; close options_system ; open options ; close options ; open options_controls }
         }
 itemDef {
-            name "modern_nav_system" rect 691 12 132 30
-            text "SYSTEM" textfont UI_FONT_ARIBLK_27 textscale .27
-            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            name "modern_nav_system" rect 600 12 112 30
+            text "SYSTEM" textfont UI_FONT_ARIBLK_27 textscale .25
+            textalign ITEM_ALIGN_CENTER textalignx 56 textaligny 21
             style WINDOW_STYLE_FILLED
+            border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
             backcolor .94 .75 .27 1
             forecolor .025 .035 .05 1
             visible 1 decoration
+        }
+itemDef {
+            name "modern_nav_appearance" rect 716 12 112 30
+            text "APPEARANCE" textfont UI_FONT_ARIBLK_27 textscale .25
+            textalign ITEM_ALIGN_CENTER textalignx 56 textaligny 21
+            style WINDOW_STYLE_FILLED
+            border WINDOW_BORDER_FULL bordercolor .23 .29 .35 .75
+            backcolor .08 .12 .16 1
+            forecolor .84 .89 .94 1
+            visible 1 type ITEM_TYPE_BUTTON
+mouseEnter { setitemcolor "modern_nav_appearance" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_appearance" forecolor 1 1 1 1 ; setitemcolor "modern_nav_appearance" bordercolor .94 .75 .27 1 ; }
+mouseExit { setitemcolor "modern_nav_appearance" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_appearance" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_appearance" bordercolor .23 .29 .35 .75 ; }
+onFocus { setitemcolor "modern_nav_appearance" backcolor .19 .26 .33 1 ; setitemcolor "modern_nav_appearance" forecolor 1 1 1 1 ; setitemcolor "modern_nav_appearance" bordercolor .94 .75 .27 1 ; }
+leaveFocus { setitemcolor "modern_nav_appearance" backcolor .08 .12 .16 1 ; setitemcolor "modern_nav_appearance" forecolor .84 .89 .94 1 ; setitemcolor "modern_nav_appearance" bordercolor .23 .29 .35 .75 ; }
+ action { uiScript vidReset ; close options_system ; open options ; close options ; open modern_appearance }
         }
 
 }
