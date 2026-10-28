@@ -2,15 +2,15 @@
 
 // Defines //
 
-#define WINDOW_X		$evalfloat((.5*852)-(WINDOW_WIDTH*.5))
-#define WINDOW_Y		$evalfloat((.5*480)-(WINDOW_HEIGHT*.5))
-#define WINDOW_WIDTH	608
-#define WINDOW_HEIGHT	448
+#define WINDOW_X 0
+#define WINDOW_Y 0
+#define WINDOW_WIDTH 852
+#define WINDOW_HEIGHT 480
 #define GROUP_NAME		"grpCreditsAdditional"
 
 // Macros //
 
-#include "ui/menumacros.h"
+#include "ui/modern_widgets.h"
 		
 // Additional Menu //
 	
@@ -29,7 +29,7 @@ menuDef {
 
 	itemDef {
 		name		"background"
-		rect		-127 -101 862 650
+		rect		0 0 852 480
 		style		WINDOW_STYLE_FILLED
 		background	"ui/assets/fadebox.tga"
 		backcolor	.015 .025 .04 .72
@@ -49,6 +49,28 @@ menuDef {
 		visible		1
 		decoration
 	}
+    itemDef {
+        name "modern_secondary_0"
+        rect 24 60 176 372
+        style WINDOW_STYLE_FILLED
+        backcolor .035 .055 .075 .94
+        border WINDOW_BORDER_FULL
+        bordercolor .18 .24 .29 .65
+        visible 1
+        decoration
+    }
+
+    itemDef {
+        name "modern_secondary_1"
+        rect 224 60 604 372
+        style WINDOW_STYLE_FILLED
+        backcolor .035 .055 .075 .94
+        border WINDOW_BORDER_FULL
+        bordercolor .18 .24 .29 .65
+        visible 1
+        decoration
+    }
+
 	
 // Logo //
 
@@ -56,7 +78,7 @@ menuDef {
 
 	itemDef {
 		name		"logoGMShadow"
-		rect		$evalfloat(.5*(WINDOW_WIDTH-(LOGOBAR_WIDTH))+1) $evalfloat(8+8+1) 96 48
+		rect		61 85 104 52
 		style		WINDOW_STYLE_SHADER
 		background	"ui/assets/logo_gm"
 		forecolor	0 0 0 1
@@ -66,7 +88,7 @@ menuDef {
 
 	itemDef {
 		name		"logoGM"
-		rect		$evalfloat(.5*(WINDOW_WIDTH-(LOGOBAR_WIDTH))-1) $evalfloat(8+8-1) 96 48
+		rect		60 84 104 52
 		style		WINDOW_STYLE_SHADER
 		background	"ui/assets/logo_gm"
 		forecolor	1 1 1 1
@@ -76,7 +98,7 @@ menuDef {
 	
 	itemDef {
 		name		"logoNerveShadow"
-		rect		$evalfloat(.5*(WINDOW_WIDTH-(LOGOBAR_WIDTH))+96+16+1) $evalfloat(8+20+1) 96 24
+		rect		49 169 128 32
 		style		WINDOW_STYLE_SHADER
 		background	"ui/assets/logo_nerve"
 		forecolor	0 0 0 1
@@ -86,7 +108,7 @@ menuDef {
 
 	itemDef {
 		name		"logoNerve"
-		rect		$evalfloat(.5*(WINDOW_WIDTH-(LOGOBAR_WIDTH))+96+16-1) $evalfloat(8+20-1) 96 24
+		rect		48 168 128 32
 		style		WINDOW_STYLE_SHADER
 		background	"ui/assets/logo_nerve"
 		forecolor	1 1 1 1
@@ -96,7 +118,7 @@ menuDef {
 	
 	itemDef {
 		name		"logoOSPShadow"
-		rect		$evalfloat(.5*(WINDOW_WIDTH-(LOGOBAR_WIDTH))+96+16+96+16+1) $evalfloat(8+1) 64 64
+		rect		77 237 72 72
 		style		WINDOW_STYLE_SHADER
 		background	"ui/assets/logo_osp"
 		forecolor	0 0 0 1
@@ -106,7 +128,7 @@ menuDef {
 
 	itemDef {
 		name		"logoOSP"
-		rect		$evalfloat(.5*(WINDOW_WIDTH-(LOGOBAR_WIDTH))+96+16+96+16-1) $evalfloat(8-1) 64 64
+		rect		76 236 72 72
 		style		WINDOW_STYLE_SHADER
 		background	"ui/assets/logo_osp"
 		forecolor	1 1 1 1
@@ -116,7 +138,7 @@ menuDef {
 	
 	itemDef {
 		name		"logoPBShadow"
-		rect		$evalfloat(.5*(WINDOW_WIDTH-(LOGOBAR_WIDTH))+96+16+96+16+64+16+1) $evalfloat(8+1) 64 64
+		rect		77 333 72 72
 		style		WINDOW_STYLE_SHADER
 		background	"ui/assets/logo_pb"
 		forecolor	0 0 0 1
@@ -126,7 +148,7 @@ menuDef {
 
 	itemDef {
 		name		"logoPB"
-		rect		$evalfloat(.5*(WINDOW_WIDTH-(LOGOBAR_WIDTH))+96+16+96+16+64+16-1) $evalfloat(8-1) 64 64
+		rect		76 332 72 72
 		style		WINDOW_STYLE_SHADER
 		background	"ui/assets/logo_pb"
 		forecolor	1 1 1 1
@@ -137,14 +159,14 @@ menuDef {
 	itemDef {
 		name		"headerLogo"
 		group		GROUP_NAME
-		rect		6 80 $evalfloat(WINDOW_WIDTH-12) 16
+		rect		24 8 804 36
 		text		"ADDITIONAL DEVELOPMENT"
 		textfont	UI_FONT_ARIBLK_16
 		textstyle	ITEM_TEXTSTYLE_NORMAL
-		textscale	.3
-		textalign	ITEM_ALIGN_CENTER
-		textalignx	$evalfloat(.5*(WINDOW_WIDTH-12))
-		textaligny	14
+		textscale	.40
+		textalign	ITEM_ALIGN_LEFT
+		textalignx	0
+		textaligny	27
 		forecolor	1 1 1 1
 		visible		1
 		decoration
@@ -159,95 +181,95 @@ menuDef {
 	itemDef {
 		name		"headerOSP"
 		group		GROUP_NAME
-		rect		6 $evalfloat(CREDITS_Y) $evalfloat(WINDOW_WIDTH-12) 12
+		rect		236 98 580 18
 		text		"OSP BY ORANGE SMOOTHIE PRODUCTIONS"
 		textfont	UI_FONT_ARIBLK_16
 		textstyle	ITEM_TEXTSTYLE_NORMAL
-		textscale	.19
-		textalign	ITEM_ALIGN_CENTER
-		textalignx	$evalfloat(.5*(WINDOW_WIDTH-12))
-		textaligny	10
-		forecolor	1 1 1 1
-		visible		1
-		decoration
-	}
-	
-	LABELWHITE( 6, CREDITS_Y+16, .5*(WINDOW_WIDTH-24), 10, "Jason 'Rhea' Keimig", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+16, .5*(WINDOW_WIDTH-24), 10, "Programming", .2, ITEM_ALIGN_LEFT, 0, 8 )
-
-// PunkBuster //
-
-	itemDef {
-		name		"headerPunkBuster"
-		group		GROUP_NAME
-		rect		6 $evalfloat(CREDITS_Y+36) $evalfloat(WINDOW_WIDTH-12) 12
-		text		"PUNKBUSTER BY EVEN BALANCE, INC."
-		textfont	UI_FONT_ARIBLK_16
-		textstyle	ITEM_TEXTSTYLE_NORMAL
-		textscale	.19
-		textalign	ITEM_ALIGN_CENTER
-		textalignx	$evalfloat(.5*(WINDOW_WIDTH-12))
-		textaligny	10
-		forecolor	1 1 1 1
-		visible		1
-		decoration
-	}
-
-	LABELWHITE( 6, CREDITS_Y+52, .5*(WINDOW_WIDTH-24), 10, "Tony Ray", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+52, .5*(WINDOW_WIDTH-24), 10, "President", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+64, .5*(WINDOW_WIDTH-24), 10, "Björn Christoph", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+64, .5*(WINDOW_WIDTH-24), 10, "Senior Project Leader", .2, ITEM_ALIGN_LEFT, 0, 8 )
-
-// Voice Artists //
-
-	itemDef {
-		name		"headerVoiceArtists"
-		group		GROUP_NAME
-		rect		6 $evalfloat(CREDITS_Y+84) $evalfloat(WINDOW_WIDTH-12) 12
-		text		"VOICE ARTISTS"
-		textfont	UI_FONT_ARIBLK_16
-		textstyle	ITEM_TEXTSTYLE_NORMAL
-		textscale	.19
-		textalign	ITEM_ALIGN_CENTER
-		textalignx	$evalfloat(.5*(WINDOW_WIDTH-12))
-		textaligny	10
-		forecolor	1 1 1 1
-		visible		1
-		decoration
-	}
-
-	LABELWHITE( 6, CREDITS_Y+100, .5*(WINDOW_WIDTH-24), 10, "Drew Markham", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+100, .5*(WINDOW_WIDTH-24), 10, "Voice of Allied / Axis soldiers", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+112, .5*(WINDOW_WIDTH-24), 10, "Neil Ross", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+112, .5*(WINDOW_WIDTH-24), 10, "Voice of Axis Commander", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+124, .5*(WINDOW_WIDTH-24), 10, "Granville van Dusen", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+124, .5*(WINDOW_WIDTH-24), 10, "Voice of Allied Commander", .2, ITEM_ALIGN_LEFT, 0, 8 )
-
-// Special Thanks //
-
-	itemDef {
-		name		"headerSpecialThanks"
-		group		GROUP_NAME
-		rect		6 $evalfloat(CREDITS_Y+156) $evalfloat(WINDOW_WIDTH-12) 16
-		text		"SPECIAL THANKS TO"
-		textfont	UI_FONT_ARIBLK_16
-		textstyle	ITEM_TEXTSTYLE_NORMAL
-		textscale	.3
-		textalign	ITEM_ALIGN_CENTER
-		textalignx	$evalfloat(.5*(WINDOW_WIDTH-12))
+		textscale	.23
+		textalign	ITEM_ALIGN_LEFT
+		textalignx	0
 		textaligny	14
 		forecolor	1 1 1 1
 		visible		1
 		decoration
 	}
 	
-	LABELWHITE( 6, CREDITS_Y+184, WINDOW_WIDTH-12, 10, "Return to Castle Wolfenstein was developed by Gray Matter Studios & Nerve Software.", .2, ITEM_ALIGN_CENTER, (.5*(WINDOW_WIDTH-12)), 8 )
+	LABELWHITE( 236, 114, 170, 18, "Jason 'Rhea' Keimig", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 114, 390, 18, "Programming", .23, ITEM_ALIGN_LEFT, 0, 14 )
 
-	LABELWHITE( 6, CREDITS_Y+208, WINDOW_WIDTH-12, 10, "We would like to thank both developers for their help and support", .2, ITEM_ALIGN_CENTER, (.5*(WINDOW_WIDTH-12)), 8 )
-	LABELWHITE( 6, CREDITS_Y+220, WINDOW_WIDTH-12, 10, "during the development of Wolfenstein: Enemy Territory.", .2, ITEM_ALIGN_CENTER, (.5*(WINDOW_WIDTH-12)), 8 )
+// PunkBuster //
+
+	itemDef {
+		name		"headerPunkBuster"
+		group		GROUP_NAME
+		rect		236 134 580 18
+		text		"PUNKBUSTER BY EVEN BALANCE, INC."
+		textfont	UI_FONT_ARIBLK_16
+		textstyle	ITEM_TEXTSTYLE_NORMAL
+		textscale	.23
+		textalign	ITEM_ALIGN_LEFT
+		textalignx	0
+		textaligny	14
+		forecolor	1 1 1 1
+		visible		1
+		decoration
+	}
+
+	LABELWHITE( 236, 150, 170, 18, "Tony Ray", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 150, 390, 18, "President", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 162, 170, 18, "Björn Christoph", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 162, 390, 18, "Senior Project Leader", .23, ITEM_ALIGN_LEFT, 0, 14 )
+
+// Voice Artists //
+
+	itemDef {
+		name		"headerVoiceArtists"
+		group		GROUP_NAME
+		rect		236 182 580 18
+		text		"VOICE ARTISTS"
+		textfont	UI_FONT_ARIBLK_16
+		textstyle	ITEM_TEXTSTYLE_NORMAL
+		textscale	.23
+		textalign	ITEM_ALIGN_LEFT
+		textalignx	0
+		textaligny	14
+		forecolor	1 1 1 1
+		visible		1
+		decoration
+	}
+
+	LABELWHITE( 236, 198, 170, 18, "Drew Markham", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 198, 390, 18, "Voice of Allied / Axis soldiers", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 210, 170, 18, "Neil Ross", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 210, 390, 18, "Voice of Axis Commander", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 222, 170, 18, "Granville van Dusen", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 222, 390, 18, "Voice of Allied Commander", .23, ITEM_ALIGN_LEFT, 0, 14 )
+
+// Special Thanks //
+
+	itemDef {
+		name		"headerSpecialThanks"
+		group		GROUP_NAME
+		rect		236 254 580 18
+		text		"SPECIAL THANKS TO"
+		textfont	UI_FONT_ARIBLK_16
+		textstyle	ITEM_TEXTSTYLE_NORMAL
+		textscale	.23
+		textalign	ITEM_ALIGN_LEFT
+		textalignx	0
+		textaligny	14
+		forecolor	1 1 1 1
+		visible		1
+		decoration
+	}
+	
+	LABELWHITE( 236, 282, 580, 18, "Return to Castle Wolfenstein was developed by Gray Matter Studios & Nerve Software.", .21, ITEM_ALIGN_LEFT, 0, 14 )
+
+	LABELWHITE( 236, 306, 580, 18, "We would like to thank both developers for their help and support", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 318, 580, 18, "during the development of Wolfenstein: Enemy Territory.", .23, ITEM_ALIGN_LEFT, 0, 14 )
 
 // Buttons //
 
-	BUTTON( 6, WINDOW_HEIGHT-24, .33*(WINDOW_WIDTH-24), 18, "BACK", .3, 14, close credits_additional ; open main )
-	BUTTON( 6+.33*(WINDOW_WIDTH-24)+6, WINDOW_HEIGHT-24, .34*(WINDOW_WIDTH-24), 18, "ACTIVISION", .3, 14, close credits_additional ; open credits_activision )
+	BUTTON( 24, 442, 184, 28, "BACK", .28, 19, close credits_additional ; open main )
+	BUTTON( 364, 442, 252, 28, "ACTIVISION", .28, 19, close credits_additional ; open credits_activision )
 }

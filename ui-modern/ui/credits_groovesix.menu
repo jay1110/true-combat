@@ -2,15 +2,15 @@
 
 // Defines //
 
-#define WINDOW_X		$evalfloat((.5*852)-(WINDOW_WIDTH*.5))
-#define WINDOW_Y		$evalfloat((.5*480)-(WINDOW_HEIGHT*.5))
-#define WINDOW_WIDTH	608
-#define WINDOW_HEIGHT	448
+#define WINDOW_X 0
+#define WINDOW_Y 0
+#define WINDOW_WIDTH 852
+#define WINDOW_HEIGHT 480
 #define GROUP_NAME		"grpCreditsSplashDamage"
 
 // Macros //
 
-#include "ui/menumacros.h"
+#include "ui/modern_widgets.h"
 		
 // System Menu //
 	
@@ -39,7 +39,7 @@ menuDef {
 
 	itemDef {
 		name		"background"
-		rect		-127 -101 862 650
+		rect		0 0 852 480
 		style		WINDOW_STYLE_FILLED
 		background	"ui/assets/fadebox.tga"
 		backcolor	0 0 0 0
@@ -59,12 +59,34 @@ menuDef {
 		visible		1
 		decoration
 	}
+    itemDef {
+        name "modern_secondary_0"
+        rect 24 60 176 372
+        style WINDOW_STYLE_FILLED
+        backcolor .035 .055 .075 .94
+        border WINDOW_BORDER_FULL
+        bordercolor .18 .24 .29 .65
+        visible 1
+        decoration
+    }
+
+    itemDef {
+        name "modern_secondary_1"
+        rect 224 60 604 372
+        style WINDOW_STYLE_FILLED
+        backcolor .035 .055 .075 .94
+        border WINDOW_BORDER_FULL
+        bordercolor .18 .24 .29 .65
+        visible 1
+        decoration
+    }
+
 	
 // Logo //
 
 	itemDef {
 		name		"logo"
-		rect		$evalfloat(.5*(WINDOW_WIDTH-128)-65) $evalfloat(8-1) 128 64
+		rect		48 114 128 64
 		style		WINDOW_STYLE_SHADER
 		background	"ui/assets/logo_gss.tga"
 		forecolor	1 1 1 1
@@ -74,7 +96,7 @@ menuDef {
 	
 	itemDef {
 		name		"logott"
-		rect		$evalfloat(.5*(WINDOW_WIDTH-128)+78) $evalfloat(8-1+4) 190 56
+		rect		36 250 152 45
 		style		WINDOW_STYLE_SHADER
 		background	"ui/assets/logo_tt.tga"
 		forecolor	1 1 1 1
@@ -85,14 +107,14 @@ menuDef {
 	itemDef {
 		name		"headerLogo"
 		group		GROUP_NAME
-		rect		6 80 $evalfloat(WINDOW_WIDTH-12) 16
+		rect		24 8 804 36
 		text		"DEVELOPED BY GROOVESIX STUDIOS AND TEAM TERMINATOR"
 		textfont	UI_FONT_ARIBLK_16
 		textstyle	ITEM_TEXTSTYLE_NORMAL
-		textscale	.3
-		textalign	ITEM_ALIGN_CENTER
-		textalignx	$evalfloat(.5*(WINDOW_WIDTH-12))
-		textaligny	14
+		textscale	.40
+		textalign	ITEM_ALIGN_LEFT
+		textalignx	0
+		textaligny	27
 		forecolor	1 1 1 1
 		visible		1
 		decoration
@@ -102,14 +124,14 @@ menuDef {
 	itemDef {
 		name		"headerGS"
 		group		GROUP_NAME
-		rect		6 108 $evalfloat(WINDOW_WIDTH-12) 12
+		rect		236 82 580 18
 		text		"GROOVESIX STUDIOS"
 		textfont	UI_FONT_ARIBLK_16
 		textstyle	ITEM_TEXTSTYLE_NORMAL
-		textscale	.19
-		textalign	ITEM_ALIGN_CENTER
-		textalignx	$evalfloat(.5*(WINDOW_WIDTH-12))
-		textaligny	10
+		textscale	.23
+		textalign	ITEM_ALIGN_LEFT
+		textalignx	0
+		textaligny	14
 		forecolor	1 1 1 1
 		visible		1
 		decoration
@@ -117,49 +139,49 @@ menuDef {
 
 #define CREDITS_Y	124
 	
-	LABELWHITE( 6, CREDITS_Y, .5*(WINDOW_WIDTH-24), 10, "Coroner", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y, .5*(WINDOW_WIDTH-24), 10, "Production, Code, Maps, Textures and Everything", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+12, .5*(WINDOW_WIDTH-24), 10, "Tweety", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+12, .5*(WINDOW_WIDTH-24), 10, "Textures and Maps", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	LABELWHITE( 236, 98, 170, 18, "Coroner", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 98, 390, 18, "Production, Code, Maps, Textures and Everything", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 110, 170, 18, "Tweety", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 110, 390, 18, "Textures and Maps", .23, ITEM_ALIGN_LEFT, 0, 14 )
 	
 // Art //
 
 	itemDef {
 		name		"headerArt"
 		group		GROUP_NAME
-		rect		6 $evalfloat(CREDITS_Y+30) $evalfloat(WINDOW_WIDTH-12) 12
+		rect		236 128 580 18
 		text		"TEAM TERMINATOR"
 		textfont	UI_FONT_ARIBLK_16
 		textstyle	ITEM_TEXTSTYLE_NORMAL
-		textscale	.19
-		textalign	ITEM_ALIGN_CENTER
-		textalignx	$evalfloat(.5*(WINDOW_WIDTH-12))
-		textaligny	10
+		textscale	.23
+		textalign	ITEM_ALIGN_LEFT
+		textalignx	0
+		textaligny	14
 		forecolor	1 1 1 1
 		visible		1
 		decoration
 	}
 	
-	LABELWHITE( 6, CREDITS_Y+46, .5*(WINDOW_WIDTH-24), 10, "Airon", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+46, .5*(WINDOW_WIDTH-24), 10, "Sound", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	LABELWHITE( 236, 144, 170, 18, "Airon", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 144, 390, 18, "Sound", .23, ITEM_ALIGN_LEFT, 0, 14 )
 	
-	LABELWHITE( 6, CREDITS_Y+58, .5*(WINDOW_WIDTH-24), 10, "Bruce", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+58, .5*(WINDOW_WIDTH-24), 10, "Maps, Textures, Website, Graphics and Design", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	LABELWHITE( 236, 156, 170, 18, "Bruce", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 156, 390, 18, "Maps, Textures, Website, Graphics and Design", .23, ITEM_ALIGN_LEFT, 0, 14 )
 	
-	LABELWHITE( 6, CREDITS_Y+70, .5*(WINDOW_WIDTH-24), 10, "BS", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+70, .5*(WINDOW_WIDTH-24), 10, "Servers and Support", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	LABELWHITE( 236, 168, 170, 18, "BS", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 168, 390, 18, "Servers and Support", .23, ITEM_ALIGN_LEFT, 0, 14 )
 	
-	LABELWHITE( 6, CREDITS_Y+82, .5*(WINDOW_WIDTH-24), 10, "Diane", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+82, .5*(WINDOW_WIDTH-24), 10, "Public relations, Website and Community Support", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	LABELWHITE( 236, 180, 170, 18, "Diane", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 180, 390, 18, "Public relations, Website and Community Support", .23, ITEM_ALIGN_LEFT, 0, 14 )
 	
-	LABELWHITE( 6, CREDITS_Y+94, .5*(WINDOW_WIDTH-24), 10, "HellOnStage", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+94, .5*(WINDOW_WIDTH-24), 10, "Textures", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	LABELWHITE( 236, 192, 170, 18, "HellOnStage", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 192, 390, 18, "Textures", .23, ITEM_ALIGN_LEFT, 0, 14 )
 	
-	LABELWHITE( 6, CREDITS_Y+106, .5*(WINDOW_WIDTH-24), 10, "Liquid", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+106, .5*(WINDOW_WIDTH-24), 10, "Maps, Textures, Models, Gamedesign", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	LABELWHITE( 236, 204, 170, 18, "Liquid", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 204, 390, 18, "Maps, Textures, Models, Gamedesign", .23, ITEM_ALIGN_LEFT, 0, 14 )
 	
-	LABELWHITE( 6, CREDITS_Y+118, .5*(WINDOW_WIDTH-24), 10, "LordOfKao$", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+118, .5*(WINDOW_WIDTH-24), 10, "Public relations, Technical and Community Support, Website", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	LABELWHITE( 236, 216, 170, 18, "LordOfKao$", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 216, 390, 18, "Public relations, Technical and Community Support, Website", .23, ITEM_ALIGN_LEFT, 0, 14 )
 	
 
 // Programming //
@@ -167,41 +189,41 @@ menuDef {
 	itemDef {
 		name		"headerProgramming"
 		group		GROUP_NAME
-		rect		6 $evalfloat(CREDITS_Y+136) $evalfloat(WINDOW_WIDTH-12) 12
+		rect		236 234 580 18
 		text		"O.48 CREW AND INACTIVE MEMBERS"
 		textfont	UI_FONT_ARIBLK_16
 		textstyle	ITEM_TEXTSTYLE_NORMAL
-		textscale	.19
-		textalign	ITEM_ALIGN_CENTER
-		textalignx	$evalfloat(.5*(WINDOW_WIDTH-12))
-		textaligny	10
+		textscale	.23
+		textalign	ITEM_ALIGN_LEFT
+		textalignx	0
+		textaligny	14
 		forecolor	1 1 1 1
 		visible		1
 		decoration
 	}
 	
-	LABELWHITE( 6, CREDITS_Y+152, .5*(WINDOW_WIDTH-24), 10, "Dender", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+152, .5*(WINDOW_WIDTH-24), 10, "Website", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+164, .5*(WINDOW_WIDTH-24), 10, "ISM", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+164, .5*(WINDOW_WIDTH-24), 10, "Models", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	LABELWHITE( 236, 250, 170, 18, "Dender", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 250, 390, 18, "Website", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 262, 170, 18, "ISM", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 262, 390, 18, "Models", .23, ITEM_ALIGN_LEFT, 0, 14 )
 	
-	LABELWHITE( 6, CREDITS_Y+176, .5*(WINDOW_WIDTH-24), 10, "Law", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+176, .5*(WINDOW_WIDTH-24), 10, "Public Relations", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+188, .5*(WINDOW_WIDTH-24), 10, "Nazgul", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+188, .5*(WINDOW_WIDTH-24), 10, "Technical and Community Support", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	LABELWHITE( 236, 274, 170, 18, "Law", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 274, 390, 18, "Public Relations", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 286, 170, 18, "Nazgul", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 286, 390, 18, "Technical and Community Support", .23, ITEM_ALIGN_LEFT, 0, 14 )
 	
-	LABELWHITE( 6, CREDITS_Y+200, .5*(WINDOW_WIDTH-24), 10, "Race", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+200, .5*(WINDOW_WIDTH-24), 10, "Models, Maps, Skins and Animation", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+212, .5*(WINDOW_WIDTH-24), 10, "Raptor", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+212, .5*(WINDOW_WIDTH-24), 10, "Models, Skins and Animation", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+224, .5*(WINDOW_WIDTH-24), 10, "Traumahawk", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+224, .5*(WINDOW_WIDTH-24), 10, "Artwork, Models, Skins and Sounds", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	LABELWHITE( 236, 298, 170, 18, "Race", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 298, 390, 18, "Models, Maps, Skins and Animation", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 310, 170, 18, "Raptor", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 310, 390, 18, "Models, Skins and Animation", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 322, 170, 18, "Traumahawk", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 322, 390, 18, "Artwork, Models, Skins and Sounds", .23, ITEM_ALIGN_LEFT, 0, 14 )
 	
-	LABELWHITE( 6, CREDITS_Y+246, (WINDOW_WIDTH-24), 10, "Special thanks to Tier for the Mac compile.", .2, ITEM_ALIGN_CENTER, .5*(WINDOW_WIDTH-24), 8 )
+	LABELWHITE( 236, 344, 580, 18, "Special thanks to Tier for the Mac compile.", .23, ITEM_ALIGN_LEFT, 0, 14 )
 
-	LABELWHITE( 6, CREDITS_Y+262, (WINDOW_WIDTH-24), 10, "Huge thanks to all beta testers and those that supported us during all the years.", .2, ITEM_ALIGN_CENTER, .5*(WINDOW_WIDTH-24), 8 )
+	LABELWHITE( 236, 360, 580, 18, "Huge thanks to all beta testers and those that supported us during all the years.", .21, ITEM_ALIGN_LEFT, 0, 14 )
 
-	LABELWHITE( 6, CREDITS_Y+280, (WINDOW_WIDTH-24), 10, "Nothing comes from violence. Nothing ever good.", .25, ITEM_ALIGN_CENTER, .5*(WINDOW_WIDTH-24), 8 )
+	LABELWHITE( 236, 378, 580, 18, "Nothing comes from violence. Nothing ever good.", .23, ITEM_ALIGN_LEFT, 0, 14 )
 
 	
 // Copyright Notice //
@@ -210,6 +232,6 @@ menuDef {
 
 // Buttons //
 
-	BUTTON( 6, WINDOW_HEIGHT-24, .33*(WINDOW_WIDTH-24), 18, "BACK", .3, 14, close credits_groovesix ; open main )
-	BUTTON( 6+.33*(WINDOW_WIDTH-24)+6+.34*(WINDOW_WIDTH-24)+6, WINDOW_HEIGHT-24, .33*(WINDOW_WIDTH-24), 18, "SPLASH DAMAGE", .3, 14, close credits_groovesix ; open credits_splashdamage )
+	BUTTON( 24, 442, 184, 28, "BACK", .28, 19, close credits_groovesix ; open main )
+	BUTTON( 364, 442, 252, 28, "SPLASH DAMAGE", .28, 19, close credits_groovesix ; open credits_splashdamage )
 }

@@ -232,6 +232,17 @@ def menu(text, relative):
         if at>=0:
             text=text[:at]+'''    itemDef { name "modern_accent" rect 0 0 2 16 style WINDOW_STYLE_FILLED backcolor .94 .75 .27 .8 visible 1 decoration }
 '''+text[at:]
+    # A separate widget sheet keeps the approved main menu and its dependencies
+    # byte-identical while the rest of the interface gets desktop layouts.
+    if relative.name not in ('main.menu','global.menu'):
+        import layout_settings, layout_browse, layout_misc, layout_secondary
+        from layout_common import settings_navigation
+        text=layout_settings.apply(text,relative)
+        text=layout_browse.apply(text,relative)
+        text=layout_misc.apply(text,relative)
+        text=layout_secondary.apply(text,relative)
+        text=settings_navigation(text,relative)
+        text=text.replace('"ui/menumacros.h"','"ui/modern_widgets.h"')
     return text
 
 
@@ -249,6 +260,8 @@ def main():
             elif p.suffix.lower()=='.menu':s=menu(s,relative)
             q=DEST/relative;q.parent.mkdir(parents=True,exist_ok=True);q.write_bytes(s.encode('latin1'))
             rows.append({'path':relative.as_posix(),'changed':p.read_bytes()!=q.read_bytes()})
+    from layout_common import widgets
+    (DEST/'ui/modern_widgets.h').write_bytes(widgets(read(DEST/'ui/menumacros.h')).encode('latin1'))
     (DEST/'restyle-coverage.json').write_text(json.dumps(rows,indent=2)+'\n',encoding='utf-8')
     print(json.dumps({'files':len(rows),'menus':sum(r['path'].endswith('.menu') for r in rows),'all_menu_sources_edited':all(r['changed'] for r in rows if r['path'].endswith('.menu'))}))
 

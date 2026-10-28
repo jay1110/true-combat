@@ -2,7 +2,7 @@
 
 	#define DEFAULT_TEXT_SCALE 0.25
 
-	#define ORIGIN_QUICKMESSAGE		10 10
+	#define ORIGIN_QUICKMESSAGE		24 56
 
 	#define QM_MENU_GRADIENT_START_OFFSET
 
@@ -12,14 +12,14 @@ menuDef {																										\
 	name		WINDOWNAME																						\
 	visible		0																								\
 	fullscreen	0																								\
-	rect		0 100 640 380																					\
+	rect		0 0 852 480																					\
 	onOpen		{ setCvar cl_bypassMouseInput "1" }																\
 	onClose		{ setCvar cl_bypassMouseInput "0" }																\
 	onEsc		{ closeAll }																					\
 																												\
 	itemDef {																									\
 		name		"window"																					\
-		rect		0 19 204 136																				\
+		rect		0 0 300 258																				\
 		origin		ORIGIN_QUICKMESSAGE																			\
 		style		WINDOW_STYLE_FILLED																			\
 		backcolor	0 0 0 .75																					\
@@ -31,13 +31,13 @@ menuDef {																										\
 																												\
 	itemDef {																									\
 		name		"windowtitle"																				\
-		rect		$evalfloat((0)+2) $evalfloat((19)+2) $evalfloat((204)-4) 12									\
+		rect		12 12 276 26									\
 		origin		ORIGIN_QUICKMESSAGE																			\
 		text		"MESSAGE"																					\
 		textfont	UI_FONT_ARIBLK_16																			\
-		textscale	.19																							\
+		textscale	.32																							\
 		textalignx	3																							\
-		textaligny	10																							\
+		textaligny	20																							\
 		style		WINDOW_STYLE_FILLED																			\
 		backcolor	.20 .20 .20 .5																				\
 		forecolor	.84 .88 .92 1																					\
@@ -50,14 +50,14 @@ menuDef {																										\
 	#define QM_MENU_ITEM( WINDOWTEXT, ACTION, KEY, POS )				\
     itemDef {															\
 		name			"menuitem"##WINDOWTEXT							\
-		rect			6 $evalfloat( 35 + ( 12 * POS )) 128 10			\
+		rect			16 $evalfloat( 52 + ( 24 * POS )) 268 22			\
 		origin			ORIGIN_QUICKMESSAGE								\
 		type			ITEM_TYPE_TEXT									\
 		text			WINDOWTEXT										\
 		textfont		UI_FONT_COURBD_21								\
 		textstyle		ITEM_TEXTSTYLE_NORMAL							\
-		textscale		.2												\
-		textaligny		8												\
+		textscale		.28												\
+		textaligny		17												\
 		forecolor		.84 .88 .92 1										\
 		visible			1												\
 		decoration														\
@@ -67,14 +67,14 @@ menuDef {																										\
 	#define QM_MENU_ITEM_TEAM( WINDOWTEXT, ACTION, KEY, POS )			\
     itemDef {															\
 		name			"menuitem"##WINDOWTEXT							\
-		rect			6 $evalfloat( 35 + ( 12 * POS )) 128 10			\
+		rect			16 $evalfloat( 52 + ( 24 * POS )) 268 22			\
 		origin			ORIGIN_QUICKMESSAGE								\
 		type			ITEM_TYPE_TEXT									\
 		text			WINDOWTEXT										\
 		textfont		UI_FONT_COURBD_21								\
 		textstyle		ITEM_TEXTSTYLE_NORMAL							\
-		textscale		.2												\
-		textaligny		8												\
+		textscale		.28												\
+		textaligny		17												\
 		forecolor		.84 .88 .92 1										\
 		visible			1												\
 		decoration														\

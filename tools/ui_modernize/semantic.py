@@ -1,11 +1,12 @@
 """Conservative, byte-preserving semantic projection of ET UI menu sources.
 
 This is a source comparison, not an engine preprocessor or runtime interpreter.
-Unknown tokens stay significant. Script commands, list values and labels are exact;
-only numeric RGBA operands of the two declared paint commands may restyle.
-Only declared paint properties and macro arguments used solely by paint may vary.
+Unknown tokens stay significant. Original commands, list values and labels are exact.
+Numeric paint operands, checked list-column geometry, one validated private widget
+header and four exact Back-derived settings links are explicit layout exceptions.
 """
 from dataclasses import dataclass
+import ast
 import hashlib
 import json
 import math
@@ -243,6 +244,7 @@ def script_projection(ts):
 def decorative(ts, known_names):
     if 'decoration' not in (t.lower() for t in ts):
         return False
+    if any(t.lower()=='columns' for t in ts):return False
     rest = projection(ts, {})
     i = 0; name = None
     while i < len(rest):
@@ -258,6 +260,30 @@ def decorative(ts, known_names):
         else:
             return False
     return name is not None and name not in known_names
+
+
+def arithmetic_names(ts, allowed):
+    """Only numeric column geometry; no strings, scripts or function calls."""
+    expression=' '.join(ts).replace('$evalfloat','evalfloat').replace('$evalint','evalint')
+    try:tree=ast.parse(expression,mode='eval')
+    except SyntaxError as error:raise ValueError('Invalid column geometry expression') from error
+    names=set();functions={id(node.func) for node in ast.walk(tree) if isinstance(node,ast.Call)}
+    for node in ast.walk(tree):
+        if isinstance(node,ast.Name):
+            if node.id in ('evalfloat','evalint'):
+                if id(node) not in functions:raise ValueError('Uncalled column geometry function')
+            else:
+                if node.id not in allowed:raise ValueError('Unknown column geometry constant: '+node.id)
+                names.add(node.id)
+        elif isinstance(node,ast.Constant):
+            if type(node.value) not in (int,float) or not math.isfinite(node.value):
+                raise ValueError('Nonnumeric column geometry')
+        elif isinstance(node,ast.Call):
+            if (not isinstance(node.func,ast.Name) or node.func.id not in ('evalfloat','evalint') or
+                    len(node.args)!=1 or node.keywords):raise ValueError('Unsafe column geometry call')
+        elif not isinstance(node,(ast.Expression,ast.Load,ast.BinOp,ast.UnaryOp,ast.Add,ast.Sub,ast.Mult,ast.Div,ast.UAdd,ast.USub)):
+            raise ValueError('Unsafe column geometry operator')
+    return names
 
 
 def projection(ts, contracts, known_names=None, partial=False):
@@ -307,6 +333,20 @@ def projection(ts, contracts, known_names=None, partial=False):
             end = atom(ts, atom(ts, first))
             result += [t] + ts[i + 1:first]
             i = end
+        elif key == 'columns':
+            # Native list tuple = visual position, visual width, maxChars.
+            # Count/order/maxChars remain semantic; geometry is checked math.
+            if i+1>=len(ts) or not re.fullmatch(r'(?:[1-9]|1[0-6])',ts[i+1]):
+                raise ValueError('Invalid native list column count')
+            count=ts[i+1];result += [t,count];i+=2
+            for index in range(int(count)):
+                for _ in range(2):
+                    end=atom(ts,i)
+                    refs=arithmetic_names(ts[i:end],getattr(contracts,'geometry_names',frozenset()))
+                    contracts.column_refs.update(refs)
+                    i=end
+                if i>=len(ts) or not re.fullmatch(r'\d+',ts[i]):raise ValueError('Invalid native list maxChars')
+                result += ['@column:'+str(index),ts[i]];i+=1
         elif t in contracts and i + 1 < len(ts) and ts[i + 1] == '(':
             args, end = arguments(ts, i + 1)
             count, retain = contracts[t]
@@ -365,6 +405,10 @@ def contracts(units):
 def signatures(units, macro_contracts=None, known_names=None):
     baseline = macro_contracts is None
     macro_contracts = contracts(units) if baseline else macro_contracts
+    # Candidate-only geometry definitions are permitted only if reached from
+    # checked list positions/widths and never referenced by semantic data.
+    macro_contracts.geometry_names=frozenset(d.name for u in units for d in u.defines if d.params is None)
+    macro_contracts.column_refs=set()
     projected = {u.path: projection(u.body, macro_contracts, known_names) for u in units}
     semantic_refs = set(t for value in projected.values() for t in value)
     raw_refs = set(t for u in units for t in u.body)
@@ -384,6 +428,16 @@ def signatures(units, macro_contracts=None, known_names=None):
                 semantic_refs.update(body)
         if semantic_refs == prior:
             break
+    column_objects=set()
+    def column_object(name,visiting):
+        if name in visiting:raise ValueError('Cyclic column geometry constant: '+name)
+        if name in column_objects:return
+        if name not in objects:raise ValueError('Unbound column geometry constant: '+name)
+        for body in objects[name]:
+            refs=arithmetic_names(body,objects.keys())
+            for ref in refs:column_object(ref,visiting|{name})
+        column_objects.add(name)
+    for name in macro_contracts.column_refs:column_object(name,set())
     if baseline:
         macro_contracts.paint_objects = {name for name in objects if name not in semantic_refs and name in raw_refs and
                                         all(not any(t in ('{', '}', ';', '#') for t in body) for body in objects[name])}
@@ -400,11 +454,106 @@ def signatures(units, macro_contracts=None, known_names=None):
                 if len(d.body) != 1 or not re.fullmatch(r'[0-5]', d.body[0]):
                     raise ValueError('UI font slot outside native0..5: ' + d.name)
                 value += ['#define', d.name, '@font-slot']
-            elif unit.path.lower().endswith('menudef.h') or d.name not in macro_contracts.paint_objects:
+            elif (unit.path.lower().endswith('menudef.h') or
+                  (d.name not in macro_contracts.paint_objects and not (d.name in column_objects and d.name not in semantic_refs))):
                 value += ['#define', d.name] + d.body
             # A referenced paint-only scalar/expression definition may restyle.
         result[unit.path] = value
     return result, macro_contracts
+
+
+PRIVATE_WIDGETS='ui/modern_widgets.h'
+ORIGINAL_WIDGETS='ui/menumacros.h'
+SETTINGS_NAV={
+    'ui/options_customise_game.menu':'game',
+    'ui/options_customise_hud.menu':'view',
+    'ui/options_controls.menu':'controls',
+    'ui/options_system.menu':'system',
+}
+NAV_TARGETS={'game':'options_customise_game','view':'options_customise_hud',
+             'controls':'options_controls','system':'options_system'}
+
+
+def layout_reference(reference,candidate):
+    """One explicit private paint header, bound to the original macro contract."""
+    result=dict(reference)
+    if PRIVATE_WIDGETS in candidate:
+        if ORIGINAL_WIDGETS not in reference:raise ValueError('Private widgets lack original macro reference')
+        result[PRIVATE_WIDGETS]=reference[ORIGINAL_WIDGETS]
+    return result
+
+
+def _back_action(unit):
+    matches=[];ts=unit.body;i=0
+    while i<len(ts):
+        if ts[i]=='BUTTON' and i+1<len(ts) and ts[i+1]=='(':
+            args,end=arguments(ts,i+1)
+            if len(args)==8 and len(args[4])==1 and args[4][0].strip('"').lower()=='back':matches.append(args[7])
+            i=end
+        else:i+=1
+    if len(matches)!=1:raise ValueError('Navigation must bind one exact original Back action: '+unit.path)
+    result=list(matches[0])
+    while result and result[-1]==';':result.pop()
+    return result
+
+
+def _navigation_fields(inner,contracts):
+    ts=projection(inner,contracts);result={};i=0
+    while i<len(ts):
+        key=ts[i].lower();i+=1
+        if key in result:raise ValueError('Duplicate navigation field: '+key)
+        if key=='decoration':result[key]=True
+        elif key in ('name','text','group','type','visible') and i<len(ts):
+            result[key]=ts[i];i+=1
+        elif key=='action':
+            end=group(ts,i);result[key]=ts[i+1:end-1];i=end
+        else:raise ValueError('Unapproved navigation behavior: '+key)
+    return result
+
+
+def normalize_layout(units,reference_units,contracts):
+    """Narrow layout exceptions; all other candidate content stays significant."""
+    reference={unit.path:unit for unit in reference_units}
+    private=PRIVATE_WIDGETS in {unit.path for unit in units}
+    result=[]
+    for unit in units:
+        ts=list(unit.body);seen=set();output=[];i=0
+        while i<len(ts):
+            if ts[i]=='#include' and i+1<len(ts) and ts[i+1]=='"'+PRIVATE_WIDGETS+'"':
+                original=reference.get(unit.path)
+                if (not private or Path(unit.path).name in ('main.menu','global.menu') or original is None or
+                        ['#include','"'+ORIGINAL_WIDGETS+'"'] not in [original.body[j:j+2] for j in range(len(original.body)-1)]):
+                    raise ValueError('Unapproved private widget include: '+unit.path)
+                output+=['#include','"'+ORIGINAL_WIDGETS+'"'];i+=2;continue
+            if ts[i].lower()=='itemdef' and i+1<len(ts) and ts[i+1]=='{':
+                end=group(ts,i+1);inner=ts[i+2:end-1]
+                name=next((inner[j+1] for j,t in enumerate(inner[:-1]) if t.lower()=='name'),None)
+                if name and name.strip('"').startswith('modern_nav_'):
+                    key=name.strip('"')[len('modern_nav_'):]
+                    if unit.path not in SETTINGS_NAV or key not in NAV_TARGETS or key in seen:
+                        raise ValueError('Unapproved/duplicate settings navigation: '+unit.path+' '+str(name))
+                    fields=_navigation_fields(inner,contracts)
+                    expected={'name':'"modern_nav_'+key+'"','text':'"'+key.upper()+'"','visible':'1'}
+                    if 'group' in fields:expected['group']='GROUP_NAME'
+                    if SETTINGS_NAV[unit.path]==key:expected['decoration']=True
+                    else:
+                        if 'type' in fields:expected['type']='ITEM_TYPE_BUTTON'
+                        expected['action']=_back_action(reference[unit.path])+[';','close','options',';','open',NAV_TARGETS[key]]
+                    if fields!=expected:raise ValueError('Settings navigation differs from exact original exit/target: '+unit.path+' '+key)
+                    seen.add(key);i=end;continue
+                # Items are inside a menuDef; recurse below to reach them.
+                output+=ts[i:end];i=end;continue
+            if ts[i].lower() in ('menudef','assetglobaldef') and i+1<len(ts) and ts[i+1]=='{':
+                end=group(ts,i+1)
+                nested=Unit(unit.path,ts[i+2:end-1],unit.defines,unit.raw)
+                # Recurse only into container content, preserving the per-menu
+                # all-four check below via the same local walk.
+                inside=normalize_layout([nested],reference_units,contracts)[0]
+                output += [ts[i],'{']+inside.body+['}'];i=end;continue
+            output.append(ts[i]);i+=1
+        if seen and seen!=set(NAV_TARGETS):raise ValueError('Incomplete settings category navigation: '+unit.path)
+        result.append(Unit(unit.path,output,unit.defines,unit.raw))
+    return result
 
 
 def source_files(root, all_files=False):
@@ -448,9 +597,10 @@ def inventory(root):
             'validator_sha256': {name: digest(Path(__file__).with_name(name).read_bytes())
                                  for name in ('semantic.py', 'inventory.py', 'check.py')},
             'limits': ['Source semantic projection, not engine/runtime/input validation.',
-                       'Exact scripts/lists/conditions/labels except numeric setitemcolor/setmenuitemcolor RGBA; unknown syntax significant.',
-                       'Existing menu/item identity/order retained; safe new label/action-free decorations allowed.',
-                       'Only declared paint properties, paint-only macro arguments and UI_FONT_* slots0..5 may vary.']}
+                       'Original scripts/lists/conditions/labels exact except numeric paint RGBA; unknown syntax significant.',
+                       'Existing identities/order retained; inert decorations and four exact Back-derived settings links explicitly checked.',
+                       'Declared paint, font slots0..5 and checked column position/width may vary; column count/order/maxChars protected.',
+                       'Only ui/modern_widgets.h may add a private copy of the original widget contract; main/global includes protected.']}
 
 
 def compare(manifest, original, edited, require_styled=False):
@@ -466,23 +616,25 @@ def compare(manifest, original, edited, require_styled=False):
     baseline = {p for p in baseline_files if Path(p).suffix.lower() in SEMANTIC_SUFFIXES}
     candidate = {p for p in candidate_files if p in baseline or Path(p).suffix.lower() in ('.menu', '.h') or
                  (Path(p).suffix.lower() == '.txt' and p.split('/')[0] in DIRECTORIES)}
+    reference_files=layout_reference({p:baseline_files[p] for p in baseline},candidate_files)
+    baseline=set(reference_files)
     if baseline != candidate:
         errors.append('Semantic file coverage differs: missing=' + str(sorted(baseline - candidate)) + ', extra=' + str(sorted(candidate - baseline)))
-    before_units = [parse(p, baseline_files[p]) for p in sorted(baseline)]
+    before_units = [parse(p, reference_files[p]) for p in sorted(baseline)]
     before, macro_contracts = signatures(before_units)
     after_units = [parse(p, candidate_files[p]) for p in sorted(candidate)]
     names = set()
     for u in before_units:
         for ts in [u.body] + [d.body for d in u.defines]:
             names.update(ts[i + 1] for i, t in enumerate(ts[:-1]) if t.lower() == 'name')
-    after, _ = signatures(after_units, macro_contracts, names)
+    after, _ = signatures(normalize_layout(after_units,before_units,macro_contracts), macro_contracts, names)
     compared = []
     for path in sorted(baseline & candidate):
         same = before[path] == after[path]
         if not same:
             index = next((i for i, pair in enumerate(zip(before[path], after[path])) if pair[0] != pair[1]), min(len(before[path]), len(after[path])))
             errors.append(path + ': semantic difference at token ' + str(index) + ': ' + repr(before[path][max(0,index-3):index+5]) + ' -> ' + repr(after[path][max(0,index-3):index+5]))
-        compared.append({'path': path, 'same_semantics': same, 'source_sha256': digest(baseline_files[path]), 'edited_sha256': digest(candidate_files[path])})
+        compared.append({'path': path, 'same_semantics': same, 'source_sha256': digest(reference_files[path]), 'edited_sha256': digest(candidate_files[path])})
     raw_before = {u.path: u.raw for u in before_units}
     unstyled = [u.path for u in after_units if u.path.lower().endswith('.menu') and
                 u.path in raw_before and u.raw == raw_before[u.path]]

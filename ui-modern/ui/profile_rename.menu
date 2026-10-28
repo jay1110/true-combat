@@ -2,15 +2,15 @@
 
 // Defines //
 
-#define WINDOW_X		0
-#define WINDOW_Y		0
-#define WINDOW_WIDTH	852
-#define WINDOW_HEIGHT	480
+#define WINDOW_X 0
+#define WINDOW_Y 0
+#define WINDOW_WIDTH 852
+#define WINDOW_HEIGHT 480
 #define GROUP_NAME		"grpProfileRename"
 
 // Macros //
 
-#include "ui/menumacros.h"
+#include "ui/modern_widgets.h"
 		
 // Rename Profile Menu //
 	
@@ -40,7 +40,7 @@ menuDef {
 
 	itemDef {
 		name		"background"
-		rect		-5 -110 862 700
+		rect		0 0 852 480
 		style		WINDOW_STYLE_FILLED
 		background	"ui/assets/fadebox.tga"
 		backcolor	.015 .025 .04 .72
@@ -55,24 +55,35 @@ menuDef {
 #define SUBWINDOW_X			.5*(WINDOW_WIDTH-SUBWINDOW_WIDTH)
 #define SUBWINDOW_Y			.5*(WINDOW_HEIGHT-SUBWINDOW_HEIGHT)
 
-	SUBWINDOWBLACK( SUBWINDOW_X, SUBWINDOW_Y, SUBWINDOW_WIDTH, SUBWINDOW_HEIGHT, "RENAME PROFILE" )
+	SUBWINDOWBLACK( 0, 0, 852, 432, "RENAME PROFILE" )
+    itemDef {
+        name "modern_browse_card_0"
+        rect 144 152 564 136
+        style WINDOW_STYLE_FILLED
+        backcolor .035 .055 .075 .94
+        border WINDOW_BORDER_FULL
+        bordercolor .18 .24 .29 .65
+        visible 1
+        decoration
+    }
+
 	itemDef {
 		name		"efleftbackNew Profile Name:"
 		group		GROUP_NAME
-		rect		$evalfloat((SUBWINDOW_X+4)+104+6) $evalfloat(SUBWINDOW_Y+16) $evalfloat((SUBWINDOW_WIDTH)-8-104-6) $evalfloat(10)
+		rect		308 204 376 32
 		style		WINDOW_STYLE_FILLED
 		backcolor	.12 .17 .22 .96
 		visible		1
 		decoration
 	}
-	EDITFIELDLEFT( SUBWINDOW_X+4, SUBWINDOW_Y+16, (SUBWINDOW_WIDTH)-8, 10, "New Profile Name:", .2, 8, "ui_profile_renameto", 32, 23, "" )
+	EDITFIELDLEFT( 168, 204, 516, 32, "New Profile Name:", .30, 23, "ui_profile_renameto", 32, 23, "" )
 	
-	BUTTON( SUBWINDOW_X+6, SUBWINDOW_Y+SUBWINDOW_HEIGHT-24, .5*(SUBWINDOW_WIDTH-18), 18, "BACK", .3, 14, close profile_rename ; open profile_sub )
+	BUTTON( 24, 442, 184, 28, "BACK", .27, 20, close profile_rename ; open profile_sub )
 //	BUTTON( SUBWINDOW_X+6+.5*(SUBWINDOW_WIDTH-18)+6, SUBWINDOW_Y+SUBWINDOW_HEIGHT-24, .5*(SUBWINDOW_WIDTH-18), 18, "RENAME", .3, 14, conditionalscript ui_profile_renameto 1
 //																											( "close profile_rename ; uiscript renameProfile ; open profile_sub" )
 //																											( "open profile_rename" ) )
 
-	BUTTON( SUBWINDOW_X+6+.5*(SUBWINDOW_WIDTH-18)+6, SUBWINDOW_Y+SUBWINDOW_HEIGHT-24, .5*(SUBWINDOW_WIDTH-18), 18, "RENAME", .3, 14, conditionalscript ui_profile_renameto 1
+	BUTTON( 638, 442, 190, 28, "RENAME", .27, 20, conditionalscript ui_profile_renameto 1
 																																		( "close profile_rename" )
 																																		( "setcvar ui_profile_create_error \\\"Can't rename profile. Please enter a profile name.\\\" ; open profile_create_error ; abort" )
 																																	 conditionalscript UIProfileAlreadyExists_Rename 2

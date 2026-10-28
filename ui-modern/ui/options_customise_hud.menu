@@ -2,15 +2,15 @@
 
 // Defines //
 
-#define WINDOW_X		$evalfloat((.5*852)-(WINDOW_WIDTH*.5))
-#define WINDOW_Y		$evalfloat((.5*480)-(WINDOW_HEIGHT*.5))
-#define WINDOW_WIDTH	400
-#define WINDOW_HEIGHT	268
+#define WINDOW_X 0
+#define WINDOW_Y 0
+#define WINDOW_WIDTH 852
+#define WINDOW_HEIGHT 480
 #define GROUP_NAME		"grpOptionsCustomiseHud"
 
 // Macros //
 
-#include "ui/menumacros.h"
+#include "ui/modern_widgets.h"
 
 // Customise Hud Menu //
 	
@@ -29,16 +29,50 @@ menuDef {
 
 	itemDef {
 		name		"background"
-		rect		-231 -191 862 650
+		rect		0 0 852 480
 		style		WINDOW_STYLE_FILLED
 		background	"ui/assets/fadebox.tga"
-		backcolor	.015 .025 .04 .72
+		backcolor	.025 .035 .05 .97
 		visible		1
 		decoration
 	}
 // Window //
 
 	WINDOW( "View", 94 )
+// modern settings desktop v1
+    itemDef {
+        name "modern_settings_card_0"
+        rect 24 60 384 198
+        style WINDOW_STYLE_FILLED
+        backcolor .045 .065 .085 .98
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_accent_0"
+        rect 24 60 3 16
+        style WINDOW_STYLE_FILLED
+        backcolor .94 .75 .27 .95
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_card_1"
+        rect 444 60 384 290
+        style WINDOW_STYLE_FILLED
+        backcolor .045 .065 .085 .98
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_accent_1"
+        rect 444 60 3 16
+        style WINDOW_STYLE_FILLED
+        backcolor .94 .75 .27 .95
+        visible 1
+        decoration
+    }
+
 
 // Subwindows //
 
@@ -47,30 +81,71 @@ menuDef {
 
 // Hud Display //
 
-	SUBWINDOW( 6, 32, (SUBWINDOW_WIDTH), 88, "HUD Display" )
-	YESNO( 8, 48, (SUBWINDOW_WIDTH)-4, 10, "Draw FPS:", .2, 8, "cg_drawFPS", "Show frames per second" )
-	YESNO( 8, 60, (SUBWINDOW_WIDTH)-4, 10, "Show Lagometer:", .2, 8, "cg_lagometer", "Show lagometer" )
-	YESNO( 8, 72, (SUBWINDOW_WIDTH)-4, 10, "Show Compass:", .2, 8, "cg_drawCompass", "Displays compass (with icons when near select events)" )
-	MULTI( 8, 84, (SUBWINDOW_WIDTH)-4, 10, "Mission Timer:", .2, 8, "cg_drawRoundTimer", cvarFloatList { "Off" 0 "On" 1 }, "Show mission time" )
+	SUBWINDOW( 24, 60, 384, 198, "HUD Display" )
+	YESNO( 32, 78, 368, 30, "Draw FPS:", .22, 14, "cg_drawFPS", "Show frames per second" )
+	YESNO( 32, 108, 368, 30, "Show Lagometer:", .22, 14, "cg_lagometer", "Show lagometer" )
+	YESNO( 32, 138, 368, 30, "Show Compass:", .22, 14, "cg_drawCompass", "Displays compass (with icons when near select events)" )
+	MULTI( 32, 168, 368, 30, "Mission Timer:", .22, 14, "cg_drawRoundTimer", cvarFloatList { "Off" 0 "On" 1 }, "Show mission time" )
 //	MULTI( 8, 96, (SUBWINDOW_WIDTH)-4, 10, "Cursor Hints:", .2, 8, "cg_cursorHints", cvarFloatList { "Off" 0 "Size Pulse" 1 "Strobe Pulse" 2 "Alpha Pulse" 3 "Solid" 4 }, "Icon display format when near an action item" )
-	MULTI( 8, 96, (SUBWINDOW_WIDTH)-4, 10, "Cursor Hints:", .2, 8, "cg_cursorHints", cvarFloatList { "Off" 0 "On" 1 }, "Icon display when near an action item" )
-	MULTI( 8, 108, (SUBWINDOW_WIDTH)-4, 10, "Player Icons:", .2, 8, "cg_drawFriend", cvarFloatList { "Off" 0 "Visible" 1 "Always" 2}, "Show floating icon indicating team mates" )
+	MULTI( 32, 198, 368, 30, "Cursor Hints:", .22, 14, "cg_cursorHints", cvarFloatList { "Off" 0 "On" 1 }, "Icon display when near an action item" )
+	MULTI( 32, 228, 368, 30, "Player Icons:", .22, 14, "cg_drawFriend", cvarFloatList { "Off" 0 "Visible" 1 "Always" 2}, "Show floating icon indicating team mates" )
 
 
 // In-Game Display //
-	SUBWINDOW( 6, 298-184+12, (SUBWINDOW_WIDTH), 112, "In-Game Display" )
-	MULTI( 8, 314-184+12, (SUBWINDOW_WIDTH)-4, 10, "Ejecting Brass:", .2, 8, "cg_brassTime", cvarFloatList { "High" 15000 "Med" 2500 "Off" 0 }, "" )
+	SUBWINDOW( 444, 60, 384, 290, "In-Game Display" )
+	MULTI( 452, 78, 368, 34, "Ejecting Brass:", .22, 14, "cg_brassTime", cvarFloatList { "High" 15000 "Med" 2500 "Off" 0 }, "" )
 //	YESNO( 8, 326-184+12, (SUBWINDOW_WIDTH)-4, 10, "Low Quality Sky:", .2, 8, "r_fastsky", "" )
-	SLIDER( 8, 326-184+12, (SUBWINDOW_WIDTH)-4, 10, "Dynamic Eye:", .2, 8, "cg_dynamicEye" 0.0 0.0 1.0, "Use the slider to increase or decrease HDR dynamic light adaptation" )
+	SLIDER( 452, 112, 368, 34, "Dynamic Eye:", .22, 14, "cg_dynamicEye" 0.0 0.0 1.0, "Use the slider to increase or decrease HDR dynamic light adaptation" )
 	
-	MULTI( 8, 338-184+12, (SUBWINDOW_WIDTH)-4, 10, "Corona Distance:", .2, 8, "cg_coronafardist", cvarFloatList { "Off" 0 "Near" 800 "Normal" 1536 "Far" 4096 "Extreme" 16000 }, "" )
-	YESNO( 8, 350-184+12, (SUBWINDOW_WIDTH)-4, 10, "Particles:", .2, 8, "cg_wolfparticles", "" )
-	MULTI( 8, 362-184+12, (SUBWINDOW_WIDTH)-4, 10, "Wall Mark Lifetime:", .2, 8, "cg_markTime", cvarFloatList { "Long" 30000 "Normal" 20000 "Short" 10000 "Off" 0 }, "" )
-	MULTI( 8, 374-184+12, (SUBWINDOW_WIDTH)-4, 10, "Blood Flash:", .2, 8, "cg_bloodFlash", cvarFloatList { "None" 0.0 "Light" 0.25 "Medium" 0.5 "Heavy" 0.75 "Full" 1.0 }, "Red blood \"flash\" scale when receiving damage" )
-	MULTI( 8, 386-184+12, (SUBWINDOW_WIDTH)-4, 10, "Blood Splatter:", .2, 8, "cg_bloodDamageBlend", cvarFloatList { "None" 0.0 "Light" 0.25 "Medium" 0.5 "Heavy" 0.75 "Full" 1.0 }, "Blood \"splatter\" transparency when taking damage from other players" )
-	MULTI( 8, 398-184+12, (SUBWINDOW_WIDTH)-4, 10, "Gun Position:", .2, 8, "cg_gunPosition", cvarFloatList { "More centered" 0 "Default" 1 "More to right" 2  }, "Horizontal position of view weapon" )
+	MULTI( 452, 146, 368, 34, "Corona Distance:", .22, 14, "cg_coronafardist", cvarFloatList { "Off" 0 "Near" 800 "Normal" 1536 "Far" 4096 "Extreme" 16000 }, "" )
+	YESNO( 452, 180, 368, 34, "Particles:", .22, 14, "cg_wolfparticles", "" )
+	MULTI( 452, 214, 368, 34, "Wall Mark Lifetime:", .22, 14, "cg_markTime", cvarFloatList { "Long" 30000 "Normal" 20000 "Short" 10000 "Off" 0 }, "" )
+	MULTI( 452, 248, 368, 34, "Blood Flash:", .22, 14, "cg_bloodFlash", cvarFloatList { "None" 0.0 "Light" 0.25 "Medium" 0.5 "Heavy" 0.75 "Full" 1.0 }, "Red blood \"flash\" scale when receiving damage" )
+	MULTI( 452, 282, 368, 34, "Blood Splatter:", .22, 14, "cg_bloodDamageBlend", cvarFloatList { "None" 0.0 "Light" 0.25 "Medium" 0.5 "Heavy" 0.75 "Full" 1.0 }, "Blood \"splatter\" transparency when taking damage from other players" )
+	MULTI( 452, 316, 368, 34, "Gun Position:", .22, 14, "cg_gunPosition", cvarFloatList { "More centered" 0 "Default" 1 "More to right" 2  }, "Horizontal position of view weapon" )
 	
 // Buttons //
 
-	BUTTON( 6, WINDOW_HEIGHT-24, WINDOW_WIDTH-12, 18, "Back", .3, 14, close options_customise_hud ; open options )
+	BUTTON( 24, 442, 180, 26, "Back", .27, 18, close options_customise_hud ; open options )
+
+itemDef {
+            name "modern_nav_game" rect 280 12 132 30
+            text "GAME" textfont UI_FONT_ARIBLK_27 textscale .27
+            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            style WINDOW_STYLE_FILLED
+            backcolor .08 .12 .16 1
+            forecolor .84 .89 .94 1
+            visible 1 type ITEM_TYPE_BUTTON
+ action { close options_customise_hud ; open options ; close options ; open options_customise_game }
+        }
+itemDef {
+            name "modern_nav_view" rect 417 12 132 30
+            text "VIEW" textfont UI_FONT_ARIBLK_27 textscale .27
+            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            style WINDOW_STYLE_FILLED
+            backcolor .94 .75 .27 1
+            forecolor .025 .035 .05 1
+            visible 1 decoration
+        }
+itemDef {
+            name "modern_nav_controls" rect 554 12 132 30
+            text "CONTROLS" textfont UI_FONT_ARIBLK_27 textscale .27
+            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            style WINDOW_STYLE_FILLED
+            backcolor .08 .12 .16 1
+            forecolor .84 .89 .94 1
+            visible 1 type ITEM_TYPE_BUTTON
+ action { close options_customise_hud ; open options ; close options ; open options_controls }
+        }
+itemDef {
+            name "modern_nav_system" rect 691 12 132 30
+            text "SYSTEM" textfont UI_FONT_ARIBLK_27 textscale .27
+            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            style WINDOW_STYLE_FILLED
+            backcolor .08 .12 .16 1
+            forecolor .84 .89 .94 1
+            visible 1 type ITEM_TYPE_BUTTON
+ action { close options_customise_hud ; open options ; close options ; open options_system }
+        }
+
 }

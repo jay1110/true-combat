@@ -2,15 +2,15 @@
 
 // Defines //
 
-#define WINDOW_X		$evalfloat((.5*852)-(WINDOW_WIDTH*.5))
-#define WINDOW_Y		$evalfloat((.5*480)-(WINDOW_HEIGHT*.5))
-#define WINDOW_WIDTH	400
-#define WINDOW_HEIGHT	398
+#define WINDOW_X 0
+#define WINDOW_Y 0
+#define WINDOW_WIDTH 852
+#define WINDOW_HEIGHT 480
 #define GROUP_NAME		"grpOptionsSystem"
 
 // Macros //
 
-#include "ui/menumacros.h"
+#include "ui/modern_widgets.h"
 		
 // System Menu //
 	
@@ -38,16 +38,66 @@ menuDef {
 
 	itemDef {
 		name		"background"
-		rect		-231 -138 862 660
+		rect		0 0 852 480
 		style		WINDOW_STYLE_FILLED
 		background	"ui/assets/fadebox.tga"
-		backcolor	.015 .025 .04 .72
+		backcolor	.025 .035 .05 .97
 		visible		1
 		decoration
 	}
 // Window //
 
 	WINDOW( "System", 90 )
+// modern settings desktop v1
+    itemDef {
+        name "modern_settings_card_0"
+        rect 24 60 232 108
+        style WINDOW_STYLE_FILLED
+        backcolor .045 .065 .085 .98
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_accent_0"
+        rect 24 60 3 16
+        style WINDOW_STYLE_FILLED
+        backcolor .94 .75 .27 .95
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_card_1"
+        rect 24 222 232 52
+        style WINDOW_STYLE_FILLED
+        backcolor .045 .065 .085 .98
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_accent_1"
+        rect 24 222 3 16
+        style WINDOW_STYLE_FILLED
+        backcolor .94 .75 .27 .95
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_card_2"
+        rect 282 60 546 312
+        style WINDOW_STYLE_FILLED
+        backcolor .045 .065 .085 .98
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_accent_2"
+        rect 282 60 3 16
+        style WINDOW_STYLE_FILLED
+        backcolor .94 .75 .27 .95
+        visible 1
+        decoration
+    }
+
 	
 // Subwindows //
 
@@ -56,38 +106,38 @@ menuDef {
 	
 // Audio //
 
-	SUBWINDOW( 6, 32, (SUBWINDOW_WIDTH), 52, "AUDIO" )
-	SLIDER( 8, 48, (SUBWINDOW_WIDTH)-4, 10, "Effects Volume:", .2, 8, "s_volume" .7 0 1, "" )
-	SLIDER( 8, 60, (SUBWINDOW_WIDTH)-4, 10, "Music Volume:", .2, 8, "s_musicvolume" .25 0 1, "" )
+	SUBWINDOW( 24, 60, 232, 108, "AUDIO" )
+	SLIDER( 32, 78, 216, 30, "Effects Volume:", .22, 14, "s_volume" .7 0 1, "" )
+	SLIDER( 32, 108, 216, 30, "Music Volume:", .22, 14, "s_musicvolume" .25 0 1, "" )
 	//MULTI( 8, 72, (SUBWINDOW_WIDTH)-4, 10, "Sound Quality:", .2, 8, "ui_s_khz", cvarFloatList { "11 khz (low)" 11 "22 khz (high)" 22 "44 khz (ultra high)" 44 }, "" )
-	MULTI( 8, 72, (SUBWINDOW_WIDTH)-4, 10, "Sound Quality:", .2, 8, "ui_s_khz", cvarFloatList { "44 khz (Normal)" 44 }, "" )
+	MULTI( 32, 138, 216, 30, "Sound Quality:", .22, 14, "ui_s_khz", cvarFloatList { "44 khz (Normal)" 44 }, "" )
 	//YESNOACTION( 8, 72, (SUBWINDOW_WIDTH)-4, 10, "Low Sound Quality:", .2, 8, "ui_r_detailtextures", uiScript glCustom, "" )
 	
 	
 // Video //
 
 	//SUBWINDOW( 6, 90, (SUBWINDOW_WIDTH), 196, "VIDEO" )
-	SUBWINDOW( 6, 90, (SUBWINDOW_WIDTH), 244, "VIDEO" )
-	MULTIACTION( 8, 106, (SUBWINDOW_WIDTH)-4, 10, "Video Quality:", .2, 8, "ui_glCustom", cvarFloatList { "Fastest" 3 "Fast" 2 "Normal" 1 "High" 0 }, uiScript update "ui_glCustom", "" )
+	SUBWINDOW( 282, 60, 546, 312, "VIDEO" )
+	MULTIACTION( 282, 128, 262, 28, "Video Quality:", .22, 14, "ui_glCustom", cvarFloatList { "Fastest" 3 "Fast" 2 "Normal" 1 "High" 0 }, uiScript update "ui_glCustom", "" )
 	
-	MULTI( 8, 118, (SUBWINDOW_WIDTH)-4, 10, "Aspect Ratio:", .2, 8, "cg_aspectMode", cvarFloatList { "16:9" 0 "16:10" 1 "4:3" 2}, "" )
-	MULTI( 8, 130, (SUBWINDOW_WIDTH)-4, 10, "Field of View:", .2, 8, "cg_aspectFOVMode", cvarFloatList { "Fixed Horizontal" 0 "Fixed Area" 1 "Fixed Vertical" 2}, "" )
+	MULTI( 282, 158, 262, 28, "Aspect Ratio:", .22, 14, "cg_aspectMode", cvarFloatList { "16:9" 0 "16:10" 1 "4:3" 2}, "" )
+	MULTI( 282, 188, 262, 28, "Field of View:", .22, 14, "cg_aspectFOVMode", cvarFloatList { "Fixed Horizontal" 0 "Fixed Area" 1 "Fixed Vertical" 2}, "" )
 	  
-	MULTIACTION( 8, 142, (SUBWINDOW_WIDTH)-4, 10, "Resolution:", .2, 8, "ui_r_mode", cvarFloatList { "640*480 Standard Screen 4:3" 3 "800*600 Standard Screen 4:3" 4 "960*720 Standard Screen 4:3" 5 "1024*768 Standard Screen 4:3" 6 "1152*864 Standard Screen 4:3" 7 "1280*1024 Standard Screen 5:4" 8 "1600*1200 Standard Screen 4:3" 9 "2048*1536 Standard Screen 4:3" 10 "856*480 Wide Screen 16:9" 11 "1024*576 Wide Screen 16:9" 12 "1280*720 Wide Screen 16:9" 13 "1360*768 Wide Screen 16:9" 14 "1600*900 Wide Screen 16:9" 15 "1920*1080 Wide Screen 16:9" 16 "1024*640 Wide Screen 16:10" 17 "1280*800 Wide Screen 16:10" 18 "1440*900 Wide Screen 16:10" 19 "1600*1000 Wide Screen 16:10" 20 "1680*1050 Wide Screen 16:10" 21 "1920*1200 Wide Screen 16:10" 22}, uiScript glCustom, "" )
-	MULTIACTION( 8, 154, (SUBWINDOW_WIDTH)-4, 10, "Color Depth:", .2, 8, "ui_r_colorbits", cvarFloatList { "Desktop Default" 0 "16-bit" 16 "32-bit" 32 }, uiScript glCustom, "" )
-	YESNOACTION( 8, 166, (SUBWINDOW_WIDTH)-4, 10, "Fullscreen:", .2, 8, "ui_r_fullscreen", uiScript glCustom, "" )
-	MULTIACTION( 8, 178, (SUBWINDOW_WIDTH)-4, 10, "Geometric Detail:", .2, 8, "ui_r_lodbias", cvarFloatList { "Low" 2 "Medium" 1 "High" 0 }, uiScript glCustom ; uiScript update "r_lodbias", "" )
-	MULTIACTION( 8, 190, (SUBWINDOW_WIDTH)-4, 10, "Texture Detail:", .2, 8, "ui_r_picmip", cvarFloatList { "Low" 2 "Medium" 1 "High" 0 }, uiScript glCustom, "" )
-	MULTIACTION( 8, 202, (SUBWINDOW_WIDTH)-4, 10, "Texture Quality:", .2, 8, "ui_r_texturebits", cvarFloatList { "Default" 0 "16-bit" 16 "32-bit" 32 }, uiScript glCustom, "" )
-	MULTIACTION( 8, 214, (SUBWINDOW_WIDTH)-4, 10, "Texture Filter:", .2, 8, "ui_r_texturemode", cvarStrList { "Bilinear"; "GL_LINEAR_MIPMAP_NEAREST"; "Trilinear"; "GL_LINEAR_MIPMAP_LINEAR" }, uiScript glCustom, "" )
-	YESNOACTION( 8, 226, (SUBWINDOW_WIDTH)-4, 10, "Detail Textures:", .2, 8, "ui_r_detailtextures", uiScript glCustom, "" )
-	MULTIACTION( 8, 238, (SUBWINDOW_WIDTH)-4, 10, "Depth Buffer:", .2, 8, "ui_r_depthbits", cvarFloatList { "Default" 0 "16-bit" 16 "24-bit" 24 }, uiScript glCustom, "" )
-	YESNOACTION( 8, 250, (SUBWINDOW_WIDTH)-4, 10, "Compress Textures:", .2, 8, "ui_r_ext_compressed_textures", uiScript glCustom, "" )
-	YESNOACTION( 8, 262, (SUBWINDOW_WIDTH)-4, 10, "Sync Every Frame:", .2, 8, "ui_r_finish", uiScript glCustom, "" )
-	MULTIACTION( 8, 274, (SUBWINDOW_WIDTH)-4, 10, "Dynamic Lights:", .2, 8, "ui_r_dynamiclight", cvarFloatList { "Disabled" 0 "Enabled (Single Pass)" 1 "Enabled (Multipass)" 2 }, uiScript glCustom, "" )
-	MULTIACTION( 8, 286, (SUBWINDOW_WIDTH)-4, 10, "GL Extensions:", .2, 8, "ui_r_allowExtensions", cvarFloatList { "Enabled" 1 "Disabled" 0 }, uiScript glCustom , "")
+	MULTIACTION( 282, 86, 546, 30, "Resolution:", .22, 14, "ui_r_mode", cvarFloatList { "640*480 Standard Screen 4:3" 3 "800*600 Standard Screen 4:3" 4 "960*720 Standard Screen 4:3" 5 "1024*768 Standard Screen 4:3" 6 "1152*864 Standard Screen 4:3" 7 "1280*1024 Standard Screen 5:4" 8 "1600*1200 Standard Screen 4:3" 9 "2048*1536 Standard Screen 4:3" 10 "856*480 Wide Screen 16:9" 11 "1024*576 Wide Screen 16:9" 12 "1280*720 Wide Screen 16:9" 13 "1360*768 Wide Screen 16:9" 14 "1600*900 Wide Screen 16:9" 15 "1920*1080 Wide Screen 16:9" 16 "1024*640 Wide Screen 16:10" 17 "1280*800 Wide Screen 16:10" 18 "1440*900 Wide Screen 16:10" 19 "1600*1000 Wide Screen 16:10" 20 "1680*1050 Wide Screen 16:10" 21 "1920*1200 Wide Screen 16:10" 22}, uiScript glCustom, "" )
+	MULTIACTION( 282, 218, 262, 28, "Color Depth:", .22, 14, "ui_r_colorbits", cvarFloatList { "Desktop Default" 0 "16-bit" 16 "32-bit" 32 }, uiScript glCustom, "" )
+	YESNOACTION( 282, 248, 262, 28, "Fullscreen:", .22, 14, "ui_r_fullscreen", uiScript glCustom, "" )
+	MULTIACTION( 282, 278, 262, 28, "Geometric Detail:", .22, 14, "ui_r_lodbias", cvarFloatList { "Low" 2 "Medium" 1 "High" 0 }, uiScript glCustom ; uiScript update "r_lodbias", "" )
+	MULTIACTION( 282, 308, 262, 28, "Texture Detail:", .22, 14, "ui_r_picmip", cvarFloatList { "Low" 2 "Medium" 1 "High" 0 }, uiScript glCustom, "" )
+	MULTIACTION( 282, 338, 262, 28, "Texture Quality:", .22, 14, "ui_r_texturebits", cvarFloatList { "Default" 0 "16-bit" 16 "32-bit" 32 }, uiScript glCustom, "" )
+	MULTIACTION( 566, 128, 262, 28, "Texture Filter:", .22, 14, "ui_r_texturemode", cvarStrList { "Bilinear"; "GL_LINEAR_MIPMAP_NEAREST"; "Trilinear"; "GL_LINEAR_MIPMAP_LINEAR" }, uiScript glCustom, "" )
+	YESNOACTION( 566, 158, 262, 28, "Detail Textures:", .22, 14, "ui_r_detailtextures", uiScript glCustom, "" )
+	MULTIACTION( 566, 188, 262, 28, "Depth Buffer:", .22, 14, "ui_r_depthbits", cvarFloatList { "Default" 0 "16-bit" 16 "24-bit" 24 }, uiScript glCustom, "" )
+	YESNOACTION( 566, 218, 262, 28, "Compress Textures:", .22, 14, "ui_r_ext_compressed_textures", uiScript glCustom, "" )
+	YESNOACTION( 566, 248, 262, 28, "Sync Every Frame:", .22, 14, "ui_r_finish", uiScript glCustom, "" )
+	MULTIACTION( 566, 278, 262, 28, "Dynamic Lights:", .22, 14, "ui_r_dynamiclight", cvarFloatList { "Disabled" 0 "Enabled (Single Pass)" 1 "Enabled (Multipass)" 2 }, uiScript glCustom, "" )
+	MULTIACTION( 566, 308, 262, 28, "GL Extensions:", .22, 14, "ui_r_allowExtensions", cvarFloatList { "Enabled" 1 "Disabled" 0 }, uiScript glCustom, "" )
 
-	BUTTON( 8+.5*((SUBWINDOW_WIDTH)-196), 276+24, 196, 14, "CALIBRATE BRIGHTNESS", .24, 11, uiScript vidReset ;
+	BUTTON( 282, 382, 262, 30, "CALIBRATE BRIGHTNESS", .27, 18, uiScript vidReset ;
 																					uiScript systemCvarsReset ;
 																					close options_system ;
 																					open background_black ;
@@ -95,21 +145,60 @@ menuDef {
 																					fadeinmenu background_black ;
 																					open options_system_gamma )
 																					
-	BUTTON( 8+.5*((SUBWINDOW_WIDTH)-196), 292+24, 196, 14, "SET RECOMMENDED", .24, 11, uiScript vidReset ;
+	BUTTON( 566, 382, 262, 30, "SET RECOMMENDED", .27, 18, uiScript vidReset ;
 																					uiScript systemCvarsReset ;
 																					open rec_restart )
 
 // Networking //
 
-	SUBWINDOW( 6, 316+24, (SUBWINDOW_WIDTH), 28, "NETWORKING" )
-	MULTIACTION( 8, 332+24, (SUBWINDOW_WIDTH)-4, 10, "Connection:", .2, 8, "ui_rate", cvarFloatList { "Modem" 4000 "ISDN" 5000 "LAN/CABLE/xDSL" 25000 } cvarListUndefined "Unselected", uiScript update "ui_setRate", "" )
+	SUBWINDOW( 24, 222, 232, 52, "NETWORKING" )
+	MULTIACTION( 32, 240, 216, 34, "Connection:", .22, 14, "ui_rate", cvarFloatList { "Modem" 4000 "ISDN" 5000 "LAN/CABLE/xDSL" 25000 } cvarListUndefined "Unselected", uiScript update "ui_setRate", "" )
 
 // Buttons //
 	
-	BUTTON( 6, WINDOW_HEIGHT-24, .5*(WINDOW_WIDTH-18), 18, "BACK", .3, 14,
-		uiScript vidReset ; close options_system ; open options )
-	BUTTON( 6+.5*(WINDOW_WIDTH-18)+6, WINDOW_HEIGHT-24, .5*(WINDOW_WIDTH-18), 18, "APPLY", .3, 14,
-		conditionalScript vidrestartIsRequired 2
+	BUTTON( 24, 442, 180, 26, "BACK", .27, 18, uiScript vidReset ; close options_system ; open options )
+	BUTTON( 624, 442, 204, 26, "APPLY", .27, 18, conditionalScript vidrestartIsRequired 2
 		( "open vid_restart" )
 		( "uiScript vidReset ; uiScript systemCvarsApply ; close options_system ; open options" ) )
+
+itemDef {
+            name "modern_nav_game" rect 280 12 132 30
+            text "GAME" textfont UI_FONT_ARIBLK_27 textscale .27
+            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            style WINDOW_STYLE_FILLED
+            backcolor .08 .12 .16 1
+            forecolor .84 .89 .94 1
+            visible 1 type ITEM_TYPE_BUTTON
+ action { uiScript vidReset ; close options_system ; open options ; close options ; open options_customise_game }
+        }
+itemDef {
+            name "modern_nav_view" rect 417 12 132 30
+            text "VIEW" textfont UI_FONT_ARIBLK_27 textscale .27
+            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            style WINDOW_STYLE_FILLED
+            backcolor .08 .12 .16 1
+            forecolor .84 .89 .94 1
+            visible 1 type ITEM_TYPE_BUTTON
+ action { uiScript vidReset ; close options_system ; open options ; close options ; open options_customise_hud }
+        }
+itemDef {
+            name "modern_nav_controls" rect 554 12 132 30
+            text "CONTROLS" textfont UI_FONT_ARIBLK_27 textscale .27
+            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            style WINDOW_STYLE_FILLED
+            backcolor .08 .12 .16 1
+            forecolor .84 .89 .94 1
+            visible 1 type ITEM_TYPE_BUTTON
+ action { uiScript vidReset ; close options_system ; open options ; close options ; open options_controls }
+        }
+itemDef {
+            name "modern_nav_system" rect 691 12 132 30
+            text "SYSTEM" textfont UI_FONT_ARIBLK_27 textscale .27
+            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            style WINDOW_STYLE_FILLED
+            backcolor .94 .75 .27 1
+            forecolor .025 .035 .05 1
+            visible 1 decoration
+        }
+
 }

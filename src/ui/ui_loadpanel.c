@@ -1,5 +1,8 @@
 #include "ui_local.h"
 #include "ui_shared.h"
+#include "tce_modern_ui.h"
+
+const char *UI_DownloadInfo(const char *downloadName);
 
 qboolean   bg_loadscreeninited = qfalse;
 fontInfo_t bg_loadscreenfont1;
@@ -156,6 +159,7 @@ panel_button_t *loadpanelButtons[] =
 CG_DrawConnectScreen
 ================
 */
+#include "ui_modern_loadpanel.inc"
 static qboolean connect_ownerdraw;
 void UI_DrawLoadPanel(qboolean forcerefresh, qboolean ownerdraw, qboolean uihack)
 {
@@ -173,6 +177,13 @@ void UI_DrawLoadPanel(qboolean forcerefresh, qboolean ownerdraw, qboolean uihack
 	connect_ownerdraw = ownerdraw;
 
 	inside = qtrue;
+	if (TCE_ModernUIEnabled())
+	{
+		UI_DrawModernLoadPanel(ownerdraw);
+		if (!uihack && trap_Cvar_VariableValue("ui_connecting")) trap_Cvar_Set("ui_connecting", "0");
+		inside = qfalse;
+		return;
+	}
 
 	if (!bg_loadscreeninited)
 	{

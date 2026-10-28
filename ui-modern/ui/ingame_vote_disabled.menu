@@ -1,16 +1,15 @@
 #include "ui/menudef.h"
 
 // Defines //
-
-#define WINDOW_X		$evalfloat((.5*852)-(WINDOW_WIDTH*.5))
-#define WINDOW_Y		$evalfloat((.5*480)-(WINDOW_HEIGHT*.5))
-#define WINDOW_WIDTH	640
-#define WINDOW_HEIGHT	480
+#define WINDOW_X 0
+#define WINDOW_Y 0
+#define WINDOW_WIDTH 852
+#define WINDOW_HEIGHT 480
 #define GROUP_NAME		"grpIngameVoteDisabled"
 
 // Macros //
 
-#include "ui/menumacros.h"
+#include "ui/modern_widgets.h"
 		
 // Vote Disabled Menu //
 	
@@ -49,15 +48,15 @@ menuDef {
 
 // Subwindows //
 
-#define SUBWINDOW_WIDTH		192
-#define SUBWINDOW_HEIGHT	80
-#define SUBWINDOW_X			.5*(WINDOW_WIDTH-SUBWINDOW_WIDTH)
-#define SUBWINDOW_Y			.5*(WINDOW_HEIGHT-SUBWINDOW_HEIGHT)
+#define SUBWINDOW_WIDTH 444
+#define SUBWINDOW_HEIGHT 180
+#define SUBWINDOW_X 204
+#define SUBWINDOW_Y 150
 
 	SUBWINDOWBLACK( SUBWINDOW_X, SUBWINDOW_Y, SUBWINDOW_WIDTH, SUBWINDOW_HEIGHT, "Vote" )
-	LABEL( SUBWINDOW_X+2, SUBWINDOW_Y+16, (SUBWINDOW_WIDTH)-4, 10, "Voting is disabled", .2, ITEM_ALIGN_CENTER, .5*((SUBWINDOW_WIDTH)-4), 8 )
-	LABEL( SUBWINDOW_X+2, SUBWINDOW_Y+28, (SUBWINDOW_WIDTH)-4, 10, "on this server.", .2, ITEM_ALIGN_CENTER, .5*((SUBWINDOW_WIDTH)-4), 8 )
+	LABEL( SUBWINDOW_X+24, SUBWINDOW_Y+52, SUBWINDOW_WIDTH-48, 18, "Voting is disabled", .26, ITEM_ALIGN_LEFT, 0, 15 )
+	LABEL( SUBWINDOW_X+24, SUBWINDOW_Y+71, SUBWINDOW_WIDTH-48, 18, "on this server.", .26, ITEM_ALIGN_LEFT, 0, 15 )
 	
-	BUTTON( SUBWINDOW_X+6, SUBWINDOW_Y+SUBWINDOW_HEIGHT-24, .5*(SUBWINDOW_WIDTH), 18, "BACK", .3, 14, close ingame_votedisabled ; open ingame_main )
+	BUTTON( SUBWINDOW_X+127, SUBWINDOW_Y+SUBWINDOW_HEIGHT-42, 190, 30, "BACK", .30, 21, close ingame_votedisabled ; open ingame_main )
     itemDef { name "modern_accent" rect 0 0 2 16 style WINDOW_STYLE_FILLED backcolor .94 .75 .27 .8 visible 1 decoration }
 }

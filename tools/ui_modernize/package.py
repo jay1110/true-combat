@@ -36,6 +36,8 @@ def build(variant, destination):
         if p.is_file():files[p.relative_to(edited/'assets').as_posix()]=p.read_bytes()
     aliases=json.loads(files['tce2_ui/SOURCE.json'])['native_aliases']
     for target,source in aliases.items():files[target]=files[source]
+    # Native scoreboard/connect renderers are dormant without this exact marker.
+    files['tce2_ui/runtime.cfg']=b'TCE2_MODERN_UI 1\n'
     assert all(not Path(n).suffix.lower() in ('.dll','.so','.exe','.bsp','.way','.gm') for n in files)
     assert all(not n.startswith('/') and '..' not in Path(n).parts for n in files)
     if variant=='game':
@@ -43,7 +45,7 @@ def build(variant, destination):
         for key in ('ui/menus.txt','ui/menus_gt2.txt','ui/menus_gt5.txt','ui/menus_gt7.txt','ui/ingame_main.menu'):
             assert b'tce_omnibot' not in files[key]
     manifest={'schema':1,'theme':'TCE2 Modern UI','version':'1.0.2','variant':variant,
-              'scope':'Optional UI-only overlay, no binaries or gameplay changes.',
+              'scope':'Optional theme resources; native scoreboard/connect require matching modern client modules. No gameplay changes.',
               'all_original_menu_sources':69,'normal_game_content_sources':differences,
               'files':{n:{'bytes':len(d),'sha256':sha(d)} for n,d in sorted(files.items())}}
     files['tce2_ui/package.json']=(json.dumps(manifest,indent=2)+'\n').encode()

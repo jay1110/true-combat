@@ -1,6 +1,8 @@
 // cg_scoreboard -- draw the scoreboard on top of the game screen
 #include "cg_local.h"
 #include "../game/tce_countryflags.h"
+#include "../game/tce_numeric.h"
+#include "../ui/tce_modern_ui.h"
 
 
 #define SCOREBOARD_WIDTH    (31 * BIGCHAR_WIDTH)
@@ -858,6 +860,7 @@ static int TCE_ScoreTeam(int x, int y, int team, float fade, int rows)
 	ctx.smallText  = TCE_ScoreSmallText; ctx.clientRow = TCE_ScoreClientRow;
 	return TCE_WM_TeamScoreboardWithFormat(x, y, team, fade, rows, &ctx, va);
 }
+#include "cg_modern_scoreboard.inc"
 qboolean CG_DrawScoreboard(void)
 {
 	extern qboolean         tce_uiCoordinates;
@@ -877,6 +880,12 @@ qboolean CG_DrawScoreboard(void)
 	ctx.killerName      = cg.killerName; ctx.fadeColor = CG_FadeColor;
 	ctx.objectives      = TCE_ScoreObjectives; ctx.infoLine = WM_DrawInfoLine;
 	ctx.teamBoard       = TCE_ScoreTeam;
+	if (TCE_ModernUIEnabled())
+	{
+		ctx.objectives = TCE_ModernScoreObjectives;
+		ctx.infoLine = TCE_ModernScoreInfo;
+		ctx.teamBoard = TCE_ModernScoreTeam;
+	}
 	tce_uiCoordinates   = qtrue;
 	result              = TCE_CG_DrawScoreboard(&ctx);
 	tce_uiCoordinates   = previousCoordinates;

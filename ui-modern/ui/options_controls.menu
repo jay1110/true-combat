@@ -2,15 +2,15 @@
 
 // Defines //
 
-#define WINDOW_X		$evalfloat((.5*852)-(WINDOW_WIDTH*.5))
-#define WINDOW_Y		$evalfloat((.5*480)-(WINDOW_HEIGHT*.5)+14)
-#define WINDOW_WIDTH	608
-#define WINDOW_HEIGHT	440
+#define WINDOW_X 0
+#define WINDOW_Y 0
+#define WINDOW_WIDTH 852
+#define WINDOW_HEIGHT 480
 #define GROUP_NAME		"grpOptionsControls"
 
 // Macros //
 
-#include "ui/menumacros.h"
+#include "ui/modern_widgets.h"
 		
 // System Menu //
 	
@@ -29,16 +29,146 @@ menuDef {
 
 	itemDef {
 		name		"background"
-		rect		-127 -119 862 650
+		rect		0 0 852 480
 		style		WINDOW_STYLE_FILLED
 		background	"ui/assets/fadebox.tga"
-		backcolor	.015 .025 .04 .72
+		backcolor	.025 .035 .05 .97
 		visible		1
 		decoration
 	}
 // Window //
 
 	WINDOW( "Controls", 90 )
+// modern settings desktop v1
+    itemDef {
+        name "modern_settings_card_0"
+        rect 24 60 256 213
+        style WINDOW_STYLE_FILLED
+        backcolor .045 .065 .085 .98
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_accent_0"
+        rect 24 60 3 16
+        style WINDOW_STYLE_FILLED
+        backcolor .94 .75 .27 .95
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_card_1"
+        rect 24 279 256 63
+        style WINDOW_STYLE_FILLED
+        backcolor .045 .065 .085 .98
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_accent_1"
+        rect 24 279 3 16
+        style WINDOW_STYLE_FILLED
+        backcolor .94 .75 .27 .95
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_card_2"
+        rect 24 348 256 78
+        style WINDOW_STYLE_FILLED
+        backcolor .045 .065 .085 .98
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_accent_2"
+        rect 24 348 3 16
+        style WINDOW_STYLE_FILLED
+        backcolor .94 .75 .27 .95
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_card_3"
+        rect 298 60 256 108
+        style WINDOW_STYLE_FILLED
+        backcolor .045 .065 .085 .98
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_accent_3"
+        rect 298 60 3 16
+        style WINDOW_STYLE_FILLED
+        backcolor .94 .75 .27 .95
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_card_4"
+        rect 298 174 256 138
+        style WINDOW_STYLE_FILLED
+        backcolor .045 .065 .085 .98
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_accent_4"
+        rect 298 174 3 16
+        style WINDOW_STYLE_FILLED
+        backcolor .94 .75 .27 .95
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_card_5"
+        rect 298 318 256 93
+        style WINDOW_STYLE_FILLED
+        backcolor .045 .065 .085 .98
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_accent_5"
+        rect 298 318 3 16
+        style WINDOW_STYLE_FILLED
+        backcolor .94 .75 .27 .95
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_card_6"
+        rect 572 60 256 69
+        style WINDOW_STYLE_FILLED
+        backcolor .045 .065 .085 .98
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_accent_6"
+        rect 572 60 3 16
+        style WINDOW_STYLE_FILLED
+        backcolor .94 .75 .27 .95
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_card_7"
+        rect 572 135 256 171
+        style WINDOW_STYLE_FILLED
+        backcolor .045 .065 .085 .98
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_accent_7"
+        rect 572 135 3 16
+        style WINDOW_STYLE_FILLED
+        backcolor .94 .75 .27 .95
+        visible 1
+        decoration
+    }
+
 	
 // Subwindows //
 
@@ -46,48 +176,48 @@ menuDef {
 	
 // Move //
 
-	SUBWINDOW( 6, 32, (SUBWINDOW_WIDTH), 160+16, "Movement" )
-	BIND( 8, 48, (SUBWINDOW_WIDTH)-4, 10, "Forward:", .2, 8, "+forward", "" )
-	BIND( 8, 60, (SUBWINDOW_WIDTH)-4, 10, "Back:", .2, 8, "+back", "" )
-	BIND( 8, 72, (SUBWINDOW_WIDTH)-4, 10, "Move Left:", .2, 8, "+moveleft", "" )
-	BIND( 8, 84, (SUBWINDOW_WIDTH)-4, 10, "Move Right:", .2, 8, "+moveright", "" )
-	BIND( 8, 96, (SUBWINDOW_WIDTH)-4, 10, "Lean Left:", .2, 8, "+leanleft", "" )
-	BIND( 8, 108, (SUBWINDOW_WIDTH)-4, 10, "Lean Right:", .2, 8, "+leanright", "" )
-	BIND( 8, 120, (SUBWINDOW_WIDTH)-4, 10, "Jump:", .2, 8, "+moveup", "" )
-	BIND( 8, 132, (SUBWINDOW_WIDTH)-4, 10, "Crouch:", .2, 8, "+movedown", "" )
-	BIND( 8, 144, (SUBWINDOW_WIDTH)-4, 10, "Prone:", .2, 8, "+prone", "" )
-	BIND( 8, 156, (SUBWINDOW_WIDTH)-4, 10, "Walk:", .2, 8, "+speed", "" )
-	BIND( 8, 168, (SUBWINDOW_WIDTH)-4, 10, "Sprint:", .2, 8, "+sprint", "" )
-	BIND( 8, 180, (SUBWINDOW_WIDTH)-4, 10, "Use (Activate):", .2, 8, "+activate", "" )
+	SUBWINDOW( 24, 60, 256, 213, "Movement" )
+	BIND( 32, 78, 240, 15, "Forward:", .22, 13, "+forward", "" )
+	BIND( 32, 93, 240, 15, "Back:", .22, 13, "+back", "" )
+	BIND( 32, 108, 240, 15, "Move Left:", .22, 13, "+moveleft", "" )
+	BIND( 32, 123, 240, 15, "Move Right:", .22, 13, "+moveright", "" )
+	BIND( 32, 138, 240, 15, "Lean Left:", .22, 13, "+leanleft", "" )
+	BIND( 32, 153, 240, 15, "Lean Right:", .22, 13, "+leanright", "" )
+	BIND( 32, 168, 240, 15, "Jump:", .22, 13, "+moveup", "" )
+	BIND( 32, 183, 240, 15, "Crouch:", .22, 13, "+movedown", "" )
+	BIND( 32, 198, 240, 15, "Prone:", .22, 13, "+prone", "" )
+	BIND( 32, 213, 240, 15, "Walk:", .22, 13, "+speed", "" )
+	BIND( 32, 228, 240, 15, "Sprint:", .22, 13, "+sprint", "" )
+	BIND( 32, 243, 240, 15, "Use (Activate):", .22, 13, "+activate", "" )
 	
-	CHECKBOXALIGNX( 8, 196, (SUBWINDOW_WIDTH)-4, 10, "Crouch is toggle:", .2, 24, 8, "cg_togglecrouch", "Crouch is toggle button if selected" )
+	CHECKBOXALIGNX( 32, 258, 240, 15, "Crouch is toggle:", .22, 8, 13, "cg_togglecrouch", "Crouch is toggle button if selected" )
 	
 	
 // Input //
 
-	SUBWINDOW( 6, 198+16-2, (SUBWINDOW_WIDTH), 40, "Mouse Input" )
+	SUBWINDOW( 24, 279, 256, 63, "Mouse Input" )
 //	YESNOACTION( 8, 214-2, (SUBWINDOW_WIDTH)-4, 10, "Invert Mouse:", .2, 8, "ui_mousePitch", uiScript update ui_mousePitch )
 //	YESNO( 8, 226-2, (SUBWINDOW_WIDTH)-4, 10, "Smooth Mouse:", .2, 8, "m_filter" )
-	CHECKBOXALIGNXACTION( 8, 214+16-2, .5*((SUBWINDOW_WIDTH)-6), 10, "Invert Mouse:", .2, 24, 8, "ui_mousePitch", uiScript update ui_mousePitch, "Inverts mouse pitch" )
-	CHECKBOXALIGNX( 8+(.5*((SUBWINDOW_WIDTH)-6))+2, 214+16-2, .5*((SUBWINDOW_WIDTH)-6), 10, "Smooth Mouse:", .2, 24, 8, "m_filter", "Smooths out the mouse using interpolation" )
-	SLIDER( 8, 226+16-2, (SUBWINDOW_WIDTH)-4, 10, "Mouse Sensitivity:", .2, 8, "sensitivity" 5 1 30, "Use the slider to increase or decrease mouse sensitivity" )
-	CVARFLOATLABEL( 8, 226+16-2, (SUBWINDOW_WIDTH)-4, 10, "sensitivity", .2, ITEM_ALIGN_RIGHT, $evalfloat((SUBWINDOW_WIDTH)-4), 8 )
+	CHECKBOXALIGNXACTION( 32, 297, 240, 15, "Invert Mouse:", .22, 8, 13, "ui_mousePitch", uiScript update ui_mousePitch, "Inverts mouse pitch" )
+	CHECKBOXALIGNX( 32, 312, 240, 15, "Smooth Mouse:", .22, 8, 13, "m_filter", "Smooths out the mouse using interpolation" )
+	SLIDER( 32, 327, 240, 15, "Mouse Sensitivity:", .22, 13, "sensitivity" 5 1 30, "Use the slider to increase or decrease mouse sensitivity" )
+	CVARFLOATLABEL( 230, 327, 40, 15, "sensitivity", .20, ITEM_ALIGN_RIGHT, 40, 13 )
 	
 // Chat //
 
-	SUBWINDOW( 6, 244+16-4, (SUBWINDOW_WIDTH), 64, "Chat" )
-	BIND( 8, 260+16-4, .5*((SUBWINDOW_WIDTH)-6), 10, "Chat:", .2, 8, "messagemode", "" )
-	BIND( 8+(.5*((SUBWINDOW_WIDTH)-6))+2, 260+16-4, .5*((SUBWINDOW_WIDTH)-6), 10, "Team Chat:", .2, 8, "messagemode2", "" )
-	BIND( 8, 272+16-4, (SUBWINDOW_WIDTH)-4, 10, "Fire-Team Chat:", .2, 8, "messagemode3", "" )
-	BIND( 8, 284+16-4, (SUBWINDOW_WIDTH)-4, 10, "Quick Chat:", .2, 8, "mp_QuickMessage", "" )
-	BIND( 8, 296+16-4, (SUBWINDOW_WIDTH)-4, 10, "Fire-Team Quick Chat:", .2, 8, "mp_fireteammsg", "" )
+	SUBWINDOW( 298, 318, 256, 93, "Chat" )
+	BIND( 306, 336, 240, 15, "Chat:", .22, 13, "messagemode", "" )
+	BIND( 306, 351, 240, 15, "Team Chat:", .22, 13, "messagemode2", "" )
+	BIND( 306, 366, 240, 15, "Fire-Team Chat:", .22, 13, "messagemode3", "" )
+	BIND( 306, 381, 240, 15, "Quick Chat:", .22, 13, "mp_QuickMessage", "" )
+	BIND( 306, 396, 240, 15, "Fire-Team Quick Chat:", .22, 13, "mp_fireteammsg", "" )
 
 // Pop-Ups //
 
-	SUBWINDOW( 6, 314+16-6, (SUBWINDOW_WIDTH), 100-12-10, "Pop-Ups" )
-	BIND( 8, 330+16-6, (SUBWINDOW_WIDTH)-4, 10, "Show Scores:", .2, 8, "+scores", "" )
-	BIND( 8, 342+16-6, (SUBWINDOW_WIDTH)-4, 10, "Show Deploy Menu:", .2, 8, "OpenLimboMenu", "" )
-	BIND( 8, 354+16-6, (SUBWINDOW_WIDTH)-4, 10, "Objective Description:", .2, 8, "toggleobjectivedesc", "" )
+	SUBWINDOW( 572, 60, 256, 69, "Pop-Ups" )
+	BIND( 580, 78, 240, 17, "Show Scores:", .22, 14, "+scores", "" )
+	BIND( 580, 95, 240, 17, "Show Deploy Menu:", .22, 14, "OpenLimboMenu", "" )
+	BIND( 580, 112, 240, 17, "Objective Description:", .22, 14, "toggleobjectivedesc", "" )
 //	BIND( 8, 354-6, (SUBWINDOW_WIDTH)-4, 10, "Show Command Map:", .2, 8, "+mapexpand", "" )
 //	BIND( 8, 366-6, (SUBWINDOW_WIDTH)-4, 10, "Compass Map Zoom In:", .2, 8, "MapZoomIn", "" )
 //	BIND( 8, 378-6, (SUBWINDOW_WIDTH)-4, 10, "Compass Map Zoom Out:", .2, 8, "MapZoomOut", "" )
@@ -97,55 +227,94 @@ menuDef {
 	
 // Use Weapons //
 
-	SUBWINDOW( 6+(SUBWINDOW_WIDTH)+6, 32, (SUBWINDOW_WIDTH), 80, "Weapon Use" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 48, (SUBWINDOW_WIDTH)-4, 10, "Attack:", .2, 8, "+attack", "" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 60, (SUBWINDOW_WIDTH)-4, 10, "Aim / Iron Sights:", .2, 8, "+zoom", "" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 72, (SUBWINDOW_WIDTH)-4, 10, "Reload Weapon:", .2, 8, "+reload", "" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 84, (SUBWINDOW_WIDTH)-4, 10, "Switch Firemode:", .2, 8, "+firemode", "" )
+	SUBWINDOW( 298, 60, 256, 108, "Weapon Use" )
+	BIND( 306, 78, 240, 15, "Attack:", .22, 13, "+attack", "" )
+	BIND( 306, 93, 240, 15, "Aim / Iron Sights:", .22, 13, "+zoom", "" )
+	BIND( 306, 108, 240, 15, "Reload Weapon:", .22, 13, "+reload", "" )
+	BIND( 306, 123, 240, 15, "Switch Firemode:", .22, 13, "+firemode", "" )
 	
-	CHECKBOXALIGNX( 8+(SUBWINDOW_WIDTH)+6, 100, .5*((SUBWINDOW_WIDTH)-4), 10, "Aim is persitant:", .2, 24, 8, "cg_toggleaiming", "Auto return to aim mode after jump/sprint/reload" )
+	CHECKBOXALIGNX( 306, 138, 240, 15, "Aim is persitant:", .22, 8, 13, "cg_toggleaiming", "Auto return to aim mode after jump/sprint/reload" )
 	
 	// 0490b
-	CHECKBOXALIGNX( 8+(1.5*((SUBWINDOW_WIDTH)+6)), 100, .5*((SUBWINDOW_WIDTH)-4), 10, "Enable FreeAim:", .2, 24, 8, "cg_freeAim", "Aim moves independent of view in center screen area" )
+	CHECKBOXALIGNX( 306, 153, 240, 15, "Enable FreeAim:", .22, 8, 13, "cg_freeAim", "Aim moves independent of view in center screen area" )
 	
 // Select Weapons //
 
-	SUBWINDOW( 6+(SUBWINDOW_WIDTH)+6, 116, (SUBWINDOW_WIDTH), 112, "Weapon Selection" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 118+14, (SUBWINDOW_WIDTH)-4, 10, "Next Weapon:", .2, 8, "weapnext", "" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 130+14, (SUBWINDOW_WIDTH)-4, 10, "Previous Weapon:", .2, 8, "weapprev", "" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 142+14, (SUBWINDOW_WIDTH)-4, 10, "Slot 1 - Primary:", .2, 8, "weaponbank 1", "" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 154+14, (SUBWINDOW_WIDTH)-4, 10, "Slot 2 - Sidearm:", .2, 8, "weaponbank 2", "" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 166+14, (SUBWINDOW_WIDTH)-4, 10, "Slot 3 - Knife:", .2, 8, "weaponbank 3", "" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 178+14, (SUBWINDOW_WIDTH)-4, 10, "Slot 4 - Frag Grenade:", .2, 8, "weaponbank 4", "" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 190+14, (SUBWINDOW_WIDTH)-4, 10, "Slot 5 - Stun Grenade", .2, 8, "weaponbank 5", "" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 202+14, (SUBWINDOW_WIDTH)-4, 10, "Slot 6 - Smoke Grenade:", .2, 8, "weaponbank 6", "" )
+	SUBWINDOW( 298, 174, 256, 138, "Weapon Selection" )
+	BIND( 306, 192, 240, 15, "Next Weapon:", .22, 13, "weapnext", "" )
+	BIND( 306, 207, 240, 15, "Previous Weapon:", .22, 13, "weapprev", "" )
+	BIND( 306, 222, 240, 15, "Slot 1 - Primary:", .22, 13, "weaponbank 1", "" )
+	BIND( 306, 237, 240, 15, "Slot 2 - Sidearm:", .22, 13, "weaponbank 2", "" )
+	BIND( 306, 252, 240, 15, "Slot 3 - Knife:", .22, 13, "weaponbank 3", "" )
+	BIND( 306, 267, 240, 15, "Slot 4 - Frag Grenade:", .22, 13, "weaponbank 4", "" )
+	BIND( 306, 282, 240, 15, "Slot 5 - Stun Grenade", .22, 13, "weaponbank 5", "" )
+	BIND( 306, 297, 240, 15, "Slot 6 - Smoke Grenade:", .22, 13, "weaponbank 6", "" )
 //	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 214+14, (SUBWINDOW_WIDTH)-4, 10, "Slot 7 - Special 1:", .2, 8, "weaponbank 7", "" )
 
 // Miscellaneous //
 
-	SUBWINDOW( 6+(SUBWINDOW_WIDTH)+6, 232, (SUBWINDOW_WIDTH), 52, "Miscellaneous" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 248, .5*((SUBWINDOW_WIDTH)-6), 10, "Vote Yes:", .2, 8, "vote yes", "" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2+(.5*((SUBWINDOW_WIDTH)-6))+2, 248, .5*((SUBWINDOW_WIDTH)-6), 10, "Vote No:", .2, 8, "vote no", "" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 260, (SUBWINDOW_WIDTH)-4, 10, "Take Screenshot:", .2, 8, "autoScreenshot", "" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 272, (SUBWINDOW_WIDTH)-4, 10, "Record Replay:", .2, 8, "autoRecord", "" )
+	SUBWINDOW( 24, 348, 256, 78, "Miscellaneous" )
+	BIND( 32, 366, 240, 15, "Vote Yes:", .22, 13, "vote yes", "" )
+	BIND( 32, 381, 240, 15, "Vote No:", .22, 13, "vote no", "" )
+	BIND( 32, 396, 240, 15, "Take Screenshot:", .22, 13, "autoScreenshot", "" )
+	BIND( 32, 411, 240, 15, "Record Replay:", .22, 13, "autoRecord", "" )
 
 // Fire-Teams //
 
-	SUBWINDOW( 6+(SUBWINDOW_WIDTH)+6, 290-2, (SUBWINDOW_WIDTH), 124, "Fire-Teams" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 306-2, (SUBWINDOW_WIDTH)-4, 10, "Select All Members:", .2, 8, "selectbuddy -2", "" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 318-2, (SUBWINDOW_WIDTH)-4, 10, "Select Member #1:", .2, 8, "selectbuddy 0", "" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 330-2, (SUBWINDOW_WIDTH)-4, 10, "Select Member #2:", .2, 8, "selectbuddy 1", "" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 342-2, (SUBWINDOW_WIDTH)-4, 10, "Select Member #3:", .2, 8, "selectbuddy 2", "" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 354-2, (SUBWINDOW_WIDTH)-4, 10, "Select Member #4:", .2, 8, "selectbuddy 3", "" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 366-2, (SUBWINDOW_WIDTH)-4, 10, "Select Member #5:", .2, 8, "selectbuddy 4", "" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 378-2, (SUBWINDOW_WIDTH)-4, 10, "Select Member #6:", .2, 8, "selectbuddy 5", "" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 390-2, (SUBWINDOW_WIDTH)-4, 10, "Deselect All:", .2, 8, "selectbuddy -1", "" )
-	BIND( 6+(SUBWINDOW_WIDTH)+6+2, 402-2, (SUBWINDOW_WIDTH)-4, 10, "Fire-Team Admin:", .2, 8, "mp_fireteamadmin", "" )
+	SUBWINDOW( 572, 135, 256, 171, "Fire-Teams" )
+	BIND( 580, 153, 240, 17, "Select All Members:", .22, 14, "selectbuddy -2", "" )
+	BIND( 580, 170, 240, 17, "Select Member #1:", .22, 14, "selectbuddy 0", "" )
+	BIND( 580, 187, 240, 17, "Select Member #2:", .22, 14, "selectbuddy 1", "" )
+	BIND( 580, 204, 240, 17, "Select Member #3:", .22, 14, "selectbuddy 2", "" )
+	BIND( 580, 221, 240, 17, "Select Member #4:", .22, 14, "selectbuddy 3", "" )
+	BIND( 580, 238, 240, 17, "Select Member #5:", .22, 14, "selectbuddy 4", "" )
+	BIND( 580, 255, 240, 17, "Select Member #6:", .22, 14, "selectbuddy 5", "" )
+	BIND( 580, 272, 240, 17, "Deselect All:", .22, 14, "selectbuddy -1", "" )
+	BIND( 580, 289, 240, 17, "Fire-Team Admin:", .22, 14, "mp_fireteamadmin", "" )
 
 // Buttons //
 
-	BUTTON( 6, WINDOW_HEIGHT-24, .5*(WINDOW_WIDTH-18), 18, "Back", .3, 14,
-		close options_controls ; open options )
-	BUTTON( 6+.5*(WINDOW_WIDTH-18)+6, WINDOW_HEIGHT-24, .5*(WINDOW_WIDTH-18), 18, "Default Settings", .3, 14,
-		open options_controls_default )
+	BUTTON( 24, 442, 180, 26, "Back", .27, 18, close options_controls ; open options )
+	BUTTON( 624, 442, 204, 26, "Default Settings", .27, 18, open options_controls_default )
+
+itemDef {
+            name "modern_nav_game" rect 280 12 132 30
+            text "GAME" textfont UI_FONT_ARIBLK_27 textscale .27
+            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            style WINDOW_STYLE_FILLED
+            backcolor .08 .12 .16 1
+            forecolor .84 .89 .94 1
+            visible 1 type ITEM_TYPE_BUTTON
+ action { close options_controls ; open options ; close options ; open options_customise_game }
+        }
+itemDef {
+            name "modern_nav_view" rect 417 12 132 30
+            text "VIEW" textfont UI_FONT_ARIBLK_27 textscale .27
+            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            style WINDOW_STYLE_FILLED
+            backcolor .08 .12 .16 1
+            forecolor .84 .89 .94 1
+            visible 1 type ITEM_TYPE_BUTTON
+ action { close options_controls ; open options ; close options ; open options_customise_hud }
+        }
+itemDef {
+            name "modern_nav_controls" rect 554 12 132 30
+            text "CONTROLS" textfont UI_FONT_ARIBLK_27 textscale .27
+            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            style WINDOW_STYLE_FILLED
+            backcolor .94 .75 .27 1
+            forecolor .025 .035 .05 1
+            visible 1 decoration
+        }
+itemDef {
+            name "modern_nav_system" rect 691 12 132 30
+            text "SYSTEM" textfont UI_FONT_ARIBLK_27 textscale .27
+            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            style WINDOW_STYLE_FILLED
+            backcolor .08 .12 .16 1
+            forecolor .84 .89 .94 1
+            visible 1 type ITEM_TYPE_BUTTON
+ action { close options_controls ; open options ; close options ; open options_system }
+        }
+
 }

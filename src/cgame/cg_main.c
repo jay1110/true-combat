@@ -11,6 +11,7 @@
 #include "cg_tce_hit_debug.h"
 #include "cg_tce_weapon_stats.h"
 #include "cg_tce_pose_presentation.h"
+#include "../ui/tce_modern_ui.h"
 #include "tce_smoke_grenade.h"
 #include "tce_lightgrid.h"
 #include "../game/tce_bg.h"
@@ -3107,6 +3108,7 @@ void CG_Init(int serverMessageNum, int serverCommandSequence, int clientNum, qbo
 	CG_TCEWeaponStatsReset();
 	CG_TCEHitDebugReset();
 	CG_TCEPresentationInit();
+	TCE_ModernUIReset();
 
 	cgs.initing = qtrue;
 

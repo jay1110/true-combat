@@ -1,16 +1,15 @@
 #include "ui/menudef.h"
 
 // Defines //
-
-#define WINDOW_X		$evalfloat((.5*852)-(WINDOW_WIDTH*.5))
-#define WINDOW_Y		$evalfloat((.5*480)-(WINDOW_HEIGHT*.5))
-#define WINDOW_WIDTH	640
-#define WINDOW_HEIGHT	480
+#define WINDOW_X 0
+#define WINDOW_Y 0
+#define WINDOW_WIDTH 852
+#define WINDOW_HEIGHT 480
 #define GROUP_NAME		"tapoutgrplms"
 
 // Macros //
 
-#include "ui/menumacros.h"
+#include "ui/modern_widgets.h"
 		
 menuDef
 {
@@ -47,16 +46,15 @@ menuDef
 
 // Subwindows //
 
-#define SUBWINDOW_WIDTH		340
-#define SUBWINDOW_HEIGHT	64
-#define SUBWINDOW_X			.5 * (WINDOW_WIDTH - SUBWINDOW_WIDTH)
-#define SUBWINDOW_Y			.5 * (WINDOW_HEIGHT - SUBWINDOW_HEIGHT)
+#define SUBWINDOW_WIDTH 804
+#define SUBWINDOW_HEIGHT 180
+#define SUBWINDOW_X 24
+#define SUBWINDOW_Y 150
 
 	SUBWINDOWBLACK( SUBWINDOW_X, SUBWINDOW_Y, SUBWINDOW_WIDTH, SUBWINDOW_HEIGHT, "Respawning" )
-	LABEL( SUBWINDOW_X+2, SUBWINDOW_Y+16, (SUBWINDOW_WIDTH)-8, 10, "You are playing in a single-man objective game and must wait for the next round to respawn. Click OKAY to spectate any remaining players.", .2, ITEM_ALIGN_CENTER, .5*((SUBWINDOW_WIDTH)-4), 8 )
+	LABEL( SUBWINDOW_X+24, SUBWINDOW_Y+52, SUBWINDOW_WIDTH-48, 18, "You are playing in a single-man objective game and must wait for the next round to respawn. Click OKAY to spectate any remaining players.", .25, ITEM_ALIGN_LEFT, 0, 15 )
 	
-	NAMEDBUTTON( "tapoutyesbtnlms", SUBWINDOW_X+92, SUBWINDOW_Y+SUBWINDOW_HEIGHT-24, .5*(SUBWINDOW_WIDTH-18), 18, "OKAY", .3, 14,
-		exec forcetapout ; close tapoutmsglms )
+	NAMEDBUTTON( "tapoutyesbtnlms", SUBWINDOW_X+307, SUBWINDOW_Y+SUBWINDOW_HEIGHT-42, 190, 30, "OKAY", .30, 21, exec forcetapout ; close tapoutmsglms )
     itemDef { name "modern_accent" rect 0 0 2 16 style WINDOW_STYLE_FILLED backcolor .94 .75 .27 .8 visible 1 decoration }
 }
 	

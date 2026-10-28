@@ -1,5 +1,6 @@
 #include "cg_local.h"
 #include "../ui/ui_shared.h"
+#include "../ui/tce_modern_ui.h"
 
 extern displayContextDef_t *DC;
 extern qboolean            tce_uiCoordinates;
@@ -210,6 +211,7 @@ CG_DrawConnectScreen
 ================
 */
 
+#include "cg_modern_loadpanel.inc"
 void CG_DrawConnectScreen(qboolean interactive, qboolean forcerefresh)
 {
 	static qboolean inside = qfalse;
@@ -232,6 +234,15 @@ void CG_DrawConnectScreen(qboolean interactive, qboolean forcerefresh)
 	inside              = qtrue;
 	previousCoordinates = tce_uiCoordinates;
 	tce_uiCoordinates   = qtrue;
+	if (TCE_ModernUIEnabled())
+	{
+		trap_Cvar_Set("ui_connecting", "0");
+		CG_DrawModernLoadPanel(interactive);
+		if (forcerefresh) DC->updateScreen();
+		tce_uiCoordinates = previousCoordinates;
+		inside = qfalse;
+		return;
+	}
 
 	if (!bg_loadscreeninited)
 	{

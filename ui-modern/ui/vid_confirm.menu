@@ -1,16 +1,15 @@
 #include "ui/menudef.h"
 
 // Defines //
-
-#define WINDOW_X		0
-#define WINDOW_Y		0
-#define WINDOW_WIDTH	852
-#define WINDOW_HEIGHT	480
+#define WINDOW_X 0
+#define WINDOW_Y 0
+#define WINDOW_WIDTH 852
+#define WINDOW_HEIGHT 480
 #define GROUP_NAME		"grpVidConfirm"
 
 // Macros //
 
-#include "ui/menumacros.h"
+#include "ui/modern_widgets.h"
 		
 // Confirm Video Mode Menu //
 	
@@ -61,10 +60,10 @@ menuDef
 
 // Subwindows //
 
-#define SUBWINDOW_WIDTH		216
-#define SUBWINDOW_HEIGHT	96
-#define SUBWINDOW_X			.5 * (WINDOW_WIDTH - SUBWINDOW_WIDTH)
-#define SUBWINDOW_Y			.5 * (WINDOW_HEIGHT - SUBWINDOW_HEIGHT)
+#define SUBWINDOW_WIDTH 444
+#define SUBWINDOW_HEIGHT 180
+#define SUBWINDOW_X 204
+#define SUBWINDOW_Y 150
 
 	SUBWINDOWBLACK( SUBWINDOW_X, SUBWINDOW_Y, SUBWINDOW_WIDTH, SUBWINDOW_HEIGHT, "CONFIRM VIDEO CHANGE" )
 /*	LABEL( SUBWINDOW_X+2, SUBWINDOW_Y+16, (SUBWINDOW_WIDTH)-8, 10,
@@ -91,34 +90,30 @@ menuDef
 		decoration
     }*/
     
-    LABEL( SUBWINDOW_X+2, SUBWINDOW_Y+16, (SUBWINDOW_WIDTH)-8, 10,
-		"Use this video mode?",
-		.2, ITEM_ALIGN_CENTER, .5*((SUBWINDOW_WIDTH)-4), 8 )
-	LABEL( SUBWINDOW_X+2, SUBWINDOW_Y+28, (SUBWINDOW_WIDTH)-8, 10,
-		"Reverting to previous",
-		.2, ITEM_ALIGN_CENTER, .5*((SUBWINDOW_WIDTH)-4), 8 )
+    LABEL( SUBWINDOW_X+24, SUBWINDOW_Y+52, SUBWINDOW_WIDTH-48, 18, "Use this video mode?", .26, ITEM_ALIGN_LEFT, 0, 15 )
+	LABEL( SUBWINDOW_X+24, SUBWINDOW_Y+71, SUBWINDOW_WIDTH-48, 18, "Reverting to previous", .26, ITEM_ALIGN_LEFT, 0, 15 )
     
     itemDef {
 		name			"labelConfirmCounter"
       	group			GROUP_NAME
-		rect			$evalfloat(SUBWINDOW_X+2) $evalfloat( SUBWINDOW_Y+40) $evalfloat((SUBWINDOW_WIDTH)-8) $evalfloat(10)
+		rect			$evalfloat(SUBWINDOW_X+24) $evalfloat(SUBWINDOW_Y+92) $evalfloat(SUBWINDOW_WIDTH-48) 20
 		type			ITEM_TYPE_TIMEOUT_COUNTER
 		text			"setting in %s seconds..."
 		textfont		UI_FONT_COURBD_21
 		textstyle		ITEM_TEXTSTYLE_NORMAL
-		textscale		.2
-		textalign		ITEM_ALIGN_CENTER
-		textalignx		$evalfloat(.5*((SUBWINDOW_WIDTH)-4))
-		textaligny		8
+		textscale		.26
+		textalign		ITEM_ALIGN_LEFT
+		textalignx		0
+		textaligny		15
 		forecolor		.84 .88 .92 1
 		visible			1
 		decoration
     }
 	
 #ifdef FUI
-	BUTTON( SUBWINDOW_X+6, SUBWINDOW_Y+SUBWINDOW_HEIGHT-24, .5*(SUBWINDOW_WIDTH-18), 18, "YES", .3, 14, uiScript vidConfirm ; close vid_confirm ; open main )
+	BUTTON( SUBWINDOW_X+24, SUBWINDOW_Y+SUBWINDOW_HEIGHT-42, 190, 30, "YES", .30, 21, uiScript vidConfirm ; close vid_confirm ; open main )
 #else
-	BUTTON( SUBWINDOW_X+6, SUBWINDOW_Y+SUBWINDOW_HEIGHT-24, .5*(SUBWINDOW_WIDTH-18), 18, "YES", .3, 14, uiScript vidConfirm ; close vid_confirm ; open ingame_main )
+	BUTTON( SUBWINDOW_X+24, SUBWINDOW_Y+SUBWINDOW_HEIGHT-42, 190, 30, "YES", .30, 21, uiScript vidConfirm ; close vid_confirm ; open ingame_main )
 #endif // FUI
-	BUTTON( SUBWINDOW_X+6+.5*(SUBWINDOW_WIDTH-18)+6, SUBWINDOW_Y+SUBWINDOW_HEIGHT-24, .5*(SUBWINDOW_WIDTH-18), 18, "NO", .3, 14, uiScript vidReset ; exec "vid_restart" )
+	BUTTON( SUBWINDOW_X+230, SUBWINDOW_Y+SUBWINDOW_HEIGHT-42, 190, 30, "NO", .30, 21, uiScript vidReset ; exec "vid_restart" )
 }

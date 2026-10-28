@@ -2,15 +2,15 @@
 
 // Defines //
 
-#define WINDOW_X		$evalfloat((.5*852)-(WINDOW_WIDTH*.5))
-#define WINDOW_Y		$evalfloat((.5*480)-(WINDOW_HEIGHT*.5))
-#define WINDOW_WIDTH	400
-#define WINDOW_HEIGHT	334
+#define WINDOW_X 0
+#define WINDOW_Y 0
+#define WINDOW_WIDTH 852
+#define WINDOW_HEIGHT 480
 #define GROUP_NAME		"grpOptionsCustomiseGame"
 
 // Macros //
 
-#include "ui/menumacros.h"
+#include "ui/modern_widgets.h"
 		
 // Customise Game Menu //
 	
@@ -29,16 +29,98 @@ menuDef {
 
 	itemDef {
 		name		"background"
-		rect		-231 -158 862 650
+		rect		0 0 852 480
 		style		WINDOW_STYLE_FILLED
 		background	"ui/assets/fadebox.tga"
-		backcolor	.015 .025 .04 .72
+		backcolor	.025 .035 .05 .97
 		visible		1
 		decoration
 	}
 // Window //
 
 	WINDOW( "Game Settings", 94 )
+// modern settings desktop v1
+    itemDef {
+        name "modern_settings_card_0"
+        rect 24 60 256 52
+        style WINDOW_STYLE_FILLED
+        backcolor .045 .065 .085 .98
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_accent_0"
+        rect 24 60 3 16
+        style WINDOW_STYLE_FILLED
+        backcolor .94 .75 .27 .95
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_card_1"
+        rect 24 144 256 86
+        style WINDOW_STYLE_FILLED
+        backcolor .045 .065 .085 .98
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_accent_1"
+        rect 24 144 3 16
+        style WINDOW_STYLE_FILLED
+        backcolor .94 .75 .27 .95
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_card_2"
+        rect 24 262 256 86
+        style WINDOW_STYLE_FILLED
+        backcolor .045 .065 .085 .98
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_accent_2"
+        rect 24 262 3 16
+        style WINDOW_STYLE_FILLED
+        backcolor .94 .75 .27 .95
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_card_3"
+        rect 312 60 516 120
+        style WINDOW_STYLE_FILLED
+        backcolor .045 .065 .085 .98
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_accent_3"
+        rect 312 60 3 16
+        style WINDOW_STYLE_FILLED
+        backcolor .94 .75 .27 .95
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_card_4"
+        rect 312 218 516 188
+        style WINDOW_STYLE_FILLED
+        backcolor .045 .065 .085 .98
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_settings_accent_4"
+        rect 312 218 3 16
+        style WINDOW_STYLE_FILLED
+        backcolor .94 .75 .27 .95
+        visible 1
+        decoration
+    }
+
 	
 // Subwindows //
 
@@ -47,14 +129,14 @@ menuDef {
 	
 // Player //
 
-	SUBWINDOW( 6, 32, (SUBWINDOW_WIDTH), 28, "Player" )
-	EDITFIELD( 8, 48, (SUBWINDOW_WIDTH)-4, 10, "Player Alias:", .2, 8, "name", 36, 18, "Enter the name that you wish to be known by to others on servers" )
+	SUBWINDOW( 24, 60, 256, 52, "Player" )
+	EDITFIELD( 32, 78, 240, 34, "Player Alias:", .22, 14, "name", 36, 18, "Enter the name that you wish to be known by to others on servers" )
 	
 // Physics //
 
-	SUBWINDOW( 6, 66, (SUBWINDOW_WIDTH), 40, "Physics" )
-	YESNO( 8, 82, (SUBWINDOW_WIDTH)-4, 10, "Always Run:", .2, 8, "cl_run", "" )
-	MULTI( 8, 94, (SUBWINDOW_WIDTH)-4, 10, "Double-Tap Prone:", .2, 8, "cl_doubletapdelay", cvarFloatList { "Yes" 350 "No" 0 }, "" )
+	SUBWINDOW( 24, 144, 256, 86, "Physics" )
+	YESNO( 32, 162, 240, 34, "Always Run:", .22, 14, "cl_run", "" )
+	MULTI( 32, 196, 240, 34, "Double-Tap Prone:", .22, 14, "cl_doubletapdelay", cvarFloatList { "Yes" 350 "No" 0 }, "" )
 	
 // Weapons //
 
@@ -72,28 +154,69 @@ menuDef {
 	
 // Chat //
 
-	SUBWINDOW( 6, 228-116, (SUBWINDOW_WIDTH), 40, "Chat" )
-	MULTI( 8, 244-116, (SUBWINDOW_WIDTH)-4, 10, "Quick Chat Mode:", .2, 8, "cg_quickMessageAlt", cvarFloatList { "Alpha" 0 "Numeric" 1 }, "Use alpha or numeric keys to send radio messages" )
-	MULTI( 8, 256-116, (SUBWINDOW_WIDTH)-4, 10, "Chat Icon Time:", .2, 8, "cg_voicespritetime", cvarFloatList { "Short" 3000 "Normal" 6000 "Long" 12000 "Really Long" 24000 }, "Specify how long the chat icon appears above other players' heads" )
+	SUBWINDOW( 24, 262, 256, 86, "Chat" )
+	MULTI( 32, 280, 240, 34, "Quick Chat Mode:", .22, 14, "cg_quickMessageAlt", cvarFloatList { "Alpha" 0 "Numeric" 1 }, "Use alpha or numeric keys to send radio messages" )
+	MULTI( 32, 314, 240, 34, "Chat Icon Time:", .22, 14, "cg_voicespritetime", cvarFloatList { "Short" 3000 "Normal" 6000 "Long" 12000 "Really Long" 24000 }, "Specify how long the chat icon appears above other players' heads" )
 
 // Downloads //
 
-	SUBWINDOW( 6, 274-116, (SUBWINDOW_WIDTH), 52, "Downloads" )
-	YESNO( 8, 290-116, (SUBWINDOW_WIDTH)-4, 10, "Check for Updates on Start-Up:", .2, 8, "cl_autoupdate", "" )
-	YESNO( 8, 302-116, (SUBWINDOW_WIDTH)-4, 10, "Get Missing Files from Server:", .2, 8, "cl_allowDownload", "" )
-	YESNO( 8, 314-116, (SUBWINDOW_WIDTH)-4, 10, "Use HTTP/FTP Downloads:", .2, 8, "cl_wwwDownload", "" )
+	SUBWINDOW( 312, 60, 516, 120, "Downloads" )
+	YESNO( 320, 78, 500, 34, "Check for Updates on Start-Up:", .22, 14, "cl_autoupdate", "" )
+	YESNO( 320, 112, 500, 34, "Get Missing Files from Server:", .22, 14, "cl_allowDownload", "" )
+	YESNO( 320, 146, 500, 34, "Use HTTP/FTP Downloads:", .22, 14, "cl_wwwDownload", "" )
 	
 // Miscellaneous //
 
-	SUBWINDOW( 6, 332-116, (SUBWINDOW_WIDTH), 76, "Miscellaneous" )
-	MULTI( 8, 348-116, (SUBWINDOW_WIDTH)-4, 10, "Complaint PopUp:", .2, 8, "cg_complaintPopUp", cvarFloatList { "Off" 0 "On" 1 }, "Display the option to file complaints about teammates who kill you" )
+	SUBWINDOW( 312, 218, 516, 188, "Miscellaneous" )
+	MULTI( 320, 236, 500, 34, "Complaint PopUp:", .22, 14, "cg_complaintPopUp", cvarFloatList { "Off" 0 "On" 1 }, "Display the option to file complaints about teammates who kill you" )
 //	YESNO( 8, 372, (SUBWINDOW_WIDTH)-4, 10, "Announcer:", .2, 8, "cg_announcer", "Enables or disables the in-game Commander" )
-	YESNO( 8, 360-116, (SUBWINDOW_WIDTH)-4, 10, "Log Important Messages:", .2, 8, "cg_printObjectiveInfo", "Prints important game messages to the console" )
-	MULTI( 8, 372-116, (SUBWINDOW_WIDTH)-4, 10, "Auto-Action:", .2, 8, "cg_autoAction", cvarFloatList { "None" 0 "Demo" 1 "Screenshot" 2 "Stats Dump" 4 "Demo + SS" 3 "Demo + Stats" 5 "SS + Stats" 6 "Demo + SS + Stats" 7 }, "Automatically performs actions at the start or end of a round" )
-	YESNO( 8, 384-116, (SUBWINDOW_WIDTH)-4, 10, "Use JPEG for AutoScreenshots:", .2, 8, "cg_useScreenshotJPEG", "Switches between .tga and .jpg picture types for the \"autoscreenshot\" command" )
-	YESNO( 8, 396-116, (SUBWINDOW_WIDTH)-4, 10, "Show Tool Tips :", .2, 8, "ui_showtooltips", "Display Tool Tips in the UI" )
+	YESNO( 320, 270, 500, 34, "Log Important Messages:", .22, 14, "cg_printObjectiveInfo", "Prints important game messages to the console" )
+	MULTI( 320, 304, 500, 34, "Auto-Action:", .22, 14, "cg_autoAction", cvarFloatList { "None" 0 "Demo" 1 "Screenshot" 2 "Stats Dump" 4 "Demo + SS" 3 "Demo + Stats" 5 "SS + Stats" 6 "Demo + SS + Stats" 7 }, "Automatically performs actions at the start or end of a round" )
+	YESNO( 320, 338, 500, 34, "Use JPEG for AutoScreenshots:", .22, 14, "cg_useScreenshotJPEG", "Switches between .tga and .jpg picture types for the \"autoscreenshot\" command" )
+	YESNO( 320, 372, 500, 34, "Show Tool Tips :", .22, 14, "ui_showtooltips", "Display Tool Tips in the UI" )
 
 // Buttons //
 	
-	BUTTON( 6, WINDOW_HEIGHT-24, WINDOW_WIDTH-12, 18, "Back", .3, 14, close options_customise_game ; open options )
+	BUTTON( 24, 442, 180, 26, "Back", .27, 18, close options_customise_game ; open options )
+
+itemDef {
+            name "modern_nav_game" rect 280 12 132 30
+            text "GAME" textfont UI_FONT_ARIBLK_27 textscale .27
+            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            style WINDOW_STYLE_FILLED
+            backcolor .94 .75 .27 1
+            forecolor .025 .035 .05 1
+            visible 1 decoration
+        }
+itemDef {
+            name "modern_nav_view" rect 417 12 132 30
+            text "VIEW" textfont UI_FONT_ARIBLK_27 textscale .27
+            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            style WINDOW_STYLE_FILLED
+            backcolor .08 .12 .16 1
+            forecolor .84 .89 .94 1
+            visible 1 type ITEM_TYPE_BUTTON
+ action { close options_customise_game ; open options ; close options ; open options_customise_hud }
+        }
+itemDef {
+            name "modern_nav_controls" rect 554 12 132 30
+            text "CONTROLS" textfont UI_FONT_ARIBLK_27 textscale .27
+            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            style WINDOW_STYLE_FILLED
+            backcolor .08 .12 .16 1
+            forecolor .84 .89 .94 1
+            visible 1 type ITEM_TYPE_BUTTON
+ action { close options_customise_game ; open options ; close options ; open options_controls }
+        }
+itemDef {
+            name "modern_nav_system" rect 691 12 132 30
+            text "SYSTEM" textfont UI_FONT_ARIBLK_27 textscale .27
+            textalign ITEM_ALIGN_CENTER textalignx 66 textaligny 21
+            style WINDOW_STYLE_FILLED
+            backcolor .08 .12 .16 1
+            forecolor .84 .89 .94 1
+            visible 1 type ITEM_TYPE_BUTTON
+ action { close options_customise_game ; open options ; close options ; open options_system }
+        }
+
 }

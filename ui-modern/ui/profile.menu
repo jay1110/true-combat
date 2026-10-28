@@ -2,15 +2,15 @@
 
 // Defines //
 
-#define WINDOW_X		$evalfloat((.5*852)-(WINDOW_WIDTH*.5))
-#define WINDOW_Y		$evalfloat((.5*480)-(WINDOW_HEIGHT*.5))
-#define WINDOW_WIDTH	376
-#define WINDOW_HEIGHT	152
+#define WINDOW_X 0
+#define WINDOW_Y 0
+#define WINDOW_WIDTH 852
+#define WINDOW_HEIGHT 480
 #define GROUP_NAME		"grpProfile"
 
 // Macros //
 
-#include "ui/menumacros.h"
+#include "ui/modern_widgets.h"
 
 // Profile Menu //
 	
@@ -39,7 +39,7 @@ menuDef {
 
 	itemDef {
 		name		"background"
-		rect		-243 -249 862 650
+		rect		0 0 852 480
 		style		WINDOW_STYLE_FILLED
 		background	"ui/assets/fadebox.tga"
 		backcolor	0 0 0 0
@@ -49,26 +49,47 @@ menuDef {
 // Window //
 
 	WINDOW( "Profile", 90 )
+    itemDef {
+        name "modern_browse_card_0"
+        rect 24 60 510 372
+        style WINDOW_STYLE_FILLED
+        backcolor .035 .055 .075 .94
+        border WINDOW_BORDER_FULL
+        bordercolor .18 .24 .29 .65
+        visible 1
+        decoration
+    }
+    itemDef {
+        name "modern_browse_card_1"
+        rect 558 60 270 372
+        style WINDOW_STYLE_FILLED
+        backcolor .035 .055 .075 .94
+        border WINDOW_BORDER_FULL
+        bordercolor .18 .24 .29 .65
+        visible 1
+        decoration
+    }
+
 
 // Profile List //
 
 	itemDef {
 		name			"profileList"
 		group			GROUP_NAME
-		rect			6 32 240 90
+		rect			36 76 486 340
 		type			ITEM_TYPE_LISTBOX
 		textfont		UI_FONT_COURBD_21
-		textscale		.2
-		textaligny		-3
+		textscale		.30
+		textaligny		-2
 		forecolor		.88 .91 .94 1
-		outlinecolor	.94 .75 .27 .18
+		outlinecolor	.94 .75 .27 .20
 		border			WINDOW_BORDER_FULL
 		bordercolor		.23 .29 .35 .75
 		feeder			FEEDER_PROFILES
 		elementtype		LISTBOX_TEXT
-		elementwidth	200
-		elementheight	12
-		columns			1 0 200 33
+		elementwidth	470
+		elementheight	28
+		columns			1 0 470 33
 		visible			1
 		tooltip			""
 		
@@ -84,17 +105,17 @@ menuDef {
 	
 // Buttons //
 
-	BUTTON( 252, 32, WINDOW_WIDTH-252-6, 14, "CREATE", .24, 11, close profile ; open profile_create )
-	BUTTON( 252, 50, WINDOW_WIDTH-252-6, 14, "DELETE", .24, 11, close profile ; conditionalscript UIProfileIsActiveProfile 2
+	BUTTON( 574, 92, 238, 36, "CREATE", .30, 25, close profile ; open profile_create )
+	BUTTON( 574, 142, 238, 36, "DELETE", .30, 25, close profile ; conditionalscript UIProfileIsActiveProfile 2
 																				( "open profile_delete_error" )
 																				( "open profile_delete" ) )
-	BUTTON( 252, 68, WINDOW_WIDTH-252-6, 14, "RENAME", .24, 11, close profile ; open profile_rename )
-	BUTTON( 252, 86, WINDOW_WIDTH-252-6, 14, "SET AS DEFAULT", .24, 11, conditionalscript ui_profile 1
+	BUTTON( 574, 192, 238, 36, "RENAME", .30, 25, close profile ; open profile_rename )
+	BUTTON( 574, 242, 238, 36, "SET AS DEFAULT", .30, 25, conditionalscript ui_profile 1
 																			( "uiscript setDefaultProfile" )
 																			( "open profile_sub" ) )
 
-	BUTTON( 6, WINDOW_HEIGHT-24, .5*(WINDOW_WIDTH-18), 18, "BACK", .3, 14, close profile ; open main )
-	BUTTON( 6+.5*(WINDOW_WIDTH-18)+6, WINDOW_HEIGHT-24, .5*(WINDOW_WIDTH-18), 18, "SELECT PROFILE", .3, 14, conditionalscript ui_profile 1
+	BUTTON( 24, 442, 184, 28, "BACK", .30, 20, close profile ; open main )
+	BUTTON( 638, 442, 190, 28, "SELECT PROFILE", .30, 20, conditionalscript ui_profile 1
 																												// Load the cached servers before the vid_restart (which saves the cached servers),
 																												// ui_profile is set so servers will be loaded from profile directory
 																												( "close profile ; uiscript clearPID ; uiscript applyProfile ; execwolfconfig 1 ; uiscript loadCachedServers ; exec vid_restart" )

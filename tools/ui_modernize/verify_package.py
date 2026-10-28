@@ -16,6 +16,7 @@ LOAD_LISTS = ('menus.txt', 'menus_gt2.txt', 'menus_gt5.txt', 'menus_gt7.txt')
 EDITOR_MENU = 'ui/tce_omnibot.menu'
 FORBIDDEN_SUFFIXES = {'.dll', '.so', '.dylib', '.exe', '.qvm', '.wasm', '.bsp', '.way', '.gm',
                       '.zip', '.pk3', '.obj', '.o', '.lib', '.a', '.pdb', '.map'}
+RUNTIME_MARKER=('tce2_ui/runtime.cfg',b'TCE2_MODERN_UI 1\n')
 
 
 def sha(data):
@@ -75,6 +76,7 @@ def styled_override(data, relative):
 
 
 def compare_semantics(reference, actual):
+    reference=sem.layout_reference(reference,actual)
     expected = text_paths(reference)
     found = text_paths(actual)
     if expected != found:
@@ -86,7 +88,8 @@ def compare_semantics(reference, actual):
     for unit in before_units:
         for ts in [unit.body] + [d.body for d in unit.defines]:
             names.update(ts[i+1] for i,t in enumerate(ts[:-1]) if t.lower() == 'name')
-    after, _ = sem.signatures([sem.parse(p, actual[p]) for p in sorted(found)], contracts, names)
+    after_units=[sem.parse(p, actual[p]) for p in sorted(found)]
+    after, _ = sem.signatures(sem.normalize_layout(after_units,before_units,contracts), contracts, names)
     differences = [p for p in sorted(expected) if before[p] != after[p]]
     if differences:
         raise ValueError('Package actions/cvars/labels/semantic data changed: ' + ', '.join(differences))
@@ -123,6 +126,8 @@ def verify(path, variant, baseline, repo=ROOT, transform=styled_override):
     semantic_paths = text_paths(original_files)
     expected = {p:theme[p] for p in semantic_paths}
     reference = {p:original_files[p] for p in semantic_paths}
+    if sem.PRIVATE_WIDGETS in theme:
+        expected[sem.PRIVATE_WIDGETS]=theme[sem.PRIVATE_WIDGETS]
     exception_rows = manifest.get('normal_game_content_sources')
     game_sources = {}
     if variant == 'game':
@@ -177,6 +182,8 @@ def verify(path, variant, baseline, repo=ROOT, transform=styled_override):
                 target in expected or source not in assets):
             raise ValueError('Unsafe/unbound native widget alias: ' + str(target))
         expected[target] = assets[source]
+    if RUNTIME_MARKER[0] in expected:raise ValueError('Runtime marker must be the fixed package-owned entry')
+    expected[RUNTIME_MARKER[0]]=RUNTIME_MARKER[1]
     payload = {p:d for p,d in files.items() if p != 'tce2_ui/package.json'}
     if payload != expected:
         missing = sorted(set(expected)-set(payload)); extra = sorted(set(payload)-set(expected))

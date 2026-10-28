@@ -225,7 +225,7 @@
       "sha256": "8721552d2f66e3c748b03a54b93739c665e5e1d19027691bc149e8c0f1751469",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "7f784c3594038b9bfd1697cb4807cd7e5c5fc1dcb498be3ac2ce224b472eac7a"
+      "semantic_sha256": "3b8c0e797107f3f3a0b1e4fb3fa4621ba07d41c904f9c27c7b13e43dca77d83c"
     },
     {
       "path": "ui/hostgame_advanced.menu",
@@ -233,7 +233,7 @@
       "sha256": "5a3ebfa25844c83a2e584ea6e6963cab8af9f507c811cb808f6182f46f7ac382",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "f5059125216db753fd24b5ba275c89ad3d8709e995d4608ccdfd4217f2a82a2c"
+      "semantic_sha256": "9ec28fddb35709a5cde09996ca0ae0e3ef788ad74502f56e8283f223e78de78f"
     },
     {
       "path": "ui/hostgame_advanced_default.menu",
@@ -241,7 +241,7 @@
       "sha256": "e3156caedef5d28bf9f457bd40771552db5a9590a8eda8697a9eed70ede8877d",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "9b50f44d9f6629e1bf70762e4ff2331b3c9d790e2c896bcf21ebc403dac6f6b0"
+      "semantic_sha256": "e562ec76fc761c880c02d1b4ff3883cc666d35c9c3769b57d8a235c7ad5026f3"
     },
     {
       "path": "ui/hostgame_dedicated_warning.menu",
@@ -249,7 +249,7 @@
       "sha256": "91b8bbf09b0cbba3050abb881d563ce3d24f3585446f1f6eb9f46c5da6b941db",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "426229dc459b05056cf97ff8dd3a5bbd0f4ca2b7cfde5fdc5fea9c9d06e20602"
+      "semantic_sha256": "8ec58328acb38f4e8baa4d645e07f0af36de417943316ebb9c2989dc05aa8edb"
     },
     {
       "path": "ui/hostgame_sub.menu",
@@ -257,7 +257,7 @@
       "sha256": "c84f9f2983bfe15489885790d3ca73c77ae9941b474b93793497bc66feee5251",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "e1d28184e945911578c310f25225661afdb89a4f3fb0c9fab0ea414540de1df3"
+      "semantic_sha256": "9c5243f9d758bd7dac9f3338e3ef7fdd344aa95ad3410c5936c08dd0261cb395"
     },
     {
       "path": "ui/ingame_disconnect.menu",
@@ -265,7 +265,7 @@
       "sha256": "39642a7aaf8dae4736945371330cdb93c1edd73f92b8de605ef4fc572bd250c1",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "bdf6390c87438796719b6e7f7d687beb703d144db95537489f5c87384d358b57"
+      "semantic_sha256": "729175e475a85b5fd4ef8b0def26e08eb6c0d65055f5d69b3e037b4e1824c16d"
     },
     {
       "path": "ui/ingame_main.menu",
@@ -281,7 +281,7 @@
       "sha256": "c2d4d56018643a849e5a805a8edce777f8ab05a51b4008c6eab2b9484d644cf8",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "e0788d16aa4603898dc9f008d321f7c2960aa00ddb4eac9d4062a56e9eebd22a"
+      "semantic_sha256": "402c8eece6802baa3d77bdaf8963129b63f488e813da8e51dab2bd75050a5da7"
     },
     {
       "path": "ui/ingame_tapoutlms.menu",
@@ -289,7 +289,7 @@
       "sha256": "2b45cdc33901b1192d59179eab5e03e77bb450f46f1ab4897895e9db50335633",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "0827e6dbb3ac6f0577b2b93ffaf84a403f5c8890c227af264f822d41786f5c92"
+      "semantic_sha256": "93920a1438ecc63b271651bcd081b908bac8aaa27e2d087805fd0bd7f443efb6"
     },
     {
       "path": "ui/ingame_vote.menu",
@@ -305,7 +305,7 @@
       "sha256": "7f48e67b6cde986a85f88c4cda641529593d68edfd6f82b9de93cd3ba7bf81f8",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "f955735a68b4baee2f9dbda0010cb40f43318646f7e0f97ad7998ccf634f9690"
+      "semantic_sha256": "bb19e48b1484009242112f6f19a18a4ca0a100fe7beef32980dddd082d5ac525"
     },
     {
       "path": "ui/ingame_vote_map.menu",
@@ -313,7 +313,7 @@
       "sha256": "ccf465652a22035424a3355d24b933911d70ab2365ba629d152e05354b09d45d",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "2846cd85cdc3bbe376f9bbb395d901a8e547d075b80cc91e614a4927876c9679"
+      "semantic_sha256": "53d2bbb5c6fbedd0e943701ab4f3b7fcc0f160732a7f0697b8c03529d2a82569"
     },
     {
       "path": "ui/ingame_vote_misc.menu",
@@ -337,7 +337,7 @@
       "sha256": "ae7c9c268c91049cdc48bd7f1f4ed6bd6edd50cb886a827fb1722b2e3e9c88ea",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "5f6e4667c9ea2a31248e6d0c01f021eafb5de96081f4c78c4333137e0c5d989e"
+      "semantic_sha256": "b017843f82b963586d7747734ec30810a2c20db58e886d3d0f37d8d884f53f6a"
     },
     {
       "path": "ui/ingame_vote_players_warn.menu",
@@ -345,7 +345,7 @@
       "sha256": "76249baec3ad93605282071fbe99f284fb599f788592d36755732278509261c5",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "ea0c006203b32561b35d2f2c5b722b9e6041a9018e9536c49a0d64205e74b26d"
+      "semantic_sha256": "a33115a93505885a65024f6adc1275901a9b688a6aa1794879326cd8fb17c636"
     },
     {
       "path": "ui/main.menu",
@@ -409,7 +409,7 @@
       "sha256": "b2d5792b7512cc5c38838006067c217ddb3a214a59a6c8b57bc45d34c6de7e9f",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "000c5a99b90d85b04af01f858207af5dd5269cc07b9a5224ecee71009c678887"
+      "semantic_sha256": "cbe87a50582b3116be7bf96d712a46c0a613b8c0c9fa8f37b998624904b6de37"
     },
     {
       "path": "ui/options.menu",
@@ -425,7 +425,7 @@
       "sha256": "24bb8bf6ef57175fae6665757e1e0c09067c89ab118c59608317e507fb0ffeca",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "a4cf1df5a5dc5b54e2b1b02bed662c49db76131d9eaf70ec17d018b0cde09c5e"
+      "semantic_sha256": "cdb375a05bbdac6d4c0ed15fad86651fef658a06b0f7f564ad5b60b4ece04642"
     },
     {
       "path": "ui/options_controls_default.menu",
@@ -433,7 +433,7 @@
       "sha256": "b1117be4594ded906e927a9c5d3d471b1397293fae02f3d4c39edc3f504026d0",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "c29a709eb88509712af0ffcd8cff26eff12e7e189916e71312cc3f6d6f209964"
+      "semantic_sha256": "baf67fba5f4652fbfbb0d6cec8887fee47d1db4d9ec94fad0633fcdcdb39a5c6"
     },
     {
       "path": "ui/options_customise_game.menu",
@@ -441,7 +441,7 @@
       "sha256": "b266cb40f2ebcd4200acfad150e651ca5070d2d393932286230b069123790115",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "236d76b34b8341d873cada0b5fe3e40d76a1070d31957a034f42a0f3f7c8a541"
+      "semantic_sha256": "d088a812a2cea44b4b673c46c4f6960fa1c16d8c594cd82dc4db8819ac48e685"
     },
     {
       "path": "ui/options_customise_hud.menu",
@@ -449,7 +449,7 @@
       "sha256": "660ad57daddfe54f85cfc0ae0db6ca3826bd7efb331e9fdfd72795e5939d6f1e",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "2598a356aa2da592c839dc6bf366cf7dbe8e23787ef108acd93030051805d7a3"
+      "semantic_sha256": "68d93cbcf12780e5815c275583df074b3c65345e361b5f57e6b986bc0d1d6bb6"
     },
     {
       "path": "ui/options_system.menu",
@@ -457,7 +457,7 @@
       "sha256": "9fcee28379956289d917e227bb463e4870843005fbf29d353f90d613cb9aff90",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "c235eadd072d51aa7471d968aba27f8e66f2caefaa73869319dd2c90a605b853"
+      "semantic_sha256": "b11983b8db8dddbf077694fe9a771d5b6258f6c5926dea554f95585b55c86809"
     },
     {
       "path": "ui/options_system_gamma.menu",
@@ -465,7 +465,7 @@
       "sha256": "55f977eeb3dd7ea571cb162a887c9aecda2acddfe9d2621a7873460f1a7fcb31",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "44763d1f9c8888a3dac5040b6b05a1f62c2348585b8230e296254e1784d8f4aa"
+      "semantic_sha256": "d039ee2b7b4c4cfd0fc5068760d750fd5319f33c052b926c5a7d4f7c9fd988c9"
     },
     {
       "path": "ui/playonline.menu",
@@ -473,7 +473,7 @@
       "sha256": "c347e7baa29018c91815cdc6b7a988fde12a8c8c378edd3a6f39aa3d05f57451",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "1ea5651318c41da84d581384921a8bc7253c6b5b7068150186068bb433a592b8"
+      "semantic_sha256": "15644820ec504f7a45fa573a15338f4c542a41f53479479195a0c9dd7e48a1ac"
     },
     {
       "path": "ui/playonline_connecttoip.menu",
@@ -481,7 +481,7 @@
       "sha256": "973dbf2896fac355f419d067e7b93847770fe1dbc686021abdfd95eda52c82a4",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "6f5e4542981bb35eab55e7fc721cacbaabaf5e516aea7759a7614d486234f1e9"
+      "semantic_sha256": "afc2ab9b214cd412611fbef561d115454ed740ad5cca887c107ab2c18b9ac964"
     },
     {
       "path": "ui/playonline_disablepb.menu",
@@ -489,7 +489,7 @@
       "sha256": "4b0bc188641422d9bca39483d8f338f8b3267a81564380fdaf6c8e30cf033aed",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "9e244e74be053b7e6925f66ca766289608a7d8051d64db045be34b8aaf3da66e"
+      "semantic_sha256": "07e9c893cf8bd400fc4d7209d2ea346dfd194e979909eda6a13a6dd601afe57f"
     },
     {
       "path": "ui/playonline_enablepb.menu",
@@ -497,7 +497,7 @@
       "sha256": "ce778428ba8f7bbc0d194b746b550ee91bd1e786492c418c52642ec1802dec22",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "d51b994113c4aa50d8598cbdd8349dcc7c209b4fc60ddd117b1c9b1c733eca17"
+      "semantic_sha256": "6db4595c546b09c6c61868ec2b458b836b5f4f3ceadcf900b41d53faafda9028"
     },
     {
       "path": "ui/playonline_serverinfo.menu",
@@ -505,7 +505,7 @@
       "sha256": "e85ce63cda818159121229713eefb88dee3a237b9750d6240b01af8e906d9981",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "a78f17aed599d06da4a1fc6d790af429a9cf58db6051e0362dab025c311665a2"
+      "semantic_sha256": "59217e1b85a377545a4f97c6b9ce4239aa996aa583264dc2ce00c16c8bdc76bc"
     },
     {
       "path": "ui/playonline_sub.menu",
@@ -513,7 +513,7 @@
       "sha256": "c4e0efcc0fbe74656d99469dd5335e652cbd9d62ed5b8547e8be889ca082fe85",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "6464c9f5a183c3ec29c4b11812a05b5dbaffd6910ae043b3531b65290c723f0e"
+      "semantic_sha256": "54363e00fab97ecd65fda7f844ec141e951074b61fa4bd7849d9724e00e3d6f5"
     },
     {
       "path": "ui/popup_autoupdate.menu",
@@ -521,7 +521,7 @@
       "sha256": "91f34bb463edee745d0d26a911316e4609c66ca7a0046611e268f980e765a80d",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "fab01219bf14a5240caed685a4fddddf622ba5f79a9747c26c9c5d29bde38e72"
+      "semantic_sha256": "d8f8ac46cba089f2769509a19ee8894dc48ea902808ebdbe1178ae3684c91ea9"
     },
     {
       "path": "ui/popup_errormessage.menu",
@@ -529,7 +529,7 @@
       "sha256": "7c265e61324122d740e7d6aa68da65fede2cbe3f60c4d692c1fd722c82d92a2b",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "ba34392cf140a315907e06760dfe250577702589948ac1b003b4ac93481d5c3c"
+      "semantic_sha256": "516884b08a5d9449c12e5a2831be04f6ef149fa661dca97efc45c4ccec0dbd18"
     },
     {
       "path": "ui/popup_errormessage_pb.menu",
@@ -537,7 +537,7 @@
       "sha256": "a5a45390ad196017c4d19e7428aada1a19d1f3f5118a752f2c671328a85a62ba",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "5c86b3154f3a8fdedc8eb9a3d96a67431fbec2b47295f483ee2acae31c7124e7"
+      "semantic_sha256": "e300109d5c78ebed0afcb8b1b721cae2069ab7836b7ff85919a77e8610213830"
     },
     {
       "path": "ui/popup_hostgameerrormessage.menu",
@@ -545,7 +545,7 @@
       "sha256": "45b32f0c4f2a14ce373df344d94328a7d37c76b62f5b427c2ebc3f52fd3e063c",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "f316459f87fe3dc6be62caefb8f084815e1a6dca3b761f82d49e0e1708868253"
+      "semantic_sha256": "29a0bac1ba31e52123c6d78507ebf61d63d871ce7a2d0e05b94bf34ac75f920f"
     },
     {
       "path": "ui/popup_password.menu",
@@ -553,7 +553,7 @@
       "sha256": "379dd5296e7b914f9f959013fb2bd6c2254995cbcb7bf6ce4da0d8b39d0ecfe3",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "fc2746fcacf23177942022122c34c5c18879249a7683a6bbb1450f045d4e7b47"
+      "semantic_sha256": "6f9d27df6594712f790add5fc3a74e778bb8a1d913a46635bed7f1d56a8b3b31"
     },
     {
       "path": "ui/profile.menu",
@@ -561,7 +561,7 @@
       "sha256": "f07ea8580063fc569dd712fb598caaa6da2336b3804724652bef5c6107f46c51",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "4a79a7f0f3e4894e821bb03046e20dd49ccd39e80dea3df0f60fa7a34f79b5af"
+      "semantic_sha256": "fb6f7ef9588a0e2563c5b680f58fc479fa25d30644fc6a31d3ce85c9daab42d7"
     },
     {
       "path": "ui/profile_create.menu",
@@ -569,7 +569,7 @@
       "sha256": "4f9f7dc655a68dbc16b70628e833849b3f5fafe509e564a1ab8961e22f7cbb90",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "c2c4d9db55ef7981b7ba3e7e4e619bddd3ffcbdd58c600c16e21cb94bb7b356d"
+      "semantic_sha256": "2b7c9611e488f5a9684fe7676858c3bf06ddea8b0c6468d4e497b4b3dfa41d66"
     },
     {
       "path": "ui/profile_create_error.menu",
@@ -577,7 +577,7 @@
       "sha256": "f3a49966e06a6c41882f6c30dccd16c9326ec1c3a8a51446af0767f61464ccac",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "52341c1ce1df5d9acecaae4ae58dc244f616899995f12e80ea7bbb7e7276fb59"
+      "semantic_sha256": "878d186d7eb939e5713a2901181e7c07a1a4a021e05a40dd78969725d736c584"
     },
     {
       "path": "ui/profile_create_initial.menu",
@@ -585,7 +585,7 @@
       "sha256": "1f70544b2f9af1479aa49ef605bcf0462fbb7f41d638674dcf0d22b8f6a6f613",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "dbfdb4c0c3c42fe4bd7778df91720dedec6a037b3ecbef3432e6706329434fe0"
+      "semantic_sha256": "09401e2a459f1e9fb444a11d14f0840a3d34229832d861f81afe5369e80409a3"
     },
     {
       "path": "ui/profile_delete.menu",
@@ -593,7 +593,7 @@
       "sha256": "63e12739cded2c8fe68c00869b7e85adaa2176cc9c208fc9c0cf503316958d00",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "606784803102676aba7edad9bdef7e67573638528017afcd963648fb0cfc13e0"
+      "semantic_sha256": "a8ef10d5a3ad19a695d2a99f2cf0dd762adce064c5ccab4de672e0d13c1fa1b0"
     },
     {
       "path": "ui/profile_delete_error.menu",
@@ -601,7 +601,7 @@
       "sha256": "485ec83a647956ce88028def17bb8b09bcf044ad7064bb6648a0853470977562",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "c92758a8da780f226cd0b995fffe3fd3ce1f0fd9a9224ac2626d7e5b3256fafd"
+      "semantic_sha256": "e1be67e0cd5c021d6cafc98ef0266a5b25acb19c8f7c343ac6b905f3e0b335a6"
     },
     {
       "path": "ui/profile_rename.menu",
@@ -609,7 +609,7 @@
       "sha256": "78e96cf8c9dfa0f20e7e47e6c93a21eb3519d6177e1556f4ebc0390bb8b13953",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "3c9869e1659b7a913fbecf80d90fc341216f43c197ac4b6c1002e67a71242155"
+      "semantic_sha256": "d66b357c057d5b7b148e1d93b378aeec6444739f216850c61fb0cc60e12286f8"
     },
     {
       "path": "ui/profile_sub.menu",
@@ -617,7 +617,7 @@
       "sha256": "aa7246065257f6a1a1e03a28681cb6e3a22e1d750cbcdb67a21b7ffaf55fed81",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "dd5f7836ddbd5845207ccd030d04abee29661655aa43afe88edc20f68feacdc5"
+      "semantic_sha256": "ad36c3fe8b5625138d097728a2b4471c475db0fc391913616ecc6473fe614cd5"
     },
     {
       "path": "ui/quit.menu",
@@ -625,7 +625,7 @@
       "sha256": "645f42f14ce92b462466e8fec8dc4e4e8364501f0c018f46531a894758adc076",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "e42c0ec8f4ca5b600e570a64a971dd7a5d1777c1b7f70eb1c8dafe37c674af01"
+      "semantic_sha256": "412a712b8773307a3cc0990b56a91a8437c627291e8686cb3a14923f5ab5ce0f"
     },
     {
       "path": "ui/rec_restart.menu",
@@ -633,7 +633,7 @@
       "sha256": "477c62ef419a656f5dc3ae1ed8ac5827a785cb9503d207c0920115f0303b84a5",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "9ac66f51f54c7c310ec43a44efae4c7cb638581a4495a7c0bd367589b4654cd2"
+      "semantic_sha256": "4d9e40ee1f546c5ff208a72a10ecb6e3602db5062e9a697084fdf2f2051a2068"
     },
     {
       "path": "ui/tce_omnibot.menu",
@@ -657,7 +657,7 @@
       "sha256": "7906657df77ea1481cf1778f685ea274b24046d4eeb62ea9056b0e3423a6e1eb",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "c36cb8c34e0bdc439822990fb2efb1115dc5934c7e61d54cb5de164d68a26d61"
+      "semantic_sha256": "f2729226a6aa9b319882725f07724f6cbd09444e310549dce9134877d5e3e586"
     },
     {
       "path": "ui/vid_restart.menu",
@@ -665,7 +665,7 @@
       "sha256": "ea6ce2c345adc45f6a151f3be8bf9ba6a4d748782cbd4cb2d3f491153cc997f2",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "1c6d1f7e9ef64476e7515496a4932ebffcdb99c006ec3f87612ee0ecc1bc9308"
+      "semantic_sha256": "ffa47dbb046212101ccd5ebe7ac3a3c5997f0b5964d7fdd392efe16a15d35e0d"
     },
     {
       "path": "ui/viewreplay.menu",
@@ -673,7 +673,7 @@
       "sha256": "890bb5de8a1a52340ad43fd0de785bd7b2833e7334b4f1214f33b996c69b8b69",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "6962de070ce33d6756e12e0c7c1bde5dee875f70d46e9f2b80d9c3cc6ebfdd27"
+      "semantic_sha256": "a007333fed96d99c560575b6f92056c40813b7a1e20451d8cbb8df8919fccaa8"
     },
     {
       "path": "ui/viewreplay_delete.menu",
@@ -681,7 +681,7 @@
       "sha256": "b98d01ed32b99cbae2c4af8c54c58de958d3bbb6804414837fd222306410b28a",
       "menu": true,
       "encoding": "utf-8",
-      "semantic_sha256": "4de968aaa839d7df35608a69bab14e6eeb9b3b2999628917f249b76af37e08c0"
+      "semantic_sha256": "d4a6285c269e6dd1c5c35e3ed4a3fd2c2bfd2f9d98caa4d777c4b618db564ea7"
     },
     {
       "path": "ui/wm_ftquickmessage.menu",
@@ -1105,15 +1105,16 @@
       ]
     }
   },
-  "limits": [
-    "Source semantic projection, not engine/runtime/input validation.",
-    "Exact scripts/lists/conditions/labels except numeric setitemcolor/setmenuitemcolor RGBA; unknown syntax significant.",
-    "Existing menu/item identity/order retained; safe new label/action-free decorations allowed.",
-    "Only declared paint properties, paint-only macro arguments and UI_FONT_* slots0..5 may vary."
-  ],
   "validator_sha256": {
-    "semantic.py": "5e212aa507086fa9a2b66141edd88fbfd0734cf098c72d5b41427162475e078e",
+    "semantic.py": "7eeaecc882d664dff4e9a8a4fee85ae2362b90789b81b7709f09a6e548df487c",
     "inventory.py": "15859e50912e60a2951a945c5179a8d6d3242e9f0150c3a82fff5d606b774e22",
     "check.py": "98f2768fe8b0fcc5294fc1a65228816aad11acf21bd572feaaf3612bec134e28"
-  }
+  },
+  "limits": [
+    "Source semantic projection, not engine/runtime/input validation.",
+    "Original scripts/lists/conditions/labels exact except numeric paint RGBA; unknown syntax significant.",
+    "Existing identities/order retained; inert decorations and four exact Back-derived settings links explicitly checked.",
+    "Declared paint, font slots0..5 and checked column position/width may vary; column count/order/maxChars protected.",
+    "Only ui/modern_widgets.h may add a private copy of the original widget contract; main/global includes protected."
+  ]
 }

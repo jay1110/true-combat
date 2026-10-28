@@ -2,15 +2,15 @@
 
 // Defines //
 
-#define WINDOW_X		$evalfloat((.5*852)-(WINDOW_WIDTH*.5))
-#define WINDOW_Y		$evalfloat((.5*480)-(WINDOW_HEIGHT*.5))
-#define WINDOW_WIDTH	608
-#define WINDOW_HEIGHT	448
+#define WINDOW_X 0
+#define WINDOW_Y 0
+#define WINDOW_WIDTH 852
+#define WINDOW_HEIGHT 480
 #define GROUP_NAME		"grpCreditsActivision"
 
 // Macros //
 
-#include "ui/menumacros.h"
+#include "ui/modern_widgets.h"
 		
 // System Menu //
 	
@@ -29,7 +29,7 @@ menuDef {
 
 	itemDef {
 		name		"background"
-		rect		-127 -101 862 650
+		rect		0 0 852 480
 		style		WINDOW_STYLE_FILLED
 		background	"ui/assets/fadebox.tga"
 		backcolor	.015 .025 .04 .72
@@ -49,12 +49,34 @@ menuDef {
 		visible		1
 		decoration
 	}
+    itemDef {
+        name "modern_secondary_0"
+        rect 24 60 176 372
+        style WINDOW_STYLE_FILLED
+        backcolor .035 .055 .075 .94
+        border WINDOW_BORDER_FULL
+        bordercolor .18 .24 .29 .65
+        visible 1
+        decoration
+    }
+
+    itemDef {
+        name "modern_secondary_1"
+        rect 224 60 604 372
+        style WINDOW_STYLE_FILLED
+        backcolor .035 .055 .075 .94
+        border WINDOW_BORDER_FULL
+        bordercolor .18 .24 .29 .65
+        visible 1
+        decoration
+    }
+
 	
 // Logo //
 
 	itemDef {
 		name		"logoShadow"
-		rect		$evalfloat(.5*(WINDOW_WIDTH-144)+1) $evalfloat(8+14+1) 144 36
+		rect		37 129 152 38
 		style		WINDOW_STYLE_SHADER
 		background	"ui/assets/logo_atvi"
 		forecolor	0 0 0 1
@@ -64,7 +86,7 @@ menuDef {
 
 	itemDef {
 		name		"logo"
-		rect		$evalfloat(.5*(WINDOW_WIDTH-144)-1) $evalfloat(8+14-1) 144 36
+		rect		36 128 152 38
 		style		WINDOW_STYLE_SHADER
 		background	"ui/assets/logo_atvi"
 		forecolor	1 1 1 1
@@ -75,14 +97,14 @@ menuDef {
 	itemDef {
 		name		"headerLogo"
 		group		GROUP_NAME
-		rect		6 80 $evalfloat(WINDOW_WIDTH-12) 16
+		rect		24 8 804 36
 		text		"PRODUCED BY ACTIVISION"
 		textfont	UI_FONT_ARIBLK_16
 		textstyle	ITEM_TEXTSTYLE_NORMAL
-		textscale	.3
-		textalign	ITEM_ALIGN_CENTER
-		textalignx	$evalfloat(.5*(WINDOW_WIDTH-12))
-		textaligny	14
+		textscale	.40
+		textalign	ITEM_ALIGN_LEFT
+		textalignx	0
+		textaligny	27
 		forecolor	1 1 1 1
 		visible		1
 		decoration
@@ -92,57 +114,57 @@ menuDef {
 
 #define CREDITS_Y	108
 	
-	LABELWHITE( 6, CREDITS_Y, .5*(WINDOW_WIDTH-24), 10, "Jonathan Moses", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y, .5*(WINDOW_WIDTH-24), 10, "Producer", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+12, .5*(WINDOW_WIDTH-24), 10, "Doug Avery", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+12, .5*(WINDOW_WIDTH-24), 10, "Associate Producer", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+24, .5*(WINDOW_WIDTH-30), 10, "John Fritts", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+24, .5*(WINDOW_WIDTH-24), 10, "Installer", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+36, .5*(WINDOW_WIDTH-30), 10, "Steve Holmes", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+36, .5*(WINDOW_WIDTH-24), 10, "Production Coordinator", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+48, .5*(WINDOW_WIDTH-30), 10, "Matthew Beal", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+48, .5*(WINDOW_WIDTH-24), 10, "Production Tester", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+60, .5*(WINDOW_WIDTH-30), 10, "Laird M. Malamed", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+60, .5*(WINDOW_WIDTH-24), 10, "Sr. Executive Producer", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+72, .5*(WINDOW_WIDTH-30), 10, "Mark Lamia", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+72, .5*(WINDOW_WIDTH-24), 10, "VP North American Studios", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	LABELWHITE( 236, 98, 170, 18, "Jonathan Moses", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 98, 390, 18, "Producer", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 110, 170, 18, "Doug Avery", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 110, 390, 18, "Associate Producer", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 122, 170, 18, "John Fritts", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 122, 390, 18, "Installer", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 134, 170, 18, "Steve Holmes", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 134, 390, 18, "Production Coordinator", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 146, 170, 18, "Matthew Beal", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 146, 390, 18, "Production Tester", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 158, 170, 18, "Laird M. Malamed", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 158, 390, 18, "Sr. Executive Producer", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 170, 170, 18, "Mark Lamia", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 170, 390, 18, "VP North American Studios", .23, ITEM_ALIGN_LEFT, 0, 14 )
 	
-	LABELWHITE( 6, CREDITS_Y+96, .5*(WINDOW_WIDTH-30), 10, "Brad Saavedra", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+96, .5*(WINDOW_WIDTH-24), 10, "QA Project Lead", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+108, .5*(WINDOW_WIDTH-30), 10, "Evan Button", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+108, .5*(WINDOW_WIDTH-24), 10, "QA Project Lead", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+120, .5*(WINDOW_WIDTH-30), 10, "Matt McClure", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+120, .5*(WINDOW_WIDTH-24), 10, "QA Senior Project Lead", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+132, .5*(WINDOW_WIDTH-30), 10, "Nathaniel McClure", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+132, .5*(WINDOW_WIDTH-24), 10, "QA Floor Lead", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+156, (WINDOW_WIDTH-24)+12, 10, "Testers:", .2, ITEM_ALIGN_CENTER, .5*((WINDOW_WIDTH-24)+12), 8 )
+	LABELWHITE( 236, 194, 170, 18, "Brad Saavedra", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 194, 390, 18, "QA Project Lead", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 206, 170, 18, "Evan Button", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 206, 390, 18, "QA Project Lead", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 218, 170, 18, "Matt McClure", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 218, 390, 18, "QA Senior Project Lead", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 230, 170, 18, "Nathaniel McClure", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 230, 390, 18, "QA Floor Lead", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 254, 580, 18, "Testers:", .23, ITEM_ALIGN_LEFT, 0, 14 )
 //	LABELWHITE( 6, CREDITS_Y+168, (WINDOW_WIDTH-24)+12, 10, "Matt Nelson, Shane Sasaki, Erik Melen, Erik Beaumont, Sean Berrett", .2, ITEM_ALIGN_CENTER, .5*((WINDOW_WIDTH-24)+12), 8 )
 //	LABELWHITE( 6, CREDITS_Y+180, (WINDOW_WIDTH-24)+12, 10, "Mike Castillo - Walsh, Randolph L. S. d'Amore, Andrew S. Molloy, Robert Max Martin", .2, ITEM_ALIGN_CENTER, .5*((WINDOW_WIDTH-24)+12), 8 )
 //	LABELWHITE( 6, CREDITS_Y+192, (WINDOW_WIDTH-24)+12, 10, "Julian Dimarco, Ayal Moreno, Charlie Staples, James White, Paul Fortin, Lawrence Wong", .2, ITEM_ALIGN_CENTER, .5*((WINDOW_WIDTH-24)+12), 8 )
 //	LABELWHITE( 6, CREDITS_Y+204, (WINDOW_WIDTH-24)+12, 10, "Chris Wagener, Kyle C. Jackson, Paul Goldilla, Cory Rice, Stephen Peterson", .2, ITEM_ALIGN_CENTER, .5*((WINDOW_WIDTH-24)+12), 8 )
 //	LABELWHITE( 6, CREDITS_Y+216, (WINDOW_WIDTH-24)+12, 10, "Daniel Kannard, Douglas Todd, Mike Restifo, Jim Call", .2, ITEM_ALIGN_CENTER, .5*((WINDOW_WIDTH-24)+12), 8 )
-	LABELWHITE( 6, CREDITS_Y+168, (WINDOW_WIDTH-24)+12, 10, "Matt Nelson, Shane Sasaki, Erik Melen, Erik Beaumont, Sean Berrett, Daniel Kannard, Cory Rice", .2, ITEM_ALIGN_CENTER, .5*((WINDOW_WIDTH-24)+12), 8 )
-	LABELWHITE( 6, CREDITS_Y+180, (WINDOW_WIDTH-24)+12, 10, "Mike Castillo - Walsh, Randolph L. S. d'Amore, Andrew S. Molloy, Robert Max Martin, Jim Call", .2, ITEM_ALIGN_CENTER, .5*((WINDOW_WIDTH-24)+12), 8 )
-	LABELWHITE( 6, CREDITS_Y+192, (WINDOW_WIDTH-24)+12, 10, "Julian Dimarco, Ayal Moreno, Charlie Staples, James White, Paul Fortin, Lawrence Wong", .2, ITEM_ALIGN_CENTER, .5*((WINDOW_WIDTH-24)+12), 8 )
-	LABELWHITE( 6, CREDITS_Y+204, (WINDOW_WIDTH-24)+12, 10, "Chris Wagener, Kyle C. Jackson, Paul Goldilla, Stephen Peterson, Douglas Todd, Mike Restifo", .2, ITEM_ALIGN_CENTER, .5*((WINDOW_WIDTH-24)+12), 8 )
-	LABELWHITE( 6, CREDITS_Y+228, .5*(WINDOW_WIDTH-24), 10, "Chris Keim", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+228, .5*(WINDOW_WIDTH-24), 10, "Network", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+240, .5*(WINDOW_WIDTH-24), 10, "Neil Barizo", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+240, .5*(WINDOW_WIDTH-24), 10, "Compatibility", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+252, .5*(WINDOW_WIDTH-24), 10, "Marilena Rixford", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+252, .5*(WINDOW_WIDTH-24), 10, "QA Manager", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+264, .5*(WINDOW_WIDTH-24), 10, "Tim Vanlaw", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+264, .5*(WINDOW_WIDTH-24), 10, "Manager, Code Release Group", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+276, .5*(WINDOW_WIDTH-24), 10, "Jason Levine", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+276, .5*(WINDOW_WIDTH-24), 10, "Sr. Lead, Code Release Group", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+288, .5*(WINDOW_WIDTH-24), 10, "Jef Sedivy", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+288, .5*(WINDOW_WIDTH-24), 10, "Lead, Code Release Group", .2, ITEM_ALIGN_LEFT, 0, 8 )
-	LABELWHITE( 6, CREDITS_Y+300, .5*(WINDOW_WIDTH-24), 10, "Bob McPherson", .2, ITEM_ALIGN_RIGHT, .5*(WINDOW_WIDTH-24), 8 )
-	LABELWHITE( 6+.5*(WINDOW_WIDTH-24)+12, CREDITS_Y+300, .5*(WINDOW_WIDTH-24), 10, "Manager, Customer Support", .2, ITEM_ALIGN_LEFT, 0, 8 )
+	LABELWHITE( 236, 266, 580, 18, "Matt Nelson, Shane Sasaki, Erik Melen, Erik Beaumont, Sean Berrett, Daniel Kannard, Cory Rice", .21, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 278, 580, 18, "Mike Castillo - Walsh, Randolph L. S. d'Amore, Andrew S. Molloy, Robert Max Martin, Jim Call", .21, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 290, 580, 18, "Julian Dimarco, Ayal Moreno, Charlie Staples, James White, Paul Fortin, Lawrence Wong", .21, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 302, 580, 18, "Chris Wagener, Kyle C. Jackson, Paul Goldilla, Stephen Peterson, Douglas Todd, Mike Restifo", .21, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 326, 170, 18, "Chris Keim", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 326, 390, 18, "Network", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 338, 170, 18, "Neil Barizo", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 338, 390, 18, "Compatibility", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 350, 170, 18, "Marilena Rixford", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 350, 390, 18, "QA Manager", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 362, 170, 18, "Tim Vanlaw", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 362, 390, 18, "Manager, Code Release Group", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 374, 170, 18, "Jason Levine", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 374, 390, 18, "Sr. Lead, Code Release Group", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 386, 170, 18, "Jef Sedivy", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 386, 390, 18, "Lead, Code Release Group", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 398, 170, 18, "Bob McPherson", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 398, 390, 18, "Manager, Customer Support", .23, ITEM_ALIGN_LEFT, 0, 14 )
 
 // Buttons //
 
-	BUTTON( 6, WINDOW_HEIGHT-24, .33*(WINDOW_WIDTH-24), 18, "BACK", .3, 14, close credits_activision ; open main )
-	BUTTON( 6+.33*(WINDOW_WIDTH-24)+6, WINDOW_HEIGHT-24, .34*(WINDOW_WIDTH-24), 18, "ID SOFTWARE", .3, 14, close credits_activision ; open credits_idsoftware )
-	BUTTON( 6+.33*(WINDOW_WIDTH-24)+6+.34*(WINDOW_WIDTH-24)+6, WINDOW_HEIGHT-24, .33*(WINDOW_WIDTH-24), 18, "ADDITIONAL", .3, 14, close credits_activision ; open credits_additional )
+	BUTTON( 24, 442, 184, 28, "BACK", .28, 19, close credits_activision ; open main )
+	BUTTON( 364, 442, 252, 28, "ID SOFTWARE", .28, 19, close credits_activision ; open credits_idsoftware )
+	BUTTON( 638, 442, 190, 28, "ADDITIONAL", .28, 19, close credits_activision ; open credits_additional )
 }

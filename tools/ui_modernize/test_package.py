@@ -80,6 +80,7 @@ class Packages(unittest.TestCase):
         assets = self.edited/'assets'
         files.update({p.relative_to(assets).as_posix():p.read_bytes() for p in assets.rglob('*') if p.is_file()})
         files['ui/assets/check.tga'] = files['tce2_ui/button.tga']
+        files[v.RUNTIME_MARKER[0]]=v.RUNTIME_MARKER[1]
         manifest = {'schema':1,'theme':'TCE2 Modern UI','version':'1.0.2','variant':variant,
                     'all_original_menu_sources':self.baseline['menu_count'],
                     'normal_game_content_sources':exceptions}
@@ -208,6 +209,15 @@ class Packages(unittest.TestCase):
         files,m=self.payload();self.write(files,m)
         with self.assertRaisesRegex(ValueError,'stale UI asset provenance'):
             self.check()
+
+    def test_package_owned_runtime_marker_exact_bytes_required(self):
+        for bad in (None,b'TCE2_MODERN_UI 0\n',b'TCE2_MODERN_UI 1\nexec attacker\n'):
+            with self.subTest(marker=bad):
+                files,m=self.payload()
+                if bad is None:del files[v.RUNTIME_MARKER[0]]
+                else:files[v.RUNTIME_MARKER[0]]=bad
+                self.write(files,m)
+                with self.assertRaisesRegex(ValueError,'Stale/unclassified'):self.check()
 
     def test_wrong_identity_menu_count_or_manifest_fingerprint_rejected(self):
         for kind in ('variant','schema','version','count','fingerprint'):
