@@ -111,11 +111,13 @@ class SharedClients(unittest.TestCase):
             packages[variant] = clients.zip_contents(data)
         for name in clients.SHARED_UI:
             self.assertEqual(packages['game']['ui/' + name], packages['navstudio']['ui/' + name])
-        for name in ('ui/options_system.menu', 'ui/options_quality.menu',
+        for name in ('ui/options_system.menu',
                      'gfx/tce2/fireteam/assault.tga', 'gfx/tce2/fireteam/recon.tga',
                      'gfx/tce2/fireteam/sniper.tga', 'gfx/tce2/fireteam/SOURCE.json'):
             self.assertEqual(packages['game'][name], packages['navstudio'][name])
             self.assertEqual(packages['game'][name], (clients.ROOT/'src/assets'/name).read_bytes())
+        for variant in packages:
+            self.assertNotIn('ui/options_quality.menu', packages[variant])
         self.assertIn('ui/menus.txt', packages['game'])
         self.assertNotIn('ui/menus.txt', packages['navstudio'])
         self.assertFalse(any('navstudio' in name or 'tce_waypoint' in name for name in packages['game']))
@@ -123,7 +125,7 @@ class SharedClients(unittest.TestCase):
     def test_differing_ui_resource_or_editor_asset_is_rejected(self):
         for name in ('ui/options_controls.menu', 'gfx/misc/radar_dot.tga', 'levelshots/obj_delta_cc.tga',
                      'gfx/tce2/nav/player.tga', 'gfx/tce2/nav/SOURCE.json',
-                     'ui/options_system.menu', 'ui/options_quality.menu',
+                     'ui/options_system.menu',
                      'gfx/tce2/fireteam/assault.tga', 'gfx/tce2/fireteam/recon.tga',
                      'gfx/tce2/fireteam/sniper.tga', 'gfx/tce2/fireteam/SOURCE.json'):
             with self.subTest(name=name), self.assertRaisesRegex(ValueError, 'Different/stale shared'):
@@ -132,6 +134,9 @@ class SharedClients(unittest.TestCase):
             self.row('linux-x86_64', overrides={'ui/tce_editor.menu': b'editor'})
         with self.assertRaisesRegex(ValueError, 'Wrong client inputs/assets'):
             self.row('linux-x86_64', 'navstudio', overrides={'ui/menus.txt': b'public menu list'})
+        for variant in ('game', 'navstudio'):
+            with self.subTest(variant=variant), self.assertRaisesRegex(ValueError, 'Wrong client inputs/assets'):
+                self.row('windows-x86', variant, overrides={'ui/options_quality.menu': b'removed menu'})
 
     def test_cmake_and_canonical_clients_include_user_delta_images_in_both_variants(self):
         expected = clients.levelshot_assets()
@@ -152,12 +157,14 @@ class SharedClients(unittest.TestCase):
             self.assertEqual(clients.validate_levelshots(payload)['map'], 'obj_delta')
             hud = clients.fireteam_assets()
             hud.update({'ui/' + name: (clients.ROOT/'src/assets/ui'/name).read_bytes()
-                        for name in ('options_system.menu', 'options_quality.menu')})
+                        for name in ('options_system.menu',)})
             self.assertEqual({name: payload[name] for name in hud}, hud)
+            self.assertNotIn('ui/options_quality.menu', payload)
             row = self.row('windows-x86', variant)
             data, _ = clients.canonical_client([row], ['windows-x86'], VERSION, variant)
             canonical = clients.zip_contents(data)
             self.assertEqual({name: canonical[name] for name in hud}, hud)
+            self.assertNotIn('ui/options_quality.menu', canonical)
             self.assertEqual({name: data for name, data in canonical.items() if name.startswith('levelshots/')}, expected)
             # No images are fabricated for unsupplied maps; their existing
             # CGame fallback remains applicable.
@@ -188,7 +195,7 @@ class SharedClients(unittest.TestCase):
     def test_release_resource_validator_requires_new_hud_assets_in_both_variants(self):
         for variant in ('game', 'navstudio'):
             original = clients.client_assets(VERSION, variant)
-            for missing in (None, 'ui/options_system.menu', 'ui/options_quality.menu',
+            for missing in (None, 'ui/options_system.menu',
                             'gfx/tce2/fireteam/recon.tga', 'gfx/tce2/fireteam/SOURCE.json'):
                 with self.subTest(variant=variant, missing=missing):
                     files = dict(original)
@@ -200,6 +207,11 @@ class SharedClients(unittest.TestCase):
                                 validate_client_resources(pk3, {'version': VERSION}, variant == 'navstudio')
                         else:
                             validate_client_resources(pk3, {'version': VERSION}, variant == 'navstudio')
+            files = dict(original)
+            files['ui/options_quality.menu'] = b'removed menu'
+            with zipfile.ZipFile(io.BytesIO(clients.zip_bytes(files))) as pk3:
+                with self.assertRaisesRegex(ValueError, 'Removed graphics-quality menu'):
+                    validate_client_resources(pk3, {'version': VERSION}, variant == 'navstudio')
 
     def test_missing_or_corrupt_user_delta_images_and_provenance_are_rejected(self):
         original = clients.levelshot_assets()

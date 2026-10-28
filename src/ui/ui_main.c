@@ -5385,119 +5385,6 @@ void UI_Update(const char *name)
 UI_RunMenuScript
 ==============
 */
-/* Stage renderer-owned settings; an engine video restart recreates the UI VM,
- * so the one-step undo snapshot lives in private, non-archived engine cvars.
- * Never create renderer2 cvars or replace the user's gamma/video mode here. */
-typedef struct {
-	const char *engine, *staged, *saved, *high;
-} tceGraphicsSetting_t;
-
-static const tceGraphicsSetting_t tceGraphicsSettings[] = {
-	{ "r_picmip", "ui_tceGfx_texture", "ui_tceGfx_old_texture", "0" },
-	{ "r_textureMode", "ui_tceGfx_filter", "ui_tceGfx_old_filter", "GL_LINEAR_MIPMAP_LINEAR" },
-	{ "r_ext_texture_filter_anisotropic", "ui_tceGfx_af", "ui_tceGfx_old_af", "16" },
-	{ "r_ext_max_anisotropy", NULL, "ui_tceGfx_old_afmax", "16" },
-	{ "r_textureAnisotropy", NULL, "ui_tceGfx_old_afdegree", "16" },
-	{ "r_ext_multisample", "ui_tceGfx_aa", "ui_tceGfx_old_aa", "8" },
-	{ "r_fbo", NULL, "ui_tceGfx_old_fbo", "1" },
-	{ "r_texturebits", NULL, "ui_tceGfx_old_bits", "32" },
-	{ "r_ext_compressed_textures", "ui_tceGfx_compress", "ui_tceGfx_old_compress", "0" },
-	{ "r_subdivisions", NULL, "ui_tceGfx_old_curve", "4" },
-	{ "r_lodbias", NULL, "ui_tceGfx_old_lod", "0" },
-	{ "r_detailtextures", NULL, "ui_tceGfx_old_detail", "1" },
-	{ "r_simpleMipMaps", NULL, "ui_tceGfx_old_mips", "0" }
-};
-
-static qboolean TCE_UI_OriginalAnisotropy(void)
-{
-	char version[MAX_CVAR_VALUE_STRING];
-	/* ETLegacy deliberately fakes "version" for old servers. Its read-only
-	 * etVersion exposes the actual engine and survives old config leftovers. */
-	trap_Cvar_VariableStringBuffer("etVersion", version, sizeof(version));
-	if (!Q_strncmp(version, "ET Legacy", 9)) return qfalse;
-	trap_Cvar_VariableStringBuffer("r_textureAnisotropy", version, sizeof(version));
-	return version[0] != '\0';
-}
-
-static void TCE_UI_GraphicsGet(void)
-{
-	int i;
-	char value[MAX_CVAR_VALUE_STRING];
-	for (i = 0; i < (int)(sizeof(tceGraphicsSettings) / sizeof(tceGraphicsSettings[0])); ++i)
-	{
-		const tceGraphicsSetting_t *setting = &tceGraphicsSettings[i];
-		trap_Cvar_VariableStringBuffer(setting->engine, value, sizeof(value));
-		if (setting->staged) trap_Cvar_Set(setting->staged, value);
-	}
-	if (TCE_UI_OriginalAnisotropy() && trap_Cvar_VariableValue("r_ext_texture_filter_anisotropic") != 0)
-	{
-		trap_Cvar_VariableStringBuffer("r_textureAnisotropy", value, sizeof(value));
-		if (value[0]) trap_Cvar_Set("ui_tceGfx_af", value);
-	}
-	trap_Cvar_VariableStringBuffer("r_ext_multisample", value, sizeof(value));
-	trap_Cvar_Set("ui_tceGfx_hasAA", value[0] ? "1" : "0");
-}
-
-static void TCE_UI_GraphicsPreset(qboolean ultra)
-{
-	int i;
-	char value[MAX_CVAR_VALUE_STRING];
-	for (i = 0; i < (int)(sizeof(tceGraphicsSettings) / sizeof(tceGraphicsSettings[0])); ++i)
-	{
-		const tceGraphicsSetting_t *setting = &tceGraphicsSettings[i];
-		trap_Cvar_VariableStringBuffer(setting->engine, value, sizeof(value));
-		if (setting->staged && value[0]) trap_Cvar_Set(setting->staged, setting->high);
-	}
-	trap_Cvar_VariableStringBuffer("r_ext_multisample", value, sizeof(value));
-	if (value[0] && ultra) trap_Cvar_Set("ui_tceGfx_aa", "16");
-}
-
-static void TCE_UI_GraphicsApply(qboolean restore)
-{
-	int i;
-	char value[MAX_CVAR_VALUE_STRING], staged[MAX_CVAR_VALUE_STRING];
-	if (restore && trap_Cvar_VariableValue("ui_tceGfx_canRestore") != 1) return;
-	for (i = 0; i < (int)(sizeof(tceGraphicsSettings) / sizeof(tceGraphicsSettings[0])); ++i)
-	{
-		const tceGraphicsSetting_t *setting = &tceGraphicsSettings[i];
-		trap_Cvar_VariableStringBuffer(setting->engine, value, sizeof(value));
-		/* Skip options absent from this engine instead of fabricating support. */
-		if (!value[0]) continue;
-		if (restore)
-		{
-			trap_Cvar_VariableStringBuffer(setting->saved, staged, sizeof(staged));
-			if (staged[0]) trap_Cvar_Set(setting->engine, staged);
-		}
-		else
-		{
-			trap_Cvar_Set(setting->saved, value);
-			if (setting->staged)
-			{
-				trap_Cvar_VariableStringBuffer(setting->staged, staged, sizeof(staged));
-				if (staged[0])
-				{
-					if (!Q_stricmp(setting->engine, "r_ext_texture_filter_anisotropic") && TCE_UI_OriginalAnisotropy())
-						trap_Cvar_Set(setting->engine, atoi(staged) > 0 ? "1" : "0");
-					else trap_Cvar_Set(setting->engine, staged);
-				}
-			}
-			else
-			{
-				/* Original ET uses textureAnisotropy for the degree; forks
-				 * also expose max_anisotropy. ETLegacy uses the filter directly. */
-				if (!Q_stricmp(setting->engine, "r_ext_max_anisotropy") || !Q_stricmp(setting->engine, "r_textureAnisotropy"))
-				{
-					trap_Cvar_VariableStringBuffer("ui_tceGfx_af", staged, sizeof(staged));
-					trap_Cvar_Set(setting->engine, staged[0] ? staged : setting->high);
-				}
-				else trap_Cvar_Set(setting->engine, setting->high);
-			}
-		}
-	}
-	trap_Cvar_Set("ui_tceGfx_canRestore", restore ? "0" : "1");
-	trap_Cmd_ExecuteText(EXEC_APPEND, "vid_restart\n");
-}
-
 void UI_RunMenuScript(char **args)
 {
 	const char *name, *name2;
@@ -5508,11 +5395,6 @@ void UI_RunMenuScript(char **args)
 
 	if (String_Parse(args, &name))
 	{
-		if (!Q_stricmp(name, "tceGraphicsGet")) { TCE_UI_GraphicsGet(); return; }
-		if (!Q_stricmp(name, "tceGraphicsHigh")) { TCE_UI_GraphicsPreset(qfalse); return; }
-		if (!Q_stricmp(name, "tceGraphicsUltra")) { TCE_UI_GraphicsPreset(qtrue); return; }
-		if (!Q_stricmp(name, "tceGraphicsApply")) { TCE_UI_GraphicsApply(qfalse); return; }
-		if (!Q_stricmp(name, "tceGraphicsRestore")) { TCE_UI_GraphicsApply(qtrue); return; }
 
 		if (Q_stricmp(name, "RunTCEMod") == 0)
 		{

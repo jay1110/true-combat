@@ -22,7 +22,7 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[2]
 MODULES = ("cgame", "ui", "qagame")
 UI_ASSETS = ("ingame_main.menu", "menus.txt", "menus_gt2.txt", "menus_gt5.txt", "menus_gt7.txt")
-SHARED_UI_ASSETS = ("options_customise_hud.menu", "options_controls.menu", "options_system.menu", "options_quality.menu")
+SHARED_UI_ASSETS = ("options_customise_hud.menu", "options_controls.menu", "options_system.menu")
 ICONS = ("radar_arrow.tga", "radar_dot.tga")
 FLAGS = ("world_flags.tga", "LICENSE.xmod.txt", "SOURCE.json")
 LEVELSHOTS = ("obj_delta_cc.tga", "obj_delta_cc_blueprint.tga", "SOURCE.json")

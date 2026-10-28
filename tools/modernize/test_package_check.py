@@ -62,12 +62,26 @@ def fake_pe(data):
 
 
 class PackageResources(unittest.TestCase):
+    def assert_native_system_menu(self, data):
+        menu = data.decode('utf-8')
+        for control in ('s_volume', 'ui_s_khz', 'ui_r_mode', 'ui_r_fullscreen',
+                        'ui_r_picmip', 'ui_r_texturemode', 'ui_r_dynamiclight',
+                        'ui_rate', 'systemCvarsApply'):
+            self.assertIn(control, menu)
+        compact = ''.join(menu.upper().split())
+        for retained in ('"SETRECOMMENDED"', 'OPENREC_RESTART'):
+            self.assertIn(retained, compact)
+        for removed in ('ENHANCEDGRAPHICS', 'OPTIONS_QUALITY', 'TCEGRAPHICS', 'TCE_GRAPHICS'):
+            self.assertNotIn(removed, compact)
+
     def test_original_fireteam_artwork_and_shared_system_menus_are_required(self):
         required = {'gfx/tce2/fireteam/' + name for name in
                     ('assault.tga', 'recon.tga', 'sniper.tga', 'SOURCE.json')}
-        required |= {'ui/options_system.menu', 'ui/options_quality.menu'}
+        required |= {'ui/options_system.menu'}
         for variant in ('game', 'navstudio'):
             self.assertTrue(required <= check.client_assets(variant).keys())
+            self.assertNotIn('ui/options_quality.menu', check.client_assets(variant))
+            self.assert_native_system_menu(check.client_assets(variant)['ui/options_system.menu'].read_bytes())
         folder = check.ROOT / 'src/assets/gfx/tce2/fireteam'
         source = json.loads((folder/'SOURCE.json').read_text())
         self.assertEqual({row['asset'] for row in source['files']},
@@ -114,6 +128,9 @@ class PackageResources(unittest.TestCase):
                     expected = set(check.client_assets(variant)) | {"cgame_mp_x86.dll", "ui_mp_x86.dll",
                         "tce2/" + check.current_version() + "/client.manifest"}
                     self.assertEqual(set(files), expected)
+                    self.assertIn('ui/options_system.menu', files)
+                    self.assertNotIn('ui/options_quality.menu', files)
+                    self.assert_native_system_menu(files['ui/options_system.menu'])
                     for name, source in check.client_assets(variant).items():
                         self.assertEqual(files[name], source.read_bytes(), name)
 
@@ -143,6 +160,20 @@ class PackageResources(unittest.TestCase):
                         result = check.check_contents(files, "synthetic", check.current_version())
                         self.assertFalse(result["passed"])
                         self.assertTrue(any(resource in error for error in result["errors"]), result["errors"])
+
+    @patch.object(check, "pe_info", side_effect=fake_pe)
+    def test_removed_quality_menu_is_rejected_even_with_honest_outer_inventory(self, unused):
+        for variant in ("game", "navstudio"):
+            files, manifest = fixture(variant)
+            name = "tce2/tce2-" + check.current_version() + ".pk3"
+            client = check.archive_files(files[name])
+            client["ui/options_quality.menu"] = b"removed graphics quality menu"
+            files[name] = archive(client)
+            refresh_manifest(files, manifest)
+            result = check.check_contents(files, "synthetic", check.current_version())
+            self.assertFalse(result["passed"])
+            self.assertTrue(any("unexpected=['ui/options_quality.menu']" in error
+                                for error in result["errors"]), result["errors"])
 
     @patch.object(check, "pe_info", side_effect=fake_pe)
     def test_unexpected_editor_menu_is_still_rejected_from_game_client(self, unused):

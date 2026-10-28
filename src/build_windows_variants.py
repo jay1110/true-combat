@@ -18,7 +18,7 @@ VERSION = re.search(r'^#define TCE_VERSION "([0-9]+\.[0-9]+\.[0-9]+)"$',
                     (ROOT / "src/game/tce_version.h").read_text(), re.M).group(1)
 MODULES = ("cgame", "ui", "qagame")
 SHARED_UI_ASSETS = ("options_customise_hud.menu", "options_controls.menu",
-                    "options_system.menu", "options_quality.menu")
+                    "options_system.menu")
 UI_ASSETS = ("ingame_main.menu", "menus.txt", "menus_gt2.txt",
              "menus_gt5.txt", "menus_gt7.txt")
 

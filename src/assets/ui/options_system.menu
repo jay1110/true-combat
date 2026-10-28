@@ -95,9 +95,9 @@ menuDef {
 																					fadeinmenu background_black ;
 																					open options_system_gamma )
 
-	BUTTON( 8+.5*((SUBWINDOW_WIDTH)-196), 292+24, 196, 14, "ENHANCED GRAPHICS", .24, 11, uiScript vidReset ;
+	BUTTON( 8+.5*((SUBWINDOW_WIDTH)-196), 292+24, 196, 14, "SET RECOMMENDED", .24, 11, uiScript vidReset ;
 																					uiScript systemCvarsReset ;
-																					close options_system ; open options_quality )
+																					open rec_restart )
 
 // Networking //
 

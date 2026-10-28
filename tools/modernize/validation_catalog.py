@@ -37,7 +37,6 @@ FIXTURES = (
     ('tce-weapon-stats', 'tce_weapon_stats_regression', 'optimized', True, []),
     ('ui-binding', 'ui_binding_regression', 'plain', True, []),
     ('ui-reload', 'ui_reload_regression', 'plain', True, []),
-    ('graphics-quality', 'graphics_quality_regression', 'optimized', False, []),
     ('scoreboard-prefix', 'scoreboard_prefix_regression', 'configuration', False, []),
     ('score-state', 'score_state_regression', 'configuration', False, []),
     ('pose-clock', 'pose_clock_regression', 'debug-flag', True, []),

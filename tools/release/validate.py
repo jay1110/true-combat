@@ -218,6 +218,8 @@ def archive(path):
 
 def validate_client_resources(pk3, manifest, editor):
     client_names = safe_names(pk3)
+    if 'ui/options_quality.menu' in client_names:
+        raise ValueError('Removed graphics-quality menu in client PK3')
     validate_levelshots({name: pk3.read(name) for name in client_names if name.startswith('levelshots/')})
     validate_fireteam_icons({name: pk3.read(name) for name in client_names if name.startswith('gfx/tce2/fireteam/')})
     if pk3.read('tce2/' + manifest['version'] + '/client.manifest').decode() != manifest['version']:
@@ -235,7 +237,7 @@ def validate_client_resources(pk3, manifest, editor):
         raise ValueError('Public menu overrides replaced the editor menu list')
     shared_ui = {'ui/' + name for name in SHARED_UI}
     if not shared_ui <= client_names:
-        raise ValueError('Missing shared HUD/control/system/quality menu overrides')
+        raise ValueError('Missing shared HUD/control/system menu overrides')
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)

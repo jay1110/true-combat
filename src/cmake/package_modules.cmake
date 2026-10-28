@@ -109,7 +109,7 @@ foreach(asset obj_delta_cc.tga obj_delta_cc_blueprint.tga SOURCE.json)
 endforeach()
 
 # Production UI overrides remove editor entry points even with older base assets.
-set(ui_assets options_customise_hud.menu options_controls.menu options_system.menu options_quality.menu)
+set(ui_assets options_customise_hud.menu options_controls.menu options_system.menu)
 if(BUILD_VARIANT STREQUAL game)
   list(APPEND ui_assets ingame_main.menu menus.txt menus_gt2.txt menus_gt5.txt menus_gt7.txt)
 endif()

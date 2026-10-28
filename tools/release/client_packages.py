@@ -10,7 +10,7 @@ from verify_omnibot_boundary import verify_module_bytes, macho_architectures
 
 ROOT = Path(__file__).resolve().parents[2]
 INPUT_PREFIX = 'client-inputs/'
-SHARED_UI = ('options_customise_hud.menu', 'options_controls.menu', 'options_system.menu', 'options_quality.menu')
+SHARED_UI = ('options_customise_hud.menu', 'options_controls.menu', 'options_system.menu')
 PUBLIC_UI = ('ingame_main.menu', 'menus.txt', 'menus_gt2.txt', 'menus_gt5.txt', 'menus_gt7.txt')
 DELTA_IMAGES = ('obj_delta_cc.tga', 'obj_delta_cc_blueprint.tga')
 NAV_ICONS = ('player.tga', 'player_self.tga', 'player_dead.tga', 'objective_a.tga', 'objective_b.tga',
