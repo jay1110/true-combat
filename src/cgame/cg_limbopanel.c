@@ -4,6 +4,7 @@
 #include "tce_limbo_widgets.h"
 #include "tce_weapon_media.h"
 #include "../ui/tce_ui_coordinates.h"
+#include "../ui/tce_modern_ui.h"
 
 qboolean tce_uiCoordinates;
 static void CG_LimboPanel_RenderTeamCounter(panel_button_t *button);
@@ -1061,6 +1062,7 @@ static void TCE_LimboLayout(void)
 	titleLimboFont.colour[3] = 1; titleLimboFont.font = &cgs.media.limboFont2;
 }
 
+#include "cg_modern_limbopanel.inc"
 
 qboolean CG_LimboPanel_BriefingButton_KeyDown(panel_button_t *button, int key)
 {
@@ -2091,7 +2093,7 @@ void CG_LimboPanel_WeaponPanel(panel_button_t *button)
 	weapon_t weap;
 	int      cnt;
 	weap = CG_LimboPanel_GetSelectedWeapon(); cnt = CG_LimboPanel_WeaponCount();
-	if (CG_LimboPanel_GetTeam() != TEAM_SPECTATOR)
+	if (!TCE_ModernUIEnabled() && CG_LimboPanel_GetTeam() != TEAM_SPECTATOR)
 	{
 		clientInfo_t *ci = &cgs.clientinfo[cg.clientNum];
 		int          role, selected;
@@ -2130,6 +2132,12 @@ void CG_LimboPanel_WeaponPanel(panel_button_t *button)
 	if (cgs.ccSelectedWeapon3 >= CG_LimboPanel_WeaponCount_ForSlot(2))
 	{
 		cgs.ccSelectedWeapon3 = CG_LimboPanel_WeaponCount_ForSlot(2) - 1;
+	}
+
+	if (TCE_ModernUIEnabled())
+	{
+		TCE_ModernLimboWeaponPanel(button, weap, cnt);
+		return;
 	}
 
 	if (CG_LimboPanel_GetTeam() == TEAM_SPECTATOR)
@@ -2778,6 +2786,7 @@ void CG_LimboPanel_Setup(void)
 void CG_LimboPanel_Init(void)
 {
 	TCE_LimboLayout();
+	if (TCE_ModernUIEnabled()) TCE_ModernLimboLayout();
 	BG_PanelButtonsSetup(limboPanelButtons);
 }
 
@@ -2801,7 +2810,8 @@ static qboolean TCE_LimboDrawContents(void)
 		CG_DrawPic(4, -8, 632, 632, cgs.media.limboRadioBroadcast);
 	}
 
-	BG_PanelButtonsRender(limboPanelButtons);
+	if (TCE_ModernUIEnabled()) TCE_ModernLimboRender();
+	else BG_PanelButtonsRender(limboPanelButtons);
 
 	trap_R_SetColor(NULL);
 	/* Original display-context cursor fields are integer-valued. */
@@ -3433,6 +3443,7 @@ qboolean CG_LimboPanel_Draw(void)
 	qboolean result;
 
 	tce_uiCoordinates = qtrue;
+	if (TCE_ModernUIEnabled()) TCE_ModernLimboGeometry();
 	result = TCE_LimboDrawContents();
 	tce_uiCoordinates = previous;
 	return result;
@@ -3442,6 +3453,7 @@ void CG_LimboPanel_KeyHandling(int key, qboolean down)
 	qboolean previous = tce_uiCoordinates;
 
 	tce_uiCoordinates = qtrue;
+	if (TCE_ModernUIEnabled()) TCE_ModernLimboGeometry();
 	TCE_LimboKeyContents(key, down);
 	tce_uiCoordinates = previous;
 }
