@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package selected CGame/UI ABIs; never build, deploy or touch themes."""
+"""Package selected CGame/UI ABIs with complete pak resources; never build/deploy."""
 import argparse
 import hashlib
 import io
@@ -11,10 +11,10 @@ import zipfile
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'tools/release'))
 import client_packages as clients
-from validate import validate_client_resources
+import resource_assets as resources
 from verify_omnibot_boundary import verify_module_bytes
 
-VERSION='1.0.2'
+VERSION='1.0.3'
 TARGETS=('windows-x86','linux-x86_64')
 OPTIONAL_TARGET='linux-i386'
 VARIANTS={'game':'Game','navstudio':'Editor'}
@@ -25,8 +25,12 @@ def sha(data):return hashlib.sha256(data).hexdigest()
 
 
 def helper_paths():
-    return {name:ROOT/'tools/release'/name for name in
-            ('client_packages.py','validate.py','verify_omnibot_boundary.py','targets.json')}
+    paths={name:ROOT/'tools/release'/name for name in
+           ('client_packages.py','resource_assets.py','verify_omnibot_boundary.py','targets.json')}
+    paths['editor_ui.py']=ROOT/'tools/assets/editor_ui.py'
+    for name in ('base-game-reference.json','base-ui-reference.json'):
+        paths[name]=ROOT/'tools/assets'/name
+    return paths
 
 
 def known_input_paths(manifests):
@@ -75,7 +79,9 @@ def create_packages(manifests):
         names=clients.module_names(target);modules=metadata.get('modules')
         if not isinstance(modules,dict) or not {'cgame','ui'}<=set(modules):
             raise ValueError('Missing CGame/UI discovery paths: '+str(path))
-        payload=clients.client_assets(VERSION,variant);checks={}
+        # Transfers carry modules only. Large resources are frozen once per
+        # variant after every native input has passed validation.
+        payload={};checks={}
         for role,name in names.items():
             module=Path(modules[role])
             if not module.is_absolute():module=Path(path).resolve().parent/module
@@ -92,29 +98,72 @@ def create_packages(manifests):
             elif variant=='navstudio' and not any(boundary['editor_literals'].values()):
                 raise ValueError('Missing Editor CGame authoring boundary: '+target)
             payload[name]=data;checks[role]=boundary
-        clients.check_target_payload(payload,target,variant,VERSION)
+        clients.check_target_payload(payload,target,variant,VERSION,module_only=True)
         rows[variant].append({'metadata':{'target':target,'variant':variant,'configuration':'Release'},'payload':payload})
         boundaries[target+'/'+variant]=checks
         input_reports[target+'/'+variant]={'manifest':str(Path(path).resolve()),'manifest_sha256':sha(snapshots[Path(path).resolve()]),
                                            'modules':{role:{'filename':name,'sha256':sha(payload[name]),'bytes':len(payload[name])} for role,name in names.items()}}
-    packages={};outputs={}
+    packages={};outputs={};frozen={};resource_paths={};resource_reports={}
+    marker='tce2/'+VERSION+'/client.manifest'
+    base_marker='tce2/'+VERSION+'/base-game.json'
     for variant in VARIANTS:
-        data,metadata=clients.canonical_client(rows[variant],targets,VERSION,variant)
-        if clients.check_canonical(data,VERSION,variant,targets)!=metadata:raise ValueError('Canonical client metadata differs')
+        paths=resources.resource_paths(variant,ROOT)
+        assets=clients.client_assets(VERSION,variant,ROOT)
+        if set(assets)!=set(paths)|{marker,base_marker} or assets[marker]!=VERSION.encode('ascii'):
+            raise ValueError('Incomplete/generated resource closure: '+variant)
+        base,base_hash=resources.base_game_reference(ROOT,VERSION)
+        dependency=json.loads(assets[base_marker])
+        if (dependency.get('reference_sha256')!=base_hash or dependency.get('release_version')!=VERSION or
+                dependency.get('baseline_id')!=base['baseline_id'] or dependency.get('source_packages')!=base['source_packages']):
+            raise ValueError('Wrong frozen stock dependency marker: '+variant)
+        resource_paths[variant]=paths;frozen[variant]=assets
+        source_files={}
+        for name,path in paths.items():
+            path=Path(path).resolve();value=assets[name]
+            if path in snapshots and snapshots[path]!=value:
+                raise ValueError('Resource changed during collection: '+name)
+            snapshots[path]=value
+            source_files[name]={'bytes':len(value),'sha256':sha(value)}
+        encoded=(json.dumps(source_files,sort_keys=True,separators=(',',':'))+'\n').encode()
+        resource_reports[variant]={'schema':1,'kind':'mod-delta','base_reference_sha256':base_hash,'files':len(source_files),
+                                  'bytes':sum(row['bytes'] for row in source_files.values()),'sha256':sha(encoded)}
+    # The Editor deliberately replaces menu/registry resources. Every differing
+    # or additional file must come from its explicit overlay, while all other
+    # production assets stay byte-identical to Game.
+    overlay=(ROOT/'navstudio/editor-pak').resolve()
+    allowed={name for name,path in resource_paths['navstudio'].items() if Path(path).resolve().is_relative_to(overlay)}
+    actual={name for name in frozen['navstudio'] if frozen['game'].get(name)!=frozen['navstudio'][name]}
+    missing=set(frozen['game'])-set(frozen['navstudio'])
+    if missing or not actual<=allowed:
+        raise ValueError('Game/Editor assets differ outside the explicit editor overlay')
+    for variant in VARIANTS:
+        assets=frozen[variant]
+        data,metadata=clients.canonical_client(rows[variant],targets,VERSION,variant,assets=assets)
+        if clients.check_canonical(data,VERSION,variant,targets,assets=assets)!=metadata:raise ValueError('Canonical client metadata differs')
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
-            validate_client_resources(archive,{'version':VERSION},variant=='navstudio')
             names=archive.namelist()
             if archive.testzip() is not None:raise ValueError('Client PK3 CRC failure')
-            if any('qagame' in name.lower() or name.startswith(('tce2_ui/','fonts/tce2_ui/')) or name.endswith(('.pk3','.zip','.pdb','.map')) for name in names):
-                raise ValueError('Server/theme/nested payload in client module PK3')
+            if any('qagame' in name.lower() or name.endswith(('.pk3','.zip','.pdb')) for name in names):
+                raise ValueError('Server/nested payload in client mod PK3')
+            if variant=='game' and 'ui/tce_omnibot.menu' in names:
+                raise ValueError('Editor menu leaked into Game')
         packages[variant]=data
         outputs[variant]={'sha256':sha(data),'bytes':len(data),'entries':len(names),'metadata':metadata}
-    if any(outputs['game']['metadata']['assets'].get(path)!=digest for path,digest in outputs['navstudio']['metadata']['assets'].items()):
-        raise ValueError('Game/Editor shared production assets differ')
     for path,data in snapshots.items():
-        if path.read_bytes()!=data:raise ValueError('Native input changed during packaging: '+str(path))
+        # Stream the final comparison instead of materializing another full pak
+        # copy. snapshots already owns the frozen bytes used for both archives.
+        value=hashlib.sha256()
+        with path.open('rb') as stream:
+            for block in iter(lambda:stream.read(1024*1024),b''):value.update(block)
+        if value.hexdigest()!=sha(data):raise ValueError('Native/resource input changed during packaging: '+str(path))
+    for variant,paths in resource_paths.items():
+        current=resources.resource_paths(variant,ROOT)
+        if {name:Path(path).resolve() for name,path in current.items()}!={name:Path(path).resolve() for name,path in paths.items()}:
+            raise ValueError('Resource path inventory changed during packaging: '+variant)
     report={'schema':1,'scope':'local-diagnostic','version':VERSION,'targets':list(targets),'inputs':input_reports,
             'outputs':outputs,'module_boundaries':boundaries,'input_stable':True,'shared_assets_equal':True,
+            'shared_assets_policy':'Base resources stay equal; only explicit navstudio/editor-pak replacements/additions may differ.',
+            'resource_trees':resource_reports,'editor_resource_differences':sorted(actual),'resource_overlay_verified':True,
             'qagame_included':False,'engine_started':False,'runtime_copied':False,
             'input_files':{str(path):sha(data) for path,data in snapshots.items()},
             'tool_sha256':sha(snapshots[tool_path]),
@@ -137,7 +186,7 @@ def main():
     if args.linux_i386_game is not None:
         manifests.update({('game',OPTIONAL_TARGET):args.linux_i386_game,
                           ('navstudio',OPTIONAL_TARGET):args.linux_i386_editor})
-    protected=[ROOT/'pak',ROOT/'ui-modern',ROOT/'src/assets']
+    protected=[ROOT/'pak',ROOT/'pak_original_tce',ROOT/'ui-modern',ROOT/'src/assets',ROOT/'navstudio/editor-pak',ROOT/'map_pics']
     if args.report.suffix.lower()!='.json':parser.error('Report must be a JSON receipt')
     if any(path.resolve().is_relative_to(base.resolve()) for path in (args.out,args.report) for base in protected):
         parser.error('Client output/report must be outside original/theme/production asset sources')

@@ -11,6 +11,10 @@ from unittest.mock import patch
 import zipfile
 
 import package_check as check
+sys.path.insert(0,str(check.ROOT / "tools/release"))
+from test_shared_clients import fixture_repo
+from test_loose_binaries import binary_header
+from resource_assets import package_directory
 
 
 def archive(files):
@@ -34,12 +38,8 @@ def fixture(variant):
              for name, words in markers.items()}
     client = {name: path.read_bytes() for name, path in check.client_assets(variant).items()}
     client.update({name: files["tce2/" + name] for name in ("cgame_mp_x86.dll", "ui_mp_x86.dll")})
-    client["tce2/" + version + "/client.manifest"] = version.encode()
+    client.update(check.generated_client_assets(version))
     files["tce2/tce2-" + version + ".pk3"] = archive(client)
-    if runtime:
-        folder = check.ROOT / "navstudio/editor-ui"
-        files["tce2/zz_tce2_navstudio_editor.pk3"] = archive({"ui/" + name: (folder / name).read_bytes()
-            for name in (folder / "editor-files.txt").read_text().splitlines()})
     manifest = {"variant": variant, "architecture": "x86", "version": version,
                 "configuration": "Release", "omnibot_runtime": runtime,
                 "editor_code_checks": {name: {word: runtime for word in words} for name, words in markers.items()}}
@@ -62,6 +62,15 @@ def fake_pe(data):
 
 
 class PackageResources(unittest.TestCase):
+    def setUp(self):
+        # Real provenance checks read the actual small image/menu resources.
+        # Archive negative tests use a tiny complete synthetic resource tree:
+        # mutating every 940MB real tree entry would create terabytes of I/O.
+        if self._testMethodName.startswith('test_original_'):
+            return
+        temporary=tempfile.TemporaryDirectory();self.addCleanup(temporary.cleanup)
+        repo=fixture_repo(Path(temporary.name)/'repo')
+        patcher=patch.object(check,'ROOT',repo);patcher.start();self.addCleanup(patcher.stop)
     def assert_native_system_menu(self, data):
         menu = data.decode('utf-8')
         for control in ('s_volume', 'ui_s_khz', 'ui_r_mode', 'ui_r_fullscreen',
@@ -82,7 +91,7 @@ class PackageResources(unittest.TestCase):
             self.assertTrue(required <= check.client_assets(variant).keys())
             self.assertNotIn('ui/options_quality.menu', check.client_assets(variant))
             self.assert_native_system_menu(check.client_assets(variant)['ui/options_system.menu'].read_bytes())
-        folder = check.ROOT / 'src/assets/gfx/tce2/fireteam'
+        folder = check.ROOT / 'pak/gfx/tce2/fireteam'
         source = json.loads((folder/'SOURCE.json').read_text())
         self.assertEqual({row['asset'] for row in source['files']},
                          {'assault.tga', 'recon.tga', 'sniper.tga'})
@@ -95,7 +104,7 @@ class PackageResources(unittest.TestCase):
                        check=True, capture_output=True, text=True)
 
     def test_original_nav_artwork_is_reproducible_rgba_with_transparency(self):
-        folder = check.ROOT / "src/assets/gfx/tce2/nav"
+        folder = check.ROOT / "pak/gfx/tce2/nav"
         provenance = json.loads((folder / "SOURCE.json").read_text())
         self.assertEqual({r["asset"] for r in provenance["files"]}, set(check.NAV_ICONS) - {"SOURCE.json"})
         for row in provenance["files"]:
@@ -111,28 +120,18 @@ class PackageResources(unittest.TestCase):
         subprocess.run([sys.executable, str(check.ROOT / "tools/assets/generate_nav_icons.py"), "--check"],
                        check=True, capture_output=True, text=True)
 
-    def test_real_cmake_game_and_editor_asset_sets_match_validator(self):
-        # Run the real packager with tiny non-executable module carriers. This
-        # catches future divergence instead of copying its list into the test.
+    def test_shared_packager_and_validator_use_complete_asset_set(self):
         with tempfile.TemporaryDirectory() as temporary:
-            for variant in ("game", "navstudio"):
-                with self.subTest(variant=variant):
-                    folder = Path(temporary) / variant / "modules"
-                    folder.mkdir(parents=True)
-                    for role in ("cgame", "ui"):
-                        (folder / (role + "_mp_x86.dll")).write_bytes(b"non-executable carrier")
-                    subprocess.run(["cmake", "-DMODULE_DIRECTORY=" + str(folder), "-DBUILD_VARIANT=" + variant,
-                                    "-P", str(check.ROOT / "src/cmake/package_modules.cmake")],
-                                   check=True, capture_output=True, text=True)
-                    files = check.archive_files((folder / ("tce2-" + check.current_version() + ".pk3")).read_bytes())
-                    expected = set(check.client_assets(variant)) | {"cgame_mp_x86.dll", "ui_mp_x86.dll",
-                        "tce2/" + check.current_version() + "/client.manifest"}
-                    self.assertEqual(set(files), expected)
-                    self.assertIn('ui/options_system.menu', files)
-                    self.assertNotIn('ui/options_quality.menu', files)
-                    self.assert_native_system_menu(files['ui/options_system.menu'])
-                    for name, source in check.client_assets(variant).items():
-                        self.assertEqual(files[name], source.read_bytes(), name)
+            for variant in ('game','navstudio'):
+                folder=Path(temporary)/variant;folder.mkdir()
+                for role in ('cgame','ui'):
+                    (folder/(role+'_mp_x86.dll')).write_bytes(binary_header('windows-x86'))
+                output=folder/('tce2-'+check.current_version()+'.pk3')
+                package_directory(folder,variant,output,check.ROOT)
+                files=check.archive_files(output.read_bytes())
+                expected=set(check.client_assets(variant))|{'cgame_mp_x86.dll','ui_mp_x86.dll'}|set(check.generated_client_assets(check.current_version()))
+                self.assertEqual(set(files),expected)
+                for name,path in check.client_assets(variant).items():self.assertEqual(files[name],path.read_bytes())
 
     @patch.object(check, "pe_info", side_effect=fake_pe)
     def test_valid_current_resources_accept_both_variants(self, unused):
@@ -160,6 +159,24 @@ class PackageResources(unittest.TestCase):
                         result = check.check_contents(files, "synthetic", check.current_version())
                         self.assertFalse(result["passed"])
                         self.assertTrue(any(resource in error for error in result["errors"]), result["errors"])
+
+    @patch.object(check, "pe_info", side_effect=fake_pe)
+    def test_missing_or_changed_base_dependency_fails_with_honest_outer_inventory(self, unused):
+        for variant in ('game','navstudio'):
+            files,manifest=fixture(variant)
+            name='tce2/tce2-'+check.current_version()+'.pk3';original=files[name]
+            marker='tce2/'+check.current_version()+'/base-game.json'
+            for missing in (True,False):
+                client=check.archive_files(original)
+                if missing:
+                    del client[marker]
+                else:
+                    metadata=json.loads(client[marker]);metadata['release_version']='0.0.0'
+                    client[marker]=json.dumps(metadata).encode('utf8')
+                files[name]=archive(client);refresh_manifest(files,manifest)
+                result=check.check_contents(files,'synthetic',check.current_version())
+                self.assertFalse(result['passed'])
+                self.assertTrue(any(marker in error for error in result['errors']),result['errors'])
 
     @patch.object(check, "pe_info", side_effect=fake_pe)
     def test_removed_quality_menu_is_rejected_even_with_honest_outer_inventory(self, unused):

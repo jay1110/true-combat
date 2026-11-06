@@ -1,383 +1,338 @@
-"""Synthetic ABI/PK3 closure tests; these carriers are not executable modules."""
+"""Synthetic ABI/resource closure tests; carriers are not executable modules."""
+from contextlib import contextmanager
+import hashlib
 import io
 import json
-import os
 from pathlib import Path
-import subprocess
+import shutil
 import sys
 import tempfile
 import unittest
 from unittest.mock import patch
-import warnings
 import zipfile
 
-from aggregate import main as aggregate
 import client_packages as clients
-from package import package_modules, version
-from test_loose_binaries import binary_header
-from validate import archive as validate_archive, validate_client_resources
-
+import single_mod
+from resource_assets import resource_assets, resource_fingerprint, resource_paths, package_directory
+from package import version, package_modules
+from test_loose_binaries import binary_header, CORE_NAMES
+from install_mod import install
+import source_archive
 
 VERSION = version()
 
 
-def input_archive(folder, target, variant='game', overrides=None, configuration='Release'):
+def mini_editor_assets():
+    """A real, closed Editor menu graph for synthetic ABI carrier tests."""
+    goals=('tce_ob_goalname','tce_ob_groupname','tce_ob_waypointname','tce_ob_value')
+    voices=('wm_quickmessage','wm_quickmessageAlt','wm_ftquickmessage','wm_ftquickmessageAlt')
+    files={'ui/tce_omnibot.menu':b'menuDef { name "tce_omnibot" itemDef { action { open tce_omnibot_dms ; } } }',
+           'ui/tce_omnibot_dms.menu':('menuDef { name "tce_omnibot_dms" itemDef { action { '+
+               ' '.join('open '+goal+' ;' for goal in goals)+' } } }').encode()}
+    files.update({'ui/'+goal+'.menu':('menuDef { name "'+goal+'" }').encode() for goal in goals})
+    files.update({'ui/'+voice+'.menu':('menuDef { name "'+voice+'" itemDef { action { exec "omnibot_menu" ; } } }').encode()
+                  for voice in voices})
+    registry='\n'.join('loadMenu { "'+name+'" }' for name in ['ui/main.menu',*files]).encode()
+    files.update({'ui/'+name:registry for name in ('menus.txt','menus_gt2.txt','menus_gt5.txt','menus_gt7.txt')})
+    return files
+
+
+def fixture_repo(root):
+    root = Path(root)
+    files = {'pak/ui/main.menu': b'public main menu', 'pak/ui/menus.txt': b'load main',
+             'pak/models/player.md3': b'model', 'pak/sound/weapon.wav': b'sound',
+             'pak/scripts/level.script': b'map script', 'pak/fonts/ui_16.dat': b'font',
+             'pak/textures/stone.tga': b'pixels', 'pak/ui_obj/deployment.menu': b'objective menu',
+             'src/game/tce_version.h': ('#define TCE_VERSION "' + VERSION + '"\n').encode()}
+    files.update({'navstudio/editor-pak/'+name:data for name,data in mini_editor_assets().items()})
+    for mapname in ('delta', 'northport', 'railhouse', 'snow', 'stadtrand', 'village'):
+        for suffix in ('_cc.tga', '_cc_blueprint.tga'):
+            files['pak/levelshots/obj_' + mapname + suffix] = (mapname + suffix).encode()
+    for name, data in files.items():
+        path = root/name;path.parent.mkdir(parents=True, exist_ok=True);path.write_bytes(data)
+    for name in ('targets.json', 'install_mod.py'):
+        path=root/'tools/release'/name;path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(clients.ROOT/'tools/release'/name,path)
+    for name in ('start_game.py', 'start_game.ps1', 'start_game.sh', 'README.md'):
+        path=root/'tools/launcher'/name;path.parent.mkdir(parents=True, exist_ok=True);path.write_bytes(b'fixture launcher')
+    policy=root/'tools/release/runtime-policy.json';policy.write_text(json.dumps({'editor_files': []}))
+    stock_data=b'original stock resource, absent from every shipped mod delta'
+    stock={'schema':1,'release_version':VERSION,'baseline_id':'tce-0.49b-pak0-4',
+           'files':{'textures/base.tga':{'sha256':clients.sha(stock_data),'bytes':len(stock_data),'source_package':'pak0.pk3'}},
+           'source_packages':[{'name':f'pak{i}.pk3','bytes':len(('synthetic stock '+str(i)).encode()),
+                               'sha256':clients.sha(('synthetic stock '+str(i)).encode())} for i in range(5)]}
+    baseline=root/'tools/assets/base-game-reference.json';baseline.parent.mkdir(parents=True,exist_ok=True)
+    baseline.write_text(json.dumps(stock))
+    (baseline.parent/'base-ui-reference.json').write_text(json.dumps({'schema':1,'release_version':VERSION,
+        'baseline_id':stock['baseline_id'],'files':{'ui/base_shared.menu':{'sha256':clients.sha(b'stock menu'),
+        'bytes':10,'menus':[{'name':'base_shared','opens':[]}]}}}))
+    for name in ('LICENSE','EULA_TrueCombat_Elite.txt','vendor/dependencies.lock.json',
+                 'vendor/lua/IMPORT-NOTICE.txt','vendor/lua/lua.h','vendor/sqlite/IMPORT-NOTICE.txt',
+                 'vendor/luasql/license.html'):
+        path=root/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(b'fixture license')
+    (root/'src/lua').mkdir(parents=True);(root/'src/lua/config.lua').write_bytes(b'fixture = true')
+    return root
+
+
+def runtime_payload():
+    return {'global_scripts/fixture.gm': b'// synthetic script closure only\n'}
+
+
+@contextmanager
+def synthetic_runtime():
+    def check_core(boundary, data):
+        if boundary['sha256'] != clients.sha(data):
+            raise ValueError('Synthetic core hash mismatch')
+    with patch.object(single_mod, 'prepare_runtime', return_value=(runtime_payload(), {}, {}, {}, {})), \
+            patch.object(single_mod, 'validate_symbol_evidence', side_effect=check_core):
+        yield
+
+
+def input_archive(folder, target, variant='game', overrides=None, configuration='Release', repo=clients.ROOT):
     folder.mkdir(parents=True, exist_ok=True)
-    payload = clients.client_assets(VERSION, variant)
-    names = clients.module_names(target)
-    for role, name in names.items():
-        payload[name] = binary_header(target) + (target + '/' + variant + '/' + role).encode()
+    payload = {name: binary_header(target) + (target+'/'+variant+'/'+role).encode()
+               for role,name in clients.module_names(target, repo).items()}
     payload.update(overrides or {})
-    files = {'tce2/' + name: payload[name] for name in names.values()}
-    config = clients.target_table()[target]
-    files['tce2/' + config.get('prefix', '') + 'qagame' + config['suffix']] = binary_header(target) + b'/qagame'
-    files.update({clients.INPUT_PREFIX + name: data for name, data in payload.items()})
-    files['README.txt'] = b'CLIENT INPUTS ONLY: use the aggregate release for installation and server downloads.\n'
-    if variant == 'navstudio':
-        editor = clients.ROOT / 'navstudio/editor-ui'
-        addon = {'ui/' + name: (editor / name).read_bytes()
-                 for name in (editor / 'editor-files.txt').read_text().splitlines() if name}
-        files['tce2/zz_tce2_navstudio_editor.pk3'] = clients.zip_bytes(addon)
-    # Runtime proof is separately tested; these fixtures isolate client closure.
-    metadata = {'schema': 1, 'target': target, 'version': VERSION, 'variant': variant,
-                'configuration': configuration, 'authoring': variant == 'navstudio',
-                'client_package': {'scope': 'target-input', 'targets': [target]},
-                'gameplay_bot_runtime': True,
-                'files': [{'path': name, 'sha256': clients.sha(data), 'bytes': len(data)}
-                          for name, data in sorted(files.items())]}
-    files['manifest.json'] = clients.json_bytes(metadata)
-    path = folder / f'TCE2-{VERSION}-{target}-{variant}-Client-Inputs.zip'
-    # Transfer compression is irrelevant to closure. Store the real 6 MiB map
-    # images in these synthetic inputs; production canonical ZIPs still use
-    # their deterministic compression and are exercised below.
-    with zipfile.ZipFile(path, 'w', zipfile.ZIP_STORED) as archive:
-        for name, data in sorted(files.items()):
-            archive.writestr(name, data)
-    return path
+    files={'tce2/'+name:data for name,data in payload.items()}
+    config=clients.target_table(repo)[target]
+    files['tce2/'+config.get('prefix','')+'qagame'+config['suffix']]=binary_header(target)+b'qagame'
+    files.update({clients.INPUT_PREFIX+name:data for name,data in payload.items()})
+    core=binary_header(target)+b'\0'.join(s.encode() for s in single_mod.RUNTIME_BINDINGS)+b'\0'
+    if variant=='navstudio':core+=b'ExportClientFunctionsFromDLL\0'
+    core_name=CORE_NAMES[target];files['tce2/omni-bot/'+core_name]=core
+    script_files=[]
+    for relative,data in runtime_payload().items():
+        files['tce2/omni-bot/'+relative]=data
+        script_files.append({'path':relative,'sha256':clients.sha(data)})
+    files['tce2/omni-bot/runtime-manifest.json']=clients.json_bytes({'schema':2,'files':script_files,
+        'mod_files':[],'command_registry':{},'diagnostics':{},
+        'policy_sha256':clients.sha((repo/'tools/release/runtime-policy.json').read_bytes())})
+    metadata={'schema':2,'target':target,'version':VERSION,'variant':variant,
+              'configuration':configuration,'authoring':variant=='navstudio',
+              'resource_tree':resource_fingerprint(variant,repo),
+              'client_package':{'scope':'target-input','targets':[target]},
+              'gameplay_bot_runtime':True,'bot_core_boundary':{'library':core_name,'variant':variant,
+                  'sha256':clients.sha(core),'navigation_diagnostic_formats':{'TCE2PATH':False}},
+              'files':[{'path':name,'sha256':clients.sha(data),'bytes':len(data)} for name,data in sorted(files.items())]}
+    files['manifest.json']=clients.json_bytes(metadata)
+    path=folder/f'TCE2-{VERSION}-{target}-{variant}-Client-Inputs.zip';path.write_bytes(clients.zip_bytes(files));return path
 
 
 class SharedClients(unittest.TestCase):
     def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temporary.cleanup)
-        self.root = Path(self.temporary.name)
+        self.temporary=tempfile.TemporaryDirectory();self.addCleanup(self.temporary.cleanup)
+        self.root=Path(self.temporary.name);self.repo=fixture_repo(self.root/'repo')
 
-    def row(self, target, variant='game', **kwargs):
-        path = input_archive(self.root / 'inputs' / (target + '-' + variant), target, variant, **kwargs)
-        return clients.read_target(path, VERSION)
+    def row(self,target,variant='game',**kwargs):
+        path=input_archive(self.root/'inputs'/(target+'-'+variant),target,variant,repo=self.repo,**kwargs)
+        return clients.read_target(path,VERSION,self.repo)
 
-    def test_linux_server_download_contains_windows_pair_without_stale_fallback(self):
-        windows, linux = self.row('windows-x86'), self.row('linux-x86_64')
-        windows_name = clients.module_names('windows-x86')['cgame']
-        # The old same-name server PK3 contains only Linux; a Windows lookup
-        # therefore falls through to a stale locally installed module package.
-        server_partial = clients.zip_bytes(linux['payload'])
-        client_partial = clients.zip_bytes(windows['payload'])
-        stale = {windows_name: b'old client from obsolete PK3'}
-        old_server = clients.zip_contents(server_partial)
-        self.assertNotIn(windows_name, old_server)
-        self.assertEqual(old_server.get(windows_name, stale[windows_name]), stale[windows_name])
-        self.assertNotEqual(clients.sha(server_partial), clients.sha(client_partial))
-        canonical, metadata = clients.canonical_client([windows, linux],
-            ['windows-x86', 'linux-x86_64'], VERSION, 'game')
-        self.assertEqual(clients.zip_contents(canonical)[windows_name], windows['payload'][windows_name])
-        self.assertEqual(metadata['scope'], 'local-diagnostic')
-        with self.assertRaisesRegex(ValueError, 'Wrong/incomplete'):
-            clients.promote_target(windows, canonical, metadata, self.root / 'partial.zip', VERSION)
-        again, _ = clients.canonical_client([linux, windows],
-            ['linux-x86_64', 'windows-x86'], VERSION, 'game')
-        self.assertEqual(again, canonical)
+    def test_every_resource_and_all_twelve_stock_compass_images_are_included(self):
+        assets=clients.client_assets(VERSION,'game',self.repo)
+        self.assertEqual(set(assets)-{f'tce2/{VERSION}/client.manifest',f'tce2/{VERSION}/base-game.json'},set(resource_paths('game',self.repo)))
+        self.assertEqual(len([name for name in assets if name.startswith('levelshots/')]),12)
+        self.assertIn('models/player.md3',assets);self.assertIn('sound/weapon.wav',assets)
 
-    def test_missing_or_duplicate_abi_prevents_promotion(self):
-        row = self.row('linux-x86_64')
-        for inputs in ([row], [row, row]):
-            with self.assertRaisesRegex(ValueError, 'Missing/duplicate'):
-                clients.canonical_client(inputs, ['linux-x86_64', 'windows-x86'], VERSION, 'game')
+    def test_editor_overlay_stays_out_of_public_variant(self):
+        game=resource_assets(VERSION,'game',self.repo);editor=resource_assets(VERSION,'navstudio',self.repo)
+        self.assertNotIn('ui/tce_omnibot.menu',game);self.assertIn('ui/tce_omnibot.menu',editor)
+        self.assertNotEqual(game['ui/menus.txt'],editor['ui/menus.txt'])
+        self.assertEqual(game['models/player.md3'],editor['models/player.md3'])
 
-    def test_every_matrix_client_abi_round_trips_with_its_native_name(self):
-        rows = [self.row(target) for target in clients.target_table()]
-        data, metadata = clients.canonical_client(rows, clients.target_table(), VERSION, 'game')
-        self.assertEqual(clients.check_canonical(data, VERSION, 'game'), metadata)
-        self.assertEqual(len(metadata['modules']), 20)
-        for row in rows:
-            for name in clients.module_names(row['metadata']['target']).values():
-                self.assertEqual(clients.zip_contents(data)[name], row['payload'][name])
+    def test_new_file_is_included_without_whitelist_change_and_invalidates_transfer(self):
+        row=self.row('windows-x86');old=resource_fingerprint('game',self.repo)
+        (self.repo/'pak/new_asset.cfg').write_bytes(b'new asset')
+        self.assertNotEqual(resource_fingerprint('game',self.repo),old)
+        self.assertIn('new_asset.cfg',resource_assets(VERSION,'game',self.repo))
+        with self.assertRaisesRegex(ValueError,'stale mod delta'):
+            clients.read_target(row['path'],VERSION,self.repo)
 
-    def test_shared_ui_equal_across_abis_and_both_variants(self):
-        packages = {}
-        for variant in ('game', 'navstudio'):
-            rows = [self.row(target, variant) for target in ('windows-x86', 'linux-x86_64')]
-            data, _ = clients.canonical_client(rows, ['windows-x86', 'linux-x86_64'], VERSION, variant)
-            packages[variant] = clients.zip_contents(data)
-        for name in clients.SHARED_UI:
-            self.assertEqual(packages['game']['ui/' + name], packages['navstudio']['ui/' + name])
-        for name in ('ui/options_system.menu',
-                     'gfx/tce2/fireteam/assault.tga', 'gfx/tce2/fireteam/recon.tga',
-                     'gfx/tce2/fireteam/sniper.tga', 'gfx/tce2/fireteam/SOURCE.json'):
-            self.assertEqual(packages['game'][name], packages['navstudio'][name])
-            self.assertEqual(packages['game'][name], (clients.ROOT/'src/assets'/name).read_bytes())
-        for variant in packages:
-            self.assertNotIn('ui/options_quality.menu', packages[variant])
-        self.assertIn('ui/menus.txt', packages['game'])
-        self.assertNotIn('ui/menus.txt', packages['navstudio'])
-        self.assertFalse(any('navstudio' in name or 'tce_waypoint' in name for name in packages['game']))
+    def test_assets_have_no_src_assets_fallback(self):
+        shutil.rmtree(self.repo/'pak')
+        (self.repo/'src/assets').mkdir(parents=True);(self.repo/'src/assets/legacy.tga').write_bytes(b'stale')
+        with self.assertRaisesRegex(ValueError,'Missing mod delta resource'):
+            resource_assets(VERSION,'game',self.repo)
 
-    def test_differing_ui_resource_or_editor_asset_is_rejected(self):
-        for name in ('ui/options_controls.menu', 'gfx/misc/radar_dot.tga', 'levelshots/obj_delta_cc.tga',
-                     'gfx/tce2/nav/player.tga', 'gfx/tce2/nav/SOURCE.json',
-                     'ui/options_system.menu',
-                     'gfx/tce2/fireteam/assault.tga', 'gfx/tce2/fireteam/recon.tga',
-                     'gfx/tce2/fireteam/sniper.tga', 'gfx/tce2/fireteam/SOURCE.json'):
-            with self.subTest(name=name), self.assertRaisesRegex(ValueError, 'Different/stale shared'):
-                self.row('windows-x86', overrides={name: b'stale resource'})
-        with self.assertRaisesRegex(ValueError, 'Wrong client inputs/assets'):
-            self.row('linux-x86_64', overrides={'ui/tce_editor.menu': b'editor'})
-        with self.assertRaisesRegex(ValueError, 'Wrong client inputs/assets'):
-            self.row('linux-x86_64', 'navstudio', overrides={'ui/menus.txt': b'public menu list'})
-        for variant in ('game', 'navstudio'):
-            with self.subTest(variant=variant), self.assertRaisesRegex(ValueError, 'Wrong client inputs/assets'):
-                self.row('windows-x86', variant, overrides={'ui/options_quality.menu': b'removed menu'})
+    def test_clean_checkout_has_no_original_dependency_or_implicit_original_fallback(self):
+        self.assertFalse((self.repo/'pak_original_tce').exists())
+        baseline=resource_fingerprint('game',self.repo)
+        expected=resource_assets(VERSION,'game',self.repo)
+        original=self.repo/'pak_original_tce/private/original.tga'
+        original.parent.mkdir(parents=True);original.write_bytes(b'local original resource')
+        self.assertEqual(resource_fingerprint('game',self.repo),baseline)
+        self.assertEqual(resource_assets(VERSION,'game',self.repo),expected)
+        self.assertNotIn('private/original.tga',expected)
+        shutil.rmtree(self.repo/'pak_original_tce')
+        modules=self.root/'clean-native';modules.mkdir()
+        for name in clients.module_names('windows-x86').values():(modules/name).write_bytes(binary_header('windows-x86'))
+        package_directory(modules,'game',modules/'clean.pk3',self.repo)
+        self.assertEqual(set(clients.zip_contents((modules/'clean.pk3').read_bytes())),
+                         set(expected)|set(clients.module_names('windows-x86').values()))
 
-    def test_cmake_and_canonical_clients_include_user_delta_images_in_both_variants(self):
-        expected = clients.levelshot_assets()
-        required = {'levelshots/obj_delta_cc.tga', 'levelshots/obj_delta_cc_blueprint.tga',
-                    'levelshots/SOURCE.json'}
-        self.assertEqual(set(expected), required)
-        for variant in ('game', 'navstudio'):
-            folder = self.root / 'asset-package' / variant
-            folder.mkdir(parents=True)
-            for name in ('cgame_mp_x86.dll', 'ui_mp_x86.dll'):
-                (folder / name).write_bytes(binary_header('windows-x86'))
-            (folder / 'tce-build-variant.txt').write_text(variant + '\n')
-            subprocess.run(['cmake', '-DMODULE_DIRECTORY=' + str(folder), '-DBUILD_VARIANT=' + variant,
-                            '-P', str(clients.ROOT / 'src/cmake/package_modules.cmake')],
-                           check=True, capture_output=True, text=True)
-            payload = clients.zip_contents((folder / f'tce2-{VERSION}.pk3').read_bytes())
-            self.assertEqual({name: data for name, data in payload.items() if name.startswith('levelshots/')}, expected)
-            self.assertEqual(clients.validate_levelshots(payload)['map'], 'obj_delta')
-            hud = clients.fireteam_assets()
-            hud.update({'ui/' + name: (clients.ROOT/'src/assets/ui'/name).read_bytes()
-                        for name in ('options_system.menu',)})
-            self.assertEqual({name: payload[name] for name in hud}, hud)
-            self.assertNotIn('ui/options_quality.menu', payload)
-            row = self.row('windows-x86', variant)
-            data, _ = clients.canonical_client([row], ['windows-x86'], VERSION, variant)
-            canonical = clients.zip_contents(data)
-            self.assertEqual({name: canonical[name] for name in hud}, hud)
-            self.assertNotIn('ui/options_quality.menu', canonical)
-            self.assertEqual({name: data for name, data in canonical.items() if name.startswith('levelshots/')}, expected)
-            # No images are fabricated for unsupplied maps; their existing
-            # CGame fallback remains applicable.
-            self.assertNotIn('levelshots/obj_snow_cc.tga', canonical)
+    def test_unchanged_stock_is_rejected_case_insensitively_but_changed_asset_is_kept(self):
+        path=self.repo/'pak/textures/BASE.TGA'
+        path.write_bytes(b'original stock resource, absent from every shipped mod delta')
+        with self.assertRaisesRegex(ValueError,'Unchanged original TCE resource'):
+            resource_assets(VERSION,'game',self.repo)
+        path.write_bytes(b'changed project texture')
+        self.assertEqual(resource_assets(VERSION,'game',self.repo)['textures/BASE.TGA'],b'changed project texture')
 
-    def test_fireteam_provenance_requires_all_three_correct_rgba_icons(self):
-        original = clients.fireteam_assets()
-        for path in original:
-            for missing in (False, True):
-                with self.subTest(path=path, missing=missing):
-                    files = dict(original)
-                    if missing:
-                        del files[path]
-                    else:
-                        files[path] = b'changed asset/provenance'
-                    with self.assertRaises(ValueError):
-                        clients.validate_fireteam_icons(files)
-        files = dict(original)
-        path = 'gfx/tce2/fireteam/assault.tga'
-        data = bytearray(files[path]); data[12] = 32; files[path] = bytes(data)
-        provenance = json.loads(files['gfx/tce2/fireteam/SOURCE.json'])
-        provenance['files'][0]['sha256'] = clients.sha(files[path])
-        files['gfx/tce2/fireteam/SOURCE.json'] = clients.json_bytes(provenance)
-        # An honestly fingerprinted but wrong-size image still cannot pass.
-        with self.assertRaisesRegex(ValueError, 'invalid Fireteam icon'):
-            clients.validate_fireteam_icons(files)
+    def test_missing_or_wrong_version_stock_signatures_never_load_local_original(self):
+        path=self.repo/'tools/assets/base-game-reference.json'
+        reference=json.loads(path.read_bytes());reference['release_version']='0.0.0';path.write_text(json.dumps(reference))
+        with self.assertRaisesRegex(ValueError,'version-bound stock'):
+            resource_paths('game',self.repo)
+        path.unlink()
+        with self.assertRaisesRegex(ValueError,'checked-in stock'):
+            resource_paths('game',self.repo)
 
-    def test_release_resource_validator_requires_new_hud_assets_in_both_variants(self):
-        for variant in ('game', 'navstudio'):
-            original = clients.client_assets(VERSION, variant)
-            for missing in (None, 'ui/options_system.menu',
-                            'gfx/tce2/fireteam/recon.tga', 'gfx/tce2/fireteam/SOURCE.json'):
-                with self.subTest(variant=variant, missing=missing):
-                    files = dict(original)
-                    if missing:
-                        del files[missing]
-                    with zipfile.ZipFile(io.BytesIO(clients.zip_bytes(files))) as pk3:
-                        if missing:
-                            with self.assertRaises(ValueError):
-                                validate_client_resources(pk3, {'version': VERSION}, variant == 'navstudio')
-                        else:
-                            validate_client_resources(pk3, {'version': VERSION}, variant == 'navstudio')
-            files = dict(original)
-            files['ui/options_quality.menu'] = b'removed menu'
-            with zipfile.ZipFile(io.BytesIO(clients.zip_bytes(files))) as pk3:
-                with self.assertRaisesRegex(ValueError, 'Removed graphics-quality menu'):
-                    validate_client_resources(pk3, {'version': VERSION}, variant == 'navstudio')
+    def test_source_zip_excludes_original_even_if_stale_git_index_lists_it(self):
+        for name,data in {'tools/release/build.py':b'# tiny build input',
+                          'vendor/omni-bot/runtime/SOURCE.json':b'{}','map_pics/new.png':b'new image',
+                          'pak_original_tce/ui/base.menu':b'private original menu',
+                          'pak_original_tce/base.pk3':b'private original archive',
+                          'pak_original_tce/.DS_Store':b'private original metadata'}.items():
+            path=self.repo/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(data)
+        names=[path.relative_to(self.repo).as_posix() for path in self.repo.rglob('*') if path.is_file()]
+        with patch.object(source_archive,'ROOT',self.repo),patch.object(sys,'argv',['source','--out',str(self.root/'source-out'),'--include-untracked']), \
+                patch.object(source_archive.subprocess,'check_output',return_value=('\0'.join(names)+'\0').encode()):
+            source_archive.main()
+        with zipfile.ZipFile(self.root/'source-out'/f'TCE2-{VERSION}-Source.zip') as archive:
+            self.assertFalse(any(name.startswith('pak_original_tce/') for name in archive.namelist()))
+            self.assertEqual(archive.read('pak/models/player.md3'),b'model')
+            self.assertIn('tools/assets/base-game-reference.json',archive.namelist())
 
-    def test_missing_or_corrupt_user_delta_images_and_provenance_are_rejected(self):
-        original = clients.levelshot_assets()
-        for path in ('levelshots/obj_delta_cc.tga', 'levelshots/obj_delta_cc_blueprint.tga', 'levelshots/SOURCE.json'):
-            with self.subTest(path=path):
-                missing = dict(original); del missing[path]
-                with self.assertRaises(ValueError):
-                    clients.validate_levelshots(missing)
-        corrupt = dict(original); corrupt['levelshots/obj_delta_cc.tga'] = b'changed image'
-        with self.assertRaisesRegex(ValueError, 'Missing/changed'):
-            clients.validate_levelshots(corrupt)
+    def test_resource_source_rejects_native_nested_archives_and_generated_manifests(self):
+        for name in ('ui_mp_x86.dll','base.pk3','assets.zip','client.manifest','client-abis.json','lib.so.1'):
+            path=self.repo/'pak'/name;path.write_bytes(b'invalid')
+            with self.subTest(name=name),self.assertRaises(ValueError):resource_paths('game',self.repo)
+            path.unlink()
+        path=self.repo/'pak/ui/tce_omnibot.menu';path.write_bytes(b'editor')
+        with self.assertRaisesRegex(ValueError,'Editor menu'):resource_paths('game',self.repo)
 
-    def test_debug_wrong_variant_or_native_abi_is_rejected(self):
-        with self.assertRaisesRegex(ValueError, 'Not a Release'):
-            self.row('windows-x86', configuration='Debug')
-        with self.assertRaisesRegex(ValueError, 'Editor entry point'):
-            self.row('windows-x86', overrides={'cgame_mp_x86.dll': binary_header('windows-x86') + b'wp_add\0'})
-        with self.assertRaisesRegex(ValueError, 'Wrong native client ABI'):
-            self.row('windows-x86', overrides={'ui_mp_x86.dll': binary_header('linux-x86_64')})
-        editor = self.row('windows-x86', 'navstudio')
-        with self.assertRaisesRegex(ValueError, 'Mixed client variant'):
-            clients.canonical_client([editor], ['windows-x86'], VERSION, 'game')
+    def test_every_matrix_client_abi_round_trips_and_zip_order_is_deterministic(self):
+        rows=[self.row(target) for target in clients.target_table(self.repo)]
+        data,metadata=clients.canonical_client(rows,clients.target_table(self.repo),VERSION,'game',self.repo)
+        self.assertEqual(clients.check_canonical(data,VERSION,'game',repo=self.repo),metadata)
+        self.assertEqual(len(metadata['modules']),20)
+        reverse,_=clients.canonical_client(rows[::-1],clients.target_table(self.repo),VERSION,'game',self.repo)
+        self.assertEqual(data,reverse)
 
-    def test_canonical_bytes_reject_missing_abi_stale_assets_or_variant(self):
-        row = self.row('windows-x86')
-        data, _ = clients.canonical_client([row], ['windows-x86'], VERSION, 'game')
-        with self.assertRaisesRegex(ValueError, 'Wrong/incomplete'):
-            clients.check_canonical(data, VERSION, 'game')
-        with self.assertRaisesRegex(ValueError, 'Wrong/incomplete'):
-            clients.check_canonical(data, VERSION, 'navstudio', ['windows-x86'])
-        files = clients.zip_contents(data)
-        del files['cgame_mp_x86.dll']
-        with self.assertRaisesRegex(ValueError, 'Missing canonical'):
-            clients.check_canonical(clients.zip_bytes(files), VERSION, 'game', ['windows-x86'])
-        files = clients.zip_contents(data)
-        files['ui/options_controls.menu'] = b'stale'
-        with self.assertRaisesRegex(ValueError, 'fingerprint/assets'):
-            clients.check_canonical(clients.zip_bytes(files), VERSION, 'game', ['windows-x86'])
+    def test_missing_duplicate_wrong_abi_or_mixed_variant_is_rejected(self):
+        row=self.row('windows-x86')
+        for rows in ([row],[row,row]):
+            with self.assertRaisesRegex(ValueError,'Missing/duplicate'):
+                clients.canonical_client(rows,['windows-x86','linux-x86_64'],VERSION,'game',self.repo)
+        with self.assertRaisesRegex(ValueError,'Wrong native client ABI'):
+            self.row('linux-x86_64',overrides={'ui.mp.x86_64.so':binary_header('windows-x86')})
+        with self.assertRaisesRegex(ValueError,'Mixed client'):
+            clients.canonical_client([self.row('windows-x86','navstudio')],['windows-x86'],VERSION,'game',self.repo)
 
-    def test_duplicate_case_collision_or_unsafe_zip_paths_are_rejected(self):
-        for entries in ([('a', b'x'), ('a', b'y')], [('A', b'x'), ('a', b'y')], [('../escape', b'x')]):
-            stream = io.BytesIO()
-            with warnings.catch_warnings():
-                warnings.simplefilter('ignore', UserWarning)
-                with zipfile.ZipFile(stream, 'w') as archive:
-                    for name, data in entries:
-                        archive.writestr(name, data)
-            with self.assertRaises(ValueError):
-                clients.zip_contents(stream.getvalue())
+    def test_frozen_resource_snapshot_reuses_exact_bytes_and_version(self):
+        row=self.row('windows-x86');frozen=clients.client_assets(VERSION,'game',self.repo)
+        data,metadata=clients.canonical_client([row],['windows-x86'],VERSION,'game',self.repo,assets=frozen)
+        self.assertEqual(clients.check_canonical(data,VERSION,'game',['windows-x86'],self.repo,assets=frozen),metadata)
+        frozen=dict(frozen);frozen[f'tce2/{VERSION}/client.manifest']=b'old'
+        with self.assertRaisesRegex(ValueError,'frozen resource version'):
+            clients.check_canonical(data,VERSION,'game',['windows-x86'],self.repo,assets=frozen)
 
-    def test_validator_rejects_unclassified_platform_only_client_pk3(self):
-        row = self.row('windows-x86')
-        files = {name: data for name, data in row['files'].items() if not name.startswith(clients.INPUT_PREFIX)}
-        files[f'tce2/tce2-{VERSION}.pk3'] = clients.zip_bytes(row['payload'])
-        metadata = dict(row['metadata'])
-        del metadata['client_package']
-        metadata['files'] = [{'path': name, 'sha256': clients.sha(data), 'bytes': len(data)}
-                             for name, data in files.items() if name != 'manifest.json']
-        files['manifest.json'] = clients.json_bytes(metadata)
-        path = self.root / 'old-platform-only.zip'; path.write_bytes(clients.zip_bytes(files))
-        with self.assertRaisesRegex(ValueError, 'Unclassified/partial'):
-            validate_archive(path)
+    def test_transfer_contains_only_native_pair_and_asset_fingerprint(self):
+        row=self.row('windows-x86')
+        self.assertEqual(set(row['payload']),set(clients.module_names('windows-x86').values()))
+        self.assertFalse(any(name.endswith('.pk3') or name.endswith('.tga') for name in row['files']))
+        with self.assertRaisesRegex(ValueError,'Wrong client inputs/assets'):
+            self.row('windows-x86',overrides={'extra.tga':b'stale'})
 
-    def built(self, target='windows-x86'):
-        folder = self.root / 'built'
-        folder.mkdir()
-        paths = {}
-        config = clients.target_table()[target]
-        for role in ('cgame', 'ui', 'qagame'):
-            path = folder / (config.get('prefix', '') + role + config['suffix'])
-            path.write_bytes(binary_header(target) + (target + '/game/' + role).encode())
-            paths[role] = str(path)
-        manifest = folder / 'modules.json'
-        manifest.write_bytes(clients.json_bytes({'schema': 1, 'variant': 'game',
-                                                 'configuration': 'Release', 'modules': paths}))
-        return folder, manifest
+    def test_real_target_packager_avoids_full_resource_copy_in_transfer(self):
+        modules=self.root/'modules';modules.mkdir();paths={}
+        for role in ('cgame','ui','qagame'):
+            path=modules/(role+'_mp_x86.dll');path.write_bytes(binary_header('windows-x86'));paths[role]=str(path)
+        manifest=modules/'tce-modules-Release.json'
+        manifest.write_text(json.dumps({'schema':1,'variant':'game','configuration':'Release','modules':paths}))
+        archive=package_modules(None,self.root/'transfer','windows-x86','game',repo=self.repo,module_manifest=manifest)
+        row=clients.read_target(archive,VERSION,self.repo)
+        self.assertFalse(row['metadata']['gameplay_bot_runtime'])
+        self.assertLess(archive.stat().st_size,50000)
+        self.assertFalse(any(name.endswith('.pk3') or name.endswith('.tga') for name in row['files']))
 
-    def test_package_default_inputs_and_explicit_local_smoke_remain_distinct(self):
-        folder, manifest = self.built()
-        transfer = package_modules(None, self.root / 'transfer', 'windows-x86', 'game', module_manifest=manifest)
-        files = clients.zip_contents(transfer.read_bytes())
-        self.assertTrue(transfer.name.endswith('-Client-Inputs.zip'))
-        self.assertNotIn(f'tce2/tce2-{VERSION}.pk3', files)
-        self.assertEqual(clients.read_target(transfer, VERSION)['metadata']['client_package']['scope'], 'target-input')
-        # This fixture omits bot runtime intentionally; exercise actual archive
-        # validation of the client inputs without inventing a core symbol proof.
-        self.assertTrue(validate_archive(transfer)['passed'])
-        smoke = package_modules(folder, self.root / 'smoke', 'windows-x86', 'game', local_client_pk3=True)
-        self.assertIn('-Local-Test.zip', smoke.name)
-        self.assertEqual(validate_archive(smoke)['client_package_scope'], 'local-test')
-        with self.assertRaisesRegex(ValueError, 'Not a Release client-input'):
-            clients.read_target(smoke, VERSION)
+    def test_local_cmake_resource_entrypoint_uses_same_complete_reader(self):
+        modules=self.root/'native';modules.mkdir()
+        for name in clients.module_names('windows-x86').values():(modules/name).write_bytes(binary_header('windows-x86'))
+        output=modules/f'tce2-{VERSION}.pk3'
+        package_directory(modules,'game',output,self.repo)
+        payload=clients.zip_contents(output.read_bytes())
+        self.assertEqual(set(payload),set(resource_assets(VERSION,'game',self.repo))|set(clients.module_names('windows-x86').values()))
+        (modules/'ui_mp_x86.dll').unlink()
+        with self.assertRaisesRegex(ValueError,'Incomplete native client pair'):
+            package_directory(modules,'game',output,self.repo)
 
-    def test_shared_option_requires_full_matrix_and_matching_target_build(self):
-        _, manifest = self.built()
-        rows = [self.row(target) for target in clients.target_table()]
-        data, _ = clients.canonical_client(rows, clients.target_table(), VERSION, 'game')
-        shared = self.root / 'canonical.pk3'; shared.write_bytes(data)
-        target = package_modules(None, self.root / 'shared', 'windows-x86', 'game',
-                                 module_manifest=manifest, shared_client_pk3=shared)
-        self.assertTrue(validate_archive(target)['passed'])
-        self.assertEqual(clients.zip_contents(target.read_bytes())[f'tce2/tce2-{VERSION}.pk3'], data)
-        Path(json.loads(manifest.read_text())['modules']['ui']).write_bytes(binary_header('windows-x86') + b'other build')
-        with self.assertRaisesRegex(ValueError, 'differs from target module'):
-            package_modules(None, self.root / 'mismatch', 'windows-x86', 'game',
-                            module_manifest=manifest, shared_client_pk3=shared)
-        two, _ = clients.canonical_client(rows[:2], [row['metadata']['target'] for row in rows[:2]], VERSION, 'game')
-        shared.write_bytes(two)
-        with self.assertRaisesRegex(ValueError, 'Wrong/incomplete'):
-            package_modules(None, self.root / 'partial', 'windows-x86', 'game',
-                            module_manifest=manifest, shared_client_pk3=shared)
+    def bundle(self,variant='game'):
+        targets=['windows-x86','linux-i386','linux-x86_64'];rows=[self.row(target,variant) for target in targets]
+        client,metadata=clients.canonical_client(rows,targets,VERSION,variant,self.repo)
+        data,bundle=single_mod.build_bundle(rows,client,metadata,VERSION,variant,self.repo,targets)
+        return data,bundle,client,targets
 
-    def test_missing_or_different_configuration_cannot_enter_release_inputs(self):
-        folder, manifest = self.built()
-        with self.assertRaisesRegex(ValueError, 'module/configuration manifest'):
-            package_modules(folder, self.root / 'missing', 'windows-x86', 'game')
-        metadata = json.loads(manifest.read_text()); metadata['configuration'] = 'Debug'
-        manifest.write_bytes(clients.json_bytes(metadata))
-        with self.assertRaisesRegex(ValueError, 'configuration provenance'):
-            package_modules(None, self.root / 'debug', 'windows-x86', 'game', module_manifest=manifest)
+    def test_single_pk3_with_all_server_abis_and_no_duplicate_loose_clients(self):
+        with synthetic_runtime():
+            data,metadata,client,targets=self.bundle()
+            self.assertEqual(single_mod.check_bundle(data,VERSION,'game',self.repo,targets),metadata)
+        files=clients.zip_contents(data)
+        self.assertEqual([name for name in files if name.endswith('.pk3')],[f'tce2/tce2-{VERSION}.pk3'])
+        self.assertEqual(files[f'tce2/tce2-{VERSION}.pk3'],client)
+        for target in targets:
+            for name in clients.module_names(target).values():self.assertNotIn('tce2/'+name,files)
+            config=clients.target_table()[target]
+            self.assertIn('server/'+target+'/'+config.get('prefix','')+'qagame'+config['suffix'],files)
+        self.assertIn('server/common/omni-bot/global_scripts/fixture.gm',files)
+        self.assertIn('launcher/start_game.py',files)
+
+    def test_changed_bundle_bytes_extra_pk3_missing_server_and_core_are_rejected(self):
+        with synthetic_runtime():
+            data,metadata,_,targets=self.bundle()
+            original=clients.zip_contents(data)
+            for name in [f'tce2/tce2-{VERSION}.pk3','server/windows-x86/qagame_mp_x86.dll',
+                         'server/windows-x86/omni-bot/'+CORE_NAMES['windows-x86']]:
+                files=dict(original);files[name]+=b'changed'
+                with self.subTest(name=name),self.assertRaises(ValueError):
+                    single_mod.check_bundle(clients.zip_bytes(files),VERSION,'game',self.repo,targets)
+            files=dict(original);files['extra.pk3']=b'bad'
+            manifest=json.loads(files['manifest.json']);manifest['files'].append({'path':'extra.pk3','bytes':3,'sha256':clients.sha(b'bad')})
+            files['manifest.json']=clients.json_bytes(manifest)
+            with self.assertRaisesRegex(ValueError,'Exactly one'):
+                single_mod.check_bundle(clients.zip_bytes(files),VERSION,'game',self.repo,targets)
+
+    def test_wrong_server_or_core_abi_fails_even_with_updated_outer_hashes(self):
+        with synthetic_runtime():
+            data,_,_,targets=self.bundle();original=clients.zip_contents(data)
+            for name in ('server/windows-x86/qagame_mp_x86.dll',
+                         'server/windows-x86/omni-bot/'+CORE_NAMES['windows-x86']):
+                files=dict(original);files[name]=binary_header('linux-x86_64')
+                manifest=json.loads(files['manifest.json'])
+                for row in manifest['files']:
+                    if row['path']==name:row.update(bytes=len(files[name]),sha256=clients.sha(files[name]))
+                if 'omni-bot/' in name:
+                    manifest['target_inputs']['windows-x86']['metadata']['bot_core_boundary']['sha256']=clients.sha(files[name])
+                files['manifest.json']=clients.json_bytes(manifest)
+                with self.subTest(name=name),self.assertRaisesRegex(ValueError,'Wrong native client ABI'):
+                    single_mod.check_bundle(clients.zip_bytes(files),VERSION,'game',self.repo,targets)
+
+    def test_installer_selects_one_server_abi_and_optionally_extracts_same_pk3_clients(self):
+        data,_,client,_=self.bundle();folder=self.root/'unpacked';folder.mkdir()
+        for name,payload in clients.zip_contents(data).items():
+            path=folder/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(payload)
+        mod=self.root/'existing-game/tce2';mod.mkdir(parents=True)
+        with self.assertRaisesRegex(ValueError,'original TCE 0.49b base first'):
+            install(folder,'windows-x86',mod)
+        for i in range(5):(mod/f'pak{i}.pk3').write_bytes(('synthetic stock '+str(i)).encode())
+        (mod/'qagame_mp_x86.dll').write_bytes(b'old server')
+        result=install(folder,'windows-x86',mod)
+        self.assertIsNotNone(result['backup']);self.assertFalse((mod/'ui_mp_x86.dll').exists())
+        self.assertEqual((Path(result['backup'])/'qagame_mp_x86.dll').read_bytes(),b'old server')
+        self.assertFalse((mod/'qagame.mp.x86_64.so').exists())
+        install(folder,'windows-x86',mod,True)
+        self.assertEqual((mod/'ui_mp_x86.dll').read_bytes(),clients.zip_contents(client)['ui_mp_x86.dll'])
+        with self.assertRaisesRegex(ValueError,'absent'):install(folder,'unknown',mod)
+        with self.assertRaisesRegex(ValueError,'existing tce2'):install(folder,'windows-x86',self.root/'new-game')
 
 
-class AggregateClients(unittest.TestCase):
-    def test_all_ten_targets_receive_same_variant_pk3_and_missing_target_stays_inputs(self):
-        for missing in (False, True):
-            with self.subTest(missing=missing), tempfile.TemporaryDirectory() as temporary:
-                root = Path(temporary); source = root / 'collected'; output = root / 'out'
-                configs = clients.target_table()
-                for target in configs:
-                    for variant in ('game', 'navstudio'):
-                        if missing and target == 'windows-x86' and variant == 'game':
-                            continue
-                        input_archive(source / (target + '-' + variant), target, variant)
-                source.mkdir(exist_ok=True)
-                (source / f'TCE2-{VERSION}-Source.zip').write_bytes(clients.zip_bytes({'fixture.txt': b'source selection only'}))
-                needs = {'plan': {'result': 'success', 'outputs': {'matrix': json.dumps({'include': [
-                    {'target': target, 'variant': variant} for target in configs for variant in ('game', 'navstudio')]})}},
-                    'binaries': {'result': 'failure' if missing else 'success'}, 'navstudio-desktop': {'result': 'skipped'}}
-                with patch.object(sys, 'argv', ['aggregate', '--input', str(source), '--out', str(output)]), \
-                        patch.dict(os.environ, {'NEEDS_JSON': json.dumps(needs)}):
-                    self.assertEqual(aggregate(), int(missing))
-                report = json.loads((output / 'release-manifest.json').read_text())
-                self.assertEqual(report['client_inputs_promoted'], not missing)
-                self.assertEqual(report['complete'], not missing)
-                if missing:
-                    self.assertFalse(report['client_packages'])
-                    self.assertEqual(len(list((output / 'bundle/inputs').glob('*-Client-Inputs.zip'))), 19)
-                    continue
-                for variant in ('game', 'navstudio'):
-                    payloads = []
-                    for target in configs:
-                        path = output / 'bundle/archives' / f'TCE2-{VERSION}-{target}-{variant}.zip'
-                        with zipfile.ZipFile(path) as archive:
-                            payloads.append(archive.read(f'tce2/tce2-{VERSION}.pk3'))
-                            self.assertFalse(any(name.startswith(clients.INPUT_PREFIX) for name in archive.namelist()))
-                            self.assertNotIn(b'CLIENT INPUTS ONLY', archive.read('README.txt'))
-                            metadata = json.loads(archive.read('manifest.json'))
-                            self.assertEqual(metadata['client_package']['targets'], sorted(configs))
-                    self.assertTrue(all(data == payloads[0] for data in payloads))
-                    self.assertEqual(report['client_packages'][variant]['sha256'], clients.sha(payloads[0]))
-                self.assertNotEqual(report['client_packages']['game']['sha256'], report['client_packages']['navstudio']['sha256'])
-                for row in report['files']:
-                    path = output / 'bundle' / row['path']
-                    self.assertEqual(clients.sha(path.read_bytes()), row['sha256'])
-                    self.assertEqual(path.stat().st_size, row['bytes'])
-
-
-if __name__ == '__main__':
-    unittest.main()
+if __name__=='__main__':unittest.main()

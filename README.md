@@ -1,9 +1,11 @@
 # TCE2 mod source
 
 TCE2 builds the `cgame`, `ui` and `qagame` modules for True Combat: Elite.
-The current mod version is **1.0.2**. A compatible external Enemy Territory /
-ETLegacy engine and the original game data are required; this repository does
-not build or redistribute an engine or the original maps, sounds and models.
+The current mod version is **1.0.3**. A compatible external Enemy Territory /
+ETLegacy engine and an existing original True Combat: Elite installation are
+required. This repository builds the mod, not an engine. `pak` contains only
+new or changed project resources. `pak_original_tce` is a local-only reference
+and is excluded from Git and source archives.
 
 Normal Game builds include **Omni-bot gameplay**, its runtime library and the
 required behavior scripts. Waypoint/goal editing, editor UI and the desktop
@@ -32,15 +34,21 @@ separate Game/Editor builds, portable tests and package instructions.
 
 [The release workflow](.github/workflows/release.yml) is started explicitly with
 GitHub Actions **Run workflow**. Workflows have no push, pull-request, schedule
-or release-event triggers. The release build produces versioned archives with
-native mod modules, `tce2-1.0.2.pk3`, the bot runtime and separate editor /
-NavStudio deliverables. Each architecture needs a matching external host.
+or release-event triggers. The public mod ZIP contains **one `tce2-1.0.3.pk3`**:
+the new/changed scripts, menus, artwork and UI/CGame binaries are inside that PK3.
+Unchanged original game resources stay in the installed original TCE packages.
+The ZIP's `server` directory contains the loose QGame modules and their matching
+server runtime for each architecture. The optional Editor ZIP is separate and
+uses the same one-PK3 layout. Each architecture needs a matching external host.
+No GitHub release is published by the workflow.
 
 ## Source layout
 
 | Directory | Contents |
 | --- | --- |
 | `src/` | Game, client, UI, Lua modules and tests |
+| `pak/` | Editable new/changed resources for the single mod PK3 |
+| `map_pics/` | Original background pictures; generated game images are in `pak` |
 | `compat/` | Reviewed legacy numeric and ABI compatibility |
 | `platform/` | Native platform services |
 | `vendor/` | Dependency source, bot scripts and attribution |
@@ -49,7 +57,7 @@ NavStudio deliverables. Each architecture needs a matching external host.
 | `tools/` | Build, release and validation tools |
 | `Docs/` | Maintained audit and release documentation |
 
-Local game installations, original reference binaries, reconstruction evidence,
+Local original resources (`pak_original_tce`), game installations, reference binaries, reconstruction evidence,
 credentials and generated build files are excluded from version control.
 Source-file copyright and license notices and vendored dependency licenses
 remain applicable; see also [LICENSE](LICENSE).

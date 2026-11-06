@@ -4,7 +4,7 @@ import json
 import re
 
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = ROOT / 'pak'
+SOURCE = ROOT / 'pak_original_tce'
 DEST = ROOT / 'ui-modern'
 DIRS = ('ui', 'ui_obj', 'ui_robj', 'ui_tdm')
 
@@ -277,7 +277,7 @@ def main():
             elif p.name in ('menus.txt','menus_gt2.txt','menus_gt5.txt','menus_gt7.txt') and folder=='ui':
                 source_line='loadMenu { "ui/options.menu" }'
                 if s.count(source_line)!=1:raise ValueError('Missing/duplicate Options registry entry: '+p.name)
-                s=s.replace(source_line,source_line+'\n\tloadMenu { "ui/modern_appearance.menu" }',1)
+                s=s.replace(source_line,source_line+'\n\tloadMenu { "ui/modern_appearance.menu" }\n\tloadMenu { "ui/modern_backgrounds.menu" }',1)
             q=DEST/relative;q.parent.mkdir(parents=True,exist_ok=True);q.write_bytes(s.encode('latin1'))
             rows.append({'path':relative.as_posix(),'changed':p.read_bytes()!=q.read_bytes()})
     from layout_common import widgets

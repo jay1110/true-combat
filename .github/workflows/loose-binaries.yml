@@ -5,7 +5,7 @@ on:
       expected_version:
         description: Version required in src/game/tce_version.h
         type: string
-        default: '1.0.2'
+        default: '1.0.3'
         required: true
 permissions:
   contents: read

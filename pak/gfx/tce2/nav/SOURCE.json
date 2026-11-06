@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "origin": "Original repository-created geometric TCE2 navigation artwork; no external artwork or fonts.",
+  "license": "CC0-1.0",
+  "generator": "tools/assets/generate_nav_icons.py",
+  "generator_sha256": "f155787f81aec175a6670e74a66406c0e78efd62a90751f0340c9e258e965c88",
+  "renderer": "Python standard library polygon rasterizer, 6x supersampling, premultiplied coverage reduction",
+  "files": [
+    {
+      "asset": "player.tga",
+      "width": 64,
+      "height": 64,
+      "channels": "BGRA8, top-left TGA origin, straight alpha",
+      "bytes": 16428,
+      "sha256": "c158cafff7bc4103400ca3c4e0105b746e38ccd0cfa948ae1f4ae72806cec6ff"
+    },
+    {
+      "asset": "player_self.tga",
+      "width": 64,
+      "height": 64,
+      "channels": "BGRA8, top-left TGA origin, straight alpha",
+      "bytes": 16428,
+      "sha256": "9a0030fdf8273a65899c00e808d1e088160ef21a14f9f20e324fd4953034c174"
+    },
+    {
+      "asset": "player_dead.tga",
+      "width": 64,
+      "height": 64,
+      "channels": "BGRA8, top-left TGA origin, straight alpha",
+      "bytes": 16428,
+      "sha256": "f4d681d04d7586aa49b91755ed082c40ef2c24b4873eb3564f2895cb2097b472"
+    },
+    {
+      "asset": "objective_a.tga",
+      "width": 128,
+      "height": 128,
+      "channels": "BGRA8, top-left TGA origin, straight alpha",
+      "bytes": 65580,
+      "sha256": "4f78316420bb48120e0050f4284b579771ef0c02f0bb4d6bd65bb9310fa03318"
+    },
+    {
+      "asset": "objective_b.tga",
+      "width": 128,
+      "height": 128,
+      "channels": "BGRA8, top-left TGA origin, straight alpha",
+      "bytes": 65580,
+      "sha256": "c5cf3f5d6f9349fec0bfd5c32a431a85717dea7c54dc5a7527f495db95c0015f"
+    },
+    {
+      "asset": "flag_terror.tga",
+      "width": 64,
+      "height": 64,
+      "channels": "BGRA8, top-left TGA origin, straight alpha",
+      "bytes": 16428,
+      "sha256": "b2a11842c00abd2b6a4ddf7854530bdcd606ee28993777044fb7724bd3976177"
+    },
+    {
+      "asset": "flag_specops.tga",
+      "width": 64,
+      "height": 64,
+      "channels": "BGRA8, top-left TGA origin, straight alpha",
+      "bytes": 16428,
+      "sha256": "c34944c5f6d0edbb9c5f58bc7c4dd2f2239477056a93767153d1be4aca821408"
+    }
+  ]
+}

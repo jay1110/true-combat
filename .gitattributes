@@ -23,3 +23,10 @@
 /ui-modern/ui_robj/** -whitespace
 /ui-modern/ui_tdm/** -whitespace
 /ui-modern/assets/fonts/tce2_ui/LICENSE*.txt -whitespace
+
+# Canonical editable PK3 resources and their original reference must retain exact
+# legacy encodings, line endings and binary bytes across Windows/Linux checkouts.
+/pak/** -text -whitespace
+/pak_original_tce/** -text -whitespace
+/map_pics/** -text
+/navstudio/editor-pak/** -text -whitespace

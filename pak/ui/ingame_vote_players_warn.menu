@@ -1,0 +1,73 @@
+#include "ui/menudef.h"
+
+// Defines //
+#define WINDOW_X 0
+#define WINDOW_Y 0
+#define WINDOW_WIDTH 852
+#define WINDOW_HEIGHT 480
+#define GROUP_NAME		"grpIngameVotePlayersWarn"
+
+// Macros //
+
+#include "ui/modern_widgets.h"
+		
+// Vote Players Warn Menu //
+	
+menuDef {
+	name		"ingame_vote_players_warn"
+	visible		0
+	fullscreen	0
+	rect		WINDOW_X WINDOW_Y WINDOW_WIDTH WINDOW_HEIGHT
+	style		WINDOW_STYLE_FILLED
+	popup
+	
+	fadeClamp	0.5
+	fadeAmount  0.075
+	
+	onOpen {
+		setitemcolor background backcolor 0 0 0 0 ;
+		fadein background ;
+		setEditFocus "efleftWarning:"
+	}
+	
+	onESC {
+		close ingame_vote_players_warn ;
+		open ingame_vote_players
+	}
+	
+// Background //
+
+	itemDef {
+		name		"background"
+		rect		0 0 852 480
+		style		WINDOW_STYLE_FILLED
+		background	"ui/assets/fadebox.tga"
+		backcolor	0 0 0 0
+		visible		1
+		decoration
+	}
+
+// Subwindows //
+
+#define SUBWINDOW_WIDTH 444
+#define SUBWINDOW_HEIGHT 180
+#define SUBWINDOW_X 204
+#define SUBWINDOW_Y 150
+
+	SUBWINDOWBLACK( SUBWINDOW_X, SUBWINDOW_Y, SUBWINDOW_WIDTH, SUBWINDOW_HEIGHT, "Warn Player" )
+		itemDef {
+		name		"efleftbackWarning:"
+		group		GROUP_NAME
+		rect		280 216 344 28
+		style		WINDOW_STYLE_FILLED
+		backcolor	.075 .105 .14 .98
+		visible		1
+		decoration
+		border	WINDOW_BORDER_FULL
+		bordercolor	.35 .32 .22 .85
+	}
+	EDITFIELDLEFT( 228, 216, 396, 28, "Warning:", .26, 20, "ui_warnreason", 128, 32, "Warning message to send to a player" )
+
+	BUTTON( 228, 288, 190, 30, "BACK", .30, 21, close ingame_vote_players_warn ; open ingame_vote_players )
+	BUTTON( 434, 288, 190, 30, "WARN", .30, 21, uiScript refWarning ; uiScript closeingame )
+}

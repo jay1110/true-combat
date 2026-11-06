@@ -1,0 +1,237 @@
+#include "ui/menudef.h"
+
+// Defines //
+
+#define WINDOW_X 0
+#define WINDOW_Y 0
+#define WINDOW_WIDTH 852
+#define WINDOW_HEIGHT 480
+#define GROUP_NAME		"grpCreditsSplashDamage"
+
+// Macros //
+
+#include "ui/modern_widgets.h"
+		
+// System Menu //
+	
+menuDef {
+	name		"credits_splashdamage"
+	visible		0
+	fullscreen	0
+	rect		WINDOW_X WINDOW_Y WINDOW_WIDTH WINDOW_HEIGHT
+	style		WINDOW_STYLE_FILLED
+	
+	onESC {
+		close credits_splashdamage ;
+		open main
+	}
+// Background //
+
+	itemDef {
+		name		"background"
+		rect		0 0 852 480
+		style		WINDOW_STYLE_FILLED
+		background	"ui/assets/fadebox.tga"
+		backcolor	.015 .025 .04 .72
+		visible		1
+		decoration
+	}
+// Window //
+
+	itemDef {
+		name		"window"
+		group		GROUP_NAME
+		rect		0 0 WINDOW_WIDTH WINDOW_HEIGHT
+		style		WINDOW_STYLE_FILLED
+		backcolor	0 0 0 1
+		border		WINDOW_BORDER_FULL
+		bordercolor	.5 .5 .5 .5
+		visible		1
+		decoration
+	}
+    itemDef {
+        name "modern_secondary_0"
+        rect 24 60 176 372
+        style WINDOW_STYLE_FILLED
+        backcolor .035 .055 .075 .94
+        border WINDOW_BORDER_FULL
+        bordercolor .18 .24 .29 .65
+        visible 1
+        decoration
+    }
+
+    itemDef {
+        name "modern_secondary_1"
+        rect 224 60 604 372
+        style WINDOW_STYLE_FILLED
+        backcolor .035 .055 .075 .94
+        border WINDOW_BORDER_FULL
+        bordercolor .18 .24 .29 .65
+        visible 1
+        decoration
+    }
+
+	
+// Logo //
+
+	itemDef {
+		name		"logoShadow"
+		rect		49 105 128 128
+		style		WINDOW_STYLE_SHADER
+		background	"ui/assets/logo_sd"
+		forecolor	0 0 0 1
+		visible		1
+		decoration
+	}
+
+	itemDef {
+		name		"logo"
+		rect		48 104 128 128
+		style		WINDOW_STYLE_SHADER
+		background	"ui/assets/logo_sd"
+		forecolor	1 1 1 1
+		visible		1
+		decoration
+	}
+	
+	itemDef {
+		name		"headerLogo"
+		group		GROUP_NAME
+		rect		24 8 804 36
+		text		"ENEMY TERRITORY DEVELOPED BY SPLASH DAMAGE"
+		textfont	UI_FONT_ARIBLK_16
+		textstyle	ITEM_TEXTSTYLE_NORMAL
+		textscale	.40
+		textalign	ITEM_ALIGN_LEFT
+		textalignx	0
+		textaligny	27
+		forecolor	1 1 1 1
+		visible		1
+		decoration
+	}
+	
+// Credits Sections //
+
+#define CREDITS_Y	108
+	
+	LABELWHITE( 236, 98, 170, 18, "Paul 'Locki' Wedgwood", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 98, 390, 18, "Game Designer / Managing Director", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 110, 170, 18, "Francisca 'Freya' Wedgwood", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 110, 390, 18, "Business Director", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	
+// Art //
+
+	itemDef {
+		name		"headerArt"
+		group		GROUP_NAME
+		rect		236 128 580 18
+		text		"ART"
+		textfont	UI_FONT_ARIBLK_16
+		textstyle	ITEM_TEXTSTYLE_NORMAL
+		textscale	.23
+		textalign	ITEM_ALIGN_LEFT
+		textalignx	0
+		textaligny	14
+		forecolor	1 1 1 1
+		visible		1
+		decoration
+	}
+	
+	LABELWHITE( 236, 144, 170, 18, "Richard 'Fluffy_gIMp' Jolly", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 144, 390, 18, "Lead Artist / Creative Director", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 156, 170, 18, "Francis 'Frankie' Hobbins", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 156, 390, 18, "Artist / Animator", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 168, 170, 18, "Per 'Per128' Abrahamsen", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 168, 390, 18, "Additional Art", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	
+// Programming //
+
+	itemDef {
+		name		"headerProgramming"
+		group		GROUP_NAME
+		rect		236 186 580 18
+		text		"PROGRAMMING"
+		textfont	UI_FONT_ARIBLK_16
+		textstyle	ITEM_TEXTSTYLE_NORMAL
+		textscale	.23
+		textalign	ITEM_ALIGN_LEFT
+		textalignx	0
+		textaligny	14
+		forecolor	1 1 1 1
+		visible		1
+		decoration
+	}
+	
+	LABELWHITE( 236, 202, 170, 18, "Arnout 'RR2DO2' van Meer", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 202, 390, 18, "Lead Programmer", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 214, 170, 18, "Gordon 'digibob' Biggans", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 214, 390, 18, "Programmer", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 226, 170, 18, "Randy 'ydnar' Reddig", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 226, 390, 18, "Programmer / Artist", .23, ITEM_ALIGN_LEFT, 0, 14 )
+
+// Design //
+
+	itemDef {
+		name		"headerDesign"
+		group		GROUP_NAME
+		rect		236 244 580 18
+		text		"DESIGN"
+		textfont	UI_FONT_ARIBLK_16
+		textstyle	ITEM_TEXTSTYLE_NORMAL
+		textscale	.23
+		textalign	ITEM_ALIGN_LEFT
+		textalignx	0
+		textaligny	14
+		forecolor	1 1 1 1
+		visible		1
+		decoration
+	}
+	
+	LABELWHITE( 236, 260, 170, 18, "Tim 'Marauder' Kautz", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 260, 390, 18, "Designer / Audio Engineer", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 272, 170, 18, "Ed 'Bongoboy' Stern", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 272, 390, 18, "Designer / Writer", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	
+// Level Design //
+
+	itemDef {
+		name		"headerLevelDesign"
+		group		GROUP_NAME
+		rect		236 290 580 18
+		text		"LEVEL DESIGN"
+		textfont	UI_FONT_ARIBLK_16
+		textstyle	ITEM_TEXTSTYLE_NORMAL
+		textscale	.23
+		textalign	ITEM_ALIGN_LEFT
+		textalignx	0
+		textaligny	14
+		forecolor	1 1 1 1
+		visible		1
+		decoration
+	}
+
+	LABELWHITE( 236, 306, 170, 18, "Matt 'Wils' Wilson", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 306, 390, 18, "Lead Level Designer", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 318, 170, 18, "Simon 'sock' O'Callaghan", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 318, 390, 18, "Senior Level Designer", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 330, 170, 18, "Mark 'nakedape' Fry", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 330, 390, 18, "Level Designer", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 342, 170, 18, "Thomas 'Q-Fraggel' Creutzenberg", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 342, 390, 18, "Level Designer", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 354, 170, 18, "Chris 'SHoD' Farcy", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 354, 390, 18, "Level Designer / Artist", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 366, 170, 18, "Lloyd 'LloydM' Morris", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 366, 390, 18, "Level Designer", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	LABELWHITE( 236, 378, 170, 18, "Lee 'Llama' Mercer", .23, ITEM_ALIGN_RIGHT, 170, 14 )
+	LABELWHITE( 426, 378, 390, 18, "Additional Level Design", .23, ITEM_ALIGN_LEFT, 0, 14 )
+	
+// Copyright Notice //
+
+//	LABEL( 6, CREDITS_Y+300, WINDOW_WIDTH-12, 10, "© 2003 Id Software, Inc. All rights reserved. Wolfenstein: Enemy Territory, Return to Castle Wolfenstein, the Return to Castle Wolfenstein logo, the id Software name, and the id logo are either registered trademarks or trademarks of Id Software, Inc. in the United States and/or other countries. All other trademarks and trade names are the properties of their respective owners.", .15, ITEM_ALIGN_LEFT, 0, 8 )
+
+// Buttons //
+
+	BUTTON( 24, 442, 184, 28, "BACK", .28, 19, close credits_splashdamage ; open main )
+	BUTTON( 364, 442, 252, 28, "GROOVESIX STUDIOS", .28, 19, close credits_splashdamage ; open credits_groovesix )
+	BUTTON( 638, 442, 190, 28, "ID SOFTWARE", .28, 19, close credits_splashdamage ; open credits_idsoftware )
+}

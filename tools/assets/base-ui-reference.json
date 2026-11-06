@@ -1,0 +1,915 @@
+{
+  "schema": 1,
+  "release_version": "1.0.3",
+  "baseline_id": "tce-0.49b-pak0-4",
+  "source_packages": [
+    {
+      "name": "pak0.pk3",
+      "sha256": "3c71638b27f6983ca3c2c0f7938a496024f59fbde0b089c4c6edd7bf221092a4",
+      "bytes": 111633426
+    },
+    {
+      "name": "pak1.pk3",
+      "sha256": "50819bd2b8160489cdfeb7fb7a0230211729fa267d54521421e135d548524c8f",
+      "bytes": 248251424
+    },
+    {
+      "name": "pak2.pk3",
+      "sha256": "67ab01d18a652a90d049b511bedad4fccd222c6c95c599c535f56afd26f4782f",
+      "bytes": 59329282
+    },
+    {
+      "name": "pak3.pk3",
+      "sha256": "ba3bd482a6bc6eafdde418f726b2edf8d0722e435bf044775884542a3723544a",
+      "bytes": 49407653
+    },
+    {
+      "name": "pak4.pk3",
+      "sha256": "607c4cf82703320c4c96cb5cf5eab88e1872468b14f70ea3e833585283d3d0c5",
+      "bytes": 463277
+    }
+  ],
+  "vfs_policy": "Official existing test installation pak0..pak4, increasing numeric order, case-insensitive last package wins. Only hashes/metadata; no original payload.",
+  "files": {
+    "ui/credits_activision.menu": {
+      "sha256": "e99110a45e6e086124d79baf9052a3f79b4b9478f568a1712c18754c39502585",
+      "bytes": 8800,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "credits_activision",
+          "opens": []
+        }
+      ]
+    },
+    "ui/credits_additional.menu": {
+      "sha256": "fb80c3874e160731131b6f5630046be331fc558f50f72d0057e0b5f7eb7b5e7d",
+      "bytes": 7464,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "credits_additional",
+          "opens": []
+        }
+      ]
+    },
+    "ui/credits_groovesix.menu": {
+      "sha256": "bf48e3591236d0a2ecd0301b4b8c2b98a5b0ec56f017162ada28127f48bebc1e",
+      "bytes": 8660,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "credits_groovesix",
+          "opens": []
+        }
+      ]
+    },
+    "ui/credits_groovesix_sub.menu": {
+      "sha256": "3228c6b297027cf4c9eae46edee2e68a25c7a727a6b80f68ca8a528cc75383c2",
+      "bytes": 9006,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "credits_groovesix_sub",
+          "opens": []
+        }
+      ]
+    },
+    "ui/credits_idsoftware.menu": {
+      "sha256": "f913038e060ff5077649ac71796a4422c6533612b47fa42b5c2aa29ae72e7dd3",
+      "bytes": 3259,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "credits_idsoftware",
+          "opens": []
+        }
+      ]
+    },
+    "ui/credits_quit.menu": {
+      "sha256": "6487b0abd02bcebbbac72550d054cc3474a0704b6a8ec475b09f764d67e16ae9",
+      "bytes": 8865,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "credits_quit",
+          "opens": []
+        }
+      ]
+    },
+    "ui/credits_splashdamage.menu": {
+      "sha256": "b69d54e5fb612cf77a12b457de7e2aee2b7290269111e840eeccb79f41667293",
+      "bytes": 8967,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "credits_splashdamage",
+          "opens": []
+        }
+      ]
+    },
+    "ui/global.menu": {
+      "sha256": "40386372a563c4dcc1e38a11e90b1047a59a44c40dcde7d097839538c2c23e91",
+      "bytes": 2534,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "backgroundmusic",
+          "opens": []
+        },
+        {
+          "name": "background_1",
+          "opens": []
+        },
+        {
+          "name": "background_black",
+          "opens": []
+        },
+        {
+          "name": "fadebox_black",
+          "opens": []
+        }
+      ]
+    },
+    "ui/hostgame.menu": {
+      "sha256": "8721552d2f66e3c748b03a54b93739c665e5e1d19027691bc149e8c0f1751469",
+      "bytes": 9525,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "hostgame",
+          "opens": []
+        }
+      ]
+    },
+    "ui/hostgame_advanced.menu": {
+      "sha256": "5a3ebfa25844c83a2e584ea6e6963cab8af9f507c811cb808f6182f46f7ac382",
+      "bytes": 14270,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "hostgame_advanced",
+          "opens": []
+        }
+      ]
+    },
+    "ui/hostgame_advanced_default.menu": {
+      "sha256": "e3156caedef5d28bf9f457bd40771552db5a9590a8eda8697a9eed70ede8877d",
+      "bytes": 4558,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "hostgame_advanced_default",
+          "opens": []
+        }
+      ]
+    },
+    "ui/hostgame_dedicated_warning.menu": {
+      "sha256": "91b8bbf09b0cbba3050abb881d563ce3d24f3585446f1f6eb9f46c5da6b941db",
+      "bytes": 2221,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "hostgame_dedicated_warning",
+          "opens": []
+        }
+      ]
+    },
+    "ui/hostgame_sub.menu": {
+      "sha256": "c84f9f2983bfe15489885790d3ca73c77ae9941b474b93793497bc66feee5251",
+      "bytes": 9435,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "hostgame_sub",
+          "opens": []
+        }
+      ]
+    },
+    "ui/ingame_disconnect.menu": {
+      "sha256": "39642a7aaf8dae4736945371330cdb93c1edd73f92b8de605ef4fc572bd250c1",
+      "bytes": 1724,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "ingame_disconnect",
+          "opens": []
+        }
+      ]
+    },
+    "ui/ingame_main.menu": {
+      "sha256": "4b713e975c0058ece2ae499c66fb4b7b3d9c380ad8f2e795d14391868b8a3b2e",
+      "bytes": 2006,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "ingame_main",
+          "opens": []
+        }
+      ]
+    },
+    "ui/ingame_serverinfo.menu": {
+      "sha256": "c2d4d56018643a849e5a805a8edce777f8ab05a51b4008c6eab2b9484d644cf8",
+      "bytes": 2187,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "ingame_serverinfo",
+          "opens": []
+        }
+      ]
+    },
+    "ui/ingame_tapoutlms.menu": {
+      "sha256": "2b45cdc33901b1192d59179eab5e03e77bb450f46f1ab4897895e9db50335633",
+      "bytes": 1500,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "tapoutmsglms",
+          "opens": []
+        }
+      ]
+    },
+    "ui/ingame_vote.menu": {
+      "sha256": "8cb4ea3b246db029ddc5aa44eb6fbcfad219caadff839ee66dd08b8207e1a53d",
+      "bytes": 3102,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "ingame_vote",
+          "opens": []
+        }
+      ]
+    },
+    "ui/ingame_vote_disabled.menu": {
+      "sha256": "7f48e67b6cde986a85f88c4cda641529593d68edfd6f82b9de93cd3ba7bf81f8",
+      "bytes": 1611,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "ingame_votedisabled",
+          "opens": []
+        }
+      ]
+    },
+    "ui/ingame_vote_map.menu": {
+      "sha256": "ccf465652a22035424a3355d24b933911d70ab2365ba629d152e05354b09d45d",
+      "bytes": 2879,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "ingame_vote_map",
+          "opens": []
+        }
+      ]
+    },
+    "ui/ingame_vote_misc.menu": {
+      "sha256": "6fddbdd4577509326dd1a5c84af7538692f06a02369c07df1620fce82b123f8d",
+      "bytes": 6129,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "ingame_vote_misc",
+          "opens": []
+        }
+      ]
+    },
+    "ui/ingame_vote_misc_refrcon.menu": {
+      "sha256": "3d52df7fb2a274ff6e091baddcacbba5a1be3574a158edc7c67c9de6f1e71b2d",
+      "bytes": 7071,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "ingame_vote_misc_refrcon",
+          "opens": []
+        }
+      ]
+    },
+    "ui/ingame_vote_players.menu": {
+      "sha256": "ae7c9c268c91049cdc48bd7f1f4ed6bd6edd50cb886a827fb1722b2e3e9c88ea",
+      "bytes": 5099,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "ingame_vote_players",
+          "opens": []
+        }
+      ]
+    },
+    "ui/ingame_vote_players_warn.menu": {
+      "sha256": "76249baec3ad93605282071fbe99f284fb599f788592d36755732278509261c5",
+      "bytes": 2026,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "ingame_vote_players_warn",
+          "opens": []
+        }
+      ]
+    },
+    "ui/main.menu": {
+      "sha256": "d8e7773ae416470af128c127ca82efcd6714478f6752f5f39e04fcfde4fd11fd",
+      "bytes": 4571,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "main_opener",
+          "opens": []
+        },
+        {
+          "name": "main",
+          "opens": []
+        }
+      ]
+    },
+    "ui/mods.menu": {
+      "sha256": "b2d5792b7512cc5c38838006067c217ddb3a214a59a6c8b57bc45d34c6de7e9f",
+      "bytes": 1345,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "mods",
+          "opens": []
+        }
+      ]
+    },
+    "ui/options.menu": {
+      "sha256": "2c2b511f0c579beea41224f18d8b6313a39d59954377101bd3a78959cc5fef30",
+      "bytes": 1715,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "options",
+          "opens": []
+        }
+      ]
+    },
+    "ui/options_controls.menu": {
+      "sha256": "24bb8bf6ef57175fae6665757e1e0c09067c89ab118c59608317e507fb0ffeca",
+      "bytes": 8440,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "options_controls",
+          "opens": []
+        }
+      ]
+    },
+    "ui/options_controls_default.menu": {
+      "sha256": "b1117be4594ded906e927a9c5d3d471b1397293fae02f3d4c39edc3f504026d0",
+      "bytes": 1999,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "options_controls_default",
+          "opens": []
+        }
+      ]
+    },
+    "ui/options_customise_game.menu": {
+      "sha256": "b266cb40f2ebcd4200acfad150e651ca5070d2d393932286230b069123790115",
+      "bytes": 4982,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "options_customise_game",
+          "opens": []
+        }
+      ]
+    },
+    "ui/options_customise_hud.menu": {
+      "sha256": "660ad57daddfe54f85cfc0ae0db6ca3826bd7efb331e9fdfd72795e5939d6f1e",
+      "bytes": 3803,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "options_customise_hud",
+          "opens": []
+        }
+      ]
+    },
+    "ui/options_system.menu": {
+      "sha256": "3a2a22956a925bb11a2c306f72e7a11bebafe636567a8f4e3f30956965cee07b",
+      "bytes": 6462,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "options_system",
+          "opens": []
+        }
+      ]
+    },
+    "ui/options_system_gamma.menu": {
+      "sha256": "55f977eeb3dd7ea571cb162a887c9aecda2acddfe9d2621a7873460f1a7fcb31",
+      "bytes": 4118,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "options_system_gamma",
+          "opens": []
+        }
+      ]
+    },
+    "ui/playonline.menu": {
+      "sha256": "3f085a697d3b3bf89266c6ca65a2ab13813c79689ec67520c9220e40548d6bc1",
+      "bytes": 21485,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "playonline",
+          "opens": []
+        }
+      ]
+    },
+    "ui/playonline_connecttoip.menu": {
+      "sha256": "973dbf2896fac355f419d067e7b93847770fe1dbc686021abdfd95eda52c82a4",
+      "bytes": 1971,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "playonline_connecttoip",
+          "opens": []
+        }
+      ]
+    },
+    "ui/playonline_disablepb.menu": {
+      "sha256": "4b0bc188641422d9bca39483d8f338f8b3267a81564380fdaf6c8e30cf033aed",
+      "bytes": 2458,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "playonline_disablepb",
+          "opens": []
+        },
+        {
+          "name": "playonline_disablepb_info",
+          "opens": []
+        }
+      ]
+    },
+    "ui/playonline_enablepb.menu": {
+      "sha256": "ce778428ba8f7bbc0d194b746b550ee91bd1e786492c418c52642ec1802dec22",
+      "bytes": 1528,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "playonline_enablepb",
+          "opens": []
+        }
+      ]
+    },
+    "ui/playonline_serverinfo.menu": {
+      "sha256": "e85ce63cda818159121229713eefb88dee3a237b9750d6240b01af8e906d9981",
+      "bytes": 2182,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "playonline_serverinfo",
+          "opens": []
+        }
+      ]
+    },
+    "ui/playonline_sub.menu": {
+      "sha256": "c4e0efcc0fbe74656d99469dd5335e652cbd9d62ed5b8547e8be889ca082fe85",
+      "bytes": 21407,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "playonline_sub",
+          "opens": []
+        }
+      ]
+    },
+    "ui/popup_autoupdate.menu": {
+      "sha256": "91f34bb463edee745d0d26a911316e4609c66ca7a0046611e268f980e765a80d",
+      "bytes": 1571,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "wm_autoupdate_modal",
+          "opens": []
+        }
+      ]
+    },
+    "ui/popup_errormessage.menu": {
+      "sha256": "7c265e61324122d740e7d6aa68da65fede2cbe3f60c4d692c1fd722c82d92a2b",
+      "bytes": 1972,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "popupError_pbenable",
+          "opens": []
+        }
+      ]
+    },
+    "ui/popup_errormessage_pb.menu": {
+      "sha256": "a5a45390ad196017c4d19e7428aada1a19d1f3f5118a752f2c671328a85a62ba",
+      "bytes": 1653,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "popupError",
+          "opens": []
+        }
+      ]
+    },
+    "ui/popup_hostgameerrormessage.menu": {
+      "sha256": "45b32f0c4f2a14ce373df344d94328a7d37c76b62f5b427c2ebc3f52fd3e063c",
+      "bytes": 1457,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "hostGamePopupError",
+          "opens": []
+        }
+      ]
+    },
+    "ui/popup_password.menu": {
+      "sha256": "379dd5296e7b914f9f959013fb2bd6c2254995cbcb7bf6ce4da0d8b39d0ecfe3",
+      "bytes": 2529,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "popupPassword",
+          "opens": []
+        }
+      ]
+    },
+    "ui/profile.menu": {
+      "sha256": "f07ea8580063fc569dd712fb598caaa6da2336b3804724652bef5c6107f46c51",
+      "bytes": 3077,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "profile",
+          "opens": []
+        }
+      ]
+    },
+    "ui/profile_create.menu": {
+      "sha256": "4f9f7dc655a68dbc16b70628e833849b3f5fafe509e564a1ab8961e22f7cbb90",
+      "bytes": 7210,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "profile_create",
+          "opens": []
+        }
+      ]
+    },
+    "ui/profile_create_error.menu": {
+      "sha256": "f3a49966e06a6c41882f6c30dccd16c9326ec1c3a8a51446af0767f61464ccac",
+      "bytes": 1266,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "profile_create_error",
+          "opens": []
+        }
+      ]
+    },
+    "ui/profile_create_initial.menu": {
+      "sha256": "1f70544b2f9af1479aa49ef605bcf0462fbb7f41d638674dcf0d22b8f6a6f613",
+      "bytes": 8521,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "profile_create_initial_opener",
+          "opens": []
+        },
+        {
+          "name": "profile_create_initial",
+          "opens": []
+        }
+      ]
+    },
+    "ui/profile_delete.menu": {
+      "sha256": "63e12739cded2c8fe68c00869b7e85adaa2176cc9c208fc9c0cf503316958d00",
+      "bytes": 1576,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "profile_delete",
+          "opens": []
+        }
+      ]
+    },
+    "ui/profile_delete_error.menu": {
+      "sha256": "485ec83a647956ce88028def17bb8b09bcf044ad7064bb6648a0853470977562",
+      "bytes": 1418,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "profile_delete_error",
+          "opens": []
+        }
+      ]
+    },
+    "ui/profile_rename.menu": {
+      "sha256": "78e96cf8c9dfa0f20e7e47e6c93a21eb3519d6177e1556f4ebc0390bb8b13953",
+      "bytes": 2994,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "profile_rename",
+          "opens": []
+        }
+      ]
+    },
+    "ui/profile_sub.menu": {
+      "sha256": "aa7246065257f6a1a1e03a28681cb6e3a22e1d750cbcdb67a21b7ffaf55fed81",
+      "bytes": 2999,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "profile_sub",
+          "opens": []
+        }
+      ]
+    },
+    "ui/quit.menu": {
+      "sha256": "645f42f14ce92b462466e8fec8dc4e4e8364501f0c018f46531a894758adc076",
+      "bytes": 1933,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "quit",
+          "opens": []
+        }
+      ]
+    },
+    "ui/rec_restart.menu": {
+      "sha256": "477c62ef419a656f5dc3ae1ed8ac5827a785cb9503d207c0920115f0303b84a5",
+      "bytes": 1844,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "rec_restart",
+          "opens": []
+        }
+      ]
+    },
+    "ui/tcemods.menu": {
+      "sha256": "a8df89aef873c93409ba81d74d5d08c67cdb4993f7c7b4157c41634e991168e6",
+      "bytes": 1389,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "tcemods",
+          "opens": []
+        }
+      ]
+    },
+    "ui/vid_confirm.menu": {
+      "sha256": "7906657df77ea1481cf1778f685ea274b24046d4eeb62ea9056b0e3423a6e1eb",
+      "bytes": 3362,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "vid_confirm",
+          "opens": []
+        }
+      ]
+    },
+    "ui/vid_restart.menu": {
+      "sha256": "ea6ce2c345adc45f6a151f3be8bf9ba6a4d748782cbd4cb2d3f491153cc997f2",
+      "bytes": 1828,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "vid_restart",
+          "opens": []
+        }
+      ]
+    },
+    "ui/viewreplay.menu": {
+      "sha256": "890bb5de8a1a52340ad43fd0de785bd7b2833e7334b4f1214f33b996c69b8b69",
+      "bytes": 1990,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "viewreplay",
+          "opens": []
+        }
+      ]
+    },
+    "ui/viewreplay_delete.menu": {
+      "sha256": "b98d01ed32b99cbae2c4af8c54c58de958d3bbb6804414837fd222306410b28a",
+      "bytes": 1587,
+      "source_package": "pak4.pk3",
+      "menus": [
+        {
+          "name": "viewreplay_delete",
+          "opens": []
+        }
+      ]
+    },
+    "ui/wm_ftquickmessage.menu": {
+      "sha256": "673eeaaf37a0b18ae3e5b83808932dc1cc0809e34f1268b25a45b4120c68617e",
+      "bytes": 10525,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "wm_ftquickmessage",
+          "opens": []
+        },
+        {
+          "name": "wm_ftquickstatements",
+          "opens": []
+        },
+        {
+          "name": "wm_ftquickrequests",
+          "opens": []
+        },
+        {
+          "name": "wm_ftquickcommand",
+          "opens": []
+        },
+        {
+          "name": "wm_ftquickmisc",
+          "opens": []
+        },
+        {
+          "name": "wm_ftquickglobal",
+          "opens": []
+        },
+        {
+          "name": "wm_ftquickglobal2",
+          "opens": []
+        },
+        {
+          "name": "wm_ftquickobjectives",
+          "opens": []
+        }
+      ]
+    },
+    "ui/wm_quickmessage.menu": {
+      "sha256": "4e99bbf396faeb47dda5e6f6dc3c122b4ce3d1ec920d66aa544ca6fe2f230f46",
+      "bytes": 10202,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "wm_quickmessage",
+          "opens": []
+        },
+        {
+          "name": "wm_quickstatements",
+          "opens": []
+        },
+        {
+          "name": "wm_quickrequests",
+          "opens": []
+        },
+        {
+          "name": "wm_quickcommand",
+          "opens": []
+        },
+        {
+          "name": "wm_quickmisc",
+          "opens": []
+        },
+        {
+          "name": "wm_quickglobal",
+          "opens": []
+        },
+        {
+          "name": "wm_quickglobal2",
+          "opens": []
+        },
+        {
+          "name": "wm_quickobjectives",
+          "opens": []
+        }
+      ]
+    },
+    "ui/wm_quickmessageAlt.menu": {
+      "sha256": "03ee3619fa33a8c186ed5c3f69222dbd8d82d840e89c9772dbecbf2b31cd38b8",
+      "bytes": 10517,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "wm_quickmessageAlt",
+          "opens": []
+        },
+        {
+          "name": "wm_quickstatements_alt",
+          "opens": []
+        },
+        {
+          "name": "wm_quickrequests_alt",
+          "opens": []
+        },
+        {
+          "name": "wm_quickcommand_alt",
+          "opens": []
+        },
+        {
+          "name": "wm_quickmisc_alt",
+          "opens": []
+        },
+        {
+          "name": "wm_quickglobal_alt",
+          "opens": []
+        },
+        {
+          "name": "wm_quickglobal2_alt",
+          "opens": []
+        },
+        {
+          "name": "wm_quickobjectives_alt",
+          "opens": []
+        }
+      ]
+    },
+    "ui_obj/global.menu": {
+      "sha256": "bd2f03f78a6c11dbcfa1d053a6691ca1d997d9b3adc3d292cb0c26666310c792",
+      "bytes": 1196,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "backgroundmusic",
+          "opens": []
+        },
+        {
+          "name": "background_1",
+          "opens": []
+        }
+      ]
+    },
+    "ui_obj/main.menu": {
+      "sha256": "4359169f79c84ef3b2f1c17178ce667cf8e32839e8edc30329b9e87115ec34d8",
+      "bytes": 3900,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "main_opener",
+          "opens": []
+        },
+        {
+          "name": "main",
+          "opens": []
+        }
+      ]
+    },
+    "ui_robj/global.menu": {
+      "sha256": "bdb7a5cb30515f8295232392523cfbca1c02dee75c5eb4b9dc3588504bef86ba",
+      "bytes": 1198,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "backgroundmusic",
+          "opens": []
+        },
+        {
+          "name": "background_1",
+          "opens": []
+        }
+      ]
+    },
+    "ui_robj/main.menu": {
+      "sha256": "96899c1fdc93db15b22796ae2bfc6b54c7cd9eeed75f3ae1e8171f745e7c293b",
+      "bytes": 3782,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "main_opener",
+          "opens": []
+        },
+        {
+          "name": "main",
+          "opens": []
+        }
+      ]
+    },
+    "ui_tdm/global.menu": {
+      "sha256": "9720c4d531c8b0dd56e49801f7152ce0aa53fcaba5e9d0774a8cdc451cb0d441",
+      "bytes": 1203,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "backgroundmusic",
+          "opens": []
+        },
+        {
+          "name": "background_1",
+          "opens": []
+        }
+      ]
+    },
+    "ui_tdm/main.menu": {
+      "sha256": "3955622bc4853c35739a5b7568026aabf4737b7cd0ab2bde0025e9ea920e2c75",
+      "bytes": 3669,
+      "source_package": "pak2.pk3",
+      "menus": [
+        {
+          "name": "main_opener",
+          "opens": []
+        },
+        {
+          "name": "main",
+          "opens": []
+        }
+      ]
+    }
+  }
+}

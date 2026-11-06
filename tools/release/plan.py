@@ -5,7 +5,7 @@ from pathlib import Path
 from package import ROOT, version
 
 rows = json.loads((ROOT / 'tools/release/targets.json').read_text())['targets']
-variants = ('game', 'navstudio') if os.environ.get('INCLUDE_EDITOR', 'true').lower() == 'true' else ('game',)
+variants = ('game', 'navstudio') if os.environ.get('INCLUDE_EDITOR', 'false').lower() == 'true' else ('game',)
 matrix = {'include': [{'target': row['id'], 'runner': row['runner'], 'variant': variant}
                       for row in rows for variant in variants]}
 output = {'matrix': json.dumps(matrix, separators=(',', ':')), 'version': version()}

@@ -476,22 +476,24 @@ VOTE_NAV={'ui/ingame_vote_misc.menu':'misc','ui/ingame_vote_misc_refrcon.menu':'
           'ui/ingame_vote_map.menu':'map','ui/ingame_vote_players.menu':'players'}
 HOVER_FIELDS=frozenset(('mouseenter','mouseexit','onfocus','leavefocus'))
 APPEARANCE='ui/modern_appearance.menu'
+BACKGROUNDS='ui/modern_backgrounds.menu'
 APPEARANCE_LISTS=tuple('ui/'+name for name in ('menus.txt','menus_gt2.txt','menus_gt5.txt','menus_gt7.txt'))
 # Reviewed against the requested palette, opacity, scale and reset contract.
 # Presentation geometry/colors are projected out; script/list/cvar data is not.
-APPEARANCE_SEMANTIC_SHA256='e4237949197412614e1cc6fe813a9b426287fe717bb8304d4ff950b878860758'
+APPEARANCE_SEMANTIC_SHA256='b76febb16d19ada1262e28bc61d015f27dade25ac685ba12f6ec22bf715a32a0'
+BACKGROUNDS_SEMANTIC_SHA256='1402a7e9ff0f9db422b38986481615262088a5422d6e6287f67754c2f9230575'
 
 
-def appearance_signature(data,reference):
+def appearance_signature(data,reference,path=APPEARANCE):
     units=[parse(p,d) for p,d in reference.items() if Path(p).suffix in SEMANTIC_SUFFIXES and p!=APPEARANCE]
     _,macro_contracts=signatures(units)
-    unit=parse(APPEARANCE,data)
+    unit=parse(path,data)
     value,_=signatures([unit],macro_contracts)
-    return digest(json.dumps(value[APPEARANCE],ensure_ascii=True).encode())
+    return digest(json.dumps(value[path],ensure_ascii=True).encode())
 
 
-def _appearance_load(ts):
-    pattern=['loadMenu','{','"'+APPEARANCE+'"','}'];result=[];count=0;i=0
+def _appearance_load(ts,path=APPEARANCE):
+    pattern=['loadMenu','{','"'+path+'"','}'];result=[];count=0;i=0
     while i<len(ts):
         if ts[i:i+4]==pattern:count+=1;i+=4
         else:result.append(ts[i]);i+=1
@@ -508,9 +510,16 @@ def layout_reference(reference,candidate):
         if appearance_signature(candidate[APPEARANCE],reference)!=APPEARANCE_SEMANTIC_SHA256:
             raise ValueError('Appearance page differs from reviewed cvar/list/script contract')
         result[APPEARANCE]=candidate[APPEARANCE].replace(('"'+PRIVATE_WIDGETS+'"').encode(),('"'+ORIGINAL_WIDGETS+'"').encode())
+        if BACKGROUNDS not in candidate:
+            raise ValueError('Background settings page is missing')
+        if appearance_signature(candidate[BACKGROUNDS],reference,BACKGROUNDS)!=BACKGROUNDS_SEMANTIC_SHA256:
+            raise ValueError('Background page differs from reviewed season/country/month contract')
+        result[BACKGROUNDS]=candidate[BACKGROUNDS].replace(('"'+PRIVATE_WIDGETS+'"').encode(),('"'+ORIGINAL_WIDGETS+'"').encode())
         for path in APPEARANCE_LISTS:
             if path in reference and _appearance_load(parse(path,candidate.get(path,b'')).body)[1]!=1:
                 raise ValueError('Appearance page must be loaded exactly once: '+path)
+            if path in reference and _appearance_load(parse(path,candidate.get(path,b'')).body,BACKGROUNDS)[1]!=1:
+                raise ValueError('Background page must be loaded exactly once: '+path)
         if 'ui/options.menu' in candidate:
             names=parse('ui/options.menu',candidate['ui/options.menu']).body
             if sum(1 for i,t in enumerate(names[:-1]) if t.lower()=='name' and names[i+1]=='"modern_appearance_link"')!=1:
@@ -591,6 +600,9 @@ def normalize_layout(units,reference_units,contracts):
             ts,count=_appearance_load(ts)
             if count and (APPEARANCE not in reference or count!=1):
                 raise ValueError('Unbound/duplicate Appearance load reference: '+unit.path)
+            ts,count=_appearance_load(ts,BACKGROUNDS)
+            if count and (BACKGROUNDS not in reference or count!=1):
+                raise ValueError('Unbound/duplicate Background load reference: '+unit.path)
         while i<len(ts):
             if ts[i]=='#include' and i+1<len(ts) and ts[i+1]=='"'+PRIVATE_WIDGETS+'"':
                 original=reference.get(unit.path)

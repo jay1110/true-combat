@@ -4,9 +4,11 @@ import io
 import json
 from pathlib import Path, PurePosixPath
 import struct
+import stat
 import zipfile
 
 from verify_omnibot_boundary import verify_module_bytes, macho_architectures
+from resource_assets import resource_assets, resource_fingerprint
 
 ROOT = Path(__file__).resolve().parents[2]
 INPUT_PREFIX = 'client-inputs/'
@@ -44,6 +46,10 @@ def zip_contents(data):
         names = archive.namelist()
         if len(names) != len(set(names)) or len(names) != len({name.casefold() for name in names}):
             raise ValueError('Duplicate/case-colliding client archive entries')
+        if (sum(item.file_size for item in archive.infolist()) > 4 * 1024 ** 3 or
+                any(item.file_size > 2 * 1024 ** 3 or stat.S_ISLNK(item.external_attr >> 16)
+                    for item in archive.infolist())):
+            raise ValueError('Oversized/symlink client archive entry')
         for name in names:
             path = PurePosixPath(name)
             if path.is_absolute() or '..' in path.parts or '\\' in name or ':' in name or name.endswith('/'):
@@ -78,9 +84,10 @@ def validate_levelshots(files):
 
 
 def levelshot_assets(repo=ROOT):
-    files = {'levelshots/' + name: (repo / 'src/assets/levelshots' / name).read_bytes()
-             for name in DELTA_IMAGES + ('SOURCE.json',)}
-    validate_levelshots(files)
+    files = {'levelshots/' + path.name: path.read_bytes()
+             for path in (repo / 'pak/levelshots').iterdir() if path.is_file()}
+    if 'levelshots/SOURCE.json' in files:
+        validate_levelshots(files)
     return files
 
 
@@ -106,28 +113,18 @@ def validate_fireteam_icons(files):
 
 
 def fireteam_assets(repo=ROOT):
-    files = {'gfx/tce2/fireteam/' + name: (repo / 'src/assets/gfx/tce2/fireteam' / name).read_bytes()
+    files = {'gfx/tce2/fireteam/' + name: (repo / 'pak/gfx/tce2/fireteam' / name).read_bytes()
              for name in FIRETEAM_ICONS}
     validate_fireteam_icons(files)
     return files
 
 
 def client_assets(release_version, variant, repo=ROOT):
-    if variant not in ('game', 'navstudio'):
-        raise ValueError('Unknown client variant')
-    names = ['ui/' + name for name in SHARED_UI + (PUBLIC_UI if variant == 'game' else ())]
-    names += ['gfx/misc/' + name for name in ('radar_arrow.tga', 'radar_dot.tga')]
-    names += ['gfx/tce2/nav/' + name for name in NAV_ICONS]
-    names += ['gfx/flags/' + name for name in ('world_flags.tga', 'LICENSE.xmod.txt', 'SOURCE.json')]
-    result = {name: (repo / 'src/assets' / name).read_bytes() for name in names}
-    result.update(levelshot_assets(repo))
-    result.update(fireteam_assets(repo))
-    result['tce2/' + release_version + '/client.manifest'] = release_version.encode('ascii')
-    return result
+    return resource_assets(release_version, variant, repo)
 
 
 def check_module(data, role, target, variant):
-    """Assert the advertised client ABI as well as the public/editor boundary."""
+    """Assert native ABI; bot cores additionally need their symbol-policy proof."""
     valid = False
     try:
         if target.startswith('windows-') and data[:2] == b'MZ':
@@ -150,12 +147,13 @@ def check_module(data, role, target, variant):
         valid = False
     if not valid:
         raise ValueError('Wrong native client ABI: ' + target + '/' + role)
-    verify_module_bytes(role, data, variant)
+    if role != 'omnibot':
+        verify_module_bytes(role, data, variant)
 
 
-def check_target_payload(payload, target, variant, release_version, repo=ROOT):
+def check_target_payload(payload, target, variant, release_version, repo=ROOT, module_only=False):
     names = module_names(target, repo)
-    assets = client_assets(release_version, variant, repo)
+    assets = {} if module_only else client_assets(release_version, variant, repo)
     if set(payload) != set(names.values()) | set(assets):
         raise ValueError('Wrong client inputs/assets for ' + target + '/' + variant)
     for role, name in names.items():
@@ -172,13 +170,15 @@ def read_target(path, release_version, repo=ROOT):
     metadata = json.loads(files['manifest.json'])
     target, variant = metadata.get('target'), metadata.get('variant')
     if (not Path(path).name.endswith('-Client-Inputs.zip') or
-            metadata.get('schema') != 1 or metadata.get('version') != release_version or
+            metadata.get('schema') != 2 or metadata.get('version') != release_version or
             target not in target_table(repo) or variant not in ('game', 'navstudio') or
             metadata.get('authoring') is not (variant == 'navstudio') or
             metadata.get('configuration') != 'Release' or
             metadata.get('client_package', {}).get('scope') != 'target-input' or
             metadata.get('client_package', {}).get('targets') != [target]):
         raise ValueError('Not a Release client-input archive: ' + str(path))
+    if metadata.get('resource_tree') != resource_fingerprint(variant, repo):
+        raise ValueError('Different/stale mod delta resource tree')
     rows = metadata.get('files', [])
     recorded = {row['path']: row for row in rows}
     if len(recorded) != len(rows) or set(files) != set(recorded) | {'manifest.json'}:
@@ -186,19 +186,10 @@ def read_target(path, release_version, repo=ROOT):
     for name, row in recorded.items():
         if sha(files[name]) != row['sha256'] or len(files[name]) != row['bytes']:
             raise ValueError('Client-input fingerprint mismatch: ' + name)
-    if any(name.endswith('.pk3') and name != 'tce2/zz_tce2_navstudio_editor.pk3' for name in files):
-        raise ValueError('Provisional canonical PK3 in client-input archive')
-    addon = 'tce2/zz_tce2_navstudio_editor.pk3'
-    if (addon in files) != (variant == 'navstudio'):
-        raise ValueError('Wrong editor addon boundary')
-    if variant == 'navstudio':
-        editor = repo / 'navstudio/editor-ui'
-        expected_addon = {'ui/' + name: (editor / name).read_bytes()
-                          for name in (editor / 'editor-files.txt').read_text().splitlines() if name}
-        if zip_contents(files[addon]) != expected_addon:
-            raise ValueError('Different/stale editor addon assets')
+    if any(name.endswith('.pk3') for name in files):
+        raise ValueError('Provisional/nested PK3 in client-input archive')
     payload = {name[len(INPUT_PREFIX):]: data for name, data in files.items() if name.startswith(INPUT_PREFIX)}
-    names, _ = check_target_payload(payload, target, variant, release_version, repo)
+    names, _ = check_target_payload(payload, target, variant, release_version, repo, module_only=True)
     for role, name in names.items():
         if files.get('tce2/' + name) != payload[name]:
             raise ValueError('Loose/download client module disagreement: ' + name)
@@ -210,20 +201,24 @@ def read_target(path, release_version, repo=ROOT):
     return {'path': Path(path), 'metadata': metadata, 'files': files, 'payload': payload}
 
 
-def canonical_client(inputs, expected_targets, release_version, variant, repo=ROOT):
+def canonical_client(inputs, expected_targets, release_version, variant, repo=ROOT, assets=None):
     expected_targets = set(expected_targets)
     if not expected_targets or not expected_targets <= set(target_table(repo)):
         raise ValueError('Unknown/empty expected client ABI set')
     actual = [row['metadata']['target'] for row in inputs]
     if len(actual) != len(set(actual)) or set(actual) != expected_targets:
         raise ValueError('Missing/duplicate client ABI inputs for ' + variant)
-    files = client_assets(release_version, variant, repo)
+    files = dict(client_assets(release_version, variant, repo) if assets is None else assets)
+    if files.get('tce2/' + release_version + '/client.manifest') != release_version.encode('ascii'):
+        raise ValueError('Wrong frozen resource version manifest')
     modules = {}
     for row in sorted(inputs, key=lambda value: value['metadata']['target']):
         metadata = row['metadata']
         if metadata['variant'] != variant or metadata['configuration'] != 'Release':
             raise ValueError('Mixed client variant/configuration')
-        names, _ = check_target_payload(row['payload'], metadata['target'], variant, release_version, repo)
+        module_only = set(row['payload']) == set(module_names(metadata['target'], repo).values())
+        names, _ = check_target_payload(row['payload'], metadata['target'], variant, release_version, repo,
+                                        module_only=module_only)
         for role, name in names.items():
             if name in files:
                 raise ValueError('Colliding client module name: ' + name)
@@ -238,7 +233,7 @@ def canonical_client(inputs, expected_targets, release_version, variant, repo=RO
     return data, metadata
 
 
-def check_canonical(data, release_version, variant, expected_targets=None, repo=ROOT):
+def check_canonical(data, release_version, variant, expected_targets=None, repo=ROOT, assets=None):
     files = zip_contents(data)
     path = 'tce2/' + release_version + '/client-abis.json'
     metadata = json.loads(files.pop(path))
@@ -248,7 +243,10 @@ def check_canonical(data, release_version, variant, expected_targets=None, repo=
             metadata.get('variant') != variant or metadata.get('configuration') != 'Release' or
             metadata.get('targets') != sorted(expected_targets)):
         raise ValueError('Wrong/incomplete canonical client ABI manifest')
-    expected_files = client_assets(release_version, variant, repo)
+    resources = client_assets(release_version, variant, repo) if assets is None else assets
+    if resources.get('tce2/' + release_version + '/client.manifest') != release_version.encode('ascii'):
+        raise ValueError('Wrong frozen resource version manifest')
+    expected_files = dict(resources)
     modules = {}
     for target in sorted(expected_targets):
         for role, name in module_names(target, repo).items():
@@ -257,8 +255,8 @@ def check_canonical(data, release_version, variant, expected_targets=None, repo=
             check_module(files[name], role, target, variant)
             expected_files[name] = files[name]
             modules[name] = {'role': role, 'target': target, 'sha256': sha(files[name])}
-    assets = {name: sha(data) for name, data in client_assets(release_version, variant, repo).items()}
-    if files != expected_files or metadata.get('modules') != modules or metadata.get('assets') != assets:
+    asset_hashes = {name: sha(data) for name, data in resources.items()}
+    if files != expected_files or metadata.get('modules') != modules or metadata.get('assets') != asset_hashes:
         raise ValueError('Canonical client fingerprint/assets disagreement')
     return metadata
 

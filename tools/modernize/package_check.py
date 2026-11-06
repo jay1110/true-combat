@@ -29,8 +29,8 @@ LEVELSHOTS = ("obj_delta_cc.tga", "obj_delta_cc_blueprint.tga", "SOURCE.json")
 NAV_ICONS = ("player.tga", "player_self.tga", "player_dead.tga", "objective_a.tga", "objective_b.tga",
              "flag_terror.tga", "flag_specops.tga", "SOURCE.json")
 FIRETEAM_ICONS = ("assault.tga", "recon.tga", "sniper.tga", "SOURCE.json")
-MAX_ENTRY = 256 * 1024 * 1024
-MAX_TOTAL = 512 * 1024 * 1024
+MAX_ENTRY = 2 * 1024 * 1024 * 1024
+MAX_TOTAL = 4 * 1024 * 1024 * 1024
 
 
 def sha(data: bytes) -> str:
@@ -151,15 +151,20 @@ def current_version() -> str:
 
 
 def client_assets(variant: str) -> dict[str, Path]:
-    """Exact source resources installed by src/cmake/package_modules.cmake."""
-    assets = {"gfx/misc/" + name: ROOT / "src/assets/gfx/misc" / name for name in ICONS}
-    assets.update({"gfx/tce2/nav/" + name: ROOT / "src/assets/gfx/tce2/nav" / name for name in NAV_ICONS})
-    assets.update({"gfx/tce2/fireteam/" + name: ROOT / "src/assets/gfx/tce2/fireteam" / name for name in FIRETEAM_ICONS})
-    assets.update({"gfx/flags/" + name: ROOT / "src/assets/gfx/flags" / name for name in FLAGS})
-    assets.update({"levelshots/" + name: ROOT / "src/assets/levelshots" / name for name in LEVELSHOTS})
-    menus = SHARED_UI_ASSETS + (UI_ASSETS if variant == "game" else ())
-    assets.update({"ui/" + name: ROOT / "src/assets/ui" / name for name in menus})
-    return assets
+    """Every current pak resource, plus the explicit editor overlay."""
+    import sys
+    release_tools = str(ROOT / "tools/release")
+    if release_tools not in sys.path:
+        sys.path.insert(0, release_tools)
+    from resource_assets import resource_paths
+    return resource_paths(variant, ROOT)
+
+
+def generated_client_assets(version: str) -> dict[str, bytes]:
+    from resource_assets import base_dependency
+    return {f"tce2/{version}/client.manifest": version.encode("ascii"),
+            f"tce2/{version}/base-game.json":
+                (json.dumps(base_dependency(ROOT, version), sort_keys=True, indent=2) + "\n").encode("utf8")}
 
 
 def check_contents(files: dict[str, bytes], label: str, version: str) -> dict:
@@ -192,8 +197,6 @@ def check_contents(files: dict[str, bytes], label: str, version: str) -> dict:
         expected = {f"tce2/{m}_mp_{arch}.dll" for m in MODULES} | {"tce2/" + pk3}
         if runtime:
             expected.add("tce2/omni-bot/" + core)
-        if variant == "navstudio":
-            expected.add("tce2/zz_tce2_navstudio_editor.pk3")
         exact(files, expected | {"manifest.json", "README.txt"}, "Package files")
         inventory = manifest["files"]
         if not isinstance(inventory, dict):
@@ -252,12 +255,16 @@ def check_contents(files: dict[str, bytes], label: str, version: str) -> dict:
         if client_name in files:
             client = archive_files(files[client_name])
             client_manifest = f"tce2/{version}/client.manifest"
-            allowed = {f"{m}_mp_{arch}.dll" for m in ("cgame", "ui")} | {client_manifest}
+            allowed = {f"{m}_mp_{arch}.dll" for m in ("cgame", "ui")}
             assets = client_assets(variant)
-            allowed |= set(assets)
+            generated = generated_client_assets(version)
+            allowed |= set(assets) | set(generated)
             exact(client, allowed, "Client PK3 entries")
             if client.get(client_manifest) != version.encode("ascii"):
                 errors.append("Client manifest must contain exactly the mod version")
+            for name, expected in generated.items():
+                if client.get(name) != expected:
+                    errors.append("Generated client asset differs from the current version/base dependency: " + name)
             for module in ("cgame", "ui"):
                 name = f"{module}_mp_{arch}.dll"
                 if client.get(name) != files.get("tce2/" + name):

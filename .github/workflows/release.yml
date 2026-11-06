@@ -5,18 +5,14 @@ on:
       expected_version:
         description: Version required in src/game/tce_version.h
         type: string
-        default: '1.0.2'
+        default: '1.0.3'
         required: true
       include_editor:
         description: Also build separate local authoring modules and bot cores
         type: boolean
-        default: true
+        default: false
       include_desktop:
         description: Also build standalone Windows NavStudio desktop application
-        type: boolean
-        default: true
-      publish_release:
-        description: Publish the complete validated bundle as a GitHub release
         type: boolean
         default: false
 permissions:
@@ -180,15 +176,13 @@ jobs:
         with:
           pattern: TCE2-${{ needs.plan.outputs.version }}-*
           path: collected
-      - name: Assemble canonical clients and installable target ZIPs with build status
+      - name: Assemble one complete all-ABI mod/server ZIP per variant
         env:
           NEEDS_JSON: ${{ toJSON(needs) }}
         run: python tools/release/aggregate.py --input collected --out out/complete
-      - name: Validate actual complete Game and Editor archives and shared client provenance
-        if: inputs.include_editor
+      - name: Validate mod deltas, stock base references, all server ABIs, and editor boundaries
         run: python tools/release/closure_report.py release --directory out/complete --out out/closure/release-closure.json
       - name: Small source-bound release closure evidence
-        if: inputs.include_editor
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: TCE2-${{ needs.plan.outputs.version }}-Release-Closure
@@ -199,7 +193,7 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: always()
         with:
-          name: TCE2-${{ needs.plan.outputs.version }}-Complete-Release
+          name: TCE2-${{ needs.plan.outputs.version }}-Mod-Packages
           path: |
             out/complete/*.zip
             out/complete/*.sha256
@@ -208,23 +202,3 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           overwrite: true
-  publish:
-    needs: [plan, aggregate]
-    if: inputs.publish_release && needs.aggregate.result == 'success'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@70fc10c6e5e1ce46ad2ea6f2b72d43f7d47b13c3 # v8.0.0
-        with:
-          name: TCE2-${{ needs.plan.outputs.version }}-Complete-Release
-          path: release
-      - name: Publish only the explicitly requested complete bundle
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          RELEASE_VERSION: ${{ needs.plan.outputs.version }}
-        shell: bash
-        run: |
-          gh release create "v$RELEASE_VERSION" --target "$GITHUB_SHA" --title "TCE2 $RELEASE_VERSION" --notes-file release/release-notes.md release/*.zip release/*.sha256 release/release-manifest.json

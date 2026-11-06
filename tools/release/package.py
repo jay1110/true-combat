@@ -10,8 +10,9 @@ import zipfile
 
 from runtime_payload import stage_runtime
 from verify_omnibot_boundary import verify_core, verify_module_bytes
-from client_packages import (INPUT_PREFIX, check_canonical, check_target_payload,
+from client_packages import (INPUT_PREFIX, check_canonical, check_module, check_target_payload,
                              zip_contents, sha)
+from resource_assets import resource_fingerprint
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -100,12 +101,18 @@ def package_modules(modules, output, target, variant, core_manifest=None, geoip=
     for path in module_paths.values():
         copy_file(path, mod / path.name)
     (mod / 'tce-build-variant.txt').write_text(variant + '\n', encoding='ascii')
-    subprocess.run(['cmake', f'-DMODULE_DIRECTORY={mod}', f'-DBUILD_VARIANT={variant}',
-                    '-P', str(repo / 'src/cmake/package_modules.cmake')], check=True)
-    (mod / 'tce-build-variant.txt').unlink()
     client_path = mod / f'tce2-{release_version}.pk3'
-    payload = zip_contents(client_path.read_bytes())
-    check_target_payload(payload, target, variant, release_version, repo)
+    # CI transfers native inputs only. The complete pak tree is fingerprinted,
+    # never copied twenty times into per-target intermediate archives.
+    if local_client_pk3 or shared_client_pk3 is not None:
+        subprocess.run(['cmake', f'-DMODULE_DIRECTORY={mod}', f'-DBUILD_VARIANT={variant}',
+                        '-P', str(repo / 'src/cmake/package_modules.cmake')], check=True)
+        payload = zip_contents(client_path.read_bytes())
+        check_target_payload(payload, target, variant, release_version, repo)
+    else:
+        payload = {path.name: path.read_bytes() for role, path in module_paths.items() if role != 'qagame'}
+        check_target_payload(payload, target, variant, release_version, repo, module_only=True)
+    (mod / 'tce-build-variant.txt').unlink()
     if shared_client_pk3 is not None:
         if configuration != 'Release':
             raise ValueError('Shared release clients cannot mix Debug/Release builds')
@@ -125,28 +132,14 @@ def package_modules(modules, output, target, variant, core_manifest=None, geoip=
             destination = stage / INPUT_PREFIX / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes(data)
-        client_path.unlink()
         client_package = {'scope': 'target-input', 'targets': [target], 'configuration': configuration}
-    if variant == 'navstudio':
-        addon = stage / 'editor-addon'
-        subprocess.run(['cmake', f'-DOUTPUT_DIRECTORY={addon}', '-P',
-                        str(repo / 'src/cmake/package_editor.cmake')], check=True)
-        copy_file(addon / 'zz_tce2_navstudio_editor.pk3', mod / 'zz_tce2_navstudio_editor.pk3')
-        # Only the final addon belongs in the release, never its loose stage.
-        if not addon.resolve().is_relative_to(stage.resolve()):
-            raise ValueError('Editor staging path escaped the release directory')
-        for path in sorted(addon.rglob('*'), reverse=True):
-            if path.is_file():
-                path.unlink()
-            elif path.is_dir():
-                path.rmdir()
-        addon.rmdir()
     runtime = None
     if core_manifest is not None:
         metadata = json.loads(core_manifest.read_text())
         if metadata['variant'] != variant:
             raise ValueError('Wrong authoring variant in bot core manifest')
         library = Path(metadata['library'])
+        check_module(library.read_bytes(), 'omnibot', target, variant)
         map_file = library.with_suffix('.map')
         core_checks = verify_core(library, variant, map_file if map_file.is_file() else None)
         core = mod / 'omni-bot'
@@ -183,8 +176,9 @@ def package_modules(modules, output, target, variant, core_manifest=None, geoip=
     files = [{'path': p.relative_to(stage).as_posix(), 'sha256': digest(p), 'bytes': p.stat().st_size}
              for p in sorted(stage.rglob('*')) if p.is_file()]
     (stage / 'manifest.json').write_text(json.dumps({
-        'schema': 1, 'version': release_version, 'target': target, 'variant': variant,
+        'schema': 2, 'version': release_version, 'target': target, 'variant': variant,
         'configuration': configuration, 'client_package': client_package,
+        'resource_tree': resource_fingerprint(variant, repo),
         'gameplay_bot_runtime': runtime is not None, 'authoring': variant == 'navstudio',
         'bot_core_boundary': core_checks if runtime else None,
         'module_boundary': module_boundary,

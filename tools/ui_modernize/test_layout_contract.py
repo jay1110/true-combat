@@ -12,7 +12,7 @@ ROOT=Path(__file__).resolve().parents[2]
 class LayoutContract(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.original={p:d for p,d in sem.source_files(ROOT/'pak').items() if Path(p).suffix in sem.SEMANTIC_SUFFIXES}
+        cls.original={p:d for p,d in sem.source_files(ROOT/'pak_original_tce').items() if Path(p).suffix in sem.SEMANTIC_SUFFIXES}
 
     def setUp(self):self.reference=dict(self.original);self.candidate=dict(self.reference)
 

@@ -13,6 +13,10 @@ static int modernChecked, modernEnabled, modernFonts;
 static fontInfo_t modernRegular, modernStrong;
 static struct { char name[MAX_QPATH]; qhandle_t handle; } modernImages[16];
 static int modernImageCount;
+#ifndef CGAMEDLL
+static int modernBackgroundReady;
+static void TCE_ModernBackgroundInit(void);
+#endif
 vec4_t tceModernWhite = { .93f, .96f, .98f, 1 };
 vec4_t tceModernMuted = { .55f, .64f, .72f, 1 };
 vec4_t tceModernAmber = { .96f, .73f, .27f, 1 };
@@ -45,10 +49,137 @@ int TCE_ModernHiddenStats(int gameType, int killMessages, int health, int pmType
     return gameType == 5 && !killMessages && health > 0 && pmType != PM_INTERMISSION;
 }
 
+int TCE_ModernBackgroundPhase(int minute, int sunrise, int sunset, int snow)
+{
+    if (snow) return 4;
+    if (minute < 0 || minute >= 1440) minute = 720;
+    if (sunrise < 60 || sunset > 1380 || sunset <= sunrise + 120)
+    { sunrise = 420; sunset = 1140; }
+    if (minute >= sunrise - 45 && minute < sunrise + 60) return 0;
+    if (minute >= sunset - 60 && minute < sunset + 45) return 2;
+    return minute >= sunrise + 60 && minute < sunset - 60 ? 1 : 3;
+}
+
+int TCE_ModernBackgroundPick(int phase, unsigned seed, int previous)
+{
+    static const int first[] = {4,11,14,6,1}, count[] = {2,3,3,5,3};
+    int candidates[5], n = 0, i;
+    if (phase < 0 || phase > 4) phase = 1;
+    for (i = 0; i < count[phase]; ++i)
+        if (first[phase] + i != previous) candidates[n++] = first[phase] + i;
+    return candidates[seed % (unsigned)n];
+}
+
+int TCE_ModernBackgroundWinter(int month, const char *country, const char *months)
+{
+    unsigned mask = 0;
+    const char *p = months;
+    if (month < 1 || month > 12) return 0;
+    if (!p || !*p || !Q_stricmp(p,"auto"))
+    {
+        /* Seasonal artwork defaults, not a claim of observed snow. Regions
+         * within a country can override months or use none in Appearance. */
+        static const char *north = " DE AT CH FR BE NL LU GB IE DK NO SE FI IS EE LV LT PL CZ SK HU RO BG UA BY RU CA US JP KR CN MN KZ ";
+        static const char *south = " AR CL NZ AU ZA ";
+        char token[5];
+        if (!country || !country[0] || !country[1] || country[2]) return 0;
+        token[0] = token[3] = ' '; token[4] = 0;
+        token[1] = country[0] >= 'a' && country[0] <= 'z' ? country[0] - ('a'-'A') : country[0];
+        token[2] = country[1] >= 'a' && country[1] <= 'z' ? country[1] - ('a'-'A') : country[1];
+        if (strstr(north,token)) return month == 12 || month <= 2;
+        if (strstr(south,token)) return month >= 6 && month <= 8;
+        return 0; /* Tropical/unknown countries do not infer a snowy season. */
+    }
+    if (!Q_stricmp(p,"none")) return 0;
+    while (*p)
+    {
+        int value = 0, digits = 0;
+        while (*p == ' ' || *p == '\t') ++p;
+        while (*p >= '0' && *p <= '9' && digits < 3)
+        { value = value * 10 + *p++ - '0'; ++digits; }
+        if (!digits || value < 1 || value > 12) return 0;
+        mask |= 1u << (value - 1);
+        while (*p == ' ' || *p == '\t') ++p;
+        if (!*p) break;
+        if (*p++ != ',' || !*p) return 0;
+    }
+    return (mask & (1u << (month - 1))) != 0;
+}
+
+#ifndef CGAMEDLL
+static int TCE_ModernBackgroundCvar(const char *name)
+{
+    char value[32];
+    trap_Cvar_VariableStringBuffer(name,value,sizeof(value));
+    return atoi(value); /* Read epoch seconds as text: cvar floats lose seconds. */
+}
+
+static void TCE_ModernBackgroundInit(void)
+{
+    static const char marker[] = "TCE2_BACKGROUNDS 1\n";
+    static const char *phases[] = {"morning","day","twilight","night","winter"};
+    fileHandle_t file = 0;
+    char data[32], shader[MAX_QPATH], value[32], location[96], country[8], months[64];
+    int length, choice, now, stamp, offset, rise, setting, fresh, phase, minute, mode, winter;
+    qtime_t clock;
+    if (modernBackgroundReady) return;
+    modernBackgroundReady = 1;
+    length = trap_FS_FOpenFile("tce2_ui/backgrounds/runtime.cfg",&file,FS_READ);
+    if (!file) return;
+    if (length == (int)sizeof(marker)-1) trap_FS_Read(data,length,file);
+    trap_FS_FCloseFile(file);
+    if (length != (int)sizeof(marker)-1 || memcmp(data,marker,sizeof(marker)-1)) return;
+    trap_Cvar_Register(NULL,"ui_backgroundLast","0",CVAR_ARCHIVE);
+    trap_Cvar_Register(NULL,"ui_backgroundSession","0",0);
+    trap_Cvar_Register(NULL,"ui_backgroundMode","0",CVAR_ARCHIVE);
+    trap_Cvar_Register(NULL,"ui_backgroundCountry","DE",CVAR_ARCHIVE);
+    trap_Cvar_Register(NULL,"ui_backgroundWinterMonths","auto",CVAR_ARCHIVE);
+    choice = TCE_ModernBackgroundCvar("ui_backgroundSession");
+    if (choice < 1 || choice > 16)
+    {
+        memset(&clock,0,sizeof(clock)); now = trap_RealTime(&clock);
+        minute = clock.tm_hour * 60 + clock.tm_min;
+        stamp = TCE_ModernBackgroundCvar("ui_backgroundWeatherStamp");
+        offset = TCE_ModernBackgroundCvar("ui_backgroundUtcOffset");
+        rise = TCE_ModernBackgroundCvar("ui_backgroundSunrise");
+        setting = TCE_ModernBackgroundCvar("ui_backgroundSunset");
+        trap_Cvar_VariableStringBuffer("ui_backgroundLocation",location,sizeof(location));
+        fresh = stamp > 0 && now >= stamp && now - stamp <= 10800 &&
+                offset >= -50400 && offset <= 50400 && location[0];
+        if (fresh)
+        {
+            /* Modulo before adding prevents signed epoch overflow. */
+            minute = ((now % 86400 + offset + 86400) % 86400) / 60;
+        }
+        else { rise = 420; setting = 1140; }
+        mode = TCE_ModernBackgroundCvar("ui_backgroundMode");
+        trap_Cvar_VariableStringBuffer("ui_backgroundCountry",country,sizeof(country));
+        trap_Cvar_VariableStringBuffer("ui_backgroundWinterMonths",months,sizeof(months));
+        winter = mode == 0 ? TCE_ModernBackgroundWinter(clock.tm_mon + 1,country,months) :
+                 mode == 1 && fresh && TCE_ModernBackgroundCvar("ui_backgroundSnow") == 1;
+        phase = TCE_ModernBackgroundPhase(minute,rise,setting,winter);
+        choice = TCE_ModernBackgroundPick(phase,(unsigned)now ^ (unsigned)trap_Milliseconds(),
+                    TCE_ModernBackgroundCvar("ui_backgroundLast"));
+        Com_sprintf(value,sizeof(value),"%d",choice);
+        trap_Cvar_Set("ui_backgroundSession",value);
+        trap_Cvar_Set("ui_backgroundLast",value);
+        Com_sprintf(data,sizeof(data),"%s/%s",phases[phase],mode == 0 ? "season" :
+                    mode == 1 && fresh ? "weather" : "local-clock");
+        trap_Cvar_Set("ui_backgroundStatus",data);
+    }
+    Com_sprintf(shader,sizeof(shader),"tce2_ui/backgrounds/b%02d",choice);
+    trap_R_RegisterShaderNoMip(shader);
+    trap_R_RemapShader("tce2_ui/background",shader,"0");
+}
+#endif
+
 void TCE_ModernUIReset(void)
 {
     TCE_ModernThemeReset();
     modernChecked = modernEnabled = modernFonts = modernImageCount = 0;
+#ifndef CGAMEDLL
+    modernBackgroundReady = 0;
+#endif
     memset(modernImages, 0, sizeof(modernImages));
     memset(&modernRegular, 0, sizeof(modernRegular));
     memset(&modernStrong, 0, sizeof(modernStrong));
@@ -72,6 +203,9 @@ qboolean TCE_ModernUIEnabled(void)
             trap_FS_FCloseFile(file);
         }
     }
+#ifndef CGAMEDLL
+    if (modernEnabled) TCE_ModernBackgroundInit();
+#endif
     return modernEnabled ? qtrue : qfalse;
 }
 

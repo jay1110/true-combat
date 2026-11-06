@@ -77,7 +77,7 @@ class WidgetContinuationTests(unittest.TestCase):
     def setUpClass(cls):
         # Exercise the real production generator against the immutable original
         # widget input; no files are regenerated or changed by these tests.
-        cls.original = restyle.read(ROOT / 'pak/ui/menumacros.h')
+        cls.original = restyle.read(ROOT / 'pak_original_tce/ui/menumacros.h')
         cls.styled = restyle.macros(cls.original)
         cls.generated = layout_common.widgets(cls.styled)
 

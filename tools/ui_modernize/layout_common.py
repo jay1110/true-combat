@@ -157,7 +157,7 @@ def vote_navigation(text,relative):
     backs=[a for _,_,_,a in macro_calls(text,{'BUTTON'}) if a[4].strip('"').lower()=='back']
     if len(backs)!=1:raise ValueError('Vote Back contract is ambiguous: '+page)
     exit_action=backs[0][7].rstrip().rstrip(';')
-    original=read(ROOT/'pak/ui/ingame_vote.menu')
+    original=read(ROOT/'pak_original_tce/ui/ingame_vote.menu')
     templates=list(macro_calls(original,{'BUTTONEXT'}))
     items=''
     for index,key in enumerate(('misc','map','players')):

@@ -1,99 +1,78 @@
-# TCE2 Modern UI
+# TCE2 Modern UI authoring sources
 
-Optionales Menü-Theme für TCE2 1.0.2 mit neu aufgebauten Einstellungsseiten, Server- und Profilansichten, Dialogen, Pausenmenü und nativen Barlow-Schriften. Passende optionale Clientmodule gestalten auch Deployment-Menü, Scoreboard und Verbindungs-/Ladeanzeige neu. Dieses Verzeichnis ist die unabhängig bearbeitete Fassung. Die Originaldateien unter `pak/ui`, `pak/ui_obj`, `pak/ui_robj` und `pak/ui_tdm` bleiben unverändert.
+TCE2 1.0.3 ships the modern UI inside the single `tce2-1.0.3.pk3`. There is no
+separate theme PK3 to install. New and changed runtime resources are visible and
+editable under the repository-root `pak` directory; unchanged resources come
+from an existing original TCE installation.
 
-Ingame Main, Referee und Options verwenden eine kompakte Navigation am oberen Bildschirmrand; darunter bleibt die Spielszene sichtbar. Unter **Options → Appearance** lassen sich neun Farbpaletten oder eigene RGB-Werte, drei Transparenz-Presets oder eine eigene Deckkraft sowie Menü- und HUD-Größe einstellen. Die Paletten umfassen Gold, Arctic, Crimson, Emerald, Black/Grey, Grey/Black, Slate, Copper und Violet. Die Änderungen werden unmittelbar angewendet und gespeichert. Für eigene Farben „Custom“ als Palette wählen, für eigene Deckkraft „Custom“ unter „Transparency“. „Reset Appearance“ setzt ausschließlich diese Darstellungseinstellungen und die beiden Größen zurück.
+The original UI remains byte-preserved in `pak_original_tce/ui`, `ui_obj`,
+`ui_robj` and `ui_tdm`. This reference is local only and is never published or
+included in source ZIPs. This `ui-modern` directory contains the presentation
+sources and deterministic artwork/font inputs used to prepare that active tree.
+`src/assets` contains the earlier production overrides, including all twelve
+standard-map compass images. Release builds consume `pak`, not a hand-picked
+subset of those authoring directories.
 
-Menüs und HUD verwenden getrennte Größen. Die Menügröße gilt auch für Deployment, Scoreboard und Statistikfenster; die HUD-Größe betrifft die Spielanzeigen. Hintergrundbild und Verbindungs-/Ladeanzeige bleiben unabhängig davon bildschirmfüllend. Der Mauszeiger hat in den modernen Menüs dieselbe von der Spielauflösung abhängige Größe. Die Größe bleibt an die Bildschirmfläche gebunden: Eine größere Einstellung kann über die verfügbare Fläche hinaus keine Fenster vergrößern. Die drei Navigationsleisten bleiben oben, Dialoge bleiben zentriert. Farben und Transparenz der Menüs verändern weder Teamfarben noch die Transparenz des Spiel-HUDs. Bei hellen eigenen Oberflächen werden die Menütexte dunkel dargestellt. Die aufgeklappte Waffenliste erhält eine nahezu undurchsichtige Fläche; vollständige Waffenbezeichnung und vorhandenes Waffenicon stehen in derselben Zeile.
+## One package and separate server files
 
-Das Theme enthält UI-Ressourcen, Schriften und Bilder. Es enthält keine DLLs, Gameplay-Änderungen oder Engine-Implementierung. Alle 69 ursprünglichen Menüs einschließlich seltener und Editor-Menüs sind in der bearbeiteten Quelle enthalten. Der Quellvergleich schützt Aktionen, Cvars, Bindings, Listenwerte, Beschriftungen, Feeder, Ownerdraws und Bedingungen. Geometrie, Schrift, Farben und ausdrücklich numerische Farbwechsel dürfen sich unterscheiden. Dieser Vergleich ersetzt keine Bedienungsprüfung im Spiel.
+Use the [manual workflow](../tools/release/README.md) or the documented local
+bundle command. The public ZIP contains one mod PK3, UI/CGame binaries inside
+that PK3, and the loose QGame modules plus matching bot/Lua runtime under `server`.
+Editor resources come only from `navstudio/editor-pak` and the explicitly enabled
+Editor build. Do not mix those client/server modules with a public Game build.
 
-Die überarbeiteten Unterseiten nutzen eine 852×480-Arbeitsfläche mit größeren Einstellungszeilen und festen Fußleisten. Fünf Kategorieverweise auf allen Settings-Unterseiten verwenden die vorhandene Zurück-Aktion und das jeweilige Zielmenü; die aktive Kategorie bleibt ohne Klickaktion. Die Navigation reagiert auf Maus und Tastaturfokus. Referee-Unterseiten behalten die ursprünglichen Berechtigungen ihrer dauerhaften Misc-/Map-/Players-Verweise. Listen dürfen Positionen und Spaltenbreiten ändern; Anzahl, Reihenfolge und maximale Zeichenanzahl bleiben geschützt. `ui/modern_widgets.h` ist eine gesondert semantisch geprüfte Darstellung der ursprünglichen Widgets. Das Startmenü behält seine Inhalte und Aktionen mit einer schmaleren Navigationsfläche; seine gemeinsamen Menüabhängigkeiten und sämtliche Originaldateien unter `pak` bleiben unverändert.
+For original ET, use the ZIP installer with `--classic-client` to extract the
+selected native UI/CGame pair from this same PK3 when updating an existing local
+installation. Its initial menu can otherwise load an older loose UI DLL before
+connecting to a pure server. Close the game first; the installer preserves
+replaced files outside the mod search path. Retire older theme, server-list-fix
+and client-override PK3s so that they cannot override the unified package.
 
-Der Serverbrowser und seine Rückkehrseite nutzen den Platz bis zur unteren Aktionsreihe für zehn vollständige Zeilen. Filter- und Favoritensymbole bleiben innerhalb ihrer Spalten. Lange Tastenzuweisungen und Spaltentexte werden anhand der tatsächlichen Schriftbreite eingepasst. Mehrzeilige Meldungen berücksichtigen zusätzlich die Feldhöhe und die tatsächlichen Glyphenränder; ihr Text bleibt vollständig erhalten. Die ServerListFix-Abfrage ist enthalten; die acht auswählbaren Filter gelten weiterhin. Bei einer leeren Liste deshalb auch die Filtereinstellungen prüfen.
+## Editing and deliberate regeneration
 
-## Installation und Rückkehr zum bisherigen Aussehen
+Edit `pak` for the next production package. A normal build never regenerates or
+overwrites those edits. If changing the UI authoring generators instead, run the
+explicit migration tool described in [tools/assets/README.md](../tools/assets/README.md).
+`prepare_pak.py --check` only compares the authoring derivation; `--replace`
+deliberately replaces the active tree and its separate Editor overlay.
 
-Genau **eine** Variante auswählen:
+The source comparison still protects original actions, cvars, bindings, lists,
+feeders, ownerdraws and conditions. Authorized new appearance/background settings
+have narrow explicit contracts. Ingame Main, Options and Referee navigation stay
+in their header; the scene remains visible underneath. Appearance provides
+palettes, custom colors, opacity, menu/HUD size and background settings.
 
-| Variante | PK3 | Einsatz |
-| --- | --- | --- |
-| Game | `Game/zz_tce2-1.0.2-modern-ui.pk3` | Normales Spielen, ohne Editor-Menü und dessen Ladeverweise |
-| Editor | `Editor/zz_tce2-1.0.2-modern-ui-editor.pk3` | Passende ausdrücklich aktivierte lokale Editor-Version; alle ursprünglichen Menüfunktionen erhalten |
+The 852x480 design canvas is fitted to the actual screen. Modern text prefers
+about eight pixels of cap height before fitting; finite field, row and paragraph
+bounds take precedence. UI and HUD scales are separate; connecting and the menu
+background remain fullscreen. The scoreboard keeps player paging and GT5 stat
+visibility. Very long feeder values retain their existing character limits.
 
-Die gewählte PK3 in das tatsächlich verwendete Mod-Verzeichnis `tce2` der vorhandenen Installation kopieren, beispielsweise `<fs_homepath>/tce2/`. Keine zweite Spielinstallation anlegen. Game und Editor niemals zusammen installieren. Andere Theme-PK3s können dieselben Ressourcen überschreiben; für einen eindeutigen Test außerhalb des Spielsuchpfads aufbewahren. Das gilt ausdrücklich für die alte `zzzzzzzzzzzzzz_ServerListFix.pk3`: Ihre Abfrage ist bereits integriert, ihre alten Menüs dürfen das neue Theme nicht überladen.
+## Fonts and backgrounds
 
-Die bisherigen TCE2-Pakete einschließlich `tce2-1.0.2.pk3` und die normalen Spielmodule bleiben erforderlich. Das Theme ersetzt diese nicht. Danach das Spiel vollständig neu starten, damit Menüs, Shader und Schriften neu geladen werden. Für die Rückkehr zum bisherigen Aussehen ausschließlich die Theme-PK3 aus dem Spielsuchpfad verschieben und erneut starten.
+Barlow TTF sources support FreeType-enabled ETLegacy; six committed 20,548-byte
+DAT files and bottom-up atlases also support original ET 2.60b. The classic bake
+uses 72 DPI, grayscale hinting and light outline emboldening for small resolutions.
+Theme TGAs have power-of-two dimensions and native bottom-up rows. No engine
+extension is required. Font provenance and SIL licenses are included with the
+assets; authoring-only FreeType versions are pinned in
+`tools/ui_modernize/requirements-fonts.txt`.
 
-Die Game-Variante übernimmt drei bereits vorhandene Produktionsressourcen aus `src/assets/ui`: `ingame_main.menu`, `options_controls.menu` und `options_customise_hud.menu`. So bleiben die bestehenden Game-Grenzen sowie die erweiterten Controls und HUD-Einstellungen erhalten. Ihre Inhalte werden gestaltet, nicht auf den älteren Stand aus `pak` zurückgesetzt. Die Editor-Variante verwendet für diese Menüs die ursprüngliche `pak`-Semantik. Die Ausnahmen sind im jeweiligen Paket unter `tce2_ui/package.json` ausgewiesen.
+`map_pics` contains the sixteen supplied background PNGs. The portable generated
+images, shaders and catalog are included in `pak`. Runtime selection changes the
+picture for each normal game start while keeping it stable through menu reloads
+and map changes. See [the background settings and optional weather helper](../tools/launcher/README.md).
 
-## Optionale passende Clientmodule
+## Verification
 
-Zusätzlich zu den reinen Theme-PK3s gibt es getrennte Clientmodul-PK3s unter `dist/TCE2-Modern-UI/Game/tce2-1.0.2.pk3` und `Editor/tce2-1.0.2.pk3`. Jede enthält CGame und UI für **Windows 32 Bit, Linux i386 und Linux x86_64** sowie die unveränderten erforderlichen Produktionsressourcen. Sie enthält kein QGame, keinen Omni-bot-Core und keine vollständige Spielinstallation. Die Linuxmodule sind mit der vorhandenen Zig-Toolchain crosskompiliert; daraus wird kein Linux-Laufzeittest abgeleitet. Die i386-Module sind für die originale 32-Bit-Linux-Engine vorgesehen; x86_64-Module benötigen eine entsprechende 64-Bit-Engine.
-
-Für die native Theme-Darstellung von Deployment-Menü, Scoreboard und Verbindungsanzeige die zur eigenen Game-/Editor-Variante passende Clientmodul-PK3 gemeinsam mit der entsprechenden `zz_...modern-ui...pk3` verwenden. Vor dem Ersetzen einer vorhandenen gleichnamigen `tce2-1.0.2.pk3` eine Kopie **außerhalb des Spielsuchpfads** sichern und das Spiel schließen. Die Liefer-ZIPs enthalten zusätzlich die sechs zur Clientmodul-PK3 bytegleichen losen CGame-/UI-Dateien. Diese zusammen mit den beiden PKGs in den bestehenden Mod-Ordner übernehmen; unter normalem Windows-ET muss insbesondere `ui_mp_x86.dll` im `tce2`-Ordner unter `fs_basepath` ersetzt werden. Der ursprüngliche DLL-Lader lädt vor einer Pure-Verbindung lose Module; allein eine neue PK3 aktualisiert daher ein bereits vorhandenes Startmenü-Modul nicht zuverlässig. Die vorhandenen Servermodule bleiben unverändert. Editor-Clientmodule gehören ausschließlich zur passenden lokalen Editor-Umgebung, nicht zu einer normalen Game-Installation. Für den vollständigen Rollback die gesicherte Clientmodul-PK3 und die gesicherten losen CGame-/UI-Module zurücklegen sowie die Theme-PK3 entfernen.
-
-Das Deployment-Menü wird nativ im CGame gezeichnet; eine reine `.menu`-PK3 kann es deshalb nicht ersetzen. Die optionale Ansicht nutzt dieselben Team-, Klassen-, Namens- und Ausrüstungsaktionen wie das bisherige Menü. Serverbegrenzungen und Waffenverfügbarkeit werden weiterhin vom Spiel bestimmt. Ohne Theme-Marker verwenden die Clientmodule das bisherige Deployment-Menü.
-
-Diese zusätzliche Lieferung ist ausdrücklich ein Paket für die drei genannten Client-ABIs. Ihr internes `tce2/1.0.2/client-abis.json` trägt deshalb `scope: local-diagnostic`; es ist keine vollständige Veröffentlichung für alle zehn Plattformziele. Die gemeinsame PK3 enthält alle drei ausgewählten Plattformpaare, damit Windows und Linux nicht verschiedene gleichnamige Ein-Plattform-Pakete benötigen. Die Erzeugung und Rückprüfung verwenden `tools/release/client_packages.py` (`canonical_client`, `check_canonical`, `check_module`) und den Produktionsressourcen-Validator. Die Theme-PK3 bleibt davon unabhängig und enthält weiterhin keine nativen Module.
-
-Die aktuellen vorhandenen Caches lassen sich gezielt ohne QGame bauen:
-
-```powershell
-cmake --build build/releases/1.0.2/x86/game --config Release --target cgame ui --parallel 4
-cmake --build build/releases/1.0.2/x86/navstudio --config Release --target cgame ui --parallel 4
-cmake --build build/modernization-validation/linux-x86_64 --config Release --target cgame ui --parallel 4
-cmake --build build/ui-modern-linux-x86_64-editor --config Release --target cgame ui --parallel 4
-cmake --build build/modernization-validation/linux-i386 --config Release --target cgame ui --parallel 4
-cmake --build build/ui-modern-linux-i386-editor --config Release --target cgame ui --parallel 4
-```
-
-Windows-Builds benötigen die zur Cache-Konfiguration passende MSVC-Entwicklungsumgebung. Die Linux-Caches verwenden die vorhandene Zig-Toolchain; der Editor-Cache hat `FEATURE_NAVSTUDIO=ON`, der Game-Cache `OFF`. Die kanonische Paketierung muss für jede Variante genau deren Release-CGame/UI-Paar aus den ausgewählten Plattformen einlesen und darf keine Module zwischen den Varianten mischen.
-
-Nach den Builds erzeugt dieser produktive, rein paketierende CLI beide Clientmodul-PK3s. Er verwendet ausschließlich die angegebenen CMake-Discovery-Manifeste; es gibt keine automatische Suche nach möglicherweise älteren Dateien in anderen `bin`-Verzeichnissen. Bei anderen Cachepfaden die Manifestargumente anpassen.
-
-```powershell
-python tools/ui_modernize/client_modules.py `
-  --windows-game build/releases/1.0.2/x86/game/tce-modules-Release.json `
-  --windows-editor build/releases/1.0.2/x86/navstudio/tce-modules-Release.json `
-  --linux-game build/modernization-validation/linux-x86_64/tce-modules-Release.json `
-  --linux-editor build/ui-modern-linux-x86_64-editor/tce-modules-Release.json `
-  --linux-i386-game build/modernization-validation/linux-i386/tce-modules-Release.json `
-  --linux-i386-editor build/ui-modern-linux-i386-editor/tce-modules-Release.json `
-  --out dist/TCE2-Modern-UI --report build/ui-modern-client-modules.json
-```
-
-Der CLI prüft beide Varianten vor dem ersten Paketschreiben: Release-/Variantenidentität, native Dateinamen und ABI-Header, aktuelle tatsächliche UI-Autorenbefehle, kanonische Produktionsressourcen und identische gemeinsame Assets. Er liest QGame nicht ein, baut keine Module und verändert weder Theme-PK3s noch eine Spielinstallation. Der JSON-Beleg bindet Eingabemanifeste, alle zwölf Clientmodule, Paketbytes und die verwendeten Werkzeuge. Er ersetzt nicht den vorher erforderlichen Build oder einen Laufzeittest. Die beiden i386-Argumente sind optional, müssen aber gemeinsam angegeben werden; ohne dieses Paar bleibt die bisherige Lieferung mit Windows32/Linux64 möglich.
-
-## Lokal prüfen und paketieren
-
-Alle Befehle im Repository-Stamm ausführen. Python 3 ist erforderlich; diese Schritte bauen keine Spielmodule und starten kein Spiel.
-
-```powershell
+```sh
 python -m unittest discover -s tools/ui_modernize -p "test_*.py"
+python -m unittest discover -s tools/assets -p "test_*.py"
 python tools/ui_modernize/generate_assets.py --check
-python tools/ui_modernize/check.py --baseline ui-modern/original-inventory.json --original pak --edited ui-modern --require-styled --out build/ui-modern-parity.json
-python tools/ui_modernize/package.py --out dist/TCE2-Modern-UI
-python tools/ui_modernize/verify_package.py --package dist/TCE2-Modern-UI/Game/zz_tce2-1.0.2-modern-ui.pk3 --variant game --baseline ui-modern/original-inventory.json --out build/ui-modern-game-package.json
-python tools/ui_modernize/verify_package.py --package dist/TCE2-Modern-UI/Editor/zz_tce2-1.0.2-modern-ui-editor.pk3 --variant editor --baseline ui-modern/original-inventory.json --out build/ui-modern-editor-package.json
+python tools/ui_modernize/background_assets.py --check
 ```
 
-Der Paketcheck prüft die aktuellen Quellbytes, die drei Game-Ausnahmen, vollständige Menüabdeckung, Assets und Aliasdateien, Manifest-Hashes, UI-Semantik und die Game/Editor-Grenze. Unbekannte zusätzliche Dateien, Binärdateien und verschachtelte Archive werden abgelehnt. Berichte liegen außerhalb der Original- und Theme-Ressourcen.
-
-Der feste Paketmarker `tce2_ui/runtime.cfg` enthält ausschließlich `TCE2_MODERN_UI 1` mit abschließendem Zeilenumbruch. Passende aktuelle TCE2-Module können darüber die native Theme-Darstellung von Deployment-Menü, Ladeanzeige und Scoreboard aktivieren. Die Datei wird nicht als Konfigurationsskript ausgeführt und enthält keine Konsolenbefehle.
-
-`original-inventory.json` bindet die 102 Dateien der vier ursprünglichen UI-Verzeichnisse mit Größen und SHA-256 sowie die Version des Semantikprüfers. Bei einem Fehler dieses Inventars zuerst die einzelnen Original- und Werkzeug-Hashes untersuchen. Das Inventar nicht automatisch neu erzeugen, um eine Änderung zu übergehen.
-
-Für eine bewusst neue Gestaltung gibt es `python tools/ui_modernize/restyle.py`. Dieser Generator schreibt ausschließlich in das unabhängige `ui-modern`-Verzeichnis und überschreibt dort manuelle Menüänderungen. Er ist für das gewöhnliche Paketieren der vorliegenden Fassung nicht erforderlich.
-
-## Ressourcen und Nachweisgrenzen
-
-Die Barlow-Schriften enthalten sowohl TTFs für ETL mit FreeType als auch sechs vorgerenderte klassische ET-Fonts mit jeweils 256 Glyphen. Die festen 20.548-Byte-DAT-Dateien und ihre Atlanten funktionieren über die ursprüngliche Fontregistrierung von ET 2.60b. Die klassischen Fonts verwenden 72 DPI, Graustufen-Hinting und eine leichte Konturverstärkung, damit dünne Buchstaben bei kleinen Auflösungen erhalten bleiben. Moderne Texte erhalten vor der Layoutmessung eine bevorzugte Mindestgröße von etwa acht Pixeln Versalhöhe; Breiten-, Zeilen- und Absatzgrenzen können sie bei engem Platz weiter verkleinern. Alle Theme-TGAs verwenden Zweierpotenz-Abmessungen und echte Bottom-up-Bildzeilen, damit auch der originale Renderer sie korrekt lädt. Herkunft, feste Quellrevision, Hashes und die SIL-Open-Font-License-Texte liegen unter `assets/fonts/tce2_ui/`. Die Herkunft der selbst erzeugten Oberflächen, Symbole und des ursprünglichen generierten Hintergrunds steht in `assets/tce2_ui/SOURCE.json`. Für den Build sind diese Ressourcen bereits lokal vorhanden; es ist kein Font-Download erforderlich. Nur eine bewusste Neuerzeugung benötigt die festgelegten Autorenwerkzeuge: `python -m pip install --require-hashes -r tools/ui_modernize/requirements-fonts.txt` und danach `python tools/ui_modernize/generate_fonts.py --check`. Spiel und normale Paketierung benötigen weder Python-FreeType noch eine Engine-Erweiterung. Der unabhängige Paketcheck prüft zusätzlich DAT-ABI, Atlasverweise, Glyphenabdeckung, TGA-Zeilenrichtung und Bildabmessungen.
-
-Die Laufzeitprüfung verwendet ausschließlich die vorhandene Windows-Testinstallation mit originalem ET 2.60b und ETLegacy 2.86. Die aufgenommenen Menüs, Auflösungen und geladenen Modulhashes sind getrennt nach Engine dokumentiert. Die Bildprüfung belegt keine vollständige Mausbedienung sämtlicher Menüs, jeden Renderer oder einen Linux-Laufzeittest. Der Quell- und Paketcheck prüft auch unbenutzte Menüs, führt aber keinen Engine-Präprozessor und keine Mausinteraktion aus.
-
-Die ServerInfo-Listen behalten die ursprüngliche maximale Zeichenanzahl ihrer Feeder-Spalten. Lange Werte können dort weiterhin abgeschnitten werden; die breitere Darstellung ist keine Erweiterung des Feeder-Vertrags. Große Scoreboard-Roster werden vollständig in automatisch wechselnden Seiten dargestellt, statt Spieler still wegzulassen. Die bisherigen Sichtbarkeitsregeln für GT5-Statistiken bleiben erhalten.
-
-Weitere Bildreferenzen für die Aufteilung sind Dirty Bombs Teamübersicht ([Screenshot-Eintrag](https://www.mobygames.com/game/windows/dirty-bomb/screenshots/gameShotId%2C974413/)) und die [Audio-Einstellungen von The Finals](https://media.dotesports.com/wp-content/uploads/2023/12/audio-settings-the-finals.jpg?w=640). Daraus wurden keine Bilder, Logos oder UI-Quellen ins Theme übernommen.
-
-Als gestalterische Referenz dient Valves [Panorama-Ankündigung vom 19. Juni 2018](https://blog.counter-strike.net/2018/06/20482/). Es werden weder Panorama-Code noch dessen Grafiken übernommen. Der [Dirty-Bomb-Bericht zu Options-Untermenüs bei 1440p](https://forums.splashdamage.com/t/game-bug-options-menu-sub-menus-do-not-work-at-1440p/212795) ist eine Erinnerung, Bedienbarkeit und Auflösungen gesondert zu prüfen; er ist weder eine Designspezifikation noch ein Nachweis für die Funktion dieses Themes bei 1440p.
+Native text, viewport and background regression tools are under `tools/modernize`.
+Runtime evidence distinguishes original ET 2.60b from ETLegacy. A screenshot matrix
+is not a claim that every menu was physically mouse-clicked or that all engines,
+platforms, languages and renderers have been tested.

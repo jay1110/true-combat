@@ -5,16 +5,18 @@ import io
 import json
 from pathlib import Path, PurePosixPath
 import re
+import subprocess
 import zipfile
 
 from package import ROOT, version
-from client_packages import (check_canonical, check_target_payload, module_names,
+from client_packages import (check_canonical, check_module, check_target_payload, module_names,
                              read_target, sha as client_sha, levelshot_assets, validate_levelshots,
                              fireteam_assets, validate_fireteam_icons, SHARED_UI)
 from runtime_payload import command_spans, prepare_runtime, sha256
 from verify_omnibot_boundary import (AUTHORING_COMMANDS, RUNTIME_BINDINGS,
                                     NATIVE_PUBLIC_COMMANDS, NATIVE_AUTHORING_COMMANDS,
                                     validate_symbol_evidence, verify_module_bytes)
+from resource_assets import resource_assets, resource_fingerprint
 
 
 def workflows(repo):
@@ -29,6 +31,8 @@ def source_inputs(repo, expected):
     if version(repo) != expected:
         raise ValueError('Expected version ' + expected + ', got ' + version(repo))
     workflows(repo)
+    if subprocess.check_output(['git', 'ls-files', '-z', '--', 'pak_original_tce'], cwd=repo):
+        raise ValueError('pak_original_tce must remain local and untracked')
     base = repo / 'vendor/omni-bot/runtime'
     source = json.loads((base / 'SOURCE.json').read_text())
     for item in source['files']:
@@ -39,22 +43,19 @@ def source_inputs(repo, expected):
             if not (base / 'et/nav' / (mapname + ending)).is_file():
                 raise ValueError('Missing standard-map navigation: ' + mapname + ending)
     for relative in ('EULA_TrueCombat_Elite.txt', 'navstudio/requirements-desktop.txt',
-                     'src/assets/gfx/flags/world_flags.tga', 'src/assets/gfx/flags/LICENSE.xmod.txt',
-                     'src/assets/gfx/flags/SOURCE.json', 'tools/release/runtime-policy.json'):
+                     'pak/gfx/flags/world_flags.tga', 'pak/gfx/flags/LICENSE.xmod.txt',
+                     'pak/gfx/flags/SOURCE.json', 'tools/release/runtime-policy.json'):
         if not (repo / relative).is_file():
             raise ValueError('Missing clean-checkout release input: ' + relative)
     game, _, registry, _, diagnostics = prepare_runtime(repo, 'game')
     prepare_runtime(repo, 'navstudio')
-    levelshot_assets(repo)
-    fireteam_assets(repo)
-    for name in SHARED_UI:
-        if not (repo / 'src/assets/ui' / name).is_file():
-            raise ValueError('Missing shared client menu: ' + name)
+    resources = {variant: resource_fingerprint(variant, repo) for variant in ('game', 'navstudio')}
     return {'version': expected, 'manual_only': True, 'runtime_inputs': len(source['files']),
             'classified_gm_registrations': sum(len(v['registrations']) for v in registry.values()),
             'public_gm_registrations': sum(len(command_spans(v.decode('latin-1')))
                                            for k, v in game.items() if k.endswith('.gm')),
-            'diagnostic_transformations': sum(len(v) for v in diagnostics.values())}
+            'diagnostic_transformations': sum(len(v) for v in diagnostics.values()),
+            'mod_delta_resources': resources}
 
 
 def bot_help(path, variant):
@@ -126,6 +127,12 @@ def archive(path):
     with zipfile.ZipFile(path) as outer:
         names = safe_names(outer)
         manifest = json.loads(outer.read('manifest.json'))
+        if manifest.get('kind') == 'single-mod-all-abis':
+            from single_mod import check_bundle
+            checked = check_bundle(Path(path).read_bytes(), version(), manifest['variant'])
+            return {'archive': Path(path).name, 'version': checked['version'], 'target': 'all',
+                    'variant': checked['variant'], 'complete_runtime': True,
+                    'client_package_scope': 'shared', 'files': len(names), 'passed': True}
         expected = {'manifest.json'} | {item['path'] for item in manifest['files']}
         if names != expected:
             raise ValueError('Unmanifested/missing release files: ' + str(names ^ expected))
@@ -138,8 +145,8 @@ def archive(path):
                 if re.fullmatch(r'tce2/(?:lib)?' + role + r'(?:_mp_.*[.]dll|[.]mp[.].*[.]so|_mac)', entry):
                     verify_module_bytes(role, outer.read(entry), manifest['variant'])
         addon = 'tce2/zz_tce2_navstudio_editor.pk3'
-        if (addon in names) != editor:
-            raise ValueError('Wrong editor addon boundary')
+        if addon in names:
+            raise ValueError('Separate editor addon PK3 is obsolete; use the one complete variant PK3')
         client = 'tce2/tce2-' + manifest['version'] + '.pk3'
         client_scope = manifest.get('client_package', {}).get('scope')
         if client_scope == 'target-input':
@@ -165,6 +172,7 @@ def archive(path):
         if manifest['gameplay_bot_runtime']:
             boundary = manifest['bot_core_boundary']
             data = outer.read('tce2/omni-bot/' + boundary['library'])
+            check_module(data, 'omnibot', manifest['target'], manifest['variant'])
             if boundary.get('variant') != manifest['variant']:
                 raise ValueError('Wrong compiled core variant')
             # Revalidate exact method sets and defined-function proof for every
@@ -218,26 +226,12 @@ def archive(path):
 
 def validate_client_resources(pk3, manifest, editor):
     client_names = safe_names(pk3)
-    if 'ui/options_quality.menu' in client_names:
-        raise ValueError('Removed graphics-quality menu in client PK3')
-    validate_levelshots({name: pk3.read(name) for name in client_names if name.startswith('levelshots/')})
-    validate_fireteam_icons({name: pk3.read(name) for name in client_names if name.startswith('gfx/tce2/fireteam/')})
-    if pk3.read('tce2/' + manifest['version'] + '/client.manifest').decode() != manifest['version']:
-        raise ValueError('Wrong client manifest version')
-    flags = json.loads(pk3.read('gfx/flags/SOURCE.json'))
-    if hashlib.sha256(pk3.read('gfx/flags/world_flags.tga')).hexdigest() != flags['sha256']:
-        raise ValueError('Flag atlas provenance mismatch')
-    pk3.read('gfx/flags/LICENSE.xmod.txt')
-    if any('geoip' in name.lower() or 'qagame' in name.lower() for name in client_names):
-        raise ValueError('Server-only file leaked into client PK3')
-    public_ui = {'ui/ingame_main.menu', 'ui/menus.txt', 'ui/menus_gt2.txt',
-                 'ui/menus_gt5.txt', 'ui/menus_gt7.txt'}
-    if (bool(client_names & public_ui) == editor or
-            (not editor and not public_ui <= client_names)):
-        raise ValueError('Public menu overrides replaced the editor menu list')
-    shared_ui = {'ui/' + name for name in SHARED_UI}
-    if not shared_ui <= client_names:
-        raise ValueError('Missing shared HUD/control/system menu overrides')
+    variant = 'navstudio' if editor else 'game'
+    for name, expected in resource_assets(manifest['version'], variant).items():
+        if name not in client_names or pk3.read(name) != expected:
+            raise ValueError('Missing/changed mod delta resource: ' + name)
+    if 'ui/tce_omnibot.menu' in client_names and not editor:
+        raise ValueError('Editor menu leaked into Game')
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)

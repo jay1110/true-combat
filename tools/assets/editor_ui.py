@@ -1,0 +1,252 @@
+"""Bounded native/modern editor-menu merge and installable closure checks."""
+from dataclasses import dataclass
+import json
+from pathlib import Path
+import re
+
+REGISTRIES = ('menus.txt', 'menus_gt2.txt', 'menus_gt5.txt', 'menus_gt7.txt')
+VOICE_FILES = ('wm_quickmessage.menu', 'wm_quickmessageAlt.menu',
+               'wm_ftquickmessage.menu', 'wm_ftquickmessageAlt.menu')
+NATIVE_ROOT = 'tce_omnibot_dms'
+NATIVE_ROOT_FILE = 'ui/' + NATIVE_ROOT + '.menu'
+EDITOR_ASSET = re.compile(r'^(tce_[A-Za-z0-9_]+\.menu|wm_(ft)?quickmessage(Alt)?\.menu|menus(_gt[257])?\.txt)$')
+# Unchanged imports inherited from the original registries. The first two are
+# supplied by ET pak0; the last two are unused historical loader entries (no
+# open action targets them). Never exempt native Editor files from closure.
+LEGACY_EXTERNAL = {'ui/ingame_messagemode.menu', 'ui/ingame_tapout.menu',
+                   'ui/options_sub.menu', 'ui/ingame_main_sub.menu'}
+
+
+@dataclass
+class Token:
+    kind: str
+    value: str
+    start: int
+    end: int
+
+
+def tokens(data):
+    text = data.decode('latin1'); result = []; at = 0
+    while at < len(text):
+        if text[at].isspace():
+            at += 1; continue
+        if text.startswith('//', at):
+            end = text.find('\n', at); at = len(text) if end < 0 else end + 1; continue
+        if text.startswith('/*', at):
+            end = text.find('*/', at + 2)
+            if end < 0: raise ValueError('Unterminated editor-menu comment')
+            at = end + 2; continue
+        start = at
+        if text[at] == '"':
+            at += 1
+            while at < len(text) and text[at] != '"':
+                at += 2 if text[at] == '\\' else 1
+            if at >= len(text): raise ValueError('Unterminated editor-menu string')
+            at += 1; result.append(Token('string', text[start+1:at-1], start, at)); continue
+        match = re.match(r'[A-Za-z_][A-Za-z0-9_./-]*', text[at:])
+        if match:
+            at += len(match[0]); result.append(Token('word', match[0], start, at)); continue
+        at += 1; result.append(Token('punct', text[start:at], start, at))
+    return result
+
+
+def close_brace(lexed, start):
+    depth = 0
+    for index in range(start, len(lexed)):
+        if lexed[index].kind == 'punct' and lexed[index].value == '{': depth += 1
+        elif lexed[index].kind == 'punct' and lexed[index].value == '}':
+            depth -= 1
+            if depth == 0: return index
+    raise ValueError('Unbalanced editor-menu braces')
+
+
+def loaders(data):
+    lexed = tokens(data); result = []
+    for index, token in enumerate(lexed[:-3]):
+        if token.kind == 'word' and token.value == 'loadMenu':
+            if lexed[index+1].value != '{' or lexed[index+2].kind != 'string' or lexed[index+3].value != '}':
+                raise ValueError('Invalid editor loadMenu declaration')
+            result.append(lexed[index+2].value)
+    if len(result) != len({name.casefold() for name in result}):
+        raise ValueError('Duplicate editor registry loader')
+    return result
+
+
+def definitions(data):
+    """Literal menuDefs plus literal QM_MENU_START invocations, not macro templates."""
+    lexed = tokens(data); result = []
+    for index, token in enumerate(lexed):
+        if token.kind != 'word': continue
+        if token.value == 'menuDef' and index+3 < len(lexed) and lexed[index+1].value == '{':
+            end = close_brace(lexed, index+1)
+            if lexed[index+2].value == 'name' and lexed[index+3].kind in ('string', 'word'):
+                name = lexed[index+3]
+                if name.kind == 'string' or not name.value.isupper():
+                    result.append((name.value, lexed[index+1].start, lexed[end].start, lexed[index+4:end]))
+        elif (token.value == 'QM_MENU_START' and index+3 < len(lexed) and
+              lexed[index+1].value == '(' and lexed[index+2].kind == 'string'):
+            end = next((n for n in range(index+3, len(lexed)) if lexed[n].value == 'QM_MENU_END'), len(lexed))
+            result.append((lexed[index+2].value, token.start, lexed[end-1].end, lexed[index+3:end]))
+    return result
+
+
+def opens(lexed):
+    return {lexed[index+1].value for index, token in enumerate(lexed[:-1])
+            if token.kind == 'word' and token.value == 'open' and
+            lexed[index+1].kind in ('word', 'string') and lexed[index+1].value.startswith('tce_')}
+
+
+def namespace_native(data):
+    """Rewrite only the menu declaration and open/close target tokens."""
+    lexed = tokens(data); edits = []
+    for index, token in enumerate(lexed):
+        target = None
+        if token.kind == 'word' and token.value in ('open', 'close') and index+1 < len(lexed):
+            target = lexed[index+1]
+        elif (token.value == 'menuDef' and index+3 < len(lexed) and
+              lexed[index+1].value == '{' and lexed[index+2].value == 'name'):
+            target = lexed[index+3]
+        if target and target.value == 'tce_omnibot':
+            replacement = ('"'+NATIVE_ROOT+'"' if target.kind == 'string' else NATIVE_ROOT).encode('ascii')
+            edits.append((target.start, target.end, replacement))
+    for start, end, value in reversed(edits): data = data[:start] + value + data[end:]
+    return data
+
+
+def add_full_button(data):
+    roots = [row for row in definitions(data) if row[0] == 'tce_omnibot']
+    if len(roots) != 1: raise ValueError('Modern editor root missing or duplicated')
+    if NATIVE_ROOT.encode() in data: raise ValueError('Modern editor root already has a DMS namespace entry')
+    button = (b'\n// Full native catalog remains separate from the compact modern pages.\n'
+              b'itemDef { name "tce_full_dms" rect 24 442 586 28 type ITEM_TYPE_BUTTON '
+              b'style WINDOW_STYLE_FILLED backcolor .055 .075 .10 .97 border WINDOW_BORDER_FULL '
+              b'bordercolor .18 .24 .29 .65 text "FULL OMNI-BOT DMS / ALL GOALS AND WAYPOINTS" '
+              b'textfont UI_FONT_COURBD_21 textscale .22 textalignx 18 textaligny 20 '
+              b'forecolor 1 1 1 1 visible 1 action { close tce_omnibot ; open tce_omnibot_dms ; } }\n')
+    at = roots[0][2]
+    return data[:at] + button + data[at:]
+
+
+def read_catalog(repo):
+    folder = Path(repo)/'navstudio/editor-ui'; manifest = folder/'editor-files.txt'
+    if not manifest.is_file(): raise ValueError('Missing native Editor UI catalog: '+str(manifest))
+    names = manifest.read_text(encoding='utf-8').splitlines()
+    if not names or len(names) != len({name.casefold() for name in names}):
+        raise ValueError('Empty/duplicate native Editor UI catalog')
+    files = {}
+    for name in names:
+        path = folder/name
+        if not EDITOR_ASSET.fullmatch(name) or not path.is_file() or path.is_symlink():
+            raise ValueError('Invalid or missing native Editor UI asset: '+name)
+        files['ui/'+name] = path.read_bytes()
+    required = {'ui/'+name for name in REGISTRIES+VOICE_FILES} | {'ui/tce_omnibot.menu'}
+    if not required <= files.keys(): raise ValueError('Incomplete native Editor UI registry/voice catalog')
+    return files
+
+
+def merge_registry(modern, native, declared):
+    known = loaders(modern)
+    wanted = [NATIVE_ROOT_FILE if name == 'ui/tce_omnibot.menu' else name for name in loaders(native)
+              if name in declared]
+    if not {NATIVE_ROOT_FILE if name == 'ui/tce_omnibot.menu' else name for name in declared if name.endswith('.menu')} <= set(wanted):
+        raise ValueError('Native Editor registry omits declared menu assets')
+    additions = [name for name in wanted if name not in known]
+    lexed = tokens(modern)
+    if not lexed or lexed[0].value != '{' or close_brace(lexed, 0) != len(lexed)-1:
+        raise ValueError('Editor registry must have one outer block')
+    at = lexed[-1].start
+    extra = b'\n\t// Complete native Editor voice/goal catalog.\n' + b''.join(
+        ('\tloadMenu { "'+name+'" }\n').encode('ascii') for name in additions)
+    return modern[:at] + extra + modern[at:]
+
+
+def base_ui_reference(release_version=None, reference=None):
+    """Use metadata only; installed TCE supplies the unchanged base menu bytes."""
+    repo = Path(__file__).resolve().parents[2]
+    if release_version is None:
+        match = re.search(r'^#define TCE_VERSION "([^"]+)"', (repo/'src/game/tce_version.h').read_text(), re.M)
+        release_version = match[1] if match else None
+    if reference is None:
+        path = repo/'tools/assets/base-ui-reference.json'
+        if not path.is_file(): return {}
+        reference = json.loads(path.read_bytes())
+    if reference.get('schema') != 1 or reference.get('release_version') != release_version:
+        raise ValueError('Wrong version-bound base UI reference')
+    result = {}
+    for name, record in reference.get('files', {}).items():
+        if not re.fullmatch(r'[0-9a-f]{64}', record.get('sha256', '')) or not isinstance(record.get('bytes'), int):
+            raise ValueError('Invalid base UI reference fingerprint: '+name)
+        for menu in record.get('menus', []):
+            value = menu.get('name', '')
+            if value in ('tce_omnibot', NATIVE_ROOT) or value.startswith('tce_ob_'):
+                raise ValueError('Native Editor cannot fall back to base UI metadata')
+            if not isinstance(menu.get('opens'), list) or not all(isinstance(target, str) for target in menu['opens']):
+                raise ValueError('Invalid base UI reference edges: '+name)
+        if name.casefold() in result: raise ValueError('Case-colliding base UI metadata')
+        result[name.casefold()] = record
+    return result
+
+
+def validate_editor_ui(files, release_version=None, reference=None):
+    """Run against final installable bytes, including after manual pak edits."""
+    required_goals = {'tce_ob_goalname', 'tce_ob_groupname', 'tce_ob_waypointname', 'tce_ob_value'}
+    reports = {}; base = base_ui_reference(release_version, reference)
+    for registry in REGISTRIES:
+        key = 'ui/'+registry
+        if key not in files: raise ValueError('Missing Editor registry: '+key)
+        loaded = loaders(files[key]); menus = {}; edges = {}; external = []; referenced = []
+        for path in loaded:
+            if path not in files and path.casefold() in base:
+                entries = [(menu['name'], 0, 0, None) for menu in base[path.casefold()].get('menus', [])]
+                referenced.append(path)
+            else:
+                entries = None
+            if path not in files and path in LEGACY_EXTERNAL:
+                if entries is None: external.append(path); continue
+            if path not in files and entries is None: raise ValueError('Missing registered Editor menu: '+path)
+            for name, _start, _end, body in definitions(files[path]) if entries is None else entries:
+                folded = name.casefold()
+                if folded in menus: raise ValueError('Duplicate Editor menu name: '+name+' in '+path+' and '+menus[folded])
+                menus[folded] = path
+                edges[folded] = ({target.casefold() for target in opens(body)} if entries is None else
+                                 {target.casefold() for menu in base[path.casefold()]['menus'] if menu['name'] == name for target in menu['opens']})
+        needed = required_goals | {'tce_omnibot', NATIVE_ROOT}
+        if not needed <= menus.keys(): raise ValueError('Missing Editor goal/root feature: '+','.join(sorted(needed-menus.keys())))
+        missing = {target for targets in edges.values() for target in targets if target not in menus}
+        if missing: raise ValueError('Editor action opens an unloaded menu: '+','.join(sorted(missing)))
+        reached = set(); todo = ['tce_omnibot']
+        while todo:
+            name = todo.pop()
+            if name in reached: continue
+            reached.add(name); todo.extend(edges.get(name, ()))
+        native = {name for name in menus if name.startswith('tce_ob_') or name == NATIVE_ROOT}
+        if not native <= reached: raise ValueError('Unreachable Editor goal/catalog menus: '+','.join(sorted(native-reached)))
+        for name in VOICE_FILES:
+            path = 'ui/'+name
+            if path not in loaded or not any(token.kind == 'string' and token.value == 'omnibot_menu' for token in tokens(files[path])):
+                raise ValueError('Missing native Editor voice entry: '+path)
+        reports[registry] = {'loaded_files':len(loaded)-len(external), 'menu_names':len(menus),
+                             'reachable_catalog_menus':len(native), 'legacy_external_loaders':external,
+                             'stock_metadata_loaders':referenced}
+    return {'passed':True, 'registries':reports, 'goal_features':sorted(required_goals), 'native_root':NATIVE_ROOT}
+
+
+def merge_editor(game, theme_game, theme_editor, catalog):
+    """Native catalog first, modern differences second; registry loads are merged."""
+    files = dict(game); origins = {}
+    for name, data in catalog.items():
+        if name.endswith('.txt'): continue
+        target = NATIVE_ROOT_FILE if name == 'ui/tce_omnibot.menu' else name
+        files[target] = namespace_native(data); origins[target] = 'navstudio/editor-ui/'+name[3:]
+    for name, data in theme_editor.items():
+        if theme_game.get(name) != data:
+            files[name] = data; origins[name] = 'ui-modern via package.collect(editor)'
+    files['ui/tce_omnibot.menu'] = add_full_button(files['ui/tce_omnibot.menu'])
+    origins['ui/tce_omnibot.menu'] += ' (full DMS entry added)'
+    for name in REGISTRIES:
+        key = 'ui/'+name
+        files[key] = merge_registry(files[key], catalog[key], set(catalog))
+        origins[key] = 'modern registry + native Editor catalog loader closure'
+    report = validate_editor_ui({name:data for name,data in files.items() if name.startswith(('ui/','ui_obj/','ui_robj/','ui_tdm/'))})
+    overlay = {name:data for name,data in files.items() if game.get(name) != data}
+    return overlay, origins, report

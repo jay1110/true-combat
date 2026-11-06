@@ -12,21 +12,22 @@ ROOT=Path(__file__).resolve().parents[2]
 class AppearanceContract(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.original={p:d for p,d in sem.source_files(ROOT/'pak').items() if Path(p).suffix in sem.SEMANTIC_SUFFIXES}
+        cls.original={p:d for p,d in sem.source_files(ROOT/'pak_original_tce').items() if Path(p).suffix in sem.SEMANTIC_SUFFIXES}
         cls.page=(ROOT/'ui-modern'/sem.APPEARANCE).read_bytes()
 
     def candidate(self):
         result=dict(self.original);result[sem.APPEARANCE]=self.page
+        result[sem.BACKGROUNDS]=(ROOT/'ui-modern'/sem.BACKGROUNDS).read_bytes()
         for path in sem.APPEARANCE_LISTS:
-            result[path]+=b'\nloadMenu { "ui/modern_appearance.menu" }\n'
+            result[path]+=b'\nloadMenu { "ui/modern_appearance.menu" }\nloadMenu { "ui/modern_backgrounds.menu" }\n'
         path='ui/options.menu'
-        result[path]=restyle.menu(restyle.read(ROOT/'pak'/path),Path(path)).encode('latin1')
+        result[path]=restyle.menu(restyle.read(ROOT/'pak_original_tce'/path),Path(path)).encode('latin1')
         result[sem.PRIVATE_WIDGETS]=self.original[sem.ORIGINAL_WIDGETS]
         return result
 
     def test_reviewed_page_full_lists_and_exact_options_link_are_accepted(self):
         self.assertEqual(sem.appearance_signature(self.page,self.original),sem.APPEARANCE_SEMANTIC_SHA256)
-        self.assertEqual(compare_semantics(self.original,self.candidate()),77)
+        self.assertEqual(compare_semantics(self.original,self.candidate()),78)
 
     def test_appearance_changed_scripts_cvars_limits_list_values_and_return_are_rejected(self):
         for old,new in ((b'"ui_themePreset"',b'"r_fullscreen"'),
@@ -43,7 +44,7 @@ class AppearanceContract(unittest.TestCase):
     def test_paint_can_change_without_weakening_appearance_behavior_contract(self):
         candidate=self.candidate()
         candidate[sem.APPEARANCE]=candidate[sem.APPEARANCE].replace(b'rect 0 20 852 424',b'rect 10 30 830 410')
-        self.assertEqual(compare_semantics(self.original,candidate),77)
+        self.assertEqual(compare_semantics(self.original,candidate),78)
 
     def test_added_palettes_keep_archived_ids_and_match_native_bounds(self):
         text=self.page.decode('latin1')
@@ -86,6 +87,24 @@ class AppearanceContract(unittest.TestCase):
         candidate['ui/options.menu']=candidate['ui/options.menu'].replace(b'open options_controls',b'open attacker',1)
         with self.assertRaisesRegex(ValueError,'semantic data changed'):
             compare_semantics(self.original,candidate)
+
+    def test_background_country_month_mode_and_return_are_exactly_bound(self):
+        compare_semantics(self.original,self.candidate())
+        for old,new in ((b'"ui_backgroundCountry"',b'"r_fullscreen"'),
+                        (b'"Season" 0',b'"Season" 9'),
+                        (b'setcvar ui_backgroundMode 0',b'exec quit ; setcvar ui_backgroundMode 0'),
+                        (b'open modern_appearance',b'open attacker')):
+            value=self.candidate();self.assertIn(old,value[sem.BACKGROUNDS])
+            value[sem.BACKGROUNDS]=value[sem.BACKGROUNDS].replace(old,new,1)
+            with self.subTest(new=new),self.assertRaisesRegex(ValueError,'Background page differs'):
+                compare_semantics(self.original,value)
+        value=self.candidate();value.pop(sem.BACKGROUNDS)
+        with self.assertRaisesRegex(ValueError,'Background settings page is missing'):compare_semantics(self.original,value)
+        for duplicate in (False,True):
+            value=self.candidate();line=b'loadMenu { "ui/modern_backgrounds.menu" }'
+            if duplicate:value[sem.APPEARANCE_LISTS[0]]+=line
+            else:value[sem.APPEARANCE_LISTS[0]]=value[sem.APPEARANCE_LISTS[0]].replace(line,b'')
+            with self.assertRaisesRegex(ValueError,'Background page must be loaded exactly once'):compare_semantics(self.original,value)
 
 
 if __name__=='__main__':unittest.main()

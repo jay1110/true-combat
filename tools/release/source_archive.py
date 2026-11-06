@@ -5,10 +5,19 @@ import subprocess
 import zipfile
 from package import ROOT, digest, version
 
-PREFIXES = ('src/', 'vendor/', 'compat/', 'platform/', 'cmake/', 'tools/',
+PREFIXES = ('pak/', 'map_pics/', 'src/', 'vendor/', 'compat/', 'platform/', 'cmake/', 'tools/',
             'tce/', 'navstudio/', 'omnibot/', 'Docs/', 'docs/', '.github/workflows/')
 ROOT_FILES = {'CMakeLists.txt', 'CMakePresets.json', 'BUILDING.md', 'README.md',
               'LICENSE', 'CHANGES', 'EULA_TrueCombat_Elite.txt', '.gitignore', '.gitattributes'}
+
+
+def is_source_payload(name):
+    # The user's original TCE files are a local reference only. Exclude the
+    # entire tree even if a stale index or --include-untracked lists it.
+    if name.replace('\\', '/').split('/')[0].casefold() == 'pak_original_tce':
+        return False
+    return Path(name).suffix.lower() not in (
+        '.dll', '.so', '.exe', '.pdb', '.zip', '.pk3', '.dmp', '.pyc')
 
 
 def main():
@@ -23,10 +32,13 @@ def main():
     selected = sorted({name for name in names if name and (name in ROOT_FILES or name.startswith(PREFIXES))
                        and '/reconstruction/' not in name and Path(name).name != 'AGENTS.md'
                        and not any(part in ('__pycache__', 'build', '.venv', 'node_modules') for part in Path(name).parts)
-                       and Path(name).suffix.lower() not in ('.dll', '.so', '.exe', '.pdb', '.zip', '.pk3', '.dmp', '.pyc')})
+                       and is_source_payload(name)})
     for required in ('tools/release/build.py', 'vendor/omni-bot/runtime/SOURCE.json', 'EULA_TrueCombat_Elite.txt'):
         if required not in selected:
             raise ValueError('Required release source is not tracked: ' + required)
+    for prefix in ('pak/', 'map_pics/'):
+        if not any(name.startswith(prefix) for name in selected):
+            raise ValueError('Required resource source tree is not tracked: ' + prefix)
     args.out.mkdir(parents=True, exist_ok=True)
     output = args.out / f'TCE2-{version()}-Source.zip'
     with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED, compresslevel=9) as archive:

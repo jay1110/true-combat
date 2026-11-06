@@ -16,7 +16,7 @@ PAGES=('popup_password.menu','playonline_connecttoip.menu',
 
 
 def source(name):
-    return restyle.read(ROOT/'pak/ui'/name)
+    return restyle.read(ROOT/'pak_original_tce/ui'/name)
 
 
 def styled(name):

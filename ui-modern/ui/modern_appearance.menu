@@ -28,6 +28,8 @@ menuDef {
         setcvar ui_themeAccentR .96 ; setcvar ui_themeAccentG .73 ; setcvar ui_themeAccentB .27 ;
         setcvar ui_themeBackgroundR .035 ; setcvar ui_themeBackgroundG .055 ; setcvar ui_themeBackgroundB .075 ;
         setcvar ui_menuScale 1 ; setcvar cg_hudScale .85 ; )
+    BUTTON( 232, 354, 186, 30, "BACKGROUNDS", .24, 21,
+        close modern_appearance ; open modern_backgrounds ; )
 
     itemDef { name "accent_title" rect 446 60 374 22 text "CUSTOM ACCENT / RGB" textfont UI_FONT_COURBD_21 textscale .22 textaligny 16 forecolor .94 .75 .27 1 visible 1 decoration }
     SLIDER( 442, 90, 378, 30, "Accent red:", .23, 14, "ui_themeAccentR" .96 0 1, "Custom accent red component." )

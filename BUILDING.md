@@ -45,20 +45,32 @@ the game/editor destinations.
 ```powershell
 # Public gameplay package with explicitly requested bot runtime:
 python src/build_windows_variants.py --variant game --with-omnibot --out dist/Game-With-Bots
-# Separate editor DLLs, bot core and editor UI addon:
+# Separate editor DLLs, bot core and authoring resources:
 python src/build_windows_variants.py --variant navstudio --out dist/Editor
 # Both variants, with bot runtime explicitly enabled for the game as well:
 python src/build_windows_variants.py --variant both --with-omnibot
 ```
 
-Each variant uses `tce2-<TCE_VERSION>.pk3`, currently `tce2-1.0.2.pk3`, inside
-its own directory and a versioned ZIP. The PK3 has the versioned client manifest.
-Only the editor variant includes `zz_tce2_navstudio_editor.pk3`. Public builds
-exclude authoring source and commands at compile time. The normal client has
-no waypoint debug renderer. Gameplay bot scripts and navigation remain separate
-runtime data, included in the release packages; the DLL package alone is not a
-complete game installation. See the [manual release workflow](tools/release/README.md)
-for every target, source archives and the separate desktop application.
+Each installable variant ZIP contains exactly one `tce2-<TCE_VERSION>.pk3`, now
+`tce2-1.0.3.pk3`. Its new/changed resources come from the root `pak` directory;
+UI and CGame binaries for the selected architectures are added by the packager.
+QGame, bot cores, Lua and the matching server data are loose under `server`.
+The optional Editor variant adds `navstudio/editor-pak` to that same PK3; it does
+not create a second editor-addon PK3. Public builds exclude authoring source and
+commands at compile time. The normal client has no waypoint debug renderer.
+See the [manual release workflow](tools/release/README.md) for the full target
+matrix, source archives and the separate desktop application.
+
+An original TCE installation supplies unchanged game assets. They are not copied
+into `pak`, the mod PK3, Git or source ZIPs. `pak_original_tce` is a local-only
+authoring reference, ignored by Git; clean-checkout builds never require it.
+Small metadata-only reference manifests classify unchanged stock resources.
+`ui-modern` and `src/assets` retain the authoring inputs used for the migration.
+Release builds read `pak` directly and never overwrite hand edits by regenerating
+it. Deliberate regeneration and its `--check` mode are documented in
+[tools/assets/README.md](tools/assets/README.md). The supplied map background
+sources are in `map_pics`; settings and the optional weather launcher are
+documented in [tools/launcher/README.md](tools/launcher/README.md).
 
 Country flags use `g_countryflags` on the server (latched) and `cg_countryflags`
 on the client. Supply an existing legacy IPv4 country database explicitly:

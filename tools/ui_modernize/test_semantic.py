@@ -67,14 +67,14 @@ class Semantics(unittest.TestCase):
         self.assertTrue(self.review()['passed'])
 
     def test_actual_all_menu_inventory_and_identity(self):
-        manifest = s.inventory(ROOT/'pak')
+        manifest = s.inventory(ROOT/'pak_original_tce')
         self.assertEqual(manifest['file_count'], 102)
         self.assertEqual(manifest['menu_count'], 69)
         self.assertEqual(manifest['semantic_file_count'], 75)
         self.assertEqual({k:v['menus'] for k,v in manifest['counts'].items()},
                          {'ui':63,'ui_obj':2,'ui_robj':2,'ui_tdm':2})
         self.assertIn('ui/tce_omnibot.menu', {r['path'] for r in manifest['files']})
-        self.assertTrue(s.compare(manifest, ROOT/'pak', ROOT/'pak')['passed'])
+        self.assertTrue(s.compare(manifest, ROOT/'pak_original_tce', ROOT/'pak_original_tce')['passed'])
 
     def test_layout_palette_font_background_cursor_are_paint(self):
         for old,new in ((b'rect 1 2 WINDOW_WIDTH 40',b'rect 8 12 WINDOW_WIDTH 50'),

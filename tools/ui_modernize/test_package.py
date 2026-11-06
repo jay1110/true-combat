@@ -26,7 +26,7 @@ class Packages(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.repo = Path(self.temp.name)
-        self.original = self.repo/'pak'
+        self.original = self.repo/'pak_original_tce'
         self.edited = self.repo/'ui-modern'
         for directory in sem.DIRECTORIES:
             folder = self.original/directory
@@ -81,7 +81,7 @@ class Packages(unittest.TestCase):
         files.update({p.relative_to(assets).as_posix():p.read_bytes() for p in assets.rglob('*') if p.is_file()})
         files['ui/assets/check.tga'] = files['tce2_ui/button.tga']
         files[v.RUNTIME_MARKER[0]]=v.RUNTIME_MARKER[1]
-        manifest = {'schema':1,'theme':'TCE2 Modern UI','version':'1.0.2','variant':variant,
+        manifest = {'schema':1,'theme':'TCE2 Modern UI','version':'1.0.3','variant':variant,
                     'all_original_menu_sources':self.baseline['menu_count'],
                     'normal_game_content_sources':exceptions}
         return files, manifest
@@ -124,7 +124,7 @@ class Packages(unittest.TestCase):
                 if change=='missing':m['normal_game_content_sources'].pop()
                 elif change=='duplicate':m['normal_game_content_sources'][1]=m['normal_game_content_sources'][0]
                 elif change=='wrong_path':m['normal_game_content_sources'][0]['path']='ui/main.menu'
-                elif change=='wrong_source':m['normal_game_content_sources'][0]['content_source']='pak/ui/ingame_main.menu'
+                elif change=='wrong_source':m['normal_game_content_sources'][0]['content_source']='pak_original_tce/ui/ingame_main.menu'
                 elif change=='empty_reason':m['normal_game_content_sources'][0]['reason']=''
                 else:m['normal_game_content_sources']=[{'path':'ui/main.menu'}]
                 self.write(files,m)

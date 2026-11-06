@@ -91,7 +91,7 @@ def make_plan(root, out, config, baseline, parallel):
     add('compat-hashes', 'normalized-source-hash', py('modernize/compat_validate', '--hash-only', '--out', out / 'compat-hashes'),
         [out / 'compat-hashes/compat-hashes.json'])
     add('vendor', 'vendor-lock', py('modernize/vendor_check', '--out', out / 'vendor.json'), [out / 'vendor.json'])
-    add('release-source', 'package/public-boundary', py('release/validate', 'source', '--expect-version', '1.0.2'))
+    add('release-source', 'package/public-boundary', py('release/validate', 'source', '--expect-version', '1.0.3'))
     add('release-tests', 'package/public-boundary', [sys.executable, '-m', 'unittest', 'discover', '-s', 'tools/release', '-p', 'test_*.py'])
     add('orchestration-tests', 'bundle-contract', [sys.executable, '-m', 'unittest', 'discover', '-s', 'tools/modernize', '-p', 'test_validation_*.py'])
     if baseline:

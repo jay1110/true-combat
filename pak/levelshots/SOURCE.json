@@ -1,0 +1,23 @@
+{
+  "schema": 1,
+  "map": "obj_delta",
+  "provenance": "User-provided workspace resources, copied without modification.",
+  "files": [
+    {
+      "asset": "obj_delta_cc.tga",
+      "source_path": "pak/levelshots/obj_delta_cc.tga",
+      "sha256": "b260a4a366e8ec968a4f361a99b5541463b6e32e6a1012b4b9e9250f8369c3c2",
+      "bytes": 3145746,
+      "width": 1024,
+      "height": 1024
+    },
+    {
+      "asset": "obj_delta_cc_blueprint.tga",
+      "source_path": "pak/levelshots/obj_delta_cc_blueprint.tga",
+      "sha256": "edb6eab631e333868891b80053dabdedf6468d6a6d6dd535bb1ec05560d927af",
+      "bytes": 3145746,
+      "width": 1024,
+      "height": 1024
+    }
+  ]
+}

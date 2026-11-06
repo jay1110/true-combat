@@ -22,14 +22,14 @@ def item_blocks(text):
     return result
 
 
-def styled(filename,base='pak'):
+def styled(filename,base='pak_original_tce'):
     return restyle.menu(restyle.read(ROOT/base/'ui'/filename),Path('ui')/filename)
 
 
 class NavigationPolish(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.original={p:d for p,d in sem.source_files(ROOT/'pak').items()
+        cls.original={p:d for p,d in sem.source_files(ROOT/'pak_original_tce').items()
                       if Path(p).suffix in sem.SEMANTIC_SUFFIXES}
         cls.edited={p:d for p,d in sem.source_files(ROOT/'ui-modern',all_files=True).items()
                     if Path(p).suffix in sem.SEMANTIC_SUFFIXES}
@@ -66,7 +66,7 @@ class NavigationPolish(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,'hover'):compare_semantics(self.original,candidate)
 
     def test_controls_numeric_value_has_a_separate_row_and_every_card_has_bottom_padding(self):
-        for base in ('pak','src/assets'):
+        for base in ('pak_original_tce','src/assets'):
             raw=restyle.read(ROOT/base/'ui/options_controls.menu')
             result=layout_settings.apply(restyle.visual(raw),Path('ui/options_controls.menu'))
             calls=list(restyle.macro_calls(result,layout_settings.CALLS))
@@ -103,7 +103,7 @@ class NavigationPolish(unittest.TestCase):
                 self.assertEqual(fields['cvartest'],'"authLevel"')
                 self.assertIn('showcvar',fields)
                 for event in sem.HOVER_FIELDS:self.assertTrue(fields[event])
-        self.assertEqual(compare_semantics(self.original,self.edited),77)
+        self.assertEqual(compare_semantics(self.original,self.edited),78)  # Includes the authorized background settings page.
 
     def test_vote_tabs_cannot_bypass_privilege_flags_or_redirect_to_other_actions(self):
         path='ui/ingame_vote_map.menu';text=self.edited[path].decode('latin1')
@@ -128,7 +128,7 @@ class NavigationPolish(unittest.TestCase):
 
     def test_main_navigation_is_narrower_without_changing_original_actions(self):
         for folder in ('ui','ui_obj','ui_robj','ui_tdm'):
-            path=Path(folder)/'main.menu';raw=restyle.read(ROOT/'pak'/path)
+            path=Path(folder)/'main.menu';raw=restyle.read(ROOT/'pak_original_tce'/path)
             result=restyle.menu(raw,path)
             old=list(restyle.macro_calls(raw,{'BUTTON','BUTTONTEXTONLY'}))
             new=list(restyle.macro_calls(result,{'BUTTON','BUTTONTEXTONLY'}))

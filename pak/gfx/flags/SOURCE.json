@@ -1,0 +1,11 @@
+{
+  "asset": "world_flags.tga",
+  "source_repository": "xmod",
+  "source_revision": "e52c1db6d5d4ef3c0494673b71c1340b6efec9d6",
+  "source_path": "pak/gfx/flags/world_flags.tga",
+  "sha256": "9543990e3373ddbfb3e5d473c95b42b5984b8bbcc6bb6712c747db631942b62f",
+  "layout": "512x512; 16x16 cells; legacy GeoIP country IDs",
+  "source_project_license_notice": "LICENSE.xmod.txt (copied without modification)",
+  "import": "User requested xmod-style country flags; no ETLegacy engine source was imported.",
+  "source_worktree_matches_revision": true
+}

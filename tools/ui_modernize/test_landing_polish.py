@@ -20,7 +20,7 @@ class LandingPolishTests(unittest.TestCase):
         names={'groovesix','teamterminator','atvi_logo','id_logo','sd_logo'}
         for directory in ('ui','ui_obj','ui_robj','ui_tdm'):
             path=Path(directory)/'main.menu'
-            result=restyle.menu(restyle.read(ROOT/'pak'/path),path)
+            result=restyle.menu(restyle.read(ROOT/'pak_original_tce'/path),path)
             origin=[float(re.search(r'^#define '+key+r' ([\d.]+)$',result,re.M)[1])
                     for key in ('WINDOW_X','WINDOW_Y')]
             seen=set()
@@ -36,7 +36,7 @@ class LandingPolishTests(unittest.TestCase):
 
     def test_all_three_hubs_leave_map_visible_and_keep_original_actions(self):
         for filename in ('ingame_main.menu','ingame_vote.menu','options.menu'):
-            sources=[ROOT/'pak/ui'/filename]
+            sources=[ROOT/'pak_original_tce/ui'/filename]
             if (ROOT/'src/assets/ui'/filename).exists():sources.append(ROOT/'src/assets/ui'/filename)
             for path in sources:
                 with self.subTest(path=path):
@@ -69,7 +69,7 @@ class LandingPolishTests(unittest.TestCase):
                     self.assertNotIn('modern_pause_',result)
 
     def test_appearance_navigation_occupies_reserved_header_slot_only(self):
-        result=restyle.menu(restyle.read(ROOT/'pak/ui/options.menu'),Path('ui/options.menu'))
+        result=restyle.menu(restyle.read(ROOT/'pak_original_tce/ui/options.menu'),Path('ui/options.menu'))
         items=[result[s:e] for s,e in restyle.blocks(result)
                if 'name "modern_appearance_link"' in result[s:e]]
         self.assertEqual(len(items),1)
@@ -84,7 +84,7 @@ class LandingPolishTests(unittest.TestCase):
 
     def test_advanced_long_labels_and_checkbox_marks_fit_their_actual_rows(self):
         path=Path('ui/hostgame_advanced.menu')
-        result=layout_browse.apply(restyle.visual(restyle.read(ROOT/'pak'/path)),path)
+        result=layout_browse.apply(restyle.visual(restyle.read(ROOT/'pak_original_tce'/path)),path)
         controls={'NUMERICFIELD','YESNO','MULTI','EDITFIELD','CHECKBOXALIGNX'}
         count=0
         for _,_,name,args in restyle.macro_calls(result,controls):
@@ -103,7 +103,7 @@ class LandingPolishTests(unittest.TestCase):
 
     def test_ten_entry_quickmessage_panel_contains_every_real_entry(self):
         for filename in ('wm_quickmessage.menu','wm_quickmessageAlt.menu','wm_ftquickmessage.menu'):
-            result=restyle.menu(restyle.read(ROOT/'pak/ui'/filename),Path('ui')/filename)
+            result=restyle.menu(restyle.read(ROOT/'pak_original_tce/ui'/filename),Path('ui')/filename)
             self.assertIn('0 0 300 284',result)
             positions=[int(a[3]) for _,_,_,a in restyle.macro_calls(result,{'QM_MENU_ITEM','QM_MENU_ITEM_TEAM'})
                        if a[3].isdigit()]
@@ -112,7 +112,7 @@ class LandingPolishTests(unittest.TestCase):
 
     def test_legacy_fade_boxes_no_longer_extend_beyond_the_menu_canvas(self):
         count=0
-        for source in (ROOT/'pak/ui').glob('*.menu'):
+        for source in (ROOT/'pak_original_tce/ui').glob('*.menu'):
             if source.name in ('main.menu','global.menu'):continue
             result=restyle.menu(restyle.read(source),Path('ui')/source.name)
             for start,end in restyle.blocks(result):
@@ -124,7 +124,7 @@ class LandingPolishTests(unittest.TestCase):
         self.assertGreater(count,40)
 
     def test_private_header_title_rules_are_solid_without_sparse_texture(self):
-        original=restyle.read(ROOT/'pak/ui/menumacros.h')
+        original=restyle.read(ROOT/'pak_original_tce/ui/menumacros.h')
         widgets=layout_common.widgets(restyle.macros(original))
         rules=[]
         for start,end in restyle.blocks(widgets):

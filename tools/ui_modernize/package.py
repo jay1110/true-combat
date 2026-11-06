@@ -1,4 +1,8 @@
-"""Build opt-in, UI-only PK3s; never change the original pak folder."""
+"""Collect modern UI resources for the single mod package.
+
+The standalone theme writer remains available for local authoring diagnostics.
+Production builds read the complete, reviewable root pak directory instead.
+"""
 from pathlib import Path
 import argparse
 import hashlib
@@ -11,10 +15,17 @@ import classic_assets
 ROOT=Path(__file__).resolve().parents[2]
 
 
+def version():
+    return re.search(r'^#define TCE_VERSION "([0-9]+\.[0-9]+\.[0-9]+)"',
+                     (ROOT/'src/game/tce_version.h').read_text(),re.M)[1]
+
+
 def sha(data): return hashlib.sha256(data).hexdigest()
 
 
-def build(variant, destination):
+def collect(variant):
+    if variant not in ('game','editor'):
+        raise ValueError('Unknown modern UI resource variant')
     edited=ROOT/'ui-modern'; files={}
     for folder in restyle.DIRS:
         for p in sorted((edited/folder).glob('*')):
@@ -46,12 +57,17 @@ def build(variant, destination):
         assert 'ui/tce_omnibot.menu' not in files
         for key in ('ui/menus.txt','ui/menus_gt2.txt','ui/menus_gt5.txt','ui/menus_gt7.txt','ui/ingame_main.menu'):
             assert b'tce_omnibot' not in files[key]
-    manifest={'schema':1,'theme':'TCE2 Modern UI','version':'1.0.2','variant':variant,
+    manifest={'schema':1,'theme':'TCE2 Modern UI','version':version(),'variant':variant,
               'scope':'Optional theme resources; native scoreboard/connect require matching modern client modules. No gameplay changes.',
               'all_original_menu_sources':69,'normal_game_content_sources':differences,
               'asset_compatibility':portability,
               'files':{n:{'bytes':len(d),'sha256':sha(d)} for n,d in sorted(files.items())}}
     files['tce2_ui/package.json']=(json.dumps(manifest,indent=2)+'\n').encode()
+    return files
+
+
+def build(variant, destination):
+    files=collect(variant)
     destination.parent.mkdir(parents=True,exist_ok=True)
     with zipfile.ZipFile(destination,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as archive:
         for name,data in sorted(files.items()):
@@ -65,7 +81,7 @@ def build(variant, destination):
 
 def main():
     p=argparse.ArgumentParser();p.add_argument('--out',type=Path,default=ROOT/'dist/TCE2-Modern-UI');args=p.parse_args()
-    outputs={v:build(v,args.out/('Game' if v=='game' else 'Editor')/('zz_tce2-1.0.2-modern-ui'+('-editor' if v=='editor' else '')+'.pk3')) for v in ('game','editor')}
+    outputs={v:build(v,args.out/('Game' if v=='game' else 'Editor')/('zz_tce2-'+version()+'-modern-ui'+('-editor' if v=='editor' else '')+'.pk3')) for v in ('game','editor')}
     (args.out/'packages.json').write_text(json.dumps(outputs,indent=2)+'\n')
     print(json.dumps(outputs))
 

@@ -11,7 +11,7 @@ ROOT=Path(__file__).resolve().parents[2]
 
 class BrowserFlow(unittest.TestCase):
     def setUp(self):
-        self.original=restyle.read(ROOT/'pak/ui/playonline.menu')
+        self.original=restyle.read(ROOT/'pak_original_tce/ui/playonline.menu')
         self.output=restyle.menu(self.original,Path('ui/playonline.menu'))
 
     def test_five_actions_share_a_row_and_footer_contains_only_main_menu(self):
@@ -59,7 +59,7 @@ class BrowserFlow(unittest.TestCase):
 
     def test_return_browser_matches_full_height_layout_and_keeps_original_actions(self):
         path=Path('ui/playonline_sub.menu')
-        original=restyle.read(ROOT/'pak'/path)
+        original=restyle.read(ROOT/'pak_original_tce'/path)
         generated=restyle.menu(original,path)
         artifact=restyle.read(ROOT/'ui-modern'/path)
         def rectangles(text):
@@ -102,9 +102,9 @@ class BrowserFlow(unittest.TestCase):
     def test_return_browser_wrapping_cannot_change_bound_help_cvar(self):
         import semantic as sem
         from verify_package import compare_semantics
-        original={p:v for p,v in sem.source_files(ROOT/'pak').items() if Path(p).suffix in sem.SEMANTIC_SUFFIXES}
+        original={p:v for p,v in sem.source_files(ROOT/'pak_original_tce').items() if Path(p).suffix in sem.SEMANTIC_SUFFIXES}
         edited={p:v for p,v in sem.source_files(ROOT/'ui-modern',all_files=True).items() if Path(p).suffix in sem.SEMANTIC_SUFFIXES}
-        self.assertEqual(compare_semantics(original,edited),77)
+        self.assertEqual(compare_semantics(original,edited),78)  # Includes the authorized background settings page.
         path='ui/playonline_sub.menu';text=edited[path].decode('latin1')
         block=next(text[a:b] for a,b in restyle.blocks(text) if re.search(r'\bname\s+"descriptionFilters"',text[a:b]))
         changed=block.replace('ui_filterdescription','sensitivity')

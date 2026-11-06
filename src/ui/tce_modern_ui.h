@@ -12,6 +12,10 @@ int TCE_ModernMarkerValid(const char *data, int length);
 float TCE_ModernProgress(int used, int expected);
 int TCE_ModernRosterPages(int count, int rows);
 int TCE_ModernHiddenStats(int gameType, int killMessages, int health, int pmType);
+/* Pure background policy: phases are morning/day/twilight/night/winter. */
+int TCE_ModernBackgroundPhase(int minute, int sunrise, int sunset, int snow);
+int TCE_ModernBackgroundPick(int phase, unsigned seed, int previous);
+int TCE_ModernBackgroundWinter(int month, const char *country, const char *months);
 
 extern vec4_t tceModernWhite, tceModernMuted, tceModernAmber;
 void TCE_ModernFill(float x, float y, float w, float h, const float *color);

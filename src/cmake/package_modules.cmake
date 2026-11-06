@@ -36,89 +36,13 @@ foreach(installed IN LISTS installed_packages)
     endif()
   endif()
 endforeach()
-get_filename_component(stage "${MODULE_DIRECTORY}/../build/tce2-client-package-${version}" ABSOLUTE)
-file(MAKE_DIRECTORY "${stage}/tce2/${version}")
-set(module_files)
-foreach(module cgame ui)
-  foreach(suffix _mp_x86.dll _mp_x64.dll .mp.i386.so .mp.x86_64.so
-      .mp.armv7.so .mp.aarch64.so .mp.wasm32.so _mac)
-    if(EXISTS "${MODULE_DIRECTORY}/${module}${suffix}")
-      foreach(peer cgame ui)
-        if(NOT EXISTS "${MODULE_DIRECTORY}/${peer}${suffix}")
-          message(FATAL_ERROR "Incomplete client pair: missing ${peer}${suffix}")
-        endif()
-      endforeach()
-      list(APPEND module_files "${module}${suffix}")
-      file(COPY "${MODULE_DIRECTORY}/${module}${suffix}" DESTINATION "${stage}")
-    elseif(REQUIRE_DESKTOP_MATRIX AND suffix MATCHES "^(_mp_(x86|x64)[.]dll|[.]mp[.](i386|x86_64)[.]so)$")
-      message(FATAL_ERROR "Missing client binary ${module}${suffix}; collect all four builds first")
-    endif()
-  endforeach()
-  foreach(abi armeabi-v7a arm64-v8a)
-    if(EXISTS "${MODULE_DIRECTORY}/lib${module}.mp.android.${abi}.so")
-      foreach(peer cgame ui)
-        if(NOT EXISTS "${MODULE_DIRECTORY}/lib${peer}.mp.android.${abi}.so")
-          message(FATAL_ERROR "Incomplete Android client pair for ${abi}")
-        endif()
-      endforeach()
-      set(android_module "lib${module}.mp.android.${abi}.so")
-      list(APPEND module_files "${android_module}")
-      file(COPY "${MODULE_DIRECTORY}/${android_module}" DESTINATION "${stage}")
-    endif()
-  endforeach()
-endforeach()
-if(NOT module_files)
-  message(FATAL_ERROR "No supported native module binaries found")
-endif()
-file(WRITE "${stage}/tce2/${version}/client.manifest" "${version}")
-list(APPEND module_files "tce2/${version}/client.manifest")
-# Required CQB-style compass marker resources; reference pak files stay untouched.
-foreach(asset radar_arrow.tga radar_dot.tga)
-  file(MAKE_DIRECTORY "${stage}/gfx/misc")
-  file(COPY "${CMAKE_CURRENT_LIST_DIR}/../assets/gfx/misc/${asset}" DESTINATION "${stage}/gfx/misc")
-  list(APPEND module_files "gfx/misc/${asset}")
-endforeach()
-
-# Original TCE2 navigation artwork, shared by normal and authoring clients.
-foreach(asset player.tga player_self.tga player_dead.tga objective_a.tga objective_b.tga
-    flag_terror.tga flag_specops.tga SOURCE.json)
-  file(MAKE_DIRECTORY "${stage}/gfx/tce2/nav")
-  file(COPY "${CMAKE_CURRENT_LIST_DIR}/../assets/gfx/tce2/nav/${asset}" DESTINATION "${stage}/gfx/tce2/nav")
-  list(APPEND module_files "gfx/tce2/nav/${asset}")
-endforeach()
-
-# Compact role badges use TCE's own Assault / Recon / Sniper classes.
-foreach(asset assault.tga recon.tga sniper.tga SOURCE.json)
-  file(MAKE_DIRECTORY "${stage}/gfx/tce2/fireteam")
-  file(COPY "${CMAKE_CURRENT_LIST_DIR}/../assets/gfx/tce2/fireteam/${asset}" DESTINATION "${stage}/gfx/tce2/fireteam")
-  list(APPEND module_files "gfx/tce2/fireteam/${asset}")
-endforeach()
-
-# Country flags and their provenance are required client resources.
-foreach(asset world_flags.tga LICENSE.xmod.txt SOURCE.json)
-  file(MAKE_DIRECTORY "${stage}/gfx/flags")
-  file(COPY "${CMAKE_CURRENT_LIST_DIR}/../assets/gfx/flags/${asset}" DESTINATION "${stage}/gfx/flags")
-  list(APPEND module_files "gfx/flags/${asset}")
-endforeach()
-
-# User-provided Delta overview and blueprint; other maps retain their fallback.
-foreach(asset obj_delta_cc.tga obj_delta_cc_blueprint.tga SOURCE.json)
-  file(MAKE_DIRECTORY "${stage}/levelshots")
-  file(COPY "${CMAKE_CURRENT_LIST_DIR}/../assets/levelshots/${asset}" DESTINATION "${stage}/levelshots")
-  list(APPEND module_files "levelshots/${asset}")
-endforeach()
-
-# Production UI overrides remove editor entry points even with older base assets.
-set(ui_assets options_customise_hud.menu options_controls.menu options_system.menu)
-if(BUILD_VARIANT STREQUAL game)
-  list(APPEND ui_assets ingame_main.menu menus.txt menus_gt2.txt menus_gt5.txt menus_gt7.txt)
-endif()
-file(MAKE_DIRECTORY "${stage}/ui")
-foreach(asset_name IN LISTS ui_assets)
-  file(COPY "${CMAKE_CURRENT_LIST_DIR}/../assets/ui/${asset_name}" DESTINATION "${stage}/ui")
-  list(APPEND module_files "ui/${asset_name}")
-endforeach()
-
-execute_process(COMMAND "${CMAKE_COMMAND}" -E tar cf "${MODULE_DIRECTORY}/${package_name}" --format=zip -- ${module_files}
-  WORKING_DIRECTORY "${stage}" COMMAND_ERROR_IS_FATAL ANY)
-message(STATUS "Packaged client modules and manifest into ${MODULE_DIRECTORY}/${package_name}; qagame remains loose")
+# A single resource reader owns both local and full-matrix release packages.
+# This includes every file in pak/, plus only the explicit editor overlay.
+get_filename_component(tce_root "${CMAKE_CURRENT_LIST_DIR}/../.." ABSOLUTE)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+execute_process(COMMAND "${Python3_EXECUTABLE}"
+  "${tce_root}/tools/release/resource_assets.py"
+  --variant "${BUILD_VARIANT}" --module-directory "${MODULE_DIRECTORY}"
+  --output "${MODULE_DIRECTORY}/${package_name}"
+  COMMAND_ERROR_IS_FATAL ANY)
+message(STATUS "Packaged full mod resources and client modules into ${MODULE_DIRECTORY}/${package_name}; qagame remains loose")

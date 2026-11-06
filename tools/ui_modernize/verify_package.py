@@ -101,7 +101,7 @@ def verify(path, variant, baseline, repo=ROOT, transform=styled_override):
     repo = Path(repo)
     if variant not in ('game', 'editor'):
         raise ValueError('Unknown UI variant')
-    original, edited = repo/'pak', repo/'ui-modern'
+    original, edited = repo/'pak_original_tce', repo/'ui-modern'
     editor_check = sem.compare(baseline, original, edited, require_styled=True)
     if not editor_check['passed']:
         raise ValueError('Edited source not accepted: ' + '; '.join(editor_check['errors']))
@@ -112,7 +112,7 @@ def verify(path, variant, baseline, repo=ROOT, transform=styled_override):
     except (KeyError, ValueError, UnicodeDecodeError) as error:
         raise ValueError('Missing/invalid package manifest') from error
     if (not isinstance(manifest, dict) or manifest.get('schema') != 1 or manifest.get('variant') != variant or
-            manifest.get('theme') != 'TCE2 Modern UI' or manifest.get('version') != '1.0.2' or
+            manifest.get('theme') != 'TCE2 Modern UI' or manifest.get('version') != '1.0.3' or
             manifest.get('all_original_menu_sources') != baseline['menu_count']):
         raise ValueError('Wrong UI package identity/coverage')
     inventory = manifest.get('files')
@@ -229,7 +229,7 @@ def main():
     p.add_argument('--repo', type=Path, default=ROOT)
     p.add_argument('--out', type=Path, required=True)
     args = p.parse_args()
-    if any(args.out.resolve().is_relative_to((args.repo/folder).resolve()) for folder in ('pak','ui-modern')):
+    if any(args.out.resolve().is_relative_to((args.repo/folder).resolve()) for folder in ('pak','pak_original_tce','ui-modern')):
         p.error('Package receipt must be outside original/theme sources')
     if args.out.resolve() in (args.package.resolve(), args.baseline.resolve()):
         p.error('Package receipt cannot overwrite package/baseline input')

@@ -20,7 +20,7 @@ import urllib.request
 import zipfile
 
 from package import ROOT, version
-from source_archive import PREFIXES, ROOT_FILES
+from source_archive import PREFIXES, ROOT_FILES, is_source_payload
 from client_packages import check_canonical, check_module, target_table
 from loose_binaries import flat_names, read_target
 from validate import archive as validate_archive, safe_names
@@ -50,6 +50,7 @@ def release_paths(repo=ROOT, include_untracked=False):
     names = subprocess.check_output(command, cwd=repo).decode().split('\0')
     return sorted({name for name in names if name and
                    (name in ROOT_FILES or name.startswith(PREFIXES)) and
+                   name.replace('\\', '/').split('/')[0].casefold() != 'pak_original_tce' and
                    '/reconstruction/' not in name and Path(name).name != 'AGENTS.md' and
                    not any(part in ('__pycache__', 'build', '.venv', 'node_modules')
                            for part in Path(name).parts)})
@@ -106,66 +107,43 @@ def verify_zip_records(path, records):
 
 
 def release_closure(directory, inputs):
-    stage = directory / 'bundle'
-    manifest_path = stage / 'release-manifest.json'
+    from single_mod import check_bundle
+    manifest_path = directory / 'release-manifest.json'
     manifest = json.loads(manifest_path.read_text())
     targets = set(target_table())
-    pairs = sorted([[target, variant] for target in targets for variant in VARIANTS])
-    if (manifest.get('complete') is not True or manifest.get('client_inputs_promoted') is not True or
+    variants = sorted(manifest.get('mod_packages', {}))
+    pairs = sorted([[target, variant] for target in targets for variant in variants])
+    if (manifest.get('schema') != 2 or manifest.get('complete') is not True or
+            manifest.get('client_inputs_promoted') is not True or
             manifest.get('github_sha') != os.environ['GITHUB_SHA'] or
+            not variants or not set(variants) <= set(VARIANTS) or
             manifest.get('expected_targets') != pairs or manifest.get('collected_targets') != pairs or
-            set(manifest.get('client_packages', {})) != set(VARIANTS) or
             manifest.get('version') != version()):
-        raise ValueError('Release is not a complete source-bound two-variant ten-ABI collection')
+        raise ValueError('Release is not a complete source-bound all-ABI mod collection')
     records = manifest['files']
     if len({row['path'] for row in records}) != len(records):
         raise ValueError('Duplicate release manifest records')
     for row in records:
-        path = stage / row['path']
-        if not path.resolve().is_relative_to(stage.resolve()) or path.is_symlink() or not path.is_file():
+        path = directory / row['path']
+        if not path.resolve().is_relative_to(directory.resolve()) or path.is_symlink() or not path.is_file():
             raise ValueError('Missing/escaped aggregate file')
         if fingerprint(path) != {'name': path.name, 'bytes': row['bytes'], 'sha256': row['sha256']}:
-            raise ValueError('Aggregate file fingerprint mismatch: ' + row['path'])
-    expected_files = {row['path'] for row in records} | {'release-manifest.json'}
-    if {path.relative_to(stage).as_posix() for path in stage.rglob('*') if path.is_file()} != expected_files:
-        raise ValueError('Unmanifested aggregate file')
-    shared, modules, reports = {}, [], []
-    for variant in VARIANTS:
-        path = stage / manifest['client_packages'][variant]['archive']
-        with zipfile.ZipFile(path) as zipped:
-            if safe_names(zipped) != {f'tce2/tce2-{version()}.pk3', 'client-package.json', 'README.txt'}:
-                raise ValueError('Wrong shared client archive closure')
-            data = zipped.read(f'tce2/tce2-{version()}.pk3')
-            canonical = check_canonical(data, version(), variant)
-            if canonical != json.loads(zipped.read('client-package.json')):
-                raise ValueError('Shared metadata differs from actual canonical PK3')
-        if manifest['client_packages'][variant]['sha256'] != sha(data):
-            raise ValueError('Shared client aggregate hash mismatch')
-        shared[variant] = {'archive': fingerprint(path), 'pk3_sha256': sha(data),
-                           'targets': canonical['targets'], 'modules': canonical['modules'],
-                           'assets': canonical['assets']}
-        for target, config in sorted(target_table().items()):
-            path = stage / 'archives' / f'TCE2-{version()}-{target}-{variant}.zip'
-            result = validate_archive(path)  # Actual runtime, symbol, resources and boundary checks.
-            if (result.get('target') != target or result.get('variant') != variant or
-                    not result['complete_runtime'] or result['client_package_scope'] != 'shared'):
-                raise ValueError('Target archive lacks full runtime/shared client')
-            with zipfile.ZipFile(path) as zipped:
-                metadata = json.loads(zipped.read('manifest.json'))
-                if (metadata.get('configuration') != 'Release' or
-                        metadata.get('authoring') is not (variant == 'navstudio') or
-                        sha(zipped.read(f'tce2/tce2-{version()}.pk3')) != shared[variant]['pk3_sha256']):
-                    raise ValueError('Wrong target variant/configuration/client bytes')
-                for role in ('cgame', 'ui', 'qagame'):
-                    name = config.get('prefix', '') + role + config['suffix']
-                    data = zipped.read('tce2/' + name)
-                    check_module(data, role, target, variant)
-                    modules.append({'target': target, 'variant': variant, 'role': role,
-                                    'name': name, 'bytes': len(data), 'sha256': sha(data)})
-            reports.append({**result, **fingerprint(path)})
-    # Bind actual compiler invocations/result metadata, not only matrix status.
+            raise ValueError('Aggregate file fingerprint mismatch')
+    bundles = {}
+    for variant in variants:
+        row = manifest['mod_packages'][variant]
+        path = directory / row['archive']
+        data = path.read_bytes()
+        if sha(data) != row['sha256']:
+            raise ValueError('Mod/server ZIP fingerprint mismatch')
+        checked = check_bundle(data, version(), variant)
+        if checked['pk3_sha256'] != row['pk3_sha256'] or checked['targets'] != row['targets']:
+            raise ValueError('Wrong canonical mod provenance')
+        bundles[variant] = {'archive': fingerprint(path), 'pk3_sha256': checked['pk3_sha256'],
+                            'targets': checked['targets'], 'client_modules': checked['client_package']['modules'],
+                            'resource_tree': checked['resource_tree'], 'server_inputs': checked['target_inputs']}
     builds = []
-    for path in sorted((stage / 'reports').rglob('build-report.json')):
+    for path in sorted((directory / 'bundle/reports').rglob('build-report.json')):
         row = json.loads(path.read_text())
         if row.get('github_sha') != os.environ['GITHUB_SHA'] or row.get('complete_gameplay_runtime') is not True:
             raise ValueError('Missing/stale complete build provenance')
@@ -177,18 +155,13 @@ def release_closure(directory, inputs):
                        'sha256': hash_file(path), 'steps': steps})
     if sorted([[row['target'], row['variant']] for row in builds]) != pairs:
         raise ValueError('Missing/duplicate target build reports')
-    source = stage / 'archives' / f'TCE2-{version()}-Source.zip'
-    expected_source = {name: row for name, row in inputs['files'].items()
-                       if Path(name).suffix.lower() not in
-                       ('.dll', '.so', '.exe', '.pdb', '.zip', '.pk3', '.dmp', '.pyc')}
+    source = Path(manifest['source_artifact']['path'])
+    if hash_file(source) != manifest['source_artifact']['sha256']:
+        raise ValueError('Changed separate source artifact')
+    expected_source = {name: row for name, row in inputs['files'].items() if is_source_payload(name)}
     verify_zip_records(source, [{'path': name, **row} for name, row in expected_source.items()])
-    complete = directory / f'TCE2-{version()}-All-Binaries-And-Source.zip'
-    closure = verify_zip_records(complete, records + [{'path': 'release-manifest.json',
-                                'bytes': manifest_path.stat().st_size, 'sha256': hash_file(manifest_path)}])
-    return {'targets': sorted(targets), 'variants': list(VARIANTS), 'target_archives': reports,
-            'modules': modules, 'shared_clients': shared, 'builds': builds,
-            'source_archive': fingerprint(source), 'complete_archive': closure,
-            'release_manifest_sha256': hash_file(manifest_path)}
+    return {'targets': sorted(targets), 'variants': variants, 'mod_bundles': bundles, 'builds': builds,
+            'source_archive': fingerprint(source), 'release_manifest_sha256': hash_file(manifest_path)}
 
 
 def flat_zip(path, records):

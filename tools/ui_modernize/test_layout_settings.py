@@ -12,14 +12,14 @@ ROOT=Path(__file__).resolve().parents[2]
 
 
 def scenarios():
-    for source in ('pak','src/assets'):
+    for source in ('pak_original_tce','src/assets'):
         for name in sorted(layout.PAGES):
             path=ROOT/source/'ui'/name
             if path.exists():yield path,Path('ui')/name
 
 
 def semantic_context():
-    files=sem.source_files(ROOT/'pak')
+    files=sem.source_files(ROOT/'pak_original_tce')
     units=[sem.parse(path,data) for path,data in files.items() if Path(path).suffix in sem.SEMANTIC_SUFFIXES]
     _,contracts=sem.signatures(units)
     names=set()
@@ -130,7 +130,7 @@ class SettingsLayout(unittest.TestCase):
         source=source.replace('// Input //',duplicate*10+'// Input //')
         with self.assertRaisesRegex(ValueError,'exceeds safe footer'):
             layout.apply(source,Path('ui/options_controls.menu'))
-        system=restyle.read(ROOT/'pak/ui/options_system.menu').replace('"Resolution:"','"Unexpected Resolution:"')
+        system=restyle.read(ROOT/'pak_original_tce/ui/options_system.menu').replace('"Resolution:"','"Unexpected Resolution:"')
         with self.assertRaisesRegex(ValueError,'resolution row'):
             layout.apply(system,Path('ui/options_system.menu'))
 

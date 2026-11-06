@@ -7,6 +7,7 @@ from unittest.mock import patch
 import zipfile
 
 import closure_report as closure
+from source_archive import is_source_payload
 
 
 class ClosureContract(unittest.TestCase):
@@ -74,6 +75,13 @@ class ClosureContract(unittest.TestCase):
             (root / 'required.c').write_bytes(b'changed source')
             second = closure.source_identity(root)
         self.assertNotEqual(first['sha256'], second['sha256'])
+
+    def test_original_resource_snapshot_is_never_a_source_payload(self):
+        self.assertFalse(is_source_payload('pak_original_tce/zzzz_ServerListFix.pk3'))
+        self.assertFalse(is_source_payload('pak_original_tce/ui/assets/.DS_Store'))
+        self.assertFalse(is_source_payload('pak_original_tce/ui/main.menu'))
+        self.assertFalse(is_source_payload('pak/unintended.pk3'))
+        self.assertFalse(is_source_payload('src/compiled.dll'))
 
     def test_receipt_cannot_be_created_outside_manual_workflow(self):
         with patch.dict(closure.os.environ, {'GITHUB_EVENT_NAME': 'push'}):
