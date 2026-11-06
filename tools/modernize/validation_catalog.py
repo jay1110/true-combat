@@ -39,6 +39,8 @@ FIXTURES = (
     ('ui-reload', 'ui_reload_regression', 'plain', True, []),
     ('ui-server-refresh', 'server_refresh_regression', 'optimized', False, []),
     ('ui-server-browser', 'server_browser_regression', 'optimized', False, []),
+    ('ui-listbox-icons', 'listbox_icons_regression', 'optimized', False, []),
+    ('ui-field-text', 'field_text_regression', 'optimized', False, []),
     ('modern-native-ui', 'modern_native_ui_regression', 'optimized', False, []),
     ('modern-theme', 'modern_theme_regression', 'optimized', False, []),
     ('modern-deployment', 'modern_deployment_regression', 'optimized', False, []),

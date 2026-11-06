@@ -16,6 +16,12 @@ typedef struct { int integer; float value; } vmCvar_t;
 #define qfalse 0
 #define SCREEN_HEIGHT 480
 #define CVAR_ARCHIVE 1
+/* Every requested pixel mode plus existing ultrawide/smoke regressions.
+ * Desktop(-2) supplies its resolved dimensions through the same wrappers. */
+#define FIT_RESOLUTION_PAIRS {640,480},{800,600},{960,720},{1024,768},{1152,864},\
+ {1280,1024},{1600,1200},{2048,1536},{856,480},{1366,768},{1440,900},\
+ {1680,1050},{1920,1080},{1920,1200},{2560,1440},{2560,1600},{3840,2160},\
+ {1280,720},{1280,800},{2560,1080},{3440,1440}
 typedef struct { struct { int vidWidth, vidHeight; } glconfig; float xscale,yscale; int cursorx,cursory,whiteShader; float (*getCVarValue)(const char *); } displayContextDef_t;
 typedef struct { struct { const char *name; } window; } menuDef_t;
 static menuDef_t *focusedMenu,*tceMenuViewportPaintMenu;
@@ -166,7 +172,7 @@ static void wrappers(int width,int height)
 }
 static void hudContext(void)
 {
-    const int sizes[][2]={{800,600},{1280,800},{1280,720},{1920,1080},{3440,1440},{3840,2160}};
+    const int sizes[][2]={FIT_RESOLUTION_PAIRS};
     const float anchors[]={0,.5f,1},scales[]={.5f,.85f,1.f,1.5f};
     int size,anchor,tc,scale,cap;float x,y,w,h,left,top,canvasWidth,fullW,fullH,marginX,marginY;
     enabled=1;hudScaleSetting=.85f;hudMaxSetting=1080;registrations=updates=0;
@@ -174,7 +180,7 @@ static void hudContext(void)
     CHECK(near(hudScale.value,.85f)&&near(hudMaxHeight.value,1080));
     cg_aspectMode.integer=2;CHECK(CG_HudAspectMode()==0);
     x=1;y=2;w=3;h=4;CHECK(CG_HudViewportAdjust(&x,&y,&w,&h,1)==0&&x==1&&y==2&&w==3&&h==4);
-    for(size=0;size<6;++size)for(scale=0;scale<4;++scale)for(cap=0;cap<2;++cap)for(tc=0;tc<2;++tc)for(anchor=0;anchor<3;++anchor){
+    for(size=0;size<(int)(sizeof(sizes)/sizeof(sizes[0]));++size)for(scale=0;scale<4;++scale)for(cap=0;cap<2;++cap)for(tc=0;tc<2;++tc)for(anchor=0;anchor<3;++anchor){
         cgs.glconfig.vidWidth=sizes[size][0];cgs.glconfig.vidHeight=sizes[size][1];
         hudScaleSetting=scales[scale];hudMaxSetting=cap?1080:0;CG_HudViewportUpdate();
         canvasWidth=tc?TCE_VIEWPORT_CANVAS_WIDTH:640.f;
@@ -209,11 +215,11 @@ static void hudContext(void)
 }
 static void worldOverlayAndBorders(void)
 {
-    const int sizes[][2]={{800,600},{1280,800},{1280,720},{1920,1080},{3440,1440},{3840,2160}};
+    const int sizes[][2]={FIT_RESOLUTION_PAIRS};
     const float scales[]={.5f,.85f,1.f,1.5f};
     int size,scale,tc,row,col,i,covered;float x,y,w,h,reference[4],left,top,right,bottom,px,py;
     enabled=1;CG_HudViewportInit();
-    for(size=0;size<6;++size)for(scale=0;scale<4;++scale)for(tc=0;tc<2;++tc){
+    for(size=0;size<(int)(sizeof(sizes)/sizeof(sizes[0]));++size)for(scale=0;scale<4;++scale)for(tc=0;tc<2;++tc){
         cgs.glconfig.vidWidth=sizes[size][0];cgs.glconfig.vidHeight=sizes[size][1];
         cgs.screenXScale=sizes[size][0]/640.f;cgs.screenYScale=sizes[size][1]/480.f;
         hudScaleSetting=scales[scale];hudMaxSetting=1080;CG_HudViewportUpdate();
@@ -258,13 +264,13 @@ static void worldOverlayAndBorders(void)
 
 static void nativeMenusAndInput(void)
 {
-    const int sizes[][2]={{640,480},{1024,768},{1280,720},{1920,1080},{2560,1080},{3440,1440},{3840,2160}};
+    const int sizes[][2]={FIT_RESOLUTION_PAIRS};
     const float scales[]={.5f,.65f,.85f,1.f,1.25f,1.5f};
     const int events[]={CGAME_EVENT_SPEAKEREDITOR,CGAME_EVENT_GAMEVIEW,CGAME_EVENT_CAMPAIGNBREIFING,CGAME_EVENT_FIRETEAMMSG,CGAME_EVENT_DEMO};
     int size,scale,wide,event;float x,y,w,h,hud[4],expected[4],unitX,unitY;
     tce_viewport_t view;
     modernEnabled=1;
-    for(size=0;size<7;++size)for(scale=0;scale<6;++scale)for(wide=0;wide<2;++wide){
+    for(size=0;size<(int)(sizeof(sizes)/sizeof(sizes[0]));++size)for(scale=0;scale<6;++scale)for(wide=0;wide<2;++wide){
         cgs.glconfig.vidWidth=uiInfo.uiDC.glconfig.vidWidth=sizes[size][0];
         cgs.glconfig.vidHeight=uiInfo.uiDC.glconfig.vidHeight=sizes[size][1];
         cgs.screenXScale=uiInfo.uiDC.xscale=sizes[size][0]/640.f;
@@ -333,7 +339,7 @@ static void headerMenusAndHudComposites(void)
 {
     const char *names[]={"ingame_main","options","ingame_vote","main","quit","modern_appearance","options_system"};
     menuDef_t menu,underneath;
-    const int sizes[][2]={{1024,768},{1280,720},{1920,1080},{2560,1080},{3440,1440}};
+    const int sizes[][2]={FIT_RESOLUTION_PAIRS};
     const float scales[]={.5f,.65f,.85f,1.f,1.25f};
     int i,size,scale;float x,y,w,h,expectedY,unit;
     modernEnabled=1;enabled=1;menuScaleSetting=.65f;menuMaxSetting=1080;CG_HudViewportInit();CG_HudViewportEnd();
@@ -353,7 +359,7 @@ static void headerMenusAndHudComposites(void)
     /* Disconnect text belongs to the center group, while the icon/graph keep
      * their right-bottom anchor. Varying scale must not move the text center. */
     cg.snap=&snapshot;cg.time=4096;cg_timescale.value=1;commandTime=4000;snapshot.ps.commandTime=100;
-    for(size=0;size<5;++size)for(scale=0;scale<5;++scale){
+    for(size=0;size<(int)(sizeof(sizes)/sizeof(sizes[0]));++size)for(scale=0;scale<5;++scale){
         cgs.glconfig.vidWidth=sizes[size][0];cgs.glconfig.vidHeight=sizes[size][1];
         cgs.screenXScale=sizes[size][0]/640.f;cgs.screenYScale=sizes[size][1]/480.f;
         hudScaleSetting=scales[scale];hudMaxSetting=1080;CG_HudViewportUpdate();
@@ -379,7 +385,7 @@ static void headerMenusAndHudComposites(void)
 
 static void backgroundAndFullscreenScopes(void)
 {
-    const int sizes[][2]={{1024,768},{1280,720},{1920,1080},{3440,1440},{3840,2160}};
+    const int sizes[][2]={FIT_RESOLUTION_PAIRS};
     const float scales[]={.5f,.85f,1.f,1.25f,1.5f};
     const char *backgrounds[]={"background_1","background_black","fadebox_black"};
     void (*adjust[4])(float*,float*,float*,float*)={UI_AdjustFrom640,SharedWindowsAdjust,SharedLinuxAdjust,SharedGenericAdjust};
@@ -389,7 +395,7 @@ static void backgroundAndFullscreenScopes(void)
     int size,scale,n,name,previous,inner;
     modernEnabled=1;enabled=1;tce_uiCoordinates=qtrue;focused.window.name="options_system";focusedMenu=&focused;
     tceMenuViewportPaintMenu=NULL;TCE_ViewportSetDrawMode(TCE_VIEWPORT_MENU);
-    for(size=0;size<5;++size)for(scale=0;scale<5;++scale){
+    for(size=0;size<(int)(sizeof(sizes)/sizeof(sizes[0]));++size)for(scale=0;scale<5;++scale){
         cgs.glconfig.vidWidth=uiInfo.uiDC.glconfig.vidWidth=sizes[size][0];
         cgs.glconfig.vidHeight=uiInfo.uiDC.glconfig.vidHeight=sizes[size][1];
         cgs.screenXScale=uiInfo.uiDC.xscale=sizes[size][0]/640.f;
@@ -464,7 +470,7 @@ static void backgroundAndFullscreenScopes(void)
 
 static void physicalCursorAndFittedText(void)
 {
-    const int sizes[][2]={{1024,768},{1280,720},{1920,1080},{3440,1440},{3840,2160}};
+    const int sizes[][2]={FIT_RESOLUTION_PAIRS};
     const float scales[]={.5f,.65f,.85f,1.f,1.25f,1.5f};
     const char *names[]={"options","options_system"};
     const char *texts[]={"Options","Set recommended","^3This complete long menu label must remain readable","WIDE FULL LABEL 0123456789"};
@@ -473,7 +479,7 @@ static void physicalCursorAndFittedText(void)
     float baseSize,fitSize,expectedX,expectedY,fitScale;
     int size,scale,mode,anchor,centered,cap,i,j,strong;
     modernEnabled=enabled=1;menuMaxSetting=1080;
-    for(size=0;size<5;++size){
+    for(size=0;size<(int)(sizeof(sizes)/sizeof(sizes[0]));++size){
         cgs.glconfig.vidWidth=uiInfo.uiDC.glconfig.vidWidth=sizes[size][0];
         cgs.glconfig.vidHeight=uiInfo.uiDC.glconfig.vidHeight=sizes[size][1];
         baseSize=20*fminf(sizes[size][0]/TCE_VIEWPORT_CANVAS_WIDTH,sizes[size][1]/480.f);
@@ -512,12 +518,12 @@ static void physicalCursorAndFittedText(void)
 }
 int main(void)
 {
-    const int sizes[][2]={{800,600},{1280,800},{1280,720},{1920,1080},{3440,1440},{3840,2160}};
+    const int sizes[][2]={FIT_RESOLUTION_PAIRS};
     const float scales[]={.5f,.85f,1.f,1.5f};
     int i,j,k;float x,y,w,h;
     tce_viewport_t view,before;
-    for(i=0;i<6;++i)for(j=0;j<4;++j)for(k=0;k<2;++k){menuScaleSetting=scales[j];menuMaxSetting=k?1080:0;wrappers(sizes[i][0],sizes[i][1]);}
-    for(i=0;i<6;++i){
+    for(i=0;i<(int)(sizeof(sizes)/sizeof(sizes[0]));++i)for(j=0;j<4;++j)for(k=0;k<2;++k){menuScaleSetting=scales[j];menuMaxSetting=k?1080:0;wrappers(sizes[i][0],sizes[i][1]);}
+    for(i=0;i<(int)(sizeof(sizes)/sizeof(sizes[0]));++i){
         CHECK(TCE_ViewportFit(&view,sizes[i][0],sizes[i][1],640,480,0,1,0,0));
         CHECK(near(view.offsetX,0)&&near(view.offsetY,0));
         CHECK(view.scale<=sizes[i][0]/640.f+.001f&&view.scale<=sizes[i][1]/480.f+.001f);

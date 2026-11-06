@@ -118,7 +118,10 @@ def main_layout(text, path):
             ratio = {'groovesix':2, 'teamterminator':164/48,
                      'atvi_logo':4, 'id_logo':1, 'sd_logo':1}[match[1].lower()]
             w, h = min(80, 28*ratio), min(28, 80/ratio)
-            block = item_prop(block, 'rect', f'{x+(80-w)/2:g} {440+(28-h)/2:g} {w:g} {h:g}')
+            # Item coordinates are relative to the menu. The compact normal
+            # main has a48/92 origin; the footer still belongs atscreen y440.
+            origin_x, origin_y = (48,92) if compact else (0,0)
+            block = item_prop(block, 'rect', f'{x+(80-w)/2-origin_x:g} {440+(28-h)/2-origin_y:g} {w:g} {h:g}')
         elif re.search(r'(?im)^\s*name\s+ELITELOGO\b', block):
             block = item_prop(block, 'rect', '612 34 176 88')
         text = text[:start] + block + text[end:]

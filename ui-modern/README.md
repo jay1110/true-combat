@@ -10,6 +10,8 @@ Das Theme enthält UI-Ressourcen, Schriften und Bilder. Es enthält keine DLLs, 
 
 Die überarbeiteten Unterseiten nutzen eine 852×480-Arbeitsfläche mit größeren Einstellungszeilen und festen Fußleisten. Fünf Kategorieverweise auf allen Settings-Unterseiten verwenden die vorhandene Zurück-Aktion und das jeweilige Zielmenü; die aktive Kategorie bleibt ohne Klickaktion. Die Navigation reagiert auf Maus und Tastaturfokus. Referee-Unterseiten behalten die ursprünglichen Berechtigungen ihrer dauerhaften Misc-/Map-/Players-Verweise. Listen dürfen Positionen und Spaltenbreiten ändern; Anzahl, Reihenfolge und maximale Zeichenanzahl bleiben geschützt. `ui/modern_widgets.h` ist eine gesondert semantisch geprüfte Darstellung der ursprünglichen Widgets. Das Startmenü behält seine Inhalte und Aktionen mit einer schmaleren Navigationsfläche; seine gemeinsamen Menüabhängigkeiten und sämtliche Originaldateien unter `pak` bleiben unverändert.
 
+Der Serverbrowser und seine Rückkehrseite nutzen den Platz bis zur unteren Aktionsreihe für zehn vollständige Zeilen. Filter- und Favoritensymbole bleiben innerhalb ihrer Spalten. Lange Tastenzuweisungen und Spaltentexte werden anhand der tatsächlichen Schriftbreite eingepasst. Mehrzeilige Meldungen berücksichtigen zusätzlich die Feldhöhe und die tatsächlichen Glyphenränder; ihr Text bleibt vollständig erhalten. Die ServerListFix-Abfrage ist enthalten; die acht auswählbaren Filter gelten weiterhin. Bei einer leeren Liste deshalb auch die Filtereinstellungen prüfen.
+
 ## Installation und Rückkehr zum bisherigen Aussehen
 
 Genau **eine** Variante auswählen:

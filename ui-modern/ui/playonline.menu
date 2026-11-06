@@ -246,7 +246,7 @@ menuDef {
 
 // Server Browser //
 
-	SUBWINDOW( 224, 186, 604, 246, "Server Browser" )
+	SUBWINDOW( 224, 186, 604, 288, "Server Browser" )
 	
 	// Rows
 	
@@ -293,7 +293,7 @@ menuDef {
 	itemDef {
 		name		"row5"
 		group		GROUP_NAME
-		rect		224 344 588 1
+		rect		224 421 588 21
 		style		WINDOW_STYLE_FILLED
 		backcolor	.12 .17 .22 .16
 		visible		1
@@ -303,7 +303,7 @@ menuDef {
 	itemDef {
 		name		"row6"
 		group		GROUP_NAME
-		rect		224 372 588 1
+		rect		224 441 588 1
 		style		WINDOW_STYLE_FILLED
 		backcolor	.12 .17 .22 .16
 		visible		1
@@ -353,7 +353,7 @@ menuDef {
 	itemDef {
 		name		"serverColumn"
 		group		"grpColumns"
-		rect		224 232 282 168
+		rect		224 232 282 210
 		style		WINDOW_STYLE_FILLED
 		backcolor	0 0 0 0
 		border		WINDOW_BORDER_FULL
@@ -394,7 +394,7 @@ menuDef {
 	itemDef {
 		name		"mapColumn"
 		group		"grpColumns"
-		rect		506 232 88 168
+		rect		506 232 88 210
 		style		WINDOW_STYLE_FILLED
 		backcolor	0 0 0 0
 		border		WINDOW_BORDER_FULL
@@ -435,7 +435,7 @@ menuDef {
 	itemDef {
 		name		"playerColumn"
 		group		"grpColumns"
-		rect		594 232 42 168
+		rect		594 232 42 210
 		style		WINDOW_STYLE_FILLED
 		backcolor	0 0 0 0
 		border		WINDOW_BORDER_FULL
@@ -476,7 +476,7 @@ menuDef {
 	itemDef {
 		name		"gametypeColumn"
 		group		"grpColumns"
-		rect		636 232 46 168
+		rect		636 232 46 210
 		style		WINDOW_STYLE_FILLED
 		backcolor	0 0 0 0
 		border		WINDOW_BORDER_FULL
@@ -517,7 +517,7 @@ menuDef {
 	itemDef {
 		name		"pingColumn"
 		group		"grpColumns"
-		rect		682 232 34 168
+		rect		682 232 34 210
 		style		WINDOW_STYLE_FILLED
 		backcolor	0 0 0 0
 		border		WINDOW_BORDER_FULL
@@ -548,7 +548,7 @@ menuDef {
 	itemDef {
 		name		"filtersColumn"
 		group		GROUP_NAME
-		rect		716 232 84 168
+		rect		716 232 84 210
 		border		WINDOW_BORDER_FULL
 		bordercolor	.18 .24 .29 .35
 		visible		1
@@ -577,7 +577,7 @@ menuDef {
 	itemDef {
 		name		"favouritesColumn"
 		group		GROUP_NAME
-		rect		800 232 12 168
+		rect		800 232 12 210
 		border		WINDOW_BORDER_FULL
 		bordercolor	.18 .24 .29 .35
 		visible		1
@@ -589,7 +589,7 @@ menuDef {
 	itemDef {
 		name			"serverList"
 		group			GROUP_NAME
-		rect			224 232 604 168
+		rect			224 232 604 210
 		type			ITEM_TYPE_LISTBOX
 		textfont		UI_FONT_COURBD_21
 		textstyle		ITEM_TEXTSTYLE_NORMAL
@@ -620,15 +620,15 @@ menuDef {
 	
 	// Misc Buttons
 	
-	BUTTON( 232, 406, 112, 22, "Refresh List!", .22, 16, exec "globalservers 0 84 empty full";uiScript RefreshFilter )
-	BUTTON( 352, 406, 112, 22, "Connect to IP", .22, 16, close playonline ; open playonline_connecttoip )
-	BUTTON( 472, 406, 112, 22, "Server Info", .22, 16, close playonline ; open playonline_serverinfo )
+	BUTTON( 232, 448, 112, 22, "Refresh List!", .22, 16, exec "globalservers 0 84 empty full";uiScript RefreshFilter )
+	BUTTON( 352, 448, 112, 22, "Connect to IP", .22, 16, close playonline ; open playonline_connecttoip )
+	BUTTON( 472, 448, 112, 22, "Server Info", .22, 16, close playonline ; open playonline_serverinfo )
 	
-	NAMEDBUTTON( "bttn_pbenable", 592, 406, 112, 22, "Enable PB", .22, 16, close playonline ; open playonline_enablepb )
-	NAMEDBUTTON( "bttn_pbdisable", 592, 406, 112, 22, "Disable PB", .22, 16, close playonline ; open playonline_disablepb )
+	NAMEDBUTTON( "bttn_pbenable", 592, 448, 112, 22, "Enable PB", .22, 16, close playonline ; open playonline_enablepb )
+	NAMEDBUTTON( "bttn_pbdisable", 592, 448, 112, 22, "Disable PB", .22, 16, close playonline ; open playonline_disablepb )
 
 // Buttons //
 	
 	BUTTON( 24, 442, 184, 28, "Main Menu", .26, 20, close playonline ; open main )
-	BUTTON( 712, 406, 112, 22, "Join Server", .22, 16, uiScript JoinServer )
+	BUTTON( 712, 448, 112, 22, "Join Server", .22, 16, uiScript JoinServer )
 }

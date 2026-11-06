@@ -643,8 +643,8 @@ def normalize_layout(units,reference_units,contracts):
                         expected.update(_vote_nav_fields(reference,unit.path,key,int(case),contracts))
                     if fields!=expected:raise ValueError('Vote navigation differs from original privilege/exit/target')
                     vote_seen.add(suffix);i=end;continue
-                if unit.path=='ui/playonline.menu' and name=='"descriptionFilters"' and 'autowrapped' in inner:
-                    # One original dynamic help field may wrap its unchanged
+                if unit.path in ('ui/playonline.menu','ui/playonline_sub.menu') and name=='"descriptionFilters"' and 'autowrapped' in inner:
+                    # Both browser pages may wrap their original dynamic help
                     # cvar text. No global label/control semantics are relaxed.
                     if inner.count('autowrapped')!=1 or ['cvar','ui_filterdescription'] not in [inner[j:j+2] for j in range(len(inner)-1)]:
                         raise ValueError('Unbound filter-description wrapping')

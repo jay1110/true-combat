@@ -5522,6 +5522,156 @@ void Item_TextColor(itemDef_t *item, vec4_t *newColor)
 }
 
 
+/* Actual glyph ink bounds, using the same bearings/scale as Text_Paint.
+ * This does not infer descenders from a nominal font height. */
+static void TCE_ParagraphInk(itemDef_t *item, const char *text, float scale, float *bounds)
+{
+    fontInfo_t *font = &DC->Assets.fonts[item->font >= 0 && item->font < 6 ? item->font : 0];
+    float pen = 0, unit = scale * font->glyphScale;
+    bounds[0] = bounds[1] = bounds[2] = bounds[3] = 0;
+    while (*text)
+    {
+        glyphInfo_t *glyph;
+        float left, top, right, bottom;
+        if (Q_IsColorString(text)) { text += 2; continue; }
+        if ((unsigned char)*text < 20) { ++text; continue; }
+        glyph = &font->glyphs[(unsigned char)*text++];
+        left = pen + glyph->pitch * unit; top = -glyph->top * unit;
+        right = left + glyph->imageWidth * unit; bottom = top + glyph->imageHeight * unit;
+        if (left < bounds[0]) bounds[0] = left;
+        if (top < bounds[1]) bounds[1] = top;
+        if (right > bounds[2]) bounds[2] = right;
+        if (bottom > bounds[3]) bounds[3] = bottom;
+        pen += glyph->xSkip * unit;
+    }
+}
+
+/* Measurement and painting share the original native line-break loop. */
+static qboolean TCE_ModernWrappedPass(itemDef_t *item, const char *textPtr, vec4_t color,
+                                     float scale, float advance, float baseline, qboolean paint)
+{
+    const char *p, *newLinePtr = NULL;
+    char buff[1024];
+    int len, textWidth = 0, newLine, newLineWidth;
+    qboolean hasWhitespace, fits = qtrue;
+    float y;
+	y             = baseline;
+	len           = 0;
+	buff[0]       = '\0';
+	newLine       = 0;
+	newLineWidth  = 0;
+	hasWhitespace = qfalse;
+	p             = textPtr;
+	while (p)
+	{
+		textWidth = DC->textWidth(buff, scale, 0);
+		if (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\0')
+		{
+			newLine       = len;
+			newLinePtr    = p + 1;
+			newLineWidth  = textWidth;
+			hasWhitespace = qtrue;
+		}
+		else if (!hasWhitespace && textWidth > item->window.rect.w)
+		{
+			newLine      = len;
+			newLinePtr   = p;
+			newLineWidth = textWidth;
+		}
+		if (len >= (int)sizeof(buff) - 2) { newLine = len; newLinePtr = p; newLineWidth = textWidth; }
+		if ((newLine && textWidth > item->window.rect.w) || len >= (int)sizeof(buff) - 2 || *p == '\n' || *p == '\0')
+		{
+			if (len)
+			{
+				if (item->textalignment == ITEM_ALIGN_LEFT)
+				{
+					item->textRect.x = item->textalignx;
+				}
+				else if (item->textalignment == ITEM_ALIGN_RIGHT)
+				{
+					item->textRect.x = item->textalignx - newLineWidth;
+				}
+				else if (item->textalignment == ITEM_ALIGN_CENTER)
+				{
+					item->textRect.x = item->textalignx - newLineWidth / 2;
+				}
+				item->textRect.y = y;
+				ToWindowCoords(&item->textRect.x, &item->textRect.y, &item->window);
+				buff[newLine] = '\0';
+                {
+                    float bounds[4], shift;
+                    TCE_ParagraphInk(item, buff, scale, bounds);
+                    /* Native bearings may extend beyond advance widths. Keep
+                     * that ink inside the field without changing its text. */
+                    shift = item->textRect.x + bounds[0];
+                    if (shift < item->window.rect.x) item->textRect.x += item->window.rect.x - shift;
+                    shift = item->textRect.x + bounds[2];
+                    if (shift > item->window.rect.x + item->window.rect.w)
+                        item->textRect.x -= shift - (item->window.rect.x + item->window.rect.w);
+                    if (item->textRect.x + bounds[0] < item->window.rect.x - .001f ||
+                        item->textRect.x + bounds[2] > item->window.rect.x + item->window.rect.w + .001f ||
+                        item->textRect.y + bounds[1] < item->window.rect.y - .001f ||
+                        item->textRect.y + bounds[3] > item->window.rect.y + item->window.rect.h + .001f) fits = qfalse;
+                }
+                if (paint) DC->drawText(item->textRect.x, item->textRect.y, scale, color, buff, 0, 0, item->textStyle);
+			}
+			if (*p == '\0')
+			{
+				break;
+			}
+			//
+			y            += advance;
+			p             = newLinePtr;
+			len           = 0;
+			newLine       = 0;
+			newLineWidth  = 0;
+			hasWhitespace = qfalse;
+			continue;
+		}
+		buff[len++] = *p++;
+
+		if (buff[len - 1] == 13)
+		{
+			buff[len - 1] = ' ';
+		}
+
+		buff[len] = '\0';
+	}
+    return fits;
+}
+
+static void TCE_ModernAutoWrapped(itemDef_t *item, const char *textPtr)
+{
+    itemDef_t layout;
+    vec4_t color;
+    int width, height, iteration;
+    float low = 0, high = 1, ratio = 1, baseline, bounds[4];
+    Item_TextColor(item, &color);
+    Item_SetTextExtents(item, &width, &height, textPtr);
+    TCE_ParagraphInk(item, textPtr, item->textscale, bounds);
+    baseline = item->textaligny > -bounds[1] ? item->textaligny : -bounds[1];
+    if (!(item->window.rect.w > 0) || !(item->window.rect.h > 0)) return;
+    layout = *item;
+    if (!TCE_ModernWrappedPass(&layout, textPtr, color, item->textscale, height + 5.f, baseline, qfalse))
+    {
+        /* Finite search: each candidate uses exactly the painting wrap rules.
+         * Scale the line gap too, so explicit blank lines remain bounded. */
+        for (iteration = 0; iteration < 16; ++iteration)
+        {
+            float middle = (low + high) * .5f;
+            layout = *item;
+            if (TCE_ModernWrappedPass(&layout, textPtr, color, item->textscale * middle,
+                                      (height + 5.f) * middle, baseline * middle, qfalse)) low = middle;
+            else high = middle;
+        }
+        ratio = low;
+    }
+    layout = *item;
+    TCE_ModernWrappedPass(&layout, textPtr, color, item->textscale * ratio,
+                          (height + 5.f) * ratio, baseline * ratio, qtrue);
+    item->textRect = layout.textRect;
+}
+
 void Item_Text_AutoWrapped_Paint(itemDef_t *item)
 {
 	char       text[1024];
@@ -5555,6 +5705,7 @@ void Item_Text_AutoWrapped_Paint(itemDef_t *item)
 	{
 		return;
 	}
+	if (TCE_ModernUIEnabled()) { TCE_ModernAutoWrapped(item, textPtr); return; }
 	Item_TextColor(item, &color);
 	Item_SetTextExtents(item, &width, &height, textPtr);
 
@@ -6414,6 +6565,19 @@ void Item_Slider_Paint(itemDef_t *item)
 }
 
 
+/* The active item's font is already selected by Item_Paint. Retain the text
+ * and its existing character limit while fitting modern values/columns. */
+static float TCE_FitTextScale(const char *text, float scale, int limit, float available)
+{
+	int width;
+	if (!(available > 0.f)) return 0.f;
+	width = DC->textWidth(text, scale, limit);
+	/* textWidth returns integer advances. Its upper bound avoids a fractional
+	 * glyph spilling past the field after the proportional reduction. */
+	if (width + 1.f > available) scale *= available / (width + 1.f);
+	return scale;
+}
+
 void Item_Bind_Paint(itemDef_t *item)
 {
 	vec4_t         newColor, lowLight;
@@ -6466,7 +6630,16 @@ void Item_Bind_Paint(itemDef_t *item)
 	{
 		Item_Text_Paint(item);
 		BindingFromName(item->cvar);
-		DC->drawText(item->textRect.x + item->textRect.w + 8, item->textRect.y, item->textscale, newColor, g_nameBind1, 0, maxChars, item->textStyle);
+		if (TCE_ModernUIEnabled())
+		{
+			float left = item->textRect.x + item->textRect.w + 8;
+			float available = item->window.rect.x + item->window.rect.w - left - 2.f;
+			DC->drawText(left, item->textRect.y, TCE_FitTextScale(g_nameBind1, item->textscale, maxChars, available), newColor, g_nameBind1, 0, maxChars, item->textStyle);
+		}
+		else
+		{
+			DC->drawText(item->textRect.x + item->textRect.w + 8, item->textRect.y, item->textscale, newColor, g_nameBind1, 0, maxChars, item->textStyle);
+		}
 	}
 	else
 	{
@@ -6920,6 +7093,40 @@ void Item_Image_Paint(itemDef_t *item)
 	DC->drawHandlePic(item->window.rect.x + 1, item->window.rect.y + 1, item->window.rect.w - 2, item->window.rect.h - 2, item->asset);
 }
 
+/* Feeder image slots have fixed meanings, including absent (-1) entries.
+ * Modern row height must not push those slots beyond their column. */
+static void TCE_ListBoxOptionalImages(float x, float y, listBoxDef_t *listPtr,
+                                     int column, int numOptionalImages, qhandle_t *optionalImages)
+{
+	int k;
+	qboolean modern = TCE_ModernUIEnabled();
+	float pitch = listPtr->elementHeight;
+	if (modern && numOptionalImages > 0)
+	{
+		float available = listPtr->columnInfo[column].width / (float)numOptionalImages;
+		if (available < pitch) pitch = available;
+		if (!(pitch > 2.f)) return;
+	}
+	for (k = 0; k < numOptionalImages; ++k)
+	{
+		if (optionalImages[k] >= 0)
+		{
+			if (modern)
+			{
+				float iconSize = pitch - 2.f;
+				DC->drawHandlePic(x + listPtr->columnInfo[column].pos + k * pitch + 1.f,
+				                  y + (listPtr->elementHeight - iconSize) * .5f,
+				                  iconSize, iconSize, optionalImages[k]);
+			}
+			else
+			{
+				DC->drawHandlePic(x + listPtr->columnInfo[column].pos + k * listPtr->elementHeight + 1,
+				                  y + 1, listPtr->elementHeight - 2, listPtr->elementHeight - 2, optionalImages[k]);
+			}
+		}
+	}
+}
+
 void Item_ListBox_Paint(itemDef_t *item)
 {
 	float        x, y, size, count, i, thumb;
@@ -7073,26 +7280,29 @@ void Item_ListBox_Paint(itemDef_t *item)
 
 				if (listPtr->numColumns > 0)
 				{
-					int j, k;
+					int j;
 					for (j = 0; j < listPtr->numColumns; j++)
 					{
 						text = DC->feederItemText(item->special, i, j, optionalImages, &numOptionalImages);
 						if (numOptionalImages > 0)
 						{
-							for ( k = 0; k < numOptionalImages; k++ )
-							{
-								if (optionalImages[k] >= 0)
-								{
-									DC->drawHandlePic(x + listPtr->columnInfo[j].pos + k * listPtr->elementHeight + 1,
-									                  y + 1, listPtr->elementHeight - 2, listPtr->elementHeight - 2, optionalImages[k]);
-								}
-							}
+							TCE_ListBoxOptionalImages(x, y, listPtr, j, numOptionalImages, optionalImages);
 							//DC->drawHandlePic( x + 4 + listPtr->columnInfo[j].pos, y - 1 + listPtr->elementHeight / 2, listPtr->columnInfo[j].width, listPtr->columnInfo[j].width, optionalImage);
 						}
 						else if (text)
 						{
-							DC->drawText(x + 4 + listPtr->columnInfo[j].pos + item->textalignx,
-							             y + listPtr->elementHeight + item->textaligny, item->textscale, item->window.foreColor, text, 0, listPtr->columnInfo[j].maxChars, item->textStyle);
+							if (TCE_ModernUIEnabled())
+							{
+								float available = listPtr->columnInfo[j].width - 4.f - item->textalignx;
+								float scale = TCE_FitTextScale(text, item->textscale, listPtr->columnInfo[j].maxChars, available);
+								DC->drawText(x + 4 + listPtr->columnInfo[j].pos + item->textalignx,
+								             y + listPtr->elementHeight + item->textaligny, scale, item->window.foreColor, text, 0, listPtr->columnInfo[j].maxChars, item->textStyle);
+							}
+							else
+							{
+								DC->drawText(x + 4 + listPtr->columnInfo[j].pos + item->textalignx,
+								             y + listPtr->elementHeight + item->textaligny, item->textscale, item->window.foreColor, text, 0, listPtr->columnInfo[j].maxChars, item->textStyle);
+							}
 						}
 					}
 				}

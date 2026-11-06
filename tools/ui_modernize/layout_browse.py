@@ -105,7 +105,7 @@ def _server(text):
         '"Game Filters"': (24, 60, 184, 372),
         '"Message of the Day"': (224, 60, 364, 126),
         '"Map Preview"': (600, 60, 228, 126),
-        '"Server Browser"': (224, 186, 604, 246),
+        '"Server Browser"': (224, 186, 604, 288),
     }
     filters = {
         'ui_browserShowEmptyOrFull': 158,
@@ -118,14 +118,14 @@ def _server(text):
         'ui_browserShowTeamBalanced': 326,
     }
     buttons = {
-        '"Refresh List!"': (232, 406, 112, 22),
-        '"Refresh List"': (232, 406, 112, 22),
-        '"Connect to IP"': (352, 406, 112, 22),
-        '"Server Info"': (472, 406, 112, 22),
-        '"Enable PB"': (592, 406, 112, 22),
-        '"Disable PB"': (592, 406, 112, 22),
+        '"Refresh List!"': (232, 448, 112, 22),
+        '"Refresh List"': (232, 448, 112, 22),
+        '"Connect to IP"': (352, 448, 112, 22),
+        '"Server Info"': (472, 448, 112, 22),
+        '"Enable PB"': (592, 448, 112, 22),
+        '"Disable PB"': (592, 448, 112, 22),
         '"Main Menu"': (24, 442, 184, 28),
-        '"Join Server"': (712, 406, 112, 22),
+        '"Join Server"': (712, 448, 112, 22),
     }
 
     def change_macro(name, args):
@@ -159,7 +159,7 @@ def _server(text):
     x = 224
     for label, width in zip(columns, widths):
         geometry[label + 'ColumnTab'] = (x, 208, width + (16 if label == 'favourites' else 0), 24)
-        geometry[label + 'Column'] = (x, 232, width, 168)
+        geometry[label + 'Column'] = (x, 232, width, 210)
         x += width
 
     def change_item(name, block):
@@ -183,13 +183,12 @@ def _server(text):
             # Existing stripes remain named, now aligned to the 21px row rhythm.
             values.update(rect='224 %d 588 21' % (253 + (int(name[-1]) - 1) * 42),
                           backcolor='.12 .17 .22 .16')
-            # Six legacy stripes exceed the taller row rhythm. Keep the last
-            # two inside the list using a thinner repeat instead of drawing
-            # below the table or under the footer controls.
-            if name in ('row5', 'row6'):
-                values['rect'] = '224 %d 588 1' % (232 + (int(name[-1]) - 1) * 28)
+            # Ten visible rows use five alternating stripes. Keep the sixth
+            # legacy decoration on the final pixel rather than under actions.
+            if name == 'row6':
+                values['rect'] = '224 441 588 1'
         elif name == 'serverList':
-            values.update(rect='224 232 604 168', elementwidth='588', elementheight='21',
+            values.update(rect='224 232 604 210', elementwidth='588', elementheight='21',
                           textscale='.21', textaligny='-2', outlinecolor='.94 .75 .27 .20',
                           columns='7 0 282 39 282 88 13 370 42 10 412 46 10 458 34 4 492 84 5 576 12 1')
         return values

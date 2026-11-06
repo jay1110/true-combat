@@ -7,6 +7,7 @@ import layout_common
 import layout_browse
 import layout_settings
 import restyle
+import semantic as sem
 from test_layout_settings import font_width
 from test_widget_continuations import physical_macros
 
@@ -15,6 +16,24 @@ ROOT=Path(__file__).resolve().parents[2]
 
 
 class LandingPolishTests(unittest.TestCase):
+    def test_all_main_publisher_logos_fit_footer_after_native_parent_offset(self):
+        names={'groovesix','teamterminator','atvi_logo','id_logo','sd_logo'}
+        for directory in ('ui','ui_obj','ui_robj','ui_tdm'):
+            path=Path(directory)/'main.menu'
+            result=restyle.menu(restyle.read(ROOT/'pak'/path),path)
+            origin=[float(re.search(r'^#define '+key+r' ([\d.]+)$',result,re.M)[1])
+                    for key in ('WINDOW_X','WINDOW_Y')]
+            seen=set()
+            for start,end in restyle.blocks(result):
+                block=sem.strip_comments(result[start:end])
+                match=re.search(r'\bname\s+"?(groovesix|teamterminator|atvi_logo|id_logo|sd_logo)\b',block)
+                if not match:continue
+                x,y,w,h=map(float,re.search(r'\brect\s+([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)',block).groups())
+                seen.add(match[1]);x+=origin[0];y+=origin[1]
+                self.assertGreaterEqual(x,64);self.assertLessEqual(x+w,548)
+                self.assertGreaterEqual(y,440);self.assertLessEqual(y+h,468)
+            self.assertEqual(seen,names)
+
     def test_all_three_hubs_leave_map_visible_and_keep_original_actions(self):
         for filename in ('ingame_main.menu','ingame_vote.menu','options.menu'):
             sources=[ROOT/'pak/ui'/filename]

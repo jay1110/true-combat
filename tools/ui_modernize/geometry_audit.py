@@ -26,7 +26,11 @@ import semantic
 
 ROOT = Path(__file__).resolve().parents[2]
 CANVAS = (0.0, 0.0, 852.0, 480.0)
-SCENARIOS = ((1024,768), (1280,720), (1920,1080), (2560,1080), (3440,1440))
+SCENARIOS = ((640,480), (800,600), (960,720), (1024,768), (1152,864),
+             (1280,1024), (1600,1200), (2048,1536), (856,480), (1366,768),
+             (1440,900), (1680,1050), (1920,1080), (1920,1200),
+             (2560,1440), (2560,1600), (3840,2160),
+             (1280,720), (2560,1080), (3440,1440))
 TOKEN = re.compile(r'"(?:[^"\\]|\\.)*"|[-+]?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?|[A-Za-z_]\w*|[^\s]')
 VALUES = {'name':1,'rect':4,'text':1,'textscale':1,'textfont':1,
           'textalign':1,'textalignx':1,'textaligny':1,'visible':1,'type':1,
@@ -143,8 +147,9 @@ def outside(rect,canvas=CANVAS,tolerance=.75):
 
 def inspect(menus,path,fonts=None):
     findings=[];items=0
-    # Main/global artwork is explicitly frozen by the user's prior approval.
-    frozen=Path(path).name in ('main.menu','global.menu')
+    # Global full-bleed background layers intentionally overscan. Main-menu
+    # controls and logos must still fit, including their native parent offset.
+    frozen=Path(path).name=='global.menu'
     def emit(menu,item,kind,rect,**extra):
         findings.append({'menu':menu.get('name','?'),'item':item.get('name','?'),
                          'kind':kind,'rect':rect,'initial_visible':item.get('visible',0),
