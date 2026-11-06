@@ -9597,6 +9597,7 @@ void _UI_Init(qboolean inGameLoad)
 
 	/* TC 4000db90 / Linux 00031d88: preserve the archived host selection.
 	 * The running gametype selects the menu file independently below. */
+	TCE_ModernBackgroundPreferencesInit();
 	UI_RegisterCvars();
 	TCE_ModernUIReset();
 	TCE_InitClientGUID();

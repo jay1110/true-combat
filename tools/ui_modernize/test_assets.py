@@ -90,6 +90,18 @@ class NativeUIAssetTests(unittest.TestCase):
         for forbidden in ('background','cursor'):
             self.assertNotIn('tce2_ui/theme/'+forbidden+'_body.tga',rows)
 
+    def test_light_palettes_can_actually_produce_light_panels(self):
+        for name in ('panel','button','tab','selector'):
+            data=(g.DEST/('tce2_ui/theme/'+name+'_body.tga')).read_bytes()
+            width,height=struct.unpack_from('<HH',data,12);pixels=data[18:18+width*height*4]
+            visible=[pixels[at]/255 for at in range(0,len(pixels),4) if pixels[at+3]>0]
+            self.assertTrue(visible)
+            self.assertGreaterEqual(min(visible),224/255)
+            # Preset6 uses a .65 red surface and .07 text. The old dark mask
+            # times the accidentally mapped .07 tint produced near-black.
+            self.assertGreater(min(visible)*.65,.55)
+            self.assertGreater(min(visible)*1.0,.85)
+
     def test_transparent_controls_and_distinct_states(self):
         for key in ("check_off","check_on","radio_off","radio_on","focus"):
             data=(g.DEST/("tce2_ui/"+key+".tga")).read_bytes();alpha=data[18:18+64*64*4][3::4] if key!="focus" else data[18:18+256*64*4][3::4]
@@ -108,6 +120,18 @@ class NativeUIAssetTests(unittest.TestCase):
         self.assertGreater(rgba[3],0)  # upper-left visible outline owns native hotspot
         self.assertEqual(rgba[(63*64+63)*4+3],0)
         self.assertIn("clampmap "+info["asset"],(g.DEST/"scripts/tce2_ui.shader").read_text())
+
+    def test_publisher_footer_provenance_matches_fixed_dark_surface(self):
+        info=self.meta['footer_surface'];data=(g.DEST/info['source']).read_bytes()
+        self.assertEqual(info['shader'],'tce2_ui/logo_plate')
+        self.assertEqual(info['sha256'],hashlib.sha256(data).hexdigest())
+        self.assertEqual(info['rgb'],[.018,.025,.035]);self.assertEqual(info['alpha'],1)
+        self.assertEqual(info['map'],'$whiteimage')
+        self.assertNotIn(b'rgbGen vertex',data);self.assertNotIn(b'alphaGen vertex',data)
+        maps=re.findall(rb'clampmap\s+([^\s]+)',data)
+        self.assertEqual(maps,[b'ui/assets/logo_atvi.tga',b'ui/assets/logo_id.tga',b'ui/assets/logo_sd.tga'])
+        self.assertEqual(data.count(b'rgbGen identity'),3);self.assertEqual(data.count(b'alphaGen identity'),3)
+        self.assertFalse(any((g.DEST/path.decode()).is_file() for path in maps),'Stock rasters must not be duplicated into the mod delta')
 
     def test_official_licensed_font_payload_and_latin_coverage(self):
         source=json.loads((g.DEST/"fonts/tce2_ui/SOURCE.json").read_text())

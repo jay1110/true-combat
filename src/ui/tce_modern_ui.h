@@ -4,6 +4,7 @@
 /* Optional presentation only. The marker is data, never an executable config. */
 qboolean TCE_ModernUIEnabled(void);
 void TCE_ModernUIReset(void);
+void TCE_ModernBackgroundPreferencesInit(void);
 void TCE_ModernThemeRefresh(void);
 /* surface: 0 text, 1 fill, 2 border. Never changes the input paint/state. */
 void TCE_ModernThemeColor(const float *source, float *out, int surface);

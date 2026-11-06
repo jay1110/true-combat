@@ -13,7 +13,7 @@ static int cvarCount;
 static struct { char name[128]; } images[256];
 static int imageCount, imageCalls, drawCount, nullColor;
 static const char *missingImage;
-static int missingAliases, missingAll;
+static int missingAliases, missingAll, clobberVA;
 static int fadeCalls;
 static qboolean debugMode;
 static displayContextDef_t services, *DC=&services;
@@ -30,11 +30,10 @@ static int equal(const float *a,const float *b)
 qboolean TCE_ModernUIEnabled(void) { return enabled; }
 int CG_MenuViewportActive(void) { return menuActive; }
 int trap_Milliseconds(void) { return milliseconds; }
-char *QDECL va(const char *format,...)
-{
-    static char buffers[16][256];static unsigned index;va_list args;char *out=buffers[index++&15];
-    va_start(args,format);vsnprintf(out,256,format,args);va_end(args);return out;
-}
+int Q_strlenInt(const char *text) { return (int)strlen(text); }
+void QDECL Com_Error(int level,const char *format,...) { (void)level;(void)format;abort(); }
+/* ACTUAL_SDK_VA */
+/* EXPECTED_SHADER_NAMES */
 static int find_cvar(const char *name)
 { int i;for(i=0;i<cvarCount;++i)if(!strcmp(cvars[i].name,name))return i;return -1; }
 void trap_Cvar_Register(vmCvar_t *cvar,const char *name,const char *value,int flags)
@@ -48,11 +47,21 @@ static void set(const char *name,float value)
 { int at=find_cvar(name);check(at>=0,"Test cvar registered");if(at>=0)cvars[at].value=value; }
 qhandle_t trap_R_RegisterShaderNoMip(const char *name)
 {
-    int i;++imageCalls;
+    int i,result;++imageCalls;
+    if(!strncmp(name,"tce2_ui/",8) || !strncmp(name,"ui/assets/",10)) {
+        int known=0;
+        for(i=0;i<(int)(sizeof(expectedShaderNames)/sizeof(expectedShaderNames[0]));++i)
+            if(!strcmp(name,expectedShaderNames[i])) { known=1;break; }
+        check(known,"Actual palette request names an existing packaged shader/image alias");
+        if(!known) return 0;
+    }
     if(missingAll || (missingAliases && !strncmp(name,"ui/assets/",10)) ||
        (missingImage && !strcmp(name,missingImage))) return 0;
-    for(i=0;i<imageCount;++i)if(!strcmp(images[i].name,name))return i+1;
-    check(imageCount<256,"Shader service bound");strncpy(images[imageCount].name,name,127);return ++imageCount;
+    result=0;for(i=0;i<imageCount;++i)if(!strcmp(images[i].name,name)){result=i+1;break;}
+    if(!result){check(imageCount<256,"Shader service bound");strncpy(images[imageCount].name,name,127);result=++imageCount;}
+    /* An engine callback/formatter may recycle every SDK va allocation. */
+    if(clobberVA){va("%031800d",0);va("%031800d",0);}
+    return result;
 }
 void trap_R_SetColor(const float *value)
 { int i;nullColor=value==NULL;for(i=0;i<4;++i)color[i]=value?value[i]:1; }
@@ -84,7 +93,7 @@ static void fresh(void)
 {
     TCE_ModernThemeReset();memset(cvars,0,sizeof(cvars));memset(images,0,sizeof(images));
     cvarCount=registrations=updates=imageCount=imageCalls=drawCount=0;enabled=menuActive=1;milliseconds+=32;
-    missingImage=NULL;missingAliases=missingAll=0;
+    missingImage=NULL;missingAliases=missingAll=clobberVA=0;
 }
 static void refresh(void) { milliseconds+=16;TCE_ModernThemeRefresh(); }
 
@@ -111,6 +120,11 @@ int main(void)
     for(i=0;i<10;++i){set("ui_themePreset",(float)i);refresh();for(j=0;j<3;++j)check(close_float(tceModernAmber[j],expected[i][j]),"Every preset accent including stable Custom4 defaults");}
     set("ui_themePreset",6);refresh();
     check(tceModernWhite[0]<.1f && tceModernMuted[0]<.2f,"Grey/Black preset selects readable dark text");
+    { vec4_t mapped;qhandle_t panel=trap_R_RegisterShaderNoMip("tce2_ui/panel");
+      TCE_ModernThemeColor(white,mapped,0);drawCount=0;
+      TCE_ModernThemePicture(0,0,20,20,panel,mapped);
+      check(drawCount==2,"Grey/Black panel has two valid masks");
+      for(j=0;j<3;++j)check(close_float(draws[0].color[j],modernTheme.base[j]),"Mapped dark text color must not darken a light panel a second time"); }
     set("ui_themePreset",5);refresh();
     check(tceModernWhite[0]>.9f && tceModernMuted[0]>.5f,"Black/Grey preset selects readable light text");
     set("ui_themePreset",999);refresh();
@@ -253,5 +267,11 @@ int main(void)
     modernTheme.imageCount=(int)(sizeof(modernThemeImages)/sizeof(modernThemeImages[0]));previous=imageCalls;
     TCE_ThemeRegisterImage("tce2_ui/unexpected_extra","unexpected_extra");
     check(imageCalls==previous && modernTheme.imageCount==80,"Future extra image aliases cannot overflow the fixed cache");
+    fresh();clobberVA=1;
+    { const char *name=va("tce2_ui/icons/%s","play"),*target=va("icons/%s","play");
+      TCE_ThemeRegisterImage(name,target);
+      check(modernTheme.imageCount==1 && modernThemeImages[0].body>0 && modernThemeImages[0].accent>0,"Image paths survive real SDK va reuse during renderer callbacks");
+      check(!strcmp(images[modernThemeImages[0].body-1].name,"tce2_ui/theme/icons/play_body"),"Body path is frozen before callbacks");
+      check(!strcmp(images[modernThemeImages[0].accent-1].name,"tce2_ui/theme/icons/play_accent"),"Accent path is frozen before callbacks"); }
     printf("checks=%d failures=%d\n",checks,failures);return failures?1:0;
 }

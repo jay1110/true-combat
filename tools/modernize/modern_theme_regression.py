@@ -19,12 +19,16 @@ def main():
     a=p.parse_args();out=a.out.resolve();out.mkdir(parents=True,exist_ok=True)
     implementation=ROOT/'src/ui/tce_modern_theme.inc';fixture=Path(__file__).with_name('modern_theme_fixture.c')
     shared=ROOT/'src/ui/ui_shared.c'
+    sdk=ROOT/'src/game/q_shared.c';art=ROOT/'ui-modern/assets/tce2_ui/SOURCE.json'
     text=fixture.read_text().replace('/* ACTUAL_THEME */',implementation.read_text())
+    text=text.replace('/* ACTUAL_SDK_VA */',function(sdk.read_text(encoding='utf8'),'va'))
+    meta=json.loads(art.read_bytes());names=sorted({row['shader'] for row in meta['files']}|set(meta['native_aliases']))
+    text=text.replace('/* EXPECTED_SHADER_NAMES */','static const char *expectedShaderNames[]={'+','.join(json.dumps(name) for name in names)+'};')
     text=text.replace('/* ACTUAL_WINDOW_PAINT */',function(shared.read_text(encoding='utf8'),'Window_Paint'))
     generated=out/'theme-fixture.c';generated.write_text(text,encoding='utf8',newline='\n')
     if os.name=='nt':env,compiler=msvc_environment(out,'x64' if a.sanitize else 'x86','14.44' if a.sanitize else '14.39')
     else:env=os.environ.copy();compiler=shutil.which('clang') or shutil.which('gcc')
-    report={'source_sha256':{str(path.relative_to(ROOT)):hashlib.sha256(path.read_bytes()).hexdigest() for path in (implementation,fixture,shared,Path(__file__),ROOT/'src/game/q_shared.h',ROOT/'src/ui/ui_shared.h')},'runs':{},
+    report={'source_sha256':{str(path.relative_to(ROOT)):hashlib.sha256(path.read_bytes()).hexdigest() for path in (implementation,fixture,shared,sdk,art,Path(__file__),ROOT/'src/game/q_shared.h',ROOT/'src/ui/ui_shared.h')},'runs':{},
             'limits':['Actual optional theme code and cvar/image services; does not prove native raster output, real input or VFS font ordering.']}
     for mode in ('ui','cgame'):
         directory=out/mode;directory.mkdir(exist_ok=True);exe=directory/('theme.exe' if os.name=='nt' else 'theme')

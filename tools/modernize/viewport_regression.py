@@ -13,7 +13,7 @@ def main():
     args=parser.parse_args();out=args.out.resolve();out.mkdir(parents=True,exist_ok=True)
     paths=['src/ui/tce_viewport.c','src/ui/tce_viewport.h','src/ui/tce_ui_coordinates.c','src/ui/tce_ui_coordinates.h','src/ui/tce_modern_ui.c','src/ui/tce_modern_ui.h','src/ui/ui_atoms.c','src/ui/ui_shared.c','src/ui/ui_main.c','src/cgame/cg_hud_viewport.c','src/cgame/cg_hud_viewport.h','src/cgame/cg_drawtools.c','src/cgame/cg_draw.c','src/cgame/cg_newDraw.c']
     sources={p:(ROOT/p).read_text(encoding='utf-8-sig') for p in paths}
-    shared=sources['src/ui/ui_shared.c'];units=[function(shared,'TCE_MenuViewportBackground'),function(shared,'TCE_MenuViewportAnchorY'),function(shared,'TCE_UISharedViewportAdjust')]
+    shared=sources['src/ui/ui_shared.c'];units=[function(shared,'TCE_MenuViewportBackground'),function(shared,'TCE_MenuViewportMain'),function(shared,'TCE_MenuViewportAnchorY'),function(shared,'TCE_UISharedViewportAdjust')]
     matches=list(re.finditer(r'^void AdjustFrom640\(',shared,re.M))
     assert len(matches)==3
     for match,name in zip(matches,['SharedWindowsAdjust','SharedLinuxAdjust','SharedGenericAdjust']):

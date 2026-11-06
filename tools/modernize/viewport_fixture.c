@@ -33,6 +33,8 @@ static displayContextDef_t *DC=&uiInfo.uiDC;
 static float enabled=1,menuScaleSetting=1,menuMaxSetting=1080;
 static int modernEnabled;
 static qboolean TCE_ModernUIEnabled(void) { return modernEnabled; }
+/* Actual chosen-background lookup is exercised by background_regression. */
+static const char *TCE_ModernBackgroundName(void) { return "tce2_ui/background"; }
 static float hudScaleSetting=.85f,hudMaxSetting=1080;
 static struct { struct { int vidWidth,vidHeight; } glconfig; float screenXScale,screenYScale;struct { int whiteShader,disconnectIcon,lagometerShader; } media;int eventHandling,cursorX,cursorY,cursorUpdate,localServer; } cgs;
 static displayContextDef_t cgDC;
@@ -349,7 +351,7 @@ static void headerMenusAndHudComposites(void)
     for(i=0;i<7;++i){menu.window.name=names[i];focusedMenu=&menu;
         CHECK(TCE_MenuViewportAnchorY()==(i<3?0.f:.5f));
         x=y=0;w=852;h=480;UI_AdjustFrom640(&x,&y,&w,&h);
-        CHECK((i<3&&y==0)||(i>=3&&y>0));
+        CHECK((i<4&&y==0)||(i>=4&&y>0)); /* Startup main now fills the fitted canvas. */
         /* Paint scope controls an underlying hub independently of a focused
          * confirmation; afterward the cursor returns to its dialog mapping. */
         underneath.window.name="ingame_main";tceMenuViewportPaintMenu=&underneath;
@@ -540,6 +542,40 @@ static void physicalCursorAndFittedText(void)
         modernEnabled=1;
     }
 }
+static void startupMainViewport(void)
+{
+    const int sizes[][2]={FIT_RESOLUTION_PAIRS};
+    const float scales[]={.5f,.85f,1.f,1.5f};
+    void (*adjust[])(float *,float *,float *,float *)={UI_AdjustFrom640,SharedWindowsAdjust,SharedLinuxAdjust,SharedGenericAdjust};
+    menuDef_t mainMenu,optionsMenu; int i,j,k,n;float x,y,w,h,ex,ey,ew,eh;
+    tce_viewport_t full;
+    mainMenu.window.name="main";optionsMenu.window.name="options_system";
+    modernEnabled=enabled=1;CG_HudViewportEnd();while(CG_MenuViewportActive())CG_MenuViewportEnd();
+    TCE_ViewportSetDrawMode(TCE_VIEWPORT_MENU);
+    for(i=0;i<(int)(sizeof(sizes)/sizeof(sizes[0]));++i){
+        cgs.glconfig.vidWidth=uiInfo.uiDC.glconfig.vidWidth=sizes[i][0];
+        cgs.glconfig.vidHeight=uiInfo.uiDC.glconfig.vidHeight=sizes[i][1];
+        CHECK(TCE_ViewportFit(&full,sizes[i][0],sizes[i][1],TCE_VIEWPORT_CANVAS_WIDTH,480,0,1,.5f,.5f));
+        for(j=0;j<4;++j)for(k=0;k<2;++k){
+            menuScaleSetting=scales[j];menuMaxSetting=k?480:1080;
+            focusedMenu=&mainMenu;tceMenuViewportPaintMenu=NULL;CHECK(TCE_MenuViewportMain());
+            ex=24;ey=70;ew=300;eh=30;TCE_ViewportProject(&full,&ex,&ey,&ew,&eh);
+            for(n=0;n<4;++n){x=24;y=70;w=300;h=30;adjust[n](&x,&y,&w,&h);
+                CHECK(near(x,ex)&&near(y,ey)&&near(w,ew)&&near(h,eh));}
+            drawnCount=0;TCE_ModernCursor(24,70,99,0);CHECK(drawnCount==1&&near(drawnRects[0].x,ex)&&near(drawnRects[0].y,ey));
+            /* Main remains full when a separately scaled dialog has focus. */
+            focusedMenu=&optionsMenu;tceMenuViewportPaintMenu=&mainMenu;CHECK(TCE_MenuViewportMain());
+            tceMenuViewportPaintMenu=NULL;CHECK(!TCE_MenuViewportMain());
+        }
+    }
+    cgs.glconfig.vidWidth=uiInfo.uiDC.glconfig.vidWidth=1920;
+    cgs.glconfig.vidHeight=uiInfo.uiDC.glconfig.vidHeight=1080;
+    menuScaleSetting=.5f;menuMaxSetting=480;regularFont.glyphs['H'].top=35;regularFont.glyphs['H'].imageHeight=40;
+    focusedMenu=&mainMenu;CHECK(TCE_ModernReadableScale(.22f,&regularFont)==.22f);
+    focusedMenu=&optionsMenu;CHECK(TCE_ModernReadableScale(.22f,&regularFont)>.22f);
+    focusedMenu=&mainMenu;modernEnabled=0;CHECK(!TCE_MenuViewportMain());
+    focusedMenu=NULL;tceMenuViewportPaintMenu=NULL;menuScaleSetting=1;menuMaxSetting=1080;
+}
 int main(void)
 {
     const int sizes[][2]={FIT_RESOLUTION_PAIRS};
@@ -590,5 +626,6 @@ int main(void)
     headerMenusAndHudComposites();
     backgroundAndFullscreenScopes();
     physicalCursorAndFittedText();
+    startupMainViewport();
     printf("viewport: %i checks, %i failures\n",checks,failures);return failures?1:0;
 }

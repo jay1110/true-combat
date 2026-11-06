@@ -10,7 +10,11 @@ def layers(pixels, icon=False):
         if gold or icon:
             accent[at:at + 4] = bytes((255, 255, 255, a))
         else:
-            gray = min(255, round(max(r, g, b) * 255 / 128))
+            # The original dark raster is not a luminance mask: multiplying it
+            # by a light palette can never produce a light panel. Keep a small
+            # neutral bevel variation while allowing the selected base RGB to
+            # determine the real surface tone, including Grey/Black and Custom.
+            gray = min(255, 224 + round(max(r, g, b) * 31 / 128))
             body[at:at + 4] = bytes((gray, gray, gray, a))
     return bytes(body), bytes(accent)
 

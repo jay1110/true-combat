@@ -48,6 +48,7 @@ static const char *binding,*columnText[2],*cvarText;
 static char g_nameBind1[32];
 static struct {float x,y,scale;int limit,style;char text[2048];vec4_t color;} draws[2048];
 static qboolean TCE_ModernUIEnabled(void){return modernEnabled;}
+int TCE_MenuViewportMain(void){return 0;} /* Normal fields; main scope tested by viewport fixture. */
 static struct {struct {struct {int vidWidth,vidHeight;} glconfig;} uiDC;} uiInfo={{{1920,1080}}};
 static float trap_Cvar_VariableValue(const char *name){return !strcmp(name,"ui_menuMaxHeight")?1080.f:1.f;}
 static float TextWidthExact(const char *s,float scale,int limit){

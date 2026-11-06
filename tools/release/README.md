@@ -69,11 +69,13 @@ Keep the original `pak0..4` packages installed. Move obsolete TCE2-update/theme
 PK3s outside the search path after making an external backup.
 Game and Editor must never be mixed.
 
-Original ET may load an existing loose UI/CGame before reading a PK3 at main-menu
-startup, especially before a pure-server connection. For that engine, add
-`--classic-client`: the installer extracts only the selected pair **from the same
-PK3**. This does not add a second package or ship duplicate loose clients. Restore
-backed-up loose modules as well as the old PK3 when rolling back.
+ET/ETLegacy may load an existing loose UI/CGame before reading a PK3 at main-menu
+startup. If either loose client file of the selected ABI already exists, the
+installer automatically updates **both** from the same PK3 and backs up changed
+files. Other ABIs remain untouched. If neither file exists, installation keeps
+the clients in the PK3; use `--classic-client` to request first extraction.
+This adds no second package or duplicate loose files to the ZIP. Restore backed-up
+loose modules as well as the old PK3 when rolling back.
 
 ## How packaging is validated
 

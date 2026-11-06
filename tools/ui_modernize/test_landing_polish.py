@@ -34,6 +34,61 @@ class LandingPolishTests(unittest.TestCase):
                 self.assertGreaterEqual(y,440);self.assertLessEqual(y+h,468)
             self.assertEqual(seen,names)
 
+    def test_publisher_shield_is_opaque_fixed_shader_behind_every_original_logo(self):
+        shader=(ROOT/'ui-modern/assets/scripts/tce2_ui_footer.shader').read_text()
+        for required in ('tce2_ui/logo_plate','map $whiteimage','blendFunc GL_ONE GL_ZERO',
+                         'rgbGen const ( 0.018 0.025 0.035 )','alphaGen const 1'):
+            self.assertIn(required,shader)
+        self.assertNotIn('rgbGen vertex',shader);self.assertNotIn('alphaGen vertex',shader)
+        # The plate itself needs no bitmap; publisher aliases below reuse only
+        # the exact three stock ET textures rather than copying/recoloring them.
+        plate_shader=shader.split('tce2_ui/publisher_atvi',1)[0]
+        self.assertNotRegex(plate_shader,r'\.(?:tga|jpg|png)\b')
+        for short in ('atvi','id','sd'):
+            start=shader.index('tce2_ui/publisher_'+short)
+            body=shader[start:]
+            next_shader=body.find('\ntce2_ui/',1)
+            if next_shader>=0:body=body[:next_shader]
+            self.assertIn('clampmap ui/assets/logo_'+short+'.tga',body)
+            self.assertIn('blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA',body)
+            self.assertIn('rgbGen identity',body);self.assertIn('alphaGen identity',body)
+            self.assertNotIn('alphaGen const',body)
+        # These original shaders produce light marks despite the *_dark name.
+        # A fixed dark plate must stay dark for all palette/opacity preferences.
+        channels=[.018,.025,.035]
+        linear=lambda value:value/12.92 if value<=.04045 else ((value+.055)/1.055)**2.4
+        luminance=sum(weight*linear(value) for weight,value in zip((.2126,.7152,.0722),channels))
+        self.assertGreater((linear(.75)+.05)/(luminance+.05),10)
+        for directory in ('ui','ui_obj','ui_robj','ui_tdm'):
+            path=Path(directory)/'main.menu'
+            source=restyle.read(ROOT/'pak_original_tce'/path);result=restyle.menu(source,path)
+            plate=next(result[s:e] for s,e in restyle.blocks(result) if 'name "modern_footer_plate"' in result[s:e])
+            self.assertIn('background "tce2_ui/logo_plate"',plate)
+            self.assertIn('decoration',plate)
+            self.assertNotRegex(plate,r'\b(?:action|cvar|ownerdraw|type)\b')
+            self.assertLess(result.index('name "modern_footer_plate"'),result.index('// Company Logos //'))
+            source_paint=sem.strip_comments(source);result_paint=sem.strip_comments(result)
+            for short in ('atvi','id','sd'):
+                self.assertEqual(result_paint.count('"tce2_ui/publisher_'+short+'"'),source_paint.count('ui/assets/logo_'+short+'_dark'))
+                self.assertNotIn('ui/assets/logo_'+short+'_dark',result_paint)
+            for resource in ('groovesixstudios.tga','ui/assets/logo_tt_dark.tga'):
+                self.assertEqual(result.count(resource),source.count(resource))
+
+    def test_only_two_proven_dangling_registry_imports_are_removed(self):
+        self.assertEqual(restyle.DEAD_MENU_LOADS,sem.DEAD_MENU_LOADS)
+        for name in ('menus.txt','menus_gt2.txt','menus_gt5.txt','menus_gt7.txt'):
+            source=restyle.read(ROOT/'pak_original_tce/ui'/name)
+            result=restyle.prune_dead_registry(source)
+            before=re.findall(r'loadMenu\s*\{\s*"([^"]+)"\s*\}',sem.strip_comments(source))
+            after=re.findall(r'loadMenu\s*\{\s*"([^"]+)"\s*\}',sem.strip_comments(result))
+            self.assertEqual(after,[path for path in before if path not in restyle.DEAD_MENU_LOADS])
+            self.assertEqual(len(before)-len(after),2)
+            for dead in restyle.DEAD_MENU_LOADS:
+                self.assertNotIn(dead,result)
+        # The exemption does not turn into a general permission to delete UI.
+        fixture=['loadMenu','{','"ui/options_controls.menu"','}']
+        self.assertEqual(sem._dead_menu_loads(fixture),fixture)
+
     def test_all_three_hubs_leave_map_visible_and_keep_original_actions(self):
         for filename in ('ingame_main.menu','ingame_vote.menu','options.menu'):
             sources=[ROOT/'pak_original_tce/ui'/filename]

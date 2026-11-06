@@ -29,5 +29,7 @@ float TCE_ViewportCursorSize(int width, int height);
  * full-page menus/dialogs retain the centered canvas. Shared with UI drawing. */
 float TCE_MenuViewportAnchorY(void);
 int TCE_MenuViewportBackground(void);
+/* The startup hub uses the full fitted canvas, independent of menu size. */
+int TCE_MenuViewportMain(void);
 
 #endif

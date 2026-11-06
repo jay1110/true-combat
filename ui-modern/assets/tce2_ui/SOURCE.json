@@ -2,7 +2,7 @@
   "schema": 1,
   "origin": "Original code-created interface art and original imagegen industrial background. No game/reference artwork copied.",
   "generator": "tools/ui_modernize/generate_assets.py",
-  "generator_sha256": "a5231729f930d41988dd1087954e03e66a0f757bbf738abcf215a25b258dffae",
+  "generator_sha256": "4f3ac210cda2129bad0cbe0788bc3466454a9ec5caf912810800387054c3a0ff",
   "background_source": "ui-modern/source/background-industrial-v1.png",
   "background_sha256": "3ccd94c4f50145c2233ac74bce45bf5d1bae4b26d85bfeef0c1fb35f3803f5e9",
   "cursor_hotspot": {
@@ -504,7 +504,7 @@
       "height": 256,
       "channels": 32,
       "bytes": 524332,
-      "sha256": "925b482498aa954887dd38427993730c40c5dacb94af519de188a082ab106313"
+      "sha256": "08f2d56aab29c387c8ce5b251f6acd10bd6c1339a61f9f5a84909a2e1f436091"
     },
     {
       "path": "tce2_ui/theme/panel_accent.tga",
@@ -522,7 +522,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 131116,
-      "sha256": "f0c4e7f25b8f7d4344eb955ff9c1926115b64e8e740d9273c42477377094fff7"
+      "sha256": "2c852cccf7596d206544d4116cc9ef548a100472785f3a2a563589295a206231"
     },
     {
       "path": "tce2_ui/theme/panel_header_accent.tga",
@@ -540,7 +540,7 @@
       "height": 256,
       "channels": 32,
       "bytes": 524332,
-      "sha256": "56c2c6d0cd5d3018b4627f85a505f0efd31f7863853e53717168a100676034f7"
+      "sha256": "c135e342338746a130ecc6649057254603089a087b6e1a31f23495061eed927f"
     },
     {
       "path": "tce2_ui/theme/card_accent.tga",
@@ -558,7 +558,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "7dcc9cda3c9468a2e565c676a7206638bf9577a6cb37d31ea4271d275bfe3cba"
+      "sha256": "551a00dd6544dabb4f74ab8cefdc595d9bf84eaaf2defd9e2f7eb5a18de70f63"
     },
     {
       "path": "tce2_ui/theme/button_accent.tga",
@@ -576,7 +576,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "14350ae60fc652e64ee53cb4f0cdd1e8acc471dab3c1d5dd378ee91b1621791f"
+      "sha256": "bfbbe0d188461668f1be32841f9ab7bd25ac096500ca6bba3df580d86cd3a9ae"
     },
     {
       "path": "tce2_ui/theme/button_hover_accent.tga",
@@ -594,7 +594,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "6a58d5e78e122119a2644a9c129ed60cb48d6711f7b6a6785a06898584d86cd4"
+      "sha256": "342d18626237b6361160a8d569714c58355f70997fb7a188dd16d831a740393d"
     },
     {
       "path": "tce2_ui/theme/button_pressed_accent.tga",
@@ -612,7 +612,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "219d8a9cf32e0d0b9793c759b22358326a4ae55b289eb3551964746ee6e3ab82"
+      "sha256": "32283d270ec19686dfda16617bde48e116c05f042f2c0f0fc96d5542b221e33e"
     },
     {
       "path": "tce2_ui/theme/button_disabled_accent.tga",
@@ -630,7 +630,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "11ed2a3568afcd182f2b09222d0a5759a5a08f7342ed0df13eeab5ef01f080a0"
+      "sha256": "9ec984cd5c3250759842db13bba6cef762ceab7282f7cd97db120ff225d62954"
     },
     {
       "path": "tce2_ui/theme/tab_accent.tga",
@@ -648,7 +648,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "fb0bd861b13d4bddd6b29e0fa09b54d20674b59942fcd4eec51204700dbe0df3"
+      "sha256": "46aedfab163a0808f57dfeca9502e926d7619e01c7c4b79f536dc6e1f69852da"
     },
     {
       "path": "tce2_ui/theme/tab_hover_accent.tga",
@@ -666,7 +666,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "6e252df9fadec1746676638cf3db426d88561222b9966028fadaa469087c1748"
+      "sha256": "46aee1909585c7f8526b937cef90381f01f37e8d870afe48270a80c908765ed9"
     },
     {
       "path": "tce2_ui/theme/tab_active_accent.tga",
@@ -684,7 +684,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "d72ea0cded46d0ef5152d70ef3bb97251eaa38f3e5c90a3fb6ea8ab2b21e0367"
+      "sha256": "d99826ea7475ddeb7eb21abd60f11942d519592ea23460917f539a72ec84bf53"
     },
     {
       "path": "tce2_ui/theme/selector_accent.tga",
@@ -702,7 +702,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "2497809bf1b8c9e1d2ce0a11da4fb4fa727cf392097cb3e559390dbaf14cb8bf"
+      "sha256": "22f9e8349b80e0f23e28eaf7b9c8346b8d6921169b9cd3b45b729741963ab68e"
     },
     {
       "path": "tce2_ui/theme/selector_focus_accent.tga",
@@ -720,7 +720,7 @@
       "height": 16,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "0333266c31d18ae6a65e6592619a1b06db94e5b1396374a6620a2d55f9045a36"
+      "sha256": "044871f526267e01a35d01ca4cad901af5dd33d34e8449fb117d386a301b7f04"
     },
     {
       "path": "tce2_ui/theme/slider_track_accent.tga",
@@ -738,7 +738,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 8236,
-      "sha256": "28084b274262b70f57eddaf996afff7a2cde81d17dde89ac77a330226c0780ff"
+      "sha256": "ad332c2553b260a5df19af299612e1bc8936bb1a4c972deda72a79afad922060"
     },
     {
       "path": "tce2_ui/theme/slider_thumb_accent.tga",
@@ -756,7 +756,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 8236,
-      "sha256": "99592ec065fa2cf0e32585cdc718d92677ae40c22cf3b5528a2d2514234282d4"
+      "sha256": "473171a3fc36be300310e8e0519a88db5df0c3ac69447c6c3d8bac7b8f8e80ad"
     },
     {
       "path": "tce2_ui/theme/slider_thumb_hover_accent.tga",
@@ -774,7 +774,7 @@
       "height": 256,
       "channels": 32,
       "bytes": 32812,
-      "sha256": "870ae7dcc61de3e0d53eb9cd763e5ca526bc07514f628c50be06f7936cc87407"
+      "sha256": "d0c53f7c9fd44eddd54de612368b1ed315a6ffc46f814913fc03c93aecc93d14"
     },
     {
       "path": "tce2_ui/theme/scroll_track_accent.tga",
@@ -792,7 +792,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 8236,
-      "sha256": "11db9c9ef71714951dc5a4751d2d9cf1b4e861fc176c9787902707d442c8bfdf"
+      "sha256": "0375412719b0e21589c1a2203be2fad94d5d552fffc46e536bff46ad37a7a57e"
     },
     {
       "path": "tce2_ui/theme/scroll_thumb_accent.tga",
@@ -810,7 +810,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 8236,
-      "sha256": "d22dcda9b7a158b32bc796bcfc1575cfd1b93297078125b2940e1dcf1846f373"
+      "sha256": "d3eafff201112ad8b398646bdeb77f0c191dead91af8142b4954fee382f80d38"
     },
     {
       "path": "tce2_ui/theme/scroll_thumb_hover_accent.tga",
@@ -828,7 +828,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "2f0be9e549dc95e0b3d12ea8634ca7c3cb73e6517b54b008fcd05dce43f3b023"
+      "sha256": "c76fe9a129d4ac6e950bb8a559db57cd5bb253563a0b66267edb2e6cc2be4f34"
     },
     {
       "path": "tce2_ui/theme/check_off_accent.tga",
@@ -846,7 +846,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "418d0bde30b4792fff8af51d555e6180bcfe6c68332dc30b7ebb37644fb4a8b8"
+      "sha256": "78045729b729f8e865731d3bb7cbc679a24b9727eae39d7ebec8f92427a914c0"
     },
     {
       "path": "tce2_ui/theme/check_on_accent.tga",
@@ -864,7 +864,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "a940313d1aad416c285317a689b9791ec571d87abbfac22c12bceb8c6d399b45"
+      "sha256": "681ba770c0d3e8f3526d4008d027f11c2a5dc4cdf6b14113b5c11c88d3c2c6f1"
     },
     {
       "path": "tce2_ui/theme/check_mixed_accent.tga",
@@ -882,7 +882,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "1133b881d3bc61fe54b0e37ab304e38f149a9642d497c03882c66b64a9ae3410"
+      "sha256": "d0c740a4dda92b61bca63a7f16cac79dff7769209c2d83431a4c71456f824b29"
     },
     {
       "path": "tce2_ui/theme/radio_off_accent.tga",
@@ -900,7 +900,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "35752c0428e9ec8b235272940ccb2cb1c27f6c149876047a876b415df94bf73d"
+      "sha256": "6804da630885c8b30fde753f4aac6f1ba3c327d6969b6308359df576fa69e1bc"
     },
     {
       "path": "tce2_ui/theme/radio_on_accent.tga",
@@ -918,7 +918,7 @@
       "height": 4,
       "channels": 32,
       "bytes": 4140,
-      "sha256": "641065b877a06afe47a2de02e9db28efbca4d73f3e5e692c1616913a3c0490ea"
+      "sha256": "a22deed6038cac6e6f7224f4dbc8470d858616902e78235fd1ad6d82909c91dc"
     },
     {
       "path": "tce2_ui/theme/separator_accent.tga",
@@ -936,7 +936,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "25a958862954d9e44282c7a3e9c1a0d93d6420a38a51b0b6614c79aa9dc3a72f"
+      "sha256": "2a0db6b3e7588d9ff9881797fe66297789d97e194ed7619d9e15039b7f06b82e"
     },
     {
       "path": "tce2_ui/theme/focus_accent.tga",
@@ -1431,7 +1431,7 @@
   },
   "theme_layers": {
     "generator": "tools/ui_modernize/theme_assets.py",
-    "generator_sha256": "633e35131876a9f06bc6785509577cbfee98f6c6f0233d7bf9947958b7fcb530",
+    "generator_sha256": "05299d973c87a3584cfb4b7621636dde72221e821c031cb7fb7d1bc3a3df7039",
     "purpose": "Neutral body/accent layers for live user palettes. Original default artwork is unchanged."
   },
   "tga_compatibility": {
@@ -1439,5 +1439,18 @@
     "origin": "bottom-left; physically reversed scanlines, descriptor bit5 clear",
     "dimensions": "power-of-two on both axes; full-image UV resampling preserves composition",
     "encoding": "uncompressed native BGR24/BGRA32; no engine extensions"
+  },
+  "footer_surface": {
+    "shader": "tce2_ui/logo_plate",
+    "source": "scripts/tce2_ui_footer.shader",
+    "sha256": "313c2179e96d32ab1596d660adbbf16ca2a18eeac9f2db186e1333b28b31deec",
+    "rgb": [
+      0.018,
+      0.025,
+      0.035
+    ],
+    "alpha": 1,
+    "map": "$whiteimage",
+    "purpose": "Fixed dark opaque surface for unchanged light publisher marks; no copied logo rasters."
   }
 }

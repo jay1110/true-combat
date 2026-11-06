@@ -50,12 +50,17 @@ def install(bundle, target, mod, classic_client=False):
         if relative in payload and payload[relative] != data:
             raise ValueError('Colliding install payload: ' + relative)
         payload[relative] = data
-    if classic_client:
+    modules = manifest['client_package']['modules']
+    selected = {name: row for name, row in modules.items() if row['target'] == target}
+    if (len(selected) != 2 or {row.get('role') for row in selected.values()} != {'cgame', 'ui'} or
+            any(Path(name).name != name for name in selected)):
+        raise ValueError('Incomplete selected client ABI')
+    # ET/ETLegacy can prefer a loose startup module over the PK3. Repair a
+    # previously installed pair automatically, even if only one file remains.
+    existing_clients = any((mod / name).exists() or (mod / name).is_symlink() for name in selected)
+    extract_clients = classic_client or existing_clients
+    if extract_clients:
         with zipfile.ZipFile(bundle / manifest['pk3_path']) as archive:
-            modules = manifest['client_package']['modules']
-            selected = [name for name, row in modules.items() if row['target'] == target]
-            if len(selected) != 2:
-                raise ValueError('Incomplete selected client ABI')
             for name in selected:
                 data = archive.read(name)
                 if hashlib.sha256(data).hexdigest() != modules[name]['sha256']:
@@ -64,7 +69,7 @@ def install(bundle, target, mod, classic_client=False):
     # Validate every destination before the first mutation.
     for name in payload:
         path = mod / name
-        if path.is_symlink() or not path.resolve().is_relative_to(mod):
+        if path.is_symlink() or not path.resolve().is_relative_to(mod) or (path.exists() and not path.is_file()):
             raise ValueError('Unsafe install destination: ' + name)
     backup = mod.parent / ('tce2-backup-' + datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ'))
     changed = []
@@ -77,14 +82,17 @@ def install(bundle, target, mod, classic_client=False):
             shutil.copy2(path, saved)
         path.parent.mkdir(parents=True, exist_ok=True);path.write_bytes(data);changed.append(name)
     return {'target': target, 'mod_dir': str(mod), 'changed': changed,
-            'backup': str(backup) if backup.exists() else None, 'classic_client': classic_client}
+            'backup': str(backup) if backup.exists() else None, 'classic_client': classic_client,
+            'client_pair_source': 'same-pk3' if extract_clients else None,
+            'client_pair_reason': 'explicit' if classic_client else 'existing-loose-pair' if existing_clients else None}
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--target', required=True)
     parser.add_argument('--mod-dir', type=Path, required=True)
-    parser.add_argument('--classic-client', action='store_true')
+    parser.add_argument('--classic-client', action='store_true',
+                        help='Extract the selected UI/CGame pair even when no loose client files exist yet')
     args = parser.parse_args()
     print(json.dumps(install(Path(__file__).resolve().parent, args.target, args.mod_dir,
                              args.classic_client), indent=2))

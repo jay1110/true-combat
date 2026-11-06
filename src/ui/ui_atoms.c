@@ -438,6 +438,7 @@ Adjusted for resolution and screen aspect ratio
 #include "tce_ui_coordinates.h"
 void UI_AdjustFrom640(float *x, float *y, float *w, float *h)
 {
+	int full = TCE_ViewportDrawMode() == TCE_VIEWPORT_FULLSCREEN || TCE_MenuViewportMain();
 	if (trap_Cvar_VariableValue("cg_wideScreen") != 0.f || TCE_ModernUIEnabled())
 	{
 		tce_viewport_t view;
@@ -450,9 +451,9 @@ void UI_AdjustFrom640(float *x, float *y, float *w, float *h)
 		}
 		if (TCE_ViewportFit(&view, uiInfo.uiDC.glconfig.vidWidth, uiInfo.uiDC.glconfig.vidHeight,
 		                    TCE_VIEWPORT_CANVAS_WIDTH, TCE_VIEWPORT_CANVAS_HEIGHT,
-		                    TCE_ViewportDrawMode() == TCE_VIEWPORT_FULLSCREEN ? 0 : trap_Cvar_VariableValue("ui_menuMaxHeight"),
-		                    TCE_ViewportDrawMode() == TCE_VIEWPORT_FULLSCREEN ? 1 : trap_Cvar_VariableValue("ui_menuScale"),
-		                    .5f, TCE_ViewportDrawMode() == TCE_VIEWPORT_FULLSCREEN ? .5f : TCE_MenuViewportAnchorY()))
+		                    full ? 0 : trap_Cvar_VariableValue("ui_menuMaxHeight"),
+		                    full ? 1 : trap_Cvar_VariableValue("ui_menuScale"),
+		                    .5f, full ? .5f : TCE_MenuViewportAnchorY()))
 		{
 			TCE_ViewportProject(&view, x, y, w, h);
 		}

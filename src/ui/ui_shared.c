@@ -6778,6 +6778,11 @@ int TCE_MenuViewportBackground(void)
 	       (!Q_stricmp(name,"background_1") || !Q_stricmp(name,"background_black") ||
 	        !Q_stricmp(name,"fadebox_black"));
 }
+int TCE_MenuViewportMain(void)
+{
+	menuDef_t *menu = tceMenuViewportPaintMenu ? tceMenuViewportPaintMenu : Menu_GetFocused();
+	return TCE_ModernUIEnabled() && menu && menu->window.name && !Q_stricmp(menu->window.name,"main");
+}
 float TCE_MenuViewportAnchorY(void)
 {
 	menuDef_t *menu = tceMenuViewportPaintMenu ? tceMenuViewportPaintMenu : Menu_GetFocused();
@@ -6790,6 +6795,7 @@ float TCE_MenuViewportAnchorY(void)
 static qboolean TCE_UISharedViewportAdjust(float *x, float *y, float *w, float *h)
 {
 	tce_viewport_t view;
+	int full = TCE_ViewportDrawMode() == TCE_VIEWPORT_FULLSCREEN || TCE_MenuViewportMain();
 	if (DC && TCE_ModernUIEnabled() &&
 	    (TCE_ViewportDrawMode() == TCE_VIEWPORT_BACKDROP || TCE_MenuViewportBackground()))
 	{
@@ -6805,9 +6811,9 @@ static qboolean TCE_UISharedViewportAdjust(float *x, float *y, float *w, float *
 	    (DC->getCVarValue("cg_wideScreen") == 0.f && !TCE_ModernUIEnabled())) return qfalse;
 	if (!TCE_ViewportFit(&view, DC->glconfig.vidWidth, DC->glconfig.vidHeight,
 	                     TCE_VIEWPORT_CANVAS_WIDTH, TCE_VIEWPORT_CANVAS_HEIGHT,
-	                     TCE_ViewportDrawMode() == TCE_VIEWPORT_FULLSCREEN ? 0 : (float)DC->getCVarValue("ui_menuMaxHeight"),
-	                     TCE_ViewportDrawMode() == TCE_VIEWPORT_FULLSCREEN ? 1 : (float)DC->getCVarValue("ui_menuScale"),
-	                     .5f, TCE_ViewportDrawMode() == TCE_VIEWPORT_FULLSCREEN ? .5f : TCE_MenuViewportAnchorY())) return qtrue;
+	                     full ? 0 : (float)DC->getCVarValue("ui_menuMaxHeight"),
+	                     full ? 1 : (float)DC->getCVarValue("ui_menuScale"),
+	                     .5f, full ? .5f : TCE_MenuViewportAnchorY())) return qtrue;
 	TCE_ViewportProject(&view, x, y, w, h);
 	return qtrue;
 }

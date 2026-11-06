@@ -122,11 +122,32 @@ def main_layout(text, path):
             # main has a48/92 origin; the footer still belongs atscreen y440.
             origin_x, origin_y = (48,92) if compact else (0,0)
             block = item_prop(block, 'rect', f'{x+(80-w)/2-origin_x:g} {440+(28-h)/2-origin_y:g} {w:g} {h:g}')
+            # Stock *_dark aliases force alpha .25. Keep their exact original
+            # rasters, but use full-bright identity generators in this footer.
+            publisher = {'atvi_logo':'atvi','id_logo':'id','sd_logo':'sd'}.get(match[1].lower())
+            if publisher:
+                block = item_prop(block,'background','"tce2_ui/publisher_'+publisher+'"')
         elif re.search(r'(?im)^\s*name\s+ELITELOGO\b', block):
             block = item_prop(block, 'rect', '612 34 176 88')
         text = text[:start] + block + text[end:]
     # Insert decoration before original content so it cannot cover controls.
     at = text.index('// Company Logos //') if '// Company Logos //' in text else text.index('// Background Logo //')
+    origin_x, origin_y = (48,92) if compact else (0,0)
+    # Original light publisher marks need a quiet, opaque dark surface on
+    # both winter skies and night scenes. The fixed shader ignores palette RGB
+    # and vertex opacity; no publisher raster is copied or recolored.
+    plate = f'''itemDef {{
+        name "modern_footer_plate"
+        rect {56-origin_x} {432-origin_y} 504 44
+        style WINDOW_STYLE_SHADER
+        background "tce2_ui/logo_plate"
+        forecolor 1 1 1 1
+        visible 1
+        decoration
+    }}
+'''
+    text = text[:at] + plate + text[at:]
+    at += len(plate)
     if not compact:
         decoration = '''itemDef {
         name "modern_brand"
@@ -160,6 +181,17 @@ def main_layout(text, path):
     }}
 '''
         text = text[:at] + decoration + text[at:]
+    return text
+
+
+DEAD_MENU_LOADS = ('ui/options_sub.menu','ui/ingame_main_sub.menu')
+
+
+def prune_dead_registry(text):
+    """Only two original dangling loaders; neither has an open action target."""
+    for path in DEAD_MENU_LOADS:
+        pattern = r'(?m)^[\t ]*loadMenu\s*\{\s*"'+re.escape(path)+r'"\s*\}[\t ]*(?:\r?\n|$)'
+        text = re.sub(pattern,'',text)
     return text
 
 
@@ -280,6 +312,7 @@ def main():
                 source_line='loadMenu { "ui/options.menu" }'
                 if s.count(source_line)!=1:raise ValueError('Missing/duplicate Options registry entry: '+p.name)
                 s=s.replace(source_line,source_line+'\n\tloadMenu { "ui/modern_appearance.menu" }\n\tloadMenu { "ui/modern_backgrounds.menu" }',1)
+                s=prune_dead_registry(s)
             q=DEST/relative;q.parent.mkdir(parents=True,exist_ok=True);q.write_bytes(s.encode('latin1'))
             rows.append({'path':relative.as_posix(),'changed':p.read_bytes()!=q.read_bytes()})
     from layout_common import widgets

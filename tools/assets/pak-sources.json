@@ -1,8 +1,8 @@
 {
   "editor_files": {
     "tce2_ui/package.json": {
-      "bytes": 43352,
-      "sha256": "2dcb45531c02e07f40d0b41243fe9ebf32522d444597915d067dc9d0c09611af",
+      "bytes": 43502,
+      "sha256": "9ec441324d68302490de8e7b66eac0572138e0b6aa0310bf3f237d45a03d7bc5",
       "source": "ui-modern via package.collect(editor)"
     },
     "ui/ingame_main.menu": {
@@ -11,23 +11,23 @@
       "source": "ui-modern via package.collect(editor)"
     },
     "ui/menus.txt": {
-      "bytes": 5103,
-      "sha256": "5101fe61b1b486dc4615525e625db7917a0c90a5a4d2a1a78d5f55faec1b309a",
+      "bytes": 5027,
+      "sha256": "51544fa8817965acfcee4efcd84a6a44f5a35f2b704b0cf07dae0d6110b77154",
       "source": "modern registry + native Editor catalog loader closure"
     },
     "ui/menus_gt2.txt": {
-      "bytes": 5103,
-      "sha256": "5101fe61b1b486dc4615525e625db7917a0c90a5a4d2a1a78d5f55faec1b309a",
+      "bytes": 5027,
+      "sha256": "51544fa8817965acfcee4efcd84a6a44f5a35f2b704b0cf07dae0d6110b77154",
       "source": "modern registry + native Editor catalog loader closure"
     },
     "ui/menus_gt5.txt": {
-      "bytes": 5101,
-      "sha256": "7bc8d452ee67ba08592a45fb3e7585cb9175ae99a21d8d12e1fc65df5e6e87d5",
+      "bytes": 5025,
+      "sha256": "21dee9c1a96de6be27782eeb11e0a6af02982c9977a1d08afda0c925aada568d",
       "source": "modern registry + native Editor catalog loader closure"
     },
     "ui/menus_gt7.txt": {
-      "bytes": 5101,
-      "sha256": "bc1b5bdf6c05e3ebe0e9025e3dec9ed1732b4ecf275943e47981590fd5a8ef3a",
+      "bytes": 5025,
+      "sha256": "251baf4041c5616679b87370bb4d9cdeb2d71853c912a163572127b6cd8684ae",
       "source": "modern registry + native Editor catalog loader closure"
     },
     "ui/options_controls.menu": {
@@ -364,8 +364,6 @@
     "registries": {
       "menus.txt": {
         "legacy_external_loaders": [
-          "ui/options_sub.menu",
-          "ui/ingame_main_sub.menu",
           "ui/ingame_messagemode.menu",
           "ui/ingame_tapout.menu"
         ],
@@ -376,8 +374,6 @@
       },
       "menus_gt2.txt": {
         "legacy_external_loaders": [
-          "ui/options_sub.menu",
-          "ui/ingame_main_sub.menu",
           "ui/ingame_messagemode.menu",
           "ui/ingame_tapout.menu"
         ],
@@ -388,8 +384,6 @@
       },
       "menus_gt5.txt": {
         "legacy_external_loaders": [
-          "ui/options_sub.menu",
-          "ui/ingame_main_sub.menu",
           "ui/ingame_messagemode.menu",
           "ui/ingame_tapout.menu"
         ],
@@ -400,8 +394,6 @@
       },
       "menus_gt7.txt": {
         "legacy_external_loaders": [
-          "ui/options_sub.menu",
-          "ui/ingame_main_sub.menu",
           "ui/ingame_messagemode.menu",
           "ui/ingame_tapout.menu"
         ],
@@ -24386,7 +24378,7 @@
     },
     "fonts/tce2_ui/PORTABLE.json": {
       "bytes": 4823,
-      "sha256": "75666e8ca829e0964d682c5b1a789ddf3b32b6e744f9025a62a97c797592761d",
+      "sha256": "17cb3bd3d22b7578456d06712bf9f1dabd333860bb838bfe9fbce45e99022101",
       "source": "ui-modern via package.collect(game)"
     },
     "fonts/tce2_ui/SOURCE.json": {
@@ -24584,9 +24576,14 @@
       "sha256": "68a4672d56203f070a1db91391289a0dbe18232b8d513fdbb7a54323e1f985fd",
       "source": "ui-modern via package.collect(game)"
     },
+    "scripts/tce2_ui_footer.shader": {
+      "bytes": 1346,
+      "sha256": "313c2179e96d32ab1596d660adbbf16ca2a18eeac9f2db186e1333b28b31deec",
+      "source": "ui-modern via package.collect(game)"
+    },
     "tce2_ui/SOURCE.json": {
-      "bytes": 44959,
-      "sha256": "271ebd9f0494d0ce8c7aa9ebdae23d5ab86c0a09d51c0507521039a80dcf0ef1",
+      "bytes": 45355,
+      "sha256": "e4736cc0b77ceb81ea3e98b836b7479a1e58379804b0e1bda36c956273276773",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/background.tga": {
@@ -24676,7 +24673,7 @@
     },
     "tce2_ui/backgrounds/catalog.json": {
       "bytes": 9143,
-      "sha256": "e688d43e8fbf5040e04c748d751f777f21260194233d15653080771c2c8d5c5e",
+      "sha256": "0f2113ef55f7527bddfd7249d26f91702b09088b6c1a32f689433d0cf59fa936",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/backgrounds/runtime.cfg": {
@@ -24865,8 +24862,8 @@
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/package.json": {
-      "bytes": 43824,
-      "sha256": "2e12a52edb3e0e4d9efcadf82124b9b92b20ec6cb4a811665957305b9185971a",
+      "bytes": 43974,
+      "sha256": "0310775880abbb52d90a1fa3467873c9fe5795ce09a21e2d6b6bfc37b85a75c4",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/panel.tga": {
@@ -24961,7 +24958,7 @@
     },
     "tce2_ui/theme/button_body.tga": {
       "bytes": 65580,
-      "sha256": "7dcc9cda3c9468a2e565c676a7206638bf9577a6cb37d31ea4271d275bfe3cba",
+      "sha256": "551a00dd6544dabb4f74ab8cefdc595d9bf84eaaf2defd9e2f7eb5a18de70f63",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/button_disabled_accent.tga": {
@@ -24971,7 +24968,7 @@
     },
     "tce2_ui/theme/button_disabled_body.tga": {
       "bytes": 65580,
-      "sha256": "219d8a9cf32e0d0b9793c759b22358326a4ae55b289eb3551964746ee6e3ab82",
+      "sha256": "32283d270ec19686dfda16617bde48e116c05f042f2c0f0fc96d5542b221e33e",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/button_hover_accent.tga": {
@@ -24981,7 +24978,7 @@
     },
     "tce2_ui/theme/button_hover_body.tga": {
       "bytes": 65580,
-      "sha256": "14350ae60fc652e64ee53cb4f0cdd1e8acc471dab3c1d5dd378ee91b1621791f",
+      "sha256": "bfbbe0d188461668f1be32841f9ab7bd25ac096500ca6bba3df580d86cd3a9ae",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/button_pressed_accent.tga": {
@@ -24991,7 +24988,7 @@
     },
     "tce2_ui/theme/button_pressed_body.tga": {
       "bytes": 65580,
-      "sha256": "6a58d5e78e122119a2644a9c129ed60cb48d6711f7b6a6785a06898584d86cd4",
+      "sha256": "342d18626237b6361160a8d569714c58355f70997fb7a188dd16d831a740393d",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/card_accent.tga": {
@@ -25001,7 +24998,7 @@
     },
     "tce2_ui/theme/card_body.tga": {
       "bytes": 524332,
-      "sha256": "56c2c6d0cd5d3018b4627f85a505f0efd31f7863853e53717168a100676034f7",
+      "sha256": "c135e342338746a130ecc6649057254603089a087b6e1a31f23495061eed927f",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/check_mixed_accent.tga": {
@@ -25011,7 +25008,7 @@
     },
     "tce2_ui/theme/check_mixed_body.tga": {
       "bytes": 16428,
-      "sha256": "a940313d1aad416c285317a689b9791ec571d87abbfac22c12bceb8c6d399b45",
+      "sha256": "681ba770c0d3e8f3526d4008d027f11c2a5dc4cdf6b14113b5c11c88d3c2c6f1",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/check_off_accent.tga": {
@@ -25021,7 +25018,7 @@
     },
     "tce2_ui/theme/check_off_body.tga": {
       "bytes": 16428,
-      "sha256": "2f0be9e549dc95e0b3d12ea8634ca7c3cb73e6517b54b008fcd05dce43f3b023",
+      "sha256": "c76fe9a129d4ac6e950bb8a559db57cd5bb253563a0b66267edb2e6cc2be4f34",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/check_on_accent.tga": {
@@ -25031,7 +25028,7 @@
     },
     "tce2_ui/theme/check_on_body.tga": {
       "bytes": 16428,
-      "sha256": "418d0bde30b4792fff8af51d555e6180bcfe6c68332dc30b7ebb37644fb4a8b8",
+      "sha256": "78045729b729f8e865731d3bb7cbc679a24b9727eae39d7ebec8f92427a914c0",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/focus_accent.tga": {
@@ -25041,7 +25038,7 @@
     },
     "tce2_ui/theme/focus_body.tga": {
       "bytes": 65580,
-      "sha256": "25a958862954d9e44282c7a3e9c1a0d93d6420a38a51b0b6614c79aa9dc3a72f",
+      "sha256": "2a0db6b3e7588d9ff9881797fe66297789d97e194ed7619d9e15039b7f06b82e",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/icons/audio_accent.tga": {
@@ -25311,7 +25308,7 @@
     },
     "tce2_ui/theme/panel_body.tga": {
       "bytes": 524332,
-      "sha256": "925b482498aa954887dd38427993730c40c5dacb94af519de188a082ab106313",
+      "sha256": "08f2d56aab29c387c8ce5b251f6acd10bd6c1339a61f9f5a84909a2e1f436091",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/panel_header_accent.tga": {
@@ -25321,7 +25318,7 @@
     },
     "tce2_ui/theme/panel_header_body.tga": {
       "bytes": 131116,
-      "sha256": "f0c4e7f25b8f7d4344eb955ff9c1926115b64e8e740d9273c42477377094fff7",
+      "sha256": "2c852cccf7596d206544d4116cc9ef548a100472785f3a2a563589295a206231",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/radio_off_accent.tga": {
@@ -25331,7 +25328,7 @@
     },
     "tce2_ui/theme/radio_off_body.tga": {
       "bytes": 16428,
-      "sha256": "1133b881d3bc61fe54b0e37ab304e38f149a9642d497c03882c66b64a9ae3410",
+      "sha256": "d0c740a4dda92b61bca63a7f16cac79dff7769209c2d83431a4c71456f824b29",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/radio_on_accent.tga": {
@@ -25341,7 +25338,7 @@
     },
     "tce2_ui/theme/radio_on_body.tga": {
       "bytes": 16428,
-      "sha256": "35752c0428e9ec8b235272940ccb2cb1c27f6c149876047a876b415df94bf73d",
+      "sha256": "6804da630885c8b30fde753f4aac6f1ba3c327d6969b6308359df576fa69e1bc",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/scroll_thumb_accent.tga": {
@@ -25351,7 +25348,7 @@
     },
     "tce2_ui/theme/scroll_thumb_body.tga": {
       "bytes": 8236,
-      "sha256": "11db9c9ef71714951dc5a4751d2d9cf1b4e861fc176c9787902707d442c8bfdf",
+      "sha256": "0375412719b0e21589c1a2203be2fad94d5d552fffc46e536bff46ad37a7a57e",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/scroll_thumb_hover_accent.tga": {
@@ -25361,7 +25358,7 @@
     },
     "tce2_ui/theme/scroll_thumb_hover_body.tga": {
       "bytes": 8236,
-      "sha256": "d22dcda9b7a158b32bc796bcfc1575cfd1b93297078125b2940e1dcf1846f373",
+      "sha256": "d3eafff201112ad8b398646bdeb77f0c191dead91af8142b4954fee382f80d38",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/scroll_track_accent.tga": {
@@ -25371,7 +25368,7 @@
     },
     "tce2_ui/theme/scroll_track_body.tga": {
       "bytes": 32812,
-      "sha256": "870ae7dcc61de3e0d53eb9cd763e5ca526bc07514f628c50be06f7936cc87407",
+      "sha256": "d0c53f7c9fd44eddd54de612368b1ed315a6ffc46f814913fc03c93aecc93d14",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/selector_accent.tga": {
@@ -25381,7 +25378,7 @@
     },
     "tce2_ui/theme/selector_body.tga": {
       "bytes": 65580,
-      "sha256": "d72ea0cded46d0ef5152d70ef3bb97251eaa38f3e5c90a3fb6ea8ab2b21e0367",
+      "sha256": "d99826ea7475ddeb7eb21abd60f11942d519592ea23460917f539a72ec84bf53",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/selector_focus_accent.tga": {
@@ -25391,7 +25388,7 @@
     },
     "tce2_ui/theme/selector_focus_body.tga": {
       "bytes": 65580,
-      "sha256": "2497809bf1b8c9e1d2ce0a11da4fb4fa727cf392097cb3e559390dbaf14cb8bf",
+      "sha256": "22f9e8349b80e0f23e28eaf7b9c8346b8d6921169b9cd3b45b729741963ab68e",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/separator_accent.tga": {
@@ -25401,7 +25398,7 @@
     },
     "tce2_ui/theme/separator_body.tga": {
       "bytes": 4140,
-      "sha256": "641065b877a06afe47a2de02e9db28efbca4d73f3e5e692c1616913a3c0490ea",
+      "sha256": "a22deed6038cac6e6f7224f4dbc8470d858616902e78235fd1ad6d82909c91dc",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/slider_thumb_accent.tga": {
@@ -25411,7 +25408,7 @@
     },
     "tce2_ui/theme/slider_thumb_body.tga": {
       "bytes": 8236,
-      "sha256": "28084b274262b70f57eddaf996afff7a2cde81d17dde89ac77a330226c0780ff",
+      "sha256": "ad332c2553b260a5df19af299612e1bc8936bb1a4c972deda72a79afad922060",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/slider_thumb_hover_accent.tga": {
@@ -25421,7 +25418,7 @@
     },
     "tce2_ui/theme/slider_thumb_hover_body.tga": {
       "bytes": 8236,
-      "sha256": "99592ec065fa2cf0e32585cdc718d92677ae40c22cf3b5528a2d2514234282d4",
+      "sha256": "473171a3fc36be300310e8e0519a88db5df0c3ac69447c6c3d8bac7b8f8e80ad",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/slider_track_accent.tga": {
@@ -25431,7 +25428,7 @@
     },
     "tce2_ui/theme/slider_track_body.tga": {
       "bytes": 16428,
-      "sha256": "0333266c31d18ae6a65e6592619a1b06db94e5b1396374a6620a2d55f9045a36",
+      "sha256": "044871f526267e01a35d01ca4cad901af5dd33d34e8449fb117d386a301b7f04",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/tab_accent.tga": {
@@ -25446,12 +25443,12 @@
     },
     "tce2_ui/theme/tab_active_body.tga": {
       "bytes": 65580,
-      "sha256": "6e252df9fadec1746676638cf3db426d88561222b9966028fadaa469087c1748",
+      "sha256": "46aee1909585c7f8526b937cef90381f01f37e8d870afe48270a80c908765ed9",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/tab_body.tga": {
       "bytes": 65580,
-      "sha256": "11ed2a3568afcd182f2b09222d0a5759a5a08f7342ed0df13eeab5ef01f080a0",
+      "sha256": "9ec984cd5c3250759842db13bba6cef762ceab7282f7cd97db120ff225d62954",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/theme/tab_hover_accent.tga": {
@@ -25461,7 +25458,7 @@
     },
     "tce2_ui/theme/tab_hover_body.tga": {
       "bytes": 65580,
-      "sha256": "fb0bd861b13d4bddd6b29e0fa09b54d20674b59942fcd4eec51204700dbe0df3",
+      "sha256": "46aedfab163a0808f57dfeca9502e926d7619e01c7c4b79f536dc6e1f69852da",
       "source": "ui-modern via package.collect(game)"
     },
     "ui/assets/check.tga": {
@@ -25640,8 +25637,8 @@
       "source": "ui-modern via package.collect(game)"
     },
     "ui/main.menu": {
-      "bytes": 4272,
-      "sha256": "3eca2fd081e49c06340229925226c754e433a68a55ea3ec549b35e048001346a",
+      "bytes": 4480,
+      "sha256": "80f59fda09164362c27d359c3d04d064af73b81990291eabee3b0fe4bb1d3ef2",
       "source": "ui-modern via package.collect(game)"
     },
     "ui/menudef.h": {
@@ -25655,23 +25652,23 @@
       "source": "ui-modern via package.collect(game)"
     },
     "ui/menus.txt": {
-      "bytes": 2905,
-      "sha256": "5b672dc50d16f7afd990e8a9133786a3a30c86f249fedf253919eaaf3692a58b",
+      "bytes": 2829,
+      "sha256": "cc5220e02e188391832db66bb0085d9df00137b40c8de4fcf800b33c7630b25d",
       "source": "ui-modern via package.collect(game)"
     },
     "ui/menus_gt2.txt": {
-      "bytes": 2905,
-      "sha256": "5b672dc50d16f7afd990e8a9133786a3a30c86f249fedf253919eaaf3692a58b",
+      "bytes": 2829,
+      "sha256": "cc5220e02e188391832db66bb0085d9df00137b40c8de4fcf800b33c7630b25d",
       "source": "ui-modern via package.collect(game)"
     },
     "ui/menus_gt5.txt": {
-      "bytes": 2903,
-      "sha256": "7719f33c1ed983f41fdbeed730c8e5fdfdc99253181dc13f787fd7d63dec8c20",
+      "bytes": 2827,
+      "sha256": "f061348e28cf6d717a2d0ad3dc4f54f2854f6979de38b146596a7a86f5c8efd8",
       "source": "ui-modern via package.collect(game)"
     },
     "ui/menus_gt7.txt": {
-      "bytes": 2903,
-      "sha256": "f76a7c66777c7ad13cef38757efd3f173bf8981c89f0fa9a7312bda4339741fc",
+      "bytes": 2827,
+      "sha256": "26afa05769c342b511e3a7dc79701ca1a8adb0eae29383bada83f8485a2e909c",
       "source": "ui-modern via package.collect(game)"
     },
     "ui/modern_appearance.menu": {
@@ -25880,8 +25877,8 @@
       "source": "ui-modern via package.collect(game)"
     },
     "ui_obj/main.menu": {
-      "bytes": 5714,
-      "sha256": "7402691bce79d2601943bfd879d77a0efbf860baf1d51fe51491dee799adf6d7",
+      "bytes": 5923,
+      "sha256": "e276e617c46bfb7ccb0b1242ac68e49102d76be4c9eb3abf004f20e058a11e85",
       "source": "ui-modern via package.collect(game)"
     },
     "ui_robj/global.menu": {
@@ -25890,8 +25887,8 @@
       "source": "ui-modern via package.collect(game)"
     },
     "ui_robj/main.menu": {
-      "bytes": 5601,
-      "sha256": "20aeeadc1636182a46258e73560a25fe8240d4983bff86901c9ce9bfbd9322a1",
+      "bytes": 5810,
+      "sha256": "326d04b03c346da0a223ac698b0c69608b3c109e5ce73527ec2286ab6d046dd9",
       "source": "ui-modern via package.collect(game)"
     },
     "ui_tdm/global.menu": {
@@ -25900,8 +25897,8 @@
       "source": "ui-modern via package.collect(game)"
     },
     "ui_tdm/main.menu": {
-      "bytes": 5486,
-      "sha256": "13ce9c2b742604b9bde1915e4031de0aba9cc9f348bfa30e2105614909d6c223",
+      "bytes": 5695,
+      "sha256": "bfbb7146cd0712c33f95251ad58961af38a8e1c642a49dd57ebff96f95a2d687",
       "source": "ui-modern via package.collect(game)"
     }
   },

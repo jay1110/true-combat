@@ -5,7 +5,7 @@
   "generator": "tools/ui_modernize/generate_fonts.py",
   "generator_sha256": "76997ad07c53ea49672b86367e08a2a0488faec0a7d95ecd1e8a490cc860c006",
   "raster_writer": "tools/ui_modernize/generate_assets.py",
-  "raster_writer_sha256": "a5231729f930d41988dd1087954e03e66a0f757bbf738abcf215a25b258dffae",
+  "raster_writer_sha256": "4f3ac210cda2129bad0cbe0788bc3466454a9ec5caf912810800387054c3a0ff",
   "freetype_py": "2.5.1",
   "freetype": "2.13.2",
   "dpi": 72,

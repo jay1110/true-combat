@@ -295,6 +295,11 @@ def main():
                                'origin':'bottom-left; physically reversed scanlines, descriptor bit5 clear',
                                'dimensions':'power-of-two on both axes; full-image UV resampling preserves composition',
                                'encoding':'uncompressed native BGR24/BGRA32; no engine extensions'}
+    footer='scripts/tce2_ui_footer.shader'
+    source['footer_surface']={'shader':'tce2_ui/logo_plate','source':footer,
+                              'sha256':hashlib.sha256((DEST/footer).read_bytes()).hexdigest(),
+                              'rgb':[.018,.025,.035],'alpha':1,'map':'$whiteimage',
+                              'purpose':'Fixed dark opaque surface for unchanged light publisher marks; no copied logo rasters.'}
     output["tce2_ui/SOURCE.json"]=(json.dumps(source,indent=2)+"\n").encode()
     for name,data in output.items():
         path=DEST/name

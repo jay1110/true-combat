@@ -500,9 +500,24 @@ def _appearance_load(ts,path=APPEARANCE):
     return result,count
 
 
+DEAD_MENU_LOADS=('ui/options_sub.menu','ui/ingame_main_sub.menu')
+
+
+def _dead_menu_loads(ts):
+    # These original dangling imports have no menu definitions or open action
+    # targets in stock TCE/ET. No other loader may disappear under this rule.
+    for path in DEAD_MENU_LOADS:
+        ts,count=_appearance_load(ts,path)
+        if count>1:raise ValueError('Duplicate historical unused loader: '+path)
+    return ts
+
+
 def layout_reference(reference,candidate):
     """One explicit private paint header, bound to the original macro contract."""
     result=dict(reference)
+    for path in APPEARANCE_LISTS:
+        if path in result:
+            result[path]=' '.join(_dead_menu_loads(parse(path,result[path]).body)).encode('latin1')
     if PRIVATE_WIDGETS in candidate:
         if ORIGINAL_WIDGETS not in reference:raise ValueError('Private widgets lack original macro reference')
         result[PRIVATE_WIDGETS]=reference[ORIGINAL_WIDGETS]
@@ -604,6 +619,7 @@ def normalize_layout(units,reference_units,contracts):
     for unit in units:
         ts=list(unit.body);seen=set();vote_seen=set();output=[];i=0
         if unit.path in APPEARANCE_LISTS:
+            ts=_dead_menu_loads(ts)
             ts,count=_appearance_load(ts)
             if count and (APPEARANCE not in reference or count!=1):
                 raise ValueError('Unbound/duplicate Appearance load reference: '+unit.path)

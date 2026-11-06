@@ -13,6 +13,7 @@ static int modernChecked, modernEnabled, modernFonts;
 static fontInfo_t modernRegular, modernStrong;
 static struct { char name[MAX_QPATH]; qhandle_t handle; } modernImages[16];
 static int modernImageCount;
+static int modernBackgroundCatalog;
 #ifndef CGAMEDLL
 static int modernBackgroundReady;
 static void TCE_ModernBackgroundInit(void);
@@ -106,7 +107,107 @@ int TCE_ModernBackgroundWinter(int month, const char *country, const char *month
     return (mask & (1u << (month - 1))) != 0;
 }
 
+static int TCE_ModernBackgroundCatalogAvailable(void)
+{
+    static const char marker[] = "TCE2_BACKGROUNDS 1\n";
+    char data[32]; fileHandle_t file = 0; int length;
+    if (modernBackgroundCatalog) return modernBackgroundCatalog > 0;
+    modernBackgroundCatalog = -1;
+    length = trap_FS_FOpenFile("tce2_ui/backgrounds/runtime.cfg",&file,FS_READ);
+    if (!file) return 0;
+    if (length == (int)sizeof(marker)-1) trap_FS_Read(data,length,file);
+    trap_FS_FCloseFile(file);
+    if (length == (int)sizeof(marker)-1 && !memcmp(data,marker,sizeof(marker)-1))
+        modernBackgroundCatalog = 1;
+    return modernBackgroundCatalog > 0;
+}
+
+static const char *TCE_ModernBackgroundName(void)
+{
+    static char shader[MAX_QPATH]; char value[32]; int choice;
+    if (!TCE_ModernUIEnabled() || !TCE_ModernBackgroundCatalogAvailable()) return "tce2_ui/background";
+    trap_Cvar_VariableStringBuffer("ui_backgroundSession",value,sizeof(value));
+    choice = atoi(value);
+    if (choice < 1 || choice > 16) return "tce2_ui/background";
+    Com_sprintf(shader,sizeof(shader),"tce2_ui/backgrounds/b%02d",choice);
+    return shader;
+}
+
 #ifndef CGAMEDLL
+/* Parse only one engine-written set/seta value per line. Unknown commands
+ * are never executed. A malformed allowed assignment invalidates the load. */
+static int TCE_ModernBackgroundConfigValue(const char *text, const char *key, char *out, int size)
+{
+    int found = 0;
+    while (text && *text)
+    {
+        const char *end = strchr(text,'\n'), *p = text, *start;
+        int length, quoted, n;
+        if (!end) end = text + strlen(text);
+        text = *end ? end + 1 : end;
+        while (p < end && (*p == ' ' || *p == '\t' || *p == '\r')) ++p;
+        if (end - p < 4 || strncmp(p,"set",3) || (p[3] != ' ' && p[3] != '\t' && p[3] != 'a')) continue;
+        p += 3; if (p < end && *p == 'a') ++p;
+        if (p >= end || (*p != ' ' && *p != '\t')) continue;
+        while (p < end && (*p == ' ' || *p == '\t')) ++p;
+        start = p;
+        while (p < end && *p != ' ' && *p != '\t' && *p != '\r') ++p;
+        length = (int)(p - start);
+        if (length != (int)strlen(key) || Q_stricmpn(start,key,length)) continue;
+        while (p < end && (*p == ' ' || *p == '\t')) ++p;
+        if (p >= end || *p == '\r') return -1;
+        if (end - p >= 2 && p[0] == '/' && p[1] == '/') return -1;
+        quoted = *p == '"'; if (quoted) ++p;
+        start = p;
+        while (p < end && (quoted ? *p != '"' : *p != ' ' && *p != '\t' && *p != '\r'))
+        { if ((unsigned char)*p < 32 || *p == '\\' || (!quoted && *p == ';')) return -1; ++p; }
+        length = (int)(p - start);
+        if (length >= size || (quoted && (p >= end || *p != '"'))) return -1;
+        if (quoted) ++p;
+        while (p < end && (*p == ' ' || *p == '\t' || *p == '\r')) ++p;
+        if (p < end && !(end - p >= 2 && p[0] == '/' && p[1] == '/')) return -1;
+        for (n = 0; n < length; ++n) out[n] = start[n]; out[length] = 0; found = 1;
+    }
+    return found;
+}
+
+void TCE_ModernBackgroundPreferencesInit(void)
+{
+    static const char *names[] = {"ui_backgroundMode","ui_backgroundCountry","ui_backgroundWinterMonths","ui_backgroundLast"};
+    static const char *defaults[] = {"0","DE","auto","0"};
+    static char config[131073];
+    char values[4][64], profile[128], path[128];
+    int missing[4], parsed[4], any = 0, i, length; fileHandle_t file = 0;
+    if (!TCE_ModernBackgroundCatalogAvailable()) return;
+    /* Read before registration: existing config/command-line cvars win. */
+    for (i = 0; i < 4; ++i)
+    {
+        trap_Cvar_VariableStringBuffer(names[i],values[i],sizeof(values[i]));
+        any |= missing[i] = !values[i][0];
+        trap_Cvar_Register(NULL,names[i],defaults[i],CVAR_ARCHIVE);
+    }
+    if (!any) return;
+    trap_Cvar_VariableStringBuffer("cl_profile",profile,sizeof(profile));
+    if (strlen(profile) >= MAX_QPATH || !strcmp(profile,".") || !strcmp(profile,"..")) return;
+    for (i = 0; profile[i]; ++i)
+        if ((unsigned char)profile[i] < 32 || strchr("/\\:\"",profile[i])) return;
+    if (*profile) Com_sprintf(path,sizeof(path),"profiles/%s/etconfig.cfg",profile);
+    else Q_strncpyz(path,"etconfig.cfg",sizeof(path));
+    length = trap_FS_FOpenFile(path,&file,FS_READ);
+    if (!file) return;
+    if (length > 0 && length < (int)sizeof(config)) trap_FS_Read(config,length,file);
+    trap_FS_FCloseFile(file);
+    if (length <= 0 || length >= (int)sizeof(config)) return;
+    if (memchr(config,0,length)) return;
+    config[length] = 0;
+    for (i = 0; i < 4; ++i)
+    {
+        parsed[i] = TCE_ModernBackgroundConfigValue(config,names[i],values[i],sizeof(values[i]));
+        if (parsed[i] < 0) return; /* Atomic: no partial broken-config restore. */
+    }
+    for (i = 0; i < 4; ++i) if (missing[i] && parsed[i]) trap_Cvar_Set(names[i],values[i]);
+}
+
 static int TCE_ModernBackgroundCvar(const char *name)
 {
     char value[32];
@@ -116,19 +217,13 @@ static int TCE_ModernBackgroundCvar(const char *name)
 
 static void TCE_ModernBackgroundInit(void)
 {
-    static const char marker[] = "TCE2_BACKGROUNDS 1\n";
     static const char *phases[] = {"morning","day","twilight","night","winter"};
-    fileHandle_t file = 0;
     char data[32], shader[MAX_QPATH], value[32], location[96], country[8], months[64];
-    int length, choice, now, stamp, offset, rise, setting, fresh, phase, minute, mode, winter;
+    int choice, now, stamp, offset, rise, setting, fresh, phase, minute, mode, winter;
     qtime_t clock;
     if (modernBackgroundReady) return;
     modernBackgroundReady = 1;
-    length = trap_FS_FOpenFile("tce2_ui/backgrounds/runtime.cfg",&file,FS_READ);
-    if (!file) return;
-    if (length == (int)sizeof(marker)-1) trap_FS_Read(data,length,file);
-    trap_FS_FCloseFile(file);
-    if (length != (int)sizeof(marker)-1 || memcmp(data,marker,sizeof(marker)-1)) return;
+    if (!TCE_ModernBackgroundCatalogAvailable()) return;
     trap_Cvar_Register(NULL,"ui_backgroundLast","0",CVAR_ARCHIVE);
     trap_Cvar_Register(NULL,"ui_backgroundSession","0",0);
     trap_Cvar_Register(NULL,"ui_backgroundMode","0",CVAR_ARCHIVE);
@@ -177,6 +272,7 @@ void TCE_ModernUIReset(void)
 {
     TCE_ModernThemeReset();
     modernChecked = modernEnabled = modernFonts = modernImageCount = 0;
+    modernBackgroundCatalog = 0;
 #ifndef CGAMEDLL
     modernBackgroundReady = 0;
 #endif
@@ -235,7 +331,7 @@ float TCE_ModernReadableScale(float scale, const fontInfo_t *font)
 {
     tce_viewport_t view;
     float cap, preferred, maximum, menuScale;
-    int width, height, full = TCE_ViewportDrawMode() == TCE_VIEWPORT_FULLSCREEN;
+    int width, height, full = TCE_ViewportDrawMode() == TCE_VIEWPORT_FULLSCREEN || TCE_MenuViewportMain();
     if (!TCE_ModernUIEnabled() || !font || !(scale > 0.f) || !(font->glyphScale > 0.f)) return scale;
 #ifdef CGAMEDLL
     width = cgs.glconfig.vidWidth; height = cgs.glconfig.vidHeight;
@@ -312,6 +408,7 @@ void TCE_ModernImage(const char *name, float x, float y, float w, float h)
 void TCE_ModernBackdrop(const char *name)
 {
     int previous = TCE_ViewportSetDrawMode(TCE_VIEWPORT_BACKDROP);
+    if (name && !strcmp(name,"tce2_ui/background")) name = TCE_ModernBackgroundName();
     TCE_ModernImage(name,0,0,TCE_VIEWPORT_CANVAS_WIDTH,TCE_VIEWPORT_CANVAS_HEIGHT);
     TCE_ViewportSetDrawMode(previous);
 }
@@ -320,7 +417,7 @@ void TCE_ModernCursor(float x, float y, qhandle_t shader, int centered)
 {
     tce_viewport_t viewport;
     float size, unused=0, menuMaxHeight, menuScale;
-    int width,height,fullscreen=TCE_ViewportDrawMode()==TCE_VIEWPORT_FULLSCREEN;
+    int width,height,fullscreen=TCE_ViewportDrawMode()==TCE_VIEWPORT_FULLSCREEN || TCE_MenuViewportMain();
 #ifdef CGAMEDLL
     width=cgs.glconfig.vidWidth; height=cgs.glconfig.vidHeight;
     menuMaxHeight=(float)CG_Cvar_Get("ui_menuMaxHeight");

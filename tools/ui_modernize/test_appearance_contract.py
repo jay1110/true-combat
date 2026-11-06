@@ -29,6 +29,18 @@ class AppearanceContract(unittest.TestCase):
         self.assertEqual(sem.appearance_signature(self.page,self.original),sem.APPEARANCE_SEMANTIC_SHA256)
         self.assertEqual(compare_semantics(self.original,self.candidate()),78)
 
+    def test_removing_two_dead_imports_does_not_allow_other_registry_changes(self):
+        candidate=self.candidate()
+        for path in sem.APPEARANCE_LISTS:
+            candidate[path]=restyle.prune_dead_registry(candidate[path].decode('latin1')).encode('latin1')
+        self.assertEqual(compare_semantics(self.original,candidate),78)
+        path=sem.APPEARANCE_LISTS[0]
+        required=b'loadMenu { "ui/options_controls.menu" }'
+        self.assertIn(required,candidate[path])
+        candidate[path]=candidate[path].replace(required,b'',1)
+        with self.assertRaisesRegex(ValueError,'semantic data changed'):
+            compare_semantics(self.original,candidate)
+
     def test_appearance_changed_scripts_cvars_limits_list_values_and_return_are_rejected(self):
         for old,new in ((b'"ui_themePreset"',b'"r_fullscreen"'),
                         (b'"Custom" 4',b'"Custom" 9'),

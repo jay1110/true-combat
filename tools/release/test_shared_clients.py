@@ -266,8 +266,8 @@ class SharedClients(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'Incomplete native client pair'):
             package_directory(modules,'game',output,self.repo)
 
-    def bundle(self,variant='game'):
-        targets=['windows-x86','linux-i386','linux-x86_64'];rows=[self.row(target,variant) for target in targets]
+    def bundle(self,variant='game',targets=None):
+        targets=targets or ['windows-x86','linux-i386','linux-x86_64'];rows=[self.row(target,variant) for target in targets]
         client,metadata=clients.canonical_client(rows,targets,VERSION,variant,self.repo)
         data,bundle=single_mod.build_bundle(rows,client,metadata,VERSION,variant,self.repo,targets)
         return data,bundle,client,targets
@@ -333,6 +333,58 @@ class SharedClients(unittest.TestCase):
         self.assertEqual((mod/'ui_mp_x86.dll').read_bytes(),clients.zip_contents(client)['ui_mp_x86.dll'])
         with self.assertRaisesRegex(ValueError,'absent'):install(folder,'unknown',mod)
         with self.assertRaisesRegex(ValueError,'existing tce2'):install(folder,'windows-x86',self.root/'new-game')
+
+    def test_installer_repairs_existing_win64_pair_without_touching_win32(self):
+        data,_,client,_=self.bundle(targets=['windows-x86','windows-x64'])
+        folder=self.root/'unpacked-auto-client';folder.mkdir()
+        for name,payload in clients.zip_contents(data).items():
+            path=folder/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(payload)
+        native=clients.zip_contents(client)
+        names=clients.module_names('windows-x64')
+        for present in ((),('ui',),('cgame',),('ui','cgame')):
+            with self.subTest(present=present):
+                mod=self.root/('auto-'+('-'.join(present) or 'none'))/'tce2';mod.mkdir(parents=True)
+                for i in range(5):(mod/f'pak{i}.pk3').write_bytes(('synthetic stock '+str(i)).encode())
+                for name in clients.module_names('windows-x86').values():(mod/name).write_bytes(b'other ABI unchanged')
+                for role in present:(mod/names[role]).write_bytes(('old '+role).encode())
+                result=install(folder,'windows-x64',mod)
+                self.assertFalse(result['classic_client'])
+                for name in clients.module_names('windows-x86').values():
+                    self.assertEqual((mod/name).read_bytes(),b'other ABI unchanged')
+                if present:
+                    self.assertEqual(result['client_pair_reason'],'existing-loose-pair')
+                    self.assertEqual(result['client_pair_source'],'same-pk3')
+                    for role,name in names.items():
+                        self.assertEqual((mod/name).read_bytes(),native[name])
+                        backup=Path(result['backup'])/name
+                        if role in present:self.assertEqual(backup.read_bytes(),('old '+role).encode())
+                        else:self.assertFalse(backup.exists())
+                    self.assertFalse(any((Path(result['backup'])/name).exists() for name in clients.module_names('windows-x86').values()))
+                else:
+                    self.assertIsNone(result['client_pair_reason'])
+                    self.assertFalse(any((mod/name).exists() for name in names.values()))
+
+    def test_auto_client_repair_checks_pk3_module_hash_before_any_install_write(self):
+        data,_,client,_=self.bundle(targets=['windows-x64'])
+        files=clients.zip_contents(data);folder=self.root/'unpacked-bad-client';folder.mkdir()
+        manifest=json.loads(files['manifest.json']);path=manifest['pk3_path']
+        native=clients.zip_contents(client);native['ui_mp_x64.dll']+=b'changed native bytes'
+        files[path]=clients.zip_bytes(native)
+        for record in manifest['files']:
+            if record['path']==path:record.update(sha256=clients.sha(files[path]),bytes=len(files[path]))
+        files['manifest.json']=clients.json_bytes(manifest)
+        for name,payload in files.items():
+            target=folder/name;target.parent.mkdir(parents=True,exist_ok=True);target.write_bytes(payload)
+        mod=self.root/'bad-auto/tce2';mod.mkdir(parents=True)
+        for i in range(5):(mod/f'pak{i}.pk3').write_bytes(('synthetic stock '+str(i)).encode())
+        (mod/'ui_mp_x64.dll').write_bytes(b'old ui');(mod/'qagame_mp_x64.dll').write_bytes(b'old server')
+        with self.assertRaisesRegex(ValueError,'Changed native client module'):
+            install(folder,'windows-x64',mod)
+        self.assertEqual((mod/'ui_mp_x64.dll').read_bytes(),b'old ui')
+        self.assertEqual((mod/'qagame_mp_x64.dll').read_bytes(),b'old server')
+        self.assertFalse((mod/'cgame_mp_x64.dll').exists())
+        self.assertFalse((mod/f'tce2-{VERSION}.pk3').exists())
+        self.assertEqual(list(mod.parent.glob('tce2-backup-*')),[])
 
 
 if __name__=='__main__':unittest.main()

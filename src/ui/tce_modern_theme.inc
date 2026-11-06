@@ -106,21 +106,33 @@ void TCE_ModernThemeColor(const float *source, float *out, int surface)
 
 static void TCE_ThemeRegisterImage(const char *name, const char *target)
 {
-    int i=modernTheme.imageCount;
+    int i=modernTheme.imageCount,written;
     qhandle_t original;
+    char imageName[MAX_QPATH],targetName[MAX_QPATH],bodyName[MAX_QPATH],accentName[MAX_QPATH];
+    size_t imageLength,targetLength;
     if(i>=(int)(sizeof(modernThemeImages)/sizeof(modernThemeImages[0]))) return;
-    original=trap_R_RegisterShaderNoMip(name);
+    if(!name || !target) return;
+    imageLength=strlen(name);targetLength=strlen(target);
+    if(imageLength>=sizeof(imageName) || targetLength>=sizeof(targetName)) return;
+    /* The caller may hold formatter-owned strings. Freeze both before making
+     * any engine calls, and never format an image name from another va result. */
+    memcpy(imageName,name,imageLength+1);memcpy(targetName,target,targetLength+1);
+    written=snprintf(bodyName,sizeof(bodyName),"tce2_ui/theme/%s_body",targetName);
+    if(written<0 || written>=(int)sizeof(bodyName)) return;
+    written=snprintf(accentName,sizeof(accentName),"tce2_ui/theme/%s_accent",targetName);
+    if(written<0 || written>=(int)sizeof(accentName)) return;
+    original=trap_R_RegisterShaderNoMip(imageName);
     /* Missing images share the engine's handle0; they are not image aliases. */
     if(original<=0) return;
     ++modernTheme.imageCount;
     modernThemeImages[i].original=original;
     /* Native aliases share these targets. Interactive tracks and handles need
      * foreground contrast instead of the panel's own surface color. */
-    if(!strncmp(target,"slider_",7) || !strncmp(target,"scroll_",7) ||
-       !strncmp(target,"check_",6) || !strncmp(target,"radio_",6))
-        modernThemeImages[i].control=(!strcmp(target,"slider_track") || !strcmp(target,"scroll_track")) ? 1 : 2;
-    modernThemeImages[i].body=trap_R_RegisterShaderNoMip(va("tce2_ui/theme/%s_body",target));
-    modernThemeImages[i].accent=trap_R_RegisterShaderNoMip(va("tce2_ui/theme/%s_accent",target));
+    if(!strncmp(targetName,"slider_",7) || !strncmp(targetName,"scroll_",7) ||
+       !strncmp(targetName,"check_",6) || !strncmp(targetName,"radio_",6))
+        modernThemeImages[i].control=(!strcmp(targetName,"slider_track") || !strcmp(targetName,"scroll_track")) ? 1 : 2;
+    modernThemeImages[i].body=trap_R_RegisterShaderNoMip(bodyName);
+    modernThemeImages[i].accent=trap_R_RegisterShaderNoMip(accentName);
 }
 
 static void TCE_ThemeImages(void)
@@ -134,12 +146,19 @@ static void TCE_ThemeImages(void)
         {"scrollbar_arrow_up_a","icons/chevron_up"},{"scrollbar_arrow_left","icons/chevron_left"},{"scrollbar_arrow_right","icons/chevron_right"},
         {"scrollbar_thumb","scroll_thumb"},{"slider2","slider_track"},{"sliderbutt_1","slider_thumb"},
         {"check","check_on"},{"check_not","check_mixed"},{"check_no","check_off"} };
-    int i;
+    int i;char name[MAX_QPATH],target[MAX_QPATH];
     if(modernTheme.imagesInitialized) return;
     modernTheme.imagesInitialized=1;
-    for(i=0;i<(int)(sizeof(widgets)/sizeof(widgets[0]));++i) TCE_ThemeRegisterImage(va("tce2_ui/%s",widgets[i]),widgets[i]);
-    for(i=0;i<(int)(sizeof(icons)/sizeof(icons[0]));++i) TCE_ThemeRegisterImage(va("tce2_ui/icons/%s",icons[i]),va("icons/%s",icons[i]));
-    for(i=0;i<(int)(sizeof(aliases)/sizeof(aliases[0]));++i) TCE_ThemeRegisterImage(va("ui/assets/%s.tga",aliases[i][0]),aliases[i][1]);
+    for(i=0;i<(int)(sizeof(widgets)/sizeof(widgets[0]));++i) {
+        snprintf(name,sizeof(name),"tce2_ui/%s",widgets[i]);TCE_ThemeRegisterImage(name,widgets[i]);
+    }
+    for(i=0;i<(int)(sizeof(icons)/sizeof(icons[0]));++i) {
+        snprintf(target,sizeof(target),"icons/%s",icons[i]);
+        snprintf(name,sizeof(name),"tce2_ui/icons/%s",icons[i]);TCE_ThemeRegisterImage(name,target);
+    }
+    for(i=0;i<(int)(sizeof(aliases)/sizeof(aliases[0]));++i) {
+        snprintf(name,sizeof(name),"ui/assets/%s.tga",aliases[i][0]);TCE_ThemeRegisterImage(name,aliases[i][1]);
+    }
 }
 
 static void TCE_ThemeRawPicture(float x,float y,float w,float h,qhandle_t shader)
@@ -198,12 +217,13 @@ void TCE_ModernThemePicture(float x,float y,float w,float h,qhandle_t shader,con
          * selected accent. Preserve neutral disabled modulation and alpha. */
         if ((tint[0]>.55f && tint[1]>.35f && tint[2]<.55f && tint[0]>tint[2]*1.4f) ||
             (fabsf(tint[0]-tceModernAmber[0])<.001f && fabsf(tint[1]-tceModernAmber[1])<.001f && fabsf(tint[2]-tceModernAmber[2])<.001f) ||
+            (fabsf(tint[0]-tceModernWhite[0])<.001f && fabsf(tint[1]-tceModernWhite[1])<.001f && fabsf(tint[2]-tceModernWhite[2])<.001f) ||
             (tint[0]>.73f && tint[1]>.73f && tint[2]>.73f))
             tint[0]=tint[1]=tint[2]=1.f;
         for(i=0;i<3;++i)
             body[i]=(modernThemeImages[found].control ?
                      (modernThemeImages[found].control==1 ? tceModernMuted[i] : tceModernWhite[i]) :
-                     TCE_ThemeClamp(modernTheme.base[i]*4.f,0,0,1))*tint[i];
+                     modernTheme.base[i])*tint[i];
         body[3]=tint[3]; trap_R_SetColor(body); TCE_ThemeRawPicture(x,y,w,h,modernThemeImages[found].body);
         for(i=0;i<3;++i) body[i]=tceModernAmber[i]*tint[i];
         trap_R_SetColor(body); TCE_ThemeRawPicture(x,y,w,h,modernThemeImages[found].accent);
