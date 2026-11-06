@@ -79,15 +79,19 @@ static int TCE_ModernScoreInfo(int x,int y,float fade)
 
 static int TCE_ModernScoreTeam(int legacyX,int y,int team,float fade,int ignoredRows)
 {
-    static const float columns[]={145,172,199,226,258,300,339,369};
+    /* Reserve real slots for the preferred8px caps at640, including PING.
+     * Header and value widths must stop before the next column/panel edge. */
+    static const float columns[]={132,167,199,226,249,300,323,347};
     static const char *labels[]={"KILL","DTH","SUI","TK","SCORE","DR","AA","PING"};
-    float x=team==TEAM_AXIS?24.f:438.f,rowHeight,scale;
+    float x=team==TEAM_AXIS?24.f:438.f,rowHeight,scale,columnWidths[8];
     vec4_t accent={.85f,.26f,.23f,1},rowColor={.10f,.15f,.19f,.55f};
     int count=TCE_ModernScoreCount(team),pages=TCE_ModernRosterPages(count,16);
     int page=((unsigned)cg.time/8000u)%pages,rows=count-page*16,i,j,n=0,shown=0;
     int localTeam=cgs.clientinfo[cg.clientNum].team;
     char text[128];
     (void)legacyX;(void)ignoredRows;(void)fade;
+    for(j=0;j<8;++j)
+        columnWidths[j]=(j<7?columns[j+1]-2.f:390.f-6.f)-columns[j];
     if(rows>16)rows=16;if(rows<1)rows=1;
     rowHeight=rows>11?246.f/rows:22.f;scale=rows>11?.22f:.24f;
     if(team==TEAM_ALLIES){accent[0]=.21f;accent[1]=.60f;accent[2]=.91f;}
@@ -100,8 +104,8 @@ static int TCE_ModernScoreTeam(int legacyX,int y,int team,float fade,int ignored
     TCE_ModernScoreText(x+260,y+26,.19f,120,tceModernMuted,text,0);
     if(cg_gameType.integer==7 && cg.teamFirstBlood==team)
         TCE_ModernScoreText(x+12,y+39,.17f,150,tceModernAmber,"FIRST BLOOD",1);
-    TCE_ModernScoreText(x+12,y+51,.18f,125,tceModernMuted,"PLAYER / STATUS",1);
-    for(j=0;j<8;++j)TCE_ModernScoreText(x+columns[j],y+51,.18f,j==4?40:30,tceModernMuted,CG_TranslateString(labels[j]),1);
+    TCE_ModernScoreText(x+12,y+51,.18f,columns[0]-20.f,tceModernMuted,"PLAYER / STATUS",1);
+    for(j=0;j<8;++j)TCE_ModernScoreText(x+columns[j],y+51,.18f,columnWidths[j],tceModernMuted,CG_TranslateString(labels[j]),1);
     for(i=0;i<cg.numScores && i<MAX_CLIENTS;++i)
     {
         score_t *score=&cg.scores[i];const clientInfo_t *ci;float top,base,nameX;
@@ -130,7 +134,7 @@ static int TCE_ModernScoreTeam(int legacyX,int y,int team,float fade,int ignored
             CG_DrawPicST(nameX,top+(rowHeight-10)*.5f,13,10,s,t,s+1.f/16,t+1.f/16,tce_countryFlagsShader);nameX+=15;
         }
         Com_sprintf(text,sizeof(text),"%s%s",ci->botSkill>0?"^8[B]^7 ":"",ci->name);
-        TCE_ModernScoreText(nameX,base,scale,x+139-nameX,tceModernWhite,text,0);
+        TCE_ModernScoreText(nameX,base,scale,x+columns[0]-6.f-nameX,tceModernWhite,text,0);
         hidden=tce_scoreExtended[i] && TCE_ModernHiddenStats(cg_gameType.integer,cgs.tceKillMessage,cg.snap->ps.stats[STAT_HEALTH],cg.snap->ps.pm_type);
         for(j=0;j<8;++j)
         {
@@ -140,7 +144,7 @@ static int TCE_ModernScoreTeam(int legacyX,int y,int team,float fade,int ignored
             else if(j==5)Com_sprintf(text,sizeof(text),"%.2f",(double)score->damageRating*(double).01f);
             else {int values[]={score->kills,score->deaths,score->suicides,score->teamKills,score->score,0,TCE_AddInt32(score->classRating,1)};
                 Com_sprintf(text,sizeof(text),"%d",values[j]);}
-            TCE_ModernScoreText(x+columns[j],base,scale,j==4?40:30,tceModernWhite,text,0);
+            TCE_ModernScoreText(x+columns[j],base,scale,columnWidths[j],tceModernWhite,text,0);
         }
         ++shown;
     }

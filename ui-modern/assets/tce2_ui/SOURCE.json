@@ -2,7 +2,7 @@
   "schema": 1,
   "origin": "Original code-created interface art and original imagegen industrial background. No game/reference artwork copied.",
   "generator": "tools/ui_modernize/generate_assets.py",
-  "generator_sha256": "5f3c3f4e0918daf053abd2c49356f14582008c1165c99fbc630c7d2d5ba9515c",
+  "generator_sha256": "a5231729f930d41988dd1087954e03e66a0f757bbf738abcf215a25b258dffae",
   "background_source": "ui-modern/source/background-industrial-v1.png",
   "background_sha256": "3ccd94c4f50145c2233ac74bce45bf5d1bae4b26d85bfeef0c1fb35f3803f5e9",
   "cursor_hotspot": {
@@ -23,11 +23,11 @@
     {
       "path": "tce2_ui/background.tga",
       "shader": "tce2_ui/background",
-      "width": 1672,
-      "height": 941,
+      "width": 2048,
+      "height": 1024,
       "channels": 24,
-      "bytes": 4720100,
-      "sha256": "715cee0172cde9ef96b620fd2369dbd5fd701bca093a275a68310ed37a168345"
+      "bytes": 6291500,
+      "sha256": "223810edbdf1ce378a5daf647dfc24446b5cdcb22857974bb90433331f8bd583"
     },
     {
       "path": "tce2_ui/panel.tga",
@@ -36,7 +36,7 @@
       "height": 256,
       "channels": 32,
       "bytes": 524332,
-      "sha256": "baa1fb7a6247a83cd3451f84478844a9d8e2f6787c015907a843e89dd7182c8e"
+      "sha256": "c477451ca385c8775c29b20fcdba6faa5b567b295b63eb95ff9ef7e78830eb91"
     },
     {
       "path": "tce2_ui/panel_header.tga",
@@ -45,7 +45,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 131116,
-      "sha256": "da90f8fefc2c05812ba045d4832835895836ca9e8dca0c6b0cdb6b9e8712adbc"
+      "sha256": "f95f50f2a5fed493273586ce83de3e12275a48d9407476085edcb2967fd326cd"
     },
     {
       "path": "tce2_ui/card.tga",
@@ -54,7 +54,7 @@
       "height": 256,
       "channels": 32,
       "bytes": 524332,
-      "sha256": "108d360ff14a0f76d476a680f54ea7e0cdb00d7f9ace84d0af9e3bfcf163ec9e"
+      "sha256": "e626b5fbe8e3b8c568ed5d2046aeef72da52455bbea264fa9de2c61c60d63216"
     },
     {
       "path": "tce2_ui/button.tga",
@@ -63,7 +63,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "9f9c77f2aa255dcea78b9d6949db1229d81903f61e3678598bad9a8b8267d1a2"
+      "sha256": "4dad98285e6873da746cfb7d8d3dca625f6832b74fddc7b8b496e46591ac8120"
     },
     {
       "path": "tce2_ui/button_hover.tga",
@@ -72,7 +72,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "6a114abc71efe7937702596563f200fccf985d83d7b02d6a886ddb76998e14eb"
+      "sha256": "3d61bdadf8de10e77c89a6946063fc8a7dadd86f7756fe31815cf0c16f8a60ac"
     },
     {
       "path": "tce2_ui/button_pressed.tga",
@@ -81,7 +81,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "a30e9c53c407e588acc17497d2d1cf44be417a4416307bba9e512f0df22b40ce"
+      "sha256": "63612e8762f952c138eb77fcb169a2f4efb1fcbd04aee90bfe8c0ea46e2e3efa"
     },
     {
       "path": "tce2_ui/button_disabled.tga",
@@ -90,7 +90,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "24b53c17f175b1787eef9365f35943ca79dfa42449cbb484e41c20fbd872c422"
+      "sha256": "7a5b9fc51072a2ff5d9e74cec5f5d9b32617c24ed6cf8f3e87c90ed164ffadd5"
     },
     {
       "path": "tce2_ui/tab.tga",
@@ -99,7 +99,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "ee6f0272948bdc047532238bc01712aed5527b6e0881c2f6527fd284aadcd2f4"
+      "sha256": "025b299c4cd317ee7ceb85f90f7f31ae4c83ea972b7058f1fb9506a5ed372f8a"
     },
     {
       "path": "tce2_ui/tab_hover.tga",
@@ -108,7 +108,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "401cd1066faafbe6b78bcb5b989d6953130074e97c4fff4cf2e092ebc49e6e19"
+      "sha256": "070497224d939a87addf6b6e15fb63da9124a7c1bf2513222b8618cb8c8c5e76"
     },
     {
       "path": "tce2_ui/tab_active.tga",
@@ -117,7 +117,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "4a817de5a383dd57d48f784080012c072339f24c7e1c38c9bf0f4d45d811ab10"
+      "sha256": "b6ca44f6a16e4fb243a24a364a2465ea93a57d91b7b06c029ea70e8787cb8895"
     },
     {
       "path": "tce2_ui/selector.tga",
@@ -126,7 +126,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "5f89cd590c74d6218f60c208f4370a4b83dc2d482fef0f00f8c72321fb572175"
+      "sha256": "da2ccff20ed70d2909b7a8ad68e67b51104db7de079e7f4d29be0af9a6bb73f6"
     },
     {
       "path": "tce2_ui/selector_focus.tga",
@@ -135,7 +135,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "44c4175896044ad1b32e5523fa101224c9aee2794cb47a8520a8fdd1992494a8"
+      "sha256": "68df3f7e807cb6cf8293c84e00f3059dccfb3c0c835140ed3dc7f276b0134f3f"
     },
     {
       "path": "tce2_ui/slider_track.tga",
@@ -144,25 +144,25 @@
       "height": 16,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "5c5654fe40ae270f2d34a8feb3a622071aa74826dc20ac44fd42d0812009b7fb"
+      "sha256": "606d88ff504e92f70552fd0a4d4da7455cc5814c34abc7890c3b8e92ce8d79bd"
     },
     {
       "path": "tce2_ui/slider_thumb.tga",
       "shader": "tce2_ui/slider_thumb",
       "width": 32,
-      "height": 48,
+      "height": 64,
       "channels": 32,
-      "bytes": 6188,
-      "sha256": "bce8317cf63457bd82884a64cb3afea70f850bed068851344704a1c7b7fe50bd"
+      "bytes": 8236,
+      "sha256": "b5dda52206be69cb34e7d0f7576e89505d3fba22bf568920dafda348c12f6957"
     },
     {
       "path": "tce2_ui/slider_thumb_hover.tga",
       "shader": "tce2_ui/slider_thumb_hover",
       "width": 32,
-      "height": 48,
+      "height": 64,
       "channels": 32,
-      "bytes": 6188,
-      "sha256": "a3df71cc48b020d1f6ca9cad0e9ca8a48c150bb80773502df02cdec217e6cc30"
+      "bytes": 8236,
+      "sha256": "0d6e9e61da77ea8fb6aafdf839c949542b61bf837c6daedaac819eba9e9f7385"
     },
     {
       "path": "tce2_ui/scroll_track.tga",
@@ -171,7 +171,7 @@
       "height": 256,
       "channels": 32,
       "bytes": 32812,
-      "sha256": "06df535b975aa26de59aecfe12db863f2428eee72ac97dd3fd1aea707e9f976c"
+      "sha256": "46576652199ddd8434fac30f7fab123dbe2b2d537452e11bb9380af47591f95d"
     },
     {
       "path": "tce2_ui/scroll_thumb.tga",
@@ -180,7 +180,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 8236,
-      "sha256": "32c7360b85eccc676605ab689b94f4e8616ee3326e40533595c169ef3b515178"
+      "sha256": "c15f1938efbe48f352aabb91d6ef1dcf4d03a1e3b9c08f643cd98be96dae5030"
     },
     {
       "path": "tce2_ui/scroll_thumb_hover.tga",
@@ -189,7 +189,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 8236,
-      "sha256": "f41accada671e94376b634453d57a395344f792622937a2ad4bc6b7b0cd51769"
+      "sha256": "daccb7c77f66362914c651517839ee4914bda48f777144aaef4734cd3e2936a0"
     },
     {
       "path": "tce2_ui/check_off.tga",
@@ -198,7 +198,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "96418350db8a5bdb77a42f2cfd91bf40896dab0a3ef1b44f2d2b890643350f39"
+      "sha256": "e11ac25105f2825fb117a7a99139b7237218701a952dbfd0222ed37c6ea898eb"
     },
     {
       "path": "tce2_ui/check_on.tga",
@@ -207,7 +207,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "3b4939b5363e90f573e524e4cac50cf04693b15a02312c46d5d9317d05e874bc"
+      "sha256": "61f6cc77328103938e64edf17d712af37376c31c271768550fd27e62d39c6bf2"
     },
     {
       "path": "tce2_ui/check_mixed.tga",
@@ -216,7 +216,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "bca3f587434434e69a3c3208cf5af4294c695c2eece0c29a1bd5c4fa39d16972"
+      "sha256": "64ba5930ff75bdba7f46dbc28407b356017ae10efb76e108a3dd9330db23133b"
     },
     {
       "path": "tce2_ui/radio_off.tga",
@@ -225,7 +225,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "7517c8e26b8a2d9c310439196f39663f751286e9d783a5245cac408335cc4f77"
+      "sha256": "125e26f294dfeca58990e2f192ad71ad95c386da9ccc601ab4e515605d409349"
     },
     {
       "path": "tce2_ui/radio_on.tga",
@@ -234,7 +234,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "c3140054b351a91db195108fd1051f970c9805a21b00ba6608f7dd6d43c27d30"
+      "sha256": "bb48544c48c159528e7380bad4d82697a9fcd0290040de29d531e2a5bfd7ec40"
     },
     {
       "path": "tce2_ui/separator.tga",
@@ -243,7 +243,7 @@
       "height": 4,
       "channels": 32,
       "bytes": 4140,
-      "sha256": "2ac960fe1a67845fe5ef8d99d830065ef34c958b967a67f403c1f3822ed08ab1"
+      "sha256": "74b6df7e149a638127af9d786c242f618d09748fac99da26277ff47af2bb08be"
     },
     {
       "path": "tce2_ui/focus.tga",
@@ -252,7 +252,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "227305dc6ed59977a0c8f99ca02e324ef486e2dde3f8c13de5d68969fde5291a"
+      "sha256": "ee4c0c7f9b0b58d81e329cf41a57befca6d5b3b2a4f75462ca98aaa1dadb3869"
     },
     {
       "path": "tce2_ui/cursor.tga",
@@ -261,7 +261,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "e58db8745d543eaa73b41d4d1b6fff88f0fad7c63774c9c1fadb5a6d4c268117"
+      "sha256": "f45325e25e648d4a91f7b8f6c76e4db7b7df915c0c4b0f14cee13f67fb033748"
     },
     {
       "path": "tce2_ui/icons/play.tga",
@@ -270,7 +270,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "4e386cab6ae650792cf39a59c003f30902c4821352bd01a5eee197c1d90ac66a"
+      "sha256": "22a3a099e7ae6bf5c5721a2e0510b6bff27f4f59c1e70546e787e31210a0b9d2"
     },
     {
       "path": "tce2_ui/icons/multiplayer.tga",
@@ -279,7 +279,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "cfbf6afef513ecffac238f28ac8d563eaa8e9f00122e55ca0ccbe5a7a5a3072c"
+      "sha256": "d9012b0979024ec1ba71129b57d1363cf5cbdeb248b01bd25d7668b63b027c51"
     },
     {
       "path": "tce2_ui/icons/host.tga",
@@ -288,7 +288,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "7495ee0d76099443205e802bd0ef3b357ba303acaf859c579068cdca595447ad"
+      "sha256": "a5f604d52ec8f7ae5a397cceddb45af14d5d0d2781d10b5aa110c4e5fd920965"
     },
     {
       "path": "tce2_ui/icons/replays.tga",
@@ -297,7 +297,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f16e8af5930658ac1089039fde811f9a7c01458e9860e4a0e9f282e69b6f33d4"
+      "sha256": "b96a6f9d1373b33c56a83180c55eb5b0ae98004ba63134b3b55bea03258e6160"
     },
     {
       "path": "tce2_ui/icons/settings.tga",
@@ -306,7 +306,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "5f953f0204f004654e042f48a1135290f23647ed459df41a098636c9daca2246"
+      "sha256": "24cbad945f7017103654fb2641c3648aeb65e390eaaa20d7462f951e77df7bad"
     },
     {
       "path": "tce2_ui/icons/profile.tga",
@@ -315,7 +315,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "65a30fefcc77272fa274bc44e7ae330a1f60c08d6f592899f0af177d14b12c4f"
+      "sha256": "09c37badf9068f77703fe8c6788c5a0a7c50760b7b24d0e9e178ebb3fe05ad9d"
     },
     {
       "path": "tce2_ui/icons/credits.tga",
@@ -324,7 +324,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "409ef480e0d36bda796f634e319dd76c929ca1db97904d90c22d316281a1c259"
+      "sha256": "56d6d0ef9f3240848cc001212d5131253edbfbefeeb0e0e4f13870f7ddf4819a"
     },
     {
       "path": "tce2_ui/icons/exit.tga",
@@ -333,7 +333,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "12720e69342021c6c05e5ce1063aa46d45a8e155f445db6119946d5215174799"
+      "sha256": "e09db38c81c04fa2f6705243a18c5158ca2ce779ad0292ac6c46190277276a83"
     },
     {
       "path": "tce2_ui/icons/graphics.tga",
@@ -342,7 +342,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "b7b280f07e6b641c26c8b92746834db1cdeb639ad1d64d3ce0b0dd5bde13b55c"
+      "sha256": "d0cc72ad9b05b755e80a052c975db20500a1fdac59eebaf50539c6d48fd1945b"
     },
     {
       "path": "tce2_ui/icons/audio.tga",
@@ -351,7 +351,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "34a6e9f82aece8fb4243d469ee5803850842d0f16bc869923fbc8aeb05296641"
+      "sha256": "0c7d622fc8012b961c4139d58782d9365793e5b57c629324e5879661bba40e40"
     },
     {
       "path": "tce2_ui/icons/controls.tga",
@@ -360,7 +360,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "ec71e4d3475b23690ac9722643ea60bc48092f3714885e763e187558aeb7fa28"
+      "sha256": "2474c194fc382e46a5ffd6e3b0ae22921fbbd2be18c627bc30f98703efa5a02a"
     },
     {
       "path": "tce2_ui/icons/network.tga",
@@ -369,7 +369,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "6af29de9b435574eb4f39bd2e911e407dbf8284d3a741d79d80f363625467032"
+      "sha256": "b3c05936a2e9c0842c9c0729305e9269e6d838ae04e86aef59a82d8afe2f159f"
     },
     {
       "path": "tce2_ui/icons/chevron_up.tga",
@@ -378,7 +378,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "4e27fbb061ee8c2fc67f95a89849b76c599640dcb701c8e3c5a45929648b62d5"
+      "sha256": "85ffb1c1cb05ad86816223bc987a2cec44df18096ab724bdb2c31f167f9df01e"
     },
     {
       "path": "tce2_ui/icons/chevron_down.tga",
@@ -387,7 +387,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "1b205fcd8cb92b8ac272e08036d94e39f750103866598fed29577a722f00df70"
+      "sha256": "d56c24c55bc0e37bf75fdf2735a6f00ef366870901d4f97f8e510c8349e7394c"
     },
     {
       "path": "tce2_ui/icons/chevron_left.tga",
@@ -396,7 +396,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "7b3bbb34ce5d870c6fdf75daee3047f87654ce6d02bb71f52ee6efa18d6c9a5e"
+      "sha256": "395df5140e24193a402e7ee8500081ed2e273a599b8b96c459f22f7c84d88ef9"
     },
     {
       "path": "tce2_ui/icons/chevron_right.tga",
@@ -405,7 +405,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "9ab2ed54fe8cc785e62eda9eac3c8799d5e2294530e0d0cb846af702bf384593"
+      "sha256": "ca0c2ab0bd1df5a9f373c376678bdeb73c6c8b0f2b3ef357e4902d5decaf673e"
     },
     {
       "path": "tce2_ui/icons/close.tga",
@@ -414,7 +414,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "80c475b57a377b571350b0fc1a62435dccf59eac5ba14674d1c42adeb754289b"
+      "sha256": "f012a8752ceec1e8f74c9924adc5eb7761ae3d761f91df2911a5dcdd27223634"
     },
     {
       "path": "tce2_ui/icons/check.tga",
@@ -423,7 +423,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "5994311968349977385ce77b6a42d851343e3fec4912068c81479e85ac970107"
+      "sha256": "9f1ebbf66d3df9af5f194c7544ee04920fd4a94d97df2d43cab0eecfa460f05f"
     },
     {
       "path": "tce2_ui/icons/search.tga",
@@ -432,7 +432,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "ba05eb0fd99618fe88f51a40cb4669cb9971e586b90eb436c1d3dd7b25e25e97"
+      "sha256": "635b81369d3ff11c98cc18c6248bf6231ffc2a6f02d729654bcc4149012f275c"
     },
     {
       "path": "tce2_ui/icons/refresh.tga",
@@ -441,7 +441,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f402bf60f4c815febcba522edb0cd16166093daf55bcc234acf1dbf6cfaa9b8b"
+      "sha256": "029ef80318b63a01b9f366667971e9079086f8607b89ae4ed6a06ea8dae7288a"
     },
     {
       "path": "tce2_ui/icons/folder.tga",
@@ -450,7 +450,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "a37bcd9201c7d7bd7155cb71c4d6fb3bd40dbc4b011428389f4822023929ef30"
+      "sha256": "aa7ec24bb01a98872cb3eebffb0f8e5b86bef00d73b5b6f5179adcba9fdf5611"
     },
     {
       "path": "tce2_ui/icons/download.tga",
@@ -459,7 +459,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "4f4fb03297d48a6a119b743c4ec68224fe99b0e4e46f5d3ff8b5b026cf64ed2d"
+      "sha256": "f10cddf59f28f6d4bd295f177389598cfa4d1ed190070d8bbe797c5e18af68ee"
     },
     {
       "path": "tce2_ui/icons/lock.tga",
@@ -468,7 +468,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "c26b59c027ee05ea514bbea16e33f001d20d343b2587b1027ae28bea59a433b0"
+      "sha256": "37658d885c99404482fabf827f978415cfca8eb7467245d31f33253353e205ac"
     },
     {
       "path": "tce2_ui/icons/warning.tga",
@@ -477,7 +477,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "d53534b971a0293d41bf883325dac3e9dc90e2e11fe2a99449cf5216543eb7d8"
+      "sha256": "d59b9a88128f879a6cf728e1e66058feed1415d862351b2030501e7f877bbf25"
     },
     {
       "path": "tce2_ui/icons/info.tga",
@@ -486,7 +486,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "409ef480e0d36bda796f634e319dd76c929ca1db97904d90c22d316281a1c259"
+      "sha256": "56d6d0ef9f3240848cc001212d5131253edbfbefeeb0e0e4f13870f7ddf4819a"
     },
     {
       "path": "tce2_ui/icons/server.tga",
@@ -495,7 +495,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "7495ee0d76099443205e802bd0ef3b357ba303acaf859c579068cdca595447ad"
+      "sha256": "a5f604d52ec8f7ae5a397cceddb45af14d5d0d2781d10b5aa110c4e5fd920965"
     },
     {
       "path": "tce2_ui/theme/panel_body.tga",
@@ -504,7 +504,7 @@
       "height": 256,
       "channels": 32,
       "bytes": 524332,
-      "sha256": "1c2b321e9530df8c40bec16c0d82d099059a0192f3b09d782e44db25d1e81660"
+      "sha256": "925b482498aa954887dd38427993730c40c5dacb94af519de188a082ab106313"
     },
     {
       "path": "tce2_ui/theme/panel_accent.tga",
@@ -513,7 +513,7 @@
       "height": 256,
       "channels": 32,
       "bytes": 524332,
-      "sha256": "409bb56a00b6fc85fbea494a242ebea8daf0c91567510c021efd58ebc94fdc39"
+      "sha256": "0e846266d8bb406892a1bb4a6da68aae1cee41c2599b58a49e369ea6632ed157"
     },
     {
       "path": "tce2_ui/theme/panel_header_body.tga",
@@ -522,7 +522,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 131116,
-      "sha256": "95f6028b2716d5574a33ba35dee208f365804f557b90ff8c1e35800752311d97"
+      "sha256": "f0c4e7f25b8f7d4344eb955ff9c1926115b64e8e740d9273c42477377094fff7"
     },
     {
       "path": "tce2_ui/theme/panel_header_accent.tga",
@@ -531,7 +531,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 131116,
-      "sha256": "08306fd56bf9ff8eede5c48c57d00239d827932ffadca16a6c8e86ab3d59a51e"
+      "sha256": "a6a21c76cf34a273cdf778cdfc6fca9f5dd94c7cb6bacc1958e1badb25093d06"
     },
     {
       "path": "tce2_ui/theme/card_body.tga",
@@ -540,7 +540,7 @@
       "height": 256,
       "channels": 32,
       "bytes": 524332,
-      "sha256": "94e77c49f4268f383da65aea6fb2ad4954b2f706be237f771d1c19d9236109b4"
+      "sha256": "56c2c6d0cd5d3018b4627f85a505f0efd31f7863853e53717168a100676034f7"
     },
     {
       "path": "tce2_ui/theme/card_accent.tga",
@@ -549,7 +549,7 @@
       "height": 256,
       "channels": 32,
       "bytes": 524332,
-      "sha256": "409bb56a00b6fc85fbea494a242ebea8daf0c91567510c021efd58ebc94fdc39"
+      "sha256": "0e846266d8bb406892a1bb4a6da68aae1cee41c2599b58a49e369ea6632ed157"
     },
     {
       "path": "tce2_ui/theme/button_body.tga",
@@ -558,7 +558,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "d1fec8cc7a32220ca9530ef9937f6bd858e33f559735f798eed0e2d452562e8d"
+      "sha256": "7dcc9cda3c9468a2e565c676a7206638bf9577a6cb37d31ea4271d275bfe3cba"
     },
     {
       "path": "tce2_ui/theme/button_accent.tga",
@@ -567,7 +567,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "37e23c8e6dfda079b7e86118de2ea541984e6743f4d2430257f087cbd858825b"
+      "sha256": "25a958862954d9e44282c7a3e9c1a0d93d6420a38a51b0b6614c79aa9dc3a72f"
     },
     {
       "path": "tce2_ui/theme/button_hover_body.tga",
@@ -576,7 +576,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "e5f848d520cd40db5ca9ea98db3395f81027db940f209bb5781c00252c060285"
+      "sha256": "14350ae60fc652e64ee53cb4f0cdd1e8acc471dab3c1d5dd378ee91b1621791f"
     },
     {
       "path": "tce2_ui/theme/button_hover_accent.tga",
@@ -585,7 +585,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "1cba022204cabfdf25d026bb099ea70bcf144ae7c6a824994cfe320e53c0f059"
+      "sha256": "479d8f29179f0341d16dabef693729ea98a4b3441d78a81a8f3df96f28203c72"
     },
     {
       "path": "tce2_ui/theme/button_pressed_body.tga",
@@ -594,7 +594,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "2a7359d150a9756f42cbed67ae7f5d8490a0751c691ced2e30265ca15541ea7d"
+      "sha256": "6a58d5e78e122119a2644a9c129ed60cb48d6711f7b6a6785a06898584d86cd4"
     },
     {
       "path": "tce2_ui/theme/button_pressed_accent.tga",
@@ -603,7 +603,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "ab140d8ee1d5057d5ebaaf944b11df889ba03e627b5898ce187a7ae711c0d466"
+      "sha256": "1606aa0304af2237feb0e16d904a5537a147950b01c9c035b75fa560f910c7f8"
     },
     {
       "path": "tce2_ui/theme/button_disabled_body.tga",
@@ -612,7 +612,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "534ad5aab62e2ded31d42a70d3aae2232b5ef76e8a88f3b21a556672ae588c6e"
+      "sha256": "219d8a9cf32e0d0b9793c759b22358326a4ae55b289eb3551964746ee6e3ab82"
     },
     {
       "path": "tce2_ui/theme/button_disabled_accent.tga",
@@ -621,7 +621,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "37e23c8e6dfda079b7e86118de2ea541984e6743f4d2430257f087cbd858825b"
+      "sha256": "25a958862954d9e44282c7a3e9c1a0d93d6420a38a51b0b6614c79aa9dc3a72f"
     },
     {
       "path": "tce2_ui/theme/tab_body.tga",
@@ -630,7 +630,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "9cbdebc848131ba8d070c3e873bf35b3fdebc5ee2d7e76a70ed35f85e992827a"
+      "sha256": "11ed2a3568afcd182f2b09222d0a5759a5a08f7342ed0df13eeab5ef01f080a0"
     },
     {
       "path": "tce2_ui/theme/tab_accent.tga",
@@ -639,7 +639,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "37e23c8e6dfda079b7e86118de2ea541984e6743f4d2430257f087cbd858825b"
+      "sha256": "25a958862954d9e44282c7a3e9c1a0d93d6420a38a51b0b6614c79aa9dc3a72f"
     },
     {
       "path": "tce2_ui/theme/tab_hover_body.tga",
@@ -648,7 +648,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "b383c34735634e7430cd7aef131cef98c33853e86267c36590eceb6858c428a2"
+      "sha256": "fb0bd861b13d4bddd6b29e0fa09b54d20674b59942fcd4eec51204700dbe0df3"
     },
     {
       "path": "tce2_ui/theme/tab_hover_accent.tga",
@@ -657,7 +657,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "37e23c8e6dfda079b7e86118de2ea541984e6743f4d2430257f087cbd858825b"
+      "sha256": "25a958862954d9e44282c7a3e9c1a0d93d6420a38a51b0b6614c79aa9dc3a72f"
     },
     {
       "path": "tce2_ui/theme/tab_active_body.tga",
@@ -666,7 +666,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "174635f7a2ce705760355e99a787e60ddea20578c69ba9a66566fb994d457a0a"
+      "sha256": "6e252df9fadec1746676638cf3db426d88561222b9966028fadaa469087c1748"
     },
     {
       "path": "tce2_ui/theme/tab_active_accent.tga",
@@ -675,7 +675,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "0c260d05f60b2e1d06eff71dd0928799e4c5ed549873b46ddb37922d22f052da"
+      "sha256": "0d54e1bf4bd5e943b81719cd19b4065fc504c8004d1ecc82cfeccf9a25f8747e"
     },
     {
       "path": "tce2_ui/theme/selector_body.tga",
@@ -684,7 +684,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "4cbdb62a6f56f4a0f159011253e9166bdfa40213b5001e42937745b28867c23b"
+      "sha256": "d72ea0cded46d0ef5152d70ef3bb97251eaa38f3e5c90a3fb6ea8ab2b21e0367"
     },
     {
       "path": "tce2_ui/theme/selector_accent.tga",
@@ -693,7 +693,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "37e23c8e6dfda079b7e86118de2ea541984e6743f4d2430257f087cbd858825b"
+      "sha256": "25a958862954d9e44282c7a3e9c1a0d93d6420a38a51b0b6614c79aa9dc3a72f"
     },
     {
       "path": "tce2_ui/theme/selector_focus_body.tga",
@@ -702,7 +702,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "126eaab0344fb271e92bae5b092afee8e3c29143b4f41569a770a80c08ac21a0"
+      "sha256": "2497809bf1b8c9e1d2ce0a11da4fb4fa727cf392097cb3e559390dbaf14cb8bf"
     },
     {
       "path": "tce2_ui/theme/selector_focus_accent.tga",
@@ -711,7 +711,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "c8dfd3e1268d00d4bbeb6ef9f56463581c7808b2bdb5c7e37bf252845fa6982c"
+      "sha256": "7d6b111720b6e825a21f135853e30ba570de9db16086f3be5eb73ba5b7c7f48f"
     },
     {
       "path": "tce2_ui/theme/slider_track_body.tga",
@@ -720,7 +720,7 @@
       "height": 16,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "00eeb2aa390885cb51e2c40b13c8a2750673ca3f290d7c99998397dd890e64e3"
+      "sha256": "0333266c31d18ae6a65e6592619a1b06db94e5b1396374a6620a2d55f9045a36"
     },
     {
       "path": "tce2_ui/theme/slider_track_accent.tga",
@@ -729,43 +729,43 @@
       "height": 16,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "94d61bc59f3fd4f2c4c425fd0fec0df5daf61efb1c217252718a7d84b31b4900"
+      "sha256": "4ee1896c8c9503c38ce86d2b42e523c98bc765046a37363746fe1d18c12061df"
     },
     {
       "path": "tce2_ui/theme/slider_thumb_body.tga",
       "shader": "tce2_ui/theme/slider_thumb_body",
       "width": 32,
-      "height": 48,
+      "height": 64,
       "channels": 32,
-      "bytes": 6188,
-      "sha256": "b14bdf92cd38eb722e6341b28908e0aae0e0def7292d0dc8c77fb1bb34e6b4ef"
+      "bytes": 8236,
+      "sha256": "28084b274262b70f57eddaf996afff7a2cde81d17dde89ac77a330226c0780ff"
     },
     {
       "path": "tce2_ui/theme/slider_thumb_accent.tga",
       "shader": "tce2_ui/theme/slider_thumb_accent",
       "width": 32,
-      "height": 48,
+      "height": 64,
       "channels": 32,
-      "bytes": 6188,
-      "sha256": "f7dbcec78d9bfeaa1665f939f308922bab816c6abbb67fd597f3a7b10b3abe19"
+      "bytes": 8236,
+      "sha256": "737393c43e5100e502950245539b908aa90203b0e123a9a21745aa2f7a6ff783"
     },
     {
       "path": "tce2_ui/theme/slider_thumb_hover_body.tga",
       "shader": "tce2_ui/theme/slider_thumb_hover_body",
       "width": 32,
-      "height": 48,
+      "height": 64,
       "channels": 32,
-      "bytes": 6188,
-      "sha256": "794e46ac197b87a5154c72fa50f45bf807cf98ca2bc5f753148bf61a017d9be4"
+      "bytes": 8236,
+      "sha256": "99592ec065fa2cf0e32585cdc718d92677ae40c22cf3b5528a2d2514234282d4"
     },
     {
       "path": "tce2_ui/theme/slider_thumb_hover_accent.tga",
       "shader": "tce2_ui/theme/slider_thumb_hover_accent",
       "width": 32,
-      "height": 48,
+      "height": 64,
       "channels": 32,
-      "bytes": 6188,
-      "sha256": "9586c054e0de9323c72e2839201974c66ea67db474b2e88248ca19bb2a5f0f47"
+      "bytes": 8236,
+      "sha256": "84d68fa7413749a0aab05a7059e44b2ee3393c36c33ad87833a8b5c0cf4870fd"
     },
     {
       "path": "tce2_ui/theme/scroll_track_body.tga",
@@ -774,7 +774,7 @@
       "height": 256,
       "channels": 32,
       "bytes": 32812,
-      "sha256": "9fd6e65e315fa992b10ff3ef8352ac25d7b8fdcaf9e5e00e560a8a74b097e74a"
+      "sha256": "870ae7dcc61de3e0d53eb9cd763e5ca526bc07514f628c50be06f7936cc87407"
     },
     {
       "path": "tce2_ui/theme/scroll_track_accent.tga",
@@ -783,7 +783,7 @@
       "height": 256,
       "channels": 32,
       "bytes": 32812,
-      "sha256": "08dc9872a86fb999a72acc485c078ef30dff5faa434bb6f52828d92925a6b612"
+      "sha256": "4af8b22e01d670245fed6402ea28ff0b9306112cf4eee51e8426b26ec0415541"
     },
     {
       "path": "tce2_ui/theme/scroll_thumb_body.tga",
@@ -792,7 +792,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 8236,
-      "sha256": "194994e61aa0450f3ddb8846bff3a9c97c7487a084af36342e364a39502f3b23"
+      "sha256": "11db9c9ef71714951dc5a4751d2d9cf1b4e861fc176c9787902707d442c8bfdf"
     },
     {
       "path": "tce2_ui/theme/scroll_thumb_accent.tga",
@@ -801,7 +801,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 8236,
-      "sha256": "82a6a69ea0e686c38929983e3437f5899d5381a98f4fb90cd76681bb53f215f7"
+      "sha256": "737393c43e5100e502950245539b908aa90203b0e123a9a21745aa2f7a6ff783"
     },
     {
       "path": "tce2_ui/theme/scroll_thumb_hover_body.tga",
@@ -810,7 +810,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 8236,
-      "sha256": "41c598d01eec3bd3fadcc5a7da60e02efb749b63db44d5f39c2159810dd2d8be"
+      "sha256": "d22dcda9b7a158b32bc796bcfc1575cfd1b93297078125b2940e1dcf1846f373"
     },
     {
       "path": "tce2_ui/theme/scroll_thumb_hover_accent.tga",
@@ -819,7 +819,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 8236,
-      "sha256": "6c0bed5c726b2911b395729cedfbc1706446afd35051ff5055fdd82eca3c6243"
+      "sha256": "e3fbab76508c85a58b5ef2d1b686225e2538d8a1f67668017ce9be7662423f9d"
     },
     {
       "path": "tce2_ui/theme/check_off_body.tga",
@@ -828,7 +828,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "96736ae4283eff36e0286b77c1dff4ca3bf907c001176eea36b04a9ecd7a5ad9"
+      "sha256": "2f0be9e549dc95e0b3d12ea8634ca7c3cb73e6517b54b008fcd05dce43f3b023"
     },
     {
       "path": "tce2_ui/theme/check_off_accent.tga",
@@ -837,7 +837,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/check_on_body.tga",
@@ -846,7 +846,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "09387fbddda7ed23e3eee23edcc7365e5248c8c0d0c42a110291b62dc4b09bd2"
+      "sha256": "418d0bde30b4792fff8af51d555e6180bcfe6c68332dc30b7ebb37644fb4a8b8"
     },
     {
       "path": "tce2_ui/theme/check_on_accent.tga",
@@ -855,7 +855,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "ffe020ad809e7d9b01b53b03f77a3a79b72fb3aef0a2cc9ec7d603ed1e4342ef"
+      "sha256": "cf35d1b4f3fb050e10bdd865ec101c09134ea58cd2099539f39d4808176d1422"
     },
     {
       "path": "tce2_ui/theme/check_mixed_body.tga",
@@ -864,7 +864,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "ce4db79e39ed142e2d74a28e8b6bd3d209558dae69610cc362fe49ab3b759971"
+      "sha256": "a940313d1aad416c285317a689b9791ec571d87abbfac22c12bceb8c6d399b45"
     },
     {
       "path": "tce2_ui/theme/check_mixed_accent.tga",
@@ -873,7 +873,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/radio_off_body.tga",
@@ -882,7 +882,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "2cc00406345df9c0daeff76cb618cce45945f23aee18dbcabff773b692f38cc2"
+      "sha256": "1133b881d3bc61fe54b0e37ab304e38f149a9642d497c03882c66b64a9ae3410"
     },
     {
       "path": "tce2_ui/theme/radio_off_accent.tga",
@@ -891,7 +891,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/radio_on_body.tga",
@@ -900,7 +900,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "b41c5ae16005ed6d2544fa6e01a573e6a13e7a6d1599bf7b2f71e157bcf9b4f2"
+      "sha256": "35752c0428e9ec8b235272940ccb2cb1c27f6c149876047a876b415df94bf73d"
     },
     {
       "path": "tce2_ui/theme/radio_on_accent.tga",
@@ -909,7 +909,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "0b98e35b4c40d8acad18b27b85c2cfda60586e4f020e5acd6efbfe0a47ec6217"
+      "sha256": "104fd1bd967ac692a231ed4038ab6a2d06c829b0e24b7b33bd80b3d04e862a3e"
     },
     {
       "path": "tce2_ui/theme/separator_body.tga",
@@ -918,7 +918,7 @@
       "height": 4,
       "channels": 32,
       "bytes": 4140,
-      "sha256": "695b90beabf64ee079e36cf22a2a535854ca50333cda5f924bed7cd96e964086"
+      "sha256": "641065b877a06afe47a2de02e9db28efbca4d73f3e5e692c1616913a3c0490ea"
     },
     {
       "path": "tce2_ui/theme/separator_accent.tga",
@@ -927,7 +927,7 @@
       "height": 4,
       "channels": 32,
       "bytes": 4140,
-      "sha256": "e23e4d60fbd3321b82a614752c24ce41406c232e141550960bdfaf30b3347fc7"
+      "sha256": "2e49d7c9fdc326e7732890fdbcf51f65fa182d65f1b9ec89fbc5c828fc7ee3b6"
     },
     {
       "path": "tce2_ui/theme/focus_body.tga",
@@ -936,7 +936,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "37e23c8e6dfda079b7e86118de2ea541984e6743f4d2430257f087cbd858825b"
+      "sha256": "25a958862954d9e44282c7a3e9c1a0d93d6420a38a51b0b6614c79aa9dc3a72f"
     },
     {
       "path": "tce2_ui/theme/focus_accent.tga",
@@ -945,7 +945,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 65580,
-      "sha256": "8b2a14a011b66e5f41d9fb5ce72dce4dfbfc8c18e67c15d757b7a7311e366dc1"
+      "sha256": "8025d47a74baa6bffc989c58764f1b91b11936d2bf796df15162a2d0b6307c81"
     },
     {
       "path": "tce2_ui/theme/icons/play_body.tga",
@@ -954,7 +954,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/play_accent.tga",
@@ -963,7 +963,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "0811118f6d6489567b1bba1870d6f48c2fa03650099e232f70f2afcf0c6697f4"
+      "sha256": "397398682d9a9be0ad796502262b784aad011e400c6c34923282450bfc17eaf5"
     },
     {
       "path": "tce2_ui/theme/icons/multiplayer_body.tga",
@@ -972,7 +972,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/multiplayer_accent.tga",
@@ -981,7 +981,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "38d17ec4a19cd8e8fc55bc07cb94ef12a6f2e0c545fd28185b41e1173881a74b"
+      "sha256": "1d2e1d79541c96868f27e6260047e6855c29961b9adb8e14810e681e7aad3b75"
     },
     {
       "path": "tce2_ui/theme/icons/host_body.tga",
@@ -990,7 +990,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/host_accent.tga",
@@ -999,7 +999,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "2fddac626d0d8720182d25aac6c88ba09a47d05308d1dd14739d02dcfcba8be4"
+      "sha256": "8f7ea3374440081e1f67fc6261dfbf9fd70a34e9109ea715a37f31d5f42d8c35"
     },
     {
       "path": "tce2_ui/theme/icons/replays_body.tga",
@@ -1008,7 +1008,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/replays_accent.tga",
@@ -1017,7 +1017,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "857b3d8ef4956e9df468a79e1102c9019711ed8cb9faefd670a10cdf3ad3ba85"
+      "sha256": "26e0bdf3e5ee47b5be6f150ee69a95f7e62d1d8b990596e9a5bd1af26e7b24f3"
     },
     {
       "path": "tce2_ui/theme/icons/settings_body.tga",
@@ -1026,7 +1026,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/settings_accent.tga",
@@ -1035,7 +1035,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "6ea5d9e3e1536d7bc9cac512db0303b3ab5e4aa65006412229091bd75a2988bb"
+      "sha256": "e10c99e1b4b1b21fcdcb227515e100f3b99638e0136c1396fd8abeb17776d75f"
     },
     {
       "path": "tce2_ui/theme/icons/profile_body.tga",
@@ -1044,7 +1044,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/profile_accent.tga",
@@ -1053,7 +1053,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "7b95598e0b7fc50da49756ac96a57e725b6855fe0cd557187a7ea3f17d365174"
+      "sha256": "f7fffdf92e478d4893626afff2d9fd6066c0bfb29f078320f23e353620d6e223"
     },
     {
       "path": "tce2_ui/theme/icons/credits_body.tga",
@@ -1062,7 +1062,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/credits_accent.tga",
@@ -1071,7 +1071,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "7c9394a51b2ea84512c7537b8d70bb6cd2c8b4b823f78dcf6c397e19cb7b7afe"
+      "sha256": "60e0db388a2e84b1a65d3c354dcb6b06053830ddc30d2b56d7071da5b52c2918"
     },
     {
       "path": "tce2_ui/theme/icons/exit_body.tga",
@@ -1080,7 +1080,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/exit_accent.tga",
@@ -1089,7 +1089,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "fd11fea1f059d236a8cf650157d9d3d1b26ae895bef708ed5770b2d55ef830a9"
+      "sha256": "8b4cd8a9abe3fade3c570103b7e5b1023fc7ead16fe92e6bfc70ac8fa2688f33"
     },
     {
       "path": "tce2_ui/theme/icons/graphics_body.tga",
@@ -1098,7 +1098,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/graphics_accent.tga",
@@ -1107,7 +1107,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "6edbc5fca1dd4b4c90d293d3452da0617a21a312956f8cdef72627bd3d5ed216"
+      "sha256": "887ed6ee0055658fac641ff674a7bb79e44e315f261a5ee2ab5c8f86a09d5bb0"
     },
     {
       "path": "tce2_ui/theme/icons/audio_body.tga",
@@ -1116,7 +1116,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/audio_accent.tga",
@@ -1125,7 +1125,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f4a945518128d27f18ef226e48cbf877f161119f5a184b0ae91e5c5620e2a143"
+      "sha256": "677fd8d6b1b624d7d1f2b439b44a118f6c5d0900f6ca761acb69594d21ea9846"
     },
     {
       "path": "tce2_ui/theme/icons/controls_body.tga",
@@ -1134,7 +1134,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/controls_accent.tga",
@@ -1143,7 +1143,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "c9983330093aa543c06a7377a31af6e8ecf1cda2c362a815c96425900176f541"
+      "sha256": "117344c9cd689e31a5ed80008c2cc7fb23d8d58da52dafa89f6d2b128c137b38"
     },
     {
       "path": "tce2_ui/theme/icons/network_body.tga",
@@ -1152,7 +1152,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/network_accent.tga",
@@ -1161,7 +1161,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "15867450d7fa1b9c79aa5e6afb50c3f07e8d350a565256a6f5f0d4f429b49d99"
+      "sha256": "7b0e3a17190f52307094c2d8ac3b95430ac5802adbec6792c56abc5f1bad8592"
     },
     {
       "path": "tce2_ui/theme/icons/chevron_up_body.tga",
@@ -1170,7 +1170,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/chevron_up_accent.tga",
@@ -1179,7 +1179,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "020beb2a32dcde185a7e7bf1515f71394f487f0dd6e241ab1d30536f6a3e7a97"
+      "sha256": "de0a78b8743cddcf35164ee124711ae7820c1bdc26c7425bd017b701f442725b"
     },
     {
       "path": "tce2_ui/theme/icons/chevron_down_body.tga",
@@ -1188,7 +1188,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/chevron_down_accent.tga",
@@ -1197,7 +1197,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "0700fa8c07cf40daff7dab40826eee8d275f83ba13fd62ff858dcd603e176433"
+      "sha256": "889ba9287fcf0c3b6293a60b6e919da83b9af4eeb008f705cba221607f37e28f"
     },
     {
       "path": "tce2_ui/theme/icons/chevron_left_body.tga",
@@ -1206,7 +1206,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/chevron_left_accent.tga",
@@ -1215,7 +1215,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "3ab845b1ee17cac340f741a90f25bb28099de1a23912cdcabe3b80000ef2c800"
+      "sha256": "6dae20ca2db9f3e890466f6e51cd09b90d4ecb972b52667865bf3fd7a47641e3"
     },
     {
       "path": "tce2_ui/theme/icons/chevron_right_body.tga",
@@ -1224,7 +1224,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/chevron_right_accent.tga",
@@ -1233,7 +1233,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "2d08fe74affe28bf7131c00ad14157841784ad10bead87d15c326e75b05d0702"
+      "sha256": "01a599305cab27cbec5fa1852857eab21bb128937aab094df0e3a23c40ce5c2e"
     },
     {
       "path": "tce2_ui/theme/icons/close_body.tga",
@@ -1242,7 +1242,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/close_accent.tga",
@@ -1251,7 +1251,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "14e3e10f1a10388a108cb202a0490a26915366646954a509b5e0f9ff7db202c9"
+      "sha256": "b8216838a9779ee225c5c13ef4c13a3acd4bc984df3826f16b26d62c0e1726ab"
     },
     {
       "path": "tce2_ui/theme/icons/check_body.tga",
@@ -1260,7 +1260,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/check_accent.tga",
@@ -1269,7 +1269,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "5206941240b5326495471509c63073256d338337b9dcdebbe304b7c2a2256f6d"
+      "sha256": "9ba41b3eb36a31cd104966768e1f713e488057e1c18c71b11a6ac12f908fce55"
     },
     {
       "path": "tce2_ui/theme/icons/search_body.tga",
@@ -1278,7 +1278,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/search_accent.tga",
@@ -1287,7 +1287,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "bee578e2bdd76748e41f4d6288756b9d7f0ba12c4362c6b20cf42f9884391e6d"
+      "sha256": "3ec88c2041123eebbeed0ca2351fa225910df084d7657253bedfd059276d702e"
     },
     {
       "path": "tce2_ui/theme/icons/refresh_body.tga",
@@ -1296,7 +1296,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/refresh_accent.tga",
@@ -1305,7 +1305,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "1bd7852cf25394d4c1b1b4bab9eeaee278092f2209bff688702223a8cab5b667"
+      "sha256": "07d8ff804896e4b7272112299e57c9aa0f21d877a306b939ecaa1f98ab49d751"
     },
     {
       "path": "tce2_ui/theme/icons/folder_body.tga",
@@ -1314,7 +1314,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/folder_accent.tga",
@@ -1323,7 +1323,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "146498033b19892817a32d6a98690bdc56cd390cba5525b0c3d19782a925e170"
+      "sha256": "7116c6150327ed1db47997e4c74933a20bd6244de700a1967c541126f39adf10"
     },
     {
       "path": "tce2_ui/theme/icons/download_body.tga",
@@ -1332,7 +1332,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/download_accent.tga",
@@ -1341,7 +1341,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "6ea66195ac4c512689559f066387c7027844c4bca6fcd9360f0b54a49fcd7a3d"
+      "sha256": "dc789ed32c43881e235358127ff7c7cf12f1acb31783dc5368febf09ba4d8cf1"
     },
     {
       "path": "tce2_ui/theme/icons/lock_body.tga",
@@ -1350,7 +1350,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/lock_accent.tga",
@@ -1359,7 +1359,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "0c5344726c327b7eb76d88e0577eef85502ebfd91a40940fa271a1a13b47bfeb"
+      "sha256": "b7b6734483d65a92f1d6251ee20912024a95ebe0f4e69d88eb62fd4487908032"
     },
     {
       "path": "tce2_ui/theme/icons/warning_body.tga",
@@ -1368,7 +1368,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/warning_accent.tga",
@@ -1377,7 +1377,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "e1a7d09f0275772b164e0807184bd9fcf38a5d019c80ebb74a25890d68bcbea2"
+      "sha256": "b548f188c1f735e9bfb02b25b549a04a50c3dbf9833450b89f4f43b05eeb6856"
     },
     {
       "path": "tce2_ui/theme/icons/info_body.tga",
@@ -1386,7 +1386,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/info_accent.tga",
@@ -1395,7 +1395,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "7c9394a51b2ea84512c7537b8d70bb6cd2c8b4b823f78dcf6c397e19cb7b7afe"
+      "sha256": "60e0db388a2e84b1a65d3c354dcb6b06053830ddc30d2b56d7071da5b52c2918"
     },
     {
       "path": "tce2_ui/theme/icons/server_body.tga",
@@ -1404,7 +1404,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "f5cb2a7790086bce0870def4fc2b2ebc01f83e68a93b63e500a8206a5955de6e"
+      "sha256": "55e91947026eef4f17d5d0172638f1cddc9cdb1b7e4b2a806ecc4d1d8a65c178"
     },
     {
       "path": "tce2_ui/theme/icons/server_accent.tga",
@@ -1413,7 +1413,7 @@
       "height": 64,
       "channels": 32,
       "bytes": 16428,
-      "sha256": "2fddac626d0d8720182d25aac6c88ba09a47d05308d1dd14739d02dcfcba8be4"
+      "sha256": "8f7ea3374440081e1f67fc6261dfbf9fd70a34e9109ea715a37f31d5f42d8c35"
     }
   ],
   "native_aliases": {
@@ -1433,5 +1433,11 @@
     "generator": "tools/ui_modernize/theme_assets.py",
     "generator_sha256": "633e35131876a9f06bc6785509577cbfee98f6c6f0233d7bf9947958b7fcb530",
     "purpose": "Neutral body/accent layers for live user palettes. Original default artwork is unchanged."
+  },
+  "tga_compatibility": {
+    "engine": "ET 2.60b and ETLegacy",
+    "origin": "bottom-left; physically reversed scanlines, descriptor bit5 clear",
+    "dimensions": "power-of-two on both axes; full-image UV resampling preserves composition",
+    "encoding": "uncompressed native BGR24/BGRA32; no engine extensions"
   }
 }

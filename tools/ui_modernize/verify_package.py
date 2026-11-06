@@ -9,6 +9,7 @@ import stat
 import zipfile
 
 import semantic as sem
+import classic_assets
 
 ROOT = Path(__file__).resolve().parents[2]
 OVERRIDES = ('ingame_main.menu', 'options_controls.menu', 'options_customise_hud.menu')
@@ -184,6 +185,13 @@ def verify(path, variant, baseline, repo=ROOT, transform=styled_override):
                 target in expected or source not in assets):
             raise ValueError('Unsafe/unbound native widget alias: ' + str(target))
         expected[target] = assets[source]
+    # Production themes declare the portable font manifest; old synthetic test
+    # themes deliberately have no raster/font format contract. Exact expected
+    # source closure above still rejects removal of this production declaration.
+    if 'portable' in fonts:
+        portability=classic_assets.verify({p:d for p,d in expected.items() if p.endswith(('.tga','.dat','.ttf','.json'))})
+        if manifest.get('asset_compatibility') != portability:
+            raise ValueError('Missing/stale ET asset compatibility evidence')
     if RUNTIME_MARKER[0] in expected:raise ValueError('Runtime marker must be the fixed package-owned entry')
     expected[RUNTIME_MARKER[0]]=RUNTIME_MARKER[1]
     payload = {p:d for p,d in files.items() if p != 'tce2_ui/package.json'}

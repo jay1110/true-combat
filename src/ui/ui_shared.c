@@ -5645,14 +5645,18 @@ static void TCE_ModernAutoWrapped(itemDef_t *item, const char *textPtr)
     itemDef_t layout;
     vec4_t color;
     int width, height, iteration;
-    float low = 0, high = 1, ratio = 1, baseline, bounds[4];
+    float low = 0, high = 1, ratio = 1, baseline, bounds[4], scale;
     Item_TextColor(item, &color);
-    Item_SetTextExtents(item, &width, &height, textPtr);
-    TCE_ParagraphInk(item, textPtr, item->textscale, bounds);
+    layout = *item;
+    scale = TCE_ModernReadableScale(item->textscale,
+            &DC->Assets.fonts[item->font >= 0 && item->font < 6 ? item->font : 0]);
+    layout.textscale = scale; layout.textRect.w = layout.textRect.h = 0;
+    Item_SetTextExtents(&layout, &width, &height, textPtr);
+    TCE_ParagraphInk(item, textPtr, scale, bounds);
     baseline = item->textaligny > -bounds[1] ? item->textaligny : -bounds[1];
     if (!(item->window.rect.w > 0) || !(item->window.rect.h > 0)) return;
     layout = *item;
-    if (!TCE_ModernWrappedPass(&layout, textPtr, color, item->textscale, height + 5.f, baseline, qfalse))
+    if (!TCE_ModernWrappedPass(&layout, textPtr, color, scale, height + 5.f, baseline, qfalse))
     {
         /* Finite search: each candidate uses exactly the painting wrap rules.
          * Scale the line gap too, so explicit blank lines remain bounded. */
@@ -5660,14 +5664,14 @@ static void TCE_ModernAutoWrapped(itemDef_t *item, const char *textPtr)
         {
             float middle = (low + high) * .5f;
             layout = *item;
-            if (TCE_ModernWrappedPass(&layout, textPtr, color, item->textscale * middle,
+            if (TCE_ModernWrappedPass(&layout, textPtr, color, scale * middle,
                                       (height + 5.f) * middle, baseline * middle, qfalse)) low = middle;
             else high = middle;
         }
         ratio = low;
     }
     layout = *item;
-    TCE_ModernWrappedPass(&layout, textPtr, color, item->textscale * ratio,
+    TCE_ModernWrappedPass(&layout, textPtr, color, scale * ratio,
                           (height + 5.f) * ratio, baseline * ratio, qtrue);
     item->textRect = layout.textRect;
 }
@@ -6567,14 +6571,18 @@ void Item_Slider_Paint(itemDef_t *item)
 
 /* The active item's font is already selected by Item_Paint. Retain the text
  * and its existing character limit while fitting modern values/columns. */
-static float TCE_FitTextScale(const char *text, float scale, int limit, float available)
+static float TCE_FitTextScale(itemDef_t *item, const char *text, float scale, int limit, float available)
 {
 	int width;
+	float ink;
 	if (!(available > 0.f)) return 0.f;
 	width = DC->textWidth(text, scale, limit);
 	/* textWidth returns integer advances. Its upper bound avoids a fractional
 	 * glyph spilling past the field after the proportional reduction. */
 	if (width + 1.f > available) scale *= available / (width + 1.f);
+	ink = TCE_ModernInkWidth(text,scale,limit,
+	      &DC->Assets.fonts[item->font >= 0 && item->font < 6 ? item->font : 0]);
+	if (ink + .01f > available) scale *= available / (ink + .01f);
 	return scale;
 }
 
@@ -6634,7 +6642,7 @@ void Item_Bind_Paint(itemDef_t *item)
 		{
 			float left = item->textRect.x + item->textRect.w + 8;
 			float available = item->window.rect.x + item->window.rect.w - left - 2.f;
-			DC->drawText(left, item->textRect.y, TCE_FitTextScale(g_nameBind1, item->textscale, maxChars, available), newColor, g_nameBind1, 0, maxChars, item->textStyle);
+			DC->drawText(left, item->textRect.y, TCE_FitTextScale(item, g_nameBind1, item->textscale, maxChars, available), newColor, g_nameBind1, 0, maxChars, item->textStyle);
 		}
 		else
 		{
@@ -7294,7 +7302,7 @@ void Item_ListBox_Paint(itemDef_t *item)
 							if (TCE_ModernUIEnabled())
 							{
 								float available = listPtr->columnInfo[j].width - 4.f - item->textalignx;
-								float scale = TCE_FitTextScale(text, item->textscale, listPtr->columnInfo[j].maxChars, available);
+								float scale = TCE_FitTextScale(item, text, item->textscale, listPtr->columnInfo[j].maxChars, available);
 								DC->drawText(x + 4 + listPtr->columnInfo[j].pos + item->textalignx,
 								             y + listPtr->elementHeight + item->textaligny, scale, item->window.foreColor, text, 0, listPtr->columnInfo[j].maxChars, item->textStyle);
 							}
@@ -7417,10 +7425,101 @@ void Item_OwnerDraw_Paint(itemDef_t *item)
 }
 
 
+/* Apply the preferred cap height before any widget measures its label/value.
+ * Bounds take precedence. Parsed scale/anchor data are restored by Item_Paint;
+ * the measured textRect is retained for the normal hover/focus geometry. */
+static float TCE_ModernItemTextScale(itemDef_t *item, float *baseline)
+{
+    fontInfo_t *font;
+    const char *label = item->text, *value = "";
+    char buffer[1024];
+    float scale, available, bounds[4], other[4], height, y, end;
+    int list = item->type == ITEM_TYPE_LISTBOX;
+    if (!TCE_ModernUIEnabled()) return item->textscale;
+    switch (item->type)
+    {
+    case ITEM_TYPE_TEXT: case ITEM_TYPE_BUTTON: case ITEM_TYPE_EDITFIELD:
+    case ITEM_TYPE_NUMERICFIELD: case ITEM_TYPE_CHECKBOX: case ITEM_TYPE_TRICHECKBOX:
+    case ITEM_TYPE_YESNO: case ITEM_TYPE_MULTI: case ITEM_TYPE_BIND:
+    case ITEM_TYPE_SLIDER: case ITEM_TYPE_LISTBOX: break;
+    default: return item->textscale;
+    }
+    font = &DC->Assets.fonts[item->font >= 0 && item->font < 6 ? item->font : 0];
+    scale = TCE_ModernReadableScale(item->textscale,font);
+    if (!(scale > item->textscale)) return item->textscale;
+    if (item->window.flags & (WINDOW_AUTOWRAPPED | WINDOW_WRAPPED)) return item->textscale;
+    height = item->window.rect.h;
+    if (list)
+    {
+        listBoxDef_t *data = (listBoxDef_t *)item->typeData;
+        if (!data || data->elementStyle == LISTBOX_IMAGE) return item->textscale;
+        height = data->elementHeight;
+        value = "Hg"; /* Row text is supplied later by the feeder. */
+    }
+    else if (item->type == ITEM_TYPE_BIND)
+    {
+        if (item->cvar && label) { BindingFromName(item->cvar); value = g_nameBind1; }
+    }
+    else if (item->type == ITEM_TYPE_MULTI) value = Item_Multi_Setting(item);
+    else if ((item->type == ITEM_TYPE_CHECKBOX || item->type == ITEM_TYPE_TRICHECKBOX) &&
+             item->typeData && ((multiDef_t *)item->typeData)->count)
+        value = Item_Multi_Setting(item);
+    else if (item->type == ITEM_TYPE_YESNO)
+        value = DC->translateString(item->cvar && DC->getCVarValue(item->cvar) != 0 ? "Yes" : "No");
+    else if (item->cvar && (!label || item->type == ITEM_TYPE_EDITFIELD || item->type == ITEM_TYPE_NUMERICFIELD))
+    {
+        DC->getCVarString(item->cvar,buffer,sizeof(buffer));
+        if (!label) label = buffer; else value = buffer;
+    }
+    if (!list && !(label && *label) && !(value && *value)) return item->textscale;
+    if (label && *label)
+    {
+        available = item->window.rect.w - item->textalignx - 1.f;
+        if (item->textalignment == ITEM_ALIGN_RIGHT) available = item->textalignx - 1.f;
+        else if (item->textalignment == ITEM_ALIGN_CENTER || item->textalignment == ITEM_ALIGN_CENTER2)
+        {
+            available = item->textalignx < item->window.rect.w - item->textalignx ?
+                        item->textalignx : item->window.rect.w - item->textalignx;
+            available = available * 2.f - 2.f;
+        }
+        if (item->textalignment == ITEM_ALIGN_LEFT)
+        {
+            if (item->type == ITEM_TYPE_SLIDER) available -= SLIDER_WIDTH + 8.f;
+            else if (item->type == ITEM_TYPE_CHECKBOX || item->type == ITEM_TYPE_TRICHECKBOX) available -= height + 8.f;
+            else if (item->type == ITEM_TYPE_EDITFIELD || item->type == ITEM_TYPE_NUMERICFIELD) available -= 12.f;
+        }
+        scale = TCE_FitTextScale(item, label,scale,0,available);
+    }
+    if ((item->type == ITEM_TYPE_MULTI || item->type == ITEM_TYPE_YESNO) && value && *value)
+    {
+        end = item->textalignx;
+        if (label && *label && item->textalignment != ITEM_ALIGN_RIGHT)
+            end += DC->textWidth(label,scale,0) * (item->textalignment == ITEM_ALIGN_LEFT ? 1.f : .5f);
+        scale = TCE_FitTextScale(item, value,scale,0,item->window.rect.w - end - 10.f);
+    }
+    TCE_ParagraphInk(item,label ? label : "",scale,bounds);
+    TCE_ParagraphInk(item,value ? value : "",scale,other);
+    if (other[1] < bounds[1]) bounds[1] = other[1];
+    if (other[3] > bounds[3]) bounds[3] = other[3];
+    if (!(height > 2.f)) return item->textscale;
+    if (bounds[3] - bounds[1] > height - 2.f)
+    {
+        float ratio = (height - 2.f) / (bounds[3] - bounds[1]);
+        scale *= ratio; bounds[1] *= ratio; bounds[3] *= ratio;
+    }
+    y = list ? height + *baseline : *baseline;
+    if (y + bounds[3] > height - 1.f) y = height - 1.f - bounds[3];
+    if (y + bounds[1] < 1.f) y = 1.f - bounds[1];
+    *baseline = list ? y - height : y;
+    return scale;
+}
+
 void Item_Paint(itemDef_t *item)
 {
 	vec4_t    red;
 	menuDef_t *parent = (menuDef_t *)item->parent;
+	float savedTextScale, savedTextY, readableY, readableScale;
+	qboolean readableChanged;
 	red[0] = red[3] = 1;
 	red[1] = red[2] = 0;
 
@@ -7624,6 +7723,16 @@ void Item_Paint(itemDef_t *item)
 		return;
 	}
 
+	savedTextScale = item->textscale; savedTextY = readableY = item->textaligny;
+	readableScale = TCE_ModernItemTextScale(item,&readableY);
+	readableChanged = readableScale != savedTextScale || readableY != savedTextY;
+	if (readableChanged)
+	{
+		item->textscale = readableScale; item->textaligny = readableY;
+	}
+	/* The previous frame can have used a different size preference/viewport.
+	 * Keep its painted rect for input, but remeasure every modern paint. */
+	if (TCE_ModernUIEnabled()) item->textRect.w = item->textRect.h = 0;
 	// paint the rect first..
 	Window_Paint(&item->window, parent->fadeAmount, parent->fadeClamp, parent->fadeCycle);
 
@@ -7686,6 +7795,11 @@ void Item_Paint(itemDef_t *item)
 		break;
 	default:
 		break;
+	}
+	if (readableChanged)
+	{
+		item->textscale = savedTextScale;
+		item->textaligny = savedTextY;
 	}
 }
 

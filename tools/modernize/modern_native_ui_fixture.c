@@ -85,6 +85,52 @@ static int WM_DrawInfoLine(int x,int y,float fade){(void)x;(void)fade;return y;}
 /* ACTUAL_SNAPSHOT_STATE */
 /* ACTUAL_SCOREBOARD */
 /* ACTUAL_CONNECT */
+/* ACTUAL_CLASSIC_FONT_METRICS */
+static void reset(int count,int team);
+
+static float FixtureScoreHeaderWidth(const char *text,int screenWidth)
+{
+    float viewport=(float)screenWidth/852.f;
+    float scale=8.f/((fixtureStrongGlyphs['H'][0]-1)*fixtureStrongScale*viewport);
+    float unit=scale*fixtureStrongScale,pen=0,left=0,right=0,a,b;
+    while(*text)
+    {
+        const int *g=fixtureStrongGlyphs[(unsigned char)*text++];
+        a=pen+g[1]*unit;b=a+g[3]*unit;
+        if(a<left)left=a;if(b>right)right=b;
+        pen+=g[2]*unit;
+    }
+    return pen+1.f>right-left+.01f?pen+1.f:right-left+.01f;
+}
+
+static void FixtureScoreHeaderSlots(int team,int screenWidth)
+{
+    static const char *labels[]={"KILL","DTH","SUI","TK","SCORE","DR","AA","PING"};
+    int indices[8],i,j,found;float panel=team==TEAM_AXIS?24.f:438.f;
+    reset(1,team);TCE_ModernScoreTeam(0,96,team,1,20);
+    for(j=0;j<8;++j)
+    {
+        indices[j]=-1;
+        for(i=0;i<textCount;++i)if(!strcmp(texts[i],labels[j]))indices[j]=i;
+        expect(indices[j]>=0,"all eight header labels retained");
+    }
+    for(j=0;j<8;++j)
+    {
+        int index=indices[j];if(index<0)continue;
+        expect(textWidth[index]>0,"positive statistic slot width");
+        expect(textX[index]+textWidth[index]<=panel+384.01f,"header remains inside six-unit panel padding");
+        if(j<7 && indices[j+1]>=0)
+            expect(textX[index]+textWidth[index]<=textX[indices[j+1]]-1.99f,"two-unit gap before next statistic");
+        expect(textWidth[index]+.01f>=FixtureScoreHeaderWidth(labels[j],screenWidth),"real72DPI header fits preferred eight-pixel caps");
+        found=0;
+        for(i=0;i<textCount;++i)if(textX[i]==textX[index] && textY[i]>textY[index])
+        {
+            ++found;expect(textWidth[i]==textWidth[index],"value uses same bounded slot as header");
+            expect(textX[i]+textWidth[i]<=panel+384.01f,"value remains inside panel padding");
+        }
+        expect(found==1,"one score value per tested slot");
+    }
+}
 
 static int occurrences(const char *text)
 {int i,n=0;for(i=0;i<textCount;++i)if(!strcmp(texts[i],text))++n;return n;}
@@ -155,11 +201,15 @@ int main(void)
         {
             if(!found)first=textY[i];else second=textY[i];++found;
             expect(textScale[i]>=.239f,"standard names use readable .24 font");
-            expect(textX[i]==36 && textWidth[i]>=120,"empty status no longer steals healthy player name width");
+            expect(textX[i]==36 && textWidth[i]>=110,"healthy name retains reserved player-column width");
         }
         expect(found==2 && second-first>21.99f && second-first<22.01f,"native standard row spacing22");
         expect(occurrences("KILL")==1 && occurrences("DTH")==1 && occurrences("SUI")==1,"legible stat headers retained");
     }
+    caseName="real classic header column bounds640";
+    FixtureScoreHeaderSlots(TEAM_AXIS,640);FixtureScoreHeaderSlots(TEAM_ALLIES,640);
+    caseName="real classic header column bounds800";
+    FixtureScoreHeaderSlots(TEAM_AXIS,800);FixtureScoreHeaderSlots(TEAM_ALLIES,800);
     caseName="64 player roster";reset(64,TEAM_AXIS);
     for(page=0;page<4;++page)
     {

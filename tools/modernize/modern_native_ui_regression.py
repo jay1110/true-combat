@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import struct
 from compat_validate import msvc_environment
 from weapon_regression import function
 
@@ -22,6 +23,14 @@ def main():
     text=fixture.read_text().replace('/* ACTUAL_MODEL */','\n'.join(function(source.read_text(),n) for n in names))
     text=text.replace('/* ACTUAL_SNAPSHOT_STATE */',function(state.read_text(),'TCE_ScoreSnapshotState'))
     text=text.replace('/* ACTUAL_SCOREBOARD */',score.read_text())
+    font=ROOT/'ui-modern/assets/fonts/tce2_ui/Barlow-SemiBold_28.dat'
+    data=font.read_bytes()
+    if len(data)!=20548:raise ValueError('Expected the actual classic20548-byte font table')
+    glyphs=[struct.unpack_from('<7i4fi32s',data,n*80)for n in range(256)]
+    metrics='static const float fixtureStrongScale='+format(struct.unpack_from('<f',data,20480)[0],'.9g')+'f;\n'
+    metrics+='static const int fixtureStrongGlyphs[256][5]={'+','.join(
+        '{'+','.join(str(row[n])for n in (1,3,4,5,6))+'}'for row in glyphs)+'};'
+    text=text.replace('/* ACTUAL_CLASSIC_FONT_METRICS */',metrics)
     connects=[ROOT/'src/cgame/cg_modern_loadpanel.inc',ROOT/'src/ui/ui_modern_loadpanel.inc']
     text=text.replace('/* ACTUAL_CONNECT */',connects[0].read_text()+
                       '\n#define trap_TranslateString FixtureUITranslateString\n'+connects[1].read_text()+
@@ -40,9 +49,9 @@ def main():
     headers=[ROOT/x for x in ('src/ui/tce_modern_ui.h','src/game/q_shared.h','src/game/bg_public.h',
                              'src/cgame/cg_local.h','src/ui/ui_public.h','src/game/tce_numeric.h',
                              'compat/legacy/game/tce_numeric.h')]
-    report={'build_exit':r.returncode,'command':cmd,'inputs':{str(x.relative_to(ROOT)):hashlib.sha256(x.read_bytes()).hexdigest() for x in (source,score,state,fixture,Path(__file__),*connects,*headers)},
+    report={'build_exit':r.returncode,'command':cmd,'inputs':{str(x.relative_to(ROOT)):hashlib.sha256(x.read_bytes()).hexdigest() for x in (source,score,state,fixture,Path(__file__),font,*connects,*headers)},
             'limits':['Actual new scoreboard and source-bound snapshot-state/model functions; controlled engine/draw services.',
-                      'Does not prove native fonts, VFS ordering, pixels or live connect/download; parent performs actual module/runtime checks.']}
+                      'Real classic-font metrics test preferred8px header slot capacity at640/800; no native rasterizer/pixels or VFS/live connect proof.']}
     if not r.returncode:
         r=subprocess.run([str(exe)],cwd=out,env=env,capture_output=True,text=True);report.update(run_exit=r.returncode,stdout=r.stdout,stderr=r.stderr)
     (out/'report.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8');print(json.dumps(report));return r.returncode

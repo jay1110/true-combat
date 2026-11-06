@@ -35,5 +35,9 @@
       "sha256": "186d750eb496a4c17a76385f82be6aea2ac1cf2de074a811d63786cf374ea73f",
       "bytes": 4377
     }
-  ]
+  ],
+  "portable": {
+    "manifest": "fonts/tce2_ui/PORTABLE.json",
+    "usage": "ET 2.60b loads fonts/NAME_POINTSIZE.dat and short-named TGA atlases; no runtime FreeType required."
+  }
 }

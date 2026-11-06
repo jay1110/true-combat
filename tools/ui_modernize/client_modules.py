@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package only Win32/Linux64 CGame/UI; never build, deploy or touch themes."""
+"""Package selected CGame/UI ABIs; never build, deploy or touch themes."""
 import argparse
 import hashlib
 import io
@@ -16,6 +16,7 @@ from verify_omnibot_boundary import verify_module_bytes
 
 VERSION='1.0.2'
 TARGETS=('windows-x86','linux-x86_64')
+OPTIONAL_TARGET='linux-i386'
 VARIANTS={'game':'Game','navstudio':'Editor'}
 UI_AUTHORING=('omnibot_menu','omnibot_goalname','omnibot_goalproperty')
 
@@ -23,10 +24,38 @@ UI_AUTHORING=('omnibot_menu','omnibot_goalname','omnibot_goalproperty')
 def sha(data):return hashlib.sha256(data).hexdigest()
 
 
+def helper_paths():
+    return {name:ROOT/'tools/release'/name for name in
+            ('client_packages.py','validate.py','verify_omnibot_boundary.py','targets.json')}
+
+
+def known_input_paths(manifests):
+    """Protect discovery/tool inputs even when native validation fails early."""
+    paths={Path(__file__).resolve(),*(p.resolve() for p in helper_paths().values()),
+           *(Path(p).resolve() for p in manifests.values())}
+    for path in manifests.values():
+        try:
+            metadata=json.loads(Path(path).read_bytes())
+        except (OSError,ValueError):
+            continue
+        modules=metadata.get('modules') if isinstance(metadata,dict) else None
+        if not isinstance(modules,dict):continue
+        for value in modules.values():
+            if not isinstance(value,str) or not value:continue
+            module=Path(value)
+            if not module.is_absolute():module=Path(path).resolve().parent/module
+            try:paths.add(module.resolve())
+            except (OSError,ValueError):continue
+    return paths
+
+
 def create_packages(manifests):
     """Bind exact native inputs, validate both variants, then return ZIP bytes."""
-    if set(manifests)!={(variant,target) for variant in VARIANTS for target in TARGETS}:
-        raise ValueError('Exactly Game/Editor x Win32/Linux64 manifests are required')
+    required={(variant,target) for variant in VARIANTS for target in TARGETS}
+    optional={(variant,OPTIONAL_TARGET) for variant in VARIANTS}
+    if set(manifests) not in (required,required|optional):
+        raise ValueError('Game/Editor x Win32/Linux64 and an optional complete Linux-i386 pair are required')
+    targets=TARGETS+(OPTIONAL_TARGET,) if set(manifests)==required|optional else TARGETS
     snapshots={};rows={variant:[] for variant in VARIANTS};boundaries={};input_reports={}
     def read(path):
         path=Path(path).resolve();data=path.read_bytes()
@@ -34,13 +63,14 @@ def create_packages(manifests):
         snapshots[path]=data
         return data
     tool_path=Path(__file__).resolve()
-    helper_paths={name:ROOT/'tools/release'/name for name in ('client_packages.py','validate.py','verify_omnibot_boundary.py','targets.json')}
+    helpers=helper_paths()
     read(tool_path)
-    for path in helper_paths.values():read(path)
+    for path in helpers.values():read(path)
     for (variant,target),path in sorted(manifests.items()):
         metadata=json.loads(read(path))
         if (not isinstance(metadata,dict) or metadata.get('schema')!=1 or
-                metadata.get('variant')!=variant or metadata.get('configuration')!='Release'):
+                metadata.get('variant')!=variant or metadata.get('configuration')!='Release' or
+                ('target' in metadata and metadata['target']!=target)):
             raise ValueError('Wrong module build identity/configuration: '+str(path))
         names=clients.module_names(target);modules=metadata.get('modules')
         if not isinstance(modules,dict) or not {'cgame','ui'}<=set(modules):
@@ -69,8 +99,8 @@ def create_packages(manifests):
                                            'modules':{role:{'filename':name,'sha256':sha(payload[name]),'bytes':len(payload[name])} for role,name in names.items()}}
     packages={};outputs={}
     for variant in VARIANTS:
-        data,metadata=clients.canonical_client(rows[variant],TARGETS,VERSION,variant)
-        if clients.check_canonical(data,VERSION,variant,TARGETS)!=metadata:raise ValueError('Canonical client metadata differs')
+        data,metadata=clients.canonical_client(rows[variant],targets,VERSION,variant)
+        if clients.check_canonical(data,VERSION,variant,targets)!=metadata:raise ValueError('Canonical client metadata differs')
         with zipfile.ZipFile(io.BytesIO(data)) as archive:
             validate_client_resources(archive,{'version':VERSION},variant=='navstudio')
             names=archive.namelist()
@@ -83,13 +113,13 @@ def create_packages(manifests):
         raise ValueError('Game/Editor shared production assets differ')
     for path,data in snapshots.items():
         if path.read_bytes()!=data:raise ValueError('Native input changed during packaging: '+str(path))
-    report={'schema':1,'scope':'local-diagnostic','version':VERSION,'targets':list(TARGETS),'inputs':input_reports,
+    report={'schema':1,'scope':'local-diagnostic','version':VERSION,'targets':list(targets),'inputs':input_reports,
             'outputs':outputs,'module_boundaries':boundaries,'input_stable':True,'shared_assets_equal':True,
             'qagame_included':False,'engine_started':False,'runtime_copied':False,
             'input_files':{str(path):sha(data) for path,data in snapshots.items()},
             'tool_sha256':sha(snapshots[tool_path]),
-            'helper_sha256':{name:sha(snapshots[path.resolve()]) for name,path in helper_paths.items()},
-            'limits':['Exactly two selected client ABIs, not complete ten-target release closure.',
+            'helper_sha256':{name:sha(snapshots[path.resolve()]) for name,path in helpers.items()},
+            'limits':[f'Exactly {len(targets)} selected client ABIs, not complete ten-target release closure.',
                       'Native module bytes/ABI/authoring boundary/resources validated; rebuild freshness and runtime acceptance are separate evidence.']}
     return packages,report
 
@@ -97,19 +127,27 @@ def create_packages(manifests):
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     for name in ('windows-game','windows-editor','linux-game','linux-editor'):parser.add_argument('--'+name,type=Path,required=True)
+    for name in ('linux-i386-game','linux-i386-editor'):parser.add_argument('--'+name,type=Path)
     parser.add_argument('--out',type=Path,required=True);parser.add_argument('--report',type=Path,required=True)
     args=parser.parse_args()
     manifests={('game','windows-x86'):args.windows_game,('navstudio','windows-x86'):args.windows_editor,
                ('game','linux-x86_64'):args.linux_game,('navstudio','linux-x86_64'):args.linux_editor}
+    if (args.linux_i386_game is None)!=(args.linux_i386_editor is None):
+        parser.error('Linux-i386 requires both Game and Editor manifests')
+    if args.linux_i386_game is not None:
+        manifests.update({('game',OPTIONAL_TARGET):args.linux_i386_game,
+                          ('navstudio',OPTIONAL_TARGET):args.linux_i386_editor})
     protected=[ROOT/'pak',ROOT/'ui-modern',ROOT/'src/assets']
     if args.report.suffix.lower()!='.json':parser.error('Report must be a JSON receipt')
     if any(path.resolve().is_relative_to(base.resolve()) for path in (args.out,args.report) for base in protected):
         parser.error('Client output/report must be outside original/theme/production asset sources')
     if args.report.resolve() in {path.resolve() for path in manifests.values()}:
         parser.error('Report cannot overwrite an input manifest')
+    destinations={variant:args.out/folder/('tce2-'+VERSION+'.pk3') for variant,folder in VARIANTS.items()}
+    if known_input_paths(manifests)&{path.resolve() for path in (args.report,*destinations.values())}:
+        parser.error('Client output/report cannot overwrite native/discovery/tool inputs')
     try:
         packages,report=create_packages(manifests)
-        destinations={variant:args.out/folder/('tce2-'+VERSION+'.pk3') for variant,folder in VARIANTS.items()}
         if str(args.report.resolve()) in report['input_files'] or any(str(path.resolve()) in report['input_files'] for path in destinations.values()):
             parser.error('Client output/report cannot overwrite native/discovery/tool inputs')
         if args.report.resolve() in {path.resolve() for path in destinations.values()}:

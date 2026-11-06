@@ -7,6 +7,7 @@ import struct
 import unittest
 import generate_assets as g
 import theme_assets
+import classic_assets
 
 
 def u16(data,at):return struct.unpack_from(">H",data,at)[0]
@@ -51,7 +52,9 @@ class NativeUIAssetTests(unittest.TestCase):
                 self.assertEqual(len(data),row["bytes"])
                 self.assertEqual(data[2],2)
                 self.assertEqual(struct.unpack_from("<HHB",data,12),(row["width"],row["height"],row["channels"]))
-                self.assertEqual(data[17],0x20 if row["channels"]==24 else 0x28)
+                self.assertEqual(data[17],0 if row["channels"]==24 else 8)
+                self.assertEqual(row['width'] & (row['width']-1),0)
+                self.assertEqual(row['height'] & (row['height']-1),0)
                 self.assertTrue(row["path"].startswith("tce2_ui/"))
 
     def test_unique_native_vertex_alpha_shaders(self):
@@ -101,7 +104,7 @@ class NativeUIAssetTests(unittest.TestCase):
         info=self.meta["cursor_hotspot"]
         self.assertEqual((info["x"],info["y"]),(0,0))
         self.assertEqual(info["shader"],"tce2_ui/cursor")
-        data=(g.DEST/info["asset"]).read_bytes();rgba=data[18:18+64*64*4]
+        data=(g.DEST/info["asset"]).read_bytes();_,_,rgba=classic_assets.tga_pixels(data)
         self.assertGreater(rgba[3],0)  # upper-left visible outline owns native hotspot
         self.assertEqual(rgba[(63*64+63)*4+3],0)
         self.assertIn("clampmap "+info["asset"],(g.DEST/"scripts/tce2_ui.shader").read_text())

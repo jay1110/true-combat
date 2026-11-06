@@ -1,0 +1,3 @@
+# Authoring only. Windows amd64 wheel bundles FreeType2.13.2; no game dependency.
+# python -m pip install --require-hashes -r requirements-fonts.txt
+freetype-py==2.5.1 --hash=sha256:0b7f8e0342779f65ca13ef8bc103938366fecade23e6bb37cb671c2b8ad7f124

@@ -6,6 +6,7 @@ import json
 import re
 import zipfile
 import restyle
+import classic_assets
 
 ROOT=Path(__file__).resolve().parents[2]
 
@@ -36,6 +37,7 @@ def build(variant, destination):
         if p.is_file():files[p.relative_to(edited/'assets').as_posix()]=p.read_bytes()
     aliases=json.loads(files['tce2_ui/SOURCE.json'])['native_aliases']
     for target,source in aliases.items():files[target]=files[source]
+    portability=classic_assets.verify({n:d for n,d in files.items() if n.endswith(('.tga','.dat','.ttf','.json'))})
     # Native scoreboard/connect renderers are dormant without this exact marker.
     files['tce2_ui/runtime.cfg']=b'TCE2_MODERN_UI 1\n'
     assert all(not Path(n).suffix.lower() in ('.dll','.so','.exe','.bsp','.way','.gm') for n in files)
@@ -47,6 +49,7 @@ def build(variant, destination):
     manifest={'schema':1,'theme':'TCE2 Modern UI','version':'1.0.2','variant':variant,
               'scope':'Optional theme resources; native scoreboard/connect require matching modern client modules. No gameplay changes.',
               'all_original_menu_sources':69,'normal_game_content_sources':differences,
+              'asset_compatibility':portability,
               'files':{n:{'bytes':len(d),'sha256':sha(d)} for n,d in sorted(files.items())}}
     files['tce2_ui/package.json']=(json.dumps(manifest,indent=2)+'\n').encode()
     destination.parent.mkdir(parents=True,exist_ok=True)

@@ -23,6 +23,10 @@ void TCE_ModernParagraph(float x, float y, float scale, float width,
 void TCE_ModernImage(const char *name, float x, float y, float w, float h);
 void TCE_ModernBackdrop(const char *name);
 void TCE_ModernCursor(float x, float y, qhandle_t shader, int centered);
+/* A preferred minimum, applied before layout. Field/paragraph bounds may
+ * reduce it again; a final draw must never undo an earlier fit. */
+float TCE_ModernReadableScale(float scale, const fontInfo_t *font);
+float TCE_ModernInkWidth(const char *text, float scale, int limit, const fontInfo_t *font);
 void TCE_ModernTextFit(float x, float y, float scale, float width,
                        const float *color, const char *text, int strong);
 void TCE_ModernBar(float x, float y, float w, float h, float progress, int milliseconds);

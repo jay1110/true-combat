@@ -97,6 +97,53 @@ static float TCE_ModernWidth(const char *text, float scale, fontInfo_t *font)
 #endif
 }
 
+float TCE_ModernReadableScale(float scale, const fontInfo_t *font)
+{
+    tce_viewport_t view;
+    float cap, preferred, maximum, menuScale;
+    int width, height, full = TCE_ViewportDrawMode() == TCE_VIEWPORT_FULLSCREEN;
+    if (!TCE_ModernUIEnabled() || !font || !(scale > 0.f) || !(font->glyphScale > 0.f)) return scale;
+#ifdef CGAMEDLL
+    width = cgs.glconfig.vidWidth; height = cgs.glconfig.vidHeight;
+    maximum = (float)CG_Cvar_Get("ui_menuMaxHeight");
+    menuScale = (float)CG_Cvar_Get("ui_menuScale");
+#else
+    width = uiInfo.uiDC.glconfig.vidWidth; height = uiInfo.uiDC.glconfig.vidHeight;
+    maximum = trap_Cvar_VariableValue("ui_menuMaxHeight");
+    menuScale = trap_Cvar_VariableValue("ui_menuScale");
+#endif
+    if (!TCE_ViewportFit(&view,width,height,TCE_VIEWPORT_CANVAS_WIDTH,
+                         TCE_VIEWPORT_CANVAS_HEIGHT,full ? 0 : maximum,
+                         full ? 1 : menuScale,.5f,.5f)) return scale;
+    /* The outline renderer stores a one-pixel top guard. H has no descender;
+     * this cap metric works for both fixed DAT and DPI-scaled engine fonts. */
+    cap = (float)font->glyphs['H'].top - 1.f;
+    if (!(cap > 0.f)) cap = (float)font->glyphs['H'].imageHeight;
+    if (!(cap > 0.f)) return scale;
+    preferred = 8.f / (cap * font->glyphScale * view.scale);
+    return preferred > scale && preferred < 4.f ? preferred : scale;
+}
+
+float TCE_ModernInkWidth(const char *text, float scale, int limit, const fontInfo_t *font)
+{
+    float pen = 0, left = 0, right = 0, unit = scale * font->glyphScale;
+    int count = 0;
+    while (text && *text && (limit <= 0 || count < limit))
+    {
+        const glyphInfo_t *glyph;
+        float a, b;
+        if (Q_IsColorString(text)) { text += 2; continue; }
+        if ((unsigned char)*text < 20) { ++text; ++count; continue; }
+        glyph = &font->glyphs[(unsigned char)*text++]; ++count;
+        a = pen + glyph->pitch * unit; b = a + glyph->imageWidth * unit;
+        if (a < left) left = a;
+        if (b > right) right = b;
+        pen += glyph->xSkip * unit;
+    }
+    if (pen > right) right = pen;
+    return right - left;
+}
+
 void TCE_ModernFill(float x, float y, float w, float h, const float *color)
 {
     vec4_t themed;
@@ -163,11 +210,13 @@ void TCE_ModernCursor(float x, float y, qhandle_t shader, int centered)
 void TCE_ModernTextFit(float x, float y, float scale, float width,
                        const float *color, const char *text, int strong)
 {
-    fontInfo_t *font=TCE_ModernFont(strong);
-    float measured;
     if(!text || width<=0 || scale<=0) return;
-    measured=TCE_ModernWidth(text,scale,font);
-    if(measured>width) scale*=width/(measured+1.f);
+    if (!TCE_ModernUIEnabled())
+    {
+        fontInfo_t *font = TCE_ModernFont(strong);
+        float measured = TCE_ModernWidth(text,scale,font);
+        if (measured > width) scale *= width / (measured + 1.f);
+    }
     TCE_ModernText(x,y,scale,width,color,text,strong);
 }
 
@@ -179,12 +228,17 @@ void TCE_ModernPanel(float x, float y, float w, float h, float alpha)
     TCE_ModernFill(x,y,w,1,back);
 }
 
-void TCE_ModernText(float x, float y, float scale, float width,
-                    const float *color, const char *text, int strong)
+static void TCE_ModernTextDraw(float x, float y, float scale, float width,
+                              const float *color, const char *text, int strong)
 {
     char clipped[2048]; size_t length;
     vec4_t rgba; fontInfo_t *font=TCE_ModernFont(strong);
     if (!text || width <= 0) return;
+    if (TCE_ModernUIEnabled())
+    {
+        float ink = TCE_ModernInkWidth(text,scale,0,font);
+        if (ink + .01f > width) scale *= width / (ink + .01f);
+    }
     Q_strncpyz(clipped,text,sizeof(clipped)); length=strlen(clipped);
     while (length && TCE_ModernWidth(clipped,scale,font)>width) clipped[--length]=0;
     if (length && clipped[length-1]=='^') clipped[length-1]=0;
@@ -196,12 +250,42 @@ void TCE_ModernText(float x, float y, float scale, float width,
 #endif
 }
 
+void TCE_ModernText(float x, float y, float scale, float width,
+                    const float *color, const char *text, int strong)
+{
+    fontInfo_t *font = TCE_ModernFont(strong);
+    float measured;
+    if (!text || !(width > 0.f) || !(scale > 0.f)) return;
+    if (!TCE_ModernUIEnabled()) { TCE_ModernTextDraw(x,y,scale,width,color,text,strong); return; }
+    scale = TCE_ModernReadableScale(scale,font);
+    measured = TCE_ModernWidth(text,scale,font);
+    if (measured + 1.f > width) scale *= width / (measured + 1.f);
+    TCE_ModernTextDraw(x,y,scale,width,color,text,strong);
+}
+
 void TCE_ModernParagraph(float x, float y, float scale, float width,
                          float lineHeight, int lines, const float *color, const char *text)
 {
     const char *p=text; char line[512]; int row;
     fontInfo_t *font=TCE_ModernFont(0);
     if (!p || lines<=0) return;
+    if (TCE_ModernUIEnabled())
+    {
+        const char *s = text;
+        float top = 0, bottom = 0, candidate = TCE_ModernReadableScale(scale,font);
+        while (*s)
+        {
+            const glyphInfo_t *glyph;
+            if (Q_IsColorString(s)) { s += 2; continue; }
+            if ((unsigned char)*s < 32 || *s == '*') { ++s; continue; }
+            glyph = &font->glyphs[(unsigned char)*s++];
+            if (glyph->top > top) top = (float)glyph->top;
+            if (glyph->imageHeight - glyph->top > bottom) bottom = (float)(glyph->imageHeight - glyph->top);
+        }
+        if ((top + bottom) * font->glyphScale * candidate > lineHeight && lineHeight > 0.f)
+            candidate = lineHeight / ((top + bottom) * font->glyphScale);
+        scale = candidate;
+    }
     for (row=0; row<lines && *p; ++row)
     {
         int n=0,lastSpace=-1; const char *start;
@@ -219,7 +303,7 @@ void TCE_ModernParagraph(float x, float y, float scale, float width,
             }
         }
         line[n]=0;
-        TCE_ModernText(x,y+row*lineHeight,scale,width,color,line,0);
+        TCE_ModernTextDraw(x,y+row*lineHeight,scale,width,color,line,0);
         if (*p=='\n' || *p=='*') ++p;
     }
 }

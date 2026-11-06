@@ -20,7 +20,7 @@ def main():
         units.append(function(shared[match.start():],'AdjustFrom640').replace('void AdjustFrom640(',f'void {name}(',1))
     units += [function(sources['src/ui/ui_atoms.c'],'UI_AdjustFrom640')]
     units += [function(sources['src/ui/tce_modern_ui.c'],n) for n in
-              ['TCE_ModernWidth','TCE_ModernText','TCE_ModernTextFit','TCE_ModernCursor','TCE_ModernBackdrop']]
+              ['TCE_ModernWidth','TCE_ModernReadableScale','TCE_ModernInkWidth','TCE_ModernTextDraw','TCE_ModernText','TCE_ModernTextFit','TCE_ModernParagraph','TCE_ModernCursor','TCE_ModernBackdrop']]
     units += [function(sources['src/ui/ui_main.c'],n) for n in ['_UI_MouseEvent','_UI_DrawSides','_UI_DrawTopBottom']]
     units += [function(sources['src/cgame/cg_newDraw.c'],'CG_MouseEvent')]
     # The width NaN gate has two preprocessor-selected opening braces; the

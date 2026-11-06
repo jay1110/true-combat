@@ -111,10 +111,52 @@ def png_read(path):
 
 def tga(w,h,pixels,opaque=False):
     channels=3 if opaque else 4
-    header=struct.pack("<BBBHHBHHHHBB",0,0,2,0,0,0,0,0,w,h,channels*8,0x20 if opaque else 0x28)
-    if opaque:body=bytes(v for i in range(0,len(pixels),4) for v in (pixels[i+2],pixels[i+1],pixels[i]))
-    else:body=bytes(v for i in range(0,len(pixels),4) for v in (pixels[i+2],pixels[i+1],pixels[i],pixels[i+3]))
+    # ET 2.60b ignores the top-origin descriptor; write genuine bottom-up rows.
+    # ETLegacy honours the descriptor and produces the same upright pixels.
+    header=struct.pack("<BBBHHBHHHHBB",0,0,2,0,0,0,0,0,w,h,channels*8,0 if opaque else 8)
+    rows=(pixels[y*w*4:(y+1)*w*4] for y in range(h-1,-1,-1))
+    if opaque:body=b''.join(bytes(v for i in range(0,len(row),4) for v in (row[i+2],row[i+1],row[i])) for row in rows)
+    else:body=b''.join(bytes(v for i in range(0,len(row),4) for v in (row[i+2],row[i+1],row[i],row[i+3])) for row in rows)
     return header+body+bytes(8)+b"TRUEVISION-XFILE.\0"
+
+
+def power_of_two_image(w, h, pixels):
+    """Keep the full UV image while satisfying ET 2.60b's hard POT check.
+
+    Bilinear sampling uses pixel centres and premultiplied alpha. In particular,
+    the transparent margin of a slider must not create a dark colour fringe.
+    No resize/copy occurs for the already portable artwork.
+    """
+    nw, nh = 1 << (w-1).bit_length(), 1 << (h-1).bit_length()
+    if (nw, nh) == (w, h):
+        return w, h, pixels
+
+    def axis(before, after):
+        result = []
+        for n in range(after):
+            position = max(0, min(before-1, (n+.5)*before/after-.5))
+            first = math.floor(position)
+            result.append((first, min(before-1, first+1), round((position-first)*65536)))
+        return result
+
+    xs, ys = axis(w, nw), axis(h, nh)
+    opaque = all(pixels[n] == 255 for n in range(3, len(pixels), 4))
+    output = bytearray(nw*nh*4)
+    for y, (y0, y1, fy) in enumerate(ys):
+        for x, (x0, x1, fx) in enumerate(xs):
+            indices = ((y0*w+x0)*4, (y0*w+x1)*4,
+                       (y1*w+x0)*4, (y1*w+x1)*4)
+            weights = ((65536-fx)*(65536-fy), fx*(65536-fy),
+                       (65536-fx)*fy, fx*fy)
+            at = (y*nw+x)*4
+            alpha = (255 << 32) if opaque else sum(pixels[p+3]*v for p,v in zip(indices,weights))
+            output[at+3] = (alpha+(1 << 31)) >> 32
+            if alpha:
+                for channel in range(3):
+                    colour = sum(pixels[p+channel]*v*(255 if opaque else pixels[p+3])
+                                 for p,v in zip(indices,weights))
+                    output[at+channel] = (colour+alpha//2)//alpha
+    return nw, nh, bytes(output)
 
 
 def png_write(path,w,h,pixels):
@@ -231,9 +273,9 @@ ALIASES={"ui/assets/scrollbar.tga":"tce2_ui/scroll_track.tga","ui/assets/scrollb
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument("--check",action="store_true");parser.add_argument("--preview",type=Path);args=parser.parse_args()
     output={};images={};records=[]
-    w,h,pixels=png_read(SOURCE);images["background"]=(w,h,pixels);output["tce2_ui/background.tga"]=tga(w,h,pixels,True)
+    w,h,pixels=power_of_two_image(*png_read(SOURCE));images["background"]=(w,h,pixels);output["tce2_ui/background.tga"]=tga(w,h,pixels,True)
     for name in WIDGETS:
-        w,h,pixels=widget(name);images[name]=(w,h,pixels);output["tce2_ui/"+name+".tga"]=tga(w,h,pixels)
+        w,h,pixels=power_of_two_image(*widget(name));images[name]=(w,h,pixels);output["tce2_ui/"+name+".tga"]=tga(w,h,pixels)
     for name in ICONS:
         key="cursor" if name=="cursor" else "icons/"+name
         w,h,pixels=icon(name);images[key]=(w,h,pixels);output["tce2_ui/"+key+".tga"]=tga(w,h,pixels)
@@ -249,6 +291,10 @@ def main():
     source['theme_layers']={'generator':'tools/ui_modernize/theme_assets.py',
                             'generator_sha256':hashlib.sha256(Path(theme_assets.__file__).read_bytes()).hexdigest(),
                             'purpose':'Neutral body/accent layers for live user palettes. Original default artwork is unchanged.'}
+    source['tga_compatibility']={'engine':'ET 2.60b and ETLegacy',
+                               'origin':'bottom-left; physically reversed scanlines, descriptor bit5 clear',
+                               'dimensions':'power-of-two on both axes; full-image UV resampling preserves composition',
+                               'encoding':'uncompressed native BGR24/BGRA32; no engine extensions'}
     output["tce2_ui/SOURCE.json"]=(json.dumps(source,indent=2)+"\n").encode()
     for name,data in output.items():
         path=DEST/name

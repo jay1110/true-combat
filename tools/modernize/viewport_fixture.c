@@ -63,8 +63,10 @@ static vmCvar_t cg_aspectMode,*bound[5];
 static int checks,failures,registrations,updates,mouseX,mouseY,mouseCalls;
 #define CHECK(c) do { ++checks;if(!(c)){++failures;printf("FAIL %i: %s\n",__LINE__,#c);} } while(0)
 static int near(float a,float b) { return fabsf(a-b)<.003f; }
-typedef struct { float advance; } fontInfo_t;
-static fontInfo_t regularFont={16},strongFont={18};
+typedef struct { int top,imageHeight,pitch,imageWidth,xSkip; } glyphInfo_t;
+typedef struct { float advance,glyphScale;glyphInfo_t glyphs[256]; } fontInfo_t;
+static fontInfo_t regularFont={16,1},strongFont={18,1};
+#define Q_IsColorString(p) ((p)[0]=='^'&&(p)[1]&&(p)[1]!='^')
 static char paintedText[2048];
 static float paintedScale,paintedX,paintedY;
 static int textPaintCalls,imageMode;
@@ -515,6 +517,28 @@ static void physicalCursorAndFittedText(void)
     textPaintCalls=0;TCE_ModernTextFit(1,2,.3f,0,colorYellow,"Options",0);
     TCE_ModernTextFit(1,2,0,100,colorYellow,"Options",0);TCE_ModernTextFit(1,2,.3f,100,colorYellow,NULL,0);
     CHECK(textPaintCalls==0);
+    /* Minimum cap size precedes the actual native fit/paragraph helpers;
+     * a narrow width or short row can reduce it again without a second floor. */
+    for(i=0;i<256;++i){regularFont.glyphs[i].top=strongFont.glyphs[i].top=35;
+        regularFont.glyphs[i].imageHeight=strongFont.glyphs[i].imageHeight=40;}
+    modernEnabled=1;menuScaleSetting=1;menuMaxSetting=1080;
+    for(i=0;i<2;++i){
+        float preferred,physical=i?.9375f:.75f;
+        cgs.glconfig.vidWidth=uiInfo.uiDC.glconfig.vidWidth=i?800:640;
+        cgs.glconfig.vidHeight=uiInfo.uiDC.glconfig.vidHeight=i?600:480;
+        preferred=TCE_ModernReadableScale(.22f,&regularFont);CHECK(preferred>.22f);
+        CHECK(near(preferred*34*physical,8));
+        textPaintCalls=0;TCE_ModernTextFit(1,20,.22f,200,colorYellow,"Options",0);
+        CHECK(textPaintCalls==1&&near(paintedScale,preferred)&&!strcmp(paintedText,"Options"));
+        textPaintCalls=0;TCE_ModernTextFit(1,20,.22f,12,colorYellow,"LongField",0);
+        CHECK(textPaintCalls==1&&paintedScale<preferred&&!strcmp(paintedText,"LongField"));
+        CHECK(TCE_ModernWidth(paintedText,paintedScale,&regularFont)<=12);
+        textPaintCalls=0;TCE_ModernParagraph(1,20,.22f,200,10,2,colorYellow,"Help\nBack");
+        CHECK(textPaintCalls==2&&paintedScale*40<=10.001f);
+        CHECK(paintedX==1&&paintedY==30&&!strcmp(paintedText,"Back"));
+        modernEnabled=0;CHECK(TCE_ModernReadableScale(.22f,&regularFont)==.22f);
+        modernEnabled=1;
+    }
 }
 int main(void)
 {
