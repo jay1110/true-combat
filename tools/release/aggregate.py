@@ -31,6 +31,7 @@ def main():
         relative = path.relative_to(args.input)
         if relative.parts[0] in {f'TCE2-{version(ROOT)}-Complete-Release',
                                  f'TCE2-{version(ROOT)}-Mod-Packages',
+                                 f'TCE2-{version(ROOT)}-Failed-Packaging-Diagnostics',
                                  f'TCE2-{version(ROOT)}-Release-Closure'} or not path.is_file():
             continue
         if path.name.endswith('-Source.zip'):

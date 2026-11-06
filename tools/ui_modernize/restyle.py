@@ -259,6 +259,8 @@ def menu(text, relative):
                 b=item_prop(b,'rect',f'0 0 852 {HEADER_HEIGHT if header else 480}')
                 text=text[:start]+b+text[end:]
         text=text.replace('"ui/menumacros.h"','"ui/modern_widgets.h"')
+        import video_modes
+        text=video_modes.apply(text,relative)
     return text
 
 

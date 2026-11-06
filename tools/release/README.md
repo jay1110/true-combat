@@ -9,6 +9,20 @@ The current mod version comes from `src/game/tce_version.h` (1.0.3).
 and optionally the separate Editor variant. Source and optional NavStudio desktop
 have their own workflow artifacts.
 
+The complete Game ZIP uses this target matrix (the optional Editor ZIP uses the
+same matrix, with its authoring features compiled separately):
+
+| Operating system | Architectures |
+| --- | --- |
+| Windows | x86, x64 |
+| Linux | i386, x86_64, ARMv7, AArch64 |
+| Android | armeabi-v7a, arm64-v8a |
+| macOS | universal x86_64 + arm64 |
+| WebAssembly | wasm32 |
+
+Each target contributes UI, CGame, loose QGame and its matched Omni-bot runtime.
+These are mod binaries for a compatible engine, not bundled engine executables.
+
 ## What to download
 
 - `TCE2-1.0.3-Game.zip`: normal gameplay, with authoring compiled out.
@@ -75,6 +89,10 @@ The aggregate checks its actual ZIP contents, loose QGame ABIs, matched bot core
 script-command policy, full delta-resource closure, original-base dependencies,
 SHA256s and CRCs. Missing/failed jobs
 remain explicitly incomplete and never produce a partial installable PK3.
+The final Mod-Packages artifact is uploaded only after both assembly and the
+source/build closure check succeed. A failed aggregate uploads JSON/Markdown
+diagnostics separately, without exposing an intermediate ZIP as an installable
+download.
 `closure_report.py` binds the final archives and actual build invocations to the
 clean workflow checkout. Compiler success and package closure do not establish
 behavioral parity or Linux/Android/macOS runtime testing.

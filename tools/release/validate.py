@@ -25,6 +25,21 @@ def workflows(repo):
         match = re.search(r'^on:\s*\n((?:[ \t].*\n|\n)+)', source, re.M)
         if not match or set(re.findall(r'^  ([\w_]+):', match[1], re.M)) != {'workflow_dispatch'}:
             raise ValueError('Workflow is not exclusively manual: ' + str(path))
+        if path.name == 'release.yml':
+            release_upload_policy(source)
+
+
+def release_upload_policy(source):
+    """Installable downloads require the preceding actual closure to succeed."""
+    steps = re.split(r'(?m)^      - ', source)[1:]
+    packages = [step for step in steps if re.search(r'(?m)^          name: TCE2-.*-Mod-Packages\s*$', step)]
+    if len(packages) != 1 or re.findall(r'(?m)^        if: (.+)$', packages[0]) != ['success()']:
+        raise ValueError('Mod ZIP upload must require successful release closure')
+    diagnostics = [step for step in steps if re.search(r'(?m)^          name: TCE2-.*-Failed-Packaging-Diagnostics\s*$', step)]
+    for step in diagnostics:
+        if (re.findall(r'(?m)^        if: (.+)$', step) != ['failure()'] or
+                re.search(r'(?m)^\s+out/.*[.]zip\s*$', step)):
+            raise ValueError('Failed packaging diagnostics must not upload installable ZIPs')
 
 
 def source_inputs(repo, expected):

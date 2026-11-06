@@ -2,7 +2,7 @@
   "editor_files": {
     "tce2_ui/package.json": {
       "bytes": 43352,
-      "sha256": "33f80df17c52a3f8478351bab2ac47bccde9f0e7cabe5edf52534a50fccc4f8b",
+      "sha256": "2dcb45531c02e07f40d0b41243fe9ebf32522d444597915d067dc9d0c09611af",
       "source": "ui-modern via package.collect(editor)"
     },
     "ui/ingame_main.menu": {
@@ -24866,7 +24866,7 @@
     },
     "tce2_ui/package.json": {
       "bytes": 43824,
-      "sha256": "cf9f2b4df2a2a36138f511ebefa00f5f6ae17e5b75319a38bb142ff5bc4b6641",
+      "sha256": "2e12a52edb3e0e4d9efcadf82124b9b92b20ec6cb4a811665957305b9185971a",
       "source": "ui-modern via package.collect(game)"
     },
     "tce2_ui/panel.tga": {
@@ -25790,8 +25790,8 @@
       "source": "ui-modern via package.collect(game)"
     },
     "ui/profile_create.menu": {
-      "bytes": 6807,
-      "sha256": "5c53fe609b288ee0ee65e6ab1c3956502deff60aefc14819db19682baa5fbaa1",
+      "bytes": 7322,
+      "sha256": "9d12771829ea933856e1c995ac34a1fbec2593f18f9908d024fa476450689383",
       "source": "ui-modern via package.collect(game)"
     },
     "ui/profile_create_error.menu": {
@@ -25800,8 +25800,8 @@
       "source": "ui-modern via package.collect(game)"
     },
     "ui/profile_create_initial.menu": {
-      "bytes": 7996,
-      "sha256": "fc545d1db6bbb925427c46d5a58a48dbae86ab7cdb1cb5e1d51cb406964c91a1",
+      "bytes": 8511,
+      "sha256": "82a9ae96c49821af0586f149544b4842a3bca20a9e2eef400e49d43ec0797226",
       "source": "ui-modern via package.collect(game)"
     },
     "ui/profile_delete.menu": {

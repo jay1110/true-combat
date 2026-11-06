@@ -506,6 +506,13 @@ def layout_reference(reference,candidate):
     if PRIVATE_WIDGETS in candidate:
         if ORIGINAL_WIDGETS not in reference:raise ValueError('Private widgets lack original macro reference')
         result[PRIVATE_WIDGETS]=reference[ORIGINAL_WIDGETS]
+    import video_modes
+    # Only the two profile resolution lists may reuse the reviewed System
+    # catalog. Every other selector operand and profile script stays exact.
+    for path in video_modes.PAGES:
+        if path in reference and path in candidate and candidate[path]!=reference[path]:
+            video_modes.validate(candidate[path].decode('latin1'),path)
+            result[path]=video_modes.apply(reference[path].decode('latin1'),path).encode('latin1')
     if APPEARANCE in candidate:
         if appearance_signature(candidate[APPEARANCE],reference)!=APPEARANCE_SEMANTIC_SHA256:
             raise ValueError('Appearance page differs from reviewed cvar/list/script contract')
@@ -720,7 +727,7 @@ def inventory(root):
             'file_count': len(rows), 'semantic_file_count': len(units),
             'macro_contracts': {k: {'arity': v[0], 'semantic_arguments': sorted(v[1])} for k, v in sorted(macro_contracts.items())},
             'validator_sha256': {name: digest(Path(__file__).with_name(name).read_bytes())
-                                 for name in ('semantic.py', 'inventory.py', 'check.py')},
+                                 for name in ('semantic.py', 'inventory.py', 'check.py', 'video_modes.py')},
             'limits': ['Source semantic projection, not engine/runtime/input validation.',
                        'Original scripts/lists/conditions/labels exact except numeric paint RGBA; unknown syntax significant.',
                        'Existing identities/order retained; inert decorations and four exact Back-derived settings links explicitly checked.',

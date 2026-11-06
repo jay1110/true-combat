@@ -24,8 +24,9 @@ class AggregateRerun(unittest.TestCase):
                 input_archive(inputs/(target+'-'+variant),target,variant,repo=repo)
         source=inputs/f'TCE2-{version(repo)}-Source';source.mkdir()
         with zipfile.ZipFile(source/f'TCE2-{version(repo)}-Source.zip','w') as z:z.writestr('fixture.txt','source selection only')
-        previous=inputs/f'TCE2-{version(repo)}-Complete-Release';previous.mkdir()
-        with zipfile.ZipFile(previous/'old-Client-Inputs.zip','w') as z:z.writestr('old.txt','cancelled attempt')
+        for suffix in ('Complete-Release','Mod-Packages','Release-Closure','Failed-Packaging-Diagnostics'):
+            previous=inputs/f'TCE2-{version(repo)}-{suffix}';previous.mkdir()
+            with zipfile.ZipFile(previous/'old-Client-Inputs.zip','w') as z:z.writestr('old.txt','previous aggregate result')
         needs={'plan':{'result':'success','outputs':{'matrix':json.dumps({'include':[
             {'target':target,'variant':variant} for target in target_table(repo) for variant in variants]})}},
             'binaries':{'result':'failure' if missing else 'success'},'navstudio-desktop':{'result':'skipped'}}

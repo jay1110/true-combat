@@ -1060,16 +1060,16 @@
       "sha256": "c2c2640c88bc0f8f3a5d1c78954e47deb7fc6d16fb3b1e284a03c007f8945dbc"
     },
     "ui/profile_create.menu": {
-      "bytes": 6807,
-      "sha256": "5c53fe609b288ee0ee65e6ab1c3956502deff60aefc14819db19682baa5fbaa1"
+      "bytes": 7322,
+      "sha256": "9d12771829ea933856e1c995ac34a1fbec2593f18f9908d024fa476450689383"
     },
     "ui/profile_create_error.menu": {
       "bytes": 1139,
       "sha256": "377e6c71bf68c6d1a0f266d0cf31568717c40498dfca267a489b6a13c94e6674"
     },
     "ui/profile_create_initial.menu": {
-      "bytes": 7996,
-      "sha256": "fc545d1db6bbb925427c46d5a58a48dbae86ab7cdb1cb5e1d51cb406964c91a1"
+      "bytes": 8511,
+      "sha256": "82a9ae96c49821af0586f149544b4842a3bca20a9e2eef400e49d43ec0797226"
     },
     "ui/profile_delete.menu": {
       "bytes": 1375,
