@@ -2989,7 +2989,7 @@ static void CG_DrawCrosshairNames(void)
 	tce_uiCoordinates = previous;
 }
 
-/* Optional TCE2 fireteam labels. PVS membership and a fresh eye-to-head trace
+/* Optional TCE2 team labels (1: team, 2: own fireteam). PVS membership and a fresh eye-to-head trace
  * are required every frame: the model visibility cache cannot authorize text
  * through an occluder after the player moves behind it. */
 static void CG_DrawTeamNames(void)
@@ -3016,7 +3016,8 @@ static void CG_DrawTeamNames(void)
 		char         *nameChar;
 		float        distance, forward, side, up, scale, x, y, height, projection;
 		if (i == cg.predictedPlayerState.clientNum || !ci->infoValid || ci->team != team ||
-		    !CG_IsOnSameFireteam(cg.clientNum, i) || !cent->currentValid || !cent->tceVisible ||
+		    (cg_drawTeamNames.integer == 2 && !CG_IsOnSameFireteam(cg.snap->ps.clientNum, i)) ||
+		    !cent->currentValid || !cent->tceVisible ||
 		    cent->currentState.eType != ET_PLAYER ||
 		    (cent->currentState.eFlags & (EF_DEAD | EF_NODRAW | EF_CONNECTION)))
 		{

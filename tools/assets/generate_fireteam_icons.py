@@ -54,7 +54,7 @@ def main():
         data = tga(64, c.finish())
         generated[name + ".tga"] = data
         records.append({"asset": name + ".tga", "width": 64, "height": 64,
-                        "channels": "BGRA8, straight alpha, top-left origin",
+                        "channels": "BGRA8, straight alpha, bottom-left origin",
                         "sha256": hashlib.sha256(data).hexdigest()})
     source = {"schema": 1, "origin": "Original geometric TC Assault, Recon and Sniper role badges.",
               "license": "CC0-1.0", "generator": "tools/assets/generate_fireteam_icons.py",

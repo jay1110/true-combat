@@ -126,8 +126,12 @@ ART = {"player": (64, player), "player_self": (64, self_player), "player_dead": 
 
 
 def tga(size, rgba):
-    header = struct.pack("<BBBHHBHHHHBB", 0, 0, 2, 0, 0, 0, 0, 0, size, size, 32, 0x28)
-    bgra = bytes(channel for i in range(0, len(rgba), 4) for channel in (rgba[i + 2], rgba[i + 1], rgba[i], rgba[i + 3]))
+    # ET 2.60b's loader always reads bottom-up and ignores the origin flag.
+    # Store real bottom-up rows so both that loader and ETL see the same art.
+    header = struct.pack("<BBBHHBHHHHBB", 0, 0, 2, 0, 0, 0, 0, 0, size, size, 32, 0x08)
+    bgra = bytes(channel for y in reversed(range(size)) for x in range(size)
+                 for i in [(y * size + x) * 4]
+                 for channel in (rgba[i + 2], rgba[i + 1], rgba[i], rgba[i + 3]))
     return header + bgra + bytes(8) + b"TRUEVISION-XFILE.\0"
 
 
@@ -172,7 +176,7 @@ def main():
         c = Canvas(size); draw(c); pixels = c.finish(); data = tga(size, pixels)
         assert len(pixels) == size * size * 4 and pixels[3] == 0 and pixels[(size // 2 * size + size // 2) * 4 + 3] > 0
         generated[name + ".tga"] = data; images[name] = pixels
-        records.append({"asset": name + ".tga", "width": size, "height": size, "channels": "BGRA8, top-left TGA origin, straight alpha", "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()})
+        records.append({"asset": name + ".tga", "width": size, "height": size, "channels": "BGRA8, bottom-left TGA origin, straight alpha", "bytes": len(data), "sha256": hashlib.sha256(data).hexdigest()})
     source = {"schema": 1, "origin": "Original repository-created geometric TCE2 navigation artwork; no external artwork or fonts.",
               "license": "CC0-1.0", "generator": "tools/assets/generate_nav_icons.py", "generator_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
               "renderer": "Python standard library polygon rasterizer, 6x supersampling, premultiplied coverage reduction", "files": records}

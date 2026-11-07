@@ -124,6 +124,70 @@ class SettingsLayout(unittest.TestCase):
             self.assertIn('"'+name+'"',bindings)
         self.assertEqual(len([1 for _,_,n,a in restyle.macro_calls(result,layout.ROWS)]),58)
 
+    def test_name_options_bind_real_cgame_cvars_in_both_variants(self):
+        game=restyle.menu(restyle.read(ROOT/'src/assets/ui/options_customise_hud.menu'),Path('ui/options_customise_hud.menu'))
+        editor=restyle.read(ROOT/'ui-modern/ui/options_customise_hud.menu')
+        cgame=(ROOT/'src/cgame/cg_main.c').read_text()
+        ui=(ROOT/'src/ui/ui_main.c').read_text()
+        for cvar,default,variable in (('cg_drawTeamNames','1','ui_drawOverheadNames'),
+                                      ('cg_drawCrosshairNames','0','ui_drawTeamNames')):
+            self.assertRegex(cgame,r'\{\s*&'+cvar+r'\s*,\s*"'+cvar+r'"\s*,\s*"'+default+r'"\s*,\s*CVAR_ARCHIVE\s*\}')
+            self.assertRegex(ui,r'\{\s*&'+variable+r'\s*,\s*"'+cvar+r'"\s*,\s*"'+default+r'"\s*,\s*CVAR_ARCHIVE\s*\}')
+        for variant,text in (('game',game),('editor',editor)):
+            with self.subTest(variant=variant):
+                controls={}
+                for _,_,name,args in restyle.macro_calls(text,layout.ROWS):
+                    cvar=args[7].split()[0].strip('"')
+                    self.assertNotIn(cvar,controls)
+                    controls[cvar]=(name,args)
+                kind,team=controls['cg_drawTeamNames']
+                self.assertEqual(kind,'MULTI')
+                self.assertEqual(team[4],'"Team Names:"')
+                self.assertEqual(sem.tokens(team[8]),sem.tokens('cvarFloatList { "Off" 0 "Team" 1 "Fireteam" 2 }'))
+                kind,crosshair=controls['cg_drawCrosshairNames']
+                self.assertEqual(kind,'YESNO')
+                self.assertEqual(crosshair[4],'"Crosshair Names:"')
+                for args in (team,crosshair):
+                    self.assertLessEqual(font_width(args[4].strip('"'),float(args[5])),float(args[2])/2-5)
+
+    def test_extended_view_cards_and_rows_fit_before_footer(self):
+        game=restyle.menu(restyle.read(ROOT/'src/assets/ui/options_customise_hud.menu'),Path('ui/options_customise_hud.menu'))
+        editor=restyle.read(ROOT/'ui-modern/ui/options_customise_hud.menu')
+        for variant,text,count,bottom in (('game',game,11,412),('editor',editor,8,322)):
+            with self.subTest(variant=variant):
+                groups=layout._sections(list(restyle.macro_calls(text,layout.CALLS)))
+                hud=groups['hud display'];self.assertEqual(len(hud['rows']),count)
+                x,y,w,h=map(float,hud['header'][3][:4])
+                self.assertEqual(y+h,bottom)
+                self.assertLessEqual(y+h,432)
+                for index,(_,_,_,args) in enumerate(hud['rows']):
+                    rx,ry,rw,rh=map(float,args[:4])
+                    self.assertEqual(ry,78+30*index)
+                    self.assertGreaterEqual(rx,x);self.assertLessEqual(rx+rw,x+w)
+                    self.assertLessEqual(ry+rh,y+h)
+
+    def test_editor_name_additions_have_an_exact_independent_semantic_contract(self):
+        key='ui/options_customise_hud.menu'
+        original=(ROOT/'pak_original_tce'/key).read_bytes()
+        data=(ROOT/'ui-modern'/key).read_bytes()
+        def matches(candidate):
+            widgets=(ROOT/'pak_original_tce'/sem.ORIGINAL_WIDGETS).read_bytes()
+            reference=sem.layout_reference({key:original,sem.ORIGINAL_WIDGETS:widgets},
+                                           {key:candidate,sem.PRIVATE_WIDGETS:widgets})
+            before_units=[sem.parse(path,content) for path,content in reference.items()]
+            before,_=sem.signatures(before_units,self.contracts)
+            actual=sem.normalize_layout([sem.parse(key,candidate),sem.parse(sem.PRIVATE_WIDGETS,widgets)],before_units,self.contracts)
+            after,_=sem.signatures(actual,self.contracts,self.names)
+            return before[key]==after[key]
+        self.assertTrue(matches(data))
+        for old,new in ((b'"Fireteam" 2',b'"Fireteam" 1'),
+                        (b'"Crosshair Names:"',b'"Other Names:"'),
+                        (b'"cg_drawCrosshairNames"',b'"cg_drawCrosshairPickups"'),
+                        (b'"Show the name of the player under your crosshair"',b'"Different behavior"'),
+                        (b'"cg_drawFPS"',b'"cg_drawSnapshot"')):
+            with self.subTest(old=old):
+                self.assertIn(old,data);self.assertFalse(matches(data.replace(old,new,1)))
+
     def test_unexpected_new_setting_cannot_silently_overflow_or_disappear(self):
         source=restyle.read(ROOT/'src/assets/ui/options_controls.menu')
         duplicate='BIND( 8, 180, 200, 10, "Unexpected:", .2, 8, "+unexpected", "" )\n'
@@ -133,6 +197,11 @@ class SettingsLayout(unittest.TestCase):
         system=restyle.read(ROOT/'pak_original_tce/ui/options_system.menu').replace('"Resolution:"','"Unexpected Resolution:"')
         with self.assertRaisesRegex(ValueError,'resolution row'):
             layout.apply(system,Path('ui/options_system.menu'))
+        hud=restyle.read(ROOT/'src/assets/ui/options_customise_hud.menu')
+        hud=hud.replace('// In-Game Display //',
+                        'YESNO( 8, 180, 384, 10, "Extra:", .2, 8, "cg_drawFPS", "" )\n'*2+'// In-Game Display //')
+        with self.assertRaisesRegex(ValueError,'HUD settings section exceeds safe footer'):
+            layout.apply(hud,Path('ui/options_customise_hud.menu'))
 
 
 if __name__=='__main__':unittest.main()

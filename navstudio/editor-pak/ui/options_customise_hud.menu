@@ -42,7 +42,7 @@ menuDef {
 // modern settings desktop v1
     itemDef {
         name "modern_settings_card_0"
-        rect 24 60 384 202
+        rect 24 60 384 262
         style WINDOW_STYLE_FILLED
         backcolor .045 .065 .085 .98
         visible 1
@@ -81,7 +81,7 @@ menuDef {
 
 // Hud Display //
 
-	SUBWINDOW( 24, 60, 384, 202, "HUD Display" )
+	SUBWINDOW( 24, 60, 384, 262, "HUD Display" )
 	YESNO( 32, 78, 368, 30, "Draw FPS:", .22, 14, "cg_drawFPS", "Show frames per second" )
 	YESNO( 32, 108, 368, 30, "Show Lagometer:", .22, 14, "cg_lagometer", "Show lagometer" )
 	YESNO( 32, 138, 368, 30, "Show Compass:", .22, 14, "cg_drawCompass", "Displays compass (with icons when near select events)" )
@@ -89,6 +89,8 @@ menuDef {
 //	MULTI( 8, 96, (SUBWINDOW_WIDTH)-4, 10, "Cursor Hints:", .2, 8, "cg_cursorHints", cvarFloatList { "Off" 0 "Size Pulse" 1 "Strobe Pulse" 2 "Alpha Pulse" 3 "Solid" 4 }, "Icon display format when near an action item" )
 	MULTI( 32, 198, 368, 30, "Cursor Hints:", .22, 14, "cg_cursorHints", cvarFloatList { "Off" 0 "On" 1 }, "Icon display when near an action item" )
 	MULTI( 32, 228, 368, 30, "Player Icons:", .22, 14, "cg_drawFriend", cvarFloatList { "Off" 0 "Visible" 1 "Always" 2}, "Show floating icon indicating team mates" )
+	MULTI( 32, 258, 368, 30, "Team Names:", .22, 14, "cg_drawTeamNames", cvarFloatList { "Off" 0 "Team" 1 "Fireteam" 2 }, "Show visible teammates' names in green; Fireteam limits names to your fireteam" )
+	YESNO( 32, 288, 368, 30, "Crosshair Names:", .22, 14, "cg_drawCrosshairNames", "Show the name of the player under your crosshair" )
 
 
 // In-Game Display //

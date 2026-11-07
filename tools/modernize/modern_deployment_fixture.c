@@ -33,6 +33,11 @@ static float surfaceOpacity = 1, lastRawAlpha, lastRawRed;
 static int rawFills, pictureCount, fitCount;
 static qhandle_t lastPicture;
 static weaponType_t specialWeapon;
+static int modelPictures, modelViewDepth, modelViewsSaved, modelViewsRestored;
+static qhandle_t boundedModel;
+static vec3_t modelMins={ -12,-2,-3 }, modelMaxs={ 18,2,5 };
+static refEntity_t paintedModel;
+static refdef_t paintedModelView;
 
 #define SOUND_SELECT ((void)0)
 #define SOUND_CANCEL ((void)0)
@@ -117,6 +122,22 @@ int CG_LimboPanel_RenderCounter_ValueForButton(panel_button_t *button) { return 
 void trap_R_SetColor(const float *color) { (void)color; }
 void CG_DrawPic(float x, float y, float w, float h, qhandle_t shader)
 { (void)x; (void)y; (void)w; (void)h;++pictureCount;lastPicture=shader; }
+void CG_AdjustFrom640(float *x,float *y,float *w,float *h)
+{ (void)x;(void)y;(void)w;(void)h; }
+void trap_R_ModelBounds(clipHandle_t model,vec3_t mins,vec3_t maxs)
+{ boundedModel=model;memcpy(mins,modelMins,sizeof(vec3_t));memcpy(maxs,modelMaxs,sizeof(vec3_t)); }
+void AnglesToAxis(const vec3_t angles,vec3_t axis[3])
+{
+	expect(angles[0]==0 && angles[1]==90 && angles[2]==0,"weapon preview uses side view, never first-person camera rotation");
+	memset(axis,0,sizeof(vec3_t)*3);axis[0][1]=1;axis[1][0]=-1;axis[2][2]=1;
+}
+void AxisClear(vec3_t axis[3])
+{ memset(axis,0,sizeof(vec3_t)*3);axis[0][0]=axis[1][1]=axis[2][2]=1; }
+void trap_R_SaveViewParms(void) { ++modelViewDepth;++modelViewsSaved; }
+void trap_R_RestoreViewParms(void) { --modelViewDepth;++modelViewsRestored; }
+void trap_R_ClearScene(void) { expect(modelViewDepth==1,"weapon preview saves existing renderer view before clearing its scene"); }
+void trap_R_AddRefEntityToScene(const refEntity_t *entity) { paintedModel=*entity; }
+void trap_R_RenderScene(const refdef_t *view) { paintedModelView=*view;++modelPictures; }
 void CG_FillRect(float x, float y, float w, float h, const float *color)
 { (void)x;(void)y;(void)w;(void)h;++rawFills;lastRawAlpha=color[3];lastRawRed=color[0]; }
 void TCE_ModernFill(float x, float y, float w, float h, const float *color)
@@ -410,36 +431,64 @@ int main(void)
 		surfaceOpacity=.25f;rawFills=pictureCount=fitCount=paintedCount=0;
 		Com_sprintf(tce_cg_weapons[10].deployMenuDescription,64,"%s",full);
 		tce_cg_weapons[10].weaponIcon=710;
+		tce_cg_weapons[10].weaponSelectedIcon=712;cg_weapons[10].weaponIcon[0]=711;cg_weapons[10].weaponIcon[1]=713;
+		tce_cg_weapons[10].weaponModel[W_TP_MODEL].model=910;
+		tce_cg_weapons[10].weaponModel[W_TP_MODEL].skin[0]=810;
+		tce_cg_weapons[10].weaponModel[W_TP_MODEL].skin[TEAM_AXIS]=811;
+		tce_cg_weapons[10].weaponModel[W_TP_MODEL].skin[TEAM_ALLIES]=812;
+		modelPictures=0;
 		TCE_ModernLimboWeaponRow(&row,(weapon_t)10,1,4,qtrue,qtrue);
 		expect(rawFills==1 && lastRawAlpha>=.97f,"expanded selector retains minimum opacity at lowest theme opacity");
 		expect(lastRawRed==.33f,"opaque selector retains the palette RGB returned by the theme renderer");
 		expect(textExists(full) && !textExists("Weapon10") && fitCount==1,"complete registered designation reaches fitting text renderer without replacing it by short name");
-		expect(pictureCount==1 && lastPicture==710,"registered TC weapon icon is displayed");
+		expect(pictureCount==0 && modelPictures==1 && paintedModel.hModel==910 && boundedModel==910,
+		       "actual registered third-person weapon model replaces misleading shared ET HUD icons");
+		expect(paintedModel.customSkin==812,"Specops weapon preview uses actual allied model skin");
+		expect((paintedModel.renderfx&(RF_NOSHADOW|RF_MINLIGHT|RF_FORCENOLOD))==(RF_NOSHADOW|RF_MINLIGHT|RF_FORCENOLOD),
+		       "weapon preview remains lit and avoids world shadows or wrong LOD");
+		expect(paintedModel.shaderRGBA[0]==255 && paintedModel.shaderRGBA[3]==255,
+		       "weapon preview keeps original full-color opaque model instead of palette tint");
+		expect(paintedModelView.width==58 && paintedModelView.height==24 && paintedModelView.fov_x==45 &&
+		       paintedModelView.fov_y>0 && paintedModelView.fov_y<45 && paintedModelView.rdflags==RDF_NOWORLDMODEL,
+		       "wide weapon image uses matching perspective aspect and no world background");
+		expect(paintedModel.origin[1]==-3 && paintedModel.origin[2]==-1 && paintedModel.origin[0]>30,
+		       "side-view model bounds are centered and long weapon fits its preview");
+		expect(modelViewDepth==0 && modelViewsSaved==modelViewsRestored,"each model preview restores previous engine view");
 		rawFills=0;
 		TCE_ModernLimboWeaponRow(&row,(weapon_t)10,1,4,qtrue,qfalse);
 		expect(!rawFills,"collapsed selector still uses ordinary global-opacity surfaces");
-		tce_cg_weapons[10].weaponIcon=0;cg_weapons[10].weaponIcon[0]=711;
+		cgs.ccSelectedTeam=1;
 		TCE_ModernLimboWeaponRow(&row,(weapon_t)10,1,4,qtrue,qtrue);
-		expect(lastPicture==711,"registered SDK icon is used when the TC icon is absent");
-		cg_weapons[10].weaponIcon[0]=0;tce_cg_weapons[10].weaponSelectedIcon=712;
-		savedPictures=pictureCount;
+		expect(paintedModel.customSkin==811,"terrorist weapon preview uses actual axis model skin");
+		cgs.ccSelectedTeam=0;
+		tce_cg_weapons[10].weaponModel[W_TP_MODEL].model=0;
+		tce_cg_weapons[10].weaponModel[W_PU_MODEL].model=920;
+		tce_cg_weapons[10].weaponModel[W_PU_MODEL].skin[0]=820;
 		TCE_ModernLimboWeaponRow(&row,(weapon_t)10,1,4,qtrue,qfalse);
-		expect(pictureCount==savedPictures+1 && lastPicture==712,"collapsed row uses registered selected-only TC icon when both primary handles are zero");
-		tce_cg_weapons[10].weaponSelectedIcon=0;cg_weapons[10].weaponIcon[1]=713;
-		savedPictures=pictureCount;
-		TCE_ModernLimboWeaponRow(&row,(weapon_t)10,1,4,qfalse,qtrue);
-		expect(pictureCount==savedPictures+1 && lastPicture==713,"expanded row falls back to registered selected-only SDK icon");
-		cg_weapons[10].weaponIcon[1]=0;savedPictures=pictureCount;
+		expect(paintedModel.hModel==920 && paintedModel.customSkin==820,"actual pickup model and default skin are safe fallback when third-person model is missing");
+		tce_cg_weapons[12].weaponModel[W_TP_MODEL].model=912;
+		TCE_ModernLimboWeaponRow(&row,(weapon_t)12,3,4,qfalse,qtrue);
+		expect(paintedModel.hModel==912,"alternative row resolves that weapon's own model instead of selected weapon or class icon");
+		tce_cg_weapons[10].weaponModel[W_PU_MODEL].model=0;
+		tce_cg_weapons[10].weaponModel[W_FP_MODEL].model=930;
+		savedPictures=modelPictures;
 		TCE_ModernLimboWeaponRow(&row,(weapon_t)10,1,4,qtrue,qtrue);
-		expect(pictureCount==savedPictures,"missing icon zero is never drawn");
+		expect(modelPictures==savedPictures && !pictureCount,"missing model does not show arms, unrelated SDK placeholder or image handle zero");
+		expect(!TCE_ModernLimboWeaponModel((weapon_t)-1) && !TCE_ModernLimboWeaponModel((weapon_t)64),"invalid model IDs stay outside media arrays");
+		tce_cg_weapons[10].weaponModel[W_TP_MODEL].model=910;modelMaxs[0]=-13;
+		expect(!TCE_ModernLimboWeaponPreview(row.x,row.y,58,24,(weapon_t)10) && modelPictures==savedPictures,"invalid model bounds do not reach renderer");
+		modelMaxs[0]=18;
 		paintedCount=0;tce_cg_weapons[10].deployMenuDescription[0]=0;
 		TCE_ModernLimboWeaponRow(&row,(weapon_t)10,1,4,qtrue,qtrue);
 		expect(textExists("Weapon10"),"missing full designation falls back to registered short name");
 		specialWeapon.weapindex=(weapon_t)19;specialWeapon.desc="Special short";
 		specialWeapon.description="Full registered special equipment designation";specialWeapon.category="Special";
 		paintedCount=0;
+		tce_cg_weapons[19].weaponModel[W_TP_MODEL].model=919;
+		savedPictures=modelPictures;
 		TCE_ModernLimboWeaponRow(&row,(weapon_t)19,1,4,qfalse,qtrue);
 		expect(textExists(specialWeapon.description),"special equipment uses the existing WM full description");
+		expect(modelPictures==savedPictures,"grenade bundle does not pretend to be a single firearm model");
 		memset(&specialWeapon,0,sizeof(specialWeapon));surfaceOpacity=1;
 	}
 	click(&weaponPanel);

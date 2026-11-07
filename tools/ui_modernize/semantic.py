@@ -521,6 +521,22 @@ def layout_reference(reference,candidate):
     if PRIVATE_WIDGETS in candidate:
         if ORIGINAL_WIDGETS not in reference:raise ValueError('Private widgets lack original macro reference')
         result[PRIVATE_WIDGETS]=reference[ORIGINAL_WIDGETS]
+    hud='ui/options_customise_hud.menu'
+    if hud in reference and hud in candidate:
+        # Reviewed functional addition: only these two actual CGame name cvars.
+        # The independently written reference keeps every original setting,
+        # script, list and label protected; modified operands still compare unequal.
+        names=(b'"cg_drawTeamNames"',b'"cg_drawCrosshairNames"')
+        if any(name in candidate[hud] for name in names) and not any(name in reference[hud] for name in names):
+            source=reference[hud].decode('latin1')
+            anchor=r'(?m)^[ \t]*MULTI\([^\n]*"cg_drawFriend"[^\n]*\)[ \t\r]*$'
+            matches=list(re.finditer(anchor,source))
+            if len(matches)!=1:raise ValueError('HUD name settings lack the original Player Icons anchor')
+            extra='''
+    MULTI( 8, 120, 384, 10, "Team Names:", .2, 8, "cg_drawTeamNames", cvarFloatList { "Off" 0 "Team" 1 "Fireteam" 2 }, "Show visible teammates' names in green; Fireteam limits names to your fireteam" )
+    YESNO( 8, 132, 384, 10, "Crosshair Names:", .2, 8, "cg_drawCrosshairNames", "Show the name of the player under your crosshair" )'''
+            at=matches[0].end()
+            result[hud]=(source[:at]+extra+source[at:]).encode('latin1')
     import video_modes
     # Only the two profile resolution lists may reuse the reviewed System
     # catalog. Every other selector operand and profile script stays exact.

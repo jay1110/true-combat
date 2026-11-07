@@ -3,29 +3,29 @@
   "origin": "Original geometric TC Assault, Recon and Sniper role badges.",
   "license": "CC0-1.0",
   "generator": "tools/assets/generate_fireteam_icons.py",
-  "generator_sha256": "c2f50bd8e9fc63b04aa60408ab1fb4fb35a881cf1e07015febcf8fbfc86a356b",
+  "generator_sha256": "536b998d3bddf84350bda2f3933669e319454721d009c8154e7a0fc5d4bb2e10",
   "rasterizer": "tools/assets/generate_nav_icons.py",
   "files": [
     {
       "asset": "assault.tga",
       "width": 64,
       "height": 64,
-      "channels": "BGRA8, straight alpha, top-left origin",
-      "sha256": "c11ea4005420bf6b0d7ff5f54cfc90bf0a444687837c04a014f07290c3975d75"
+      "channels": "BGRA8, straight alpha, bottom-left origin",
+      "sha256": "ddaad40e355818e4c0e7c7898cb562ccd91950388768dcee48abad596a0ca988"
     },
     {
       "asset": "recon.tga",
       "width": 64,
       "height": 64,
-      "channels": "BGRA8, straight alpha, top-left origin",
-      "sha256": "c6a69ccf27d5f72dbff3387ca04aa3fbbc2962bb73d6aecf4dc68f03567f60c6"
+      "channels": "BGRA8, straight alpha, bottom-left origin",
+      "sha256": "20a4ca24c942ce5e9dfafeb49c1d456825144745e301476879cf75898dd8bbb8"
     },
     {
       "asset": "sniper.tga",
       "width": 64,
       "height": 64,
-      "channels": "BGRA8, straight alpha, top-left origin",
-      "sha256": "83c99979061e7f4cfe8f93af39aa82d7d6bb3eead6711cd82267556cd9241985"
+      "channels": "BGRA8, straight alpha, bottom-left origin",
+      "sha256": "13b4bc8064ddf4903b060b6be0351039b18aa735ac83ffc01a6f82067d7f80d3"
     }
   ]
 }

@@ -2,6 +2,7 @@
 #include "src/cgame/cg_local.h"
 #include "src/cgame/tce_popup_draw.h"
 #include "src/ui/tce_viewport.h"
+#include "src/ui/tce_modern_ui.h"
 #include "src/game/tce_bg.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,9 +24,10 @@ int tceSmokeNewBBox;
 static int traceCalls, traceBlocked;
 static int modernHud;
 static float hudUserScale=.85f,hudHeightCap=1080;
-static vmCvar_t *hudCvars[3];
+static vmCvar_t *hudCvars[5];
 qboolean tce_uiCoordinates;
 static snapshot_t snapshot;
+qboolean TCE_ModernUIEnabled(void) { return qfalse; }
 static int checks, failures, argumentCount, draws, fills;
 static int menuDraws,overlayDraws;
 static rectDef_t hudRect;
@@ -47,16 +49,16 @@ void trap_Cvar_Register(vmCvar_t *cvar,const char *name,const char *value,int fl
     int id;
     if(!strcmp(name,"tceft")||!strcmp(name,"tceftgear")){CHECK(!strcmp(value,"1")&&(flags&CVAR_USERINFO));return;}
     if(!strcmp(name,"cg_drawIcons")){CHECK(!strcmp(value,"1")&&flags==CVAR_ARCHIVE);iconCvar=cvar;cvar->integer=iconsEnabled;return;}
-    id=!strcmp(name,"cg_wideScreen")?0:!strcmp(name,"cg_hudScale")?1:!strcmp(name,"cg_hudMaxHeight")?2:-1;
+    id=!strcmp(name,"cg_wideScreen")?0:!strcmp(name,"cg_hudScale")?1:!strcmp(name,"cg_hudMaxHeight")?2:!strcmp(name,"ui_menuScale")?3:!strcmp(name,"ui_menuMaxHeight")?4:-1;
     CHECK(id>=0&&flags==CVAR_ARCHIVE);if(id<0)return;
-    CHECK(!strcmp(value,id==0?"1":id==1?"0.85":"1080"));hudCvars[id]=cvar;
-    cvar->value=id==0?(float)modernHud:id==1?hudUserScale:hudHeightCap;cvar->integer=(int)cvar->value;
+    CHECK(!strcmp(value,id==0||id==3?"1":id==1?"0.85":"1080"));hudCvars[id]=cvar;
+    cvar->value=id==0?(float)modernHud:id==1?hudUserScale:id==3?1.f:hudHeightCap;cvar->integer=(int)cvar->value;
 }
 void trap_Cvar_Update(vmCvar_t *cvar)
 {
     int id;
     if(cvar==iconCvar){cvar->integer=iconsEnabled;return;}
-    for(id=0;id<3;++id)if(hudCvars[id]==cvar){cvar->value=id==0?(float)modernHud:id==1?hudUserScale:hudHeightCap;cvar->integer=(int)cvar->value;return;}
+    for(id=0;id<5;++id)if(hudCvars[id]==cvar){cvar->value=id==0?(float)modernHud:id==1?hudUserScale:id==3?1.f:hudHeightCap;cvar->integer=(int)cvar->value;return;}
     CHECK(0);
 }
 const char *CG_Argv(int index) { return index>=0&&index<argumentCount?arguments[index]:""; }
@@ -421,7 +423,11 @@ static void objectiveAndNames(void)
     traceBlocked=1;paintCount=0;CG_DrawTeamNames();CHECK(paintCount==0);
     traceBlocked=0;cg_entities[1].currentValid=qfalse;paintCount=0;CG_DrawTeamNames();CHECK(paintCount==0);
     cg_entities[1].currentValid=qtrue;cg_entities[1].tceVisible=qfalse;CG_DrawTeamNames();CHECK(paintCount==0);
-    cg_entities[1].tceVisible=qtrue;cgs.clientinfo[1].fireteamData=NULL;CG_DrawTeamNames();CHECK(paintCount==0);
+    /* A lone fireteam leader must still see ordinary teammates in Team mode. */
+    cg_entities[1].tceVisible=qtrue;cgs.clientinfo[1].fireteamData=NULL;paintCount=0;CG_DrawTeamNames();CHECK(paintCount==1);
+    cg_drawTeamNames.integer=2;paintCount=0;CG_DrawTeamNames();CHECK(paintCount==0);
+    cgs.clientinfo[1].fireteamData=&cg.fireTeams[0];CG_DrawTeamNames();CHECK(paintCount==1);
+    cg_drawTeamNames.integer=1;paintCount=0;
     cgs.clientinfo[1].fireteamData=&cg.fireTeams[0];cgs.clientinfo[1].team=TEAM_ALLIES;CG_DrawTeamNames();CHECK(paintCount==0);
     cgs.clientinfo[1].team=TEAM_AXIS;cg_entities[1].currentState.eFlags=EF_DEAD;CG_DrawTeamNames();CHECK(paintCount==0);
     cg_entities[1].currentState.eFlags=0;cg_drawTeamNames.integer=0;CG_DrawTeamNames();CHECK(paintCount==0);

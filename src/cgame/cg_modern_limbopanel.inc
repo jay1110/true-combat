@@ -29,7 +29,7 @@ static void TCE_ModernLimboLayout(void)
         TCE_ModernLimboRect(teams[i],254+i*196,114,182,76);
         TCE_ModernLimboRect(classes[i*2],254+i*196,246,86,38);
         TCE_ModernLimboRect(classes[i*2+1],350+i*196,246,86,38);
-        TCE_ModernLimboRect(slots[i],254+i*196,328,182,28);
+        TCE_ModernLimboRect(slots[i],254+i*196,318,182,54);
     }
     TCE_ModernLimboRect(&weaponPanel,254,382,574,30);
     TCE_ModernLimboRect(&cancelButton,506,430,140,32);
@@ -99,15 +99,6 @@ static void TCE_ModernLimboClass(panel_button_t *button)
     if(selected) TCE_ModernImage("tce2_ui/icons/check",button->rect.x+58,button->rect.y+12,14,14);
 }
 
-static void TCE_ModernLimboSlot(panel_button_t *button, const char *label)
-{
-    qboolean enabled=CG_LimboPanel_GetTeam()!=TEAM_SPECTATOR;
-    qboolean selected=enabled && button->data[0]==cgs.ccSelectedWeaponNumber;
-    TCE_ModernLimboSurface(&button->rect,selected,BG_CursorInRect(&button->rect),enabled);
-    TCE_ModernText(button->rect.x+12,button->rect.y+19,.22f,158,
-                   selected?tceModernAmber:tceModernMuted,label,1);
-}
-
 static void TCE_ModernLimboWeaponInfo(weapon_t weapon, const char **name,
                                       const char **description,const char **category)
 {
@@ -126,6 +117,76 @@ static void TCE_ModernLimboWeaponInfo(weapon_t weapon, const char **name,
     }
 }
 
+static const tce_weaponModel_t *TCE_ModernLimboWeaponModel(weapon_t weapon)
+{
+    const tce_weaponInfo_t *media;
+    /* These four entries describe loadout bundles/abilities, not a firearm. */
+    if(weapon<=0 || (int)weapon>=TCE_MAX_WEAPONS ||
+       weapon==36 || weapon==19 || weapon==20 || weapon==21) return NULL;
+    media=&tce_cg_weapons[weapon];
+    if(media->weaponModel[W_TP_MODEL].model>0) return &media->weaponModel[W_TP_MODEL];
+    if(media->weaponModel[W_PU_MODEL].model>0) return &media->weaponModel[W_PU_MODEL];
+    return NULL;
+}
+
+static qboolean TCE_ModernLimboWeaponPreview(float x,float y,float w,float h,weapon_t weapon)
+{
+    const tce_weaponModel_t *model=TCE_ModernLimboWeaponModel(weapon);
+    refdef_t view;
+    refEntity_t entity;
+    vec3_t mins,maxs,angles={ 0,90,0 };
+    float tangent=.41421356f,aspect,distance,horizontal,vertical,depth;
+    int i,team=CG_LimboPanel_GetTeam();
+    if(!model || w<=0 || h<=0) return qfalse;
+    trap_R_ModelBounds(model->model,mins,maxs);
+    for(i=0;i<3;++i)
+        if(!(mins[i]>=-65536.f && maxs[i]<=65536.f && maxs[i]>=mins[i])) return qfalse;
+    horizontal=maxs[0]-mins[0]; vertical=maxs[2]-mins[2]; depth=maxs[1]-mins[1];
+    if(!(horizontal>=0 && vertical>=0 && depth>=0) || horizontal+vertical+depth<=0) return qfalse;
+    memset(&view,0,sizeof(view)); memset(&entity,0,sizeof(entity));
+    CG_AdjustFrom640(&x,&y,&w,&h);
+    if(w<1 || h<1) return qfalse;
+    aspect=w/h;
+    /* Correct perspective aspect and padding keep long rifles and compact
+     * pistols in their own bounds; no ET HUD placeholder icons are used. */
+    distance=horizontal*.58f/tangent;
+    if(vertical*.58f*aspect/tangent>distance) distance=vertical*.58f*aspect/tangent;
+    distance+=depth*.5f+1.f;
+    entity.origin[0]=distance+(mins[1]+maxs[1])*.5f;
+    entity.origin[1]=-(mins[0]+maxs[0])*.5f;
+    entity.origin[2]=-(mins[2]+maxs[2])*.5f;
+    AnglesToAxis(angles,entity.axis);
+    entity.hModel=model->model;
+    entity.customSkin=team>=TEAM_AXIS && team<=TEAM_ALLIES && model->skin[team] ? model->skin[team] : model->skin[0];
+    entity.renderfx=RF_NOSHADOW|RF_MINLIGHT|RF_FORCENOLOD;
+    entity.shaderRGBA[0]=entity.shaderRGBA[1]=entity.shaderRGBA[2]=entity.shaderRGBA[3]=255;
+    view.rdflags=RDF_NOWORLDMODEL;
+    AxisClear(view.viewaxis);
+    view.fov_x=45; view.fov_y=(float)(atan(tangent/aspect)*(360.0/M_PI));
+    view.x=(int)x;view.y=(int)y;view.width=(int)w;view.height=(int)h;view.time=cg.time;
+    trap_R_SaveViewParms();
+    trap_R_ClearScene();trap_R_AddRefEntityToScene(&entity);trap_R_RenderScene(&view);
+    trap_R_RestoreViewParms();
+    return qtrue;
+}
+
+static void TCE_ModernLimboSlot(panel_button_t *button, const char *label)
+{
+    qboolean enabled=CG_LimboPanel_GetTeam()!=TEAM_SPECTATOR;
+    qboolean selected=enabled && button->data[0]==cgs.ccSelectedWeaponNumber;
+    weapon_t weapon=enabled ? CG_LimboPanel_GetSelectedWeaponForSlot(button->data[0]) : WP_NONE;
+    const char *name,*description,*category;
+    float textX=button->rect.x+12;
+    TCE_ModernLimboSurface(&button->rect,selected,BG_CursorInRect(&button->rect),enabled);
+    TCE_ModernText(button->rect.x+12,button->rect.y+15,.16f,158,
+                   selected?tceModernAmber:tceModernMuted,label,1);
+    TCE_ModernLimboWeaponInfo(weapon,&name,&description,&category);
+    if(enabled && TCE_ModernLimboWeaponPreview(button->rect.x+10,button->rect.y+22,54,26,weapon))
+        textX=button->rect.x+74;
+    TCE_ModernTextFit(textX,button->rect.y+40,.21f,button->rect.x+button->rect.w-12-textX,
+                      enabled?tceModernWhite:tceModernMuted,name && *name ? name : "--",1);
+}
+
 static void TCE_ModernLimboWeaponRow(const rectDef_t *rect, weapon_t weapon,
                                      int number,int count,qboolean selected,qboolean expanded)
 {
@@ -135,27 +196,15 @@ static void TCE_ModernLimboWeaponRow(const rectDef_t *rect, weapon_t weapon,
     float scale=rect->h<20 ? .15f : .22f;
     float baseline=rect->y+rect->h*.68f;
     float textX=rect->x+12;
-    qhandle_t icon=0;
     char countText[48];
     TCE_ModernLimboWeaponInfo(weapon,&name,&description,&category);
     TCE_ModernLimboSurfacePaint(rect,selected,hover,!disabled,expanded);
-    if((int)weapon>=0 && (int)weapon<(int)TCE_MAX_WEAPONS)
-        icon=tce_cg_weapons[weapon].weaponIcon;
-    if(!icon && (int)weapon>=0 && (int)weapon<MAX_WEAPONS)
-        icon=cg_weapons[weapon].weaponIcon[0];
-    /* TC's stock weapon files often define only the selected icon, as used
-     * by the original weapon HUD. Reuse that registered handle in both views. */
-    if(!icon && (int)weapon>=0 && (int)weapon<(int)TCE_MAX_WEAPONS)
-        icon=tce_cg_weapons[weapon].weaponSelectedIcon;
-    if(!icon && (int)weapon>=0 && (int)weapon<MAX_WEAPONS)
-        icon=cg_weapons[weapon].weaponIcon[1];
-    if(icon)
+    if(TCE_ModernLimboWeaponModel(weapon))
     {
         float iconHeight=rect->h-4;
         if(iconHeight>24) iconHeight=24;
-        trap_R_SetColor(NULL);
-        CG_DrawPic(rect->x+10,rect->y+(rect->h-iconHeight)*.5f,iconHeight*2,iconHeight,icon);
-        textX=rect->x+68;
+        if(TCE_ModernLimboWeaponPreview(rect->x+10,rect->y+(rect->h-iconHeight)*.5f,58,iconHeight,weapon))
+            textX=rect->x+80;
     }
     TCE_ModernTextFit(textX,baseline,scale,rect->x+rect->w-134-textX,
                       disabled?tceModernMuted:hover?tceModernAmber:tceModernWhite,
@@ -179,8 +228,8 @@ static void TCE_ModernLimboWeaponPanel(panel_button_t *button,weapon_t weapon,in
         return;
     }
     TCE_ModernLimboWeaponInfo(weapon,&name,&description,&category);
-    TCE_ModernText(button->rect.x+2,374,.17f,402,tceModernMuted,description,0);
-    TCE_ModernText(button->rect.x+416,374,.15f,156,tceModernAmber,category,0);
+    TCE_ModernTextFit(button->rect.x+2,379,.17f,402,tceModernMuted,description,0);
+    TCE_ModernTextFit(button->rect.x+416,379,.15f,156,tceModernAmber,category,0);
     TCE_ModernLimboWeaponRow(&rect,weapon,TCE_AddInt32(selected,1),count,qtrue,expanded);
     if(!expanded) return;
     if(BG_CursorInRect(&rect) && button->data[7]!=0)
@@ -244,7 +293,7 @@ static void TCE_ModernLimboRender(void)
         TCE_ModernText(254+i*196,237,.22f,182,tceModernWhite,roles[i],1);
         TCE_ModernLimboClass(classes[i*2]);TCE_ModernLimboClass(classes[i*2+1]);
     }
-    TCE_ModernText(254,316,.17f,574,tceModernMuted,"03 / GEAR",1);
+    TCE_ModernText(254,309,.17f,574,tceModernMuted,"03 / GEAR",1);
     TCE_ModernLimboSlot(&weaponLight1,"Primary");
     TCE_ModernLimboSlot(&weaponLight2,"Sidearm");
     TCE_ModernLimboSlot(&weaponLight3,"Special");

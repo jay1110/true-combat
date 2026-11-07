@@ -341,6 +341,27 @@ void CG_ParseMapEntityInfo(int axis_number, int allied_number)
 static qboolean gridInitDone = qfalse;
 static vec2_t   gridStartCoord, gridStep;
 
+/* Grid and map texture share the active TC/HUD/menu projection. Keep the
+ * stroke one physical pixel, and contain that stroke at the map's edges. */
+static void CG_DrawGridLine(vec4_t line, float x, float y, float w, float h,
+                            qboolean vertical)
+{
+	float right, bottom;
+	CG_AdjustFrom640(&line[0], &line[1], &line[2], &line[3]);
+	CG_AdjustFrom640(&x, &y, &w, &h);
+	if (vertical) { line[2] = 1.f; }
+	else { line[3] = 1.f; }
+	right = x + w; bottom = y + h;
+	if (line[0] < x) { line[2] -= x - line[0]; line[0] = x; }
+	if (line[1] < y) { line[3] -= y - line[1]; line[1] = y; }
+	if (line[0] + line[2] > right) { line[2] = right - line[0]; }
+	if (line[1] + line[3] > bottom) { line[3] = bottom - line[1]; }
+	if (line[2] > 0 && line[3] > 0)
+	{
+		trap_R_DrawStretchPic(line[0], line[1], line[2], line[3], 0, 0, 0, 1, cgs.media.whiteShader);
+	}
+}
+
 static void CG_DrawGrid(float x, float y, float w, float h, mapScissor_t *scissor)
 {
 	vec2_t step;
@@ -487,10 +508,7 @@ static void CG_DrawGrid(float x, float y, float w, float h, mapScissor_t *scisso
 			{
 				Vector4Set(line, x + grid_x, y + dim_y[0], 1.f, h);
 			}
-			line[0] *= cgs.screenXScale;
-			line[1] *= cgs.screenYScale;
-			line[3] *= cgs.screenYScale;
-			trap_R_DrawStretchPic(line[0], line[1], line[2], line[3], 0, 0, 0, 1, cgs.media.whiteShader);
+			CG_DrawGridLine(line, x, y, w, h, qtrue);
 		}
 
 #if defined(__linux__)
@@ -569,10 +587,7 @@ static void CG_DrawGrid(float x, float y, float w, float h, mapScissor_t *scisso
 			{
 				Vector4Set(line, x + dim_x[0], y + grid_y, w, 1);
 			}
-			line[0] *= cgs.screenXScale;
-			line[1] *= cgs.screenYScale;
-			line[2] *= cgs.screenXScale;
-			trap_R_DrawStretchPic(line[0], line[1], line[2], line[3], 0, 0, 0, 1, cgs.media.whiteShader);
+			CG_DrawGridLine(line, x, y, w, h, qfalse);
 		}
 		trap_R_SetColor(NULL);
 	}
@@ -621,11 +636,8 @@ static void CG_DrawGrid(float x, float y, float w, float h, mapScissor_t *scisso
 			}
 			trap_R_SetColor(gridColour);
 
-			Vector4Set(line, x + grid_x, y + dim_y[0], 1, dim_x[1] - dim_x[0]);
-			line[0] *= cgs.screenXScale;
-			line[1] *= cgs.screenYScale;
-			line[3] *= cgs.screenYScale;
-			trap_R_DrawStretchPic(line[0], line[1], line[2], line[3], 0, 0, 0, 1, cgs.media.whiteShader);
+			Vector4Set(line, x + grid_x, y + dim_y[0], 1, dim_y[1] - dim_y[0]);
+			CG_DrawGridLine(line, x, y, w, h, qtrue);
 		}
 
 		for ( coord_int = -1;
@@ -645,11 +657,8 @@ static void CG_DrawGrid(float x, float y, float w, float h, mapScissor_t *scisso
 			}
 			trap_R_SetColor(gridColour);
 
-			Vector4Set(line, x + dim_x[0], y + grid_y, dim_y[1] - dim_y[0], 1);
-			line[0] *= cgs.screenXScale;
-			line[1] *= cgs.screenYScale;
-			line[2] *= cgs.screenXScale;
-			trap_R_DrawStretchPic(line[0], line[1], line[2], line[3], 0, 0, 0, 1, cgs.media.whiteShader);
+			Vector4Set(line, x + dim_x[0], y + grid_y, dim_x[1] - dim_x[0], 1);
+			CG_DrawGridLine(line, x, y, w, h, qfalse);
 		}
 		trap_R_SetColor(NULL);
 	}

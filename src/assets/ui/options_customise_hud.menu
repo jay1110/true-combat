@@ -56,9 +56,10 @@ menuDef {
 	MULTI( 8, 96, (SUBWINDOW_WIDTH)-4, 10, "Cursor Hints:", .2, 8, "cg_cursorHints", cvarFloatList { "Off" 0 "On" 1 }, "Icon display when near an action item" )
 	MULTI( 8, 108, (SUBWINDOW_WIDTH)-4, 10, "Player Icons:", .2, 8, "cg_drawFriend", cvarFloatList { "Off" 0 "Visible" 1 "Always" 2}, "Show floating icon indicating team mates" )
 	MULTI( 8, 120, (SUBWINDOW_WIDTH)-4, 10, "Country Flags:", .2, 8, "cg_countryflags", cvarFloatList { "Off" 0 "On" 1 }, "Draw country flags beside scoreboard names" )
-	YESNO( 8, 132, (SUBWINDOW_WIDTH)-4, 10, "Fireteam Names:", .2, 8, "cg_drawTeamNames", "Show visible fireteam members' names in green" )
-	YESNO( 8, 144, (SUBWINDOW_WIDTH)-4, 10, "Automatic Widescreen:", .2, 8, "cg_wideScreen", "Use the actual video dimensions with proportional HUD and menu rendering" )
-	SLIDER( 8, 156, (SUBWINDOW_WIDTH)-4, 10, "HUD Size:", .2, 8, "cg_hudScale" 0.85 0.5 1.5, "Scale HUD widgets; high resolution size is capped by cg_hudMaxHeight" )
+	MULTI( 8, 132, (SUBWINDOW_WIDTH)-4, 10, "Team Names:", .2, 8, "cg_drawTeamNames", cvarFloatList { "Off" 0 "Team" 1 "Fireteam" 2 }, "Show visible teammates' names in green; Fireteam limits names to your fireteam" )
+	YESNO( 8, 144, (SUBWINDOW_WIDTH)-4, 10, "Crosshair Names:", .2, 8, "cg_drawCrosshairNames", "Show the name of the player under your crosshair" )
+	YESNO( 8, 156, (SUBWINDOW_WIDTH)-4, 10, "Automatic Widescreen:", .2, 8, "cg_wideScreen", "Use the actual video dimensions with proportional HUD and menu rendering" )
+	SLIDER( 8, 168, (SUBWINDOW_WIDTH)-4, 10, "HUD Size:", .2, 8, "cg_hudScale" 0.85 0.5 1.5, "Scale HUD widgets; high resolution size is capped by cg_hudMaxHeight" )
 
 // In-Game Display //
 	SUBWINDOW( 6, 298-184+60, (SUBWINDOW_WIDTH), 112, "In-Game Display" )

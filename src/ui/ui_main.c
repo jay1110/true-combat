@@ -10380,6 +10380,7 @@ vmCvar_t ui_master;
 vmCvar_t ui_brassTime;
 vmCvar_t ui_drawCrosshair;
 vmCvar_t ui_drawTeamNames;
+vmCvar_t ui_drawOverheadNames;
 vmCvar_t ui_drawCrosshairPickups;       //----(SA) added
 vmCvar_t ui_marks;
 // JOSEPH 12-3-99
@@ -10544,6 +10545,7 @@ cvarTable_t cvarTable[] =
 	{ &ui_brassTime,                    "cg_brassTime",                    "2500",                       CVAR_ARCHIVE                   }, // JPW NERVE
 	{ &ui_drawCrosshair,                "cg_drawCrosshair",                "4",                          CVAR_ARCHIVE                   },
 	{ &ui_drawTeamNames,                "cg_drawCrosshairNames",                "0",                          CVAR_ARCHIVE                   },
+	{ &ui_drawOverheadNames,            "cg_drawTeamNames",                     "1",                          CVAR_ARCHIVE                   },
 	{ &ui_drawCrosshairPickups,         "cg_drawCrosshairPickups",         "1",                          CVAR_ARCHIVE                   }, //----(SA) added
 	{ &ui_marks,                        "cg_marktime",                     "20000",                      CVAR_ARCHIVE                   },
 	// JOSEPH 12-2-99

@@ -83,6 +83,15 @@ static int polyCalls, labelCalls, legacyShaderCalls;
 static bg_playerclass_t classes[2] = { {101, 111}, {102, 112} };
 #define CHECK(x) do { ++checks; if (!(x)) { ++failures; fprintf(stderr, "line %d: %s\n", __LINE__, #x); } } while (0)
 static int near(float a, float b) { return fabsf(a-b) < .0002f; }
+/* Stock RE_RotatedPic keeps UVs0..1 and RB_RotatedPic places their top-edge
+ * corners at turns and turns+.25. This independently checks their midpoint
+ * direction in screen coordinates, rather than asserting a magic .625. */
+static void rotated_top_direction(float turns,float direction[2])
+{
+ double a=turns*2*M_PI,b=(turns+.25)*2*M_PI;
+ direction[0]=(float)((cos(a)+cos(b))*.7071067811865475);
+ direction[1]=(float)((sin(a)+sin(b))*.7071067811865475);
+}
 static int Q_stricmp(const char *a, const char *b) { return strcmp(a,b); }
 static void Q_strncpyz(char *a, const char *b, size_t n) { snprintf(a,n,"%s",b); }
 static void Com_sprintf(char *p, size_t n, const char *fmt, ...) { va_list v; va_start(v,fmt); vsnprintf(p,n,fmt,v); va_end(v); }
@@ -345,6 +354,24 @@ int main(void)
  reset_draw();CG_DrawTCENavigationPlayer(0,0,16,16,0,0,0);CHECK(near(lastRotation,.625f));
  reset_draw();CG_DrawTCENavigationPlayer(0,0,16,16,0,0,(90.f-90.f)/360.f);CHECK(near(lastRotation,.625f));
  reset_draw();CG_DrawTCENavigationPlayer(0,0,16,16,0,0,(90.f-0.f)/360.f);CHECK(near(lastRotation,.875f));
+ /* Commandmap north-up cardinals and compass heading-up bearings. Assets are
+  * independently decoded under both loaders by test_nav_icons.py. */
+ for(yaw=0;yaw<4;++yaw) {
+  const float expected[4][2]={{1,0},{0,-1},{-1,0},{0,1}};
+  float direction[2];
+  reset_draw();CG_DrawTCENavigationPlayer(0,0,16,16,0,0,(90.f-yaw*90.f)/360.f);
+  rotated_top_direction(lastRotation,direction);
+  CHECK(near(direction[0],expected[yaw][0]) && near(direction[1],expected[yaw][1]));
+  for(zoom=0;zoom<4;++zoom) {
+   float point[2],origin[3]={0,0,0},bearing[3]={(float)cos(yaw*M_PI/2)*1000,(float)sin(yaw*M_PI/2)*1000,0};
+   cg.predictedPlayerState.viewangles[YAW]=(float)zoom*90;
+   reset_draw();CG_DrawCompassContact(50,origin,(float)yaw*90,0);
+   rotated_top_direction(lastRotation,direction);
+   CHECK(TCE_CompassPoint(origin,bearing,(float)zoom*90,1000,1,point));
+   CHECK(near(direction[0],point[0]) && near(direction[1],point[1]));
+  }
+ }
+ cg.predictedPlayerState.viewangles[YAW]=0;
  reset_draw();CG_DrawObjectiveLetter(100,100,1,15);CHECK(picCalls==1 && lastPic==204 && textCalls==0 && fillCalls==0);
  reset_draw();CG_DrawObjectiveLetter(100,100,2,15);CHECK(picCalls==1 && lastPic==205);
  reset_draw();CG_DrawObjectiveLetter(100,100,3,15);CHECK(!strcmp(lastText,"C") && fillCalls==1 && lastBackAlpha>=.9f);
