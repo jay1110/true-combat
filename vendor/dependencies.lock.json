@@ -55,8 +55,8 @@
         "WildMagic3License.pdf"
       ],
       "snapshot": {
-        "files": 862,
-        "sha256": "e7ba7111f6bc8f5a1b74d30d3d6e63912af8666799241deb93c034f3a63e0cd1",
+        "files": 863,
+        "sha256": "7821c9ea596e502a1f77570d2a74b3c8ac34463f6dc5be1454125a6749f4670b",
         "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
       },
       "snapshot_history": [
@@ -113,6 +113,15 @@
           },
           "superseded": "2026-10-26",
           "reviewed_change": "Add a Game/Editor core handshake before initialization and enforce compiled public console dispatch/help policy even with stale unfiltered GM scripts. Historical Omni-bot function-table ABI unchanged. Normalize only the modified vendor source files to LF."
+        },
+        {
+          "snapshot": {
+            "files": 862,
+            "sha256": "e7ba7111f6bc8f5a1b74d30d3d6e63912af8666799241deb93c034f3a63e0cd1",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-11-08",
+          "reviewed_change": "Add allied normal-movement avoidance, stable fireteam follow distance and validated-door FIFO with safe waiting and human priority; keep authoring opt-in. Add Android x86/x86_64 bot core output mapping. Touched C++/GM sources normalized to UTF-8/LF. Refresh planner client context before already-at-goal fast return, fixing a dump-proven stale client after bot removal."
         }
       ]
     },
@@ -123,7 +132,7 @@
       "role": "Compatible bridge subset, preserved independently from core until equivalence checks justify consolidation.",
       "snapshot": {
         "files": 15,
-        "sha256": "30f9fe6344e6d23b5aa0626e0e8b78d92ac1454390a19b8d4dcbedc7ddffc27a",
+        "sha256": "af6be82120c60d98f426c8b88db9d3155936c09fa4b9598129f6493e9d201cb5",
         "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
       },
       "snapshot_history": [
@@ -144,6 +153,15 @@
           },
           "superseded": "2026-10-26",
           "reviewed_change": "Add a Game/Editor core handshake before initialization and enforce compiled public console dispatch/help policy even with stale unfiltered GM scripts. Historical Omni-bot function-table ABI unchanged. Normalize only the modified vendor source files to LF."
+        },
+        {
+          "snapshot": {
+            "files": 15,
+            "sha256": "30f9fe6344e6d23b5aa0626e0e8b78d92ac1454390a19b8d4dcbedc7ddffc27a",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-11-08",
+          "reviewed_change": "Select the Android x86/x86_64 bot-core library suffix before generic Linux x86 loader branches; gameplay and editor policy unchanged."
         }
       ]
     }

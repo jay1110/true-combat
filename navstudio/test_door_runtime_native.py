@@ -59,6 +59,7 @@ RUNTIME_SHIM = r'''
 #include <sstream>
 using String=std::string;using NavFlags=unsigned long long;using obuint32=unsigned;using obint32=int;using obColor=int;
 using StringStr=std::ostringstream;
+#define NAVSTUDIO_DIAGNOSTIC(text) EngineFuncs::ConsoleMessage(text)
 namespace COLOR{constexpr int GREEN=1;}
 struct Vector3f {float x,y,z;Vector3f():x(0),y(0),z(0){}Vector3f(float a,float b,float c):x(a),y(b),z(c){}
  Vector3f operator-(const Vector3f&b)const{return{x-b.x,y-b.y,z-b.z};}
@@ -142,6 +143,9 @@ class FollowPath{public:Client client;struct{int m_MoveMode=0;}m_Query;Path m_Cu
  int m_TceDoorEgressStart=0,m_TceDoorSweepWaitUntil=0;Vector3f m_LookAheadPt;
  int m_TceDoorTraceEntity=-1,m_TceDoorTraceUntil=0,m_TceDoorTraceTime=0;
  int m_TceDoorBypassCount=0,m_TceDoorSweepNavId=-1,m_TceDoorSweepResult=-1;
+ // These tests isolate the established door recipe/action controller. The
+ // separate queue fixture executes the real admission and full Update wiring.
+ void ResetTceDoorQueue(){}int UpdateTceDoorQueue(const Path::PathPoint&){return 0;}
  Client*GetClient(){return&client;}int GetNameHash(){return 9;}void ResetTceDoor();void ResetTceCentreApproach();bool TceDoorRoute(int,int,int);int UpdateTceDoor(const Path::PathPoint&);bool GetAimPosition(Vector3f&);};
 ''' + functions + actions + r'''
 Path::TceDoorRecipe recipe(bool remote){Path::TceDoorRecipe r;r.entity=40;r.useEntity=remote?41:40;r.target=2;r.mode=remote?2:1;r.team=3;

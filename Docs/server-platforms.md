@@ -5,7 +5,7 @@ server information used by compatible server browsers. It does not enable
 gameplay features, change collisions, reject connections or install client modules.
 It is editable server information, matching Xmod's `CVAR_SERVERINFO` behavior.
 
-The default is **511** for the complete TCE2 release matrix. Add the flags for
+The default is **2047** for the complete TCE2 release matrix. Add the flags for
 the client binaries actually supplied by the server:
 
 | Flag | Client platform |
@@ -27,10 +27,10 @@ The existing convention has no flag for Android ARMv7 or WebAssembly. TCE2 build
 those targets, but does not invent incompatible bits for them. The macOS universal
 binary supplies both macOS flags.
 
-Xmod's default `2047` includes all eleven flags, including Android x86/x86_64.
-Those two targets are absent from the current TCE2 release matrix, so TCE2 does
-not advertise them by default. Administrators may explicitly set `g_oss 2047`
-when they supply the corresponding client binaries. If installing a diagnostic
+The default `2047` includes all eleven flags, including Android x86/x86_64.
+All eleven represented platforms have client build targets; the macOS universal
+target covers two flags. This is a build/package capability declaration, not
+proof of runtime parity on every device. If installing a diagnostic
 package with fewer ABIs, advertise only its installed clients; the usual Windows
 x86/x86_64 plus Linux i386/x86_64 subset is `263`.
 
@@ -44,3 +44,30 @@ Primary references:
 The source definition and registration determine the behavior; the historical
 Xmod documentation's automatic-detection wording does not imply that the cvar
 can discover which client binaries an administrator has installed.
+
+## Android x86 build targets
+
+The release matrix includes separate `android-x86` and `android-x86_64` targets.
+Their NDK ABIs are `x86` and `x86_64`, with Android API23 by default, matching the
+existing ARM target minimum. Set `ANDROID_NDK_HOME` to an installed NDK (the manual
+workflow pins27.3.13750724), then use a separate build directory per ABI:
+
+```sh
+cmake --preset android-x86
+cmake --build --preset android-x86
+cmake --preset android-x86_64
+cmake --build --preset android-x86_64
+```
+
+These normal presets build UI, CGame, QGame and the gameplay Omni-bot core.
+Authoring remains an explicit `FEATURE_NAVSTUDIO=ON` variant. Client module names
+use `lib<module>.mp.android.<ABI>.so`; the matching bot core is
+`omnibot_et.android.<ABI>.so`. QGame's loader selects the same Android suffix,
+including on x86 CPUs, instead of trying a Linux core name.
+
+An Android engine is required to load these mod libraries. There is no APK,
+Android engine port or emulator bundled here. Source/configuration and package
+checks do not replace an actual NDK build or device runtime test.
+
+See the official [Android ABI list](https://developer.android.com/ndk/guides/abis)
+and [NDK CMake instructions](https://developer.android.com/ndk/guides/cmake).

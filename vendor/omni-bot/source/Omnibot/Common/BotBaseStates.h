@@ -120,9 +120,9 @@ namespace AiState
 		virtual ~FollowPathUser() {}
 	private:
 		obuint32					m_UserName;
-		
+
 		int							m_CallingThread;
-	
+
 		int							m_DestinationIndex;
 
 		FailType					m_PathFailed : 3;
@@ -133,7 +133,7 @@ namespace AiState
 
 	class FollowPath : public StateChild, public AimerUser
 	{
-	public:				
+	public:
 		enum PathStatus
 		{
 			PathPending,
@@ -190,7 +190,7 @@ namespace AiState
 
 		FollowPath();
 	private:
-		struct Query 
+		struct Query
 		{
 			FollowPathUser	*m_User;
 			DestinationVector	m_Destination;
@@ -254,11 +254,13 @@ namespace AiState
 		int m_TceDoorTraceEntity;
 		obint32 m_TceDoorTraceUntil, m_TceDoorTraceTime;
 		int m_TceDoorBypassCount, m_TceDoorSweepNavId, m_TceDoorSweepResult;
+		int m_TceDoorQueueBot;
+		obint32 m_TceDoorQueueStart, m_TceDoorQueueWait, m_TceDoorQueueBlocked;
 		int			m_LadderDirection;
 		obint32		m_JumpTime;
 		obint32		m_LastStuckTime;
 		bool		m_IgnorePathNotFound;
-		
+
 		obuint32	m_PassThroughState;
 		int			m_PathThroughPtIndex;
 
@@ -269,6 +271,8 @@ namespace AiState
 		void CheckForLowJumps(const Vector3f &_destination);
 		void CheckForGapJumps(const Vector3f &_destination);
 		void ResetTceDoor();
+		void ResetTceDoorQueue();
+		int UpdateTceDoorQueue(const Path::PathPoint &point);
 		void ResetTceCentreApproach();
 		bool TryTceReentry(const Path::PathPoint &blocked);
 		void ReplenishTceReentryBudget(const Path::PathPoint &reached);
@@ -489,7 +493,7 @@ namespace AiState
 			Node		*Destination;
 			obuint8		Cover : 4;
 			obuint8		Jump : 1;
-			
+
 			void Reset();
 		};
 		struct Node
@@ -511,7 +515,7 @@ namespace AiState
 
 			void Init(obint16 _X = 0, obint16 _Y = 0, float _Height = 0.f, bool _Open = false);
 		};
-		
+
 		Vector3f				_GetNodePosition(const Node &_Node);
 		FloodFiller::Node *		_NextOpenNode();
 		Node *					_NodeExists(obint16 _X, obint16 _Y, float _Height);

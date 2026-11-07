@@ -62,6 +62,7 @@ this.Initialize = function()
 	this.DefaultPriority = 0.7;
 	this.CommandPriority = this.DefaultPriority ;
 	this.TargetPosition = Vector3(0,0,0);
+	this.FollowHolding = false;
 
 	this.Bot.FireTeamState = this.States.FT_NONE;
 	this.Bot.FireTeamFormation = "random";
@@ -71,6 +72,8 @@ this.GetPriority = function()
 {
 	while(1)
 	{
+		// Public ft_controls updates Config without editor state-command dispatch.
+		this.FireTeamEnabled = ConfigGet("FireTeam", "enabled", this.FireTeamEnabled);
 		if ( !this.FireTeamEnabled ) {
 			this.Priority = 0;
 		}
@@ -113,6 +116,8 @@ this.Enter = function()
 
 	if ( this.Bot.FireTeamState == this.States.FT_FOLLOW )
 	{
+		this.TargetPosition = GetEntPosition(this.Bot.FireTeam[this.Bot.FireTeamNum].Leader);
+		this.FollowHolding = false;
 		if ( this.DynamicGotoThread )
 		{
 			this.KillThread(this.DynamicGotoThread);
@@ -236,14 +241,14 @@ this.FormationRandom = function()
 		Vector3(-128,-128,0),
 		Vector3(-128,128,0),
 		Vector3(128,-128,0),
-		Vector3(64,64,0),
-		Vector3(-64,-64,0),
-		Vector3(-64,64,0),
-		Vector3(64,-64,0),
+		Vector3(192,0,0),
+		Vector3(-192,0,0),
+		Vector3(0,192,0),
+		Vector3(0,-192,0),
 	};
 
-	//choose a random Offset
-	i = RandInt(0, tableCount(offsets) - 1);
+	// Keep a stable, separated slot instead of rerolling every update.
+	i = this.GetSlotNumber() % tableCount(offsets);
 
 	// stand at an offset and face the direction the leader is if leader is not moving
 	if( !GetEntVelocity(this.Bot.FireTeam[ this.Bot.FireTeamNum ].Leader).IsZero() && this.Bot.HasLineOfSightTo(this.TargetPosition + offsets[i]))
@@ -289,6 +294,36 @@ this.Follow = function()
 	{
 		this.Bot.SayFireTeam("Entity position is  zero!");
 		this.Finished();
+		return;
+	}
+
+	// A nearby leader can walk back into the formation. Stop closing below96
+	// and only resume past128, so the boundary does not chatter every frame.
+	leaderDistance = DistanceBetween(entPos, this.Bot.GetPosition());
+	if ( leaderDistance < 96 && !this.FollowHolding && this.Bot.HasEntityFlag(ENTFLAG.ON_GROUND) &&
+		!this.Bot.HasAnyEntityFlag(ENTFLAG.ON_LADDER, ENTFLAG.ON_ICE) )
+	{
+		this.FollowHolding = true;
+		if ( this.DynamicGotoThread )
+		{
+			this.KillThread(this.DynamicGotoThread);
+			this.DynamicGotoThread = null;
+		}
+		// Killing the coroutine does not cancel its native FollowPath query.
+		this.Stop();
+	}
+	if ( this.FollowHolding )
+	{
+		this.OnTarget = false;
+		if ( leaderDistance <= 128 )
+		{
+			this.Bot.MoveTowards(this.Bot.GetPosition());
+			yield();
+			return;
+		}
+		this.FollowHolding = false;
+		this.TargetPosition = entPos;
+		this.DynamicGotoThread = this.ForkThread(this.DynamicGoto);
 	}
 
 	d = DistanceBetween(entPos,this.TargetPosition);

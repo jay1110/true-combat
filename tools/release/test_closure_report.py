@@ -39,10 +39,10 @@ class ClosureContract(unittest.TestCase):
 
     def test_missing_target_role_is_not_green_status(self):
         rows = self.records()
-        with self.assertRaisesRegex(ValueError, 'forty'):
+        with self.assertRaisesRegex(ValueError, 'target/role'):
             closure.flat_zip(self.path, rows[:-1])
         rows[0] = dict(rows[1])
-        with self.assertRaisesRegex(ValueError, 'forty'):
+        with self.assertRaisesRegex(ValueError, 'target/role'):
             closure.flat_zip(self.path, rows)
 
     def test_extra_directory_or_metadata_rejected(self):

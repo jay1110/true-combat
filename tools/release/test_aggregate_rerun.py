@@ -40,18 +40,18 @@ class AggregateRerun(unittest.TestCase):
         output,manifest=self.run_case()
         self.assertTrue(manifest['complete']);self.assertEqual(set(manifest['mod_packages']),{'game'})
         self.assertEqual([path.name for path in output.glob('*.zip')],[f'TCE2-{version()}-Game.zip'])
-        self.assertEqual(len(manifest['collected_targets']),10)
+        self.assertEqual(len(manifest['collected_targets']),12)
         self.assertFalse((output/'bundle/archives').exists())
         self.assertFalse((output/'bundle/inputs').exists())
         with zipfile.ZipFile(output/f'TCE2-{version()}-Game.zip') as z:
             self.assertEqual(len([n for n in z.namelist() if n.endswith('.pk3')]),1)
-            self.assertEqual(len([n for n in z.namelist() if Path(n).name.startswith(('qagame','libqagame'))]),10)
+            self.assertEqual(len([n for n in z.namelist() if Path(n).name.startswith(('qagame','libqagame'))]),12)
 
     def test_missing_abi_never_creates_partial_installable_package(self):
         output,manifest=self.run_case(missing=True)
         self.assertFalse(manifest['complete']);self.assertFalse(manifest['client_inputs_promoted'])
         self.assertEqual(manifest['mod_packages'],{});self.assertEqual(list(output.glob('*.zip')),[])
-        self.assertEqual(len(list((output/'bundle/inputs').glob('*.zip'))),9)
+        self.assertEqual(len(list((output/'bundle/inputs').glob('*.zip'))),11)
 
     def test_editor_is_a_different_optional_zip_not_an_addon(self):
         output,manifest=self.run_case(('game','navstudio'))

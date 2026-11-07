@@ -4,6 +4,7 @@
 #include "ScriptManager.h"
 #include "gmBotLibrary.h"
 #include "PathPlannerWaypoint.h"
+#include "TceDoorQueue.h"
 
 const obReal ROAM_GOAL_PRIORITY = 0.05f;
 
@@ -14,9 +15,10 @@ extern float g_fBottomWaypointOffset;
 
 namespace AiState
 {
+	static TceDoorQueue tceDoorQueue;
 	//////////////////////////////////////////////////////////////////////////
 
-	Roam::Roam() 
+	Roam::Roam()
 		: StateChild("Roam")
 		, FollowPathUser("Roam")
 	{
@@ -24,7 +26,7 @@ namespace AiState
 
 	obReal Roam::GetPriority()
 	{
-		return ROAM_GOAL_PRIORITY; 
+		return ROAM_GOAL_PRIORITY;
 	}
 
 	void Roam::Exit()
@@ -41,7 +43,7 @@ namespace AiState
 
 	//////////////////////////////////////////////////////////////////////////
 
-	HighLevel::HighLevel() 
+	HighLevel::HighLevel()
 		: StatePrioritized("HighLevel")
 	{
 		AppendState(new Roam);
@@ -80,7 +82,7 @@ namespace AiState
 
 	bool FollowPath::m_OldLadderStyle = false;
 
-	FollowPath::FollowPath() 
+	FollowPath::FollowPath()
 		: StateChild("FollowPath")
 		, m_PathStatus(PathFinished)
 		, m_PtOnPath(Vector3f::ZERO)
@@ -139,6 +141,10 @@ namespace AiState
 		, m_TceDoorBypassCount(0)
 		, m_TceDoorSweepNavId(-1)
 		, m_TceDoorSweepResult(-1)
+		, m_TceDoorQueueBot(-1)
+		, m_TceDoorQueueStart(0)
+		, m_TceDoorQueueWait(0)
+		, m_TceDoorQueueBlocked(0)
 		, m_JumpTime(0)
 		, m_LastStuckTime(0)
 		, m_PassThroughState(0)
@@ -253,7 +259,7 @@ namespace AiState
 				// don't interrupt active paththrough
 				if(m_SavedQuery.m_User)
 				{
-					if(m_SavedQuery.m_User!=m_Query.m_User) 
+					if(m_SavedQuery.m_User!=m_Query.m_User)
 						m_SavedQuery.m_User->OnPathFailed(FollowPathUser::Interrupted);
 					m_SavedQuery.m_User = 0;
 				}
@@ -479,7 +485,7 @@ namespace AiState
 				else mgn = state->GetName();
 			}
 			const Vector3f &pos = GetClient()->GetPosition();
-			EngineFuncs::ConsoleMessage(va("Path planner: time %.2f, position (%.0f,%.0f,%.0f), %s, %s %s", 
+			EngineFuncs::ConsoleMessage(va("Path planner: time %.2f, position (%.0f,%.0f,%.0f), %s, %s %s",
 				IGame::GetTimeSecs(), pos.x, pos.y, pos.z, this->GetClient()->GetName(), mgn.c_str(),
 				m_PassThroughState ? "- paththrough" : ""));
 		}
@@ -579,9 +585,9 @@ namespace AiState
 	{
 		PathPlannerBase *pPathPlanner = IGameManager::GetInstance()->GetNavSystem();
 		int iDestIndex = pPathPlanner->PlanPathToNearest(
-			0, 
-			GetClient()->GetPosition(), 
-			_goals, 
+			0,
+			GetClient()->GetPosition(),
+			_goals,
 			GetClient()->GetTeamFlag());
 
 		if(pPathPlanner->FoundGoal())
@@ -591,7 +597,7 @@ namespace AiState
 			if(!_skiplastpt)
 			{
 				pathOut.AddPt(
-					_goals[iDestIndex].m_Position, 
+					_goals[iDestIndex].m_Position,
 					_goals[iDestIndex].m_Radius).PlayerOrigin();
 			}
 		}
@@ -648,13 +654,13 @@ namespace AiState
 					if(m_CurrentPath.GetCurrentPt(pt))
 						Dest = pt.m_Pt;
 
-					f.WriteString("{"); 
+					f.WriteString("{");
 					f.WriteNewLine();
-					
+
 					f.Printf("\tType = \"%s\",",FailType); f.WriteNewLine();
 					f.Printf("\tP = Vector3(%f,%f,%f),",Position.x,Position.y,Position.z);
 					f.WriteNewLine();
-					
+
 					if(_how == FollowPathUser::NoPath)
 					{
 						f.WriteString("\tDest = {"); f.WriteNewLine();
@@ -682,7 +688,7 @@ namespace AiState
 		}
 	}
 
-	obReal FollowPath::GetPriority() 
+	obReal FollowPath::GetPriority()
 	{
 		// always want to do this, if state active or not
 		if(m_PassThroughState)
@@ -723,7 +729,7 @@ namespace AiState
 				}
 			}
 		}
-		return m_PathStatus < PathFinished ? (obReal)1.0 : (obReal)0.0; 
+		return m_PathStatus < PathFinished ? (obReal)1.0 : (obReal)0.0;
 	}
 
 	Vector3f RawWpPos(const Path::PathPoint &pp)
@@ -739,6 +745,7 @@ namespace AiState
 
 	void FollowPath::ResetTceDoor()
 	{
+		ResetTceDoorQueue();
 		m_TceDoorPhase = m_TceDoorCycles = m_TceDoorStart = m_TceDoorPhaseStart = m_TceDoorPulse = 0;
 		m_TceDoorEgressStart = 0;
 		m_TceDoorSweepWaitUntil = 0;
@@ -770,6 +777,180 @@ namespace AiState
 			recipe.entity, recipe.model, feet.x, feet.y, feet.z, width, hull.m_Maxs[2]-hull.m_Mins[2]);
 		if(length < 0 || length >= (int)sizeof(query)) return -1;
 		return TceDoorStat(client->GetGameEntity(), query);
+	}
+
+	void FollowPath::ResetTceDoorQueue()
+	{
+		if(m_TceDoorQueueBot != -1) tceDoorQueue.Release(m_TceDoorQueueBot);
+		m_TceDoorQueueBot = -1;
+		m_TceDoorQueueStart = m_TceDoorQueueWait = m_TceDoorQueueBlocked = 0;
+	}
+
+	static bool TceDoorHumanTraffic(Client *client, const Vector3f &entry, const Vector3f &exit)
+	{
+		obPlayerInfo players;
+		g_EngineFuncs->GetPlayerInfo(players);
+		Vector3f direction = (exit-entry).Flatten();
+		const float length = direction.Normalize();
+		if(length < 1.f) return true;
+		for(int i = 0; i < obPlayerInfo::MaxPlayers; ++i)
+		{
+			if(players.m_Players[i].m_Controller != obPlayerInfo::Human ||
+				players.m_Players[i].m_Team != client->GetTeam()) continue;
+			const GameEntity entity = g_EngineFuncs->EntityFromID(i);
+			Vector3f position;
+			if(!entity.IsValid() || !InterfaceFuncs::IsAlive(entity) ||
+				!EngineFuncs::EntityPosition(entity, position) || Mathf::FAbs(position.z-entry.z) > 64.f) continue;
+			const Vector3f relative = position-entry;
+			const float along = relative.x*direction.x+relative.y*direction.y;
+			const float side = relative.x*direction.y-relative.y*direction.x;
+			// Cover both approaches as well as the actual passage. Other floors
+			// and humans beside the corridor do not reserve this doorway.
+			if(along >= -80.f && along <= length+80.f && Mathf::FAbs(side) < 56.f) return true;
+		}
+		return false;
+	}
+
+	// Queue before reaching ENTRY, not after several bots already overlap the
+	// USE point. All steering changes use live full-body walking/sweep queries.
+	int FollowPath::UpdateTceDoorQueue(const Path::PathPoint &point)
+	{
+		if(!GetClient()->UseValidatedWalkEntries())
+		{
+			ResetTceDoorQueue();
+			return 0;
+		}
+		if(m_PassThroughState || m_TceDropNavId || m_TceStandPhase || m_TceFreePhase)
+		{
+			ResetTceDoorQueue();
+			return 0;
+		}
+		if(!InterfaceFuncs::IsAlive(GetClient()->GetGameEntity()))
+		{
+			ResetTceDoorQueue();
+			GetClient()->ReleaseButton(BOT_BUTTON_USE);
+			GetClient()->GetSteeringSystem()->SetTarget(GetClient()->GetPosition());
+			return 1;
+		}
+		Path::PathPoint entry, exit;
+		bool found = false;
+		if(m_TceDoorPhase)
+		{
+			entry = m_TceDoorEntry; exit = m_TceDoorExit;
+			found = true;
+		}
+		else
+		{
+			// Look ahead only through ordinary walk points; never bypass a
+			// ladder, jump, scripted action or another door to join a queue.
+			const NavFlags actions = F_NAV_CLIMB | F_NAV_JUMP | F_NAV_JUMPLOW |
+				F_NAV_JUMPGAP | F_NAV_TELEPORT | F_NAV_ELEVATOR | F_NAV_SCRIPT;
+			for(int i = m_CurrentPath.GetCurrentPtIndex(); i < m_CurrentPath.GetNumPts() &&
+				i < m_CurrentPath.GetCurrentPtIndex()+4; ++i)
+			{
+				const Path::PathPoint *candidate = i == m_CurrentPath.GetCurrentPtIndex() ? &point : m_CurrentPath.GetPt(i);
+				if(!candidate || (candidate->m_NavFlags & actions) || candidate->m_OnPathThrough ||
+					candidate->m_TceAscentRelease || candidate->m_TceAscentAlignment ||
+					candidate->m_TceWalkDrop || candidate->m_TceStandJump || candidate->m_TceFreeClimb) break;
+				if(candidate->m_TceDoor.Valid() && candidate->m_TceDoor.role == 2)
+				{
+					const Path::PathPoint *after = i+1 < m_CurrentPath.GetNumPts() ? m_CurrentPath.GetPt(i+1) : NULL;
+					if(after && after->m_NavId == candidate->m_TceDoor.target &&
+						SquaredLength2d(GetClient()->GetPosition(), RawWpPos(*candidate)) <= 256.f*256.f)
+					{ entry = *candidate; exit = *after; found = true; }
+					break;
+				}
+				if(candidate->m_TceDoor.marked && candidate->m_TceDoor.role != 1) break;
+			}
+		}
+		if(!found) { ResetTceDoorQueue(); return 0; }
+		const Path::TceDoorRecipe &recipe = entry.m_TceDoor;
+		const GameEntity door = g_EngineFuncs->EntityFromID(recipe.entity);
+		if(!recipe.Valid() || !door.IsValid() || TceDoorStat(door, "tce_nav_model") != recipe.model)
+			return -1;
+		const int now = IGame::GetTime();
+		const int bot = GetClient()->GetGameEntity().AsInt();
+		if(m_TceDoorQueueBot != bot || now < m_TceDoorQueueStart)
+		{
+			ResetTceDoorQueue();
+			// A fresh state cannot inherit a previous map/life's static ticket,
+			// even if an engine reused both the entity index and serial.
+			tceDoorQueue.Release(bot);
+			m_TceDoorQueueBot = bot; m_TceDoorQueueStart = now;
+		}
+		if(now-m_TceDoorQueueStart >= TceDoorQueue::WaitMs) return -1;
+		// Remove stale handles immediately on death/disconnect, rather than
+		// keeping an entrance reserved until the heartbeat expires.
+		for(int i = 0; i < TceDoorQueue::Capacity; ++i)
+		{
+			const TceDoorQueue::Ticket ticket = tceDoorQueue.Get(i);
+			if(!ticket.active) continue;
+			GameEntity actor; actor.FromInt(ticket.bot);
+			if(!InterfaceFuncs::IsAlive(actor)) tceDoorQueue.Release(ticket.bot);
+		}
+		const Vector3f position = GetClient()->GetPosition(), start = RawWpPos(entry), end = RawWpPos(exit);
+		Vector3f direction = (end-start).Flatten();
+		const float distance = direction.Normalize();
+		if(distance < 1.f) return -1;
+		const Vector3f delta = position-start;
+		const float along = delta.x*direction.x+delta.y*direction.y;
+		// A bot already in the threshold must clear it; stopping or sidestepping
+		// it mid-passage would make human priority itself obstruct the doorway.
+		const bool crossing = m_TceDoorPhase == 4 && along > 2.f;
+		const bool human = !crossing && TceDoorHumanTraffic(GetClient(), start, end);
+		const TceDoorQueue::Result turn = tceDoorQueue.Request(now, bot, GetClient()->GetGameID(),
+			door.AsInt(), recipe.model, !human);
+		if(turn.rank < 0) return -1;
+		GetClient()->GetSteeringSystem()->SetNoAvoidTime(250);
+		if(turn.owner)
+		{
+			if(m_TceDoorQueueWait)
+			{
+				const int pause = now-m_TceDoorQueueWait;
+				if(m_TceDoorStart) m_TceDoorStart += pause;
+				if(m_TceDoorPhaseStart) m_TceDoorPhaseStart += pause;
+				m_TceDoorQueueWait = 0;
+			}
+			m_TceDoorQueueBlocked = 0;
+			return 0;
+		}
+		if(!m_TceDoorQueueWait) m_TceDoorQueueWait = now;
+		GetClient()->ReleaseButton(BOT_BUTTON_USE);
+		GetClient()->GetAimer()->ReleaseAimRequest(GetNameHash());
+		GetClient()->ResetStuckTime();
+		if(entry.m_NavFlags & F_NAV_CROUCH) GetClient()->PressButton(BOT_BUTTON_CROUCH);
+		if(turn.rank == 0 && !human && now == m_TceDoorQueueStart)
+		{
+			GetClient()->GetSteeringSystem()->SetTarget(position);
+			return 1;
+		}
+		const Vector3f side(-direction.y, direction.x, 0.f);
+		const float back = 96.f+48.f*turn.rank;
+		const float sign = GetClient()->GetGameID() & 1 ? 1.f : -1.f;
+		AABB hull;
+		if(!GetClient()->GetNavigationHull(hull, entry.m_NavFlags)) return -1;
+		for(int i = 0; i < 4; ++i)
+		{
+			const float offset = i == 0 ? sign*64.f : i == 1 ? -sign*64.f : 0.f;
+			const Vector3f target = start-direction*(back+(i == 3 ? 48.f : 0.f))+side*offset;
+			Path::PathPoint wait = entry; wait.Position(target).PlayerOrigin();
+			obTraceResult traffic;
+			if(TceDoorPointSweep(GetClient(), recipe, wait) == 1 &&
+				GetClient()->CanWalkTo(target, entry.m_NavFlags) &&
+				EngineFuncs::TraceLine(traffic, position, target, &hull,
+					TR_MASK_SOLID | TR_MASK_PLAYERCLIP | TR_MASK_PLAYER | TR_MASK_NAVCAPSULE,
+					GetClient()->GetGameID(), False) && !traffic.m_StartSolid && traffic.m_Fraction == 1.f)
+			{
+				GetClient()->GetSteeringSystem()->SetTarget(target, 6.f, Walk, false);
+				m_TceDoorQueueBlocked = 0;
+				return 1;
+			}
+		}
+		// No guessed move through walls/ledges when the room has no safe bay.
+		// Yield the path after a bounded failure instead of jamming the entrance.
+		GetClient()->GetSteeringSystem()->SetTarget(position);
+		if(!m_TceDoorQueueBlocked) m_TceDoorQueueBlocked = now;
+		return now-m_TceDoorQueueBlocked >= 2000 ? -1 : 1;
 	}
 
 	static void TceDoorPathLog(const char *event, Client *client, const Path &path)
@@ -1590,7 +1771,8 @@ namespace AiState
 				return m_PathStatus == PathFinished ? State_Finished : State_Busy;
 			if(m_TceCentreNavId && m_TceCentreNavId != pt.m_NavId)
 				ResetTceCentreApproach();
-			const int doorAction = UpdateTceDoor(pt);
+			const int queueAction = UpdateTceDoorQueue(pt);
+			const int doorAction = queueAction ? queueAction : UpdateTceDoor(pt);
 			if(doorAction > 0) return State_Busy;
 			if(doorAction < 0)
 			{
@@ -1768,7 +1950,7 @@ namespace AiState
 				GetClient()->PressButton(BOT_BUTTON_WALK);
 			if(pt.m_NavFlags & F_NAV_ELEVATOR)
 			{
-				if(!CheckForMover(pt.m_Pt) && 
+				if(!CheckForMover(pt.m_Pt) &&
 					!CheckForMover(GetClient()->GetPosition()))
 				{
 					GetClient()->ResetStuckTime();
@@ -2337,7 +2519,7 @@ namespace AiState
 				m_PathStatus = PathFinished;
 				return State_Finished;
 			}
-			
+
 			if(tceAscentExit && !bConsumeWaypoint)
 			{
 				const Vector3f release = RawWpPos(previousPt);
@@ -2398,7 +2580,7 @@ namespace AiState
 				if(GetClient()->HasEntityFlag(ENT_FLAG_ONLADDER))
 				{
 					float fHeight = pt.m_Pt.z - vPos.z;
-					
+
 					if(m_LadderDirection == 0)
 					{
 						if(fDistanceSq < fWpRadiusSq * 4)
@@ -2417,7 +2599,7 @@ namespace AiState
 						if (fHeight > 0) m_LadderDirection = 1;
 						else m_LadderDirection = -1;
 					}
-					
+
 					if( 2 * fHeight * fHeight > fDistSq2d //climb only if next waypoint is above or below player
 						|| (m_LadderDirection > 0 && fHeight > -g_fTopWaypointOffset)
 						|| (m_LadderDirection < 0 && -fHeight > g_fTopWaypointOffset))
@@ -2471,13 +2653,13 @@ namespace AiState
 
 		Vector3f pos1 = _pos.AddZ(g_fTopWaypointOffset - fWpHeight * 0.5f);
 		Vector3f pos2 = pos1.AddZ(-fWpHeight);
-		
+
 		const bool bMover = InterfaceFuncs::IsMoverAt(pos1,pos2);
 
 		if(DebugDrawingEnabled())
 		{
 			Utils::DrawLine(pos1,pos2,bMover?COLOR::GREEN:COLOR::RED,0.5f);
-		}		
+		}
 		return bMover;
 	}
 
@@ -2525,7 +2707,7 @@ namespace AiState
 
 		// Trace a line start to end to see if it hits anything.
 		obTraceResult tr;
-		EngineFuncs::TraceLine(tr, vStartPos, vEndPos, 
+		EngineFuncs::TraceLine(tr, vStartPos, vEndPos,
 			&localAABB, TR_MASK_SOLID | TR_MASK_PLAYERCLIP, GetClient()->GetGameID(), False);
 
 		bool bHit = false;
@@ -2535,7 +2717,7 @@ namespace AiState
 			m_JumpTime = time;
 			GetClient()->PressButton(BOT_BUTTON_JUMP);
 		}
-		
+
 		if(DebugDrawingEnabled())
 		{
 			// Line Ray
@@ -2558,7 +2740,7 @@ namespace AiState
 		//const float fStartUpOffset = 5.0f;
 		static const float fEndDownOffset = GetClient()->GetGameVar(Client::JumpGapOffset);
 		Vector3f vStartPos(Vector3f::ZERO);
-		aabb.CenterPoint(vStartPos); 
+		aabb.CenterPoint(vStartPos);
 
 		Vector3f vEndPos(vStartPos);
 		vEndPos.z -= fEndDownOffset;
@@ -2568,7 +2750,7 @@ namespace AiState
 
 		// Trace a line directly underneath us to try and detect rapid drops in elevation.
 		obTraceResult tr;
-		EngineFuncs::TraceLine(tr, vStartPos, vEndPos, NULL, 
+		EngineFuncs::TraceLine(tr, vStartPos, vEndPos, NULL,
 			TR_MASK_SOLID | TR_MASK_PLAYERCLIP, GetClient()->GetGameID(), False);
 
 		Vector3f trEnd(tr.m_Endpos);
@@ -2605,11 +2787,11 @@ namespace AiState
 		m_Owner = 0;
 		m_Priority = Priority::Zero;
 		m_AimVector = Vector3f::ZERO;
-		m_AimType = WorldPosition;		
+		m_AimType = WorldPosition;
 		m_AimerUser = NULL;
 	}
 
-	Aimer::Aimer() 
+	Aimer::Aimer()
 		: StateChild("Aimer")
 		, m_BestAimOwner(0)
 	{
@@ -2829,7 +3011,7 @@ namespace AiState
 				{
 					Prof(UserCallback);
 					OBASSERT(curAim->m_AimerUser, "No Aim User");
-					if(curAim->m_AimerUser && 
+					if(curAim->m_AimerUser &&
 						curAim->m_AimerUser->GetAimPosition(curAim->m_AimVector) &&
 						GetClient()->TurnTowardPosition(curAim->m_AimVector))
 					{
@@ -2844,7 +3026,7 @@ namespace AiState
 
 	//////////////////////////////////////////////////////////////////////////
 
-	LookAround::LookAround() 
+	LookAround::LookAround()
 		: StateChild("LookAround")
 		, m_NextLookTime(0)
 	{
@@ -2866,7 +3048,7 @@ namespace AiState
 		{
 			FollowPath *fp = GetClient()->GetFollowPath();
 			Path::PathPoint pp;
-			if(fp->IsMoving() && fp->GetCurrentPath().GetCurrentPt(pp) && 
+			if(fp->IsMoving() && fp->GetCurrentPath().GetCurrentPt(pp) &&
 				(pp.m_NavFlags & (F_NAV_CLIMB|F_NAV_DOOR) ))
 			{
 				m_NextLookTime = GetNextLookTime();
@@ -2897,8 +3079,8 @@ namespace AiState
 
 	//////////////////////////////////////////////////////////////////////////
 
-	MotorControl::MotorControl() 
-		: StateSimultaneous("MotorControl") 
+	MotorControl::MotorControl()
+		: StateSimultaneous("MotorControl")
 	{
 		AppendState(new FollowPath);
 		AppendState(new SteeringSystem);
@@ -2908,8 +3090,8 @@ namespace AiState
 
 	//////////////////////////////////////////////////////////////////////////
 
-	LowLevel::LowLevel() 
-		: StateSimultaneous("LowLevel") 
+	LowLevel::LowLevel()
+		: StateSimultaneous("LowLevel")
 	{
 		AppendState(new MotorControl);
 		AppendState(new WeaponSystem);
@@ -2921,12 +3103,12 @@ namespace AiState
 
 	//////////////////////////////////////////////////////////////////////////
 
-	Main::Main() 
+	Main::Main()
 		: StateSimultaneous("Main"),
 		m_OnSpawnCalled(false)
 	{
 		AppendState(new LowLevel);
-		AppendState(new HighLevel);		
+		AppendState(new HighLevel);
 	}
 
 	obReal Main::GetPriority()
@@ -2954,54 +3136,54 @@ namespace AiState
 
 	//////////////////////////////////////////////////////////////////////////
 
-	Dead::Dead() 
+	Dead::Dead()
 		: StateChild("Dead")
 		, bForceActivate(true)
 	{
 	}
 
-	obReal Dead::GetPriority() 
+	obReal Dead::GetPriority()
 	{
 		if(bForceActivate)
 		{
 			bForceActivate = false;
 			return 1.f;
 		}
-		return !InterfaceFuncs::IsAlive(GetClient()->GetGameEntity()) ? 1.f : 0.f; 
+		return !InterfaceFuncs::IsAlive(GetClient()->GetGameEntity()) ? 1.f : 0.f;
 	}
 
-	State::StateStatus Dead::Update(float fDt) 
+	State::StateStatus Dead::Update(float fDt)
 	{
 		if(IGame::GetFrameNumber() & 2)
 		{
 			GetClient()->PressButton(BOT_BUTTON_RESPAWN);
 		}
 		GetClient()->SetMovementVector(Vector3f::ZERO);
-		return State_Busy; 
+		return State_Busy;
 	}
 
 	//////////////////////////////////////////////////////////////////////////
-	
-	Warmup::Warmup() 
-		: StateChild("Warmup") 
+
+	Warmup::Warmup()
+		: StateChild("Warmup")
 	{
 	}
 
-	obReal Warmup::GetPriority() 
+	obReal Warmup::GetPriority()
 	{
-		GameState gs = InterfaceFuncs::GetGameState();		
-		return (gs != GAME_STATE_PLAYING && gs != GAME_STATE_SUDDENDEATH) ? 1.f : 0.f;		
+		GameState gs = InterfaceFuncs::GetGameState();
+		return (gs != GAME_STATE_PLAYING && gs != GAME_STATE_SUDDENDEATH) ? 1.f : 0.f;
 	}
 
-	State::StateStatus Warmup::Update(float fDt) 
+	State::StateStatus Warmup::Update(float fDt)
 	{
 		// need to do something special here?
-		return State_Busy; 
+		return State_Busy;
 	}
 
 	//////////////////////////////////////////////////////////////////////////
 
-	Root::Root() : StateFirstAvailable("Root") 
+	Root::Root() : StateFirstAvailable("Root")
 	{
 		AppendState(new Dead);
 		AppendState(new Main);
@@ -3029,8 +3211,8 @@ namespace AiState
 					float r = Mathf::Max(m_Triggers[i].m_SensoryFilter->GetMaxDistance(), 10.f);
 					Utils::DrawRadius(
 						m_Triggers[i].m_SensoryFilter->GetPosition(p),
-						r, 
-						COLOR::MAGENTA, 
+						r,
+						COLOR::MAGENTA,
 						MIN_RENDER_TIME);
 				}
 			}
@@ -3139,7 +3321,7 @@ namespace AiState
 	//		{
 	//			fTotalWeight += (float)m_TargetZones[i].m_TargetCount;
 	//			iNumZones++;
-	//		}			
+	//		}
 	//	}
 
 	//	float fRand = Mathf::IntervalRandom(0.f, fTotalWeight);
@@ -3167,14 +3349,14 @@ namespace AiState
 	//		{
 	//			Utils::DrawRadius(
 	//				m_TargetZones[i].m_Position,
-	//				m_Radius, 
-	//				COLOR::MAGENTA, 
+	//				m_Radius,
+	//				COLOR::MAGENTA,
 	//				MIN_RENDER_TIME);
 
 	//			Utils::PrintText(
 	//				m_TargetZones[i].m_Position,
 	//				COLOR::WHITE,
-	//				1.f, 
+	//				1.f,
 	//				"%d",
 	//				m_TargetZones[i].m_TargetCount);
 	//		}
@@ -3260,7 +3442,7 @@ namespace AiState
 	const float MIN_COVER_HEIGHT = 40.f;
 	const float MAX_COVER_HEIGHT = 60.f;
 
-	FloodFiller::FloodFiller() 
+	FloodFiller::FloodFiller()
 		: StateChild("FloodFiller")
 	{
 		Reset();
@@ -3270,7 +3452,7 @@ namespace AiState
 	Vector3f FloodFiller::_GetNodePosition(const Node &_Node)
 	{
 		Vector3f vNodePos = Start;
-		
+
 		const float nX = (float)(_Node.MinOffset.X + _Node.MaxOffset.X) * 0.5f;
 		const float nY = (float)(_Node.MinOffset.Y + _Node.MaxOffset.Y) * 0.5f;
 
@@ -3285,7 +3467,7 @@ namespace AiState
 	{
 		for(int i = 0; i < FreeNode; ++i)
 		{
-			if(Nodes[i].MinOffset.X >= _X && Nodes[i].MinOffset.Y >= _Y && 
+			if(Nodes[i].MinOffset.X >= _X && Nodes[i].MinOffset.Y >= _Y &&
 				Nodes[i].MaxOffset.X <= _X && Nodes[i].MaxOffset.Y <= _Y)
 			{
 				if(Mathf::FAbs(_Height-Nodes[i].Height) < CHARACTER_HEIGHT)
@@ -3301,7 +3483,7 @@ namespace AiState
 		{
 			if(Nodes[i].Open)
 			{
-				return &Nodes[i];					
+				return &Nodes[i];
 			}
 		}
 		return NULL;
@@ -3312,12 +3494,12 @@ namespace AiState
 		Vector3f vPos = _GetNodePosition(*_Node);
 
 		obTraceResult tr;
-		EngineFuncs::TraceLine(tr, 
+		EngineFuncs::TraceLine(tr,
 			vPos,
 			vPos,
 			&FloodBlock,
 			TR_MASK_FLOODFILL,
-			-1, 
+			-1,
 			False);
 
 		return (tr.m_Fraction == 1.0f);
@@ -3336,12 +3518,12 @@ namespace AiState
 		static float END_OFFSET = -fDropDistance;
 
 		obTraceResult tr;
-		EngineFuncs::TraceLine(tr, 
+		EngineFuncs::TraceLine(tr,
 			vPos.AddZ(START_OFFSET),
 			vPos.AddZ(END_OFFSET),
 			&bounds,
 			TR_MASK_FLOODFILL,
-			-1, 
+			-1,
 			False);
 
 		bool bGood = true;
@@ -3361,7 +3543,7 @@ namespace AiState
 		{
 			_NodeA->Connections[_Dir].Destination = _NodeB;
 			_NodeA->Connections[_Dir].Jump = (_NodeB->Height - _NodeA->Height) >= CHARACTER_STEPHEIGHT;
-			
+
 			if((_NodeB->Height - _NodeA->Height) >= MIN_COVER_HEIGHT &&
 				(_NodeB->Height - _NodeA->Height) <= MAX_COVER_HEIGHT)
 			{
@@ -3371,7 +3553,7 @@ namespace AiState
 
 		{
 			//// connect the opposite direction
-			//Direction Opposite[DIR_NUM] = 
+			//Direction Opposite[DIR_NUM] =
 			//{
 			//	DIR_SOUTH,
 			//	DIR_WEST,
@@ -3623,7 +3805,7 @@ namespace AiState
 						{
 							bHasDirectionConnection = true;
 							if(MergeNodes[m]->SectorId != MergeNodes[m]->Connections[d].Destination->SectorId)
-							{								
+							{
 								EdgeNodes[d][NumEdges[d]++] = MergeNodes[m];
 							}
 						}
@@ -3735,7 +3917,7 @@ namespace AiState
 					nodeCol = COLOR::MAGENTA;
 				if(node.NearObject)
 					nodeCol = COLOR::RED;
-				
+
 				Vector3f vNodePos = _GetNodePosition(node);
 
 				static bool RenderOpenness = false;
@@ -3748,7 +3930,7 @@ namespace AiState
 						"%d",
 						node.OpenNess);
 				}
-				
+
 
 				float fSectorDist = Length(vNodePos,vAim);
 				if(fSectorDist < fNearestSector)
@@ -3760,7 +3942,7 @@ namespace AiState
 				for(int d = 0; d < DIR_NUM; ++d)
 				{
 					if(node.Connections[d].Destination)
-					{						
+					{
 						Vector3f vNeighbor = _GetNodePosition(*node.Connections[d].Destination);
 						Utils::DrawLine(vNodePos.AddZ(8), vNeighbor, nodeCol, RENDER_TIME);
 
@@ -3833,7 +4015,7 @@ namespace AiState
 		DebugDraw(true);
 	}
 	void FloodFiller::Exit()
-	{	
+	{
 		//DebugDraw(false);
 	}
 	State::StateStatus FloodFiller::Update(float fDt)
@@ -3890,7 +4072,7 @@ namespace AiState
 
 				if(FreeNode==NumSectors)
 				{
-					_MergeSectors();					
+					_MergeSectors();
 
 					// fail if that didn't free up anything.
 					if(FreeNode==NumSectors)

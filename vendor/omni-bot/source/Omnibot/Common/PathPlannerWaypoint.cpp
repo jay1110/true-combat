@@ -729,6 +729,7 @@ int PathPlannerWaypoint::PlanPathToNearest(Client *_client, const Vector3f &_sta
 int PathPlannerWaypoint::PlanPathToNearestWithEntryPolicy(Client *_client, const Vector3f &_start,
 	const DestinationVector &_goals, const NavFlags &_team, bool _ordinaryEntry)
 {
+	m_Client = _client;
 	// Ordinary recovery explicitly requires a real, freshly walkable graph
 	// entry. A volume-only shortcut produces no entry and cannot satisfy it.
 	if(!_ordinaryEntry && _goals.size() == 1 && Length(_goals[0].m_Position, _start) <= _goals[0].m_Radius)
@@ -739,7 +740,6 @@ int PathPlannerWaypoint::PlanPathToNearestWithEntryPolicy(Client *_client, const
 		return 0;
 	}
 
-	m_Client = _client;
 	TcePrepareRoutes(_client);
 	m_GoalIndex = 0;
 

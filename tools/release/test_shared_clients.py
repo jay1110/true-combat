@@ -219,7 +219,7 @@ class SharedClients(unittest.TestCase):
         rows=[self.row(target) for target in clients.target_table(self.repo)]
         data,metadata=clients.canonical_client(rows,clients.target_table(self.repo),VERSION,'game',self.repo)
         self.assertEqual(clients.check_canonical(data,VERSION,'game',repo=self.repo),metadata)
-        self.assertEqual(len(metadata['modules']),20)
+        self.assertEqual(len(metadata['modules']),24)
         reverse,_=clients.canonical_client(rows[::-1],clients.target_table(self.repo),VERSION,'game',self.repo)
         self.assertEqual(data,reverse)
 

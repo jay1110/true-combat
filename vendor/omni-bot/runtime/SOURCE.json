@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "origin": "Supplied Omni-bot data already present in build/navgen-overkill/omnibot; exact upstream commit/archive identity unavailable.",
-  "role": "Byte-preserved base runtime GM scripts; project TC overlays remain in ../tce2-scripts and ../tce2-global-scripts.",
+  "role": "Imported base runtime GM scripts with documented project fixes; TC overlays remain in ../tce2-scripts and ../tce2-global-scripts.",
   "excluded": [
     "Native binaries and PK3s",
     "Engine/user profiles and servercache.dat",
@@ -281,8 +281,8 @@
     },
     {
       "path": "et/scripts/goals/goal_fireteam.gm",
-      "bytes": 12540,
-      "sha256": "e66df78afc1f794eafd2b0a573f1b0a831484e0ddae830c5120924687af6a2f7"
+      "bytes": 13818,
+      "sha256": "ea9a1f2c188c5e686363129b2e2882888221161045e5587db780f5bfe4db7e63"
     },
     {
       "path": "et/scripts/goals/goal_flag.gm",
@@ -1386,5 +1386,11 @@
     "full_map_verified": false,
     "mission_behavior_complete": false,
     "note": "Existing30-file gameplay bundle was previously audited; no new navigation generation or live mission certification is implied."
-  }
+  },
+  "project_modifications": [
+    {
+      "path": "et/scripts/goals/goal_fireteam.gm",
+      "reason": "Stable separated formation slots and96/128 follow-stop hysteresis; Stop cancels the old native path when entering hold. Existing goals poll the FireTeam enabled configuration once per1s priority iteration, so public ft_controls changes apply without editor state-command dispatch."
+    }
+  ]
 }

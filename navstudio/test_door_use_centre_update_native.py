@@ -46,6 +46,9 @@ namespace InterfaceFuncs{obUserData GetEntityStat(GameEntity e,const char*n){
 enum{BOT_DEBUG_MOVEVEC=123,ENT_FLAG_ON_ICE=456};
 namespace Utils{void DrawLine(const Vector3f&,const Vector3f&,int,float){}}
 class VerifySteering{public:
+ // No neighbour actors in this strict eye-ray test. Production ally
+ // avoidance executes separately in its real engine-query fixture.
+ void AvoidAllies(){}
  enum{Normal,Arrive};Client*client;bool m_bMoveEnabled=true,m_TargetVector3d=false;
  int m_MoveType=Arrive;Vector3f m_TargetVector,m_MoveVec;float m_DistanceToTarget=0,m_TargetRadius,m_InputScale;
  Client*GetClient(){return client;}void UpdateSteering();

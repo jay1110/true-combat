@@ -153,6 +153,24 @@
       }
     },
     {
+      "name": "android-x86",
+      "inherits": "base",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/android-x86.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "OFF"
+      }
+    },
+    {
+      "name": "android-x86_64",
+      "inherits": "base",
+      "toolchainFile": "${sourceDir}/cmake/toolchains/android-x86_64.cmake",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BUILD_TESTING": "OFF"
+      }
+    },
+    {
       "name": "wasm32",
       "inherits": "base",
       "toolchainFile": "${sourceDir}/cmake/toolchains/wasm32.cmake",
@@ -351,6 +369,22 @@
     {
       "name": "android-arm64",
       "configurePreset": "android-arm64",
+      "targets": [
+        "tce_modules",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "android-x86",
+      "configurePreset": "android-x86",
+      "targets": [
+        "tce_modules",
+        "omnibot-et"
+      ]
+    },
+    {
+      "name": "android-x86_64",
+      "configurePreset": "android-x86_64",
       "targets": [
         "tce_modules",
         "omnibot-et"

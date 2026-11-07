@@ -165,8 +165,9 @@ def release_closure(directory, inputs):
 
 
 def flat_zip(path, records):
-    if len(records) != 40 or len({(row['target'], row['role']) for row in records}) != 40:
-        raise ValueError('Flat normal archive requires exactly forty target/role records')
+    expected_count = len(target_table()) * 4
+    if len(records) != expected_count or len({(row['target'], row['role']) for row in records}) != expected_count:
+        raise ValueError(f'Flat normal archive requires exactly {expected_count} target/role records')
     if {row['target'] for row in records} != set(target_table()) or any(
             row['role'] not in {'cgame', 'ui', 'qagame', 'omnibot'} for row in records):
         raise ValueError('Incomplete flat target/role closure')
@@ -229,7 +230,7 @@ def loose_closure(inputs, directory, artifact_id):
                 {'archive_name': name} for row, name in zip(records, names)]
     expected.sort(key=lambda row: row['archive_name'])
     report = json.loads((directory / 'loose-report.json').read_text())
-    if (report.get('files') != expected or report.get('binary_count') != 40 or
+    if (report.get('files') != expected or report.get('binary_count') != len(records) or
             report.get('metadata_inside_archive') is not False or report.get('variant') != 'game' or
             report.get('version') != version()):
         raise ValueError('Normal loose report differs from actual target inputs')
@@ -238,7 +239,7 @@ def loose_closure(inputs, directory, artifact_id):
         path = Path(temporary) / 'github-flat.zip'
         metadata = download_artifact(artifact_id, path)
         uploaded = flat_zip(path, expected)
-    return {'targets': sorted(seen), 'variant': 'game', 'binary_count': 40,
+    return {'targets': sorted(seen), 'variant': 'game', 'binary_count': len(records),
             'metadata_inside_archive': False, 'files': expected, 'local_zip': local,
             'github_artifact': metadata, 'uploaded_zip': uploaded}
 

@@ -26,7 +26,7 @@ struct Steering {
  bool m_TargetVector3d=false,m_bMoveEnabled=true;MoveMode m_MoveMode=0;
  enum{Normal,Arrive};int m_MoveType=Normal;
  bool SetTarget(const Vector3f&,float=32,MoveMode=0,bool=false,float=1);
- void UpdateSteering();Vector3f GetTarget(){return m_TargetVector;}
+ void UpdateSteering();void AvoidAllies(){} /* isolated corner proof has no neighboring players */ Vector3f GetTarget(){return m_TargetVector;}
 }'''
     source = source.replace(old, replacement, 1)
     # FollowPath's controller fixture supplies these fresh walk observations.

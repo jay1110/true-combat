@@ -135,7 +135,8 @@ def check_module(data, role, target, variant):
                      bool(struct.unpack_from('<H', data, pe + 22)[0] & 0x2000))
         elif target.startswith(('linux-', 'android-')):
             expected = {'linux-i386': (1, 3), 'linux-x86_64': (2, 62), 'linux-armv7': (1, 40),
-                        'linux-aarch64': (2, 183), 'android-armv7': (1, 40), 'android-arm64': (2, 183)}[target]
+                        'linux-aarch64': (2, 183), 'android-armv7': (1, 40), 'android-arm64': (2, 183),
+                        'android-x86': (1, 3), 'android-x86_64': (2, 62)}[target]
             valid = (data[:4] == b'\x7fELF' and data[5] == 1 and
                      (data[4], struct.unpack_from('<H', data, 18)[0]) == expected and
                      struct.unpack_from('<H', data, 16)[0] == 3)

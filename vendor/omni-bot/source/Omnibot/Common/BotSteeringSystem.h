@@ -10,8 +10,8 @@ namespace AiState
 	class SteeringSystem : public StateChild
 	{
 	public:
-		
-		typedef enum 
+
+		typedef enum
 		{
 			Normal,
 			Arrive,
@@ -23,7 +23,7 @@ namespace AiState
 		void UpdateSteering();
 
 		// function: SetTarget
-		//		Sets <m_TargetVector>, which is the goal point the bot 
+		//		Sets <m_TargetVector>, which is the goal point the bot
 		//		should be heading for.
 		bool SetTarget(const Vector3f &_pos, float _radius = 32.f, MoveMode _movemode = Run, bool _in3d = false, float _inputScale = 1.f);
 
@@ -82,6 +82,12 @@ namespace AiState
 		bool		m_bMoveEnabled;
 
 		bool		m_TargetVector3d;
+
+		// A stable passing side avoids frame-to-frame random lateral churn.
+		GameEntity m_AvoidEntity;
+		int m_AvoidSide, m_AvoidUntil;
+		void AvoidAllies();
+		bool SafeAvoidStep(const Vector3f &_destination) const;
 
 		enum Deceleration{slow = 3, normal = 2, fast = 1};
 		float _Arrive(const Vector3f &_targetPos, Deceleration _deceleration);

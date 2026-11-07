@@ -241,6 +241,10 @@ eomnibot_error Omnibot_LoadLibrary(int version, const char *lib, const char *pat
 #define SUFFIX ".android.arm64-v8a"
 #elif defined(__ANDROID__) && defined(__arm__)
 #define SUFFIX ".android.armeabi-v7a"
+#elif defined(__ANDROID__) && defined(__i386__)
+#define SUFFIX ".android.x86"
+#elif defined(__ANDROID__) && defined(__x86_64__)
+#define SUFFIX ".android.x86_64"
 #elif defined(__x86_64__)
 #define SUFFIX ".x86_64"
 #elif defined __aarch64__

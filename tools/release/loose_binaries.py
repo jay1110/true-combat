@@ -29,6 +29,7 @@ CORE_IDENTITIES = {
     'linux-i386': ('Linux', 'i386'), 'linux-x86_64': ('Linux', 'x86_64'),
     'linux-armv7': ('Linux', 'armv7'), 'linux-aarch64': ('Linux', 'aarch64'),
     'android-armv7': ('Android', 'armeabi-v7a'), 'android-arm64': ('Android', 'arm64-v8a'),
+    'android-x86': ('Android', 'x86'), 'android-x86_64': ('Android', 'x86_64'),
     'wasm32': ('Emscripten', 'wasm32'), 'macos-universal': ('Darwin', 'universal'),
 }
 
@@ -73,7 +74,8 @@ def check_binary(path, target, role, config):
     elif target.startswith(('linux-', 'android-')):
         expected = {'linux-i386': (1, 3), 'linux-x86_64': (2, 62),
                     'linux-armv7': (1, 40), 'linux-aarch64': (2, 183),
-                    'android-armv7': (1, 40), 'android-arm64': (2, 183)}[target]
+                    'android-armv7': (1, 40), 'android-arm64': (2, 183),
+                    'android-x86': (1, 3), 'android-x86_64': (2, 62)}[target]
         valid = (len(header) >= 20 and header.startswith(b'\x7fELF') and name.endswith('.so') and
                  header[5] == 1 and (header[4], struct.unpack_from('<H', header, 18)[0]) == expected and
                  struct.unpack_from('<H', header, 16)[0] == 3)

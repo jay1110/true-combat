@@ -9,6 +9,8 @@
     {"id":"linux-aarch64","runner":"ubuntu-24.04","suffix":".mp.aarch64.so","toolchain":"linux-aarch64.cmake","core":true},
     {"id":"android-armv7","runner":"ubuntu-24.04","prefix":"lib","suffix":".mp.android.armeabi-v7a.so","toolchain":"android-armv7.cmake","core":true},
     {"id":"android-arm64","runner":"ubuntu-24.04","prefix":"lib","suffix":".mp.android.arm64-v8a.so","toolchain":"android-arm64.cmake","core":true},
+    {"id":"android-x86","runner":"ubuntu-24.04","prefix":"lib","suffix":".mp.android.x86.so","toolchain":"android-x86.cmake","core":true},
+    {"id":"android-x86_64","runner":"ubuntu-24.04","prefix":"lib","suffix":".mp.android.x86_64.so","toolchain":"android-x86_64.cmake","core":true},
     {"id":"wasm32","runner":"ubuntu-24.04","suffix":".mp.wasm32.so","toolchain":"wasm32.cmake","core":true},
     {"id":"macos-universal","runner":"macos-15","suffix":"_mac","toolchain":"macos-universal.cmake","core":true}
   ]

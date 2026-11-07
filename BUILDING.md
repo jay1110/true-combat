@@ -112,7 +112,7 @@ is derived from both CPU and pointer ABI, rather than pointer size alone.
 | Windows x86 / x64 | MSVC or clang-cl with Windows SDK; matching 32/64-bit engine |
 | Linux i386 / x86_64 | Clang/GCC with libc development files, or supplied Zig toolchain |
 | Linux ARMv7 / AArch64 | Supplied cross-toolchains, sysroot or Zig; matching engine |
-| Android armeabi-v7a / arm64-v8a | Installed NDK, explicit ABI/API; external Android engine |
+| Android armeabi-v7a / arm64-v8a / x86 / x86_64 | Installed NDK, explicit ABI/API; external Android engine |
 | WASM32 | Emscripten; matching external ABI1 side-module host |
 | macOS universal | AppleClang/Xcode SDK; x86_64 + arm64 external host |
 

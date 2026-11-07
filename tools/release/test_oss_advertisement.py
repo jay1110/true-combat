@@ -39,7 +39,7 @@ class PlatformAdvertisement(unittest.TestCase):
         self.assertEqual(int(value), advertised_mask(row['id'] for row in targets))
         self.assertEqual(flags.strip(),'CVAR_SERVERINFO')  # Editable, no ROM/latch.
 
-    def test_standard_values_distinguish_unbuilt_android_x86_clients(self):
+    def test_standard_values_and_partial_client_installations(self):
         self.assertEqual(sum(PLATFORM_BITS.values()),2047)
         self.assertEqual(advertised_mask(('windows-x86','windows-x64','linux-i386','linux-x86_64')),263)
         self.assertEqual(advertised_mask(('android-armv7','wasm32')),0)

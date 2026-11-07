@@ -138,7 +138,7 @@ jobs:
           if-no-files-found: error
           retention-days: 14
           overwrite: true
-      - name: Validate exact uploaded flat forty-binary ZIP and source provenance
+      - name: Validate exact uploaded flat all-target binary ZIP and source provenance
         env:
           GH_TOKEN: ${{ github.token }}
           FLAT_ARTIFACT_ID: ${{ steps.flat.outputs.artifact-id }}

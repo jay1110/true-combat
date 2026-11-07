@@ -5,7 +5,7 @@ This repository contains a mod, not an ET/ETLegacy engine. Local agents do not
 start Actions runs; the maintainer chooses when to dispatch a prepared workflow.
 
 The current mod version comes from `src/game/tce_version.h` (1.0.3).
-`release.yml` builds the ten ABI families declared in `targets.json`, for Game
+`release.yml` builds the twelve ABI families declared in `targets.json`, for Game
 and optionally the separate Editor variant. Source and optional NavStudio desktop
 have their own workflow artifacts.
 
@@ -16,7 +16,7 @@ same matrix, with its authoring features compiled separately):
 | --- | --- |
 | Windows | x86, x64 |
 | Linux | i386, x86_64, ARMv7, AArch64 |
-| Android | armeabi-v7a, arm64-v8a |
+| Android | armeabi-v7a, arm64-v8a, x86, x86_64 |
 | macOS | universal x86_64 + arm64 |
 | WebAssembly | wasm32 |
 
@@ -120,7 +120,7 @@ python tools/release/local_bundle.py --inputs build/local-game-inputs.json --var
 The input JSON is a list of objects with `target`, `module_manifest` (the generated
 `tce-modules-Release.json`) and `core_manifest` (the matching
 `omnibot-runtime-Release.json`). Partial coverage is explicitly recorded as
-`local-diagnostic`; it is not a claim that all ten ABIs were built. Without
+`local-diagnostic`; it is not a claim that all twelve ABIs were built. Without
 `--allow-subset`, every target in `targets.json` is required. The helper performs
 no build, download or game launch and checks that its native/resource inputs stay
 unchanged while packaging.
