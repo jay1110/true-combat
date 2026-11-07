@@ -1,5 +1,6 @@
 #define CGAMEDLL
 #include "src/cgame/cg_local.h"
+#include "src/cgame/cg_hud_viewport.h"
 #include "src/cgame/tce_popup_draw.h"
 #include "src/ui/tce_viewport.h"
 #include "src/ui/tce_modern_ui.h"
@@ -19,7 +20,7 @@ static vmCvar_t *iconCvar;
 static refdef_t modelViews[16];
 static refEntity_t modelEntities[16], currentModel;
 const char *bg_fireteamNames[MAX_FIRETEAMS / 2] = { "Alpha", "Bravo", "Charlie", "Delta", "Echo", "Foxtrot" };
-vmCvar_t cg_drawFireteamOverlay,cg_paused,cg_aspectMode,cg_drawTeamNames;
+vmCvar_t cg_drawFireteamOverlay,cg_paused,cg_aspectMode,cg_drawTeamNames,cg_drawCompass;
 centity_t cg_entities[MAX_GENTITIES];
 int tceSmokeNewBBox;
 static int traceCalls, traceBlocked;
@@ -27,8 +28,8 @@ static vec3_t tracedHeadPoint;
 static fontInfo_t *lastPaintFont;
 static int lastPaintStyle;
 static int modernHud;
-static float hudUserScale=.85f,hudHeightCap=1080;
-static vmCvar_t *hudCvars[5];
+static float hudUserScale=.85f,hudHeightCap=1080,compassUserScale=.85f,fireteamUserScale=.85f;
+static vmCvar_t *hudCvars[7];
 qboolean tce_uiCoordinates;
 static snapshot_t snapshot;
 qboolean TCE_ModernUIEnabled(void) { return qfalse; }
@@ -39,6 +40,7 @@ static char arguments[64][96], rendered[8192], locations[TCE_MAX_LOCATIONS][96];
 static char fireteamConfig[MAX_FIRETEAMS][128];
 static float lastBarWidth, barStart, measuredNameEnd;
 static float panelHeight,lastTextY;
+static rectDef_t physicalPanel;
 static int paintCount,picCount;
 static struct { float x,y,w,h; } pictures[24];
 static struct { float x,y,scale,color[4];char text[256]; } paints[64];
@@ -53,16 +55,16 @@ void trap_Cvar_Register(vmCvar_t *cvar,const char *name,const char *value,int fl
     int id;
     if(!strcmp(name,"tceft")||!strcmp(name,"tceftgear")){CHECK(!strcmp(value,"1")&&(flags&CVAR_USERINFO));return;}
     if(!strcmp(name,"cg_drawIcons")){CHECK(!strcmp(value,"1")&&flags==CVAR_ARCHIVE);iconCvar=cvar;cvar->integer=iconsEnabled;return;}
-    id=!strcmp(name,"cg_wideScreen")?0:!strcmp(name,"cg_hudScale")?1:!strcmp(name,"cg_hudMaxHeight")?2:!strcmp(name,"ui_menuScale")?3:!strcmp(name,"ui_menuMaxHeight")?4:-1;
+    id=!strcmp(name,"cg_wideScreen")?0:!strcmp(name,"cg_hudScale")?1:!strcmp(name,"cg_hudMaxHeight")?2:!strcmp(name,"ui_menuScale")?3:!strcmp(name,"ui_menuMaxHeight")?4:!strcmp(name,"cg_compassScale")?5:!strcmp(name,"cg_fireteamScale")?6:-1;
     CHECK(id>=0&&flags==CVAR_ARCHIVE);if(id<0)return;
-    CHECK(!strcmp(value,id==0||id==3?"1":id==1?"0.85":"1080"));hudCvars[id]=cvar;
-    cvar->value=id==0?(float)modernHud:id==1?hudUserScale:id==3?1.f:hudHeightCap;cvar->integer=(int)cvar->value;
+    CHECK(!strcmp(value,id==0||id==3?"1":id==1||id==5||id==6?"0.85":"1080"));hudCvars[id]=cvar;
+    cvar->value=id==0?(float)modernHud:id==1?hudUserScale:id==3?1.f:id==5?compassUserScale:id==6?fireteamUserScale:hudHeightCap;cvar->integer=(int)cvar->value;
 }
 void trap_Cvar_Update(vmCvar_t *cvar)
 {
     int id;
     if(cvar==iconCvar){cvar->integer=iconsEnabled;return;}
-    for(id=0;id<5;++id)if(hudCvars[id]==cvar){cvar->value=id==0?(float)modernHud:id==1?hudUserScale:id==3?1.f:hudHeightCap;cvar->integer=(int)cvar->value;return;}
+    for(id=0;id<7;++id)if(hudCvars[id]==cvar){cvar->value=id==0?(float)modernHud:id==1?hudUserScale:id==3?1.f:id==5?compassUserScale:id==6?fireteamUserScale:hudHeightCap;cvar->integer=(int)cvar->value;return;}
     CHECK(0);
 }
 const char *CG_Argv(int index) { return index>=0&&index<argumentCount?arguments[index]:""; }
@@ -75,6 +77,9 @@ const char *CG_ConfigString(int index)
 }
 int CG_Text_Width_Ext(const char *text,float scale,int limit,fontInfo_t *font)
 { (void)limit;(void)font;return (int)(strlen(text)*scale*32.f); }
+int CG_Text_Height_Ext(const char *text,float scale,int limit,fontInfo_t *font)
+{ (void)text;(void)scale;(void)limit;(void)font;return 12; }
+char *BindingFromName(const char *name) { CHECK(!strcmp(name,"toggleobjectivedesc"));return "F5"; }
 void CG_Text_Paint_Ext(float x,float y,float sx,float sy,vec4_t color,const char *text,float adjust,int limit,int style,fontInfo_t *font)
 {
     (void)adjust;(void)limit;lastPaintFont=font;lastPaintStyle=style;
@@ -85,7 +90,7 @@ void CG_Text_Paint_Ext(float x,float y,float sx,float sy,vec4_t color,const char
     if(paintCount<64){paints[paintCount].x=x;paints[paintCount].y=y;paints[paintCount].scale=sx;memcpy(paints[paintCount].color,color,sizeof(vec4_t));Q_strncpyz(paints[paintCount++].text,text,256);}
 }
 void CG_FillRect(float x,float y,float w,float h,const float *color)
-{ (void)x;(void)y;(void)color;CHECK(w>=0&&h>=0);if(!fills)panelHeight=h;if(h==4){lastBarWidth=w;if(w==25)barStart=x;}++fills; }
+{ (void)x;(void)y;(void)color;CHECK(w>=0&&h>=0);if(!fills){panelHeight=h;physicalPanel.x=x;physicalPanel.y=y;physicalPanel.w=w;physicalPanel.h=h;CG_AdjustFrom640(&physicalPanel.x,&physicalPanel.y,&physicalPanel.w,&physicalPanel.h);}if(h==4){lastBarWidth=w;if(w==25)barStart=x;}++fills; }
 qhandle_t trap_R_RegisterShaderNoMip(const char *name) { CHECK(strstr(name,"sprites/")||strstr(name,"gfx/tce2/nav/")||strstr(name,"gfx/tce2/fireteam/"));return 42; }
 void CG_Trace(trace_t *out,const vec3_t start,const vec3_t mins,const vec3_t maxs,const vec3_t end,int skip,int mask)
 { (void)start;(void)mins;(void)maxs;VectorCopy(end,tracedHeadPoint);CHECK(skip==snapshot.ps.clientNum&&mask==(CONTENTS_SOLID|CONTENTS_BODY));memset(out,0,sizeof(*out));out->fraction=traceBlocked?.5f:1.f;out->entityNum=ENTITYNUM_WORLD;++traceCalls; }
@@ -150,7 +155,7 @@ static void setup(void)
     memset(fireteamConfig,0,sizeof(fireteamConfig));
     cg.snap=&snapshot;cg.clientNum=0;cg.time=10000;snapshot.ps.clientNum=0;snapshot.ps.stats[STAT_HEALTH]=100;
     cg_paused.integer=0;cg_aspectMode.integer=0;tce_uiCoordinates=qfalse;
-    modernHud=0;hudUserScale=.85f;hudHeightCap=1080;CG_HudViewportInit();
+    modernHud=0;hudUserScale=compassUserScale=fireteamUserScale=.85f;hudHeightCap=1080;CG_HudViewportInit();
     cgs.glconfig.vidWidth=1280;cgs.glconfig.vidHeight=720;cgs.screenXScale=2.f;cgs.screenYScale=1.5f;
     cg_pmWaitingList=cg_pmOldList=NULL;popupBottom=0;picCount=paintCount=0;
     rendered[0]=0;draws=fills=0;
@@ -521,10 +526,16 @@ static float screenY(float y)
     float x=0,w=0,h=1; qboolean before=tce_uiCoordinates;
     tce_uiCoordinates=qtrue;CG_AdjustFrom640(&x,&y,&w,&h);tce_uiCoordinates=before;return y;
 }
-static float sdkScreenY(float y)
+static float measuredFireteamBottom(void)
 {
-    float x=0,w=0,h=1;qboolean before=tce_uiCoordinates;
-    tce_uiCoordinates=qfalse;CG_AdjustFrom640(&x,&y,&w,&h);tce_uiCoordinates=before;return y;
+    float bottom;
+    render();
+    CHECK(physicalPanel.x>=-.01f&&physicalPanel.y>=-.01f);
+    CHECK(physicalPanel.x+physicalPanel.w<=cgs.glconfig.vidWidth+.01f);
+    CHECK(physicalPanel.y+physicalPanel.h<=cgs.glconfig.vidHeight+.01f);
+    bottom=physicalPanel.y+physicalPanel.h+8.f*physicalPanel.h/panelHeight;
+    paintCount=picCount=0;rendered[0]=0;
+    return bottom;
 }
 static void textBelowFireteam(void)
 {
@@ -544,6 +555,7 @@ static void textBelowFireteam(void)
         cgs.glconfig.vidWidth=widths[screen];cgs.glconfig.vidHeight=heights[screen];
         cgs.screenXScale=widths[screen]/640.f;cgs.screenYScale=heights[screen]/480.f;
         cg_aspectMode.integer=aspect;snapshot.ps.persistant[PERS_RESPAWNS_LEFT]=respawn;
+        bottom=measuredFireteamBottom();
         memset(popupItems,0,sizeof(popupItems));
         for(i=0;i<messages[n];++i){
             strcpy(popupItems[i].message,"Kill / Death notification");popupItems[i].time=cg.time;
@@ -551,7 +563,6 @@ static void textBelowFireteam(void)
         }
         cg_pmWaitingList=messages[n]?popupItems:NULL;cg_pmOldList=messages[n]>1?&popupItems[1]:NULL;
         CG_DrawPMItems();CHECK(!tce_uiCoordinates);CHECK(picCount==messages[n]);
-        bottom=sdkScreenY(8+CG_TCEFireteamHeight()+8);
         start=screenY(CG_TCEFireteamTextY(-480));CHECK(start>=bottom-.01f);
         for(i=0;i<picCount;++i){
             CHECK(screenY(pictures[i].y)>=bottom-.01f);
@@ -574,15 +585,15 @@ static void modernTextBelowFireteam(void)
 {
     const int widths[]={1024,1280,1280,3440,3840},heights[]={768,720,800,1440,2160};
     const float scales[]={.5f,.85f,1.f,1.5f};
-    const int counts[]={1,3,6};int screen,scale,n,c,i;
+    const int counts[]={1,3,6};int screen,scale,ftscale,n,c,i;
     vec4_t white={1,1,1,1};
-    for(c=0;c<3;++c)for(screen=0;screen<5;++screen)for(scale=0;scale<4;++scale)for(n=0;n<3;++n){
+    for(c=0;c<3;++c)for(screen=0;screen<5;++screen)for(scale=0;scale<4;++scale)for(ftscale=0;ftscale<4;++ftscale)for(n=0;n<3;++n){
         float minimum,physical,baseline;
         setup();for(i=0;i<6;++i){cgs.clientinfo[i].infoValid=i<counts[c];cgs.clientinfo[i].team=TEAM_AXIS;cgs.clientinfo[i].fireteamData=i<counts[c]?&cg.fireTeams[0]:NULL;}
         CG_SortClientFireteam();cgs.glconfig.vidWidth=widths[screen];cgs.glconfig.vidHeight=heights[screen];
         cgs.screenXScale=widths[screen]/640.f;cgs.screenYScale=heights[screen]/480.f;
-        modernHud=1;hudUserScale=scales[scale];CG_HudViewportUpdate();CG_HudViewportBegin(0,0);
-        minimum=sdkScreenY(8+CG_TCEFireteamHeight()+8);physical=screenY(CG_TCEFireteamTextY(-480));
+        modernHud=1;hudUserScale=scales[scale];fireteamUserScale=scales[ftscale];CG_HudViewportUpdate();CG_HudViewportBegin(0,0);
+        minimum=measuredFireteamBottom();physical=screenY(CG_TCEFireteamTextY(-480));
         CHECK(fabsf(physical-minimum)<.02f);CHECK(!tce_uiCoordinates);
         /* All real popup records use the TC canvas, while FT uses SDK640.
          * Verify their physical top instead of assuming equal native scales. */
@@ -598,8 +609,51 @@ static void modernTextBelowFireteam(void)
         CG_HudViewportEnd();CHECK(!tce_uiCoordinates);
     }
 }
+static void compassAdjacentText(void)
+{
+    const int widths[]={640,800,1280,3440},heights[]={480,600,720,1440};
+    const float hudSizes[]={.5f,1.25f},compassSizes[]={.5f,1.25f,1.5f};
+    int screen,hud,compass,wide,aspect,mode,i,z;
+    float x,y,w,h,bottom,radarY;
+    cg_hud_widget_scope_t previous;
+    for(screen=0;screen<4;++screen)for(hud=0;hud<2;++hud)for(compass=0;compass<3;++compass)
+    for(wide=0;wide<2;++wide)for(aspect=0;aspect<3;++aspect)for(mode=1;mode<=2;++mode){
+        setup();modernHud=wide;hudUserScale=hudSizes[hud];compassUserScale=compassSizes[compass];
+        cgs.glconfig.vidWidth=widths[screen];cgs.glconfig.vidHeight=heights[screen];
+        cgs.screenXScale=widths[screen]/640.f;cgs.screenYScale=heights[screen]/480.f;
+        CG_HudViewportUpdate();CG_HudViewportBegin(1,0);cg_aspectMode.integer=aspect;
+        cg_drawCompass.integer=mode;cgs.gametype=2;snapshot.ps.persistant[PERS_TEAM]=TEAM_AXIS;
+        snapshot.ps.holdable[13]=1;strcpy(locations[1],"Wood shed");cg.tceShowObjectiveDesc=1;
+        strcpy(cg.objDescription_Axis[0],"Capture the Terrorist's flag B");
+        radarY=CG_HudAspectMode()==1?23.33f:CG_HudAspectMode()==2?-30.f:50.f;
+        CHECK(CG_HudWidgetBegin(&previous,CG_HUD_WIDGET_COMPASS,742,radarY-50,100,100,1));
+        x=742;y=radarY-50;w=h=100;tce_uiCoordinates=qtrue;CG_AdjustFrom640(&x,&y,&w,&h);
+        bottom=y+h;CG_HudWidgetEnd(&previous);tce_uiCoordinates=qfalse;
+        paintCount=0;rendered[0]=0;CG_DrawObjectiveDesc();CHECK(paintCount==3&&!tce_uiCoordinates);
+        CHECK(strstr(rendered,"Wood shed")&&strstr(rendered,"Press F5 to hide")&&strstr(rendered,"Capture the Terrorist's flag B"));
+        for(i=0;i<paintCount;++i){
+            CHECK(paints[i].scale==.19f&&lastPaintFont==&cgs.media.limboFont1&&lastPaintStyle==3);
+            x=paints[i].x;y=paints[i].y-12;w=(float)CG_Text_Width_Ext(paints[i].text,.19f,0,&cgs.media.limboFont1);h=12;
+            tce_uiCoordinates=qtrue;CG_AdjustFrom640(&x,&y,&w,&h);tce_uiCoordinates=qfalse;
+            CHECK(y>=bottom-.01f&&x>=-.01f&&x+w<=widths[screen]+.01f&&y+h<=heights[screen]+.01f);
+        }
+        memset(cg.objDescription_Axis[0],'z',255);cg.objDescription_Axis[0][255]=0;
+        paintCount=0;rendered[0]=0;CG_DrawObjectiveDesc();CHECK(paintCount>=4);
+        z=0;for(i=0;rendered[i];++i)if(rendered[i]=='z')++z;CHECK(z==255);
+        for(i=0;i<paintCount;++i){
+            x=paints[i].x;y=paints[i].y-12;w=(float)CG_Text_Width_Ext(paints[i].text,.19f,0,&cgs.media.limboFont1);h=12;
+            tce_uiCoordinates=qtrue;CG_AdjustFrom640(&x,&y,&w,&h);tce_uiCoordinates=qfalse;
+            CHECK(y>=bottom-.01f&&x>=-.01f&&x+w<=widths[screen]+.01f&&y+h<=heights[screen]+.01f);
+        }
+        CG_HudViewportEnd();
+    }
+    setup();snapshot.ps.persistant[PERS_TEAM]=TEAM_AXIS;snapshot.ps.holdable[13]=1;strcpy(locations[1],"Wood shed");
+    cg_drawCompass.integer=0;paintCount=0;rendered[0]=0;CG_DrawObjectiveDesc();CHECK(paintCount==1&&paints[0].y==101);
+    snapshot.ps.pm_flags=PMF_LIMBO;paintCount=0;CG_DrawObjectiveDesc();CHECK(!paintCount);
+}
+
 int main(void)
 {
-    protocolAndPresentation();sorting();fullFireteam();membershipAndSlotReuse();following();hudIntegration();compactLayout();textBelowFireteam();modernTextBelowFireteam();gearAndMeasuredLayout();objectiveAndNames();overheadNames();
+    protocolAndPresentation();sorting();fullFireteam();membershipAndSlotReuse();following();hudIntegration();compactLayout();textBelowFireteam();modernTextBelowFireteam();gearAndMeasuredLayout();objectiveAndNames();overheadNames();compassAdjacentText();
     printf("Fireteam client: %i checks, %i failures\n",checks,failures);return failures?1:0;
 }

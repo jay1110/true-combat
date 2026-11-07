@@ -74,6 +74,11 @@ menuDef {
 	MULTI( 8, 386-184+60, (SUBWINDOW_WIDTH)-4, 10, "Blood Splatter:", .2, 8, "cg_bloodDamageBlend", cvarFloatList { "None" 0.0 "Light" 0.25 "Medium" 0.5 "Heavy" 0.75 "Full" 1.0 }, "Blood \"splatter\" transparency when taking damage from other players" )
 	MULTI( 8, 398-184+60, (SUBWINDOW_WIDTH)-4, 10, "Gun Position:", .2, 8, "cg_gunPosition", cvarFloatList { "More centered" 0 "Default" 1 "More to right" 2  }, "Horizontal position of view weapon" )
 
+// Independent corner widget sizes //
+	SUBWINDOW( 6, 288, (SUBWINDOW_WIDTH), 48, "Widget Size" )
+	SLIDER( 8, 304, (SUBWINDOW_WIDTH)-4, 10, "Compass Size:", .2, 8, "cg_compassScale" 0.85 0.5 1.5, "Resize the compass independently of HUD size" )
+	SLIDER( 8, 316, (SUBWINDOW_WIDTH)-4, 10, "Fireteam Size:", .2, 8, "cg_fireteamScale" 0.85 0.5 1.5, "Resize the fireteam panel independently of HUD size" )
+
 // Buttons //
 
 	BUTTON( 6, WINDOW_HEIGHT-24, WINDOW_WIDTH-12, 18, "Back", .3, 14, close options_customise_hud ; open options )

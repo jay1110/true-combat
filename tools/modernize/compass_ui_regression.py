@@ -44,6 +44,12 @@ def main():
         raise RuntimeError('Navigation TGAs are not registered during real CGame media initialization')
     if 'CG_DrawCompassBackdrop(y, lastangle);' not in radar_draw:
         raise RuntimeError('Real radar does not call the tested compass backdrop')
+    reservation = function(draw_source, 'CG_TCECompassTextY')
+    objective = function(draw_source, 'CG_DrawObjectiveDesc')
+    if ('CG_HudWidgetBegin(&widget, CG_HUD_WIDGET_COMPASS, 742, y - 50, 100, 100, 1)' not in radar_draw or
+            'CG_HudWidgetBegin(&widget, CG_HUD_WIDGET_COMPASS, 742, y - 50, 100, 100, 1)' not in reservation or
+            'CG_TCECompassTextY(' not in objective or objective.count('CG_DrawTCECompassText(') != 3):
+        raise RuntimeError('Objective/location text does not reserve the actual compass bounds')
     if 'if (cg_drawCompass.integer)' not in frame_draw or 'CG_DrawRadar();' not in frame_draw.split('if (cg_drawCompass.integer)', 1)[1].split('}', 1)[0]:
         raise RuntimeError('Compass Off is not guarded by the actual HUD frame dispatch')
     units = [function((ROOT / p).read_text(encoding='utf-8-sig'), n) for p, names in FUNCTIONS.items() for n in names]

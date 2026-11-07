@@ -46,6 +46,7 @@ vmCvar_t g_fraglimit;
 vmCvar_t g_timelimit;
 vmCvar_t g_friendlyFire;
 vmCvar_t g_countryflags;
+vmCvar_t g_oss;
 vmCvar_t g_password;
 vmCvar_t sv_privatepassword;
 vmCvar_t g_maxclients;
@@ -295,6 +296,7 @@ cvarTable_t gameCvarTable[] =
 
 	{ &g_friendlyFire,            "g_friendlyFire",            "1",                          516, 0, 0, 0, 0                },
 	{ &g_countryflags,            "g_countryflags",            "1",                          CVAR_ARCHIVE | CVAR_LATCH, 0, qfalse },
+	{ &g_oss,                     "g_oss",                     "511",                        CVAR_SERVERINFO, 0, qfalse },
 
 	{ &g_teamForceBalance,        "g_teamForceBalance",        "0",                          CVAR_ARCHIVE                   }, // NERVE - SMF - merge from team arena
 

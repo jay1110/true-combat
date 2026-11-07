@@ -10,6 +10,13 @@ int CG_HudAspectMode(void);
 void CG_MenuViewportBegin(void);
 void CG_MenuViewportEnd(void);
 int CG_MenuViewportActive(void);
+enum { CG_HUD_WIDGET_COMPASS = 1, CG_HUD_WIDGET_FIRETEAM };
+typedef struct { int active; float scale, offsetX, offsetY; } cg_hud_widget_scope_t;
+/* Independent corner widgets restore the surrounding HUD/menu transform.
+ * Bounds are in the widget's native640 or TCE canvas, never screen pixels. */
+int CG_HudWidgetBegin(cg_hud_widget_scope_t *previous, int widget,
+                      float x, float y, float w, float h, int tceCanvas);
+void CG_HudWidgetEnd(const cg_hud_widget_scope_t *previous);
 void CG_HudViewportBegin(float anchorX, float anchorY);
 void CG_HudViewportAnchor(float anchorX, float anchorY);
 void CG_HudViewportEnd(void);

@@ -25,11 +25,14 @@ def main():
     meta=json.loads(art.read_bytes());names=sorted({row['shader'] for row in meta['files']}|set(meta['native_aliases']))
     text=text.replace('/* EXPECTED_SHADER_NAMES */','static const char *expectedShaderNames[]={'+','.join(json.dumps(name) for name in names)+'};')
     text=text.replace('/* ACTUAL_WINDOW_PAINT */',function(shared.read_text(encoding='utf8'),'Window_Paint'))
+    text=text.replace('/* ACTUAL_FOCUS_PAINT */',function(shared.read_text(encoding='utf8'),'TCE_ModernItemFocusPaint'))
+    item_paint=function(shared.read_text(encoding='utf8'),'Item_Paint')
+    assert item_paint.index('Window_Paint(')<item_paint.index('TCE_ModernItemFocusPaint(item);')<item_paint.index('switch (item->type)')
     text=text.replace('/* ACTUAL_MENU_PAINT */',function(shared.read_text(encoding='utf8'),'Menu_Paint'))
     generated=out/'theme-fixture.c';generated.write_text(text,encoding='utf8',newline='\n')
     if os.name=='nt':env,compiler=msvc_environment(out,'x64' if a.sanitize else 'x86','14.44' if a.sanitize else '14.39')
     else:env=os.environ.copy();compiler=shutil.which('clang') or shutil.which('gcc')
-    report={'source_sha256':{str(path.relative_to(ROOT)):hashlib.sha256(path.read_bytes()).hexdigest() for path in (implementation,fixture,shared,sdk,art,Path(__file__),ROOT/'src/game/q_shared.h',ROOT/'src/ui/ui_shared.h')},'runs':{},
+    report={'source_sha256':{str(path.relative_to(ROOT)):hashlib.sha256(path.read_bytes()).hexdigest() for path in (implementation,fixture,shared,sdk,art,Path(__file__),ROOT/'src/game/q_shared.h',ROOT/'src/ui/ui_shared.h',ROOT/'src/ui/tce_modern_ui.h')},'runs':{},
             'limits':['Actual optional theme code and cvar/image services; does not prove native raster output, real input or VFS font ordering.']}
     for mode in ('ui','cgame'):
         directory=out/mode;directory.mkdir(exist_ok=True);exe=directory/('theme.exe' if os.name=='nt' else 'theme')

@@ -761,15 +761,18 @@ CG_DrawTeamInfo
 */
 float CG_TCEFireteamTextY(float y)
 {
+	cg_hud_widget_scope_t widget;
 	extern qboolean tce_uiCoordinates;
 	qboolean previous = tce_uiCoordinates;
 	float height = CG_TCEFireteamHeight(), x = 0, top = 0, w = 0, scale = 1, minimum, bottom;
 	if (height <= 0.f) return y;
 	/* FT uses the SDK640 canvas; popup/status text uses the aspect-aware TCE
 	 * canvas. Derive its offset/scale through the existing renderer adapter. */
+	if (!CG_HudWidgetBegin(&widget, CG_HUD_WIDGET_FIRETEAM, 8, 8, CG_TCEFireteamWidth(), height, 0)) return y;
 	tce_uiCoordinates = qfalse;
 	bottom = 8.f + height + 8.f;
 	CG_AdjustFrom640(&x, &bottom, &w, &top);
+	CG_HudWidgetEnd(&widget);
 	x = top = w = 0;
 	tce_uiCoordinates = qtrue;
 	CG_AdjustFrom640(&x, &top, &w, &scale);
@@ -4862,6 +4865,7 @@ static void CG_UpdateRadarHeading(float viewYaw, float *lastAngle, float *angleS
 
 static void CG_DrawRadar(void)
 {
+	cg_hud_widget_scope_t widget;
 	extern qboolean tce_uiCoordinates;
 	qboolean previous = tce_uiCoordinates;
 	snapshot_t *snap  = (cg.nextSnap && !cg.nextFrameTeleport && !cg.thisFrameTeleport)?cg.nextSnap:cg.snap;
@@ -4872,6 +4876,7 @@ static void CG_DrawRadar(void)
 		return;
 	}
 	y = CG_HudAspectMode() == 1 ? 23.33f : CG_HudAspectMode() == 2 ? -30.f : 50.f;
+	if (!CG_HudWidgetBegin(&widget, CG_HUD_WIDGET_COMPASS, 742, y - 50, 100, 100, 1)) return;
 	tce_uiCoordinates = qtrue; trap_R_SetColor(colorWhite);
 #if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 	CG_UpdateRadarHeading(cg.predictedPlayerState.viewangles[YAW], &lastangle, &anglespeed);
@@ -4988,6 +4993,7 @@ static void CG_DrawRadar(void)
 			}
 		}
 	}
+	CG_HudWidgetEnd(&widget);
 	tce_uiCoordinates = previous;
 }
 
@@ -5916,14 +5922,69 @@ static void CG_DrawLevelshotFade(void)
 /* Complete TC300217d0 / Linux000499e4. The description is team objective0,
  * not the map briefing and not the SDK current-objective panel. */
 extern vmCvar_t cg_aspectMode;
+/* Compass geometry has its own scale. Reserve its actual physical bottom,
+ * then return to the surrounding HUD text coordinates without resizing text. */
+static float CG_TCECompassTextY(float top)
+{
+	cg_hud_widget_scope_t widget;
+	float y, bottom, origin = 0.f, unit = 1.f, x = 0.f, w = 0.f, h = 0.f;
+	if (!cg_drawCompass.integer) return top;
+	y = CG_HudAspectMode() == 1 ? 23.33f : CG_HudAspectMode() == 2 ? -30.f : 50.f;
+	if (!CG_HudWidgetBegin(&widget, CG_HUD_WIDGET_COMPASS, 742, y - 50, 100, 100, 1)) return top;
+	bottom = y + 50.f + 8.f;
+	CG_AdjustFrom640(&x, &bottom, &w, &h);
+	CG_HudWidgetEnd(&widget);
+	x = w = 0.f;
+	CG_AdjustFrom640(&x, &origin, &w, &unit);
+	if (!(unit > 0.f)) return top;
+	y = (bottom - origin) / unit;
+	return top < y ? y : top;
+}
+
+/* Wrap long map/location strings at the actual HUD screen bounds. Short
+ * strings retain their original right alignment, font and user HUD scale. */
+static float CG_DrawTCECompassText(const char *text, float baseline, float advance)
+{
+	vec4_t color = { .75f, .75f, .75f, 1 };
+	float x = 0.f, y = 0.f, unit = 1.f, h = 1.f, left, right, available;
+	const char *next = text;
+	char line[1024];
+	CG_AdjustFrom640(&x, &y, &unit, &h);
+	if (!(unit > 0.f)) return baseline;
+	left = (0.f - x) / unit + 8.f; if (left < 8.f) left = 8.f;
+	right = (cgs.glconfig.vidWidth - x) / unit - 8.f; if (right > 840.f) right = 840.f;
+	available = right - left;
+	if (!(available > 0.f)) return baseline;
+	while (*next)
+	{
+		int length = 0, space = -1, width;
+		const char *start = next;
+		while (*next && *next != '\n' && *next != '\r' && length < (int)sizeof(line) - 1)
+		{
+			line[length++] = *next++; line[length] = '\0';
+			if (line[length - 1] == ' ') space = length - 1;
+			if (CG_Text_Width_Ext(line, .19f, 0, &cgs.media.limboFont1) > available && length > 1)
+			{
+				if (space > 0) { next = start + space + 1; length = space; }
+				else { --next; --length; }
+				break;
+			}
+		}
+		line[length] = '\0';
+		width = CG_Text_Width_Ext(line, .19f, 0, &cgs.media.limboFont1);
+		CG_Text_Paint_Ext(right - width, baseline, .19f, .19f, color, line, 0, 0, 3, &cgs.media.limboFont1);
+		baseline += advance;
+		while (*next == ' ' || *next == '\n' || *next == '\r') ++next;
+	}
+	return baseline;
+}
+
 static void CG_DrawObjectiveDesc(void)
 {
 	extern qboolean tce_uiCoordinates;
 	char text[1024];
 	const char *description = NULL, *binding, *location;
-	vec4_t color = { .75f, .75f, .75f, 1 };
-	float y;
-	int width;
+	float y, textHeight, advance;
 	qboolean previous = tce_uiCoordinates;
 	if ((cg.snap->ps.pm_flags & PMF_LIMBO) ||
 	    cg.snap->ps.persistant[PERS_TEAM] == TEAM_SPECTATOR || cg.mvTotalClients > 0)
@@ -5932,12 +5993,15 @@ static void CG_DrawObjectiveDesc(void)
 	}
 	y                 = CG_HudAspectMode() == 1 ? 84.33f : CG_HudAspectMode() == 2 ? 31.f : 111.f;
 	tce_uiCoordinates = qtrue;
+	textHeight = CG_Text_Height_Ext("ABCDEFGHIJKLMNOPQRSTUVWXYZgjpqy", .19f, 0, &cgs.media.limboFont1);
+	advance = textHeight + 3.f; if (advance < 12.f) advance = 12.f;
+	y = CG_TCECompassTextY(y - 10.f - textHeight) + textHeight;
 	if (cg.snap->ps.holdable[13] && (location = CG_ConfigString(CS_LOCATIONS + cg.snap->ps.holdable[13])) != NULL)
 	{
 		Com_sprintf(text, sizeof(text), "%s", location);
-		width = CG_Text_Width_Ext(text, .19f, 0, &cgs.media.limboFont1);
-		CG_Text_Paint_Ext(840 - width, y - 10, .19f, .19f, color, text, 0, 0, 3, &cgs.media.limboFont1);
+		y = CG_DrawTCECompassText(text, y, advance);
 	}
+	else y += advance;
 	if (cgs.gametype != 7 && cg.tceShowObjectiveDesc)
 	{
 		if (cg.snap->ps.persistant[PERS_TEAM] == TEAM_AXIS)
@@ -5958,11 +6022,9 @@ static void CG_DrawObjectiveDesc(void)
 			binding = "ESCAPE";
 		}
 		Com_sprintf(text, sizeof(text), "Press %s to hide", binding);
-		width = CG_Text_Width_Ext(text, .19f, 0, &cgs.media.limboFont1);
-		CG_Text_Paint_Ext(840 - width, y + 2, .19f, .19f, color, text, 0, 0, 3, &cgs.media.limboFont1);
+		y = CG_DrawTCECompassText(text, y, advance);
 		Q_strncpyz(text, description, sizeof(text));
-		width = CG_Text_Width_Ext(text, .19f, 0, &cgs.media.limboFont1);
-		CG_Text_Paint_Ext(840 - width, y + 12, .19f, .19f, color, text, 0, 0, 3, &cgs.media.limboFont1);
+		CG_DrawTCECompassText(text, y, advance);
 	}
 	tce_uiCoordinates = previous;
 }

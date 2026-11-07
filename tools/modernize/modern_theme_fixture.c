@@ -21,7 +21,7 @@ static displayContextDef_t services, *DC=&services;
 static menuDef_t *tceMenuViewportPaintMenu;
 static int itemPaintCalls,scriptCalls;
 static vec4_t color;
-static struct { qhandle_t shader; vec4_t color; int reset; } draws[4];
+static struct { qhandle_t shader; vec4_t color; int reset; float x,y,w,h; } draws[4];
 vec4_t tceModernWhite={.93f,.96f,.98f,1}, tceModernMuted={.55f,.64f,.72f,1}, tceModernAmber={.96f,.73f,.27f,1};
 
 static void check(int condition, const char *label)
@@ -71,8 +71,7 @@ void trap_R_SetColor(const float *value)
 { int i;nullColor=value==NULL;for(i=0;i<4;++i)color[i]=value?value[i]:1; }
 void UI_DrawHandlePic(float x,float y,float w,float h,qhandle_t shader)
 {
-    (void)x;(void)y;(void)w;(void)h;
-    if(drawCount<4){draws[drawCount].shader=shader;draws[drawCount].reset=nullColor;memcpy(draws[drawCount].color,color,sizeof(color));}
+    if(drawCount<4){draws[drawCount].shader=shader;draws[drawCount].reset=nullColor;memcpy(draws[drawCount].color,color,sizeof(color));draws[drawCount].x=x;draws[drawCount].y=y;draws[drawCount].w=w;draws[drawCount].h=h;}
     ++drawCount;
 }
 void CG_DrawPic(float x,float y,float w,float h,qhandle_t shader) { UI_DrawHandlePic(x,y,w,h,shader); }
@@ -93,6 +92,20 @@ static void GradientBar_Paint(rectDef_t *rect,const vec4_t value)
 
 /* ACTUAL_WINDOW_PAINT */
 
+static int controlEnabled=1;
+static qboolean Item_EnableShowViaCvar(itemDef_t *item,int flag)
+{ (void)item;check(flag==CVAR_ENABLE,"Focus uses the native enable/disable cvar gate");return controlEnabled; }
+/* ACTUAL_FOCUS_PAINT */
+
+static float relativeLuminance(const float *rgb)
+{
+    int i;double result=0;const double weights[]={.2126,.7152,.0722};
+    for(i=0;i<3;++i)result+=weights[i]*(rgb[i]<=.04045 ? rgb[i]/12.92 : pow((rgb[i]+.055)/1.055,2.4));
+    return (float)result;
+}
+static float contrast(const float *a,const float *b)
+{ float x=relativeLuminance(a),y=relativeLuminance(b);return x>y?(x+.05f)/(y+.05f):(y+.05f)/(x+.05f); }
+
 static float noTooltips(const char *name){(void)name;return 0;}
 static int TCE_FloatIsZeroOrNaN(float value){return value==0 || isnan(value);}
 static int TCE_AddInt32(int a,int b){return (int)((unsigned)a+(unsigned)b);}
@@ -107,7 +120,7 @@ static void fresh(void)
     TCE_ModernThemeReset();memset(cvars,0,sizeof(cvars));memset(images,0,sizeof(images));
     cvarCount=registrations=updates=imageCount=imageCalls=drawCount=0;enabled=menuActive=1;milliseconds+=32;
     missingImage=NULL;missingAliases=missingAll=clobberVA=0;
-    backgroundContext=0;
+    backgroundContext=0;controlEnabled=1;
 }
 static void refresh(void) { milliseconds+=16;TCE_ModernThemeRefresh(); }
 
@@ -319,6 +332,80 @@ int main(void)
       drawCount=0;Window_Paint(&background,.075f,.55f,20);
       check(drawCount==1&&draws[0].shader==background.background&&equal(draws[0].color,white),"Background photo keeps white tint and alpha1 under Grey/Black opacity.25");
       backgroundContext=0;
+    }
+    /* Execute the production item focus painter, not synthetic menu scripts.
+     * The startup Main's transparent text-only button needs an affordance even
+     * though normal/hover neutral text map to the same palette foreground. */
+    { itemDef_t item,saved;int preset,opacity,channel;
+      static const float alphas[]={.25f,.60f,.85f,1.f};
+      fresh();TCE_ModernThemeRefresh();services.fillRect=fill;services.drawRect=border;
+      memset(&item,0,sizeof(item));item.type=ITEM_TYPE_BUTTON;
+      item.window.flags=WINDOW_VISIBLE|WINDOW_MOUSEOVER;
+      item.window.rect.x=64;item.window.rect.y=130;item.window.rect.w=128;item.window.rect.h=27;
+      item.window.style=WINDOW_STYLE_FILLED;item.window.backColor[3]=0;
+      for(preset=0;preset<10;++preset)for(opacity=0;opacity<4;++opacity){
+        vec4_t oldAccent;
+        set("ui_themePreset",(float)preset);set("ui_themeOpacityPreset",3);set("ui_themeOpacity",alphas[opacity]);refresh();
+        memcpy(oldAccent,tceModernAmber,sizeof(oldAccent));saved=item;drawCount=0;TCE_ModernItemFocusPaint(&item);
+        check(drawCount==4,"Every palette/opacity gives transparent Main buttons a visible focus treatment");
+        check(!memcmp(&item,&saved,sizeof(item)),"Focus paint never changes native layout, scripts or parsed item state");
+        check(close_float(draws[0].color[3],.14f),"Focus wash is subtle and fixed, not multiplied by global menu opacity");
+        check(draws[1].color[3]==1 && draws[2].color[3]==1,"Both narrow focus rims stay opaque at glass/custom opacity");
+        check(contrast(draws[2].color,modernTheme.base)>=4.5f,"Inner focus rim has at least4.5:1 contrast against the selected palette base");
+        check(contrast(draws[1].color,draws[2].color)>20.f,"Opposing rims remain distinguishable across bright/dark scene details");
+        check(equal(oldAccent,tceModernAmber),"Hover does not replace or mutate the selected accent");
+        for(channel=0;channel<3;++channel)check(close_float(draws[3].color[channel],oldAccent[channel]),"Focus indicator retains each original accent component");
+        for(channel=0;channel<4;++channel){
+          check(draws[channel].x>=item.window.rect.x && draws[channel].y>=item.window.rect.y,"Focus treatment stays inside its existing hitbox");
+          check(draws[channel].x+draws[channel].w<=item.window.rect.x+item.window.rect.w && draws[channel].y+draws[channel].h<=item.window.rect.y+item.window.rect.h,"Focus does not cover neighboring controls");
+        }
+      }
+      /* Saturated colors need real sRGB luminance, not an average-RGB guess.
+       * Exercise all combinations of five custom surface levels and eight
+       * accent extremes without changing either user's configured color. */
+      set("ui_themePreset",4);
+      for(i=0;i<125;++i)for(j=0;j<8;++j){
+        vec4_t wash,edge,rim,accent,scene;
+        set("ui_themeBackgroundR",(float)(i%5)/4);set("ui_themeBackgroundG",(float)((i/5)%5)/4);set("ui_themeBackgroundB",(float)(i/25)/4);
+        set("ui_themeAccentR",(float)(j&1));set("ui_themeAccentG",(float)((j>>1)&1));set("ui_themeAccentB",(float)((j>>2)&1));refresh();
+        check(TCE_ModernThemeFocusColors(wash,edge,rim,accent),"Custom palette focus colors are available in menu context");
+        check(contrast(edge,modernTheme.base)>=4.5f,"All custom palette bases retain a high-contrast inner rim");
+        for(channel=0;channel<3;++channel)check(accent[channel]==tceModernAmber[channel],"Custom RGB accent remains exact, including black/white extremes");
+        for(channel=0;channel<11;++channel){
+          float a,b;scene[0]=scene[1]=scene[2]=(float)channel/10;scene[3]=1;
+          a=contrast(scene,edge);b=contrast(scene,rim);
+          check((a>b?a:b)>=4.5f,"At least one opaque rim remains visible over every scene brightness, independent of menu transparency");
+        }
+      }
+      { static const int types[]={ITEM_TYPE_BUTTON,ITEM_TYPE_RADIOBUTTON,ITEM_TYPE_CHECKBOX,ITEM_TYPE_TRICHECKBOX,
+          ITEM_TYPE_EDITFIELD,ITEM_TYPE_NUMERICFIELD,ITEM_TYPE_YESNO,ITEM_TYPE_MULTI,ITEM_TYPE_BIND,
+          ITEM_TYPE_SLIDER};int type,focus,style;
+        for(type=0;type<(int)(sizeof(types)/sizeof(types[0]));++type)for(focus=0;focus<2;++focus)for(style=1;style<=3;++style){
+          item.type=types[type];item.window.flags=WINDOW_VISIBLE|(focus?WINDOW_HASFOCUS:WINDOW_MOUSEOVER);item.window.style=style;
+          drawCount=0;TCE_ModernItemFocusPaint(&item);check(drawCount==4,"All interactive control styles expose both mouse and keyboard focus");
+        }
+      }
+      item.type=ITEM_TYPE_BUTTON;item.window.flags=WINDOW_VISIBLE|WINDOW_MOUSEOVER;item.cvarFlags=CVAR_ENABLE;
+      controlEnabled=0;drawCount=0;TCE_ModernItemFocusPaint(&item);check(!drawCount,"Disabled cvar-driven controls never look clickable");
+      controlEnabled=1;item.cvarFlags=0;
+      for(i=0;i<8;++i){
+        item.type=ITEM_TYPE_BUTTON;item.window.flags=WINDOW_VISIBLE|WINDOW_MOUSEOVER;
+        if(i==0)item.window.flags|=WINDOW_DECORATION;
+        if(i==1)item.window.flags|=WINDOW_GREY;
+        if(i==2)item.window.flags|=WINDOW_FADINGOUT;
+        if(i==3)item.window.flags&=~WINDOW_VISIBLE;
+        if(i==4)item.type=ITEM_TYPE_OWNERDRAW;
+        if(i==5)item.type=ITEM_TYPE_LISTBOX;
+        if(i==6)item.type=ITEM_TYPE_COMBO;
+        if(i==7)item.type=ITEM_TYPE_TEXT;
+        drawCount=0;TCE_ModernItemFocusPaint(&item);check(!drawCount,"Decorative, disabled, hidden, fading and non-control surfaces stay unchanged");
+      }
+      item.type=ITEM_TYPE_BUTTON;item.window.flags=WINDOW_VISIBLE|WINDOW_MOUSEOVER;
+      enabled=0;drawCount=0;TCE_ModernItemFocusPaint(&item);check(!drawCount,"Marker-disabled legacy menu behavior is untouched");
+      enabled=1;backgroundContext=1;TCE_ModernItemFocusPaint(&item);check(!drawCount,"Fullscreen scene artwork never gets control focus paint");backgroundContext=0;
+#ifdef CGAMEDLL
+      menuActive=0;TCE_ModernItemFocusPaint(&item);check(!drawCount,"Gameplay HUD outside a menu scope never receives focus paint");menuActive=1;
+#endif
     }
     printf("checks=%d failures=%d\n",checks,failures);return failures?1:0;
 }

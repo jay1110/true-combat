@@ -3429,6 +3429,7 @@ void CG_SortClientFireteam();
 void CG_DrawFireTeamOverlay(rectDef_t *rect);
 void CG_DrawTCEFireteamOverlay(rectDef_t *rect);
 float CG_TCEFireteamHeight(void);
+float CG_TCEFireteamWidth(void);
 float CG_TCEFireteamTextY(float y);
 void CG_TCEFireteamReset(void);
 void CG_TCEFireteamInvalidate(void);

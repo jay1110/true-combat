@@ -1,6 +1,7 @@
 /* TCE fireteam presentation. The optional packet does not alter ET tinfo or
  * public engine structures, and never grants information about the enemy. */
 #include "cg_local.h"
+#include "cg_hud_viewport.h"
 #include "../game/tce_bg.h"
 #include <errno.h>
 #include <limits.h>
@@ -191,8 +192,26 @@ float CG_TCEFireteamHeight(void)
 	return count ? 18.f + count * 14.f : 0.f;
 }
 
+float CG_TCEFireteamWidth(void)
+{
+	float width = 0.f;
+	int count;
+	clientInfo_t *member;
+	char name[MAX_NAME_LENGTH];
+	if (CG_TCEFireteamHeight() <= 0.f) return 0.f;
+	for (count = 0; count < 6 && (member = CG_SortedFireTeamPlayerForPosition(count, 6)) != NULL; ++count)
+	{
+		float measured;
+		Q_strncpyz(name, member->name, sizeof(name)); CG_TCEFireteamName(name);
+		measured = (float)CG_Text_Width_Ext(name, .14f, 0, &cgs.media.limboFont2);
+		if (measured > width) width = measured;
+	}
+	return 195.f + width;
+}
+
 void CG_DrawTCEFireteamOverlay(rectDef_t *rect)
 {
+	cg_hud_widget_scope_t widget;
 	vec4_t background = { .035f, .045f, .04f, .82f }, border = { .44f, .49f, .42f, .7f };
 	vec4_t muted = { .69f, .74f, .67f, 1.f };
 	vec4_t white = { .92f, .94f, .88f, 1.f }, good = { .48f, .8f, .38f, 1.f };
@@ -219,6 +238,7 @@ void CG_DrawTCEFireteamOverlay(rectDef_t *rect)
 	}
 	barX = 24.f + nameWidth + 5.f; classX = barX + 30.f;
 	weaponX = classX + 13.f; locationX = weaponX + 39.f; width = locationX + 84.f;
+	if (!CG_HudWidgetBegin(&widget, CG_HUD_WIDGET_FIRETEAM, x, y, width, 18.f + count * 14.f, 0)) return;
 	CG_FillRect(x, y, width, 18.f + count * 14.f, background);
 	CG_DrawRect(x, y, width, 18.f + count * 14.f, 1.f, border);
 	Com_sprintf(text, sizeof(text), "Fireteam %s", ft->ident >= 0 && ft->ident < MAX_FIRETEAMS / 2 ?
@@ -280,4 +300,5 @@ void CG_DrawTCEFireteamOverlay(rectDef_t *rect)
 		CG_TCEFireteamFit(text, 78.f, .13f);
 		CG_Text_Paint_Ext(x + locationX, row + 10, .13f, .13f, muted, text, 0, 0, 0, &cgs.media.limboFont2);
 	}
+	CG_HudWidgetEnd(&widget);
 }

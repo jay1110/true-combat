@@ -182,6 +182,8 @@ def apply(text,relative):
             plan=_plan_controls(groups)
         elif page=='options_customise_hud.menu':
             plan=[('hud display',24,60,384,30),('in-game display',444,60,384,34)]
+            if 'widget size' in groups:
+                plan.append(('widget size',444,360,384,25))
             for section,x,y,w,row_h in plan:
                 if y+22+len(groups[section]['rows'])*row_h>432:
                     raise ValueError('HUD settings section exceeds safe footer boundary: '+section)

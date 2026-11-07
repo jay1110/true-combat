@@ -1020,8 +1020,8 @@
       "sha256": "81b9c086961c009b56eb897be9e8262e248f14e0811570d324f6a5cd3ba286a4"
     },
     "ui/options_customise_hud.menu": {
-      "bytes": 10663,
-      "sha256": "28a2c5b788fe35acdffb2dc87f87200645f92342716e2ff9d089d48c24c16233"
+      "bytes": 11423,
+      "sha256": "a11518899ae1755caec908e47250f7be7ac49d24d18690a824c5d61dcf91bdb6"
     },
     "ui/options_system.menu": {
       "bytes": 12707,

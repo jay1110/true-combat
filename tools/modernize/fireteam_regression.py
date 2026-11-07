@@ -45,7 +45,7 @@ def main():
             for name in ('CG_DrawFollow','CG_DrawLimboMessage'):
                 assert 'a.paint = CG_FireteamMessagePaint; a.small = CG_FireteamMessageSmall;' in function(draw,name)
             hud=[function((ROOT/'src/cgame/cg_drawtools.c').read_text(),name) for name in ('CG_TCAdjustFrom640','CG_AdjustFrom640')]
-            hud += [function(draw,name) for name in ('CG_TCEFireteamTextY','CG_TCEFireteamStatusOffset','CG_MessagePaint','CG_MessageSmall','CG_FireteamMessagePaint','CG_FireteamMessageSmall','CG_DrawFireteamHUD','CG_DrawTeamNames')]
+            hud += [function(draw,name) for name in ('CG_TCEFireteamTextY','CG_TCEFireteamStatusOffset','CG_MessagePaint','CG_MessageSmall','CG_FireteamMessagePaint','CG_FireteamMessageSmall','CG_DrawFireteamHUD','CG_DrawTeamNames','CG_TCECompassTextY','CG_DrawTCECompassText','CG_DrawObjectiveDesc')]
             text=text.replace('/* ACTUAL_HUD_FUNCTION */','\n\n'.join(hud))
             popup=(ROOT/'src/cgame/cg_popupmessages.c').read_text()
             names=('CG_PopupPaint','CG_PopupMessageBottom','CG_PopupCompactPic','CG_PopupCompactPaint','CG_PopupDuration','CG_DrawPMItems')

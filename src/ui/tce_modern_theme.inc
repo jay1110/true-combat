@@ -106,6 +106,34 @@ void TCE_ModernThemeColor(const float *source, float *out, int surface)
     if(surface) out[3]*=modernTheme.alpha;
 }
 
+qboolean TCE_ModernThemeFocusColors(float *wash, float *edge, float *rim, float *accent)
+{
+    float luminance=0.f,ink;
+    static const float weights[]={ .2126f,.7152f,.0722f };
+    int i;
+    if(!TCE_ModernUIEnabled() || TCE_MenuViewportBackground()) return qfalse;
+#ifdef CGAMEDLL
+    if(!CG_MenuViewportActive()) return qfalse;
+#endif
+    TCE_ModernThemeRefresh();
+    for(i=0;i<3;++i)
+    {
+        float channel=modernTheme.base[i];
+        float linear=channel<=.04045f ? channel/12.92f : (float)pow((channel+.055f)/1.055f,2.4);
+        luminance+=weights[i]*linear;
+    }
+    /* Black/white always supplies at least4.5:1 against the palette surface.
+     * Its inverse outer rim remains visible over bright/dark scene details
+     * when the user chooses transparent menus. The accent itself is retained. */
+    ink=luminance>.179f ? 0.f : 1.f;
+    for(i=0;i<3;++i)
+    {
+        wash[i]=edge[i]=ink;rim[i]=1.f-ink;accent[i]=tceModernAmber[i];
+    }
+    wash[3]=.14f;edge[3]=rim[3]=accent[3]=1.f;
+    return qtrue;
+}
+
 static void TCE_ThemeRegisterImage(const char *name, const char *target)
 {
     int i=modernTheme.imageCount,written;

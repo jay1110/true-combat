@@ -537,6 +537,19 @@ def layout_reference(reference,candidate):
     YESNO( 8, 132, 384, 10, "Crosshair Names:", .2, 8, "cg_drawCrosshairNames", "Show the name of the player under your crosshair" )'''
             at=matches[0].end()
             result[hud]=(source[:at]+extra+source[at:]).encode('latin1')
+        # Two independently archived corner-widget sizes are a reviewed
+        # functional addition. Geometry can vary; cvars/ranges/help cannot.
+        sizes=(b'"cg_compassScale"',b'"cg_fireteamScale"')
+        if any(name in candidate[hud] for name in sizes) and not any(name in reference[hud] for name in sizes):
+            source=result[hud].decode('latin1')
+            marker='// Buttons //'
+            if source.count(marker)!=1:raise ValueError('Widget size controls lack the original footer anchor')
+            extra='''
+    SUBWINDOW( 6, 288, 384, 48, "Widget Size" )
+    SLIDER( 8, 304, 380, 10, "Compass Size:", .2, 8, "cg_compassScale" 0.85 0.5 1.5, "Resize the compass independently of HUD size" )
+    SLIDER( 8, 316, 380, 10, "Fireteam Size:", .2, 8, "cg_fireteamScale" 0.85 0.5 1.5, "Resize the fireteam panel independently of HUD size" )
+'''
+            result[hud]=source.replace(marker,extra+marker,1).encode('latin1')
     import video_modes
     # Only the two profile resolution lists may reuse the reviewed System
     # catalog. Every other selector operand and profile script stays exact.

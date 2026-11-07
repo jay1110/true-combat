@@ -9,6 +9,8 @@ void TCE_ModernThemeRefresh(void);
 /* surface: 0 text, 1 fill, 2 border. Never changes the input paint/state. */
 void TCE_ModernThemeColor(const float *source, float *out, int surface);
 void TCE_ModernThemePicture(float x, float y, float w, float h, qhandle_t shader, const float *color);
+/* Interactive focus ink is independent of translucent menu surfaces. */
+qboolean TCE_ModernThemeFocusColors(float *wash, float *edge, float *rim, float *accent);
 int TCE_ModernMarkerValid(const char *data, int length);
 float TCE_ModernProgress(int used, int expected);
 int TCE_ModernRosterPages(int count, int rows);

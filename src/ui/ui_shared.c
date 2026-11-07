@@ -7520,6 +7520,35 @@ static float TCE_ModernItemTextScale(itemDef_t *item, float *baseline)
     return scale;
 }
 
+static void TCE_ModernItemFocusPaint(itemDef_t *item)
+{
+	vec4_t wash,edge,rim,accent;
+	rectDef_t *rect;
+	if (!TCE_ModernUIEnabled()) return;
+	if (!(item->window.flags & WINDOW_VISIBLE) ||
+	    !(item->window.flags & (WINDOW_MOUSEOVER | WINDOW_HASFOCUS)) ||
+	    (item->window.flags & (WINDOW_DECORATION | WINDOW_GREY | WINDOW_FADINGOUT))) return;
+	switch (item->type)
+	{
+	case ITEM_TYPE_BUTTON: case ITEM_TYPE_RADIOBUTTON:
+	case ITEM_TYPE_CHECKBOX: case ITEM_TYPE_TRICHECKBOX:
+	case ITEM_TYPE_EDITFIELD: case ITEM_TYPE_NUMERICFIELD:
+	case ITEM_TYPE_YESNO: case ITEM_TYPE_MULTI: case ITEM_TYPE_BIND:
+	case ITEM_TYPE_SLIDER:
+		break;
+	default: return;
+	}
+	if ((item->cvarFlags & (CVAR_ENABLE | CVAR_DISABLE)) && !Item_EnableShowViaCvar(item,CVAR_ENABLE)) return;
+	rect=&item->window.rect;
+	if (rect->w<8.f || rect->h<8.f || !TCE_ModernThemeFocusColors(wash,edge,rim,accent)) return;
+	/* Paint before text/controls, with no hitbox, script, font or parsed color
+	 * mutations. The narrow paired rim survives any palette/opacity setting. */
+	DC->fillRect(rect->x+2,rect->y+2,rect->w-4,rect->h-4,wash);
+	DC->drawRect(rect->x,rect->y,rect->w,rect->h,2,rim);
+	DC->drawRect(rect->x+1,rect->y+1,rect->w-2,rect->h-2,1,edge);
+	DC->fillRect(rect->x+2,rect->y+2,3,rect->h-4,accent);
+}
+
 void Item_Paint(itemDef_t *item)
 {
 	vec4_t    red;
@@ -7741,6 +7770,7 @@ void Item_Paint(itemDef_t *item)
 	if (TCE_ModernUIEnabled()) item->textRect.w = item->textRect.h = 0;
 	// paint the rect first..
 	Window_Paint(&item->window, parent->fadeAmount, parent->fadeClamp, parent->fadeCycle);
+	TCE_ModernItemFocusPaint(item);
 
 	if (debugMode)
 	{

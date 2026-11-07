@@ -166,6 +166,25 @@ class SettingsLayout(unittest.TestCase):
                     self.assertGreaterEqual(rx,x);self.assertLessEqual(rx+rw,x+w)
                     self.assertLessEqual(ry+rh,y+h)
 
+    def test_independent_widget_size_sliders_keep_separate_cvars_and_space(self):
+        native=(ROOT/'src/cgame/cg_hud_viewport.c').read_text()
+        ui=(ROOT/'src/ui/ui_main.c').read_text()
+        for folder in ('pak','navstudio/editor-pak'):
+            text=restyle.read(ROOT/folder/'ui/options_customise_hud.menu')
+            groups=layout._sections(list(restyle.macro_calls(text,layout.CALLS)))
+            widget=groups['widget size']
+            self.assertEqual(list(map(float,widget['header'][3][:4])),[444,360,384,72])
+            self.assertEqual(len(widget['rows']),2)
+            self.assertLessEqual(float(groups['in-game display']['header'][3][1])+float(groups['in-game display']['header'][3][3]),354)
+            for index,(_,_,kind,args) in enumerate(widget['rows']):
+                cvar=('cg_compassScale','cg_fireteamScale')[index]
+                self.assertEqual(kind,'SLIDER')
+                self.assertEqual(sem.tokens(args[7]),sem.tokens('"'+cvar+'" 0.85 0.5 1.5'))
+                self.assertEqual(list(map(float,args[:4])),[452,378+25*index,368,25])
+                self.assertLessEqual(font_width(args[4].strip('"'),float(args[5])),179)
+                self.assertRegex(native,r'trap_Cvar_Register\(&\w+,\s*"'+cvar+r'",\s*"0.85",\s*CVAR_ARCHIVE\)')
+                self.assertRegex(ui,r'\{\s*NULL,\s*"'+cvar+r'",\s*".85",\s*CVAR_ARCHIVE\s*\}')
+
     def test_editor_name_additions_have_an_exact_independent_semantic_contract(self):
         key='ui/options_customise_hud.menu'
         original=(ROOT/'pak_original_tce'/key).read_bytes()
@@ -184,6 +203,8 @@ class SettingsLayout(unittest.TestCase):
                         (b'"Crosshair Names:"',b'"Other Names:"'),
                         (b'"cg_drawCrosshairNames"',b'"cg_drawCrosshairPickups"'),
                         (b'"Show the name of the player under your crosshair"',b'"Different behavior"'),
+                        (b'"cg_compassScale" 0.85 0.5 1.5',b'"cg_hudScale" 0.85 0.5 1.5'),
+                        (b'"cg_fireteamScale" 0.85 0.5 1.5',b'"cg_fireteamScale" 1.5 0.5 1.5'),
                         (b'"cg_drawFPS"',b'"cg_drawSnapshot"')):
             with self.subTest(old=old):
                 self.assertIn(old,data);self.assertFalse(matches(data.replace(old,new,1)))

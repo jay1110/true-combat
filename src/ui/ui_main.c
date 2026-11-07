@@ -10502,6 +10502,8 @@ cvarTable_t cvarTable[] =
 	{ NULL, "ui_menuScale", "1", CVAR_ARCHIVE },
 	{ NULL, "ui_menuMaxHeight", "1080", CVAR_ARCHIVE },
 	{ NULL, "cg_hudScale", ".85", CVAR_ARCHIVE },
+	{ NULL, "cg_compassScale", ".85", CVAR_ARCHIVE },
+	{ NULL, "cg_fireteamScale", ".85", CVAR_ARCHIVE },
 	{ NULL, "cg_hudMaxHeight", "1080", CVAR_ARCHIVE },
 
 	{ &ui_glCustom,                     "ui_glCustom",                     "4",                          CVAR_ARCHIVE                   }, // JPW NERVE missing from q3ta

@@ -35,7 +35,7 @@ static int modernEnabled;
 static qboolean TCE_ModernUIEnabled(void) { return modernEnabled; }
 /* Actual chosen-background lookup is exercised by background_regression. */
 static const char *TCE_ModernBackgroundName(void) { return "tce2_ui/background"; }
-static float hudScaleSetting=.85f,hudMaxSetting=1080;
+static float hudScaleSetting=.85f,hudMaxSetting=1080,compassScaleSetting=.85f,fireteamScaleSetting=.85f;
 static struct { struct { int vidWidth,vidHeight; } glconfig; float screenXScale,screenYScale;struct { int whiteShader,disconnectIcon,lagometerShader; } media;int eventHandling,cursorX,cursorY,cursorUpdate,localServer; } cgs;
 static displayContextDef_t cgDC;
 typedef struct { struct { int pm_type,commandTime; } ps; } testSnapshot_t;
@@ -61,7 +61,7 @@ static int speakerCalls,debriefCalls,catcher=KEYCATCH_CGAME;
 static qboolean tce_uiCoordinates;
 static struct { float x,y,w,h; } drawnRects[16];
 static int drawnCount;
-static vmCvar_t cg_aspectMode,*bound[5];
+static vmCvar_t cg_aspectMode,*bound[7];
 static int checks,failures,registrations,updates,mouseX,mouseY,mouseCalls;
 #define CHECK(c) do { ++checks;if(!(c)){++failures;printf("FAIL %i: %s\n",__LINE__,#c);} } while(0)
 static int near(float a,float b) { return fabsf(a-b)<.003f; }
@@ -107,14 +107,16 @@ static void trap_Cvar_Update(vmCvar_t *var)
     else if(var==bound[2])var->value=hudMaxSetting;
     else if(var==bound[3])var->value=menuScaleSetting;
     else if(var==bound[4])var->value=menuMaxSetting;
+    else if(var==bound[5])var->value=compassScaleSetting;
+    else if(var==bound[6])var->value=fireteamScaleSetting;
     else CHECK(0);
     var->integer=(int)var->value;++updates;
 }
 static void trap_Cvar_Register(vmCvar_t *var,const char *name,const char *value,int flags)
 {
-    int n=!strcmp(name,"cg_wideScreen")?0:!strcmp(name,"cg_hudScale")?1:!strcmp(name,"cg_hudMaxHeight")?2:!strcmp(name,"ui_menuScale")?3:!strcmp(name,"ui_menuMaxHeight")?4:-1;
+    int n=!strcmp(name,"cg_wideScreen")?0:!strcmp(name,"cg_hudScale")?1:!strcmp(name,"cg_hudMaxHeight")?2:!strcmp(name,"ui_menuScale")?3:!strcmp(name,"ui_menuMaxHeight")?4:!strcmp(name,"cg_compassScale")?5:!strcmp(name,"cg_fireteamScale")?6:-1;
     CHECK(n>=0&&flags==CVAR_ARCHIVE);if(n<0)return;
-    CHECK(!strcmp(value,n==0||n==3?"1":n==1?"0.85":"1080"));bound[n]=var;++registrations;trap_Cvar_Update(var);
+    CHECK(!strcmp(value,n==0||n==3?"1":n==1||n==5||n==6?"0.85":"1080"));bound[n]=var;++registrations;trap_Cvar_Update(var);
 }
 static int TCE_UI_WrapAdd(int a,int b) { return (int)((unsigned)a+(unsigned)b); }
 static int TCE_AddInt32(int a,int b) { return TCE_UI_WrapAdd(a,b); }
@@ -180,7 +182,7 @@ static void hudContext(void)
     const float anchors[]={0,.5f,1},scales[]={.5f,.85f,1.f,1.5f};
     int size,anchor,tc,scale,cap;float x,y,w,h,left,top,canvasWidth,fullW,fullH,marginX,marginY;
     enabled=1;hudScaleSetting=.85f;hudMaxSetting=1080;registrations=updates=0;
-    CG_HudViewportInit();CHECK(registrations==5&&updates==5&&CG_WideScreenEnabled());
+    CG_HudViewportInit();CHECK(registrations==7&&updates==7&&CG_WideScreenEnabled());
     CHECK(near(hudScale.value,.85f)&&near(hudMaxHeight.value,1080));
     cg_aspectMode.integer=2;CHECK(CG_HudAspectMode()==0);
     x=1;y=2;w=3;h=4;CHECK(CG_HudViewportAdjust(&x,&y,&w,&h,1)==0&&x==1&&y==2&&w==3&&h==4);
@@ -217,6 +219,68 @@ static void hudContext(void)
     CG_HudViewportBegin(1,1);CHECK(CG_HudViewportAdjust(&x,&y,&w,&h,1)==0&&x==1&&y==2&&w==3&&h==4);
     CG_HudViewportEnd();enabled=1;CG_HudViewportUpdate();
 }
+static void independentWidgets(void)
+{
+    const int sizes[][2]={FIT_RESOLUTION_PAIRS};
+    const float preferences[]={.5f,.85f,1.25f,1.5f,NAN,INFINITY,-INFINITY};
+    int size,setting,hud,kind,tc;float x,y,w,h,reference[4],outer[4],diameter;
+    cg_hud_widget_scope_t previous,nested;
+    enabled=1;CG_HudViewportInit();
+    for(size=0;size<(int)(sizeof(sizes)/sizeof(sizes[0]));++size)
+    for(kind=CG_HUD_WIDGET_COMPASS;kind<=CG_HUD_WIDGET_FIRETEAM;++kind)
+    for(setting=0;setting<7;++setting){
+        cgs.glconfig.vidWidth=sizes[size][0];cgs.glconfig.vidHeight=sizes[size][1];
+        tc=kind==CG_HUD_WIDGET_COMPASS;
+        compassScaleSetting=fireteamScaleSetting=preferences[setting];
+        for(hud=0;hud<3;++hud){
+            enabled=hud==0?0:1;
+            hudScaleSetting=hud==0?.5f:hud==1?.85f:1.5f;
+            hudMaxSetting=hud==0?480:hud==1?1080:0;
+            menuScaleSetting=hud==0?.5f:hud==1?1.f:1.5f;CG_HudViewportUpdate();
+            CG_HudViewportBegin(.5f,1);
+            outer[0]=100;outer[1]=50;outer[2]=30;outer[3]=20;
+            CG_HudViewportAdjust(&outer[0],&outer[1],&outer[2],&outer[3],tc);
+            /* Fireteam and Compass ignore a surrounding native-menu scope. */
+            CG_MenuViewportBegin();
+            CHECK(CG_HudWidgetBegin(&previous,kind,tc?742:8,tc?-80:8,tc?100:760,tc?100:102,tc));
+            x=tc?742:8;y=tc?-80:8;w=tc?100:760;h=tc?100:102;
+            CHECK(CG_HudViewportAdjust(&x,&y,&w,&h,tc));
+            CHECK(isfinite(x)&&isfinite(y)&&isfinite(w)&&isfinite(h));
+            CHECK(x>=-.003f&&y>=-.003f&&x+w<=sizes[size][0]+.003f&&y+h<=sizes[size][1]+.003f);
+            if(!hud){reference[0]=x;reference[1]=y;reference[2]=w;reference[3]=h;}
+            else CHECK(near(x,reference[0])&&near(y,reference[1])&&near(w,reference[2])&&near(h,reference[3]));
+            CHECK(CG_HudWidgetBegin(&nested,CG_HUD_WIDGET_COMPASS,742,0,100,100,1));
+            CG_HudWidgetEnd(&nested);
+            diameter=0;x=y=0;w=h=20;CHECK(CG_HudViewportDimensions(&w,&h,tc)&&near(w,h));
+            diameter=w;CHECK(diameter>0&&diameter<10000);
+            CHECK(!CG_HudWidgetBegin(&nested,99,0,0,1,1,tc));
+            CHECK(!CG_HudWidgetBegin(&nested,kind,NAN,0,1,1,tc));
+            CHECK(!CG_HudWidgetBegin(&nested,kind,0,0,-1,1,tc));
+            CG_HudWidgetEnd(&previous);CG_MenuViewportEnd();
+            x=100;y=50;w=30;h=20;CG_HudViewportAdjust(&x,&y,&w,&h,tc);
+            CHECK(near(x,outer[0])&&near(y,outer[1])&&near(w,outer[2])&&near(h,outer[3]));
+            CG_HudViewportEnd();
+        }
+    }
+    /* Default .85 keeps nominal geometry, while1.5 really enlarges a small
+     * widget instead of being limited by the unused full HUD canvas. */
+    cgs.glconfig.vidWidth=1280;cgs.glconfig.vidHeight=720;compassScaleSetting=.85f;CG_HudViewportUpdate();
+    CHECK(CG_HudWidgetBegin(&previous,CG_HUD_WIDGET_COMPASS,742,0,100,100,1));
+    x=742;y=0;w=h=100;CG_HudViewportAdjust(&x,&y,&w,&h,1);CHECK(near(w,127.5f)&&near(h,127.5f));CG_HudWidgetEnd(&previous);
+    compassScaleSetting=1.5f;CG_HudViewportUpdate();
+    CHECK(CG_HudWidgetBegin(&previous,CG_HUD_WIDGET_COMPASS,742,0,100,100,1));
+    x=742;y=0;w=h=100;CG_HudViewportAdjust(&x,&y,&w,&h,1);CHECK(near(w,225)&&near(h,225));CG_HudWidgetEnd(&previous);
+    fireteamScaleSetting=.5f;CG_HudViewportUpdate();
+    CHECK(CG_HudWidgetBegin(&previous,CG_HUD_WIDGET_FIRETEAM,8,8,100,100,0));
+    x=y=8;w=h=100;CG_HudViewportAdjust(&x,&y,&w,&h,0);CHECK(near(w,75)&&near(h,75));CG_HudWidgetEnd(&previous);
+    compassScaleSetting=.5f;fireteamScaleSetting=1.25f;CG_HudViewportUpdate();
+    CHECK(CG_HudWidgetBegin(&previous,CG_HUD_WIDGET_COMPASS,742,0,100,100,1));
+    x=742;y=0;w=h=100;CG_HudViewportAdjust(&x,&y,&w,&h,1);CHECK(near(w,75)&&near(h,75));CG_HudWidgetEnd(&previous);
+    CHECK(CG_HudWidgetBegin(&previous,CG_HUD_WIDGET_FIRETEAM,8,8,100,100,0));
+    x=y=8;w=h=100;CG_HudViewportAdjust(&x,&y,&w,&h,0);CHECK(near(w,187.5f)&&near(h,187.5f));CG_HudWidgetEnd(&previous);
+    compassScaleSetting=fireteamScaleSetting=hudScaleSetting=.85f;hudMaxSetting=1080;menuScaleSetting=1;CG_HudViewportUpdate();
+}
+
 static void worldOverlayAndBorders(void)
 {
     const int sizes[][2]={FIT_RESOLUTION_PAIRS};
@@ -621,6 +685,7 @@ int main(void)
     CHECK(x==0&&y==0&&near(w,191.25f)&&near(h,95.625f));CG_HudViewportEnd();
 #endif
     hudContext();
+    independentWidgets();
     worldOverlayAndBorders();
     nativeMenusAndInput();
     headerMenusAndHudComposites();

@@ -31,10 +31,12 @@ def main():
     assert 'UI_AdjustFrom640(' in function(sources['src/ui/ui_atoms.c'],'UI_DrawHandlePic')
     assert 'TCE_ModernCursor(uiInfo.uiDC.cursorx,uiInfo.uiDC.cursory,' in sources['src/ui/ui_main.c']
     assert 'else UI_DrawHandlePic(uiInfo.uiDC.cursorx, uiInfo.uiDC.cursory,' in sources['src/ui/ui_main.c']
-    for name,value in [('cg_wideScreen','1'),('ui_menuScale','1'),('ui_menuMaxHeight','1080'),('cg_hudScale','.85'),('cg_hudMaxHeight','1080')]:
+    for name,value in [('cg_wideScreen','1'),('ui_menuScale','1'),('ui_menuMaxHeight','1080'),('cg_hudScale','.85'),('cg_hudMaxHeight','1080'),('cg_compassScale','.85'),('cg_fireteamScale','.85')]:
         assert re.search(r'\{\s*NULL,\s*"'+name+r'",\s*"'+re.escape(value)+r'",\s*CVAR_ARCHIVE\s*\}',sources['src/ui/ui_main.c'])
     assert 'if (CG_HudViewportAdjust(x, y, w, h, tce_uiCoordinates)) return;' in function(sources['src/cgame/cg_drawtools.c'],'CG_AdjustFrom640')
     frame=function(sources['src/cgame/cg_draw.c'],'CG_Draw2D')
+    radar=function(sources['src/cgame/cg_draw.c'],'CG_DrawRadar')
+    assert radar.index('CG_HudWidgetBegin(')<radar.index('CG_DrawCompassBackdrop(')<radar.index('CG_HudWidgetEnd(')
     assert 'CG_HudViewportWorld();\n\t\tCG_DrawCrosshair();\n\t\tCG_HudViewportBegin(.5f, .5f);' in frame
     assert 'CG_HudViewportAnchor(.5f, .5f);\n\t\tCG_DrawWarmup();\n\t\tCG_HudViewportAnchor(0, 0);' in frame
     assert 'CG_HudViewportAnchor(0, 0);\n\t\t\tCG_DrawSpectator();\n\t\t\tCG_HudViewportAnchor(.5f, .5f);\n\t\t\tCG_DrawCrosshairNames();' in frame

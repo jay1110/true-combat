@@ -2,7 +2,7 @@
   "editor_files": {
     "tce2_ui/package.json": {
       "bytes": 51724,
-      "sha256": "cfb066303f73109bca0f7ca1d9124939dd15b9b068818404572ff636f0aa85d3",
+      "sha256": "d7f418800a492cff34c512da4a36e16b89381a6b27212f2fff143e6c7afd5336",
       "source": "navstudio/editor-pak/tce2_ui/package.json"
     },
     "ui/ingame_main.menu": {
@@ -36,8 +36,8 @@
       "source": "navstudio/editor-pak/ui/options_controls.menu"
     },
     "ui/options_customise_hud.menu": {
-      "bytes": 10146,
-      "sha256": "ee6810ab1376876f5d3cc961479faf58c26df938f4b30c0212da5d4cbae127b0",
+      "bytes": 10906,
+      "sha256": "87ee60fd9831f329b4c2dd375f92554bf41a12f93e352b37947301dc277f5c83",
       "source": "navstudio/editor-pak/ui/options_customise_hud.menu"
     },
     "ui/tce_ob_0_0.menu": {
@@ -953,7 +953,7 @@
     },
     "tce2_ui/package.json": {
       "bytes": 43925,
-      "sha256": "9d0c34fc5d0dd4e784c22ce6949205eb1433b05fd4929640cb2392928b2b1ffc",
+      "sha256": "b72a7c28e5e1906609bafdefa5bfaa9f43a0190e2259c40214c6836ad8a5b0ba",
       "source": "pak/tce2_ui/package.json"
     },
     "tce2_ui/panel.tga": {
@@ -1802,8 +1802,8 @@
       "source": "pak/ui/options_customise_game.menu"
     },
     "ui/options_customise_hud.menu": {
-      "bytes": 10663,
-      "sha256": "28a2c5b788fe35acdffb2dc87f87200645f92342716e2ff9d089d48c24c16233",
+      "bytes": 11423,
+      "sha256": "a11518899ae1755caec908e47250f7be7ac49d24d18690a824c5d61dcf91bdb6",
       "source": "pak/ui/options_customise_hud.menu"
     },
     "ui/options_system.menu": {

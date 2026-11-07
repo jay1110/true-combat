@@ -1739,6 +1739,7 @@ extern vmCvar_t g_fraglimit;
 extern vmCvar_t g_timelimit;
 extern vmCvar_t g_friendlyFire;
 extern vmCvar_t g_countryflags;
+extern vmCvar_t g_oss;
 extern vmCvar_t g_password;
 extern vmCvar_t sv_privatepassword;
 extern vmCvar_t g_gravity;
