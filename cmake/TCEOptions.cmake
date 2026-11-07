@@ -11,7 +11,6 @@ option(FEATURE_NAVSTUDIO "Compile local-only in-game authoring code (never publi
 option(TCE_BUILD_OMNIBOT_CORE "Build the matching Omni-bot gameplay runtime library" ${FEATURE_OMNIBOT})
 option(TCE_BUILD_NAVSTUDIO "Expose the separate local NavStudio application targets" OFF)
 option(TCE_BUILD_NAVMESH_TOOL "Build the separate local Recast geometry tool" OFF)
-option(TCE_BUILD_TCE_HELPERS "Expose separate local TCE launcher/helper sources" OFF)
 option(TCE_BUILD_REFERENCE_TESTS "Build historical Win32 original-DLL comparison tests" OFF)
 option(TCE_ENABLE_SANITIZERS "Instrument mod libraries and deterministic smoke tests" OFF)
 set(TCE_SANITIZERS "address,undefined" CACHE STRING "Clang/GCC sanitizer list")

@@ -1,7 +1,7 @@
-"""Collect modern UI resources for the single mod package.
+"""Read canonical UI resources; production packaging lives in tools/release.
 
-The standalone theme writer remains available for local authoring diagnostics.
-Production builds read the complete, reviewable root pak directory instead.
+The sole editable Game resource tree is pak, with explicit final Editor deltas.
+This reader never regenerates menus or falls back to duplicate authoring copies.
 """
 from pathlib import Path
 import argparse
@@ -9,8 +9,6 @@ import hashlib
 import json
 import re
 import zipfile
-import restyle
-import classic_assets
 
 ROOT=Path(__file__).resolve().parents[2]
 
@@ -23,51 +21,44 @@ def version():
 def sha(data): return hashlib.sha256(data).hexdigest()
 
 
-def collect(variant):
+def ui_path(name):
+    return (name.split('/')[0] in ('ui','ui_obj','ui_robj','ui_tdm') or
+            name.startswith(('tce2_ui/','fonts/tce2_ui/')) or
+            name=='scripts/tce2_backgrounds.shader' or
+            (name.startswith('scripts/tce2_ui') and name.endswith('.shader')))
+
+
+def collect(variant,repo=None):
+    """Return installed VFS bytes, including final Editor overlays unchanged."""
     if variant not in ('game','editor'):
         raise ValueError('Unknown modern UI resource variant')
-    edited=ROOT/'ui-modern'; files={}
-    for folder in restyle.DIRS:
-        for p in sorted((edited/folder).glob('*')):
-            if p.is_file() and p.suffix.lower() in ('.menu','.h','.txt'):
-                files[p.relative_to(edited).as_posix()]=p.read_bytes()
-    differences=[]
+    repo=Path(repo or ROOT);files={};folded={}
+    trees=[repo/'pak']+([repo/'navstudio/editor-pak'] if variant=='editor' else [])
+    for tree in trees:
+        if not tree.is_dir() or tree.is_symlink():raise ValueError('Missing/unsafe canonical UI tree: '+str(tree))
+        for path in sorted(tree.rglob('*')):
+            name=path.relative_to(tree).as_posix()
+            if not ui_path(name):continue
+            if path.is_symlink():raise ValueError('Symlink in canonical UI resources: '+name)
+            if not path.is_file():continue
+            previous=folded.get(name.casefold())
+            if previous is not None and previous!=name:raise ValueError('Case-colliding UI resources: '+name)
+            files[name]=path.read_bytes();folded[name.casefold()]=name
+    if files.get('tce2_ui/runtime.cfg')!=b'TCE2_MODERN_UI 1\n':raise ValueError('Missing canonical modern UI runtime marker')
+    for name,data in files.items():
+        if (Path(name).suffix.lower() in ('.dll','.so','.exe','.bsp','.way','.gm','.pk3','.zip') or
+                data.startswith((b'MZ',b'\x7fELF',b'\0asm'))):raise ValueError('Non-UI payload in canonical UI resources: '+name)
     if variant=='game':
-        files.pop('ui/tce_omnibot.menu')
+        for name in files:
+            if name.endswith('.menu') and name.split('/')[-1].startswith('tce_'):raise ValueError('Editor UI in Game resources: '+name)
         for name in ('menus.txt','menus_gt2.txt','menus_gt5.txt','menus_gt7.txt'):
-            key='ui/'+name
-            files[key]=re.sub(rb'(?m)^\s*loadMenu\s*\{\s*"ui/tce_omnibot.menu"\s*\}\s*\n',b'',files[key])
-        # Preserve already shipped normal-game HUD controls and editor boundary.
-        # Their actual contents are styled by the same transformation as pak.
-        for name in ('ingame_main.menu','options_controls.menu','options_customise_hud.menu'):
-            source=ROOT/'src/assets/ui'/name
-            files['ui/'+name]=restyle.menu(restyle.read(source),Path('ui')/name).encode('latin1')
-            differences.append({'path':'ui/'+name,'content_source':source.relative_to(ROOT).as_posix(),
-                                'reason':'Existing normal Game functionality/public editor boundary retained.'})
-    for p in sorted((edited/'assets').rglob('*')):
-        if p.is_file():files[p.relative_to(edited/'assets').as_posix()]=p.read_bytes()
-    aliases=json.loads(files['tce2_ui/SOURCE.json'])['native_aliases']
-    for target,source in aliases.items():files[target]=files[source]
-    portability=classic_assets.verify({n:d for n,d in files.items() if n.endswith(('.tga','.dat','.ttf','.json'))})
-    # Native scoreboard/connect renderers are dormant without this exact marker.
-    files['tce2_ui/runtime.cfg']=b'TCE2_MODERN_UI 1\n'
-    assert all(not Path(n).suffix.lower() in ('.dll','.so','.exe','.bsp','.way','.gm') for n in files)
-    assert all(not n.startswith('/') and '..' not in Path(n).parts for n in files)
-    if variant=='game':
-        assert 'ui/tce_omnibot.menu' not in files
-        for key in ('ui/menus.txt','ui/menus_gt2.txt','ui/menus_gt5.txt','ui/menus_gt7.txt','ui/ingame_main.menu'):
-            assert b'tce_omnibot' not in files[key]
-    manifest={'schema':1,'theme':'TCE2 Modern UI','version':version(),'variant':variant,
-              'scope':'Optional theme resources; native scoreboard/connect require matching modern client modules. No gameplay changes.',
-              'all_original_menu_sources':69,'normal_game_content_sources':differences,
-              'asset_compatibility':portability,
-              'files':{n:{'bytes':len(d),'sha256':sha(d)} for n,d in sorted(files.items())}}
-    files['tce2_ui/package.json']=(json.dumps(manifest,indent=2)+'\n').encode()
+            if b'tce_omnibot' in files.get('ui/'+name,b''):raise ValueError('Editor loader in Game UI')
     return files
 
 
-def build(variant, destination):
-    files=collect(variant)
+def build(variant, destination,repo=None):
+    """Small diagnostic/test archive, never the distributable mod package."""
+    files=collect(variant,repo)
     destination.parent.mkdir(parents=True,exist_ok=True)
     with zipfile.ZipFile(destination,'w',zipfile.ZIP_DEFLATED,compresslevel=9) as archive:
         for name,data in sorted(files.items()):
@@ -80,10 +71,12 @@ def build(variant, destination):
 
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--out',type=Path,default=ROOT/'dist/TCE2-Modern-UI');args=p.parse_args()
-    outputs={v:build(v,args.out/('Game' if v=='game' else 'Editor')/('zz_tce2-'+version()+'-modern-ui'+('-editor' if v=='editor' else '')+'.pk3')) for v in ('game','editor')}
-    (args.out/'packages.json').write_text(json.dumps(outputs,indent=2)+'\n')
-    print(json.dumps(outputs))
+    p=argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--variant',choices=('game','editor'),default='game')
+    p.add_argument('--check',action='store_true',help='Read-only canonical UI inventory (default)')
+    args=p.parse_args();files=collect(args.variant)
+    print(json.dumps({'variant':args.variant,'entries':len(files),'bytes':sum(map(len,files.values())),
+                      'source':'pak + explicit Editor overlay' if args.variant=='editor' else 'pak'}))
 
 
 if __name__=='__main__':main()

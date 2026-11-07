@@ -13,11 +13,11 @@ class AppearanceContract(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.original={p:d for p,d in sem.source_files(ROOT/'pak_original_tce').items() if Path(p).suffix in sem.SEMANTIC_SUFFIXES}
-        cls.page=(ROOT/'ui-modern'/sem.APPEARANCE).read_bytes()
+        cls.page=(ROOT/'pak'/sem.APPEARANCE).read_bytes()
 
     def candidate(self):
         result=dict(self.original);result[sem.APPEARANCE]=self.page
-        result[sem.BACKGROUNDS]=(ROOT/'ui-modern'/sem.BACKGROUNDS).read_bytes()
+        result[sem.BACKGROUNDS]=(ROOT/'pak'/sem.BACKGROUNDS).read_bytes()
         for path in sem.APPEARANCE_LISTS:
             result[path]+=b'\nloadMenu { "ui/modern_appearance.menu" }\nloadMenu { "ui/modern_backgrounds.menu" }\n'
         path='ui/options.menu'

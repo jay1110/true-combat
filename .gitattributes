@@ -5,28 +5,17 @@
 # deliberate updates to vendor/dependencies.lock.json.
 /vendor/** -text
 /compat/legacy/** -text
-/tce/launch-legacy.sh -text
 
 # Imported license notices retain their exact supplied bytes on every host.
 /LICENSE -text
 /EULA_TrueCombat_Elite.txt -text
 /src/assets/gfx/flags/LICENSE.xmod.txt -text
 
-# The optional theme is a byte-verified native resource mirror (legacy label
-# encoding, pinned font licenses/provenance). Preserve its supplied bytes.
-/ui-modern/** -text
-/ui-modern/**/*.json whitespace=cr-at-eol
-# Retain imported menu layout, including native macro continuations. These
-# exceptions do not apply to the Python build/check tools.
-/ui-modern/ui/** -whitespace
-/ui-modern/ui_obj/** -whitespace
-/ui-modern/ui_robj/** -whitespace
-/ui-modern/ui_tdm/** -whitespace
-/ui-modern/assets/fonts/tce2_ui/LICENSE*.txt -whitespace
+# Retained authoring references preserve their original byte encoding.
+/tools/ui_modernize/source/** -text -whitespace
 
 # Canonical editable PK3 resources and their original reference must retain exact
 # legacy encodings, line endings and binary bytes across Windows/Linux checkouts.
 /pak/** -text -whitespace
 /pak_original_tce/** -text -whitespace
-/map_pics/** -text
 /navstudio/editor-pak/** -text -whitespace

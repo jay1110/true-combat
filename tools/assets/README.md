@@ -1,57 +1,60 @@
-# Editable mod delta resources
+# Canonical mod resources
 
-`pak/` is the canonical editable tree of new or changed mod resources. It contains
-no byte-identical stock TCE assets; the original installed game supplies those.
-The release packager reads it directly and does not regenerate menus or overwrite
-hand edits. Native UI/CGame
-modules are added from the selected build manifests during final packaging.
-QGame remains outside the PK3 in the release ZIP's `server/` directory.
+Edit `pak/` directly for public Game resources. Edit `navstudio/editor-pak/`
+for the optional Editor overlay, including its complete Omni-bot DMS menus.
+These are the installable sources. Release packaging and the UI collector read
+their current bytes; they do not restyle, import, merge or replace them.
+Native UI/CGame modules are added from selected build manifests during packaging.
+QGame stays outside the PK3 in the release ZIP's `server/` directory.
 
-`pak_original_tce/` is a local, read-only reference and is never published or
-bundled. It is not pure stock: it also contains project changes and user compass
-images. Equality with this local folder alone is not a reason to omit a file.
-`base-game-reference.json` records hashes/sizes from the real TCE 0.49b pak0..4,
-with engine-compatible last-package precedence. Only equality with this stock
-index removes an asset from the delta. All twelve project compass images remain.
-`base-ui-reference.json` records only stock menu hashes, names and open edges;
-CI can validate Editor closure without original menu bytes or a local original
-installation. Both manifests are version-bound metadata, not original payloads.
-`map_pics/` holds the supplied background PNG source images.
+The delta contains new or changed resources, including all twelve project
+compass images. Installed original TCE 0.49b pak0..4 supplies unchanged resources.
+`base-game-reference.json` records their hashes and package precedence;
+byte-identical stock copies are rejected. `base-ui-reference.json` provides only
+stock menu names and open edges for closure checks. Both are version-bound
+metadata and contain no original asset bytes.
 
-To deliberately prepare a fresh delta from local references and source overlays:
+`pak_original_tce/` remains a local reference. Validation, CI and release
+packaging do not read it or copy its contents. Historical `src/assets/`,
+`ui-modern/` authoring copies and `navstudio/editor-ui/` catalog files are not
+fallback sources for the canonical resources.
+
+Validate Game and Editor without changing any resource or metadata:
 
 ```powershell
 python tools/assets/prepare_pak.py
+python tools/assets/prepare_pak.py --check
 ```
 
-Preparation combines the local reference, all `src/assets/` and the validated
-`collect('game')` result, then writes only the non-stock result. This retains the
-project compass maps, modern fonts, widget aliases and the Game/editor boundary.
-Nested archives, native binaries, the fingerprint-identified obsolete
-ServerListFix readme and the original standalone
-`unbindall` reset are excluded. Known Finder/Explorer metadata (`.DS_Store`,
-`Thumbs.db`, and files under `__MACOSX`) is recorded as excluded; arbitrary hidden
-resources are not silently discarded. Original input bytes are never changed and copies
-are independent files, so later edits cannot modify the originals through links.
+Both commands validate the current canonical trees: safe paths, public/editor
+separation, no native binaries or nested packages, authenticated stock exclusion,
+and complete loaded/reachable Editor goals and voice menus. The original
+standalone `unbindall` reset is rejected rather than silently rewriting configs.
+Manually edited resources are accepted when they satisfy these checks.
 
-The declared native voice/goal catalog in `navstudio/editor-ui/editor-files.txt`
-is merged with modern Editor differences. The native root receives the distinct
-name `tce_omnibot_dms` and a single entry in the compact modern root; native
-backlinks follow that name without rewriting command strings. Registry loaders
-are merged without duplicating main menus. All native pages and goal editors
-must be loaded and reachable. Only non-stock differences from the effective Game tree are written to
-`navstudio/editor-pak/`, in the same Editor PK3 rather than another addon PK3.
-This explicit overlay belongs solely to the separate developer build.
-Provenance, stock identity, exclusions and SHA-256 fingerprints are
-written to `tools/assets/pak-sources.json`, outside installable resources.
+To refresh the separate inventory after intentional edits:
 
 ```powershell
-python tools/assets/prepare_pak.py --check
+python tools/assets/prepare_pak.py --write-provenance
+```
+
+This writes only `tools/assets/pak-sources.json`, with canonical paths, SHA-256
+fingerprints, stock-metadata identities and Editor closure results. It leaves
+every installable file and its modification time unchanged. The inventory is
+provenance, not a generator recipe or a replacement source; validation does not
+reject a valid hand edit just because an older inventory has a different hash.
+The obsolete destructive `--replace` command fails with an explanation.
+
+The old stock/theme import and automatic DMS merge have been removed. To add or
+change an Editor menu, edit its final overlay file and update all applicable
+registry loaders and navigation targets; the closure check verifies the result.
+
+```powershell
 python -m unittest discover -s tools/assets -p "test_*.py"
 ```
 
-`--check` reports missing, extra or changed paths and does not write anything.
-After manually editing `pak/`, differences from the generators are expected;
-release packaging still uses the edited bytes. A normal preparation refuses to
-replace changed files. Use `--replace` only when deliberately discarding those
-edits and recreating the delta and Editor overlay from their source inputs.
+The frozen background TGA files, shader and catalog are validated independently
+of the original PNGs with `python tools/ui_modernize/background_assets.py --check`.
+To regenerate from externally retained PNGs, pass an explicit `--source` directory.
+Output defaults to ignored `build/ui-backgrounds/`; `--out` selects another root.
+No PNG source directory is required in a clean checkout or a normal release build.

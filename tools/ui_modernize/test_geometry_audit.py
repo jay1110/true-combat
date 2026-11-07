@@ -41,7 +41,7 @@ class Geometry(unittest.TestCase):
         self.assertEqual(menus[0]['items'][0]['name'],'bttnBack')
 
     def test_real_shipped_fonts_distinguish_condensed_header_and_regular_body(self):
-        base=audit.ROOT/'ui-modern/assets/fonts/tce2_ui'
+        base=audit.ROOT/'pak/fonts/tce2_ui'
         condensed=audit.Font(base/'BarlowCondensed-SemiBold.ttf')
         regular=audit.Font(base/'Barlow-Regular.ttf')
         self.assertLess(condensed.width('Deployment',.3),regular.width('Deployment',.3))

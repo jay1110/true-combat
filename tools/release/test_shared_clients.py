@@ -188,7 +188,10 @@ class SharedClients(unittest.TestCase):
 
     def test_source_zip_excludes_original_even_if_stale_git_index_lists_it(self):
         for name,data in {'tools/release/build.py':b'# tiny build input',
-                          'vendor/omni-bot/runtime/SOURCE.json':b'{}','map_pics/new.png':b'new image',
+                          'vendor/omni-bot/runtime/SOURCE.json':b'{}',
+                          'tools/ui_modernize/source/ui/main.menu':b'modern menu source',
+                          'map_pics/new.png':b'obsolete PNG source',
+                          'tce/obsolete_helper.py':b'obsolete helper',
                           'pak_original_tce/ui/base.menu':b'private original menu',
                           'pak_original_tce/base.pk3':b'private original archive',
                           'pak_original_tce/.DS_Store':b'private original metadata'}.items():
@@ -199,6 +202,8 @@ class SharedClients(unittest.TestCase):
             source_archive.main()
         with zipfile.ZipFile(self.root/'source-out'/f'TCE2-{VERSION}-Source.zip') as archive:
             self.assertFalse(any(name.startswith('pak_original_tce/') for name in archive.namelist()))
+            self.assertFalse(any(name.startswith(('map_pics/','tce/')) for name in archive.namelist()))
+            self.assertEqual(archive.read('tools/ui_modernize/source/ui/main.menu'),b'modern menu source')
             self.assertEqual(archive.read('pak/models/player.md3'),b'model')
             self.assertIn('tools/assets/base-game-reference.json',archive.namelist())
 

@@ -86,8 +86,8 @@ class WidgetContinuationTests(unittest.TestCase):
         generated = physical_macros(self.generated)
         self.assertGreater(len(original), 30)
         self.assertEqual([name for name, _, _ in original], [name for name, _, _ in generated])
-        self.assertEqual(physical_macros(restyle.read(ROOT / 'ui-modern/ui/modern_widgets.h')),
-                         physical_macros(layout_common.widgets(restyle.read(ROOT / 'ui-modern/ui/menumacros.h'))))
+        self.assertEqual(physical_macros(restyle.read(ROOT / 'pak/ui/modern_widgets.h')),
+                         physical_macros(layout_common.widgets(restyle.read(ROOT / 'pak/ui/menumacros.h'))))
 
     def test_exact_inserted_subwindow_title_bordercolor_regression_is_rejected(self):
         start = self.generated.index('#define SUBWINDOWBLACK(')

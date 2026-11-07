@@ -19,7 +19,7 @@ def main():
     a=p.parse_args();out=a.out.resolve();out.mkdir(parents=True,exist_ok=True)
     implementation=ROOT/'src/ui/tce_modern_theme.inc';fixture=Path(__file__).with_name('modern_theme_fixture.c')
     shared=ROOT/'src/ui/ui_shared.c'
-    sdk=ROOT/'src/game/q_shared.c';art=ROOT/'ui-modern/assets/tce2_ui/SOURCE.json'
+    sdk=ROOT/'src/game/q_shared.c';art=ROOT/'pak/tce2_ui/SOURCE.json'
     text=fixture.read_text().replace('/* ACTUAL_THEME */',implementation.read_text())
     text=text.replace('/* ACTUAL_SDK_VA */',function(sdk.read_text(encoding='utf8'),'va'))
     meta=json.loads(art.read_bytes());names=sorted({row['shader'] for row in meta['files']}|set(meta['native_aliases']))

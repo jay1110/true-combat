@@ -10,13 +10,13 @@ import unittest
 
 import classic_assets as c
 import generate_assets as g
+from verify_package import canonical_ui
 
 
 class ClassicAssets(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.assets = {p.relative_to(g.DEST).as_posix():p.read_bytes()
-                      for p in g.DEST.rglob('*') if p.is_file()}
+        cls.assets = canonical_ui.collect('game')
         cls.meta = json.loads(cls.assets['fonts/tce2_ui/PORTABLE.json'])
 
     def test_native_bgra_bottom_rows_and_exact_rgba_roundtrip(self):
@@ -65,7 +65,7 @@ class ClassicAssets(unittest.TestCase):
         self.assertEqual(self.meta['outline_embolden_26_6'],24)
         # Check literal registration sites in both global assets and native UI/CG.
         requested = set()
-        for path in (root/'ui-modern').rglob('*.menu'):
+        for path in (root/'pak').rglob('*.menu'):
             requested.update((name,int(size)) for name,size in re.findall(
                 r'font\s+\w+\s+"tce2_ui/([^"\n]+)"\s+(\d+)',path.read_text(encoding='latin1')))
         for path in (root/'src/ui/tce_modern_ui.c',root/'src/cgame/cg_modern_limbopanel.inc'):

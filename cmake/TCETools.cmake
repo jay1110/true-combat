@@ -1,8 +1,4 @@
 include_guard(GLOBAL)
-if(TCE_BUILD_TCE_HELPERS)
-  add_custom_target(tce_helpers SOURCES
-    "${TCE_ROOT_DIR}/tce/launch-legacy.sh" "${TCE_ROOT_DIR}/tce/README.md")
-endif()
 if(TCE_BUILD_OMNIBOT_CORE)
   set(OMNIBOT_ET ON CACHE BOOL "Build ET bot runtime" FORCE)
   set(OMNIBOT_RTCW OFF CACHE BOOL "Build RTCW runtime" FORCE)

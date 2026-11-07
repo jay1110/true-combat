@@ -25,16 +25,10 @@
 !/omnibot/**
 !/navstudio/
 !/navstudio/**
-!/tce/
-!/tce/**
 !/tools/
 !/tools/**
-!/ui-modern/
-!/ui-modern/**
 !/pak/
 !/pak/**
-!/map_pics/
-!/map_pics/**
 !/Docs/
 /Docs/*
 !/Docs/*.md

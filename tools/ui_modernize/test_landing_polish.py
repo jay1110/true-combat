@@ -35,7 +35,7 @@ class LandingPolishTests(unittest.TestCase):
             self.assertEqual(seen,names)
 
     def test_publisher_logos_use_only_small_alpha_shadows_without_footer_plate(self):
-        shader=(ROOT/'ui-modern/assets/scripts/tce2_ui_footer.shader').read_text()
+        shader=(ROOT/'pak/scripts/tce2_ui_footer.shader').read_text()
         self.assertNotIn('tce2_ui/logo_plate',shader)
         self.assertNotIn('$whiteimage',shader)
         self.assertNotIn('GL_ONE GL_ZERO',shader)
@@ -59,7 +59,7 @@ class LandingPolishTests(unittest.TestCase):
             source=restyle.read(ROOT/'pak_original_tce'/path);result=restyle.menu(source,path)
             self.assertNotIn('modern_footer_plate',result)
             self.assertNotIn('tce2_ui/logo_plate',result)
-            self.assertEqual((ROOT/'ui-modern'/path).read_bytes(),result.encode('latin1'))
+            self.assertEqual((ROOT/'pak'/path).read_bytes(),result.encode('latin1'))
             source_paint=sem.strip_comments(source);result_paint=sem.strip_comments(result)
             item_blocks=[result[s:e] for s,e in restyle.blocks(result)]
             for short in ('atvi','id','sd'):

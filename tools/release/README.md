@@ -43,8 +43,9 @@ stock packages, not the historically contaminated local reference folder.
 
 `pak_original_tce/` stays local and untracked. It is excluded from source ZIPs even
 if a stale Git index or `--include-untracked` lists it. Neither the runtime reader
-nor CI falls back to it. The source artifact includes the mod delta, `map_pics/`,
-small version-bound stock/UI signature manifests and build inputs, never the
+nor CI falls back to it. The source artifact includes the mod delta, the raw
+modern UI inputs under `tools/ui_modernize/source/`, small version-bound stock/UI
+signature manifests and build inputs, never the obsolete PNG/helper trees or the
 original resource tree. Editor menu closure can reference stock menu signatures
 without publishing or loading their original text during a CI build.
 

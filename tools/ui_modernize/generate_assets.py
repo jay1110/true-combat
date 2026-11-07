@@ -14,8 +14,9 @@ import zlib
 import theme_assets
 
 ROOT = Path(__file__).resolve().parents[2]
-DEST = ROOT / "ui-modern/assets"
-SOURCE = ROOT / "ui-modern/source/background-industrial-v1.png"
+DEST = ROOT / "build/ui-assets"
+ASSETS = ROOT / "pak"
+SOURCE = ROOT / "tools/ui_modernize/source/background-industrial-v1.png"
 S = 2
 WHITE = (228, 233, 237, 255)
 MUTED = (150, 164, 176, 255)
@@ -270,8 +271,14 @@ ICONS=("cursor","play","multiplayer","host","replays","settings","profile","cred
 ALIASES={"ui/assets/scrollbar.tga":"tce2_ui/scroll_track.tga","ui/assets/scrollbar_arrow_dwn_a.tga":"tce2_ui/icons/chevron_down.tga","ui/assets/scrollbar_arrow_up_a.tga":"tce2_ui/icons/chevron_up.tga","ui/assets/scrollbar_arrow_left.tga":"tce2_ui/icons/chevron_left.tga","ui/assets/scrollbar_arrow_right.tga":"tce2_ui/icons/chevron_right.tga","ui/assets/scrollbar_thumb.tga":"tce2_ui/scroll_thumb.tga","ui/assets/slider2.tga":"tce2_ui/slider_track.tga","ui/assets/sliderbutt_1.tga":"tce2_ui/slider_thumb.tga","ui/assets/check.tga":"tce2_ui/check_on.tga","ui/assets/check_not.tga":"tce2_ui/check_mixed.tga","ui/assets/check_no.tga":"tce2_ui/check_off.tga"}
 
 
+def arguments(argv=None):
+    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument("--check",action="store_true");parser.add_argument("--preview",type=Path);parser.add_argument('--out',type=Path);args=parser.parse_args(argv)
+    args.out=args.out or (ASSETS if args.check else DEST)
+    return args
+
+
 def main():
-    parser=argparse.ArgumentParser(description=__doc__);parser.add_argument("--check",action="store_true");parser.add_argument("--preview",type=Path);args=parser.parse_args()
+    args=arguments()
     output={};images={};records=[]
     w,h,pixels=power_of_two_image(*png_read(SOURCE));images["background"]=(w,h,pixels);output["tce2_ui/background.tga"]=tga(w,h,pixels,True)
     for name in WIDGETS:
@@ -287,7 +294,7 @@ def main():
         shader+=f"\n{shader_name}\n{{\n\tnopicmip\n\tnomipmaps\n\tnocompress\n\t{{\n\t\tclampmap {asset}\n\t\tblendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA\n\t\trgbGen vertex\n\t\talphaGen vertex\n\t}}\n}}\n"
         records.append({"path":asset,"shader":shader_name,"width":w,"height":h,"channels":24 if name=="background" else 32,"bytes":len(output[asset]),"sha256":hashlib.sha256(output[asset]).hexdigest()})
     output["scripts/tce2_ui.shader"]=shader.encode()
-    source={"schema":1,"origin":"Original code-created interface art and original imagegen industrial background. No game/reference artwork copied.","generator":"tools/ui_modernize/generate_assets.py","generator_sha256":hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),"background_source":"ui-modern/source/background-industrial-v1.png","background_sha256":hashlib.sha256(SOURCE.read_bytes()).hexdigest(),"cursor_hotspot":{"asset":"tce2_ui/cursor.tga","shader":"tce2_ui/cursor","x":0,"y":0,"native_draw":"32x32 at UI cursor position"},"palette":{"panel":"#0e151d","hover":"#24313e","text":"#e4e9ed","muted":"#96a4b0","accent":"#efc046"},"files":records,"native_aliases":ALIASES}
+    source={"schema":1,"origin":"Original code-created interface art and original imagegen industrial background. No game/reference artwork copied.","generator":"tools/ui_modernize/generate_assets.py","generator_sha256":hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),"background_source":"tools/ui_modernize/source/background-industrial-v1.png","background_sha256":hashlib.sha256(SOURCE.read_bytes()).hexdigest(),"cursor_hotspot":{"asset":"tce2_ui/cursor.tga","shader":"tce2_ui/cursor","x":0,"y":0,"native_draw":"32x32 at UI cursor position"},"palette":{"panel":"#0e151d","hover":"#24313e","text":"#e4e9ed","muted":"#96a4b0","accent":"#efc046"},"files":records,"native_aliases":ALIASES}
     source['theme_layers']={'generator':'tools/ui_modernize/theme_assets.py',
                             'generator_sha256':hashlib.sha256(Path(theme_assets.__file__).read_bytes()).hexdigest(),
                             'purpose':'Neutral body/accent layers for live user palettes. Original default artwork is unchanged.'}
@@ -297,13 +304,14 @@ def main():
                                'encoding':'uncompressed native BGR24/BGRA32; no engine extensions'}
     footer='scripts/tce2_ui_footer.shader'
     source['publisher_logos']={'source':footer,
-                              'sha256':hashlib.sha256((DEST/footer).read_bytes()).hexdigest(),
+                              'sha256':hashlib.sha256((ASSETS/footer).read_bytes()).hexdigest(),
                               'original_maps':['ui/assets/logo_'+name+'.tga' for name in ('atvi','id','sd')],
                               'shadow':{'offset':[1,1],'rgb':[0,0,0],'alpha':.8},
                               'purpose':'Full-bright original publisher marks with small alpha-mask shadows; no plate or copied logo rasters.'}
+    output[footer]=(ASSETS/footer).read_bytes()
     output["tce2_ui/SOURCE.json"]=(json.dumps(source,indent=2)+"\n").encode()
     for name,data in output.items():
-        path=DEST/name
+        path=args.out/name
         if args.check:assert path.is_file() and path.read_bytes()==data,name
         else:path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(data)
     if args.preview:
@@ -326,7 +334,7 @@ def main():
         paste("slider_track",450,560);paste("slider_thumb",560,544);paste("scroll_track",760,530,32,150);paste("scroll_thumb",760,565)
         for index,name in enumerate(ICONS):paste("cursor" if name=="cursor" else "icons/"+name,20+index%14*82,700+index//14*82)
         png_write(args.preview,width,height,board)
-    print(json.dumps({"checked":args.check,"assets":len(records),"runtime_files":len(output),"background_dimensions":list(images['background'][:2]),"directory":str(DEST)}))
+    print(json.dumps({"checked":args.check,"assets":len(records),"runtime_files":len(output),"background_dimensions":list(images['background'][:2]),"directory":str(args.out)}))
 
 
 if __name__=="__main__":main()

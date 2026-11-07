@@ -8,7 +8,7 @@ import layout_settings
 import restyle
 import semantic as sem
 from test_layout_settings import font_width
-from verify_package import compare_semantics
+from verify_package import compare_semantics, EDITOR_MENU, LOAD_LISTS, OVERRIDES, remove_editor_load
 
 ROOT=Path(__file__).resolve().parents[2]
 
@@ -22,22 +22,39 @@ def item_blocks(text):
     return result
 
 
-def styled(filename,base='pak_original_tce'):
-    return restyle.menu(restyle.read(ROOT/base/'ui'/filename),Path('ui')/filename)
+def styled(filename):
+    # Check the installed canonical page, including deliberate hand edits.
+    return restyle.read(ROOT/'pak/ui'/filename)
+
+
+def game_semantic_reference():
+    """Historical behavior reference adapted only for the established Game split.
+
+    This is test data for independent semantic comparisons, never a packaging
+    source or a fallback reader for canonical resources.
+    """
+    reference={p:d for p,d in sem.source_files(ROOT/'pak_original_tce').items()
+               if Path(p).suffix in sem.SEMANTIC_SUFFIXES}
+    reference.pop(EDITOR_MENU)
+    for name in LOAD_LISTS:
+        key='ui/'+name
+        reference[key]=' '.join(remove_editor_load(reference[key])).encode('latin1')
+    for name in OVERRIDES:
+        reference['ui/'+name]=(ROOT/'src/assets/ui'/name).read_bytes()
+    return reference
 
 
 class NavigationPolish(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.original={p:d for p,d in sem.source_files(ROOT/'pak_original_tce').items()
-                      if Path(p).suffix in sem.SEMANTIC_SUFFIXES}
-        cls.edited={p:d for p,d in sem.source_files(ROOT/'ui-modern',all_files=True).items()
+        cls.original=game_semantic_reference()
+        cls.edited={p:d for p,d in sem.source_files(ROOT/'pak',all_files=True).items()
                     if Path(p).suffix in sem.SEMANTIC_SUFFIXES}
         _,cls.contracts=sem.signatures([sem.parse(p,d) for p,d in cls.original.items()])
 
     def test_all_five_settings_pages_have_full_tabs_and_real_mouse_keyboard_feedback(self):
         for current,(_,page) in layout_common.SETTINGS.items():
-            text=((ROOT/'ui-modern/ui/modern_appearance.menu').read_text(encoding='latin1')
+            text=((ROOT/'pak/ui/modern_appearance.menu').read_text(encoding='latin1')
                   if current=='appearance' else styled(page+'.menu'))
             items=item_blocks(text)
             rectangles=[]
@@ -64,6 +81,16 @@ class NavigationPolish(unittest.TestCase):
                 candidate=dict(self.edited)
                 self.assertIn(old,candidate[path]);candidate[path]=candidate[path].replace(old,new,1)
                 with self.assertRaisesRegex(ValueError,'hover'):compare_semantics(self.original,candidate)
+
+    def test_actual_game_extensions_are_still_semantically_protected(self):
+        for path,old,new in (('ui/ingame_main.menu',b'exec OpenLimboMenu',b'exec quit'),
+                             ('ui/options_controls.menu',b'"+wstats"',b'"+attack"'),
+                             ('ui/options_customise_hud.menu',b'"Fireteam" 2',b'"Fireteam" 1')):
+            with self.subTest(path=path):
+                candidate=dict(self.edited)
+                self.assertIn(old,candidate[path]);candidate[path]=candidate[path].replace(old,new,1)
+                with self.assertRaisesRegex(ValueError,'semantic data changed'):
+                    compare_semantics(self.original,candidate)
 
     def test_controls_numeric_value_has_a_separate_row_and_every_card_has_bottom_padding(self):
         for base in ('pak_original_tce','src/assets'):
@@ -103,7 +130,7 @@ class NavigationPolish(unittest.TestCase):
                 self.assertEqual(fields['cvartest'],'"authLevel"')
                 self.assertIn('showcvar',fields)
                 for event in sem.HOVER_FIELDS:self.assertTrue(fields[event])
-        self.assertEqual(compare_semantics(self.original,self.edited),78)  # Includes the authorized background settings page.
+        self.assertEqual(compare_semantics(self.original,self.edited),77)  # Public Game excludes the Editor root.
 
     def test_vote_tabs_cannot_bypass_privilege_flags_or_redirect_to_other_actions(self):
         path='ui/ingame_vote_map.menu';text=self.edited[path].decode('latin1')

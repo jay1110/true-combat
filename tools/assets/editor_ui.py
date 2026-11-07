@@ -1,4 +1,8 @@
-"""Bounded native/modern editor-menu merge and installable closure checks."""
+"""Validate final canonical Editor menu bytes and stock-metadata closure.
+
+No native-catalog import, DMS merge, namespace rewrite or resource generation
+is performed here. Edit navstudio/editor-pak/ directly.
+"""
 from dataclasses import dataclass
 import json
 from pathlib import Path
@@ -8,8 +12,6 @@ REGISTRIES = ('menus.txt', 'menus_gt2.txt', 'menus_gt5.txt', 'menus_gt7.txt')
 VOICE_FILES = ('wm_quickmessage.menu', 'wm_quickmessageAlt.menu',
                'wm_ftquickmessage.menu', 'wm_ftquickmessageAlt.menu')
 NATIVE_ROOT = 'tce_omnibot_dms'
-NATIVE_ROOT_FILE = 'ui/' + NATIVE_ROOT + '.menu'
-EDITOR_ASSET = re.compile(r'^(tce_[A-Za-z0-9_]+\.menu|wm_(ft)?quickmessage(Alt)?\.menu|menus(_gt[257])?\.txt)$')
 # Unchanged imports inherited from the original registries. The first two are
 # supplied by ET pak0; the last two are unused historical loader entries (no
 # open action targets them). Never exempt native Editor files from closure.
@@ -96,70 +98,6 @@ def opens(lexed):
             lexed[index+1].kind in ('word', 'string') and lexed[index+1].value.startswith('tce_')}
 
 
-def namespace_native(data):
-    """Rewrite only the menu declaration and open/close target tokens."""
-    lexed = tokens(data); edits = []
-    for index, token in enumerate(lexed):
-        target = None
-        if token.kind == 'word' and token.value in ('open', 'close') and index+1 < len(lexed):
-            target = lexed[index+1]
-        elif (token.value == 'menuDef' and index+3 < len(lexed) and
-              lexed[index+1].value == '{' and lexed[index+2].value == 'name'):
-            target = lexed[index+3]
-        if target and target.value == 'tce_omnibot':
-            replacement = ('"'+NATIVE_ROOT+'"' if target.kind == 'string' else NATIVE_ROOT).encode('ascii')
-            edits.append((target.start, target.end, replacement))
-    for start, end, value in reversed(edits): data = data[:start] + value + data[end:]
-    return data
-
-
-def add_full_button(data):
-    roots = [row for row in definitions(data) if row[0] == 'tce_omnibot']
-    if len(roots) != 1: raise ValueError('Modern editor root missing or duplicated')
-    if NATIVE_ROOT.encode() in data: raise ValueError('Modern editor root already has a DMS namespace entry')
-    button = (b'\n// Full native catalog remains separate from the compact modern pages.\n'
-              b'itemDef { name "tce_full_dms" rect 24 442 586 28 type ITEM_TYPE_BUTTON '
-              b'style WINDOW_STYLE_FILLED backcolor .055 .075 .10 .97 border WINDOW_BORDER_FULL '
-              b'bordercolor .18 .24 .29 .65 text "FULL OMNI-BOT DMS / ALL GOALS AND WAYPOINTS" '
-              b'textfont UI_FONT_COURBD_21 textscale .22 textalignx 18 textaligny 20 '
-              b'forecolor 1 1 1 1 visible 1 action { close tce_omnibot ; open tce_omnibot_dms ; } }\n')
-    at = roots[0][2]
-    return data[:at] + button + data[at:]
-
-
-def read_catalog(repo):
-    folder = Path(repo)/'navstudio/editor-ui'; manifest = folder/'editor-files.txt'
-    if not manifest.is_file(): raise ValueError('Missing native Editor UI catalog: '+str(manifest))
-    names = manifest.read_text(encoding='utf-8').splitlines()
-    if not names or len(names) != len({name.casefold() for name in names}):
-        raise ValueError('Empty/duplicate native Editor UI catalog')
-    files = {}
-    for name in names:
-        path = folder/name
-        if not EDITOR_ASSET.fullmatch(name) or not path.is_file() or path.is_symlink():
-            raise ValueError('Invalid or missing native Editor UI asset: '+name)
-        files['ui/'+name] = path.read_bytes()
-    required = {'ui/'+name for name in REGISTRIES+VOICE_FILES} | {'ui/tce_omnibot.menu'}
-    if not required <= files.keys(): raise ValueError('Incomplete native Editor UI registry/voice catalog')
-    return files
-
-
-def merge_registry(modern, native, declared):
-    known = loaders(modern)
-    wanted = [NATIVE_ROOT_FILE if name == 'ui/tce_omnibot.menu' else name for name in loaders(native)
-              if name in declared]
-    if not {NATIVE_ROOT_FILE if name == 'ui/tce_omnibot.menu' else name for name in declared if name.endswith('.menu')} <= set(wanted):
-        raise ValueError('Native Editor registry omits declared menu assets')
-    additions = [name for name in wanted if name not in known]
-    lexed = tokens(modern)
-    if not lexed or lexed[0].value != '{' or close_brace(lexed, 0) != len(lexed)-1:
-        raise ValueError('Editor registry must have one outer block')
-    at = lexed[-1].start
-    extra = b'\n\t// Complete native Editor voice/goal catalog.\n' + b''.join(
-        ('\tloadMenu { "'+name+'" }\n').encode('ascii') for name in additions)
-    return modern[:at] + extra + modern[at:]
-
-
 def base_ui_reference(release_version=None, reference=None):
     """Use metadata only; installed TCE supplies the unchanged base menu bytes."""
     repo = Path(__file__).resolve().parents[2]
@@ -229,24 +167,3 @@ def validate_editor_ui(files, release_version=None, reference=None):
                              'reachable_catalog_menus':len(native), 'legacy_external_loaders':external,
                              'stock_metadata_loaders':referenced}
     return {'passed':True, 'registries':reports, 'goal_features':sorted(required_goals), 'native_root':NATIVE_ROOT}
-
-
-def merge_editor(game, theme_game, theme_editor, catalog):
-    """Native catalog first, modern differences second; registry loads are merged."""
-    files = dict(game); origins = {}
-    for name, data in catalog.items():
-        if name.endswith('.txt'): continue
-        target = NATIVE_ROOT_FILE if name == 'ui/tce_omnibot.menu' else name
-        files[target] = namespace_native(data); origins[target] = 'navstudio/editor-ui/'+name[3:]
-    for name, data in theme_editor.items():
-        if theme_game.get(name) != data:
-            files[name] = data; origins[name] = 'ui-modern via package.collect(editor)'
-    files['ui/tce_omnibot.menu'] = add_full_button(files['ui/tce_omnibot.menu'])
-    origins['ui/tce_omnibot.menu'] += ' (full DMS entry added)'
-    for name in REGISTRIES:
-        key = 'ui/'+name
-        files[key] = merge_registry(files[key], catalog[key], set(catalog))
-        origins[key] = 'modern registry + native Editor catalog loader closure'
-    report = validate_editor_ui({name:data for name,data in files.items() if name.startswith(('ui/','ui_obj/','ui_robj/','ui_tdm/'))})
-    overlay = {name:data for name,data in files.items() if game.get(name) != data}
-    return overlay, origins, report

@@ -2,8 +2,8 @@
   "schema": 1,
   "origin": "Original code-created interface art and original imagegen industrial background. No game/reference artwork copied.",
   "generator": "tools/ui_modernize/generate_assets.py",
-  "generator_sha256": "0faacfbdd780584d6606fecf0f41fa9a8a658b066c9e9e061576050a98e967a8",
-  "background_source": "ui-modern/source/background-industrial-v1.png",
+  "generator_sha256": "05ccf88cfa214b14e3bb95eeff4e6a2e67bdf3f960ec80273a95a4bfeda823f2",
+  "background_source": "tools/ui_modernize/source/background-industrial-v1.png",
   "background_sha256": "3ccd94c4f50145c2233ac74bce45bf5d1bae4b26d85bfeef0c1fb35f3803f5e9",
   "cursor_hotspot": {
     "asset": "tce2_ui/cursor.tga",

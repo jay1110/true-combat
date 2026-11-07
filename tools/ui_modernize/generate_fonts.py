@@ -21,7 +21,8 @@ import sys
 from generate_assets import tga
 
 ROOT = Path(__file__).resolve().parents[2]
-DEST = ROOT/'ui-modern/assets'
+DEST = ROOT/'build/ui-fonts'
+ASSETS = ROOT/'pak'
 GLYPH = struct.Struct('<7i4fi32s')
 FONT_BYTES = GLYPH.size*256+4+64
 PAGE = 512
@@ -86,7 +87,7 @@ def raster(ft, face, code):
 
 
 def bake(ft, name, points, short):
-    face = ft.Face(str(DEST/'fonts/tce2_ui'/(name+'.ttf')))
+    face = ft.Face(str(ASSETS/'fonts/tce2_ui'/(name+'.ttf')))
     face.set_char_size(points*64, points*64, DPI, DPI)
     rendered = [raster(ft, face, code) for code in range(256)]
     line_height = max(g[0] for g, _ in rendered)
@@ -122,11 +123,18 @@ def bake(ft, name, points, short):
                    'atlases':atlases,'glyph_scale':72/DPI*48/points}
 
 
-def main():
+def arguments(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--freetype-python',type=Path)
     p.add_argument('--check',action='store_true')
-    args = p.parse_args()
+    p.add_argument('--out',type=Path)
+    args = p.parse_args(argv)
+    args.out=args.out or (ASSETS if args.check else DEST)
+    return args
+
+
+def main():
+    args=arguments()
     if args.freetype_python:
         sys.path.insert(0,str(args.freetype_python.resolve()))
     try:
@@ -151,7 +159,7 @@ def main():
                   'outline_embolden_26_6':EMBOLDEN,
                   'advance':'Original hinted horiAdvance+1; embolden does not increase advance',
                   'license':'Derived from the unchanged OFL Barlow TTFs; see LICENSE-Barlow*.txt.',
-                  'ttf_sha256':{name+'.ttf':sha((DEST/'fonts/tce2_ui'/(name+'.ttf')).read_bytes())
+                  'ttf_sha256':{name+'.ttf':sha((ASSETS/'fonts/tce2_ui'/(name+'.ttf')).read_bytes())
                                 for name in sorted({row[0] for row in VARIANTS})},
                   'variants':variants,
                   'files':[{'path':path,'bytes':len(data),'sha256':sha(data)}
@@ -160,13 +168,13 @@ def main():
                             'ET 2.60b registers glyph handles0..254; its historical byte255 limitation remains.',
                             'TTF-capable engines keep using the unchanged scalable fonts.']}
     files['fonts/tce2_ui/PORTABLE.json'] = (json.dumps(provenance,indent=2)+'\n').encode()
-    source_path = DEST/'fonts/tce2_ui/SOURCE.json'
+    source_path = ASSETS/'fonts/tce2_ui/SOURCE.json'
     source = json.loads(source_path.read_bytes())
     source['portable'] = {'manifest':'fonts/tce2_ui/PORTABLE.json',
                           'usage':'ET 2.60b loads fonts/NAME_POINTSIZE.dat and short-named TGA atlases; no runtime FreeType required.'}
     files['fonts/tce2_ui/SOURCE.json'] = (json.dumps(source,indent=2)+'\n').encode()
     for path,data in sorted(files.items()):
-        target = DEST/path
+        target = args.out/path
         if args.check:
             if not target.is_file() or target.read_bytes() != data:
                 raise SystemExit('Stale portable font: '+path)

@@ -3,7 +3,7 @@
   "theme": "TCE2 Modern UI",
   "version": "1.0.3",
   "variant": "editor",
-  "scope": "Optional theme resources; native scoreboard/connect require matching modern client modules. No gameplay changes.",
+  "scope": "Canonical UI resources from pak plus explicit Editor delta; no generated source fallback.",
   "all_original_menu_sources": 69,
   "normal_game_content_sources": [],
   "asset_compatibility": {
@@ -61,7 +61,7 @@
     },
     "fonts/tce2_ui/PORTABLE.json": {
       "bytes": 4823,
-      "sha256": "3a5662d19047792a634da163b857bc0a1427fbebb6bf037d947cc5ee9d36ebbf"
+      "sha256": "e602807c77c5f04a7b82545844dc13303cf373fe383c66fa46a23d824b1af646"
     },
     "fonts/tce2_ui/SOURCE.json": {
       "bytes": 2075,
@@ -104,8 +104,8 @@
       "sha256": "8acc3f41aea756e66b57ffef6472890f1d21eb66b8796b85ebe940c34ecc5917"
     },
     "tce2_ui/SOURCE.json": {
-      "bytes": 45504,
-      "sha256": "58aa6dafa531a4af6c8dad64d5cd0dc8cf546f39c296da0c9c9c584297b221a4"
+      "bytes": 45513,
+      "sha256": "244a0bdbfe8e6ffba20d0839cda037e9a28c31cb2140723b3eafe4da0168fa50"
     },
     "tce2_ui/background.tga": {
       "bytes": 6291500,
@@ -177,7 +177,7 @@
     },
     "tce2_ui/backgrounds/catalog.json": {
       "bytes": 9143,
-      "sha256": "299ffe3fb2464be640af277d85234d02456361460d0ca6127251352a0938ed28"
+      "sha256": "c333e633fd73336f38602c2d96d74cf476af25772421da749790683d06f0540a"
     },
     "tce2_ui/backgrounds/runtime.cfg": {
       "bytes": 19,
@@ -956,20 +956,20 @@
       "sha256": "fb993ecbfa812a6b303485655ed412c5a918814c2ef60afc7f472819f8cca733"
     },
     "ui/menus.txt": {
-      "bytes": 2865,
-      "sha256": "cad280d76d4ec79fb29a76bd7ed9ce515181e063e02ca4c4befef36a8b85d8f6"
+      "bytes": 5027,
+      "sha256": "51544fa8817965acfcee4efcd84a6a44f5a35f2b704b0cf07dae0d6110b77154"
     },
     "ui/menus_gt2.txt": {
-      "bytes": 2865,
-      "sha256": "cad280d76d4ec79fb29a76bd7ed9ce515181e063e02ca4c4befef36a8b85d8f6"
+      "bytes": 5027,
+      "sha256": "51544fa8817965acfcee4efcd84a6a44f5a35f2b704b0cf07dae0d6110b77154"
     },
     "ui/menus_gt5.txt": {
-      "bytes": 2863,
-      "sha256": "3d8aaaa2f8508d6ebc7b430ae9815d3909bbab3e45d16191792e73e3cc842910"
+      "bytes": 5025,
+      "sha256": "21dee9c1a96de6be27782eeb11e0a6af02982c9977a1d08afda0c925aada568d"
     },
     "ui/menus_gt7.txt": {
-      "bytes": 2863,
-      "sha256": "aa72bdb39883c07a6803c3e695d483e35704162d2d301531489441d80add9540"
+      "bytes": 5025,
+      "sha256": "251baf4041c5616679b87370bb4d9cdeb2d71853c912a163572127b6cd8684ae"
     },
     "ui/modern_appearance.menu": {
       "bytes": 8868,
@@ -1099,9 +1099,237 @@
       "bytes": 1525,
       "sha256": "9910d5e8f5a2b32365d19f349ba0d595bb0fcb183eb483b28511464422224b30"
     },
+    "ui/tce_ob_0_0.menu": {
+      "bytes": 3630,
+      "sha256": "1a77c458e51a30ca880802e363b1cd36223648dd47047ac1223e48d358583719"
+    },
+    "ui/tce_ob_0_1.menu": {
+      "bytes": 3567,
+      "sha256": "9c3cf97f8486420858d17d81c2b98050c36f25fd3079ee9e603b1afb4204e413"
+    },
+    "ui/tce_ob_0_1_8_confirm.menu": {
+      "bytes": 1304,
+      "sha256": "3fe6f30d7d09fac546cddc88b18c709e57f05b186115c18819a06aca39db9c36"
+    },
+    "ui/tce_ob_10_0.menu": {
+      "bytes": 1938,
+      "sha256": "0bc189ef6d5db93c561b76d5eda82cb9180f602231ae39b668ad7009b213db9b"
+    },
+    "ui/tce_ob_11_0.menu": {
+      "bytes": 2482,
+      "sha256": "9712e584e6078deeb5675661face55b8244155fdb0b5be0e700b8ecc2daae529"
+    },
+    "ui/tce_ob_12_0.menu": {
+      "bytes": 1376,
+      "sha256": "76dd8c958b3940d88c5295e2bcd474d4268b5940f42547309c87e0e227f98dda"
+    },
+    "ui/tce_ob_13_0.menu": {
+      "bytes": 1423,
+      "sha256": "1d8de00a336f8359fe033516a1f25f1ae15913bb6f88e39b55b1db6102524d57"
+    },
+    "ui/tce_ob_14_0.menu": {
+      "bytes": 3913,
+      "sha256": "a4e5366a93ca15984920a76e6b12d1702669af4186da25f368006ba4e788e331"
+    },
+    "ui/tce_ob_14_1.menu": {
+      "bytes": 3436,
+      "sha256": "8192af065556d765086fc16d8b71828bdee9c7b620a15a8be84e1b1dbb1cbe5b"
+    },
+    "ui/tce_ob_15_0.menu": {
+      "bytes": 1883,
+      "sha256": "687bab5c7bcf948add956388712e79deeb792a5a5901bf24e3c55d363c5c746b"
+    },
+    "ui/tce_ob_16_0.menu": {
+      "bytes": 1886,
+      "sha256": "6ad604715993a3bb914be432af009f84e9b8f2608d73932c0dfdfc2913f0e694"
+    },
+    "ui/tce_ob_17_0.menu": {
+      "bytes": 1440,
+      "sha256": "59a3331954aa6d3e5004bb29444544ab8670ce7b75bba6cdfc66a004a19d2dcc"
+    },
+    "ui/tce_ob_18_0.menu": {
+      "bytes": 2079,
+      "sha256": "fbdc7a248be4471d894280539433407db61db293f6774fd0d1d0195d73cf9711"
+    },
+    "ui/tce_ob_19_0.menu": {
+      "bytes": 1475,
+      "sha256": "1c8d58dc652f02eb2dac638d67d2f4d2fc01db0cc0c4a86831eee71fd94c267f"
+    },
+    "ui/tce_ob_1_0.menu": {
+      "bytes": 2819,
+      "sha256": "809f278b4e2faa2b16bbc161e92a4513d25632fac2ee418e640fab0fd2135ded"
+    },
+    "ui/tce_ob_20_0.menu": {
+      "bytes": 3818,
+      "sha256": "fd8bdc4d96c371a3cf3fe465fbf0373d6ddbb956df61d531b2feef412d8e1bbe"
+    },
+    "ui/tce_ob_20_1.menu": {
+      "bytes": 3987,
+      "sha256": "939a5c3e13cab8bb7dd939813809b708d2876dbb288adfa35284fdaf9d37d32b"
+    },
+    "ui/tce_ob_20_2.menu": {
+      "bytes": 3917,
+      "sha256": "348e0cf1846828090ea296bd405203bd35fbb2801b2daeeeed6951f42808599a"
+    },
+    "ui/tce_ob_20_3.menu": {
+      "bytes": 3778,
+      "sha256": "e451a9454487b7c5a56a85da958f37b59a4ff18132e2faa41868dc84ddd67c74"
+    },
+    "ui/tce_ob_20_3_0_confirm.menu": {
+      "bytes": 1278,
+      "sha256": "b7fea30d0cbd2d4d7f34ca451c67f8ac88d38423239501151c37f4203bb133cb"
+    },
+    "ui/tce_ob_20_3_1_confirm.menu": {
+      "bytes": 1288,
+      "sha256": "d901caf50ba59fc186ad0c011905166a6529204d147407903a9b392c51fd4cdd"
+    },
+    "ui/tce_ob_20_3_3_confirm.menu": {
+      "bytes": 1292,
+      "sha256": "50dc24085ee922051ebd5b0458223a40600ea5deaed674cf6bbf388cbd08467f"
+    },
+    "ui/tce_ob_21_0.menu": {
+      "bytes": 3514,
+      "sha256": "388aaa8a985a7200108cadccb962a299d1f2a2940b7ec3d89b7aaec89284b61d"
+    },
+    "ui/tce_ob_22_0.menu": {
+      "bytes": 3687,
+      "sha256": "c6940846e77bc554bfd5f0ebccf0e1a4068e32bbbd722491969568df323a5d9b"
+    },
+    "ui/tce_ob_22_1.menu": {
+      "bytes": 2719,
+      "sha256": "d312c4888d41607a40303a0d1a320fc7fb4871d933689bb336cf49b71ae63ed0"
+    },
+    "ui/tce_ob_23_0.menu": {
+      "bytes": 3503,
+      "sha256": "a952bb7780544a4e578234ef7ff46bd77c6195d4958c036aa80608e9a7404e82"
+    },
+    "ui/tce_ob_23_1.menu": {
+      "bytes": 2642,
+      "sha256": "4d917117f1fc465cd9cf1a3ec29cb629ae7a9f1a9e4315d4058535aafb4b271e"
+    },
+    "ui/tce_ob_23_1_5_confirm.menu": {
+      "bytes": 1269,
+      "sha256": "94c3f408251615828f27d2d27272f50974ce333287c12d3120cf8e214b66f2b4"
+    },
+    "ui/tce_ob_2_0.menu": {
+      "bytes": 3744,
+      "sha256": "a368d3564f0810d0bf726e1a4f0924bb009fbf956409e517db95edcc20a4f496"
+    },
+    "ui/tce_ob_2_1.menu": {
+      "bytes": 4054,
+      "sha256": "3fbc2eca6b6573eff5cde75e52d74791d1990caf6f4afffcc9f6c976658c9c41"
+    },
+    "ui/tce_ob_2_2.menu": {
+      "bytes": 3694,
+      "sha256": "0521d5b84de3d2a2da5488b555c9d41e1c4a36a67fde485182f907b34f70a2da"
+    },
+    "ui/tce_ob_2_2_1_confirm.menu": {
+      "bytes": 1304,
+      "sha256": "60779a793592a42109961a351e062a85b6cdcfce6bada1fd55c2df66b085e442"
+    },
+    "ui/tce_ob_3_0.menu": {
+      "bytes": 3629,
+      "sha256": "c5300fc6ffd9b8c773b9b79db875a560781d5824894941e259ed6627ef8fcbb5"
+    },
+    "ui/tce_ob_3_1.menu": {
+      "bytes": 4006,
+      "sha256": "2dc04c1593e44a242acc41d0b9d8f720ff6575240adba1e55c62658792409c3f"
+    },
+    "ui/tce_ob_3_2.menu": {
+      "bytes": 3940,
+      "sha256": "ee04d397c6f8154acf4f75cc369691dc90023e4457ff136f21c75422ed598cbc"
+    },
+    "ui/tce_ob_3_3.menu": {
+      "bytes": 3948,
+      "sha256": "c26e27c0271ccd1c080467fd77a5a7083899773224ff47c8d0b4f148398790b8"
+    },
+    "ui/tce_ob_3_4.menu": {
+      "bytes": 3228,
+      "sha256": "8842d8777d05ea92f733362aaef462a5fc2b1832c275c33322e4a25e51df1687"
+    },
+    "ui/tce_ob_4_0.menu": {
+      "bytes": 3536,
+      "sha256": "95024c2c44cdcf3c89f99464bdbc8b4e8ee8f4efbd4a3bff75d4321eb99772ec"
+    },
+    "ui/tce_ob_4_1.menu": {
+      "bytes": 1896,
+      "sha256": "b92a6c69c3d04da5e23ea3f2badd912a6566ddbafecc0580974ee9ab44dc4612"
+    },
+    "ui/tce_ob_5_0.menu": {
+      "bytes": 3676,
+      "sha256": "77deb946f256ab900ac85b85df5b8e8e747531e7f0957bfef31e6173546c48e5"
+    },
+    "ui/tce_ob_5_1.menu": {
+      "bytes": 2188,
+      "sha256": "f1066e9471a48a1b629deb601a443506cf61695032cbc8243248586852140e29"
+    },
+    "ui/tce_ob_6_0.menu": {
+      "bytes": 2917,
+      "sha256": "8abb78b002ab52ea8bc4b6d28b8f0d9d3f0185c0d4e596ff6f86fab51f01c165"
+    },
+    "ui/tce_ob_7_0.menu": {
+      "bytes": 1965,
+      "sha256": "0280de4ca84c6219c628db0cac4e6d3dfbb5f7111b71f0573a7aa3d046dc3498"
+    },
+    "ui/tce_ob_8_0.menu": {
+      "bytes": 3872,
+      "sha256": "3f993bb7901b16aac84de4bc732a13dfa221c0ecd62510924c72c5f0b29a7551"
+    },
+    "ui/tce_ob_8_1.menu": {
+      "bytes": 4156,
+      "sha256": "d2277ea7149f8b1c8a11446e9cf72552a72790a5cb8f5465772068606999d9cd"
+    },
+    "ui/tce_ob_8_2.menu": {
+      "bytes": 1729,
+      "sha256": "02d2c706f1489c86e3de9c4b86bef65037bd615871fa7c88970ab8a107ac98d2"
+    },
+    "ui/tce_ob_9_0.menu": {
+      "bytes": 3876,
+      "sha256": "5c674093a6cbc0c1cef03adf86562aa2379fec4b84ae165ab756545699c42406"
+    },
+    "ui/tce_ob_9_1.menu": {
+      "bytes": 4152,
+      "sha256": "3f5023778ce9d7423304f73996d182cd2f345a95803cb3bd23985b7ea553d9ee"
+    },
+    "ui/tce_ob_9_2.menu": {
+      "bytes": 1729,
+      "sha256": "ac7178bb4f136741dfc28deb4a29031cf5f0e19bfc787fbda431b081b802939b"
+    },
+    "ui/tce_ob_goalname.menu": {
+      "bytes": 1336,
+      "sha256": "2f51694e9cdd073de7022c280368cc2aadc7d29a7ad371ab299fea0f8d20481f"
+    },
+    "ui/tce_ob_groupname.menu": {
+      "bytes": 1344,
+      "sha256": "156b220e2106ce77ba4258d1449368b1ccefc7e1c99ec3caad25805e90b0ada9"
+    },
+    "ui/tce_ob_names.menu": {
+      "bytes": 2023,
+      "sha256": "7d563ad387f0732c1bd47f6adf8a8ba7f173dafe3246fd39a1a5b706a6a738e5"
+    },
+    "ui/tce_ob_root_1.menu": {
+      "bytes": 3772,
+      "sha256": "eae585e98122d0a880e986c9e6281c16f3427c46fdb902ae2c70c29ed79d331a"
+    },
+    "ui/tce_ob_root_2.menu": {
+      "bytes": 2269,
+      "sha256": "544a5ad6d5ed63b9db2867ccbf53059a8c54234a6fc1a2bc0b08d942331f8711"
+    },
+    "ui/tce_ob_value.menu": {
+      "bytes": 1956,
+      "sha256": "ee6f2ed6acbd5c129b7fc07e6b14c2cc746c19dc97fba8b1362dcc485ee651fc"
+    },
+    "ui/tce_ob_waypointname.menu": {
+      "bytes": 1364,
+      "sha256": "e1eac9ab6f768fcf4b35b01de85d17d8e54d438937503f9f69b97aef8beb916e"
+    },
     "ui/tce_omnibot.menu": {
-      "bytes": 50089,
-      "sha256": "9929b996e81f65fe565b89b7fd0a35479ed3c918b326b982a9d4b7d20d5c0068"
+      "bytes": 50544,
+      "sha256": "3c85a0d5ba800997ade040864a6a71dc90d6e067e78224eace260023bd4dd7a3"
+    },
+    "ui/tce_omnibot_dms.menu": {
+      "bytes": 3821,
+      "sha256": "252fe42d67a9930a9b187af85d20c3b6a01d4d43970cbccbba89d4957c3eff59"
     },
     "ui/tcemods.menu": {
       "bytes": 1417,
@@ -1124,16 +1352,20 @@
       "sha256": "f5298024a5425b5e161fdce4ee3d199e49b107e8ce8314ffb2cc04c7a198651f"
     },
     "ui/wm_ftquickmessage.menu": {
-      "bytes": 10300,
-      "sha256": "a4682c0a89e9b236710683b933a4b4573614836748a9659e9867ce83d6102864"
+      "bytes": 10812,
+      "sha256": "a1b4e11957d5f093dc6b7525b7578bfd3057ad52034d24eeab5bbe10a75b23dc"
+    },
+    "ui/wm_ftquickmessageAlt.menu": {
+      "bytes": 11109,
+      "sha256": "f240a5437bbee3dd2fa807c789e7af3b54eef623f75e416cad121fac2222e087"
     },
     "ui/wm_quickmessage.menu": {
-      "bytes": 9977,
-      "sha256": "5ff9559aa01974c6c222edbd856c79d0ecaa4ed211213dc089181808c533eb1f"
+      "bytes": 10485,
+      "sha256": "4c2ce604d1e8118de23008c7b1078e9bf79a722dac1c52c699f66a94bfdb53fe"
     },
     "ui/wm_quickmessageAlt.menu": {
-      "bytes": 10292,
-      "sha256": "930c03bd9df7a8247c0d8ee7f8aa063907d34faaf0ca3bd18f5a0ef776d188d8"
+      "bytes": 10806,
+      "sha256": "0f09f19024633e17fe4ecccdd5b294856dc575915b7b681b91839e6dff758335"
     },
     "ui_obj/global.menu": {
       "bytes": 1236,
@@ -1159,5 +1391,6 @@
       "bytes": 6177,
       "sha256": "2cc00c6e6072cd91ead55484e95df73c0938df887ed67d5f9f3a3fb2cc2c499b"
     }
-  }
+  },
+  "resource_source": "pak + navstudio/editor-pak"
 }

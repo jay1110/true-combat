@@ -42,5 +42,6 @@ appropriate picture on the next process start.
 Weather and geocoding: [Open-Meteo documentation](https://open-meteo.com/en/docs),
 [geocoding documentation](https://open-meteo.com/en/docs/geocoding-api).
 Weather data attribution: Open-Meteo; location data: GeoNames. Pictures are the
-user-provided map_pics artwork. Time-of-day fallback windows are sunrise07:00,
+user-provided artwork retained as game-ready images in `pak/tce2_ui/backgrounds`.
+The original PNG collection is not required. Time-of-day fallback windows are sunrise07:00,
 sunset19:00; a fresh configured location supplies real solar times instead.

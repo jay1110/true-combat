@@ -18,7 +18,7 @@ def build_commands(target, build, boost, parallel=4):
         ('configure-modules', ['cmake', '-S', str(ROOT), '-B', str(modules), *config,
           '-DBUILD_TESTING=OFF', '-DTCE_BUILD_REFERENCE_TESTS=OFF', '-DFEATURE_OMNIBOT=ON',
           '-DTCE_BUILD_OMNIBOT_CORE=OFF', '-DFEATURE_NAVSTUDIO=OFF',
-          '-DTCE_BUILD_NAVSTUDIO=OFF', '-DTCE_BUILD_NAVMESH_TOOL=OFF', '-DTCE_BUILD_TCE_HELPERS=OFF']),
+          '-DTCE_BUILD_NAVSTUDIO=OFF', '-DTCE_BUILD_NAVMESH_TOOL=OFF']),
         ('build-modules', ['cmake', '--build', str(modules), '--config', 'Release',
           '--target', 'tce_modules', '--parallel', str(parallel)]),
         ('configure-core', ['cmake', '-S', str(ROOT / 'omnibot'), '-B', str(core), *config,

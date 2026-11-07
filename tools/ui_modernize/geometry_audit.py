@@ -184,17 +184,15 @@ def preprocess(compiler,source,include,fui):
 
 
 def source_files(root,variant):
+    if root.resolve()==(ROOT/'pak').resolve():
+        from verify_package import canonical_ui
+        return {p:d for p,d in canonical_ui.collect(variant).items() if p.endswith(('.menu','.h'))}
     files={p.relative_to(root).as_posix():p.read_bytes() for p in root.rglob('*') if p.suffix in ('.menu','.h')}
-    if variant=='game':
-        import restyle
-        files.pop('ui/tce_omnibot.menu',None)
-        for name in ('ingame_main.menu','options_controls.menu','options_customise_hud.menu'):
-            key='ui/'+name;files[key]=restyle.menu(restyle.read(ROOT/'src/assets'/key),Path(key)).encode('latin1')
     return files
 
 
 def audit(root,compiler,variant):
-    files=source_files(root,variant);fonts={i:Font(ROOT/'ui-modern/assets/fonts/tce2_ui'/name) for i,name in FONTS.items()}
+    files=source_files(root,variant);fonts={i:Font(ROOT/'pak/fonts/tce2_ui'/name) for i,name in FONTS.items()}
     with tempfile.TemporaryDirectory(prefix='tce-ui-geometry-') as tmp:
         include=Path(tmp)
         for path,data in files.items():
@@ -224,7 +222,7 @@ def audit(root,compiler,variant):
 
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--root',type=Path,default=ROOT/'ui-modern')
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--root',type=Path,default=ROOT/'pak')
     p.add_argument('--compiler',default=shutil.which('gcc') or shutil.which('clang') or r'C:\msys64\mingw64\bin\gcc.exe')
     p.add_argument('--variant',choices=('editor','game'),default='game');p.add_argument('--out',type=Path,required=True)
     p.add_argument('--report-only',action='store_true',help='Write diagnostics without failing on actionable geometry findings')

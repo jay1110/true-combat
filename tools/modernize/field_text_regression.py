@@ -34,7 +34,7 @@ def main():
     assert 'item->textscale = savedTextScale;' in paint and 'item->textaligny = savedTextY;' in paint
     if bodies['Item_Bind_Paint'].count('TCE_FitTextScale(')!=1 or bodies['Item_ListBox_Paint'].count('TCE_FitTextScale(')!=1:
         raise ValueError('Both actual paint paths must call the tested font-fit helper')
-    fonts=[ROOT/'ui-modern/assets/fonts/tce2_ui'/FONTS[i] for i in range(4)]
+    fonts=[ROOT/'pak/fonts/tce2_ui'/FONTS[i] for i in range(4)]
     advances=[];glyphsets=[]
     for path in fonts:
         font=Font(path);advances.append('{'+','.join(format(font.width(chr(i),1),'.9g')+'f' if '.' in format(font.width(chr(i),1),'.9g') else format(font.width(chr(i),1),'.9g')+'.0f' for i in range(256))+'}')
@@ -52,7 +52,7 @@ def main():
             glyphs.append('{'+','.join(str(v) for v in (top,height,pitch,width,round(font.width(chr(i),1))))+'}')
         glyphsets.append('{{'+','.join(glyphs)+'},1.f}')
     if a.classic_dat:
-        fonts=[ROOT/'ui-modern/assets/fonts/tce2_ui'/name for name in
+        fonts=[ROOT/'pak/fonts/tce2_ui'/name for name in
                ('Barlow-Regular_21.dat','Barlow-SemiBold_30.dat',
                 'BarlowCondensed-SemiBold_16.dat','BarlowCondensed-SemiBold_27.dat')]
         advances=[];glyphsets=[]

@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import io
+import importlib.util
 import json
 from pathlib import Path, PurePosixPath
 import stat
@@ -12,6 +13,9 @@ import semantic as sem
 import classic_assets
 
 ROOT = Path(__file__).resolve().parents[2]
+_spec=importlib.util.spec_from_file_location('tce2_canonical_ui',Path(__file__).with_name('package.py'))
+canonical_ui=importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(canonical_ui)
 OVERRIDES = ('ingame_main.menu', 'options_controls.menu', 'options_customise_hud.menu')
 LOAD_LISTS = ('menus.txt', 'menus_gt2.txt', 'menus_gt5.txt', 'menus_gt7.txt')
 EDITOR_MENU = 'ui/tce_omnibot.menu'
@@ -97,144 +101,62 @@ def compare_semantics(reference, actual):
     return len(expected)
 
 
-def verify(path, variant, baseline, repo=ROOT, transform=styled_override):
-    repo = Path(repo)
-    if variant not in ('game', 'editor'):
-        raise ValueError('Unknown UI variant')
-    original, edited = repo/'pak_original_tce', repo/'ui-modern'
-    editor_check = sem.compare(baseline, original, edited, require_styled=True)
-    if not editor_check['passed']:
-        raise ValueError('Edited source not accepted: ' + '; '.join(editor_check['errors']))
-    archive_bytes = Path(path).read_bytes()
-    files = read_archive(archive_bytes)
-    try:
-        manifest = json.loads(files['tce2_ui/package.json'])
-    except (KeyError, ValueError, UnicodeDecodeError) as error:
-        raise ValueError('Missing/invalid package manifest') from error
-    if (not isinstance(manifest, dict) or manifest.get('schema') != 1 or manifest.get('variant') != variant or
-            manifest.get('theme') != 'TCE2 Modern UI' or manifest.get('version') != '1.0.3' or
-            manifest.get('all_original_menu_sources') != baseline['menu_count']):
-        raise ValueError('Wrong UI package identity/coverage')
-    inventory = manifest.get('files')
-    if not isinstance(inventory, dict) or set(inventory) != set(files)-{'tce2_ui/package.json'}:
-        raise ValueError('Manifest entry inventory differs')
-    for name, row in inventory.items():
-        if not isinstance(row, dict) or row.get('bytes') != len(files[name]) or row.get('sha256') != sha(files[name]):
-            raise ValueError('Manifest byte fingerprint differs: ' + name)
+def verify(path, variant, baseline=None, repo=ROOT, transform=None):
+    """Verify a diagnostic UI archive against the sole canonical resource trees.
 
-    original_files = sem.source_files(original)
-    theme = sem.source_files(edited, all_files=True)
-    semantic_paths = text_paths(original_files)
-    expected = {p:theme[p] for p in semantic_paths}
-    reference = {p:original_files[p] for p in semantic_paths}
-    if sem.PRIVATE_WIDGETS in theme:
-        expected[sem.PRIVATE_WIDGETS]=theme[sem.PRIVATE_WIDGETS]
-    if sem.APPEARANCE in theme:
-        expected[sem.APPEARANCE]=theme[sem.APPEARANCE]
-    exception_rows = manifest.get('normal_game_content_sources')
-    game_sources = {}
-    if variant == 'game':
-        expected.pop(EDITOR_MENU); reference.pop(EDITOR_MENU)
-        for name in LOAD_LISTS:
-            key = 'ui/'+name
-            if remove_editor_load(files[key]) != remove_editor_load(theme[key]):
-                raise ValueError('Unrelated Game load-list change: ' + key)
-            if sem.tokens(sem.strip_comments(files[key].decode('latin-1'))) != remove_editor_load(theme[key]):
-                raise ValueError('Game load list still exposes authoring menu: ' + key)
-            expected[key] = files[key]
-            # These four references contain no script/paint data after removal.
-            reference[key] = ' '.join(remove_editor_load(original_files[key])).encode('latin-1')
-        if (not isinstance(exception_rows, list) or len(exception_rows) != len(OVERRIDES) or
-                any(not isinstance(r, dict) for r in exception_rows) or
-                {r.get('path') for r in exception_rows} != {'ui/'+n for n in OVERRIDES}):
-            raise ValueError('Wrong/missing Game content exception inventory')
-        for row in exception_rows:
-            name = PurePosixPath(row['path']).name
-            source = 'src/assets/ui/'+name
-            if row.get('content_source') != source or not isinstance(row.get('reason'), str) or not row['reason']:
-                raise ValueError('Unbound Game content exception: ' + row['path'])
-            data = (repo/source).read_bytes()
-            game_sources[source] = sha(data)
-            reference[row['path']] = data
-            expected[row['path']] = transform(data, row['path'])
-    elif exception_rows != []:
-        raise ValueError('Editor cannot claim Game content exceptions')
-
-    assets = {p.relative_to(edited/'assets').as_posix():p.read_bytes()
-              for p in sorted((edited/'assets').rglob('*')) if p.is_file()}
-    try:
-        art = json.loads(assets['tce2_ui/SOURCE.json'])
-        fonts = json.loads(assets['fonts/tce2_ui/SOURCE.json'])
-    except (KeyError, ValueError, UnicodeDecodeError) as error:
-        raise ValueError('Missing/invalid art or font provenance') from error
-    for group in (art, fonts):
-        rows = group.get('files')
-        if not isinstance(rows, list) or any(not isinstance(r,dict) for r in rows):
-            raise ValueError('Wrong UI asset provenance inventory')
-        for row in rows:
-            name = row.get('path')
-            if not safe_path(name) or name not in assets or row.get('sha256') != sha(assets[name]) or row.get('bytes') != len(assets[name]):
-                raise ValueError('Missing/stale UI asset provenance: ' + str(name))
-    expected.update(assets)
-    aliases = art.get('native_aliases')
-    if not isinstance(aliases, dict):
-        raise ValueError('Missing native widget aliases')
-    for target, source in aliases.items():
-        if (not safe_path(target) or not safe_path(source) or not target.startswith('ui/assets/') or
-                not source.startswith('tce2_ui/') or not target.endswith('.tga') or not source.endswith('.tga') or
-                target in expected or source not in assets):
-            raise ValueError('Unsafe/unbound native widget alias: ' + str(target))
-        expected[target] = assets[source]
-    # Production themes declare the portable font manifest; old synthetic test
-    # themes deliberately have no raster/font format contract. Exact expected
-    # source closure above still rejects removal of this production declaration.
-    if 'portable' in fonts:
-        portability=classic_assets.verify({p:d for p,d in expected.items() if p.endswith(('.tga','.dat','.ttf','.json'))})
-        if manifest.get('asset_compatibility') != portability:
-            raise ValueError('Missing/stale ET asset compatibility evidence')
-    if RUNTIME_MARKER[0] in expected:raise ValueError('Runtime marker must be the fixed package-owned entry')
-    expected[RUNTIME_MARKER[0]]=RUNTIME_MARKER[1]
-    payload = {p:d for p,d in files.items() if p != 'tce2_ui/package.json'}
-    if payload != expected:
-        missing = sorted(set(expected)-set(payload)); extra = sorted(set(payload)-set(expected))
-        changed = sorted(p for p in set(payload)&set(expected) if payload[p] != expected[p])
-        raise ValueError('Stale/unclassified package bytes: missing='+str(missing)+', extra='+str(extra)+', changed='+str(changed))
-    semantic_count = compare_semantics(reference, payload)
-    if variant == 'game':
-        markers = ('tce_omnibot', 'omnibot_menu', 'omnibot_goalproperty', 'tce_navgen', 'wp_add', 'goal_edit', 'navstudio')
-        for name in text_paths(payload):
-            text = ' '.join(sem.tokens(sem.strip_comments(payload[name].decode('latin-1')))).lower()
-            if any(marker in text for marker in markers):
-                raise ValueError('Editor authoring reference in Game UI: ' + name)
-    if sem.source_files(edited, all_files=True) != theme or sem.source_files(original) != original_files:
-        raise ValueError('Theme/original source changed during package review')
-    if any(sha((repo/p).read_bytes()) != h for p,h in game_sources.items()):
-        raise ValueError('Game production content changed during review')
-    if Path(path).read_bytes() != archive_bytes:
-        raise ValueError('Archive changed during package review')
+    Historical source-projection checks remain in compare_semantics; runtime
+    acceptance no longer reconstructs a second tree from local original files.
+    """
+    canonical=canonical_ui
+    repo=Path(repo)
+    archive_bytes=Path(path).read_bytes();files=read_archive(archive_bytes)
+    expected=canonical.collect(variant,repo)
+    if files!=expected:
+        missing=sorted(set(expected)-set(files));extra=sorted(set(files)-set(expected))
+        changed=sorted(p for p in set(expected)&set(files) if expected[p]!=files[p])
+        raise ValueError('Stale/unclassified canonical UI bytes: missing='+str(missing)+', extra='+str(extra)+', changed='+str(changed))
+    for meta_path in ('tce2_ui/SOURCE.json','fonts/tce2_ui/SOURCE.json'):
+        try:metadata=json.loads(files[meta_path])
+        except (KeyError,ValueError,UnicodeDecodeError) as error:raise ValueError('Missing/invalid UI asset provenance') from error
+        for row in metadata.get('files',[]):
+            name=row.get('path')
+            if not safe_path(name) or name not in files or row.get('sha256')!=sha(files[name]) or row.get('bytes')!=len(files[name]):
+                raise ValueError('Missing/stale UI asset provenance: '+str(name))
+    art=json.loads(files['tce2_ui/SOURCE.json'])
+    for target,source in art.get('native_aliases',{}).items():
+        if not safe_path(target) or not safe_path(source) or not target.startswith('ui/assets/') or not source.startswith('tce2_ui/') or files.get(target)!=files.get(source) or source not in files:
+            raise ValueError('Missing/stale native widget alias: '+str(target))
+    if 'portable' in json.loads(files['fonts/tce2_ui/SOURCE.json']):
+        classic_assets.verify({p:d for p,d in files.items() if p.endswith(('.tga','.dat','.ttf','.json'))})
+    if variant=='game':
+        markers=('tce_omnibot','omnibot_menu','omnibot_goalproperty','tce_navgen','wp_add','goal_edit','navstudio')
+        for name in text_paths(files):
+            words=' '.join(sem.tokens(sem.strip_comments(files[name].decode('latin1')))).lower()
+            if any(marker in words for marker in markers):raise ValueError('Editor authoring reference in Game UI: '+name)
+    if canonical.collect(variant,repo)!=expected or Path(path).read_bytes()!=archive_bytes:
+        raise ValueError('Canonical UI inputs changed during review')
     return {'schema':1,'passed':True,'variant':variant,'package':str(Path(path).resolve()),'sha256':sha(archive_bytes),
-            'entries':len(files),'menus':sum(p.endswith('.menu') for p in payload),'semantic_files':semantic_count,
-            'original_menu_sources':baseline['menu_count'],'editor_source_gate':True,'game_content_sources':game_sources,
-            'package_manifest_sha256':sha(files['tce2_ui/package.json']),
-            'payload_sha256':{p:sha(data) for p,data in sorted(payload.items())},'input_stable':True,
-            'limits':['Independent source semantics plus exact current bytes; no live input/rendering/engine preprocessing proof.',
-                      'Game has exactly three explicit current production-source exceptions and one excluded authoring menu.']}
+            'entries':len(files),'menus':sum(p.endswith('.menu') for p in files),'semantic_files':len(text_paths(files)),
+            'source':'pak + explicit Editor delta' if variant=='editor' else 'pak',
+            'payload_sha256':{p:sha(data) for p,data in sorted(files.items())},'input_stable':True,
+            'limits':['Exact canonical UI bytes/provenance; no live engine input/rendering or original parity claim.',
+                      'Production module, stock-delta and Editor reachability gates live in tools/release and tools/assets.']}
 
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--package', type=Path, required=True)
     p.add_argument('--variant', choices=('game','editor'), required=True)
-    p.add_argument('--baseline', type=Path, required=True)
+    p.add_argument('--baseline', type=Path, help='Optional historical local source inventory')
     p.add_argument('--repo', type=Path, default=ROOT)
     p.add_argument('--out', type=Path, required=True)
     args = p.parse_args()
-    if any(args.out.resolve().is_relative_to((args.repo/folder).resolve()) for folder in ('pak','pak_original_tce','ui-modern')):
+    if any(args.out.resolve().is_relative_to((args.repo/folder).resolve()) for folder in ('pak','pak_original_tce','navstudio/editor-pak','tools/ui_modernize/source')):
         p.error('Package receipt must be outside original/theme sources')
-    if args.out.resolve() in (args.package.resolve(), args.baseline.resolve()):
+    if args.out.resolve()==args.package.resolve() or (args.baseline and args.out.resolve()==args.baseline.resolve()):
         p.error('Package receipt cannot overwrite package/baseline input')
     try:
-        result = verify(args.package, args.variant, json.loads(args.baseline.read_text()), args.repo)
+        result = verify(args.package, args.variant, json.loads(args.baseline.read_text()) if args.baseline else None, args.repo)
     except (ValueError, OSError, KeyError, TypeError, zipfile.BadZipFile) as error:
         result = {'passed':False,'errors':[str(error)]}
     args.out.parent.mkdir(parents=True,exist_ok=True)

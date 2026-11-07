@@ -5,7 +5,7 @@ import re
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / 'pak_original_tce'
-DEST = ROOT / 'ui-modern'
+DEST = ROOT / 'build/ui-style'
 DIRS = ('ui', 'ui_obj', 'ui_robj', 'ui_tdm')
 
 

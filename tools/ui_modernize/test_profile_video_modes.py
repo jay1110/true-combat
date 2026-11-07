@@ -29,12 +29,12 @@ class ProfileVideoModes(unittest.TestCase):
         expected=video.choices()
         self.assertEqual(len(video.MODES),20)
         self.assertEqual([n for _,n in video.MODES],list(range(3,23)))
-        system=(ROOT/'ui-modern/ui/options_system.menu').read_bytes().decode('latin1')
+        system=(ROOT/'pak/ui/options_system.menu').read_bytes().decode('latin1')
         self.assertEqual(video.resolution(system)[3][8],expected)
         self.assertEqual(video.apply(system,'ui/options_system.menu'),system)
         for path in sorted(video.PAGES):
             source=restyle.menu(restyle.read(ROOT/'pak_original_tce'/path),Path(path))
-            artifact=(ROOT/'ui-modern'/path).read_bytes().decode('latin1')
+            artifact=(ROOT/'pak'/path).read_bytes().decode('latin1')
             with self.subTest(path=path):
                 self.assertEqual(video.resolution(source)[3][8],expected)
                 self.assertEqual(video.resolution(artifact)[3][8],expected)
@@ -77,7 +77,7 @@ class ProfileVideoModes(unittest.TestCase):
 
     def test_existing_font_labels_fit_both_profile_value_columns(self):
         for path in sorted(video.PAGES):
-            text=(ROOT/'ui-modern'/path).read_bytes().decode('latin1');args=video.resolution(text)[3]
+            text=(ROOT/'pak'/path).read_bytes().decode('latin1');args=video.resolution(text)[3]
             available=float(args[2])*.5-10
             self.assertTrue(all(font_width(label,float(args[5]))<=available for label,_ in video.MODES))
 

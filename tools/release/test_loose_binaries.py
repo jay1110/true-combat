@@ -273,7 +273,7 @@ class LooseBinaries(unittest.TestCase):
                 commands = dict(build_commands(target, self.root / 'build', self.root / 'boost'))
                 modules = commands['configure-modules']
                 for flag in ('FEATURE_NAVSTUDIO', 'TCE_BUILD_NAVSTUDIO', 'TCE_BUILD_NAVMESH_TOOL',
-                             'TCE_BUILD_TCE_HELPERS', 'TCE_BUILD_REFERENCE_TESTS'):
+                             'TCE_BUILD_REFERENCE_TESTS'):
                     self.assertIn('-D' + flag + '=OFF', modules)
                 self.assertIn('-DFEATURE_NAVSTUDIO=OFF', commands['configure-core'])
                 self.assertIn('tce_modules', commands['build-modules'])

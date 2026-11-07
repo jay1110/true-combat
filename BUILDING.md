@@ -39,7 +39,6 @@ the game/editor destinations.
 | `TCE_BUILD_OMNIBOT_CORE` | Separate `omnibot` core target | ON with gameplay bots |
 | `TCE_BUILD_NAVSTUDIO` | Desktop `navstudio`, `navstudio-run`, Windows package targets | OFF |
 | `TCE_BUILD_NAVMESH_TOOL` | Separate pinned Recast geometry tool | OFF |
-| `TCE_BUILD_TCE_HELPERS` | Local legacy launcher helper target | OFF |
 | `TCE_BUILD_REFERENCE_TESTS` | Historical Win32 original-DLL comparison suite | OFF |
 
 ```powershell
@@ -65,12 +64,14 @@ An original TCE installation supplies unchanged game assets. They are not copied
 into `pak`, the mod PK3, Git or source ZIPs. `pak_original_tce` is a local-only
 authoring reference, ignored by Git; clean-checkout builds never require it.
 Small metadata-only reference manifests classify unchanged stock resources.
-`ui-modern` and `src/assets` retain the authoring inputs used for the migration.
-Release builds read `pak` directly and never overwrite hand edits by regenerating
-it. Deliberate regeneration and its `--check` mode are documented in
-[tools/assets/README.md](tools/assets/README.md). The supplied map background
-sources are in `map_pics`; settings and the optional weather launcher are
-documented in [tools/launcher/README.md](tools/launcher/README.md).
+`pak` is the single editable production resource tree. The retained UI design
+inputs and metadata live under `tools/ui_modernize/source`; separate Editor
+resources live under `navstudio/editor-pak`. Release builds read `pak` directly
+and never overwrite hand edits by regenerating it. Resource validation is
+documented in [tools/assets/README.md](tools/assets/README.md). The sixteen
+processed map backgrounds remain in `pak/tce2_ui/backgrounds`; their original
+PNG collection is no longer required. Settings and the optional weather launcher
+are documented in [tools/launcher/README.md](tools/launcher/README.md).
 
 Country flags use `g_countryflags` on the server (latched) and `cg_countryflags`
 on the client. Supply an existing legacy IPv4 country database explicitly:
@@ -158,8 +159,8 @@ deterministic helper tests.
 with provenance and content pins in `vendor/dependencies.lock.json`.
 `compat/legacy/` holds classified numeric/ABI helper bodies; old include paths
 forward there. `platform/` isolates genuine native OS services. Engine
-filesystem, timing and rendering services remain engine traps. `navstudio/`,
-`omnibot/` and `tce/` are explicit optional tools, not public gameplay modules.
+filesystem, timing and rendering services remain engine traps. `navstudio/` and
+`omnibot/` contain the separate authoring tools and bot build integration.
 The `tce_` prefix on a gameplay source file does not make it optional tooling.
 
 Existing SDK-facing structures, syscall numbers, `dllEntry`, and `vmMain`

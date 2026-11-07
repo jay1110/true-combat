@@ -36,7 +36,7 @@ def has_glyph(data,code):
 class NativeUIAssetTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.meta=json.loads((g.DEST/"tce2_ui/SOURCE.json").read_text())
+        cls.meta=json.loads((g.ASSETS/"tce2_ui/SOURCE.json").read_text())
 
     def test_frozen_art_and_native_tga(self):
         self.assertEqual(self.meta["generator_sha256"],hashlib.sha256(Path(g.__file__).read_bytes()).hexdigest())
@@ -47,7 +47,7 @@ class NativeUIAssetTests(unittest.TestCase):
         self.assertEqual(self.meta['theme_layers']['generator_sha256'],hashlib.sha256(Path(theme_assets.__file__).read_bytes()).hexdigest())
         for row in self.meta["files"]:
             with self.subTest(asset=row["path"]):
-                path=g.DEST/row["path"];data=path.read_bytes()
+                path=g.ASSETS/row["path"];data=path.read_bytes()
                 self.assertEqual(hashlib.sha256(data).hexdigest(),row["sha256"])
                 self.assertEqual(len(data),row["bytes"])
                 self.assertEqual(data[2],2)
@@ -58,7 +58,7 @@ class NativeUIAssetTests(unittest.TestCase):
                 self.assertTrue(row["path"].startswith("tce2_ui/"))
 
     def test_unique_native_vertex_alpha_shaders(self):
-        shader=(g.DEST/"scripts/tce2_ui.shader").read_text()
+        shader=(g.ASSETS/"scripts/tce2_ui.shader").read_text()
         names=re.findall(r"(?m)^tce2_ui/[^\s{}]+$",shader)
         self.assertEqual(len(names),155);self.assertEqual(len(set(names)),155)
         self.assertEqual(shader.count("blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA"),155)
@@ -73,9 +73,9 @@ class NativeUIAssetTests(unittest.TestCase):
         self.assertEqual(len(sources),51)
         for path in sources:
             with self.subTest(path=path):
-                original=(g.DEST/path).read_bytes();key=path[len('tce2_ui/'):-4]
+                original=(g.ASSETS/path).read_bytes();key=path[len('tce2_ui/'):-4]
                 width,height=struct.unpack_from('<HH',original,12);end=18+width*height*4
-                layers=[(g.DEST/('tce2_ui/theme/'+key+'_'+kind+'.tga')).read_bytes() for kind in ('body','accent')]
+                layers=[(g.ASSETS/('tce2_ui/theme/'+key+'_'+kind+'.tga')).read_bytes() for kind in ('body','accent')]
                 for layer in layers:
                     self.assertEqual(layer[:18],original[:18])
                     self.assertEqual(layer[18:end:4],layer[19:end:4])
@@ -92,7 +92,7 @@ class NativeUIAssetTests(unittest.TestCase):
 
     def test_light_palettes_can_actually_produce_light_panels(self):
         for name in ('panel','button','tab','selector'):
-            data=(g.DEST/('tce2_ui/theme/'+name+'_body.tga')).read_bytes()
+            data=(g.ASSETS/('tce2_ui/theme/'+name+'_body.tga')).read_bytes()
             width,height=struct.unpack_from('<HH',data,12);pixels=data[18:18+width*height*4]
             visible=[pixels[at]/255 for at in range(0,len(pixels),4) if pixels[at+3]>0]
             self.assertTrue(visible)
@@ -104,26 +104,26 @@ class NativeUIAssetTests(unittest.TestCase):
 
     def test_transparent_controls_and_distinct_states(self):
         for key in ("check_off","check_on","radio_off","radio_on","focus"):
-            data=(g.DEST/("tce2_ui/"+key+".tga")).read_bytes();alpha=data[18:18+64*64*4][3::4] if key!="focus" else data[18:18+256*64*4][3::4]
+            data=(g.ASSETS/("tce2_ui/"+key+".tga")).read_bytes();alpha=data[18:18+64*64*4][3::4] if key!="focus" else data[18:18+256*64*4][3::4]
             self.assertIn(0,alpha);self.assertIn(255,alpha)
-        button=[(g.DEST/("tce2_ui/"+key+".tga")).read_bytes() for key in ("button","button_hover","button_pressed","button_disabled")]
+        button=[(g.ASSETS/("tce2_ui/"+key+".tga")).read_bytes() for key in ("button","button_hover","button_pressed","button_disabled")]
         self.assertEqual(len(set(button)),4)
         self.assertEqual(len(self.meta["native_aliases"]),11)
         for old,new in self.meta["native_aliases"].items():
-            self.assertTrue(old.startswith("ui/assets/"));self.assertTrue(new.startswith("tce2_ui/"));self.assertTrue((g.DEST/new).is_file())
+            self.assertTrue(old.startswith("ui/assets/"));self.assertTrue(new.startswith("tce2_ui/"));self.assertTrue((g.ASSETS/new).is_file())
 
     def test_cursor_native_hotspot(self):
         info=self.meta["cursor_hotspot"]
         self.assertEqual((info["x"],info["y"]),(0,0))
         self.assertEqual(info["shader"],"tce2_ui/cursor")
-        data=(g.DEST/info["asset"]).read_bytes();_,_,rgba=classic_assets.tga_pixels(data)
+        data=(g.ASSETS/info["asset"]).read_bytes();_,_,rgba=classic_assets.tga_pixels(data)
         self.assertGreater(rgba[3],0)  # upper-left visible outline owns native hotspot
         self.assertEqual(rgba[(63*64+63)*4+3],0)
-        self.assertIn("clampmap "+info["asset"],(g.DEST/"scripts/tce2_ui.shader").read_text())
+        self.assertIn("clampmap "+info["asset"],(g.ASSETS/"scripts/tce2_ui.shader").read_text())
 
     def test_publisher_logo_provenance_matches_original_masks_without_plate(self):
         self.assertNotIn('footer_surface',self.meta)
-        info=self.meta['publisher_logos'];data=(g.DEST/info['source']).read_bytes()
+        info=self.meta['publisher_logos'];data=(g.ASSETS/info['source']).read_bytes()
         self.assertEqual(info['sha256'],hashlib.sha256(data).hexdigest())
         self.assertEqual(info['shadow'],{'offset':[1,1],'rgb':[0,0,0],'alpha':.8})
         self.assertEqual(info['original_maps'],['ui/assets/logo_'+name+'.tga' for name in ('atvi','id','sd')])
@@ -134,19 +134,19 @@ class NativeUIAssetTests(unittest.TestCase):
         self.assertEqual(data.count(b'rgbGen identity'),3);self.assertEqual(data.count(b'alphaGen identity'),3)
         self.assertEqual(data.count(b'rgbGen const ( 0 0 0 )'),3)
         self.assertEqual(data.count(b'alphaGen const 0.8'),3)
-        self.assertFalse(any((g.DEST/path.decode()).is_file() for path in maps),'Stock rasters must not be duplicated into the mod delta')
+        self.assertFalse(any((g.ASSETS/path.decode()).is_file() for path in maps),'Stock rasters must not be duplicated into the mod delta')
 
     def test_official_licensed_font_payload_and_latin_coverage(self):
-        source=json.loads((g.DEST/"fonts/tce2_ui/SOURCE.json").read_text())
+        source=json.loads((g.ASSETS/"fonts/tce2_ui/SOURCE.json").read_text())
         for row in source["files"]:
             with self.subTest(font=row["path"]):
-                data=(g.DEST/row["path"]).read_bytes()
+                data=(g.ASSETS/row["path"]).read_bytes()
                 self.assertEqual(hashlib.sha256(data).hexdigest(),row["sha256"])
                 self.assertIn(source["revision"],row["source"])
                 self.assertTrue(row["source"].startswith("https://raw.githubusercontent.com/google/fonts/"))
                 if row["path"].endswith('.ttf'):
                     self.assertEqual(data[:4],b"\0\1\0\0")
-                    for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789Ã„Ã–ÃœÃ¤Ã¶Ã¼ÃŸÃ©":self.assertTrue(has_glyph(data,ord(letter)),letter)
+                    for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789Ãƒâ€žÃƒâ€“ÃƒÅ“ÃƒÂ¤ÃƒÂ¶ÃƒÂ¼ÃƒÅ¸ÃƒÂ©":self.assertTrue(has_glyph(data,ord(letter)),letter)
                 else:self.assertIn(b"SIL OPEN FONT LICENSE",data)
 
 

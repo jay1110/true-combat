@@ -19,6 +19,7 @@ vec4_t tceModernWhite={1,1,1,1},tceModernMuted={.5f,.5f,.5f,1},tceModernAmber={1
 static snapshot_t snap;
 static int checks,failures,textCount,modernChecked,modernEnabled;
 static int mockMarkerLength=-1,mockReads,mockCloses,mockTime=2000,mockHunkUsed,mockHunkExpected;
+static int mockBackgroundInits;
 static char mockMarker[64],mockDownload[128];
 static float mockUsed,mockExpected,mockStart;
 static float lastProgress;
@@ -80,6 +81,8 @@ void UI_PrintTime(char *buffer,int size,int value){Com_sprintf(buffer,size,"%ds"
 const char *CG_LoadPanel_GameTypeName(gametype_t game){(void)game;return "Objective";}
 static int TCE_ScoreCountry(int client){(void)client;return -1;}
 static int WM_DrawInfoLine(int x,int y,float fade){(void)x;(void)fade;return y;}
+/* Background selection has its own fixture; observe this model's init call. */
+static void TCE_ModernBackgroundInit(void){++mockBackgroundInits;}
 
 /* ACTUAL_MODEL */
 /* ACTUAL_SNAPSHOT_STATE */
@@ -167,9 +170,11 @@ int main(void)
     expect(TCE_ModernRosterPages(0,0)==1 && TCE_ModernRosterPages(2147483647,32)==2,"page input bounds");
     caseName="native marker read";modernChecked=modernEnabled=0;mockMarkerLength=-1;
     expect(!TCE_ModernUIEnabled() && !mockReads && !mockCloses,"missing marker preserves legacy without reads");
+    expect(!mockBackgroundInits,"missing marker does not initialize backgrounds");
     mockMarkerLength=17;memcpy(mockMarker,"TCE2_MODERN_UI 1\n",17);
     expect(!TCE_ModernUIEnabled() && !mockReads,"changing VFS requires module reset");
     modernChecked=0;expect(TCE_ModernUIEnabled() && mockReads==1 && mockCloses==1,"exact marker activates and closes");
+    expect(mockBackgroundInits==1,"valid marker initializes background selection");
     expect(TCE_ModernUIEnabled() && mockReads==1,"native marker is cached");
     modernChecked=modernEnabled=0;mockMarkerLength=60;
     expect(!TCE_ModernUIEnabled() && mockReads==1 && mockCloses==2,"oversize marker never read, handle closed");

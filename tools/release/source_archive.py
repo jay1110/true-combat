@@ -5,16 +5,16 @@ import subprocess
 import zipfile
 from package import ROOT, digest, version
 
-PREFIXES = ('pak/', 'map_pics/', 'src/', 'vendor/', 'compat/', 'platform/', 'cmake/', 'tools/',
-            'tce/', 'navstudio/', 'omnibot/', 'Docs/', 'docs/', '.github/workflows/')
+PREFIXES = ('pak/', 'src/', 'vendor/', 'compat/', 'platform/', 'cmake/', 'tools/',
+            'navstudio/', 'omnibot/', 'Docs/', 'docs/', '.github/workflows/')
 ROOT_FILES = {'CMakeLists.txt', 'CMakePresets.json', 'BUILDING.md', 'README.md',
               'LICENSE', 'CHANGES', 'EULA_TrueCombat_Elite.txt', '.gitignore', '.gitattributes'}
 
 
 def is_source_payload(name):
-    # The user's original TCE files are a local reference only. Exclude the
-    # entire tree even if a stale index or --include-untracked lists it.
-    if name.replace('\\', '/').split('/')[0].casefold() == 'pak_original_tce':
+    # Local originals and the retired helper/PNG trees are never source payloads,
+    # even if a stale index or --include-untracked still lists them.
+    if name.replace('\\', '/').split('/')[0].casefold() in ('pak_original_tce','map_pics','tce'):
         return False
     return Path(name).suffix.lower() not in (
         '.dll', '.so', '.exe', '.pdb', '.zip', '.pk3', '.dmp', '.pyc')
@@ -36,7 +36,7 @@ def main():
     for required in ('tools/release/build.py', 'vendor/omni-bot/runtime/SOURCE.json', 'EULA_TrueCombat_Elite.txt'):
         if required not in selected:
             raise ValueError('Required release source is not tracked: ' + required)
-    for prefix in ('pak/', 'map_pics/'):
+    for prefix in ('pak/', 'tools/ui_modernize/source/'):
         if not any(name.startswith(prefix) for name in selected):
             raise ValueError('Required resource source tree is not tracked: ' + prefix)
     args.out.mkdir(parents=True, exist_ok=True)

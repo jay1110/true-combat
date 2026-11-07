@@ -23,7 +23,7 @@ def main():
     text=fixture.read_text().replace('/* ACTUAL_MODEL */','\n'.join(function(source.read_text(),n) for n in names))
     text=text.replace('/* ACTUAL_SNAPSHOT_STATE */',function(state.read_text(),'TCE_ScoreSnapshotState'))
     text=text.replace('/* ACTUAL_SCOREBOARD */',score.read_text())
-    font=ROOT/'ui-modern/assets/fonts/tce2_ui/Barlow-SemiBold_28.dat'
+    font=ROOT/'pak/fonts/tce2_ui/Barlow-SemiBold_28.dat'
     data=font.read_bytes()
     if len(data)!=20548:raise ValueError('Expected the actual classic20548-byte font table')
     glyphs=[struct.unpack_from('<7i4fi32s',data,n*80)for n in range(256)]
@@ -50,7 +50,7 @@ def main():
                              'src/cgame/cg_local.h','src/ui/ui_public.h','src/game/tce_numeric.h',
                              'compat/legacy/game/tce_numeric.h')]
     report={'build_exit':r.returncode,'command':cmd,'inputs':{str(x.relative_to(ROOT)):hashlib.sha256(x.read_bytes()).hexdigest() for x in (source,score,state,fixture,Path(__file__),font,*connects,*headers)},
-            'limits':['Actual new scoreboard and source-bound snapshot-state/model functions; controlled engine/draw services.',
+            'limits':['Actual new scoreboard and source-bound snapshot-state/model functions; controlled engine/draw services; background init observed via a stub.',
                       'Real classic-font metrics test preferred8px header slot capacity at640/800; no native rasterizer/pixels or VFS/live connect proof.']}
     if not r.returncode:
         r=subprocess.run([str(exe)],cwd=out,env=env,capture_output=True,text=True);report.update(run_exit=r.returncode,stdout=r.stdout,stderr=r.stderr)

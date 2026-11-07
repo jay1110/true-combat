@@ -5,6 +5,7 @@ import unittest
 import layout_browse
 import restyle
 from test_layout_settings import font_width
+from test_navigation_polish import game_semantic_reference
 
 ROOT=Path(__file__).resolve().parents[2]
 
@@ -12,7 +13,7 @@ ROOT=Path(__file__).resolve().parents[2]
 class BrowserFlow(unittest.TestCase):
     def setUp(self):
         self.original=restyle.read(ROOT/'pak_original_tce/ui/playonline.menu')
-        self.output=restyle.menu(self.original,Path('ui/playonline.menu'))
+        self.output=restyle.read(ROOT/'pak/ui/playonline.menu')
 
     def test_five_actions_share_a_row_and_footer_contains_only_main_menu(self):
         found={}
@@ -61,7 +62,7 @@ class BrowserFlow(unittest.TestCase):
         path=Path('ui/playonline_sub.menu')
         original=restyle.read(ROOT/'pak_original_tce'/path)
         generated=restyle.menu(original,path)
-        artifact=restyle.read(ROOT/'ui-modern'/path)
+        artifact=restyle.read(ROOT/'pak'/path)
         def rectangles(text):
             result={}
             for a,b in restyle.blocks(text):
@@ -102,9 +103,9 @@ class BrowserFlow(unittest.TestCase):
     def test_return_browser_wrapping_cannot_change_bound_help_cvar(self):
         import semantic as sem
         from verify_package import compare_semantics
-        original={p:v for p,v in sem.source_files(ROOT/'pak_original_tce').items() if Path(p).suffix in sem.SEMANTIC_SUFFIXES}
-        edited={p:v for p,v in sem.source_files(ROOT/'ui-modern',all_files=True).items() if Path(p).suffix in sem.SEMANTIC_SUFFIXES}
-        self.assertEqual(compare_semantics(original,edited),78)  # Includes the authorized background settings page.
+        original=game_semantic_reference()
+        edited={p:v for p,v in sem.source_files(ROOT/'pak',all_files=True).items() if Path(p).suffix in sem.SEMANTIC_SUFFIXES}
+        self.assertEqual(compare_semantics(original,edited),77)  # Public Game excludes the Editor root.
         path='ui/playonline_sub.menu';text=edited[path].decode('latin1')
         block=next(text[a:b] for a,b in restyle.blocks(text) if re.search(r'\bname\s+"descriptionFilters"',text[a:b]))
         changed=block.replace('ui_filterdescription','sensitivity')

@@ -32,7 +32,7 @@ def semantic_context():
 def font_width(text,scale,face='Barlow-Regular.ttf'):
     # Real local TTF advance widths in the native 48*scale glyph-scale space.
     # This is a metrics-based geometry check, not a rasterizer/screenshots test.
-    data=(ROOT/'ui-modern/assets/fonts/tce2_ui'/face).read_bytes()
+    data=(ROOT/'pak/fonts/tce2_ui'/face).read_bytes()
     u16=lambda at:struct.unpack_from('>H',data,at)[0]
     u32=lambda at:struct.unpack_from('>I',data,at)[0]
     tables={data[12+i*16:16+i*16]:u32(12+i*16+8) for i in range(u16(4))}
@@ -126,7 +126,7 @@ class SettingsLayout(unittest.TestCase):
 
     def test_name_options_bind_real_cgame_cvars_in_both_variants(self):
         game=restyle.menu(restyle.read(ROOT/'src/assets/ui/options_customise_hud.menu'),Path('ui/options_customise_hud.menu'))
-        editor=restyle.read(ROOT/'ui-modern/ui/options_customise_hud.menu')
+        editor=restyle.read(ROOT/'navstudio/editor-pak/ui/options_customise_hud.menu')
         cgame=(ROOT/'src/cgame/cg_main.c').read_text()
         ui=(ROOT/'src/ui/ui_main.c').read_text()
         for cvar,default,variable in (('cg_drawTeamNames','1','ui_drawOverheadNames'),
@@ -152,7 +152,7 @@ class SettingsLayout(unittest.TestCase):
 
     def test_extended_view_cards_and_rows_fit_before_footer(self):
         game=restyle.menu(restyle.read(ROOT/'src/assets/ui/options_customise_hud.menu'),Path('ui/options_customise_hud.menu'))
-        editor=restyle.read(ROOT/'ui-modern/ui/options_customise_hud.menu')
+        editor=restyle.read(ROOT/'navstudio/editor-pak/ui/options_customise_hud.menu')
         for variant,text,count,bottom in (('game',game,11,412),('editor',editor,8,322)):
             with self.subTest(variant=variant):
                 groups=layout._sections(list(restyle.macro_calls(text,layout.CALLS)))
@@ -169,7 +169,7 @@ class SettingsLayout(unittest.TestCase):
     def test_editor_name_additions_have_an_exact_independent_semantic_contract(self):
         key='ui/options_customise_hud.menu'
         original=(ROOT/'pak_original_tce'/key).read_bytes()
-        data=(ROOT/'ui-modern'/key).read_bytes()
+        data=(ROOT/'navstudio/editor-pak'/key).read_bytes()
         def matches(candidate):
             widgets=(ROOT/'pak_original_tce'/sem.ORIGINAL_WIDGETS).read_bytes()
             reference=sem.layout_reference({key:original,sem.ORIGINAL_WIDGETS:widgets},

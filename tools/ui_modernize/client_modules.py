@@ -186,7 +186,7 @@ def main():
     if args.linux_i386_game is not None:
         manifests.update({('game',OPTIONAL_TARGET):args.linux_i386_game,
                           ('navstudio',OPTIONAL_TARGET):args.linux_i386_editor})
-    protected=[ROOT/'pak',ROOT/'pak_original_tce',ROOT/'ui-modern',ROOT/'src/assets',ROOT/'navstudio/editor-pak',ROOT/'map_pics']
+    protected=[ROOT/'pak',ROOT/'pak_original_tce',ROOT/'src/assets',ROOT/'navstudio/editor-pak',ROOT/'tools/ui_modernize/source']
     if args.report.suffix.lower()!='.json':parser.error('Report must be a JSON receipt')
     if any(path.resolve().is_relative_to(base.resolve()) for path in (args.out,args.report) for base in protected):
         parser.error('Client output/report must be outside original/theme/production asset sources')

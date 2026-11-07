@@ -3,23 +3,23 @@
   "theme": "TCE2 Modern UI",
   "version": "1.0.3",
   "variant": "game",
-  "scope": "Optional theme resources; native scoreboard/connect require matching modern client modules. No gameplay changes.",
+  "scope": "Canonical UI resources from pak plus explicit Editor delta; no generated source fallback.",
   "all_original_menu_sources": 69,
   "normal_game_content_sources": [
     {
       "path": "ui/ingame_main.menu",
-      "content_source": "src/assets/ui/ingame_main.menu",
-      "reason": "Existing normal Game functionality/public editor boundary retained."
+      "content_source": "pak/ui/ingame_main.menu",
+      "reason": "Canonical production resource; no implicit regeneration."
     },
     {
       "path": "ui/options_controls.menu",
-      "content_source": "src/assets/ui/options_controls.menu",
-      "reason": "Existing normal Game functionality/public editor boundary retained."
+      "content_source": "pak/ui/options_controls.menu",
+      "reason": "Canonical production resource; no implicit regeneration."
     },
     {
       "path": "ui/options_customise_hud.menu",
-      "content_source": "src/assets/ui/options_customise_hud.menu",
-      "reason": "Existing normal Game functionality/public editor boundary retained."
+      "content_source": "pak/ui/options_customise_hud.menu",
+      "reason": "Canonical production resource; no implicit regeneration."
     }
   ],
   "asset_compatibility": {
@@ -77,7 +77,7 @@
     },
     "fonts/tce2_ui/PORTABLE.json": {
       "bytes": 4823,
-      "sha256": "3a5662d19047792a634da163b857bc0a1427fbebb6bf037d947cc5ee9d36ebbf"
+      "sha256": "e602807c77c5f04a7b82545844dc13303cf373fe383c66fa46a23d824b1af646"
     },
     "fonts/tce2_ui/SOURCE.json": {
       "bytes": 2075,
@@ -120,8 +120,8 @@
       "sha256": "8acc3f41aea756e66b57ffef6472890f1d21eb66b8796b85ebe940c34ecc5917"
     },
     "tce2_ui/SOURCE.json": {
-      "bytes": 45504,
-      "sha256": "58aa6dafa531a4af6c8dad64d5cd0dc8cf546f39c296da0c9c9c584297b221a4"
+      "bytes": 45513,
+      "sha256": "244a0bdbfe8e6ffba20d0839cda037e9a28c31cb2140723b3eafe4da0168fa50"
     },
     "tce2_ui/background.tga": {
       "bytes": 6291500,
@@ -193,7 +193,7 @@
     },
     "tce2_ui/backgrounds/catalog.json": {
       "bytes": 9143,
-      "sha256": "299ffe3fb2464be640af277d85234d02456361460d0ca6127251352a0938ed28"
+      "sha256": "c333e633fd73336f38602c2d96d74cf476af25772421da749790683d06f0540a"
     },
     "tce2_ui/backgrounds/runtime.cfg": {
       "bytes": 19,
@@ -1171,5 +1171,6 @@
       "bytes": 6177,
       "sha256": "2cc00c6e6072cd91ead55484e95df73c0938df887ed67d5f9f3a3fb2cc2c499b"
     }
-  }
+  },
+  "resource_source": "pak"
 }

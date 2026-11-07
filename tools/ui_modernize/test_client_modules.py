@@ -313,7 +313,7 @@ class ClientModules(unittest.TestCase):
         for flag,key in [('windows-game',('game','windows-x86')),('windows-editor',('navstudio','windows-x86')),
                          ('linux-game',('game','linux-x86_64')),('linux-editor',('navstudio','linux-x86_64'))]:
             args+=['--'+flag,str(self.manifests[key])]
-        for relative in ('navstudio/editor-pak/receipt.json','map_pics/receipt.json'):
+        for relative in ('navstudio/editor-pak/receipt.json','tools/ui_modernize/source/receipt.json'):
             receipt=self.resources/relative;receipt.parent.mkdir(parents=True,exist_ok=True);receipt.write_bytes(b'owned source')
             before=receipt.read_bytes();error=io.StringIO()
             with self.subTest(relative=relative),mock.patch.object(sys,'argv',args+['--out',str(self.root/'delivery'),'--report',str(receipt)]),\

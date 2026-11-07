@@ -48,13 +48,12 @@ No GitHub release is published by the workflow.
 | --- | --- |
 | `src/` | Game, client, UI, Lua modules and tests |
 | `pak/` | Editable new/changed resources for the single mod PK3 |
-| `map_pics/` | Original background pictures; generated game images are in `pak` |
 | `compat/` | Reviewed legacy numeric and ABI compatibility |
 | `platform/` | Native platform services |
 | `vendor/` | Dependency source, bot scripts and attribution |
 | `omnibot/` | Bot build integration |
 | `navstudio/` | Separate editor, BSP/Recast tools and desktop packaging |
-| `tools/` | Build, release and validation tools |
+| `tools/` | Build, release and validation tools; retained UI design sources |
 | `Docs/` | Maintained audit and release documentation |
 
 Local original resources (`pak_original_tce`), game installations, reference binaries, reconstruction evidence,

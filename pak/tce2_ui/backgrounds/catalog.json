@@ -2,8 +2,8 @@
   "schema": 1,
   "origin": "User-provided map_pics; no generated scene artwork.",
   "generator": "tools/ui_modernize/background_assets.py",
-  "generator_sha256": "3a0227a578afa53f033bc06bd0bab1ce771eaf08210511f86c58ab4ddf1f1056",
-  "resampler_sha256": "0faacfbdd780584d6606fecf0f41fa9a8a658b066c9e9e061576050a98e967a8",
+  "generator_sha256": "2ae6f198d420b259e4b40183e3ee89a8dff500571a178115ea724ad895e6664c",
+  "resampler_sha256": "05ccf88cfa214b14e3bb95eeff4e6a2e67bdf3f960ec80273a95a4bfeda823f2",
   "fallback": "tce2_ui/background.tga",
   "selection": "One per engine process, no immediate repeat. Default winter months follow configured country/custom months; optional live-weather mode requires fresh data.",
   "files": [
