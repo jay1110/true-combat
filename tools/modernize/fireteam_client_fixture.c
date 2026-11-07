@@ -4,6 +4,7 @@
 #include "src/ui/tce_viewport.h"
 #include "src/ui/tce_modern_ui.h"
 #include "src/game/tce_bg.h"
+#include "src/game/tce_numeric.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,6 +23,9 @@ vmCvar_t cg_drawFireteamOverlay,cg_paused,cg_aspectMode,cg_drawTeamNames;
 centity_t cg_entities[MAX_GENTITIES];
 int tceSmokeNewBBox;
 static int traceCalls, traceBlocked;
+static vec3_t tracedHeadPoint;
+static fontInfo_t *lastPaintFont;
+static int lastPaintStyle;
 static int modernHud;
 static float hudUserScale=.85f,hudHeightCap=1080;
 static vmCvar_t *hudCvars[5];
@@ -73,7 +77,7 @@ int CG_Text_Width_Ext(const char *text,float scale,int limit,fontInfo_t *font)
 { (void)limit;(void)font;return (int)(strlen(text)*scale*32.f); }
 void CG_Text_Paint_Ext(float x,float y,float sx,float sy,vec4_t color,const char *text,float adjust,int limit,int style,fontInfo_t *font)
 {
-    (void)adjust;(void)limit;(void)style;(void)font;
+    (void)adjust;(void)limit;lastPaintFont=font;lastPaintStyle=style;
     CHECK(x>=0&&sx>0&&sx<=.25f&&sy==sx&&color[3]>0);
     CHECK(strlen(rendered)+strlen(text)+2<sizeof(rendered));
     strcat(rendered,text);strcat(rendered,"\n");++draws;
@@ -84,7 +88,7 @@ void CG_FillRect(float x,float y,float w,float h,const float *color)
 { (void)x;(void)y;(void)color;CHECK(w>=0&&h>=0);if(!fills)panelHeight=h;if(h==4){lastBarWidth=w;if(w==25)barStart=x;}++fills; }
 qhandle_t trap_R_RegisterShaderNoMip(const char *name) { CHECK(strstr(name,"sprites/")||strstr(name,"gfx/tce2/nav/")||strstr(name,"gfx/tce2/fireteam/"));return 42; }
 void CG_Trace(trace_t *out,const vec3_t start,const vec3_t mins,const vec3_t maxs,const vec3_t end,int skip,int mask)
-{ (void)start;(void)mins;(void)maxs;(void)end;CHECK(skip==snapshot.ps.clientNum&&mask==(CONTENTS_SOLID|CONTENTS_BODY));memset(out,0,sizeof(*out));out->fraction=traceBlocked?.5f:1.f;out->entityNum=ENTITYNUM_WORLD;++traceCalls; }
+{ (void)start;(void)mins;(void)maxs;VectorCopy(end,tracedHeadPoint);CHECK(skip==snapshot.ps.clientNum&&mask==(CONTENTS_SOLID|CONTENTS_BODY));memset(out,0,sizeof(*out));out->fraction=traceBlocked?.5f:1.f;out->entityNum=ENTITYNUM_WORLD;++traceCalls; }
 vec_t VectorNormalize(vec3_t vector)
 { float n=sqrtf(DotProduct(vector,vector));if(n){vector[0]/=n;vector[1]/=n;vector[2]/=n;}return n; }
 void CG_DrawRect(float x,float y,float w,float h,float size,const float *color)
@@ -104,7 +108,11 @@ int CG_TimeForPopup(popupMessageType_t type) {(void)type;return 10000;}
 void AxisClear(vec3_t axis[3]) { memset(axis,0,sizeof(vec3_t)*3);axis[0][0]=axis[1][1]=axis[2][2]=1; }
 void CG_RegisterWeapon(int id,qboolean force) { CHECK(id>0&&id<TCE_MAX_WEAPONS&&!force);++modelRegistrations; }
 void trap_R_ModelBounds(clipHandle_t model,vec3_t mins,vec3_t maxs)
-{ CHECK(model>0);VectorSet(mins,-31,-4,-7);VectorSet(maxs,39,6,11);if(modelBoundsInvalid)mins[0]=(float)strtod("nan",NULL); }
+{
+    CHECK(model>0);VectorSet(mins,-31,-4,-7);VectorSet(maxs,39,6,11);
+    if(model==501){VectorSet(mins,-3.71875f,-3.3125f,-2.1875f);VectorSet(maxs,5.1875f,3.4375f,9.75f);}
+    if(modelBoundsInvalid)mins[0]=(float)strtod("nan",NULL);
+}
 void trap_R_ClearScene(void) {}
 void trap_R_AddRefEntityToScene(const refEntity_t *entity) { currentModel=*entity; }
 void trap_R_RenderScene(const refdef_t *view)
@@ -412,25 +420,101 @@ static void objectiveAndNames(void)
     strcpy(name,"^1ABCDEFGHIJ");CG_TCEFireteamName(name);CHECK(!strcmp(name,"ABCDEFGHIJ"));
     snapshot.ps.stats[STAT_TCE_WEAPON_FLAGS]=0x100;render();CHECK(picCount==1);
     CG_TCEFireteamInvalidate();snapshot.ps.stats[STAT_TCE_WEAPON_FLAGS]=0;render();CHECK(!picCount);
+}
+static void overheadNames(void)
+{
+    centity_t *partner;
+    float seenX,seenY,seenAnchor[3];int oldTraces,i,j;
+    setup();
     cg_drawTeamNames.integer=1;cg.predictedPlayerState.persistant[PERS_TEAM]=TEAM_AXIS;
     cg.predictedPlayerState.clientNum=0;cg.tceNameTanHalfFov=1;
     VectorSet(cg.refdef.viewaxis[0],1,0,0);VectorSet(cg.refdef.viewaxis[1],0,1,0);VectorSet(cg.refdef.viewaxis[2],0,0,1);
     memset(cg_entities,0,sizeof(cg_entities));cg_entities[1].currentValid=qtrue;cg_entities[1].tceVisible=qtrue;cg_entities[1].currentState.eType=ET_PLAYER;
-    VectorSet(cg_entities[1].lerpOrigin,200,0,0);strcpy(cgs.clientinfo[1].name,"^1Partner");
+    partner=&cg_entities[1];
+    VectorSet(partner->lerpOrigin,200,0,0);strcpy(cgs.clientinfo[1].name,"^1Partner");
+    partner->pe.headRefEnt.hModel=501;
+    VectorSet(partner->pe.headRefEnt.origin,200,0,45);AxisClear(partner->pe.headRefEnt.axis);
     traceBlocked=0;traceCalls=0;paintCount=0;rendered[0]=0;CG_DrawTeamNames();
     CHECK(paintCount==1&&traceCalls==1&&!strcmp(paints[0].text,"Partner"));
-    CHECK(paints[0].color[1]>.7f&&paints[0].color[0]<.6f);
-    traceBlocked=1;paintCount=0;CG_DrawTeamNames();CHECK(paintCount==0);
-    traceBlocked=0;cg_entities[1].currentValid=qfalse;paintCount=0;CG_DrawTeamNames();CHECK(paintCount==0);
-    cg_entities[1].currentValid=qtrue;cg_entities[1].tceVisible=qfalse;CG_DrawTeamNames();CHECK(paintCount==0);
+    CHECK(paints[0].color[0]==.6f&&paints[0].color[1]==1.f&&paints[0].color[2]==.6f&&paints[0].color[3]==.5f);
+    CHECK(lastPaintFont==&cgs.media.limboFont1&&lastPaintStyle==3&&paints[0].scale==.2f);
+    CHECK(partner->tceTeamNameAnchor[2]==60.75f); /* Real headmax9.75 +6, not tag+10. */
+    CHECK(tracedHeadPoint[2]>45&&tracedHeadPoint[2]<54.75f); /* Trace inside head, not above cover. */
+    VectorCopy(partner->tceTeamNameAnchor,seenAnchor);seenX=paints[0].x;seenY=paints[0].y;
+    traceBlocked=1;paintCount=0;CG_DrawTeamNames();
+    CHECK(paintCount==1&&paints[0].color[3]==.5f&&partner->tceTeamNameUntil==cg.time+500);
+    cg.time+=250;
+    VectorSet(partner->lerpOrigin,700,100,0);VectorSet(partner->pe.headRefEnt.origin,700,100,45);
+    paintCount=0;CG_DrawTeamNames();
+    CHECK(paintCount==1&&fabsf(paints[0].color[3]-.25f)<.00001f&&paints[0].x==seenX&&paints[0].y==seenY);
+    CHECK(!memcmp(seenAnchor,partner->tceTeamNameAnchor,sizeof(seenAnchor))); /* No fresh tracking through walls. */
+    cg.time+=249;paintCount=0;CG_DrawTeamNames();CHECK(paintCount==1&&paints[0].color[3]>0&&paints[0].color[3]<.002f);
+    cg.time++;paintCount=0;CG_DrawTeamNames();CHECK(paintCount==0&&partner->tceTeamNameState==0);
+    cg.time+=100;CG_DrawTeamNames();CHECK(paintCount==0); /* Occlusion cannot restart an expired fade. */
+    traceBlocked=0;CG_DrawTeamNames();CHECK(paintCount==1&&paints[0].x!=seenX&&partner->tceTeamNameState==1);
+    CHECK(fabsf(paints[0].scale-.2f*sqrtf(384.f/sqrtf(DotProduct(partner->tceTeamNameAnchor,partner->tceTeamNameAnchor))))<.00001f);
+    oldTraces=traceCalls;partner->currentValid=qfalse;paintCount=0;CG_DrawTeamNames();
+    CHECK(paintCount==1&&traceCalls==oldTraces);cg.time+=500;paintCount=0;CG_DrawTeamNames();CHECK(paintCount==0);
+    partner->currentValid=qtrue;partner->tceVisible=qfalse;CG_DrawTeamNames();CHECK(paintCount==0&&traceCalls==oldTraces);
     /* A lone fireteam leader must still see ordinary teammates in Team mode. */
     cg_entities[1].tceVisible=qtrue;cgs.clientinfo[1].fireteamData=NULL;paintCount=0;CG_DrawTeamNames();CHECK(paintCount==1);
+    CHECK(paints[0].color[0]==1&&paints[0].color[1]==1&&paints[0].color[2]==1&&paints[0].color[3]==.5f);
     cg_drawTeamNames.integer=2;paintCount=0;CG_DrawTeamNames();CHECK(paintCount==0);
     cgs.clientinfo[1].fireteamData=&cg.fireTeams[0];CG_DrawTeamNames();CHECK(paintCount==1);
+    CHECK(paints[0].color[0]==.6f&&paints[0].color[1]==1&&paints[0].color[2]==.6f);
     cg_drawTeamNames.integer=1;paintCount=0;
     cgs.clientinfo[1].fireteamData=&cg.fireTeams[0];cgs.clientinfo[1].team=TEAM_ALLIES;CG_DrawTeamNames();CHECK(paintCount==0);
     cgs.clientinfo[1].team=TEAM_AXIS;cg_entities[1].currentState.eFlags=EF_DEAD;CG_DrawTeamNames();CHECK(paintCount==0);
     cg_entities[1].currentState.eFlags=0;cg_drawTeamNames.integer=0;CG_DrawTeamNames();CHECK(paintCount==0);
+    CHECK(partner->tceTeamNameState==0&&partner->tceTeamNameUntil==0);
+    cg_drawTeamNames.integer=1;
+    /* Every hard eligibility gate clears retention instead of reviving stale names. */
+    for(i=0;i<8;++i){
+        partner->currentValid=qtrue;partner->tceVisible=qtrue;partner->currentState.eFlags=0;partner->currentState.eType=ET_PLAYER;
+        cgs.clientinfo[1].infoValid=qtrue;cgs.clientinfo[1].team=TEAM_AXIS;
+        cg.snap=&snapshot;cg.showScores=cg.showGameView=cg.renderingThirdPerson=0;
+        cg.predictedPlayerState.persistant[PERS_TEAM]=TEAM_AXIS;
+        partner->tceTeamNameState=1;partner->tceTeamNameUntil=cg.time+500;
+        switch(i){
+        case 0:cg.showScores=1;break;case 1:cg.showGameView=1;break;case 2:cg.renderingThirdPerson=1;break;
+        case 3:cg.snap=NULL;break;case 4:cgs.clientinfo[1].infoValid=qfalse;break;
+        case 5:partner->currentState.eFlags=EF_NODRAW;break;case 6:partner->currentState.eFlags=EF_CONNECTION;break;
+        case 7:cg.predictedPlayerState.persistant[PERS_TEAM]=TEAM_SPECTATOR;break;
+        }
+        paintCount=0;CG_DrawTeamNames();CHECK(!paintCount&&!partner->tceTeamNameState&&!partner->tceTeamNameUntil);
+    }
+    cg.snap=&snapshot;cg.showScores=cg.showGameView=cg.renderingThirdPerson=0;
+    cg.predictedPlayerState.persistant[PERS_TEAM]=TEAM_AXIS;
+    partner->currentState.eFlags=0;cgs.clientinfo[1].infoValid=qtrue;
+    /* Prone/turned head placement follows the attached model, not guessed stance fields. */
+    VectorSet(partner->lerpOrigin,200,0,0);VectorSet(partner->pe.headRefEnt.origin,200,0,12);
+    VectorSet(partner->pe.headRefEnt.axis[0],0,0,-1);VectorSet(partner->pe.headRefEnt.axis[1],0,1,0);VectorSet(partner->pe.headRefEnt.axis[2],1,0,0);
+    paintCount=0;CG_DrawTeamNames();CHECK(paintCount==1&&fabsf(partner->tceTeamNameAnchor[2]-21.71875f)<.00001f);
+    CHECK(tracedHeadPoint[2]<partner->tceTeamNameAnchor[2]-6.f);
+    /* Missing, non-finite or stale head data cannot authorize a new anchor. */
+    for(i=0;i<5;++i){
+        partner->tceTeamNameState=0;partner->tceTeamNameUntil=0;
+        partner->pe.headRefEnt.hModel=501;VectorSet(partner->pe.headRefEnt.origin,200,0,45);AxisClear(partner->pe.headRefEnt.axis);
+        modelBoundsInvalid=0;
+        switch(i){case 0:partner->pe.headRefEnt.hModel=0;break;case 1:modelBoundsInvalid=1;break;
+        case 2:partner->pe.headRefEnt.origin[2]=200;break;
+        case 3:partner->pe.headRefEnt.origin[0]=(float)strtod("nan",NULL);break;
+        case 4:partner->pe.headRefEnt.axis[0][0]=(float)strtod("nan",NULL);break;}
+        oldTraces=traceCalls;paintCount=0;CG_DrawTeamNames();CHECK(!paintCount&&!partner->tceTeamNameState&&traceCalls==oldTraces);
+    }
+    modelBoundsInvalid=0;VectorSet(partner->pe.headRefEnt.origin,200,0,45);AxisClear(partner->pe.headRefEnt.axis);
+    paintCount=0;CG_DrawTeamNames();CHECK(paintCount==1);
+    VectorCopy(partner->tceTeamNameAnchor,seenAnchor);
+    partner->pe.headRefEnt.hModel=0;paintCount=0;CG_DrawTeamNames();
+    CHECK(paintCount==1&&!memcmp(seenAnchor,partner->tceTeamNameAnchor,sizeof(seenAnchor))); /* Missing model can only fade the proven anchor. */
+    cg.time+=500;paintCount=0;CG_DrawTeamNames();CHECK(!paintCount);
+    /* Each client's alpha is independent, retaining CQB intent without its shared-alpha quirk. */
+    partner->pe.headRefEnt.hModel=501;paintCount=0;CG_DrawTeamNames();CHECK(paintCount==1);
+    cg_entities[2]=*partner;cgs.clientinfo[2]=cgs.clientinfo[1];
+    strcpy(cgs.clientinfo[2].name,"Other teammate");cgs.clientinfo[2].fireteamData=NULL;
+    cg_entities[2].currentValid=qfalse;cg_entities[2].tceTeamNameState=2;cg_entities[2].tceTeamNameUntil=cg.time+250;
+    paintCount=0;CG_DrawTeamNames();CHECK(paintCount==2&&paints[0].color[3]==.5f&&paints[1].color[3]==.25f);
+    for(j=0;j<3;++j)CHECK(paints[1].color[j]==1.f);
 }
 static float screenY(float y)
 {
@@ -516,6 +600,6 @@ static void modernTextBelowFireteam(void)
 }
 int main(void)
 {
-    protocolAndPresentation();sorting();fullFireteam();membershipAndSlotReuse();following();hudIntegration();compactLayout();textBelowFireteam();modernTextBelowFireteam();gearAndMeasuredLayout();objectiveAndNames();
+    protocolAndPresentation();sorting();fullFireteam();membershipAndSlotReuse();following();hudIntegration();compactLayout();textBelowFireteam();modernTextBelowFireteam();gearAndMeasuredLayout();objectiveAndNames();overheadNames();
     printf("Fireteam client: %i checks, %i failures\n",checks,failures);return failures?1:0;
 }

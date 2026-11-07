@@ -2989,18 +2989,22 @@ static void CG_DrawCrosshairNames(void)
 	tce_uiCoordinates = previous;
 }
 
-/* Optional TCE2 team labels (1: team, 2: own fireteam). PVS membership and a fresh eye-to-head trace
- * are required every frame: the model visibility cache cannot authorize text
- * through an occluder after the player moves behind it. */
+/* CQB font, distance scaling and half-second retention. A fresh PVS/head trace
+ * authorizes the anchor. After sight is lost, only that last visible world
+ * position fades; hidden player movement cannot update the label. */
 static void CG_DrawTeamNames(void)
 {
 	extern qboolean tce_uiCoordinates;
-	extern int      tceSmokeNewBBox;
 	int             i, team = cg.predictedPlayerState.persistant[PERS_TEAM];
 	qboolean        previous;
 	if (!cg.snap || !cg_drawTeamNames.integer || cg.showScores || cg.showGameView ||
 	    team == TEAM_SPECTATOR || cg.renderingThirdPerson)
 	{
+		for (i = 0; i < MAX_CLIENTS; ++i)
+		{
+			cg_entities[i].tceTeamNameState = 0;
+			cg_entities[i].tceTeamNameUntil = 0;
+		}
 		return;
 	}
 	previous          = tce_uiCoordinates;
@@ -3009,41 +3013,94 @@ static void CG_DrawTeamNames(void)
 	{
 		centity_t    *cent = &cg_entities[i];
 		clientInfo_t *ci   = &cgs.clientinfo[i];
-		vec3_t       direction, point;
-		vec4_t       color = { .48f, .8f, .38f, .9f };
+		vec3_t       direction, point, tracePoint, mins, maxs;
+		vec4_t       color = { 1, 1, 1, .5f };
 		trace_t      trace;
+		qboolean     visible = qfalse;
+		int          j, k, remaining;
 		char         name[MAX_NAME_LENGTH];
 		char         *nameChar;
-		float        distance, forward, side, up, scale, x, y, height, projection;
+		float        distance, forward, side, up, scale, x, y, projection;
 		if (i == cg.predictedPlayerState.clientNum || !ci->infoValid || ci->team != team ||
 		    (cg_drawTeamNames.integer == 2 && !CG_IsOnSameFireteam(cg.snap->ps.clientNum, i)) ||
-		    !cent->currentValid || !cent->tceVisible ||
 		    cent->currentState.eType != ET_PLAYER ||
 		    (cent->currentState.eFlags & (EF_DEAD | EF_NODRAW | EF_CONNECTION)))
 		{
+			cent->tceTeamNameState = 0;
 			cent->tceTeamNameUntil = 0;
 			continue;
 		}
-		height = (cent->currentState.effect1Time & 4) ? 12.f : 48.f;
-		if (tceSmokeNewBBox)
-		{
-			height += 12.f;
-		}
-		if (cent->currentState.animMovetype)
-		{
-			height -= 18.f;
-		}
-		VectorCopy(cent->lerpOrigin, point); point[2] += height;
-		if (cent->pe.headRefEnt.hModel)
+		if (cent->currentValid && cent->tceVisible && cent->pe.headRefEnt.hModel > 0)
 		{
 			VectorSubtract(cent->pe.headRefEnt.origin, cent->lerpOrigin, direction);
 			if (DotProduct(direction, direction) <= 96.f * 96.f)
-				VectorCopy(cent->pe.headRefEnt.origin, point);
+			{
+				qboolean boundsValid = qtrue;
+				trap_R_ModelBounds(cent->pe.headRefEnt.hModel, mins, maxs);
+				for (j = 0; j < 3; ++j)
+				{
+					if (!(mins[j] >= -256.f && maxs[j] <= 256.f && maxs[j] > mins[j]) ||
+					    !(DotProduct(cent->pe.headRefEnt.axis[j], cent->pe.headRefEnt.axis[j]) > .25f)) boundsValid = qfalse;
+					for (k = 0; k < 3; ++k)
+						if (!(cent->pe.headRefEnt.axis[j][k] >= -2.f && cent->pe.headRefEnt.axis[j][k] <= 2.f)) boundsValid = qfalse;
+				}
+				if (boundsValid)
+				{
+					/* head.origin is the neck tag. Transform the bounds instead of
+					 * mistaking that attachment for the top of a rotated/prone head. */
+					VectorCopy(cent->pe.headRefEnt.origin, tracePoint);
+					VectorCopy(cent->pe.headRefEnt.origin, point);
+					for (j = 0; j < 3; ++j)
+					{
+						float center = (mins[j] + maxs[j]) * .5f;
+						float low = mins[j] * cent->pe.headRefEnt.axis[j][2];
+						float high = maxs[j] * cent->pe.headRefEnt.axis[j][2];
+						for (k = 0; k < 3; ++k) tracePoint[k] += center * cent->pe.headRefEnt.axis[j][k];
+						point[2] += low > high ? low : high;
+					}
+					point[0] = tracePoint[0]; point[1] = tracePoint[1]; point[2] += 6.f;
+					CG_Trace(&trace, cg.refdef.vieworg, NULL, NULL, tracePoint,
+					         cg.snap->ps.clientNum, CONTENTS_SOLID | CONTENTS_BODY);
+					visible = !trace.startsolid && !trace.allsolid && (trace.fraction >= 1.f || trace.entityNum == i);
+				}
+			}
 		}
-		CG_Trace(&trace, cg.refdef.vieworg, NULL, NULL, point,
-		         cg.snap->ps.clientNum, CONTENTS_SOLID | CONTENTS_BODY);
-		if (trace.startsolid || trace.allsolid || (trace.fraction < 1.f && trace.entityNum != i)) continue;
-		point[2] += 10.f;
+		if (visible)
+		{
+			VectorSubtract(point, cg.refdef.vieworg, direction);
+			distance = VectorNormalize(direction);
+			forward = DotProduct(direction, cg.refdef.viewaxis[0]);
+			if (forward < .5f || distance > 4096.f || cg.tceNameTanHalfFov <= 0)
+			{
+				cent->tceTeamNameState = 0;
+				cent->tceTeamNameUntil = 0;
+				continue;
+			}
+			VectorCopy(point, cent->tceTeamNameAnchor);
+			cent->tceTeamNameState = 1;
+			cent->tceTeamNameUntil = 0;
+		}
+		else
+		{
+			if (cent->tceTeamNameState == 1)
+			{
+				cent->tceTeamNameState = 2;
+				cent->tceTeamNameUntil = TCE_AddInt32(cg.time, 500);
+			}
+			remaining = TCE_SubInt32(cent->tceTeamNameUntil, cg.time);
+			if (cent->tceTeamNameState != 2 || remaining <= 0 || remaining > 500)
+			{
+				cent->tceTeamNameState = 0;
+				cent->tceTeamNameUntil = 0;
+				continue;
+			}
+			VectorCopy(cent->tceTeamNameAnchor, point);
+			color[3] *= remaining * .002f;
+		}
+		if (CG_IsOnSameFireteam(cg.snap->ps.clientNum, i))
+		{
+			color[0] = .6f; color[1] = 1.f; color[2] = .6f;
+		}
 		VectorSubtract(point, cg.refdef.vieworg, direction);
 		distance      = VectorNormalize(direction);
 		forward       = DotProduct(direction, cg.refdef.viewaxis[0]);

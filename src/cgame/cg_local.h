@@ -370,6 +370,8 @@ typedef struct centity_s
 	int tceVisible, tceVisibilityUntil; /* Original +0xa74/+0xa78. */
 	int tceCoronaLastVisible; /* original cent+a78; appended to SDK layout */
 	float tceCoronaVisibility; /* original cent+a90 */
+	int tceTeamNameState; /* 0 absent,1 freshly visible,2 fading at cached anchor. */
+	vec3_t tceTeamNameAnchor; /* Never updated from an occluded player position. */
 } centity_t;
 
 
