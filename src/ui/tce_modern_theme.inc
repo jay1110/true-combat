@@ -83,6 +83,8 @@ void TCE_ModernThemeColor(const float *source, float *out, int surface)
 #ifdef CGAMEDLL
     if (!CG_MenuViewportActive()) return;
 #endif
+    /* The full-screen scene is outside the appearance surface controls. */
+    if (TCE_MenuViewportBackground()) return;
     TCE_ModernThemeRefresh();
     preset=TCE_ThemePreset();
     highest=source[0]>source[1] ? source[0] : source[1]; if(source[2]>highest) highest=source[2];
@@ -185,6 +187,12 @@ void TCE_ModernThemePicture(float x,float y,float w,float h,qhandle_t shader,con
         /* WINDOW_STYLE_SHADER with no background is not a default texture.
          * Rendering handle0 here exposes the engine's missing-image pattern. */
         trap_R_SetColor(source); return;
+    }
+    if(TCE_ModernUIEnabled() && TCE_MenuViewportBackground())
+    {
+        /* Preserve photo modulation and alpha, including white on light
+         * palettes; it must not be reclassified as a dark menu surface. */
+        trap_R_SetColor(source); TCE_ThemeRawPicture(x,y,w,h,shader); return;
     }
     TCE_ModernThemeRefresh();
     if(TCE_ModernUIEnabled())

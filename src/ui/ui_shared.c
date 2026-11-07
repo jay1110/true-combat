@@ -8109,7 +8109,11 @@ void Menu_Paint(menuDef_t *menu, qboolean forcePaint)
 	{
 		// implies a background shader
 		// FIXME: make sure we have a default shader if fullscreen is set with no background
-		DC->drawHandlePic(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, menu->window.background);
+		/* The visible backgroundmusic menu is fullscreen only for its music
+		 * lifecycle. Under the optional theme its missing shader must not
+		 * paint the renderer's default texture through transparent panels. */
+		if (menu->window.background || !TCE_ModernUIEnabled())
+			DC->drawHandlePic(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT, menu->window.background);
 	}
 	else if (menu->window.background)
 	{

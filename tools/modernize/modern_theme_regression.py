@@ -25,6 +25,7 @@ def main():
     meta=json.loads(art.read_bytes());names=sorted({row['shader'] for row in meta['files']}|set(meta['native_aliases']))
     text=text.replace('/* EXPECTED_SHADER_NAMES */','static const char *expectedShaderNames[]={'+','.join(json.dumps(name) for name in names)+'};')
     text=text.replace('/* ACTUAL_WINDOW_PAINT */',function(shared.read_text(encoding='utf8'),'Window_Paint'))
+    text=text.replace('/* ACTUAL_MENU_PAINT */',function(shared.read_text(encoding='utf8'),'Menu_Paint'))
     generated=out/'theme-fixture.c';generated.write_text(text,encoding='utf8',newline='\n')
     if os.name=='nt':env,compiler=msvc_environment(out,'x64' if a.sanitize else 'x86','14.44' if a.sanitize else '14.39')
     else:env=os.environ.copy();compiler=shutil.which('clang') or shutil.which('gcc')

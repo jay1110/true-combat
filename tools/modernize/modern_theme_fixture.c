@@ -15,8 +15,11 @@ static int imageCount, imageCalls, drawCount, nullColor;
 static const char *missingImage;
 static int missingAliases, missingAll, clobberVA;
 static int fadeCalls;
+static int backgroundContext;
 static qboolean debugMode;
 static displayContextDef_t services, *DC=&services;
+static menuDef_t *tceMenuViewportPaintMenu;
+static int itemPaintCalls,scriptCalls;
 static vec4_t color;
 static struct { qhandle_t shader; vec4_t color; int reset; } draws[4];
 vec4_t tceModernWhite={.93f,.96f,.98f,1}, tceModernMuted={.55f,.64f,.72f,1}, tceModernAmber={.96f,.73f,.27f,1};
@@ -29,6 +32,7 @@ static int equal(const float *a,const float *b)
 { int i; for(i=0;i<4;++i)if(!close_float(a[i],b[i]))return 0;return 1; }
 qboolean TCE_ModernUIEnabled(void) { return enabled; }
 int CG_MenuViewportActive(void) { return menuActive; }
+int TCE_MenuViewportBackground(void) { return backgroundContext; }
 int trap_Milliseconds(void) { return milliseconds; }
 int Q_strlenInt(const char *text) { return (int)strlen(text); }
 void QDECL Com_Error(int level,const char *format,...) { (void)level;(void)format;abort(); }
@@ -89,11 +93,21 @@ static void GradientBar_Paint(rectDef_t *rect,const vec4_t value)
 
 /* ACTUAL_WINDOW_PAINT */
 
+static float noTooltips(const char *name){(void)name;return 0;}
+static int TCE_FloatIsZeroOrNaN(float value){return value==0 || isnan(value);}
+static int TCE_AddInt32(int a,int b){return (int)((unsigned)a+(unsigned)b);}
+static void Item_Paint(itemDef_t *item){(void)item;++itemPaintCalls;}
+static void Item_RunScript(itemDef_t *item,qboolean *abort,const char *script)
+{(void)item;(void)abort;(void)script;++scriptCalls;}
+
+/* ACTUAL_MENU_PAINT */
+
 static void fresh(void)
 {
     TCE_ModernThemeReset();memset(cvars,0,sizeof(cvars));memset(images,0,sizeof(images));
     cvarCount=registrations=updates=imageCount=imageCalls=drawCount=0;enabled=menuActive=1;milliseconds+=32;
     missingImage=NULL;missingAliases=missingAll=clobberVA=0;
+    backgroundContext=0;
 }
 static void refresh(void) { milliseconds+=16;TCE_ModernThemeRefresh(); }
 
@@ -273,5 +287,38 @@ int main(void)
       check(modernTheme.imageCount==1 && modernThemeImages[0].body>0 && modernThemeImages[0].accent>0,"Image paths survive real SDK va reuse during renderer callbacks");
       check(!strcmp(images[modernThemeImages[0].body-1].name,"tce2_ui/theme/icons/play_body"),"Body path is frozen before callbacks");
       check(!strcmp(images[modernThemeImages[0].accent-1].name,"tce2_ui/theme/icons/play_accent"),"Accent path is frozen before callbacks"); }
+    /* Normal startup activates this nonvisual music menu. Unlike the shader
+     * Window path, its direct fullscreen draw bypassed the palette guard. */
+    { menuDef_t music,previous;itemDef_t item;
+      fresh();TCE_ModernThemeRefresh();set("ui_themePreset",6);set("ui_themeOpacityPreset",3);set("ui_themeOpacity",.25f);refresh();
+      memset(&music,0,sizeof(music));memset(&previous,0,sizeof(previous));memset(&item,0,sizeof(item));
+      services.drawHandlePic=UI_DrawHandlePic;services.getCVarValue=noTooltips;services.realTime=10;
+      music.window.name="backgroundmusic";music.fullScreen=qtrue;music.window.flags=WINDOW_VISIBLE;
+      music.onOpen="playlooped sound/music/loopMenu045tuned.wav";
+      tceMenuViewportPaintMenu=&previous;drawCount=0;Menu_Paint(&music,qfalse);
+      check(drawCount==0,"Grey/Black at opacity.25 cannot expose fullscreen music shader0");
+      check(music.fullScreen && (music.window.flags&WINDOW_VISIBLE) && music.onOpen && music.openTime==10,"Guard preserves music menu flags, script and normal paint lifecycle");
+      check(tceMenuViewportPaintMenu==&previous,"Music menu paint scope restores its caller");
+      music.itemCount=1;music.items[0]=&item;music.timeout=1;music.onTimeout="test_timeout";music.openTime=5;
+      itemPaintCalls=scriptCalls=0;Menu_Paint(&music,qfalse);
+      check(itemPaintCalls==1&&scriptCalls==1,"Untextured fullscreen menu still paints its items and executes timeout");
+      music.itemCount=music.timeout=0;music.window.background=77;drawCount=0;Menu_Paint(&music,qfalse);
+      check(drawCount==1&&draws[0].shader==77,"Valid fullscreen backgrounds retain their original direct draw");
+      enabled=0;music.window.background=0;drawCount=0;Menu_Paint(&music,qfalse);
+      check(drawCount==1&&draws[0].shader==0,"Marker-disabled fullscreen shader0 retains the exact legacy path");
+      tceMenuViewportPaintMenu=NULL;
+    }
+    { Window background;vec4_t black={0,0,0,1};
+      fresh();TCE_ModernThemeRefresh();set("ui_themePreset",6);set("ui_themeOpacityPreset",3);set("ui_themeOpacity",.25f);refresh();
+      backgroundContext=1;memset(&background,0,sizeof(background));background.rect.w=852;background.rect.h=480;
+      background.style=WINDOW_STYLE_FILLED;memcpy(background.backColor,black,sizeof(black));
+      drawCount=0;Window_Paint(&background,.075f,.55f,20);
+      check(drawCount==1&&equal(draws[0].color,black),"Background menu black fill is independent of palette and menu opacity");
+      background.style=WINDOW_STYLE_SHADER;background.flags=WINDOW_VISIBLE|WINDOW_FORECOLORSET;
+      memcpy(background.foreColor,white,sizeof(white));background.background=trap_R_RegisterShaderNoMip("tce2_ui/background");
+      drawCount=0;Window_Paint(&background,.075f,.55f,20);
+      check(drawCount==1&&draws[0].shader==background.background&&equal(draws[0].color,white),"Background photo keeps white tint and alpha1 under Grey/Black opacity.25");
+      backgroundContext=0;
+    }
     printf("checks=%d failures=%d\n",checks,failures);return failures?1:0;
 }
