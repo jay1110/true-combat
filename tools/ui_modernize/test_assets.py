@@ -121,16 +121,19 @@ class NativeUIAssetTests(unittest.TestCase):
         self.assertEqual(rgba[(63*64+63)*4+3],0)
         self.assertIn("clampmap "+info["asset"],(g.DEST/"scripts/tce2_ui.shader").read_text())
 
-    def test_publisher_footer_provenance_matches_fixed_dark_surface(self):
-        info=self.meta['footer_surface'];data=(g.DEST/info['source']).read_bytes()
-        self.assertEqual(info['shader'],'tce2_ui/logo_plate')
+    def test_publisher_logo_provenance_matches_original_masks_without_plate(self):
+        self.assertNotIn('footer_surface',self.meta)
+        info=self.meta['publisher_logos'];data=(g.DEST/info['source']).read_bytes()
         self.assertEqual(info['sha256'],hashlib.sha256(data).hexdigest())
-        self.assertEqual(info['rgb'],[.018,.025,.035]);self.assertEqual(info['alpha'],1)
-        self.assertEqual(info['map'],'$whiteimage')
+        self.assertEqual(info['shadow'],{'offset':[1,1],'rgb':[0,0,0],'alpha':.8})
+        self.assertEqual(info['original_maps'],['ui/assets/logo_'+name+'.tga' for name in ('atvi','id','sd')])
+        self.assertNotIn(b'logo_plate',data);self.assertNotIn(b'$whiteimage',data)
         self.assertNotIn(b'rgbGen vertex',data);self.assertNotIn(b'alphaGen vertex',data)
         maps=re.findall(rb'clampmap\s+([^\s]+)',data)
-        self.assertEqual(maps,[b'ui/assets/logo_atvi.tga',b'ui/assets/logo_id.tga',b'ui/assets/logo_sd.tga'])
+        self.assertEqual(maps,[path.encode() for path in info['original_maps']]*2)
         self.assertEqual(data.count(b'rgbGen identity'),3);self.assertEqual(data.count(b'alphaGen identity'),3)
+        self.assertEqual(data.count(b'rgbGen const ( 0 0 0 )'),3)
+        self.assertEqual(data.count(b'alphaGen const 0.8'),3)
         self.assertFalse(any((g.DEST/path.decode()).is_file() for path in maps),'Stock rasters must not be duplicated into the mod delta')
 
     def test_official_licensed_font_payload_and_latin_coverage(self):

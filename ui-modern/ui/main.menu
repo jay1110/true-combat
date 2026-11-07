@@ -87,15 +87,6 @@ itemDef {
 
 
 
-itemDef {
-        name "modern_footer_plate"
-        rect 8 340 504 44
-        style WINDOW_STYLE_SHADER
-        background "tce2_ui/logo_plate"
-        forecolor 1 1 1 1
-        visible 1
-        decoration
-    }
 // Company Logos //
 
 	/*itemDef {
@@ -129,6 +120,15 @@ itemDef {
 	}*/
 	
 	itemDef {
+        name "modern_publisher_shadow_sd"
+        rect 443 349 28 28
+        style WINDOW_STYLE_SHADER
+        background "tce2_ui/publisher_sd_shadow"
+        forecolor 1 1 1 1
+        visible 1
+        decoration
+    }
+itemDef {
 		name		"sd_logo"
 		rect		442 348 28 28
 		style		WINDOW_STYLE_SHADER
@@ -170,6 +170,15 @@ itemDef {
 		}
 	
 	itemDef {
+        name "modern_publisher_shadow_atvi"
+        rect 217 353 80 20
+        style WINDOW_STYLE_SHADER
+        background "tce2_ui/publisher_atvi_shadow"
+        forecolor 1 1 1 1
+        visible 1
+        decoration
+    }
+itemDef {
 		name		"atvi_logo"
 		rect		216 352 80 20
 		style		WINDOW_STYLE_SHADER
@@ -180,6 +189,15 @@ itemDef {
 	}
 	
 	itemDef {
+        name "modern_publisher_shadow_id"
+        rect 343 349 28 28
+        style WINDOW_STYLE_SHADER
+        background "tce2_ui/publisher_id_shadow"
+        forecolor 1 1 1 1
+        visible 1
+        decoration
+    }
+itemDef {
 		name		"id_logo"
 		rect		342 348 28 28
 		style		WINDOW_STYLE_SHADER

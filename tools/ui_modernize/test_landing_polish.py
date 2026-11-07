@@ -34,43 +34,47 @@ class LandingPolishTests(unittest.TestCase):
                 self.assertGreaterEqual(y,440);self.assertLessEqual(y+h,468)
             self.assertEqual(seen,names)
 
-    def test_publisher_shield_is_opaque_fixed_shader_behind_every_original_logo(self):
+    def test_publisher_logos_use_only_small_alpha_shadows_without_footer_plate(self):
         shader=(ROOT/'ui-modern/assets/scripts/tce2_ui_footer.shader').read_text()
-        for required in ('tce2_ui/logo_plate','map $whiteimage','blendFunc GL_ONE GL_ZERO',
-                         'rgbGen const ( 0.018 0.025 0.035 )','alphaGen const 1'):
-            self.assertIn(required,shader)
+        self.assertNotIn('tce2_ui/logo_plate',shader)
+        self.assertNotIn('$whiteimage',shader)
+        self.assertNotIn('GL_ONE GL_ZERO',shader)
         self.assertNotIn('rgbGen vertex',shader);self.assertNotIn('alphaGen vertex',shader)
-        # The plate itself needs no bitmap; publisher aliases below reuse only
-        # the exact three stock ET textures rather than copying/recoloring them.
-        plate_shader=shader.split('tce2_ui/publisher_atvi',1)[0]
-        self.assertNotRegex(plate_shader,r'\.(?:tga|jpg|png)\b')
+        declared=re.findall(r'^tce2_ui/([^\s]+)\s*$',shader,re.M)
+        self.assertEqual(set(declared),{'publisher_'+name+suffix for name in ('atvi','id','sd') for suffix in ('','_shadow')})
         for short in ('atvi','id','sd'):
-            start=shader.index('tce2_ui/publisher_'+short)
-            body=shader[start:]
-            next_shader=body.find('\ntce2_ui/',1)
-            if next_shader>=0:body=body[:next_shader]
-            self.assertIn('clampmap ui/assets/logo_'+short+'.tga',body)
-            self.assertIn('blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA',body)
-            self.assertIn('rgbGen identity',body);self.assertIn('alphaGen identity',body)
-            self.assertNotIn('alphaGen const',body)
-        # These original shaders produce light marks despite the *_dark name.
-        # A fixed dark plate must stay dark for all palette/opacity preferences.
-        channels=[.018,.025,.035]
-        linear=lambda value:value/12.92 if value<=.04045 else ((value+.055)/1.055)**2.4
-        luminance=sum(weight*linear(value) for weight,value in zip((.2126,.7152,.0722),channels))
-        self.assertGreater((linear(.75)+.05)/(luminance+.05),10)
+            for suffix in ('','_shadow'):
+                name='tce2_ui/publisher_'+short+suffix
+                body=re.search(r'^'+re.escape(name)+r'\s*\n(.*?)(?=\ntce2_ui/|\Z)',shader,re.M|re.S)[1]
+                self.assertIn('clampmap ui/assets/logo_'+short+'.tga',body)
+                self.assertIn('blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA',body)
+                if suffix:
+                    self.assertIn('rgbGen const ( 0 0 0 )',body)
+                    self.assertIn('alphaGen const 0.8',body)
+                else:
+                    self.assertIn('rgbGen identity',body);self.assertIn('alphaGen identity',body)
+                    self.assertNotIn('alphaGen const',body)
         for directory in ('ui','ui_obj','ui_robj','ui_tdm'):
             path=Path(directory)/'main.menu'
             source=restyle.read(ROOT/'pak_original_tce'/path);result=restyle.menu(source,path)
-            plate=next(result[s:e] for s,e in restyle.blocks(result) if 'name "modern_footer_plate"' in result[s:e])
-            self.assertIn('background "tce2_ui/logo_plate"',plate)
-            self.assertIn('decoration',plate)
-            self.assertNotRegex(plate,r'\b(?:action|cvar|ownerdraw|type)\b')
-            self.assertLess(result.index('name "modern_footer_plate"'),result.index('// Company Logos //'))
+            self.assertNotIn('modern_footer_plate',result)
+            self.assertNotIn('tce2_ui/logo_plate',result)
+            self.assertEqual((ROOT/'ui-modern'/path).read_bytes(),result.encode('latin1'))
             source_paint=sem.strip_comments(source);result_paint=sem.strip_comments(result)
+            item_blocks=[result[s:e] for s,e in restyle.blocks(result)]
             for short in ('atvi','id','sd'):
                 self.assertEqual(result_paint.count('"tce2_ui/publisher_'+short+'"'),source_paint.count('ui/assets/logo_'+short+'_dark'))
                 self.assertNotIn('ui/assets/logo_'+short+'_dark',result_paint)
+                logo=next(block for block in item_blocks if re.search(r'\bname\s+"'+short+'_logo"',block))
+                shadow=next(block for block in item_blocks if 'name "modern_publisher_shadow_'+short+'"' in block)
+                self.assertIn('background "tce2_ui/publisher_'+short+'_shadow"',shadow)
+                self.assertIn('decoration',shadow)
+                self.assertNotRegex(shadow,r'\b(?:action|cvar|ownerdraw|type)\b')
+                rect=lambda block:list(map(float,re.search(r'\brect\s+([\d.]+) ([\d.]+) ([\d.]+) ([\d.]+)',block).groups()))
+                x,y,w,h=rect(logo)
+                self.assertEqual(rect(shadow),[x+1,y+1,w,h])
+                self.assertLess(result.index(shadow),result.index(logo))
+                self.assertLessEqual(w*h,1600) # Exact mark bounds, never a footer-wide surface.
             for resource in ('groovesixstudios.tga','ui/assets/logo_tt_dark.tga'):
                 self.assertEqual(result.count(resource),source.count(resource))
 

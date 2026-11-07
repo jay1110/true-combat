@@ -64,15 +64,6 @@ menuDef {
 	}
 
 itemDef {
-        name "modern_footer_plate"
-        rect 56 432 504 44
-        style WINDOW_STYLE_SHADER
-        background "tce2_ui/logo_plate"
-        forecolor 1 1 1 1
-        visible 1
-        decoration
-    }
-itemDef {
         name "modern_brand"
         rect 64 20 192 48
         style WINDOW_STYLE_SHADER
@@ -182,6 +173,15 @@ itemDef {
 		}
 	
 	itemDef {
+        name "modern_publisher_shadow_atvi"
+        rect 265 445 80 20
+        style WINDOW_STYLE_SHADER
+        background "tce2_ui/publisher_atvi_shadow"
+        forecolor 1 1 1 1
+        visible 1
+        decoration
+    }
+itemDef {
 		name		"atvi_logo"
 		rect		264 444 80 20
 		style		WINDOW_STYLE_SHADER
@@ -192,6 +192,15 @@ itemDef {
 	}
 	
 	itemDef {
+        name "modern_publisher_shadow_id"
+        rect 391 441 28 28
+        style WINDOW_STYLE_SHADER
+        background "tce2_ui/publisher_id_shadow"
+        forecolor 1 1 1 1
+        visible 1
+        decoration
+    }
+itemDef {
 		name		"id_logo"
 		rect		390 440 28 28
 		style		WINDOW_STYLE_SHADER
@@ -201,6 +210,15 @@ itemDef {
 		decoration
 	}
 	itemDef {
+        name "modern_publisher_shadow_sd"
+        rect 491 441 28 28
+        style WINDOW_STYLE_SHADER
+        background "tce2_ui/publisher_sd_shadow"
+        forecolor 1 1 1 1
+        visible 1
+        decoration
+    }
+itemDef {
 		name		"sd_logo"
 		rect		490 440 28 28
 		style		WINDOW_STYLE_SHADER

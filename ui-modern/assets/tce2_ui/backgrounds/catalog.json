@@ -3,7 +3,7 @@
   "origin": "User-provided map_pics; no generated scene artwork.",
   "generator": "tools/ui_modernize/background_assets.py",
   "generator_sha256": "3a0227a578afa53f033bc06bd0bab1ce771eaf08210511f86c58ab4ddf1f1056",
-  "resampler_sha256": "4f3ac210cda2129bad0cbe0788bc3466454a9ec5caf912810800387054c3a0ff",
+  "resampler_sha256": "0faacfbdd780584d6606fecf0f41fa9a8a658b066c9e9e061576050a98e967a8",
   "fallback": "tce2_ui/background.tga",
   "selection": "One per engine process, no immediate repeat. Default winter months follow configured country/custom months; optional live-weather mode requires fresh data.",
   "files": [

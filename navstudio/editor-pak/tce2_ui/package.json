@@ -61,7 +61,7 @@
     },
     "fonts/tce2_ui/PORTABLE.json": {
       "bytes": 4823,
-      "sha256": "17cb3bd3d22b7578456d06712bf9f1dabd333860bb838bfe9fbce45e99022101"
+      "sha256": "3a5662d19047792a634da163b857bc0a1427fbebb6bf037d947cc5ee9d36ebbf"
     },
     "fonts/tce2_ui/SOURCE.json": {
       "bytes": 2075,
@@ -100,12 +100,12 @@
       "sha256": "68a4672d56203f070a1db91391289a0dbe18232b8d513fdbb7a54323e1f985fd"
     },
     "scripts/tce2_ui_footer.shader": {
-      "bytes": 1346,
-      "sha256": "313c2179e96d32ab1596d660adbbf16ca2a18eeac9f2db186e1333b28b31deec"
+      "bytes": 1768,
+      "sha256": "8acc3f41aea756e66b57ffef6472890f1d21eb66b8796b85ebe940c34ecc5917"
     },
     "tce2_ui/SOURCE.json": {
-      "bytes": 45355,
-      "sha256": "e4736cc0b77ceb81ea3e98b836b7479a1e58379804b0e1bda36c956273276773"
+      "bytes": 45504,
+      "sha256": "58aa6dafa531a4af6c8dad64d5cd0dc8cf546f39c296da0c9c9c584297b221a4"
     },
     "tce2_ui/background.tga": {
       "bytes": 6291500,
@@ -177,7 +177,7 @@
     },
     "tce2_ui/backgrounds/catalog.json": {
       "bytes": 9143,
-      "sha256": "0f2113ef55f7527bddfd7249d26f91702b09088b6c1a32f689433d0cf59fa936"
+      "sha256": "299ffe3fb2464be640af277d85234d02456361460d0ca6127251352a0938ed28"
     },
     "tce2_ui/backgrounds/runtime.cfg": {
       "bytes": 19,
@@ -944,8 +944,8 @@
       "sha256": "176447889c4a5289731201dc3971f962e29f4548022c4d22251a1daf973327c4"
     },
     "ui/main.menu": {
-      "bytes": 4480,
-      "sha256": "80f59fda09164362c27d359c3d04d064af73b81990291eabee3b0fe4bb1d3ef2"
+      "bytes": 4963,
+      "sha256": "d595c38c35db3decb6c38256ba5df84f2c50b145bfbc39ee53f3e1969ed72596"
     },
     "ui/menudef.h": {
       "bytes": 16647,
@@ -1140,24 +1140,24 @@
       "sha256": "680593e48d2cc3fedc0644f7eb492715503ebc3a7c9734817af39558debb9456"
     },
     "ui_obj/main.menu": {
-      "bytes": 5923,
-      "sha256": "e276e617c46bfb7ccb0b1242ac68e49102d76be4c9eb3abf004f20e058a11e85"
+      "bytes": 6405,
+      "sha256": "529fe16b8e6a6d1497a2071295ae69a856ccf43dca8db0961b7ab1d0767d3d60"
     },
     "ui_robj/global.menu": {
       "bytes": 1238,
       "sha256": "cc7545a3092292c73c2c19ece1871aa42af2b8ed4f1c4997c3281b9612511a7c"
     },
     "ui_robj/main.menu": {
-      "bytes": 5810,
-      "sha256": "326d04b03c346da0a223ac698b0c69608b3c109e5ce73527ec2286ab6d046dd9"
+      "bytes": 6292,
+      "sha256": "4ff47d63e6417b03bd9ed9f87525fd80576112533086f6003ce7db0e94d18e0e"
     },
     "ui_tdm/global.menu": {
       "bytes": 1240,
       "sha256": "9fa5a6d498a7c66a514ed2947634c9e30119773465b1ad01bcfeccebf2a27d57"
     },
     "ui_tdm/main.menu": {
-      "bytes": 5695,
-      "sha256": "bfbb7146cd0712c33f95251ad58961af38a8e1c642a49dd57ebff96f95a2d687"
+      "bytes": 6177,
+      "sha256": "2cc00c6e6072cd91ead55484e95df73c0938df887ed67d5f9f3a3fb2cc2c499b"
     }
   }
 }

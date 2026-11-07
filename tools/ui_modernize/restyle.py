@@ -107,7 +107,7 @@ def main_layout(text, path):
         elif name == 'LABELWHITE':
             args[:4] = ['16' if compact else '64', '280' if compact else '404', '330', '16']; args[5:] = ['.20','ITEM_ALIGN_LEFT','0','12']
         text = text[:start] + name+'( '+', '.join(args)+' )' + text[end:]
-    # Preserve each studio/publisher logo; align them in a quiet footer strip.
+    # Preserve each studio/publisher logo, with no background strip or plate.
     for start, end in reversed(list(blocks(text))):
         block = text[start:end]
         match = re.search(r'(?im)^\s*name\s+"?(groovesix|teamterminator|atvi_logo|id_logo|sd_logo)\b',block)
@@ -127,27 +127,25 @@ def main_layout(text, path):
             publisher = {'atvi_logo':'atvi','id_logo':'id','sd_logo':'sd'}.get(match[1].lower())
             if publisher:
                 block = item_prop(block,'background','"tce2_ui/publisher_'+publisher+'"')
-        elif re.search(r'(?im)^\s*name\s+ELITELOGO\b', block):
-            block = item_prop(block, 'rect', '612 34 176 88')
-        text = text[:start] + block + text[end:]
-    # Insert decoration before original content so it cannot cover controls.
-    at = text.index('// Company Logos //') if '// Company Logos //' in text else text.index('// Background Logo //')
-    origin_x, origin_y = (48,92) if compact else (0,0)
-    # Original light publisher marks need a quiet, opaque dark surface on
-    # both winter skies and night scenes. The fixed shader ignores palette RGB
-    # and vertex opacity; no publisher raster is copied or recolored.
-    plate = f'''itemDef {{
-        name "modern_footer_plate"
-        rect {56-origin_x} {432-origin_y} 504 44
+                # Reuse the logo's own alpha mask for a one-pixel shadow.
+                # This adds contrast on bright scenes without a rectangle,
+                # new raster, input target or palette-dependent tint.
+                shadow = f'''itemDef {{
+        name "modern_publisher_shadow_{publisher}"
+        rect {x+(80-w)/2-origin_x+1:g} {440+(28-h)/2-origin_y+1:g} {w:g} {h:g}
         style WINDOW_STYLE_SHADER
-        background "tce2_ui/logo_plate"
+        background "tce2_ui/publisher_{publisher}_shadow"
         forecolor 1 1 1 1
         visible 1
         decoration
     }}
 '''
-    text = text[:at] + plate + text[at:]
-    at += len(plate)
+                block = shadow + block
+        elif re.search(r'(?im)^\s*name\s+ELITELOGO\b', block):
+            block = item_prop(block, 'rect', '612 34 176 88')
+        text = text[:start] + block + text[end:]
+    # Insert decoration before original content so it cannot cover controls.
+    at = text.index('// Company Logos //') if '// Company Logos //' in text else text.index('// Background Logo //')
     if not compact:
         decoration = '''itemDef {
         name "modern_brand"

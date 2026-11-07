@@ -2,7 +2,7 @@
   "schema": 1,
   "origin": "Original code-created interface art and original imagegen industrial background. No game/reference artwork copied.",
   "generator": "tools/ui_modernize/generate_assets.py",
-  "generator_sha256": "4f3ac210cda2129bad0cbe0788bc3466454a9ec5caf912810800387054c3a0ff",
+  "generator_sha256": "0faacfbdd780584d6606fecf0f41fa9a8a658b066c9e9e061576050a98e967a8",
   "background_source": "ui-modern/source/background-industrial-v1.png",
   "background_sha256": "3ccd94c4f50145c2233ac74bce45bf5d1bae4b26d85bfeef0c1fb35f3803f5e9",
   "cursor_hotspot": {
@@ -1440,17 +1440,26 @@
     "dimensions": "power-of-two on both axes; full-image UV resampling preserves composition",
     "encoding": "uncompressed native BGR24/BGRA32; no engine extensions"
   },
-  "footer_surface": {
-    "shader": "tce2_ui/logo_plate",
+  "publisher_logos": {
     "source": "scripts/tce2_ui_footer.shader",
-    "sha256": "313c2179e96d32ab1596d660adbbf16ca2a18eeac9f2db186e1333b28b31deec",
-    "rgb": [
-      0.018,
-      0.025,
-      0.035
+    "sha256": "8acc3f41aea756e66b57ffef6472890f1d21eb66b8796b85ebe940c34ecc5917",
+    "original_maps": [
+      "ui/assets/logo_atvi.tga",
+      "ui/assets/logo_id.tga",
+      "ui/assets/logo_sd.tga"
     ],
-    "alpha": 1,
-    "map": "$whiteimage",
-    "purpose": "Fixed dark opaque surface for unchanged light publisher marks; no copied logo rasters."
+    "shadow": {
+      "offset": [
+        1,
+        1
+      ],
+      "rgb": [
+        0,
+        0,
+        0
+      ],
+      "alpha": 0.8
+    },
+    "purpose": "Full-bright original publisher marks with small alpha-mask shadows; no plate or copied logo rasters."
   }
 }
