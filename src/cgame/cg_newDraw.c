@@ -750,6 +750,8 @@ void CG_MouseEvent(int x, int y)
 {
 	switch (cgs.eventHandling)
 	{
+	case CGAME_EVENT_SCOREBOARD:
+		return;
 	case CGAME_EVENT_SPEAKEREDITOR:
 	case CGAME_EVENT_GAMEVIEW:
 	case CGAME_EVENT_CAMPAIGNBREIFING:
@@ -840,6 +842,13 @@ CG_EventHandling
 */
 void CG_EventHandling(int type, qboolean fForced)
 {
+	/* Escape is delivered as a forced NONE by the classic engine and as a
+	 * key event by some other hosts. Both paths must release the same scope. */
+	if (cgs.eventHandling == CGAME_EVENT_SCOREBOARD && type != CGAME_EVENT_SCOREBOARD)
+	{
+		cg.tceScoreboardPinned = qfalse;
+		CG_ScoresUp_f();
+	}
 	if (cg.demoPlayback && type == CGAME_EVENT_NONE && !fForced)
 	{
 		type = CGAME_EVENT_DEMO;
@@ -951,6 +960,11 @@ void CG_EventHandling(int type, qboolean fForced)
 
 void CG_KeyEvent(int key, qboolean down)
 {
+	if (cgs.eventHandling == CGAME_EVENT_SCOREBOARD)
+	{
+		if (down && key == K_ESCAPE) CG_ClosePinnedScoreboard();
+		return;
+	}
 	switch (cgs.eventHandling)
 	{
 	// Demos get their own keys

@@ -9,6 +9,7 @@
 #include "cg_local.h"
 #include "../game/tce_bg.h"
 #include "cg_tce_weapon_stats.h"
+#include "../../platform/platform_window.h"
 
 #ifdef FEATURE_NAVSTUDIO
 /* OB_DMS name dialogs use cg_genericText. Forward only to the typed UI
@@ -270,11 +271,41 @@ void CG_ScoresDown_f(void)
 
 void CG_ScoresUp_f(void)
 {
+	if (cg.tceScoreboardPinned) return;
 	if (cg.showScores)
 	{
 		cg.showScores    = qfalse;
 		cg.scoreFadeTime = cg.time;
 	}
+}
+
+void CG_ClosePinnedScoreboard(void)
+{
+	if (!cg.tceScoreboardPinned) return;
+	cg.tceScoreboardPinned = qfalse;
+	CG_ScoresUp_f();
+	if (cgs.eventHandling == CGAME_EVENT_SCOREBOARD) CG_EventHandling(CGAME_EVENT_NONE, qfalse);
+}
+
+static void CG_ToggleScoreboard_f(void)
+{
+	if (cg.tceScoreboardPinned)
+	{
+		CG_ClosePinnedScoreboard();
+		return;
+	}
+	CG_EventHandling(CGAME_EVENT_SCOREBOARD, qfalse);
+	cg.tceScoreboardPinned = qtrue;
+	CG_ScoresDown_f();
+}
+
+static void CG_Minimize_f(void)
+{
+#if defined(_WIN32) && !defined(Q3_VM)
+	TCE_PlatformWindowMinimize();
+#else
+	trap_SendConsoleCommand("minimize\n");
+#endif
 }
 
 static void CG_LoadHud_f(void)
@@ -1315,6 +1346,8 @@ static consoleCommand_t commands[] =
 	{ "viewpos",             CG_Viewpos_f                },
 	{ "+scores",             CG_ScoresDown_f             },
 	{ "-scores",             CG_ScoresUp_f               },
+	{ "toggleScoreboard",    CG_ToggleScoreboard_f       },
+	{ "tce_minimize",        CG_Minimize_f               },
 	{ "+wstats",             CG_wStatsDown_f             },
 	{ "-wstats",             CG_wStatsUp_f               },
 	{ "zoomin",              CG_ZoomIn_f                 },

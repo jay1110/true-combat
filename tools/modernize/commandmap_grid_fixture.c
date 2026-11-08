@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include "src/ui/tce_viewport.h"
+#include "src/cgame/cg_hud_viewport.h"
 
 typedef int qboolean;
 typedef float vec2_t[2];
@@ -31,6 +32,7 @@ static vec2_t gridStartCoord, gridStep;
 #define CHECK(x) do { ++checks; if (!(x)) { ++failures; fprintf(stderr,"line %d: %s\n",__LINE__,#x); } } while(0)
 static int near(float a,float b) { return fabsf(a-b)<.002f; }
 static int TCE_ModernUIEnabled(void) { return modern; }
+int TCE_MenuViewportVoice(void) { return 0; }
 static void trap_Cvar_Register(vmCvar_t *c,const char *n,const char *d,int flags)
 { (void)n;(void)flags;c->value=(float)atof(d);c->integer=(int)c->value; }
 static void trap_Cvar_Update(vmCvar_t *c) { (void)c; }

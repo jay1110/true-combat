@@ -4,7 +4,7 @@ All workflows are `workflow_dispatch` only. They never publish a GitHub release.
 This repository contains a mod, not an ET/ETLegacy engine. Local agents do not
 start Actions runs; the maintainer chooses when to dispatch a prepared workflow.
 
-The current mod version comes from `src/game/tce_version.h` (1.0.3).
+The current mod version comes from `src/game/tce_version.h` (1.0.4).
 `release.yml` builds the twelve ABI families declared in `targets.json`, for Game
 and optionally the separate Editor variant. Source and optional NavStudio desktop
 have their own workflow artifacts.
@@ -25,10 +25,10 @@ These are mod binaries for a compatible engine, not bundled engine executables.
 
 ## What to download
 
-- `TCE2-1.0.3-Game.zip`: normal gameplay, with authoring compiled out.
-- `TCE2-1.0.3-Editor.zip`: explicitly enabled local authoring build, never a public server.
+- `TCE2-1.0.4-Game.zip`: normal gameplay, with authoring compiled out.
+- `TCE2-1.0.4-Editor.zip`: explicitly enabled local authoring build, never a public server.
 
-Each ZIP contains exactly one `tce2/tce2-1.0.3.pk3`. It is an update for an
+Each ZIP contains exactly one `tce2/tce2-1.0.4.pk3`. It is an update for an
 **already installed original TCE 0.49b base**, not a standalone resource bundle.
 It contains every new/changed resource from `pak/`, the generated dependency and
 version manifests, and UI/CGame for every advertised ABI. Editor additionally
@@ -101,7 +101,7 @@ clean workflow checkout. Compiler success and package closure do not establish
 behavioral parity or Linux/Android/macOS runtime testing.
 
 ```text
-python tools/release/validate.py source --expect-version 1.0.3
+python tools/release/validate.py source --expect-version 1.0.4
 python -m unittest discover -s tools/release -p "test_*.py"
 python tools/release/resource_assets.py --variant game
 ```
@@ -114,7 +114,7 @@ For an already compiled local verification subset, `local_bundle.py` writes the
 same single-PK3/server layout without persisting a separate PK3 or target ZIPs:
 
 ```text
-python tools/release/local_bundle.py --inputs build/local-game-inputs.json --variant game --allow-subset --out dist/TCE2-1.0.3-Game.zip --receipt build/local-game-bundle.json
+python tools/release/local_bundle.py --inputs build/local-game-inputs.json --variant game --allow-subset --out dist/TCE2-1.0.4-Game.zip --receipt build/local-game-bundle.json
 ```
 
 The input JSON is a list of objects with `target`, `module_manifest` (the generated

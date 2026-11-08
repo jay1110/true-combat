@@ -550,6 +550,18 @@ def layout_reference(reference,candidate):
     SLIDER( 8, 316, 380, 10, "Fireteam Size:", .2, 8, "cg_fireteamScale" 0.85 0.5 1.5, "Resize the fireteam panel independently of HUD size" )
 '''
             result[hud]=source.replace(marker,extra+marker,1).encode('latin1')
+        # The expanded command map has its own archived size. Accept this
+        # reviewed addition independently so existing two-slider editor
+        # variants keep their exact contract until they opt in as well.
+        if b'"cg_commandMapScale"' in candidate[hud] and b'"cg_commandMapScale"' not in reference[hud]:
+            source=result[hud].decode('latin1')
+            anchor=r'(?m)^[ \t]*SLIDER\([^\n]*"cg_fireteamScale"[^\n]*\)[ \t\r]*$'
+            matches=list(re.finditer(anchor,source))
+            if len(matches)!=1:raise ValueError('Command-map size lacks the independent Fireteam slider anchor')
+            extra='''
+    SLIDER( 8, 328, 380, 10, "Command Map Size:", .2, 8, "cg_commandMapScale" 0.85 0.5 1.5, "Resize the expanded command map independently of HUD size" )'''
+            at=matches[0].end()
+            result[hud]=(source[:at]+extra+source[at:]).encode('latin1')
     import video_modes
     # Only the two profile resolution lists may reuse the reviewed System
     # catalog. Every other selector operand and profile script stays exact.

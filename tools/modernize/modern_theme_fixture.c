@@ -382,8 +382,22 @@ int main(void)
           ITEM_TYPE_SLIDER};int type,focus,style;
         for(type=0;type<(int)(sizeof(types)/sizeof(types[0]));++type)for(focus=0;focus<2;++focus)for(style=1;style<=3;++style){
           item.type=types[type];item.window.flags=WINDOW_VISIBLE|(focus?WINDOW_HASFOCUS:WINDOW_MOUSEOVER);item.window.style=style;
-          drawCount=0;TCE_ModernItemFocusPaint(&item);check(drawCount==4,"All interactive control styles expose both mouse and keyboard focus");
+          drawCount=0;TCE_ModernItemFocusPaint(&item);
+          check(drawCount==((item.type==ITEM_TYPE_EDITFIELD || item.type==ITEM_TYPE_NUMERICFIELD)?1:4),"Text input keeps a thin focus underline; buttons retain their full focus treatment");
         }
+      }
+      /* The actual inherited message-mode field is ten units high. Rims
+       * must never fill its typing line at any palette or opacity. */
+      for(i=0;i<2;++i)for(j=0;j<10;++j){
+        item.type=i?ITEM_TYPE_NUMERICFIELD:ITEM_TYPE_EDITFIELD;
+        item.window.flags=WINDOW_VISIBLE|WINDOW_HASFOCUS;
+        item.window.rect.x=164;item.window.rect.y=336;item.window.rect.w=308;item.window.rect.h=10;
+        set("ui_themePreset",(float)j);set("ui_themeOpacityPreset",3);set("ui_themeOpacity",.25f);refresh();
+        saved=item;drawCount=0;TCE_ModernItemFocusPaint(&item);
+        check(drawCount==1,"Small chat and numeric fields never receive a filled wash or thick hover rim");
+        check(draws[0].y==345 && draws[0].h==1,"Focus is confined to the single bottom row, leaving the typing line clear");
+        check(draws[0].x==165 && draws[0].w==306,"The field underline stays inside its parsed hitbox");
+        check(!memcmp(&item,&saved,sizeof(item)),"Focus leaves text, cursor, layout, cvars and scripts unchanged");
       }
       item.type=ITEM_TYPE_BUTTON;item.window.flags=WINDOW_VISIBLE|WINDOW_MOUSEOVER;item.cvarFlags=CVAR_ENABLE;
       controlEnabled=0;drawCount=0;TCE_ModernItemFocusPaint(&item);check(!drawCount,"Disabled cvar-driven controls never look clickable");

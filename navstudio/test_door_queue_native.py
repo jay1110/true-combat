@@ -106,8 +106,9 @@ int main(){
  clear();FollowPath first,second;setup(first,false);setup(second,false);
  first.client.gameId=2;second.client.gameId=9;
  assert(queue(second)==1&&queue(first)==1);IGame::time+=50;
- assert(queue(second)==1&&second.client.steer.target.x<=-144);
- assert(std::fabs(second.client.steer.target.y)==64&&second.client.steer.noAvoid==250);
+ assert(queue(second)==1&&second.client.steer.target.x<0);
+ assert(second.client.steer.target.y>0&&second.client.steer.noAvoid==250);
+ assert(std::fabs(SquaredLength2d(second.client.steer.target,second.client.position)-32.f*32.f)<.1f);
  assert(queue(first)==0);assert(tick(first)==1&&first.m_TceDoorPhase==2);
  // No USE or action activation by a waiting bot; it keeps the entrance clear.
  assert(second.m_TceDoorPhase==0&&!(second.client.buttons&BOT_BUTTON_USE));
@@ -119,8 +120,17 @@ int main(){
  clear();static FollowPath occupied;setup(occupied,false);occupied.client.gameId=9;
  population.m_Players[5].m_Controller=obPlayerInfo::Human;population.m_Players[5].m_Team=1;
  actors[5]={32,0,30};actors[8]={-96,64,30};
- assert(queue(occupied)==1&&occupied.client.steer.target.y==-64&&trafficChecks==2);
+ assert(queue(occupied)==1&&occupied.client.steer.target.y<0&&trafficChecks>=3);
  allTrafficBlocked=true;IGame::time+=50;assert(queue(occupied)==1&&occupied.client.steer.target.x==0);
+
+ // A row of waiting allies obstructs every complete route to the bays, but
+ // leaves a safe first step. Waiting for a full route used to freeze this
+ // bot, preventing the line from making space from the rear forward.
+ clear();static FollowPath packed;setup(packed,false);packed.client.gameId=9;
+ population.m_Players[5].m_Controller=obPlayerInfo::Human;population.m_Players[5].m_Team=1;
+ actors[5]={32,0,30};actors[8]={-64,43,30};actors[10]={-64,-43,30};actors[11]={-64,0,30};
+ assert(queue(packed)==1&&packed.client.steer.target.x<-20&&packed.client.steer.target.x>-33);
+ assert(packed.client.steer.target.y>0&&!(packed.client.buttons&BOT_BUTTON_USE));
 
  // Every out-of-band traversal contract stops queue lookahead. No setting of
  // steering suppression may get ahead of a scripted path-through or landing.
@@ -148,7 +158,7 @@ int main(){
  // floors, enemies, spectators and dead players cannot hold this doorway.
  clear();FollowPath human;setup(human,false);population.m_Players[5].m_Controller=obPlayerInfo::Human;
  population.m_Players[5].m_Team=1;actors[5]={64,0,30};
- assert(queue(human)==1);IGame::time+=50;assert(queue(human)==1&&human.client.steer.target.x<=-96);
+ assert(queue(human)==1);IGame::time+=50;assert(queue(human)==1&&human.client.steer.target.x<0);
  actors[5]={64,80,30};IGame::time+=50;assert(queue(human)==0);
  actors[5]={64,0,130};assert(queue(human)==0);
  actors[5]={64,0,30};population.m_Players[5].m_Team=2;assert(queue(human)==0);

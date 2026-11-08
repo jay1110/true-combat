@@ -439,6 +439,13 @@ Adjusted for resolution and screen aspect ratio
 void UI_AdjustFrom640(float *x, float *y, float *w, float *h)
 {
 	int full = TCE_ViewportDrawMode() == TCE_VIEWPORT_FULLSCREEN || TCE_MenuViewportMain();
+	if (TCE_MenuViewportVoice())
+	{
+		tce_viewport_t view;
+		if (TCE_ViewportFit(&view,uiInfo.uiDC.glconfig.vidWidth,uiInfo.uiDC.glconfig.vidHeight,
+		                    640.f,480.f,0.f,1.f,0.f,.5f)) TCE_ViewportProject(&view,x,y,w,h);
+		return;
+	}
 	if (trap_Cvar_VariableValue("cg_wideScreen") != 0.f || TCE_ModernUIEnabled())
 	{
 		tce_viewport_t view;

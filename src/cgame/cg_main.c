@@ -16,6 +16,7 @@
 #include "tce_lightgrid.h"
 #include "../game/tce_bg.h"
 #include "tce_weapon_media.h"
+#include "../../platform/platform_window.h"
 
 displayContextDef_t cgDC;
 
@@ -3127,6 +3128,7 @@ void CG_Init(int serverMessageNum, int serverCommandSequence, int clientNum, qbo
 	// get the rendering configuration from the client system
 	trap_GetGlconfig(&cgs.glconfig);
 	CG_HudViewportInit();
+	TCE_PlatformWindowInit();
 	cgs.screenXScale = cgs.glconfig.vidWidth / 640.0;
 	cgs.screenYScale = cgs.glconfig.vidHeight / 480.0;
 

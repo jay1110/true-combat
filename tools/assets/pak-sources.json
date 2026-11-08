@@ -2,12 +2,12 @@
   "editor_files": {
     "tce2_ui/package.json": {
       "bytes": 51724,
-      "sha256": "d7f418800a492cff34c512da4a36e16b89381a6b27212f2fff143e6c7afd5336",
+      "sha256": "f0f41da29b5ce35d08d53732d75b3427ee248879039785cc333e89ad935ab5ca",
       "source": "navstudio/editor-pak/tce2_ui/package.json"
     },
     "ui/ingame_main.menu": {
-      "bytes": 1870,
-      "sha256": "c72f3610e943b0e9425a833896f5e6ba72af229e34522a971c8de61019074ffc",
+      "bytes": 2043,
+      "sha256": "6bcfc5f7d66a88fa4f7a37eb94396d8c01c51ef0c22aa5bd9dd71a20b24ebba5",
       "source": "navstudio/editor-pak/ui/ingame_main.menu"
     },
     "ui/menus.txt": {
@@ -364,41 +364,37 @@
     "registries": {
       "menus.txt": {
         "legacy_external_loaders": [
-          "ui/ingame_messagemode.menu",
           "ui/ingame_tapout.menu"
         ],
-        "loaded_files": 122,
-        "menu_names": 168,
+        "loaded_files": 123,
+        "menu_names": 169,
         "reachable_catalog_menus": 71,
         "stock_metadata_loaders": []
       },
       "menus_gt2.txt": {
         "legacy_external_loaders": [
-          "ui/ingame_messagemode.menu",
           "ui/ingame_tapout.menu"
         ],
-        "loaded_files": 122,
-        "menu_names": 168,
+        "loaded_files": 123,
+        "menu_names": 169,
         "reachable_catalog_menus": 71,
         "stock_metadata_loaders": []
       },
       "menus_gt5.txt": {
         "legacy_external_loaders": [
-          "ui/ingame_messagemode.menu",
           "ui/ingame_tapout.menu"
         ],
-        "loaded_files": 122,
-        "menu_names": 168,
+        "loaded_files": 123,
+        "menu_names": 169,
         "reachable_catalog_menus": 71,
         "stock_metadata_loaders": []
       },
       "menus_gt7.txt": {
         "legacy_external_loaders": [
-          "ui/ingame_messagemode.menu",
           "ui/ingame_tapout.menu"
         ],
-        "loaded_files": 122,
-        "menu_names": 168,
+        "loaded_files": 123,
+        "menu_names": 169,
         "reachable_catalog_menus": 71,
         "stock_metadata_loaders": []
       }
@@ -953,7 +949,7 @@
     },
     "tce2_ui/package.json": {
       "bytes": 43925,
-      "sha256": "b72a7c28e5e1906609bafdefa5bfaa9f43a0190e2259c40214c6836ad8a5b0ba",
+      "sha256": "891e0dbd0c8832e99d3bab394c6dead219c8683030641e86e1ae63c90c79c353",
       "source": "pak/tce2_ui/package.json"
     },
     "tce2_ui/panel.tga": {
@@ -1677,9 +1673,14 @@
       "source": "pak/ui/ingame_disconnect.menu"
     },
     "ui/ingame_main.menu": {
-      "bytes": 1767,
-      "sha256": "c68c5ca869076119f8215d92b40486da5a1deaee88671ab30f57dc124ca3216d",
+      "bytes": 1949,
+      "sha256": "3f5ba2fb5abffb10092c0023ea626a37041abf9cc7db5953eb3143a25eafc16e",
       "source": "pak/ui/ingame_main.menu"
+    },
+    "ui/ingame_messagemode.menu": {
+      "bytes": 2662,
+      "sha256": "fe0f28c63a6e1458d0bd085752bf63293c9d8fbe8e6cd3f069fbb9d2ac7276dc",
+      "source": "pak/ui/ingame_messagemode.menu"
     },
     "ui/ingame_serverinfo.menu": {
       "bytes": 1659,
@@ -1802,8 +1803,8 @@
       "source": "pak/ui/options_customise_game.menu"
     },
     "ui/options_customise_hud.menu": {
-      "bytes": 11423,
-      "sha256": "a11518899ae1755caec908e47250f7be7ac49d24d18690a824c5d61dcf91bdb6",
+      "bytes": 11581,
+      "sha256": "c9f37c7282c5b53e7cd643b35305da1200f4e090a0759624a579f8e02d04b955",
       "source": "pak/ui/options_customise_hud.menu"
     },
     "ui/options_system.menu": {
@@ -1947,18 +1948,23 @@
       "source": "pak/ui/viewreplay_delete.menu"
     },
     "ui/wm_ftquickmessage.menu": {
-      "bytes": 10300,
-      "sha256": "a4682c0a89e9b236710683b933a4b4573614836748a9659e9867ce83d6102864",
+      "bytes": 10357,
+      "sha256": "3c091379a98339c68354df00741303acbc6921aee16332342e4fcf639966909a",
       "source": "pak/ui/wm_ftquickmessage.menu"
     },
+    "ui/wm_ftquickmessageAlt.menu": {
+      "bytes": 10618,
+      "sha256": "320327fd92dcf053250abc38aa6d74f5403f36dd2bb79d46f6f3cd5cb29569ee",
+      "source": "pak/ui/wm_ftquickmessageAlt.menu"
+    },
     "ui/wm_quickmessage.menu": {
-      "bytes": 9977,
-      "sha256": "5ff9559aa01974c6c222edbd856c79d0ecaa4ed211213dc089181808c533eb1f",
+      "bytes": 10034,
+      "sha256": "2e5e7f398f606305638aaab03a583cd0ef33d662617dbc2f4d97b619524e0a3c",
       "source": "pak/ui/wm_quickmessage.menu"
     },
     "ui/wm_quickmessageAlt.menu": {
-      "bytes": 10292,
-      "sha256": "930c03bd9df7a8247c0d8ee7f8aa063907d34faaf0ca3bd18f5a0ef776d188d8",
+      "bytes": 10349,
+      "sha256": "adc085157cbee768115cb207ea1d3afd6747ac41bc0a3f850738203b8bbc08c9",
       "source": "pak/ui/wm_quickmessageAlt.menu"
     },
     "ui_obj/global.menu": {
@@ -1994,17 +2000,17 @@
   },
   "policy": "Publish canonical new/changed resources only. Installed stock TCE is the base; local originals and historical authoring copies are never loaded.",
   "purpose": "Canonical resource validation and provenance; no resource generation.",
-  "release_version": "1.0.3",
+  "release_version": "1.0.4",
   "resource_generation": false,
   "schema": 3,
   "stock_reference": {
     "baseline_id": "tce-0.49b-pak0-4",
     "path": "tools/assets/base-game-reference.json",
-    "release_version": "1.0.3",
-    "sha256": "2a558e6682db1b6b8d3815779a30a11d7afc5781eeb5f95841991dc51fce1ea0"
+    "release_version": "1.0.4",
+    "sha256": "e6ef23ad3a777caddea0f3178ed1a05e50167f8fcc25da84111ac4dfc91b9c8f"
   },
   "stock_ui_reference": {
     "path": "tools/assets/base-ui-reference.json",
-    "sha256": "eeb286b23d44b2e51a9e00bc45e261a200e9bf9651a84eafca0b2a36e275780d"
+    "sha256": "ba150238d8d3c6f16b4eed37ecd7586a7da54d41beedd960f2770953d3a4b08f"
   }
 }

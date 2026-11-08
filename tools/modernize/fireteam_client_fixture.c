@@ -29,10 +29,11 @@ static fontInfo_t *lastPaintFont;
 static int lastPaintStyle;
 static int modernHud;
 static float hudUserScale=.85f,hudHeightCap=1080,compassUserScale=.85f,fireteamUserScale=.85f;
-static vmCvar_t *hudCvars[7];
+static vmCvar_t *hudCvars[8];
 qboolean tce_uiCoordinates;
 static snapshot_t snapshot;
 qboolean TCE_ModernUIEnabled(void) { return qfalse; }
+int TCE_MenuViewportVoice(void) { return 0; }
 static int checks, failures, argumentCount, draws, fills;
 static int menuDraws,overlayDraws;
 static rectDef_t hudRect;
@@ -55,16 +56,16 @@ void trap_Cvar_Register(vmCvar_t *cvar,const char *name,const char *value,int fl
     int id;
     if(!strcmp(name,"tceft")||!strcmp(name,"tceftgear")){CHECK(!strcmp(value,"1")&&(flags&CVAR_USERINFO));return;}
     if(!strcmp(name,"cg_drawIcons")){CHECK(!strcmp(value,"1")&&flags==CVAR_ARCHIVE);iconCvar=cvar;cvar->integer=iconsEnabled;return;}
-    id=!strcmp(name,"cg_wideScreen")?0:!strcmp(name,"cg_hudScale")?1:!strcmp(name,"cg_hudMaxHeight")?2:!strcmp(name,"ui_menuScale")?3:!strcmp(name,"ui_menuMaxHeight")?4:!strcmp(name,"cg_compassScale")?5:!strcmp(name,"cg_fireteamScale")?6:-1;
+    id=!strcmp(name,"cg_wideScreen")?0:!strcmp(name,"cg_hudScale")?1:!strcmp(name,"cg_hudMaxHeight")?2:!strcmp(name,"ui_menuScale")?3:!strcmp(name,"ui_menuMaxHeight")?4:!strcmp(name,"cg_compassScale")?5:!strcmp(name,"cg_fireteamScale")?6:!strcmp(name,"cg_commandMapScale")?7:-1;
     CHECK(id>=0&&flags==CVAR_ARCHIVE);if(id<0)return;
-    CHECK(!strcmp(value,id==0||id==3?"1":id==1||id==5||id==6?"0.85":"1080"));hudCvars[id]=cvar;
-    cvar->value=id==0?(float)modernHud:id==1?hudUserScale:id==3?1.f:id==5?compassUserScale:id==6?fireteamUserScale:hudHeightCap;cvar->integer=(int)cvar->value;
+    CHECK(!strcmp(value,id==0||id==3?"1":id==1||id>=5?"0.85":"1080"));hudCvars[id]=cvar;
+    cvar->value=id==0?(float)modernHud:id==1?hudUserScale:id==3?1.f:id==5?compassUserScale:id==6?fireteamUserScale:id==7?.85f:hudHeightCap;cvar->integer=(int)cvar->value;
 }
 void trap_Cvar_Update(vmCvar_t *cvar)
 {
     int id;
     if(cvar==iconCvar){cvar->integer=iconsEnabled;return;}
-    for(id=0;id<7;++id)if(hudCvars[id]==cvar){cvar->value=id==0?(float)modernHud:id==1?hudUserScale:id==3?1.f:id==5?compassUserScale:id==6?fireteamUserScale:hudHeightCap;cvar->integer=(int)cvar->value;return;}
+    for(id=0;id<8;++id)if(hudCvars[id]==cvar){cvar->value=id==0?(float)modernHud:id==1?hudUserScale:id==3?1.f:id==5?compassUserScale:id==6?fireteamUserScale:id==7?.85f:hudHeightCap;cvar->integer=(int)cvar->value;return;}
     CHECK(0);
 }
 const char *CG_Argv(int index) { return index>=0&&index<argumentCount?arguments[index]:""; }

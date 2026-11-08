@@ -4,7 +4,7 @@
 #include "../ui/tce_modern_ui.h"
 
 static vmCvar_t wideScreen, hudScale, hudMaxHeight, menuScale, menuMaxHeight;
-static vmCvar_t compassScale, fireteamScale;
+static vmCvar_t compassScale, fireteamScale, commandMapScale;
 static cg_hud_widget_scope_t widgetScope;
 static int hudViewportActive, hudViewportFull, hudViewportWorld;
 static unsigned menuViewportDepth;
@@ -19,6 +19,7 @@ void CG_HudViewportInit(void)
 	trap_Cvar_Register(&menuMaxHeight, "ui_menuMaxHeight", "1080", CVAR_ARCHIVE);
 	trap_Cvar_Register(&compassScale, "cg_compassScale", "0.85", CVAR_ARCHIVE);
 	trap_Cvar_Register(&fireteamScale, "cg_fireteamScale", "0.85", CVAR_ARCHIVE);
+	trap_Cvar_Register(&commandMapScale, "cg_commandMapScale", "0.85", CVAR_ARCHIVE);
 	hudViewportActive = hudViewportFull = hudViewportWorld = 0;
 	widgetScope.active = 0;
 	menuViewportDepth = 0;
@@ -33,6 +34,7 @@ void CG_HudViewportUpdate(void)
 	trap_Cvar_Update(&menuMaxHeight);
 	trap_Cvar_Update(&compassScale);
 	trap_Cvar_Update(&fireteamScale);
+	trap_Cvar_Update(&commandMapScale);
 }
 
 int CG_WideScreenEnabled(void) { return wideScreen.integer != 0; }
@@ -54,10 +56,12 @@ int CG_HudWidgetBegin(cg_hud_widget_scope_t *previous, int widget,
 	float scale, right, bottom, canvas = tceCanvas ? 640.f / .75f : 640.f;
 	if (!previous) return 0;
 	*previous = widgetScope;
-	if (widget != CG_HUD_WIDGET_COMPASS && widget != CG_HUD_WIDGET_FIRETEAM) return 0;
+	if (widget != CG_HUD_WIDGET_COMPASS && widget != CG_HUD_WIDGET_FIRETEAM &&
+	    widget != CG_HUD_WIDGET_COMMANDMAP) return 0;
 	if (!(x >= -32768.f && x <= 32768.f && y >= -32768.f && y <= 32768.f &&
 	      w > 0.f && w <= 32768.f && h > 0.f && h <= 32768.f)) return 0;
-	scale = widget == CG_HUD_WIDGET_COMPASS ? compassScale.value : fireteamScale.value;
+	scale = widget == CG_HUD_WIDGET_COMPASS ? compassScale.value :
+	        widget == CG_HUD_WIDGET_COMMANDMAP ? commandMapScale.value : fireteamScale.value;
 	if (scale != scale) scale = .85f;
 	if (scale < .5f) scale = .5f;
 	if (scale > 1.5f) scale = 1.5f;
@@ -65,12 +69,12 @@ int CG_HudWidgetBegin(cg_hud_widget_scope_t *previous, int widget,
 	 * preferences. Keep the previous nominal1080px cap at the default. */
 	if (!TCE_ViewportFit(&view, cgs.glconfig.vidWidth, cgs.glconfig.vidHeight,
 	                     canvas, 480.f, 1080.f, 1.f,
-	                     widget == CG_HUD_WIDGET_COMPASS ? 1.f : 0.f, 0.f)) return 0;
+	                     widget != CG_HUD_WIDGET_FIRETEAM ? 1.f : 0.f, 0.f)) return 0;
 	view.scale *= scale;
 	if (w * view.scale > width) view.scale = width / w;
 	if (h * view.scale > height) view.scale = height / h;
 	if (!(view.scale > 0.f)) return 0;
-	view.offsetX = widget == CG_HUD_WIDGET_COMPASS ? width - canvas * view.scale : 0.f;
+	view.offsetX = widget != CG_HUD_WIDGET_FIRETEAM ? width - canvas * view.scale : 0.f;
 	view.offsetY = 0.f;
 	right = view.offsetX + (x + w) * view.scale;
 	bottom = view.offsetY + (y + h) * view.scale;
@@ -113,6 +117,12 @@ int CG_HudViewportAdjust(float *x, float *y, float *w, float *h, int tceCanvas)
 {
 	tce_viewport_t viewport;
 	float canvasWidth = tceCanvas ? 640.f / .75f : 640.f;
+	if (menuViewportDepth && TCE_MenuViewportVoice())
+	{
+		if (TCE_ViewportFit(&viewport, cgs.glconfig.vidWidth, cgs.glconfig.vidHeight,
+		                     640.f, 480.f, 0, 1, 0, .5f)) TCE_ViewportProject(&viewport, x, y, w, h);
+		return 1;
+	}
 	if (widgetScope.active)
 	{
 		viewport.scale = widgetScope.scale; viewport.offsetX = widgetScope.offsetX; viewport.offsetY = widgetScope.offsetY;

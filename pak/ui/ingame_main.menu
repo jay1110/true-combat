@@ -47,18 +47,20 @@ menuDef {
 	
 // Buttons //
 
-	BUTTON( 24, 56, 124, 32, "Deployment", .27, 22, clearFocus ; close ingame_main ; exec OpenLimboMenu ; )
+	BUTTON( 24, 56, 94, 32, "Deployment", .24, 21, clearFocus ; close ingame_main ; exec OpenLimboMenu ; )
 
 
-	BUTTONEXT( 160, 56, 124, 32, "Vote", .27, 22, uiScript clientCheckVote ; 
+	BUTTONEXT( 125, 56, 94, 32, "Vote", .24, 21, uiScript clientCheckVote ; 
 															conditionalScript cg_ui_novote 0
 																( "clearFocus ; open ingame_votedisabled" )
 																( "close ingame_main ; open ingame_vote" ), cvarTest "authLevel" showCVar { RL_NONE } )
-	BUTTONEXT( 160, 56, 124, 32, "Referee", .27, 22, close ingame_main ; open ingame_vote, cvarTest "authLevel" showCVar { RL_REFEREE } )
-	BUTTONEXT( 160, 56, 124, 32, "RCON", .27, 22, close ingame_main ; open ingame_vote, cvarTest "authLevel" showCVar { RL_RCON } )
+	BUTTONEXT( 125, 56, 94, 32, "Referee", .24, 21, close ingame_main ; open ingame_vote, cvarTest "authLevel" showCVar { RL_REFEREE } )
+	BUTTONEXT( 125, 56, 94, 32, "RCON", .24, 21, close ingame_main ; open ingame_vote, cvarTest "authLevel" showCVar { RL_RCON } )
 	
-	BUTTON( 296, 56, 124, 32, "Server Info", .27, 22, close ingame_main ; open ingame_serverinfo )
-	BUTTON( 432, 56, 124, 32, "Options", .27, 22, close ingame_main ; open options )
-	BUTTON( 568, 56, 124, 32, "Disconnect", .27, 22, clearFocus ; open ingame_disconnect )
-	BUTTON( 704, 56, 124, 32, "Exit TC:E", .27, 22, clearFocus ; open quit )
+	BUTTON( 226, 56, 94, 32, "Server Info", .24, 21, close ingame_main ; open ingame_serverinfo )
+	BUTTON( 327, 56, 94, 32, "Options", .24, 21, close ingame_main ; open options )
+	BUTTON( 428, 56, 94, 32, "Scoreboard", .24, 21, clearFocus ; close ingame_main ; exec toggleScoreboard ; )
+	BUTTON( 529, 56, 94, 32, "Minimize", .24, 21, clearFocus ; exec tce_minimize ; )
+	BUTTON( 630, 56, 94, 32, "Disconnect", .24, 21, clearFocus ; open ingame_disconnect )
+	BUTTON( 731, 56, 94, 32, "Exit TC:E", .24, 21, clearFocus ; open quit )
 }

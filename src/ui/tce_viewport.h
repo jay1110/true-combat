@@ -31,5 +31,7 @@ float TCE_MenuViewportAnchorY(void);
 int TCE_MenuViewportBackground(void);
 /* The startup hub uses the full fitted canvas, independent of menu size. */
 int TCE_MenuViewportMain(void);
+/* Compact voice menus retain their original left-aligned 640x480 canvas. */
+int TCE_MenuViewportVoice(void);
 
 #endif

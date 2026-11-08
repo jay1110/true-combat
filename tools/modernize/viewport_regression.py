@@ -13,7 +13,7 @@ def main():
     args=parser.parse_args();out=args.out.resolve();out.mkdir(parents=True,exist_ok=True)
     paths=['src/ui/tce_viewport.c','src/ui/tce_viewport.h','src/ui/tce_ui_coordinates.c','src/ui/tce_ui_coordinates.h','src/ui/tce_modern_ui.c','src/ui/tce_modern_ui.h','src/ui/ui_atoms.c','src/ui/ui_shared.c','src/ui/ui_main.c','src/cgame/cg_hud_viewport.c','src/cgame/cg_hud_viewport.h','src/cgame/cg_drawtools.c','src/cgame/cg_draw.c','src/cgame/cg_newDraw.c']
     sources={p:(ROOT/p).read_text(encoding='utf-8-sig') for p in paths}
-    shared=sources['src/ui/ui_shared.c'];units=[function(shared,'TCE_MenuViewportBackground'),function(shared,'TCE_MenuViewportMain'),function(shared,'TCE_MenuViewportAnchorY'),function(shared,'TCE_UISharedViewportAdjust')]
+    shared=sources['src/ui/ui_shared.c'];units=[function(shared,'TCE_MenuViewportBackground'),function(shared,'TCE_MenuViewportMain'),function(shared,'TCE_MenuViewportVoice'),function(shared,'TCE_MenuViewportAnchorY'),function(shared,'TCE_UISharedViewportAdjust')]
     matches=list(re.finditer(r'^void AdjustFrom640\(',shared,re.M))
     assert len(matches)==3
     for match,name in zip(matches,['SharedWindowsAdjust','SharedLinuxAdjust','SharedGenericAdjust']):
@@ -31,7 +31,7 @@ def main():
     assert 'UI_AdjustFrom640(' in function(sources['src/ui/ui_atoms.c'],'UI_DrawHandlePic')
     assert 'TCE_ModernCursor(uiInfo.uiDC.cursorx,uiInfo.uiDC.cursory,' in sources['src/ui/ui_main.c']
     assert 'else UI_DrawHandlePic(uiInfo.uiDC.cursorx, uiInfo.uiDC.cursory,' in sources['src/ui/ui_main.c']
-    for name,value in [('cg_wideScreen','1'),('ui_menuScale','1'),('ui_menuMaxHeight','1080'),('cg_hudScale','.85'),('cg_hudMaxHeight','1080'),('cg_compassScale','.85'),('cg_fireteamScale','.85')]:
+    for name,value in [('cg_wideScreen','1'),('ui_menuScale','1'),('ui_menuMaxHeight','1080'),('cg_hudScale','.85'),('cg_hudMaxHeight','1080'),('cg_compassScale','.85'),('cg_fireteamScale','.85'),('cg_commandMapScale','.85')]:
         assert re.search(r'\{\s*NULL,\s*"'+name+r'",\s*"'+re.escape(value)+r'",\s*CVAR_ARCHIVE\s*\}',sources['src/ui/ui_main.c'])
     assert 'if (CG_HudViewportAdjust(x, y, w, h, tce_uiCoordinates)) return;' in function(sources['src/cgame/cg_drawtools.c'],'CG_AdjustFrom640')
     frame=function(sources['src/cgame/cg_draw.c'],'CG_Draw2D')
@@ -40,6 +40,7 @@ def main():
     assert 'CG_HudViewportWorld();\n\t\tCG_DrawCrosshair();\n\t\tCG_HudViewportBegin(.5f, .5f);' in frame
     assert 'CG_HudViewportAnchor(.5f, .5f);\n\t\tCG_DrawWarmup();\n\t\tCG_HudViewportAnchor(0, 0);' in frame
     assert 'CG_HudViewportAnchor(0, 0);\n\t\t\tCG_DrawSpectator();\n\t\t\tCG_HudViewportAnchor(.5f, .5f);\n\t\t\tCG_DrawCrosshairNames();' in frame
+    assert 'CG_HudViewportAnchor(0, 1);\n\t\tCG_DrawPMItemsBig();\n\t\tCG_HudViewportAnchor(0, 0);' in frame
     assert 'CG_MenuViewportBegin();\n\t\tCG_DrawOverlays();\n\t\tCG_MenuViewportEnd();' in frame
     assert re.search(r'else\s*\{\s*CG_HudViewportFull\(\);\s*CG_DrawOverlays\(\);\s*\}',frame)
     paint=function(shared,'Menu_Paint')

@@ -61,13 +61,14 @@ def _stack(groups,plan,positions,rects):
     """Plan entries: (section,x,y,w,row_h); no source/control reordering."""
     for section,x,y,w,row_h in plan:
         group=groups[section]
-        h=18+len(group['rows'])*row_h+4+(18 if group['labels'] else 0)
+        compact_widgets=section=='widget size' and len(group['rows'])==3
+        h=18+len(group['rows'])*row_h+(0 if compact_widgets else 4)+(18 if group['labels'] else 0)
         positions[group['header'][0]]=_geometry(group['header'][3],x,y,w,h)
         rects.append((x,y,w,h))
         row_positions={}
         for index,(start,end,name,args) in enumerate(group['rows']):
             ry=y+18+index*row_h
-            positions[start]=_row(args,name,x+8,ry,w-16,row_h)
+            positions[start]=_row(args,name,x+8,ry,w-16,row_h-1 if compact_widgets else row_h)
             row_positions[args[7] if not name.startswith('CHECKBOXALIGNX') else args[8]]=(ry,row_h)
         for start,end,name,args in group['labels']:
             # A native slider track has a fixed96px width, independent of its
@@ -183,9 +184,10 @@ def apply(text,relative):
         elif page=='options_customise_hud.menu':
             plan=[('hud display',24,60,384,30),('in-game display',444,60,384,34)]
             if 'widget size' in groups:
-                plan.append(('widget size',444,360,384,25))
+                plan.append(('widget size',444,360,384,20 if len(groups['widget size']['rows'])==3 else 25))
             for section,x,y,w,row_h in plan:
-                if y+22+len(groups[section]['rows'])*row_h>432:
+                compact_widgets=section=='widget size' and len(groups[section]['rows'])==3
+                if y+(18 if compact_widgets else 22)+len(groups[section]['rows'])*row_h>(438 if compact_widgets else 432):
                     raise ValueError('HUD settings section exceeds safe footer boundary: '+section)
         elif page=='options_customise_game.menu':
             plan=[('player',24,60,256,34),('physics',24,144,256,34),('chat',24,262,256,34),

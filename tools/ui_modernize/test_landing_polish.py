@@ -6,6 +6,7 @@ import unittest
 import layout_common
 import layout_browse
 import layout_settings
+import layout_misc
 import restyle
 import semantic as sem
 from test_layout_settings import font_width
@@ -108,9 +109,14 @@ class LandingPolishTests(unittest.TestCase):
                     self.assertRegex(background,r'\bbackcolor\s+0 0 0 0\b')
                     before=list(restyle.macro_calls(source,{'BUTTON','BUTTONEXT'}))
                     after=list(restyle.macro_calls(result,{'BUTTON','BUTTONEXT'}))
-                    self.assertEqual(len(before),len(after))
+                    added={'Scoreboard','Minimize'} if filename=='ingame_main.menu' and 'exec toggleScoreboard' not in source else set()
+                    original_after=[row for row in after if row[3][4].strip('"') not in added]
+                    self.assertEqual(len(before)+len(added),len(after))
                     self.assertEqual([a[4:] for _,_,_,a in before],
-                                     [a[4:5]+old[5:7]+a[7:] for (_,_,_,a),(_,_,_,old) in zip(after,before)])
+                                     [a[4:5]+old[5:7]+a[7:] for (_,_,_,a),(_,_,_,old) in zip(original_after,before)])
+                    if added:
+                        self.assertIn('exec toggleScoreboard',result)
+                        self.assertIn('exec tce_minimize',result)
                     rectangles={}
                     for _,_,_,args in after:
                         x,y,w,h=map(float,args[:4]);label=args[4].strip('"')
@@ -163,11 +169,23 @@ class LandingPolishTests(unittest.TestCase):
     def test_ten_entry_quickmessage_panel_contains_every_real_entry(self):
         for filename in ('wm_quickmessage.menu','wm_quickmessageAlt.menu','wm_ftquickmessage.menu'):
             result=restyle.menu(restyle.read(ROOT/'pak_original_tce/ui'/filename),Path('ui')/filename)
-            self.assertIn('0 0 300 284',result)
+            self.assertIn('0 19 204 $evalfloat( 40 + ( 18 * ROWS ))',result)
+            self.assertRegex(result,r'#define ORIGIN_QUICKMESSAGE\s+10 10')
+            self.assertRegex(result,r'\brect\s+0 100 640 380\b')
             positions=[int(a[3]) for _,_,_,a in restyle.macro_calls(result,{'QM_MENU_ITEM','QM_MENU_ITEM_TEAM'})
                        if a[3].isdigit()]
             self.assertTrue(positions)
-            for pos in positions:self.assertLessEqual(52+22*pos+20,284-12)
+            self.assertIn('6 $evalfloat( 35 + ( 18 * POS )) 192 16',result)
+            starts=list(re.finditer(r'QM_MENU_START\(\s*"([^"]+)"\s*,\s*(\d+)\s*\)',result))
+            self.assertEqual(len(starts),8)
+            for start in starts:
+                rows=int(start[2]);end=result.index('QM_MENU_END',start.end())
+                active=sem.strip_comments(result[start.end():end])
+                actual=[int(x) for x in re.findall(r'^\s*QM_MENU_ITEM(?:_TEAM)?\([^\n]*,\s*(\d+)\s*\)',active,re.M)]
+                self.assertEqual(rows,max(actual)+1)
+                self.assertLessEqual(35+18*max(actual)+16,19+40+18*rows-2)
+                if 'message' in start[1]:self.assertEqual(rows,4)
+            self.assertEqual(layout_misc.quick(result),result)
 
     def test_legacy_fade_boxes_no_longer_extend_beyond_the_menu_canvas(self):
         count=0
@@ -181,6 +199,40 @@ class LandingPolishTests(unittest.TestCase):
                 self.assertRegex(block,rf'\brect\s+0 0 852 {height}\b')
                 count+=1
         self.assertGreater(count,40)
+
+    def test_chat_popup_keeps_stock_keyboard_cvars_and_send_lifecycle(self):
+        text=restyle.read(ROOT/'pak/ui/ingame_messagemode.menu')
+        ts=sem.tokens(sem.strip_comments(text))
+        def event(name):
+            at=next(i for i,t in enumerate(ts) if t.lower()==name.lower())
+            end=sem.group(ts,at+1)
+            return ts[at+2:end-1]
+        self.assertEqual(event('onOpen'),['closeAllOtherMenus',';','setEditFocus','"efleftSay:"'])
+        self.assertEqual(event('onESC'),['close','ingame_messagemode',';'])
+        self.assertEqual(event('onEnter'),['close','ingame_messagemode',';','exec','messageSend',';'])
+        calls={n:a for _,_,n,a in restyle.macro_calls(text,{'EDITFIELDLEFT','MULTILEFT'})}
+        field=calls['EDITFIELDLEFT'];self.assertEqual(field[3],'36')
+        self.assertEqual(field[4],'"Say:"');self.assertEqual(field[8:10],['128','128'])
+        self.assertEqual(sem.tokens(field[7]),['"cg_messageText"','onEsc','{','close','ingame_messagemode','}'])
+        recipient=calls['MULTILEFT'];self.assertEqual(recipient[3],'30')
+        self.assertEqual(recipient[7],'"cg_messageType"')
+        self.assertEqual(sem.tokens(recipient[8]),['cvarFloatList','{','"All"','1','"Team"','2','"Fireteam"','3','}'])
+        buttons={a[4]:sem.tokens(a[-1]) for _,_,_,a in restyle.macro_calls(text,{'BUTTON'})}
+        self.assertEqual(buttons['"CANCEL"'],['close','ingame_messagemode',';'])
+        self.assertEqual(buttons['"SEND"'],['close','ingame_messagemode',';','exec','messageSend',';'])
+
+    def test_alternate_fireteam_voice_is_compact_without_missing_stock_entries(self):
+        text=restyle.read(ROOT/'pak/ui/wm_ftquickmessageAlt.menu')
+        self.assertIn('0 19 204 $evalfloat( 40 + ( 18 * ROWS ))',text)
+        self.assertIn('6 $evalfloat( 35 + ( 18 * POS )) 192 16',text)
+        self.assertEqual(layout_misc.quick(text),text)
+        starts=list(re.finditer(r'QM_MENU_START\(\s*"([^"]+)"\s*,\s*(\d+)\s*\)',text))
+        self.assertEqual(len(starts),8)
+        for start in starts:
+            end=text.index('QM_MENU_END',start.end())
+            active=sem.strip_comments(text[start.end():end])
+            actual=[int(x) for x in re.findall(r'^\s*QM_MENU_ITEM(?:_TEAM)?\([^\n]*,\s*(\d+)\s*\)',active,re.M)]
+            self.assertEqual(int(start[2]),max(actual)+1)
 
     def test_private_header_title_rules_are_solid_without_sparse_texture(self):
         original=restyle.read(ROOT/'pak_original_tce/ui/menumacros.h')

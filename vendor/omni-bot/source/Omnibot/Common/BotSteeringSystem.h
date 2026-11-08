@@ -86,8 +86,9 @@ namespace AiState
 		// A stable passing side avoids frame-to-frame random lateral churn.
 		GameEntity m_AvoidEntity;
 		int m_AvoidSide, m_AvoidUntil;
+		Vector3f m_AvoidDirection;
 		void AvoidAllies();
-		bool SafeAvoidStep(const Vector3f &_destination) const;
+		bool SafeAvoidStep(const Vector3f &_destination, GameEntity _human = GameEntity(), int _depth = 0) const;
 
 		enum Deceleration{slow = 3, normal = 2, fast = 1};
 		float _Arrive(const Vector3f &_targetPos, Deceleration _deceleration);

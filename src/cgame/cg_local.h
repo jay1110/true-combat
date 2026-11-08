@@ -911,6 +911,7 @@ typedef struct
 	int teamPlayers[TEAM_NUM_TEAMS];         // JPW NERVE for scoreboard
 	score_t scores[MAX_CLIENTS];
 	qboolean showScores;
+	qboolean tceScoreboardPinned;
 	qboolean scoreBoardShowing;
 	int scoreFadeTime;
 	char killerName[MAX_NAME_LENGTH];
@@ -2990,6 +2991,7 @@ extern const char *aMonths[12];
 qboolean CG_ConsoleCommand(void);
 void CG_InitConsoleCommands(void);
 void CG_ScoresDown_f(void);
+void CG_ClosePinnedScoreboard(void);
 void CG_ScoresUp_f(void);
 void CG_autoRecord_f(void);
 void CG_autoScreenShot_f(void);

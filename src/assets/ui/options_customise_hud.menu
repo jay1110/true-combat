@@ -75,9 +75,10 @@ menuDef {
 	MULTI( 8, 398-184+60, (SUBWINDOW_WIDTH)-4, 10, "Gun Position:", .2, 8, "cg_gunPosition", cvarFloatList { "More centered" 0 "Default" 1 "More to right" 2  }, "Horizontal position of view weapon" )
 
 // Independent corner widget sizes //
-	SUBWINDOW( 6, 288, (SUBWINDOW_WIDTH), 48, "Widget Size" )
+	SUBWINDOW( 6, 288, (SUBWINDOW_WIDTH), 60, "Widget Size" )
 	SLIDER( 8, 304, (SUBWINDOW_WIDTH)-4, 10, "Compass Size:", .2, 8, "cg_compassScale" 0.85 0.5 1.5, "Resize the compass independently of HUD size" )
 	SLIDER( 8, 316, (SUBWINDOW_WIDTH)-4, 10, "Fireteam Size:", .2, 8, "cg_fireteamScale" 0.85 0.5 1.5, "Resize the fireteam panel independently of HUD size" )
+	SLIDER( 8, 328, (SUBWINDOW_WIDTH)-4, 10, "Command Map Size:", .2, 8, "cg_commandMapScale" 0.85 0.5 1.5, "Resize the expanded command map independently of HUD size" )
 
 // Buttons //
 

@@ -16,6 +16,7 @@ USER INTERFACE MAIN
 #include "../game/tce_guid.h"
 #include "tce_ui_text_precision.h"
 #include "tce_modern_ui.h"
+#include "../../platform/platform_window.h"
 
 // NERVE - SMF
 #define AXIS_TEAM       0
@@ -9598,6 +9599,7 @@ void _UI_Init(qboolean inGameLoad)
 	/* TC 4000db90 / Linux 00031d88: preserve the archived host selection.
 	 * The running gametype selects the menu file independently below. */
 	TCE_ModernBackgroundPreferencesInit();
+	TCE_PlatformWindowInit();
 	UI_RegisterCvars();
 	TCE_ModernUIReset();
 	TCE_InitClientGUID();
@@ -10504,6 +10506,7 @@ cvarTable_t cvarTable[] =
 	{ NULL, "cg_hudScale", ".85", CVAR_ARCHIVE },
 	{ NULL, "cg_compassScale", ".85", CVAR_ARCHIVE },
 	{ NULL, "cg_fireteamScale", ".85", CVAR_ARCHIVE },
+	{ NULL, "cg_commandMapScale", ".85", CVAR_ARCHIVE },
 	{ NULL, "cg_hudMaxHeight", "1080", CVAR_ARCHIVE },
 
 	{ &ui_glCustom,                     "ui_glCustom",                     "4",                          CVAR_ARCHIVE                   }, // JPW NERVE missing from q3ta

@@ -932,10 +932,19 @@ namespace AiState
 		for(int i = 0; i < 4; ++i)
 		{
 			const float offset = i == 0 ? sign*64.f : i == 1 ? -sign*64.f : 0.f;
-			const Vector3f target = start-direction*(back+(i == 3 ? 48.f : 0.f))+side*offset;
+			const Vector3f bay = start-direction*(back+(i == 3 ? 48.f : 0.f))+side*offset;
+			Vector3f step = (bay-position).Flatten();
+			const float remaining = step.Normalize();
+			// Requiring a clear sweep all the way to a distant queue slot made
+			// every intermediate waiter an obstruction. Clear space from the
+			// rear forward in small freshly validated steps instead.
+			const Vector3f target = remaining > 32.f ? position+step*32.f : bay;
 			Path::PathPoint wait = entry; wait.Position(target).PlayerOrigin();
-			obTraceResult traffic;
+			obTraceResult traffic, occupancy;
 			if(TceDoorPointSweep(GetClient(), recipe, wait) == 1 &&
+				EngineFuncs::TraceLine(occupancy, bay, bay.AddZ(.5f), &hull,
+					TR_MASK_SOLID | TR_MASK_PLAYERCLIP | TR_MASK_PLAYER | TR_MASK_NAVCAPSULE,
+					GetClient()->GetGameID(), False) && !occupancy.m_StartSolid && occupancy.m_Fraction == 1.f &&
 				GetClient()->CanWalkTo(target, entry.m_NavFlags) &&
 				EngineFuncs::TraceLine(traffic, position, target, &hull,
 					TR_MASK_SOLID | TR_MASK_PLAYERCLIP | TR_MASK_PLAYER | TR_MASK_NAVCAPSULE,

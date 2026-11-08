@@ -242,7 +242,7 @@ int main(void)
   const int widths[3]={1280,1024,3440}, heights[3]={720,768,1440};
   cgs.screenXScale=widths[zoom]/640.f;cgs.screenYScale=heights[zoom]/480.f;
   CG_ExpandedMapSize(&mapWidth,&mapHeight);
-  CHECK(near(mapWidth*cgs.screenXScale,mapHeight*cgs.screenYScale));
+  CHECK(near(mapWidth,mapHeight)); /* Independent widget uses a uniform physical scale. */
   mapEntityCount=1;mapEntities[0].x=0;mapEntities[0].y=0;
   CG_TransformCommandMapEntities(mapWidth,mapHeight);
   CHECK(near(mapEntities[0].transformed[0],mapWidth*.5f) && near(mapEntities[0].transformed[1],mapHeight*.5f));

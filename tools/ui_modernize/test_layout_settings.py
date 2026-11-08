@@ -93,7 +93,7 @@ class SettingsLayout(unittest.TestCase):
                 self.assertGreaterEqual(x,24);self.assertLessEqual(x+w,828)
                 self.assertGreaterEqual(y,60 if name!='BUTTON' else 0)
                 self.assertLessEqual(y+h,470)
-                if name in layout.ROWS:self.assertLessEqual(y+h,432)
+                if name in layout.ROWS:self.assertLessEqual(y+h,438 if '"cg_commandMapScale"' in args[7] else 432)
                 # #ifdef FUI chooses exactly one of the two original BACKs.
                 rect=(x,y,w,h)
                 if name=='BUTTON' and label.lower()=='"back"' and rect in [r for _,r in rectangles]:continue
@@ -173,17 +173,31 @@ class SettingsLayout(unittest.TestCase):
             text=restyle.read(ROOT/folder/'ui/options_customise_hud.menu')
             groups=layout._sections(list(restyle.macro_calls(text,layout.CALLS)))
             widget=groups['widget size']
-            self.assertEqual(list(map(float,widget['header'][3][:4])),[444,360,384,72])
-            self.assertEqual(len(widget['rows']),2)
+            cvars=('cg_compassScale','cg_fireteamScale','cg_commandMapScale') if folder=='pak' else ('cg_compassScale','cg_fireteamScale')
+            row_height=19 if len(cvars)==3 else 25
+            self.assertEqual(list(map(float,widget['header'][3][:4])),[444,360,384,78 if len(cvars)==3 else 72])
+            self.assertEqual(len(widget['rows']),len(cvars))
             self.assertLessEqual(float(groups['in-game display']['header'][3][1])+float(groups['in-game display']['header'][3][3]),354)
             for index,(_,_,kind,args) in enumerate(widget['rows']):
-                cvar=('cg_compassScale','cg_fireteamScale')[index]
+                cvar=cvars[index]
                 self.assertEqual(kind,'SLIDER')
                 self.assertEqual(sem.tokens(args[7]),sem.tokens('"'+cvar+'" 0.85 0.5 1.5'))
-                self.assertEqual(list(map(float,args[:4])),[452,378+25*index,368,25])
+                self.assertEqual(list(map(float,args[:4])),[452,378+(20 if len(cvars)==3 else 25)*index,368,row_height])
                 self.assertLessEqual(font_width(args[4].strip('"'),float(args[5])),179)
                 self.assertRegex(native,r'trap_Cvar_Register\(&\w+,\s*"'+cvar+r'",\s*"0.85",\s*CVAR_ARCHIVE\)')
                 self.assertRegex(ui,r'\{\s*NULL,\s*"'+cvar+r'",\s*".85",\s*CVAR_ARCHIVE\s*\}')
+
+    def test_regenerated_view_keeps_command_map_slider_and_footer_gap(self):
+        path=Path('ui/options_customise_hud.menu')
+        text=restyle.menu(restyle.read(ROOT/'src/assets'/path),path)
+        widget=layout._sections(list(restyle.macro_calls(text,layout.CALLS)))['widget size']
+        self.assertEqual(list(map(float,widget['header'][3][:4])),[444,360,384,78])
+        self.assertEqual(len(widget['rows']),3)
+        for index,(_,_,kind,args) in enumerate(widget['rows']):
+            self.assertEqual(kind,'SLIDER')
+            self.assertEqual(list(map(float,args[:4])),[452,378+20*index,368,19])
+            self.assertLessEqual(float(args[1])+float(args[3]),438)
+        self.assertEqual(sem.tokens(widget['rows'][2][3][7]),sem.tokens('"cg_commandMapScale" 0.85 0.5 1.5'))
 
     def test_editor_name_additions_have_an_exact_independent_semantic_contract(self):
         key='ui/options_customise_hud.menu'

@@ -28,8 +28,9 @@ static float automapZoom = 5.159;
 static void CG_ExpandedMapSize(float *w, float *h)
 {
 	*h = CC_2D_H;
-	*w = !CG_WideScreenEnabled() && cgs.screenXScale > 0.f && cgs.screenYScale > 0.f ?
-	     *h * cgs.screenYScale / cgs.screenXScale : CC_2D_W;
+	/* The independent command-map viewport scales both axes uniformly,
+	 * including when the rest of the HUD uses legacy aspect handling. */
+	*w = CC_2D_W;
 }
 
 static void CG_TransformCommandMapEntities(float w, float h)
@@ -1356,6 +1357,7 @@ void CG_DrawMap(float x, float y, float w, float h, int mEntFilter, mapScissor_t
 
 void CG_DrawExpandedAutoMap(void)
 {
+	cg_hud_widget_scope_t widget;
 	float x, y, w, h;
 	float b_x, b_y, b_w, b_h;
 	float s1, t1, s2, t2;
@@ -1390,6 +1392,10 @@ void CG_DrawExpandedAutoMap(void)
 		}
 	}
 
+	/* The expanded map has its own right-anchored canvas. Use its final
+	 * bounds for fitting so the existing slide animation stays intact. */
+	if (!CG_HudWidgetBegin(&widget, CG_HUD_WIDGET_COMMANDMAP,
+	                       SCREEN_WIDTH - w - 28.f, 12.f, w + 16.f, h + 16.f, 0)) return;
 	if (cgs.ccLayers)
 	{
 		cgs.ccSelectedLayer = CG_CurLayerForZ(cg.predictedPlayerState.origin[2]);
@@ -1487,6 +1493,7 @@ void CG_DrawExpandedAutoMap(void)
 	b_h = h;
 	CG_AdjustFrom640(&b_x, &b_y, &b_w, &b_h);
 	trap_R_DrawStretchPic(b_x, b_y, b_w, b_h, s1, t1, s2, t2, cgs.media.commandCentreAutomapBorder2Shader);
+	CG_HudWidgetEnd(&widget);
 }
 
 void CG_DrawAutoMap(void)

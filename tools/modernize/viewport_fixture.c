@@ -35,7 +35,7 @@ static int modernEnabled;
 static qboolean TCE_ModernUIEnabled(void) { return modernEnabled; }
 /* Actual chosen-background lookup is exercised by background_regression. */
 static const char *TCE_ModernBackgroundName(void) { return "tce2_ui/background"; }
-static float hudScaleSetting=.85f,hudMaxSetting=1080,compassScaleSetting=.85f,fireteamScaleSetting=.85f;
+static float hudScaleSetting=.85f,hudMaxSetting=1080,compassScaleSetting=.85f,fireteamScaleSetting=.85f,commandMapScaleSetting=.85f;
 static struct { struct { int vidWidth,vidHeight; } glconfig; float screenXScale,screenYScale;struct { int whiteShader,disconnectIcon,lagometerShader; } media;int eventHandling,cursorX,cursorY,cursorUpdate,localServer; } cgs;
 static displayContextDef_t cgDC;
 typedef struct { struct { int pm_type,commandTime; } ps; } testSnapshot_t;
@@ -54,14 +54,14 @@ static vec4_t colorYellow={1,1,0,1},colorBlue={0,0,1,1},colorGreen={0,1,0,1},col
 static float labelX,labelY,labelW,labelH;
 static char labelText[64];
 static int commandTime;
-enum { CGAME_EVENT_NONE,CGAME_EVENT_SPEAKEREDITOR,CGAME_EVENT_GAMEVIEW,CGAME_EVENT_CAMPAIGNBREIFING,CGAME_EVENT_FIRETEAMMSG,CGAME_EVENT_DEMO };
+enum { CGAME_EVENT_NONE,CGAME_EVENT_SPEAKEREDITOR,CGAME_EVENT_GAMEVIEW,CGAME_EVENT_CAMPAIGNBREIFING,CGAME_EVENT_FIRETEAMMSG,CGAME_EVENT_DEMO,CGAME_EVENT_SCOREBOARD };
 enum { PM_NORMAL,PM_SPECTATOR,PM_INTERMISSION };
 #define KEYCATCH_CGAME 4
 static int speakerCalls,debriefCalls,catcher=KEYCATCH_CGAME;
 static qboolean tce_uiCoordinates;
 static struct { float x,y,w,h; } drawnRects[16];
 static int drawnCount;
-static vmCvar_t cg_aspectMode,*bound[7];
+static vmCvar_t cg_aspectMode,*bound[8];
 static int checks,failures,registrations,updates,mouseX,mouseY,mouseCalls;
 #define CHECK(c) do { ++checks;if(!(c)){++failures;printf("FAIL %i: %s\n",__LINE__,#c);} } while(0)
 static int near(float a,float b) { return fabsf(a-b)<.003f; }
@@ -109,14 +109,15 @@ static void trap_Cvar_Update(vmCvar_t *var)
     else if(var==bound[4])var->value=menuMaxSetting;
     else if(var==bound[5])var->value=compassScaleSetting;
     else if(var==bound[6])var->value=fireteamScaleSetting;
+    else if(var==bound[7])var->value=commandMapScaleSetting;
     else CHECK(0);
     var->integer=(int)var->value;++updates;
 }
 static void trap_Cvar_Register(vmCvar_t *var,const char *name,const char *value,int flags)
 {
-    int n=!strcmp(name,"cg_wideScreen")?0:!strcmp(name,"cg_hudScale")?1:!strcmp(name,"cg_hudMaxHeight")?2:!strcmp(name,"ui_menuScale")?3:!strcmp(name,"ui_menuMaxHeight")?4:!strcmp(name,"cg_compassScale")?5:!strcmp(name,"cg_fireteamScale")?6:-1;
+    int n=!strcmp(name,"cg_wideScreen")?0:!strcmp(name,"cg_hudScale")?1:!strcmp(name,"cg_hudMaxHeight")?2:!strcmp(name,"ui_menuScale")?3:!strcmp(name,"ui_menuMaxHeight")?4:!strcmp(name,"cg_compassScale")?5:!strcmp(name,"cg_fireteamScale")?6:!strcmp(name,"cg_commandMapScale")?7:-1;
     CHECK(n>=0&&flags==CVAR_ARCHIVE);if(n<0)return;
-    CHECK(!strcmp(value,n==0||n==3?"1":n==1||n==5||n==6?"0.85":"1080"));bound[n]=var;++registrations;trap_Cvar_Update(var);
+    CHECK(!strcmp(value,n==0||n==3?"1":n==1||n>=5?"0.85":"1080"));bound[n]=var;++registrations;trap_Cvar_Update(var);
 }
 static int TCE_UI_WrapAdd(int a,int b) { return (int)((unsigned)a+(unsigned)b); }
 static int TCE_AddInt32(int a,int b) { return TCE_UI_WrapAdd(a,b); }
@@ -182,7 +183,7 @@ static void hudContext(void)
     const float anchors[]={0,.5f,1},scales[]={.5f,.85f,1.f,1.5f};
     int size,anchor,tc,scale,cap;float x,y,w,h,left,top,canvasWidth,fullW,fullH,marginX,marginY;
     enabled=1;hudScaleSetting=.85f;hudMaxSetting=1080;registrations=updates=0;
-    CG_HudViewportInit();CHECK(registrations==7&&updates==7&&CG_WideScreenEnabled());
+    CG_HudViewportInit();CHECK(registrations==8&&updates==8&&CG_WideScreenEnabled());
     CHECK(near(hudScale.value,.85f)&&near(hudMaxHeight.value,1080));
     cg_aspectMode.integer=2;CHECK(CG_HudAspectMode()==0);
     x=1;y=2;w=3;h=4;CHECK(CG_HudViewportAdjust(&x,&y,&w,&h,1)==0&&x==1&&y==2&&w==3&&h==4);
@@ -279,6 +280,77 @@ static void independentWidgets(void)
     CHECK(CG_HudWidgetBegin(&previous,CG_HUD_WIDGET_FIRETEAM,8,8,100,100,0));
     x=y=8;w=h=100;CG_HudViewportAdjust(&x,&y,&w,&h,0);CHECK(near(w,187.5f)&&near(h,187.5f));CG_HudWidgetEnd(&previous);
     compassScaleSetting=fireteamScaleSetting=hudScaleSetting=.85f;hudMaxSetting=1080;menuScaleSetting=1;CG_HudViewportUpdate();
+}
+
+static void commandMapAndBottomMessages(void)
+{
+    const int sizes[][2]={FIT_RESOLUTION_PAIRS};
+    const float settings[]={.5f,.85f,1.5f};
+    int resolution,setting,hud;float x,y,w,h,reference[4],unitX,unitY;
+    cg_hud_widget_scope_t previous;
+    modernEnabled=0;focusedMenu=tceMenuViewportPaintMenu=NULL;CG_HudViewportInit();
+    for(resolution=0;resolution<(int)(sizeof(sizes)/sizeof(sizes[0]));++resolution)
+    for(setting=0;setting<3;++setting)for(hud=0;hud<3;++hud){
+        cgs.glconfig.vidWidth=sizes[resolution][0];cgs.glconfig.vidHeight=sizes[resolution][1];
+        enabled=hud!=0;hudScaleSetting=settings[hud];menuScaleSetting=settings[2-hud];
+        compassScaleSetting=settings[2-hud];fireteamScaleSetting=settings[hud];
+        commandMapScaleSetting=settings[setting];CG_HudViewportUpdate();CG_HudViewportBegin(1,0);
+        CG_MenuViewportBegin();
+        CHECK(CG_HudWidgetBegin(&previous,CG_HUD_WIDGET_COMMANDMAP,260,12,368,368,0));
+        x=260;y=12;w=h=368;CG_HudViewportAdjust(&x,&y,&w,&h,0);
+        CHECK(x>=-.003f&&y>=-.003f&&x+w<=sizes[resolution][0]+.003f&&y+h<=sizes[resolution][1]+.003f);
+        CHECK(near(w,h));
+        if(!hud){reference[0]=x;reference[1]=y;reference[2]=w;reference[3]=h;}
+        else CHECK(near(x,reference[0])&&near(y,reference[1])&&near(w,reference[2])&&near(h,reference[3]));
+        CG_HudWidgetEnd(&previous);CG_MenuViewportEnd();CG_HudViewportEnd();
+        enabled=1;CG_HudViewportUpdate();CG_HudViewportBegin(0,1);
+        /* The big kill popup is at native (4,388), with a baseline at400.
+         * Scaling preserves its bottom-left corner offset instead of adding
+         * the centered or top-anchored HUD margin seen in the regression. */
+        x=4;y=400;w=h=0;CG_HudViewportAdjust(&x,&y,&w,&h,1);
+        unitX=unitY=1;CG_HudViewportDimensions(&unitX,&unitY,1);
+        CHECK(near(x,4*unitX)&&near(sizes[resolution][1]-y,80*unitY));
+        CG_HudViewportEnd();
+    }
+    enabled=1;hudScaleSetting=compassScaleSetting=fireteamScaleSetting=commandMapScaleSetting=.85f;
+    menuScaleSetting=1;CG_HudViewportUpdate();
+}
+
+static void compactVoiceMenus(void)
+{
+    const int sizes[][2]={FIT_RESOLUTION_PAIRS};
+    const float scales[]={.5f,1.f,1.5f},caps[]={720,1080,0};
+    menuDef_t voice,paint;
+    void (*adjust[5])(float*,float*,float*,float*)={UI_AdjustFrom640,SharedWindowsAdjust,SharedLinuxAdjust,SharedGenericAdjust,CG_AdjustFrom640};
+    int resolution,preference,cap,wrapper;float x,y,w,h,px,py,pw,ph;
+    tce_viewport_t expected;
+    modernEnabled=enabled=1;tce_uiCoordinates=qfalse;voice.window.name="wm_quickmessage";paint.window.name="wm_ftquickmisc";
+    for(resolution=0;resolution<(int)(sizeof(sizes)/sizeof(sizes[0]));++resolution)
+    for(preference=0;preference<3;++preference)for(cap=0;cap<3;++cap){
+        cgs.glconfig.vidWidth=uiInfo.uiDC.glconfig.vidWidth=sizes[resolution][0];
+        cgs.glconfig.vidHeight=uiInfo.uiDC.glconfig.vidHeight=sizes[resolution][1];
+        menuScaleSetting=scales[preference];menuMaxSetting=caps[cap];hudScaleSetting=scales[2-preference];
+        CG_HudViewportUpdate();focusedMenu=&voice;tceMenuViewportPaintMenu=cap==2?&paint:NULL;
+        CHECK(TCE_MenuViewportVoice());
+        CHECK(TCE_ViewportFit(&expected,sizes[resolution][0],sizes[resolution][1],640,480,0,1,0,.5f));
+        px=10;py=129;pw=204;ph=136;TCE_ViewportProject(&expected,&px,&py,&pw,&ph);
+        CG_MenuViewportBegin();
+        for(wrapper=0;wrapper<5;++wrapper){
+            x=10;y=129;w=204;h=136;adjust[wrapper](&x,&y,&w,&h);
+            CHECK(near(x,px)&&near(y,py)&&near(w,pw)&&near(h,ph));
+            CHECK(near(x,10*expected.scale)&&x+w<=sizes[resolution][0]+.003f&&y+h<=sizes[resolution][1]+.003f);
+        }
+        CG_MenuViewportEnd();
+        /* An open voice menu cannot move ordinary CGame HUD outside its
+         * Menu_Paint scope. */
+        CHECK(TCE_ViewportFit(&expected,sizes[resolution][0],sizes[resolution][1],640,480,hudMaxSetting,hudScaleSetting,0,1));
+        px=4;py=400;pw=ph=0;TCE_ViewportProject(&expected,&px,&py,&pw,&ph);
+        CG_HudViewportBegin(0,1);x=4;y=400;w=h=0;CG_AdjustFrom640(&x,&y,&w,&h);
+        CHECK(near(x,px)&&near(y,py));
+        CG_HudViewportEnd();
+    }
+    focusedMenu=tceMenuViewportPaintMenu=NULL;modernEnabled=0;CHECK(!TCE_MenuViewportVoice());
+    menuScaleSetting=1;menuMaxSetting=1080;hudScaleSetting=.85f;CG_HudViewportUpdate();
 }
 
 static void worldOverlayAndBorders(void)
@@ -686,6 +758,8 @@ int main(void)
 #endif
     hudContext();
     independentWidgets();
+    commandMapAndBottomMessages();
+    compactVoiceMenus();
     worldOverlayAndBorders();
     nativeMenusAndInput();
     headerMenusAndHudComposites();

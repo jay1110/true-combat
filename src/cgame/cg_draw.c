@@ -6274,7 +6274,9 @@ static void CG_Draw2D(void)
 		CG_DrawCenterString();
 		CG_HudViewportAnchor(0, 0);
 		CG_DrawPMItems();
+		CG_HudViewportAnchor(0, 1);
 		CG_DrawPMItemsBig();
+		CG_HudViewportAnchor(0, 0);
 
 		if (!cg.showFireteamMenu) CG_DrawFollow();
 		CG_HudViewportAnchor(.5f, .5f);

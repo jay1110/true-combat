@@ -6783,6 +6783,13 @@ int TCE_MenuViewportMain(void)
 	menuDef_t *menu = tceMenuViewportPaintMenu ? tceMenuViewportPaintMenu : Menu_GetFocused();
 	return TCE_ModernUIEnabled() && menu && menu->window.name && !Q_stricmp(menu->window.name,"main");
 }
+int TCE_MenuViewportVoice(void)
+{
+	menuDef_t *menu = tceMenuViewportPaintMenu ? tceMenuViewportPaintMenu : Menu_GetFocused();
+	const char *name = menu ? menu->window.name : NULL;
+	return TCE_ModernUIEnabled() && name &&
+	       (!strncmp(name,"wm_quick",8) || !strncmp(name,"wm_ftquick",10));
+}
 float TCE_MenuViewportAnchorY(void)
 {
 	menuDef_t *menu = tceMenuViewportPaintMenu ? tceMenuViewportPaintMenu : Menu_GetFocused();
@@ -6796,6 +6803,12 @@ static qboolean TCE_UISharedViewportAdjust(float *x, float *y, float *w, float *
 {
 	tce_viewport_t view;
 	int full = TCE_ViewportDrawMode() == TCE_VIEWPORT_FULLSCREEN || TCE_MenuViewportMain();
+	if (DC && TCE_MenuViewportVoice())
+	{
+		if (TCE_ViewportFit(&view,DC->glconfig.vidWidth,DC->glconfig.vidHeight,
+		                    640.f,480.f,0.f,1.f,0.f,.5f)) TCE_ViewportProject(&view,x,y,w,h);
+		return qtrue;
+	}
 	if (DC && TCE_ModernUIEnabled() &&
 	    (TCE_ViewportDrawMode() == TCE_VIEWPORT_BACKDROP || TCE_MenuViewportBackground()))
 	{
@@ -7541,6 +7554,13 @@ static void TCE_ModernItemFocusPaint(itemDef_t *item)
 	if ((item->cvarFlags & (CVAR_ENABLE | CVAR_DISABLE)) && !Item_EnableShowViaCvar(item,CVAR_ENABLE)) return;
 	rect=&item->window.rect;
 	if (rect->w<8.f || rect->h<8.f || !TCE_ModernThemeFocusColors(wash,edge,rim,accent)) return;
+	/* A stock chat field is only ten units high. Thick button rims and their
+	 * wash fill its text line; text input needs only a thin focus underline. */
+	if (item->type == ITEM_TYPE_EDITFIELD || item->type == ITEM_TYPE_NUMERICFIELD)
+	{
+		DC->fillRect(rect->x+1,rect->y+rect->h-1,rect->w-2,1,accent);
+		return;
+	}
 	/* Paint before text/controls, with no hitbox, script, font or parsed color
 	 * mutations. The narrow paired rim survives any palette/opacity setting. */
 	DC->fillRect(rect->x+2,rect->y+2,rect->w-4,rect->h-4,wash);

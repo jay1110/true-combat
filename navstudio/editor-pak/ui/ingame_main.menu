@@ -47,19 +47,23 @@ menuDef {
 	
 // Buttons //
 
-	BUTTON( 24, 56, 106, 32, "Deployment", .245, 22, clearFocus ; close ingame_main ; exec OpenLimboMenu ; )
+	BUTTON( 24, 56, 82, 32, "Deployment", .23, 22, clearFocus ; close ingame_main ; exec OpenLimboMenu ; )
 
 
-	BUTTONEXT( 140, 56, 106, 32, "Vote", .245, 22, uiScript clientCheckVote ; 
+	BUTTONEXT( 114, 56, 82, 32, "Vote", .23, 22, uiScript clientCheckVote ; 
 															conditionalScript cg_ui_novote 0
 																( "clearFocus ; open ingame_votedisabled" )
 																( "close ingame_main ; open ingame_vote" ), cvarTest "authLevel" showCVar { RL_NONE } )
-	BUTTONEXT( 140, 56, 106, 32, "Referee", .245, 22, close ingame_main ; open ingame_vote, cvarTest "authLevel" showCVar { RL_REFEREE } )
-	BUTTONEXT( 140, 56, 106, 32, "RCON", .245, 22, close ingame_main ; open ingame_vote, cvarTest "authLevel" showCVar { RL_RCON } )
+	BUTTONEXT( 114, 56, 82, 32, "Referee", .23, 22, close ingame_main ; open ingame_vote, cvarTest "authLevel" showCVar { RL_REFEREE } )
+	BUTTONEXT( 114, 56, 82, 32, "RCON", .23, 22, close ingame_main ; open ingame_vote, cvarTest "authLevel" showCVar { RL_RCON } )
 	
-	BUTTON( 256, 56, 106, 32, "Server Info", .245, 22, close ingame_main ; open ingame_serverinfo )
-	BUTTON( 372, 56, 106, 32, "Options", .245, 22, close ingame_main ; open options )
-	BUTTON( 488, 56, 106, 32, "Disconnect", .245, 22, clearFocus ; open ingame_disconnect )
-	BUTTON( 604, 56, 106, 32, "Exit TC:E", .245, 22, clearFocus ; open quit )
-	BUTTON( 720, 56, 106, 32, "Omni-bot Editor", .245, 22, close ingame_main ; open tce_omnibot )
+	BUTTON( 204, 56, 82, 32, "Server Info", .23, 22, close ingame_main ; open ingame_serverinfo )
+	BUTTON( 294, 56, 82, 32, "Options", .23, 22, close ingame_main ; open options )
+	BUTTON( 564, 56, 82, 32, "Disconnect", .23, 22, clearFocus ; open ingame_disconnect )
+	BUTTON( 654, 56, 82, 32, "Exit TC:E", .23, 22, clearFocus ; open quit )
+	BUTTON( 744, 56, 82, 32, "Omni-bot Editor", .205, 22, close ingame_main ; open tce_omnibot )
+
+BUTTON( 384, 56, 82, 32, "Scoreboard", .23, 22, clearFocus ; close ingame_main ; exec toggleScoreboard ; )
+BUTTON( 474, 56, 82, 32, "Minimize", .23, 22, clearFocus ; exec tce_minimize ; )
+
 }

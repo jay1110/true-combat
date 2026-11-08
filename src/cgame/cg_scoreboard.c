@@ -872,6 +872,7 @@ qboolean CG_DrawScoreboard(void)
 	{
 		return qfalse;
 	}
+	if (cg.tceScoreboardPinned) CG_ScoresDown_f();
 	ctx.paused          = cg_paused.integer; ctx.warmup = cg.warmup;
 	ctx.demoPlayback    = cg.demoPlayback;
 	ctx.snapshotPmType  = cg.snap ? cg.snap->ps.pm_type : PM_NORMAL;

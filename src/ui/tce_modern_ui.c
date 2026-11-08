@@ -331,7 +331,8 @@ float TCE_ModernReadableScale(float scale, const fontInfo_t *font)
 {
     tce_viewport_t view;
     float cap, preferred, maximum, menuScale;
-    int width, height, full = TCE_ViewportDrawMode() == TCE_VIEWPORT_FULLSCREEN || TCE_MenuViewportMain();
+    int width, height, voice = TCE_MenuViewportVoice();
+    int full = voice || TCE_ViewportDrawMode() == TCE_VIEWPORT_FULLSCREEN || TCE_MenuViewportMain();
     if (!TCE_ModernUIEnabled() || !font || !(scale > 0.f) || !(font->glyphScale > 0.f)) return scale;
 #ifdef CGAMEDLL
     width = cgs.glconfig.vidWidth; height = cgs.glconfig.vidHeight;
@@ -342,7 +343,7 @@ float TCE_ModernReadableScale(float scale, const fontInfo_t *font)
     maximum = trap_Cvar_VariableValue("ui_menuMaxHeight");
     menuScale = trap_Cvar_VariableValue("ui_menuScale");
 #endif
-    if (!TCE_ViewportFit(&view,width,height,TCE_VIEWPORT_CANVAS_WIDTH,
+    if (!TCE_ViewportFit(&view,width,height,voice ? 640.f : TCE_VIEWPORT_CANVAS_WIDTH,
                          TCE_VIEWPORT_CANVAS_HEIGHT,full ? 0 : maximum,
                          full ? 1 : menuScale,.5f,.5f)) return scale;
     /* The outline renderer stores a one-pixel top guard. H has no descender;
@@ -417,7 +418,8 @@ void TCE_ModernCursor(float x, float y, qhandle_t shader, int centered)
 {
     tce_viewport_t viewport;
     float size, unused=0, menuMaxHeight, menuScale;
-    int width,height,fullscreen=TCE_ViewportDrawMode()==TCE_VIEWPORT_FULLSCREEN || TCE_MenuViewportMain();
+    int width,height,voice=TCE_MenuViewportVoice();
+    int fullscreen=voice || TCE_ViewportDrawMode()==TCE_VIEWPORT_FULLSCREEN || TCE_MenuViewportMain();
 #ifdef CGAMEDLL
     width=cgs.glconfig.vidWidth; height=cgs.glconfig.vidHeight;
     menuMaxHeight=(float)CG_Cvar_Get("ui_menuMaxHeight");
@@ -427,9 +429,9 @@ void TCE_ModernCursor(float x, float y, qhandle_t shader, int centered)
     menuMaxHeight=trap_Cvar_VariableValue("ui_menuMaxHeight");
     menuScale=trap_Cvar_VariableValue("ui_menuScale");
 #endif
-    if(shader<=0 || !TCE_ViewportFit(&viewport,width,height,TCE_VIEWPORT_CANVAS_WIDTH,
+    if(shader<=0 || !TCE_ViewportFit(&viewport,width,height,voice?640.f:TCE_VIEWPORT_CANVAS_WIDTH,
         TCE_VIEWPORT_CANVAS_HEIGHT,fullscreen?0:menuMaxHeight,
-        fullscreen?1:menuScale,.5f,
+        fullscreen?1:menuScale,voice?0.f:.5f,
         fullscreen?.5f:TCE_MenuViewportAnchorY())) return;
     TCE_ViewportProject(&viewport,&x,&y,&unused,&unused);
     size=TCE_ViewportCursorSize(width,height);

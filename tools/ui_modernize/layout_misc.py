@@ -15,13 +15,17 @@ def calls(text,names,change):
 def pause(text):
     text=header_canvas(text)
     slots={'Deployment':0,'Vote':1,'Referee':1,'RCON':1,
-           'Server Info':2,'Options':3,'Disconnect':4,
-           'Exit TC:E':5,'Omni-bot Editor':6}
+           'Server Info':2,'Options':3,'Scoreboard':4,'Minimize':5,
+           'Disconnect':6,'Exit TC:E':7,'Omni-bot Editor':8}
+    # Preserve the two native runtime actions when regenerating legacy inputs.
+    if 'exec toggleScoreboard' not in text:
+        text=add_items(text, 'BUTTON( 432, 56, 94, 30, "Scoreboard", .24, 21, clearFocus ; close ingame_main ; exec toggleScoreboard ; )\n'
+                            'BUTTON( 534, 56, 94, 30, "Minimize", .24, 21, clearFocus ; exec tce_minimize ; )\n')
     editor='"Omni-bot Editor"' in text
     def update(n,a):
-        slot=slots[a[4].strip('"')]
-        return header_button(a,slot,106 if editor else 124,
-                             116 if editor else 136,'.245' if editor else '.27')
+        label=a[4].strip('"');slot=slots[label]
+        return header_button(a,slot,82 if editor else 94,
+                             90 if editor else 101,'.205' if label=='Omni-bot Editor' else '.23' if editor else '.24')
     return calls(text,{'BUTTON','BUTTONEXT'},update)
 
 
@@ -182,20 +186,26 @@ def lists(text,relative):
 
 
 def quick(text):
-    # Existing key-bound command hierarchy remains intact, now in a readable rail.
-    text=text.replace('rect\t\t0 100 640 380','rect\t\t0 0 852 480')
-    text=re.sub(r'(#define ORIGIN_QUICKMESSAGE\s+)10 10',r'\g<1>24 56',text)
-    # The longest original objective menu contains ten entries.  Its last row
-    # used to escape the panel after enlarging the old 12px row rhythm.
-    text=text.replace('0 19 204 136','0 0 300 284')
+    # Voice menus use a fixed640x480 left-aligned viewport in the client.
+    # Keep the original left-middle position; rows must also hold an8px cap
+    # plus descenders at640x480. Size the panel to each real submenu.
+    text=re.sub(r'(#define QM_MENU_START\(\s*WINDOWNAME)(?:\s*,\s*ROWS)?\s*\)',r'\1, ROWS )',text)
+    text=text.replace('0 19 204 136','0 19 204 $evalfloat( 40 + ( 18 * ROWS ))')
     text=text.replace('$evalfloat((0)+2) $evalfloat((19)+2) $evalfloat((204)-4) 12',
-                      '12 12 276 26')
-    text=text.replace('6 $evalfloat( 35 + ( 12 * POS )) 128 10',
-                      '16 $evalfloat( 52 + ( 22 * POS )) 268 20')
-    text=re.sub(r'(textscale\s+)\.2\b',r'\g<1>.28',text)
-    text=re.sub(r'(textscale\s+)\.19\b',r'\g<1>.32',text)
-    text=re.sub(r'(textaligny\s+)8\b',r'\g<1>17',text)
-    text=re.sub(r'(textaligny\s+)10\b',r'\g<1>20',text)
+                      '2 21 200 12')
+    for width in (128,192):
+        text=text.replace('6 $evalfloat( 35 + ( 12 * POS )) '+str(width)+' 10',
+                          '6 $evalfloat( 35 + ( 18 * POS )) 192 16')
+    text=re.sub(r'(textaligny\s+)8\b',r'\g<1>12',text)
+    starts=list(re.finditer(r'QM_MENU_START\(\s*"[^"]+"(?:\s*,\s*\d+)?\s*\)',text))
+    for match in reversed(starts):
+        end=text.index('QM_MENU_END',match.end())
+        # Commented-out stock ET commands must not enlarge the visible menu.
+        body=__import__('semantic').strip_comments(text[match.end():end])
+        positions=[int(row) for row in re.findall(r'^\s*QM_MENU_ITEM(?:_TEAM)?\([^\n]*,\s*(\d+)\s*\)',body,re.M)]
+        if not positions:raise ValueError('Quickmessage menu has no active rows: '+match[0])
+        call=re.sub(r'("[^\"]+")[^\)]*\)',r'\1, '+str(max(positions)+1)+' )',match[0])
+        text=text[:match.start()]+call+text[match.end():]
     return text
 
 

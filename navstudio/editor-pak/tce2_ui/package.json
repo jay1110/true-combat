@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "theme": "TCE2 Modern UI",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "variant": "editor",
   "scope": "Canonical UI resources from pak plus explicit Editor delta; no generated source fallback.",
   "all_original_menu_sources": 69,
