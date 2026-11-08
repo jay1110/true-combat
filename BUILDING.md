@@ -51,7 +51,7 @@ python src/build_windows_variants.py --variant both --with-omnibot
 ```
 
 Each installable variant ZIP contains exactly one `tce2-<TCE_VERSION>.pk3`, now
-`tce2-1.0.3.pk3`. Its new/changed resources come from the root `pak` directory;
+`tce2-1.0.4.pk3`. Its new/changed resources come from the root `pak` directory;
 UI and CGame binaries for the selected architectures are added by the packager.
 QGame, bot cores, Lua and the matching server data are loose under `server`.
 The optional Editor variant adds `navstudio/editor-pak` to that same PK3; it does
@@ -60,18 +60,11 @@ commands at compile time. The normal client has no waypoint debug renderer.
 See the [manual release workflow](tools/release/README.md) for the full target
 matrix, source archives and the separate desktop application.
 
-An original TCE installation supplies unchanged game assets. They are not copied
-into `pak`, the mod PK3, Git or source ZIPs. `pak_original_tce` is a local-only
-authoring reference, ignored by Git; clean-checkout builds never require it.
-Small metadata-only reference manifests classify unchanged stock resources.
-`pak` is the single editable production resource tree. The retained UI design
-inputs and metadata live under `tools/ui_modernize/source`; separate Editor
-resources live under `navstudio/editor-pak`. Release builds read `pak` directly
-and never overwrite hand edits by regenerating it. Resource validation is
-documented in [tools/assets/README.md](tools/assets/README.md). The sixteen
-processed map backgrounds remain in `pak/tce2_ui/backgrounds`; their original
-PNG collection is no longer required. Settings and the optional weather launcher
-are documented in [tools/launcher/README.md](tools/launcher/README.md).
+The release resource tree is `pak`. Editor resources are added from
+`navstudio/editor-pak` only for the Editor edition. Packaging reads those files
+directly and adds the selected native modules. Resource validation is described
+in [tools/assets/README.md](tools/assets/README.md); background configuration is
+covered in [the player manual](Docs/interface.md).
 
 Country flags use `g_countryflags` on the server (latched) and `cg_countryflags`
 on the client. Supply an existing legacy IPv4 country database explicitly:

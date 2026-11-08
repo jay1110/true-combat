@@ -471,7 +471,7 @@ if(TCE_BUILD_REFERENCE_TESTS)
     target_compile_definitions(tce_pyro_test PRIVATE WIN32 _CRT_SECURE_NO_WARNINGS)
     add_test(NAME tce_pyro_binary_comparison COMMAND tce_pyro_test "${reference_dll}")
     add_test(NAME tce_shared_binary_comparison COMMAND "${Python3_EXECUTABLE}"
-      "${CMAKE_CURRENT_SOURCE_DIR}/tools/verify_recovery.py" $<TARGET_FILE:tce_shared_test>)
+      "${TCE_ROOT_DIR}/tools/parity/verify_recovery.py" $<TARGET_FILE:tce_shared_test>)
   else()
     message(FATAL_ERROR "Reference DLL hash changed; re-verify test function addresses first.")
   endif()

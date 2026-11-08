@@ -5,26 +5,18 @@ artwork. The optional Editor overlays its final files from
 `navstudio/editor-pak/`. Release packaging reads these bytes directly; no
 original-menu import or theme regeneration runs during a build.
 
-The modern UI ships inside the single `tce2-1.0.3.pk3`, together with UI/CGame
+The modern UI ships inside the single `tce2-1.0.4.pk3`, together with UI/CGame
 modules. QGame and the matching bot runtime stay loose under `server/`.
 See [release packaging](../release/README.md) and
 [canonical resource checks](../assets/README.md).
 
 ## Retained design sources
 
-`source/` contains the industrial background PNG and its provenance, the
-historical original-menu inventory, and the presentation coverage report.
-These are tooling inputs and historical metadata, not another installable
-resource tree. The local `pak_original_tce/` reference remains ignored and
-unpublished; historical source-comparison tests can use it, but production
-builds and canonical resource validation do not require it.
-
-The retired root `ui-modern/` mirror, `map_pics/` PNG collection and `tce/`
-legacy launcher are removed. All sixteen processed map backgrounds remain in
-`pak/tce2_ui/backgrounds/`, with their source fingerprints, selection phases,
-shaders and native format checks. To process a new external PNG collection,
-supply `background_assets.py --source <directory>` explicitly. See
-[background selection and weather settings](../launcher/README.md).
+`source/` contains the industrial background master and the reference menu
+inventory used by presentation checks. Sixteen processed map backgrounds and
+their catalog are maintained under `pak/tce2_ui/backgrounds`. To process another
+image collection, supply `background_assets.py --source <directory>` explicitly.
+See [background configuration](../launcher/README.md).
 
 ## Editing and generation
 

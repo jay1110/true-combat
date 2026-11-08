@@ -1,0 +1,11 @@
+.wy-nav-content { max-width: 1120px; }
+.rst-content table.docutils { width: 100%; }
+.rst-content .wy-table-responsive table td,
+.rst-content .wy-table-responsive table th { white-space: normal; }
+.rst-content code.literal { overflow-wrap: anywhere; }
+.rst-content h1, .rst-content h2 { color: #193b50; }
+.rst-content a { color: #086c99; }
+@media (max-width: 600px) {
+  .wy-nav-content { padding: 1.4em; }
+  .rst-content .wy-table-responsive { overflow-x: auto; }
+}

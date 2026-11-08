@@ -7,6 +7,8 @@
 !/CMakePresets.json
 !/BUILDING.md
 !/README.md
+!/CHANGELOG.md
+!/.readthedocs.yaml
 !/LICENSE
 !/EULA_TrueCombat_Elite.txt
 !/.github/
@@ -33,6 +35,15 @@
 /Docs/*
 !/Docs/*.md
 !/Docs/*.json
+!/Docs/*.py
+!/Docs/requirements.txt
+!/Docs/cvars-*.tsv
+!/Docs/*.rst
+!/Docs/_static/
+!/Docs/_static/**
+!/Docs/reference/
+!/Docs/reference/**
+/Docs/CHANGELOG.de.txt
 
 # Local instructions, reverse-engineering evidence and external engine checkouts.
 /AGENTS.md
@@ -98,3 +109,6 @@ CMakeUserPresets.json
 
 # Local original TCE reference data must never be published.
 /pak_original_tce/
+
+# Historical generated UI coverage report; current reports go to build/ui-style.
+/tools/ui_modernize/source/restyle-coverage.json

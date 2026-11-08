@@ -3,7 +3,6 @@
   "source_repository": "https://github.com/etlegacy/etlegacy",
   "source_commit": "41d68f45e2410bef664efffaa977851cecbfa299",
   "source_directory": "vendor/luasql",
-  "copied_from": "C:/Users/micha/Documents/GitHub/etlegacy/vendor/luasql",
   "retrieved": "2026-10-09",
   "license": "MIT",
   "license_url": "https://raw.githubusercontent.com/lunarmodules/luasql/master/doc/us/license.html",
@@ -20,7 +19,7 @@
       "luasql.c",
       "ls_sqlite3.c",
       "../sqlite/sqlite3.c",
-      "../../game/tce_lua_sql.c"
+      "../../src/game/tce_lua_sql.c"
     ],
     "sqlite_definitions": [
       "SQLITE_OMIT_LOAD_EXTENSION=1",

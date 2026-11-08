@@ -13,6 +13,7 @@ from verify_omnibot_boundary import verify_core, verify_module_bytes
 from client_packages import (INPUT_PREFIX, check_canonical, check_module, check_target_payload,
                              zip_contents, sha)
 from resource_assets import resource_fingerprint
+from server_lua import stage_server_lua
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -149,10 +150,8 @@ def package_modules(modules, output, target, variant, core_manifest=None, geoip=
         if not 6 <= geoip.stat().st_size <= 16 * 1024 * 1024:
             raise ValueError('GeoIP.dat must be a compatible existing legacy IPv4 database')
         copy_file(geoip, mod / 'GeoIP.dat')
-    # Server Lua and WolfAdmin are optional configuration; no user databases.
-    for path in (repo / 'src/lua').rglob('*'):
-        if path.is_file() and path.suffix in ('.lua', '.cfg', '.md', '.txt', '.sql'):
-            copy_file(path, mod / 'lua' / path.relative_to(repo / 'src/lua'))
+    # Include the reviewed WolfAdmin TOML defaults; never glob local configs/DBs.
+    stage_server_lua(repo, mod / 'lua')
     for relative in ('LICENSE', 'EULA_TrueCombat_Elite.txt', 'vendor/dependencies.lock.json',
                      'vendor/lua/IMPORT-NOTICE.txt', 'vendor/lua/lua.h',
                      'vendor/sqlite/IMPORT-NOTICE.txt', 'vendor/luasql/license.html'):

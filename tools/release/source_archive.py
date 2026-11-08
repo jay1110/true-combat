@@ -8,13 +8,16 @@ from package import ROOT, digest, version
 PREFIXES = ('pak/', 'src/', 'vendor/', 'compat/', 'platform/', 'cmake/', 'tools/',
             'navstudio/', 'omnibot/', 'Docs/', 'docs/', '.github/workflows/')
 ROOT_FILES = {'CMakeLists.txt', 'CMakePresets.json', 'BUILDING.md', 'README.md',
-              'LICENSE', 'CHANGES', 'EULA_TrueCombat_Elite.txt', '.gitignore', '.gitattributes'}
+              'LICENSE', 'CHANGES', 'EULA_TrueCombat_Elite.txt', '.gitignore', '.gitattributes',
+              'CHANGELOG.md', '.readthedocs.yaml'}
 
 
 def is_source_payload(name):
     # Local originals and the retired helper/PNG trees are never source payloads,
     # even if a stale index or --include-untracked still lists them.
     if name.replace('\\', '/').split('/')[0].casefold() in ('pak_original_tce','map_pics','tce'):
+        return False
+    if name.replace('\\', '/') == 'tools/ui_modernize/source/restyle-coverage.json':
         return False
     return Path(name).suffix.lower() not in (
         '.dll', '.so', '.exe', '.pdb', '.zip', '.pk3', '.dmp', '.pyc')

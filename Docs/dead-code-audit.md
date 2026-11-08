@@ -1,7 +1,7 @@
 # Dead and unwired code audit
 
 Audit date: 2026-10-26. Scope: the TC:E mod, its configured module targets,
-optional tooling and local build output. This is not an engine audit.
+optional tooling. This is not an engine audit.
 
 ## Method and evidence
 
@@ -50,11 +50,6 @@ The modified translation unit parses with zero warnings in the same Clang
 profile. The post-removal inventory reports one unlisted source, `bg_lib.c`,
 and no configured missing input caused by these removals.
 
-Byte-preserving source archives, removal hashes and the complete Limbo diff
-are retained locally under
-`src/reconstruction/dead-code-audit/20261026/`. They are local evidence, not
-additional production sources.
-
 ## Deliberately retained
 
 | Category | Examples and reason |
@@ -65,30 +60,6 @@ additional production sources.
 | ABI and dispatch roots | `dllEntry`, `vmMain`, engine import wrappers, function-pointer tables, script actions, Lua bindings and Omni-bot registrations can be entered without a direct C call. |
 | Unwired legacy UI | Clang identified unused static command, HUD, scoreboard, breath and older weapon-file helpers. These remain review candidates; no broader removal was justified in this pass. |
 | Tests and reference data | Original DLL comparisons, platform fixtures, authenticated binaries, source snapshots and reference SDKs are validation inputs, not unused gameplay code. |
-
-## Disk inventory and cleanup boundaries
-
-At the initial snapshot, `build/` contained about 20.99 GiB of logical bytes.
-The largest inspected children included:
-
-| Directory | Logical GiB | Classification |
-| --- | ---: | --- |
-| `build/navgen-overkill` | 3.898 | Sole authorized game installation; preserve. |
-| `build/sdk-win32` | 1.443 | Mixed output; about 0.980 GiB in object/debug/static-archive extensions. Preserve final modules, symbol maps and final PDBs; inspect individual intermediates. |
-| `build/source-snapshots` | 1.378 | Unique historical source/evidence; preserve or archive with approval. |
-| `build/navgen-railhouse` | 0.810 | Old game/asset copy containing PK3s, not a pure compiler cache. |
-| `build/parity-win32` | 0.779 | Generated comparison build; about 0.416 GiB in object/debug/static-archive extensions. Preserve comparison reports and provenance before cleanup. |
-| `build/modernization-validation` | 0.690 | Generated matrix output; about 0.515 GiB in those intermediate/debug/archive extensions. Preserve reports and final outputs. |
-| `build/corona-runtime` | 0.653 | Runtime/asset copy containing PK3s, not an automatic deletion candidate. |
-| `build/sdk-binary-baseline` | 0.293 | Historical binary baseline; preserve. |
-| `build/linux-toolchain` | 0.288 | Required existing compiler; preserve. |
-
-These are logical sizes, not guaranteed reclaimable space. Hard links can be
-counted more than once. A directory containing a CMake cache may also contain
-unique logs, saved source or runtime assets. This audit did not delete build
-directories or game data. Cleanup is a separate explicit operation with path
-checks and provenance preservation; important originals or unique archives
-require approval before deletion.
 
 ## Reproduce
 

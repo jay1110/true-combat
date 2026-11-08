@@ -37,9 +37,20 @@
       "project_modification": "TCE_LuaSqlOpen host policy hook; preserve during layout migration.",
       "snapshot": {
         "files": 6,
-        "sha256": "f1c5b1ffe98e8b02b080feafe0c6bd7526d6f3ebc82eb86a40f6eba9fc11eb5c",
+        "sha256": "54595eefa9af2d668609b2aca15828e1fe0da6689b99ffb020c18c3212d2df7b",
         "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
-      }
+      },
+      "snapshot_history": [
+        {
+          "snapshot": {
+            "files": 6,
+            "sha256": "f1c5b1ffe98e8b02b080feafe0c6bd7526d6f3ebc82eb86a40f6eba9fc11eb5c",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-11-08",
+          "reviewed_change": "Sanitize redundant personal checkout provenance and correct the root-layout tce_lua_sql.c integration path; imported C sources, original hashes and license unchanged."
+        }
+      ]
     },
     {
       "path": "vendor/omni-bot",
@@ -56,7 +67,7 @@
       ],
       "snapshot": {
         "files": 863,
-        "sha256": "7821c9ea596e502a1f77570d2a74b3c8ac34463f6dc5be1454125a6749f4670b",
+        "sha256": "bc02ceff8b0782bb27bae84da3fcb7f4cd36a5d20b529376d40bd172acbb1971",
         "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
       },
       "snapshot_history": [
@@ -122,6 +133,15 @@
           },
           "superseded": "2026-11-08",
           "reviewed_change": "Add allied normal-movement avoidance, stable fireteam follow distance and validated-door FIFO with safe waiting and human priority; keep authoring opt-in. Add Android x86/x86_64 bot core output mapping. Touched C++/GM sources normalized to UTF-8/LF. Refresh planner client context before already-at-goal fast return, fixing a dump-proven stale client after bot removal."
+        },
+        {
+          "snapshot": {
+            "files": 863,
+            "sha256": "7821c9ea596e502a1f77570d2a74b3c8ac34463f6dc5be1454125a6749f4670b",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-11-08",
+          "reviewed_change": "Record the final reviewed 1.0.4 direct-human contact/rotating-basis steering fixes already present in fc5ae89. Sanitize import origin and replace obsolete build/runtime statements with current factual integration; preserve all original copyright and unresolved-license notices. Normalize the modified notice to UTF-8/LF."
         }
       ]
     },

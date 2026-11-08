@@ -13,8 +13,8 @@
   },
   "approved_wrappers": {
     "tce_shared_binary_comparison": {
-      "script": "src/tools/verify_recovery.py",
-      "sha256": "ff9e343a4cba341e74cfaf0fdeccb350aa06f35a96ba3df55c9450a0aedc8e6e",
+      "script": "tools/parity/verify_recovery.py",
+      "sha256": "4989638105cb04d3dd8ffe074b136fe932323c8b5f40feb2364648b8ff4cf093",
       "native_target": "tce_shared_test",
       "boundary": "Extracts original weapon/media/animation/gear fixtures into a temporary directory, then invokes only the configured native differential executable. No engine starts."
     }

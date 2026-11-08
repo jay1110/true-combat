@@ -1,0 +1,637 @@
+name	module	scope	default	default_expression	flags	flag_bits	conditions	kind	source	line	origin	engine_mirror
+	CGame	Game/Editor	30000	"""30000"""	0	0		table	src/cgame/cg_main.c	487	ET SDK inherited	no
+	CGame	Game/Editor	30000	"""30000"""	0	0		table	src/cgame/cg_main.c	488	ET SDK inherited	no
+auth_rconPassword	CGame	Game/Editor		""""""	TEMP	256		table	src/cgame/cg_main.c	542	ET SDK inherited	no
+auth_refereePassword	CGame	Game/Editor		""""""	TEMP	256		table	src/cgame/cg_main.c	543	ET SDK inherited	no
+authLevel	CGame	Game/Editor	0	"""0"""	ROM|TEMP	320		table	src/cgame/cg_main.c	540	ET SDK inherited	no
+bot_debug	QGame	Game/Editor	0	"""0"""	0	0		direct	src/game/g_bot.c	1585	ET SDK inherited	no
+bot_editWaypoints	QGame	Editor	0	"""0"""	TEMP	256	(defined(FEATURE_NAVSTUDIO))	table	src/game/g_main.c	331	pre-versioned TC:E registration	no
+bot_enable	QGame	Game/Editor	0	"""0"""	0	0		table	src/game/g_main.c	479	ET SDK inherited	no
+bot_enable	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10691	ET SDK inherited	no
+bot_fastchat	SDK BotAI	Legacy SDK AI	0	"""0"""	0	0		direct	src/botai/ai_dmq3.c	6399	ET SDK inherited	no
+bot_findgoal	SDK BotAI	Legacy SDK AI	0	"""0"""	0	0		direct	src/botai/ai_main.c	2519	ET SDK inherited	no
+bot_grapple	SDK BotAI	Legacy SDK AI	0	"""0"""	0	0		direct	src/botai/ai_dmq3.c	6398	ET SDK inherited	no
+bot_minplayers	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10692	ET SDK inherited	no
+bot_nochat	SDK BotAI	Legacy SDK AI	1	"""1"""	ROM	64		direct	src/botai/ai_dmq3.c	6400	ET SDK inherited	no
+bot_profile	SDK BotAI	Legacy SDK AI	0	"""0"""	0	0		direct	src/botai/ai_main.c	2517	ET SDK inherited	no
+bot_rocketjump	SDK BotAI	Legacy SDK AI	0	"""0"""	0	0		direct	src/botai/ai_dmq3.c	6397	ET SDK inherited	no
+bot_testrchat	SDK BotAI	Legacy SDK AI	0	"""0"""	0	0		direct	src/botai/ai_dmq3.c	6401	ET SDK inherited	no
+bot_thinktime	SDK BotAI	Legacy SDK AI	50	"""50"""	0	0		direct	src/botai/ai_main.c	2516	ET SDK inherited	no
+bot_verbose	SDK BotAI	Legacy SDK AI	0	"""0"""	0	0		direct	src/botai/ai_main.c	2515	ET SDK inherited	no
+cf_wstats	CGame	Game/Editor	1.2	"""1.2"""	ARCHIVE	1		table	src/cgame/cg_main.c	498	ET SDK inherited	no
+cf_wtopshots	CGame	Game/Editor	1.0	"""1.0"""	ARCHIVE	1		table	src/cgame/cg_main.c	499	ET SDK inherited	no
+cg_animspeed	CGame	Game/Editor	1	"""1"""	CHEAT	512		table	src/cgame/cg_main.c	424	ET SDK inherited	no
+cg_animState	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	490	ET SDK inherited	no
+cg_announcer	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10645	ET SDK inherited	no
+cg_aspectFovMode	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	609	pre-versioned TC:E registration	no
+cg_aspectMode	CGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/cgame/cg_main.c	415	pre-versioned TC:E registration	no
+cg_atmosphericEffects	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	539	ET SDK inherited	no
+cg_autoAction	CGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/cgame/cg_main.c	501	ET SDK inherited	no
+cg_autoactivate	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	407	ET SDK inherited	no
+cg_autoactivate	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10557	ET SDK inherited	no
+cg_autoReload	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	502	ET SDK inherited	no
+cg_autoReload	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10638	ET SDK inherited	no
+cg_autoswitch	CGame	Game/Editor	2	"""2"""	ARCHIVE	1		table	src/cgame/cg_main.c	354	ET SDK inherited	no
+cg_blinktime	CGame	Game/Editor	100	"""100"""	ARCHIVE	1		table	src/cgame/cg_main.c	448	ET SDK inherited	no
+cg_bloodDamageBlend	CGame	Game/Editor	1.0	"""1.0"""	ARCHIVE	1		table	src/cgame/cg_main.c	503	ET SDK inherited	no
+cg_bloodFlash	CGame	Game/Editor	1.0	"""1.0"""	ARCHIVE	1		table	src/cgame/cg_main.c	504	ET SDK inherited	no
+cg_bloodFlash	UI	Game/Editor	1.0	"""1.0"""	ARCHIVE	1		table	src/ui/ui_main.c	10637	ET SDK inherited	no
+cg_bloodTime	CGame	Game/Editor	120	"""120"""	ARCHIVE	1		table	src/cgame/cg_main.c	412	ET SDK inherited	no
+cg_bobpitch	CGame	Game/Editor	0.002	"""0.002"""	ARCHIVE	1		table	src/cgame/cg_main.c	402	ET SDK inherited	no
+cg_bobroll	CGame	Game/Editor	0.002	"""0.002"""	ARCHIVE	1		table	src/cgame/cg_main.c	403	ET SDK inherited	no
+cg_bobup	CGame	Game/Editor	0.005	"""0.005"""	ARCHIVE	1		table	src/cgame/cg_main.c	401	ET SDK inherited	no
+cg_bobyaw	CGame	Game/Editor	0.002	"""0.002"""	ARCHIVE	1		table	src/cgame/cg_main.c	404	ET SDK inherited	no
+cg_botMenuType	UI	Game/Editor	0	"""0"""	TEMP	256		table	src/ui/ui_main.c	10679	ET SDK inherited	no
+cg_brassTime	CGame	Game/Editor	2500	"""2500"""	ARCHIVE	1		table	src/cgame/cg_main.c	391	ET SDK inherited	no
+cg_brassTime	UI	Game/Editor	2500	"""2500"""	ARCHIVE	1		table	src/ui/ui_main.c	10550	ET SDK inherited	no
+cg_cameraOrbit	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	451	ET SDK inherited	no
+cg_cameraOrbitDelay	CGame	Game/Editor	50	"""50"""	ARCHIVE	1		table	src/cgame/cg_main.c	452	ET SDK inherited	no
+cg_centertime	CGame	Game/Editor	5	"""5"""	CHEAT	512		table	src/cgame/cg_main.c	398	ET SDK inherited	no
+cg_clipboardName	UI	Game/Editor		""""""	ROM	64		table	src/ui/ui_main.c	10589	ET SDK inherited	no
+cg_commandMapScale	CGame	Game/Editor	0.85	"""0.85"""	ARCHIVE	1		direct	src/cgame/cg_hud_viewport.c	22	TCE2 added registration	no
+cg_commandMapScale	UI	Game/Editor	.85	""".85"""	ARCHIVE	1		table	src/ui/ui_main.c	10509	TCE2 added registration	no
+cg_compassScale	CGame	Game/Editor	0.85	"""0.85"""	ARCHIVE	1		direct	src/cgame/cg_hud_viewport.c	20	TCE2 added registration	no
+cg_compassScale	UI	Game/Editor	.85	""".85"""	ARCHIVE	1		table	src/ui/ui_main.c	10507	TCE2 added registration	no
+cg_complaintPopUp	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	505	ET SDK inherited	no
+cg_complaintPopUp	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10644	ET SDK inherited	no
+cg_coronafardist	CGame	Game/Editor	1536	"""1536"""	ARCHIVE	1		table	src/cgame/cg_main.c	442	ET SDK inherited	no
+cg_coronafardist	UI	Game/Editor	1536	"""1536"""	ARCHIVE	1		table	src/ui/ui_main.c	10659	ET SDK inherited	no
+cg_coronas	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	443	ET SDK inherited	no
+cg_countryflags	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	381	TCE2 added registration	no
+cg_countryflags	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10649	TCE2 added registration	no
+cg_crosshairAlpha	CGame	Game/Editor	1.0	"""1.0"""	ARCHIVE	1		table	src/cgame/cg_main.c	506	ET SDK inherited	no
+cg_crosshairAlpha	UI	Game/Editor	1.0	"""1.0"""	ARCHIVE	1		table	src/ui/ui_main.c	10657	ET SDK inherited	no
+cg_crosshairAlpha	UI	Game/Editor	1.0	"""1.0"""	ARCHIVE	1		table	src/ui/ui_main.c	10685	ET SDK inherited	no
+cg_crosshairAlphaAlt	CGame	Game/Editor	1.0	"""1.0"""	ARCHIVE	1		table	src/cgame/cg_main.c	507	ET SDK inherited	no
+cg_crosshairAlphaAlt	UI	Game/Editor	1.0	"""1.0"""	ARCHIVE	1		table	src/ui/ui_main.c	10686	ET SDK inherited	no
+cg_crosshairColor	CGame	Game/Editor	White	"""White"""	ARCHIVE	1		table	src/cgame/cg_main.c	508	ET SDK inherited	no
+cg_crosshairColor	UI	Game/Editor	White	"""White"""	ARCHIVE	1		table	src/ui/ui_main.c	10656	ET SDK inherited	no
+cg_crosshairColor	UI	Game/Editor	White	"""White"""	ARCHIVE	1		table	src/ui/ui_main.c	10687	ET SDK inherited	no
+cg_crosshairColorAlt	CGame	Game/Editor	White	"""White"""	ARCHIVE	1		table	src/cgame/cg_main.c	509	ET SDK inherited	no
+cg_crosshairColorAlt	UI	Game/Editor	White	"""White"""	ARCHIVE	1		table	src/ui/ui_main.c	10658	ET SDK inherited	no
+cg_crosshairColorAlt	UI	Game/Editor	White	"""White"""	ARCHIVE	1		table	src/ui/ui_main.c	10688	ET SDK inherited	no
+cg_crosshairHealth	CGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/cgame/cg_main.c	388	ET SDK inherited	no
+cg_crosshairPulse	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	510	ET SDK inherited	no
+cg_crosshairPulse	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10654	ET SDK inherited	no
+cg_crosshairSize	CGame	Game/Editor	48	"""48"""	ARCHIVE	1		table	src/cgame/cg_main.c	387	ET SDK inherited	no
+cg_crosshairSize	UI	Game/Editor	48	"""48"""	ARCHIVE	1		table	src/ui/ui_main.c	10689	ET SDK inherited	no
+cg_crosshairX	CGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/cgame/cg_main.c	389	ET SDK inherited	no
+cg_crosshairY	CGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/cgame/cg_main.c	390	ET SDK inherited	no
+cg_cursorHints	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	357	ET SDK inherited	no
+cg_cursorHints	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10653	ET SDK inherited	no
+cg_cycleAllWeaps	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	386	ET SDK inherited	no
+cg_debuganim	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	425	ET SDK inherited	no
+cg_debugevents	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	427	ET SDK inherited	no
+cg_debugposition	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	426	ET SDK inherited	no
+cg_debugSkills	CGame	Game/Editor	0	"""0"""	0	0		table	src/cgame/cg_main.c	555	ET SDK inherited	no
+cg_deferPlayers	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	445	ET SDK inherited	no
+cg_descriptiveText	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	495	ET SDK inherited	no
+cg_draw2D	CGame	Game/Editor	1	"""1"""	CHEAT	512		table	src/cgame/cg_main.c	374	ET SDK inherited	no
+cg_drawBuddies	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10634	ET SDK inherited	no
+cg_drawCompass	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	491	ET SDK inherited	no
+cg_drawCompass	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10650	ET SDK inherited	no
+cg_drawCrosshair	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	379	ET SDK inherited	no
+cg_drawCrosshair	UI	Game/Editor	4	"""4"""	ARCHIVE	1		table	src/ui/ui_main.c	10551	ET SDK inherited	no
+cg_drawCrosshairNames	CGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/cgame/cg_main.c	380	ET SDK inherited	no
+cg_drawCrosshairNames	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10552	ET SDK inherited	no
+cg_drawCrosshairNames	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10655	ET SDK inherited	no
+cg_drawCrosshairPickups	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	383	ET SDK inherited	no
+cg_drawCrosshairPickups	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10554	ET SDK inherited	no
+cg_drawFireteamOverlay	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	557	ET SDK inherited	no
+cg_drawFPS	CGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/cgame/cg_main.c	377	ET SDK inherited	no
+cg_drawFriend	CGame	Game/Editor	2	"""2"""	ARCHIVE	1		table	src/cgame/cg_main.c	591	pre-versioned TC:E registration	no
+cg_drawGun	CGame	Game/Editor	1	"""1"""	CHEAT	512		table	src/cgame/cg_main.c	355	ET SDK inherited	no
+cg_drawGun	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10648	ET SDK inherited	no
+cg_drawIcons	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		direct	src/cgame/cg_tce_fireteam.c	32	TCE2 added registration	no
+cg_drawNotifyText	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	492	ET SDK inherited	no
+cg_drawReinforcementTime	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	511	ET SDK inherited	no
+cg_drawReinforcementTime	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10652	ET SDK inherited	no
+cg_drawRoundTimer	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	545	ET SDK inherited	no
+cg_drawRoundTimer	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10635	ET SDK inherited	no
+cg_drawRoundTimer	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10651	ET SDK inherited	no
+cg_drawSmallPopupIcons	CGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/cgame/cg_main.c	558	ET SDK inherited	no
+cg_drawSnapshot	CGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/cgame/cg_main.c	378	ET SDK inherited	no
+cg_drawSpreadScale	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	375	ET SDK inherited	no
+cg_drawStatus	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	376	ET SDK inherited	no
+cg_drawTeamNames	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	382	TCE2 added registration	no
+cg_drawTeamNames	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10553	TCE2 added registration	no
+cg_drawTeamOverlay	CGame	Game/Editor	2	"""2"""	ARCHIVE	1		table	src/cgame/cg_main.c	446	ET SDK inherited	no
+cg_drawWeaponIconFlash	CGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/cgame/cg_main.c	512	ET SDK inherited	no
+cg_dynamicEye	CGame	Game/Editor	0.0	"""0.0"""	ARCHIVE	1		table	src/cgame/cg_main.c	607	pre-versioned TC:E registration	no
+cg_enableBreath	CGame	Game/Editor	1	"""1"""	SERVERINFO	4		table	src/cgame/cg_main.c	450	ET SDK inherited	no
+cg_errordecay	CGame	Game/Editor	100	"""100"""	0	0		table	src/cgame/cg_main.c	428	ET SDK inherited	no
+cg_etVersion	CGame	Game/Editor		""""""	USERINFO|ROM	66		table	src/cgame/cg_main.c	556	ET SDK inherited	no
+cg_fastSolids	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	552	ET SDK inherited	no
+cg_fireteamScale	CGame	Game/Editor	0.85	"""0.85"""	ARCHIVE	1		direct	src/cgame/cg_hud_viewport.c	21	TCE2 added registration	no
+cg_fireteamScale	UI	Game/Editor	.85	""".85"""	ARCHIVE	1		table	src/ui/ui_main.c	10508	TCE2 added registration	no
+cg_footsteps	CGame	Game/Editor	1	"""1"""	CHEAT	512		table	src/cgame/cg_main.c	432	ET SDK inherited	no
+cg_fov	CGame	Game/Editor	90	"""90"""	CHEAT	512		table	src/cgame/cg_main.c	367	ET SDK inherited	no
+cg_freeAim	CGame	Game/Editor	0	"""0"""	ARCHIVE|USERINFO	3		table	src/cgame/cg_main.c	611	pre-versioned TC:E registration	no
+cg_gibs	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	371	ET SDK inherited	no
+cg_gun_foreshorten	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	585	pre-versioned TC:E registration	no
+cg_gun_frame	CGame	Game/Editor	0	"""0"""	TEMP	256		table	src/cgame/cg_main.c	356	ET SDK inherited	no
+cg_gunPitch	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	579	pre-versioned TC:E registration	no
+cg_gunPosition	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	593	pre-versioned TC:E registration	no
+cg_gunRoll	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	583	pre-versioned TC:E registration	no
+cg_gunX	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	395	ET SDK inherited	no
+cg_gunY	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	396	ET SDK inherited	no
+cg_gunYaw	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	581	pre-versioned TC:E registration	no
+cg_gunZ	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	397	ET SDK inherited	no
+cg_hudAlpha	CGame	Game/Editor	0.25	"""0.25"""	ARCHIVE	1		table	src/cgame/cg_main.c	603	pre-versioned TC:E registration	no
+cg_hudMaxHeight	CGame	Game/Editor	1080	"""1080"""	ARCHIVE	1		direct	src/cgame/cg_hud_viewport.c	17	TCE2 added registration	no
+cg_hudMaxHeight	UI	Game/Editor	1080	"""1080"""	ARCHIVE	1		table	src/ui/ui_main.c	10510	TCE2 added registration	no
+cg_hudScale	CGame	Game/Editor	0.85	"""0.85"""	ARCHIVE	1		direct	src/cgame/cg_hud_viewport.c	16	TCE2 added registration	no
+cg_hudScale	UI	Game/Editor	.85	""".85"""	ARCHIVE	1		table	src/ui/ui_main.c	10506	TCE2 added registration	no
+cg_ignore	CGame	Game/Editor	0	"""0"""	0	0		table	src/cgame/cg_main.c	353	ET SDK inherited	no
+cg_instanttapout	CGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/cgame/cg_main.c	554	ET SDK inherited	no
+cg_lagometer	CGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/cgame/cg_main.c	393	ET SDK inherited	no
+cg_letterbox	CGame	Game/Editor	0	"""0"""	TEMP	256		table	src/cgame/cg_main.c	368	ET SDK inherited	no
+cg_letterbox	QGame	Game/Editor	0	"""0"""	TEMP	256		table	src/game/g_main.c	478	ET SDK inherited	no
+cg_loadWeaponSelect	QGame	Game/Editor	0	"""0"""	ROM	64	(defined(SAVEGAME_SUPPORT))	direct	src/game/g_save.c	935	ET SDK inherited	no
+cg_marktime	CGame	Game/Editor	20000	"""20000"""	ARCHIVE	1		table	src/cgame/cg_main.c	392	ET SDK inherited	no
+cg_marktime	UI	Game/Editor	20000	"""20000"""	ARCHIVE	1		table	src/ui/ui_main.c	10555	ET SDK inherited	no
+cg_message	CGame	Game/Editor	1	"""1"""	TEMP	256		table	src/cgame/cg_main.c	419	ET SDK inherited	no
+cg_messagePlayer	CGame	Game/Editor		""""""	TEMP	256		table	src/cgame/cg_main.c	421	ET SDK inherited	no
+cg_messagePlayerName	CGame	Game/Editor		""""""	TEMP	256		table	src/cgame/cg_main.c	422	ET SDK inherited	no
+cg_messageType	CGame	Game/Editor	1	"""1"""	TEMP	256		table	src/cgame/cg_main.c	420	ET SDK inherited	no
+cg_noAmmoAutoSwitch	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	513	ET SDK inherited	no
+cg_noAmmoAutoSwitch	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10639	ET SDK inherited	no
+cg_noplayeranims	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	430	ET SDK inherited	no
+cg_nopredict	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	429	ET SDK inherited	no
+cg_norender	CGame	Game/Editor	0	"""0"""	0	0		table	src/cgame/cg_main.c	486	ET SDK inherited	no
+cg_noTaunt	CGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/cgame/cg_main.c	462	ET SDK inherited	no
+cg_noVoiceChats	CGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/cgame/cg_main.c	469	ET SDK inherited	no
+cg_noVoiceText	CGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/cgame/cg_main.c	470	ET SDK inherited	no
+cg_omnibot_render_distance	CGame	Editor	800	"""800"""	ARCHIVE	1	(defined(FEATURE_OMNIBOT) && defined(FEATURE_NAVSTUDIO))	table	src/cgame/cg_main.c	351	TCE2 added registration	no
+cg_omnibotdrawing	CGame	Editor	1	"""1"""	ARCHIVE	1	(defined(FEATURE_OMNIBOT) && defined(FEATURE_NAVSTUDIO))	table	src/cgame/cg_main.c	350	TCE2 added registration	no
+cg_popupLimboMenu	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	494	ET SDK inherited	no
+cg_portalScopes	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	595	pre-versioned TC:E registration	no
+cg_predictBullets	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	587	pre-versioned TC:E registration	no
+cg_predictItems	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	444	ET SDK inherited	no
+cg_printObjectiveInfo	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	514	ET SDK inherited	no
+cg_printObjectiveInfo	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10646	ET SDK inherited	no
+cg_quickMessageAlt	CGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/cgame/cg_main.c	493	ET SDK inherited	no
+cg_railTrailTime	CGame	Game/Editor	400	"""400"""	ARCHIVE	1		table	src/cgame/cg_main.c	394	ET SDK inherited	no
+cg_recording_showstatusline	CGame	Game/Editor	0	"""0"""	0	0		table	src/cgame/cg_main.c	613	pre-versioned TC:E registration	no
+cg_recording_statusline	CGame	Game/Editor	9	"""9"""	ARCHIVE	1		table	src/cgame/cg_main.c	568	ET SDK inherited	no
+cg_runpitch	CGame	Game/Editor	0.002	"""0.002"""	ARCHIVE	1		table	src/cgame/cg_main.c	399	ET SDK inherited	no
+cg_runroll	CGame	Game/Editor	0.005	"""0.005"""	ARCHIVE	1		table	src/cgame/cg_main.c	400	ET SDK inherited	no
+cg_selectedPlayer	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10579	ET SDK inherited	no
+cg_selectedPlayerName	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10580	ET SDK inherited	no
+cg_shadows	CGame	Game/Editor	1	"""1"""	CHEAT	512		table	src/cgame/cg_main.c	370	ET SDK inherited	no
+cg_showblood	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	478	ET SDK inherited	no
+cg_showblood	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10636	ET SDK inherited	no
+cg_showmiss	CGame	Game/Editor	0	"""0"""	0	0		table	src/cgame/cg_main.c	431	ET SDK inherited	no
+cg_skybox	CGame	Game/Editor	1	"""1"""	CHEAT	512		table	src/cgame/cg_main.c	414	ET SDK inherited	no
+cg_snd_reverb	CGame	Game/Editor	255	"""255"""	CHEAT	512		table	src/cgame/cg_main.c	599	pre-versioned TC:E registration	no
+cg_specHelp	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	515	ET SDK inherited	no
+cg_specSwing	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	569	pre-versioned TC:E registration	no
+cg_stats	CGame	Game/Editor	0	"""0"""	0	0		table	src/cgame/cg_main.c	447	ET SDK inherited	no
+cg_stereoSeparation	CGame	Game/Editor	0.4	"""0.4"""	ARCHIVE	1		table	src/cgame/cg_main.c	369	ET SDK inherited	no
+cg_swingSpeed	CGame	Game/Editor	0.1	"""0.1"""	CHEAT	512		table	src/cgame/cg_main.c	411	ET SDK inherited	no
+cg_tacX	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	573	pre-versioned TC:E registration	no
+cg_tacY	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	575	pre-versioned TC:E registration	no
+cg_tacZ	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	577	pre-versioned TC:E registration	no
+cg_teamChatHeight	CGame	Game/Editor	8	"""8"""	ARCHIVE	1		table	src/cgame/cg_main.c	441	ET SDK inherited	no
+cg_teamChatsOnly	CGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/cgame/cg_main.c	468	ET SDK inherited	no
+cg_teamChatTime	CGame	Game/Editor	8000	"""8000"""	ARCHIVE	1		table	src/cgame/cg_main.c	440	ET SDK inherited	no
+cg_thirdPerson	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	439	ET SDK inherited	no
+cg_thirdPersonAngle	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	438	ET SDK inherited	no
+cg_thirdPersonOffset	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	601	pre-versioned TC:E registration	no
+cg_thirdPersonRange	CGame	Game/Editor	80	"""80"""	CHEAT	512		table	src/cgame/cg_main.c	437	ET SDK inherited	no
+cg_timescaleFadeEnd	CGame	Game/Editor	1	"""1"""	0	0		table	src/cgame/cg_main.c	453	ET SDK inherited	no
+cg_timescaleFadeSpeed	CGame	Game/Editor	0	"""0"""	0	0		table	src/cgame/cg_main.c	454	ET SDK inherited	no
+cg_toggleAiming	CGame	Game/Editor	1	"""1"""	ARCHIVE|USERINFO	3		table	src/cgame/cg_main.c	597	pre-versioned TC:E registration	no
+cg_toggleCrouch	CGame	Game/Editor	1	"""1"""	ARCHIVE|USERINFO	3		table	src/cgame/cg_main.c	589	pre-versioned TC:E registration	no
+cg_tracerchance	CGame	Game/Editor	0.4	"""0.4"""	CHEAT	512		table	src/cgame/cg_main.c	433	ET SDK inherited	no
+cg_tracerlength	CGame	Game/Editor	160	"""160"""	CHEAT	512		table	src/cgame/cg_main.c	436	ET SDK inherited	no
+cg_tracerSpeed	CGame	Game/Editor	4500	"""4500"""	CHEAT	512		table	src/cgame/cg_main.c	435	ET SDK inherited	no
+cg_tracerwidth	CGame	Game/Editor	0.8	"""0.8"""	CHEAT	512		table	src/cgame/cg_main.c	434	ET SDK inherited	no
+cg_uinfo	CGame	Game/Editor	0	"""0"""	USERINFO|ROM	66		table	src/cgame/cg_main.c	516	ET SDK inherited	no
+cg_useScreenshotJPEG	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	517	ET SDK inherited	no
+cg_useScreenshotJPEG	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10647	ET SDK inherited	no
+cg_useWeapsForZoom	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	384	ET SDK inherited	no
+cg_useWeapsForZoom	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10640	ET SDK inherited	no
+cg_vip	CGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/cgame/cg_main.c	571	pre-versioned TC:E registration	no
+cg_voiceSpriteTime	CGame	Game/Editor	6000	"""6000"""	ARCHIVE	1		table	src/cgame/cg_main.c	463	ET SDK inherited	no
+cg_voicespritetime	UI	Game/Editor	6000	"""6000"""	ARCHIVE	1		table	src/ui/ui_main.c	10643	ET SDK inherited	no
+cg_weaponCycleDelay	CGame	Game/Editor	150	"""150"""	ARCHIVE	1		table	src/cgame/cg_main.c	385	ET SDK inherited	no
+cg_wideScreen	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		direct	src/cgame/cg_hud_viewport.c	15	TCE2 added registration	no
+cg_wideScreen	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10503	TCE2 added registration	no
+cg_wolfparticles	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	484	ET SDK inherited	no
+cg_wolfparticles	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10660	ET SDK inherited	no
+cg_zoomDefaultBinoc	CGame	Game/Editor	22.5	"""22.5"""	ARCHIVE	1		table	src/cgame/cg_main.c	359	ET SDK inherited	no
+cg_zoomDefaultFG	CGame	Game/Editor	55	"""55"""	ARCHIVE	1		table	src/cgame/cg_main.c	362	ET SDK inherited	no
+cg_zoomDefaultSniper	CGame	Game/Editor	20	"""20"""	ARCHIVE	1		table	src/cgame/cg_main.c	360	ET SDK inherited	no
+cg_zoomDefaultSniper	UI	Game/Editor	20	"""20"""	ARCHIVE	1		table	src/ui/ui_main.c	10641	ET SDK inherited	no
+cg_zoomDefaultSnooper	CGame	Game/Editor	40	"""40"""	ARCHIVE	1		table	src/cgame/cg_main.c	361	ET SDK inherited	no
+cg_zoomfov	CGame	Game/Editor	22.5	"""22.5"""	ARCHIVE	1		table	src/cgame/cg_main.c	358	ET SDK inherited	no
+cg_zoomStepBinoc	CGame	Game/Editor	3	"""3"""	ARCHIVE	1		table	src/cgame/cg_main.c	363	ET SDK inherited	no
+cg_zoomStepFG	CGame	Game/Editor	10	"""10"""	ARCHIVE	1		table	src/cgame/cg_main.c	366	ET SDK inherited	no
+cg_zoomStepSniper	CGame	Game/Editor	2	"""2"""	ARCHIVE	1		table	src/cgame/cg_main.c	364	ET SDK inherited	no
+cg_zoomstepsniper	UI	Game/Editor	2	"""2"""	ARCHIVE	1		table	src/ui/ui_main.c	10642	ET SDK inherited	no
+cg_zoomStepSnooper	CGame	Game/Editor	5	"""5"""	ARCHIVE	1		table	src/cgame/cg_main.c	365	ET SDK inherited	no
+cl_bypassMouseInput	UI	Game/Editor	0	"""0"""	TEMP	256		table	src/ui/ui_main.c	10748	ET SDK inherited	yes
+cl_defaultProfile	UI	Game/Editor		""""""	ROM	64		table	src/ui/ui_main.c	10669	ET SDK inherited	yes
+cl_demofilename	CGame	Game/Editor		""""""	ROM	64		table	src/cgame/cg_main.c	562	ET SDK inherited	yes
+cl_demooffset	CGame	Game/Editor	0	"""0"""	ROM	64		table	src/cgame/cg_main.c	563	ET SDK inherited	yes
+cl_demorecording	CGame	Game/Editor	0	"""0"""	ROM	64		table	src/cgame/cg_main.c	561	ET SDK inherited	yes
+cl_guid	UI	Game/Editor	<guid>	guid	USERINFO	2		direct	src/ui/tce_client_guid.c	22	TCE2 added registration	yes
+cl_guid	UI	Game/Editor		""""""	USERINFO	2		direct	src/ui/tce_client_guid.c	46	TCE2 added registration	yes
+cl_maxpackets	CGame	Game/Editor	30	"""30"""	ARCHIVE	1		table	src/cgame/cg_main.c	532	ET SDK inherited	yes
+cl_paused	CGame	Game/Editor	0	"""0"""	ROM	64		table	src/cgame/cg_main.c	476	ET SDK inherited	yes
+cl_profile	UI	Game/Editor		""""""	ROM	64		table	src/ui/ui_main.c	10668	ET SDK inherited	yes
+cl_timenudge	CGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/cgame/cg_main.c	533	ET SDK inherited	yes
+cl_wavefilename	CGame	Game/Editor		""""""	ROM	64		table	src/cgame/cg_main.c	566	ET SDK inherited	yes
+cl_waveoffset	CGame	Game/Editor	0	"""0"""	ROM	64		table	src/cgame/cg_main.c	567	ET SDK inherited	yes
+cl_waverecording	CGame	Game/Editor	0	"""0"""	ROM	64		table	src/cgame/cg_main.c	565	ET SDK inherited	yes
+com_buildScript	CGame	Game/Editor	0	"""0"""	0	0		table	src/cgame/cg_main.c	475	ET SDK inherited	yes
+com_cameraMode	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	457	ET SDK inherited	yes
+debug_protocol	UI	Game/Editor		""""""	0	0		direct	src/ui/ui_main.c	9678	ET SDK inherited	no
+dedicated	QGame	Game/Editor	0	"""0"""	0	0		table	src/game/g_main.c	344	ET SDK inherited	no
+demo_avifpsF1	CGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/cgame/cg_main.c	519	ET SDK inherited	no
+demo_avifpsF2	CGame	Game/Editor	10	"""10"""	ARCHIVE	1		table	src/cgame/cg_main.c	520	ET SDK inherited	no
+demo_avifpsF3	CGame	Game/Editor	15	"""15"""	ARCHIVE	1		table	src/cgame/cg_main.c	521	ET SDK inherited	no
+demo_avifpsF4	CGame	Game/Editor	20	"""20"""	ARCHIVE	1		table	src/cgame/cg_main.c	522	ET SDK inherited	no
+demo_avifpsF5	CGame	Game/Editor	24	"""24"""	ARCHIVE	1		table	src/cgame/cg_main.c	523	ET SDK inherited	no
+demo_drawTimeScale	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	524	ET SDK inherited	no
+demo_infoWindow	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/cgame/cg_main.c	525	ET SDK inherited	no
+developer	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	497	ET SDK inherited	yes
+developer	QGame	Game/Editor	0	"""0"""	TEMP	256		table	src/game/g_main.c	381	ET SDK inherited	yes
+fraglimit	QGame	Game/Editor	0	"""0"""	ARCHIVE|NORESTART	1025		table	src/game/g_main.c	290	ET SDK inherited	no
+g_aabasetime	QGame	Game/Editor	5	"""5"""	ROM	64		table	src/game/g_main.c	328	pre-versioned TC:E registration	no
+g_alliedmapxp	QGame	Game/Editor	0	"""0"""	ROM	64		table	src/game/g_main.c	462	ET SDK inherited	no
+g_alliedmaxlives	QGame	Game/Editor	0	"""0"""	SERVERINFO|LATCH	36		table	src/game/g_main.c	375	ET SDK inherited	no
+g_alliedwins	QGame	Game/Editor	0	"""0"""	ROM	64		table	src/game/g_main.c	460	ET SDK inherited	no
+g_altStopwatchMode	QGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/game/g_main.c	311	ET SDK inherited	no
+g_altStopwatchMode	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10693	ET SDK inherited	no
+g_antilag	CGame	Game/Editor	1	"""1"""	0	0		table	src/cgame/cg_main.c	496	ET SDK inherited	no
+g_antilag	QGame	Game/Editor	1	"""1"""	ARCHIVE|SERVERINFO	5		table	src/game/g_main.c	394	ET SDK inherited	no
+g_antilag	UI	Game/Editor	1	"""1"""	ARCHIVE|SERVERINFO	5		table	src/ui/ui_main.c	10662	ET SDK inherited	no
+g_arenasFile	QGame	Game/Editor		""""""	INIT|ROM	80	(0) && (defined(QUAKESTUFF))	direct	src/game/g_bot.c	78	ET SDK inherited	no
+g_arenasFile	UI	Game/Editor		""""""	INIT|ROM	80		table	src/ui/ui_main.c	10524	ET SDK inherited	no
+g_autoFireteams	QGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/game/g_main.c	484	ET SDK inherited	no
+g_axismapxp	QGame	Game/Editor	0	"""0"""	ROM	64		table	src/game/g_main.c	461	ET SDK inherited	no
+g_axismaxlives	QGame	Game/Editor	0	"""0"""	SERVERINFO|LATCH	36		table	src/game/g_main.c	376	ET SDK inherited	no
+g_axiswins	QGame	Game/Editor	0	"""0"""	ROM	64		table	src/game/g_main.c	459	ET SDK inherited	no
+g_balancedteams	QGame	Game/Editor	0	"""0"""	SERVERINFO|ROM	68		table	src/game/g_main.c	352	ET SDK inherited	no
+g_banIPs	QGame	Game/Editor		""""""	ARCHIVE	1		table	src/game/g_main.c	340	ET SDK inherited	no
+g_bluelimbotime	QGame	Game/Editor	30000	"""30000"""	SERVERINFO|LATCH	36		table	src/game/g_main.c	274	ET SDK inherited	no
+g_botsFile	QGame	Game/Editor		""""""	INIT|ROM	80		direct	src/game/g_bot.c	1482	ET SDK inherited	no
+g_botsFile	UI	Game/Editor		""""""	INIT|ROM	80		direct	src/ui/ui_gameinfo.c	1027	ET SDK inherited	no
+g_botsFile	UI	Game/Editor		""""""	INIT|ROM	80		table	src/ui/ui_main.c	10525	ET SDK inherited	no
+g_botvar	QGame	Game/Editor	1.0	"""1.0"""	0	0		table	src/game/g_main.c	329	pre-versioned TC:E registration	no
+g_complaintlimit	QGame	Game/Editor	6	"""6"""	ARCHIVE	1		table	src/game/g_main.c	368	ET SDK inherited	no
+g_complaintlimit	UI	Game/Editor	6	"""6"""	ARCHIVE	1		table	src/ui/ui_main.c	10695	ET SDK inherited	no
+g_countryflags	QGame	Game/Editor	1	"""1"""	ARCHIVE|LATCH	33		table	src/game/g_main.c	298	TCE2 added registration	no
+g_covertopsChargeTime	QGame	Game/Editor	30000	"""30000"""	SERVERINFO|LATCH	36		table	src/game/g_main.c	282	ET SDK inherited	no
+g_currentCampaign	QGame	Game/Editor		""""""	ROM|WOLFINFO	2112		table	src/game/g_main.c	465	ET SDK inherited	no
+g_currentCampaign	UI	Game/Editor		""""""	ROM|WOLFINFO	2112		table	src/ui/ui_main.c	10751	ET SDK inherited	no
+g_currentCampaignMap	QGame	Game/Editor	0	"""0"""	ROM|WOLFINFO	2112		table	src/game/g_main.c	466	ET SDK inherited	no
+g_currentCampaignMap	UI	Game/Editor	0	"""0"""	ROM|WOLFINFO	2112		table	src/ui/ui_main.c	10752	ET SDK inherited	no
+g_currentRound	QGame	Game/Editor	0	"""0"""	WOLFINFO	2048		table	src/game/g_main.c	310	ET SDK inherited	no
+g_debugAlloc	QGame	Game/Editor	0	"""0"""	0	0		table	src/game/g_main.c	358	ET SDK inherited	no
+g_debugBullets	QGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/game/g_main.c	359	ET SDK inherited	no
+g_debugBulletsClient	QGame	Game/Editor	-1	"""-1"""	CHEAT	512		table	src/game/g_main.c	360	TCE2 added registration	no
+g_debugConstruct	QGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/game/g_main.c	441	ET SDK inherited	no
+g_debugDamage	QGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/game/g_main.c	357	ET SDK inherited	no
+g_debugMove	QGame	Game/Editor	0	"""0"""	0	0		table	src/game/g_main.c	356	ET SDK inherited	no
+g_debugSkills	QGame	Game/Editor	0	"""0"""	0	0		table	src/game/g_main.c	481	ET SDK inherited	no
+g_disableComplaints	QGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/game/g_main.c	489	ET SDK inherited	no
+g_doWarmup	QGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/game/g_main.c	304	ET SDK inherited	no
+g_doWarmup	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10696	ET SDK inherited	no
+g_enforcemaxlives	QGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/game/g_main.c	379	ET SDK inherited	no
+g_engineerChargeTime	QGame	Game/Editor	30000	"""30000"""	SERVERINFO|LATCH	36		table	src/game/g_main.c	276	ET SDK inherited	no
+g_fastres	QGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/game/g_main.c	377	ET SDK inherited	no
+g_filterBan	QGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/game/g_main.c	342	ET SDK inherited	no
+g_filtercams	QGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/game/g_main.c	370	ET SDK inherited	no
+g_footstepAudibleRange	QGame	Game/Editor	256	"""256"""	CHEAT	512		table	src/game/g_main.c	389	ET SDK inherited	no
+g_forcerespawn	QGame	Game/Editor	0	"""0"""	0	0		table	src/game/g_main.c	353	ET SDK inherited	no
+g_forcerespawn	QGame	Game/Editor	0	"""0"""	0	0		table	src/game/g_main.c	354	ET SDK inherited	no
+g_friendlyFire	QGame	Game/Editor	1	"""1"""	SERVERINFO|CHEAT	516		table	src/game/g_main.c	297	ET SDK inherited	no
+g_friendlyFire	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10536	ET SDK inherited	no
+g_gametype	CGame	Game/Editor	0	"""0"""	0	0		table	src/cgame/cg_main.c	485	ET SDK inherited	no
+g_gametype	QGame	Game/Editor	5	"""5"""	SERVERINFO|LATCH	36		table	src/game/g_main.c	268	ET SDK inherited	no
+g_gameType	UI	Game/Editor	5	"""5"""	SERVERINFO|LATCH	36		table	src/ui/ui_main.c	10633	ET SDK inherited	no
+g_gravity	QGame	Game/Editor	800	"""800"""	CHEAT	512		table	src/game/g_main.c	347	ET SDK inherited	no
+g_heavyWeaponRestriction	QGame	Game/Editor	100	"""100"""	ARCHIVE|SERVERINFO	5		table	src/game/g_main.c	483	ET SDK inherited	no
+g_heavyWeaponRestriction	UI	Game/Editor	100	"""100"""	ARCHIVE|SERVERINFO	5		table	src/ui/ui_main.c	10667	ET SDK inherited	no
+g_inactivity	QGame	Game/Editor	0	"""0"""	0	0		table	src/game/g_main.c	355	ET SDK inherited	no
+g_inactivity	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10697	ET SDK inherited	no
+g_ipcomplaintlimit	QGame	Game/Editor	3	"""3"""	ARCHIVE	1		table	src/game/g_main.c	369	ET SDK inherited	no
+g_ipcomplaintlimit	UI	Game/Editor	3	"""3"""	ARCHIVE	1		table	src/ui/ui_main.c	10694	ET SDK inherited	no
+g_killmessage	QGame	Game/Editor	0	"""0"""	SERVERINFO|LATCH	36		table	src/game/g_main.c	325	pre-versioned TC:E registration	no
+g_knifeonly	QGame	Game/Editor	0	"""0"""	0	0		table	src/game/g_main.c	378	ET SDK inherited	no
+g_knockback	QGame	Game/Editor	1000	"""1000"""	0	0		table	src/game/g_main.c	348	ET SDK inherited	no
+g_landminetimeout	QGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/game/g_main.c	283	ET SDK inherited	no
+g_leanmode	QGame	Game/Editor	1	"""1"""	SERVERINFO|LATCH	36		table	src/game/g_main.c	324	pre-versioned TC:E registration	no
+g_lms_currentMatch	QGame	Game/Editor	0	"""0"""	ROM	64		table	src/game/g_main.c	456	ET SDK inherited	no
+g_lms_followTeamOnly	QGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/game/g_main.c	458	ET SDK inherited	no
+g_lms_followTeamOnly	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10666	ET SDK inherited	no
+g_lms_lockTeams	QGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/game/g_main.c	457	ET SDK inherited	no
+g_lms_matchlimit	QGame	Game/Editor	5	"""5"""	ARCHIVE	1		table	src/game/g_main.c	455	ET SDK inherited	no
+g_lms_matchlimit	UI	Game/Editor	2	"""2"""	ARCHIVE	1		table	src/ui/ui_main.c	10665	ET SDK inherited	no
+g_lms_roundlimit	QGame	Game/Editor	5	"""5"""	ARCHIVE	1		table	src/game/g_main.c	454	ET SDK inherited	no
+g_lms_roundlimit	UI	Game/Editor	3	"""3"""	ARCHIVE	1		table	src/ui/ui_main.c	10664	ET SDK inherited	no
+g_lms_teamForceBalance	QGame	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/game/g_main.c	453	ET SDK inherited	no
+g_log	QGame	Game/Editor		""""""	ARCHIVE	1		table	src/game/g_main.c	335	ET SDK inherited	no
+g_logSync	QGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/game/g_main.c	336	ET SDK inherited	no
+g_LTChargeTime	QGame	Game/Editor	40000	"""40000"""	SERVERINFO|LATCH	36		table	src/game/g_main.c	277	ET SDK inherited	no
+g_mapScriptDirectory	QGame	Game/Editor		""""""	0	0		table	src/game/g_main.c	392	TCE2 added registration	no
+g_maxGameClients	QGame	Game/Editor	0	"""0"""	ARCHIVE|SERVERINFO|LATCH	37		table	src/game/g_main.c	286	ET SDK inherited	no
+g_maxlives	QGame	Game/Editor	0	"""0"""	ARCHIVE|SERVERINFO|LATCH	37		table	src/game/g_main.c	371	ET SDK inherited	no
+g_maxLives	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10698	ET SDK inherited	no
+g_maxlivesRespawnPenalty	QGame	Game/Editor	0	"""0"""	ARCHIVE|SERVERINFO|LATCH	37		table	src/game/g_main.c	372	ET SDK inherited	no
+g_medicChargeTime	QGame	Game/Editor	45000	"""45000"""	SERVERINFO|LATCH	36		table	src/game/g_main.c	275	ET SDK inherited	no
+g_minGameClients	QGame	Game/Editor	8	"""8"""	SERVERINFO	4		table	src/game/g_main.c	287	ET SDK inherited	no
+g_motd	QGame	Game/Editor		""""""	ARCHIVE	1		table	src/game/g_main.c	361	ET SDK inherited	no
+g_movespeed	CGame	Game/Editor	76	"""76"""	0	0		table	src/cgame/cg_main.c	489	ET SDK inherited	no
+g_movespeed	QGame	Game/Editor	76	"""76"""	CHEAT	512		table	src/game/g_main.c	450	ET SDK inherited	no
+g_needpass	QGame	Game/Editor	0	"""0"""	SERVERINFO|ROM	68		table	src/game/g_main.c	351	ET SDK inherited	no
+g_newbbox	QGame	Game/Editor	1	"""1"""	SERVERINFO|NORESTART	1028		table	src/game/g_main.c	323	pre-versioned TC:E registration	no
+g_nextTimeLimit	QGame	Game/Editor	0	"""0"""	WOLFINFO	2048		table	src/game/g_main.c	309	ET SDK inherited	no
+g_noTeamSwitching	QGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/game/g_main.c	314	ET SDK inherited	no
+g_oldCampaign	QGame	Game/Editor		""""""	ROM	64		table	src/game/g_main.c	464	ET SDK inherited	no
+g_oldCampaign	UI	Game/Editor		""""""	ROM	64		table	src/ui/ui_main.c	10750	ET SDK inherited	no
+g_oss	QGame	Game/Editor	2047	"""2047"""	SERVERINFO	4		table	src/game/g_main.c	299	TCE2 added registration	no
+g_password	QGame	Game/Editor	none	"""none"""	USERINFO	2		table	src/game/g_main.c	338	ET SDK inherited	no
+g_password	UI	Game/Editor	none	"""none"""	USERINFO	2		table	src/ui/ui_main.c	10661	ET SDK inherited	no
+g_podiumDist	QGame	Game/Editor	80	"""80"""	0	0		table	src/game/g_main.c	363	ET SDK inherited	no
+g_podiumDrop	QGame	Game/Editor	70	"""70"""	0	0		table	src/game/g_main.c	364	ET SDK inherited	no
+g_quadfactor	QGame	Game/Editor	3	"""3"""	0	0		table	src/game/g_main.c	349	ET SDK inherited	no
+g_rankings	QGame	Game/Editor	0	"""0"""	0	0		table	src/game/g_main.c	382	ET SDK inherited	no
+g_realism	QGame	Game/Editor	1	"""1"""	SERVERINFO|LATCH	36		table	src/game/g_main.c	327	pre-versioned TC:E registration	no
+g_redlimbotime	QGame	Game/Editor	30000	"""30000"""	SERVERINFO|LATCH	36		table	src/game/g_main.c	273	ET SDK inherited	no
+g_reloading	CGame	Game/Editor	0	"""0"""	0	0	(defined(SAVEGAME_SUPPORT))	table	src/cgame/cg_main.c	548	ET SDK inherited	no
+g_reloading	QGame	Game/Editor	0	"""0"""	ROM	64	(defined(SAVEGAME_SUPPORT))	table	src/game/g_main.c	470	ET SDK inherited	no
+g_restarted	QGame	Game/Editor	0	"""0"""	ROM	64		table	src/game/g_main.c	264	ET SDK inherited	no
+g_scriptDebug	QGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/game/g_main.c	443	ET SDK inherited	no
+g_scriptDebug	QGame	Game/Editor	0	"""0"""	0	0		direct	src/game/g_script.c	418	ET SDK inherited	no
+g_scriptDebugLevel	QGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/game/g_main.c	446	ET SDK inherited	no
+g_scriptName	QGame	Game/Editor		""""""	CHEAT	512		table	src/game/g_main.c	391	ET SDK inherited	no
+g_scriptName	QGame	Game/Editor		""""""	CHEAT	512		direct	src/game/g_script.c	427	ET SDK inherited	no
+g_showHeadshotRatio	QGame	Game/Editor	0	"""0"""	0	0		table	src/game/g_main.c	316	ET SDK inherited	no
+g_smoothClients	QGame	Game/Editor	1	"""1"""	0	0		table	src/game/g_main.c	385	ET SDK inherited	no
+g_soldierChargeTime	QGame	Game/Editor	20000	"""20000"""	SERVERINFO|LATCH	36		table	src/game/g_main.c	278	ET SDK inherited	no
+g_spAwards	UI	Game/Editor		""""""	ARCHIVE|ROM	65		table	src/ui/ui_main.c	10531	ET SDK inherited	no
+g_spectatorInactivity	QGame	Game/Editor	0	"""0"""	0	0		table	src/game/g_main.c	400	ET SDK inherited	no
+g_spectatorInactivity	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10702	ET SDK inherited	no
+g_speed	QGame	Game/Editor	320	"""320"""	CHEAT	512		table	src/game/g_main.c	346	ET SDK inherited	no
+g_spScores1	UI	Game/Editor		""""""	ARCHIVE|ROM	65		table	src/ui/ui_main.c	10526	ET SDK inherited	no
+g_spScores2	UI	Game/Editor		""""""	ARCHIVE|ROM	65		table	src/ui/ui_main.c	10527	ET SDK inherited	no
+g_spScores3	UI	Game/Editor		""""""	ARCHIVE|ROM	65		table	src/ui/ui_main.c	10528	ET SDK inherited	no
+g_spScores4	UI	Game/Editor		""""""	ARCHIVE|ROM	65		table	src/ui/ui_main.c	10529	ET SDK inherited	no
+g_spScores5	UI	Game/Editor		""""""	ARCHIVE|ROM	65		table	src/ui/ui_main.c	10530	ET SDK inherited	no
+g_spSkill	UI	Game/Editor	2	"""2"""	ARCHIVE|LATCH	33		table	src/ui/ui_main.c	10533	ET SDK inherited	no
+g_spVideos	UI	Game/Editor		""""""	ARCHIVE|ROM	65		table	src/ui/ui_main.c	10532	ET SDK inherited	no
+g_starthonor	QGame	Game/Editor	0	"""0"""	SERVERINFO|LATCH	36		table	src/game/g_main.c	326	pre-versioned TC:E registration	no
+g_swapteams	QGame	Game/Editor	0	"""0"""	ROM	64		table	src/game/g_main.c	322	ET SDK inherited	no
+g_synchronousClients	CGame	Game/Editor	0	"""0"""	SYSTEMINFO|CHEAT	520	(defined(ALLOW_GSYNC))	table	src/cgame/cg_main.c	480	ET SDK inherited	no
+g_synchronousClients	QGame	Game/Editor	0	"""0"""	SYSTEMINFO|CHEAT	520	(defined(ALLOW_GSYNC))	table	src/game/g_main.c	294	ET SDK inherited	no
+g_teamForceBalance	QGame	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/game/g_main.c	301	ET SDK inherited	no
+g_teamForceBalance	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10700	ET SDK inherited	no
+g_userAim	QGame	Game/Editor	1	"""1"""	CHEAT	512		table	src/game/g_main.c	383	ET SDK inherited	no
+g_userAlliedRespawnTime	QGame	Game/Editor	0	"""0"""	0	0		table	src/game/g_main.c	319	ET SDK inherited	no
+g_userAxisRespawnTime	QGame	Game/Editor	0	"""0"""	0	0		table	src/game/g_main.c	320	ET SDK inherited	no
+g_userTimeLimit	QGame	Game/Editor	0	"""0"""	0	0		table	src/game/g_main.c	318	ET SDK inherited	no
+g_voiceChatsAllowed	QGame	Game/Editor	4	"""4"""	ARCHIVE	1		table	src/game/g_main.c	373	ET SDK inherited	no
+g_warmup	QGame	Game/Editor	25	"""25"""	ARCHIVE	1		table	src/game/g_main.c	303	ET SDK inherited	no
+g_warmup	UI	Game/Editor	60	"""60"""	ARCHIVE	1		table	src/ui/ui_main.c	10663	ET SDK inherited	no
+g_warmupLatch	QGame	Game/Editor	1	"""1"""	0	0		table	src/game/g_main.c	307	ET SDK inherited	no
+g_wolfadminTrustGuid	QGame	Game/Editor	0	"""0"""	0	0	FEATURE_LUA	direct	src/game/tce_lua.c	217	TCE2 added registration	no
+gamedate	QGame	Game/Editor	<__DATE__>	__DATE__	ROM	64		table	src/game/g_main.c	263	ET SDK inherited	no
+gamename	QGame	Game/Editor	<GAMEVERSION>	GAMEVERSION	SERVERINFO|ROM	68		table	src/game/g_main.c	262	ET SDK inherited	no
+gamestate	QGame	Game/Editor	-1	"""-1"""	ROM|WOLFINFO	2112		table	src/game/g_main.c	312	ET SDK inherited	no
+headModel	UI	Game/Editor		""""""	0	0		table	src/ui/ui_main.c	10611	ET SDK inherited	no
+lua_modules	QGame	Game/Editor		""""""	ARCHIVE	1	FEATURE_LUA	direct	src/game/tce_lua.c	218	TCE2 added registration	no
+m_pitch	CGame	Game/Editor	0.022	"""0.022"""	ARCHIVE	1		table	src/cgame/cg_main.c	534	ET SDK inherited	yes
+mapname	QGame	Editor		""""""	SERVERINFO|ROM	68	(defined(FEATURE_NAVSTUDIO))	direct	src/game/g_cmds.c	3689	ET SDK inherited	yes
+mapname	QGame	Game/Editor		""""""	SERVERINFO|ROM	68	(defined(SAVEGAME_SUPPORT))	direct	src/game/g_save.c	1491	ET SDK inherited	yes
+mapname	QGame	Game/Editor		""""""	SERVERINFO|ROM	68	(defined(SAVEGAME_SUPPORT))	direct	src/game/g_save.c	2288	ET SDK inherited	yes
+mapname	QGame	Game/Editor		""""""	SERVERINFO|ROM	68		direct	src/game/g_script.c	431	ET SDK inherited	yes
+mapname	QGame	Game/Editor		""""""	SERVERINFO|ROM	68		direct	src/game/g_stats.c	579	ET SDK inherited	yes
+mapname	QGame	Editor		""""""	SERVERINFO|ROM	68	(defined(FEATURE_NAVSTUDIO)) && (defined(__linux__))	direct	src/game/tce_nodes.c	21	ET SDK inherited	yes
+mapname	QGame	Editor		""""""	SERVERINFO|ROM	68	(defined(FEATURE_NAVSTUDIO))	direct	src/game/tce_nodes.c	72	ET SDK inherited	yes
+mapname	QGame	Game/Editor		""""""	SERVERINFO|ROM	68		direct	src/game/tce_nodes.c	212	ET SDK inherited	yes
+mapname	QGame	Game/Editor		""""""	SERVERINFO|ROM	68		direct	src/game/tce_nodes.c	244	ET SDK inherited	yes
+mapname	SDK BotAI	Legacy SDK AI		""""""	SERVERINFO|ROM	68		direct	src/botai/ai_main.c	2037	ET SDK inherited	yes
+mapname	SDK BotAI	Legacy SDK AI		""""""	SERVERINFO|ROM	68		direct	src/botai/ai_team.c	3434	ET SDK inherited	yes
+match_latejoin	QGame	Game/Editor	1	"""1"""	0	0		table	src/game/g_main.c	401	ET SDK inherited	no
+match_latejoin	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10703	ET SDK inherited	no
+match_minplayers	QGame	Game/Editor	4	"""4"""	0	0		table	src/game/g_main.c	402	ET SDK inherited	no
+match_minplayers	UI	Game/Editor	4	"""4"""	ARCHIVE	1		table	src/ui/ui_main.c	10704	ET SDK inherited	no
+match_mutespecs	QGame	Game/Editor	0	"""0"""	0	0		table	src/game/g_main.c	403	ET SDK inherited	no
+match_mutespecs	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10705	ET SDK inherited	no
+match_readypercent	QGame	Game/Editor	100	"""100"""	0	0		table	src/game/g_main.c	404	ET SDK inherited	no
+match_readypercent	UI	Game/Editor	100	"""100"""	ARCHIVE	1		table	src/ui/ui_main.c	10706	ET SDK inherited	no
+match_timeoutcount	QGame	Game/Editor	3	"""3"""	0	0		table	src/game/g_main.c	405	ET SDK inherited	no
+match_timeoutcount	UI	Game/Editor	3	"""3"""	ARCHIVE	1		table	src/ui/ui_main.c	10707	ET SDK inherited	no
+match_timeoutlength	QGame	Game/Editor	180	"""180"""	0	0		table	src/game/g_main.c	406	ET SDK inherited	no
+match_timeoutlength	UI	Game/Editor	180	"""180"""	ARCHIVE	1		table	src/ui/ui_main.c	10708	ET SDK inherited	no
+match_warmupDamage	QGame	Game/Editor	1	"""1"""	0	0		table	src/game/g_main.c	407	ET SDK inherited	no
+match_warmupDamage	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10709	ET SDK inherited	no
+memorydump	SDK BotAI	Legacy SDK AI	0	"""0"""	0	0		direct	src/botai/ai_main.c	2518	ET SDK inherited	no
+mod_url	QGame	Game/Editor		""""""	SERVERINFO|ROM	68		table	src/game/g_main.c	474	ET SDK inherited	no
+mv_sensitivity	CGame	Game/Editor	20	"""20"""	ARCHIVE	1	(defined(MV_SUPPORT))	table	src/cgame/cg_main.c	528	ET SDK inherited	no
+nextcampaign	QGame	Game/Editor		""""""	TEMP	256		table	src/game/g_main.c	487	ET SDK inherited	no
+nextmap	QGame	Game/Editor		""""""	TEMP	256		table	src/game/g_main.c	486	ET SDK inherited	no
+omnibot_enable	QGame	Game/Editor	0	"""0"""	ARCHIVE|LATCH	33	(defined(FEATURE_OMNIBOT))	table	src/game/g_main.c	253	TCE2 added registration	no
+omnibot_flags	QGame	Game/Editor	0	"""0"""	ARCHIVE	1	(defined(FEATURE_OMNIBOT))	table	src/game/g_main.c	255	TCE2 added registration	no
+omnibot_path	QGame	Game/Editor		""""""	ARCHIVE|LATCH	33	(defined(FEATURE_OMNIBOT))	table	src/game/g_main.c	254	TCE2 added registration	no
+omnibot_playing	QGame	Game/Editor	0	"""0"""	SERVERINFO|ROM	68	(defined(FEATURE_OMNIBOT))	table	src/game/g_main.c	256	TCE2 added registration	no
+omnibot_tce_explore	QGame	Game/Editor	1	"""1"""	ARCHIVE	1	(defined(FEATURE_OMNIBOT))	table	src/game/g_main.c	249	TCE2 added registration	no
+omnibot_tce_explore_debug	QGame	Editor	0	"""0"""	0	0	(defined(FEATURE_OMNIBOT)) && (defined(FEATURE_NAVSTUDIO))	table	src/game/g_main.c	251	TCE2 added registration	no
+P	QGame	Game/Editor		""""""	SERVERINFO_NOUPDATE	8192		table	src/game/g_main.c	397	ET SDK inherited	no
+pmove_fixed	CGame	Game/Editor	0	"""0"""	0	0		table	src/cgame/cg_main.c	459	ET SDK inherited	no
+pmove_fixed	QGame	Game/Editor	0	"""0"""	SYSTEMINFO	8		table	src/game/g_main.c	386	ET SDK inherited	no
+pmove_msec	CGame	Game/Editor	8	"""8"""	0	0		table	src/cgame/cg_main.c	460	ET SDK inherited	no
+pmove_msec	QGame	Game/Editor	8	"""8"""	SYSTEMINFO	8		table	src/game/g_main.c	387	ET SDK inherited	no
+r_fastsky	CGame	Game/Editor	0	"""0"""	CHEAT	512		table	src/cgame/cg_main.c	605	pre-versioned TC:E registration	yes
+refereePassword	QGame	Game/Editor	none	"""none"""	0	0		table	src/game/g_main.c	399	ET SDK inherited	no
+refereePassword	UI	Game/Editor	none	"""none"""	ARCHIVE	1		table	src/ui/ui_main.c	10699	ET SDK inherited	no
+sensitivity	CGame	Game/Editor	5	"""5"""	ARCHIVE	1		table	src/cgame/cg_main.c	535	ET SDK inherited	yes
+server1	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10560	ET SDK inherited	no
+server10	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10569	ET SDK inherited	no
+server11	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10570	ET SDK inherited	no
+server12	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10571	ET SDK inherited	no
+server13	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10572	ET SDK inherited	no
+server14	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10573	ET SDK inherited	no
+server15	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10574	ET SDK inherited	no
+server16	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10575	ET SDK inherited	no
+server2	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10561	ET SDK inherited	no
+server3	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10562	ET SDK inherited	no
+server4	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10563	ET SDK inherited	no
+server5	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10564	ET SDK inherited	no
+server6	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10565	ET SDK inherited	no
+server7	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10566	ET SDK inherited	no
+server8	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10567	ET SDK inherited	no
+server9	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10568	ET SDK inherited	no
+server_autoconfig	QGame	Game/Editor	0	"""0"""	0	0		table	src/game/g_main.c	408	ET SDK inherited	no
+server_autoconfig	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10710	ET SDK inherited	no
+server_motd0	QGame	Game/Editor	 ^NEnemy Territory ^7MOTD 	""" ^NEnemy Territory ^7MOTD """	0	0		table	src/game/g_main.c	409	ET SDK inherited	no
+server_motd0	UI	Game/Editor	 ^NEnemy Territory ^7MOTD 	""" ^NEnemy Territory ^7MOTD """	ARCHIVE	1		table	src/ui/ui_main.c	10711	ET SDK inherited	no
+server_motd1	QGame	Game/Editor		""""""	0	0		table	src/game/g_main.c	410	ET SDK inherited	no
+server_motd1	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10712	ET SDK inherited	no
+server_motd2	QGame	Game/Editor		""""""	0	0		table	src/game/g_main.c	411	ET SDK inherited	no
+server_motd2	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10713	ET SDK inherited	no
+server_motd3	QGame	Game/Editor		""""""	0	0		table	src/game/g_main.c	412	ET SDK inherited	no
+server_motd3	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10714	ET SDK inherited	no
+server_motd4	QGame	Game/Editor		""""""	0	0		table	src/game/g_main.c	413	ET SDK inherited	no
+server_motd4	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10715	ET SDK inherited	no
+server_motd5	QGame	Game/Editor		""""""	0	0		table	src/game/g_main.c	414	ET SDK inherited	no
+server_motd5	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10716	ET SDK inherited	no
+sv_cheats	QGame	Game/Editor		""""""	0	0		table	src/game/g_main.c	259	ET SDK inherited	yes
+sv_gametype	QGame	Game/Editor	0	"""0"""	ROM	64		table	src/game/g_main.c	269	pre-versioned TC:E registration	no
+sv_mapname	QGame	Game/Editor		""""""	SERVERINFO|ROM	68		table	src/game/g_main.c	265	ET SDK inherited	yes
+sv_maxclients	QGame	Game/Editor	20	"""20"""	ARCHIVE|SERVERINFO|LATCH	37		table	src/game/g_main.c	285	ET SDK inherited	yes
+sv_maxRate	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10701	ET SDK inherited	yes
+sv_official	QGame	Game/Editor	1	"""1"""	SERVERINFO	4		table	src/game/g_main.c	270	pre-versioned TC:E registration	no
+sv_privatepassword	QGame	Game/Editor		""""""	TEMP	256		table	src/game/g_main.c	339	ET SDK inherited	yes
+tce_pose	CGame	Game/Editor	0	"""0"""	USERINFO|ROM	66		direct	src/cgame/cg_tce_pose_presentation.c	23	TCE2 added registration	no
+tce_poseChallengeCounter	QGame	Game/Editor	0	"""0"""	ROM	64		direct	src/game/g_tce_pose_presentation.c	82	TCE2 added registration	no
+tce_poseProtocol	QGame	Game/Editor	2	"""2"""	SERVERINFO|ROM	68		direct	src/game/g_tce_pose_presentation.c	114	TCE2 added registration	no
+tce_poseStep	QGame	Game/Editor	50	"""50"""	SERVERINFO|ROM	68		direct	src/game/g_tce_pose_presentation.c	115	TCE2 added registration	no
+tce_scannerRecipientPackets	QGame	Game/Editor	1	"""1"""	SERVERINFO|LATCH	36		direct	src/game/g_spawn.c	1307	TCE2 added registration	no
+tce_version	QGame	Game/Editor	<TCE_VERSION>	TCE_VERSION	SERVERINFO|ROM	68		table	src/game/g_main.c	279	pre-versioned TC:E registration	no
+tceft	CGame	Game/Editor	1	"""1"""	USERINFO|ROM	66		direct	src/cgame/cg_tce_fireteam.c	30	TCE2 added registration	no
+tceftgear	CGame	Game/Editor	1	"""1"""	USERINFO|ROM	66		direct	src/cgame/cg_tce_fireteam.c	31	TCE2 added registration	no
+team_maxPanzers	QGame	Game/Editor	-1	"""-1"""	0	0		table	src/game/g_main.c	415	ET SDK inherited	no
+team_maxPanzers	UI	Game/Editor	-1	"""-1"""	ARCHIVE	1		table	src/ui/ui_main.c	10717	ET SDK inherited	no
+team_maxplayers	QGame	Game/Editor	0	"""0"""	0	0		table	src/game/g_main.c	416	ET SDK inherited	no
+team_maxplayers	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10718	ET SDK inherited	no
+team_nocontrols	QGame	Game/Editor	1	"""1"""	0	0		table	src/game/g_main.c	417	ET SDK inherited	no
+team_nocontrols	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10719	ET SDK inherited	no
+timelimit	QGame	Game/Editor	0	"""0"""	ARCHIVE|SERVERINFO|NORESTART	1029		table	src/game/g_main.c	291	ET SDK inherited	no
+timescale	CGame	Game/Editor	1	"""1"""	0	0		table	src/cgame/cg_main.c	455	ET SDK inherited	no
+ui_autoredirect	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10757	ET SDK inherited	no
+ui_backgroundCountry	UI+CGame	Game/Editor	DE	"""DE"""	ARCHIVE	1	(!defined(CGAMEDLL))	paired-array	src/ui/tce_modern_ui.c	187	TCE2 added registration	no
+ui_backgroundCountry	UI+CGame	Game/Editor	DE	"""DE"""	ARCHIVE	1	(!defined(CGAMEDLL))	direct	src/ui/tce_modern_ui.c	230	TCE2 added registration	no
+ui_backgroundLast	UI+CGame	Game/Editor	0	"""0"""	ARCHIVE	1	(!defined(CGAMEDLL))	paired-array	src/ui/tce_modern_ui.c	187	TCE2 added registration	no
+ui_backgroundLast	UI+CGame	Game/Editor	0	"""0"""	ARCHIVE	1	(!defined(CGAMEDLL))	direct	src/ui/tce_modern_ui.c	227	TCE2 added registration	no
+ui_backgroundMode	UI+CGame	Game/Editor	0	"""0"""	ARCHIVE	1	(!defined(CGAMEDLL))	paired-array	src/ui/tce_modern_ui.c	187	TCE2 added registration	no
+ui_backgroundMode	UI+CGame	Game/Editor	0	"""0"""	ARCHIVE	1	(!defined(CGAMEDLL))	direct	src/ui/tce_modern_ui.c	229	TCE2 added registration	no
+ui_backgroundSession	UI+CGame	Game/Editor	0	"""0"""	0	0	(!defined(CGAMEDLL))	direct	src/ui/tce_modern_ui.c	228	TCE2 added registration	no
+ui_backgroundWinterMonths	UI+CGame	Game/Editor	auto	"""auto"""	ARCHIVE	1	(!defined(CGAMEDLL))	paired-array	src/ui/tce_modern_ui.c	187	TCE2 added registration	no
+ui_backgroundWinterMonths	UI+CGame	Game/Editor	auto	"""auto"""	ARCHIVE	1	(!defined(CGAMEDLL))	direct	src/ui/tce_modern_ui.c	231	TCE2 added registration	no
+ui_bigFont	CGame	Game/Editor	0.4	"""0.4"""	ARCHIVE	1		table	src/cgame/cg_main.c	466	ET SDK inherited	no
+ui_blackout	CGame	Game/Editor	0	"""0"""	ROM	64		table	src/cgame/cg_main.c	536	ET SDK inherited	no
+ui_blackout	UI	Game/Editor	0	"""0"""	ROM	64		table	src/ui/ui_main.c	10684	ET SDK inherited	no
+ui_browserGameType	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10597	ET SDK inherited	no
+ui_browserMaster	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10596	ET SDK inherited	no
+ui_browserShowAntilag	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10604	ET SDK inherited	no
+ui_browserShowEmptyOrFull	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10599	ET SDK inherited	no
+ui_browserShowFriendlyFire	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10601	ET SDK inherited	no
+ui_browserShowMaxlives	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10602	ET SDK inherited	no
+ui_browserShowPasswordProtected	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10600	ET SDK inherited	no
+ui_browserShowPunkBuster	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10603	ET SDK inherited	no
+ui_browserShowTeamBalanced	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10606	ET SDK inherited	no
+ui_browserShowWeaponsRestricted	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10605	ET SDK inherited	no
+ui_browserSortKey	UI	Game/Editor	4	"""4"""	ARCHIVE	1		table	src/ui/ui_main.c	10598	ET SDK inherited	no
+ui_campaignIndex	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10673	ET SDK inherited	no
+ui_cdkeychecked	UI	Game/Editor	0	"""0"""	ROM	64		table	src/ui/ui_main.c	10578	ET SDK inherited	no
+ui_class	UI	Game/Editor	Soldier	"""Soldier"""	0	0		table	src/ui/ui_main.c	10626	ET SDK inherited	no
+ui_cmd	UI	Game/Editor		""""""	0	0		table	src/ui/ui_main.c	10616	ET SDK inherited	no
+ui_ctf_capturelimit	UI	Game/Editor	8	"""8"""	ARCHIVE	1		table	src/ui/ui_main.c	10520	ET SDK inherited	no
+ui_ctf_friendly	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10522	ET SDK inherited	no
+ui_ctf_timelimit	UI	Game/Editor	30	"""30"""	ARCHIVE	1		table	src/ui/ui_main.c	10521	ET SDK inherited	no
+ui_currentCampaign	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10671	ET SDK inherited	no
+ui_currentCampaignCompleted	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10674	ET SDK inherited	no
+ui_currentMap	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10593	ET SDK inherited	no
+ui_currentNetCampaign	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10672	ET SDK inherited	no
+ui_currentNetMap	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10594	ET SDK inherited	no
+ui_dedicated	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10577	ET SDK inherited	no
+ui_ffa_fraglimit	UI	Game/Editor	20	"""20"""	ARCHIVE	1		table	src/ui/ui_main.c	10513	ET SDK inherited	no
+ui_ffa_timelimit	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10514	ET SDK inherited	no
+ui_gametype	UI	Game/Editor	5	"""5"""	ARCHIVE	1		table	src/ui/ui_main.c	10583	ET SDK inherited	no
+ui_glCustom	UI	Game/Editor	4	"""4"""	ARCHIVE	1		table	src/ui/ui_main.c	10512	ET SDK inherited	no
+ui_handedness	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10744	ET SDK inherited	no
+ui_isSpectator	UI	Game/Editor	1	"""1"""	0	0		table	src/ui/ui_main.c	10629	ET SDK inherited	no
+ui_joinGametype	UI	Game/Editor	-1	"""-1"""	ARCHIVE	1		table	src/ui/ui_main.c	10584	ET SDK inherited	no
+ui_limboMode	UI	Game/Editor	0	"""0"""	0	0		table	src/ui/ui_main.c	10622	ET SDK inherited	no
+ui_limboObjective	UI	Game/Editor	0	"""0"""	0	0		table	src/ui/ui_main.c	10615	ET SDK inherited	no
+ui_limboOptions	UI	Game/Editor	0	"""0"""	0	0		table	src/ui/ui_main.c	10613	ET SDK inherited	no
+ui_limboPrevOptions	UI	Game/Editor	0	"""0"""	0	0		table	src/ui/ui_main.c	10614	ET SDK inherited	no
+ui_mapIndex	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10592	ET SDK inherited	no
+ui_master	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10548	ET SDK inherited	no
+ui_menuFiles	UI	Game/Editor	ui/menus_gt5.txt	"""ui/menus_gt5.txt"""	ARCHIVE	1		table	src/ui/ui_main.c	10582	ET SDK inherited	no
+ui_menuMaxHeight	CGame	Game/Editor	1080	"""1080"""	ARCHIVE	1		direct	src/cgame/cg_hud_viewport.c	19	TCE2 added registration	no
+ui_menuMaxHeight	UI	Game/Editor	1080	"""1080"""	ARCHIVE	1		table	src/ui/ui_main.c	10505	TCE2 added registration	no
+ui_menuScale	CGame	Game/Editor	1	"""1"""	ARCHIVE	1		direct	src/cgame/cg_hud_viewport.c	18	TCE2 added registration	no
+ui_menuScale	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10504	TCE2 added registration	no
+ui_netGametype	UI	Game/Editor	5	"""5"""	ARCHIVE	1		table	src/ui/ui_main.c	10585	ET SDK inherited	no
+ui_netSource	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10581	ET SDK inherited	no
+ui_notebookCurrentPage	UI	Game/Editor	1	"""1"""	ROM	64		table	src/ui/ui_main.c	10588	ET SDK inherited	no
+ui_objective	UI	Game/Editor		""""""	0	0		table	src/ui/ui_main.c	10623	ET SDK inherited	no
+ui_prevClass	UI	Game/Editor	-1	"""-1"""	0	0		table	src/ui/ui_main.c	10619	ET SDK inherited	no
+ui_prevTeam	UI	Game/Editor	-1	"""-1"""	0	0		table	src/ui/ui_main.c	10618	ET SDK inherited	no
+ui_prevWeapon	UI	Game/Editor	-1	"""-1"""	0	0		table	src/ui/ui_main.c	10620	ET SDK inherited	no
+ui_profile	UI	Game/Editor		""""""	ROM	64		table	src/ui/ui_main.c	10670	ET SDK inherited	no
+ui_profile_mousePitch	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10746	ET SDK inherited	no
+ui_Q3Model	UI	Game/Editor	1	"""1"""	0	0		table	src/ui/ui_main.c	10610	ET SDK inherited	no
+ui_r_gamma	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10742	ET SDK inherited	no
+ui_r_mode	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10741	ET SDK inherited	no
+ui_rate	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10743	ET SDK inherited	no
+ui_sensitivity	UI	Game/Editor		""""""	ARCHIVE	1		table	src/ui/ui_main.c	10745	ET SDK inherited	no
+ui_serverStatusTimeOut	UI	Game/Editor	7000	"""7000"""	ARCHIVE	1		table	src/ui/ui_main.c	10608	ET SDK inherited	no
+ui_showtooltips	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10754	ET SDK inherited	no
+ui_smallFont	CGame	Game/Editor	0.25	"""0.25"""	ARCHIVE	1		table	src/cgame/cg_main.c	465	ET SDK inherited	no
+ui_spSelection	UI	Game/Editor		""""""	ROM	64		table	src/ui/ui_main.c	10547	ET SDK inherited	no
+ui_team	UI	Game/Editor	Axis	"""Axis"""	0	0		table	src/ui/ui_main.c	10625	ET SDK inherited	no
+ui_team_fraglimit	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10516	ET SDK inherited	no
+ui_team_friendly	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10518	ET SDK inherited	no
+ui_team_timelimit	UI	Game/Editor	20	"""20"""	ARCHIVE	1		table	src/ui/ui_main.c	10517	ET SDK inherited	no
+ui_teamArenaFirstRun	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10544	ET SDK inherited	no
+ui_themeAccentB	UI+CGame	Game/Editor	.27	""".27"""	ARCHIVE	1		formatted-array	src/ui/tce_modern_theme.inc	49	TCE2 added registration	no
+ui_themeAccentG	UI+CGame	Game/Editor	.73	""".73"""	ARCHIVE	1		formatted-array	src/ui/tce_modern_theme.inc	49	TCE2 added registration	no
+ui_themeAccentR	UI+CGame	Game/Editor	.96	""".96"""	ARCHIVE	1		formatted-array	src/ui/tce_modern_theme.inc	49	TCE2 added registration	no
+ui_themeBackgroundB	UI+CGame	Game/Editor	.075	""".075"""	ARCHIVE	1		formatted-array	src/ui/tce_modern_theme.inc	50	TCE2 added registration	no
+ui_themeBackgroundG	UI+CGame	Game/Editor	.055	""".055"""	ARCHIVE	1		formatted-array	src/ui/tce_modern_theme.inc	50	TCE2 added registration	no
+ui_themeBackgroundR	UI+CGame	Game/Editor	.035	""".035"""	ARCHIVE	1		formatted-array	src/ui/tce_modern_theme.inc	50	TCE2 added registration	no
+ui_themeOpacity	UI+CGame	Game/Editor	.85	""".85"""	ARCHIVE	1		direct	src/ui/tce_modern_theme.inc	46	TCE2 added registration	no
+ui_themeOpacityPreset	UI+CGame	Game/Editor	0	"""0"""	ARCHIVE	1		direct	src/ui/tce_modern_theme.inc	45	TCE2 added registration	no
+ui_themePreset	UI+CGame	Game/Editor	0	"""0"""	ARCHIVE	1		direct	src/ui/tce_modern_theme.inc	44	TCE2 added registration	no
+ui_userAlliedRespawnTime	UI	Game/Editor	0	"""0"""	0	0		table	src/ui/ui_main.c	10539	ET SDK inherited	no
+ui_userAxisRespawnTime	UI	Game/Editor	0	"""0"""	0	0		table	src/ui/ui_main.c	10540	ET SDK inherited	no
+ui_userTimeLimit	UI	Game/Editor	0	"""0"""	0	0		table	src/ui/ui_main.c	10538	ET SDK inherited	no
+ui_weapon	UI	Game/Editor	MP 40	"""MP 40"""	0	0		table	src/ui/ui_main.c	10627	ET SDK inherited	no
+URL	QGame	Game/Editor		""""""	ARCHIVE|SERVERINFO	5		table	src/game/g_main.c	476	ET SDK inherited	no
+vote_allow_antilag	QGame	Game/Editor	1	"""1"""	0	0		table	src/game/g_main.c	432	ET SDK inherited	no
+vote_allow_antilag	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10733	ET SDK inherited	no
+vote_allow_balancedteams	QGame	Game/Editor	1	"""1"""	0	0		table	src/game/g_main.c	433	ET SDK inherited	no
+vote_allow_comp	QGame	Game/Editor	1	"""1"""	0	0		table	src/game/g_main.c	418	ET SDK inherited	no
+vote_allow_comp	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10720	ET SDK inherited	no
+vote_allow_friendlyfire	QGame	Game/Editor	1	"""1"""	0	0		table	src/game/g_main.c	429	ET SDK inherited	no
+vote_allow_friendlyfire	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10730	ET SDK inherited	no
+vote_allow_gametype	QGame	Game/Editor	1	"""1"""	0	0		table	src/game/g_main.c	419	ET SDK inherited	no
+vote_allow_gametype	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10721	ET SDK inherited	no
+vote_allow_kick	QGame	Game/Editor	1	"""1"""	0	0		table	src/game/g_main.c	420	ET SDK inherited	no
+vote_allow_kick	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10722	ET SDK inherited	no
+vote_allow_kick	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10735	ET SDK inherited	no
+vote_allow_map	QGame	Game/Editor	1	"""1"""	0	0		table	src/game/g_main.c	421	ET SDK inherited	no
+vote_allow_map	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10723	ET SDK inherited	no
+vote_allow_matchreset	QGame	Game/Editor	1	"""1"""	0	0		table	src/game/g_main.c	422	ET SDK inherited	no
+vote_allow_mutespecs	QGame	Game/Editor	1	"""1"""	0	0		table	src/game/g_main.c	423	ET SDK inherited	no
+vote_allow_mutespecs	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10724	ET SDK inherited	no
+vote_allow_muting	QGame	Game/Editor	1	"""1"""	0	0		table	src/game/g_main.c	434	ET SDK inherited	no
+vote_allow_muting	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10734	ET SDK inherited	no
+vote_allow_nextmap	QGame	Game/Editor	1	"""1"""	0	0		table	src/game/g_main.c	424	ET SDK inherited	no
+vote_allow_nextmap	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10725	ET SDK inherited	no
+vote_allow_pub	QGame	Game/Editor	1	"""1"""	0	0		table	src/game/g_main.c	425	ET SDK inherited	no
+vote_allow_pub	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10726	ET SDK inherited	no
+vote_allow_referee	QGame	Game/Editor	0	"""0"""	0	0		table	src/game/g_main.c	426	ET SDK inherited	no
+vote_allow_referee	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10727	ET SDK inherited	no
+vote_allow_shuffleteamsxp	QGame	Game/Editor	1	"""1"""	0	0		table	src/game/g_main.c	427	ET SDK inherited	no
+vote_allow_shuffleteamsxp	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10728	ET SDK inherited	no
+vote_allow_swapteams	QGame	Game/Editor	1	"""1"""	0	0		table	src/game/g_main.c	428	ET SDK inherited	no
+vote_allow_swapteams	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10729	ET SDK inherited	no
+vote_allow_timelimit	QGame	Game/Editor	0	"""0"""	0	0		table	src/game/g_main.c	430	ET SDK inherited	no
+vote_allow_timelimit	UI	Game/Editor	0	"""0"""	ARCHIVE	1		table	src/ui/ui_main.c	10731	ET SDK inherited	no
+vote_allow_warmupdamage	QGame	Game/Editor	1	"""1"""	0	0		table	src/game/g_main.c	431	ET SDK inherited	no
+vote_allow_warmupdamage	UI	Game/Editor	1	"""1"""	ARCHIVE	1		table	src/ui/ui_main.c	10732	ET SDK inherited	no
+vote_limit	QGame	Game/Editor	5	"""5"""	0	0		table	src/game/g_main.c	435	ET SDK inherited	no
+vote_limit	UI	Game/Editor	5	"""5"""	ARCHIVE	1		table	src/ui/ui_main.c	10736	ET SDK inherited	no
+vote_percent	QGame	Game/Editor	50	"""50"""	0	0		table	src/game/g_main.c	436	ET SDK inherited	no
+vote_percent	UI	Game/Editor	50	"""50"""	ARCHIVE	1		table	src/ui/ui_main.c	10737	ET SDK inherited	no
+voteFlags	QGame	Game/Editor	0	"""0"""	SERVERINFO|ROM|TEMP	324		table	src/game/g_main.c	366	ET SDK inherited	no
+wolfadmin_password	QGame	Game/Editor		""""""	0	0	FEATURE_LUA	direct	src/game/tce_lua.c	216	TCE2 added registration	no
+z_serverflags	QGame	Game/Editor	0	"""0"""	0	0		table	src/game/g_main.c	439	ET SDK inherited	no

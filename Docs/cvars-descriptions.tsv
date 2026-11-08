@@ -1,0 +1,107 @@
+name	group	purpose	values
+cg_wideScreen	HUD and names	Use resolution-aware, proportional HUD coordinates. Disabling this restores the retained legacy aspect path for ordinary HUD elements.	0 off; 1 on
+cg_hudScale	HUD and names	Scale the general HUD around each widget's screen anchor. Compass, fireteam panel and expanded command map have separate controls.	0.5–1.5; fitted to the screen
+cg_hudMaxHeight	HUD and names	Cap the nominal physical height used by the general HUD before its scale is applied.	Positive pixel height; 0 removes this cap
+ui_menuScale	HUD and names	Scale ordinary menus. The startup main menu, full-frame backgrounds, loading screens and compact voice menu deliberately use separate fixed/fitted scopes.	0.5–1.5; controls remain on screen
+ui_menuMaxHeight	HUD and names	Cap the nominal height of ordinary menus before ui_menuScale.	Positive pixel height; 0 removes this cap
+cg_compassScale	HUD and names	Resize the top-right compass independently of general HUD/menu size.	0.5–1.5; screen bounds still apply
+cg_fireteamScale	HUD and names	Resize the top-left fireteam panel independently of general HUD/menu size.	0.5–1.5; screen bounds still apply
+cg_commandMapScale	HUD and names	Resize the expanded command map independently of the HUD and compass. Its border and content share a right-anchored, uniform projection.	0.5–1.5; View → Widget Size
+cg_drawTeamNames	HUD and names	Show teammate names above their heads. Teammates are white, own-fireteam names light green; only the last visible position briefly fades after occlusion.	0 off; 1 team; 2 own fireteam only
+cg_drawCrosshairNames	HUD and names	Show the name of the player under the crosshair; this is separate from overhead team labels.	0 off; 1 on
+cg_drawFriend	HUD and names	Legacy teammate identification icons and nearby teammate indicators. This is separate from cg_drawTeamNames.	0 off; 1 visible; 2 always, subject to the retained rendering rules
+cg_drawIcons	HUD and names	Enable icon/model details in the TCE fireteam presentation.	0 off; 1 on
+cg_drawFireteamOverlay	HUD and names	Show the fireteam HUD when the local player belongs to a fireteam. Existing SDK setting with a TCE-specific renderer.	0 off; nonzero on
+cg_drawCompass	HUD and names	Choose the compass presentation. The TCE map/blueprint options require corresponding map artwork; the renderer retains a safe fallback if art is missing.	0 off; 1 classic; 2 map; 3 blueprint
+cg_countryflags	HUD and names	Show available country flags beside scoreboard player names. Requires server country data.	0 off; 1 on
+ui_themePreset	Menu appearance	Choose the optional modern menu palette. Existing palette IDs are preserved; RGB controls are used only for Custom.	0 Gold; 1 Cyan; 2 Red; 3 Green; 4 Custom; 5 Black/Grey; 6 Grey/Black; 7 Slate; 8 Copper; 9 Violet
+ui_themeOpacityPreset	Menu appearance	Select surface opacity. This affects menu surfaces, not text opacity or gameplay rendering.	0 Solid; 1 Balanced (0.85); 2 Clear (0.60); 3 Custom
+ui_themeOpacity	Menu appearance	Custom surface opacity, used only when ui_themeOpacityPreset is 3.	0.25–1; larger values are more opaque
+ui_themeAccentR	Menu appearance	Custom accent red channel; used when ui_themePreset is 4.	0–1
+ui_themeAccentG	Menu appearance	Custom accent green channel; used when ui_themePreset is 4.	0–1
+ui_themeAccentB	Menu appearance	Custom accent blue channel; used when ui_themePreset is 4.	0–1
+ui_themeBackgroundR	Menu appearance	Custom menu-surface red channel; used when ui_themePreset is 4.	0–1
+ui_themeBackgroundG	Menu appearance	Custom menu-surface green channel; used when ui_themePreset is 4.	0–1
+ui_themeBackgroundB	Menu appearance	Custom menu-surface blue channel; used when ui_themePreset is 4.	0–1
+ui_backgroundMode	Background selection	Choose seasonal, optional weather-driven, or time-of-day-only background selection. The selection is made once per game process and kept through UI/map reloads.	0 Season; 1 Live weather; 2 Time of day only
+ui_backgroundCountry	Background selection	Country code used for seasonal artwork rules. It is not an IP-derived location or an observed snow report.	Two-letter uppercase country code; default DE
+ui_backgroundWinterMonths	Background selection	Override the seasonal winter-artwork months. Automatic defaults use northern or southern winter rules; unknown/tropical countries do not infer snow.	auto; none; or comma-separated months 1–12, such as 12,1,2
+ui_backgroundLast	Background selection	Archived previous background selection, used to avoid immediately repeating the same appropriate picture.	Internal selection ID; normally leave unchanged
+ui_backgroundSession	Background selection	Current process background selection. This is transient UI state rather than a permanent picture selector.	0 before selection; internal IDs 1–16
+g_gametype	Server gameplay	Server game mode. Select it before startup/map load; changing it inside a running TCE game does not perform a supported mode transition. CGame's registration is only a mirror.	2 Reinforced Objective; 5 Objective; 7 Bodycount
+sv_official	Server gameplay	Retained TC:E official-map policy. Custom-map and custom-mode setups commonly start with this disabled.	0 permits custom setups; 1 applies the official-map policy
+sv_gametype	Server gameplay	Read-only TC:E game-type state, separate from the operator-facing g_gametype selection.	Engine/game-maintained; do not configure
+g_mapScriptDirectory	Server gameplay	Directory checked for custom mapscript overrides before the packaged map script. An empty registered default does not mean that local launch configurations cannot select mapscripts.	Empty or an override directory such as mapscripts
+g_newbbox	Server gameplay	Select the retained TC:E player-body/hull profile; the presentation/hit-registration code also uses this profile's scale.	0 legacy smaller profile; 1 enlarged profile; set consistently before playing
+g_realism	Server gameplay	Retained TC:E realism/movement profile. In particular, 1 selects the normal 0.45 run-speed scale; the alternate branch uses 0.51.	Legacy server policy; default 1
+g_leanmode	Server gameplay	Retained TC:E lean presentation and shot-position policy, published to clients.	0 versus positive values select the retained lean policies
+g_killmessage	Server gameplay	Retained kill-message policy published to clients; distinct from the new HUD scaling settings.	Legacy TC:E mode value
+g_starthonor	Server gameplay	Initial honor/armament-progression setting used by the retained TC:E round rules.	Legacy server setting; default 0
+g_aabasetime	Server gameplay	Read-only armament-availability progression interval. Mapscript actions set it; non-GT5 modes use the interval in minutes.	Internal/map-script-owned minutes; default 5
+g_botvar	Server gameplay	Multiplier used by the retained TC:E bot-info enemy-selection probability code. It is not an Omni-bot crowd-distance or skill control.	Legacy multiplier; default 1.0
+g_antilag	Server gameplay	Existing SDK antialag setting extended with optional TCE hit-debug layers. Bit 1 enables rewind; bits 2 and 4 request the corresponding rewound/current diagnostic shot layers.	Bitmask: 1 rewind; 2 rewound-shot diagnostics; 4 current-shot diagnostics
+g_debugBullets	Server gameplay	Existing cheat-protected bullet diagnostic selector. TCE additions use bit 2 for box/trace drawing, 4 for periodic samples, and 8 for bounded diagnostic logging.	0 off; combine supported diagnostic bits; sv_cheats is required
+g_debugBulletsClient	Server gameplay	Limit TCE hit diagnostics to a client slot.	-1 all; otherwise a valid client number
+g_countryflags	Server information and administration	Enable server country lookup and choose bot nationality handling. Uses an optional local IPv4 GeoIP.dat; missing data falls back to unknown/local identifiers.	0 off; 1 real players plus configured server address for bots; 2 random bot country icons
+g_oss	Server information and administration	Advertise available client-platform binaries to compatible browsers. This does not install modules, enforce architecture access or detect deployed files.	Bitmask; 2047 advertises all eleven represented platform flags
+lua_modules	Server information and administration	Space/semicolon-separated server Lua module paths loaded by the optional FEATURE_LUA runtime. Use lua_restart in the server console/RCON after changing the list.	Empty disables module loading; example lua/wolfadmin/main.lua
+wolfadmin_password	Server information and administration	Optional WolfAdmin session-login password. Empty disables password login; keep a configured value in a server-private configuration.	Empty or a private operator-selected password; not serverinfo/userinfo
+g_wolfadminTrustGuid	Server information and administration	Explicitly allow WolfAdmin to trust a unique valid client-supplied GUID. TCE's GUIDs are not engine-authenticated; console administration does not need this opt-in.	0 default distrust; 1 explicit GUID trust opt-in
+cl_guid	Server information and administration	Existing engine/client identity variable. The UI preserves a valid existing GUID, otherwise derives one from an existing etmain/etkey for classic ET; it does not create or replace the key.	32 hexadecimal characters supplied/derived at runtime; not a fixed default
+omnibot_enable	Omni-bot runtime	Load the optional Omni-bot gameplay runtime on map initialization. The matching core library and scripts must be installed.	0 off; 1 on; latched
+omnibot_path	Omni-bot runtime	Optional Omni-bot core-library search path. Empty uses the loader's platform-specific search locations.	Empty or a configured core-library directory; latched
+omnibot_flags	Omni-bot runtime	Retained Omni-bot option bitmask. Its declared bits cover XP-save, tank/gun mounting, advertised bot count, gib targeting, mine handling and shove integration; only applicable TCE interactions have an effect.	0 baseline; declared bits 1, 2, 4, 8, 16, 32, 64
+omnibot_playing	Omni-bot runtime	Read-only bot-count/status information maintained by the integration.	0 initially; positive active count; -1 when disabled in the update path
+omnibot_tce_explore	Omni-bot runtime	Allow the TCE exploration goal when normal objective/combat conditions permit. It still uses installed navigation and cannot invent missing paths.	0 off; 1 on
+bot_editWaypoints	Editor-only controls	Original navigation-editing state retained only in FEATURE_NAVSTUDIO authoring builds.	Transient editor state; not a public Game control
+cg_omnibotdrawing	Editor-only controls	Master Omni-bot waypoint/goal drawing switch in the authoring CGame.	0 off; 1 on; requires the Editor variant
+cg_omnibot_render_distance	Editor-only controls	Maximum distance for authoring navigation/goal drawing, limiting submitted debug geometry.	Game units; default 800; requires the Editor variant
+omnibot_tce_explore_debug	Editor-only controls	Native registration for exploration diagnostics is restricted to FEATURE_NAVSTUDIO. Some installed GM scripts also read this name.	0 silent; nonzero script diagnostics; no public authoring interface
+tce_version	Protocol and internal state	Read-only TCE2 mod version string compiled from TCE_VERSION.	1.0.4 in the current source; version marker, not a tuning setting
+tce_pose	Protocol and internal state	CGame userinfo capability/acknowledgement for the shared pose-presentation protocol. The server issues and validates the runtime challenge.	0 initially; protocol-generated acknowledgement; do not set manually
+tce_poseChallengeCounter	Protocol and internal state	Server-maintained counter used to issue pose-protocol challenges.	Internal read-only counter
+tce_poseProtocol	Protocol and internal state	Server pose-presentation protocol identifier.	2; read-only serverinfo
+tce_poseStep	Protocol and internal state	Server-published pose update step. The initial 50 ms registration is replaced with the observed valid frame step.	Read-only milliseconds; 50 is the initialization fallback
+tce_scannerRecipientPackets	Protocol and internal state	Enable the TCE scanner/compass recipient-packet extension.	0 opt out; 1 enabled; latched serverinfo
+tceft	Protocol and internal state	Client userinfo capability for TCE fireteam information.	1; read-only capability declaration
+tceftgear	Protocol and internal state	Client userinfo capability for the richer fireteam equipment payload.	1; read-only capability declaration
+cg_aspectMode	Legacy TC:E controls	Legacy aspect-canvas selector. Automatic widescreen handling bypasses this selector for ordinary HUD geometry.	Retained mode values 0–2
+cg_aspectFovMode	Legacy TC:E controls	Legacy field-of-view adaptation policy for the selected TC:E aspect mode.	Retained policy values 0–2
+cg_dynamicEye	Legacy TC:E controls	Strength of the retained screen-brightness/eye-adaptation effect; this does not add an HDR renderer to the engine.	0 disables; the View slider exposes 0–1
+cg_freeAim	Legacy TC:E controls	Enable the TC:E free-aim input policy; the preference is sent in userinfo.	0 off; 1 on
+cg_gunPosition	Legacy TC:E controls	Horizontal first-person weapon placement.	0 more centered; 1 default; 2 more to the right
+cg_portalScopes	Legacy TC:E controls	Enable the retained second-scene/portal scope presentation where the selected weapon supports it.	0 off; 1 on
+cg_predictBullets	Legacy TC:E controls	Enable the retained client bullet-effect prediction path. Server damage remains authoritative.	0 off; 1 on
+cg_toggleAiming	Legacy TC:E controls	Choose toggle-style aiming instead of holding the aiming action.	0 hold; 1 toggle
+cg_toggleCrouch	Legacy TC:E controls	Choose toggle-style crouching instead of holding crouch.	0 hold; 1 toggle
+cg_gunPitch	Legacy TC:E diagnostics	Developer first-person weapon pitch offset.	Cheat-protected angle adjustment
+cg_gunYaw	Legacy TC:E diagnostics	Developer first-person weapon yaw offset.	Cheat-protected angle adjustment
+cg_gunRoll	Legacy TC:E diagnostics	Developer first-person weapon roll offset.	Cheat-protected angle adjustment
+cg_tacX	Legacy TC:E diagnostics	Developer tactical first-person weapon X offset.	Cheat-protected position adjustment
+cg_tacY	Legacy TC:E diagnostics	Developer tactical first-person weapon Y offset.	Cheat-protected position adjustment
+cg_tacZ	Legacy TC:E diagnostics	Developer tactical first-person weapon Z offset.	Cheat-protected position adjustment
+cg_gun_foreshorten	Legacy TC:E diagnostics	Override positive weapon-model foreshortening in the retained view-weapon renderer.	0 normal behavior; positive developer override; cheat-protected
+cg_thirdPersonOffset	Legacy TC:E diagnostics	Side offset of the retained third-person camera.	Cheat-protected camera adjustment
+cg_snd_reverb	Legacy TC:E diagnostics	Scale the retained room/sound-zone contribution. It is not an engine-wide new audio backend.	Nominal 0–255; cheat-protected
+cg_hudAlpha	Legacy compatibility registrations	Legacy TC:E archived binding. No current production reader of this variable was identified; modern menu transparency uses ui_themeOpacityPreset/ui_themeOpacity instead.	Registered value retained for compatibility; do not use as the modern transparency control
+cg_specSwing	Legacy compatibility registrations	Legacy archived binding; toggleswing still updates it, but no current presentation consumer was identified.	Compatibility state; not a verified modern camera feature
+cg_vip	Legacy compatibility registrations	Legacy archived binding with no identified current production consumer.	Retained compatibility state
+cg_recording_showstatusline	Legacy compatibility registrations	Legacy transient recording-status binding with no identified current production consumer.	Retained compatibility state
+cg_draw2D	Inherited SDK bindings changed before 1.0.0	Existing HUD drawing switch, made cheat-protected in the TC:E source snapshot.	HUD suppression is additionally restricted by the existing developer check
+cg_drawCrosshair	Inherited SDK bindings changed before 1.0.0	Existing crosshair selector. CGame's TC:E default/cheat flags differ from the UI's inherited archived binding; the registrations share one engine cvar.	Do not infer an effective runtime default from UI's registration alone
+cg_drawGun	Inherited SDK bindings changed before 1.0.0	Existing first-person gun drawing switch. CGame's TC:E binding is cheat-protected; the UI has an archived mirror.	0 hidden; nonzero drawn, subject to gameplay policy
+cg_fov	Inherited SDK bindings changed before 1.0.0	Existing field-of-view setting with TC:E cheat-protected registration. Scope/aspect policies still affect the actual view.	Legacy field-of-view preference; not an unrestricted public FOV override
+cg_shadows	Inherited SDK bindings changed before 1.0.0	Existing player-shadow presentation selector, cheat-protected by the TC:E binding.	Retained legacy selector
+g_autoFireteams	Inherited SDK bindings changed before 1.0.0	Existing automatic fireteam policy; TC:E registers it archived.	0 off; nonzero enabled
+g_friendlyFire	Inherited SDK bindings changed before 1.0.0	Existing friendly-fire policy. QGame uses SERVERINFO + CHEAT; UI adds an archived mirror of the same name.	0 off; 1 on, subject to protection/game-mode rules
+g_gravity	Inherited SDK bindings changed before 1.0.0	Existing world-gravity setting, cheat-protected in this TC:E registration.	Engine/game numeric setting; default 800
+g_speed	Inherited SDK bindings changed before 1.0.0	Existing base movement-speed parameter, cheat-protected in TC:E. Actual TCE movement also applies posture and realism scales.	Default 320; not a direct promise of running speed
+g_lms_matchlimit	Inherited SDK bindings changed before 1.0.0	Existing SDK LMS match-limit binding. QGame and UI retain different registration defaults; TCE's documented public modes are 2, 5 and 7.	Legacy SDK compatibility binding
+g_lms_roundlimit	Inherited SDK bindings changed before 1.0.0	Existing SDK LMS round-limit binding. QGame and UI retain different registration defaults.	Legacy SDK compatibility binding
+g_warmup	Inherited SDK bindings changed before 1.0.0	Existing warmup duration. QGame registers 25, UI's inherited mirror registers 60; server/map configuration and registration order matter.	Seconds; do not treat a UI mirror as the server's configured value
+match_minplayers	Inherited SDK bindings changed before 1.0.0	Existing minimum-player match setting. QGame and UI bindings have different persistence flags.	Default 4
+ui_gametype	Inherited SDK bindings changed before 1.0.0	UI game-type selection state adapted to the TC:E default mode.	UI state, not a substitute for startup g_gametype
+ui_netGametype	Inherited SDK bindings changed before 1.0.0	UI network game-type selection state adapted to TC:E.	UI selection/cache value
+ui_menuFiles	Inherited SDK bindings changed before 1.0.0	UI menu registry path; TC:E selects the appropriate game-type registry.	Initial registry ui/menus_gt5.txt; UI-owned state
+r_fastsky	Engine-owned compatibility binding	Engine renderer cvar also registered by the legacy TC:E CGame with a cheat flag. This is not a newly implemented TCE2 renderer setting.	Use the host engine's documented behavior
+mapname	Engine-owned compatibility binding	Read-only current map information mirrored by several mod subsystems. Repeated binding changes in history are not additions of new maps or game modes.	Engine/server-maintained map name

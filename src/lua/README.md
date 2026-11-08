@@ -102,8 +102,8 @@ C-library calls and caught hook errors are not a complete resource boundary.
 
 No MySQL driver or cross-module IPC,
 client-side Lua or full gentity setter API yet. Omni-bot still uses GameMonkey;
-Lua is an independent game-server extension. Runtime assets remain separate from
-Git. Linux source integration exists but this addition was built/tested on Windows.
+Lua is an independent game-server extension. Scripts are supplied with the shared server runtime. Native Windows/Linux
+module builds are available; validate individual scripts against the selected server.
 
 ## WolfAdmin / API version 3
 

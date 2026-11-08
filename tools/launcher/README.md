@@ -6,13 +6,13 @@ this optional launcher; the mod uses the original ET2.60b engine ABI.
 Windows:
 
 ```powershell
-python launcher/start_game.py --game "C:/Games/ET/et.exe" --location "Berlin" --country DE -- +set fs_game tce2
+python tools/launcher/start_game.py --game "C:/Games/ET/et.exe" --location "Berlin" --country DE -- +set fs_game tce2
 ```
 
 Linux:
 
 ```sh
-python3 launcher/start_game.py --game /games/et/et.x86 --location Berlin --country DE -- +set fs_game tce2
+python3 tools/launcher/start_game.py --game /games/et/et.x86 --location Berlin --country DE -- +set fs_game tce2
 ```
 
 `start_game.ps1` and `start_game.sh` forward the same arguments. `--print-only`

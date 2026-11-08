@@ -1,0 +1,121 @@
+version	date	commit	action	name	before	after	subject
+pre-1.0.0	2026-10-07	f8c5d52	added	bot_editWaypoints		QGame/Game/Editor: '0', flags=256	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_aspectFovMode		CGame/Game/Editor: '1', flags=1	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_aspectMode		CGame/Game/Editor: '0', flags=1	first push
+pre-1.0.0	2026-10-07	f8c5d52	changed	cg_draw2D	CGame/Game/Editor: '1', flags=1	CGame/Game/Editor: '1', flags=512	first push
+pre-1.0.0	2026-10-07	f8c5d52	changed	cg_drawCrosshair	CGame/Game/Editor: '1', flags=1; UI/Game/Editor: '4', flags=1	CGame/Game/Editor: '0', flags=512; UI/Game/Editor: '4', flags=1	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_drawFriend		CGame/Game/Editor: '2', flags=1	first push
+pre-1.0.0	2026-10-07	f8c5d52	changed	cg_drawGun	CGame/Game/Editor: '1', flags=1; UI/Game/Editor: '1', flags=1	CGame/Game/Editor: '1', flags=512; UI/Game/Editor: '1', flags=1	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_dynamicEye		CGame/Game/Editor: '0', flags=1	first push
+pre-1.0.0	2026-10-07	f8c5d52	changed	cg_fov	CGame/Game/Editor: '9E+1', flags=1	CGame/Game/Editor: '9E+1', flags=512	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_freeAim		CGame/Game/Editor: '0', flags=3	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_gun_foreshorten		CGame/Game/Editor: '0', flags=512	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_gunPitch		CGame/Game/Editor: '0', flags=512	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_gunPosition		CGame/Game/Editor: '1', flags=1	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_gunRoll		CGame/Game/Editor: '0', flags=512	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_gunYaw		CGame/Game/Editor: '0', flags=512	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_hudAlpha		CGame/Game/Editor: '0.25', flags=1	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_portalScopes		CGame/Game/Editor: '1', flags=1	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_predictBullets		CGame/Game/Editor: '1', flags=1	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_recording_showstatusline		CGame/Game/Editor: '0', flags=0	first push
+pre-1.0.0	2026-10-07	f8c5d52	changed	cg_shadows	CGame/Game/Editor: '1', flags=1	CGame/Game/Editor: '1', flags=512	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_snd_reverb		CGame/Game/Editor: '255', flags=512	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_specSwing		CGame/Game/Editor: '1', flags=1	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_tacX		CGame/Game/Editor: '0', flags=512	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_tacY		CGame/Game/Editor: '0', flags=512	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_tacZ		CGame/Game/Editor: '0', flags=512	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_thirdPersonOffset		CGame/Game/Editor: '0', flags=512	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_toggleAiming		CGame/Game/Editor: '1', flags=3	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_toggleCrouch		CGame/Game/Editor: '1', flags=3	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	cg_vip		CGame/Game/Editor: '0', flags=1	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	g_aabasetime		QGame/Game/Editor: '5', flags=64	first push
+pre-1.0.0	2026-10-07	f8c5d52	changed	g_autoFireteams	QGame/Game/Editor: '1', flags=1	QGame/Game/Editor: '0', flags=1	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	g_botvar		QGame/Game/Editor: '1', flags=0	first push
+pre-1.0.0	2026-10-07	f8c5d52	changed	g_friendlyFire	QGame/Game/Editor: '1', flags=5; UI/Game/Editor: '1', flags=1	QGame/Game/Editor: '1', flags=516; UI/Game/Editor: '1', flags=1	first push
+pre-1.0.0	2026-10-07	f8c5d52	changed	g_gametype	CGame/Game/Editor: '0', flags=0; QGame/Game/Editor: '4', flags=36; UI/Game/Editor: '4', flags=36	CGame/Game/Editor: '0', flags=0; QGame/Game/Editor: '5', flags=36; UI/Game/Editor: '5', flags=36	first push
+pre-1.0.0	2026-10-07	f8c5d52	changed	g_gravity	QGame/Game/Editor: '8E+2', flags=0	QGame/Game/Editor: '8E+2', flags=512	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	g_killmessage		QGame/Game/Editor: '0', flags=36	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	g_leanmode		QGame/Game/Editor: '1', flags=36	first push
+pre-1.0.0	2026-10-07	f8c5d52	changed	g_lms_matchlimit	QGame/Game/Editor: '2', flags=1; UI/Game/Editor: '2', flags=1	QGame/Game/Editor: '5', flags=1; UI/Game/Editor: '2', flags=1	first push
+pre-1.0.0	2026-10-07	f8c5d52	changed	g_lms_roundlimit	QGame/Game/Editor: '3', flags=1; UI/Game/Editor: '3', flags=1	QGame/Game/Editor: '5', flags=1; UI/Game/Editor: '3', flags=1	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	g_newbbox		QGame/Game/Editor: '1', flags=1028	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	g_realism		QGame/Game/Editor: '1', flags=36	first push
+pre-1.0.0	2026-10-07	f8c5d52	changed	g_speed	QGame/Game/Editor: '3.2E+2', flags=0	QGame/Game/Editor: '3.2E+2', flags=512	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	g_starthonor		QGame/Game/Editor: '0', flags=36	first push
+pre-1.0.0	2026-10-07	f8c5d52	changed	g_warmup	QGame/Game/Editor: '6E+1', flags=1; UI/Game/Editor: '6E+1', flags=1	QGame/Game/Editor: '25', flags=1; UI/Game/Editor: '6E+1', flags=1	first push
+pre-1.0.0	2026-10-07	f8c5d52	changed	match_minplayers	QGame/Game/Editor: '<MATCH_MINPLAYERS>', flags=0; UI/Game/Editor: '<MATCH_MINPLAYERS>', flags=1	QGame/Game/Editor: '4', flags=0; UI/Game/Editor: '4', flags=1	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	r_fastsky		CGame/Game/Editor: '0', flags=512	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	sv_gametype		QGame/Game/Editor: '0', flags=64	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	sv_official		QGame/Game/Editor: '1', flags=4	first push
+pre-1.0.0	2026-10-07	f8c5d52	added	tce_version		QGame/Game/Editor: 'TC:E reconstruction (tce2)', flags=68	first push
+pre-1.0.0	2026-10-07	f8c5d52	changed	ui_gametype	UI/Game/Editor: '3', flags=1	UI/Game/Editor: '5', flags=1	first push
+pre-1.0.0	2026-10-07	f8c5d52	changed	ui_menuFiles	UI/Game/Editor: 'ui/menus.txt', flags=1	UI/Game/Editor: 'ui/menus_gt5.txt', flags=1	first push
+pre-1.0.0	2026-10-07	f8c5d52	changed	ui_netGametype	UI/Game/Editor: '4', flags=1	UI/Game/Editor: '5', flags=1	first push
+pre-1.0.0	2026-10-09	fcf641e	added	cg_omnibot_render_distance		CGame/Game/Editor: '2E+3', flags=1, if (defined(FEATURE_OMNIBOT))	Preserve TCE reconstruction with Omni-bot integration and live fixes
+pre-1.0.0	2026-10-09	fcf641e	added	cg_omnibotdrawing		CGame/Game/Editor: '1', flags=1, if (defined(FEATURE_OMNIBOT))	Preserve TCE reconstruction with Omni-bot integration and live fixes
+pre-1.0.0	2026-10-09	fcf641e	added	omnibot_enable		QGame/Game/Editor: '0', flags=33, if (defined(FEATURE_OMNIBOT))	Preserve TCE reconstruction with Omni-bot integration and live fixes
+pre-1.0.0	2026-10-09	fcf641e	added	omnibot_flags		QGame/Game/Editor: '0', flags=1, if (defined(FEATURE_OMNIBOT))	Preserve TCE reconstruction with Omni-bot integration and live fixes
+pre-1.0.0	2026-10-09	fcf641e	added	omnibot_path		QGame/Game/Editor: '', flags=33, if (defined(FEATURE_OMNIBOT))	Preserve TCE reconstruction with Omni-bot integration and live fixes
+pre-1.0.0	2026-10-09	fcf641e	added	omnibot_playing		QGame/Game/Editor: '0', flags=68, if (defined(FEATURE_OMNIBOT))	Preserve TCE reconstruction with Omni-bot integration and live fixes
+pre-1.0.0	2026-10-09	37fd8bc	added	lua_modules		QGame/Game/Editor: '', flags=1, if FEATURE_LUA	Add optional server Lua runtime and ET-style lifecycle scripting API
+pre-1.0.0	2026-10-09	9f86d22	added	g_wolfadminTrustGuid		QGame/Game/Editor: '0', flags=0, if FEATURE_LUA	Integrate WolfAdmin server administration with LuaSQL and VFS Lua API
+pre-1.0.0	2026-10-09	9f86d22	added	wolfadmin_password		QGame/Game/Editor: '', flags=0, if FEATURE_LUA	Integrate WolfAdmin server administration with LuaSQL and VFS Lua API
+1.0.0	2026-10-10	7707e8c	removed	cg_drawcrosshairnames	CGame/Game/Editor: '1', flags=1; UI/Game/Editor: '1', flags=1		update
+1.0.0	2026-10-10	7707e8c	added	cg_drawTeamNames		CGame/Game/Editor: '1', flags=1; UI/Game/Editor: '1', flags=1	update
+1.0.0	2026-10-10	7707e8c	added	cl_guid		UI/Game/Editor: '', flags=2; UI/Game/Editor: '<guid>', flags=2	update
+1.0.0	2026-10-10	7707e8c	added	g_mapScriptDirectory		QGame/Game/Editor: '', flags=0	update
+1.0.0	2026-10-10	7707e8c	changed	tce_version	QGame/Game/Editor: 'TC:E reconstruction (tce2)', flags=68	QGame/Game/Editor: '<TCE_VERSION>', flags=68	update
+1.0.1	2026-10-18	f7e1622	changed	cg_omnibot_render_distance	CGame/Game/Editor: '2E+3', flags=1, if (defined(FEATURE_OMNIBOT))	CGame/Game/Editor: '8E+2', flags=1, if (defined(FEATURE_OMNIBOT))	update
+1.0.1	2026-10-18	f7e1622	added	omnibot_tce_explore		QGame/Game/Editor: '1', flags=1, if (defined(FEATURE_OMNIBOT))	update
+1.0.1	2026-10-18	f7e1622	added	omnibot_tce_explore_debug		QGame/Game/Editor: '0', flags=0, if (defined(FEATURE_OMNIBOT))	update
+1.0.1	2026-10-23	2fa37ff	added	tce_scannerRecipientPackets		QGame/Game/Editor: '1', flags=36	Reconstruct original scanner and Linux tag transforms
+1.0.1	2026-10-24	4cfc77a	changed	mapname	QGame/Game/Editor: '', flags=68; QGame/Game/Editor: '', flags=68, if (defined(SAVEGAME_SUPPORT)); SDK BotAI/Legacy SDK AI: '', flags=68	QGame/Game/Editor: '', flags=68; QGame/Game/Editor: '', flags=68, if (defined(SAVEGAME_SUPPORT)); QGame/Game/Editor: '', flags=68, if (defined(__linux__)); SDK BotAI/Legacy SDK AI: '', flags=68	Reconstruct Linux TC text waypoint export and legacy costs
+1.0.1	2026-10-26	01f6e91	added	cg_drawCrosshairNames		CGame/Game/Editor: '1', flags=1	Separate NavStudio authoring builds from game modules and fix Windows integration
+1.0.2	2026-10-26	4770335	added	cg_countryflags		CGame/Game/Editor: '1', flags=1	Publish 1.0.2 mod builds with separate navigation authoring and manual releases
+1.0.2	2026-10-26	4770335	changed	cg_drawCrosshairNames	CGame/Game/Editor: '1', flags=1	CGame/Game/Editor: '1', flags=1; UI/Game/Editor: '1', flags=1	Publish 1.0.2 mod builds with separate navigation authoring and manual releases
+1.0.2	2026-10-26	4770335	changed	cg_drawTeamNames	CGame/Game/Editor: '1', flags=1; UI/Game/Editor: '1', flags=1	CGame/Game/Editor: '1', flags=1	Publish 1.0.2 mod builds with separate navigation authoring and manual releases
+1.0.2	2026-10-26	4770335	changed	cg_omnibot_render_distance	CGame/Game/Editor: '8E+2', flags=1, if (defined(FEATURE_OMNIBOT))	CGame/Editor: '8E+2', flags=1, if (defined(FEATURE_OMNIBOT)&&defined(FEATURE_NAVSTUDIO))	Publish 1.0.2 mod builds with separate navigation authoring and manual releases
+1.0.2	2026-10-26	4770335	changed	cg_omnibotdrawing	CGame/Game/Editor: '1', flags=1, if (defined(FEATURE_OMNIBOT))	CGame/Editor: '1', flags=1, if (defined(FEATURE_OMNIBOT)&&defined(FEATURE_NAVSTUDIO))	Publish 1.0.2 mod builds with separate navigation authoring and manual releases
+1.0.2	2026-10-26	4770335	added	g_countryflags		QGame/Game/Editor: '1', flags=33	Publish 1.0.2 mod builds with separate navigation authoring and manual releases
+1.0.2	2026-10-26	4770335	changed	mapname	QGame/Game/Editor: '', flags=68; QGame/Game/Editor: '', flags=68, if (defined(SAVEGAME_SUPPORT)); QGame/Game/Editor: '', flags=68, if (defined(__linux__)); SDK BotAI/Legacy SDK AI: '', flags=68	QGame/Editor: '', flags=68, if (defined(FEATURE_NAVSTUDIO)); QGame/Editor: '', flags=68, if (defined(FEATURE_NAVSTUDIO))&&(defined(__linux__)); QGame/Game/Editor: '', flags=68; QGame/Game/Editor: '', flags=68, if (defined(SAVEGAME_SUPPORT)); SDK BotAI/Legacy SDK AI: '', flags=68	Publish 1.0.2 mod builds with separate navigation authoring and manual releases
+1.0.2	2026-10-26	4770335	changed	omnibot_tce_explore_debug	QGame/Game/Editor: '0', flags=0, if (defined(FEATURE_OMNIBOT))	QGame/Editor: '0', flags=0, if (defined(FEATURE_OMNIBOT))&&(defined(FEATURE_NAVSTUDIO))	Publish 1.0.2 mod builds with separate navigation authoring and manual releases
+1.0.2	2026-10-27	50b90f0	changed	bot_editWaypoints	QGame/Game/Editor: '0', flags=256	QGame/Editor: '0', flags=256, if (defined(FEATURE_NAVSTUDIO))	Fix gameplay state, shared pose hit detection and public release packaging
+1.0.2	2026-10-27	50b90f0	changed	cg_countryflags	CGame/Game/Editor: '1', flags=1	CGame/Game/Editor: '1', flags=1; UI/Game/Editor: '1', flags=1	Fix gameplay state, shared pose hit detection and public release packaging
+1.0.2	2026-10-27	50b90f0	added	tce_pose		CGame/Game/Editor: '0', flags=66	Fix gameplay state, shared pose hit detection and public release packaging
+1.0.2	2026-10-27	50b90f0	added	tce_poseChallengeCounter		QGame/Game/Editor: '0', flags=64	Fix gameplay state, shared pose hit detection and public release packaging
+1.0.2	2026-10-27	50b90f0	added	tce_poseProtocol		QGame/Game/Editor: '2', flags=68	Fix gameplay state, shared pose hit detection and public release packaging
+1.0.2	2026-10-27	50b90f0	added	tce_poseStep		QGame/Game/Editor: '5E+1', flags=68	Fix gameplay state, shared pose hit detection and public release packaging
+1.0.2	2026-10-27	ecd77a9	added	tceft		CGame/Game/Editor: '1', flags=66	Complete TCE2 tactical HUD, navigation icons and fireteams
+1.0.2	2026-10-27	19a5024	changed	cg_drawCrosshairNames	CGame/Game/Editor: '1', flags=1; UI/Game/Editor: '1', flags=1	CGame/Game/Editor: '0', flags=1; UI/Game/Editor: '0', flags=1	Fix rounded bullet contacts and add compact scalable tactical HUD
+1.0.2	2026-10-27	19a5024	added	cg_hudMaxHeight		CGame/Game/Editor: '1.08E+3', flags=1; UI/Game/Editor: '1.08E+3', flags=1	Fix rounded bullet contacts and add compact scalable tactical HUD
+1.0.2	2026-10-27	19a5024	added	cg_hudScale		CGame/Game/Editor: '0.85', flags=1; UI/Game/Editor: '0.85', flags=1	Fix rounded bullet contacts and add compact scalable tactical HUD
+1.0.2	2026-10-27	19a5024	added	cg_wideScreen		CGame/Game/Editor: '1', flags=1; UI/Game/Editor: '1', flags=1	Fix rounded bullet contacts and add compact scalable tactical HUD
+1.0.2	2026-10-27	19a5024	added	g_debugBulletsClient		QGame/Game/Editor: '-1', flags=512	Fix rounded bullet contacts and add compact scalable tactical HUD
+1.0.2	2026-10-27	19a5024	added	ui_menuMaxHeight		UI/Game/Editor: '1.08E+3', flags=1	Fix rounded bullet contacts and add compact scalable tactical HUD
+1.0.2	2026-10-27	19a5024	added	ui_menuScale		UI/Game/Editor: '1', flags=1	Fix rounded bullet contacts and add compact scalable tactical HUD
+1.0.2	2026-10-28	074ee19	added	cg_drawIcons		CGame/Game/Editor: '1', flags=1	Restore fireteam details, fit weapon stats and add graphics quality presets
+1.0.2	2026-10-28	074ee19	added	tceftgear		CGame/Game/Editor: '1', flags=66	Restore fireteam details, fit weapon stats and add graphics quality presets
+1.0.2	2026-10-28	3e9b943	added	cg_weaponLight		CGame/Game/Editor: '1', flags=1	Add native world detail materials and visible muzzle environment lighting
+1.0.2	2026-10-28	0fa43eb	removed	cg_weaponlight	CGame/Game/Editor: '1', flags=1		Revert rejected material and muzzle graphics experiment
+1.0.2	2026-10-28	9845ba9	changed	ui_menuMaxHeight	UI/Game/Editor: '1.08E+3', flags=1	CGame/Game/Editor: '1.08E+3', flags=1; UI/Game/Editor: '1.08E+3', flags=1	Polish menu headers, appearance settings and viewport scaling
+1.0.2	2026-10-28	9845ba9	changed	ui_menuScale	UI/Game/Editor: '1', flags=1	CGame/Game/Editor: '1', flags=1; UI/Game/Editor: '1', flags=1	Polish menu headers, appearance settings and viewport scaling
+1.0.2	2026-10-28	9845ba9	added	ui_themeAccentB		UI+CGame/Game/Editor: '0.27', flags=1	Polish menu headers, appearance settings and viewport scaling
+1.0.2	2026-10-28	9845ba9	added	ui_themeAccentG		UI+CGame/Game/Editor: '0.73', flags=1	Polish menu headers, appearance settings and viewport scaling
+1.0.2	2026-10-28	9845ba9	added	ui_themeAccentR		UI+CGame/Game/Editor: '0.96', flags=1	Polish menu headers, appearance settings and viewport scaling
+1.0.2	2026-10-28	9845ba9	added	ui_themeBackgroundB		UI+CGame/Game/Editor: '0.075', flags=1	Polish menu headers, appearance settings and viewport scaling
+1.0.2	2026-10-28	9845ba9	added	ui_themeBackgroundG		UI+CGame/Game/Editor: '0.055', flags=1	Polish menu headers, appearance settings and viewport scaling
+1.0.2	2026-10-28	9845ba9	added	ui_themeBackgroundR		UI+CGame/Game/Editor: '0.035', flags=1	Polish menu headers, appearance settings and viewport scaling
+1.0.2	2026-10-28	9845ba9	added	ui_themeOpacity		UI+CGame/Game/Editor: '0.85', flags=1	Polish menu headers, appearance settings and viewport scaling
+1.0.2	2026-10-28	9845ba9	added	ui_themeOpacityPreset		UI+CGame/Game/Editor: '0', flags=1	Polish menu headers, appearance settings and viewport scaling
+1.0.2	2026-10-28	9845ba9	added	ui_themePreset		UI+CGame/Game/Editor: '0', flags=1	Polish menu headers, appearance settings and viewport scaling
+1.0.3	2026-11-06	85705fa	added	ui_backgroundCountry		UI+CGame/Game/Editor: 'DE', flags=1, if (!defined(CGAMEDLL))	Package only TCE2 1.0.3 changes and keep original data local
+1.0.3	2026-11-06	85705fa	added	ui_backgroundLast		UI+CGame/Game/Editor: '0', flags=1, if (!defined(CGAMEDLL))	Package only TCE2 1.0.3 changes and keep original data local
+1.0.3	2026-11-06	85705fa	added	ui_backgroundMode		UI+CGame/Game/Editor: '0', flags=1, if (!defined(CGAMEDLL))	Package only TCE2 1.0.3 changes and keep original data local
+1.0.3	2026-11-06	85705fa	added	ui_backgroundSession		UI+CGame/Game/Editor: '0', flags=0, if (!defined(CGAMEDLL))	Package only TCE2 1.0.3 changes and keep original data local
+1.0.3	2026-11-06	85705fa	added	ui_backgroundWinterMonths		UI+CGame/Game/Editor: 'auto', flags=1, if (!defined(CGAMEDLL))	Package only TCE2 1.0.3 changes and keep original data local
+1.0.3	2026-11-07	8454b97	changed	cg_drawTeamNames	CGame/Game/Editor: '1', flags=1	CGame/Game/Editor: '1', flags=1; UI/Game/Editor: '1', flags=1	Fix command map alignment, player headings and deployment weapon previews
+1.0.3	2026-11-07	1beb008	added	cg_compassScale		CGame/Game/Editor: '0.85', flags=1; UI/Game/Editor: '0.85', flags=1	Improve menu focus, separate HUD widget scales, and advertise client platforms
+1.0.3	2026-11-07	1beb008	added	cg_fireteamScale		CGame/Game/Editor: '0.85', flags=1; UI/Game/Editor: '0.85', flags=1	Improve menu focus, separate HUD widget scales, and advertise client platforms
+1.0.3	2026-11-07	1beb008	added	g_oss		QGame/Game/Editor: '511', flags=4	Improve menu focus, separate HUD widget scales, and advertise client platforms
+1.0.3	2026-11-08	dc2fa53	changed	g_oss	QGame/Game/Editor: '511', flags=4	QGame/Game/Editor: '2047', flags=4	Add bot traffic coordination and Android x86 targets
+1.0.4	2026-11-08	fc5ae89	added	cg_commandMapScale		CGame/Game/Editor: '0.85', flags=1; UI/Game/Editor: '0.85', flags=1	Polish 1.0.4 HUD controls, compact menus and bot crowd yielding

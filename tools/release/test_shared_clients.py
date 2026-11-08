@@ -71,6 +71,12 @@ def fixture_repo(root):
                  'vendor/luasql/license.html'):
         path=root/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(b'fixture license')
     (root/'src/lua').mkdir(parents=True);(root/'src/lua/config.lua').write_bytes(b'fixture = true')
+    defaults=['config.lua']
+    for name in ('banners','greetings','rules','sprees','wolfadmin'):
+        relative='wolfadmin/config/'+name+'.toml'
+        path=root/'src/lua'/relative;path.parent.mkdir(parents=True,exist_ok=True)
+        path.write_bytes(('# reviewed default '+name+'\n').encode());defaults.append(relative)
+    (root/'tools/release/server-lua.json').write_text(json.dumps({'schema':1,'files':sorted(defaults)}))
     return root
 
 
@@ -188,6 +194,11 @@ class SharedClients(unittest.TestCase):
 
     def test_source_zip_excludes_original_even_if_stale_git_index_lists_it(self):
         for name,data in {'tools/release/build.py':b'# tiny build input',
+                          '.readthedocs.yaml':b'version: 2',
+                          'CHANGELOG.md':b'# Categorized game changes',
+                          'Docs/conf.py':b'project = "TCE2"',
+                          'Docs/requirements.txt':b'Sphinx==9.2.0',
+                          'Docs/index.md':b'# TCE2 Manual',
                           'vendor/omni-bot/runtime/SOURCE.json':b'{}',
                           'tools/ui_modernize/source/ui/main.menu':b'modern menu source',
                           'map_pics/new.png':b'obsolete PNG source',
@@ -206,6 +217,9 @@ class SharedClients(unittest.TestCase):
             self.assertEqual(archive.read('tools/ui_modernize/source/ui/main.menu'),b'modern menu source')
             self.assertEqual(archive.read('pak/models/player.md3'),b'model')
             self.assertIn('tools/assets/base-game-reference.json',archive.namelist())
+            for name in ('.readthedocs.yaml','CHANGELOG.md','Docs/conf.py',
+                         'Docs/requirements.txt','Docs/index.md'):
+                self.assertIn(name,archive.namelist())
 
     def test_resource_source_rejects_native_nested_archives_and_generated_manifests(self):
         for name in ('ui_mp_x86.dll','base.pk3','assets.zip','client.manifest','client-abis.json','lib.so.1'):
@@ -254,11 +268,18 @@ class SharedClients(unittest.TestCase):
             path=modules/(role+'_mp_x86.dll');path.write_bytes(binary_header('windows-x86'));paths[role]=str(path)
         manifest=modules/'tce-modules-Release.json'
         manifest.write_text(json.dumps({'schema':1,'variant':'game','configuration':'Release','modules':paths}))
+        (self.repo/'src/lua/wolfadmin/config/private.toml').write_bytes(b'local secret config')
+        (self.repo/'src/lua/wolfadmin/wolfadmin.db').write_bytes(b'local user database')
         archive=package_modules(None,self.root/'transfer','windows-x86','game',repo=self.repo,module_manifest=manifest)
         row=clients.read_target(archive,VERSION,self.repo)
         self.assertFalse(row['metadata']['gameplay_bot_runtime'])
         self.assertLess(archive.stat().st_size,50000)
         self.assertFalse(any(name.endswith('.pk3') or name.endswith('.tga') for name in row['files']))
+        self.assertEqual({name for name in row['files'] if name.endswith('.toml')},
+                         {'tce2/lua/wolfadmin/config/'+name+'.toml'
+                          for name in ('banners','greetings','rules','sprees','wolfadmin')})
+        self.assertNotIn('tce2/lua/wolfadmin/wolfadmin.db',row['files'])
+        self.assertNotIn('tce2/lua/wolfadmin/config/private.toml',row['files'])
 
     def test_local_cmake_resource_entrypoint_uses_same_complete_reader(self):
         modules=self.root/'native';modules.mkdir()

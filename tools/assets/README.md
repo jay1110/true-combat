@@ -14,11 +14,6 @@ byte-identical stock copies are rejected. `base-ui-reference.json` provides only
 stock menu names and open edges for closure checks. Both are version-bound
 metadata and contain no original asset bytes.
 
-`pak_original_tce/` remains a local reference. Validation, CI and release
-packaging do not read it or copy its contents. Historical `src/assets/`,
-`ui-modern/` authoring copies and `navstudio/editor-ui/` catalog files are not
-fallback sources for the canonical resources.
-
 Validate Game and Editor without changing any resource or metadata:
 
 ```powershell

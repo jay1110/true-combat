@@ -28,7 +28,7 @@ Nach erfolgreichem Abschluss wird **Wegpunkte, Goals & Mapscripts als ZIP export
 
 ### Mapbibliothek und Projektdateien
 
-Neue vollständige PK3-Kartenpakete in `etmain/all_maps` ablegen. Für dieses Repository ist das `C:/Users/micha/Documents/GitHub/true-combat/etmain/all_maps`. Beim Öffnen eines Projekts wird dessen Paket in `etmain` der Testinstallation ausgeliehen. **Schließen** sichert das Projekt, beendet dessen eigenes Testspiel und gibt das Paket an **all_maps** zurück. Bereits installierte Basispakete bleiben an Ort und Stelle.
+Neue vollständige PK3-Kartenpakete in `etmain/all_maps` ablegen. Für dieses Repository ist das `<game-installation>/etmain/all_maps`. Beim Öffnen eines Projekts wird dessen Paket in `etmain` der Testinstallation ausgeliehen. **Schließen** sichert das Projekt, beendet dessen eigenes Testspiel und gibt das Paket an **all_maps** zurück. Bereits installierte Basispakete bleiben an Ort und Stelle.
 
 Das Projekt bleibt nach dem Zurückgeben der Map gespeichert. Zum Weiterarbeiten das Projekt wieder öffnen; das Kartenpaket wird erneut bereitgestellt. Eine lose BSP ersetzt kein vollständiges PK3 mit Texturen, Modellen und Mapscripts.
 
@@ -142,7 +142,7 @@ Die Studio-Goalebene zeigt gespeicherte Daten. Bei SWITCH wird `Facing` als blau
 
 Für ein eigenes taktisches Goal im Live-Editor:
 
-Im lokalen TCE2-Testspiel öffnet das **Voicemenü → 8. TCE2 Omni-bot DMS** den Editor; beim Buchstaben-Voicemenü ist es **O**. Der Editor gehört ausschließlich zur getrennten Editor-Variante der `tce2-1.0.3.pk3`; ihre Ressourcen liegen unter `navstudio/editor-pak`. Eine zweite Editor-Addon-PK3 wird nicht mehr benötigt. Das normale TCE2-Menü und öffentliche Modpakete enthalten keinen Editor-Eintrag. Im DMS funktionieren Maus und Zahlentasten; **V** führt zurück, **=** zur nächsten Seite und **Z/Escape** gibt die Eingabe sofort an das Spiel zurück. **N** öffnet Namen und eigene Zahlenwerte. Der Studio-Live-Editor bietet denselben nativen Katalog, einschließlich SWITCH, Timeout in Millisekunden, Use, Stance, Rollen, Triggerboxen, Wegpunktnamen und allen registrierten Flags. ET-Ausrüstungsgoals und ET-Testklassen werden nur im ET-Modus angeboten. **Goal Help** zeigt, welche Eigenschaften der ausgewählte Goal-Typ unterstützt.
+Im lokalen TCE2-Testspiel öffnet das **Voicemenü → 8. TCE2 Omni-bot DMS** den Editor; beim Buchstaben-Voicemenü ist es **O**. Der Editor gehört ausschließlich zur getrennten Editor-Variante der `tce2-1.0.4.pk3`; ihre Ressourcen liegen unter `navstudio/editor-pak`. Eine zweite Editor-Addon-PK3 wird nicht mehr benötigt. Das normale TCE2-Menü und öffentliche Modpakete enthalten keinen Editor-Eintrag. Im DMS funktionieren Maus und Zahlentasten; **V** führt zurück, **=** zur nächsten Seite und **Z/Escape** gibt die Eingabe sofort an das Spiel zurück. **N** öffnet Namen und eigene Zahlenwerte. Der Studio-Live-Editor bietet denselben nativen Katalog, einschließlich SWITCH, Timeout in Millisekunden, Use, Stance, Rollen, Triggerboxen, Wegpunktnamen und allen registrierten Flags. ET-Ausrüstungsgoals und ET-Testklassen werden nur im ET-Modus angeboten. **Goal Help** zeigt, welche Eigenschaften der ausgewählte Goal-Typ unterstützt.
 
 1. Das Testspiel öffnen und den Spieler an die gewünschte Position bringen. **Goals anzeigen** wählen.
 2. Unter **Benanntes Goal erstellen** einen Typ wie `CAMP`, `Snipe`, `Attack` oder `Defend` wählen, einen Namen aus Buchstaben/Ziffern/Unterstrich eingeben und **Goal erstellen** drücken.
@@ -209,7 +209,7 @@ Für Source-Arbeit Python-Abhängigkeiten aus `requirements-desktop.txt` install
 ```powershell
 python -m pip install --target build/navstudio-desktop-deps -r navstudio/requirements-desktop.txt
 $env:PYTHONPATH = 'build/navstudio-desktop-deps'
-python navstudio/entry.py --workspace C:/Users/micha/Documents/GitHub/true-combat
+python navstudio/entry.py --workspace <source-checkout>
 ```
 
 `--no-browser` ist der ausdrücklich gewählte Dienstmodus für Entwickler/Automation und öffnet keine Oberfläche. Normaler EXE-Start öffnet das Desktop-Fenster. Der lokale Dienst nutzt Port 8766 und die bestehende Spielinstanz Port 27986. Projekte, Generierung, Prüfung und Übernahme benötigen weder Konsolenbefehle noch manuelle Datei-Uploads.
@@ -236,7 +236,7 @@ For TCE2, the wizard can generate **GT2 and GT5 goals** after successful network
 
 ### Map library and project files
 
-Put complete map PK3s in `etmain/all_maps`. In this repository this is `C:/Users/micha/Documents/GitHub/true-combat/etmain/all_maps`. Opening a project borrows its package into the test installation's `etmain`. **Close** saves the project, stops its own test game and returns the borrowed package to **all_maps**. Existing base packages remain installed.
+Put complete map PK3s in `etmain/all_maps`. In this repository this is `<game-installation>/etmain/all_maps`. Opening a project borrows its package into the test installation's `etmain`. **Close** saves the project, stops its own test game and returns the borrowed package to **all_maps**. Existing base packages remain installed.
 
 The project remains saved after its map is returned. Reopen it to resume and provide the map again. A BSP alone does not supply its required textures, models and mapscripts.
 
@@ -348,7 +348,7 @@ Studio's goal layer shows saved data. For SWITCH, `Facing` is a blue direction o
 
 To create a custom tactical goal in the live editor:
 
-In a local TCE2 test game, **Voice menu → 8. TCE2 Omni-bot DMS** opens the editor (**O** in the letter-based voice menu). It is supplied only by the separate Editor variant of `tce2-1.0.3.pk3`, using `navstudio/editor-pak` resources; there is no second editor-addon PK3; public mod packages have no editor menu entry. DMS pages support mouse clicks and number keys; **V** goes back, **=** opens the next page and **Z/Escape** immediately returns input to the game. **N** opens name fields and custom numeric values. Studio's live editor exposes the same native catalog, including SWITCH, Timeout in milliseconds, Use, Stance, roles, trigger boxes, waypoint names and every registered flag. ET equipment goals and ET test classes are offered only in ET mode. Use **Goal Help** for the properties supported by the selected goal type.
+In a local TCE2 test game, **Voice menu → 8. TCE2 Omni-bot DMS** opens the editor (**O** in the letter-based voice menu). It is supplied only by the separate Editor variant of `tce2-1.0.4.pk3`, using `navstudio/editor-pak` resources; there is no second editor-addon PK3; public mod packages have no editor menu entry. DMS pages support mouse clicks and number keys; **V** goes back, **=** opens the next page and **Z/Escape** immediately returns input to the game. **N** opens name fields and custom numeric values. Studio's live editor exposes the same native catalog, including SWITCH, Timeout in milliseconds, Use, Stance, roles, trigger boxes, waypoint names and every registered flag. ET equipment goals and ET test classes are offered only in ET mode. Use **Goal Help** for the properties supported by the selected goal type.
 
 1. Open the test game and place its player at the intended location. Choose **Show goals**.
 2. Under **Create named goal**, choose a type such as `CAMP`, `Snipe`, `Attack` or `Defend`, enter a name using letters/digits/underscore, and click **Create goal**.

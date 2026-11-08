@@ -84,6 +84,7 @@ class ClosureContract(unittest.TestCase):
         self.assertFalse(is_source_payload('src/compiled.dll'))
         self.assertFalse(is_source_payload('map_pics/01_obj_snow_Winter.png'))
         self.assertFalse(is_source_payload('tce/tools/old_launcher.py'))
+        self.assertFalse(is_source_payload('tools/ui_modernize/source/restyle-coverage.json'))
         self.assertTrue(is_source_payload('tools/ui_modernize/source/ui/main.menu'))
 
     def test_receipt_cannot_be_created_outside_manual_workflow(self):
