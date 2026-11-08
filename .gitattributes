@@ -7,7 +7,6 @@
 /compat/legacy/** -text
 
 # Imported license notices retain their exact supplied bytes on every host.
-/LICENSE -text
 /EULA_TrueCombat_Elite.txt -text
 /src/assets/gfx/flags/LICENSE.xmod.txt -text
 

@@ -9,6 +9,11 @@ The source menus are `ui/credits_groovesix.menu`, `credits_splashdamage.menu`,
 `credits_idsoftware.menu`, `credits_activision.menu` and `credits_additional.menu`
 in the original game installation.
 
+Project sources: [True Combat: Elite](https://www.truecombatelite.com/),
+[official TrueCombat community](https://steamcommunity.com/groups/truecombatmod),
+[Splash Damage's Enemy Territory page](https://www.splashdamage.com/games/wolfenstein-enemy-territory/),
+[id Software](https://idsoftware.com/) and [Activision](https://www.activision.com/).
+
 ## GrooveSix Studios and Team Terminator
 
 | Name | Credited role |

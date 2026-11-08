@@ -95,27 +95,27 @@ repository is connected to a Read the Docs project.
 
 | Contributor / project | Contribution or origin |
 | --- | --- |
-| **GrooveSix Studios and Team Terminator** | Original True Combat: Elite game, design and assets. Credits include Coroner, Tweety, Airon, Bruce, BS, Diane, HellOnStage, Liquid, LordOfKao$, Dender, ISM, Law, Nazgul, Race, Raptor, Traumahawk and Tier. |
-| **jay1110 and TCE2 contributors** | TC:E-specific reconstruction, gameplay fixes, bot integration and current development. |
-| **Fabian Grutschus** | Original fabiang/true-combat distribution repository and tooling. |
-| **id Software, Splash Damage, Activision** | Enemy Territory/Quake technology, SDK and original development/publishing. Gray Matter Studios, Nerve Software and Orange Smoothie Productions are credited in the original game. |
-| **ETLegacy contributors** | Compatibility/build references and specifically recorded imported components. |
-| **TrueCombat: Close Quarters Battle contributors** | Behavioral reference for selected name-display and spawn-protection behavior; no official affiliation. |
-| **Omni-bot contributors** | Compatible bot core, bridge, mission scripts and navigation runtime. |
-| **Timo “Timothy” Smit** | WolfAdmin 1.2.1, adapted for this server runtime. |
-| **Lua, SQLite and LuaSQL authors** | Server scripting and database components. |
-| **GameMonkey / Auran, Wild Magic / David Eberly, iprof, PhysicsFS / Ryan C. Gordon, zlib/LZMA contributors** | Components used by the compatible Omni-bot import. |
-| **Boost contributors; RecastNavigation / Mikko Mononen and contributors** | Bot development dependency; optional navigation geometry tools. |
-| **Barlow Project Authors / Jeremy Tribby** | Barlow and Barlow Condensed fonts, SIL OFL 1.1. |
-| **Bud Byrd and Mike Miscevic / Xmod** | Flag artwork and documented platform conventions, with retained notices. |
-| **TCE2 contributors and supplied map-image authors** | UI/HUD artwork and map backgrounds; individual origins accompany the assets. |
-| **Open-Meteo and GeoNames** | Optional weather and location data. |
-| **pywebview, PyInstaller, FreeType, Sphinx, MyST and Read the Docs theme contributors** | Optional authoring/documentation tools. |
+| **GrooveSix Studios and Team Terminator** | Original [True Combat: Elite](https://www.truecombatelite.com/) game, design and assets; [official TrueCombat community](https://steamcommunity.com/groups/truecombatmod). Credits include Coroner, Tweety, Airon, Bruce, BS, Diane, HellOnStage, Liquid, LordOfKao$, Dender, ISM, Law, Nazgul, Race, Raptor, Traumahawk and Tier. |
+| **jay1110 and TCE2 contributors** | TC:E-specific reconstruction, gameplay fixes, bot integration and [current development](https://github.com/jay1110/true-combat). |
+| **id Software, Splash Damage, Activision** | [Enemy Territory technology and source](https://github.com/id-Software/Enemy-Territory), [original ET development](https://www.splashdamage.com/games/wolfenstein-enemy-territory/) and [publishing](https://www.activision.com/). Gray Matter Studios, Nerve Software and Orange Smoothie Productions are credited in the original game. |
+| **ETLegacy contributors** | [Compatibility/build references and recorded imports](https://github.com/etlegacy/etlegacy). |
+| **TrueCombat: Close Quarters Battle contributors** | [CQB](http://cqb.truecombat.net/) behavioral reference for selected name-display and spawn-protection behavior; no official affiliation. |
+| **Omni-bot contributors** | [Bot core, bridge, mission scripts and navigation runtime](https://github.com/jswigart/omni-bot). |
+| **Timo “Timothy” Smit** | [WolfAdmin](https://github.com/timosmit/wolfadmin) 1.2.1, adapted for this server runtime. |
+| **Lua, SQLite and LuaSQL authors** | [Lua](https://www.lua.org/), [SQLite](https://www.sqlite.org/) and [LuaSQL](https://github.com/lunarmodules/luasql) server scripting and database components. |
+| **GameMonkey / Auran, Wild Magic / David Eberly, iprof / Sean Barrett, PhysicsFS / Ryan C. Gordon, zlib/LZMA contributors** | [GameMonkey](https://github.com/publicrepo/gmscript), [Wild Magic lineage](https://www.geometrictools.com/), [Sean Barrett](https://nothings.org/), [PhysicsFS](https://icculus.org/physfs/), [zlib](https://zlib.net/) and [LZMA SDK](https://www.7-zip.org/sdk.html), used by the compatible Omni-bot import. |
+| **Boost contributors; RecastNavigation / Mikko Mononen and contributors** | [Boost](https://www.boost.org/) bot development dependency; [RecastNavigation](https://github.com/recastnavigation/recastnavigation) optional navigation geometry tools. |
+| **Barlow Project Authors / Jeremy Tribby** | [Barlow and Barlow Condensed](https://github.com/jpt/barlow) fonts, SIL OFL 1.1. |
+| **Bud Byrd and Mike Miscevic / Xmod** | [Xmod](https://github.com/jay1110/xmod) flag artwork and documented platform conventions, with retained notices. |
+| **vi$ion** | [Original ServerListFix package](https://github.com/jay1110/true-combat/blob/52122ec81b8d615731a63a348f944a5a77f605c9/tcetest/zzzzzzzzzzzzzz_ServerListFix.pk3), used as the server-browser query reference. |
+| **TCE2 contributors and supplied map-image authors** | UI/HUD artwork and map backgrounds; [individual asset origins](Docs/credits.md#art-fonts-and-data). |
+| **Open-Meteo and GeoNames** | Optional [weather](https://open-meteo.com/) and [location](https://www.geonames.org/) data. |
+| **pywebview, PyInstaller, FreeType, Sphinx, MyST and Read the Docs theme contributors** | Optional [authoring and documentation tools with upstream links](Docs/credits.md#development-and-documentation-tools). |
 
 [Full credits and provenance](Docs/credits.md) include source locations, original
 in-game credits, component licenses and known provenance gaps. Original notices
-remain authoritative; the root [LICENSE](LICENSE) does not relicense every
-included component or the original TC:E assets.
+remain authoritative for each component and the original TC:E assets; see the
+[license boundaries](Docs/credits.md#license-boundaries-and-outstanding-provenance).
 
 ## Contributing and reporting issues
 

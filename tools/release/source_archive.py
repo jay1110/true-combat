@@ -8,7 +8,7 @@ from package import ROOT, digest, version
 PREFIXES = ('pak/', 'src/', 'vendor/', 'compat/', 'platform/', 'cmake/', 'tools/',
             'navstudio/', 'omnibot/', 'Docs/', 'docs/', '.github/workflows/')
 ROOT_FILES = {'CMakeLists.txt', 'CMakePresets.json', 'BUILDING.md', 'README.md',
-              'LICENSE', 'CHANGES', 'EULA_TrueCombat_Elite.txt', '.gitignore', '.gitattributes',
+              'CHANGES', 'EULA_TrueCombat_Elite.txt', '.gitignore', '.gitattributes',
               'CHANGELOG.md', '.readthedocs.yaml'}
 
 

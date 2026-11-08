@@ -66,7 +66,7 @@ def fixture_repo(root):
     (baseline.parent/'base-ui-reference.json').write_text(json.dumps({'schema':1,'release_version':VERSION,
         'baseline_id':stock['baseline_id'],'files':{'ui/base_shared.menu':{'sha256':clients.sha(b'stock menu'),
         'bytes':10,'menus':[{'name':'base_shared','opens':[]}]}}}))
-    for name in ('LICENSE','EULA_TrueCombat_Elite.txt','vendor/dependencies.lock.json',
+    for name in ('EULA_TrueCombat_Elite.txt','vendor/dependencies.lock.json',
                  'vendor/lua/IMPORT-NOTICE.txt','vendor/lua/lua.h','vendor/sqlite/IMPORT-NOTICE.txt',
                  'vendor/luasql/license.html'):
         path=root/name;path.parent.mkdir(parents=True,exist_ok=True);path.write_bytes(b'fixture license')
@@ -263,6 +263,7 @@ class SharedClients(unittest.TestCase):
             self.row('windows-x86',overrides={'extra.tga':b'stale'})
 
     def test_real_target_packager_avoids_full_resource_copy_in_transfer(self):
+        self.assertFalse((self.repo/'LICENSE').exists())
         modules=self.root/'modules';modules.mkdir();paths={}
         for role in ('cgame','ui','qagame'):
             path=modules/(role+'_mp_x86.dll');path.write_bytes(binary_header('windows-x86'));paths[role]=str(path)
@@ -272,6 +273,11 @@ class SharedClients(unittest.TestCase):
         (self.repo/'src/lua/wolfadmin/wolfadmin.db').write_bytes(b'local user database')
         archive=package_modules(None,self.root/'transfer','windows-x86','game',repo=self.repo,module_manifest=manifest)
         row=clients.read_target(archive,VERSION,self.repo)
+        self.assertNotIn('licenses/LICENSE',row['files'])
+        for name in ('EULA_TrueCombat_Elite.txt','vendor/lua/IMPORT-NOTICE.txt',
+                     'vendor/lua/lua.h','vendor/sqlite/IMPORT-NOTICE.txt',
+                     'vendor/luasql/license.html'):
+            self.assertEqual(row['files']['licenses/'+name],(self.repo/name).read_bytes())
         self.assertFalse(row['metadata']['gameplay_bot_runtime'])
         self.assertLess(archive.stat().st_size,50000)
         self.assertFalse(any(name.endswith('.pk3') or name.endswith('.tga') for name in row['files']))

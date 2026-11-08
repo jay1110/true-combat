@@ -152,7 +152,7 @@ def package_modules(modules, output, target, variant, core_manifest=None, geoip=
         copy_file(geoip, mod / 'GeoIP.dat')
     # Include the reviewed WolfAdmin TOML defaults; never glob local configs/DBs.
     stage_server_lua(repo, mod / 'lua')
-    for relative in ('LICENSE', 'EULA_TrueCombat_Elite.txt', 'vendor/dependencies.lock.json',
+    for relative in ('EULA_TrueCombat_Elite.txt', 'vendor/dependencies.lock.json',
                      'vendor/lua/IMPORT-NOTICE.txt', 'vendor/lua/lua.h',
                      'vendor/sqlite/IMPORT-NOTICE.txt', 'vendor/luasql/license.html'):
         copy_file(repo / relative, stage / 'licenses' / relative)
