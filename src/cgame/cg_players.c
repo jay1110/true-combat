@@ -8,6 +8,7 @@
 #include "cg_local.h"
 #include "tce_corpse_frame.h"
 #include "../game/tce_weapon_wall_pose.h"
+#include "../game/tce_weapon_wall_state.h"
 #include "cg_tce_pose_presentation.h"
 #include "../game/bg_classes.h"
 #include "../game/tce_trajectory.h"
@@ -1583,9 +1584,14 @@ static void CG_PlayerAngles(centity_t *cent, vec3_t legs[3], vec3_t torso[3], ve
 			lean *= 1.65f;
 		}
 		torsoAngles[ROLL] += lean;
-		headAngles[ROLL]  += lean;
+		headAngles[ROLL]  += lean*1.2f;
 	}
 
+	if (cent->currentState.eType==ET_PLAYER && !(cent->currentState.eFlags&(EF_DEAD|EF_PRONE)))
+		torsoAngles[PITCH] *= 1.f-fabsf(cent->tceWeaponWallPitch)/78.f;
+
+    if((cent->currentState.eFlags&EF_PRONE) && fabsf(cent->tceWeaponWallPitch)<=70.5f)
+        torsoAngles[YAW]+=cent->tceWeaponWallPitch;
 	// pain twitch
 	CG_AddPainTwitch(cent, torsoAngles);
 
@@ -2267,21 +2273,23 @@ void CG_CalcEntityVisibility(centity_t *cent)
 	cent->tceVisible = qfalse;
 }
 
+static qhandle_t tceWallHighReadyModel;
+void CG_TCEWeaponWallPoseInit(void) { tceWallHighReadyModel=trap_R_RegisterModel("models/players/tce2/wall_high_ready.mdx"); }
 void CG_TCEWeaponWallPose(refEntity_t *body, const bg_character_t *character, float pitch)
 {
-    int index; const animation_t *low; float blend=pitch/78.f;
+    int index,frame,model; const animation_t *low; float blend=fabsf(pitch)/78.f;
     if (!(blend>0.f && blend<=1.f) || !character) return;
-    index=TCE_WeaponWallLowAnimation(character->animModelInfo);
-    if (index<0) return;
-    low=character->animModelInfo->animations[index];
-    /* Two-channel MDX renderer: retain the dominant normal torso sample as
-     * the other endpoint; legs and the head look axes remain untouched. */
+    if (pitch<0.f) { frame=0;model=tceWallHighReadyModel;if(!model)return; }
+    else {
+        index=TCE_WeaponWallLowAnimation(character->animModelInfo);
+        if (index<0) return;
+        low=character->animModelInfo->animations[index];frame=TCE_WeaponWallLowFrame(low);model=low->mdxFile;
+    }
     if (body->torsoBacklerp<=.5f) {
         body->oldTorsoFrame=body->torsoFrame;
         body->oldTorsoFrameModel=body->torsoFrameModel;
     }
-    body->torsoFrame=TCE_WeaponWallLowFrame(low);
-    body->torsoFrameModel=low->mdxFile;
+    body->torsoFrame=frame;body->torsoFrameModel=model;
     body->torsoBacklerp=1.f-blend;
 }
 static float CG_TCEWeaponWallEntityPitch(const centity_t *cent)
@@ -2290,9 +2298,11 @@ static float CG_TCEWeaponWallEntityPitch(const centity_t *cent)
     if (!cgs.tceWeaponWallAvoidance || cent->currentState.eType!=ET_PLAYER ||
         (cent->currentState.eFlags & (EF_DEAD|EF_MOUNTEDTANK|EF_MG42_ACTIVE|EF_AAGUN_ACTIVE))) return 0.f;
     pitch=cent->currentState.angles2[PITCH];
-    if (cent->interpolate && cg.nextSnap)
+    if (cent->interpolate && cg.nextSnap &&
+        !((cent->currentState.eFlags^cent->nextState.eFlags)&EF_PRONE) &&
+        !((cent->currentState.effect1Time^cent->nextState.effect1Time)&2))
         pitch+=cg.frameInterpolation*(cent->nextState.angles2[PITCH]-pitch);
-    return pitch>=0.f && pitch<=78.f ? pitch : 0.f;
+    return pitch>=-78.f && pitch<=78.f ? pitch : 0.f;
 }
 void CG_Player(centity_t *cent)
 {
@@ -2314,7 +2324,7 @@ void CG_Player(centity_t *cent)
 	int            tcePresentation;
 	tcePresentationOriginScope_t presentationOrigin = { { 0, 0, 0 }, 0, 0, 0 };
 
-	cent->tceWeaponWallPitch=0.f;
+	cent->tceWeaponWallPitch=CG_TCEWeaponWallEntityPitch(cent);
 	cgsnap = &cg_entities[cg.snap->ps.clientNum];
 
 	shadow      = qfalse;                                           // gjd added to make sure it was initialized
@@ -2552,7 +2562,7 @@ void CG_Player(centity_t *cent)
 	{
 		CG_PlayerAnimation(cent, &body);
 		cent->tceWeaponWallPitch=CG_TCEWeaponWallEntityPitch(cent);
-		CG_TCEWeaponWallPose(&body,character,cent->tceWeaponWallPitch);
+		if (!(cent->currentState.eFlags&EF_PRONE)) CG_TCEWeaponWallPose(&body,character,cent->tceWeaponWallPitch);
 	}
 
 	// forcibly set binoc animation
@@ -2915,6 +2925,23 @@ void CG_Player(centity_t *cent)
 		CG_PositionEntityOnTag(&acc, &body, "tag_weapon", 0, NULL);
 		CG_AddRefEntityWithPowerups(&acc, cent->currentState.powerups, ci->team, &cent->currentState, cent->fireRiseDir);
 	}
+
+    /* Keep the original prone torso; only move the blocked active weapon
+     * to the existing back attachment. No standing torso is mixed into prone. */
+    if (TCE_WeaponWallFirearm(cent->currentState.weapon) &&
+        TCE_WeaponWallProneStowed(cent->currentState.eFlags,cent->tceWeaponWallPitch)) {
+        refEntity_t mount,stowed;int w=cent->currentState.weapon;
+        CG_RegisterWeapon(w,qfalse);
+        memset(&mount,0,sizeof(mount));memset(&stowed,0,sizeof(stowed));
+        mount.hModel=cgs.media.tceBackWeaponTagModel;
+        CG_PositionEntityOnTag(&mount,&body,"tag_back",0,NULL);
+        stowed.hModel=tce_cg_weapons[w].weaponModel[W_TP_MODEL].model;
+        stowed.customSkin=tce_cg_weapons[w].weaponModel[W_TP_MODEL].skin[0];
+        stowed.renderfx=renderfx;VectorCopy(lightorigin,stowed.lightingOrigin);
+        CG_PositionEntityOnTag(&stowed,&mount,"tag_backweap",0,NULL);
+        if (cent->currentState.effect2Time) VectorMA(stowed.origin,5.f,stowed.axis[1],stowed.origin);
+        CG_AddRefEntityWithPowerups(&stowed,cent->currentState.powerups,ci->team,&cent->currentState,cent->fireRiseDir);
+    }
 
 	/* TC equipment: effect2Time is the identity-mapped back weapon ID.
 	 * Original weapon model address3484a640 is media+0x5c0: view0. */

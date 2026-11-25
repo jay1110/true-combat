@@ -1106,6 +1106,7 @@ void CG_PredictPlayerState(void)
 
 	// prepare for pmove
 	cg_pmove.ps        = &cg.predictedPlayerState;
+	cg_pmove.tceWeaponWallLeanMode = cgs.tceLeanMode>0;
 	cg_pmove.tceWeaponWallEnabled = cgs.tceWeaponWallAvoidance != 0;
 	cg_pmove.pmext     = &pmext; //&cg.pmext;
 	cg_pmove.character = CG_CharacterForClientinfo(&cgs.clientinfo[cg.snap->ps.clientNum], &cg_entities[cg.snap->ps.clientNum]);

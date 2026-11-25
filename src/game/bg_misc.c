@@ -2488,7 +2488,7 @@ static void BG_TCEPlayerStateFields(const playerState_t *ps, entityState_t *s)
 	int i;
 	s->angles2[ROLL] = ps->leanf;
 	s->angles2[PITCH] = ps->pm_type == PM_NORMAL && !(ps->eFlags & EF_DEAD)
-		? TCE_WeaponWallStatePitch(ps->stats[15]) : 0.f;
+		? TCE_WeaponWallPosturePitch(ps->eFlags,ps->pm_flags,TCE_WeaponWallPosePitch(ps->eFlags,ps->stats[15])) : 0.f;
 	/* TCE2 freelook uses unused player angles components, preserving TC's
 	 * angles2 movementDir/lean protocol. Both converters share this tail. */
 	s->angles[PITCH] = ps->holdable[TCE_FREELOOK_PITCH] ? (ps->holdable[TCE_FREELOOK_PITCH] - TCE_FREELOOK_CENTER) * .01f : 0;

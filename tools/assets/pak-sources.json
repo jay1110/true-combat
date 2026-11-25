@@ -652,6 +652,11 @@
       "sha256": "5ac714d290519628dc6a1078e2dae6dc0e035662a1759ce0cf8ce0afed183a96",
       "source": "pak/levelshots/obj_village_cc_blueprint.tga"
     },
+    "models/players/tce2/wall_high_ready.mdx": {
+      "bytes": 5024,
+      "sha256": "cd2cc8f6c9e7c496e279fcb0a7573eaba844dd3b1a3e3ddf6be1c37ce2eab8de",
+      "source": "pak/models/players/tce2/wall_high_ready.mdx"
+    },
     "scripts/tce2_backgrounds.shader": {
       "bytes": 3407,
       "sha256": "6b96424f2fd8736b89f29d4ba3f018874b9c583d1cfa69ad7464ccdc07c73845",
@@ -2007,10 +2012,10 @@
     "baseline_id": "tce-0.49b-pak0-4",
     "path": "tools/assets/base-game-reference.json",
     "release_version": "1.0.5",
-    "sha256": "e6ef23ad3a777caddea0f3178ed1a05e50167f8fcc25da84111ac4dfc91b9c8f"
+    "sha256": "9d92ae7603839403ac97cc4179cad469c78d61c37862bf0bc6445bb31b94d05a"
   },
   "stock_ui_reference": {
     "path": "tools/assets/base-ui-reference.json",
-    "sha256": "ba150238d8d3c6f16b4eed37ecd7586a7da54d41beedd960f2770953d3a4b08f"
+    "sha256": "83d84c1198c75e400b8481d368574bc1b9b7f12d0e11d3363d232a74f5e2ec5c"
   }
 }

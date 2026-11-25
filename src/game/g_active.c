@@ -1641,6 +1641,7 @@ void ClientThink_real(gentity_t *ent)
 
 	pm.ps                            = &client->ps;
 	pm.pmext                         = &client->pmext;
+	pm.tceWeaponWallLeanMode         = g_leanmode.integer>0;
 	pm.tceWeaponWallEnabled          = g_weaponWallAvoidance.integer != 0;
 	pm.character                     = client->pers.character;
 	pm.tceBotFreeClimb               = (ent->r.svFlags & SVF_BOT) && client->tceNavFreeClimbRequested;

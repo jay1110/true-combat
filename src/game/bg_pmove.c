@@ -7995,20 +7995,29 @@ static void PM_Weapon(void)
 	static int weaponstate_last = -1;
 #endif
 
+    if (pm->tceWeaponWallEnabled)
+        TCE_WeaponWallProtectHead(pm->ps,pm->mins,pm->maxs,pm->tceWeaponWallLeanMode,pm->pmext->tceWeaponWallAmount,pm->trace);
 	if (!pm->tceWeaponWallEnabled || pm->ps->pm_type != PM_NORMAL ||
 	    (pm->ps->pm_flags & PMF_LADDER))
 		pm->pmext->tceWeaponWallAmount = 0.f;
 	else
 	{
-		float target = 1.f - TCE_WeaponWallFraction(pm->ps, pm->trace);
+		float target = 1.f - TCE_WeaponWallFraction(pm->ps, pm->tceWeaponWallLeanMode, pm->trace);
 		if (pm->pmext->tceWeaponWallWeapon != pm->ps->weapon)
 			pm->pmext->tceWeaponWallAmount = 0.f;
 		pm->pmext->tceWeaponWallAmount = TCE_WeaponWallApproach(
 			pm->pmext->tceWeaponWallAmount, target, pml.msec);
 	}
-	pm->pmext->tceWeaponWallWeapon = pm->ps->weapon;
-	pm->ps->stats[15] = TCE_WeaponWallState(pm->ps->stats[15],
-		pm->pmext->tceWeaponWallAmount);
+    if(pm->tceWeaponWallEnabled && pm->ps->pm_type==PM_NORMAL && TCE_WeaponWallFirearm(pm->ps->weapon)) {
+        float target=TCE_WeaponWallProneTarget(pm->ps,pm->pmext->tceWeaponWallProneYaw,pm->trace);
+        pm->pmext->tceWeaponWallProneYaw=TCE_WeaponWallProneApproach(pm->pmext->tceWeaponWallProneYaw,target,pml.msec);
+    } else pm->pmext->tceWeaponWallProneYaw=0.f;
+    pm->pmext->tceWeaponWallWeapon=pm->ps->weapon;
+    pm->ps->stats[15]=(pm->ps->eFlags&EF_PRONE)
+        ?TCE_WeaponWallProneState(pm->ps->stats[15],pm->pmext->tceWeaponWallProneYaw)
+        :TCE_WeaponWallState(pm->ps->stats[15],pm->pmext->tceWeaponWallAmount);
+    if(pm->tceWeaponWallEnabled)
+        TCE_WeaponWallCancelProneFire(pm->ps,&pm->cmd,fabsf(pm->pmext->tceWeaponWallProneYaw));
 	PM_TCECaptureReloadRequest();
 	if (PM_TCEUpdateMountedWeapon())
 	{

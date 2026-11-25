@@ -343,13 +343,15 @@ int BG_TCEPosePresentationAxes(const tcePosePresentationAxesInput_t *input,
     if(!input || !out || input->mode<TCE_POSE_PRESENT_LADDER || input->mode>TCE_POSE_PRESENT_PRONE ||
        (input->leanMode!=0 && input->leanMode!=1) || !PresentFinite(input->scale,4) ||
        input->scale<=0 || !PresentFinite(input->movementYaw,180) || !PresentFinite(input->lean,90) ||
-       !PresentFinite(input->weaponWallPitch,78) || input->weaponWallPitch<0) return 0;
+       !PresentFinite(input->weaponWallPitch,78)) return 0;
     for(i=0;i<3;++i) if(!PresentFinite(input->aim[i],3600) || !PresentFinite(input->velocity[i],8192)) return 0;
     for(i=0;i<2;++i) if(!PresentFinite(input->freelook[i],180)) return 0;
     memset(&result,0,sizeof(result));
     for(i=0;i<3;++i) { head[i]=PresentAngle(input->aim[i]); velocity[i]=input->velocity[i]; }
     legs[1]=PresentAngle(head[1]+input->movementYaw); torso[1]=head[1];
-    torso[0]=input->mode==TCE_POSE_PRESENT_PRONE?-3.0f:head[0]*.75f;
+    if(input->mode==TCE_POSE_PRESENT_PRONE && fabsf(input->weaponWallPitch)<=70.5f)
+        torso[1]+=input->weaponWallPitch;
+    torso[0]=input->mode==TCE_POSE_PRESENT_PRONE?-3.0f:head[0]*.75f*(1.f-fabsf(input->weaponWallPitch)/78.f);
     length=(float)sqrt((double)velocity[0]*velocity[0]+(double)velocity[1]*velocity[1]+(double)velocity[2]*velocity[2]);
     if(length>0) {
         for(i=0;i<3;++i) velocity[i]/=length;
@@ -359,7 +361,7 @@ int BG_TCEPosePresentationAxes(const tcePosePresentationAxesInput_t *input,
     }
     lean=input->leanMode?input->lean:0;
     if(lean<0) lean*=1.65f;
-    torso[2]+=lean; head[2]+=lean;
+    torso[2]+=lean; head[2]+=lean*1.2f;
     head[0]+=input->freelook[0]*.7f; head[1]+=input->freelook[1]*.7f;
     for(i=0;i<3;++i) {
         result.bodyAngles[i]=PresentAngle(legs[i]);

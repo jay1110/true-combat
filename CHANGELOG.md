@@ -14,6 +14,8 @@ Configuration names are case-insensitive in the game. The [Cvar reference](Docs/
 
 ### Fixed
 
+- Wall avoidance now uses an upward high-ready arm pose while crouching. Prone players retain their lying animation. A weapon near a wall turns toward the nearest clear side; crawling or insufficient side clearance places it visibly on the back. Firing and ammunition consumption are blocked until the firing position is clear again.
+- Head clearance is enforced in shared movement, and wall probes cover the weapon grip as well as the view. Lean presentation gives the head a stronger visible tilt without mixing standing torso frames into prone poses.
 - Corpse creation uses the death animation IDs saved at the kill, instead of a later stand/run state. A corpse-only guard retains the adjacent resting pose when an exported clip ends with an abrupt standing reset frame; normal death playback is unchanged.
 - Custom death sequences retain their final pose when converted to a corpse, including reversed animation sequences.
 - Omni-bots receive the existing player-contact push instead of being excluded from it.

@@ -194,10 +194,15 @@ static void axis_tests(void) {
         CHECK(!memcmp(a.head,b.head,sizeof(a.head)));
         CHECK(BG_TCEPosePresentationInterpolate(&older,&newer,.5f,&middle));
         NEAR(middle.weaponWallPitch,39.f,1e-6);
-        newer.weaponWallPitch=-1;CHECK(!BG_TCEPosePresentationAxes(&newer,&b));
+        newer.weaponWallPitch=-79;CHECK(!BG_TCEPosePresentationAxes(&newer,&b));
         newer.weaponWallPitch=79;CHECK(!BG_TCEPosePresentationAxes(&newer,&b));
         newer.weaponWallPitch=(float)NAN;CHECK(!BG_TCEPosePresentationAxes(&newer,&b));
     }
+    input.mode=TCE_POSE_PRESENT_PRONE;input.weaponWallPitch=-40;
+    CHECK(BG_TCEPosePresentationAxes(&input,&a));
+    NEAR(a.torsoRelativeAngles[1],-40,1e-5);
+    input.weaponWallPitch=78;CHECK(BG_TCEPosePresentationAxes(&input,&a));
+    NEAR(a.torsoRelativeAngles[1],0,1e-5);input.weaponWallPitch=0;
     input.scale=0;CHECK(!BG_TCEPosePresentationAxes(&input,&a) && a.body[0][0]==0);
     input.scale=1;input.lean=(float)NAN;CHECK(!BG_TCEPosePresentationAxes(&input,&a));
     input.lean=0;input.velocity[2]=(float)INFINITY;CHECK(!BG_TCEPosePresentationAxes(&input,&a));
@@ -217,6 +222,7 @@ static void low_pose_tests(void) {
     CHECK(body.oldTorsoFrame==20 && body.oldTorsoFrameModel==10);NEAR(body.torsoBacklerp,.5,1e-6);
     body=copy;body.torsoBacklerp=.75f;CG_TCEWeaponWallPose(&body,&character,78);
     CHECK(body.oldTorsoFrame==19 && body.torsoFrame==448 && body.torsoBacklerp==0);
+    body=copy;CG_TCEWeaponWallPose(&body,&character,-78);CHECK(body.torsoFrame==0 && body.torsoFrameModel==555 && body.frame==77);
     low.flags=ANIMFL_REVERSED;low.numFrames=4;body=copy;CG_TCEWeaponWallPose(&body,&character,78);CHECK(body.torsoFrame==451);
     low.name[0]=0;body=copy;CG_TCEWeaponWallPose(&body,&character,78);CHECK(!memcmp(&body,&copy,sizeof(body)));
 }
@@ -241,6 +247,15 @@ static void converter_tests(void) {
             NEAR(state.angles2[PITCH],(byte<128?byte*(2.f/255.f):1.f)*78.f,1e-5);
             CHECK(state.effect3Time==equipment);
         }
+        ps.eFlags=EF_PRONE;
+        for(byte=-70;byte<=78;++byte) {
+            ps.stats[15]=(short)TCE_WeaponWallProneState(23,(float)byte);
+            if(mode)BG_PlayerStateToEntityStateExtraPolate(&ps,&state,100,qfalse);
+            else BG_PlayerStateToEntityState(&ps,&state,qfalse);
+            NEAR(state.angles2[PITCH],byte>70?78.f:(float)byte,.29f);
+            CHECK(state.effect3Time==23);
+        }
+        ps.eFlags=0;
         ps.pm_type=PM_DEAD;
         if(mode) BG_PlayerStateToEntityStateExtraPolate(&ps,&state,150,qfalse);
         else BG_PlayerStateToEntityState(&ps,&state,qfalse);

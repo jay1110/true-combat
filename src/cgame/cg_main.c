@@ -3110,6 +3110,7 @@ void CG_Init(int serverMessageNum, int serverCommandSequence, int clientNum, qbo
 	CG_TCEHitDebugReset();
 	CG_TCEPresentationInit();
 	CG_ClearCorpseAnimationCache();
+	CG_TCEWeaponWallPoseInit();
 	TCE_ModernUIReset();
 
 	cgs.initing = qtrue;

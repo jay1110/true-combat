@@ -20,9 +20,9 @@ enum {
     TCE_POSE_MAX_TAGS = 128,
     TCE_POSE_MAX_FRAMES = 8192,
     TCE_POSE_MAX_CLOSURE = 32,
-    /* Shipped animation groups use ten clips; fourteen player meshes plus two
+    /* Shipped animation groups use ten clips plus the high-ready pose; fourteen player meshes plus two
      * spare corpse/team variants fit the bounded eight MiB borrowed-byte cap. */
-    TCE_POSE_MAX_SKELETONS = 10,
+    TCE_POSE_MAX_SKELETONS = 12,
     TCE_POSE_MAX_MESHES = 16,
     TCE_POSE_NAME_BYTES = 64,
     TCE_POSE_TABLE_SIZE = 4096,

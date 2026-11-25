@@ -56,7 +56,7 @@ def main():
                     a.cgame_source or ROOT/'src/cgame/cg_tce_pose_presentation.c')
         actual=production.read_text().replace('#include "g_local.h"','').replace('#include "cg_local.h"','')
         if mode=='cgame':
-            actual = '#include \"tce_weapon_wall_pose.h\"\n' + function((ROOT/'src/cgame/cg_players.c').read_text(),'CG_TCEWeaponWallPose') + '\n' + actual
+            actual = '#include \"tce_weapon_wall_pose.h\"\nstatic qhandle_t tceWallHighReadyModel=555;\n' + function((ROOT/'src/cgame/cg_players.c').read_text(),'CG_TCEWeaponWallPose') + '\n' + actual
         actual = '\n'.join(function((ROOT/'src/game/q_shared.c').read_text(),n) for n in ('Q_stricmpn','Q_stricmp')) + '\n' + actual
         fixture=fixture.replace('/* ACTUAL_PRESENTATION */',actual)
         source=folder/'generated.c';source.write_text(fixture,encoding='utf-8',newline='\n')

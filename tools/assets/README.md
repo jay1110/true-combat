@@ -53,3 +53,18 @@ of the original PNGs with `python tools/ui_modernize/background_assets.py --chec
 To regenerate from externally retained PNGs, pass an explicit `--source` directory.
 Output defaults to ignored `build/ui-backgrounds/`; `--out` selects another root.
 No PNG source directory is required in a clean checkout or a normal release build.
+
+## Wall high-ready pose
+
+pak/models/players/tce2/wall_high_ready.mdx is an arm-only derivative of the
+original ET human skeleton, with the original head, chest and leg channels.
+The original game attribution applies (see [credits](../../Docs/credits.md)).
+The deterministic generator checks skeleton compatibility, limb lengths,
+unchanged torso/head positions and the upward barrel direction:
+
+`powershell
+python tools/assets/build_wall_ready_pose.py --mod-pk3 <installed-tce-pak2.pk3> --base-pk3 <installed-et-pak0.pk3> --out <output.mdx>
+`
+
+No engine source is used. The generated MDX is included in the public resource
+tree, so normal builds do not require the original authoring archives.

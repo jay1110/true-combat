@@ -44,6 +44,7 @@ typedef struct {
 
 /* Deliberately module-private storage, independent of SDK entity/client sizes.
  * No diagnostic commands or mutation interface are registered in Game. */
+static int poseWallHighReadyModel=-1;
 static tcePoseRegistry_t poseRegistry;
 static tcePoseSurfaceRegistry_t poseSurfaces;
 static tcePoseMath_t poseMath;
@@ -263,6 +264,7 @@ void G_TCEPoseResetCharacters(void) {
     for(i=0;i<poseBufferCount;++i) { free(poseBuffers[i].bytes); memset(&poseBuffers[i],0,sizeof(poseBuffers[i])); }
     free(pendingBuffer); pendingBuffer=NULL; poseBufferCount=0;
     pendingSize=0; memset(pendingPath,0,sizeof(pendingPath));
+    poseWallHighReadyModel=-1;
     TCE_PoseRegistryInit(&poseRegistry);
     TCE_PoseSurfaceRegistryInit(&poseSurfaces); memset(&poseSurfaceScratch,0,sizeof(poseSurfaceScratch));
     memset(poseCharacters,0,sizeof(poseCharacters));
@@ -281,6 +283,7 @@ void G_TCEPoseInit(void) {
     memset(&poseStats,0,sizeof(poseStats));
     poseStats.mapGeneration=PoseGeneration();
     poseStats.initialized=TCE_PoseMathInit(&poseMath)==TCE_POSE_OK;
+    poseWallHighReadyModel=PoseModelID(PoseModel("models/players/tce2/wall_high_ready.mdx",1));
 }
 int G_TCEPoseRegisterCharacter(const bg_character_t *character,const bg_characterDef_t *definition) {
     const tcePoseMesh_t *mesh=NULL;
@@ -744,21 +747,21 @@ static int PoseTraceInput(const g_tcePoseCharacter_t *entry,const g_tcePoseChara
         if(!BG_TCEPoseClockFrameBounds(&raw,&minimum,&maximum) || (unsigned int)maximum>=pair->currentModel->frameCount) return 0;
         pair->currentFrame=(unsigned int)sample.frame; pair->oldFrame=(unsigned int)sample.oldFrame; pair->backlerp=sample.backlerp;
     }
-    if (!(query->weaponWallBlend>=0.f && query->weaponWallBlend<=1.f)) return 0;
-    if (query->weaponWallBlend>0.f) {
-        int lowIndex=TCE_WeaponWallLowAnimation(animationEntry->model);
-        if (lowIndex>=0 && lowIndex<animationEntry->animationCount) {
-            const animation_t *low=animationEntry->model->animations[lowIndex];
-            int lowModel=animationEntry->animationModels[lowIndex];
-            int lowFrame=TCE_WeaponWallLowFrame(low);
-            if (lowModel<0 || (unsigned int)lowFrame>=poseRegistry.skeletons[lowModel].model.frameCount) return 0;
+    if (!(query->weaponWallBlend>=-1.f && query->weaponWallBlend<=1.f)) return 0;
+    if (query->weaponWallBlend!=0.f && !(query->eFlags&EF_PRONE)) {
+        int lowIndex=TCE_WeaponWallLowAnimation(animationEntry->model),lowModel=-1,lowFrame=0;
+        if (query->weaponWallBlend<0.f) lowModel=poseWallHighReadyModel;
+        else if (lowIndex>=0 && lowIndex<animationEntry->animationCount) {
+            lowModel=animationEntry->animationModels[lowIndex];lowFrame=TCE_WeaponWallLowFrame(animationEntry->model->animations[lowIndex]);
+        }
+        if (lowModel>=0) {
+            if ((unsigned int)lowFrame>=poseRegistry.skeletons[lowModel].model.frameCount) return 0;
             if (input->torso.backlerp<=.5f) {
-                input->torso.oldFrame=input->torso.currentFrame;
-                input->torso.oldModel=input->torso.currentModel;
+                input->torso.oldFrame=input->torso.currentFrame;input->torso.oldModel=input->torso.currentModel;
             }
             input->torso.currentFrame=(unsigned int)lowFrame;
             input->torso.currentModel=&poseRegistry.skeletons[lowModel].model;
-            input->torso.backlerp=1.f-query->weaponWallBlend;
+            input->torso.backlerp=1.f-fabsf(query->weaponWallBlend);
         }
     }
     memcpy(input->origin,query->origin,sizeof(input->origin)); memcpy(input->axis,query->axes.body,sizeof(input->axis));

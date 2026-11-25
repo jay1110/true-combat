@@ -27,6 +27,7 @@ ownership of their game, art, names or trademarks.
   Sources: [id Software](https://idsoftware.com/),
   [Splash Damage's ET page](https://www.splashdamage.com/games/wolfenstein-enemy-territory/)
   and [Activision](https://www.activision.com/).
+- **High-ready character pose**: TCE2 arm posing and inverse-kinematics authoring, derived from Enemy Territory’s original human skeleton and `stand_rifle` pose. Original game asset credits remain with the developers listed above; the pose generator preserves the original head, chest and leg channels.
 - **vi$ion**: the ServerListFix package used as a reference for the browser's
   `globalservers` query. Its `readme.txt` credits vi$ion; the
   [historical package](https://github.com/jay1110/true-combat/blob/52122ec81b8d615731a63a348f944a5a77f605c9/tcetest/zzzzzzzzzzzzzz_ServerListFix.pk3)

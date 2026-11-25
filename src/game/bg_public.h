@@ -534,6 +534,7 @@ typedef struct
 	int tceReloadWeapon, tceReloadRequestedAt;
 	float tceWeaponWallAmount; /* Mod-private, replayed with prediction history. */
 	int tceWeaponWallWeapon;
+	float tceWeaponWallProneYaw; /* Private prediction history, never an engine ABI field. */
 } pmoveExt_t;   // data used both in client and server - store it here
                 // instead of playerstate to prevent different engine versions of playerstate between XP and MP
 
@@ -600,6 +601,7 @@ typedef struct
 	 * Server-local tail field; playerState/network and cgame layout unchanged. */
 	qboolean tceBotFreeClimb;
 #endif
+	int tceWeaponWallLeanMode;
 	qboolean tceWeaponWallEnabled; /* Shared mod-private movement option. */
 } pmove_t;
 

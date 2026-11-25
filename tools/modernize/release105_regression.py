@@ -33,7 +33,8 @@ typedef struct {int legsAnim,torsoAnim,eFlags;} entityState_t;
 typedef struct {int firstFrame,numFrames,flags;} animation_t;
 #define ANIMFL_REVERSED 4
 typedef float vec3_t[3];
-typedef struct { int serverTime; } cmd_t;
+typedef struct { int serverTime,buttons; } cmd_t;
+typedef cmd_t usercmd_t;
 typedef struct { int proneTime; } ext_t;
 typedef struct { cmd_t cmd; ext_t *pmext; } move_t;
 static ext_t ext; static move_t move, *pm=&move;
@@ -48,19 +49,30 @@ static int tce_customWeaponIcons[64];
 #define Q_stricmp _stricmp
 '''
     prelude += r'''
-typedef struct {int weapon,clientNum,viewheight,eFlags,pm_flags,stats[32],holdable[16];float leanf;vec3_t origin,viewangles;} playerState_t;
-static struct {struct view_t {vec3_t vieworg;vec3_t viewaxis[3];} *refdef_current;int time,clientNum,renderingThirdPerson;playerState_t predictedPlayerState;struct {float tceWeaponWallAmount;} pmext;} cg;
+typedef struct {int weapon,clientNum,viewheight,eFlags,pm_flags,pm_type,weaponstate,weaponDelay,stats[32],holdable[16];float leanf;vec3_t origin,viewangles,velocity;} playerState_t;
+static struct {struct view_t {vec3_t vieworg;vec3_t viewaxis[3];} *refdef_current;int time,clientNum,renderingThirdPerson;playerState_t predictedPlayerState;struct {float tceWeaponWallAmount,tceWeaponWallProneYaw;} pmext;} cg;
 static struct {int tceWeaponWallAvoidance;} cgs;
 static struct {int integer;} g_weaponWallAvoidance;
 static struct view_t camera;
-typedef struct {int startsolid,allsolid;float fraction;} trace_t;
+typedef struct {int startsolid,allsolid;float fraction;struct {vec3_t normal;} plane;} trace_t;
 static struct {int integer;} cg_weaponWallAvoidance;
 static float wallFraction=1;
+static int probeMode,traceCalls;static vec3_t traceStarts[4];
 #define PITCH 0
+#define YAW 1
+#define ROLL 2
+#define PM_NORMAL 0
+#define PMF_LADDER 4
+#define BUTTON_ATTACK 1
+#define EF_FIRING 128
+#define WEAPON_READY 0
+#define WEAPON_FIRING 7
+#define WEAPON_FIRINGALT 8
+#define STAT_TCE_FLAGS 9
 #define MASK_SOLID 1
 #define TCE_MAX_WEAPONS 64
 #define VectorMA(a,s,b,o) do{int k;for(k=0;k<3;k++)o[k]=a[k]+(s)*b[k];}while(0)
-static void CG_Trace(trace_t *t,const float *a,const float *b,const float *c,const float *d,int e,int f){t->fraction=wallFraction;t->startsolid=t->allsolid=0;}
+static void CG_Trace(trace_t *t,const float *a,const float *b,const float *c,const float *d,int e,int f){memset(t,0,sizeof(*t));t->fraction=wallFraction;if(probeMode){int i=traceCalls++%4;memcpy(traceStarts[i],a,sizeof(vec3_t));if(probeMode==1)t->fraction=i==1?.2f:1.f;if(probeMode==2){t->fraction=.2f;t->plane.normal[2]=1;}if(probeMode==3){t->fraction=i==0?.5f:1.f;t->plane.normal[0]=-1;}if(probeMode==4||probeMode==5){float yaw=atan2f(d[1]-a[1],d[0]-a[0])*57.29578f;t->fraction=(probeMode==4?yaw>=29.f:yaw<=-19.f)?1.f:.3f;}}}
 static void AngleVectors(const vec3_t a,vec3_t f,vec3_t r,vec3_t u){float p=a[0]*.01745329252f,y=a[1]*.01745329252f;if(f){f[0]=cosf(p)*cosf(y);f[1]=cosf(p)*sinf(y);f[2]=-sinf(p);}if(r){r[0]=sinf(y);r[1]=-cosf(y);r[2]=0;}if(u){u[0]=sinf(p)*cosf(y);u[1]=sinf(p)*sinf(y);u[2]=cosf(p);}}
 #define VectorCopy(a,b) memcpy(b,a,sizeof(vec3_t))
 typedef struct { playerState_t ps; struct {vec3_t tceShotAngles;float tceWeaponWallAmount;} pmext; } gclient_t;
@@ -72,7 +84,9 @@ static void CalcMuzzlePoint(gentity_t *e,int w,vec3_t f,vec3_t r,vec3_t u,vec3_t
 #define STAT_TCE_SHOT_SEED 0
 #define STAT_TCE_WEAPON_FLAGS 1
 #define STAT_TCE_AIM_PHASE 2
-#define EF_PRONE 1
+#define EF_PRONE 0x80000
+#define EF_PRONE_MOVING 0x100000
+#define EF_DEAD 1
 #define PMF_DUCKED 1
 typedef struct {int seed,aiming,prone,ducked,movementSpread,shotSpread,phase;vec3_t shotAngles,muzzle,right,up;} tce_bulletAim_t;
 
@@ -92,7 +106,8 @@ static void trap_S_StartSoundExVControl(const float *p,int e,int c,int sound,int
     bodies = '\n'.join(function(movement,n) for n in ('PM_TCEAddWeaponCounter','PM_TCEElapsedWeaponCounter','PM_TCEAimPostureSettled'))
     bodies += '\n'+function(weapons,'CG_TCEFireSound855')
     if not args.baseline:
-        bodies += '\n'+'\n'.join(function(source('src/game/tce_weapon_wall.h'),n) for n in ('TCE_WeaponWallFraction','TCE_WeaponWallPitch','TCE_WeaponWallAimPitch','TCE_WeaponWallApproach'))
+        bodies += '\n'+'\n'.join(function(source('src/game/tce_weapon_wall_state.h'),n) for n in ('TCE_WeaponWallFirearm','TCE_WeaponWallState','TCE_WeaponWallStatePitch','TCE_WeaponWallProneState','TCE_WeaponWallPosePitch','TCE_WeaponWallProneStowed','TCE_WeaponWallPosturePitch','TCE_WeaponWallProneBlocked','TCE_WeaponWallCancelProneFire'))
+        bodies += '\n'+'\n'.join(function(source('src/game/tce_weapon_wall.h'),n) for n in ('TCE_WeaponWallFraction','TCE_WeaponWallProneTarget','TCE_WeaponWallProneApproach','TCE_WeaponWallProtectHead','TCE_WeaponWallPitch','TCE_WeaponWallAimPitch','TCE_WeaponWallApproach'))
     if not args.baseline:
         bodies += '\n'+function(source('src/game/g_weapon.c'),'G_TCEWallShotAngles')
     bodies += '\n'+function(source('src/game/g_weapon.c'),'CalcMuzzlePoints')
@@ -102,7 +117,7 @@ static void trap_S_StartSoundExVControl(const float *p,int e,int c,int sound,int
         bodies += '\n'+function(source('src/game/g_client.c'),'G_TCECorpseAnimations')
         bodies += '\n'+function(source('src/cgame/tce_corpse_frame.h'),'TCE_CorpseTerminalFrame')
     else:
-        bodies += '\nstatic float TCE_WeaponWallPitch(int e,int w,float a){return 0;}\nstatic float TCE_WeaponWallAimPitch(float a,float w){return a;}\nstatic int TCE_CorpseTerminalFrame(int t,int p,float a,float b,int v){return t;}\nstatic void G_TCECorpseAnimations(entityState_t*s,int l,int t){}\nstatic float TCE_WeaponWallApproach(float a,float b,int ms){return b;}\n'
+        bodies += '\nstatic void TCE_WeaponWallProtectHead(playerState_t*p,const vec3_t a,const vec3_t b,int l,float m,void(*t)(trace_t*,const vec3_t,const vec3_t,const vec3_t,const vec3_t,int,int)){}\nstatic float TCE_WeaponWallPosturePitch(int e,int f,float p){return p;}\nstatic int TCE_WeaponWallProneBlocked(int e,float a){return 0;}\nstatic void TCE_WeaponWallCancelProneFire(playerState_t*p,usercmd_t*c,float a){}\nstatic float TCE_WeaponWallFraction(playerState_t*p,int l,void(*t)(trace_t*,const vec3_t,const vec3_t,const vec3_t,const vec3_t,int,int)){return 1;}\nstatic float TCE_WeaponWallPitch(int e,int w,float a){return 0;}\nstatic float TCE_WeaponWallAimPitch(float a,float w){return a;}\nstatic int TCE_CorpseTerminalFrame(int t,int p,float a,float b,int v){return t;}\nstatic void G_TCECorpseAnimations(entityState_t*s,int l,int t){}\nstatic float TCE_WeaponWallApproach(float a,float b,int ms){return b;}\n'
     if not args.baseline:
         bodies += '\n'+function(source('src/cgame/cg_players.c'),'CG_AnimationEndFrame')
     else:
@@ -118,6 +133,27 @@ static void trap_S_StartSoundExVControl(const float *p,int e,int c,int sound,int
     tests = r'''
 int main(void){int failures=0,i;int shots[4]={1,2,3,4};tce_weaponInfo_t media={{42,0,0,0},255};
 pm->pmext=&ext;
+{playerState_t p={0};usercmd_t cmd={0};p.weapon=3;p.eFlags=EF_PRONE|EF_FIRING;p.weaponstate=WEAPON_FIRING;p.weaponDelay=10;p.holdable[11]=2;cmd.buttons=3;
+TCE_WeaponWallCancelProneFire(&p,&cmd,.2f);
+if((cmd.buttons&BUTTON_ATTACK)||(p.eFlags&EF_FIRING)||p.weaponstate!=WEAPON_READY||p.weaponDelay||p.holdable[11]){puts("FAIL prone fire cancellation");++failures;}
+cmd.buttons=1;p.eFlags=0;TCE_WeaponWallCancelProneFire(&p,&cmd,1);if(cmd.buttons!=1){puts("FAIL standing attack preserved");++failures;}
+if(TCE_WeaponWallPosturePitch(0,PMF_DUCKED,78)!=-78||TCE_WeaponWallPosturePitch(EF_PRONE,PMF_DUCKED,78)!=78||TCE_WeaponWallAimPitch(0,-78)!=-78){puts("FAIL crouch high-ready aim");++failures;}}
+{playerState_t p={0};vec3_t mins={-18,-18,-24},maxs={18,18,48};p.weapon=3;p.viewheight=42;probeMode=1;traceCalls=0;
+if(fabs(TCE_WeaponWallFraction(&p,1,CG_Trace)-.2f)>.001f||traceCalls!=3){puts("FAIL grip probe missed corner");++failures;}
+probeMode=2;traceCalls=0;if(TCE_WeaponWallFraction(&p,1,CG_Trace)!=1){puts("FAIL floor treated as wall");++failures;}
+p.eFlags=EF_PRONE;p.viewheight=-10;probeMode=1;traceCalls=0;TCE_WeaponWallFraction(&p,1,CG_Trace);if(traceStarts[1][2]!=-10||traceStarts[2][2]!=-10){puts("FAIL prone shoulder probes below view plane");++failures;}
+probeMode=3;traceCalls=0;p.velocity[0]=100;TCE_WeaponWallProtectHead(&p,mins,maxs,1,.3f,CG_Trace);
+if(fabs(p.origin[0]+12.5f)>.01f||p.velocity[0]!=0||traceCalls!=2){puts("FAIL authoritative head clearance");++failures;}
+probeMode=0;}
+{playerState_t p={0};int v;p.weapon=3;p.eFlags=EF_PRONE;wallFraction=1;probeMode=0;
+if(TCE_WeaponWallProneTarget(&p,0,CG_Trace)!=0){puts("FAIL clear prone yaw");++failures;}
+probeMode=4;if(TCE_WeaponWallProneTarget(&p,0,CG_Trace)!=30){puts("FAIL right clearance selection");++failures;}
+probeMode=5;if(TCE_WeaponWallProneTarget(&p,-40,CG_Trace)!=-20){puts("FAIL left clearance selection");++failures;}probeMode=0;
+p.eFlags|=EF_PRONE_MOVING;if(TCE_WeaponWallProneTarget(&p,0,CG_Trace)!=78||!TCE_WeaponWallProneStowed(p.eFlags,0)){puts("FAIL crawl stow");++failures;}
+p.eFlags=EF_PRONE;wallFraction=.2f;if(TCE_WeaponWallProneTarget(&p,0,CG_Trace)!=78){puts("FAIL blocked prone stow");++failures;}
+for(v=-70;v<=70;v++){int packed=TCE_WeaponWallProneState(23,(float)v);if((packed&255)!=23||fabsf(TCE_WeaponWallPosePitch(EF_PRONE,packed)-v)>.29f){puts("FAIL prone side wire");++failures;}}
+if(!TCE_WeaponWallProneStowed(EF_PRONE,TCE_WeaponWallPosePitch(EF_PRONE,TCE_WeaponWallProneState(23,78)))){puts("FAIL prone stow wire");++failures;}
+wallFraction=1;}
 {float a=0;for(i=0;i<15;i++)a=TCE_WeaponWallApproach(a,1,16);
 if(TCE_WeaponWallPitch(1,3,a)>=78.f){puts("FAIL early low-ready snap");++failures;}
 a=TCE_WeaponWallApproach(a,1,16);if(TCE_WeaponWallPitch(1,3,a)!=78.f){puts("FAIL low-ready smoothing duration");++failures;}

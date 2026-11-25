@@ -247,7 +247,7 @@ void G_TCEPresentationPublish(gentity_t *ent) {
         if(!BG_TCEPoseCompactPack(&next.query.clip[i],phase,&next.query.code[i])||
            !BG_TCEPoseCompactSample(&next.query.clip[i],next.query.code[i],time,time,next.query.rateQ8[i],&next.query.channel[i]))goto unavailable;
     }
-    next.query.weaponWallBlend=next.input.weaponWallPitch/78.f;
+    next.query.weaponWallBlend=(next.query.eFlags&EF_PRONE)?0.f:next.input.weaponWallPitch/78.f;
     if(!BG_TCEPosePresentationAxes(&next.input,&next.query.axes))goto unavailable;
     ent->s.time=(int)next.query.code[0]-65536;ent->s.time2=(int)next.query.code[1]-65536;
     ent->client->ps.holdable[TCE_POSE_COMPACT_LEGS_SLOT]=ent->s.time;
@@ -331,7 +331,7 @@ int G_TCEPresentationQuery(int clientNum,uint32_t serverTime,uint32_t receiptCei
            next?next->query.sourceTime:0,serverTime,PresentationMoverRead,(void *)moverFrame,out->origin))goto failure;
     for(channel=0;channel<2;++channel)if(!BG_TCEPoseCompactSample(&out->clip[channel],out->code[channel],
         out->sourceTime,serverTime,out->rateQ8[channel],&out->channel[channel]))goto failure;
-    out->weaponWallBlend=input.weaponWallPitch/78.f;
+    out->weaponWallBlend=(out->eFlags&EF_PRONE)?0.f:input.weaponWallPitch/78.f;
     if(BG_TCEPosePresentationAxes(&input,&out->axes))return G_TCE_PRESENTATION_AFFECTED;
 failure:
     memset(out,0,sizeof(*out));return G_TCE_PRESENTATION_UNKNOWN;

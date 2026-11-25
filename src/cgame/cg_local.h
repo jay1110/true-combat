@@ -3785,3 +3785,5 @@ void OmnibotResetClient(void);
 void CG_ClearCorpseAnimationCache(void);
 
 void CG_TCEWeaponWallPose(refEntity_t *body, const bg_character_t *character, float pitch);
+
+void CG_TCEWeaponWallPoseInit(void);

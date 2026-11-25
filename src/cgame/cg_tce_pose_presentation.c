@@ -246,7 +246,7 @@ int CG_TCEPresentationPrepare(centity_t *cent,const bg_character_t *character,re
     body->oldTorsoFrame=sample[1].oldFrame;body->torsoFrame=sample[1].frame;body->torsoBacklerp=sample[1].backlerp;
     body->oldTorsoFrameModel=body->torsoFrameModel=animation[1]->mdxFile;
     cent->tceWeaponWallPitch=input.weaponWallPitch;
-    CG_TCEWeaponWallPose(body,character,input.weaponWallPitch);
+    if (!(state->eFlags&EF_PRONE)) CG_TCEWeaponWallPose(body,character,input.weaponWallPitch);
     PresentationLerp(&cent->pe.legs,animation[0],state->legsAnim,&sample[0],rate[0],cg.time);
     PresentationLerp(&cent->pe.torso,animation[1],state->torsoAnim,&sample[1],rate[1],cg.time);
     success=1;

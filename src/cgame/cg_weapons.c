@@ -1233,9 +1233,13 @@ static void CG_WeaponWallAvoidance(vec3_t origin, vec3_t angles, int weapon)
     vec3_t forward, up;
     if (cg.renderingThirdPerson) return;
     amount = cgs.tceWeaponWallAvoidance ? cg.pmext.tceWeaponWallAmount : 0.f;
+    if(cg.predictedPlayerState.eFlags&EF_PRONE) {
+        angles[YAW]+=cg.pmext.tceWeaponWallProneYaw;return;
+    }
     AngleVectors(cg.predictedPlayerState.viewangles, forward, NULL, up);
     angles[PITCH] = TCE_WeaponWallAimPitch(angles[PITCH],
-        TCE_WeaponWallPitch(cgs.tceWeaponWallAvoidance, weapon, amount));
+        TCE_WeaponWallPosturePitch(cg.predictedPlayerState.eFlags,cg.predictedPlayerState.pm_flags,
+            TCE_WeaponWallPitch(cgs.tceWeaponWallAvoidance, weapon, amount)));
     VectorMA(origin, -6.f * amount, forward, origin);
     VectorMA(origin, -4.f * amount, up, origin);
 }
@@ -1560,11 +1564,15 @@ static float CG_WeaponSmokeAlpha(int elapsed, float reciprocal)
 static void CG_TCEWorldWallWeaponAxis(refEntity_t *gun, const centity_t *cent)
 {
     vec3_t angles,scale; int i;
-    if (!(cent->tceWeaponWallPitch>0.f)) return;
+    if (cent->tceWeaponWallPitch==0.f) return;
     for (i=0;i<3;++i) scale[i]=VectorLength(gun->axis[i]);
     AxisToAngles(gun->axis,angles);
-    angles[PITCH]=TCE_WeaponWallAimPitch(cent->lerpAngles[PITCH],cent->tceWeaponWallPitch);
-    angles[YAW]=cent->lerpAngles[YAW];
+    if(cent->currentState.eFlags&EF_PRONE) {
+        angles[PITCH]=cent->lerpAngles[PITCH];angles[YAW]=cent->lerpAngles[YAW]+cent->tceWeaponWallPitch;
+    } else {
+        angles[PITCH]=TCE_WeaponWallAimPitch(cent->lerpAngles[PITCH],cent->tceWeaponWallPitch);
+        angles[YAW]=cent->lerpAngles[YAW];
+    }
     AnglesToAxis(angles,gun->axis);
     for (i=0;i<3;++i) VectorScale(gun->axis[i],scale[i],gun->axis[i]);
 }
@@ -1599,6 +1607,7 @@ void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 	isPlayer = (qboolean)(cent->currentState.clientNum == cg.snap->ps.clientNum);
 
 	weaponNum = cent->currentState.weapon;
+	if (!ps && TCE_WeaponWallFirearm(weaponNum) && TCE_WeaponWallProneStowed(cent->currentState.eFlags,cent->tceWeaponWallPitch)) return;
 
 	if (ps && cg.cameraMode)
 	{
@@ -2728,6 +2737,7 @@ Add the weapon, and flash for the player's view
 */
 void CG_AddViewWeapon(playerState_t *ps)
 {
+    if (cgs.tceWeaponWallAvoidance && TCE_WeaponWallFirearm(ps->weapon) && TCE_WeaponWallProneStowed(ps->eFlags,cg.pmext.tceWeaponWallProneYaw)) return;
 	refEntity_t  hand;
 	vec3_t       angles;
 	vec3_t       gunoff;

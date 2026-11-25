@@ -43,7 +43,7 @@ parity. Known limitations and component origins are documented in
 
 Wall clearance is calculated in shared movement and smoothed in command time. The upper byte of the existing signed-short `stats[15]` carries the obstruction amount; its equipment byte remains intact. Both player-state converters publish the resulting low-ready pitch in the previously unused `ET_PLAYER angles2[PITCH]` component. Movement yaw and lean keep their existing components. Engine player/entity layouts are unchanged.
 
-CGame blends the torso animation toward the declared `relaxed_idle_1h_1` pose, retaining leg animation and normal look axes. It uses animation metadata rather than stock frame numbers. The attached world weapon keeps its model scale and follows the same downward aim rule as QGame. Negotiated affected-pose hit evaluation applies the same torso-frame blend, including in historical queries and cache keys. The presentation profile version participates in asset negotiation so older pose policies cannot silently negotiate as identical.
+Standing CGame presentation blends toward the declared `relaxed_idle_1h_1` pose. Crouching uses the arm-only `wall_high_ready.mdx` pose, generated from the original ET skeleton with fixed limb lengths and unchanged head/chest channels. Prone presentation retains its original animation frames, rotates the upper body toward the nearest clear side and uses the existing back attachment while crawling or when neither side has room. Shared movement performs the clearance search and bounded return; the signed yaw/stow state uses the same leased stat byte and entity component. Leg animation and normal look axes are retained. It uses animation metadata rather than stock frame numbers. The attached world weapon keeps its model scale and follows the stance-specific aim rule as QGame. Negotiated affected-pose hit evaluation applies the same torso-frame blend, including in historical queries and cache keys. The presentation profile version participates in asset negotiation so older pose policies cannot silently negotiate as identical.
 
 ## Data manifests
 
@@ -57,3 +57,5 @@ URLs; it must not depend on a contributor's personal checkout path.
 
 dead-code-audit
 ```
+
+The head clearance sweep is shared by server movement and client prediction; any correction moves the authoritative player origin through a checked body sweep. Eye and grip probes use the same asymmetric lean offset as the camera and shot origin. Crouching advertises a negative ready pitch; prone firing is suppressed in shared weapon processing and guarded again before server weapon effects.

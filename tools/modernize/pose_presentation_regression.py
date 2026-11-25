@@ -42,7 +42,7 @@ def oracle(row):
     body[0] += .05 * sum(v * a for v, a in zip(row['velocity'], initial[0]))
     lean = row['lean'] * (1.65 if row['lean'] < 0 else 1) if row['leanMode'] else 0
     torso[2] += lean
-    head = [aim[0] + row['freelook'][0] * .7, aim[1] + row['freelook'][1] * .7, aim[2] + lean]
+    head = [aim[0] + row['freelook'][0] * .7, aim[1] + row['freelook'][1] * .7, aim[2] + lean*1.2]
     result = [basis(body), basis([angle(a - b) for a, b in zip(torso, body)]),
               basis([angle(a - b) for a, b in zip(head, torso)])]
     result[0] = [[v * row['scale'] for v in axis] for axis in result[0]]
@@ -120,7 +120,7 @@ def main():
     macro = source[source.index('#define SETUP_MOUNTEDGUN_STATUS'):source.index('/*', source.index('#define SETUP_MOUNTEDGUN_STATUS'))]
     functions = '\n'.join(function(source, name) for name in ('BG_TCEPlayerStateFields', 'BG_SnapshotSequenceAdd', 'BG_SnapshotVector', 'BG_PlayerStateToEntityState', 'BG_PlayerStateToEntityStateExtraPolate'))
     functions += '\n' + '\n'.join(function((ROOT/'src/game/q_shared.c').read_text(), n) for n in ('Q_stricmpn','Q_stricmp'))
-    functions += '\n' + function((ROOT/'src/cgame/cg_players.c').read_text(), 'CG_TCEWeaponWallPose')
+    functions += '\nstatic qhandle_t tceWallHighReadyModel=555;\n' + function((ROOT/'src/cgame/cg_players.c').read_text(), 'CG_TCEWeaponWallPose')
     fixture = (ROOT / 'tools/modernize/pose_presentation_test.c').read_text().replace('/* ACTUAL_PLAYER_CONVERTERS */', macro + functions).replace('/* CAPTURED_INPUTS */', generated_inputs)
     test = out / 'presentation_generated.c'; test.write_text(fixture, encoding='utf-8', newline='\n')
     sources = [test, ROOT / 'src/game/bg_tce_pose_presentation.c', ROOT / 'src/game/bg_tce_pose_clock.c']
