@@ -5,7 +5,7 @@ This reference describes **TCE2 1.0.5**, including retained TC:E controls and ch
 The current source contains **636 registration sites and 501 named cvars**. There are 502 case-insensitive keys in total: two retained unused limbo bindings register the same empty name. The detailed sections below cover all current non-SDK registrations, every current name with a registration change in the examined history, and related existing HUD/hit-diagnostic controls. The complete appendix includes unchanged inherited SDK registrations as well.
 
 - {download}`Complete registration appendix: defaults, flags, guards and source locations <cvars-registration.tsv>`
-- {download}`Reachable registration history: 122 events <cvars-history.tsv>`
+- {download}`Reachable registration history: 120 events <cvars-history.tsv>`
 - {download}`Reference descriptions and value ranges <cvars-descriptions.tsv>`
 
 ## How to read this reference
