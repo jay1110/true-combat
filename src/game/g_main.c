@@ -235,6 +235,7 @@ vmCvar_t        sv_gametype;
 vmCvar_t        sv_official;
 static vmCvar_t tce_version;
 vmCvar_t        g_leanmode;
+vmCvar_t        g_weaponWallAvoidance;
 vmCvar_t        g_killmessage;
 vmCvar_t        g_starthonor;
 vmCvar_t        g_aabasetime;
@@ -321,6 +322,7 @@ cvarTable_t gameCvarTable[] =
 
 	{ &g_swapteams,               "g_swapteams",               "0",                          CVAR_ROM, 0, qfalse, qtrue     },
 	{ &g_newbbox,                 "g_newbbox",                 "1",                          CVAR_SERVERINFO | CVAR_NORESTART, 0, qtrue, qfalse},
+	{ &g_weaponWallAvoidance, "g_weaponWallAvoidance", "1", CVAR_SERVERINFO | CVAR_ARCHIVE, 0, qtrue },
 	{ &g_leanmode,                "g_leanmode",                "1",                          36, 0, 1, 0, 0                 },
 	{ &g_killmessage,             "g_killmessage",             "0",                          36, 0, 1, 0, 0                 },
 	{ &g_starthonor,              "g_starthonor",              "0",                          36, 0, 1, 0, 0                 },

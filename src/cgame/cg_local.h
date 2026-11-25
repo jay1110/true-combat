@@ -2171,6 +2171,7 @@ typedef struct
 
 	qboolean initing;
 	int tceLeanMode;
+	int tceWeaponWallAvoidance;
 	int tceKillMessage;
 	char tceVersion[64];
 } cgs_t;
@@ -3779,3 +3780,5 @@ void OmnibotRenderDebugLines(void);
 void OmnibotRenderDebugText(void);
 void OmnibotResetClient(void);
 #endif
+
+void CG_ClearCorpseAnimationCache(void);

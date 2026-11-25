@@ -2,7 +2,7 @@
 
 This reference describes **TCE2 1.0.5**, including retained TC:E controls and changes made before the first versioned TCE2 release. It covers the mod layer on ET 2.60b and ETLegacy. Engine settings are not new TCE2 features merely because a mod module registers or reads them.
 
-The current source contains **636 registration sites and 501 named cvars**. There are 502 case-insensitive keys in total: two retained unused limbo bindings register the same empty name. The detailed sections below cover all current non-SDK registrations, every current name with a registration change in the examined history, and related existing HUD/hit-diagnostic controls. The complete appendix includes unchanged inherited SDK registrations as well.
+The current source contains **637 registration sites and 502 named cvars**. There are 503 case-insensitive keys in total: two retained unused limbo bindings register the same empty name. The detailed sections below cover all current non-SDK registrations, every current name with a registration change in the examined history, and related existing HUD/hit-diagnostic controls. The complete appendix includes unchanged inherited SDK registrations as well.
 
 - {download}`Complete registration appendix: defaults, flags, guards and source locations <cvars-registration.tsv>`
 - {download}`Reachable registration history: 120 events <cvars-history.tsv>`
@@ -448,7 +448,7 @@ Server game mode. Select it before startup/map load; changing it inside a runnin
 | CGame | `0` | `0` | Game/Editor |
 | QGame, UI | `5` | `SERVERINFO\|LATCH` | Game/Editor |
 
-**History:** Inherited ET SDK binding. **Registration sources:** [src/cgame/cg_main.c:485](https://github.com/jay1110/true-combat/blob/final/src/cgame/cg_main.c#L485), [src/game/g_main.c:268](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L268), [src/ui/ui_main.c:10633](https://github.com/jay1110/true-combat/blob/final/src/ui/ui_main.c#L10633).
+**History:** Inherited ET SDK binding. **Registration sources:** [src/cgame/cg_main.c:485](https://github.com/jay1110/true-combat/blob/final/src/cgame/cg_main.c#L485), [src/game/g_main.c:269](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L269), [src/ui/ui_main.c:10633](https://github.com/jay1110/true-combat/blob/final/src/ui/ui_main.c#L10633).
 
 
 #### `sv_official`
@@ -461,7 +461,7 @@ Retained TC:E official-map policy. Custom-map and custom-mode setups commonly st
 | --- | --- | --- | --- |
 | QGame | `1` | `SERVERINFO` | Game/Editor |
 
-**History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:270](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L270).
+**History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:271](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L271).
 
 
 #### `sv_gametype`
@@ -474,7 +474,7 @@ Read-only TC:E game-type state, separate from the operator-facing g_gametype sel
 | --- | --- | --- | --- |
 | QGame | `0` | `ROM` | Game/Editor |
 
-**History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:269](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L269).
+**History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:270](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L270).
 
 
 #### `g_mapScriptDirectory`
@@ -487,7 +487,7 @@ Directory checked for custom mapscript overrides before the packaged map script.
 | --- | --- | --- | --- |
 | QGame | `""` | `0` | Game/Editor |
 
-**History:** First recorded registration: 1.0.0 ([`7707e8c`](https://github.com/jay1110/true-combat/commit/7707e8c)). **Registration sources:** [src/game/g_main.c:392](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L392).
+**History:** First recorded registration: 1.0.0 ([`7707e8c`](https://github.com/jay1110/true-combat/commit/7707e8c)). **Registration sources:** [src/game/g_main.c:394](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L394).
 
 
 #### `g_newbbox`
@@ -500,7 +500,7 @@ Select the retained TC:E player-body/hull profile; the presentation/hit-registra
 | --- | --- | --- | --- |
 | QGame | `1` | `SERVERINFO\|NORESTART` | Game/Editor |
 
-**History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:323](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L323).
+**History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:324](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L324).
 
 
 #### `g_realism`
@@ -513,7 +513,7 @@ Retained TC:E realism/movement profile. In particular, 1 selects the normal 0.45
 | --- | --- | --- | --- |
 | QGame | `1` | `SERVERINFO\|LATCH` | Game/Editor |
 
-**History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:327](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L327).
+**History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:329](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L329).
 
 
 #### `g_leanmode`
@@ -526,7 +526,7 @@ Retained TC:E lean presentation and shot-position policy, published to clients.
 | --- | --- | --- | --- |
 | QGame | `1` | `SERVERINFO\|LATCH` | Game/Editor |
 
-**History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:324](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L324).
+**History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:326](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L326).
 
 
 #### `g_killmessage`
@@ -539,7 +539,7 @@ Retained kill-message policy published to clients; distinct from the new HUD sca
 | --- | --- | --- | --- |
 | QGame | `0` | `SERVERINFO\|LATCH` | Game/Editor |
 
-**History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:325](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L325).
+**History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:327](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L327).
 
 
 #### `g_starthonor`
@@ -552,7 +552,7 @@ Initial honor/armament-progression setting used by the retained TC:E round rules
 | --- | --- | --- | --- |
 | QGame | `0` | `SERVERINFO\|LATCH` | Game/Editor |
 
-**History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:326](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L326).
+**History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:328](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L328).
 
 
 #### `g_aabasetime`
@@ -565,7 +565,7 @@ Read-only armament-availability progression interval. Mapscript actions set it; 
 | --- | --- | --- | --- |
 | QGame | `5` | `ROM` | Game/Editor |
 
-**History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:328](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L328).
+**History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:330](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L330).
 
 
 #### `g_botvar`
@@ -578,7 +578,7 @@ Multiplier used by the retained TC:E bot-info enemy-selection probability code. 
 | --- | --- | --- | --- |
 | QGame | `1.0` | `0` | Game/Editor |
 
-**History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:329](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L329).
+**History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:331](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L331).
 
 
 #### `g_antilag`
@@ -592,7 +592,7 @@ Existing SDK antialag setting extended with optional TCE hit-debug layers. Bit 1
 | CGame | `1` | `0` | Game/Editor |
 | QGame, UI | `1` | `ARCHIVE\|SERVERINFO` | Game/Editor |
 
-**History:** Inherited ET SDK binding. **Registration sources:** [src/cgame/cg_main.c:496](https://github.com/jay1110/true-combat/blob/final/src/cgame/cg_main.c#L496), [src/game/g_main.c:394](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L394), [src/ui/ui_main.c:10662](https://github.com/jay1110/true-combat/blob/final/src/ui/ui_main.c#L10662).
+**History:** Inherited ET SDK binding. **Registration sources:** [src/cgame/cg_main.c:496](https://github.com/jay1110/true-combat/blob/final/src/cgame/cg_main.c#L496), [src/game/g_main.c:396](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L396), [src/ui/ui_main.c:10662](https://github.com/jay1110/true-combat/blob/final/src/ui/ui_main.c#L10662).
 
 
 #### `g_debugBullets`
@@ -605,7 +605,7 @@ Existing cheat-protected bullet diagnostic selector. TCE additions use bit 2 for
 | --- | --- | --- | --- |
 | QGame | `0` | `CHEAT` | Game/Editor |
 
-**History:** Inherited ET SDK binding. **Registration sources:** [src/game/g_main.c:359](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L359).
+**History:** Inherited ET SDK binding. **Registration sources:** [src/game/g_main.c:361](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L361).
 
 
 #### `g_debugBulletsClient`
@@ -618,7 +618,7 @@ Limit TCE hit diagnostics to a client slot.
 | --- | --- | --- | --- |
 | QGame | `-1` | `CHEAT` | Game/Editor |
 
-**History:** First recorded registration: 1.0.2 ([`19a5024`](https://github.com/jay1110/true-combat/commit/19a5024)). **Registration sources:** [src/game/g_main.c:360](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L360).
+**History:** First recorded registration: 1.0.2 ([`19a5024`](https://github.com/jay1110/true-combat/commit/19a5024)). **Registration sources:** [src/game/g_main.c:362](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L362).
 
 
 ### Server information and administration
@@ -634,7 +634,7 @@ Enable server country lookup and choose bot nationality handling. Uses an option
 | --- | --- | --- | --- |
 | QGame | `1` | `ARCHIVE\|LATCH` | Game/Editor |
 
-**History:** First recorded registration: 1.0.2 ([`4770335`](https://github.com/jay1110/true-combat/commit/4770335)). **Registration sources:** [src/game/g_main.c:298](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L298).
+**History:** First recorded registration: 1.0.2 ([`4770335`](https://github.com/jay1110/true-combat/commit/4770335)). **Registration sources:** [src/game/g_main.c:299](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L299).
 
 
 #### `g_oss`
@@ -647,7 +647,7 @@ Advertise available client-platform binaries to compatible browsers. This does n
 | --- | --- | --- | --- |
 | QGame | `2047` | `SERVERINFO` | Game/Editor |
 
-**History:** First recorded registration: 1.0.3 ([`1beb008`](https://github.com/jay1110/true-combat/commit/1beb008)). **Registration sources:** [src/game/g_main.c:299](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L299).
+**History:** First recorded registration: 1.0.3 ([`1beb008`](https://github.com/jay1110/true-combat/commit/1beb008)). **Registration sources:** [src/game/g_main.c:300](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L300).
 
 
 #### `lua_modules`
@@ -716,7 +716,7 @@ Load the optional Omni-bot gameplay runtime on map initialization. The matching 
 | --- | --- | --- | --- |
 | QGame | `0` | `ARCHIVE\|LATCH` | Game/Editor |
 
-**History:** First recorded registration: pre-1.0.0 ([`fcf641e`](https://github.com/jay1110/true-combat/commit/fcf641e)). **Registration sources:** [src/game/g_main.c:253](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L253).
+**History:** First recorded registration: pre-1.0.0 ([`fcf641e`](https://github.com/jay1110/true-combat/commit/fcf641e)). **Registration sources:** [src/game/g_main.c:254](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L254).
 
 
 #### `omnibot_path`
@@ -729,7 +729,7 @@ Optional Omni-bot core-library search path. Empty uses the loader's platform-spe
 | --- | --- | --- | --- |
 | QGame | `""` | `ARCHIVE\|LATCH` | Game/Editor |
 
-**History:** First recorded registration: pre-1.0.0 ([`fcf641e`](https://github.com/jay1110/true-combat/commit/fcf641e)). **Registration sources:** [src/game/g_main.c:254](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L254).
+**History:** First recorded registration: pre-1.0.0 ([`fcf641e`](https://github.com/jay1110/true-combat/commit/fcf641e)). **Registration sources:** [src/game/g_main.c:255](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L255).
 
 
 #### `omnibot_flags`
@@ -742,7 +742,7 @@ Retained Omni-bot option bitmask. Its declared bits cover XP-save, tank/gun moun
 | --- | --- | --- | --- |
 | QGame | `0` | `ARCHIVE` | Game/Editor |
 
-**History:** First recorded registration: pre-1.0.0 ([`fcf641e`](https://github.com/jay1110/true-combat/commit/fcf641e)). **Registration sources:** [src/game/g_main.c:255](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L255).
+**History:** First recorded registration: pre-1.0.0 ([`fcf641e`](https://github.com/jay1110/true-combat/commit/fcf641e)). **Registration sources:** [src/game/g_main.c:256](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L256).
 
 
 #### `omnibot_playing`
@@ -755,7 +755,7 @@ Read-only bot-count/status information maintained by the integration.
 | --- | --- | --- | --- |
 | QGame | `0` | `SERVERINFO\|ROM` | Game/Editor |
 
-**History:** First recorded registration: pre-1.0.0 ([`fcf641e`](https://github.com/jay1110/true-combat/commit/fcf641e)). **Registration sources:** [src/game/g_main.c:256](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L256).
+**History:** First recorded registration: pre-1.0.0 ([`fcf641e`](https://github.com/jay1110/true-combat/commit/fcf641e)). **Registration sources:** [src/game/g_main.c:257](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L257).
 
 
 #### `omnibot_tce_explore`
@@ -768,7 +768,7 @@ Allow the TCE exploration goal when normal objective/combat conditions permit. I
 | --- | --- | --- | --- |
 | QGame | `1` | `ARCHIVE` | Game/Editor |
 
-**History:** First recorded registration: 1.0.1 ([`f7e1622`](https://github.com/jay1110/true-combat/commit/f7e1622)). **Registration sources:** [src/game/g_main.c:249](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L249).
+**History:** First recorded registration: 1.0.1 ([`f7e1622`](https://github.com/jay1110/true-combat/commit/f7e1622)). **Registration sources:** [src/game/g_main.c:250](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L250).
 
 
 ### Editor-only controls
@@ -784,7 +784,7 @@ Original navigation-editing state retained only in FEATURE_NAVSTUDIO authoring b
 | --- | --- | --- | --- |
 | QGame | `0` | `TEMP` | Editor |
 
-**History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:331](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L331).
+**History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:333](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L333).
 
 
 #### `cg_omnibotdrawing`
@@ -823,7 +823,7 @@ Native registration for exploration diagnostics is restricted to FEATURE_NAVSTUD
 | --- | --- | --- | --- |
 | QGame | `0` | `0` | Editor |
 
-**History:** First recorded registration: 1.0.1 ([`f7e1622`](https://github.com/jay1110/true-combat/commit/f7e1622)). **Registration sources:** [src/game/g_main.c:251](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L251).
+**History:** First recorded registration: 1.0.1 ([`f7e1622`](https://github.com/jay1110/true-combat/commit/f7e1622)). **Registration sources:** [src/game/g_main.c:252](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L252).
 
 
 ### Protocol and internal state
@@ -839,7 +839,7 @@ Read-only TCE2 mod version string compiled from TCE_VERSION.
 | --- | --- | --- | --- |
 | QGame | `1.0.5 (TCE_VERSION)` | `SERVERINFO\|ROM` | Game/Editor |
 
-**History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:279](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L279).
+**History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:280](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L280).
 
 
 #### `tce_pose`
@@ -1308,7 +1308,7 @@ Existing automatic fireteam policy; TC:E registers it archived.
 | --- | --- | --- | --- |
 | QGame | `0` | `ARCHIVE` | Game/Editor |
 
-**History:** Inherited ET SDK binding. **Registration sources:** [src/game/g_main.c:484](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L484).
+**History:** Inherited ET SDK binding. **Registration sources:** [src/game/g_main.c:486](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L486).
 
 
 #### `g_friendlyFire`
@@ -1322,7 +1322,7 @@ Existing friendly-fire policy. QGame uses SERVERINFO + CHEAT; UI adds an archive
 | UI | `1` | `ARCHIVE` | Game/Editor |
 | QGame | `1` | `SERVERINFO\|CHEAT` | Game/Editor |
 
-**History:** Inherited ET SDK binding. **Registration sources:** [src/game/g_main.c:297](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L297), [src/ui/ui_main.c:10536](https://github.com/jay1110/true-combat/blob/final/src/ui/ui_main.c#L10536).
+**History:** Inherited ET SDK binding. **Registration sources:** [src/game/g_main.c:298](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L298), [src/ui/ui_main.c:10536](https://github.com/jay1110/true-combat/blob/final/src/ui/ui_main.c#L10536).
 
 
 #### `g_gravity`
@@ -1335,7 +1335,7 @@ Existing world-gravity setting, cheat-protected in this TC:E registration.
 | --- | --- | --- | --- |
 | QGame | `800` | `CHEAT` | Game/Editor |
 
-**History:** Inherited ET SDK binding. **Registration sources:** [src/game/g_main.c:347](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L347).
+**History:** Inherited ET SDK binding. **Registration sources:** [src/game/g_main.c:349](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L349).
 
 
 #### `g_speed`
@@ -1348,7 +1348,7 @@ Existing base movement-speed parameter, cheat-protected in TC:E. Actual TCE move
 | --- | --- | --- | --- |
 | QGame | `320` | `CHEAT` | Game/Editor |
 
-**History:** Inherited ET SDK binding. **Registration sources:** [src/game/g_main.c:346](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L346).
+**History:** Inherited ET SDK binding. **Registration sources:** [src/game/g_main.c:348](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L348).
 
 
 #### `g_lms_matchlimit`
@@ -1362,7 +1362,7 @@ Existing SDK LMS match-limit binding. QGame and UI retain different registration
 | UI | `2` | `ARCHIVE` | Game/Editor |
 | QGame | `5` | `ARCHIVE` | Game/Editor |
 
-**History:** Inherited ET SDK binding. **Registration sources:** [src/game/g_main.c:455](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L455), [src/ui/ui_main.c:10665](https://github.com/jay1110/true-combat/blob/final/src/ui/ui_main.c#L10665).
+**History:** Inherited ET SDK binding. **Registration sources:** [src/game/g_main.c:457](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L457), [src/ui/ui_main.c:10665](https://github.com/jay1110/true-combat/blob/final/src/ui/ui_main.c#L10665).
 
 
 #### `g_lms_roundlimit`
@@ -1376,7 +1376,7 @@ Existing SDK LMS round-limit binding. QGame and UI retain different registration
 | UI | `3` | `ARCHIVE` | Game/Editor |
 | QGame | `5` | `ARCHIVE` | Game/Editor |
 
-**History:** Inherited ET SDK binding. **Registration sources:** [src/game/g_main.c:454](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L454), [src/ui/ui_main.c:10664](https://github.com/jay1110/true-combat/blob/final/src/ui/ui_main.c#L10664).
+**History:** Inherited ET SDK binding. **Registration sources:** [src/game/g_main.c:456](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L456), [src/ui/ui_main.c:10664](https://github.com/jay1110/true-combat/blob/final/src/ui/ui_main.c#L10664).
 
 
 #### `g_warmup`
@@ -1390,7 +1390,7 @@ Existing warmup duration. QGame registers 25, UI's inherited mirror registers 60
 | QGame | `25` | `ARCHIVE` | Game/Editor |
 | UI | `60` | `ARCHIVE` | Game/Editor |
 
-**History:** Inherited ET SDK binding. **Registration sources:** [src/game/g_main.c:303](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L303), [src/ui/ui_main.c:10663](https://github.com/jay1110/true-combat/blob/final/src/ui/ui_main.c#L10663).
+**History:** Inherited ET SDK binding. **Registration sources:** [src/game/g_main.c:304](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L304), [src/ui/ui_main.c:10663](https://github.com/jay1110/true-combat/blob/final/src/ui/ui_main.c#L10663).
 
 
 #### `match_minplayers`
@@ -1404,7 +1404,7 @@ Existing minimum-player match setting. QGame and UI bindings have different pers
 | QGame | `4` | `0` | Game/Editor |
 | UI | `4` | `ARCHIVE` | Game/Editor |
 
-**History:** Inherited ET SDK binding. **Registration sources:** [src/game/g_main.c:402](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L402), [src/ui/ui_main.c:10704](https://github.com/jay1110/true-combat/blob/final/src/ui/ui_main.c#L10704).
+**History:** Inherited ET SDK binding. **Registration sources:** [src/game/g_main.c:404](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L404), [src/ui/ui_main.c:10704](https://github.com/jay1110/true-combat/blob/final/src/ui/ui_main.c#L10704).
 
 
 #### `ui_gametype`
@@ -1475,6 +1475,22 @@ Read-only current map information mirrored by several mod subsystems. Repeated b
 | SDK BotAI | `""` | `SERVERINFO\|ROM` | Legacy SDK AI |
 
 **History:** Inherited ET SDK binding. **Registration sources:** [src/botai/ai_main.c:2037](https://github.com/jay1110/true-combat/blob/final/src/botai/ai_main.c#L2037), [src/botai/ai_team.c:3434](https://github.com/jay1110/true-combat/blob/final/src/botai/ai_team.c#L3434), [src/game/g_cmds.c:3689](https://github.com/jay1110/true-combat/blob/final/src/game/g_cmds.c#L3689), [src/game/g_save.c:1491](https://github.com/jay1110/true-combat/blob/final/src/game/g_save.c#L1491), [src/game/g_save.c:2288](https://github.com/jay1110/true-combat/blob/final/src/game/g_save.c#L2288), [src/game/g_script.c:431](https://github.com/jay1110/true-combat/blob/final/src/game/g_script.c#L431), [src/game/g_stats.c:579](https://github.com/jay1110/true-combat/blob/final/src/game/g_stats.c#L579), [src/game/tce_nodes.c:21](https://github.com/jay1110/true-combat/blob/final/src/game/tce_nodes.c#L21), [src/game/tce_nodes.c:212](https://github.com/jay1110/true-combat/blob/final/src/game/tce_nodes.c#L212), [src/game/tce_nodes.c:244](https://github.com/jay1110/true-combat/blob/final/src/game/tce_nodes.c#L244), [src/game/tce_nodes.c:72](https://github.com/jay1110/true-combat/blob/final/src/game/tce_nodes.c#L72).
+
+
+### Server rules
+
+
+#### `g_weaponWallAvoidance`
+
+Enable gradual wall lowering and matching authoritative shot direction for all players. Enabled mode displays server bullet impacts instead of locally predicted marks.
+
+**Values:** 0 off; 1 on (default); server/RCON only.
+
+| Module | Default | Flags | Build scope |
+| --- | --- | --- | --- |
+| QGame | `1` | `ARCHIVE\|SERVERINFO` | Game/Editor |
+
+**History:** Source registration; see appendix. **Registration sources:** [src/game/g_main.c:325](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L325).
 
 ## Background weather inputs and session state
 

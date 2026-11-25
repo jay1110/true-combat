@@ -20,6 +20,7 @@
 #include "tce_movement.h"
 #include "tce_attack.h"
 #include "tce_aim.h"
+#include "tce_weapon_wall.h"
 
 /* Native movement passes ps, character->animModelInfo, event, continue, force.
  * Cgame media extends the character layout; qagame has only its file and model. */
@@ -7993,6 +7994,17 @@ static void PM_Weapon(void)
 	static int weaponstate_last = -1;
 #endif
 
+	if (!pm->tceWeaponWallEnabled || pm->ps->pm_type != PM_NORMAL)
+		pm->pmext->tceWeaponWallAmount = 0.f;
+	else
+	{
+		float target = 1.f - TCE_WeaponWallFraction(pm->ps, pm->trace);
+		if (pm->pmext->tceWeaponWallWeapon != pm->ps->weapon)
+			pm->pmext->tceWeaponWallAmount = 0.f;
+		pm->pmext->tceWeaponWallAmount = TCE_WeaponWallApproach(
+			pm->pmext->tceWeaponWallAmount, target, pml.msec);
+	}
+	pm->pmext->tceWeaponWallWeapon = pm->ps->weapon;
 	PM_TCECaptureReloadRequest();
 	if (PM_TCEUpdateMountedWeapon())
 	{

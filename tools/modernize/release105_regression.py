@@ -28,6 +28,8 @@ def main():
 #include <string.h>
 #include <math.h>
 typedef int qboolean;
+typedef struct {int legsAnim,torsoAnim,eFlags;} entityState_t;
+#define EF_FORCE_END_FRAME 8
 typedef struct {int firstFrame,numFrames,flags;} animation_t;
 #define ANIMFL_REVERSED 4
 typedef float vec3_t[3];
@@ -38,7 +40,7 @@ static ext_t ext; static move_t move, *pm=&move;
 typedef struct { struct { int number,weapon; struct {vec3_t trBase;} pos; } currentState; } centity_t;
 typedef struct {int flashEchoSound[4],flashReverbVolume;} tce_weaponInfo_t;
 static centity_t cg_entities[1];
-typedef struct {int suppressed,subsonic;} tce_weaponDef_t;
+typedef struct {int suppressed,subsonic,scoped,unknown_1c0;float unknown_0f8[4];} tce_weaponDef_t;
 static tce_weaponDef_t weaponDef[64];
 static struct {float deafness;} tceFlash;
 static tce_weaponInfo_t tce_cg_weapons[64];
@@ -47,7 +49,9 @@ static int tce_customWeaponIcons[64];
 '''
     prelude += r'''
 typedef struct {int weapon,clientNum,viewheight,eFlags,pm_flags,stats[32],holdable[16];float leanf;vec3_t origin,viewangles;} playerState_t;
-static struct {struct view_t {vec3_t vieworg;vec3_t viewaxis[3];} *refdef_current;int time,clientNum,renderingThirdPerson;playerState_t predictedPlayerState;} cg;
+static struct {struct view_t {vec3_t vieworg;vec3_t viewaxis[3];} *refdef_current;int time,clientNum,renderingThirdPerson;playerState_t predictedPlayerState;struct {float tceWeaponWallAmount;} pmext;} cg;
+static struct {int tceWeaponWallAvoidance;} cgs;
+static struct {int integer;} g_weaponWallAvoidance;
 static struct view_t camera;
 typedef struct {int startsolid,allsolid;float fraction;} trace_t;
 static struct {int integer;} cg_weaponWallAvoidance;
@@ -59,7 +63,7 @@ static float wallFraction=1;
 static void CG_Trace(trace_t *t,const float *a,const float *b,const float *c,const float *d,int e,int f){t->fraction=wallFraction;t->startsolid=t->allsolid=0;}
 static void AngleVectors(const vec3_t a,vec3_t f,vec3_t r,vec3_t u){float p=a[0]*.01745329252f,y=a[1]*.01745329252f;if(f){f[0]=cosf(p)*cosf(y);f[1]=cosf(p)*sinf(y);f[2]=-sinf(p);}if(r){r[0]=sinf(y);r[1]=-cosf(y);r[2]=0;}if(u){u[0]=sinf(p)*cosf(y);u[1]=sinf(p)*sinf(y);u[2]=cosf(p);}}
 #define VectorCopy(a,b) memcpy(b,a,sizeof(vec3_t))
-typedef struct { playerState_t ps; struct {vec3_t tceShotAngles;} pmext; } gclient_t;
+typedef struct { playerState_t ps; struct {vec3_t tceShotAngles;float tceWeaponWallAmount;} pmext; } gclient_t;
 typedef struct { gclient_t *client; struct {int weapon;} s; } gentity_t;
 static vec3_t forward,right,up,muzzleTrace,muzzleEffect;
 static void CalcMuzzlePointForActivate(gentity_t *e,vec3_t f,vec3_t r,vec3_t u,vec3_t o){}
@@ -71,7 +75,7 @@ static void CalcMuzzlePoint(gentity_t *e,int w,vec3_t f,vec3_t r,vec3_t u,vec3_t
 #define EF_PRONE 1
 #define PMF_DUCKED 1
 typedef struct {int seed,aiming,prone,ducked,movementSpread,shotSpread,phase;vec3_t shotAngles,muzzle,right,up;} tce_bulletAim_t;
-static void TCE_BulletEndpos(const tce_weaponDef_t*d,const tce_bulletAim_t*a,vec3_t end){vec3_t f;AngleVectors(a->shotAngles,f,NULL,NULL);VectorMA(a->muzzle,8192.f,f,end);}
+
 static int chosen,echoCalls,lastEcho;
 static int test_rand(void){return chosen;}
 #define rand test_rand
@@ -88,11 +92,17 @@ static void trap_S_StartSoundExVControl(const float *p,int e,int c,int sound,int
     bodies = '\n'.join(function(movement,n) for n in ('PM_TCEAddWeaponCounter','PM_TCEElapsedWeaponCounter','PM_TCEAimPostureSettled'))
     bodies += '\n'+function(weapons,'CG_TCEFireSound855')
     if not args.baseline:
-        bodies += '\n'+function(source('src/game/tce_weapon_wall.h'),'TCE_WeaponWallFraction')
+        bodies += '\n'+'\n'.join(function(source('src/game/tce_weapon_wall.h'),n) for n in ('TCE_WeaponWallFraction','TCE_WeaponWallPitch','TCE_WeaponWallApproach'))
     if not args.baseline:
         bodies += '\n'+function(source('src/game/g_weapon.c'),'G_TCEWallShotAngles')
     bodies += '\n'+function(source('src/game/g_weapon.c'),'CalcMuzzlePoints')
+    bodies += '\n'+function(source('src/game/tce_bullet.c'),'TCE_BulletEndpos')
     bodies += '\n'+function(source('src/game/g_weapon.c'),'Bullet_Endpos')
+    if not args.baseline:
+        bodies += '\n'+function(source('src/game/g_client.c'),'G_TCECorpseAnimations')
+        bodies += '\n'+function(source('src/cgame/tce_corpse_frame.h'),'TCE_CorpseTerminalFrame')
+    else:
+        bodies += '\nstatic int TCE_CorpseTerminalFrame(int t,int p,float a,float b,int v){return t;}\nstatic void G_TCECorpseAnimations(entityState_t*s,int l,int t){}\nstatic float TCE_WeaponWallApproach(float a,float b,int ms){return b;}\n'
     if not args.baseline:
         bodies += '\n'+function(source('src/cgame/cg_players.c'),'CG_AnimationEndFrame')
     else:
@@ -108,6 +118,10 @@ static void trap_S_StartSoundExVControl(const float *p,int e,int c,int sound,int
     tests = r'''
 int main(void){int failures=0,i;int shots[4]={1,2,3,4};tce_weaponInfo_t media={{42,0,0,0},255};
 pm->pmext=&ext;
+{float a=0;for(i=0;i<15;i++){float prev=a;a=TCE_WeaponWallApproach(a,1,16);if(a-prev>.06401f){puts("FAIL abrupt lowering");++failures;}}if(a<.95f||a>=1){puts("FAIL lowering duration");++failures;}for(i=0;i<16;i++)a=TCE_WeaponWallApproach(a,0,16);if(a!=0){puts("FAIL smooth return");++failures;}}
+{entityState_t b={31,35,0};G_TCECorpseAnimations(&b,277,286);if(b.legsAnim!=277||b.torsoAnim!=286||!(b.eFlags&EF_FORCE_END_FRAME)){puts("FAIL saved custom death selection");++failures;}}
+if(TCE_CorpseTerminalFrame(105,104,41,0,1)!=104||TCE_CorpseTerminalFrame(49,48,0,0,1)!=49||TCE_CorpseTerminalFrame(105,104,41,0,0)!=105){puts("FAIL corpse reset-frame selection");++failures;}
+cgs.tceWeaponWallAvoidance=g_weaponWallAvoidance.integer=1;
 {animation_t a={1700,42,0};if(CG_AnimationEndFrame(&a)!=1741){puts("FAIL forward terminal frame");++failures;}a.flags=4;if(CG_AnimationEndFrame(&a)!=1700){puts("FAIL reversed terminal frame");++failures;}}
 for(i=0;i<2;i++){pm->cmd.serverTime=1300000000;ext.proneTime=i?-1299999700:1299999700;if(!PM_TCEAimPostureSettled()){puts("FAIL settled after long uptime");++failures;}}
 for(i=0;i<2;i++){pm->cmd.serverTime=1300000000;ext.proneTime=i?-1299999900:1299999900;if(PM_TCEAimPostureSettled()){puts("FAIL posture transition guard");++failures;}}
@@ -117,16 +131,17 @@ media.flashEchoSound[0]=0;echoCalls=0;CG_TCEFireSound855(&cg_entities[0],&media,
 shots[1]=0;for(i=0;i<4;i++)media.flashEchoSound[i]=42+i;
 for(chosen=0;chosen<4;chosen++){echoCalls=0;CG_TCEFireSound855(&cg_entities[0],&media,shots);if(echoCalls!=1||lastEcho!=42+chosen){puts("FAIL independent distant variants");++failures;}}
 {vec3_t origin={0},angles={0};camera.viewaxis[0][0]=camera.viewaxis[1][1]=camera.viewaxis[2][2]=1;
-cg_weaponWallAvoidance.integer=1;cg.predictedPlayerState.weapon=3;cg.time=1000;wallFraction=.5f;CG_WeaponWallAvoidance(origin,angles,3);
+cg_weaponWallAvoidance.integer=1;cg.predictedPlayerState.weapon=3;cg.time=1000;wallFraction=.5f;cg.pmext.tceWeaponWallAmount=.5f;CG_WeaponWallAvoidance(origin,angles,3);
 if(fabs(angles[0]-17.5f)>.001f||fabs(origin[0]+3.f)>.001f||fabs(origin[2]+2.f)>.001f){puts("FAIL wall lowering");++failures;}
-wallFraction=1;memset(origin,0,sizeof(origin));memset(angles,0,sizeof(angles));CG_WeaponWallAvoidance(origin,angles,3);
+wallFraction=1;cg.pmext.tceWeaponWallAmount=0;memset(origin,0,sizeof(origin));memset(angles,0,sizeof(angles));CG_WeaponWallAvoidance(origin,angles,3);
 if(angles[0]!=0||origin[0]!=0){puts("FAIL clear wall avoidance");++failures;}}
-{gclient_t c={0};gentity_t e={&c};c.ps.weapon=45;wallFraction=.5f;CalcMuzzlePoints(&e,45);
+{gclient_t c={0};gentity_t e={&c};c.ps.weapon=45;c.ps.stats[1]=4;c.pmext.tceWeaponWallAmount=.5f;wallFraction=.5f;CalcMuzzlePoints(&e,45);
 if(fabs(forward[2]+sinf(17.5f*.01745329252f))>.0001f||c.ps.viewangles[0]!=0){puts("FAIL authoritative lowered shot direction");++failures;}
 {vec3_t end;c.pmext.tceShotAngles[0]=7.f;Bullet_Endpos(&e,0,&end);
 if(fabs(end[2]+8192.f*sinf(24.5f*.01745329252f))>.01f){puts("FAIL actual pre-recoil bullet endpoint");++failures;}}
-wallFraction=1;CalcMuzzlePoints(&e,45);if(fabs(forward[2])>.0001f){puts("FAIL clear shot direction");++failures;}
-c.ps.weapon=60;wallFraction=0;CalcMuzzlePoints(&e,60);if(fabs(forward[2])>.0001f){puts("FAIL mounted direction");++failures;}}
+wallFraction=1;c.pmext.tceWeaponWallAmount=0;CalcMuzzlePoints(&e,45);if(fabs(forward[2])>.0001f){puts("FAIL clear shot direction");++failures;}
+c.ps.weapon=60;c.pmext.tceWeaponWallAmount=1;wallFraction=0;CalcMuzzlePoints(&e,60);if(fabs(forward[2])>.0001f){puts("FAIL mounted direction");++failures;}}
+g_weaponWallAvoidance.integer=0;{gclient_t c={0};gentity_t e={&c};c.ps.weapon=45;c.pmext.tceWeaponWallAmount=1;CalcMuzzlePoints(&e,45);if(forward[2]!=0){puts("FAIL server disabled");++failures;}}
 TCE_RecordCustomWeaponIcon(&tce_cg_weapons[3],"icons/custom_rifle",83);
 if(tce_customWeaponIcons[3]!=83){puts("FAIL custom artwork selection");++failures;}
 TCE_RecordCustomWeaponIcon(&tce_cg_weapons[3],"icons/iconw_luger_1",84);

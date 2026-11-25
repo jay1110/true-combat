@@ -6,6 +6,7 @@
 */
 
 #include "cg_local.h"
+#include "tce_corpse_frame.h"
 #include "cg_tce_pose_presentation.h"
 #include "../game/bg_classes.h"
 #include "../game/tce_trajectory.h"
@@ -703,6 +704,48 @@ static int CG_AnimationEndFrame(const animation_t *anim)
     return anim->firstFrame + ((anim->flags & ANIMFL_REVERSED) ? 0 : anim->numFrames - 1);
 }
 
+typedef struct {
+    const animation_t *animation;
+    int mesh, model, first, count, flags, frame;
+} corpseFrameCache_t;
+static corpseFrameCache_t corpseFrames[128];
+static unsigned corpseFrameNext;
+void CG_ClearCorpseAnimationCache(void)
+{
+    memset(corpseFrames, 0, sizeof(corpseFrames));
+    corpseFrameNext = 0;
+}
+static int CG_CorpseAnimationEndFrame(const animation_t *anim, const bg_character_t *character)
+{
+    int terminal = CG_AnimationEndFrame(anim), previous, i, valid;
+    refEntity_t pose;
+    orientation_t last, before;
+    corpseFrameCache_t *entry;
+    if (!character || anim->numFrames < 2) return terminal;
+    for (i = 0; i < 128; ++i) {
+        entry = &corpseFrames[i];
+        if (entry->animation == anim && entry->mesh == character->mesh &&
+            entry->model == anim->mdxFile && entry->first == anim->firstFrame &&
+            entry->count == anim->numFrames && entry->flags == anim->flags) return entry->frame;
+    }
+    previous = terminal + ((anim->flags & ANIMFL_REVERSED) ? 1 : -1);
+    memset(&pose, 0, sizeof(pose));
+    pose.hModel = character->mesh;
+    pose.frameModel = pose.oldframeModel = pose.torsoFrameModel = pose.oldTorsoFrameModel = anim->mdxFile;
+    AxisClear(pose.axis); AxisClear(pose.torsoAxis);
+    pose.frame = pose.oldframe = pose.torsoFrame = pose.oldTorsoFrame = terminal;
+    valid = trap_R_LerpTag(&last, &pose, "tag_head", 0) >= 0;
+    pose.frame = pose.oldframe = pose.torsoFrame = pose.oldTorsoFrame = previous;
+    valid = valid && trap_R_LerpTag(&before, &pose, "tag_head", 0) >= 0;
+    terminal = TCE_CorpseTerminalFrame(terminal, previous, valid ? last.origin[2] : 0.f,
+                                      valid ? before.origin[2] : 0.f, valid);
+    entry = &corpseFrames[corpseFrameNext++ % 128];
+    entry->animation = anim; entry->mesh = character->mesh; entry->model = anim->mdxFile;
+    entry->first = anim->firstFrame; entry->count = anim->numFrames; entry->flags = anim->flags;
+    entry->frame = terminal;
+    return terminal;
+}
+
 void CG_RunLerpFrameRate(clientInfo_t *ci, lerpFrame_t *lf, int newAnimation, centity_t *cent, int recursion)
 {
 	int         f;
@@ -743,7 +786,8 @@ void CG_RunLerpFrameRate(clientInfo_t *ci, lerpFrame_t *lf, int newAnimation, ce
 	    // and the body will stay in that position
 	    || (/*CG_IsSinglePlayer() &&*/ cent->currentState.eType == ET_CORPSE))
 	{
-		lf->oldFrame      = lf->frame = CG_AnimationEndFrame(anim);
+		lf->oldFrame      = lf->frame = cent->currentState.eType == ET_CORPSE ?
+		    CG_CorpseAnimationEndFrame(anim, CG_CharacterForClientinfo(ci, cent)) : CG_AnimationEndFrame(anim);
 		lf->oldFrameModel = lf->frameModel = anim->mdxFile;
 		lf->backlerp      = 0;
 		return;

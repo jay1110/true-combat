@@ -105,3 +105,4 @@ ui_netGametype	Inherited SDK bindings changed before 1.0.0	UI network game-type 
 ui_menuFiles	Inherited SDK bindings changed before 1.0.0	UI menu registry path; TC:E selects the appropriate game-type registry.	Initial registry ui/menus_gt5.txt; UI-owned state
 r_fastsky	Engine-owned compatibility binding	Engine renderer cvar also registered by the legacy TC:E CGame with a cheat flag. This is not a newly implemented TCE2 renderer setting.	Use the host engine's documented behavior
 mapname	Engine-owned compatibility binding	Read-only current map information mirrored by several mod subsystems. Repeated binding changes in history are not additions of new maps or game modes.	Engine/server-maintained map name
+g_weaponWallAvoidance	Server rules	Enable gradual wall lowering and matching authoritative shot direction for all players. Enabled mode displays server bullet impacts instead of locally predicted marks.	0 off; 1 on (default); server/RCON only

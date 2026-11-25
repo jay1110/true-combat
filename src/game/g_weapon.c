@@ -3569,7 +3569,8 @@ Bullet_Endpos
 static void G_TCEWallShotAngles(gentity_t *ent, const vec3_t base, vec3_t result)
 {
     VectorCopy(base, result);
-    result[PITCH] += 35.f * (1.f - TCE_WeaponWallFraction(&ent->client->ps, trap_Trace));
+    result[PITCH] += TCE_WeaponWallPitch(g_weaponWallAvoidance.integer,
+        ent->client->ps.weapon, ent->client->pmext.tceWeaponWallAmount);
 }
 
 void Bullet_Endpos(gentity_t *ent, float spread, vec3_t *end)

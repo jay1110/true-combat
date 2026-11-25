@@ -536,6 +536,13 @@ A player is respawning, so make an entity that looks
 just like the existing corpse to leave behind.
 =============
 */
+static void G_TCECorpseAnimations(entityState_t *state, int legs, int torso)
+{
+    state->legsAnim = legs;
+    state->torsoAnim = torso;
+    state->eFlags |= EF_FORCE_END_FRAME;
+}
+
 void CopyToBodyQue(gentity_t *ent)
 {
 	gentity_t *body;
@@ -593,7 +600,7 @@ void CopyToBodyQue(gentity_t *ent)
 
 	/* Keep the actual death sequence. Cgame already freezes ET_CORPSE at its
 	 * last frame; fixed stock indices select unrelated poses in custom groups. */
-	body->s.eFlags |= EF_FORCE_END_FRAME;
+	G_TCECorpseAnimations(&body->s, ent->client->legsDeathAnim, ent->client->torsoDeathAnim);
 
 	body->r.svFlags = ent->r.svFlags & ~SVF_BOT;
 	VectorCopy(ent->r.mins, body->r.mins);

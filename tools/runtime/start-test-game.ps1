@@ -115,12 +115,6 @@ try {
         'bind F10 toggleconsole', 'bind n noclip', 'bind k kill', 'exec omnibot-release.cfg'
     )
     [IO.File]::WriteAllText((Join-Path $launcherDirectory $configName), (($configuration -join "`n") + "`n"), [Text.Encoding]::ASCII)
-    Add-Type -AssemblyName System.Windows.Forms
-    $workArea = [Windows.Forms.Screen]::PrimaryScreen.WorkingArea
-    $testWidth = [Math]::Min(1280, [Math]::Max(640, $workArea.Width - 80))
-    $testHeight = [Math]::Min(720, [Math]::Max(480, $workArea.Height - 120))
-    $testX = $workArea.Left + 20
-    $testY = $workArea.Top + 20
     $arguments = @('+set','com_ignorecrash','1','+set','com_recommendedSet','1',
         '+set','fs_basepath',('"'+$instancePath+'"'),'+set','fs_homepath',('"'+(Join-Path $instancePath 'etl-home')+'"'),
         '+set','fs_game','tce2','+set','cl_profile',$profileName,
@@ -128,8 +122,6 @@ try {
         '+set','net_ip','127.0.0.1','+set','net_port','27986',
         '+set','com_hunkMegs','512','+set','com_soundMegs','256',
         '+set','in_mouse','1','+set','s_initsound','1','+set','r_fullscreen','0',
-        '+set','vid_xpos',"$testX",'+set','vid_ypos',"$testY",
-        '+set','r_mode','-1','+set','r_customwidth',"$testWidth",'+set','r_customheight',"$testHeight",
         '+exec',('launcher/'+$configName),'+devmap',$MapName)
     $gameProcess = Start-Process -FilePath $gameExe -WorkingDirectory $instancePath -ArgumentList $arguments -WindowStyle Normal -PassThru
     $gameProcess.Id | Set-Content -LiteralPath (Join-Path $instancePath 'client.pid') -Encoding ASCII

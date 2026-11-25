@@ -75,3 +75,9 @@ location. Missing fresh weather falls back to local time rather than claiming sn
 Include version, edition, OS/process architecture, engine/version, map/gametype,
 steps, expected/actual result and relevant console error. Remove credentials,
 private player data and personal filesystem paths before attaching logs.
+
+### Wall lowering and corpse transitions (1.0.5)
+
+The server controls `g_weaponWallAvoidance` (`1` by default, `0` to disable for everyone). Lowering and return use command-time smoothing over at least 250 ms for full travel. With this rule enabled, wall-impact effects come from the server; local predicted marks must not draw an obsolete straight shot while the weapon is lowered. Muzzle flashes and recoil remain locally predicted.
+
+When Space moves a dead player to reinforcement, the corpse keeps the chosen death sequence rather than an idle/run state or a fixed stock animation number. Some custom MDX clips contain a standing reset frame after their resting pose. Corpse-only terminal selection checks the adjacent head-tag positions and avoids that abrupt reset. It does not modify the animation package or normal death playback.

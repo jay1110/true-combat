@@ -8,11 +8,12 @@ Configuration names are case-insensitive in the game. The [Cvar reference](Docs/
 
 ### Added
 
-- Mandatory view-weapon lowering and retraction near solid walls. The server adjusts the actual shot direction by the same downward angle as the view weapon; firing remains available and no client toggle is available.
+- Gradual view-weapon lowering and retraction near solid walls, controlled by server setting `g_weaponWallAvoidance` (default `1`). Command-time smoothing drives the view weapon and server shot direction together. Enabled mode displays authoritative server impacts instead of stale straight-ahead predicted marks.
 - Custom `.weap` weapon icons in deployment rows and Fireteam weapon displays. Genuine custom artwork takes priority over the model preview; inherited ET placeholder icons remain filtered out.
 
 ### Fixed
 
+- Corpse creation uses the death animation IDs saved at the kill, instead of a later stand/run state. A corpse-only guard retains the adjacent resting pose when an exported clip ends with an abrupt standing reset frame; normal death playback is unchanged.
 - Custom death sequences retain their final pose when converted to a corpse, including reversed animation sequences.
 - Omni-bots receive the existing player-contact push instead of being excluded from it.
 - Missing distant gunshot reports when a weapon supplies fewer echo variants than close-shot variants.
@@ -25,7 +26,7 @@ Configuration names are case-insensitive in the game. The [Cvar reference](Docs/
 
 ### Cvar changes
 
-- Removed the initial `cg_weaponWallAvoidance` client toggle; wall clearance is a fixed server-enforced rule.
+- Replaced the initial client toggle with `g_weaponWallAvoidance`: server, archived/serverinfo, default `1`; `0` disables the feature for everyone.
 - Updated the mod version to `1.0.5`.
 
 ## 1.0.4 — 2026-11-08

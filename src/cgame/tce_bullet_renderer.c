@@ -137,7 +137,7 @@ void TCE_CG_Bullet(vec3_t end, int source, vec3_t normal, int flesh, int victim,
 	{
 		CG_Printf("ELITE PORTAL: CG_Bullet\n");
 	}
-	if (source == cg.snap->ps.clientNum && !predicted && cg_predictBullets.integer > 0)
+	if (source == cg.snap->ps.clientNum && !predicted && cg_predictBullets.integer > 0 && !cgs.tceWeaponWallAvoidance)
 	{
 		return;
 	}

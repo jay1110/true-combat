@@ -18,4 +18,20 @@ static float TCE_WeaponWallFraction(const playerState_t *ps,
     trace(&hit, start, mins, maxs, end, ps->clientNum, MASK_SOLID);
     return hit.startsolid || hit.allsolid ? 0.f : hit.fraction;
 }
+static float TCE_WeaponWallPitch(int enabled, int weapon, float amount)
+{
+    if (!enabled || weapon <= 0 || weapon >= 64 || weapon == 60 || weapon == 62) return 0.f;
+    return 35.f * amount;
+}
+
+/* Bounded command-time approach: full travel takes at least 250 ms. */
+static float TCE_WeaponWallApproach(float current, float target, int msec)
+{
+    float step;
+    if (msec < 0) msec = 0;
+    if (msec > 50) msec = 50;
+    step = msec * .004f;
+    if (current < target) return current + step < target ? current + step : target;
+    return current - step > target ? current - step : target;
+}
 #endif

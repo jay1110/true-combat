@@ -159,7 +159,7 @@ void CG_TCEShotgunFire(entityState_t *event)
 {
 	tce_shotgunPrediction_t c;
 	memset(&c, 0, sizeof(c)); c.localClient = cg.snap->ps.clientNum;
-	c.maxClients                            = cgs.maxclients; c.predictBullets = cg_predictBullets.integer;
+	c.maxClients                            = cgs.maxclients; c.predictBullets = cgs.tceWeaponWallAvoidance ? 0 : cg_predictBullets.integer;
 	c.weapons                               = weaponDef; c.trace = CG_Trace; c.bullet = CG_TCEBullet; c.wall = predictedWall;
 	TCE_CG_ShotgunFire(&c, event);
 }
@@ -181,6 +181,7 @@ void CG_PredictedFire(centity_t *cent)
 	vec3_t                  start, end, forward, right, up, angles;
 	tce_shotgunPrediction_t c;
 	const tce_weaponDef_t   *def = &weaponDef[weapon];
+	if (cgs.tceWeaponWallAvoidance) return;
 	if (!(BG_CheckUTWeapon(weapon) || weapon == 37 || weapon == 38) || weapon == 4 || weapon == 9 || weapon == 30 || weapon == 15 || weapon == 1)
 	{
 		return;
@@ -319,7 +320,7 @@ void CG_PredictedFire(centity_t *cent)
 #endif
 	}
 	memset(&c, 0, sizeof(c)); c.localClient = cg.snap->ps.clientNum;
-	c.maxClients                            = cgs.maxclients; c.predictBullets = cg_predictBullets.integer;
+	c.maxClients                            = cgs.maxclients; c.predictBullets = cgs.tceWeaponWallAvoidance ? 0 : cg_predictBullets.integer;
 	c.weapons                               = weaponDef; c.trace = CG_Trace; c.bullet = CG_TCEBullet; c.wall = predictedWall;
 	if (def->pelletCount)
 	{

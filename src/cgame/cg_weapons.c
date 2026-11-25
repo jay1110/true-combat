@@ -1232,9 +1232,9 @@ static void CG_WeaponWallAvoidance(vec3_t origin, vec3_t angles, int weapon)
     float amount;
     vec3_t forward, up;
     if (cg.renderingThirdPerson) return;
-    amount = 1.f - TCE_WeaponWallFraction(&cg.predictedPlayerState, CG_Trace);
+    amount = cgs.tceWeaponWallAvoidance ? cg.pmext.tceWeaponWallAmount : 0.f;
     AngleVectors(cg.predictedPlayerState.viewangles, forward, NULL, up);
-    angles[PITCH] += 35.f * amount;
+    angles[PITCH] += TCE_WeaponWallPitch(cgs.tceWeaponWallAvoidance, weapon, amount);
     VectorMA(origin, -6.f * amount, forward, origin);
     VectorMA(origin, -4.f * amount, up, origin);
 }
@@ -5417,7 +5417,7 @@ void CG_FireWeapon(centity_t *cent)
 		CG_WeaponFireRecoil(ent->weapon);
 		CG_TCEFireSway855();
 	}
-	if (ent->number == cg.snap->ps.clientNum && cg_predictBullets.integer > 0)
+	if (ent->number == cg.snap->ps.clientNum && cg_predictBullets.integer > 0 && !cgs.tceWeaponWallAvoidance)
 	{
 		CG_PredictedFire(cent);
 	}

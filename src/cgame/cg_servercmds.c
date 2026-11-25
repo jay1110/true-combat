@@ -129,6 +129,7 @@ void CG_ParseServerinfo(void)
 	cgs.minclients     = atoi(Info_ValueForKey(info, "g_minGameClients"));      // NERVE - SMF -- OSP: overloaded for ready counts
 	tceSmokeNewBBox    = atoi(Info_ValueForKey(info, "g_newbbox"));
 	cgs.tceLeanMode    = atoi(Info_ValueForKey(info, "g_leanmode"));
+	cgs.tceWeaponWallAvoidance = atoi(Info_ValueForKey(info, "g_weaponWallAvoidance"));
 	cgs.tceKillMessage = atoi(Info_ValueForKey(info, "g_killmessage"));
 	Q_strncpyz(cgs.tceVersion, Info_ValueForKey(info, "tce_version"), sizeof(cgs.tceVersion));
 

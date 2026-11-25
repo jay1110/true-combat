@@ -532,6 +532,8 @@ typedef struct
 	float tceFreelookRecoil[2]; /* Pending pitch/yaw kick, distinct from mouse input. */
 	/* Mod-private prediction history suffix; the existing120-byte prefix stays. */
 	int tceReloadWeapon, tceReloadRequestedAt;
+	float tceWeaponWallAmount; /* Mod-private, replayed with prediction history. */
+	int tceWeaponWallWeapon;
 } pmoveExt_t;   // data used both in client and server - store it here
                 // instead of playerstate to prevent different engine versions of playerstate between XP and MP
 
@@ -598,6 +600,7 @@ typedef struct
 	 * Server-local tail field; playerState/network and cgame layout unchanged. */
 	qboolean tceBotFreeClimb;
 #endif
+	qboolean tceWeaponWallEnabled; /* Shared mod-private movement option. */
 } pmove_t;
 
 // if a full pmove isn't done on the client, you can just update the angles

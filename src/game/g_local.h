@@ -2650,6 +2650,7 @@ void G_LoadWeaponDef(void);
 extern vmCvar_t sv_gametype;
 extern vmCvar_t sv_official;
 extern vmCvar_t g_leanmode;
+extern vmCvar_t g_weaponWallAvoidance;
 extern vmCvar_t g_killmessage;
 extern vmCvar_t g_starthonor;
 extern vmCvar_t g_aabasetime;
