@@ -21,16 +21,29 @@ static float TCE_WeaponWallFraction(const playerState_t *ps,
 static float TCE_WeaponWallPitch(int enabled, int weapon, float amount)
 {
     if (!enabled || weapon <= 0 || weapon >= 64 || weapon == 60 || weapon == 62) return 0.f;
-    return 35.f * amount;
+    amount *= 2.f;
+    if (amount > 1.f) amount = 1.f;
+    if (!(amount > 0.f)) amount = 0.f;
+    return 78.f * amount;
 }
 
-/* Bounded command-time approach: full travel takes at least 250 ms. */
+/* Blend toward a downward low-ready direction, including when looking down;
+ * adding a fixed angle could turn a floor-obstructed shot backwards. */
+static float TCE_WeaponWallAimPitch(float basePitch, float wallPitch)
+{
+    if (!(wallPitch>0.f)) return basePitch;
+    if (basePitch > 180.f) basePitch -= 360.f;
+    if (basePitch < -180.f) basePitch += 360.f;
+    return basePitch + (78.f-basePitch)*(wallPitch/78.f);
+}
+
+/* Bounded command-time approach: the low-ready threshold takes at least 250 ms. */
 static float TCE_WeaponWallApproach(float current, float target, int msec)
 {
     float step;
     if (msec < 0) msec = 0;
     if (msec > 50) msec = 50;
-    step = msec * .004f;
+    step = msec * .002f;
     if (current < target) return current + step < target ? current + step : target;
     return current - step > target ? current - step : target;
 }

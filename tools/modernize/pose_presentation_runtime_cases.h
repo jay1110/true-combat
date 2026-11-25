@@ -1,7 +1,7 @@
 #ifndef POSE_PRESENTATION_RUNTIME_CASES_H
 #define POSE_PRESENTATION_RUNTIME_CASES_H
 #include "bg_tce_pose_presentation.h"
-#define PRESENTATION_RUNTIME_CASES 23
+#define PRESENTATION_RUNTIME_CASES 24
 typedef struct {
     uint32_t signature;
     uint32_t nonce;
@@ -9,7 +9,7 @@ typedef struct {
     playerState_t ps[2];
     tcePoseCompactSample_t channel[2];
     tcePosePresentationAxes_t axes;
-    float origin[3];
+    float origin[3],weaponWallBlend;
     int time[2],queryTime;
     int hasNext,step;
     int moverCount;
@@ -38,12 +38,14 @@ static void PresentationRuntimeModel(bg_character_t *character,bg_characterDef_t
         animations[i].firstFrame=0;animations[i].numFrames=2;animations[i].loopFrames=2;
         animations[i].frameLerp=animations[i].initialLerp=25;
     }
+    strcpy(animations[0].name,"relaxed_idle_1h_1");animations[0].firstFrame=444;animations[0].numFrames=animations[0].loopFrames=1;
     strcpy(animations[94].name,"climb_up");animations[94].flags=ANIMFL_LADDERANIM;
     animations[94].firstFrame=2981;animations[94].numFrames=animations[94].loopFrames=21;
     strcpy(animations[222].name,"torso_hold");animations[222].firstFrame=57;
     animations[222].numFrames=animations[222].loopFrames=20;
     animations[94].moveSpeed=animations[222].moveSpeed=-1;
 #ifdef CGAMEDLL
+    animations[0].mdxFile=333;
     character->mesh=250;character->hudhead=228;
     animations[94].mdxFile=111;animations[222].mdxFile=222;
 #endif

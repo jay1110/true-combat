@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "tce_weapon_wall_state.h"
 #include "g_tce_pose.h"
 #include "g_tce_pose_presentation.h"
 #include "tools/modernize/pose_presentation_runtime_cases.h"
@@ -12,7 +13,7 @@ static unsigned int checks,configWrites;
 #define CHECK(x) do {++checks;if(!(x)){fprintf(stderr,"line%d: %s\n",__LINE__,#x);exit(1);}}while(0)
 gentity_t g_entities[MAX_GENTITIES];
 level_locals_t level;
-vmCvar_t g_newbbox,g_leanmode;
+vmCvar_t g_newbbox,g_leanmode,g_weaponWallAvoidance;
 bg_character_t axisClassCharacters[7],alliedClassCharacters[7];
 static gclient_t client;
 static gclient_t joiningClient,botClient;
@@ -280,6 +281,21 @@ int main(int argc,char **argv) {
         memcpy(variant.channel,query.channel,sizeof(variant.channel));variant.axes=query.axes;VectorCopy(query.origin,variant.origin);
         CHECK(fwrite(&variant,sizeof(variant),1,file)==1);
     }}
+    /* Obstruction state is interpolated with the published tuple, including
+     * the same authoritative own-PS conversion used by the consumer. */
+    setup();g_weaponWallAvoidance.integer=1;
+    client.ps.stats[15]=TCE_WeaponWallState(7,.25f);
+    ent->s.angles2[PITCH]=TCE_WeaponWallStatePitch(client.ps.stats[15]);tick(200);
+    memset(&variant,0,sizeof(variant));variant.signature=output.signature;
+    variant.nonce=G_TCEPresentationChallenge(0);variant.step=50;variant.hasNext=1;
+    variant.time[0]=200;variant.state[0]=ent->s;variant.ps[0]=client.ps;strcpy(variant.manifest,config);
+    client.ps.stats[15]=TCE_WeaponWallState(7,.5f);
+    ent->s.angles2[PITCH]=TCE_WeaponWallStatePitch(client.ps.stats[15]);tick(250);
+    variant.time[1]=250;variant.queryTime=225;variant.state[1]=ent->s;variant.ps[1]=client.ps;
+    CHECK(G_TCEPresentationQuery(0,225,250,&query)==1);
+    variant.weaponWallBlend=query.weaponWallBlend;CHECK(variant.weaponWallBlend>.7f && variant.weaponWallBlend<.8f);
+    memcpy(variant.channel,query.channel,sizeof(variant.channel));variant.axes=query.axes;VectorCopy(query.origin,variant.origin);
+    CHECK(fwrite(&variant,sizeof(variant),1,file)==1);
     CHECK(!fclose(file));
     G_TCEPresentationReset();level.previousTime=-90;level.time=-40;ent->s.pos.trTime=-40;G_TCEPresentationPublish(ent);
     tick(10);CHECK(G_TCEPresentationQuery(0,5u,20u,&query)==1);

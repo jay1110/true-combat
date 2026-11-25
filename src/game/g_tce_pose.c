@@ -1,6 +1,7 @@
 #include "g_local.h"
 #include "g_tce_pose.h"
 #include "g_tce_pose_presentation.h"
+#include "tce_weapon_wall_pose.h"
 #include <float.h>
 #include <limits.h>
 
@@ -695,6 +696,7 @@ static int PoseTraceKey(const g_tcePresentationQuery_t *query,const float start[
     memset(key,0,sizeof(*key));
     key->mapGeneration=query->mapGeneration; key->generation=query->generation; key->profile=query->profile;
     key->sourceTime=query->sourceTime; key->serverTime=query->serverTime; key->clientNum=query->clientNum;
+    key->weaponWallBlend=query->weaponWallBlend;
     key->mode=query->mode; key->eFlags=query->eFlags;
     key->renderCharacter=query->renderCharacter; key->animationCharacter=query->animationCharacter;
     for(i=0;i<2;++i) {
@@ -741,6 +743,23 @@ static int PoseTraceInput(const g_tcePoseCharacter_t *entry,const g_tcePoseChara
         pair->currentModel=pair->oldModel=&poseRegistry.skeletons[modelID].model;
         if(!BG_TCEPoseClockFrameBounds(&raw,&minimum,&maximum) || (unsigned int)maximum>=pair->currentModel->frameCount) return 0;
         pair->currentFrame=(unsigned int)sample.frame; pair->oldFrame=(unsigned int)sample.oldFrame; pair->backlerp=sample.backlerp;
+    }
+    if (!(query->weaponWallBlend>=0.f && query->weaponWallBlend<=1.f)) return 0;
+    if (query->weaponWallBlend>0.f) {
+        int lowIndex=TCE_WeaponWallLowAnimation(animationEntry->model);
+        if (lowIndex>=0 && lowIndex<animationEntry->animationCount) {
+            const animation_t *low=animationEntry->model->animations[lowIndex];
+            int lowModel=animationEntry->animationModels[lowIndex];
+            int lowFrame=TCE_WeaponWallLowFrame(low);
+            if (lowModel<0 || (unsigned int)lowFrame>=poseRegistry.skeletons[lowModel].model.frameCount) return 0;
+            if (input->torso.backlerp<=.5f) {
+                input->torso.oldFrame=input->torso.currentFrame;
+                input->torso.oldModel=input->torso.currentModel;
+            }
+            input->torso.currentFrame=(unsigned int)lowFrame;
+            input->torso.currentModel=&poseRegistry.skeletons[lowModel].model;
+            input->torso.backlerp=1.f-query->weaponWallBlend;
+        }
     }
     memcpy(input->origin,query->origin,sizeof(input->origin)); memcpy(input->axis,query->axes.body,sizeof(input->axis));
     memcpy(input->torsoAxis,query->axes.torso,sizeof(input->torsoAxis)); input->mode=TCE_POSE_MATH_OBSERVED_WINDOWS;

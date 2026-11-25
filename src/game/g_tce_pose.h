@@ -78,6 +78,7 @@ typedef struct {
     float backlerp[2], origin[3], bodyAxis[3][3], torsoAxis[3][3], headAxis[3][3];
     float bodyAngles[3], torsoAngles[3], headAngles[3];
     float start[3], end[3];
+    float weaponWallBlend;
     double maxFraction;
 } g_tcePoseTraceKey_t;
 

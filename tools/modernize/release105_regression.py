@@ -92,7 +92,7 @@ static void trap_S_StartSoundExVControl(const float *p,int e,int c,int sound,int
     bodies = '\n'.join(function(movement,n) for n in ('PM_TCEAddWeaponCounter','PM_TCEElapsedWeaponCounter','PM_TCEAimPostureSettled'))
     bodies += '\n'+function(weapons,'CG_TCEFireSound855')
     if not args.baseline:
-        bodies += '\n'+'\n'.join(function(source('src/game/tce_weapon_wall.h'),n) for n in ('TCE_WeaponWallFraction','TCE_WeaponWallPitch','TCE_WeaponWallApproach'))
+        bodies += '\n'+'\n'.join(function(source('src/game/tce_weapon_wall.h'),n) for n in ('TCE_WeaponWallFraction','TCE_WeaponWallPitch','TCE_WeaponWallAimPitch','TCE_WeaponWallApproach'))
     if not args.baseline:
         bodies += '\n'+function(source('src/game/g_weapon.c'),'G_TCEWallShotAngles')
     bodies += '\n'+function(source('src/game/g_weapon.c'),'CalcMuzzlePoints')
@@ -102,7 +102,7 @@ static void trap_S_StartSoundExVControl(const float *p,int e,int c,int sound,int
         bodies += '\n'+function(source('src/game/g_client.c'),'G_TCECorpseAnimations')
         bodies += '\n'+function(source('src/cgame/tce_corpse_frame.h'),'TCE_CorpseTerminalFrame')
     else:
-        bodies += '\nstatic int TCE_CorpseTerminalFrame(int t,int p,float a,float b,int v){return t;}\nstatic void G_TCECorpseAnimations(entityState_t*s,int l,int t){}\nstatic float TCE_WeaponWallApproach(float a,float b,int ms){return b;}\n'
+        bodies += '\nstatic float TCE_WeaponWallPitch(int e,int w,float a){return 0;}\nstatic float TCE_WeaponWallAimPitch(float a,float w){return a;}\nstatic int TCE_CorpseTerminalFrame(int t,int p,float a,float b,int v){return t;}\nstatic void G_TCECorpseAnimations(entityState_t*s,int l,int t){}\nstatic float TCE_WeaponWallApproach(float a,float b,int ms){return b;}\n'
     if not args.baseline:
         bodies += '\n'+function(source('src/cgame/cg_players.c'),'CG_AnimationEndFrame')
     else:
@@ -118,7 +118,11 @@ static void trap_S_StartSoundExVControl(const float *p,int e,int c,int sound,int
     tests = r'''
 int main(void){int failures=0,i;int shots[4]={1,2,3,4};tce_weaponInfo_t media={{42,0,0,0},255};
 pm->pmext=&ext;
-{float a=0;for(i=0;i<15;i++){float prev=a;a=TCE_WeaponWallApproach(a,1,16);if(a-prev>.06401f){puts("FAIL abrupt lowering");++failures;}}if(a<.95f||a>=1){puts("FAIL lowering duration");++failures;}for(i=0;i<16;i++)a=TCE_WeaponWallApproach(a,0,16);if(a!=0){puts("FAIL smooth return");++failures;}}
+{float a=0;for(i=0;i<15;i++)a=TCE_WeaponWallApproach(a,1,16);
+if(TCE_WeaponWallPitch(1,3,a)>=78.f){puts("FAIL early low-ready snap");++failures;}
+a=TCE_WeaponWallApproach(a,1,16);if(TCE_WeaponWallPitch(1,3,a)!=78.f){puts("FAIL low-ready smoothing duration");++failures;}
+if(TCE_WeaponWallAimPitch(60,78)!=78||TCE_WeaponWallAimPitch(-80,78)!=78||TCE_WeaponWallAimPitch(270,0)!=270){puts("FAIL low-ready aim bound or disabled preservation");++failures;}}
+{float a=0;for(i=0;i<30;i++){float prev=a;a=TCE_WeaponWallApproach(a,1,16);if(a-prev>.06401f){puts("FAIL abrupt lowering");++failures;}}if(a<.95f||a>=1){puts("FAIL lowering duration");++failures;}for(i=0;i<32;i++)a=TCE_WeaponWallApproach(a,0,16);if(a!=0){puts("FAIL smooth return");++failures;}}
 {entityState_t b={31,35,0};G_TCECorpseAnimations(&b,277,286);if(b.legsAnim!=277||b.torsoAnim!=286||!(b.eFlags&EF_FORCE_END_FRAME)){puts("FAIL saved custom death selection");++failures;}}
 if(TCE_CorpseTerminalFrame(105,104,41,0,1)!=104||TCE_CorpseTerminalFrame(49,48,0,0,1)!=49||TCE_CorpseTerminalFrame(105,104,41,0,0)!=105){puts("FAIL corpse reset-frame selection");++failures;}
 cgs.tceWeaponWallAvoidance=g_weaponWallAvoidance.integer=1;
@@ -132,13 +136,13 @@ shots[1]=0;for(i=0;i<4;i++)media.flashEchoSound[i]=42+i;
 for(chosen=0;chosen<4;chosen++){echoCalls=0;CG_TCEFireSound855(&cg_entities[0],&media,shots);if(echoCalls!=1||lastEcho!=42+chosen){puts("FAIL independent distant variants");++failures;}}
 {vec3_t origin={0},angles={0};camera.viewaxis[0][0]=camera.viewaxis[1][1]=camera.viewaxis[2][2]=1;
 cg_weaponWallAvoidance.integer=1;cg.predictedPlayerState.weapon=3;cg.time=1000;wallFraction=.5f;cg.pmext.tceWeaponWallAmount=.5f;CG_WeaponWallAvoidance(origin,angles,3);
-if(fabs(angles[0]-17.5f)>.001f||fabs(origin[0]+3.f)>.001f||fabs(origin[2]+2.f)>.001f){puts("FAIL wall lowering");++failures;}
+if(fabs(angles[0]-78.f)>.001f||fabs(origin[0]+3.f)>.001f||fabs(origin[2]+2.f)>.001f){puts("FAIL wall lowering");++failures;}
 wallFraction=1;cg.pmext.tceWeaponWallAmount=0;memset(origin,0,sizeof(origin));memset(angles,0,sizeof(angles));CG_WeaponWallAvoidance(origin,angles,3);
 if(angles[0]!=0||origin[0]!=0){puts("FAIL clear wall avoidance");++failures;}}
 {gclient_t c={0};gentity_t e={&c};c.ps.weapon=45;c.ps.stats[1]=4;c.pmext.tceWeaponWallAmount=.5f;wallFraction=.5f;CalcMuzzlePoints(&e,45);
-if(fabs(forward[2]+sinf(17.5f*.01745329252f))>.0001f||c.ps.viewangles[0]!=0){puts("FAIL authoritative lowered shot direction");++failures;}
+if(fabs(forward[2]+sinf(78.f*.01745329252f))>.0001f||c.ps.viewangles[0]!=0){puts("FAIL authoritative lowered shot direction");++failures;}
 {vec3_t end;c.pmext.tceShotAngles[0]=7.f;Bullet_Endpos(&e,0,&end);
-if(fabs(end[2]+8192.f*sinf(24.5f*.01745329252f))>.01f){puts("FAIL actual pre-recoil bullet endpoint");++failures;}}
+if(fabs(end[2]+8192.f*sinf(78.f*.01745329252f))>.01f){puts("FAIL actual pre-recoil bullet endpoint");++failures;}}
 wallFraction=1;c.pmext.tceWeaponWallAmount=0;CalcMuzzlePoints(&e,45);if(fabs(forward[2])>.0001f){puts("FAIL clear shot direction");++failures;}
 c.ps.weapon=60;c.pmext.tceWeaponWallAmount=1;wallFraction=0;CalcMuzzlePoints(&e,60);if(fabs(forward[2])>.0001f){puts("FAIL mounted direction");++failures;}}
 g_weaponWallAvoidance.integer=0;{gclient_t c={0};gentity_t e={&c};c.ps.weapon=45;c.pmext.tceWeaponWallAmount=1;CalcMuzzlePoints(&e,45);if(forward[2]!=0){puts("FAIL server disabled");++failures;}}

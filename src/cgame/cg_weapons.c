@@ -1234,7 +1234,8 @@ static void CG_WeaponWallAvoidance(vec3_t origin, vec3_t angles, int weapon)
     if (cg.renderingThirdPerson) return;
     amount = cgs.tceWeaponWallAvoidance ? cg.pmext.tceWeaponWallAmount : 0.f;
     AngleVectors(cg.predictedPlayerState.viewangles, forward, NULL, up);
-    angles[PITCH] += TCE_WeaponWallPitch(cgs.tceWeaponWallAvoidance, weapon, amount);
+    angles[PITCH] = TCE_WeaponWallAimPitch(angles[PITCH],
+        TCE_WeaponWallPitch(cgs.tceWeaponWallAvoidance, weapon, amount));
     VectorMA(origin, -6.f * amount, forward, origin);
     VectorMA(origin, -4.f * amount, up, origin);
 }
@@ -1556,6 +1557,17 @@ static float CG_WeaponSmokeAlpha(int elapsed, float reciprocal)
 }
 #endif
 
+static void CG_TCEWorldWallWeaponAxis(refEntity_t *gun, const centity_t *cent)
+{
+    vec3_t angles,scale; int i;
+    if (!(cent->tceWeaponWallPitch>0.f)) return;
+    for (i=0;i<3;++i) scale[i]=VectorLength(gun->axis[i]);
+    AxisToAngles(gun->axis,angles);
+    angles[PITCH]=TCE_WeaponWallAimPitch(cent->lerpAngles[PITCH],cent->tceWeaponWallPitch);
+    angles[YAW]=cent->lerpAngles[YAW];
+    AnglesToAxis(angles,gun->axis);
+    for (i=0;i<3;++i) VectorScale(gun->axis[i],scale[i],gun->axis[i]);
+}
 void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 {
 	refEntity_t tceBrassParent;
@@ -1831,6 +1843,7 @@ void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 		CG_PositionEntityOnTag(&gun, parent, "tag_weapon", 0, NULL);
 	}
 
+	if (!ps) CG_TCEWorldWallWeaponAxis(&gun,cent);
 
 /*	playerScaled = (qboolean)(cgs.clientinfo[ cent->currentState.clientNum ].playermodelScale[0] != 0);
 	if(!ps && playerScaled) {	// don't "un-scale" weap up in 1st person
@@ -2077,6 +2090,7 @@ void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 	{
 		// add to other hand as well
 		CG_PositionEntityOnTag(&gun, parent, "tag_weapon2", 0, NULL);
+		if (!ps) CG_TCEWorldWallWeaponAxis(&gun,cent);
 		CG_AddWeaponWithPowerups(&gun, cent->currentState.powerups, ps, cent);
 	}
 

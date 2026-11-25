@@ -89,6 +89,32 @@ try {
         if (!$gameExe) { throw 'ETLegacy fehlt. Den Pfad in Testspiel-Einstellungen.json unter ETLegacyPath eintragen.' }
     }
     $testHome = Join-Path $instancePath 'etl-home/tce2'
+    # ETLegacy prefers loose home modules over the installation. Keep an
+    # existing cache paired with the installed package before any DLL loads.
+    $baseMod = Join-Path $instancePath 'tce2'
+    $moduleNames = @('ui_mp_x86.dll','ui_mp_x64.dll',
+        'cgame_mp_x86.dll','cgame_mp_x64.dll','qagame_mp_x86.dll','qagame_mp_x64.dll',
+        'omni-bot/omnibot_et.dll','omni-bot/omnibot_et_x64.dll')
+    $moduleBackup = Join-Path $instancePath ('module-cache-backup-' + [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffffffZ'))
+    foreach ($name in $moduleNames) {
+        $installedModule = Join-Path $baseMod $name
+        $cachedModule = Join-Path $testHome $name
+        if (!(Test-Path -LiteralPath $installedModule -PathType Leaf) -or
+            !(Test-Path -LiteralPath $cachedModule -PathType Leaf)) { continue }
+        if ((Get-FileHash -LiteralPath $installedModule -Algorithm SHA256).Hash -eq
+            (Get-FileHash -LiteralPath $cachedModule -Algorithm SHA256).Hash) { continue }
+        foreach ($path in @($installedModule,$cachedModule)) {
+            $item = Get-Item -LiteralPath $path
+            if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) {
+                throw 'Modulabgleich verweigert: verlinkte Moduldatei in der Testinstanz.'
+            }
+        }
+        $savedModule = Join-Path $moduleBackup $name
+        New-Item -ItemType Directory -Path (Split-Path -Parent $savedModule) -Force | Out-Null
+        Copy-Item -LiteralPath $cachedModule -Destination $savedModule
+        Copy-Item -LiteralPath $installedModule -Destination $cachedModule -Force
+        Write-Output ('Abgeglichenes Testmodul: ' + $name)
+    }
     $profileName = if ($Engine -eq 'ET') { 'TCE2TestPlay' } else { 'TCE2TestPlayETL' }
     $profileDirectory = Join-Path $testHome ('profiles/' + $profileName)
     if (!(Test-Path -LiteralPath (Join-Path $profileDirectory 'etconfig.cfg'))) {

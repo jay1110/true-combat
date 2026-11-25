@@ -78,9 +78,17 @@ static void compare(const refEntity_t *body,const refEntity_t *head,const presen
     if(body->oldframe!=row->channel[0].oldFrame||body->frame!=row->channel[0].frame)
         fprintf(stderr,"frames actual%d,%d expected%d,%d code%d time%d/%d rate%g\n",body->oldframe,body->frame,row->channel[0].oldFrame,row->channel[0].frame,row->state[0].time,cg.snap->serverTime,cg.time,cg.predictedPlayerEntity.pe.legs.animSpeedScale);
     CHECK(body->oldframe==row->channel[0].oldFrame&&body->frame==row->channel[0].frame);
-    CHECK(body->oldTorsoFrame==row->channel[1].oldFrame&&body->torsoFrame==row->channel[1].frame);
-    CHECK(body->oldframeModel==111&&body->frameModel==111&&body->oldTorsoFrameModel==222&&body->torsoFrameModel==222);
-    NEAR(body->backlerp,row->channel[0].backlerp);NEAR(body->torsoBacklerp,row->channel[1].backlerp);
+    CHECK(body->oldframeModel==111&&body->frameModel==111);
+    NEAR(body->backlerp,row->channel[0].backlerp);
+    if(row->weaponWallBlend>0) {
+        CHECK(body->oldTorsoFrame==(row->channel[1].backlerp>.5f?row->channel[1].oldFrame:row->channel[1].frame));
+        CHECK(body->torsoFrame==444 && body->oldTorsoFrameModel==222 && body->torsoFrameModel==333);
+        NEAR(body->torsoBacklerp,1-row->weaponWallBlend);
+    } else {
+        CHECK(body->oldTorsoFrame==row->channel[1].oldFrame&&body->torsoFrame==row->channel[1].frame);
+        CHECK(body->oldTorsoFrameModel==222&&body->torsoFrameModel==222);
+        NEAR(body->torsoBacklerp,row->channel[1].backlerp);
+    }
     for(i=0;i<3;++i)for(j=0;j<3;++j) {
         NEAR(body->axis[i][j],row->axes.body[i][j]);NEAR(body->torsoAxis[i][j],row->axes.torso[i][j]);NEAR(head->axis[i][j],row->axes.head[i][j]);
     }
@@ -97,7 +105,7 @@ int main(int argc,char **argv) {
     CHECK(presentationCharacters[0].moveSpeed[94]==69&&presentationCharacters[0].moveSpeed[222]==69);
     CHECK(presentationCharacters[0].profile&&presentationDigest&&fixtureAck[0]=='2');
     localProfile=presentationCharacters[0].profile;tags=tagCalls;
-    cg.snap=&cg.activeSnapshots[0];cg.nextSnap=&cg.activeSnapshots[1];cg.time=row.queryTime;cgs.tceLeanMode=1;
+    cg.snap=&cg.activeSnapshots[0];cg.nextSnap=&cg.activeSnapshots[1];cg.time=row.queryTime;cgs.tceLeanMode=1;cgs.tceWeaponWallAvoidance=1;
     for(i=0;i<2;++i) {cg.activeSnapshots[i].serverTime=row.time[i];cg.activeSnapshots[i].ps=row.ps[i];}
     cgs.clientinfo[0].infoValid=qtrue;cgs.clientinfo[0].character=character;cgs.clientinfo[0].team=TEAM_AXIS;
     memset(&remote,0,sizeof(remote));remote.currentState=row.state[0];remote.nextState=row.state[1];remote.interpolate=qtrue;

@@ -11,7 +11,7 @@ typedef struct g_tcePresentationQuery_s {
     uint32_t rateQ8[2];
     tcePosePresentationClip_t clip[2];
     tcePoseCompactSample_t channel[2];
-    float origin[3];
+    float origin[3], weaponWallBlend;
     tcePosePresentationAxes_t axes;
 } g_tcePresentationQuery_t;
 enum { G_TCE_PRESENTATION_UNKNOWN=-1, G_TCE_PRESENTATION_LEGACY=0,

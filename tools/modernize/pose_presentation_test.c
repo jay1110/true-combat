@@ -2,6 +2,8 @@
 #include "bg_public.h"
 #include "tce_numeric.h"
 #include "bg_tce_pose_presentation.h"
+#include "tce_weapon_wall_state.h"
+#include "tce_weapon_wall_pose.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,6 +13,7 @@ static unsigned int checks;
 #define CHECK(x) do { ++checks; if(!(x)) { fprintf(stderr,"line%d: %s\n",__LINE__,#x); exit(1); } } while(0)
 #define NEAR(a,b,t) CHECK(fabs((double)(a)-(double)(b))<=(t))
 static int BG_WeaponOnBackToWeap(int weapon) { return weapon; }
+typedef struct {int torsoFrame,oldTorsoFrame,torsoFrameModel,oldTorsoFrameModel,frame;float torsoBacklerp;} refEntity_t;
 /* ACTUAL_PLAYER_CONVERTERS */
 
 typedef struct {
@@ -147,7 +150,7 @@ static void extended_cycle_tests(void) {
 }
 static void axis_tests(void) {
     tcePosePresentationAxes_t a,b;
-    tcePosePresentationAxesInput_t input={TCE_POSE_PRESENT_PRONE,{0,0,0},0,{100,0,0},0,{0,0},1.25f,1};
+    tcePosePresentationAxesInput_t input={TCE_POSE_PRESENT_PRONE,{0,0,0},0,{100,0,0},0,{0,0},1.25f,1,0};
     unsigned int n; int i,j,k;
     for(n=0;n<sizeof(presentFixtures)/sizeof(presentFixtures[0]);++n) {
         const presentFixture_t *f=&presentFixtures[n];
@@ -181,14 +184,45 @@ static void axis_tests(void) {
     input.mode=TCE_POSE_PRESENT_FREECLIMB;CHECK(BG_TCEPosePresentationAxes(&input,&a));
     input.mode=TCE_POSE_PRESENT_LADDER;CHECK(BG_TCEPosePresentationAxes(&input,&b));
     CHECK(!memcmp(&a,&b,sizeof(a)));
+    {
+        tcePosePresentationAxesInput_t older=input,newer=input,middle;
+        CHECK(BG_TCEPosePresentationAxes(&older,&a));
+        newer.weaponWallPitch=78;
+        CHECK(BG_TCEPosePresentationAxes(&newer,&b));
+        CHECK(!memcmp(a.body,b.body,sizeof(a.body)));
+        CHECK(!memcmp(a.torso,b.torso,sizeof(a.torso)));
+        CHECK(!memcmp(a.head,b.head,sizeof(a.head)));
+        CHECK(BG_TCEPosePresentationInterpolate(&older,&newer,.5f,&middle));
+        NEAR(middle.weaponWallPitch,39.f,1e-6);
+        newer.weaponWallPitch=-1;CHECK(!BG_TCEPosePresentationAxes(&newer,&b));
+        newer.weaponWallPitch=79;CHECK(!BG_TCEPosePresentationAxes(&newer,&b));
+        newer.weaponWallPitch=(float)NAN;CHECK(!BG_TCEPosePresentationAxes(&newer,&b));
+    }
     input.scale=0;CHECK(!BG_TCEPosePresentationAxes(&input,&a) && a.body[0][0]==0);
     input.scale=1;input.lean=(float)NAN;CHECK(!BG_TCEPosePresentationAxes(&input,&a));
     input.lean=0;input.velocity[2]=(float)INFINITY;CHECK(!BG_TCEPosePresentationAxes(&input,&a));
     input.velocity[2]=8193;CHECK(!BG_TCEPosePresentationAxes(&input,&a));
 }
+static void low_pose_tests(void) {
+    static animModelInfo_t model;static bg_character_t character;
+    animation_t low;refEntity_t body,copy;
+    memset(&model,0,sizeof(model));memset(&character,0,sizeof(character));memset(&low,0,sizeof(low));
+    character.animModelInfo=&model;model.numAnimations=1;model.animations[0]=&low;
+    strcpy(low.name,"relaxed_idle_1h_1");low.firstFrame=448;low.numFrames=1;low.mdxFile=123;
+    memset(&body,0,sizeof(body));body.frame=77;body.torsoFrame=20;body.oldTorsoFrame=19;
+    body.torsoFrameModel=10;body.oldTorsoFrameModel=10;body.torsoBacklerp=.25f;copy=body;
+    CG_TCEWeaponWallPose(&body,&character,0);CHECK(!memcmp(&body,&copy,sizeof(body)));
+    CG_TCEWeaponWallPose(&body,&character,39);CHECK(body.frame==77);
+    CHECK(body.torsoFrame==448 && body.torsoFrameModel==123);
+    CHECK(body.oldTorsoFrame==20 && body.oldTorsoFrameModel==10);NEAR(body.torsoBacklerp,.5,1e-6);
+    body=copy;body.torsoBacklerp=.75f;CG_TCEWeaponWallPose(&body,&character,78);
+    CHECK(body.oldTorsoFrame==19 && body.torsoFrame==448 && body.torsoBacklerp==0);
+    low.flags=ANIMFL_REVERSED;low.numFrames=4;body=copy;CG_TCEWeaponWallPose(&body,&character,78);CHECK(body.torsoFrame==451);
+    low.name[0]=0;body=copy;CG_TCEWeaponWallPose(&body,&character,78);CHECK(!memcmp(&body,&copy,sizeof(body)));
+}
 static void converter_tests(void) {
     playerState_t ps; entityState_t state;
-    int mode;
+    int mode,byte,equipment;
     CHECK(sizeof(entityState_t)==288 && sizeof(playerState_t)==1452 && sizeof(qhandle_t)==4);
     CHECK(offsetof(entityState_t,time)==84 && offsetof(entityState_t,time2)==88);
     for(mode=0;mode<2;++mode) {
@@ -198,6 +232,19 @@ static void converter_tests(void) {
         if(mode) BG_PlayerStateToEntityStateExtraPolate(&ps,&state,100,qfalse);
         else BG_PlayerStateToEntityState(&ps,&state,qfalse);
         CHECK(state.eType==ET_PLAYER && state.time==-1593835520 && state.time2==-1593835519);
+        for(byte=0;byte<=255;++byte) for(equipment=0;equipment<=255;++equipment) {
+            /* Simulate the engine's signed 16-bit stat transport. */
+            ps.stats[15]=(short)TCE_WeaponWallState(equipment,byte/255.f);
+            CHECK((ps.stats[15]&255)==equipment);
+            if(mode) BG_PlayerStateToEntityStateExtraPolate(&ps,&state,100,qfalse);
+            else BG_PlayerStateToEntityState(&ps,&state,qfalse);
+            NEAR(state.angles2[PITCH],(byte<128?byte*(2.f/255.f):1.f)*78.f,1e-5);
+            CHECK(state.effect3Time==equipment);
+        }
+        ps.pm_type=PM_DEAD;
+        if(mode) BG_PlayerStateToEntityStateExtraPolate(&ps,&state,150,qfalse);
+        else BG_PlayerStateToEntityState(&ps,&state,qfalse);
+        CHECK(state.angles2[PITCH]==0);
         ps.pm_type=PM_SPECTATOR;
         if(mode) BG_PlayerStateToEntityStateExtraPolate(&ps,&state,150,qfalse);
         else BG_PlayerStateToEntityState(&ps,&state,qfalse);
@@ -205,7 +252,7 @@ static void converter_tests(void) {
     }
 }
 int main(void) {
-    phase_tests();extended_cycle_tests();axis_tests();converter_tests();
+    phase_tests();extended_cycle_tests();axis_tests();low_pose_tests();converter_tests();
     printf("{\"checks\":%u,\"captured_input_cases\":%u,\"entityState\":%u,\"playerState\":%u}\n",checks,
         (unsigned int)(sizeof(presentFixtures)/sizeof(presentFixtures[0])),(unsigned int)sizeof(entityState_t),(unsigned int)sizeof(playerState_t));
     return 0;

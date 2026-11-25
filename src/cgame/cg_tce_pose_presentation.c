@@ -149,6 +149,7 @@ static int PresentationInput(const entityState_t *state,const bg_character_t *ch
     memset(input,0,sizeof(*input));input->mode=(tcePosePresentationMode_t)mode;
     VectorCopy(state->apos.trBase,input->aim);VectorCopy(state->pos.trDelta,input->velocity);
     input->movementYaw=state->angles2[YAW];input->lean=state->angles2[ROLL];
+    input->weaponWallPitch=cgs.tceWeaponWallAvoidance?state->angles2[PITCH]:0.f;
     if(input->movementYaw>128&&input->movementYaw<=255)input->movementYaw-=256;
     input->freelook[0]=state->angles[PITCH];input->freelook[1]=state->angles[YAW];
     input->scale=tceSmokeNewBBox?1.25f:1.0f;input->leanMode=cgs.tceLeanMode>0;return 1;
@@ -244,6 +245,8 @@ int CG_TCEPresentationPrepare(centity_t *cent,const bg_character_t *character,re
     body->oldframeModel=body->frameModel=animation[0]->mdxFile;
     body->oldTorsoFrame=sample[1].oldFrame;body->torsoFrame=sample[1].frame;body->torsoBacklerp=sample[1].backlerp;
     body->oldTorsoFrameModel=body->torsoFrameModel=animation[1]->mdxFile;
+    cent->tceWeaponWallPitch=input.weaponWallPitch;
+    CG_TCEWeaponWallPose(body,character,input.weaponWallPitch);
     PresentationLerp(&cent->pe.legs,animation[0],state->legsAnim,&sample[0],rate[0],cg.time);
     PresentationLerp(&cent->pe.torso,animation[1],state->torsoAnim,&sample[1],rate[1],cg.time);
     success=1;

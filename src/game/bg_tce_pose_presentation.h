@@ -15,7 +15,7 @@
 extern "C" {
 #endif
 
-#define TCE_POSE_PRESENTATION_VERSION 1u
+#define TCE_POSE_PRESENTATION_VERSION 2u
 #define TCE_POSE_PHASE_VALID UINT32_C(0x80000000)
 #define TCE_POSE_PHASE_VERSION_MASK UINT32_C(0x60000000)
 #define TCE_POSE_PHASE_VERSION_1 UINT32_C(0x20000000)
@@ -137,6 +137,7 @@ typedef struct {
     tcePosePresentationMode_t mode;
     float aim[3], movementYaw, velocity[3], lean, freelook[2], scale;
     int leanMode;                /* Server lean policy:0 disabled,1 enabled. */
+    float weaponWallPitch;       /* Same snapshot as aim/phase; degrees [0,78]. */
 } tcePosePresentationAxesInput_t;
 
 typedef struct {

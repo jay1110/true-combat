@@ -8,7 +8,8 @@ Configuration names are case-insensitive in the game. The [Cvar reference](Docs/
 
 ### Added
 
-- Gradual view-weapon lowering and retraction near solid walls, controlled by server setting `g_weaponWallAvoidance` (default `1`). Command-time smoothing drives the view weapon and server shot direction together. Enabled mode displays authoritative server impacts instead of stale straight-ahead predicted marks.
+- Gradual view-weapon lowering and retraction near solid walls, controlled by server setting `g_weaponWallAvoidance` (default `1`). Command-time smoothing drives the view weapon and server shot direction together, blending toward a downward low-ready direction near a wall. Enabled mode displays authoritative server impacts instead of stale straight-ahead predicted marks.
+- Wall lowering uses a declared low-ready arm animation in third person and for other players, instead of bending the torso into the wall. The weapon follows the authoritative shot direction; legs, head look and weapon scale are preserved.
 - Custom `.weap` weapon icons in deployment rows and Fireteam weapon displays. Genuine custom artwork takes priority over the model preview; inherited ET placeholder icons remain filtered out.
 
 ### Fixed

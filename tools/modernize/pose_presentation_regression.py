@@ -114,31 +114,33 @@ def main():
     cases = []
     for row in inputs['cases']:
         axes = oracle(row)
-        cases.append('{' + '{' + ','.join([str(row['mode']), cv(row['aim']), cf(row['movementYaw']), cv(row['velocity']), cf(row['lean']), cv(row['freelook']), cf(row['scale']), str(row['leanMode'])]) + '},' + ','.join(cv(a) for a in axes) + ',' + str(row['rateQ8']) + 'u}')
+        cases.append('{' + '{' + ','.join([str(row['mode']), cv(row['aim']), cf(row['movementYaw']), cv(row['velocity']), cf(row['lean']), cv(row['freelook']), cf(row['scale']), str(row['leanMode']), '0.0f']) + '},' + ','.join(cv(a) for a in axes) + ',' + str(row['rateQ8']) + 'u}')
     generated_inputs = 'static const presentFixture_t presentFixtures[] = {\n' + ',\n'.join(cases) + '\n};'
     source = (ROOT / 'src/game/bg_misc.c').read_text()
     macro = source[source.index('#define SETUP_MOUNTEDGUN_STATUS'):source.index('/*', source.index('#define SETUP_MOUNTEDGUN_STATUS'))]
     functions = '\n'.join(function(source, name) for name in ('BG_TCEPlayerStateFields', 'BG_SnapshotSequenceAdd', 'BG_SnapshotVector', 'BG_PlayerStateToEntityState', 'BG_PlayerStateToEntityStateExtraPolate'))
+    functions += '\n' + '\n'.join(function((ROOT/'src/game/q_shared.c').read_text(), n) for n in ('Q_stricmpn','Q_stricmp'))
+    functions += '\n' + function((ROOT/'src/cgame/cg_players.c').read_text(), 'CG_TCEWeaponWallPose')
     fixture = (ROOT / 'tools/modernize/pose_presentation_test.c').read_text().replace('/* ACTUAL_PLAYER_CONVERTERS */', macro + functions).replace('/* CAPTURED_INPUTS */', generated_inputs)
     test = out / 'presentation_generated.c'; test.write_text(fixture, encoding='utf-8', newline='\n')
     sources = [test, ROOT / 'src/game/bg_tce_pose_presentation.c', ROOT / 'src/game/bg_tce_pose_clock.c']
     if os.name == 'nt':
         env, compiler = msvc_environment(out, args.arch, '14.44' if args.sanitize else '14.39')
         exe = out / 'presentation_test.exe'
-        command = [compiler, '/nologo', '/TC', '/W4', '/WX', '/fp:precise', '/O2' if args.optimized else '/Od', '/DWIN32', '/DGAMEDLL', '/D_CRT_SECURE_NO_WARNINGS', '/I' + str(ROOT / 'src/game'), '/I' + str(ROOT)]
+        command = [compiler, '/nologo', '/TC', '/W4', '/WX', '/fp:precise', '/O2' if args.optimized else '/Od', '/DWIN32', '/DCGAMEDLL', '/D_CRT_SECURE_NO_WARNINGS', '/I' + str(ROOT / 'src/game'), '/I' + str(ROOT)]
         if args.sanitize:
             command += ['/fsanitize=address', '/Zi']
         command += list(map(str, sources)) + ['/Fo:' + str(out) + os.sep, '/Fe:' + str(exe)]
     else:
         env = os.environ.copy(); exe = out / 'presentation_test'
-        command = [args.compiler or 'cc', '-std=c99', '-Wall', '-Wextra', '-Werror', '-ffp-contract=off', '-O2' if args.optimized else '-O0', '-DGAMEDLL', '-I' + str(ROOT / 'src/game'), '-I' + str(ROOT)]
+        command = [args.compiler or 'cc', '-std=c99', '-Wall', '-Wextra', '-Werror', '-ffp-contract=off', '-O2' if args.optimized else '-O0', '-DCGAMEDLL', '-I' + str(ROOT / 'src/game'), '-I' + str(ROOT)]
         if args.sanitize:
             command += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer', '-g']
         command += list(map(str, sources)) + ['-lm', '-o', str(exe)]
     built = subprocess.run(command, cwd=out, env=env, capture_output=True, text=True)
     (out / 'compile.log').write_text(built.stdout + built.stderr, encoding='utf-8')
     names = ['src/game/bg_tce_pose_clock.c', 'src/game/bg_tce_pose_clock.h', 'src/game/bg_tce_pose_presentation.c', 'src/game/bg_tce_pose_presentation.h', 'src/game/bg_misc.c', 'src/game/q_shared.h', 'tools/modernize/pose_presentation_test.c', 'tools/modernize/pose_presentation_inputs.json', 'tools/modernize/pose_presentation_regression.py']
-    report = dict(command=command, build_exit=built.returncode, hashes={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in names}, limits=['Unactivated pure policy, not recovered legacy observer state', 'Actual converters prove words survive current code, including invisible transitions; no carrier is wired', 'No game/VM/network/process action'])
+    report = dict(command=command, build_exit=built.returncode, hashes={p: hashlib.sha256((ROOT / p).read_bytes()).hexdigest() for p in names}, limits=['Pure shared policy, not legacy observer-phase parity', 'Actual converters and signed-short stat roundtrips; no engine packet capture', 'No game/VM/network/process action'])
     if not built.returncode:
         run = subprocess.run([str(exe)], cwd=out, env=env, capture_output=True, text=True, timeout=30)
         report.update(run_exit=run.returncode, stdout=run.stdout, stderr=run.stderr)

@@ -9,6 +9,7 @@
 #include "q_shared.h"
 #include "bg_public.h"
 #include "tce_weapon_ammo.h"
+#include "tce_weapon_wall_state.h"
 #include "tce_trajectory.h"
 #include "tce_numeric.h"
 #include "tce_bg.h"
@@ -2486,6 +2487,8 @@ static void BG_TCEPlayerStateFields(const playerState_t *ps, entityState_t *s)
 	int alternate = ps->stats[STAT_TCE_FLAGS] & 0x400;
 	int i;
 	s->angles2[ROLL] = ps->leanf;
+	s->angles2[PITCH] = ps->pm_type == PM_NORMAL && !(ps->eFlags & EF_DEAD)
+		? TCE_WeaponWallStatePitch(ps->stats[15]) : 0.f;
 	/* TCE2 freelook uses unused player angles components, preserving TC's
 	 * angles2 movementDir/lean protocol. Both converters share this tail. */
 	s->angles[PITCH] = ps->holdable[TCE_FREELOOK_PITCH] ? (ps->holdable[TCE_FREELOOK_PITCH] - TCE_FREELOOK_CENTER) * .01f : 0;

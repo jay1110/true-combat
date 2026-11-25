@@ -39,6 +39,12 @@ ABI behavior where supported by evidence. They are not a blanket guarantee of
 parity. Known limitations and component origins are documented in
 [credits](credits.md), [troubleshooting](troubleshooting.md) and the source notices.
 
+## Wall-weapon presentation
+
+Wall clearance is calculated in shared movement and smoothed in command time. The upper byte of the existing signed-short `stats[15]` carries the obstruction amount; its equipment byte remains intact. Both player-state converters publish the resulting low-ready pitch in the previously unused `ET_PLAYER angles2[PITCH]` component. Movement yaw and lean keep their existing components. Engine player/entity layouts are unchanged.
+
+CGame blends the torso animation toward the declared `relaxed_idle_1h_1` pose, retaining leg animation and normal look axes. It uses animation metadata rather than stock frame numbers. The attached world weapon keeps its model scale and follows the same downward aim rule as QGame. Negotiated affected-pose hit evaluation applies the same torso-frame blend, including in historical queries and cache keys. The presentation profile version participates in asset negotiation so older pose policies cannot silently negotiate as identical.
+
 ## Data manifests
 
 Build configuration, runtime policies, asset inventories and dependency pins are

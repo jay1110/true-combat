@@ -363,6 +363,7 @@ typedef struct centity_s
 	char tagName[MAX_QPATH];
 	// TC:E smoke lighting cache; separate from unrelated SDK entity fields.
 	vec3_t tceSmokeColor;
+	float tceWeaponWallPitch; /* Actual rendered low-ready pose, mod-private. */
 	vec3_t tceEntityMotion; /* Original cent+0xa84: lerp/trajectory motion, jet loops. */
 	int tceEjectPending; /* original centity +0xa7c; consumed after animated tags */
 	int tceFireEffectPending; /* original centity +0xa80. */
@@ -3782,3 +3783,5 @@ void OmnibotResetClient(void);
 #endif
 
 void CG_ClearCorpseAnimationCache(void);
+
+void CG_TCEWeaponWallPose(refEntity_t *body, const bg_character_t *character, float pitch);

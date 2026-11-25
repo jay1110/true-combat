@@ -20,6 +20,7 @@ def main():
     converters=macro+'\n'+'\n'.join(function(bg,n) for n in
         ('BG_TCEPlayerStateFields','BG_SnapshotSequenceAdd','BG_SnapshotVector',
          'BG_PlayerStateToEntityState','BG_PlayerStateToEntityStateExtraPolate'))
+    converters = '#include \"tce_weapon_wall_state.h\"\n' + converters
     selectors=function((ROOT/'src/game/bg_character.c').read_text(),'BG_GetCharacter')+'\n'+function(
         (ROOT/'src/cgame/cg_character.c').read_text(),'CG_CharacterForClientinfo')
     entities=(ROOT/'src/cgame/cg_ents.c').read_text()
@@ -54,6 +55,9 @@ def main():
         production=(ROOT/'src/game/g_tce_pose_presentation.c' if mode=='server' else
                     a.cgame_source or ROOT/'src/cgame/cg_tce_pose_presentation.c')
         actual=production.read_text().replace('#include "g_local.h"','').replace('#include "cg_local.h"','')
+        if mode=='cgame':
+            actual = '#include \"tce_weapon_wall_pose.h\"\n' + function((ROOT/'src/cgame/cg_players.c').read_text(),'CG_TCEWeaponWallPose') + '\n' + actual
+        actual = '\n'.join(function((ROOT/'src/game/q_shared.c').read_text(),n) for n in ('Q_stricmpn','Q_stricmp')) + '\n' + actual
         fixture=fixture.replace('/* ACTUAL_PRESENTATION */',actual)
         source=folder/'generated.c';source.write_text(fixture,encoding='utf-8',newline='\n')
         sources=[source,ROOT/'src/game/bg_tce_pose_presentation.c',ROOT/'src/game/bg_tce_pose_origin.c',

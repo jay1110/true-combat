@@ -170,6 +170,7 @@ uint32_t BG_TCEPosePresentationProfile(const bg_character_t *character,const bg_
     if(!model||model->numAnimations<1||model->numAnimations>MAX_MODEL_ANIMATIONS) return 0;
     if(!character->characterFile[0]||!definition->mesh[0]||!definition->hudhead[0]||
        !model->animationGroup[0]||!model->animationScript[0])return 0;
+    hash=PresentHashWord(hash,TCE_POSE_PRESENTATION_VERSION);
     hash=PresentHashText(hash,character->characterFile);if(!hash)return 0;
     hash=PresentHashText(hash,definition->mesh);if(!hash)return 0;
     hash=PresentHashText(hash,definition->hudhead);if(!hash)return 0;
@@ -198,7 +199,8 @@ uint32_t BG_TCEPosePresentationPairProfile(uint32_t renderProfile,uint32_t anima
     uint32_t hash;
     if(!renderProfile||!animationRawProfile)return 0;
     hash=PresentHashWord(renderProfile,0x50414932u);
-    hash=PresentHashWord(hash,animationRawProfile);return hash?hash:1u;
+    hash=PresentHashWord(hash,animationRawProfile);
+    hash=PresentHashWord(hash,TCE_POSE_PRESENTATION_VERSION);return hash?hash:1u;
 }
 int BG_TCEPosePresentationManifest(const uint32_t *profiles,int count,char *out,int size) {
     static const char hex[]="0123456789abcdef";
@@ -319,6 +321,7 @@ int BG_TCEPosePresentationInterpolate(const tcePosePresentationAxesInput_t *olde
     }
     result.movementYaw=PresentAngle(older->movementYaw+fraction*PresentAngle(newer->movementYaw-older->movementYaw));
     result.lean=older->lean+fraction*(newer->lean-older->lean);
+    result.weaponWallPitch=older->weaponWallPitch+fraction*(newer->weaponWallPitch-older->weaponWallPitch);
     for(i=0;i<2;++i)result.freelook[i]=older->freelook[i]+fraction*PresentAngle(newer->freelook[i]-older->freelook[i]);
     *out=result;return 1;
 }
@@ -339,7 +342,8 @@ int BG_TCEPosePresentationAxes(const tcePosePresentationAxesInput_t *input,
     if(out) memset(out,0,sizeof(*out));
     if(!input || !out || input->mode<TCE_POSE_PRESENT_LADDER || input->mode>TCE_POSE_PRESENT_PRONE ||
        (input->leanMode!=0 && input->leanMode!=1) || !PresentFinite(input->scale,4) ||
-       input->scale<=0 || !PresentFinite(input->movementYaw,180) || !PresentFinite(input->lean,90)) return 0;
+       input->scale<=0 || !PresentFinite(input->movementYaw,180) || !PresentFinite(input->lean,90) ||
+       !PresentFinite(input->weaponWallPitch,78) || input->weaponWallPitch<0) return 0;
     for(i=0;i<3;++i) if(!PresentFinite(input->aim[i],3600) || !PresentFinite(input->velocity[i],8192)) return 0;
     for(i=0;i<2;++i) if(!PresentFinite(input->freelook[i],180)) return 0;
     memset(&result,0,sizeof(result));

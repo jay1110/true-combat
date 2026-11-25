@@ -46,7 +46,7 @@ for authoring; the Game edition deliberately omits those tools.
 
 ## Old menus, missing images or mixed interface
 
-Look for competing TCE2 update PK3s and old loose UI/CGame libraries in both
+Look for competing TCE2 update PK3s and old loose UI/CGame/QGame libraries in both
 `fs_basepath` and `fs_homepath`. Restart after installing a matched package.
 Retain original TC:E packages; remove superseded TCE2 updates from active lookup.
 Do not install only a menu file without its shaders/artwork and client modules.
@@ -76,8 +76,12 @@ Include version, edition, OS/process architecture, engine/version, map/gametype,
 steps, expected/actual result and relevant console error. Remove credentials,
 private player data and personal filesystem paths before attaching logs.
 
+### Manifest version differs from the installed package
+
+If a local start reports `Missing/invalid tce2-1.0.4.pk3 client manifest` with a 1.0.5 package installed, an older QGame module may be loaded from `fs_homepath`. The version in this message is compiled into QGame. Close the game and install matching QGame, UI, CGame and the update PK3; check both base and home directories. The local test launcher backs up and synchronizes existing cached Windows modules with its installed copies before startup.
+
 ### Wall lowering and corpse transitions (1.0.5)
 
-The server controls `g_weaponWallAvoidance` (`1` by default, `0` to disable for everyone). Lowering and return use command-time smoothing over at least 250 ms for full travel. With this rule enabled, wall-impact effects come from the server; local predicted marks must not draw an obsolete straight shot while the weapon is lowered. Muzzle flashes and recoil remain locally predicted.
+The server controls `g_weaponWallAvoidance` (`1` by default, `0` to disable for everyone). Lowering and return use command-time smoothing over at least 250 ms for full travel. With this rule enabled, wall-impact effects come from the server; local predicted marks must not draw an obsolete straight shot while the weapon is lowered. Muzzle flashes and recoil remain locally predicted. The same server-controlled lowering is transmitted to third-person player models, including other players. A low-ready arm pose moves the grip back and down rather than bending the torso toward the wall. The barrel follows the server aim direction. The pose is selected by animation name, so compatible animation replacements retain their declared model and frame mapping. Update both server QGame and client CGame together.
 
 When Space moves a dead player to reinforcement, the corpse keeps the chosen death sequence rather than an idle/run state or a fixed stock animation number. Some custom MDX clips contain a standing reset frame after their resting pose. Corpse-only terminal selection checks the adjacent head-tag positions and avoids that abrupt reset. It does not modify the animation package or normal death playback.

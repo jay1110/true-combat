@@ -7,6 +7,7 @@
 
 #include "cg_local.h"
 #include "tce_corpse_frame.h"
+#include "../game/tce_weapon_wall_pose.h"
 #include "cg_tce_pose_presentation.h"
 #include "../game/bg_classes.h"
 #include "../game/tce_trajectory.h"
@@ -2266,6 +2267,33 @@ void CG_CalcEntityVisibility(centity_t *cent)
 	cent->tceVisible = qfalse;
 }
 
+void CG_TCEWeaponWallPose(refEntity_t *body, const bg_character_t *character, float pitch)
+{
+    int index; const animation_t *low; float blend=pitch/78.f;
+    if (!(blend>0.f && blend<=1.f) || !character) return;
+    index=TCE_WeaponWallLowAnimation(character->animModelInfo);
+    if (index<0) return;
+    low=character->animModelInfo->animations[index];
+    /* Two-channel MDX renderer: retain the dominant normal torso sample as
+     * the other endpoint; legs and the head look axes remain untouched. */
+    if (body->torsoBacklerp<=.5f) {
+        body->oldTorsoFrame=body->torsoFrame;
+        body->oldTorsoFrameModel=body->torsoFrameModel;
+    }
+    body->torsoFrame=TCE_WeaponWallLowFrame(low);
+    body->torsoFrameModel=low->mdxFile;
+    body->torsoBacklerp=1.f-blend;
+}
+static float CG_TCEWeaponWallEntityPitch(const centity_t *cent)
+{
+    float pitch;
+    if (!cgs.tceWeaponWallAvoidance || cent->currentState.eType!=ET_PLAYER ||
+        (cent->currentState.eFlags & (EF_DEAD|EF_MOUNTEDTANK|EF_MG42_ACTIVE|EF_AAGUN_ACTIVE))) return 0.f;
+    pitch=cent->currentState.angles2[PITCH];
+    if (cent->interpolate && cg.nextSnap)
+        pitch+=cg.frameInterpolation*(cent->nextState.angles2[PITCH]-pitch);
+    return pitch>=0.f && pitch<=78.f ? pitch : 0.f;
+}
 void CG_Player(centity_t *cent)
 {
 	clientInfo_t *ci;
@@ -2286,6 +2314,7 @@ void CG_Player(centity_t *cent)
 	int            tcePresentation;
 	tcePresentationOriginScope_t presentationOrigin = { { 0, 0, 0 }, 0, 0, 0 };
 
+	cent->tceWeaponWallPitch=0.f;
 	cgsnap = &cg_entities[cg.snap->ps.clientNum];
 
 	shadow      = qfalse;                                           // gjd added to make sure it was initialized
@@ -2522,6 +2551,8 @@ void CG_Player(centity_t *cent)
 	if (!tcePresentation)
 	{
 		CG_PlayerAnimation(cent, &body);
+		cent->tceWeaponWallPitch=CG_TCEWeaponWallEntityPitch(cent);
+		CG_TCEWeaponWallPose(&body,character,cent->tceWeaponWallPitch);
 	}
 
 	// forcibly set binoc animation
