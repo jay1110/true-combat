@@ -119,3 +119,4 @@ pre-1.0.0	2026-10-09	9f86d22	added	wolfadmin_password		QGame/Game/Editor: '', fl
 1.0.3	2026-11-07	1beb008	added	g_oss		QGame/Game/Editor: '511', flags=4	Improve menu focus, separate HUD widget scales, and advertise client platforms
 1.0.3	2026-11-08	dc2fa53	changed	g_oss	QGame/Game/Editor: '511', flags=4	QGame/Game/Editor: '2047', flags=4	Add bot traffic coordination and Android x86 targets
 1.0.4	2026-11-08	fc5ae89	added	cg_commandMapScale		CGame/Game/Editor: '0.85', flags=1; UI/Game/Editor: '0.85', flags=1	Polish 1.0.4 HUD controls, compact menus and bot crowd yielding
+1.0.5	2026-11-25	5ea35e2	added	g_weaponWallAvoidance		QGame/Game/Editor: '1', flags=5	Fix predicted wall impacts, smooth shared lowering and preserve custom corpse poses
