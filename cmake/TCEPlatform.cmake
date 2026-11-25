@@ -117,6 +117,10 @@ function(tce_configure_mod target folder define)
     set_target_properties(${target} PROPERTIES OUTPUT_NAME "${target}_mp_${TCE_MODULE_ARCH}")
   elseif(EMSCRIPTEN)
     target_compile_options(${target} PRIVATE -fno-common -fvisibility=hidden)
+    # Side modules otherwise import compiler arithmetic helpers from the host.
+    # Emscripten versions can disagree on their legalized binary128 ABI (e.g.
+    # __multf3), so bind the matching compiler builtins into each mod instead.
+    target_link_libraries(${target} PRIVATE "${TCE_WASM_BUILTINS_LIBRARY}")
     target_link_options(${target} PRIVATE -sSIDE_MODULE=1)
     set_target_properties(${target} PROPERTIES OUTPUT_NAME "${target}.mp.wasm32" SUFFIX ".so")
   elseif(APPLE)

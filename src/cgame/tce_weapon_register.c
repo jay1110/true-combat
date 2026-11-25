@@ -20,6 +20,7 @@ void TCE_CG_RegisterWeapon(int weaponNum, int force)
 		return;
 	}
 	memset(info, 0, sizeof(*info)); info->registered = 1;
+	tce_customWeaponIcons[weaponNum] = 0;
 	name                                             = gearDef.weaponFile[weaponNum];
 	if (!name[0])
 	{

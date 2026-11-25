@@ -3,6 +3,24 @@
 #include "cg_local.h"
 #include "tce_weapon_media.h"
 
+/* Keep custom preview metadata outside the historical media ABI. Stock TC:E
+ * .weap files retain unrelated ET icon placeholders; custom artwork takes
+ * precedence over a model preview only when it replaces those placeholders. */
+int tce_customWeaponIcons[64];
+static void TCE_RecordCustomWeaponIcon(tce_weaponInfo_t *info, const char *name, int shader)
+{
+	static const char *stock[] = {
+		"icons/iconw_luger_1", "icons/iconw_mp40_1", "icons/iconw_pineapple_1",
+		"icons/iconw_colt_1", "icons/iconw_dynamite_1", "icons/iconw_knife_1",
+		"icons/iconw_sten_1", "icons/iconw_thompson_1"
+	};
+	int i;
+	for (i = 0; i < sizeof(stock) / sizeof(stock[0]); ++i)
+		if (!Q_stricmp(name, stock[i])) { shader = 0; break; }
+	for (i = 1; i < 64; ++i)
+		if (info == &tce_cg_weapons[i]) { tce_customWeaponIcons[i] = shader; return; }
+}
+
 typedef enum { MODEL, SKIN, SHADER, SOUND, VECTOR, FLOAT_VALUE, INT_VALUE, TEXT } fieldKind_t;
 typedef struct { const char *key; fieldKind_t kind; size_t offset; const char *error; } mediaField_t;
 #define FIELD(key, kind, member, error) { key, kind, offsetof(tce_weaponInfo_t, member), error }
@@ -69,7 +87,11 @@ int TCE_CG_RW_ParseClient(int handle, tce_weaponInfo_t *info)
 					{
 					case MODEL: *(int *)out  = trap_R_RegisterModel(name); break;
 					case SKIN: *(int *)out   = trap_R_RegisterSkin(name); break;
-					case SHADER: *(int *)out = trap_R_RegisterShader(name); break;
+					case SHADER:
+						*(int *)out = trap_R_RegisterShader(name);
+						if (field->offset == offsetof(tce_weaponInfo_t, weaponIcon))
+							TCE_RecordCustomWeaponIcon(info, name, *(int *)out);
+						break;
 					case SOUND: *(int *)out  = trap_S_RegisterSound(name, qfalse); break;
 					case TEXT: Q_strncpyz(out, name, 64); break;
 					default: break;

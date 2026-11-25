@@ -698,6 +698,11 @@ Sets cg.snap, cg.oldFrame, and cg.backlerp
 cg.time should be between oldFrameTime and frameTime after exit
 ===============
 */
+static int CG_AnimationEndFrame(const animation_t *anim)
+{
+    return anim->firstFrame + ((anim->flags & ANIMFL_REVERSED) ? 0 : anim->numFrames - 1);
+}
+
 void CG_RunLerpFrameRate(clientInfo_t *ci, lerpFrame_t *lf, int newAnimation, centity_t *cent, int recursion)
 {
 	int         f;
@@ -738,7 +743,7 @@ void CG_RunLerpFrameRate(clientInfo_t *ci, lerpFrame_t *lf, int newAnimation, ce
 	    // and the body will stay in that position
 	    || (/*CG_IsSinglePlayer() &&*/ cent->currentState.eType == ET_CORPSE))
 	{
-		lf->oldFrame      = lf->frame = anim->firstFrame + anim->numFrames - 1;
+		lf->oldFrame      = lf->frame = CG_AnimationEndFrame(anim);
 		lf->oldFrameModel = lf->frameModel = anim->mdxFile;
 		lf->backlerp      = 0;
 		return;

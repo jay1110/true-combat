@@ -4,6 +4,30 @@ Player and server changes in TCE2, an unofficial reconstruction and community co
 
 Configuration names are case-insensitive in the game. The [Cvar reference](Docs/cvars.md) documents defaults, flags, availability and the complete configuration history. Existing ET/TC:E settings are not presented as newly invented TCE2 features.
 
+## 1.0.5 — 2026-11-25
+
+### Added
+
+- Mandatory view-weapon lowering and retraction near solid walls. The server adjusts the actual shot direction by the same downward angle as the view weapon; firing remains available and no client toggle is available.
+- Custom `.weap` weapon icons in deployment rows and Fireteam weapon displays. Genuine custom artwork takes priority over the model preview; inherited ET placeholder icons remain filtered out.
+
+### Fixed
+
+- Custom death sequences retain their final pose when converted to a corpse, including reversed animation sequences.
+- Omni-bots receive the existing player-contact push instead of being excluded from it.
+- Missing distant gunshot reports when a weapon supplies fewer echo variants than close-shot variants.
+- A prone-transition time check that could prevent aiming after approximately twelve days of server uptime by adding two absolute timestamps.
+- WASM mod modules importing binary128 compiler helpers such as `__multf3` from an engine built with an incompatible helper ABI. Modules now link their matching compiler builtins.
+
+### Modified
+
+- Bots can relay a request to make room for another bot, including close stationary contact. Human priority, live actor identity, team, expiry, collision and safe-ground checks remain in effect.
+
+### Cvar changes
+
+- Removed the initial `cg_weaponWallAvoidance` client toggle; wall clearance is a fixed server-enforced rule.
+- Updated the mod version to `1.0.5`.
+
 ## 1.0.4 — 2026-11-08
 
 ### Added

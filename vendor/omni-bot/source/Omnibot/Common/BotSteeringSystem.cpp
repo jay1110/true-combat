@@ -6,13 +6,13 @@
 
 namespace AiState
 {
-	// A blocked bot can ask the next ally to make room before either has
+	// A blocked bot or human can ask the next ally to make room before either has
 	// physical velocity. Ordinary velocity-only avoidance cannot clear a packed
 	// corridor. Requests retain live entity identities, expire quickly and may
 	// travel through at most eight allies; no movement or collision is bypassed.
 	struct TceTrafficPressure
 	{
-		GameEntity bot, human;
+		GameEntity bot, source;
 		Vector3f direction;
 		int until, depth;
 		TceTrafficPressure() : direction(Vector3f::ZERO), until(0), depth(0) {}
@@ -105,8 +105,8 @@ namespace AiState
 				// a nearer source with a longer, contradictory relay chain.
 				if(request.bot == trace.m_HitEntity &&
 					(obint32)((obuint32)request.until-(obuint32)IGame::GetTime()) > 0 &&
-					request.human == _human && request.depth < _depth+1) return false;
-				request.bot = trace.m_HitEntity; request.human = _human;
+					request.source == _human && request.depth < _depth+1) return false;
+				request.bot = trace.m_HitEntity; request.source = _human;
 				request.direction = (_destination-GetClient()->GetPosition()).Flatten();
 				request.direction.Normalize();
 				request.until = (obint32)((obuint32)IGame::GetTime()+1200u); request.depth = _depth+1;
@@ -155,14 +155,15 @@ namespace AiState
 		if(self >= 0 && self < obPlayerInfo::MaxPlayers)
 		{
 			pressure = tceTrafficPressure[self];
-			const int source = pressure.human.IsValid() ? g_EngineFuncs->IDFromEntity(pressure.human) : -1;
+			const int source = pressure.source.IsValid() ? g_EngineFuncs->IDFromEntity(pressure.source) : -1;
 			Vector3f humanPosition;
 			if((obint32)((obuint32)pressure.until-(obuint32)now) <= 0 || pressure.bot != client->GetGameEntity() ||
 				source < 0 || source >= obPlayerInfo::MaxPlayers ||
-				players.m_Players[source].m_Controller != obPlayerInfo::Human ||
+				(players.m_Players[source].m_Controller != obPlayerInfo::Human &&
+				 players.m_Players[source].m_Controller != obPlayerInfo::Bot) ||
 				players.m_Players[source].m_Team != client->GetTeam() ||
-				!InterfaceFuncs::IsAlive(pressure.human) ||
-				!EngineFuncs::EntityPosition(pressure.human, humanPosition) ||
+				!InterfaceFuncs::IsAlive(pressure.source) ||
+				!EngineFuncs::EntityPosition(pressure.source, humanPosition) ||
 				(position-humanPosition).SquaredLength() > 512.f*512.f)
 			{
 				pressure = TceTrafficPressure();
@@ -195,9 +196,11 @@ namespace AiState
 			if (!(distance > .01f && distance < (isHuman ? 112.f : 80.f))) continue;
 			EngineFuncs::EntityVelocity(entity, velocity);
 			const bool approaching = velocity.Dot(delta) < -16.f;
-			const bool humanContact = isHuman && distance < 48.f;
-			if (moving ? (desired.Dot(delta) < .15f && !(isHuman && approaching) && !humanContact) :
-				(!approaching && !humanContact)) continue;
+			// Keep a personal-space buffer before physical body contact.
+			const bool allyContact = distance < (isHuman ? 80.f : 56.f) &&
+				(!moving || distance < 48.f || desired.Dot(delta) > 0.f);
+			if (moving ? (desired.Dot(delta) < .15f && !(isHuman && approaching) && !allyContact) :
+				(!approaching && !allyContact)) continue;
 			if (moving)
 			{
 				const float ahead = desired.Dot(delta);
@@ -221,17 +224,18 @@ namespace AiState
 			blocker = entity; human = isHuman; relative = delta;
 			bestDistance = distance * distance;
 		}
-		const bool relayed = pressure.human.IsValid() && !human;
+		const bool relayed = pressure.source.IsValid() && !human;
 		if(relayed)
 		{
-			blocker = pressure.human; human = true;
+			blocker = pressure.source; human = true;
 			relative = -pressure.direction;
 		}
 		if (!blocker.IsValid()) return;
 		const bool cached = blocker == m_AvoidEntity &&
 			(obint32)((obuint32)m_AvoidUntil - (obuint32)now) > 0;
 		const int preferred = cached ? m_AvoidSide : ((client->GetGameID() & 1) ? 1 : -1);
-		const bool directContact = human && !relayed && bestDistance < 48.f*48.f;
+		const float clearance = human ? 80.f : 56.f;
+		const bool directContact = !relayed && bestDistance < clearance*clearance;
 		if(cached && directContact && m_AvoidDirection.SquaredLength() > .5f)
 		{
 			// A side sign alone is unstable when the desired/relative frame
@@ -256,7 +260,7 @@ namespace AiState
 			Vector3f direction = candidate == 2 ? -relative : side * (float)sign + forward * forwardBias;
 			direction.Normalize();
 			if (!SafeAvoidStep(position + direction * (attempt < 3 ? 32.f : 16.f),
-				human ? blocker : GameEntity(), relayed ? pressure.depth : 0)) continue;
+				blocker, relayed ? pressure.depth : 0)) continue;
 			m_MoveVec = direction * .65f;
 			m_AvoidEntity = blocker; m_AvoidSide = sign;
 			m_AvoidDirection = directContact ? direction : Vector3f::ZERO;

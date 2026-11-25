@@ -100,14 +100,14 @@ struct IGame {static int GetTime(){return gameTime;}static float GetDeltaTimeSec
 struct Steering:AiState::SteeringSystem {void Attach(Client*c){testClient=c;}int Side()const{return m_AvoidSide;}int Until()const{return m_AvoidUntil;}GameEntity Avoided()const{return m_AvoidEntity;}};
 static int checks;
 #define CHECK(c) do{++checks;assert(c);}while(0)
-static void reset(Client&c,Steering&s){static int clock=0;c=Client();s=Steering();s.Attach(&c);for(int i=0;i<64;++i)players[i]=Player();groundSafe=traceClear=hullValid=true;traceStartSolid=separatedByWorld=trafficGeometry=contactWallGeometry=false;blockedSide=0;walks=traces=infos=0;gameTime=(clock+=5000);s.SetTarget(Vector3f(500,0,0),32);}
+static void reset(Client&c,Steering&s){static int clock=0;c=Client();s=Steering();s.Attach(&c);for(int i=0;i<64;++i)players[i]=Player();groundSafe=traceClear=hullValid=true;traceStartSolid=separatedByWorld=trafficGeometry=contactWallGeometry=false;blockedSide=0;walks=traces=infos=0;gameTime=(clock+=10000);s.SetTarget(Vector3f(500,0,0),32);}
 static void player(int id,float x,float y,bool human){players[id].active=true;players[id].pos=Vector3f(x,y,0);players[id].human=human;players[id].flags.bits=1u<<ENT_FLAG_ONGROUND;}
 int main(){
  Client c;Steering s;Vector3f v;
 #ifndef TCE_TRAFFIC_CONTACT_ONLY
 #ifndef TCE_TRAFFIC_CROWD_ONLY
  reset(c,s);s.UpdateSteering();CHECK(s.GetMoveVector().x==1&&walks==0);
- player(3,64,0,true);s.UpdateSteering();v=s.GetMoveVector();CHECK(std::fabs(v.y)>.5f&&v.x>0&&traces==2&&walks==1);CHECK(observedHull.m_Mins[2]==-24&&observedHull.m_Maxs[2]==46);
+ player(3,96,0,true);s.UpdateSteering();v=s.GetMoveVector();CHECK(std::fabs(v.y)>.5f&&v.x>0&&traces==2&&walks==1);CHECK(observedHull.m_Mins[2]==-24&&observedHull.m_Maxs[2]==46);
  int side=s.Side();gameTime+=50;s.UpdateSteering();CHECK(s.Side()==side&&s.Until()==gameTime+700);
  reset(c,s);player(3,60,0,true);blockedSide=-1;s.UpdateSteering();CHECK(s.GetMoveVector().y>0&&walks==2&&traces==2);
  reset(c,s);player(3,60,0,true);groundSafe=false;s.UpdateSteering();CHECK(s.GetMoveVector().SquaredLength()==0&&walks>0&&traces==1);
@@ -129,6 +129,10 @@ int main(){
  reset(c,s);s.SetTarget(Vector3f(0,0,0),32);player(3,80,0,true);players[3].vel=Vector3f(-100,0,0);s.UpdateSteering();CHECK(std::fabs(s.GetMoveVector().y)>.5f);players[3].vel=Vector3f(100,0,0);s.UpdateSteering();CHECK(s.GetMoveVector().SquaredLength()==0);
  reset(c,s);player(3,60,0,true);s.SetEnableMovement(false);s.UpdateSteering();CHECK(s.GetMoveVector().SquaredLength()==0&&infos==0);
 
+ // Personal space is released before capsule contact, even with both actors idle.
+ reset(c,s);s.SetTarget(c.pos,32);player(3,64,0,true);s.UpdateSteering();CHECK(s.GetMoveVector().SquaredLength()>.1f);
+ reset(c,s);s.SetTarget(c.pos,32);player(3,52,0,false);s.UpdateSteering();CHECK(s.GetMoveVector().SquaredLength()>.1f);
+
  // A stationary ally must release a passage to a moving bot, independently
  // of the head-on ID tie-break used for two moving actors.
  reset(c,s);s.SetTarget(c.pos,32);player(3,60,0,false);players[3].vel=Vector3f(-100,0,0);s.UpdateSteering();CHECK(std::fabs(s.GetMoveVector().y)>.5f);
@@ -142,7 +146,9 @@ int main(){
  // Four idle bots fill a narrow corridor. The front bot cannot move until
  // the rear makes room; the blocked human has zero physical velocity.
  Client crowd[4];Steering steer[4];
- reset(c,s);trafficGeometry=true;player(1,-40,0,true);
+ for(int rootBot=0;rootBot<2;++rootBot){
+ reset(c,s);trafficGeometry=true;player(1,-40,0,!rootBot);
+ if(rootBot)players[1].vel=Vector3f(100,0,0);
  for(int i=0;i<4;++i){crowd[i]=Client();crowd[i].id=i+2;crowd[i].pos=Vector3f(i*40.f,0,0);player(i+2,crowd[i].pos.x,0,false);steer[i].Attach(&crowd[i]);steer[i].SetTarget(crowd[i].pos,32);}
  for(int i=0;i<4;++i)steer[i].UpdateSteering();
  CHECK(steer[0].GetMoveVector().SquaredLength()==0);CHECK(steer[3].GetMoveVector().x>.5f);
@@ -154,13 +160,16 @@ int main(){
   if(frame%30==29){printf("group frame %d human %.1f bots %.1f/%.1f %.1f/%.1f %.1f/%.1f %.1f/%.1f\n",frame,players[1].pos.x,players[2].pos.x,players[2].pos.y,players[3].pos.x,players[3].pos.y,players[4].pos.x,players[4].pos.y,players[5].pos.x,players[5].pos.y);fflush(stdout);}
  }
  CHECK(players[2].pos.x>24.f);CHECK(std::fabs(players[5].pos.y)>28.f);CHECK(players[1].pos.x>0.f);
+ }
 
  // A pending request must not survive actor reuse, a dead human, exact
  // traversal, or expiry. These are live identities, not durable bot IDs.
  for(int invalid=0;invalid<5;++invalid){
   reset(c,s);trafficGeometry=true;player(1,-40,0,true);player(2,0,0,false);player(3,40,0,false);c.id=2;s.SetTarget(c.pos,32);s.UpdateSteering();
+  // Separate from immediate contact: test only the invalidated relay lease.
+  players[3].pos.x=80;
   Client rear;Steering rearSteer;rear.id=3;rear.pos=players[3].pos;rearSteer.Attach(&rear);rearSteer.SetTarget(rear.pos,32);
-  if(invalid==0)++players[3].serial;if(invalid==1)players[1].alive=false;if(invalid==2)rear.follow.path.current=true,rear.follow.path.point.m_NavFlags=F_NAV_JUMP;if(invalid==3)gameTime+=1201;if(invalid==4)players[1].human=false;
+  if(invalid==0)++players[3].serial;if(invalid==1)players[1].alive=false;if(invalid==2)rear.follow.path.current=true,rear.follow.path.point.m_NavFlags=F_NAV_JUMP;if(invalid==3)gameTime+=1201;if(invalid==4)players[1].team=0;
   rearSteer.UpdateSteering();CHECK(rearSteer.GetMoveVector().SquaredLength()==0);
  }
 #endif

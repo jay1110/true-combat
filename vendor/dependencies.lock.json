@@ -67,7 +67,7 @@
       ],
       "snapshot": {
         "files": 863,
-        "sha256": "bc02ceff8b0782bb27bae84da3fcb7f4cd36a5d20b529376d40bd172acbb1971",
+        "sha256": "2db055b29f479d478ee659fa4b6182b80d963bcf4872ab2f403e69951dfd9372",
         "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
       },
       "snapshot_history": [
@@ -142,6 +142,24 @@
           },
           "superseded": "2026-11-08",
           "reviewed_change": "Record the final reviewed 1.0.4 direct-human contact/rotating-basis steering fixes already present in fc5ae89. Sanitize import origin and replace obsolete build/runtime statements with current factual integration; preserve all original copyright and unresolved-license notices. Normalize the modified notice to UTF-8/LF."
+        },
+        {
+          "snapshot": {
+            "files": 863,
+            "sha256": "bc02ceff8b0782bb27bae84da3fcb7f4cd36a5d20b529376d40bd172acbb1971",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-11-25",
+          "reviewed_change": "Extend bounded, collision-checked crowd pressure to bot sources and stationary ally contact; retain identity, team, expiry and exact traversal guards. New source-root bot crowd regression with original-source negative control."
+        },
+        {
+          "snapshot": {
+            "files": 863,
+            "sha256": "165ea876a4d87f8ec221d6084f3569accb5dcae855e31ab5e4795b474ea75f04",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-11-25",
+          "reviewed_change": "Personal-space clearance of 80 units for humans and 56 for bots before capsule contact; allow actors already walking away to continue. Regression covers stationary near allies and moving-away priority."
         }
       ]
     },

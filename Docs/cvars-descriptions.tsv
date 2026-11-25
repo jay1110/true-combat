@@ -57,7 +57,7 @@ bot_editWaypoints	Editor-only controls	Original navigation-editing state retaine
 cg_omnibotdrawing	Editor-only controls	Master Omni-bot waypoint/goal drawing switch in the authoring CGame.	0 off; 1 on; requires the Editor variant
 cg_omnibot_render_distance	Editor-only controls	Maximum distance for authoring navigation/goal drawing, limiting submitted debug geometry.	Game units; default 800; requires the Editor variant
 omnibot_tce_explore_debug	Editor-only controls	Native registration for exploration diagnostics is restricted to FEATURE_NAVSTUDIO. Some installed GM scripts also read this name.	0 silent; nonzero script diagnostics; no public authoring interface
-tce_version	Protocol and internal state	Read-only TCE2 mod version string compiled from TCE_VERSION.	1.0.4 in the current source; version marker, not a tuning setting
+tce_version	Protocol and internal state	Read-only TCE2 mod version string compiled from TCE_VERSION.	Current compiled TCE_VERSION; version marker, not a tuning setting
 tce_pose	Protocol and internal state	CGame userinfo capability/acknowledgement for the shared pose-presentation protocol. The server issues and validates the runtime challenge.	0 initially; protocol-generated acknowledgement; do not set manually
 tce_poseChallengeCounter	Protocol and internal state	Server-maintained counter used to issue pose-protocol challenges.	Internal read-only counter
 tce_poseProtocol	Protocol and internal state	Server pose-presentation protocol identifier.	2; read-only serverinfo

@@ -9,7 +9,7 @@ rebuilt through binary analysis, comparison with the original game, and new
 source implementation. Retained Enemy Territory SDK code and third-party
 libraries remain credited to their respective authors.
 
-Current version: **1.0.4**. This community project is independent of GrooveSix
+Current version: **1.0.5**. This community project is independent of GrooveSix
 Studios, Team Terminator and the original TC:E/ET developers. It is not an
 official source release, an engine port, or a claim of complete behavioral parity.
 
@@ -47,7 +47,7 @@ Modified entries and the individual Cvars involved.
 
 ## Installable package
 
-The Game ZIP contains a single `tce2/tce2-1.0.4.pk3` with menus, project assets
+The Game ZIP contains a single `tce2/tce2-1.0.5.pk3` with menus, project assets
 and UI/CGame modules. `server/<target>/` contains matching QGame and bot
 libraries; `server/common/` contains shared server scripts/data. Copy the
 appropriate server contents into the game's `tce2` directory. The

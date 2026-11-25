@@ -1,11 +1,11 @@
 # Console variables
 
-This reference describes **TCE2 1.0.4**, including retained TC:E controls and changes made before the first versioned TCE2 release. It covers the mod layer on ET 2.60b and ETLegacy. Engine settings are not new TCE2 features merely because a mod module registers or reads them.
+This reference describes **TCE2 1.0.5**, including retained TC:E controls and changes made before the first versioned TCE2 release. It covers the mod layer on ET 2.60b and ETLegacy. Engine settings are not new TCE2 features merely because a mod module registers or reads them.
 
 The current source contains **636 registration sites and 501 named cvars**. There are 502 case-insensitive keys in total: two retained unused limbo bindings register the same empty name. The detailed sections below cover all current non-SDK registrations, every current name with a registration change in the examined history, and related existing HUD/hit-diagnostic controls. The complete appendix includes unchanged inherited SDK registrations as well.
 
 - {download}`Complete registration appendix: defaults, flags, guards and source locations <cvars-registration.tsv>`
-- {download}`Reachable registration history: 120 events <cvars-history.tsv>`
+- {download}`Reachable registration history: 122 events <cvars-history.tsv>`
 - {download}`Reference descriptions and value ranges <cvars-descriptions.tsv>`
 
 ## How to read this reference
@@ -14,7 +14,7 @@ Run a client setting in the console, for example `set cg_commandMapScale 0.85`. 
 
 **Defaults are source registration defaults, not a promise about the current runtime value.** Configurations, mapscripts, saved profiles, engine defaults and registration order can change the effective value. QGame is the server game module; CGame is the client game module; UI is the menu module. UI+CGame denotes a shared translation unit: a registration can still be restricted to one VM by the conditions recorded in the appendix, as background preferences are restricted to UI. Multiple listed bindings refer to the same engine cvar, not independent copies. Cvar names are case-insensitive, so `cg_drawCrosshairNames` and its lowercase spelling are one setting.
 
-`""` means an empty string; `0` in the flags column means no registration flags. Angle brackets denote a source expression rather than a literal default. In particular, `tce_version` resolves `TCE_VERSION` to **1.0.4** in this release; its history is 1.0.0 → 1.0.1 → 1.0.2 → 1.0.3 → 1.0.4. Header-only version bumps do not appear as changes to the registration expression in the history TSV.
+`""` means an empty string; `0` in the flags column means no registration flags. Angle brackets denote a source expression rather than a literal default. In particular, `tce_version` resolves `TCE_VERSION` to **1.0.5** in this release; its history is 1.0.0 → 1.0.1 → 1.0.2 → 1.0.3 → 1.0.4 → 1.0.5. Header-only version bumps do not appear as changes to the registration expression in the history TSV.
 
 | Flag | Meaning |
 | --- | --- |
@@ -204,7 +204,7 @@ Enable icon/model details in the TCE fireteam presentation.
 | --- | --- | --- | --- |
 | CGame | `1` | `ARCHIVE` | Game/Editor |
 
-**History:** First recorded registration: 1.0.2 ([`074ee19`](https://github.com/jay1110/true-combat/commit/074ee19)). **Registration sources:** [src/cgame/cg_tce_fireteam.c:32](https://github.com/jay1110/true-combat/blob/final/src/cgame/cg_tce_fireteam.c#L32).
+**History:** First recorded registration: 1.0.2 ([`074ee19`](https://github.com/jay1110/true-combat/commit/074ee19)). **Registration sources:** [src/cgame/cg_tce_fireteam.c:33](https://github.com/jay1110/true-combat/blob/final/src/cgame/cg_tce_fireteam.c#L33).
 
 
 #### `cg_drawFireteamOverlay`
@@ -833,11 +833,11 @@ Native registration for exploration diagnostics is restricted to FEATURE_NAVSTUD
 
 Read-only TCE2 mod version string compiled from TCE_VERSION.
 
-**Values:** 1.0.4 in the current source; version marker, not a tuning setting.
+**Values:** Current compiled TCE_VERSION; version marker, not a tuning setting.
 
 | Module | Default | Flags | Build scope |
 | --- | --- | --- | --- |
-| QGame | `1.0.4 (TCE_VERSION)` | `SERVERINFO\|ROM` | Game/Editor |
+| QGame | `1.0.5 (TCE_VERSION)` | `SERVERINFO\|ROM` | Game/Editor |
 
 **History:** Present in the pre-versioned TC:E source stage. **Registration sources:** [src/game/g_main.c:279](https://github.com/jay1110/true-combat/blob/final/src/game/g_main.c#L279).
 
@@ -917,7 +917,7 @@ Client userinfo capability for TCE fireteam information.
 | --- | --- | --- | --- |
 | CGame | `1` | `USERINFO\|ROM` | Game/Editor |
 
-**History:** First recorded registration: 1.0.2 ([`ecd77a9`](https://github.com/jay1110/true-combat/commit/ecd77a9)). **Registration sources:** [src/cgame/cg_tce_fireteam.c:30](https://github.com/jay1110/true-combat/blob/final/src/cgame/cg_tce_fireteam.c#L30).
+**History:** First recorded registration: 1.0.2 ([`ecd77a9`](https://github.com/jay1110/true-combat/commit/ecd77a9)). **Registration sources:** [src/cgame/cg_tce_fireteam.c:31](https://github.com/jay1110/true-combat/blob/final/src/cgame/cg_tce_fireteam.c#L31).
 
 
 #### `tceftgear`
@@ -930,7 +930,7 @@ Client userinfo capability for the richer fireteam equipment payload.
 | --- | --- | --- | --- |
 | CGame | `1` | `USERINFO\|ROM` | Game/Editor |
 
-**History:** First recorded registration: 1.0.2 ([`074ee19`](https://github.com/jay1110/true-combat/commit/074ee19)). **Registration sources:** [src/cgame/cg_tce_fireteam.c:31](https://github.com/jay1110/true-combat/blob/final/src/cgame/cg_tce_fireteam.c#L31).
+**History:** First recorded registration: 1.0.2 ([`074ee19`](https://github.com/jay1110/true-combat/commit/074ee19)). **Registration sources:** [src/cgame/cg_tce_fireteam.c:32](https://github.com/jay1110/true-combat/blob/final/src/cgame/cg_tce_fireteam.c#L32).
 
 
 ### Legacy TC:E controls

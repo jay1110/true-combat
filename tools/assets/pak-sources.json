@@ -2000,13 +2000,13 @@
   },
   "policy": "Publish canonical new/changed resources only. Installed stock TCE is the base; local originals and historical authoring copies are never loaded.",
   "purpose": "Canonical resource validation and provenance; no resource generation.",
-  "release_version": "1.0.4",
+  "release_version": "1.0.5",
   "resource_generation": false,
   "schema": 3,
   "stock_reference": {
     "baseline_id": "tce-0.49b-pak0-4",
     "path": "tools/assets/base-game-reference.json",
-    "release_version": "1.0.4",
+    "release_version": "1.0.5",
     "sha256": "e6ef23ad3a777caddea0f3178ed1a05e50167f8fcc25da84111ac4dfc91b9c8f"
   },
   "stock_ui_reference": {

@@ -137,6 +137,12 @@ static qboolean TCE_ModernLimboWeaponPreview(float x,float y,float w,float h,wea
     vec3_t mins,maxs,angles={ 0,90,0 };
     float tangent=.41421356f,aspect,distance,horizontal,vertical,depth;
     int i,team=CG_LimboPanel_GetTeam();
+    if((int)weapon>0 && (int)weapon<TCE_MAX_WEAPONS && tce_customWeaponIcons[weapon])
+    {
+        trap_R_SetColor(NULL);
+        CG_DrawPic(x,y,w,h,tce_customWeaponIcons[weapon]);
+        return qtrue;
+    }
     if(!model || w<=0 || h<=0) return qfalse;
     trap_R_ModelBounds(model->model,mins,maxs);
     for(i=0;i<3;++i)
@@ -199,7 +205,8 @@ static void TCE_ModernLimboWeaponRow(const rectDef_t *rect, weapon_t weapon,
     char countText[48];
     TCE_ModernLimboWeaponInfo(weapon,&name,&description,&category);
     TCE_ModernLimboSurfacePaint(rect,selected,hover,!disabled,expanded);
-    if(TCE_ModernLimboWeaponModel(weapon))
+    if(TCE_ModernLimboWeaponModel(weapon) ||
+       ((int)weapon>0 && (int)weapon<TCE_MAX_WEAPONS && tce_customWeaponIcons[weapon]))
     {
         float iconHeight=rect->h-4;
         if(iconHeight>24) iconHeight=24;

@@ -591,31 +591,9 @@ void CopyToBodyQue(gentity_t *ent)
 		body->s.events[i] = 0;
 	body->s.eventSequence = 0;
 
-	// DHM - Nerve
-	// change the animation to the last-frame only, so the sequence
-	// doesn't repeat anew for the body
-	switch (body->s.legsAnim & ~ANIM_TOGGLEBIT)
-	{
-	case 2:
-	case 194:
-		body->s.torsoAnim = body->s.legsAnim = 194;
-		break;
-	default:
-		body->s.torsoAnim = body->s.legsAnim = 1;
-		break;
-	case 5:
-	case 6:
-		body->s.torsoAnim = body->s.legsAnim = 6;
-		break;
-	case 192:
-	case 197:
-		body->s.torsoAnim = body->s.legsAnim = 197;
-		break;
-	case 195:
-	case 196:
-		body->s.torsoAnim = body->s.legsAnim = 196;
-		break;
-	}
+	/* Keep the actual death sequence. Cgame already freezes ET_CORPSE at its
+	 * last frame; fixed stock indices select unrelated poses in custom groups. */
+	body->s.eFlags |= EF_FORCE_END_FRAME;
 
 	body->r.svFlags = ent->r.svFlags & ~SVF_BOT;
 	VectorCopy(ent->r.mins, body->r.mins);

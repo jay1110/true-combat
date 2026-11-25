@@ -14,7 +14,7 @@ is for navigation/goal authoring; its modules and bot runtime must stay together
 
 | ZIP path | Install into the game's `tce2` directory |
 | --- | --- |
-| `tce2/tce2-1.0.4.pk3` | Mod PK3 with project resources and UI/CGame modules. |
+| `tce2/tce2-1.0.5.pk3` | Mod PK3 with project resources and UI/CGame modules. |
 | `server/common/*` | Shared bot scripts, map navigation and Lua support. Merge directories. |
 | `server/<target>/*` | QGame and bot core for the engine architecture. Merge directories. |
 

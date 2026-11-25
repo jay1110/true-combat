@@ -6,6 +6,7 @@
 */
 
 #include "cg_local.h"
+#include "../game/tce_weapon_wall.h"
 #include "../../compat/compat_vector.h"
 #include "tce_lightgrid.h"
 #include "tce_weapon_frames.h"
@@ -1226,6 +1227,18 @@ static void CG_WeaponAnimation(playerState_t *ps, weaponInfo_t *weapon,
 CG_CalculateWeaponPosition
 ==============
 */
+static void CG_WeaponWallAvoidance(vec3_t origin, vec3_t angles, int weapon)
+{
+    float amount;
+    vec3_t forward, up;
+    if (cg.renderingThirdPerson) return;
+    amount = 1.f - TCE_WeaponWallFraction(&cg.predictedPlayerState, CG_Trace);
+    AngleVectors(cg.predictedPlayerState.viewangles, forward, NULL, up);
+    angles[PITCH] += 35.f * amount;
+    VectorMA(origin, -6.f * amount, forward, origin);
+    VectorMA(origin, -4.f * amount, up, origin);
+}
+
 static void CG_CalculateWeaponPosition(vec3_t origin, vec3_t angles)
 {
 	float scale;
@@ -1277,6 +1290,7 @@ static void CG_CalculateWeaponPosition(vec3_t origin, vec3_t angles)
 		s.tacticalPitch = ps->holdable[5]; s.tacticalYaw = ps->holdable[6];
 		VectorCopy(cg.kickAngles, s.kickAngles);
 		TCE_CG_CalculateWeaponPosition(&s, origin, angles);
+		CG_WeaponWallAvoidance(origin, angles, weapon);
 		cg.tceScopeBlocked = s.postureModified; cg.tceSwayTime = s.swayTime;
 		VectorCopy(s.priorForward, cg.tcePriorForward);
 		cg.tceSwayHorizontal = s.swayHorizontal; cg.tceSwayVertical = s.swayVertical;
@@ -5218,10 +5232,17 @@ static void CG_TCEFireSound855(centity_t *cent, tce_weaponInfo_t *weap, int *sou
 		reverb = volume;
 	}
 	CG_EliteEffectSound(source, reverb);
-	if (!echo || !echo[index])
+	/* Echo variants are an independent list: a weapon may supply several
+	 * close shots but only one distant report. Reusing the close-shot index
+	 * intermittently selects an empty echo slot for custom weapons. */
+	for (count = 0; count < 4 && echo[count]; ++count)
+	{
+	}
+	if (!count)
 	{
 		return;
 	}
+	index = rand() % count;
 
 #if defined(__linux__)
 	/* Linux converts this before normalization; Windows converts it afterward. */

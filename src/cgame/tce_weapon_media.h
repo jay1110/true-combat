@@ -55,6 +55,7 @@ typedef char tce_mod_offset_check[offsetof(tce_weaponInfo_t, modModels) == 0xe30
 enum { TCE_TRAIL_NONE, TCE_TRAIL_GRENADE, TCE_TRAIL_ROCKET, TCE_TRAIL_PYROSMOKE, TCE_TRAIL_DYNAMITE };
 enum { TCE_BRASS_NONE, TCE_BRASS_MACHINEGUN, TCE_BRASS_PANZERFAUST };
 extern tce_weaponInfo_t tce_cg_weapons[64];
+extern int tce_customWeaponIcons[64];
 void TCE_CG_Missile(centity_t *cent);
 void TCE_CG_RegisterWeapon(int weaponNum, int force);
 int TCE_CG_RW_ParseClient(int handle, tce_weaponInfo_t *info);

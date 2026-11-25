@@ -522,11 +522,9 @@ void ClientImpacts(gentity_t *ent, pmove_t *pm)
 		}
 
 		// RF, bot should get pushed out the way
-		if ((ent->client) /*&& !(ent->r.svFlags & SVF_BOT)*/ && (other->r.svFlags & SVF_BOT)
-#ifdef FEATURE_OMNIBOT
-		    && !Bot_Interface_IsOmnibot((int)(other - g_entities))
-#endif
-		    )
+		if (ent->client && other->client && ent->health > 0 && other->health > 0 &&
+		    (other->r.svFlags & SVF_BOT) && other->client->ps.weapon != 60 &&
+		    other->client->ps.weapon != 62)
 		{
 /*			vec3_t dir;
 			// if we are not heading for them, ignore
@@ -539,12 +537,13 @@ void ClientImpacts(gentity_t *ent, pmove_t *pm)
 			PushBot(ent, other);
 		}
 
-		// if we are standing on their head, then we should be pushed also
-		if ((ent->r.svFlags & SVF_BOT) && ent->s.groundEntityNum == other->s.number && other->client
-#ifdef FEATURE_OMNIBOT
-		    && !Bot_Interface_IsOmnibot((int)(ent - g_entities))
-#endif
-		    )
+		// A following bot must also yield when it initiates contact with a human.
+		// Otherwise a stationary human never produces the reverse impact.
+		if ((ent->r.svFlags & SVF_BOT) && other->client &&
+		    ent->health > 0 && other->health > 0 &&
+		    (ent->s.groundEntityNum == other->s.number ||
+		     (!(other->r.svFlags & SVF_BOT) && OnSameTeam(ent, other))) &&
+		    ent->client->ps.weapon != 60 && ent->client->ps.weapon != 62)
 		{
 			PushBot(other, ent);
 		}

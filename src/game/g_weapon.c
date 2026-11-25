@@ -8,6 +8,7 @@
 
 #include "g_local.h"
 #include "tce_lua.h"
+#include "tce_weapon_wall.h"
 #ifdef FEATURE_OMNIBOT
 #include "g_etbot_interface.h"
 #endif
@@ -3565,6 +3566,12 @@ Bullet_Endpos
 	find target end position for bullet trace based on entities weapon and accuracy
 ==============
 */
+static void G_TCEWallShotAngles(gentity_t *ent, const vec3_t base, vec3_t result)
+{
+    VectorCopy(base, result);
+    result[PITCH] += 35.f * (1.f - TCE_WeaponWallFraction(&ent->client->ps, trap_Trace));
+}
+
 void Bullet_Endpos(gentity_t *ent, float spread, vec3_t *end)
 {
 #if defined(__linux__)
@@ -3613,7 +3620,11 @@ void Bullet_Endpos(gentity_t *ent, float spread, vec3_t *end)
 			shotSpread = 1200;
 		}
 	}
-	AngleVectors(client->pmext.tceShotAngles, direction, NULL, NULL);
+	{
+		vec3_t lowered;
+		G_TCEWallShotAngles(ent, client->pmext.tceShotAngles, lowered);
+		AngleVectors(lowered, direction, NULL, NULL);
+	}
 	for (axis = 0; axis < 3; ++axis)
 	{
 		(*end)[axis] = (float)((long double)direction[axis] * distance + muzzleTrace[axis]);
@@ -3653,7 +3664,7 @@ void Bullet_Endpos(gentity_t *ent, float spread, vec3_t *end)
 		aim.movementSpread = ent->client->ps.holdable[0];
 		aim.shotSpread     = ent->client->ps.holdable[1];
 		aim.phase          = ent->client->ps.stats[STAT_TCE_AIM_PHASE];
-		VectorCopy(ent->client->pmext.tceShotAngles, aim.shotAngles);
+		G_TCEWallShotAngles(ent, ent->client->pmext.tceShotAngles, aim.shotAngles);
 		VectorCopy(muzzleTrace, aim.muzzle);
 		VectorCopy(right, aim.right);
 		VectorCopy(up, aim.up);
@@ -4829,7 +4840,8 @@ void CalcMuzzlePointForActivate(gentity_t *ent, vec3_t forward,
 void CalcMuzzlePoints(gentity_t *ent, int weapon)
 {
 	vec3_t viewang;
-	VectorCopy(ent->client->ps.viewangles, viewang);
+	/* Effect/spread axes and actual pre-recoil bullet aim share the lowering. */
+	G_TCEWallShotAngles(ent, ent->client->ps.viewangles, viewang);
 	AngleVectors(viewang, forward, right, up);
 	CalcMuzzlePointForActivate(ent, forward, right, up, muzzleTrace);
 	CalcMuzzlePoint(ent, weapon, forward, right, up, muzzleEffect);

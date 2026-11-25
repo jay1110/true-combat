@@ -3,6 +3,7 @@
 from __future__ import annotations
 import argparse
 import csv
+import re
 from collections import defaultdict
 from pathlib import Path
 
@@ -199,7 +200,17 @@ def render():
     first = {}
     for event in events:
         first.setdefault(event['name'].casefold(), event)
-    out = [INTRO]
+    version = re.search(r'^#define TCE_VERSION "([^"]+)"',
+                        (ROOT/'src/game/tce_version.h').read_text(encoding='utf-8'), re.M).group(1)
+    intro = INTRO.replace('**TCE2 1.0.4**', '**TCE2 '+version+'**')
+    intro = intro.replace('**636 registration sites and 501 named cvars**',
+                          f'**{len(rows)} registration sites and {len(index)-1} named cvars**')
+    intro = intro.replace('There are 502 case-insensitive keys', f'There are {len(index)} case-insensitive keys')
+    intro = intro.replace('120 events <cvars-history.tsv>', f'{len(events)} events <cvars-history.tsv>')
+    intro = intro.replace('to **1.0.4** in this release', 'to **'+version+'** in this release')
+    if version != '1.0.4':
+        intro = intro.replace('→ 1.0.4. Header-only', '→ 1.0.4 → '+version+'. Header-only')
+    out = [intro]
     group = ''
     for note in descriptions:
         if group != note['group']:
@@ -210,7 +221,7 @@ def render():
         for row in bindings:
             value = row['default']
             if value == '': value = '""'
-            if note['name'] == 'tce_version': value = '1.0.4 (TCE_VERSION)'
+            if note['name'] == 'tce_version': value = version+' (TCE_VERSION)'
             variants[(value, row['flags'], row['scope'])].add(row['module'])
         out += ['\n#### `' + note['name'] + '`\n', note['purpose'] + '\n',
                 '**Values:** ' + note['values'] + '.\n',

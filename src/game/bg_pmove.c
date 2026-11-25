@@ -6892,8 +6892,11 @@ static qboolean PM_TCEAimPostureSettled(void)
 {
 	int commandTime = pm->cmd.serverTime;
 	int proneTime   = pm->pmext->proneTime;
-	return PM_TCEElapsedWeaponCounter(commandTime, proneTime) >= 200 &&
-	       PM_TCEAddWeaponCounter(proneTime, commandTime) >= 200;
+	/* proneTime stores entering prone as +time and leaving as -time.
+	 * Checking both signs also adds two absolute server timestamps. That
+	 * unrelated sum wraps after roughly twelve days and blocks aiming. */
+	return (proneTime < 0 ? PM_TCEAddWeaponCounter(proneTime, commandTime) :
+	        PM_TCEElapsedWeaponCounter(commandTime, proneTime)) >= 200;
 }
 
 static void PM_TCEBeginAimTransition(void)

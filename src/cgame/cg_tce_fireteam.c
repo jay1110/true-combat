@@ -3,6 +3,7 @@
 #include "cg_local.h"
 #include "cg_hud_viewport.h"
 #include "../game/tce_bg.h"
+#include "tce_weapon_media.h"
 #include <errno.h>
 #include <limits.h>
 
@@ -153,6 +154,12 @@ static void CG_TCEFireteamWeaponIcon(float x, float y, int weapon)
 	int axis;
 	if (!fireteamDrawIcons.integer || weapon <= 0 || weapon >= TCE_MAX_WEAPONS || !gearDef.weaponFile[weapon][0]) return;
 	CG_RegisterWeapon(weapon, qfalse); media = &cg_weapons[weapon];
+	if (tce_customWeaponIcons[weapon])
+	{
+		trap_R_SetColor(NULL);
+		CG_DrawPic(x,y,w,h,tce_customWeaponIcons[weapon]);
+		return;
+	}
 	model = &media->weaponModel[W_PU_MODEL];
 	if (!model->model) model = &media->weaponModel[W_TP_MODEL];
 	if (!model->model) return;
