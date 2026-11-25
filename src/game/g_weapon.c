@@ -3569,6 +3569,9 @@ Bullet_Endpos
 static void G_TCEWallShotAngles(gentity_t *ent, const vec3_t base, vec3_t result)
 {
     VectorCopy(base, result);
+    if(g_weaponWallAvoidance.integer && TCE_WeaponWallFirearm(ent->client->ps.weapon) && (ent->client->ps.eFlags&EF_PRONE)) {
+        result[YAW]+=ent->client->pmext.tceWeaponWallProneYaw;return;
+    }
     result[PITCH] = TCE_WeaponWallAimPitch(base[PITCH],
         TCE_WeaponWallPosturePitch(ent->client->ps.eFlags,ent->client->ps.pm_flags,
             TCE_WeaponWallPitch(g_weaponWallAvoidance.integer,
@@ -5008,7 +5011,7 @@ void FireWeapon(gentity_t *ent)
 	int       weapon = ent->s.weapon;
 	int       charge;
 	gclient_t *client = ent->client;
-	if (g_weaponWallAvoidance.integer && TCE_WeaponWallProneBlocked(client->ps.eFlags,fabsf(client->pmext.tceWeaponWallProneYaw))) return;
+	if (g_weaponWallAvoidance.integer && TCE_WeaponWallProneBlocked(client->ps.eFlags,TCE_WeaponWallPosePitch(client->ps.eFlags,client->ps.stats[15]))) return;
 	if (client->ps.pm_type == PM_DEAD)
 	{
 		return;

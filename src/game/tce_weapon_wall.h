@@ -37,30 +37,44 @@ static float TCE_WeaponWallFraction(const playerState_t *ps, int leanMode,
 }
 /* Search the shortest clear side direction. Reuse the previous side to avoid
  * left/right chatter at a symmetric corner. A crawling weapon is back-mounted. */
-static float TCE_WeaponWallProneTarget(const playerState_t *ps,float previous,
+static float TCE_WeaponWallProneTarget(const playerState_t *ps,float previous,float *anchor,int *selectedSide,
     void (*trace)(trace_t *,const vec3_t,const vec3_t,const vec3_t,const vec3_t,int,int))
 {
     vec3_t start,end,angles,forward,mins={-3,-3,-3},maxs={3,3,3};
-    trace_t hit;float sign=previous<0.f?-1.f:1.f;int angle,side;
-    if(!(ps->eFlags&EF_PRONE)||!TCE_WeaponWallFirearm(ps->weapon))return 0.f;
+    trace_t hit;float choices[2]={78.f,78.f},delta;int angle,side,preferred=*selectedSide<0?1:0;
+    if(!(ps->eFlags&EF_PRONE)||!TCE_WeaponWallFirearm(ps->weapon)) { *selectedSide=0;return 0.f; }
     if(ps->eFlags&EF_PRONE_MOVING)return 78.f;
     VectorCopy(ps->origin,start);start[2]+=12.f;
     VectorCopy(ps->viewangles,angles);angles[PITCH]=0.f;
     AngleVectors(angles,forward,NULL,NULL);VectorMA(start,24.f,forward,start);
     for(angle=0;angle<=70;angle+=10) for(side=0;side<(angle?2:1);++side) {
-        float yaw=angle*sign*(side?-1.f:1.f);
+        float yaw=angle*(side?-1.f:1.f);
+        if(angle && choices[side]!=78.f)continue;
         VectorCopy(ps->viewangles,angles);angles[YAW]+=yaw;
         AngleVectors(angles,forward,NULL,NULL);VectorMA(start,45.f,forward,end);
         trace(&hit,start,mins,maxs,end,ps->clientNum,MASK_SOLID);
-        if(!hit.startsolid&&!hit.allsolid && (hit.fraction>.99f || hit.plane.normal[2]>.65f))return yaw;
+        if(!hit.startsolid&&!hit.allsolid && (hit.fraction>.99f || hit.plane.normal[2]>.65f)) {
+            if(!angle) { *selectedSide=0;*anchor=ps->viewangles[YAW];return 0.f; }
+            choices[side]=yaw;
+        }
     }
-    return 78.f;
+    if(!*selectedSide) {
+        preferred=(fabsf(choices[1])<fabsf(choices[0]) || (fabsf(choices[1])==fabsf(choices[0]) && previous<0.f))?1:0;
+        if(choices[preferred]==78.f)return 78.f;
+        *selectedSide=preferred?-1:1;*anchor=ps->viewangles[YAW];
+        return choices[preferred];
+    }
+    delta=ps->viewangles[YAW]-*anchor;if(delta>180.f)delta-=360.f;if(delta< -180.f)delta+=360.f;
+    /* Fixed 20-degree hysteresis plus a 15-degree clearance advantage. */
+    if(fabsf(delta)>=20.f && choices[1-preferred]!=78.f &&
+       (choices[preferred]==78.f || fabsf(choices[1-preferred])+15.f<fabsf(choices[preferred]))) {
+        preferred=1-preferred;*selectedSide=preferred?-1:1;*anchor=ps->viewangles[YAW];
+    }
+    return choices[preferred];
 }
 static float TCE_WeaponWallProneApproach(float current,float target,int msec)
 {
     float step;if(msec<0)msec=0;if(msec>50)msec=50;step=.2f*msec;
-    /* Do not sweep through the wall when changing the selected side. */
-    if(current*target<0.f)return target;
     if(current<target)return current+step<target?current+step:target;
     return current-step>target?current-step:target;
 }

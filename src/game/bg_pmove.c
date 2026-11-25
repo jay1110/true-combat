@@ -8009,15 +8009,20 @@ static void PM_Weapon(void)
 			pm->pmext->tceWeaponWallAmount, target, pml.msec);
 	}
     if(pm->tceWeaponWallEnabled && pm->ps->pm_type==PM_NORMAL && TCE_WeaponWallFirearm(pm->ps->weapon)) {
-        float target=TCE_WeaponWallProneTarget(pm->ps,pm->pmext->tceWeaponWallProneYaw,pm->trace);
+        float target=TCE_WeaponWallProneTarget(pm->ps,pm->pmext->tceWeaponWallProneYaw,
+            &pm->pmext->tceWeaponWallProneAnchorYaw,&pm->pmext->tceWeaponWallProneSide,pm->trace);
+        if(pm->pmext->tceWeaponWallProneYaw*target<0.f)pm->pmext->tceWeaponWallProneTurning=1;
         pm->pmext->tceWeaponWallProneYaw=TCE_WeaponWallProneApproach(pm->pmext->tceWeaponWallProneYaw,target,pml.msec);
-    } else pm->pmext->tceWeaponWallProneYaw=0.f;
+        if(fabsf(pm->pmext->tceWeaponWallProneYaw-target)<.1f)pm->pmext->tceWeaponWallProneTurning=0;
+    } else {
+        pm->pmext->tceWeaponWallProneYaw=0.f;pm->pmext->tceWeaponWallProneSide=0;pm->pmext->tceWeaponWallProneTurning=0;
+    }
     pm->pmext->tceWeaponWallWeapon=pm->ps->weapon;
     pm->ps->stats[15]=(pm->ps->eFlags&EF_PRONE)
-        ?TCE_WeaponWallProneState(pm->ps->stats[15],pm->pmext->tceWeaponWallProneYaw)
+        ?TCE_WeaponWallProneState(pm->ps->stats[15],pm->pmext->tceWeaponWallProneTurning?78.f:pm->pmext->tceWeaponWallProneYaw)
         :TCE_WeaponWallState(pm->ps->stats[15],pm->pmext->tceWeaponWallAmount);
     if(pm->tceWeaponWallEnabled)
-        TCE_WeaponWallCancelProneFire(pm->ps,&pm->cmd,fabsf(pm->pmext->tceWeaponWallProneYaw));
+        TCE_WeaponWallCancelProneFire(pm->ps,&pm->cmd,TCE_WeaponWallPosePitch(pm->ps->eFlags,pm->ps->stats[15]));
 	PM_TCECaptureReloadRequest();
 	if (PM_TCEUpdateMountedWeapon())
 	{

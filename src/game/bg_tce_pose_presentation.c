@@ -2,6 +2,7 @@
 #include "bg_tce_pose_clock.h"
 #include <limits.h>
 #include <math.h>
+#include "tce_weapon_wall_state.h"
 #include <stdlib.h>
 #include <string.h>
 
@@ -321,7 +322,7 @@ int BG_TCEPosePresentationInterpolate(const tcePosePresentationAxesInput_t *olde
     }
     result.movementYaw=PresentAngle(older->movementYaw+fraction*PresentAngle(newer->movementYaw-older->movementYaw));
     result.lean=older->lean+fraction*(newer->lean-older->lean);
-    result.weaponWallPitch=older->weaponWallPitch+fraction*(newer->weaponWallPitch-older->weaponWallPitch);
+    result.weaponWallPitch=TCE_WeaponWallPoseBlend(older->mode==TCE_POSE_PRESENT_PRONE?EF_PRONE:0,older->weaponWallPitch,newer->weaponWallPitch,fraction);
     for(i=0;i<2;++i)result.freelook[i]=older->freelook[i]+fraction*PresentAngle(newer->freelook[i]-older->freelook[i]);
     *out=result;return 1;
 }
@@ -351,7 +352,7 @@ int BG_TCEPosePresentationAxes(const tcePosePresentationAxesInput_t *input,
     legs[1]=PresentAngle(head[1]+input->movementYaw); torso[1]=head[1];
     if(input->mode==TCE_POSE_PRESENT_PRONE && fabsf(input->weaponWallPitch)<=70.5f)
         torso[1]+=input->weaponWallPitch;
-    torso[0]=input->mode==TCE_POSE_PRESENT_PRONE?-3.0f:head[0]*.75f*(1.f-fabsf(input->weaponWallPitch)/78.f);
+    torso[0]=input->mode==TCE_POSE_PRESENT_PRONE?-3.0f:TCE_WeaponWallTorsoPitch(head[0]*.75f,input->weaponWallPitch);
     length=(float)sqrt((double)velocity[0]*velocity[0]+(double)velocity[1]*velocity[1]+(double)velocity[2]*velocity[2]);
     if(length>0) {
         for(i=0;i<3;++i) velocity[i]/=length;

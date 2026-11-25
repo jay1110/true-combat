@@ -535,6 +535,8 @@ typedef struct
 	float tceWeaponWallAmount; /* Mod-private, replayed with prediction history. */
 	int tceWeaponWallWeapon;
 	float tceWeaponWallProneYaw; /* Private prediction history, never an engine ABI field. */
+	float tceWeaponWallProneAnchorYaw;
+	int tceWeaponWallProneSide, tceWeaponWallProneTurning;
 } pmoveExt_t;   // data used both in client and server - store it here
                 // instead of playerstate to prevent different engine versions of playerstate between XP and MP
 

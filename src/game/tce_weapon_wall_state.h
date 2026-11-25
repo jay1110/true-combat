@@ -41,13 +41,24 @@ static __inline int TCE_WeaponWallProneStowed(int eFlags,float pose)
 {
     return (eFlags&EF_PRONE) && ((eFlags&EF_PRONE_MOVING)||fabsf(pose)>70.5f);
 }
+static __inline float TCE_WeaponWallPoseBlend(int eFlags,float older,float newer,float fraction)
+{
+    if((eFlags&EF_PRONE) && (fabsf(older)>70.5f || fabsf(newer)>70.5f || older*newer<0.f))return older;
+    return older+fraction*(newer-older);
+}
 static __inline float TCE_WeaponWallPosturePitch(int eFlags, int pmFlags, float pitch)
 {
     return pitch==0.f ? 0.f : (!(eFlags & EF_PRONE) && (pmFlags & PMF_DUCKED) ? -pitch : pitch);
 }
+static __inline float TCE_WeaponWallTorsoPitch(float pitch,float wallPose)
+{
+    if(pitch>180.f)pitch-=360.f;
+    if(pitch< -180.f)pitch+=360.f;
+    return pitch*(1.f-fabsf(wallPose)/78.f);
+}
 static __inline int TCE_WeaponWallProneBlocked(int eFlags, float amount)
 {
-    return (eFlags & EF_PRONE) && amount > .001f;
+    return TCE_WeaponWallProneStowed(eFlags,amount);
 }
 static __inline void TCE_WeaponWallCancelProneFire(playerState_t *ps, usercmd_t *cmd, float amount)
 {

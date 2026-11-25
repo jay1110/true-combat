@@ -1588,7 +1588,7 @@ static void CG_PlayerAngles(centity_t *cent, vec3_t legs[3], vec3_t torso[3], ve
 	}
 
 	if (cent->currentState.eType==ET_PLAYER && !(cent->currentState.eFlags&(EF_DEAD|EF_PRONE)))
-		torsoAngles[PITCH] *= 1.f-fabsf(cent->tceWeaponWallPitch)/78.f;
+		torsoAngles[PITCH] = TCE_WeaponWallTorsoPitch(torsoAngles[PITCH],cent->tceWeaponWallPitch);
 
     if((cent->currentState.eFlags&EF_PRONE) && fabsf(cent->tceWeaponWallPitch)<=70.5f)
         torsoAngles[YAW]+=cent->tceWeaponWallPitch;
@@ -2301,7 +2301,7 @@ static float CG_TCEWeaponWallEntityPitch(const centity_t *cent)
     if (cent->interpolate && cg.nextSnap &&
         !((cent->currentState.eFlags^cent->nextState.eFlags)&EF_PRONE) &&
         !((cent->currentState.effect1Time^cent->nextState.effect1Time)&2))
-        pitch+=cg.frameInterpolation*(cent->nextState.angles2[PITCH]-pitch);
+        pitch=TCE_WeaponWallPoseBlend(cent->currentState.eFlags,pitch,cent->nextState.angles2[PITCH],cg.frameInterpolation);
     return pitch>=-78.f && pitch<=78.f ? pitch : 0.f;
 }
 void CG_Player(centity_t *cent)

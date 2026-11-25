@@ -58,4 +58,4 @@ URLs; it must not depend on a contributor's personal checkout path.
 dead-code-audit
 ```
 
-The head clearance sweep is shared by server movement and client prediction; any correction moves the authoritative player origin through a checked body sweep. Eye and grip probes use the same asymmetric lean offset as the camera and shot origin. Crouching advertises a negative ready pitch; prone firing is suppressed in shared weapon processing and guarded again before server weapon effects.
+The head clearance sweep is shared by server movement and client prediction; any correction moves the authoritative player origin through a checked body sweep. Eye and grip probes use the same asymmetric lean offset as the camera and shot origin. Crouching advertises a negative ready pitch; prone stow/crawl firing is suppressed in shared weapon processing and guarded again before server weapon effects. A visible side-deflected weapon remains usable; both muzzle axes and actual pre-recoil bullet endpoints include its yaw. First-person crouch high-ready placement keeps the view model sleeve ends below the camera.

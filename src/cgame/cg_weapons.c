@@ -1230,16 +1230,24 @@ CG_CalculateWeaponPosition
 static void CG_WeaponWallAvoidance(vec3_t origin, vec3_t angles, int weapon)
 {
     float amount;
-    vec3_t forward, up;
+    vec3_t forward, right, up;
     if (cg.renderingThirdPerson) return;
     amount = cgs.tceWeaponWallAvoidance ? cg.pmext.tceWeaponWallAmount : 0.f;
     if(cg.predictedPlayerState.eFlags&EF_PRONE) {
         angles[YAW]+=cg.pmext.tceWeaponWallProneYaw;return;
     }
-    AngleVectors(cg.predictedPlayerState.viewangles, forward, NULL, up);
+    AngleVectors(cg.predictedPlayerState.viewangles, forward, right, up);
     angles[PITCH] = TCE_WeaponWallAimPitch(angles[PITCH],
         TCE_WeaponWallPosturePitch(cg.predictedPlayerState.eFlags,cg.predictedPlayerState.pm_flags,
             TCE_WeaponWallPitch(cgs.tceWeaponWallAvoidance, weapon, amount)));
+    if((cg.predictedPlayerState.pm_flags&PMF_DUCKED) && amount>0.f && TCE_WeaponWallFirearm(weapon)) {
+        float blend=amount*2.f;if(blend>1.f)blend=1.f;
+        /* High-ready view model: keep open sleeve ends below the camera and
+         * move the raised rifle out of the center of the aiming view. */
+        VectorMA(origin,10.f*blend,forward,origin);
+        VectorMA(origin,8.f*blend,right,origin);
+        VectorMA(origin,-35.f*blend,up,origin);return;
+    }
     VectorMA(origin, -6.f * amount, forward, origin);
     VectorMA(origin, -4.f * amount, up, origin);
 }
@@ -2737,13 +2745,13 @@ Add the weapon, and flash for the player's view
 */
 void CG_AddViewWeapon(playerState_t *ps)
 {
-    if (cgs.tceWeaponWallAvoidance && TCE_WeaponWallFirearm(ps->weapon) && TCE_WeaponWallProneStowed(ps->eFlags,cg.pmext.tceWeaponWallProneYaw)) return;
 	refEntity_t  hand;
 	vec3_t       angles;
 	vec3_t       gunoff;
 	weaponInfo_t *weapon;
 	/* Portal capture is a native adapter cache; clear before every view pass. */
 	cg.tcePortalScopeEntity.hModel = 0;
+    if (cgs.tceWeaponWallAvoidance && TCE_WeaponWallFirearm(ps->weapon) && TCE_WeaponWallProneStowed(ps->eFlags,TCE_WeaponWallPosePitch(ps->eFlags,ps->stats[15]))) return;
 
 	if (ps->persistant[PERS_TEAM] == TEAM_SPECTATOR)
 	{
