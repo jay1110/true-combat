@@ -18,6 +18,7 @@ typedef struct
 	/* Optional presentation extensions; NULL preserves the original row. */
 	void (*namePrefix)(float, float, int, float);
 	void (*nameText)(float, float, float, const float *, const char *);
+	int bot; /* Authoritative client-info marker, never inferred from zero ping. */
 } tce_clientScoreContext_t;
 
 void TCE_WM_DrawClientScore(int x, int y, const tce_score_t *score,

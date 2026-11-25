@@ -11,6 +11,7 @@ extern "C"
 #include "../g_local.h"
 #include "../g_etbot_interface.h"
 #include "../tce_bg.h"
+#include "../tce_bot_death.h"
 #include "../tce_omnibot_loadout.h"
 #include "../tce_nav_ladder.h"
 #include "../tce_nav_runtime.h"
@@ -3863,7 +3864,8 @@ public:
 					// this check prevenst extra bodies and weird spectator behaviour
 					int limbo_health = GIB_HEALTH;
 					if (pEnt && pEnt->inuse && pEnt->client && pEnt->health > limbo_health &&
-						pEnt->client->ps.pm_type == PM_DEAD && !(pEnt->client->ps.pm_flags & PMF_LIMBO))
+						pEnt->client->ps.pm_type == PM_DEAD && !(pEnt->client->ps.pm_flags & PMF_LIMBO) &&
+                        TCE_BotDeathReady(level.timeCurrent,pEnt->client->respawnTime))
 					{
 						limbo(pEnt, qtrue);
 						pMsg->m_GoLimbo = True;

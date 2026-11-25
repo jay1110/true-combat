@@ -209,6 +209,7 @@ void CG_NewClientInfo(int clientNum)
 	// bot skill
 	v                = Info_ValueForKey(configstring, "skill");
 	newInfo.botSkill = atoi(v);
+    if(atoi(Info_ValueForKey(configstring,"bot")) && newInfo.botSkill<1)newInfo.botSkill=1;
 
 	// team
 	v            = Info_ValueForKey(configstring, "t");

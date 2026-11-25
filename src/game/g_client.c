@@ -1415,7 +1415,7 @@ void ClientUserinfoChanged(int clientNum)
 		// m: medals
 		// ch: character
 
-		s = va("n\\%s\\t\\%i\\skill\\%s\\c\\%i\\r\\%i\\m\\%s\\s\\%s%s\\dn\\%s\\dr\\%i\\w\\%i\\lw\\%i\\sw\\%i\\mu\\%i",
+		s = va("n\\%s\\t\\%i\\skill\\%s\\c\\%i\\r\\%i\\m\\%s\\s\\%s%s\\dn\\%s\\dr\\%i\\w\\%i\\lw\\%i\\sw\\%i\\mu\\%i\\bot\\1",
 		       client->pers.netname,
 		       client->sess.sessionTeam,
 		       Info_ValueForKey(userinfo, "skill"),

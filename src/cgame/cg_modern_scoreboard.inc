@@ -138,7 +138,7 @@ static int TCE_ModernScoreTeam(int legacyX,int y,int team,float fade,int ignored
         hidden=tce_scoreExtended[i] && TCE_ModernHiddenStats(cg_gameType.integer,cgs.tceKillMessage,cg.snap->ps.stats[STAT_HEALTH],cg.snap->ps.pm_type);
         for(j=0;j<8;++j)
         {
-            if(j==7)Com_sprintf(text,sizeof(text),score->ping==-1?"CONNECT":"%d",score->ping);
+            if(j==7) {if(ci->botSkill>0)Q_strncpyz(text,"BOT",sizeof(text));else Com_sprintf(text,sizeof(text),score->ping==-1?"CONNECT":"%d",score->ping);}
             else if(!tce_scoreExtended[i] && j!=4)Q_strncpyz(text,"-",sizeof(text));
             else if(hidden && (j==1 || j==2 || j==4 || j==5))Q_strncpyz(text,"n/a",sizeof(text));
             else if(j==5)Com_sprintf(text,sizeof(text),"%.2f",(double)score->damageRating*(double).01f);

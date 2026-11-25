@@ -7,6 +7,8 @@
 
 #include "g_local.h"
 #include "tce_lua.h"
+#include "tce_bot_death.h"
+#include "../../compat/compat_wrap.h"
 #if (defined(_WIN32) || defined(__linux__)) && !defined(Q3_VM)
 #include "tce_numeric.h"
 #endif
@@ -1017,6 +1019,8 @@ void player_die(gentity_t *self, gentity_t *inflictor, gentity_t *attacker, int 
 		}
 		self->client->ps.pm_time = BG_AnimScriptEvent(&self->client->ps,
 		                                              self->client->pers.character->animModelInfo, ANIM_ET_DEATH, qfalse, qtrue);
+        if(self->r.svFlags&SVF_BOT)
+            self->client->respawnTime=TCE_AddInt32(level.timeCurrent,TCE_BotDeathDelay(self->client->ps.pm_time));
 		self->client->torsoDeathAnim = self->client->ps.torsoAnim;
 		self->client->legsDeathAnim  = self->client->ps.legsAnim;
 		G_AddEvent(self, EV_DEATH1 + 1, killer);

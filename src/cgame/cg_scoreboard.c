@@ -171,7 +171,7 @@ static void WM_DrawClientScore(int x, int y, score_t *score, float *color, float
 		tempx += INFO_XP_WIDTH;
 	}
 
-	CG_DrawSmallString(tempx, y, va("%4i", score->ping), fade);
+	CG_DrawSmallString(tempx, y, cgs.clientinfo[score->client].botSkill>0?"BOT":va("%4i", score->ping), fade);
 	tempx += INFO_LATENCY_WIDTH;
 
 	if (cg_gameType.integer != GT_WOLF_LMS)
@@ -332,7 +332,7 @@ static void WM_DrawClientScore_Small(int x, int y, score_t *score, float *color,
 		tempx += INFO_XP_WIDTH;
 	}
 
-	CG_DrawStringExt(tempx, y, va("%4i", score->ping), hcolor, qfalse, qfalse, MINICHAR_WIDTH, MINICHAR_HEIGHT, 0);
+	CG_DrawStringExt(tempx, y, cgs.clientinfo[score->client].botSkill>0?"BOT":va("%4i", score->ping), hcolor, qfalse, qfalse, MINICHAR_WIDTH, MINICHAR_HEIGHT, 0);
 	tempx += INFO_LATENCY_WIDTH;
 
 	if (cg_gameType.integer != GT_WOLF_LMS)
@@ -726,7 +726,7 @@ static void TCE_ScoreLegacyClientRow(int x, int y, int index, const float *color
 		TCE_ScoreText(tx, (float)y, .2f, color, va("%d", score->score)); tx += 36;
 	}
 	TCE_ScoreText(tx, (float)y, .2f, color, tce_scoreExtended[index]?va("%d", score->classRating + 1):"-"); tx += 28;
-	TCE_ScoreText(tx, (float)y, .2f, color, va("%d", score->ping));
+	TCE_ScoreText(tx, (float)y, .2f, color, ci->botSkill>0?"BOT":va("%d", score->ping));
 }
 static void TCE_ScorePic(float x, float y, float w, float h, int shader)
 {
@@ -792,6 +792,7 @@ static void TCE_ScoreClientRow(int x, int y, int index, const float *color, floa
 	}
 	memset(&ctx, 0, sizeof(ctx));
 	displayed = *score;
+	ctx.bot=ci->botSkill>0;
 	ctx.name               = ci->name; ctx.team = ci->team; ctx.powerups = ci->powerups; ctx.health = ci->health;
 	state = TCE_ScoreSnapshotState(score->client);
 	if (state >= 0)

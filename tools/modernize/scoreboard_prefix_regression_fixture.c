@@ -1,11 +1,13 @@
 /* Actual scoreboard rows and name helpers; renderer/configstring services are controlled. */
 #include <stdarg.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include "src/cgame/tce_client_score.h"
 #include "src/game/tce_countryflags.h"
+#include "src/game/tce_bot_death.h"
 
 #define MAX_CLIENTS 64
 #define MAX_NAME_LENGTH 64
@@ -29,7 +31,7 @@
 #define STAT_HEALTH 0
 typedef float vec4_t[4];
 typedef tce_score_t score_t;
-typedef struct { char name[MAX_NAME_LENGTH]; int team, powerups, health; } clientInfo_t;
+typedef struct { char name[MAX_NAME_LENGTH]; int team, powerups, health, botSkill; } clientInfo_t;
 typedef struct { int clientNum, persistant[1], stats[1], pm_type, pm_flags; } playerState_t;
 typedef struct { playerState_t ps; } snapshot_t;
 typedef struct { int number, clientNum, eType, eFlags; } entityState_t;
@@ -45,7 +47,7 @@ static struct { int integer; } cg_countryflags, cg_gameType;
 static int tce_scoreExtended[MAX_CLIENTS], tce_countryFlagsShader;
 static const char *country_value;
 static int shader_available, config_calls, registrations;
-static int checks, failures, cases, route_failures[3], active_route;
+static int checks, failures, cases, route_failures[3], active_route, botCase;
 static const char *case_label;
 typedef struct { float x, y, width, height, s, t, s2, t2; int shader; char text[128]; } event_t;
 static event_t texts[24], flags[4];
@@ -119,7 +121,7 @@ static void row_case(int route,int ping,int enabled,int country,int name,int sha
     memset(texts,0,sizeof(texts));memset(flags,0,sizeof(flags));
     active_route=route;snprintf(label,sizeof(label),"ping=%d enabled=%d country=[%s] name=%d shader=%d y=%d",ping,enabled,countries[country].value,name,shader,y);case_label=label;
     cg.snap=&snap;cg.clientNum=0;snap.ps.clientNum=0;snap.ps.persistant[PERS_TEAM]=2;snap.ps.stats[STAT_HEALTH]=100;
-    cgs.clientinfo[0].team=2;cgs.clientinfo[1].team=1;cgs.clientinfo[1].health=100;
+    cgs.clientinfo[0].team=2;cgs.clientinfo[1].team=1;cgs.clientinfo[1].health=100;cgs.clientinfo[1].botSkill=botCase;
     Q_strncpyz(cgs.clientinfo[1].name,names[name],sizeof(cgs.clientinfo[1].name));
     cgs.gametype=5;cgs.tceKillMessage=1;cg_gameType.integer=5;
     cg.scores[0].client=1;cg.scores[0].ping=ping;cg.scores[0].score=13;cg.scores[0].kills=7;
@@ -135,6 +137,7 @@ static void row_case(int route,int ping,int enabled,int country,int name,int sha
     expect(pic_count==0,"ordinary row has no objective/health icons");
     expect(color_set==prefix&&color_clear==prefix,"prefix color pair");
     if(visible&&text_count) {
+        if(ping==0)expect(botCase?strcmp(texts[text_count-1].text,"BOT")==0:strcmp(texts[text_count-1].text,"BOT")!=0,"BOT label uses marker; zero-ping human remains numeric");
         expect(near(texts[0].x,prefix?38.f:20.f)&&near(texts[0].y,(float)y),"name origin reserves exactly prefix width");
         expect(strcmp(texts[0].text,clipped[prefix][name])==0,"actual name callback clips text and trailing caret");
         expect(near(texts[1].x,160.f),"first numeric column remains fixed");
@@ -204,6 +207,14 @@ int main(void)
     for(country=0;country<(int)(sizeof(countries)/sizeof(countries[0]));++country)for(name=0;name<3;++name)
         row_case(route,pings[ping],enabled,country,name,1,80);
     for(route=0;route<3;++route){row_case(route,42,1,0,0,0,80);row_case(route,42,1,0,0,1,453);row_case(route,42,1,0,0,1,454);}
+    for(route=0;route<3;++route) {
+        botCase=1;row_case(route,0,0,0,0,1,80);
+        botCase=0;row_case(route,0,0,0,0,1,80);
+    }
+    expect(TCE_BotDeathDelay(-1)==800 && TCE_BotDeathDelay(200)==800 && TCE_BotDeathDelay(2500)==2500,"bot waits full animation with original minimum");
+    for(ping=0;ping<2500;++ping)expect(!TCE_BotDeathReady(1000+ping,3500),"no limbo during custom death clip");
+    expect(TCE_BotDeathReady(3500,3500) && TCE_BotDeathReady(3501,3500),"limbo available at clip completion");
+    expect(!TCE_BotDeathReady(INT_MAX-1,INT_MIN+10) && !TCE_BotDeathReady(INT_MIN+9,INT_MIN+10) && TCE_BotDeathReady(INT_MIN+10,INT_MIN+10),"bot animation timer crosses signed wrap");
     snapshot_health_cases();
     printf("scoreboard prefix cases=%d checks=%d failures=%d route_failures=%d,%d,%d\n",cases,checks,failures,route_failures[0],route_failures[1],route_failures[2]);
     return failures?1:0;

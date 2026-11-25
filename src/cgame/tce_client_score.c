@@ -160,7 +160,8 @@ static void TCE_DrawClientScore(int x, int y, const tce_score_t *s,
 	}
 	tx += extended?40:36;
 	number(c, tx, fy, white, "%2i", TCE_AddInt32(s->classRating, 1), formatText);
-	number(c, tx + 28, fy, white, "%4i", s->ping, formatText);
+	if(c->bot)c->text(tx+28,fy,.2f,white,"BOT");
+	else number(c, tx + 28, fy, white, "%4i", s->ping, formatText);
 }
 
 void TCE_WM_DrawClientScore(int x, int y, const tce_score_t *s,

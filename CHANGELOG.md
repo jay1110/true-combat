@@ -14,6 +14,8 @@ Configuration names are case-insensitive in the game. The [Cvar reference](Docs/
 
 ### Fixed
 
+- Bots wait for the selected death animation before entering limbo, including longer custom sequences. Bot rows show `BOT` instead of a numeric ping; genuine zero-ping players retain their numeric ping.
+
 - Live `g_weaponWallAvoidance` changes clear predicted wall history and switch hand/back weapon presentation consistently, including crawling.
 
 - Wall avoidance now uses an upward high-ready arm pose while crouching. Prone players retain their lying animation. A weapon near a wall turns toward the nearest clear side; crawling or insufficient side clearance places it visibly on the back. Side selection uses a fixed 20-degree heading hysteresis and a clearance advantage; opposite-side transitions stow the weapon instead of snapping through the wall. A visible side-deflected weapon can still fire in its displayed direction; only stowing/crawling blocks firing and ammunition consumption.
