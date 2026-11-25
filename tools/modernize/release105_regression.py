@@ -50,7 +50,10 @@ static int tce_customWeaponIcons[64];
 '''
     prelude += r'''
 typedef struct {int weapon,clientNum,viewheight,eFlags,pm_flags,pm_type,weaponstate,weaponDelay,stats[32],holdable[16];float leanf;vec3_t origin,viewangles,velocity;} playerState_t;
-static struct {struct view_t {vec3_t vieworg;vec3_t viewaxis[3];} *refdef_current;int time,clientNum,renderingThirdPerson;playerState_t predictedPlayerState;struct {float tceWeaponWallAmount,tceWeaponWallProneYaw;} pmext;} cg;
+typedef struct {float tceWeaponWallAmount,tceWeaponWallProneYaw,tceWeaponWallProneAnchorYaw;int tceWeaponWallWeapon,tceWeaponWallProneSide,tceWeaponWallProneTurning,unrelated;} pmoveExt_t;
+static struct {struct view_t {vec3_t vieworg;vec3_t viewaxis[3];} *refdef_current;int time,clientNum,renderingThirdPerson;playerState_t predictedPlayerState;pmoveExt_t pmext;} cg;
+#define CMD_BACKUP 64
+static pmoveExt_t oldpmext[CMD_BACKUP];
 static struct {int tceWeaponWallAvoidance;} cgs;
 static struct {int integer;} g_weaponWallAvoidance;
 static struct view_t camera;
@@ -106,9 +109,10 @@ static void trap_S_StartSoundExVControl(const float *p,int e,int c,int sound,int
     bodies = '\n'.join(function(movement,n) for n in ('PM_TCEAddWeaponCounter','PM_TCEElapsedWeaponCounter','PM_TCEAimPostureSettled'))
     bodies += '\n'+function(weapons,'CG_TCEFireSound855')
     if not args.baseline:
-        bodies += '\n'+'\n'.join(function(source('src/game/tce_weapon_wall_state.h'),n) for n in ('TCE_WeaponWallFirearm','TCE_WeaponWallState','TCE_WeaponWallStatePitch','TCE_WeaponWallProneState','TCE_WeaponWallPosePitch','TCE_WeaponWallProneStowed','TCE_WeaponWallPoseBlend','TCE_WeaponWallPosturePitch','TCE_WeaponWallTorsoPitch','TCE_WeaponWallProneBlocked','TCE_WeaponWallCancelProneFire'))
+        bodies += '\n'+'\n'.join(function(source('src/game/tce_weapon_wall_state.h'),n) for n in ('TCE_WeaponWallFirearm','TCE_WeaponWallState','TCE_WeaponWallStatePitch','TCE_WeaponWallProneState','TCE_WeaponWallPosePitch','TCE_WeaponWallProneStowed','TCE_WeaponWallActiveStow','TCE_WeaponWallPoseBlend','TCE_WeaponWallPosturePitch','TCE_WeaponWallTorsoPitch','TCE_WeaponWallProneBlocked','TCE_WeaponWallCancelProneFire'))
         bodies += '\n'+'\n'.join(function(source('src/game/tce_weapon_wall.h'),n) for n in ('TCE_WeaponWallFraction','TCE_WeaponWallProneTarget','TCE_WeaponWallProneApproach','TCE_WeaponWallProtectHead','TCE_WeaponWallPitch','TCE_WeaponWallAimPitch','TCE_WeaponWallApproach'))
     if not args.baseline:
+        bodies += '\n'+'\n'.join(function(source('src/cgame/cg_predict.c'),n) for n in ('CG_ClearWeaponWallHistory','CG_WeaponWallPolicyChanged'))
         bodies += '\n'+function(source('src/game/g_weapon.c'),'G_TCEWallShotAngles')
     bodies += '\n'+function(source('src/game/g_weapon.c'),'CalcMuzzlePoints')
     bodies += '\n'+function(source('src/game/tce_bullet.c'),'TCE_BulletEndpos')
@@ -133,6 +137,12 @@ static void trap_S_StartSoundExVControl(const float *p,int e,int c,int sound,int
     tests = r'''
 int main(void){int failures=0,i;int shots[4]={1,2,3,4};tce_weaponInfo_t media={{42,0,0,0},255};
 pm->pmext=&ext;
+cg.pmext.tceWeaponWallAmount=1;cg.pmext.tceWeaponWallProneYaw=40;cg.pmext.unrelated=123;
+for(i=0;i<CMD_BACKUP;i++){oldpmext[i]=cg.pmext;oldpmext[i].tceWeaponWallProneSide=1;oldpmext[i].tceWeaponWallProneTurning=1;}
+CG_WeaponWallPolicyChanged();
+if(cg.pmext.tceWeaponWallAmount||cg.pmext.tceWeaponWallProneYaw||cg.pmext.unrelated!=123){puts("FAIL live wall history reset");++failures;}
+for(i=0;i<CMD_BACKUP;i++)if(oldpmext[i].tceWeaponWallAmount||oldpmext[i].tceWeaponWallProneYaw||oldpmext[i].tceWeaponWallProneSide||oldpmext[i].tceWeaponWallProneTurning||oldpmext[i].unrelated!=123){puts("FAIL command wall history reset");++failures;}
+
 {playerState_t p={0};usercmd_t cmd={0};p.weapon=3;p.eFlags=EF_PRONE|EF_FIRING;p.weaponstate=WEAPON_FIRING;p.weaponDelay=10;p.holdable[11]=2;cmd.buttons=3;
 TCE_WeaponWallCancelProneFire(&p,&cmd,78.f);
 if((cmd.buttons&BUTTON_ATTACK)||(p.eFlags&EF_FIRING)||p.weaponstate!=WEAPON_READY||p.weaponDelay||p.holdable[11]){puts("FAIL prone fire cancellation");++failures;}
@@ -153,6 +163,7 @@ probeMode=5;side=0;if(TCE_WeaponWallProneTarget(&p,-40,&anchor,&side,CG_Trace)!=
 probeMode=5;side=1;anchor=0;p.viewangles[YAW]=2;if(TCE_WeaponWallProneTarget(&p,40,&anchor,&side,CG_Trace)!=78||side!=1){puts("FAIL small angle side hysteresis");++failures;}
 p.viewangles[YAW]=25;if(TCE_WeaponWallProneTarget(&p,40,&anchor,&side,CG_Trace)>=0||side!=-1){puts("FAIL deliberate side change");++failures;}
 p.viewangles[YAW]=0;probeMode=0;side=0;
+if(TCE_WeaponWallActiveStow(0,EF_PRONE|EF_PRONE_MOVING,78) || !TCE_WeaponWallActiveStow(1,EF_PRONE|EF_PRONE_MOVING,78)){puts("FAIL disabled crawl stow");++failures;}
 if(TCE_WeaponWallPoseBlend(EF_PRONE,78,-40,.5f)!=78 || TCE_WeaponWallPoseBlend(EF_PRONE,40,-40,.5f)!=40 || TCE_WeaponWallPoseBlend(EF_PRONE,-40,-20,.5f)!=-30){puts("FAIL stowed side interpolation");++failures;}
 if(TCE_WeaponWallProneApproach(40,-40,16)<36.f){puts("FAIL instant side reversal");++failures;}
 p.eFlags|=EF_PRONE_MOVING;if(TCE_WeaponWallProneTarget(&p,0,&anchor,&side,CG_Trace)!=78||!TCE_WeaponWallProneStowed(p.eFlags,0)){puts("FAIL crawl stow");++failures;}
@@ -195,6 +206,8 @@ wallFraction=1;c.pmext.tceWeaponWallAmount=0;CalcMuzzlePoints(&e,45);if(fabs(for
 c.ps.weapon=60;c.pmext.tceWeaponWallAmount=1;wallFraction=0;CalcMuzzlePoints(&e,60);if(fabs(forward[2])>.0001f){puts("FAIL mounted direction");++failures;}}
 {gclient_t c={0};gentity_t e={&c};vec3_t end;c.ps.weapon=45;c.ps.stats[STAT_TCE_WEAPON_FLAGS]=4;c.ps.eFlags=EF_PRONE;c.pmext.tceWeaponWallAmount=.8f;c.pmext.tceWeaponWallProneYaw=-40.f;CalcMuzzlePoints(&e,45);Bullet_Endpos(&e,0,&end);
 if(fabsf(end[1]-8192.f*sinf(-40.f*.01745329252f))>.02f || fabsf(end[2])>.01f){puts("FAIL prone side authoritative endpoint");++failures;}}
+{vec3_t o={1,2,3},a={4,5,6};cgs.tceWeaponWallAvoidance=0;cg.predictedPlayerState.eFlags=EF_PRONE;cg.pmext.tceWeaponWallProneYaw=78;cg.pmext.tceWeaponWallAmount=1;CG_WeaponWallAvoidance(o,a,3);
+if(a[0]!=4||a[1]!=5||o[0]!=1||o[2]!=3){puts("FAIL disabled stale prone history");++failures;}cg.predictedPlayerState.eFlags=0;}
 g_weaponWallAvoidance.integer=0;{gclient_t c={0};gentity_t e={&c};c.ps.weapon=45;c.pmext.tceWeaponWallAmount=1;CalcMuzzlePoints(&e,45);if(forward[2]!=0){puts("FAIL server disabled");++failures;}}
 TCE_RecordCustomWeaponIcon(&tce_cg_weapons[3],"icons/custom_rifle",83);
 if(tce_customWeaponIcons[3]!=83){puts("FAIL custom artwork selection");++failures;}

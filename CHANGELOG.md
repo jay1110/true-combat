@@ -14,6 +14,8 @@ Configuration names are case-insensitive in the game. The [Cvar reference](Docs/
 
 ### Fixed
 
+- Live `g_weaponWallAvoidance` changes clear predicted wall history and switch hand/back weapon presentation consistently, including crawling.
+
 - Wall avoidance now uses an upward high-ready arm pose while crouching. Prone players retain their lying animation. A weapon near a wall turns toward the nearest clear side; crawling or insufficient side clearance places it visibly on the back. Side selection uses a fixed 20-degree heading hysteresis and a clearance advantage; opposite-side transitions stow the weapon instead of snapping through the wall. A visible side-deflected weapon can still fire in its displayed direction; only stowing/crawling blocks firing and ammunition consumption.
 - Wrapped upward torso angles are normalized before wall-pose blending, preventing the upper body from twisting when looking up.
 - Head clearance is enforced in shared movement, and wall probes cover the weapon grip as well as the view. Lean presentation gives the head a stronger visible tilt without mixing standing torso frames into prone poses.

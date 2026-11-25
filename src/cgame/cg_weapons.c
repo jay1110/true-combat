@@ -1231,7 +1231,7 @@ static void CG_WeaponWallAvoidance(vec3_t origin, vec3_t angles, int weapon)
 {
     float amount;
     vec3_t forward, right, up;
-    if (cg.renderingThirdPerson) return;
+    if (cg.renderingThirdPerson || !cgs.tceWeaponWallAvoidance || !TCE_WeaponWallFirearm(weapon)) return;
     amount = cgs.tceWeaponWallAvoidance ? cg.pmext.tceWeaponWallAmount : 0.f;
     if(cg.predictedPlayerState.eFlags&EF_PRONE) {
         angles[YAW]+=cg.pmext.tceWeaponWallProneYaw;return;
@@ -1572,7 +1572,7 @@ static float CG_WeaponSmokeAlpha(int elapsed, float reciprocal)
 static void CG_TCEWorldWallWeaponAxis(refEntity_t *gun, const centity_t *cent)
 {
     vec3_t angles,scale; int i;
-    if (cent->tceWeaponWallPitch==0.f) return;
+    if (!cgs.tceWeaponWallAvoidance || cent->tceWeaponWallPitch==0.f) return;
     for (i=0;i<3;++i) scale[i]=VectorLength(gun->axis[i]);
     AxisToAngles(gun->axis,angles);
     if(cent->currentState.eFlags&EF_PRONE) {
@@ -1615,7 +1615,7 @@ void CG_AddPlayerWeapon(refEntity_t *parent, playerState_t *ps, centity_t *cent)
 	isPlayer = (qboolean)(cent->currentState.clientNum == cg.snap->ps.clientNum);
 
 	weaponNum = cent->currentState.weapon;
-	if (!ps && TCE_WeaponWallFirearm(weaponNum) && TCE_WeaponWallProneStowed(cent->currentState.eFlags,cent->tceWeaponWallPitch)) return;
+	if (!ps && TCE_WeaponWallFirearm(weaponNum) && TCE_WeaponWallActiveStow(cgs.tceWeaponWallAvoidance,cent->currentState.eFlags,cent->tceWeaponWallPitch)) return;
 
 	if (ps && cg.cameraMode)
 	{
@@ -2751,7 +2751,7 @@ void CG_AddViewWeapon(playerState_t *ps)
 	weaponInfo_t *weapon;
 	/* Portal capture is a native adapter cache; clear before every view pass. */
 	cg.tcePortalScopeEntity.hModel = 0;
-    if (cgs.tceWeaponWallAvoidance && TCE_WeaponWallFirearm(ps->weapon) && TCE_WeaponWallProneStowed(ps->eFlags,TCE_WeaponWallPosePitch(ps->eFlags,ps->stats[15]))) return;
+    if (TCE_WeaponWallFirearm(ps->weapon) && TCE_WeaponWallActiveStow(cgs.tceWeaponWallAvoidance,ps->eFlags,TCE_WeaponWallPosePitch(ps->eFlags,ps->stats[15]))) return;
 
 	if (ps->persistant[PERS_TEAM] == TEAM_SPECTATOR)
 	{

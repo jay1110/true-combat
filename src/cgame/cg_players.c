@@ -2929,7 +2929,7 @@ void CG_Player(centity_t *cent)
     /* Keep the original prone torso; only move the blocked active weapon
      * to the existing back attachment. No standing torso is mixed into prone. */
     if (TCE_WeaponWallFirearm(cent->currentState.weapon) &&
-        TCE_WeaponWallProneStowed(cent->currentState.eFlags,cent->tceWeaponWallPitch)) {
+        TCE_WeaponWallActiveStow(cgs.tceWeaponWallAvoidance,cent->currentState.eFlags,cent->tceWeaponWallPitch)) {
         refEntity_t mount,stowed;int w=cent->currentState.weapon;
         CG_RegisterWeapon(w,qfalse);
         memset(&mount,0,sizeof(mount));memset(&stowed,0,sizeof(stowed));

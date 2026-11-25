@@ -1042,6 +1042,20 @@ to ease the jerk.
 
 pmoveExt_t oldpmext[CMD_BACKUP];
 
+static void CG_ClearWeaponWallHistory(pmoveExt_t *history)
+{
+    history->tceWeaponWallAmount=0.f;history->tceWeaponWallWeapon=0;
+    history->tceWeaponWallProneYaw=0.f;history->tceWeaponWallProneAnchorYaw=0.f;
+    history->tceWeaponWallProneSide=0;history->tceWeaponWallProneTurning=0;
+}
+void CG_WeaponWallPolicyChanged(void)
+{
+    int i;
+    CG_ClearWeaponWallHistory(&cg.pmext);
+    for(i=0;i<CMD_BACKUP;++i)CG_ClearWeaponWallHistory(&oldpmext[i]);
+}
+
+
 void CG_PredictPlayerState(void)
 {
 	int           cmdNum, current;

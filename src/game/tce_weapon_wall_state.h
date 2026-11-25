@@ -41,6 +41,10 @@ static __inline int TCE_WeaponWallProneStowed(int eFlags,float pose)
 {
     return (eFlags&EF_PRONE) && ((eFlags&EF_PRONE_MOVING)||fabsf(pose)>70.5f);
 }
+static __inline int TCE_WeaponWallActiveStow(int enabled,int eFlags,float pose)
+{
+    return enabled && TCE_WeaponWallProneStowed(eFlags,pose);
+}
 static __inline float TCE_WeaponWallPoseBlend(int eFlags,float older,float newer,float fraction)
 {
     if((eFlags&EF_PRONE) && (fabsf(older)>70.5f || fabsf(newer)>70.5f || older*newer<0.f))return older;
