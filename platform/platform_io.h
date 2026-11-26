@@ -8,6 +8,7 @@
 #include <io.h>
 #else
 #include <dirent.h>
+#include <errno.h>
 #include <sys/stat.h>
 #endif
 
@@ -72,9 +73,24 @@ static __inline int TCE_PlatformListDirectory(const char *directory, char *scrat
 		{
 			return 0;
 		}
-		while ((entry = readdir(dir)) != NULL)
+		for (;;)
 		{
-			size_t nameLength = strlen(entry->d_name);
+			size_t nameLength;
+			/* A visitor or stat may leave errno set between entries. */
+			errno = 0;
+			entry = readdir(dir);
+			if (!entry)
+			{
+				int readError = errno;
+				int closed = closedir(dir);
+				if (readError)
+				{
+					errno = readError;
+					return 0;
+				}
+				return closed == 0;
+			}
+			nameLength = strlen(entry->d_name);
 			if (length > capacity || capacity - length < 2 ||
 			    nameLength > capacity - length - 2)
 			{
@@ -88,7 +104,6 @@ static __inline int TCE_PlatformListDirectory(const char *directory, char *scrat
 				visit(context, entry->d_name, S_ISDIR(st.st_mode));
 			}
 		}
-		closedir(dir);
 	}
 #endif
 	return 1;

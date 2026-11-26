@@ -1,4 +1,23 @@
 /* Deterministic compatibility contracts, independent of game/engine startup. */
+#if defined(__linux__) && !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+/* Use the same large-file ABI as the server before including libc headers. */
+#define _FILE_OFFSET_BITS 64
+#include <stddef.h>
+#include <dirent.h>
+#include <errno.h>
+static int inject_read_error;
+static struct dirent *golden_readdir(DIR *dir)
+{
+	if (inject_read_error)
+	{
+		errno = EIO;
+		return NULL;
+	}
+	return readdir(dir);
+}
+#undef readdir
+#define readdir golden_readdir
+#endif
 #include <limits.h>
 #include <stdint.h>
 #include <stdarg.h>
@@ -9,6 +28,9 @@
 #include "compat/compat_float.h"
 #include "compat/compat_math.h"
 #include "platform/platform_io.h"
+#if defined(__linux__) && !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+#undef readdir
+#endif
 /* Verify existing callers still reach the relocated implementations. */
 #include "src/game/tce_numeric.h"
 #include "src/game/tce_normalize_precision.h"
@@ -281,6 +303,13 @@ static void directory_goldens(const char *fixture)
 	expect_int("native directory opens",
 	           TCE_PlatformListDirectory(fixture, scratch, sizeof(scratch),
 	                                     directory_entry, &listed_entries), 1);
+#if defined(__linux__) && !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+	inject_read_error = 1;
+	expect_int("directory read error reported",
+	           TCE_PlatformListDirectory(fixture, scratch, sizeof(scratch),
+	                                     directory_entry, &listed_entries), 0);
+	inject_read_error = 0;
+#endif
 	expect_int("native directory membership", (int)listed_entries, 7);
 	expect_int("native file/directory classification", listing_errors, 0);
 	expect_int("null directory rejected",
