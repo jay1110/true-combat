@@ -28,6 +28,12 @@ Auf Windows x86 bestanden fünf isolierte Regressionstests auf `98841dd` in beid
 
 Alle aufgeführten Läufe meldeten null fehlgeschlagene Prüfungen. Die Trefferprüfung verwendet analytische Kollisionsdienste. Der Vergleich in einer laufenden Engine mit Referenzkarte und echten Client-Server-Paketen bleibt offen.
 
+## PK3-Vergleich mit Release 1.0.4
+
+Das veröffentlichte Mehrplattform-PK3 von 1.0.4 enthält 346 Dateien. Das lokale Linux-x86_64-Testpaket von 1.0.5 enthält 324. Der SHA-256-Vergleich jedes entpackten Eintrags ergab 319 bytegleiche Dateien. Von den gemeinsam vorhandenen Pfaden unterscheiden sich nur `cgame.mp.x86_64.so` und `ui.mp.x86_64.so`.
+
+Nur das Release enthält die 22 Clientmodule für die übrigen Plattformen und drei Metadaten-Dateien unter `tce2/1.0.4/`. Nur das Testpaket enthält `models/players/tce2/wall_high_ready.mdx` und die beiden Dateien `base-game.json` und `client.manifest` unter `tce2/1.0.5/`. Das lokale Paket wurde auf `84d2fb1` mit den Release-Binärdateien aus `6309cd9` erstellt. Die Engine-Abnahme mit Paketdownload in beiden Versionsrichtungen steht aus. [Referenzrelease](https://github.com/jay1110/true-combat/releases/tag/1.0.4)
+
 ## Offene Abnahme in Prioritätsreihenfolge
 
 1. Mobile Laufzeitabdeckung ergänzen. Offen sind ein Intel-iOS-Simulator, die Ausführung auf realen Geräten und ein Android-Systemtest für die beiden ARM-ABIs.
