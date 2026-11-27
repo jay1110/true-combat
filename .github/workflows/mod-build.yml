@@ -32,11 +32,17 @@ jobs:
       fail-fast: false
       matrix:
         architecture: [Win32, x64]
+        type: [Debug, Release]
     steps:
       - uses: actions/checkout@v4
-      - run: cmake -S . -B build/ci -A ${{ matrix.architecture }} -DBUILD_TESTING=ON -DTCE_BUILD_OMNIBOT_CORE=OFF -DTCE_BUILD_REFERENCE_TESTS=OFF
-      - run: cmake --build build/ci --config Release --parallel 2
-      - run: ctest --test-dir build/ci -C Release --output-on-failure
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python tools/release/bootstrap.py --destination build/dependencies
+      - run: python tools/modernize/vendor_check.py --out build/vendor-check.json
+      - run: cmake -S . -B build/ci -G "Visual Studio 17 2022" -A ${{ matrix.architecture }} -DBUILD_TESTING=ON -DTCE_BUILD_OMNIBOT_CORE=ON -DOMNIBOT_BOOST_INCLUDEDIR="${{ github.workspace }}/build/dependencies/boost_1_85_0"
+      - run: cmake --build build/ci --config ${{ matrix.type }} --parallel 4
+      - run: ctest --test-dir build/ci -C ${{ matrix.type }} --no-tests=error --output-on-failure
   macos:
     runs-on: macos-15
     steps:
