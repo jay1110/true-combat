@@ -32,6 +32,8 @@ Zwischen `c7452b8` und `ac5cc62` sind alle 105 Dateien unter `src` bytegleich, d
 
 Alle aufgeführten Läufe meldeten null fehlgeschlagene Prüfungen. Die Trefferprüfung verwendet analytische Kollisionsdienste. Der Vergleich in einer laufenden Engine mit Referenzkarte und echten Client-Server-Paketen bleibt offen.
 
+Für einen historischen Vergleich führte derselbe Testtreiber von `b8b1379` die ausgewählten Produktionsfunktionen aus Release 1.0.4 und aus dem PR-Stand jeweils unter Linux x86_64 aus. Mit GCC, ASan und UBSan bestanden für beide Quellstände in Debug und Release jeweils 2.749 Movement-Prüfungen einschließlich Schrittgeräuschen sowie 167 Waffenprüfungen. Die Testausgaben waren für jedes der vier Versionspaare bytegleich. Leak-Erkennung war in diesen Läufen ausgeschaltet. Der Vergleich verwendet kontrollierte Eingaben und synthetische Kollisionen. Ein Vergleich vollständiger Matches mit identischen Eingaben bleibt offen.
+
 ## PK3-Vergleich mit Release 1.0.4
 
 Das veröffentlichte Mehrplattform-PK3 von 1.0.4 enthält 346 Dateien. Das lokale Linux-x86_64-Testpaket von 1.0.5 enthält 324. Der SHA-256-Vergleich jedes entpackten Eintrags ergab 319 bytegleiche Dateien. Von den gemeinsam vorhandenen Pfaden unterscheiden sich nur `cgame.mp.x86_64.so` und `ui.mp.x86_64.so`.
