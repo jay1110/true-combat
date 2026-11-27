@@ -59,6 +59,10 @@ Die fünf PK3-Dateien vom [Clan-Paketserver](https://et.clan-etc.de/tce2/) besta
 
 Mit frischen Clientverzeichnissen, allen fünf Paketen und derselben Community-Konfiguration erreichten beide Clients auf `obj_northport` nach HTTP-Download den Zustand `ClientBegin`. Der 1.0.4-Server protokollierte 15.750 ms und der 1.0.5-Server 15.150 ms Serverzeit. Die empfangenen SHA-256-Werte entsprechen in beiden Richtungen der Tabelle oben. Beim Beenden des zweiten Clients lief die viersekündige Wartefrist ab.
 
+### Konsoleninventur nach Kartenstart
+
+Auf beiden Linux-x86_64-Servern meldete `cmdlist` dieselben 65 Befehlsnamen. `cvarlist` lieferte 337 Einträge auf 1.0.4 und 338 auf 1.0.5. Alle gemeinsamen Namen hatten dieselben angezeigten Flags. 1.0.5 ergänzt `g_weaponWallAvoidance`. Die angezeigten Defaults unterschieden sich bei `com_pid`, `gamedate`, `net_qport` und `tce_version`. Bei den aktuellen Werten kamen `fs_basepath`, `fs_homepath`, `sv_pakNames`, `sv_paks`, `sv_referencedPakNames`, `sv_referencedPaks` und `sv_serverid` hinzu. Beide Prozesse liefen mit frischen Benutzerverzeichnissen und denselben 0.49b-Assets auf `obj_northport`. Der Vergleich erfasst die vom Dedicated Server aufgelisteten Einträge. Clientbefehle, modulinterne Dispatch-Tabellen und das Verhalten nach einem Reset benötigen eigene Tests.
+
 ## Offene Abnahme in Prioritätsreihenfolge
 
 1. Mobile Laufzeitabdeckung ergänzen. Offen sind ein Intel-iOS-Simulator, die Ausführung auf realen Geräten und ein Android-Systemtest für die beiden ARM-ABIs.
