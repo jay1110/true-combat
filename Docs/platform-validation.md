@@ -52,6 +52,8 @@ Im UI-Starttest rief ein Node.js-Testhost UI_INIT für GT2, GT5 und GT7 in Debug
 
 Für den Versionsvergleich stammen pak0.pk3 bis pak4.pk3 und das Update 1.0.4 vom Clan-Server. Das Update 1.0.5 stammt aus dem lokalen Testbestand. Einschließlich der Menülisten und transitiver literaler #include-Verweise ergab die statische Prüfung je Spieltyp und Version 70 verschiedene Dateien und 127 Include-Stellen. Alle erfassten Pfade ließen sich mit dem installierten etmain-Basisspiel auflösen. Für jeden der drei Spieltypen stimmten die Pfadmenge und sämtliche 70 SHA-256-Dateihashes zwischen den Versionen überein. Die Auswertung verfolgt Include-Direktiven unabhängig von Präprozessorbedingungen.
 
+ET Legacy 2.86.2 für Linux x86_64 lud das native UI-Modul in je einem frischen Profil pro Version und Spieltyp. Alle sechs Starts mit SDL-Offscreen und in_mouse 0 meldeten die angeforderte ui_menuFiles-Liste, protokollierten die Verarbeitung von 66 Menüdateien und endeten nach quit mit Exitcode 0. Mit aktiver Maus endeten die sechs Vorläufe nach der Menüverarbeitung mit Exitcode 3, weil der Offscreen-Treiber die relative Mauspositionierung nicht unterstützte. Bildausgabe, Mausinteraktion und Browserlaufzeit sind offen.
+
 ## PK3-Vergleich mit Release 1.0.4
 
 Das veröffentlichte Mehrplattform-PK3 von 1.0.4 enthält 346 Dateien. Das lokale Linux-x86_64-Testpaket von 1.0.5 enthält 324. Der SHA-256-Vergleich jedes entpackten Eintrags ergab 319 bytegleiche Dateien. Von den gemeinsam vorhandenen Pfaden unterscheiden sich nur `cgame.mp.x86_64.so` und `ui.mp.x86_64.so`.
