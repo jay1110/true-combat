@@ -89,6 +89,12 @@ ET: Legacy 2.86.2 zeichnete mit jeder Version eine kurze Protocol-84-Clientdemo 
 
 Auf `a5ef7e7` scheiterte der eigenständige Ordinary-Pose-Test mit GCC an drei fehlenden Deklarationen für die Trefferdiagnose. Nach Ergänzung der Testdienste meldete der Linker zusätzlich die fehlende Testvariable `g_weaponWallAvoidance`. Die Fixture bindet jetzt den Produktionsheader ein, prüft die Argumente des Welt-Traces und setzt die lokale Testvariable auf den registrierten Default 1. Mit GCC, ASan und UBSan bestanden in Debug und Release jeweils 148 Prüfungen (Leak-Erkennung aus). Auf `dcf9c37` erzeugte LLVM-MinGW für x86, x86_64 und ARM64 jeweils ein Debug- und ein Release-Testprogramm mit überprüfter PE-Architektur. Unter Wine bestanden die x86_64-Programme jeweils 148 Prüfungen ohne Sanitizer. Der x86-Start scheiterte an der fehlenden syswow64/ntdll.dll. Die lokale x86_64-Wine-Laufzeit konnte das ARM64-Programm ebenfalls nicht starten. Die Ausführung dieser Fixture mit dem nativen MSVC-Testtreiber bleibt offen. Der separate Offline-Vendor-Prüfer bestätigte auf `a5ef7e7` alle fünf gepinnten Pakete.
 
+### Pose-Prüfungen mit den Originalassets
+
+Auf `16ff725` las der kompakte Präsentationstest die Animationsdefinitionen aus dem Clan-Paket `pak2.pk3` und dem ET-Basispaket `etmain/pak0.pk3`. Unter Linux x86_64 mit GCC, ASan und UBSan bestanden in Debug und Release jeweils 9.614.077 Prüfungen über 469 Clip-Alternativen. Die größte gemeldete Frameabweichung betrug in beiden Läufen 0,0067141. Leak-Erkennung war ausgeschaltet. Der Adapter-Generator erzeugte aus denselben Archiven Daten für 14 Charakterdeklarationen, zehn Fälle und 73 Teststrahlen. Das belegt die Erzeugung der Eingaben.
+
+Der unabhängige Evaluator benötigt sechs historische Renderer-Aufzeichnungen im JSONL-Format. Der Versuch mit den Originalassets brach beim Lesen von `src/reconstruction/modernization/runtime-bugfix-20261026/pose-32152-1.jsonl` ab. Die fünf weiteren vom Generator erwarteten Namen sind `pose-control-crouch`, `pose-control-prone`, `pose-control-lean-left`, `pose-control-lean-right` und `pose-control-prone-aim`, jeweils mit der Endung `.jsonl`. Ohne diese Referenz bleibt der Vergleich mit den damaligen Renderer-Posen ungeprüft.
+
 ## Offene Abnahme in Prioritätsreihenfolge
 
 1. Mobile Laufzeitabdeckung ergänzen. Offen sind ein Intel-iOS-Simulator, die Ausführung auf realen Geräten und ein Android-Systemtest für die beiden ARM-ABIs.
