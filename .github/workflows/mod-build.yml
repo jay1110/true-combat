@@ -45,7 +45,32 @@ jobs:
       - run: ctest --test-dir build/ci -C ${{ matrix.type }} --no-tests=error --output-on-failure
   macos:
     runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        architectures: [arm64, x86_64, 'x86_64;arm64']
+        type: [Debug, Release]
+    env:
+      ARCHITECTURES: ${{ matrix.architectures }}
+      BUILD_TYPE: ${{ matrix.type }}
     steps:
-      - uses: actions/checkout@v4
-      - run: cmake -S . -B build/ci -DCMAKE_BUILD_TYPE=Release '-DCMAKE_OSX_ARCHITECTURES=x86_64;arm64' -DBUILD_TESTING=OFF -DTCE_BUILD_OMNIBOT_CORE=OFF
-      - run: cmake --build build/ci --parallel 2
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python tools/release/bootstrap.py --destination build/dependencies
+      - run: >-
+          cmake -S . -B build/ci -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+          -DCMAKE_OSX_ARCHITECTURES="$ARCHITECTURES" -DBUILD_TESTING=ON
+          -DTCE_BUILD_OMNIBOT_CORE=ON
+          -DOMNIBOT_BOOST_INCLUDEDIR="$PWD/build/dependencies/boost_1_85_0"
+      - run: cmake --build build/ci --parallel 3
+      - name: Verify module and core slices
+        run: |
+          core=$(jq -er .library "build/ci/omnibot-runtime-$BUILD_TYPE.json")
+          for module in build/ci/bin/{qagame,cgame,ui}_mac "$core"; do
+            for cpu in ${ARCHITECTURES//;/ }; do
+              lipo -verify_arch "$cpu" "$module"
+            done
+          done
+      - run: ctest --test-dir build/ci --no-tests=error --output-on-failure
