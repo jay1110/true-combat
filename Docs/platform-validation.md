@@ -109,6 +109,10 @@ Auf Linux x86_64 luden 1.0.4 und das lokale Testpaket 1.0.5 auf `obj_northport` 
 
 Ein direkter Aufruf der exportierten Funktionen aus den Linux-x86_64-Servermodulen der 1.0.4-Distribution und des lokalen 1.0.5-Pakets ergab bitgleiche Ergebnisse für alle 294 getesteten Ausgabevektoren. Bei `PM_ClipVelocity` umfassten die 30 Fälle fünf vorzeichenbehaftete Geschwindigkeitswerte einschließlich null, drei Flächennormalen und zwei Overbounce-Faktoren. Bei `BG_EvaluateTrajectory` wurden elf Typen (0, 1, 2, 3, 5–11), drei Laufzeiten (50, 125 und 1000 ms) und acht Zeitpunkte einschließlich der Grenzen ausgewertet. Jeder Vektor enthielt drei endliche Float-Werte. Der Test isoliert diese beiden Funktionen; die Kollisionsabfrage einer Karte und ein vollständiger Spielerbewegungsverlauf sind separat zu prüfen.
 
+### Bodenabfrage auf obj_northport
+
+Beide Linux-Testinstallationen enthalten dieselbe `maps/obj_northport.bsp` in `pak3.pk3` (15.181.808 Bytes, SHA-256 `b58628b97d01abf903df2bd48d8521edc0fea1e1e7d811ebdf26eef766aa5cd3`). Eine temporäre Diagnosebibliothek im jeweiligen Testprofil lud das unveränderte Servermodul und rief nach dessen `GAME_INIT` den exportierten `trap_Trace` auf. Auf ETLegacy 2.86.2 wurden zwölf Positionen nahe zwei blauen Spawnpunkten jeweils als Punkt und mit Testbox von (-18,-18,-24) bis (18,18,48) von Z=64 nach Z=-128 geprüft. Alle 24 Paare lieferten identische protokollierte Werte für Trefferanteil, Endhöhe, Z-Normale, Ebenenabstand, Entity-Nummer und beide Solid-Flags. Dies prüft die Übergabe an die Engine und ausgewählte Bodenkollisionen. Eine zeitliche Folge echter Spielereingaben wurde dabei noch nicht ausgewertet.
+
 ## Offene Abnahme in Prioritätsreihenfolge
 
 1. Mobile Laufzeitabdeckung ergänzen. Offen sind ein Intel-iOS-Simulator, die Ausführung auf realen Geräten und ein Android-Systemtest für die beiden ARM-ABIs.
