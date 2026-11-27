@@ -38,6 +38,10 @@ Das veröffentlichte Mehrplattform-PK3 von 1.0.4 enthält 346 Dateien. Das lokal
 
 Nur das Release enthält die 22 Clientmodule für die übrigen Plattformen und drei Metadaten-Dateien unter `tce2/1.0.4/`. Nur das Testpaket enthält `models/players/tce2/wall_high_ready.mdx` und die beiden Dateien `base-game.json` und `client.manifest` unter `tce2/1.0.5/`. Das lokale Paket wurde auf `84d2fb1` mit den Release-Binärdateien aus `6309cd9` erstellt. Die Engine-Abnahme mit Paketdownload in beiden Versionsrichtungen steht aus. [Referenzrelease](https://github.com/jay1110/true-combat/releases/tag/1.0.4)
 
+## Linux-Serverstart im Engine-Host
+
+ET: Legacy 2.86.2 (Linux x86_64, Dedicated Server) lud mit den ET-Basispaketen auf der Karte `oasis` in zwei getrennten Läufen das Servermodul und fand `vmMain`. Geprüft wurden das veröffentlichte 1.0.4-Modul und das Linux-Testpaket von 1.0.5. Beide Läufe erreichten die Spielinitialisierung und brachen beim Token `MP40` in `animations/scripts/human_base.script`, Zeile 21, ab. Die anschließend angeforderte TC:E-Karte `maps/obj_northport.bsp` fehlte. Beide Logs melden außerdem eine fehlgeschlagene IPv4-Bindung. Spielbereitschaft, Client-Verbindungen und Paketdownload bleiben offen. Der Versuch mit `obj_village` endete bereits bei der Kartensuche. Für die weitere Abnahme werden die ursprünglichen TC:E-0.49b-Pakete und eine nutzbare lokale Netzwerkbindung benötigt.
+
 ## Offene Abnahme in Prioritätsreihenfolge
 
 1. Mobile Laufzeitabdeckung ergänzen. Offen sind ein Intel-iOS-Simulator, die Ausführung auf realen Geräten und ein Android-Systemtest für die beiden ARM-ABIs.
