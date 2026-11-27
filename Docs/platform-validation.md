@@ -42,6 +42,10 @@ Der historische Waffenvergleich verwendete auf denselben drei emulierten Linux-A
 
 Für den Server-Lebenszyklus lief die generierte Fixture des nativen 84d2fb1-Vergleichs ebenfalls auf Linux i386, ARMv7 und ARM64 unter QEMU-User, jeweils mit -O0 und -O2 ohne Sanitizer. In jedem der sechs Läufe bestanden alle 7.492 Prüfungen. Die Ergebniszeile entsprach in beiden Konfigurationen dem nativen x86_64-Lauf.
 
+### WebAssembly-Gameplaytests unter Node.js
+
+Mit Emscripten bestanden in -O0 und -O2 je 167 Waffen-, 6.858 Treffer-/Schadens- und 7.492 Server-Lebenszyklusprüfungen der generierten Fixtures. Der portable Movement-Test scheiterte zunächst beim Kompilieren: tools/modernize/movement_regression.py wählte trotz expliziter portabler Implementierung den nativen Funktionskörper von PM_Friction aus. Dieser verweist auf TCE_VectorLengthValue. Nach Korrektur der Extraktion bestanden je 2.749 Movement-Prüfungen einschließlich Schrittgeräuschen auf wasm32. Der native Linux-x86_64-Standardlauf wurde ebenfalls erfolgreich wiederholt. Geändert wurde der Testgenerator. Browser-Spielbetrieb und Netzwerkparität sind separat zu prüfen.
+
 ## PK3-Vergleich mit Release 1.0.4
 
 Das veröffentlichte Mehrplattform-PK3 von 1.0.4 enthält 346 Dateien. Das lokale Linux-x86_64-Testpaket von 1.0.5 enthält 324. Der SHA-256-Vergleich jedes entpackten Eintrags ergab 319 bytegleiche Dateien. Von den gemeinsam vorhandenen Pfaden unterscheiden sich nur `cgame.mp.x86_64.so` und `ui.mp.x86_64.so`.
