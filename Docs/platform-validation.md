@@ -85,11 +85,15 @@ Vier Linux-x86_64-Serverläufe (je Version und Modus ein Prozess) wechselten üb
 
 ET: Legacy 2.86.2 zeichnete mit jeder Version eine kurze Protocol-84-Clientdemo auf obj_northport auf. Mit dem ursprünglichen Modpaket meldete die Wiedergabe 15 Frames für die 1.0.4-Aufnahme und 12 Frames für die 1.0.5-Aufnahme. Ein frisches Profil mit ausschließlich dem jeweils anderen Modpaket meldete in beiden Richtungen „Missing required packages“ und nannte das PK3 des Aufnahmestands. Nach Bereitstellung genau dieses Archivs im isolierten Testprofil erreichten dieselben Demos wieder 15 beziehungsweise 12 Frames. Das Ergebnis gilt für die beiden kurzen Aufnahmen und die verwendete Linux-Engine. Für ein Demoarchiv sollten die referenzierten PK3s mit Prüfsummen identifizierbar bleiben.
 
+### Ordinary-Pose-Test und Vendor-Prüfung
+
+Auf `a5ef7e7` scheiterte der eigenständige Ordinary-Pose-Test mit GCC an drei fehlenden Deklarationen für die Trefferdiagnose. Nach Ergänzung der Testdienste meldete der Linker zusätzlich die fehlende Testvariable `g_weaponWallAvoidance`. Die Fixture bindet jetzt den Produktionsheader ein, prüft die Argumente des Welt-Traces und setzt die lokale Testvariable auf den registrierten Default 1. Mit GCC, ASan und UBSan bestanden in Debug und Release jeweils 148 Prüfungen (Leak-Erkennung aus). Für den Windows-Testtreiber steht die Ausführung dieser Änderung aus. Der separate Offline-Vendor-Prüfer bestätigte auf `a5ef7e7` alle fünf gepinnten Pakete.
+
 ## Offene Abnahme in Prioritätsreihenfolge
 
 1. Mobile Laufzeitabdeckung ergänzen. Offen sind ein Intel-iOS-Simulator, die Ausführung auf realen Geräten und ein Android-Systemtest für die beiden ARM-ABIs.
 2. Die Module in einer kompatiblen externen Engine laden. Auf Windows ARM64 die Bot-Initialisierung mit der ausgelieferten DLL und den Skripten nachweisen. Für iOS den Paketpfad, die Signierung und das Lademodell mit dem vorgesehenen Host klären.
-3. Mit festgehaltenen Versionen der Referenzmodule, PK3-Dateien, Maps und Konfigurationen Client und Server in beiden Versionsrichtungen verbinden. Dynamische Commands, CVar-Flags und Reset-Verhalten sowie Paket- und Gameplay-Traces unter denselben Eingaben vergleichen.
+3. Die bestätigten Linux-Beitritte und Konsoleninventare auf weitere verfügbare Engine-Hosts übertragen. Bei identischen Spieleingaben Bewegungs- und Trefferverläufe gegen eine Referenz aufzeichnen und vergleichen. Optional geladene Lua-Befehle und weitere CVar-Resets gesondert abdecken.
 4. Speicher- und Laufzeitbefunde an reproduzierbare Szenarien binden. Performanceänderungen benötigen Messwerte vor und nach der Änderung sowie dieselben Kompatibilitätstests. Verhaltensändernde Korrekturen erfordern gesonderte Freigabe.
 
 Die sieben Actions-Workflows sind manuell auslösbar. Pushes und PR-Aktualisierungen lösen auf diesem Branch keine Matrix aus.
