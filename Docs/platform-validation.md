@@ -183,3 +183,5 @@ Ein lesender Server-Testadapter protokollierte anschließend je einen Beitritt b
 4. Speicher- und Laufzeitbefunde an reproduzierbare Szenarien binden. Performanceänderungen benötigen Messwerte vor und nach der Änderung sowie dieselben Kompatibilitätstests. Verhaltensändernde Korrekturen erfordern gesonderte Freigabe.
 
 Die sieben Actions-Workflows sind manuell auslösbar. Pushes und PR-Aktualisierungen lösen auf diesem Branch keine Matrix aus.
+
+Die lokale Auswertung der Workflow-Matrizen ergibt pro manuellem Start bei Standardeingaben und erfolgreichen Vorstufen folgende Jobzahlen: ui-bindings 1, windows-fixtures 2, ios-build 6, android-runtime 8, loose-binaries 14, release 14 und mod-build 17. Beide Paket-Workflows planen je zwölf Build-Jobs sowie Planung und Archivierung. Beim Release kommen optional zwölf Editor-Builds und ein Desktop-Job hinzu. Diese Zahlen beschreiben geplante Jobs, keine gemessenen Runner-Minuten. Der vorherige Standardwert 1.0.3 in .github/workflows/loose-binaries.yml:8 führte lokal zum Abbruch der Versionsprüfung gegen den Header 1.0.5. Mit dem korrigierten Standardwert lief dieselbe Prüfung erfolgreich.
