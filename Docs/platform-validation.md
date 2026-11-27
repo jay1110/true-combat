@@ -38,6 +38,8 @@ Der historische Treffervergleich gegen `6f70c99` verwendete pro Version die eige
 
 Die Treffer-Fixtures beider Quellstände wurden zusätzlich für Linux i386, ARMv7 (Cortex-A7) und ARM64 mit Zig cc als PIE gebaut. Auf jeder Architektur bestanden unter QEMU-User beide Versionen jeweils mit -O0 und -O2 alle 6.858 Prüfungen. Alle zwölf Programme endeten mit Exit 0. Diese Läufe verwendeten die analytischen Kollisionsdienste ohne Sanitizer. Ein vollständiges Match und physische Zielgeräte waren nicht Teil dieser Messung.
 
+Der historische Waffenvergleich verwendete auf denselben drei emulierten Linux-Architekturen die generierten Fixtures des x86_64-Vergleichs. Beide Quellstände bestanden in Debug und Release jeweils 167 Prüfungen. Die zwölf Laufprotokolle waren bytegleich (SHA-256 `683df72af0f325b058d83e6384c88de2b2db58db0d08094f2f1d2741d6069126`). Die Ausgaben weisen darunter 22 Prüfungen zur Rückkehr von der Granate aus. Diese Testprogramme verwendeten keine Sanitizer.
+
 ## PK3-Vergleich mit Release 1.0.4
 
 Das veröffentlichte Mehrplattform-PK3 von 1.0.4 enthält 346 Dateien. Das lokale Linux-x86_64-Testpaket von 1.0.5 enthält 324. Der SHA-256-Vergleich jedes entpackten Eintrags ergab 319 bytegleiche Dateien. Von den gemeinsam vorhandenen Pfaden unterscheiden sich nur `cgame.mp.x86_64.so` und `ui.mp.x86_64.so`.
