@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import subprocess
 
@@ -15,7 +16,8 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--animation-source', type=Path, default=ROOT / 'src/game/bg_animation.c')
-    parser.add_argument('--arch', choices=('x86', 'x64'), default='x86')
+    parser.add_argument('--arch', choices=('x86', 'x64') if os.name == 'nt' else ('native', 'x86', 'x64'),
+                        default='x86' if os.name == 'nt' else 'native')
     parser.add_argument('--sanitize', action='store_true')
     parser.add_argument('--debug', action='store_true', help='Disable optimization for the isolated fixture')
     args = parser.parse_args()
@@ -26,16 +28,27 @@ def main():
     generated = fixture.replace('/* ACTUAL_BG_PLAYANIM */', function(source, 'BG_PlayAnim'))
     path = out / 'fixture.c'
     path.write_text(generated, encoding='utf-8', newline='\n')
-    env, compiler = msvc_environment(out, args.arch, '14.44' if args.sanitize else None)
-    exe = out / 'fixture.exe'
-    command = [compiler, '/nologo', '/TC', '/Od' if args.debug else '/O2', '/W4', '/DWIN32', '/DGAMEDLL',
-               '/D_CRT_SECURE_NO_WARNINGS', '/I' + str(ROOT), str(path),
-               str(ROOT / 'src/game/bg_tce_pose_clock.c'), '/Fe:' + str(exe)]
-    if args.sanitize:
-        command[1:1] = ['/fsanitize=address', '/Z7']
-    command += ['/link']
-    if args.sanitize:
-        command += ['/DEBUG']
+    if os.name == 'nt':
+        env, compiler = msvc_environment(out, args.arch, '14.44' if args.sanitize else None)
+        exe = out / 'fixture.exe'
+        command = [compiler, '/nologo', '/TC', '/Od' if args.debug else '/O2', '/W4', '/DWIN32', '/DGAMEDLL',
+                   '/D_CRT_SECURE_NO_WARNINGS', '/I' + str(ROOT), str(path),
+                   str(ROOT / 'src/game/bg_tce_pose_clock.c'), '/Fe:' + str(exe)]
+        if args.sanitize:
+            command[1:1] = ['/fsanitize=address', '/Z7']
+        command += ['/link']
+        if args.sanitize:
+            command += ['/DEBUG']
+    else:
+        env = os.environ.copy()
+        exe = out / 'fixture'
+        command = [env.get('CC', 'cc'), '-std=c99', '-Wall', '-Wextra', '-O0' if args.debug else '-O2',
+                   '-DGAMEDLL', '-I' + str(ROOT)]
+        if args.arch != 'native':
+            command.append('-m32' if args.arch == 'x86' else '-m64')
+        if args.sanitize:
+            command += ['-fsanitize=address,undefined', '-fno-omit-frame-pointer', '-g']
+        command += [str(path), str(ROOT / 'src/game/bg_tce_pose_clock.c'), '-lm', '-o', str(exe)]
     built = subprocess.run(command, cwd=out, env=env, capture_output=True, text=True)
     (out / 'compile.log').write_text(built.stdout + built.stderr, encoding='utf-8')
     files = ['src/game/bg_tce_pose_clock.c', 'src/game/bg_tce_pose_clock.h',

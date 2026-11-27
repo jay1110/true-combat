@@ -95,6 +95,12 @@ Auf `16ff725` las der kompakte Präsentationstest die Animationsdefinitionen aus
 
 Der unabhängige Evaluator benötigt sechs historische Renderer-Aufzeichnungen im JSONL-Format. Der Versuch mit den Originalassets brach beim Lesen von `src/reconstruction/modernization/runtime-bugfix-20261026/pose-32152-1.jsonl` ab. Die fünf weiteren vom Generator erwarteten Namen sind `pose-control-crouch`, `pose-control-prone`, `pose-control-lean-left`, `pose-control-lean-right` und `pose-control-prone-aim`, jeweils mit der Endung `.jsonl`. Ohne diese Referenz bleibt der Vergleich mit den damaligen Renderer-Posen ungeprüft.
 
+### Animationstiming
+
+Der Testtreiber für die Animationsuhr rief auch auf Linux die MSVC-Umgebung auf und scheiterte vor der Kompilierung. Der native Linux-Pfad verwendet jetzt einen C99-Compiler und führt dieselbe Fixture mit der extrahierten Produktionsfunktion `BG_PlayAnim` aus. Auf Linux x86_64 bestanden mit GCC, ASan und UBSan jeweils 273.239 Prüfungen in Debug und Release (Leak-Erkennung aus). GCC meldete einen möglichen Fallthrough in `BG_PlayAnim`. Die Warnung blieb sichtbar.
+
+Unter QEMU-User bestanden dieselben Prüfungen für Linux i386, ARMv7 und ARM64 jeweils mit -O0 und -O2, ohne Sanitizer. Erste optimierte i386- und ARMv7-Testprogramme endeten mit SIGSEGV. Die Wiederholung mit explizitem PIC/PIE und bei ARMv7 mit Cortex-A7-Ziel bestand. Die Ursache der ersten Abstürze ist ungeklärt. Unter den Pfaden der lokal erreichbaren Git-Historie wurden die sechs historischen Renderer-Aufzeichnungen nicht gefunden.
+
 ## Offene Abnahme in Prioritätsreihenfolge
 
 1. Mobile Laufzeitabdeckung ergänzen. Offen sind ein Intel-iOS-Simulator, die Ausführung auf realen Geräten und ein Android-Systemtest für die beiden ARM-ABIs.
