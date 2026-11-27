@@ -79,6 +79,10 @@ Mit den fünf 0.49b-Paketen auf `obj_northport` fanden 1.0.4 und 1.0.5 bei leere
 
 Vier Linux-x86_64-Serverläufe (je Version und Modus ein Prozess) wechselten über Delta, Northport, Railhouse, Snow, Stadtrand und Village. Bei allen 24 Kartenstarts bestätigte die Statusabfrage den erwarteten Kartennamen. Das Protokoll zeigte für jede Karte das modusspezifische Skript und geladene Omni-Bot-Wegpunkte. Diese kurzen Läufe prüfen den Start und Wechsel der Karten.
 
+### Wiedergabe aufgezeichneter Sitzungen
+
+ET: Legacy 2.86.2 zeichnete mit jeder Version eine kurze Protocol-84-Clientdemo auf obj_northport auf. Mit dem ursprünglichen Modpaket meldete die Wiedergabe 15 Frames für die 1.0.4-Aufnahme und 12 Frames für die 1.0.5-Aufnahme. Ein frisches Profil mit ausschließlich dem jeweils anderen Modpaket meldete in beiden Richtungen „Missing required packages“ und nannte das PK3 des Aufnahmestands. Nach Bereitstellung genau dieses Archivs im isolierten Testprofil erreichten dieselben Demos wieder 15 beziehungsweise 12 Frames. Das Ergebnis gilt für die beiden kurzen Aufnahmen und die verwendete Linux-Engine. Für ein Demoarchiv sollten die referenzierten PK3s mit Prüfsummen identifizierbar bleiben.
+
 ## Offene Abnahme in Prioritätsreihenfolge
 
 1. Mobile Laufzeitabdeckung ergänzen. Offen sind ein Intel-iOS-Simulator, die Ausführung auf realen Geräten und ein Android-Systemtest für die beiden ARM-ABIs.
