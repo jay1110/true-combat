@@ -67,10 +67,19 @@
       ],
       "snapshot": {
         "files": 863,
-        "sha256": "2db055b29f479d478ee659fa4b6182b80d963bcf4872ab2f403e69951dfd9372",
+        "sha256": "4193290f9b1c7784c28aadcb9001b46be7c06516e53a9abb46616661927db27b",
         "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
       },
       "snapshot_history": [
+        {
+          "snapshot": {
+            "files": 863,
+            "sha256": "2db055b29f479d478ee659fa4b6182b80d963bcf4872ab2f403e69951dfd9372",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-11-27",
+          "reviewed_change": "Select the Windows pointer width for GameMonkey on MinGW and MSVC, including ARM64."
+        },
         {
           "snapshot": {
             "files": 862,

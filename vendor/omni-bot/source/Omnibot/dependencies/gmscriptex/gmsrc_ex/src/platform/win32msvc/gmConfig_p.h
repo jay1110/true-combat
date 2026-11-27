@@ -28,13 +28,13 @@
 #ifndef _CRT_SECURE_NO_DEPRECATE
 #define _CRT_SECURE_NO_DEPRECATE // Allow old unsecure standard library functions, Disable some 'warning C4996 - function was deprecated'
 #endif
-#if defined(_M_X64)
+#if defined(_WIN64)
 #define _USE_64BIT_TIME_T
 #else
 #ifndef _USE_32BIT_TIME_T
 #define _USE_32BIT_TIME_T // So system binds can use int for timestamps
 #endif
-#endif //_M_X64
+#endif //_WIN64
 
 #include <malloc.h> // alloca
 #include <new>
@@ -44,7 +44,7 @@
 
 #if defined(WIN32)
   #define GM_LITTLE_ENDIAN      1
-  #if defined(_M_X64) // 64bit target
+  #if defined(_WIN64) // 64bit target
     #define GM_DEFAULT_ALLOC_ALIGNMENT 16
     #define GM_PTR_SIZE_64 // Ptr size is 64bit
   #else // 32bit target
