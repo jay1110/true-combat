@@ -19,6 +19,10 @@ Die CVar-Inventur auf `51c3101` stimmt bytegenau mit der Ausgangsinventur übere
 
 Auf Windows x86 bestanden fünf isolierte Regressionstests auf `98841dd` in beiden Konfigurationen. Sie decken Kartenraster, Trefferdiagnose, Animationstiming, Statistikanzeige und Waffenstatistik samt Protokoll ab. Die Fixtures verwenden kontrollierte Engine-Aufrufe. [Testprotokolle](https://github.com/jay1110/true-combat/actions/runs/46019710267)
 
+Der Vergleich von Release 1.0.4 mit `ac5cc62` erhält alle 636 ursprünglichen CVar-Registrierungen einschließlich Defaults, Flags und Bedingungen. Die zusätzliche Registrierung `g_weaponWallAvoidance` (Default `1`, Flags `ARCHIVE|SERVERINFO`) war bereits in der Ausgangsanalyse auf `c7452b8` enthalten. Der Vergleich berücksichtigt Mehrfachregistrierungen und lässt Zeilennummern und Herkunftsannotation außer Betracht.
+
+Zwischen `c7452b8` und `ac5cc62` sind alle 105 Dateien unter `src` bytegleich, die an mindestens einem der beiden Stände Verweise auf `trap_AddCommand`, `ConsoleCommand(` oder `ClientCommand(` enthalten. Die tatsächlich vom Host und von Lua bereitgestellte Befehlsliste bleibt offen.
+
 ## Gameplay-Regression auf `84d2fb1`
 
 | Linux-Ziel | Verfahren | Erfolgreiche Prüfungen je Konfiguration (Debug und Release) |
