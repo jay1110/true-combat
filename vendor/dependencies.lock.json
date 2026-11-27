@@ -67,10 +67,19 @@
       ],
       "snapshot": {
         "files": 863,
-        "sha256": "82178bab4e63b39cda05105c0b5fac8e9d616f158e17f206d45ac26de72aef7f",
+        "sha256": "fe319e38179d37147d41dc0a4a814e2ca4720311f1ef7aa9692124de84f276b6",
         "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
       },
       "snapshot_history": [
+        {
+          "snapshot": {
+            "files": 863,
+            "sha256": "82178bab4e63b39cda05105c0b5fac8e9d616f158e17f206d45ac26de72aef7f",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-11-27",
+          "reviewed_change": "Use MinGW SDK header names and enable Clang structured exception syntax for the Windows thread-name notification."
+        },
         {
           "snapshot": {
             "files": 863,
