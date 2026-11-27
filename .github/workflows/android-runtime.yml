@@ -1,0 +1,53 @@
+name: Android runtime compatibility
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [final]
+    paths:
+      - '.github/workflows/android-runtime.yml'
+      - 'src/**'
+      - 'cmake/**'
+      - 'tools/modernize/compat_golden.c'
+      - 'vendor/**'
+jobs:
+  emulator:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [x86, x86_64]
+        type: [Debug, Release]
+    env:
+      ABI: ${{ matrix.abi }}
+      BUILD_TYPE: ${{ matrix.type }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install pinned NDK and emulator image
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'ndk;27.3.13750724' 'emulator' "system-images;android-29;default;$ABI"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.3.13750724" >> "$GITHUB_ENV"
+      - run: python3 tools/release/bootstrap.py --destination build/dependencies
+      - name: Build modules, core and test executables
+        run: |
+          cmake -S . -B build/ci -G Ninja -DCMAKE_TOOLCHAIN_FILE="cmake/toolchains/android-$ABI.cmake" -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DBUILD_TESTING=ON -DTCE_BUILD_OMNIBOT_CORE=ON -DOMNIBOT_BOOST_INCLUDEDIR="$PWD/build/dependencies/boost_1_85_0"
+          cmake --build build/ci --parallel 4
+      - name: Run compatibility tests on Android
+        run: |
+          sudo setfacl -m "u:$(id -un):rw" /dev/kvm
+          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd -n tce-test -k "system-images;android-29;default;$ABI"
+          "$ANDROID_HOME/emulator/emulator" -avd tce-test -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          trap 'adb emu kill || true' EXIT
+          timeout 300 adb wait-for-device
+          timeout 300 bash -c 'until adb shell getprop sys.boot_completed | grep -q 1; do sleep 2; done'
+          dir=/data/local/tmp/tce
+          adb shell mkdir -p "$dir"
+          adb push build/ci/src/compat-directory-fixture "$dir/"
+          for test in tce_geoip_test tce_score_packet_test tce_class_requests_test tce_compat_golden tce_compat_wasm_vector_golden tce_client_presentation_test tce_geoip_policy_test tce_item_presentation_test; do
+            adb push "build/ci/src/$test" "$dir/"
+            adb shell chmod 755 "$dir/$test"
+            case "$test" in
+              *golden) adb shell "$dir/$test" "$dir/compat-directory-fixture" ;;
+              *) adb shell "$dir/$test" ;;
+            esac
+          done
