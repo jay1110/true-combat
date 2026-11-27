@@ -63,6 +63,10 @@ Mit frischen Clientverzeichnissen, allen fünf Paketen und derselben Community-K
 
 Auf beiden Linux-x86_64-Servern meldete `cmdlist` dieselben 65 Befehlsnamen. `cvarlist` lieferte 337 Einträge auf 1.0.4 und 338 auf 1.0.5. Alle gemeinsamen Namen hatten dieselben angezeigten Flags. 1.0.5 ergänzt `g_weaponWallAvoidance`. Die angezeigten Defaults unterschieden sich bei `com_pid`, `gamedate`, `net_qport` und `tce_version`. Bei den aktuellen Werten kamen `fs_basepath`, `fs_homepath`, `sv_pakNames`, `sv_paks`, `sv_referencedPakNames`, `sv_referencedPaks` und `sv_serverid` hinzu. Beide Prozesse liefen mit frischen Benutzerverzeichnissen und denselben 0.49b-Assets auf `obj_northport`. Der Vergleich erfasst die vom Dedicated Server aufgelisteten Einträge. Clientbefehle, modulinterne Dispatch-Tabellen und das Verhalten nach einem Reset benötigen eigene Tests.
 
+Beim Start beider Linux-Clients mit getrennten frischen Profilen, nach dem Laden des jeweiligen UI-Moduls und vor dem Verbinden, ergaben sich dieselben 190 Befehlsnamen und 593 CVar-Namen mit identischen angezeigten Flags. Abweichende angezeigte Defaults betrafen `cl_guid`, `com_pid` und `net_qport`. Bei den aktuellen Werten unterschieden sich zusätzlich `fs_basepath` und `fs_homepath`. Die Inventur im laufenden Match steht separat aus.
+
+Auf den beiden Dedicated Servern stellte `reset` bei `g_motd`, `g_logSync`, `g_inactivity` und `sv_hostname` nach einer temporären Änderung jeweils den beobachteten Default wieder her. Auf 1.0.5 bestand zusätzlich `g_weaponWallAvoidance` die Folge 1 → 0 → 1.
+
 ## Offene Abnahme in Prioritätsreihenfolge
 
 1. Mobile Laufzeitabdeckung ergänzen. Offen sind ein Intel-iOS-Simulator, die Ausführung auf realen Geräten und ein Android-Systemtest für die beiden ARM-ABIs.
