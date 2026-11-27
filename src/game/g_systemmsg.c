@@ -103,7 +103,8 @@ void G_SendSystemMessage(sysMsg_t message, int team)
 
 void G_CheckForNeededClasses(void)
 {
-	qboolean   playerClasses[NUM_PLAYER_CLASSES - 1][2];
+	enum { classRows = NUM_PLAYER_CLASSES - 1 }; /* Soldier has no row. */
+	qboolean   playerClasses[classRows][2];
 	int        i, team, cnt;
 	int        teamCounts[2];
 	gentity_t  *ent;
@@ -136,7 +137,8 @@ void G_CheckForNeededClasses(void)
 
 		team = ent->client->sess.sessionTeam == TEAM_AXIS ? 0 : 1;
 
-		if (ent->client->sess.playerType != PC_SOLDIER)
+		if (ent->client->sess.playerType > PC_SOLDIER &&
+		    ent->client->sess.playerType < NUM_PLAYER_CLASSES)
 		{
 			playerClasses[ent->client->sess.playerType - 1][team] = qtrue;
 		}
@@ -153,7 +155,7 @@ void G_CheckForNeededClasses(void)
 		}
 
 		cnt = 0;
-		for ( i = 0; i < NUM_PLAYER_CLASSES; i++ )
+		for ( i = 0; i < classRows; i++ )
 		{
 			if (!playerClasses[i][0])
 			{
@@ -165,7 +167,7 @@ void G_CheckForNeededClasses(void)
 		{
 			cnt = rand() % cnt;
 
-			for ( i = 0; i < NUM_PLAYER_CLASSES; i++ )
+			for ( i = 0; i < classRows; i++ )
 			{
 				if (!playerClasses[i][0])
 				{
@@ -187,7 +189,7 @@ void G_CheckForNeededClasses(void)
 		}
 
 		cnt = 0;
-		for ( i = 0; i < NUM_PLAYER_CLASSES; i++ )
+		for ( i = 0; i < classRows; i++ )
 		{
 			if (!playerClasses[i][1])
 			{
@@ -199,7 +201,7 @@ void G_CheckForNeededClasses(void)
 		{
 			cnt = rand() % cnt;
 
-			for ( i = 0; i < NUM_PLAYER_CLASSES; i++ )
+			for ( i = 0; i < classRows; i++ )
 			{
 				if (!playerClasses[i][1])
 				{
