@@ -60,5 +60,5 @@ jobs:
             case "$test" in
               *golden) args+=("$PWD/build/ci/src/compat-directory-fixture") ;;
             esac
-            xcrun simctl spawn "$device" "$PWD/build/ci/src/$test" "${args[@]}"
+            xcrun simctl spawn "$device" "$PWD/build/ci/src/$test.app/$test" "${args[@]}"
           done
