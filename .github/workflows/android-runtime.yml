@@ -36,7 +36,12 @@ jobs:
       - name: Run compatibility tests on Android
         run: |
           sudo setfacl -m "u:$(id -un):rw" /dev/kvm
-          echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd -n tce-test -k "system-images;android-29;default;$ABI"
+          export ANDROID_USER_HOME="$RUNNER_TEMP/android-user"
+          export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd --device pixel -n tce-test -k "system-images;android-29;default;$ABI"
+          test -s "$ANDROID_AVD_HOME/tce-test.ini"
+          "$ANDROID_HOME/emulator/emulator" -list-avds | grep -Fx tce-test
           adb start-server
           "$ANDROID_HOME/emulator/emulator" -avd tce-test -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader_indirect &
           trap 'adb emu kill || true' EXIT
