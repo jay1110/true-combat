@@ -37,9 +37,19 @@ jobs:
         run: |
           sudo setfacl -m "u:$(id -un):rw" /dev/kvm
           echo no | "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd -n tce-test -k "system-images;android-29;default;$ABI"
-          "$ANDROID_HOME/emulator/emulator" -avd tce-test -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader_indirect > "$RUNNER_TEMP/emulator.log" 2>&1 &
+          adb start-server
+          "$ANDROID_HOME/emulator/emulator" -avd tce-test -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader_indirect &
           trap 'adb emu kill || true' EXIT
-          timeout 300 adb wait-for-device
+          emulator_pid=$!
+          for attempt in {1..150}; do
+            if ! kill -0 "$emulator_pid" 2>/dev/null; then
+              wait "$emulator_pid"
+              exit 1
+            fi
+            if adb get-state 2>/dev/null | grep -qx device; then break; fi
+            sleep 2
+          done
+          adb get-state
           timeout 300 bash -c 'until adb shell getprop sys.boot_completed | grep -q 1; do sleep 2; done'
           dir=/data/local/tmp/tce
           adb shell mkdir -p "$dir"
