@@ -98,8 +98,17 @@ if(TCE_ENABLE_SANITIZERS)
     target_link_options(tce_build_options INTERFACE "-fsanitize=${TCE_SANITIZERS}")
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_C_COMPILER_ID STREQUAL "Clang")
       # Shared modules use --no-undefined. Link Clang's sanitizer runtime
-      # explicitly and let the driver supply its runtime search path.
-      target_link_options(tce_build_options INTERFACE -shared-libsan -frtlib-add-rpath)
+      # explicitly. Some Clang packages omit their runtime directory from
+      # the loader search path even when -frtlib-add-rpath is requested.
+      separate_arguments(tce_clang_args NATIVE_COMMAND "${CMAKE_C_COMPILER_ARG1}")
+      if(CMAKE_C_COMPILER_TARGET)
+        list(APPEND tce_clang_args "--target=${CMAKE_C_COMPILER_TARGET}")
+      endif()
+      execute_process(COMMAND "${CMAKE_C_COMPILER}" ${tce_clang_args} --print-runtime-dir
+        OUTPUT_VARIABLE tce_clang_runtime_dir OUTPUT_STRIP_TRAILING_WHITESPACE
+        COMMAND_ERROR_IS_FATAL ANY)
+      target_link_options(tce_build_options INTERFACE -shared-libsan
+        "LINKER:-rpath,${tce_clang_runtime_dir}")
     endif()
   else()
     message(FATAL_ERROR "Sanitizers require Clang, GCC or a compatible MSVC AddressSanitizer toolchain")
