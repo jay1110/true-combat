@@ -73,7 +73,7 @@ Auf den beiden Dedicated Servern stellte `reset` bei `g_motd`, `g_logSync`, `g_i
 
 ### Omni-Bot im Linux-Server
 
-Mit den fünf 0.49b-Paketen auf `obj_northport` fanden 1.0.4 und 1.0.5 bei leerem `omnibot_path` den jeweiligen Core unter `tce2/omni-bot/omnibot_et.x86_64.so`. Beide luden Wegpunkte und meldeten den Beitritt des angeforderten Bots. Beim 1.0.5-Testpaket aktivierte die mitgelieferte `omnibot-release.cfg` die Bots. Das veröffentlichte 1.0.4-ZIP enthält diese Datei nicht. Dort gelang der Lauf mit `+set omnibot_enable 1` vor dem Kartenstart. Mit explizitem Core-Pfad traten auf beiden Versionen auch zwei Bots unterschiedlichen Teams bei und erschienen in der Statusausgabe. Verhalten über eine vollständige Runde und Windows-ARM64-Initialisierung bleiben offen.
+Mit den fünf 0.49b-Paketen auf `obj_northport` fanden 1.0.4 und 1.0.5 bei leerem `omnibot_path` den jeweiligen Core unter `tce2/omni-bot/omnibot_et.x86_64.so`. Beide luden Wegpunkte und meldeten den Beitritt des angeforderten Bots. Beim 1.0.5-Testpaket aktivierte die mitgelieferte `omnibot-release.cfg` die Bots. Das veröffentlichte 1.0.4-ZIP enthält diese Datei nicht. Dort gelang der Lauf mit `+set omnibot_enable 1` vor dem Kartenstart. Mit explizitem Core-Pfad traten auf beiden Versionen auch zwei Bots unterschiedlichen Teams bei und erschienen in der Statusausgabe. In je einem weiteren GT5-Lauf traten zwei Bots auf unterschiedlichen Seiten an. Beide Server protokollierten auf obj_northport nach je 325.900 ms Serverzeit das Ende durch Zeitlimit (Exit: Timelimit hit.) und beendeten sich anschließend regulär auf quit. Ein Sieg durch das Missionsziel, ein identischer Bewegungsverlauf und die Windows-ARM64-Initialisierung bleiben offen.
 
 ### Kartenwechsel mit GT2 und GT5
 
