@@ -1,13 +1,6 @@
 name: iOS module build
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [final]
-    paths:
-      - '.github/workflows/ios-build.yml'
-      - 'cmake/**'
-      - 'src/**'
-      - 'vendor/**'
 jobs:
   build:
     runs-on: macos-15

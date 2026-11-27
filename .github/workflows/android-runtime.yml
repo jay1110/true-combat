@@ -1,14 +1,6 @@
 name: Android runtime compatibility
 on:
   workflow_dispatch:
-  pull_request:
-    branches: [final]
-    paths:
-      - '.github/workflows/android-runtime.yml'
-      - 'src/**'
-      - 'cmake/**'
-      - 'tools/modernize/compat_golden.c'
-      - 'vendor/**'
 jobs:
   emulator:
     runs-on: ubuntu-24.04

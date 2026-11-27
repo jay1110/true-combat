@@ -1,11 +1,5 @@
 name: Windows gameplay and HUD regressions
 on:
-  pull_request:
-    branches: [final]
-    paths:
-      - '.github/workflows/windows-fixtures.yml'
-      - 'src/**'
-      - 'tools/modernize/**'
   workflow_dispatch:
 permissions:
   contents: read

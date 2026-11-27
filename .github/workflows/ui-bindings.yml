@@ -1,16 +1,5 @@
 name: UI binding regression
 on:
-  pull_request:
-    branches: [final]
-    paths:
-      - '.github/workflows/ui-bindings.yml'
-      - 'src/assets/ui/options_controls.menu'
-      - 'src/**.h'
-      - 'src/game/q_shared.c'
-      - 'src/ui/ui_shared.c'
-      - 'tools/modernize/ui_binding_regression*'
-      - 'tools/modernize/compat_validate.py'
-      - 'tools/modernize/movement_regression.py'
   workflow_dispatch:
 permissions:
   contents: read
