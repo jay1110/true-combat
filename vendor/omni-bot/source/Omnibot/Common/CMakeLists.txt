@@ -117,7 +117,7 @@ if (UNIX)
     endif ()
 endif ()
 
-if(APPLE)
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     find_library(CARBON_FW Carbon)
     target_link_libraries(omnibot-common PUBLIC ${CARBON_FW})
     find_library(IOKIT_FW IOKit)

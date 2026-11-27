@@ -67,10 +67,19 @@
       ],
       "snapshot": {
         "files": 863,
-        "sha256": "fe319e38179d37147d41dc0a4a814e2ca4720311f1ef7aa9692124de84f276b6",
+        "sha256": "03769ed832dde4cebba1f14e8ba50376ef5f797806ee863b5a5b491bf5bdc6ca",
         "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
       },
       "snapshot_history": [
+        {
+          "snapshot": {
+            "files": 863,
+            "sha256": "fe319e38179d37147d41dc0a4a814e2ca4720311f1ef7aa9692124de84f276b6",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-11-27",
+          "reviewed_change": "Link the Carbon and IOKit frameworks only for the macOS PhysicsFS backend. On iOS the existing backend uses POSIX."
+        },
         {
           "snapshot": {
             "files": 863,
