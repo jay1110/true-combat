@@ -67,3 +67,32 @@ jobs:
               *) adb shell "$dir/$test" ;;
             esac
           done
+  arm-userspace:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [armv7, arm64]
+        type: [Debug, Release]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install NDK and QEMU user-mode runners
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'ndk;27.3.13750724'
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.3.13750724" >> "$GITHUB_ENV"
+      - run: python3 tools/release/bootstrap.py --destination build/dependencies
+      - name: Build ARM libraries and static Bionic test executables
+        env:
+          ARCH: ${{ matrix.arch }}
+          BUILD_TYPE: ${{ matrix.type }}
+        run: |
+          emulator=qemu-arm
+          if [[ "$ARCH" == arm64 ]]; then emulator=qemu-aarch64; fi
+          cmake -S . -B build/ci -G Ninja -DCMAKE_TOOLCHAIN_FILE="cmake/toolchains/android-$ARCH.cmake" \
+            -DTCE_ANDROID_API=29 -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DCMAKE_EXE_LINKER_FLAGS=-static \
+            -DCMAKE_CROSSCOMPILING_EMULATOR="$(command -v "$emulator")" -DBUILD_TESTING=ON \
+            -DTCE_BUILD_OMNIBOT_CORE=ON -DOMNIBOT_BOOST_INCLUDEDIR="$PWD/build/dependencies/boost_1_85_0"
+          cmake --build build/ci --parallel 4
+      - run: ctest --test-dir build/ci --no-tests=error --output-on-failure
