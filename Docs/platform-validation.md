@@ -71,6 +71,10 @@ Beim Start beider Linux-Clients mit getrennten frischen Profilen, nach dem Laden
 
 Auf den beiden Dedicated Servern stellte `reset` bei `g_motd`, `g_logSync`, `g_inactivity` und `sv_hostname` nach einer temporären Änderung jeweils den beobachteten Default wieder her. Auf 1.0.5 bestand zusätzlich `g_weaponWallAvoidance` die Folge 1 → 0 → 1.
 
+### Omni-Bot im Linux-Server
+
+Mit den fünf 0.49b-Paketen auf `obj_northport` fanden 1.0.4 und 1.0.5 bei leerem `omnibot_path` den jeweiligen Core unter `tce2/omni-bot/omnibot_et.x86_64.so`. Beide luden Wegpunkte und meldeten den Beitritt des angeforderten Bots. Beim 1.0.5-Testpaket aktivierte die mitgelieferte `omnibot-release.cfg` die Bots. Das veröffentlichte 1.0.4-ZIP enthält diese Datei nicht. Dort gelang der Lauf mit `+set omnibot_enable 1` vor dem Kartenstart. Mit explizitem Core-Pfad traten auf beiden Versionen auch zwei Bots unterschiedlichen Teams bei und erschienen in der Statusausgabe. Verhalten über eine vollständige Runde und Windows-ARM64-Initialisierung bleiben offen.
+
 ## Offene Abnahme in Prioritätsreihenfolge
 
 1. Mobile Laufzeitabdeckung ergänzen. Offen sind ein Intel-iOS-Simulator, die Ausführung auf realen Geräten und ein Android-Systemtest für die beiden ARM-ABIs.
