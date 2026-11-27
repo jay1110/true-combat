@@ -34,6 +34,8 @@ Alle aufgeführten Läufe meldeten null fehlgeschlagene Prüfungen. Die Trefferp
 
 Für einen historischen Vergleich führte derselbe Testtreiber von `b8b1379` die ausgewählten Produktionsfunktionen aus Release 1.0.4 und aus dem PR-Stand jeweils unter Linux x86_64 aus. Mit GCC, ASan und UBSan bestanden für beide Quellstände in Debug und Release jeweils 2.749 Movement-Prüfungen einschließlich Schrittgeräuschen sowie 167 Waffenprüfungen. Die Testausgaben waren für jedes der vier Versionspaare bytegleich. Leak-Erkennung war in diesen Läufen ausgeschaltet. Der Vergleich verwendet kontrollierte Eingaben und synthetische Kollisionen. Ein Vergleich vollständiger Matches mit identischen Eingaben bleibt offen.
 
+Der historische Treffervergleich gegen `6f70c99` verwendete pro Version die eigenen Header und Funktionskörper, einschließlich `Bullet_Fire`, `Bullet_Fire_Extended` und `G_Damage`. Der Testtreiber und seine Fixtures sind zwischen diesen Revisionen identisch. In Debug und Release bestanden auf beiden Ständen jeweils 6.858 Prüfungen mit GCC, ASan und UBSan (ohne Leak-Erkennung). Die Protokolle waren je Konfiguration bytegleich. Enthalten sind 288 Fälle mit bewegten Beinen bei 50, 100 und 150 ms sowie drei Referenzstrahlen für Railhouse. Die Kollisionsdienste sind analytisch. Die Ausführung mit der BSP-Kollision der Engine bleibt eine separate Abnahme.
+
 ## PK3-Vergleich mit Release 1.0.4
 
 Das veröffentlichte Mehrplattform-PK3 von 1.0.4 enthält 346 Dateien. Das lokale Linux-x86_64-Testpaket von 1.0.5 enthält 324. Der SHA-256-Vergleich jedes entpackten Eintrags ergab 319 bytegleiche Dateien. Von den gemeinsam vorhandenen Pfaden unterscheiden sich nur `cgame.mp.x86_64.so` und `ui.mp.x86_64.so`.
