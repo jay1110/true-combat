@@ -1,0 +1,25 @@
+name: UI binding regression
+on:
+  pull_request:
+    branches: [final]
+    paths:
+      - '.github/workflows/ui-bindings.yml'
+      - 'src/assets/ui/options_controls.menu'
+      - 'src/**.h'
+      - 'src/game/q_shared.c'
+      - 'src/ui/ui_shared.c'
+      - 'tools/modernize/ui_binding_regression*'
+      - 'tools/modernize/compat_validate.py'
+      - 'tools/modernize/movement_regression.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ui-bindings:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test UI bindings with ASan and UBSan
+        env:
+          UBSAN_OPTIONS: halt_on_error=1
+        run: python3 tools/modernize/ui_binding_regression.py --sanitize
