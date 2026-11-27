@@ -40,6 +40,8 @@ Die Treffer-Fixtures beider Quellstände wurden zusätzlich für Linux i386, ARM
 
 Der historische Waffenvergleich verwendete auf denselben drei emulierten Linux-Architekturen die generierten Fixtures des x86_64-Vergleichs. Beide Quellstände bestanden in Debug und Release jeweils 167 Prüfungen. Die zwölf Laufprotokolle waren bytegleich (SHA-256 `683df72af0f325b058d83e6384c88de2b2db58db0d08094f2f1d2741d6069126`). Die Ausgaben weisen darunter 22 Prüfungen zur Rückkehr von der Granate aus. Diese Testprogramme verwendeten keine Sanitizer.
 
+Für den Server-Lebenszyklus lief die generierte Fixture des nativen 84d2fb1-Vergleichs ebenfalls auf Linux i386, ARMv7 und ARM64 unter QEMU-User, jeweils mit -O0 und -O2 ohne Sanitizer. In jedem der sechs Läufe bestanden alle 7.492 Prüfungen. Die Ergebniszeile entsprach in beiden Konfigurationen dem nativen x86_64-Lauf.
+
 ## PK3-Vergleich mit Release 1.0.4
 
 Das veröffentlichte Mehrplattform-PK3 von 1.0.4 enthält 346 Dateien. Das lokale Linux-x86_64-Testpaket von 1.0.5 enthält 324. Der SHA-256-Vergleich jedes entpackten Eintrags ergab 319 bytegleiche Dateien. Von den gemeinsam vorhandenen Pfaden unterscheiden sich nur `cgame.mp.x86_64.so` und `ui.mp.x86_64.so`.
