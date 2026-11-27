@@ -21,7 +21,7 @@ Auf Windows x86 bestanden fünf isolierte Regressionstests auf `98841dd` in beid
 
 Der Vergleich von Release 1.0.4 mit `ac5cc62` erhält alle 636 ursprünglichen CVar-Registrierungen einschließlich Defaults, Flags und Bedingungen. Die zusätzliche Registrierung `g_weaponWallAvoidance` (Default `1`, Flags `ARCHIVE|SERVERINFO`) war bereits in der Ausgangsanalyse auf `c7452b8` enthalten. Der Vergleich berücksichtigt Mehrfachregistrierungen und lässt Zeilennummern und Herkunftsannotation außer Betracht.
 
-Zwischen `c7452b8` und `ac5cc62` sind alle 105 Dateien unter `src` bytegleich, die an mindestens einem der beiden Stände Verweise auf `trap_AddCommand`, `ConsoleCommand(` oder `ClientCommand(` enthalten. Die tatsächlich vom Host und von Lua bereitgestellte Befehlsliste bleibt offen.
+Zwischen `c7452b8` und `ac5cc62` sind alle 105 Dateien unter `src` bytegleich, die an mindestens einem der beiden Stände Verweise auf `trap_AddCommand`, `ConsoleCommand(` oder `ClientCommand(` enthalten. Die Linux-Hostinventur nach Kartenstart ist unten dokumentiert. Dynamische Befehle aus optionalen Lua-Skripten hängen von der eingesetzten Konfiguration ab.
 
 ## Gameplay-Regression auf `84d2fb1`
 
@@ -40,15 +40,15 @@ Der historische Treffervergleich gegen `6f70c99` verwendete pro Version die eige
 
 Das veröffentlichte Mehrplattform-PK3 von 1.0.4 enthält 346 Dateien. Das lokale Linux-x86_64-Testpaket von 1.0.5 enthält 324. Der SHA-256-Vergleich jedes entpackten Eintrags ergab 319 bytegleiche Dateien. Von den gemeinsam vorhandenen Pfaden unterscheiden sich nur `cgame.mp.x86_64.so` und `ui.mp.x86_64.so`.
 
-Nur das Release enthält die 22 Clientmodule für die übrigen Plattformen und drei Metadaten-Dateien unter `tce2/1.0.4/`. Nur das Testpaket enthält `models/players/tce2/wall_high_ready.mdx` und die beiden Dateien `base-game.json` und `client.manifest` unter `tce2/1.0.5/`. Das lokale Paket wurde auf `84d2fb1` mit den Release-Binärdateien aus `6309cd9` erstellt. Die Engine-Abnahme mit Paketdownload in beiden Versionsrichtungen steht aus. [Referenzrelease](https://github.com/jay1110/true-combat/releases/tag/1.0.4)
+Nur das Release enthält die 22 Clientmodule für die übrigen Plattformen und drei Metadaten-Dateien unter `tce2/1.0.4/`. Nur das Testpaket enthält `models/players/tce2/wall_high_ready.mdx` und die beiden Dateien `base-game.json` und `client.manifest` unter `tce2/1.0.5/`. Das lokale Paket wurde auf `84d2fb1` mit den Release-Binärdateien aus `6309cd9` erstellt. Den anschließenden Paketdownload in beiden Versionsrichtungen dokumentieren die Linux-Beitrittstests unten. [Referenzrelease](https://github.com/jay1110/true-combat/releases/tag/1.0.4)
 
 ## Linux-Serverstart im Engine-Host
 
-ET: Legacy 2.86.2 (Linux x86_64, Dedicated Server) lud mit den ET-Basispaketen auf der Karte `oasis` in zwei getrennten Läufen das Servermodul und fand `vmMain`. Geprüft wurden das veröffentlichte 1.0.4-Modul und das Linux-Testpaket von 1.0.5. Beide Läufe erreichten die Spielinitialisierung und brachen beim Token `MP40` in `animations/scripts/human_base.script`, Zeile 21, ab. Die anschließend angeforderte TC:E-Karte `maps/obj_northport.bsp` fehlte. Beide Logs melden außerdem eine fehlgeschlagene IPv4-Bindung. Spielbereitschaft, Client-Verbindungen und Paketdownload bleiben offen. Der Versuch mit `obj_village` endete bereits bei der Kartensuche. In einem separaten Lauf mit Netzwerkberechtigung öffnete ET: Legacy einen UDP-Socket auf 127.0.0.1:50947. Die Bindung wurde über /proc/net/udp bestätigt. Der Kartenstart brach erneut beim Token `MP40` ab. Für den Verbindungstest fehlen weiterhin die ursprünglichen TC:E-0.49b-Pakete samt Karte.
+ET: Legacy 2.86.2 (Linux x86_64, Dedicated Server) lud mit den ET-Basispaketen auf der Karte `oasis` in zwei getrennten Läufen das Servermodul und fand `vmMain`. Geprüft wurden das veröffentlichte 1.0.4-Modul und das Linux-Testpaket von 1.0.5. Beide Läufe erreichten die Spielinitialisierung und brachen beim Token `MP40` in `animations/scripts/human_base.script`, Zeile 21, ab. Die anschließend angeforderte TC:E-Karte `maps/obj_northport.bsp` fehlte. Beide Logs melden außerdem eine fehlgeschlagene IPv4-Bindung. Der Versuch mit `obj_village` endete bereits bei der Kartensuche. In einem separaten Lauf mit Netzwerkberechtigung öffnete ET: Legacy einen UDP-Socket auf 127.0.0.1:50947. Die Bindung wurde über /proc/net/udp bestätigt. Der Kartenstart brach erneut beim Token `MP40` ab. Die folgenden Läufe ergänzten die TC:E-Pakete und bestätigen den Beitritt.
 
 ## Beitritt und PK3-Download unter Linux x86_64
 
-ET: Legacy 2.86.2 lud die Karte `obj_northport` mit vier CRC-geprüften TC:E-0.49-Assetpaketen aus dem archivierten 0.49-Installer. Der Patchstand 0.49b ist unbestätigt. Im offiziellen Modus lehnte die originale 0.49-Datei `official.dat` die getestete Paketliste ab. Im dokumentierten Community-Modus (`sv_official 0`, `sv_pure 1`) gelangen beide Beitritte über Loopback mit getrennten Clientverzeichnissen und lokalem HTTP-Redirect.
+ET: Legacy 2.86.2 lud die Karte `obj_northport` mit vier CRC-geprüften TC:E-0.49-Assetpaketen aus dem archivierten 0.49-Installer. Dieser erste Lauf verwendete den 0.49-Installer. Die Wiederholung mit den fünf 0.49b-Referenzpaketen folgt unten. Im offiziellen Modus lehnte die originale 0.49-Datei `official.dat` die getestete Paketliste ab. Im dokumentierten Community-Modus (`sv_official 0`, `sv_pure 1`) gelangen beide Beitritte über Loopback mit getrennten Clientverzeichnissen und lokalem HTTP-Redirect.
 
 | Client beim Start | Server und übertragenes PK3 | Empfangener SHA-256 | Serverereignis |
 | --- | --- | --- | --- |
@@ -74,6 +74,10 @@ Auf den beiden Dedicated Servern stellte `reset` bei `g_motd`, `g_logSync`, `g_i
 ### Omni-Bot im Linux-Server
 
 Mit den fünf 0.49b-Paketen auf `obj_northport` fanden 1.0.4 und 1.0.5 bei leerem `omnibot_path` den jeweiligen Core unter `tce2/omni-bot/omnibot_et.x86_64.so`. Beide luden Wegpunkte und meldeten den Beitritt des angeforderten Bots. Beim 1.0.5-Testpaket aktivierte die mitgelieferte `omnibot-release.cfg` die Bots. Das veröffentlichte 1.0.4-ZIP enthält diese Datei nicht. Dort gelang der Lauf mit `+set omnibot_enable 1` vor dem Kartenstart. Mit explizitem Core-Pfad traten auf beiden Versionen auch zwei Bots unterschiedlichen Teams bei und erschienen in der Statusausgabe. Verhalten über eine vollständige Runde und Windows-ARM64-Initialisierung bleiben offen.
+
+### Kartenwechsel mit GT2 und GT5
+
+Vier Linux-x86_64-Serverläufe (je Version und Modus ein Prozess) wechselten über Delta, Northport, Railhouse, Snow, Stadtrand und Village. Bei allen 24 Kartenstarts bestätigte die Statusabfrage den erwarteten Kartennamen. Das Protokoll zeigte für jede Karte das modusspezifische Skript und geladene Omni-Bot-Wegpunkte. Diese kurzen Läufe prüfen den Start und Wechsel der Karten.
 
 ## Offene Abnahme in Prioritätsreihenfolge
 
