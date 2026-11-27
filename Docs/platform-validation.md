@@ -9,7 +9,7 @@ Die Ausgangsanalyse bezieht sich auf `c7452b8`. Die folgende Tabelle nennt für 
 | Linux x86_64 | GCC und Clang im öffentlichen Modul-Build. Separater Clang-Sanitizerjob. [CI](https://github.com/jay1110/true-combat/actions/runs/46019619874) | Der Bot-Core ist in diesen Linux-Jobs ausgeschaltet. |
 | Linux i386, ARMv7, ARM64 | Lokale Zig-Cross-Builds mit Bot-Core auf dem Prüfstand `984f115`. Je acht CTests unter QEMU bestanden. | Ausführung auf physischer Zielhardware offen. |
 | macOS x86_64, ARM64, Universal | Auf `d92757c` sechs Builds mit Bot-Core, Mach-O-Architekturprüfung aller vier Module und CTest erfolgreich. [CI](https://github.com/jay1110/true-combat/actions/runs/46019619874) | Alle Jobs liefen auf macOS-15-Runnern. Separate Intel-Hardware und Engine-Start offen. |
-| Android armeabi-v7a, arm64-v8a, x86, x86_64 | Auf `98841dd` acht vollständige Builds mit NDK r27d. Alle 32 ELF-Maschinenkennungen stimmen. | Auf `2fae2c9` bestanden auf API-29-Emulatoren für x86 und x86_64 je acht Testprogramme in Debug und Release. Für ARM64 bestanden die acht Tests aus den Objekten von `98841dd` unter QEMU-User mit statischer Bionic-Verlinkung für API 29. ARMv7 und reale Geräte bleiben separat zu prüfen. [Emulatorprotokolle](https://github.com/jay1110/true-combat/actions/runs/46022781138) |
+| Android armeabi-v7a, arm64-v8a, x86, x86_64 | Auf `98841dd` acht vollständige Builds mit NDK r27d. Alle 32 ELF-Maschinenkennungen stimmen. | Auf `2fae2c9` bestanden auf API-29-Emulatoren für x86 und x86_64 je acht Testprogramme in Debug und Release. Für ARMv7 und ARM64 bestanden die acht Tests aus den Objekten von `98841dd` unter QEMU-User mit statischer Bionic-Verlinkung für API 29. Android-Systemintegration auf ARM und reale Geräte bleiben separat zu prüfen. [Emulatorprotokolle](https://github.com/jay1110/true-combat/actions/runs/46022781138) |
 | iOS ARM64, Simulator ARM64 und x86_64 | Auf `4711fb3` bestanden alle sechs Debug-/Release-Builds mit Bot-Core. lipo und vtool bestätigten für die vier Module jeweils CPU und SDK-Plattform. [Apple-SDK-Lauf](https://github.com/jay1110/true-combat/actions/runs/46021939121) | Unsignierte Module. Ausführung im Simulator und Geräteintegration sind gesondert zu prüfen. |
 | wasm32 | Auf `98841dd` zwei vollständige Builds mit jeweils acht bestandenen CTests unter Node.js. Für alle vier Side-Module je Konfiguration wurden die vorgesehenen Funktionsexporte geprüft. | Integration in eine Browser-Engine offen. |
 
@@ -18,6 +18,15 @@ Die Ausgangsanalyse bezieht sich auf `c7452b8`. Die folgende Tabelle nennt für 
 Die CVar-Inventur auf `557af0e` stimmt bytegenau mit der Ausgangsinventur überein. Sie enthält 637 Registrierungen und 502 benannte CVars. Alle 612 aktiven Registrierungen der verglichenen Linux-x86_64- und Windows-ARM64-Modulbuilds stimmen nach Modul, Quelldatei, Name, Default und Flags überein. Die Menge der erfassten aktiven Command-Quellorte stimmt ebenfalls überein. Dynamische Registrierungen in Lua oder im Host erfordern einen Laufzeitvergleich.
 
 Auf Windows x86 bestanden fünf isolierte Regressionstests auf `98841dd` in beiden Konfigurationen. Sie decken Kartenraster, Trefferdiagnose, Animationstiming, Statistikanzeige und Waffenstatistik samt Protokoll ab. Die Fixtures verwenden kontrollierte Engine-Aufrufe. [Testprotokolle](https://github.com/jay1110/true-combat/actions/runs/46019710267)
+
+## Gameplay-Regression auf `84d2fb1`
+
+| Linux-Ziel | Verfahren | Erfolgreiche Prüfungen je Konfiguration (Debug und Release) |
+| --- | --- | --- |
+| x86_64 | ASan und UBSan | 2.749 Movement, 167 Waffen, 6.858 Treffer- und Schadensverarbeitung, 7.492 Server-Lebenszyklus |
+| i386, ARMv7 und ARM64 | QEMU-User, je ein Lauf pro Architektur und Konfiguration | 2.749 Movement einschließlich Schrittgeräuschen |
+
+Alle aufgeführten Läufe meldeten null fehlgeschlagene Prüfungen. Die Trefferprüfung verwendet analytische Kollisionsdienste. Der Vergleich in einer laufenden Engine mit Referenzkarte und echten Client-Server-Paketen bleibt offen.
 
 ## Offene Abnahme in Prioritätsreihenfolge
 
