@@ -36,6 +36,8 @@ Für einen historischen Vergleich führte derselbe Testtreiber von `b8b1379` die
 
 Der historische Treffervergleich gegen `6f70c99` verwendete pro Version die eigenen Header und Funktionskörper, einschließlich `Bullet_Fire`, `Bullet_Fire_Extended` und `G_Damage`. Der Testtreiber und seine Fixtures sind zwischen diesen Revisionen identisch. In Debug und Release bestanden auf beiden Ständen jeweils 6.858 Prüfungen mit GCC, ASan und UBSan (ohne Leak-Erkennung). Die Protokolle waren je Konfiguration bytegleich. Enthalten sind 288 Fälle mit bewegten Beinen bei 50, 100 und 150 ms sowie drei Referenzstrahlen für Railhouse. Die Kollisionsdienste sind analytisch. Die Ausführung mit der BSP-Kollision der Engine bleibt eine separate Abnahme.
 
+Die Treffer-Fixtures beider Quellstände wurden zusätzlich für Linux i386, ARMv7 (Cortex-A7) und ARM64 mit Zig cc als PIE gebaut. Auf jeder Architektur bestanden unter QEMU-User beide Versionen jeweils mit -O0 und -O2 alle 6.858 Prüfungen. Alle zwölf Programme endeten mit Exit 0. Diese Läufe verwendeten die analytischen Kollisionsdienste ohne Sanitizer. Ein vollständiges Match und physische Zielgeräte waren nicht Teil dieser Messung.
+
 ## PK3-Vergleich mit Release 1.0.4
 
 Das veröffentlichte Mehrplattform-PK3 von 1.0.4 enthält 346 Dateien. Das lokale Linux-x86_64-Testpaket von 1.0.5 enthält 324. Der SHA-256-Vergleich jedes entpackten Eintrags ergab 319 bytegleiche Dateien. Von den gemeinsam vorhandenen Pfaden unterscheiden sich nur `cgame.mp.x86_64.so` und `ui.mp.x86_64.so`.
