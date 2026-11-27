@@ -220,7 +220,9 @@ eomnibot_error Omnibot_LoadLibrary(int version, const char *lib, const char *pat
 	eomnibot_error r = BOT_ERROR_NONE;
 
 #ifdef WIN32
-#ifdef _WIN64
+#if defined(_M_ARM64) || defined(__aarch64__)
+#define SUFFIX ".aarch64"
+#elif defined(_WIN64)
 #define SUFFIX "_x64"
 #else
 #define SUFFIX

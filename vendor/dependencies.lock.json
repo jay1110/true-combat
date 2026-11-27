@@ -197,10 +197,19 @@
       "role": "Compatible bridge subset, preserved independently from core until equivalence checks justify consolidation.",
       "snapshot": {
         "files": 15,
-        "sha256": "af6be82120c60d98f426c8b88db9d3155936c09fa4b9598129f6493e9d201cb5",
+        "sha256": "e2ebc728aa147fd8938084d0c94cdc1cb7651a3ff8bce6047c46f2a8256a3075",
         "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
       },
       "snapshot_history": [
+        {
+          "snapshot": {
+            "files": 15,
+            "sha256": "af6be82120c60d98f426c8b88db9d3155936c09fa4b9598129f6493e9d201cb5",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-11-27",
+          "reviewed_change": "Match the Windows ARM64 QGame loader to the built .aarch64.dll bot core."
+        },
         {
           "snapshot": {
             "files": 15,
