@@ -96,6 +96,11 @@ if(TCE_ENABLE_SANITIZERS)
   elseif(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
     target_compile_options(tce_build_options INTERFACE "-fsanitize=${TCE_SANITIZERS}" -fno-omit-frame-pointer)
     target_link_options(tce_build_options INTERFACE "-fsanitize=${TCE_SANITIZERS}")
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_C_COMPILER_ID STREQUAL "Clang")
+      # Shared modules use --no-undefined. Link Clang's sanitizer runtime
+      # explicitly and let the driver supply its runtime search path.
+      target_link_options(tce_build_options INTERFACE -shared-libsan -frtlib-add-rpath)
+    endif()
   else()
     message(FATAL_ERROR "Sanitizers require Clang, GCC or a compatible MSVC AddressSanitizer toolchain")
   endif()
