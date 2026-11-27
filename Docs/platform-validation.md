@@ -101,6 +101,10 @@ Der Testtreiber für die Animationsuhr rief auch auf Linux die MSVC-Umgebung auf
 
 Unter QEMU-User bestanden dieselben Prüfungen für Linux i386, ARMv7 und ARM64 jeweils mit -O0 und -O2, ohne Sanitizer. Erste optimierte i386- und ARMv7-Testprogramme endeten mit SIGSEGV. Die Wiederholung mit explizitem PIC/PIE und bei ARMv7 mit Cortex-A7-Ziel bestand. Die QEMU-Instruktionstraces der fehlgeschlagenen Läufe enthalten auf beiden Architekturen den Rückkehrpfad aus main. Ein eigenständiges C-Programm ohne TCE-Code reproduzierte den SIGSEGV (Exit 139) mit Zig cc -O2 und dynamischer Bindung: Es enthält einen bedingten fprintf-Aufruf mit stderr und gibt argc mit printf aus. Mit -fPIC -pie lieferte dasselbe Programm auf beiden Architekturen die erwartete Ausgabe und Exit 0. Ein leeres main lieferte auch ohne PIE Exit 0. Damit ist das Fehlerbild unabhängig von der Animationsuhr reproduzierbar. Der genaue Mechanismus innerhalb der Compiler-, Linker- und Laufzeitumgebung bleibt offen. Unter den Pfaden der lokal erreichbaren Git-Historie wurden die sechs historischen Renderer-Aufzeichnungen nicht gefunden.
 
+### Optionale Lua-Befehle auf dem Dedicated Server
+
+Auf Linux x86_64 luden 1.0.4 und das lokale Testpaket 1.0.5 auf `obj_northport` jeweils die mitgelieferte `lua/example.lua` (identische SHA-256: `ba50c7bd34724717eaa2d2f5483d1909729c4297be29d46c62b5b135993dd5ba`). Mit frischem Benutzerverzeichnis und `lua_modules=lua/example.lua` meldete `lua_status` auf beiden Servern genau eine aktive VM. Der Konsolenbefehl `luahello` gab jeweils `Hello from TC:E Lua!` aus. Nach `lua_restart` initialisierte der nächste Serverframe das Skript erneut. Status und Befehlsantwort blieben gleich. Beide Prozesse endeten regulär. Die Messung deckt den Konsolenpfad des Beispielskripts ab. Clientaufrufe und administrative Rechte benötigen separate Tests.
+
 ## Offene Abnahme in Prioritätsreihenfolge
 
 1. Mobile Laufzeitabdeckung ergänzen. Offen sind ein Intel-iOS-Simulator, die Ausführung auf realen Geräten und ein Android-Systemtest für die beiden ARM-ABIs.
