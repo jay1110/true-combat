@@ -15,6 +15,7 @@ cg_t cg;
 cgs_t cgs;
 tce_gearDef_t gearDef;
 weaponInfo_t cg_weapons[MAX_WEAPONS];
+int tce_customWeaponIcons[TCE_MAX_WEAPONS];
 static int iconsEnabled, modelCount, modelRegistrations, modelBoundsInvalid;
 static vmCvar_t *iconCvar;
 static refdef_t modelViews[16];
@@ -43,7 +44,7 @@ static float lastBarWidth, barStart, measuredNameEnd;
 static float panelHeight,lastTextY;
 static rectDef_t physicalPanel;
 static int paintCount,picCount;
-static struct { float x,y,w,h; } pictures[24];
+static struct { float x,y,w,h; qhandle_t shader; } pictures[24];
 static struct { float x,y,scale,color[4];char text[256]; } paints[64];
 static int sortedFireTeamClients[MAX_CLIENTS];
 #define CHECK(c) do { ++checks; if (!(c)) { ++failures; printf("FAIL %d: %s\n",__LINE__,#c); } } while (0)
@@ -104,7 +105,15 @@ void trap_R_SetColor(const float *color) {(void)color;}
 void trap_R_DrawStretchPic(float x,float y,float w,float h,float s1,float t1,float s2,float t2,qhandle_t shader)
 { (void)x;(void)y;(void)s1;(void)t1;(void)s2;(void)t2;(void)shader;CHECK(w>=0&&h>=0); }
 void CG_DrawPic(float x,float y,float w,float h,qhandle_t shader)
-{ (void)shader;if(picCount<24){pictures[picCount].x=x;pictures[picCount].y=y;pictures[picCount].w=w;pictures[picCount++].h=h;} }
+{
+    if (picCount < 24) {
+        pictures[picCount].x = x;
+        pictures[picCount].y = y;
+        pictures[picCount].w = w;
+        pictures[picCount].h = h;
+        pictures[picCount++].shader = shader;
+    }
+}
 void CG_DrawSmallStringColor(int x,int y,const char *text,vec4_t color)
 { (void)x;(void)text;(void)color;lastTextY=(float)y; }
 int CG_TimeForPopup(popupMessageType_t type) {(void)type;return 10000;}
@@ -152,6 +161,7 @@ static void setup(void)
 {
     int i;
     iconsEnabled=modelCount=modelRegistrations=modelBoundsInvalid=0;memset(&gearDef,0,sizeof(gearDef));memset(cg_weapons,0,sizeof(cg_weapons));
+    memset(tce_customWeaponIcons, 0, sizeof(tce_customWeaponIcons));
     memset(&cg,0,sizeof(cg));memset(&cgs,0,sizeof(cgs));memset(&snapshot,0,sizeof(snapshot));
     memset(fireteamConfig,0,sizeof(fireteamConfig));
     cg.snap=&snapshot;cg.clientNum=0;cg.time=10000;snapshot.ps.clientNum=0;snapshot.ps.stats[STAT_HEALTH]=100;
@@ -395,6 +405,11 @@ static void gearAndMeasuredLayout(void)
     strcpy(arguments[20],"-1");strcpy(arguments[19],"-1");CG_ParseTCEFireteamInfo();
     snapshot.ps.weapon=0;snapshot.ps.stats[STAT_PLAYER_CLASS]=-1;render();CHECK(modelCount==0&&picCount==0); /* nil clears icons */
     strcpy(arguments[19],"43");strcpy(arguments[20],"4");CG_ParseTCEFireteamInfo();render();CHECK(modelCount==1&&picCount==1);
+    tce_customWeaponIcons[43] = 3043;
+    render();
+    CHECK(modelCount == 0 && picCount == 2);
+    CHECK((pictures[0].shader == 3043) != (pictures[1].shader == 3043));
+    tce_customWeaponIcons[43] = 0;
     iconsEnabled=0;render();CHECK(modelCount==0&&picCount==0);
     iconsEnabled=1;modelBoundsInvalid=1;render();CHECK(modelCount==0);modelBoundsInvalid=0;
     cg_weapons[43].weaponModel[W_PU_MODEL].model=0;cg_weapons[43].weaponModel[W_TP_MODEL].model=777;cg_weapons[43].weaponModel[W_TP_MODEL].skin[0]=2777;
