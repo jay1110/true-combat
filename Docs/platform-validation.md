@@ -42,6 +42,17 @@ Nur das Release enthält die 22 Clientmodule für die übrigen Plattformen und d
 
 ET: Legacy 2.86.2 (Linux x86_64, Dedicated Server) lud mit den ET-Basispaketen auf der Karte `oasis` in zwei getrennten Läufen das Servermodul und fand `vmMain`. Geprüft wurden das veröffentlichte 1.0.4-Modul und das Linux-Testpaket von 1.0.5. Beide Läufe erreichten die Spielinitialisierung und brachen beim Token `MP40` in `animations/scripts/human_base.script`, Zeile 21, ab. Die anschließend angeforderte TC:E-Karte `maps/obj_northport.bsp` fehlte. Beide Logs melden außerdem eine fehlgeschlagene IPv4-Bindung. Spielbereitschaft, Client-Verbindungen und Paketdownload bleiben offen. Der Versuch mit `obj_village` endete bereits bei der Kartensuche. In einem separaten Lauf mit Netzwerkberechtigung öffnete ET: Legacy einen UDP-Socket auf 127.0.0.1:50947. Die Bindung wurde über /proc/net/udp bestätigt. Der Kartenstart brach erneut beim Token `MP40` ab. Für den Verbindungstest fehlen weiterhin die ursprünglichen TC:E-0.49b-Pakete samt Karte.
 
+## Beitritt und PK3-Download unter Linux x86_64
+
+ET: Legacy 2.86.2 lud die Karte `obj_northport` mit vier CRC-geprüften TC:E-0.49-Assetpaketen aus dem archivierten 0.49-Installer. Der Patchstand 0.49b ist unbestätigt. Im offiziellen Modus lehnte die originale 0.49-Datei `official.dat` die getestete Paketliste ab. Im dokumentierten Community-Modus (`sv_official 0`, `sv_pure 1`) gelangen beide Beitritte über Loopback mit getrennten Clientverzeichnissen und lokalem HTTP-Redirect.
+
+| Client beim Start | Server und übertragenes PK3 | Empfangener SHA-256 | Serverereignis |
+| --- | --- | --- | --- |
+| 1.0.5 | 1.0.4 | `33f1cfd9aebdc44ef8b7f4dfd7e5307dce04db0f2bf8789aa081519a31d5fcaf` | ClientBegin bei 16.400 ms Serverzeit |
+| 1.0.4 | 1.0.5 | `5fe949e40a9d15bc38b6433073a17fc12fd8f45e45fb3d6e5a42c96e7caf1d72` | ClientBegin bei 15.500 ms Serverzeit |
+
+Beide empfangenen Archive stimmen bytegenau mit der jeweiligen Serverdatei überein. Das extrahierte CGame entspricht in beiden Fällen dem Modul im heruntergeladenen Archiv. Der Client übernimmt beim Beitritt somit den Modulstand des Servers. Für die Erfolge wurden externe HTTP-Anfragen des Testclients über einen unbesetzten lokalen Proxy geleitet und der lokale Paketserver davon ausgenommen. Im ersten Versuch kollidierte die HTTP-Weiterleitung mit einem anderen aktiven Download. Abnahme mit 0.49b, dauerhaft unterschiedlichen aktiven Client-/Servermodulen und Gameplay-Vergleich unter identischen Eingaben bleibt offen.
+
 ## Offene Abnahme in Prioritätsreihenfolge
 
 1. Mobile Laufzeitabdeckung ergänzen. Offen sind ein Intel-iOS-Simulator, die Ausführung auf realen Geräten und ein Android-Systemtest für die beiden ARM-ABIs.
