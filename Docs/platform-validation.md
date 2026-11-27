@@ -51,7 +51,13 @@ ET: Legacy 2.86.2 lud die Karte `obj_northport` mit vier CRC-geprüften TC:E-0.4
 | 1.0.5 | 1.0.4 | `33f1cfd9aebdc44ef8b7f4dfd7e5307dce04db0f2bf8789aa081519a31d5fcaf` | ClientBegin bei 16.400 ms Serverzeit |
 | 1.0.4 | 1.0.5 | `5fe949e40a9d15bc38b6433073a17fc12fd8f45e45fb3d6e5a42c96e7caf1d72` | ClientBegin bei 15.500 ms Serverzeit |
 
-Beide empfangenen Archive stimmen bytegenau mit der jeweiligen Serverdatei überein. Das extrahierte CGame entspricht in beiden Fällen dem Modul im heruntergeladenen Archiv. Der Client übernimmt beim Beitritt somit den Modulstand des Servers. Für die Erfolge wurden externe HTTP-Anfragen des Testclients über einen unbesetzten lokalen Proxy geleitet und der lokale Paketserver davon ausgenommen. Im ersten Versuch kollidierte die HTTP-Weiterleitung mit einem anderen aktiven Download. Abnahme mit 0.49b, dauerhaft unterschiedlichen aktiven Client-/Servermodulen und Gameplay-Vergleich unter identischen Eingaben bleibt offen.
+Beide empfangenen Archive stimmen bytegenau mit der jeweiligen Serverdatei überein. Das extrahierte CGame entspricht in beiden Fällen dem Modul im heruntergeladenen Archiv. Der Client übernimmt beim Beitritt somit den Modulstand des Servers. Für die Erfolge wurden externe HTTP-Anfragen des Testclients über einen unbesetzten lokalen Proxy geleitet und der lokale Paketserver davon ausgenommen. Im ersten Versuch kollidierte die HTTP-Weiterleitung mit einem anderen aktiven Download. Dauerhaft unterschiedliche aktive Client-/Servermodule und der Gameplay-Vergleich unter identischen Eingaben bleiben offen.
+
+### Wiederholung mit den 0.49b-Referenzpaketen
+
+Die fünf PK3-Dateien vom [Clan-Paketserver](https://et.clan-etc.de/tce2/) bestanden die ZIP-CRC-Prüfung. Die ersten vier sind bytegleich mit den geprüften 0.49-Installerdateien. Das zusätzliche `pak4.pk3` enthält 113 Einträge (SHA-256 `607c4cf82703320c4c96cb5cf5eab88e1872468b14f70ea3e833585283d3d0c5`). Die dort angebotene 1.0.4 stimmt bytegenau mit dem GitHub-Release überein. Für 1.0.5 wurde das lokale Linux-Testpaket verwendet.
+
+Mit frischen Clientverzeichnissen, allen fünf Paketen und derselben Community-Konfiguration erreichten beide Clients auf `obj_northport` nach HTTP-Download den Zustand `ClientBegin`. Der 1.0.4-Server protokollierte 15.750 ms und der 1.0.5-Server 15.150 ms Serverzeit. Die empfangenen SHA-256-Werte entsprechen in beiden Richtungen der Tabelle oben. Beim Beenden des zweiten Clients lief die viersekündige Wartefrist ab.
 
 ## Offene Abnahme in Prioritätsreihenfolge
 
