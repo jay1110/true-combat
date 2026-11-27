@@ -141,7 +141,7 @@ template <class Real>
 void Math<Real>::SinCos(Real a, Real &s, Real &c)
 {
 
-#if	defined(_WIN32) && !(defined(_M_X64))
+#if	defined(_WIN32) && defined(_M_IX86)
 	_asm 
 	{
 		fld		a

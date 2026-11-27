@@ -67,10 +67,19 @@
       ],
       "snapshot": {
         "files": 863,
-        "sha256": "4193290f9b1c7784c28aadcb9001b46be7c06516e53a9abb46616661927db27b",
+        "sha256": "82178bab4e63b39cda05105c0b5fac8e9d616f158e17f206d45ac26de72aef7f",
         "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
       },
       "snapshot_history": [
+        {
+          "snapshot": {
+            "files": 863,
+            "sha256": "4193290f9b1c7784c28aadcb9001b46be7c06516e53a9abb46616661927db27b",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-11-27",
+          "reviewed_change": "Use portable WildMagic SinCos and the Windows performance counter on ARM64."
+        },
         {
           "snapshot": {
             "files": 863,
