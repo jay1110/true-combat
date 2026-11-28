@@ -621,3 +621,11 @@ Die geprüfte PK3 hat den SHA-256-Wert `33f1cfd9aebdc44ef8b7f4dfd7e5307dce04db0f
 ### Windows-Referenzmodule der 1.0.4-PK3
 
 Die Prüfung aller 346 Archiveinträge auf MZ-Kennung, PE-Signatur und COFF-Maschinenkennung ergab vier Windows-Module. CGame und UI liegen jeweils für x86 (`0x014c`) und x86_64 (`0x8664`) vor. Für einen nativen Vergleich der ARM64-Clientvorhersage fehlt in dieser PK3 die ARM64-Referenz-DLL. Die bisherigen Windows-ARM64-Builds und CTests sind in der Plattformtabelle separat belegt.
+
+### Webclient-Start mit ET Legacy 2.86.0-14319-g65e5910
+
+Chromium lud den öffentlichen ET-Legacy-Webclient mit den Originaldateien `etmain/pak0.pk3` bis `pak2.pk3`. Beim Aufruf mit `connect=135.125.189.21:27902&connectmod=tce2` scheiterte die vom Webserver gelieferte CGame-Datei reproduzierbar beim Instanziieren von Import 53 (`env.sqrtl`). Der ältere Northport-Prüfhost reproduzierte diesen Startfehler nicht.
+
+Für die Gegenprobe ersetzte der Browser ausschließlich die beiden HTTP-Antworten für die losen TCE2-Clientmodule durch die lokalen Release-Dateien. Mit den SDK-eigenen Long-Double-Funktionen und selektiv gelinkten Compiler-Builtins lud der Webclient beide Module und löste die angegebene Serveradresse auf. Emscripten 3.1.74 baute UI, CGame und QGame in Debug und Release. Die Importprüfung bestand für alle sechs Dateien. Der separate Northport-Replay in Chromium lieferte für Debug und Release wieder dieselben Spielerzustände und Kameradaten wie vor der Korrektur.
+
+Für das Spielziel und den MOTD-Dienst meldete Chromium jeweils einen erfolgreichen WebSocket-Handshake (HTTP 101) am Relay. Der Test belegt das Laden der Clientmodule und den Verbindungsaufbau bis zum Relay. Der Beitritt auf eine spielbare Karte ist separat zu bestätigen.

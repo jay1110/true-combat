@@ -137,7 +137,25 @@ function(tce_configure_mod target folder define)
     # Side modules otherwise import compiler arithmetic helpers from the host.
     # Emscripten versions can disagree on their legalized binary128 ABI (e.g.
     # __multf3), so bind the matching compiler builtins into each mod instead.
-    target_link_libraries(${target} PRIVATE "${TCE_WASM_BUILTINS_LIBRARY}")
+    if(NOT TARGET tce_wasm_math)
+      set(math_object "${CMAKE_CURRENT_BINARY_DIR}/tce_wasm_math.o")
+      set(math_roots "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/wasm_math_roots.c")
+      execute_process(COMMAND "${CMAKE_C_COMPILER}" -sSIDE_MODULE=1 -print-file-name=libc.a
+        OUTPUT_VARIABLE pic_libc OUTPUT_STRIP_TRAILING_WHITESPACE COMMAND_ERROR_IS_FATAL ANY)
+      if(NOT EXISTS "${pic_libc}")
+        message(FATAL_ERROR "Cannot locate the Emscripten side-module libc archive")
+      endif()
+      add_custom_command(OUTPUT "${math_object}"
+        COMMAND "${CMAKE_C_COMPILER}" -fPIC -r -nostdlib "${math_roots}" "${pic_libc}" -o "${math_object}"
+        DEPENDS "${math_roots}" "${pic_libc}" VERBATIM)
+      add_custom_target(tce_wasm_math DEPENDS "${math_object}")
+    endif()
+    add_dependencies(${target} tce_wasm_math)
+    target_sources(${target} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/tce_wasm_math.o")
+    # SIDE_MODULE=1 normally forces every builtins object into the module,
+    # including unused functions that then require private engine globals.
+    target_link_libraries(${target} PRIVATE "-Wl,--no-whole-archive"
+      "${TCE_WASM_BUILTINS_LIBRARY}" "-Wl,--whole-archive")
     target_link_options(${target} PRIVATE -sSIDE_MODULE=1)
     set_target_properties(${target} PROPERTIES OUTPUT_NAME "${target}.mp.wasm32" SUFFIX ".so")
   elseif(APPLE)

@@ -26,7 +26,7 @@ Configuration names are case-insensitive in the game. The [Cvar reference](Docs/
 - Omni-bots receive the existing player-contact push instead of being excluded from it.
 - Missing distant gunshot reports when a weapon supplies fewer echo variants than close-shot variants.
 - A prone-transition time check that could prevent aiming after approximately twelve days of server uptime by adding two absolute timestamps.
-- WASM mod modules importing binary128 compiler helpers such as `__multf3` from an engine built with an incompatible helper ABI. Modules now link their matching compiler builtins.
+- WASM mod modules importing binary128 compiler helpers such as `__multf3` from an engine built with an incompatible helper ABI. Modules now link the compiler builtins they use. The client, UI and server modules also carry their SDK’s long-double math so the web client can load them when the engine exposes a different `sqrtl` signature.
 
 ### Modified
 

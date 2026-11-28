@@ -119,6 +119,9 @@ jobs:
         run: python tools/release/bootstrap.py --destination build/dependencies
       - name: Build modules and matched gameplay/editor bot core
         run: python tools/release/build.py --target ${{ matrix.target }} --variant ${{ matrix.variant }} --build build/release --out out/release --boost build/dependencies/boost_1_85_0 --parallel 4
+      - name: Check wasm module imports against web client requirements
+        if: matrix.target == 'wasm32'
+        run: node tools/release/check_wasm_math.cjs build/release/modules/tce-modules-Release.json
       - name: Validate target client inputs and runtime closure
         run: python tools/release/validate.py archives out/release
       - name: Prepare thin macOS and unsigned iOS integration binaries
