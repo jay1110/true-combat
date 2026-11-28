@@ -617,3 +617,7 @@ Die Archiveinträge `cgame_mac` und `ui_mac` enthalten laut `file` jeweils zwei 
 ### Verfügbarkeit der 1.0.4-Referenz für iOS
 
 Die geprüfte PK3 hat den SHA-256-Wert `33f1cfd9aebdc44ef8b7f4dfd7e5307dce04db0f2bf8789aa081519a31d5fcaf`. Bei der Prüfung der ersten vier dekomprimierten Bytes aller 346 Einträge auf dünne und universelle Mach-O-Dateien in beiden Byte-Reihenfolgen wurden nur `cgame_mac` und `ui_mac` gefunden. Deren ARM64-Slices weisen macOS als Zielplattform aus. Das Archiv liefert damit kein direkt ladbares CGame-Referenzmodul für iOS-Geräte oder den Simulator. Ein binärer 1.0.4/1.0.5-Replay auf iOS benötigt zusätzlich eine passende 1.0.4-Referenz und eine iOS-Laufzeit. Die oben aufgeführten iOS-Builds und Simulator-Tests prüfen andere Eigenschaften.
+
+### Windows-Referenzmodule der 1.0.4-PK3
+
+Die Prüfung aller 346 Archiveinträge auf MZ-Kennung, PE-Signatur und COFF-Maschinenkennung ergab vier Windows-Module. CGame und UI liegen jeweils für x86 (`0x014c`) und x86_64 (`0x8664`) vor. Für einen nativen Vergleich der ARM64-Clientvorhersage fehlt in dieser PK3 die ARM64-Referenz-DLL. Die bisherigen Windows-ARM64-Builds und CTests sind in der Plattformtabelle separat belegt.
