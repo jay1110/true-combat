@@ -67,7 +67,7 @@ static __inline int TCE_PlatformListDirectory(const char *directory, char *scrat
 #else
 	{
 		DIR *dir = opendir(directory);
-		struct dirent *entry;
+		const char *entry;
 		struct stat st;
 		if (!dir)
 		{
@@ -75,10 +75,11 @@ static __inline int TCE_PlatformListDirectory(const char *directory, char *scrat
 		}
 		for (;;)
 		{
+			const char *name;
 			size_t nameLength;
 			/* A visitor or stat may leave errno set between entries. */
 			errno = 0;
-			entry = readdir(dir);
+			entry = (const char *)readdir(dir);
 			if (!entry)
 			{
 				int readError = errno;
@@ -90,7 +91,9 @@ static __inline int TCE_PlatformListDirectory(const char *directory, char *scrat
 				}
 				return closed == 0;
 			}
-			nameLength = strlen(entry->d_name);
+			/* Older ARM libcs can return records with only four-byte alignment. */
+			name = entry + offsetof(struct dirent, d_name);
+			nameLength = strlen(name);
 			if (length > capacity || capacity - length < 2 ||
 			    nameLength > capacity - length - 2)
 			{
@@ -98,10 +101,10 @@ static __inline int TCE_PlatformListDirectory(const char *directory, char *scrat
 			}
 			memcpy(scratch, directory, length);
 			scratch[length] = '/';
-			memcpy(scratch + length + 1, entry->d_name, nameLength + 1);
+			memcpy(scratch + length + 1, name, nameLength + 1);
 			if (!stat(scratch, &st))
 			{
-				visit(context, entry->d_name, S_ISDIR(st.st_mode));
+				visit(context, name, S_ISDIR(st.st_mode));
 			}
 		}
 	}
