@@ -1,6 +1,11 @@
 name: Mod build and compatibility smoke
 on:
   workflow_dispatch:
+    inputs:
+      full_matrix:
+        description: Run all 17 jobs (Linux, sanitizers, Windows and macOS)
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -9,8 +14,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        compiler: [clang, gcc]
-        type: [Debug, Release]
+        compiler: ${{ fromJSON(inputs.full_matrix && '["clang","gcc"]' || '["gcc"]') }}
+        type: ${{ fromJSON(inputs.full_matrix && '["Debug","Release"]' || '["Release"]') }}
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y ninja-build clang gcc g++ libboost-dev
@@ -19,6 +24,7 @@ jobs:
       - run: cmake --build build/ci --parallel 2
       - run: ctest --test-dir build/ci --output-on-failure
   sanitizer:
+    if: inputs.full_matrix
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -27,6 +33,7 @@ jobs:
       - run: cmake --build build/modern/linux-clang-asan --parallel 2
       - run: ctest --preset linux-clang-asan
   windows:
+    if: inputs.full_matrix
     runs-on: ${{ matrix.architecture == 'ARM64' && 'windows-11-arm' || 'windows-2022' }}
     strategy:
       fail-fast: false
@@ -44,6 +51,7 @@ jobs:
       - run: cmake --build build/ci --config ${{ matrix.type }} --parallel 4
       - run: ctest --test-dir build/ci -C ${{ matrix.type }} --no-tests=error --output-on-failure
   macos:
+    if: inputs.full_matrix
     runs-on: macos-15
     strategy:
       fail-fast: false
