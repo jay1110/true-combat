@@ -613,3 +613,7 @@ Alle zwölf Dateien mit vorhergesagten Spielerzuständen (je 34 848 Bytes) und
 ### macOS-Referenzmodule aus der ausgelieferten 1.0.4-PK3
 
 Die Archiveinträge `cgame_mac` und `ui_mac` enthalten laut `file` jeweils zwei Mach-O-Slices. Für beide Module und beide CPUs (x86_64 und ARM64) meldete `llvm-objdump --macho --private-headers` die Plattform macOS und die Mindestversion 11.0. In allen vier Exporttabellen fand `llvm-objdump --macho --exports-trie` die Engine-Einstiegspunkte `_dllEntry` und `_vmMain`. Damit stehen für den synchronisierten Vorhersagevergleich beide macOS-Referenzarchitekturen zur Verfügung. Der Replay mit diesen Modulen auf macOS bleibt offen.
+
+### Verfügbarkeit der 1.0.4-Referenz für iOS
+
+Die geprüfte PK3 hat den SHA-256-Wert `33f1cfd9aebdc44ef8b7f4dfd7e5307dce04db0f2bf8789aa081519a31d5fcaf`. Bei der Prüfung der ersten vier dekomprimierten Bytes aller 346 Einträge auf dünne und universelle Mach-O-Dateien in beiden Byte-Reihenfolgen wurden nur `cgame_mac` und `ui_mac` gefunden. Deren ARM64-Slices weisen macOS als Zielplattform aus. Das Archiv liefert damit kein direkt ladbares CGame-Referenzmodul für iOS-Geräte oder den Simulator. Ein binärer 1.0.4/1.0.5-Replay auf iOS benötigt zusätzlich eine passende 1.0.4-Referenz und eine iOS-Laufzeit. Die oben aufgeführten iOS-Builds und Simulator-Tests prüfen andere Eigenschaften.
