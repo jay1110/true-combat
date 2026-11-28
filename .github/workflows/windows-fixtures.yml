@@ -1,6 +1,11 @@
 name: Windows gameplay and HUD regressions
 on:
   workflow_dispatch:
+    inputs:
+      full_matrix:
+        description: Run both Debug and Release fixtures
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -9,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        configuration: [Debug, Release]
+        configuration: ${{ fromJSON(inputs.full_matrix && '["Debug","Release"]' || '["Release"]') }}
     env:
       CONFIGURATION: ${{ matrix.configuration }}
     steps:
