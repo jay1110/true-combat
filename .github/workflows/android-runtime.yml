@@ -1,6 +1,11 @@
 name: Android runtime compatibility
 on:
   workflow_dispatch:
+    inputs:
+      full_matrix:
+        description: Run the full 8-job validation matrix
+        type: boolean
+        default: false
 jobs:
   emulator:
     runs-on: ubuntu-24.04
@@ -8,8 +13,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        abi: [x86, x86_64]
-        type: [Debug, Release]
+        abi: ${{ fromJSON(inputs.full_matrix && '["x86","x86_64"]' || '["x86_64"]') }}
+        type: ${{ fromJSON(inputs.full_matrix && '["Debug","Release"]' || '["Release"]') }}
     env:
       ABI: ${{ matrix.abi }}
       BUILD_TYPE: ${{ matrix.type }}
@@ -60,6 +65,7 @@ jobs:
             esac
           done
   arm-userspace:
+    if: inputs.full_matrix
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false

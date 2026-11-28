@@ -1,15 +1,20 @@
 name: iOS module build
 on:
   workflow_dispatch:
+    inputs:
+      full_matrix:
+        description: Run the full 6-job validation matrix
+        type: boolean
+        default: false
 jobs:
   build:
     runs-on: macos-15
     strategy:
       fail-fast: false
       matrix:
-        sdk: [iphoneos, iphonesimulator]
-        cpu: [arm64, x86_64]
-        configuration: [Debug, Release]
+        sdk: ${{ fromJSON(inputs.full_matrix && '["iphoneos","iphonesimulator"]' || '["iphonesimulator"]') }}
+        cpu: ${{ fromJSON(inputs.full_matrix && '["arm64","x86_64"]' || '["arm64"]') }}
+        configuration: ${{ fromJSON(inputs.full_matrix && '["Debug","Release"]' || '["Release"]') }}
         exclude:
           - sdk: iphoneos
             cpu: x86_64
