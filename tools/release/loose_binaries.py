@@ -15,6 +15,7 @@ import struct
 import subprocess
 import zipfile
 
+from client_packages import WINDOWS_PE_FORMATS
 from package import ROOT, digest, module_inputs, version, zip_folder
 from verify_omnibot_boundary import (verify_core, validate_symbol_evidence,
                                     verify_module_bytes, macho_architectures)
@@ -26,6 +27,7 @@ MACHO = (b'\xfe\xed\xfa\xce', b'\xce\xfa\xed\xfe', b'\xfe\xed\xfa\xcf',
          b'\xca\xfe\xba\xbf', b'\xbf\xba\xfe\xca')
 CORE_IDENTITIES = {
     'windows-x86': ('Windows', 'i386'), 'windows-x64': ('Windows', 'x86_64'),
+    'windows-arm64': ('Windows', 'aarch64'),
     'linux-i386': ('Linux', 'i386'), 'linux-x86_64': ('Linux', 'x86_64'),
     'linux-armv7': ('Linux', 'armv7'), 'linux-aarch64': ('Linux', 'aarch64'),
     'android-armv7': ('Android', 'armeabi-v7a'), 'android-arm64': ('Android', 'arm64-v8a'),
@@ -65,7 +67,7 @@ def check_binary(path, target, role, config):
             with path.open('rb') as stream:
                 stream.seek(pe)
                 coff = stream.read(26)
-            expected = (0x14c, 0x10b) if target == 'windows-x86' else (0x8664, 0x20b)
+            expected = WINDOWS_PE_FORMATS[target]
             valid = (len(coff) == 26 and coff[:4] == b'PE\0\0' and
                      (struct.unpack_from('<H', coff, 4)[0], struct.unpack_from('<H', coff, 24)[0]) == expected and
                      bool(struct.unpack_from('<H', coff, 22)[0] & 0x2000))

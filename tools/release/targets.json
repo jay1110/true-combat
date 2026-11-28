@@ -3,6 +3,7 @@
   "targets": [
     {"id":"windows-x86","runner":"windows-2022","architecture":"Win32","suffix":"_mp_x86.dll","core":true},
     {"id":"windows-x64","runner":"windows-2022","architecture":"x64","suffix":"_mp_x64.dll","core":true},
+    {"id":"windows-arm64","runner":"windows-11-arm","architecture":"ARM64","suffix":"_mp_arm64.dll","core":true},
     {"id":"linux-i386","runner":"ubuntu-24.04","suffix":".mp.i386.so","flags":["-DCMAKE_C_FLAGS=-m32","-DCMAKE_CXX_FLAGS=-m32","-DCMAKE_SHARED_LINKER_FLAGS=-m32"],"core":true},
     {"id":"linux-x86_64","runner":"ubuntu-24.04","suffix":".mp.x86_64.so","core":true},
     {"id":"linux-armv7","runner":"ubuntu-24.04","suffix":".mp.armv7.so","toolchain":"linux-armv7.cmake","core":true},
