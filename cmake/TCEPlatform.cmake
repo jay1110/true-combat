@@ -157,6 +157,15 @@ function(tce_configure_mod target folder define)
     target_link_libraries(${target} PRIVATE "-Wl,--no-whole-archive"
       "${TCE_WASM_BUILTINS_LIBRARY}" "-Wl,--whole-archive")
     target_link_options(${target} PRIVATE -sSIDE_MODULE=1)
+    if(target STREQUAL "qagame")
+      target_link_options(${target} PRIVATE -sWASM_BIGINT=1)
+    endif()
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    set(compactor "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/compact_wasm.py")
+    set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS "${compactor}")
+    add_custom_command(TARGET ${target} POST_BUILD
+      COMMAND "${Python3_EXECUTABLE}" "${compactor}" "$<TARGET_FILE:${target}>"
+      VERBATIM)
     set_target_properties(${target} PROPERTIES OUTPUT_NAME "${target}.mp.wasm32" SUFFIX ".so")
   elseif(APPLE)
     # Do not activate the old MACOS_X/PPC math block in the SDK header.

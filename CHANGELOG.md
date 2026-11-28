@@ -39,6 +39,8 @@ Configuration names are case-insensitive in the game. The [Cvar reference](Docs/
 
 ### Platform and compatibility fixes
 
+- Reduced the Release WebAssembly client game module from 72,519,916 to 1,014,179 bytes. The loader clears the omitted zero-filled data at startup, keeping the module within the web engine’s default 64 MiB main zone during file loading. The server game and Omni-bot modules use native WebAssembly 64-bit integer calls for compatibility with the ET Legacy web host.
+
 - Fixed native directory enumeration on 32-bit Linux and reads of directory records on systems that require aligned memory access.
 - Fixed the fireteam overlay on targets where plain `char` is unsigned. Empty slots now retain their sentinel value. Server class-request scans now stop at the end of the non-soldier roster.
 - Windows ARM64 builds now produce native UI, client game, server game and Omni-bot DLLs. The server locates the ARM64 bot core by its architecture-specific filename. GameMonkey uses the Windows ABI pointer width.
