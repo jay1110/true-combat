@@ -1,0 +1,14 @@
+name: UI binding regression
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  ui-bindings:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Test UI bindings with ASan and UBSan
+        env:
+          UBSAN_OPTIONS: halt_on_error=1
+        run: python3 tools/modernize/ui_binding_regression.py --sanitize

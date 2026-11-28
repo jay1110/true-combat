@@ -1,0 +1,96 @@
+name: Android runtime compatibility
+on:
+  workflow_dispatch:
+    inputs:
+      full_matrix:
+        description: Run the full 8-job validation matrix
+        type: boolean
+        default: false
+jobs:
+  emulator:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: ${{ fromJSON(inputs.full_matrix && '["x86","x86_64"]' || '["x86_64"]') }}
+        type: ${{ fromJSON(inputs.full_matrix && '["Debug","Release"]' || '["Release"]') }}
+    env:
+      ABI: ${{ matrix.abi }}
+      BUILD_TYPE: ${{ matrix.type }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install pinned NDK and emulator image
+        run: |
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'ndk;27.3.13750724' 'platform-tools' 'emulator' "system-images;android-29;default;$ABI"
+          echo "$ANDROID_HOME/platform-tools" >> "$GITHUB_PATH"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.3.13750724" >> "$GITHUB_ENV"
+      - run: python3 tools/release/bootstrap.py --destination build/dependencies
+      - name: Build modules, core and test executables
+        run: |
+          cmake -S . -B build/ci -G Ninja -DCMAKE_TOOLCHAIN_FILE="cmake/toolchains/android-$ABI.cmake" -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DBUILD_TESTING=ON -DTCE_BUILD_OMNIBOT_CORE=ON -DOMNIBOT_BOOST_INCLUDEDIR="$PWD/build/dependencies/boost_1_85_0"
+          cmake --build build/ci --parallel 4
+      - name: Run compatibility tests on Android
+        run: |
+          sudo setfacl -m "u:$(id -un):rw" /dev/kvm
+          export ANDROID_USER_HOME="$RUNNER_TEMP/android-user"
+          export ANDROID_AVD_HOME="$ANDROID_USER_HOME/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/avdmanager" create avd --device pixel -n tce-test -k "system-images;android-29;default;$ABI"
+          test -s "$ANDROID_AVD_HOME/tce-test.ini"
+          "$ANDROID_HOME/emulator/emulator" -list-avds | grep -Fx tce-test
+          adb start-server
+          "$ANDROID_HOME/emulator/emulator" -avd tce-test -no-window -no-audio -no-snapshot -no-boot-anim -gpu swiftshader_indirect &
+          trap 'adb emu kill || true' EXIT
+          emulator_pid=$!
+          for attempt in {1..150}; do
+            if ! kill -0 "$emulator_pid" 2>/dev/null; then
+              wait "$emulator_pid"
+              exit 1
+            fi
+            if adb get-state 2>/dev/null | grep -qx device; then break; fi
+            sleep 2
+          done
+          adb get-state
+          timeout 300 bash -c 'until adb shell getprop sys.boot_completed | grep -q 1; do sleep 2; done'
+          dir=/data/local/tmp/tce
+          adb shell mkdir -p "$dir"
+          adb push build/ci/src/compat-directory-fixture "$dir/"
+          for test in tce_geoip_test tce_score_packet_test tce_class_requests_test tce_compat_golden tce_compat_wasm_vector_golden tce_client_presentation_test tce_geoip_policy_test tce_item_presentation_test; do
+            adb push "build/ci/src/$test" "$dir/"
+            adb shell chmod 755 "$dir/$test"
+            case "$test" in
+              *golden) adb shell "$dir/$test" "$dir/compat-directory-fixture" ;;
+              *) adb shell "$dir/$test" ;;
+            esac
+          done
+  arm-userspace:
+    if: inputs.full_matrix
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [armv7, arm64]
+        type: [Debug, Release]
+    steps:
+      - uses: actions/checkout@v6
+      - name: Install NDK and QEMU user-mode runners
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'ndk;27.3.13750724'
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.3.13750724" >> "$GITHUB_ENV"
+      - run: python3 tools/release/bootstrap.py --destination build/dependencies
+      - name: Build ARM libraries and static Bionic test executables
+        env:
+          ARCH: ${{ matrix.arch }}
+          BUILD_TYPE: ${{ matrix.type }}
+        run: |
+          emulator=qemu-arm
+          if [[ "$ARCH" == arm64 ]]; then emulator=qemu-aarch64; fi
+          cmake -S . -B build/ci -G Ninja -DCMAKE_TOOLCHAIN_FILE="cmake/toolchains/android-$ARCH.cmake" \
+            -DTCE_ANDROID_API=29 -DCMAKE_BUILD_TYPE="$BUILD_TYPE" -DCMAKE_EXE_LINKER_FLAGS=-static \
+            -DCMAKE_CROSSCOMPILING_EMULATOR="$(command -v "$emulator")" -DBUILD_TESTING=ON \
+            -DTCE_BUILD_OMNIBOT_CORE=ON -DOMNIBOT_BOOST_INCLUDEDIR="$PWD/build/dependencies/boost_1_85_0"
+          cmake --build build/ci --parallel 4
+      - run: ctest --test-dir build/ci --no-tests=error --output-on-failure

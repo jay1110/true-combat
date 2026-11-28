@@ -16,6 +16,7 @@ from validate import workflows
 
 CORE_NAMES = {
     'windows-x86': 'omnibot_et.dll', 'windows-x64': 'omnibot_et_x64.dll',
+    'windows-arm64': 'omnibot_et.aarch64.dll',
     'linux-i386': 'omnibot_et.so', 'linux-x86_64': 'omnibot_et.x86_64.so',
     'linux-armv7': 'omnibot_et.armv7.so', 'linux-aarch64': 'omnibot_et.aarch64.so',
     'android-armv7': 'omnibot_et.android.armeabi-v7a.so',
@@ -33,7 +34,7 @@ def binary_header(target):
         data[:2] = b'MZ'
         struct.pack_into('<I', data, 60, 128)
         data[128:132] = b'PE\0\0'
-        struct.pack_into('<H', data, 132, 0x14c if target == 'windows-x86' else 0x8664)
+        struct.pack_into('<H', data, 132, {'windows-x86': 0x14c, 'windows-x64': 0x8664, 'windows-arm64': 0xaa64}[target])
         struct.pack_into('<H', data, 150, 0x2000)
         struct.pack_into('<H', data, 152, 0x10b if target == 'windows-x86' else 0x20b)
         return bytes(data)
@@ -104,12 +105,12 @@ class LooseBinaries(unittest.TestCase):
     def matrix(self, core_names=None):
         return [self.target(target, (core_names or {}).get(target)) for target in self.configs]
 
-    def test_full_matrix_contains_only_48_flat_binaries_with_native_names(self):
+    def test_full_matrix_contains_only_52_flat_binaries_with_native_names(self):
         manifests = self.matrix()
         archive = loose.collect(self.inputs, self.output)
         expected = {row['name'] for path in manifests for row in json.loads(path.read_text())['files']}
         with zipfile.ZipFile(archive) as zipped:
-            self.assertEqual(len(zipped.infolist()), 48)
+            self.assertEqual(len(zipped.infolist()), 52)
             self.assertEqual(set(zipped.namelist()), expected)
             self.assertIsNone(zipped.testzip())
             for entry in zipped.infolist():
@@ -120,7 +121,7 @@ class LooseBinaries(unittest.TestCase):
         self.assertEqual(self.verify.call_count, len(self.configs))
         self.assertEqual(self.validate.call_count, len(self.configs))
         report = json.loads((self.output / 'loose-report.json').read_text())
-        self.assertEqual(report['binary_count'], 48)
+        self.assertEqual(report['binary_count'], 52)
         self.assertEqual(set(report['targets']), set(self.configs))
         self.assertFalse(report['metadata_inside_archive'])
         self.assertEqual({path.name for path in (self.output / 'binaries').iterdir()}, expected)
@@ -136,7 +137,7 @@ class LooseBinaries(unittest.TestCase):
             self.assertNotIn('omnibot_et.dll', names)
             self.assertNotIn('omnibot_et.so', names)
             self.assertIn('cgame_mp_x86.dll', names)
-            self.assertEqual(len(names), 48)
+            self.assertEqual(len(names), 52)
 
     def test_collision_check_is_case_insensitive_and_never_overwrites(self):
         names = loose.flat_names([{'name': 'Omnibot_et.dll', 'target': 'windows-x86'},
@@ -265,9 +266,9 @@ class LooseBinaries(unittest.TestCase):
         self.assertTrue(all(method == 'GET' for method, endpoint in calls))
         artifacts.append({'id': 102, 'name': f'TCE2-{release_version}-Game-Loose-Binaries', 'expired': False})
         calls.clear()
-        self.assertEqual(loose.cleanup_intermediates('jay1110/true-combat', 123, request), 12)
+        self.assertEqual(loose.cleanup_intermediates('jay1110/true-combat', 123, request), 13)
         deleted = {endpoint.rsplit('/', 1)[1] for method, endpoint in calls if method == 'DELETE'}
-        self.assertEqual(deleted, {str(i) for i in range(1, 13)})
+        self.assertEqual(deleted, {str(i) for i in range(1, 14)})
 
     def test_builds_only_game_targets_and_workflow_upload_is_flat(self):
         for target in self.configs:

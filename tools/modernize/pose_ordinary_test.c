@@ -1,4 +1,5 @@
 #include "src/game/g_local.h"
+#include "src/game/g_tce_hit_debug.h"
 #include "src/game/g_tce_pose.h"
 #include "src/game/g_tce_pose_presentation.h"
 #include "src/game/g_tce_bullet_damage.h"
@@ -9,11 +10,32 @@
 #undef vsnprintf
 gentity_t g_entities[MAX_GENTITIES];level_locals_t level;
 vmCvar_t g_newbbox,g_leanmode;
+vmCvar_t g_weaponWallAvoidance;
 bg_character_t axisClassCharacters[7],alliedClassCharacters[7];
 static gclient_t clients[2];static animModelInfo_t fixtureModel,disguisedModel;static animation_t fixtureAnimations[2],disguisedAnimations[2];
 static char fixtureManifest[TCE_POSE_PRESENTATION_MANIFEST],fixtureCounter[32]="100";
 static float fixtureWorldFraction=1;static int skinCalls,failures,checks;
 #define CHECK(x) do {++checks;if(!(x)){++failures;fprintf(stderr,"FAIL %d %s\n",__LINE__,#x);}}while(0)
+/* This fixture exercises ordinary selection with the default debug log mode. */
+int G_TCEHitDebugLogAllowed(void) { return 0; }
+int G_TCEHitDebugTarget(int clientNum) { (void)clientNum; return 1; }
+
+void G_TCEHitDebugTrace(const char *stage, int shooter, int target, int region,
+    const trace_t *trace, const vec3_t start, const vec3_t end)
+{
+    CHECK(!strcmp(stage, "world"));
+    CHECK(shooter == 1 && target == -1 && region == -1);
+    CHECK(trace != NULL && start != NULL && end != NULL);
+}
+
+void QDECL G_Printf(const char *format, ...)
+{
+    va_list args;
+    va_start(args, format);
+    vfprintf(stderr, format, args);
+    va_end(args);
+}
+
 /* Actual preexisting diagnostic geometry services; fixture rays use zero angles. */
 void AngleVectors(const vec3_t a,vec3_t f,vec3_t r,vec3_t u) {
  double p=a[0]*(M_PI/180.0),y=a[1]*(M_PI/180.0),z=a[2]*(M_PI/180.0);
@@ -57,6 +79,7 @@ static void tick(int t){level.previousTime=level.time;level.time=t;G_TCEPresenta
 static int shoot(void){trace_t tr;tceBulletTraceContext_t context;vec3_t a={-100,0,20},b={100,0,20};memset(&context,0,sizeof(context));context.shotTime=context.receiptCeiling=(uint32_t)level.time;context.hit[1]=qtrue;G_TCETraceBullet(&tr,&g_entities[1],a,b,&context);return tr.entityNum;}
 static void result(const char *name,int expected){g_tcePresentationQuery_t q;int p=G_TCEPresentationQuery(0,(uint32_t)level.time,(uint32_t)level.time,&q),hit=shoot();printf("{\"case\":\"%s\",\"policy\":%d,\"hit_entity\":%d,\"epoch\":[%u,%u]}\n",name,p,hit,poseClients[0].acceptedEpoch[0],poseClients[0].acceptedEpoch[1]);CHECK(hit==expected);}
 int main(void){gentity_t *target=&g_entities[0];g_tcePosePresentationMetadata_t metadata;char ack[64];int i;
+ g_weaponWallAvoidance.integer = 1;
  memset(&fixtureModel,0,sizeof(fixtureModel));fixtureModel.numAnimations=2;
  for(i=0;i<2;++i){fixtureModel.animations[i]=&fixtureAnimations[i];strcpy(fixtureAnimations[i].name,i?"idle_torso":"idle_2h");fixtureAnimations[i].numFrames=fixtureAnimations[i].loopFrames=2;fixtureAnimations[i].frameLerp=fixtureAnimations[i].initialLerp=100;}
  alliedClassCharacters[2].animModelInfo=&fixtureModel;alliedClassCharacters[3].animModelInfo=&fixtureModel;

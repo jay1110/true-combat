@@ -1,6 +1,11 @@
 name: Mod build and compatibility smoke
 on:
   workflow_dispatch:
+    inputs:
+      full_matrix:
+        description: Run all 17 jobs (Linux, sanitizers, Windows and macOS)
+        type: boolean
+        default: false
 permissions:
   contents: read
 jobs:
@@ -9,8 +14,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        compiler: [clang, gcc]
-        type: [Debug, Release]
+        compiler: ${{ fromJSON(inputs.full_matrix && '["clang","gcc"]' || '["gcc"]') }}
+        type: ${{ fromJSON(inputs.full_matrix && '["Debug","Release"]' || '["Release"]') }}
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y ninja-build clang gcc g++ libboost-dev
@@ -19,6 +24,7 @@ jobs:
       - run: cmake --build build/ci --parallel 2
       - run: ctest --test-dir build/ci --output-on-failure
   sanitizer:
+    if: inputs.full_matrix
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -27,19 +33,52 @@ jobs:
       - run: cmake --build build/modern/linux-clang-asan --parallel 2
       - run: ctest --preset linux-clang-asan
   windows:
-    runs-on: windows-2022
+    if: inputs.full_matrix
+    runs-on: ${{ matrix.architecture == 'ARM64' && 'windows-11-arm' || 'windows-2022' }}
     strategy:
       fail-fast: false
       matrix:
-        architecture: [Win32, x64]
+        architecture: [Win32, x64, ARM64]
+        type: [Debug, Release]
     steps:
       - uses: actions/checkout@v4
-      - run: cmake -S . -B build/ci -A ${{ matrix.architecture }} -DBUILD_TESTING=ON -DTCE_BUILD_OMNIBOT_CORE=OFF -DTCE_BUILD_REFERENCE_TESTS=OFF
-      - run: cmake --build build/ci --config Release --parallel 2
-      - run: ctest --test-dir build/ci -C Release --output-on-failure
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python tools/release/bootstrap.py --destination build/dependencies
+      - run: python tools/modernize/vendor_check.py --out build/vendor-check.json
+      - run: cmake -S . -B build/ci -A ${{ matrix.architecture }} -DBUILD_TESTING=ON -DTCE_BUILD_OMNIBOT_CORE=ON -DOMNIBOT_BOOST_INCLUDEDIR="${{ github.workspace }}/build/dependencies/boost_1_85_0"
+      - run: cmake --build build/ci --config ${{ matrix.type }} --parallel 4
+      - run: ctest --test-dir build/ci -C ${{ matrix.type }} --no-tests=error --output-on-failure
   macos:
+    if: inputs.full_matrix
     runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        architectures: [arm64, x86_64, 'x86_64;arm64']
+        type: [Debug, Release]
+    env:
+      ARCHITECTURES: ${{ matrix.architectures }}
+      BUILD_TYPE: ${{ matrix.type }}
     steps:
-      - uses: actions/checkout@v4
-      - run: cmake -S . -B build/ci -DCMAKE_BUILD_TYPE=Release '-DCMAKE_OSX_ARCHITECTURES=x86_64;arm64' -DBUILD_TESTING=OFF -DTCE_BUILD_OMNIBOT_CORE=OFF
-      - run: cmake --build build/ci --parallel 2
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python tools/release/bootstrap.py --destination build/dependencies
+      - run: >-
+          cmake -S . -B build/ci -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
+          -DCMAKE_OSX_ARCHITECTURES="$ARCHITECTURES" -DBUILD_TESTING=ON
+          -DTCE_BUILD_OMNIBOT_CORE=ON
+          -DOMNIBOT_BOOST_INCLUDEDIR="$PWD/build/dependencies/boost_1_85_0"
+      - run: cmake --build build/ci --parallel 3
+      - name: Verify module and core slices
+        run: |
+          core=$(jq -er .library "build/ci/omnibot-runtime-$BUILD_TYPE.json")
+          for module in build/ci/bin/{qagame,cgame,ui}_mac "$core"; do
+            for cpu in ${ARCHITECTURES//;/ }; do
+              lipo "$module" -verify_arch "$cpu"
+            done
+          done
+      - run: ctest --test-dir build/ci --no-tests=error --output-on-failure

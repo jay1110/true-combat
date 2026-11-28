@@ -26,7 +26,7 @@ Configuration names are case-insensitive in the game. The [Cvar reference](Docs/
 - Omni-bots receive the existing player-contact push instead of being excluded from it.
 - Missing distant gunshot reports when a weapon supplies fewer echo variants than close-shot variants.
 - A prone-transition time check that could prevent aiming after approximately twelve days of server uptime by adding two absolute timestamps.
-- WASM mod modules importing binary128 compiler helpers such as `__multf3` from an engine built with an incompatible helper ABI. Modules now link their matching compiler builtins.
+- WASM mod modules importing binary128 compiler helpers such as `__multf3` from an engine built with an incompatible helper ABI. Modules now link the compiler builtins they use. The client, UI and server modules also carry their SDK’s long-double math so the web client can load them when the engine exposes a different `sqrtl` signature.
 
 ### Modified
 
@@ -36,6 +36,17 @@ Configuration names are case-insensitive in the game. The [Cvar reference](Docs/
 
 - Replaced the initial client toggle with `g_weaponWallAvoidance`: server, archived/serverinfo, default `1`; `0` disables the feature for everyone.
 - Updated the mod version to `1.0.5`.
+
+### Platform and compatibility fixes
+
+- Reduced the Release WebAssembly client game module from 72,519,916 to 1,014,179 bytes. The loader clears the omitted zero-filled data at startup, keeping the module within the web engine’s default 64 MiB main zone during file loading. The server game and Omni-bot modules use native WebAssembly 64-bit integer calls for compatibility with the ET Legacy web host.
+
+- Fixed native directory enumeration on 32-bit Linux and reads of directory records on systems that require aligned memory access.
+- Fixed the fireteam overlay on targets where plain `char` is unsigned. Empty slots now retain their sentinel value. Server class-request scans now stop at the end of the non-soldier roster.
+- Windows ARM64 builds now produce native UI, client game, server game and Omni-bot DLLs. The server locates the ARM64 bot core by its architecture-specific filename. GameMonkey uses the Windows ABI pointer width.
+- Fixed Apple SDK builds of Lua and PhysicsFS for iOS devices and simulators. The manual release workflow also prepares unsigned iOS modules for engine integration and separate Intel and Apple Silicon macOS binaries from the universal build.
+- Validation now covers native module builds, emulator and simulator tests, and a recorded 24-frame Northport client-prediction comparison. The platform report identifies the exact versions, runtime environments and outstanding gameplay checks. [Platform validation](Docs/platform-validation.md)
+- Build and validation workflows run on manual dispatch. Routine validation defaults to a reduced matrix, with broader checks available on request.
 
 ## 1.0.4 — 2026-11-08
 

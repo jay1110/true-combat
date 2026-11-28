@@ -60,9 +60,12 @@ elseif(WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux")
         set(TCE_MODULE_ARCH x64)
       endif()
     endif()
-  elseif(NOT WIN32 AND tce_cpu MATCHES "^(aarch64|arm64|armv8.*)$" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+  elseif(tce_cpu MATCHES "^(aarch64|arm64|armv8.*)$" AND CMAKE_SIZEOF_VOID_P EQUAL 8)
     set(TCE_TARGET_ARCH aarch64)
     set(TCE_MODULE_ARCH aarch64)
+    if(WIN32)
+      set(TCE_MODULE_ARCH arm64)
+    endif()
   elseif(NOT WIN32 AND tce_cpu MATCHES "^(arm|armv[5-8].*)$" AND CMAKE_SIZEOF_VOID_P EQUAL 4)
     set(TCE_TARGET_ARCH armv7)
     set(TCE_MODULE_ARCH armv7)
@@ -96,6 +99,20 @@ if(TCE_ENABLE_SANITIZERS)
   elseif(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
     target_compile_options(tce_build_options INTERFACE "-fsanitize=${TCE_SANITIZERS}" -fno-omit-frame-pointer)
     target_link_options(tce_build_options INTERFACE "-fsanitize=${TCE_SANITIZERS}")
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_C_COMPILER_ID STREQUAL "Clang")
+      # Shared modules use --no-undefined. Link Clang's sanitizer runtime
+      # explicitly. Some Clang packages omit their runtime directory from
+      # the loader search path even when -frtlib-add-rpath is requested.
+      separate_arguments(tce_clang_args NATIVE_COMMAND "${CMAKE_C_COMPILER_ARG1}")
+      if(CMAKE_C_COMPILER_TARGET)
+        list(APPEND tce_clang_args "--target=${CMAKE_C_COMPILER_TARGET}")
+      endif()
+      execute_process(COMMAND "${CMAKE_C_COMPILER}" ${tce_clang_args} --print-runtime-dir
+        OUTPUT_VARIABLE tce_clang_runtime_dir OUTPUT_STRIP_TRAILING_WHITESPACE
+        COMMAND_ERROR_IS_FATAL ANY)
+      target_link_options(tce_build_options INTERFACE -shared-libsan
+        "LINKER:-rpath,${tce_clang_runtime_dir}")
+    endif()
   else()
     message(FATAL_ERROR "Sanitizers require Clang, GCC or a compatible MSVC AddressSanitizer toolchain")
   endif()
@@ -120,8 +137,35 @@ function(tce_configure_mod target folder define)
     # Side modules otherwise import compiler arithmetic helpers from the host.
     # Emscripten versions can disagree on their legalized binary128 ABI (e.g.
     # __multf3), so bind the matching compiler builtins into each mod instead.
-    target_link_libraries(${target} PRIVATE "${TCE_WASM_BUILTINS_LIBRARY}")
+    if(NOT TARGET tce_wasm_math)
+      set(math_object "${CMAKE_CURRENT_BINARY_DIR}/tce_wasm_math.o")
+      set(math_roots "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/wasm_math_roots.c")
+      execute_process(COMMAND "${CMAKE_C_COMPILER}" -sSIDE_MODULE=1 -print-file-name=libc.a
+        OUTPUT_VARIABLE pic_libc OUTPUT_STRIP_TRAILING_WHITESPACE COMMAND_ERROR_IS_FATAL ANY)
+      if(NOT EXISTS "${pic_libc}")
+        message(FATAL_ERROR "Cannot locate the Emscripten side-module libc archive")
+      endif()
+      add_custom_command(OUTPUT "${math_object}"
+        COMMAND "${CMAKE_C_COMPILER}" -fPIC -r -nostdlib "${math_roots}" "${pic_libc}" -o "${math_object}"
+        DEPENDS "${math_roots}" "${pic_libc}" VERBATIM)
+      add_custom_target(tce_wasm_math DEPENDS "${math_object}")
+    endif()
+    add_dependencies(${target} tce_wasm_math)
+    target_sources(${target} PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/tce_wasm_math.o")
+    # SIDE_MODULE=1 normally forces every builtins object into the module,
+    # including unused functions that then require private engine globals.
+    target_link_libraries(${target} PRIVATE "-Wl,--no-whole-archive"
+      "${TCE_WASM_BUILTINS_LIBRARY}" "-Wl,--whole-archive")
     target_link_options(${target} PRIVATE -sSIDE_MODULE=1)
+    if(target STREQUAL "qagame")
+      target_link_options(${target} PRIVATE -sWASM_BIGINT=1)
+    endif()
+    find_package(Python3 COMPONENTS Interpreter REQUIRED)
+    set(compactor "${CMAKE_CURRENT_FUNCTION_LIST_DIR}/compact_wasm.py")
+    set_property(TARGET ${target} APPEND PROPERTY LINK_DEPENDS "${compactor}")
+    add_custom_command(TARGET ${target} POST_BUILD
+      COMMAND "${Python3_EXECUTABLE}" "${compactor}" "$<TARGET_FILE:${target}>"
+      VERBATIM)
     set_target_properties(${target} PROPERTIES OUTPUT_NAME "${target}.mp.wasm32" SUFFIX ".so")
   elseif(APPLE)
     # Do not activate the old MACOS_X/PPC math block in the SDK header.

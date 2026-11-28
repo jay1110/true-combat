@@ -233,7 +233,7 @@ class SharedClients(unittest.TestCase):
         rows=[self.row(target) for target in clients.target_table(self.repo)]
         data,metadata=clients.canonical_client(rows,clients.target_table(self.repo),VERSION,'game',self.repo)
         self.assertEqual(clients.check_canonical(data,VERSION,'game',repo=self.repo),metadata)
-        self.assertEqual(len(metadata['modules']),24)
+        self.assertEqual(len(metadata['modules']),26)
         reverse,_=clients.canonical_client(rows[::-1],clients.target_table(self.repo),VERSION,'game',self.repo)
         self.assertEqual(data,reverse)
 
@@ -244,6 +244,8 @@ class SharedClients(unittest.TestCase):
                 clients.canonical_client(rows,['windows-x86','linux-x86_64'],VERSION,'game',self.repo)
         with self.assertRaisesRegex(ValueError,'Wrong native client ABI'):
             self.row('linux-x86_64',overrides={'ui.mp.x86_64.so':binary_header('windows-x86')})
+        with self.assertRaisesRegex(ValueError,'Wrong native client ABI'):
+            self.row('windows-arm64',overrides={'ui_mp_arm64.dll':binary_header('windows-x64')})
         with self.assertRaisesRegex(ValueError,'Mixed client'):
             clients.canonical_client([self.row('windows-x86','navstudio')],['windows-x86'],VERSION,'game',self.repo)
 

@@ -158,8 +158,10 @@ static void reload_request_guards(void)
     pmoveExt_t savedExt;
     playerState_t savedPS;
     usercmd_t savedCommand;
-    check(sizeof(pmoveExt_t)==128&&offsetof(pmoveExt_t,tceReloadWeapon)==120&&
-          offsetof(pmoveExt_t,tceReloadRequestedAt)==124,"private reload suffix preserves the complete prior120-byte layout");
+    check(offsetof(pmoveExt_t, tceReloadWeapon) == 120 && sizeof(ext.tceReloadWeapon) == 4,
+          "reload weapon occupies bytes 120 to 123 after the historical prefix");
+    check(offsetof(pmoveExt_t, tceReloadRequestedAt) == 124 && sizeof(ext.tceReloadRequestedAt) == 4,
+          "reload timestamp occupies bytes 124 to 127 before later prediction history");
     for(kind=0;kind<15;++kind){
         reset();ps.weapons[0]=1u<<8;weaponDef[8].maxclip=30;weaponDef[8].reloadTime=1200;
         clip=TCE_BG_FindClipForWeapon(8);ammo=TCE_BG_FindAmmoForWeapon(8);ps.ammoclip[clip]=10;ps.ammo[ammo]=90;

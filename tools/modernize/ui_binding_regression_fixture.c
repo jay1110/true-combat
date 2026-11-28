@@ -2,13 +2,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#if defined(_WIN32)
 #undef vsnprintf
 int Q_vsnprintf(char *dest, int size, const char *format, va_list args)
 {
     return vsnprintf(dest, size, format, args);
 }
-#endif
 
 displayContextDef_t context, *DC = &context;
 qboolean g_waitingForKey;

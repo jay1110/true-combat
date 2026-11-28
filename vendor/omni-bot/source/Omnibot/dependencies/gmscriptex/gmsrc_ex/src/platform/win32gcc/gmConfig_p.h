@@ -23,10 +23,10 @@
 
 // system defines
 
-#if defined(__linux__) || defined(__EMSCRIPTEN__)
+#if defined(__linux__) || defined(__EMSCRIPTEN__) || defined(_WIN32)
   #define GM_LITTLE_ENDIAN      1
   #define GM_COMPILER_GCC
-  #if defined(__LP64__) // 64bit target
+  #if defined(__LP64__) || defined(_WIN64) // 64bit target
     #define GM_DEFAULT_ALLOC_ALIGNMENT 16
     #define GM_PTR_SIZE_64 // Ptr size is 64bit
   #else // 32bit target

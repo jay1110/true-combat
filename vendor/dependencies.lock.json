@@ -67,10 +67,46 @@
       ],
       "snapshot": {
         "files": 863,
-        "sha256": "2db055b29f479d478ee659fa4b6182b80d963bcf4872ab2f403e69951dfd9372",
+        "sha256": "03769ed832dde4cebba1f14e8ba50376ef5f797806ee863b5a5b491bf5bdc6ca",
         "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
       },
       "snapshot_history": [
+        {
+          "snapshot": {
+            "files": 863,
+            "sha256": "fe319e38179d37147d41dc0a4a814e2ca4720311f1ef7aa9692124de84f276b6",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-11-27",
+          "reviewed_change": "Link the Carbon and IOKit frameworks only for the macOS PhysicsFS backend. On iOS the existing backend uses POSIX."
+        },
+        {
+          "snapshot": {
+            "files": 863,
+            "sha256": "82178bab4e63b39cda05105c0b5fac8e9d616f158e17f206d45ac26de72aef7f",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-11-27",
+          "reviewed_change": "Use MinGW SDK header names and enable Clang structured exception syntax for the Windows thread-name notification."
+        },
+        {
+          "snapshot": {
+            "files": 863,
+            "sha256": "4193290f9b1c7784c28aadcb9001b46be7c06516e53a9abb46616661927db27b",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-11-27",
+          "reviewed_change": "Use portable WildMagic SinCos and the Windows performance counter on ARM64."
+        },
+        {
+          "snapshot": {
+            "files": 863,
+            "sha256": "2db055b29f479d478ee659fa4b6182b80d963bcf4872ab2f403e69951dfd9372",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-11-27",
+          "reviewed_change": "Select the Windows pointer width for GameMonkey on MinGW and MSVC, including ARM64."
+        },
         {
           "snapshot": {
             "files": 862,
@@ -170,10 +206,19 @@
       "role": "Compatible bridge subset, preserved independently from core until equivalence checks justify consolidation.",
       "snapshot": {
         "files": 15,
-        "sha256": "af6be82120c60d98f426c8b88db9d3155936c09fa4b9598129f6493e9d201cb5",
+        "sha256": "e2ebc728aa147fd8938084d0c94cdc1cb7651a3ff8bce6047c46f2a8256a3075",
         "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
       },
       "snapshot_history": [
+        {
+          "snapshot": {
+            "files": 15,
+            "sha256": "af6be82120c60d98f426c8b88db9d3155936c09fa4b9598129f6493e9d201cb5",
+            "algorithm": "sha256 of sorted relative-path + NUL + file-sha256 + LF records"
+          },
+          "superseded": "2026-11-27",
+          "reviewed_change": "Match the Windows ARM64 QGame loader to the built .aarch64.dll bot core."
+        },
         {
           "snapshot": {
             "files": 15,

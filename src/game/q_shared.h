@@ -146,7 +146,9 @@ typedef int intptr_t;
 
 // buildstring will be incorporated into the version string
 #ifdef NDEBUG
-#if defined(_M_X64)
+#if defined(_M_ARM64) || defined(__aarch64__)
+#define CPUSTRING "win-arm64"
+#elif defined(_M_X64)
 #define CPUSTRING "win-x86_64"
 #elif defined(_M_IX86)
 #define CPUSTRING   "win-x86"
@@ -154,7 +156,9 @@ typedef int intptr_t;
 #define CPUSTRING   "win-AXP"
 #endif
 #else
-#if defined(_M_X64)
+#if defined(_M_ARM64) || defined(__aarch64__)
+#define CPUSTRING "win-arm64"
+#elif defined(_M_X64)
 #define CPUSTRING "win-x86_64"
 #elif defined(_M_IX86)
 #define CPUSTRING   "win-x86-debug"

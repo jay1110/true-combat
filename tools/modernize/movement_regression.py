@@ -64,7 +64,7 @@ def main() -> int:
     units += [function(move, name, index) for name in
              ("PM_ClipVelocity", "PM_CheckJump", "PM_ClimbSlideMove", "PM_CrashLand")]
     units += [function(move, "PM_ViewHeightInteger"), function(move, "PM_CheckDuck")]
-    units += [function(move, "PM_CmdScale", index), function(move, "PM_Friction"),
+    units += [function(move, "PM_CmdScale", index), function(move, "PM_Friction", int(portable)),
               function(move, "PM_Accelerate")]
     if index == 0:
         units.append("#if defined(__linux__)\n" + function(move, "PM_AccelerateHeld") + "\n#endif")

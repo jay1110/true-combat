@@ -85,6 +85,10 @@ target_include_directories(omnibot-common
 )
 
 if (WIN32)
+    if (MINGW AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        # The debugger thread-name notification uses Windows structured exceptions.
+        set_property(SOURCE BatchBuild.cpp APPEND PROPERTY COMPILE_OPTIONS -fms-extensions)
+    endif()
     if (MSVC)
         target_include_directories(omnibot-common PUBLIC "${DEPENDENCIES_PATH}/gmscriptex/gmsrc_ex/src/platform/win32msvc")
     else()
@@ -113,7 +117,7 @@ if (UNIX)
     endif ()
 endif ()
 
-if(APPLE)
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
     find_library(CARBON_FW Carbon)
     target_link_libraries(omnibot-common PUBLIC ${CARBON_FW})
     find_library(IOKIT_FW IOKit)

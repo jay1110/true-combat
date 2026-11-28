@@ -11,6 +11,11 @@ from verify_omnibot_boundary import verify_module_bytes, macho_architectures
 from resource_assets import resource_assets, resource_fingerprint
 
 ROOT = Path(__file__).resolve().parents[2]
+WINDOWS_PE_FORMATS = {
+    'windows-x86': (0x014c, 0x10b),
+    'windows-x64': (0x8664, 0x20b),
+    'windows-arm64': (0xaa64, 0x20b),
+}
 INPUT_PREFIX = 'client-inputs/'
 SHARED_UI = ('options_customise_hud.menu', 'options_controls.menu', 'options_system.menu')
 PUBLIC_UI = ('ingame_main.menu', 'menus.txt', 'menus_gt2.txt', 'menus_gt5.txt', 'menus_gt7.txt')
@@ -129,7 +134,7 @@ def check_module(data, role, target, variant):
     try:
         if target.startswith('windows-') and data[:2] == b'MZ':
             pe = struct.unpack_from('<I', data, 60)[0]
-            expected = (0x14c, 0x10b) if target == 'windows-x86' else (0x8664, 0x20b)
+            expected = WINDOWS_PE_FORMATS[target]
             valid = (data[pe:pe + 4] == b'PE\0\0' and
                      (struct.unpack_from('<H', data, pe + 4)[0], struct.unpack_from('<H', data, pe + 24)[0]) == expected and
                      bool(struct.unpack_from('<H', data, pe + 22)[0] & 0x2000))

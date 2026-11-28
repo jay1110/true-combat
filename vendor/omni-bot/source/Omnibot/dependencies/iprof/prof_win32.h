@@ -3,6 +3,15 @@
 
 typedef __int64 Prof_Int64;
 
+#if defined(_M_ARM64) || defined(__aarch64__)
+#include <windows.h>
+static inline void Prof_get_timestamp(Prof_Int64 *result)
+{
+   LARGE_INTEGER counter;
+   QueryPerformanceCounter(&counter);
+   *result = counter.QuadPart;
+}
+#else
 #ifdef __cplusplus
   inline
 #elif _MSC_VER >= 1200
@@ -21,5 +30,7 @@ typedef __int64 Prof_Int64;
          }
 #endif
       }
+
+#endif
 
 #endif

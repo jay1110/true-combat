@@ -27,7 +27,7 @@ ANDROID = {'android-armv7': ('armeabi-v7a','armv7'),
 class AndroidTargets(unittest.TestCase):
     def test_matrix_presets_and_build_commands_include_all_four_android_abis(self):
         targets = clients.target_table()
-        self.assertEqual(len(targets),12)
+        self.assertEqual(len(targets),13)
         presets = json.loads((ROOT/'CMakePresets.json').read_text())
         configure = {row['name']:row for row in presets['configurePresets']}
         builds = {row['name']:row for row in presets['buildPresets']}

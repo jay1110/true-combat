@@ -1,0 +1,62 @@
+name: iOS module build
+on:
+  workflow_dispatch:
+    inputs:
+      full_matrix:
+        description: Run the full 6-job validation matrix
+        type: boolean
+        default: false
+jobs:
+  build:
+    runs-on: macos-15
+    strategy:
+      fail-fast: false
+      matrix:
+        sdk: ${{ fromJSON(inputs.full_matrix && '["iphoneos","iphonesimulator"]' || '["iphonesimulator"]') }}
+        cpu: ${{ fromJSON(inputs.full_matrix && '["arm64","x86_64"]' || '["arm64"]') }}
+        configuration: ${{ fromJSON(inputs.full_matrix && '["Debug","Release"]' || '["Release"]') }}
+        exclude:
+          - sdk: iphoneos
+            cpu: x86_64
+    env:
+      SDK: ${{ matrix.sdk }}
+      CPU: ${{ matrix.cpu }}
+      BUILD_TYPE: ${{ matrix.configuration }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: python tools/release/bootstrap.py --destination build/dependencies
+      - name: Cross-compile unsigned modules for the selected SDK
+        run: |
+          cmake -S . -B build/ci -G Ninja -DCMAKE_SYSTEM_NAME=iOS \
+            -DCMAKE_OSX_SYSROOT="$(xcrun --sdk "$SDK" --show-sdk-path)" \
+            -DCMAKE_OSX_ARCHITECTURES="$CPU" -DCMAKE_BUILD_TYPE="$BUILD_TYPE" \
+            -DBUILD_TESTING=ON -DTCE_BUILD_OMNIBOT_CORE=ON \
+            -DOMNIBOT_BOOST_INCLUDEDIR="$PWD/build/dependencies/boost_1_85_0"
+          cmake --build build/ci --parallel 3
+      - name: Check module CPU and Apple platform
+        run: |
+          platform=IOS
+          if [[ "$SDK" == iphonesimulator ]]; then platform=IOSSIMULATOR; fi
+          jq -er '.modules[]' "build/ci/tce-modules-$BUILD_TYPE.json" > "$RUNNER_TEMP/modules"
+          jq -er .library "build/ci/omnibot-runtime-$BUILD_TYPE.json" >> "$RUNNER_TEMP/modules"
+          while IFS= read -r module; do
+            lipo "$module" -verify_arch "$CPU"
+            xcrun vtool -show-build "$module" | grep -E "platform[[:space:]]+$platform$"
+          done < "$RUNNER_TEMP/modules"
+      - name: Run compatibility tests on the ARM64 simulator
+        if: matrix.sdk == 'iphonesimulator' && matrix.cpu == 'arm64'
+        run: |
+          device=$(xcrun simctl list devices available -j | jq -er '[.devices | to_entries[] | select(.key | contains("SimRuntime.iOS-")) | .value[] | select(.name | startswith("iPhone"))][0].udid')
+          xcrun simctl boot "$device"
+          trap 'xcrun simctl shutdown "$device"' EXIT
+          xcrun simctl bootstatus "$device" -b
+          for test in tce_geoip_test tce_score_packet_test tce_class_requests_test tce_compat_golden tce_compat_wasm_vector_golden tce_client_presentation_test tce_geoip_policy_test tce_item_presentation_test; do
+            args=()
+            case "$test" in
+              *golden) args+=("$PWD/build/ci/src/compat-directory-fixture") ;;
+            esac
+            xcrun simctl spawn "$device" "$PWD/build/ci/src/$test.app/$test" "${args[@]}"
+          done

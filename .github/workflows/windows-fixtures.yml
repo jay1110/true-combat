@@ -1,0 +1,38 @@
+name: Windows gameplay and HUD regressions
+on:
+  workflow_dispatch:
+    inputs:
+      full_matrix:
+        description: Run both Debug and Release fixtures
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  regressions:
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        configuration: ${{ fromJSON(inputs.full_matrix && '["Debug","Release"]' || '["Release"]') }}
+    env:
+      CONFIGURATION: ${{ matrix.configuration }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Run native regression fixtures
+        shell: pwsh
+        run: |
+          $failed = @()
+          foreach ($fixture in 'commandmap_grid','hit_debug','pose_clock','stats_popup','tce_weapon_stats') {
+            $options = @()
+            if ($fixture -eq 'stats_popup') {
+              $options = @('--configuration', $env:CONFIGURATION)
+            } elseif ($fixture -eq 'pose_clock') {
+              if ($env:CONFIGURATION -eq 'Debug') { $options = @('--debug') }
+            } elseif ($env:CONFIGURATION -eq 'Release') {
+              $options = @('--optimized')
+            }
+            python "tools/modernize/${fixture}_regression.py" --out "build/fixtures/$fixture" @options
+            if ($LASTEXITCODE -ne 0) { $failed += $fixture }
+          }
+          if ($failed.Count) { throw "Failed fixtures: $($failed -join ', ')" }

@@ -31,6 +31,7 @@ troubleshooting
 
 changelog
 building
+platform-validation
 authoring
 architecture
 credits

@@ -55,7 +55,7 @@ jobs:
   binaries:
     needs: plan
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
+    timeout-minutes: ${{ matrix.target == 'macos-universal' && 90 || 30 }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
@@ -119,8 +119,23 @@ jobs:
         run: python tools/release/bootstrap.py --destination build/dependencies
       - name: Build modules and matched gameplay/editor bot core
         run: python tools/release/build.py --target ${{ matrix.target }} --variant ${{ matrix.variant }} --build build/release --out out/release --boost build/dependencies/boost_1_85_0 --parallel 4
+      - name: Check wasm module imports against web client requirements
+        if: matrix.target == 'wasm32'
+        run: node tools/release/check_wasm_math.cjs build/release/modules/tce-modules-Release.json
       - name: Validate target client inputs and runtime closure
         run: python tools/release/validate.py archives out/release
+      - name: Prepare thin macOS and unsigned iOS integration binaries
+        if: matrix.target == 'macos-universal'
+        run: bash tools/release/apple_binaries.sh "${{ matrix.variant }}"
+      - name: Upload Apple binaries by SDK and architecture
+        if: matrix.target == 'macos-universal'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: TCE2-${{ needs.plan.outputs.version }}-Apple-${{ matrix.variant }}
+          path: out/apple/
+          if-no-files-found: error
+          retention-days: 14
+          overwrite: true
       - name: Upload ABI inputs and concrete build logs for aggregation
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

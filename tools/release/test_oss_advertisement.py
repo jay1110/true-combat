@@ -22,7 +22,7 @@ def advertised_mask(targets):
     for target in targets:
         if target == 'macos-universal':
             result |= PLATFORM_BITS['macos-x86_64'] | PLATFORM_BITS['macos-arm64']
-        elif target in ('android-armv7', 'wasm32'):
+        elif target in ('android-armv7', 'wasm32', 'windows-arm64'):
             continue  # No established bit exists for these ABIs.
         else:
             result |= PLATFORM_BITS[target]

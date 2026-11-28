@@ -14,9 +14,12 @@ def main():
     results = []
     for package in lock['packages']:
         directory = args.root / package['path']
-        files = sorted(path for path in directory.rglob('*') if path.is_file())
-        records = ''.join(path.relative_to(directory).as_posix() + '\0' +
-                          hashlib.sha256(path.read_bytes()).hexdigest() + '\n' for path in files)
+        # Preserve the component order used to produce the existing Windows pins.
+        # Keep original spelling in each record and break case ties deterministically.
+        files = sorted((path.relative_to(directory) for path in directory.rglob('*') if path.is_file()),
+                       key=lambda path: (tuple(part.lower() for part in path.parts), path.as_posix()))
+        records = ''.join(path.as_posix() + '\0' +
+                          hashlib.sha256((directory / path).read_bytes()).hexdigest() + '\n' for path in files)
         actual = hashlib.sha256(records.encode()).hexdigest()
         expected = package['snapshot']
         results.append({'package': package['path'], 'files': len(files), 'sha256': actual,

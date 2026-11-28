@@ -1,4 +1,8 @@
 /* Bounded server Lua access to the engine virtual filesystem. */
+#if defined(__linux__) && !defined(__ANDROID__) && !defined(__EMSCRIPTEN__)
+/* readdir and stat must represent 64-bit inode numbers on 32-bit Linux. */
+#define _FILE_OFFSET_BITS 64
+#endif
 #include "g_local.h"
 #include "lua.h"
 #include "lauxlib.h"

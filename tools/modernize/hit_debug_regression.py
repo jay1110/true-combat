@@ -17,7 +17,7 @@ def main():
     parser.add_argument("--sanitize", action="store_true")
     args = parser.parse_args()
     out = args.out.resolve(); out.mkdir(parents=True, exist_ok=True)
-    env, cc = msvc_environment(out, "x64" if args.sanitize else "x86", "14.44" if args.sanitize else "14.39")
+    env, cc = msvc_environment(out, "x64" if args.sanitize else "x86", "14.44" if args.sanitize else None)
     fixture = Path(__file__).with_name("hit_debug_fixture.c")
     inputs = [fixture, Path(__file__), *(ROOT / p for p in (
         "src/game/g_tce_hit_debug.c", "src/game/g_tce_hit_debug.h", "src/game/tce_hit_debug.h",
